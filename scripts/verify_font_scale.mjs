@@ -1699,9 +1699,99 @@ async function sectionP(browser, engine) {
   await close();
 }
 
+// ── Q 段:設計 3d 更多——四段分組(已有)＋每一列左邊一顆單字圓章 ─────────────────
+// 設計 3d 的三項提案裡,分組與「省電模式」我方本來就有(議題 3 那批),真正缺的是圓章欄。
+const Q_SNAP = () => {
+  const sheet = document.getElementById('moreSheet');
+  const rows = [...sheet.querySelectorAll('.ms-row')].filter(r => r.offsetParent !== null || !r.hidden);
+  const vis = r => r.getClientRects().length > 0 && getComputedStyle(r).display !== 'none';
+  const info = r => {
+    // 摺線以下的列要先捲進來再做命中測試(心得 19:量到的否則是「首屏看不到」不是「點不到」)
+    r.scrollIntoView({ block: 'center' });
+    const ic = r.querySelector('.ms-ic');
+    const label = r.querySelector('span:not(.ms-ic):not(.chev):not(.seg):not(.toggle):not(.ms-tail)');
+    const rr = r.getBoundingClientRect();
+    const tail = r.querySelector('.chev, .toggle, .seg, .ms-tail');
+    return { stat: r.classList.contains('ms-stat'), vis: vis(r),
+      ic: ic ? (ic.textContent || '').trim() : null,
+      icW: ic ? +ic.getBoundingClientRect().width.toFixed(1) : 0,
+      labelLeft: label ? +(label.getBoundingClientRect().left - rr.left).toFixed(1) : null,
+      txt: label ? (label.textContent || '').trim() : '',
+      h: +rr.height.toFixed(1),
+      // 圓章撐不撐高整列:量「這一列的內容空間」(最小高度扣掉內距與底線)夠不夠放這顆圓章。
+      // 數字全部從當下量到的樣式推導,不寫死 23/40/48(心得 35)。
+      room: (() => { const cs = getComputedStyle(r);
+        const mh = parseFloat(cs.minHeight) || 0;
+        return +(mh - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - parseFloat(cs.borderBottomWidth)).toFixed(1); })(),
+      icH: ic ? +ic.getBoundingClientRect().height.toFixed(1) : 0,
+      tailRight: tail ? +(rr.right - tail.getBoundingClientRect().right).toFixed(1) : null,
+      // 真的點得到嗎:命中列的中央偏左(標籤區),要落在這一列裡面
+      hit: (() => { const el = document.elementFromPoint(rr.left + rr.width * 0.4, rr.top + rr.height / 2);
+        return !!(el && el.closest('.ms-row') === r); })() };
+  };
+  return { open: sheet.classList.contains('open') || getComputedStyle(sheet).transform !== 'none',
+    secs: [...sheet.querySelectorAll('.ms-sec')].map(x => (x.textContent || '').trim()),
+    rows: rows.map(info) };
+};
+async function sectionQ(browser, engine) {
+  const tag = `${engine} 393pt`;
+  const { page, errs, close } = await boot(browser, { width: 393 });
+  await page.evaluate(() => { if (state.playing) togglePlay(); });
+  await page.evaluate(() => document.getElementById('tabMore').click());
+  await page.waitForTimeout(900);
+  const A = await page.evaluate(c => eval('(' + c + ')')(), Q_SNAP.toString());
+  const act = A.rows.filter(r => !r.stat && r.vis), stat = A.rows.filter(r => r.stat);
+  ok(`Q1 ${tag} 正向對照:更多開得起來,每一個動作列都有一顆帶字的圓章`,
+    act.length >= 10 && act.every(r => r.ic && r.ic.length === 1 && r.icW >= 20),
+    JSON.stringify({ 動作列: act.length, 沒圓章: act.filter(r => !r.ic).map(r => r.txt) }));
+  // 圓章要能當定位點:兩列同一個字就失去辨識力
+  const dup = Object.entries(act.reduce((m, r) => (m[r.ic] = (m[r.ic] || 0) + 1, m), {})).filter(([, n]) => n > 1);
+  ok(`Q2 ${tag} 圓章的字彼此不重複`, dup.length === 0, JSON.stringify(dup));
+  // 圓章不可以把標籤擠歪或把尾巴推離右緣:所有動作列的標籤左緣要一致
+  const lefts = [...new Set(act.map(r => Math.round(r.labelLeft)))];
+  ok(`Q3 ${tag} 所有動作列的標籤起點對齊,尾巴仍貼右`,
+    lefts.length === 1 && act.every(r => r.tailRight == null || r.tailRight <= 20),
+    JSON.stringify({ 標籤左緣: lefts, 尾巴離右緣: [...new Set(act.map(r => r.tailRight))] }));
+  // 資料狀態是**讀數不是動作**:不給動作圓章,但標籤要對齊(不然那五列會凸出來)
+  // 有幾列讀數會現身是 D4 的狀態(即時/捷運/重播/時段/車數 各自依狀態 hidden),不是本段的事:
+  // 這裡只要求「現身的那些」沒有動作圓章、而且對齊。
+  ok(`Q4 ${tag} 資料狀態列沒有動作圓章,但標籤與其他列對齊(現身 ${stat.length} 列)`,
+    stat.length >= 1 && stat.every(r => !r.ic) &&
+    stat.every(r => r.labelLeft != null && Math.abs(r.labelLeft - lefts[0]) <= 2),
+    JSON.stringify({ 讀數列: stat.length, 左緣: [...new Set(stat.map(r => r.labelLeft))], 動作列左緣: lefts }));
+  ok(`Q5 ${tag} 四段分組標題都在`,
+    ['地圖顯示', '資訊', '觀看模式', '分享與資料'].every(k => A.secs.includes(k)), JSON.stringify(A.secs));
+  // 反向對照:舊的臨時符號(◐ ♪ ◌ ⏺ ◎ ↗ 與「縣 」前綴)不可以還留在標籤裡——不然就變成
+  // 「圓章加上去了,但舊符號也還在」,兩套圖示疊著。
+  ok(`Q6 ${tag} 反向對照:標籤裡的臨時符號都清掉了`,
+    act.every(r => !/[◐♪◌⏺◎↗]/.test(r.txt)), JSON.stringify(act.map(r => r.txt).filter(t => /[◐♪◌⏺◎↗]/.test(t))));
+  ok(`Q7 ${tag} 每一列 ≥48 高,而且標籤區真的點得到`,
+    act.every(r => r.h >= 48 && r.hit), JSON.stringify(act.filter(r => r.h < 48 || !r.hit).map(r => ({ t: r.txt, h: r.h, hit: r.hit }))));
+  // 🔴 反向對照:更新那列會改自己的字。圓章是第一個子元素,用 firstElementChild 寫就會寫進圓章裡
+  //    (實作時真的踩到)。這條專門守它:換完字之後,圓章還是「版」、標籤才是新字。
+  const upd = await page.evaluate(() => {
+    appUpdateRender({ state: { hasUpdate: true, showBanner: false }, latest: { v: '9.9.9' } });
+    const row = document.querySelector('.ms-row[data-act="update"]');
+    return { ic: (row.querySelector('.ms-ic') || {}).textContent || '',
+      label: (row.querySelector('span:not(.ms-ic)') || {}).textContent || '' };
+  });
+  ok(`Q8 ${tag} 反向對照:更新列換字換的是標籤,不是圓章`,
+    upd.ic === '版' && /有新版可更新/.test(upd.label), JSON.stringify(upd));
+  // 🔴 圓章不可以把列撐高。實作時真的踩到:26px 的圓章讓**每一列**都長高,零變化對照抓到
+  //    #msThemeSeg 整條往下掉 4.5px。判準比的是「圓章高」與「這一列本來就有的內容空間」,
+  //    不是某個固定的 px 值——列的最小高度在三個字級檔各不相同(40/68/80)。
+  const tall = act.filter(r => r.icH > r.room);
+  ok(`Q10 ${tag} 圓章塞得進列本來的高度(不把每一列都撐高)`,
+    act.length > 0 && tall.length === 0,
+    tall.length ? JSON.stringify(tall.slice(0, 2).map(r => ({ t: r.txt, 圓章: r.icH, 空間: r.room })))
+                : `圓章 ${act[0].icH} ≤ 空間 ${act[0].room}`);
+  ok(`Q9 ${tag} 零 pageerror`, errs.length === 0, errs.slice(0, 1).join(''));
+  await close();
+}
+
 await assertTarget();
 // SECTIONS=H,I 只跑指定段(突變測試用);不設就跑全部——預設永遠是「全跑」,不能靠環境變數才完整。
-const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ, K: sectionK, L: sectionL, M: sectionM, MX: sectionMx, N: sectionN, NX: sectionNx, O: sectionO, P: sectionP };
+const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ, K: sectionK, L: sectionL, M: sectionM, MX: sectionMx, N: sectionN, NX: sectionNx, O: sectionO, P: sectionP, Q: sectionQ };
 const want = (process.env.SECTIONS || '').split(',').map(x => x.trim().toUpperCase()).filter(Boolean);
 const run = want.length ? want : Object.keys(ALL);
 for (const k of run) if (!ALL[k]) { console.error(`未知段別 ${k}`); process.exit(2); }

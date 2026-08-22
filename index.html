@@ -2694,6 +2694,24 @@
      不再補一條同義的 display:none(補了也是死碼)。既有那幾列的 inline style 不動,它們照樣有效。 */
   .more-sheet .ms-row.ms-stat .ms-tail b { color: var(--ink); font-weight: 800; }
   .more-sheet .ms-sec { padding: 9px 14px 3px; font-size: calc(11px * var(--uis)); font-weight: 800; letter-spacing: 3px; color: var(--faint); border-bottom: 1px dashed var(--line-faint); }
+  /* 設計 3d:每一列左邊一顆單字圓章。改之前只有六列帶著臨時符號(◐ ♪ ◌ ⏺ ◎ ↗)、其餘什麼都沒有,
+     整份選單掃下去沒有固定的定位點。單字圓章**不是 emoji**(2026-08-12 使用者裁決:更多選單不放
+     emoji,那條裁的是 ⭐ 那種彩色圖案),與 tab bar 的「探/旅」是同一套字面圖示語彙。 */
+  /* 🔴 23 不是 26 也不是 24——這個數字是量出來的,不是估的:圓章只要超過「列的最小高度扣掉
+     內距與底線」就會把**每一列**都撐高(零變化對照當場抓到 #msThemeSeg 整條往下掉)。
+     兩個斷點剛好同一個答案:桌面 min-height 40 − 內距 8×2 − 底線 1 = 23;
+     手機 min-height 48 − 內距 12×2 − 底線 1 = 23。大/特大檔的 min-height 是 68/80,綽綽有餘。 */
+  .more-sheet .ms-ic {
+    flex: none; width: calc(23px * var(--uis)); height: calc(23px * var(--uis));
+    display: grid; place-items: center; border: 1.5px solid var(--line); border-radius: 50%;
+    font-size: calc(12px * var(--uis)); font-style: normal; font-weight: 800; color: var(--faint);
+  }
+  /* .ms-row 是 space-between,三個子項會被平均推開 ⇒ 標籤要自己吃掉中間所有空間,尾巴才回得到最右 */
+  .more-sheet .ms-ic + span { flex: 1; }
+  /* 資料狀態那幾列是**讀數不是動作**,不給動作圓章;但標籤要跟其他列對齊,補一段等寬縮排。
+     🔴 用 margin 不用 padding:padding-left 只把**字**往內推,盒子左緣原地不動——看起來對齊了,
+        但量出來(與判準 Q4)還是差 36px,而且盒子重疊會讓命中測試指向錯的元素。 */
+  .more-sheet .ms-row.ms-stat > span:first-child { margin-left: calc(23px * var(--uis) + 10px); }
   .more-sheet .ms-row.warnrow { background: var(--warn-bg); color: var(--warn-ink); font-weight: 800; }
   /* 評分列不用 emoji(2026-08-12 使用者裁決:更多選單不放 emoji),改品牌紅粗體強調 */
   .more-sheet .ms-row .rate-cta { color: var(--red); font-weight: 800; }
@@ -4717,26 +4735,26 @@
     <!-- data-act=theme 列內含真 <button>(seg 三顆),不可巢狀 button,維持 div;其餘列 v0718i 改真 button 供鍵盤 Tab/Enter 直達 -->
     <!-- 議題3:四段分組(地圖顯示/資訊/觀看模式/分享與資料);列本身原封只重排,被旗標隱藏的列(recBtn/accountBtn/locateBtn)按性質歸段 -->
     <!-- 使用說明:刻意排在所有分組之前(第一次找不到功能的人第一眼就看到);桌面走同一個 sheet(#toolsFab) -->
-    <button class="ms-row" data-act="help" data-close="1"><span>使用說明</span><span class="chev">›</span></button>
+    <button class="ms-row" data-act="help" data-close="1"><i class="ms-ic">說</i><span>使用說明</span><span class="chev">›</span></button>
     <div class="ms-sec">地圖顯示</div>
-    <div class="ms-row" data-act="theme"><span>◐ 外觀</span><span class="seg" id="msThemeSeg"><button data-v="light">亮</button><button data-v="dark">暗</button><button data-v="auto">自動</button></span></div>
-    <button class="ms-row" data-act="fontscale"><span>字級</span><span class="ms-tail"><b id="msFontVal">標準</b><span class="chev">›</span></span></button>
-    <button class="ms-row" data-act="panelOpacity"><span>面板半透明</span><span class="toggle" data-tg="panelOpacity"></span></button>
+    <div class="ms-row" data-act="theme"><i class="ms-ic">亮</i><span>外觀</span><span class="seg" id="msThemeSeg"><button data-v="light">亮</button><button data-v="dark">暗</button><button data-v="auto">自動</button></span></div>
+    <button class="ms-row" data-act="fontscale"><i class="ms-ic">字</i><span>字級</span><span class="ms-tail"><b id="msFontVal">標準</b><span class="chev">›</span></span></button>
+    <button class="ms-row" data-act="panelOpacity"><i class="ms-ic">透</i><span>面板半透明</span><span class="toggle" data-tg="panelOpacity"></span></button>
     <!-- 實機取證(TestFlight 試用期):左下角小字條顯示 rAF/相機/旗標即時狀態,截圖即可回報;正式上架前評估拔除 -->
-    <button class="ms-row" data-act="diagStrip"><span>診斷資訊</span><span class="toggle" data-tg="diagStrip"></span></button>
-    <button class="ms-row" id="trtcDiagExportRow" data-act="exportTrtcDiag" hidden><span>匯出捷運診斷</span><span class="chev">↓</span></button>
-    <button class="ms-row" data-proxy="satBtn"><span>衛星影像</span><span class="toggle" data-tg="satBtn"></span></button>
-    <button class="ms-row" data-act="track"><span>軌道與路線</span><span class="chev">›</span></button>
-    <button class="ms-row" data-proxy="xingBtn"><span>平交道記號</span><span class="toggle" data-tg="xingBtn"></span></button>
-    <button class="ms-row" data-proxy="introBtn"><span>特殊站介紹</span><span class="toggle" data-tg="introBtn"></span></button>
-    <button class="ms-row" data-proxy="dirBtn"><span>列車方向箭頭</span><span class="toggle" data-tg="dirBtn"></span></button>
-    <button class="ms-row" data-proxy="pinBtn"><span>儲存地點</span><span class="toggle" data-tg="pinBtn"></span></button>
+    <button class="ms-row" data-act="diagStrip"><i class="ms-ic">診</i><span>診斷資訊</span><span class="toggle" data-tg="diagStrip"></span></button>
+    <button class="ms-row" id="trtcDiagExportRow" data-act="exportTrtcDiag" hidden><i class="ms-ic">出</i><span>匯出捷運診斷</span><span class="chev">↓</span></button>
+    <button class="ms-row" data-proxy="satBtn"><i class="ms-ic">衛</i><span>衛星影像</span><span class="toggle" data-tg="satBtn"></span></button>
+    <button class="ms-row" data-act="track"><i class="ms-ic">軌</i><span>軌道與路線</span><span class="chev">›</span></button>
+    <button class="ms-row" data-proxy="xingBtn"><i class="ms-ic">平</i><span>平交道記號</span><span class="toggle" data-tg="xingBtn"></span></button>
+    <button class="ms-row" data-proxy="introBtn"><i class="ms-ic">介</i><span>特殊站介紹</span><span class="toggle" data-tg="introBtn"></span></button>
+    <button class="ms-row" data-proxy="dirBtn"><i class="ms-ic">向</i><span>列車方向箭頭</span><span class="toggle" data-tg="dirBtn"></span></button>
+    <button class="ms-row" data-proxy="pinBtn"><i class="ms-ic">釘</i><span>儲存地點</span><span class="toggle" data-tg="pinBtn"></span></button>
     <!-- 定位是原生 App 限定(LOCATE_ENABLED),網站/PWA 沒有:比照 #nearBtn 的 hidden 先 inline 藏,
          不靠 setupMapTools 才移除——它前段一拋(2026-07-26 實測過),這列就會留成「點了沒反應」的死列。
          App 的還原點在 setupMapTools 的 LOCATE_ENABLED 分支 -->
-    <button class="ms-row" data-proxy="nearBtn" data-close="1" style="display:none"><span>◎ 附近車站</span><span class="chev">›</span></button>
+    <button class="ms-row" data-proxy="nearBtn" data-close="1" style="display:none"><i class="ms-ic">近</i><span>附近車站</span><span class="chev">›</span></button>
     <!-- 縣市快速移動(Batch B):#citySel 縣市下拉的手機新家;點列展開 17 縣市 chip,點 chip 飛過去並關 sheet -->
-    <button class="ms-row" data-act="cities"><span>縣 縣市快速移動</span><span class="chev">›</span></button>
+    <button class="ms-row" data-act="cities"><i class="ms-ic">縣</i><span>縣市快速移動</span><span class="chev">›</span></button>
     <div class="ms-cities" id="msCities" hidden></div>
     <!-- 資料狀態(設計 D4 排法B 的代價償還):頂列徽章把 LIVE／看板校正／REPLAY／尖峰 收成色點、
          班次數整個收起來之後,那些字樣需要一個看得到全文的家。使用者 2026-08-22 裁示「全部收成色點,
@@ -4750,26 +4768,26 @@
     <div class="ms-row ms-stat" id="msStatCount" hidden><span>目前車數</span><span class="ms-tail"><b id="msStatCountVal"></b></span></div>
     <div class="ms-sec">資訊</div>
     <!-- 已排提醒總覽:NOTIFY_LOCAL_ENABLED 才留(旗標關時 setupLocalNotifications 移除,比照 locateBtn) -->
-    <button class="ms-row" data-act="notify" data-close="1"><span>已排提醒</span><span class="chev">›</span></button>
-    <button class="ms-row" data-proxy="todayBtn" data-close="1"><span>今日台鐵動態</span><span class="chev">›</span></button>
+    <button class="ms-row" data-act="notify" data-close="1"><i class="ms-ic">提</i><span>已排提醒</span><span class="chev">›</span></button>
+    <button class="ms-row" data-proxy="todayBtn" data-close="1"><i class="ms-ic">今</i><span>今日台鐵動態</span><span class="chev">›</span></button>
     <!-- 全日班次走勢(Batch B):.flow 全日走勢圖的手機新家;點列把 #flowWrap 搬進下方 slot 並重繪,收合搬回原位 -->
-    <button class="ms-row" data-act="flow"><span>全日班次走勢</span><span class="chev">›</span></button>
+    <button class="ms-row" data-act="flow"><i class="ms-ic">勢</i><span>全日班次走勢</span><span class="chev">›</span></button>
     <div class="ms-flowslot" id="msFlowSlot" hidden></div>
     <div class="ms-sec">觀看模式</div>
-    <button class="ms-row warnrow" data-proxy="powerBtn"><span>省電模式（30fps）</span><span class="toggle" data-tg="powerBtn"></span></button>
-    <button class="ms-row" data-proxy="musicBtn"><span>♪ 背景音樂</span><span class="toggle" data-tg="musicBtn"></span></button>
-    <button class="ms-row" data-proxy="ambientBtn" data-close="1"><span>◌ 放空模式</span><span class="chev">›</span></button>
+    <button class="ms-row warnrow" data-proxy="powerBtn"><i class="ms-ic">省</i><span>省電模式（30fps）</span><span class="toggle" data-tg="powerBtn"></span></button>
+    <button class="ms-row" data-proxy="musicBtn"><i class="ms-ic">樂</i><span>背景音樂</span><span class="toggle" data-tg="musicBtn"></span></button>
+    <button class="ms-row" data-proxy="ambientBtn" data-close="1"><i class="ms-ic">放</i><span>放空模式</span><span class="chev">›</span></button>
     <!-- 錄影下架(v0717j,Stadia 條款):比照 #recBtn 先 inline 藏,不靠 setupRecorder 才移除——
          2026-07-26 實測 boot 前段一拋(setupMapTools 抓 null),setupRecorder 就永遠跑不到,這列會整個復活且可點。
          .ms-row 的 display:flex 蓋得過 [hidden],故只能用 inline style;旗標復活時由 setupRecorder 還原 -->
-    <button class="ms-row" data-proxy="recBtn" data-close="1" style="display:none"><span>⏺ 錄影 Beta</span><span class="chev">›</span></button>
+    <button class="ms-row" data-proxy="recBtn" data-close="1" style="display:none"><i class="ms-ic">錄</i><span>錄影 Beta</span><span class="chev">›</span></button>
     <div class="ms-sec">分享與資料</div>
-    <button class="ms-row" data-proxy="shareBtn" data-close="1"><span>↗ 分享畫面</span><span class="chev">›</span></button>
-    <button class="ms-row" data-proxy="importBtn" data-close="1" style="display:none"><span>Google 清單匯入</span><span class="chev">›</span></button>
+    <button class="ms-row" data-proxy="shareBtn" data-close="1"><i class="ms-ic">享</i><span>分享畫面</span><span class="chev">›</span></button>
+    <button class="ms-row" data-proxy="importBtn" data-close="1" style="display:none"><i class="ms-ic">匯</i><span>Google 清單匯入</span><span class="chev">›</span></button>
     <!-- 帳號同步下架(ACCOUNT_ENABLED=false):比照 #accountBtn 先 inline 藏,不靠 setupAccountUi 才移除。
          它有兩條走不到移除的路——setupMapTools 前段一拋(2026-07-26 實測過),以及 accountConfigured()
          為假時的提前 return;兩條都會留成「點了靜默無反應」的死列。還原點在 accountEnsureInit -->
-    <button class="ms-row" data-proxy="accountBtn" data-close="1" style="display:none"><span>帳號同步</span><span class="chev">›</span></button>
+    <button class="ms-row" data-proxy="accountBtn" data-close="1" style="display:none"><i class="ms-ic">帳</i><span>帳號同步</span><span class="chev">›</span></button>
     <!-- 關於(Batch B 第五段):placeFootBoxes() 把 site-foot 的四個 <details class="foot-box">
          (更新紀錄/資料來源與授權/贊助/隱私與服務條款)搬進 #msAbout(桌面搬回 site-foot);末列複製回報問題＋版本 -->
     <!-- 🔴 刻意放在 #msAboutSec 之前、不放進 #msAbout:index.html 的桌面 media query 對
@@ -4780,8 +4798,8 @@
          🔴 預設藏起來一律用 inline display:none,不可用 [hidden] 屬性——.ms-row 的
          display:flex 蓋得過 [hidden](既有的 #recBtn 那列就是為此用 inline style)。 -->
     <div class="ms-sec" id="msAppSec" style="display:none">軌島</div>
-    <button class="ms-row" data-act="update" style="display:none"><span>已是最新版</span><span class="chev">›</span></button>
-    <button class="ms-row" data-act="rate" data-close="1" style="display:none"><span class="rate-cta">給軌島評分</span><span class="chev">›</span></button>
+    <button class="ms-row" data-act="update" style="display:none"><i class="ms-ic">版</i><span>已是最新版</span><span class="chev">›</span></button>
+    <button class="ms-row" data-act="rate" data-close="1" style="display:none"><i class="ms-ic">評</i><span class="rate-cta">給軌島評分</span><span class="chev">›</span></button>
     <div class="ms-sec" id="msAboutSec">關於</div>
     <div class="ms-about" id="msAbout"></div>
     <div class="ms-about-links">
@@ -15279,7 +15297,9 @@ function appUpdateRender(res) {
   if (rate) rate.style.display = '';
   if (row) {
     row.style.display = '';
-    row.firstElementChild.textContent = state.hasUpdate
+    // 🔴 不可用 firstElementChild:設計 3d 之後每一列的第一個元素是左邊那顆單字圓章,
+    //    寫進去會把圓章的字換成「已是最新版　1.4.9」而標籤原封不動。指名標籤那顆 <span>。
+    (row.querySelector('span:not(.ms-ic)') || row).textContent = state.hasUpdate
       ? `有新版可更新　${latest.v}` : `已是最新版　${window.RAIL_APP_VERSION}`;
     row.classList.toggle('warnrow', state.hasUpdate);
     row.disabled = !state.hasUpdate;
