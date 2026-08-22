@@ -44,11 +44,13 @@
      ============================================================ */
   :root{
     color-scheme:light;
-    /* 橫放時動態島／瀏海吃掉左右各一條(14 Pro 起 59pt、X 世代 44pt)。直向時兩者都是 0，
-       所以加了也不動任何直向與桌面版面。包成變數而不是各處直接寫 env()：驗收要能把它覆寫成
-       59px 來模擬實機(Playwright 設不了 env())，而「值真的來自 env()」由原始碼斷言 L15c 把守。 */
-    --sa-l: env(safe-area-inset-left, 0px);
-    --sa-r: env(safe-area-inset-right, 0px);
+    /* 安全區單一入口。iOS／新瀏覽器讀標準 env()；Android WebView <140 的 env() 有已知錯誤，
+       Capacitor 8 會注入 --safe-area-inset-*，故必須讓它優先。四邊都包成別名，驗收也能覆寫
+       --sa-* 模擬瀏海、手勢條與三鍵導覽列。 */
+    --sa-t: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+    --sa-r: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+    --sa-b: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+    --sa-l: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
     /* 面 */
     --paper:#FFFDF6;            /* 卡片底（兩種暖白已合併，#FFF8EC 廢止） */
     --paper-tr:rgba(255,253,246,.97);
@@ -130,7 +132,7 @@
   body {
     margin: 0;
     /* viewport-fit=cover 後滿版到瀏海:流式佈局整體下移避讓動態島;無瀏海環境 env=0 零變化(底部 tabbar/sheet 各自帶 env 不經 body) */
-    padding-top: env(safe-area-inset-top, 0px);
+    padding-top: var(--sa-t);
     overscroll-behavior: none;
     font-family: var(--font);
     background: var(--bg-page);
@@ -540,7 +542,7 @@
   @keyframes recBlink { to { opacity: 0; } }
   /* ── 劇場模式提示膠囊(獨立 class,亮暗雙主題走 CSS 變數;不被 body.idle 隱藏) ── */
   .theater-pill {
-    position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 22px);
+    position: absolute; left: 50%; bottom: calc(var(--sa-b) + 22px);
     z-index: 900; display: flex; align-items: center; gap: 8px;
     max-width: calc(100% - 28px); box-sizing: border-box;
     background: var(--paper-tr); color: var(--ink-strong);
@@ -641,7 +643,7 @@
   body.rec-panel .badge, body.rec-panel .map-actions { display: none; }
   .record-screen { position: fixed; inset: 0; z-index: 2400; background: #000; color: #fff;
     display: flex; flex-direction: column; align-items: center; justify-content: space-between;
-    padding: 28px 20px calc(28px + env(safe-area-inset-bottom)); }
+    padding: 28px 20px calc(28px + var(--sa-b)); }
   .record-screen[hidden] { display: none; }
   /* 「回地圖」≠「停止錄製」，兩者刻意隔到最遠(左上角 vs 下方置中大白鈕)、樣式也刻意平淡(細描邊
      幽靈鈕 vs 純白實心大鈕)，避免使用者摸黑誤觸——見 #recordScreen 旁完整註解。 */
@@ -1353,7 +1355,7 @@
        偵測到才顯示(一般瀏覽器/主畫面 App 永不出現);× 關閉後記 localStorage 不再打擾 ── */
   .iab-hint {
     position: absolute; left: 50%; transform: translateX(-50%); z-index: 713;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 74px);
+    bottom: calc(var(--sa-b) + 74px);
     width: min(400px, calc(100% - 20px));
     background: var(--paper); border: 2px solid var(--navy); border-radius: 12px;
     box-shadow: var(--shadow-navy); padding: 10px 40px 10px 13px;
@@ -1424,7 +1426,7 @@
     border: 0; border-radius: 0;
   }
   /* fs 的 stage 滿版蓋到瀏海(沉浸式刻意),但退出鈕要讓位動態島 */
-  body.fs #fsFab { top: calc(12px + env(safe-area-inset-top, 0px)); }
+  body.fs #fsFab { top: calc(12px + var(--sa-t)); }
   /* 全畫面跟隨:資訊卡塞進左下跟隨面板,合併成一張可收放的卡(placeTrainCard 搬 DOM) */
   body.fs .follow-panel { width: 300px; max-height: calc(100vh - 160px); max-height: calc(100dvh - 160px); }
   body.fs .follow-panel.fp-min { width: auto; }
@@ -2238,7 +2240,7 @@
      刻意不進 .board 家族:.board 要加進 soloPanel 的互斥鏈＋每個 opener 補一行 close(10+ 處),
      而說明中心不需要跟地圖同時操作(每節的「試一次」就是代你操作),modal 天然置頂、零級聯改動。
      示意圖示與開關沿用既有 .hw-tag/.hw-stnbox/.seal/.toggle/.seg,亮暗主題自動跟著走。 */
-  .help-body { padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+  .help-body { padding-bottom: calc(16px + var(--sa-b)); }
   .help-quick { border: 1.5px solid var(--gold); border-radius: 11px; padding: 10px 12px; margin-bottom: 12px; background: var(--bg-stage); }
   .help-qh { font-size: 13px; font-weight: 900; letter-spacing: 1px; color: var(--plate-ink); margin-bottom: 6px; }
   .help-qstep { display: flex; gap: 9px; align-items: center; font-size: 12.5px; margin: 7px 0; }
@@ -2441,8 +2443,8 @@
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 1100;
     display: none; align-items: flex-start;
     /* v0721f 使用者回饋:下方留白收斂——內容區 58→52(鈕44+上4+下2+框1.5),safe-area 折讓 6px(max 保護無瀏海=0);--tabbar-clear 必須同式 */
-    height: calc(52px + max(env(safe-area-inset-bottom, 0px) - 6px, 0px));
-    padding: 4px 4px calc(2px + max(env(safe-area-inset-bottom, 0px) - 6px, 0px));
+    height: calc(52px + max(var(--sa-b) - 6px, 0px));
+    padding: 4px 4px calc(2px + max(var(--sa-b) - 6px, 0px));
     background: var(--paper); border-top: 1.5px solid var(--line);
     box-shadow: inset 0 3px 0 var(--gold);
   }
@@ -2464,7 +2466,7 @@
     max-height: 76dvh;
     background: var(--paper); border-top: 2px solid var(--navy);
     border-radius: 16px 16px 0 0;
-    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(10px + var(--sa-b));
   }
   .more-sheet .grab { display: block; width: 38px; height: 5px; border-radius: 3px; background: var(--line); margin: 7px auto 4px; flex: none; }
   .more-sheet .ms-head {
@@ -2498,7 +2500,7 @@
   .more-scrim { position: fixed; inset: 0; z-index: 1105; background: rgba(30,44,64,.26); display: none; }
   /* 診斷條(setDiagStrip):左下角單行小字,壓過一切但不吃指標;等寬數字方便逐秒比對截圖 */
   #diagStrip {
-    position: fixed; left: calc(4px + var(--sa-l)); bottom: calc(2px + env(safe-area-inset-bottom, 0px));
+    position: fixed; left: calc(4px + var(--sa-l)); bottom: calc(2px + var(--sa-b));
     z-index: 3000; pointer-events: none;
     font: 600 10px/1.4 ui-monospace, Menlo, monospace; letter-spacing: 0;
     color: var(--ink); background: var(--paper-tr); border-radius: 4px; padding: 1px 5px;
@@ -2526,9 +2528,9 @@
   @media (max-width: 900px), (max-height: 500px) {
     /* 底錨面板統一避讓基準:fixed tab bar 實高(58px)＋iOS 安全區(有瀏海才 >0);所有貼底表面以此為基準讓位,
        改一處全體同步。原本各自寫死的 66/64/68px 就是 58+讓位間距,改成 var+間距後計算值不變(桌面 var 未定義故不影響)。 */
-    :root { --tabbar-clear: calc(52px + max(env(safe-area-inset-bottom, 0px) - 6px, 0px)); } /* 與 .tabbar height 同式(v0721f 收斂) */
+    :root { --tabbar-clear: calc(52px + max(var(--sa-b) - 6px, 0px)); } /* 與 .tabbar height 同式(v0721f 收斂) */
     #musicVol { display: none; }
-    .wrap { padding: 8px 10px calc(70px + env(safe-area-inset-bottom, 0px)); }
+    .wrap { padding: 8px 10px calc(70px + var(--sa-b)); }
     /* 手機 header 收斂(mock §04-A):牌＋頁籤同列、導言藏、頁籤單列橫捲——省出地圖高度 */
     .header-row { gap: 8px; padding-bottom: 6px; }
     .header-mid { flex: 1 1 0; min-width: 0; gap: 6px; }
@@ -2585,29 +2587,35 @@
     #fsFab { display: none !important; }
     /* 地圖頂浮動列:手機 fs 常駐——左=軌島迷你牌,右=全/台/高/捷短標;首繪即佔位(topTabs 靜態預置);直播/放空不顯示 */
     body.fs .topbar {
-      position: absolute; top: calc(8px + env(safe-area-inset-top, 0px)); left: 10px; right: 10px;
+      position: absolute; top: calc(8px + var(--sa-t)); left: 10px; right: 10px;
       display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
       z-index: 620; pointer-events: none;
     }
     .topbar .tb-plate, .topbar .grouptabs, .topbar .alert-chip { pointer-events: auto; }
     /* 短標分頁不做橫捲與遮罩(mock 遷移表明定停用);.topbar .grouptabs 特異性壓過通案手機 .grouptabs 的 mask/overflow */
-    .topbar .grouptabs { margin: 0; flex-wrap: nowrap; overflow: visible; -webkit-mask-image: none; mask-image: none; }
-    .topbar .grouptabs .gtab { font-size: 13px; padding: 6px 14px; min-height: 36px; }
-    /* 公告警示鈕:與短標分頁同高並肩的琥珀 pill,有公告才出現(JS 控 hidden)。
-       margin-left:auto 吃掉軌島牌與分頁之間的空白 → 緊貼分頁左側;窄機(360pt)空白被吃完後才會開始
-       壓縮,而 .tb-plate 是 flex:none、分頁是 nowrap,兩者都不縮,故 chip 自己 flex:none 也不縮——
-       三者總寬超過可用寬時寧可溢出也不擠壞分頁(實測 360pt 仍有餘裕,見驗收 A1)。
-       桌面完全走不到這裡(.topbar 整條 display:none),桌面是橫幅＋× 那條路。 */
+    .topbar .grouptabs { margin: 0; gap: 8px; flex-wrap: nowrap; overflow: visible; -webkit-mask-image: none; mask-image: none; }
+    .topbar .grouptabs .gtab {
+      position: relative; /* ::after 熱區必須錨在各自按鈕，避免四顆一起蓋滿 .grouptabs */
+      flex: none; width: 36px; height: 36px; min-height: 36px; padding: 0; font-size: 13px;
+    }
+    /* 公告警示鈕與四顆短標都固定 36px；透明 ::after 仍補足 44px 觸控熱區。v6 在 360dp＋有公告時
+       三者總寬超過可用寬，最右「捷」會被裁掉；固定幾何後不再讓字級／公告數量撐寬整列。 */
     .topbar .alert-chip {
-      margin-left: auto; flex: none; display: flex; align-items: center; gap: 3px;
-      min-height: 36px; padding: 6px 11px;
+      position: relative; /* 同頁籤：透明熱區只屬於公告鈕本體 */
+      margin-left: auto; flex: none; display: flex; align-items: center; justify-content: center; gap: 0;
+      width: 36px; min-width: 36px; height: 36px; min-height: 36px; padding: 0;
       font: inherit; font-size: 13px; font-weight: 800; cursor: pointer;
       background: var(--warn-bg); color: var(--warn-ink);
-      border: 1.5px solid var(--warn-line); border-radius: var(--r-pill);
+      border: 1.5px solid var(--warn-line); border-radius: 50%;
       box-shadow: var(--shadow-1);
     }
+    /* 五顆視覺盒都是 36px、相鄰 gap 8px；44px 熱區剛好相接、不互相覆蓋。 */
+    .topbar .alert-chip::after, .topbar .grouptabs .gtab::after {
+      content: ''; position: absolute; left: 50%; top: 50%;
+      width: 44px; height: 44px; transform: translate(-50%, -50%);
+    }
     .topbar .alert-chip .ac-ico { font-size: 14px; line-height: 1; }
-    .topbar .alert-chip .ac-n:empty { display: none; }
+    .topbar .alert-chip .ac-n { display: none; }
     body.live .topbar { display: none !important; }
     body.ambient .topbar { display: none; }
     /* GPS 錄製常駐列 × 頂列頁籤衝突修復(2026-07-28 迴歸修復,獨立驗收抓到):#recordBar 原本
@@ -2629,7 +2637,7 @@
        topTabs 從 l190 掉到 l10)。visibility:hidden 保留版位不佔視覺,topTabs 才會留在右側原地。 */
     body.fs.recording:not(.rec-panel):not(.live):not(.ambient) .topbar .tb-plate { visibility: hidden; }
     body.fs.recording:not(.rec-panel):not(.live):not(.ambient) .record-bar {
-      position: absolute; top: calc(8px + env(safe-area-inset-top, 0px)); left: 10px;
+      position: absolute; top: calc(8px + var(--sa-t)); left: 10px;
       transform: none; width: max-content; max-width: 150px;
       flex-direction: column; align-items: stretch; justify-content: flex-start;
       gap: 2px; padding: 2px 7px 3px 9px; line-height: 1.15;
@@ -2647,14 +2655,14 @@
       flex: none; min-height: 28px; padding-top: 2px; padding-bottom: 2px;
     }
     /* 時鐘徽章讓位頂列:移到頂列下方(safe-area 隨動態島下移,與頂列一致) */
-    .badge { top: calc(58px + env(safe-area-inset-top, 0px)); left: 10px; gap: 9px; padding: 5px 11px 6px; }
+    .badge { top: calc(58px + var(--sa-t)); left: 10px; gap: 9px; padding: 5px 11px 6px; }
     .badge .clock { font-size: 17px; }
     .badge .count { font-size: 12px; }
     /* 行程連結的追蹤橫幅原本固定 top:56，會整片壓住這列時鐘。接收行程時先把非必要的
        地圖動作列收起，橫幅排到時鐘下方；關閉橫幅後 body.trip-open 移除，兩者自然復原。 */
     body.trip-open .map-actions { opacity: 0; pointer-events: none; }
-    body.trip-open .trip-banner { top: calc(118px + env(safe-area-inset-top, 0px)); }
-    body.trip-open .trip-banner ~ .dwell-plate { top: calc(251px + env(safe-area-inset-top, 0px)); }
+    body.trip-open .trip-banner { top: calc(118px + var(--sa-t)); }
+    body.trip-open .trip-banner ~ .dwell-plate { top: calc(251px + var(--sa-t)); }
     /* ≤400px 窄機:尖峰跟隨時 LIVE＋看板校正＋三位數班次會把徽章撐到壓住全畫面鈕——
        「看板校正」縮成純脈動藍點(400px 以上字樣不變) */
     @media (max-width: 400px) {
@@ -2685,12 +2693,12 @@
        下面這條只是保險層,防 resize 跨界那一瞬間 JS 還沒同步時橫幅用桌面定位閃現。 */
     .alert-banner { display: none; }
     /* 詳情面板改接在頂列正下方(原本接在橫幅下方的 138);56 是 #searchPanel 用過的同一個上錨值。 */
-    .alert-detail { top: calc(56px + env(safe-area-inset-top, 0px)); right: 8px; width: calc(100% - 16px); }
+    .alert-detail { top: calc(56px + var(--sa-t)); right: 8px; width: calc(100% - 16px); }
     body.fs .alert-detail, body.fs .board { right: 8px; }
-    .xing-help { top: calc(193px + env(safe-area-inset-top, 0px)); }
+    .xing-help { top: calc(193px + var(--sa-t)); }
     /* 平交道通過預測卡(手機):小卡+下移到動作列之下,限高留出底部跟隨卡空間 */
     .xing-card {
-      top: calc(191px + env(safe-area-inset-top, 0px)); right: 8px; left: auto;
+      top: calc(191px + var(--sa-t)); right: 8px; left: auto;
       width: 200px; max-width: calc(100% - 16px);
       max-height: calc(100% - 313px);
     }
@@ -2706,7 +2714,7 @@
     .xing-card .xc-foot { padding: 6px 10px 8px; font-size: 10px; }
     .xing-card .xc-empty { padding: 12px 10px; font-size: 11.5px; }
     /* 站名牌手機靠左橫條:下移到動作列之下(整寬顯示;fs 殼 ⛶ 已廢止,右側不再需讓位) */
-    .dwell-plate { top: calc(141px + env(safe-area-inset-top, 0px)); left: 8px; right: 8px; min-width: 0; max-width: none; }
+    .dwell-plate { top: calc(141px + var(--sa-t)); left: 8px; right: 8px; min-width: 0; max-width: none; }
     .dwell-plate .dp-intro { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     /* 面板家族:手機一律變底部 sheet(圓上角+抓把)。
        ── sheet 三段高與安全區夾限(2026-07-30)──
@@ -2720,7 +2728,7 @@
     .board {
       top: auto; bottom: 8px; left: 8px; right: 8px; width: auto;
       --sheet-size: 46%; --sheet-bottom-offset: 8px;
-      max-height: min(var(--sheet-size), calc(100dvh - var(--sheet-safe-top, env(safe-area-inset-top, 0px)) - 8px - var(--sheet-bottom-offset)));
+      max-height: min(var(--sheet-size), calc(100dvh - var(--sheet-safe-top, var(--sa-t)) - 8px - var(--sheet-bottom-offset)));
       border-radius: 14px 14px 10px 10px;
     }
     .board::before { content: ""; display: block; width: 38px; height: 4px; border-radius: 3px; background: rgba(255,253,246,.55); position: absolute; top: 5px; left: 50%; transform: translateX(-50%); z-index: 3; }
@@ -2736,7 +2744,7 @@
     #nearCard {
       top: auto; bottom: 8px; left: 8px; right: 8px; width: auto; max-width: none;
       --sheet-size: 46%; --sheet-bottom-offset: 8px;
-      max-height: min(var(--sheet-size), calc(100dvh - var(--sheet-safe-top, env(safe-area-inset-top, 0px)) - 8px - var(--sheet-bottom-offset)));
+      max-height: min(var(--sheet-size), calc(100dvh - var(--sheet-safe-top, var(--sa-t)) - 8px - var(--sheet-bottom-offset)));
       border-radius: 14px 14px 10px 10px; overscroll-behavior: contain;
     }
     #nearCard::before { content: ""; display: block; width: 38px; height: 4px; border-radius: 3px; background: rgba(255,253,246,.55); position: absolute; top: 5px; left: 50%; transform: translateX(-50%); z-index: 3; }
@@ -2747,7 +2755,7 @@
        結果會被整片蓋住。改成上錨——頂緣接在頂浮動列之下、底緣抵 tab bar,高度由上下錨撐出
        (max-height 解除);三段高與抓把不適用(高度固定、內容自己捲),故抓把隱藏且不進 initSheetHandle。 */
     #searchPanel {
-      top: calc(56px + env(safe-area-inset-top, 0px));
+      top: calc(56px + var(--sa-t));
       bottom: calc(var(--tabbar-clear) + 8px);
       max-height: none;
     }
@@ -2769,7 +2777,6 @@
        同一條路,擋在這裡就一次擋完。下面兩條 max-height 同步扣掉 inset,否則 padding 變厚會讓
        盒子超出可用高度。 */
     .takeout-modal {
-      --sa-t: env(safe-area-inset-top, 0px); --sa-b: env(safe-area-inset-bottom, 0px);
       padding: calc(8px + var(--sa-t)) 8px calc(8px + var(--sa-b)); place-items: stretch;
     }
     .takeout-dialog { width: 100%; max-height: calc(100dvh - 16px - var(--sa-t) - var(--sa-b)); align-self: center; }
@@ -2779,8 +2786,8 @@
     .takeout-row { grid-template-columns: 28px minmax(0,1fr); }
     .takeout-row > a, .takeout-row > button { grid-column: 2; justify-self: start; }
     .takeout-actions button { flex: 1; }
-    .notify-modal { place-items: end center; padding: 8px 8px calc(66px + env(safe-area-inset-bottom, 0px)); }
-    .notify-dialog { width: 100%; max-height: calc(100dvh - 82px - env(safe-area-inset-bottom, 0px)); align-self: end; border-radius: 16px 16px 10px 10px; }
+    .notify-modal { place-items: end center; padding: 8px 8px calc(66px + var(--sa-b)); }
+    .notify-dialog { width: 100%; max-height: calc(100dvh - 82px - var(--sa-b)); align-self: end; border-radius: 16px 16px 10px 10px; }
     .notify-field { grid-template-columns: 96px minmax(0, 1fr); }
     /* 手機資訊卡整體縮小:卡寬與字級圖示全面降一級;底部讓開速度膠囊 */
     /* 貼底小卡讓開 tab bar:原 60px 無 env,瀏海機(env≈34)tab bar 高 92px 會蓋住小卡下緣(真機回報病灶)。
@@ -2827,7 +2834,7 @@
       --sheet-size: 46%; --sheet-bottom-offset: calc(var(--tabbar-clear) + 8px);
       bottom: var(--sheet-bottom-offset); /* =原 66+env */
       width: auto; margin: 0;
-      max-height: min(var(--sheet-size), calc(100dvh - var(--sheet-safe-top, env(safe-area-inset-top, 0px)) - 8px - var(--sheet-bottom-offset)));
+      max-height: min(var(--sheet-size), calc(100dvh - var(--sheet-safe-top, var(--sa-t)) - 8px - var(--sheet-bottom-offset)));
       overflow-y: auto; overscroll-behavior: contain; /* 契約④:內容捲動只在 sheet 內 */
       border-radius: 14px 14px 10px 10px; padding: 0 14px 12px; z-index: 1105;
       scrollbar-width: thin; scrollbar-color: var(--line) transparent;
@@ -2869,7 +2876,7 @@
        連 12 筆的新竹拉到大段也只到 517px 而不是 88%=743px,因為被內容擋住)。
        明確拉到大段時補下限 ⇒ 大段一定撐到 88%(仍受頂部安全區夾限);小/中段維持貼合內容,不拿空白硬撐。 */
     .board.expand, .traincard.tc-sheet.expand, #nearCard.expand {
-      min-height: min(var(--sheet-size), calc(100dvh - var(--sheet-safe-top, env(safe-area-inset-top, 0px)) - 8px - var(--sheet-bottom-offset)));
+      min-height: min(var(--sheet-size), calc(100dvh - var(--sheet-safe-top, var(--sa-t)) - 8px - var(--sheet-bottom-offset)));
     }
     .traincard.tc-sheet.sheet-small .tc-body,
     .traincard.tc-sheet.sheet-small .tc-freeseat,
@@ -2987,7 +2994,7 @@
     /* 放空模式(手機):看戲不操作——控制列只留「離開放空」一顆,tab bar 也收 */
     body.ambient .controls > :not(#ambientBtn):not(#ambientStyleBtn) { display: none; }
     body.ambient .tabbar, body.ambient .more-sheet, body.ambient .more-scrim { display: none; }
-    body.ambient .controls { left: auto; right: 8px; bottom: 8px; width: max-content; transform: none; overflow: visible; }
+    body.ambient .controls { left: auto; right: 8px; bottom: calc(8px + var(--sa-b)); width: max-content; transform: none; overflow: visible; }
     body.ambient .follow-panel, body.ambient .freq-card { width: 176px; padding: 7px 10px 8px; bottom: 8px; }
     body.ambient .follow-panel .fp-prog,
     body.ambient .follow-panel .fp-dest,
@@ -3003,7 +3010,7 @@
        首次進場 2 秒與長按的標籤 chip 由 setupToolRail() 生成。 ── */
     .map-actions {
       display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
-      position: absolute; right: calc(10px + var(--sa-r, 0px)); top: calc(100px + env(safe-area-inset-top, 0px)); z-index: 620;
+      position: absolute; right: calc(10px + var(--sa-r, 0px)); top: calc(100px + var(--sa-t)); z-index: 620;
     }
     .alert-detail:not([hidden]) ~ .map-actions { opacity: 0; pointer-events: none; }
     /* ⚠️ position 用 relative 不用 static:鈕的 ::after 觸控熱區是 absolute + width:100%,
@@ -3069,7 +3076,7 @@
     body.fs .board.expand, body.fs .board.sheet-small,
     body.fs #nearCard.expand, body.fs #nearCard.sheet-small,
     body.fs .traincard.tc-sheet.expand, body.fs .traincard.tc-sheet.sheet-small {
-      top: calc(52px + env(safe-area-inset-top, 0px));
+      top: calc(52px + var(--sa-t));
       bottom: calc(var(--tabbar-clear) + 8px);
       left: auto; right: calc(8px + var(--sa-r));
       width: var(--rail-w); max-width: none;
@@ -3096,7 +3103,7 @@
     body.fs .follow-panel {
       left: calc(10px + var(--sa-l)); right: auto;
       /* 58=頂列實高 49.8+間距 8(合約4 的 56 是照 mock 頂列 40 算的,規則是「頂列底+8」不是常數) */
-      top: calc(58px + env(safe-area-inset-top, 0px));
+      top: calc(58px + var(--sa-t));
       bottom: calc(var(--tabbar-clear) + 8px) !important;
       width: 220px; max-height: none;
       overflow-y: auto; overscroll-behavior: contain;
@@ -3128,7 +3135,7 @@
     /* 捷運跟車卡維持左下小卡(§04c 只重排台鐵/高鐵跟隨欄):沿用限高與 sheet-open 底錨 */
     body.fs.sheet-open .freq-card { bottom: calc(var(--tabbar-clear) + 2px) !important; }
     body.fs .freq-card {
-      max-height: calc(100dvh - var(--tabbar-clear) - 64px - env(safe-area-inset-top, 0px));
+      max-height: calc(100dvh - var(--tabbar-clear) - 64px - var(--sa-t));
       overflow-y: auto;
     }
     /* §04c 改判:dwell-show.sheet-open 淡掉跟隨欄的那條(2761)在橫式**反轉**——
@@ -3143,7 +3150,7 @@
 
     /* 工具堆(§04c 合約5):頂列下方右錨;面板側欄開著時整疊左移讓位,讓開量讀 --rail-w
        單一事實來源,transition 180ms。跟隨鎖已在欄內,原 --lockctl-clear 機制整組退役。 */
-    body.fs .map-actions { top: calc(56px + env(safe-area-inset-top, 0px)); transition: right .18s ease; }
+    body.fs .map-actions { top: calc(56px + var(--sa-t)); transition: right .18s ease; }
     body.fs.sheet-open .map-actions, body.fs.train-open .map-actions {
       right: calc(var(--rail-w) + 18px + var(--sa-r));
     }
@@ -3270,7 +3277,7 @@
        整組換右半版面。左半地圖留著只為方向感(相機已由 recenterTo 的 search-open 閘暫停)。 */
     body.fs #searchPanel {
       width: max(420px, 50vw); max-width: none;
-      top: env(safe-area-inset-top, 0px);
+      top: var(--sa-t);
       bottom: 0; right: var(--sa-r); border-radius: 12px 0 0 12px;
     }
     /* 鍵盤期間 tab bar 隱藏(省 52px、避開鍵盤上緣);頂列壓暗降級成背景,搜尋是唯一主角 */
@@ -9392,6 +9399,7 @@ const ACCOUNT_ENABLED = false; // 此旗標只控制帳號 UI 要不要 eager �
 // 面板停在「請在 App 內訂閱」,不出現任何購買鈕)。未訂閱者在網站看到的是 teaser/upsell 面,
 // 90 天逐日資料本身由 worker.js 的 checkPlusEntitlement() 伺服器端強制,不靠這支前端旗標。
 const PLUS_ENABLED = (() => { try {
+  if (IS_NATIVE_APP && window.Capacitor?.getPlatform?.() === 'android') return false;
   if (window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()) return true;
   return new URLSearchParams(location.search).get('plus') === '1';
 } catch (e) { return false; } })();
