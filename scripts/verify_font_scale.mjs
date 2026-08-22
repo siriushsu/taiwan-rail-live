@@ -369,6 +369,61 @@ async function sectionF(browser, engine) {
   }
 }
 
+// ── G 段:第三條倍率——觸控目標與章(設計對照表 觸控目標 44/52/60、設計 6d 章 64→88) ──
+// 這一段守的是「盒子」不是「字」:倍率放大字的時候盒子不會自己跟著長,設計的觸控目標那一列
+// 因此必須獨立驗。G4 是反向對照——三條倍率必須互不相等,否則等於又退回一條。
+const G_TAP = { std: 44, large: 52, xlarge: 60 };   // 設計對照表「觸控目標」那一列
+const G_SEAL = { std: 56, large: 66, xlarge: 76 };  // 我方章基準 56,吃與觸控目標同一條(設計 64→88 是 ×1.375)
+
+async function sectionG(browser, engine) {
+  for (const tier of ['std', 'large', 'xlarge']) {
+    const tag = `${engine} ${tier} 393pt`;
+    const { page, errs, close } = await boot(browser, { width: 393, tier });
+    const r = await page.evaluate(() => {
+      const vis = el => el && el.getClientRects().length > 0;
+      const tabs = [...document.querySelectorAll('.tabbar button')].filter(vis);
+      const journey = tabs.find(x => /旅/.test(x.textContent));
+      if (journey) journey.click();
+      const seals = [...document.querySelectorAll('#ridePanel .seal')].filter(vis);
+      const rowsByY = {};
+      seals.forEach(s => { const b = s.getBoundingClientRect(); (rowsByY[Math.round(b.y / 4)] ||= []).push(b); });
+      const perRow = Object.values(rowsByY).map(a => a.length);
+      const cs = seals[0] && getComputedStyle(seals[0]);
+      const panel = document.getElementById('ridePanel');
+      const pr = panel && panel.getBoundingClientRect();
+      const sealOut = seals.filter(s => { const b = s.getBoundingClientRect(); return pr && (b.right > pr.right + 0.5 || b.left < pr.left - 0.5); }).length;
+      return {
+        tabN: tabs.length,
+        tapMin: tabs.length ? Math.min(...tabs.map(x => x.getBoundingClientRect().height)) : 0,
+        sealN: seals.length,
+        seal: seals.length ? +seals[0].getBoundingClientRect().width.toFixed(1) : 0,
+        rotated: !!(cs && cs.transform !== 'none'),
+        hasDate: seals.some(s => s.querySelector('small') && s.querySelector('small').textContent.trim()),
+        perRowMax: perRow.length ? Math.max(...perRow) : 0,
+        sealOut,
+        ramps: (() => { const c = getComputedStyle(document.documentElement);
+          return ['--ui', '--uis', '--uit'].map(k => +c.getPropertyValue(k).trim()); })(),
+      };
+    });
+
+    // 正向對照:先證明 tab 鈕與章都真的量得到,不然下面每一條在「什麼都沒渲染」時也成立
+    ok(`G1 ${tag} 正向對照:tab 鈕與章都量得到`, r.tabN >= 4 && r.sealN >= 6, `tab=${r.tabN} seal=${r.sealN}`);
+    // 觸控目標吃設計對照表,不是吃主倍率——吃主倍率會變成 44/55/66,比設計大一號
+    ok(`G2 ${tag} tab 觸控目標 ≈ 設計的 ${G_TAP[tier]}px`, Math.abs(r.tapMin - G_TAP[tier]) <= 1.2, `tapMin=${r.tapMin}`);
+    ok(`G3 ${tag} 章直徑 ≈ ${G_SEAL[tier]}px`, Math.abs(r.seal - G_SEAL[tier]) <= 1.5, `seal=${r.seal}`);
+    // 三條倍率必須互不相等(標準檔則必須全部是 1)——少了這條,把 --uit 設回 --ui 也會全綠
+    const [u, us, ut] = r.ramps;
+    ok(`G4 ${tag} 三條倍率${tier === 'std' ? '在標準檔全部是 1' : '互不相等且 --uis < --uit < --ui'}`,
+      tier === 'std' ? (u === 1 && us === 1 && ut === 1) : (us < ut && ut < u),
+      `ui=${u} uis=${us} uit=${ut}`);
+    // 6d:放大不該讓章變回貼紙——歪斜與蓋章日期都要留著
+    ok(`G5 ${tag} 章仍然是歪的、日期還在`, r.rotated && r.hasDate, `rot=${r.rotated} date=${r.hasDate}`);
+    ok(`G6 ${tag} 沒有任何一枚章被擠出面板`, r.sealOut === 0, `out=${r.sealOut}`);
+    ok(`G7 ${tag} 零 pageerror`, errs.length === 0, errs.slice(0, 1).join(''));
+    await close();
+  }
+}
+
 await assertTarget();
 for (const [engine, launcher] of [['chromium', chromium], ['webkit', webkit]]) {
   const browser = await launcher.launch();
@@ -378,6 +433,7 @@ for (const [engine, launcher] of [['chromium', chromium], ['webkit', webkit]]) {
   await sectionD(browser, engine);
   await sectionE(browser, engine);
   await sectionF(browser, engine);
+  await sectionG(browser, engine);
   await browser.close();
 }
 const pass = results.filter(r => r.pass).length;

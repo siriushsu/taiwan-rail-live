@@ -53,6 +53,9 @@
        照主倍率放大會比設計大 18%,反而把「同一份版面塞進更多字」吃回去。
        全檔 12px 以下的 font-size 走這一顆,12.5px 以上走 --ui。 */
     --uis: 1;
+    /* 第三條:觸控目標與圖示盒(設計對照表「觸控目標」那一列 44→52→60,以及 6d 的章 64→88)。
+       它們比主文溫和、比小字積極;吃主倍率會變成 44→55→66,比設計大一號,白白吃掉地圖。 */
+    --uit: 1;
     /* 橫放時動態島／瀏海吃掉左右各一條(14 Pro 起 59pt、X 世代 44pt)。直向時兩者都是 0，
        所以加了也不動任何直向與桌面版面。包成變數而不是各處直接寫 env()：驗收要能把它覆寫成
        59px 來模擬實機(Playwright 設不了 env())，而「值真的來自 env()」由原始碼斷言 L15c 把守。 */
@@ -94,8 +97,8 @@
   }
   /* 字級三階:大 x1.25、特大 x1.5(設計檔 TURN 10 / TURN 12 的倍率)。
      只掛在 html 上,任何子樹都拿得到;沒有 data-fs 就是標準(--ui:1)。 */
-  html[data-fs=large]  { --ui: 1.25; --uis: 1.14; }
-  html[data-fs=xlarge] { --ui: 1.5;  --uis: 1.29; }
+  html[data-fs=large]  { --ui: 1.25; --uis: 1.14; --uit: 1.18; }
+  html[data-fs=xlarge] { --ui: 1.5;  --uis: 1.29; --uit: 1.36; }
 
   html[data-theme=dark]{
     color-scheme:dark;
@@ -1109,7 +1112,10 @@
   .passport .ph-stamps, #ridePanel .ph-stamps { display: flex; flex-wrap: wrap; gap: 10px 10px; align-items: flex-start; }
   /* 印章(.seal):圓章 52px、框 2.5、旋 -8°;得章=印泥紅、成就=金、未得=虛線灰不旋轉可點重播 */
   .seal {
-    width: 56px; height: 56px; border-radius: 50%; border: 2.5px solid var(--red); color: var(--red);
+    /* 設計 6d:章 64→88(×1.375),與「觸控目標」同一條溫和倍率——章是拇指要點的東西,
+       跟著主倍率放大會比設計大一號,一排就擠不下三枚了。歪斜與日期一律留著(放大不該讓它變回貼紙)。 */
+    width: calc(56px * var(--uit)); height: calc(56px * var(--uit));
+    border-radius: 50%; border: 2.5px solid var(--red); color: var(--red);
     display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
     transform: rotate(-8deg); background: transparent; flex: none; cursor: pointer;
     text-align: center; overflow: hidden; padding: 3px;
@@ -1126,7 +1132,8 @@
      三態(設計書第 2 節):跟完=灰藍虛線不旋轉 / 搭過=實線單圈不旋轉 / 到訪=雙圈+歪斜(手蓋的章一定是歪的)。
      站等升級走 .t0(特等站,金);次數直接標數字不做疊印濃度(使用者 07-25 明示)。 */
   .stn-seal {
-    width: 50px; height: 50px; border-radius: 50%; border: 2px solid var(--red); color: var(--red);
+    width: calc(50px * var(--uit)); height: calc(50px * var(--uit));
+    border-radius: 50%; border: 2px solid var(--red); color: var(--red);
     display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
     background: transparent; flex: none; text-align: center; overflow: hidden; padding: 2px;
     font-variant-numeric: tabular-nums; cursor: default;
@@ -1306,7 +1313,8 @@
   .follow-panel .fp-tripshare:hover { background: var(--red); }
   .follow-panel.fp-min .fp-tripshare { display: none; }
   .follow-panel .fp-notify {
-    margin-top: 8px; width: 100%; min-height: 44px; text-align: center;
+    /* 設計 6e:「提醒我」在特大是 60px 的整行目標(對照表 觸控目標 44→52→60) */
+    margin-top: 8px; width: 100%; min-height: calc(44px * var(--uit)); text-align: center;
     background: var(--paper); color: var(--navy); border: 1.5px solid var(--line); border-radius: var(--r-pill);
     font: inherit; font-size: calc(12px * var(--uis)); font-weight: 800; letter-spacing: 1px; cursor: pointer;
   }
@@ -1315,7 +1323,7 @@
   .follow-panel.fp-min .fp-notify { display: none !important; }
   /* 搭乘模式:未上車=空心票券鈕;搭乘中=實心紅,一眼看得出「正在收集」 */
   .follow-panel .fp-ride {
-    margin-top: 8px; width: 100%; min-height: 44px; text-align: center;
+    margin-top: 8px; width: 100%; min-height: calc(44px * var(--uit)); text-align: center;
     background: var(--paper); color: var(--red); border: 1.5px solid var(--red); border-radius: var(--r-pill);
     font: inherit; font-size: calc(12px * var(--uis)); font-weight: 800; letter-spacing: 1px; cursor: pointer;
   }
@@ -2552,20 +2560,20 @@
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 1100;
     display: none; align-items: flex-start;
     /* v0721f 使用者回饋:下方留白收斂——內容區 58→52(鈕44+上4+下2+框1.5),safe-area 折讓 6px(max 保護無瀏海=0);--tabbar-clear 必須同式 */
-    height: calc(52px * var(--ui) + max(env(safe-area-inset-bottom, 0px) - 6px, 0px));
+    height: calc(52px * var(--uit) + max(env(safe-area-inset-bottom, 0px) - 6px, 0px));
     padding: 4px 4px calc(2px + max(env(safe-area-inset-bottom, 0px) - 6px, 0px));
     background: var(--paper); border-top: 1.5px solid var(--line);
     box-shadow: inset 0 3px 0 var(--gold);
   }
   .tabbar button {
     flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
-    background: none; border: 0; cursor: pointer; min-height: calc(44px * var(--ui)); padding: 2px 0;
+    background: none; border: 0; cursor: pointer; min-height: calc(44px * var(--uit)); padding: 2px 0;
     font-family: inherit;
   }
   .tabbar .ti { font-size: calc(17px * var(--ui)); font-weight: 700; color: var(--faint); line-height: 1.1; }
   /* 搜尋用平面線稿放大鏡(不用 emoji 🔍:iOS 會渲染成彩色立體字符,與其餘單字圖示不同調);
      display:block 消行內基線縫隙,18px 對齊單字圖示的 17px×1.1 行高;描邊吃 currentColor 故選中態自動轉深藍 */
-  .tabbar .ti svg { display: block; width: calc(18px * var(--ui)); height: calc(18px * var(--ui)); }
+  .tabbar .ti svg { display: block; width: calc(18px * var(--uit)); height: calc(18px * var(--uit)); }
   .tabbar .tl { font-size: calc(11px * var(--uis)); color: var(--faint); }
   .tabbar button.active .ti, .tabbar button.active .tl { color: var(--navy); font-weight: 800; }
   /* 「更多」sheet:承接原 ☰ 抽屜全部條目(外觀/圖層/動作) */
@@ -2656,7 +2664,7 @@
   @media (max-width: 900px), (max-height: 500px) {
     /* 底錨面板統一避讓基準:fixed tab bar 實高(58px)＋iOS 安全區(有瀏海才 >0);所有貼底表面以此為基準讓位,
        改一處全體同步。原本各自寫死的 66/64/68px 就是 58+讓位間距,改成 var+間距後計算值不變(桌面 var 未定義故不影響)。 */
-    :root { --tabbar-clear: calc(52px * var(--ui) + max(env(safe-area-inset-bottom, 0px) - 6px, 0px)); } /* 與 .tabbar height 同式(v0721f 收斂) */
+    :root { --tabbar-clear: calc(52px * var(--uit) + max(env(safe-area-inset-bottom, 0px) - 6px, 0px)); } /* 與 .tabbar height 同式(v0721f 收斂) */
     #musicVol { display: none; }
     .wrap { padding: 8px 10px calc(70px + env(safe-area-inset-bottom, 0px)); }
     /* 手機 header 收斂(mock §04-A):牌＋頁籤同列、導言藏、頁籤單列橫捲——省出地圖高度 */
@@ -3336,15 +3344,15 @@
        明寫「圖示、觸控目標一起放大」)。 */
     .topbar .alert-chip, .topbar .grouptabs { align-self: center; }
     .topbar .alert-chip {
-      width: calc(26px * var(--ui)); min-width: calc(26px * var(--ui));
-      height: calc(26px * var(--ui)); min-height: calc(26px * var(--ui));
+      width: calc(26px * var(--uit)); min-width: calc(26px * var(--uit));
+      height: calc(26px * var(--uit)); min-height: calc(26px * var(--uit));
       padding: 0; gap: 0; justify-content: center; border-radius: 50%; box-shadow: none;
     }
     .topbar .alert-chip .ac-n { display: none; }
     .topbar .grouptabs { gap: 6px; }
     .topbar .grouptabs .gtab {
-      width: calc(44px * var(--ui)); height: calc(28px * var(--ui));
-      min-height: calc(28px * var(--ui)); padding: 0;
+      width: calc(44px * var(--uit)); height: calc(28px * var(--uit));
+      min-height: calc(28px * var(--uit)); padding: 0;
     }
     /* 🔴 頂列是 space-between 的 flex,而軌島牌 flex:none 不肯縮 ⇒ 空間不足時被擠出視窗的一定是
        DOM 最後那顆「捷」(見 memory topbar-cut-fix-only-on-app-branch:360–375pt 就開始切)。
