@@ -2046,8 +2046,11 @@
     border: 0; border-radius: 8px; padding: 8px 16px; cursor: pointer; box-shadow: var(--shadow-navy);
   }
   #favPanel .myt-cta-btn:hover { background: var(--red); }
-  .board .ride-stats { font-size: calc(12.5px * var(--ui)); color: var(--muted); margin: 2px 0 6px; }
-  .board .ride-stats b { color: var(--red); font-variant-numeric: tabular-nums; }
+  /* 設計 3g:三格大數字。用 flex 不用固定三欄 grid——特大字級時允許它掉成兩行,不硬擠。 */
+  .board .ride-stats { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 2px 0 8px; }
+  .board .ride-stats .rs-cell { display: flex; flex-direction: column; gap: 1px; }
+  .board .ride-stats i { font-style: normal; font-size: calc(11px * var(--uis)); color: var(--faint); font-weight: 700; letter-spacing: 1px; }
+  .board .ride-stats b { font-size: calc(15px * var(--ui)); color: var(--red); font-variant-numeric: tabular-nums; line-height: 1.2; }
   .board .ride-kinds { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 7px; }
   .board .kindchip {
     font-size: calc(10.5px * var(--uis)); font-weight: 700; color: var(--navy);
@@ -14972,14 +14975,22 @@ function renderRidePanel() {
   const rides = loadRides();
   const coll = collectionOf(rides);
   const collGot = coll.named.size + coll.stock.size + coll.branch.size;
-  const achN = unlockedAchievements(rides).size;
   const list = buildRideRows(rides, 'date'); // 手機不做排序鈕,固定日期最新在前
+  // 設計 3g 的統計列:三格大數字(完乘/總里程/收集章)。
+  // 🔴 舊的四個數字裡有三個是重複的——「站」「成就」「章」在下面各自的分段標題就寫著
+  //    (車站 M/N、成就 K/17、明星列車 x/y…);這裡留下的兩個(趟數、總里程)是**別處都沒有**的。
+  //    總里程桌面護照本來就有,手機這張一直缺,設計把它要回來。格式沿用桌面那行(toLocaleString)。
+  const totalKm = rides.reduce((a, r) => a + (Number(r.km) || 0), 0);
+  const collAll = stampTotal();
+  const stat = (k, v) => `<span class="rs-cell"><i>${k}</i><b>${v}</b></span>`;
   el.innerHTML =
     `<h3>旅程護照<button class="close" id="rideClose">×</button></h3>` +
-    `<div class="ride-stats">章 <b>${collGot}</b> · 站 <b>${stationCollection(rides).size}</b> · 成就 <b>${achN}</b> · 完乘 <b>${rides.length}</b></div>` +
+    `<div class="ride-stats">` + stat('完乘', rides.length + ' 趟') +
+      stat('總里程', totalKm.toLocaleString() + ' km') +
+      stat('收集章', collAll ? collGot + ' / ' + collAll : String(collGot)) + `</div>` +
     `<div class="sub">從發車一路跟到終點就蓋一枚完乘章（調速可以・跳時間不算）· 灰色的章點了帶你搭一趟</div>` +
     buildFoundingSeal() +
-    buildStamps(rides) +
+    buildStamps(rides, { date: true }) +
     buildStationStamps(rides) +
     buildLineBars() +
     buildCorrectSection() +
@@ -15018,23 +15029,37 @@ function closeRidePanel() {
 // 完乘記錄 → 三本圖鑑的收集狀態(id 集合);護照渲染與成就判定共用同一份邏輯
 function collectionOf(rides) {
   const sd = state.special;
-  const named = new Set(), stock = new Set(), branch = new Set();
+  const named = new Set(), stock = new Set(), branch = new Set(), at = {};
+  // 設計 3g:章面要印**哪一天蓋到的**。同一枚章常有好幾趟符合,取最早那一趟——第一次搭到的
+  // 那天才是紀念日。判斷條件與舊版逐字相同(含兩條舊記錄歸戶的相容條件),只是從 some 換成 filter。
+  const mark = (set, cat, id, ok) => {
+    const ms = rides.filter(ok);
+    if (!ms.length) return;
+    set.add(id);
+    at[cat + '|' + id] = ms.map(r => r.date || '').filter(Boolean).sort()[0] || '';
+  };
   if (sd) {
     sd.namedTrains.forEach(n => {
       // 第三個條件:拆分前的舊記錄(namedId=endless-loop)按車次號歸戶到山海/平原,舊使用者的章不消失
-      if (n.trainNos.length && rides.some(r => r.namedId === n.id || r.kind === n.name ||
-        (r.namedId === 'endless-loop' && n.trainNos.includes(String(r.train))))) named.add(n.id);
+      if (n.trainNos.length) mark(named, 'named', n.id, r => r.namedId === n.id || r.kind === n.name ||
+        (r.namedId === 'endless-loop' && n.trainNos.includes(String(r.train))));
     });
     sd.rollingStock.forEach(s => {
       // e500pp=舊推定分類(110K/M 後經 TDX 判明為 EMU3000,2026-07),舊記錄的章歸戶到 emu3000
-      if (rides.some(r => r.stockId === s.id || r.kind === s.name ||
-        (s.id === 'emu3000' && r.stockId === 'e500pp'))) stock.add(s.id);
+      mark(stock, 'stock', s.id, r => r.stockId === s.id || r.kind === s.name ||
+        (s.id === 'emu3000' && r.stockId === 'e500pp'));
     });
     sd.branchLines.forEach(b => {
-      if (rides.some(r => (r.branchIds || (r.branchId ? [r.branchId] : [])).includes(b.id))) branch.add(b.id);
+      mark(branch, 'branch', b.id, r => (r.branchIds || (r.branchId ? [r.branchId] : [])).includes(b.id));
     });
   }
-  return { named, stock, branch };
+  return { named, stock, branch, at };
+}
+// 章的總數(分母):與 buildStamps 列出來的三種章逐條對齊——無固定車次的觀光列車搭不到、不列入收集。
+function stampTotal() {
+  const sd = state.special;
+  if (!sd) return 0;
+  return sd.namedTrains.filter(n => n.trainNos.length).length + sd.rollingStock.length + sd.branchLines.length;
 }
 // 成就定義:test(完乘記錄, 收集狀態, 總里程) → 是否解鎖(全由記錄推導,不另存)
 const ACHIEVEMENTS = [
@@ -17349,17 +17374,29 @@ function buildCorrectSection() {
   return phSec('correct', n, -1, inner) + `<div class="ph-correct">${body}</div>`;
 }
 // 收集章(明星列車/車種圖鑑/支線行腳):完成與否皆掛點擊鉤子→got 章也可點重播;桌面與 sheet 逐字相同
-function buildStamps(rides) {
+// opts.date=true:章面下緣印取得日期(設計 3g,護照 sheet 專用)。
+// 🔴 桌面護照(renderPassport)不傳 ⇒ 輸出與舊版逐字相同,桌面零變化——這是既有的分工,
+//    buildAchv 的 style 參數也是同一個理由,不要為了「一致」順手把桌面也改了。
+function buildStamps(rides, opts) {
   const sd = state.special;
   if (!sd) return '';
   const coll = collectionOf(rides);
   const MISS_TIP = '還沒搭過——點我去搭一班';
+  const withDate = !!(opts && opts.date);
+  const dateOf = (cat, id) => {
+    const d = coll.at[cat + '|' + id] || '';           // 'YYYY-MM-DD'
+    return d ? d.slice(5).replace(/-/g, '.') : '';     // → 'MM.DD'(與完乘記錄那欄同一種寫法)
+  };
   const stampRow = (label, cat, items) => {
     if (!items.length) return '';
     const got = items.filter(i => i.got).length;
     return phSec(cat, items.length, null, `${escHtml(label)}<b>${got}/${items.length}</b>`) + `<div class="ph-stamps">` +
-      items.map(i => `<span class="seal${i.got ? '' : ' na'}" data-cat="${escHtml(cat)}" data-id="${escHtml(i.id)}"` +
-        ` title="${escHtml(i.tip)}">${sealName(i.name)}<small>${i.got ? '已收藏' : '點我重播'}</small></span>`).join('') + `</div>`;
+      items.map(i => {
+        // 有日期就印日期(「已收藏」是廢話——金章本身就在說這件事);沒日期的舊記錄退回「已收藏」
+        const foot = i.got ? ((withDate && dateOf(cat, i.id)) || '已收藏') : '點我重播';
+        return `<span class="seal${i.got ? '' : ' na'}" data-cat="${escHtml(cat)}" data-id="${escHtml(i.id)}"` +
+          ` title="${escHtml(i.tip)}">${sealName(i.name)}<small>${foot}</small></span>`;
+      }).join('') + `</div>`;
   };
   const named = sd.namedTrains.filter(n => n.trainNos.length).map(n => // 無固定車次的觀光列車搭不到,不列入收集
     ({ name: n.name, got: coll.named.has(n.id), id: n.id, tip: coll.named.has(n.id) ? n.story : MISS_TIP }));

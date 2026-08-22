@@ -1616,9 +1616,92 @@ async function sectionO(browser, engine) {
   await close();
 }
 
+// ── P 段:設計 3g 旅程護照——三格統計(完乘/總里程/收集章)＋章面印取得日期 ──────────
+// 🔴 同 O 段:全新 profile 一趟完乘都沒有,不種資料就是對著空護照跑斷言(恆真=假綠)。
+//    種的四趟裡有兩趟蓋**同一枚**明星章、日期一早一晚——那是專門為了驗「取最早那天」而種的,
+//    只種一趟的話「取最早」與「取最晚」會給出同一個答案,判準等於沒驗到規則。
+const P_SEED = () => {
+  const sd = state.special;
+  if (!sd) return { ok: false, why: 'state.special 還沒載入' };
+  const named = sd.namedTrains.filter(n => n.trainNos.length)[0];
+  const stock = sd.rollingStock[0], branch = sd.branchLines[0];
+  if (!named || !stock || !branch) return { ok: false, why: '特別列車資料不齊' };
+  const rides = [
+    { train: '231', sys: 'tra_sched', kind: named.name, from: '花蓮', to: '樹林', km: 207,
+      date: '2026-08-19', dep: 8 * 3600, stops: 12, namedId: named.id },
+    { train: '4211', sys: 'tra_sched', kind: stock.name, from: '蘇澳', to: '樹林', km: 118,
+      date: '2026-08-17', dep: 9 * 3600, stops: 20, stockId: stock.id },
+    { train: '372', sys: 'tra_sched', kind: '自強', from: '花蓮', to: '潮州', km: 421,
+      date: '2026-08-14', dep: 7 * 3600, stops: 18, branchIds: [branch.id] },
+    // 同一枚明星章的第二趟,日期更早 ⇒ 章面應該印這一天
+    { train: '232', sys: 'tra_sched', kind: named.name, from: '樹林', to: '花蓮', km: 600,
+      date: '2026-08-02', dep: 6 * 3600, stops: 12, namedId: named.id },
+  ];
+  saveRides(rides);
+  return { ok: true, n: rides.length, km: rides.reduce((a, r) => a + r.km, 0),
+    namedId: named.id, namedName: named.name, total: stampTotal() };
+};
+const P_SNAP = () => {
+  const el = document.getElementById('ridePanel');
+  const cell = i => { const c = el.querySelectorAll('.ride-stats .rs-cell')[i];
+    return c ? { k: (c.querySelector('i') || {}).textContent || '', v: (c.querySelector('b') || {}).textContent || '' } : null; };
+  const seals = [...el.querySelectorAll('.ph-stamps .seal')].map(x => ({
+    cat: x.dataset.cat || '', id: x.dataset.id || '', na: x.classList.contains('na'),
+    foot: ((x.querySelector('small') || {}).textContent || '').trim() }));
+  return { open: !el.hidden, cells: [cell(0), cell(1), cell(2)], seals,
+    // 統計列不該撐破面板(推一下才知道,不是看數字)
+    sx: (() => { const before = el.scrollLeft; el.scrollLeft = 999; const after = el.scrollLeft; el.scrollLeft = before; return after; })() };
+};
+async function sectionP(browser, engine) {
+  const tag = `${engine} 393pt`;
+  const { page, errs, close } = await boot(browser, { width: 393 });
+  await page.evaluate(() => { if (state.playing) togglePlay(); });
+  await page.waitForFunction(() => state.special && state.special.namedTrains, null, { timeout: 20000 }).catch(() => {});
+  const seed = await page.evaluate(c => eval('(' + c + ')')(), P_SEED.toString());
+  await page.evaluate(() => document.getElementById('tabRide').click());
+  await page.waitForTimeout(1200);
+  const A = await page.evaluate(c => eval('(' + c + ')')(), P_SNAP.toString());
+  ok(`P1 ${tag} 正向對照:護照開著,統計列是三格(完乘/總里程/收集章)`,
+    seed.ok && A.open && A.cells.every(Boolean) &&
+    A.cells.map(c => c.k).join('|') === '完乘|總里程|收集章',
+    JSON.stringify({ seed: seed.why || seed.n, cells: A.cells }));
+  // 數字從**種進去的資料**獨立算一次,不是把畫面上的字抄下來再跟自己比
+  ok(`P2 ${tag} 完乘趟數與總里程＝種進去的資料算出來的值(含千分位)`,
+    seed.ok && A.cells[0] && A.cells[0].v === `${seed.n} 趟` &&
+    A.cells[1] && A.cells[1].v === `${seed.km.toLocaleString('en-US')} km`,
+    JSON.stringify({ 趟: A.cells[0] && A.cells[0].v, 里程: A.cells[1] && A.cells[1].v, 應為: seed.km }));
+  const got = A.seals.filter(x => !x.na && x.cat);
+  ok(`P3 ${tag} 收集章 G/T:G＝畫面上真的亮著的章數,T＝章總數`,
+    seed.ok && A.cells[2] && A.cells[2].v === `${got.length} / ${seed.total}`,
+    `顯示「${A.cells[2] && A.cells[2].v}」 亮著的章 ${got.length} 總數 ${seed.total}`);
+  // 章面印日期,而且同一枚章有兩趟時取**最早**那天(種的是 08-19 與 08-02 ⇒ 要印 08.02)
+  const namedSeal = A.seals.find(x => x.cat === 'named' && x.id === seed.namedId);
+  ok(`P4 ${tag} 金章印取得日期,同一枚章有兩趟時取最早那天(08.02 不是 08.19)`,
+    !!namedSeal && !namedSeal.na && namedSeal.foot === '08.02',
+    namedSeal ? `${seed.namedName} 章印「${namedSeal.foot}」` : '找不到那枚章');
+  ok(`P5 ${tag} 反向對照:沒蓋到的灰章仍寫「點我重播」(日期沒印到灰章上)`,
+    A.seals.some(x => x.na) && A.seals.filter(x => x.na).every(x => x.foot === '點我重播'),
+    JSON.stringify([...new Set(A.seals.filter(x => x.na).map(x => x.foot))]));
+  ok(`P6 ${tag} 統計列沒把面板撐到可以橫捲`, A.sx === 0, `scrollLeft=${A.sx}`);
+  // 🔴 反向對照:桌面護照**不**吃日期(buildStamps 的 opts 分工)。沒有這一條,
+  //    「乾脆全部都印日期」也會全綠,桌面就被順手改掉了。
+  const deskFoot = await page.evaluate(() => {
+    const rides = loadRides();
+    const html = buildStamps(rides);                       // 桌面呼叫法:不傳 opts
+    const d = document.createElement('div'); d.innerHTML = html;
+    return [...d.querySelectorAll('.seal')].filter(x => !x.classList.contains('na'))
+      .map(x => (x.querySelector('small') || {}).textContent || '');
+  });
+  ok(`P7 ${tag} 反向對照:桌面護照那條路徑仍是「已收藏」(日期只給護照 sheet)`,
+    deskFoot.length > 0 && deskFoot.every(t => t === '已收藏'),
+    JSON.stringify([...new Set(deskFoot)]));
+  ok(`P8 ${tag} 零 pageerror`, errs.length === 0, errs.slice(0, 1).join(''));
+  await close();
+}
+
 await assertTarget();
 // SECTIONS=H,I 只跑指定段(突變測試用);不設就跑全部——預設永遠是「全跑」,不能靠環境變數才完整。
-const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ, K: sectionK, L: sectionL, M: sectionM, MX: sectionMx, N: sectionN, NX: sectionNx, O: sectionO };
+const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ, K: sectionK, L: sectionL, M: sectionM, MX: sectionMx, N: sectionN, NX: sectionNx, O: sectionO, P: sectionP };
 const want = (process.env.SECTIONS || '').split(',').map(x => x.trim().toUpperCase()).filter(Boolean);
 const run = want.length ? want : Object.keys(ALL);
 for (const k of run) if (!ALL[k]) { console.error(`未知段別 ${k}`); process.exit(2); }
