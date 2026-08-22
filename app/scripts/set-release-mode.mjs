@@ -191,6 +191,9 @@ if (cfg.plusSandboxBuild) console.log(`  Plus Sandbox 開啟（僅 TestFlight bu
 const env = { ...process.env, LANG: 'en_US.UTF-8', RAIL_INCLUDE_LICENSED_BASEMAPS: '1', RAIL_REQUIRE_NATIVE: '1' };
 if (cfg.music) env.RAIL_INCLUDE_LICENSED_MUSIC = '1';
 else delete env.RAIL_INCLUDE_LICENSED_MUSIC;
+// 本版「更新了什麼」內建文案＝why 本人。iTunes lookup 的 releaseNotes 是【線上版】的,
+// 剛裝的版比線上新時(每次送審前必然)彈到的是上一版的文——1.4.9 (74) 實踩。
+env.RAIL_WHATS_NEW = cfg.why;
 if (cfg.plusSandboxBuild) {
   env.RAIL_PLUS_SANDBOX_OK = '1';
   env.RAIL_PLUS_SANDBOX_BUILD = cfg.plusSandboxBuild;

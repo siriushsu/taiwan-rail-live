@@ -3717,7 +3717,13 @@ async function basemapSrc(request, env) {
   // 預設必須是「不計費的那個」:環境變數手滑不該把所有裝置靜默切到計量底圖上,
   // 那種錯誤沒有任何畫面訊號,只會在一個月後變成帳單。
   const street = env.BASEMAP_STREET_SRC === 'stadia' ? 'stadia' : 'ofm';
-  return jsonRes({ street }, 200, 'public, max-age=300, s-maxage=300');
+  // 強制更新閘門的遠端值(2026-08-22,App 1.4.9 起會讀):低於這個版號的 App 開機被
+  // 全螢幕擋下要求更新。啟用場景=換底圖供應商/廢舊端點後,把還在燒已淘汰資源的長尾
+  // 版本擋下來(Stadia 一課:≤1.4.7 構不到,只能等自然更新——這欄就是下次的構得到)。
+  // 沒設定=null=不擋;格式驗過才下發,手滑塞怪值寧可當沒設(App 端 fail-open 再擋一層)。
+  const minAppVersion = typeof env.MIN_APP_VERSION === 'string' && /^\d+(\.\d+)*$/.test(env.MIN_APP_VERSION.trim())
+    ? env.MIN_APP_VERSION.trim() : null;
+  return jsonRes({ street, minAppVersion }, 200, 'public, max-age=300, s-maxage=300');
 }
 
 // ── 衛星底圖的第二種計費方式：basemap session ────────────────────────────────

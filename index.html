@@ -2124,6 +2124,23 @@
     padding: 18px; background: rgba(20,29,42,.58);
   }
   .takeout-modal[hidden] { display: none; }
+  /* 強制更新閘門:蓋過一切(含六顆 modal 的 2200 與錄影層),刻意無關閉鈕。
+     背景比一般 modal 更不透明——底下的 App 已宣告停止支援,不該讓人隔著紗繼續看。 */
+  #appGate {
+    position: fixed; inset: 0; z-index: 3000; display: grid; place-items: center;
+    padding: 18px; background: rgba(20,29,42,.92);
+  }
+  #appGate .ag-box {
+    width: min(420px, 100%); background: var(--paper); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 14px; padding: 22px 20px;
+    box-shadow: 0 18px 48px rgba(0,0,0,.4); text-align: center;
+  }
+  #appGate h2 { margin: 0 0 10px; font-size: 20px; }
+  #appGate p { margin: 0 0 16px; font-size: 14px; line-height: 1.7; color: var(--muted); }
+  #appGate button {
+    font: inherit; font-weight: 700; padding: 10px 26px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--navy); color: var(--on-navy); cursor: pointer;
+  }
   /* 懸賞板的殼(.tk-box/.tk-head/.tk-sub/.tk-body/.tk-x):brief 給的 HTML 用了這組新 class 名,
      但没有對應 CSS——實測截圖直接證實 fallback 到瀏覽器預設樣式,卡面浮在地圖正中央毫無容器感,
      手機上更直接與底下的護照 sheet 疊字(見驗收記錄)。這裡逐值照抄 .takeout-dialog／
@@ -14701,12 +14718,13 @@ function cmpVer(a, b) {
 // seen ＝上次開 App 時「手上這顆」的版本;它不存在(第一次裝)時刻意不顯示更新卡片,
 // 免得使用者第一次開就被迎面打一張。
 function appUpdateState(mine, latest, st) {
-  const none = { hasUpdate: false, showBanner: false, showWhatsNew: false };
+  // 「剛更新完」的判定只看本機鍵,刻意不依賴 lookup——內建文案(RAIL_APP_WHATS_NEW)
+  // 不需要網路,冷啟沒網路也要能告訴人家這版做了什麼。
+  const whatsNew = !!st.seen && st.seen !== mine && st.whatsnewSeen !== mine;
   const c = cmpVer(mine, latest);
-  if (c === null) return none;
+  if (c === null) return { hasUpdate: false, showBanner: false, showWhatsNew: whatsNew };
   if (c < 0) return { hasUpdate: true, showBanner: st.dismissed !== latest, showWhatsNew: false };
-  return { hasUpdate: false, showBanner: false,
-           showWhatsNew: !!st.seen && st.seen !== mine && st.whatsnewSeen !== mine };
+  return { hasUpdate: false, showBanner: false, showWhatsNew: whatsNew };
 }
 
 // ── App 版本提示:查詢層 ───────────────────────────────────────────────────
@@ -14727,6 +14745,11 @@ function appverRead(key, fallback = null) {
 function appverWrite(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {} }
 
 async function fetchLatestAppVersion() {
+  // Android 上這條 lookup 查的是【iOS】的線上版號——拿來比對只會給錯資訊(v13 已流通的
+  // 既有缺陷,2026-08-22 補):Android 一律回 null=升級橫幅不出、「已是最新版」照常顯示,
+  // 「更新了什麼」走內建文案本來就不依賴 lookup。Play 沒有等價的公開 JSON API;
+  // Android 的強制手段是強更閘門(appGateCheck),資訊源是自家 worker 不是商店。
+  try { if (window.Capacitor && window.Capacitor.getPlatform && window.Capacitor.getPlatform() === 'android') return null; } catch (e) {}
   const c = appverRead(APPVER_KEYS.cache);
   if (c && c.at && Date.now() - c.at < APPVER_TTL && c.v) return { v: c.v, notes: c.notes, url: c.url };
   try {
@@ -14760,6 +14783,12 @@ async function appUpdateInit() {
   return window.__appverLast;
 }
 
+// 本版內建的「更新了什麼」文案:build 期由 prepare-web 從發行模式的 why 注入。
+// 網站版沒有這個值(和 RAIL_APP_VERSION 一樣),一律回空字串=相關 UI 全部不出現。
+function appWhatsNewText() {
+  return typeof window.RAIL_APP_WHATS_NEW === 'string' ? window.RAIL_APP_WHATS_NEW : '';
+}
+
 // 更新內容卡片。結構逐項照抄既有的 #helpModal(.takeout-dialog/.takeout-head/.takeout-body),
 // 不自創 class 名——.tk-box 那組只有 .bounty-modal 底下才有 CSS。
 // 掛 body 層:.stage 會建立 stacking context 把子孫 z-index 封頂(既有六顆 modal 就是為此)。
@@ -14791,7 +14820,9 @@ function appUpdateRender(res) {
     row.firstElementChild.textContent = state.hasUpdate
       ? `有新版可更新　${latest.v}` : `已是最新版　${window.RAIL_APP_VERSION}`;
     row.classList.toggle('warnrow', state.hasUpdate);
-    row.disabled = !state.hasUpdate;
+    // 沒新版時這列改當「看本版更新內容」的常駐入口(有內建文案才可點)——
+    // 開機彈窗同版只出一次,之後想再看就從這裡。
+    row.disabled = !state.hasUpdate && !appWhatsNewText();
   }
   if (state.showBanner && latest) {
     const b = document.getElementById('updBanner');
@@ -14810,10 +14841,48 @@ function appUpdateRender(res) {
     });
     placeMobileNotice(b);   // 手機:避開時鐘/列車資訊卡/常駐錄製列(既有函式,別自己重寫一套)
   }
-  if (state.showWhatsNew && latest) {
-    appUpdateOpenNotes(latest, `軌島 ${latest.v} 更新了什麼`);
+  if (state.showWhatsNew && appWhatsNewText()) {
+    // 🔴 一定用內建文案,不用 latest.notes——lookup 回的是【線上版】的 releaseNotes,
+    //    剛裝的版比線上新時(每次送審前必然)那份是上一版的文。1.4.9 (74) 實踩:
+    //    裝了 1.4.9 開機卻彈「軌島 1.4.8 更新了什麼」。
+    appUpdateOpenNotes({ notes: appWhatsNewText() }, `軌島 ${window.RAIL_APP_VERSION} 更新了什麼`);
     appverWrite(APPVER_KEYS.whatsnew, window.RAIL_APP_VERSION);
   }
+}
+
+// ── 強制更新閘門(2026-08-22) ─────────────────────────────────────────────
+// 動機:換底圖供應商後,流通中的舊版還在燒已淘汰的計量資源(Stadia 一課:≤1.4.7 只認
+// Stadia、連遠端開關的程式碼都沒有,物理上構不到,只能等自然更新)。這道閘門讓【裝了它
+// 的版本起】可被遠端要求更新:worker /api/basemap-src 回 minAppVersion(wrangler 環境
+// 變數 MIN_APP_VERSION,沒設=null),本機版本較舊就全螢幕擋+「前往更新」。
+// 🔴 fail-open 鐵則:沒設定/缺欄位/格式壞/比不出來(cmpVer null),一律不擋——
+//    絕不能因為端點壞掉或手滑塞了怪值,把全體使用者鎖在門外。網站版(無
+//    RAIL_APP_VERSION)永不進入。擋下畫面刻意無關閉鈕:會走到這裡代表遠端已明確
+//    宣告這個版本停止支援,「稍後再說」只是把白圖/壞資料的體驗往後拖。
+// index.html 是 iOS/Android 共用檔:商店連結依平台分流,別把 Android 使用者導去 App Store。
+const APP_STORE_URL = 'https://apps.apple.com/tw/app/id6792673516';
+const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=tw.railisland.app';
+function storeUrl() {
+  try { return window.Capacitor && window.Capacitor.getPlatform && window.Capacitor.getPlatform() === 'android' ? PLAY_STORE_URL : APP_STORE_URL; }
+  catch (e) { return APP_STORE_URL; }
+}
+function appGateShouldBlock(mine, min) {
+  if (typeof mine !== 'string' || !mine || typeof min !== 'string' || !min) return false;
+  const c = cmpVer(mine, min);
+  return c !== null && c < 0;
+}
+function appGateCheck(d) {
+  if (!appGateShouldBlock(window.RAIL_APP_VERSION, d && d.minAppVersion)) return;
+  if (document.getElementById('appGate')) return;   // 已擋著就別再疊一層
+  const wrap = document.createElement('div');
+  wrap.id = 'appGate';
+  wrap.innerHTML = '<div class="ag-box" role="alertdialog" aria-modal="true" aria-labelledby="agTitle">'
+    + '<h2 id="agTitle">需要更新</h2>'
+    + `<p>這個版本（${escHtml(String(window.RAIL_APP_VERSION))}）已停止支援，部分服務無法再使用。請更新到最新版，馬上就好。</p>`
+    + '<button id="appGateGo" type="button">前往更新</button></div>';
+  document.body.appendChild(wrap);
+  document.getElementById('appGateGo').addEventListener('click',
+    () => window.open(storeUrl(), '_blank', 'noopener'));
 }
 
 // ── 評分邀請 ─────────────────────────────────────────────────────────────
@@ -24465,9 +24534,13 @@ function setupMapTools() {
     const chip = e.target.closest('#msCities button[data-city]'); // 縣市 chip:飛過去並關 sheet
     if (chip) { flyToCity(chip.dataset.city); setMore(false); return; }
     const row = e.target.closest('.ms-row'); if (!row) return;
-    if (row.dataset.act === 'update') {   // 只有真的有新版才外開;沒新版時這列是 disabled 的資訊列
+    if (row.dataset.act === 'update') {   // 有新版→外開商店;沒新版→彈本版內建更新內容
       const r = window.__appverLast;
-      if (r && r.state.hasUpdate && r.latest && r.latest.url) window.open(r.latest.url, '_blank', 'noopener');
+      if (r && r.state.hasUpdate && r.latest && r.latest.url) { window.open(r.latest.url, '_blank', 'noopener'); return; }
+      if (appWhatsNewText()) {
+        setMore(false);
+        appUpdateOpenNotes({ notes: appWhatsNewText() }, `軌島 ${window.RAIL_APP_VERSION} 更新了什麼`);
+      }
       return;
     }
     if (row.dataset.act === 'rate') {
@@ -25520,8 +25593,9 @@ async function boot() {
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         const v = d && d.street;
-        if (v !== 'ofm' && v !== 'stadia') return; // 認不得就當沒問過,不要拿壞值蓋掉好快取
-        try { localStorage.setItem(APP_STREET_KEY, v); } catch (e) {}
+        // 認不得就當沒問過,不要拿壞值蓋掉好快取
+        if (v === 'ofm' || v === 'stadia') { try { localStorage.setItem(APP_STREET_KEY, v); } catch (e) {} }
+        appGateCheck(d);   // 強制更新閘門搭同一趟回應,缺欄位/壞值在函式內 fail-open
       })
       .catch(() => {});
   }
