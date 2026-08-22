@@ -337,6 +337,37 @@ async function sectionE(browser, engine) {
   // 🔴 整列本來就是「跟隨這班」的熱區,出口若沒把事件擋住,點展開會直接跟車並關掉看板
   ok(`E5 ${engine} 點「›」不會誤觸跟車(看板還開著、沒有跟車)`,
     after.boardOpen && !after.following, JSON.stringify(after));
+  // ── 展開態要跨重繪存活 ────────────────────────────────────────────────────
+  // 看板每 20 模擬秒 `el.innerHTML = …` 整個重建,只掛在 DOM 上的 .rx 會被洗掉:使用者剛按「›」
+  // 叫回來的車種與方向自己收回去(高倍速下不到半秒)。這裡**直接呼叫 renderBoard()** 打一次重繪,
+  // 不等時間走到那一拍——那是機率,判準不能架在機率上(E4b 原本就是這樣偶發假紅的)。
+  const rd = await page.evaluate(() => {
+    const key = r => (r.dataset.no || '') + '|' + (r.dataset.sys || '');
+    const shown = el => !!(el && el.getClientRects().length);
+    const before = [...document.querySelectorAll('#board .row[data-no]')];
+    const openBefore = before.filter(r => r.classList.contains('rx')).map(key);
+    renderBoard();
+    const after2 = [...document.querySelectorAll('#board .row[data-no]')];
+    const openAfter = after2.filter(r => r.classList.contains('rx')).map(key);
+    const row = after2.find(r => r.classList.contains('rx'));
+    return {
+      rebuilt: before.length > 0 && before.every(r => !r.isConnected), // 舊節點真的被換掉了
+      n: after2.length, openBefore, openAfter,
+      destShown: !!(row && shown(row.querySelector('.ty')) && shown(row.querySelector('.to'))),
+    };
+  });
+  const sameKeys = (a, b) => a.length === b.length && a.every(k => b.includes(k));
+  // 🔴 正向對照:沒有這條,「renderBoard() 根本沒重建任何東西」也會讓下面兩條無條件成立
+  ok(`E4c ${engine} 正向對照:renderBoard() 真的把整批列重建了(舊節點已離開文件)`,
+    rd.rebuilt && rd.n > 1, JSON.stringify({ 重建: rd.rebuilt, 重繪後列數: rd.n }));
+  // 展開的是不是同一班車要逐鍵比(車次|系統),不是只數「有幾列展開」
+  ok(`E4d ${engine} 重繪之後展開中的那一列還是展開的(車種與方向仍在畫面上)`,
+    rd.openBefore.length === 1 && sameKeys(rd.openBefore, rd.openAfter) && rd.destShown,
+    JSON.stringify(rd));
+  // 🔴 對照組:只有被點過的那一列該展開。少了這條,「每一列都無條件掛 .rx」也能通過上面那條。
+  ok(`E4e ${engine} 對照組:沒展開過的列不會自己長出展開態`,
+    rd.openAfter.every(k => rd.openBefore.includes(k)) && rd.n > rd.openAfter.length,
+    JSON.stringify({ 展開: rd.openAfter, 原本展開: rd.openBefore, 總列數: rd.n }));
   // 反向對照:同一張看板點「列」本身仍然要跟車——否則上面那條用「什麼都不會發生」也能過。
   // 🔴 「跟完要不要收看板」兩種殼不同,兩側都寫死:手機(整合卡 D1–D2)看板留著當「這一站」分頁、
   //    並切到「這班車」;桌面維持原本的「選到車一律收板」。少了任何一半,另一種殼會無條件通過。
