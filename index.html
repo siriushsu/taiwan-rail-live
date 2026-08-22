@@ -3832,7 +3832,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/21</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/22</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -3840,6 +3840,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="metrowaitfix"><span class="d">8/22</span><span>等車卡修好三種「點了卻沒出現」：一是從桌面小工具點進來又馬上鎖屏時，會先把要追蹤的那一站記下來，等你回到 App 自動補開（iOS 不允許 App 在背景開啟即時動態，之前那一次點擊就這樣沒了），而且不會再先空等二十秒；二是動過播放速度或拖過時刻尺之後再追蹤，會自動把時間帶回「現在」再開卡，不會再誤說「這一站現在沒有官方班次資訊」；三是已經結束的舊卡不再被當成還在追蹤，按鈕不會變成「結束追蹤」害你白點一次。另外，萬一系統遲遲沒有回應，現在會明白告訴你再點一次，不會停在那裡沒反應。下次 App 更新生效</span></li>
         <li data-cl-of="trapassjump"><span class="d">8/21</span><span>台鐵列車經過不停靠的小站時，會有一瞬間停在站上、下一瞬間往前跳出去——車速愈快跳得愈遠，自強、太魯閣這類最快的車一次跳將近二十公尺。現在通過那一刻改成連續移動，不再停頓也不再跳。順手修掉另一個少見的狀況：頁面開著跨過午夜、再切換一次系統時，同編號的車會沿用前一天那班的誤點，最遠會把車畫到六公里外</span></li>
         <li data-cl-of="metrocoreidentity"><span class="d">8/21</span><span>忠孝復興等共站的到站資訊改用同一批到站時間、方向與終點分辨路線，無法確認時暫時不亂標；這套規則也會處理其他共用車站的路線。從地圖或站牌點車現在都會跟到同一班，官方資料短暫漏一輪不會立刻中斷跟隨。北捷中斷提示也改看畫面實際使用的即時資料，App 從背景回來不再把暫停更新的舊資料誤報成斷訊</span></li>
         <li data-cl-of="metrocorelive"><span class="d">8/21</span><span>北捷與高捷即時動畫正式換成同一套時間軸：地圖上的車、站台預告與點選跟隨現在會對到同一班車；官方資料更新時不會整批跳位或交換身分，後車在站外也不會貼到前車 100 公尺內。若新資料不完整或服務暫時中斷，畫面會自動沿用通過檢查的上一段動畫或退回原本模式，不會留下卡住的車</span></li>
@@ -3847,7 +3848,6 @@
         <li data-cl-of="trtcpeakstable"><span class="d">8/20</span><span>北捷即時動畫再穩定一輪：官方資料每次更新時，列車會在原路段內逐步追上，不再整批往前跳或停在兩站之間；文湖線與環狀線也不會讓失聯身分搶走下一班車。車站看板只有在車真的進入站點時才顯示「列車進站」，並依各站實際停靠秒數結束，不會車已開走還繼續顯示</span></li>
         <li data-cl-of="krtctrip"><span class="d">8/20</span><span>高捷紅橘線改成逐班接續官方看板：同一班車在不同車站的到站資訊會接回原本班次，不再用整條線同一個平均值把相鄰列車擠在一起；資料不夠確定時會保守沿用原本推估，不會硬認成隔壁班。紅橘兩線的最後一段也都會依實際路段時間一路跑到終點才收車</span></li>
         <li data-cl-of="trtcidentity2"><span class="d">8/20</span><span>文湖線與環狀線的認車再加一道保護：同一班車的倒數換到下一個路段時會接回原本的身分，兩筆資料若曾擠到 100 公尺內也只留較早的那筆，不再留下第二顆車點追著後車跑。環狀線可提早出現在起點等發車，但倒數縮到該段行車時間才會開；最後一段則一路留到真正抵達終點才收車</span></li>
-        <li data-cl-of="trtcentity"><span class="d">8/20</span><span>文湖線與環狀線偶爾出現的卡站車、短區間擠好幾台再修一輪：失去官方資料的舊車不再永久留在站上，疑似同一台的新舊資料也不會立刻同時畫出；「診斷資訊」可匯出最近十分鐘的捷運判讀，方便下次異常直接還原</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3911,6 +3911,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="metrowaitfix"><span class="d">8/22</span><span>等車卡修好三種「點了卻沒出現」：一是從桌面小工具點進來又馬上鎖屏時，會先把要追蹤的那一站記下來，等你回到 App 自動補開（iOS 不允許 App 在背景開啟即時動態，之前那一次點擊就這樣沒了），而且不會再先空等二十秒；二是動過播放速度或拖過時刻尺之後再追蹤，會自動把時間帶回「現在」再開卡，不會再誤說「這一站現在沒有官方班次資訊」；三是已經結束的舊卡不再被當成還在追蹤，按鈕不會變成「結束追蹤」害你白點一次。另外，萬一系統遲遲沒有回應，現在會明白告訴你再點一次，不會停在那裡沒反應。下次 App 更新生效</span></li>
         <li data-cl="metrowidgetpass"><span class="d">8/15</span><span>捷運小工具的方案定了：免費可以設定一個捷運站，想同時放好幾站、或用「自動（最近的站）」讓小工具跟著你移動換站，就需要軌島通行證。設定超過一站時，小工具上會直接寫清楚原因、點一下就能看方案，不會只給你一張空白卡。等車卡（鎖定畫面倒數）維持免費。下次 App 更新生效</span></li>
         <li data-cl="metrowaitcard"><span class="d">8/14</span><span>iPhone 捷運車站看板新增「在這站等車」：下一班倒數放上鎖定畫面與動態島，班次照官方即時資訊，車進站了自動換下一班、追蹤時間到了自動收起；北捷、高捷、機捷都支援，桌面也有捷運小工具可一點直達開卡，下次 App 更新生效</span></li>
         <li data-cl="sparkcursor"><span class="d">8/14</span><span>跟隨面板的速度曲線：誤點的車，游標會停在曲線上錯誤的位置，寫出來的當下時速跟車實際在跑的對不起來（誤點越久差越多）；現在游標對回真實位置了</span></li>
@@ -22875,12 +22876,42 @@ async function metroWaitStartFromBoard(sys, st, lines, isDeco, opener) {
   // 08-14 追蹤改版:一律開選單——時長(30/60/90)一定要經手,單方向只是把方向段落收起。
   metroWaitOpenPicker(sys, st, lines, isDeco, bundle, opener);
 }
+// 🔴 原生 start/stop/status 共用同一條 Task 佇列(RailMetroWaitPlugin.swift 的 enqueue):
+//    任何一個 job 沒跑完,三支就全部永遠不 resolve。JS 這邊沒有 timeout 的話會停在 await 上
+//    ——不 toast、不刷新按鈕,使用者只看到「點了完全沒反應」,而真機上查不出原因。
+//    逾時一律用 throw,讓三個呼叫點【既有的】catch 各自做對的事;尤其 status 那支必須維持
+//    「什麼都不做」,絕不可以把逾時當成「卡片不在了」而去清掉 state 與伺服器綁定。
+function metroWaitCall(promise, ms = 8000) {
+  let timer;
+  return Promise.race([
+    Promise.resolve(promise).finally(() => clearTimeout(timer)),
+    new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('timeout')), ms); }),
+  ]);
+}
 // dest===null 是「最快一班(全部方向)」與深連結的既有路徑;指定 dest 時必須先過濾再取兩班。
 // durationMin:追蹤時長(30/60/90),深連結不經選單=預設 30。原生端據此算 endAt 印「追蹤至」;
 // 到點自動收卡在零推播階段由 metroWaitSyncFromNative 兜底,推播鏈上線後改由伺服器準時收。
 async function metroWaitStartFor(sys, st, lines, isDeco, dest = null, sourceBundle = null, durationMin = 30) {
   const p = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.RailMetroWait;
   if (!p) return; // 旗標關按鈕不會出現,這裡只是防禦
+  // 🔴 背景一律不呼叫 p.start():iOS 會拒(visibility),而失敗只有 toast、鎖屏看不到 ⇒ 記成待辦,
+  //    回前景由 metroWaitFlushPending() 補開。放在最前面(早於讀 bundle)是刻意的:背景時兩支
+  //    poll 都以 document.hidden 早退,讀到的只會是快過期的舊資料,先擋掉也省掉那三輪空轉。
+  if (document.hidden) {
+    _mwPendingOpen = { sys, station: st && st.name, dest, durationMin, at: Date.now() };
+    return;
+  }
+  // 🔴 時鐘不在「現在」時,官方看板整份會被 trtcOfficialBoardRealNow() 擋掉(它是
+  //    trtcOfficialBoardView 的第一道閘)。而 setSpeed(v!==1) 關掉 clockAtNow 之後【轉回 1×
+  //    不會自動打開】,捷運分頁也沒有自動貼回(liveClockTick 只服務 sched)⇒ 使用者一旦動過
+  //    速度滑桿或拖過時刻尺,北捷全部站就再也開不了卡,而 toast 還寫著「這一站現在沒有官方班次
+  //    資訊」——那句話是錯的,資料明明在(實測:看板 308 列全新鮮,bundle 卻回 null)。
+  //    按下「追蹤這站」的意圖本來就是「看現在的車」,所以這裡直接把時鐘帶回現在再取一次。
+  //    只對 trtc:krtc/tymc 的 bundle 不吃這道閘,不必也不該動使用者的時鐘。
+  if (sys === 'trtc' && !sourceBundle && !trtcOfficialBoardRealNow()) {
+    jumpToNow();
+    showToast('已把時間帶回「現在」才能追蹤這站');
+  }
   const bundle = sourceBundle || await metroWaitReadBundle(sys, st, lines, isDeco);
   if (!bundle) { showToast('這一站現在沒有官方班次資訊'); return; }
   const rows = (dest == null ? bundle.rows : bundle.rows.filter(row => row.dest === dest)).slice(0, 2);
@@ -22896,7 +22927,7 @@ async function metroWaitStartFor(sys, st, lines, isDeco, dest = null, sourceBund
   _mwKey = key;               // 🔴 必須在 p.start() 之前設好:token 可能比 start 的 resolve 先回來
   payload.key = key;
   let res;
-  try { res = await p.start(payload); } catch (e) { res = { ok: false, why: String((e && e.message) || e) }; }
+  try { res = await metroWaitCall(p.start(payload)); } catch (e) { res = { ok: false, why: String((e && e.message) || e) }; }
   if (res && res.ok) {
     // endAt 以原生回傳的為準(卡片上真的印著的那個值);舊殼沒回這一欄時才自己算。
     const endAt = Number(res.endAt) || Math.round(Date.now() / 1000) + durationMin * 60;
@@ -22905,7 +22936,9 @@ async function metroWaitStartFor(sys, st, lines, isDeco, dest = null, sourceBund
     if (_mwPendingToken.key === key) metroWaitBind(_mwPendingToken.token, key);
   } else {
     _mwKey = '';              // 開卡失敗:清掉 key,晚到的 token 不會被當成有效卡交班
-    showToast(res && res.why === 'disabled' ? '請到 iOS 設定開啟「即時動態」才能顯示等車卡' : '開卡失敗，請稍後再試');
+    showToast(res && res.why === 'disabled' ? '請到 iOS 設定開啟「即時動態」才能顯示等車卡'
+            : res && res.why === 'timeout' ? '系統沒有回應，請再點一次'
+            : '開卡失敗，請稍後再試');
   }
   refreshMetroWaitButton();
 }
@@ -22914,7 +22947,7 @@ async function metroWaitStop() {
   state.metroWait = null; // 換站直接呼叫 start 即可(原生端保證單卡,自動收舊卡);這裡只服務使用者主動按「結束追蹤」
   metroWaitUnbind();      // 伺服器那一列要一起清掉,否則它會繼續推給一張已經不存在的卡
   refreshMetroWaitButton();
-  if (p) { try { await p.stop(); } catch (e) {} }
+  if (p) { try { await metroWaitCall(p.stop()); } catch (e) {} }
 }
 // ── 推播交班:把 token 交給伺服器,之後由它每分鐘接續班次、追蹤時段到點推 end 收卡 ──────
 // 🔴 這整段是【純附加能力】:任何一步失敗(沒網路、伺服器拒收、根本沒拿到 token)都只讓卡片
@@ -22928,6 +22961,23 @@ let _mwKey = '';    // 目前這張卡的 key,與原生 waitPushToken 事件帶�
 //    在 p.start() 的 resolve 之前就進來,那時 endAt 還不知道、bind 送不出去。先存起來,
 //    start 拿到回應後再補打一次(兩條路徑都會走到 metroWaitBind,它自己擋重複)。
 let _mwPendingToken = { key: '', token: '' };
+// 🔴 背景開卡待辦。iOS 規定 Activity.request 只在前景成功(ActivityAuthorizationError.visibility:
+//    "The app tried to start the Live Activity while it was in the background."),而
+//    「點桌面小工具→立刻鎖屏」正是背景:舊版照樣往下呼叫 start,原生丟錯、JS 只 toast,而螢幕
+//    鎖著沒人看得到,深連結事件又已被 Capacitor 消費刪除 ⇒ 那次點擊就此消失,回前景也不補。
+//    這裡把「要開哪一站」記下來,回前景時補開一次。
+let _mwPendingOpen = null;
+// 保鮮期:隔太久才回前景就不該憑空冒出一張卡(使用者早就不在那個月台了)。
+const MW_PENDING_OPEN_MAX_MS = 10 * 60 * 1000;
+function metroWaitFlushPending() {
+  const pend = _mwPendingOpen;
+  if (!pend || document.hidden) return;
+  _mwPendingOpen = null;   // 先清再開:補開自己若又落在背景,由 metroWaitStartFor 重新記一次
+  if (Date.now() - pend.at > MW_PENDING_OPEN_MAX_MS) return;
+  const st = metroWaitFindStation(pend.station);
+  if (!st) return;
+  metroWaitStartFor(pend.sys, st, state.lines, state.deco, pend.dest, null, pend.durationMin);
+}
 function metroWaitUnbindToken(token) {
   if (!token) return;
   fetch(apiUrl('api/metro-wait/unbind'), {
@@ -22973,7 +23023,7 @@ async function metroWaitSyncFromNative() {
   const p = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.RailMetroWait;
   if (!p || !p.status) return;
   let res;
-  try { res = await p.status(); } catch (e) { return; }
+  try { res = await metroWaitCall(p.status()); } catch (e) { return; }  // 逾時=不知道,什麼都不做(絕不可當成「卡片不在了」)
   if (!res || !res.active) {
     // 卡片已經不在了(使用者按了卡上的「結束」、鎖屏左滑清除、或伺服器推 end 收掉)。
     // 前兩者都發生在 JS 看不到的地方,伺服器那一列會變成孤兒 ⇒ 這裡順手註銷。
@@ -23039,7 +23089,10 @@ function ensureMetroWaitListener() {
       //    poll 也因 document.hidden/系統未載而三輪全空(模擬器冷啟動實測:板沒開、卡沒開)。
       //    判準用 boot 完成旗標 state.ready(不可用 state.lines——sched 群組它恆空,會卡滿 20 秒),
       //    再多一拍讓首繪落定;超時(20s)就照常執行,不吞事件。
-      for (let i = 0; i < 66 && (document.hidden || !state.ready); i++) {
+      // 🔴 條件刻意【不含】document.hidden:鎖屏時它恆真,等於強制空轉滿 20 秒,而逾時之後照樣
+      //    往下跑——空轉期間資料還在老化(官方看板 45 秒保鮮),等於專程等到資料過期才去開卡。
+      //    背景該做的事是「記下來、回前景再開」,那道閘在 metroWaitStartFor 開頭。
+      for (let i = 0; i < 66 && !state.ready; i++) {
         await new Promise(r => setTimeout(r, 300));
       }
       await new Promise(r => setTimeout(r, 600));
@@ -23066,7 +23119,11 @@ function ensureMetroWaitListener() {
     _mwPendingToken = { key, token };
     Promise.resolve(metroWaitBind(token, key)).catch(() => {});
   });
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) metroWaitSyncFromNative(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) return;
+    metroWaitSyncFromNative();
+    metroWaitFlushPending();   // 背景期間被擋下的開卡請求,回前景補開(見 _mwPendingOpen)
+  });
   setInterval(metroWaitSyncFromNative, 60000);
   metroWaitSyncFromNative();
 }
