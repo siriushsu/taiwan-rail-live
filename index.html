@@ -1866,6 +1866,21 @@
   .board .ev-note { flex: 1 1 7em; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .board .ev-tag { flex: none; padding: 0 5px; border-radius: 4px; background: var(--line-faint); font-size: calc(10.5px * var(--uis)); }
   .board .ev-go { flex: none; margin-left: auto; color: var(--faint); }
+  /* 設計 3e:今日之最四格。1.5px 邊框卡而不是實色底——實色底會跟看板列的虛線分隔打架(設計原話)。
+     兩欄用 flex-wrap + flex:1 1 46%,不用 grid-template-columns:字級放大到特大時允許它掉成一欄,
+     不會被固定兩欄壓成擠不下的窄格。整格是觸控目標,下限沿用 44/52/60 那組(--uit)。 */
+  #explorePanel .hl-grid { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 2px; }
+  #explorePanel .hl-card { flex: 1 1 46%; min-width: 0; min-height: calc(48px * var(--uit));
+    display: flex; flex-direction: column; gap: 3px; align-items: flex-start;
+    padding: 9px 11px 10px; border: 1.5px solid var(--line); border-radius: 10px;
+    background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+  #explorePanel .hl-card:hover { border-color: var(--navy); }
+  #explorePanel .hl-card .hc-k { font-size: calc(10.5px * var(--uis)); font-weight: 800; letter-spacing: 1.5px; color: var(--faint); }
+  #explorePanel .hl-card .hc-v { display: flex; align-items: center; gap: 6px; font-size: calc(15px * var(--ui)); font-weight: 900; color: var(--ink-strong); }
+  #explorePanel .hl-card .hc-v .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  /* 區間可能很長(臺北→臺北-環島),擠不下就省略號,不要把格子撐開破壞兩欄 */
+  #explorePanel .hl-card .hc-s { max-width: 100%; font-size: calc(11px * var(--uis)); color: var(--muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   /* 觀光列車圖鑑列(無固定車次的山嵐/鳴日/環島之星…):純介紹入口,右側標「圖鑑」淺底徽章 */
   #explorePanel .row[data-guide] .gchip { flex: none; margin-left: auto; padding: 0 7px 1px; font-size: calc(10.5px * var(--uis)); font-weight: 700;
     letter-spacing: 1px; line-height: 1.5; color: var(--navy); border: 1px solid var(--line); border-radius: 999px; white-space: nowrap; }
@@ -17371,29 +17386,30 @@ function renderPassport() {
 // ── 今日亮點(探索面板):今日之最+特別列車+支線,新手入口;點列跟隨 ──
 function computeHighlights() {
   const out = { best: [], special: [], branches: [] };
-  let far = null, long = null, most = null, fast = null;
+  const cands = [];
   for (const tr of state.trains) {
     if (tr.loop) continue; // 環島車是虛構班次,不跟真車搶「今日之最」(特別列車區會列)
     journeyProgress(tr, 0); // 確保 _totalKm 已快取
     const km = tr._totalKm || 0;
     const dur = tr.stops[tr.stops.length - 1].arrSec - tr.stops[0].depSec;
     const n = tr.stops.filter(s => s.stop !== false).length;
-    const v = dur > 0 ? km / dur * 3600 : 0;
-    if (!far || km > far.v) far = { tr, v: km };
-    if (!long || dur > long.v) long = { tr, v: dur };
-    if (!most || n > most.v) most = { tr, v: n };
-    if (km >= 50 && (!fast || v > fast.v)) fast = { tr, v }; // 短程沒有平均速度代表性
+    cands.push({ tr, km, dur, n, v: dur > 0 ? km / dur * 3600 : 0 });
   }
+  // 🔴 同一班車蟬聯多冠時**換下一名遞補**,不是把那個頭銜整個拿掉:設計 3e 的今日之最是固定四格
+  //    (最遠征／開最久／停最多站／平均最快),舊寫法只留最前面那個頭銜 ⇒ 環島那種長程車一上榜
+  //    就會少一格,四格變三格。名次照樣是真的,只是同一班車不重複佔格。
   const used = new Set();
-  const add = (h, title, sub) => {
-    if (!h || used.has(h.tr)) return; // 同一班車蟬聯多冠只列最前面的頭銜
-    used.add(h.tr);
-    out.best.push({ tr: h.tr, title, sub: sub(h.v) });
+  const add = (title, val, fmt, ok) => {
+    const pick = cands.filter(c => !used.has(c.tr) && (!ok || ok(c)))
+      .sort((a, b) => val(b) - val(a))[0];
+    if (!pick) return;
+    used.add(pick.tr);
+    out.best.push({ tr: pick.tr, title, sub: fmt(val(pick)) });
   };
-  add(far, '今日最長征', v => Math.round(v) + ' km');
-  add(long, '開最久', v => Math.floor(v / 3600) + ' 小時 ' + Math.round(v % 3600 / 60) + ' 分');
-  add(most, '停最多站', v => v + ' 站');
-  add(fast, '平均最快', v => '約 ' + Math.round(v) + ' km/h');
+  add('最遠征', c => c.km, v => Math.round(v) + ' km');
+  add('開最久', c => c.dur, v => Math.floor(v / 3600) + ' 小時 ' + Math.round(v % 3600 / 60) + ' 分');
+  add('停最多站', c => c.n, v => v + ' 站');
+  add('平均最快', c => c.v, v => '約 ' + Math.round(v) + ' km/h', c => c.km >= 50); // 短程沒有平均速度代表性
   const sd = state.special;
   if (sd) {
     for (const nt of sd.namedTrains) for (const no of nt.trainNos) {
@@ -17500,6 +17516,22 @@ function guideRow(n, i) {
     `<b>${escHtml(n.name)}</b><span class="dest">無固定車次 · ${escHtml((n.tags || [])[0] || '觀光列車')}</span>` +
     `<span class="gchip">圖鑑</span></div>`;
 }
+// 設計 3e:今日之最改成四格「1.5px 邊框卡」(設計原話:不用實色底,免得跟看板列的虛線分隔打架)。
+// 整格是 <button>,`data-no`/`data-sys` 與 hlRow 同款 ⇒ 直接沿用面板既有的點擊處理常式(點了就跟隨)。
+// 狀態(行駛中/重播/幾點發)不佔版面,放進 title——四格是「今天最」的排行,不是即時看板;
+// 同一批車的即時狀態在下面「特別列車出沒中」每列右側都看得到。
+function hlCard(h) {
+  const tr = h.tr, last = tr.stops[tr.stops.length - 1];
+  const running = !!trainPos(tr, state.simSec);
+  const status = running ? '行駛中'
+    : (state.simSec > last.arrSec ? '重播' : fmtHM(tr.stops[0].depSec % 86400) + ' 發');
+  return `<button type="button" class="hl-card" data-no="${tr.train}" data-sys="${tr.sys || ''}" ` +
+    `title="跟隨 ${tr.train} 次・${status}">` +
+    `<span class="hc-k">${h.title}</span>` +
+    `<span class="hc-v"><i class="dot" style="background:${tr.color}"></i>${tr.train} 次</span>` +
+    `<span class="hc-s">${escHtml(tr.stops[0].name)} → ${escHtml(last.name)}${h.sub ? ' · ' + h.sub : ''}</span>` +
+    `</button>`;
+}
 function renderExplorePanel() {
   const el = document.getElementById('explorePanel');
   if (el.hidden) return;
@@ -17511,9 +17543,9 @@ function renderExplorePanel() {
   const noteTxt = (document.getElementById('note') || {}).textContent || ''; // #note 遷入亮點 sheet 註腳(重開即新文案)
   document.getElementById('expBody').innerHTML =
     `<div class="sub">從 ${state.trains.length} 班車裡挑出來的 · 點列車跟隨、點活動飛到那一站</div>` +
+    (hl.best.length ? `<div class="sec">今日之最</div><div class="hl-grid">` + hl.best.map(hlCard).join('') + `</div>` : '') +
     (hl.special.length ? `<div class="sec">特別列車出沒中</div>` + hl.special.map(hlRow).join('') : '') +
     eventSecHtml() +
-    (hl.best.length ? `<div class="sec">今日之最</div>` + hl.best.map(hlRow).join('') : '') +
     (hl.branches.length ? `<div class="sec">支線小火車</div>` + hl.branches.map(hlRow).join('') : '') +
     (punctual.length ? `<div class="sec">準點排行</div>` + punctual.map(punctualRow).join('') +
       // 誠實線:這是排行榜不是規則,不寫「零誤點」/「準點率100%」/「從不誤點」/「抵達誤點」,也不寫
@@ -17538,7 +17570,7 @@ function renderExplorePanel() {
     }
     const gr = e.target.closest('.row[data-guide]');
     if (gr) { const n = exploreGuideTrains()[+gr.dataset.guide]; if (n) renderNamedIntro(n); return; } // 圖鑑列:開介紹卡(不跟隨、不收藏)
-    const row = e.target.closest('.row[data-no]');
+    const row = e.target.closest('[data-no]'); // .row(特別列車/支線/準點)與 .hl-card(今日之最四格)共用
     if (row) { closeExplorePanel(); followTrainNo(row.dataset.no, { sys: row.dataset.sys }); }
   };
 }

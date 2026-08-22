@@ -1267,9 +1267,90 @@ async function sectionL(browser, engine) {
   await close();
 }
 
+// ── M 段:今日亮點 3e(今日之最四格邊框卡)────────────────────────────────
+// 設計 -前段3 TURN 3 的 3e:「四格用 1.5px 邊框卡 而不是實色底,避免跟看板列的虛線分隔打架。
+// 點任一列＝直接跟隨,所以整列都是 48px 觸控目標。」四格固定＝最遠征／開最久／停最多站／平均最快。
+const M_SNAP = () => {
+  const body = document.getElementById('expBody');
+  const cards = [...document.querySelectorAll('#explorePanel .hl-card')];
+  const secs = [...document.querySelectorAll('#explorePanel .sec')].map(e => e.textContent.trim());
+  const cs = cards[0] ? getComputedStyle(cards[0]) : null;
+  return {
+    open: !document.getElementById('explorePanel').hidden,
+    n: cards.length,
+    nos: cards.map(c => c.dataset.no || ''),
+    ks: cards.map(c => (c.querySelector('.hc-k') || {}).textContent || ''),
+    hs: cards.map(c => Math.round(c.getBoundingClientRect().height)),
+    // 🔴 四張都要測命中,不是只測第一張(並排元件的熱區重疊是這個 repo 踩過的坑)
+    hits: cards.map(c => { const r = c.getBoundingClientRect();
+      if (!(r.width > 2 && r.height > 2)) return false;
+      const q = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return !!(q && q.closest('.hl-card') === c); }),
+    // 「今日之最」要排在「特別列車出沒中」前面(設計 3e 的順序)
+    secOrder: secs,
+    bestFirst: secs.indexOf('今日之最') === 0,
+    // 邊框卡而不是實色底。🔴 用到的寬度不能當判準:chromium 把 1.5px 量成 1px(webkit 給 1.5),
+    //    引擎差異會讓「1.5」這個數字永遠對不齊。改成兩件事各驗一次——樣式表裡**宣告**的是 1.5px
+    //    (逐字,引擎無關),而畫面上**真的有**一條實線邊框且背景透明。
+    borderUsed: cs ? parseFloat(cs.borderTopWidth) : 0,
+    borderStyle: cs ? cs.borderTopStyle : '',
+    borderDecl: (() => { for (const sh of document.styleSheets) {
+        let rules; try { rules = sh.cssRules; } catch (e) { continue; }
+        for (const r of rules || []) if (r.selectorText === '#explorePanel .hl-card') return r.style.borderWidth || r.style.border || '';
+      } return ''; })(),
+    bgAlpha: cs ? (cs.backgroundColor.match(/[\d.]+\)$/) ? parseFloat(cs.backgroundColor.match(/([\d.]+)\)$/)[1]) : 1) : 1,
+    // 🔴 橫向溢出要量**真正在捲的那個容器**:#expBody 是 overflow:visible,永遠不捲,拿它量
+    //    只會量到頁尾註腳那條刻意的滿版負邊界(margin:0 -14px),與卡片無關(心得 19 的同族)。
+    //    而且不只看數字,還真的推一下 scrollLeft 看它動不動。
+    panelScrollX: (() => { const pn = document.getElementById('explorePanel');
+      const b0 = pn.scrollLeft; pn.scrollLeft = 999; const moved = pn.scrollLeft; pn.scrollLeft = b0;
+      return { over: pn.scrollWidth - pn.clientWidth, moved }; })(),
+    inPanel: (() => { const pn = document.getElementById('explorePanel');
+      const r = pn.getBoundingClientRect(), pr = parseFloat(getComputedStyle(pn).paddingRight) || 0;
+      return cards.every(c => c.getBoundingClientRect().right <= r.right - pr + 1); })(),
+    following: state.followTrain ? String(state.followTrain.train) : '',
+  };
+};
+async function sectionM(browser, engine, tier = 'std') {
+  const tag = `${engine} 393pt${tier === 'std' ? '' : ' ' + tier}`;
+  const { page, errs, close } = await boot(browser, { width: 393, tier });
+  const snap = () => page.evaluate(c => eval('(' + c + ')')(), M_SNAP.toString());
+  await page.evaluate(() => { if (state.playing) togglePlay(); });
+  await page.evaluate(() => document.getElementById('tabExplore').click());
+  await page.waitForTimeout(1300);
+  await page.evaluate(() => setSheetSize(document.getElementById('explorePanel'), 'large'));
+  await page.waitForTimeout(800);
+  const A = await snap();
+  ok(`M1 ${tag} 正向對照:亮點面板開著,今日之最四格,而且排在最前面`,
+    A.open && A.n === 4 && A.bestFirst, JSON.stringify({ open: A.open, n: A.n, 區塊順序: A.secOrder.slice(0, 3) }));
+  // 🔴 四個頭銜一個都不能少:舊寫法遇到同一班車蟬聯就把後面的頭銜整個丟掉(四格變三格)
+  ok(`M2 ${tag} 四個頭銜齊全,而且是四班不同的車`,
+    ['最遠征', '開最久', '停最多站', '平均最快'].every((k, i) => A.ks[i] === k)
+      && new Set(A.nos).size === 4 && A.nos.every(Boolean), JSON.stringify({ 頭銜: A.ks, 車次: A.nos }));
+  ok(`M3 ${tag} 每一格都是觸控目標(≥44)且四格各自命中自己`,
+    A.hs.every(h => h >= 44) && A.hits.length === 4 && A.hits.every(Boolean),
+    JSON.stringify({ 高度: A.hs, 命中: A.hits }));
+  ok(`M4 ${tag} 邊框卡不是實色底(樣式表宣告 1.5px、畫面上是實線邊框、背景透明)`,
+    /1\.5px/.test(A.borderDecl) && A.borderUsed > 0 && A.borderStyle === 'solid' && A.bgAlpha === 0,
+    JSON.stringify({ 宣告: A.borderDecl, 用到: A.borderUsed, 線型: A.borderStyle, 底色不透明度: A.bgAlpha }));
+  ok(`M5 ${tag} 兩欄不撐破面板(面板推不動、卡的右緣不出界)`,
+    A.panelScrollX.over <= 1 && A.panelScrollX.moved === 0 && A.inPanel,
+    JSON.stringify({ 面板橫向: A.panelScrollX, 卡都在面板內: A.inPanel }));
+  // 🔴 驗按鈕是驗「點它會發生什麼」:真的點第二格,面板要收掉而且跟到卡上那一班
+  const want = A.nos[1];
+  await page.locator('#explorePanel .hl-card').nth(1).click({ timeout: 5000 }).catch(() => {});
+  await page.waitForTimeout(1200);
+  const B = await snap();
+  ok(`M6 ${tag} 點第二格 ⇒ 面板收掉且跟到卡上那一班(${want})`,
+    !B.open && B.following === want, JSON.stringify({ 面板還開著: B.open, 跟到: B.following, 應該是: want }));
+  ok(`M7 ${tag} 零 pageerror`, errs.length === 0, errs.slice(0, 1).join(''));
+  await close();
+}
+async function sectionMx(browser, engine) { await sectionM(browser, engine, 'xlarge'); }
+
 await assertTarget();
 // SECTIONS=H,I 只跑指定段(突變測試用);不設就跑全部——預設永遠是「全跑」,不能靠環境變數才完整。
-const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ, K: sectionK, L: sectionL };
+const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ, K: sectionK, L: sectionL, M: sectionM, MX: sectionMx };
 const want = (process.env.SECTIONS || '').split(',').map(x => x.trim().toUpperCase()).filter(Boolean);
 const run = want.length ? want : Object.keys(ALL);
 for (const k of run) if (!ALL[k]) { console.error(`未知段別 ${k}`); process.exit(2); }
