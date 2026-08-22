@@ -1816,7 +1816,13 @@
      08-14 真機回饋「按鈕不明顯、不知道用途」——待機態改滿寬金底 CTA,追蹤中反轉成描邊。 */
   .board .board-wait {
     display: block; margin: 6px 0 2px; padding: 6px 12px;
-    font: 800 12.5px/1.5 inherit; letter-spacing: .6px;
+    /* 🔴 不可以寫成 `font: 800 12.5px/1.5 inherit` 的簡寫:`inherit` 是 CSS-wide 關鍵字,
+       只有【整條值就是它】時才合法,擺在 family 的位置會讓【整條宣告】被丟掉——
+       兩個引擎都丟(實測 chromium 退回 Arial 13.33px/400、webkit 退回 system-ui 11px/400),
+       於是這顆 CTA 從來沒有 800 字重、兩邊高度還差 6px(33 vs 27)。
+       iOS 是 WebKit ⇒ 這顆鈕在【唯一有等站卡的平台】上最矮。拆成四條長寫即可。 */
+    font-weight: 800; font-size: 12.5px; line-height: 1.5; font-family: inherit;
+    letter-spacing: .6px;
     width: 100%; max-width: 100%; text-align: center;
     background: #ffd977; border: 1px solid #ffd977; border-radius: 9px;
     color: var(--navy); cursor: pointer; box-shadow: 0 1px 4px rgba(10,16,30,.35);
@@ -2244,6 +2250,25 @@
   .metro-wait-dur:hover { border-color: var(--navy); background: var(--bg-stage); }
   .metro-wait-dur.on { border-color: var(--navy); background: var(--navy); color: var(--on-navy); }
   .metro-wait-picker-choices { display: grid; gap: 8px; }
+  /* 台鐵等站卡選單:一列一班車。捷運那邊選的是「方向」,這裡選的是【特定一班車】
+     ⇒ 每一列要能一眼認出是哪一班(表定時刻／車種＋車次／往終點),誤點另起小字。 */
+  .tra-wait-choice {
+    display: flex; align-items: baseline; gap: 8px; width: 100%; text-align: left;
+    padding: 9px 11px; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--bg-card); color: inherit; font: inherit; cursor: pointer;
+  }
+  .tra-wait-choice:hover { border-color: var(--navy); background: var(--bg-stage); }
+  .tra-wait-choice-time {
+    flex: none; font-family: var(--mono); font-variant-numeric: tabular-nums;
+    font-size: 15px; font-weight: 800;
+  }
+  .tra-wait-choice-main { flex: 1; min-width: 0; }
+  .tra-wait-choice-no { font-weight: 700; }
+  .tra-wait-choice-sub { display: block; font-size: 12px; color: var(--muted); }
+  .tra-wait-choice-delay { flex: none; font-size: 12.5px; font-weight: 700; }
+  .tra-wait-choice-delay.late { color: #c8721a; }
+  .tra-wait-choice-delay.ontime { color: #1f8a4c; }
+  .tra-wait-choice-delay.unknown { color: var(--muted); font-weight: 600; }
   .pinname-input { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 15px; color: var(--ink-strong); background: var(--paper); }
   .pinname-input:focus { outline: none; border-color: var(--navy); }
   .takeout-file {
@@ -4271,6 +4296,19 @@
     <div class="takeout-actions"><button class="cancel" id="metroWaitPickerCancel" type="button">取消</button></div>
   </section>
 </div>
+<!-- 台鐵等站卡:選一班特定的車。與捷運那張最大的差別是【不選時長】——追蹤窗由這班車的
+     實際約到站時刻推出來(原生與伺服器同一條算式),使用者不必也不該去猜要追多久。 -->
+<div class="takeout-modal tra-wait-picker" id="traWaitPicker" hidden>
+  <section class="takeout-dialog metro-wait-picker-dialog" role="dialog" aria-modal="true" aria-labelledby="traWaitPickerTitle">
+    <div class="takeout-head"><h2 id="traWaitPickerTitle">追蹤這班車</h2><button id="traWaitPickerX" type="button" aria-label="關閉">×</button></div>
+    <div class="takeout-body metro-wait-picker-body">
+      <p class="metro-wait-picker-hint">選一班車，鎖定畫面會顯示它的表定時刻與官方誤點分鐘（實際約幾點到）。卡片上隨時可按「結束」收起。</p>
+      <div class="metro-wait-picker-sec" id="traWaitPickerSec">接下來的班次</div>
+      <div class="metro-wait-picker-choices" id="traWaitPickerChoices"></div>
+    </div>
+    <div class="takeout-actions"><button class="cancel" id="traWaitPickerCancel" type="button">取消</button></div>
+  </section>
+</div>
 <div class="takeout-modal pinname-modal" id="pinNameModal" hidden>
   <section class="takeout-dialog pinname-dialog" role="dialog" aria-modal="true" aria-labelledby="pinNameTitle">
     <div class="takeout-head"><h2 id="pinNameTitle">命名地點</h2><button id="pinNameX" type="button" aria-label="關閉">×</button></div>
@@ -4607,6 +4645,9 @@ const state = {
   collectBounty: false, // 收集地圖的懸賞層:我校正過的段用特殊色(規格 §8「換一層資料即可」)
   recording: null,   // 錄製中的校正旅程;非 null 代表正在錄,見 startBountyRecording
   metroWait: null,   // 捷運等車卡(Live Activity 手動入口)開卡中的目標:{sys,station} 或 null,見 metroWaitStartFor
+  traWait: null,     // 台鐵等站卡開卡中的目標:{station,trainNo,schedSec,endAt} 或 null,見 traWaitStartFor
+                     // 🔴 與 metroWait【互斥】:鎖屏上只留一張等候卡(原生 RailWaitCards.endAll 收兩種),
+                     //    JS 這半由 waitCardsDropOther() 保持同步,否則看板鈕會停在「結束追蹤」而卡早就沒了
   _metroLiveRaw: {}, // pollMetroLive 最近一次原始回應快取:sys → {at,rows,receivedAt},供等車卡取官方分鐘(不另發 fetch)
 };
 let map, cv, ctx;
@@ -22502,6 +22543,7 @@ function renderBoard() {
   el.classList.toggle('has-notify', showNotify);
   el.innerHTML = `<h3>${escHtml(st.name)}${sysName ? `<span class="sys-chip">${sysName}</span>` : ''}` +
     (showNotify ? `<button class="board-notify" id="boardNotify" type="button" title="設定末班車提醒" aria-label="設定末班車提醒">${railIcon('ui-notify')}</button>` : '') +
+    traWaitBoardHtml(st) +
     `<button class="board-star${fav ? ' on' : ''}" id="boardStar" title="${fav ? '移除最愛車站' : '加入最愛車站'}" aria-label="${fav ? '移除最愛車站' : '加入最愛車站'}">${railIcon('ui-favorite', fav ? 'ri-icon--fill' : '')}</button>` +
     `<button class="close" id="boardClose">×</button></h3>` + stnMetaHtml(st) + eventRowsHtml(st) +
     // 林鐵站不可沿用台鐵誤點文案:群組視圖 liveActive 為真(台鐵 live 在場)但林鐵根本無即時介接,
@@ -22511,10 +22553,14 @@ function renderBoard() {
       st.sys === 'tra_sched' && state.traDaily && state.traDaily.cancelled
         ? ' · 今日官方停駛 ' + state.traDaily.cancelled + ' 班' : ''} · 點班次跟隨</div>` +
     (list || '<div class="empty">此時段無停靠班次</div>');
+  // 等站卡選單要的是【這張板算出來的那一份 rows】:時鐘被帶回「現在」之後會重繪一次,
+  // 掛在 el 上讓 traWaitStartFromBoard 讀重繪後的新值（比照 el._metroCoreRecords）。
+  el._traWaitRows = rows;
   el.hidden = false;
   updateSheetOpenClass();
   el.querySelector('#boardClose').onclick = closeBoard;
   el.querySelector('#boardStar').onclick = () => toggleFavStation(st);
+  bindTraWaitBoard(el, st);
   if (showNotify) { const nb = el.querySelector('#boardNotify'); if (nb) nb.onclick = e => { e.stopPropagation(); openLastTrainReminderSheet(st); }; }
   // 點任一班次列 → 關看板、跟隨該車。
   // 看板每 20 模擬秒重繪(高倍速=不到半秒),按下到放開之間列可能被換掉、click 目標變成容器,
@@ -23322,6 +23368,7 @@ async function metroWaitStartFor(sys, st, lines, isDeco, dest = null, sourceBund
   // key:認出「等一下回來的那顆 token 屬於哪一張卡」。換站很快時舊卡的 token 可能晚到,
   // 沒有 key 就會把舊 token 交上去、伺服器推到一張已經被收掉的卡(RailLiveActivityPlugin 走過)。
   const key = sys + '|' + st.name + '|' + (dest == null ? '' : dest) + '|' + Date.now();
+  waitCardsDropOther('metro'); // 鎖屏只留一張等候卡:順手收掉台鐵等站卡的 state 與伺服器綁定
   metroWaitUnbind();          // 換站:先註銷上一張卡的交班(原生 start 會自動收掉舊卡)
   _mwKey = key;               // 🔴 必須在 p.start() 之前設好:token 可能比 start 的 resolve 先回來
   payload.key = key;
@@ -23525,6 +23572,299 @@ function ensureMetroWaitListener() {
   });
   setInterval(metroWaitSyncFromNative, 60000);
   metroWaitSyncFromNative();
+}
+
+// ═════════ 台鐵等站卡（Live Activity 手動入口） ═════════
+//
+// 使用者情境:人在月台上（或出門前），想知道「我等的這班現在誤點幾分、實際大概幾點到」。
+// 從車站看板一鍵開卡 → 鎖定畫面就有，不必一直解鎖回來看。
+//
+// 🔴 精度紅線（memory: tra-thsr-no-official-eta）。台鐵官方【只有】表定時刻與誤點分鐘,
+//    沒有預估到站時刻、更沒有秒級倒數。所以這張卡:
+//      · 主角是「實際約到站」的鐘面時刻 = 表定 + 官方誤點（兩個輸入都是官方值）;
+//      · 絕不做秒級倒數——那是製造官方沒有的精度;
+//      · 誤點分鐘一律照抄官方,不平滑、不內插、不夾正。
+//
+// 🔴 與捷運等車卡的三個結構差異（都是被資料精度逼出來的,不是風格選擇）:
+//      1. 追蹤的是【一班特定的車】,不是「這站的下一班」——台鐵班距以小時計,輪替沒有意義;
+//      2. 選單【不選時長】——追蹤窗由這班車的實際約到站推出來（原生與伺服器同一條算式）,
+//         使用者不必也不該去猜要追多久;
+//      3. 誤點來源一律是 state.live.map 的【原值】,絕不是 liveDelaySec()——後者是給動畫用的
+//         漸變值（easedShift），它會在兩個官方值之間平滑移動,那是「畫面好看」不是「官方說的」。
+function traWaitEnabled() {
+  try { return !!(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.RailTraWait); }
+  catch (e) { return false; }
+}
+// 🔴 兩張等候卡互斥的 JS 半邊。原生那半是 RailWaitCards.endAll()（開任一張之前把兩種都收乾淨）,
+//    但它收不到 JS 這邊的 state 與伺服器綁定 ⇒ 沒有這個函式的話,看板鈕會停在「結束追蹤」
+//    而那張卡早就被另一張擠掉了,而且伺服器會繼續推給一張不存在的卡。
+function waitCardsDropOther(keep) {
+  if (keep !== 'metro') {
+    metroWaitUnbind();
+    if (state.metroWait) { state.metroWait = null; refreshMetroWaitButton(); }
+  }
+  if (keep !== 'tra') {
+    traWaitUnbind();
+    if (state.traWait) { state.traWait = null; refreshTraWaitButton(); }
+  }
+}
+// 看板 h3 內的 pill（v0717p 鐵則:必須在 sticky h3 內）。與捷運那顆共用 .board-wait 樣式,
+// 但 id 刻意不同:refreshMetroWaitButton() 抓的是 #boardWait,同 id 會讓它每分鐘把台鐵這顆的
+// 文案改成捷運卡的狀態（兩張板不會同時存在,但那條每分鐘的對帳會跨板抓到）。
+function traWaitBoardHtml(st) {
+  if (!st || st.sys !== 'tra_sched' || !traWaitEnabled()) return '';
+  const on = !!(state.traWait && state.traWait.station === st.name);
+  return `<button class="board-wait${on ? ' on' : ''}" id="boardTraWait" type="button">` +
+    `${on ? '結束追蹤' : '追蹤一班車'}</button>`;
+}
+function bindTraWaitBoard(el, st) {
+  const btn = el.querySelector('#boardTraWait');
+  if (!btn) return;
+  btn.onclick = e => {
+    e.stopPropagation();
+    if (state.traWait && state.traWait.station === st.name) traWaitStop();
+    else traWaitStartFromBoard(st, btn);
+  };
+}
+function refreshTraWaitButton() {
+  const btn = document.getElementById('boardTraWait');
+  if (!btn) return;
+  const cur = state.boardStation;
+  const on = !!(state.traWait && cur && state.traWait.station === cur.name);
+  btn.textContent = on ? '結束追蹤' : '追蹤一班車';
+  btn.classList.toggle('on', on);
+}
+// 這一班車的官方誤點。回 { delayMin, dataAt } 或 null（整份即時資料不可用）。
+//
+// 🔴 三件事都是刻意的:
+//   1. 讀 state.live.map 的【原值】（分鐘）。liveDelaySec() 是 easedShift 過的動畫量,
+//      它在兩個官方值之間平滑移動 ⇒ 送上去的會是一個官方從來沒說過的數字。
+//   2. delayMin === null（這班車不在 map 裡）與 0（官方說準點）是【兩件事】,不可合併:
+//      TDX 的 TrainLiveBoard 只給「動態前後 30 分鐘」的車次,還沒發車的車根本不在裡面。
+//      卡片對這兩種的文案不同（「目前無即時誤點資訊」vs「準點」）。
+//   3. dataAt 取【資料自己的時戳】(srcMs) 不取讀取端時鐘(state.live.at):後者對「被某層快取
+//      餵了舊主體」恆為新鮮,結構上不可能報壞。解不出 srcMs 就整包不送——寧可卡片說
+//      「目前無即時誤點資訊」,也不要送一個沒有時刻可標齡的誤點值（它會永遠不過期）。
+function traWaitOfficialDelay(trainNo) {
+  if (!liveActive() || !state.live || !state.live.map) return null;
+  const ms = Number(state.live.srcMs);
+  if (!Number.isFinite(ms)) return null;
+  const dataAt = Math.round(ms / 1000);
+  const raw = state.live.map.get(String(trainNo));
+  if (raw == null) return { delayMin: null, dataAt };
+  const n = Number(raw);
+  return { delayMin: Number.isFinite(n) ? Math.round(n) : 0, dataAt };
+}
+// 看板那一份 rows → 選單候選（最多 8 班）。
+//
+// 🔴 表定時刻要換成【絕對 epoch 秒】（跨午夜的末班車用當日秒數會算到昨天）。
+//    換算不自己重寫跨午夜對齊,而是從看板已經算好的 dtm 反推:
+//      dtm = 表定 + 誤點 − simSec（已做過 ±12 小時換日對齊）
+//    ⇒ 純表定的相對量 = dtm − dl×60。dl 是 easedShift 過的動畫值,但它在這裡【原樣減回去】,
+//      誤差完全抵銷,不會漏進送出去的 schedSec。
+function traWaitCandidates(rows) {
+  const nowEpoch = Math.floor(Date.now() / 1000);
+  const out = [];
+  for (const r of rows || []) {
+    if (r.off) continue;                       // 官方停駛:沒有這班車可等
+    if (!r.tr || !r.tr.train) continue;
+    const schedEpoch = nowEpoch + (r.dtm - r.dl * 60);
+    const dest = r.tr.loop ? r.loopDest : (r.isLast ? r.dest : r.dest);
+    out.push({
+      trainNo: String(r.tr.train),
+      trainType: String((r.tr.loop ? r.tr.loopName : r.tr.typeName) || ''),
+      dest: String(dest || ''),
+      color: r.tr.color || null,
+      schedEpoch,
+      schedText: fmtHM(r.t % 86400),
+      isLast: r.isLast,
+    });
+    if (out.length >= 8) break;
+  }
+  return out;
+}
+function traWaitDelayChip(trainNo) {
+  const d = traWaitOfficialDelay(trainNo);
+  if (!d || d.delayMin == null) return { text: '誤點未知', cls: 'unknown' };
+  if (d.delayMin > 0) return { text: '誤點 ' + d.delayMin + ' 分', cls: 'late' };
+  if (d.delayMin < 0) return { text: '早到 ' + (-d.delayMin) + ' 分', cls: 'late' };
+  return { text: '準點', cls: 'ontime' };
+}
+let traWaitPickerDraft = null;
+function traWaitClosePicker(restoreFocus = true) {
+  const modal = document.getElementById('traWaitPicker');
+  const opener = traWaitPickerDraft && traWaitPickerDraft.opener;
+  if (modal) modal.hidden = true;
+  traWaitPickerDraft = null;
+  if (restoreFocus && opener && opener.isConnected) { try { opener.focus(); } catch (e) {} }
+}
+function traWaitOpenPicker(st, cands, opener) {
+  const modal = document.getElementById('traWaitPicker'), choices = document.getElementById('traWaitPickerChoices');
+  if (!modal || !choices) return;
+  traWaitPickerDraft = { st, cands, opener };
+  choices.innerHTML = cands.map((c, i) => {
+    const chip = traWaitDelayChip(c.trainNo);
+    return `<button class="tra-wait-choice" type="button" data-tra-wait="${i}">` +
+      `<span class="tra-wait-choice-time">${escHtml(c.schedText)}</span>` +
+      `<span class="tra-wait-choice-main"><span class="tra-wait-choice-no">${escHtml(c.trainType)} ${escHtml(c.trainNo)}</span>` +
+      `<span class="tra-wait-choice-sub">${c.isLast ? '（終點到達）' : '往 ' + escHtml(c.dest)}</span></span>` +
+      `<span class="tra-wait-choice-delay ${chip.cls}">${escHtml(chip.text)}</span></button>`;
+  }).join('');
+  modal.hidden = false;
+  requestAnimationFrame(() => { const first = choices.querySelector('.tra-wait-choice'); if (first) first.focus(); });
+}
+async function traWaitStartFromBoard(st, opener) {
+  if (!traWaitEnabled()) return;
+  // 🔴 時鐘不在「現在」時,看板的 rows 是照 state.simSec 推出來的——用它換算 schedSec 會得到
+  //    一個對不上真實世界的時刻,而卡片會言之鑿鑿地印出來。按「追蹤一班車」的意圖本來就是
+  //    「等現在這班」,所以直接把時鐘帶回現在、重繪一次再讀。
+  //    容差用與 liveFresh() 相同的 120 秒（低於這個量級被模型自身誤差蓋掉）。
+  if (Math.abs(state.simSec - nowSecOfDay(activeTz())) > 120 || state.speed !== 1) {
+    jumpToNow();
+    renderBoard();
+    showToast('已把時間帶回「現在」才能追蹤班次');
+  }
+  const el = document.getElementById('board');
+  const cands = traWaitCandidates(el && el._traWaitRows);
+  if (!cands.length) { showToast('這一站接下來沒有可追蹤的班次'); return; }
+  traWaitOpenPicker(st, cands, opener);
+}
+// 🔴 原生 start/stop/status 共用同一條 Task 佇列（RailTraWaitPlugin.swift 的 enqueue）:
+//    任何一個 job 沒跑完,三支就全部永遠不 resolve ⇒ JS 停在 await 上,不 toast、不刷新按鈕,
+//    使用者只看到「點了完全沒反應」。逾時一律 throw,讓各呼叫點的 catch 各自做對的事;
+//    尤其 status 那支必須維持「什麼都不做」,絕不可以把逾時當成「卡片不在了」而清掉綁定。
+function traWaitCall(promise, ms = 8000) {
+  let timer;
+  return Promise.race([
+    Promise.resolve(promise).finally(() => clearTimeout(timer)),
+    new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('timeout')), ms); }),
+  ]);
+}
+async function traWaitStartFor(st, cand) {
+  const p = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.RailTraWait;
+  if (!p || !st || !cand) return;
+  // 🔴 背景一律不呼叫 p.start():iOS 會拒（ActivityAuthorizationError.visibility）,而失敗只有
+  //    toast、鎖屏看不到。等站卡沒有深連結入口（開卡一定是使用者當場按的）⇒ 這裡不做待辦補開,
+  //    直接如實告訴他。（捷運那張有小工具深連結,才需要 _mwPendingOpen 那套。）
+  if (document.hidden) { showToast('請回到軌島再按一次「追蹤一班車」'); return; }
+  const delay = traWaitOfficialDelay(cand.trainNo);
+  const key = 'tra|' + st.name + '|' + cand.trainNo + '|' + Date.now();
+  const payload = {
+    station: st.name, trainNo: cand.trainNo, trainType: cand.trainType,
+    dest: cand.dest, schedSec: cand.schedEpoch, color: cand.color, key,
+  };
+  // delayMin 與 dataAt 是【一組】:只有其中一個的話,卡片會拿一個沒有時刻可標齡的誤點值
+  // 永遠當成新鮮的（見 traWaitOfficialDelay 第 3 點）。
+  if (delay) {
+    payload.dataAt = delay.dataAt;
+    if (delay.delayMin != null) payload.delayMin = delay.delayMin;
+  }
+  waitCardsDropOther('tra');   // 鎖屏只留一張等候卡（原生也會收,這裡收 JS 這半的 state 與綁定）
+  traWaitUnbind();             // 換車:先註銷上一張卡的交班（原生 start 會自動收掉舊卡）
+  _twKey = key;                // 🔴 必須在 p.start() 之前設好:token 可能比 start 的 resolve 先回來
+  let res;
+  try { res = await traWaitCall(p.start(payload)); } catch (e) { res = { ok: false, why: String((e && e.message) || e) }; }
+  if (res && res.ok) {
+    // endAt 以原生回傳的為準（它是照同一條算式算出來、也是送去 bind 的那個值）。
+    state.traWait = { station: st.name, trainNo: cand.trainNo, schedSec: cand.schedEpoch,
+      endAt: Number(res.endAt) || null };
+    if (_twPendingToken.key === key) traWaitBind(_twPendingToken.token, key);
+  } else {
+    _twKey = '';
+    showToast(res && res.why === 'disabled' ? '請到 iOS 設定開啟「即時動態」才能顯示等站卡'
+            : res && res.why === 'timeout' ? '系統沒有回應，請再點一次'
+            : '開卡失敗，請稍後再試');
+  }
+  refreshTraWaitButton();
+}
+async function traWaitStop() {
+  const p = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.RailTraWait;
+  state.traWait = null;
+  traWaitUnbind();   // 伺服器那一列要一起清掉,否則它會繼續推給一張已經不存在的卡
+  refreshTraWaitButton();
+  if (p) { try { await traWaitCall(p.stop()); } catch (e) {} }
+}
+// ── 推播交班:把 token 交給伺服器,之後由它每分鐘把官方誤點 join 回來、到站或時段到點收卡 ──
+// 🔴 這整段是【純附加能力】:任何一步失敗（沒網路、伺服器拒收、根本沒拿到 token）都只讓卡片
+//    退回零推播行為——表定與開卡當下的誤點仍然是真的,只是不會再更新。之所以敢讓它靜默退化,
+//    是因為卡片上那句說明綁在 ContentState.pushed（只有伺服器真的推過才是 true）,退化時它會
+//    如實寫「誤點分鐘不會自己更新」,不會變成騙人。
+let _twEpoch = 0;   // 每次收卡/換車遞增。飛行中的 bind 回來時比對,認得出自己已經被取消
+let _twToken = '';  // 目前已交班的 token（收卡時要拿它送 unbind）
+let _twKey = '';    // 目前這張卡的 key,與原生 traWaitPushToken 事件帶回來的比對
+let _twPendingToken = { key: '', token: '' };
+function traWaitUnbindToken(token) {
+  if (!token) return;
+  fetch(apiUrl('api/tra-wait/unbind'), {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ token }),
+  }).catch(() => {});   // 失敗靜默:伺服器那一列最遲會在 expire_at 被 cron 清掉
+}
+function traWaitUnbind() {
+  _twEpoch++;                       // 先讓飛行中的 bind 過期,再送註銷（順序與 metroWaitUnbind 一致）
+  const token = _twToken;
+  _twToken = ''; _twKey = ''; _twPendingToken = { key: '', token: '' };
+  traWaitUnbindToken(token);
+}
+async function traWaitBind(token, key) {
+  const s = state.traWait;
+  if (!token || key !== _twKey || !s || !s.endAt) return;  // 舊卡的 token、或 state 還沒設好
+  if (_twToken === token) return;                          // 已經交過班,不重打
+  const myEpoch = _twEpoch;
+  try {
+    const r = await fetch(apiUrl('api/tra-wait/bind'), {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        token, station: s.station, trainNo: s.trainNo,
+        // 🔴 schedSec 與 endAt 都用開卡當下那一組值:伺服器每分鐘要用同一個表定去算
+        //    「實際約到站」,自己重算會與卡片上印著的那個數字漂開。
+        schedSec: s.schedSec, endAt: s.endAt,
+      }),
+    });
+    if (!r.ok) return;                 // 後端拒絕:不標記已交班,收卡時也就不會多送一發 unbind
+    if (myEpoch !== _twEpoch) {        // 回應回來之前卡已經收掉:伺服器那列是孤兒,補一發清掉
+      traWaitUnbindToken(token);       // （這裡是唯一還記得住這顆 token 的地方,_twToken 已被清空）
+      return;
+    }
+    _twToken = token;
+  } catch (e) { /* 失敗靜默:卡片維持零推播行為 */ }
+}
+// 與原生對帳:「結束」鈕（LiveActivityIntent）與鎖屏左滑清除都發生在 JS 看不到的地方。
+// 逾時=不知道,什麼都不做（絕不可當成「卡片不在了」）。
+async function traWaitSyncFromNative() {
+  const p = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.RailTraWait;
+  if (!p || !p.status) return;
+  let res;
+  try { res = await traWaitCall(p.status()); } catch (e) { return; }
+  if (!res || !res.active) {
+    if (_twToken) traWaitUnbind();
+    if (state.traWait) { state.traWait = null; refreshTraWaitButton(); }
+    return;
+  }
+  state.traWait = { station: res.station, trainNo: res.trainNo,
+    schedSec: Number(res.schedSec) || null, endAt: Number(res.endAt) || null };
+  refreshTraWaitButton();
+}
+let _traWaitListening = false;
+function ensureTraWaitListener() {
+  if (_traWaitListening) return;
+  const p = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.RailTraWait;
+  if (!p || !p.addListener) return;
+  _traWaitListening = true;
+  // 推播 token:原生拿到就送過來（可能【多次】輪替,不是一次就結束）。先存起來再嘗試交班——
+  // 這個事件可能比 p.start() 的 resolve 更早到,那時 state.traWait 還沒設好、endAt 還不知道,
+  // traWaitBind 會早退,由 traWaitStartFor 拿到回應後用 _twPendingToken 補打。
+  p.addListener('traWaitPushToken', evt => {
+    const token = evt && evt.token, key = evt && evt.key;
+    if (!token || key !== _twKey) return;   // 舊卡的 token 晚到:丟掉,不可以交上去
+    _twPendingToken = { key, token };
+    Promise.resolve(traWaitBind(token, key)).catch(() => {});
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) traWaitSyncFromNative();
+  });
+  setInterval(traWaitSyncFromNative, 60000);
+  traWaitSyncFromNative();
 }
 
 // ── 尖峰流量分析 ──
@@ -25169,6 +25509,7 @@ async function boot() {
   // 不 await:定位回不回得來、幾秒回來都不該卡住開機;結果晚點在落點決定處接。
   startBootGeo();
   ensureMetroWaitListener(); // 捷運等車卡(Task 6)深連結監聽,boot 時掛(僅原生殼有此 plugin,web/PWA 無操作)
+  ensureTraWaitListener();   // 台鐵等站卡的 push token 監聽與原生對帳(同上,web/PWA 無操作)
   ensureCrossLevels(); // 立體交叉高低表(小檔、不 await):沒載到就退回原順序,不擋開機
   cv = document.getElementById('overlay'); ctx = cv.getContext('2d');
   // zoomAnimation:true —— 縮放走 Leaflet 250ms CSS 平滑補間(舊圖磚縮放到位、新圖磚淡入),不再「瞬間跳格→
@@ -26308,6 +26649,25 @@ document.getElementById('favPanel').onclick = e => {
     }
     metroWaitClosePicker();
     metroWaitStartFor(draft.sys, draft.st, draft.lines, draft.isDeco, dest, draft.bundle, draft.durationMin);
+  };
+  modal.addEventListener('click', e => { if (e.target === modal) close(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) close(); });
+})();
+// 「追蹤一班車」選單接線(選了哪一班就立刻開卡;取消/關閉/Esc/點背景都只收選單)。
+(function () {
+  const modal = document.getElementById('traWaitPicker'), choices = document.getElementById('traWaitPickerChoices');
+  if (!modal || !choices) return;
+  const close = () => traWaitClosePicker();
+  document.getElementById('traWaitPickerX').onclick = close;
+  document.getElementById('traWaitPickerCancel').onclick = close;
+  choices.onclick = e => {
+    const btn = e.target.closest('.tra-wait-choice');
+    const draft = traWaitPickerDraft;
+    if (!btn || !draft) return;
+    const cand = draft.cands[Number(btn.dataset.traWait)];
+    if (!cand) return;
+    traWaitClosePicker();
+    traWaitStartFor(draft.st, cand);
   };
   modal.addEventListener('click', e => { if (e.target === modal) close(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) close(); });
