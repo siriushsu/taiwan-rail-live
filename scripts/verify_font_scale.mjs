@@ -303,6 +303,9 @@ async function sectionE(browser, engine) {
   // 可達路徑與熱區:只在特大有意義
   const { page, errs, close } = await boot(browser, { tier: 'xlarge' });
   await openBoard(page); await page.waitForTimeout(500);
+  // 🔴 先暫停:看板每 20 模擬秒重繪一次會把「›」展開洗掉,E4b 因此偶發假紅(實測 webkit 三輪中一輪)。
+  //    這裡凍住的是與本段無關的變因(時間在跑),不是放寬判準。
+  await page.evaluate(() => { if (state.playing) togglePlay(); });
   const chev = page.locator('#board .row[data-no] .rmore').first();
   ok(`E4a ${engine} 特大時列尾有「›」出口`, await chev.isVisible());
   await chev.tap(); await page.waitForTimeout(300);
@@ -318,10 +321,20 @@ async function sectionE(browser, engine) {
   // 🔴 整列本來就是「跟隨這班」的熱區,出口若沒把事件擋住,點展開會直接跟車並關掉看板
   ok(`E5 ${engine} 點「›」不會誤觸跟車(看板還開著、沒有跟車)`,
     after.boardOpen && !after.following, JSON.stringify(after));
-  // 反向對照:同一張看板點「列」本身仍然要跟車——否則上面那條用「什麼都不會發生」也能過
+  // 反向對照:同一張看板點「列」本身仍然要跟車——否則上面那條用「什麼都不會發生」也能過。
+  // 🔴 「跟完要不要收看板」兩種殼不同,兩側都寫死:手機(整合卡 D1–D2)看板留著當「這一站」分頁、
+  //    並切到「這班車」;桌面維持原本的「選到車一律收板」。少了任何一半,另一種殼會無條件通過。
   await page.locator('#board .row[data-no] b').first().tap(); await page.waitForTimeout(600);
-  const followed = await page.evaluate(() => ({ following: !!state.followTrain, boardOpen: !document.getElementById('board').hidden }));
-  ok(`E6 ${engine} 反向對照:點列本身仍然會跟車`, followed.following && !followed.boardOpen, JSON.stringify(followed));
+  const followed = await page.evaluate(() => ({
+    fs: document.body.classList.contains('fs'),
+    following: !!state.followTrain,
+    boardOpen: !document.getElementById('board').hidden,
+    tab: (document.querySelector('.uni-tabs button[aria-selected="true"]') || {}).textContent || '',
+  }));
+  ok(`E6 ${engine} 反向對照:點列本身仍然會跟車`, followed.following, JSON.stringify(followed));
+  ok(`E7 ${engine} 跟完之後${'手機保留看板當「這一站」分頁並切到「這班車」'}`,
+    followed.fs ? (followed.boardOpen && followed.tab === '這班車') : !followed.boardOpen,
+    JSON.stringify(followed));
   ok(`E7 ${engine} 全程零 pageerror`, errs.length === 0, errs.slice(0, 1).join(''));
   await close();
 }
@@ -683,16 +696,163 @@ async function sectionI(browser, engine) {
   await close();
 }
 
+// ── J 段:整合卡(設計 D1–D3)——跟車中開車站看板 ⇒ 同一張卡兩個分頁 ─────────────
+// 設計狀態機:D1 跟車·這班車／D2 跟車·這一站(跟車不斷)／D3 沒跟車(卡頭是站名、分頁列不出現)。
+// 🔴 這一段最容易壞的地方不是樣式,是 **DOM 搬遷的生命週期**:看板每次重繪都 `innerHTML = …`,
+//    搬進去的 #followPanel 會跟著被銷毀(實作第一版就是這樣炸的)。J5/J7 專門守這件事。
+async function followSomeTrain(page) {
+  return page.evaluate(() => {
+    const mc = map.getContainer().getBoundingClientRect();
+    for (const t of (state.trains || [])) {
+      if (!state.visible.has(t.typeName)) continue;
+      const pos = trainPos(t, state.simSec);
+      if (!pos) continue;
+      const pt = map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
+      if (pt.x > 60 && pt.x < mc.width - 60 && pt.y > 180 && pt.y < 600) { setFollow(t, false); return true; }
+    }
+    return false;
+  });
+}
+const J_SNAP = () => {
+  const el = document.getElementById('board');
+  const fp = document.getElementById('followPanel');
+  const vis = e => !!e && e.getClientRects().length > 0;
+  const tabs = [...el.querySelectorAll('.uni-tabs button')];
+  return {
+    boardOpen: !el.hidden, following: !!state.followTrain,
+    tabN: tabs.length,
+    tabSel: (tabs.find(b => b.getAttribute('aria-selected') === 'true') || {}).textContent || '',
+    fpInBoard: !!(fp && fp.closest('#board')),
+    fpExists: !!fp, fpVisible: vis(fp),
+    fpFields: ['fpNext', 'fpProgTxt', 'fpDest'].filter(id => vis(document.getElementById(id))).length,
+    rows: [...el.querySelectorAll('.row[data-no]')].filter(vis).length,
+  };
+};
+
+async function sectionJ(browser, engine) {
+  const tag = `${engine} 393pt`;
+  const { page, errs, close } = await boot(browser, { width: 393 });
+  const snap = () => page.evaluate(c => eval('(' + c + ')')(), J_SNAP.toString());
+
+  const started = await followSomeTrain(page);
+  await page.waitForTimeout(2000);
+  const A = await snap();
+  // D3/基準態:只跟車、沒開看板 ⇒ 沒有分頁列,跟車卡是浮動小卡
+  ok(`J1 ${tag} 正向對照:跟到車、跟車卡看得到、還沒有分頁列`,
+    started && A.following && A.fpVisible && !A.fpInBoard && A.tabN === 0, JSON.stringify(A));
+
+  await page.evaluate(() => {
+    const e = buildStnIndex().find(x => x.sysId === 'tra_sched' && x.name === '板橋');
+    if (e) openBoard({ name: e.name, sys: e.sysId, lat: e.lat, lon: e.lon });
+  });
+  await page.waitForTimeout(1600);
+  const B = await snap();
+  // D2:點站 ⇒ 分頁列出現、落在「這一站」、跟車卡被搬進看板、**跟車沒斷**
+  ok(`J2 ${tag} 跟車中開看板 ⇒ 兩個分頁、落在「這一站」、跟車不斷`,
+    B.boardOpen && B.following && B.tabN === 2 && B.tabSel === '這一站' && B.fpInBoard && B.rows > 0,
+    JSON.stringify(B));
+
+  // 🔴 可選串接:分頁列不存在時要讓後面的判準紅,而不是讓整支腳本拋錯中止
+  //    (突變測試實測:少了 ?. 會在這裡拋 evaluate 例外,J3–J8 與另一個引擎整段沒跑到,
+  //     輸出長得像「只有 J2 紅」——比全綠更騙人)。
+  await page.evaluate(() => document.querySelector('.uni-tabs button[data-t="train"]')?.click());
+  await page.waitForTimeout(700);
+  const C = await snap();
+  // D1:切「這班車」⇒ 看板列全收、跟車卡的欄位露出來。兩件事都要驗——只驗一半的話
+  // 「兩份內容疊著一起顯示」也會過。
+  ok(`J3 ${tag} 切「這班車」⇒ 看板列全收、跟車卡欄位露出`,
+    C.tabSel === '這班車' && C.rows === 0 && C.fpVisible && C.fpFields === 3, JSON.stringify(C));
+
+  // 🔴 重繪存活:看板每 20 模擬秒重繪一次,`innerHTML = …` 會把搬進去的卡整顆銷毀。
+  await page.evaluate(() => renderBoard());
+  await page.waitForTimeout(700);
+  const D = await snap();
+  ok(`J4 ${tag} 看板重繪後:分頁列還在、選中沒變、跟車卡沒被銷毀`,
+    D.fpExists && D.tabN === 2 && D.tabSel === '這班車' && D.fpInBoard && D.fpVisible, JSON.stringify(D));
+
+  // 讓位:整合卡掛著的時候,跟車目標仍要在可視窗內、而且沒被卡片蓋住(接 H 段同一套獨立判準)
+  const E = await page.evaluate(c => {
+    const r = eval('(' + c + ')')();
+    const t = state.followTrain; if (!t) return { ...r, ok: false };
+    const pos = trainPos(t, state.simSec); if (!pos) return { ...r, ok: false };
+    const mc = map.getContainer().getBoundingClientRect();
+    const pt = map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
+    const hit = document.elementFromPoint(mc.left + pt.x, mc.top + pt.y);
+    const chrome = hit && hit.closest('.topbar,.badge,.tabbar,.controls,#followPanel,#freqCard,.sheet,.board,#mapActions');
+    return { ...r, ok: true, py: +pt.y.toFixed(1), inBand: pt.y >= r.bandTop && pt.y <= r.bandBot,
+      covered: !!chrome, hit: hit ? (hit.id || String(hit.className).slice(0, 28)) : 'none' };
+  }, H_CENSUS.toString());
+  ok(`J5 ${tag} 整合卡掛著時跟車目標仍在可視窗內、沒被卡片蓋住`,
+    E.ok && E.inBand && !E.covered, `車y=${E.py} 窗=${E.bandTop}~${E.bandBot} 命中=${E.hit}`);
+
+  // 反向對照①:關看板 ⇒ 跟車卡要**搬回家且還看得到**(不能跟著 innerHTML 被清掉)
+  await page.evaluate(() => closeBoard());
+  await page.waitForTimeout(900);
+  const F = await snap();
+  ok(`J6 ${tag} 反向對照:關看板 ⇒ 跟車卡搬回原位且仍看得到`,
+    F.fpExists && !F.fpInBoard && F.fpVisible && F.tabN === 0 && F.following, JSON.stringify(F));
+
+  // 反向對照②:結束跟車 ⇒ 分頁列不該出現(設計 D3:沒跟車就是今天的看板)
+  await page.evaluate(() => {
+    clearFollow();
+    const e = buildStnIndex().find(x => x.sysId === 'tra_sched' && x.name === '板橋');
+    if (e) openBoard({ name: e.name, sys: e.sysId, lat: e.lat, lon: e.lon });
+  });
+  await page.waitForTimeout(1600);
+  const G = await snap();
+  ok(`J7 ${tag} 反向對照:沒跟車開看板 ⇒ 沒有分頁列(D3)、看板列照常`,
+    !G.following && G.boardOpen && G.tabN === 0 && G.rows > 0 && !G.fpInBoard, JSON.stringify(G));
+  ok(`J8 ${tag} 零 pageerror`, errs.length === 0, errs.slice(0, 1).join(''));
+  await close();
+
+  // ── J9:水平讓位的差分對照 ──
+  // 搬進看板的跟車卡是全寬的。讓位計算若沒把它排除,會拿那個全寬 rect 去撐「左界」,
+  // 撐爆之後被 MIN_MAP_STRIP 閘門連左右一起歸零 ⇒ 右側工具欄的讓位默默消失。
+  // 判準寫成差分:「這班車」與「這一站」兩個分頁的左右讓位必須相同——因為在「這一站」時
+  // 那張卡是 display:none、結構上不可能參與計算,它就是這一題的正確答案(外部基準,非同源)。
+  const s3 = await boot(browser, { width: 393 });
+  const ok3 = await followSomeTrain(s3.page);
+  await s3.page.waitForTimeout(1800);
+  await s3.page.evaluate(() => {
+    const e = buildStnIndex().find(x => x.sysId === 'tra_sched' && x.name === '板橋');
+    if (e) openBoard({ name: e.name, sys: e.sysId, lat: e.lat, lon: e.lon });
+  });
+  await s3.page.waitForTimeout(1600);
+  const rd = async t => {
+    await s3.page.evaluate(tt => document.querySelector(`.uni-tabs button[data-t="${tt}"]`)?.click(), t);
+    await s3.page.waitForTimeout(600);
+    return s3.page.evaluate(() => {
+      const i = mapInsets();
+      return { left: +i.left.toFixed(1), right: +i.right.toFixed(1),
+        tabs: document.querySelectorAll('.uni-tabs button').length };
+    });
+  };
+  const st1 = await rd('station'), tr1 = await rd('train');
+  ok(`J9 ${tag} 正向對照:兩個分頁都切得到`, ok3 && st1.tabs === 2 && tr1.tabs === 2,
+    `tabs=${st1.tabs}/${tr1.tabs}`);
+  ok(`J10 ${tag} 切分頁不改變左右讓位(搬進來的卡沒被當成左側遮蔽)`,
+    Math.abs(st1.left - tr1.left) <= 2 && Math.abs(st1.right - tr1.right) <= 2,
+    `這一站 左${st1.left}右${st1.right} ／ 這班車 左${tr1.left}右${tr1.right}`);
+  ok(`J11 ${tag} 零 pageerror`, s3.errs.length === 0, s3.errs.slice(0, 1).join(''));
+  await s3.close();
+}
+
 await assertTarget();
 // SECTIONS=H,I 只跑指定段(突變測試用);不設就跑全部——預設永遠是「全跑」,不能靠環境變數才完整。
-const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI };
+const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ };
 const want = (process.env.SECTIONS || '').split(',').map(x => x.trim().toUpperCase()).filter(Boolean);
 const run = want.length ? want : Object.keys(ALL);
 for (const k of run) if (!ALL[k]) { console.error(`未知段別 ${k}`); process.exit(2); }
 if (want.length) console.log(`⚠ 只跑 ${run.join(',')} 段(SECTIONS 環境變數),這不是完整驗收`);
 for (const [engine, launcher] of [['chromium', chromium], ['webkit', webkit]]) {
   const browser = await launcher.launch();
-  for (const k of run) await ALL[k](browser, engine);
+  for (const k of run) {
+    // 🔴 一段拋例外不可以把整支腳本連同另一個引擎一起帶走:那樣的輸出會變成「只有幾條紅」,
+    //    看起來像局部問題,實際上後面整批根本沒跑到(突變測試實測踩過——比全綠更騙人)。
+    //    拋出來一律當紅記一筆,再繼續跑下一段。
+    try { await ALL[k](browser, engine); }
+    catch (e) { ok(`${k}✱ ${engine} 該段執行時拋例外(視同不通過)`, false, String(e).split('\n')[0]); }
+  }
   await browser.close();
 }
 const pass = results.filter(r => r.pass).length;

@@ -2989,6 +2989,30 @@
       border-radius: 14px 14px 10px 10px;
     }
     .board::before { content: ""; display: block; width: 38px; height: 4px; border-radius: 3px; background: rgba(255,253,246,.55); position: absolute; top: 5px; left: 50%; transform: translateX(-50%); z-index: 3; }
+    /* ══ 設計 D1–D3 整合卡:跟車中打開車站看板 ⇒ 同一張卡兩個分頁 ══
+       🔴 刻意不新造 sheet:#board 已經有三段高／sticky h3／☆×／讓位／SHEET_PANEL_IDS 一整套,
+          再造一個殼等於把那些契約全部重寫一遍。這裡只在它 render 完之後插入分頁列,
+          並把 #followPanel 搬進槽裡(比照 msFlowSlot 把 #flowWrap 搬進抽屜再搬回的既有做法)。 */
+    body.fs .board .uni-tabs { display: flex; gap: 6px; margin: 0 0 8px; padding: 0; }
+    body.fs .board .uni-tabs button {
+      flex: 1; min-height: calc(38px * var(--uit)); padding: 0 10px;
+      font: inherit; font-size: calc(13px * var(--ui)); font-weight: 800; letter-spacing: 1px;
+      color: var(--muted); background: var(--paper-2); border: 1.5px solid var(--line);
+      border-radius: var(--r-pill); cursor: pointer;
+    }
+    body.fs .board .uni-tabs button[aria-selected="true"] {
+      color: var(--on-navy); background: var(--navy); border-color: var(--navy); font-weight: 900;
+    }
+    /* 搬進來的跟車卡要脫掉自己那層浮動小卡的外觀,變成分頁內容 */
+    body.fs .board .uni-slot > .follow-panel {
+      position: static; left: auto; right: auto; bottom: auto; top: auto;
+      width: auto; max-width: none; margin: 0; z-index: auto;
+      background: none; border: 0; border-radius: 0; box-shadow: none; backdrop-filter: none;
+    }
+    /* 分頁切換:只留 h3、分頁列與當頁內容。用 :not() 逐一排除而不是給看板列包一層容器——
+       renderBoard 的 innerHTML 是 h3＋站資訊＋活動列＋副標＋班次列的平鋪,包容器要改四處組裝。 */
+    body.fs .board.uni-train > *:not(h3):not(.uni-tabs):not(.uni-slot) { display: none; }
+    body.fs .board.uni-station > .uni-slot { display: none; }
     .board h3 { border-radius: 13px 13px 0 0; padding-top: 12px; }
     .board .close { top: 11px; }
     .board .board-star { top: 11px; }
@@ -12920,7 +12944,9 @@ function setFollow(tr, isAuto, noJump, opts) {
   clearFreqFollow(); // 全台同框:接手台鐵/高鐵跟隨前先解除捷運示意車跟隨(互斥)
   if (!isAuto && state.autoTour) setAutoTour(false); // 使用者手動選車即接手,退出隨機模式
   if (state.ambient && state.ambientStyle === 'hotspot') hotspotStop(); // 群車放空中點車=接手跟隨,導演讓位(取消跟隨即恢復)
-  closeBoard(); // 不管從哪裡選到車(看板列/地圖點車/搜尋/最愛),車站看板一律收掉
+  // 整合卡(設計 D1–D2):手機上選到車**不收看板**——那張看板就是整合卡的「這一站」分頁,
+  // 收掉等於把設計的兩分頁砍成一頁(狀態機 tapTrain 只切 tab,不關卡)。桌面維持原本的「一律收掉」。
+  if (!document.body.classList.contains('fs')) closeBoard();
   state.followTrain = tr; state.followId = tr.train;
   state._camOffAt = 0; // 換車歸零離屏累計,免得舊車的離屏時間觸發對新車的誤救
   setBasemap(); // 衛星模式下跟車鏡頭連續平移改用低解析度圖磚(見 setBasemap 內 satLQ 註解)
@@ -12977,6 +13003,9 @@ function setFollow(tr, isAuto, noJump, opts) {
   placeControls(true);
   (state._placeFsOverlays || (() => {}))(document.body.classList.contains('fs'));
   updateCount();
+  // 整合卡(設計狀態機 tapTrain):選車＝切到「這班車」;看板已經開著的話當場長出分頁列。
+  uniTab = 'train';
+  syncUniCard();
   // 列車 sheet 不自動彈出(2026-07-21 使用者裁決:預設收小卡、想看再點開)——展開入口只有點跟隨小卡(手機 fs)。
 }
 // fromStart 重播强制拉高的速度只還原一次;抵達或取消跟隨時呼叫
@@ -12985,6 +13014,7 @@ function restoreFollowSpeed() {
 }
 
 function clearFollow() {
+  unmountUniCard(); // 整合卡:跟車結束 ⇒ 分頁列消失、跟車卡搬回原位(設計 D3)
   clearFreqFollow(); // 換系統/群組/進放空都經過這裡 → 一併清掉捷運幽靈車跟隨
   restoreFollowSpeed(); // 中途取消跟隨也要還原 fromStart 重播強制的速度
   state.followTrain = null; state.followId = null; state.followStatus = null;
@@ -18234,6 +18264,9 @@ function computeMapInsets() {
   // 88% 大段把卡淡出(sheet-full),vis() 自然除名——可見性只走一條規則,不寫特例。
   for (const el of [document.getElementById('followPanel'), document.getElementById('freqCard')]) {
     if (!vis(el)) continue;
+    // 整合卡(D1–D3):跟車卡被搬進 #board 當分頁內容時,它的讓位已經由 sheet 那一段算過了;
+    // 再算一次會拿「卡在 sheet 裡的全寬 rect」去撐左界,把水平方向整個吃光。
+    if (el.closest('.board')) continue;
     const r = el.getBoundingClientRect();
     if (!(r.width > 0.5 && r.height > 0.5)) continue;
     const min = el.classList.contains('fp-min');
@@ -22188,12 +22221,75 @@ function soloPanel(keep) {
   if (keep !== 'delayhist') closeDelayHist();
   if (keep !== 'train') closeTrainSheet();
 }
-function openBoard(st) { soloPanel('board'); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel(); closeDelayHist(); closePinCard(); closeNearbyStations(); closeSugarCard(); state.boardStation = st; renderBoard(); }
+// 整合卡(設計狀態機 tapStation):點站＝切到「這一站」,跟車不中斷。
+function openBoard(st) { soloPanel('board'); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel(); closeDelayHist(); closePinCard(); closeNearbyStations(); closeSugarCard(); state.boardStation = st; uniTab = 'station'; renderBoard(); }
 function closeBoard() {
+  unmountUniCard(); // 先把跟車卡搬回家,再清 innerHTML——否則它會跟著被清掉
   state.boardStation = null;
   const el = document.getElementById('board');
   el.hidden = true; el.innerHTML = '';
   updateSheetOpenClass();
+}
+
+// ── 整合卡(設計 D1–D3):跟車中開車站看板 ⇒ 同一張卡兩個分頁「這班車 / 這一站」 ──────────
+// 設計的狀態機:跟車中才有分頁列(D1/D2);沒跟車就是今天的看板(D3,卡頭直接是站名)。
+// 🔴 只做搬遷,不重寫內容:跟車卡的提醒／我上車了／行程分享與看板的 ☆×／freq 兩種資料源全部原封。
+let uniTab = 'train';
+let uniHome = null; // #followPanel 的原生父層,卸載時搬回去
+function uniEligible() {
+  return document.body.classList.contains('fs') && !!state.followTrain;
+}
+function unmountUniCard() {
+  const fp = document.getElementById('followPanel');
+  const el = document.getElementById('board');
+  if (fp && uniHome && fp.parentElement !== uniHome) uniHome.appendChild(fp);
+  if (el) {
+    el.classList.remove('uni-train', 'uni-station');
+    el.querySelectorAll('.uni-tabs, .uni-slot').forEach(n => n.remove());
+  }
+}
+function applyUniTab(el) {
+  el.classList.toggle('uni-train', uniTab === 'train');
+  el.classList.toggle('uni-station', uniTab !== 'train');
+  el.querySelectorAll('.uni-tabs button').forEach(b =>
+    b.setAttribute('aria-selected', String(b.dataset.t === uniTab)));
+}
+function mountUniCard() {
+  const el = document.getElementById('board');
+  const fp = document.getElementById('followPanel');
+  if (!el || el.hidden || !fp) return;
+  if (!uniEligible()) { unmountUniCard(); return; }
+  if (!uniHome) uniHome = fp.parentElement;
+  const h3 = el.querySelector('h3');
+  if (!h3) return;
+  el.querySelectorAll('.uni-tabs, .uni-slot').forEach(n => n.remove());
+  const tabs = document.createElement('div');
+  tabs.className = 'uni-tabs';
+  tabs.setAttribute('role', 'tablist');
+  tabs.innerHTML = '<button type="button" role="tab" data-t="train">這班車</button>' +
+    '<button type="button" role="tab" data-t="station">這一站</button>';
+  const slot = document.createElement('div');
+  slot.className = 'uni-slot';
+  h3.after(tabs, slot);
+  slot.appendChild(fp);
+  fp.hidden = false;
+  // 🔴 看板本體用 pointerdown/click 把「點到某一列」當成跟車;跟車卡搬進來之後它的按鈕也會冒泡到
+  //    同一個容器。在槽上截住,槽的後代自己的 handler 早就跑完了(冒泡由內而外),不影響卡內操作。
+  slot.addEventListener('pointerdown', e => e.stopPropagation());
+  slot.addEventListener('click', e => e.stopPropagation());
+  tabs.onclick = e => {
+    const b = e.target.closest('button[data-t]');
+    if (!b) return;
+    e.stopPropagation();
+    uniTab = b.dataset.t;
+    applyUniTab(el);
+    if (typeof reframeFocus === 'function') reframeFocus(); // 分頁換了內容高度就變,讓位要重算
+  };
+  applyUniTab(el);
+}
+// 看板每次重繪都會把 innerHTML 換掉(分頁列與槽跟著沒了),所以掛載一律走這個入口。
+function syncUniCard() {
+  if (uniEligible()) mountUniCard(); else unmountUniCard();
 }
 // 站名 → 地址／特色資料;先試「台」正規化全名,再試去掉括號註記(左營(舊城)→左營、新城(太魯閣)→新城)
 function stnInfo(name) {
@@ -22416,6 +22512,10 @@ function stationIntroText(name) {
 }
 function renderBoard() {
   const el = document.getElementById('board'), st = state.boardStation;
+  // 🔴 整合卡:重繪會 `el.innerHTML = …` 把整個內容換掉——搬進去的 #followPanel 會**跟著被銷毀**
+  //    (實測:跟車卡整顆消失、showFollowPanel 之後對 null 取 .hidden 拋錯)。所以一律先搬回家,
+  //    render 完再由尾端的 syncUniCard() 搬進來。renderFreqBoard 由本函式委派,同樣被這行涵蓋。
+  unmountUniCard();
   if (!st) { el.hidden = true; updateSheetOpenClass(); return; }
   state.boardRenderedAt = state.simSec;
   ensureEvents(); // 首次載入時資料還在路上,ensureEvents 載到後會自己再叫一次 renderBoard
@@ -22482,6 +22582,7 @@ function renderBoard() {
     (list || '<div class="empty">此時段無停靠班次</div>');
   el.hidden = false;
   updateSheetOpenClass();
+  syncUniCard();
   el.querySelector('#boardClose').onclick = closeBoard;
   el.querySelector('#boardStar').onclick = () => toggleFavStation(st);
   if (showNotify) { const nb = el.querySelector('#boardNotify'); if (nb) nb.onclick = e => { e.stopPropagation(); openLastTrainReminderSheet(st); }; }
@@ -22505,7 +22606,8 @@ function renderBoard() {
     const no = row ? row.dataset.no : el._downNo;
     const sys = row ? row.dataset.sys : el._downSys;
     el._downNo = null; el._downSys = null;
-    if (no) { closeBoard(); followTrainNo(no, { sys }); }
+    // 手機:點班次列＝切到「這班車」,卡片留著(setFollow 內同一條規則);桌面照舊收板
+    if (no) { if (!document.body.classList.contains('fs')) closeBoard(); followTrainNo(no, { sys }); }
   };
 }
 
@@ -23015,6 +23117,7 @@ function renderFreqBoard(el, st, lines, isDeco) {
     (body || '<div class="empty">此時段無停靠班次</div>');
   el.hidden = false;
   updateSheetOpenClass();
+  syncUniCard();
   el.querySelector('#boardClose').onclick = closeBoard;
   el.querySelector('#boardStar').onclick = () => toggleFavStation(st);
   bindMetroWaitBoard(el, st, waitSys, lines, isDeco);
