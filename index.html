@@ -1449,7 +1449,12 @@
   body.fs #fsFab { top: calc(12px + env(safe-area-inset-top, 0px)); }
   /* 全畫面跟隨:資訊卡塞進左下跟隨面板,合併成一張可收放的卡(placeTrainCard 搬 DOM) */
   body.fs .follow-panel { width: calc(300px * var(--ui)); max-height: calc(100vh - 160px); max-height: calc(100dvh - 160px); }
-  body.fs .follow-panel.fp-min { width: auto; }
+  /* 膠囊(§04c 的收合態,現在也是設計 1a 的 collapsed):觸控目標補到 44(設計對照表 44/52/60)。
+     直式原本只吃基底那條(padding 6px)⇒ 實測 36px 高,低於平台最小可點尺寸;橫式側欄那條自己寫了 44。
+     🔴 display:flex 特異性(0,3,1)蓋得過 UA 的 [hidden]{display:none} ⇒ 必須把 hidden 明確接回,
+        否則跟車結束後那顆 hidden 的膠囊會被硬畫出來(橫式那段 3398 行早就踩過同一顆)。 */
+  body.fs .follow-panel.fp-min { width: auto; min-height: calc(44px * var(--uit)); display: flex; align-items: center; }
+  body.fs .follow-panel[hidden] { display: none !important; }
   body.fs .follow-panel .traincard {
     position: static; width: auto; margin: 9px -13px -11px; padding: 9px 13px 10px;
     border: 0; border-top: 1.5px dashed var(--line-dash); border-radius: 0; box-shadow: none;
@@ -3013,6 +3018,11 @@
        renderBoard 的 innerHTML 是 h3＋站資訊＋活動列＋副標＋班次列的平鋪,包容器要改四處組裝。 */
     body.fs .board.uni-train > *:not(h3):not(.uni-tabs):not(.uni-slot) { display: none; }
     body.fs .board.uni-station > .uni-slot { display: none; }
+    /* 🔴 停靠時「跟車小卡淡出讓位給站名牌」那條(body.dwell-show.sheet-open .follow-panel,opacity:0
+       ＋pointer-events:none)對整合卡不成立:卡已經是看板的一頁,淡掉它等於「這班車」整頁空白、
+       而且點不動。站名牌與看板不再互相遮蔽,本來就不需要讓位。實測踩到:跟的車一停靠,
+       膠囊/卡片就變成透明且吃不到點擊(Playwright 的 receives-events 檢查直接逾時)。 */
+    body.dwell-show.sheet-open .board .uni-slot > .follow-panel { opacity: 1; pointer-events: auto; }
     .board h3 { border-radius: 13px 13px 0 0; padding-top: 12px; }
     .board .close { top: 11px; }
     .board .board-star { top: 11px; }
@@ -12946,7 +12956,7 @@ function setFollow(tr, isAuto, noJump, opts) {
   if (state.ambient && state.ambientStyle === 'hotspot') hotspotStop(); // 群車放空中點車=接手跟隨,導演讓位(取消跟隨即恢復)
   // 整合卡(設計 D1–D2):手機上選到車**不收看板**——那張看板就是整合卡的「這一站」分頁,
   // 收掉等於把設計的兩分頁砍成一頁(狀態機 tapTrain 只切 tab,不關卡)。桌面維持原本的「一律收掉」。
-  if (!document.body.classList.contains('fs')) closeBoard();
+  if (!uniMobile()) closeBoard();
   state.followTrain = tr; state.followId = tr.train;
   state._camOffAt = 0; // 換車歸零離屏累計,免得舊車的離屏時間觸發對新車的誤救
   setBasemap(); // 衛星模式下跟車鏡頭連續平移改用低解析度圖磚(見 setBasemap 內 satLQ 註解)
@@ -13005,6 +13015,7 @@ function setFollow(tr, isAuto, noJump, opts) {
   updateCount();
   // 整合卡(設計狀態機 tapTrain):選車＝切到「這班車」;看板已經開著的話當場長出分頁列。
   uniTab = 'train';
+  uniResetCollapse(); // tapTrain 帶 collapsed:false——收合中選了新的車要看得到卡
   syncUniCard();
   // 列車 sheet 不自動彈出(2026-07-21 使用者裁決:預設收小卡、想看再點開)——展開入口只有點跟隨小卡(手機 fs)。
 }
@@ -13014,6 +13025,7 @@ function restoreFollowSpeed() {
 }
 
 function clearFollow() {
+  uniResetCollapse(); // 收合中結束跟車:旗標歸零,並把收合時收起來的看板當場還回去(見該函式註解)
   unmountUniCard(); // 整合卡:跟車結束 ⇒ 分頁列消失、跟車卡搬回原位(設計 D3)
   clearFreqFollow(); // 換系統/群組/進放空都經過這裡 → 一併清掉捷運幽靈車跟隨
   restoreFollowSpeed(); // 中途取消跟隨也要還原 fromStart 重播強制的速度
@@ -22222,7 +22234,7 @@ function soloPanel(keep) {
   if (keep !== 'train') closeTrainSheet();
 }
 // 整合卡(設計狀態機 tapStation):點站＝切到「這一站」,跟車不中斷。
-function openBoard(st) { soloPanel('board'); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel(); closeDelayHist(); closePinCard(); closeNearbyStations(); closeSugarCard(); state.boardStation = st; uniTab = 'station'; renderBoard(); }
+function openBoard(st) { soloPanel('board'); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel(); closeDelayHist(); closePinCard(); closeNearbyStations(); closeSugarCard(); state.boardStation = st; uniTab = 'station'; uniUncollapseForBoard(); renderBoard(); }
 function closeBoard() {
   unmountUniCard(); // 先把跟車卡搬回家,再清 innerHTML——否則它會跟著被清掉
   state.boardStation = null;
@@ -22236,8 +22248,17 @@ function closeBoard() {
 // 🔴 只做搬遷,不重寫內容:跟車卡的提醒／我上車了／行程分享與看板的 ☆×／freq 兩種資料源全部原封。
 let uniTab = 'train';
 let uniHome = null; // #followPanel 的原生父層,卸載時搬回去
+// 整合卡是**手機**版面(設計稿是 393pt 的單張底卡);桌面全畫面的看板是右上角浮動小卡,
+// 跟車卡也是浮動卡,兩張併起來沒有意義,所以整套只在手機成立。
+function uniMobile() {
+  return window.matchMedia(MOBILE_MQ).matches && document.body.classList.contains('fs');
+}
 function uniEligible() {
-  return document.body.classList.contains('fs') && !!state.followTrain;
+  // 🔴 收合中(膠囊)就不掛整合卡:掛了會把 44px 的膠囊塞進看板的分頁槽裡,「這班車」那一頁
+  //    變成一顆膠囊。× 收合(寫進 localStorage 的長期偏好)與點空白收合都算,兩種都吃 fp-min。
+  const fp = document.getElementById('followPanel');
+  return uniMobile() && !!state.followTrain && !uniCollapsed
+    && !!fp && !fp.classList.contains('fp-min');
 }
 function unmountUniCard() {
   const fp = document.getElementById('followPanel');
@@ -22290,6 +22311,69 @@ function mountUniCard() {
 // 看板每次重繪都會把 innerHTML 換掉(分頁列與槽跟著沒了),所以掛載一律走這個入口。
 function syncUniCard() {
   if (uniEligible()) mountUniCard(); else unmountUniCard();
+}
+
+// ── 膠囊態(設計 1a 的 collapsed):點地圖空白 ⇒ 收成膠囊,**跟車不斷** ────────────────
+// 設計狀態機:tapBlank→collapsed:true / 點膠囊→expand / 「結束」才 following:false。
+// 🔴 這三件事本檔早就有了,只是入口不同:× (#fpClose) 收成 fp-min、點膠囊展開、#fpEnd 結束。
+//    所以這裡不新做膠囊,只補「點地圖空白」這個入口,外加把看板一起收起來(整合卡是一張卡)。
+// 🔴 與 × 的差別:× 是明示偏好會寫 localStorage(§04c 契約4,下次跟車仍是膠囊);
+//    點空白是當下的臨時動作,刻意**不寫** localStorage,不然點一次空白就改掉了使用者的長期設定。
+let uniCollapsed = false;
+let uniCollapsedBoard = false; // 收合當下看板開著沒——只是紀錄,展開靠 syncUniCard 自己判
+function uniCollapse() {
+  if (uniCollapsed || !uniMobile() || !state.followTrain) return false;
+  const fp = document.getElementById('followPanel');
+  if (!fp || fp.hidden) return false;
+  const bd = document.getElementById('board');
+  uniCollapsedBoard = !!(bd && !bd.hidden);
+  uniCollapsed = true;
+  document.body.classList.add('uni-collapsed');
+  syncUniCard(); // uniEligible 已含 !uniCollapsed ⇒ 這一步把卡從看板槽搬回原位
+  fp.classList.add('fp-min');
+  // 🔴 用 hidden 收看板、不要用 CSS display:none 藏——body.sheet-open 是靠 SHEET_PANEL_IDS 的
+  //    hidden 算出來的,CSS 藏起來的話 sheet-open 會留著,於是(a)停靠時那條 dwell-show.sheet-open
+  //    會把膠囊淡成透明且吃不到點擊(實測 webkit 整發點擊消失)、(b)tab bar 讓位與底錨全部照「有開
+  //    sheet」算。innerHTML 與 state.boardStation 都不動 ⇒ 展開回得去原本那一頁(closeBoard 才是關掉)。
+  if (uniCollapsedBoard) { bd.hidden = true; updateSheetOpenClass(); }
+  syncFollowOnClass(); invalidateMapInsets();
+  if (typeof reframeFocus === 'function') reframeFocus(); // 讓位變了,置中要重算
+  return true;
+}
+function uniExpand() {
+  if (!uniCollapsed) return false;
+  uniResetCollapse(); // 旗標歸零＋看板恢復可見
+  const fp = document.getElementById('followPanel');
+  if (fp) fp.classList.remove('fp-min');
+  // 點膠囊＝展開意圖,§04c 的收合記憶跟著清(與 openTrainSheet 同一個語意,那裡也是這樣寫)
+  try { localStorage.setItem('trainmap-fprail-min', '0'); } catch (err) {}
+  syncUniCard(); // 看板還開著的話,卡再搬回槽裡(回到收合前那一頁,uniTab 沒被動過)
+  syncFollowOnClass(); invalidateMapInsets();
+  if (typeof reframeFocus === 'function') reframeFocus();
+  return true;
+}
+// 跟車結束/換車/開站看板都回到展開態(設計:tapTrain 與 tapStation 都帶 collapsed:false)。
+// 不動 fp-min——呼叫它的地方各自會再走自己的顯示流程;但**收合時收起來的看板一定要在這裡還回去**,
+// 🔴 否則它會停在 hidden 而 state.boardStation 還在,下一次 renderBoard(每 20 模擬秒)把它
+//    `el.hidden = false` 掀回來——變成「結束跟車幾秒後看板自己彈出來」。
+function uniResetCollapse() {
+  const bd = document.getElementById('board');
+  const restore = uniCollapsed && uniCollapsedBoard && bd;
+  uniCollapsed = false; uniCollapsedBoard = false;
+  document.body.classList.remove('uni-collapsed');
+  if (restore) { bd.hidden = false; updateSheetOpenClass(); }
+}
+// 開站看板(設計狀態機 tapStation 帶 collapsed:false):任何收合形態都展開——點空白收的、× 收的、
+// 開機從 localStorage 還原的 fp-min 都算,三者行為要一致(否則同一個畫面會因為「怎麼收的」而不同)。
+// renderBoard 尾端的 syncUniCard 會把卡搬回槽裡,這裡不必自己 mount。
+function uniUncollapseForBoard() {
+  if (!uniMobile() || !state.followTrain) return;
+  const fp = document.getElementById('followPanel');
+  if (!uniCollapsed && !(fp && fp.classList.contains('fp-min'))) return;
+  uniResetCollapse();
+  if (fp) fp.classList.remove('fp-min');
+  // 🔴 刻意不清 localStorage:那是「下次跟車預設收合」的長期偏好(§04c 契約4),
+  //    使用者點的是車站不是膠囊,沒有表達要改偏好。清掉等於偷改設定。
 }
 // 站名 → 地址／特色資料;先試「台」正規化全名,再試去掉括號註記(左營(舊城)→左營、新城(太魯閣)→新城)
 function stnInfo(name) {
@@ -22580,7 +22664,9 @@ function renderBoard() {
       st.sys === 'tra_sched' && state.traDaily && state.traDaily.cancelled
         ? ' · 今日官方停駛 ' + state.traDaily.cancelled + ' 班' : ''} · 點班次跟隨</div>` +
     (list || '<div class="empty">此時段無停靠班次</div>');
-  el.hidden = false;
+  // 🔴 收合中(膠囊)不可以把看板掀回來:看板每 20 模擬秒重繪一次,無條件 `hidden = false`
+  //    會讓收起來的看板自己彈回畫面(旗標還是收合、畫面卻是展開的)。播放暫停時測不到這條。
+  if (!(uniCollapsed && uniCollapsedBoard)) el.hidden = false;
   updateSheetOpenClass();
   syncUniCard();
   el.querySelector('#boardClose').onclick = closeBoard;
@@ -22607,7 +22693,7 @@ function renderBoard() {
     const sys = row ? row.dataset.sys : el._downSys;
     el._downNo = null; el._downSys = null;
     // 手機:點班次列＝切到「這班車」,卡片留著(setFollow 內同一條規則);桌面照舊收板
-    if (no) { if (!document.body.classList.contains('fs')) closeBoard(); followTrainNo(no, { sys }); }
+    if (no) { if (!uniMobile()) closeBoard(); followTrainNo(no, { sys }); }
   };
 }
 
@@ -25625,8 +25711,12 @@ async function boot() {
     if (stCands.length) {
       const amb = stAmb();
       if (amb.length >= 2) { openTapPick(cp, amb); return; }
-      openBoard(stCands[0].st);
+      openBoard(stCands[0].st); return;
     }
+    // 設計 1a 的 tapBlank:點到真的空白處 ⇒ 卡片收成膠囊,跟車不斷。
+    // 🔴 這裡原本什麼都不做(空白點擊是 no-op);取消跟隨的入口是「再點一次跟隨中的那台車」,
+    //    在上面那條 hit.tr === state.followTrain,沒有被動到。
+    uniCollapse();
   });
   // 平交道卡穿透轉發:卡片(含空白列/邊距)壓住的列車/平交道/車站,點卡片即視同點地圖,
   // 走上方同一套命中優先序直接切換——手機 375px 卡片蓋掉右半地圖,實測得先關卡才點得到下一個(v0712o)。
@@ -26405,7 +26495,9 @@ if (donateCopyBtn) donateCopyBtn.onclick = () =>
 // 收合狀態跨 session 記憶(§04c 契約4):收合寫 1、展開清掉;開站時還原(見下方 boot 還原行)
 document.getElementById('fpClose').onclick = (e) => {
   e.stopPropagation(); // 不然冒泡到面板的「點膠囊展開」馬上又被展開
-  document.getElementById('followPanel').classList.add('fp-min');
+  // 整合卡掛著時 × 要走同一條收合路徑(卡先搬回原位、看板一起收起來)——直接加 fp-min 會把膠囊
+  // 留在看板的分頁槽裡。uniCollapse 在桌面/沒跟車時回 false,那時照舊只加 class。
+  if (!uniCollapse()) document.getElementById('followPanel').classList.add('fp-min');
   try { localStorage.setItem('trainmap-fprail-min', '1'); } catch (err) {}
   syncFollowOnClass(); invalidateMapInsets();
 };
@@ -26415,9 +26507,15 @@ document.getElementById('fcEnd').onclick = (e) => { e.stopPropagation(); clearFr
 document.getElementById('followPanel').addEventListener('click', (e) => {
   const fp = e.currentTarget;
   if (e.target.closest('.fp-dhlink')) { e.stopPropagation(); openDelayHist(state.followTrain); return; } // 準點列尾端「誤點履歷 ›」
+  // 膠囊態(點空白收起來的那種)點一下就展開回原樣——要排在下面「開列車 sheet」那條之前,
+  // 否則手機上點膠囊會跳去另一個介面(列車 sheet),而不是回到收合前看的那張卡。
+  if (uniCollapsed && !e.target.closest('.fp-end')) { e.stopPropagation(); uniExpand(); return; }
   // 手機全畫面:點跟隨小卡(非結束/收合/分享鈕)→ 展開「列車」sheet(桌面走原 fp-min 展開;直播/放空不攔,維持既有行為)
+  // 🔴 卡已經搬進整合卡的分頁槽時不轉去列車 sheet:那一頁本身就是展開的完整卡,
+  //    再跳一個 sheet 會 soloPanel('train') 把看板關掉,整合卡當場散掉。
   if (window.matchMedia(MOBILE_MQ).matches && document.body.classList.contains('fs') && state.followTrain
       && !document.body.classList.contains('live') && !document.body.classList.contains('ambient')
+      && !fp.closest('.uni-slot')
       && !e.target.closest('.fp-end, .fp-close, .fp-tripshare, .fp-notify')) { openTrainSheet(); return; }
   if (fp.classList.contains('fp-min') && !e.target.closest('.fp-end')) {
     fp.classList.remove('fp-min');

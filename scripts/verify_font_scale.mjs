@@ -306,18 +306,34 @@ async function sectionE(browser, engine) {
   // 🔴 先暫停:看板每 20 模擬秒重繪一次會把「›」展開洗掉,E4b 因此偶發假紅(實測 webkit 三輪中一輪)。
   //    這裡凍住的是與本段無關的變因(時間在跑),不是放寬判準。
   await page.evaluate(() => { if (state.playing) togglePlay(); });
+  // 🔴 分辨「點擊根本沒送到」(harness)與「送到了但沒展開」(產品):容器上數 .rmore 的點擊次數,
+  //    另外用 MutationObserver 數看板重繪——看板每 20 模擬秒 innerHTML 重繪一次會把 .rx 洗掉
+  //    (使用者展開的那一列同樣會被收回去,是既有行為,不是本條要測的東西)。
+  //    所以量測窗壓到最小:tap 之後 waitForFunction 等 .rx 出現,出現當下同一發 evaluate 讀完欄位。
+  //    原本固定等 300ms,webkit 三輪中約一輪剛好被重繪掃到(實測 點擊次數=1、rx=false),長得像假紅。
+  await page.evaluate(() => { window.__rmoreClicks = 0; window.__boardRedraw = 0;
+    document.getElementById('board').addEventListener('click',
+      e => { if (e.target.closest('.rmore')) window.__rmoreClicks++; }, true);
+    new MutationObserver(ms => { for (const m of ms) if (m.type === 'childList' && m.removedNodes.length) window.__boardRedraw++; })
+      .observe(document.getElementById('board'), { childList: true });
+  });
   const chev = page.locator('#board .row[data-no] .rmore').first();
   ok(`E4a ${engine} 特大時列尾有「›」出口`, await chev.isVisible());
-  await chev.tap(); await page.waitForTimeout(300);
+  await chev.tap();
+  const rxSeen = await page.waitForFunction(() => !!document.querySelector('#board .row[data-no].rx'),
+    null, { timeout: 3000 }).then(() => true).catch(() => false);
   const after = await page.evaluate(() => {
-    const row = document.querySelector('#board .row[data-no]');
+    const row = document.querySelector('#board .row[data-no].rx') || document.querySelector('#board .row[data-no]');
     const to = row && row.querySelector('.to'), ty = row && row.querySelector('.ty');
     const shown = el => !!(el && el.getClientRects().length);
     return { boardOpen: !document.getElementById('board').hidden, following: !!state.followTrain,
-      destShown: shown(to) && shown(ty), txt: to ? to.textContent.trim() : '' };
+      destShown: shown(to) && shown(ty), txt: to ? to.textContent.trim() : '',
+      n: window.__rmoreClicks, redraw: window.__boardRedraw,
+      rx: !!document.querySelector('#board .row[data-no].rx') };
   });
   // 收掉的欄位一定有可達路徑——點開就是原本那三個欄位
-  ok(`E4b ${engine} 點「›」把車種與方向叫回來`, after.destShown && /往/.test(after.txt), JSON.stringify(after));
+  ok(`E4b ${engine} 點「›」把車種與方向叫回來`, after.destShown && /往/.test(after.txt),
+    JSON.stringify({ ...after, 等到rx: rxSeen }));
   // 🔴 整列本來就是「跟隨這班」的熱區,出口若沒把事件擋住,點展開會直接跟車並關掉看板
   ok(`E5 ${engine} 點「›」不會誤觸跟車(看板還開著、沒有跟車)`,
     after.boardOpen && !after.following, JSON.stringify(after));
@@ -837,9 +853,260 @@ async function sectionJ(browser, engine) {
   await s3.close();
 }
 
+// 空白點搜尋:所有命中測試都落空、而且 elementFromPoint 真的打在地圖畫布上。
+// 🔴 這裡用頁面自己的命中函式,但只當**setup**(「這一點是空白的」);判準看的是點下去之後的狀態,
+//    與這些函式無關——K2 也順便反驗這一點確實沒開看板、沒彈歧義選單。
+const K_BLANK = () => {
+  const mc = map.getContainer().getBoundingClientRect();
+  const nearestStn = cp => {
+    let bd = 1e9;
+    for (const st of (state.schedStations || [])) {
+      const q = map.latLngToContainerPoint([st.lat, st.lon]);
+      bd = Math.min(bd, Math.hypot(q.x - cp.x, q.y - cp.y));
+    }
+    if (state.deco) (state.decoLines || []).forEach(ln => { if (!ln.pts) return;
+      ln.pts.forEach(q => { bd = Math.min(bd, Math.hypot(q.x - cp.x, q.y - cp.y)); }); });
+    return bd;
+  };
+  for (let y = 150; y < 620; y += 17) for (let x = 40; x < mc.width - 40; x += 17) {
+    const cp = L.point(x, y);
+    if (trainAt(cp)) continue;
+    if (typeof crossingAt === 'function' && crossingAt(cp)) continue;
+    if (typeof sugarAt === 'function' && sugarAt(cp)) continue;
+    if (state.deco && typeof freqTrainsAt === 'function' && freqTrainsAt(cp).length) continue;
+    if (nearestStn(cp) <= 40) continue;
+    const el = document.elementFromPoint(mc.left + x, mc.top + y);
+    if (!el || !el.closest('#map')) continue;
+    if (el.closest('.board,.follow-panel,.controls,.map-actions,.topbar,.tabbar,#tapPick')) continue;
+    return { x, y, ml: mc.left, mt: mc.top };
+  }
+  return null;
+};
+const K_SNAP = () => {
+  const fp = document.getElementById('followPanel');
+  const bd = document.getElementById('board');
+  const vis = e => !!e && e.getClientRects().length > 0;
+  const r = fp ? fp.getBoundingClientRect() : { width: 0, height: 0, left: 0, top: 0, bottom: 0 };
+  const inFp = (x, y) => { const q = document.elementFromPoint(x, y); return !!(q && q.closest('#followPanel')); };
+  const tabs = [...bd.querySelectorAll('.uni-tabs button')];
+  return {
+    following: !!state.followTrain,
+    collapsed: document.body.classList.contains('uni-collapsed'),
+    fpMin: !!(fp && fp.classList.contains('fp-min')),
+    fpVis: vis(fp), fpH: Math.round(r.height), fpW: Math.round(r.width),
+    fpInSlot: !!(fp && fp.closest('.uni-slot')),
+    fpTxt: fp ? fp.innerText.replace(/\s+/g, ' ').trim() : '',
+    endVis: vis(fp && fp.querySelector('.fp-end')),
+    hit3: vis(fp) ? [inFp(r.left + r.width / 2, r.top + 3), inFp(r.left + r.width / 2, (r.top + r.bottom) / 2),
+      inFp(r.left + r.width / 2, r.bottom - 3)].filter(Boolean).length : 0,
+    hitWho: (() => { if (!vis(fp)) return 'invisible';
+      const q = document.elementFromPoint(r.left + r.width / 2, (r.top + r.bottom) / 2);
+      if (!q) return 'none';
+      const path = []; for (let e = q; e && e !== document.body; e = e.parentElement)
+        path.push((e.id ? '#' + e.id : e.tagName.toLowerCase()) + (e.className && typeof e.className === 'string' ? '.' + e.className.trim().split(/\s+/).slice(0, 2).join('.') : ''));
+      return path.slice(0, 4).join(' < '); })(),
+    fpRect: [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)],
+    boardVis: vis(bd), boardHiddenAttr: bd.hidden, boardStation: !!state.boardStation,
+    boardRows: bd.querySelectorAll('.row[data-no]').length, // 不管看不看得見:內容還在不在
+    sheetOpen: document.body.classList.contains('sheet-open'),
+    fpOpacity: fp ? +getComputedStyle(fp).opacity : -1,
+    fpPE: fp ? getComputedStyle(fp).pointerEvents : '',
+    tabN: tabs.length,
+    tabSel: (tabs.find(b => b.getAttribute('aria-selected') === 'true') || {}).textContent || '',
+    trainOpen: document.body.classList.contains('train-open'),
+    tapPick: !document.getElementById('tapPick').hidden,
+    ls: localStorage.getItem('trainmap-fprail-min'),
+  };
+};
+
+// ── K 段:膠囊態(設計 1a 的 collapsed / tapBlank)────────────────────────────
+// 設計狀態機:tapBlank→collapsed:true(**跟車不斷**)、點膠囊→expand、「結束」才 following:false。
+async function sectionK(browser, engine) {
+  const tag = `${engine} 393pt`;
+  const { page, errs, close } = await boot(browser, { width: 393 });
+  const snap = () => page.evaluate(c => eval('(' + c + ')')(), K_SNAP.toString());
+  const census = () => page.evaluate(c => eval('(' + c + ')')(), H_CENSUS.toString());
+  const blankPt = () => page.evaluate(c => eval('(' + c + ')')(), K_BLANK.toString());
+  const clickAt = async pt => { await page.mouse.click(pt.ml + pt.x, pt.mt + pt.y); await page.waitForTimeout(700); };
+  // 看板每 20 模擬秒重繪一次會洗掉手動狀態(E4b 教訓):凍住無關變因,不是放寬判準
+  await page.evaluate(() => { if (state.playing) togglePlay(); });
+
+  const started = await followSomeTrain(page);
+  await page.waitForTimeout(1500);
+  await page.evaluate(() => {
+    const e = buildStnIndex().find(x => x.sysId === 'tra_sched' && x.name === '板橋');
+    if (e) openBoard({ name: e.name, sys: e.sysId, lat: e.lat, lon: e.lon });
+  });
+  await page.waitForTimeout(1400);
+  const A = await snap(), bandA = await census();
+  const pt = await blankPt();
+  ok(`K1 ${tag} 正向對照:跟到車、整合卡掛著、還沒收合、找得到空白點`,
+    started && A.following && A.tabN === 2 && A.fpInSlot && !A.collapsed && !!pt,
+    JSON.stringify({ ...A, pt }));
+
+  // ① tapBlank
+  await clickAt(pt || { ml: 0, mt: 0, x: 5, y: 5 });
+  const B = await snap(), bandB = await census();
+  ok(`K2 ${tag} 點地圖空白 ⇒ 收成膠囊,而且【跟車沒斷】`,
+    B.following && B.collapsed && B.fpMin && B.fpVis && !B.tapPick, JSON.stringify(B));
+  ok(`K3 ${tag} 膠囊內容＝車次·時速·結束(設計 1a)`,
+    /\d/.test(B.fpTxt) && /km\/h/.test(B.fpTxt) && /結束/.test(B.fpTxt) && B.endVis && B.fpTxt.length <= 24,
+    `膠囊字=「${B.fpTxt}」`);
+  ok(`K4 ${tag} 膠囊觸控目標 ≥44 且三點都命中自己`,
+    B.fpH >= 44 && B.hit3 === 3, `高${B.fpH} 寬${B.fpW} 命中${B.hit3}/3`);
+  // 收合是「藏起來」不是「關掉」——這是 K5 能回得去原本那一頁的結構前提
+  // 收合是「藏起來」不是「關掉」:看板的內容與 state.boardStation 都留著(closeBoard 會把兩者清空),
+  // 這是 K7 能回得去原本那一頁的結構前提。而 sheet-open 必須跟著關掉——
+  // 🔴 收合用 hidden 不用 CSS display:none 就是為了這個:sheet-open 是從 hidden 算出來的,
+  //    留著會讓停靠讓位那條把膠囊淡成透明且吃不到點擊(實測 webkit 點擊整發消失)。
+  ok(`K5 ${tag} 收合＝藏起來不是關掉:內容留著、但 sheet-open 跟著關`,
+    !B.boardVis && B.boardStation && B.boardRows > 0 && !B.sheetOpen, JSON.stringify(B));
+  ok(`K6 ${tag} 收合把地圖還出來:可視窗下界變低,而且不寫 localStorage`,
+    bandB.bandBot > bandA.bandBot + 60 && B.ls === null,
+    `下界 ${bandA.bandBot}→${bandB.bandBot} ls=${B.ls}`);
+
+  // 🔴 收合中的重繪:看板每 20 模擬秒重繪一次,renderBoard 尾端無條件 `el.hidden = false`
+  //    會讓收起來的看板自己彈回來(旗標還是收合、畫面卻展開)。這條刻意直接呼叫 renderBoard()——
+  //    測試把播放暫停了,不主動叫它就永遠測不到(狀態抽樣缺口:只驗凍住的那一格)。
+  await page.evaluate(() => renderBoard());
+  await page.waitForTimeout(500);
+  const B2 = await snap();
+  ok(`K18 ${tag} 收合中看板重繪:不會把收起來的看板掀回畫面`,
+    !B2.boardVis && B2.collapsed && B2.fpVis && B2.fpMin && !B2.sheetOpen, JSON.stringify(B2));
+
+  // ② 點膠囊 ⇒ 展開回收合前那一頁(不是跳去列車 sheet)
+  // 🔴 用 locator().click() 而不是 mouse.click(x,y):它會先等元素**位置穩定**(跟車鏡頭每幀在 panBy)
+  //    再做 receives-events 檢查才點下去。實測 webkit 的裸座標點擊在鏡頭動畫中會整發不見
+  //    (連 document 的 capture 監聽都收不到任何 click),而那是 harness 的問題不是產品的問題。
+  //    x=60 落在膠囊左半,避開右端的「結束」。
+  await page.locator('#followPanel').click({ position: { x: 60, y: 22 }, timeout: 5000 });
+  await page.waitForTimeout(900);
+  const C = await snap();
+  ok(`K7 ${tag} 點膠囊 ⇒ 展開回收合前那一頁(跟車仍在、卡回槽裡、沒跳去列車 sheet)`,
+    C.following && !C.collapsed && !C.fpMin && C.fpInSlot && C.boardVis
+    && C.tabSel === A.tabSel && C.tabN === 2 && !C.trainOpen, JSON.stringify(C));
+
+  // ③ 整合卡掛著時點卡片本體不該跳去列車 sheet(那會 soloPanel 把看板關掉,整合卡當場散掉)
+  // 🔴 得先切到「這班車」:在「這一站」那一頁槽是 display:none,卡量到的是零矩形,
+  //    照零矩形算出來的座標會點到畫面左上角(實測就是這樣點回地圖、變成一次空白點擊)。
+  await page.evaluate(() => document.querySelector('.uni-tabs button[data-t="train"]')?.click());
+  await page.waitForTimeout(700);
+  await page.locator('#fpProgTxt').click({ timeout: 5000 }).catch(() => {}); // 卡片本體的一段純文字
+  await page.waitForTimeout(800);
+  const D = await snap();
+  ok(`K8 ${tag} 整合卡掛著時點卡片本體:看板還在、沒被換成列車 sheet`,
+    !D.trainOpen && D.boardVis && D.fpInSlot && D.tabN === 2 && D.tabSel === '這班車' && D.fpVis,
+    JSON.stringify(D));
+
+  // ④ 膠囊上的「結束」仍然真的結束跟隨,而且收合旗標要歸零(否則看板永遠 display:none)
+  await clickAt(pt);
+  await page.evaluate(() => document.getElementById('fpEnd').click());
+  await page.waitForTimeout(800);
+  const E = await snap();
+  // 🔴 「看板當場回到可見」也要驗:收合時收起來的看板若停在 hidden,下一次重繪會把它掀回來,
+  //    使用者看到的是「結束跟車幾秒後看板自己彈出來」。要嘛當場還回去、要嘛真的關掉,不能懸著。
+  ok(`K9 ${tag} 膠囊的「結束」仍然結束跟隨、旗標歸零、收起來的看板當場還回去`,
+    !E.following && !E.collapsed && !E.fpVis && E.boardVis, JSON.stringify(E));
+  const eBoard = await page.evaluate(() => {
+    const e = buildStnIndex().find(x => x.sysId === 'tra_sched' && x.name === '板橋');
+    if (e) openBoard({ name: e.name, sys: e.sysId, lat: e.lat, lon: e.lon });
+    return document.getElementById('board').getClientRects().length > 0;
+  });
+  await page.waitForTimeout(900);
+  const E2 = await snap();
+  ok(`K10 ${tag} 結束跟車後看板照樣開得起來(收合旗標沒留下來把它藏死)`,
+    eBoard && E2.boardVis && E2.tabN === 0, JSON.stringify(E2));
+
+  // ⑤ 反向對照:沒跟車時點同一個空白點 ⇒ 不收合(膠囊態只在跟車中成立)
+  await page.evaluate(() => closeBoard());
+  await page.waitForTimeout(500);
+  const pt2 = await blankPt();
+  await clickAt(pt2 || pt);
+  const F = await snap();
+  // fp-min 這顆 class 在跟車結束後會留在隱藏的面板上(它是 §04c 的長期偏好,不是當下狀態),
+  // 所以判準看的是「有沒有收合旗標」與「膠囊看不看得見」,不是 class 在不在。
+  ok(`K11 ${tag} 反向對照:沒跟車時點空白 ⇒ 什麼都不收(沒有收合、沒有膠囊)`,
+    !F.following && !F.collapsed && !F.fpVis, JSON.stringify(F));
+
+  // ⑥ 反向對照:再點一次「跟隨中的那台車」仍然是取消跟隨——不能被 tapBlank 那條搶走
+  await followSomeTrain(page);
+  await page.waitForTimeout(1400);
+  const tp = await page.evaluate(() => {
+    const t = state.followTrain; if (!t) return null;
+    const pos = trainPos(t, state.simSec); if (!pos) return null;
+    const mc = map.getContainer().getBoundingClientRect();
+    const q = map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
+    return { x: q.x, y: q.y, ml: mc.left, mt: mc.top };
+  });
+  if (tp) {
+    await clickAt(tp);
+    // 車與站黏在一起會彈歧義選單(合法規格),那就點「取消跟隨」那一列
+    await page.evaluate(() => {
+      const el = document.getElementById('tapPick');
+      if (el && !el.hidden) [...el.querySelectorAll('.tp-row')].find(b => /取消跟隨/.test(b.textContent))?.click();
+    });
+    await page.waitForTimeout(700);
+  }
+  const G = await snap();
+  ok(`K12 ${tag} 反向對照:再點一次跟隨中的那台車仍然是取消跟隨(沒被收合搶走)`,
+    !!tp && !G.following && !G.collapsed && !G.fpVis, JSON.stringify(G));
+
+  // ⑦ × 的長期偏好:× 會寫 '1' 且卡搬回原位;此時開站看板不掀開它(不偷改使用者設定)
+  await followSomeTrain(page);
+  await page.waitForTimeout(1400);
+  await page.evaluate(() => document.getElementById('fpClose').click());
+  await page.waitForTimeout(700);
+  const H = await snap();
+  await page.evaluate(() => {
+    const e = buildStnIndex().find(x => x.sysId === 'tra_sched' && x.name === '板橋');
+    if (e) openBoard({ name: e.name, sys: e.sysId, lat: e.lat, lon: e.lon });
+  });
+  await page.waitForTimeout(1200);
+  const I = await snap();
+  ok(`K13 ${tag} × 收合:寫入長期偏好、膠囊沒被留在看板槽裡`,
+    H.fpMin && H.ls === '1' && !H.fpInSlot, JSON.stringify(H));
+  // 設計狀態機 tapStation 帶 collapsed:false ⇒ 收合中點車站要展開成整合卡。
+  // 🔴 但**長期偏好不准跟著被清掉**:使用者點的是車站不是膠囊,沒有表達「以後別收合了」。
+  //    兩半都要驗——只驗展開的話,「順手把 localStorage 清成 0」也會過。
+  ok(`K14 ${tag} × 收合中開站看板 ⇒ 展開成整合卡,但長期偏好留著 '1'`,
+    !I.fpMin && I.fpInSlot && I.boardVis && I.tabN === 2 && I.ls === '1', JSON.stringify(I));
+
+  // ⑧ 停靠讓位:body.dwell-show + sheet-open 那條會把跟車小卡淡成 opacity:0/pointer-events:none
+  //    (停站時小卡與站名牌重複度高,讓位是對的)——但卡搬進整合卡之後那條不成立:
+  //    卡就是看板的一頁,淡掉它等於「這班車」整頁空白。
+  // 🔴 dwell-show 是 JS 每幀隨站名牌同步的旗標:注入之後 await 一下就會被頁面自己抹掉,
+  //    量到的會是「沒有 dwell 的狀態」⇒ 判準恆綠(第一版就是這樣,突變拿掉規則照樣全過)。
+  //    所以整段在**同一個 tick 內**做完:掛旗標 → 讀 computed → 還原,中間不 await。
+  // 🔴 對照組用**同一顆元素**:暫時搬出槽再讀一次。少了它,「這條淡出規則此刻根本沒生效」
+  //    (例如媒體查詢不match)也會讓上半條無條件通過。
+  await page.evaluate(() => document.querySelector('.uni-tabs button[data-t="train"]')?.click());
+  await page.waitForTimeout(600);
+  const J = await page.evaluate(() => {
+    const fp = document.getElementById('followPanel');
+    const read = () => { const c = getComputedStyle(fp); return { op: +c.opacity, pe: c.pointerEvents }; };
+    const sheetOpen = document.body.classList.contains('sheet-open');
+    const inSlot = !!fp.closest('.uni-slot');
+    document.body.classList.add('dwell-show');
+    const mounted = read();
+    const home = fp.parentElement, next = fp.nextSibling;
+    document.body.appendChild(fp);          // 搬出槽:同一顆元素、同一個 tick
+    const outside = read();
+    if (next) home.insertBefore(fp, next); else home.appendChild(fp);
+    document.body.classList.remove('dwell-show');
+    return { sheetOpen, inSlot, mounted, outside };
+  });
+  ok(`K16 ${tag} 停靠中(dwell-show)整合卡的「這班車」頁仍看得見、仍點得動`,
+    J.sheetOpen && J.inSlot && J.mounted.op >= 0.9 && J.mounted.pe !== 'none', JSON.stringify(J));
+  ok(`K17 ${tag} 正向對照:同一顆卡搬出槽就真的被淡掉(證明讓位規則此刻是活的)`,
+    J.outside.op === 0 && J.outside.pe === 'none', JSON.stringify(J.outside));
+
+  ok(`K15 ${tag} 零 pageerror`, errs.length === 0, errs.slice(0, 1).join(''));
+  await close();
+}
+
 await assertTarget();
 // SECTIONS=H,I 只跑指定段(突變測試用);不設就跑全部——預設永遠是「全跑」,不能靠環境變數才完整。
-const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ };
+const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ, K: sectionK };
 const want = (process.env.SECTIONS || '').split(',').map(x => x.trim().toUpperCase()).filter(Boolean);
 const run = want.length ? want : Object.keys(ALL);
 for (const k of run) if (!ALL[k]) { console.error(`未知段別 ${k}`); process.exit(2); }
