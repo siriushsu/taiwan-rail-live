@@ -2219,8 +2219,14 @@
     user-select: none; transition: opacity .15s; color: var(--ink); min-height: 30px;
   }
   .chip:hover { background: var(--bg-stage); }
-  .chip .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
-  .chip.off { opacity: .45; text-decoration: line-through; }
+  .chip .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--c); }
+  /* 設計 16e:關掉的 chip 用【空心圓點】,不是把整顆的顏色吃掉——車種色是資料定義色,
+     關著的時候使用者仍然要認得出「這一顆是哪個車種」(關掉之後要再找回來,靠的就是那個顏色)。
+     刪除線一併拿掉:刪除線的語意是「這個東西沒了」,而這裡只是「暫時不看」。
+     🔴 圓點的顏色原本寫在行內 style 的 background 上,行內樣式蓋得過任何選擇器 ⇒ 關閉態根本改不動它。
+        改成行內只給 --c、實心與空心兩態都由 CSS 讀它(渲染點只有 buildToggles 一處)。 */
+  .chip.off { opacity: .5; }
+  .chip.off .dot { background: transparent; border: 1.5px solid var(--c); }
   .legend-sep { flex-basis: 100%; height: 0; }
   .legend-lbl {
     flex-basis: 100%; color: var(--faint); font-size: calc(11px * var(--uis)); font-weight: 800;
@@ -12405,7 +12411,7 @@ function buildToggles() {
   const chip = (name, color, set, id, cls) => {
     const el = document.createElement('div');
     el.className = 'chip' + (cls ? ' ' + cls : '') + (set.has(id) ? '' : ' off');
-    el.innerHTML = `<span class="dot" style="background:${color}"></span>${name}`;
+    el.innerHTML = `<span class="dot" style="--c:${color}"></span>${name}`; // 設計 16e:實心/空心兩態都由 CSS 讀 --c
     el.onclick = () => {
       if (set.has(id)) { set.delete(id); el.classList.add('off'); }
       else { set.add(id); el.classList.remove('off'); }

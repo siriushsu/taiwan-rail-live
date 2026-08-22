@@ -2004,9 +2004,65 @@ async function sectionS(browser, engine) {
   }
 }
 
+// ── T 段:設計 16e 車種 chip 的關閉態——空心圓點,顏色留著 ─────────────────────────
+// 🔴 核心是 T4:關閉態的框線色必須【逐字等於】開啟態的背景色。寫成「框線有顏色就好」的話,
+//    改成固定灰框(＝把車種色吃掉,正是設計要擋的那件事)照樣全綠——突變實測 T3 綠、只有 T4 紅。
+async function sectionT(browser, engine) {
+  const { page, errs, close } = await boot(browser, { width: 1280 });
+  await page.evaluate(() => { if (state.playing) togglePlay(); });
+  await page.evaluate(() => {
+    const b = document.getElementById('trackBtn') || document.querySelector('[data-proxy="trackBtn"]');
+    if (b) b.click();
+  });
+  await page.waitForTimeout(500);
+  const n0 = await page.evaluate(() => document.querySelectorAll('#lineToggles .chip').length);
+  ok(`T1 ${engine} 正向對照:量得到車種 chip`, n0 >= 3, `chip=${n0}`);
+  if (n0 < 3) { await close(); return; }
+
+  const READ = sel => {
+    const el = document.querySelector(sel); if (!el) return null;
+    const d = el.querySelector('.dot'), cs = getComputedStyle(d);
+    return { txt: el.textContent.trim(), bg: cs.backgroundColor, bw: parseFloat(cs.borderTopWidth),
+      bc: cs.borderTopColor, deco: getComputedStyle(el).textDecorationLine,
+      w: Math.round(d.getBoundingClientRect().width) };
+  };
+  const on = await page.evaluate(r => eval('(' + r + ')')('#lineToggles .chip:not(.off)'), READ.toString());
+  ok(`T2 ${engine} 開著的圓點是實心(背景就是車種色,沒有框)`,
+    !!on && on.bg !== 'rgba(0, 0, 0, 0)' && on.bw === 0, JSON.stringify(on));
+
+  // 真的點一下關掉它(不是直接加 class)——連帶驗它有沒有真的切到篩選
+  await page.evaluate(() => document.querySelector('#lineToggles .chip:not(.off)').scrollIntoView({ block: 'center' }));
+  await page.waitForTimeout(150);
+  const before = await page.evaluate(() => ({
+    vis: state.visible.size, cnt: document.querySelectorAll('#lineToggles .chip.off').length }));
+  const box = await page.evaluate(() => {
+    const b = document.querySelector('#lineToggles .chip:not(.off)').getBoundingClientRect();
+    return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+  });
+  await page.mouse.click(box.x, box.y);
+  await page.waitForTimeout(300);
+  const off = await page.evaluate(r => eval('(' + r + ')')('#lineToggles .chip.off'), READ.toString());
+  const after = await page.evaluate(() => ({
+    vis: state.visible.size, cnt: document.querySelectorAll('#lineToggles .chip.off').length }));
+
+  ok(`T3 ${engine} 關掉之後圓點變空心(背景透明、框線有寬度)`,
+    !!off && off.bg === 'rgba(0, 0, 0, 0)' && off.bw > 0, JSON.stringify(off));
+  ok(`T4 ${engine} 🔴 車種色沒有被狀態吃掉:關閉態的框線色逐字等於開啟態的背景色`,
+    !!off && off.bc === on.bg && off.txt === on.txt,
+    JSON.stringify({ 開啟背景: on.bg, 關閉框線: off && off.bc, 同一顆: !!off && off.txt === on.txt }));
+  ok(`T5 ${engine} 關掉之後沒有刪除線(刪除線的語意是「沒了」,這裡只是「暫時不看」)`,
+    !!off && !/line-through/.test(off.deco), off && off.deco);
+  ok(`T6 ${engine} 圓點沒有因為多了框而變大(全域 box-sizing 有吃到)`,
+    !!off && off.w === on.w, `開 ${on.w} / 關 ${off && off.w}`);
+  ok(`T7 ${engine} 點下去真的切到篩選(可見車種 −1、關閉數 +1)`,
+    after.vis === before.vis - 1 && after.cnt === before.cnt + 1, JSON.stringify({ before, after }));
+  ok(`T8 ${engine} 零 pageerror`, errs.length === 0, errs.slice(0, 1).join(''));
+  await close();
+}
+
 await assertTarget();
 // SECTIONS=H,I 只跑指定段(突變測試用);不設就跑全部——預設永遠是「全跑」,不能靠環境變數才完整。
-const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ, K: sectionK, L: sectionL, M: sectionM, MX: sectionMx, N: sectionN, NX: sectionNx, O: sectionO, P: sectionP, Q: sectionQ, R: sectionR, S: sectionS };
+const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ, K: sectionK, L: sectionL, M: sectionM, MX: sectionMx, N: sectionN, NX: sectionNx, O: sectionO, P: sectionP, Q: sectionQ, R: sectionR, S: sectionS, T: sectionT };
 const want = (process.env.SECTIONS || '').split(',').map(x => x.trim().toUpperCase()).filter(Boolean);
 const run = want.length ? want : Object.keys(ALL);
 for (const k of run) if (!ALL[k]) { console.error(`未知段別 ${k}`); process.exit(2); }
