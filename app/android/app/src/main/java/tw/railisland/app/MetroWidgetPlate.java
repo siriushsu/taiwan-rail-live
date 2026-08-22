@@ -82,6 +82,8 @@ final class MetroWidgetPlate {
         Integer minutes;         // 只有整數分鐘的系統（高捷／機捷）
         Integer secondMinutes;   // 再下班
         Integer thirdMinutes;
+        boolean secondApprox;    // eta2 推導列：只准「約 N 分」，不可偽裝成官方精度
+        boolean thirdApprox;
         int[] crowd;
         double dataAtEpochSec;   // 這份資料的時刻（不是讀取端時鐘）
         boolean fetchFailed;
@@ -207,7 +209,7 @@ final class MetroWidgetPlate {
                 break;
             default:
                 p.chip = Chip.LIVE; p.chipText = "LIVE"; p.stamp = hhmm(in.dataAtEpochSec);
-                p.footLeft = nextText(in.secondMinutes, in.thirdMinutes);
+                p.footLeft = nextText(in.secondMinutes, in.secondApprox, in.thirdMinutes, in.thirdApprox);
                 p.footRight = crowdWord(in.crowd);
         }
 
@@ -215,8 +217,8 @@ final class MetroWidgetPlate {
         // 🔴 主角不是數字（暫無資料／已收班／營運異常）時，後面兩個數字要一起收掉——
         //    否則畫面會變成「— 9 15」：左邊說沒有資料，右邊卻報得出兩班車。
         boolean numeric = p.hero == Hero.MINUTES || p.hero == Hero.ARRIVING;
-        p.boardSecond = !numeric || in.secondMinutes == null ? null : String.valueOf(in.secondMinutes);
-        p.boardThird = !numeric || in.thirdMinutes == null ? null : String.valueOf(in.thirdMinutes);
+        p.boardSecond = !numeric ? null : boardMinuteText(in.secondMinutes, in.secondApprox);
+        p.boardThird = !numeric ? null : boardMinuteText(in.thirdMinutes, in.thirdApprox);
 
         // 本站觀測／資料類提醒：不是營運異常，不能用紅（設計稿：紅只給真異常）。
         if (p.band == null && in.alertTitle != null && !in.alertTitle.isEmpty() && !in.alertFromOperator) {
@@ -257,9 +259,22 @@ final class MetroWidgetPlate {
     }
 
     static String nextText(Integer second, Integer third) {
+        return nextText(second, false, third, false);
+    }
+
+    static String nextText(Integer second, boolean secondApprox, Integer third, boolean thirdApprox) {
         if (second == null) return "";
-        if (third == null) return "再下班 " + second + " 分";
-        return "再下班 " + second + " 分 · " + third + " 分";
+        String secondText = minuteText(second, secondApprox);
+        if (third == null) return "再下班 " + secondText + " 分";
+        return "再下班 " + secondText + " 分 · " + minuteText(third, thirdApprox) + " 分";
+    }
+
+    private static String boardMinuteText(Integer minutes, boolean approx) {
+        return minutes == null ? null : minuteText(minutes, approx);
+    }
+
+    private static String minuteText(int minutes, boolean approx) {
+        return approx ? "約 " + minutes : String.valueOf(minutes);
     }
 
     /** 擁擠度旁邊固定附一個詞（顏色不獨立表意）。 */

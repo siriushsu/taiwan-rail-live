@@ -140,6 +140,7 @@ final class MetroWidgetData {
         String color;
         String lineLabel;
         String lineId;          // 這一列是哪條線 ⇒ provider 才查得到該線的官方站號（轉乘站每線不同）
+        boolean approx;         // eta2 推導列；只准畫「約 N 分」，快取 round-trip 不可掉
 
         JSONObject toJson() throws JSONException {
             JSONObject out = new JSONObject().put("dest", dest);
@@ -148,6 +149,7 @@ final class MetroWidgetData {
             if (color != null) out.put("color", color);
             if (lineLabel != null) out.put("lineLabel", lineLabel);
             if (lineId != null) out.put("lineId", lineId);
+            if (approx) out.put("approx", true);
             if (crowd != null) {
                 JSONArray a = new JSONArray();
                 for (int v : crowd) a.put(v);
@@ -164,6 +166,7 @@ final class MetroWidgetData {
             row.color = raw.optString("color", null);
             row.lineLabel = raw.optString("lineLabel", null);
             row.lineId = raw.optString("lineId", null);
+            row.approx = raw.optBoolean("approx", false);
             JSONArray crowd = raw.optJSONArray("crowd");
             if (crowd != null && crowd.length() > 0) {
                 row.crowd = new int[crowd.length()];
@@ -302,7 +305,8 @@ final class MetroWidgetData {
         out.dataAt = payloadTime(root.optString("at", null), System.currentTimeMillis() / 1000.0);
         StationInfo station = sys.stationByName.get(stationName);
         if (station != null && station.colors.size() == 1) out.stationColor = station.colors.get(0);
-        if ("trtc".equals(sys.id)) parseTrtc(catalog, sys, root, stationName, direction, out);
+        if ("trtc".equals(sys.id)) parseTrtc(catalog, sys, root, stationName, direction, out,
+            System.currentTimeMillis() / 1000.0);
         else parseMinute(catalog, sys, root, stationName, direction, out);
         lastTrain(catalog, sys.id, stationName, System.currentTimeMillis(), out);
         applyAlert(sys, station, out);
@@ -389,8 +393,8 @@ final class MetroWidgetData {
         return null;
     }
 
-    private static void parseTrtc(Catalog catalog, SystemInfo sys, JSONObject root, String station,
-                                  String direction, Snapshot out) throws JSONException {
+    static void parseTrtc(Catalog catalog, SystemInfo sys, JSONObject root, String station,
+                          String direction, Snapshot out, double now) throws JSONException {
         Map<String, JSONObject> trains = new LinkedHashMap<>();
         JSONArray trainList = root.optJSONArray("trains");
         if (trainList != null) for (int i = 0; i < trainList.length(); i++) {
@@ -400,7 +404,6 @@ final class MetroWidgetData {
             if (!no.isEmpty() && !trains.containsKey(no)) trains.put(no, train);
         }
         JSONObject alias = catalog.alias.optJSONObject(sys.id);
-        double now = System.currentTimeMillis() / 1000.0;
         JSONArray board = root.optJSONArray("board");
         if (board == null) return;
         for (int i = 0; i < board.length(); i++) {
@@ -439,6 +442,19 @@ final class MetroWidgetData {
                 }
             }
             out.rows.add(row);
+            // eta2 是伺服端從已發車列車推導的「再下一班」投影，不是官方站牌原文。
+            // 合成列繼承同線同向的識別，但不冒用第一班的擁擠度；approx 旗標會一路進快取與渲染。
+            double eta2 = raw.optDouble("eta2", 0);
+            if (eta2 > now && eta2 > eta) {
+                Row projected = new Row();
+                projected.dest = row.dest;
+                projected.eta = eta2;
+                projected.color = row.color;
+                projected.lineLabel = row.lineLabel;
+                projected.lineId = row.lineId;
+                projected.approx = true;
+                out.rows.add(projected);
+            }
         }
         out.rows.sort(Comparator.comparingDouble((Row r) -> r.eta).thenComparing(r -> r.dest));
     }

@@ -183,6 +183,7 @@ public final class WidgetGalleryActivity extends Activity {
         in.lineColor = "#0070BD";
         in.dest = "南港展覽館";
         in.secondMinutes = 9;
+        in.secondApprox = true;
         in.thirdMinutes = 15;
         in.crowd = new int[] { 1, 1, 2, 2, 3, 2 };
         in.dataAtEpochSec = now;

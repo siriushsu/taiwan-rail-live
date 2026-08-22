@@ -233,6 +233,8 @@ public final class MetroWidgetProvider extends AppWidgetProvider {
             in.minutes = head == null ? null : head.minutes;
             in.secondMinutes = minutesOf(mine, 1, now);
             in.thirdMinutes = minutesOf(mine, 2, now);
+            in.secondApprox = approxOf(mine, 1);
+            in.thirdApprox = approxOf(mine, 2);
             in.crowd = head == null ? null : head.crowd;
             in.dataAtEpochSec = snapshot.dataAt;
             in.fetchFailed = snapshot.failed;
@@ -261,12 +263,20 @@ public final class MetroWidgetProvider extends AppWidgetProvider {
         return snapshot.lastTrainAt;
     }
 
-    /** 第 index 班的整數分鐘（秒級系統也一樣取 floor，與主角同一條規則）。 */
-    private static Integer minutesOf(List<MetroWidgetData.Row> rows, int index, double now) {
+    /** 第 index 班的整數分鐘。官方列維持 floor；eta2 投影列只准 ceil，且過期就整列留白。 */
+    static Integer minutesOf(List<MetroWidgetData.Row> rows, int index, double now) {
         if (index >= rows.size()) return null;
         MetroWidgetData.Row row = rows.get(index);
+        if (row.eta != null && row.approx) {
+            int minutes = (int) Math.ceil((row.eta - now) / 60);
+            return minutes < 1 ? null : minutes;
+        }
         if (row.eta != null) return (int) Math.floor((row.eta - now) / 60);
         return row.minutes;
+    }
+
+    static boolean approxOf(List<MetroWidgetData.Row> rows, int index) {
+        return index < rows.size() && rows.get(index).approx;
     }
 
     // ── 更新節奏 ──────────────────────────────────────────────────────────────────
