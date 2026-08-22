@@ -443,10 +443,34 @@ export function deriveSecondArrivals(model, resolvedRows, vehicles, calibrations
     }
     if (best) {
       const st = line.stations[r.stationIdx];
-      out.push({ s: st ? st.name : String(r.stationIdx), d: r.destName, eta2: best.eta2, v2: best.v2 });
+      // no 與 eta（官方列到站時刻）是 join 判別欄：全網唯一的 (站,終點) 撞名對＝
+      // 忠孝復興|南港展覽館（BL 與 BR 各一列），靠這兩欄把兩線的列分開。
+      out.push({ s: st ? st.name : String(r.stationIdx), d: r.destName,
+        no: r.no || '', eta: r.arrEpoch, eta2: best.eta2, v2: best.v2 });
     }
   }
   return out;
+}
+
+// 把 next2 的 eta2 裝飾進 legacy board 列（只增欄，不動既有欄位與列數）。
+// join 鍵＝正規化站名|終點|車號|官方到站秒。同鍵而 eta2 不同＝兩條線的列在
+// 這一輪完全不可分辨（同站同終點同車號同到站秒）⇒ 毒化該鍵、兩列都留白——
+// 寧可少顯示，不把 A 線的第二班貼到 B 線的列上（「有資訊就一定要對」）。
+export function applyNext2ToBoard(boardRows, next2) {
+  if (!Array.isArray(boardRows) || !Array.isArray(next2) || !next2.length) return 0;
+  const keyed = new Map();
+  for (const x of next2) {
+    const k = `${x.s}|${x.d}|${x.no || ''}|${x.eta}`;
+    if (keyed.has(k) && keyed.get(k) !== x.eta2) keyed.set(k, null);
+    else keyed.set(k, x.eta2);
+  }
+  let applied = 0;
+  for (const b of boardRows) {
+    const k = `${normStationName(b.name)}|${normStationName(b.dest)}|${b.no || ''}|${b.eta}`;
+    const eta2 = keyed.get(k);
+    if (eta2 != null && eta2 > b.eta) { b.eta2 = eta2; applied++; }
+  }
+  return applied;
 }
 
 export function claimBoardRows(model, resolvedRows, nowEpoch, calibrations) {

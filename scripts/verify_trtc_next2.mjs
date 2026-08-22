@@ -5,8 +5,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildTrtcModel, deriveSecondArrivals, NEXT2_MIN_GAP_SEC, NEXT2_MAX_HORIZON_SEC }
-  from './trtc_board_ledger.mjs';
+import { buildTrtcModel, deriveSecondArrivals, applyNext2ToBoard,
+  NEXT2_MIN_GAP_SEC, NEXT2_MAX_HORIZON_SEC } from './trtc_board_ledger.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const load = p => JSON.parse(fs.readFileSync(path.join(ROOT, p)));
@@ -135,9 +135,56 @@ const hit = (out, r) => out.find(x => `${x.s}|${x.d}` === keyOf(r));
   }
   check('T10 model 站名已正規化（join 鍵兩側同套）', bad.length === 0, bad.slice(0, 5).join(','));
 }
+// T12 忠孝復興撞名對（全網唯一的跨線同站同終點）：join 鍵靠 no+eta 分辨，
+// 完全不可分辨時毒化留白，絕不把 A 線的第二班貼到 B 線列上
+{
+  const bl = model.lines.get('BL');
+  const blS = bl.stations.findIndex(x => x.name === '忠孝復興');
+  const brS = br.stations.findIndex(x => x.name === '忠孝復興');
+  const blDest = bl.stations.length - 1, brDest = br.stations.length - 1;
+  check('T12pre 兩線都有忠孝復興且終點同名', blS > 0 && brS > 0 &&
+    bl.stations[blDest].name === br.stations[brDest].name, `bl=${blS} br=${brS}`);
+  const rBL = rowAt('BL', blS, blDest, 60);
+  const rBR = rowAt('BR', brS, brDest, 60);
+  const fleet = [
+    veh('BL', 2, blS - 1, blS, blDest, 60), veh('BL', 2, blS - 3, blS - 2, blDest, 90),
+    veh('BR', 2, brS - 1, brS, brDest, 60), veh('BR', 2, brS - 5, brS - 4, brDest, 120),
+  ];
+  const out = deriveSecondArrivals(model, [rBL, rBR], fleet);
+  check('T12a 兩線各推出自己的第二班', out.length === 2 &&
+    new Set(out.map(x => x.v2)).size === 2, JSON.stringify(out));
+  const mkBoard = (noBL, noBR) => [
+    { name: '忠孝復興站', dest: '南港展覽館站', eta: BASE + 60, at: BASE, no: noBL },
+    { name: '忠孝復興站', dest: '南港展覽館站', eta: BASE + 60, at: BASE, no: noBR },
+  ];
+  // 現實形狀：BL 有車號、BR 無 ⇒ 鍵可分辨，兩列各得自己線的 eta2
+  const outN = deriveSecondArrivals(model, [{ ...rBL, no: '222' }, rBR], fleet);
+  const b1 = mkBoard('222', '');
+  const n1 = applyNext2ToBoard(b1, outN);
+  const e2BL = outN.find(x => x.no === '222'), e2BR = outN.find(x => x.no === '');
+  check('T12b no 可分辨 ⇒ 各得其線', n1 === 2 && e2BL && e2BR &&
+    b1[0].eta2 === e2BL.eta2 && b1[1].eta2 === e2BR.eta2 && b1[0].eta2 !== b1[1].eta2,
+    JSON.stringify({ n1, b1 }));
+  // 理論角落：兩列 no 都空、同刻 ⇒ 鍵完全相同但 eta2 不同 ⇒ 毒化，兩列都留白
+  const b2 = mkBoard('', '');
+  const n2 = applyNext2ToBoard(b2, out);
+  check('T12c 完全不可分辨 ⇒ 毒化雙留白', n2 === 0 && b2[0].eta2 == null && b2[1].eta2 == null,
+    JSON.stringify({ n2, b2 }));
+}
+// T13 applyNext2ToBoard 一般情形：正規化站名 join＋只在 eta2>eta 時裝飾
+{
+  const r = rowAt('BR', S, DEST, 60);
+  const out = deriveSecondArrivals(model, [r],
+    [veh('BR', 1, S + 1, S, DEST, 60), veh('BR', 1, S + 3, S + 2, DEST, 30)]);
+  const stName = br.stations[S].name, destName = br.stations[DEST].name;
+  const rows = [{ name: `${stName}站`, dest: `${destName}站`, eta: BASE + 60, at: BASE, no: '' }];
+  const n = applyNext2ToBoard(rows, out);
+  check('T13 一般列 join 成功且 eta2>eta', n === 1 && rows[0].eta2 > rows[0].eta,
+    JSON.stringify(rows));
+}
 // T11 覆蓋率具名斷言：本檔案應執行的斷言數（心得37d：分母自己要被 gate）
 {
-  const EXPECTED_MIN = 14; // T1..T10 全部路徑至少 14 條 check
+  const EXPECTED_MIN = 19; // T1..T13 全部路徑至少 19 條 check
   check('T11 斷言分母未縮水', pass + fail >= EXPECTED_MIN, `ran=${pass + fail}`);
 }
 

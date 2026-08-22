@@ -2,7 +2,7 @@ import {
   TRTC_LEDGER_SCHEMA, buildTrtcModel, buildLedgerFromRaw,
   trtcOperatingState, trtcServiceDay, resolveBoardRows, claimBoardRows, collapseClaims,
   attachOfficialTimelines, segmentVehiclesFromCountdowns, alignSegmentsToVehicles,
-  deriveSecondArrivals, normStationName,
+  deriveSecondArrivals, applyNext2ToBoard,
   bindTracksToTrips, buildTripSetsByLineDir, joinBoardRowsToTrips, planTrtcTripBindingPersistence,
 } from './scripts/trtc_board_ledger.mjs';
 import { reduceOfficialRosterSelfHealing } from './scripts/trtc_official_roster.mjs';
@@ -972,15 +972,10 @@ async function trtcLive(request, env) {
         boardPos = await trtcOfficialHeldPayload(env, 'assembly-error');
       }
       // 「再下一班」裝飾進看板列（2026-08-22 裁示）：eta2 只增欄不動 board 既有欄位與列數，
-      // 消費端（小工具/等車卡）沒解這個欄位就完全無感。key 兩側都過 normStationName，
-      // 與 resolveBoardRows 的站名正規化同一套。held/outage 模式沒有 next2 ⇒ 整段自然跳過。
-      if (Array.isArray(boardPos && boardPos.next2) && boardPos.next2.length) {
-        const n2 = new Map(boardPos.next2.map(x => [x.s + '|' + x.d, x.eta2]));
-        for (const b of board) {
-          const eta2 = n2.get(normStationName(b.name) + '|' + normStationName(b.dest));
-          if (eta2 != null && eta2 > b.eta) b.eta2 = eta2;
-        }
-      }
+      // 消費端（小工具/等車卡）沒解這個欄位就完全無感。join 鍵含 no+eta 判別欄與毒化
+      // 邏輯（忠孝復興 BL/BR 撞名對），細節在 applyNext2ToBoard。held/outage 模式沒有
+      // next2 ⇒ 整段自然跳過。
+      applyNext2ToBoard(board, boardPos && boardPos.next2);
       // legacy 的 at/src/trains/board/cd 產生路徑與欄位順序不動；帳本預覽失敗一律
       // 回空陣列，不能拖垮原本逐車 API。
       let ledger = [];
