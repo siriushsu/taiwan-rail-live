@@ -81,16 +81,17 @@ public final class RailMetroWaitPlugin: CAPPlugin, CAPBridgedPlugin {
     // (照抄 RailLiveActivityPlugin 走過的同一條血路)。
     private var tokenTask: Task<Void, Never>?
 
-    // 掃掉所有等車卡——用 Activity<>.activities 而不是自存 handle,連「App 被系統終止後
+    // 掃掉所有等候卡——用 Activity<>.activities 而不是自存 handle,連「App 被系統終止後
     // 遺留」的孤兒一起涵蓋(handle 不跨行程存活)。
+    // 🔴 收的是【兩種】卡(RailWaitCards.endAll 同時掃捷運等車卡與台鐵等站卡):鎖屏上
+    //    一次只留一張等候卡。這裡若只收自己那型,從台鐵站走到捷運站開新卡時,舊的台鐵
+    //    等站卡會留在鎖屏上繼續顯示一班早就不相干的車。兩支 plugin 都走同一個入口。
     @available(iOS 17.6, *)
     @MainActor
     private func endAll() async {
         tokenTask?.cancel()
         tokenTask = nil
-        for act in Activity<MetroWaitAttributes>.activities {
-            await act.end(nil, dismissalPolicy: .immediate)
-        }
+        await RailWaitCards.endAll()
     }
 
     @objc func start(_ call: CAPPluginCall) {

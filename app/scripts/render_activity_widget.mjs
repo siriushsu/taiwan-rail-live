@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 把兩張 Live Activity（臺鐵跟車、捷運候車）與動態島的版面算繪成 PNG。
+// 把三張 Live Activity（臺鐵跟車、捷運候車、臺鐵等站）與動態島的版面算繪成 PNG。
 //
 // 🔴 改版前這兩張卡【結構上沒有辦法在改版時被看見】：版面直接讀 ActivityViewContext，
 //    而那個型別（連同 ActivityConfiguration）在裸執行檔裡構造不出來 ⇒ 五種狀態全靠上真機。
@@ -51,10 +51,14 @@ const kitPath = join(widgetDir, 'RailWidgetKit.swift');
 const dataSource = readFileSync(join(widgetDir, 'RailBoardData.swift'), 'utf8');
 const followSource = readFileSync(join(widgetDir, 'RailFollowActivity.swift'), 'utf8');
 const waitSource = readFileSync(join(widgetDir, 'MetroWaitActivity.swift'), 'utf8');
+const traSource = readFileSync(join(widgetDir, 'TraWaitActivity.swift'), 'utf8');
 // 🔴 這個檔【不在】widget 目錄裡：它同屬 App 與 widget extension 兩個 target，是
 //    「設 staleDate 的那側」與「畫過期樣式的那側」唯一的共同祖先。把它抽進來，這支
 //    harness 驗到的就是出貨路徑真正用的那個常數與算式，而不是 harness 自己抄的一份。
 const attrSource = readFileSync(resolve(here, '../ios/App/App/RailFollowAttributes.swift'), 'utf8');
+// 同上：等站卡的保鮮期常數住在雙 target 的 TraWaitAttributes.swift，是「設 staleDate 的那側」
+// 與「畫過期樣式的那側」唯一的共同祖先。
+const traAttrSource = readFileSync(resolve(here, '../ios/App/App/TraWaitAttributes.swift'), 'utf8');
 
 /**
  * 🔴 原始碼層 gate：harness 用替身畫「結束」鈕，所以它照不到 intent 有沒有真的接上。
@@ -65,7 +69,7 @@ function intentGate() {
   // 🔴 不用「字串出現過就算」：突變測試實測到，兩個呼叫點只改壞一個時，另一個還在
   //    ⇒ 存在性檢查照樣全綠。Live Activity 的鎖屏跑不了任意 closure，`Button(action:)`
   //    在那裡【一定】是死鈕，所以判準是「這兩個檔裡的每一顆 Button 都得吃 intent」。
-  for (const [name, src] of [['跟車卡', followSource], ['候車卡', waitSource]]) {
+  for (const [name, src] of [['跟車卡', followSource], ['候車卡', waitSource], ['等站卡', traSource]]) {
     const buttons = src.match(/(?<![A-Za-z])Button\(/g)?.length ?? 0;
     const withIntent = src.match(/(?<![A-Za-z])Button\(intent:/g)?.length ?? 0;
     if (buttons !== withIntent) {
@@ -76,15 +80,20 @@ function intentGate() {
   if (!waitSource.includes('MetroWaitEndIntent')) {
     bad.push('等車卡完全沒有 MetroWaitEndIntent（「結束」鈕收不掉卡）');
   }
+  if (!traSource.includes('TraWaitEndIntent')) {
+    bad.push('等站卡完全沒有 TraWaitEndIntent（「結束」鈕收不掉卡）');
+  }
   for (const [name, src, needle] of [
     ['等車卡', waitSource, 'struct MetroWaitEndButton'],
     ['跟車卡', followSource, 'RailFollowDisplay.make('],
     ['等車卡', waitSource, 'MetroWaitDisplay.make('],
+    ['等站卡', traSource, 'struct TraWaitEndButton'],
+    ['等站卡', traSource, 'TraWaitDisplay.make('],
   ]) {
     if (!src.includes(needle)) bad.push(`${name}少了 ${needle}`);
   }
   if (bad.length) throw new Error('intent gate 失敗：\n' + bad.map((b) => '  ' + b).join('\n'));
-  console.log('gate 通過：兩張卡都走 make(...) 唯一入口，「結束」鈕真的接上 intent');
+  console.log('gate 通過：三張卡都走 make(...) 唯一入口，「結束」鈕真的接上 intent');
 }
 
 intentGate();
@@ -96,7 +105,7 @@ intentGate();
  */
 function staticProgressGate() {
   const bad = [];
-  for (const [name, src] of [['跟車卡', followSource], ['候車卡', waitSource]]) {
+  for (const [name, src] of [['跟車卡', followSource], ['候車卡', waitSource], ['等站卡', traSource]]) {
     // 🔴 同樣不用存在性檢查（見 intentGate）：兩張卡各有鎖屏與動態島【兩個】呼叫點，
     //    只改壞一個時存在性檢查是綠的（突變測試實測）。
     const calls = src.match(/RailSpineTrack\(/g)?.length ?? 0;
@@ -110,7 +119,7 @@ function staticProgressGate() {
     }
   }
   if (bad.length) throw new Error('靜態進度 gate 失敗：\n' + bad.map((b) => '  ' + b).join('\n'));
-  console.log('gate 通過：兩張卡的軌道都吃 display.track（算繪走靜態版只是為了看得見）');
+  console.log('gate 通過：三張卡的軌道都吃 display.track（算繪走靜態版只是為了看得見）');
 }
 
 staticProgressGate();
@@ -130,7 +139,7 @@ staticProgressGate();
  */
 function selfRunningCountdownGate() {
   const bad = [];
-  for (const [name, src] of [['跟車卡', followSource], ['候車卡', waitSource]]) {
+  for (const [name, src] of [['跟車卡', followSource], ['候車卡', waitSource], ['等站卡', traSource]]) {
     // 只看程式碼行：這兩個檔的註解裡就寫著 `.from(secondsLeft:)` 在解釋為什麼不用它。
     const code = src.split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n');
     const hits = code.match(/\.from\(secondsLeft:/g)?.length ?? 0;
@@ -141,10 +150,51 @@ function selfRunningCountdownGate() {
     }
   }
   if (bad.length) throw new Error('自走倒數 gate 失敗：\n' + bad.map((b) => '  ' + b).join('\n'));
-  console.log('gate 通過：兩張 Live Activity 都沒有把倒數折成死數字（一律 .until 自走）');
+  console.log('gate 通過：三張 Live Activity 都沒有把倒數折成死數字（一律 .until 自走）');
 }
 
 selfRunningCountdownGate();
+
+/**
+ * 🔴 原始碼層 gate：等站卡【一個自走文字都不准有】。
+ *
+ * 精度紅線（memory: `tra-thsr-no-official-eta`）：臺鐵官方只有表定時刻與誤點分鐘，
+ * 沒有預估到站、更沒有秒級精度。任何「自己往前跑」的文字（RailCountdownText／
+ * `Text(.currentDate, format:)`／`style: .relative`／`timerInterval:`）都是在把
+ * 官方沒說過的精度畫給使用者看——而且畫得越像真的越危險。
+ *
+ * 🔴 這道 gate 與 selfRunningCountdownGate 剛好【方向相反】：那一道要求捷運與跟車卡
+ *    的倒數【必須】自走（不准折成死數字），這一道要求等站卡【完全不准】自走。
+ *    兩張卡的官方資料精度不同，判準也就不可能是同一條——把兩者混成一條的症狀是
+ *    有一邊永遠被放行。值層另有 traStaticTextGate() 從渲染輸出反向掃一次。
+ */
+function traNoSelfRunningTextGate() {
+  const bad = [];
+  // 只看程式碼行：檔頭的精度紅線註解裡就逐一列著這些名字在解釋為什麼不用它們。
+  const code = traSource.split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n');
+  for (const [needle, why] of [
+    ['RailCountdownText', '那是自走倒數元件'],
+    ['Text(.currentDate', '那會讓系統自己重排時間文字'],
+    ['style: .relative', '那是「還有 N 分」的相對時間文字'],
+    ['timerInterval:', '那是自走的計時文字／進度條'],
+    ['RailCountdown', '整個倒數型別在這張卡上都沒有立足點（主角是鐘面時刻）'],
+  ]) {
+    const hits = code.split(needle).length - 1;
+    if (hits) {
+      bad.push(`等站卡出現 ${hits} 處 ${needle}——${why}；`
+             + '臺鐵官方只有表定與誤點分鐘，秒級倒數是在製造官方沒有的精度');
+    }
+  }
+  // 🔴 正向對照：上面五條全是「不可以有」，五個 needle 一起打錯字時整道 gate 會恆綠。
+  //    這一條證明我們掃的是一個真的有內容、而且真的畫了主角時刻的檔。
+  if (!code.includes('display.heroText')) {
+    bad.push('等站卡的版面根本沒畫 display.heroText——這道 gate 掃的檔不對，上面五條沒有意義');
+  }
+  if (bad.length) throw new Error('等站卡自走文字 gate 失敗：\n' + bad.map((b) => '  ' + b).join('\n'));
+  console.log('gate 通過：等站卡一個自走文字都沒有（主角是官方值算出來的鐘面時刻）');
+}
+
+traNoSelfRunningTextGate();
 
 const pieces = [
   extractDeclaration(dataSource, 'enum RailBoardClock'),
@@ -157,6 +207,11 @@ const pieces = [
   extractDeclaration(waitSource, 'struct MetroWaitLockView'),
   extractDeclaration(waitSource, 'struct MetroWaitIslandBottom'),
   extractDeclaration(waitSource, 'struct RailIslandMinimal'),
+  extractDeclaration(traAttrSource, 'enum TraWaitStale'),
+  extractDeclaration(traSource, 'struct TraWaitDisplay'),
+  extractDeclaration(traSource, 'struct TraWaitLockView'),
+  extractDeclaration(traSource, 'struct TraWaitIslandBottom'),
+  extractDeclaration(traSource, 'struct TraWaitIslandMinimal'),
 ];
 
 const harness = `
@@ -168,6 +223,25 @@ import SwiftUI
 // ActivityKit，這裡編不起來），視覺就是同一顆 RailEndButton。intent 有沒有接上由
 // render_activity_widget.mjs 的 intentGate() 在原始碼層驗。
 struct MetroWaitEndButton: View {
+    var scale: RailScale = RailScale(k: 1)
+    var compact: Bool = false
+    var height: CGFloat = 30
+
+    @ViewBuilder var body: some View {
+        if compact {
+            Text("結束")
+                .font(.system(size: scale.pt(11), weight: .semibold))
+                .padding(.horizontal, scale.pt(8))
+                .frame(height: scale.pt(20))
+                .background(RoundedRectangle(cornerRadius: scale.pt(5)).fill(Color.primary.opacity(0.12)))
+        } else {
+            RailEndButton(scale: scale, height: height) { Text("結束") }
+        }
+    }
+}
+
+// 等站卡「結束」鈕的替身（理由同上，出貨版是 Button(intent: TraWaitEndIntent())）。
+struct TraWaitEndButton: View {
     var scale: RailScale = RailScale(k: 1)
     var compact: Bool = false
     var height: CGFloat = 30
@@ -256,6 +330,50 @@ let waitWorst = MetroWaitDisplay.make(
     secondDest: "臺北車站（直達車）", secondEta: nowSec + 900, secondMinutes: nil,
     crowd: [3, 3, 2, 2, 3, 3], dataAt: nowSec - 30, endAt: nowSec + 45 * 60,
     notice: "板南線板橋站往南港方向延誤約 5 分", pushed: true, isStale: false, now: now)
+
+// 臺鐵等站卡（設計稿 F）。
+//
+// 🔴 時刻【寫死成具體的日期時間】而不是 now 的相對量：這張卡的判準是「主角時刻等於
+//    表定＋誤點」這種逐字等式，浮動的 now 會讓期望值也跟著浮動 ⇒ 只能拿實作自己算的
+//    值來比（心得 29：判準與實作同源＝集體失明）。錨死之後期望值才能走另一條路算。
+let traSchedDate: Date = {
+    var c = Calendar(identifier: .gregorian)
+    c.timeZone = TimeZone(identifier: "Asia/Taipei")!
+    return c.date(from: DateComponents(year: 2026, month: 8, day: 22, hour: 18, minute: 32))!
+}()
+let traSchedSec = traSchedDate.timeIntervalSince1970
+// 使用者站在月台上、表定前 11 分鐘看這張卡。
+let traNow = Date(timeIntervalSince1970: traSchedSec - 11 * 60)
+
+func tra(delayMin: Int?, dataAgeSec: Double = 40, isStale: Bool = false,
+         pushed: Bool? = true, notice: String? = nil,
+         at when: Date = traNow) -> TraWaitDisplay {
+    TraWaitDisplay.make(
+        trainType: "自強", station: "板橋", colorHex: "#C0392B",
+        trainNo: "123", dest: "潮州", schedSec: traSchedSec,
+        delayMin: delayMin, dataAt: when.timeIntervalSince1970 - dataAgeSec,
+        notice: notice, pushed: pushed, isStale: isStale, now: when)
+}
+
+let traLate = tra(delayMin: 3)
+let traOnTime = tra(delayMin: 0)
+// 🔴 「沒有資訊」與「準點」是兩件事：這班車不在官方動態窗裡（南迴那種長跑區段很常見）。
+let traUnknown = tra(delayMin: nil)
+// 誤點資訊過齡：主角退回表定，整卡降級。delayMin 刻意仍給 7——過期的處置不可以看有沒有值。
+let traExpired = tra(delayMin: 7, dataAgeSec: TraWaitStale.delayMaxAgeSeconds + 60)
+// 官方值照抄，包含負的（早到）。不夾正、不當成 0。
+let traEarly = tra(delayMin: -2)
+let traNotice = tra(delayMin: 12, notice: "臺鐵今日因設備檢修，部分列車延誤")
+// 車應該到了：接上推播與沒接上是兩種話。
+let traArrived = tra(delayMin: 3, isStale: true)
+let traArrivedNoPush = tra(delayMin: 3, isStale: true, pushed: nil)
+// 最壞情況：最長車種名＋4 碼車次＋最長站名與終點＋三位數誤點。
+let traWorst = TraWaitDisplay.make(
+    trainType: "自強(3000)", station: "臺北-環島", colorHex: "#C0392B",
+    trainNo: "1234", dest: "臺北-環島", schedSec: traSchedSec,
+    delayMin: 125, dataAt: traNow.timeIntervalSince1970 - 30,
+    notice: "臺鐵即時資料中斷，誤點分鐘為最後一次官方更新", pushed: true,
+    isStale: false, now: traNow)
 
 // ── 算繪 ────────────────────────────────────────────────────────────────────
 
@@ -739,6 +857,235 @@ func liveCountdownGate() {
         + "動態島 minimal 不足一分鐘仍是實心綠")
 }
 
+
+/// 臺鐵等站卡:主角時刻的【獨立期望值】。
+///
+/// 🔴 刻意不呼叫 RailBoardClock.updateTimeString(出貨路徑用的那支):判準與實作同源時,
+///    把兩邊一起改壞(例如都改成 UTC、都改成 mm:ss)這道 gate 照樣全綠——量測值恰好相等
+///    在同源時是零資訊。這裡走 Calendar 元件＋String(format:),與 DateFormatter 沒有共用
+///    任何一行;唯一共享的是「Asia/Taipei」這個外部常數。
+func traClockHHmm(_ epoch: Double) -> String {
+    var cal = Calendar(identifier: .gregorian)
+    cal.timeZone = TimeZone(identifier: "Asia/Taipei")!
+    let c = cal.dateComponents([.hour, .minute], from: Date(timeIntervalSince1970: epoch))
+    return String(format: "%02d:%02d", c.hour ?? -1, c.minute ?? -1)
+}
+
+/// 🔴 gate:等站卡的主角時刻 = 表定 + 官方誤點,而且【只】等於那個。
+///
+/// 這是整張卡的精度紅線落成判準(memory: tra-thsr-no-official-eta、使用者長期裁示
+/// 「有資訊就一定要對」)。兩個輸入都是官方值 ⇒ 相加可以顯示;再往下一層換算成
+/// 「還有幾分幾秒」就是製造官方沒有的精度。
+func traPrecisionGate() {
+    func fail(_ msg: String) -> Never {
+        FileHandle.standardError.write(Data(("等站卡精度 gate 失敗:" + msg + "\\n").utf8))
+        exit(1)
+    }
+    // 保鮮期是三方共用的外部值(worker TW_DELAY_MAX_AGE_SEC / 網頁 liveActive())。
+    // 🔴 寫死 1800 不讀常數的理由同 expiryGate:讀它就是讓受測物自己供判準——
+    //    把常數改成 1e9 時 fixture 的資料齡也跟著變,這道 gate 會照樣全綠。
+    if TraWaitStale.delayMaxAgeSeconds != 1800 {
+        fail("誤點保鮮期被改成 \\(TraWaitStale.delayMaxAgeSeconds) 秒(訂為 1800,與 worker 同值)")
+    }
+
+    let schedClock = traClockHHmm(traSchedSec)
+    let schedText = "表定 " + schedClock
+    // (1) 逐一驗主角時刻的【值】。期望值走 traClockHHmm,與實作沒有共用程式碼。
+    // 🔴 主角標籤（第五欄）與主角時刻是一組的:同一個「18:32」，標成「實際約」是宣稱
+    //    官方說了它會準點，標成「表定」才是我們真正知道的事。少了這一欄，「誤點未知」
+    //    與「準點」在畫面上會長得一模一樣（主角同值），而它們是兩件完全不同的事。
+    let cases: [(String, TraWaitDisplay, Double, String, String, TraWaitDisplay.DelayTone)] = [
+        ("誤點 3 分", traLate, traSchedSec + 180, "實際約", "誤點 3 分", .late),
+        ("準點", traOnTime, traSchedSec, "實際約", "準點", .onTime),
+        ("誤點未知", traUnknown, traSchedSec, "表定", "目前無即時誤點資訊", .unknown),
+        ("誤點資訊過齡", traExpired, traSchedSec, "表定", "誤點資訊已過期", .unknown),
+        ("早到 2 分", traEarly, traSchedSec - 120, "實際約", "早到 2 分", .late),
+    ]
+    for (name, d, wantEpoch, wantCaption, wantDelayText, wantTone) in cases {
+        let want = traClockHHmm(wantEpoch)
+        if d.heroText != want {
+            fail("「\\(name)」的主角時刻是「\\(d.heroText)」,表定＋官方誤點應該是「\\(want)」")
+        }
+        if d.heroCaption != wantCaption {
+            fail("「\\(name)」的主角標成「\\(d.heroCaption)」，應該是「\\(wantCaption)」"
+               + "——沒有官方誤點時那個時刻就只是表定，標成「實際約」等於替官方說它會準點")
+        }
+        if d.delayText != wantDelayText {
+            fail("「\\(name)」的誤點句是「\\(d.delayText)」,應該是「\\(wantDelayText)」"
+               + "——官方值一律照抄,不夾正、不合併")
+        }
+        if d.delayTone != wantTone {
+            fail("「\\(name)」的語氣判錯了(nil 與 0 是兩件事:沒有資訊 vs 官方說準點)")
+        }
+        // 🔴 不變量:表定那個時刻在卡上【恰好出現一次】。
+        //    有官方誤點時它住在第三列（主角是實際約到站）;沒有時主角本身就是表定，
+        //    第三列的那一半要收掉，否則同一個數字並排兩份。
+        //    「≥1」擋的是「表定整個不見了」（使用者就驗不了我們算出來的主角）;
+        //    「≤1」擋的是重複。兩邊都要——只寫一邊，各有一種壞法會漏。
+        let schedShown = [d.heroCaption == "表定" ? d.heroText : "", d.schedText ?? ""]
+            .filter { $0.contains(schedClock) }.count
+        if schedShown != 1 {
+            fail("「\\(name)」的表定時刻在卡上出現 \\(schedShown) 次（應該恰好一次）:"
+               + "主角標籤「\\(d.heroCaption)」／主角「\\(d.heroText)」／第三列「\\(d.schedText ?? "(無)")」")
+        }
+        if let sched = d.schedText, sched != schedText {
+            fail("「\\(name)」的第三列表定是「\\(sched)」,應該是「\\(schedText)」")
+        }
+        // (2) 形狀:24 小時制鐘面。「1:30」這種 m:ss 過不了(小時位不合 [01]\\d|2[0-3])。
+        if d.heroText.range(of: "^([01][0-9]|2[0-3]):[0-5][0-9]$", options: .regularExpression) == nil {
+            fail("「\\(name)」的主角「\\(d.heroText)」不是 24 小時制鐘面時刻")
+        }
+    }
+    // (3) 🔴 反向對照:少了這條,「一律畫表定」可以通過上面五條裡的三條。
+    if traLate.heroText == traOnTime.heroText {
+        fail("誤點 3 分與準點畫出同一個主角時刻——誤點沒有真的加進去(或是被畫成了表定)")
+    }
+    // 🔴 這一對是本卡最容易出事的地方:「準點」與「誤點未知」的主角時刻【本來就相同】
+    //    （都等於表定），兩者唯一的差別就是標籤與那句誤點文字。把標籤寫死成同一個值
+    //    （例如一律「實際約」）時，只有這條會轉紅。
+    if traOnTime.heroText != traUnknown.heroText {
+        fail("fixture 壞了:準點與誤點未知的主角時刻應該都等於表定，這一對才問得出標籤有沒有用")
+    }
+    if traOnTime.heroCaption == traUnknown.heroCaption {
+        fail("準點與誤點未知的主角標成同一個詞（\\(traOnTime.heroCaption)）——"
+           + "兩者的主角時刻本來就相同，標籤是使用者唯一分得出「官方說準點」與「官方沒說」的地方")
+    }
+    // (4) 🔴 過期的反向對照:過期那格與準點那格【輸入只差資料齡】,結果卻必須不同語氣。
+    //     少了這條,「乾脆永不過期」也能通過(2) 裡那格——它的主角本來就等於表定。
+    if !traExpired.expired || traOnTime.expired {
+        fail("過期判定失效(過期那格 expired=\\(traExpired.expired)、"
+           + "新鮮那格 expired=\\(traOnTime.expired));兩格輸入只差資料齡")
+    }
+    // (5) 到站後那句話有兩種版本,不可以只留一種。
+    guard let hintPushed = traArrived.staleHint, let hintNoPush = traArrivedNoPush.staleHint else {
+        fail("車應已到卻沒有任何說明句")
+    }
+    if hintPushed == hintNoPush {
+        fail("接上推播與沒接上推播的卡,到站後說同一句話(「\\(hintPushed)」)"
+           + "——沒接上的那張不會自己更新誤點,也不會自己收,必須老實講")
+    }
+    if traLate.staleHint != nil {
+        fail("車還沒到就先講了到站後的話")
+    }
+    print("gate 通過:等站卡主角 = 表定＋官方誤點(逐格獨立驗值),"
+        + "誤點未知與過期都退回表定,到站說明句分得出有沒有接上推播")
+}
+
+/// 🔴 gate(精度反向對照):等站卡渲染出來的每一個字,都不准長得像倒數,也不准隨時間變。
+///
+/// traPrecisionGate() 驗的是「主角那個值對不對」,這一道驗的是「整張卡有沒有別的地方
+/// 偷偷畫了秒級精度」——派工的原話是「卡片渲染輸出絕不出現 mm:ss 倒數形式(正則掃)」。
+/// 判準有兩半,缺一不可:
+///   · 靜態掃:禁字(秒／還有／剩／倒數)＋含冒號的欄位必須是 24 小時制鐘面。
+///   · 動態掃:同一份輸入在兩個不同的 now 算出來,每一個字串都必須【逐字相同】。
+///     這一半才擋得住「畫了一個自己會走的東西」——它在單一時點的快照上完全合法。
+func traStaticTextGate() {
+    func fail(_ msg: String) -> Never {
+        FileHandle.standardError.write(Data(("等站卡靜態文字 gate 失敗:" + msg + "\\n").utf8))
+        exit(1)
+    }
+    func texts(_ d: TraWaitDisplay) -> [(String, String)] {
+        [("lead", d.lead), ("caption", d.heroCaption), ("hero", d.heroText),
+         ("sched", d.schedText ?? ""),
+         ("delay", d.delayText), ("footer", d.footer ?? ""),
+         ("notice", d.notice ?? ""), ("hint", d.staleHint ?? "")]
+    }
+    let scenes: [(String, TraWaitDisplay)] = [
+        ("誤點", traLate), ("準點", traOnTime), ("未知", traUnknown), ("過期", traExpired),
+        ("早到", traEarly), ("公告", traNotice), ("到站", traArrived),
+        ("到站未接推播", traArrivedNoPush), ("最壞值", traWorst),
+    ]
+    for (name, d) in scenes {
+        for (field, text) in texts(d) {
+            for bad in ["秒", "還有", "剩", "倒數"] where text.contains(bad) {
+                fail("「\\(name)」的 \\(field) 是「\\(text)」,裡面有「\\(bad)」"
+                   + "——臺鐵官方只有分鐘級誤點,任何秒級或倒數口吻都是假精度")
+            }
+            guard text.contains(":") else { continue }
+            // 卡上只有三個地方是【時刻】:主角、表定、底列的資料時刻。其餘欄位帶冒號一律
+            // 視為偷偷長出來的 m:ss。這三個各自剝掉自己的固定綴詞之後,都必須是鐘面。
+            let body: String
+            switch field {
+            case "hero": body = text
+            case "sched": body = String(text.dropFirst(3))          // 「表定 」
+            case "footer": body = String(text.dropLast(3))          // 「 更新」
+            default:
+                fail("「\\(name)」的 \\(field) 出現冒號:「\\(text)」。只有主角、表定與資料時刻是時刻,"
+                   + "其他欄位帶冒號多半是偷偷長出來的 m:ss")
+            }
+            if body.range(of: "^([01][0-9]|2[0-3]):[0-5][0-9]$", options: .regularExpression) == nil {
+                fail("「\\(name)」的 \\(field)「\\(text)」不是 24 小時制鐘面"
+                   + "——「1:30」這種 m:ss 在等車情境會被讀成 1 小時 30 分")
+            }
+        }
+    }
+    // 🔴 正向對照:上面全是「不可以有」,整組欄位如果都是空字串會恆綠。
+    if !traLate.lead.contains("次 往") || traLate.footer == nil {
+        fail("fixture 的文字欄位是空的——上面那一整輪掃描沒有掃到任何東西")
+    }
+
+    // 動態掃:推進 5 分鐘(仍在保鮮期內),每一個字都必須一字不差。
+    //
+    // 🔴 dataAt 必須【釘死】,不可以跟著 now 一起走:底列「HH:mm 更新」印的就是 dataAt,
+    //    兩個都動的話它本來就會變 ⇒ 這道斷言會誤報,而真正要抓的東西反而被雜訊蓋掉。
+    //    要變的只有一個變因:now。
+    let fixedDataAt = traNow.timeIntervalSince1970 - 40
+    func snap(_ delay: Int?, _ when: Date) -> TraWaitDisplay {
+        TraWaitDisplay.make(
+            trainType: "自強", station: "板橋", colorHex: "#C0392B",
+            trainNo: "123", dest: "潮州", schedSec: traSchedSec,
+            delayMin: delay, dataAt: fixedDataAt,
+            notice: nil, pushed: true, isStale: false, now: when)
+    }
+    let later = Date(timeIntervalSince1970: traNow.timeIntervalSince1970 + 300)
+    for (delay, name) in [(3 as Int?, "誤點"), (0, "準點"), (nil, "未知")] {
+        for (lhs, rhs) in zip(texts(snap(delay, traNow)), texts(snap(delay, later))) where lhs.1 != rhs.1 {
+            fail("「\\(name)」的 \\(lhs.0) 過了 5 分鐘就從「\\(lhs.1)」變成「\\(rhs.1)」"
+               + "——這張卡上不准有任何自己會走的數字(官方只給表定與誤點分鐘)")
+        }
+    }
+    // 🔴 上面那一輪的正向對照:證明 now 真的有被 make(...) 用到。少了這條,
+    //    「make 根本忽略 now」會讓「文字不隨時間變」這件事恆真,整個動態掃是空的。
+    let wayLater = Date(timeIntervalSince1970: traNow.timeIntervalSince1970
+                        + TraWaitStale.delayMaxAgeSeconds + 120)
+    if !snap(3, wayLater).expired {
+        fail("把 now 推到保鮮期之外,卡片卻還說誤點資訊是新的——make(...) 根本沒在看 now,"
+           + "上面那一輪「文字不隨時間變」的斷言全部恆真")
+    }
+    print("gate 通過:等站卡的九個情境沒有任何秒級或 m:ss 字樣,"
+        + "而且同一份資料在不同時刻算出來逐字相同(now 確實有接上,推過保鮮期會翻成過期)")
+}
+
+/// 🔴 gate:動態島 minimal 那一顆圓要答得出「到了沒有」。
+///
+/// 那顆圓只有 22pt——塞得下「3」這種分鐘數,塞不下「18:35」這種時刻,而把時刻截成
+/// 「18」或「35」都會被讀成別的意思。所以這張卡的 minimal 不塞字,狀態全靠形狀。
+/// 判準是純畫面事實:兩個狀態的 PNG 不可以相同(空心環 vs 實心)。
+@MainActor
+func traMinimalGate() {
+    let color = Color(.sRGB, red: 0.75, green: 0.23, blue: 0.17)
+    let waiting = pngData(TraWaitIslandMinimal(arrived: false, color: color), width: 30, height: 30)
+    let arrived = pngData(TraWaitIslandMinimal(arrived: true, color: color), width: 30, height: 30)
+    if waiting == arrived {
+        FileHandle.standardError.write(Data(
+            ("等站卡 minimal gate 失敗:「還沒到」與「車應已到」畫成同一張圖。"
+             + "那顆圓塞不下時刻,狀態只能靠形狀,兩者一樣就等於這顆圓什麼都沒說\\n").utf8))
+        exit(1)
+    }
+    // 單色模式(系統把顏色吃掉)也要分得出來:實心與空心是形狀差異,不是顏色差異。
+    let waitingMono = pngData(TraWaitIslandMinimal(arrived: false, color: color),
+                              width: 30, height: 30, mono: true)
+    let arrivedMono = pngData(TraWaitIslandMinimal(arrived: true, color: color),
+                              width: 30, height: 30, mono: true)
+    if waitingMono == arrivedMono {
+        FileHandle.standardError.write(Data(
+            ("等站卡 minimal gate 失敗:單色模式下兩個狀態長得一模一樣"
+             + "——顏色被系統吃掉之後必須還有形狀撐著\\n").utf8))
+        exit(1)
+    }
+    print("gate 通過:等站卡 minimal 的圓在「車應已到」時變實心(單色模式下仍分得出來)")
+}
+
 // 鎖屏 Live Activity 的內容寬：430pt 機型約 360pt，393pt 機型約 330pt。
 // 動態島展開版約 360pt 寬。
 @main
@@ -752,6 +1099,9 @@ struct Harness {
         minimalArrivedGate()
         precisionGate()
         liveCountdownGate()
+        traPrecisionGate()
+        traStaticTextGate()
+        traMinimalGate()
 
         // 臺鐵跟車：三態＋準點＋中斷＋最壞值
         _ = render(RailFollowLockView(display: followRunning), width: 360, maxHeight: lockScreenMaxHeight,
@@ -794,6 +1144,24 @@ struct Harness {
         _ = render(MetroWaitLockView(display: waitWorst), width: 300, maxHeight: lockScreenMaxHeight,
                    to: outDir + "/la-wait-worst-narrow300.png")
 
+        // 臺鐵等站：誤點／準點／未知／過期／早到／公告／到站（接上與沒接上推播）／最壞值
+        for (name, d) in [("late", traLate), ("ontime", traOnTime), ("unknown", traUnknown),
+                          ("expired", traExpired), ("early", traEarly), ("notice", traNotice),
+                          ("arrived", traArrived), ("arrived-nopush", traArrivedNoPush)] {
+            _ = render(TraWaitLockView(display: d), width: 360, maxHeight: lockScreenMaxHeight,
+                       to: outDir + "/la-trawait-\\(name).png")
+        }
+        _ = render(TraWaitLockView(display: traWorst), width: 330, maxHeight: lockScreenMaxHeight,
+                   to: outDir + "/la-trawait-worst-393.png")
+        // 🔴 300pt 比任何在賣的機型都窄——變窄會讓字折行、折行就長高，只掃 360/330 等於把
+        //    最容易破的方向留在盲區（理由同等車卡那兩張）。這兩張是安全邊界，不是機型。
+        _ = render(TraWaitLockView(display: traLate), width: 300, maxHeight: lockScreenMaxHeight,
+                   to: outDir + "/la-trawait-late-narrow300.png")
+        _ = render(TraWaitLockView(display: traWorst), width: 300, maxHeight: lockScreenMaxHeight,
+                   to: outDir + "/la-trawait-worst-narrow300.png")
+        _ = render(TraWaitLockView(display: traLate), width: 360, maxHeight: lockScreenMaxHeight, mono: true,
+                   to: outDir + "/la-trawait-late-mono.png")
+
         // 動態島展開版的下半（識別列由 region builder 提供，那一層 ActivityKit only）。
         // 島上沒有 14pt 邊距，內縮只有 10pt ⇒ inset 放寬到 9.5。
         _ = render(RailFollowIslandBottom(display: followRunning), width: 360, maxHeight: islandExpandedMaxHeight, inset: 9.5,
@@ -807,6 +1175,22 @@ struct Harness {
         // 進站時島上捨棄「再下一班」保住擁擠度（見 MetroWaitIslandBottom 的註解）。
         _ = render(MetroWaitIslandBottom(display: waitArriving), width: 360, maxHeight: islandExpandedMaxHeight, inset: 9.5,
                    to: outDir + "/island-wait-bottom-arriving.png")
+
+        _ = render(TraWaitIslandBottom(display: traLate), width: 360, maxHeight: islandExpandedMaxHeight, inset: 9.5,
+                   to: outDir + "/island-trawait-bottom.png")
+        _ = render(TraWaitIslandBottom(display: traUnknown), width: 360, maxHeight: islandExpandedMaxHeight, inset: 9.5,
+                   to: outDir + "/island-trawait-bottom-unknown.png")
+        _ = render(TraWaitIslandBottom(display: traWorst), width: 360, maxHeight: islandExpandedMaxHeight, inset: 9.5,
+                   to: outDir + "/island-trawait-bottom-worst.png")
+        _ = render(TraWaitIslandBottom(display: traArrived), width: 360, maxHeight: islandExpandedMaxHeight, inset: 9.5,
+                   to: outDir + "/island-trawait-bottom-arrived.png")
+        // 等站卡的 minimal 不塞字（塞不下「18:35」），兩態靠形狀分（gate 已驗過不同）。
+        for (name, arrived) in [("waiting", false), ("arrived", true)] {
+            _ = render(TraWaitIslandMinimal(arrived: arrived,
+                                            color: Color(.sRGB, red: 0.75, green: 0.23, blue: 0.17))
+                        .frame(width: 22, height: 22).padding(4),
+                       width: 30, inset: 0, to: outDir + "/island-trawait-minimal-\\(name).png")
+        }
 
         // minimal：只剩一顆圓（22pt）。四種形態各一張，證明「只剩一顆圓時仍答得出
         // 哪條線、還有幾分」。

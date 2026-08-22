@@ -5,11 +5,24 @@ import Foundation
 //    兩邊必須是「同一個型別」,ActivityKit 才配得起來——不可各複製一份
 //    (複製的症狀是「request() 成功但畫面永遠空白」,比編譯失敗難查十倍)。
 //
-// 🔴 精度紅線(memory: tra-thsr-no-official-eta):台鐵官方【只有】表訂時刻與誤點分鐘,
+// 🔴 精度紅線(memory: tra-thsr-no-official-eta):台鐵官方【只有】表定時刻與誤點分鐘,
 //    沒有預估到站時刻、更沒有秒級倒數。所以這張卡的 ContentState 裡:
 //      · 只有 delayMin(官方值照抄),沒有任何「還有幾分幾秒」的欄位;
 //      · 主角「實際約到站」由視圖現算 = schedSec + delayMin×60,兩個輸入都是官方值;
 //      · 絕不新增秒級倒數欄位——那是在製造官方沒有的精度。
+
+// 誤點資料的保鮮期。三方共用同一個數:後端 twDelayFor 的 TW_DELAY_MAX_AGE_SEC、
+// 網頁前端 liveActive() 的 1800e3、以及這張卡的視圖。
+// 🔴 超過這個齡就不再宣稱誤點分鐘——卡片改寫「誤點資訊已過期」,主角時刻退回表定。
+//    這不是保守,是「有資訊就一定要對」:半小時前的誤點不能當成現在的事實。
+// 🔴 為什麼放在【這個檔】:它同屬 App 與 widget extension 兩個 target,是「設 staleDate 的
+//    那側」與「畫過期樣式的那側」唯一的共同祖先(比照 RailFollowAttributes 的 RailFollowStale)。
+//    算繪 harness 也是從這裡抽,驗到的就是出貨路徑真正用的那個常數。
+enum TraWaitStale {
+    /// 誤點值的保鮮期(秒)。與後端 TW_DELAY_MAX_AGE_SEC 同值。
+    static let delayMaxAgeSeconds: Double = 1800
+}
+
 @available(iOS 17.6, *)
 struct TraWaitAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable {
@@ -33,7 +46,7 @@ struct TraWaitAttributes: ActivityAttributes {
     var trainNo: String             // 台鐵車次號(也是伺服器每分鐘 join 官方誤點的鍵)
     var trainType: String           // 車種標:自強／莒光／區間…(開卡當下就定了)
     var dest: String                // 終點站,顯示成「往 潮州」
-    // schedSec:表訂到站時刻(epoch 秒)。
+    // schedSec:表定到站時刻(epoch 秒)。
     // 🔴 放 attributes 不放 ContentState 是刻意的——它在整張卡的生命週期裡【不會變】。
     //    會變的只有誤點分鐘;主角時刻 = schedSec + delayMin×60 由視圖現算。
     var schedSec: Double
