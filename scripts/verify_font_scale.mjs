@@ -2203,6 +2203,8 @@ async function sectionV(browser, engine) {
       } else {
         const rd = e.querySelector('.dot');
         const rec = { dest: (e.querySelector('.dest') || {}).textContent || '',
+          dot: rd ? hex(getComputedStyle(rd).backgroundColor) : '',
+          to: (e.querySelector('b') || {}).textContent || '',
           bt: parseFloat(getComputedStyle(e).borderTopWidth), fs: parseFloat(getComputedStyle(e).fontSize),
           radius: rd ? getComputedStyle(rd).borderTopLeftRadius : '', right: Math.round(e.getBoundingClientRect().right) };
         if (cur) cur.rows.push(rec); else out.push({ label: null, rows: [rec] });
@@ -2226,14 +2228,37 @@ async function sectionV(browser, engine) {
     ok(`V1 ${tag} 正向對照:古亭看板有列可量(深夜收班會紅,那是環境)`,
       r.groups.reduce((a, g) => a + g.rows.length, 0) >= 2, JSON.stringify(r.groups.map(g => [g.label, g.rows.length])));
     ok(`V2 ${tag} 轉乘站長出 ≥2 個組標題`, named.length >= 2, JSON.stringify(named.map(g => g.label)));
-    ok(`V3 ${tag} 🔴 每個標題底下的列,線名都真的屬於那條線(標題沒配錯組)`,
-      named.length > 0 && named.every(g => g.rows.length > 0 && g.rows.every(x => x.dest.includes(g.label))),
-      JSON.stringify(named.map(g => ({ 標題: g.label, 列: g.rows.map(x => x.dest) }))));
-    const oRows = named.flatMap(g => g.rows.filter(x => /中和新蘆線（/.test(x.dest)).map(() => g.label));
-    ok(`V4 ${tag} 🔴 O 分支列的標題恰為「中和新蘆線」且只有一個(兩個分支不切成兩條線)`,
-      oRows.length >= 1 && oRows.every(l => l === '中和新蘆線') && named.filter(g => g.label === '中和新蘆線').length === 1,
-      JSON.stringify({ 分支列數: oRows.length, 它們的標題: [...new Set(oRows)], 全部標題: named.map(g => g.label) }));
+    // 🔴 列上已經不帶線名了(見 V14),配對只能靠【列的色點】驗:每一列的色點必須等於它所屬
+    //    標題那條線的官方色。允許 #8fa8c6 那顆灰——那是官方板「認不出是哪條支線」的列刻意給的,
+    //    但同一組至少要有一列是精確色,免得整組退化成灰也全綠。
+    ok(`V3 ${tag} 🔴 每個標題底下的列都真的屬於那條線(用色點驗,標題沒配錯組)`,
+      named.length > 0 && named.every(g => g.rows.length > 0
+        && g.rows.every(x => x.dot === r.colors[g.label] || x.dot === '#8fa8c6')
+        && g.rows.some(x => x.dot === r.colors[g.label])),
+      JSON.stringify(named.map(g => ({ 標題: g.label, 官方色: r.colors[g.label], 列色點: g.rows.map(x => x.dot) }))));
+    // 🔴 改成只看【標題本身】:原本靠「板上出現帶分支字樣的列」來辨識,但自從分支字樣會在
+    //    目的地已經講過時被抑制(往迴龍不再標迴龍),那種列存不存在取決於當下有哪些車 ⇒ 會假紅。
+    //    沒去掉括號的實作照樣抓得到:那會變成兩個標題(（迴龍）與（蘆洲）)而不是一個。
+    const oHeads = named.filter(g => g.label.startsWith('中和新蘆線'));
+    ok(`V4 ${tag} 🔴 兩個分支收成一個「中和新蘆線」標題(不切成兩條線、括號有去掉)`,
+      oHeads.length === 1 && oHeads[0].label === '中和新蘆線',
+      JSON.stringify({ O標題: oHeads.map(g => g.label), 全部標題: named.map(g => g.label) }));
     ok(`V4b ${tag} 標題字兩兩不重複`, new Set(named.map(g => g.label)).size === named.length, JSON.stringify(named.map(g => g.label)));
+    // ── 使用者裁示(08-23):有組標題時,列上只留組標題沒講的那件事 ────────────────────
+    ok(`V14 ${tag} 🔴 有標題時,列上不再重複標題那串線名`,
+      named.length > 0 && named.every(g => g.rows.every(x => !x.dest.includes(g.label))),
+      JSON.stringify(named.map(g => ({ 標題: g.label, 列: g.rows.map(x => x.dest) }))));
+    // 🔴 規則式,不是「至少有一列帶分支」:後者取決於當下有哪些車。
+    //    規則＝分支字樣【出現】⇔ 目的地【沒有】講過它。兩個方向都有牙:
+    //    「往 迴龍　迴龍」(結巴)紅、「往 南勢角」卻不標分支(資訊掉了)也紅。
+    const oPairs = (oHeads[0] ? oHeads[0].rows : []).map(x => ({
+      to: x.to, chip: (x.dest.trim().match(/^(迴龍|蘆洲)/) || [''])[0] }));
+    ok(`V15 ${tag} 🔴 分支字樣只在目的地沒講過時出現(不結巴,也不把分支資訊弄丟)`,
+      oPairs.length > 0 && oPairs.every(p => p.chip ? !p.to.includes(p.chip) : /迴龍|蘆洲/.test(p.to)),
+      JSON.stringify(oPairs));
+    ok(`V16 ${tag} 線名空掉時沒有在車輛標籤前留下全形空白`,
+      named.every(g => g.rows.every(x => x.dest === x.dest.trimStart())),
+      JSON.stringify(named.flatMap(g => g.rows.map(x => JSON.stringify(x.dest)))));
     ok(`V5 ${tag} 🔴 色點逐字等於該線的官方線色(不是「有顏色就好」)`,
       named.length > 0 && named.every(g => r.colors[g.label] && g.dot === r.colors[g.label]),
       JSON.stringify(named.map(g => ({ [g.label]: g.dot, 官方: r.colors[g.label] }))));
@@ -2267,12 +2292,26 @@ async function sectionV(browser, engine) {
     ok(`V9 ${tag} 正向對照:點列仍然跟得到車(看板關閉＝跟隨接手)`,
       !click.hadRow || !!(click.after && click.after.open === false), JSON.stringify(click.after));
     await page.evaluate(() => closeBoard());
-    if (await open('永安市場')) {
+    // 🔴 站別從永安市場換成象山:永安市場其實是【雙分支站】(迴龍與蘆洲的車都經過 ⇒ 兩個群組),
+    //    自從標題門檻改看群組數之後它會長出一個「中和新蘆線」標題——那是正確行為不是回歸。
+    //    象山才是真正的單組站。
+    if (await open('象山')) {
       const s = await read();
-      ok(`V10 ${tag} 🔴 單線站完全不長標題(每列的線名已經寫著同一條線)`,
-        s.groups.every(g => !g.label) && s.groups.reduce((a, g) => a + g.rows.length, 0) > 0,
+      const all = s.groups.flatMap(g => g.rows);
+      // 🔴 象山是端點站,班距空窗時整個看板可能一列都沒有(突變測試實測撞到過:兩發不相干的
+      //    突變同時紅了 V10/V10b,追下去是那一刻沒車,不是突變造成的)。把「有沒有列可量」
+      //    獨立成具名閘門,讓環境條件現形,而不是偽裝成 V10/V10b 的回歸。
+      ok(`V10g ${tag} 正向對照:象山看板有列可量(端點站班距空窗會紅,那是環境不是回歸)`,
+        all.length > 0, JSON.stringify(s.groups.map(g => [g.label, g.rows.length])));
+      ok(`V10 ${tag} 🔴 單組站完全不長標題`,
+        s.groups.every(g => !g.label),
         JSON.stringify(s.groups.map(g => [g.label, g.rows.length])));
-    } else ok(`V10 ${tag} 單線站不長標題`, false, '開不了永安市場');
+      // 🔴 這條是本批的反向對照,不能少:「列上不重複線名」若沒有它把關,
+      //    直接把整個線名欄刪掉也會全綠——但那樣單組站就再也沒有任何地方講得出這是哪條線。
+      ok(`V10b ${tag} 🔴 沒有標題時,列上【仍然】帶得出線名(不是把整欄刪掉)`,
+        all.length === 0 || all.every(x => x.dest.includes('淡水信義線')),
+        JSON.stringify(all.map(x => x.dest)));
+    } else ok(`V10 ${tag} 單組站不長標題`, false, '開不了象山');
     ok(`V11 ${tag} 零 pageerror`, errs.length === 0, errs.slice(0, 1).join(''));
     await close();
   }
