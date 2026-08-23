@@ -813,7 +813,7 @@
   .pin-hint .pn-exit { /* 這是這個模式在畫面上唯一的出口,觸控尺寸不能省(比照 .collect-bar .cb-exit) */
     flex: none; min-height: calc(44px * var(--uit)); padding: 0 13px;
     background: none; border: 1.5px solid var(--warn-line); border-radius: var(--r-pill);
-    color: var(--warn-ink); font-size: calc(12.5px * var(--uis)); font-weight: 800;
+    color: var(--warn-ink); font-size: calc(12.5px * var(--ui)); font-weight: 800;
     font-family: inherit; cursor: pointer;
   }
   .pin-hint .pn-exit:hover { background: var(--warn-line); }
@@ -1828,7 +1828,7 @@
   .report-dialog .rp-lbl { font-size: calc(11px * var(--uis)); font-weight: 800; letter-spacing: 3px; color: var(--faint); }
   .report-dialog .rp-kinds { display: flex; flex-wrap: wrap; gap: 7px; }
   .report-dialog .rp-kinds button {
-    min-height: calc(44px * var(--uit)); padding: 0 13px; font: inherit; font-size: calc(12.5px * var(--uis));
+    min-height: calc(44px * var(--uit)); padding: 0 13px; font: inherit; font-size: calc(12.5px * var(--ui));
     font-weight: 700; color: var(--ink); background: var(--paper); cursor: pointer;
     border: 1.5px solid var(--line); border-radius: var(--r-pill);
   }
@@ -2764,7 +2764,17 @@
     align-items: center; row-gap: 2px;
   }
   html[data-fs=xlarge] .more-sheet .ms-row .ms-tail { display: contents; }
-  html[data-fs=xlarge] .more-sheet .ms-row:has(.ms-tail) > span:first-child { grid-area: lab; }
+  /* 🔴 標籤不能寫 span:first-child:設計 3d 在每一列最前面插了單字圓章 <i class="ms-ic">,
+     這個選擇器從那批起就對不到任何東西 ⇒ 標籤沒進 lab 區、改由自動配置擠到第三列,
+     畫面變成「章與 › 各自佔第一行、值排在標籤上面」。改成「不是列尾的那個 span」,
+     兩種列形(有章的功能列、沒章的 .ms-stat 唯讀列)都對得到。 */
+  html[data-fs=xlarge] .more-sheet .ms-row:has(.ms-tail) > span:not(.ms-tail) { grid-area: lab; }
+  /* 有圓章的列多一欄給章,並讓它跨兩列;沒章的 .ms-stat 維持原本兩欄,不會多出一欄空白 */
+  html[data-fs=xlarge] .more-sheet .ms-row:has(.ms-tail):has(.ms-ic) {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas: "ic lab chev" "ic val chev";
+  }
+  html[data-fs=xlarge] .more-sheet .ms-row:has(.ms-tail) > .ms-ic { grid-area: ic; }
   html[data-fs=xlarge] .more-sheet .ms-row .ms-tail b { grid-area: val; justify-self: start; }
   html[data-fs=xlarge] .more-sheet .ms-row .ms-tail .chev { grid-area: chev; }
   /* 資料狀態列是唯讀的:沒有「›」、不吃 hover/active,免得看起來像點得下去卻沒反應 */

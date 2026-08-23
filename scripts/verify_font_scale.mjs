@@ -421,18 +421,26 @@ async function sectionF(browser, engine) {
         const px = el => +getComputedStyle(el).fontSize.replace('px', '');
         const R = el => { const b = el.getBoundingClientRect(); return { x: +b.x.toFixed(1), y: +b.y.toFixed(1), w: +b.width.toFixed(1), h: +b.height.toFixed(1) }; };
         const fsRow = sheet.querySelector('.ms-row[data-act="fontscale"]');
-        const lab = R(fsRow.firstElementChild), val = R(fsRow.querySelector('#msFontVal')),
-          chev = R(fsRow.querySelector('.ms-tail .chev')), rr = R(fsRow);
+        // 🔴 標籤不是 firstElementChild:設計 3d 在每一列最前面插了單字圓章 <i class="ms-ic">。
+        //    照舊寫法量到的是【圓章】(12px,而且特大時位置完全不同)——判準會拿章當標籤,
+        //    std 的主倍率被算成 0.89× 而恆紅,同時對「標籤真的跑掉了」的排版錯誤全盲。
+        const labEl = fsRow.querySelector(':scope > span:not(.ms-tail)');
+        const icEl = fsRow.querySelector(':scope > .ms-ic');
+        const lab = R(labEl), val = R(fsRow.querySelector('#msFontVal')),
+          chev = R(fsRow.querySelector('.ms-tail .chev')), rr = R(fsRow),
+          ic = icEl ? R(icEl) : null;
         return {
           n: rows.length,
           minH: Math.min(...rows.map(x => x.getBoundingClientRect().height)),
           secPx: sec ? px(sec) : null,
-          labPx: px(fsRow.firstElementChild),
+          labPx: px(labEl),
           stacked: val.y >= lab.y + lab.h - 1,
           inline: Math.abs(val.y - lab.y) < 3,
           valLeft: Math.abs(val.x - lab.x) < 3,
           chevRight: chev.x + chev.w >= rr.x + rr.w - 26,
           chevMid: Math.abs((chev.y + chev.h / 2) - (rr.y + rr.h / 2)) < 6,
+          icMid: ic ? Math.abs((ic.y + ic.h / 2) - (rr.y + rr.h / 2)) < 6 : null,
+          lines: Math.round(rr.h),
         };
       });
 
@@ -450,6 +458,10 @@ async function sectionF(browser, engine) {
       ok(`F5 ${tag} 目前值${tier === 'xlarge' ? '掉到第二行並切齊標籤左緣' : '與標籤同一行'}`,
         tier === 'xlarge' ? (r.stacked && r.valLeft && !r.inline) : (r.inline && !r.stacked),
         JSON.stringify({ inline: r.inline, stacked: r.stacked, valLeft: r.valLeft }));
+      // 圓章要跨著兩行垂直置中,不是被擠在第一行:特大級那條 grid 規則的標籤選擇器一旦對不到,
+      // 整列會退化成「章與 › 各佔第一行、值排在標籤上面」——那個形狀 F2(列高)照樣過。
+      ok(`F5b ${tag} 單字圓章垂直置中於整列(沒有被擠到第一行)`, r.icMid !== false,
+        JSON.stringify({ icMid: r.icMid, rowH: r.lines }));
       ok(`F6 ${tag} 「›」始終留在右緣且垂直置中`, r.chevRight && r.chevMid,
         JSON.stringify({ chevRight: r.chevRight, chevMid: r.chevMid }));
       ok(`F7 ${tag} 零 pageerror`, errs.length === 0, errs.slice(0, 1).join(''));
