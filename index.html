@@ -3881,7 +3881,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/22</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/23</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -3889,6 +3889,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="mapsync"><span class="d">8/23</span><span>拖曳地圖時，軌道與列車不再比底圖慢半拍；縮放（手機兩指、滑鼠滾輪）收尾的那一瞬，軌道不會先跳回原處再彈回來</span></li>
         <li data-cl-of="metrowaitfix"><span class="d">8/22</span><span>等車卡修好「點了卻沒出現」：從桌面的捷運小工具點一下，現在會直接把卡片開起來，不用先打開軌島——點完馬上鎖屏、之後一直沒回 App，鎖定畫面上照樣會有那張卡（以前必須等你回到 App 才補得開，人沒回來那一次點擊就沒了）；萬一真的開不成，回到 App 時仍會自動補開，也不會再先空等二十秒。另外兩種也一起修好：動過播放速度或拖過時刻尺之後再追蹤，會自動把時間帶回「現在」再開卡，不會再誤說「這一站現在沒有官方班次資訊」；已經結束的舊卡不再被當成還在追蹤，按鈕不會變成「結束追蹤」害你白點一次。萬一系統遲遲沒有回應，也會明白告訴你再點一次，不會停在那裡沒反應。下次 App 更新生效</span></li>
         <li data-cl-of="trapassjump"><span class="d">8/21</span><span>台鐵列車經過不停靠的小站時，會有一瞬間停在站上、下一瞬間往前跳出去——車速愈快跳得愈遠，自強、太魯閣這類最快的車一次跳將近二十公尺。現在通過那一刻改成連續移動，不再停頓也不再跳。順手修掉另一個少見的狀況：頁面開著跨過午夜、再切換一次系統時，同編號的車會沿用前一天那班的誤點，最遠會把車畫到六公里外</span></li>
         <li data-cl-of="metrosamename"><span class="d">8/21</span><span>不同城市恰好同名的捷運站不再共用同一張看板：台北與台中的「市政府」現在只會顯示各自系統的路線與班次，其他跨系統同名站也一併分開</span></li>
@@ -4009,6 +4010,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="mapsync"><span class="d">8/23</span><span>換成 OpenStreetMap 向量底圖後的兩個同步問題：拖曳地圖時軌道與列車會比底圖慢半拍（Safari／App 特別明顯），現在改成底圖每動一下就同一拍重畫軌道；手機兩指縮放放手的那一瞬，軌道會先跳回捏合前的位置再彈回來，現在放手那一拍重新對準底圖，不再跳動。衛星底圖與列車、站點位置一律不受影響</span></li>
         <li data-cl="land04c"><span class="d">8/12</span><span>手機橫放第二輪重排（接 8/11 的側邊欄）：時鐘徽章併進頂列、不再浮在地圖上；右下角的「回到列車、隨機跟隨、附近車站、跟隨鎖」收成貼右緣的一疊；跟車資訊欄固定在左側、上下貼齊螢幕，收合成小膠囊時不擋地圖；搜尋改成右半邊全高的面板，打字時鏡頭不會亂跑；停靠站名牌與速度膠囊對齊露出地圖的中線。跟車鏡頭全面改用「露出地圖」置中——把被面板、按鈕、資訊欄蓋住的部分扣掉，列車永遠在看得到的那塊地圖正中央，還會朝行進方向偏一點、提前看到前方路線。這套鏡頭直放也生效：面板展開、跟車小卡浮著時，列車不會再躲到卡片底下</span></li>
         <li data-cl="landscape"><span class="d">8/11</span><span>手機橫著拿也能用了（謝謝網友回報）：原本橫放時跟車，列車會被下方的資訊面板整個蓋住，跟車小卡還會壓到上面的分頁列；Pro Max 這類寬螢幕機型橫放更是連地圖都只剩一條、車根本不在畫面裡。現在橫放時各種面板改成靠右的側邊欄，地圖留在左半邊，跟著的列車一直在看得到的地方。順手也修好了「開著面板時全台視角會偏到面板底下」——不管橫放直放，台灣都會置中在露出來的那半邊地圖上。橫放時也不再被瀏海／動態島吃掉字：頂列、時鐘、分頁列、跟車小卡、停靠站名牌全部讓開安全區</span></li>
         <li data-cl="bgmusic"><span class="d">8/10</span><span>App 收起或鎖定螢幕後，背景音樂繼續播放不再中斷（此前收起 App 音樂會停）。跟車時音樂讓位：動態島與鎖定畫面只顯示列車動態，完整呈現下一站與到站倒數；沒跟車時鎖定畫面照常有播放卡，顯示曲名與軌島圖示、可暫停與換首。下次 App 更新生效</span></li>
@@ -4482,7 +4484,13 @@
 // v0822a：併回 origin/main 存貨批——台鐵通過站到離時刻不取整、誤點漸變鍵補名冊日（上方 v0821e
 //         兩項自此在正式站生效）；TDX 班表快照更新（機捷末班 00:29→00:28）；資料來源清單
 //         data_provenance；小工具「再下一班」eta2 已於 d2a39c3 先行上線。
-const BUILD = 'v0823a';
+// v0823a：1.4.9 (75/76) 的版號區隔(75/76 內容不同卻曾同號 v0822a,故換號;載貨=台鐵等站卡)。
+// v0823d：OSM 向量底圖的兩個跨層同步修法(08-19 已在 App 1.4.8 (66+) 出貨;1.4.9 (75/76) 走 main 血脈
+//         沒帶到 ⇒ 縮放不同步在 1.4.9 重現,本顆 77 補回;網站端同修法=v0823c,另行部署):
+//         拖曳時 overlay 改在 map 'move' 同一拍重畫(WebKit 的 tick rAF 排在 Leaflet 挪 pane 之前 ⇒ 慢半拍);
+//         捏合/縮放放手第一個 zoomanim 用當下 GL 畫布重標定探針 zaCalGl(zoomstart 那份對每幀 jumpTo
+//         重繪的 GL 畫布差 2^Δz 倍 ⇒ 整片跳回再彈回);leaflet-maplibre-gl 的 jumpTo 補同步 redraw。
+const BUILD = 'v0823d';
 // clearFollow() 會在開機途中清掉 query string；Private Metro Core 的 rollout 模式必須在最前面先鎖住，
 // 否則 ?metrocore=0／1 可能在資料輪詢區重讀時已消失。
 const METRO_CORE_QUERY_MODE = (() => {
@@ -4849,6 +4857,22 @@ function ofmActiveCanvas() {
 function zaRectBox(el) {
   const r = el.getBoundingClientRect(), c = map.getContainer().getBoundingClientRect();
   return { w: r.width, x: r.left - c.left, y: r.top - c.top };
+}
+// GL 畫布版的探針標定:兩個探針世界點「此刻」在畫布矩形內的局部座標(=畫布內容此刻把它們畫在哪)。
+// 前提是呼叫當下 raw 投影與畫布內容對齊、畫布尚未被縮放動畫的 CSS transform 帶走。
+// 🔴 為什麼要能「重標定」而不是只在 zoomstart 標一次:圖磚版的容器在整段手勢裡內容凍結、只動 transform,
+// zoomstart 標一次到底都對;GL 畫布不是——捏合期間 leaflet-maplibre-gl 每幀 jumpTo 重繪(_pinchZoom),
+// 放手時畫布內容早已是捏合末端的 zoom,zoomstart 那份 q 差了 2^(捏了幾級)倍 ⇒ 收斂動畫整段 250ms
+// overlay 被拉回捏合前的版面(真機捏合「整片軌道跳回去再跳回來」)。所以放手那一拍(第一個 zoomanim)
+// 要用當下的畫布內容重標一次;滾輪/按鈕縮放時 zoomanim 與 zoomstart 狀態相同,重標=原值,無副作用。
+function zaCalGl(w1, w2) {
+  const glCanvas = ofmActiveCanvas();
+  if (!glCanvas) return null;
+  const p1 = map.latLngToContainerPoint(w1), p2 = map.latLngToContainerPoint(w2); // 呼叫者保證 _zaAff=null ⇒ raw
+  const g0 = zaRectBox(glCanvas);
+  return { el: glCanvas, gl: true, w1, w2, g0w: g0.w,
+    q1x: p1.x - g0.x, q1y: p1.y - g0.y,
+    q2x: p2.x - g0.x, q2y: p2.y - g0.y };
 }
 function zoomAnimFrame() {
   const Z = state._zaCal;
@@ -9486,6 +9510,16 @@ const WEB_STREET_SRC = (() => {
 })();
 const OFM_STYLE = { light: 'vendor/ofm-positron.json', dark: 'vendor/ofm-dark.json' };
 const OFM_ATTRIBUTION = '&copy; <a href="https://openfreemap.org/" target="_blank">OpenFreeMap</a> &copy; <a href="https://www.openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
+// leaflet-maplibre-gl 同步重繪補丁:外掛的 jumpTo 是「下一個 rAF 才畫」——平移時它每 32ms 把 GL 容器挪回
+// 視窗原點(抵銷 pane 位移)、內容卻要下一幀才追上 ⇒ 底圖每次都閃回一幀(平移抖、縮放落定閃一下);
+// 捏合時每幀 jumpTo 也是慢一幀。Leaflet 的圖磚是同一幀就位的,列車 overlay 也是(見 syncDraw),
+// 只有這層慢一幀就會被看成「兩層對不齊」。改成挪位與重繪在同一個呼叫裡完成(MapLibre 公開的 redraw()=同步 _render)。
+if (typeof L !== 'undefined' && L.MaplibreGL && L.MaplibreGL.prototype) {
+  const P = L.MaplibreGL.prototype, _tg = P._transformGL, _pz = P._pinchZoom;
+  const flush = gl => { try { if (gl && gl.style && typeof gl.redraw === 'function') gl.redraw(); } catch (e) {} };
+  if (_tg) P._transformGL = function (gl) { _tg.call(this, gl); flush(gl); };
+  if (_pz) P._pinchZoom = function (e) { _pz.call(this, e); flush(this._glMap); };
+}
 // ── App 殼的街道底圖來源(L1 遠端開關的客戶端半邊)───────────────────────────────
 // App 不能像網站那樣「改一行部署就換底圖」:出版本要等審查,以天計。所以來源做成可遠端切換——
 // 值由 Worker 的 /api/basemap-src 下發、存進 localStorage,而**開機時只讀快取、絕不等網路**。
@@ -11838,11 +11872,12 @@ function armTick() {
   requestAnimationFrame(ts => { state._rafPending = false; state._rafAlive = performance.now(); tick(ts); });
 }
 function tick(now) {
+  state._inTick = true; // tick 內部發的 map move(跟車鏡頭 setView)不走 'move' 同步重繪,由本幀尾端統一畫
   try { tickCore(now); } catch (e) {
     const errs = state._tickErrs || (state._tickErrs = []);
     // 只記前 5 筆、log 跟著記錄走——例外若持續存在,每幀都 console.error 會自己把主線程拖垮
     if (errs.length < 5) { errs.push(String((e && e.stack) || e).slice(0, 300)); console.error('tick 例外(迴圈續跑):', e); }
-  }
+  } finally { state._inTick = false; }
   armTick();
 }
 // 看門狗:rAF 心跳斷逾 2.5s(且頁面可見、app 已就緒)就手動補一幀——例外斷鏈下一拍即復活;
@@ -11944,7 +11979,11 @@ function tickCore(now) {
   //     (幾何跟圖磚同縮、字級線寬不變,見 onZoomAnim 區塊);只有 ~250ms、屬互動高峰,不吃省電節流
   if ((!document.hidden || REC.on) && state._zoomAnim) { zoomAnimFrame(); }
   else if (!document.hidden || REC.on) {
-    if (psActive) {
+    // 拖曳/捏合/平移動畫的這一幀,map 'move' 已在 Leaflet 挪 pane 的同一個 callback 裡同步重繪(syncDraw,見 boot):
+    // 本幀不再畫第二次(≤2 幀內才算同幀,過期旗標不得壓掉正常重繪)
+    const synced = state._syncDrew && now - (state._syncDrawAt || 0) < 34; state._syncDrew = false;
+    if (synced) { state._drawDoneAt = now; state._stg = 'i'; }
+    else if (psActive) {
       if (renderNow) { state._drawAt = now; state._stg = 'd'; draw(); state._drawDoneAt = now; state._stg = 'i'; } // 省電:跟隨也降到 ~30fps;相機與繪製同一個 renderNow 閘,列車不會與底圖錯位
     } else {
       const fullRate = state.followTrain || state.freqFollow || state.ambient || REC.on ||
@@ -25974,6 +26013,20 @@ async function boot() {
   setupRecorder();
   await setupLocalNotifications();
   map.on('move zoom resize', reproject); // 縮放「動畫」與捏合手勢(_zoomAnim 凍結中)不在此重投影(會造成 issue #4 殘影);改由下方 onZoomAnim/捏合 zoom handler 專責同步
+  // 拖曳/捏合/慣性平移的每一幀,Leaflet 是在自己的 rAF callback 裡挪 pane 再發 'move';overlay 若只靠 tick
+  // 重繪,tick 的 rAF 排在它前面(WebKit 實測整段拖曳青探針落後洋紅 2–5px=「軌道慢一拍才跟上」),排在後面
+  // 才剛好同幀——順序不歸我們管。改成在 'move' 裡同步重繪(與 pane 位移同一個 callback、同一幀落地),
+  // tick 那一幀的重繪跳過(_syncDrew),不重畫兩次。tick 自己發的 setView(跟車鏡頭)不走這條(tick 尾端本來就會畫)。
+  const syncDraw = () => {
+    if (!state.ready || state._inTick || state._zoomAnim || (document.hidden && !REC.on)) return;
+    // 同一個視圖連發的 move(零位移 move、_onZoomTransitionEnd 的補發)不重畫;判「同視圖」用投影狀態本身,
+    // 不用時間窗——高更新率(120Hz／headless rAF 不鎖 vsync)下相鄰兩幀可能只差 3–5ms,時間窗會把真的位移漏掉
+    const c = map.getCenter(), key = c.lat + ',' + c.lng + ',' + map.getZoom();
+    if (key === state._syncDrawKey) return;
+    state._syncDrawKey = key; state._syncDrawAt = state._drawAt = performance.now(); state._syncDrew = true;
+    draw();
+  };
+  map.on('move', syncDraw);
   // ── 縮放動畫(zoomAnimation:true)期間:overlay 逐幀重畫——幾何跟圖磚同縮、字級線寬不變 ──────────────
   // Leaflet 對圖磚施加 250ms CSS transform 平滑縮放,期間投影基準(pixelOrigin/中心)凍結在起始視圖
   // (實測 getZoom() 會提前回報目標值,但 latLngToContainerPoint 回傳的是「起始基準+當下 panePos」座標),
@@ -25996,15 +26049,9 @@ async function boot() {
     const w1 = map.containerPointToLatLng([size.x * 0.25, size.y * 0.25]);
     const w2 = map.containerPointToLatLng([size.x * 0.75, size.y * 0.75]);
     // 街道底圖走 MapLibre 時,被動畫的是 GL 畫布(class leaflet-gl-layer 內的 canvas),不是圖磚容器
-    const glCanvas = ofmActiveCanvas();
-    if (glCanvas) {
-      const p1 = map.latLngToContainerPoint(w1), p2 = map.latLngToContainerPoint(w2); // _zaAff=null ⇒ raw
-      const g0 = zaRectBox(glCanvas);
-      state._zaCalPend = { el: glCanvas, gl: true, w1, w2, g0w: g0.w,
-        q1x: p1.x - g0.x, q1y: p1.y - g0.y,
-        q2x: p2.x - g0.x, q2y: p2.y - g0.y };
-      return;
-    }
+    // (此刻 _zaAff=null ⇒ raw 投影;捏合放手時 onZoomAnim 會再重標一次,原因見 zaCalGl)
+    const glCal = zaCalGl(w1, w2);
+    if (glCal) { state._zaCalPend = glCal; return; }
     let el = null, best = -1;
     for (const c of map.getPane('tilePane').querySelectorAll('.leaflet-tile-container')) {
       if (c.childElementCount > best) { best = c.childElementCount; el = c; }
@@ -26020,6 +26067,13 @@ async function boot() {
     if (!cv) return;
     if (!state._zoomAnim) {
       if (!state._zaCalPend) return; // zoomstart 標定不到(無圖磚):放棄同步
+      // Leaflet 自己的 zoomanim listener(排在我們前面)遇到「目標視圖＝起始視圖」(例:在畫面正中央捏一點點又彈回原級)
+      // 會因 proxy transform 不變而同步呼叫 _onZoomTransitionEnd——動畫沒開始就結束、zoomend 也已發過。
+      // 此時沒有動畫可同步,不能進 _zoomAnim(否則要靠保險 timer 才退出,期間 'move' 同步重繪被閘住)
+      if (!map._animatingZoom) { state._zaCalPend = null; return; }
+      // GL 畫布:放手那一拍重標定。此刻 Leaflet 還沒 _move 到目標(zoomanim 先於 _move 發)、raw 投影=
+      // 畫布內容當下的 zoom,而 CSS transition 才剛掛上(rect 仍是 identity)——正是「投影與畫布內容對齊」的時刻。
+      if (state._zaCalPend.gl) { const c = zaCalGl(state._zaCalPend.w1, state._zaCalPend.w2); if (c) state._zaCalPend = c; }
       state._zoomAnim = true; state._zaAt = performance.now(); state._zaCal = state._zaCalPend;
     }
     // 保險 timer 每次 zoomanim 重掛:連續縮放 retarget 逐次延展 deadline(zoomend 萬一沒送達時解凍,冪等)
