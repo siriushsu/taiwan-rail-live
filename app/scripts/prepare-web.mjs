@@ -229,9 +229,11 @@ const plusSandboxBuild = String(process.env.RAIL_PLUS_SANDBOX_BUILD || '');
 if (plusSandboxOk && !/^[1-9]\d*$/.test(plusSandboxBuild)) {
   throw new Error('RAIL_PLUS_SANDBOX_OK=1 時必須同時提供正整數 RAIL_PLUS_SANDBOX_BUILD，讓 Worker 能把測試通道限縮到指定 build');
 }
-// App 版本號:直接讀 pbxproj 的 MARKETING_VERSION——那是真正會被打進這顆 build 的值。
-// 刻意不讀 set-release-mode.mjs 的 MODES 表:那只是「打算寫成什麼」,有人手改 pbxproj 時兩者會不一致。
-// App 與 widget 兩個 target 的值必須相同,不同就是版號沒推乾淨,當場擋下。
+// App 版本號:iOS 預設直接讀 pbxproj 的 MARKETING_VERSION——那是真正會被打進這顆 build 的值。
+// Android 的 Play 版號獨立遞增；Android-only 修正版可明確傳 RAIL_APP_VERSION_OVERRIDE，
+// 讓內建更新提示與 Gradle versionName 一致，而不必為了 Android 動到 iOS 專案版號。
+// 刻意不讀 set-release-mode.mjs 的 MODES 表:那只是「打算寫成什麼」,有人手改原生設定時兩者會不一致。
+// 沒有 override 時，App 與 widget 兩個 iOS target 的值必須相同,不同就是版號沒推乾淨,當場擋下。
 // 🔴 無條件注入,不可放進下面 appConfig 的三元——那個物件只在授權底圖 build 才有,
 // 而安全 build 是受支援的產出模式(verify-release 還斷言安全 build 裡不存在 RAIL_APP_CONFIG),
 // 放錯地方＝安全 build 出來的 App 版本提示與評分整套靜默消失。
@@ -239,7 +241,11 @@ const pbxSrc = await readFile(join(appRoot, 'ios/App/App.xcodeproj/project.pbxpr
 const pbxVers = [...new Set([...pbxSrc.matchAll(/MARKETING_VERSION = ([^;]+);/g)].map(m => m[1].trim()))];
 if (pbxVers.length !== 1) throw new Error(`pbxproj 的 MARKETING_VERSION 不唯一：${pbxVers.join(' / ')}`);
 if (!/^\d+(\.\d+)*$/.test(pbxVers[0])) throw new Error(`MARKETING_VERSION 格式無法解析：${pbxVers[0]}`);
-const appVersion = pbxVers[0];
+const appVersionOverride = String(process.env.RAIL_APP_VERSION_OVERRIDE || '').trim();
+if (appVersionOverride && !/^\d+(\.\d+)*$/.test(appVersionOverride)) {
+  throw new Error(`RAIL_APP_VERSION_OVERRIDE 格式無法解析：${appVersionOverride}`);
+}
+const appVersion = appVersionOverride || pbxVers[0];
 // 本版「更新了什麼」內建文案(set-release-mode 把發行模式的 why 經 RAIL_WHATS_NEW 傳進來)。
 // 為什麼要內建:App 內那張卡原本抓 iTunes lookup 的 releaseNotes——那是【線上版】的文,
 // 剛裝的版比線上新時(每次送審前必然)彈到的是上一版內容(1.4.9 build 74 實踩)。

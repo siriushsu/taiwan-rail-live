@@ -59,6 +59,36 @@ export function assertAndroidSafeAreaCssContract(html) {
     'Android 手機頂列必須維持緊湊 36px 幾何——360dp＋營運公告時「捷」會被裁掉');
 }
 
+// 2026-08-22 的 63e38b2 曾在三方合併時把 index.html 整檔選成 main 那側，
+// 讓只活在 App 線的功能、定位與公開更新紀錄一起靜默消失；原生碼與 build 全部仍會綠。
+// 這裡鎖住「必須一起存在」的 App 血脈，不再只靠散落且未接進出貨流程的瀏覽器驗收器。
+export function assertAppLineageContent(html) {
+  const requiredSource = [
+    ['id="fpLaCta"', '跟車面板的鎖屏通行證入口'],
+    ['function renderLaCta()', '跟車鎖屏通行證渲染'],
+    ['function maybeSatPlusNotice()', '衛星高解析通行證提示'],
+    ["{ key: 'metrowidget'", '使用說明中心的捷運小工具章節'],
+    ["{ key: 'metrowait'", '使用說明中心的在這站等車章節'],
+    ['function startForegroundGeoWatch(', 'App 前景持續定位'],
+    ['function updateGeoCamera(', '所在地鏡頭跟隨'],
+    ['function zaCalGl(', '捏合縮放的 MapLibre 重標定'],
+    ['const syncDraw = () =>', '拖曳時 overlay 同幀重畫'],
+    ['L.MaplibreGL.prototype', 'MapLibre 同步 redraw 補丁'],
+  ];
+  for (const [needle, label] of requiredSource) {
+    assert(html.includes(needle), `${label}遺失（缺少 ${needle}）——請檢查 index.html 是否又在合併時整檔退回 main`);
+  }
+
+  const requiredHistory = [
+    'apprestore', 'geofollow', 'metrocoreidentity', 'widgetredesign', 'androidwidgets', 'plusctas', 'mapsync',
+    'appwhatsnewlag', 'androidcoarse', 'androidtopgap', 'androidinsets', 'androidbars', 'android142',
+  ];
+  for (const id of requiredHistory) {
+    assert(html.includes(`data-cl="${id}"`),
+      `完整更新歷史缺少 data-cl="${id}"——App 專屬紀錄不可在網站／iOS 合併時被整段吃掉`);
+  }
+}
+
 // Stadia 官方要求的逐字署名(prepare-web 注入、本檔驗證,單一事實來源)
 export const STADIA_ATTRIBUTION = '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
 // OpenFreeMap 要求的逐字署名(index.html 內就有這個常數,本檔驗它沒被改動,單一事實來源)。
@@ -336,6 +366,7 @@ export async function verifyRelease({
   const packagedBridge = await readFile(join(output, 'native-bridge.js'), 'utf8');
   const androidManifest = await readFile(join(appRoot, 'android/app/src/main/AndroidManifest.xml'), 'utf8');
   assertAndroidPreciseLocationContract({ nativeBridgeSource, packagedBridge, androidManifest });
+  assertAppLineageContent(html);
 
   // ── 創始會員截止時刻的「上線錨點」(B-4,2026-08-03 裁示)───────────────────────
   // 創始價視窗＝上線錨點時刻起算固定 30 天。上線錨點由 revenuecat-config.js 的
@@ -417,6 +448,22 @@ export async function verifyRelease({
   assert(appVerMatch, '所有 build 都必須注入 window.RAIL_APP_VERSION（更新提示與評分靠它判版本）');
   assert(/^\d+(\.\d+)*$/.test(appVerMatch[1]),
     `RAIL_APP_VERSION 格式無法解析：${appVerMatch[1]}——版本比較會直接放棄,提示永遠不出現`);
+  const expectedAppVersion = String(process.env.RAIL_EXPECT_APP_VERSION || '').trim();
+  if (expectedAppVersion) {
+    assert(appVerMatch[1] === expectedAppVersion,
+      `RAIL_APP_VERSION=${appVerMatch[1]}，與本次預期 ${expectedAppVersion} 不一致`);
+    const androidGradle = await readFile(join(appRoot, 'android/app/build.gradle'), 'utf8');
+    const androidVersionName = /\bversionName\s+["']([^"']+)["']/.exec(androidGradle)?.[1] || null;
+    assert(androidVersionName === expectedAppVersion,
+      `Android versionName=${androidVersionName || '找不到'}，與 App 內建版本 ${expectedAppVersion} 不一致`);
+  }
+  const expectedAndroidVersionCode = String(process.env.RAIL_EXPECT_ANDROID_VERSION_CODE || '').trim();
+  if (expectedAndroidVersionCode) {
+    const androidGradle = await readFile(join(appRoot, 'android/app/build.gradle'), 'utf8');
+    const androidVersionCode = /\bversionCode\s+(\d+)/.exec(androidGradle)?.[1] || null;
+    assert(androidVersionCode === expectedAndroidVersionCode,
+      `Android versionCode=${androidVersionCode || '找不到'}，與本次預期 ${expectedAndroidVersionCode} 不一致`);
+  }
 
   // 本版「更新了什麼」內建文案:剛更新完的彈窗與「更多」面板的常駐入口都吃它。
   // 判準刻意是「文案裡要出現本版版號」——擋的正是「版號升了、set-release-mode 的 why
