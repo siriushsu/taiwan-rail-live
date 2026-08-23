@@ -257,15 +257,28 @@ async function run(engine, name) {
   // 10) 前景持續定位：第二筆位置不需再次按鈕，藍點與所在地鏡頭都要從台北跟到高雄。
   {
     const { ctx, page } = await newPage(browser);
-    await page.goto(`${BASE}/?geomock=${TPE.lat},${TPE.lon}&geoseq=${KHH.lat},${KHH.lon}&geodelay=250&geointerval=2200`, { waitUntil: 'commit' });
+    // geointerval 從 2200 放寬到 6000：第二筆是從**載入**起算的固定時刻，而「等鏡頭飛到台北」
+    // 的耗時隨機器負載浮動。原本「收到第一筆後死等 1000ms」在機器忙的時候會直接跨過第二筆，
+    // 於是量到的是已經跟去高雄的鏡頭（實測同一份 index.html 同一個 URL，閒時 110/110、
+    // 忙時就紅在這條，內容一個 byte 都沒變）——那是判準綁在會漂移的量上，不是產品壞了。
+    await page.goto(`${BASE}/?geomock=${TPE.lat},${TPE.lon}&geoseq=${KHH.lat},${KHH.lon}&geodelay=250&geointerval=6000`, { waitUntil: 'commit' });
     await waitReady(page);
     await page.waitForFunction(([lat, lon]) => {
       const p = window.__state && window.__state.geoLoc;
       return p && Math.abs(p.lat - lat) < .002 && Math.abs(p.lon - lon) < .002;
     }, [TPE.lat, TPE.lon], { timeout: 12000 });
-    await page.waitForTimeout(1000);
+    // 等的是「鏡頭真的飛到台北」這個事件本身，不是一個猜的秒數；飛不到就在這裡逾時＝真的紅。
+    // 🔴 等待門檻必須**嚴於或等於**下面那句斷言的 1.5km：寬一點點（曾寫成 0.02 度≈2.2km）
+    //    就會在 flyTo 的 0.8 秒動畫**還在飛的途中**解除，量到 1.7～2.0km 然後紅在自己手上。
+    const landedTPE = await page.waitForFunction(([lat, lon]) => {
+      const m = window.__map; if (!m) return false;
+      const c = m.getCenter(), R = 6371, d = x => x * Math.PI / 180;
+      const dLat = d(lat - c.lat), dLon = d(lon - c.lng);
+      const h = Math.sin(dLat / 2) ** 2 + Math.cos(d(c.lat)) * Math.cos(d(lat)) * Math.sin(dLon / 2) ** 2;
+      return 2 * R * Math.asin(Math.sqrt(h)) < 1.2;
+    }, [TPE.lat, TPE.lon], { timeout: 8000 }).then(() => true).catch(() => false);
     const first = await center(page);
-    ok('持續定位/第一筆位置落在台北', first && km(first, TPE) < 1.5,
+    ok('持續定位/第一筆位置落在台北', landedTPE && first && km(first, TPE) < 1.5,
        first ? `離台北 ${km(first, TPE).toFixed(2)}km` : 'no map');
     await page.waitForFunction(([lat, lon]) => {
       const p = window.__state && window.__state.geoLoc;
@@ -322,12 +335,21 @@ async function run(engine, name) {
       draw();
     });
     await page.waitForTimeout(150);
+    // 盲取 _trainHits[0] 會挑到**畫面外**的車（實測撞過 x=-35、x=-16），點下去當然不會有事發生，
+    // 於是這條時紅時綠、紅的原因跟受測行為無關。改成挑第一顆真的落在可視區、且避開四邊 24px
+    // 與頂列／底列控件的車；一顆都沒有就不硬點（下面 !!hit 會讓它紅，並印出候選數當線索）。
     const hit = await page.evaluate(() => {
-      const h = (state._trainHits || [])[0];
       const r = document.getElementById('overlay').getBoundingClientRect();
-      return h ? { x: r.left + h.x, y: r.top + h.y, train: String(h.tr.train) } : null;
+      const hits = state._trainHits || [];
+      const M = 24, top = 140, bottom = 120;                       // 上下留給頂列 HUD 與底部 tab bar
+      const good = hits.find(h => {
+        const x = r.left + h.x, y = r.top + h.y;
+        return x > M && x < window.innerWidth - M && y > top && y < window.innerHeight - bottom;
+      });
+      return good ? { x: r.left + good.x, y: r.top + good.y, train: String(good.tr.train), of: hits.length }
+                  : (hits.length ? { x: null, y: null, train: null, of: hits.length } : null);
     });
-    if (hit) {
+    if (hit && hit.x != null) {
       await page.touchscreen.tap(hit.x, hit.y);
       await page.waitForTimeout(250);
       const pick = page.locator('#tapPick .tp-row[data-i="0"]');
@@ -339,7 +361,7 @@ async function run(engine, name) {
       freq: !!window.__state.freqFollow,
       geoFollow: window.__state.geoFollow
     }));
-    ok('列車跟隨/真觸控點車成功並接管鏡頭', !!hit && (!!followed.train || followed.freq) && followed.geoFollow === false,
+    ok('列車跟隨/真觸控點車成功並接管鏡頭', !!hit && hit.x != null && (!!followed.train || followed.freq) && followed.geoFollow === false,
        JSON.stringify({ hit, followed }));
     await page.waitForFunction(([lat, lon]) => {
       const p = window.__state && window.__state.geoLoc;

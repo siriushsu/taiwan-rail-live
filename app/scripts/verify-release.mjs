@@ -1,3 +1,4 @@
+import { inventory, compare as compareShipInventory } from './verify_no_ship_regression.mjs';
 import { lstat, readFile, readdir } from 'node:fs/promises';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -713,6 +714,24 @@ export async function verifyRelease({
   // 因此不能只依賴「不手動 console.log」：發行閣門必須強制關閉原生橋接日誌。
   const capacitorConfig = JSON.parse(await readFile(join(appRoot, 'capacitor.config.json'), 'utf8'));
   assertNativeBridgeLoggingDisabled(capacitorConfig);
+
+  // 出貨回歸閘門(2026-08-23 新增):這一顆不准比「還在使用者手上的 build」少東西。
+  // 事故背景:63e38b2 那顆合併把 index.html 整檔取 main 那一側,靜默吃掉跟車鎖屏與衛星高解析
+  // 兩個通行證入口、說明中心兩節、前景持續定位與 11 條更新紀錄——build 成功、archive 成功、
+  // 這支發行檢查也全綠,使用者是在 1.4.9 上架之後才發現。基線與判準見
+  // app/scripts/verify_no_ship_regression.mjs 與 app/shipped-baseline.json。
+  const shipInv = inventory(await readFile(join(output, 'index.html'), 'utf8'));
+  const shipBase = JSON.parse(await readFile(join(appRoot, 'shipped-baseline.json'), 'utf8'));
+  const shipGone = compareShipInventory(shipBase.inventory, shipInv, shipBase.allowRemoved || {});
+  const shipGoneCount = Object.values(shipGone).reduce((n, a) => n + a.length, 0);
+  // 基線是「所有還在使用者手上的 build」的聯集,不是只有最新那顆——訊息要照實講,
+  // 否則下次有人看到「比 1.4.9 少」會誤以為只要對 1.4.9 交代就好(08-23 的損失正是 68 有、75 沒有)。
+  const shipBaseLabel = shipBase.covers || `${shipBase.marketing} (${shipBase.build})`;
+  assert(shipGoneCount === 0,
+    `比已上架的 ${shipBaseLabel} 少了 ${shipGoneCount} 項：` +
+    Object.entries(shipGone).map(([k, v]) => `${k}=${v.join('/')}`).join('；') +
+    '（單獨跑 node app/scripts/verify_no_ship_regression.mjs 看完整說明）');
+  console.log(`  · 出貨回歸閘門通過:沒有任何一項比已上架的 ${shipBaseLabel} 少`);
 
   const textExtensions = new Set(['.html', '.js', '.mjs', '.json', '.css', '.webmanifest', '.txt', '.md']);
   const suspiciousSecretPatterns = [

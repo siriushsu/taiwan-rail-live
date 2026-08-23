@@ -4018,8 +4018,8 @@
         <li class="grp">手機與操作</li>
         <li data-cl="mapsync"><span class="d">8/23</span><span>換成 OpenStreetMap 向量底圖後的兩個同步問題：拖曳地圖時軌道與列車會比底圖慢半拍（Safari／App 特別明顯），現在改成底圖每動一下就同一拍重畫軌道；手機兩指縮放放手的那一瞬，軌道會先跳回捏合前的位置再彈回來，現在放手那一拍重新對準底圖，不再跳動。衛星底圖與列車、站點位置一律不受影響</span></li>
         <li data-cl="geofollow"><span class="d">8/21</span><span>App 定位改成前景持續更新：只要 App 留在畫面上，藍點會隨你移動，所在地鏡頭也會像一般地圖 App 一樣持續跟著，不再只記住開啟那一刻的位置。手動拖地圖會解除所在地鏡頭，點列車、隨機跟隨或放空時則由那些模式接管，但 GPS 藍點仍持續更新；按一次「附近車站」就會回到目前位置並重新跟隨。Android 恢復要求精確位置，若你在系統選擇概略位置仍可使用、只是準確度較低。App 進入背景或鎖屏會立即停止定位，回到前景才重新開始，原始座標仍只留在裝置內</span></li>
-        <li data-cl="appwhatsnewlag"><span class="d">8/19</span><span>App 剛更新完跳出的「更新了什麼」不再拿上一版的說明冒充：商店資料還沒追上新版時先不顯示，等追上再補給你</span></li>
-        <li data-cl="androidcoarse"><span class="d">8/16</span><span>Android App 的定位權限改成只詢問模糊位置，不再要求精確位置；附近車站、藍點與需要定位的操作仍可照常使用</span></li>
+        <li data-cl="appwhatsnewlag"><span class="d">8/19</span><span>App 剛更新完跳出的「更新了什麼」不再拿上一版的說明冒充：商店資料還沒追上新版時先不顯示，等追上再補給你（後續狀態：8/22 起每一版自帶更新說明，不必等商店資料，更新完立刻就看得到）</span></li>
+        <li data-cl="androidcoarse"><span class="d">8/16</span><span>Android App 的定位權限改成只詢問模糊位置，不再要求精確位置；附近車站、藍點與需要定位的操作仍可照常使用（後續狀態：8/21 起 Android 已恢復要求精確位置，在系統選擇概略位置仍可使用、只是準確度較低）</span></li>
         <li data-cl="androidtopgap"><span class="d">8/16</span><span>Android 手機把系統字級放大後，地圖左上的「軌島／基隆—高雄」牌會跟著變高，原本寫死位置的時間欄沒有讓位，兩欄因此黏住甚至重疊；現在時間欄會量牌子的實際底緣並固定留出間距，轉向與一般字級也一起適用（謝謝網友回報）</span></li>
         <li data-cl="androidinsets"><span class="d">8/16</span><span>Android App 在部分手機使用手勢或三鍵導覽時，放空模式的「離開放空／視角」會被系統導覽列壓住；現在所有手機安全區都會照原生系統回報讓位。窄螢幕若同時有營運公告，頂部最右邊的「捷」也不會再被裁掉</span></li>
         <li data-cl="androidbars"><span class="d">8/15</span><span>Android App 更新後，地圖上下曾多出兩塊白色空白；現在移除重複計算的手機安全區，地圖與底部導覽列會重新貼齊整個畫面</span></li>
@@ -15145,6 +15145,17 @@ function appGateCheck(d) {
 const REVIEW_KEYS = { asked: 'trainmap-review-asked', done: 'trainmap-review-done' };
 const REVIEW_MIN_RIDES = 2, REVIEW_COOLDOWN = 90 * 86400000;
 const REVIEW_WRITE_URL = 'https://apps.apple.com/tw/app/id6792673516?action=write-review';
+// 🔴 評分深連結**必須依平台分流**,規矩同上方 storeUrl():Android 沒有 ?action=write-review
+//    這回事,導過去只會開到一個 Android 打不開的 App Store 頁。1.4.8 (68) 本來是
+//    `REVIEW_WRITE_URL = { ios, android }` 的對映,08-22 那顆整檔取 main 的合併把它壓成
+//    單一 iOS 字串 ⇒ Android 的「更多 ▸ 評分」自此導去 App Store(更新紀錄 android142
+//    那條寫的是「會前往 Google Play」,等於清單與實作脫鉤)。
+function reviewWriteUrl() {
+  try {
+    return window.Capacitor && window.Capacitor.getPlatform && window.Capacitor.getPlatform() === 'android'
+      ? PLAY_STORE_URL : REVIEW_WRITE_URL;
+  } catch (e) { return REVIEW_WRITE_URL; }
+}
 
 // 純函式,好測。st = { asked: {ver, at}|null, done: boolean, ver: 目前版本 }
 function reviewShouldAsk(rideCount, now, st) {
@@ -25126,7 +25137,7 @@ function setupMapTools() {
     }
     if (row.dataset.act === 'rate') {
       appverWrite(REVIEW_KEYS.done, true);   // 主動去評過就不再自動問
-      window.open(REVIEW_WRITE_URL, '_blank', 'noopener');
+      window.open(reviewWriteUrl(), '_blank', 'noopener');
       return;
     }
     if (row.dataset.act === 'help') { setMore(false); openHelp(); return; }
