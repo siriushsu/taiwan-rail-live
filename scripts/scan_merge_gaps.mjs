@@ -173,16 +173,27 @@ for (const line of git('for-each-ref', `--format=%(refname:short)${TAB}%(committ
   const hasRemote = gitQ('rev-parse', '--verify', `refs/remotes/origin/${ref}`);
   const lead = hasRemote ? Number(git('rev-list', '--count', `origin/${ref}..${ref}`).trim())
     : Number(git('rev-list', '--count', `origin/main..${ref}`).trim());
-  if (lead > 0) unpushed.push({ ref, lead, hasRemote: !!hasRemote, date: new Date(Number(t) * 1000).toISOString().slice(0, 10) });
+  if (lead <= 0) continue;
+  // 🔴「ref 沒推」不等於「內容沒備份」。2026-08-24 實例:fix/board-rx-persist 的 10 顆
+  // 從沒單獨推過,但它整條被 merge 進 feat/app-redesign-trial,那條一推上去,內容就已經在
+  // origin 上了。把這種也喊「只存在這台機器」是假警報,會磨掉這一節的可信度。
+  // 判準:tip 對所有遠端 ref 取補集——0 顆 = 內容完全可從某個遠端 ref 走到。
+  const orphan = Number(git('rev-list', '--count', ref, '--not', '--remotes').trim());
+  unpushed.push({ ref, lead, orphan, hasRemote: !!hasRemote, date: new Date(Number(t) * 1000).toISOString().slice(0, 10) });
 }
 unpushed.sort((a, b) => b.date.localeCompare(a.date));
+const atRisk = unpushed.filter(u => u.orphan > 0);   // 內容真的沒有任何遠端備份
+const refOnly = unpushed.filter(u => u.orphan === 0); // 只是 ref 沒推,內容已在別的遠端分支裡
 say('');
-if (!unpushed.length) say(`✅ B. 未 push 的本機 commit：最近 ${DAYS} 天沒有`);
+if (!atRisk.length) say(`✅ B. 未 push 的本機 commit：最近 ${DAYS} 天沒有「內容完全沒備份」的分支`);
 else {
-  say(`❌ B. 未 push 的本機 commit：${unpushed.length} 條分支只存在這台機器`);
+  say(`❌ B. 未 push 的本機 commit：${atRisk.length} 條分支的內容只存在這台機器`);
   bad = 1;
-  for (const u of unpushed.slice(0, 15)) say(`   ${u.date}  ${String(u.lead).padStart(3)} 顆  ${u.ref}${u.hasRemote ? '' : '  (origin 上沒有這條分支)'}`);
-  if (unpushed.length > 15) say(`   …另外 ${unpushed.length - 15} 條`);
+  for (const u of atRisk.slice(0, 15)) say(`   ${u.date}  ${String(u.orphan).padStart(3)} 顆沒備份  ${u.ref}${u.hasRemote ? '' : '  (origin 上沒有這條分支)'}`);
+  if (atRisk.length > 15) say(`   …另外 ${atRisk.length - 15} 條`);
+}
+if (refOnly.length) {
+  say(`   ℹ️ 另有 ${refOnly.length} 條 ref 沒推、但內容已隨別的分支上了 origin（不急）：${refOnly.slice(0, 4).map(u => u.ref).join('、')}${refOnly.length > 4 ? ` …+${refOnly.length - 4}` : ''}`);
 }
 
 // ── C：未 commit 的工作樹變更 ────────────────────────────────────────────────
