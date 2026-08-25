@@ -1935,13 +1935,15 @@ const RC_WEBHOOK_ENV_PRODUCTION = 'PRODUCTION';
 const RC_WEBHOOK_ENV_SANDBOX = 'SANDBOX';
 // TRANSFER 是唯一「主體不是單一 app_user_id」的事件型別，見 webhookTargetUids() 的說明。
 const RC_WEBHOOK_TYPE_TRANSFER = 'TRANSFER';
-// build 21、22 是專供 TestFlight 做端到端 Sandbox 購買驗收的版本。前端只有在建置期明確打開
-// RAIL_PLUS_SANDBOX_OK 且把 build 號注入時才會帶這顆 header；正式 App 與網站不帶。
+// build 21、22 是既有 TestFlight Sandbox 驗收版；Android versionCode 16 則是第一顆準備用
+// 「同一顆封測／正式 AAB」驗收 Google Play Billing 的版本。Android 16 除了 build header，
+// 還必須命中 Worker 的 Firebase UID allowlist，避免可偽造的 build 字串自己變成授權邊界。
 // header 本身不是授權憑證——呼叫者仍須先通過 Firebase ID token，接著由 RevenueCat
 // Developer API 證明同一個 uid 真的有 gives_access 的 sandbox subscription。把 build 號釘死
 // 是縮小測試通道的操作範圍，不把可偽造的客端字串誤當成安全邊界。
 const PLUS_SANDBOX_TEST_HEADER = 'x-rail-plus-sandbox-build';
-const PLUS_SANDBOX_TEST_BUILDS = new Set(['21', '22']);
+const PLUS_SANDBOX_LEGACY_BUILDS = new Set(['21', '22']);
+const PLUS_SANDBOX_UID_ALLOWLIST_BUILDS = new Set(['16']);
 const PLUS_ENTITLEMENT_COLLECTION = Object.freeze({
   [RC_ENV_PRODUCTION]: 'entitlements',
   [RC_ENV_SANDBOX]: 'sandboxEntitlements',
@@ -1951,8 +1953,13 @@ function plusEnvironment(value) {
   return value === RC_ENV_SANDBOX ? RC_ENV_SANDBOX : RC_ENV_PRODUCTION;
 }
 
-function sandboxPlusRequested(request) {
-  return PLUS_SANDBOX_TEST_BUILDS.has(request.headers.get(PLUS_SANDBOX_TEST_HEADER));
+function sandboxPlusRequested(request, uid, env) {
+  const build = request.headers.get(PLUS_SANDBOX_TEST_HEADER) || '';
+  if (PLUS_SANDBOX_LEGACY_BUILDS.has(build)) return true;
+  if (!PLUS_SANDBOX_UID_ALLOWLIST_BUILDS.has(build)) return false;
+  const allowed = new Set(String(env.REVENUECAT_SANDBOX_ALLOWED_UIDS || '')
+    .split(/[\s,]+/).map(value => value.trim()).filter(Boolean));
+  return allowed.has(uid);
 }
 
 const GOOGLE_OAUTH_TOKEN_URL = 'https://oauth2.googleapis.com/token';
@@ -2461,8 +2468,9 @@ async function fetchRevenueCatSubscriptions(uid, env, wantEntitlement, entitleme
 // 改打 /subscriptions:它有 environment query 參數,回應的 Subscription 也有 top-level 必填的
 // environment 與 gives_access 兩個欄位(判定細節見 plusEntitledFromSubscriptions)。
 // secret 未設定→fail-closed 503(不放行任何人)。驗證範式抄自 deleteAccountData(同一組 env secret)。
-// 正常請求只查 production。只有 build 21／22 TestFlight 明確帶測試 header 時，才會在 production
-// 沒資格後回退查 sandbox；兩邊仍各由 environment query 與逐筆 environment 欄位雙重收斂。
+// 正常請求只查 production。只有既有 TestFlight build，或命中 UID allowlist 的 Android build 16
+// 明確帶測試 header 時，才會在 production 沒資格後回退查 sandbox；兩邊仍各由 environment query
+// 與逐筆 environment 欄位雙重收斂。
 // 成功與明確無資格都會附上 uid、選中的環境與跨頁累積的命中 subscriptions，供資格文件使用；
 // 呼叫端自行決定 403(not_entitled)要不要原樣回傳，或(如 /api/plus-status)改寫成 200 {active:false}。
 async function checkPlusEntitlement(request, env) {
@@ -2487,7 +2495,7 @@ async function checkPlusEntitlement(request, env) {
     let entitlementEnvironment = RC_ENV_PRODUCTION;
     let truth = productionTruth;
     if (!plusEntitledFromSubscriptions(productionTruth.subscriptions, wantEntitlement, RC_ENV_PRODUCTION)
-        && sandboxPlusRequested(request)) {
+        && sandboxPlusRequested(request, uid, env)) {
       const sandboxTruth = await fetchRevenueCatSubscriptions(uid, env, wantEntitlement, RC_ENV_SANDBOX);
       if (!sandboxTruth.ok) return sandboxTruth;
       entitlementEnvironment = RC_ENV_SANDBOX;

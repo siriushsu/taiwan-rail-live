@@ -145,7 +145,7 @@ export function assertPlusSandboxTestBuild(html, expectedBuild) {
 }
 
 export const ANDROID_PLUS_GATE_LINE =
-  "  if (IS_NATIVE_APP && window.Capacitor?.getPlatform?.() === 'android') return false;";
+  "  if (IS_NATIVE_APP && window.Capacitor?.getPlatform?.() === 'android') return window.RAIL_ANDROID_PLUS_ENABLED === true;";
 
 export function assertAndroidPlusGate(html) {
   const exactInitializer = [
@@ -156,10 +156,37 @@ export function assertAndroidPlusGate(html) {
     '} catch (e) { return false; } })();',
   ].join('\n');
   assert(html.includes(exactInitializer),
-    'PLUS_ENABLED 必須先對原生 Android fail closed，再逐字保留既有 iOS 原生與 Web ?plus=1 分支；'
+    'PLUS_ENABLED 必須讓原生 Android 只讀 build-time 明確旗標，再逐字保留既有 iOS 原生與 Web ?plus=1 分支；'
     + '不得只藏單一入口或重寫共享判定式');
   assert(html.split(ANDROID_PLUS_GATE_LINE).length === 2,
     'Android 通行證平台 gate 必須且只能出現一次');
+}
+
+export function assertAndroidPlusReleaseConfig(html, expectedVersionCode = '') {
+  const enabled = /window\.RAIL_ANDROID_PLUS_ENABLED=(true|false)/.exec(html)?.[1];
+  assert(enabled, '發行包缺少 window.RAIL_ANDROID_PLUS_ENABLED 明確注入');
+  if (enabled === 'false') {
+    assert(/window\.RAIL_ANDROID_PLUS_SANDBOX_POLICY=null/.test(html)
+      && /window\.RAIL_ANDROID_PLUS_SANDBOX_BUILD=null/.test(html),
+    'Android 通行證關閉時 Sandbox policy/build 必須同時為 null');
+    assert(!/androidApiKey\s*:/.test(html),
+      'Android 通行證關閉時不應把 RevenueCat Android key 打進包內');
+    return false;
+  }
+
+  const key = /androidApiKey\s*:\s*["'](goog_[A-Za-z0-9]+)["']/.exec(html)?.[1] || '';
+  assert(key, 'Android 通行證已開啟，但發行包沒有格式正確的 RevenueCat Android public SDK key（goog_…）');
+  assert(!/androidApiKey\s*:\s*["']sk_/.test(html),
+    'Android App 絕不可打包 RevenueCat secret key（sk_…）');
+  assert(/window\.RAIL_ANDROID_PLUS_SANDBOX_POLICY="revenuecat-allowlist"/.test(html),
+    'Android 通行證正式包必須明確採 revenuecat-allowlist Sandbox policy');
+  const build = /window\.RAIL_ANDROID_PLUS_SANDBOX_BUILD="([1-9]\d*)"/.exec(html)?.[1] || '';
+  assert(build, 'Android 通行證正式包缺少 Sandbox build 號');
+  if (expectedVersionCode) assert(build === String(expectedVersionCode),
+    `Android Sandbox build=${build}，與 versionCode=${expectedVersionCode} 不一致`);
+  assert(/const ANDROID_PLUS_SANDBOX_OK = PLUS_ENABLED[\s\S]*RAIL_ANDROID_PLUS_SANDBOX_POLICY === 'revenuecat-allowlist'[\s\S]*RAIL_ANDROID_PLUS_SANDBOX_BUILD/.test(html),
+    'Android 同 AAB Sandbox 驗收的 runtime 收斂判定消失');
+  return true;
 }
 
 export async function assertLicensedBuildAllowed({ includeLicensedMusic, includeLicensedBasemaps }) {
@@ -484,6 +511,9 @@ export async function verifyRelease({
   if (expectPlusSandboxBuild !== null) assertPlusSandboxTestBuild(html, expectPlusSandboxBuild);
   else assertPlusSandboxOff(html);
   assertAndroidPlusGate(html);
+  const androidGradleForPlus = await readFile(join(appRoot, 'android/app/build.gradle'), 'utf8');
+  const androidVersionCodeForPlus = /\bversionCode\s+(\d+)/.exec(androidGradleForPlus)?.[1] || '';
+  assertAndroidPlusReleaseConfig(html, androidVersionCodeForPlus);
 
   await assertLicensedBuildAllowed({
     includeLicensedMusic: musicEnabled,
@@ -764,6 +794,7 @@ export async function verifyRelease({
   const textExtensions = new Set(['.html', '.js', '.mjs', '.json', '.css', '.webmanifest', '.txt', '.md']);
   const suspiciousSecretPatterns = [
     /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/,
+    /\bsk_[A-Za-z0-9_-]{8,}/,
     /REVENUECAT_V2_SECRET_KEY\s*[:=]\s*["'][^"']+/,
     /TDX_CLIENT_SECRET\s*[:=]\s*["'][^"']+/,
     /FIREBASE_WEB_API_KEY\s*[:=]\s*["'][^"']+/

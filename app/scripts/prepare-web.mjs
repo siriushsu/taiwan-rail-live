@@ -15,6 +15,47 @@ const includeLicensedBasemaps = process.env.RAIL_INCLUDE_LICENSED_BASEMAPS === '
 // 首次切換仍要出一顆 App build，此後模型更新只動 Worker，不必再改 App。
 const enableMetroCore = process.env.RAIL_ENABLE_METRO_CORE === '1';
 
+// Android 通行證採「明確開啟才存在」：沒有 public SDK key、Sandbox build 或後台 allowlist
+// 任一項時都拒絕產出付費版，避免再次得到「看得到入口但買不到」的半套 AAB。
+// RevenueCat 的 goog_ key 是可放在 App 端的 public SDK key；sk_ 類 secret 絕不可進 bundle。
+const androidPlusEnabled = process.env.RAIL_ANDROID_PLUS_ENABLED === '1';
+
+async function readOptionalEnv(name) {
+  const direct = String(process.env[name] || '').trim();
+  if (direct) return direct;
+  try {
+    const source = await readFile(join(repoRoot, '.env'), 'utf8');
+    const line = source.split(/\r?\n/).find(candidate => new RegExp(`^\\s*(?:export\\s+)?${name}\\s*=`).test(candidate));
+    if (!line) return '';
+    let value = line.slice(line.indexOf('=') + 1).trim();
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1);
+    return value.trim();
+  } catch { return ''; }
+}
+
+const androidRevenueCatApiKey = androidPlusEnabled
+  ? await readOptionalEnv('RAIL_REVENUECAT_ANDROID_API_KEY') : '';
+const androidPlusSandboxPolicy = String(process.env.RAIL_ANDROID_PLUS_SANDBOX_POLICY || '').trim();
+const androidPlusSandboxBuild = String(process.env.RAIL_ANDROID_PLUS_SANDBOX_BUILD || '').trim();
+if (androidPlusEnabled) {
+  if (!/^goog_[A-Za-z0-9]+$/.test(androidRevenueCatApiKey)) {
+    throw new Error('RAIL_ANDROID_PLUS_ENABLED=1 時必須提供 RevenueCat Android public SDK key（RAIL_REVENUECAT_ANDROID_API_KEY，格式 goog_…）；sk_ secret 絕不可放進 App');
+  }
+  if (androidPlusSandboxPolicy !== 'revenuecat-allowlist') {
+    throw new Error('Android 通行證正式包必須設定 RAIL_ANDROID_PLUS_SANDBOX_POLICY=revenuecat-allowlist，並先在 RevenueCat 與 Worker 限定測試 UID');
+  }
+  if (!/^[1-9]\d*$/.test(androidPlusSandboxBuild)) {
+    throw new Error('Android 通行證正式包必須設定正整數 RAIL_ANDROID_PLUS_SANDBOX_BUILD，讓同一顆 Play AAB 能在 UID allowlist 內驗收測試購買');
+  }
+  const androidGradle = await readFile(join(appRoot, 'android/app/build.gradle'), 'utf8');
+  const versionCode = /\bversionCode\s+(\d+)/.exec(androidGradle)?.[1] || '';
+  if (versionCode !== androidPlusSandboxBuild) {
+    throw new Error(`RAIL_ANDROID_PLUS_SANDBOX_BUILD=${androidPlusSandboxBuild} 與 Android versionCode=${versionCode || '找不到'} 不一致`);
+  }
+} else if (androidPlusSandboxPolicy || androidPlusSandboxBuild) {
+  throw new Error('RAIL_ANDROID_PLUS_ENABLED 未開啟，卻留下 Android Sandbox policy/build；拒絕產出含糊的半啟用版本');
+}
+
 async function readRequiredEnv(name) {
   let source;
   try { source = await readFile(join(repoRoot, '.env'), 'utf8'); }
@@ -252,9 +293,13 @@ const appVersion = appVersionOverride || pbxVers[0];
 // 沒給就注入空字串:相關 UI 整組不出現,不炸開機。
 const whatsNew = typeof process.env.RAIL_WHATS_NEW === 'string' ? process.env.RAIL_WHATS_NEW.trim() : '';
 
+const androidPlusConfigInjection = androidPlusEnabled
+  ? `;window.RAIL_REVENUECAT_CONFIG={...(window.RAIL_REVENUECAT_CONFIG||{}),androidApiKey:${JSON.stringify(androidRevenueCatApiKey)}}`
+  : '';
+
 html = html
   .replace('<span class="ver" id="buildVer"></span>', '<a href="third-party-notices.txt" target="_blank" rel="noopener" style="min-height:44px;display:inline-flex;align-items:center;padding:0 4px">第三方軟體授權</a>\n      <span class="ver" id="buildVer"></span>')
-  .replace('<script src="revenuecat-config.js"></script>', `<script src="revenuecat-config.js"></script>\n<script>window.RAIL_MUSIC_AVAILABLE=${includeLicensedMusic};window.RAIL_ONLINE_BASEMAPS_AVAILABLE=${includeLicensedBasemaps};window.RAIL_METRO_CORE_ENABLED=${enableMetroCore};window.RAIL_APP_VERSION=${JSON.stringify(appVersion)};window.RAIL_APP_WHATS_NEW=${JSON.stringify(whatsNew)};window.RAIL_PLUS_SANDBOX_OK=${plusSandboxOk};window.RAIL_PLUS_SANDBOX_BUILD=${plusSandboxOk ? JSON.stringify(plusSandboxBuild) : 'null'}${appConfig ? `;window.RAIL_APP_CONFIG=${JSON.stringify(appConfig)}` : ''}</script>\n<script src="native-bridge.js"></script>`);
+  .replace('<script src="revenuecat-config.js"></script>', `<script src="revenuecat-config.js"></script>\n<script>window.RAIL_MUSIC_AVAILABLE=${includeLicensedMusic};window.RAIL_ONLINE_BASEMAPS_AVAILABLE=${includeLicensedBasemaps};window.RAIL_METRO_CORE_ENABLED=${enableMetroCore};window.RAIL_APP_VERSION=${JSON.stringify(appVersion)};window.RAIL_APP_WHATS_NEW=${JSON.stringify(whatsNew)};window.RAIL_PLUS_SANDBOX_OK=${plusSandboxOk};window.RAIL_PLUS_SANDBOX_BUILD=${plusSandboxOk ? JSON.stringify(plusSandboxBuild) : 'null'};window.RAIL_ANDROID_PLUS_ENABLED=${androidPlusEnabled};window.RAIL_ANDROID_PLUS_SANDBOX_POLICY=${androidPlusEnabled ? JSON.stringify(androidPlusSandboxPolicy) : 'null'};window.RAIL_ANDROID_PLUS_SANDBOX_BUILD=${androidPlusEnabled ? JSON.stringify(androidPlusSandboxBuild) : 'null'}${androidPlusConfigInjection}${appConfig ? `;window.RAIL_APP_CONFIG=${JSON.stringify(appConfig)}` : ''}</script>\n<script src="native-bridge.js"></script>`);
 if (!html.includes('vendor/leaflet/leaflet.js') || !html.includes('native-bridge.js')) throw new Error('App index vendor/native bridge injection failed');
 if (/ko-fi|PayPal|111010691056|web-only-donation-log|贊助方式更新/i.test(html) || html.includes('id="donateCopy"') || html.includes('class="foot-box foot-donate"')) throw new Error('External donation content leaked into native App');
 if (/cartocdn\.com|arcgisonline\.com/i.test(html)) throw new Error('App index still contains unlicensed CARTO/Esri tile URLs');
