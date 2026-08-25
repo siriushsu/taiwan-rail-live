@@ -146,6 +146,12 @@ async function traLive(request, env, ctx) {
     } catch (e) {}
   }
   const cacheKey = new Request(new URL('/api/tra-live', request.url), { method: 'GET' });
+  // 🔴 「最後成功值」的 colo 級備份。mem/memAt 是模組層變數＝per-isolate,所以下面 catch 的
+  // 「上游掛掉退回舊值」實際上取決於這一發剛好打到哪個 isolate:熱的回舊資料 200、冷的回硬 502。
+  // 2026-08-25 TDX 對 Cloudflare 全網斷線兩小時,同一分鐘不同使用者拿到的東西完全不同,而
+  // 「回 502」是其中最糟的一種——前端連「資料停在幾點」都無從顯示。這顆備份讓退路以 colo 為單位
+  // 一致存在;資料齡照舊由 at 誠實帶出,可不可用交給前端 liveDataAgeMs() 判(它已有 30 分門檻)。
+  const lastKey = new Request(new URL('/api/tra-live__lastgood', request.url), { method: 'GET' });
   const edge = caches.default;
   const hit = await edge.match(cacheKey);
   if (hit) return hit;
@@ -163,6 +169,15 @@ async function traLive(request, env, ctx) {
       memAt = Date.now();
       // 逐站觀測事件擷取:只搭「真的刷新上游」這班順風車(cache 命中/mem 未過期都到不了這裡),零新增 TDX 呼叫
       recordStationEvents(mem, env, ctx);
+      // 同一班順風車:更新 colo 級「最後成功值」。刻意【不】存 srv——srv 是時鐘偏差量測用的
+      // 「回應產生當下的伺服器時鐘」,存進快取幾小時後再吐出來會讓前端誤判裝置時鐘偏差幾小時,
+      // 所以取用時才現場補。丟背景不擋回應,失敗吞掉(這只是退路的退路)。
+      const lastBody = JSON.stringify(mem);
+      const putLast = edge.put(lastKey, new Response(lastBody, {
+        status: 200,
+        headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'public, s-maxage=21600' },
+      })).catch(() => {});
+      if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(putLast);
     }
     // srv=本次回應產生當下的伺服器時鐘(epoch ms)。前端拿它跟 Date.now() 相減、取多次取樣的最小值,
     // 就量得出「裝置時鐘偏差」——裝置時鐘錯 N 分鐘會讓全部台鐵/高鐵位置與倒數整體偏 N 分鐘,
@@ -173,6 +188,15 @@ async function traLive(request, env, ctx) {
     return await jsonResCached(edge, cacheKey, { ...mem, srv: Date.now() }, 200, 'public, s-maxage=55, stale-while-revalidate=300');
   } catch (e) {
     if (mem) return jsonRes({ ...mem, srv: Date.now() }, 200, 'public, s-maxage=15');
+    // 本 isolate 從沒成功過(冷啟/重生),退到同 colo 的最後成功快照——這正是上游長時間斷線時
+    // 最常見的情形,原本一律回 502 等於「斷線越久,拿不到任何資料的人越多」。
+    try {
+      const last = await edge.match(lastKey);
+      if (last) {
+        const d0 = await last.json();
+        if (d0 && Array.isArray(d0.trains)) return jsonRes({ ...d0, srv: Date.now() }, 200, 'public, s-maxage=15');
+      }
+    } catch (e2) { /* 備份也讀不到就照舊回 502 */ }
     return jsonRes({ error: String(e.message || e) }, 502, 'no-store');
   }
 }
