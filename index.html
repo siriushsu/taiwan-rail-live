@@ -4082,7 +4082,7 @@
         <li><span class="d">北捷</span><span>臺北捷運各線與環狀線的秒級到站倒數取自臺北大眾捷運股份有限公司「臺北捷運 API」（會員申請制），依「政府資料開放授權條款」使用</span></li>
         <li><span class="d">新北捷</span><span>淡海輕軌・安坑輕軌的即時列車動態引用自新北大眾捷運股份有限公司官網「列車動態」公開頁面，著作權屬該公司所有</span></li>
         <li><span class="d">軌道</span><span>台鐵軌道及阿里山林鐵的 TDX 缺口補線取自 © OpenStreetMap 貢獻者（ODbL），經 Overpass／OSM API</span></li>
-        <li><span class="d">底圖</span><span><!-- APP_REPLACE_START basemap-credit（App 換 OpenFreeMap/Stadia/Esri 授權版文字，prepare-web.mjs 替換） -->OpenFreeMap（© OpenFreeMap © OpenMapTiles © OpenStreetMap 貢獻者，街道圖）、Esri World Imagery（衛星影像）與內政部「直轄市、縣市界線」（離線海陸輪廓，政府資料開放授權條款第1版）<!-- APP_REPLACE_END basemap-credit --></span></li>
+        <li><span class="d">底圖</span><span><!-- APP_REPLACE_START basemap-credit（App 換 OpenFreeMap/Stadia/Esri 授權版文字，prepare-web.mjs 替換） -->OpenFreeMap（© OpenFreeMap © OpenMapTiles © OpenStreetMap 貢獻者，街道圖）、CARTO（© OpenStreetMap © CARTO，街道圖退路）、Esri World Imagery（衛星影像）與內政部「直轄市、縣市界線」（離線海陸輪廓，政府資料開放授權條款第1版）<!-- APP_REPLACE_END basemap-credit --></span></li>
         <!-- APP_REPLACE_START status-link:App 包內沒有 status.html 且其相對 API 呼叫在本機來源不通,App build 換成正式站絕對網址外開 -->
         <li><span class="d">狀態</span><a href="status.html">資料源連線狀態頁</a></li>
         <!-- APP_REPLACE_END status-link -->
@@ -23948,14 +23948,14 @@ function onlineBasemapsAvailable() { return window.RAIL_ONLINE_BASEMAPS_AVAILABL
 // (那是每個月真金白銀的差別);下次開機自己重試 OFM。這條是「回得去」的唯一保證。
 const OFM_HEALTH_MS = 8000, OFM_ERROR_LIMIT = 4;
 function ofmWatch(layer) {
-  // 🔴 **偵測兩邊都要做**,即使只有 App 退得了。此前這裡對網站整條 return,於是 OFM 半死時
-  // 網站是**零訊號**:使用者看到一片空白底圖上飄著列車,分不清是自己的網路、我們掛了、
-  // 還是功能壞了,而且沒有任何恢復路徑,連 console 都是乾淨的。
-  // 「退不了」不等於「不能講」——退路是產品/供應商決策(網站唯一的 raster 是 CARTO,
-  // 那正是這批要離開的東西),但把發生的事講出來、指向現成還能用的那條路,不涉及任何供應商。
+  // 🔴 **偵測兩邊都要做**。此前這裡對網站整條 return,於是 OFM 半死時網站是**零訊號**:
+  // 使用者看到一片空白底圖上飄著列車,分不清是自己的網路、我們掛了、還是功能壞了。
+  // 2026-08-26 起網站也真的退得了(退到 CARTO raster,見 boot 內建層處的裁示註解),
+  // 所以這裡不再分 App/網站——兩邊都是「偵測到就退」,退完無聲繼續看地圖。
   let settled = false, errors = 0, timer = null;
   const stop = () => { settled = true; if (timer) clearTimeout(timer); };
-  const fail = why => { stop(); if (APP_CFG.tiles) ofmFallToRaster(why); else ofmNoticeWeb(why); };
+  // 亮/暗各有一個 watcher,但只有第一個會真的換層(ofmFallToRaster 自己早退),所以這裡不必再擋一次。
+  const fail = why => { stop(); ofmFallToRaster(why); };
   // 逾時**只在圖層真的上場後**起算:亮/暗兩層只有一層會被加進地圖,
   // 若一建好就起算,沒上場的那層必然逾時 ⇒ 每次開機都假退場。
   layer.on('add', function () {
@@ -23967,7 +23967,9 @@ function ofmWatch(layer) {
     if (gl.isStyleLoaded && gl.isStyleLoaded()) stop(); else gl.once('load', stop);
   });
 }
-// 網站的 OFM 退場處置:退不了,但要讓使用者知道發生什麼事、以及現在還能怎麼看。
+// 連退路都掛了的處置(網站限定)。2026-08-26 之前這是「網站根本沒有退路」的處置;
+// 現在網站退得到 CARTO,所以它的場景縮小成**兩家同時掛**——那時使用者又回到
+// 「空白底圖上飄著列車」,還是得把話講出來,不能因為我們已經盡力了就靜默。
 // 一個 session 只講一次,且**不寫 localStorage**——理由同 ofmFallToRaster:
 // 一次網路抖動不該讓下次開機也帶著這個判斷,重新整理就該重試 OFM。
 let ofmNoticeShown = false;
@@ -23991,6 +23993,12 @@ function ofmFallToRaster(why) {
     const old = baseLayers[k];
     if (old && map && map.hasLayer(old)) map.removeLayer(old);
     baseLayers[k] = built[k]();
+    // 退到 raster 不等於得救:兩家可以同時掛。網站再盯一次,連退路都掉圖磚就把話講出來
+    // (App 不掛這條——它的 raster 是自家付費的 Stadia,且 App 另有殼層的離線處置)。
+    if (!APP_CFG.tiles) {
+      let rerr = 0;
+      baseLayers[k].on('tileerror', () => { if (++rerr >= OFM_ERROR_LIMIT) ofmNoticeWeb(why); });
+    }
   }
   try { console.warn('[basemap] OpenFreeMap 退場改用 raster:' + why); } catch (e) {}
   setBasemap(); // 把該顯示的那層重新掛上去(署名也會跟著換成 raster 那份)
@@ -25634,8 +25642,12 @@ async function boot() {
     if (useOfmStreet && (k === 'light' || k === 'dark')) {
       // L2 退路先備好:用「raster 路徑原本就會建的那份設定」包成 thunk,退場時直接叫它,
       // 不重抄一次 maxZoom/keepBuffer/attribution(抄一次就多一個會走樣的地方)。
-      // 只有 App 備:網站的 raster 退路是 CARTO,那正是這批要離開的東西。
-      if (APP_CFG.tiles) { if (!ofmRasterFallback) ofmRasterFallback = {}; ofmRasterFallback[k] = () => L.tileLayer(t.url, opt); }
+      // App 退到 Stadia、網站退到 CARTO。網站這半是 **2026-08-26 使用者在知道 CARTO 條款狀態
+      // 的前提下裁示**的:CARTO 2025-10 起把 hosted 圖磚限定給 enterprise(那正是 08-18 換走它的
+      // 原因),但「OFM 掛掉時一片空白的地圖」被判定比「一條授權有疑慮的緊急退路」更糟。
+      // 只有 ofmWatch 判定 OFM 失效時才叫得到這個 thunk——日常路徑仍然是 OFM,不是 CARTO。
+      if (!ofmRasterFallback) ofmRasterFallback = {};
+      ofmRasterFallback[k] = () => L.tileLayer(t.url, opt);
       baseLayers[k] = L.maplibreGL({ style: OFM_STYLE[k], attribution: OFM_ATTRIBUTION, interactive: false });
       ofmWatch(baseLayers[k]);
       if (ALIGN_DOT) { // 底圖那半的對齊探針:交給底圖引擎自己依經緯度畫,不經過我們任何投影程式碼
