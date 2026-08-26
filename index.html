@@ -3142,7 +3142,9 @@
     /* 行程連結的追蹤橫幅原本固定 top:56，會整片壓住這列時鐘。接收行程時先把非必要的
        地圖動作列收起，橫幅排到時鐘下方；關閉橫幅後 body.trip-open 移除，兩者自然復原。 */
     body.trip-open .map-actions { opacity: 0; pointer-events: none; }
+    html[data-fs] .trip-banner { top: calc(8px + var(--sa-t) + var(--tb-h, 42px) + 6px); }
     body.trip-open .trip-banner { top: calc(118px + var(--sa-t)); }
+    html[data-fs] body.trip-open .trip-banner { top: calc(8px + var(--sa-t) + var(--tb-h, 42px) + 68px); }
     body.trip-open .trip-banner ~ .dwell-plate { top: calc(251px + var(--sa-t)); }
     /* ≤400px 窄機:尖峰跟隨時 LIVE＋看板校正＋三位數班次會把徽章撐到壓住全畫面鈕——
        「看板校正」縮成純脈動藍點(400px 以上字樣不變) */
@@ -3175,6 +3177,11 @@
     .alert-banner { display: none; }
     /* 詳情面板改接在頂列正下方(原本接在橫幅下方的 138);56 是 #searchPanel 用過的同一個上錨值。 */
     .alert-detail { top: calc(56px + var(--sa-t)); right: 8px; width: calc(100% - 16px); }
+    /* 🔴 上緣堆疊的常數家族(memory top-stack-hardcoded-offsets):56 是照【標準檔】頂列實高
+       凍結的快照(頂列底 50 ＋ 6)。頂列會隨字級長高(實測 42→103→117),常數就被壓進頂列裡。
+       以下三處(公告詳情／搜尋面板／行程橫幅)一律改吃量到的 --tb-h,留白間距原樣保留 ⇒
+       標準檔算出來仍是 56,幾何一格不動;只掛 html[data-fs],沒選字級的人完全不受影響。 */
+    html[data-fs] .alert-detail { top: calc(8px + var(--sa-t) + var(--tb-h, 42px) + 6px); }
     body.fs .alert-detail, body.fs .board { right: 8px; }
     .xing-help { top: calc(193px + var(--sa-t)); }
     /* 平交道通過預測卡(手機):小卡+下移到動作列之下,限高留出底部跟隨卡空間 */
@@ -3305,6 +3312,7 @@
       bottom: calc(var(--tabbar-clear) + 8px);
       max-height: none;
     }
+    html[data-fs] #searchPanel { top: calc(8px + var(--sa-t) + var(--tb-h, 42px) + 6px); }
     #searchPanel::before { display: none; } /* 不可拖曳,不給抓把 */
     /* 結果清單改「排進版面流」(原是浮在輸入框下方的絕對定位卡):專屬面板本身就是那張卡,
        再套一層邊框陰影會變盒中盒;且絕對定位在高面板裡只佔 40vh、下方空一大塊 */
@@ -3560,6 +3568,14 @@
       display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
       position: absolute; right: calc(10px + var(--sa-r, 0px)); top: calc(100px + var(--sa-t)); z-index: 620;
     }
+    /* 🔴 上面那個 100 是照【標準檔】頂列實高凍結的常數(頂列底 50 ＋ 50 的留白帶)。排法B 之後
+       時鐘徽章已經是頂列的一部分,頂列會隨字級長高(實測 42→103→117),常數就被壓進頂列裡:
+       大 相交 468px²、特大 1103px²,而且兩個引擎都中——被蓋住的固定是 DOM 最後那顆「捷」,
+       正是使用者 2026-08-26 回報的那個。改成從量到的頂列實高推,留白帶維持 50 不變 ⇒
+       標準檔算出來仍是 8+42+50=100,幾何一格不動;只掛 html[data-fs],沒選字級的人完全不受影響。
+       🔴 量「高度」不量「底緣座標」:安全區在 Capacitor 是開機後才注入且不觸發任何事件,
+       量底緣會留下對不上的舊值(見 memory top-stack-hardcoded-offsets 形狀一)。 */
+    html[data-fs] .map-actions { top: calc(8px + var(--sa-t) + var(--tb-h, 42px) + 50px); }
     .alert-detail:not([hidden]) ~ .map-actions { opacity: 0; pointer-events: none; }
     /* ⚠️ position 用 relative 不用 static:鈕的 ::after 觸控熱區是 absolute + width:100%,
        static 會讓熱區的 containing block 變成 .map-actions(它是 absolute),熱區撐成整欄、
@@ -27256,6 +27272,18 @@ async function boot() {
     return { icon: '', label: same ? `取消跟隨（${nm}${detail ? '・' + detail : ''}）`
       : `跟隨列車（${nm}${detail ? '・' + detail : ''}）`, run: () => { if (same) clearFreqFollow(); else setFreqFollow(fh); } };
   }
+  // 點到真的空白處(車/站/平交道/記號全部沒命中)的統一收尾。兩條分支:
+  //  ① 跟車中的手機整合卡 ⇒ 維持設計 1a:卡片收成膠囊、跟車不斷(uniCollapse 自己會把看板一併收起,
+  //     innerHTML 與 state.boardStation 都留著,點膠囊展開回得去)。
+  //  ② 其餘情形 ⇒ 車站看板開著就關掉(使用者要求:看板開著時點地圖空白處要把它收掉)。
+  //     捷運模式的跟車卡是 #freqCard、不吃 uniCollapse,所以捷運一律走這條——原本整個空白點擊是 no-op。
+  //     🔴 走 closeBoard() 而不是自己藏 el:它會 unmountUniCard、清 boardStation、並經 updateSheetOpenClass
+  //     觸發 invalidateMapInsets/reframeFocus ⇒ 「列車或車站置中不被卡片擋住」那套讓位會跟著重算。
+  function tapBlank() {
+    if (uniCollapse()) return;
+    const bd = document.getElementById('board');
+    if (bd && !bd.hidden) closeBoard();
+  }
   map.on('click', e => {
     const cp = e.containerPoint || map.latLngToContainerPoint(e.latlng);
     closeTapPick(); // 點地圖任何地方先收掉歧義選單(選單列自身的點擊不會冒泡到 map)
@@ -27296,7 +27324,8 @@ async function boot() {
         else setFreqFollow(fh);
         return;
       }
-      if (stHit) openBoard(stHit);
+      if (stHit) { openBoard(stHit); return; }
+      tapBlank();
       return;
     }
     if (state.dropMode) { // 落釘模式(開關式):點地圖任一處落釘查看附近火車,落完「維持」模式可連續落釘/存點(可拖曳微調)
@@ -27383,10 +27412,9 @@ async function boot() {
       if (amb.length >= 2) { openTapPick(cp, amb); return; }
       openBoard(stCands[0].st); return;
     }
-    // 設計 1a 的 tapBlank:點到真的空白處 ⇒ 卡片收成膠囊,跟車不斷。
-    // 🔴 這裡原本什麼都不做(空白點擊是 no-op);取消跟隨的入口是「再點一次跟隨中的那台車」,
-    //    在上面那條 hit.tr === state.followTrain,沒有被動到。
-    uniCollapse();
+    // 設計 1a:點到真的空白處 ⇒ 跟車中收成膠囊(跟車不斷),否則收掉開著的車站看板。
+    // 🔴 取消跟隨的入口仍是「再點一次跟隨中的那台車」(上面 hit.tr === state.followTrain),沒有被動到。
+    tapBlank();
   });
   // 平交道卡穿透轉發:卡片(含空白列/邊距)壓住的列車/平交道/車站,點卡片即視同點地圖,
   // 走上方同一套命中優先序直接切換——手機 375px 卡片蓋掉右半地圖,實測得先關卡才點得到下一個(v0712o)。
