@@ -114,11 +114,10 @@ async function sectionA(browser, engine) {
       });
       const tag = `${engine} ${tier} ${width}pt`;
       ok(`A1 ${tag} 正向對照:四顆群組分頁都量得到`, r.n === 4, `n=${r.n}`);
-      // 標準檔在 360pt 本來就會切掉「捷」(網站既有缺陷,memory topbar-cut-fix-only-on-app-branch),
-      // 不是本次改動造成的;寫成條件式判準,才不會把既有缺陷偽裝成本次回歸。
-      const knownStdNarrow = tier === 'std' && width === 360;
-      ok(`A2 ${tag} 四顆分頁都在視窗內${knownStdNarrow ? '(標準檔窄機=既有缺陷,只記錄)' : ''}`,
-        knownStdNarrow ? true : r.outside.length === 0, r.outside.join(','));
+      // 2026-08-26:原本這裡對「標準檔 360pt」開了豁免——網站分支既有的「捷」被切缺陷
+      // (memory:topbar-cut-fix-only-on-app-branch,同段 CSS 兩分支相反)。合併進 App 出貨線之後
+      // 實測 outside 為空 ⇒ 該缺陷在這棵樹上已經不存在,豁免變成沒有牙的過期條款,拆掉。
+      ok(`A2 ${tag} 四顆分頁都在視窗內`, r.outside.length === 0, r.outside.join(','));
       ok(`A3 ${tag} 分頁的字沒有被自己的框切掉`, r.selfClipped.length === 0, r.selfClipped.join(','));
       ok(`A4 ${tag} tab bar 的文字標籤沒有被切在畫面外`, r.labelInside);
       ok(`A5 ${tag} 零 pageerror`, errs.length === 0, errs.slice(0, 1).join(''));
@@ -2459,7 +2458,161 @@ async function sectionW(browser, engine) {
 
 await assertTarget();
 // SECTIONS=H,I 只跑指定段(突變測試用);不設就跑全部——預設永遠是「全跑」,不能靠環境變數才完整。
-const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ, K: sectionK, L: sectionL, M: sectionM, MX: sectionMx, N: sectionN, NX: sectionNx, O: sectionO, P: sectionP, Q: sectionQ, R: sectionR, S: sectionS, T: sectionT, U: sectionU, V: sectionV, W: sectionW };
+
+// ── X:上緣堆疊不得互相重疊(2026-08-26 使用者實機回報「大字級時捷與隨機跟隨鈕疊在一起」)──
+// 病根是一整族寫死常數:上緣堆疊的規則是「頂列底 + 間距」,實作卻把它凍結成
+// 標準檔量到的數字(.map-actions 100、.alert-detail/#searchPanel/.trip-banner 56)。
+// 字級一放大,頂列實高 42→103→117,常數就被壓進頂列裡。
+// 🔴 判準刻意用「rect 相交面積 = 0」而不是「top ≥ 某常數」——常數判準正是這條缺陷的成因。
+// 🔴 X1 是正向對照:相交=0 在「其中一個根本沒渲染」時也成立(而隨機跟隨鈕在列車載入前是 hidden,
+//    我 08-22 正是因此誤判成「其餘條件式 UI 實測未相交」,放過了這個缺陷整整四天)。
+const UPPER_STACK = ['.alert-detail', '#searchPanel', '.map-actions', '.trip-banner', '.dwell-plate', '.xing-card', '.xing-help'];
+async function sectionX(browser, engine) {
+  for (const tier of ['std', 'large', 'xlarge']) {
+    for (const width of [360, 393, 414]) {
+      const { page, errs, close } = await boot(browser, { width, tier });
+      await page.waitForTimeout(2500);   // 等列車載入:#randBtn 在那之前是 hidden
+      const r = await page.evaluate(sels => {
+        const box = e => { const b = e.getBoundingClientRect(); return { l: b.left, t: b.top, r: b.right, b: b.bottom, w: b.width, h: b.height }; };
+        const area = (a, b) => { const w = Math.min(a.r, b.r) - Math.max(a.l, b.l), h = Math.min(a.b, b.b) - Math.max(a.t, b.t); return (w > 0 && h > 0) ? Math.round(w * h) : 0; };
+        const tbEl = document.getElementById('topbar');
+        const maEl = document.querySelector('.map-actions');
+        const randEl = document.getElementById('randBtn');
+        const shown = e => !!e && !e.hidden && getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().height > 0;
+        const tb = tbEl && shown(tbEl) ? box(tbEl) : null;
+        const ma = maEl && shown(maEl) ? box(maEl) : null;
+        const rand = randEl && shown(randEl) ? box(randEl) : null;
+        const tabs = [...document.querySelectorAll('.topbar .grouptabs .gtab')].filter(shown).map(e => ({ ...box(e), txt: e.textContent.trim() }));
+        // 上錨元件的 computed top 讀得到即使 display:none(讀的是計算值不是使用值),
+        // 所以整族都掃得到,不必偽造可見狀態(偽造出來的幾何本來也不算數)。
+        const tops = {};
+        for (const s of sels) { const e = document.querySelector(s); if (e) { const n = parseFloat(getComputedStyle(e).top); if (!isNaN(n)) tops[s] = n; } }
+        // 結構性:上錨元件的 top 不得由 JS 寫成絕對 px(安全區晚一步注入就對不上,見 memory 形狀一)
+        const inlineTop = sels.filter(s => { const e = document.querySelector(s); return e && e.style.top && e.style.top.indexOf('calc') < 0 && e.style.top.indexOf('var(') < 0; });
+        return { tb, ma, rand, tabs, tops, inlineTop, trains: (window.state && state.trains || []).length, dataFs: document.documentElement.getAttribute('data-fs'), tbh: getComputedStyle(document.documentElement).getPropertyValue('--tb-h').trim(),
+          maVsTb: (tb && ma) ? area(tb, ma) : null,
+          worstTab: rand ? tabs.map(t => ({ txt: t.txt, a: area(t, rand) })).sort((x, y) => y.a - x.a)[0] : null };
+      }, UPPER_STACK);
+      const tag = `${engine} ${width}pt ${tier}`;
+      // X1 正向對照——沒有它,下面兩條在「東西根本沒畫」時也會全綠
+      // 🔴 通過條件只看「兩個東西都真的有 rect」——那才是這條控制組要擋的失效
+      //    (沒渲染 ⇒ 相交必為 0 ⇒ X2/X3 假綠)。列車數只當環境訊息印出來:它取決於
+      //    班表算完沒,會隨機器負載浮動,綁進判準會變成每次都紅的假警報。
+      ok(`X1 ${tag} 正向對照:頂列與隨機跟隨鈕都真的量得到(不是靠沒渲染騙過相交判準)`,
+        !!r.tb && r.tb.h > 0 && !!r.rand && r.rand.h > 0,
+        JSON.stringify({ 頂列高: r.tb && Math.round(r.tb.h), 隨機鈕高: r.rand && Math.round(r.rand.h), 列車: r.trains, tbh: r.tbh }));
+      ok(`X2 ${tag} 🔴 頂列與地圖動作列相交面積 = 0`, r.maVsTb === 0,
+        JSON.stringify({ 相交: r.maVsTb, 頂列底: r.tb && Math.round(r.tb.b), 動作列頂: r.ma && Math.round(r.ma.t) }));
+      ok(`X3 ${tag} 🔴 沒有任何一顆群組分頁被隨機跟隨鈕蓋到`, !!r.worstTab && r.worstTab.a === 0,
+        r.worstTab ? `最嚴重的是「${r.worstTab.txt}」相交 ${r.worstTab.a}px²` : '量不到分頁或隨機鈕');
+      // X4 整族一起掃:今天壞的是 .map-actions,明天可能是隔壁那條,它們共用同一個假設
+      const below = Object.entries(r.tops).filter(([, v]) => r.tb && v < r.tb.b - 0.5).map(([k, v]) => `${k}=${v}<頂列底${Math.round(r.tb.b)}`);
+      ok(`X4 ${tag} 🔴 上錨元件的 top 全部不高於頂列底緣(整族掃,不只今天壞的那個)`, below.length === 0,
+        below.length ? below.join('、') : `${Object.keys(r.tops).length} 個全過(頂列底 ${r.tb && Math.round(r.tb.b)})`);
+      ok(`X5 ${tag} 結構性:上錨元件的 top 不得是 JS 寫死的絕對 px(安全區晚注入會對不上)`,
+        r.inlineTop.length === 0, r.inlineTop.join('、') || '零個');
+      ok(`X6 ${tag} 零 pageerror`, errs.length === 0, errs.join(' | ') || '無');
+      await close();
+    }
+  }
+}
+
+// ── Y 段:點地圖空白處要收掉車站看板(使用者要求;捷運與台鐵兩條分支各一套) ─────────────
+// 這一段驗的是「互動能力」不是版面幾何,所以只跑 393pt/std——換字級不會改變點擊路由。
+// 🔴 判準一律「真的用滑鼠點一次 + 量它造成的狀態改變」(#board.hidden 與 state.boardStation),
+//    不用 elementFromPoint 命中誰下結論:命中對祖先容器恆真,答不了「點下去會發生什麼」。
+//    (memory:assertion-blindspot-taxonomy／judgment 心得 33、37)
+async function sectionY(browser, engine) {
+  for (const [gtab, label] of [['捷', 'freq'], ['台', 'sched']]) {
+    const { page, errs, close } = await boot(browser, { width: 393, tier: 'std' });
+    const tag = `${engine} ${label}`;
+    try {
+      await page.evaluate(g => {
+        const vis = e => e && e.offsetParent !== null;
+        [...document.querySelectorAll('.topbar .gtab')].filter(vis).forEach(b => { if (b.textContent.trim() === g) b.click(); });
+      }, gtab);
+      await page.waitForTimeout(3000);
+
+      // 候選站:全台縮放下所有站擠成一團,挑不出「鄰站夠遠」的目標 ⇒ 逐顆放大到 z15 再判。
+      // 🔴 「站上此刻沒有列車」是會飄的環境條件(車一停靠就會彈歧義選單而不是開看板),
+      //    所以不寫進判準、改成多試幾顆——綁進判準會變成隨機紅(見 memory:心得 34)。
+      const cands = await page.evaluate(() => {
+        const out = [];
+        if (state.mode === 'sched') (state.schedStations || []).forEach(s => out.push({ name: s.name, lat: s.lat, lon: s.lon }));
+        else state.lines.forEach(ln => { if (state.visible.has(ln.id) && ln.stations) ln.stations.forEach(s => { if (s && s.lat) out.push({ name: s.name, lat: s.lat, lon: s.lon }); }); });
+        const step = Math.max(1, Math.floor(out.length / 8)); // 跨線/跨區抽樣,不要全挑同一段
+        return out.filter((_, i) => i % step === 0).slice(0, 8);
+      });
+
+      let chosen = null;
+      for (const st of cands) {
+        await page.evaluate(s => map.setView([s.lat, s.lon], 15, { animate: false }), st);
+        await page.waitForTimeout(1300);
+        const c = await page.evaluate(nm => {
+          const rect = map.getContainer().getBoundingClientRect();
+          const pts = [];
+          if (state.mode === 'sched') (state.schedStations || []).forEach(s => { const p = map.latLngToContainerPoint([s.lat, s.lon]); pts.push({ x: p.x, y: p.y, name: s.name }); });
+          else state.lines.forEach(ln => { if (state.visible.has(ln.id) && ln.pts) ln.pts.forEach((p, i) => { if (ln.stations[i]) pts.push({ x: p.x, y: p.y, name: ln.stations[i].name }); }); });
+          const me = pts.find(p => p.name === nm && Math.hypot(p.x - rect.width / 2, p.y - rect.height / 2) < 40);
+          if (!me) return { ok: false, why: '不在畫面中央' };
+          const el = document.elementFromPoint(rect.left + me.x, rect.top + me.y);
+          if (!el || !el.closest('#map,#overlay')) return { ok: false, why: '被 UI 蓋住:' + (el ? (el.id || el.className) : 'null') };
+          if (pts.filter(q => Math.hypot(q.x - me.x, q.y - me.y) < 26).length !== 1) return { ok: false, why: '鄰站太近' };
+          if ((state.mode === 'sched' ? trainsAt : freqTrainsAt)(L.point(me.x, me.y)).length) return { ok: false, why: '站上停著車' };
+          return { ok: true, x: me.x, y: me.y, name: nm, rect: { l: rect.left, t: rect.top } };
+        }, st.name);
+        if (c.ok) { chosen = c; break; }
+      }
+
+      const bd = () => page.evaluate(() => { const b = document.getElementById('board'); return { open: !b.hidden, stn: state.boardStation ? (state.boardStation.name || '') : null }; });
+
+      // Y1 正向對照:真的點站 ⇒ 看板開、而且開的正是那一站。
+      // 沒有這一條,Y3 的「看板關著」可能只是因為它從頭到尾就打不開(判準架空)。
+      if (chosen) { await page.mouse.click(chosen.rect.l + chosen.x, chosen.rect.t + chosen.y); await page.waitForTimeout(900); }
+      const s1 = chosen ? await bd() : { open: false, stn: null };
+      ok(`Y1 ${tag} 正向對照:真的點一顆車站 ⇒ 看板打得開`, !!chosen && s1.open && s1.stn === chosen.name,
+        chosen ? `點「${chosen.name}」→ 看板 ${s1.open ? '開' : '關'}${s1.stn ? '(' + s1.stn + ')' : ''}` : `${cands.length} 顆候選都挑不出乾淨目標`);
+
+      // Y2 結構前提:待會要點的那一點,真的是空白(離最近站 >60px、沒有車牌罩住、最上層是地圖層)。
+      // 🔴 必須在看板開起來之後才算:看板一開,讓位/置中機制會把地圖推走,開板前算的座標已經不是空白。
+      const g2 = await page.evaluate(() => {
+        const rect = map.getContainer().getBoundingClientRect();
+        const pts = [];
+        if (state.mode === 'sched') (state.schedStations || []).forEach(s => { const p = map.latLngToContainerPoint([s.lat, s.lon]); pts.push({ x: p.x, y: p.y }); });
+        else state.lines.forEach(ln => { if (state.visible.has(ln.id) && ln.pts) ln.pts.forEach(p => pts.push({ x: p.x, y: p.y })); });
+        const nTr = (x, y) => (state.mode === 'sched' ? trainsAt : freqTrainsAt)(L.point(x, y)).length;
+        for (let y = 180; y < rect.height - 300; y += 11) {
+          for (let x = 26; x < rect.width - 26; x += 11) {
+            let mn = 1e9; for (const p of pts) mn = Math.min(mn, Math.hypot(p.x - x, p.y - y));
+            if (mn <= 60 || nTr(x, y)) continue;
+            const el = document.elementFromPoint(rect.left + x, rect.top + y);
+            if (el && el.closest('#map,#overlay')) return { x, y, px: Math.round(mn), hit: el.id || el.className, rect: { l: rect.left, t: rect.top } };
+          }
+        }
+        return null;
+      });
+      ok(`Y2 ${tag} 結構前提:找得到一個真的空白的點(離最近站>60px、無車牌、最上層是地圖)`, !!g2,
+        g2 ? `(${g2.x},${g2.y}) 離最近站 ${g2.px}px,命中 ${g2.hit}` : '整張畫面找不到空白點');
+
+      // Y3 主判準:看板開著時點空白處 ⇒ 看板關掉(hidden 且 boardStation 清空)。
+      if (g2) { await page.mouse.click(g2.rect.l + g2.x, g2.rect.t + g2.y); await page.waitForTimeout(900); }
+      const s2 = g2 ? await bd() : { open: true, stn: 'n/a' };
+      ok(`Y3 ${tag} 看板開著時點地圖空白處 ⇒ 看板收掉`, !!g2 && s1.open && !s2.open && s2.stn === null,
+        `點空白前 ${s1.open ? '開' : '關'} → 點空白後 ${s2.open ? '開' : '關'}(boardStation=${s2.stn})`);
+
+      // Y4 反向對照:收掉之後地圖還活著——再點一次同一顆站,看板要重新開得起來。
+      // 沒有這一條,「把地圖點擊整個弄壞」也會讓 Y3 全綠。
+      if (chosen) { await page.mouse.click(chosen.rect.l + chosen.x, chosen.rect.t + chosen.y); await page.waitForTimeout(900); }
+      const s3 = chosen ? await bd() : { open: false, stn: null };
+      ok(`Y4 ${tag} 反向對照:收掉之後再點同一顆站,看板重新開得起來(沒把地圖點擊弄壞)`,
+        !!chosen && s3.open && s3.stn === chosen.name, `重點「${chosen ? chosen.name : '-'}」→ ${s3.open ? '開(' + s3.stn + ')' : '關'}`);
+
+      ok(`Y5 ${tag} 零 pageerror`, errs.length === 0, errs.slice(0, 2).join(' | ') || '無');
+    } finally { await close(); }
+  }
+}
+
+const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ, K: sectionK, L: sectionL, M: sectionM, MX: sectionMx, N: sectionN, NX: sectionNx, O: sectionO, P: sectionP, Q: sectionQ, R: sectionR, S: sectionS, T: sectionT, U: sectionU, V: sectionV, W: sectionW, X: sectionX, Y: sectionY };
 const want = (process.env.SECTIONS || '').split(',').map(x => x.trim().toUpperCase()).filter(Boolean);
 const run = want.length ? want : Object.keys(ALL);
 for (const k of run) if (!ALL[k]) { console.error(`未知段別 ${k}`); process.exit(2); }
