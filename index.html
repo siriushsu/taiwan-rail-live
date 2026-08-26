@@ -8645,10 +8645,11 @@ function drawSched(w, h, paintDecoTrains) {
     if (state.visible.has(tr.typeName)) n++;
     const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
     const sh = blockSideShift(tr, pos, cp, showTrain); // 同線同向貼太近 → 兩顆標記各往軌道法線偏一半
-    if (isFollow) { state._trainHits.push({ x: cp.x, y: cp.y, tr }); paintTrain(cp.x, cp.y, tr.sys, null, () => drawFollowMarker(cp, tr)); continue; }
+    // 跟隨中的那台一律畫牌(drawFollowMarker 內不看 showTrain),所以框也一律取牌的尺寸
+    if (isFollow) { state._trainHits.push({ x: cp.x, y: cp.y, tr, ...trainMarkBox(tr, true) }); paintTrain(cp.x, cp.y, tr.sys, null, () => drawFollowMarker(cp, tr)); continue; }
     if (sh) { cp.x += sh.x; cp.y += sh.y; }
     if (!inView(cp)) continue;
-    state._trainHits.push({ x: cp.x, y: cp.y, tr }); // 供點擊/hover 命中測試(每幀重建)
+    state._trainHits.push({ x: cp.x, y: cp.y, tr, ...trainMarkBox(tr, showTrain) }); // 供點擊/hover 命中測試(每幀重建)
     const glowC = isHSR(tr) ? HSR_ORANGE : tr.color;
     paintTrain(cp.x, cp.y, tr.sys, null, () => {
       drawTrail(dt => trainPos(tr, state.simSec - dt), cp, glowC, sh);
@@ -8860,10 +8861,19 @@ function drawPunctualRing(p) {
   ctx.globalAlpha = 1;
 }
 
+// 車號牌的尺寸常數。抽出來的理由不是美觀,是**這些數字原本各寫了兩份**:
+// drawTag 的 `+10` 與 tagW() 的 `+10` 是同一件事的兩個實作,drawHSRTag 的 `+13`／`nose 5`
+// 只有它自己知道。命中框要對齊「實際畫出來的牌」,就必須讀同一組數字——否則任何一邊改了字級或
+// 內距,另一邊不會跟著動,而症狀是「點不到車」:不拋錯、不畫錯、只有使用者知道的靜默失效。
+const TAG_H = 15;         // 牌高(drawTag / drawHSRTag 共用的 ph)
+const TAG_PAD = 10;       // 台鐵牌:文字寬 + 這個內距
+const HSR_TAG_PAD = 13;   // 高鐵牌本體內距(比台鐵寬)
+const HSR_NOSE = 5;       // 高鐵牌左右各一個尖角,兩側都超出牌本體
+const DOT_HIT = 12;       // 圓點模式的命中框邊長(drawDot 外圈 r=6)
 function drawTag(p, label, bg, fg) {
   // textAlign 必須自己設:draw() 每幀結尾重設為 start,靠環境值會讓車號從中心點往右起筆(偏右半個字寬)
   ctx.font = '700 10px ' + FONT; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
-  const pw = ctx.measureText(label).width + 10, ph = 15, rx = 7.5;
+  const pw = ctx.measureText(label).width + TAG_PAD, ph = TAG_H, rx = 7.5;
   const x0 = p.x - pw / 2, y0 = p.y - ph / 2;
   ctx.beginPath();
   ctx.moveTo(x0 + rx, y0);
@@ -8938,8 +8948,17 @@ const _blockSideEase = new Map();      // 進出偏移要漸變,不能一到門�
 const _blockSideLatch = new Set();     // 已經讓開的:通過的車真的走遠之前不准回到軌道上
 // 車號牌實寬(與 drawTag 同一條算式);標籤不變 → 每班量一次就夠
 function tagW(tr) {
-  if (tr._tagW == null) { ctx.font = '700 10px ' + FONT; tr._tagW = ctx.measureText(String(tr.train)).width + 10; }
+  if (tr._tagW == null) { ctx.font = '700 10px ' + FONT; tr._tagW = ctx.measureText(String(tr.train)).width + TAG_PAD; }
   return tr._tagW;
+}
+// 「這台車在畫面上實際佔多大」——命中測試的唯一尺寸來源。
+// 高鐵牌比台鐵寬 (HSR_TAG_PAD - TAG_PAD),再加左右兩個尖角;圓點模式兩邊都是 DOT_HIT。
+// 刻意做成一個函式而不是「讓 drawTag 回傳它畫了多寬」:後者要求每個畫牌函式都遵守同一個回傳約定,
+// 而畫牌是走 paintTrain 佇列**延後**執行的,命中記錄在推入時根本還拿不到那個回傳值。
+function trainMarkBox(tr, showTag) {
+  if (!showTag) return { w: DOT_HIT, h: DOT_HIT };
+  const w = tagW(tr);
+  return isHSR(tr) ? { w: w + (HSR_TAG_PAD - TAG_PAD) + HSR_NOSE * 2, h: TAG_H } : { w, h: TAG_H };
 }
 function blockSideShift(tr, pos, cp, big) {
   const key = blockKeyOf(tr);
@@ -9073,7 +9092,7 @@ function drawTrail(getPos, head, color, sh) {
 const HSR_ORANGE = '#E85D0D';
 function drawHSRTag(p, label) {
   ctx.font = '700 10px ' + FONT; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
-  const pw = ctx.measureText(label).width + 13, ph = 15, nose = 5;
+  const pw = ctx.measureText(label).width + HSR_TAG_PAD, ph = TAG_H, nose = HSR_NOSE;
   const x0 = p.x - pw / 2, x1 = p.x + pw / 2, y0 = p.y - ph / 2, y1 = p.y + ph / 2;
   ctx.beginPath();
   ctx.moveTo(x0, y0); ctx.lineTo(x1, y0); ctx.lineTo(x1 + nose, p.y);
@@ -9093,15 +9112,34 @@ function drawHSRDot(p) {
 }
 function isHSR(tr) { return tr && tr.sys === 'thsr_sched'; }
 
-// 點擊/hover 的列車命中測試(用 drawSched 每幀重建的螢幕座標快取)
-function trainAt(cp) {
-  let best = null, bd = 16; // px
+// 點擊/hover 的列車命中測試(用 drawSched 每幀重建的螢幕座標快取)。
+//
+// 為什麼不是「半徑內取最近」:兩台車部分重疊時,下層那台露出來的牌邊**離自己的中心比較遠**、
+// 卻離上層那台的中心比較近 ⇒ 點在看得見的下層牌上,跟到的是上層那台。使用者 2026-08-13 回報的
+// 就是這件事。改成「先看點有沒有落在**實際畫出來的那塊牌**裡」,看得到就點得到。
+// 半徑退路保留:框都沒中時維持原本 16px 取最近的語意,所以沒有疊車的情況行為完全不變。
+// (捷運示意層的 freqTrainsAt 早就是這個形狀,這裡是把台鐵/高鐵補齊到同一套。)
+const TRAIN_HIT_R = 16; // px:框都沒中時的容錯半徑(維持舊語意)
+function trainsAt(cp) {
+  const boxed = [], near = [];
   for (const h of (state._trainHits || [])) {
-    const d = Math.hypot(h.x - cp.x, h.y - cp.y);
-    if (d < bd) { bd = d; best = h; }
+    const dx = h.x - cp.x, dy = h.y - cp.y, d = Math.hypot(dx, dy);
+    // w/h 一定有(trainMarkBox 兩條路徑都給值);萬一舊形記錄混進來就退回圓點框,不拋錯
+    if (Math.abs(dx) <= (h.w || DOT_HIT) / 2 && Math.abs(dy) <= (h.h || DOT_HIT) / 2) boxed.push({ tr: h.tr, dist: d, boxed: true });
+    else if (d < TRAIN_HIT_R) near.push({ tr: h.tr, dist: d, boxed: false });
   }
-  return best ? { tr: best.tr, dist: bd } : null;
+  // 有框中的就只看框中的:一台車的牌壓在另一台上時,「附近但沒中框」的那些不該擠進選單。
+  // 同層內仍以離中心近者優先(牌重疊時靠中心的那台通常是使用者瞄準的)。
+  if (boxed.length) return boxed.sort((a, b) => a.dist - b.dist);
+  // 🔴 退路層**只回最近一台**,與 freqTrainsAt 完全同形。這讓「沒有疊牌時行為零變化」變成
+  //    結構保證而不是「大概不會變」:退路永遠 length<=1 ⇒ 疊車選單那條分支根本進不去,
+  //    此前 16px 內兩台各自不重疊的車照樣直接跟隨最近那台。
+  //    守門人:scripts/verify_train_overlap_pick.mjs 的 D4。把這行改成 `return near` 會讓它
+  //    在五個視窗全紅——補 D4 之前這個突變是 53/53 全過的,那時這段註解只是一句話。
+  near.sort((a, b) => a.dist - b.dist);
+  return near.length ? [near[0]] : [];
 }
+function trainAt(cp) { return trainsAt(cp)[0] || null; }
 
 // ── 台鐵平交道通過預測 ──────────────────────────────────────────────────────
 // 支線英文 id → 顯示線名(其餘 lnId 本身即中文線名)
@@ -25461,7 +25499,15 @@ async function boot() {
     // 車與站都在範圍內時取較近者:點列車跟隨(再點一下取消)、點車站開時刻板;
     // 兩者距離幾乎相同(列車停靠中)分不出意圖 → 彈小選單讓使用者選。
     // 歧義判定要在勝負判定「之前」:停靠時車站常以次像素之差險勝,檢查放在車勝分支內會漏掉站險勝的那半
-    const hit = trainAt(cp);
+    const hits = trainsAt(cp), hit = hits[0];
+    // 疊車:兩張以上的牌都罩住這一點,分不出使用者要哪一台 ⇒ 列出來讓他選。
+    // 只有「框都中」才會有兩筆(見 trainsAt),所以沒有疊牌的情況一如既往直接跟隨。
+    // 站也黏在一起時把疊站列一併併進同一張選單(與下面單台那條、以及捷運那條的處理一致)。
+    if (hits.length > 1) {
+      const items = hits.map(tapPickSchedTrain);
+      if (best && bd <= 16 && Math.abs(hit.dist - bd) < TAP_AMBIG_PX) items.push(...stAmb());
+      openTapPick(cp, items); return;
+    }
     if (hit && best && bd <= 16 && Math.abs(hit.dist - bd) < TAP_AMBIG_PX) { openTapPick(cp, [tapPickSchedTrain(hit), ...stAmb()]); return; }
     if (hit && (bd > 16 || hit.dist <= bd)) {
       if (hit.tr === state.followTrain) { setAutoTour(false); clearFollow(); return; }
