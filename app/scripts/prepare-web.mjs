@@ -41,6 +41,9 @@ if (androidPlusEnabled) {
   if (!/^goog_[A-Za-z0-9]+$/.test(androidRevenueCatApiKey)) {
     throw new Error('RAIL_ANDROID_PLUS_ENABLED=1 時必須提供 RevenueCat Android public SDK key（RAIL_REVENUECAT_ANDROID_API_KEY，格式 goog_…）；sk_ secret 絕不可放進 App');
   }
+  if (!enableMetroCore) {
+    throw new Error('Android 通行證版必須同時設定 RAIL_ENABLE_METRO_CORE=1；拒絕產出退回舊捷運位置模型的 AAB');
+  }
   if (androidPlusSandboxPolicy !== 'revenuecat-allowlist') {
     throw new Error('Android 通行證正式包必須設定 RAIL_ANDROID_PLUS_SANDBOX_POLICY=revenuecat-allowlist，並先在 RevenueCat 與 Worker 限定測試 UID');
   }

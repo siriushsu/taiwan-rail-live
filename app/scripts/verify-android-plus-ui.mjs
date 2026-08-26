@@ -85,6 +85,7 @@ try {
       return {
         plusEnabled: PLUS_ENABLED,
         plusConfigured: plusConfigured(),
+        metroCoreEnabled: METRO_CORE_ENABLED,
         sandboxBuild: PLUS_SANDBOX_BUILD,
         hasGooglePlay: text.includes('Google Play'),
         hasAppStore: text.includes('App Store'),
@@ -93,7 +94,8 @@ try {
         restoreCount: document.querySelectorAll('.plus-restore').length,
       };
     });
-    if (!stateResult.plusEnabled || !stateResult.plusConfigured || stateResult.sandboxBuild !== '16'
+    if (!stateResult.plusEnabled || !stateResult.plusConfigured || !stateResult.metroCoreEnabled
+        || stateResult.sandboxBuild !== '16'
         || !stateResult.hasGooglePlay || stateResult.hasAppStore || stateResult.hasIosOnlyFeature
         || stateResult.planCount !== 2 || stateResult.restoreCount !== 1) {
       throw new Error(`${width}px Android Plus 狀態不符：${JSON.stringify(stateResult)}`);

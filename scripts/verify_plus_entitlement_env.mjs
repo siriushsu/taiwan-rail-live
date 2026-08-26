@@ -413,7 +413,7 @@ section(SECTIONS[6]);
   check(androidDisabledMsg === null,
     'Android Plus 明確關閉＋policy/build 都是 null ⇒ 發版設定閘門放行免費版本', String(androidDisabledMsg));
 
-  const androidEnabled = '<script>window.RAIL_ANDROID_PLUS_ENABLED=true;window.RAIL_ANDROID_PLUS_SANDBOX_POLICY="revenuecat-allowlist";window.RAIL_ANDROID_PLUS_SANDBOX_BUILD="16";window.RAIL_REVENUECAT_CONFIG={androidApiKey:"goog_PUBLIC123"}</script>' + indexSrc;
+  const androidEnabled = '<script>window.RAIL_METRO_CORE_ENABLED=true;window.RAIL_ANDROID_PLUS_ENABLED=true;window.RAIL_ANDROID_PLUS_SANDBOX_POLICY="revenuecat-allowlist";window.RAIL_ANDROID_PLUS_SANDBOX_BUILD="16";window.RAIL_REVENUECAT_CONFIG={androidApiKey:"goog_PUBLIC123"}</script>' + indexSrc;
   let androidEnabledMsg = null;
   try { assertAndroidPlusReleaseConfig(androidEnabled, '16'); } catch (e) { androidEnabledMsg = e.message; }
   check(androidEnabledMsg === null,
@@ -424,6 +424,12 @@ section(SECTIONS[6]);
   try { assertAndroidPlusReleaseConfig(androidMissingKey, '16'); } catch (e) { androidMissingKeyMsg = e.message; }
   check(typeof androidMissingKeyMsg === 'string' && /public SDK key/.test(androidMissingKeyMsg),
     'Android Plus 開啟但缺 goog_ public key ⇒ 擋下', String(androidMissingKeyMsg));
+
+  const androidMetroCoreOff = androidEnabled.replace('window.RAIL_METRO_CORE_ENABLED=true', 'window.RAIL_METRO_CORE_ENABLED=false');
+  let androidMetroCoreOffMsg = null;
+  try { assertAndroidPlusReleaseConfig(androidMetroCoreOff, '16'); } catch (e) { androidMetroCoreOffMsg = e.message; }
+  check(typeof androidMetroCoreOffMsg === 'string' && /Metro Core/.test(androidMetroCoreOffMsg),
+    'Android Plus 開啟但 Metro Core 關閉 ⇒ 擋下', String(androidMetroCoreOffMsg));
 
   let androidWrongBuildMsg = null;
   try { assertAndroidPlusReleaseConfig(androidEnabled, '17'); } catch (e) { androidWrongBuildMsg = e.message; }

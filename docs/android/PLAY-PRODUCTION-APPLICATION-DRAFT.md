@@ -46,7 +46,7 @@
 
 ### 根據測試做了哪些變更？
 
-> 封測回饋指出部分裝置在縮放與拖曳地圖時，底圖、軌道與列車 overlay 會短暫錯位或抖動。我們已移除不同步的縮放補間，並讓拖曳與縮放收尾時 canvas overlay 與地圖同幀重畫；同時補回 Android 合併時遺失的鎖定畫面入口、衛星高解析提示、捷運小工具方案說明、持續定位藍點與所在地鏡頭。針對 Android 通行證，versionCode 16 新增 Google Play Billing／RevenueCat Android 購買與恢復購買、Google Play 專用文案，以及 Sandbox UID allowlist 與 release fail-closed gates。平交道與糖鐵資料完整度仍列為持續校正，沒有宣稱已完成。
+> 封測回饋指出部分裝置在縮放與拖曳地圖時，底圖、軌道與列車 overlay 會短暫錯位或抖動。我們已移除不同步的縮放補間，並讓拖曳與縮放收尾時 canvas overlay 與地圖同幀重畫；同時補回 Android 合併時遺失的鎖定畫面入口、衛星高解析提示、捷運小工具方案說明、持續定位藍點與所在地鏡頭。針對 Android 通行證，versionCode 16 新增 Google Play Billing／RevenueCat Android 購買與恢復購買、Google Play 專用文案，以及 Sandbox UID allowlist 與 release fail-closed gates；出包閘門也強制啟用與網站相同的 Metro Core，避免退回舊捷運位置模型。平交道與糖鐵資料完整度仍列為持續校正，沒有宣稱已完成。
 
 ### 為什麼 App 已準備好正式上架？
 

@@ -178,6 +178,8 @@ export function assertAndroidPlusReleaseConfig(html, expectedVersionCode = '') {
   assert(key, 'Android 通行證已開啟，但發行包沒有格式正確的 RevenueCat Android public SDK key（goog_…）');
   assert(!/androidApiKey\s*:\s*["']sk_/.test(html),
     'Android App 絕不可打包 RevenueCat secret key（sk_…）');
+  assert(/window\.RAIL_METRO_CORE_ENABLED=true/.test(html),
+    'Android 通行證版必須明確啟用 Metro Core；不可退回舊捷運位置模型');
   assert(/window\.RAIL_ANDROID_PLUS_SANDBOX_POLICY="revenuecat-allowlist"/.test(html),
     'Android 通行證正式包必須明確採 revenuecat-allowlist Sandbox policy');
   const build = /window\.RAIL_ANDROID_PLUS_SANDBOX_BUILD="([1-9]\d*)"/.exec(html)?.[1] || '';
