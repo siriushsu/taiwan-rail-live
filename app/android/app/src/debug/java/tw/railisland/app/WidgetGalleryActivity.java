@@ -34,6 +34,10 @@ public final class WidgetGalleryActivity extends Activity {
         String size = getIntent().getStringExtra("size");
         String kind = getIntent().getStringExtra("kind");
         if (size == null) size = "4x2";
+        if ("rail".equals(kind) || "mixed".equals(kind)) {
+            showParity("mixed".equals(kind));
+            return;
+        }
         boolean board = "board".equals(kind);
         int layoutRes = board
             ? ("4x3".equals(size) ? R.layout.widget_board_4x3
@@ -72,6 +76,62 @@ public final class WidgetGalleryActivity extends Activity {
         ScrollView scroll = new ScrollView(this);
         scroll.addView(column);
         setContentView(scroll);
+    }
+
+    /** 新增的鐵路／雙看板真實 RemoteViews 預覽；只在 debug build 存在。 */
+    private void showParity(boolean mixed) {
+        long now = System.currentTimeMillis();
+        RailWidgetData.Snapshot rail = new RailWidgetData.Snapshot();
+        rail.sys = RailWidgetData.SYS_COMPOSITE;
+        rail.systemLabel = "台鐵＋高鐵";
+        rail.origin = "板橋";
+        rail.destination = "";
+        rail.generatedAt = now;
+        String[] nos = { "123", "0567", "2551", "0812", "2733", "0149" };
+        String[] types = { "自強", "高鐵", "區間車", "莒光", "區間快", "高鐵" };
+        String[] ends = { "花蓮", "南港", "基隆", "臺東", "蘇澳", "左營" };
+        for (int i = 0; i < nos.length; i++) {
+            RailWidgetData.Row row = new RailWidgetData.Row();
+            row.sys = "高鐵".equals(types[i]) ? "thsr" : "tra";
+            row.no = nos[i]; row.type = types[i]; row.terminus = ends[i];
+            row.color = row.sys.equals("thsr") ? "#E85D0D" : i == 0 ? "#C0392B" : "#2E6FB0";
+            row.relation = i == 4 ? RailWidgetData.Relation.PASS : RailWidgetData.Relation.DEPARTURE;
+            row.scheduledAt = now + (i + 1) * 7 * 60_000L;
+            row.delayMinutes = i == 2 ? Integer.valueOf(3)
+                : i % 2 == 0 ? Integer.valueOf(0) : null;
+            rail.rows.add(row);
+        }
+
+        RemoteViews views;
+        if (mixed) {
+            MetroWidgetData.Snapshot metro = new MetroWidgetData.Snapshot();
+            metro.sys = "trtc"; metro.systemLabel = "台北捷運"; metro.station = "板橋";
+            metro.precision = "seconds"; metro.dataAt = now / 1000.0;
+            String[] dests = { "南港展覽館", "頂埔", "亞東醫院" };
+            for (int i = 0; i < dests.length; i++) {
+                MetroWidgetData.Row row = new MetroWidgetData.Row();
+                row.dest = dests[i]; row.eta = now / 1000.0 + (i + 2) * 120;
+                row.color = i == 0 ? "#0070BD" : "#FFDB00";
+                row.lineLabel = i == 0 ? "板南線" : "環狀線";
+                row.lineId = i == 0 ? "BL" : "Y";
+                metro.rows.add(row);
+            }
+            views = MixedWidgetRender.board(this, rail, metro);
+        } else {
+            views = RailWidgetRender.board(this, R.layout.widget_rail_4x4, rail, 8, false, false);
+        }
+
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setGravity(Gravity.CENTER_HORIZONTAL);
+        root.setBackgroundColor(Color.rgb(90, 96, 104));
+        root.setPadding(dp(12), dp(20), dp(12), dp(20));
+        TextView caption = new TextView(this);
+        caption.setText(mixed ? "鐵路＋捷運雙看板 · 4×4" : "台鐵／高鐵發車看板 · 4×4");
+        caption.setTextColor(Color.WHITE); caption.setTextSize(14); caption.setPadding(0, 0, 0, dp(8));
+        root.addView(caption);
+        root.addView(views.apply(this, root), new LinearLayout.LayoutParams(dp(340), dp(310)));
+        setContentView(root);
     }
 
     /** 看板的第二、三列：同一站的另一個方向（真實情境就是這樣，一站兩三個終點）。 */

@@ -172,6 +172,7 @@ public final class RailMetroWaitPlugin extends Plugin {
         getContext().getSharedPreferences(MetroWidgetProvider.PREFS, Context.MODE_PRIVATE)
             .edit().putBoolean("plus_active", active).apply();
         MetroWidgetProvider.updateAll(getContext());
+        MixedBoardWidgetProvider.updateAll(getContext());
         JSObject out = new JSObject();
         out.put("ok", true);
         call.resolve(out);

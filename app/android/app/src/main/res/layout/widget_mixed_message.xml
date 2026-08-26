@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/wmx_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/wg_card"
+    android:gravity="center_vertical"
+    android:orientation="vertical"
+    android:padding="18dp">
+    <TextView
+        android:id="@+id/wmxm_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="設定雙看板"
+        android:textColor="@color/wg_ink"
+        android:textSize="17sp"
+        android:textStyle="bold" />
+    <TextView
+        android:id="@+id/wmxm_body"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="7dp"
+        android:text="點一下選鐵路站與捷運站"
+        android:textColor="@color/wg_ink_soft"
+        android:textSize="12sp" />
+</LinearLayout>

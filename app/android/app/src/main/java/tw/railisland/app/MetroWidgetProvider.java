@@ -70,6 +70,13 @@ public final class MetroWidgetProvider extends AppWidgetProvider {
             String station = prefs.getString("station_" + id, null);
             if (sys != null && station != null && !AUTO.equals(station)) active.add(sys + "|" + station);
         }
+        SharedPreferences mixed = context.getSharedPreferences(MixedBoardWidgetProvider.PREFS, Context.MODE_PRIVATE);
+        int[] mixedIds = manager.getAppWidgetIds(new ComponentName(context, MixedBoardWidgetProvider.class));
+        for (int id : mixedIds) {
+            String sys = mixed.getString("metro_sys_" + id, null);
+            String station = mixed.getString("metro_station_" + id, null);
+            if (sys != null && station != null && !AUTO.equals(station)) active.add(sys + "|" + station);
+        }
         String free = prefs.getString("free_station", null);
         if (free != null && active.contains(free)) return;
         SharedPreferences.Editor editor = prefs.edit();
@@ -197,7 +204,7 @@ public final class MetroWidgetProvider extends AppWidgetProvider {
      * 一列＝一個終點方向。第一列是主角（設計稿的 1a 只畫這一列），1b 看板最多三列。
      * 每一列都走同一個 MetroWidgetPlate.of(...)——狀態判定只有一份。
      */
-    private static List<MetroWidgetPlate> plates(Context context, MetroWidgetData.Snapshot snapshot) {
+    static List<MetroWidgetPlate> plates(Context context, MetroWidgetData.Snapshot snapshot) {
         MetroWidgetData.Catalog catalog = null;
         MetroWidgetData.SystemInfo system = null;
         try {

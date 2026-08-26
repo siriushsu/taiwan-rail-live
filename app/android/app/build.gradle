@@ -78,6 +78,20 @@ tasks.register('syncMetroWidgetData', Copy) {
 android.sourceSets.main.assets.srcDir metroWidgetAssetsDir
 tasks.named('preBuild').configure { dependsOn tasks.named('syncMetroWidgetData') }
 
+// Android 鐵路看板的站名／座標與台鐵逐日班表由 repo 同一份 dense 資料產生；高鐵班次在
+// runtime 改讀網站現用的 /api/thsr-schedule 今日文件，打包的舊單日檔只供站目錄使用。
+def railWidgetAssetsDir = file("$buildDir/generated/railWidgetAssets")
+def railWidgetDataFile = file("$railWidgetAssetsDir/RailWidgetData.json")
+tasks.register('buildRailWidgetData', Exec) {
+    workingDir file('../../..')
+    commandLine 'node', 'app/scripts/build_rail_widget_data.mjs', '--out', railWidgetDataFile.absolutePath
+    inputs.files file('../../../data/tra_schedule_dense.json'), file('../../../data/thsr_schedule_dense.json')
+    inputs.file file('../../scripts/build_rail_widget_data.mjs')
+    outputs.file railWidgetDataFile
+}
+android.sourceSets.main.assets.srcDir railWidgetAssetsDir
+tasks.named('preBuild').configure { dependsOn tasks.named('buildRailWidgetData') }
+
 apply from: 'capacitor.build.gradle'
 
 try {

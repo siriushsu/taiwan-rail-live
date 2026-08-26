@@ -191,7 +191,11 @@ final class RailWaitNotification {
             builder.setStyle(new NotificationCompat.BigTextStyle().bigText(detail.toString()));
         }
 
-        NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, builder.build());
+        try {
+            NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, builder.build());
+        } catch (SecurityException ignored) {
+            // 權限可能在上方 canNotify() 檢查後立刻被使用者從系統設定撤回。
+        }
     }
 
     /** 回傳系統是否允許、通知是否合格，以及 Samsung／Android 是否已實際提升這張卡。 */

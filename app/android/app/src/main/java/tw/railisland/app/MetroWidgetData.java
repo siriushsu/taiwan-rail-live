@@ -349,7 +349,11 @@ final class MetroWidgetData {
     }
 
     static Snapshot cached(Context context, int widgetId) {
-        String raw = context.getSharedPreferences(MetroWidgetProvider.PREFS, Context.MODE_PRIVATE)
+        return cached(context, MetroWidgetProvider.PREFS, widgetId);
+    }
+
+    static Snapshot cached(Context context, String prefsName, int widgetId) {
+        String raw = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
             .getString("snapshot_" + widgetId, null);
         if (raw == null) return null;
         try { return Snapshot.fromJson(new JSONObject(raw)); }
@@ -357,8 +361,12 @@ final class MetroWidgetData {
     }
 
     static void cache(Context context, int widgetId, Snapshot snapshot) {
+        cache(context, MetroWidgetProvider.PREFS, widgetId, snapshot);
+    }
+
+    static void cache(Context context, String prefsName, int widgetId, Snapshot snapshot) {
         try {
-            context.getSharedPreferences(MetroWidgetProvider.PREFS, Context.MODE_PRIVATE).edit()
+            context.getSharedPreferences(prefsName, Context.MODE_PRIVATE).edit()
                 .putString("snapshot_" + widgetId, snapshot.toJson().toString()).apply();
         } catch (JSONException ignored) {}
     }

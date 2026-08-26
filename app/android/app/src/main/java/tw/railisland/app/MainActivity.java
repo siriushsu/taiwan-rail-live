@@ -9,6 +9,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         registerPlugin(RailMetroWaitPlugin.class);
+        registerPlugin(RailFollowLivePlugin.class);
         super.onCreate(savedInstanceState);
         RailMetroWaitPlugin.handleIntent(getIntent());
     }
