@@ -470,6 +470,8 @@ export async function verifyRelease({
   }
   assert(html.includes("typeof window.RAIL_METRO_CORE_ENABLED === 'boolean'"),
     'App 內的 index.html 沒有把 Metro Core 發版旗標當成顯式布林覆寫');
+  assert(/L\.map\('map',\s*\{[^}]*zoomAnimation:\s*false\s*\}/.test(html),
+    'App 地圖必須在 L.map 建構時設定 zoomAnimation:false；圖磚 CSS 補間會與獨立 overlay canvas 失步');
 
   // 版本號對**所有** build 模式都必須注入(不是只有授權底圖 build)——App 內的更新提示與評分
   // 全靠它判斷「手上這顆是哪一版」。刻意寫在模式分支之外:放進安全 build 的條件裡就漏掉另一半。

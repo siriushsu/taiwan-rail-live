@@ -3868,7 +3868,7 @@
         <li class="grp">最近更新</li>
         <li data-cl-of="androidplus"><span class="d">8/26</span><span>Android 版補上軌島通行證：可從 Google Play 訂閱月票或年票、恢復購買，方案與取消訂閱說明也會正確顯示 Google Play；同時鎖定與網站相同的捷運即時動畫核心，封測帳號與正式資格仍分開</span></li>
         <li data-cl-of="apprestore"><span class="d">8/23</span><span>Android 新版漏掉的 App 專屬功能已全部補回：跟車鎖屏倒數入口、衛星高解析提示、捷運小工具方案與使用說明，以及移動時持續更新的藍點與所在地鏡頭</span></li>
-        <li data-cl-of="mapsync"><span class="d">8/23</span><span>拖曳地圖時，軌道與列車不再比底圖慢半拍；縮放（手機兩指、滑鼠滾輪）收尾的那一瞬，軌道不會先跳回原處再彈回來</span></li>
+        <li data-cl-of="mapsync"><span class="d">8/26</span><span>Android 縮放地圖時，底圖、路線與列車改成同一拍直接落定，不再各跑一段動畫後短暫分開；衛星影像也重新放回 App</span></li>
         <li data-cl-of="metrowaitfix"><span class="d">8/22</span><span>等車卡修好「點了卻沒出現」：從桌面的捷運小工具點一下，現在會直接把卡片開起來，不用先打開軌島——點完馬上鎖屏、之後一直沒回 App，鎖定畫面上照樣會有那張卡（以前必須等你回到 App 才補得開，人沒回來那一次點擊就沒了）；萬一真的開不成，回到 App 時仍會自動補開，也不會再先空等二十秒。另外兩種也一起修好：動過播放速度或拖過時刻尺之後再追蹤，會自動把時間帶回「現在」再開卡，不會再誤說「這一站現在沒有官方班次資訊」；已經結束的舊卡不再被當成還在追蹤，按鈕不會變成「結束追蹤」害你白點一次。萬一系統遲遲沒有回應，也會明白告訴你再點一次，不會停在那裡沒反應。下次 App 更新生效</span></li>
         <li data-cl-of="trapassjump"><span class="d">8/21</span><span>台鐵列車經過不停靠的小站時，會有一瞬間停在站上、下一瞬間往前跳出去——車速愈快跳得愈遠，自強、太魯閣這類最快的車一次跳將近二十公尺。現在通過那一刻改成連續移動，不再停頓也不再跳。順手修掉另一個少見的狀況：頁面開著跨過午夜、再切換一次系統時，同編號的車會沿用前一天那班的誤點，最遠會把車畫到六公里外</span></li>
         <li data-cl-of="metrosamename"><span class="d">8/21</span><span>不同城市恰好同名的捷運站不再共用同一張看板：台北與台中的「市政府」現在只會顯示各自系統的路線與班次，其他跨系統同名站也一併分開</span></li>
@@ -3992,7 +3992,7 @@
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
         <li data-cl="apprestore"><span class="d">8/23</span><span>Android 新版重建時漏掉一批只存在 App 版本的內容：跟車面板看不到把倒數放上鎖定畫面的入口，切到衛星影像時少了高解析版本提示，方案清單與使用說明也漏掉捷運小工具和「在這站等車」；藍點只停在開啟 App 的位置，所在地鏡頭不再跟著移動。現在這些功能與說明全部補回，並加上出貨檢查，之後若合併時再次整段消失會直接擋住建置</span></li>
-        <li data-cl="mapsync"><span class="d">8/23</span><span>換成 OpenStreetMap 向量底圖後的兩個同步問題：拖曳地圖時軌道與列車會比底圖慢半拍（Safari／App 特別明顯），現在改成底圖每動一下就同一拍重畫軌道；手機兩指縮放放手的那一瞬，軌道會先跳回捏合前的位置再彈回來，現在放手那一拍重新對準底圖，不再跳動。衛星底圖與列車、站點位置一律不受影響</span></li>
+        <li data-cl="mapsync"><span class="d">8/26</span><span>地圖縮放再次改回真機較穩定的同步方式：底圖、路線與列車不再各自跑縮放動畫，而是在同一拍直接落到新倍率，避免 Android 上暫時分開；拖曳時仍會跟著底圖同一拍重畫。上一顆測試包誤用不含授權圖資的安全建置，造成衛星影像整顆消失，這次也一併恢復</span></li>
         <li data-cl="geofollow"><span class="d">8/21</span><span>App 定位改成前景持續更新：只要 App 留在畫面上，藍點會隨你移動，所在地鏡頭也會像一般地圖 App 一樣持續跟著，不再只記住開啟那一刻的位置。手動拖地圖會解除所在地鏡頭，點列車、隨機跟隨或放空時則由那些模式接管，但 GPS 藍點仍持續更新；按一次「附近車站」就會回到目前位置並重新跟隨。Android 恢復要求精確位置，若你在系統選擇概略位置仍可使用、只是準確度較低。App 進入背景或鎖屏會立即停止定位，回到前景才重新開始，原始座標仍只留在裝置內</span></li>
         <li data-cl="appwhatsnewlag"><span class="d">8/19</span><span>App 剛更新完跳出的「更新了什麼」不再拿上一版的說明冒充：商店資料還沒追上新版時先不顯示，等追上再補給你</span></li>
         <li data-cl="androidcoarse"><span class="d">8/16</span><span>Android App 的定位權限改成只詢問模糊位置，不再要求精確位置；附近車站、藍點與需要定位的操作仍可照常使用</span></li>
@@ -4472,7 +4472,7 @@
 //         兩個通行證入口、方案面板與說明中心的捷運小工具條目、說明中心 metrowidget／metrowait
 //         兩節,以及 App 前景持續定位與所在地鏡頭跟隨(v0821d 那批的 index.html 那一半)。
 // v0823f：Android v14 回歸修正版；同時帶回 v0823d 的地圖跨層同步、v0823e 的 App 專屬內容與更新紀錄。
-const BUILD = 'v0826b';
+const BUILD = 'v0826c';
 // clearFollow() 會在開機途中清掉 query string；Private Metro Core 的 rollout 模式必須在最前面先鎖住，
 // 否則 ?metrocore=0／1 可能在資料輪詢區重讀時已消失。
 const METRO_CORE_QUERY_MODE = (() => {
@@ -25416,13 +25416,11 @@ async function boot() {
   ensureMetroWaitListener(); // 捷運等車卡(Task 6)深連結監聽,boot 時掛(僅原生殼有此 plugin,web/PWA 無操作)
   ensureCrossLevels(); // 立體交叉高低表(小檔、不 await):沒載到就退回原順序,不擋開機
   cv = document.getElementById('overlay'); ctx = cv.getContext('2d');
-  // zoomAnimation:true —— 縮放走 Leaflet 250ms CSS 平滑補間(舊圖磚縮放到位、新圖磚淡入),不再「瞬間跳格→
-  // 舊圖磚被丟、新圖磚還沒到→畫面消失一下下」(TestFlight 回報)。overlay 畫布在 Leaflet pane 體系外、以
-  // container 座標每幀重投影,若補間期間立刻按目標 zoom 重畫會與圖磚錯位「殘影」(issue #4,首幀曾錯 186px)——
-  // 舊版 v0714a 靠關掉動畫規避,代價即上述「消失」。現改為:縮放動畫期間凍結 overlay 的 JS 重投影/重繪,
-  // 改對 overlay 施加與圖磚同一條曲線的 CSS transform 同步縮放(見下方 onZoomAnim/endZoomAnim),兩者同幀落定,
-  // 既根除殘影、又不再有消失感。平移/flyTo/跟車(setView animate:false)不發 zoomanim,一律不受此機制影響。
-  map = L.map('map', { zoomControl: true, attributionControl: true, preferCanvas: true, zoomAnimation: true })
+  // zoomAnimation:false —— Leaflet 圖磚層與 #overlay canvas 是兩個獨立渲染層；若讓圖磚走 250ms CSS
+  // 補間、overlay 同時依目標 zoom 重投影，Android WebView 真機會短暫分開。先前的仿射補償在桌面測試
+  // 可對齊，真機仍會失步，因此回到已驗證的穩定方案：縮放同一拍直接落定。代價是縮放不再有平滑收尾，
+  // 但路線、列車與底圖不會分家；flyTo、平移與跟車仍走各自原本的平滑路徑。
+  map = L.map('map', { zoomControl: true, attributionControl: true, preferCanvas: true, zoomAnimation: false })
     .setView([24.5, 121], 8);
   // 都會呼吸幕(分數 zoom 定場)專用:Leaflet 的 latLngToContainerPoint 對每點 project 取整、又減
   // 取整後的 pixelOrigin,分數 zoom 逐幀推進時整幅畫面(路網+海陸輪廓)會 ±1~2.5px shimmer 抖動。

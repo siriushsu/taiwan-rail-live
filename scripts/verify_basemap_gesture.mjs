@@ -39,6 +39,7 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.
   '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.woff2': 'font/woff2', '.svg': 'image/svg+xml' };
 
 const built = await readFile(join(WWW, 'index.html'), 'utf8');
+const ZOOM_ANIMATION_DISABLED = /L\.map\('map',\s*\{[^}]*zoomAnimation:\s*false\s*\}/.test(built);
 console.log(`[G0] 目標 ${TARGET} ${WWW}  index.html ${built.length} bytes  情境 ${SCEN}`);
 for (const f of ['aligndot', 'L.maplibreGL({ style: OFM_STYLE[k]']) {
   if (!built.includes(f)) { console.error(`❌ [G0] 這份 build 缺「${f}」——驗錯目標或 build 過期`); process.exit(1); }
@@ -301,12 +302,15 @@ for (const s of summary) {
   const checks = [];
   if (s.name !== 'wheel') checks.push(['V', s.visOver <= 2 && s.maxVis <= 8]); // 持續性落後(修前 WebKit 拖曳 3/4 的取樣、修前捏合整段 250ms)會連續多幀 >3px;單幀 3–4px 是 screencast 取幀時差,不算
   if (s.name.startsWith('pinch')) {
-    // 沒有動畫幀(anim 從未為 1)＝Leaflet 同步跳過整段動畫(目標視圖=起始視圖),沒有東西可同步、K/F 視為通過但要有 A 幀才算量到
-    checks.push(['A', s.animN > 0]);
+    // zoomAnimation:false 是跨層穩定方案：放手後必須沒有 CSS 收斂動畫；true 模式才要求量到動畫幀。
+    checks.push(['A', ZOOM_ANIMATION_DISABLED ? s.animN === 0 : s.animN > 0]);
     checks.push(['K', s.animN === 0 || (s.kFirst !== null && s.kExp !== null && Math.abs(s.kFirst - s.kExp) <= 0.03)]);
     checks.push(['F', s.animN === 0 || (s.kFirst !== null && s.farMax <= 4)]);
   }
-  checks.push(['E', s.errs === 0 && s.visN >= 30]);
+  // 無縮放動畫的 wheel 是單拍跳級，探針很快被推到控件下方；20 幀已足夠涵蓋動作前後，
+  // 不能再沿用 250ms 動畫模式的 30 幀門檻。手機 pinch 與拖曳仍維持 30 幀。
+  const minVisualFrames = ZOOM_ANIMATION_DISABLED && s.name === 'wheel' ? 20 : 30;
+  checks.push(['E', s.errs === 0 && s.visN >= minVisualFrames]);
   const bad = checks.filter(c => !c[1]).map(c => c[0]);
   if (bad.length) fails++;
   console.log(`${bad.length ? '❌' : '✅'} ${s.name}: zoom反向 ${s.reversals} 次(最大 ${s.maxRev.toFixed(2)})｜數值錯位 ${s.maxGap.toFixed(1)}px｜畫面錯位 最大 ${s.maxVis.toFixed(1)}px／>3px 有 ${s.visOver} 幀${s.kFirst !== null ? `｜首拍 k ${s.kFirst.toFixed(3)}/應 ${s.kExp === null ? '?' : s.kExp.toFixed(3)}｜遠探針 ${s.farMax.toFixed(1)}px` : ''}｜錯誤 ${s.errs}${bad.length ? `  ← 未過 ${bad.join(',')}` : ''}`);

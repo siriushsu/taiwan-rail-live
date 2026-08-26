@@ -9,6 +9,9 @@ const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '..');
 const repoRoot = resolve(appRoot, '..');
 const out = join(appRoot, 'www');
+// 隔離 worktree 不會自動帶入 gitignored .env；允許出包端明確指向同一份本機祕密檔，
+// 檔案內容仍不複製、不寫入產物或版控。未設定時維持既有 repo 根 .env 行為。
+const envFile = process.env.RAIL_ENV_FILE ? resolve(process.env.RAIL_ENV_FILE) : join(repoRoot, '.env');
 const includeLicensedMusic = process.env.RAIL_INCLUDE_LICENSED_MUSIC === '1';
 const includeLicensedBasemaps = process.env.RAIL_INCLUDE_LICENSED_BASEMAPS === '1';
 // Metro Core 的公開 client 已隨 index.html 打包；這顆旗標只決定是否切到 Private Worker snapshot。
@@ -24,7 +27,7 @@ async function readOptionalEnv(name) {
   const direct = String(process.env[name] || '').trim();
   if (direct) return direct;
   try {
-    const source = await readFile(join(repoRoot, '.env'), 'utf8');
+    const source = await readFile(envFile, 'utf8');
     const line = source.split(/\r?\n/).find(candidate => new RegExp(`^\\s*(?:export\\s+)?${name}\\s*=`).test(candidate));
     if (!line) return '';
     let value = line.slice(line.indexOf('=') + 1).trim();
@@ -61,13 +64,13 @@ if (androidPlusEnabled) {
 
 async function readRequiredEnv(name) {
   let source;
-  try { source = await readFile(join(repoRoot, '.env'), 'utf8'); }
-  catch { throw new Error(`建立含授權底圖的 App 前，repo 根目錄 .env 必須設定 ${name}`); }
+  try { source = await readFile(envFile, 'utf8'); }
+  catch { throw new Error(`建立含授權底圖的 App 前，建置用 .env 必須設定 ${name}`); }
   const line = source.split(/\r?\n/).find(candidate => new RegExp(`^\\s*(?:export\\s+)?${name}\\s*=`).test(candidate));
-  if (!line) throw new Error(`建立含授權底圖的 App 前，repo 根目錄 .env 必須設定 ${name}`);
+  if (!line) throw new Error(`建立含授權底圖的 App 前，建置用 .env 必須設定 ${name}`);
   let value = line.slice(line.indexOf('=') + 1).trim();
   if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1);
-  if (!value) throw new Error(`repo 根目錄 .env 的 ${name} 不可為空`);
+  if (!value) throw new Error(`建置用 .env 的 ${name} 不可為空`);
   return value;
 }
 
