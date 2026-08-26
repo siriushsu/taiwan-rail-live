@@ -1173,6 +1173,31 @@
   html[data-theme=dark] .seal.gold { color: var(--gold); }
   .seal.na { border-color: var(--line); color: var(--faint); border-style: dashed; transform: rotate(0); }
   .seal.na small { opacity: .7; }
+  /* ── 成就/收集章說明卡(.help-pop) ────────────────────────────────
+     **刻意放 body 層 + position:fixed**,兩個結構性殺手 computed style 都照不到:
+     ①#ridePanel 是 .board(overflow-y:auto)的捲動盒 ⇒ 卡片畫在裡面會被裁掉;
+     ②.board 住在 .stage 裡,手機版 .stage 是 fixed+z-index:1000 自成堆疊脈絡 ⇒ 會把 z 封頂。
+     同 #helpModal 已經踩過的那條路(2026-07-26),不要再把浮層放回面板內。
+     pointer-events:none 是必要的:hover 時滑鼠移到卡片上不會觸發 mouseout 抖動,
+     觸控時點卡片外面也能直接命中底下的元素。 */
+  .help-pop {
+    position: fixed; z-index: 2300; width: 276px; max-width: calc(100vw - 16px);
+    background: var(--paper); border: 2px solid var(--navy); border-radius: 10px;
+    box-shadow: var(--shadow-navy); padding: 10px 13px 12px; pointer-events: none;
+  }
+  .help-pop .hp-t { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 900; color: var(--ink-strong); letter-spacing: .5px; }
+  .help-pop .hp-t span { flex: 1; min-width: 0; }
+  .help-pop .hp-st { flex: none; font-size: 10px; font-weight: 900; letter-spacing: 1px; border-radius: 3px; padding: 1px 6px; color: var(--faint); background: var(--bg-stage); border: 1px solid var(--line-faint); }
+  .help-pop .hp-st.on { color: var(--warn-ink); background: var(--warn-bg); border-color: var(--warn-line); }
+  .help-pop .hp-cond { font-size: 12px; font-weight: 800; color: var(--navy); line-height: 1.55; margin-top: 6px; }
+  .help-pop .hp-prog { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .help-pop .hp-bar { flex: 1; height: 6px; border-radius: 999px; background: var(--line-faint); overflow: hidden; }
+  .help-pop .hp-bar i { display: block; height: 100%; background: var(--gold); border-radius: 999px; }
+  .help-pop .hp-num { flex: none; font-size: 11px; font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .help-pop .hp-note { font-size: 11.5px; font-weight: 700; color: var(--muted); line-height: 1.55; margin-top: 7px; }
+  .help-pop .hp-how { font-size: 12px; color: var(--muted); line-height: 1.6; margin-top: 9px; padding-top: 8px; border-top: 1px dashed var(--line-dash); }
+  /* 桌面滑過＝說明,游標要說出這件事;成就章沒有點擊行為,不要給 pointer 的假承諾 */
+  .seal[data-ach], .achv-chip[data-ach] { cursor: help; }
   /* ── 車站章(.stn-seal):打卡收集用,比 .seal 小一號因為量大(全網約 600 座) ──
      三態(設計書第 2 節):跟完=灰藍虛線不旋轉 / 搭過=實線單圈不旋轉 / 到訪=雙圈+歪斜(手蓋的章一定是歪的)。
      站等升級走 .t0(特等站,金);次數直接標數字不做疊印濃度(使用者 07-25 明示)。 */
@@ -4583,6 +4608,7 @@
         <li><span class="d">7/13</span><span>新增「附近火車」：地圖上落一根釘，查周邊 60 分鐘內會通過的車次</span></li>
         <li><span class="d">7/12</span><span>新增平交道功能：點一下查接下來會通過的列車（7/13 補上貨運線 21 處）</span></li>
         <li class="grp">收藏、護照與成就</li>
+        <li data-cl="achvhelp"><span class="d">8/18</span><span>護照上的成就章終於有說明了：電腦把滑鼠移過去、手機點一下，會跳出一張小卡，寫這枚章的達成條件、怎麼拿的建議，以及你現在的進度——像「4 / 100 座」「610 / 1,000 km」。早鳥、夜行者這種一趟就達成的，改成告訴你目前最早（最晚）跟過幾點發車的車。旁邊的明星列車、車種圖鑑、支線行腳三種收集章也共用同一張卡，移過去就看得到那班車的故事，點下去仍然是跳去跟那班車</span></li>
         <li data-cl="linecomplete"><span class="d">8/14</span><span>縱貫線北段完乘率卡在 99%：新竹–北新竹是與內灣線共用的同一段軌道，以前只算給其中一條線。現在兩條線都算得到，已收集的紀錄不用重搭就會自動補上（謝謝網友回報）</span></li>
         <li data-cl="checkinplatform"><span class="d">8/14</span><span>單站蓋章改用月台範圍判定：像汐科這種月台特別長的車站，以前站在月台中段或另一端都按不下去，現在整條月台上任何位置都蓋得到章。全台鐵 241 座車站裡有 239 座換上各自的月台範圍（謝謝網友回報）</span></li>
         <li data-cl="favtrainkey"><span class="d">8/3</span><span>台鐵與高鐵有些車次號碼相同，過去收藏其中一班會蓋掉另一班，移除時也會兩班一起消失；現在最愛列車會連同鐵路系統分開辨認，同號車可以各自收藏與移除</span></li>
@@ -4752,6 +4778,9 @@
      **刻意放 body 層、不放 .stage 裡**:手機版 .stage 是 position:fixed + z-index:1000,自成堆疊脈絡,
      放進去的話 z-index:2200 會被封頂成 1000,底部就被 tabbar(body 層 z1100)蓋住,最後一節點不到
      (2026-07-26 用 elementFromPoint 量到底緣命中 tabbar 的 .tl 才發現)。 -->
+<!-- 成就/收集章的說明卡:同樣刻意放 body 層(理由見 .help-pop 的 CSS 註解)。內容由 showHelpPop() 灌。 -->
+<div class="help-pop" id="helpPop" hidden></div>
+
 <div class="takeout-modal" id="helpModal" hidden>
   <section class="takeout-dialog help-dialog" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
     <div class="takeout-head"><h2 id="helpTitle">使用說明</h2><button id="helpX" type="button" aria-label="關閉">×</button></div>
@@ -15567,29 +15596,52 @@ function stampTotal() {
   return sd.namedTrains.filter(n => n.trainNos.length).length + sd.rollingStock.length + sd.branchLines.length;
 }
 // 成就定義:test(完乘記錄, 收集狀態, 總里程) → 是否解鎖(全由記錄推導,不另存)
+// desc=達成條件(一句話),how=攻略(說明卡下半)。兩者分開:條件要能對照 ACH_TESTS 逐字核對,
+// 攻略是給人看的建議,改攻略不該讓人以為判定也跟著變。
 const ACHIEVEMENTS = [
-  { id: 'first',    icon: 'ach-first', name: '初乘紀念',       desc: '完成第一趟完乘' },
-  { id: 'rider5',   icon: 'ach-rider5', name: '月台常客',      desc: '完乘 5 趟' },
-  { id: 'rider15',  icon: 'ach-rider15', name: '鐵道魂',       desc: '完乘 15 趟' },
-  { id: 'km100',    icon: 'ach-km100', name: '百里行者',       desc: '累積完乘 100 km' },
-  { id: 'km500',    icon: 'ach-km500', name: '半島縱走',       desc: '累積完乘 500 km' },
-  { id: 'km1000',   icon: 'ach-km1000', name: '千里鐵道',      desc: '累積完乘 1,000 km' },
-  { id: 'km5000',   icon: 'ach-km5000', name: '五千公里俱樂部', desc: '累積完乘 5,000 km' },
-  { id: 'long300',  icon: 'ach-long300', name: '一氣呵成',     desc: '單趟完乘 300 km 以上' },
-  { id: 'stops50',  icon: 'ach-stops50', name: '站站是風景',   desc: '完乘一班停靠 50 站以上的慢車' },
-  { id: 'early',    icon: 'ach-early', name: '早鳥',           desc: '完乘一班清晨 6 點前發車的列車' },
-  { id: 'night',    icon: 'ach-night', name: '夜行者',         desc: '完乘一班晚上 10 點後發車的列車' },
-  { id: 'loop',     icon: 'ach-loop', name: '山海平原',         desc: '跟著山海號或平原號連續跟滿半圈（臺北→折返點枋寮）' },
-  { id: 'day3',     icon: 'ach-day3', name: '一日三乘',         desc: '同一天完乘 3 趟' },
-  { id: 'tilting',  icon: 'ach-tilting', name: '傾斜雙雄',      desc: '收集太魯閣號與普悠瑪號兩枚傾斜式車種章' },
-  { id: 'namedAll', icon: 'ach-namedAll', name: '明星集郵冊',   desc: '收集所有明星列車章' },
-  { id: 'stockAll', icon: 'ach-stockAll', name: '車種全圖鑑',   desc: '收集全部車種章' },
-  { id: 'branchAll', icon: 'ach-branchAll', name: '支線制霸',   desc: '六條支線全數完乘' },
+  { id: 'first',    icon: 'ach-first', name: '初乘紀念',       desc: '完成第一趟完乘',
+    how: '挑一班再幾分鐘就發車的短程車,從發車一路跟到終點站抵達。' },
+  { id: 'rider5',   icon: 'ach-rider5', name: '月台常客',      desc: '完乘 5 趟',
+    how: '支線車程短,把跟車速度調快,一個下午就能連跟好幾班。' },
+  { id: 'rider15',  icon: 'ach-rider15', name: '鐵道魂',       desc: '完乘 15 趟',
+    how: '同一天同一班車只記一次,要換不同車次才會往上加。' },
+  { id: 'km100',    icon: 'ach-km100', name: '百里行者',       desc: '累積完乘 100 km',
+    how: '跟一趟西部幹線長途自強號,一趟就走掉一大半。' },
+  { id: 'km500',    icon: 'ach-km500', name: '半島縱走',       desc: '累積完乘 500 km',
+    how: '南迴線與東部幹線的長途直達車單趟里程最高,最省趟數。' },
+  { id: 'km1000',   icon: 'ach-km1000', name: '千里鐵道',      desc: '累積完乘 1,000 km',
+    how: '大約等於 3 趟臺北→枋寮等級的長途完乘。' },
+  { id: 'km5000',   icon: 'ach-km5000', name: '五千公里俱樂部', desc: '累積完乘 5,000 km',
+    how: '長期目標。每一趟完乘都在累積,不會歸零。' },
+  { id: 'long300',  icon: 'ach-long300', name: '一氣呵成',     desc: '單趟完乘 300 km 以上',
+    how: '臺北→高雄／臺東等級的長途直達,而且必須整趟從發車跟到底。' },
+  { id: 'stops50',  icon: 'ach-stops50', name: '站站是風景',   desc: '完乘一班停靠 50 站以上的慢車',
+    how: '找西部幹線的長程區間車,站站都停的那種停靠數最多。' },
+  { id: 'early',    icon: 'ach-early', name: '早鳥',           desc: '完乘一班清晨 6 點前發車的列車',
+    how: '看的是那班車在始發站的發車時刻,不是你開始跟的時間。' },
+  { id: 'night',    icon: 'ach-night', name: '夜行者',         desc: '完乘一班晚上 10 點後發車的列車',
+    how: '同樣看始發站時刻。深夜南下的長途車最好找。' },
+  { id: 'loop',     icon: 'ach-loop', name: '山海平原',         desc: '跟著山海號或平原號連續跟滿半圈（臺北→折返點枋寮）',
+    how: '門檻是模擬時間 6 小時;調快跟車速度可大幅縮短真實等待,但中途斷掉會從頭算。' },
+  { id: 'day3',     icon: 'ach-day3', name: '一日三乘',         desc: '同一天完乘 3 趟',
+    how: '挑三班不同車次的短程支線車,加速跟完最快。' },
+  { id: 'tilting',  icon: 'ach-tilting', name: '傾斜雙雄',      desc: '收集太魯閣號與普悠瑪號兩枚傾斜式車種章',
+    how: '兩款傾斜式列車都跑東部幹線,同一天可以接著跟。' },
+  { id: 'namedAll', icon: 'ach-namedAll', name: '明星集郵冊',   desc: '收集所有明星列車章',
+    how: '只算有固定車次的那幾班;無固定車次的觀光列車搭不到,不列入分母。' },
+  { id: 'stockAll', icon: 'ach-stockAll', name: '車種全圖鑑',   desc: '收集全部車種章',
+    how: '車種章看你完乘那班車的車型,跟路線無關——先補沒搭過的車型最快。' },
+  { id: 'branchAll', icon: 'ach-branchAll', name: '支線制霸',   desc: '六條支線全數完乘',
+    how: '平溪、集集、內灣、六家、深澳、沙崙。車程都很短,是最快補齊的一組。' },
   // 打卡收集(2026-07-26):站數看廣度、同段次數看深度——通勤族每天來回,深度才是他們的成就
-  { id: 'stn25',    icon: 'ach-stn25', name: '車站巡禮',       desc: '車站收集達 25 座' },
-  { id: 'stn100',   icon: 'ach-stn100', name: '百站達成',       desc: '車站收集達 100 座' },
-  { id: 'commute100', icon: 'ach-commute100', name: '通勤的證明', desc: '同一段路來回搭滿 100 次' },
-  { id: 'commute500', icon: 'ach-commute500', name: '老通勤族', desc: '同一段路來回搭滿 500 次' },
+  { id: 'stn25',    icon: 'ach-stn25', name: '車站巡禮',       desc: '車站收集達 25 座',
+    how: '來源有兩個:每趟完乘記下起訖兩站,以及打卡過的站。' },
+  { id: 'stn100',   icon: 'ach-stn100', name: '百站達成',       desc: '車站收集達 100 座',
+    how: '按「我上車了」實際搭一趟,沿途每過一站就自動蓋一枚,比靠完乘起訖站快得多。' },
+  { id: 'commute100', icon: 'ach-commute100', name: '通勤的證明', desc: '同一段路來回搭滿 100 次',
+    how: '只有按「我上車了」才會累積,純跟車看動畫一次都不算。來回算同一段。' },
+  { id: 'commute500', icon: 'ach-commute500', name: '老通勤族', desc: '同一段路來回搭滿 500 次',
+    how: '同樣只認實際搭乘。每天來回約需兩年多,是全表最硬的一枚。' },
 ];
 const ACH_TESTS = {
   first:  r => r.length >= 1,
@@ -15614,13 +15666,58 @@ const ACH_TESTS = {
   commute100: (r, c, km, x) => x.maxSeg >= 100,
   commute500: (r, c, km, x) => x.maxSeg >= 500,
 };
-function unlockedAchievements(rides) {
+// 說明卡的進度。簽章與 ACH_TESTS 完全相同(同一組輸入),這是刻意的:進度與判定同源,
+// 才不會出現「條說滿了、章卻沒亮」。
+//   回 { now, need, unit } → 畫進度條;回 { note } → 一次達成型,給一句現況;回 null → 不顯示。
+// early/night/loop 沒有「累積到幾分之幾」可言(一趟就達成),但仍給得出有用的現況,故走 note。
+const dayCount = r => Object.values(r.reduce((m, x) => (m[x.date] = (m[x.date] || 0) + 1, m), {}));
+const depExtreme = (r, pickMin) => r.reduce((a, x) => {
+  if (x.dep == null) return a;
+  const s = x.dep % 86400;
+  return a == null || (pickMin ? s < a : s > a) ? s : a;
+}, null);
+const ACH_PROG = {
+  first:  r => ({ now: Math.min(r.length, 1), need: 1, unit: '趟' }),
+  rider5: r => ({ now: r.length, need: 5, unit: '趟' }),
+  rider15: r => ({ now: r.length, need: 15, unit: '趟' }),
+  km100:  (r, c, km) => ({ now: Math.round(km), need: 100, unit: 'km' }),
+  km500:  (r, c, km) => ({ now: Math.round(km), need: 500, unit: 'km' }),
+  km1000: (r, c, km) => ({ now: Math.round(km), need: 1000, unit: 'km' }),
+  km5000: (r, c, km) => ({ now: Math.round(km), need: 5000, unit: 'km' }),
+  // 單趟型:分子取「你最長／最多的那一趟」,不是總和——總和會讓人以為快到了
+  long300: r => ({ now: Math.round(r.reduce((a, x) => Math.max(a, x.km || 0), 0)), need: 300, unit: 'km（最長一趟）' }),
+  stops50: r => ({ now: r.reduce((a, x) => Math.max(a, x.stops || 0), 0), need: 50, unit: '站（最多的一趟）' }),
+  early:  r => { const s = depExtreme(r, true);
+    return { note: s == null ? '還沒有任何完乘記錄。' : '你目前最早跟過 ' + fmtHM(s) + ' 發車的車。' }; },
+  night:  r => { const s = depExtreme(r, false);
+    return { note: s == null ? '還沒有任何完乘記錄。' : '你目前最晚跟過 ' + fmtHM(s) + ' 發車的車。' }; },
+  loop:   r => ({ note: r.some(x => x.namedId === 'shanhai' || x.namedId === 'pingyuan' || x.namedId === 'endless-loop')
+    ? '你已經跟滿過半圈。' : '還沒跟滿過半圈——中途中斷會從頭算。' }),
+  day3:   r => ({ now: dayCount(r).reduce((a, n) => Math.max(a, n), 0), need: 3, unit: '趟（同一天最多）' }),
+  tilting: (r, c) => ({ now: ['taroko', 'puyuma'].filter(k => c.stock.has(k)).length, need: 2, unit: '枚' }),
+  // 分母跟著 ACH_TESTS 走:namedAll 只算有固定車次的(搭不到的觀光列車不進分母)
+  namedAll: (r, c) => { const n = state.special ? state.special.namedTrains.filter(x => x.trainNos.length).length : 0;
+    return n ? { now: Math.min(c.named.size, n), need: n, unit: '枚' } : null; },
+  stockAll: (r, c) => state.special ? { now: Math.min(c.stock.size, state.special.rollingStock.length), need: state.special.rollingStock.length, unit: '種' } : null,
+  branchAll: (r, c) => state.special ? { now: Math.min(c.branch.size, state.special.branchLines.length), need: state.special.branchLines.length, unit: '條' } : null,
+  stn25:  (r, c, km, x) => ({ now: x.stnN, need: 25, unit: '座' }),
+  stn100: (r, c, km, x) => ({ now: x.stnN, need: 100, unit: '座' }),
+  commute100: (r, c, km, x) => ({ now: x.maxSeg, need: 100, unit: '次（最常搭的一段）' }),
+  commute500: (r, c, km, x) => ({ now: x.maxSeg, need: 500, unit: '次（最常搭的一段）' }),
+};
+// ACH_TESTS 與 ACH_PROG 共用的那一組輸入。抽出來是為了讓說明卡的進度不要自己另算一套:
+// 算法一分岔,卡片上的「4/5」就會跟章亮不亮對不起來。
+function achContext(rides) {
   const coll = collectionOf(rides);
   const km = rides.reduce((a, r) => a + (r.km || 0), 0);
   // 打卡收集的兩個維度:站數(廣度)與「最常搭的那一段」的次數(深度)
   const sg = segmentCollection();
   const x = { stnN: stationCollection(rides).size, maxSeg: Object.values(sg).reduce((a, n) => Math.max(a, Number(n) || 0), 0) };
-  return new Set(ACHIEVEMENTS.filter(a => ACH_TESTS[a.id](rides, coll, km, x)).map(a => a.id));
+  return { coll, km, x };
+}
+function unlockedAchievements(rides) {
+  const c = achContext(rides);
+  return new Set(ACHIEVEMENTS.filter(a => ACH_TESTS[a.id](rides, c.coll, c.km, c.x)).map(a => a.id));
 }
 // 收集通知:完乘的當下彈出「完乘達成→新蓋的章→解鎖的成就」,間隔 700ms 依序出現
 // 手機:把暫態通知(收集/工具吐司、平交道說明)塞進「頂列控件之下、跟隨資訊卡之上」的空檔,
@@ -17964,8 +18061,10 @@ function buildStamps(rides, opts) {
       items.map(i => {
         // 有日期就印日期(「已收藏」是廢話——金章本身就在說這件事);沒日期的舊記錄退回「已收藏」
         const foot = i.got ? ((withDate && dateOf(cat, i.id)) || '已收藏') : '點我重播';
+        // 🔴 說明卡讀的是 data-tip/data-tipname,不是原生 title:title 在手機上完全看不到,
+        //    而「怎麼拿到這枚章」正是手機使用者最需要的那句話(feat/achv-help)。
         return `<span class="seal${i.got ? '' : ' na'}" data-cat="${escHtml(cat)}" data-id="${escHtml(i.id)}"` +
-          ` title="${escHtml(i.tip)}">${sealName(i.name)}<small>${foot}</small></span>`;
+          ` data-tip="${escHtml(i.tip)}" data-tipname="${escHtml(i.name)}">${sealName(i.name)}<small>${foot}</small></span>`;
       }).join('') + `</div>`;
   };
   const named = sd.namedTrains.filter(n => n.trainNos.length).map(n => // 無固定車次的觀光列車搭不到,不列入收集
@@ -17976,16 +18075,117 @@ function buildStamps(rides, opts) {
     ({ name: b.name, got: coll.branch.has(b.id), id: b.id, tip: coll.branch.has(b.id) ? b.story : MISS_TIP }));
   return stampRow('明星列車', 'named', named) + stampRow('車種圖鑑', 'stock', stocks) + stampRow('支線行腳', 'branch', branches);
 }
+// ── 成就/收集章說明卡 ──────────────────────────────────────────────────
+// 桌面 hover、手機點按。護照是整卡重建的(renderPassport/renderRidePanel 每次都換掉 innerHTML),
+// 所以一律用 document 層委派,不逐元素掛 listener——掛上去的下一次重建就沒了。
+const HELP_POP_HOVER = matchMedia('(hover: hover) and (pointer: fine)').matches;
+function hideHelpPop() {
+  const p = document.getElementById('helpPop');
+  if (p) { p.hidden = true; p.innerHTML = ''; }
+  state._helpPopFor = null;
+}
+function placeHelpPop(el) {
+  const p = document.getElementById('helpPop');
+  if (!p || p.hidden) return;
+  // 先歸零再量:留著上一次的 left/top 會讓 getBoundingClientRect 量到被視窗夾過的尺寸
+  p.style.left = '0px'; p.style.top = '0px';
+  const r = el.getBoundingClientRect(), pr = p.getBoundingClientRect(), M = 8;
+  let left = r.left + r.width / 2 - pr.width / 2;
+  left = Math.max(M, Math.min(left, innerWidth - pr.width - M));
+  let top = r.top - pr.height - 8;             // 預設在章的上方
+  if (top < M) top = r.bottom + 8;             // 上方放不下就翻到下方
+  top = Math.max(M, Math.min(top, innerHeight - pr.height - M));
+  p.style.left = Math.round(left) + 'px'; p.style.top = Math.round(top) + 'px';
+}
+function showHelpPop(el, html) {
+  const p = document.getElementById('helpPop');
+  if (!p || !html) return;
+  p.innerHTML = html; p.hidden = false;
+  state._helpPopFor = el;
+  placeHelpPop(el);
+}
+// 捲動時**跟著錨點重算位置**,不是直接收掉。原本收掉的版本有個很難看見的失效:
+// hover 一枚還沒進視窗的章時,瀏覽器會先把它捲進來,而 scroll 事件是在 mouseover 之後才送達
+// ⇒ 卡片開了又被自己關掉(實測只有「第一枚」會中,後面的都不必捲所以看起來全好)。
+// 錨點整個離開視窗才收——卡片黏在原地會變成孤兒。
+function repositionHelpPop() {
+  const el = state._helpPopFor;
+  if (!el) return;
+  if (!el.isConnected) { hideHelpPop(); return; }   // 護照重建把錨點換掉了
+  const r = el.getBoundingClientRect();
+  if (r.bottom < 0 || r.top > innerHeight || r.right < 0 || r.left > innerWidth) { hideHelpPop(); return; }
+  placeHelpPop(el);
+}
+function helpProgHtml(pv) {
+  if (!pv) return '';
+  if (pv.note) return `<div class="hp-note">${escHtml(pv.note)}</div>`;
+  const pct = pv.need > 0 ? Math.max(0, Math.min(100, pv.now / pv.need * 100)) : 0;
+  return `<div class="hp-prog"><span class="hp-bar"><i style="width:${pct.toFixed(1)}%"></i></span>` +
+    `<span class="hp-num">${Number(pv.now).toLocaleString('en-US')} / ${Number(pv.need).toLocaleString('en-US')} ${escHtml(pv.unit)}</span></div>`;
+}
+function achHelpHtml(id) {
+  const a = ACHIEVEMENTS.find(x => x.id === id);
+  if (!a) return '';
+  const rides = loadRides(), c = achContext(rides);
+  const got = !!ACH_TESTS[a.id](rides, c.coll, c.km, c.x);
+  const pf = ACH_PROG[a.id];
+  let pv = null;
+  try { pv = pf ? pf(rides, c.coll, c.km, c.x) : null; } catch (e) { pv = null; } // 資料還沒載完就先不畫進度
+  return `<div class="hp-t"><span>${escHtml(a.name)}</span>` +
+    `<em class="hp-st${got ? ' on' : ''}">${got ? '已達成' : '未達成'}</em></div>` +
+    `<div class="hp-cond">${escHtml(a.desc)}</div>` +
+    (got ? '' : helpProgHtml(pv)) +   // 已達成就不必再看進度條(它必然是滿的)
+    `<div class="hp-how">${escHtml(a.how || '')}</div>`;
+}
+function helpPopHtmlFor(el) {
+  if (el.dataset.ach) return achHelpHtml(el.dataset.ach);
+  if (el.dataset.tip) {
+    return `<div class="hp-t"><span>${escHtml(el.dataset.tipname || '')}</span></div>` +
+      `<div class="hp-how">${escHtml(el.dataset.tip)}</div>`;
+  }
+  return '';
+}
+function bindHelpPop() {
+  const SEL = '[data-ach],[data-tip]';
+  if (HELP_POP_HOVER) {
+    document.addEventListener('mouseover', e => {
+      const el = e.target.closest && e.target.closest(SEL);
+      if (el) showHelpPop(el, helpPopHtmlFor(el));
+    });
+    document.addEventListener('mouseout', e => {
+      const el = e.target.closest && e.target.closest(SEL);
+      if (!el) return;
+      if (e.relatedTarget && el.contains(e.relatedTarget)) return; // 章內部移動不算離開
+      hideHelpPop();
+    });
+  }
+  // 點按:只認成就章。收集章的點擊早就是「跳去跟那班車」(followDexStamp),不能搶——
+  // 這裡不呼叫 stopPropagation,所以收集章那條路原封不動。
+  // **capture:true 是必要的**:面板背景的點擊在冒泡到 document 之前就被攔掉了(實測 target=#ridePanel
+  // 的 click 只有 capture 收得到、bubble 收不到)⇒ 掛 bubble 的話「點別處收起」在面板內一律失效,
+  // 卡片會一直賴在畫面上。capture 在往下的路上跑,不受任何 stopPropagation 影響。
+  document.addEventListener('click', e => {
+    const el = e.target.closest && e.target.closest('[data-ach]');
+    if (!el) { hideHelpPop(); return; }
+    if (!HELP_POP_HOVER && state._helpPopFor === el) { hideHelpPop(); return; } // 觸控:再點一次收起
+    showHelpPop(el, helpPopHtmlFor(el));
+  }, true);
+  // 卡片是 fixed 定位,底下的捲動盒(#ridePanel/頁面)一動,位置就過期 ⇒ 跟著錨點重算。
+  // capture:true 是必要的——#ridePanel 自己的捲動不會冒泡到 window。
+  addEventListener('scroll', repositionHelpPop, true);
+  addEventListener('resize', repositionHelpPop);
+}
+bindHelpPop();
 // 成就:桌面用金/灰圓章(style='seal',與舊版逐字相同,護照零變化),護照 sheet 用 chips(style='chip',mock C)
 function buildAchv(rides, style) {
   const ach = unlockedAchievements(rides);
   if (style === 'chip') {
     return phSec('achv', ACHIEVEMENTS.length, null, `成就<b>${ach.size}/${ACHIEVEMENTS.length}</b>`) + `<div class="achv-chips">` +
-      ACHIEVEMENTS.map(a => `<span class="achv-chip${ach.has(a.id) ? ' on' : ''}" title="${escHtml(a.desc)}">${railIcon(a.icon)}<span>${escHtml(a.name)}</span></span>`).join('') + `</div>`;
+      ACHIEVEMENTS.map(a => `<span class="achv-chip${ach.has(a.id) ? ' on' : ''}" data-ach="${escHtml(a.id)}">${railIcon(a.icon)}<span>${escHtml(a.name)}</span></span>`).join('') + `</div>`;
   }
   return phSec('achv', ACHIEVEMENTS.length, null, `成就徽章<b>${ach.size}/${ACHIEVEMENTS.length}</b>`) + `<div class="ph-stamps">` +
     ACHIEVEMENTS.map(a =>
-      `<span class="seal${ach.has(a.id) ? ' gold' : ' na'}" title="${escHtml(a.desc)}">${sealName(a.name, 'achv')}<small>${railIcon(a.icon)}</small></span>`).join('') + '</div>';
+      `<span class="seal${ach.has(a.id) ? ' gold' : ' na'}" data-ach="${escHtml(a.id)}">${sealName(a.name, 'achv')}<small>${railIcon(a.icon)}</small></span>`).join('') + '</div>';
 }
 // 完乘記錄列:桌面與 sheet 共用同一 markup,mode 決定排序(桌面隨排序鈕,sheet 固定 date 最新在前)
 function buildRideRows(rides, mode) {
