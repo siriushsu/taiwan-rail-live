@@ -106,6 +106,7 @@ public final class RailMetroWaitPlugin extends Plugin {
             out.put("ok", true);
             out.put("id", "android-metro-wait");
             out.put("endAt", endAt / 1000.0);
+            out.put("liveUpdate", JSObject.fromJSONObject(RailWaitNotification.promotionStatus(getContext())));
             call.resolve(out);
         } catch (Exception error) {
             JSObject out = new JSObject();
@@ -130,11 +131,38 @@ public final class RailMetroWaitPlugin extends Plugin {
         if (state == null) {
             out.put("active", false);
         } else {
+            // 從 Android 16 的即時通知設定返回 App 時，JS 會立刻呼叫 status；重貼一次讓
+            // 已經存在的普通鎖屏卡有機會立即升成 Live Update／Samsung Now Bar。
+            RailWaitNotification.post(getContext(), state);
             out.put("active", true);
             out.put("sys", state.optString("sys", ""));
             out.put("station", state.optString("station", ""));
             if (state.has("endAt")) out.put("endAt", state.optDouble("endAt"));
         }
+        try {
+            out.put("liveUpdate", JSObject.fromJSONObject(RailWaitNotification.promotionStatus(getContext())));
+        } catch (JSONException ignored) {}
+        call.resolve(out);
+    }
+
+    @PluginMethod
+    public void liveUpdateStatus(PluginCall call) {
+        try {
+            call.resolve(JSObject.fromJSONObject(RailWaitNotification.promotionStatus(getContext())));
+        } catch (JSONException error) {
+            JSObject out = new JSObject();
+            out.put("supported", android.os.Build.VERSION.SDK_INT >= 36);
+            out.put("allowed", false);
+            out.put("eligible", false);
+            out.put("promoted", false);
+            call.resolve(out);
+        }
+    }
+
+    @PluginMethod
+    public void openLiveUpdateSettings(PluginCall call) {
+        JSObject out = new JSObject();
+        out.put("opened", RailWaitNotification.openPromotionSettings(getContext()));
         call.resolve(out);
     }
 

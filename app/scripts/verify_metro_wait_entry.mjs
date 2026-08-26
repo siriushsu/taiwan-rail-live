@@ -90,28 +90,34 @@ const ok = (name, pass, detail = '') => { results.push({ name, pass, detail }); 
 
 // 假橋接必須在頁面腳本執行「之前」就位:METRO_WAIT_ENABLED 相關判斷雖然是函式(每次重讀,見
 // index.html metroWaitEnabled),但 addInitScript 仍是唯一乾淨的注入時機,不依賴此特性也一樣成立。
-async function boot(browser, { withPlugin = true, startResult = { ok: true }, initialGroup = 'metro', viewport = { width: 1280, height: 900 } } = {}) {
+async function boot(browser, { withPlugin = true, startResult = { ok: true }, confirmResult = null,
+  initialGroup = 'metro', viewport = { width: 1280, height: 900 } } = {}) {
   const ctx = await browser.newContext({ viewport });
-  await ctx.addInitScript(({ withPlugin, startResult }) => {
+  await ctx.addInitScript(({ withPlugin, startResult, confirmResult }) => {
     try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} // 首訪教學卡先關,否則 elementFromPoint 全滅
+    window.__confirmCalls = 0;
+    if (confirmResult !== null) window.confirm = () => { window.__confirmCalls++; return confirmResult; };
     if (!withPlugin) return;
     window.__waitCalls = [];
     window.__waitListeners = {};
     window.__waitStartResult = startResult;
     const rec = (m, p) => {
       window.__waitCalls.push({ m, p: p ? JSON.parse(JSON.stringify(p)) : null, t: Date.now() });
-      return Promise.resolve(m === 'start' ? window.__waitStartResult : { ok: true });
+      if (m === 'start') return Promise.resolve(window.__waitStartResult);
+      if (m === 'openLiveUpdateSettings') return Promise.resolve({ opened: true });
+      return Promise.resolve({ ok: true });
     };
     window.__waitEmit = (ev, payload) => (window.__waitListeners[ev] || []).forEach(f => f(payload));
     window.Capacitor = { Plugins: { RailMetroWait: {
       start: p => rec('start', p),
       stop: () => rec('stop', null),
+      openLiveUpdateSettings: () => rec('openLiveUpdateSettings', null),
       addListener: (ev, cb) => {
         (window.__waitListeners[ev] = window.__waitListeners[ev] || []).push(cb);
         return Promise.resolve({ remove: () => {} });
       },
     } } };
-  }, { withPlugin, startResult });
+  }, { withPlugin, startResult, confirmResult });
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push('pageerror:' + String(e)));
@@ -448,6 +454,55 @@ const cr = await chromium.launch();
   ok('H 幽靈站 start 未被呼叫', st.length === 0, `start=${st.length}`);
   ok('H 頁面仍存活可查詢', alive === true, `alive=${alive}`);
   ok('H 無 JS 例外(listener 不炸 boot)', errors.length === 0, errors.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
+// ══════════ I:Android 16 Live Update 未允許——明示同意才開系統設定，同一 session 只問一次 ══════════
+{
+  const startResult = { ok: true, endAt: Math.round(Date.now() / 1000) + 1800,
+    liveUpdate: { supported: true, allowed: false, eligible: true, promoted: false } };
+  const { ctx, page, errors } = await boot(cr, { withPlugin: true, startResult, confirmResult: true,
+    viewport: { width: 390, height: 844 } });
+  metroLiveOverride.krtc = freshenLive(krtcRaw);
+  await page.evaluate(() => pollMetroLive());
+  await openFreqStation(page, '哈瑪星');
+  await page.waitForTimeout(150);
+  await clearCalls(page);
+  await clickWaitThroughPicker(page);
+  await page.waitForTimeout(250);
+  const first = await calls(page, 'openLiveUpdateSettings');
+  const confirmFirst = await page.evaluate(() => window.__confirmCalls);
+  ok('I Android 16 未允許即時通知時會先詢問一次', confirmFirst === 1, `confirm=${confirmFirst}`);
+  ok('I 使用者明示同意後才開系統即時通知設定', first.length === 1, `open=${first.length}`);
+
+  // 直接再餵一次相同系統回應；判準落在產品的 session 防重旗標，不靠測試端改 state。
+  await page.evaluate(live => metroWaitOfferLiveUpdateSettings(
+    window.Capacitor.Plugins.RailMetroWait, live), startResult.liveUpdate);
+  await page.waitForTimeout(100);
+  const second = await calls(page, 'openLiveUpdateSettings');
+  const confirmSecond = await page.evaluate(() => window.__confirmCalls);
+  ok('I 同一 session 換站或重試不會重複追問', confirmSecond === 1 && second.length === 1,
+    `confirm=${confirmSecond} open=${second.length}`);
+  ok('I-允許路徑無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+{
+  const startResult = { ok: true, endAt: Math.round(Date.now() / 1000) + 1800,
+    liveUpdate: { supported: true, allowed: false, eligible: true, promoted: false } };
+  const { ctx, page, errors } = await boot(cr, { withPlugin: true, startResult, confirmResult: false,
+    viewport: { width: 390, height: 844 } });
+  metroLiveOverride.krtc = freshenLive(krtcRaw);
+  await page.evaluate(() => pollMetroLive());
+  await openFreqStation(page, '哈瑪星');
+  await page.waitForTimeout(150);
+  await clearCalls(page);
+  await clickWaitThroughPicker(page);
+  await page.waitForTimeout(250);
+  const opened = await calls(page, 'openLiveUpdateSettings');
+  const confirms = await page.evaluate(() => window.__confirmCalls);
+  ok('I-拒絕路徑仍有詢問，且不擅自打開設定', confirms === 1 && opened.length === 0,
+    `confirm=${confirms} open=${opened.length}`);
+  ok('I-拒絕路徑無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
 }
 
