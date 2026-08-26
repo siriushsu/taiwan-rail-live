@@ -7,6 +7,7 @@
     "build-manifest": "node scripts/build_data_manifest.mjs && node scripts/build_data_provenance.mjs",
     "check-manifest": "node scripts/verify_data_manifest.mjs && node scripts/verify_data_provenance.mjs",
     "check-public": "node scripts/verify_ignore_symmetry.mjs && node scripts/verify_public_repo_hygiene.mjs",
+    "check-ops": "node scripts/verify_stadia_projection.mjs",
     "strip-ship-comments": "node scripts/strip_ship_comments.mjs"
   },
   "dependencies": {
