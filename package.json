@@ -5,10 +5,14 @@
     "build-bounty-units": "node scripts/build_bounty_units.mjs",
     "check-schedule": "python3 scripts/check_schedule.py",
     "build-manifest": "node scripts/build_data_manifest.mjs && node scripts/build_data_provenance.mjs",
-    "check-manifest": "node scripts/verify_data_manifest.mjs && node scripts/verify_data_provenance.mjs"
+    "check-manifest": "node scripts/verify_data_manifest.mjs && node scripts/verify_data_provenance.mjs",
+    "strip-ship-comments": "node scripts/strip_ship_comments.mjs"
   },
   "dependencies": {
     "playwright": "^1.61.1",
     "wrangler": "^4.111.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.1"
   }
 }
