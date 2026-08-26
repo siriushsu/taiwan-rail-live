@@ -28,7 +28,7 @@ const pbxproj = join(appRoot, 'ios/App/App.xcodeproj/project.pbxproj');
 // 只是改挑新的 build，不發行含 XSS 的 build 9），「後續功能版」＝ 1.0.2。
 const MODES = {
   hotfix: {
-    marketing: '1.0.1', build: '12', music: false,
+    marketing: '1.0.1', build: '12', music: false, metroCore: false,
     why: '隱私＋安全修正版：與線上 build 8 相同的功能範圍（本來就沒有音樂），只多修正。差異最小＝審查風險最小。',
   },
   // 2026-07-30 更新：使用者裁示這一輪走 1.3.0 (15)。
@@ -129,15 +129,75 @@ const MODES = {
   // 2026-08-14：1.4.3 (50) 上傳時 App Store Connect 明確回覆該 train 已關閉，
   //    因此本輪改開 1.4.4，build 續增到 51；不可再產出任何 1.4.3 新 build。
   //    內容＝48 的旋轉尺寸過期自癒（P0）再加上北捷官方即時名冊（origin/main dab284a 併入）。
+  // 2026-08-15：**1.4.4 已於 08-14 21:36Z 上架**（lookup API 實查，不是靠筆記）⇒ 那條 train
+  //    已關閉，本輪必須開 1.4.5。build 從 58 起：51 是上架的那顆，52–57 是捷運小工具那批
+  //    真機回饋六輪燒掉的本機測試號（未上傳，但號不重用——原生改動不會動到網頁 BUILD 字串，
+  //    build 號是實機上分辨「跑的是哪一顆」的唯一依據，見 [[app-ios-shell-progress]]）。
+  // 2026-08-16：build 推到 62。60＝01:29 出的那顆（桌面 ipa，內容缺本輪的徽章閘門，不傳）；
+  //    61＝並行 session 在 `feat/metro-widget` 推的號（小工具通行證閘門兩個洞的修正，
+  //    58a08bf），那條線的內容已整批併進本樹 ⇒ 62 是「61 的內容＋北捷分支鎖與徽章閘門」。
+  //    號一律不重用（原生改動不會動到網頁 BUILD 字串，build 號是實機上分辨版本的唯一依據）。
+  // 2026-08-16 之二：**1.4.5 已於 2026-08-15T20:37:42Z（台北 08-16 04:37）上架** ⇒ 那條 train
+  //    關閉，本輪必須開 1.4.6，build 續增到 63（62 已出過 ipa，號不重用）。
+  //    🔴 這件事我第一次查錯了：`curl 'itunes.apple.com/lookup?...'` **裸 URL 會吃到 CDN 快取**，
+  //    09:00 查回的是舊的 `1.4.4`，害我先出了一顆掛 1.4.5 的 build 62。
+  //    ⇒ 查線上版本一律 `curl -H 'Cache-Control: no-cache' ...&t=$(date +%s)`，
+  //    並看 `currentVersionReleaseDate` 對時間，不要只看 `version` 欄位。
+  // 2026-08-17：1.4.6 (63) 已於 08-16 17:16Z 上架（lookup API 帶 no-cache 實查回 1.4.6）
+  // ⇒ marketing 進到 1.4.7、build 從 64 起。這一顆的載貨是小工具版面改版
+  // （發車看板撤軌脊改六欄、方向三角、新增 Large、大字好讀版）＋捷運小工具換站修法，
+  // 並把 index.html 併到 main 現況（08-17 那 20 顆，含藍線加班車看板修正——App 吃 bundle，
+  // 線上修好不算）。
+  // 2026-08-19：1.4.7 (64) 已上傳(小工具改版線),使用者裁示下一顆開 1.4.8、build 65。
+  // 這一顆是三線合一:App 街道底圖換 OpenFreeMap(含遠端來源開關與本機自動退場,見
+  // docs/superpowers/plans/2026-08-18-App底圖換OSM與退路設計.md)、08-18 北捷位置模型
+  // (build/trtc-y-device,旗標開回官方即時)、feat/widget-redesign 現 tip。刻意不含 69f9aa0。
+  // 2026-08-19 之二：1.4.8 (65)(66)(67) 皆已上傳 ⇒ 這一顆開 build 68。載貨只有一件：
+  // 併入 origin/main fb1de23——官方倒數看得到的車一律畫出來(CarWeight 逐車清單會整趟漏車、
+  // 也會漏填終點站,兩種都會讓車在地圖上整趟不存在)。網站同批已上正式站(BUILD v0819e)。
+  // 2026-08-21：1.4.8 (68) 已是正式版，下一顆開 1.4.9、build 69。這顆把網站已驗收的
+  // v0821b Private Metro Core 一併打入 App，並由 prepare-web 明確注入啟用旗標；網站與 App
+  // 因此共用同一份北捷／高捷列車身分、軌跡、到站事件與降級規則。
+  // 2026-08-21 之二：69 已上傳 App Store Connect，定位改成前景持續追蹤且 Android 恢復
+  // 精確位置後必須另出 build 70。這顆同時包含 v0821c 共站辨線／跟隨寬限／斷訊判斷修正，
+  // 不得沿用已燒掉的 69；marketing 維持尚未關閉的 1.4.9。
+  // 2026-08-22：73 為等車卡合流顆（小工具直接開卡＋北捷「再下一班・約 N 分」），只裝過
+  // 真機沒上傳，但裝機當天就抓到等車卡把「約 N 分」推導列畫成秒級倒數的精度缺陷——
+  // 照「內容與已裝機顆不同就換號」慣例，修正後直接開 74，70–73 全部作廢不得上傳。
+  // 2026-08-22 之二：74 裝機後使用者抓到開機彈的「更新了什麼」還是 1.4.8 的文——那卡片
+  // 抓的是 iTunes lookup 的【線上版】releaseNotes，剛裝的版比線上新時必然彈到舊文。
+  // 修法＝把本模式的 why 經 RAIL_WHATS_NEW 注入 bundle 當本版內建文案（送審文字本來
+  // 每版都要寫 ⇒ 零額外維護），verify-release 加 gate 擋「版號升了 why 沒改」。開 75。
+  // 2026-08-23：76＝75 的全部載貨＋台鐵等站卡。
+  // 🔴 why 為什麼要把 75 的內容一起寫進去：**75 從來沒上架過**（線上仍是 1.4.8，75 那顆
+  //    archive 還躺在等使用者 Organizer 上傳）。76 一旦出，使用者會傳 76 而不是 75 ⇒
+  //    1.4.9 這個版本項目的 What's New 必須涵蓋「相對 1.4.8 的全部差異」，不是只寫這一批。
+  //    判準照 [[app-shipping-artifacts]]：逐項問「使用者是不是非裝這一版才拿得到」。
+  // ⚠️ 順帶記一個閘門盲點：verify-release 只檢查 why 裡有沒有**行銷版號**，
+  //    所以「marketing 不動、只升 build 號」時它擋不住忘改 why（這一輪正是這種形狀）。
+  // 2026-08-23 之二：**1.4.9 train 已關閉** —— lookup（帶 no-cache）實查線上就是 1.4.9、
+  //    currentVersionReleaseDate `2026-08-22T23:49:22Z`，也就是 75 已上架（上一輪筆記寫的
+  //    「75 從來沒上架過」是錯的，使用者當場更正）。照 08-11 與 08-14 兩條記錄：ASC 只讓
+  //    「短版本字串等於版本號」的 build 被選進該版本，且已上架的 train 會被明確回絕
+  //    ⇒ 掛 1.4.9 的 76／77 兩顆 archive **一律不得上傳**，本輪改開 1.4.10、build 續增到 78。
+  //    版號比較全鏈已對 index.html 的真函式實跑過（cmpVer 逐段數值比較，1.4.10 > 1.4.9 正確；
+  //    強更閘門與「更新了什麼」彈窗在 1.4.10 都判對），不是字串比較所以 10 不會被當成 1。
+  // 🔴 why 的涵蓋範圍也跟著變窄：線上 1.4.9 的 releaseNotes 已經寫過小工具開等車卡、
+  //    「再下一班・約 N 分」、捷運動畫統一、共站辨識、定位前景更新 ⇒ 那些使用者**已經拿到了**。
+  //    1.4.10 只需寫使用者非裝這一版拿不到的兩件：台鐵等站卡（76 的載貨，從沒上架）
+  //    與地圖縮放／拖曳跨層同步修法（77 的載貨）。判準照 [[app-shipping-artifacts]]。
+  // 2026-08-23 之三：**build 號從 78 跳到 79**。78 那顆 archive 已經在磁碟上（`軌島-1.4.10-78`），
+  //    但它是**補回遺失內容之前**打的；同一個 build 號配兩份不同載貨，正是這整串事故的病根
+  //    （身分不明確），所以不重用、直接進位。78 連同 76／77 一併作廢，不得上傳。
   feature: {
-    marketing: '1.4.4', build: '51', music: true,
-    why: '軌島 1.4.4：台北捷運列車改以官方站牌倒數逐班追蹤，從發車到終點依各站時間顯示位置，同班資訊自動合併，車次與方向跟著實際行程；保留橫放版面、背景音樂續播與 App 更新提示；production 資格，TestFlight Sandbox 通道維持關閉。',
+    marketing: '1.4.10', build: '79', music: true, metroCore: true, // 79＝77 的載貨＋補回 63e38b2 吃掉的全部內容;78 是補回前打的,作廢
+    why: '軌島 1.4.10：台鐵車站看板可以挑一班車追蹤，鎖定畫面顯示它的表定時刻與官方誤點分鐘（實際約幾點到）。修好地圖的縮放與拖曳——兩指縮放放手時軌道不再先跳回原處再彈回來，拖曳地圖時軌道與列車不再比底圖慢半拍。另外補回上一版少掉的幾處：使用說明裡「捷運小工具」與「在這站等車」兩節、方案面板的小工具多站說明、跟車時鎖定畫面倒數的入口、衛星影像的高解析提示，以及開著定位時藍點持續更新、鏡頭自動跟到你所在的城市。',
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
   // 軌島通行證客端功能、雲端同步與伺服器付費牆。這顆不可選去正式送審；正式版必須另推 build 號，
   // 回到 feature 模式並由 assertPlusSandboxOff 驗證測試通道確實關閉。
   testflight: {
-    marketing: '1.3.2', build: '22', music: true, plusSandboxBuild: '22',
+    marketing: '1.3.2', build: '22', music: true, metroCore: false, plusSandboxBuild: '22',
     why: 'TestFlight 軌島通行證端到端測試版：Sandbox 月票／年票完成後，完整開放通行證與雲端功能驗收。',
   },
 };
@@ -191,6 +251,12 @@ if (cfg.plusSandboxBuild) console.log(`  Plus Sandbox 開啟（僅 TestFlight bu
 const env = { ...process.env, LANG: 'en_US.UTF-8', RAIL_INCLUDE_LICENSED_BASEMAPS: '1', RAIL_REQUIRE_NATIVE: '1' };
 if (cfg.music) env.RAIL_INCLUDE_LICENSED_MUSIC = '1';
 else delete env.RAIL_INCLUDE_LICENSED_MUSIC;
+// 發行模式必須明確決定 Metro Core，不能只靠 prepare-web 的預設 false。1.4.9 build 69 就因為
+// 註解寫「啟用」但環境變數沒送進去，整顆包安靜退回舊模型；RAIL_EXPECT_METRO_CORE 讓同步後
+// 的獨立 verify 再比一次實際內嵌資產，避免 build 階段與 cap sync 階段各說各話。
+env.RAIL_EXPECT_METRO_CORE = cfg.metroCore ? '1' : '0';
+if (cfg.metroCore) env.RAIL_ENABLE_METRO_CORE = '1';
+else delete env.RAIL_ENABLE_METRO_CORE;
 // 本版「更新了什麼」內建文案＝why 本人。iTunes lookup 的 releaseNotes 是【線上版】的,
 // 剛裝的版比線上新時(每次送審前必然)彈到的是上一版的文——1.4.9 (74) 實踩。
 env.RAIL_WHATS_NEW = cfg.why;

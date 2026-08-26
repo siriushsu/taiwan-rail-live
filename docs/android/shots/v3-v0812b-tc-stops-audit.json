@@ -1,0 +1,107 @@
+{
+  "generatedAt": "2026-08-12T04:12:18.074Z",
+  "build": "v0812b",
+  "platform": "android",
+  "version": "1.4.2",
+  "viewport": {
+    "width": 412,
+    "height": 839,
+    "dpr": 2.625
+  },
+  "train": "5899",
+  "bodyClasses": [
+    "fs",
+    "music-volume-unavailable",
+    "cfaint",
+    "train-open",
+    "sheet-open"
+  ],
+  "stopsHidden": false,
+  "cardVisible": true,
+  "header": [
+    {
+      "right": 338.28570556640625,
+      "width": 36
+    },
+    {
+      "right": 386.28570556640625,
+      "width": 36
+    }
+  ],
+  "data": [
+    [
+      {
+        "right": 338.28570556640625,
+        "width": 36
+      },
+      {
+        "right": 386.28570556640625,
+        "width": 36
+      }
+    ],
+    [
+      {
+        "right": 338.28570556640625,
+        "width": 36
+      },
+      {
+        "right": 386.28570556640625,
+        "width": 36
+      }
+    ],
+    [
+      {
+        "right": 338.28570556640625,
+        "width": 36
+      },
+      {
+        "right": 386.28570556640625,
+        "width": 36
+      }
+    ],
+    [
+      {
+        "right": 338.28570556640625,
+        "width": 36
+      },
+      {
+        "right": 386.28570556640625,
+        "width": 36
+      }
+    ],
+    [
+      {
+        "right": 338.28570556640625,
+        "width": 36
+      },
+      {
+        "right": 386.28570556640625,
+        "width": 36
+      }
+    ],
+    [
+      {
+        "right": 338.28570556640625,
+        "width": 36
+      },
+      {
+        "right": 386.28570556640625,
+        "width": 36
+      }
+    ],
+    [
+      {
+        "right": 338.28570556640625,
+        "width": 36
+      },
+      {
+        "right": 386.28570556640625,
+        "width": 36
+      }
+    ]
+  ],
+  "maxRightDelta": 0,
+  "allWidths36": true,
+  "visibleStopRows": 8,
+  "failures": []
+}

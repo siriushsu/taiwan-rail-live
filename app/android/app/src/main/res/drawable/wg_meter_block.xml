@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 擁擠度一節車廂。六節逐節上色，顏色 runtime 給；旁邊固定附一個詞（顏色不獨立表意）。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="1.5dp" />
+    <solid android:color="#FFFFFFFF" />
+    <size android:width="10dp" android:height="16dp" />
+</shape>

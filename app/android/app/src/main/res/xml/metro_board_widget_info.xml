@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 三種尺寸共用同一個 provider：4×2（預設）／4×3／2×2，實際版面由 provider 依尺寸給
+     （setSizeSpecificViewLayouts，API 31+；31 以下一律 4×2）。minResizeWidth 放到 110dp
+     才縮得到 2×2，但 targetCell 維持 4×2＝新加入時的預設大小。
+     updatePeriodMillis 只是保命網（最快 30 分鐘一次）——真正的節奏是 AlarmManager 排的。 -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:configure="tw.railisland.app.MetroWidgetConfigActivity"
+    android:description="@string/metro_widget_description"
+    android:initialLayout="@layout/widget_plate_4x2"
+    android:minWidth="250dp"
+    android:minHeight="100dp"
+    android:minResizeWidth="110dp"
+    android:minResizeHeight="100dp"
+    android:maxResizeWidth="320dp"
+    android:maxResizeHeight="200dp"
+    android:previewLayout="@layout/widget_plate_4x2"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="1800000"
+    android:widgetCategory="home_screen|keyguard"
+    android:widgetFeatures="reconfigurable" />

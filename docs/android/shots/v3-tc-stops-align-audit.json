@@ -1,0 +1,456 @@
+{
+  "generatedAt": "2026-08-12T03:54:00.053Z",
+  "endpoint": "http://localhost:5399/index.html",
+  "sourceMd5": "3105d487ec09e8d4360e845789cbbf2f",
+  "reports": [
+    {
+      "engine": "chromium",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "cardVisible": true,
+      "stopsVisible": true,
+      "rowCount": 7,
+      "headerRightEdges": [
+        283,
+        331
+      ],
+      "headerWidths": [
+        36,
+        36
+      ],
+      "samples": [
+        {
+          "index": 0,
+          "rightEdges": [
+            283,
+            331
+          ],
+          "widths": [
+            36,
+            36
+          ],
+          "deltaFromHeader": [
+            0,
+            0
+          ]
+        },
+        {
+          "index": 1,
+          "rightEdges": [
+            283,
+            331
+          ],
+          "widths": [
+            36,
+            36
+          ],
+          "deltaFromHeader": [
+            0,
+            0
+          ]
+        },
+        {
+          "index": 2,
+          "rightEdges": [
+            283,
+            331
+          ],
+          "widths": [
+            36,
+            36
+          ],
+          "deltaFromHeader": [
+            0,
+            0
+          ]
+        },
+        {
+          "index": 3,
+          "rightEdges": [
+            283,
+            331
+          ],
+          "widths": [
+            36,
+            36
+          ],
+          "deltaFromHeader": [
+            0,
+            0
+          ]
+        },
+        {
+          "index": 4,
+          "rightEdges": [
+            283,
+            331
+          ],
+          "widths": [
+            36,
+            36
+          ],
+          "deltaFromHeader": [
+            0,
+            0
+          ]
+        },
+        {
+          "index": 5,
+          "rightEdges": [
+            283,
+            331
+          ],
+          "widths": [
+            36,
+            36
+          ],
+          "deltaFromHeader": [
+            0,
+            0
+          ]
+        }
+      ],
+      "maxAbsDelta": 0,
+      "mutationMaxAbsDelta": 18.812
+    },
+    {
+      "engine": "chromium",
+      "viewport": {
+        "width": 863,
+        "height": 360
+      },
+      "cardVisible": true,
+      "stopsVisible": true,
+      "rowCount": 7,
+      "headerRightEdges": [
+        283,
+        331
+      ],
+      "headerWidths": [
+        36,
+        36
+      ],
+      "samples": [
+        {
+          "index": 0,
+          "rightEdges": [
+            283,
+            331
+          ],
+          "widths": [
+            36,
+            36
+          ],
+          "deltaFromHeader": [
+            0,
+            0
+          ]
+        },
+        {
+          "index": 1,
+          "rightEdges": [
+            283,
+            331
+          ],
+          "widths": [
+            36,
+            36
+          ],
+          "deltaFromHeader": [
+            0,
+            0
+          ]
+        },
+        {
+          "index": 2,
+          "rightEdges": [
+            283,
+            331
+          ],
+          "widths": [
+            36,
+            36
+          ],
+          "deltaFromHeader": [
+            0,
+            0
+          ]
+        },
+        {
+          "index": 3,
+          "rightEdges": [
+            283,
+            331
+          ],
+          "widths": [
+            36,
+            36
+          ],
+          "deltaFromHeader": [
+            0,
+            0
+          ]
+        },
+        {
+          "index": 4,
+          "rightEdges": [
+            283,
+            331
+          ],
+          "widths": [
+            36,
+            36
+          ],
+          "deltaFromHeader": [
+            0,
+            0
+          ]
+        },
+        {
+          "index": 5,
+          "rightEdges": [
+            283,
+            331
+          ],
+          "widths": [
+            36,
+            36
+          ],
+          "deltaFromHeader": [
+            0,
+            0
+          ]
+        }
+      ],
+      "maxAbsDelta": 0,
+      "mutationMaxAbsDelta": 18.812
+    },
+    {
+      "engine": "webkit",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "cardVisible": true,
+      "stopsVisible": true,
+      "rowCount": 7,
+      "headerRightEdges": [
+        283,
+        331
+      ],
+      "headerWidths": [
+        36,
+        36
+      ],
+      "samples": [
+        {
+          "index": 0,
+          "rightEdges": [
+            283,
+            331
+          ],
+          "widths": [
+            36,
+            36
+          ],
+          "deltaFromHeader": [
+            0,
+            0
+          ]
+        },
+        {
+          "index": 1,
+          "rightEdges": [
+            283,
+            331
+          ],
+          "widths": [
+            36,
+            36
+          ],
+          "deltaFromHeader": [
+            0,
+            0
+          ]
+        },
+        {
+          "index": 2,
+          "rightEdges": [
+            283,
+            331
+          ],
+          "widths": [
+            36,
+            36
+          ],
+          "deltaFromHeader": [
+            0,
+            0
+          ]
+        },
+        {
+          "index": 3,
+          "rightEdges": [
+            283,
+            331
+          ],
+          "widths": [
+            36,
+            36
+          ],
+          "deltaFromHeader": [
+            0,
+            0
+          ]
+        },
+        {
+          "index": 4,
+          "rightEdges": [
+            283,
+            331
+          ],
+          "widths": [
+            36,
+            36
+          ],
+          "deltaFromHeader": [
+            0,
+            0
+          ]
+        },
+        {
+          "index": 5,
+          "rightEdges": [
+            283,
+            331
+          ],
+          "widths": [
+            36,
+            36
+          ],
+          "deltaFromHeader": [
+            0,
+            0
+          ]
+        }
+      ],
+      "maxAbsDelta": 0,
+      "mutationMaxAbsDelta": 23.094
+    },
+    {
+      "engine": "webkit",
+      "viewport": {
+        "width": 863,
+        "height": 360
+      },
+      "cardVisible": true,
+      "stopsVisible": true,
+      "rowCount": 7,
+      "headerRightEdges": [
+        283,
+        331
+      ],
+      "headerWidths": [
+        36,
+        36
+      ],
+      "samples": [
+        {
+          "index": 0,
+          "rightEdges": [
+            283,
+            331
+          ],
+          "widths": [
+            36,
+            36
+          ],
+          "deltaFromHeader": [
+            0,
+            0
+          ]
+        },
+        {
+          "index": 1,
+          "rightEdges": [
+            283,
+            331
+          ],
+          "widths": [
+            36,
+            36
+          ],
+          "deltaFromHeader": [
+            0,
+            0
+          ]
+        },
+        {
+          "index": 2,
+          "rightEdges": [
+            283,
+            331
+          ],
+          "widths": [
+            36,
+            36
+          ],
+          "deltaFromHeader": [
+            0,
+            0
+          ]
+        },
+        {
+          "index": 3,
+          "rightEdges": [
+            283,
+            331
+          ],
+          "widths": [
+            36,
+            36
+          ],
+          "deltaFromHeader": [
+            0,
+            0
+          ]
+        },
+        {
+          "index": 4,
+          "rightEdges": [
+            283,
+            331
+          ],
+          "widths": [
+            36,
+            36
+          ],
+          "deltaFromHeader": [
+            0,
+            0
+          ]
+        },
+        {
+          "index": 5,
+          "rightEdges": [
+            283,
+            331
+          ],
+          "widths": [
+            36,
+            36
+          ],
+          "deltaFromHeader": [
+            0,
+            0
+          ]
+        }
+      ],
+      "maxAbsDelta": 0,
+      "mutationMaxAbsDelta": 23.094
+    }
+  ],
+  "failures": []
+}

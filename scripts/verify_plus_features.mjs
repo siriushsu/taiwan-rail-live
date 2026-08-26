@@ -33,6 +33,9 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const WSRC = readFileSync(path.join(ROOT, 'worker.js'), 'utf8');
 const TSRC = readFileSync(path.join(ROOT, 'terms.html'), 'utf8'); // 付費視窗法務列直接連到它,見 T1T
+// 捷運小工具的閘門住在 Swift(widget extension 讀不到 RevenueCat,只讀 App Group 旗標)。
+// 清單上那一項的「真實資格判定」有一半在這裡,不讀進來就只驗得到 JS 側的推送。
+const GATESRC = readFileSync(path.join(ROOT, 'app/ios/App/RailBoardWidget/MetroPlusGate.swift'), 'utf8');
 const ASRC = readFileSync(path.join(ROOT, 'app-support.html'), 'utf8'); // B-1 稽核修復:這頁的導覽文案要對 index.html 的槽位標籤真值,見 T8
 // 條款頁的**可見內文**(剝掉 head／style／script)。
 // 為什麼要剝:全文 4280 字裡有一半以上是 head＋CSS ⇒ 抽取器的「非空」對照近乎恆真,
@@ -260,6 +263,20 @@ const REQUIRED = [
       && fnBodyContains(SRC, 'plusRequire', 'plusIsActive()'),
   },
   { needle: '高解析', check: () => fnBodyContains(SRC, 'satRetinaAllowed', 'plusIsActive()') },
+  {
+    needle: '捷運小工具',
+    // 這一項的資格判定【跨兩個 runtime】,兩邊都要驗,否則刪掉任一邊照樣綠:
+    //   ① JS 側把資格推進 App Group——plusApplyCustomerInfo()(購買/還原/refresh/登入的匯流點)
+    //      呼叫 metroWidgetSyncPlus(),後者呼叫 plugin 的 setPlus。少了這條,widget 永遠停在
+    //      免費層(擋得更兇,但清單就成了謊——已訂閱的人也用不到)。
+    //   ② Swift 側真的擋——MetroPlusCore.decide 對 plus 放行、對 isAuto 回 needPassAuto。
+    //      把 `if plus { return .allowed }` 刪掉或把 needPassAuto 改成 .allowed,這條就不成立。
+    // ②只驗核心 enum(零 IO、可離線窮舉),不驗殼層 IO——那由 verify_metro_plus_gate.mjs 負責。
+    check: () => fnBodyContains(SRC, 'plusApplyCustomerInfo', 'metroWidgetSyncPlus')
+      && fnBodyContains(SRC, 'metroWidgetSyncPlus', 'setPlus')
+      && /if plus \{ return \.allowed \}/.test(GATESRC)
+      && /if isAuto \{ return \.needPassAuto \}/.test(GATESRC),
+  },
   {
     needle: '創始島民',
     // 原本的 symbol 指向 foundingFrom()——那是純函式,只從購買資訊算「這筆訂閱起始於創始期內

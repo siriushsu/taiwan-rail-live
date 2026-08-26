@@ -44,6 +44,7 @@ let rows = snap.rows.map { r -> [String: Any] in
   if let c = r.crowd { d["crowd"] = c }
   if let l = r.lineCode { d["lineCode"] = l }
   if let n = r.trainNo { d["trainNo"] = n }
+  if r.approx { d["approx"] = true }
   return d
 }
 let out: [String: Any] = ["station": snap.station, "dataAt": snap.dataAt, "stale": snap.stale, "rows": rows]
@@ -304,6 +305,52 @@ for (const [sys, file] of [['krtc', 'krtc-live.json'], ['tymc', 'tymc-live.json'
   const g = run('min', st, Date.now() / 1000, file, sys);
   ok(`N3-${sys} 分鐘制不得有線代碼`, g.rows.every(r => r.lineCode === undefined),
      JSON.stringify(g.rows.map(r => r.lineCode)));
+}
+
+// ── 🔴 「再下一班」合成列(2026-08-22 裁示:第二班寫「約N分」,推不出留白) ──
+// fixture 是凍結樣本＋只注入 eta2 三處的合成檔(檔名標明 -synth;負向案例 eta2≤eta
+// 只有合成造得出來——伺服端結構上不會送)。期望值全部從 fixture 原始欄位獨立算。
+{
+  const raw = JSON.parse(readFileSync(join(ROOT, 'app/fixtures/metro/trtc-live-eta2-synth.json'), 'utf8'));
+  const NOW2 = Math.min(...raw.board.map(b => b.eta)) - 60;
+  const tp = raw.board.filter(b => b.name === '台北車站' && b.eta > NOW2);
+  const valid = tp.filter(b => b.eta2 != null && b.eta2 > b.eta && b.eta2 > NOW2);
+  const invalid = tp.filter(b => b.eta2 != null && b.eta2 <= b.eta);
+  ok('E0 正向對照:合成 fixture 真的有 2 合法+1 非法 eta2(否則 E 族全空過)',
+     valid.length === 2 && invalid.length === 1,
+     `valid=${valid.length} invalid=${invalid.length}`);
+  const got = run('trtc', '台北車站', NOW2, 'trtc-live-eta2-synth.json', 'trtc');
+  const approxRows = got.rows.filter(r => r.approx === true);
+  // E1 列數守恆:官方未來列 + 合法 eta2 數;非法那顆不得出現
+  ok('E1 合成列數=合法 eta2 數,非法 eta2 不出現',
+     approxRows.length === valid.length &&
+     got.rows.length === tp.length + valid.length &&
+     !got.rows.some(r => r.etaEpoch === invalid[0].eta2),
+     `approx=${approxRows.length} total=${got.rows.length} exp=${tp.length + valid.length}`);
+  // E2 逐顆:etaEpoch===eta2、dest=alias、無 minutes/crowd/trainNo
+  ok('E2 合成列欄位:etaEpoch=eta2,無 crowd/trainNo/minutes',
+     valid.every(b => approxRows.some(r => r.etaEpoch === b.eta2 &&
+       r.dest === (DATA.alias.trtc[b.dest] ?? b.dest) &&
+       r.minutes === undefined && r.crowd === undefined && r.trainNo === undefined)),
+     JSON.stringify(approxRows));
+  // E3 lineCode 繼承:南港展覽館列(no=208,join 到 trains[].stn)的合成列要帶同一個線代碼;
+  //    淡水列(no=103,join 不到)的合成列必須 nil。期望值從 fixture 的 trains 獨立算。
+  const trainByNo = new Map((raw.trains || []).map(t => [String(t.no), t]));
+  for (const b of valid) {
+    const stn = trainByNo.get(String(b.no))?.stn;
+    const expLine = stn ? (stn.match(/^[A-Za-z]+/)?.[0] ?? null) : null;
+    const synth = approxRows.find(r => r.etaEpoch === b.eta2);
+    ok(`E3 合成列線代碼繼承第一班(${DATA.alias.trtc[b.dest] ?? b.dest}→${expLine ?? 'nil'})`,
+       (synth?.lineCode ?? null) === expLine, JSON.stringify(synth));
+  }
+  // E4 排序:合成列按 (eta,原始dest) 插回;整份輸出必須非遞減
+  ok('E4 輸出依 etaEpoch 非遞減(合成列插回時間順序)',
+     got.rows.every((r, i) => i === 0 || got.rows[i - 1].etaEpoch <= r.etaEpoch),
+     JSON.stringify(got.rows.map(r => r.etaEpoch)));
+  // E5 無 eta2 的原始凍結樣本:輸出與 E 族改動前完全同形(零合成列)——回歸保險絲
+  const got0 = run('trtc', '台北車站', NOW2, 'trtc-live.json', 'trtc');
+  ok('E5 原始樣本零合成列(舊 worker 無 eta2 ⇒ 功能自然不存在)',
+     got0.rows.every(r => r.approx === undefined), JSON.stringify(got0.rows.map(r => r.approx)));
 }
 
 // ── 🔴 抓取必須關掉用戶端快取 ──
