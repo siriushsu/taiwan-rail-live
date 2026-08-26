@@ -37,7 +37,7 @@ async function assertTarget() {
   if (disk !== served) { console.log('\n目標不符,後面全部不用看了。'); process.exit(1); }
 }
 
-async function boot(browser, { width = 393, tier = 'std', query = '', scheme } = {}) {
+async function boot(browser, { width = 393, tier = 'std', query = '', scheme, native = null } = {}) {
   const ctx = await browser.newContext({
     viewport: { width, height: 852 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true,
     ...(scheme ? { colorScheme: scheme } : {}),   // 不傳＝沿用 Playwright 預設,既有各段行為不變
@@ -45,11 +45,13 @@ async function boot(browser, { width = 393, tier = 'std', query = '', scheme } =
   const page = await ctx.newPage();
   const errs = [];
   page.on('pageerror', e => errs.push(String(e)));
-  await page.addInitScript(t => {
+  await page.addInitScript(a => {
     localStorage.setItem('trainmap-howto-seen', '1');                 // 首訪教學卡會蓋住地圖與頂列
     localStorage.setItem('iabHintDismiss', String(Date.now() + 1e9)); // 內嵌瀏覽器提示同理
-    if (t !== 'std') localStorage.setItem('trainmap-fontscale', t);
-  }, tier);
+    if (a.t !== 'std') localStorage.setItem('trainmap-fontscale', a.t);
+    // 只有原生殼會注入的旗標(末班車提醒鈴鐺靠它才出現);瀏覽器驗收要驗三顆鈕的版面時才傳
+    if (a.native) for (const k of a.native) window[k] = true;
+  }, { t: tier, native });
   await page.goto(URL_BASE + query, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => typeof state !== 'undefined' && state.ready, null, { timeout: 45000 })
     .catch(() => {});
@@ -1204,7 +1206,8 @@ const L_SNAP = () => {
         return oy === 'auto' || oy === 'scroll';
       }).map(e => e.id || e.className || e.tagName).slice(0, 4); })(),
     boardTop: Math.round(bd.scrollTop),
-    size: bd.classList.contains('expand') ? 'large' : bd.classList.contains('sheet-small') ? 'small' : 'medium',
+    // 兩段制(2026-08-26):大段('large'／.expand)已退役,判法逐字對齊 app 自己的 sheetSizeOf()
+    size: bd.classList.contains('sheet-small') ? 'small' : 'medium',
     hintVis: vis(hint), hintH: hr ? Math.round(hr.height) : 0,
     hintHit: hr && vis(hint) ? (() => { const q = document.elementFromPoint(hr.left + hr.width / 2, (hr.top + hr.bottom) / 2);
       return !!(q && q.closest('.uni-more')); })() : false,
@@ -1239,8 +1242,9 @@ async function slotPaints(page) {
 }
 
 // ── L 段:詳細資訊卡 3a(一個捲軸從摘要到停靠表)────────────────────────────
-// 設計 -前段3 TURN 3 的 3a:詳細＝88% 展開態,「一個捲軸從摘要到停靠表,不用學新導覽」,
-// 40%/46% 那兩段看不出下面還有東西 ⇒ 卡緣一條「往上拉看詳細」。
+// 設計 -前段3 TURN 3 的 3a:詳細＝展開態,「一個捲軸從摘要到停靠表,不用學新導覽」,
+// 小段看不出下面還有東西 ⇒ 卡緣一條「往上拉看詳細」。
+// 2026-08-26 兩段制:展開態＝中段 46%(原 88% 大段已退役),提示列只在小段出現。
 async function sectionL(browser, engine) {
   const tag = `${engine} 393pt`;
   const { page, errs, close } = await boot(browser, { width: 393 });
@@ -1277,26 +1281,28 @@ async function sectionL(browser, engine) {
     A.hintVis && /往上拉/.test(A.hintTxt) && A.hintH >= 44 && A.hintHit,
     JSON.stringify({ vis: A.hintVis, h: A.hintH, hit: A.hintHit, txt: A.hintTxt }));
 
-  // 點它 → 88%;提示列自己收掉(已經看得到了)
+  // 點它 → 最大段(兩段制＝中段 46%);提示列自己收掉(已經看得到了)
   // 🔴 點不到不可以用拋例外收場:那會把整段帶走,L7 之後全部沒跑到而輸出只看得到幾條紅
   //    (突變測試實測:把提示列藏起來 ⇒ 只剩 13 筆結果,L7 這條反向對照根本沒發言)。記一筆紅再往下走。
   const clicked = await page.locator('.uni-more').click({ timeout: 5000 }).then(() => true, () => false);
   await page.waitForTimeout(900);
   const B = await snap();
   const paint88 = await slotPaints(page);
-  ok(`L6 ${tag} 點提示列 ⇒ 段高變 88%,提示列自己收掉,而且那一頁真的畫得出來`,
-    clicked && B.size === 'large' && !B.hintVis && B.following && B.fpInSlot && paint88.painted,
+  ok(`L6 ${tag} 點提示列 ⇒ 段高變最大段,提示列自己收掉,而且那一頁真的畫得出來`,
+    clicked && B.size === 'medium' && !B.hintVis && B.following && B.fpInSlot && paint88.painted,
     JSON.stringify({ 點得到: clicked, 有畫東西: paint88.painted, 區域: paint88.note, ...B }));
   // 🔴 第二種證據(心得 24 的雙證據):卡到根的累乘不透明度＝1,且卡內容中心點打到的是卡自己。
   //    契約③ 淡出時 opacity 0＋pointer-events:none,兩者會同時倒——而 DOM 檢查全綠。
-  ok(`L12 ${tag} 88% 那一頁不是透明的:不透明度 1 且卡內容命中自己`,
+  ok(`L12 ${tag} 展開段那一頁不是透明的:不透明度 1 且卡內容命中自己`,
     B.fpOpacity === 1 && B.cardHit, JSON.stringify({ opacity: B.fpOpacity, 命中卡: B.cardHit }));
-  // 反向對照:回到中段提示列要回來——少了這半,「提示列永遠不顯示」也會讓 L6 過
-  await page.evaluate(() => setSheetSize(document.getElementById('board'), 'medium'));
+  // 反向對照:回到小段提示列要回來——少了這半,「提示列永遠不顯示」也會讓 L6 過。
+  // 兩段制之後提示列只掛在小段(中段已經看得到下面了),所以反向對照的目標段是 small。
+  await page.evaluate(() => setSheetSize(document.getElementById('board'), 'small'));
   await page.waitForTimeout(900);
   const C = await snap();
-  ok(`L7 ${tag} 反向對照:回到中段提示列又出現`,
-    C.size === 'medium' && C.hintVis, JSON.stringify({ size: C.size, hintVis: C.hintVis }));
+  ok(`L7 ${tag} 反向對照:回到小段提示列又出現,而且照樣命中自己`,
+    C.size === 'small' && C.hintVis && C.hintHit,
+    JSON.stringify({ size: C.size, hintVis: C.hintVis, hit: C.hintHit }));
 
   // 捲動位置保留:捲到停靠表之後重繪一次(看板每 20 模擬秒會自己來一發),不可以被彈回頂端
   const scrolled = await page.evaluate(() => {
@@ -1342,11 +1348,19 @@ const M_SNAP = () => {
     nos: cards.map(c => c.dataset.no || ''),
     ks: cards.map(c => (c.querySelector('.hc-k') || {}).textContent || ''),
     hs: cards.map(c => Math.round(c.getBoundingClientRect().height)),
-    // 🔴 四張都要測命中,不是只測第一張(並排元件的熱區重疊是這個 repo 踩過的坑)
-    hits: cards.map(c => { const r = c.getBoundingClientRect();
-      if (!(r.width > 2 && r.height > 2)) return false;
-      const q = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-      return !!(q && q.closest('.hl-card') === c); }),
+    // 🔴 四張都要測命中,不是只測第一張(並排元件的熱區重疊是這個 repo 踩過的坑)。
+    //    2026-08-26:每張先捲進視野再打點——兩段制之後面板最高只到 46%,特大字級的四張卡
+    //    (98px×4)本來就裝不進一屏,原本「四張同時打得到」其實是靠已退役的 88% 大段才成立的,
+    //    那是段高的副作用不是熱區的性質。要驗的是「每一張各自命中自己(沒有互相蓋住)」,
+    //    所以捲到它面前再打點;打完把捲動位置還原,不影響後面的判準。
+    hits: (() => { const pn = document.getElementById('explorePanel'); const t0 = pn.scrollTop;
+      const r0 = cards.map(c => { const r = c.getBoundingClientRect();
+        if (!(r.width > 2 && r.height > 2)) return false;
+        c.scrollIntoView({ block: 'center' });
+        const b = c.getBoundingClientRect();
+        const q = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+        return !!(q && q.closest('.hl-card') === c); });
+      pn.scrollTop = t0; return r0; })(),
     // 「今日之最」要排在「特別列車出沒中」前面(設計 3e 的順序)
     secOrder: secs,
     bestFirst: secs.indexOf('今日之最') === 0,
@@ -1381,7 +1395,9 @@ async function sectionM(browser, engine, tier = 'std') {
   await page.evaluate(() => { if (state.playing) togglePlay(); });
   await page.evaluate(() => document.getElementById('tabExplore').click());
   await page.waitForTimeout(1300);
-  await page.evaluate(() => setSheetSize(document.getElementById('explorePanel'), 'large'));
+  // 撐到最大段:直接讀 app 自己的段位清單,免得段制再變一次時這裡又留著一個不存在的段名
+  // (2026-08-26 兩段制上路時就是這樣留下 'large' ⇒ 面板只到 46%、後兩張卡掉出視野)
+  await page.evaluate(() => setSheetSize(document.getElementById('explorePanel'), SHEET_SIZES[SHEET_SIZES.length - 1]));
   await page.waitForTimeout(800);
   const A = await snap();
   ok(`M1 ${tag} 正向對照:亮點面板開著,今日之最四格,而且排在最前面`,
@@ -2612,7 +2628,134 @@ async function sectionY(browser, engine) {
   }
 }
 
-const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ, K: sectionK, L: sectionL, M: sectionM, MX: sectionMx, N: sectionN, NX: sectionNx, O: sectionO, P: sectionP, Q: sectionQ, R: sectionR, S: sectionS, T: sectionT, U: sectionU, V: sectionV, W: sectionW, X: sectionX, Y: sectionY };
+
+// ── Z 段:看板標題列三顆鈕(✕／☆／🔔)的觸控目標 ─────────────────────────────
+// 使用者 2026-08-26:「再小的字體設定時,關掉的 X 太小了,容易點不到。」
+// 真因:命中框寫死 22×22 且**不吃 --ui**——字級放大只放大字形、框一動也不動;
+//   而標題列本身只有 38–40px 高,垂直方向在任何字級都先撞牆(所以三階都要驗,不是只驗 std)。
+// 🔴 判準寫「點下去發生什麼」不只寫幾何(心得 33／37a):幾何綠只證明「看起來沒疊」,
+//    答不了「點 ☆ 會不會其實開到 ✕」。每顆都真的 tap 一次並看它造成的狀態改變,
+//    而且 ✕ 與 ☆ 互為正向對照——「✕ 會關」單獨成立沒有意義(整條標題列都關才更慘),
+//    必須同時證明「☆ 不會關」。
+// 🔴 撐大命中框時最容易踩的坑是**重疊**:框一重疊,DOM 較後的那顆整個蓋掉前一顆,
+//    幾何與 computed style 都照不到(那次是兩顆並排鈕怎麼點都開到後面那顆)。Z2 專門守這件事。
+const Z_RECT = `(() => {
+  const bd = document.getElementById('board');
+  const g = sel => { const e = bd.querySelector(sel); if (!e) return null; const r = e.getBoundingClientRect();
+    return { w: +r.width.toFixed(1), h: +r.height.toFixed(1), x: +r.left.toFixed(1), y: +r.top.toFixed(1),
+      cx: +(r.left + r.width / 2).toFixed(1), cy: +(r.top + r.height / 2).toFixed(1) }; };
+  const h3 = bd.querySelector('h3');
+  return { close: g('.close'), star: g('.board-star'), notify: g('.board-notify'),
+    h3h: h3 ? +h3.getBoundingClientRect().height.toFixed(1) : null,
+    hidden: bd.hidden, fav: !!bd.querySelector('.board-star.on') };
+})()`;
+const zOverlap = (a, b) => {
+  if (!a || !b) return 0;
+  const w = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+  const h = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+  return (w > 0.5 && h > 0.5) ? +(w * h).toFixed(1) : 0;
+};
+async function sectionZ(browser, engine) {
+  for (const tier of ['std', 'large', 'xlarge']) {
+    const { page, errs, close } = await boot(browser, { width: 393, tier });
+    const tag = `${engine} ${tier}`;
+    try {
+      await page.evaluate(() => selectGroup(GROUPS.find(g => g.id === 'tra')));
+      await page.waitForFunction(() => state.mode === 'sched', null, { timeout: 45000 });
+      await page.evaluate(() => openBoard({ name: '臺北', sys: 'tra_sched', lat: 25.0478, lon: 121.517 }));
+      await page.waitForTimeout(700);
+      const r0 = await page.evaluate(c => eval(c), Z_RECT);
+
+      // Z1 幾何:44 是 Apple HIG 的觸控下限,不是實作值——寫死它不會隨實作漂移。
+      ok(`Z1 ${tag} 看板 ✕／☆ 命中框 ≥44×44`,
+        !!r0.close && !!r0.star && r0.close.w >= 44 && r0.close.h >= 44 && r0.star.w >= 44 && r0.star.h >= 44,
+        JSON.stringify({ close: r0.close, star: r0.star }));
+      ok(`Z2 ${tag} 看板標題列各鈕命中框互不重疊`,
+        zOverlap(r0.close, r0.star) === 0,
+        `重疊 ${zOverlap(r0.close, r0.star)} px²`);
+
+      // Z3 命中歸屬:框中心與四角(內縮 2px)都要打到 ✕ 自己,不是被 h3／抓把蓋住
+      const hit = await page.evaluate(c => {
+        const bd = document.getElementById('board'), el = bd.querySelector('.close');
+        const r = el.getBoundingClientRect(), p = 2, out = [];
+        for (const [x, y] of [[r.left + r.width / 2, r.top + r.height / 2],
+                              [r.left + p, r.top + p], [r.right - p, r.top + p],
+                              [r.left + p, r.bottom - p], [r.right - p, r.bottom - p]]) {
+          const t2 = document.elementFromPoint(x, y);
+          out.push(t2 === el || (t2 && el.contains(t2)) ? 'ok' : (t2 ? (t2.className || t2.tagName) : 'null'));
+        }
+        return out;
+      }, null);
+      ok(`Z3 ${tag} ✕ 命中框中心＋四角都命中 ✕ 本身`,
+        hit.every(v => v === 'ok'), JSON.stringify(hit));
+
+      // Z4 正向對照:真的按 ☆ —— 最愛要翻轉,而且看板**不可以**關掉
+      await page.mouse.click(r0.star.cx, r0.star.cy);
+      await page.waitForTimeout(500);
+      const rStar = await page.evaluate(c => eval(c), Z_RECT);
+      ok(`Z4 ${tag} 真按 ☆:最愛翻轉且看板沒關(✕ 的正向對照)`,
+        rStar.fav !== r0.fav && rStar.hidden === false,
+        JSON.stringify({ favBefore: r0.fav, favAfter: rStar.fav, hidden: rStar.hidden }));
+      // 復原最愛,免得污染同一個 profile 的後續判準
+      if (rStar.star && rStar.fav !== r0.fav) { await page.mouse.click(rStar.star.cx, rStar.star.cy); await page.waitForTimeout(400); }
+
+      // Z5 真按 ✕ —— 看板要關掉
+      // 🔴 rPre.close 可能是 null:Z4 紅的典型形態就是「☆ 其實點到 ✕」⇒ 看板已經關了、鈕不在 DOM。
+      //    不防的話這裡拋例外會把同段後面的判準一起帶走(m2 突變實測),紅的條數變得看不出原因。
+      const rPre = await page.evaluate(c => eval(c), Z_RECT);
+      if (!rPre.close) {
+        ok(`Z5 ${tag} 真按 ✕:看板關掉`, false, '前一步之後 ✕ 已不在 DOM(看板被提早關掉,見 Z4)');
+      } else {
+        await page.mouse.click(rPre.close.cx, rPre.close.cy);
+        await page.waitForTimeout(500);
+        const rClose = await page.evaluate(c => eval(c), Z_RECT);
+        ok(`Z5 ${tag} 真按 ✕:看板關掉`, rClose.hidden === true, JSON.stringify({ hidden: rClose.hidden }));
+      }
+
+      ok(`Z6 ${tag} 無 pageerror`, errs.length === 0, errs.slice(0, 2).join(' | '));
+    } finally { await close(); }
+  }
+
+  // Z7 三顆鈕齊備(末班車提醒鈴鐺只有原生殼才有,用旗標注入把它叫出來):
+  //    這是右上角最擠的組合,要同時成立三件事——每顆都 ≥44、彼此不重疊、標題列不因為
+  //    右內距加大而換行(h3 高度不得超過兩顆鈕時的高度)。
+  {
+    const a = await boot(browser, { width: 393, tier: 'xlarge' });
+    let h3Two = null;
+    try {
+      await a.page.evaluate(() => selectGroup(GROUPS.find(g => g.id === 'tra')));
+      await a.page.waitForFunction(() => state.mode === 'sched', null, { timeout: 45000 });
+      await a.page.evaluate(() => openBoard({ name: '臺北', sys: 'tra_sched', lat: 25.0478, lon: 121.517 }));
+      await a.page.waitForTimeout(700);
+      h3Two = (await a.page.evaluate(c => eval(c), Z_RECT)).h3h;
+    } finally { await a.close(); }
+
+    const b = await boot(browser, { width: 393, tier: 'xlarge', native: ['RAIL_NATIVE_LOCALNOTIFY'] });
+    try {
+      await b.page.evaluate(() => selectGroup(GROUPS.find(g => g.id === 'tra')));
+      await b.page.waitForFunction(() => state.mode === 'sched', null, { timeout: 45000 });
+      // 站名刻意挑長的:右內距加大之後最先出事的就是長站名
+      await b.page.evaluate(() => openBoard({ name: '新左營', sys: 'tra_sched', lat: 22.687, lon: 120.307 }));
+      await b.page.waitForTimeout(700);
+      const r = await b.page.evaluate(c => eval(c), Z_RECT);
+      const three = !!r.notify;
+      ok(`${engine} Z7 前置·三顆鈕真的都在(鈴鐺靠原生旗標)`, three, JSON.stringify({ notify: r.notify }));
+      if (three) {
+        ok(`${engine} Z7 三顆鈕都 ≥44×44`,
+          [r.close, r.star, r.notify].every(x => x && x.w >= 44 && x.h >= 44),
+          JSON.stringify({ close: r.close, star: r.star, notify: r.notify }));
+        ok(`${engine} Z7 三顆鈕兩兩不重疊`,
+          zOverlap(r.close, r.star) === 0 && zOverlap(r.star, r.notify) === 0 && zOverlap(r.close, r.notify) === 0,
+          `✕☆ ${zOverlap(r.close, r.star)} ／ ☆🔔 ${zOverlap(r.star, r.notify)} ／ ✕🔔 ${zOverlap(r.close, r.notify)} px²`);
+        ok(`${engine} Z7 長站名＋三顆鈕標題列沒有被擠到換行`,
+          h3Two != null && r.h3h <= h3Two + 1, `兩顆 ${h3Two} → 三顆 ${r.h3h}`);
+      }
+      ok(`${engine} Z7 無 pageerror`, b.errs.length === 0, b.errs.slice(0, 2).join(' | '));
+    } finally { await b.close(); }
+  }
+}
+
+const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ, K: sectionK, L: sectionL, M: sectionM, MX: sectionMx, N: sectionN, NX: sectionNx, O: sectionO, P: sectionP, Q: sectionQ, R: sectionR, S: sectionS, T: sectionT, U: sectionU, V: sectionV, W: sectionW, X: sectionX, Y: sectionY, Z: sectionZ };
 const want = (process.env.SECTIONS || '').split(',').map(x => x.trim().toUpperCase()).filter(Boolean);
 const run = want.length ? want : Object.keys(ALL);
 for (const k of run) if (!ALL[k]) { console.error(`未知段別 ${k}`); process.exit(2); }
@@ -2630,4 +2773,8 @@ for (const [engine, launcher] of [['chromium', chromium], ['webkit', webkit]]) {
 }
 const pass = results.filter(r => r.pass).length;
 console.log(`\n=== ${pass}/${results.length} 通過 ===`);
+// 🔴 尾端重列一次紅的:1040 條的輸出動輒被 `| tail` 截掉,只留總計等於知道有紅卻不知道紅在哪
+//    (2026-08-26 實測白跑一輪)。清單放在總計之後,無論怎麼截都跟著總計一起留下來。
+const bad = results.filter(r => !r.pass);
+if (bad.length) console.log(bad.map(f => '  FAIL ' + f.name + (f.detail ? ' — ' + f.detail : '')).join('\n'));
 process.exit(pass === results.length ? 0 : 1);

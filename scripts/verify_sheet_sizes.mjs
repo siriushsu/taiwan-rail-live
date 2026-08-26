@@ -1,8 +1,13 @@
-// 手機底部 sheet 三段高的驗收：使用者 2026-07-30 回報「車站資訊做了可以拉大小，但實際上沒有作用」。
+// 手機底部 sheet 段高的驗收：使用者 2026-07-30 回報「車站資訊做了可以拉大小，但實際上沒有作用」。
 //
-// 真因：段高原本只有 max-height（上限），內容比該段短時三段一律貼合內容 ⇒ 拉了完全沒反應。
-// 判準刻意寫「使用者看得到的行為」而不是 CSS 公式（88% / min() 那串是實作，拿它當判準＝同源、
-// 公式錯的話判準會跟著錯）：大段一定要明顯變大、三段要真的不同高、面板不得超出畫面。
+// 真因：段高原本只有 max-height（上限），內容比該段短時各段一律貼合內容 ⇒ 拉了完全沒反應。
+// 判準刻意寫「使用者看得到的行為」而不是 CSS 公式（46% / min() 那串是實作，拿它當判準＝同源、
+// 公式錯的話判準會跟著錯）：展開段一定要明顯變大、兩段要真的不同高、面板不得超出畫面。
+//
+// 🔴 2026-08-26 三段改兩段（使用者裁示）：大段 88% 退役——「很多站在大的尺寸時其實會變成大部分
+//    都空的，還要多點一下才能縮小很煩」。同輪把預設從中改成小、並把下限給中段，否則兩段在安靜的
+//    站會量出同高（談文實測 207/207）＝ 2026-07-30 那個病灶原封不動搬到兩段制。
+//    G2 因此是這支腳本的核心判準，且刻意用**嚴格**不等式：`小 < 中`，相等就是病灶復發。
 //
 // 用法：node scripts/verify_sheet_sizes.mjs [目標目錄]   ENGINES=chromium 只跑一個引擎
 import { chromium, webkit } from 'playwright';
@@ -57,7 +62,9 @@ const SNAP = `(() => {
   const r = el.getBoundingClientRect();
   return { cls: el.className, h: Math.round(r.height), top: Math.round(r.top), bottom: Math.round(r.bottom),
     scrollH: el.scrollHeight, rows: el.querySelectorAll('.row').length,
-    pref: localStorage.getItem('trainmap-sheet-size'), vh: innerHeight };
+    pref: localStorage.getItem('trainmap-sheet-size'), vh: innerHeight,
+    size: (typeof sheetSizeOf === 'function' ? sheetSizeOf(el) : null),
+    full: document.body.classList.contains('sheet-full') };
 })()`;
 
 async function boot(browser, { width, height, touch }) {
@@ -66,7 +73,7 @@ async function boot(browser, { width, height, touch }) {
     try {
       localStorage.setItem('trainmap-howto-seen', '1');
       localStorage.setItem('trainmap-appearance', 'light');
-      localStorage.removeItem('trainmap-sheet-size'); // 每次從「中」起手，不吃上一輪殘留
+      localStorage.removeItem('trainmap-sheet-size'); // 每次從預設段起手，不吃上一輪殘留
     } catch (e) {}
   });
   const page = await ctx.newPage();
@@ -92,15 +99,15 @@ async function tapHandle(page) {
   return await page.evaluate(c => eval(c), SNAP);
 }
 
-/// 開看板 → 中/大/小 三段各量一次（點抓把循環：中→大→小→中）
+/// 開看板 → 兩段各量一次（點抓把循環：小→中→小）。
+/// 🔴 起手是**小**段（2026-08-26 起的預設）：打開就貼合內容不留白，按一下才展開。
 async function cycle(page, openExpr) {
   await page.evaluate(c => eval(c), openExpr);
   await page.waitForTimeout(800);
-  const medium = await page.evaluate(c => eval(c), SNAP);
-  const large = await tapHandle(page);
-  const small = await tapHandle(page);
+  const small = await page.evaluate(c => eval(c), SNAP);
+  const medium = await tapHandle(page);
   const back = await tapHandle(page);
-  return { medium, large, small, back };
+  return { small, medium, back };
 }
 
 for (const engineName of ENGINES) {
@@ -124,36 +131,34 @@ for (const engineName of ENGINES) {
     for (const [label, station] of [[`台鐵・多班次 ${busy}`, busy], [`台鐵・少班次 ${quiet}`, quiet]]) {
       const c = await cycle(page, open(station));
       const tag = `${engineName}/mobile/${label}`;
-      const dims = `中 ${c.medium.h} / 大 ${c.large.h} / 小 ${c.small.h}（內容 ${c.medium.scrollH}，視窗 ${c.medium.vh}）`;
+      const dims = `小 ${c.small.h} / 中 ${c.medium.h}（內容 ${c.small.scrollH}，視窗 ${c.small.vh}）`;
 
-      // 這是使用者的原話翻成的判準：拉到最大要「真的變大」。門檻取視窗的 80%，
-      // 不寫 88%／743px——那是實作的數字，寫進來就變成同源判準。
-      ok(`G1 ${tag} 大段真的撐開（不受內容長度影響）`,
-        c.large.h >= 0.8 * c.large.vh && c.large.h > c.medium.h,
-        dims);
-      ok(`G2 ${tag} 小段比中段矮或相等，且大＞中＞≥小`,
-        c.small.h <= c.medium.h && c.large.h > c.medium.h,
-        dims);
-      ok(`G3 ${tag} 三段都沒有超出畫面`,
-        c.large.top >= 0 && c.large.bottom <= c.large.vh + 1 && c.small.bottom <= c.small.vh + 1,
-        `大段 top ${c.large.top} bottom ${c.large.bottom} / 小段 bottom ${c.small.bottom}`);
-      ok(`G4 ${tag} 段高偏好有記住（大→small→回中）`,
-        c.large.pref === 'large' && c.small.pref === 'small' && c.back.pref === 'medium',
-        `${c.large.pref} → ${c.small.pref} → ${c.back.pref}`);
-      ok(`G5 ${tag} 循環回到中段時高度與一開始相同`,
-        c.back.h === c.medium.h, `${c.medium.h} → ${c.back.h}`);
-      // 班次多的那站才驗「多給班次」：安靜的站本來就沒有第 13 班可列
+      // 使用者的原話翻成的判準：按下去要「真的變大」。門檻取視窗的 40%，
+      // 不寫 46%／388px——那是實作的數字，寫進來就變成同源判準。
+      ok(`G1 ${tag} 中段真的撐開（不受內容長度影響）`,
+        c.medium.h >= 0.4 * c.medium.vh, dims);
+      // 🔴 嚴格不等式：這一條就是 2026-07-30／2026-08-26 兩次病灶的守門人。
+      //    只要有人把中段的 min-height 拿掉，安靜的站立刻回到「兩段同高、按了沒反應」。
+      ok(`G2 ${tag} 小段嚴格比中段矮（按下去看得出變化）`,
+        c.small.h < c.medium.h, dims);
+      ok(`G3 ${tag} 兩段都沒有超出畫面`,
+        c.medium.top >= 0 && c.medium.bottom <= c.medium.vh + 1 && c.small.bottom <= c.small.vh + 1,
+        `中段 top ${c.medium.top} bottom ${c.medium.bottom} / 小段 bottom ${c.small.bottom}`);
+      ok(`G4 ${tag} 段高偏好有記住（小→中→回小）`,
+        c.medium.pref === 'medium' && c.back.pref === 'small',
+        `${c.small.pref} → ${c.medium.pref} → ${c.back.pref}`);
+      ok(`G5 ${tag} 循環回到小段時高度與一開始相同`,
+        c.back.h === c.small.h, `${c.small.h} → ${c.back.h}`);
+      ok(`G5b ${tag} 打開時就是小段（預設不留白）`,
+        c.small.size === 'small' && c.medium.size === 'medium',
+        `${c.small.size} → ${c.medium.size}`);
+      // 班次多的那站才驗筆數：安靜的站本來就沒有 12 班可截。
+      // 🔴 大段 24 筆退役後筆數不再跟段高走 ⇒ 判準改成「兩段筆數一致且不超過 12」；
+      //    有人把筆數重新綁回段高（或把上限改掉）這條就會紅。
       if (station === busy) {
-        // 🔴 「多列班次」只有在中段真的被 12 筆上限截斷時才成立：深夜跑這支，臺北整站只剩 9 班，
-        //    三段都是 9 筆而紅——那是環境條件（此刻沒有第 13 班），不是回歸（同一條在 base a7fbe17
-        //    上逐字一樣紅）。把前提寫成條件式，不是把期望值改成當下實測的數字。
-        //    不足 12 筆時仍然有判準：三段筆數必須一致（大段少列了照樣會紅）。
-        const capped = c.medium.rows >= 12;
-        ok(`G6 ${tag} ${capped ? '大段的看板多列班次（12 → 最多 24）'
-            : `此刻不足 12 筆（無第 13 班可多列），改驗三段筆數一致`}`,
-          capped ? (c.large.rows > c.medium.rows && c.large.rows <= 24 && c.medium.rows <= 12)
-                 : (c.large.rows === c.medium.rows && c.small.rows === c.medium.rows),
-          `中 ${c.medium.rows} 筆 → 大 ${c.large.rows} 筆 → 小 ${c.small.rows} 筆`);
+        ok(`G6 ${tag} 段高不再改變列出的班次數（上限 12）`,
+          c.small.rows === c.medium.rows && c.medium.rows <= 12,
+          `小 ${c.small.rows} 筆 → 中 ${c.medium.rows} 筆`);
       }
     }
 
@@ -167,11 +172,28 @@ for (const engineName of ENGINES) {
     if (metro) {
       const c = await cycle(page, `openBoard(${JSON.stringify({ ...metro, lat: 25.0478, lon: 121.517 })})`);
       const tag = `${engineName}/mobile/捷運來車看板 ${metro.name}`;
-      ok(`G7 ${tag} 大段真的撐開`, c.large.h >= 0.8 * c.large.vh && c.large.h > c.medium.h,
-        `中 ${c.medium.h} / 大 ${c.large.h} / 小 ${c.small.h}（內容 ${c.medium.scrollH}）`);
+      // 捷運來車看板內容天生短（一目的地只列一班），是「兩段同高」最容易復發的現場
+      ok(`G7 ${tag} 中段真的撐開且小段嚴格較矮`,
+        c.medium.h >= 0.4 * c.medium.vh && c.small.h < c.medium.h,
+        `小 ${c.small.h} / 中 ${c.medium.h}（內容 ${c.small.scrollH}）`);
     } else {
       ok('G7 捷運來車看板取得到樣本', false, '找不到捷運站樣本');
     }
+
+    // 🔴 G8b「大段已退役」：正向對照——刻意用舊 API 呼叫 'large'，必須完全不生效。
+    //    沒有這條，未來有人把 'large' 加回 SHEET_SIZES、或讓 body 又掛上 sheet-full（那組規則會把
+    //    頂列/徽章/動作列整組淡出並關掉指標事件），G1–G7 一條都照不到——它們只量兩段各自的高度。
+    const relic = await page.evaluate(() => {
+      const bd = document.getElementById('board');
+      setSheetSize(bd, 'large');
+      return { size: sheetSizeOf(bd), full: document.body.classList.contains('sheet-full'),
+        expand: bd.classList.contains('expand'), steps: SHEET_SIZES.slice(),
+        pref: localStorage.getItem('trainmap-sheet-size') };
+    });
+    ok(`G8b ${engineName}/mobile 大段（'large'／body.sheet-full）已退役`,
+      relic.steps.join(',') === 'small,medium' && !relic.full && !relic.expand
+      && relic.size !== 'large' && relic.pref !== 'large',
+      JSON.stringify(relic));
 
     ok(`G8 ${engineName}/mobile 無 JS 錯誤`, errs.length === 0, errs.slice(0, 2).join(' | '));
     await ctx.close();
@@ -185,7 +207,7 @@ for (const engineName of ENGINES) {
     await page.waitForTimeout(700);
     const before = await page.evaluate(c => eval(c), SNAP);
     // 直接呼叫 API 也不該生效（不是只有「點不到把手」而已）
-    await page.evaluate(() => setSheetSize(document.getElementById('board'), 'large'));
+    await page.evaluate(() => setSheetSize(document.getElementById('board'), 'medium'));
     await page.waitForTimeout(400);
     const after = await page.evaluate(c => eval(c), SNAP);
     ok(`G9 ${engineName}/desktop 桌面不套段高`,

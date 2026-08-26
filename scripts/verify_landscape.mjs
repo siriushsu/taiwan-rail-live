@@ -188,14 +188,16 @@ const PICK_FOLLOW = async () => {
   return cand(true) || cand(false);
 };
 
-async function boot(browser, { w, h, tag }, { url = BASE, follow = true, sheetSize = null } = {}) {
+async function boot(browser, { w, h, tag }, { url = BASE, follow = true, sheetSize = null, fontScale = null } = {}) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true });
-  await ctx.addInitScript(sz => {
+  await ctx.addInitScript(a => {
     try {
       localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-appearance', 'light');
-      if (sz) localStorage.setItem('trainmap-sheet-size', sz);
+      if (a.sz) localStorage.setItem('trainmap-sheet-size', a.sz);
+      // 字級是開機第一行就讀進去的(首繪腳本),事後塞 localStorage 來不及
+      if (a.fs) localStorage.setItem('trainmap-fontscale', a.fs);
     } catch (e) {}
-  }, sheetSize);
+  }, { sz: sheetSize, fs: fontScale });
   const page = await ctx.newPage();
   page.on('pageerror', e => errors.push(`[${tag}] pageerror: ${e}`));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errors.push(`[${tag}] console.error: ${m.text()}`); });
@@ -389,6 +391,47 @@ async function settledOverlap(page) {
 // ─────────────────────────────────────────────────────────────
 // L1／L2／L4：橫式跟車 × 逐一開面板
 // ─────────────────────────────────────────────────────────────
+// 合併卡「四段固定」的共用探針:塞 2000px 受控內容 → 量卡高不變、真的捲得動、三段不位移。
+// 兩處共用(牌沒亮／牌亮著各量一次),不可各寫一份——判準漂掉時只有一邊會被改。
+const CARD_FIX_PROBE = () => {
+      const bd = document.getElementById('board');
+      if (!bd || bd.hidden) return { err: 'no-board' };
+      const tabs = bd.querySelector('.uni-tabs'), h3 = bd.querySelector(':scope > h3');
+      const plate = bd.querySelector(':scope > .dwell-plate');
+      const shown = e => e && getComputedStyle(e).display !== 'none' && e.getClientRects().length > 0;
+      const tb = document.getElementById('topbar').getBoundingClientRect();
+      const bar = document.querySelector('.tabbar').getBoundingClientRect();
+      const H0 = Math.round(bd.getBoundingClientRect().height);
+      // 🔴 「高度與內容無關／捲得動」不能靠當下剛好有幾班車來證明——少班次的站 scrollH 本來就
+      //    比可視區短(實測 16ProMax scrollH 314 === client 314),那時整條判準只是在量資料。
+      //    改成自己塞 2000px 當受控變因。塞的位置是**最後一個看得見的直接子元素的下內距**:
+      //    卡的捲動容器就是 #board 本身,而 .uni-slot 在「車站」頁籤時是 display:none
+      //    (往它塞 min-height 完全沒作用,第一版就是這樣假紅)。
+      const kids = [...bd.children].filter(shown);
+      const padEl = kids[kids.length - 1] || null;
+      const prevPB = padEl ? padEl.style.paddingBottom : null;
+      if (padEl) padEl.style.paddingBottom = '2000px';
+      const r = bd.getBoundingClientRect();
+      const t0 = tabs ? Math.round(tabs.getBoundingClientRect().top) : null;
+      const h0 = h3 ? Math.round(h3.getBoundingClientRect().top) : null;
+      const plateVis = shown(plate);
+      const p0 = plateVis ? Math.round(plate.getBoundingClientRect().top) : null;
+      bd.scrollTop = 400;
+      const t1 = tabs ? Math.round(tabs.getBoundingClientRect().top) : null;
+      const h1 = h3 ? Math.round(h3.getBoundingClientRect().top) : null;
+      const p1 = plateVis ? Math.round(plate.getBoundingClientRect().top) : null;
+      const scrolled = Math.round(bd.scrollTop);
+      const scrollH = bd.scrollHeight, client = bd.clientHeight;
+      bd.scrollTop = 0;
+      if (padEl) padEl.style.paddingBottom = prevPB;
+      const H1 = Math.round(bd.getBoundingClientRect().height);
+      return { top: Math.round(r.top), h: Math.round(r.height), H0, H1, scrollH, client,
+        gapTop: Math.round(r.top - tb.bottom), gapBottom: Math.round(bar.top - r.bottom),
+        tabsPos: tabs ? getComputedStyle(tabs).position : null, tabsTop0: t0, tabsTop1: t1,
+        h3Top0: h0, h3Top1: h1, plateVis, plateTop0: p0, plateTop1: p1,
+        scrolled, hasTabs: !!tabs, padded: !!padEl };
+};
+
 async function landscapeSuite(browser, eng) {
   for (const S of LANDSCAPE) {
     const b = await boot(browser, S);
@@ -483,53 +526,107 @@ async function landscapeSuite(browser, eng) {
     ok(`L3e ${eng}/${S.tag} 公告/群組/工具堆互不重疊且右緣對齊`,
       !topRight.err && topRight.bad.length === 0 && topRight.rightError <= 8, JSON.stringify(topRight));
 
-    // L4c/L4d(合約11+契約4):跟隨欄上下錨定——欄頂=固定錨 58(契約4「頂列底+8」在設計時
-    // 以頂列實高 49.8 定值,CSS 註解明載;mock 的 56 是照 mock 頂列 40 算的同一規則)。
-    // 錨是常數**與頂列當下內容高無關**——窄機收斂讓 SE3 頂列縮到底緣 36,欄頂不跟著浮動,
-    // 只驗不被頂列壓到(top ≥ tbBottom);Playwright 無安全區,env(sa-top)=0。
-    // 欄底=tabbar 上緣−8;(突變證齒:拿掉 bottom 錨改回內容撐高 → botGap 爆掉);
-    // 三段結構=釘頂欄頭/自捲身/釘底行動列。
-    const railGeo = await page.evaluate(() => {
-      const fp = document.getElementById('followPanel'); if (!fp || fp.hidden) return { err: 'no-fp' };
-      const r = fp.getBoundingClientRect();
-      const tR = document.getElementById('topbar').getBoundingClientRect();
+    // ── §04c v2「改·第 4 條」(2026-08-26):跟隨欄在橫式**廢除**,原本 L4c/L4d 問的是
+    //    「那條欄的上下錨定與三段結構」——欄不存在之後那兩條的紅是判準過期不是缺陷(w=0)。
+    //    換成 v2 的核心保證:**左緣除安全區外沒有任何 HUD**(左邊 228px 還給地圖),
+    //    以及跟隨欄真的退場了。這條保證最容易被下一個「順手擺左上角」的元件破壞,值得具名把關。
+    //    🔴 判準寫「左緣帶」不寫「整個露出矩形」:速度膠囊本來就置中於露出地圖(設計 下緣),
+    //       拿整塊當分母會把它一起判紅。帶寬 60=原跟隨欄左錨 10 + 一點餘裕,欄若復活必然踩到。
+    //    ⚠ 已知豁免:捷運跟車小卡 .freq-card 仍錨在左下(設計沒提它,本輪未動)——本段跟的是台鐵車,
+    //       它不會出現;哪天要把它也搬進卡裡,這條判準就是那件事的起點。
+    const leftBand = await page.evaluate(() => {
+      const cs0 = getComputedStyle(document.body);
+      const sl = parseFloat(cs0.getPropertyValue('--sa-l')) || 0;
+      const tb = document.getElementById('topbar').getBoundingClientRect();
       const bar = document.querySelector('.tabbar').getBoundingClientRect();
-      const head = fp.querySelector('.fp-head'), ride = fp.querySelector('.fp-ride');
-      return { w: Math.round(r.width), top: +r.top.toFixed(1), tbBottom: +tR.bottom.toFixed(1),
-        botGap: +(bar.top - r.bottom).toFixed(1),
-        headSticky: head ? getComputedStyle(head).position : null, rideSticky: ride ? getComputedStyle(ride).position : null };
-    });
-    ok(`L4c ${eng}/${S.tag} 跟隨欄上下錨定 220 寬,高度與內容無關`,
-      !railGeo.err && railGeo.w === 220 && Math.abs(railGeo.top - 58) <= 1.5 && railGeo.top >= railGeo.tbBottom
-        && railGeo.botGap >= 6 && railGeo.botGap <= 14,
-      JSON.stringify(railGeo));
-    // 釘底行動列(.fp-ride「我上車了」)是 App 限定,網頁 build 開機就把整顆移除(pwa-app-roadmap)
-    // ——網頁環境驗得到的是「若存在必 sticky」;App 側的存在性由 App 驗收管
-    ok(`L4d ${eng}/${S.tag} 跟隨欄三段結構(釘頂/自捲/釘底)`,
-      !railGeo.err && railGeo.headSticky === 'sticky' && (railGeo.rideSticky == null || railGeo.rideSticky === 'sticky'),
-      JSON.stringify(railGeo) + (railGeo.rideSticky == null ? '（fp-ride=App 限定,網頁版無此鈕）' : ''));
-
-    // L4e/L4f(契約4):收合態 220×44、記憶進 localStorage;點膠囊展回。收合=契約8 的中線重算,
-    // 這裡順帶驗 body.follow-on 有跟著拿掉/掛回(站名牌與速度膠囊中線的左界靠它)。
-    await page.evaluate(() => document.getElementById('fpClose')?.click());
-    await page.waitForTimeout(350);
-    const collapsed = await page.evaluate(() => {
-      const fp = document.getElementById('followPanel'); const r = fp.getBoundingClientRect();
-      return { min: fp.classList.contains('fp-min'), w: Math.round(r.width), h: Math.round(r.height),
-        ls: localStorage.getItem('trainmap-fprail-min'), followOn: document.body.classList.contains('follow-on') };
-    });
-    ok(`L4e ${eng}/${S.tag} 收合膠囊 220×44＋記憶＋中線重算`,
-      collapsed.min === true && collapsed.w === 220 && collapsed.h === 44 && collapsed.ls === '1' && collapsed.followOn === false,
-      JSON.stringify(collapsed));
-    await page.evaluate(() => document.getElementById('followPanel').click());
-    await page.waitForTimeout(350);
-    const expanded = await page.evaluate(() => {
+      const band = { left: sl, right: sl + 60, top: tb.bottom, bottom: bar.top };
+      const vis = e => { const cs = getComputedStyle(e); const r = e.getBoundingClientRect();
+        return cs.display !== 'none' && cs.visibility !== 'hidden' && +cs.opacity > .05
+          && r.width > 2 && r.height > 2; };
+      const SEL = '.follow-panel, .freq-card, .traincard, .board, #nearCard, #searchPanel, .dwell-plate,'
+        + ' .xing-card, .alert-detail, .alert-banner, .iab-hint, .map-actions, .trip-banner';
+      const hits = [...document.querySelectorAll(SEL)].filter(e => !e.hidden && vis(e)).filter(e => {
+        const r = e.getBoundingClientRect();
+        return Math.min(r.right, band.right) - Math.max(r.left, band.left) > 2
+          && Math.min(r.bottom, band.bottom) - Math.max(r.top, band.top) > 2;
+      }).map(e => (e.id || e.className) + ' ' + Math.round(e.getBoundingClientRect().left));
       const fp = document.getElementById('followPanel');
-      return { min: fp.classList.contains('fp-min'), ls: localStorage.getItem('trainmap-fprail-min'),
-        followOn: document.body.classList.contains('follow-on') };
+      return { hits, band: [Math.round(band.left), Math.round(band.right), Math.round(band.top), Math.round(band.bottom)],
+        fpDisplay: getComputedStyle(fp).display, fpInSlot: !!fp.closest('.uni-slot'),
+        fpW: Math.round(fp.getBoundingClientRect().width) };
     });
-    ok(`L4f ${eng}/${S.tag} 點膠囊展回＋記憶歸位`,
-      expanded.min === false && expanded.ls === '0' && expanded.followOn === true, JSON.stringify(expanded));
+    ok(`L4c ${eng}/${S.tag} 左緣淨空:安全區到 +60px 這條帶裡沒有任何 HUD(跟隨欄廢除後的核心保證)`,
+      leftBand.hits.length === 0, leftBand.hits.join('／') || `帶=${leftBand.band.join(',')} 逐一掃過無元件`);
+    ok(`L4d ${eng}/${S.tag} 跟隨欄已退役:沒搬進卡的槽裡時整顆不現身`,
+      leftBand.fpInSlot ? leftBand.fpW > 0 : (leftBand.fpDisplay === 'none' && leftBand.fpW === 0),
+      JSON.stringify({ display: leftBand.fpDisplay, 在槽裡: leftBand.fpInSlot, w: leftBand.fpW }));
+
+    // ── §04c v2「改·第 6 條」四段固定 ＋「改·第 8 條」站名牌雙錨點(2026-08-26)─────────
+    //    原本這裡驗的是跟隨欄的收合膠囊(220×44/記憶/中線重算),欄廢除後整組概念死亡。
+    //    v2 把跟隨資訊搬進合併卡,所以改驗那張卡:高度是版面常數、頭與分頁列捲不走。
+    await page.evaluate(() => openBoard(state.schedStations[0]));
+    await page.waitForTimeout(800);
+    const card = await page.evaluate(CARD_FIX_PROBE);
+    // 「高度與內容無關」的證據:塞進 2000px 內容之後卡高一格不動(H0===h===H1),只有 scrollH 變長;
+    // 「四段固定」的證據:真的捲 400px 之後,頭/站名列/分頁列的螢幕座標都沒動(捲的是身)。
+    ok(`L4e ${eng}/${S.tag} 合併卡:上下錨定、塞長內容也不長高,且真的捲得動`,
+      !card.err && card.hasTabs && card.padded && card.H0 === card.h && card.H1 === card.H0
+        && card.scrollH > card.client + 100 && card.scrolled > 100
+        && card.gapTop >= 0 && card.gapBottom >= 4 && card.gapBottom <= 14, JSON.stringify(card));
+    // 站名牌沒亮著時(沒車停靠)它是 display:none,rect 恆 0 ⇒ 那半條判準是空的,據實標明不算數。
+    ok(`L4f ${eng}/${S.tag} 四段固定:捲動之後卡頭/站名列/分頁列原地不動(捲的是身)`,
+      !card.err && card.tabsPos === 'sticky' && card.tabsTop1 === card.tabsTop0
+        && card.h3Top1 === card.h3Top0 && card.plateTop1 === card.plateTop0,
+      JSON.stringify({ 分頁列: [card.tabsTop0, card.tabsTop1], 卡頭: [card.h3Top0, card.h3Top1],
+        站名列: card.plateVis ? [card.plateTop0, card.plateTop1] : '沒車停靠·牌未亮(這半未涵蓋)',
+        pos: card.tabsPos, 捲了: card.scrolled }));
+    // 🔴 上面那組是在「沒車停靠」時量的——牌 display:none,四段裡少了一段,那半根本沒被涵蓋
+    //    (心得 37d:分母要有具名斷言)。這裡自己把牌點亮(只填它自己的欄位＋加 .show,不動產品程式碼)
+    //    再量一次:① 牌真的把分頁列往下推(證明它在固定段裡);② 捲動後三段都還在原位。
+    await page.evaluate(() => {
+      const dp = document.getElementById('dwellPlate');
+      document.getElementById('dpName').textContent = '板橋';
+      document.getElementById('dpPrev').textContent = '萬華';
+      document.getElementById('dpNext').textContent = '浮洲';
+      document.getElementById('dpPrevKm').textContent = '4.3 km';
+      document.getElementById('dpNextKm').textContent = '2.5 km';
+      // 🔴 不能用 .show:跟車渲染迴圈每一幀都會對「沒在停靠的車」remove('show'),450ms 後必被刷掉
+      //    (第一版就是這樣量到 plateVis=false)。改用行內 display 直接壓過 :not(.show) 那條,
+      //    迴圈只動 class 不動行內樣式 ⇒ 撐得住,而且 RO 會因為尺寸 0→實高而重量 --board-head-h。
+      dp.style.transition = 'none'; dp.style.display = 'block';
+    });
+    await page.waitForTimeout(450); // 等 ResizeObserver 把 --board-head-h 重量一次
+    const cardP = await page.evaluate(CARD_FIX_PROBE);
+    await page.evaluate(() => {
+      const dp = document.getElementById('dwellPlate');
+      dp.style.display = ''; dp.style.transition = '';
+    });
+    ok(`L4h ${eng}/${S.tag} 站名牌亮著時它也是固定段:分頁列讓開它,捲動後三段都不動`,
+      !cardP.err && cardP.plateVis === true && cardP.plateTop1 === cardP.plateTop0
+        && cardP.tabsTop1 === cardP.tabsTop0 && cardP.h3Top1 === cardP.h3Top0
+        && cardP.tabsTop0 > card.tabsTop0 + 4 && cardP.scrolled > 100,
+      JSON.stringify({ 分頁列: [cardP.tabsTop0, cardP.tabsTop1], 卡頭: [cardP.h3Top0, cardP.h3Top1],
+        站名列: [cardP.plateTop0, cardP.plateTop1], 牌沒亮時分頁列: card.tabsTop0, 捲了: cardP.scrolled }));
+    // 站名牌雙錨點:卡開＝併進卡頭(DOM 在 h3 之後、position 從 absolute 變成 sticky ⇒ 進入卡的
+    // 版面流、跟著卡頭一起釘住,見 L4h);卡關＝回到獨立牌(absolute 浮在露出地圖上)。
+    // 🔴 反向對照不可省:少了「關掉要回去」那一半,「牌永遠釘在卡裡」(停靠時看不到牌)也會全綠。
+    const anchorIn = await page.evaluate(() => {
+      const dp = document.getElementById('dwellPlate'), bd = document.getElementById('board');
+      const h3 = bd.querySelector(':scope > h3');
+      return { docked: dp.classList.contains('dp-docked'), parentIsBoard: dp.parentElement === bd,
+        afterH3: dp.previousElementSibling === h3, pos: getComputedStyle(dp).position };
+    });
+    await page.evaluate(() => { closeBoard(); });
+    await page.waitForTimeout(400);
+    const anchorOut = await page.evaluate(() => {
+      const dp = document.getElementById('dwellPlate'), bd = document.getElementById('board');
+      return { docked: dp.classList.contains('dp-docked'), parentIsBoard: dp.parentElement === bd,
+        pos: getComputedStyle(dp).position };
+    });
+    ok(`L4g ${eng}/${S.tag} 站名牌雙錨點:卡開＝併進卡頭,卡關＝回到獨立牌`,
+      anchorIn.docked && anchorIn.parentIsBoard && anchorIn.afterH3 && anchorIn.pos === 'sticky'
+        && !anchorOut.docked && !anchorOut.parentIsBoard && anchorOut.pos === 'absolute',
+      JSON.stringify({ 卡開: anchorIn, 卡關: anchorOut }));
 
     let coveredForm = 0, coveredTrain = 0;
     for (const P of PANELS) {
@@ -573,6 +670,7 @@ async function landscapeSuite(browser, eng) {
             right: Math.round(W - r.right), top: Math.round(r.top), bottom: Math.round(H - r.bottom),
             tbGone: !tb || !tb.getClientRects().length || getComputedStyle(tb).display === 'none',
             topbarEff: +eff(document.getElementById('topbar')).toFixed(2),
+            topbarPE: getComputedStyle(document.getElementById('topbar')).pointerEvents,
             toolsEff: +eff(document.getElementById('mapActions')).toFixed(2),
             plateEff: +eff(document.getElementById('dwellPlate')).toFixed(2),
             inputTopGap: ir ? Math.round(ir.top - r.top) : null,
@@ -581,9 +679,12 @@ async function landscapeSuite(browser, eng) {
         ok(`L4s ${eng}/${S.tag} 搜尋·右半全高 search-land,輸入框釘頂`,
           !s.err && Math.abs(s.w - s.wantW) <= 2 && s.right <= 8 && s.top <= 8 && s.bottom <= 8
           && s.inputTopGap != null && s.inputTopGap <= 70, JSON.stringify(s));
-        ok(`L4s ${eng}/${S.tag} 搜尋·tab bar 藏起、頂列退背景、工具堆與站名牌讓位`,
-          s.tbGone === true && s.topbarEff <= 0.5 && s.topbarEff >= 0.1 && s.toolsEff <= 0.05 && s.plateEff <= 0.05,
-          JSON.stringify({ tbGone: s.tbGone, topbar: s.topbarEff, tools: s.toolsEff, plate: s.plateEff }));
+        // §04c v2:降級值從 .35 改成 .55(仍讀得出時間與班數),而且設計明寫「不可互動」——
+        // 只調不透明度不關 pointer-events 的話,看起來是背景卻按得到,是最糟的中間態。
+        ok(`L4s ${eng}/${S.tag} 搜尋·tab bar 藏起、頂列退成不可互動的背景、工具堆與站名牌讓位`,
+          s.tbGone === true && s.topbarEff <= 0.6 && s.topbarEff >= 0.4 && s.topbarPE === 'none'
+            && s.toolsEff <= 0.05 && s.plateEff <= 0.05,
+          JSON.stringify({ tbGone: s.tbGone, topbar: s.topbarEff, 頂列可互動: s.topbarPE, tools: s.toolsEff, plate: s.plateEff }));
         // 相機暫停的差分:把車撥快 120 秒(未暫停的話跟車鏡頭必動),量固定地理錨點的螢幕位置。
         // 心得:寫 simSec 必同時 clockAtNow=false;量完交還牆鐘,下一幀自動回到現在。
         const pause = await page.evaluate(async () => {
@@ -701,21 +802,31 @@ async function landscapeSuite(browser, eng) {
       const targets = ['dwellPlate', 'alertDetail', 'alertBanner'];
       const bySel = ['.xing-card', '.xing-help', '.controls'];
       const out = [];
-      const measure = (name, el, fadeContract) => {
+      const measure = (name, el, isPlate) => {
         if (!el) { out.push({ name, missing: true }); return; }
-        // 站名牌的側欄契約=「側欄開著時整顆淡出」(body.fs.sheet-open .dwell-plate{opacity:0},
-        // 特定度蓋過 .show)——不是幾何避讓:它寬度 max-content 吃站名長度,窄機走廊(SE3 只剩
-        // 75px)幾何判就是牆鐘函數(同 CSS 兩樹一綠一紅=內容不同)。這裡強制 .show 讀 computed
-        // opacity,抑制規則在=判準過(使用者看不到相交),規則被拔=紅——兩向都是確定性的。
-        if (fadeContract) {
+        // 站名牌的側欄契約 2026-08-26 換了(§04c v2「改·第 8 條」):原本是「側欄開著時整顆淡出」,
+        // 現在是**併進卡頭**——牌變成卡的一列,結構上不可能鑽到卡底下。
+        if (isPlate && el.classList.contains('dp-docked') && el.closest('.board')) {
+          out.push({ name, ox: 0, oy: 0, overlaps: false, w: 0, docked: true });
+          return;
+        }
+        // 沒併進去的情形(開的是亮點/最愛等別的面板,不是車站看板)牌仍是獨立牌,新契約下它**不再淡出**
+        // ⇒ 要驗的就回到本題:那張獨立牌會不會鑽進側欄底下。舊版在這裡驗「有沒有淡出」,
+        // 契約換掉之後那條等於在要求一個已經廢掉的行為(實測 op=1 恆紅)。
+        // 🔴 量它的幾何一定要先補 .show:牌的橫式中線靠 .show 的 translateX(-50%) 才成立,
+        //    不補就會量到往右偏半個牌寬的假 rect(那正好會假疊上側欄)。
+        if (isPlate) {
           const hadShow = el.classList.contains('show');
           const prevTr = el.style.transition;
-          el.style.transition = 'none'; // 站名牌有 opacity .45s 過渡:不關掉的話,拔規則的突變在同步讀值時仍是過渡中的 ~0=假綠
+          el.style.transition = 'none'; // 牌有 opacity/transform 過渡:不關掉會量到過渡中的中間值
           el.classList.add('show');
-          const op = parseFloat(getComputedStyle(el).opacity);
+          const r = el.getBoundingClientRect();
+          const ox = Math.min(r.right, rail.right) - Math.max(r.left, rail.left);
+          const oy = Math.min(r.bottom, rail.bottom) - Math.max(r.top, rail.top);
           if (!hadShow) el.classList.remove('show');
           el.style.transition = prevTr;
-          out.push({ name, ox: 0, oy: 0, overlaps: op >= 0.05, w: 0, fadeOp: +op.toFixed(2) });
+          out.push({ name, ox: Math.round(ox), oy: Math.round(oy), overlaps: ox > 2 && oy > 2,
+            w: Math.round(r.width), plate: true });
           return;
         }
         const prevHidden = el.hidden, prevDisplay = el.style.display, prevVis = el.style.visibility;
@@ -733,7 +844,7 @@ async function landscapeSuite(browser, eng) {
     const found = wideOverlays.filter(o => !o.missing);
     const clash = found.filter(o => o.overlaps);
     ok(`L2b ${eng}/${S.tag} 整寬浮層不鑽進側欄底下`, clash.length === 0,
-      clash.map(c => c.fadeOp != null ? `${c.name}未淡出op=${c.fadeOp}(側欄開著契約=整顆淡出)` : `${c.name}疊${c.ox}×${c.oy}`).join(' ')
+      clash.map(c => `${c.name}疊${c.ox}×${c.oy}`).join(' ')
         || `逐一驗過 ${found.map(o => o.name).join('/')}`);
     ok(`L9 ${eng}/${S.tag} 整寬浮層覆蓋率`, found.length >= 5,
       `${found.length}/6 找得到並量到（缺的：${wideOverlays.filter(o => o.missing).map(o => o.name).join(',') || '無'}）`);
@@ -756,17 +867,21 @@ async function landscapeSuite(browser, eng) {
       const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
       const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
       const out = { eff: +eff.toFixed(2), pe: getComputedStyle(fp).pointerEvents, plateEff: +plateEff.toFixed(2),
+        fpDisplay: getComputedStyle(fp).display, plateDocked: dp.classList.contains('dp-docked') && !!dp.closest('.board'),
         plate: [Math.round(b.x), Math.round(b.y), Math.round(b.width), Math.round(b.height)],
         overlap: ox > 2 && oy > 2, ox: Math.round(ox), oy: Math.round(oy) };
       document.body.classList.remove('dwell-show');
       dp.hidden = prevHidden; dp.style.visibility = prevVis; dp.innerHTML = prevHtml;
       return out;
     });
-    const fpFaded = !dwell.err && (dwell.eff < 0.05 || dwell.pe === 'none');
+    const fpFaded = !dwell.err && (dwell.eff < 0.05 || dwell.pe === 'none' || dwell.fpDisplay === 'none');
     const plateFaded = !dwell.err && dwell.plateEff <= 0.05;
-    ok(`L2c ${eng}/${S.tag} 停靠中·站名牌與跟隨欄不互搶畫面`,
-      !dwell.err && (fpFaded || plateFaded || dwell.overlap === false),
-      `走「${plateFaded ? '站名牌淡出' : fpFaded ? '跟隨欄淡出' : '排開到不相交'}」 ${JSON.stringify(dwell)}`);
+    const plateDocked = !dwell.err && dwell.plateDocked === true;
+    // §04c v2 起合法實現多一種、也少一種:跟隨欄本身廢除(display:none 也算「不搶畫面」),
+    // 而站名牌在卡開著時是**併進卡頭**——那時它是卡的一列,談不上互搶。四種都不成立才紅。
+    ok(`L2c ${eng}/${S.tag} 停靠中·站名牌與跟車資訊不互搶畫面`,
+      !dwell.err && (plateDocked || fpFaded || plateFaded || dwell.overlap === false),
+      `走「${plateDocked ? '站名牌併進卡頭' : plateFaded ? '站名牌淡出' : fpFaded ? '跟隨欄不現身' : '排開到不相交'}」 ${JSON.stringify(dwell)}`);
     await page.evaluate(() => { soloPanel(null); updateSheetOpenClass(); });
     await page.waitForTimeout(250);
 
@@ -1056,10 +1171,14 @@ async function portraitSuite(browser, eng) {
 //    ⇒ 地圖上方一片空白、分組頁籤真的點不到（雙引擎 page.tap 逾時）。
 //    根因：resize 監聽只在跨越手機殼斷點時做事，從不重跑 updateSheetOpenClass()——
 //    而 sheetHasSizeSteps() 依 sheetIsSideRail()，也就是「轉向」正好會讓它的前提整組翻面。
-// 🔴 判準寫「使用者做得到什麼」不寫 class 名：既驗 body.sheet-full 這個直接原因，
+//
+// 🔴 2026-08-26 段高三段改兩段：大段 88% 與 body.sheet-full 一起退役（那組淡出規則存在的唯一理由
+//    是「88% 的 sheet 會蓋滿整個畫面」）。原本的實驗組因此不存在了——但**根因那條掛點還在**
+//    （resize 要重跑 updateSheetOpenClass 才會清掉段高 class），所以判準改綁還活著的那顆：
+//    直向留著 `.sheet-small` 轉橫，側欄下必須被清掉。掛點被拿掉這條就會紅，牙沒有掉。
+//    同時保留 sheet-full 的退役守門（它若被誰加回來，整組 HUD 會再次淡出且沒有別條判準照得到）。
+// 🔴 判準寫「使用者做得到什麼」不寫 class 名：既驗 class 這個直接原因，
 //    也驗它的可見後果（常駐控件的有效 opacity／指標事件／真觸控），兩層都在才抓得住換一種寫法的回歸。
-// 🔴 大段是實驗組、中段是控制組：修好前中段本來就該全綠（沒有 sheet-full），
-//    兩組都紅代表判準抓到的是別的東西（心得 35b：沒有控制組就不知道紅的是不是自己以為的那件事）。
 // ─────────────────────────────────────────────────────────────
 // 🔴 選擇器要選到「手機殼裡的那一顆」：`.grouptabs` 全頁有兩組（桌面 header 一組、手機 topbar 一組，
 //    共 8 顆 gtab），手機殼下桌面那組的 rect 是 0×0。第一版判準選到桌面那顆，於是對「頂列被淡出」
@@ -1069,6 +1188,13 @@ const GTAB_SEL = '.topbar .grouptabs .gtab';
 const CHROME_PROBE = () => {
   const eff = el => { let o = 1; for (let e = el; e && e !== document.documentElement; e = e.parentElement) o *= parseFloat(getComputedStyle(e).opacity) || 0; return o; };
   const out = { __sheetFull: document.body.classList.contains('sheet-full') };
+  // 🔴 只回「有沒有 .sheet-small」這個**可觀測事實**，不回推導出來的段名：
+  //    中段根本沒有自己的 class，於是「中段」與「段高已被清掉」在 DOM 上完全同形，
+  //    拿它當「轉橫後有沒有清掉」的判準是不可證偽的（第一版就這樣寫，兩組都假紅）。
+  {
+    const s = typeof activeSheetEl === 'function' ? activeSheetEl() : null;
+    out.__smallCls = s && !s.hidden ? s.classList.contains('sheet-small') : null;
+  }
   for (const [name, sel] of [['分組頁籤', '.topbar .grouptabs'], ['站名牌', '.tb-plate'], ['隨機跟隨', '#randBtn'], ['時鐘', '#clock'], ['跟隨小卡', '#followPanel']]) {
     const el = document.querySelector(sel);
     if (!el || el.hidden || getComputedStyle(el).display === 'none') { out[name] = null; continue; }
@@ -1095,7 +1221,7 @@ const degraded = (base, now) => CHROME_SEL.map(([k]) => [k, base[k], now[k]])
 async function rotationSuite(browser, eng) {
   // 🔴 基準必須是「同一個形態下的常態」＝橫式側欄開著面板時，本來就該看得到／點得到什麼。
   //    不能拿直向的任何狀態當基準：直向底部 sheet 蓋住下半，跟隨小卡讓位淡出是**設計**，
-  //    拿它比會把正常行為算成退化；而 large 的直向態自己就是淡出的，拿它當基準又會把 F1 一起放行。
+  //    拿它比會把正常行為算成退化（舊的 large 直向態自己就是淡出的，拿它當基準會把 F1 一起放行）。
   //    也不能在受測頁面上「關掉面板再開」來取基準——那等於替它跑了一次 updateSheetOpenClass，
   //    正好把要測的殘留洗掉（基準的取得方式不得干擾受測狀態，心得 29 的同族）。
   let railBase = null;
@@ -1109,7 +1235,7 @@ async function rotationSuite(browser, eng) {
       await lb.ctx.close();
     } else ok(`L10 ${eng} 橫式常態基準`, false, '深夜無台鐵車＝環境條件');
   }
-  for (const sz of ['large', 'medium']) {
+  for (const sz of ['small', 'medium']) {
     const b = await boot(browser, { w: 393, h: 852, tag: `直→橫(${sz})` }, { sheetSize: sz });
     if (!b) { ok(`L10 ${eng}/${sz} 取得行駛中列車`, false, '深夜無台鐵車＝環境條件'); continue; }
     const { ctx, page } = b;
@@ -1117,13 +1243,21 @@ async function rotationSuite(browser, eng) {
     await page.tap('#tabExplore');
     await page.waitForTimeout(750);
     const pre = await page.evaluate(CHROME_PROBE);
-    ok(`L10 ${eng}/${sz} 直向前置·面板開著且段高是 ${sz}`,
-      !!pre.__panel && pre.__sheetFull === (sz === 'large'), JSON.stringify({ full: pre.__sheetFull, panel: pre.__panel }));
+    ok(`L10 ${eng}/${sz} 直向前置·面板開著且段高真的是 ${sz}`,
+      !!pre.__panel && pre.__smallCls === (sz === 'small') && pre.__sheetFull === false,
+      JSON.stringify({ small: pre.__smallCls, full: pre.__sheetFull, panel: pre.__panel }));
 
     await page.setViewportSize({ width: 852, height: 393 });
     await page.waitForTimeout(900);
     const post = await page.evaluate(CHROME_PROBE);
-    ok(`L10 ${eng}/${sz} 轉橫後不再掛 body.sheet-full`, post.__sheetFull === false, JSON.stringify({ full: post.__sheetFull, panel: post.__panel }));
+    // 直接原因層：退役的 body.sheet-full 不得出現（它若被誰加回來，整組 HUD 會再次淡出）。
+    // 🔴 刻意**不**驗「段高 class 有沒有被清掉」：中段與已清掉在 DOM 上同形（都沒有 class），
+    //    而且側欄 CSS 已把 .sheet-small 的效果整個蓋掉（max-height:none/min-height:0）⇒
+    //    殘留與否使用者看不出差別，寫成判準只是實作瑣事。resize 掛點的真實後果由 L10b
+    //    （讓位軸換成水平、釘點回到露出中心）與下面的真觸控收尾負責。
+    ok(`L10 ${eng}/${sz} 轉橫後沒掛已退役的 body.sheet-full`,
+      post.__sheetFull === false,
+      JSON.stringify({ small: post.__smallCls, full: post.__sheetFull, panel: post.__panel }));
     ok(`L10 ${eng}/${sz} 轉橫後常駐控件沒有比橫式常態差`, !railBase || degraded(railBase, post).length === 0,
       (railBase ? degraded(railBase, post).join(' ') : '無基準') || `對橫式常態逐一比過：${CHROME_SEL.map(s => s[0]).join('/')}`);
 
@@ -1140,7 +1274,7 @@ async function rotationSuite(browser, eng) {
       const el = activeSheetEl(); if (!el || el.hidden) return { err: 'no-sheet' };
       const r = el.getBoundingClientRect(), mc = map.getContainer().getBoundingClientRect();
       return { id: el.id, wRatio: +(r.width / mc.width).toFixed(2), bottomAnchored: Math.abs(mc.bottom - r.bottom) < 120,
-        size: el.classList.contains('expand') ? 'large' : el.classList.contains('sheet-small') ? 'small' : 'medium' };
+        size: el.classList.contains('sheet-small') ? 'small' : 'medium' };
     });
     ok(`L10 ${eng}/${sz} 轉回直向·回到底部 sheet 且段高偏好還在`,
       !back.err && back.wRatio > 0.85 && back.bottomAnchored && back.size === sz, JSON.stringify(back));
@@ -1282,7 +1416,9 @@ const ISLAND_SEL = [
   ['頂列', '.topbar'], ['時鐘', '#clock'], ['分頁列按鈕', '.tabbar button'],
   // 跟隨鎖 §04c 起住在工具欄裡:選 #followLockBtn 本尊——老家 .follow-lock-ctl 在手機上是被藏掉的
   // 空殼,選它=永遠量不到(L15b 具名覆蓋率就是為了抓這種分母缺口)
-  ['停靠站名牌', '#dwellPlate'], ['跟隨小卡', '.follow-panel'], ['跟隨鎖', '#followLockBtn'],
+  // 跟隨小卡 .follow-panel 2026-08-26 起在橫式廢除(§04c v2「改·第 4 條」),它的內容併進合併卡
+  // ⇒ 這份清單裡永遠量不到它(L15b 的具名覆蓋率會如實轉紅)。卡本身以 'SHEET' 那一項涵蓋。
+  ['停靠站名牌', '#dwellPlate'], ['跟隨鎖', '#followLockBtn'],
   ['動作列', '.map-actions'], ['站台帶', '.controls'], ['側欄', 'SHEET'],
 ];
 
@@ -1471,6 +1607,142 @@ async function deviceSuite(browser, eng) {
   ok(`L15b ${eng} 動態島清單每一項都真的被量到`, never.length === 0, never.length ? `從沒量到：${never.join('、')}` : `${ISLAND_SEL.length}/${ISLAND_SEL.length}`);
 }
 
+// ─────────────────────────────────────────────────────────────
+// §04c v2（2026-08-26）新增契約的驗收：觀察模式、字級三階、特大提示卡
+// ─────────────────────────────────────────────────────────────
+async function landV2Suite(browser, eng) {
+  const S = { w: 956, h: 440, tag: '17ProMax橫' };
+  // ── ① 觀察模式（＝既有放空模式）：只留頂列 ──────────────────────────
+  {
+    const b = await boot(browser, S);
+    if (!b) ok(`V1 ${eng} 取得行駛中列車`, false, '深夜無台鐵車＝環境條件');
+    else {
+      const { ctx, page } = b;
+      await page.evaluate(() => openBoard(state.schedStations[0]));
+      await page.waitForTimeout(600);
+      const before = await page.evaluate(AMBIENT_PROBE);
+      await page.evaluate(() => setAmbient(true));
+      await page.waitForTimeout(700);
+      const after = await page.evaluate(AMBIENT_PROBE);
+      // 正向對照先確認「進模式前這些東西本來看得見」——少了這半，元件本來就不在也會全綠
+      ok(`V1 ${eng} 前置·進觀察模式前頂列與 HUD 都看得見`,
+        before.topbar > 0.9 && before.tools > 0.9 && before.card > 0.9, JSON.stringify(before));
+      // 設計 17f：頂列留著（「現在幾點、幾班在跑」），其餘淡到 0、DOM 保留
+      ok(`V1 ${eng} 觀察模式·頂列留著且仍可互動`,
+        after.topbar > 0.9 && after.topbarDisplay !== 'none' && after.topbarHit === true, JSON.stringify(after));
+      ok(`V2 ${eng} 觀察模式·工具堆與合併卡淡到 0 但 DOM 還在`,
+        after.tools <= 0.05 && after.card <= 0.05 && after.toolsInDom && after.cardInDom, JSON.stringify(after));
+      // 🔴 使用者裁示（2026-08-26）：速度膠囊**不淡出**——離開放空模式的鈕就在裡面，
+      //    設計靠「點畫面任一處復原」把它叫回來，本專案沒有那套狀態機，全淡＝把人關在裡面。
+      ok(`V3 ${eng} 觀察模式·膠囊留著當出口(離開鈕點得到)`,
+        after.capsule > 0.5 && after.exitHit === true, JSON.stringify(after));
+      await ctx.close();
+    }
+  }
+  // ── ② 字級三階：卡裡不出現被自己框切掉的文字 ────────────────────────
+  for (const fs of ['std', 'large', 'xlarge']) {
+    const b = await boot(browser, S, { fontScale: fs === 'std' ? null : fs });
+    if (!b) { ok(`V4 ${eng}/${fs} 取得行駛中列車`, false, '深夜無台鐵車＝環境條件'); continue; }
+    const { ctx, page } = b;
+    await page.evaluate(() => openBoard(state.schedStations[0]));
+    await page.waitForTimeout(800);
+    const clip = await page.evaluate(() => {
+      const bd = document.getElementById('board');
+      if (!bd || bd.hidden) return { err: 'no-board' };
+      const cs0 = getComputedStyle(bd);
+      const cb = bd.getBoundingClientRect();
+      const clipL = cb.left + (parseFloat(cs0.borderLeftWidth) || 0);
+      const clipR = cb.right - (parseFloat(cs0.borderRightWidth) || 0);
+      const vis = e => { const cs = getComputedStyle(e);
+        return cs.display !== 'none' && cs.visibility !== 'hidden' && +cs.opacity > .05 && e.getClientRects().length; };
+      const all = [...bd.querySelectorAll('*')].filter(e => vis(e) && e.textContent.trim());
+      // ── 模式 A:元件自己的框把自己的字切掉(scrollWidth 溢出)──────────────────
+      // 🔴 有絕對定位偽元素的元件要排除:44px 觸控熱區(.rmore::after)是 content:'' 的透明方塊,
+      //    它會計進 scrollWidth(28→36) 但一個字都沒被切 ⇒ 不排除的話這條判準恆紅在裝飾上。
+      const modeA = all.filter(e => {
+        // 只看**葉子**(沒有帶字的元素小孩):容器的 scrollWidth 會把整個子樹的絕對定位溢出算進來,
+        // 實測 .row 316>308 全部來自孫層 .rmore::after 那個 44px 透明熱區,一個字都沒被切。
+        if ([...e.children].some(c => c.textContent.trim())) return false;
+        const cs = getComputedStyle(e);
+        if (cs.textOverflow === 'ellipsis') return false;            // 省略號是刻意的收斂,不算裁切
+        if (cs.overflowX !== 'visible' && cs.overflowX !== 'clip') return false; // 自己會捲的容器不算
+        for (const q of ['::before', '::after']) {
+          const ps = getComputedStyle(e, q);
+          if (ps.content !== 'none' && ps.position === 'absolute') return false; // 透明觸控熱區同理
+        }
+        if ([...e.children].some(c => getComputedStyle(c).position === 'absolute')) return false;
+        return e.clientWidth > 0 && e.scrollWidth > e.clientWidth + 2;
+      }).map(e => 'A:' + (e.className || e.tagName) + ` ${e.scrollWidth}>${e.clientWidth}`);
+      // ── 模式 B:字在卡的裁切線外(卡橫向不捲 ⇒ 這一段使用者永遠看不到)────────────
+      //    只看有文字的葉子,避免把「容器很寬但字在裡面」算成裁切。
+      const modeB = all.filter(e => {
+        if ([...e.children].some(c => c.textContent.trim())) return false;
+        const r = e.getBoundingClientRect();
+        return r.right > clipR + 1 || r.left < clipL - 1;
+      }).map(e => 'B:' + (e.className || e.tagName) + ' ' + Math.round(e.getBoundingClientRect().right) + '>' + Math.round(clipR));
+      const bad = [...modeA, ...modeB];
+      return { bad: bad.slice(0, 6), n: bad.length, scanned: all.length,
+        fs: document.documentElement.getAttribute('data-fs') || 'std' };
+    });
+    ok(`V4 ${eng}/${fs} 合併卡裡沒有被自己的框切掉的文字`, !clip.err && clip.n === 0,
+      clip.err || (clip.bad.join('／') || `逐一掃過 ${clip.scanned} 個有字的元件（data-fs=${clip.fs}）`));
+    // 特大階要出提示卡；標準與大不得出現（反向對照）
+    const hint = await page.evaluate(() => {
+      const el = document.getElementById('landFsHint');
+      return { exists: !!el, shown: !!el && !el.hidden && el.getClientRects().length > 0,
+        fs: document.documentElement.getAttribute('data-fs') || 'std' };
+    });
+    ok(`V5 ${eng}/${fs} 特大提示卡只在特大階出現（${fs === 'xlarge' ? '要出' : '不可出'}）`,
+      hint.exists && hint.shown === (fs === 'xlarge'), JSON.stringify(hint));
+    if (fs === 'xlarge') {
+      const dismissed = await page.evaluate(async () => {
+        document.getElementById('landFsHintOk').click();
+        await new Promise(r => setTimeout(r, 200));
+        const el = document.getElementById('landFsHint');
+        return { hidden: el.hidden, ls: localStorage.getItem('trainmap-land-xl-hint') };
+      });
+      ok(`V6 ${eng} 特大提示卡·按「知道了」收掉並記住`,
+        dismissed.hidden === true && dismissed.ls === '1', JSON.stringify(dismissed));
+    }
+    await ctx.close();
+  }
+}
+const AMBIENT_PROBE = () => {
+  const eff = n => { if (!n) return 0; let o = 1;
+    for (let e = n; e && e !== document.documentElement; e = e.parentElement) {
+      const cs = getComputedStyle(e);
+      if (cs.display === 'none') return 0;
+      o *= parseFloat(cs.opacity) || 0;
+    } return o; };
+  const tb = document.getElementById('topbar'), tools = document.getElementById('mapActions');
+  const bd = document.getElementById('board'), cap = document.querySelector('.controls');
+  const exit = document.getElementById('ambientBtn');
+  let exitHit = false;
+  if (exit && exit.getClientRects().length) {
+    const r = exit.getBoundingClientRect();
+    const q = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    exitHit = !!(q && (q === exit || exit.contains(q)));
+  }
+  // 🔴 頂列本體的 pointer-events 恆為 none(它是整條橫帶,不能吃掉底下地圖的拖曳),
+  //    可互動性住在它的**子元件**上 ⇒ 判「還能不能點」要對子元件做命中測試,不是讀容器的 PE。
+  let topbarHit = null;
+  const kid = tb && [...tb.querySelectorAll('button, .tb-tab, .tb-plate, #clockBadge')]
+    .find(e => e.getClientRects().length && getComputedStyle(e).pointerEvents !== 'none');
+  if (kid) {
+    const r = kid.getBoundingClientRect();
+    const q = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    topbarHit = !!(q && (q === kid || kid.contains(q) || (q.contains && q.contains(kid))));
+  }
+  return {
+    topbar: +eff(tb).toFixed(2), topbarPE: tb ? getComputedStyle(tb).pointerEvents : null,
+    topbarKid: kid ? (kid.id || kid.className) : null, topbarHit,
+    topbarDisplay: tb ? getComputedStyle(tb).display : null,
+    tools: +eff(tools).toFixed(2), toolsInDom: !!(tools && tools.isConnected),
+    card: +eff(bd && !bd.hidden ? bd : null).toFixed(2), cardInDom: !!(bd && bd.isConnected),
+    capsule: +eff(cap).toFixed(2), exitHit,
+  };
+};
+
 // G3：原始碼斷言——四邊安全區必須優先讀 Capacitor Android fallback，再退回標準 env()。
 // 只有 L15 的話，把 --sa-l 寫成常數 0px 也會全綠（注入時被測試自己覆寫掉），實機上完全沒作用。
 {
@@ -1533,15 +1805,19 @@ async function zeroRegressionSuite(browser, eng) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// P4：§04c-P 直式相機矩陣——小卡態／46% sheet／88% sheet 三態的露出中心＋前瞻。
+// P4：§04c-P 直式相機矩陣——小卡態／46% sheet 兩態的露出中心＋前瞻。
 // 設計回包行為契約 1：「四個方向都要讓位——直式跟隨小卡態的位移是往右上，不是只往上」。
-// 88% 態走契約的 64px 最小露出閘門：垂直軸整個放棄（不做「讓一半」的半吊子）。
 // __exposed 判準側自帶同一條閘門規則（契約常數），所以這裡問的是「實作真的照閘門行為」——
 // 實作若半讓位，err0 直接爆表；若閘門值改了，兩邊常數對不上也會紅。
+//
+// 🔴 2026-08-26：原本第三態「88% sheet·走 64px 最小露出閘門（垂直軸整個放棄）」隨大段退役而移除
+//    ——兩段制最高 46%，直向再也做不出「露出帶低於 MIN_MAP_STRIP」的情境，留著只會是一條
+//    前置閘門恆紅（或更糟：把 46% 量成 88% 而恆綠）的假判準。閘門常數本身仍由橫式側欄那幾組
+//    覆蓋（露出帶在水平軸上被壓窄）；若日後新增全螢幕態，這一格要跟著補回來。
 // ─────────────────────────────────────────────────────────────
 async function portraitCameraSuite(browser, eng) {
   const S = { w: 393, h: 852, tag: '16直' };
-  for (const [sz, states] of [[null, ['card', 'mid']], ['large', ['full']]]) {
+  for (const [sz, states] of [[null, ['card', 'mid']]]) {
     const b = await boot(browser, S, sz ? { sheetSize: sz } : {});
     if (!b) { ok(`P4 ${eng}/${sz || 'medium'} 取得行駛中列車`, false, '深夜無台鐵車＝環境條件'); continue; }
     const { ctx, page } = b;
@@ -1573,11 +1849,6 @@ async function portraitCameraSuite(browser, eng) {
           !cam.err && cam.ex.left >= 150 && cam.ex.bottom > S.h * 0.35, JSON.stringify(cam.ex));
         ok(`P4 ${eng} 46%sheet·列車在露出中心＋前瞻`, aheadPass(cam),
           JSON.stringify({ err0: cam.err0, dist: cam.dist, m: cam.m, ex: cam.ex }));
-      } else {
-        const sheetTop = await page.evaluate(() => { const el = activeSheetEl(); return el ? Math.round(el.getBoundingClientRect().top) : null; });
-        ok(`P4 ${eng} 88%sheet·前置:面板真的展到大段`, sheetTop != null && sheetTop < S.h * 0.25, `sheetTop=${sheetTop}`);
-        ok(`P4 ${eng} 88%sheet·相機照 64px 閘門行為`, aheadPass(cam),
-          JSON.stringify({ err0: cam.err0, dist: cam.dist, m: cam.m, ex: cam.ex }));
       }
     }
     await ctx.close();
@@ -1597,6 +1868,7 @@ for (const [eng, B] of (QUICK ? [['chromium', chromium]] : [['chromium', chromiu
   await centeringSuite(browser, eng); // QUICK 也跑：使用者親自指出的置中缺陷
   await deviceSuite(browser, eng);    // QUICK 也跑：使用者橫放實機回報的三缺陷
   await portraitCameraSuite(browser, eng); // QUICK 也跑：§04c-P 直式相機矩陣（m1/m6 這族突變的靶）
+  await landV2Suite(browser, eng);         // QUICK 也跑：§04c v2 的三條新契約（觀察模式／字級三階／提示卡）
   if (!QUICK) { await portraitSuite(browser, eng); await zeroRegressionSuite(browser, eng); }
   await browser.close();
 }
