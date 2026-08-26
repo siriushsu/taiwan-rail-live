@@ -401,6 +401,138 @@ export function runSeconds(model, lineId, dir, from, to, calibrations) {
   return line && Number(line.runs.get(`${from}>${to}`)) > 0 ? Number(line.runs.get(`${from}>${to}`)) : null;
 }
 
+// ── 小工具「再下一班」：從在途官方名冊推導第二班到站時刻（2026-08-22 使用者裁示）────
+// 裁示原文：「下一班我覺得可以寫『約N分』每條線每個方向都可以做到這樣。當小工具選擇某
+// 方向的時候至少要有兩班車」「但還沒發車的時候 離峰的時候 確實可以留白」。
+// ⇒ 官方看板每（站,終點）只給一列「下一班」；第二班只從**已發車在途**的官方名冊車推導
+//   （未發車起點列不算車，08-18 裁示），推不出就留白——不用班表補（08-14 裁示：班表只是
+//   斷訊備案），第一列的官方原文一個字不動。
+// 候選＝**會以同方向開到本站、且終點就是該列終點**的在途車。兩個跨線細節，都對應物理事實：
+// (1) 中和新蘆線共線段往南勢角：O_LUZHOU/O_XINZHUANG 是同一段實體軌道拆成兩條模型線，
+//     南下班次交錯服務 ⇒ 候選必須聯集兩支線（各自索引空間投影），只取同支線會把真第二班
+//     跳過（13 檔實測 143 列中 77 列姊妹支線更早、平均早 350 秒）。聯集條件＝主線前綴相同
+//     且「本站與終點都存在於該線」——往蘆洲/迴龍的列，終點只在自己支線上，自動不聯集；
+//     XBT 接駁線與主線間也因終點互不存在而永不誤聯。
+// (2) 忠孝復興 BL/BR 同站同終點（全網唯一會同輪出兩列的撞名對）：解析器靠「有無車號」猜線
+//     （trtc_board_ledger 既有規則），BL 列一旦掉車號會被解析成 BR ⇒ 第二班會拿 BR 的車。
+//     BL 與 BR 是不同實體軌道，不能聯集，改用**同批互斥信任**（同今早共站辨線原理）：
+//     帶車號列＝BL 可信；無車號列＝只有當同組存在帶車號列（BL 已被它認走）才可信為 BR；
+//     組內全無車號或無車號列落單 ⇒ 不可分辨，整組不產 eta2（寧可留白不貼錯線）。
+// 到站時刻＝候選車下一站 arrEpoch 沿線累加（停靠秒＋區間行車秒），任一段 run 缺值就放棄
+// 該候選（不猜、不用距離頂替）。第一班自己必然以 ≈0 間隔出現在候選裡，靠 MIN_GAP 濾掉——
+// 北捷最密實際班距 ≥66 秒，30 秒只會濾掉自己，不會誤殺真第二班。
+export const NEXT2_MIN_GAP_SEC = 30;
+export const NEXT2_MAX_HORIZON_SEC = 60 * 60; // 超過一小時的投影不出手（跨半條路網的累積誤差）
+export function deriveSecondArrivals(model, resolvedRows, vehicles, calibrations = new Map()) {
+  // 未發車起點列不算車（08-18）。terminal 寬容比對：D1/SQLite 無布林型別，
+  // 1 也要當 true 收——嚴格 === true 會讓型別漂移把未發車列放進候選。
+  const inTransit = (vehicles || []).filter(v =>
+    !(v.from === v.to && (v.terminal === true || v.terminal === 1) && Number(v.run) === 0));
+  const nameIdx = new Map(); // lineId → Map(站名→索引)
+  for (const [id, line] of model.lines) {
+    const m = new Map();
+    line.stations.forEach((st, i) => m.set(st.name, i));
+    nameIdx.set(id, m);
+  }
+  const onBoth = (a, b, s, d) => {
+    const ia = nameIdx.get(a), ib = nameIdx.get(b);
+    return ia && ib && ia.has(s) && ia.has(d) && ib.has(s) && ib.has(d);
+  };
+  // 同批互斥信任（僅對「(站,終點) 同時落在 BL 與 BR」的組啟用）
+  const rows = resolvedRows || [];
+  const stationNameOf = r => {
+    const line = model.lines.get(r.line);
+    const st = line && line.stations[r.stationIdx];
+    return st ? st.name : String(r.stationIdx);
+  };
+  const blbrGroup = new Map(); // key → { numbered: n, blank: n }
+  for (const r of rows) {
+    const s = stationNameOf(r);
+    if (!onBoth('BL', 'BR', s, r.destName)) continue;
+    const k = s + '|' + r.destName;
+    const g = blbrGroup.get(k) || { numbered: 0, blank: 0 };
+    if (r.no) g.numbered++; else g.blank++;
+    blbrGroup.set(k, g);
+  }
+  const out = [];
+  for (const r of rows) {
+    const line = model.lines.get(r.line);
+    if (!line) continue;
+    const sName = stationNameOf(r);
+    if (blbrGroup.size) {
+      const g = blbrGroup.get(sName + '|' + r.destName);
+      // 合法形狀只有「1 帶號＋1 無號」或「單列帶號」：
+      // 無車號列要有「帶車號的同組列」作證才可信為 BR；
+      // 同組出現兩列帶號＝消歧前提（BR 恆無號）已破，整組不可信。
+      if (g && (g.numbered > 1 || (!r.no && g.numbered === 0))) continue;
+    }
+    const step = r.dir === 2 ? 1 : -1;
+    if ((r.destIdx - r.stationIdx) * step < 0) continue;
+    // 候選線＝自己這條＋同主線前綴且站/終點都存在的姊妹線（各自索引空間投影）
+    const prefix = String(r.line).split('_')[0];
+    const variants = [];
+    for (const [id] of model.lines) {
+      if (id !== r.line && String(id).split('_')[0] !== prefix) continue;
+      if (id === 'BL' || id === 'BR') { if (id !== r.line) continue; } // BL/BR 不同實體軌道，永不聯集
+      const ni = nameIdx.get(id);
+      const sIdx = id === r.line ? r.stationIdx : ni.get(sName);
+      const dIdx = id === r.line ? r.destIdx : ni.get(r.destName);
+      if (sIdx == null || dIdx == null || sIdx === dIdx) { if (id === r.line) variants.push({ id, sIdx: r.stationIdx, dIdx: r.destIdx }); continue; }
+      variants.push({ id, sIdx, dIdx });
+    }
+    let best = null;
+    for (const { id, sIdx, dIdx } of variants) {
+      const vLine = model.lines.get(id);
+      const vStep = dIdx > sIdx ? 1 : -1;
+      const vDir = dIdx > sIdx ? 2 : 1;
+      for (const v of inTransit) {
+        if (v.line !== id || Number(v.dir) !== vDir || Number(v.dest) !== dIdx) continue;
+        const to = Number(v.to);
+        if (!Number.isFinite(to) || (sIdx - to) * vStep < 0) continue; // 已駛過本站
+        let eta = Number(v.arrEpoch);
+        if (!Number.isFinite(eta)) continue;
+        let ok = true;
+        for (let i = to; i !== sIdx; i += vStep) {
+          const run = runSeconds(model, id, vDir, i, i + vStep, calibrations);
+          if (!(run > 0)) { ok = false; break; }
+          eta += ((vLine.stations[i] && vLine.stations[i].dwell) || DEFAULT_DWELL_SEC) + run;
+        }
+        if (!ok) continue;
+        if (eta <= r.arrEpoch + NEXT2_MIN_GAP_SEC) continue;
+        if (eta - r.baseEpoch > NEXT2_MAX_HORIZON_SEC) continue;
+        if (!best || eta < best.eta2) best = { eta2: Math.round(eta), v2: String(v.vehicleId) };
+      }
+    }
+    if (best) {
+      // no 與 eta（官方列到站時刻）是 join 判別欄：忠孝復興撞名對靠這兩欄把兩線的列分開。
+      out.push({ s: sName, d: r.destName,
+        no: r.no || '', eta: r.arrEpoch, eta2: best.eta2, v2: best.v2 });
+    }
+  }
+  return out;
+}
+
+// 把 next2 的 eta2 裝飾進 legacy board 列（只增欄，不動既有欄位與列數）。
+// join 鍵＝正規化站名|終點|車號|官方到站秒。同鍵而 eta2 不同＝兩條線的列在
+// 這一輪完全不可分辨（同站同終點同車號同到站秒）⇒ 毒化該鍵、兩列都留白——
+// 寧可少顯示，不把 A 線的第二班貼到 B 線的列上（「有資訊就一定要對」）。
+export function applyNext2ToBoard(boardRows, next2) {
+  if (!Array.isArray(boardRows) || !Array.isArray(next2) || !next2.length) return 0;
+  const keyed = new Map();
+  for (const x of next2) {
+    const k = `${x.s}|${x.d}|${x.no || ''}|${x.eta}`;
+    if (keyed.has(k) && keyed.get(k) !== x.eta2) keyed.set(k, null);
+    else keyed.set(k, x.eta2);
+  }
+  let applied = 0;
+  for (const b of boardRows) {
+    const k = `${normStationName(b.name)}|${normStationName(b.dest)}|${b.no || ''}|${b.eta}`;
+    const eta2 = keyed.get(k);
+    if (eta2 != null && eta2 > b.eta) { b.eta2 = eta2; applied++; }
+  }
+  return applied;
+}
+
 export function claimBoardRows(model, resolvedRows, nowEpoch, calibrations) {
   const claims = [], unclaimed = [];
   const claimOne = (row, allowBehind = false) => {

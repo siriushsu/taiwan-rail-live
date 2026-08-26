@@ -24,6 +24,7 @@ import fs from 'fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { dayWindow, rates } from './lib/stadia_projection.mjs';
 
 const APP_ID = '6792673516';
 const DATASET = 'railisland_traffic';
@@ -96,9 +97,12 @@ async function stadia() {
     const j = await r.json();
     // data.maps 是「每日」用量（UTC 日），data.cumulative 是累計且鍵往後偏一天
     // （實測 cumulative[d] === Σ maps[<d]）。用 maps 當日序列才是誠實的。
+    // ⚠️ 這裡**不可**加 `.filter(([, v]) => v > 0)`：零用量日是真的一天，濾掉會讓
+    //    下游「近 N 完整日均值」的分母縮水、均值系統性偏高。要排除的是「還沒到的日子」，
+    //    那件事由 dayWindow() 用日期判，不是在這裡用數值判（見 lib/stadia_projection.mjs）。
     const daily = Object.entries(j.data.maps || {})
       .map(([d, v]) => [d.slice(0, 10), Math.round(v)])
-      .filter(([, v]) => v > 0);
+      .sort((a, b) => a[0] < b[0] ? -1 : 1);
     return { start: j.start_date.slice(0, 10), end: j.end_date.slice(0, 10), total: j.total_usage, daily };
   } catch (e) { return { err: e.message.slice(0, 50) }; }
 }
@@ -162,8 +166,9 @@ if (s.err) {
   console.log('    需 .env 的 STADIA_MGMT_KEY（管理 API 須向 support@stadiamaps.com 申請開通）');
 } else {
   const days = s.daily;
-  const today = days[days.length - 1];               // UTC 日尚未結束的那一格
-  sDay = today[1]; sCum = s.total;
+  const { complete, partial } = dayWindow(days, utcNow.slice(0, 10));
+  sDay = partial ? partial[1] : (complete.length ? complete[complete.length - 1][1] : '-');
+  sCum = s.total;
   const periodDays = Math.round((Date.parse(s.end) - Date.parse(s.start)) / 864e5);
   const elapsed = Math.round((Date.parse(utcNow.slice(0, 10)) - Date.parse(s.start)) / 864e5) + 1;
   const utcHrs = new Date(utcNow).getUTCHours() + new Date(utcNow).getUTCMinutes() / 60;
@@ -173,20 +178,23 @@ if (s.err) {
   const sq = (PRICING && PRICING.stadia && PRICING.stadia.quotaIncl) ? PRICING.stadia : null;
   console.log(`    期間累計　${n(s.total)}` +
     (sq ? ` / ${n(sq.quotaIncl)}　(${(s.total / sq.quotaIncl * 100).toFixed(1)}% of ${sq.quotaPlan})` : ''));
-  console.log(`    近日　　${days.slice(-6).map(([d, v]) => `${d.slice(5)} ${n(v)}`).join('　')}`);
-  console.log(`    ⚠ 今日（UTC ${today[0]}）尚未結束，已過 ${utcHrs.toFixed(1)}/24 小時`);
+  console.log(`    近日　　${complete.slice(-6).map(([d, v]) => `${d.slice(5)} ${n(v)}`).join('　')}`);
+  if (partial) console.log(`    ⚠ 今日（UTC ${partial[0]}）尚未結束，已過 ${utcHrs.toFixed(1)}/24 小時，目前 ${n(partial[1])}——**不列入速率**`);
 
-  // 期末推估：給區間而不是單一數字——尖峰日不能當常態，但也不能假裝沒發生
-  const prior = days.slice(0, -1).slice(-3);         // 今日以外的近 3 日
-  const lo = prior.reduce((a, [, v]) => a + v, 0) / (prior.length || 1);
-  const hi = today[1];                                // 今日（保守：不外推補完整日）
+  // 期末推估：給區間而不是單一數字——尖峰日不能當常態，但也不能假裝沒發生。
+  // 兩個速率都只從**完整** UTC 日算（為什麼：見 lib/stadia_projection.mjs 開頭）。
+  const rt = rates(complete);
   const left = periodDays - elapsed;
-  console.log(`\n    期末推估（剩 ${left} 日）`);
-  for (const [tag, rate] of [['若回落到前 3 日均值', lo], ['若維持今日水準', hi]]) {
-    const end = s.total + left * rate;
-    const b = PLANS.length ? bestPlan(end) : null;
-    console.log(`      ${tag.padEnd(11)}　${n(rate)}/日 → 期末 ${(end / 1e6).toFixed(1)}M` +
-      (b ? `　最省方案 ${b.p.name} US$${b.c.toFixed(0)}` : '　(方案試算需 .cache/vendor-pricing.json)'));
+  if (!rt) {
+    console.log(`\n    期末推估　資料不足：計費期內還沒有任何一個完整 UTC 日`);
+  } else {
+    console.log(`\n    期末推估（剩 ${left} 日，只用完整 UTC 日）`);
+    for (const [tag, rate] of [[`若回落到近 ${rt.loN} 完整日均值`, rt.lo], [`若維持 ${rt.hiDay.slice(5)} 水準`, rt.hi]]) {
+      const end = s.total + left * rate;
+      const b = PLANS.length ? bestPlan(end) : null;
+      console.log(`      ${tag.padEnd(16)}　${n(rate)}/日 → 期末 ${(end / 1e6).toFixed(1)}M` +
+        (b ? `　最省方案 ${b.p.name} US$${b.c.toFixed(0)}` : '　(方案試算需 .cache/vendor-pricing.json)'));
+    }
   }
 }
 

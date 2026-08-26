@@ -181,16 +181,35 @@ struct MixedBoardEntryView: View {
 
             Divider()
 
-            MixedMetroSection(entry: entry.metro, displayDate: entry.date)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            metroSection
         }
         .padding(.horizontal, 16)
         // 08-14 真機回饋:contentMarginsDisabled 下上緣只留 12pt,首行貼著圓角——頂部要多讓。
         .padding(.top, 18)
         .padding(.bottom, 12)
+        // 鐵路那半維持點卡開 App(深連結指向捷運那一站的等車卡,與改版前相同)。
         .widgetURL(entry.metro.deepLink)
         .containerBackground(for: .widget) {
             Color(uiColor: .systemBackground)
+        }
+    }
+
+    private var metroBody: some View {
+        MixedMetroSection(entry: entry.metro, displayDate: entry.date)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    /// 捷運那半點下去 ＝ 在背景直接開等車卡,不打開 App(同小卡,見 MetroBoardView.body)。
+    /// 🔴 只包捷運那半:整張卡都包起來的話,鐵路那半也會變成「開捷運等車卡」的按鈕。
+    @ViewBuilder
+    private var metroSection: some View {
+        if let t = entry.metro.waitTarget {
+            Button(intent: MetroWaitStartIntent(sys: t.sys, station: t.station, dest: t.dest)) {
+                metroBody
+            }
+            .buttonStyle(.plain)
+        } else {
+            metroBody
         }
     }
 }

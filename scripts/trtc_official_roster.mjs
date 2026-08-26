@@ -625,10 +625,54 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
     .filter(evidence => evidence && evidence.source === 'official-board')
     .map(birthSignature));
 
-  let births = 0, ignoredObservations = 0, replayBirthsBlocked = 0, recoveryBirths = 0;
+  // ── 短程／區間車的起點（2026-08-21）────────────────────────────────────────
+  // `terminal` 只在「前一站掉出線外」時成立（trtc_board_ledger.mjs 的 claimOne），也就是
+  // **只有整條線的兩個實體端點**算起點。北投→大安這種從線中間發車的短程車，起點列永遠
+  // 不是 terminal ⇒ 下面那道閘每一輪都擋掉它，全天一台都生不出來。
+  // 實測（2026-08-21 21:49–23:19 正式站語料 536 輪）：官方每輪報 10.6 筆 dest=大安 的看板列、
+  // 管線做出 2.6 筆 claim，而 boardPos.vehicles 裡 R→大安 **0 台**（結構性，不是時段性）。
+  //
+  // 放行條件刻意收得很窄，三個條件同時成立才算「這是一台我們還沒有的車，而且它在起點」：
+  //   (1) 這一輪這個官方車號唯一（displayNo 非空），且名冊（含休眠、含被判矛盾而沒配上的）
+  //       同線同向沒有任何一台車掛這個號 ⇒ 下一輪必被 hardNoMatches 用同一個號接回去，
+  //       不會每輪重生一台；文湖線／環狀線沒有車號 ⇒ 完全不受影響，「起點才生車」照舊。
+  //       中途掉了身分的車其官方車號還掛在名冊上（carried），所以它就地重生會被這條擋掉。
+  //   (2) 這一列是它那條「路線＋方向＋終點」服務在本輪**最後方**的一列 ⇒ 那就是該服務的
+  //       發車站。少了這條，任何中途掉了身分的車都會就地重生一台＝同段疊車
+  //       （實測只加條件 (1)：avgVeh 116.5→127.7、某段 3 台；補上 (2) 後其餘 18 個
+  //       線×終點組合與基準逐格完全相同，只有 R→大安 0.98→2.54、R→北投 0.88→3.91）。
+  //   (3) 它剛離開的那一站（`from`）是一個**線中間的折返站**——本輪有反方向的列以該站
+  //       為終點（＝真的有車在那裡折返），而且它不是整條線的實體端點。這條直接對準本次
+  //       要補的缺陷：實體端點的發車，ledger 本來就給得出 `terminal` 列、照舊由原路徑生車；
+  //       只有「線中間折返」是 ledger 結構上表達不出來的那一種。反過來，任何在普通中途站
+  //       配不到的列（＝幽靈的形狀）都不會通過這條，具名契約「營運中配不到的站間列不得
+  //       另生新車」與 worker 的「站間未配列不得另生新車」守的就是它。
+  const heldNumbers = new Set();
+  for (const vehicle of matchPool) if (vehicle && vehicle.officialNo) {
+    heldNumbers.add(`${vehicle.line}|${Number(vehicle.dir)}|${String(vehicle.officialNo)}`);
+  }
+  const serviceKey = row => `${row.line}|${Number(row.dir)}|${Number(row.dest)}`;
+  const serviceRearMost = new Map();
+  for (const row of current) {
+    const key = serviceKey(row), position = routePosition(row);
+    if (!serviceRearMost.has(key) || position < serviceRearMost.get(key)) serviceRearMost.set(key, position);
+  }
+  // 反方向以某站為終點 ⇒ 那站有車折返 ⇒ 該站可以是這個方向的發車站。鍵直接存成
+  // 「會從這裡發車的那個方向」，查的時候用這一列自己的方向。
+  const turnBackFor = new Set();
+  for (const row of current) turnBackFor.add(`${row.line}|${3 - Number(row.dir)}|${Number(row.dest)}`);
+  const atServiceOrigin = row => serviceRearMost.get(serviceKey(row)) === routePosition(row);
+  const numberHeld = row => heldNumbers.has(`${row.line}|${Number(row.dir)}|${String(row.displayNo)}`);
+  const atMidLineTurnBack = row => {
+    const line = model.lines.get(row.line), from = Number(row.from);
+    if (!line || !(from > 0) || from >= line.stations.length - 1) return false; // 端點的發車走 terminal 列
+    return turnBackFor.has(`${row.line}|${Number(row.dir)}|${from}`);
+  };
+
+  let births = 0, ignoredObservations = 0, replayBirthsBlocked = 0, recoveryBirths = 0, shortTurnBirths = 0;
   // 逐線分開記：同一輪可能既有斷訊恢復、又有自我察覺重置，兩者要能拆開算，
   // 否則前端那句「訊號恢復、清掉 N 台」會把重置清掉的車一起算進去（數字對使用者不誠實）。
-  const realignedByLine = {}, recoveryBirthsByLine = {};
+  const realignedByLine = {}, recoveryBirthsByLine = {}, shortTurnBirthsByLine = {};
   for (let index = 0; index < current.length; index++) {
     if (assigned.has(index)) continue;
     // 正常營運時只有起點倒數能生車；半途站間列只能更新既有 ID，配不到也不得複製一台。
@@ -640,7 +684,13 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
     // 位置取自官方那一列本身，不是我們推估的。範圍只限 realignLines：正常輪照舊只認起點，
     // 否則每輪十幾筆站間列都會生出重複的車。
     const recoverable = !coldStart && realignLines.has(current[index].line);
-    if (!coldStart && !current[index].terminal && !recoverable) { ignoredObservations++; continue; }
+    // 第三個例外＝短程／區間車的起點（見上方 heldNumbers／atServiceOrigin 的說明）。
+    const shortTurnOrigin = !coldStart && !current[index].terminal && !recoverable &&
+      !!current[index].displayNo && !numberHeld(current[index]) && atServiceOrigin(current[index]) &&
+      atMidLineTurnBack(current[index]);
+    if (!coldStart && !current[index].terminal && !recoverable && !shortTurnOrigin) {
+      ignoredObservations++; continue;
+    }
     if (priorBirthSignatures.has(birthSignature(birthEvidenceFor(current[index], sourceRevision, epoch)))) {
       replayBirthsBlocked++; continue;
     }
@@ -651,6 +701,12 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
     if (recoverable && !current[index].terminal) {
       recoveryBirths++;
       recoveryBirthsByLine[current[index].line] = (recoveryBirthsByLine[current[index].line] || 0) + 1;
+    }
+    // 短程車起點例外放行的另外數一份：它與斷訊恢復是兩件事,混在 births 裡就看不出
+    // 「這條新路徑今天到底放行了幾台」,上線後也沒有東西可以監看它有沒有失控。
+    if (shortTurnOrigin) {
+      shortTurnBirths++;
+      shortTurnBirthsByLine[current[index].line] = (shortTurnBirthsByLine[current[index].line] || 0) + 1;
     }
   }
 
@@ -731,8 +787,8 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
         a.vehicleId.localeCompare(b.vehicleId)),
     diagnostics: {
       rows: current.length, accepted, ignoredObservations, replayBirthsBlocked,
-      extensions: 0, carried, completed, births, realigned, recoveryBirths,
-      realignedByLine, recoveryBirthsByLine, dormantCount: dormant.length,
+      extensions: 0, carried, completed, births, realigned, recoveryBirths, shortTurnBirths,
+      realignedByLine, recoveryBirthsByLine, shortTurnBirthsByLine, dormantCount: dormant.length,
       realignedLines: [...realignLines].sort(), linesWithRows: linesWithRows.size,
       // 「這條線是被斷訊恢復自動抓到的，還是被外部指定重置的」要分得開，
       // 否則自動重置每觸發一次就會被 worker 當成一次斷訊恢復告警（語意污染）。

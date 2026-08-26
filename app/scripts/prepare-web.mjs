@@ -240,10 +240,15 @@ const pbxVers = [...new Set([...pbxSrc.matchAll(/MARKETING_VERSION = ([^;]+);/g)
 if (pbxVers.length !== 1) throw new Error(`pbxproj 的 MARKETING_VERSION 不唯一：${pbxVers.join(' / ')}`);
 if (!/^\d+(\.\d+)*$/.test(pbxVers[0])) throw new Error(`MARKETING_VERSION 格式無法解析：${pbxVers[0]}`);
 const appVersion = pbxVers[0];
+// 本版「更新了什麼」內建文案(set-release-mode 把發行模式的 why 經 RAIL_WHATS_NEW 傳進來)。
+// 為什麼要內建:App 內那張卡原本抓 iTunes lookup 的 releaseNotes——那是【線上版】的文,
+// 剛裝的版比線上新時(每次送審前必然)彈到的是上一版內容(1.4.9 build 74 實踩)。
+// 沒給就注入空字串:相關 UI 整組不出現,不炸開機。
+const whatsNew = typeof process.env.RAIL_WHATS_NEW === 'string' ? process.env.RAIL_WHATS_NEW.trim() : '';
 
 html = html
   .replace('<span class="ver" id="buildVer"></span>', '<a href="third-party-notices.txt" target="_blank" rel="noopener" style="min-height:44px;display:inline-flex;align-items:center;padding:0 4px">第三方軟體授權</a>\n      <span class="ver" id="buildVer"></span>')
-  .replace('<script src="revenuecat-config.js"></script>', `<script src="revenuecat-config.js"></script>\n<script>window.RAIL_MUSIC_AVAILABLE=${includeLicensedMusic};window.RAIL_ONLINE_BASEMAPS_AVAILABLE=${includeLicensedBasemaps};window.RAIL_METRO_CORE_ENABLED=${enableMetroCore};window.RAIL_APP_VERSION=${JSON.stringify(appVersion)};window.RAIL_PLUS_SANDBOX_OK=${plusSandboxOk};window.RAIL_PLUS_SANDBOX_BUILD=${plusSandboxOk ? JSON.stringify(plusSandboxBuild) : 'null'}${appConfig ? `;window.RAIL_APP_CONFIG=${JSON.stringify(appConfig)}` : ''}</script>\n<script src="native-bridge.js"></script>`);
+  .replace('<script src="revenuecat-config.js"></script>', `<script src="revenuecat-config.js"></script>\n<script>window.RAIL_MUSIC_AVAILABLE=${includeLicensedMusic};window.RAIL_ONLINE_BASEMAPS_AVAILABLE=${includeLicensedBasemaps};window.RAIL_METRO_CORE_ENABLED=${enableMetroCore};window.RAIL_APP_VERSION=${JSON.stringify(appVersion)};window.RAIL_APP_WHATS_NEW=${JSON.stringify(whatsNew)};window.RAIL_PLUS_SANDBOX_OK=${plusSandboxOk};window.RAIL_PLUS_SANDBOX_BUILD=${plusSandboxOk ? JSON.stringify(plusSandboxBuild) : 'null'}${appConfig ? `;window.RAIL_APP_CONFIG=${JSON.stringify(appConfig)}` : ''}</script>\n<script src="native-bridge.js"></script>`);
 if (!html.includes('vendor/leaflet/leaflet.js') || !html.includes('native-bridge.js')) throw new Error('App index vendor/native bridge injection failed');
 if (/ko-fi|PayPal|111010691056|web-only-donation-log|贊助方式更新/i.test(html) || html.includes('id="donateCopy"') || html.includes('class="foot-box foot-donate"')) throw new Error('External donation content leaked into native App');
 if (/cartocdn\.com|arcgisonline\.com/i.test(html)) throw new Error('App index still contains unlicensed CARTO/Esri tile URLs');

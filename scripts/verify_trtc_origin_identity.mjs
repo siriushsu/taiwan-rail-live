@@ -31,7 +31,8 @@ const EXPECTED = {
   stuckOriginTotal: 7,      // 非 XBT、timeline 只有 1 筆、from==to、當輪沒被官方列配到，逐輪累計
                             // （全部是同一台：BL 亞東 08:14:32 的車在第 25–26、32–36 輪官方亞東列暫缺／翻到下下班時
                             //   的合法 carried，第 37 輪 08:09:34 接回原 ID）
-  births: 136,              // 冷啟動 99＋17 分鐘內 37 次真出生
+  births: 136,              // 冷啟動 99＋17 分鐘內 37 次真出生（**不含**短程起點例外，見下一行）
+  shortTurnBirths: 3,       // 短程／區間車起點例外（2026-08-21）在這份語料放行的台數
 };
 
 let failures = 0;
@@ -87,7 +88,7 @@ const row = ({ from, to, dest, arr, terminal = false, run = 60, no = '' }) =>
 function replayCorpus(pipeline, dir, { rowsFrom = 'board', day = DAY } = {}) {
   const files = fs.readdirSync(dir).filter(name => name.endsWith('_live.json') || /^round_\d+\.json$/.test(name)).sort();
   let hints = new Map(), state = null;
-  const totals = { rounds: 0, births: 0, stuck: 0, stale: 0, sharedPairs: 0, maxVehicles: 0 };
+  const totals = { rounds: 0, births: 0, shortTurnBirths: 0, stuck: 0, stale: 0, sharedPairs: 0, maxVehicles: 0 };
   const stuckExamples = [], sharedExamples = [];
   const trackOf = line => line.startsWith('O_') ? 'O' : line;
   for (const file of files) {
@@ -109,6 +110,7 @@ function replayCorpus(pipeline, dir, { rowsFrom = 'board', day = DAY } = {}) {
       realignSec: 180 });
     totals.rounds++;
     totals.births += state.diagnostics.births;
+    totals.shortTurnBirths += Number(state.diagnostics.shortTurnBirths) || 0;
     totals.maxVehicles = Math.max(totals.maxVehicles, state.vehicles.length);
     const vehicles = state.vehicles;
     const matched = new Set(vehicles.filter(v => String(v.sourceRevision) === String(nowEpoch) && !v.carried).map(v => v.vehicleId));
@@ -222,7 +224,14 @@ check(healthy.sharedPairs === EXPECTED.sharedPairsTotal,
 check(healthy.stale === EXPECTED.staleTotal, '沒有車超過 300 秒沒被官方列觀測仍留在名冊', `stale=${healthy.stale}`);
 check(healthy.stuck === EXPECTED.stuckOriginTotal, '非 XBT 的起點車只有官方列暫缺時才 carried（逐輪累計恰為釘死值）',
   `stuck=${healthy.stuck} ${healthy.stuckExamples.join(' ')}`);
-check(healthy.births === EXPECTED.births, '累計出生等於釘死值（多出生＝有身分被拆）', `births=${healthy.births}`);
+// 2026-08-21 短程／區間車補入後，這份語料多了 3 次出生，全部來自新開的那條路徑
+// （diagnostics.shortTurnBirths）。釘死值守的是「起點身分有沒有被拆」，所以扣掉新路徑
+// 明確歸帳的那幾台再比——這樣新路徑若哪天多生一台，這條照樣會紅，而不是被我調高門檻蓋掉。
+check(healthy.births - healthy.shortTurnBirths === EXPECTED.births,
+  '扣掉短程起點例外後，累計出生等於釘死值（多出生＝有身分被拆）',
+  `births=${healthy.births}－shortTurn=${healthy.shortTurnBirths}=${healthy.births - healthy.shortTurnBirths}`);
+check(healthy.shortTurnBirths === EXPECTED.shortTurnBirths,
+  '短程起點例外在這份語料放行的台數等於釘死值', `shortTurnBirths=${healthy.shortTurnBirths}`);
 
 let peak = null;
 if (fs.existsSync(PEAK_DIR)) {

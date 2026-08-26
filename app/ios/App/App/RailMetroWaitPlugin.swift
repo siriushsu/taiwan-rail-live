@@ -36,6 +36,17 @@ public final class RailMetroWaitPlugin: CAPPlugin, CAPBridgedPlugin {
         return true
     }
 
+    // 背景開卡(MetroWaitStartIntent)整條失敗時留下的待辦——轉成同一個 "waitOpen" 事件,
+    // 走網頁端既有的深連結流程補開一次,退回改版前的行為。
+    // 🔴 兩個呼叫點缺一不可:load() 接冷啟動(App 那時還沒起來),didBecomeActive 接熱啟動
+    //    (待辦是在 App 這個行程被背景喚醒之後才寫的,那時 load() 早就跑完了)。
+    static func flushPendingOpen() {
+        guard let p = shared, let pend = MetroWaitPending.take() else { return }
+        var data: [String: Any] = ["sys": pend.sys, "station": pend.station]
+        if let d = pend.dest { data["dest"] = d }
+        p.notifyListeners("waitOpen", data: data, retainUntilConsumed: true)
+    }
+
     private func forwardOpen(_ url: URL) {
         guard let comps = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return }
         var data: [String: Any] = [:]
@@ -47,6 +58,7 @@ public final class RailMetroWaitPlugin: CAPPlugin, CAPBridgedPlugin {
     override public func load() {
         Self.shared = self
         if let url = Self.pendingOpenURL { Self.pendingOpenURL = nil; forwardOpen(url) }
+        Self.flushPendingOpen()
         // 🔴 刻意【不】比照 RailFollowActivity 在啟動時掃孤兒卡:等車卡的倒數是官方絕對時刻,
         //    App 死掉之後卡片依然是真的;staleDate 一到系統自己標灰。使用者手動開的卡,
         //    在他重開 App 查個地圖時被我們收掉,才是 bug。單卡不變量由 start() 的先掃後開保證。

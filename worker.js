@@ -2,6 +2,7 @@ import {
   TRTC_LEDGER_SCHEMA, buildTrtcModel, buildLedgerFromRaw,
   trtcOperatingState, trtcServiceDay, resolveBoardRows, claimBoardRows, collapseClaims,
   attachOfficialTimelines, segmentVehiclesFromCountdowns, alignSegmentsToVehicles,
+  deriveSecondArrivals, applyNext2ToBoard,
   bindTracksToTrips, buildTripSetsByLineDir, joinBoardRowsToTrips, planTrtcTripBindingPersistence,
 } from './scripts/trtc_board_ledger.mjs';
 import { reduceOfficialRosterSelfHealing } from './scripts/trtc_official_roster.mjs';
@@ -19,8 +20,23 @@ import {
 // 金鑰只存在 Worker 環境變數(dashboard Variables and Secrets),前端不直連 TDX。
 // 雙層快取護住 TDX 用量:PoP 邊緣快取 55 秒(workers.dev 網域上 Cache API 無效,
 // 屆時靠 isolate 記憶體快取,約每 isolate 每分鐘 1 次)——用量恆定,不隨訪客數增加。
+// ⚠️ 「不隨訪客數增加」只在「單一 colo」內成立:caches.default 與 isolate 記憶體都是
+// 每個資料中心各一份,活躍 colo 每多一個,下面整組輪詢就再跑一份 ⇒ TDX 點數隨
+// 「使用者地理分佈的廣度」線性上升,而不是隨「使用者人數」上升。2026-08-21 實測 /api/tra-live:
+// 用戶全在台灣,卻分佈在 SJC 24,568／SIN 16,839／TPE 15,056／HKG 14,976／KHH 1,064 五個 colo。
+// 2026-08-16:TDX 銅級 400 點在月中就燒到 80%(105% 即當月斷線),故對兩支流量大戶加 $select。
+// $select 實測(2026-08-22 17:16 金鑰實打複驗):TrainLiveBoard 省 54.5%、Metro/LiveBoard 省
+// 33.0~38.7%,筆數不變、巢狀 StationName.Zh_tw 等子欄位完整保留、外層 UpdateTime 照給。
+// 公告類三支「不」加 $select——實測省 0~18%(公告本體才 0.2~0.4KB,流量不是它的成本;
+// 它的成本在次數),加了只是徒增漏欄位風險。
+// 🔴 這段止血原本是 a59cb81(2026-08-16 02:51 上線),4 小時 37 分後就被一次整包替換式部署
+// 靜默退掉(那顆從未併進 main),之後約 90 次部署都沒有它 ⇒ 改動這幾行前先確認你的 base
+// 有沒有落後 origin/main(git log HEAD..origin/main),它被退過一次。
 const AUTH_URL = 'https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token';
-const API_URL = 'https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/TrainLiveBoard?%24format=JSON';
+// $select 欄位必須與下方 traLive() 取用的欄位一致:TrainNo/DelayTime/StationID/TrainStationStatus。
+// 改這行前先確認消費端沒有新增欄位,否則會靜默拿到 undefined。外層 UpdateTime 不受 $select 影響
+// (實測照給),mem.at 與前端的新鮮度診斷仍讀得到上游時戳。
+const API_URL = 'https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/TrainLiveBoard?%24select=TrainNo%2CDelayTime%2CStationID%2CTrainStationStatus&%24format=JSON';
 const ALERT_URL = 'https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/Alert?%24format=JSON';
 // 高鐵營運狀態:TDX 僅 v2 有 Rail/THSR/AlertInfo(v3 為 404),回頂層陣列,正常時單筆「全線營運正常(Normal)」
 const THSR_ALERT_URL = 'https://tdx.transportdata.tw/api/basic/v2/Rail/THSR/AlertInfo?%24format=JSON';
@@ -130,6 +146,12 @@ async function traLive(request, env, ctx) {
     } catch (e) {}
   }
   const cacheKey = new Request(new URL('/api/tra-live', request.url), { method: 'GET' });
+  // 🔴 「最後成功值」的 colo 級備份。mem/memAt 是模組層變數＝per-isolate,所以下面 catch 的
+  // 「上游掛掉退回舊值」實際上取決於這一發剛好打到哪個 isolate:熱的回舊資料 200、冷的回硬 502。
+  // 2026-08-25 TDX 對 Cloudflare 全網斷線兩小時,同一分鐘不同使用者拿到的東西完全不同,而
+  // 「回 502」是其中最糟的一種——前端連「資料停在幾點」都無從顯示。這顆備份讓退路以 colo 為單位
+  // 一致存在;資料齡照舊由 at 誠實帶出,可不可用交給前端 liveDataAgeMs() 判(它已有 30 分門檻)。
+  const lastKey = new Request(new URL('/api/tra-live__lastgood', request.url), { method: 'GET' });
   const edge = caches.default;
   const hit = await edge.match(cacheKey);
   if (hit) return hit;
@@ -147,6 +169,15 @@ async function traLive(request, env, ctx) {
       memAt = Date.now();
       // 逐站觀測事件擷取:只搭「真的刷新上游」這班順風車(cache 命中/mem 未過期都到不了這裡),零新增 TDX 呼叫
       recordStationEvents(mem, env, ctx);
+      // 同一班順風車:更新 colo 級「最後成功值」。刻意【不】存 srv——srv 是時鐘偏差量測用的
+      // 「回應產生當下的伺服器時鐘」,存進快取幾小時後再吐出來會讓前端誤判裝置時鐘偏差幾小時,
+      // 所以取用時才現場補。丟背景不擋回應,失敗吞掉(這只是退路的退路)。
+      const lastBody = JSON.stringify(mem);
+      const putLast = edge.put(lastKey, new Response(lastBody, {
+        status: 200,
+        headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'public, s-maxage=21600' },
+      })).catch(() => {});
+      if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(putLast);
     }
     // srv=本次回應產生當下的伺服器時鐘(epoch ms)。前端拿它跟 Date.now() 相減、取多次取樣的最小值,
     // 就量得出「裝置時鐘偏差」——裝置時鐘錯 N 分鐘會讓全部台鐵/高鐵位置與倒數整體偏 N 分鐘,
@@ -157,6 +188,15 @@ async function traLive(request, env, ctx) {
     return await jsonResCached(edge, cacheKey, { ...mem, srv: Date.now() }, 200, 'public, s-maxage=55, stale-while-revalidate=300');
   } catch (e) {
     if (mem) return jsonRes({ ...mem, srv: Date.now() }, 200, 'public, s-maxage=15');
+    // 本 isolate 從沒成功過(冷啟/重生),退到同 colo 的最後成功快照——這正是上游長時間斷線時
+    // 最常見的情形,原本一律回 502 等於「斷線越久,拿不到任何資料的人越多」。
+    try {
+      const last = await edge.match(lastKey);
+      if (last) {
+        const d0 = await last.json();
+        if (d0 && Array.isArray(d0.trains)) return jsonRes({ ...d0, srv: Date.now() }, 200, 'public, s-maxage=15');
+      }
+    } catch (e2) { /* 備份也讀不到就照舊回 502 */ }
     return jsonRes({ error: String(e.message || e) }, 502, 'no-store');
   }
 }
@@ -234,7 +274,9 @@ async function traAlert(request, env) {
   const hit = await edge.match(cacheKey);
   if (hit) return hit;
   try {
-    if (!alertMem || Date.now() - alertMemAt > 110e3) {
+    // TTL 300s(2026-08-16 自 110s 上調,TDX 點數止血):公告變化以分鐘計,且本端點成本在
+    // 「次數」不在流量(實測公告本體僅 0.2KB)。110→300s 省 63% 呼叫次數。
+    if (!alertMem || Date.now() - alertMemAt > 300e3) {
       const r = await fetch(ALERT_URL, { headers: { authorization: 'Bearer ' + await getToken(env) }, redirect: 'manual' });
       if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
       if (!r.ok) throw new Error('tdx api ' + r.status);
@@ -251,7 +293,7 @@ async function traAlert(request, env) {
       };
       alertMemAt = Date.now();
     }
-    return await jsonResCached(edge, cacheKey, alertMem, 200, 'public, s-maxage=110, stale-while-revalidate=600');
+    return await jsonResCached(edge, cacheKey, alertMem, 200, 'public, s-maxage=300, stale-while-revalidate=600');
   } catch (e) {
     if (alertMem) return jsonRes(alertMem, 200, 'public, s-maxage=30');
     return jsonRes({ error: String(e.message || e) }, 502, 'no-store');
@@ -267,7 +309,7 @@ async function thsrAlert(request, env) {
   const hit = await edge.match(cacheKey);
   if (hit) return hit;
   try {
-    if (!thsrAlertMem || Date.now() - thsrAlertMemAt > 110e3) {
+    if (!thsrAlertMem || Date.now() - thsrAlertMemAt > 300e3) {   // 2026-08-16 自 110s 上調(同 tra-alert)
       const r = await fetch(THSR_ALERT_URL, { headers: { authorization: 'Bearer ' + await getToken(env) }, redirect: 'manual' });
       if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
       if (!r.ok) throw new Error('tdx api ' + r.status);
@@ -286,7 +328,7 @@ async function thsrAlert(request, env) {
       };
       thsrAlertMemAt = Date.now();
     }
-    return await jsonResCached(edge, cacheKey, thsrAlertMem, 200, 'public, s-maxage=110, stale-while-revalidate=600');
+    return await jsonResCached(edge, cacheKey, thsrAlertMem, 200, 'public, s-maxage=300, stale-while-revalidate=600');
   } catch (e) {
     if (thsrAlertMem) return jsonRes(thsrAlertMem, 200, 'public, s-maxage=30');
     return jsonRes({ error: String(e.message || e) }, 502, 'no-store');
@@ -537,21 +579,9 @@ async function fetchTymcNewsAlerts(token) {
   }
 }
 
-// 🔴 2026-08-17 使用者指示：北捷列車位置暫時改用班表推估,並發公告說明。
-// 走既有的「本站觀測」自訂公告管道（前端 renderAlertDetail 認 self / sig）：
-// sig 固定 ⇒ 使用者按掉之後不會每 5 分鐘又彈一次。位置邏輯修好後把這個陣列清空即可。
-const TRTC_SCHEDULE_MODE_NOTICE = [{
-  self: true,
-  sig: 'trtc-schedule-position-20260817',
-  status: 0,
-  sys: 'mrt',
-  sysLabel: '臺北捷運',
-  title: '列車位置暫時改用班表推估',
-  desc: '目前畫面上臺北捷運（含環狀線）列車的位置是依班表推估的，不是列車的實際位置。'
-    + '車站的到站倒數不受影響，與月台顯示的倒數相同，均來自官方即時資料。'
-    + '位置邏輯調整完成後會恢復依即時資料定位。',
-  reason: '', effect: '', start: '', end: '', lines: [],
-}];
+// 自訂公告管道（前端 renderAlertDetail 認 self / sig；sig 固定 ⇒ 按掉不會重彈）。
+// 2026-08-17 的「班表推估」公告已於 2026-08-22 撤除（正式站早已恢復官方即時名冊，公告與現況矛盾）。
+const TRTC_SCHEDULE_MODE_NOTICE = [];
 let metroAlertMem = null, metroAlertMemAt = 0;
 async function metroAlert(request, env) {
   const cacheKey = new Request(new URL('/api/metro-alert', request.url), { method: 'GET' });
@@ -559,7 +589,9 @@ async function metroAlert(request, env) {
   const hit = await edge.match(cacheKey);
   if (hit) return hit;
   try {
-    if (!metroAlertMem || Date.now() - metroAlertMemAt > 110e3) {
+    // TTL 300s(2026-08-16 自 110s 上調):本端點是次數最大單項——每輪對 5 個營運者各發一次,
+    // 110s 時 3,925 次/日(佔我方 TDX 呼叫 29%),300s 後降到 1,440 次/日。
+    if (!metroAlertMem || Date.now() - metroAlertMemAt > 300e3) {
       const token = await getToken(env);
       const [parts, newsAlerts] = await Promise.all([
         Promise.all(METRO_ALERT_OPS.map(async ({ op, sys, label }) => {
@@ -593,7 +625,7 @@ async function metroAlert(request, env) {
         alerts: TRTC_SCHEDULE_MODE_NOTICE.concat(parts.flat(), newsAlerts) };
       metroAlertMemAt = Date.now();
     }
-    return await jsonResCached(edge, cacheKey, metroAlertMem, 200, 'public, s-maxage=110, stale-while-revalidate=600');
+    return await jsonResCached(edge, cacheKey, metroAlertMem, 200, 'public, s-maxage=300, stale-while-revalidate=600');
   } catch (e) {
     if (metroAlertMem) return jsonRes(metroAlertMem, 200, 'public, s-maxage=30');
     return jsonRes({ error: String(e.message || e) }, 502, 'no-store');
@@ -618,7 +650,11 @@ async function metroLive(request, env, sys) {
     if (!stale || Date.now() - stale.at > 115e3) {
       const token = await getToken(env);
       const parts = await Promise.all(METRO_LIVE_OPS[sys].map(async op => {
-        const r = await fetch(`https://tdx.transportdata.tw/api/basic/v2/Rail/Metro/LiveBoard/${op}?%24top=5000&%24format=JSON`,
+        // $select 欄位須與下方 map() 取用的一致(LineID/StationName/DestinationStationName/
+        // EstimateTime/ServiceStatus);巢狀的 .Zh_tw 子欄位選父層即可,實測完整保留。
+        // ⚠️ TDX 對本端點的 EstimateTime 直接無視 $select(列不列都照回)⇒ 針對它做的突變測試
+        // 不會變紅,那不代表判準沒牙,是上游根本不理你。
+        const r = await fetch(`https://tdx.transportdata.tw/api/basic/v2/Rail/Metro/LiveBoard/${op}?%24top=5000&%24select=LineID%2CStationName%2CDestinationStationName%2CEstimateTime%2CServiceStatus&%24format=JSON`,
           { headers: { authorization: 'Bearer ' + token }, redirect: 'manual' });
         if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
         if (!r.ok) throw new Error('tdx api ' + r.status);
@@ -687,7 +723,10 @@ async function klrtPosition(request, env) {
   if (hit) return hit;
   const stale = klrtPosMem;
   try {
-    if (!stale || Date.now() - stale.at > 25e3) {
+    // TTL 35s(2026-08-16 自 25s 上調):上游 KLRT GPS 本來就約 30 秒才更新一次(資料齡實測
+    // 17–45 秒),25s 去拉比上游產出還勤 ⇒ 有一部分呼叫必然拿到同一份資料。35s 省 29% 次數,
+    // 且仍短於「資料齡上界」,逐班校正的新鮮度不變。
+    if (!stale || Date.now() - stale.at > 35e3) {
       const token = await getToken(env);
       const r = await fetch('https://tdx.transportdata.tw/api/basic/v2/Rail/Metro/LivePosition/KLRT?%24format=JSON',
         { headers: { authorization: 'Bearer ' + token }, redirect: 'manual' }); // 🔴 絕不可用 'error'(見檔頭 08-04 事故)
@@ -704,7 +743,7 @@ async function klrtPosition(request, env) {
       })).filter(x => Number.isFinite(x.lat) && Number.isFinite(x.lon));
       klrtPosMem = { data: { at: new Date().toISOString(), src: 'tdx', up: d && d.UpdateTime, rows }, at: Date.now() };
     }
-    return await jsonResCached(edge, cacheKey, klrtPosMem.data, 200, 'public, s-maxage=20, stale-while-revalidate=60');
+    return await jsonResCached(edge, cacheKey, klrtPosMem.data, 200, 'public, s-maxage=30, stale-while-revalidate=60');
   } catch (e) {
     // 🔴 舊資料只在「還算新」的期間頂替,不可無限期回舊的:前端看到 src 有值就會採用,
     //    上游長時間掛掉會讓 C 線一直用陳舊 GPS,而 LiveBoard 被 klrtGpsLive 擋著永遠接不了手。
@@ -982,6 +1021,11 @@ async function trtcLive(request, env) {
         // 我方組裝錯誤也不是刪掉上一份官方車的證據；保留 D1 已知名冊續推。
         boardPos = await trtcOfficialHeldPayload(env, 'assembly-error');
       }
+      // 「再下一班」裝飾進看板列（2026-08-22 裁示）：eta2 只增欄不動 board 既有欄位與列數，
+      // 消費端（小工具/等車卡）沒解這個欄位就完全無感。join 鍵含 no+eta 判別欄與毒化
+      // 邏輯（忠孝復興 BL/BR 撞名對），細節在 applyNext2ToBoard。held/outage 模式沒有
+      // next2 ⇒ 整段自然跳過。
+      applyNext2ToBoard(board, boardPos && boardPos.next2);
       // legacy 的 at/src/trains/board/cd 產生路徑與欄位順序不動；帳本預覽失敗一律
       // 回空陣列，不能拖垮原本逐車 API。
       let ledger = [];
@@ -1624,6 +1668,11 @@ async function trtcBoardPositionAnchors(env, rows, feedMode = 'official',
       details: identityAudit.rejectedNumberJumpDetails || [],
     }));
   }
+  // 小工具「再下一班」（2026-08-22 裁示）：只從在途官方名冊推導，推不出留白。
+  // 失敗只影響 next2 自己（回空陣列），絕不拖垮名冊與看板本體。
+  let next2 = [];
+  try { next2 = deriveSecondArrivals(model, resolved.rows, vehicles); }
+  catch (e) { console.error('[trtc next2] 第二班推導失敗(留白):', (e && e.stack) || String(e)); }
   return {
     at: official.roster.nowEpoch,
     feedMode,
@@ -1635,7 +1684,7 @@ async function trtcBoardPositionAnchors(env, rows, feedMode = 'official',
     ...(official.roster.recovery ? { recovery: official.roster.recovery } : {}),
     rows: officialRows,
     extensions: vehicles.filter(vehicle => vehicle.extension),
-    vehicles, identityAudit,
+    vehicles, identityAudit, next2,
     dropped: { ...resolved.dropped, unclaimed: claimed.unclaimed.length,
       collapsed: claimed.claims.length - collapsed.length,
       branchHinted: resolved.branch.hinted, branchFallback: resolved.branch.fallback,
@@ -3692,7 +3741,13 @@ async function basemapSrc(request, env) {
   // 預設必須是「不計費的那個」:環境變數手滑不該把所有裝置靜默切到計量底圖上,
   // 那種錯誤沒有任何畫面訊號,只會在一個月後變成帳單。
   const street = env.BASEMAP_STREET_SRC === 'stadia' ? 'stadia' : 'ofm';
-  return jsonRes({ street }, 200, 'public, max-age=300, s-maxage=300');
+  // 強制更新閘門的遠端值(2026-08-22,App 1.4.9 起會讀):低於這個版號的 App 開機被
+  // 全螢幕擋下要求更新。啟用場景=換底圖供應商/廢舊端點後,把還在燒已淘汰資源的長尾
+  // 版本擋下來(Stadia 一課:≤1.4.7 構不到,只能等自然更新——這欄就是下次的構得到)。
+  // 沒設定=null=不擋;格式驗過才下發,手滑塞怪值寧可當沒設(App 端 fail-open 再擋一層)。
+  const minAppVersion = typeof env.MIN_APP_VERSION === 'string' && /^\d+(\.\d+)*$/.test(env.MIN_APP_VERSION.trim())
+    ? env.MIN_APP_VERSION.trim() : null;
+  return jsonRes({ street, minAppVersion }, 200, 'public, max-age=300, s-maxage=300');
 }
 
 // ── 衛星底圖的第二種計費方式：basemap session ────────────────────────────────

@@ -57,6 +57,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         //    結果就是混合大卡(kind 不同)開 App 也不刷新;之後每加一張卡這裡就會再漏一張,
         //    all 一次到位(發車看板吃 App Group 班表,回前景重讀同樣受益)。
         WidgetCenter.shared.reloadAllTimelines()
+        // 小工具的背景開卡(MetroWaitStartIntent)若整條失敗,會留一筆待辦在 App Group;
+        // 回前景補開一次,退回改版前「點小工具開 App 再開卡」的行為。
+        RailMetroWaitPlugin.flushPendingOpen()
     }
 
     func applicationWillTerminate(_ application: UIApplication) {

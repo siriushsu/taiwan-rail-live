@@ -283,8 +283,13 @@ pipeline.cleanup();
 
 // ---- 7. 突變：每條斷言都要有牙 ----
 const MUTATIONS = [
+  // 2026-08-21 修：原本的 `\{\s*realigned\+\+;[^}]*continue;` 假設 `{` 之後第一句就是
+  // realigned++、且區塊內不再出現 `}`。實作後來在 `{` 後加了註解、區塊內也多了
+  // `{ ...rest, carried: true, dormant: true }` ⇒ 整條 regex 對不上 ⇒ loadPipeline 直接擲例外，
+  // **這支腳本的五個突變控制組一個都沒跑過**（心得 36：拋例外中止會讓整組覆蓋假裝自己不存在）。
+  // 改成非貪婪吃到區塊結尾的 `continue;`，不再假設區塊內容。
   ['no-realign', '整個逐線對齊拿掉（回到只會沿用的舊行為）',
-    source => source.replace(/if \(realignLines\.has\(old\.line\)\) \{\s*realigned\+\+;[^}]*continue;\s*\}/, '')],
+    source => source.replace(/if \(realignLines\.has\(old\.line\)\) \{[\s\S]*?\n {6}continue;\n {4}\}/, '')],
   ['global-gap-instead', '改用「全域資料落差」判斷斷訊（第一版設計，對部分斷訊全盲）',
     source => source.replace(
       /for \(const line of linesWithRows\) \{\s*const last = Number\(priorSeen\[line\]\);\s*if \(Number\.isFinite\(last\) && epoch - last >= realignSec\) realignLines\.add\(line\);\s*\}/,

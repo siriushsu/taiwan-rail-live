@@ -535,11 +535,24 @@ for (const h of s2.hits) totalByLine[h.line] = (totalByLine[h.line] || 0) + 1;
 // 恆真，不是故障訊號。線＝單一區間時，這個統計量本來就沒有意義（整條線不見那條判準
 // 仍然守著它們：真的全消失照樣會紅）。
 const shuttleLines = new Set(s2.hits.filter(h => h.stations != null && h.stations <= 2).map(h => h.line));
-const frozen = Object.entries(stallByLine).filter(([ln]) => !shuttleLines.has(ln))
-  .filter(([ln, n]) => n / (totalByLine[ln] || 1) > STALL_RATIO)
+// 🔴 2026-08-23：比例判準在小分母下沒有意義——一條線只有 1 台車在跑時，那台停個站就是
+// 1/1＝100%，恆定超過門檻。實測 08-18～08-23 **連續六天、每天都只在 06:00 那一發**報
+// 「K 1/1」或「K 2/2」（K＝高雄環狀輕軌，首班車時段全線才 1–2 台），06:10 起一律綠。
+// 這與上面 shuttleLines 的豁免是同一個道理，只是那個豁免綁在「站數 ≤2」（小碧潭、新北投），
+// 照不到「站很多但這個時段車很少」的輕軌首班。
+// 不直接靜音而是降成 warn：真的兩台都卡死仍然印得出來（「整條線不見」照不到這種——
+// 車還在畫面上），只是不進離開碼、不每天早上敲一次通知。假警報會磨掉告警本身的可信度。
+const MIN_FLEET_FOR_FROZEN = 3;
+const frozenAll = Object.entries(stallByLine).filter(([ln]) => !shuttleLines.has(ln))
+  .filter(([ln, n]) => n / (totalByLine[ln] || 1) > STALL_RATIO);
+const frozen = frozenAll.filter(([ln]) => (totalByLine[ln] || 0) >= MIN_FLEET_FOR_FROZEN)
   .map(([ln, n]) => `${ln} ${n}/${totalByLine[ln]}`);
-console.log(`${frozen.length ? '❌' : '✅'} 整線凍結：${frozen.length ? frozen.join('、') : '無'}（單台停站 ${stalled.length} 台，正常）`);
+const frozenThin = frozenAll.filter(([ln]) => (totalByLine[ln] || 0) < MIN_FLEET_FOR_FROZEN)
+  .map(([ln, n]) => `${ln} ${n}/${totalByLine[ln]}`);
+console.log(`${frozen.length ? '❌' : '✅'} 整線凍結：${frozen.length ? frozen.join('、') : '無'}（單台停站 ${stalled.length} 台，正常）` +
+  (frozenThin.length ? `｜全線不足 ${MIN_FLEET_FOR_FROZEN} 台不判（起／收班常態）：${frozenThin.join('、')}` : ''));
 if (frozen.length) note('bad', `疑似整線凍結：${frozen.join('、')}`);
+if (frozenThin.length) note('warn', `整線凍結但全線不足 ${MIN_FLEET_FOR_FROZEN} 台，比例無意義不判：${frozenThin.join('、')}`);
 
 // 4. 車數（只對北捷比；官方逐車是獨立來源）
 if (official && !official.error) {
@@ -557,17 +570,35 @@ if (official && !official.error) {
   //   多畫則沒有正當理由——分子分母對齊之後，畫面上不該出現官方沒說的車，所以上界收到
   //   1.1（只留給「官方那份比畫面舊幾秒」的抖動）。Codex 複審指出舊的 1.6 讓 59 台幽靈車
   //   仍全綠，那是對的。
+  // 🔴 2026-08-23：起／收班時段這個比值結構上不可比。官方 CarWeight 的站碼實測落後
+  // 96–265 秒（index.html 建車層註解），而我們的車是從**站牌倒數**即時出生的；車隊規模
+  // 穩定時這個落後不影響比值，但首班車那幾分鐘車隊每十分鐘成長三到五成，落後 2–4 分鐘的
+  // 分母對上即時的分子必然虛高。實測 08-18～08-23：四次車數告警（135/133/122/114%）的
+  // expect 全部 ≤50，六天所有 06:00 那一發的 expect 都 ≤54，而 55–69 之間**一個樣本都沒有**，
+  // 70 起才是末班／離峰的正常區（06:10 之後六天零告警）。門檻取 60＝落在那個空隙中央。
+  // 末班車反向同理（車隊在收，落後的分母偏高 ⇒ 比值偏低），所以是規模條件不是時鐘條件。
+  // 不完全靜音：真的冒出成倍的幽靈車不可能是時間基準差造成的，超過 2 倍照樣判 bad。
+  const CENSUS_FLEET_MIN = 60;   // 官方逐車規模低於此＝正在起／收班
+  const RATIO_ABSURD = 2;        // 起／收班也解釋不了的離譜倍率
+  const thinFleet = expect > 0 && expect < CENSUS_FLEET_MIN;
   const ok = ratio >= .7 && ratio <= 1.1;
   // 分子的組成也印出來——「兩邊對齊」是這條判準的前提，不可以只寫在註解裡靠信任
   const numByLine = {};
   for (const h of s2.hits) if (censusCovered(h)) numByLine[h.line] = (numByLine[h.line] || 0) + 1;
   const excluded = {};
   for (const h of s2.hits) if (h.sys === 'mrt' && !censusCovered(h)) excluded[h.line] = (excluded[h.line] || 0) + 1;
-  console.log(`${ok ? '✅' : '❌'} 車數：${drawnTrtc} 台 vs 官方逐車 ${expect} 台（${(ratio * 100).toFixed(0)}%）` +
-    `　［兩邊都只算高運量＋文湖線］`);
+  const countMark = ok ? '✅' : (thinFleet && ratio < RATIO_ABSURD ? '⚠️' : '❌');
+  console.log(`${countMark} 車數：${drawnTrtc} 台 vs 官方逐車 ${expect} 台（${(ratio * 100).toFixed(0)}%）` +
+    `　［兩邊都只算高運量＋文湖線］` +
+    (!ok && thinFleet && ratio < RATIO_ABSURD ? `｜官方逐車不足 ${CENSUS_FLEET_MIN} 台＝起／收班，比值不可比，這輪不判` : ''));
   console.log(`     分子 ${JSON.stringify(numByLine)}`);
   console.log(`     兩邊都不算（不在官方逐車清單裡）${JSON.stringify(excluded)}`);
-  if (!ok) note('bad', `車數比例異常 ${(ratio * 100).toFixed(0)}%`, { drawnTrtc, expect, numByLine });
+  if (!ok && thinFleet && ratio < RATIO_ABSURD) {
+    note('warn', `車數比例 ${(ratio * 100).toFixed(0)}%，但官方逐車才 ${expect} 台（起／收班，分母時間基準落後 96–265 秒，不可比）`,
+      { drawnTrtc, expect, numByLine });
+  } else if (!ok) {
+    note('bad', `車數比例異常 ${(ratio * 100).toFixed(0)}%`, { drawnTrtc, expect, numByLine, thinFleet });
+  }
 }
 
 // 5. 整條線不見（官方那份名冊說這條線有車，畫面卻一台都沒有）
