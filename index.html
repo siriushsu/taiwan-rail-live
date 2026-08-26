@@ -61,6 +61,7 @@
     /* 安全區單一入口(出貨線 App 適配層):iOS／新瀏覽器讀標準 env();Android WebView <140 的
        env() 有已知錯誤,Capacitor 8 會注入 --safe-area-inset-*,故必須讓它優先。四邊都包成別名,
        驗收也能覆寫 --sa-* 模擬瀏海、手勢條與三鍵導覽列(橫放時動態島吃掉左右各一條,直向為 0)。 */
+    --sa-t: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
     --sa-r: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
     --sa-b: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
     --sa-l: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));

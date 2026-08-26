@@ -186,6 +186,12 @@ const TOAST_REVIEWED = new Map([
   [`t.toast`, '使用說明「試一次」:t 必為 HELP_TRY 成員,其 toast 全是寫死字面字串,無插入'],
   ["j.why===''?'':`${st.name}${Math.round(j.distM)},(${j.r})`", '單站打卡:st.name 來自內建班表/路線資料;distM 是 haversineKm 計算值,r 是 CHECKIN_RADIUS_M 數字常數'],
   ['`${st.name}`', '單站打卡:st 只由 nearbyStationCandidates 的內建班表/路線車站產生,站名不可由使用者編輯'],
+  // 2026-08-26 登記:網站 OpenFreeMap 失效提示(ofmNoticeWeb,來自 origin/main 的 fdf04b0)。
+  // main 上沒有人跑 App 發版閘門,所以這條進 App 血脈的第一天才被擋——不是回歸。
+  // 實查:canSat = !!document.getElementById('satBtn') ⇒ 布林;三段字串(前綴與三元的兩個分支)
+  // 全是寫死字面值,全檔 canSat 只出現 2 次(宣告＋此處),零插值、零使用者資料。
+  // 指紋帶著 canSat 這個專屬變數名 ⇒ 只涵蓋這一個呼叫點,不會一次放行所有同形呼叫。
+  [`''+(canSat?'':''),{wrap:true}`, '底圖失效提示:canSat 是布林,兩個分支與前綴都是寫死字串,無插入'],
   // 2026-08-15 登記:北捷官方訊號恢復通知(trtcOfficialResyncTick,index.html:5059,斷訊挽救批次)。
   // msg 是本地變數,由三個插值組成、全部是數字:
   //   mins    = Math.max(1, Math.round(r.outageSec / 60));r.outageSec 唯一寫入點是
