@@ -422,14 +422,12 @@ async function sectionF(browser, engine) {
         const px = el => +getComputedStyle(el).fontSize.replace('px', '');
         const R = el => { const b = el.getBoundingClientRect(); return { x: +b.x.toFixed(1), y: +b.y.toFixed(1), w: +b.width.toFixed(1), h: +b.height.toFixed(1) }; };
         const fsRow = sheet.querySelector('.ms-row[data-act="fontscale"]');
-        // 🔴 標籤不是 firstElementChild:設計 3d 在每一列最前面插了單字圓章 <i class="ms-ic">。
-        //    照舊寫法量到的是【圓章】(12px,而且特大時位置完全不同)——判準會拿章當標籤,
-        //    std 的主倍率被算成 0.89× 而恆紅,同時對「標籤真的跑掉了」的排版錯誤全盲。
+        // 🔴 標籤指名「不是列尾的那個 span」而不是 firstElementChild:2026-08-27 之前每一列
+        //    最前面還有一顆單字圓章,照舊寫法量到的是【圓章】(12px)——判準會拿章當標籤,
+        //    std 的主倍率被算成 0.89× 而恆紅。章拿掉了,這個寫法照樣對,而且列形再變也不會錯位。
         const labEl = fsRow.querySelector(':scope > span:not(.ms-tail)');
-        const icEl = fsRow.querySelector(':scope > .ms-ic');
         const lab = R(labEl), val = R(fsRow.querySelector('#msFontVal')),
-          chev = R(fsRow.querySelector('.ms-tail .chev')), rr = R(fsRow),
-          ic = icEl ? R(icEl) : null;
+          chev = R(fsRow.querySelector('.ms-tail .chev')), rr = R(fsRow);
         return {
           n: rows.length,
           minH: Math.min(...rows.map(x => x.getBoundingClientRect().height)),
@@ -440,7 +438,6 @@ async function sectionF(browser, engine) {
           valLeft: Math.abs(val.x - lab.x) < 3,
           chevRight: chev.x + chev.w >= rr.x + rr.w - 26,
           chevMid: Math.abs((chev.y + chev.h / 2) - (rr.y + rr.h / 2)) < 6,
-          icMid: ic ? Math.abs((ic.y + ic.h / 2) - (rr.y + rr.h / 2)) < 6 : null,
           lines: Math.round(rr.h),
         };
       });
@@ -461,8 +458,6 @@ async function sectionF(browser, engine) {
         JSON.stringify({ inline: r.inline, stacked: r.stacked, valLeft: r.valLeft }));
       // 圓章要跨著兩行垂直置中,不是被擠在第一行:特大級那條 grid 規則的標籤選擇器一旦對不到,
       // 整列會退化成「章與 › 各佔第一行、值排在標籤上面」——那個形狀 F2(列高)照樣過。
-      ok(`F5b ${tag} 單字圓章垂直置中於整列(沒有被擠到第一行)`, r.icMid !== false,
-        JSON.stringify({ icMid: r.icMid, rowH: r.lines }));
       ok(`F6 ${tag} 「›」始終留在右緣且垂直置中`, r.chevRight && r.chevMid,
         JSON.stringify({ chevRight: r.chevRight, chevMid: r.chevMid }));
       ok(`F7 ${tag} 零 pageerror`, errs.length === 0, errs.slice(0, 1).join(''));
@@ -744,7 +739,8 @@ async function sectionI(browser, engine) {
       const src = id => { const e = document.getElementById(id); return e && !e.hidden ? e.textContent.trim() : null; };
       return { secDrawn: !!sec && sec.getClientRects().length > 0,
         live: row('msStatLive'), metro: row('msStatMetro'), replay: row('msStatReplay'), count: row('msStatCount'),
-        srcLive: src('liveBadge'), srcMetro: src('metroBadge'), srcCount: src('count') };
+        srcLive: src('liveBadge'), srcMetro: src('metroBadge'), srcCount: src('count'),
+        liveHidden: !!document.getElementById('liveBadge').hidden };
     });
   };
   const A = await open();
@@ -753,16 +749,30 @@ async function sectionI(browser, engine) {
     `sec=${A.secDrawn} live=${A.live.drawn} metro=${A.metro.drawn} count=${A.count.drawn}`);
   // 鏡射契約:值必須逐字等於徽章的字(徽章寫「官方即時」就顯示「官方即時」)。
   // 這條擋的是「另寫一份判斷」——兩份判斷遲早跟徽章分岔,而分岔時畫面看起來完全正常。
-  const mirrored = (r, src) => !r.drawn || src == null || r.val === src || r.val === src + '・推算';
+  // 後綴「・非即時」＝那顆燈掛著 .est(資料現在不新鮮)。2026-08-27 之前這裡寫「・推算」,
+  // 隨徽章字樣一起改;舊字樣刻意不留在判準裡——留著等於允許它悄悄倒退回去。
+  const mirrored = (r, src) => !r.drawn || src == null || r.val === src || r.val === src + '・非即時';
   ok(`I5 ${tag} 資料狀態的值逐字鏡射徽章`,
     mirrored(A.live, A.srcLive) && mirrored(A.metro, A.srcMetro) && mirrored(A.count, A.srcCount),
     `live「${A.live.val}」vs「${A.srcLive}」metro「${A.metro.val}」vs「${A.srcMetro}」count「${A.count.val}」vs「${A.srcCount}」`);
   // 反向對照①:徽章那顆藏起來 ⇒ 對應列必須整列消失(高度 0)。
   // .ms-row 的 display:flex 蓋得過 [hidden],沒補規則的話這條會紅——正是它要擋的東西。
-  await page.evaluate(() => { document.getElementById('liveBadge').hidden = true; });
+  // 🔴 這裡要先把 updateLiveBadge 凍住:它每一拍都重寫 `el.hidden = !on && !out`,
+  //    而 open() 中間有 600ms 等待 ⇒ 產品的下一拍會把測試設的 hidden 撤銷,I6 就以
+  //    `drawn=true h=48`(跟 I7 期望值一模一樣)報一個假的產品失敗。2026-08-27 的 full run
+  //    在 chromium 撞到一次、單獨重跑兩輪都綠——機器有載時那一拍更容易落在等待窗裡。
+  //    凍的是「誰去改 hidden」這個無關變因,不是受測物:受測物是「hidden 的列會不會塌成 0 高」。
+  await page.evaluate(() => {
+    window.__realULB = window.updateLiveBadge;
+    window.updateLiveBadge = () => {};
+    document.getElementById('liveBadge').hidden = true;
+  });
   const B = await open();
+  // 前置條件要自己驗(心得 17):mutation 沒撐住就不能拿結果當產品判準
+  ok(`I6a ${tag} 前置·徽章真的還藏著(產品的下一拍沒把它撤銷)`, B.liveHidden === true, `hidden=${B.liveHidden}`);
   ok(`I6 ${tag} 反向對照:徽章藏起來 ⇒ 該列整列消失`,
     !B.live.drawn && B.live.h === 0, `drawn=${B.live.drawn} h=${B.live.h}`);
+  await page.evaluate(() => { if (window.__realULB) window.updateLiveBadge = window.__realULB; });
   // 反向對照②:本來沒有的旗標亮起來 ⇒ 對應列必須出現
   await page.evaluate(() => {
     const r = document.getElementById('replayBadge');
@@ -1758,8 +1768,11 @@ async function sectionP(browser, engine) {
   await close();
 }
 
-// ── Q 段:設計 3d 更多——四段分組(已有)＋每一列左邊一顆單字圓章 ─────────────────
-// 設計 3d 的三項提案裡,分組與「省電模式」我方本來就有(議題 3 那批),真正缺的是圓章欄。
+// ── Q 段:更多選單——四段分組 ＋「每一列前面不再有單字圓章」(2026-08-27 使用者指示)────
+// 這一段本來驗的是設計 3d 的單字圓章(Q1「每一列都有一顆帶字的圓章」/ Q2 字不重複 /
+// Q10 章不撐高)。使用者 2026-08-27 明示「每一行前面都有一個字,那個有點多餘,改掉」⇒
+// 契約整個反過來:圓章一顆都不准留。其餘幾條(標籤對齊、尾巴貼右、列高與命中、分組標題、
+// 舊臨時符號不回來)與圓章無關,原樣保留——它們守的是「拆掉圓章時沒有把版面一起拆壞」。
 const Q_SNAP = () => {
   const sheet = document.getElementById('moreSheet');
   const rows = [...sheet.querySelectorAll('.ms-row')].filter(r => r.offsetParent !== null || !r.hidden);
@@ -1767,28 +1780,21 @@ const Q_SNAP = () => {
   const info = r => {
     // 摺線以下的列要先捲進來再做命中測試(心得 19:量到的否則是「首屏看不到」不是「點不到」)
     r.scrollIntoView({ block: 'center' });
-    const ic = r.querySelector('.ms-ic');
-    const label = r.querySelector('span:not(.ms-ic):not(.chev):not(.seg):not(.toggle):not(.ms-tail)');
+    const label = r.querySelector('span:not(.chev):not(.seg):not(.toggle):not(.ms-tail)');
     const rr = r.getBoundingClientRect();
     const tail = r.querySelector('.chev, .toggle, .seg, .ms-tail');
     return { stat: r.classList.contains('ms-stat'), vis: vis(r),
-      ic: ic ? (ic.textContent || '').trim() : null,
-      icW: ic ? +ic.getBoundingClientRect().width.toFixed(1) : 0,
+      ic: r.querySelector('.ms-ic') ? (r.querySelector('.ms-ic').textContent || '').trim() : null,
       labelLeft: label ? +(label.getBoundingClientRect().left - rr.left).toFixed(1) : null,
       txt: label ? (label.textContent || '').trim() : '',
       h: +rr.height.toFixed(1),
-      // 圓章撐不撐高整列:量「這一列的內容空間」(最小高度扣掉內距與底線)夠不夠放這顆圓章。
-      // 數字全部從當下量到的樣式推導,不寫死 23/40/48(心得 35)。
-      room: (() => { const cs = getComputedStyle(r);
-        const mh = parseFloat(cs.minHeight) || 0;
-        return +(mh - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - parseFloat(cs.borderBottomWidth)).toFixed(1); })(),
-      icH: ic ? +ic.getBoundingClientRect().height.toFixed(1) : 0,
       tailRight: tail ? +(rr.right - tail.getBoundingClientRect().right).toFixed(1) : null,
       // 真的點得到嗎:命中列的中央偏左(標籤區),要落在這一列裡面
       hit: (() => { const el = document.elementFromPoint(rr.left + rr.width * 0.4, rr.top + rr.height / 2);
         return !!(el && el.closest('.ms-row') === r); })() };
   };
   return { open: sheet.classList.contains('open') || getComputedStyle(sheet).transform !== 'none',
+    icCount: sheet.querySelectorAll('.ms-ic').length,
     secs: [...sheet.querySelectorAll('.ms-sec')].map(x => (x.textContent || '').trim()),
     rows: rows.map(info) };
 };
@@ -1800,50 +1806,37 @@ async function sectionQ(browser, engine) {
   await page.waitForTimeout(900);
   const A = await page.evaluate(c => eval('(' + c + ')')(), Q_SNAP.toString());
   const act = A.rows.filter(r => !r.stat && r.vis), stat = A.rows.filter(r => r.stat);
-  ok(`Q1 ${tag} 正向對照:更多開得起來,每一個動作列都有一顆帶字的圓章`,
-    act.length >= 10 && act.every(r => r.ic && r.ic.length === 1 && r.icW >= 20),
-    JSON.stringify({ 動作列: act.length, 沒圓章: act.filter(r => !r.ic).map(r => r.txt) }));
-  // 圓章要能當定位點:兩列同一個字就失去辨識力
-  const dup = Object.entries(act.reduce((m, r) => (m[r.ic] = (m[r.ic] || 0) + 1, m), {})).filter(([, n]) => n > 1);
-  ok(`Q2 ${tag} 圓章的字彼此不重複`, dup.length === 0, JSON.stringify(dup));
-  // 圓章不可以把標籤擠歪或把尾巴推離右緣:所有動作列的標籤左緣要一致
+  // 正向對照先確認選單真的開著且有列可量——少了這半,「選單根本沒開」也會讓下面每一條全綠
+  ok(`Q1 ${tag} 正向對照:更多開得起來,動作列量得到`, act.length >= 10,
+    JSON.stringify({ 動作列: act.length, 讀數列: stat.length }));
+  // 🔴 本段的主判準:圓章整組拿掉(整張選單一顆都不准有,包含 JS 動態建的列)
+  ok(`Q2 ${tag} 每一列前面都沒有單字圓章了`, A.icCount === 0 && act.every(r => !r.ic),
+    JSON.stringify({ 選單內圓章數: A.icCount, 還帶章的列: act.filter(r => r.ic).map(r => r.txt) }));
+  // 標籤起點要一致、尾巴仍貼右:拆掉圓章那一欄之後最容易壞的就是這兩件
   const lefts = [...new Set(act.map(r => Math.round(r.labelLeft)))];
   ok(`Q3 ${tag} 所有動作列的標籤起點對齊,尾巴仍貼右`,
     lefts.length === 1 && act.every(r => r.tailRight == null || r.tailRight <= 20),
     JSON.stringify({ 標籤左緣: lefts, 尾巴離右緣: [...new Set(act.map(r => r.tailRight))] }));
-  // 資料狀態是**讀數不是動作**:不給動作圓章,但標籤要對齊(不然那五列會凸出來)
-  // 有幾列讀數會現身是 D4 的狀態(即時/捷運/重播/時段/車數 各自依狀態 hidden),不是本段的事:
-  // 這裡只要求「現身的那些」沒有動作圓章、而且對齊。
-  ok(`Q4 ${tag} 資料狀態列沒有動作圓章,但標籤與其他列對齊(現身 ${stat.length} 列)`,
-    stat.length >= 1 && stat.every(r => !r.ic) &&
-    stat.every(r => r.labelLeft != null && Math.abs(r.labelLeft - lefts[0]) <= 2),
+  // 讀數列(唯讀)原本靠一段等寬縮排去對齊帶章的動作列;章拆了縮排也要拆,不然反而是它凸出來
+  ok(`Q4 ${tag} 資料狀態列與動作列的標籤起點一致(縮排也一起拆乾淨了,現身 ${stat.length} 列)`,
+    stat.length >= 1 && stat.every(r => r.labelLeft != null && Math.abs(r.labelLeft - lefts[0]) <= 2),
     JSON.stringify({ 讀數列: stat.length, 左緣: [...new Set(stat.map(r => r.labelLeft))], 動作列左緣: lefts }));
   ok(`Q5 ${tag} 四段分組標題都在`,
     ['地圖顯示', '資訊', '觀看模式', '分享與資料'].every(k => A.secs.includes(k)), JSON.stringify(A.secs));
-  // 反向對照:舊的臨時符號(◐ ♪ ◌ ⏺ ◎ ↗ 與「縣 」前綴)不可以還留在標籤裡——不然就變成
-  // 「圓章加上去了,但舊符號也還在」,兩套圖示疊著。
-  ok(`Q6 ${tag} 反向對照:標籤裡的臨時符號都清掉了`,
+  // 反向對照:更早那批臨時符號(◐ ♪ ◌ ⏺ ◎ ↗)也不可以趁著「拿掉圓章」倒回來
+  ok(`Q6 ${tag} 反向對照:標籤裡沒有任何臨時符號`,
     act.every(r => !/[◐♪◌⏺◎↗]/.test(r.txt)), JSON.stringify(act.map(r => r.txt).filter(t => /[◐♪◌⏺◎↗]/.test(t))));
   ok(`Q7 ${tag} 每一列 ≥48 高,而且標籤區真的點得到`,
     act.every(r => r.h >= 48 && r.hit), JSON.stringify(act.filter(r => r.h < 48 || !r.hit).map(r => ({ t: r.txt, h: r.h, hit: r.hit }))));
-  // 🔴 反向對照:更新那列會改自己的字。圓章是第一個子元素,用 firstElementChild 寫就會寫進圓章裡
-  //    (實作時真的踩到)。這條專門守它:換完字之後,圓章還是「版」、標籤才是新字。
+  // 🔴 反向對照:更新那列會改自己的字。列裡還有一顆 .chev,選擇器指錯就會把「›」換成整句話。
   const upd = await page.evaluate(() => {
     appUpdateRender({ state: { hasUpdate: true, showBanner: false }, latest: { v: '9.9.9' } });
     const row = document.querySelector('.ms-row[data-act="update"]');
-    return { ic: (row.querySelector('.ms-ic') || {}).textContent || '',
-      label: (row.querySelector('span:not(.ms-ic)') || {}).textContent || '' };
+    return { chev: (row.querySelector('.chev') || {}).textContent || '',
+      label: (row.querySelector('span:not(.chev)') || {}).textContent || '' };
   });
-  ok(`Q8 ${tag} 反向對照:更新列換字換的是標籤,不是圓章`,
-    upd.ic === '版' && /有新版可更新/.test(upd.label), JSON.stringify(upd));
-  // 🔴 圓章不可以把列撐高。實作時真的踩到:26px 的圓章讓**每一列**都長高,零變化對照抓到
-  //    #msThemeSeg 整條往下掉 4.5px。判準比的是「圓章高」與「這一列本來就有的內容空間」,
-  //    不是某個固定的 px 值——列的最小高度在三個字級檔各不相同(40/68/80)。
-  const tall = act.filter(r => r.icH > r.room);
-  ok(`Q10 ${tag} 圓章塞得進列本來的高度(不把每一列都撐高)`,
-    act.length > 0 && tall.length === 0,
-    tall.length ? JSON.stringify(tall.slice(0, 2).map(r => ({ t: r.txt, 圓章: r.icH, 空間: r.room })))
-                : `圓章 ${act[0].icH} ≤ 空間 ${act[0].room}`);
+  ok(`Q8 ${tag} 反向對照:更新列換字換的是標籤,不是列尾的「›」`,
+    upd.chev === '›' && /有新版可更新/.test(upd.label), JSON.stringify(upd));
   ok(`Q9 ${tag} 零 pageerror`, errs.length === 0, errs.slice(0, 1).join(''));
   await close();
 }
@@ -2755,7 +2748,173 @@ async function sectionZ(browser, engine) {
   }
 }
 
-const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ, K: sectionK, L: sectionL, M: sectionM, MX: sectionMx, N: sectionN, NX: sectionNx, O: sectionO, P: sectionP, Q: sectionQ, R: sectionR, S: sectionS, T: sectionT, U: sectionU, V: sectionV, W: sectionW, X: sectionX, Y: sectionY, Z: sectionZ };
+// ── SP 段:資料狀態小卡——點時鐘徽章展開(2026-08-27 使用者要求)────────────────
+// 「點時鐘的時候要顯示現在班次是 Live、還是非即時,把上面的燈號資訊詳細顯示出來」。
+// 🔴 三件都要成立才算過:真的點得下去 / 卡真的看得見 / 字真的是徽章那顆燈的字。
+//    - 只驗 hidden 旗標 ⇒ 卡被 .stage 的 z-index 封頂、或被 .topbar 的 pointer-events:none
+//      擋在白名單外,兩種都會全綠(memory modal-stacking-context、judgment 心得 24/33 各踩一次)。
+//    - 只驗「有沒有字」⇒ 把值寫死成同一句照樣過。所以 SP8/SP9 用**其餘輸入逐格相同、只差資料
+//      年紀**的兩次渲染互比(judgment 心得 39 的反向對照);而且那兩次擺在**同一個同步任務**裡跑,
+//      車數／捷運看板那些每秒在動的字才不會混進差異裡(心得 31:比較前先把即時旗標釘死)。
+const SP_FORCE = (fresh) => {
+  // 只動「新鮮度」這一個變因:兩次的 state.live 其餘欄位逐格相同,差別只有 srcMs 的年紀。
+  const now = Date.now();
+  state.mode = 'sched';
+  state.schedSystems = [{ id: 'tra_sched', live: '/api/tra-live' }];
+  state.simSec = nowSecOfDay();
+  state.live = { at: now, srcMs: now - (fresh ? 10e3 : 600e3),
+    srcAt: '2026-08-27T09:00:00', delayed: 3, map: new Map() };
+  updateLiveBadge();
+  const el = document.getElementById('liveBadge');
+  return { txt: el.textContent.trim(), hidden: el.hidden, title: (el.title || '').trim() };
+};
+// 卡看不看得見只認像素:五個取樣點都要 elementFromPoint 命中卡自己(或它的子孫)。
+const SP_SEE = () => {
+  const pop = document.getElementById('statPop');
+  if (!pop || pop.hidden || !pop.getClientRects().length) return { vis: false, hits: ['卡是關的'] };
+  const r = pop.getBoundingClientRect();
+  // 🔴 內縮 20px:卡是 12px 圓角,離角 3px 的點根本落在圓角外面,量到的是圓角不是「有沒有被蓋住」
+  //    (第一版就是這樣紅的)。20 > 12 ⇒ 四個點都確實在卡身上,又仍然覆蓋兩個軸向的端點(心得 37(c))。
+  const I = 20;
+  const pts = [[r.left + r.width / 2, r.top + r.height / 2], [r.left + I, r.top + I],
+    [r.right - I, r.top + I], [r.left + I, r.bottom - I], [r.right - I, r.bottom - I]];
+  const hits = pts.map(([x, y]) => {
+    const e = document.elementFromPoint(x, y);
+    return e ? (pop.contains(e) ? 'ok' : (e.id || e.className || e.tagName)) : 'null';
+  });
+  return { vis: hits.every(h => h === 'ok'), hits,
+    rect: { l: +r.left.toFixed(1), t: +r.top.toFixed(1), w: +r.width.toFixed(1), h: +r.height.toFixed(1) },
+    inView: r.left >= -0.5 && r.top >= -0.5 && r.right <= innerWidth + 0.5 && r.bottom <= innerHeight + 0.5 };
+};
+// 卡的內容 + 徽章當下**看得見**的燈(覆蓋率斷言用)。k→id 這張表測試自己寫一份,不讀實作的
+// STAT_POP_KEYS——判準與實作同源會一起錯(judgment 心得 29)。
+const SP_READ = () => {
+  const K2ID = { live: 'liveBadge', metro: 'metroBadge', replay: 'replayBadge', peak: 'peak', count: 'count' };
+  const pop = document.getElementById('statPop');
+  const rows = [...pop.querySelectorAll('.sp-row')].map(r => ({
+    k: r.dataset.k,
+    lab: ((r.querySelector('.lab') || {}).textContent || '').trim(),
+    val: ((r.querySelector('.val') || {}).textContent || '').trim(),
+  }));
+  const lampIds = ['liveBadge', 'metroBadge', 'replayBadge', 'peak', 'count']
+    .filter(id => { const e = document.getElementById(id); return e && !e.hidden && e.textContent.trim(); });
+  return { rows, lampIds,
+    covered: lampIds.filter(id => rows.some(r => K2ID[r.k] === id)),
+    why: ((pop.querySelector('.sp-why') || {}).textContent || '').trim(),
+    aria: document.getElementById('statBadge').getAttribute('aria-expanded') };
+};
+const SP_BADGE_RECT = () => {
+  const b = document.getElementById('statBadge'), r = b.getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2,
+    parent: b.parentElement.id || b.parentElement.className };
+};
+// 兩次渲染擺在同一個同步任務裡,中間沒有任何機會讓車數/看板那些字自己動。
+const SP_DIFF = (code) => {
+  const force = eval('(' + code + ')');
+  const pop = document.getElementById('statPop');
+  const read = () => ({
+    rows: [...pop.querySelectorAll('.sp-row')].map(r => r.dataset.k + '=' + ((r.querySelector('.val') || {}).textContent || '').trim()),
+    why: ((pop.querySelector('.sp-why') || {}).textContent || '').trim(),
+  });
+  const was = pop.hidden; pop.hidden = false;
+  force(true); statPopRender(); const a = read();
+  force(false); statPopRender(); const b = read();
+  pop.hidden = was;
+  return { a, b };
+};
+async function sectionSP(browser, engine) {
+  for (const tier of ['std', 'large']) {
+    const tag = `${engine} ${tier}`;
+    const { page, errs, close } = await boot(browser, { width: 393, tier });
+    try {
+      await page.evaluate(() => { if (state.playing) togglePlay(); });
+      for (const fresh of [true, false]) {
+        const mode = fresh ? 'LIVE' : '非即時';
+        const badge = await page.evaluate(([c, f]) => eval('(' + c + ')')(f), [SP_FORCE.toString(), fresh]);
+        ok(`SP1 ${tag}/${mode} 前置·強制${fresh ? '新鮮' : '不新鮮'}後徽章自己就寫「${mode}」`,
+          !badge.hidden && badge.txt === mode, JSON.stringify(badge));
+        // 🔴 真的用滑鼠點(不是 .click()):.topbar 是 pointer-events:none＋白名單,
+        //    白名單漏掉徽章時 .click() 照樣全綠、手指卻永遠點不到。
+        const br = await page.evaluate(c => eval('(' + c + ')')(), SP_BADGE_RECT.toString());
+        await page.mouse.click(br.x, br.y);
+        await page.waitForTimeout(220);
+        const see = await page.evaluate(c => eval('(' + c + ')')(), SP_SEE.toString());
+        ok(`SP2 ${tag}/${mode} 真的點徽章(在 ${br.parent})就開卡,五個取樣點都看得見`, see.vis, JSON.stringify(see));
+        ok(`SP2b ${tag}/${mode} 卡完整落在視窗內`, see.inView === true, JSON.stringify(see.rect));
+        const rd = await page.evaluate(c => eval('(' + c + ')')(), SP_READ.toString());
+        const live = rd.rows.find(r => r.k === 'live');
+        ok(`SP3 ${tag}/${mode} 「即時資料」那列逐字等於徽章的字`,
+          !!live && live.val === mode && live.lab === '即時資料', JSON.stringify({ live, badge: badge.txt }));
+        // 「把上面的燈號資訊詳細顯示出來」= 每顆燈 title 裡的「為什麼」要真的落到卡上
+        ok(`SP4 ${tag}/${mode} 燈號的「為什麼」(title 原文)出現在卡上`,
+          badge.title.length > 0 && rd.why.includes(badge.title),
+          JSON.stringify({ title: badge.title.slice(0, 70), why: rd.why.slice(0, 100) }));
+        // 覆蓋率要有具名斷言:徽章看得見幾顆燈,卡上就要有幾列(心得 37(d),分母不准無聲縮水)
+        ok(`SP5 ${tag}/${mode} 徽章看得見的燈全部有列(${rd.covered.length}/${rd.lampIds.length})`,
+          rd.lampIds.length >= 1 && rd.covered.length === rd.lampIds.length,
+          JSON.stringify({ 燈: rd.lampIds, 有列: rd.covered, 列: rd.rows.map(r => r.k) }));
+        ok(`SP6 ${tag}/${mode} aria-expanded 開著時是 true`, rd.aria === 'true', String(rd.aria));
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(160);
+        const shut = await page.evaluate(() => ({
+          hidden: document.getElementById('statPop').hidden,
+          aria: document.getElementById('statBadge').getAttribute('aria-expanded') }));
+        ok(`SP7 ${tag}/${mode} Esc 收得掉且 aria 跟著回 false`,
+          shut.hidden === true && shut.aria === 'false', JSON.stringify(shut));
+      }
+      // 🔴 反向對照:同一個同步任務裡連渲染兩次,只差資料年紀 ⇒ 即時那列必須變、其餘列必須一字不差。
+      //    少了這條,把值寫死成常數也會讓上面每一條全綠。
+      const d = await page.evaluate(([c1, c2]) => eval('(' + c1 + ')')(c2), [SP_DIFF.toString(), SP_FORCE.toString()]);
+      const va = Object.fromEntries(d.a.rows.map(s => [s.split('=')[0], s]));
+      const vb = Object.fromEntries(d.b.rows.map(s => [s.split('=')[0], s]));
+      const others = [...new Set([...Object.keys(va), ...Object.keys(vb)])].filter(k => k !== 'live');
+      ok(`SP8 ${tag} 反向對照:只改新鮮度 ⇒ 即時那列變了,其餘列一字不差`,
+        va.live !== vb.live && others.every(k => va[k] === vb[k]),
+        JSON.stringify({ live: [va.live, vb.live], 其餘: others.map(k => [va[k], vb[k]]) }));
+      ok(`SP9 ${tag} 反向對照:「為什麼」也跟著換(不是印死的同一段)`,
+        d.a.why !== d.b.why && d.a.why.length > 0 && d.b.why.length > 0,
+        JSON.stringify({ a: d.a.why.slice(0, 60), b: d.b.why.slice(0, 60) }));
+      // ✕ 的熱區:視覺 22 圓靠置中的 ::after 補到 44(比照看板 ✕)
+      const br = await page.evaluate(c => eval('(' + c + ')')(), SP_BADGE_RECT.toString());
+      await page.mouse.click(br.x, br.y); await page.waitForTimeout(200);
+      const xr = await page.evaluate(() => {
+        const x = document.getElementById('statPopClose'), p = getComputedStyle(x, '::after'), r = x.getBoundingClientRect();
+        return { w: parseFloat(p.width), h: parseFloat(p.height), cx: r.left + r.width / 2, cy: r.top + r.height / 2 };
+      });
+      ok(`SP10 ${tag} 關閉鈕熱區 ≥44×44`, xr.w >= 44 && xr.h >= 44, JSON.stringify(xr));
+      const hitX = await page.evaluate(([x, y]) => { const e = document.elementFromPoint(x, y); return e ? (e.id || e.tagName) : 'null'; },
+        [xr.cx, xr.cy + 18]);
+      ok(`SP10b ${tag} 熱區下緣(離視覺圓心 18px)仍命中關閉鈕`, hitX === 'statPopClose', String(hitX));
+      await page.mouse.click(xr.cx, xr.cy); await page.waitForTimeout(180);
+      ok(`SP11 ${tag} 按 ✕ 收得掉`, await page.evaluate(() => document.getElementById('statPop').hidden), '');
+      await page.mouse.click(br.x, br.y); await page.waitForTimeout(200);
+      ok(`SP12 ${tag} 前置·再點一次徽章又開起來`, await page.evaluate(() => !document.getElementById('statPop').hidden), '');
+      // 開著時燈號自己變了 ⇒ 卡要跟著換,不能停在打開那一刻的舊值(徽章的字由好幾處程式各自寫)。
+      // 🔴 受測輸入不能用 #count:那顆每一幀都被 render 迴圈重寫回去,量到的是「誰寫得比較快」
+      //    而不是卡有沒有跟上(第一版就是這樣紅的)。改用新鮮度——它只由 updateLiveBadge 寫。
+      const mut = await page.evaluate(async ([c]) => {
+        const q = () => ((document.querySelector('#statPop .sp-row[data-k=live] .val') || {}).textContent || '').trim();
+        const force = eval('(' + c + ')');
+        force(true); await new Promise(r => setTimeout(r, 280));
+        const before = q();
+        force(false); await new Promise(r => setTimeout(r, 280));
+        return { before, after: q(), open: !document.getElementById('statPop').hidden };
+      }, [SP_FORCE.toString()]);
+      ok(`SP13 ${tag} 開著時燈號變了,卡不用重開就跟著換`,
+        mut.open && mut.before === 'LIVE' && mut.after === '非即時', JSON.stringify(mut));
+      // 卡外任一處按下就收
+      const away = await page.evaluate(() => {
+        const r = document.getElementById('statPop').getBoundingClientRect();
+        return [innerWidth / 2, Math.min(innerHeight - 130, r.bottom + 150)];
+      });
+      await page.mouse.click(away[0], away[1]); await page.waitForTimeout(200);
+      ok(`SP14 ${tag} 點卡外任一處就收`, await page.evaluate(() => document.getElementById('statPop').hidden), JSON.stringify(away));
+      ok(`SP15 ${tag} 零 pageerror`, errs.length === 0, errs.slice(0, 2).join(' | '));
+    } finally { await close(); }
+  }
+}
+
+const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ, K: sectionK, L: sectionL, M: sectionM, MX: sectionMx, N: sectionN, NX: sectionNx, O: sectionO, P: sectionP, Q: sectionQ, R: sectionR, S: sectionS, T: sectionT, U: sectionU, V: sectionV, W: sectionW, X: sectionX, Y: sectionY, Z: sectionZ, SP: sectionSP };
 const want = (process.env.SECTIONS || '').split(',').map(x => x.trim().toUpperCase()).filter(Boolean);
 const run = want.length ? want : Object.keys(ALL);
 for (const k of run) if (!ALL[k]) { console.error(`未知段別 ${k}`); process.exit(2); }

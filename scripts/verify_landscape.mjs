@@ -583,7 +583,20 @@ async function landscapeSuite(browser, eng) {
     // 🔴 上面那組是在「沒車停靠」時量的——牌 display:none,四段裡少了一段,那半根本沒被涵蓋
     //    (心得 37d:分母要有具名斷言)。這裡自己把牌點亮(只填它自己的欄位＋加 .show,不動產品程式碼)
     //    再量一次:① 牌真的把分頁列往下推(證明它在固定段裡);② 捲動後三段都還在原位。
+    // 🔴 基準要自己造,不可重用上面那一次的 `card`:站名牌是用 **opacity** 開關的(不是 display),
+    //    所以只要它 **docked** 就佔版面——而 dock 與否由 mount/unmountUniCard 決定,也就是
+    //    「當下有沒有在跟一班車」。同一支腳本因此會量到 99(沒 dock)或 141(已 dock),
+    //    「牌把分頁列往下推」這半在已 dock 的那一半永遠比不出來(2026-08-27 實測:full run 六個
+    //    橫式尺寸兩個紅、QUICK 兩個全紅,而產品一行都沒改)。改用產品自己的 dockDwellPlate()
+    //    做出兩個**只差「牌在不在固定段裡」**的狀態,各量一次。
+    await page.evaluate(() => dockDwellPlate(false));
+    await page.waitForTimeout(350);
+    const cardOff = await page.evaluate(CARD_FIX_PROBE);
+    ok(`L4g2 ${eng}/${S.tag} 前置·牌搬出卡外時它不佔卡頭的版位(下面那條的基準)`,
+      !cardOff.err && !cardOff.plateVis, // 牌不在卡裡時探針回 null(不是 false)
+      JSON.stringify({ 牌在卡裡: cardOff.plateVis, 分頁列: cardOff.tabsTop0 }));
     await page.evaluate(() => {
+      dockDwellPlate(true);
       const dp = document.getElementById('dwellPlate');
       document.getElementById('dpName').textContent = '板橋';
       document.getElementById('dpPrev').textContent = '萬華';
@@ -604,9 +617,21 @@ async function landscapeSuite(browser, eng) {
     ok(`L4h ${eng}/${S.tag} 站名牌亮著時它也是固定段:分頁列讓開它,捲動後三段都不動`,
       !cardP.err && cardP.plateVis === true && cardP.plateTop1 === cardP.plateTop0
         && cardP.tabsTop1 === cardP.tabsTop0 && cardP.h3Top1 === cardP.h3Top0
-        && cardP.tabsTop0 > card.tabsTop0 + 4 && cardP.scrolled > 100,
+        && cardP.tabsTop0 > cardOff.tabsTop0 + 4 && cardP.scrolled > 100,
       JSON.stringify({ 分頁列: [cardP.tabsTop0, cardP.tabsTop1], 卡頭: [cardP.h3Top0, cardP.h3Top1],
-        站名列: [cardP.plateTop0, cardP.plateTop1], 牌沒亮時分頁列: card.tabsTop0, 捲了: cardP.scrolled }));
+        站名列: [cardP.plateTop0, cardP.plateTop1], 牌搬出卡外時分頁列: cardOff.tabsTop0,
+        L4f那次: card.tabsTop0, 捲了: cardP.scrolled }));
+    // 🔴 往返:牌再搬出去,分頁列要**回得到**原位。少了這半,--board-head-h 一旦被牌撐高就再也
+    //    降不回來也會全綠——而那正是真的發生過的缺陷:sticky 元素的 offsetTop 含它自己被 top
+    //    推下去的量,拿它回算 top 會自我維持(旋轉回直式後分頁列上方留一條 42px 空白)。
+    //    修法是量測期間暫時 position:static(index.html 的 natTop)。
+    await page.evaluate(() => dockDwellPlate(false));
+    await page.waitForTimeout(400);
+    const cardBack = await page.evaluate(CARD_FIX_PROBE);
+    ok(`L4i ${eng}/${S.tag} 往返:牌搬出去之後分頁列回得到原位(值不會被牌撐高就卡住)`,
+      !cardBack.err && !cardBack.plateVis && Math.abs(cardBack.tabsTop0 - cardOff.tabsTop0) <= 1,
+      JSON.stringify({ 搬出前基準: cardOff.tabsTop0, 牌在裡面時: cardP.tabsTop0,
+        再搬出去: cardBack.tabsTop0, 牌還在卡裡: cardBack.plateVis }));
     // 站名牌雙錨點:卡開＝併進卡頭(DOM 在 h3 之後、position 從 absolute 變成 sticky ⇒ 進入卡的
     // 版面流、跟著卡頭一起釘住,見 L4h);卡關＝回到獨立牌(absolute 浮在露出地圖上)。
     // 🔴 反向對照不可省:少了「關掉要回去」那一半,「牌永遠釘在卡裡」(停靠時看不到牌)也會全綠。
@@ -1533,6 +1558,60 @@ const DWELL_PROBE = async () => {
   };
 };
 
+// ── natTop():量「自然版位」時必須先把 sticky 拿掉 ────────────────────────────────
+// 為什麼要獨立一組:L4i(牌搬出去之後分頁列回得到原位)是這個修法的端到端判準,但它整組掛在
+// 「抓得到一台行駛中的台鐵車」底下 ⇒ 深夜收班時整組跳過,修法等於沒有任何守門人。這一組用
+// 頁內自建的 fixture 驗**機制本身**,不需要車、不需要卡,任何時段都跑得動。
+// ①(反向對照)證明陷阱真的在:同一顆元素用 offsetTop 讀到的是被 sticky top 推下去之後的值。
+// ② 證明 natTop 讀到的是自然版位。③④ 證明它不留殘渣(產品的 .uni-tabs 走的是 CSS 那個分支)。
+async function stickySuite(browser, eng) {
+  const S = { w: 852, h: 393, tag: '16橫' };
+  const b = await boot(browser, S, { follow: false });
+  if (!b) { ok(`L4s0 ${eng}/${S.tag} 開頁`, false, 'boot 回 null'); return; }
+  const { ctx, page } = b;
+  const r = await page.evaluate(() => {
+    if (typeof natTop !== 'function') return { err: 'natTop 不存在' };
+    const HEAD = 99, TOP = 141;
+    const box = document.createElement('div');
+    box.style.cssText = 'position:fixed;left:-9999px;top:0;width:300px;height:200px;overflow:auto;';
+    box.innerHTML = `<div style="height:${HEAD}px"></div>`
+      + `<div id="_ntA" style="position:sticky;top:${TOP}px;height:30px"></div>`
+      + '<div style="height:900px"></div>';
+    document.body.appendChild(box);
+    const a = document.getElementById('_ntA');
+    const snap = e => { const d = {}; for (const k of e.style) d[k] = e.style.getPropertyValue(k); return d; };
+    const beforeA = snap(a), offA = a.offsetTop, natA = natTop(a), afterA = snap(a);
+    const csA = getComputedStyle(a).position;
+
+    // 產品真正走的分支:position 來自 CSS 檔、沒有 inline 值 ⇒ natTop 走 removeProperty
+    const st = document.createElement('style');
+    st.textContent = '#_ntB{position:sticky;top:' + TOP + 'px}';
+    document.head.appendChild(st);
+    const c = document.createElement('div');
+    c.id = '_ntB'; c.style.height = '30px'; // 一個無關的 inline 屬性,確認沒被順手清掉
+    box.insertBefore(c, a.nextSibling);
+    const expectB = HEAD + a.offsetHeight;   // 期望值由 fixture 現場推導,不寫死
+    const offB = c.offsetTop, natB = natTop(c);
+    const inlineB = c.style.getPropertyValue('position'), hB = c.style.height, csB = getComputedStyle(c).position;
+    st.remove(); box.remove();
+    return { HEAD, TOP, offA, natA, sameA: JSON.stringify(beforeA) === JSON.stringify(afterA), csA,
+             offB, natB, expectB, inlineB, hB, csB };
+  });
+  if (r.err) { ok(`L4s0 ${eng}/${S.tag} 前置·natTop 存在`, false, r.err); await ctx.close(); return; }
+  ok(`L4s1 ${eng}/${S.tag} 反向對照·sticky 的 offsetTop 含被 top 推下去的量(所以不能拿它回算 top)`,
+    r.offA === r.TOP && r.TOP > r.HEAD, JSON.stringify({ offsetTop: r.offA, 自然版位: r.HEAD, stickyTop: r.TOP }));
+  ok(`L4s2 ${eng}/${S.tag} natTop() 回的是自然版位,不受 sticky top 影響`,
+    r.natA === r.HEAD, JSON.stringify({ natTop: r.natA, 該有的值: r.HEAD }));
+  ok(`L4s3 ${eng}/${S.tag} 有 inline position 時:量完逐屬性原封還原、computed 仍是 sticky`,
+    r.sameA === true && r.csA === 'sticky', JSON.stringify({ 逐屬性相同: r.sameA, position: r.csA }));
+  ok(`L4s4 ${eng}/${S.tag} position 來自 CSS(產品的情形):陷阱一樣在、natTop 一樣對、且不留殘渣`,
+    r.offB === r.TOP && r.natB === r.expectB && r.offB > r.natB
+      && r.inlineB === '' && r.hB === '30px' && r.csB === 'sticky',
+    JSON.stringify({ offsetTop: r.offB, natTop: r.natB, 該有的自然版位: r.expectB,
+                     inline殘渣: r.inlineB, 其他inline屬性: r.hB, computed: r.csB }));
+  await ctx.close();
+}
+
 async function deviceSuite(browser, eng) {
   const seenAll = new Set();
   for (const S of LANDSCAPE) {
@@ -1636,6 +1715,39 @@ async function landV2Suite(browser, eng) {
       //    設計靠「點畫面任一處復原」把它叫回來，本專案沒有那套狀態機，全淡＝把人關在裡面。
       ok(`V3 ${eng} 觀察模式·膠囊留著當出口(離開鈕點得到)`,
         after.capsule > 0.5 && after.exitHit === true, JSON.stringify(after));
+      // 🔴 出口的「明顯」要拆成兩件各自驗:看得懂(字寫著「離開」)＋按下去真的出得來。
+      //    命中測試只答「這個點打到誰」,答不了「按了會發生什麼」(心得 37a),而一顆還寫著
+      //    入口字樣的鈕就算點得到,使用者也不會知道那是出口。
+      const label = await page.evaluate(() =>
+        (document.getElementById('ambientBtn').textContent || '').trim());
+      ok(`V3b ${eng} 觀察模式·出口的字改成「離開放空」(不是還留著入口的字)`,
+        /離開/.test(label) && !/^放空模式$/.test(label), label);
+      const exitBox = await page.evaluate(() => {
+        const r = document.getElementById('ambientBtn').getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      });
+      await page.mouse.click(exitBox.x, exitBox.y);
+      await page.waitForTimeout(800);
+      const out = await page.evaluate(AMBIENT_PROBE);
+      const outState = await page.evaluate(() => ({
+        cls: document.body.classList.contains('ambient'),
+        st: !!state.ambient,
+        label: (document.getElementById('ambientBtn').textContent || '').trim(),
+      }));
+      // 真的按下去 ⇒ 狀態與字都要回去,不能只是視覺變回來(反之亦然)
+      ok(`V3c ${eng} 觀察模式·真的按出口就離開(class／state／字三者一致回復)`,
+        outState.cls === false && outState.st === false && /放空模式/.test(outState.label),
+        JSON.stringify(outState));
+      // 進出是一趟往返:淡掉的東西要回得來。只驗「進去有淡出」等於沒驗出口
+      //(cross-runtime 那條教訓的同族:true 推得出、推不回)。
+      // 🔴 判準是「回到進場前那個樣子」,不是「每一項都 >0.9」:看板開著時膠囊本來就該讓位到 0
+      //    (body.sheet-open .controls{opacity:0}),寫死門檻會把正確行為判成紅(第一版就是這樣紅的)。
+      const RT = ['topbar', 'tools', 'card', 'capsule'];
+      const drift = RT.filter(k => Math.abs(out[k] - before[k]) > 0.05);
+      ok(`V3d ${eng} 觀察模式·離開後每一項都回到進場前的樣子(往返還原)`,
+        drift.length === 0 && out.toolsInDom && out.cardInDom,
+        drift.length ? `沒回來:${drift.map(k => `${k} ${before[k]}→${out[k]}`).join('、')}`
+          : RT.map(k => `${k}=${out[k]}`).join(' '));
       await ctx.close();
     }
   }
@@ -1866,6 +1978,7 @@ for (const [eng, B] of (QUICK ? [['chromium', chromium]] : [['chromium', chromiu
   await sizeGuardSuite(browser, eng); // QUICK 也跑:0813 旋轉版面延遲→尺寸過期自癒(F5/F5b)
   await rotationSuite(browser, eng); // QUICK 也跑：這組是獨立驗收抓到的真缺陷，突變測試一定要涵蓋
   await centeringSuite(browser, eng); // QUICK 也跑：使用者親自指出的置中缺陷
+  await stickySuite(browser, eng);   // QUICK 也跑:natTop 機制(L4i 的守門人,深夜無車也跑得動)
   await deviceSuite(browser, eng);    // QUICK 也跑：使用者橫放實機回報的三缺陷
   await portraitCameraSuite(browser, eng); // QUICK 也跑：§04c-P 直式相機矩陣（m1/m6 這族突變的靶）
   await landV2Suite(browser, eng);         // QUICK 也跑：§04c v2 的三條新契約（觀察模式／字級三階／提示卡）

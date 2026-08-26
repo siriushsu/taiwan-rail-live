@@ -2842,17 +2842,9 @@
     align-items: center; row-gap: 2px;
   }
   html[data-fs=xlarge] .more-sheet .ms-row .ms-tail { display: contents; }
-  /* 🔴 標籤不能寫 span:first-child:設計 3d 在每一列最前面插了單字圓章 <i class="ms-ic">,
-     這個選擇器從那批起就對不到任何東西 ⇒ 標籤沒進 lab 區、改由自動配置擠到第三列,
-     畫面變成「章與 › 各自佔第一行、值排在標籤上面」。改成「不是列尾的那個 span」,
-     兩種列形(有章的功能列、沒章的 .ms-stat 唯讀列)都對得到。 */
+  /* 標籤寫「不是列尾的那個 span」而不是 span:first-child:兩種列形(功能列、.ms-stat 唯讀列)
+     都對得到,不必依賴第一個子元素是誰。 */
   html[data-fs=xlarge] .more-sheet .ms-row:has(.ms-tail) > span:not(.ms-tail) { grid-area: lab; }
-  /* 有圓章的列多一欄給章,並讓它跨兩列;沒章的 .ms-stat 維持原本兩欄,不會多出一欄空白 */
-  html[data-fs=xlarge] .more-sheet .ms-row:has(.ms-tail):has(.ms-ic) {
-    grid-template-columns: auto 1fr auto;
-    grid-template-areas: "ic lab chev" "ic val chev";
-  }
-  html[data-fs=xlarge] .more-sheet .ms-row:has(.ms-tail) > .ms-ic { grid-area: ic; }
   html[data-fs=xlarge] .more-sheet .ms-row .ms-tail b { grid-area: val; justify-self: start; }
   html[data-fs=xlarge] .more-sheet .ms-row .ms-tail .chev { grid-area: chev; }
   /* 資料狀態列是唯讀的:沒有「›」、不吃 hover/active,免得看起來像點得下去卻沒反應 */
@@ -2863,29 +2855,51 @@
      不再補一條同義的 display:none(補了也是死碼)。既有那幾列的 inline style 不動,它們照樣有效。 */
   .more-sheet .ms-row.ms-stat .ms-tail b { color: var(--ink); font-weight: 800; }
   .more-sheet .ms-sec { padding: 9px 14px 3px; font-size: calc(11px * var(--uis)); font-weight: 800; letter-spacing: 3px; color: var(--faint); border-bottom: 1px dashed var(--line-faint); }
-  /* 設計 3d:每一列左邊一顆單字圓章。改之前只有六列帶著臨時符號(◐ ♪ ◌ ⏺ ◎ ↗)、其餘什麼都沒有,
-     整份選單掃下去沒有固定的定位點。單字圓章**不是 emoji**(2026-08-12 使用者裁決:更多選單不放
-     emoji,那條裁的是 ⭐ 那種彩色圖案),與 tab bar 的「探/旅」是同一套字面圖示語彙。 */
-  /* 🔴 23 不是 26 也不是 24——這個數字是量出來的,不是估的:圓章只要超過「列的最小高度扣掉
-     內距與底線」就會把**每一列**都撐高(零變化對照當場抓到 #msThemeSeg 整條往下掉)。
-     兩個斷點剛好同一個答案:桌面 min-height 40 − 內距 8×2 − 底線 1 = 23;
-     手機 min-height 48 − 內距 12×2 − 底線 1 = 23。大/特大檔的 min-height 是 68/80,綽綽有餘。 */
-  .more-sheet .ms-ic {
-    flex: none; width: calc(23px * var(--uis)); height: calc(23px * var(--uis));
-    display: grid; place-items: center; border: 1.5px solid var(--line); border-radius: 50%;
-    font-size: calc(12px * var(--uis)); font-style: normal; font-weight: 800; color: var(--faint);
-  }
-  /* .ms-row 是 space-between,三個子項會被平均推開 ⇒ 標籤要自己吃掉中間所有空間,尾巴才回得到最右 */
-  .more-sheet .ms-ic + span { flex: 1; }
-  /* 資料狀態那幾列是**讀數不是動作**,不給動作圓章;但標籤要跟其他列對齊,補一段等寬縮排。
-     🔴 用 margin 不用 padding:padding-left 只把**字**往內推,盒子左緣原地不動——看起來對齊了,
-        但量出來(與判準 Q4)還是差 36px,而且盒子重疊會讓命中測試指向錯的元素。 */
-  .more-sheet .ms-row.ms-stat > span:first-child { margin-left: calc(23px * var(--uis) + 10px); }
+  /* 🔴 單字圓章(設計 3d 的 <i class="ms-ic">)2026-08-27 依使用者指示整組拿掉:「每一行前面都有
+     一個字,那個有點多餘」。連帶拆掉的是它撐出來的三條配套規則——圓章本體、`.ms-ic + span`
+     的 flex:1(沒有第三個子項之後,.ms-row 的 space-between 自己就把標籤靠左、尾巴靠右)、
+     以及讀數列為了跟圓章對齊而補的等寬縮排(見下)。 */
+  /* (原本這裡有一條 .ms-stat 的等寬縮排,用來讓讀數列的標籤對齊帶圓章的動作列;圓章拿掉之後
+     兩種列的標籤起點本來就一樣,縮排會反過來讓讀數列凸出去,故一併移除。判準 Q4 仍守著對齊。) */
   .more-sheet .ms-row.warnrow { background: var(--warn-bg); color: var(--warn-ink); font-weight: 800; }
   /* 評分列不用 emoji(2026-08-12 使用者裁決:更多選單不放 emoji),改品牌紅粗體強調 */
   .more-sheet .ms-row .rate-cta { color: var(--red); font-weight: 800; }
   .more-sheet .ms-note { margin: 10px 14px 0; font-size: calc(10.5px * var(--uis)); color: var(--faint); flex: none; }
   .more-scrim { position: fixed; inset: 0; z-index: 1105; background: rgba(30,44,64,.26); display: none; }
+  /* ── 資料狀態小卡(點時鐘徽章開,2026-08-27 使用者要求)──────────────────────────
+     頂列把 LIVE／看板校正／REPLAY／尖峰／車數 全收成 7px 色點之後(D4 排法B),那些字樣與
+     每顆燈 title 裡的「為什麼」在**觸控裝置上完全沒有入口**——手機沒有 hover。「更多 →
+     資料狀態」看得到值,但看不到原因,而且要繞三步。點徽章直接開這張是最短的路。
+     🔴 放 body 層不放 .stage:.stage 會把 z-index 封頂(見 memory modal-stacking-context)。
+     位置由 JS 依徽章當下的 rect 算——徽章有三種家(直式頂列第二排、橫式第一排、桌面獨立卡)。 */
+  #statPop {
+    position: fixed; z-index: 1200; width: min(300px, calc(100vw - 24px));
+    background: var(--paper); color: var(--ink);
+    border: 1.5px solid var(--navy); border-radius: var(--r-l); box-shadow: var(--shadow-navy);
+    padding: 9px 12px 11px; font-size: calc(13px * var(--ui));
+  }
+  #statPop[hidden] { display: none; }
+  #statPop .sp-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  #statPop .sp-head b { font-size: calc(11px * var(--uis)); letter-spacing: 3px; color: var(--faint); font-weight: 800; }
+  /* 關閉鈕:視覺 22 圓、熱區靠置中的 ::after 補到 44(比照看板 ✕ 的做法,不撐卡高) */
+  #statPop .sp-close {
+    position: relative; width: 22px; height: 22px; padding: 0; flex: none;
+    display: grid; place-items: center; cursor: pointer;
+    font: inherit; font-size: calc(15px * var(--ui)); line-height: 1; color: var(--faint);
+    background: none; border: 0;
+  }
+  #statPop .sp-close::after {
+    content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: 44px; height: 44px;
+  }
+  #statPop .sp-row {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    padding: 6px 0; border-top: 1px dashed var(--line-faint);
+  }
+  #statPop .sp-row .lab { color: var(--faint); flex: none; }
+  #statPop .sp-row .val { font-weight: 800; text-align: right; }
+  #statPop .sp-why { margin-top: 7px; font-size: calc(11px * var(--uis)); color: var(--faint); line-height: 1.55; }
+  #statPop .sp-why div + div { margin-top: 3px; }
   /* 診斷條(setDiagStrip):左下角單行小字,壓過一切但不吃指標;等寬數字方便逐秒比對截圖 */
   #diagStrip {
     position: fixed; left: calc(4px + var(--sa-l)); bottom: calc(2px + var(--sa-b));
@@ -2980,17 +2994,40 @@
       display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
       z-index: 620; pointer-events: none;
     }
-    .topbar .tb-plate, .topbar .grouptabs, .topbar .alert-chip { pointer-events: auto; }
+    /* 🔴 徽章也要在白名單裡:頂列本體 pointer-events:none(它是整條橫帶,不能吃掉地圖拖曳),
+       漏掉徽章的話「點時鐘看資料狀態」在手機殼下完全點不到(桌面沒有這條所以看不出來)。 */
+    .topbar .tb-plate, .topbar .grouptabs, .topbar .alert-chip, .topbar .badge { pointer-events: auto; }
     /* ══ 設計 D4 排法B(2026-08-22 使用者拍板):頂列收成一排 42px,省 56px 全給地圖 ══
        一排的組成:[logo 方牌 42] [時鐘膠囊(時鐘＋狀態色點)] ──auto── [公告 36 圓] [群組 4×36 圓]
        徽章本體由 placeBadge() 搬進頂列(手機一律搬,live 除外),這裡只管樣式。 */
     body.fs .topbar { align-items: center; flex-wrap: wrap; }
     /* 🔴 大字檔一排塞不下:393pt 特大實測 膠囊118 + logo57 + 公告49 + 四顆214 + 間距 = 482 > 393。
        解法選「換行」而不是「縮小圓鈕」——設計對照表的觸控目標 44/52/60 是硬需求,為了排成一排
-       把它縮回去等於用大字模式的使用者去換版面。群組分頁整組移到第二列,四顆仍是設計尺寸。
+       把它縮回去等於用大字模式的使用者去換版面。
+       🔴 換行**哪一組下去**由使用者 2026-08-26 裁示:四顆群組是主要導航,留在第一排;
+          降到第二排的是公告鈕,並靠右與右緣工具欄(隨機跟隨/附近車站)同一條基準線。
        (這本來是設計 D7「大字模式」該回答的題目,那幾頁目前讀不到:TURN 3/4 與中段檔仍被 256KiB 截斷。) */
+    /* 🔴 兩排的分法不用 flex 換行,改用 grid 明寫格位——flex 這裡有兩個坑:(a) 想把四顆頁籤留在
+       第一排就得靠 order＋零高斷行元件,而那個斷行元件自己會佔一條 flex line、多吃一個 row-gap;
+       (b) 換行點會隨字寬浮動:實測 360pt 特大時「logo57＋膠囊128＋四顆214＋間距16=415 > 340」,
+       四顆頁籤自己被擠到第二排、公告鈕再被擠到第三排,頂列一路長到 176px(近半個畫面)。
+       grid 兩列固定:第一排 [logo ‥ 四顆頁籤],第二排 [時鐘膠囊 ‥ 公告鈕]。時鐘讓到第二排是
+       幾何逼出來的——第一排要放得下四顆設計尺寸的頁籤,就容不下 128px 的膠囊(360pt 全寬才 340)。
+       公告鈕靠右 ⇒ 與右緣工具欄(隨機跟隨/附近車站)同一條基準線,即使用者要的「對齊」。 */
+    html[data-fs=large]  body.fs .topbar,
+    html[data-fs=xlarge] body.fs .topbar {
+      display: grid; grid-template-columns: auto 1fr auto;
+      grid-template-areas: "logo . tabs" "clock . chip";
+      row-gap: 5px; column-gap: 8px; align-items: center;
+    }
+    html[data-fs=large]  body.fs .topbar .tb-logo,
+    html[data-fs=xlarge] body.fs .topbar .tb-logo { grid-area: logo; }
     html[data-fs=large]  body.fs .topbar .grouptabs,
-    html[data-fs=xlarge] body.fs .topbar .grouptabs { flex-basis: 100%; justify-content: flex-end; margin-top: 3px; }
+    html[data-fs=xlarge] body.fs .topbar .grouptabs { grid-area: tabs; justify-self: end; }
+    html[data-fs=large]  body.fs .topbar .badge,
+    html[data-fs=xlarge] body.fs .topbar .badge { grid-area: clock; justify-self: start; margin: 0; }
+    html[data-fs=large]  body.fs .topbar .alert-chip,
+    html[data-fs=xlarge] body.fs .topbar .alert-chip { grid-area: chip; justify-self: end; margin: 0; }
     body.fs .topbar .tb-logo {
       width: calc(42px * var(--uit)); height: calc(42px * var(--uit));
       flex: none; display: block; border-radius: 9px; box-shadow: var(--shadow-1);
@@ -3791,6 +3828,11 @@
     /* 工具堆(§04c 合約5):頂列下方右錨;面板側欄開著時整疊左移讓位,讓開量讀 --rail-w
        單一事實來源,transition 180ms。跟隨鎖已在欄內,原 --lockctl-clear 機制整組退役。 */
     body.fs .map-actions { top: calc(56px + var(--sa-t)); transition: right .18s ease; }
+    /* 🔴 上面那個 56 跟直式那個 100 是同一種寫死常數(＝頂列頂 8 ＋ 標準檔頂列高 42 ＋ 間距 6),
+       而直式那條 2026-08-26 已經改成讀量到的 --tb-h,橫式這條漏掉 ⇒ 大/特大時頂列長到 104/119,
+       工具堆還停在 56 ⇒ 隨機跟隨鈕整顆疊進頂列(實測 rand y56–100 vs 頂列 8–127)。
+       同一個公式:標準檔算出來仍是 8+42+6=56,幾何一格不動。 */
+    html[data-fs] body.fs .map-actions { top: calc(8px + var(--sa-t) + var(--tb-h, 42px) + 6px); }
     body.fs.sheet-open .map-actions, body.fs.train-open .map-actions {
       right: calc(var(--rail-w) + 18px + var(--sa-r));
     }
@@ -3858,6 +3900,16 @@
        跟隨小卡、跟隨鎖、側欄。地圖本身**刻意不讓**——它該滿版鋪到螢幕邊緣,被島遮住一角無妨,
        不能讀的是文字與按鈕。變數為 0 時下列每一條都退化成原值,直向與桌面逐值不變。 */
     body.fs .topbar { left: calc(10px + var(--sa-l)); right: calc(10px + var(--sa-r)); }
+    /* 🔴 橫式一律單排(使用者 2026-08-26 裁示):直式大/特大要拆兩排是因為 360–430pt 放不下,
+       橫放的可用寬有 830+px,logo57＋膠囊128＋四顆214＋公告49＋間距 = 約 470,一排綽綽有餘;
+       而橫放的高只有 440,兩排頂列會吃掉 27% 的畫面高。所以這裡把直式那個 grid 兩排版整個退回
+       單排 flex,並把被 grid 版清掉的兩個 auto 邊界接回來(它們才是 flex 版的左右分群機制)。 */
+    html[data-fs=large]  body.fs .topbar,
+    html[data-fs=xlarge] body.fs .topbar { display: flex; }
+    html[data-fs=large]  body.fs .topbar .badge,
+    html[data-fs=xlarge] body.fs .topbar .badge { margin-right: auto; }
+    html[data-fs=large]  body.fs .topbar .alert-chip,
+    html[data-fs=xlarge] body.fs .topbar .alert-chip { margin-left: auto; }
     .tabbar { padding-left: calc(4px + var(--sa-l)); padding-right: calc(4px + var(--sa-r)); }
     body.fs .freq-card { left: calc(8px + var(--sa-l)); }
     .leaflet-right .leaflet-control { margin-right: calc(10px + var(--sa-r)); }
@@ -4331,7 +4383,7 @@
     </button>
     <div class="rec-pill" id="recPill" hidden title="停止錄影並下載影片"><span class="rd"></span>REC <span id="recTime">0:00</span><span class="rstop">停止</span></div>
     <div class="rec-toast" id="recToast" hidden><span id="recToastTxt"></span><button id="recRedl">再下載一次</button><button class="x" id="recToastX" title="關閉">×</button></div>
-    <div class="badge">
+    <div class="badge" id="statBadge" role="button" tabindex="0" aria-expanded="false" aria-controls="statPop" title="資料狀態">
       <span class="clock" id="clock">08:00</span>
       <span class="live" id="liveBadge" hidden>LIVE</span>
       <span class="mlive" id="metroBadge" hidden>看板校正</span>
@@ -5038,6 +5090,11 @@
   <button id="tabRide"><span class="ti">旅</span><span class="tl">護照</span></button>
   <button id="tabMore"><span class="ti">⋯</span><span class="tl">更多</span></button>
 </nav>
+<!-- 資料狀態小卡:點時鐘徽章開。內容由 statPopRender() 依徽章那幾顆 span 生成(單一事實來源) -->
+<div class="stat-pop" id="statPop" hidden role="dialog" aria-label="資料狀態">
+  <div class="sp-head"><b>資料狀態</b><button class="sp-close" id="statPopClose" type="button" aria-label="關閉">✕</button></div>
+  <div class="sp-rows" id="statPopRows"></div>
+</div>
 <div class="more-scrim" id="moreScrim"></div>
 <div class="more-sheet" id="moreSheet">
   <span class="grab"></span>
@@ -5046,26 +5103,26 @@
     <!-- data-act=theme 列內含真 <button>(seg 三顆),不可巢狀 button,維持 div;其餘列 v0718i 改真 button 供鍵盤 Tab/Enter 直達 -->
     <!-- 議題3:四段分組(地圖顯示/資訊/觀看模式/分享與資料);列本身原封只重排,被旗標隱藏的列(recBtn/accountBtn/locateBtn)按性質歸段 -->
     <!-- 使用說明:刻意排在所有分組之前(第一次找不到功能的人第一眼就看到);桌面走同一個 sheet(#toolsFab) -->
-    <button class="ms-row" data-act="help" data-close="1"><i class="ms-ic">說</i><span>使用說明</span><span class="chev">›</span></button>
+    <button class="ms-row" data-act="help" data-close="1"><span>使用說明</span><span class="chev">›</span></button>
     <div class="ms-sec">地圖顯示</div>
-    <div class="ms-row" data-act="theme"><i class="ms-ic">亮</i><span>外觀</span><span class="seg" id="msThemeSeg"><button data-v="light">亮</button><button data-v="dark">暗</button><button data-v="auto">自動</button></span></div>
-    <button class="ms-row" data-act="fontscale"><i class="ms-ic">字</i><span>字級</span><span class="ms-tail"><b id="msFontVal">標準</b><span class="chev">›</span></span></button>
-    <button class="ms-row" data-act="panelOpacity"><i class="ms-ic">透</i><span>面板半透明</span><span class="toggle" data-tg="panelOpacity"></span></button>
+    <div class="ms-row" data-act="theme"><span>外觀</span><span class="seg" id="msThemeSeg"><button data-v="light">亮</button><button data-v="dark">暗</button><button data-v="auto">自動</button></span></div>
+    <button class="ms-row" data-act="fontscale"><span>字級</span><span class="ms-tail"><b id="msFontVal">標準</b><span class="chev">›</span></span></button>
+    <button class="ms-row" data-act="panelOpacity"><span>面板半透明</span><span class="toggle" data-tg="panelOpacity"></span></button>
     <!-- 實機取證(TestFlight 試用期):左下角小字條顯示 rAF/相機/旗標即時狀態,截圖即可回報;正式上架前評估拔除 -->
-    <button class="ms-row" data-act="diagStrip"><i class="ms-ic">診</i><span>診斷資訊</span><span class="toggle" data-tg="diagStrip"></span></button>
-    <button class="ms-row" id="trtcDiagExportRow" data-act="exportTrtcDiag" hidden><i class="ms-ic">出</i><span>匯出捷運診斷</span><span class="chev">↓</span></button>
-    <button class="ms-row" data-proxy="satBtn"><i class="ms-ic">衛</i><span>衛星影像</span><span class="toggle" data-tg="satBtn"></span></button>
-    <button class="ms-row" data-act="track"><i class="ms-ic">軌</i><span>軌道與路線</span><span class="chev">›</span></button>
-    <button class="ms-row" data-proxy="xingBtn"><i class="ms-ic">平</i><span>平交道記號</span><span class="toggle" data-tg="xingBtn"></span></button>
-    <button class="ms-row" data-proxy="introBtn"><i class="ms-ic">介</i><span>特殊站介紹</span><span class="toggle" data-tg="introBtn"></span></button>
-    <button class="ms-row" data-proxy="dirBtn"><i class="ms-ic">向</i><span>列車方向箭頭</span><span class="toggle" data-tg="dirBtn"></span></button>
-    <button class="ms-row" data-proxy="pinBtn"><i class="ms-ic">釘</i><span>儲存地點</span><span class="toggle" data-tg="pinBtn"></span></button>
+    <button class="ms-row" data-act="diagStrip"><span>診斷資訊</span><span class="toggle" data-tg="diagStrip"></span></button>
+    <button class="ms-row" id="trtcDiagExportRow" data-act="exportTrtcDiag" hidden><span>匯出捷運診斷</span><span class="chev">↓</span></button>
+    <button class="ms-row" data-proxy="satBtn"><span>衛星影像</span><span class="toggle" data-tg="satBtn"></span></button>
+    <button class="ms-row" data-act="track"><span>軌道與路線</span><span class="chev">›</span></button>
+    <button class="ms-row" data-proxy="xingBtn"><span>平交道記號</span><span class="toggle" data-tg="xingBtn"></span></button>
+    <button class="ms-row" data-proxy="introBtn"><span>特殊站介紹</span><span class="toggle" data-tg="introBtn"></span></button>
+    <button class="ms-row" data-proxy="dirBtn"><span>列車方向箭頭</span><span class="toggle" data-tg="dirBtn"></span></button>
+    <button class="ms-row" data-proxy="pinBtn"><span>儲存地點</span><span class="toggle" data-tg="pinBtn"></span></button>
     <!-- 定位是原生 App 限定(LOCATE_ENABLED),網站/PWA 沒有:比照 #nearBtn 的 hidden 先 inline 藏,
          不靠 setupMapTools 才移除——它前段一拋(2026-07-26 實測過),這列就會留成「點了沒反應」的死列。
          App 的還原點在 setupMapTools 的 LOCATE_ENABLED 分支 -->
-    <button class="ms-row" data-proxy="nearBtn" data-close="1" style="display:none"><i class="ms-ic">近</i><span>附近車站</span><span class="chev">›</span></button>
+    <button class="ms-row" data-proxy="nearBtn" data-close="1" style="display:none"><span>附近車站</span><span class="chev">›</span></button>
     <!-- 縣市快速移動(Batch B):#citySel 縣市下拉的手機新家;點列展開 17 縣市 chip,點 chip 飛過去並關 sheet -->
-    <button class="ms-row" data-act="cities"><i class="ms-ic">縣</i><span>縣市快速移動</span><span class="chev">›</span></button>
+    <button class="ms-row" data-act="cities"><span>縣市快速移動</span><span class="chev">›</span></button>
     <div class="ms-cities" id="msCities" hidden></div>
     <!-- 資料狀態(設計 D4 排法B 的代價償還):頂列徽章把 LIVE／看板校正／REPLAY／尖峰 收成色點、
          班次數整個收起來之後,那些字樣需要一個看得到全文的家。使用者 2026-08-22 裁示「全部收成色點,
@@ -5079,26 +5136,26 @@
     <div class="ms-row ms-stat" id="msStatCount" hidden><span>目前車數</span><span class="ms-tail"><b id="msStatCountVal"></b></span></div>
     <div class="ms-sec">資訊</div>
     <!-- 已排提醒總覽:NOTIFY_LOCAL_ENABLED 才留(旗標關時 setupLocalNotifications 移除,比照 locateBtn) -->
-    <button class="ms-row" data-act="notify" data-close="1"><i class="ms-ic">提</i><span>已排提醒</span><span class="chev">›</span></button>
-    <button class="ms-row" data-proxy="todayBtn" data-close="1"><i class="ms-ic">今</i><span>今日台鐵動態</span><span class="chev">›</span></button>
+    <button class="ms-row" data-act="notify" data-close="1"><span>已排提醒</span><span class="chev">›</span></button>
+    <button class="ms-row" data-proxy="todayBtn" data-close="1"><span>今日台鐵動態</span><span class="chev">›</span></button>
     <!-- 全日班次走勢(Batch B):.flow 全日走勢圖的手機新家;點列把 #flowWrap 搬進下方 slot 並重繪,收合搬回原位 -->
-    <button class="ms-row" data-act="flow"><i class="ms-ic">勢</i><span>全日班次走勢</span><span class="chev">›</span></button>
+    <button class="ms-row" data-act="flow"><span>全日班次走勢</span><span class="chev">›</span></button>
     <div class="ms-flowslot" id="msFlowSlot" hidden></div>
     <div class="ms-sec">觀看模式</div>
-    <button class="ms-row warnrow" data-proxy="powerBtn"><i class="ms-ic">省</i><span>省電模式（30fps）</span><span class="toggle" data-tg="powerBtn"></span></button>
-    <button class="ms-row" data-proxy="musicBtn"><i class="ms-ic">樂</i><span>背景音樂</span><span class="toggle" data-tg="musicBtn"></span></button>
-    <button class="ms-row" data-proxy="ambientBtn" data-close="1"><i class="ms-ic">放</i><span>放空模式</span><span class="chev">›</span></button>
+    <button class="ms-row warnrow" data-proxy="powerBtn"><span>省電模式（30fps）</span><span class="toggle" data-tg="powerBtn"></span></button>
+    <button class="ms-row" data-proxy="musicBtn"><span>背景音樂</span><span class="toggle" data-tg="musicBtn"></span></button>
+    <button class="ms-row" data-proxy="ambientBtn" data-close="1"><span>放空模式</span><span class="chev">›</span></button>
     <!-- 錄影下架(v0717j,Stadia 條款):比照 #recBtn 先 inline 藏,不靠 setupRecorder 才移除——
          2026-07-26 實測 boot 前段一拋(setupMapTools 抓 null),setupRecorder 就永遠跑不到,這列會整個復活且可點。
          .ms-row 的 display:flex 蓋得過 [hidden],故只能用 inline style;旗標復活時由 setupRecorder 還原 -->
-    <button class="ms-row" data-proxy="recBtn" data-close="1" style="display:none"><i class="ms-ic">錄</i><span>錄影 Beta</span><span class="chev">›</span></button>
+    <button class="ms-row" data-proxy="recBtn" data-close="1" style="display:none"><span>錄影 Beta</span><span class="chev">›</span></button>
     <div class="ms-sec">分享與資料</div>
-    <button class="ms-row" data-proxy="shareBtn" data-close="1"><i class="ms-ic">享</i><span>分享畫面</span><span class="chev">›</span></button>
-    <button class="ms-row" data-proxy="importBtn" data-close="1" style="display:none"><i class="ms-ic">匯</i><span>Google 清單匯入</span><span class="chev">›</span></button>
+    <button class="ms-row" data-proxy="shareBtn" data-close="1"><span>分享畫面</span><span class="chev">›</span></button>
+    <button class="ms-row" data-proxy="importBtn" data-close="1" style="display:none"><span>Google 清單匯入</span><span class="chev">›</span></button>
     <!-- 帳號同步下架(ACCOUNT_ENABLED=false):比照 #accountBtn 先 inline 藏,不靠 setupAccountUi 才移除。
          它有兩條走不到移除的路——setupMapTools 前段一拋(2026-07-26 實測過),以及 accountConfigured()
          為假時的提前 return;兩條都會留成「點了靜默無反應」的死列。還原點在 accountEnsureInit -->
-    <button class="ms-row" data-proxy="accountBtn" data-close="1" style="display:none"><i class="ms-ic">帳</i><span>帳號同步</span><span class="chev">›</span></button>
+    <button class="ms-row" data-proxy="accountBtn" data-close="1" style="display:none"><span>帳號同步</span><span class="chev">›</span></button>
     <!-- 關於(Batch B 第五段):placeFootBoxes() 把 site-foot 的四個 <details class="foot-box">
          (更新紀錄/資料來源與授權/贊助/隱私與服務條款)搬進 #msAbout(桌面搬回 site-foot);末列複製回報問題＋版本 -->
     <!-- 🔴 刻意放在 #msAboutSec 之前、不放進 #msAbout:index.html 的桌面 media query 對
@@ -5109,8 +5166,8 @@
          🔴 預設藏起來一律用 inline display:none,不可用 [hidden] 屬性——.ms-row 的
          display:flex 蓋得過 [hidden](既有的 #recBtn 那列就是為此用 inline style)。 -->
     <div class="ms-sec" id="msAppSec" style="display:none">軌島</div>
-    <button class="ms-row" data-act="update" style="display:none"><i class="ms-ic">版</i><span>已是最新版</span><span class="chev">›</span></button>
-    <button class="ms-row" data-act="rate" data-close="1" style="display:none"><i class="ms-ic">評</i><span class="rate-cta">給軌島評分</span><span class="chev">›</span></button>
+    <button class="ms-row" data-act="update" style="display:none"><span>已是最新版</span><span class="chev">›</span></button>
+    <button class="ms-row" data-act="rate" data-close="1" style="display:none"><span class="rate-cta">給軌島評分</span><span class="chev">›</span></button>
     <div class="ms-sec" id="msAboutSec">關於</div>
     <div class="ms-about" id="msAbout"></div>
     <div class="ms-about-links">
@@ -15949,9 +16006,9 @@ function appUpdateRender(res) {
   if (rate) rate.style.display = '';
   if (row) {
     row.style.display = '';
-    // 🔴 不可用 firstElementChild:設計 3d 之後每一列的第一個元素是左邊那顆單字圓章,
-    //    寫進去會把圓章的字換成「已是最新版　1.4.9」而標籤原封不動。指名標籤那顆 <span>。
-    (row.querySelector('span:not(.ms-ic)') || row).textContent = state.hasUpdate
+    // 指名標籤那顆 <span>,不用 firstElementChild:這一列尾端還有 .chev,而列形以後若再加東西
+    // (2026-08-27 之前第一個元素是單字圓章,就踩過寫進錯的元素這件事)也不會寫錯地方。
+    (row.querySelector('span:not(.chev)') || row).textContent = state.hasUpdate
       ? `有新版可更新　${latest.v}` : `已是最新版　${window.RAIL_APP_VERSION}`;
     row.classList.toggle('warnrow', state.hasUpdate);
     // 沒新版時這列改當「看本版更新內容」的常駐入口(有內建文案才可點)——
@@ -20407,8 +20464,11 @@ function updateLiveBadge() {
       + ' · 列車暫時依時刻表位置顯示,未套用誤點,今日動態也暫時無法跟車';
   }
   if (on) {
-    const fresh = liveFresh(); // fresh=校正中綠 LIVE;推估 tier(高倍速投射/資料稍舊)灰化改「推估」,不誤稱即時
-    el.textContent = fresh ? 'LIVE' : '推估';
+    // fresh=校正中綠 LIVE;非 fresh(高倍速投射/資料稍舊)灰化改「非即時」,不誤稱即時。
+    // 🔴 字樣是「非即時」不是「推估」(2026-08-27 使用者指定):「推估」聽起來像另一種資料,
+    //    而它其實只是**這份即時資料現在不即時了**——講的是新鮮度,不是方法。
+    const fresh = liveFresh();
+    el.textContent = fresh ? 'LIVE' : '非即時';
     el.classList.toggle('est', !fresh);
     // 非 fresh 時把「為什麼」寫進 title:資料舊、裝置時鐘錯、時間軸離開現在,三者的處置完全不同,
     // 只寫「推估」會讓現場回報無從分辨(而分辨不出來的成本我們付過太多次了)。
@@ -20418,7 +20478,7 @@ function updateLiveBadge() {
     if (Math.abs(state.simSec - nowSecOfDay()) > 120) why.push('時間軸不在現在');
     el.title = (fresh
       ? `台鐵即時誤點已套用(每分鐘更新)· ${state.live.delayed} 班誤點中 · 來源 ${String(state.live.srcAt).slice(11, 16)}`
-      : `台鐵誤點推估(依 ${String(state.live.srcAt).slice(11, 16)} 即時資料投射)· ${state.live.delayed} 班誤點中`)
+      : `台鐵誤點目前非即時:依 ${String(state.live.srcAt).slice(11, 16)} 的即時資料投射 · ${state.live.delayed} 班誤點中`)
       + (why.length ? ' · ' + why.join('、') : '');
   }
   // LIVE 亮起時收掉「時刻表模擬」標籤,兩者並排語意矛盾;熄滅後每秒刷新會自動恢復
@@ -23698,18 +23758,31 @@ function syncUniCard() {
 //    捲動容器的 padding box ⇒ 兩者同基準,不可再扣 clientTop;扣了就是往上多 2px=邊框寬。)
 let boardHeadRoTarget = null;
 const boardHeadRO = window.ResizeObserver ? new ResizeObserver(() => syncBoardHeadVar()) : null;
+// 🔴 讀「自然版位」必須先把 sticky 拿掉:sticky 元素的 offsetTop 會**含它自己被 top 推下去的量**,
+//    而那個 top 正是這裡要算的 --board-head-h ⇒ 形成自我維持的迴圈:站名牌一 docked 把值撐到 141,
+//    之後就算牌搬走(旋轉回直式、卡重新掛),量到的還是 141(自然版位 99 < 141 ⇒ sticky 把它推回 141),
+//    值永遠降不回來,分頁列上方留一條 42px 空白。2026-08-27 驗收實測到:牌已搬出卡外(plateVis=null)
+//    而分頁列仍停在 141。改成量測期間暫時 position:static,讀完立刻還原(兩次強制 layout,而這支
+//    只在尺寸變化與搬家時被呼叫,不在每幀路徑上)。
+function natTop(el) {
+  const prev = el.style.position;
+  el.style.position = 'static';
+  const t = el.offsetTop;
+  if (prev) el.style.position = prev; else el.style.removeProperty('position');
+  return t;
+}
 function syncBoardHeadVar() {
   const bd = document.getElementById('board');
   const on = !!(bd && !bd.hidden);
   const h3 = on ? bd.querySelector(':scope > h3') : null;
   const tabs = on ? bd.querySelector(':scope > .uni-tabs') : null;
   if (tabs && tabs.offsetParent === bd) {
-    const top = tabs.offsetTop;
+    const top = natTop(tabs);
     if (top > 0) document.documentElement.style.setProperty('--board-head-h', top.toFixed(1) + 'px');
     // 併進來的站名牌是固定段的第二段,它的 sticky top 同樣讀自己的自然版位(=h3 實高)
     const plate = bd.querySelector(':scope > .dwell-plate.dp-docked');
     if (plate && plate.offsetParent === bd && plate.getClientRects().length) {
-      document.documentElement.style.setProperty('--board-plate-top', plate.offsetTop.toFixed(1) + 'px');
+      document.documentElement.style.setProperty('--board-plate-top', natTop(plate).toFixed(1) + 'px');
     }
   } else if (h3) { // 退路:分頁列不在(非合併卡)時保持舊值語意,不留下上一張卡的殘值
     const h = h3.getBoundingClientRect().height;
@@ -26031,6 +26104,80 @@ function placeBadge() {
   }
   invalidateMapInsets(); // 徽章換家=上界量法換(獨立徽章 vs 併入頂列),露出地圖重算
 }
+
+// ── 資料狀態小卡:點時鐘徽章展開(2026-08-27 使用者要求)──────────────────────────
+// 「要顯示現在班次是 Live、還是非即時,把上面的燈號資訊詳細顯示出來」。
+// 🔴 值與原因一律**從徽章那幾顆 span 讀回來**,與 syncMoreDataStatus 同一個單一事實來源:
+//    那幾顆燈由 updateLiveBadge／metroBadge／每秒車數各自寫,在這裡複製一份判斷邏輯遲早分岔。
+//    title 就是每顆燈的「為什麼」(資料幾分鐘沒更新、裝置時鐘差幾秒、時間軸不在現在),
+//    桌面靠 hover 看得到、觸控裝置完全沒有入口——這張卡就是為了那段字開的。
+const STAT_POP_KEYS = [
+  ['live', '即時資料', 'liveBadge'], ['metro', '捷運看板', 'metroBadge'],
+  ['replay', '重播', 'replayBadge'], ['peak', '時段', 'peak'], ['count', '目前車數', 'count'],
+];
+function statPopItems() {
+  return STAT_POP_KEYS.map(([k, lab, id]) => {
+    const el = document.getElementById(id);
+    if (!el || el.hidden || !el.textContent.trim()) return null;
+    const t = el.textContent.trim();
+    // REPLAY 是英文標記不是給人看的字;其餘逐字照抄徽章(徽章寫「官方即時」就顯示「官方即時」)
+    const val = k === 'replay' ? '重播中'
+      : t + (el.classList.contains('est') && !/非即時/.test(t) ? '・非即時' : '');
+    return { k, lab, val, why: (el.title || '').trim() };
+  }).filter(Boolean);
+}
+function statPopRender() {
+  const pop = document.getElementById('statPop'), rows = document.getElementById('statPopRows');
+  if (!pop || !rows || pop.hidden) return;
+  const items = statPopItems();
+  const esc = t => String(t).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  rows.innerHTML =
+    (items.length
+      ? items.map(it => `<div class="sp-row" data-k="${it.k}"><span class="lab">${esc(it.lab)}</span><span class="val">${esc(it.val)}</span></div>`).join('')
+      : '<div class="sp-row" data-k="none"><span class="lab">目前沒有即時或重播狀態</span></div>')
+    + (items.some(it => it.why)
+      ? `<div class="sp-why">${items.filter(it => it.why).map(it => `<div>${esc(it.lab)}:${esc(it.why)}</div>`).join('')}</div>`
+      : '');
+}
+function statPopPlace() {
+  const pop = document.getElementById('statPop'), b = document.getElementById('statBadge');
+  if (!pop || !b || pop.hidden) return;
+  if (!b.getClientRects().length) { statPopSet(false); return; } // 徽章被藏起來(live/沉浸)⇒ 卡跟著收
+  const r = b.getBoundingClientRect(), box = pop.getBoundingClientRect();
+  // 靠左對齊徽章、掛在它下方;兩軸都夾在視窗內 8px 邊界內(徽章有直式頂列第二排／橫式第一排／桌面獨立卡三種家)
+  pop.style.left = Math.max(8, Math.min(r.left, innerWidth - box.width - 8)) + 'px';
+  pop.style.top = Math.max(8, Math.min(r.bottom + 8, innerHeight - box.height - 8)) + 'px';
+}
+function statPopSet(on) {
+  const pop = document.getElementById('statPop'), b = document.getElementById('statBadge');
+  if (!pop || pop.hidden === !on) return;
+  pop.hidden = !on;
+  if (b) b.setAttribute('aria-expanded', on ? 'true' : 'false');
+  if (on) { statPopRender(); statPopPlace(); }
+}
+function setupStatPop() {
+  const b = document.getElementById('statBadge'), pop = document.getElementById('statPop');
+  if (!b || !pop) return;
+  const toggle = () => statPopSet(pop.hidden);
+  b.addEventListener('click', e => { e.stopPropagation(); toggle(); });
+  b.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+  });
+  const x = document.getElementById('statPopClose');
+  if (x) x.addEventListener('click', () => statPopSet(false));
+  // 捕獲階段:卡外任一處按下就收(有些面板自己 stopPropagation,冒泡階段收不到)
+  document.addEventListener('pointerdown', e => {
+    if (!pop.hidden && !pop.contains(e.target) && !b.contains(e.target)) statPopSet(false);
+  }, true);
+  addEventListener('keydown', e => { if (e.key === 'Escape' && !pop.hidden) statPopSet(false); });
+  addEventListener('resize', () => statPopPlace());
+  // 徽章的字由好幾處程式各自寫(車數每秒、捷運看板非同步)⇒ 直接觀察子樹,開著時才重繪(同 watchBadgeForMoreSheet 的理由)
+  if (typeof MutationObserver === 'function') {
+    new MutationObserver(() => { if (!pop.hidden) { statPopRender(); statPopPlace(); } })
+      .observe(b, { subtree: true, childList: true, characterData: true,
+        attributes: true, attributeFilter: ['hidden', 'class', 'title'] });
+  }
+}
 // §04c:工具欄 icon-only 的標籤補償——首次進入跟車各顯示 2 秒(localStorage 記一次性);長按任一顆再現
 function setupToolRail() {
   const rail = document.getElementById('mapActions');
@@ -26693,8 +26840,9 @@ function setupMapTools() {
       if (on) val.textContent = text;
     };
     // 值＝徽章自己的字,逐字照抄不另造詞(徽章寫「官方即時」就顯示「官方即時」);
-    // .est＝資料非官方/不新鮮,沿用檔內既有的「時刻推算」措辭當後綴,不發明新說法。
-    const mirror = el => el ? el.textContent.trim() + (el.classList.contains('est') ? '・推算' : '') : '';
+    // .est＝這份資料現在不新鮮,補一個「・非即時」後綴(與徽章 2026-08-27 改的字樣同一套說法);
+    // 徽章本身已經寫「非即時」時不再疊一次。
+    const mirror = el => el ? (t => t + (el.classList.contains('est') && !/非即時/.test(t) ? '・非即時' : ''))(el.textContent.trim()) : '';
     const live = document.getElementById('liveBadge');
     const mlive = document.getElementById('metroBadge');
     const peak = document.getElementById('peak');
@@ -27004,7 +27152,7 @@ function setupMapTools() {
   });
   // Batch B:開站即建縣市 chip、把搜尋列與頁尾盒放到當前斷點該在的家
   // (§04c 徽章開站也就定位;跟隨鎖此刻還沒建——lockCtl.addTo 之後那裡自己會補一次 placeControlRail)
-  buildMsCities(); placeSearch(); placeFootBoxes(); placeBadge(); setupToolRail();
+  buildMsCities(); placeSearch(); placeFootBoxes(); placeBadge(); setupToolRail(); setupStatPop();
   // 真全螢幕被使用者(Esc/F11/系統手勢)退掉時,同步收掉 CSS 全畫面狀態並重排地圖。
   // Safari 例外:真機探針實錄(2026-07-21)進場成功後 ~2.4s fullscreenElement 無故變 null(全程無按鍵、無我方呼叫)——
   // 非我方主動退出且距進場<5s 視為瀏覽器抽風,保留 CSS 版全畫面(=requestFullscreen 失敗的既有退路),不連動退出。

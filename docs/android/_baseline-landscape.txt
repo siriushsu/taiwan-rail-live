@@ -1,0 +1,156 @@
+[G0] ROOT=/Users/xuxiang/Code/捷運小動畫/.claude/worktrees/app-redesign
+[G0] 受測 index.html md5=50ce6ff936e62bde0553408c1df25b2e
+[G0] 對照 b937719:index.html md5=12a367036a610506ebda99ffd665eee0
+PASS L15c 原始碼：四邊安全區由 Capacitor fallback → env() 定義 — {"t":true,"r":true,"b":true,"l":true}
+PASS L13d 原始碼：computeMapInsets 的工具欄讓位以右緣＋常數 44 計 — pattern=true
+FAIL L0 chromium/SE3橫 取得行駛中列車 — 深夜無台鐵車＝環境條件，非產品回歸
+FAIL L0 chromium/13mini橫 取得行駛中列車 — 深夜無台鐵車＝環境條件，非產品回歸
+FAIL L0 chromium/16橫 取得行駛中列車 — 深夜無台鐵車＝環境條件，非產品回歸
+FAIL L0 chromium/11橫 取得行駛中列車 — 深夜無台鐵車＝環境條件，非產品回歸
+FAIL L0 chromium/16ProMax橫 取得行駛中列車 — 深夜無台鐵車＝環境條件，非產品回歸
+FAIL L0 chromium/17ProMax橫 取得行駛中列車 — 深夜無台鐵車＝環境條件，非產品回歸
+FAIL F0 chromium 取得行駛中列車 — 深夜無台鐵車＝環境條件
+PASS F5 chromium/旋轉版面延遲 尺寸自癒：Leaflet 尺寸=容器＋畫布重配＋車落在實體畫面內 — {"pick":"8888","viaRandBtn":true,"base":{"cw":402,"ch":874,"szx":402,"szy":874,"cvw":402,"cvh":874,"wantW":402,"wantH":874,"inPhys":true,"heals":0},"after":{"cw":874,"ch":402,"szx":874,"szy":402,"cvw":874,"cvh":402,"wantW":874,"wantH":402,"inPhys":true,"heals":1}}
+PASS F5b chromium/尺寸同步時守衛零空轉（不重複 invalidateSize） — {"h1":1,"h2":1,"sz":"874x402","cc":"874x402"}
+FAIL L10 chromium 橫式常態基準 — 深夜無台鐵車＝環境條件
+FAIL L10 chromium/small 取得行駛中列車 — 深夜無台鐵車＝環境條件
+FAIL L10 chromium/medium 取得行駛中列車 — 深夜無台鐵車＝環境條件
+PASS L10b chromium 直向開面板·垂直讓位把釘點帶到新露出中心 — 釘點偏移 (-0.5,-0.2)；下界 131→323.6
+PASS L10b chromium 轉橫後·讓位軸換成水平且釘點仍在露出中心 — 釘點偏移 (-1,0.5)；右界 62→410、下界 323.6→60
+PASS L12 chromium/SE3橫 全島視角·開面板前後台灣在可視區的位置不變 — 位移 x0.1 y-0.5；無面板={"isRail":null,"zoom":6,"degraded":false,"dx":0.5,"dy":31} 開面板={"isRail":true,"zoom":6,"degraded":false,"dx":0.6,"dy":30.5}
+PASS L12 chromium/16橫 全島視角·開面板前後台灣在可視區的位置不變 — 位移 x0.0 y-0.5；無面板={"isRail":null,"zoom":6,"degraded":false,"dx":0,"dy":31} 開面板={"isRail":true,"zoom":6,"degraded":false,"dx":0,"dy":30.5}
+PASS L12 chromium/ProMax橫 全島視角·開面板前後台灣在可視區的位置不變 — 位移 x0.0 y0.5；無面板={"isRail":null,"zoom":6,"degraded":false,"dx":0,"dy":29.5} 開面板={"isRail":true,"zoom":6,"degraded":false,"dx":0,"dy":30}
+PASS L12 chromium/13mini直 全島視角·開面板前後台灣在可視區的位置不變 — 位移 x0.0 y0.3；無面板={"isRail":null,"zoom":6,"degraded":false,"dx":-4.5,"dy":29.5} 開面板={"isRail":false,"zoom":6,"degraded":false,"dx":-4.5,"dy":29.8}
+PASS L12 chromium/16直 全島視角·開面板前後台灣在可視區的位置不變 — 位移 x0.0 y-0.7；無面板={"isRail":null,"zoom":7,"degraded":false,"dx":-9.5,"dy":23.5} 開面板={"isRail":false,"zoom":7,"degraded":false,"dx":-9.5,"dy":22.8}
+PASS L12 chromium/11直 全島視角·開面板前後台灣在可視區的位置不變 — 位移 x0.0 y-0.1；無面板={"isRail":null,"zoom":7,"degraded":false,"dx":-10,"dy":23.5} 開面板={"isRail":false,"zoom":7,"degraded":false,"dx":-10,"dy":23.4}
+PASS L9 chromium 置中判準的形態分佈 — 側欄=3（期望 3）、底部sheet=3（期望 3）
+PASS L4s1 chromium/16橫 反向對照·sticky 的 offsetTop 含被 top 推下去的量(所以不能拿它回算 top) — {"offsetTop":141,"自然版位":99,"stickyTop":141}
+PASS L4s2 chromium/16橫 natTop() 回的是自然版位,不受 sticky top 影響 — {"natTop":99,"該有的值":99}
+PASS L4s3 chromium/16橫 有 inline position 時:量完逐屬性原封還原、computed 仍是 sticky — {"逐屬性相同":true,"position":"sticky"}
+PASS L4s4 chromium/16橫 position 來自 CSS(產品的情形):陷阱一樣在、natTop 一樣對、且不留殘渣 — {"offsetTop":141,"natTop":129,"該有的自然版位":129,"inline殘渣":"","其他inline屬性":"30px","computed":"sticky"}
+FAIL L13 chromium/SE3橫 環境：有行駛中的台鐵車可跟 — 深夜無車＝環境條件，不是產品回歸
+FAIL L13 chromium/13mini橫 環境：有行駛中的台鐵車可跟 — 深夜無車＝環境條件，不是產品回歸
+FAIL L13 chromium/16橫 環境：有行駛中的台鐵車可跟 — 深夜無車＝環境條件，不是產品回歸
+FAIL L13 chromium/11橫 環境：有行駛中的台鐵車可跟 — 深夜無車＝環境條件，不是產品回歸
+FAIL L13 chromium/16ProMax橫 環境：有行駛中的台鐵車可跟 — 深夜無車＝環境條件，不是產品回歸
+FAIL L13 chromium/17ProMax橫 環境：有行駛中的台鐵車可跟 — 深夜無車＝環境條件，不是產品回歸
+FAIL L15b chromium 動態島清單每一項都真的被量到 — 從沒量到：頂列、時鐘、分頁列按鈕、停靠站名牌、跟隨鎖、動作列、站台帶、側欄
+FAIL P4 chromium/medium 取得行駛中列車 — 深夜無台鐵車＝環境條件
+FAIL V1 chromium 取得行駛中列車 — 深夜無台鐵車＝環境條件
+FAIL V4 chromium/std 取得行駛中列車 — 深夜無台鐵車＝環境條件
+FAIL V4 chromium/large 取得行駛中列車 — 深夜無台鐵車＝環境條件
+FAIL V4 chromium/xlarge 取得行駛中列車 — 深夜無台鐵車＝環境條件
+FAIL L5 chromium/13mini直 取得行駛中列車 — 深夜無台鐵車＝環境條件
+FAIL L5 chromium/16直 取得行駛中列車 — 深夜無台鐵車＝環境條件
+FAIL L5 chromium/11直 取得行駛中列車 — 深夜無台鐵車＝環境條件
+FAIL L9 chromium 直向條件式判準的分支分佈 — 列車看得見=0（期望 6：375/393/414 各兩個面板）、maxBounds夾死=0（期望 0）
+FAIL L6/L7 chromium/iPad橫 對 b937719 逐值零變化 — .leaflet-bottom.leaflet-right: [679,595,328,89,"absolute","block"] → [840,595,167,89,"absolute","block"]
+FAIL L6/L7 chromium/桌面1280 對 b937719 逐值零變化 — .leaflet-bottom.leaflet-right: [935,557,328,89,"absolute","block"] → [1096,557,167,89,"absolute","block"]
+FAIL L6/L7 chromium/iPad直 對 b937719 逐值零變化 — .controls: [322,921,125,41,"absolute","flex"] → [322,901,125,41,"absolute","flex"] | .leaflet-bottom.leaflet-right: [493,896,275,14,"absolute","block"] → [627,952,141,14,"absolute","block"]
+FAIL L0 webkit/SE3橫 取得行駛中列車 — 深夜無台鐵車＝環境條件，非產品回歸
+FAIL L0 webkit/13mini橫 取得行駛中列車 — 深夜無台鐵車＝環境條件，非產品回歸
+FAIL L0 webkit/16橫 取得行駛中列車 — 深夜無台鐵車＝環境條件，非產品回歸
+FAIL L0 webkit/11橫 取得行駛中列車 — 深夜無台鐵車＝環境條件，非產品回歸
+FAIL L0 webkit/16ProMax橫 取得行駛中列車 — 深夜無台鐵車＝環境條件，非產品回歸
+FAIL L0 webkit/17ProMax橫 取得行駛中列車 — 深夜無台鐵車＝環境條件，非產品回歸
+FAIL F0 webkit 取得行駛中列車 — 深夜無台鐵車＝環境條件
+PASS F5 webkit/旋轉版面延遲 尺寸自癒：Leaflet 尺寸=容器＋畫布重配＋車落在實體畫面內 — {"pick":"8889","viaRandBtn":true,"base":{"cw":402,"ch":874,"szx":402,"szy":874,"cvw":402,"cvh":874,"wantW":402,"wantH":874,"inPhys":true,"heals":0},"after":{"cw":874,"ch":402,"szx":874,"szy":402,"cvw":874,"cvh":402,"wantW":874,"wantH":402,"inPhys":true,"heals":1}}
+PASS F5b webkit/尺寸同步時守衛零空轉（不重複 invalidateSize） — {"h1":1,"h2":1,"sz":"874x402","cc":"874x402"}
+FAIL L10 webkit 橫式常態基準 — 深夜無台鐵車＝環境條件
+FAIL L10 webkit/small 取得行駛中列車 — 深夜無台鐵車＝環境條件
+FAIL L10 webkit/medium 取得行駛中列車 — 深夜無台鐵車＝環境條件
+PASS L10b webkit 直向開面板·垂直讓位把釘點帶到新露出中心 — 釘點偏移 (-0.5,-0.2)；下界 128.5→323.6
+PASS L10b webkit 轉橫後·讓位軸換成水平且釘點仍在露出中心 — 釘點偏移 (-1,0.5)；右界 62→410、下界 323.6→60
+PASS L12 webkit/SE3橫 全島視角·開面板前後台灣在可視區的位置不變 — 位移 x0.1 y-0.2；無面板={"isRail":null,"zoom":6,"degraded":false,"dx":0.5,"dy":28.7} 開面板={"isRail":true,"zoom":6,"degraded":false,"dx":0.6,"dy":28.5}
+PASS L12 webkit/16橫 全島視角·開面板前後台灣在可視區的位置不變 — 位移 x0.0 y-0.2；無面板={"isRail":null,"zoom":6,"degraded":false,"dx":0,"dy":28.7} 開面板={"isRail":true,"zoom":6,"degraded":false,"dx":0,"dy":28.5}
+PASS L12 webkit/ProMax橫 全島視角·開面板前後台灣在可視區的位置不變 — 位移 x0.0 y0.8；無面板={"isRail":null,"zoom":6,"degraded":false,"dx":0,"dy":27.2} 開面板={"isRail":true,"zoom":6,"degraded":false,"dx":0,"dy":28}
+PASS L12 webkit/13mini直 全島視角·開面板前後台灣在可視區的位置不變 — 位移 x0.0 y0.6；無面板={"isRail":null,"zoom":6,"degraded":false,"dx":-4.5,"dy":27.2} 開面板={"isRail":false,"zoom":6,"degraded":false,"dx":-4.5,"dy":27.8}
+PASS L12 webkit/16直 全島視角·開面板前後台灣在可視區的位置不變 — 位移 x0.0 y-0.4；無面板={"isRail":null,"zoom":7,"degraded":false,"dx":-9.5,"dy":21.2} 開面板={"isRail":false,"zoom":7,"degraded":false,"dx":-9.5,"dy":20.8}
+PASS L12 webkit/11直 全島視角·開面板前後台灣在可視區的位置不變 — 位移 x0.0 y0.2；無面板={"isRail":null,"zoom":7,"degraded":false,"dx":-10,"dy":21.2} 開面板={"isRail":false,"zoom":7,"degraded":false,"dx":-10,"dy":21.4}
+PASS L9 webkit 置中判準的形態分佈 — 側欄=3（期望 3）、底部sheet=3（期望 3）
+PASS L4s1 webkit/16橫 反向對照·sticky 的 offsetTop 含被 top 推下去的量(所以不能拿它回算 top) — {"offsetTop":141,"自然版位":99,"stickyTop":141}
+PASS L4s2 webkit/16橫 natTop() 回的是自然版位,不受 sticky top 影響 — {"natTop":99,"該有的值":99}
+PASS L4s3 webkit/16橫 有 inline position 時:量完逐屬性原封還原、computed 仍是 sticky — {"逐屬性相同":true,"position":"sticky"}
+PASS L4s4 webkit/16橫 position 來自 CSS(產品的情形):陷阱一樣在、natTop 一樣對、且不留殘渣 — {"offsetTop":141,"natTop":129,"該有的自然版位":129,"inline殘渣":"","其他inline屬性":"30px","computed":"sticky"}
+FAIL L13 webkit/SE3橫 環境：有行駛中的台鐵車可跟 — 深夜無車＝環境條件，不是產品回歸
+FAIL L13 webkit/13mini橫 環境：有行駛中的台鐵車可跟 — 深夜無車＝環境條件，不是產品回歸
+FAIL L13 webkit/16橫 環境：有行駛中的台鐵車可跟 — 深夜無車＝環境條件，不是產品回歸
+FAIL L13 webkit/11橫 環境：有行駛中的台鐵車可跟 — 深夜無車＝環境條件，不是產品回歸
+FAIL L13 webkit/16ProMax橫 環境：有行駛中的台鐵車可跟 — 深夜無車＝環境條件，不是產品回歸
+FAIL L13 webkit/17ProMax橫 環境：有行駛中的台鐵車可跟 — 深夜無車＝環境條件，不是產品回歸
+FAIL L15b webkit 動態島清單每一項都真的被量到 — 從沒量到：頂列、時鐘、分頁列按鈕、停靠站名牌、跟隨鎖、動作列、站台帶、側欄
+FAIL P4 webkit/medium 取得行駛中列車 — 深夜無台鐵車＝環境條件
+FAIL V1 webkit 取得行駛中列車 — 深夜無台鐵車＝環境條件
+FAIL V4 webkit/std 取得行駛中列車 — 深夜無台鐵車＝環境條件
+FAIL V4 webkit/large 取得行駛中列車 — 深夜無台鐵車＝環境條件
+FAIL V4 webkit/xlarge 取得行駛中列車 — 深夜無台鐵車＝環境條件
+FAIL L5 webkit/13mini直 取得行駛中列車 — 深夜無台鐵車＝環境條件
+FAIL L5 webkit/16直 取得行駛中列車 — 深夜無台鐵車＝環境條件
+FAIL L5 webkit/11直 取得行駛中列車 — 深夜無台鐵車＝環境條件
+FAIL L9 webkit 直向條件式判準的分支分佈 — 列車看得見=0（期望 6：375/393/414 各兩個面板）、maxBounds夾死=0（期望 0）
+FAIL L6/L7 webkit/iPad橫 對 b937719 逐值零變化 — .leaflet-bottom.leaflet-right: [679,595,328,89,"absolute","block"] → [840,595,167,89,"absolute","block"]
+FAIL L6/L7 webkit/桌面1280 對 b937719 逐值零變化 — .leaflet-bottom.leaflet-right: [935,557,328,89,"absolute","block"] → [1096,557,167,89,"absolute","block"]
+FAIL L6/L7 webkit/iPad直 對 b937719 逐值零變化 — .controls: [317,924,134,38,"absolute","flex"] → [317,904,134,38,"absolute","flex"] | .leaflet-bottom.leaflet-right: [493,896,275,14,"absolute","block"] → [627,952,141,14,"absolute","block"]
+PASS L9 相機判準分支分佈：行進中強判佔多數 — moving=0／dwell=0
+
+===== 33/91 =====
+
+未過 58 項：
+  L0 chromium/SE3橫 取得行駛中列車 — 深夜無台鐵車＝環境條件，非產品回歸
+  L0 chromium/13mini橫 取得行駛中列車 — 深夜無台鐵車＝環境條件，非產品回歸
+  L0 chromium/16橫 取得行駛中列車 — 深夜無台鐵車＝環境條件，非產品回歸
+  L0 chromium/11橫 取得行駛中列車 — 深夜無台鐵車＝環境條件，非產品回歸
+  L0 chromium/16ProMax橫 取得行駛中列車 — 深夜無台鐵車＝環境條件，非產品回歸
+  L0 chromium/17ProMax橫 取得行駛中列車 — 深夜無台鐵車＝環境條件，非產品回歸
+  F0 chromium 取得行駛中列車 — 深夜無台鐵車＝環境條件
+  L10 chromium 橫式常態基準 — 深夜無台鐵車＝環境條件
+  L10 chromium/small 取得行駛中列車 — 深夜無台鐵車＝環境條件
+  L10 chromium/medium 取得行駛中列車 — 深夜無台鐵車＝環境條件
+  L13 chromium/SE3橫 環境：有行駛中的台鐵車可跟 — 深夜無車＝環境條件，不是產品回歸
+  L13 chromium/13mini橫 環境：有行駛中的台鐵車可跟 — 深夜無車＝環境條件，不是產品回歸
+  L13 chromium/16橫 環境：有行駛中的台鐵車可跟 — 深夜無車＝環境條件，不是產品回歸
+  L13 chromium/11橫 環境：有行駛中的台鐵車可跟 — 深夜無車＝環境條件，不是產品回歸
+  L13 chromium/16ProMax橫 環境：有行駛中的台鐵車可跟 — 深夜無車＝環境條件，不是產品回歸
+  L13 chromium/17ProMax橫 環境：有行駛中的台鐵車可跟 — 深夜無車＝環境條件，不是產品回歸
+  L15b chromium 動態島清單每一項都真的被量到 — 從沒量到：頂列、時鐘、分頁列按鈕、停靠站名牌、跟隨鎖、動作列、站台帶、側欄
+  P4 chromium/medium 取得行駛中列車 — 深夜無台鐵車＝環境條件
+  V1 chromium 取得行駛中列車 — 深夜無台鐵車＝環境條件
+  V4 chromium/std 取得行駛中列車 — 深夜無台鐵車＝環境條件
+  V4 chromium/large 取得行駛中列車 — 深夜無台鐵車＝環境條件
+  V4 chromium/xlarge 取得行駛中列車 — 深夜無台鐵車＝環境條件
+  L5 chromium/13mini直 取得行駛中列車 — 深夜無台鐵車＝環境條件
+  L5 chromium/16直 取得行駛中列車 — 深夜無台鐵車＝環境條件
+  L5 chromium/11直 取得行駛中列車 — 深夜無台鐵車＝環境條件
+  L9 chromium 直向條件式判準的分支分佈 — 列車看得見=0（期望 6：375/393/414 各兩個面板）、maxBounds夾死=0（期望 0）
+  L6/L7 chromium/iPad橫 對 b937719 逐值零變化 — .leaflet-bottom.leaflet-right: [679,595,328,89,"absolute","block"] → [840,595,167,89,"absolute","block"]
+  L6/L7 chromium/桌面1280 對 b937719 逐值零變化 — .leaflet-bottom.leaflet-right: [935,557,328,89,"absolute","block"] → [1096,557,167,89,"absolute","block"]
+  L6/L7 chromium/iPad直 對 b937719 逐值零變化 — .controls: [322,921,125,41,"absolute","flex"] → [322,901,125,41,"absolute","flex"] | .leaflet-bottom.leaflet-right: [493,896,275,14,"absolute","block"] → [627,952,141,14,"absolute","block"]
+  L0 webkit/SE3橫 取得行駛中列車 — 深夜無台鐵車＝環境條件，非產品回歸
+  L0 webkit/13mini橫 取得行駛中列車 — 深夜無台鐵車＝環境條件，非產品回歸
+  L0 webkit/16橫 取得行駛中列車 — 深夜無台鐵車＝環境條件，非產品回歸
+  L0 webkit/11橫 取得行駛中列車 — 深夜無台鐵車＝環境條件，非產品回歸
+  L0 webkit/16ProMax橫 取得行駛中列車 — 深夜無台鐵車＝環境條件，非產品回歸
+  L0 webkit/17ProMax橫 取得行駛中列車 — 深夜無台鐵車＝環境條件，非產品回歸
+  F0 webkit 取得行駛中列車 — 深夜無台鐵車＝環境條件
+  L10 webkit 橫式常態基準 — 深夜無台鐵車＝環境條件
+  L10 webkit/small 取得行駛中列車 — 深夜無台鐵車＝環境條件
+  L10 webkit/medium 取得行駛中列車 — 深夜無台鐵車＝環境條件
+  L13 webkit/SE3橫 環境：有行駛中的台鐵車可跟 — 深夜無車＝環境條件，不是產品回歸
+  L13 webkit/13mini橫 環境：有行駛中的台鐵車可跟 — 深夜無車＝環境條件，不是產品回歸
+  L13 webkit/16橫 環境：有行駛中的台鐵車可跟 — 深夜無車＝環境條件，不是產品回歸
+  L13 webkit/11橫 環境：有行駛中的台鐵車可跟 — 深夜無車＝環境條件，不是產品回歸
+  L13 webkit/16ProMax橫 環境：有行駛中的台鐵車可跟 — 深夜無車＝環境條件，不是產品回歸
+  L13 webkit/17ProMax橫 環境：有行駛中的台鐵車可跟 — 深夜無車＝環境條件，不是產品回歸
+  L15b webkit 動態島清單每一項都真的被量到 — 從沒量到：頂列、時鐘、分頁列按鈕、停靠站名牌、跟隨鎖、動作列、站台帶、側欄
+  P4 webkit/medium 取得行駛中列車 — 深夜無台鐵車＝環境條件
+  V1 webkit 取得行駛中列車 — 深夜無台鐵車＝環境條件
+  V4 webkit/std 取得行駛中列車 — 深夜無台鐵車＝環境條件
+  V4 webkit/large 取得行駛中列車 — 深夜無台鐵車＝環境條件
+  V4 webkit/xlarge 取得行駛中列車 — 深夜無台鐵車＝環境條件
+  L5 webkit/13mini直 取得行駛中列車 — 深夜無台鐵車＝環境條件
+  L5 webkit/16直 取得行駛中列車 — 深夜無台鐵車＝環境條件
+  L5 webkit/11直 取得行駛中列車 — 深夜無台鐵車＝環境條件
+  L9 webkit 直向條件式判準的分支分佈 — 列車看得見=0（期望 6：375/393/414 各兩個面板）、maxBounds夾死=0（期望 0）
+  L6/L7 webkit/iPad橫 對 b937719 逐值零變化 — .leaflet-bottom.leaflet-right: [679,595,328,89,"absolute","block"] → [840,595,167,89,"absolute","block"]
+  L6/L7 webkit/桌面1280 對 b937719 逐值零變化 — .leaflet-bottom.leaflet-right: [935,557,328,89,"absolute","block"] → [1096,557,167,89,"absolute","block"]
+  L6/L7 webkit/iPad直 對 b937719 逐值零變化 — .controls: [317,924,134,38,"absolute","flex"] → [317,904,134,38,"absolute","flex"] | .leaflet-bottom.leaflet-right: [493,896,275,14,"absolute","block"] → [627,952,141,14,"absolute","block"]
