@@ -187,10 +187,22 @@ enum MetroWaitStarter {
         // 精度誠實:北捷帶 nextEta(絕對時刻),分鐘級系統帶 nextMinutes,不互相換算。
         st.nextEta = a.etaEpoch
         st.nextMinutes = a.minutes
-        st.secondEta = b?.etaEpoch
-        st.secondMinutes = b?.minutes
         st.nextDest = a.dest
-        st.secondDest = b?.dest
+        if let b, b.approx, let e2 = b.etaEpoch {
+            // 🔴 approx 列(伺服端 eta2「約 N 分」推導)的 etaEpoch 是投影值,不是官方站牌原文——
+            //    照抄進 secondEta 會被 MetroWaitActivity 的 .until 畫成 mm:ss 秒級倒數,冒充
+            //    官方精度。小工具側在 MetroCountdown 就攔掉了(approx 分支先於秒級),這裡是
+            //    同一條規則的卡片版:折成整分鐘走 approxMinutes、secondEta 一律留空。
+            //    上面的鮮度過濾保證 e2 > now ⇒ m ≥ 1;防禦性再擋一次——次班表達不了「進站」,
+            //    與其畫「約 0 分」不如整行不畫。
+            let m = Int(ceil((e2 - now) / 60))
+            st.secondMinutes = m >= 1 ? m : nil
+            st.secondDest = m >= 1 ? b.dest : nil
+        } else {
+            st.secondEta = b?.etaEpoch
+            st.secondMinutes = b?.minutes
+            st.secondDest = b?.dest
+        }
         st.crowd = a.crowd            // 官方沒給就是 nil,不補零、不猜(逐列各自對回自己那台車)
         st.dataAt = snap.dataAt
         // notice 與 pushed 一律不寫:前者是網頁端才有的整句文案,後者要等伺服器真的推過才算數。

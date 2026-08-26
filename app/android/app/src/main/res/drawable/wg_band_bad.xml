@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 狀態 5 的警示帶：左邊一條紅、底色淡紅。紅【只】給真異常（設計稿明文）。 -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="7dp" />
+            <solid android:color="@color/wg_bad" />
+        </shape>
+    </item>
+    <item android:left="3dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="7dp" />
+            <solid android:color="@color/wg_bad_wash" />
+        </shape>
+    </item>
+</layer-list>

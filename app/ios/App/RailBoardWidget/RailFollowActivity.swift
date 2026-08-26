@@ -2,245 +2,333 @@ import ActivityKit
 import SwiftUI
 import WidgetKit
 
-private func delayText(_ sec: Int) -> String {
-    if sec >= 60 { return "誤點 \(sec / 60) 分" }
-    if sec <= -60 { return "早到 \(-sec / 60) 分" }
-    return "準點"
-}
+// MARK: - 版面的輸入（純值）
 
-// 車種代表色。來源是班表裡那台車自己的 color(#RRGGBB),與地圖上畫的是同一個值。
-// 🔴 解析不出來就回 nil,呼叫端一律有不帶顏色的版面可走——絕不用「猜一個顏色」兜底:
-//    卡片上出現一個與地圖不一致的顏色,比沒有顏色更難察覺也更誤導。
-private func railColor(_ hex: String?) -> Color? {
-    guard var s = hex?.trimmingCharacters(in: .whitespacesAndNewlines), !s.isEmpty else { return nil }
-    if s.hasPrefix("#") { s.removeFirst() }
-    guard s.count == 6, let v = UInt32(s, radix: 16) else { return nil }
-    return Color(.sRGB, red: Double((v >> 16) & 0xFF) / 255,
-                        green: Double((v >> 8) & 0xFF) / 255,
-                        blue: Double(v & 0xFF) / 255)
-}
+/// 跟車卡版面吃的東西，全部是純值（理由見 MetroWaitDisplay 的型別註解：
+/// ActivityViewContext 在算繪 harness 裡構造不出來，版面直接讀 context 就等於永遠看不見）。
+struct RailFollowDisplay {
+    let kind: String
+    let trainNo: String
+    let color: Color?
+    let inkColor: Color?
+    let terminus: String
+    /// 「下一站」／「目前」——停靠中時車就在這一站，叫它「下一站」是錯的。
+    let stopLabel: String
+    let stopName: String
+    /// 主角倒數。停靠中是 nil（車已經到了，沒有倒數可言）。
+    let countdown: RailCountdown?
+    /// 誤點分鐘（0＝準點、負＝早到）。固定放第一行最右，13pt 文字、不做膠囊。
+    let delayMinutes: Int
+    let track: ClosedRange<Date>?
+    /// 軌道填色比例（0…1），與 track 同一段。給沒有 track 可用時與算繪 harness 用。
+    let progress: Double
+    let phase: RailSpineTrack.Phase
+    /// 軌道左端：「臺北 11:35」（上一站＋發車時刻）。始發站時 nil，該處留白不畫佔位符。
+    let originLabel: String?
+    /// 軌道右端：「板橋 11:42」（下一站＋預計到站）。算不出 ETA 時只有站名。
+    let targetLabel: String
+    /// 底部狀態詞：行駛中／即將進站／停靠中／資料未更新。
+    let stateWord: String
+    /// 資料過期（見 staleGraceSeconds）⇒ 全卡降到 62%，與候車卡同一條規則。
+    let expired: Bool
+    let notice: String?
 
-// 同一個色在深底上當【文字】用會偏暗(自強 #C0392B 尤其明顯),往白色混三成再用。
-// 圓點與進度條維持原色——那是色塊,不需要提亮,提了反而與地圖對不起來。
-private func railInkColor(_ hex: String?) -> Color? {
-    guard var s = hex?.trimmingCharacters(in: .whitespacesAndNewlines), !s.isEmpty else { return nil }
-    if s.hasPrefix("#") { s.removeFirst() }
-    guard s.count == 6, let v = UInt32(s, radix: 16) else { return nil }
-    let mix = { (c: UInt32) -> Double in
-        let base = Double(c) / 255
-        return base + (1 - base) * 0.35
+    /// 即將進站的門檻。臺鐵的 ETA 是分鐘級（TDX），畫秒數是假精度 ⇒ 不足一分鐘一律
+    /// 收斂成「進站」，與 widget 那一側同一條分界（RailCountdown.Surface.widget）。
+    static let arrivingSeconds: Double = 60
+
+    /// 資料過期的寬限。定義與理由在 `RailFollowStale`（那個檔同屬 App 與 widget 兩個 target，
+    /// 所以「設 staleDate 的人」與「畫過期樣式的人」拿的是同一個值）。
+    static var staleGraceSeconds: Double { RailFollowStale.graceSeconds }
+
+    static func make(
+        kind: String, trainNo: String, colorHex: String?, terminus: String,
+        nextStop: String, prevStop: String?,
+        arrivalDate: Double?, departedDate: Double?,
+        delaySec: Int, stopping: Bool, notice: String?, isStale: Bool, now: Date
+    ) -> RailFollowDisplay {
+        let nowSec = now.timeIntervalSince1970
+        let left = arrivalDate.map { $0 - nowSec }
+
+        // 過期的兩條路，任一成立就算過期：
+        // 1. `isStale`：ActivityKit 依 staleDate 翻的旗標。🔴 它才是【零推播】情境唯一有效的
+        //    那一條——下面第 2 條要「有人重繪」才會被算到一次，而零推播正好就是沒有重繪
+        //    （實機症狀：到站時刻過去之後，卡片停在「0 秒／行駛中」直到下一發推播進來）。
+        //    staleDate 到期會讓系統主動重繪一次，這個分支就是那一次重繪要顯示的東西。
+        // 2. 到站時刻早就過去（代理指標，見 RailFollowStale.graceSeconds）：涵蓋
+        //    「有在重繪、但手上內容已經舊了」，例如前景每分鐘 update 卻拿不到新 ETA。
+        //    刻意保留兩條而不是只留 isStale：staleDate 是 nil 的舊卡（App 更新前開的）沒有第 1 條。
+        let stale = isStale || (!stopping && (left.map { $0 < -RailFollowStale.graceSeconds } ?? false))
+
+        let countdown: RailCountdown?
+        if stopping {
+            countdown = nil
+        } else if stale {
+            // 設計稿：唯一會拿掉主角數字的狀態。凍住的「0 分」比空白更糟——它看起來還在跑。
+            countdown = .noData
+        } else if let left, let a = arrivalDate {
+            // 🔴 分界仍是 60 秒（＝`.widget` 那條）：**不是**因為這裡是 widget，而是因為臺鐵 ETA
+            //    只有分鐘級，不足一分鐘顯示「37 秒」等於把 ±2 分的推估講成秒級精度。
+            // 🔴 ≥60 秒交給 `.until`（自走）而不是 `.minutes`（算好的死數字）：
+            //    這張卡在交班給伺服器之後就沒有本機 update 了，而伺服器「四個量都沒變就不推」
+            //    ⇒ 準點車跑完整段可以零推播。`.minutes` 會凍在最後一次推播算出的分鐘數，
+            //    旁邊的進度條卻自己爬到 90%——使用者實機回報的正是這個畫面。
+            //    <60 秒維持 `.arriving`：實心「進站」色塊是重繪時才畫得出的形態（見 railLiveCountdownStyle）。
+            countdown = left < arrivingSeconds ? .arriving
+                                               : .until(Date(timeIntervalSince1970: a))
+        } else {
+            // 算不出 ETA ⇒ 不畫 0、不畫 1970，整個倒數不出現。
+            countdown = nil
+        }
+
+        let phase: RailSpineTrack.Phase
+        if stopping { phase = .stopping }
+        else if stale { phase = .running }   // 過期不准畫成「即將進站」的綠點
+        else if let left, left < arrivingSeconds { phase = .arriving }
+        else { phase = .running }
+
+        var track: ClosedRange<Date>?
+        var progress: Double = 0
+        if let from = departedDate, let to = arrivalDate, to > from {
+            track = Date(timeIntervalSince1970: from)...Date(timeIntervalSince1970: to)
+            progress = min(1, max(0, (nowSec - from) / (to - from)))
+        } else if arrivalDate != nil {
+            // 只有到站時刻、沒有上一站發車時刻（始發站）：填色沒有起點可算，不假造中間值。
+            progress = stopping ? 1 : 0
+        }
+        if stale { track = nil }   // 過期就不要那條會自己走的填色條，它會繼續往前爬
+
+        // 🔴 軌道畫的是【上一站 → 下一站】這一段，不是設計稿那條「起站 → 終點」的全程線：
+        //    全程線要起站發車與終點到達兩個時刻，卡片的 state 裡沒有（只有 departedDate
+        //    與 arrivalDate 這一段）。畫成全程等於把一段的進度謊稱成全程的進度。
+        //    終點站的名字沒有損失——它就在第一行「往 臺東」那裡。
+        let originLabel: String? = prevStop.map { name in
+            guard let d = departedDate else { return name }
+            return "\(name) \(RailBoardClock.updateTimeString(Date(timeIntervalSince1970: d)))"
+        }
+        var targetLabel = nextStop
+        if let a = arrivalDate {
+            let t = RailBoardClock.updateTimeString(Date(timeIntervalSince1970: a))
+            targetLabel = stopping ? "\(nextStop) \(t) 到" : "\(nextStop) \(t)"
+        }
+
+        let word: String
+        if stale {
+            // 不寫「行駛中」——那是在宣稱一件我們已經不知道的事。
+            word = "資料未更新"
+        } else {
+            switch phase {
+            case .stopping: word = "停靠中"
+            case .arriving: word = "即將進站"
+            case .running:  word = "行駛中"
+            }
+        }
+
+        return RailFollowDisplay(
+            kind: kind, trainNo: trainNo,
+            color: RailHex.color(colorHex), inkColor: RailHex.ink(colorHex),
+            terminus: terminus,
+            stopLabel: stopping ? "目前" : "下一站", stopName: nextStop,
+            countdown: countdown, delayMinutes: delaySec / 60,
+            track: track, progress: progress, phase: phase,
+            originLabel: originLabel, targetLabel: targetLabel,
+            stateWord: word, expired: stale, notice: RailHex.trimmed(notice)
+        )
     }
-    return Color(.sRGB, red: mix((v >> 16) & 0xFF), green: mix((v >> 8) & 0xFF), blue: mix(v & 0xFF))
+}
+
+// MARK: - 鎖定畫面／橫幅
+
+/// 設計稿 D：「狀態差異只做在三個地方：倒數的形態、軌脊上列車點的形狀、底部狀態詞。
+/// 位置與版面完全不動，所以連續看不會跳。」
+/// 「誤點固定放在第一行最右，永遠是 13pt 橘色文字，不做膠囊、不進主角區。」
+struct RailFollowLockView: View {
+    let display: RailFollowDisplay
+    var scale: RailScale = RailScale(k: 1)
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: scale.pt(4)) {
+            HStack(spacing: scale.pt(6)) {
+                RailTrainMark(kind: display.kind, number: display.trainNo,
+                              color: display.color, fontSize: 12, numberSize: 15, scale: scale)
+                Text("往 \(display.terminus)")
+                    .font(.system(size: scale.pt(13)))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1).minimumScaleFactor(0.8)
+                Spacer(minLength: scale.pt(4))
+                RailStatusTag(kind: .delay(display.delayMinutes), fontSize: 13, scale: scale)
+            }
+
+            HStack(alignment: .center, spacing: scale.pt(8)) {
+                // 🔴 `stopLabel`（下一停靠站／終點站…）刻意跟站名同一列，不獨立一列：
+                //    鎖屏 Live Activity 只有 160pt 高（官方：超過就被系統截掉），而這張卡
+                //    量到 162–180pt ⇒ 使用者看到的是上下緣被切掉。動態島那版本來就是這樣排
+                //    （見下方 RailFollowIslandBottom），兩處一致。
+                Text(display.stopLabel)
+                    .font(.system(size: scale.pt(11)))
+                    .foregroundStyle(.secondary)
+                Text(display.stopName)
+                    .font(.system(size: scale.pt(26), weight: .semibold))
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                Spacer(minLength: scale.pt(4))
+                if let c = display.countdown {
+                    RailCountdownText(value: c, size: .heroCard, scale: scale)
+                } else if display.phase == .stopping {
+                    // 停靠中沒有倒數，但整列抽掉會讓版面在進站那一瞬間塌一列 ⇒ 用同一個
+                    // 實心色塊承接（RailCountdownText 的 .arriving 就是設計稿唯一的實心形態）。
+                    RailCountdownText(value: .arriving, size: .heroCard,
+                                      arrivingWord: "停靠中", scale: scale)
+                }
+            }
+
+            RailSpineTrack(interval: display.track,
+                           progress: display.progress,
+                           phase: display.phase,
+                           lineColor: display.color, scale: scale)
+
+            HStack(spacing: scale.pt(8)) {
+                Text(display.originLabel ?? "")
+                Spacer(minLength: scale.pt(6))
+                Text(display.targetLabel)
+            }
+            .font(.system(size: scale.pt(11)))
+            .foregroundStyle(.tertiary)
+            .monospacedDigit()
+            .lineLimit(1)
+
+            // 狀態詞與通知同一列：兩者都是 11pt 的一句話，分兩列會讓有通知的狀態多吃 18pt，
+            // 那正是 160pt 上限唯一守不住的狀態（量到 180pt）。狀態詞短、通知長，通知吃剩下的寬。
+            HStack(alignment: .firstTextBaseline, spacing: scale.pt(6)) {
+                Text(display.stateWord)
+                    .font(.system(size: scale.pt(11)))
+                    .foregroundStyle(.secondary)
+                if let notice = display.notice {
+                    // 🔴 文案整句由後端決定（改字不必重出 App）。
+                    Text("⚠ " + notice)
+                        .font(.system(size: scale.pt(11), weight: .medium))
+                        .foregroundStyle(.orange)
+                        .lineLimit(2).minimumScaleFactor(0.85)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+        }
+        .padding(.horizontal, scale.pt(14))
+        .padding(.vertical, scale.pt(10))
+        // 設計稿：資料過期時「整張卡降到 secondary」。與候車卡同一個值，不然同一件事在兩張卡上
+        // 長得不一樣，使用者要學兩次。
+        .opacity(display.expired ? 0.62 : 1)
+    }
+}
+
+// MARK: - 動態島
+
+struct RailFollowIslandBottom: View {
+    let display: RailFollowDisplay
+    var scale: RailScale = RailScale(k: 1)
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: scale.pt(4)) {
+            HStack(alignment: .center, spacing: scale.pt(6)) {
+                Text(display.stopLabel)
+                    .font(.system(size: scale.pt(10)))
+                    .foregroundStyle(.secondary)
+                Text(display.stopName)
+                    .font(.system(size: scale.pt(19), weight: .semibold))
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                Spacer(minLength: scale.pt(4))
+                if let c = display.countdown {
+                    RailCountdownText(value: c, size: .row, scale: scale)
+                } else if display.phase == .stopping {
+                    RailCountdownText(value: .arriving, size: .row,
+                                      arrivingWord: "停靠", scale: scale)
+                }
+            }
+            RailSpineTrack(interval: display.track,
+                           progress: display.progress,
+                           phase: display.phase,
+                           lineColor: display.color, scale: scale)
+            HStack(spacing: scale.pt(8)) {
+                Text(display.originLabel ?? "")
+                Spacer(minLength: scale.pt(6))
+                Text(display.targetLabel)
+            }
+            .font(.system(size: scale.pt(10)))
+            .foregroundStyle(.tertiary)
+            .monospacedDigit().lineLimit(1)
+            if display.notice != nil {
+                // 🔴 動態島塞不下後端那一整句（會爆版），這裡用寫死的短標。
+                //    compact 與 minimal 刻意不動——那兩個版面連站名都只放得下兩三個字。
+                Text("⚠ 資料中斷・位置為預估")
+                    .font(.system(size: scale.pt(10)))
+                    .foregroundStyle(.orange).lineLimit(1)
+            }
+        }
+        // 🔴 展開版面的下緣是圓角，系統預設內距沒有替圓角讓路 ⇒ 最後一列會被切掉
+        //    （實機 1.4.1(30) 實測：「基隆」左半不見、「往 花蓮」下緣被削掉一截）。
+        .padding(.horizontal, scale.pt(10))
+        .padding(.bottom, scale.pt(6))
+    }
 }
 
 @available(iOS 17.6, *)
 struct RailFollowActivityWidget: Widget {
-    // 距下一站的進度。兩端都有值才畫——系統會逐幀自走,不需要推播。
-    // 🔴 ProgressView(timerInterval:) 與 Text(timerInterval:) 是【唯二】會自己動的元件;
-    //    withAnimation/.repeatForever 等修飾子被系統忽略(ActivityKit 文件明文),跑馬燈做不到。
-    //    這也是為什麼進度條值得特地放進動態島展開版面:它是那裡唯一能「在跑」的東西。
-    // 🔴 修復輪次2:入參從 Date? 改 Double?(epoch 秒,對應後端 Math.floor(epochMs/1000) 送的
-    //    Unix epoch)。Date 轉換收斂在這裡(唯一的 view 層),用 timeIntervalSince1970——
-    //    不要用 Date(timeIntervalSinceReferenceDate:),那是 2001 年零點,對應到錯誤的年份。
-    // 🔴 這支【不能】標 @ViewBuilder:body 裡有顯式 return,而 result builder 的 body
-    //    不允許 explicit return(編譯期直接報錯)。改成自己回一個 Group,分支交給 Group 的
-    //    builder 處理,行為完全相同。
-    private func progress(_ fromSec: Double?, _ toSec: Double?, tint: Color?, stopping: Bool) -> some View {
-        let from = fromSec.map { Date(timeIntervalSince1970: $0) }
-        let to = toSec.map { Date(timeIntervalSince1970: $0) }
-        return Group {
-            if stopping {
-                // 停靠中沒有「往下一站的進度」可跑,但整條抽掉會讓版面在進站那一瞬間塌掉一列。
-                // 畫成滿格的靜態條:語意是對的(這一段已經跑完),高度也不跳。
-                ProgressView(value: 1).labelsHidden().tint(tint ?? .white)
-            } else if let from, let to, to > from, to > Date() {
-                ProgressView(timerInterval: from...to, countsDown: false)
-                    .labelsHidden().tint(tint ?? .white)
-            }
-        }
-    }
-
-    // 🔴 倒數只在真的有 ETA 時才畫。arrivalDate 為 nil ⇒ 整列不畫(不是畫 0、不是畫 1970)。
-    // 🔴 修復輪次3:入參從 Date? 改 Double?,理由與 progress() 相同(見上方)。
-    @ViewBuilder
-    private func countdown(_ dateSec: Double?, maxWidth: CGFloat) -> some View {
-        let date = dateSec.map { Date(timeIntervalSince1970: $0) }
-        if let date, date > Date() {
-            Text(timerInterval: Date()...date, countsDown: true)
-                .monospacedDigit().frame(maxWidth: maxWidth)
-        }
-    }
-
-    // 上游即時資料中斷的告知。空字串視同沒有——後端正常時送 null,但不要讓「送了空字串」
-    // 變成一行看不見的空白把版面撐開。
-    private func noticeText(_ raw: String?) -> String? {
-        guard let raw, !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
-        return raw
-    }
-
-    // 車種識別列(色點＋車種＋車次)。鎖定畫面與動態島共用同一個組件,兩處看起來才是同一張卡。
-    @ViewBuilder
-    private func ident(_ attrs: RailFollowAttributes, size: CGFloat) -> some View {
-        HStack(spacing: 5) {
-            if let c = railColor(attrs.color) {
-                Circle().fill(c).frame(width: size * 0.62, height: size * 0.62)
-            }
-            Text(attrs.kind)
-                .font(.system(size: size, weight: .semibold))
-                .foregroundStyle(railInkColor(attrs.color) ?? .primary)
-            Text(attrs.trainNo)
-                .font(.system(size: size)).foregroundStyle(.secondary)
-                .monospacedDigit()
-        }
-        .lineLimit(1)
-    }
-
-    // 「停靠中」徽章。綠色是刻意的:它表達的是「可以上下車」而不是車種,用車種色會與識別列打架。
-    private var stoppingBadge: some View {
-        Text("停靠中")
-            .font(.system(size: 12, weight: .bold))
-            .foregroundStyle(Color(.sRGB, red: 0.29, green: 0.87, blue: 0.50))
+    private func display(_ ctx: ActivityViewContext<RailFollowAttributes>) -> RailFollowDisplay {
+        RailFollowDisplay.make(
+            kind: ctx.attributes.kind, trainNo: ctx.attributes.trainNo,
+            colorHex: ctx.attributes.color, terminus: ctx.state.terminus,
+            nextStop: ctx.state.nextStop, prevStop: ctx.state.prevStop,
+            arrivalDate: ctx.state.arrivalDate, departedDate: ctx.state.departedDate,
+            delaySec: ctx.state.delaySec, stopping: ctx.state.stopping ?? false,
+            notice: ctx.state.notice,
+            // 🔴 這張卡的 staleDate 是「預計到站＋寬限」（RailLiveActivityPlugin／worker 兩側
+            //    都送同一個值）⇒ isStale 的語意就是「資料過期」。候車卡的 staleDate 是
+            //    「下一班到站整點」，那裡的 isStale 語意是「列車進站」——兩張卡不可互抄。
+            isStale: ctx.isStale, now: Date()
+        )
     }
 
     var body: some WidgetConfiguration {
-        ActivityConfiguration(for: RailFollowAttributes.self) { context in
-            // ── 鎖定畫面 / 橫幅 ──
-            let stopping = context.state.stopping ?? false
-            VStack(alignment: .leading, spacing: 5) {
-                HStack(alignment: .center) {
-                    ident(context.attributes, size: 13)
-                    Spacer(minLength: 8)
-                    if stopping {
-                        stoppingBadge
-                    } else {
-                        countdown(context.state.arrivalDate, maxWidth: 92)
-                            .font(.system(.title2, design: .rounded))
-                            .contentTransition(.numericText())
-                    }
-                }
-                HStack(alignment: .firstTextBaseline, spacing: 7) {
-                    // 停靠中時標籤改成「目前」——車就在這一站,叫它「下一站」是錯的。
-                    Text(stopping ? "目前" : "下一站")
-                        .font(.caption2).foregroundStyle(.secondary)
-                    Text(context.state.nextStop).font(.title3).fontWeight(.bold)
-                    Spacer(minLength: 6)
-                    Text(delayText(context.state.delaySec))
-                        .font(.caption2).foregroundStyle(.secondary)
-                }
-                progress(context.state.departedDate, context.state.arrivalDate,
-                         tint: railColor(context.attributes.color), stopping: stopping)
-                // 進度條的兩端:左＝從哪來、右＝往哪去。沒有上一站(始發站)時左邊留白,不畫佔位符。
-                HStack {
-                    Text(context.state.prevStop ?? "")
-                    Spacer(minLength: 8)
-                    Text("往 \(context.state.terminus)")
-                }
-                .font(.caption2).foregroundStyle(.tertiary).lineLimit(1)
-                // 🔴 文案整句由後端決定(改字不必重出 App)。橘色在鎖定畫面的深淺兩種底
-                //    都讀得到,且與既有的 .secondary 灰明顯分得開;放在最後一列,站名與
-                //    倒數的版面完全不動(橫幅高度自適應)。
-                if let notice = noticeText(context.state.notice) {
-                    Text(notice)
-                        .font(.caption2).foregroundStyle(.orange)
-                        .lineLimit(2).minimumScaleFactor(0.85)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            .padding()
-            .activityBackgroundTint(Color.black.opacity(0.35))
-        } dynamicIsland: { context in
-            let stopping = context.state.stopping ?? false
+        ActivityConfiguration(for: RailFollowAttributes.self) { ctx in
+            RailFollowLockView(display: display(ctx))
+                .activityBackgroundTint(Color.black.opacity(0.35))
+        } dynamicIsland: { ctx in
+            let d = display(ctx)
             return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    ident(context.attributes, size: 13).padding(.leading, 4)
+                    RailTrainMark(kind: d.kind, number: d.trainNo, color: d.color,
+                                  fontSize: 11, numberSize: 13)
+                        .padding(.leading, 4)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    // 停靠中沒有倒數可言(車已經到了),改掛徽章;不留空白讓版面塌掉。
-                    Group {
-                        if stopping {
-                            stoppingBadge
-                        } else {
-                            countdown(context.state.arrivalDate, maxWidth: 66).font(.caption)
-                                .contentTransition(.numericText())
-                        }
-                    }
-                    .padding(.trailing, 4)
+                    RailStatusTag(kind: .delay(d.delayMinutes), fontSize: 11)
+                        .padding(.trailing, 4)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        HStack(alignment: .firstTextBaseline, spacing: 6) {
-                            Text(stopping ? "目前" : "下一站")
-                                .font(.system(size: 10)).foregroundStyle(.secondary)
-                            Text(context.state.nextStop)
-                                .font(.system(size: 19, weight: .bold)).lineLimit(1)
-                            Spacer(minLength: 6)
-                            Text(delayText(context.state.delaySec))
-                                .font(.system(size: 10)).foregroundStyle(.secondary)
-                        }
-                        // 🔴 這條進度條是展開版面唯一會自己動的東西(見 progress() 的註解)。
-                        //    原本只畫在鎖定畫面,動態島一格都沒有 ⇒ 展開後整個版面是靜止的。
-                        progress(context.state.departedDate, context.state.arrivalDate,
-                                 tint: railColor(context.attributes.color), stopping: stopping)
-                        HStack {
-                            Text(context.state.prevStop ?? "")
-                            Spacer(minLength: 8)
-                            Text("往 \(context.state.terminus)")
-                        }
-                        .font(.system(size: 10)).foregroundStyle(.tertiary).lineLimit(1)
-                        // 🔴 動態島塞不下後端那一整句(會爆版),這裡用寫死的短標。
-                        //    compact 與 minimal 刻意不動——那兩個版面連站名都只放得下兩三個字。
-                        if noticeText(context.state.notice) != nil {
-                            Text("資料中斷・位置為預估")
-                                .font(.system(size: 10)).foregroundStyle(.orange).lineLimit(1)
-                        }
-                    }
-                    // 🔴 展開版面的下緣是【圓角】,系統給的預設內距沒有替圓角讓路 ⇒ 最後一列會被
-                    //    切掉(實機 1.4.1(30) 實測:「基隆」左半不見、「往 花蓮」下緣被削掉一截)。
-                    //    往內縮＋留下緣間距,把最後一列推離圓角的切線;上面幾列本來就離角很遠,
-                    //    一起內縮只是讓整塊看起來對齊,不影響可讀性(那兩列的水平餘裕很多)。
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 6)
+                    RailFollowIslandBottom(display: d)
                 }
             } compactLeading: {
-                // 站名前兩字仍是這裡最有用的資訊(compact 是最常看到的狀態),只在前面補一顆
+                // 站名前兩字仍是這裡最有用的資訊（compact 是最常看到的狀態），前面補一顆
                 // 車種色點——多一個色點的成本遠低於少兩個字。
                 HStack(spacing: 3) {
-                    if let c = railColor(context.attributes.color) {
+                    if let c = d.color {
                         Circle().fill(c).frame(width: 6, height: 6)
                     }
-                    Text(context.state.nextStop.prefix(2))
+                    Text(d.stopName.prefix(2))
                 }
             } compactTrailing: {
                 Group {
-                    if stopping {
-                        Text("停靠").font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(Color(.sRGB, red: 0.29, green: 0.87, blue: 0.50))
-                    } else {
-                        countdown(context.state.arrivalDate, maxWidth: 44)
-                            .contentTransition(.numericText())
+                    if let c = d.countdown {
+                        RailCountdownText(value: c, size: .minor)
+                    } else if d.phase == .stopping {
+                        RailCountdownText(value: .arriving, size: .minor, arrivingWord: "停靠")
                     }
                 }
+                .frame(maxWidth: 52)
             } minimal: {
-                // 被其他活動(背景音樂的「正在播放」等)擠到最小時的取捨(2026-08-10 使用者裁示):
-                // 「車站倒數才是重點」——上行站名兩字、下行到站倒數(自走,不吃推播頻率);
-                // 停靠中換綠色「停靠」;站名空缺才退回車次。倒數沒有 ETA 時整行不畫,只剩站名。
-                let stopping = context.state.stopping ?? false
-                VStack(spacing: 0) {
-                    Text(context.state.nextStop.isEmpty ? context.attributes.trainNo.prefix(3)
-                                                        : context.state.nextStop.prefix(2))
-                        .font(.system(size: 9, weight: .semibold))
-                    if stopping {
-                        Text("停靠")
-                            .font(.system(size: 8, weight: .bold))
-                            .foregroundStyle(Color(.sRGB, red: 0.29, green: 0.87, blue: 0.50))
-                    } else {
-                        countdown(context.state.arrivalDate, maxWidth: 38)
-                            .font(.system(size: 9))
-                            .contentTransition(.numericText())
-                    }
-                }
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
+                // 2026-08-10 使用者裁示：「車站倒數才是重點」⇒ minimal 只留倒數那一顆圓
+                // （設計稿：「環的顏色＝路線色，數字＝分鐘」）。
+                RailIslandMinimal(countdown: d.countdown ?? .arriving, color: d.color)
             }
         }
     }

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小工具的琺瑯色票。hex 全部照抄設計稿的 chip 值（TOKENS.md），不目視取色。
+     🔴 深色版在 values-night/：RemoteViews 的資源是由【桌面 launcher 的 configuration】解析的，
+        所以只要放 -night 就會跟著系統深淺模式走——設計稿的「琺瑯（亮）」與「夜行（暗）」是
+        同一個版型的兩種模式，不是兩個版型（兩個版型是 1a 站牌與 1b 看板）。 -->
+<resources>
+    <color name="wg_paper">#FDFBF4</color>
+    <color name="wg_paper_edge">#E4DAC0</color>
+    <color name="wg_shadow">#1F1A0F14</color>
+    <color name="wg_ink">#26497E</color>
+    <color name="wg_ink_soft">#5C6B7F</color>
+    <color name="wg_ink_faint">#8A8471</color>
+    <color name="wg_navy">#2A4A73</color>
+    <color name="wg_rule">#E0D7BE</color>
+    <color name="wg_ok">#1B8F4D</color>
+    <color name="wg_warn">#D2A12A</color>
+    <color name="wg_bad">#D23C2A</color>
+    <color name="wg_bad_wash">#FBEAE6</color>
+    <color name="wg_warn_wash">#FAF1DA</color>
+    <color name="wg_chip_wash">#EFE7CF</color>
+    <color name="wg_badge_ink">#3A3226</color>
+    <color name="wg_on_accent">#FFFFFF</color>
+    <color name="wg_meter_low">#1B8F4D</color>
+    <color name="wg_meter_mid">#D2A12A</color>
+    <color name="wg_meter_high">#D23C2A</color>
+    <color name="wg_meter_empty">#D8CFB6</color>
+</resources>

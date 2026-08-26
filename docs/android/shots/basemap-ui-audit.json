@@ -1,0 +1,770 @@
+{
+  "generatedAt": "2026-08-09T13:44:04.333Z",
+  "results": [
+    {
+      "mode": "light",
+      "viewport": {
+        "width": 412,
+        "height": 839,
+        "dpr": 2.625
+      },
+      "attribution": "Leaflet | 臺灣輪廓：內政部, © Stadia Maps © OpenMapTiles © OpenStreetMap",
+      "tilesByHost": {
+        "tiles.stadiamaps.com": {
+          "total": 8,
+          "loaded": 8
+        }
+      },
+      "controls": [
+        {
+          "key": "c0",
+          "label": "#alertChip",
+          "rect": {
+            "x": 164.78,
+            "y": 8,
+            "width": 38.29,
+            "height": 36
+          },
+          "centerHit": "c0",
+          "effectiveHit": {
+            "width": 44,
+            "height": 44
+          },
+          "clipped": false,
+          "below44": true,
+          "effectiveBelow44": false
+        },
+        {
+          "key": "c1",
+          "label": "全",
+          "rect": {
+            "x": 211.07,
+            "y": 8,
+            "width": 43.28,
+            "height": 36
+          },
+          "centerHit": "c1",
+          "effectiveHit": {
+            "width": 44,
+            "height": 44
+          },
+          "clipped": false,
+          "below44": true,
+          "effectiveBelow44": false
+        },
+        {
+          "key": "c2",
+          "label": "台",
+          "rect": {
+            "x": 260.35,
+            "y": 8,
+            "width": 43.28,
+            "height": 36
+          },
+          "centerHit": "c2",
+          "effectiveHit": {
+            "width": 44,
+            "height": 44
+          },
+          "clipped": false,
+          "below44": true,
+          "effectiveBelow44": false
+        },
+        {
+          "key": "c3",
+          "label": "高",
+          "rect": {
+            "x": 309.63,
+            "y": 8,
+            "width": 43.28,
+            "height": 36
+          },
+          "centerHit": "c3",
+          "effectiveHit": {
+            "width": 45,
+            "height": 44
+          },
+          "clipped": false,
+          "below44": true,
+          "effectiveBelow44": false
+        },
+        {
+          "key": "c4",
+          "label": "捷",
+          "rect": {
+            "x": 358.91,
+            "y": 8,
+            "width": 43.28,
+            "height": 36
+          },
+          "centerHit": "c4",
+          "effectiveHit": {
+            "width": 44,
+            "height": 44
+          },
+          "clipped": false,
+          "below44": true,
+          "effectiveBelow44": false
+        },
+        {
+          "key": "c5",
+          "label": "#randBtn",
+          "rect": {
+            "x": 191.67,
+            "y": 100,
+            "width": 101.26,
+            "height": 33.33
+          },
+          "centerHit": "c5",
+          "effectiveHit": {
+            "width": 101,
+            "height": 44
+          },
+          "clipped": false,
+          "below44": true,
+          "effectiveBelow44": false
+        },
+        {
+          "key": "c6",
+          "label": "#nearBtn",
+          "rect": {
+            "x": 300.93,
+            "y": 100,
+            "width": 101.26,
+            "height": 36
+          },
+          "centerHit": "c6",
+          "effectiveHit": {
+            "width": 102,
+            "height": 44
+          },
+          "clipped": false,
+          "below44": true,
+          "effectiveBelow44": false
+        },
+        {
+          "key": "c7",
+          "label": "#tabSearch",
+          "rect": {
+            "x": 4,
+            "y": 792.38,
+            "width": 80.84,
+            "height": 44
+          },
+          "centerHit": "c7",
+          "effectiveHit": {
+            "width": 81,
+            "height": 44
+          },
+          "clipped": false,
+          "below44": false,
+          "effectiveBelow44": false
+        },
+        {
+          "key": "c8",
+          "label": "#tabExplore",
+          "rect": {
+            "x": 84.84,
+            "y": 792.38,
+            "width": 80.84,
+            "height": 44
+          },
+          "centerHit": "c8",
+          "effectiveHit": {
+            "width": 81,
+            "height": 46
+          },
+          "clipped": false,
+          "below44": false,
+          "effectiveBelow44": false
+        },
+        {
+          "key": "c9",
+          "label": "#tabFav",
+          "rect": {
+            "x": 165.68,
+            "y": 792.38,
+            "width": 80.84,
+            "height": 44
+          },
+          "centerHit": "c9",
+          "effectiveHit": {
+            "width": 81,
+            "height": 44
+          },
+          "clipped": false,
+          "below44": false,
+          "effectiveBelow44": false
+        },
+        {
+          "key": "c10",
+          "label": "#tabRide",
+          "rect": {
+            "x": 246.52,
+            "y": 792.38,
+            "width": 80.84,
+            "height": 44
+          },
+          "centerHit": "c10",
+          "effectiveHit": {
+            "width": 80,
+            "height": 46
+          },
+          "clipped": false,
+          "below44": false,
+          "effectiveBelow44": false
+        },
+        {
+          "key": "c11",
+          "label": "#tabMore",
+          "rect": {
+            "x": 327.36,
+            "y": 792.38,
+            "width": 80.84,
+            "height": 44
+          },
+          "centerHit": "c11",
+          "effectiveHit": {
+            "width": 82,
+            "height": 46
+          },
+          "clipped": false,
+          "below44": false,
+          "effectiveBelow44": false
+        }
+      ],
+      "overlaps": [],
+      "expectedHost": "tiles.stadiamaps.com",
+      "summary": {
+        "modeMatches": true,
+        "tileTotal": 8,
+        "tileLoaded": 8,
+        "tilesPass": true,
+        "controlCount": 12,
+        "overlapCount": 0,
+        "centerHitFailures": [],
+        "clippedControls": [],
+        "below44Controls": [
+          "#alertChip",
+          "全",
+          "台",
+          "高",
+          "捷",
+          "#randBtn",
+          "#nearBtn"
+        ],
+        "effectiveBelow44Controls": []
+      }
+    },
+    {
+      "mode": "dark",
+      "viewport": {
+        "width": 412,
+        "height": 839,
+        "dpr": 2.625
+      },
+      "attribution": "Leaflet | 臺灣輪廓：內政部, © Stadia Maps © OpenMapTiles © OpenStreetMap",
+      "tilesByHost": {
+        "tiles.stadiamaps.com": {
+          "total": 8,
+          "loaded": 8
+        }
+      },
+      "controls": [
+        {
+          "key": "c0",
+          "label": "#alertChip",
+          "rect": {
+            "x": 164.78,
+            "y": 8,
+            "width": 38.29,
+            "height": 36
+          },
+          "centerHit": "c0",
+          "effectiveHit": {
+            "width": 44,
+            "height": 44
+          },
+          "clipped": false,
+          "below44": true,
+          "effectiveBelow44": false
+        },
+        {
+          "key": "c1",
+          "label": "全",
+          "rect": {
+            "x": 211.07,
+            "y": 8,
+            "width": 43.28,
+            "height": 36
+          },
+          "centerHit": "c1",
+          "effectiveHit": {
+            "width": 44,
+            "height": 44
+          },
+          "clipped": false,
+          "below44": true,
+          "effectiveBelow44": false
+        },
+        {
+          "key": "c2",
+          "label": "台",
+          "rect": {
+            "x": 260.35,
+            "y": 8,
+            "width": 43.28,
+            "height": 36
+          },
+          "centerHit": "c2",
+          "effectiveHit": {
+            "width": 44,
+            "height": 44
+          },
+          "clipped": false,
+          "below44": true,
+          "effectiveBelow44": false
+        },
+        {
+          "key": "c3",
+          "label": "高",
+          "rect": {
+            "x": 309.63,
+            "y": 8,
+            "width": 43.28,
+            "height": 36
+          },
+          "centerHit": "c3",
+          "effectiveHit": {
+            "width": 45,
+            "height": 44
+          },
+          "clipped": false,
+          "below44": true,
+          "effectiveBelow44": false
+        },
+        {
+          "key": "c4",
+          "label": "捷",
+          "rect": {
+            "x": 358.91,
+            "y": 8,
+            "width": 43.28,
+            "height": 36
+          },
+          "centerHit": "c4",
+          "effectiveHit": {
+            "width": 44,
+            "height": 44
+          },
+          "clipped": false,
+          "below44": true,
+          "effectiveBelow44": false
+        },
+        {
+          "key": "c5",
+          "label": "#randBtn",
+          "rect": {
+            "x": 191.67,
+            "y": 100,
+            "width": 101.26,
+            "height": 33.33
+          },
+          "centerHit": "c5",
+          "effectiveHit": {
+            "width": 101,
+            "height": 44
+          },
+          "clipped": false,
+          "below44": true,
+          "effectiveBelow44": false
+        },
+        {
+          "key": "c6",
+          "label": "#nearBtn",
+          "rect": {
+            "x": 300.93,
+            "y": 100,
+            "width": 101.26,
+            "height": 36
+          },
+          "centerHit": "c6",
+          "effectiveHit": {
+            "width": 102,
+            "height": 44
+          },
+          "clipped": false,
+          "below44": true,
+          "effectiveBelow44": false
+        },
+        {
+          "key": "c7",
+          "label": "#tabSearch",
+          "rect": {
+            "x": 4,
+            "y": 792.38,
+            "width": 80.84,
+            "height": 44
+          },
+          "centerHit": "c7",
+          "effectiveHit": {
+            "width": 81,
+            "height": 44
+          },
+          "clipped": false,
+          "below44": false,
+          "effectiveBelow44": false
+        },
+        {
+          "key": "c8",
+          "label": "#tabExplore",
+          "rect": {
+            "x": 84.84,
+            "y": 792.38,
+            "width": 80.84,
+            "height": 44
+          },
+          "centerHit": "c8",
+          "effectiveHit": {
+            "width": 81,
+            "height": 46
+          },
+          "clipped": false,
+          "below44": false,
+          "effectiveBelow44": false
+        },
+        {
+          "key": "c9",
+          "label": "#tabFav",
+          "rect": {
+            "x": 165.68,
+            "y": 792.38,
+            "width": 80.84,
+            "height": 44
+          },
+          "centerHit": "c9",
+          "effectiveHit": {
+            "width": 81,
+            "height": 44
+          },
+          "clipped": false,
+          "below44": false,
+          "effectiveBelow44": false
+        },
+        {
+          "key": "c10",
+          "label": "#tabRide",
+          "rect": {
+            "x": 246.52,
+            "y": 792.38,
+            "width": 80.84,
+            "height": 44
+          },
+          "centerHit": "c10",
+          "effectiveHit": {
+            "width": 80,
+            "height": 46
+          },
+          "clipped": false,
+          "below44": false,
+          "effectiveBelow44": false
+        },
+        {
+          "key": "c11",
+          "label": "#tabMore",
+          "rect": {
+            "x": 327.36,
+            "y": 792.38,
+            "width": 80.84,
+            "height": 44
+          },
+          "centerHit": "c11",
+          "effectiveHit": {
+            "width": 82,
+            "height": 46
+          },
+          "clipped": false,
+          "below44": false,
+          "effectiveBelow44": false
+        }
+      ],
+      "overlaps": [],
+      "expectedHost": "tiles.stadiamaps.com",
+      "summary": {
+        "modeMatches": true,
+        "tileTotal": 8,
+        "tileLoaded": 8,
+        "tilesPass": true,
+        "controlCount": 12,
+        "overlapCount": 0,
+        "centerHitFailures": [],
+        "clippedControls": [],
+        "below44Controls": [
+          "#alertChip",
+          "全",
+          "台",
+          "高",
+          "捷",
+          "#randBtn",
+          "#nearBtn"
+        ],
+        "effectiveBelow44Controls": []
+      }
+    },
+    {
+      "mode": "sat",
+      "viewport": {
+        "width": 412,
+        "height": 839,
+        "dpr": 2.625
+      },
+      "attribution": "Leaflet | 臺灣輪廓：內政部, Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics",
+      "tilesByHost": {
+        "ibasemaps-api.arcgis.com": {
+          "total": 8,
+          "loaded": 8
+        }
+      },
+      "controls": [
+        {
+          "key": "c0",
+          "label": "#alertChip",
+          "rect": {
+            "x": 164.78,
+            "y": 8,
+            "width": 38.29,
+            "height": 36
+          },
+          "centerHit": "c0",
+          "effectiveHit": {
+            "width": 44,
+            "height": 44
+          },
+          "clipped": false,
+          "below44": true,
+          "effectiveBelow44": false
+        },
+        {
+          "key": "c1",
+          "label": "全",
+          "rect": {
+            "x": 211.07,
+            "y": 8,
+            "width": 43.28,
+            "height": 36
+          },
+          "centerHit": "c1",
+          "effectiveHit": {
+            "width": 44,
+            "height": 44
+          },
+          "clipped": false,
+          "below44": true,
+          "effectiveBelow44": false
+        },
+        {
+          "key": "c2",
+          "label": "台",
+          "rect": {
+            "x": 260.35,
+            "y": 8,
+            "width": 43.28,
+            "height": 36
+          },
+          "centerHit": "c2",
+          "effectiveHit": {
+            "width": 44,
+            "height": 44
+          },
+          "clipped": false,
+          "below44": true,
+          "effectiveBelow44": false
+        },
+        {
+          "key": "c3",
+          "label": "高",
+          "rect": {
+            "x": 309.63,
+            "y": 8,
+            "width": 43.28,
+            "height": 36
+          },
+          "centerHit": "c3",
+          "effectiveHit": {
+            "width": 45,
+            "height": 44
+          },
+          "clipped": false,
+          "below44": true,
+          "effectiveBelow44": false
+        },
+        {
+          "key": "c4",
+          "label": "捷",
+          "rect": {
+            "x": 358.91,
+            "y": 8,
+            "width": 43.28,
+            "height": 36
+          },
+          "centerHit": "c4",
+          "effectiveHit": {
+            "width": 44,
+            "height": 44
+          },
+          "clipped": false,
+          "below44": true,
+          "effectiveBelow44": false
+        },
+        {
+          "key": "c5",
+          "label": "#randBtn",
+          "rect": {
+            "x": 191.67,
+            "y": 100,
+            "width": 101.26,
+            "height": 33.33
+          },
+          "centerHit": "c5",
+          "effectiveHit": {
+            "width": 101,
+            "height": 44
+          },
+          "clipped": false,
+          "below44": true,
+          "effectiveBelow44": false
+        },
+        {
+          "key": "c6",
+          "label": "#nearBtn",
+          "rect": {
+            "x": 300.93,
+            "y": 100,
+            "width": 101.26,
+            "height": 36
+          },
+          "centerHit": "c6",
+          "effectiveHit": {
+            "width": 102,
+            "height": 44
+          },
+          "clipped": false,
+          "below44": true,
+          "effectiveBelow44": false
+        },
+        {
+          "key": "c7",
+          "label": "#tabSearch",
+          "rect": {
+            "x": 4,
+            "y": 792.38,
+            "width": 80.84,
+            "height": 44
+          },
+          "centerHit": "c7",
+          "effectiveHit": {
+            "width": 81,
+            "height": 44
+          },
+          "clipped": false,
+          "below44": false,
+          "effectiveBelow44": false
+        },
+        {
+          "key": "c8",
+          "label": "#tabExplore",
+          "rect": {
+            "x": 84.84,
+            "y": 792.38,
+            "width": 80.84,
+            "height": 44
+          },
+          "centerHit": "c8",
+          "effectiveHit": {
+            "width": 81,
+            "height": 46
+          },
+          "clipped": false,
+          "below44": false,
+          "effectiveBelow44": false
+        },
+        {
+          "key": "c9",
+          "label": "#tabFav",
+          "rect": {
+            "x": 165.68,
+            "y": 792.38,
+            "width": 80.84,
+            "height": 44
+          },
+          "centerHit": "c9",
+          "effectiveHit": {
+            "width": 81,
+            "height": 44
+          },
+          "clipped": false,
+          "below44": false,
+          "effectiveBelow44": false
+        },
+        {
+          "key": "c10",
+          "label": "#tabRide",
+          "rect": {
+            "x": 246.52,
+            "y": 792.38,
+            "width": 80.84,
+            "height": 44
+          },
+          "centerHit": "c10",
+          "effectiveHit": {
+            "width": 80,
+            "height": 46
+          },
+          "clipped": false,
+          "below44": false,
+          "effectiveBelow44": false
+        },
+        {
+          "key": "c11",
+          "label": "#tabMore",
+          "rect": {
+            "x": 327.36,
+            "y": 792.38,
+            "width": 80.84,
+            "height": 44
+          },
+          "centerHit": "c11",
+          "effectiveHit": {
+            "width": 82,
+            "height": 46
+          },
+          "clipped": false,
+          "below44": false,
+          "effectiveBelow44": false
+        }
+      ],
+      "overlaps": [],
+      "expectedHost": "ibasemaps-api.arcgis.com",
+      "summary": {
+        "modeMatches": true,
+        "tileTotal": 8,
+        "tileLoaded": 8,
+        "tilesPass": true,
+        "controlCount": 12,
+        "overlapCount": 0,
+        "centerHitFailures": [],
+        "clippedControls": [],
+        "below44Controls": [
+          "#alertChip",
+          "全",
+          "台",
+          "高",
+          "捷",
+          "#randBtn",
+          "#nearBtn"
+        ],
+        "effectiveBelow44Controls": []
+      }
+    }
+  ]
+}

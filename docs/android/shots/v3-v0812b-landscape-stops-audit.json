@@ -1,0 +1,109 @@
+{
+  "generatedAt": "2026-08-12T04:13:51.446Z",
+  "build": "v0812b",
+  "platform": "android",
+  "version": "1.4.2",
+  "orientation": "landscape-primary",
+  "viewport": {
+    "width": 863,
+    "height": 360,
+    "dpr": 2.625
+  },
+  "train": "5899",
+  "card": {
+    "left": 515.2380981445312,
+    "top": 52,
+    "width": 340,
+    "height": 248,
+    "classes": [
+      "traincard",
+      "tc-sheet"
+    ]
+  },
+  "header": [
+    {
+      "right": 789.3333740234375,
+      "width": 36
+    },
+    {
+      "right": 837.3333740234375,
+      "width": 36
+    }
+  ],
+  "data": [
+    [
+      {
+        "right": 789.3333740234375,
+        "width": 36
+      },
+      {
+        "right": 837.3333740234375,
+        "width": 36
+      }
+    ],
+    [
+      {
+        "right": 789.3333740234375,
+        "width": 36
+      },
+      {
+        "right": 837.3333740234375,
+        "width": 36
+      }
+    ],
+    [
+      {
+        "right": 789.3333740234375,
+        "width": 36
+      },
+      {
+        "right": 837.3333740234375,
+        "width": 36
+      }
+    ],
+    [
+      {
+        "right": 789.3333740234375,
+        "width": 36
+      },
+      {
+        "right": 837.3333740234375,
+        "width": 36
+      }
+    ],
+    [
+      {
+        "right": 789.3333740234375,
+        "width": 36
+      },
+      {
+        "right": 837.3333740234375,
+        "width": 36
+      }
+    ],
+    [
+      {
+        "right": 789.3333740234375,
+        "width": 36
+      },
+      {
+        "right": 837.3333740234375,
+        "width": 36
+      }
+    ],
+    [
+      {
+        "right": 789.3333740234375,
+        "width": 36
+      },
+      {
+        "right": 837.3333740234375,
+        "width": 36
+      }
+    ]
+  ],
+  "maxRightDelta": 0,
+  "allWidths36": true,
+  "visibleStopRows": 7,
+  "failures": []
+}

@@ -1,0 +1,37 @@
+{
+  "device": "RailIsland_API35_Pixel7",
+  "android": 15,
+  "api": 35,
+  "cssViewport": [863, 360],
+  "orientation": "landscape-primary",
+  "interaction": {
+    "follow": "ADB tap on visible random-follow button",
+    "trainCard": "ADB tap on visible follow card",
+    "train": "121",
+    "system": "tra_sched"
+  },
+  "trainCard": {
+    "visible": true,
+    "rect": { "left": 515.2, "top": 52, "right": 855.2, "bottom": 300, "width": 340, "height": 248 },
+    "leftFreeRatio": 0.597,
+    "heightRatio": 0.689,
+    "rightAnchored": true
+  },
+  "followedTrain": {
+    "point": { "x": 257, "y": 180 },
+    "elementFromPoint": "map",
+    "onMap": true
+  },
+  "exposedMapCenter": {
+    "point": { "x": 257.6, "y": 180 },
+    "elementFromPoint": "map",
+    "onMap": true
+  },
+  "overlaps": [],
+  "screenshots": [
+    "v3-landscape-clean.png",
+    "v3-landscape-follow.png",
+    "v3-landscape-train-card.png"
+  ],
+  "failures": []
+}

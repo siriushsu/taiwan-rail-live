@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 本站觀測／資料類提醒用琥珀，不用紅——紅留給營運方公告的真異常。 -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="7dp" />
+            <solid android:color="@color/wg_warn" />
+        </shape>
+    </item>
+    <item android:left="3dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="7dp" />
+            <solid android:color="@color/wg_warn_wash" />
+        </shape>
+    </item>
+</layer-list>

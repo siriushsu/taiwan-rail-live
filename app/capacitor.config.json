@@ -3,7 +3,7 @@
   "appName": "軌島",
   "webDir": "www",
   "backgroundColor": "#f4edda",
-  "loggingBehavior": "production",
+  "loggingBehavior": "none",
   "plugins": {
     "FirebaseAuthentication": {
       "skipNativeAuth": true,
