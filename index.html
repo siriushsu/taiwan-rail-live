@@ -23910,19 +23910,40 @@ function onlineBasemapsAvailable() { return window.RAIL_ONLINE_BASEMAPS_AVAILABL
 // (那是每個月真金白銀的差別);下次開機自己重試 OFM。這條是「回得去」的唯一保證。
 const OFM_HEALTH_MS = 8000, OFM_ERROR_LIMIT = 4;
 function ofmWatch(layer) {
-  if (!APP_CFG.tiles) return; // 只有 App 有 raster 退路可退
+  // 🔴 **偵測兩邊都要做**,即使只有 App 退得了。此前這裡對網站整條 return,於是 OFM 半死時
+  // 網站是**零訊號**:使用者看到一片空白底圖上飄著列車,分不清是自己的網路、我們掛了、
+  // 還是功能壞了,而且沒有任何恢復路徑,連 console 都是乾淨的。
+  // 「退不了」不等於「不能講」——退路是產品/供應商決策(網站唯一的 raster 是 CARTO,
+  // 那正是這批要離開的東西),但把發生的事講出來、指向現成還能用的那條路,不涉及任何供應商。
   let settled = false, errors = 0, timer = null;
   const stop = () => { settled = true; if (timer) clearTimeout(timer); };
+  const fail = why => { stop(); if (APP_CFG.tiles) ofmFallToRaster(why); else ofmNoticeWeb(why); };
   // 逾時**只在圖層真的上場後**起算:亮/暗兩層只有一層會被加進地圖,
   // 若一建好就起算,沒上場的那層必然逾時 ⇒ 每次開機都假退場。
   layer.on('add', function () {
     if (settled || timer) return; // 只看第一次上場
-    timer = setTimeout(() => { if (!settled) { stop(); ofmFallToRaster('slow'); } }, OFM_HEALTH_MS);
+    timer = setTimeout(() => { if (!settled) fail('slow'); }, OFM_HEALTH_MS);
     const gl = this._glMap;
     if (!gl) return; // 拿不到 gl 把手就只靠逾時判定
-    gl.on('error', () => { if (!settled && ++errors >= OFM_ERROR_LIMIT) { stop(); ofmFallToRaster('error'); } });
+    gl.on('error', () => { if (!settled && ++errors >= OFM_ERROR_LIMIT) fail('error'); });
     if (gl.isStyleLoaded && gl.isStyleLoaded()) stop(); else gl.once('load', stop);
   });
+}
+// 網站的 OFM 退場處置:退不了,但要讓使用者知道發生什麼事、以及現在還能怎麼看。
+// 一個 session 只講一次,且**不寫 localStorage**——理由同 ofmFallToRaster:
+// 一次網路抖動不該讓下次開機也帶著這個判斷,重新整理就該重試 OFM。
+let ofmNoticeShown = false;
+function ofmNoticeWeb(why) {
+  if (ofmNoticeShown) return;
+  ofmNoticeShown = true;
+  try { console.warn('[basemap] OpenFreeMap 載入異常(' + why + '),網站無 raster 退路'); } catch (e) {}
+  // 衛星是網站現成、且完全不經 OpenFreeMap 的另一條路。但 Esri token 要不到時上面那段會把
+  // #satBtn 整顆 remove ⇒ 鈕在不在就是「這條路通不通」最誠實的判準(比讀 satTokenState 好:
+  // 那顆在 token 還在飛的時候是 'pending',而 8 秒逾時的時點兩者未必分得清)。
+  // 沒有那條路就別叫使用者去點一顆不存在的鈕。
+  const canSat = !!document.getElementById('satBtn');
+  showToast('街道底圖載入異常，列車與路線不受影響。'
+    + (canSat ? '可切換到「衛星」底圖。' : '重新整理即可重試。'), { wrap: true });
 }
 function ofmFallToRaster(why) {
   if (!ofmRasterFallback) return; // 已經退過(或沒備退路)就不再退:只退一次,不來回跳
