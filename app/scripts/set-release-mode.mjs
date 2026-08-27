@@ -201,7 +201,7 @@ const MODES = {
   //   ⚠️ 音樂曲庫同批換成 57 首、只內建 12 首其餘串流；**那 45 首要 railisland.tw 上有檔才播得出來**，
   //   正式站已於 2026-08-27 先行部署並逐一驗過 57/57 回 200。網站與 App 的出貨順序不可對調。
   feature: {
-    marketing: '1.5.0', build: '907', music: true, metroCore: true, // 907=橫式 v5 工具欄橫排顆(f30b4da);80=送審顆。900 系照舊只裝自己 iPhone,不上傳 ASC
+    marketing: '1.5.0', build: '80', music: true, metroCore: true, // 80=1.5.0 送審顆(基底 f30b4da=橫式 v5,與本機測試顆 907 同載貨)。ASC 線上 1.4.10 (79) 已發佈(08-23),train 已關,1.5.0 為新版本項目。出這顆時 HEAD 落後 origin/main 恰 1 顆=418fbe3(ship-web 網站部署鏈,不進 App bundle,刻意不併)。900 系照舊只裝自己 iPhone,不上傳 ASC
 
     why: '軌島 1.5.0\n\n北捷列車改看官方倒數\n北捷的車現在照每一站的官方到站倒數反推位置——站牌上寫幾分，車就照那個時間到。以前用來定位的車廂編號站碼會落後兩三分鐘，已經不再拿它畫位置。\n只要官方還在報這班車的倒數，它就會在畫面上，不會因為系統「判斷不出來」而突然消失；車開到終點站才收起來，而且從早上一發車就認得它。折返站的車不再原地打轉或憑空多出一台，位置也不再一跳一跳。\n\n看得更舒服\n整個介面重新排過：\n・字級新增標準／大／特大三階，也可以跟著系統字級走\n・手機頂端收成單排，右邊一顆鈕就能切換全台／台鐵／高鐵／捷運\n・點時鐘就知道現在的資料是不是即時的，以及為什麼\n・面板可以切成半透明，底下的路線與車站看得到\n・跟車途中點車站，看板會和跟車卡併成同一張卡的兩個分頁；點地圖空白處卡片縮成膠囊，跟車不中斷\n・列車詳細資訊一個捲軸從摘要接到停靠表\n・列車到站時的站名牌縮小了，不再擋住後面的資訊\n・橫放有專屬版面\n\n其他\n放空模式的背景音樂從 29 首增加到 57 首，分成六組不同氛圍。搜尋、最愛、旅程護照與今日亮點一併重整；空白的畫面會告訴你下一步可以做什麼；站內可以直接回報問題或建議。',
   },
@@ -234,14 +234,23 @@ const before = { m: (src.match(/MARKETING_VERSION = ([^;]+);/) || [])[1], b: (sr
 const seq = v => String(v ?? '').trim().split('.').map(n => Number(n) || 0);
 const cmp = (a, b) => { const A = seq(a), B = seq(b); for (let i = 0; i < Math.max(A.length, B.length); i++) { if ((A[i] || 0) !== (B[i] || 0)) return (A[i] || 0) - (B[i] || 0); } return 0; };
 const mDelta = cmp(cfg.marketing, before.m);
-if (mDelta < 0 || (mDelta === 0 && cmp(cfg.build, before.b) < 0)) {
+const bDelta = cmp(cfg.build, before.b);
+// 900 系＝本機裝機測試號，從不上傳 ASC（MODES.feature 註解）。從 900 系切回送審線（<900）
+// 是「回到 ASC 真實序列」不是回退——但這支腳本無從得知 ASC 已用到幾號，所以仍預設擋下，
+// 要人先查線上版號（帶 no-cache）＋確認 ASC 最高已用號，再帶 ALLOW_ASC_REBASE=1 明示放行
+//（比照 verify_landscape 的 ALLOW_SAME_BASE：只給確認過的那一趟用，不是常開旗標）。
+const ascRebase = mDelta === 0 && bDelta < 0 && seq(before.b)[0] >= 900 && seq(cfg.build)[0] < 900;
+if (mDelta < 0 || (mDelta === 0 && bDelta < 0 && !(ascRebase && process.env.ALLOW_ASC_REBASE === '1'))) {
   console.error(
     `\n✋ 拒絕執行：這會把版號往回推。\n` +
     `   專案現在是 ${before.m} (${before.b})，${mode} 模式要寫成 ${cfg.marketing} (${cfg.build})。\n` +
     `   Apple 不接受 build 號回退，而這個腳本會一路建到閘門綠燈、沒有任何一關擋得住。\n` +
-    `   請先確認 App Store Connect 上哪些 build 已經用掉，再更新這支腳本的 MODES 表。\n`);
+    `   請先確認 App Store Connect 上哪些 build 已經用掉，再更新這支腳本的 MODES 表。\n` +
+    (ascRebase ? `   （偵測到 900 系測試號 → 送審號：若已確認 ASC 最高已用號小於 ${cfg.build}，` +
+      `帶 ALLOW_ASC_REBASE=1 重跑放行這一趟。）\n` : ''));
   process.exit(3);
 }
+if (ascRebase) console.log(`⚠️ ALLOW_ASC_REBASE：900 系測試號 (${before.b}) → ASC 送審號 (${cfg.build})，已人工確認 ASC 序列後放行這一趟。`);
 src = src.replace(/MARKETING_VERSION = [^;]+;/g, `MARKETING_VERSION = ${cfg.marketing};`)
          .replace(/CURRENT_PROJECT_VERSION = [^;]+;/g, `CURRENT_PROJECT_VERSION = ${cfg.build};`);
 await writeFile(pbxproj, src);
