@@ -286,7 +286,10 @@ const INSTALL_EXPOSED = () => {
         if (r.top > mc.top + mc.height * 0.6) bottom = Math.max(bottom, mc.bottom - r.top + 8);
         continue;
       }
-      left = Math.max(left, r.right - mc.left + 8);
+      // v3(2026-08-27 裁示):跟隨欄升格右側欄——在容器右半=右界;留在左半(直式小卡/捷運 freq-card)
+      // =左界。照本檔慣例從 rect 判,不問實作的 sideRail 旗標。
+      if ((r.left + r.right) / 2 > mc.left + mc.width / 2) right = Math.max(right, mc.right - r.left + 8);
+      else left = Math.max(left, r.right - mc.left + 8);
     }
     const cap = document.querySelector('.controls');
     if (vis(cap) && !document.body.classList.contains('cexp')) {
@@ -380,11 +383,18 @@ const OVERLAP_PROBE = (SELS) => {
 // 幾何上真的會交疊（實測 176×30）。那是交叉淡入淡出的過場，不是版面缺陷。
 // 但也不能直接放寬判準——所以做法是：發現相交就等**超過最長 transition**再量一次，以第二次為準。
 // 真缺陷等再久也還在（這個等待對它零影響），只有轉場中的假陽性會消失。
+// v3(2026-08-27 裁示)「橫式點開車輛或車站資訊的時候,是可以擋住右上角那些按鈕沒關係的」＋
+// 頂列=背景層(右半是透明空白,內容都靠左):側欄家族(上錨到頂後必然疊頂列右半)與
+// #topbar/工具堆成員(#randBtn/#nearBtn)的相交=裁示行為,集中豁免。
+// 其餘配對(卡疊卡、跟隨欄疊分頁面板…)一律留著抓真疊——sheet-open 讓位若壞掉要在這裡現形。
+const RAIL_RE = /#(followPanel|favPanel|ridePanel|explorePanel|searchPanel|nearCard|trainCard|board)\b/;
+const RULED_RE = /#(topbar|randBtn|nearBtn)\b/;
+const filterRuled = o => ({ ...o, inter: (o.inter || []).filter(s => !(RAIL_RE.test(s) && RULED_RE.test(s))) });
 async function settledOverlap(page) {
-  const first = await page.evaluate(OVERLAP_PROBE, OVERLAY_SEL);
+  const first = filterRuled(await page.evaluate(OVERLAP_PROBE, OVERLAY_SEL));
   if (!first.inter.length && !first.off.length) return { ...first, reMeasured: false };
   await page.waitForTimeout(600); // > .45s（.dwell-plate 的 opacity transition）
-  const second = await page.evaluate(OVERLAP_PROBE, OVERLAY_SEL);
+  const second = filterRuled(await page.evaluate(OVERLAP_PROBE, OVERLAY_SEL));
   return { ...second, reMeasured: true };
 }
 
@@ -496,9 +506,12 @@ async function landscapeSuite(browser, eng) {
         const n = color.match(/[\d.]+/g)?.map(Number) || [];
         return color.startsWith('rgba') || color.includes('/') ? (n[3] ?? 0) : 1;
       };
+      const bdg = document.querySelector('.topbar .badge');
       const read = () => {
         const cs = getComputedStyle(bar);
-        return { a: +alpha(cs.backgroundColor).toFixed(2), blur: cs.backdropFilter || cs.webkitBackdropFilter || 'none', halo: cs.textShadow };
+        const cb = bdg ? getComputedStyle(bdg) : null;
+        return { a: +alpha(cs.backgroundColor).toFixed(2), blur: cs.backdropFilter || cs.webkitBackdropFilter || 'none', halo: cs.textShadow,
+                 ba: cb ? +alpha(cb.backgroundColor).toFixed(2) : null, bhalo: cb ? cb.textShadow : 'none' };
       };
       const prevTr = bar.style.transition; bar.style.transition = 'none';
       const solid = read();
@@ -506,13 +519,15 @@ async function landscapeSuite(browser, eng) {
       const glass = read();
       document.body.classList.remove('panel-translucent');
       bar.style.transition = prevTr;
-      return { solid: { a: solid.a, blur: solid.blur, halo: solid.halo !== 'none' },
-               glass: { a: glass.a, blur: glass.blur, halo: glass.halo !== 'none' } };
+      return { solid: { a: solid.a, blur: solid.blur, ba: solid.ba, halo: solid.halo !== 'none' || solid.bhalo !== 'none' },
+               glass: { a: glass.a, blur: glass.blur, ba: glass.ba, halo: glass.halo !== 'none' || glass.bhalo !== 'none' } };
     });
-    ok(`L3d ${eng}/${S.tag} 頂列可讀底兩態(關=實心無blur/開=玻璃+blur),且兩態都無字外圈`,
-      !badgeBg.err && badgeBg.solid.a >= 0.9 && !/blur\(/.test(badgeBg.solid.blur)
-        && badgeBg.glass.a >= 0.2 && badgeBg.glass.a <= 0.6 && /blur\(/.test(badgeBg.glass.blur)
-        && badgeBg.glass.a < badgeBg.solid.a
+    // v3(2026-08-27 契約7退役):頂列自身的玻璃帶=雙重底的空玻璃(徽章自帶紙面 pill),整條退役。
+    // 可讀底的責任人改為 .badge:恆實心 paper(兩態都 ≥.9);頂列兩態都必須透明、無 blur、無字外圈。
+    ok(`L3d ${eng}/${S.tag} 頂列帶退役:兩態頂列透明,徽章自帶實心可讀底,無字外圈`,
+      !badgeBg.err && badgeBg.solid.a === 0 && !/blur\(/.test(badgeBg.solid.blur)
+        && badgeBg.glass.a === 0 && !/blur\(/.test(badgeBg.glass.blur)
+        && badgeBg.solid.ba >= 0.9 && badgeBg.glass.ba >= 0.9
         && !badgeBg.solid.halo && !badgeBg.glass.halo,
       JSON.stringify(badgeBg));
 
@@ -566,15 +581,23 @@ async function landscapeSuite(browser, eng) {
           && Math.min(r.bottom, band.bottom) - Math.max(r.top, band.top) > 2;
       }).map(e => (e.id || e.className) + ' ' + Math.round(e.getBoundingClientRect().left));
       const fp = document.getElementById('followPanel');
+      const fr = fp.getBoundingClientRect();
       return { hits, band: [Math.round(band.left), Math.round(band.right), Math.round(band.top), Math.round(band.bottom)],
         fpDisplay: getComputedStyle(fp).display, fpInSlot: !!fp.closest('.uni-slot'),
-        fpW: Math.round(fp.getBoundingClientRect().width) };
+        fpW: Math.round(fr.width), fpRight: Math.round(fr.right), fpTop: Math.round(fr.top),
+        vw: innerWidth, saR: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sa-r')) || 0 };
     });
     ok(`L4c ${eng}/${S.tag} 左緣淨空:安全區到 +60px 這條帶裡沒有任何 HUD(跟隨欄廢除後的核心保證)`,
       leftBand.hits.length === 0, leftBand.hits.join('／') || `帶=${leftBand.band.join(',')} 逐一掃過無元件`);
-    ok(`L4d ${eng}/${S.tag} 跟隨欄已退役:沒搬進卡的槽裡時整顆不現身`,
-      leftBand.fpInSlot ? leftBand.fpW > 0 : (leftBand.fpDisplay === 'none' && leftBand.fpW === 0),
-      JSON.stringify({ display: leftBand.fpDisplay, 在槽裡: leftBand.fpInSlot, w: leftBand.fpW }));
+    // v3(2026-08-27 裁示)推翻 v2「跟隨欄退役」:「橫式點開車輛或車站資訊的時候,是可以擋住右上角
+    // 那些按鈕沒關係的。不然捲軸太短空間太小了」⇒ 跟車無板時它就是右側欄:上錨到頂(≤20 容 sa-t)、
+    // 右錨(視口右緣−8−sa-r ±2)、rail 寬(≥200)。開著別的 sheet 時讓位隱藏(display:none)由 L2/L4 段覆蓋。
+    ok(`L4d ${eng}/${S.tag} 跟隨欄=右側欄(v3):跟車無板時上錨右錨`,
+      leftBand.fpInSlot ? leftBand.fpW > 0
+        : (leftBand.fpDisplay !== 'none' && leftBand.fpW >= 200
+           && Math.abs(leftBand.vw - leftBand.fpRight - 8 - leftBand.saR) <= 2 && leftBand.fpTop <= 20),
+      JSON.stringify({ display: leftBand.fpDisplay, 在槽裡: leftBand.fpInSlot, w: leftBand.fpW,
+        right: leftBand.fpRight, top: leftBand.fpTop, vw: leftBand.vw, saR: leftBand.saR }));
 
     // ── §04c v2「改·第 6 條」四段固定 ＋「改·第 8 條」站名牌雙錨點(2026-08-26)─────────
     //    原本這裡驗的是跟隨欄的收合膠囊(220×44/記憶/中線重算),欄廢除後整組概念死亡。
@@ -584,10 +607,12 @@ async function landscapeSuite(browser, eng) {
     const card = await page.evaluate(CARD_FIX_PROBE);
     // 「高度與內容無關」的證據:塞進 2000px 內容之後卡高一格不動(H0===h===H1),只有 scrollH 變長;
     // 「四段固定」的證據:真的捲 400px 之後,頭/站名列/分頁列的螢幕座標都沒動(捲的是身)。
-    ok(`L4e ${eng}/${S.tag} 合併卡:上下錨定、塞長內容也不長高,且真的捲得動`,
+    // v3(2026-08-27 裁示)上緣基準改視口頂:「上錨到頂——可以擋住右上角那些按鈕,不然捲軸太短」
+    // ⇒ 卡頂=8+sa-t(sa-t 注入前=8;≤20 容它),gapTop(對頂列底)允許為負=疊上頂列透明右半,不再 gate。
+    ok(`L4e ${eng}/${S.tag} 合併卡:上錨到頂、塞長內容也不長高,且真的捲得動`,
       !card.err && card.hasTabs && card.padded && card.H0 === card.h && card.H1 === card.H0
         && card.scrollH > card.client + 100 && card.scrolled > 100
-        && card.gapTop >= 0 && card.gapBottom >= 4 && card.gapBottom <= 14, JSON.stringify(card));
+        && card.top <= 20 && card.gapBottom >= 4 && card.gapBottom <= 14, JSON.stringify(card));
     // 站名牌沒亮著時(沒車停靠)它是 display:none,rect 恆 0 ⇒ 那半條判準是空的,據實標明不算數。
     ok(`L4f ${eng}/${S.tag} 四段固定:捲動之後卡頭/站名列/分頁列原地不動(捲的是身)`,
       !card.err && card.tabsPos === 'sticky' && card.tabsTop1 === card.tabsTop0
@@ -1336,6 +1361,10 @@ async function rotationSuite(browser, eng) {
     await page.waitForTimeout(900);
     // 兩種形態各走各的路徑，但判準同一條：**state.group 真的變了**。
     // 不判 class（收合鈕沒有 .active，判 class 會讓收合形態永遠假紅）。
+    // v3(2026-08-27 裁示):側欄可以蓋住右上角(分組收合鈕右緣對齊工具堆,一起被蓋)——
+    // 使用者的實際操作序=先收面板/跟車再換組,判準照那個序走;逃生門(fp 可收合)由裁示背書。
+    await page.evaluate(() => { try { soloPanel(null); updateSheetOpenClass(); clearFollow(); } catch (e) {} });
+    await page.waitForTimeout(400);
     let tapped = true, switched = false, how = '';
     try {
       const before = await page.evaluate(() => state.group);
@@ -1583,8 +1612,12 @@ const DWELL_PROBE = async () => {
   // 判準側從 rect 自算,不讀實作的 --land-lb/--rail-occupy 兩顆變數(心得 29)。
   const fpEl = document.getElementById('followPanel');
   const fpOn = fpEl && !fpEl.hidden && !fpEl.classList.contains('fp-min') && getComputedStyle(fpEl).display !== 'none';
-  const mlLeft = fpOn ? fpEl.getBoundingClientRect().right + 8 : 0;
-  const mlRight = (el2 && !el2.hidden) ? el2.getBoundingClientRect().left - 8 : innerWidth;
+  const fpR2 = fpOn ? fpEl.getBoundingClientRect() : null;
+  // v3:跟隨欄可能是右側欄(rect 判,不問實作)——右形=右界之一;左形(捷運小卡)=左界,同 v2。
+  const fpIsRight = fpR2 && (fpR2.left + fpR2.right) / 2 > innerWidth / 2;
+  const mlLeft = fpR2 && !fpIsRight ? fpR2.right + 8 : 0;
+  let mlRight = (el2 && !el2.hidden) ? el2.getBoundingClientRect().left - 8 : innerWidth;
+  if (fpIsRight) mlRight = Math.min(mlRight, fpR2.left - 8);
   const midX = +((mlLeft + mlRight) / 2).toFixed(1);
   const capEl = document.querySelector('.controls');
   const capR = capEl && capEl.getClientRects().length ? capEl.getBoundingClientRect() : null;
@@ -1664,17 +1697,34 @@ async function deviceSuite(browser, eng) {
     // 🔴 拖曳起點必須在**露出的地圖**上：§04c 跟隨欄佔掉左緣 [10,230]，0.3×667=200 落在欄內，
     //    按下去點到的是 fpStatus——不但解不了鎖，還會誤開列車 sheet，把後面 L14 的版面整個帶歪
     //    （SE3 那對 L13/L14d 假紅就是這條連鎖）。起點取 max(0.3W, 跟隨欄右緣+40)。
-    const fpRight = await page.evaluate(() => {
+    // v3:跟隨欄右側欄化——露出地圖=[0, 欄左緣),起點取露出帶中心;欄不在(未跟車/收合)或仍在左形
+    //    (捷運小卡)時沿用舊式「0.3W 與欄右緣+40 取大」。位置從 rect 判,不問實作。
+    const fpBox = await page.evaluate(() => {
       const fp = document.getElementById('followPanel');
-      return fp && !fp.hidden ? fp.getBoundingClientRect().right : 0;
+      if (!fp || fp.hidden || getComputedStyle(fp).display === 'none') return null;
+      const r = fp.getBoundingClientRect();
+      return r.width > 2 ? { left: r.left, right: r.right } : null;
     });
-    const sx = Math.max(Math.round(S.w * 0.3), Math.round(fpRight + 40));
+    const fpIsRightRail = fpBox && (fpBox.left + fpBox.right) / 2 > S.w / 2;
+    const sx = fpIsRightRail
+      ? Math.max(100, Math.round(fpBox.left / 2))
+      : Math.max(Math.round(S.w * 0.3), Math.round((fpBox ? fpBox.right : 0) + 40));
     await page.mouse.move(sx, Math.round(S.h * 0.5));
     await page.mouse.down();
     await page.mouse.move(sx - 55, Math.round(S.h * 0.62), { steps: 8 });
     await page.mouse.move(sx - 80, Math.round(S.h * 0.66), { steps: 6 });
     await page.mouse.up();
     await page.waitForTimeout(700);
+    // v3(2026-08-27 裁示):解鎖後跟隨欄(右側欄)蓋著工具堆——「可以擋住右上角那些按鈕沒關係」。
+    // 使用者要按「回到列車/隨機跟隨」的實際操作序=先點 ×(fpClose)把欄收合成膠囊(跟隨不中斷、
+    // 契約4 記憶收合),工具堆露出再按。判準照這個序走;fpClose 不存在/不可見時照舊直量。
+    await page.evaluate(() => {
+      const x = document.getElementById('fpClose');
+      const fp = document.getElementById('followPanel');
+      if (x && fp && !fp.hidden && !fp.classList.contains('fp-min')
+        && (fp.getBoundingClientRect().left + fp.getBoundingClientRect().right) / 2 > innerWidth / 2) x.click();
+    });
+    await page.waitForTimeout(400);
     const L = await page.evaluate(LOCK_PROBE);
     // 前置閘門：沒真的解鎖的話，下面的欄內秩序判準是恆真的假綠（心得 17）
     ok(`L13 ${eng}/${S.tag} 前置：拖曳地圖真的解了鎖`, L.unlocked === true && L.label === '回到列車',
@@ -1926,6 +1976,9 @@ const FREEZE = () => {
     const el = document.getElementById(id); if (el) el.style.display = 'none';
   }
   const n = document.querySelector('.badge .n'); if (n) n.textContent = '000';
+  // 版權列文字隨圖磚 attribution 載入時序變(內容變⇒寬變⇒右錨佈局 x 跟著變):兩頁各自載入
+  // 讀到不同瞬間=假紅(0827 兩輪紅的視口/引擎都不同、且互不重疊)。兩頁對稱釘同一字串後才可比。
+  const at = document.querySelector('.leaflet-control-attribution'); if (at) at.textContent = 'ATTR';
 };
 const GEOM = () => {
   const out = {};
@@ -1934,7 +1987,11 @@ const GEOM = () => {
     const el = document.querySelector(sel);
     if (!el) { out[sel] = null; continue; }
     const cs = getComputedStyle(el), r = el.getBoundingClientRect();
-    out[sel] = [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height), cs.position, cs.display];
+    // 版權列容器的 x/寬=attribution 動態文字寬(FREEZE 釘完 Leaflet 的 layer 事件仍會重寫,
+    // 兩頁時序不可控——0827 三輪紅的引擎×視口互不重疊、方向還互換)。右下錨的版面事實=
+    // y/高/position/display,只比這四樣;「推出視窗」類回歸由 L2 浮層不出視窗涵蓋。
+    if (sel === '.leaflet-bottom.leaflet-right') out[sel] = [0, Math.round(r.y), 0, Math.round(r.height), cs.position, cs.display];
+    else out[sel] = [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height), cs.position, cs.display];
   }
   out['__fs'] = document.body.classList.contains('fs');
   out['__mq'] = matchMedia('(max-width: 900px)').matches;

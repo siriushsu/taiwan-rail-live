@@ -3832,7 +3832,7 @@
     body.fs .board, body.fs #nearCard, body.fs #searchPanel, body.fs .traincard.tc-sheet,
     body.fs .board.sheet-small, body.fs #nearCard.sheet-small,
     body.fs .traincard.tc-sheet.sheet-small {
-      top: calc(52px + var(--sa-t));
+      top: calc(8px + var(--sa-t)); /* v3(08-27 裁示):上錨到頂——「可以擋住右上角那些按鈕沒關係,不然捲軸太短空間太小」 */
       bottom: calc(var(--tabbar-clear) + 8px);
       left: auto; right: calc(8px + var(--sa-r));
       width: var(--rail-w); max-width: none;
@@ -3840,7 +3840,7 @@
       border-radius: 12px;
     }
     /* §04c v2「改·第 6 條」四段固定:頭(h3,基底已 sticky top:0)／分頁列釘在頭底下／
-       身自捲／釘底「我上車了」(見上面槽內 .fp-ride 那條)。分頁列的 sticky top 讀量到的
+       身自捲(「我上車了」08-27 起不再釘底,隨內容流動)。分頁列的 sticky top 讀量到的
        --board-head-h(=分頁列自己的自然版位,見 syncBoardHeadVar):站名牌在不在、字級幾階、
        站名多長都已經算在裡面,寫死就是下一個會漂掉的魔術數字。
        橫紋要不透明,否則捲動內容會從分頁列後面穿過去;左右負邊界補滿卡的 14px 內距。 */
@@ -3849,7 +3849,13 @@
       margin: 0 -14px 8px; padding: 5px 14px 6px;
       background: var(--paper);
     }
-    body.fs.panel-translucent .board .uni-tabs { background: var(--panel-glass); }
+    /* 🔴 半透明時比照 08-27 裁示「標題列半透明＋blur(6px)」(見 body.panel-translucent .board h3 那條):
+       sticky 層下捲過的字要糊成色塊;只給玻璃不給 blur 就是字疊字(08-27 真機橫式回報的那鍋粥)。 */
+    body.fs.panel-translucent .board .uni-tabs {
+      background: var(--panel-glass);
+      -webkit-backdrop-filter: blur(6px) saturate(1.08);
+      backdrop-filter: blur(6px) saturate(1.08);
+    }
 
     /* 抓把與三段高不適用(高度固定、內容自己捲)——比照 #searchPanel 上錨版的既有先例。
        JS 側由 sheetHasSizeSteps() 一併回 false,兩邊都要,否則點標題列會變成「只改 body class、看不出差別」。 */
@@ -3862,21 +3868,31 @@
     body.fs .traincard.tc-sheet.sheet-small .tc-sparkwrap,
     body.fs .traincard.tc-sheet.sheet-small .tc-stops { display: block; }
 
-    /* ── 跟隨欄在橫式廢除(§04c v2 合併契約「改·第 4 條」,2026-08-26)────────────────
-       §04c(08-12)把跟隨資訊放左欄、面板家族放右欄。1.4.9 把七層併成「一張卡兩分頁」之後,
-       左欄的存在理由消失——同一份資訊在卡的「這班車」分頁裡已經有了,左欄只是再造一個遮擋物。
-       廢除之後左緣除安全區外沒有任何 HUD,露出地圖從 556 寬長回 868(卡未開)。
-       🔴 只在**沒被搬進卡的槽裡**時隱藏:搬進去的那一份就是「這班車」分頁的內容,
-          特異性 (0,4,1) > (0,2,1),槽裡那條贏。 */
-    body.fs .follow-panel { display: none; }
-    body.fs .board .uni-slot > .follow-panel { display: block; }
-    /* 卡內第四段「我上車了」釘底(§04c v2:頭 44／分頁 36／身自捲／釘底 48)。
-       原本這條掛在左欄上,欄廢除後改掛槽裡那一份。 */
-    body.fs .board .uni-slot > .follow-panel .fp-ride {
-      position: sticky; bottom: 6px; z-index: 2;
-      box-shadow: 0 0 0 5px rgba(255, 253, 247, .85);
-      background: var(--paper);
+    /* ── 跟車卡在橫式=右側欄(§04c v3,2026-08-27 使用者裁示)────────────────────────
+       v2(08-26)廢除左欄的理由是「同一份資訊在卡的『這班車』分頁裡已經有了」——但那一頁只在
+       看板開著時存在;跟車而沒開站板時整份跟車資訊無處可去(真機回報「點跟車沒看到資訊卡」)。
+       v3 讓 #followPanel 自己就是右側欄:與看板側欄同一幾何、同樣上錨到頂;點卡仍走既有的
+       openTrainSheet 展開完整資料。搬進看板槽裡時 .uni-slot 那條(position:static,特異性較高)
+       接管,這裡的幾何整組失效;[hidden] 的 display:none !important 照樣蓋過一切。 */
+    body.fs .follow-panel {
+      top: calc(8px + var(--sa-t)); bottom: calc(var(--tabbar-clear) + 8px);
+      left: auto; right: calc(8px + var(--sa-r));
+      width: var(--rail-w); max-width: none; max-height: none; min-height: 0;
+      margin: 0; transform: none; border-radius: 12px;
     }
+    /* 收合膠囊:比照捷運 freq-card 的左下錨點(點膠囊展開回側欄,跟車不斷) */
+    body.fs .follow-panel.fp-min {
+      top: auto; bottom: calc(var(--tabbar-clear) + 2px);
+      left: calc(8px + var(--sa-l)); right: auto; width: auto;
+    }
+    body.fs .board .uni-slot > .follow-panel { display: block; }
+    /* 別的 sheet(亮點/最愛/護照/搜尋/近站…)開著時側欄讓位給它——兩張右側欄疊在一起
+       誰都讀不了;槽內那顆由上一條 (0,2,2) 特異性反轉回 display:block(board 情境不受影響)。
+       同時免掉直式 sheet-open 那條 bottom:46%!important 打進來的幾何衝突(上錨+46%底=壓扁)。
+       關掉 sheet 由 updateSheetOpenClass 摘 class,側欄自己回來——與 train-open 隱藏同族先例。 */
+    body.fs.sheet-open .follow-panel { display: none; }
+    /* 「我上車了」不再釘底(08-27 真機回報:釘底=永遠浮在其他文字上擋字。側欄已上錨到頂、
+       捲動空間變大,讓它照 DOM 順序隨內容流動即可)。 */
     /* 捷運跟車卡維持左下小卡(§04c 只重排台鐵/高鐵跟隨欄):沿用限高與 sheet-open 底錨 */
     body.fs.sheet-open .freq-card { bottom: calc(var(--tabbar-clear) + 2px) !important; }
     body.fs .freq-card {
@@ -3900,7 +3916,11 @@
       background: var(--paper); border: 0; border-radius: 0; box-shadow: none;
       transform: none; transition: opacity .18s ease;
     }
-    body.fs.panel-translucent .dwell-plate.dp-docked { background: var(--panel-glass); }
+    body.fs.panel-translucent .dwell-plate.dp-docked {
+      background: var(--panel-glass);
+      -webkit-backdrop-filter: blur(6px) saturate(1.08); /* 同上:sticky 層必帶 blur,否則捲動字疊字 */
+      backdrop-filter: blur(6px) saturate(1.08);
+    }
     /* 沒停靠就不佔位:卡頭不留一條空白(段高是版面常數,空白等於白白吃掉捲動身) */
     body.fs .dwell-plate.dp-docked:not(.show) { display: none; }
     /* 🔴 併進卡頭之後不可以再吃獨立牌那條「置中用的 translateX(-50%)」——同特異性、而那條在後面,
@@ -3924,9 +3944,12 @@
     body.fs.ambient .topbar { display: flex; }
     body.fs.ambient .map-actions, body.fs.ambient .board, body.fs.ambient #nearCard,
     body.fs.ambient #searchPanel, body.fs.ambient .traincard.tc-sheet,
+    body.fs.ambient .follow-panel, /* v3:跟車卡成了側欄,放空時照 17f 一樣淡出(出口=速度膠囊) */
     body.fs.ambient .dwell-plate {
       opacity: 0; pointer-events: none; transition: opacity .18s ease;
     }
+    /* live(OBS 版面契約)維持 v2 行為:橫式不出跟車側欄,浮層版面一格不動 */
+    body.fs.live .follow-panel { display: none; }
     /* 🔴 出口保命:上面那條「sheet 開著就把速度膠囊淡掉讓位」(body.sheet-open .controls,特定度 0-2-1)
        在放空模式下會把唯一的出口一起淡成 opacity 0——實測進放空時 setAmbient() 只收亮點面板,
        車站看板是留著的,於是 .controls 整條 opacity:0 而「離開放空」鈕就在裡面(V3 判準抓到)。
@@ -3950,27 +3973,14 @@
        工具堆還停在 56 ⇒ 隨機跟隨鈕整顆疊進頂列(實測 rand y56–100 vs 頂列 8–127)。
        同一個公式:標準檔算出來仍是 8+42+6=56,幾何一格不動。 */
     html[data-fs] body.fs .map-actions { top: calc(8px + var(--sa-t) + var(--tb-h, 42px) + 6px); }
-    body.fs.sheet-open .map-actions, body.fs.train-open .map-actions {
-      right: calc(var(--rail-w) + 18px + var(--sa-r));
-    }
-    /* §04c 契約7:頂列可讀底——徽章/時鐘/班數靠整條帶才有底,不是各自上卡。
-       🔴 帶的透明度跟「面板半透明」開關走,與面板家族同一契約(2026-08-12 實機退回:開關關著
-       仍恆 .30 玻璃,衛星圖上字看不清)——預設=實心紙面 --paper-tr;開了才是 .30+blur 3px
-       (使用者凍結值)加字外圈 halo,規則形狀比照 body.panel-translucent 面板家族。 */
-    /* 盒幾何鐵則:帶不准長高長寬——下方 52 起是側欄、56 起是工具堆,帶底緣必須停在 48。
-       描邊用 outline(-1px 內縮)不用 border、垂直 padding 為 0,盒尺寸與無帶時逐 px 相同;
-       只留 padding-left 8 給軌島牌呼吸(右端 tabs 靠 space-between 貼右緣=與工具堆同一右錨)。 */
-    body.fs .topbar {
-      background: var(--paper-tr);
-      outline: 1px solid var(--line-faint); outline-offset: -1px;
-      border-radius: 10px;
-      padding: 0 0 0 8px; align-items: center;
-    }
-    body.fs.panel-translucent .topbar {
-      background: var(--panel-glass);
-      -webkit-backdrop-filter: blur(3px) saturate(1.08);
-      backdrop-filter: blur(3px) saturate(1.08);
-    }
+    /* v3(08-27 裁示):側欄開著時工具堆不再左移讓位——「可以擋住右上角那些按鈕沒關係,
+       不然捲軸太短空間太小」。側欄在上層,被蓋住期間本來就點不到,關卡即回。
+       (被蓋住≠消失:z 序 board/follow-panel 650 > map-actions 620。) */
+    /* §04c 契約7 退役(2026-08-27 真機回報「上面多了一個半透明沒有特別用處的區塊」):
+       原設計「頂列整條帶當可讀底」從未真正成立——徽章自己的紙面 pill(body.fs .badge 特異性較高)
+       一直都在,軌島牌與群組圓鈕也各自帶底,帶只剩中段一條空玻璃=雙重底。拆掉帶的底、描邊與
+       圓角,回到與直式一致的「各元件自帶底」;盒幾何(零垂直 padding、padding-left 8)不動。 */
+    body.fs .topbar { padding: 0 0 0 8px; align-items: center; }
     /* 🔴 2026-08-27 裁示:外圈(halo)整組拿掉,可讀性靠字色——同面板家族那條註解。 */
     /* mock 右上幾何:公告 26 圓鈕、短標 44×28/gap 6；工具堆維持 44×44/gap 8，三者共用右錨。
        三個固定盒都吃 --ui:字級放大時字撐大了盒子不跟著長,字會被自己的框切掉(設計檔 TURN 10/12
@@ -4045,7 +4055,8 @@
           的那條一併退役(左緣已經沒有任何 HUD 元件,再讓就是憑空把中線推歪)。
        右界 --rail-occupy 仍讀 sheet 開闔。 */
     body.fs { --rail-occupy: 0px; --land-lb: var(--sa-l); }
-    body.fs.sheet-open, body.fs.train-open { --rail-occupy: calc(var(--rail-w) + 16px + var(--sa-r)); }
+    body.fs.sheet-open, body.fs.train-open,
+    body.fs.follow-on { --rail-occupy: calc(var(--rail-w) + 16px + var(--sa-r)); } /* v3:跟車側欄也佔右(follow-on 已排除收合膠囊) */
     body.fs .dwell-plate {
       left: calc(var(--land-lb) + (100% - var(--land-lb) - var(--rail-occupy)) / 2); right: auto;
       width: max-content; max-width: min(320px, 42vw); min-width: 0;
@@ -19544,7 +19555,13 @@ function computeMapInsets() {
     const r = el.getBoundingClientRect();
     if (!(r.width > 0.5 && r.height > 0.5)) continue;
     const min = el.classList.contains('fp-min');
-    if (sideRail) { if (!min) left = Math.max(left, r.right - mc.left + 8); }
+    // v3(08-27):跟車卡在橫式是「右側欄」(捷運 freq-card 仍是左下小卡),讓位方向跟著錨點走
+    if (sideRail) {
+      if (!min) {
+        if (el.id === 'followPanel') right = Math.max(right, mc.right - r.left + 8);
+        else left = Math.max(left, r.right - mc.left + 8);
+      }
+    }
     else if (min) bottom = Math.max(bottom, mc.bottom - r.top + 8);
     else left = Math.max(left, r.right - mc.left + 8);
   }
