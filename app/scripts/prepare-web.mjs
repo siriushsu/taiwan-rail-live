@@ -109,7 +109,21 @@ for (const dir of ['assets', 'data']) await copyTree(dir);
 // place_index.json 是本次 build 現場產物，尚未 git add 時不會通過 copyTree 的「只收 tracked」
 // 閘門；明確單檔複製，不放寬其他未追蹤資料進 bundle。
 await copyFile('data/place_index.json');
-if (includeLicensedMusic) await copyTree('suno musics');
+// 🔴 音樂只複製 index.html 的 MUSIC_BUNDLED 那 12 首,不是整棵 'suno musics'。
+//    整棵是 57 首 196MB,全帶會讓 App 下載從 174MB 漲到約 267MB(越過 iOS 行動網路下載
+//    要另外允許的 200MB 門檻);其餘曲目由前端改指向正式站串流。
+//    名單【刻意從 index.html 解析而不在這裡再寫一份】——兩份清單一定會漂,而漂掉的症狀是
+//    「某幾首在飛航模式下靜默播不出來」,不會有任何 build 期訊號。
+if (includeLicensedMusic) {
+  const indexSrc = await readFile(join(repoRoot, 'index.html'), 'utf8');
+  const block = indexSrc.match(/const MUSIC_BUNDLED = new Set\(\[([\s\S]*?)\]\);/);
+  if (!block) throw new Error('prepare-web: index.html 找不到 MUSIC_BUNDLED');
+  const bundled = [...block[1].matchAll(/'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"/g)]
+    .map(m => (m[1] ?? m[2]).replace(/\\(.)/g, '$1'));
+  if (!bundled.length) throw new Error('prepare-web: MUSIC_BUNDLED 解析出 0 首');
+  for (const rel of bundled) await copyFile(join('suno musics', rel));
+  console.log(`  · 內建音樂 ${bundled.length} 首(其餘從正式站串流)`);
+}
 
 const noticeEntries = [
   ['Capacitor Core／iOS／Android 8.4.2', 'node_modules/@capacitor/core/LICENSE'],
