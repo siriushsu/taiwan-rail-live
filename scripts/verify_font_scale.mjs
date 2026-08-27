@@ -59,20 +59,63 @@ async function boot(browser, { width = 393, tier = 'std', query = '', scheme, na
   return { page, errs, close: () => ctx.close() };
 }
 
+// ── 群組切換器:兩種形態共用的解析與真觸控 ────────────────────────────────────
+// 🔴 2026-08-27 起手機殼把四顆群組分頁(全／台／高／捷)收成一顆 #gtabOne,點開才出選單。
+//    腳本一律「解析出當下真的渲染出來的那一種」,不寫死是哪一種:寫死一種,另一種上線時
+//    querySelectorAll 會回空陣列,而「空陣列裡沒有東西溢出視窗」恆真 ⇒ 整批判準無聲假綠
+//    (心得 37d:覆蓋率本身要有具名斷言)。所以下面每一處用到它的地方都先驗「解析得到」。
+const GS_RESOLVE = () => {
+  const shown = e => !!e && !e.hidden && getComputedStyle(e).display !== 'none' && e.getClientRects().length > 0;
+  // 🔴 `.grouptabs` 全頁有兩組:桌面 header 一組、手機 topbar 一組。收合鈕只存在於手機那組,
+  //    但四顆分頁要掃**全頁**——桌面殼根本不渲染 .topbar,只掃 .topbar 會在桌面回「兩種都沒有」。
+  const one = document.querySelector('.topbar .gtab-one');
+  const tabs = [...document.querySelectorAll('.grouptabs .gtab')].filter(shown);
+  return { kind: shown(one) ? 'one' : (tabs.length ? 'tabs' : null), oneShown: shown(one), tabsN: tabs.length,
+    scope: tabs.length && tabs[0].closest('.topbar') ? 'topbar' : (tabs.length ? 'header' : null) };
+};
+// 真的用手指點一次換組(不是 selectGroup(),那繞過整條命中/熱區路徑)。
+// 收合鈕形態:點鈕 ⇒ 選單 ⇒ 點那一列;四顆形態:直接點那顆。回傳換完的 state.group。
+async function tapGroupByShort(page, short) {
+  const kind = (await page.evaluate(GS_RESOLVE)).kind;
+  if (kind === 'one') {
+    await page.tap('.topbar .gtab-one');
+    await page.waitForTimeout(260);
+    const rows = page.locator('#gtabPop .gp-row');
+    const n = await rows.count();
+    for (let i = 0; i < n; i++) {
+      if ((await rows.nth(i).locator('.gp-sh').textContent() || '').trim() === short) {
+        await rows.nth(i).tap(); break;
+      }
+    }
+  } else if (kind === 'tabs') {
+    const tabs = page.locator('.grouptabs:visible .gtab');
+    const n = await tabs.count();
+    for (let i = 0; i < n; i++) {
+      if ((await tabs.nth(i).textContent() || '').trim() === short) { await tabs.nth(i).tap(); break; }
+    }
+  }
+  await page.waitForTimeout(900);
+  // 🔴 `state` 是頁面的 top-level const,不是 window 的屬性 ⇒ `window.state` 恆 undefined
+  //    (寫成 `window.state && state.group` 會短路成 undefined,判準看起來像產品壞了)
+  return { kind, group: await page.evaluate(() => typeof state !== 'undefined' ? state.group : null) };
+}
+
 // ── A 段:幾何——放大之後還在不在畫面裡 ────────────────────────────────────────
 // 判準寫「四顆分頁的 rect 全部在視窗內」而不是「頂列高度 <= N px」:後者是會隨文案漂移的魔術數字。
 async function sectionA(browser, engine) {
   for (const tier of ['std', 'large', 'xlarge']) {
     for (const width of [360, 393, 414]) {
       const { page, errs, close } = await boot(browser, { width, tier });
-      // 捷運群組=最長的鄰站名(南港展覽館／頂埔),是頂列最擠的常態組合
-      await page.evaluate(() => {
-        document.querySelectorAll('.topbar .gtab').forEach(b => { if (b.textContent.trim() === '捷') b.click(); });
-      });
-      await page.waitForTimeout(900);
+      // 捷運群組=最長的鄰站名(南港展覽館／頂埔),是頂列最擠的常態組合。
+      // 真觸控換組(收合鈕形態就是「點鈕→點選單那一列」),順便當這一段的前置條件。
+      const sw = await tapGroupByShort(page, '捷');
       const r = await page.evaluate(() => {
         const vis = e => { const b = e.getBoundingClientRect(); return b.width > 0 && b.height > 0; };
-        const tabs = [...document.querySelectorAll('.topbar .grouptabs .gtab')].filter(vis);
+        // 🔴 量的是「當下真的渲染出來的那個群組切換器」:收合鈕形態算一顆,四顆分頁形態算四顆。
+        //    寫死其中一種,另一種上線時這裡會回空陣列而下面的「沒有東西溢出」恆真(假綠)。
+        const one = document.querySelector('.topbar .gtab-one');
+        const shownOne = one && !one.hidden && getComputedStyle(one).display !== 'none' && one.getClientRects().length > 0;
+        const tabs = shownOne ? [one] : [...document.querySelectorAll('.topbar .grouptabs .gtab')].filter(vis);
         const outside = tabs.filter(t => {
           const b = t.getBoundingClientRect();
           return b.right > innerWidth + 0.5 || b.left < -0.5;
@@ -87,12 +130,18 @@ async function sectionA(browser, engine) {
           const b = rg.getBoundingClientRect(); rg.detach && rg.detach();
           return b;
         };
-        const selfClipped = tabs.filter(t => {
+        // 🔴 收合鈕把字包在 <span class=go-tx> 裡,textBox() 只找**直接**子文字節點 ⇒ 會回 null,
+        //    而「null 就 return false」讓 selfClipped 變成空集合恆真(判準還在,但不再檢查任何東西)。
+        //    所以量的對象一律取「真的帶著字的那個元素」。
+        const labelOf = e => e.querySelector('.go-tx') || e;
+        const selfClipped = tabs.filter(el => {
+          const t = labelOf(el);
           const tb = textBox(t); if (!tb) return false;
           const cs = getComputedStyle(t), b = t.getBoundingClientRect();
           const iw = b.width - parseFloat(cs.borderLeftWidth) - parseFloat(cs.borderRightWidth);
           const ih = b.height - parseFloat(cs.borderTopWidth) - parseFloat(cs.borderBottomWidth);
-          return tb.width > iw + 0.5 || tb.height > ih + 0.5;
+          return tb.width > iw + 0.5;   // 只判水平:沒有 overflow:hidden 的話垂直切不掉,
+                                         // 而 line-height:normal 的墨跡框本來就比行框高零點幾 px(心得 25)
         }).map(t => t.textContent.trim());
         const tl = document.querySelector('.tabbar .tl').getBoundingClientRect();
         // 上緣堆疊:頂列與時鐘徽章。判準用「rect 相交面積」而不是「徽章 top >= 某常數」——
@@ -105,22 +154,26 @@ async function sectionA(browser, engine) {
         const inBar = bar.contains(bg);
         const contained = gr.left >= br.left - 0.5 && gr.right <= br.right + 0.5
                        && gr.top >= br.top - 0.5 && gr.bottom <= br.bottom + 0.5;
-        const sibs = [...bar.querySelectorAll('.tb-logo,.alert-chip,.grouptabs .gtab,.tb-plate')]
+        const sibs = [...bar.querySelectorAll('.tb-logo,.alert-chip,.grouptabs .gtab,.gtab-one,.tb-plate')]
           .filter(e => e.getClientRects().length && +getComputedStyle(e).opacity >= 0.5);
         const sibOverlap = +Math.max(0, ...sibs.map(e => area(gr, e.getBoundingClientRect())), 0).toFixed(0);
-        return { n: tabs.length, outside, selfClipped, labelInside: tl.bottom <= innerHeight + 0.5,
+        return { n: tabs.length, kind: shownOne ? 'one' : 'tabs', outside, selfClipped, labelInside: tl.bottom <= innerHeight + 0.5,
           bothVisible: br.height > 0 && gr.height > 0,
           topStackOverlap: +area(br, gr).toFixed(0),
           badgeInBar: inBar, badgeContained: contained, sibOverlap, sibN: sibs.length,
           badgeInlineTop: bg.style.top };
       });
       const tag = `${engine} ${tier} ${width}pt`;
-      ok(`A1 ${tag} 正向對照:四顆群組分頁都量得到`, r.n === 4, `n=${r.n}`);
+      // A1 正向對照:切換器真的量得到,而且**真的按得動**(tapGroupByShort 已經按過一次)。
+      // 兩種形態各自寫死自己的顆數,少了任何一半都會讓另一種形態無條件通過。
+      ok(`A1 ${tag} 正向對照:群組切換器量得到(${r.kind === 'one' ? '收合成一顆' : '四顆分頁'})且真的按得動`,
+        (r.kind === 'one' ? r.n === 1 : r.n === 4) && sw.group === 'metro',
+        `kind=${r.kind} n=${r.n} 換組後 state.group=${sw.group}`);
       // 2026-08-26:原本這裡對「標準檔 360pt」開了豁免——網站分支既有的「捷」被切缺陷
       // (memory:topbar-cut-fix-only-on-app-branch,同段 CSS 兩分支相反)。合併進 App 出貨線之後
       // 實測 outside 為空 ⇒ 該缺陷在這棵樹上已經不存在,豁免變成沒有牙的過期條款,拆掉。
-      ok(`A2 ${tag} 四顆分頁都在視窗內`, r.outside.length === 0, r.outside.join(','));
-      ok(`A3 ${tag} 分頁的字沒有被自己的框切掉`, r.selfClipped.length === 0, r.selfClipped.join(','));
+      ok(`A2 ${tag} 切換器在視窗內`, r.outside.length === 0, r.outside.join(','));
+      ok(`A3 ${tag} 切換器的字沒有被自己的框切掉`, r.selfClipped.length === 0, r.selfClipped.join(','));
       ok(`A4 ${tag} tab bar 的文字標籤沒有被切在畫面外`, r.labelInside);
       ok(`A5 ${tag} 零 pageerror`, errs.length === 0, errs.slice(0, 1).join(''));
       // 正向對照:`相交=0` 在「其中一個根本沒渲染」時也會成立,先證明兩者都真的量得到
@@ -709,14 +762,56 @@ async function sectionI(browser, engine) {
   });
   ok(`I1 ${tag} 正向對照:手機殼、徽章併入頂列、時鐘還讀得到`,
     top.isFs && top.inBar && top.clockPx >= 14, `fs=${top.isFs} inBar=${top.inBar} clock=${top.clockPx}`);
-  // 色點:寬高一致的小圓、字級歸零(字被收掉了)。只驗「有畫出來」會讓沒收成點的舊樣式照樣通過。
-  // 🔴 用 every 不用 ||:檔內早就有一條 @media(max-width:400px) 把 .mlive 收成 0 字級,
-  //    寫成 OR 的話「只剩那條舊規則在生效」也會全綠——實測突變(拿掉 D4 的 font-size:0)正是這樣溜過去的。
-  const dot = f => f && Math.abs(f.w - f.h) <= 1 && f.w <= 10 && f.fs === 0;
-  const flags = [top.live, top.mlive].filter(Boolean);
-  ok(`I2 ${tag} 亮著的狀態旗標全部收成色點(非文字)`,
-    flags.length >= 1 && flags.every(dot),
-    `亮著 ${flags.length} 顆 live=${JSON.stringify(top.live)} mlive=${JSON.stringify(top.mlive)}`);
+  // 🔴 2026-08-27 裁示推翻 08-22 的「一律收成色點」:「現在已經把右邊四個按鈕縮小的狀況下,
+  //    時間按鈕其實可以直接寫詳細資訊了。」⇒ 新契約是「排得下就寫字,排不下才**逐顆**降級成色點」。
+  //    舊判準(全部都必須是色點)照抄過來只會擋住裁示,所以整條改寫成三件事:
+  //    I2  形態純度——每顆亮著的旗標要嘛是可讀的字、要嘛是 7px 圓點,不准有第三種(字被壓成 1px、
+  //        色點變方形都算)。
+  //    I2b 降級順序——色點集合必須是降級優先序的**前綴**(metro→尖峰→重播→即時);
+  //        跳過低優先的先降高優先的就是壞了。
+  //    I2c 反向對照——把最後降級的那一顆放回文字,整排必須**真的**塞不下。少了這條,
+  //        「乾脆永遠全部收成色點」照樣全綠(那正是舊判準的樣子)。
+  const fitProbe = await page.evaluate(() => {
+    const DEG = ['metroBadge', 'peak', 'replayBadge', 'liveBadge'];
+    const bar = document.getElementById('topbar');
+    if (!bar) return { err: 'no-topbar' };
+    const els = DEG.map(id => document.getElementById(id))
+      .filter(e => e && !e.hidden && e.getClientRects().length && e.textContent.trim());
+    const form = e => {
+      const b = e.getBoundingClientRect(), cs = getComputedStyle(e), fs = parseFloat(cs.fontSize);
+      if (Math.abs(b.width - b.height) <= 1 && b.width <= 10 && fs === 0 && /50%|999/.test(cs.borderRadius)) return 'dot';
+      if (fs >= 9 && b.width > b.height) return 'text';
+      return `其他(w=${b.width.toFixed(1)} h=${b.height.toFixed(1)} fs=${fs} br=${cs.borderRadius})`;
+    };
+    const forms = els.map(e => ({ id: e.id, form: form(e) }));
+    const dots = forms.map(f => f.form === 'dot');
+    const prefixOk = dots.every((d, i) => !d || dots.slice(0, i).every(Boolean));
+    const bs = getComputedStyle(bar);
+    const room = bar.clientWidth - (parseFloat(bs.paddingLeft) || 0) - (parseFloat(bs.paddingRight) || 0) + 0.5;
+    const gap = parseFloat(bs.gap) || 0;
+    const need = () => {
+      const k = [...bar.children].filter(e => e.getClientRects().length && getComputedStyle(e).position !== 'absolute');
+      return k.reduce((a, e) => a + e.getBoundingClientRect().width, 0) + gap * Math.max(0, k.length - 1);
+    };
+    let undo = null;                       // null = 這一輪沒有任何一顆降級,不適用
+    const lastDotIdx = dots.lastIndexOf(true);
+    if (lastDotIdx >= 0) {
+      const e = document.getElementById(forms[lastDotIdx].id);
+      e.classList.remove('as-dot');
+      undo = { id: e.id, need: +need().toFixed(1), room: +room.toFixed(1) };
+      e.classList.add('as-dot');
+    }
+    return { forms, prefixOk, undo, room: +room.toFixed(1), need: +need().toFixed(1) };
+  });
+  ok(`I2 ${tag} 每顆亮著的狀態旗標不是可讀的字就是 7px 色點(沒有第三種)`,
+    !fitProbe.err && fitProbe.forms.length >= 1 && fitProbe.forms.every(f => f.form === 'dot' || f.form === 'text'),
+    JSON.stringify(fitProbe.forms));
+  ok(`I2b ${tag} 降級照優先序:色點是「metro→尖峰→重播→即時」的前綴`,
+    !fitProbe.err && fitProbe.prefixOk, JSON.stringify(fitProbe.forms));
+  ok(`I2c ${tag} 反向對照:最後降級的那顆放回文字就真的塞不下(降級是必要的)`,
+    !fitProbe.err && (fitProbe.undo === null || fitProbe.undo.need > fitProbe.undo.room),
+    fitProbe.undo ? `${fitProbe.undo.id} 放回文字後需要 ${fitProbe.undo.need} > 可用 ${fitProbe.undo.room}`
+                  : `這一輪沒有任何一顆降級(整排 ${fitProbe.need} ≤ 可用 ${fitProbe.room}),不適用`);
   // 列車數:資料有(textContent 非空)但頂列不畫——「沒資料」與「有資料但收起來」要分得開
   ok(`I3 ${tag} 列車數有值但已從頂列收起`,
     !!top.countText && !top.countDrawn, `text=「${top.countText}」drawn=${top.countDrawn}`);
@@ -2491,7 +2586,10 @@ async function sectionX(browser, engine) {
         const tb = tbEl && shown(tbEl) ? box(tbEl) : null;
         const ma = maEl && shown(maEl) ? box(maEl) : null;
         const rand = randEl && shown(randEl) ? box(randEl) : null;
-        const tabs = [...document.querySelectorAll('.topbar .grouptabs .gtab')].filter(shown).map(e => ({ ...box(e), txt: e.textContent.trim() }));
+        // 兩種形態(收合成一顆／四顆分頁)取當下真的渲染出來的那一種,見檔頭 GS_RESOLVE 的說明
+        const oneEl = document.querySelector('.topbar .gtab-one');
+        const tabs = (shown(oneEl) ? [oneEl] : [...document.querySelectorAll('.topbar .grouptabs .gtab')].filter(shown))
+          .map(e => ({ ...box(e), txt: e.textContent.trim() }));
         // 上錨元件的 computed top 讀得到即使 display:none(讀的是計算值不是使用值),
         // 所以整族都掃得到,不必偽造可見狀態(偽造出來的幾何本來也不算數)。
         const tops = {};
@@ -2512,8 +2610,8 @@ async function sectionX(browser, engine) {
         JSON.stringify({ 頂列高: r.tb && Math.round(r.tb.h), 隨機鈕高: r.rand && Math.round(r.rand.h), 列車: r.trains, tbh: r.tbh }));
       ok(`X2 ${tag} 🔴 頂列與地圖動作列相交面積 = 0`, r.maVsTb === 0,
         JSON.stringify({ 相交: r.maVsTb, 頂列底: r.tb && Math.round(r.tb.b), 動作列頂: r.ma && Math.round(r.ma.t) }));
-      ok(`X3 ${tag} 🔴 沒有任何一顆群組分頁被隨機跟隨鈕蓋到`, !!r.worstTab && r.worstTab.a === 0,
-        r.worstTab ? `最嚴重的是「${r.worstTab.txt}」相交 ${r.worstTab.a}px²` : '量不到分頁或隨機鈕');
+      ok(`X3 ${tag} 🔴 群組切換器沒有被隨機跟隨鈕蓋到`, !!r.worstTab && r.worstTab.a === 0,
+        r.worstTab ? `最嚴重的是「${r.worstTab.txt}」相交 ${r.worstTab.a}px²` : '量不到切換器或隨機鈕');
       // X4 整族一起掃:今天壞的是 .map-actions,明天可能是隔壁那條,它們共用同一個假設
       const below = Object.entries(r.tops).filter(([, v]) => r.tb && v < r.tb.b - 0.5).map(([k, v]) => `${k}=${v}<頂列底${Math.round(r.tb.b)}`);
       ok(`X4 ${tag} 🔴 上錨元件的 top 全部不高於頂列底緣(整族掃,不只今天壞的那個)`, below.length === 0,
@@ -2536,11 +2634,8 @@ async function sectionY(browser, engine) {
     const { page, errs, close } = await boot(browser, { width: 393, tier: 'std' });
     const tag = `${engine} ${label}`;
     try {
-      await page.evaluate(g => {
-        const vis = e => e && e.offsetParent !== null;
-        [...document.querySelectorAll('.topbar .gtab')].filter(vis).forEach(b => { if (b.textContent.trim() === g) b.click(); });
-      }, gtab);
-      await page.waitForTimeout(3000);
+      await tapGroupByShort(page, gtab);
+      await page.waitForTimeout(2200);
 
       // 候選站:全台縮放下所有站擠成一團,挑不出「鄰站夠遠」的目標 ⇒ 逐顆放大到 z15 再判。
       // 🔴 「站上此刻沒有列車」是會飄的環境條件(車一停靠就會彈歧義選單而不是開看板),
@@ -2914,12 +3009,175 @@ async function sectionSP(browser, engine) {
   }
 }
 
-const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ, K: sectionK, L: sectionL, M: sectionM, MX: sectionMx, N: sectionN, NX: sectionNx, O: sectionO, P: sectionP, Q: sectionQ, R: sectionR, S: sectionS, T: sectionT, U: sectionU, V: sectionV, W: sectionW, X: sectionX, Y: sectionY, Z: sectionZ, SP: sectionSP };
+
+// ── TB 段:頂列單排契約與群組選單(2026-08-27 使用者連下三個裁示)────────────────
+//   ①「時鐘徽章現在在大跟特大設定 會跑到第二排 我希望無論如何都收在第一排」
+//   ②「或者是 你把那四顆鈕收成一顆 點擊會打開就好」
+//   ③ 標準字級也一起收(長方形牌 96px 讓不出第四顆鈕的位置;讓牌收寬會讓「軌島」兩字直排)
+//   ④「左上的logo 我希望要維持以前的款式 就是長方形而非正方形的」(推翻 08-22 D4 的方形 logo)
+//
+// 🔴 這一段擋的是**排法**不是某次量到的數字:
+//    TB2「單排」用「組件頂端落差 < 最高組件的高」而不是「頂列高 <= N px」——
+//    後者是會隨文案/字級漂移的魔術數字(心得 35),而且頂列一換行它照樣可能小於門檻。
+// 🔴 TB6 一定要在「有營運公告」的狀態量:頂列基底是 flex-wrap:wrap,而 wrap **會在縮之前先換行**,
+//    公告鈕一出現(整排多約 49px)群組鈕就整顆掉到第二排。乾淨態量不到這個壞法——
+//    2026-08-27 的 2×2 版正是這樣通過乾淨態、卻在有公告時破功(心得 28:互動/狀態累積後的態要量)。
+const TB_ALERT = n => {
+  // 走產品自己的路徑(塞公告資料再呼叫 renderAlertBanner),不是直接把鈕 hidden=false:
+  // 手動掀開的鈕不保證與真實渲染同寬,量到的會是產品不會出現的幾何。
+  // 不動 state.mode(那會讓畫面與資料對不上而拋錯);照當下模式塞進它自己的來源
+  const list = Array.from({ length: n }, (_, i) => ({ title: `測試公告 ${i + 1}`, start: '2026-08-27' }));
+  if (state.mode === 'sched') state.alert = { list }; else state.metroAlert = { list };
+  renderAlertBanner();
+  return { chipShown: !document.getElementById('alertChip').hidden,
+           chipN: document.getElementById('alertChipN').textContent };
+};
+const TB_PROBE = () => {
+  const R = e => { if (!e || !e.getClientRects().length) return null; const q = e.getBoundingClientRect();
+    return { l: +q.left.toFixed(1), r: +q.right.toFixed(1), t: +q.top.toFixed(1), b: +q.bottom.toFixed(1), w: +q.width.toFixed(1), h: +q.height.toFixed(1) }; };
+  const tb = document.querySelector('.topbar'), cs = getComputedStyle(tb);
+  const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom)
+             + parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+  const parts = [['牌', tb.querySelector('.tb-plate')], ['時鐘', tb.querySelector('.badge')],
+                 ['公告', tb.querySelector('.alert-chip')],
+                 ['群組', tb.querySelector('.gtab-one') || tb.querySelector('.grouptabs')]];
+  const vis = parts.map(([k, e]) => [k, R(e)]).filter(x => x[1]);
+  return { tb: R(tb), padY: +padY.toFixed(1), vis,
+    plate: R(tb.querySelector('.tb-plate')), logo: R(tb.querySelector('.tb-logo')),
+    one: R(tb.querySelector('.gtab-one')), tabsBox: R(tb.querySelector('.grouptabs')),
+    wrap: cs.flexWrap };
+};
+const TB_POP = () => {
+  const pop = document.getElementById('gtabPop');
+  const rows = [...document.querySelectorAll('#gtabPop .gp-row')].map(b => {
+    const q = b.getBoundingClientRect();
+    const tn = [...b.querySelector('.gp-nm').childNodes].find(x => x.nodeType === 3);
+    let ink = null;
+    if (tn) { const rg = document.createRange(); rg.selectNodeContents(tn); const t = rg.getBoundingClientRect(); ink = { w: t.width, h: t.height, l: t.left, r: t.right }; }
+    const nb = b.querySelector('.gp-nm').getBoundingClientRect();
+    // 🔴 「被切」只能綁真的會切的邊界。`.gp-nm` 與 #gtabPop 都沒有 overflow:hidden ⇒ 垂直方向
+    //    永遠切不掉,而 line-height:normal 的墨跡框本來就會比行框高零點幾 px(字型 ascent/descent),
+    //    拿它當判準會在 WebKit xlarge 報一個看不見的假缺陷(心得 25:盒對齊≠字形對齊)。
+    //    真正會壞的是兩件事:字比自己的欄位寬(列被擠扁)、字跑到選單框外面。
+    const pr = pop.getBoundingClientRect();
+    return { sh: b.querySelector('.gp-sh').textContent.trim(), nm: b.querySelector('.gp-nm').textContent.trim(),
+      cur: b.getAttribute('aria-current') === 'true', h: +q.height.toFixed(1),
+      inView: q.left >= -0.5 && q.right <= innerWidth + 0.5 && q.top >= -0.5 && q.bottom <= innerHeight + 0.5,
+      clipped: !!ink && (ink.w > nb.width + 0.5 || ink.l < pr.left - 0.5 || ink.r > pr.right + 0.5) };
+  });
+  return { open: !pop.hidden, expanded: document.getElementById('gtabOne')?.getAttribute('aria-expanded'),
+    rows, want: TAB_GROUPS.map(g => g.short + '/' + g.label),
+    oneTx: document.getElementById('gtabOneTx')?.textContent.trim(), group: state.group };
+};
+async function sectionTB(browser, engine) {
+  // ── 桌面反向對照:寬螢幕不是手機殼,四顆分頁要在、收合鈕不能出現。
+  //    少了這一半,「乾脆全平台都收成一顆」也會全綠。
+  {
+    const { page, errs, close } = await boot(browser, { width: 1280, tier: 'std' });
+    const r = await page.evaluate(GS_RESOLVE);
+    // 桌面殼根本不渲染 .topbar,四顆分頁住在桌面 header 裡——所以這裡連「在哪一組」一起驗
+    ok(`TB0 ${engine} 反向對照·桌面 1280 維持四顆分頁(在桌面 header)、收合鈕不出現`,
+      r.kind === 'tabs' && r.tabsN === 4 && r.oneShown === false && r.scope === 'header', JSON.stringify(r));
+    ok(`TB0e ${engine} 反向對照·零 pageerror`, errs.length === 0, errs[0] || '');
+    await close();
+  }
+
+  for (const tier of ['std', 'large', 'xlarge']) {
+    for (const width of [360, 393, 414]) {
+      const { page, errs, close } = await boot(browser, { width, tier });
+      const tag = `${engine} ${tier} ${width}pt`;
+      // 有公告是最擠的常態(見上方 TB6 的說明);先量乾淨態再加公告,兩態都要單排。
+      const clean = await page.evaluate(TB_PROBE);
+      const lit = await page.evaluate(TB_ALERT, 3);
+      await page.waitForTimeout(220);
+      const busy = await page.evaluate(TB_PROBE);
+
+      // 裁示①③:三個字級都收成一顆
+      ok(`TB1 ${tag} 四顆群組分頁收成一顆(#gtabOne 在、四顆那列不渲染)`,
+        !!busy.one && !busy.tabsBox, `一顆=${!!busy.one} 四顆列=${!!busy.tabsBox}`);
+      // 裁示④:長方形文字牌回來、方形 logo 讓位
+      ok(`TB4 ${tag} 左上是長方形軌島牌,方形 logo 不露臉`,
+        !!busy.plate && !busy.logo && busy.plate.w > busy.plate.h,
+        `牌 ${busy.plate ? busy.plate.w + '×' + busy.plate.h : '無'} 方形logo=${!!busy.logo}`);
+      ok(`TB5 ${tag} 前置·公告鈕真的被產品自己掀開了(${lit.chipN || '無數字'})`,
+        lit.chipShown === true && busy.vis.some(v => v[0] === '公告'), JSON.stringify(lit));
+
+      for (const [state_, r] of [['乾淨', clean], ['有公告', busy]]) {
+        const maxH = Math.max(...r.vis.map(x => x[1].h));
+        const spread = Math.max(...r.vis.map(x => x[1].t)) - Math.min(...r.vis.map(x => x[1].t));
+        ok(`TB2 ${tag}/${state_} 頂列是單排(組件頂端落差 ${spread.toFixed(1)} < 最高組件 ${maxH})`,
+          spread < maxH, r.vis.map(x => `${x[0]} t=${x[1].t}`).join(' '));
+        const over = r.vis.filter(([, v]) => v.r > r.tb.r + 0.5 || v.l < r.tb.l - 0.5).map(([k, v]) => `${k}[${v.l},${v.r}]`);
+        ok(`TB3 ${tag}/${state_} 沒有組件溢出頂列(${r.tb.l}~${r.tb.r})`, over.length === 0, over.join(' '));
+        // 高度判準從當下量到的東西推導(最高組件+自己的內距),不寫死 px
+        ok(`TB6 ${tag}/${state_} 頂列高 ${r.tb.h} 收在「最高組件 ${maxH} + 內距 ${r.padY}」之內`,
+          r.tb.h <= maxH + r.padY + 1, `wrap=${r.wrap}`);
+      }
+      // 🔴 結構性:nowrap 是這條契約的機制本身(wrap 會在縮之前先換行)。
+      //    只驗幾何不驗它,換一種寫法讓幾何碰巧過關時就沒有牙了。
+      ok(`TB7 ${tag} 結構性:手機殼頂列是 nowrap(wrap 會在縮之前先換行)`, busy.wrap === 'nowrap', busy.wrap);
+
+      // ── 選單:四個群組的字在這裡才需要活下來(收合之後頂列不再放它們)
+      await page.tap('.topbar .gtab-one');
+      await page.waitForTimeout(300);
+      const p1 = await page.evaluate(TB_POP);
+      ok(`TB8 ${tag} 點一顆就開選單,四個群組一個不少`, p1.open && p1.rows.length === 4
+        && p1.rows.map(r => r.sh + '/' + r.nm).join() === p1.want.join(),
+        JSON.stringify({ open: p1.open, got: p1.rows.map(r => r.sh + '/' + r.nm), want: p1.want }));
+      ok(`TB9 ${tag} 選單每一列都在視窗內、字沒被自己的框切掉、觸控高度 ≥44`,
+        p1.rows.length > 0 && p1.rows.every(r => r.inView && !r.clipped && r.h >= 43.5),
+        JSON.stringify(p1.rows.map(r => ({ nm: r.nm, h: r.h, inView: r.inView, clipped: r.clipped }))));
+      ok(`TB10 ${tag} 目前這一群在選單裡有標記(aria-current),且恰好一個`,
+        p1.rows.filter(r => r.cur).length === 1, JSON.stringify(p1.rows.map(r => [r.nm, r.cur])));
+      ok(`TB10b ${tag} aria-expanded 跟著開合走`, p1.expanded === 'true', String(p1.expanded));
+
+      // 真的點一列換組:選單要收、state.group 要變、一顆鈕上的字要跟著換
+      const target = p1.rows.find(r => !r.cur);
+      const rows = page.locator('#gtabPop .gp-row');
+      const n = await rows.count();
+      for (let i = 0; i < n; i++) {
+        if ((await rows.nth(i).locator('.gp-nm').textContent() || '').trim() === target.nm) { await rows.nth(i).tap(); break; }
+      }
+      await page.waitForTimeout(900);
+      const p2 = await page.evaluate(TB_POP);
+      ok(`TB11 ${tag} 點「${target.nm}」真的換組(${p1.group}→${p2.group})、選單收掉、鈕上的字跟著換成「${target.sh}」`,
+        !p2.open && p2.group !== p1.group && p2.oneTx === target.sh,
+        JSON.stringify({ open: p2.open, group: p2.group, oneTx: p2.oneTx, want: target.sh }));
+
+      // 關法兩種:Esc 與點外面。兩條分開寫——只留一條時另一條壞掉沒人知道。
+      await page.tap('.topbar .gtab-one'); await page.waitForTimeout(260);
+      const beforeEsc = await page.evaluate(() => !document.getElementById('gtabPop').hidden);
+      await page.keyboard.press('Escape'); await page.waitForTimeout(240);
+      const afterEsc = await page.evaluate(() => !document.getElementById('gtabPop').hidden);
+      ok(`TB12 ${tag} Esc 收得掉選單`, beforeEsc === true && afterEsc === false, `開=${beforeEsc} 關=${afterEsc}`);
+      await page.evaluate(() => gtabPopSet(false));   // 不繼承上一條的結果:兩條要能各自指認自己壞了
+      await page.waitForTimeout(160);
+      await page.tap('.topbar .gtab-one'); await page.waitForTimeout(260);
+      const beforeOut = await page.evaluate(() => !document.getElementById('gtabPop').hidden);
+      await page.mouse.click(Math.round(width / 2), 600);
+      await page.waitForTimeout(260);
+      const afterOut = await page.evaluate(() => !document.getElementById('gtabPop').hidden);
+      ok(`TB13 ${tag} 點選單外面收得掉`, beforeOut === true && afterOut === false, `開=${beforeOut} 關=${afterOut}`);
+
+      ok(`TB14 ${tag} 零 pageerror`, errs.length === 0, errs[0] || '');
+      await close();
+    }
+  }
+}
+
+const ALL = { A: sectionA, B: sectionB, C: sectionC, D: sectionD, E: sectionE, F: sectionF, G: sectionG, H: sectionH, I: sectionI, J: sectionJ, K: sectionK, L: sectionL, M: sectionM, MX: sectionMx, N: sectionN, NX: sectionNx, O: sectionO, P: sectionP, Q: sectionQ, R: sectionR, S: sectionS, T: sectionT, U: sectionU, V: sectionV, W: sectionW, X: sectionX, Y: sectionY, Z: sectionZ, SP: sectionSP, TB: sectionTB };
 const want = (process.env.SECTIONS || '').split(',').map(x => x.trim().toUpperCase()).filter(Boolean);
 const run = want.length ? want : Object.keys(ALL);
 for (const k of run) if (!ALL[k]) { console.error(`未知段別 ${k}`); process.exit(2); }
 if (want.length) console.log(`⚠ 只跑 ${run.join(',')} 段(SECTIONS 環境變數),這不是完整驗收`);
-for (const [engine, launcher] of [['chromium', chromium], ['webkit', webkit]]) {
+// ENGINES=webkit 之類的窄化只給突變測試用(跑一輪要分辨紅的是哪一發,不必兩個引擎各跑一次);
+// 正式驗收不要傳,傳了會像 SECTIONS 一樣印出警告。
+const ENG_ALL = [['chromium', chromium], ['webkit', webkit]];
+const engWant = (process.env.ENGINES || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
+const ENG = engWant.length ? ENG_ALL.filter(e => engWant.includes(e[0])) : ENG_ALL;
+if (engWant.length) console.log(`⚠ 只跑 ${ENG.map(e => e[0]).join(',')} 引擎(ENGINES 環境變數),這不是完整驗收`);
+if (!ENG.length) { console.error('ENGINES 沒有對到任何引擎'); process.exit(2); }
+for (const [engine, launcher] of ENG) {
   const browser = await launcher.launch();
   for (const k of run) {
     // 🔴 一段拋例外不可以把整支腳本連同另一個引擎一起帶走:那樣的輸出會變成「只有幾條紅」,
