@@ -74,7 +74,7 @@ const server = createServer((req, res) => {
   res.setHeader('content-type', MIME[path.extname(fp)] || 'application/octet-stream');
   res.end(readFileSync(fp));
 });
-await new Promise((resolve, reject) => { server.on('error', reject); server.listen(PORT, resolve); });
+await new Promise((resolve, reject) => { server.on('error', reject); server.listen(PORT, '127.0.0.1', resolve); });
 // Plus 公開入口目前受止血旗標保護；這支回歸是專門驗 Plus 生命週期，必須走既有的測試開關，
 // 否則 plusConfigured() 會在 adapter 前就 fail-closed，所有 listener 判準都只是在驗「功能關閉」。
 const BASE = `http://localhost:${PORT}/?plus=1`;

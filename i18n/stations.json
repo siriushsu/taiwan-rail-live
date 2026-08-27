@@ -1,0 +1,2327 @@
+{
+  "generated": "2026-08-27",
+  "systems": {
+    "thsr_sched": {
+      "台中": {
+        "en": "Taichung",
+        "ja": "台中"
+      },
+      "台北": {
+        "en": "Taipei",
+        "ja": "台北"
+      },
+      "台南": {
+        "en": "Tainan",
+        "ja": "台南"
+      },
+      "左營": {
+        "en": "Zuoying",
+        "ja": "左營"
+      },
+      "板橋": {
+        "en": "Banqiao",
+        "ja": "板橋"
+      },
+      "南港": {
+        "en": "Nangang",
+        "ja": "南港"
+      },
+      "苗栗": {
+        "en": "Miaoli",
+        "ja": "苗栗"
+      },
+      "桃園": {
+        "en": "Taoyuan",
+        "ja": "桃園"
+      },
+      "雲林": {
+        "en": "Yunlin",
+        "ja": "雲林"
+      },
+      "新竹": {
+        "en": "Hsinchu",
+        "ja": "新竹"
+      },
+      "嘉義": {
+        "en": "Chiayi",
+        "ja": "嘉義"
+      },
+      "彰化": {
+        "en": "Changhua",
+        "ja": "彰化"
+      }
+    },
+    "afr_sched": {
+      "二萬平": {
+        "en": "Erwanping",
+        "ja": "二万平"
+      },
+      "十字路": {
+        "en": "Shizilu",
+        "ja": "十字路"
+      },
+      "水社寮": {
+        "en": "Shuisheliao",
+        "ja": "水社寮"
+      },
+      "北門": {
+        "en": "Beimen",
+        "ja": "北門"
+      },
+      "交力坪": {
+        "en": "Jiaoliping",
+        "ja": "交力坪"
+      },
+      "多林": {
+        "en": "Duolin",
+        "ja": "多林"
+      },
+      "竹崎": {
+        "en": "Zhuqi",
+        "ja": "竹崎"
+      },
+      "沼平": {
+        "en": "Zhaoping",
+        "ja": "沼平"
+      },
+      "阿里山": {
+        "en": "Alishan",
+        "ja": "阿里山"
+      },
+      "屏遮那": {
+        "en": "Pingzhena",
+        "ja": "屏遮那"
+      },
+      "祝山": {
+        "en": "Zhushan",
+        "ja": "祝山"
+      },
+      "神木": {
+        "en": "Shenmu",
+        "ja": "神木"
+      },
+      "梨園寮": {
+        "en": "Liyuanliao",
+        "ja": "梨園寮"
+      },
+      "第一分道": {
+        "en": "1st-Switch",
+        "ja": "第一分道"
+      },
+      "第二分道": {
+        "en": "2nd-Switch",
+        "ja": "第二分道"
+      },
+      "鹿麻產": {
+        "en": "Lumachan",
+        "ja": "鹿麻産"
+      },
+      "嘉義": {
+        "en": "Chiayi",
+        "ja": "嘉義"
+      },
+      "對高岳": {
+        "en": "Duigaoyue",
+        "ja": "対高岳"
+      },
+      "樟腦寮": {
+        "en": "Zhangnaoliao",
+        "ja": "樟脳寮"
+      },
+      "奮起湖": {
+        "en": "Fenqihu",
+        "ja": "奮起湖"
+      },
+      "獨立山": {
+        "en": "Dulishan",
+        "ja": "独立山"
+      }
+    },
+    "mrt": {
+      "七張": {
+        "en": "Qizhang",
+        "ja": "七張"
+      },
+      "十四張": {
+        "en": "Shisizhang",
+        "ja": "十四張"
+      },
+      "三民高中": {
+        "en": "Sanmin Senior High School",
+        "ja": "三民高校"
+      },
+      "三和國中": {
+        "en": "Sanhe Junior High School",
+        "ja": "三和中学校"
+      },
+      "三重": {
+        "en": "Sanchong",
+        "ja": "三重"
+      },
+      "三重國小": {
+        "en": "Sanchong Elementary School",
+        "ja": "三重小学校"
+      },
+      "土城": {
+        "en": "Tucheng",
+        "ja": "土城"
+      },
+      "士林": {
+        "en": "Shilin",
+        "ja": "士林"
+      },
+      "大安": {
+        "en": "Daan",
+        "ja": "大安"
+      },
+      "大安森林公園": {
+        "en": "Daan Park",
+        "ja": "大安森林公園"
+      },
+      "大坪林": {
+        "en": "Dapinglin",
+        "ja": "大坪林"
+      },
+      "大直": {
+        "en": "Dazhi",
+        "ja": "大直"
+      },
+      "大湖公園": {
+        "en": "Dahu Park",
+        "ja": "大湖公園"
+      },
+      "大橋頭": {
+        "en": "Daqiaotou",
+        "ja": "大橋頭"
+      },
+      "小南門": {
+        "en": "Xiaonanmen",
+        "ja": "小南門"
+      },
+      "小碧潭": {
+        "en": "Xiaobitan",
+        "ja": "小碧潭"
+      },
+      "中山": {
+        "en": "Zhongshan",
+        "ja": "中山"
+      },
+      "中山國小": {
+        "en": "Zhongshan Elementary School",
+        "ja": "中山小学校"
+      },
+      "中山國中": {
+        "en": "Zhongshan Junior High School",
+        "ja": "中山中学校"
+      },
+      "中正紀念堂": {
+        "en": "Chiang Kai-Shek Memorial Hall",
+        "ja": "中正紀念堂"
+      },
+      "中和": {
+        "en": "Zhonghe",
+        "ja": "中和"
+      },
+      "中原": {
+        "en": "Zhongyuan",
+        "ja": "中原"
+      },
+      "丹鳳": {
+        "en": "Danfeng",
+        "ja": "丹鳳"
+      },
+      "內湖": {
+        "en": "Neihu",
+        "ja": "内湖"
+      },
+      "公館": {
+        "en": "Gongguan",
+        "ja": "公館"
+      },
+      "六張犁": {
+        "en": "Liuzhangli",
+        "ja": "六張犁"
+      },
+      "文德": {
+        "en": "Wende",
+        "ja": "文徳"
+      },
+      "木柵": {
+        "en": "Muzha",
+        "ja": "木柵"
+      },
+      "北投": {
+        "en": "Beitou",
+        "ja": "北投"
+      },
+      "北門": {
+        "en": "Beimen",
+        "ja": "北門"
+      },
+      "古亭": {
+        "en": "Guting",
+        "ja": "古亭"
+      },
+      "台大醫院": {
+        "en": "NTU Hospital",
+        "ja": "台湾大学病院"
+      },
+      "台北101/世貿": {
+        "en": "Taipei 101/World Trade Center",
+        "ja": "台北101 / 世界貿易センター"
+      },
+      "台北小巨蛋": {
+        "en": "Taipei Arena",
+        "ja": "台北アリーナ"
+      },
+      "台北車站": {
+        "en": "Taipei Main Station",
+        "ja": "台北駅"
+      },
+      "台北橋": {
+        "en": "Taipei Bridge",
+        "ja": "台北橋"
+      },
+      "台電大樓": {
+        "en": "Taipower Building",
+        "ja": "台湾電力ビル"
+      },
+      "市政府": {
+        "en": "Taipei City Hall",
+        "ja": "台北市政府"
+      },
+      "民權西路": {
+        "en": "Minquan W. Rd.",
+        "ja": "民権西路"
+      },
+      "永安市場": {
+        "en": "Yongan Market",
+        "ja": "永安市場"
+      },
+      "永春": {
+        "en": "Yongchun",
+        "ja": "永春"
+      },
+      "永寧": {
+        "en": "Yongning",
+        "ja": "永寧"
+      },
+      "石牌": {
+        "en": "Shipai",
+        "ja": "石牌"
+      },
+      "先嗇宮": {
+        "en": "Xianse Temple",
+        "ja": "先嗇宮"
+      },
+      "江子翠": {
+        "en": "Jiangzicui",
+        "ja": "江子翠"
+      },
+      "竹圍": {
+        "en": "Zhuwei",
+        "ja": "竹囲"
+      },
+      "行天宮": {
+        "en": "Xingtian Temple",
+        "ja": "行天宮"
+      },
+      "西門": {
+        "en": "Ximen",
+        "ja": "西門"
+      },
+      "西湖": {
+        "en": "Xihu",
+        "ja": "西湖"
+      },
+      "秀朗橋": {
+        "en": "Xiulang Bridge",
+        "ja": "秀朗橋"
+      },
+      "辛亥": {
+        "en": "Xinhai",
+        "ja": "辛亥"
+      },
+      "亞東醫院": {
+        "en": "Far Eastern Hospital",
+        "ja": "亜東病院"
+      },
+      "奇岩": {
+        "en": "Qiyan",
+        "ja": "奇岩"
+      },
+      "幸福": {
+        "en": "Xingfu",
+        "ja": "幸福"
+      },
+      "府中": {
+        "en": "Fuzhong",
+        "ja": "府中"
+      },
+      "忠孝復興": {
+        "en": "Zhongxiao Fuxing",
+        "ja": "忠孝復興"
+      },
+      "忠孝敦化": {
+        "en": "Zhongxiao Dunhua",
+        "ja": "忠孝敦化"
+      },
+      "忠孝新生": {
+        "en": "Zhongxiao Xinsheng",
+        "ja": "忠孝新生"
+      },
+      "忠義": {
+        "en": "Zhongyi",
+        "ja": "忠義"
+      },
+      "昆陽": {
+        "en": "Kunyang",
+        "ja": "昆陽"
+      },
+      "明德": {
+        "en": "Mingde",
+        "ja": "明徳"
+      },
+      "東門": {
+        "en": "Dongmen",
+        "ja": "東門"
+      },
+      "東湖": {
+        "en": "Donghu",
+        "ja": "東湖"
+      },
+      "松山": {
+        "en": "Songshan",
+        "ja": "松山"
+      },
+      "松山機場": {
+        "en": "Songshan Airport",
+        "ja": "松山空港"
+      },
+      "松江南京": {
+        "en": "Songjiang Nanjing",
+        "ja": "松江南京"
+      },
+      "板新": {
+        "en": "Banxin",
+        "ja": "板新"
+      },
+      "板橋": {
+        "en": "Banqiao",
+        "ja": "板橋"
+      },
+      "芝山": {
+        "en": "Zhishan",
+        "ja": "芝山"
+      },
+      "信義安和": {
+        "en": "Xinyi Anhe",
+        "ja": "信義安和"
+      },
+      "南京三民": {
+        "en": "Nanjing Sanmin",
+        "ja": "南京三民"
+      },
+      "南京復興": {
+        "en": "Nanjing Fuxing",
+        "ja": "南京復興"
+      },
+      "南港": {
+        "en": "Nangang",
+        "ja": "南港"
+      },
+      "南港展覽館": {
+        "en": "Taipei Nangang Exhibition Center",
+        "ja": "南港展覧館"
+      },
+      "南港軟體園區": {
+        "en": "Nangang Software Park",
+        "ja": "南港ソフトウェアパーク"
+      },
+      "南勢角": {
+        "en": "Nanshijiao",
+        "ja": "南勢角"
+      },
+      "後山埤": {
+        "en": "Houshanpi",
+        "ja": "後山埤"
+      },
+      "科技大樓": {
+        "en": "Technology Building",
+        "ja": "テクノロジービル"
+      },
+      "紅樹林": {
+        "en": "Hongshulin",
+        "ja": "紅樹林"
+      },
+      "徐匯中學": {
+        "en": "St.lgnatius High School",
+        "ja": "徐匯高校"
+      },
+      "海山": {
+        "en": "Haishan",
+        "ja": "海山"
+      },
+      "迴龍": {
+        "en": "Huilong",
+        "ja": "迴龍"
+      },
+      "動物園": {
+        "en": "Taipei Zoo",
+        "ja": "動物園"
+      },
+      "唭哩岸": {
+        "en": "Qilian",
+        "ja": "唭哩岸"
+      },
+      "國父紀念館": {
+        "en": "Sun Yat-Sen Memorial Hall",
+        "ja": "国父紀念館"
+      },
+      "淡水": {
+        "en": "Tamsui",
+        "ja": "淡水"
+      },
+      "頂埔": {
+        "en": "Dingpu",
+        "ja": "頂埔"
+      },
+      "頂溪": {
+        "en": "Dingxi",
+        "ja": "頂渓"
+      },
+      "善導寺": {
+        "en": "Shandao Temple",
+        "ja": "善導寺"
+      },
+      "復興崗": {
+        "en": "Fuxinggang",
+        "ja": "復興崗"
+      },
+      "景平": {
+        "en": "Jingping",
+        "ja": "景平"
+      },
+      "景安": {
+        "en": "Jingan",
+        "ja": "景安"
+      },
+      "景美": {
+        "en": "Jingmei",
+        "ja": "景美"
+      },
+      "港墘": {
+        "en": "Gangqian",
+        "ja": "港墘"
+      },
+      "菜寮": {
+        "en": "Cailiao",
+        "ja": "菜寮"
+      },
+      "象山": {
+        "en": "Xiangshan",
+        "ja": "象山"
+      },
+      "圓山": {
+        "en": "Yuanshan",
+        "ja": "圓山"
+      },
+      "新北投": {
+        "en": "Xinbeitou",
+        "ja": "新北投"
+      },
+      "新北產業園區": {
+        "en": "New Taipei Industrial Park",
+        "ja": "新北産業園区"
+      },
+      "新店": {
+        "en": "Xindian",
+        "ja": "新店"
+      },
+      "新店區公所": {
+        "en": "Xindian District Office",
+        "ja": "新店区役所"
+      },
+      "新埔": {
+        "en": "Xinpu",
+        "ja": "新埔"
+      },
+      "新埔民生": {
+        "en": "Xinpu Minsheng",
+        "ja": "新埔民生"
+      },
+      "新莊": {
+        "en": "Xinzhuang",
+        "ja": "新荘"
+      },
+      "萬芳社區": {
+        "en": "Wanfang Community",
+        "ja": "万芳コミュニティ"
+      },
+      "萬芳醫院": {
+        "en": "Wanfang Hospital",
+        "ja": "万芳病院"
+      },
+      "萬隆": {
+        "en": "Wanlong",
+        "ja": "万隆"
+      },
+      "葫洲": {
+        "en": "Huzhou",
+        "ja": "葫洲"
+      },
+      "輔大": {
+        "en": "Fu Jen University",
+        "ja": "輔仁大学"
+      },
+      "劍南路": {
+        "en": "Jiannan Rd.",
+        "ja": "剣南路"
+      },
+      "劍潭": {
+        "en": "Jiantan",
+        "ja": "剣潭"
+      },
+      "橋和": {
+        "en": "Qiaohe",
+        "ja": "橋和"
+      },
+      "頭前庄": {
+        "en": "Touqianzhuang",
+        "ja": "頭前庄"
+      },
+      "龍山寺": {
+        "en": "Longshan Temple",
+        "ja": "龍山寺"
+      },
+      "雙連": {
+        "en": "Shuanglian",
+        "ja": "双連"
+      },
+      "關渡": {
+        "en": "Guandu",
+        "ja": "関渡"
+      },
+      "蘆洲": {
+        "en": "Luzhou",
+        "ja": "蘆洲"
+      },
+      "麟光": {
+        "en": "Linguang",
+        "ja": "麟光"
+      }
+    },
+    "tymc": {
+      "三重站": {
+        "en": "Sanchong Station",
+        "ja": "三重駅"
+      },
+      "大園站": {
+        "en": "Dayuan Station",
+        "ja": "大園駅"
+      },
+      "山鼻站": {
+        "en": "Shanbi Station",
+        "ja": "山鼻駅"
+      },
+      "台北車站": {
+        "en": "Taipei Main Station",
+        "ja": "台北駅"
+      },
+      "老街溪站": {
+        "en": "Laojie River Station",
+        "ja": "老街溪駅"
+      },
+      "坑口站": {
+        "en": "Kengkou Station",
+        "ja": "坑口駅"
+      },
+      "林口站": {
+        "en": "Linkou Station",
+        "ja": "林口駅"
+      },
+      "長庚醫院站": {
+        "en": "Chang Gung Memorial Hospital Station",
+        "ja": "長庚病院駅"
+      },
+      "桃園體育園區站": {
+        "en": "Taoyuan Sports Park Station",
+        "ja": "桃園体育園区駅"
+      },
+      "泰山站": {
+        "en": "Taishan Station",
+        "ja": "泰山駅"
+      },
+      "泰山貴和站": {
+        "en": "Taishan Guihe Station",
+        "ja": "泰山貴和駅"
+      },
+      "高鐵桃園站": {
+        "en": "Taoyuan HSR Station",
+        "ja": "高鉄桃園駅"
+      },
+      "新北產業園區站": {
+        "en": "New Taipei Industrial Park Station",
+        "ja": "新北産業園区駅"
+      },
+      "新莊副都心站": {
+        "en": "Xinzhuang Fuduxin Station",
+        "ja": "新荘副都心駅"
+      },
+      "領航站": {
+        "en": "Linghang Station",
+        "ja": "領航駅"
+      },
+      "機場旅館站": {
+        "en": "Airport Hotel Station",
+        "ja": "空港ホテル駅"
+      },
+      "機場第一航廈站": {
+        "en": "Airport Terminal 1 Station",
+        "ja": "空港第1ターミナル駅"
+      },
+      "機場第二航廈站": {
+        "en": "Airport Terminal 2 Station",
+        "ja": "空港第2ターミナル駅"
+      },
+      "橫山站": {
+        "en": "Hengshan Station",
+        "ja": "橫山駅"
+      },
+      "興南站": {
+        "en": "Xingnan Station",
+        "ja": "興南駅"
+      },
+      "環北站": {
+        "en": "Huanbei Station",
+        "ja": "環北駅"
+      },
+      "體育大學站": {
+        "en": "National Taiwan Sport University Station",
+        "ja": "体育大学駅"
+      }
+    },
+    "ntdlrt": {
+      "台北海洋大學": {
+        "en": "Taipei University of Marine Technology",
+        "ja": "台北海洋大学"
+      },
+      "沙崙": {
+        "en": "Shalun",
+        "ja": "沙崙"
+      },
+      "竿蓁林": {
+        "en": "Ganzhenlin",
+        "ja": "竿蓁林"
+      },
+      "紅樹林": {
+        "en": "Hongshulin",
+        "ja": "紅樹林"
+      },
+      "崁頂": {
+        "en": "Kanding",
+        "ja": "崁頂"
+      },
+      "淡水行政中心": {
+        "en": "Tamsui District Office",
+        "ja": "淡水行政中心"
+      },
+      "淡水漁人碼頭": {
+        "en": "Tamsui Fisherman's Wharf",
+        "ja": "淡水漁人碼頭"
+      },
+      "淡江大學": {
+        "en": "Tamkang University",
+        "ja": "淡江大学"
+      },
+      "淡金北新": {
+        "en": "Danjin Beixin",
+        "ja": "淡金北新"
+      },
+      "淡金鄧公": {
+        "en": "Danjin Denggong",
+        "ja": "淡金鄧公"
+      },
+      "淡海新市鎮": {
+        "en": "Danhai New Town",
+        "ja": "淡海新市鎮"
+      },
+      "新市一路": {
+        "en": "Xinshi 1st Rd.",
+        "ja": "新市一路"
+      },
+      "濱海沙崙": {
+        "en": "Binhai Shalun",
+        "ja": "浜海沙崙"
+      },
+      "濱海義山": {
+        "en": "Binhai Yishan",
+        "ja": "浜海義山"
+      }
+    },
+    "ntalrt": {
+      "十四張": {
+        "en": "Shisizhang",
+        "ja": "十四張"
+      },
+      "台北小城": {
+        "en": "Taipei Xiaocheng",
+        "ja": "台北小城"
+      },
+      "安康": {
+        "en": "Ankang",
+        "ja": "安康"
+      },
+      "玫瑰中國城": {
+        "en": "Rose China Town",
+        "ja": "玫瑰中国城"
+      },
+      "耕莘安康院區": {
+        "en": "Cardinal Tien Hospital An Kang Branch",
+        "ja": "耕莘安康院区"
+      },
+      "景文科大": {
+        "en": "Jinwen University of Science and Technology",
+        "ja": "景文科大"
+      },
+      "陽光運動公園": {
+        "en": "Sunshine Sports Park",
+        "ja": "陽光運動公園"
+      },
+      "新和國小": {
+        "en": "Xinhe Elementary School",
+        "ja": "新和小学校(新和国小)"
+      },
+      "雙城": {
+        "en": "Shuangcheng",
+        "ja": "双城"
+      }
+    },
+    "sanying": {
+      "三峽": {
+        "en": "Sanxia",
+        "ja": "三峽"
+      },
+      "永吉公園": {
+        "en": "Yongji Park",
+        "ja": "永吉公園"
+      },
+      "長壽山": {
+        "en": "Changshoushan",
+        "ja": "長寿山"
+      },
+      "國華": {
+        "en": "Guohua",
+        "ja": "国華"
+      },
+      "陶瓷老街": {
+        "en": "Ceramics Old Street",
+        "ja": "陶瓷老街"
+      },
+      "頂埔": {
+        "en": "Dingpu",
+        "ja": "頂埔"
+      },
+      "媽祖田": {
+        "en": "Mazutian",
+        "ja": "媽祖田"
+      },
+      "臺北大學": {
+        "en": "National Taipei University",
+        "ja": "台北大学"
+      },
+      "橫溪": {
+        "en": "Hengxi",
+        "ja": "横渓"
+      },
+      "龍埔": {
+        "en": "Longpu",
+        "ja": "龍埔"
+      },
+      "鶯桃福德": {
+        "en": "Yingtao Fude",
+        "ja": "鶯桃福徳"
+      },
+      "鶯歌車站": {
+        "en": "Yingge Station",
+        "ja": "鶯歌駅"
+      }
+    },
+    "krtc": {
+      "三多商圈": {
+        "en": "Sanduo Shopping District",
+        "ja": "三多商圈"
+      },
+      "大東": {
+        "en": "Dadong",
+        "ja": "大東"
+      },
+      "大順民族": {
+        "en": "Dashun Minzu",
+        "ja": "大順民族"
+      },
+      "大寮": {
+        "en": "Daliao",
+        "ja": "大寮"
+      },
+      "小港": {
+        "en": "Siaogang",
+        "ja": "小港"
+      },
+      "中央公園": {
+        "en": "Central Park",
+        "ja": "中央公園"
+      },
+      "五塊厝": {
+        "en": "Wukuaicuo",
+        "ja": "五塊厝"
+      },
+      "五權國小站": {
+        "en": "Wucyuan Elementary School",
+        "ja": "五権小学校"
+      },
+      "內惟藝術中心": {
+        "en": "Neiwei Arts Center",
+        "ja": "内惟芸術センター"
+      },
+      "文化中心": {
+        "en": "Cultural Center",
+        "ja": "文化センター"
+      },
+      "文武聖殿站": {
+        "en": "Wenwu Temple",
+        "ja": "文武聖殿"
+      },
+      "世運": {
+        "en": "World Game",
+        "ja": "ワールドゲームズ"
+      },
+      "凹子底": {
+        "en": "Aozihdi",
+        "ja": "凹子底"
+      },
+      "左營": {
+        "en": "Zuoying",
+        "ja": "左営"
+      },
+      "巨蛋": {
+        "en": "Kaohsiung Arena",
+        "ja": "高雄アリーナ"
+      },
+      "生態園區": {
+        "en": "Ecological District",
+        "ja": "生態園区"
+      },
+      "光榮碼頭": {
+        "en": "Glory Pier",
+        "ja": "光栄埠頭"
+      },
+      "岡山車站": {
+        "en": "Gangshan Station",
+        "ja": "岡山駅"
+      },
+      "岡山高醫": {
+        "en": "Kaohsiung Medical University Gangshan Hospital",
+        "ja": "岡山高医"
+      },
+      "油廠國小": {
+        "en": "Oil Refinery Elementary School",
+        "ja": "油廠小学校"
+      },
+      "青埔": {
+        "en": "Cingpu",
+        "ja": "青埔"
+      },
+      "信義國小": {
+        "en": "Sinyi Elementary School",
+        "ja": "信義小学校"
+      },
+      "前金": {
+        "en": "Cianjin",
+        "ja": "前金"
+      },
+      "前鎮之星": {
+        "en": "Cianjhen Star",
+        "ja": "前鎮之星"
+      },
+      "前鎮高中": {
+        "en": "Cianjhen Senior High School",
+        "ja": "前鎮高校"
+      },
+      "哈瑪星": {
+        "en": "Hamasen",
+        "ja": "哈瑪星"
+      },
+      "後勁": {
+        "en": "Houjing",
+        "ja": "後勁"
+      },
+      "後驛": {
+        "en": "Houyi",
+        "ja": "後駅"
+      },
+      "科工館": {
+        "en": "Science and Technology Museum",
+        "ja": "国立科学工芸博物館"
+      },
+      "美術館": {
+        "en": "Kaohsiung Museum of Fine Arts",
+        "ja": "美術館"
+      },
+      "美麗島": {
+        "en": "Formosa Boulevard",
+        "ja": "美麗島"
+      },
+      "苓雅運動園區": {
+        "en": "Lingya Sports Park",
+        "ja": "苓雅スポーツパーク"
+      },
+      "旅運中心": {
+        "en": "Cruise Terminal",
+        "ja": "クルーズターミナル"
+      },
+      "真愛碼頭": {
+        "en": "Love Pier",
+        "ja": "真愛埠頭"
+      },
+      "草衙": {
+        "en": "Caoya",
+        "ja": "草衙"
+      },
+      "馬卡道": {
+        "en": "Makadao",
+        "ja": "馬卡道"
+      },
+      "高雄車站": {
+        "en": "Kaohsiung Main Station",
+        "ja": "高雄駅"
+      },
+      "高雄展覽館": {
+        "en": "Kaohsiung Exhibition Center",
+        "ja": "高雄展覧館"
+      },
+      "高雄高工": {
+        "en": "Kaohsiung Industrial High School",
+        "ja": "高雄工業高校"
+      },
+      "高雄國際機場": {
+        "en": "Kaohsiung International Airport",
+        "ja": "高雄国際空港"
+      },
+      "軟體園區": {
+        "en": "Software Technology Park",
+        "ja": "ソフトウェアパーク"
+      },
+      "都會公園": {
+        "en": "Metropolitan Park",
+        "ja": "都会公園"
+      },
+      "凱旋": {
+        "en": "Kaisyuan",
+        "ja": "凱旋"
+      },
+      "凱旋二聖站": {
+        "en": "Kaisyuan Ersheng",
+        "ja": "凱旋二聖"
+      },
+      "凱旋中華": {
+        "en": "Kaisyuan Jhonghua",
+        "ja": "凱旋中華"
+      },
+      "凱旋公園站": {
+        "en": "Kaisyuan Park",
+        "ja": "凱旋公園"
+      },
+      "凱旋武昌站": {
+        "en": "Kaisyuan Wuchang",
+        "ja": "凱旋武昌"
+      },
+      "凱旋瑞田": {
+        "en": "Kaisyuan Rueitian",
+        "ja": "凱旋瑞田"
+      },
+      "愛河之心": {
+        "en": "Heart of Love River",
+        "ja": "愛河之心"
+      },
+      "新上國小": {
+        "en": "Sinshang Elementary School",
+        "ja": "新上小学校"
+      },
+      "楠梓科技園區": {
+        "en": "Nanzih Technology Industrial Park",
+        "ja": "楠梓テクノロジーパーク"
+      },
+      "獅甲": {
+        "en": "Shihjia",
+        "ja": "獅甲"
+      },
+      "經貿園區": {
+        "en": "Commerce and Trade Park",
+        "ja": "経済貿易パーク"
+      },
+      "聖功醫院": {
+        "en": "St.Joseph Hospital",
+        "ja": "聖功病院(道明中学校)"
+      },
+      "鼓山": {
+        "en": "Gushan",
+        "ja": "鼓山"
+      },
+      "鼓山區公所站": {
+        "en": "Gushan District Office",
+        "ja": "鼓山区役所"
+      },
+      "壽山公園站": {
+        "en": "Shoushan Park",
+        "ja": "寿山公園(金馬賓館現代美術館)"
+      },
+      "夢時代": {
+        "en": "Dream Mall",
+        "ja": "夢時代"
+      },
+      "臺鐵美術館": {
+        "en": "TRA Museum of Fine Arts",
+        "ja": "台鉄美術館"
+      },
+      "輕軌機廠站": {
+        "en": "LRT Depot",
+        "ja": "LRT車両基地"
+      },
+      "駁二大義": {
+        "en": "Dayi Pier-2",
+        "ja": "駁二大義"
+      },
+      "駁二蓬萊": {
+        "en": "Penglai Pier-2",
+        "ja": "駁二蓬萊"
+      },
+      "鳳山": {
+        "en": "Fongshan",
+        "ja": "鳳山"
+      },
+      "鳳山西站": {
+        "en": "Fongshan West",
+        "ja": "鳳山西(高雄市議会)"
+      },
+      "鳳山國中": {
+        "en": "Fongshan Junior High School",
+        "ja": "鳳山中学校"
+      },
+      "衛生局站": {
+        "en": "Department of Health",
+        "ja": "衛生局"
+      },
+      "衛武營": {
+        "en": "Weiwuying",
+        "ja": "衛武営"
+      },
+      "樹德家商": {
+        "en": "Shu-Te Home-Economics & Commercial High School",
+        "ja": "樹徳家事商業高校"
+      },
+      "橋頭火車站": {
+        "en": "Ciaotou Station",
+        "ja": "橋頭駅"
+      },
+      "橋頭糖廠": {
+        "en": "Ciaotou Sugar Refinery",
+        "ja": "橋頭製糖工場"
+      },
+      "龍華國小": {
+        "en": "Longhua Elementary School",
+        "ja": "龍華小学校"
+      },
+      "聯合醫院": {
+        "en": "Kaohsiung Municipal United Hospital",
+        "ja": "聯合病院"
+      },
+      "鹽埕埔": {
+        "en": "Yanchengpu",
+        "ja": "塩埕埔"
+      },
+      "灣仔內(大順鼎山)": {
+        "en": "Wanzihnei(Dashun Dingshan)",
+        "ja": "湾仔內(大順鼎山)"
+      },
+      "籬仔內": {
+        "en": "Lizihnei",
+        "ja": "籬仔內"
+      }
+    },
+    "tmrt": {
+      "九張犁": {
+        "en": "Jiuzhangli",
+        "ja": "九張犁"
+      },
+      "九德": {
+        "en": "Jiude",
+        "ja": "九德"
+      },
+      "大慶": {
+        "en": "Daqing",
+        "ja": "大慶"
+      },
+      "文心中清": {
+        "en": "Wenxin Zhongqing",
+        "ja": "文心中清"
+      },
+      "文心崇德": {
+        "en": "Wenxin Chongde",
+        "ja": "文心崇徳"
+      },
+      "文心森林公園": {
+        "en": "Wenxin Forest Park",
+        "ja": "文心森林公園"
+      },
+      "文心櫻花": {
+        "en": "Wenxin Yinghua",
+        "ja": "文心桜花"
+      },
+      "文華高中": {
+        "en": "Wenhua Senior High School",
+        "ja": "文華高校"
+      },
+      "水安宮": {
+        "en": "Shui-an Temple",
+        "ja": "水安宮"
+      },
+      "北屯總站": {
+        "en": "Beitun Main Station",
+        "ja": "北屯総駅"
+      },
+      "四維國小": {
+        "en": "Sihwei Elementary School",
+        "ja": "四維小学校"
+      },
+      "市政府": {
+        "en": "Taichung City Hall",
+        "ja": "市政府"
+      },
+      "松竹": {
+        "en": "Songzhu",
+        "ja": "松竹"
+      },
+      "南屯": {
+        "en": "Nantun",
+        "ja": "南屯"
+      },
+      "烏日": {
+        "en": "Wuri",
+        "ja": "烏日"
+      },
+      "高鐵臺中站": {
+        "en": "HSR Taichung Station",
+        "ja": "高速鉄道台中駅"
+      },
+      "舊社": {
+        "en": "Jiushe",
+        "ja": "旧社"
+      },
+      "豐樂公園": {
+        "en": "Feng-le Park",
+        "ja": "豊楽公園"
+      }
+    },
+    "tra_sched": {
+      "七堵": {
+        "en": "Qidu",
+        "ja": "七堵"
+      },
+      "九曲堂": {
+        "en": "Jiuqutang",
+        "ja": "九曲堂"
+      },
+      "九讚頭": {
+        "en": "Jiuzantou",
+        "ja": "九讃頭"
+      },
+      "二水": {
+        "en": "Ershui",
+        "ja": "二水"
+      },
+      "二結": {
+        "en": "Erjie",
+        "ja": "二結"
+      },
+      "八斗子": {
+        "en": "Badouzi",
+        "ja": "八斗子"
+      },
+      "八堵": {
+        "en": "Badu",
+        "ja": "八堵"
+      },
+      "十分": {
+        "en": "Shifen",
+        "ja": "十分"
+      },
+      "三民": {
+        "en": "Sanmin",
+        "ja": "三民"
+      },
+      "三坑": {
+        "en": "Sankeng",
+        "ja": "三坑"
+      },
+      "三姓橋": {
+        "en": "Sanxingqiao",
+        "ja": "三姓橋"
+      },
+      "三貂嶺": {
+        "en": "Sandiaoling",
+        "ja": "三貂嶺"
+      },
+      "三塊厝": {
+        "en": "Sankuaicuo",
+        "ja": "三塊厝"
+      },
+      "三義": {
+        "en": "Sanyi",
+        "ja": "三義"
+      },
+      "上員": {
+        "en": "Shangyuan",
+        "ja": "上員"
+      },
+      "千甲": {
+        "en": "Qianjia",
+        "ja": "千甲"
+      },
+      "大山": {
+        "en": "Dashan",
+        "ja": "大山"
+      },
+      "大甲": {
+        "en": "Dajia",
+        "ja": "大甲"
+      },
+      "大村": {
+        "en": "Dacun",
+        "ja": "大村"
+      },
+      "大肚": {
+        "en": "Dadu",
+        "ja": "大肚"
+      },
+      "大里": {
+        "en": "Dali",
+        "ja": "大里"
+      },
+      "大林": {
+        "en": "Dalin",
+        "ja": "大林"
+      },
+      "大武": {
+        "en": "Dawu",
+        "ja": "大武"
+      },
+      "大富": {
+        "en": "Dafu",
+        "ja": "大富"
+      },
+      "大湖": {
+        "en": "Dahu",
+        "ja": "大湖"
+      },
+      "大華": {
+        "en": "Dahua",
+        "ja": "大華"
+      },
+      "大溪": {
+        "en": "Daxi",
+        "ja": "大渓"
+      },
+      "大慶": {
+        "en": "Daqing",
+        "ja": "大慶"
+      },
+      "大橋": {
+        "en": "Daqiao",
+        "ja": "大橋"
+      },
+      "山里": {
+        "en": "Shanli",
+        "ja": "山里"
+      },
+      "山佳": {
+        "en": "Shanjia",
+        "ja": "山佳"
+      },
+      "中里": {
+        "en": "Zhongli_Yilan",
+        "ja": "中里"
+      },
+      "中洲": {
+        "en": "Zhongzhou",
+        "ja": "中洲"
+      },
+      "中壢": {
+        "en": "Zhongli_Taoyuan",
+        "ja": "中壢"
+      },
+      "五堵": {
+        "en": "Wudu",
+        "ja": "五堵"
+      },
+      "五權": {
+        "en": "Wuquan",
+        "ja": "五権"
+      },
+      "仁德": {
+        "en": "Rende",
+        "ja": "仁徳"
+      },
+      "內惟": {
+        "en": "Neiwei",
+        "ja": "內惟"
+      },
+      "內獅": {
+        "en": "Neishi",
+        "ja": "内獅"
+      },
+      "內壢": {
+        "en": "Neili",
+        "ja": "内壢"
+      },
+      "內灣": {
+        "en": "Neiwan",
+        "ja": "内湾"
+      },
+      "六家": {
+        "en": "Liujia",
+        "ja": "六家"
+      },
+      "六塊厝": {
+        "en": "Liukuaicuo",
+        "ja": "六塊厝"
+      },
+      "太原": {
+        "en": "Taiyuan",
+        "ja": "太原"
+      },
+      "太麻里": {
+        "en": "Taimali",
+        "ja": "太麻里"
+      },
+      "斗六": {
+        "en": "Douliu",
+        "ja": "斗六"
+      },
+      "斗南": {
+        "en": "Dounan",
+        "ja": "斗南"
+      },
+      "日南": {
+        "en": "Rinan",
+        "ja": "日南"
+      },
+      "水上": {
+        "en": "Shuishang",
+        "ja": "水上"
+      },
+      "水里": {
+        "en": "Shuili",
+        "ja": "水里"
+      },
+      "冬山": {
+        "en": "Dongshan",
+        "ja": "冬山"
+      },
+      "加祿": {
+        "en": "Jialu",
+        "ja": "加禄"
+      },
+      "北埔": {
+        "en": "Beipu",
+        "ja": "北埔"
+      },
+      "北湖": {
+        "en": "Beihu",
+        "ja": "北湖"
+      },
+      "北新竹": {
+        "en": "North Hsinchu",
+        "ja": "北新竹"
+      },
+      "四城": {
+        "en": "Sicheng",
+        "ja": "四城"
+      },
+      "四腳亭": {
+        "en": "Sijiaoting",
+        "ja": "四脚亭"
+      },
+      "外澳": {
+        "en": "Wai'ao",
+        "ja": "外澳"
+      },
+      "左營": {
+        "en": "Zuoying",
+        "ja": "左営"
+      },
+      "平和": {
+        "en": "Pinghe",
+        "ja": "平和"
+      },
+      "平溪": {
+        "en": "Pingxi",
+        "ja": "平渓"
+      },
+      "正義": {
+        "en": "Zhengyi",
+        "ja": "正義"
+      },
+      "民族": {
+        "en": "Minzu",
+        "ja": "民族"
+      },
+      "民雄": {
+        "en": "Minxiong",
+        "ja": "民雄"
+      },
+      "永康": {
+        "en": "Yongkang",
+        "ja": "永康"
+      },
+      "永靖": {
+        "en": "Yongjing",
+        "ja": "永靖"
+      },
+      "永樂": {
+        "en": "Yongle",
+        "ja": "永楽"
+      },
+      "玉里": {
+        "en": "Yuli",
+        "ja": "玉里"
+      },
+      "田中": {
+        "en": "Tianzhong",
+        "ja": "田中"
+      },
+      "白沙屯": {
+        "en": "Baishatun",
+        "ja": "白沙屯"
+      },
+      "石城": {
+        "en": "Shicheng",
+        "ja": "石城"
+      },
+      "石榴": {
+        "en": "Shiliu",
+        "ja": "石榴"
+      },
+      "石龜": {
+        "en": "Shigui",
+        "ja": "石亀"
+      },
+      "光復": {
+        "en": "Guangfu",
+        "ja": "光復"
+      },
+      "合興": {
+        "en": "Hexing",
+        "ja": "合興"
+      },
+      "吉安": {
+        "en": "Ji'an",
+        "ja": "吉安"
+      },
+      "后里": {
+        "en": "Houli",
+        "ja": "后里"
+      },
+      "成功": {
+        "en": "Chenggong",
+        "ja": "成功"
+      },
+      "汐止": {
+        "en": "Xizhi",
+        "ja": "汐止"
+      },
+      "汐科": {
+        "en": "Xike",
+        "ja": "汐科"
+      },
+      "池上": {
+        "en": "Chishang",
+        "ja": "池上"
+      },
+      "百福": {
+        "en": "Baifu",
+        "ja": "百福"
+      },
+      "竹中": {
+        "en": "Zhuzhong",
+        "ja": "竹中"
+      },
+      "竹北": {
+        "en": "Zhubei",
+        "ja": "竹北"
+      },
+      "竹田": {
+        "en": "Zhutian",
+        "ja": "竹田"
+      },
+      "竹東": {
+        "en": "Zhudong",
+        "ja": "竹東"
+      },
+      "竹南": {
+        "en": "Zhunan",
+        "ja": "竹南"
+      },
+      "西勢": {
+        "en": "Xishi",
+        "ja": "西勢"
+      },
+      "志學": {
+        "en": "Zhixue",
+        "ja": "志学"
+      },
+      "沙崙": {
+        "en": "Shalun",
+        "ja": "沙崙"
+      },
+      "沙鹿": {
+        "en": "Shalu",
+        "ja": "沙鹿"
+      },
+      "牡丹": {
+        "en": "Mudan",
+        "ja": "牡丹"
+      },
+      "車埕": {
+        "en": "Checheng",
+        "ja": "車埕"
+      },
+      "佳冬": {
+        "en": "Jiadong",
+        "ja": "佳冬"
+      },
+      "和仁": {
+        "en": "Heren",
+        "ja": "和仁"
+      },
+      "和平": {
+        "en": "Heping",
+        "ja": "和平"
+      },
+      "宜蘭": {
+        "en": "Yilan",
+        "ja": "宜蘭"
+      },
+      "岡山": {
+        "en": "Gangshan",
+        "ja": "岡山"
+      },
+      "拔林": {
+        "en": "Balin",
+        "ja": "抜林"
+      },
+      "東竹": {
+        "en": "Dongzhu",
+        "ja": "東竹"
+      },
+      "東里": {
+        "en": "Dongli",
+        "ja": "東里"
+      },
+      "東海": {
+        "en": "Donghai",
+        "ja": "東海"
+      },
+      "東澳": {
+        "en": "Dong'ao",
+        "ja": "東澳"
+      },
+      "松山": {
+        "en": "Songshan",
+        "ja": "松山"
+      },
+      "松竹": {
+        "en": "Songzhu",
+        "ja": "松竹"
+      },
+      "板橋": {
+        "en": "Banqiao",
+        "ja": "板橋"
+      },
+      "枋山": {
+        "en": "Fangshan",
+        "ja": "枋山"
+      },
+      "枋寮": {
+        "en": "Fangliao",
+        "ja": "枋寮"
+      },
+      "林內": {
+        "en": "Linnei",
+        "ja": "林内"
+      },
+      "林榮新光": {
+        "en": "Linrong Shin Kong",
+        "ja": "林栄新光"
+      },
+      "林鳳營": {
+        "en": "Linfengying",
+        "ja": "林鳳営"
+      },
+      "林邊": {
+        "en": "Linbian",
+        "ja": "林辺"
+      },
+      "武塔": {
+        "en": "Wuta",
+        "ja": "武塔"
+      },
+      "知本": {
+        "en": "Zhiben",
+        "ja": "知本"
+      },
+      "社頭": {
+        "en": "Shetou",
+        "ja": "社頭"
+      },
+      "花蓮": {
+        "en": "Hualien",
+        "ja": "花蓮"
+      },
+      "花壇": {
+        "en": "Huatan",
+        "ja": "花壇"
+      },
+      "金崙": {
+        "en": "Jinlun",
+        "ja": "金崙"
+      },
+      "長榮大學": {
+        "en": "Chang Jung Christian University",
+        "ja": "長栄大学"
+      },
+      "保安": {
+        "en": "Bao'an",
+        "ja": "保安"
+      },
+      "南平": {
+        "en": "Nanping",
+        "ja": "南平"
+      },
+      "南州": {
+        "en": "Nanzhou",
+        "ja": "南州"
+      },
+      "南科": {
+        "en": "Nanke",
+        "ja": "南科"
+      },
+      "南港": {
+        "en": "Nangang",
+        "ja": "南港"
+      },
+      "南勢": {
+        "en": "Nanshi",
+        "ja": "南勢"
+      },
+      "南靖": {
+        "en": "Nanjing",
+        "ja": "南靖"
+      },
+      "南樹林": {
+        "en": "South Shulin",
+        "ja": "南樹林"
+      },
+      "南澳": {
+        "en": "Nan'ao",
+        "ja": "南澳"
+      },
+      "屏東": {
+        "en": "Pingtung",
+        "ja": "屏東"
+      },
+      "後庄": {
+        "en": "Houzhuang",
+        "ja": "後庄"
+      },
+      "後壁": {
+        "en": "Houbi",
+        "ja": "後壁"
+      },
+      "後龍": {
+        "en": "Houlong",
+        "ja": "後龍"
+      },
+      "柳營": {
+        "en": "Liuying",
+        "ja": "柳営"
+      },
+      "科工館": {
+        "en": "Science And Technology Museum",
+        "ja": "国立科学技術博物館"
+      },
+      "美術館": {
+        "en": "Museum of Fine Arts",
+        "ja": "高雄美術館"
+      },
+      "苑裡": {
+        "en": "Yuanli",
+        "ja": "苑裡"
+      },
+      "苗栗": {
+        "en": "Miaoli",
+        "ja": "苗栗"
+      },
+      "香山": {
+        "en": "Xiangshan",
+        "ja": "香山"
+      },
+      "員林": {
+        "en": "Yuanlin",
+        "ja": "員林"
+      },
+      "埔心": {
+        "en": "Puxin",
+        "ja": "埔心"
+      },
+      "崁頂": {
+        "en": "Kanding",
+        "ja": "崁頂"
+      },
+      "栗林": {
+        "en": "Lilin",
+        "ja": "栗林"
+      },
+      "桃園": {
+        "en": "Taoyuan",
+        "ja": "桃園"
+      },
+      "泰安": {
+        "en": "Tai'an",
+        "ja": "泰安"
+      },
+      "浮洲": {
+        "en": "Fuzhou",
+        "ja": "浮洲"
+      },
+      "海科館": {
+        "en": "Haikeguan",
+        "ja": "海科館"
+      },
+      "海端": {
+        "en": "Haiduan",
+        "ja": "海端"
+      },
+      "烏日": {
+        "en": "Wuri",
+        "ja": "烏日"
+      },
+      "貢寮": {
+        "en": "Gongliao",
+        "ja": "貢寮"
+      },
+      "追分": {
+        "en": "Zhuifen",
+        "ja": "追分"
+      },
+      "高雄": {
+        "en": "Kaohsiung",
+        "ja": "高雄"
+      },
+      "基隆": {
+        "en": "Keelung",
+        "ja": "基隆"
+      },
+      "崇德": {
+        "en": "Chongde",
+        "ja": "崇徳"
+      },
+      "崎頂": {
+        "en": "Qiding",
+        "ja": "崎頂"
+      },
+      "康樂": {
+        "en": "Kangle",
+        "ja": "康楽"
+      },
+      "望古": {
+        "en": "Wanggu",
+        "ja": "望古"
+      },
+      "清水": {
+        "en": "Qingshui",
+        "ja": "清水"
+      },
+      "通霄": {
+        "en": "Tongxiao",
+        "ja": "通宵"
+      },
+      "造橋": {
+        "en": "Zaoqiao",
+        "ja": "造橋"
+      },
+      "頂埔": {
+        "en": "Dingpu",
+        "ja": "頂埔"
+      },
+      "鹿野": {
+        "en": "Luye",
+        "ja": "鹿野"
+      },
+      "善化": {
+        "en": "Shanhua",
+        "ja": "善化"
+      },
+      "富里": {
+        "en": "Fuli",
+        "ja": "富里"
+      },
+      "富岡": {
+        "en": "Fugang",
+        "ja": "富岡"
+      },
+      "富貴": {
+        "en": "Fugui",
+        "ja": "富貴"
+      },
+      "富源": {
+        "en": "Fuyuan",
+        "ja": "富源"
+      },
+      "景美": {
+        "en": "Jingmei",
+        "ja": "景美"
+      },
+      "湖口": {
+        "en": "Hukou",
+        "ja": "湖口"
+      },
+      "猴硐": {
+        "en": "Houtong",
+        "ja": "侯硐"
+      },
+      "菁桐": {
+        "en": "Jingtong",
+        "ja": "菁桐"
+      },
+      "隆田": {
+        "en": "Longtian",
+        "ja": "隆田"
+      },
+      "集集": {
+        "en": "Jiji",
+        "ja": "集集"
+      },
+      "新左營": {
+        "en": "Xinzuoying",
+        "ja": "新左営"
+      },
+      "新市": {
+        "en": "Xinshi",
+        "ja": "新市"
+      },
+      "新竹": {
+        "en": "Hsinchu",
+        "ja": "新竹"
+      },
+      "新城": {
+        "en": "Xincheng",
+        "ja": "新城"
+      },
+      "新埔": {
+        "en": "Xinpu",
+        "ja": "新埔"
+      },
+      "新烏日": {
+        "en": "Xinwuri",
+        "ja": "新烏日"
+      },
+      "新莊": {
+        "en": "Xinzhuang",
+        "ja": "新荘"
+      },
+      "新富": {
+        "en": "Xinfu",
+        "ja": "新富"
+      },
+      "新營": {
+        "en": "Xinying",
+        "ja": "新営"
+      },
+      "新豐": {
+        "en": "Xinfeng",
+        "ja": "新豊"
+      },
+      "暖暖": {
+        "en": "Nuannuan",
+        "ja": "暖暖"
+      },
+      "楊梅": {
+        "en": "Yangmei",
+        "ja": "楊梅"
+      },
+      "楠梓": {
+        "en": "Nanzi",
+        "ja": "楠梓"
+      },
+      "源泉": {
+        "en": "Yuanquan",
+        "ja": "源泉"
+      },
+      "瑞和": {
+        "en": "Ruihe",
+        "ja": "瑞和"
+      },
+      "瑞芳": {
+        "en": "Ruifang",
+        "ja": "瑞芳"
+      },
+      "瑞源": {
+        "en": "Ruiyuan",
+        "ja": "瑞源"
+      },
+      "瑞穗": {
+        "en": "Ruisui",
+        "ja": "瑞穂"
+      },
+      "萬華": {
+        "en": "Wanhua",
+        "ja": "萬華"
+      },
+      "萬榮": {
+        "en": "Wanrong",
+        "ja": "萬栄"
+      },
+      "路竹": {
+        "en": "Luzhu",
+        "ja": "路竹"
+      },
+      "鼓山": {
+        "en": "Gushan",
+        "ja": "鼓山"
+      },
+      "嘉北": {
+        "en": "Jiabei",
+        "ja": "嘉北"
+      },
+      "嘉義": {
+        "en": "Chiayi",
+        "ja": "嘉義"
+      },
+      "壽豐": {
+        "en": "Shoufeng",
+        "ja": "寿豊"
+      },
+      "彰化": {
+        "en": "Changhua",
+        "ja": "彰化"
+      },
+      "榮華": {
+        "en": "Ronghua",
+        "ja": "栄華"
+      },
+      "漢本": {
+        "en": "Hanben",
+        "ja": "漢本"
+      },
+      "福隆": {
+        "en": "Fulong",
+        "ja": "福隆"
+      },
+      "精武": {
+        "en": "Jingwu",
+        "ja": "精武"
+      },
+      "臺中": {
+        "en": "Taichung",
+        "ja": "台中"
+      },
+      "臺中港": {
+        "en": "Taichung Port",
+        "ja": "台中港"
+      },
+      "臺北": {
+        "en": "Taipei",
+        "ja": "台北"
+      },
+      "臺北-環島": {
+        "en": "Taipei Surround Island",
+        "ja": "台北サラウンドアイランド"
+      },
+      "臺東": {
+        "en": "Taitung",
+        "ja": "台東"
+      },
+      "臺南": {
+        "en": "Tainan",
+        "ja": "台南"
+      },
+      "銅鑼": {
+        "en": "Tongluo",
+        "ja": "銅羅"
+      },
+      "鳳山": {
+        "en": "Fongshan",
+        "ja": "鳳山"
+      },
+      "鳳林": {
+        "en": "Fenglin",
+        "ja": "鳳林"
+      },
+      "鳳鳴": {
+        "en": "Fengming",
+        "ja": "鳳鳴"
+      },
+      "潭子": {
+        "en": "Tanzi",
+        "ja": "潭子"
+      },
+      "潮州": {
+        "en": "Chaozhou",
+        "ja": "潮州"
+      },
+      "談文": {
+        "en": "Tanwen",
+        "ja": "談文"
+      },
+      "樹林": {
+        "en": "Shulin",
+        "ja": "樹林"
+      },
+      "橋頭": {
+        "en": "Qiaotou",
+        "ja": "橋頭"
+      },
+      "橫山": {
+        "en": "Hengshan",
+        "ja": "横山"
+      },
+      "濁水": {
+        "en": "Zhuoshui",
+        "ja": "濁水"
+      },
+      "頭城": {
+        "en": "Toucheng",
+        "ja": "頭城"
+      },
+      "頭家厝": {
+        "en": "Toujiacuo",
+        "ja": "頭家厝"
+      },
+      "龍井": {
+        "en": "Longjing",
+        "ja": "龍井"
+      },
+      "龍泉": {
+        "en": "Longquan",
+        "ja": "龍泉"
+      },
+      "龍港": {
+        "en": "Longgang",
+        "ja": "龍港"
+      },
+      "龜山": {
+        "en": "Guishan",
+        "ja": "亀山"
+      },
+      "嶺腳": {
+        "en": "Lingjiao",
+        "ja": "嶺脚"
+      },
+      "礁溪": {
+        "en": "Jiaoxi",
+        "ja": "礁渓"
+      },
+      "歸來": {
+        "en": "Guilai",
+        "ja": "帰来"
+      },
+      "豐田": {
+        "en": "Fengtian",
+        "ja": "豊田"
+      },
+      "豐原": {
+        "en": "Fengyuan",
+        "ja": "豊原"
+      },
+      "豐富": {
+        "en": "Fengfu",
+        "ja": "豊富"
+      },
+      "鎮安": {
+        "en": "Zhen'an",
+        "ja": "鎮安"
+      },
+      "雙溪": {
+        "en": "Shuangxi",
+        "ja": "双渓"
+      },
+      "瀧溪": {
+        "en": "Longxi",
+        "ja": "瀧渓"
+      },
+      "羅東": {
+        "en": "Luodong",
+        "ja": "羅東"
+      },
+      "關山": {
+        "en": "Guanshan",
+        "ja": "関山"
+      },
+      "蘇澳": {
+        "en": "Su'ao",
+        "ja": "蘇澳"
+      },
+      "蘇澳新": {
+        "en": "Su'aoxin",
+        "ja": "蘇澳新"
+      },
+      "鶯歌": {
+        "en": "Yingge",
+        "ja": "鶯歌"
+      },
+      "麟洛": {
+        "en": "Linluo",
+        "ja": "麟洛"
+      }
+    }
+  },
+  "routes": {
+    "afr_sched": {
+      "本線(嘉義-阿里山)": {
+        "en": "Main Line(Chiayi-Alishan)",
+        "ja": "本線(嘉義-阿里山)"
+      },
+      "沼平線": {
+        "en": "Zhaoping Line",
+        "ja": "沼平線"
+      },
+      "祝山線": {
+        "en": "Zhushan Line",
+        "ja": "祝山線"
+      },
+      "神木線": {
+        "en": "Shenmu Line",
+        "ja": "神木線"
+      }
+    },
+    "mrt": {
+      "中和新蘆線": {
+        "en": "Zhonghe-Xinlu Line",
+        "ja": "中和新蘆線"
+      },
+      "文湖線": {
+        "en": "Wenhu Line",
+        "ja": "文湖線"
+      },
+      "松山新店線": {
+        "en": "Songshan-Xindian Line",
+        "ja": "松山新店線"
+      },
+      "板南線": {
+        "en": "Bannan Line",
+        "ja": "板南線"
+      },
+      "淡水信義線": {
+        "en": "Tamsui-Xinyi Line",
+        "ja": "淡水信義線"
+      },
+      "環狀線": {
+        "en": "Circular Line",
+        "ja": "環状線"
+      }
+    },
+    "tymc": {
+      "桃園機場捷運線": {
+        "en": "Airport MRT Line",
+        "ja": "桃園空港MRT"
+      }
+    },
+    "ntdlrt": {
+      "淡海輕軌": {
+        "en": "Danhai LRT",
+        "ja": "淡海ライトレール"
+      }
+    },
+    "ntalrt": {
+      "安坑輕軌": {
+        "en": "Ankeng LRT",
+        "ja": "安坑ライトレール"
+      }
+    },
+    "krtc": {
+      "紅線": {
+        "en": "Red Line",
+        "ja": "赤線"
+      },
+      "橘線": {
+        "en": "Orange Line",
+        "ja": "オレンジ線"
+      },
+      "環狀輕軌": {
+        "en": "Circular Light Rail",
+        "ja": "ライトレール"
+      }
+    },
+    "tmrt": {
+      "烏日文心北屯線": {
+        "en": "Wuriwenxin  Beitun Line",
+        "ja": "烏日文心北屯線"
+      }
+    },
+    "sanying": {
+      "三鶯線": {
+        "en": "Sanying Line",
+        "ja": "三鶯線"
+      }
+    },
+    "thsr_sched": {
+      "高鐵": {
+        "en": "Taiwan High Speed Rail",
+        "ja": "台湾高速鉄道"
+      }
+    }
+  },
+  "trainTypes": {
+    "其他": {
+      "en": "Other",
+      "ja": "その他"
+    },
+    "區間快": {
+      "en": "Fast Local",
+      "ja": "区間快速"
+    },
+    "區間車": {
+      "en": "Local Train",
+      "ja": "区間車"
+    },
+    "自強": {
+      "en": "Tze-Chiang Limited Express",
+      "ja": "自強号"
+    },
+    "莒光/復興": {
+      "en": "Chu-Kuang / Fu-Hsing",
+      "ja": "莒光号／復興号"
+    },
+    "高鐵": {
+      "en": "High Speed Rail",
+      "ja": "高速鉄道"
+    },
+    "阿里山號": {
+      "en": "Alishan Express",
+      "ja": "阿里山号"
+    },
+    "神木線": {
+      "en": "Shenmu Line",
+      "ja": "神木線"
+    },
+    "沼平線": {
+      "en": "Zhaoping Line",
+      "ja": "沼平線"
+    },
+    "祝山線": {
+      "en": "Zhushan Line",
+      "ja": "祝山線"
+    }
+  }
+}
