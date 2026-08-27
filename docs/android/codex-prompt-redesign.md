@@ -175,6 +175,93 @@ node scripts/verify_merge_no_loss.mjs --parents codex/android-plus-v16 build/red
 
 ---
 
+## 四之三、本輪新增之三（2026-08-27 中午，commit `069c1d7`）——音樂曲庫換新，**只有 12 首進 App**
+
+這批和版面重整無關，但**同在 `build/redesign-901` 上、會一起被你合併進來**，而且它動到了
+Android 出貨鏈（`prepare-web.mjs` / `verify-release.mjs`），所以必須知道。
+
+### 改了什麼
+
+| 項 | 舊 | 新 |
+|---|---|---|
+| 曲目數 | 29 首，全部扁平放在 `suno musics/` 下 | **57 首**，分六個歌單子資料夾 |
+| 六個資料夾 | — | `Afloat`(8) `Midnight stories`(5) `Moonlake`(12) `Rainy day`(10) `Star & Neon`(10) `peaceful piano`(12) |
+| App 內建 | 全部 29 首（約 154MB） | **只內建 12 首（約 37MB）**，其餘 45 首從 `https://railisland.tw/` 串流 |
+| 舊的扁平路徑 | — | **已從版控刪除**（20 個 `D`）。任何硬編舊檔名的地方都會 404 |
+
+`index.html` 新增五個函式，**這五個是這批的合併紅線，缺一個就播不出來**：
+
+```js
+const MUSIC_DIR = 'suno musics/';
+const MUSIC_FILES = [ /* 57 條，形如 'Afloat/Zero Gravity Dream.mp3' */ ];
+const MUSIC_BUNDLED = new Set([ /* 12 條，必須是 MUSIC_FILES 的子集 */ ]);
+const MUSIC_ORIGIN = 'https://railisland.tw/';
+function musicIsApp() { ... }      // 看 window.RAIL_APP_VERSION 有沒有值
+function musicPath(f) { ... }      // App 且非內建 → 加 MUSIC_ORIGIN 前綴；其餘走相對路徑
+function musicSrc(f) { ... }       // encodeURI(musicPath(f))    ← <audio> 用
+function musicNativeSrc(f) { ... } // http(s) 才 encodeURI       ← iOS 原生外掛用
+function musicLabel(f) { ... }     // 取資料夾名當顯示標籤（不再顯示曲名）
+```
+
+### 🔴 Android 這邊的三件事
+
+1. **Android 沒有原生音訊外掛，所以你不用移植任何 Swift。**
+   `app/android/app/src/main/java/` 底下二十支 Java 全是小工具／通知／等車卡，
+   **沒有 `RailAudioPlugin.java`**（iOS 才有 `RailAudioPlugin.swift`）。Android 的音樂
+   一路走網頁層的 `<audio>`＋`musicSrc()`。⇒ iOS 那兩個 Swift 修法對你**零影響**，
+   但也代表 **Android 的串流成敗完全押在 `musicSrc()` 這條路徑上**，合併時它被改壞不會有
+   任何編譯期訊號。
+
+2. **`RAIL_APP_VERSION` 在 Android 也會被注入**（`prepare-web.mjs` 寫進共用的 `app/www/`，
+   兩個平台同一份）⇒ `musicIsApp()` 在 Android 回 `true` ⇒ 那 45 首會去打
+   `https://railisland.tw/suno%20musics/...`。**這是預期行為，不是 bug。**
+   正式站已於 2026-08-27 上線並逐一驗過 **57/57 回 200 且大小逐 byte 相符**，
+   含 `Star & Neon` 那個路徑裡有裸 `&` 的資料夾。所以打不到只可能是**你這邊**的問題
+   （網路權限、WebView 阻擋混合內容、或 `musicSrc()` 被合併改壞）。
+
+3. **`app/android/app/src/main/assets/public/suno musics/` 不是版控檔**，是 `cap sync` 的產物。
+   你那棵樹現在躺著**舊的 29 首扁平檔**（我實測過）。合併完**一定要重跑**：
+
+   ```bash
+   cd app && npm run sync:release   # = RAIL_INCLUDE_LICENSED_MUSIC=1 ... npm run build && cap sync
+   ```
+
+   跑完那個資料夾應該變成**六個子資料夾、共 12 個 mp3、最上層 0 個扁平 mp3**。
+   （`cap sync` 會清乾淨舊檔——iOS 那側走完同一條鏈實測就是 12／6／0，不必自己手動刪。）
+   還是 29 個扁平檔 ⇒ 你沒重跑，出去的 APK 會內建一批已經從版控刪掉的檔、
+   而且新的 45 首全部播不出來。
+
+### 🔴 出貨鏈兩支腳本跟著改了，別把它們的新行為當成壞掉
+
+- **`app/scripts/prepare-web.mjs`**：不再 `copyTree('suno musics')`，改成**從打包後的
+  `index.html` 裡把 `MUSIC_BUNDLED` 解析出來**，只複製那 12 個。
+  ⇒ **你合併 `index.html` 時若把 `MUSIC_BUNDLED` 的宣告改成別的寫法（換行、改成陣列、
+  加註解切斷），這支會解析不到而爆掉或複製 0 首。** 宣告的形狀本身就是契約。
+  正常輸出會印一行 `· 內建音樂 12 首(其餘從正式站串流)`。
+- **`app/scripts/verify-release.mjs`**：原本硬編 `=== 29`，現在改成
+  **雙向逐檔比對**（打包後 index.html 宣告的 `MUSIC_BUNDLED` vs bundle 裡實際存在的檔）。
+  少了 → 飛航模式播不出來；多了 → 白墊高體積。**兩個方向都會紅。**
+- **`app/scripts/set-release-mode.mjs`**：顯示字串由「開啟（154MB 級）」改成
+  「開啟（內建 12 首約 37MB，其餘串流）」。純文案。
+
+### 🔴 離線行為是**刻意**的，不要「修好」它
+
+`index.html` 的 `audio` `error` handler（搜 `壞檔跳下一首`）：一首載不到就跳下一首，
+連續失敗達 `list.length` 次才停，且**只要有一首成功播放就把計數歸零**。
+⇒ 飛航模式下實際效果是「只放得出那 12 首內建的，中間夾雜幾次瞬間跳過」，不會空轉也不會卡死。
+這是設計，**不要改成「離線時把清單過濾成只剩內建」**——那要另外裁示。
+
+### 驗收（加進第七節，Android 這批做完要有這四項證據）
+
+1. `cd app && npm run sync:release` 後，`app/android/app/src/main/assets/public/suno musics/`
+   是**六個子資料夾、12 個 mp3**（貼 `find ... -name '*.mp3' | wc -l` 的輸出）。
+2. `node scripts/verify-release.mjs` 綠（它現在會雙向比對音樂）。
+3. **真機連網**：開放空模式播音樂，連續按「換首」至少 8 次，確認**沒有一次是無聲卡住**
+   （中途會抽到串流曲；抽不到就多按幾次）。回報你按了幾次、有幾次是串流曲。
+4. **真機飛航模式**：同樣連按 8 次，確認仍有聲音（會落在那 12 首內建的）、App 不當掉。
+
+---
+
 ## 五、Android 平台適配（合併後逐項做）
 
 1. **資料狀態小卡在 WebView 的可點性**：它掛在 `body` 層、`z-index:1200`，開關靠
