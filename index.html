@@ -13478,20 +13478,58 @@ function setAmbient(on) {
 
 // ── 放空模式背景音樂(suno musics/;開關+音量,隨機循環,進出放空淡入淡出) ──
 const MUSIC_DIR = 'suno musics/';
+// 🔴 2026-08-27 換上 57 首新曲庫,依歌單分六個子資料夾(Afloat／Midnight stories／Moonlake／
+//    Rainy day／Star & Neon／peaceful piano)。歌單【選擇】功能本輪不做——播放仍是全曲庫隨機,
+//    子資料夾目前只是檔案組織與 MUSIC_BUNDLED 的分組依據。
 const MUSIC_FILES = [
-  'City Lights Whisper-2.mp3', 'City Lights Whisper.mp3',
-  'City Lights, Fading Nights-2.mp3', 'City Lights, Fading Nights.mp3',
-  'City Rain Reverie.mp3', 'Drifting Among Stars.mp3',
-  'Floating in Zero Gravity (Extend).mp3', 'Floating in Zero Gravity.mp3',
-  'Inspired by peaceful piano-2.mp3', 'Inspired by peaceful piano-3.mp3',
-  'Inspired by peaceful piano-4.mp3', 'Inspired by peaceful piano-5.mp3',
-  'Inspired by peaceful piano-6.mp3', 'Inspired by peaceful piano.mp3',
-  'Midnight Reverie.mp3', 'Midnight Whispers.mp3', 'Neon Glow.mp3',
-  'Neon Reverie-2.mp3', 'Neon Reverie-3.mp3', 'Neon Reverie.mp3',
-  'Neon Tide In Slow Motion.mp3', 'Untitled-2.mp3', 'Untitled-3.mp3',
-  'Untitled-4.mp3', 'Untitled-5.mp3', 'Untitled-6.mp3', 'Untitled-7.mp3',
-  'Untitled.mp3', 'Urban Night.mp3',
+  "Afloat/Drifting Among Stars-2.mp3", "Afloat/Drifting Among Stars.mp3",
+  "Afloat/Floating in Zero Gravity (Extend)-2.mp3", "Afloat/Floating in Zero Gravity (Extend).mp3",
+  "Afloat/Floating in Zero Gravity-2.mp3", "Afloat/Floating in Zero Gravity.mp3",
+  "Afloat/Zero Gravity Dream-2.mp3", "Afloat/Zero Gravity Dream.mp3", "Midnight stories/Midnight Reverie-2.mp3",
+  "Midnight stories/Midnight Reverie.mp3", "Midnight stories/Midnight Whispers-2.mp3",
+  "Midnight stories/Midnight Whispers.mp3", "Midnight stories/Skyline Pillow Thoughts.mp3",
+  "Moonlake/Untitled-10.mp3", "Moonlake/Untitled-11.mp3", "Moonlake/Untitled-12.mp3", "Moonlake/Untitled-2.mp3",
+  "Moonlake/Untitled-3.mp3", "Moonlake/Untitled-4.mp3", "Moonlake/Untitled-5.mp3", "Moonlake/Untitled-6.mp3",
+  "Moonlake/Untitled-7.mp3", "Moonlake/Untitled-8.mp3", "Moonlake/Untitled-9.mp3", "Moonlake/Untitled.mp3",
+  "Rainy day/City Lights Whisper-2.mp3", "Rainy day/City Lights Whisper.mp3",
+  "Rainy day/City Lights, Fading Nights-2.mp3", "Rainy day/City Lights, Fading Nights.mp3",
+  "Rainy day/City Rain Reverie-2.mp3", "Rainy day/City Rain Reverie-3.mp3", "Rainy day/City Rain Reverie.mp3",
+  "Rainy day/City Rain Thoughts.mp3", "Rainy day/Urban Night-2.mp3", "Rainy day/Urban Night.mp3",
+  "Star & Neon/Neon Glow.mp3", "Star & Neon/Neon Reverie-2.mp3", "Star & Neon/Neon Reverie-3.mp3",
+  "Star & Neon/Neon Reverie.mp3", "Star & Neon/Neon Tide In Slow Motion.mp3",
+  "Star & Neon/Stargazer's Lullaby.mp3", "Star & Neon/Stargazing Dreamscape-2.mp3",
+  "Star & Neon/Stargazing Dreamscape.mp3", "Star & Neon/Starlight Drifts-2.mp3",
+  "Star & Neon/Starlight Drifts.mp3", "peaceful piano/Inspired by peaceful piano-10.mp3",
+  "peaceful piano/Inspired by peaceful piano-11.mp3", "peaceful piano/Inspired by peaceful piano-12.mp3",
+  "peaceful piano/Inspired by peaceful piano-2.mp3", "peaceful piano/Inspired by peaceful piano-3.mp3",
+  "peaceful piano/Inspired by peaceful piano-4.mp3", "peaceful piano/Inspired by peaceful piano-5.mp3",
+  "peaceful piano/Inspired by peaceful piano-6.mp3", "peaceful piano/Inspired by peaceful piano-7.mp3",
+  "peaceful piano/Inspired by peaceful piano-8.mp3", "peaceful piano/Inspired by peaceful piano-9.mp3",
+  "peaceful piano/Inspired by peaceful piano.mp3",
 ];
+// 🔴 App 只打包這 12 首(每歌單 2 首,約 37 MB)。57 首全帶會讓 App 下載從 174 MB 漲到約 267 MB,
+//    越過 iOS「行動網路下載要另外允許」的 200 MB 門檻;其餘曲目改從正式站串流。
+//    這份名單是【三處共用的契約】:prepare-web.mjs 照它挑檔複製、verify-release.mjs 照它的長度
+//    斷言打包結果,改名單要同時改那兩支,否則 build 會在發行檢查當場紅。
+const MUSIC_BUNDLED = new Set([
+  "Afloat/Zero Gravity Dream.mp3", "Afloat/Floating in Zero Gravity (Extend)-2.mp3",
+  "Midnight stories/Midnight Whispers.mp3", "Midnight stories/Skyline Pillow Thoughts.mp3",
+  "Moonlake/Untitled-5.mp3", "Moonlake/Untitled-9.mp3", "Rainy day/City Rain Reverie.mp3",
+  "Rainy day/Urban Night.mp3", "Star & Neon/Neon Glow.mp3", "Star & Neon/Stargazer's Lullaby.mp3",
+  "peaceful piano/Inspired by peaceful piano.mp3", "peaceful piano/Inspired by peaceful piano-6.mp3",
+]);
+const MUSIC_ORIGIN = 'https://railisland.tw/';
+// 網站端曲目全部同源 ⇒ 一律相對路徑;App 端只有內建那 12 首在 bundle 裡,其餘給正式站絕對網址。
+// 🔴 回傳【未編碼】字串:web 的 <audio> 由 musicSrc() 再 encodeURI,而原生 setQueue 收到的相對
+//    路徑要保持原樣(Swift 的 appendingPathComponent 會自己處理空白,先編碼會變成雙重編碼)。
+function musicIsApp() { return typeof window.RAIL_APP_VERSION === 'string' && !!window.RAIL_APP_VERSION; }
+function musicPath(f) { return (!musicIsApp() || MUSIC_BUNDLED.has(f)) ? MUSIC_DIR + f : MUSIC_ORIGIN + MUSIC_DIR + f; }
+function musicSrc(f) { return encodeURI(musicPath(f)); }
+// 原生佇列:相對路徑保持原樣交給 Swift 併進 bundle;絕對網址必須先編碼,URL(string:) 不吃空白。
+function musicNativeSrc(f) { const p = musicPath(f); return p.startsWith('http') ? encodeURI(p) : p; }
+// 顯示名一律取【歌單名】而非檔名(使用者 2026-08-27 裁示:不顯示每條曲目名;新曲庫裡 Moonlake
+// 整組都叫 Untitled-N,印檔名在鎖定畫面上只會更糟)。
+function musicLabel(f) { return String(f).split('/')[0] || '背景音樂'; }
 function musicAvailable() { return window.RAIL_MUSIC_AVAILABLE !== false; }
 function musicShuffle(a) { // Fisher-Yates 洗牌
   for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
@@ -13527,8 +13565,8 @@ function makeNativeMusicShim(na) {
     addEventListener(t, f) { (ls[t] = ls[t] || []).push(f); },
     setTrack(i, list) {
       shim._pend = i;
-      shim._src = MUSIC_DIR + list[i];
-      na.setQueue({ tracks: list.map(f => ({ src: MUSIC_DIR + f, title: f.replace(/\.mp3$/i, '') })) }).catch(() => {});
+      shim._src = musicNativeSrc(list[i]);
+      na.setQueue({ tracks: list.map(f => ({ src: musicNativeSrc(f), title: musicLabel(f) })) }).catch(() => {});
     },
     play() {
       const p = shim._pend >= 0 ? na.play({ index: shim._pend }) : na.resume();
@@ -13613,7 +13651,7 @@ function musicLoadCur() {
   const m = state.music;
   if (!m.list.length) return;
   if (m.audio.setTrack) { m.audio.setTrack(m.idx, m.list); musicSetMeta(); return; } // 原生路:整份佇列交給原生
-  m.audio.src = encodeURI(MUSIC_DIR + m.list[m.idx]);
+  m.audio.src = musicSrc(m.list[m.idx]);
   musicSetMeta();
 }
 // 鎖定畫面/控制中心的曲目資訊:封面一律用軌島 icon（2026-08-10 使用者裁示），曲名=檔名去副檔名。
@@ -13622,7 +13660,7 @@ function musicSetMeta() {
   try {
     if (!('mediaSession' in navigator)) return;
     const m = state.music;
-    const name = (m.list[m.idx] || '').replace(/\.mp3$/i, '');
+    const name = musicLabel(m.list[m.idx] || '');
     navigator.mediaSession.metadata = new MediaMetadata({
       title: name || '背景音樂',
       artist: '軌島',

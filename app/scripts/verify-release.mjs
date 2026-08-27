@@ -416,8 +416,22 @@ export async function verifyRelease({
   }
 
   const musicFiles = relativeFiles.filter(file => file.startsWith('suno musics/'));
-  if (musicEnabled) assert(musicFiles.filter(file => /\.mp3$/i.test(file)).length === 29,
-    '含音樂 build 必須恰好帶入 29 首已核對曲目');
+  if (musicEnabled) {
+    // 🔴 判準刻意【不是】一個寫死的首數(舊版寫死 29,曲庫一換就得回來改一個魔術數字,而且
+    //    數字對了不代表檔案對)。改成與打包進去的 index.html 自己宣告的 MUSIC_BUNDLED 逐檔比對:
+    //    少一首=飛航模式下那首靜默播不出來,多一首=白白墊高 App 下載大小,兩種都會當場紅。
+    const block = html.match(/const MUSIC_BUNDLED = new Set\(\[([\s\S]*?)\]\);/);
+    assert(!!block, '含音樂 build 的 index.html 必須宣告 MUSIC_BUNDLED');
+    const declared = [...block[1].matchAll(/'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"/g)]
+      .map(m => (m[1] ?? m[2]).replace(/\\(.)/g, '$1'));
+    assert(declared.length > 0, 'MUSIC_BUNDLED 解析出 0 首');
+    const shipped = new Set(musicFiles.filter(file => /\.mp3$/i.test(file))
+      .map(file => file.slice('suno musics/'.length)));
+    const missing = declared.filter(rel => !shipped.has(rel));
+    const extra = [...shipped].filter(rel => !declared.includes(rel));
+    assert(missing.length === 0, `內建曲目缺 ${missing.length} 首:${missing.slice(0, 3).join('、')}`);
+    assert(extra.length === 0, `bundle 多出 ${extra.length} 首不在 MUSIC_BUNDLED:${extra.slice(0, 3).join('、')}`);
+  }
   else {
     assert(musicFiles.length === 0, '安全 build 不可含 suno musics/');
     assert(html.includes('window.RAIL_MUSIC_AVAILABLE=false'), '安全 build 必須明確關閉音樂');

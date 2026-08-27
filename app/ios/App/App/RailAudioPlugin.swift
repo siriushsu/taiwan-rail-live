@@ -137,7 +137,9 @@ public final class RailAudioPlugin: CAPPlugin, CAPBridgedPlugin {
         guard !tracks.isEmpty else { return }
         idx = ((i % tracks.count) + tracks.count) % tracks.count
         let entry = tracks[idx]
-        guard FileManager.default.fileExists(atPath: entry.url.path) else {
+        // 🔴 只有本地檔才驗存在:串流曲目的 url.path 是 /suno musics/x.mp3,在檔案系統上
+        //    永遠不存在 ⇒ 不排除的話每一首串流曲都會被當成缺檔、直接吐 trackError 而從不播放。
+        guard entry.url.isFileURL == false || FileManager.default.fileExists(atPath: entry.url.path) else {
             // 缺檔不自動跳下一首：與 web 版一致，交給 JS 的 error 處理（含整份清單都壞的停損）。
             notifyListeners("trackError", data: ["index": idx])
             return
@@ -193,6 +195,13 @@ public final class RailAudioPlugin: CAPPlugin, CAPBridgedPlugin {
             self.tracks = list.compactMap { t in
                 guard let rel = t["src"] as? String else { return nil }
                 let title = (t["title"] as? String) ?? ""
+                // 🔴 2026-08-27:曲庫 57 首只有 12 首打包進 App,其餘從正式站串流 ⇒ src 有兩種形態。
+                //    絕對網址【必須】走 URL(string:) 直接建;交給 appendingPathComponent 會把整串
+                //    當成一個檔名接在 bundle 後面,變成 .../public/https:/railisland.tw/... 而永遠播不出來。
+                if rel.hasPrefix("https://") || rel.hasPrefix("http://") {
+                    guard let remote = URL(string: rel) else { return nil }
+                    return (remote, title)
+                }
                 return (base.appendingPathComponent("public").appendingPathComponent(rel), title)
             }
             call.resolve(["ok": true, "count": self.tracks.count])
