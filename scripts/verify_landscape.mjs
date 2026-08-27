@@ -385,10 +385,12 @@ const OVERLAP_PROBE = (SELS) => {
 // 真缺陷等再久也還在（這個等待對它零影響），只有轉場中的假陽性會消失。
 // v3(2026-08-27 裁示)「橫式點開車輛或車站資訊的時候,是可以擋住右上角那些按鈕沒關係的」＋
 // 頂列=背景層(右半是透明空白,內容都靠左):側欄家族(上錨到頂後必然疊頂列右半)與
-// #topbar/工具堆成員(#randBtn/#nearBtn)的相交=裁示行為,集中豁免。
+// #topbar/工具欄成員(#randBtn/#nearBtn/#followLockBtn)的相交=裁示行為,集中豁免。
+// followLockBtn 是 v5 補的:直欄時代它在側欄右緣外碰不到,橫排後(列向左長)與側欄水平相交
+// ——它與另外兩顆同屬一個工具欄,「側欄可蓋右上角那些按鈕」的裁示本來就涵蓋它。
 // 其餘配對(卡疊卡、跟隨欄疊分頁面板…)一律留著抓真疊——sheet-open 讓位若壞掉要在這裡現形。
 const RAIL_RE = /#(followPanel|favPanel|ridePanel|explorePanel|searchPanel|nearCard|trainCard|board)\b/;
-const RULED_RE = /#(topbar|randBtn|nearBtn)\b/;
+const RULED_RE = /#(topbar|randBtn|nearBtn|followLockBtn)\b/;
 const filterRuled = o => ({ ...o, inter: (o.inter || []).filter(s => !(RAIL_RE.test(s) && RULED_RE.test(s))) });
 async function settledOverlap(page) {
   const first = filterRuled(await page.evaluate(OVERLAP_PROBE, OVERLAY_SEL));
@@ -1507,9 +1509,10 @@ async function centeringSuite(browser, eng) {
 const ISLAND = 59; // iPhone 14 Pro 起橫放的左右安全區(pt)。iPhone X 世代是 44，取大的當判準。
 
 // 必須待在動態島安全區外的 UI。'SHEET' 是當下那張面板（側欄），由 activeSheetEl() 取。
-// 第三欄 'L' ＝只驗左帶：v4（08-27 裁示「右邊按鈕要靠到邊」）後，頂列右群與工具欄右緣
-// 改貼實體螢幕邊（right:10px，不再讓 sa-r）——右帶重疊是刻意取捨（島在左＝慣用持法時無感，
-// 反向持機島在右才會壓到，回報再調），右帶檢查對這三項廢除；左帶（軌島牌／時鐘側）照舊必須讓。
+// 第三欄 'L' ＝只驗左帶：v4/v5（08-27 裁示）後，頂列右群與工具欄（橫排）右緣貼實體螢幕邊
+// （right:10px，不再讓 sa-r）。這個帶檢查把整條右緣豎帶當禁區，但真島只佔該帶的垂直中央
+// （y≈170–230）；v5 的工具橫排收在頂帶 y≈56–100、頂列在 y≈8–48，兩種持法都不會碰到實體島
+// ——粗粒度的帶檢查照不到這件事，故這三項右帶檢查廢除；左帶（軌島牌／時鐘側）照舊必須讓。
 const ISLAND_SEL = [
   ['頂列', '.topbar', 'L'], ['時鐘', '#clock'], ['分頁列按鈕', '.tabbar button'],
   // 跟隨鎖 §04c 起住在工具欄裡:選 #followLockBtn 本尊——老家 .follow-lock-ctl 在手機上是被藏掉的
@@ -1563,10 +1566,15 @@ const LOCK_PROBE = () => {
     if (w > 0.5 && h > 0.5) overlaps.push(`${rects[i].id}∩${rects[j].id}=${Math.round(w)}×${Math.round(h)}`);
   }
   const maR = ma.getBoundingClientRect(), Lr = lb.getBoundingClientRect();
+  // v5(08-27 裁示「一排橫的在右上方」):橫式工具欄從直欄改橫排——直欄契約「右緣對齊」死亡,
+  // 列契約=上緣對齊＋整欄單列高(≤46=44+捨入)＋角落顆(最右)是隨機跟隨(row-reverse 的 DOM 首顆)。
+  const sorted = rects.slice().sort((a, b) => b.r.right - a.r.right);
   return {
     unlocked: lb.classList.contains('unlocked'), label: (lb.textContent || '').trim(),
     inRail: lb.parentNode === ma, lockW: Math.round(Lr.width), lockH: Math.round(Lr.height),
-    rightAligned: rects.every(k => Math.abs(k.r.right - maR.right) <= 2),
+    topAligned: rects.every(k => Math.abs(k.r.top - maR.top) <= 2),
+    singleRow: Math.round(maR.height) <= 46,
+    cornerId: sorted.length ? sorted[0].id : null,
     minSize: Math.round(Math.min(...rects.map(k => Math.min(k.r.width, k.r.height)))),
     overlaps,
     lockTappable: at(Lr, lb), randTappable: rb && rb.getClientRects().length ? at(rb.getBoundingClientRect(), rb) : null,
@@ -1733,9 +1741,11 @@ async function deviceSuite(browser, eng) {
     // 前置閘門：沒真的解鎖的話，下面的欄內秩序判準是恆真的假綠（心得 17）
     ok(`L13 ${eng}/${S.tag} 前置：拖曳地圖真的解了鎖`, L.unlocked === true && L.label === '回到列車',
       `unlocked=${L.unlocked}／文字=${JSON.stringify(L.label)}／膠囊寬=${L.lockW}`);
-    ok(`L13b ${eng}/${S.tag} 「回到列車」在工具欄內·右緣對齊·互不相疊`,
-      L.inRail === true && L.rightAligned === true && L.overlaps.length === 0,
-      L.overlaps.join(' | ') || `inRail=${L.inRail} 膠囊 ${L.lockW}×${L.lockH}`);
+    // v5:直欄契約「右緣對齊」→ 列契約「上緣對齊＋單列高＋角落顆=隨機跟隨」
+    ok(`L13b ${eng}/${S.tag} 「回到列車」在工具欄內·橫排上緣對齊·單列·角落顆=隨機跟隨·互不相疊`,
+      L.inRail === true && L.topAligned === true && L.singleRow === true
+      && L.cornerId === 'randBtn' && L.overlaps.length === 0,
+      L.overlaps.join(' | ') || `inRail=${L.inRail} topAligned=${L.topAligned} singleRow=${L.singleRow} corner=${L.cornerId} 膠囊 ${L.lockW}×${L.lockH}`);
     ok(`L13c ${eng}/${S.tag} 兩顆都按得到且 ≥44`, L.lockTappable === true && L.randTappable !== false && L.minSize >= 44,
       `回到列車=${L.lockTappable}／隨機跟隨=${L.randTappable}／最小邊=${L.minSize}`);
 
