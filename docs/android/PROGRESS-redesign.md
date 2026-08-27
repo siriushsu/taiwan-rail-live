@@ -20,6 +20,18 @@
 - `docs/android/_baseline-font-scale.txt`
 - `docs/android/_baseline-landscape.txt`
 
+> 🔴 **這兩份基準停在 `0514242` 那一輪，之後的「頂列收成一顆」那顆已經讓它們過期**：
+> `verify_font_scale` 多了一整個 TB 段（+329 條），A／X／Y 段的判準名稱也因為四顆分頁收合而改過
+> （`A1 正向對照:群組切換器量得到…`），`verify_landscape` 的 `L10` 改名成「分組切換」。
+> **派 Codex 之前要先在這棵樹重跑一次全矩陣重產這兩份檔**，否則 `comm -13` 會把「改過名字的判準」
+> 一律報成新的紅（心得 32：拿釘死的舊產物當比對基準，全綠與全紅都是假的）。
+> 重產指令：
+>
+> ```bash
+> PORT=5741 node scripts/verify_font_scale.mjs > docs/android/_baseline-font-scale.txt 2>&1
+> node scripts/verify_landscape.mjs > docs/android/_baseline-landscape.txt 2>&1
+> ```
+
 取 FAIL 名單的指令：
 
 ```bash

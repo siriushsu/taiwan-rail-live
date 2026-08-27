@@ -69,7 +69,24 @@
     --paper:#FFFDF6;            /* 卡片底（兩種暖白已合併，#FFF8EC 廢止） */
     --paper-tr:rgba(255,253,246,.97);
     --panel-glass:rgba(255,253,246,.30);
-    --glass-halo:rgba(255,253,246,.95); /* 半透明面板的字外圈：字色不動，靠外圈把字從地圖上撐起來 */
+    /* 🔴 2026-08-27 裁示:「調亮色到 55 不錯 暗色不動」。
+       亮色主題的**面板本體**單獨拉到 .55——衛星底圖那組情境,`.30` 兩個主題都被空照吃掉
+       (亮色最糟 2.07、暗色 1.62),而空照同一張圖裡有亮有暗 ⇒ 深字被暗處吃、亮字被亮處吃,
+       單靠字色沒有一個方向能同時贏(實景對照:衛星底圖做法對照.png)。
+       刻意**不動 `--panel-glass`**:那顆還被頂列可讀底帶／看板分頁列／橫式停靠站名牌吃著,
+       使用者核可的畫面裡那些都還是 .30,一起改就變成「核可的畫面 ≠ 出貨的畫面」。
+       暗色主題那顆照裁示不動(見下方 --panel-body-glass 的暗色值)。 */
+    --panel-body-glass:rgba(255,253,246,.55);
+    /* 面板標題列(看板 h3／平交道與附近車站 xc-head／列車 sheet tc-head)的玻璃底。
+       2026-08-27 裁示:「半透明面板的上方沒有變成半透明的…看起來很奇怪。」標題列原本是實色,
+       因為它 sticky、內容會從底下捲過去。改半透明之後自己帶一層 blur(6px),捲過去的內容糊掉、
+       不會與標題字打架。alpha 比面板的 .30 高:白字壓在navy 上要撐得住,量得到的數字見
+       verify_translucent_contrast。 */
+    --navy-glass:rgba(42,74,115,.80);
+    --panel-head-glass:rgba(255,253,246,.78);
+    /* 2026-08-27 起不再用於文字外圈(裁示:可讀性用字色不用光暈)。只剩「路線/車種識別色點」的
+       1.5px 實心外環在用——那是分界線不是光暈,色點的顏色由資料決定,沒有環會直接消失在同色路網上。 */
+    --glass-halo:rgba(255,253,246,.95);
     --bg-page:#EFE6D2;          /* 頁面底 */
     --bg-stage:#F7F0DD;         /* stage 底/hover */
     --map-bg:#F2EDE2;           /* 地圖底（圖磚未到時） */
@@ -111,6 +128,8 @@
   html[data-theme=dark]{
     color-scheme:dark;
     --paper:#141D31; --paper-tr:rgba(20,29,49,.97); --panel-glass:rgba(20,29,49,.30);
+    --navy-glass:rgba(127,166,224,.80); --panel-head-glass:rgba(20,29,49,.78);
+    --panel-body-glass:rgba(20,29,49,.30);   /* 裁示:暗色不動,維持 .30 */
     --glass-halo:rgba(8,13,24,.95);
     --spark-line:#8FB4EC; --spark-fill:rgba(143,180,236,.18); --spark-cursor:#FF7B67;
     --spark-axis:#A5B4CE; --spark-halo:#0B1220;
@@ -1741,45 +1760,54 @@
   body.panel-translucent #xingHelp,
   body.panel-translucent .follow-panel,
   body.panel-translucent .freq-card {
-    background: var(--panel-glass);
+    background: var(--panel-body-glass);
     -webkit-backdrop-filter: blur(3px) saturate(1.08);
     backdrop-filter: blur(3px) saturate(1.08);
     /* 背後換成地圖之後,原本的土灰兩級（次要/更淡）與三級分隔線疊在路網上會糊掉——只在面板子樹內
        各升一階,不動全域變數(頁面其他地方的背景仍是實色紙面,不需要加深)。 */
-    --muted: #463C2C;
-    --faint: #5F5440;
+    /* 🔴 2026-08-27 裁示「用字色不要用光暈」之後,次要兩級再壓深一階(原 #463C2C／#5F5440)。
+       為什麼壓深一定有效:面板底是 alpha .30 的**淺**紙面,所以合成後的底色再暗也不會低於
+       0.30×紙面亮度——亮色主題的底有地板,字越深、最壞情況越好。暗色主題沒有這條地板(見下方
+       反向那組),那邊改亮到頂也吃不到同樣的保障,量得到的殘差見交付說明。 */
+    --ink: #171207;         /* 內文,原 #3A3226 */
+    --ink-strong: #0B1220;  /* 標題/強調,原 #1E2C40 */
+    --muted: #2B2318;
+    --faint: #3A3020;
     --line: #AD9A63; --line-dash: #BFAD82; --line-faint: #D2C49B;
     /* 兩個亮色系強調色單靠外圈救不回來(它們在實色紙面上本來就只有 4.0–4.7):
        「▶ 行進中」的綠 #1B8F4D 疊在玻璃上實測 3.2、時速大字的紅 #D23C2A 實測 3.7。
        只在半透明子樹內各壓深一階,頁面其他地方的綠與紅不動。暗色主題另有一組(見下)。 */
-    --ok: #146E3B;
-    --red: #B92F1E;
-    --warn-ink: #8A5210;  /* 誤點/待避的琥珀字,實測 3.49(實色 4.41);自帶底色的誤點徽章上仍然清楚 */
-    /* 字外圈:透明度與模糊值是使用者指定不動的,而 .30 的玻璃底擋不住底下的路網彩線與衛星影像
-       ——單靠改字色救不了(深色字壓在中灰底上,亮暗兩邊都無解)。改在字周圍鋪一圈同色系的
-       紙面外圈:字色一律保持原樣,只是不再與地圖直接相接。自帶不透明底的元件見下一條例外。 */
-    text-shadow: 0 0 2px var(--glass-halo), 0 0 5px var(--glass-halo);
+    /* 🔴 08-27 拿掉光暈之後這三個又各壓深一階(原 #146E3B／#B92F1E／#8A5210)。
+       它們是「衛星底圖」那組情境剩下的主要缺口:.nx-km／.xc-cd／.fp-status／.xfer-tag 都吃這三個。
+       亮色主題壓深一定有效(底色有地板,見上面 --ink 那條註解);色相仍在原本的綠/紅/琥珀家族內,
+       只是濃度往下走一階。 */
+    --ok: #0B4A26;
+    --red: #8E1F11;
+    --warn-ink: #4A2A05;
+    /* 🔴 2026-08-27 使用者裁示:「面板變成半透明的時候要維持文字的易讀性,可以直接改文字的顏色,
+       不要加光暈來做。」原本這裡給整個面板子樹鋪 text-shadow 外圈(--glass-halo),整組拿掉——
+       連帶那兩條配套規則(button 不繼承要明確接回、自帶底色的元件要豁免)也一併廢除,
+       沒有外圈就沒有東西要接、要豁免。可讀性改由上面那幾條「只在半透明子樹內壓深一階」的字色扛。
+       (07-30 的原始指示本來就是「文字要調顏色」,外圈是實作時自己加的,現在改回去。) */
   }
-  /* button 的 UA 樣式把 text-shadow 歸零(且不繼承),而面板裡的「列」——附近車站、平交道班次、
-     看板列、收合鈕——大量是 <button>:不明確接回來,外圈只有純文字節點吃到,實測 .nx-km／.xc-cd／
-     .fp-close 三處都會漏。放在例外清單之前:兩者特異度相同,靠順序讓例外勝出。 */
-  body.panel-translucent .board button,
-  body.panel-translucent .traincard button,
-  body.panel-translucent #nearCard button,
-  body.panel-translucent #xingCard button,
-  body.panel-translucent .follow-panel button,
-  body.panel-translucent .freq-card button { text-shadow: inherit; }
-  /* 已經有自己不透明底的元件(深藍標題列、藥丸徽章、警示框…)不吃外圈:
-     白字壓深藍再加淺色外圈只會糊掉,那些位置本來就沒有透出地圖。 */
-  body.panel-translucent .board h3, body.panel-translucent .board h3 *,
-  body.panel-translucent .xc-head, body.panel-translucent .xc-head *,
-  body.panel-translucent .xc-foot,
-  body.panel-translucent .traincard.tc-sheet .tc-head, body.panel-translucent .traincard.tc-sheet .tc-head *,
-  body.panel-translucent .chip, body.panel-translucent .kindchip,
-  body.panel-translucent .lateTag, body.panel-translucent .okTag,
-  body.panel-translucent .fp-alert, body.panel-translucent .fp-alert *,
-  body.panel-translucent .tc-tt, body.panel-translucent .dh-cta, body.panel-translucent .myt-cta {
-    text-shadow: none;
+  /* 🔴 2026-08-27 裁示:標題列也要半透明。它們 sticky、面板內容會從底下捲過去,所以各自帶一層
+     blur(6px)——捲過去的字糊成色塊,不會與標題字混在一起。面板本體的 .30/blur(3px) 一格不動
+     (使用者凍結值),這是標題列自己的值。 */
+  body.panel-translucent .board h3,
+  body.panel-translucent .xing-card .xc-head,
+  body.panel-translucent #nearCard .xc-head {
+    background: var(--navy-glass);
+    -webkit-backdrop-filter: blur(6px) saturate(1.08);
+    backdrop-filter: blur(6px) saturate(1.08);
+  }
+  body.panel-translucent .traincard.tc-sheet .tc-head {
+    background: var(--panel-head-glass);
+    -webkit-backdrop-filter: blur(6px) saturate(1.08);
+    backdrop-filter: blur(6px) saturate(1.08);
+  }
+  /* 收到最小的兩種樣子仍是實色紙面(見下方 .fp-min／.sheet-small),標題列跟著回實色。 */
+  body.panel-translucent .traincard.tc-sheet.sheet-small .tc-head {
+    background: var(--paper); -webkit-backdrop-filter: none; backdrop-filter: none;
   }
   /* 路線/車種識別色點:顏色由資料決定(什麼色都可能),沒有邊框時直接貼在同色系路網上會消失 */
   body.panel-translucent .traincard .tc-head .dot,
@@ -1809,14 +1837,15 @@
   html[data-theme=dark] body.panel-translucent #xingHelp,
   html[data-theme=dark] body.panel-translucent .follow-panel,
   html[data-theme=dark] body.panel-translucent .freq-card {
-    --muted: #C3CFE4;
-    --faint: #A5B4CE;
+    --ink: #FAFCFF; --ink-strong: #FAFCFF;   /* 原 #ECF0F8:暗色沒有「底色地板」,只能亮到頂 */
+    --muted: #E6ECF7;
+    --faint: #D2DCEC;
     --line: #4E6493; --line-dash: #42588A; --line-faint: #374C74;
     /* 暗色主題要把上面那組壓深的綠/紅接回來:暗底配深綠是反效果(實測 2.81),
        且暗色的字外圈本來就是深色,亮色字在上面反而更清楚。 */
-    --ok: #3DBF77;
-    --red: #F0564A;
-    --warn-ink: #F3C18E;  /* 同理:亮色那邊壓深的琥珀在暗底上會消失,這裡回到亮琥珀(比實色 #E8B183 再亮一階) */
+    --ok: #7BE6A9;
+    --red: #FF8A80;
+    --warn-ink: #FFE3C0;  /* 同理:亮色那邊壓深的三色在暗底上會消失,這裡各往亮的方向再一階 */
   }
   /* 列車資訊收到最小的兩種樣子——桌機收合成藥丸的跟隨小卡、手機「列車」sheet 的小段——
      只剩車號與時速幾個字,字級小又常停在路網密集處:整張退回實心紙面,連外圈都不需要。
@@ -2996,7 +3025,7 @@
     }
     /* 🔴 徽章也要在白名單裡:頂列本體 pointer-events:none(它是整條橫帶,不能吃掉地圖拖曳),
        漏掉徽章的話「點時鐘看資料狀態」在手機殼下完全點不到(桌面沒有這條所以看不出來)。 */
-    .topbar .tb-plate, .topbar .grouptabs, .topbar .alert-chip, .topbar .badge { pointer-events: auto; }
+    .topbar .tb-plate, .topbar .grouptabs, .topbar .alert-chip, .topbar .badge, .topbar .gtab-one { pointer-events: auto; }
     /* ══ 設計 D4 排法B(2026-08-22 使用者拍板):頂列收成一排 42px,省 56px 全給地圖 ══
        一排的組成:[logo 方牌 42] [時鐘膠囊(時鐘＋狀態色點)] ──auto── [公告 36 圓] [群組 4×36 圓]
        徽章本體由 placeBadge() 搬進頂列(手機一律搬,live 除外),這裡只管樣式。 */
@@ -3014,28 +3043,32 @@
        grid 兩列固定:第一排 [logo ‥ 四顆頁籤],第二排 [時鐘膠囊 ‥ 公告鈕]。時鐘讓到第二排是
        幾何逼出來的——第一排要放得下四顆設計尺寸的頁籤,就容不下 128px 的膠囊(360pt 全寬才 340)。
        公告鈕靠右 ⇒ 與右緣工具欄(隨機跟隨/附近車站)同一條基準線,即使用者要的「對齊」。 */
-    html[data-fs=large]  body.fs .topbar,
-    html[data-fs=xlarge] body.fs .topbar {
-      display: grid; grid-template-columns: auto 1fr auto;
-      grid-template-areas: "logo . tabs" "clock . chip";
-      row-gap: 5px; column-gap: 8px; align-items: center;
-    }
-    html[data-fs=large]  body.fs .topbar .tb-logo,
-    html[data-fs=xlarge] body.fs .topbar .tb-logo { grid-area: logo; }
-    html[data-fs=large]  body.fs .topbar .grouptabs,
-    html[data-fs=xlarge] body.fs .topbar .grouptabs { grid-area: tabs; justify-self: end; }
-    html[data-fs=large]  body.fs .topbar .badge,
-    html[data-fs=xlarge] body.fs .topbar .badge { grid-area: clock; justify-self: start; margin: 0; }
-    html[data-fs=large]  body.fs .topbar .alert-chip,
-    html[data-fs=xlarge] body.fs .topbar .alert-chip { grid-area: chip; justify-self: end; margin: 0; }
+    /* 🔴 2026-08-27 使用者連下三個裁示,推翻上面 08-26 那段「時鐘讓到第二排」與 D4 的方形 logo:
+         ①「時鐘徽章現在在大跟特大設定 會跑到第二排 我希望無論如何都收在第一排」
+         ②「或者是 你把那四顆鈕收成一顆 點擊會打開就好」(在 2×2 與收合兩案之間選了收合)
+         ③ 標準字級也收成一顆(長方形牌 96px vs 方形 logo 42px,標準檔 360pt 單排差 27px;
+            讓牌收寬會讓「軌島」兩字直排 ⇒ 不能用,量到的是 39~62px 寬 × 58px 高)
+       所以**三個字級一致**:四顆頁籤在手機殼一律收成一顆 #gtabOne,頂列維持單排,
+       [軌島牌][時鐘膠囊][公告][一顆] 排得進同一排。D4「頂列收成一排、省下來全給地圖」
+       的原意因此在三個字級都成立(標準 42／大 49.5／特大 57.1px)。
+       ⇒ 刻意**不寫任何 grid 覆蓋**:大/特大沿用同一套 flex 單排規則,少一套會漂移的版面。
+       🔴 一定要 nowrap:頂列基底是 flex-wrap:wrap,而 wrap 會**在縮之前先換行**——
+          有營運公告時(整排多 49px)群組鈕會整顆掉到第二排,頂列從 57 變 112px。
+          檔內早就寫好「放大檔讓牌可縮、牌內文字改省略,牌是品牌標示擠的時候先讓它」
+          (見下方 html[data-fs] 那組規則),nowrap 才會走到那條路。
+          標準檔刻意**不**給牌可縮(它沒有 h1 的 font-size 上限與 nowrap,一縮就直排)。 */
+    body.fs .topbar { flex-wrap: nowrap; }
+    body.fs .topbar .grouptabs { display: none; }
+    body.fs .topbar .gtab-one { display: inline-grid; }
     body.fs .topbar .tb-logo {
       width: calc(42px * var(--uit)); height: calc(42px * var(--uit));
       flex: none; display: block; border-radius: 9px; box-shadow: var(--shadow-1);
     }
-    /* 文字版軌島牌整塊讓位:logo 圖本身就是那塊琺瑯牌。
-       🔴 起訖站帶(#tbPlateL/R)設計上是移到卡頭行先帶,而卡頭屬於還沒做的 D1–D3——
-       這裡先只隱藏、DOM 與寫入它的 JS(setGroupMeta)都留著,卡頭做好直接接過去。 */
-    body.fs .topbar .tb-plate { display: none; }
+    /* 🔴 2026-08-27 使用者改裁示,推翻 D4 的「方形 logo 取代文字牌」:
+         「左上的logo 我希望要維持以前的款式 就是長方形而非正方形的」。
+       所以反過來——文字版軌島牌(含起訖站帶)回來,42×42 的方形 logo 圖讓位。
+       兩者的 DOM 都留著(方形那顆只是 display:none),要換回去改這一條就好。 */
+    body.fs .topbar .tb-logo { display: none; }
 
     /* 時鐘膠囊:h42 的 pill,不再是浮在頂列下方的獨立卡 */
     body.fs .topbar .badge {
@@ -3045,29 +3078,43 @@
       background: var(--paper); border: 1.5px solid var(--line); box-shadow: var(--shadow-1);
     }
     body.fs .topbar .badge .clock { font-size: calc(16px * var(--ui)); font-weight: 900; }
-    /* 狀態一律收成 7px 脈動色點,字樣進「更多 → 資料狀態」(使用者 2026-08-22 裁示:全部收成色點)。
-       🔴 這四條刻意不宣告 display——[hidden] 的 UA display:none 才蓋得住(同 .ms-row 的既有教訓);
-       #peak 不是用 hidden 而是用空字串控制,所以另外用 :empty 收掉,否則沒有尖峰時會多一顆假色點。 */
+    /* 🔴 2026-08-27 使用者裁示,推翻 08-22 的「狀態全部收成色點」:
+         「現在已經把右邊四個按鈕縮小的狀況下,時間按鈕其實可以直接寫詳細資訊了。」
+       ⇒ 手機殼的狀態改回**寫字**(沿用桌面那組已經在用的樣式:LIVE 綠、看板校正 藍、重播 紅牌、
+         尖峰 琥珀牌),只把字級收小一階,#count 仍留在卡裡不進膠囊(它是會逐秒變動的長字串)。
+       🔴 只有在真的排不下的組合才退回色點——見下方 .badge.st-dot,由 fitBadgeDetail() 量完才掛。
+         判準不是字級也不是寬度常數,是「頂列這一排真的塞不塞得下」,量出來才知道。 */
     body.fs .topbar .badge .live,
-    body.fs .topbar .badge .mlive,
-    body.fs .topbar .badge .replay,
-    body.fs .topbar .badge .peak {
+    body.fs .topbar .badge .mlive { font-size: calc(10px * var(--uis)); letter-spacing: .3px; }
+    body.fs .topbar .badge .replay { font-size: calc(10px * var(--uis)); padding: 1px 5px 2px; }
+    body.fs .topbar .badge .peak { font-size: calc(10.5px * var(--uis)); padding: 1px 7px 2px; }
+    body.fs .topbar .badge .peak:empty { display: none; }
+    /* 非即時不脈動——與獨立卡時期的語意一致 */
+    body.fs .topbar .badge .live.est::before,
+    body.fs .topbar .badge .mlive.est::before { animation: none; opacity: .55; }
+    /* 列車數留在「資料狀態」卡裡,不進膠囊 */
+    body.fs .topbar .badge .count { display: none; }
+    /* 排不下時的退路:**逐顆**降級成 7px 脈動色點(08-22 那版的樣子),不是整排一起變——
+       放得下幾顆字就留幾顆,由 fitBadgeDetail() 依優先序(即時 > 重播 > 尖峰 > 看板校正)決定。
+       時間本身永遠是字,任何情況都不降級。
+       🔴 這四條刻意不宣告 display——[hidden] 的 UA display:none 才蓋得住(同 .ms-row 的既有教訓);
+       #peak 不是用 hidden 而是用空字串控制,所以另外用 :empty 收掉。 */
+    body.fs .topbar .badge .live.as-dot,
+    body.fs .topbar .badge .mlive.as-dot,
+    body.fs .topbar .badge .replay.as-dot,
+    body.fs .topbar .badge .peak.as-dot {
       width: 7px; height: 7px; flex: none; align-self: center;
       border-radius: 50%; padding: 0; border: 0;
       font-size: 0; line-height: 0; letter-spacing: 0; overflow: hidden;
       background: currentColor; animation: livePulse 2s infinite;
     }
-    body.fs .topbar .badge .live::before,
-    body.fs .topbar .badge .mlive::before { content: none; }
-    body.fs .topbar .badge .replay { color: var(--red); }
-    body.fs .topbar .badge .peak { color: var(--warn-ink); }
-    body.fs .topbar .badge .peak.sim { color: #3A5680; }
-    body.fs .topbar .badge .peak:empty { display: none; }
-    /* 推估(非即時)不脈動——與獨立卡時期的語意一致 */
-    body.fs .topbar .badge .live.est,
-    body.fs .topbar .badge .mlive.est { animation: none; opacity: .55; }
-    /* 列車數收進「更多 → 資料狀態」 */
-    body.fs .topbar .badge .count { display: none; }
+    body.fs .topbar .badge .live.as-dot::before,
+    body.fs .topbar .badge .mlive.as-dot::before { content: none; }
+    body.fs .topbar .badge .replay.as-dot { color: var(--red); }
+    body.fs .topbar .badge .peak.as-dot { color: var(--warn-ink); }
+    body.fs .topbar .badge .peak.as-dot.sim { color: #3A5680; }
+    body.fs .topbar .badge .live.as-dot.est,
+    body.fs .topbar .badge .mlive.as-dot.est { animation: none; opacity: .55; }
 
     /* 公告鈕:與群組頁籤同規格的 36 圓(數字塞不進,點開詳情就有) */
     body.fs .topbar .alert-chip {
@@ -3080,6 +3127,47 @@
     /* 群組頁籤:36 圓,選中實心無框。🔴 36 < 44 觸控下限 ⇒ 用置中的 ::after 補熱區,
        且鈕本身必須 position:relative(static 會把 ::after 的錨點交給 .topbar,兩顆熱區會互相蓋掉——
        memory station-node 那條「並排鈕熱區」的教訓)。 */
+    /* 收合鈕:幾何比照 .gtab(同圓徑、同 44 熱區),多一個 ▾ 提示它會開東西。
+       只有手機殼(body.fs,含橫式)用它;桌面維持 header 上的四顆分頁,所以 base 是 display:none。 */
+    .topbar .gtab-one { display: none; }
+    body.fs .topbar .gtab-one {
+      position: relative; flex: none; pointer-events: auto;
+      height: calc(36px * var(--uit)); padding: 0 calc(9px * var(--uit)) 0 calc(11px * var(--uit));
+      border-radius: var(--r-pill); gap: 2px;
+      grid-auto-flow: column; place-items: center;
+      background: var(--navy); color: var(--paper); border: 0;
+      font-size: calc(15px * var(--ui)); font-weight: 900; cursor: pointer;
+      box-shadow: var(--shadow-1);
+    }
+    body.fs .topbar .gtab-one .go-cv { font-size: calc(10px * var(--uis)); opacity: .8; }
+    /* 熱區補到 44(比照 .gtab::after:縮的是看得見的形狀,點得到的範圍不動) */
+    body.fs .topbar .gtab-one::after {
+      content: ''; position: absolute; left: 50%; top: 50%;
+      width: calc(100% + 8px); height: calc(44px * var(--uit));
+      transform: translate(-50%, -50%);
+    }
+    /* 群組選單:比照 #statPop 的皮膚與定位方式(JS 依鈕當下 rect 算,固定定位) */
+    #gtabPop {
+      position: fixed; z-index: 1200; width: max-content; min-width: 132px; max-width: calc(100vw - 24px);
+      background: var(--paper); color: var(--ink);
+      border: 1.5px solid var(--navy); border-radius: var(--r-l); box-shadow: var(--shadow-navy);
+      padding: 6px; font-size: calc(14px * var(--ui));
+    }
+    #gtabPop[hidden] { display: none; }
+    #gtabPop .gp-row {
+      display: flex; align-items: center; gap: 10px; width: 100%;
+      min-height: 44px; padding: 0 10px; border: 0; border-radius: 9px;
+      background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+    }
+    #gtabPop .gp-row .gp-sh {
+      flex: none; width: calc(26px * var(--uit)); height: calc(26px * var(--uit));
+      display: grid; place-items: center; border-radius: 50%;
+      /* 圈是 --uit 撐大的,字跟著同一顆倍率才不會在特大檔溢出圈外;13px 也不准掛 --uis(F0b)。 */
+      background: var(--bg-stage); font-weight: 900; font-size: calc(13px * var(--uit));
+    }
+    #gtabPop .gp-row[aria-current=true] { background: var(--bg-stage); font-weight: 900; }
+    #gtabPop .gp-row[aria-current=true] .gp-sh { background: var(--navy); color: var(--paper); }
+
     body.fs .topbar .grouptabs { gap: 6px; align-items: center; }
     body.fs .topbar .grouptabs .gtab {
       position: relative;
@@ -3115,7 +3203,6 @@
       position: relative; /* ::after 熱區必須錨在各自按鈕，避免四顆一起蓋滿 .grouptabs */
       flex: none; width: 36px; height: 36px; min-height: 36px; padding: 0; font-size: 13px;
     }
-    /* 公告警示鈕與四顆短標都固定 36px；透明 ::after 仍補足 44px 觸控熱區。v6 在 360dp＋有公告時
     /* 以下只掛 html[data-fs](大/特大):標準檔的頂列幾何完全沿用上面已出貨的 36px 固定值。
        🔴 頂列是 space-between 的 flex,軌島牌 flex:none 不肯縮 ⇒ 空間不足時被擠出去的一定是 DOM
        最後那顆「捷」。放大檔讓牌可縮、牌內文字改省略——牌是品牌標示,擠的時候先讓它。 */
@@ -3124,16 +3211,27 @@
       min-height: calc(36px * var(--uit)); font-size: calc(13px * var(--ui));
     }
     html[data-fs] .topbar .tb-plate { flex: 0 1 auto; min-width: 0; }
-    /* 軌島牌大/特大時「不」跟著放大(倍率退回 1),把省下的寬度讓給四顆分頁。 */
-    html[data-fs] .topbar .tb-plate h1 { font-size: 14px; }
-    html[data-fs] .topbar .tb-plate .plate-foot .stn { font-size: 9.5px; }
-    html[data-fs] .topbar .tb-plate .plate-foot .stn:first-child::before,
-    html[data-fs] .topbar .tb-plate .plate-foot .stn:last-child::after { font-size: 6px; }
+    /* 🔴 牌可縮,但「軌島」兩個字**永遠不准直排**:h1 沒有 nowrap 時,擠到一定程度會折成上下兩字,
+       整條頂列從 ~50px 撐到 66px(實測 402pt/大 有時 49.5 有時 66,取決於當下狀態旗標多寬)。
+       nowrap 之後牌的最小寬被 h1 撐住,要讓的是 plate-foot 的起訖站名(下面那條省略號),
+       再不夠就由 fitBadgeDetail() 把狀態旗標降成色點——退讓順序:站名 > 狀態字 > 其他。 */
+    html[data-fs] .topbar .tb-plate h1 { white-space: nowrap; }
+    /* 🔴 2026-08-27 使用者裁示:「左上角的軌島招牌大小請跟著時間資訊那顆一起變大變小」。
+       原本這裡把牌的三個字級倍率**退回 1**(寫死 14／9.5／6px),理由是「把省下的寬度讓給四顆分頁」
+       ——四顆已經收成一顆,那個理由不成立了,整組取消,牌回去吃 base 的 calc(14px * var(--ui))。
+       留著 flex:0 1 auto 與 plate-foot 的省略:那是「擠的時候先讓品牌標示」的退路,不是尺寸凍結。 */
     html[data-fs] .topbar .tb-plate .plate-foot { min-width: 0; }
     html[data-fs] .topbar .tb-plate .plate-foot .stn {
       min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
-       三者總寬超過可用寬，最右「捷」會被裁掉；固定幾何後不再讓字級／公告數量撐寬整列。 */
+    /* 公告警示鈕與四顆短標都固定 36px；透明 ::after 仍補足 44px 觸控熱區。
+       v6 在 360dp＋有公告時三者總寬超過可用寬，最右「捷」會被裁掉；固定幾何後不再讓字級／
+       公告數量撐寬整列。
+       🔴 2026-08-27:這一塊原本被上面那段註解的**孤兒結束記號**整個吃掉(CSS 註解不可巢狀,
+          中間插進新規則之後前半提早收尾,尾巴那個結束記號變成語法錯誤 ⇒ 瀏覽器跳到下一個 `}`;
+          寫這條註解時不可以把那個記號寫成字面值,否則會當場再犯一次——已實測)。
+          症狀是公告鈕退回 UA 的灰底方鈕(實測 background rgb(192,192,192)、2px 灰框),
+          而不是琥珀底的圓鈕——**沒有任何判準照得到,是讀 CSSOM 才抓出來的**。 */
     .topbar .alert-chip {
       position: relative; /* 同頁籤：透明熱區只屬於公告鈕本體 */
       margin-left: auto; flex: none; display: flex; align-items: center; justify-content: center; gap: 0;
@@ -3266,9 +3364,28 @@
     .xing-card .xc-cd { min-width: 40px; }
     .xing-card .xc-foot { padding: 6px 10px 8px; font-size: calc(10px * var(--uis)); }
     .xing-card .xc-empty { padding: 12px 10px; font-size: calc(11.5px * var(--uis)); }
-    /* 站名牌手機靠左橫條:下移到動作列之下(整寬顯示;fs 殼 ⛶ 已廢止,右側不再需讓位) */
-    .dwell-plate { top: calc(141px + var(--sa-t)); left: 8px; right: 8px; min-width: 0; max-width: none; }
-    .dwell-plate .dp-intro { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    /* 站名牌(手機直式):收成置中的小膠囊,不再是整寬橫條。
+       🔴 2026-08-27 使用者裁示:「現在火車到站時 站牌顯示太大了,很干擾而且會擋住後面的資訊,
+          請依照現在做的樣式去更改這個站牌顯示。」實測改前 特大/393 是 377×97、站名字級 39px,
+          整條橫跨螢幕壓在地圖上。改後尺寸與字級都比照橫式那一版(早就是小膠囊)與頂列的膠囊語彙。
+       置中而不是靠左:與時鐘膠囊、速度膠囊共用同一條中線;寬度吃 max-content,站名多長就多寬。 */
+    .dwell-plate {
+      top: calc(141px + var(--sa-t));
+      left: 50%; right: auto; transform: translateX(-50%) translateY(-5px);
+      width: max-content; min-width: 0; max-width: calc(100% - 32px);
+      border-width: 1.5px; border-radius: 14px;
+    }
+    .dwell-plate.show { transform: translateX(-50%); }
+    .dwell-plate b { font-size: calc(17px * var(--ui)); letter-spacing: 5px; text-indent: 5px; padding: 5px 16px 4px; }
+    .dwell-plate .dp-strip { padding: 2px 12px 3px; gap: 12px; }
+    .dwell-plate .side { font-size: calc(10.5px * var(--uis)); }
+    .dwell-plate .side .arr { font-size: calc(9.5px * var(--uis)); }
+    .dwell-plate .side .km { font-size: calc(9.5px * var(--uis)); }
+    /* 車站介紹本來夾兩行;膠囊窄了兩行會變成一大塊,改夾一行(橫式那版早就是一行)。 */
+    .dwell-plate .dp-intro {
+      display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+      font-size: calc(11px * var(--uis)); line-height: 1.45; padding: 4px 12px 6px;
+    }
     /* 面板家族:手機一律變底部 sheet(圓上角+抓把)。
        ── sheet 三段高與安全區夾限(2026-07-30)──
        高度 = min(該段的百分比, 從安全區頂緣到 sheet 底緣的可用高)。第二項是使用者回報的
@@ -3853,12 +3970,8 @@
       background: var(--panel-glass);
       -webkit-backdrop-filter: blur(3px) saturate(1.08);
       backdrop-filter: blur(3px) saturate(1.08);
-      text-shadow: 0 0 2px var(--glass-halo), 0 0 5px var(--glass-halo);
     }
-    /* button 不繼承 text-shadow(UA 歸零),halo 要明確接回;自帶不透明底的(軌島牌/群組頁籤/公告圓鈕)不吃 */
-    body.fs.panel-translucent .topbar button { text-shadow: inherit; }
-    body.fs.panel-translucent .topbar .plate, body.fs.panel-translucent .topbar .plate *,
-    body.fs.panel-translucent .topbar .gtab, body.fs.panel-translucent .topbar .alert-chip { text-shadow: none; }
+    /* 🔴 2026-08-27 裁示:外圈(halo)整組拿掉,可讀性靠字色——同面板家族那條註解。 */
     /* mock 右上幾何:公告 26 圓鈕、短標 44×28/gap 6；工具堆維持 44×44/gap 8，三者共用右錨。
        三個固定盒都吃 --ui:字級放大時字撐大了盒子不跟著長,字會被自己的框切掉(設計檔 TURN 10/12
        明寫「圖示、觸控目標一起放大」)。 */
@@ -3879,6 +3992,11 @@
        字級放大會把牌寬再推大,必切。這裡只讓「大/特大」兩檔的牌可縮——標準檔的幾何一格都不動,
        已上線的網站行為維持原狀,要不要連標準檔一起修是另一個決定。 */
     html[data-fs] .topbar .tb-plate { flex: 0 1 auto; min-width: 0; }
+    /* 🔴 牌可縮,但「軌島」兩個字**永遠不准直排**:h1 沒有 nowrap 時,擠到一定程度會折成上下兩字,
+       整條頂列從 ~50px 撐到 66px(實測 402pt/大 有時 49.5 有時 66,取決於當下狀態旗標多寬)。
+       nowrap 之後牌的最小寬被 h1 撐住,要讓的是 plate-foot 的起訖站名(下面那條省略號),
+       再不夠就由 fitBadgeDetail() 把狀態旗標降成色點——退讓順序:站名 > 狀態字 > 其他。 */
+    html[data-fs] .topbar .tb-plate h1 { white-space: nowrap; }
     html[data-fs] .topbar .tb-plate .plate-foot { min-width: 0; }
     html[data-fs] .topbar .tb-plate .plate-foot .stn {
       min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -4251,6 +4369,12 @@
            版面,那條鏈整條拆掉。margin-left:auto 讓它吃掉軌島牌與頁籤之間的空白、緊貼頁籤左側,窄機
            (360pt)才不會把頁籤擠出畫面。 -->
       <button class="alert-chip" id="alertChip" hidden aria-label="營運通阻公告，點開看詳情" title="營運通阻公告"><span class="ac-ico" aria-hidden="true">⚠</span><span class="ac-n" id="alertChipN"></span></button>
+      <!-- 手機殼專用的「收合成一顆」鈕(2026-08-27 使用者裁示:「你把那四顆鈕收成一顆 點擊會打開就好」)。
+           三個字級都用它,桌面則維持 header 上的四顆分頁。
+           為什麼另做一顆而不是把 #topTabs 收起來:renderTopTabs 每次換群組都會 innerHTML 重建那四顆,
+           把收合狀態塞進去等於每次重建都要重做;這顆獨立、只由 renderTopTabs 更新它的字。
+           誰現身完全由 CSS 決定(四顆 vs 這顆),JS 不管版面。 -->
+      <button class="gtab-one" id="gtabOne" type="button" aria-haspopup="true" aria-expanded="false" title="切換群組"><span class="go-tx" id="gtabOneTx">全</span><span class="go-cv" aria-hidden="true">▾</span></button>
       <div class="grouptabs" id="topTabs">
         <button class="gtab active" title="全台同框">全</button>
         <button class="gtab" title="台鐵">台</button>
@@ -5095,6 +5219,11 @@
   <div class="sp-head"><b>資料狀態</b><button class="sp-close" id="statPopClose" type="button" aria-label="關閉">✕</button></div>
   <div class="sp-rows" id="statPopRows"></div>
 </div>
+<!-- 群組選單:手機殼把四顆頁籤收成一顆,點它開這張。內容由 renderGtabPop() 依 TAB_GROUPS 生成。
+     🔴 同 #statPop 放 body 層(見 memory modal-stacking-context:.stage 會把 z-index 封頂)。 -->
+<div class="gtab-pop" id="gtabPop" hidden role="dialog" aria-label="切換群組">
+  <div class="gp-rows" id="gtabPopRows"></div>
+</div>
 <div class="more-scrim" id="moreScrim"></div>
 <div class="more-sheet" id="moreSheet">
   <span class="grab"></span>
@@ -5271,7 +5400,7 @@
     //         兩節,以及 App 前景持續定位與所在地鏡頭跟隨(v0821d 那批的 index.html 那一半)。
     // v0826a：版面試作(字級三階/頂列排法B/看板組標題/站內回報)與出貨線 1.4.10 血脈合流,
     //         並帶上 origin/main 至 7932b2e 的全部更新。
-    const BUILD = 'v0827a';
+    const BUILD = 'v0827b';
 // clearFollow() 會在開機途中清掉 query string；Private Metro Core 的 rollout 模式必須在最前面先鎖住，
 // 否則 ?metrocore=0／1 可能在資料輪詢區重讀時已消失。
 const METRO_CORE_QUERY_MODE = (() => {
@@ -13427,6 +13556,12 @@ function renderTopTabs(cur) {
     b.onclick = () => selectGroup(g, true);
     box.appendChild(b);
   });
+  // 手機殼把四顆收成一顆,那顆要跟著顯示目前在哪一群(它跟四顆是同一份資料,不另存狀態)
+  const one = document.getElementById('gtabOneTx'), oneBtn = document.getElementById('gtabOne');
+  const cg = TAB_GROUPS.find(g => g.id === act);
+  if (one && cg) one.textContent = cg.short;
+  if (oneBtn && cg) oneBtn.title = '群組:' + cg.label + '(點一下換)';
+  if (!document.getElementById('gtabPop')?.hidden) renderGtabPop();
 }
 
 // 目前視窗內看不看得見這個群組的軌道——群組切換要不要保留視野的判準。
@@ -20483,6 +20618,7 @@ function updateLiveBadge() {
   }
   // LIVE 亮起時收掉「時刻表模擬」標籤,兩者並排語意矛盾;熄滅後每秒刷新會自動恢復
   document.getElementById('peak').hidden = on && !state.nightReplay;
+  try { fitBadgeDetail(); } catch (e) {}   // 亮著幾顆狀態會變(有簽名快取,沒變就不重量)
 }
 setInterval(pollLive, 60e3);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) pollLive(); });
@@ -23175,6 +23311,7 @@ function renderAlertBanner() {
   };
   if (chip) chip.onclick = toggleDetail;
   updateFollowAlert();
+  try { fitBadgeDetail(); } catch (e) {}   // 公告鈕現身/消失會整排多或少一顆,重量一次
 }
 function renderAlertDetail() {
   const det = document.getElementById('alertDetail');
@@ -26178,6 +26315,92 @@ function setupStatPop() {
         attributes: true, attributeFilter: ['hidden', 'class', 'title'] });
   }
 }
+// ── 群組選單(手機殼把四顆頁籤收成一顆之後的入口;桌面沒有這顆,四顆分頁照舊)──────────
+// 🔴 選項不自己維護一份:逐項照 TAB_GROUPS 生成,點下去呼叫的也是四顆頁籤同一個 selectGroup()
+//    ⇒ 群組定義改了這裡自動跟著改,也不會出現「兩個入口行為不一致」。
+function renderGtabPop() {
+  const box = document.getElementById('gtabPopRows');
+  if (!box) return;
+  // 目前在哪一群:與 renderSystemsBar/renderTopTabs 逐字同一個算式,不另外推導
+  const cur = GROUPS.find(g => g.id === state.group) || GROUPS[0];
+  const act = tabActiveId(cur.id);
+  box.innerHTML = '';
+  TAB_GROUPS.forEach(g => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'gp-row';
+    if (g.id === act) b.setAttribute('aria-current', 'true');
+    b.innerHTML = '<span class="gp-sh"></span><span class="gp-nm"></span>';
+    b.querySelector('.gp-sh').textContent = g.short;
+    b.querySelector('.gp-nm').textContent = g.label;
+    b.onclick = () => { gtabPopSet(false); selectGroup(g, true); };
+    box.appendChild(b);
+  });
+}
+// ── 頂列一排放不放得下「狀態寫成字」──────────────────────────────────────────
+// 使用者 2026-08-27:「時間按鈕其實可以直接寫詳細資訊了」。放得下就寫字,放不下才退回色點。
+// 🔴 判準必須是量出來的:字級三階 × 機寬 × 有沒有公告 × 亮著幾顆狀態,組合太多,
+//    寫死任何一個媒體查詢斷點都會在別的組合出錯,而且以後多一顆狀態就再錯一次。
+// 🔴 量之前要把軌島牌暫時釘成 flex:none:它是 flex:0 1 auto,會替別人吸收溢出
+//    ——不釘的話量到的永遠是「剛好不溢出」,而代價是牌被壓成直排的「軌島」(實測 24px 寬)。
+// 🔴 不用 bar.scrollWidth:群組鈕與公告鈕的 ::after 觸控熱區是 absolute 且比本體寬,
+//    會把 scrollWidth 灌水(A 段那條既有教訓)。改成逐顆加總 rect＋gap。
+let _fitSig = '';
+function fitBadgeDetail(force) {
+  const bar = document.getElementById('topbar'), badge = document.getElementById('statBadge');
+  if (!bar || !badge || !bar.getClientRects().length) return;   // 桌面殼沒有這條列
+  const flags = ['liveBadge', 'metroBadge', 'replayBadge', 'peak']
+    .map(id => { const e = document.getElementById(id); return e && !e.hidden && e.textContent.trim() ? e.textContent.trim() : ''; }).join('|');
+  const sig = flags + '§' + (document.documentElement.getAttribute('data-fs') || 'std') + '§' + Math.round(bar.clientWidth)
+    + '§' + (document.getElementById('alertChip')?.hidden ? '0' : '1');
+  if (!force && sig === _fitSig) return;
+  _fitSig = sig;
+  const plate = bar.querySelector('.tb-plate');
+  // 優先序:先讓最不急的那顆變回色點。即時資料(LIVE／非即時)最後才降級——
+  // 它是「畫面現在可不可信」的唯一指標,其餘三顆在資料狀態卡裡都寫得更清楚。
+  const DEGRADE = ['metroBadge', 'peak', 'replayBadge', 'liveBadge'];
+  const els = DEGRADE.map(id => document.getElementById(id)).filter(Boolean);
+  els.forEach(e => e.classList.remove('as-dot'));      // 量之前先全部回到「寫字」那一態
+  const prev = plate ? plate.style.flex : null;
+  if (plate) plate.style.flex = 'none';
+  const gap = parseFloat(getComputedStyle(bar).gap) || 0;
+  const need = () => {
+    const kids = [...bar.children].filter(e => e.getClientRects().length && getComputedStyle(e).position !== 'absolute');
+    return kids.reduce((a, e) => a + e.getBoundingClientRect().width, 0) + gap * Math.max(0, kids.length - 1);
+  };
+  // 🔴 clientWidth 含左右內距(頂列有 padding-left:8),拿它當可用寬會多算 8px ⇒ 標準檔 360/393
+  //    在「沒有公告」時實測讓群組鈕溢出右緣 25／6px(TB3 抓到)。要扣掉內距用內容寬。
+  const bs = getComputedStyle(bar);
+  const room = bar.clientWidth - (parseFloat(bs.paddingLeft) || 0) - (parseFloat(bs.paddingRight) || 0) + 0.5;
+  for (let i = 0; i < els.length && need() > room; i++) els[i].classList.add('as-dot');
+  if (plate) { if (prev) plate.style.flex = prev; else plate.style.removeProperty('flex'); }
+}
+function gtabPopPlace() {
+  const pop = document.getElementById('gtabPop'), b = document.getElementById('gtabOne');
+  if (!pop || !b || pop.hidden) return;
+  if (!b.getClientRects().length) { gtabPopSet(false); return; } // 鈕不在(轉成桌面寬度)⇒ 選單跟著收
+  const r = b.getBoundingClientRect(), box = pop.getBoundingClientRect();
+  // 靠右對齊鈕(它自己就在頂列右緣)、掛在下方;兩軸都夾在視窗內 8px
+  pop.style.left = Math.max(8, Math.min(r.right - box.width, innerWidth - box.width - 8)) + 'px';
+  pop.style.top = Math.max(8, Math.min(r.bottom + 8, innerHeight - box.height - 8)) + 'px';
+}
+function gtabPopSet(on) {
+  const pop = document.getElementById('gtabPop'), b = document.getElementById('gtabOne');
+  if (!pop || pop.hidden === !on) return;
+  pop.hidden = !on;
+  if (b) b.setAttribute('aria-expanded', on ? 'true' : 'false');
+  if (on) { renderGtabPop(); gtabPopPlace(); }
+}
+function setupGtabPop() {
+  const b = document.getElementById('gtabOne'), pop = document.getElementById('gtabPop');
+  if (!b || !pop) return;
+  b.addEventListener('click', e => { e.stopPropagation(); gtabPopSet(pop.hidden); });
+  document.addEventListener('pointerdown', e => {
+    if (!pop.hidden && !pop.contains(e.target) && !b.contains(e.target)) gtabPopSet(false);
+  }, true);
+  addEventListener('keydown', e => { if (e.key === 'Escape' && !pop.hidden) gtabPopSet(false); });
+  addEventListener('resize', () => gtabPopPlace());
+}
+
 // §04c:工具欄 icon-only 的標籤補償——首次進入跟車各顯示 2 秒(localStorage 記一次性);長按任一顆再現
 function setupToolRail() {
   const rail = document.getElementById('mapActions');
@@ -26263,16 +26486,26 @@ const HELP_GROUPS = [
       one: '一個框三種用法：站名、車次號碼、觀光列車名稱都查得到。',
       steps: ['手機按底部「搜尋」、桌面點右上的搜尋框', '輸入「台北」找車站、輸入「431」找那班車、輸入「鳴日」找列車介紹', '從下拉選一項——選車次會直接開始跟車'],
       tip: '同名站或共構站（例如板橋的台鐵與捷運）會先讓你選是哪一個。', try: 'search' },
+    { key: 'groupswitch', ic: '全', nm: '切換：全台／台鐵／高鐵／捷運',
+      one: '決定地圖上要出現哪些系統的車。手機收在頂端那顆圓鈕裡，點一下展開四個選項。',
+      steps: ['手機：點頂端右邊那顆圓鈕（上面寫著目前在哪一群）', '從選單挑全台同框／台鐵／高鐵／捷運與輕軌', '桌面：頂端資訊列上的四顆分頁直接點'],
+      tip: '切換不會重新框景——你原本看的地方還在原地。字級調大時那顆鈕會跟著變大，但位置不變。',
+      try: 'groupswitch' },
     { key: 'follow', ic: '<span class="hw-tag">431</span>', nm: '點列車＝跟著它跑',
       one: '車號牌是可以點的。點了鏡頭就跟著那班車，左下角出現它的下一站與誤點。',
-      steps: ['點任一車號牌', '看下一站、誤點、全程速度曲線', '想停就按卡片的 ×，或點地圖空白處'],
-      tip: '跟到終點會蓋一枚完乘章（收在「護照」）。加速播放沒問題，但中途跳時間就不算。', try: 'follow' },
+      steps: ['點任一車號牌', '看下一站、誤點、全程速度曲線', '點地圖空白處小卡會收成一顆膠囊——跟車不會斷，點膠囊就展開回來', '真的要結束按卡片上的「結束」'],
+      tip: '跟到終點會蓋一枚完乘章（收在「護照」）。加速播放沒問題，但中途跳時間就不算。手機在跟車途中點車站，看板會和跟車小卡併成同一張卡的兩個分頁，不會互相蓋掉。', try: 'follow' },
     { key: 'board', ic: '<span class="hw-stnbox"><i></i></span>', nm: '點車站＝接下來的班次看板',
       one: '看板由近到遠列出接下來要進站的車，還有幾分鐘到。',
       steps: ['點地圖上任一車站', '看板列出接下來的班次與倒數', '點其中一班可以直接跟車；標題右邊的收藏鈕把這站加進最愛'],
-      tip: '台鐵套用官方即時誤點；北捷依官方秒級到站倒數逐班校正，高捷、機捷、高雄輕軌依官方到站看板校正。官方資料中斷或你的裝置時鐘明顯不準時，上方的「LIVE」會轉成灰色「推估」，表示畫面是依稍早的資料投射。台鐵當日官方公告停駛的班次不會出現在地圖上，但看板仍會列出並標成「停駛」。', try: 'board' },
+      tip: '台鐵套用官方即時誤點；北捷依官方秒級到站倒數逐班校正，高捷、機捷、高雄輕軌依官方到站看板校正。官方資料中斷或你的裝置時鐘明顯不準時，上方的「LIVE」會轉成灰色「非即時」，表示畫面是依稍早的資料投射——點一下時鐘可以看到是哪一項出狀況。台鐵當日官方公告停駛的班次不會出現在地圖上，但看板仍會列出並標成「停駛」。', try: 'board' },
+    { key: 'datastatus', ic: '◷', nm: '點時鐘＝現在的資料是不是即時的',
+      one: '時鐘旁邊那幾顆小色點就是資料狀態。點一下時鐘，會逐項寫出每一顆代表什麼、以及為什麼是這個顏色。',
+      steps: ['點頂端的時鐘（桌面點時鐘那張卡）', '逐列看：台鐵即時誤點是 LIVE 還是「非即時」、捷運看板校正到哪、是不是在重播、目前時段與車數', '每一列下面會說明原因——資料幾分鐘沒更新、裝置時鐘差幾秒、時間軸不在現在'],
+      tip: '「非即時」不是另一種資料，是同一份官方資料現在不夠新，畫面依稍早那份投射。手機沒有滑鼠停留可看，所以把原因都攤在這張卡裡。',
+      try: 'datastatus' },
     { key: 'rand', ic: '⤮', nm: '隨機跟隨', one: '不知道要看哪班，交給它挑一班。',
-      steps: ['按地圖上的「隨機跟隨」', '不喜歡再按一次換一班', '小卡的 × 結束'], try: 'follow' },
+      steps: ['按地圖上的「隨機跟隨」', '不喜歡再按一次換一班', '按小卡上的「結束」停止跟車(× 只是把卡收起來,車還在跟)'], try: 'follow' },
     { key: 'time', ic: '❚❚', nm: '時間軸：暫停、快轉、回看',
       one: '畫面跑的是「今天的時刻表」，時間可以停、可以快、可以往回看。',
       steps: ['最左邊那顆是暫停／播放', '拖倍速滑桿，1× 到 60×', '手機拖時刻尺、桌面按 ← → 各移動 10 分鐘', '想回到真實時間按「現在」'],
@@ -26402,9 +26635,18 @@ const HELP_GROUPS = [
 const HELP_TRY = {
   search: { id: 'trainSearch', toast: '搜尋框已填「台北」，從下拉挑一項',
     run: () => { const i = document.getElementById('trainSearch'); if (!i) return; i.focus(); i.value = '台北'; i.dispatchEvent(new Event('input', { bubbles: true })); } },
-  follow: { id: 'randBtn', toast: '正在跟一班車——小卡的 × 可以結束' },
+  follow: { id: 'randBtn', toast: '正在跟一班車——按小卡上的「結束」可以停' },
   board: { ok: () => !!helpNearestStation(),
     run: () => { const st = helpNearestStation(); if (!st) return showToast('這個檢視附近沒有車站，換個系統頁籤再試'); openBoard(st); map.panTo(focusCenter(st.lat, st.lon)); } },
+  // 這兩顆都是「開一張浮層」型:代點就是真的按下去,不寫 localStorage、沒有副作用。
+  // 🔴 群組鈕只在手機殼現身(桌面是四顆分頁),所以先驗它看不看得見,看不見就用吐司指路——
+  //    直接 click 一顆 display:none 的鈕不會有任何反應,那種「試一次」等於壞掉。
+  datastatus: { id: 'statBadge', toast: '這是資料狀態——卡片右上的 ✕ 或按 Esc 關掉' },
+  groupswitch: { run: () => {
+      const b = document.getElementById('gtabOne');
+      if (b && b.getClientRects().length) { b.click(); return; }
+      showToast('桌面版的四顆分頁就在頂端資訊列上，直接點就能換');
+    } },
   pause: { id: 'pp', toast: '已暫停——按站台帶最左邊那顆就繼續' },
   explore: { id: 'exploreBtn' },
   today: { id: 'todayBtn' },
@@ -27152,7 +27394,18 @@ function setupMapTools() {
   });
   // Batch B:開站即建縣市 chip、把搜尋列與頁尾盒放到當前斷點該在的家
   // (§04c 徽章開站也就定位;跟隨鎖此刻還沒建——lockCtl.addTo 之後那裡自己會補一次 placeControlRail)
-  buildMsCities(); placeSearch(); placeFootBoxes(); placeBadge(); setupToolRail(); setupStatPop();
+  buildMsCities(); placeSearch(); placeFootBoxes(); placeBadge(); setupToolRail(); setupStatPop(); setupGtabPop();
+  fitBadgeDetail(true);
+  addEventListener('resize', () => { try { fitBadgeDetail(true); } catch (e) {} });
+  // 🔴 狀態旗標不是只有一個寫入者(updateLiveBadge 寫 LIVE、另一支寫「看板校正」、refreshBadge 寫尖峰),
+  //    逐一掛鉤一定會漏——實測開機後有一段時間「看板校正」已經寫進去、但沒人重量,整排溢出右緣
+  //    25px(TB3 在乾淨態抓到,有公告那態反而過,因為公告鈕一出現就會觸發重量)。改用觀察器一次收齊:
+  //    fitBadgeDetail 有簽名快取,沒變就直接 return,所以它自己改 class 不會觸發無窮迴圈。
+  try {
+    const sb = document.getElementById('statBadge');
+    if (sb && window.MutationObserver) new MutationObserver(() => { try { fitBadgeDetail(); } catch (e) {} })
+      .observe(sb, { childList: true, characterData: true, subtree: true, attributeFilter: ['hidden'] });
+  } catch (e) {}
   // 真全螢幕被使用者(Esc/F11/系統手勢)退掉時,同步收掉 CSS 全畫面狀態並重排地圖。
   // Safari 例外:真機探針實錄(2026-07-21)進場成功後 ~2.4s fullscreenElement 無故變 null(全程無按鍵、無我方呼叫)——
   // 非我方主動退出且距進場<5s 視為瀏覽器抽風,保留 CSS 版全畫面(=requestFullscreen 失敗的既有退路),不連動退出。
@@ -27267,6 +27520,7 @@ function setupMapTools() {
     else document.documentElement.setAttribute('data-fs', eff);
     if (state.ready) { try { map.invalidateSize({ pan: false }); } catch (e) {} } // 字級改變會動到面板高度,地圖尺寸快取要重量
     try { syncFontPanel(); } catch (e) {} // 面板與抽屜列的選中態/目前值一律跟著實際生效的階走
+    try { fitBadgeDetail(true); } catch (e) {} // 換字級=整排尺寸全變,強制重量
   }
   // 頂列實高 → --tb-h(上緣堆疊的唯一事實來源)。量「高度」不量「底緣座標」是刻意的:
   // 高度是尺寸,ResizeObserver 正好在它變的時候開火(字級換檔、牌換行、分頁長高都算);

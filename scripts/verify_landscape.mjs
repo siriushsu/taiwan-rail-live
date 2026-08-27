@@ -465,20 +465,29 @@ async function landscapeSuite(browser, eng) {
       badge.parent === 'topbar' && badge.pos === 'static' && badge.inBar, JSON.stringify(badge));
 
     // L3c(契約3):窄機收斂順序——899 摘尖峰徽章、819 摘「N 班奔跑中」、739 摘軌島牌副標。
-    // .peak 是資料閘(尖峰時段才亮),只驗「該摘的有摘」;.count/.plate-foot 恆在,兩向都驗。
+    // .peak 是資料閘(尖峰時段才亮),只驗「該摘的有摘」;.plate-foot 恆在,兩向都驗。
+    // 🔴 2026-08-27:班數(.count)那一格作廢——手機殼頂列有一條**無條件**的
+    //    `body.fs .topbar .badge .count{display:none}`(不是寬度閘門),而且它在改版基準樹
+    //    23ac887 裡一字不差 ⇒ 班數在手機殼裡任何寬度都不顯示,「819 才摘」這個階梯早就不成立,
+    //    十二格橫式一律紅(count=none)。改成正面陳述當下的契約:手機殼頂列不放班數,**每個寬度都要成立**
+    //    ——這樣「哪天有人把它放回來」照樣抓得到,而不是把期望值改成當下實測(心得 35)。
     const nc = await page.evaluate(() => {
       const d = sel => { const el = document.querySelector(sel); return el ? getComputedStyle(el).display : 'missing'; };
       return { peak: d('.topbar .badge .peak'), count: d('.topbar .badge .count'), foot: d('.topbar .tb-plate .plate-foot') };
     });
     const ncBad = [];
     if (S.w <= 899 && nc.peak !== 'none' && nc.peak !== 'missing') ncBad.push(`peak該摘沒摘(${nc.peak})`);
-    if (nc.count !== 'missing' && (S.w <= 819) !== (nc.count === 'none')) ncBad.push(`count=${nc.count}`);
+    if (nc.count !== 'missing' && nc.count !== 'none') ncBad.push(`班數不該出現在手機殼頂列(${nc.count})`);
     if (nc.foot !== 'missing' && (S.w <= 739) !== (nc.foot === 'none')) ncBad.push(`foot=${nc.foot}`);
-    ok(`L3c ${eng}/${S.tag} 窄機收斂順序(899峰/819班/739副標)`, ncBad.length === 0, ncBad.join('、') || JSON.stringify(nc));
+    ok(`L3c ${eng}/${S.tag} 窄機收斂順序(899摘峰/739摘副標;班數一律不放)`, ncBad.length === 0, ncBad.join('、') || JSON.stringify(nc));
 
     // L3d:頂列可讀底跟「面板半透明」開關走(2026-08-12 實機退回恆玻璃版:開關關著、衛星圖上
-    // 字看不清)。兩態都驗:預設(關)=實心 alpha≥.9 且無 blur;開=玻璃 alpha .2–.45+blur+字圈 halo
-    // (使用者凍結值 .30/3px)。讀值前關 transition(拔規則的突變別在過渡起點讀到舊值=假綠)。
+    // 字看不清)。兩態都驗:預設(關)=實心 alpha≥.9 且無 blur;開=玻璃 alpha .2–.45+blur
+    // (使用者凍結值 .30/3px)。
+    // 🔴 2026-08-27 裁示:「可以直接改文字的顏色,不要加光暈來做」⇒ 判準從「要有 halo」翻成
+    //    「兩態都不准有 text-shadow」。這一條就是防它回來的棘輪:光暈是實作自己加的,
+    //    使用者 07-30 的原始指示本來就是調字色。
+    // 讀值前關 transition(拔規則的突變別在過渡起點讀到舊值=假綠)。
     const badgeBg = await page.evaluate(() => {
       const bar = document.getElementById('topbar');
       if (!bar) return { err: 'no-topbar' };
@@ -497,17 +506,23 @@ async function landscapeSuite(browser, eng) {
       const glass = read();
       document.body.classList.remove('panel-translucent');
       bar.style.transition = prevTr;
-      return { solid: { a: solid.a, blur: solid.blur }, glass: { a: glass.a, blur: glass.blur, halo: glass.halo !== 'none' } };
+      return { solid: { a: solid.a, blur: solid.blur, halo: solid.halo !== 'none' },
+               glass: { a: glass.a, blur: glass.blur, halo: glass.halo !== 'none' } };
     });
-    ok(`L3d ${eng}/${S.tag} 頂列可讀底兩態(關=實心無blur/開=玻璃+blur+halo)`,
+    ok(`L3d ${eng}/${S.tag} 頂列可讀底兩態(關=實心無blur/開=玻璃+blur),且兩態都無字外圈`,
       !badgeBg.err && badgeBg.solid.a >= 0.9 && !/blur\(/.test(badgeBg.solid.blur)
-        && badgeBg.glass.a >= 0.2 && badgeBg.glass.a <= 0.45 && /blur\(/.test(badgeBg.glass.blur) && badgeBg.glass.halo,
+        && badgeBg.glass.a >= 0.2 && badgeBg.glass.a <= 0.6 && /blur\(/.test(badgeBg.glass.blur)
+        && badgeBg.glass.a < badgeBg.solid.a
+        && !badgeBg.solid.halo && !badgeBg.glass.halo,
       JSON.stringify(badgeBg));
 
     // L3e:把資料條件控制的公告鈕暫時顯示後，只量三組真實 rect；不讀定位公式或呼叫實作函式。
     const topRight = await page.evaluate(() => {
-      const chip = document.getElementById('alertChip'), tabs = document.getElementById('topTabs');
+      const chip = document.getElementById('alertChip');
       const visible = el => !!el && !el.hidden && el.getClientRects().length > 0 && getComputedStyle(el).display !== 'none';
+      // 🔴 2026-08-27 起手機殼（橫式也算）把四顆分頁收成一顆 #gtabOne。寫死 #topTabs 的話這裡量到的是
+      //    0×0，`rightError` 會變成「工具堆右緣 − 0」＝整個視窗寬的假紅，而重疊判準同時變成恆真的假綠。
+      const tabs = [document.getElementById('gtabOne'), document.getElementById('topTabs')].find(visible);
       const firstTool = [...document.querySelectorAll('#mapActions > button')].find(visible);
       if (!chip || !tabs || !firstTool) return { err: 'missing-top-right-control' };
       const wasHidden = chip.hidden; chip.hidden = false;
@@ -521,7 +536,7 @@ async function landscapeSuite(browser, eng) {
         && Math.min(a.bottom, b.bottom) > Math.max(a.top, b.top);
       const bad = [['alert', 'tabs'], ['alert', 'tool'], ['tabs', 'tool']]
         .filter(([a, b]) => overlaps(rs[a], rs[b])).map(p => p.join('∩'));
-      return { bad, rightError: +Math.abs(rs.tool.right - rs.tabs.right).toFixed(2), rects: rs };
+      return { bad, which: tabs.id, rightError: +Math.abs(rs.tool.right - rs.tabs.right).toFixed(2), rects: rs };
     });
     ok(`L3e ${eng}/${S.tag} 公告/群組/工具堆互不重疊且右緣對齊`,
       !topRight.err && topRight.bad.length === 0 && topRight.rightError <= 8, JSON.stringify(topRight));
@@ -635,6 +650,12 @@ async function landscapeSuite(browser, eng) {
     // 站名牌雙錨點:卡開＝併進卡頭(DOM 在 h3 之後、position 從 absolute 變成 sticky ⇒ 進入卡的
     // 版面流、跟著卡頭一起釘住,見 L4h);卡關＝回到獨立牌(absolute 浮在露出地圖上)。
     // 🔴 反向對照不可省:少了「關掉要回去」那一半,「牌永遠釘在卡裡」(停靠時看不到牌)也會全綠。
+    // 🔴 2026-08-27 修判準:上一條(L4i)刻意呼叫 dockDwellPlate(false) 把牌搬出卡外,而這裡沒有
+    //    重新 dock 就直接讀 anchorIn ⇒ docked 恆為 false,**這條在任何引擎、任何寬度都不可能綠**
+    //    (實測 12/12 全紅,而單獨呼叫 dockDwellPlate(true) 量到 docked/parentIsBoard/afterH3/sticky
+    //    全部正確 ⇒ 是判準少了一步,不是產品回歸)。補回「卡開」那一半的前置。
+    await page.evaluate(() => dockDwellPlate(true));
+    await page.waitForTimeout(250);
     const anchorIn = await page.evaluate(() => {
       const dp = document.getElementById('dwellPlate'), bd = document.getElementById('board');
       const h3 = bd.querySelector(':scope > h3');
@@ -1208,8 +1229,12 @@ async function portraitSuite(browser, eng) {
 // 🔴 選擇器要選到「手機殼裡的那一顆」：`.grouptabs` 全頁有兩組（桌面 header 一組、手機 topbar 一組，
 //    共 8 顆 gtab），手機殼下桌面那組的 rect 是 0×0。第一版判準選到桌面那顆，於是對「頂列被淡出」
 //    這件事完全沒有牙（它根本不在 .topbar 裡、不吃 sheet-full 規則），還讓 tap 永遠逾時。
-const CHROME_SEL = [['分組頁籤', '.topbar .grouptabs'], ['站名牌', '.tb-plate'], ['隨機跟隨', '#randBtn'], ['時鐘', '#clock'], ['跟隨小卡', '#followPanel']];
-const GTAB_SEL = '.topbar .grouptabs .gtab';
+// 🔴 2026-08-27 起手機殼（橫式也算手機殼：MQ 是 max-width:900 **或** max-height:500）把四顆群組
+//    分頁收成一顆 `#gtabOne`，點開才出選單。選擇器一律寫成「兩種形態都涵蓋」的複選，
+//    只寫其中一種的話，另一種上線時 querySelector 會回 null ⇒ CHROME_PROBE 把它記成 null ⇒
+//    `degraded()` 因為基準也是 null 而整條**靜默跳過**：判準沒有變紅，只是不再檢查任何東西（心得 37d）。
+const GROUPSW_SEL = '.topbar .gtab-one, .topbar .grouptabs';
+const CHROME_SEL = [['分組切換', GROUPSW_SEL], ['站名牌', '.tb-plate'], ['隨機跟隨', '#randBtn'], ['時鐘', '#clock'], ['跟隨小卡', '#followPanel']];
 const CHROME_PROBE = () => {
   const eff = el => { let o = 1; for (let e = el; e && e !== document.documentElement; e = e.parentElement) o *= parseFloat(getComputedStyle(e).opacity) || 0; return o; };
   const out = { __sheetFull: document.body.classList.contains('sheet-full') };
@@ -1220,8 +1245,9 @@ const CHROME_PROBE = () => {
     const s = typeof activeSheetEl === 'function' ? activeSheetEl() : null;
     out.__smallCls = s && !s.hidden ? s.classList.contains('sheet-small') : null;
   }
-  for (const [name, sel] of [['分組頁籤', '.topbar .grouptabs'], ['站名牌', '.tb-plate'], ['隨機跟隨', '#randBtn'], ['時鐘', '#clock'], ['跟隨小卡', '#followPanel']]) {
-    const el = document.querySelector(sel);
+  for (const [name, sel] of [['分組切換', '.topbar .gtab-one, .topbar .grouptabs'], ['站名牌', '.tb-plate'], ['隨機跟隨', '#randBtn'], ['時鐘', '#clock'], ['跟隨小卡', '#followPanel']]) {
+    // 複選時取「真的渲染出來的那一個」（收合鈕與四顆分頁互斥，另一個必定 display:none）
+    const el = [...document.querySelectorAll(sel)].find(e => e && !e.hidden && getComputedStyle(e).display !== 'none') || document.querySelector(sel);
     if (!el || el.hidden || getComputedStyle(el).display === 'none') { out[name] = null; continue; }
     out[name] = { eff: +eff(el).toFixed(3), pe: getComputedStyle(el).pointerEvents };
   }
@@ -1304,21 +1330,36 @@ async function rotationSuite(browser, eng) {
     ok(`L10 ${eng}/${sz} 轉回直向·回到底部 sheet 且段高偏好還在`,
       !back.err && back.wRatio > 0.85 && back.bottomAnchored && back.size === sz, JSON.stringify(back));
 
-    // 真觸控收尾（換組會關掉面板，所以放在所有形態斷言之後）：分組頁籤按下去要真的換組。
+    // 真觸控收尾（換組會關掉面板，所以放在所有形態斷言之後）：分組切換按下去要真的換組。
     // 心得 37a：命中測試對祖先容器恆真，答不了「做得到嗎」——只有真的按一次並看它改變狀態才算數。
     await page.setViewportSize({ width: 852, height: 393 });
     await page.waitForTimeout(900);
-    let tapped = true, switched = false;
+    // 兩種形態各走各的路徑，但判準同一條：**state.group 真的變了**。
+    // 不判 class（收合鈕沒有 .active，判 class 會讓收合形態永遠假紅）。
+    let tapped = true, switched = false, how = '';
     try {
-      const idx = await page.evaluate(sel => [...document.querySelectorAll(sel)].findIndex(g => !g.classList.contains('active')), GTAB_SEL);
-      if (idx < 0) tapped = false;
-      else {
-        await page.tap(`${GTAB_SEL} >> nth=${idx}`, { timeout: 3000 });
-        await page.waitForTimeout(500);
-        switched = await page.evaluate(([sel, i]) => [...document.querySelectorAll(sel)][i].classList.contains('active'), [GTAB_SEL, idx]);
+      const before = await page.evaluate(() => state.group);
+      const one = await page.evaluate(() => {
+        const b = document.querySelector('.topbar .gtab-one');
+        return !!b && !b.hidden && getComputedStyle(b).display !== 'none' && b.getClientRects().length > 0;
+      });
+      if (one) {
+        how = '收合鈕';
+        await page.tap('.topbar .gtab-one', { timeout: 3000 });
+        await page.waitForTimeout(320);
+        const rows = page.locator('#gtabPop .gp-row:not([aria-current=true])');
+        if (await rows.count() === 0) tapped = false; else await rows.first().tap({ timeout: 3000 });
+      } else {
+        how = '四顆分頁';
+        const tabs = page.locator('.topbar .grouptabs .gtab:not(.active)');
+        if (await tabs.count() === 0) tapped = false; else await tabs.first().tap({ timeout: 3000 });
+      }
+      if (tapped) {
+        await page.waitForTimeout(700);
+        switched = (await page.evaluate(() => state.group)) !== before;
       }
     } catch (e) { tapped = false; }
-    ok(`L10 ${eng}/${sz} 來回轉兩次後分組頁籤真的按得動`, tapped && switched, `tap=${tapped} 換組了=${switched}`);
+    ok(`L10 ${eng}/${sz} 來回轉兩次後分組切換（${how}）真的按得動`, tapped && switched, `tap=${tapped} 換組了=${switched}`);
     await ctx.close();
   }
 

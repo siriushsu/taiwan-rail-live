@@ -141,7 +141,9 @@ node scripts/verify_merge_no_loss.mjs --parents codex/android-plus-v16 build/red
 
 | 項目 | 使用者看得到什麼 | 錨點 |
 |---|---|---|
-| 頂列大／特大兩排 | 大與特大字級時，全台／高／捷四顆分頁在第一排，時鐘與 ⚠ 公告在第二排且 ⚠ 對齊右緣工具欄 | `html[data-fs=large] body.fs .topbar` 的 grid 兩排 |
+| **頂列四顆分頁收成一顆** | 手機殼（含橫式）三個字級一律：`[軌島牌][時鐘膠囊][⚠ 公告][一顆群組鈕]` 單排；點群組鈕跳出四列選單（全台同框／台鐵／高鐵／捷運與輕軌），點一列就換組並收起來，Esc 與點外面也收。桌面（>900px）維持 header 上的四顆分頁不變 | `#gtabOne`／`#gtabPop`／`renderGtabPop()`／`gtabPopPlace()`／`setupGtabPop()`；CSS 在 `body.fs .topbar { flex-wrap: nowrap }` 那一段 |
+| **左上換回長方形文字牌** | 08-22 D4 換上的 42×42 方形 logo 讓位，含起訖站帶的長方形「軌島」牌回來（兩者 DOM 都留著，換回去只要改一條 `display`） | `body.fs .topbar .tb-logo { display: none }` |
+| 使用說明兩節新增 | 「切換：全台／台鐵／高鐵／捷運」與「點時鐘＝現在的資料是不是即時的」兩節，各自的「試一次」在手機真的打開對應的東西；桌面沒有那顆收合鈕時給指路吐司 | `HELP_GROUPS` 的 `groupswitch`／`datastatus`，`HELP_TRY` 同名兩項 |
 | 更多選單去圓章 | 每一列前面那顆單字圓章整組拿掉（含它撐出來的縮排） | `.ms-ic` 只剩註解，`index.html` 搜 `ms-ic` 應為 2（都在註解裡） |
 | **資料狀態小卡** | **點時鐘徽章**跳出一張卡，逐列寫現在是 `LIVE` 還是 `非即時`、捷運看板狀態、時段、車數，並把每顆燈 `title` 裡的「為什麼」（資料幾分鐘沒更新／裝置時鐘差幾秒／時間軸不在現在）攤出來 | `#statPop`／`#statBadge`／`statPopRender()`／`setupStatPop()` |
 | 字樣「推估」→「非即時」 | 時鐘旁的灰字改成「非即時」；「更多 → 資料狀態」的後綴同步改成「・非即時」 | `updateLiveBadge()`、`syncMoreDataStatus()` 的 `mirror` |
