@@ -116,8 +116,8 @@ const server = createServer((req, res) => {
   res.setHeader('content-type', MIME[path.extname(fp)] || 'application/octet-stream');
   res.end(readFileSync(fp));
 });
-await new Promise(r => server.listen(0, r));
-const base = `http://localhost:${server.address().port}/`;
+await new Promise(r => server.listen(0, '127.0.0.1', r));
+const base = `http://127.0.0.1:${server.address().port}/`;
 
 const results = [];
 const ok = (name, pass, detail = '') => { results.push({ name, pass, detail }); console.log(`${pass ? 'PASS' : 'FAIL'} ${name}${detail ? ' — ' + detail : ''}`); };
@@ -140,7 +140,7 @@ const ok = (name, pass, detail = '') => { results.push({ name, pass, detail }); 
 const TEST_FOUNDING_LAUNCH_AT = `${new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Taipei' }).format(new Date())}T00:00:00+08:00`;
 
 async function boot(browser, { viewport = { width: 1280, height: 800 }, qs = '' } = {}) {
-  const ctx = await browser.newContext({ viewport });
+  const ctx = await browser.newContext({ viewport, locale: 'zh-TW' });
   await ctx.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} });
   await ctx.addInitScript((launchAt) => {
     window.RAIL_REVENUECAT_CONFIG = { entitlement: 'plus', offeringId: 'plus', foundingLaunchAt: launchAt };
@@ -748,7 +748,7 @@ await cr.close();
   // RAIL_PLUS_TEST_ADAPTER 那支 OR 分支真的生效,必須在「頁面載入那一刻」就帶 ?plus=1,
   // 執行期才設 window.RAIL_PLUS_TEST_ADAPTER 沒用(這就是第一輪跑出「0 顆方案鈕」的真因)。
   const bootTouch = async (w, qs = '') => {
-    const ctx = await wk3.newContext({ viewport: { width: w, height: 800 }, hasTouch: true, isMobile: true });
+    const ctx = await wk3.newContext({ viewport: { width: w, height: 800 }, locale: 'zh-TW', hasTouch: true, isMobile: true });
     await ctx.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} });
     const page = await ctx.newPage();
     const errors = [];
