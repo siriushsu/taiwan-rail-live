@@ -140,7 +140,9 @@ export async function assertLicensedBuildAllowed({ includeLicensedMusic, include
       '音樂授權政策尚未核准，不可建立含 Suno 音樂的 App');
     const checklist = await readFile(join(appRoot, 'MUSIC_LICENSE_CHECKLIST.md'), 'utf8');
     const trackRows = checklist.split('\n').filter(line => /^\| .+\.mp3 \|/.test(line));
-    assert(trackRows.length === 29, `音樂核對表應有 29 首，目前是 ${trackRows.length} 首`);
+    // 2026-08-27：曲庫由 29 首換成 57 首(六個歌單資料夾)。這個數字是硬編的,因為它的用途是
+    // 「有人動了曲庫卻沒回頭補核對表」的警報——跟著曲庫自動走就永遠不會響。
+    assert(trackRows.length === 57, `音樂核對表應有 57 首，目前是 ${trackRows.length} 首`);
     assert(trackRows.every(line => /\| 已核對 \|\s*$/.test(line)),
       '音樂核對表仍有未核對曲目');
     const config = await readFile(join(repoRoot, 'revenuecat-config.js'), 'utf8');
@@ -522,6 +524,24 @@ export async function verifyRelease({
     const extra = [...shipped].filter(rel => !declared.includes(rel));
     assert(missing.length === 0, `內建曲目缺 ${missing.length} 首:${missing.slice(0, 3).join('、')}`);
     assert(extra.length === 0, `bundle 多出 ${extra.length} 首不在 MUSIC_BUNDLED:${extra.slice(0, 3).join('、')}`);
+
+    // 🔴 2026-08-27 補：把「授權核對表」綁到「實際會播的曲目」。
+    //    為什麼非有不可：核對表的首數斷言(上面 readReleasePolicy 那段)只是核對表與一個常數
+    //    互相同意,兩者可以一起停在舊曲庫上而閘門全綠——曲庫 29→57 那次就是這樣穿過去的
+    //    (核對表 29 列、斷言 ===29、App 裡卻是另一批 57 首,零告警)。判準要架在產物上。
+    const chk = await readFile(join(appRoot, 'MUSIC_LICENSE_CHECKLIST.md'), 'utf8');
+    const listed = new Set(chk.split('\n').filter(line => /^\| .+\.mp3 \|/.test(line))
+      .map(line => line.split('|')[1].trim()));
+    const allBlock = html.match(/const MUSIC_FILES = \[([\s\S]*?)\];/);
+    assert(!!allBlock, '含音樂 build 的 index.html 必須宣告 MUSIC_FILES');
+    const allTracks = [...allBlock[1].matchAll(/'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"/g)]
+      .map(m => (m[1] ?? m[2]).replace(/\\(.)/g, '$1'));
+    const noLicence = allTracks.filter(rel => !listed.has(rel));
+    const orphan = [...listed].filter(rel => !allTracks.includes(rel));
+    assert(noLicence.length === 0,
+      `有 ${noLicence.length} 首會播但不在授權核對表裡:${noLicence.slice(0, 3).join('、')}`);
+    assert(orphan.length === 0,
+      `授權核對表有 ${orphan.length} 首已不在曲目清單裡(核對表沒跟上換庫):${orphan.slice(0, 3).join('、')}`);
   }
   else {
     assert(musicFiles.length === 0, '安全 build 不可含 suno musics/');
