@@ -1507,14 +1507,17 @@ async function centeringSuite(browser, eng) {
 const ISLAND = 59; // iPhone 14 Pro 起橫放的左右安全區(pt)。iPhone X 世代是 44，取大的當判準。
 
 // 必須待在動態島安全區外的 UI。'SHEET' 是當下那張面板（側欄），由 activeSheetEl() 取。
+// 第三欄 'L' ＝只驗左帶：v4（08-27 裁示「右邊按鈕要靠到邊」）後，頂列右群與工具欄右緣
+// 改貼實體螢幕邊（right:10px，不再讓 sa-r）——右帶重疊是刻意取捨（島在左＝慣用持法時無感，
+// 反向持機島在右才會壓到，回報再調），右帶檢查對這三項廢除；左帶（軌島牌／時鐘側）照舊必須讓。
 const ISLAND_SEL = [
-  ['頂列', '.topbar'], ['時鐘', '#clock'], ['分頁列按鈕', '.tabbar button'],
+  ['頂列', '.topbar', 'L'], ['時鐘', '#clock'], ['分頁列按鈕', '.tabbar button'],
   // 跟隨鎖 §04c 起住在工具欄裡:選 #followLockBtn 本尊——老家 .follow-lock-ctl 在手機上是被藏掉的
   // 空殼,選它=永遠量不到(L15b 具名覆蓋率就是為了抓這種分母缺口)
   // 跟隨小卡 .follow-panel 2026-08-26 起在橫式廢除(§04c v2「改·第 4 條」),它的內容併進合併卡
   // ⇒ 這份清單裡永遠量不到它(L15b 的具名覆蓋率會如實轉紅)。卡本身以 'SHEET' 那一項涵蓋。
-  ['停靠站名牌', '#dwellPlate'], ['跟隨鎖', '#followLockBtn'],
-  ['動作列', '.map-actions'], ['站台帶', '.controls'], ['側欄', 'SHEET'],
+  ['停靠站名牌', '#dwellPlate'], ['跟隨鎖', '#followLockBtn', 'L'],
+  ['動作列', '.map-actions', 'L'], ['站台帶', '.controls'], ['側欄', 'SHEET'],
 ];
 
 const ISLAND_PROBE = ({ sels, inset }) => {
@@ -1524,7 +1527,7 @@ const ISLAND_PROBE = ({ sels, inset }) => {
     const cs = getComputedStyle(el);
     return cs.display !== 'none' && cs.visibility !== 'hidden' && +cs.opacity > .05 && el.getBoundingClientRect().width > 0.5;
   };
-  for (const [name, sel] of sels) {
+  for (const [name, sel, sides] of sels) {
     let els;
     if (sel === 'SHEET') { const e = typeof activeSheetEl === 'function' ? activeSheetEl() : null; els = e && !e.hidden ? [e] : []; }
     else els = [...document.querySelectorAll(sel)];
@@ -1534,7 +1537,8 @@ const ISLAND_PROBE = ({ sels, inset }) => {
     for (const el of els) {
       const r = el.getBoundingClientRect();
       const l = inset - r.left, rr = r.right - (W - inset);
-      if (l > 0.5 || rr > 0.5) { out.push(`${name}${l > 0.5 ? ` 左壓${Math.round(l)}` : ''}${rr > 0.5 ? ` 右壓${Math.round(rr)}` : ''}`); break; }
+      const badL = l > 0.5, badR = sides !== 'L' && rr > 0.5;
+      if (badL || badR) { out.push(`${name}${badL ? ` 左壓${Math.round(l)}` : ''}${badR ? ` 右壓${Math.round(rr)}` : ''}`); break; }
     }
   }
   return { bad: out, seen };
