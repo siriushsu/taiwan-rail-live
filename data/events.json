@@ -1,5 +1,5 @@
 {
-  "updated": "2026-08-21",
+  "updated": "2026-08-27",
   "events": [
     {
       "id": "trtc-20260811-pokemon10",
@@ -60,6 +60,17 @@
       "end": "2026-09-14",
       "anchor": { "kind": "station", "sys": "afr_sched", "name": "嘉義" },
       "url": "https://afrch.forest.gov.tw/AllNews/0079019"
+    },
+    {
+      "id": "tymc-20260826-indigenous-passset",
+      "source": "official",
+      "title": "桃捷原民精裝套票冊",
+      "note": "三張原民主題一日票裝成精裝小書，全線車站開賣（興南站除外），限量 300 組",
+      "start": "2026-08-29",
+      "end": "2026-09-30",
+      "endGuess": true,
+      "anchor": { "kind": "system", "sys": "tymc" },
+      "url": "https://www.tymetro.com.tw/tymetro-new/tw/_pages/news/show-2411-1.html"
     }
   ]
 }
