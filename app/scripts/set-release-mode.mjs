@@ -244,7 +244,9 @@ if (gotM.length !== 1 || gotM[0] !== cfg.marketing || gotB.length !== 1 || gotB[
 
 console.log(`\n▸ 模式：${mode}  ${cfg.why}`);
 console.log(`  版號 ${before.m} (${before.b}) → ${cfg.marketing} (${cfg.build})`);
-console.log(`  音樂 ${cfg.music ? '開啟（154MB 級）' : '關閉（與線上 build 8 一致）'}\n`);
+// 2026-08-27:曲庫換成 57 首分六個歌單,但只內建 12 首(約 37MB)、其餘串流 ⇒ 音樂不再是體積大頭。
+// 這行只是提示,真正的把關是 verify-release 對 MUSIC_BUNDLED 逐檔比對。
+console.log(`  音樂 ${cfg.music ? '開啟（內建 12 首約 37MB，其餘串流）' : '關閉（與線上 build 8 一致）'}\n`);
 if (cfg.plusSandboxBuild) console.log(`  Plus Sandbox 開啟（僅 TestFlight build ${cfg.plusSandboxBuild}；不可送正式審查）\n`);
 
 // 線上底圖兩個模式都要開——那是 App 的基本功能，不是新增項目。
