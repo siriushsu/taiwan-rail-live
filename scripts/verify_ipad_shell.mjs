@@ -164,6 +164,36 @@ for (const [engName, engine] of [['chromium', chromium], ['webkit', webkit]]) {
   await browser.close();
 }
 
+// ── D1:互補區塊(原 index.html:4154 的 @media,現為 :where(body:not(.fs)) 巢狀)在桌面逐條仍生效 ──
+// 為什麼要驗:改成巢狀之後,以 body 開頭的選取器會生成 `body … body …` 而靜默失效;
+// 「規則還在檔案裡」不是證據,要看 computed style。
+// 這幾顆的期望值是 2026-08-29 從改動前的版本量到的,且都在「整塊失效」的突變中轉紅(有牙)。
+// 註:#ambientStyleBtn 刻意不列——index.html:1579 已有一條基礎規則把它藏著,
+// 互補區塊那條在非放空態是多餘的,拿它當判準恆綠、零資訊。
+const DESK_EXPECT = [
+  ['.tabbar', 'display', 'none'],
+  ['.more-sheet .grab', 'display', 'none'],
+  ['.more-sheet .ms-row', 'minHeight', '40px'],
+  ['#toolsFab', 'display', 'flex'],
+  ['#introBtn', 'display', 'none'],
+  ['#musicBtn .tl', 'display', 'none'],
+  ['.controls', 'bottom', '6px'],
+];
+for (const [engName, engine] of [['chromium', chromium], ['webkit', webkit]]) {
+  const browser = await engine.launch();
+  const { ctx, page } = await bootPage(browser, { width: 1440, height: 900, touch: false });
+  const got = await page.evaluate(exp => exp.map(([sel, prop]) => {
+    const el = document.querySelector(sel);
+    return el ? getComputedStyle(el)[prop] : 'NO_MATCH';
+  }), DESK_EXPECT);
+  const bad = DESK_EXPECT.map((e, i) => [e, got[i]]).filter(([e, g]) => g !== e[2]);
+  ok(`${engName} D1 互補區塊在桌面逐條生效`, bad.length === 0,
+    bad.length ? bad.map(([e, g]) => `${e[0]}.${e[1]}=${g}(want ${e[2]})`).join('; ')
+               : `${DESK_EXPECT.length} 條全中`);
+  await ctx.close();
+  await browser.close();
+}
+
 console.log(`\n總計 ${results.filter(r => r.pass).length}/${results.length}`);
 const failed = results.filter(r => !r.pass);
 if (failed.length) console.log('FAIL 清單:\n' + failed.map(r => `  ${r.name} — ${r.detail}`).join('\n'));
