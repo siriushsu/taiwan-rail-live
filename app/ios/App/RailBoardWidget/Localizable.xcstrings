@@ -52,6 +52,23 @@
         }
       }
     },
+    "，同一顆倍率同時吃字級、列高與觸控目標，所以不會出現「字大了但按鈕沒變大」。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ". The same scale applies to text, row height and tap targets, so buttons grow together with the text."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "。同じ倍率を文字・行の高さ・タップ範囲へ適用するため、文字だけが大きくなってボタンが変わらないことはありません。"
+          }
+        }
+      }
+    },
     "，更新 {n} 個既有地點": {
       "extractionState": "manual",
       "localizations": {
@@ -579,6 +596,23 @@
         }
       }
     },
+    "（跟隨系統）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " (follows system)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "（システムに追従）"
+          }
+        }
+      }
+    },
     "（較表定約{speed}{n}分）": {
       "extractionState": "manual",
       "localizations": {
@@ -823,7 +857,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "[object Object]"
+            "value": "{n} min "
           }
         },
         "ja": {
@@ -874,7 +908,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "[object Object]"
+            "value": "{n} sec"
           }
         },
         "ja": {
@@ -942,7 +976,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "[object Object]"
+            "value": "{n} trains running"
           }
         },
         "ja": {
@@ -1459,6 +1493,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "「{station}」は今日すでにスタンプ済みです。"
+          }
+        }
+      }
+    },
+    "「大」只放大字級與列高，功能位置不變。「特大」會把誤點、方向這類次要欄位收進列的「更多」。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Large increases text and row height without moving features. Extra large moves secondary fields such as delays and direction into each row’s More section."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「大」は文字と行の高さだけを拡大し、機能の位置は変えません。「特大」では遅延や方向などの補助項目を各行の「その他」へまとめます。"
           }
         }
       }
@@ -3448,6 +3499,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "士林"
+          }
+        }
+      }
+    },
+    "大": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Large"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "大"
+          }
+        }
+      }
+    },
+    "大 1.25": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Large 1.25"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "大 1.25"
           }
         }
       }
@@ -5777,6 +5862,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "軌島の画面を共有"
+          }
+        }
+      }
+    },
+    "分享畫面": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Share view"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "画面を共有"
           }
         }
       }
@@ -9986,7 +10088,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "[object Object]"
+            "value": "{n} stations found"
           }
         },
         "ja": {
@@ -13482,6 +13584,23 @@
         }
       }
     },
+    "系統字級調到輔助使用級別時自動切到特大，調回來就跟著回來": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatically uses Extra large at accessibility text sizes, then returns when the system size does"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "システムがアクセシビリティ文字サイズになると自動で特大にし、元へ戻すと追従して戻ります"
+          }
+        }
+      }
+    },
     "系統沒有回應，請再點一次": {
       "extractionState": "manual",
       "localizations": {
@@ -16011,6 +16130,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "花蓮"
+          }
+        }
+      }
+    },
+    "花蓮 → 樹林 · 終點 19:25 抵達": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hualien → Shulin · arrives at terminus 19:25"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "花蓮 → 樹林・終点19:25着"
           }
         }
       }
@@ -20329,6 +20465,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "烏日文心北屯線"
+          }
+        }
+      }
+    },
+    "特大": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Extra large"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "特大"
+          }
+        }
+      }
+    },
+    "特大 1.5": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Extra large 1.5"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "特大 1.5"
           }
         }
       }
@@ -26028,6 +26198,23 @@
         }
       }
     },
+    "階數＝": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scale ="
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "倍率＝"
+          }
+        }
+      }
+    },
     "集集": {
       "extractionState": "manual",
       "localizations": {
@@ -28238,6 +28425,23 @@
         }
       }
     },
+    "跟隨系統字級": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Follow system text size"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "システム文字サイズに合わせる"
+          }
+        }
+      }
+    },
     "跟隨往 {station} 的班次": {
       "extractionState": "manual",
       "localizations": {
@@ -28523,6 +28727,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "初期設定はオフで、この端末だけに保存されます。半透明時は文字色を自動調整して読みやすさを保ち、文字の光彩には頼りません。"
+          }
+        }
+      }
+    },
+    "預覽": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preview"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プレビュー"
           }
         }
       }
@@ -30108,6 +30329,23 @@
         }
       }
     },
+    "標準 1.0": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standard 1.0"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "標準 1.0"
+          }
+        }
+      }
+    },
     "樟腦寮": {
       "extractionState": "manual",
       "localizations": {
@@ -31689,6 +31927,23 @@
         }
       }
     },
+    "營運通阻公告，點開看詳情": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Service status alerts; tap for details"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "運行情報。タップして詳細を表示"
+          }
+        }
+      }
+    },
     "環北站": {
       "extractionState": "manual",
       "localizations": {
@@ -31899,7 +32154,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "[object Object]"
+            "value": "{n} min"
           }
         },
         "ja": {
@@ -31923,6 +32178,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "あと{n}駅 ▾"
+          }
+        }
+      }
+    },
+    "還有 4 分": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "4 min to go"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "あと4分"
           }
         }
       }
@@ -33406,6 +33678,23 @@
         }
       }
     },
+    "顯示與字級": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Display and text size"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "表示と文字サイズ"
+          }
+        }
+      }
+    },
     "體育大學站": {
       "extractionState": "manual",
       "localizations": {
@@ -33861,6 +34150,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "iPhoneのホーム画面Webアプリでは位置情報が不安定な場合があります。Safariで開くとより確実です"
+          }
+        }
+      }
+    },
+    "iPhone 的動態島展開畫面增加圓角安全留白：捷運等車、台鐵等站與列車跟隨的內容都往內收，文字與「結束」按鈕不再被邊緣切掉；繁中、English、日本語一起套用；文字大小設定的目前值與詳細選項也會完整切換語言": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expanded Dynamic Island views now keep a safe margin from their rounded edges. Metro waiting, TRA station tracking and train following move inward so text and the End button are no longer clipped; the fix applies to Traditional Chinese, English and Japanese. The current text-size value and its detailed options now switch languages completely as well."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhoneのDynamic Island展開表示に角丸の安全余白を追加しました。メトロ待ち、台湾鉄路の駅待ち、列車追跡の内容を内側へ寄せ、文字や「終了」ボタンが端で欠けないようにしました。繁体字中国語・英語・日本語すべてに適用されます。文字サイズ設定の現在値と詳細項目もすべて選択中の言語へ切り替わります。"
           }
         }
       }

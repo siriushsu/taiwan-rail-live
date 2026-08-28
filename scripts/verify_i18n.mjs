@@ -92,6 +92,14 @@ async function desktopCore(browser, engine) {
     assert(cjkCore.length === 0, `英文可見核心仍有中文：${cjkCore.join(' ｜ ')}`);
     record(engine, '英文首屏、分頁、站名、路線與車種');
 
+    await page.evaluate(() => openFontPanel());
+    const fontEn = await bodyText(page, '#fontPanel');
+    const fontEnCjk = await visibleEnglishCjk(page, '#fontPanel');
+    assert(fontEn.includes('Display and text size') && fontEn.includes('Standard') && fontEn.includes('Large') && fontEn.includes('Extra large') && fontEn.includes('Follow system text size'), `英文字級設定未完整翻譯：${fontEn}`);
+    assert(fontEnCjk.length === 0, `英文字級設定仍有中文：${fontEnCjk.join(' ｜ ')}`);
+    await page.evaluate(() => closeFontPanel());
+    record(engine, '英文字級目前值與詳細面板');
+
     await page.locator('#trainSearch').fill('Taipei');
     await page.locator('#trainSearch').dispatchEvent('input');
     await page.waitForFunction(() => !document.getElementById('searchDrop').hidden && document.getElementById('searchDrop').textContent.includes('Taipei'));
@@ -386,6 +394,10 @@ async function desktopCore(browser, engine) {
     assert(immediate.metroWait.includes('追跡時間') && immediate.metroWait.includes('方向を選択') && immediate.metroWait.includes('南港展覧館') && !immediate.metroWait.includes('追蹤'), `日文等車選單未即時翻譯：${immediate.metroWait}`);
     assert(immediate.alertChipAria === '運行情報。タップして詳細を表示' && immediate.alertChipTitle === '運行情報' && immediate.shareView === '画面を共有', `日文營運公告控制項／分享畫面未翻譯：${JSON.stringify(immediate)}`);
     assert(immediate.nativeLanguage === 'ja', `網頁語言沒有同步到 iPhone 小工具／即時動態：${immediate.nativeLanguage}`);
+    await page.evaluate(() => openFontPanel());
+    const fontJa = await bodyText(page, '#fontPanel');
+    assert(fontJa.includes('表示と文字サイズ') && fontJa.includes('システム文字サイズに合わせる') && fontJa.includes('プレビュー'), `日文字級設定未完整翻譯：${fontJa}`);
+    await page.evaluate(() => closeFontPanel());
     await page.evaluate(() => {
       metroWaitClosePicker(false);
       window.Capacitor = window.__verifyMetroWaitCapacitor;
