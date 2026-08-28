@@ -14140,6 +14140,87 @@ function musicShuffle(a) { // Fisher-Yates 洗牌
   for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
   return a;
 }
+
+// ── 跟車配樂:曲庫資料 ──────────────────────────────────────────────────────────
+// 曲庫從硬編的 MUSIC_FILES 外移到 data/music.json(免費 57 首凍結 + 16 個情境歌池)。
+// 載不到就維持空結構,initMusic 會退回 MUSIC_FILES,部署缺檔時不至於整個沒音樂。
+window.MUSIC_DATA = window.MUSIC_DATA || { free: { tracks: [], bundled: [] }, families: [], pools: [] };
+async function musicLoadData() {
+  try {
+    // 🔴 前綴 './' 是契約:build_data_manifest.mjs 掃的是 index.html 裡 './data/xxx.json' 的字面,
+    //    寫成 'data/music.json' 會讓它永遠不進 manifest ⇒ App bundle 的舊快照不會被偵測到。
+    const r = await fetch('./data/music.json', { cache: 'no-store' });
+    if (r.ok) window.MUSIC_DATA = await r.json();
+  } catch (e) {}
+  return window.MUSIC_DATA;
+}
+function musicPoolById(id) { return (window.MUSIC_DATA.pools || []).find(p => p.id === id) || null; }
+function musicShippedPools() { return (window.MUSIC_DATA.pools || []).filter(p => p.tracks && p.tracks.length); }
+
+// ── 跟車配樂:情境判定(地點 + 時間)。三支都是純函式,可表格驅動驗收。 ────────────────
+// 分區 = 把 CITY_BBOX 的 17 個縣市歸成 8 個地理分區,外加一個系統訊號分區 metro。
+const MUSIC_ZONE_CITIES = {
+  'north-city': ['taipei', 'ntpc', 'taoyuan'],
+  'north-coast': ['keelung'],
+  yilan: ['yilan'],
+  hualien: ['hualien'],
+  taitung: ['taitung'],
+  'west-plain': ['hsinchu', 'miaoli', 'taichung', 'changhua', 'yunlin'],
+  south: ['chiayi', 'tainan', 'kaohsiung', 'pingtung'],
+  mountain: ['nantou'],
+};
+// 搭這些系統的車直接判分區,不看縣市:捷運跨縣市但體感就是「在捷運上」;
+// 阿里山林鐵座標落在嘉義 bbox 裡,不覆寫會被判成南方日光。
+const MUSIC_SYS_ZONE = { mrt: 'metro', tymc: 'metro', ntdlrt: 'metro', ntalrt: 'metro',
+  sanying: 'metro', tmrt: 'metro', krtc: 'metro', klrt: 'metro', afr: 'mountain' };
+// 🔴 CITY_BBOX 的框彼此重疊(ntpc 涵蓋 taipei 大半、hualien 觸及宜蘭與台東邊界),
+//    所以要取【面積最小】的那個命中框,不能取第一個。
+function musicCityAt(lat, lon) {
+  let best = null, bestArea = Infinity;
+  for (const id in CITY_BBOX) {
+    const b = CITY_BBOX[id];
+    if (lat < b[0] || lat > b[2] || lon < b[1] || lon > b[3]) continue;
+    const area = (b[2] - b[0]) * (b[3] - b[1]);
+    if (area < bestArea) { bestArea = area; best = id; }
+  }
+  return best;
+}
+function musicZoneOf(lat, lon, sys) {
+  if (sys && MUSIC_SYS_ZONE[sys]) return MUSIC_SYS_ZONE[sys];
+  const city = musicCityAt(lat, lon);
+  if (!city) return null;
+  for (const zone in MUSIC_ZONE_CITIES) if (MUSIC_ZONE_CITIES[zone].includes(city)) return zone;
+  return null;
+}
+// 時段:吃當日秒數(跨日的 night 橫跨 23:00-03:59)。
+function musicHourBucket(sec) {
+  const h = Math.floor((((sec % 86400) + 86400) % 86400) / 3600);
+  if (h >= 4 && h < 7) return 'dawn';
+  if (h >= 7 && h < 16) return 'day';
+  if (h >= 16 && h < 19) return 'dusk';
+  if (h >= 19 && h < 23) return 'evening';
+  return 'night';
+}
+// 選池:宣告了某軸卻不命中 = 出局;命中 = +2;宣告 null = 不加分也不出局。
+// 同分隨機取一並排除上一次選中的,避免同一情境反覆播同一池。
+function musicPickPool(zone, hour, pools, lastId) {
+  const scored = [];
+  for (const p of pools || []) {
+    if (!p.auto) continue;                                   // auto:false 只出現在手動選單
+    if (p.zones && !p.zones.includes(zone)) continue;
+    if (p.hours && !p.hours.includes(hour)) continue;
+    scored.push({ p, s: (p.zones ? 2 : 0) + (p.hours ? 2 : 0) });
+  }
+  if (!scored.length) return null;
+  const top = Math.max.apply(null, scored.map(x => x.s));
+  let best = scored.filter(x => x.s === top).map(x => x.p);
+  if (best.length > 1 && lastId) {
+    const others = best.filter(p => p.id !== lastId);
+    if (others.length) best = others;
+  }
+  return best[Math.floor(Math.random() * best.length)];
+}
+window.musicZoneOf = musicZoneOf; window.musicHourBucket = musicHourBucket; window.musicPickPool = musicPickPool;
 function loadMusicPref() {
   let enabled = true, vol = 0.5;
   try {
@@ -14193,6 +14274,7 @@ function makeNativeMusicShim(na) {
   return shim;
 }
 function initMusic() {
+  musicLoadData();               // 曲庫資料;Task 3 起接上播放清單
   const available = musicAvailable();
   const pref = available ? loadMusicPref() : { enabled: false, vol: 0.5 };
   const audio = window.RAIL_NATIVE_AUDIO ? makeNativeMusicShim(window.RAIL_NATIVE_AUDIO) : new Audio();
