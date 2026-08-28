@@ -91,17 +91,17 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
 
         filtersButton = new Button(this);
         filtersButton.setAllCaps(false);
-        filtersButton.setText("只看這些（可留空）");
+        filtersButton.setText(RailNativeL10n.text(this, "只看這些（可留空）"));
         root.addView(filtersButton, matchWrap(dp(16)));
 
         readable = new CheckBox(this);
-        readable.setText("大字好讀版");
+        readable.setText(RailNativeL10n.text(this, "大字好讀版"));
         readable.setTextColor(getColor(R.color.wg_ink));
         readable.setTextSize(15);
         root.addView(readable, matchWrap(dp(18)));
 
         Button done = new Button(this);
-        done.setText("加到桌面");
+        done.setText(RailNativeL10n.text(this, "加到桌面"));
         done.setTextSize(16);
         done.setTextColor(getColor(R.color.wg_on_accent));
         done.setAllCaps(false);
@@ -239,34 +239,34 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
         List<RailWidgetData.FilterOption> options = RailWidgetData.filterOptions(
             this, catalog, selectedSystem(), selectedOrigin());
         if (options.isEmpty()) {
-            new AlertDialog.Builder(this).setTitle("只看這些")
-                .setMessage("這個起站目前沒有可用的篩選項目。")
-                .setPositiveButton("知道了", null).show();
+            new AlertDialog.Builder(this).setTitle(RailNativeL10n.text(this, "只看這些"))
+                .setMessage(RailNativeL10n.text(this, "這個起站目前沒有可用的篩選項目。"))
+                .setPositiveButton(RailNativeL10n.text(this, "知道了"), null).show();
             return;
         }
         String[] labels = new String[options.size()];
         boolean[] checked = new boolean[options.size()];
         Set<String> draft = new LinkedHashSet<>(selectedFilters);
         for (int i = 0; i < options.size(); i++) {
-            labels[i] = options.get(i).label; checked[i] = draft.contains(options.get(i).key);
+            labels[i] = RailNativeL10n.option(this, options.get(i).label); checked[i] = draft.contains(options.get(i).key);
         }
-        new AlertDialog.Builder(this).setTitle("只看這些（留空就是全部）")
+        new AlertDialog.Builder(this).setTitle(RailNativeL10n.text(this, "只看這些（留空就是全部）"))
             .setMultiChoiceItems(labels, checked, (dialog, which, value) -> {
                 if (value) draft.add(options.get(which).key); else draft.remove(options.get(which).key);
             })
-            .setNeutralButton("清除", (dialog, which) -> {
+            .setNeutralButton(RailNativeL10n.text(this, "清除"), (dialog, which) -> {
                 selectedFilters.clear(); updateFilterLabel(); refreshPreview();
             })
-            .setNegativeButton("取消", null)
-            .setPositiveButton("完成", (dialog, which) -> {
+            .setNegativeButton(RailNativeL10n.text(this, "取消"), null)
+            .setPositiveButton(RailNativeL10n.text(this, "完成"), (dialog, which) -> {
                 selectedFilters.clear(); selectedFilters.addAll(draft); updateFilterLabel(); refreshPreview();
             }).show();
     }
 
     private void updateFilterLabel() {
         if (filtersButton == null) return;
-        filtersButton.setText(selectedFilters.isEmpty() ? "只看這些（可留空）"
-            : "已選 " + selectedFilters.size() + " 項篩選");
+        filtersButton.setText(selectedFilters.isEmpty() ? RailNativeL10n.text(this, "只看這些（可留空）")
+            : RailNativeL10n.text(this, "已選 {n} 項篩選", "n", String.valueOf(selectedFilters.size())));
     }
 
     private void refreshPreview() {
@@ -278,7 +278,7 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
         snapshot.systemLabel = RailWidgetData.SYS_COMPOSITE.equals(snapshot.sys) ? "台鐵＋高鐵"
             : snapshot.sys.equals("thsr") ? "高鐵" : "台鐵";
         int originAt = originSpinner == null ? 0 : originSpinner.getSelectedItemPosition();
-        snapshot.origin = originAt <= 0 ? "自動選站" : String.valueOf(originSpinner.getSelectedItem());
+        snapshot.origin = originAt <= 0 ? "自動選站" : selectedOrigin();
         snapshot.destination = selectedDestination();
         snapshot.generatedAt = now;
         for (int i = 0; i < 3; i++) {
@@ -324,12 +324,14 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
 
     private TextView text(String value, float size, int color) {
         TextView out = new TextView(this);
-        out.setText(value); out.setTextSize(size); out.setTextColor(color);
+        out.setText(RailNativeL10n.text(this, value)); out.setTextSize(size); out.setTextColor(color);
         return out;
     }
 
     private ArrayAdapter<String> adapter(List<String> values) {
-        ArrayAdapter<String> out = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, values);
+        List<String> localized = new ArrayList<>();
+        for (String value : values) localized.add(RailNativeL10n.option(this, value));
+        ArrayAdapter<String> out = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, localized);
         out.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         return out;
     }
@@ -358,12 +360,13 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
 
     private static final class DestinationAdapter extends ArrayAdapter<DestinationValue> {
         DestinationAdapter(Context context, List<String> labels, List<String> values) {
-            super(context, android.R.layout.simple_spinner_item, build(labels, values));
+            super(context, android.R.layout.simple_spinner_item, build(context, labels, values));
             setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         }
-        private static List<DestinationValue> build(List<String> labels, List<String> values) {
+        private static List<DestinationValue> build(Context context, List<String> labels, List<String> values) {
             List<DestinationValue> out = new ArrayList<>();
-            for (int i = 0; i < labels.size(); i++) out.add(new DestinationValue(labels.get(i), values.get(i)));
+            for (int i = 0; i < labels.size(); i++) out.add(new DestinationValue(
+                RailNativeL10n.option(context, labels.get(i)), values.get(i)));
             return out;
         }
     }

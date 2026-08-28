@@ -99,7 +99,7 @@ public final class MetroWidgetConfigActivity extends AppCompatActivity {
         root.addView(passNote, noteLp);
 
         Button done = new Button(this);
-        done.setText("加到桌面");
+        done.setText(RailNativeL10n.text(this, "加到桌面"));
         done.setTextSize(16);
         done.setTextColor(getColor(R.color.wg_on_accent));
         done.setAllCaps(false);
@@ -151,10 +151,11 @@ public final class MetroWidgetConfigActivity extends AppCompatActivity {
         freqSpinner.setSelection("eco".equals(freq) ? 0 : "max".equals(freq) ? 2 : 1);
         boolean plus = prefs.getBoolean("plus_active", false);
         String free = prefs.getString("free_station", null);
-        passNote.setText(plus ? "通行證已啟用：可以放多站，也可以用自動選站。"
+        passNote.setText(RailNativeL10n.text(this, plus
+            ? "通行證已啟用：可以放多站，也可以用自動選站。"
             : (free == null ? "免費版可以固定一站；多站與自動選站需要軌島通行證。"
                             : "免費版的那一站已經在用了。要再加一站請開通軌島通行證。")
-              + "（點這裡看通行證）");
+              + "（點這裡看通行證）"));
         passNote.setOnClickListener(plus ? null : v -> openPass());
         refreshPreview();
     }
@@ -194,9 +195,10 @@ public final class MetroWidgetConfigActivity extends AppCompatActivity {
         String dest = selectedDirection();
 
         MetroWidgetPlate.Input in = new MetroWidgetPlate.Input();
+        in.texts = RailNativeL10n.plateTexts(this);
         in.nowEpochSec = System.currentTimeMillis() / 1000.0;
         in.station = info == null ? "自動選站" : info.name;
-        in.stationEn = info == null ? null : info.en;
+        in.stationEn = info == null || "en".equals(RailNativeL10n.language(this)) ? null : info.en;
         in.dest = dest;
         in.etaEpochSec = in.nowEpochSec + 4 * 60 + 20;
         in.secondMinutes = 9;
@@ -225,23 +227,24 @@ public final class MetroWidgetConfigActivity extends AppCompatActivity {
         //    是示範用的。掛著綠色 LIVE 會讓人以為這一站真的有車 4 分鐘後到 ⇒ chip 換成灰色「預覽」、
         //    時戳清掉。這是設定頁的顯示層決定，不進共用的 MetroWidgetPlate（桌面上那張仍是 LIVE）。
         plate.chip = MetroWidgetPlate.Chip.PLAIN;
-        plate.chipText = "預覽";
+        plate.chipText = RailNativeL10n.text(this, "預覽");
         plate.stamp = "";
         boolean board = layoutSpinner.getSelectedItemPosition() == 1;
         android.widget.RemoteViews views = board
             ? MetroWidgetPlateRender.board(this, R.layout.widget_board_4x2,
                 new MetroWidgetPlate[] { plate, plate }, 2,
                 (plate.badge == null ? "" : plate.badge + " ") + plate.station,
-                "單位分鐘", plate.footRight, null, false)
+                RailNativeL10n.text(this, "單位分鐘"), plate.footRight, null, false)
             : MetroWidgetPlateRender.plate(this, R.layout.widget_plate_4x2, plate);
         preview.addView(views.apply(this, preview));
     }
 
     private String selectedDirection() {
         int index = directionSpinner == null ? 0 : directionSpinner.getSelectedItemPosition();
-        if (index <= 0) return "";
-        String label = String.valueOf(directionSpinner.getSelectedItem());
-        return label.startsWith("往 ") ? label.substring(2) : label;
+        int stationIndex = stationSpinner == null ? 0 : stationSpinner.getSelectedItemPosition();
+        if (index <= 0 || stationIndex <= 0 || stationIndex - 1 >= visibleStations.size()) return "";
+        List<String> destinations = visibleStations.get(stationIndex - 1).destinations;
+        return index - 1 < destinations.size() ? destinations.get(index - 1) : "";
     }
 
     private void save() {
@@ -286,7 +289,9 @@ public final class MetroWidgetConfigActivity extends AppCompatActivity {
     }
 
     private ArrayAdapter<String> adapter(List<String> values) {
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, values);
+        List<String> localized = new ArrayList<>();
+        for (String value : values) localized.add(RailNativeL10n.option(this, value));
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, localized);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         return adapter;
     }
@@ -299,7 +304,7 @@ public final class MetroWidgetConfigActivity extends AppCompatActivity {
 
     private TextView text(String value, int sp, int color) {
         TextView view = new TextView(this);
-        view.setText(value);
+        view.setText(RailNativeL10n.text(this, value));
         view.setTextSize(sp);
         view.setTextColor(color);
         view.setLineSpacing(0, 1.15f);

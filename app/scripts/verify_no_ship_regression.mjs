@@ -43,8 +43,11 @@ export function inventory(html) {
     // ④ 使用說明中心的節：metrowidget／metrowait 兩整節就是這樣沒的
     helpKeys: uniq(all(String.raw`\{\s*key:\s*'([a-z0-9-]+)',\s*ic:`)),
     // ⑤ 方案面板的功能清單：「捷運小工具放多站」那一項就是這樣沒的
-    plusFeats: uniq((html.match(/const feats = \[[\s\S]*?\]\.map/) || [''])[0]
-      .split('\n').map(l => (l.match(/^\s*'(.+)',\s*$/) || [])[1]).filter(Boolean)),
+    // 1.5.0 起同一個陣列含 Android／iOS 平台分支，項目不再全是「單獨一行的字串」。
+    // 掃描 const feats 區塊內所有單引號字串，才能同時守住兩個平台；仍只取到 ].map 前，
+    // 不會把後方模板的 startsWith('<b>') 等實作字串誤列成功能。
+    plusFeats: uniq([...(html.match(/const feats = \[[\s\S]*?\]\.map/) || [''])[0]
+      .matchAll(/'((?:\\'|[^'])+)'/g)].map(match => match[1].replace(/\\'/g, "'"))),
     // ⑥ 平台旗標與付費閘門的常數名（被整檔取代時會一起消失）
     gates: uniq(all(String.raw`\bconst\s+([A-Z][A-Z0-9_]{4,})\s*=`)),
     // ⑦ 深連結／URL 參數契約（?geoseq= 那類；掉了會讓驗收器與分享連結一起失效）

@@ -21,13 +21,16 @@ final class RailWidgetRender {
     static RemoteViews board(Context context, int layout, RailWidgetData.Snapshot snapshot,
                              int maxRows, boolean readable, boolean compact) {
         RemoteViews root = new RemoteViews(context.getPackageName(), layout);
-        root.setTextViewText(R.id.wr_head, snapshot.origin + (compact ? "" : "發車看板"));
+        String origin = RailNativeL10n.name(context, snapshot.origin);
+        root.setTextViewText(R.id.wr_head, compact ? origin : RailNativeL10n.text(context,
+            "{station}發車看板", "station", origin));
         root.setTextViewText(R.id.wr_route, snapshot.destination == null || snapshot.destination.isEmpty()
-            ? "全部目的地 · 直達／停靠／終到／通過" : "往 " + snapshot.destination + " · 直達列車");
-        root.setTextViewText(R.id.wr_stamp, clock(snapshot.generatedAt) + (compact ? "" : " 更新"));
-        String note = snapshot.failed ? "資料延遲 · 顯示上次成功結果"
-            : snapshot.scheduleNote != null ? snapshot.scheduleNote
-            : "台鐵即時誤點 · 高鐵表定時刻";
+            ? RailNativeL10n.text(context, "全部目的地 · 直達／停靠／終到／通過")
+            : RailNativeL10n.text(context, "往 {station} · 直達列車", "station", RailNativeL10n.name(context, snapshot.destination)));
+        root.setTextViewText(R.id.wr_stamp, clock(snapshot.generatedAt) + (compact ? "" : " " + RailNativeL10n.text(context, "更新")));
+        String note = snapshot.failed ? RailNativeL10n.text(context, "資料延遲 · 顯示上次成功結果")
+            : snapshot.scheduleNote != null ? scheduleNote(context, snapshot.scheduleNote)
+            : RailNativeL10n.text(context, "台鐵即時誤點 · 高鐵表定時刻");
         root.setTextViewText(R.id.wr_note, note);
         if (readable) {
             boolean large = layout == R.layout.widget_rail_4x4;
@@ -49,8 +52,8 @@ final class RailWidgetRender {
             RemoteViews empty = new RemoteViews(context.getPackageName(), readable
                 ? R.layout.widget_rail_row_readable : R.layout.widget_rail_row);
             empty.setViewVisibility(R.id.wrr_mark, View.INVISIBLE);
-            empty.setTextViewText(R.id.wrr_train, "目前沒有接下來的班次");
-            empty.setTextViewText(R.id.wrr_dest, "請稍後再看或點卡片開啟軌島");
+            empty.setTextViewText(R.id.wrr_train, RailNativeL10n.text(context, "目前沒有接下來的班次"));
+            empty.setTextViewText(R.id.wrr_dest, RailNativeL10n.text(context, "請稍後再看或點卡片開啟軌島"));
             empty.setViewVisibility(R.id.wrr_status, View.GONE);
             empty.setViewVisibility(R.id.wrr_time, View.GONE);
             root.addView(R.id.wr_rows, empty);
@@ -65,28 +68,28 @@ final class RailWidgetRender {
         try { color = Color.parseColor(row.color); }
         catch (IllegalArgumentException ignored) { color = context.getColor(R.color.wg_navy); }
         out.setInt(R.id.wrr_mark, "setColorFilter", color);
-        out.setTextViewText(R.id.wrr_train, row.type + " " + row.no);
+        out.setTextViewText(R.id.wrr_train, RailNativeL10n.name(context, row.type) + " " + row.no);
         String relation;
         switch (row.relation) {
-            case PASS: relation = "通過 · 往 " + row.terminus; break;
-            case ARRIVAL: relation = "終到本站"; break;
-            default: relation = "往 " + row.terminus;
+            case PASS: relation = RailNativeL10n.text(context, "通過 · 往{station}", "station", RailNativeL10n.name(context, row.terminus)); break;
+            case ARRIVAL: relation = RailNativeL10n.text(context, "終到本站"); break;
+            default: relation = RailNativeL10n.text(context, "往 {station}", "station", RailNativeL10n.name(context, row.terminus));
         }
-        if (row.destinationAt != null) relation += " · " + clock(row.destinationAt) + " 抵達";
+        if (row.destinationAt != null) relation += " · " + RailNativeL10n.text(context, "{time} 抵達", "time", clock(row.destinationAt));
         out.setTextViewText(R.id.wrr_dest, relation);
         out.setTextViewText(R.id.wrr_time, clock(row.scheduledAt));
         if (row.delayMinutes == null) {
-            out.setTextViewText(R.id.wrr_status, row.sys.equals("thsr") ? "表定" : "尚無讀數");
+            out.setTextViewText(R.id.wrr_status, RailNativeL10n.text(context, row.sys.equals("thsr") ? "表定" : "尚無讀數"));
             out.setTextColor(R.id.wrr_status, context.getColor(R.color.wg_ink_faint));
         } else if (row.delayMinutes == 0) {
-            out.setTextViewText(R.id.wrr_status, "準點");
+            out.setTextViewText(R.id.wrr_status, RailNativeL10n.text(context, "準點"));
             out.setTextColor(R.id.wrr_status, context.getColor(R.color.wg_ok));
         } else if (row.delayMinutes > 0) {
-            out.setTextViewText(R.id.wrr_status, "+" + row.delayMinutes + "分");
+            out.setTextViewText(R.id.wrr_status, RailNativeL10n.text(context, "誤點 {n} 分", "n", String.valueOf(row.delayMinutes)));
             out.setTextColor(R.id.wrr_status, row.delayMinutes >= 10
                 ? context.getColor(R.color.wg_bad) : context.getColor(R.color.wg_warn));
         } else {
-            out.setTextViewText(R.id.wrr_status, "早" + Math.abs(row.delayMinutes) + "分");
+            out.setTextViewText(R.id.wrr_status, RailNativeL10n.text(context, "早到 {n} 分", "n", String.valueOf(Math.abs(row.delayMinutes))));
             out.setTextColor(R.id.wrr_status, context.getColor(R.color.wg_ok));
         }
         if (compact) {
@@ -104,9 +107,21 @@ final class RailWidgetRender {
 
     static RemoteViews message(Context context, String title, String body) {
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_rail_message);
-        views.setTextViewText(R.id.wrm_title, title);
-        views.setTextViewText(R.id.wrm_body, body);
+        views.setTextViewText(R.id.wrm_title, RailNativeL10n.text(context, title));
+        views.setTextViewText(R.id.wrm_body, RailNativeL10n.text(context, body));
         return views;
+    }
+
+    private static String scheduleNote(Context context, String source) {
+        if (source.startsWith("依 ") && source.endsWith(" 同星期班表")) {
+            return RailNativeL10n.text(context, "依 {date} 同星期班表",
+                "date", source.substring(2, source.length() - " 同星期班表".length()));
+        }
+        if (source.startsWith("高鐵 ") && source.endsWith(" 當日班表")) {
+            return RailNativeL10n.text(context, "高鐵 {date} 當日班表",
+                "date", source.substring(3, source.length() - " 當日班表".length()));
+        }
+        return RailNativeL10n.text(context, source);
     }
 
     private static String clock(long millis) {

@@ -4,6 +4,8 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    'Android 1.5.0 完整加入繁中、English、日本語：App 介面、三種桌面小工具，以及列車跟隨、捷運等車與台鐵等站的鎖定畫面／Now Bar 會同步切換語言；沿用既有正式版更新時，原本的小工具、設定和資料都會保留': 'Android 1.5.0 fully adds Traditional Chinese, English and Japanese across the app, all three home-screen widgets, train following, metro waiting and TRA station tracking on the lock screen and Now Bar. Updating the existing release keeps your widgets, settings and data.',
+    'Android 正式版進到 1.5.0，完整加入繁中、English、日本語。除了 App 內介面，捷運看板、台鐵／高鐵發車看板、鐵路＋捷運雙看板三種桌面小工具，以及列車跟隨、捷運等車和台鐵等站的鎖定畫面／Now Bar 都會使用 App 選定的語言；切換後立即重畫，不必刪除小工具或重開追蹤。使用原簽署版本覆蓋更新，既有設定、小工具與本機資料會保留': 'The Android release is now 1.5.0 with full Traditional Chinese, English and Japanese support. The metro board, TRA/HSR departure board and combined rail + metro widget, plus lock-screen and Now Bar cards for train following, metro waiting and TRA station tracking all use the language selected in the app. They refresh immediately when the language changes, without removing widgets or restarting tracking. The signed update preserves existing settings, widgets and on-device data.',
     '修好 iPhone App 的語言按鈕：上一個測試版漏帶英、日文字典，按了仍全顯示繁中；現在 App 會完整帶入三語資源。英文與日文文案也完成第二輪複核，統一日文的「鑑賞模式」、車次與乘車按鈕用語，並修順英文災害監看句子': 'Fixed the language buttons in the iPhone app: the previous test build omitted the English and Japanese dictionaries, so the interface stayed in Traditional Chinese. The app now bundles all three languages. A second copy review also standardized Japanese viewing-mode, train-number and ride-button wording and cleaned up the English hazard-monitoring sentence.',
     'iPhone 的動態島展開畫面增加圓角安全留白：捷運等車、台鐵等站與列車跟隨的內容都往內收，文字與「結束」按鈕不再被邊緣切掉；繁中、English、日本語一起套用；文字大小設定的目前值與詳細選項也會完整切換語言': 'Expanded Dynamic Island views now keep a safe margin from their rounded edges. Metro waiting, TRA station tracking and train following move inward so text and the End button are no longer clipped; the fix applies to Traditional Chinese, English and Japanese. The current text-size value and its detailed options now switch languages completely as well.',
     '資料狀態': 'Data status',
@@ -159,6 +161,8 @@
   });
 
   Object.assign(messages.ja, {
+    'Android 1.5.0 完整加入繁中、English、日本語：App 介面、三種桌面小工具，以及列車跟隨、捷運等車與台鐵等站的鎖定畫面／Now Bar 會同步切換語言；沿用既有正式版更新時，原本的小工具、設定和資料都會保留': 'Android 1.5.0は繁体字中国語・英語・日本語に対応しました。App本体、3種類のホーム画面ウィジェット、列車追跡、メトロ待ち、台湾鉄路の駅待ちを表示するロック画面／Now Barが同じ言語に切り替わります。既存の正式版から更新しても、ウィジェット、設定、データは保持されます。',
+    'Android 正式版進到 1.5.0，完整加入繁中、English、日本語。除了 App 內介面，捷運看板、台鐵／高鐵發車看板、鐵路＋捷運雙看板三種桌面小工具，以及列車跟隨、捷運等車和台鐵等站的鎖定畫面／Now Bar 都會使用 App 選定的語言；切換後立即重畫，不必刪除小工具或重開追蹤。使用原簽署版本覆蓋更新，既有設定、小工具與本機資料會保留': 'Android正式版を1.5.0へ更新し、繁体字中国語・英語・日本語に全面対応しました。メトロ案内、台湾鉄路／高鉄発車案内、鉄道＋メトロ案内の3種類のウィジェットと、列車追跡、メトロ待ち、台湾鉄路の駅待ちを表示するロック画面／Now BarもAppで選んだ言語を使います。言語変更後はすぐに再表示され、ウィジェットの削除や追跡の再開は不要です。同じ署名の更新としてインストールするため、設定、ウィジェット、端末内データは保持されます。',
     '修好 iPhone App 的語言按鈕：上一個測試版漏帶英、日文字典，按了仍全顯示繁中；現在 App 會完整帶入三語資源。英文與日文文案也完成第二輪複核，統一日文的「鑑賞模式」、車次與乘車按鈕用語，並修順英文災害監看句子': 'iPhone Appの言語ボタンを修正しました。前のテスト版では英語・日本語の辞書が同梱されず、切り替えても繁体字中国語のままでした。今後は3言語のデータをすべてAppに収録します。英語・日本語の文言も再校正し、日本語の「鑑賞モード」、列車番号、乗車ボタンを統一して、英語の災害監視文も整えました。',
     'iPhone 的動態島展開畫面增加圓角安全留白：捷運等車、台鐵等站與列車跟隨的內容都往內收，文字與「結束」按鈕不再被邊緣切掉；繁中、English、日本語一起套用；文字大小設定的目前值與詳細選項也會完整切換語言': 'iPhoneのDynamic Island展開表示に角丸の安全余白を追加しました。メトロ待ち、台湾鉄路の駅待ち、列車追跡の内容を内側へ寄せ、文字や「終了」ボタンが端で欠けないようにしました。繁体字中国語・英語・日本語すべてに適用されます。文字サイズ設定の現在値と詳細項目もすべて選択中の言語へ切り替わります。',
     '資料狀態': 'データ状態',
@@ -989,6 +993,54 @@
 
     '拖曳地圖時，軌道與列車不再比底圖慢半拍；縮放（手機兩指、滑鼠滾輪）收尾的那一瞬，軌道不會先跳回原處再彈回來': '地図をドラッグするとき、線路と列車が背景地図から遅れなくなりました。ピンチ／ホイールズーム終了時の跳ね戻りも解消しました。',
     '字級多了三階（標準／大／特大）：「更多」→ 字級打開「顯示與字級」，選一個，整個介面的字、列高與可點範圍會一起放大，欄位一個都不會被收掉，面板下方有即時預覽。手機把系統字級調到輔助使用級別時，軌島也會自動跟著放大到特大——不想要的話，同一張面板裡可以把「跟隨系統字級」關掉': '文字サイズに標準／大／特大を追加しました。「その他」→「文字サイズ」で選ぶと、項目を隠さず文字・行・タップ範囲をまとめて拡大し、すぐプレビューできます。アクセシビリティ文字サイズにも追従し、不要なら同じ画面でオフにできます。'
+  });
+
+  // Android 正式版合流後新增的商店、等車權限、說明中心與近期更新文案。
+  Object.assign(messages.en, {
+    '月票與年票都是自動續訂方案；你可以隨時在 {store} 的訂閱設定中取消，取消後於當期結束時停止續訂。': 'Monthly and annual passes renew automatically. You can cancel at any time in {store} subscription settings; renewal stops at the end of the current period.',
+    '訂閱管理請至 {store} 的訂閱設定。': 'Manage your subscription in {store} subscription settings.',
+    'Google Play 有新版可更新': 'An update is available on Google Play',
+    '目前版本　{version}': 'Current version  {version}',
+    '軌島新版已在 Google Play 上架': 'A new Rail Island version is available on Google Play',
+    '倒數準確度：{accuracy}': 'Countdown accuracy: {accuracy}',
+    '請到系統設定開啟軌島通知／即時動態，才能顯示等車卡': 'Enable Rail Island notifications / Live Activities in system settings to show the station tracking card.',
+    '請允許軌島傳送通知，才能顯示等站卡': 'Allow Rail Island notifications to show the station tracking card.',
+    '請到 iOS 設定開啟「即時動態」才能顯示等站卡': 'Enable Live Activities for Rail Island in iOS Settings to show the station tracking card.',
+    '到站倒數會顯示在鎖定畫面的即時資訊卡，卡片上隨時可按「結束」收起。': 'Arrival countdowns appear in the lock-screen live card. Tap End on the card at any time to dismiss it.',
+    '選一班車，鎖定畫面會顯示它的表定時刻與官方誤點分鐘（實際約幾點到）。卡片上隨時可按「結束」收起。': 'Choose a train to show its scheduled time and official delay minutes (estimated actual arrival) on the lock screen. Tap End on the card at any time to dismiss it.',
+    '看板列出接下來的班次與倒數；北捷有官方逐節資料時，班次旁會畫出每節車廂的鬆緊': 'The board lists upcoming trains and countdowns. When official Taipei Metro car data is available, crowding for each car appears beside the train.',
+    '台鐵套用官方即時誤點；北捷依官方秒級到站倒數逐班校正，擁擠度也只對應同一車號，不會借用同方向另一班車；高捷、機捷、高雄輕軌依官方到站看板校正。官方資料中斷或你的裝置時鐘明顯不準時，上方的「LIVE」會轉成灰色「非即時」，表示畫面是依稍早的資料投射——點一下時鐘可以看到是哪一項出狀況。台鐵當日官方公告停駛的班次不會出現在地圖上，但看板仍會列出並標成「停駛」。': 'TRA uses official live delays. Taipei Metro trains are corrected individually from official second-level arrival countdowns, and car crowding is matched only to the same train number. Kaohsiung Metro, Taoyuan Airport MRT and Kaohsiung Light Rail use their official arrival boards. If official data is interrupted or your device clock is clearly inaccurate, LIVE turns into a grey Not live indicator: tap the clock to see why. TRA services officially cancelled for the day are removed from the map but remain listed as Cancelled on boards.',
+    'App 版本與評分': 'App version and rating',
+    'App 版會在「更多」底部顯示目前版本，也保留一個不打擾你的評分入口。': 'The app shows its current version at the bottom of More and provides a quiet rating entry.',
+    '打開「更多」，找到「軌島」那一段': 'Open More and find the Rail Island section',
+    '版本列有新版時會帶你到目前平台的商店；沒有新版時可重看本版更新內容': 'When an update is available, the version row opens your platform’s store; otherwise it shows this version’s update notes again.',
+    '按「給軌島評分」會前往 iPhone 的 App Store 或 Android 的 Google Play': 'Rate Rail Island opens the iPhone App Store or Android Google Play.',
+    '完成至少兩趟旅程後，App 才可能在適合的時機邀請一次評分；同一版不重複問，是否真的顯示評分視窗仍由 App Store／Google Play 決定。': 'After at least two journeys, the app may request a rating once at an appropriate time. It does not repeat the request in the same version; App Store or Google Play still decides whether to show the prompt.',
+    '版': 'Ver.',
+    'Android 發車小工具的「大字好讀版」現在會真正放大班次、時刻、狀態與列高，不再只是少顯示幾班；使用說明也補上擁擠度、我的地點、班次篩選、背景更新及版本評分入口': 'Android’s large-text departure widget now enlarges train, time and status text along with row height instead of merely showing fewer trains. Help now covers crowding, My Places, filters, background updates, version checks and ratings.'
+  });
+  Object.assign(messages.ja, {
+    '月票與年票都是自動續訂方案；你可以隨時在 {store} 的訂閱設定中取消，取消後於當期結束時停止續訂。': '月間・年間パスは自動更新です。{store}のサブスクリプション設定からいつでも解約でき、現在の期間終了時に更新が停止します。',
+    '訂閱管理請至 {store} 的訂閱設定。': '{store}のサブスクリプション設定で管理してください。',
+    'Google Play 有新版可更新': 'Google Playに更新があります',
+    '目前版本　{version}': '現在のバージョン　{version}',
+    '軌島新版已在 Google Play 上架': '軌島の新しいバージョンをGoogle Playで公開しました',
+    '倒數準確度：{accuracy}': 'カウントダウン精度：{accuracy}',
+    '請到系統設定開啟軌島通知／即時動態，才能顯示等車卡': '駅待ちカードを表示するには、システム設定で軌島の通知／ライブ表示を有効にしてください。',
+    '請允許軌島傳送通知，才能顯示等站卡': '駅待ちカードを表示するには、軌島の通知を許可してください。',
+    '請到 iOS 設定開啟「即時動態」才能顯示等站卡': '駅待ちカードを表示するには、iOS設定で軌島のライブアクティビティを有効にしてください。',
+    '到站倒數會顯示在鎖定畫面的即時資訊卡，卡片上隨時可按「結束」收起。': '到着カウントダウンはロック画面のライブカードに表示されます。カードの「終了」でいつでも閉じられます。',
+    '選一班車，鎖定畫面會顯示它的表定時刻與官方誤點分鐘（實際約幾點到）。卡片上隨時可按「結束」收起。': '列車を選ぶと、予定時刻と公式遅延分（実際の到着見込み）をロック画面に表示します。カードの「終了」でいつでも閉じられます。',
+    '看板列出接下來的班次與倒數；北捷有官方逐節資料時，班次旁會畫出每節車廂的鬆緊': '案内には次の列車とカウントダウンを表示します。台北メトロの公式車両別データがある場合は、各車両の混雑度も表示します。',
+    '台鐵套用官方即時誤點；北捷依官方秒級到站倒數逐班校正，擁擠度也只對應同一車號，不會借用同方向另一班車；高捷、機捷、高雄輕軌依官方到站看板校正。官方資料中斷或你的裝置時鐘明顯不準時，上方的「LIVE」會轉成灰色「非即時」，表示畫面是依稍早的資料投射——點一下時鐘可以看到是哪一項出狀況。台鐵當日官方公告停駛的班次不會出現在地圖上，但看板仍會列出並標成「停駛」。': '台湾鉄路は公式のリアルタイム遅延を適用します。台北メトロは公式の秒単位到着予測で列車ごとに補正し、混雑度も同じ列車番号だけに対応させます。高雄メトロ、桃園空港MRT、高雄ライトレールは公式到着案内で補正します。公式データが途切れるか端末時計が大きくずれると、LIVEは灰色の「非リアルタイム」に変わります。時計をタップすると理由を確認できます。当日公式に運休となった台湾鉄路の列車は地図から消えますが、案内には「運休」と表示します。',
+    'App 版本與評分': 'Appのバージョンと評価',
+    'App 版會在「更多」底部顯示目前版本，也保留一個不打擾你的評分入口。': 'App版は「その他」の下部に現在のバージョンと、控えめな評価入口を表示します。',
+    '打開「更多」，找到「軌島」那一段': '「その他」を開き、「軌島」セクションを探します',
+    '版本列有新版時會帶你到目前平台的商店；沒有新版時可重看本版更新內容': '更新がある場合はバージョン欄から現在のプラットフォームのストアへ移動し、更新がない場合はこの版の変更内容を再表示します。',
+    '按「給軌島評分」會前往 iPhone 的 App Store 或 Android 的 Google Play': '「軌島を評価」を押すと、iPhoneはApp Store、AndroidはGoogle Playを開きます。',
+    '完成至少兩趟旅程後，App 才可能在適合的時機邀請一次評分；同一版不重複問，是否真的顯示評分視窗仍由 App Store／Google Play 決定。': '2回以上の旅程を完了した後、適切な時に1度だけ評価をお願いする場合があります。同じバージョンでは繰り返さず、実際に評価画面を表示するかはApp Store／Google Playが決定します。',
+    '版': '版',
+    'Android 發車小工具的「大字好讀版」現在會真正放大班次、時刻、狀態與列高，不再只是少顯示幾班；使用說明也補上擁擠度、我的地點、班次篩選、背景更新及版本評分入口': 'Android発車案内ウィジェットの「大きく読みやすい文字」は、表示本数を減らすだけでなく列車、時刻、状態と行の高さを実際に拡大します。使い方には混雑度、保存した場所、列車の絞り込み、バックグラウンド更新、バージョン確認、評価も追加しました。'
   });
 
   window.RAIL_I18N_CHANGELOG = {

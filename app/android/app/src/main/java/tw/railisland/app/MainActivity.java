@@ -15,6 +15,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(RailAudioPlugin.class);
         registerPlugin(RailReviewPlugin.class);
         registerPlugin(RailStorePlugin.class);
+        registerPlugin(RailLanguagePlugin.class);
         super.onCreate(savedInstanceState);
         RailMetroWaitPlugin.handleIntent(getIntent());
     }
