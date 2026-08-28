@@ -31,16 +31,20 @@ struct BoardRow: Identifiable {
 
     var arrivalText: String? {
         guard let arrivalSecond else { return nil }
-        let nextDay = arrivalSecond >= 86_400 ? " 隔日" : ""
-        return "抵 \(RailBoardClock.timeString(seconds: arrivalSecond))\(nextDay)"
+        let nextDay = arrivalSecond >= 86_400 ? RailNativeL10n.text("隔日") : ""
+        return RailNativeL10n.text("抵 {time}{nextDay}", [
+            "time": RailBoardClock.timeString(seconds: arrivalSecond), "nextDay": nextDay
+        ])
     }
 
     var watchingDestinationText: String {
         switch relation {
         case .arrival:
-            return "終點"
+            return RailNativeL10n.text("終點")
         case .departure, .pass:
-            return "往 \(destinationName ?? "未標示")"
+            return RailNativeL10n.text("往 {station}", [
+                "station": destinationName.map(RailNativeL10n.name) ?? RailNativeL10n.text("未標示")
+            ])
         }
     }
 
@@ -624,7 +628,7 @@ struct RailBoardWidgetEntryView: View {
             Text("軌島")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Text(message)
+            Text(RailNativeL10n.text(message))
                 .font(.headline)
                 .minimumScaleFactor(0.75)
         }
@@ -639,7 +643,7 @@ struct SmallBoardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(snapshot.title)
+            Text(RailNativeL10n.name(snapshot.title))
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
@@ -660,12 +664,12 @@ struct SmallBoardView: View {
 
                 HStack(spacing: 3) {
                     if !RailBoardClock.calendar.isDate(row.scheduledDate, inSameDayAs: entryDate) {
-                        Text("明天")
+                        Text(RailNativeL10n.text("明天"))
                             .fontWeight(.bold)
                     }
                     Text(row.scheduledTime)
                         .monospacedDigit()
-                    Text(row.trainType)
+                    Text(RailNativeL10n.name(row.trainType))
                         .foregroundStyle(trainColor(row.trainType))
                     Text(row.trainNumber)
                         .monospacedDigit()
@@ -687,12 +691,12 @@ struct SmallBoardView: View {
                     Divider()
                     let next = snapshot.rows[1]
                     HStack(spacing: 3) {
-                        Text("下一班")
+                        Text(RailNativeL10n.text("下一班"))
                         Text(next.scheduledTime)
                             .monospacedDigit()
-                        Text(next.trainType)
+                        Text(RailNativeL10n.name(next.trainType))
                         if next.isPassing {
-                            Text("通過")
+                            Text(RailNativeL10n.text("通過"))
                         }
                     }
                     .font(.system(size: 11))
@@ -701,7 +705,7 @@ struct SmallBoardView: View {
                 }
             } else if let emptyMessage = snapshot.emptyMessage {
                 Spacer(minLength: 4)
-                Text(emptyMessage)
+                Text(RailNativeL10n.text(emptyMessage))
                     .font(.headline)
                     .minimumScaleFactor(0.75)
                 Spacer(minLength: 4)
@@ -721,7 +725,7 @@ struct SmallBoardView: View {
         if hasDelay || !snapshot.isWatching {
             HStack(spacing: 3) {
                 if let delay = row.delay, delay > 0 {
-                    Text("誤點 \(delay) 分")
+                    Text(RailNativeL10n.text("誤點 {n} 分", ["n": String(delay)]))
                 }
                 if !snapshot.isWatching, let arrival = row.arrivalText {
                     if hasDelay {
@@ -753,7 +757,7 @@ struct SmallPlaceBoardView: View {
                     .font(.system(size: 13, weight: .semibold))
                     .lineLimit(1)
                 Spacer(minLength: 2)
-                Text("\(snapshot.lines.count) 條線")
+                Text(RailNativeL10n.text("{n} 條線", ["n": String(snapshot.lines.count)]))
                     .font(.system(size: 9, weight: .medium))
                     .foregroundStyle(.secondary)
                     .fixedSize()
@@ -790,7 +794,7 @@ private struct SmallPlaceLineView: View {
                 Capsule()
                     .fill(Color(hex: line.color))
                     .frame(width: 13, height: 5)
-                Text(line.name)
+                Text(RailNativeL10n.name(line.name))
                     .font(.system(size: 11, weight: .semibold))
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
@@ -819,25 +823,25 @@ private struct SmallPlaceLineView: View {
                         row.scheduledDate,
                         inSameDayAs: entryDate
                     ) {
-                        Text("明天")
+                        Text(RailNativeL10n.text("明天"))
                             .fontWeight(.bold)
                     }
-                    Text("\(row.trainType) \(row.trainNumber)")
+                    Text("\(RailNativeL10n.name(row.trainType)) \(row.trainNumber)")
                         .foregroundStyle(trainColor(row.trainType))
                         .monospacedDigit()
                         .lineLimit(1)
-                    Text("· 往 \(row.destinationName)")
+                    Text(RailNativeL10n.text("· 往 {station}", ["station": RailNativeL10n.name(row.destinationName)]))
                         .lineLimit(1)
                     Spacer(minLength: 2)
                     if line.rows.count > 1 {
-                        Text("另 \(line.rows.count - 1) 班")
+                        Text(RailNativeL10n.text("另 {n} 班", ["n": String(line.rows.count - 1)]))
                             .fixedSize()
                     }
                 }
                 .font(.system(size: 8))
                 .foregroundStyle(.secondary)
             } else {
-                Text("未來 60 分鐘沒有列車")
+                Text(RailNativeL10n.text("未來 60 分鐘沒有列車"))
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 31, alignment: .leading)
@@ -868,11 +872,11 @@ struct MediumBoardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack {
-                Text(snapshot.title)
+                Text(RailNativeL10n.name(snapshot.title))
                     .font(.system(size: 13, weight: .semibold))
                     .lineLimit(1)
                 Spacer(minLength: 8)
-                Text("\(RailBoardClock.updateTimeString(snapshot.generatedAt)) 更新")
+                Text(RailNativeL10n.text("{time} 更新", ["time": RailBoardClock.updateTimeString(snapshot.generatedAt)]))
                     .font(.system(size: 10))
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
@@ -880,7 +884,7 @@ struct MediumBoardView: View {
 
             if snapshot.rows.isEmpty, let emptyMessage = snapshot.emptyMessage {
                 Spacer()
-                Text(emptyMessage)
+                Text(RailNativeL10n.text(emptyMessage))
                     .font(.headline)
                     .frame(maxWidth: .infinity, alignment: .center)
                 Spacer()
@@ -915,7 +919,7 @@ struct MediumPlaceBoardView: View {
                     .font(.system(size: 13, weight: .semibold))
                     .lineLimit(1)
                 Spacer(minLength: 8)
-                Text("\(RailBoardClock.updateTimeString(snapshot.generatedAt)) 更新")
+                Text(RailNativeL10n.text("{time} 更新", ["time": RailBoardClock.updateTimeString(snapshot.generatedAt)]))
                     .font(.system(size: 9))
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
@@ -1007,7 +1011,7 @@ private struct MediumPlaceLineView: View {
                 Capsule()
                     .fill(Color(hex: line.color))
                     .frame(width: 15, height: 5)
-                Text(line.name)
+                Text(RailNativeL10n.name(line.name))
                     .font(.system(size: metrics.lineName, weight: .semibold))
                     .lineLimit(1)
                     .minimumScaleFactor(0.65)
@@ -1023,7 +1027,7 @@ private struct MediumPlaceLineView: View {
             }
 
             if line.rows.isEmpty {
-                Text("60 分鐘內無車")
+                Text(RailNativeL10n.text("60 分鐘內無車"))
                     .font(.system(size: metrics.primary, weight: .medium))
                     .foregroundStyle(.secondary)
                     .padding(.top, 8)
@@ -1034,7 +1038,7 @@ private struct MediumPlaceLineView: View {
                             Text(row.scheduledTime)
                                 .fontWeight(.semibold)
                                 .monospacedDigit()
-                            Text(row.trainType)
+                            Text(RailNativeL10n.name(row.trainType))
                                 .foregroundStyle(trainColor(row.trainType))
                                 .lineLimit(1)
                             Text(row.trainNumber)
@@ -1049,10 +1053,10 @@ private struct MediumPlaceLineView: View {
                                 row.scheduledDate,
                                 inSameDayAs: entryDate
                             ) {
-                                Text("明天")
+                                Text(RailNativeL10n.text("明天"))
                                     .fontWeight(.bold)
                             }
-                            Text("往 \(row.destinationName)")
+                            Text(RailNativeL10n.text("往 {station}", ["station": RailNativeL10n.name(row.destinationName)]))
                                 .lineLimit(1)
                             Spacer(minLength: 2)
                             Text(row.scheduledDate, style: .relative)
@@ -1096,7 +1100,7 @@ struct MediumTrainRow: View {
                     .font(.system(size: 13, weight: .semibold))
                     .monospacedDigit()
                 if !RailBoardClock.calendar.isDate(row.scheduledDate, inSameDayAs: entryDate) {
-                    Text("明天")
+                    Text(RailNativeL10n.text("明天"))
                         .font(.system(size: 8, weight: .bold))
                         .foregroundStyle(.secondary)
                 }
@@ -1107,7 +1111,7 @@ struct MediumTrainRow: View {
                 Circle()
                     .fill(trainColor)
                     .frame(width: 6, height: 6)
-                Text("\(row.trainType) \(row.trainNumber)")
+                Text("\(RailNativeL10n.name(row.trainType)) \(row.trainNumber)")
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
                 if row.isPassing {
@@ -1143,7 +1147,7 @@ struct MediumTrainRow: View {
 
             if row.isLastOfDay,
                RailBoardClock.calendar.isDate(row.scheduledDate, inSameDayAs: entryDate) {
-                Text("末")
+                Text(RailNativeL10n.text("末"))
                     .font(.system(size: 8, weight: .bold))
                     .foregroundStyle(.orange)
             }
@@ -1174,7 +1178,7 @@ struct RectangularPlaceBoardView: View {
                     Capsule()
                         .fill(Color(hex: line.color))
                         .frame(width: 12, height: 4)
-                    Text(line.name)
+                    Text(RailNativeL10n.name(line.name))
                         .lineLimit(1)
                     Text(row.scheduledTime)
                         .fontWeight(.semibold)
@@ -1182,8 +1186,8 @@ struct RectangularPlaceBoardView: View {
                 }
                 .font(.system(size: 10))
                 HStack(spacing: 3) {
-                    Text("\(row.trainType) \(row.trainNumber)")
-                    Text("· 往 \(row.destinationName)")
+                    Text("\(RailNativeL10n.name(row.trainType)) \(row.trainNumber)")
+                    Text(RailNativeL10n.text("· 往 {station}", ["station": RailNativeL10n.name(row.destinationName)]))
                     Spacer(minLength: 2)
                     Text(row.scheduledDate, style: .relative)
                         .monospacedDigit()
@@ -1191,7 +1195,7 @@ struct RectangularPlaceBoardView: View {
                 .font(.system(size: 9))
                 .lineLimit(1)
             } else {
-                Text("60 分鐘內無車")
+                Text(RailNativeL10n.text("60 分鐘內無車"))
                     .font(.system(size: 10, weight: .semibold))
             }
         }
@@ -1210,7 +1214,7 @@ struct RectangularBoardView: View {
     var body: some View {
         let hasNotice = snapshot.notice != nil
         VStack(alignment: .leading, spacing: hasNotice ? 0 : 1) {
-            Text(snapshot.title)
+            Text(RailNativeL10n.name(snapshot.title))
                 .font(.system(size: hasNotice ? 9 : 10, weight: .medium))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
@@ -1218,16 +1222,16 @@ struct RectangularBoardView: View {
             if let row = snapshot.rows.first {
                 HStack(spacing: 3) {
                     if !RailBoardClock.calendar.isDate(row.scheduledDate, inSameDayAs: entryDate) {
-                        Text("明天")
+                        Text(RailNativeL10n.text("明天"))
                             .fontWeight(.bold)
                     }
                     Text(row.scheduledTime)
                         .monospacedDigit()
-                    Text(row.trainType)
+                    Text(RailNativeL10n.name(row.trainType))
                     Text(row.trainNumber)
                         .monospacedDigit()
                     if row.isPassing {
-                        Text("· 通過")
+                        Text(RailNativeL10n.text("· 通過"))
                             .fontWeight(.bold)
                     }
                     if snapshot.isWatching {
@@ -1242,18 +1246,18 @@ struct RectangularBoardView: View {
                     Text(row.scheduledDate, style: .relative)
                         .monospacedDigit()
                     if let delay = row.delay, delay > 0 {
-                        Text("· 誤點 \(delay) 分")
+                        Text(RailNativeL10n.text("· 誤點 {n} 分", ["n": String(delay)]))
                     }
                     if row.isLastOfDay,
                        RailBoardClock.calendar.isDate(row.scheduledDate, inSameDayAs: entryDate) {
-                        Text("· 今天最後一班")
+                        Text(RailNativeL10n.text("· 今天最後一班"))
                     }
                 }
                 .font(.system(size: hasNotice ? 9 : 11))
                 .lineLimit(1)
                 .minimumScaleFactor(0.68)
             } else if let emptyMessage = snapshot.emptyMessage {
-                Text(emptyMessage)
+                Text(RailNativeL10n.text(emptyMessage))
                     .font(.system(size: hasNotice ? 11 : 12, weight: .semibold))
                     .lineLimit(1)
             }
@@ -1271,7 +1275,7 @@ struct RectangularBoardView: View {
 
 struct PassBadge: View {
     var body: some View {
-        Text("通過")
+        Text(RailNativeL10n.text("通過"))
             .font(.system(size: 8, weight: .bold))
             .padding(.horizontal, 3)
             .padding(.vertical, 1)
@@ -1287,7 +1291,7 @@ struct LastTrainBadge: View {
     let compact: Bool
 
     var body: some View {
-        Text("今天最後一班")
+        Text(RailNativeL10n.text("今天最後一班"))
             .font(.system(size: compact ? 8 : 9, weight: .bold))
             .foregroundStyle(.orange)
             .padding(.horizontal, compact ? 4 : 6)

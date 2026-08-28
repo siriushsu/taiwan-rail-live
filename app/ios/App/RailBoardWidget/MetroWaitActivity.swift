@@ -17,7 +17,8 @@ struct MetroWaitActivityWidget: Widget {
             Text(timerInterval: min(Date(), end)...end, countsDown: true)
                 .monospacedDigit().font(.system(size: size, design: .rounded))
         } else if let minutes {
-            Text("約 \(minutes) 分").monospacedDigit().font(.system(size: size, design: .rounded))
+            Text(RailNativeL10n.text("約 {n} 分", ["n": String(minutes)]))
+                .monospacedDigit().font(.system(size: size, design: .rounded))
         }
     }
 
@@ -62,24 +63,24 @@ struct MetroWaitActivityWidget: Widget {
                     if let c = tint(ctx.attributes.color) {
                         Circle().fill(c).frame(width: 9, height: 9)
                     }
-                    Text(ctx.attributes.lineLabel).font(.caption).fontWeight(.semibold)
-                    Text(ctx.attributes.station).font(.headline)
+                    Text(RailNativeL10n.name(ctx.attributes.lineLabel)).font(.caption).fontWeight(.semibold)
+                    Text(RailNativeL10n.name(ctx.attributes.station)).font(.headline)
                     Spacer(minLength: 6)
                     if ctx.isStale {
-                        Text("進站").font(.system(size: 20, weight: .semibold))
+                        Text(RailNativeL10n.text("進站")).font(.system(size: 20, weight: .semibold))
                             .foregroundStyle(Color(.sRGB, red: 0.29, green: 0.87, blue: 0.50))
                     } else {
                         countdown(eta: ctx.state.nextEta, minutes: ctx.state.nextMinutes, size: 22)
                     }
                 }
                 HStack(spacing: 6) {
-                    Text("往 \(ctx.state.nextDest ?? "—")").font(.caption)
+                    Text(RailNativeL10n.text("往 {station}", ["station": RailNativeL10n.name(ctx.state.nextDest ?? "—")])).font(.caption)
                     Spacer(minLength: 6)
                     crowdBar(ctx.state.crowd)
                 }
                 if ctx.state.secondEta != nil || ctx.state.secondMinutes != nil {
                     HStack(spacing: 6) {
-                        Text("再下一班 往 \(ctx.state.secondDest ?? "—")")
+                        Text(RailNativeL10n.text("再下一班 往 {station}", ["station": RailNativeL10n.name(ctx.state.secondDest ?? "—")]))
                             .font(.caption2).foregroundStyle(.secondary)
                         Spacer(minLength: 6)
                         countdown(eta: ctx.state.secondEta, minutes: ctx.state.secondMinutes, size: 13)
@@ -91,24 +92,26 @@ struct MetroWaitActivityWidget: Widget {
                     //    沒接上的(綁定失敗、沒網路、伺服器拒收)不會。state.pushed 只有在
                     //    伺服器真的推過一發之後才是 true——它證明的正是「推播這條路是通的」,
                     //    比任何客端旗標都可靠(客端只知道自己送出了綁定,不知道有沒有生效)。
-                    Text(ctx.state.pushed == true
+                    Text(RailNativeL10n.text(ctx.state.pushed == true
                          ? "下一班會自動接上"
-                         : "卡片不會自己接下一班，要看後續請回軌島重開")
+                         : "卡片不會自己接下一班，要看後續請回軌島重開"))
                         .font(.caption2).foregroundStyle(.secondary)
                 }
                 if let n = ctx.state.notice, !n.trimmingCharacters(in: .whitespaces).isEmpty {
-                    Text(n).font(.caption2).foregroundStyle(.orange).lineLimit(2)
+                    Text(RailNativeL10n.text(n)).font(.caption2).foregroundStyle(.orange).lineLimit(2)
                 }
                 HStack(spacing: 6) {
                     if let endAt = ctx.attributes.endAt {
-                        Text("追蹤至 \(Date(timeIntervalSince1970: endAt), style: .time)")
+                        Text(RailNativeL10n.text("追蹤至 {time}", [
+                            "time": RailNativeL10n.time(Date(timeIntervalSince1970: endAt))
+                        ]))
                             .font(.caption2).foregroundStyle(.secondary)
                     }
                     Spacer(minLength: 6)
                     // 「結束」鈕:LiveActivityIntent 當場收卡不開 App(08-14 使用者回饋:
                     // 非得回車站看板才能關太難找)。鎖屏本來就能左滑清除,這顆給找不到滑的人。
                     Button(intent: MetroWaitEndIntent()) {
-                        Text("結束").font(.system(size: 12, weight: .semibold))
+                        Text(RailNativeL10n.text("結束")).font(.system(size: 12, weight: .semibold))
                     }
                     .buttonStyle(.bordered).controlSize(.mini).tint(.secondary)
                 }
@@ -122,7 +125,7 @@ struct MetroWaitActivityWidget: Widget {
                 DynamicIslandExpandedRegion(.leading) {
                     HStack(spacing: 4) {
                         if let c = tint(ctx.attributes.color) { Circle().fill(c).frame(width: 8, height: 8) }
-                        Text(ctx.attributes.station).font(.caption).lineLimit(1)
+                        Text(RailNativeL10n.name(ctx.attributes.station)).font(.caption).lineLimit(1)
                     }
                 }
                 DynamicIslandExpandedRegion(.trailing) {
@@ -130,7 +133,7 @@ struct MetroWaitActivityWidget: Widget {
                     // 駁次班在「次班也到站」後會凍在 0:00(staleDate 只有首班那一次重繪,
                     // 次班到站沒有第二次),凍 0:00 比停在「進站」更糟。次班資訊鎖屏還在。
                     if ctx.isStale {
-                        Text("進站").font(.system(size: 16, weight: .semibold))
+                        Text(RailNativeL10n.text("進站")).font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(Color(.sRGB, red: 0.29, green: 0.87, blue: 0.50))
                     } else {
                         countdown(eta: ctx.state.nextEta, minutes: ctx.state.nextMinutes, size: 18)
@@ -138,11 +141,11 @@ struct MetroWaitActivityWidget: Widget {
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     HStack {
-                        Text("往 \(islandDest(ctx) ?? "—")").font(.caption2)
+                        Text(RailNativeL10n.text("往 {station}", ["station": RailNativeL10n.name(islandDest(ctx) ?? "—")])).font(.caption2)
                         Spacer()
                         if !ctx.isStale { crowdBar(ctx.state.crowd) } // 擁擠度屬首班,首班走了就不掛著
                         Button(intent: MetroWaitEndIntent()) {
-                            Text("結束").font(.system(size: 11, weight: .semibold))
+                            Text(RailNativeL10n.text("結束")).font(.system(size: 11, weight: .semibold))
                         }
                         .buttonStyle(.bordered).controlSize(.mini).tint(.secondary)
                     }
@@ -153,13 +156,14 @@ struct MetroWaitActivityWidget: Widget {
                 HStack(spacing: 3) {
                     if let c = tint(ctx.attributes.color) { Circle().fill(c).frame(width: 8, height: 8) }
                     if let d = islandDest(ctx), !d.isEmpty {
-                        Text("往\(d)").font(.system(size: 12, weight: .medium)).lineLimit(1)
+                        Text(RailNativeL10n.text("往{station}", ["station": RailNativeL10n.name(d)]))
+                            .font(.system(size: 12, weight: .medium)).lineLimit(1)
                             .frame(maxWidth: 60)
                     }
                 }
             } compactTrailing: {
                 if ctx.isStale {
-                    Text("進站").font(.system(size: 13, weight: .semibold))
+                    Text(RailNativeL10n.text("進站")).font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(Color(.sRGB, red: 0.29, green: 0.87, blue: 0.50))
                 } else {
                     countdown(eta: ctx.state.nextEta, minutes: ctx.state.nextMinutes, size: 13)
@@ -167,7 +171,7 @@ struct MetroWaitActivityWidget: Widget {
                 }
             } minimal: {
                 if ctx.isStale {
-                    Text("進站").font(.system(size: 11, weight: .semibold))
+                    Text(RailNativeL10n.text("進站")).font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(Color(.sRGB, red: 0.29, green: 0.87, blue: 0.50))
                 } else {
                     countdown(eta: ctx.state.nextEta, minutes: ctx.state.nextMinutes, size: 12)

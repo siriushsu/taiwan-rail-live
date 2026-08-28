@@ -45,10 +45,10 @@ extension MetroEntry {
     ///    真被某層快取餵了舊主體時,畫面直說過舊,不再偽裝成「官方沒有班次」。
     ///    小卡與混合大卡共用這一份,兩張卡的說法不會分岔。
     func emptyText(at date: Date) -> String {
-        if failed { return "連不上官方資料，稍後自動再試" }
-        guard snapshot != nil else { return "沒有資料" }
-        if let age = dataAge(at: date), age > 180 { return "資料過舊，打開軌島即更新" }
-        return "官方目前沒有這一站的班次資訊"
+        if failed { return RailNativeL10n.text("連不上官方資料，稍後自動再試") }
+        guard snapshot != nil else { return RailNativeL10n.text("沒有資料") }
+        if let age = dataAge(at: date), age > 180 { return RailNativeL10n.text("資料過舊，打開軌島即更新") }
+        return RailNativeL10n.text("官方目前沒有這一站的班次資訊")
     }
 }
 
@@ -118,8 +118,8 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
                               precision: "sec", lastTrain: nil, failed: false,
                               deepLink: Self.passLink(),
                               passCTA: claimedName.isEmpty
-                                ? "免費版可設定一站。點一下開啟軌島，用通行證解鎖多站。"
-                                : "免費版可設定一站（目前是「\(claimedName)」）。點一下開啟軌島，用通行證解鎖多站。")
+                                ? RailNativeL10n.text("免費版可設定一站。點一下開啟軌島，用通行證解鎖多站。")
+                                : RailNativeL10n.text("免費版可設定一站（目前是「{station}」）。點一下開啟軌島，用通行證解鎖多站。", ["station": RailNativeL10n.name(claimedName)]))
         case .allowed, .claimFree:
             break
         }
@@ -220,10 +220,10 @@ struct MetroBoardView: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 5) {
                 if let c = entry.lineColor { Circle().fill(c).frame(width: 8, height: 8) }
-                Text(entry.title).font(.headline).lineLimit(1)
+                Text(RailNativeL10n.name(entry.title)).font(.headline).lineLimit(1)
                 if entry.auto {
                     // 自動解析出來的站掛小徽章,跟手選站區分(文字徽章,UI 控件不用 emoji)。
-                    Text("自動").font(.system(size: 9)).foregroundStyle(.secondary)
+                    Text(RailNativeL10n.text("自動")).font(.system(size: 9)).foregroundStyle(.secondary)
                         .padding(.horizontal, 4).padding(.vertical, 1)
                         .background(Capsule().fill(.quaternary))
                 }
@@ -232,7 +232,7 @@ struct MetroBoardView: View {
                 Text(stampText).font(.caption2).foregroundStyle(.secondary)
             }
             if let last = entry.lastTrain {
-                Text("末班 \(last)").font(.caption2).foregroundStyle(.orange).lineLimit(1)
+                Text(RailNativeL10n.text("末班 {time}", ["time": last])).font(.caption2).foregroundStyle(.orange).lineLimit(1)
             }
             if !visibleRows.isEmpty {
                 ForEach(Array(visibleRows.prefix(rowLimit).enumerated()), id: \.offset) { _, r in
@@ -248,14 +248,14 @@ struct MetroBoardView: View {
             } else if entry.snapshot?.rows.isEmpty == false {
                 // 有資料但全被「到站+30秒退場」濾光=資料視野(≈12分鐘)用完了,WidgetKit 還沒給
                 // 下一次刷新——這不是「官方沒班次」,寫成那樣會被讀成末班已過(真機回饋 08-14)。
-                Text("資料過舊，打開軌島即更新").font(.caption).foregroundStyle(.secondary)
+                Text(RailNativeL10n.text("資料過舊，打開軌島即更新")).font(.caption).foregroundStyle(.secondary)
             } else if let cta = entry.passCTA {
                 // 通行證閘門:明講「為什麼看不到、點下去去哪」。用主色而非 secondary——
                 // 它是行動邀請不是錯誤訊息;小卡容得下三行,大卡更寬鬆,故不設 lineLimit。
-                Text(cta).font(.caption).foregroundStyle(.primary)
+                Text(RailNativeL10n.text(cta)).font(.caption).foregroundStyle(.primary)
             } else {
                 // autoHint:自動選站解析失敗的指引(定位權限/從沒定位過),比通用文案可行動。
-                Text(entry.autoHint ?? entry.emptyText(at: entry.date))
+                Text(RailNativeL10n.text(entry.autoHint ?? entry.emptyText(at: entry.date)))
                     .font(.caption).foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
@@ -293,7 +293,9 @@ struct MetroBoardView: View {
         let f = DateFormatter(); f.dateFormat = "HH:mm"
         // 時區錨定 Asia/Taipei,不用裝置時鐘(timezone-anchor 契約;人在國外看家鄉班次時尤其重要)。
         f.timeZone = TimeZone(identifier: "Asia/Taipei")
-        return (entry.failed ? "⚠ " : "") + f.string(from: Date(timeIntervalSince1970: at)) + " 更新"
+        return (entry.failed ? "⚠ " : "") + RailNativeL10n.text("{time} 更新", [
+            "time": f.string(from: Date(timeIntervalSince1970: at))
+        ])
     }
 }
 
@@ -315,7 +317,8 @@ struct MetroRowView: View {
             Circle().fill(lineColor ?? .clear).frame(width: 7 * fontScale, height: 7 * fontScale)
             // 🔴 小尺寸卡的可用寬本來就緊(「往 南港展覽館」＋倒數槽幾乎填滿),多了色點更緊 ⇒
             //    允許小幅縮字,寧可字小一點也不要把站名截成「往 南港展覽…」。
-            Text("往 \(row.dest)").font(.system(size: 13 * fontScale))
+            Text(RailNativeL10n.text("往 {station}", ["station": RailNativeL10n.name(row.dest)]))
+                .font(.system(size: 13 * fontScale))
                 .lineLimit(1).minimumScaleFactor(0.8)
             Spacer(minLength: 4)
             if precision == "sec", let eta = row.etaEpoch {
@@ -325,7 +328,7 @@ struct MetroRowView: View {
                 // 🔴 進站字樣與倒數共用同一個 56pt trailing 槽——真機回饋(08-14 第三輪):
                 //    倒數有 frame、進站沒有 ⇒ 兩種列的右緣對不齊。
                 if eta <= entryDate.timeIntervalSince1970 + 1 {
-                    Text("進站").font(.system(size: 13 * fontScale, weight: .semibold))
+                    Text(RailNativeL10n.text("進站")).font(.system(size: 13 * fontScale, weight: .semibold))
                         .foregroundStyle(Color(.sRGB, red: 0.29, green: 0.87, blue: 0.50))
                         .frame(maxWidth: 56 * fontScale, alignment: .trailing)
                 } else {
@@ -340,7 +343,8 @@ struct MetroRowView: View {
                 }
             } else if let m = row.minutes {
                 // 🔴 官方只給整數分鐘 ⇒ 顯示「約 N 分」的靜態文字,不換算成秒、不自走。
-                Text("約 \(m) 分").monospacedDigit().font(.system(size: 14 * fontScale, design: .rounded))
+                Text(RailNativeL10n.text("約 {n} 分", ["n": String(m)]))
+                    .monospacedDigit().font(.system(size: 14 * fontScale, design: .rounded))
             }
             if showCrowd {
                 // 使用者真機回饋(08-14):同一張卡混到沒有擁擠度的線(北捷卡的文湖線)時,

@@ -3,9 +3,9 @@ import SwiftUI
 import WidgetKit
 
 private func delayText(_ sec: Int) -> String {
-    if sec >= 60 { return "誤點 \(sec / 60) 分" }
-    if sec <= -60 { return "早到 \(-sec / 60) 分" }
-    return "準點"
+    if sec >= 60 { return RailNativeL10n.text("誤點 {n} 分", ["n": String(sec / 60)]) }
+    if sec <= -60 { return RailNativeL10n.text("早到 {n} 分", ["n": String(-sec / 60)]) }
+    return RailNativeL10n.text("準點")
 }
 
 // 車種代表色。來源是班表裡那台車自己的 color(#RRGGBB),與地圖上畫的是同一個值。
@@ -75,7 +75,7 @@ struct RailFollowActivityWidget: Widget {
     // 變成一行看不見的空白把版面撐開。
     private func noticeText(_ raw: String?) -> String? {
         guard let raw, !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
-        return raw
+        return RailNativeL10n.text(raw)
     }
 
     // 車種識別列(色點＋車種＋車次)。鎖定畫面與動態島共用同一個組件,兩處看起來才是同一張卡。
@@ -85,7 +85,7 @@ struct RailFollowActivityWidget: Widget {
             if let c = railColor(attrs.color) {
                 Circle().fill(c).frame(width: size * 0.62, height: size * 0.62)
             }
-            Text(attrs.kind)
+            Text(RailNativeL10n.name(attrs.kind))
                 .font(.system(size: size, weight: .semibold))
                 .foregroundStyle(railInkColor(attrs.color) ?? .primary)
             Text(attrs.trainNo)
@@ -97,7 +97,7 @@ struct RailFollowActivityWidget: Widget {
 
     // 「停靠中」徽章。綠色是刻意的:它表達的是「可以上下車」而不是車種,用車種色會與識別列打架。
     private var stoppingBadge: some View {
-        Text("停靠中")
+        Text(RailNativeL10n.text("停靠中"))
             .font(.system(size: 12, weight: .bold))
             .foregroundStyle(Color(.sRGB, red: 0.29, green: 0.87, blue: 0.50))
     }
@@ -120,9 +120,9 @@ struct RailFollowActivityWidget: Widget {
                 }
                 HStack(alignment: .firstTextBaseline, spacing: 7) {
                     // 停靠中時標籤改成「目前」——車就在這一站,叫它「下一站」是錯的。
-                    Text(stopping ? "目前" : "下一站")
+                    Text(RailNativeL10n.text(stopping ? "目前" : "下一站"))
                         .font(.caption2).foregroundStyle(.secondary)
-                    Text(context.state.nextStop).font(.title3).fontWeight(.bold)
+                    Text(RailNativeL10n.name(context.state.nextStop)).font(.title3).fontWeight(.bold)
                     Spacer(minLength: 6)
                     Text(delayText(context.state.delaySec))
                         .font(.caption2).foregroundStyle(.secondary)
@@ -131,9 +131,9 @@ struct RailFollowActivityWidget: Widget {
                          tint: railColor(context.attributes.color), stopping: stopping)
                 // 進度條的兩端:左＝從哪來、右＝往哪去。沒有上一站(始發站)時左邊留白,不畫佔位符。
                 HStack {
-                    Text(context.state.prevStop ?? "")
+                    Text(RailNativeL10n.name(context.state.prevStop ?? ""))
                     Spacer(minLength: 8)
-                    Text("往 \(context.state.terminus)")
+                    Text(RailNativeL10n.text("往 {station}", ["station": RailNativeL10n.name(context.state.terminus)]))
                 }
                 .font(.caption2).foregroundStyle(.tertiary).lineLimit(1)
                 // 🔴 文案整句由後端決定(改字不必重出 App)。橘色在鎖定畫面的深淺兩種底
@@ -169,9 +169,9 @@ struct RailFollowActivityWidget: Widget {
                 DynamicIslandExpandedRegion(.bottom) {
                     VStack(alignment: .leading, spacing: 3) {
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
-                            Text(stopping ? "目前" : "下一站")
+                            Text(RailNativeL10n.text(stopping ? "目前" : "下一站"))
                                 .font(.system(size: 10)).foregroundStyle(.secondary)
-                            Text(context.state.nextStop)
+                            Text(RailNativeL10n.name(context.state.nextStop))
                                 .font(.system(size: 19, weight: .bold)).lineLimit(1)
                             Spacer(minLength: 6)
                             Text(delayText(context.state.delaySec))
@@ -182,15 +182,15 @@ struct RailFollowActivityWidget: Widget {
                         progress(context.state.departedDate, context.state.arrivalDate,
                                  tint: railColor(context.attributes.color), stopping: stopping)
                         HStack {
-                            Text(context.state.prevStop ?? "")
+                            Text(RailNativeL10n.name(context.state.prevStop ?? ""))
                             Spacer(minLength: 8)
-                            Text("往 \(context.state.terminus)")
+                            Text(RailNativeL10n.text("往 {station}", ["station": RailNativeL10n.name(context.state.terminus)]))
                         }
                         .font(.system(size: 10)).foregroundStyle(.tertiary).lineLimit(1)
                         // 🔴 動態島塞不下後端那一整句(會爆版),這裡用寫死的短標。
                         //    compact 與 minimal 刻意不動——那兩個版面連站名都只放得下兩三個字。
                         if noticeText(context.state.notice) != nil {
-                            Text("資料中斷・位置為預估")
+                            Text(RailNativeL10n.text("資料中斷・位置為預估"))
                                 .font(.system(size: 10)).foregroundStyle(.orange).lineLimit(1)
                         }
                     }
@@ -208,12 +208,12 @@ struct RailFollowActivityWidget: Widget {
                     if let c = railColor(context.attributes.color) {
                         Circle().fill(c).frame(width: 6, height: 6)
                     }
-                    Text(context.state.nextStop.prefix(2))
+                    Text(String(RailNativeL10n.name(context.state.nextStop).prefix(2)))
                 }
             } compactTrailing: {
                 Group {
                     if stopping {
-                        Text("停靠").font(.system(size: 13, weight: .semibold))
+                        Text(RailNativeL10n.text("停靠")).font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(Color(.sRGB, red: 0.29, green: 0.87, blue: 0.50))
                     } else {
                         countdown(context.state.arrivalDate, maxWidth: 44)
@@ -226,11 +226,11 @@ struct RailFollowActivityWidget: Widget {
                 // 停靠中換綠色「停靠」;站名空缺才退回車次。倒數沒有 ETA 時整行不畫,只剩站名。
                 let stopping = context.state.stopping ?? false
                 VStack(spacing: 0) {
-                    Text(context.state.nextStop.isEmpty ? context.attributes.trainNo.prefix(3)
-                                                        : context.state.nextStop.prefix(2))
+                    Text(context.state.nextStop.isEmpty ? String(context.attributes.trainNo.prefix(3))
+                                                        : String(RailNativeL10n.name(context.state.nextStop).prefix(2)))
                         .font(.system(size: 9, weight: .semibold))
                     if stopping {
-                        Text("停靠")
+                        Text(RailNativeL10n.text("停靠"))
                             .font(.system(size: 8, weight: .bold))
                             .foregroundStyle(Color(.sRGB, red: 0.29, green: 0.87, blue: 0.50))
                     } else {

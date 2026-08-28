@@ -13,6 +13,7 @@ public final class RailBridgeViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(RailMetroWaitPlugin())
         bridge?.registerPluginInstance(RailAudioPlugin())
         bridge?.registerPluginInstance(RailReviewPlugin())
+        bridge?.registerPluginInstance(RailLanguagePlugin())
     }
 }
 

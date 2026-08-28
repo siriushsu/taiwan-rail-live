@@ -38,7 +38,7 @@ ok('S2 needPassAuto 帶 CTA 文案', !!autoBranch && /passCTA:\s*"/.test(autoBra
 const multiBranch = widgetSrc.match(/case \.needPassMulti[\s\S]*?case \.allowed/);
 ok('S3 needPassMulti 帶 CTA 文案', !!multiBranch && /passCTA:/.test(multiBranch[0]));
 ok('S4 檢視真的畫得出 passCTA',
-   /if let cta = entry\.passCTA[\s\S]{0,400}Text\(cta\)/.test(widgetSrc));
+   /if let cta = entry\.passCTA[\s\S]{0,400}Text\((?:RailNativeL10n\.text\()?cta\)?\)/.test(widgetSrc));
 ok('S5 擋下時給得出去處(deepLink 指向通行證頁)',
    /passLink\(\)/.test(widgetSrc) && /host = "pass"/.test(widgetSrc));
 // 閘門必須在抓取與定位之前:否則被擋的人照樣打官方 API、照樣叫醒定位。

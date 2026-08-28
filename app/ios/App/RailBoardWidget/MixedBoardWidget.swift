@@ -26,11 +26,11 @@ struct MixedMetroStationOptionsProvider: DynamicOptionsProvider {
         let catalog = MetroWidgetCatalog.shared
         return ItemCollection(sections: [MetroNearest.optionSection()] + catalog.systems.map { system in
             IntentItemSection(
-                LocalizedStringResource(stringLiteral: system.label),
+                LocalizedStringResource(stringLiteral: RailNativeL10n.name(system.label)),
                 items: system.stationNames.map { station in
                     IntentItem<String>(
                         "\(system.id)|\(station)",
-                        title: LocalizedStringResource(stringLiteral: station)
+                        title: LocalizedStringResource(stringLiteral: RailNativeL10n.name(station))
                     )
                 }
             )
@@ -227,7 +227,7 @@ private struct MixedRailSection: View {
         case .unavailable(let message):
             VStack(alignment: .leading, spacing: 8) {
                 header(title: "台鐵／高鐵", stamp: "—")
-                Text(message)
+                Text(RailNativeL10n.text(message))
                     .font(.headline)
                     .foregroundStyle(.secondary)
                     .minimumScaleFactor(0.75)
@@ -240,11 +240,11 @@ private struct MixedRailSection: View {
         VStack(alignment: .leading, spacing: 4) {
             header(
                 title: snapshot.title,
-                stamp: "\(RailBoardClock.updateTimeString(snapshot.generatedAt)) 更新"
+                stamp: RailNativeL10n.text("{time} 更新", ["time": RailBoardClock.updateTimeString(snapshot.generatedAt)])
             )
 
             if snapshot.rows.isEmpty, let emptyMessage = snapshot.emptyMessage {
-                Text(emptyMessage)
+                Text(RailNativeL10n.text(emptyMessage))
                     .font(.headline)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             } else {
@@ -266,7 +266,8 @@ private struct MixedRailSection: View {
         VStack(alignment: .leading, spacing: 5) {
             header(
                 title: snapshot.title,
-                stamp: "\(RailBoardClock.updateTimeString(snapshot.generatedAt)) 更新"
+                stamp: RailNativeL10n.text("{time} 更新", ["time": RailBoardClock.updateTimeString(snapshot.generatedAt)]),
+                translateTitle: false
             )
 
             ForEach(Array(snapshot.lines.prefix(2))) { line in
@@ -281,13 +282,13 @@ private struct MixedRailSection: View {
                             .frame(width: 14, height: 6)
                         // 08-14 真機回饋:比照捷運半邊的欄位紀律——車種+車次是變寬文字
                         // (高鐵 0690 vs 區間車 1280),不給固定槽的話「往Ｘ」起點逐列參差。
-                        Text("\(row.trainType) \(row.trainNumber)")
+                        Text("\(RailNativeL10n.name(row.trainType)) \(row.trainNumber)")
                             .font(.system(size: 13, weight: .medium))
                             .foregroundStyle(trainColor(row.trainType, in: snapshot))
                             .lineLimit(1)
                             .minimumScaleFactor(0.85)
                             .frame(width: 88, alignment: .leading)
-                        Text("往 \(row.destinationName)")
+                        Text(RailNativeL10n.text("往 {station}", ["station": RailNativeL10n.name(row.destinationName)]))
                             .font(.system(size: 12.5))
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
@@ -308,9 +309,9 @@ private struct MixedRailSection: View {
         Color(hex: snapshot.typeColors[type] ?? snapshot.typeColors["其他"] ?? "#8E44AD")
     }
 
-    private func header(title: String, stamp: String) -> some View {
+    private func header(title: String, stamp: String, translateTitle: Bool = true) -> some View {
         HStack(spacing: 8) {
-            Text(title)
+            Text(translateTitle ? RailNativeL10n.name(title) : title)
                 .font(.system(size: 16, weight: .semibold))
                 .lineLimit(1)
             Spacer(minLength: 4)
@@ -333,7 +334,7 @@ private struct MixedMetroSection: View {
                 if let color = entry.lineColor {
                     Circle().fill(color).frame(width: 9, height: 9)
                 }
-                Text(entry.title)
+                Text(RailNativeL10n.name(entry.title))
                     .font(.system(size: 16, weight: .semibold))
                     .lineLimit(1)
                 Spacer(minLength: 4)
@@ -345,7 +346,7 @@ private struct MixedMetroSection: View {
             }
 
             if let lastTrain = entry.lastTrain {
-                Text("末班 \(lastTrain)")
+                Text(RailNativeL10n.text("末班 {time}", ["time": lastTrain]))
                     .font(.caption)
                     .foregroundStyle(.orange)
                     .lineLimit(1)
@@ -389,7 +390,9 @@ private struct MixedMetroSection: View {
     private var stampText: String {
         guard let timestamp = entry.snapshot?.dataAt else { return "—" }
         let time = RailBoardClock.updateTimeString(Date(timeIntervalSince1970: timestamp))
-        return entry.failed ? "上次 \(time) 更新" : "\(time) 更新"
+        return entry.failed
+            ? RailNativeL10n.text("上次 {time} 更新", ["time": time])
+            : RailNativeL10n.text("{time} 更新", ["time": time])
     }
 }
 

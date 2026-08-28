@@ -93,7 +93,10 @@ const ok = (name, pass, detail = '') => { results.push({ name, pass, detail }); 
 async function boot(browser, { withPlugin = true, startResult = { ok: true }, initialGroup = 'metro', viewport = { width: 1280, height: 900 } } = {}) {
   const ctx = await browser.newContext({ viewport });
   await ctx.addInitScript(({ withPlugin, startResult }) => {
-    try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} // 首訪教學卡先關,否則 elementFromPoint 全滅
+    try {
+      localStorage.setItem('trainmap-howto-seen', '1'); // 首訪教學卡先關,否則 elementFromPoint 全滅
+      localStorage.setItem('trainmap-language', 'zh-TW'); // 本腳本的既有產品文案斷言以繁中為準
+    } catch (e) {}
     if (!withPlugin) return;
     window.__waitCalls = [];
     window.__waitListeners = {};

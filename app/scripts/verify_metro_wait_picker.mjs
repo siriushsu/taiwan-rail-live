@@ -83,7 +83,10 @@ const ok = (name, pass, detail = '') => {
 async function boot(browser, { initialGroup = 'metro', viewport = { width: 1280, height: 900 } } = {}) {
   const ctx = await browser.newContext({ viewport });
   await ctx.addInitScript(() => {
-    try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {}
+    try {
+      localStorage.setItem('trainmap-howto-seen', '1');
+      localStorage.setItem('trainmap-language', 'zh-TW');
+    } catch (e) {}
     window.__waitCalls = [];
     window.__waitListeners = {};
     const rec = (m, p) => {

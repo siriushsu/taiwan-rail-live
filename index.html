@@ -3863,7 +3863,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
-        <li data-cl-of="i18n-dynamic"><span class="d">8/28</span><span>英文與日文現在也會即時更新最愛、今日台鐵、誤點履歷、帳號同步、Google 清單匯入、分享與 App 等車卡；官方活動只有中文時，會清楚標示「中文原文」</span></li>
+        <li data-cl-of="i18n-dynamic"><span class="d">8/28</span><span>英文與日文現在也會即時更新最愛、今日台鐵、誤點履歷、帳號同步、Google 清單匯入、分享與「追蹤這站」；並補上災害監看、捷運終點、點選列車／車站、成就說明，以及 iPhone 即時動態與小工具，官方活動只有中文時則標示「中文原文」</span></li>
         <li data-cl-of="metrocoredefault"><span class="d">8/28</span><span>網站版重新開啟北捷統一時間軸：地圖列車、車站預告與點選跟隨會使用同一份身分與軌跡；每次更新也會檢查軌跡內部，若列車在五秒內跨過半站以上，會先留在原位重新銜接，不把瞬間跳位送到畫面。Core 連線失敗或單線資料不完整時，仍會自動退回原本模式</span></li>
         <li data-cl-of="i18n-content"><span class="d">8/28</span><span>英文與日文再補齊品牌介紹、使用說明、特色車站與列車、觀光列車圖鑑，以及旅程護照和成就；外語版更新紀錄保留最近八筆精簡內容，較早歷史改用主題摘要</span></li>
         <li data-cl-of="i18n-mvp"><span class="d">8/28</span><span>新增繁中、English、日本語切換：車站與路線名稱、列車跟隨、來車看板、設定、營運提醒、通行證，以及隱私權政策與服務條款會一起切換；選過的語言也會記住</span></li>
@@ -3987,7 +3987,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
-        <li data-cl="i18n-dynamic"><span class="d">8/28</span><span>英文與日文現在也會即時更新最愛、今日台鐵、誤點履歷、帳號同步、Google 清單匯入、分享與 App 等車卡；官方活動只有中文時，會清楚標示「中文原文」</span></li>
+        <li data-cl="i18n-dynamic"><span class="d">8/28</span><span>英文與日文現在也會即時更新最愛、今日台鐵、誤點履歷、帳號同步、Google 清單匯入、分享與「追蹤這站」；並補上災害監看、捷運終點、點選列車／車站、成就說明，以及 iPhone 即時動態與小工具，官方活動只有中文時則標示「中文原文」</span></li>
         <li data-cl="i18n-content"><span class="d">8/28</span><span>英文與日文再補齊品牌介紹、使用說明、特色車站與列車、觀光列車圖鑑，以及旅程護照和成就；外語版更新紀錄保留最近八筆精簡內容，較早歷史改用主題摘要</span></li>
         <li data-cl="i18n-mvp"><span class="d">8/28</span><span>新增繁中、English、日本語切換：車站與路線名稱、列車跟隨、來車看板、設定、營運提醒、通行證，以及隱私權政策與服務條款會一起切換；選過的語言也會記住</span></li>
         <li data-cl="land04c"><span class="d">8/12</span><span>手機橫放第二輪重排（接 8/11 的側邊欄）：時鐘徽章併進頂列、不再浮在地圖上；右下角的「回到列車、隨機跟隨、附近車站、跟隨鎖」收成貼右緣的一疊；跟車資訊欄固定在左側、上下貼齊螢幕，收合成小膠囊時不擋地圖；搜尋改成右半邊全高的面板，打字時鏡頭不會亂跑；停靠站名牌與速度膠囊對齊露出地圖的中線。跟車鏡頭全面改用「露出地圖」置中——把被面板、按鈕、資訊欄蓋住的部分扣掉，列車永遠在看得到的那塊地圖正中央，還會朝行進方向偏一點、提前看到前方路線。這套鏡頭直放也生效：面板展開、跟車小卡浮著時，列車不會再躲到卡片底下</span></li>
@@ -4455,7 +4455,8 @@
 //         data_provenance；小工具「再下一班」eta2 已於 d2a39c3 先行上線。
 // v0828c：網站預設重新開啟 Metro Core；?metrocore=0 保留緊急退路。Core 發布前新增 trajectory
 //         內部跨站閘門，五秒內跨半站的候選留在已發布位置重新銜接，不送到 client。
-const BUILD = 'v0828d';
+// v0828e：補齊災害監看、捷運追蹤、地圖點選與成就 hover，並加入 iPhone 即時動態／小工具英日文。
+const BUILD = 'v0828e';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -4571,10 +4572,18 @@ function i18nCatalogValue(group, sysId, source) {
   if (I18N_LANG === 'zh-TW' || !source) return source || '';
   const table = I18N_CATALOG[group] || {};
   const systems = sysId ? [sysId] : Object.keys(table);
-  const wanted = i18nNormalizeName(source);
+  const sources = [String(source)];
+  // 官方到站看板會回「動物園站」，而靜態路網與官方譯名索引使用「動物園」。只在站名表
+  // 額外試一次去掉尾端「站／車站」；精確名稱仍優先，查不到外語才安全退回原繁中。
+  if (group === 'systems') {
+    const bare = String(source).replace(/(?:車站|站)$/, '').trim();
+    if (bare && bare !== source) sources.push(bare);
+  }
+  const wanted = new Set(sources.map(i18nNormalizeName));
   for (const id of systems) {
     const rows = table[id] || {};
-    const direct = rows[source] || Object.entries(rows).find(([name]) => i18nNormalizeName(name) === wanted)?.[1];
+    const direct = sources.map(name => rows[name]).find(Boolean) ||
+      Object.entries(rows).find(([name]) => wanted.has(i18nNormalizeName(name)))?.[1];
     if (direct && direct[I18N_LANG]) return i18nDisplayForeign(direct[I18N_LANG]);
   }
   return t(source);
@@ -4669,6 +4678,8 @@ function i18nRefreshDynamic() {
   try { if (typeof refreshCurrentMetaI18n === 'function') refreshCurrentMetaI18n(); } catch (e) {}
   try { if (typeof refreshDataNoteI18n === 'function') refreshDataNoteI18n(); } catch (e) {}
   try { if (typeof renderBoard === 'function' && !document.getElementById('board')?.hidden) renderBoard(); } catch (e) {}
+  try { if (typeof refreshMetroWaitButton === 'function') refreshMetroWaitButton(); } catch (e) {}
+  try { if (typeof metroWaitRenderPicker === 'function' && metroWaitPickerDraft) metroWaitRenderPicker(false); } catch (e) {}
   try { if (typeof updateFollowPanel === 'function' && state.followTrain) updateFollowPanel(state.followTrain); } catch (e) {}
   try { if (typeof updateFreqFollowCamera === 'function' && state.freqFollow) updateFreqFollowCamera(false); } catch (e) {}
   try { if (typeof renderFollowBar === 'function' && !document.getElementById('followBar')?.hidden) renderFollowBar(t(state.followStatusMsg)); } catch (e) {}
@@ -4714,7 +4725,8 @@ function i18nRefreshDynamic() {
   i18nSyncLanguageControl();
 }
 function setLanguage(lang) {
-  if (!I18N_LANGS.has(lang) || lang === I18N_LANG) return;
+  if (!I18N_LANGS.has(lang)) return;
+  if (lang === I18N_LANG) { i18nSyncNativeLanguage(lang); return; }
   I18N_LANG = lang;
   document.documentElement.lang = lang;
   try {
@@ -4723,12 +4735,22 @@ function setLanguage(lang) {
     history.replaceState(null, '', url);
   } catch (e) {}
   i18nRefreshDynamic();
+  i18nSyncNativeLanguage(lang);
+}
+function i18nSyncNativeLanguage(lang = I18N_LANG) {
+  try {
+    const plugin = window.Capacitor?.Plugins?.RailLanguage;
+    if (plugin?.setLanguage) Promise.resolve(plugin.setLanguage({ language: lang })).catch(() => {});
+  } catch (e) {}
 }
 window.__i18n = {
   get lang() { return I18N_LANG; }, setLanguage, t, number: i18nNumber,
   stationName, routeName, trainTypeName,
   get catalogReady() { return !!Object.keys(I18N_CATALOG.systems || {}).length; },
 };
+// Capacitor plugin 通常在頁面腳本前就已註冊；再於 DOM ready 補送一次，涵蓋冷啟動時序。
+i18nSyncNativeLanguage();
+document.addEventListener('DOMContentLoaded', () => i18nSyncNativeLanguage(), { once: true });
 // clearFollow() 會在開機途中清掉 query string；Private Metro Core 的 rollout 模式必須在最前面先鎖住，
 // 否則 ?metrocore=0／1 可能在資料輪詢區重讀時已消失。
 const METRO_CORE_QUERY_MODE = (() => {
@@ -17421,11 +17443,11 @@ function buildAchv(rides, style) {
   const ach = unlockedAchievements(rides);
   if (style === 'chip') {
     return phSec('achv', ACHIEVEMENTS.length, null, `${escHtml(t('成就'))}<b>${i18nNumber(ach.size)}/${i18nNumber(ACHIEVEMENTS.length)}</b>`) + `<div class="achv-chips">` +
-      ACHIEVEMENTS.map(a => `<span class="achv-chip${ach.has(a.id) ? ' on' : ''}" title="${escHtml(t(a.desc))}">${railIcon(a.icon)}<span>${escHtml(t(a.name))}</span></span>`).join('') + `</div>`;
+      ACHIEVEMENTS.map(a => `<span class="achv-chip${ach.has(a.id) ? ' on' : ''}" tabindex="0" title="${escHtml(t(a.desc))}" aria-label="${escHtml(t(a.name) + '：' + t(a.desc))}">${railIcon(a.icon)}<span>${escHtml(t(a.name))}</span></span>`).join('') + `</div>`;
   }
   return phSec('achv', ACHIEVEMENTS.length, null, `${escHtml(t('成就徽章'))}<b>${i18nNumber(ach.size)}/${i18nNumber(ACHIEVEMENTS.length)}</b>`) + `<div class="ph-stamps">` +
     ACHIEVEMENTS.map(a =>
-      `<span class="seal${ach.has(a.id) ? ' gold' : ' na'}" title="${escHtml(t(a.desc))}">${sealName(t(a.name), 'achv')}<small>${railIcon(a.icon)}</small></span>`).join('') + '</div>';
+      `<span class="seal${ach.has(a.id) ? ' gold' : ' na'}" tabindex="0" title="${escHtml(t(a.desc))}" aria-label="${escHtml(t(a.name) + '：' + t(a.desc))}">${sealName(t(a.name), 'achv')}<small>${railIcon(a.icon)}</small></span>`).join('') + '</div>';
 }
 // 完乘記錄列:桌面與 sheet 共用同一 markup,mode 決定排序(桌面隨排序鈕,sheet 固定 date 最新在前)
 function buildRideRows(rides, mode) {
@@ -22203,11 +22225,13 @@ function hazardWatchEntries() {
   if (!list.length) return [];
   const types = [...new Set(list.map(h => h.type).filter(Boolean))];
   const sig = hazardSig(list);
+  const typeText = types.map(type => t(type)).join(t('、'));
+  const staleText = watch.stale ? t('。示警來源暫時無法更新，目前沿用尚未到期的上次成功資料') : '';
   return [{ self: true, hazard: true, sig,
-    title: `${types.join('、')}示警生效，已啟動加強監看`,
+    title: t('{types}示警生效，已啟動加強監看', { types: typeText }),
     // 🔴 這句刻意不寫「本站正在判斷班次是否異常」：大批停駛的自家推定已於 08-04 移除
     //（判準誤報率過高，見 applyTrtcBoard 上方的說明），我們現在做的就只是加強重查官方公告。
-    desc: `這是外部災害示警，不代表列車已停駛；軌島已加強重查台鐵、高鐵與捷運的官方營運公告${watch.stale ? '。示警來源暫時無法更新，目前沿用尚未到期的上次成功資料' : ''}。列車是否停駛請以各營運單位公告為準。來源：NCDR 民生示警公開資料平台。` }];
+    desc: t('這是外部災害示警，不代表列車已停駛；軌島已加強重查台鐵、高鐵與捷運的官方營運公告{stale}。列車是否停駛請以各營運單位公告為準。來源：NCDR 民生示警公開資料平台。', { stale: staleText }) }];
 }
 // 目前模式該顯示的公告:官方公告在前、自家觀測在後。sched=台鐵/高鐵(+全台同框帶捷運公告);freq=捷運(只留畫面上勾選中系統)
 function activeAlertList() {
@@ -23629,7 +23653,7 @@ function metroWaitBoardHtml(st, sys) {
   if (!sys || !metroWaitEnabled()) return '';
   const on = !!(state.metroWait && state.metroWait.sys === sys && state.metroWait.station === st.name);
   return `<button class="board-wait${on ? ' on' : ''}" id="boardWait" type="button" data-sys="${escHtml(sys)}">` +
-    `${on ? '結束追蹤' : '追蹤這站'}</button>`;
+    `${escHtml(t(on ? '結束追蹤' : '追蹤這站'))}</button>`;
 }
 // 綁按鈕 click。stopPropagation 比照 boardNotify:h3 內本來就不在 .row[data-li] 上,容器層的
 // 通用列點擊 handler 靠 pointerdown 先清 _downKey 已經不會誤吃,這裡多一道防禦與既有寫法一致。
@@ -23756,18 +23780,14 @@ function metroWaitClosePicker(restoreFocus = true) {
 function metroWaitChoiceTime(sys, row) {
   return sys === 'trtc' ? trtcOfficialAbsoluteHM(row.eta) : t('{n} 分', { n: i18nNumber(Number(row.minutes)) }, Number(row.minutes));
 }
-function metroWaitOpenPicker(sys, st, lines, isDeco, bundle, opener) {
+function metroWaitCatalogSystem(sys) { return sys === 'trtc' ? 'mrt' : sys; }
+function metroWaitRenderPicker(focusFirst = true) {
   const modal = document.getElementById('metroWaitPicker'), choices = document.getElementById('metroWaitPickerChoices');
-  if (!modal || !choices) return;
-  const seen = new Set(), directions = [];
-  for (const row of bundle.rows) {
-    if (seen.has(row.dest)) continue;
-    seen.add(row.dest); directions.push({ dest: row.dest, row });
-  }
-  // 時長每次開單重設 30:上一次選 90 不默默沿用,選單重開就回預設,誤觸成本最低。
-  metroWaitPickerDraft = { sys, st, lines, isDeco, bundle, opener, directions, durationMin: 30 };
+  const draft = metroWaitPickerDraft;
+  if (!modal || !choices || !draft) return;
+  const { sys, st, directions } = draft;
   for (const b of document.querySelectorAll('#metroWaitDurs .metro-wait-dur')) {
-    b.classList.toggle('on', b.dataset.waitDur === '30');
+    b.classList.toggle('on', Number(b.dataset.waitDur) === draft.durationMin);
   }
   // 單方向站(環狀線端點類)沒得選方向,但時長仍要選 ⇒ 方向段落整段收起,只剩一顆「開始追蹤」。
   const multi = directions.length > 1;
@@ -23777,16 +23797,26 @@ function metroWaitOpenPicker(sys, st, lines, isDeco, bundle, opener) {
     ? '<button class="metro-wait-choice on" type="button" data-wait-choice="all" aria-label="' + escHtml(t('最快一班，全部方向')) + '">' +
       '<span class="metro-wait-choice-label">' + escHtml(t('最快一班（全部方向）')) + '</span></button>' + directions.map((d, i) =>
         '<button class="metro-wait-choice" type="button" data-wait-choice="' + i + '">' +
-          '<span class="metro-wait-choice-label">' + escHtml(t('往 {station}', { station: stationName(d.dest, st && st.sys) })) + '</span>' +
+          '<span class="metro-wait-choice-label">' + escHtml(t('往{station}', { station: stationName(d.dest, metroWaitCatalogSystem(sys)) })) + '</span>' +
           '<span class="metro-wait-choice-dash">——</span>' +
           '<span class="metro-wait-choice-time">' + escHtml(metroWaitChoiceTime(sys, d.row)) + '</span>' +
         '</button>').join('')
     : '<button class="metro-wait-choice on" type="button" data-wait-choice="all">' +
-      '<span class="metro-wait-choice-label">' + escHtml(t('開始追蹤 往 {station}', { station: stationName(directions[0].dest, st && st.sys) })) + '</span>' +
+      '<span class="metro-wait-choice-label">' + escHtml(t('開始追蹤 往{station}', { station: stationName(directions[0].dest, metroWaitCatalogSystem(sys)) })) + '</span>' +
       '<span class="metro-wait-choice-dash">——</span>' +
       '<span class="metro-wait-choice-time">' + escHtml(metroWaitChoiceTime(sys, directions[0].row)) + '</span></button>';
   modal.hidden = false;
-  requestAnimationFrame(() => { const first = choices.querySelector('.metro-wait-choice'); if (first) first.focus(); });
+  if (focusFirst) requestAnimationFrame(() => { const first = choices.querySelector('.metro-wait-choice'); if (first) first.focus(); });
+}
+function metroWaitOpenPicker(sys, st, lines, isDeco, bundle, opener) {
+  const seen = new Set(), directions = [];
+  for (const row of bundle.rows) {
+    if (seen.has(row.dest)) continue;
+    seen.add(row.dest); directions.push({ dest: row.dest, row });
+  }
+  // 時長每次開單重設 30:上一次選 90 不默默沿用,選單重開就回預設,誤觸成本最低。
+  metroWaitPickerDraft = { sys, st, lines, isDeco, bundle, opener, directions, durationMin: 30 };
+  metroWaitRenderPicker();
 }
 async function metroWaitStartFromBoard(sys, st, lines, isDeco, opener) {
   if (!metroWaitEnabled()) return;
@@ -25865,7 +25895,7 @@ async function boot() {
   function openTapPick(cp, items) {
     const el = document.getElementById('tapPick');
     el.innerHTML = items.map((it, i) =>
-      `<button class="tp-row" type="button" data-i="${i}">${it.icon ? `<span class="tp-ic">${it.icon}</span>` : ''}<span class="tp-tx">${it.label}</span></button>`).join('');
+      `<button class="tp-row" type="button" data-i="${i}">${it.icon ? `<span class="tp-ic">${it.icon}</span>` : ''}<span class="tp-tx">${escHtml(it.label)}</span></button>`).join('');
     el.hidden = false;
     // 先顯示才量得到尺寸;貼點擊處下方、夾回 stage 內;手機全畫面讓開底部 tab bar(v0716c 教訓)
     const stage = document.querySelector('.stage');
@@ -25882,14 +25912,19 @@ async function boot() {
   }
   function tapPickStation(st) {
     // 共構疊站(台鐵/高鐵/捷運的「台北」們)靠系統名分清楚選的是哪張板;捷運分頁內(freq)無跨系統疊站,不標
-    const sys = st.sys === 'deco' ? '捷運' : st.sys === 'freq' ? '' : ((state.systems.find(x => x.id === st.sys) || {}).label || '');
-    return { icon: '', label: `${st.name}${sys ? '・' + sys : ''}　車站看板`, run: () => openBoard(st) };
+    const sysId = st.metroSysId || (st.sys === 'deco' || st.sys === 'freq' ? '' : st.sys);
+    const sys = ((state.systems.find(x => x.id === sysId) || {}).label || (st.sys === 'deco' ? '捷運' : ''));
+    const station = stationName(st.name, sysId);
+    const label = sys ? t('{station}・{system}　車站看板', { station, system: t(sys) })
+      : t('{station}　車站看板', { station });
+    return { icon: '', label, run: () => openBoard(st) };
   }
   function tapPickSchedTrain(hit) {
     const tr = hit.tr, on = tr === state.followTrain;
-    const dest = tr.loop ? tr.loopName : `${tr.typeName} 往 ${tr.stops[tr.stops.length - 1].name}`;
+    const dest = tr.loop ? routeName(tr.loopName, tr.sys) :
+      [trainTypeName(tr.typeName), t('往 {station}', { station: stationName(tr.stops[tr.stops.length - 1].name, tr.sys) })].filter(Boolean).join(' ');
     return {
-      icon: '', label: on ? `取消跟隨 ${tr.train} 次` : `跟隨 ${tr.train} 次　${dest}`,
+      icon: '', label: on ? t('取消跟隨 {train} 次', { train: tr.train }) : t('跟隨 {train} 次　{destination}', { train: tr.train, destination: dest }),
       run: () => {
         if (on) { setAutoTour(false); clearFollow(); return; }
         const ts = document.getElementById('trainSearch'); if (ts) ts.value = tr.train;
@@ -25900,14 +25935,19 @@ async function boot() {
   function tapPickFreqTrain(fh) {
     const f = state.freqFollow;
     const same = trtcOfficialSameTarget(f, fh);
-    const nm = (fh.ln._sysLabel ? fh.ln._sysLabel + ' ' : '') + (fh.ln.name || fh.ln.abbr || '捷運');
+    const sysId = freqSysIdOf(fh.ln);
+    const system = fh.ln._sysLabel ? t(fh.ln._sysLabel) : '';
+    const line = routeName(fh.ln.name || fh.ln.abbr || '捷運', sysId);
+    const nm = [system, line].filter((value, index, values) => value && values.indexOf(value) === index).join(' ');
     const vehicle = fh.vehicleId != null && state.trtcOfficialRoster && state.trtcOfficialRoster.vehicles.find(v =>
       String(v.vehicleId) === String(fh.vehicleId));
     const no = vehicle && String(vehicle.officialNo || '');
-    const direction = vehicle && fh.ln.stations[Number(vehicle.dest)] ? '往 ' + fh.ln.stations[Number(vehicle.dest)].name : '';
+    const direction = vehicle && fh.ln.stations[Number(vehicle.dest)]
+      ? t('往 {station}', { station: stationName(fh.ln.stations[Number(vehicle.dest)].name, sysId) }) : '';
     const detail = [no, direction].filter(Boolean).join('・');
-    return { icon: '', label: same ? `取消跟隨（${nm}${detail ? '・' + detail : ''}）`
-      : `跟隨列車（${nm}${detail ? '・' + detail : ''}）`, run: () => { if (same) clearFreqFollow(); else setFreqFollow(fh); } };
+    const service = nm + (detail ? '・' + detail : '');
+    return { icon: '', label: t(same ? '取消跟隨（{service}）' : '跟隨列車（{service}）', { service }),
+      run: () => { if (same) clearFreqFollow(); else setFreqFollow(fh); } };
   }
   map.on('click', e => {
     const cp = e.containerPoint || map.latLngToContainerPoint(e.latlng);

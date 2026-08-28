@@ -24,6 +24,9 @@
 		56F5C66530220000003C7FE0 /* MetroWaitStartIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C66330220000003C7FE0 /* MetroWaitStartIntent.swift */; };
 		56F5C66730220000003C7FE0 /* MetroBoardModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C66630220000003C7FE0 /* MetroBoardModel.swift */; };
 		56F5C66930220000003C7FE0 /* MetroWidgetData.json in Resources */ = {isa = PBXBuildFile; fileRef = 56F5C66830220000003C7FE0 /* MetroWidgetData.json */; };
+		56F5C66A30280000003C7FE0 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 56F5C66C30280000003C7FE0 /* Localizable.xcstrings */; };
+		56F5C66B30280000003C7FE0 /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 56F5C66D30280000003C7FE0 /* InfoPlist.xcstrings */; };
+		56F5C66E30280000003C7FE0 /* RailLanguagePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C66F30280000003C7FE0 /* RailLanguagePlugin.swift */; };
 		56F5C634301D0000003C7FE0 /* RailLiveActivityPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C633301D0000003C7FE0 /* RailLiveActivityPlugin.swift */; };
 		56F5C644301F0000003C7FE0 /* RailMetroWaitPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C643301F0000003C7FE0 /* RailMetroWaitPlugin.swift */; };
 		56F5C627301A0000003C7FE0 /* RailBoardScheduleWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C626301A0000003C7FE0 /* RailBoardScheduleWriter.swift */; };
@@ -77,6 +80,9 @@
 		56F5C66330220000003C7FE0 /* MetroWaitStartIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetroWaitStartIntent.swift; sourceTree = "<group>"; };
 		56F5C66630220000003C7FE0 /* MetroBoardModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MetroBoardModel.swift; path = RailBoardWidget/MetroBoardModel.swift; sourceTree = SOURCE_ROOT; };
 		56F5C66830220000003C7FE0 /* MetroWidgetData.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = MetroWidgetData.json; path = RailBoardWidget/MetroWidgetData.json; sourceTree = SOURCE_ROOT; };
+		56F5C66C30280000003C7FE0 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; name = Localizable.xcstrings; path = RailBoardWidget/Localizable.xcstrings; sourceTree = SOURCE_ROOT; };
+		56F5C66D30280000003C7FE0 /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
+		56F5C66F30280000003C7FE0 /* RailLanguagePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RailLanguagePlugin.swift; sourceTree = "<group>"; };
 		56F5C633301D0000003C7FE0 /* RailLiveActivityPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RailLiveActivityPlugin.swift; sourceTree = "<group>"; };
 		56F5C626301A0000003C7FE0 /* RailBoardScheduleWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RailBoardScheduleWriter.swift; sourceTree = "<group>"; };
 		504EC30C1FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
@@ -175,6 +181,9 @@
 				56F5C66030220000003C7FE0 /* MetroWidgetShared.swift */,
 				56F5C66630220000003C7FE0 /* MetroBoardModel.swift */,
 				56F5C66830220000003C7FE0 /* MetroWidgetData.json */,
+				56F5C66C30280000003C7FE0 /* Localizable.xcstrings */,
+				56F5C66D30280000003C7FE0 /* InfoPlist.xcstrings */,
+				56F5C66F30280000003C7FE0 /* RailLanguagePlugin.swift */,
 				56F5C633301D0000003C7FE0 /* RailLiveActivityPlugin.swift */,
 				56F5C643301F0000003C7FE0 /* RailMetroWaitPlugin.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
@@ -268,6 +277,7 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				ja,
 				Base,
 				"zh-Hant",
 			);
@@ -297,6 +307,8 @@
 				504EC30D1FED79650016851F /* Main.storyboard in Resources */,
 				2FAD9763203C412B000D30F8 /* config.xml in Resources */,
 				56F5C66930220000003C7FE0 /* MetroWidgetData.json in Resources */,
+				56F5C66A30280000003C7FE0 /* Localizable.xcstrings in Resources */,
+				56F5C66B30280000003C7FE0 /* InfoPlist.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -362,6 +374,7 @@
 				56F5C66730220000003C7FE0 /* MetroBoardModel.swift in Sources */,
 				56F5C634301D0000003C7FE0 /* RailLiveActivityPlugin.swift in Sources */,
 				56F5C644301F0000003C7FE0 /* RailMetroWaitPlugin.swift in Sources */,
+				56F5C66E30280000003C7FE0 /* RailLanguagePlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -464,7 +477,7 @@
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -520,7 +533,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				VALIDATE_PRODUCT = YES;
@@ -612,7 +625,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = tw.railisland.app.RailBoardWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -651,7 +664,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = tw.railisland.app.RailBoardWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;

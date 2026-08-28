@@ -38,7 +38,7 @@ func stationRegionSections(_ stations: [StationOption]) -> [IntentItemSection<St
     return order.compactMap { region -> IntentItemSection<String>? in
         guard let items = byRegion[region], !items.isEmpty else { return nil }
         return IntentItemSection(
-            LocalizedStringResource(stringLiteral: region),
+            LocalizedStringResource(stringLiteral: RailNativeL10n.name(region)),
             items: items.map(\.intentItem)
         )
     }
@@ -65,8 +65,8 @@ func compositeSection() -> IntentItemSection<String>? {
         items: composites.map {
             IntentItem(
                 $0.key,
-                title: LocalizedStringResource(stringLiteral: $0.label),
-                subtitle: LocalizedStringResource(stringLiteral: $0.subtitle)
+                title: LocalizedStringResource(stringLiteral: RailNativeL10n.option($0.label)),
+                subtitle: LocalizedStringResource(stringLiteral: RailNativeL10n.option($0.subtitle))
             )
         }
     )
@@ -239,8 +239,8 @@ extension FilterOption {
     var intentItem: IntentItem<String> {
         IntentItem(
             key,
-            title: LocalizedStringResource(stringLiteral: title),
-            subtitle: subtitle.map { LocalizedStringResource(stringLiteral: $0) }
+            title: LocalizedStringResource(stringLiteral: RailNativeL10n.option(title)),
+            subtitle: subtitle.map { LocalizedStringResource(stringLiteral: RailNativeL10n.option($0)) }
         )
     }
 }
@@ -251,8 +251,8 @@ extension StationOption {
     var intentItem: IntentItem<String> {
         IntentItem(
             key,
-            title: LocalizedStringResource(stringLiteral: name),
-            subtitle: LocalizedStringResource(stringLiteral: systemLabel)
+            title: LocalizedStringResource(stringLiteral: RailNativeL10n.name(name)),
+            subtitle: LocalizedStringResource(stringLiteral: RailNativeL10n.name(systemLabel))
         )
     }
 }
@@ -263,7 +263,7 @@ extension PlaceStationOption {
         IntentItem(
             key,
             title: LocalizedStringResource(stringLiteral: displayLabel),
-            subtitle: LocalizedStringResource(stringLiteral: subtitle)
+            subtitle: LocalizedStringResource(stringLiteral: RailNativeL10n.option(subtitle))
         )
     }
 }

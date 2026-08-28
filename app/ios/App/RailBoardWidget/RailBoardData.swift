@@ -58,9 +58,16 @@ enum RailBoardClock {
     }
 
     static func weekdayString(_ date: Date) -> String {
-        let names = ["日", "一", "二", "三", "四", "五", "六"]
-        let weekday = calendar.component(.weekday, from: date)
-        return names[max(0, min(names.count - 1, weekday - 1))]
+        if Locale.current.identifier.hasPrefix("zh") {
+            let names = ["日", "一", "二", "三", "四", "五", "六"]
+            let weekday = calendar.component(.weekday, from: date)
+            return names[max(0, min(names.count - 1, weekday - 1))]
+        }
+        let formatter = DateFormatter()
+        formatter.locale = .current
+        formatter.timeZone = taipeiTimeZone
+        formatter.dateFormat = "EEE"
+        return formatter.string(from: date)
     }
 
     static func parseDate(_ value: String) -> Date? {
@@ -782,9 +789,14 @@ enum ScheduleNotice: Equatable {
     var text: String {
         switch self {
         case .expiring(let until):
-            return "班表只到 \(RailBoardClock.monthDayString(until)) · 請更新軌島"
+            return RailNativeL10n.text("班表只到 {date} · 請更新軌島", [
+                "date": RailBoardClock.monthDayString(until)
+            ])
         case .expired(let source):
-            return "依 \(RailBoardClock.monthDayString(source))（同週\(RailBoardClock.weekdayString(source))）班表 · 請更新軌島"
+            return RailNativeL10n.text("依 {date}（同週{weekday}）班表 · 請更新軌島", [
+                "date": RailBoardClock.monthDayString(source),
+                "weekday": RailBoardClock.weekdayString(source)
+            ])
         }
     }
 }

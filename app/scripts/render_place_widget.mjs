@@ -66,8 +66,10 @@ function extractDeclaration(source, header, { occurrence = 1 } = {}) {
 
 const widgetSource = readFileSync(join(widgetDir, 'RailBoardWidget.swift'), 'utf8');
 const dataSource = readFileSync(join(widgetDir, 'RailBoardData.swift'), 'utf8');
+const l10nSource = readFileSync(join(widgetDir, 'RailNativeL10n.swift'), 'utf8');
 
 const pieces = [
+  extractDeclaration(l10nSource, 'enum RailNativeL10n'),
   extractDeclaration(dataSource, 'enum RailBoardClock'),
   extractDeclaration(widgetSource, 'extension Color'),
   extractDeclaration(widgetSource, 'struct PlaceBoardRow'),
