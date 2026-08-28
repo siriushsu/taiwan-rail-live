@@ -1,6 +1,6 @@
 package com.getcapacitor.myapp;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertTrue;
 
 import android.content.Context;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -17,10 +17,12 @@ import org.junit.runner.RunWith;
 public class ExampleInstrumentedTest {
 
     @Test
-    public void useAppContext() throws Exception {
+    public void useAppContext() {
         // Context of the app under test.
         Context appContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
 
-        assertEquals("com.getcapacitor.app", appContext.getPackageName());
+        // 正式包與 -PrailApplicationId 建出的並存真機測試包都必須留在軌島命名空間；
+        // Capacitor 範本的 com.getcapacitor.app 從來不是本專案的 applicationId。
+        assertTrue(appContext.getPackageName().startsWith("tw.railisland.app"));
     }
 }

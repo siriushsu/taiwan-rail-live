@@ -39,6 +39,11 @@ import java.util.TimeZone;
 final class RailWidgetData {
     static final String SYS_COMPOSITE = "railboth";
     static final String AUTO = "__auto__";
+    static final String PLACE_PREFIX = "place|";
+    static final String PLACES_PREFS = "rail_places";
+    static final String PLACES_KEY = "places";
+    private static final double PLACE_MAX_METERS = 5_000.0;
+    private static final double PLACE_TIE_METERS = 300.0;
     private static final String LIVE_URL = "https://railisland.tw/api/tra-live";
     private static final String THSR_SCHEDULE_URL = "https://railisland.tw/api/thsr-schedule";
     private static final TimeZone TAIPEI = TimeZone.getTimeZone("Asia/Taipei");
@@ -57,6 +62,33 @@ final class RailWidgetData {
             this.lat = lat;
             this.lon = lon;
         }
+    }
+
+    static final class PlaceOption {
+        final String key;
+        final String label;
+        final String sys;
+        final String station;
+        final boolean manual;
+        final double distanceMeters;
+
+        PlaceOption(String key, String label, String sys, String station, boolean manual, double distanceMeters) {
+            this.key = key; this.label = label; this.sys = sys; this.station = station;
+            this.manual = manual; this.distanceMeters = distanceMeters;
+        }
+
+        String displayLabel(Catalog catalog) {
+            SystemInfo system = catalog.byId.get(sys);
+            return "我的地點 · " + (label.isEmpty() ? "未命名地點" : label) + "（"
+                + (system == null ? sys : system.label) + " " + station + "）";
+        }
+    }
+
+    static final class FilterOption {
+        final String key;
+        final String label;
+        FilterOption(String key, String label) { this.key = key; this.label = label; }
+        @Override public String toString() { return label; }
     }
 
     static final class Stop {
@@ -279,9 +311,134 @@ final class RailWidgetData {
         return out;
     }
 
+    static boolean isPlace(String key) { return key != null && key.startsWith(PLACE_PREFIX); }
+
+    static List<PlaceOption> places(Context context, Catalog catalog, String requiredSystem,
+                                    Set<String> allowedStations) {
+        List<JSONObject> raw = savedPlaces(context);
+        List<PlaceOption> out = new ArrayList<>();
+        for (JSONObject place : raw) {
+            PlaceOption option = nearestPlace(catalog, place.optDouble("lat", Double.NaN),
+                place.optDouble("lon", Double.NaN), place.optString("label", ""),
+                place.optBoolean("manual", true), requiredSystem, allowedStations);
+            if (option != null) out.add(option);
+        }
+        out.sort((a, b) -> {
+            if (a.manual != b.manual) return a.manual ? -1 : 1;
+            int distance = Double.compare(a.distanceMeters, b.distanceMeters);
+            if (distance != 0) return distance;
+            int label = a.label.compareTo(b.label);
+            return label != 0 ? label : a.key.compareTo(b.key);
+        });
+        if (out.size() > 20) out.subList(20, out.size()).clear();
+        return out;
+    }
+
+    static PlaceOption resolvePlace(Context context, Catalog catalog, String key, String requiredSystem,
+                                    Set<String> allowedStations) {
+        if (!isPlace(key)) return null;
+        String[] parts = key.split("\\|", 3);
+        if (parts.length != 3) return null;
+        String[] coordinate = parts[1].split(",", 2);
+        if (coordinate.length != 2) return null;
+        double lat, lon;
+        try { lat = Double.parseDouble(coordinate[0]); lon = Double.parseDouble(coordinate[1]); }
+        catch (NumberFormatException ignored) { return null; }
+        String label = parts[2];
+        if (!label.isEmpty()) {
+            JSONObject unique = null;
+            for (JSONObject place : savedPlaces(context)) if (label.equals(place.optString("label", ""))) {
+                if (unique != null) { unique = null; break; }
+                unique = place;
+            }
+            if (unique != null) {
+                lat = unique.optDouble("lat", lat); lon = unique.optDouble("lon", lon);
+            }
+        }
+        return nearestPlace(catalog, lat, lon, label, true, requiredSystem, allowedStations);
+    }
+
+    private static PlaceOption nearestPlace(Catalog catalog, double lat, double lon, String label,
+                                            boolean manual, String requiredSystem, Set<String> allowedStations) {
+        if (!Double.isFinite(lat) || !Double.isFinite(lon)) return null;
+        final class Candidate {
+            String sys; Station station; double distance; int departures;
+        }
+        List<Candidate> candidates = new ArrayList<>();
+        double closest = Double.MAX_VALUE;
+        for (SystemInfo system : catalog.systems) {
+            if (!("tra".equals(system.id) || "thsr".equals(system.id))) continue;
+            if (requiredSystem != null && !requiredSystem.isEmpty() && !requiredSystem.equals(system.id)) continue;
+            for (Station station : system.stations) {
+                if (allowedStations != null && !allowedStations.contains(station.name)) continue;
+                float[] result = new float[1];
+                Location.distanceBetween(lat, lon, station.lat, station.lon, result);
+                Candidate candidate = new Candidate();
+                candidate.sys = system.id; candidate.station = station; candidate.distance = result[0];
+                candidate.departures = departureCount(system, station.name);
+                candidates.add(candidate);
+                closest = Math.min(closest, candidate.distance);
+            }
+        }
+        if (closest > PLACE_MAX_METERS) return null;
+        final double closestDistance = closest;
+        candidates.removeIf(candidate -> candidate.distance > closestDistance + PLACE_TIE_METERS);
+        candidates.sort((a, b) -> {
+            if (a.departures != b.departures) return Integer.compare(b.departures, a.departures);
+            int distance = Double.compare(a.distance, b.distance);
+            if (distance != 0) return distance;
+            int system = a.sys.compareTo(b.sys);
+            return system != 0 ? system : a.station.name.compareTo(b.station.name);
+        });
+        if (candidates.isEmpty()) return null;
+        Candidate best = candidates.get(0);
+        String key = PLACE_PREFIX + String.format(Locale.US, "%.6f,%.6f", lat, lon) + "|" + label;
+        return new PlaceOption(key, label, best.sys, best.station.name, manual, best.distance);
+    }
+
+    private static int departureCount(SystemInfo system, String station) {
+        int count = 0;
+        for (Train train : system.trains) {
+            int at = indexOf(train.stops, station);
+            if (at >= 0 && at < train.stops.size() - 1) count++;
+        }
+        return count;
+    }
+
+    private static List<JSONObject> savedPlaces(Context context) {
+        List<JSONObject> out = new ArrayList<>();
+        String raw = context.getSharedPreferences(PLACES_PREFS, Context.MODE_PRIVATE)
+            .getString(PLACES_KEY, "[]");
+        try {
+            JSONArray places = new JSONArray(raw);
+            for (int i = 0; i < places.length(); i++) {
+                JSONObject place = places.optJSONObject(i);
+                if (place != null) out.add(place);
+            }
+        } catch (JSONException ignored) {}
+        return out;
+    }
+
     static Snapshot fetch(Context context, String sys, String origin, String destination) throws Exception {
+        return fetch(context, sys, origin, destination, Collections.emptyList());
+    }
+
+    static Snapshot fetch(Context context, String sys, String origin, String destination,
+                          List<String> filters) throws Exception {
         Catalog catalog = catalog(context);
         long now = System.currentTimeMillis();
+        String originLabel = null, destinationLabel = null;
+        if (isPlace(origin)) {
+            PlaceOption place = resolvePlace(context, catalog, origin, "", null);
+            if (place == null) throw new IllegalArgumentException("place origin");
+            sys = place.sys; origin = place.station; originLabel = place.label;
+        }
+        if (isPlace(destination)) {
+            Set<String> direct = new LinkedHashSet<>(destinations(catalog, sys, origin));
+            PlaceOption place = resolvePlace(context, catalog, destination, sys, direct);
+            if (place == null) throw new IllegalArgumentException("place destination");
+            destination = place.station; destinationLabel = place.label;
+        }
         Snapshot out;
         if (SYS_COMPOSITE.equals(sys)) {
             Composite pair = catalog.compositeByKey.get(origin);
@@ -302,6 +459,9 @@ final class RailWidgetData {
             if (system == null) throw new JSONException("unknown system");
             out = prepare(system, origin, destination, now);
         }
+        if (originLabel != null && !originLabel.isEmpty()) out.origin = originLabel;
+        if (destinationLabel != null && !destinationLabel.isEmpty()) out.destination = destinationLabel;
+        applyFilters(out.rows, filters);
         Map<String, Integer> delays = containsTra(out.rows) ? fetchDelays() : Collections.emptyMap();
         for (Row row : out.rows) if ("tra".equals(row.sys) && delays.containsKey(row.no)) {
             row.delayMinutes = delays.get(row.no);
@@ -309,6 +469,57 @@ final class RailWidgetData {
         out.rows.sort(Comparator.comparingLong(Row::expectedAt).thenComparing(row -> row.no));
         if (out.rows.size() > 12) out.rows.subList(12, out.rows.size()).clear();
         return out;
+    }
+
+    static List<FilterOption> filterOptions(Context context, Catalog catalog, String sys, String origin) {
+        boolean placeOrigin = isPlace(origin);
+        if (placeOrigin) {
+            PlaceOption place = resolvePlace(context, catalog, origin, "", null);
+            if (place == null) return Collections.emptyList();
+            sys = place.sys; origin = place.station;
+        }
+        LinkedHashMap<String, Integer> types = new LinkedHashMap<>();
+        LinkedHashSet<String> numbers = new LinkedHashSet<>(), termini = new LinkedHashSet<>();
+        SystemInfo system = catalog.byId.get(sys);
+        if (system == null) return Collections.emptyList();
+        for (Train train : system.trains) {
+            int at = indexOf(train.stops, origin);
+            if (at < 0 || at >= train.stops.size() - 1) continue;
+            types.put(train.type, types.getOrDefault(train.type, 0) + 1);
+            if (!train.no.isEmpty()) numbers.add(train.no);
+            if (!train.stops.isEmpty()) termini.add(train.stops.get(train.stops.size() - 1).name);
+        }
+        List<FilterOption> out = new ArrayList<>();
+        if (placeOrigin) for (String terminus : termini) {
+            out.add(new FilterOption("dir|" + sys + "|" + terminus, "方向 · 往 " + terminus));
+        }
+        List<Map.Entry<String, Integer>> typeList = new ArrayList<>(types.entrySet());
+        typeList.sort((a, b) -> !a.getValue().equals(b.getValue())
+            ? Integer.compare(b.getValue(), a.getValue()) : a.getKey().compareTo(b.getKey()));
+        for (Map.Entry<String, Integer> entry : typeList) {
+            out.add(new FilterOption("ty|" + entry.getKey(), "車種 · " + entry.getKey() + "（" + entry.getValue() + " 班）"));
+        }
+        List<String> numberList = new ArrayList<>(numbers); Collections.sort(numberList);
+        for (String no : numberList) out.add(new FilterOption("no|" + no, "車次 · " + no));
+        return out;
+    }
+
+    private static void applyFilters(List<Row> rows, List<String> keys) {
+        if (keys == null || keys.isEmpty()) return;
+        Set<String> types = new HashSet<>(), numbers = new HashSet<>(), directions = new HashSet<>();
+        for (String key : keys) {
+            if (key == null) continue;
+            if (key.startsWith("ty|") && key.length() > 3) types.add(key.substring(3));
+            else if (key.startsWith("no|") && key.length() > 3) numbers.add(key.substring(3));
+            else if (key.startsWith("dir|") && key.length() > 4) directions.add(key.substring(4));
+        }
+        if (types.isEmpty() && numbers.isEmpty() && directions.isEmpty()) return;
+        rows.removeIf(row -> {
+            boolean trainMatch = types.isEmpty() && numbers.isEmpty()
+                || types.contains(row.type) || numbers.contains(row.no);
+            boolean directionMatch = directions.isEmpty() || directions.contains(row.sys + "|" + row.terminus);
+            return !(trainMatch && directionMatch);
+        });
     }
 
     private static Snapshot prepare(SystemInfo system, String origin, String destination, long now) throws ParseException {

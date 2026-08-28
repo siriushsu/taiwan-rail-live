@@ -66,15 +66,15 @@ ok(!!r && r.showWhatsNew === false, '🔴 第一次裝(seen 不存在) → 不�
 r = await S('1.4.1', '1.4.1', { seen: '1.4.0', dismissed: null, whatsnewSeen: '1.4.1' });
 ok(!!r && r.showWhatsNew === false, '同一版的更新卡片看過就不再出現');
 r = await S('1.4.8', '1.4.6', { seen: '1.4.6', dismissed: null, whatsnewSeen: null });
-ok(!!r && r.showWhatsNew === false && r.hasUpdate === false && r.showBanner === false && r.pending === true,
-   '🔴 A4 手上比商店新(審查中/lookup 落後):不可拿上一版的說明冒充,且回 pending 讓 seen 先不推進');
+ok(!!r && r.showWhatsNew === true && r.hasUpdate === false && r.showBanner === false,
+   '🔴 A4 手上比商店新(審查中/lookup 落後):仍用本機內建文案顯示這次更新，不拿商店舊版說明冒充');
 r = await S('1.4.8', '1.4.6', { seen: '1.4.8', dismissed: null, whatsnewSeen: null });
-ok(!!r && r.showWhatsNew === false && r.pending === false, 'A4b 手上比商店新但 seen 已是本版 → 不 pending(避免每次開機都被擋著不寫)');
+ok(!!r && r.showWhatsNew === false, 'A4b 手上比商店新但 seen 已是本版 → 不重複顯示');
 r = await S('1.4.8', '1.4.8', { seen: '1.4.6', dismissed: null, whatsnewSeen: null });
 ok(!!r && r.showWhatsNew === true, 'A4c 商店追上之後(seen 仍是舊版)→ 這時才顯示本版「更新了什麼」');
 r = await S('1.4.1', null, { seen: '1.4.0', dismissed: null, whatsnewSeen: null });
-ok(!!r && r.hasUpdate === false && r.showBanner === false && r.showWhatsNew === false,
-   '查詢失敗(latest 為 null) → 全部安靜');
+ok(!!r && r.hasUpdate === false && r.showBanner === false && r.showWhatsNew === true,
+   '查詢失敗(latest 為 null) → 不報新版，但本機內建的本版更新內容仍可顯示');
 
 console.log('\n【C】查詢、快取與失敗靜默');
 // 網站版:不注入 RAIL_APP_VERSION ⇒ 連請求都不該發(平台閘門的正向證明)
@@ -119,7 +119,7 @@ ok(!failState || failState.state.showBanner === false, '查詢失敗 → 不顯�
 ok(await appPage.evaluate(() => !!document.getElementById('map')), '🔴 查詢失敗不得擋住頁面（地圖仍在）');
 await appPage.close();
 
-console.log('\n【C-Android】不查 Apple，但保留軌島／評分入口');
+console.log('\n【C-Android】Play Core 更新狀態與側載保守文案');
 const androidPage = await browser.newPage();
 const androidAppleReqs = [];
 androidPage.on('request', r => { if (r.url().includes('itunes.apple.com')) androidAppleReqs.push(r.url()); });
@@ -128,14 +128,17 @@ await androidPage.setViewportSize({ width: 390, height: 844 });
 await androidPage.addInitScript(() => {
   window.RAIL_APP_VERSION = '1.4.2';
   window.Capacitor = { getPlatform: () => 'android', Plugins: {} };
+  window.RAIL_NATIVE_APPUPDATE = { check: async () => ({
+    ok: true, playInstalled: false, available: false, availableVersionCode: 0,
+  }) };
   try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {}
 });
 await androidPage.goto(BASE + '/index.html', { waitUntil: 'domcontentloaded' });
 const androidState = await androidPage.waitForFunction(() => window.__appverLast || null, { timeout: 20000 })
   .then(h => h.jsonValue()).catch(() => null);
 ok(androidAppleReqs.length === 0, '🔴 Android 完全不打 itunes.apple.com');
-ok(!!androidState && androidState.platform === 'android' && androidState.latest === null,
-   'Android 回傳專屬 UI 狀態，latest 維持 null');
+ok(!!androidState && androidState.latest && androidState.latest.android === true,
+   'Android 回傳 Play Core 專屬更新狀態');
 ok(!!androidState && androidState.state.hasUpdate === false && androidState.state.showBanner === false,
    'Android 不宣稱有新版，也不顯示更新橫幅');
 // Android 不打網路，__appverLast 會比既有 iOS 路徑早很多出現；等到真實可操作的 boot-ready
@@ -145,9 +148,52 @@ await androidPage.locator('#tabMore').click().catch(() => {});
 await androidPage.waitForTimeout(400);
 ok(await androidPage.locator('#msAppSec').isVisible().catch(() => false), 'Android「軌島」段可見');
 ok(await androidPage.locator('.ms-row[data-act="rate"]').isVisible().catch(() => false), 'Android 評分列可見');
-ok(!(await androidPage.locator('.ms-row[data-act="update"]').isVisible().catch(() => false)), '🔴 Android 更新列不出現');
+const androidUpdateRow = androidPage.locator('.ms-row[data-act="update"]');
+ok(await androidUpdateRow.isVisible().catch(() => false), 'Android 更新列可見');
+ok(((await androidUpdateRow.textContent().catch(() => '')) || '').includes('目前版本　1.4.2'),
+   '🔴 adb／側載版只顯示目前版本，不冒充「已是最新版」');
 ok(!(await androidPage.locator('#updBanner').isVisible().catch(() => false)), '🔴 Android 更新橫幅不出現');
 await androidPage.close();
+
+const androidPlayPage = await browser.newPage();
+await androidPlayPage.setViewportSize({ width: 390, height: 844 });
+await androidPlayPage.addInitScript(() => {
+  window.RAIL_APP_VERSION = '1.4.2';
+  window.Capacitor = { getPlatform: () => 'android', Plugins: {} };
+  window.RAIL_NATIVE_APPUPDATE = { check: async () => ({
+    ok: true, playInstalled: true, available: false, availableVersionCode: 142,
+  }) };
+  try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {}
+});
+await androidPlayPage.goto(BASE + '/index.html', { waitUntil: 'domcontentloaded' });
+await androidPlayPage.waitForFunction(() => window.__appverLast || null, { timeout: 20000 }).catch(() => {});
+await androidPlayPage.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready; } catch (e) { return false; } }, { timeout: 30000 });
+await androidPlayPage.locator('#tabMore').click().catch(() => {});
+const playCurrentRow = androidPlayPage.locator('.ms-row[data-act="update"]');
+ok(((await playCurrentRow.textContent().catch(() => '')) || '').includes('已是最新版　1.4.2'),
+   'Play 安裝且查詢成功，才顯示「已是最新版」');
+await androidPlayPage.close();
+
+const androidNewPage = await browser.newPage();
+await androidNewPage.setViewportSize({ width: 390, height: 844 });
+await androidNewPage.addInitScript(() => {
+  window.RAIL_APP_VERSION = '1.4.2';
+  window.Capacitor = { getPlatform: () => 'android', Plugins: {} };
+  window.RAIL_NATIVE_APPUPDATE = { check: async () => ({
+    ok: true, playInstalled: true, available: true, availableVersionCode: 143,
+  }) };
+  try {
+    localStorage.setItem('trainmap-howto-seen', '1');
+    localStorage.setItem('trainmap-appver-seen', JSON.stringify('1.4.2'));
+  } catch (e) {}
+});
+await androidNewPage.goto(BASE + '/index.html', { waitUntil: 'domcontentloaded' });
+await androidNewPage.waitForFunction(() => window.__appverLast || null, { timeout: 20000 }).catch(() => {});
+ok(await androidNewPage.locator('#updBanner').isVisible().catch(() => false),
+   'Play 回報有新版時顯示更新橫幅');
+ok(((await androidNewPage.locator('#updBanner').textContent().catch(() => '')) || '').includes('Google Play'),
+   'Android 更新橫幅明確寫 Google Play');
+await androidNewPage.close();
 
 console.log('\n【D】UI:橫幅、更多面板那一列、更新內容卡片');
 // 開「更多」面板:setMore 是閉包內的 const,不是全域 ⇒ 走真實入口(手機 #tabMore / 桌面 #toolsFab)
@@ -155,7 +201,10 @@ async function appPageWith(mine, latest, opts = {}) {
   const p = await browser.newPage();
   p.on('pageerror', e => console.log('  ⚠ pageerror: ' + e.message));
   await p.setViewportSize(opts.viewport || { width: 390, height: 844 });
-  await p.addInitScript(v => { window.RAIL_APP_VERSION = v; }, mine);
+  await p.addInitScript(v => {
+    window.RAIL_APP_VERSION = v;
+    window.RAIL_APP_WHATS_NEW = '測試更新說明<b>不可當標籤</b>\n第二行';
+  }, mine);
   // 關掉首訪教學卡(#howtoWrap,z800):它會蓋住整個地圖區,elementFromPoint 全滅。
   // 這也是真實情境——手上有舊版可更新的人,一定早就用過 App。
   await p.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} });

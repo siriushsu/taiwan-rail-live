@@ -24,6 +24,13 @@ import org.json.JSONObject;
 
 import java.util.Iterator;
 import java.util.Locale;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 /** 跟隨列車的鎖屏卡：Android 16 是 Live Update／Samsung Now Bar，舊版是持續通知。 */
 final class RailFollowNotification {
@@ -31,8 +38,10 @@ final class RailFollowNotification {
     static final int NOTIFICATION_ID = 46401;
     static final int STOP_REQUEST_CODE = 46402;
     static final int ADVANCE_REQUEST_CODE = 46403;
+    static final int REFRESH_REQUEST_CODE = 46404;
     static final String PREFS = "rail_follow_live";
     static final String KEY_STATE = "active_state";
+    private static final String LIVE_URL = "https://railisland.tw/api/tra-live";
 
     private RailFollowNotification() {}
 
@@ -55,6 +64,7 @@ final class RailFollowNotification {
         save(context, payload);
         post(context, payload);
         scheduleAdvance(context, payload);
+        scheduleRefresh(context);
     }
 
     static void update(Context context, JSONObject payload) throws JSONException {
@@ -72,6 +82,7 @@ final class RailFollowNotification {
         save(context, state);
         post(context, state);
         scheduleAdvance(context, state);
+        scheduleRefresh(context);
     }
 
     static JSONObject status(Context context) {
@@ -191,9 +202,97 @@ final class RailFollowNotification {
         } catch (JSONException ignored) { stop(context); }
     }
 
+    /** WebView 已被系統收掉時，仍每分鐘讀台鐵官方動態，更新誤點、觀測站與停靠狀態。 */
+    static void refreshOfficial(Context context) {
+        JSONObject state = load(context);
+        if (state == null) return;
+        try {
+            if (!"tra_sched".equals(state.optString("sys", ""))) {
+                advance(context);
+                return;
+            }
+            HttpURLConnection connection = (HttpURLConnection) new URL(LIVE_URL).openConnection();
+            try {
+                connection.setConnectTimeout(8_000); connection.setReadTimeout(8_000);
+                connection.setUseCaches(false);
+                connection.setRequestProperty("User-Agent", "RailIsland-Android-RailFollow");
+                if (connection.getResponseCode() != 200) { advance(context); return; }
+                JSONObject root = new JSONObject(readAll(connection.getInputStream()));
+                if (!fresh(root.optString("at", ""))) { advance(context); return; }
+                JSONArray trains = root.optJSONArray("trains");
+                JSONObject live = null;
+                if (trains != null) for (int i = 0; i < trains.length(); i++) {
+                    JSONObject candidate = trains.optJSONObject(i);
+                    if (candidate != null && state.optString("trainNo", "")
+                        .equals(candidate.optString("no", ""))) { live = candidate; break; }
+                }
+                if (live == null) { advance(context); return; }
+                if (!applyOfficial(state, live)) { stop(context); return; }
+                save(context, state); post(context, state); scheduleAdvance(context, state);
+            } finally { connection.disconnect(); }
+        } catch (Exception ignored) {
+            advance(context);
+        } finally {
+            if (load(context) != null) scheduleRefresh(context);
+        }
+    }
+
+    /** 純資料轉換另開成 package-private，instrumentation 可用造測官方列驗證，不必碰正式網路。 */
+    static boolean applyOfficial(JSONObject state, JSONObject live) throws JSONException {
+        JSONArray stops = state.optJSONArray("remainingStops");
+        if (stops == null || stops.length() == 0) return false;
+        int oldDelay = state.optInt("delaySec", 0);
+        int newDelay = Math.round((float) live.optDouble("delay", oldDelay / 60.0) * 60f);
+        int delta = newDelay - oldDelay;
+        if (delta != 0) for (int i = 0; i < stops.length(); i++) {
+            JSONObject stop = stops.optJSONObject(i); if (stop == null) continue;
+            shift(stop, "arrivalAt", delta); shift(stop, "departedAt", delta); shift(stop, "advanceAt", delta);
+        }
+        state.put("delaySec", newDelay);
+
+        String stationCode = live.optString("sta", "");
+        int status = live.optInt("status", -1), observed = -1;
+        for (int i = 0; i < stops.length(); i++) {
+            JSONObject stop = stops.optJSONObject(i);
+            if (stop != null && stationCode.equals(stop.optString("code", ""))) {
+                observed = status == 2 ? i + 1 : i; break;
+            }
+        }
+        if (observed < 0) {
+            JSONObject map = state.optJSONObject("staMap");
+            if (map != null && map.has(stationCode)) observed = map.optInt(stationCode, -1);
+        }
+        int floor = state.optInt("lastObservedIndex", -1);
+        if (observed >= 0) observed = Math.max(observed, floor);
+        if (observed >= stops.length()) return false;
+        if (observed >= 0) {
+            JSONObject next = stops.optJSONObject(observed);
+            if (next != null) {
+                state.put("lastObservedIndex", observed);
+                state.put("nextStop", next.optString("name", ""));
+                state.put("arrivalAt", next.optDouble("arrivalAt", 0));
+                state.put("departedAt", next.optDouble("departedAt", 0));
+                state.put("advanceAt", next.optDouble("advanceAt", next.optDouble("arrivalAt", 0)));
+                state.put("prevStop", next.optString("prevStop", ""));
+                state.put("stopping", status == 1 && stationCode.equals(next.optString("code", "")));
+            }
+        } else {
+            shift(state, "arrivalAt", delta); shift(state, "departedAt", delta); shift(state, "advanceAt", delta);
+        }
+        state.put("officialUpdatedAt", System.currentTimeMillis() / 1000);
+        return true;
+    }
+
+    private static void shift(JSONObject object, String key, int seconds) throws JSONException {
+        if (seconds != 0 && object.has(key) && object.optDouble(key, 0) != 0) {
+            object.put(key, object.optDouble(key, 0) + seconds);
+        }
+    }
+
     static void stop(Context context) {
         NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID);
         cancelAdvance(context);
+        cancelRefresh(context);
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(KEY_STATE).apply();
     }
 
@@ -220,6 +319,11 @@ final class RailFollowNotification {
         return PendingIntent.getBroadcast(context, ADVANCE_REQUEST_CODE, intent, flags | PendingIntent.FLAG_IMMUTABLE);
     }
 
+    private static PendingIntent refreshIntent(Context context, int flags) {
+        Intent intent = new Intent(context, RailFollowStopReceiver.class).setAction(RailFollowStopReceiver.ACTION_REFRESH);
+        return PendingIntent.getBroadcast(context, REFRESH_REQUEST_CODE, intent, flags | PendingIntent.FLAG_IMMUTABLE);
+    }
+
     private static void scheduleAdvance(Context context, JSONObject state) {
         AlarmManager alarm = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (alarm == null) return;
@@ -234,6 +338,41 @@ final class RailFollowNotification {
         AlarmManager alarm = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         PendingIntent pending = advanceIntent(context, PendingIntent.FLAG_NO_CREATE);
         if (alarm != null && pending != null) alarm.cancel(pending);
+    }
+
+    private static void scheduleRefresh(Context context) {
+        JSONObject state = load(context);
+        if (state == null || !"tra_sched".equals(state.optString("sys", ""))) {
+            cancelRefresh(context);
+            return;
+        }
+        AlarmManager alarm = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        if (alarm != null) alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,
+            System.currentTimeMillis() + 60_000L, refreshIntent(context, PendingIntent.FLAG_UPDATE_CURRENT));
+    }
+
+    private static void cancelRefresh(Context context) {
+        AlarmManager alarm = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        PendingIntent pending = refreshIntent(context, PendingIntent.FLAG_NO_CREATE);
+        if (alarm != null && pending != null) alarm.cancel(pending);
+    }
+
+    private static boolean fresh(String value) {
+        if (value == null || value.isEmpty()) return false;
+        for (String pattern : new String[] { "yyyy-MM-dd'T'HH:mm:ss.SSSXXX", "yyyy-MM-dd'T'HH:mm:ssXXX" }) {
+            try {
+                SimpleDateFormat format = new SimpleDateFormat(pattern, Locale.US);
+                Date date = format.parse(value);
+                if (date != null) return Math.abs(System.currentTimeMillis() - date.getTime()) <= 5 * 60_000L;
+            } catch (Exception ignored) {}
+        }
+        return false;
+    }
+
+    private static String readAll(InputStream input) throws Exception {
+        ByteArrayOutputStream out = new ByteArrayOutputStream(); byte[] buffer = new byte[8192]; int read;
+        while ((read = input.read(buffer)) >= 0) out.write(buffer, 0, read);
+        return out.toString(StandardCharsets.UTF_8.name());
     }
 
     private static String delayText(int seconds) {

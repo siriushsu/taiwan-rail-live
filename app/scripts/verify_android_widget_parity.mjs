@@ -13,12 +13,22 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
   const main = read('app/android/app/src/main/java/tw/railisland/app/MainActivity.java');
   const bridge = read('app/src/native-bridge.mjs');
   const bundle = read('app/ios/App/RailBoardWidget/RailBoardWidgetBundle.swift');
+  const html = read('index.html');
+  const gradle = read('app/android/app/build.gradle');
+  const railData = read('app/android/app/src/main/java/tw/railisland/app/RailWidgetData.java');
+  const railConfig = read('app/android/app/src/main/java/tw/railisland/app/RailWidgetConfigActivity.java');
+  const railProvider = read('app/android/app/src/main/java/tw/railisland/app/RailBoardWidgetProvider.java');
+  const railRender = read('app/android/app/src/main/java/tw/railisland/app/RailWidgetRender.java');
+  const railReadable = read('app/android/app/src/main/res/layout/widget_rail_row_readable.xml');
+  const follow = read('app/android/app/src/main/java/tw/railisland/app/RailFollowNotification.java');
+  const audio = read('app/android/app/src/main/java/tw/railisland/app/RailAudioService.java');
   const rules = new Map([
     ['RailBoardWidget()', [manifest, /android:name="\.RailBoardWidgetProvider"/]],
     ['MetroBoardWidget()', [manifest, /android:name="\.MetroWidgetProvider"/]],
     ['MixedBoardWidget()', [manifest, /android:name="\.MixedBoardWidgetProvider"/]],
     ['RailFollowActivityWidget()', [main, /registerPlugin\(RailFollowLivePlugin\.class\)/]],
     ['MetroWaitActivityWidget()', [main, /registerPlugin\(RailMetroWaitPlugin\.class\)/]],
+    ['TraWaitActivityWidget()', [main, /registerPlugin\(RailTraWaitPlugin\.class\)/]],
   ]);
   const body = bundle.match(/var\s+body\s*:\s*some\s+Widget\s*\{([\s\S]*?)\n\s*\}/)?.[1] ?? '';
   const shipped = [...body.matchAll(/^\s*(\w+\(\))\s*$/gm)].map(match => match[1]);
@@ -36,6 +46,45 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
     pass: /platform === 'ios'\s*\|\|\s*platform === 'android'/.test(bridge)
       && /registerPlugin\([^\n]*'RailFollowLive'/.test(bridge)
   });
+  const contentRules = [
+    ['Metro Core 看板以逐車車號補上官方擁擠度',
+      /crowdByNo/.test(html) && /trtcOfficialCrowdHtmlByNo\(label\)/.test(html)],
+    ['Android 小工具同步並動態解析「我的地點」',
+      /registerPlugin\(RailPlacesPlugin\.class\)/.test(main)
+        && /RAIL_NATIVE_PLACES/.test(bridge) && /resolvePlace\(/.test(railData)
+        && /RailWidgetData\.places\(/.test(railConfig)],
+    ['Android 發車看板支援車種／車次／方向篩選且 provider 真正套用',
+      /showFilters\(\)/.test(railConfig) && /applyFilters\(/.test(railData)
+        && /RailWidgetData\.fetch\(context, sys, origin, destination, filters\)/.test(railProvider)],
+    ['Android 跟車卡在 WebView 關閉後仍抓官方動態',
+      /refreshOfficial\(Context context\)/.test(follow) && /\/api\/tra-live/.test(follow)
+        && /ACTION_REFRESH/.test(follow) && /staMap/.test(html)],
+    ['Android 背景音訊使用 Media3 MediaSession 與鎖屏控制',
+      /registerPlugin\(RailAudioPlugin\.class\)/.test(main)
+        && /media3-session:1\.11\.0/.test(gradle)
+        && /android:name="\.RailAudioService"/.test(manifest)
+        && /addSession\(mediaSession\)/.test(audio)
+        && /platform === 'ios'\s*\|\|\s*platform === 'android'[\s\S]*registerPlugin\('RailAudio'\)/.test(bridge)],
+    ['Android 原生 Play 內評分與主動更新偵測皆已接線',
+      /registerPlugin\(RailReviewPlugin\.class\)/.test(main)
+        && /registerPlugin\(RailStorePlugin\.class\)/.test(main)
+        && /com\.google\.android\.play:review:2\.0\.2/.test(gradle)
+        && /com\.google\.android\.play:app-update:2\.1\.0/.test(gradle)
+        && /RAIL_NATIVE_APPUPDATE/.test(bridge)],
+    ['Android 發車小工具大字版會放大主要文字與列高，而非只減少班次',
+      /widget_rail_row_readable/.test(railRender)
+        && /android:layout_height="42dp"/.test(railReadable)
+        && /android:textSize="16sp"/.test(railReadable)
+        && /android:textSize="23sp"/.test(railReadable)],
+    ['Android 使用說明涵蓋擁擠度、我的地點、篩選、大字、背景更新與評分',
+      /同一車號，不會借用同方向另一班車/.test(html)
+        && /起站與目的站可以選你在軌島儲存的地點/.test(html)
+        && /依方向、車種或車次篩選/.test(html)
+        && /大字好讀版/.test(html)
+        && /WebView 關閉後/.test(html)
+        && /key: 'appinfo'/.test(html)],
+  ];
+  for (const [label, pass] of contentRules) results.push({ label, pass });
   if (log) {
     for (const result of results) console.log(`${result.pass ? 'PASS' : 'FAIL'} ${result.label}`);
   }
@@ -43,8 +92,8 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
   if (failed.length) {
     throw new Error(`Android/iOS 小工具 parity：${failed.map(result => result.label).join('；')}`);
   }
-  if (log) console.log(`Android/iOS 小工具 parity：${shipped.length}/${shipped.length}`);
-  return { shipped: shipped.length };
+  if (log) console.log(`Android/iOS 小工具集合：${shipped.length}/${shipped.length}；內容能力：${contentRules.length}/${contentRules.length}`);
+  return { shipped: shipped.length, content: contentRules.length };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

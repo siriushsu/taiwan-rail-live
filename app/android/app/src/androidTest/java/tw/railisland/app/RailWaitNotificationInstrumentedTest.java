@@ -1,6 +1,7 @@
 package tw.railisland.app;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -102,6 +103,72 @@ public final class RailWaitNotificationInstrumentedTest {
         JSONObject promotion = RailWaitNotification.promotionStatus(context);
         Log.i(TAG, "minuteOnlyPromotion=" + promotion);
         assertTrue("分鐘級通知未被 Samsung 提升至 Now Bar", promotion.optBoolean("promoted"));
+    }
+
+    @Test
+    public void android16TraWaitShowsClockTimeWithoutFakeCountdown() throws Exception {
+        Assume.assumeTrue(Build.VERSION.SDK_INT >= 36);
+        Assume.assumeTrue(RailWaitNotification.canNotify(context));
+
+        long now = System.currentTimeMillis();
+        JSONObject state = new JSONObject()
+            .put("active", true)
+            .put("kind", RailWaitNotification.KIND_TRA)
+            .put("station", "板橋")
+            .put("trainNo", "123")
+            .put("trainType", "自強")
+            .put("dest", "花蓮")
+            .put("color", "#C0392B")
+            .put("schedSec", (now + 12 * 60_000L) / 1000.0)
+            .put("delayMin", 3)
+            .put("dataAt", now / 1000.0)
+            .put("endAt", (now + 60 * 60_000L) / 1000.0);
+
+        RailWaitNotification.post(context, state);
+
+        Notification notification = findActiveNotification();
+        assertNotNull("系統沒有收到台鐵等站通知", notification);
+        Notification.Builder recovered = Notification.Builder.recoverBuilder(context, notification);
+        assertEquals(Notification.ProgressStyle.class, recovered.getStyle().getClass());
+        assertTrue("台鐵等站卡必須是 ongoing", (notification.flags & Notification.FLAG_ONGOING_EVENT) != 0);
+        assertFalse("台鐵等站卡不准用 chronometer 偽造秒級倒數",
+            notification.extras.getBoolean(Notification.EXTRA_SHOW_CHRONOMETER, false));
+        String text = String.valueOf(notification.extras.getCharSequence(Notification.EXTRA_TEXT));
+        assertTrue("台鐵等站卡必須標明實際約到站", text.contains("實際約"));
+        assertTrue("台鐵等站卡必須保留目的地", text.contains("花蓮"));
+        assertTrue("台鐵等站卡應具提升資格", notification.hasPromotableCharacteristics());
+    }
+
+    @Test
+    public void traWaitOwnsSharedSlotAndUsesBoundedEndTime() throws Exception {
+        long before = System.currentTimeMillis();
+        double schedSec = before / 1000.0 + 12 * 60;
+        JSONObject tra = new JSONObject()
+            .put("station", "板橋")
+            .put("trainNo", "123")
+            .put("trainType", "自強")
+            .put("dest", "花蓮")
+            .put("schedSec", schedSec)
+            .put("delayMin", 3);
+
+        long endAt = RailWaitNotification.startTra(context, tra);
+        JSONObject active = RailWaitNotification.status(context);
+        assertNotNull("台鐵等站狀態沒有保存", active);
+        assertEquals("共用等車卡必須標記成台鐵模式", RailWaitNotification.KIND_TRA,
+            active.optString("kind"));
+        assertEquals("台鐵等站卡沒有保留指定車次", "123", active.optString("trainNo"));
+        long expected = (long) ((schedSec + 3 * 60 + 30 * 60) * 1000);
+        assertTrue("台鐵等站結束時間沒有依抵達時間加 30 分鐘",
+            Math.abs(endAt - expected) < 2_000L);
+
+        JSONObject metro = new JSONObject()
+            .put("station", "忠孝復興")
+            .put("durationMin", 30);
+        RailWaitNotification.start(context, metro);
+        JSONObject replaced = RailWaitNotification.status(context);
+        assertNotNull("捷運等車狀態沒有保存", replaced);
+        assertEquals("啟動捷運卡後必須取代同一槽位的台鐵卡", RailWaitNotification.KIND_METRO,
+            replaced.optString("kind"));
     }
 
     private Notification findActiveNotification() {

@@ -10,8 +10,10 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.RemoteViews;
+import android.widget.TextView;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
@@ -19,7 +21,7 @@ import androidx.test.platform.app.InstrumentationRegistry;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-/** iOS WidgetBundle 五項能力的 Android 真機資料／RemoteViews 煙霧測試。 */
+/** iOS WidgetBundle 六項能力的 Android 真機資料／RemoteViews 煙霧測試。 */
 @RunWith(AndroidJUnit4.class)
 public final class WidgetParityInstrumentedTest {
     private final Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
@@ -74,6 +76,52 @@ public final class WidgetParityInstrumentedTest {
         assertNotNull(railViews.apply(context, host));
         RemoteViews mixedViews = MixedWidgetRender.board(context, rail, metro);
         assertNotNull(mixedViews.apply(context, host));
+    }
+
+    @Test
+    public void readableRailBoardActuallyEnlargesPrimaryTextAndRows() {
+        long now = System.currentTimeMillis();
+        RailWidgetData.Snapshot rail = new RailWidgetData.Snapshot();
+        rail.sys = "tra"; rail.systemLabel = "台鐵"; rail.origin = "板橋"; rail.destination = "";
+        rail.generatedAt = now;
+        RailWidgetData.Row train = new RailWidgetData.Row();
+        train.sys = "tra"; train.no = "123"; train.type = "自強"; train.color = "#C0392B";
+        train.terminus = "花蓮"; train.relation = RailWidgetData.Relation.DEPARTURE;
+        train.scheduledAt = now + 10 * 60_000L; train.delayMinutes = 0;
+        rail.rows.add(train);
+
+        FrameLayout host = new FrameLayout(context);
+        View standard = RailWidgetRender.board(
+            context, R.layout.widget_rail_4x2, rail, 4, false, false).apply(context, host);
+        View readable = RailWidgetRender.board(
+            context, R.layout.widget_rail_4x2, rail, 4, true, false).apply(context, host);
+        TextView standardTrain = standard.findViewById(R.id.wrr_train);
+        TextView readableTrain = readable.findViewById(R.id.wrr_train);
+        TextView standardTime = standard.findViewById(R.id.wrr_time);
+        TextView readableTime = readable.findViewById(R.id.wrr_time);
+        TextView standardStatus = standard.findViewById(R.id.wrr_status);
+        TextView readableStatus = readable.findViewById(R.id.wrr_status);
+        assertNotNull(standardTrain); assertNotNull(readableTrain);
+        assertNotNull(standardTime); assertNotNull(readableTime);
+        assertNotNull(standardStatus); assertNotNull(readableStatus);
+        assertTrue("大字版班次至少要放大 25%", readableTrain.getTextSize() >= standardTrain.getTextSize() * 1.25f);
+        assertTrue("大字版時刻至少要放大 35%", readableTime.getTextSize() >= standardTime.getTextSize() * 1.35f);
+        assertTrue("大字版狀態不能仍停在 9sp", readableStatus.getTextSize() >= standardStatus.getTextSize() * 1.25f);
+        View standardRow = (View) standardTrain.getParent().getParent();
+        View readableRow = (View) readableTrain.getParent().getParent();
+        assertTrue("放大文字也要同步增加列高，不能裁字",
+            readableRow.getLayoutParams().height > standardRow.getLayoutParams().height);
+        assertTrue("大字版應省略次要目的地列，把空間留給班次與時刻",
+            readable.findViewById(R.id.wrr_dest).getVisibility() == View.GONE);
+    }
+
+    @Test
+    public void customReviewAndUpdatePluginsAreRegisteredInTheRunningBridge() {
+        Intent intent = new Intent(context, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        MainActivity activity = (MainActivity) InstrumentationRegistry.getInstrumentation().startActivitySync(intent);
+        assertNotNull(activity.getBridge().getPlugin("RailReview"));
+        assertNotNull(activity.getBridge().getPlugin("RailStore"));
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(activity::finish);
     }
 
     @Test

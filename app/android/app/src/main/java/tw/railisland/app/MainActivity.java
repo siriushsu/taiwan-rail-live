@@ -9,7 +9,12 @@ public class MainActivity extends BridgeActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         registerPlugin(RailMetroWaitPlugin.class);
+        registerPlugin(RailTraWaitPlugin.class);
         registerPlugin(RailFollowLivePlugin.class);
+        registerPlugin(RailPlacesPlugin.class);
+        registerPlugin(RailAudioPlugin.class);
+        registerPlugin(RailReviewPlugin.class);
+        registerPlugin(RailStorePlugin.class);
         super.onCreate(savedInstanceState);
         RailMetroWaitPlugin.handleIntent(getIntent());
     }
