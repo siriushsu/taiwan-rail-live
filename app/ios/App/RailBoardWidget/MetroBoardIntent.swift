@@ -40,7 +40,7 @@ struct MetroSystemOptionsProvider: DynamicOptionsProvider {
     func results() async throws -> ItemCollection<String> {
         ItemCollection(sections: [
             IntentItemSection("捷運系統", items: MetroWidgetCatalog.shared.systems.map {
-                IntentItem<String>($0.id, title: LocalizedStringResource(stringLiteral: $0.label))
+                IntentItem<String>($0.id, title: LocalizedStringResource(stringLiteral: RailNativeL10n.name($0.label)))
             })
         ])
     }
@@ -68,8 +68,8 @@ struct MetroStationOptionsProvider: DynamicOptionsProvider {
         // 「自動(最近的站)」恆在最上,不受系統格過濾——它跨系統解析,選了它系統格就無作用
         //    (entry() 的 auto 分支在 sys 查表之前,方向格也一併忽略)。
         return ItemCollection(sections: [MetroNearest.optionSection()] + use.map { s in
-            IntentItemSection(LocalizedStringResource(stringLiteral: s.label), items: s.stationNames.map {
-                IntentItem<String>("\(s.id)|\($0)", title: LocalizedStringResource(stringLiteral: $0))
+            IntentItemSection(LocalizedStringResource(stringLiteral: RailNativeL10n.name(s.label)), items: s.stationNames.map {
+                IntentItem<String>("\(s.id)|\($0)", title: LocalizedStringResource(stringLiteral: RailNativeL10n.name($0)))
             })
         })
     }
@@ -89,8 +89,8 @@ struct MetroDirectionOptionsProvider: DynamicOptionsProvider {
         return ItemCollection(
             promptLabel: "留空＝兩個方向都看",
             sections: data.systems.map { s in
-                IntentItemSection(LocalizedStringResource(stringLiteral: s.label), items: s.destinations.map { d in
-                    IntentItem<String>(d, title: LocalizedStringResource(stringLiteral: "往 \(d)"))
+                IntentItemSection(LocalizedStringResource(stringLiteral: RailNativeL10n.name(s.label)), items: s.destinations.map { d in
+                    IntentItem<String>(d, title: LocalizedStringResource(stringLiteral: RailNativeL10n.text("往 {station}", ["station": RailNativeL10n.name(d)])))
                 })
             }
         )

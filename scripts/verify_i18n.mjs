@@ -69,6 +69,8 @@ async function desktopCore(browser, engine) {
       topTabs: [...document.querySelectorAll('#topTabs button')].map(button => button.textContent.trim()),
       lead: document.getElementById('lead').textContent.trim(),
       station: stationName('臺北', 'tra_sched'),
+      officialDestinationA: stationName('動物園站', 'mrt'),
+      officialDestinationB: stationName('南港展覽館站', 'mrt'),
       route: routeName('高鐵', 'thsr_sched'),
       type: trainTypeName('自強'),
       count: document.getElementById('count').textContent.trim(),
@@ -79,6 +81,7 @@ async function desktopCore(browser, engine) {
     assert(core.tabs.join('|') === 'All|TRA|HSR|Metro', `英文分頁錯誤：${core.tabs.join('|')}`);
     assert(core.topTabs.join('|') === 'All|TRA|HSR|Metro', `英文頂部分頁錯誤：${core.topTabs.join('|')}`);
     assert(core.lead.includes('railways across Taiwan') && core.station === 'Taipei', `英文首屏或站名錯誤：${JSON.stringify(core)}`);
+    assert(core.officialDestinationA === 'Taipei Zoo' && core.officialDestinationB === 'Taipei Nangang Exhibition Center', `英文官方終點站「站」字尾 fallback 錯誤：${JSON.stringify(core)}`);
     assert(core.route.includes('High Speed Rail') && core.type.includes('Tze-Chiang'), `英文路線／車種錯誤：${JSON.stringify(core)}`);
     assert(/trains? running/.test(core.count) && core.metadata.every(text => !/[\u3400-\u9fff]/.test(text)) && core.official.every(text => !/[\u3400-\u9fff]/.test(text)), `英文動態列車數／系統導言／官方連結錯誤：${JSON.stringify(core)}`);
     const cjkCore = await visibleEnglishCjk(page);
@@ -133,6 +136,57 @@ async function desktopCore(browser, engine) {
     assert(cjkMetroBoard.length === 0, `英文捷運即時看板仍有中文：${cjkMetroBoard.join(' ｜ ')}`);
     record(engine, '英文捷運即時倒數、方向、路線與操作標籤');
 
+    const tapPickerEn = await page.evaluate(() => {
+      const line = (state.decoLines || state.lines || []).find(item => item._sys === 'mrt' && /淡水信義/.test(item.name || ''));
+      if (!line || !line.pts?.length) return null;
+      const stationIndex = line.stations.findIndex(item => item.name === '士林');
+      const destinationIndex = line.stations.findIndex(item => item.name === '淡水');
+      if (stationIndex < 0 || destinationIndex < 0) return null;
+      const p = line.pts[stationIndex], st = line.stations[stationIndex];
+      const previous = {
+        mode: state.mode, lines: state.lines, visible: state.visible, hits: state._freqHits,
+        roster: state.trtcOfficialRoster, follow: state.freqFollow,
+      };
+      try {
+        state.mode = 'freq'; state.lines = [line]; state.visible = new Set([line.id]); state.freqFollow = null;
+        state.trtcOfficialRoster = { vehicles: [{ vehicleId: 'i18n-picker', officialNo: '107', dest: destinationIndex }] };
+        state._freqHits = [{ x: p.x, y: p.y, ln: line, vehicleId: 'i18n-picker', officialNo: '107', halfW: 24, halfH: 10 }];
+        map.fire('click', { containerPoint: L.point(p.x, p.y), latlng: L.latLng(st.lat, st.lon) });
+        return document.getElementById('tapPick').textContent.replace(/\s+/g, ' ').trim();
+      } finally {
+        state.mode = previous.mode; state.lines = previous.lines; state.visible = previous.visible;
+        state._freqHits = previous.hits; state.trtcOfficialRoster = previous.roster; state.freqFollow = previous.follow;
+        const picker = document.getElementById('tapPick'); picker.hidden = true; picker.innerHTML = '';
+      }
+    });
+    assert(tapPickerEn && tapPickerEn.includes('Follow train') && tapPickerEn.includes('Taipei Metro') && tapPickerEn.includes('Tamsui') && tapPickerEn.includes('Shilin') && tapPickerEn.includes('Station board'), `英文地圖點選列車／車站卡未翻譯：${tapPickerEn}`);
+    assert(!/[\u3400-\u9fff]/.test(tapPickerEn), `英文地圖點選卡仍有中文：${tapPickerEn}`);
+    record(engine, '英文地圖點選列車、方向、終點與車站看板');
+
+    const metroWaitEn = await page.evaluate(() => {
+      const previousPlugin = window.Capacitor;
+      window.Capacitor = { Plugins: { RailMetroWait: { start: () => Promise.resolve({ ok: true }), stop: () => Promise.resolve({ ok: true }) } } };
+      const st = { name: '動物園', sys: 'freq' };
+      const bundle = { rows: [
+        { dest: '南港展覽館', eta: Math.floor(Date.now() / 1000) + 120 },
+        { dest: '淡水', eta: Math.floor(Date.now() / 1000) + 240 },
+      ], dataAt: Math.floor(Date.now() / 1000) };
+      state.metroWait = null;
+      const start = (() => { const host = document.createElement('div'); host.innerHTML = metroWaitBoardHtml(st, 'trtc'); return host.textContent.trim(); })();
+      state.metroWait = { sys: 'trtc', station: st.name };
+      const end = (() => { const host = document.createElement('div'); host.innerHTML = metroWaitBoardHtml(st, 'trtc'); return host.textContent.trim(); })();
+      state.metroWait = null;
+      metroWaitOpenPicker('trtc', st, [], false, bundle, null);
+      const picker = document.getElementById('metroWaitPicker').textContent.replace(/\s+/g, ' ').trim();
+      metroWaitClosePicker(false);
+      window.Capacitor = previousPlugin;
+      return { start, end, picker };
+    });
+    const metroWaitEnText = Object.values(metroWaitEn).join(' ');
+    assert(metroWaitEn.start === 'Track this station' && metroWaitEn.end === 'End tracking' && metroWaitEn.picker.includes('Track for') && metroWaitEn.picker.includes('Choose a direction') && metroWaitEn.picker.includes('Nangang Exhibition Center'), `英文追蹤這站／等車選單未翻譯：${JSON.stringify(metroWaitEn)}`);
+    assert(!/[\u3400-\u9fff]/.test(metroWaitEnText), `英文追蹤這站仍有中文：${metroWaitEnText}`);
+    record(engine, '英文追蹤這站、結束追蹤與等車方向／時長選單');
+
     const followed = await page.evaluate(() => {
       const train = state.trains.find(item => !item.loop && item.sys === 'tra_sched') || state.trains.find(item => !item.loop);
       if (!train) return false;
@@ -148,6 +202,7 @@ async function desktopCore(browser, engine) {
 
     await page.evaluate(() => {
       state.alert = { list: [{ sysLabel: '台鐵', title: '營運通阻公告', desc: '網路連線失敗，請稍後再試', lines: ['高鐵'] }] };
+      state.hazardWatch = null;
       renderAlertBanner();
     });
     const alertEn = await bodyText(page, '#alertBanner');
@@ -156,6 +211,20 @@ async function desktopCore(browser, engine) {
     const alertDetailEn = await bodyText(page, '#alertDetail');
     assert(/Network .*failed/i.test(alertDetailEn), `英文異常詳情未翻譯：${alertDetailEn}`);
     record(engine, '英文營運異常與資料降級文字');
+
+    await page.evaluate(() => {
+      state.alert = { list: [] }; state.metroAlert = { list: [] };
+      state.hazardWatch = { stale: true, list: [
+        { id: 'rain', type: '降雨', updated: '1', expiresAt: new Date(Date.now() + 60_000).toISOString() },
+        { id: 'wind', type: '強風', updated: '1', expiresAt: new Date(Date.now() + 60_000).toISOString() },
+      ] };
+      renderAlertBanner(); renderAlertDetail(); document.getElementById('alertDetail').hidden = false;
+    });
+    const hazardEn = `${await bodyText(page, '#alertBanner')} ${await bodyText(page, '#alertDetail')}`;
+    assert(hazardEn.includes('Rainfall') && hazardEn.includes('Strong wind') && hazardEn.includes('enhanced monitoring') && hazardEn.includes('do not mean that train service has been suspended') && hazardEn.includes('temporarily unavailable'), `英文災害監看內容未翻譯：${hazardEn}`);
+    assert(!/[\u3400-\u9fff]/.test(hazardEn), `英文災害監看仍有中文：${hazardEn}`);
+    await page.evaluate(() => { state.hazardWatch = null; document.getElementById('alertDetail').hidden = true; renderAlertBanner(); });
+    record(engine, '英文災害類型、監看說明與 stale 降級');
 
     await page.evaluate(() => {
       state.plus = { active: false, loading: false, error: '', pkgMonthly: null, pkgAnnual: null, mgmtUrl: '', adapter: null };
@@ -241,13 +310,17 @@ async function desktopCore(browser, engine) {
         const style = getComputedStyle(parent), rect = parent.getBoundingClientRect();
         if (style.display !== 'none' && style.visibility !== 'hidden' && rect.width && rect.height) footerCjk.push(value);
       }
+      const achievementHost = document.createElement('div');
+      achievementHost.id = 'verifyAchv'; achievementHost.style.cssText = 'position:fixed;left:20px;top:20px;z-index:99999;background:white;padding:8px';
+      achievementHost.innerHTML = buildAchv([], 'chip'); document.body.appendChild(achievementHost);
       return {
         station: asText(stationIntroText('十分')),
         named: document.getElementById('searchDrop').textContent.replace(/\s+/g, ' ').trim(),
         train: stockTrain ? document.getElementById('tcIntro').textContent.replace(/\s+/g, ' ').trim() : '',
         stamps: asText(buildStamps([])),
         achievements: asText(buildAchv([], 'chip')),
-        achievementTitles: ACHIEVEMENTS.map(item => t(item.desc)),
+        achievementTitles: [...achievementHost.querySelectorAll('.achv-chip')].map(item => item.title),
+        achievementLabels: [...achievementHost.querySelectorAll('.achv-chip')].map(item => item.getAttribute('aria-label')),
         help: document.getElementById('helpBody').textContent.replace(/\s+/g, ' ').trim(),
         footer: document.querySelector('.site-foot').textContent.replace(/\s+/g, ' ').trim(),
         recent: document.querySelector('.foot-recent').textContent.replace(/\s+/g, ' ').trim(),
@@ -259,13 +332,28 @@ async function desktopCore(browser, engine) {
     assert(contentEn.named.includes('Shanlan') && contentEn.named.includes('East Rift Valley'), `英文觀光列車圖鑑未翻譯：${contentEn.named}`);
     assert(contentEn.train && !/undefined|i18n\./i.test(contentEn.train), `英文特色車種卡未正確渲染：${contentEn.train}`);
     assert(/Breezy\s*Blue/.test(contentEn.stamps) && /Pingxi\s*Line/.test(contentEn.stamps) && contentEn.stamps.includes('EMU3000'), `英文護照圖鑑未翻譯：${contentEn.stamps}`);
-    assert(contentEn.achievements.includes('First journey') && contentEn.achievementTitles.includes('Complete your first full journey'), `英文成就未翻譯：${contentEn.achievements}`);
+    await page.locator('#verifyAchv .achv-chip').first().hover();
+    assert(contentEn.achievements.includes('First journey') && contentEn.achievementTitles.includes('Complete your first full journey') && contentEn.achievementLabels.some(label => label.includes('First journey') && label.includes('Complete your first full journey')), `英文成就 hover／輔助說明未翻譯：${JSON.stringify(contentEn.achievementTitles.slice(0, 3))}`);
+    await page.evaluate(() => document.getElementById('verifyAchv')?.remove());
     assert(contentEn.help.includes('Search stations, train numbers and train names') && contentEn.help.includes('Journey Passport and completion stamps') && contentEn.help.includes('Background music'), `英文使用說明未完整翻譯：${contentEn.help.slice(0, 1000)}`);
     assert(contentEn.footer.includes('Data sources and licences') && contentEn.footer.includes('independent hobby project'), `英文資料來源介紹未翻譯：${contentEn.footer.slice(-1200)}`);
     assert(contentEn.footerCjk.length === 0, `英文頁尾展開後仍有中文：${contentEn.footerCjk.join(' ｜ ')}`);
     assert(contentEn.recent.includes('English and Japanese now cover') && contentEn.history.includes('Earlier updates by topic') && contentEn.history.includes('Map and live data'), `英文公開更新紀錄未精簡翻譯：${contentEn.recent} ｜ ${contentEn.history}`);
     record(engine, '英文品牌、說明、特色站車、圖鑑、護照、成就與精簡更新紀錄');
 
+    // 選單保持開啟時切換語言，驗證不是只在下次開啟／重整才更新。
+    await page.evaluate(() => {
+      window.__verifyMetroWaitCapacitor = window.Capacitor;
+      window.__verifyNativeLanguageCalls = [];
+      window.Capacitor = { Plugins: {
+        RailMetroWait: {},
+        RailLanguage: { setLanguage: payload => { window.__verifyNativeLanguageCalls.push(payload.language); return Promise.resolve(); } },
+      } };
+      metroWaitOpenPicker('trtc', { name: '動物園', sys: 'freq' }, [], false, { rows: [
+        { dest: '南港展覽館', eta: Math.floor(Date.now() / 1000) + 120 },
+        { dest: '淡水', eta: Math.floor(Date.now() / 1000) + 240 },
+      ], dataAt: Math.floor(Date.now() / 1000) }, null);
+    });
     await setLanguage(page, 'ja');
     const immediate = await page.evaluate(() => ({
       title: document.title,
@@ -276,13 +364,26 @@ async function desktopCore(browser, engine) {
       help: document.getElementById('helpBody').textContent.replace(/\s+/g, ' ').trim(),
       named: document.getElementById('searchDrop').textContent.replace(/\s+/g, ' ').trim(),
       achievements: (() => { const node = document.createElement('div'); node.innerHTML = buildAchv([], 'chip'); return node.textContent.replace(/\s+/g, ' ').trim(); })(),
+      achievementTitles: (() => { const node = document.createElement('div'); node.innerHTML = buildAchv([], 'chip'); return [...node.querySelectorAll('.achv-chip')].map(item => item.title); })(),
+      officialDestination: stationName('動物園站', 'mrt'),
       history: document.querySelector('.foot-more').textContent.replace(/\s+/g, ' ').trim(),
+      metroWait: document.getElementById('metroWaitPicker').textContent.replace(/\s+/g, ' ').trim(),
+      nativeLanguage: window.__verifyNativeLanguageCalls.at(-1),
     }));
     assert(immediate.title === '軌島' && immediate.tabs.join('|') === '全|台鉄|高鉄|メトロ', `日文即時切換失敗：${JSON.stringify(immediate)}`);
     assert(immediate.station === '台北', `日文官方站名未套用：${immediate.station}`);
     assert(immediate.help.includes('駅・列車番号・列車名を検索') && immediate.help.includes('旅程パスポートと完乗スタンプ'), '已開啟使用說明沒有跟著即時切成日文');
     assert(immediate.named.includes('山嵐号') && immediate.named.includes('花東縦谷'), '已開啟觀光列車介紹沒有跟著即時切成日文');
     assert(immediate.achievements.includes('初乗り記念') && immediate.history.includes('これまでの更新'), '日文成就或精簡更新歷史未翻譯');
+    assert(immediate.achievementTitles.includes('最初の完乗を達成') && immediate.officialDestination === '動物園', `日文成就 hover 或官方終點站 fallback 未翻譯：${JSON.stringify(immediate)}`);
+    assert(immediate.metroWait.includes('追跡時間') && immediate.metroWait.includes('方向を選択') && immediate.metroWait.includes('南港展覧館') && !immediate.metroWait.includes('追蹤'), `日文等車選單未即時翻譯：${immediate.metroWait}`);
+    assert(immediate.nativeLanguage === 'ja', `網頁語言沒有同步到 iPhone 小工具／即時動態：${immediate.nativeLanguage}`);
+    await page.evaluate(() => {
+      metroWaitClosePicker(false);
+      window.Capacitor = window.__verifyMetroWaitCapacitor;
+      delete window.__verifyMetroWaitCapacitor;
+      delete window.__verifyNativeLanguageCalls;
+    });
     record(engine, '日文即時切換（已開啟動態面板同步）');
 
     await page.evaluate(() => onLocateFail({ code: 3, PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 }));

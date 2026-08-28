@@ -45,10 +45,10 @@ extension MetroEntry {
     ///    真被某層快取餵了舊主體時,畫面直說過舊,不再偽裝成「官方沒有班次」。
     ///    小卡與混合大卡共用這一份,兩張卡的說法不會分岔。
     func emptyText(at date: Date) -> String {
-        if failed { return "連不上官方資料，稍後自動再試" }
-        guard snapshot != nil else { return "沒有資料" }
-        if let age = dataAge(at: date), age > 180 { return "資料過舊，打開軌島即更新" }
-        return "官方目前沒有這一站的班次資訊"
+        if failed { return RailNativeL10n.text("連不上官方資料，稍後自動再試") }
+        guard snapshot != nil else { return RailNativeL10n.text("沒有資料") }
+        if let age = dataAge(at: date), age > 180 { return RailNativeL10n.text("資料過舊，打開軌島即更新") }
+        return RailNativeL10n.text("官方目前沒有這一站的班次資訊")
     }
 
     /// 空白看板要顯示的那一行，以及它是不是「行動邀請」（通行證 CTA 用主色，不是錯誤訊息）。
@@ -58,10 +58,10 @@ extension MetroEntry {
     ///    「付費功能被擋住卻不說」是這個專案反覆踩的坑，兩張卡的說法一律走同一個出口。
     func emptyBody(at date: Date) -> (text: String, isCTA: Bool) {
         // 有資料但全被「到站+30 秒退場」濾光＝資料視野用完了，不是官方沒班次。
-        if snapshot?.rows.isEmpty == false { return ("資料過舊，打開軌島即更新", false) }
-        if let cta = passCTA { return (cta, true) }
+        if snapshot?.rows.isEmpty == false { return (RailNativeL10n.text("資料過舊，打開軌島即更新"), false) }
+        if let cta = passCTA { return (RailNativeL10n.text(cta), true) }
         // autoHint：自動選站解析失敗的指引（定位權限／從沒定位過），比通用文案可行動。
-        return (autoHint ?? emptyText(at: date), false)
+        return (RailNativeL10n.text(autoHint ?? emptyText(at: date)), false)
     }
 }
 
@@ -146,14 +146,14 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
             return MetroEntry(date: Date(), title: "自動選站", lineColor: nil, snapshot: nil,
                               precision: "sec", lastTrain: nil, failed: false,
                               deepLink: Self.passLink(), auto: true,
-                              passCTA: "自動選最近的站是通行證功能。點一下開啟軌島看方案，或改選一個固定車站。")
+                              passCTA: RailNativeL10n.text("自動選最近的站是通行證功能。點一下開啟軌島看方案，或改選一個固定車站。"))
         case .needPassMulti(let claimedName):
             return MetroEntry(date: Date(), title: "再加一站", lineColor: nil, snapshot: nil,
                               precision: "sec", lastTrain: nil, failed: false,
                               deepLink: Self.passLink(),
                               passCTA: claimedName.isEmpty
-                                ? "免費版可設定一站。點一下開啟軌島，用通行證解鎖多站。"
-                                : "免費版可設定一站（目前是「\(claimedName)」）。點一下開啟軌島，用通行證解鎖多站。")
+                                ? RailNativeL10n.text("免費版可設定一站。點一下開啟軌島，用通行證解鎖多站。")
+                                : RailNativeL10n.text("免費版可設定一站（目前是「{station}」）。點一下開啟軌島，用通行證解鎖多站。", ["station": RailNativeL10n.name(claimedName)]))
         case .allowed, .claimFree:
             break
         }
@@ -173,7 +173,7 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
             case .none:
                 return MetroEntry(date: Date(), title: "自動選站", lineColor: nil, snapshot: nil,
                                   precision: "sec", lastTrain: nil, failed: false,
-                                  autoHint: "開啟 App 一次，或到「設定 › 軌島」允許取用位置")
+                                  autoHint: RailNativeL10n.text("開啟 App 一次，或到「設定 › 軌島」允許取用位置"))
             }
         } else {
             let parts = (cfg.station ?? "").split(separator: "|", maxSplits: 1).map(String.init)
@@ -341,7 +341,7 @@ struct MetroBoardView: View {
                     .frame(height: scale.pt(24), alignment: .leading)
                     .widgetAccentable()
 
-                Text("往 \(lead.dest)")
+                Text(RailNativeL10n.text("往 {station}", ["station": RailNativeL10n.name(lead.dest)]))
                     .font(.system(size: scale.pt(15)))
                     .foregroundStyle(.secondary)
                     .lineLimit(1).minimumScaleFactor(0.85)
@@ -384,7 +384,7 @@ struct MetroBoardView: View {
         let rows = visibleRows
         let follows = Array(rows.dropFirst().prefix(followLimit))
         VStack(alignment: .leading, spacing: 0) {
-            RailCardTitle(title: entry.title, scale: scale) {
+            RailCardTitle(title: RailNativeL10n.name(entry.title), scale: scale) {
                 HStack(spacing: scale.pt(4)) {
                     if entry.auto { autoBadge(scale) }
                     RailStamp(text: stampTime, warn: entry.failed, scale: scale)
@@ -438,7 +438,7 @@ struct MetroBoardView: View {
 
     private func stationName(_ scale: RailScale, size: CGFloat) -> some View {
         HStack(spacing: scale.pt(4)) {
-            Text(entry.title)
+            Text(RailNativeL10n.name(entry.title))
                 .font(.system(size: scale.pt(size), weight: .semibold))
                 .lineLimit(1).minimumScaleFactor(0.8)
             if entry.auto { autoBadge(scale) }
@@ -447,7 +447,7 @@ struct MetroBoardView: View {
 
     /// 自動解析出來的站掛小徽章,跟手選站區分(文字徽章,UI 控件不用 emoji)。
     private func autoBadge(_ scale: RailScale) -> some View {
-        Text("自動").font(.system(size: scale.pt(9)))
+        Text(RailNativeL10n.text("自動")).font(.system(size: scale.pt(9)))
             .foregroundStyle(.secondary)
             .padding(.horizontal, scale.pt(4)).padding(.vertical, scale.pt(1))
             .background(Capsule().fill(.quaternary))
@@ -459,7 +459,7 @@ struct MetroBoardView: View {
     /// 小卡容得下三行、大卡更寬鬆，故不設 lineLimit。
     @ViewBuilder private func emptyBody(_ scale: RailScale) -> some View {
         let body = entry.emptyBody(at: entry.date)
-        Text(body.text)
+        Text(RailNativeL10n.text(body.text))
             .font(.system(size: scale.pt(13)))
             .foregroundStyle(body.isCTA ? AnyShapeStyle(HierarchicalShapeStyle.primary)
                                         : AnyShapeStyle(HierarchicalShapeStyle.secondary))
@@ -499,10 +499,10 @@ struct MetroBoardView: View {
 
     private func nextText(_ r: MetroRow) -> String {
         switch countdown(r) {
-        case .minutes(let m):       return "· 再 \(m) 分"
-        case .approxMinutes(let m): return "· 再約 \(m) 分"
-        case .seconds:              return "· 下一班即將進站"
-        case .arriving:             return "· 下一班進站"
+        case .minutes(let m):       return RailNativeL10n.text("· 再 {n} 分", ["n": String(m)])
+        case .approxMinutes(let m): return RailNativeL10n.text("· 再約 {n} 分", ["n": String(m)])
+        case .seconds:              return RailNativeL10n.text("· 下一班即將進站")
+        case .arriving:             return RailNativeL10n.text("· 下一班進站")
         // .until 只有跟車 Live Activity 會產生（`countdown(_:)` 這條路徑走不到），
         // 這裡只是讓 switch 窮盡；真要畫也不能畫成靜態字串（那正是 .until 要修的東西）。
         case .noData, .scheduled, .until: return ""
@@ -592,13 +592,13 @@ struct MetroRowView: View {
                 // 設計稿：「主角與倒數加 .widgetAccentable()，其餘留在 base 群組」——
                 // accented 模式下系統把 accentable 群組染上使用者選的色、其餘壓成白，
                 // 所以這裡只點名「往 X」與倒數，副標那一行（線名＋擁擠度）留在 base。
-                Text("往 \(row.dest)")
+                Text(RailNativeL10n.text("往 {station}", ["station": RailNativeL10n.name(row.dest)]))
                     .font(.system(size: scale.pt(20), weight: .semibold))
                     .lineLimit(1).minimumScaleFactor(0.8)
                     .widgetAccentable()
                 HStack(spacing: scale.pt(6)) {
                     if let name = ln.name {
-                        RailLineMark(name: name, color: ln.color, fontSize: 13, scale: scale)
+                        RailLineMark(name: RailNativeL10n.name(name), color: ln.color, fontSize: 13, scale: scale)
                     }
                     if let c = row.crowd, !c.isEmpty {
                         // 🔴 showWord 一律 true：設計稿規則 3「顏色不獨立表意」，六節色塊在
@@ -609,11 +609,11 @@ struct MetroRowView: View {
                 }
             } else {
                 HStack(spacing: scale.pt(6)) {
-                    Text("往 \(row.dest)")
+                    Text(RailNativeL10n.text("往 {station}", ["station": RailNativeL10n.name(row.dest)]))
                         .font(.system(size: scale.pt(17), weight: .medium))
                         .lineLimit(1).minimumScaleFactor(0.85)
                     if disambiguate, let name = ln.name {
-                        RailLineMark(name: name, color: ln.color, fontSize: 11, scale: scale)
+                        RailLineMark(name: RailNativeL10n.name(name), color: ln.color, fontSize: 11, scale: scale)
                             .foregroundStyle(.secondary)
                     }
                     Spacer(minLength: scale.pt(4))

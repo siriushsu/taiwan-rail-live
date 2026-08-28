@@ -103,12 +103,19 @@ struct TraWaitDisplay {
         let tone: DelayTone
         let delayText: String
         if let m = shown {
-            if m > 0 { tone = .late; delayText = "誤點 \(m) 分" }
-            else if m < 0 { tone = .late; delayText = "早到 \(-m) 分" }   // 官方值照抄，不夾正
-            else { tone = .onTime; delayText = "準點" }
+            if m > 0 {
+                tone = .late
+                delayText = RailNativeL10n.text("誤點 {n} 分", ["n": String(m)])
+            } else if m < 0 {
+                tone = .late
+                delayText = RailNativeL10n.text("早到 {n} 分", ["n": String(-m)])
+            } else {
+                tone = .onTime
+                delayText = RailNativeL10n.text("準點")
+            }
         } else {
             tone = .unknown
-            delayText = expired ? "誤點資訊已過期" : "目前無即時誤點資訊"
+            delayText = RailNativeL10n.text(expired ? "誤點資訊已過期" : "目前無即時誤點資訊")
         }
 
         var track: ClosedRange<Date>?
@@ -122,22 +129,32 @@ struct TraWaitDisplay {
         //    到站後也會自己收；沒接上的（綁定失敗、沒網路、伺服器拒收）兩件都不會。
         //    `pushed` 只有在伺服器真的推過一發之後才是 true——它證明的正是「這條路是通的」。
         let hint: String? = isStale
-            ? (pushed == true ? "追蹤到此結束，卡片會自動關閉"
-                              : "誤點分鐘不會自己更新，要看最新請回軌島")
+            ? RailNativeL10n.text(pushed == true
+                                  ? "追蹤到此結束，卡片會自動關閉"
+                                  : "誤點分鐘不會自己更新，要看最新請回軌島")
             : nil
 
+        let localizedStation = RailNativeL10n.name(station)
+        let localizedDestination = RailNativeL10n.name(dest)
         return TraWaitDisplay(
-            trainType: trainType, station: station, color: RailHex.color(colorHex),
-            lead: "\(trainNo) 次 往 \(dest)",
+            trainType: RailNativeL10n.name(trainType), station: localizedStation,
+            color: RailHex.color(colorHex),
+            lead: RailNativeL10n.text("{trainNo} 次 往 {station}", [
+                "trainNo": trainNo, "station": localizedDestination
+            ]),
             // 🔴 綁在 shown 上（不是綁在 delayMin 上）：過期時 shown 是 nil、主角已經退回表定，
             //    標籤必須跟著退回「表定」，否則卡片會拿一個過期的值宣稱「實際約」。
-            heroCaption: shown == nil ? "表定" : "實際約",
+            heroCaption: RailNativeL10n.text(shown == nil ? "表定" : "實際約"),
             heroText: RailBoardClock.updateTimeString(eta),
-            schedText: shown == nil ? nil : "表定 \(RailBoardClock.updateTimeString(sched))",
+            schedText: shown == nil ? nil : RailNativeL10n.text("表定 {time}", [
+                "time": RailBoardClock.updateTimeString(sched)
+            ]),
             delayText: delayText, delayTone: tone, expired: expired,
             track: track, progress: progress, arrived: isStale,
-            footer: dataAt.map { "\(RailBoardClock.updateTimeString(Date(timeIntervalSince1970: $0))) 更新" },
-            notice: RailHex.trimmed(notice), staleHint: hint)
+            footer: dataAt.map { RailNativeL10n.text("{time} 更新", [
+                "time": RailBoardClock.updateTimeString(Date(timeIntervalSince1970: $0))
+            ]) },
+            notice: RailHex.trimmed(notice).map { RailNativeL10n.text($0) }, staleHint: hint)
     }
 }
 
@@ -206,7 +223,9 @@ struct TraWaitLockView: View {
                                lineColor: display.color, scale: scale)
                 // 到站那一刻明講。用「應」不是漏字：這個時刻是「表定＋官方誤點」推出來的
                 // 估計值，官方沒有說過車真的到了，卡片就不可以替它宣告。
-                Text(display.arrived ? "\(display.station) 車應已到" : display.station)
+                Text(display.arrived
+                     ? RailNativeL10n.text("{station} 車應已到", ["station": display.station])
+                     : display.station)
                     .font(.system(size: scale.pt(11)))
                     .foregroundStyle(display.arrived
                                      ? AnyShapeStyle(RailTokens.colors(scheme).ok)
@@ -276,12 +295,12 @@ struct TraWaitEndButton: View {
         if #available(iOS 17.6, *) {
             if compact {
                 Button(intent: TraWaitEndIntent()) {
-                    Text("結束").font(.system(size: scale.pt(11), weight: .semibold))
+                    Text(RailNativeL10n.text("結束")).font(.system(size: scale.pt(11), weight: .semibold))
                 }
                 .buttonStyle(.bordered).controlSize(.mini).tint(.secondary)
             } else {
                 Button(intent: TraWaitEndIntent()) {
-                    RailEndButton(scale: scale, height: height) { Text("結束") }
+                    RailEndButton(scale: scale, height: height) { Text(RailNativeL10n.text("結束")) }
                 }
                 .buttonStyle(.plain)
             }

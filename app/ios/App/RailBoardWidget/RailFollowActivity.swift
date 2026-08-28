@@ -103,36 +103,42 @@ struct RailFollowDisplay {
         //    與 arrivalDate 這一段）。畫成全程等於把一段的進度謊稱成全程的進度。
         //    終點站的名字沒有損失——它就在第一行「往 臺東」那裡。
         let originLabel: String? = prevStop.map { name in
-            guard let d = departedDate else { return name }
-            return "\(name) \(RailBoardClock.updateTimeString(Date(timeIntervalSince1970: d)))"
+            let localizedName = RailNativeL10n.name(name)
+            guard let d = departedDate else { return localizedName }
+            return "\(localizedName) \(RailBoardClock.updateTimeString(Date(timeIntervalSince1970: d)))"
         }
-        var targetLabel = nextStop
+        let localizedNextStop = RailNativeL10n.name(nextStop)
+        var targetLabel = localizedNextStop
         if let a = arrivalDate {
             let t = RailBoardClock.updateTimeString(Date(timeIntervalSince1970: a))
-            targetLabel = stopping ? "\(nextStop) \(t) 到" : "\(nextStop) \(t)"
+            targetLabel = stopping
+                ? RailNativeL10n.text("{station} {time} 到", ["station": localizedNextStop, "time": t])
+                : "\(localizedNextStop) \(t)"
         }
 
         let word: String
         if stale {
             // 不寫「行駛中」——那是在宣稱一件我們已經不知道的事。
-            word = "資料未更新"
+            word = RailNativeL10n.text("資料未更新")
         } else {
             switch phase {
-            case .stopping: word = "停靠中"
-            case .arriving: word = "即將進站"
-            case .running:  word = "行駛中"
+            case .stopping: word = RailNativeL10n.text("停靠中")
+            case .arriving: word = RailNativeL10n.text("即將進站")
+            case .running:  word = RailNativeL10n.text("行駛中")
             }
         }
 
         return RailFollowDisplay(
-            kind: kind, trainNo: trainNo,
+            kind: RailNativeL10n.name(kind), trainNo: trainNo,
             color: RailHex.color(colorHex), inkColor: RailHex.ink(colorHex),
-            terminus: terminus,
-            stopLabel: stopping ? "目前" : "下一站", stopName: nextStop,
+            terminus: RailNativeL10n.name(terminus),
+            stopLabel: RailNativeL10n.text(stopping ? "目前" : "下一站"),
+            stopName: localizedNextStop,
             countdown: countdown, delayMinutes: delaySec / 60,
             track: track, progress: progress, phase: phase,
             originLabel: originLabel, targetLabel: targetLabel,
-            stateWord: word, expired: stale, notice: RailHex.trimmed(notice)
+            stateWord: word, expired: stale,
+            notice: RailHex.trimmed(notice).map { RailNativeL10n.text($0) }
         )
     }
 }
@@ -151,7 +157,7 @@ struct RailFollowLockView: View {
             HStack(spacing: scale.pt(6)) {
                 RailTrainMark(kind: display.kind, number: display.trainNo,
                               color: display.color, fontSize: 12, numberSize: 15, scale: scale)
-                Text("往 \(display.terminus)")
+                Text(RailNativeL10n.text("往 {station}", ["station": display.terminus]))
                     .font(.system(size: scale.pt(13)))
                     .foregroundStyle(.secondary)
                     .lineLimit(1).minimumScaleFactor(0.8)
@@ -259,7 +265,7 @@ struct RailFollowIslandBottom: View {
             if display.notice != nil {
                 // 🔴 動態島塞不下後端那一整句（會爆版），這裡用寫死的短標。
                 //    compact 與 minimal 刻意不動——那兩個版面連站名都只放得下兩三個字。
-                Text("⚠ 資料中斷・位置為預估")
+                Text(RailNativeL10n.text("⚠ 資料中斷・位置為預估"))
                     .font(.system(size: scale.pt(10)))
                     .foregroundStyle(.orange).lineLimit(1)
             }
@@ -314,14 +320,14 @@ struct RailFollowActivityWidget: Widget {
                     if let c = d.color {
                         Circle().fill(c).frame(width: 6, height: 6)
                     }
-                    Text(d.stopName.prefix(2))
+                    Text(RailNativeL10n.name(d.stopName).prefix(2))
                 }
             } compactTrailing: {
                 Group {
                     if let c = d.countdown {
                         RailCountdownText(value: c, size: .minor)
                     } else if d.phase == .stopping {
-                        RailCountdownText(value: .arriving, size: .minor, arrivingWord: "停靠")
+                        RailCountdownText(value: .arriving, size: .minor, arrivingWord: RailNativeL10n.text("停靠"))
                     }
                 }
                 .frame(maxWidth: 52)
