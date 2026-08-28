@@ -34,3 +34,6 @@ exclude:
   - TODO.md
   - design-mock.html
   - scratchpad
+  # 兌換碼領取頁完全靠 /api/pass-* 運作，而備援站沒有 Worker ⇒ 在那邊只會是一個按了沒反應的
+  # 表單。排掉它，免得有人從備援站進來以為壞了。（正式站不受影響：這裡管的是 Jekyll 備援站）
+  - pass.html
