@@ -129,7 +129,7 @@ ok(await page.evaluate(() => window.reviewShouldAsk(99, Date.now(),
    { asked: null, done: !!JSON.parse(localStorage.getItem('trainmap-review-done') || 'false'), ver: '1.4.1' })) === false,
    '🔴 端到端:點過常駐入口之後,節流判定確實變成「不再問」');
 
-console.log('\n【D】Android：Play 評分連結與原生邀請 no-op');
+console.log('\n【D】Android：Play 評分連結與原生邀請');
 const androidP = await browser.newPage();
 const androidAppleReqs = [];
 androidP.on('request', r => { if (r.url().includes('itunes.apple.com')) androidAppleReqs.push(r.url()); });
@@ -141,16 +141,18 @@ await androidP.addInitScript(() => {
     getPlatform: () => 'android',
     Plugins: { RailReview: { requestReview: async () => { window.__androidReviewCalls++; } } },
   };
+  // 故意讓 Play Core 版本查詢永遠 pending：評分常駐入口不可被另一項網路／商店能力綁死。
+  window.RAIL_NATIVE_APPUPDATE = { check: () => new Promise(() => {}) };
   window.__androidReviewCalls = 0;
   try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {}
 });
 await androidP.goto(BASE + '/index.html', { waitUntil: 'domcontentloaded' });
-await androidP.waitForFunction(() => window.__appverLast || null, { timeout: 20000 }).catch(() => {});
 await androidP.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready; } catch (e) { return false; } }, { timeout: 30000 });
 await androidP.locator('#tabMore').click().catch(() => {});
 await androidP.waitForTimeout(400);
 const androidRate = androidP.locator('.ms-row[data-act="rate"]');
 ok(androidAppleReqs.length === 0, 'Android 評分情境沒有 Apple lookup 請求');
+ok(await androidP.evaluate(() => !window.__appverLast), 'Play Core 查詢仍 pending（測試真的覆蓋到卡住情境）');
 ok(await androidP.locator('#msAppSec').isVisible().catch(() => false), 'Android「軌島」段可見');
 ok(await androidRate.isVisible().catch(() => false), 'Android 評分列可見');
 const rateStyle = await androidP.locator('.rate-cta').evaluate(el => {
@@ -177,8 +179,10 @@ await androidP.evaluate(() => {
   window.maybeAskReview(0, 99);
 });
 await androidP.waitForTimeout(400);
-ok(await androidP.evaluate(() => window.__androidReviewCalls) === 0,
-   '🔴 Android 即使誤掛同名 plugin，自動評分邀請仍明確 no-op');
+ok(await androidP.evaluate(() => window.__androidReviewCalls) === 1,
+   '🔴 Android 條件成立時會呼叫 Google Play In-App Review plugin 恰一次');
+ok(await androidP.evaluate(() => !!localStorage.getItem('trainmap-review-asked')),
+   'Android 原生邀請呼叫前先寫入 asked，避免同一版重複觸發');
 await androidP.close();
 
 await siteP.close();

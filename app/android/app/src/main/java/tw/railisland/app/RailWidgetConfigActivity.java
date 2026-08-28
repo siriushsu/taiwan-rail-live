@@ -1,6 +1,7 @@
 package tw.railisland.app;
 
 import android.appwidget.AppWidgetManager;
+import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -19,9 +20,13 @@ import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import org.json.JSONArray;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 /** Android 發車看板設定：台鐵／高鐵／共站、起訖站、自動最近站與大字好讀版。 */
 public final class RailWidgetConfigActivity extends AppCompatActivity {
@@ -31,9 +36,11 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
     private Spinner originSpinner;
     private Spinner destinationSpinner;
     private CheckBox readable;
+    private Button filtersButton;
     private FrameLayout preview;
     private TextView destinationLabel;
     private final List<String> originKeys = new ArrayList<>();
+    private final Set<String> selectedFilters = new LinkedHashSet<>();
 
     @Override
     protected void onCreate(Bundle state) {
@@ -82,6 +89,11 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
         destinationSpinner = new Spinner(this);
         root.addView(destinationSpinner, matchWrap(dp(4)));
 
+        filtersButton = new Button(this);
+        filtersButton.setAllCaps(false);
+        filtersButton.setText("只看這些（可留空）");
+        root.addView(filtersButton, matchWrap(dp(16)));
+
         readable = new CheckBox(this);
         readable.setText("大字好讀版");
         readable.setTextColor(getColor(R.color.wg_ink));
@@ -109,6 +121,7 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
             @Override public void selected(int position) { refreshPreview(); }
         });
         readable.setOnCheckedChangeListener((button, checked) -> refreshPreview());
+        filtersButton.setOnClickListener(view -> showFilters());
         done.setOnClickListener(view -> save());
 
         ScrollView scroll = new ScrollView(this);
@@ -141,6 +154,12 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
             }
         }
         readable.setChecked(prefs.getBoolean("readable_" + widgetId, false));
+        selectedFilters.clear();
+        try {
+            JSONArray values = new JSONArray(prefs.getString("filters_" + widgetId, "[]"));
+            for (int i = 0; i < values.length(); i++) selectedFilters.add(values.optString(i));
+        } catch (Exception ignored) {}
+        updateFilterLabel();
         refreshPreview();
     }
 
@@ -154,6 +173,12 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
         List<String> labels = new ArrayList<>();
         labels.add("自動（最近的站）");
         String sys = systemIndex == 1 ? "thsr" : systemIndex == 2 ? RailWidgetData.SYS_COMPOSITE : "tra";
+        if (!RailWidgetData.SYS_COMPOSITE.equals(sys)) {
+            for (RailWidgetData.PlaceOption place : RailWidgetData.places(this, catalog, "", null)) {
+                originKeys.add(place.key);
+                labels.add(place.displayLabel(catalog));
+            }
+        }
         if (RailWidgetData.SYS_COMPOSITE.equals(sys)) {
             for (RailWidgetData.Composite pair : catalog.composites) {
                 originKeys.add(pair.key);
@@ -185,14 +210,22 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
     private void updateDestinations() {
         List<String> values = new ArrayList<>();
         values.add("");
+        List<String> labels = new ArrayList<>();
+        labels.add("全部目的地");
         String sys = selectedSystem();
         String origin = selectedOrigin();
         if (!RailWidgetData.SYS_COMPOSITE.equals(sys) && !RailWidgetData.AUTO.equals(origin)) {
-            values.addAll(RailWidgetData.destinations(catalog, sys, origin));
+            if (RailWidgetData.isPlace(origin)) {
+                RailWidgetData.PlaceOption place = RailWidgetData.resolvePlace(this, catalog, origin, "", null);
+                if (place != null) { sys = place.sys; origin = place.station; }
+            }
+            List<String> direct = RailWidgetData.destinations(catalog, sys, origin);
+            java.util.Set<String> allowed = new java.util.LinkedHashSet<>(direct);
+            for (RailWidgetData.PlaceOption place : RailWidgetData.places(this, catalog, sys, allowed)) {
+                values.add(place.key); labels.add(place.displayLabel(catalog));
+            }
+            for (String station : direct) { values.add(station); labels.add("往 " + station); }
         }
-        List<String> labels = new ArrayList<>();
-        labels.add("全部目的地");
-        for (int i = 1; i < values.size(); i++) labels.add("往 " + values.get(i));
         destinationSpinner.setAdapter(new DestinationAdapter(this, labels, values));
     }
 
@@ -200,6 +233,40 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
         Object selected = destinationSpinner.getSelectedItem();
         if (selected instanceof DestinationValue) return ((DestinationValue) selected).value;
         return "";
+    }
+
+    private void showFilters() {
+        List<RailWidgetData.FilterOption> options = RailWidgetData.filterOptions(
+            this, catalog, selectedSystem(), selectedOrigin());
+        if (options.isEmpty()) {
+            new AlertDialog.Builder(this).setTitle("只看這些")
+                .setMessage("這個起站目前沒有可用的篩選項目。")
+                .setPositiveButton("知道了", null).show();
+            return;
+        }
+        String[] labels = new String[options.size()];
+        boolean[] checked = new boolean[options.size()];
+        Set<String> draft = new LinkedHashSet<>(selectedFilters);
+        for (int i = 0; i < options.size(); i++) {
+            labels[i] = options.get(i).label; checked[i] = draft.contains(options.get(i).key);
+        }
+        new AlertDialog.Builder(this).setTitle("只看這些（留空就是全部）")
+            .setMultiChoiceItems(labels, checked, (dialog, which, value) -> {
+                if (value) draft.add(options.get(which).key); else draft.remove(options.get(which).key);
+            })
+            .setNeutralButton("清除", (dialog, which) -> {
+                selectedFilters.clear(); updateFilterLabel(); refreshPreview();
+            })
+            .setNegativeButton("取消", null)
+            .setPositiveButton("完成", (dialog, which) -> {
+                selectedFilters.clear(); selectedFilters.addAll(draft); updateFilterLabel(); refreshPreview();
+            }).show();
+    }
+
+    private void updateFilterLabel() {
+        if (filtersButton == null) return;
+        filtersButton.setText(selectedFilters.isEmpty() ? "只看這些（可留空）"
+            : "已選 " + selectedFilters.size() + " 項篩選");
     }
 
     private void refreshPreview() {
@@ -240,6 +307,7 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
             .putString("origin_" + widgetId, origin)
             .putString("destination_" + widgetId, destination)
             .putBoolean("readable_" + widgetId, readable.isChecked())
+            .putString("filters_" + widgetId, new JSONArray(selectedFilters).toString())
             .apply();
         AppWidgetManager manager = AppWidgetManager.getInstance(this);
         RailBoardWidgetProvider.updateOneAsync(this, manager, widgetId);

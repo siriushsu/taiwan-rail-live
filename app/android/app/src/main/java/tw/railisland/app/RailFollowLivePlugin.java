@@ -99,6 +99,8 @@ public final class RailFollowLivePlugin extends Plugin {
         if (stopping != null) out.put("stopping", stopping);
         JSArray stops = call.getArray("remainingStops");
         if (stops != null) out.put("remainingStops", new JSONArray(stops.toString()));
+        JSObject staMap = call.getObject("staMap");
+        if (staMap != null) out.put("staMap", new JSONObject(staMap.toString()));
         return out;
     }
 

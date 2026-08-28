@@ -72,6 +72,31 @@ public final class RailFollowNotificationInstrumentedTest {
         assertEquals("板橋", advanced.optString("prevStop"));
     }
 
+    @Test
+    public void officialObservationUpdatesDelayStationAndStoppingWithoutWebView() throws Exception {
+        long now = System.currentTimeMillis() / 1000;
+        JSONArray stops = new JSONArray()
+            .put(new JSONObject().put("name", "板橋").put("code", "1020")
+                .put("arrivalAt", now + 120).put("advanceAt", now + 150)
+                .put("departedAt", now - 180).put("prevStop", "萬華"))
+            .put(new JSONObject().put("name", "樹林").put("code", "1040")
+                .put("arrivalAt", now + 420).put("advanceAt", now + 450)
+                .put("departedAt", now + 150).put("prevStop", "板橋"));
+        JSONObject state = new JSONObject().put("trainNo", "123").put("sys", "tra_sched")
+            .put("nextStop", "板橋").put("arrivalAt", now + 120).put("advanceAt", now + 150)
+            .put("departedAt", now - 180).put("delaySec", 60).put("remainingStops", stops)
+            .put("staMap", new JSONObject().put("1030", 1));
+        JSONObject live = new JSONObject().put("no", "123").put("delay", 3)
+            .put("sta", "1040").put("status", 1);
+
+        assertTrue(RailFollowNotification.applyOfficial(state, live));
+        assertEquals("樹林", state.optString("nextStop"));
+        assertTrue(state.optBoolean("stopping"));
+        assertEquals(180, state.optInt("delaySec"));
+        assertEquals("誤點差值必須套進下一站預估時刻", now + 540,
+            Math.round(state.optDouble("arrivalAt")));
+    }
+
     private Notification findActive() {
         NotificationManager manager = context.getSystemService(NotificationManager.class);
         assertNotNull(manager);

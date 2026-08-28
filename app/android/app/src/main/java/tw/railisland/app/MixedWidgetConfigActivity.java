@@ -114,6 +114,9 @@ public final class MixedWidgetConfigActivity extends AppCompatActivity {
     }
 
     private void buildRailChoices() {
+        for (RailWidgetData.PlaceOption place : RailWidgetData.places(this, railCatalog, "", null)) {
+            railChoices.add(new RailChoice(place.sys, place.key, place.displayLabel(railCatalog)));
+        }
         railChoices.add(new RailChoice("tra", RailWidgetData.AUTO, "自動（最近的台鐵站）"));
         RailWidgetData.SystemInfo tra = railCatalog.byId.get("tra");
         if (tra != null) for (RailWidgetData.Station station : tra.stations) {

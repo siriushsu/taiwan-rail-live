@@ -10,14 +10,14 @@ android {
     namespace = "tw.railisland.app"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        // 測試機可用 -PrailApplicationId=tw.railisland.app.v16test 並存安裝；
+        // 測試機可用 -PrailApplicationId=tw.railisland.app.v17test 並存安裝；
         // 沒傳屬性時仍是唯一可上 Google Play 的正式 package，不會意外改包名。
         applicationId "tw.railisland.app"
         if (project.hasProperty("railApplicationId")) applicationId project.property("railApplicationId")
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 16
-        versionName "1.4.11"
+        versionCode 17
+        versionName "1.4.12"
         if (project.hasProperty("railVersionName")) versionName project.property("railVersionName")
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
@@ -63,6 +63,10 @@ dependencies {
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation "androidx.core:core:$androidxCoreVersion"
     implementation project(':capacitor-android')
+    implementation "androidx.media3:media3-exoplayer:1.11.0"
+    implementation "androidx.media3:media3-session:1.11.0"
+    implementation "com.google.android.play:review:2.0.2"
+    implementation "com.google.android.play:app-update:2.1.0"
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
@@ -96,7 +100,9 @@ apply from: 'capacitor.build.gradle'
 
 try {
     def servicesJSON = file('google-services.json')
-    if (servicesJSON.text) {
+    // 並存 instrumentation 包使用獨立 applicationId，不能誤套正式 Firebase client；
+    // 正式 build 不傳 railSkipGoogleServices，行為與原本完全相同。
+    if (servicesJSON.text && !project.hasProperty('railSkipGoogleServices')) {
         apply plugin: 'com.google.gms.google-services'
     }
 } catch(Exception e) {

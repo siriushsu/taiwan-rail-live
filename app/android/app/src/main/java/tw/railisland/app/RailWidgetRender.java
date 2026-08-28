@@ -29,13 +29,25 @@ final class RailWidgetRender {
             : snapshot.scheduleNote != null ? snapshot.scheduleNote
             : "台鐵即時誤點 · 高鐵表定時刻";
         root.setTextViewText(R.id.wr_note, note);
+        if (readable) {
+            boolean large = layout == R.layout.widget_rail_4x4;
+            root.setTextViewTextSize(R.id.wr_head, TypedValue.COMPLEX_UNIT_SP,
+                compact ? 17 : large ? 20 : 18);
+            root.setTextViewTextSize(R.id.wr_route, TypedValue.COMPLEX_UNIT_SP,
+                large ? 12 : 11);
+            root.setTextViewTextSize(R.id.wr_stamp, TypedValue.COMPLEX_UNIT_SP,
+                large ? 11 : 10);
+            root.setTextViewTextSize(R.id.wr_note, TypedValue.COMPLEX_UNIT_SP,
+                large ? 10 : 9);
+        }
         root.removeAllViews(R.id.wr_rows);
 
         List<RailWidgetData.Row> rows = snapshot.rows;
         int limit = Math.min(rows.size(), Math.max(1, maxRows - (readable ? (compact ? 1 : 2) : 0)));
         for (int i = 0; i < limit; i++) root.addView(R.id.wr_rows, row(context, rows.get(i), readable, compact));
         if (limit == 0) {
-            RemoteViews empty = new RemoteViews(context.getPackageName(), R.layout.widget_rail_row);
+            RemoteViews empty = new RemoteViews(context.getPackageName(), readable
+                ? R.layout.widget_rail_row_readable : R.layout.widget_rail_row);
             empty.setViewVisibility(R.id.wrr_mark, View.INVISIBLE);
             empty.setTextViewText(R.id.wrr_train, "目前沒有接下來的班次");
             empty.setTextViewText(R.id.wrr_dest, "請稍後再看或點卡片開啟軌島");
@@ -47,7 +59,8 @@ final class RailWidgetRender {
     }
 
     static RemoteViews row(Context context, RailWidgetData.Row row, boolean readable, boolean compact) {
-        RemoteViews out = new RemoteViews(context.getPackageName(), R.layout.widget_rail_row);
+        RemoteViews out = new RemoteViews(context.getPackageName(), readable
+            ? R.layout.widget_rail_row_readable : R.layout.widget_rail_row);
         int color;
         try { color = Color.parseColor(row.color); }
         catch (IllegalArgumentException ignored) { color = context.getColor(R.color.wg_navy); }
@@ -78,11 +91,12 @@ final class RailWidgetRender {
         }
         if (compact) {
             out.setViewVisibility(R.id.wrr_status, View.GONE);
-            out.setTextViewTextSize(R.id.wrr_time, TypedValue.COMPLEX_UNIT_SP, readable ? 17 : 15);
-            out.setTextViewTextSize(R.id.wrr_train, TypedValue.COMPLEX_UNIT_SP, readable ? 12 : 11);
+            out.setTextViewTextSize(R.id.wrr_time, TypedValue.COMPLEX_UNIT_SP, readable ? 23 : 15);
+            out.setTextViewTextSize(R.id.wrr_train, TypedValue.COMPLEX_UNIT_SP, readable ? 16 : 11);
         } else if (readable) {
-            out.setTextViewTextSize(R.id.wrr_time, TypedValue.COMPLEX_UNIT_SP, 18);
-            out.setTextViewTextSize(R.id.wrr_train, TypedValue.COMPLEX_UNIT_SP, 13);
+            out.setTextViewTextSize(R.id.wrr_time, TypedValue.COMPLEX_UNIT_SP, 23);
+            out.setTextViewTextSize(R.id.wrr_train, TypedValue.COMPLEX_UNIT_SP, 16);
+            out.setTextViewTextSize(R.id.wrr_status, TypedValue.COMPLEX_UNIT_SP, 12);
             out.setViewVisibility(R.id.wrr_dest, View.GONE);
         }
         return out;

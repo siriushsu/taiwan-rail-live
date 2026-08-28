@@ -44,7 +44,9 @@ public final class RailMetroWaitPlugin extends Plugin {
         shared = new WeakReference<>(this);
         RailWaitNotification.createChannel(getContext());
         JSONObject activeWait = RailWaitNotification.status(getContext());
-        if (activeWait != null) RailWaitNotification.post(getContext(), activeWait);
+        if (activeWait != null && RailWaitNotification.KIND_METRO.equals(activeWait.optString("kind", RailWaitNotification.KIND_METRO))) {
+            RailWaitNotification.post(getContext(), activeWait);
+        }
         if (pendingUri != null) {
             Uri uri = pendingUri;
             pendingUri = null;
@@ -128,7 +130,7 @@ public final class RailMetroWaitPlugin extends Plugin {
     public void status(PluginCall call) {
         JSONObject state = RailWaitNotification.status(getContext());
         JSObject out = new JSObject();
-        if (state == null) {
+        if (state == null || !RailWaitNotification.KIND_METRO.equals(state.optString("kind", RailWaitNotification.KIND_METRO))) {
             out.put("active", false);
         } else {
             // 從 Android 16 的即時通知設定返回 App 時，JS 會立刻呼叫 status；重貼一次讓

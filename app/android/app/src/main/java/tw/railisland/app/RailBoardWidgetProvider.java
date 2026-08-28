@@ -15,6 +15,9 @@ import android.widget.RemoteViews;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
+import org.json.JSONArray;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -48,7 +51,7 @@ public final class RailBoardWidgetProvider extends AppWidgetProvider {
         SharedPreferences.Editor editor = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit();
         for (int id : ids) {
             editor.remove("sys_" + id).remove("origin_" + id).remove("destination_" + id)
-                .remove("readable_" + id).remove("snapshot_" + id);
+                .remove("readable_" + id).remove("filters_" + id).remove("snapshot_" + id);
             cancel(context, id);
         }
         editor.apply();
@@ -71,6 +74,11 @@ public final class RailBoardWidgetProvider extends AppWidgetProvider {
         String origin = prefs.getString("origin_" + id, null);
         String destination = prefs.getString("destination_" + id, "");
         boolean readable = prefs.getBoolean("readable_" + id, false);
+        List<String> filters = new ArrayList<>();
+        try {
+            JSONArray rawFilters = new JSONArray(prefs.getString("filters_" + id, "[]"));
+            for (int i = 0; i < rawFilters.length(); i++) filters.add(rawFilters.optString(i));
+        } catch (Exception ignored) {}
         if (sys == null || origin == null) {
             manager.updateAppWidget(id, configure(context, id,
                 RailWidgetRender.message(context, "設定發車看板", "點一下選台鐵、高鐵或共站")));
@@ -93,7 +101,7 @@ public final class RailBoardWidgetProvider extends AppWidgetProvider {
                 origin = nearest;
                 destination = "";
             }
-            RailWidgetData.Snapshot snapshot = RailWidgetData.fetch(context, sys, origin, destination);
+            RailWidgetData.Snapshot snapshot = RailWidgetData.fetch(context, sys, origin, destination, filters);
             RailWidgetData.cache(context, PREFS, id, snapshot);
             manager.updateAppWidget(id, sizes(context, id, snapshot, readable));
             long next = System.currentTimeMillis() + 5 * 60_000L;

@@ -1,4 +1,5 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
+import { App } from '@capacitor/app';
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import { Geolocation } from '@capacitor/geolocation';
 import { LocalNotifications } from '@capacitor/local-notifications';
@@ -13,17 +14,36 @@ const ensureAndroidPreciseLocation = async () => {
   return Geolocation.requestPermissions(ANDROID_PRECISE_LOCATION);
 };
 window.RAIL_APP = native;
+window.RAIL_APP_PLATFORM = native ? platform : 'web';
+if (native && document.documentElement) document.documentElement.dataset.appPlatform = platform;
 window.RAIL_FFLATE_URL = 'vendor/fflate.js';
 
 if (native) {
   window.RAIL_API_BASE = 'https://railisland.tw/';
   window.RAIL_FIREBASE_MODULE_URL = './vendor/firebase.mjs';
 
-  if (platform === 'ios') {
+  if (platform === 'android') {
+    // 註冊 backButton listener 後 Capacitor 不再執行預設返回行為，所以前端先用可取消事件
+    // 收自己的浮層；沒有浮層接手時，再依 canGoBack 回上一頁或把 App 收到背景。
+    App.addListener('backButton', ({ canGoBack }) => {
+      const event = new CustomEvent('rail:native-back', { cancelable: true });
+      window.dispatchEvent(event);
+      if (event.defaultPrevented) return;
+      if (canGoBack) window.history.back();
+      else void App.minimizeApp();
+    });
+  }
+
+  if (platform === 'ios' || platform === 'android') {
     const RailPlaces = registerPlugin('RailPlaces');
     window.RAIL_NATIVE_PLACES = {
       sync: places => RailPlaces.sync({ places })
     };
+  }
+
+  if (platform === 'android') {
+    const RailStore = registerPlugin('RailStore');
+    window.RAIL_NATIVE_APPUPDATE = { check: () => RailStore.checkUpdate() };
   }
 
   if (platform === 'ios' || platform === 'android') {
@@ -36,7 +56,7 @@ if (native) {
     };
   }
 
-  if (platform === 'ios') {
+  if (platform === 'ios' || platform === 'android') {
     // 原生背景音樂（RailAudioPlugin）：佇列與自動接下一首在原生層，
     // 跟車時讓位（收播放卡）、平時鎖定畫面有播放卡。index.html 以 shim 對接（makeNativeMusicShim）。
     const RailAudio = registerPlugin('RailAudio');

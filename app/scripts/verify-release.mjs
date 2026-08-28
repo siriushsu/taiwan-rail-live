@@ -46,6 +46,27 @@ export function assertAndroidPreciseLocationContract({ nativeBridgeSource, packa
     '打包後 native-bridge.js 不含精確位置契約——原始碼修正沒有進入發行包');
 }
 
+// Android 實體／手勢返回鍵契約：官方 App plugin 接原生事件，index.html 決定浮層優先序。
+// 一旦註冊 listener，Capacitor 就不再代做預設返回；所以「沒有浮層時」的 history/minimize
+// 退路也必須一起存在，否則補了關閉選單卻會讓一般返回鍵整顆失效。
+export function assertAndroidBackButtonContract({ nativeBridgeSource, packagedBridge, html }) {
+  assert(nativeBridgeSource.includes("import { App } from '@capacitor/app'"),
+    'Android 返回鍵必須使用官方 @capacitor/app，不可另開自製原生橋');
+  assert(/App\.addListener\('backButton',[\s\S]*new CustomEvent\('rail:native-back', \{ cancelable: true \}\)/.test(nativeBridgeSource),
+    'native bridge 沒有把官方 backButton 轉成可取消的 rail:native-back 事件');
+  assert(/if \(canGoBack\) window\.history\.back\(\);[\s\S]*App\.minimizeApp\(\)/.test(nativeBridgeSource),
+    '返回鍵沒有保留「可返回就上一頁，否則收 App 到背景」的既有退路');
+  assert(packagedBridge.includes('rail:native-back') && packagedBridge.includes('backButton'),
+    '打包後 native-bridge.js 缺少 Android 返回鍵接線');
+  const setup = (html.match(/function setupNativeBackButton\(\) \{[\s\S]*?\n\}/) || [''])[0];
+  assert(setup.includes("addEventListener('rail:native-back'")
+      && setup.includes('gtabPopSet(false)') && setup.includes('statPopSet(false)')
+      && setup.includes('e.preventDefault()'),
+    'index.html 必須讓返回鍵依序先收群組選單／資料狀態卡，並攔下該次原生返回');
+  assert(html.includes('setupGtabPop(); setupNativeBackButton();'),
+    'Android 返回鍵處理函式存在但沒有在 boot 掛上');
+}
+
 // Android WebView <140 的 env(safe-area-inset-*) 有已知錯誤；Capacitor 8 會把正確值注入
 // --safe-area-inset-*。所有版面只准從 --sa-* 別名取值，否則三鍵導覽／手勢條會再次蓋住貼底控制。
 export function assertAndroidSafeAreaCssContract(html) {
@@ -436,6 +457,7 @@ export async function verifyRelease({
   const androidManifest = await readFile(join(appRoot, 'android/app/src/main/AndroidManifest.xml'), 'utf8');
   verifyAndroidWidgetParity();
   assertAndroidPreciseLocationContract({ nativeBridgeSource, packagedBridge, androidManifest });
+  assertAndroidBackButtonContract({ nativeBridgeSource, packagedBridge, html });
   assertAppLineageContent(html);
 
   // ── 創始會員截止時刻的「上線錨點」(B-4,2026-08-03 裁示)───────────────────────
