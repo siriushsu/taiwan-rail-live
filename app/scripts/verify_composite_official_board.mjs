@@ -42,6 +42,13 @@ const TARGET_THSR_NAME = '台北';
 const harness = `
 import Foundation
 
+// RailBoardData extends this UI-owned enum. The production target gets it from
+// RailWidgetKit.swift; this Foundation-only model harness supplies the same shape.
+enum RailHeading {
+    case north
+    case south
+}
+
 func decode<T: Decodable>(_ type: T.Type, path: String) throws -> T {
     try JSONDecoder().decode(type, from: Data(contentsOf: URL(fileURLWithPath: path)))
 }
@@ -244,6 +251,7 @@ execFileSync(
   [
     join(repoRoot, 'app/ios/App/App/RailBoardScheduleWriter.swift'),
     join(repoRoot, 'app/ios/App/RailBoardWidget/RailBoardData.swift'),
+    join(repoRoot, 'app/ios/App/RailBoardWidget/RailNativeL10n.swift'),
     harnessPath,
     '-o',
     binary,

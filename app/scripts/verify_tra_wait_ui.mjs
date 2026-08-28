@@ -493,7 +493,8 @@ async function run(engineName, browser) {
       for (const rule of rules || []) {
         if (rule.selectorText === '.board .board-wait') {
           declared = { fs: rule.style.fontSize, fw: rule.style.fontWeight, lh: rule.style.lineHeight,
-                       pt: rule.style.paddingTop || rule.style.padding, bw: rule.style.borderWidth };
+                       pt: rule.style.paddingTop || rule.style.padding, bw: rule.style.borderWidth,
+                       ui: getComputedStyle(document.documentElement).getPropertyValue('--ui').trim() };
         }
       }
     }
@@ -513,10 +514,15 @@ async function run(engineName, browser) {
   ok(tag('J1b .board-wait 的字體宣告沒有被瀏覽器丟掉（無效簡寫會整條消失）'),
     !!pillHit.declared && !!pillHit.declared.fs && !!pillHit.declared.fw && !!pillHit.declared.lh,
     JSON.stringify(pillHit.declared));
-  ok(tag('J1c computed 字體＝樣式表宣告的那組（期望值取自 CSSOM，與實作不同源）'),
-    !!pillHit.declared && pillHit.computed.fs === pillHit.declared.fs &&
+  const declaredFontPx = pillHit.declared
+    ? parseFloat(pillHit.declared.fs.match(/[\d.]+/)?.[0] || 'NaN')
+      * (parseFloat(pillHit.declared.ui) || 1)
+    : NaN;
+  ok(tag('J1c computed 字體＝解析後的樣式表宣告（期望值取自 CSSOM，與實作不同源）'),
+    !!pillHit.declared &&
+    Math.abs(parseFloat(pillHit.computed.fs) - declaredFontPx) < 0.01 &&
     pillHit.computed.fw === pillHit.declared.fw &&
-    Math.abs(parseFloat(pillHit.computed.lh) - parseFloat(pillHit.declared.fs) * parseFloat(pillHit.declared.lh)) < 0.51,
+    Math.abs(parseFloat(pillHit.computed.lh) - declaredFontPx * parseFloat(pillHit.declared.lh)) < 0.51,
     JSON.stringify({ declared: pillHit.declared, computed: pillHit.computed }));
   pillHeights[engineName] = pillHit.h;
   await mob.page.click('#boardTraWait');

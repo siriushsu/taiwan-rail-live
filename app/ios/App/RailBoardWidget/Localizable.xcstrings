@@ -885,7 +885,41 @@
         }
       }
     },
+    "{n} 個地點": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{n} places"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{n}か所"
+          }
+        }
+      }
+    },
     "{n} 班": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{n} trains"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{n}本"
+          }
+        }
+      }
+    },
+    "{n} 班車": {
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -1429,6 +1463,23 @@
         }
       }
     },
+    "「大」只放大字級與列高，功能位置完全不變；跟隨系統只在字級進到輔助使用級別才介入。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Larger settings increase text and row height without moving features. System following only takes effect at accessibility text sizes."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "大きい設定では文字と行の高さだけが変わり、機能の位置は変わりません。システム追従はアクセシビリティ文字サイズでだけ有効になります。"
+          }
+        }
+      }
+    },
     "「永保安康」吉祥車票的一端，日式木造站房": {
       "extractionState": "manual",
       "localizations": {
@@ -1514,6 +1565,23 @@
         }
       }
     },
+    "「更多」→ 字級，開啟「顯示與字級」": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open More, then Text size, to show Display and text size"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「その他」→「文字サイズ」から「表示と文字サイズ」を開く"
+          }
+        }
+      }
+    },
     "「更多」→ 背景音樂": {
       "extractionState": "manual",
       "localizations": {
@@ -1582,6 +1650,23 @@
         }
       }
     },
+    "「非即時」不是另一種資料，是同一份官方資料現在不夠新，畫面依稍早那份投射。手機沒有滑鼠停留可看，所以把原因都攤在這張卡裡。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not live is not a different data source. It means the same official data is no longer fresh, so the display projects from an earlier update. The card spells out the reasons for touch devices."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「非リアルタイム」は別のデータではなく、公式データが古くなり、以前の更新から推定している状態です。タッチ端末でも分かるよう、理由をカード内に表示します。"
+          }
+        }
+      }
+    },
     "「追分成功」吉祥車票的一端，日式木造站房": {
       "extractionState": "manual",
       "localizations": {
@@ -1629,6 +1714,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "「次の曲」で曲送り"
+          }
+        }
+      }
+    },
+    "「跟隨系統字級」可以關掉——手機字調大、但這一頁想維持資訊密度時用": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn off Follow system text size if your phone uses larger text but you want to keep this screen compact"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "端末の文字が大きくてもこの画面の情報量を保ちたい場合は「システム文字サイズに合わせる」をオフにできます"
           }
         }
       }
@@ -2904,6 +3006,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "三貂嶺"
+          }
+        }
+      }
+    },
+    "三階字級與跟隨系統字級。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Three text sizes with optional system-text following."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3段階の文字サイズとシステム文字サイズへの追従。"
           }
         }
       }
@@ -5713,6 +5832,40 @@
         }
       }
     },
+    "切換：全台／台鐵／高鐵／捷運": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch: Nationwide / TRA / HSR / Metro"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "切替：台湾全土／台湾鉄路／高鉄／メトロ"
+          }
+        }
+      }
+    },
+    "切換不會重新框景——你原本看的地方還在原地。字級調大時那顆鈕會跟著變大，但位置不變。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switching does not reset the map view. The button grows with larger text but stays in the same place."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "切り替えても地図の表示範囲は変わりません。文字を大きくするとボタンも大きくなりますが、位置は変わりません。"
+          }
+        }
+      }
+    },
     "切換到含車站的檢視再定位": {
       "extractionState": "manual",
       "localizations": {
@@ -5811,6 +5964,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "太魯閣自強号"
+          }
+        }
+      }
+    },
+    "手動拖圖會解除所在地鏡頭，定位藍點仍持續更新": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dragging the map releases the location camera, while the blue dot continues updating"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "地図を手で動かすと現在地カメラは解除されますが、青い点は更新を続けます"
+          }
+        }
+      }
+    },
+    "手機：點頂端右邊那顆圓鈕（上面寫著目前在哪一群）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Phone: tap the round button at the top right, labelled with the current group"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スマートフォン：現在のグループ名がある右上の丸いボタンを押す"
           }
         }
       }
@@ -7668,6 +7855,23 @@
         }
       }
     },
+    "台鐵套用官方即時誤點；北捷依官方秒級到站倒數逐班校正，高捷、機捷、高雄輕軌依官方到站看板校正。官方資料中斷或你的裝置時鐘明顯不準時，上方的「LIVE」會轉成灰色「非即時」，表示畫面是依稍早的資料投射——點一下時鐘可以看到是哪一項出狀況。台鐵當日官方公告停駛的班次不會出現在地圖上，但看板仍會列出並標成「停駛」。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TRA uses official live delays. Taipei Metro is corrected train by train from official second-by-second countdowns; Kaohsiung Metro, Taoyuan Metro and Kaohsiung Light Rail use official arrival boards. If official data stops or your device clock is inaccurate, LIVE turns into a grey Not live label; tap the clock for details. Officially cancelled TRA services disappear from the map but remain marked Cancelled on station boards."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台湾鉄路は公式のリアルタイム遅延を使用します。台北メトロは秒単位の公式到着カウントダウン、高雄メトロ・桃園メトロ・高雄ライトレールは公式到着案内で補正します。公式データの停止や端末時計のずれがあると、LIVEが灰色の「非リアルタイム」になります。時計を押すと原因を確認できます。公式に運休となった台湾鉄路の列車は地図から消えますが、駅案内には「運休」と表示されます。"
+          }
+        }
+      }
+    },
     "台鐵套用官方即時誤點；北捷依官方秒級到站倒數逐班校正，高捷、機捷、高雄輕軌依官方到站看板校正。官方資料中斷或你的裝置時鐘明顯不準時，上方的「LIVE」會轉成灰色「推估」，表示畫面是依稍早的資料投射。台鐵當日官方公告停駛的班次不會出現在地圖上，但看板仍會列出並標成「停駛」。": {
       "extractionState": "manual",
       "localizations": {
@@ -7698,6 +7902,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "台湾鉄路で最上位の都市間列車です。"
+          }
+        }
+      }
+    },
+    "台鐵誤點目前非即時：依 {time} 的即時資料投射 · {n} 班誤點中": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TRA delays are not live: projected from the live data at {time} · {n} delayed trains"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台湾鉄路の遅延情報は非リアルタイムです：{time}時点のデータから推定・{n}本が遅延中"
           }
         }
       }
@@ -9113,6 +9334,40 @@
         }
       }
     },
+    "目前沒有即時或重播狀態": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No live or replay status is available"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リアルタイム／リプレイ状態はありません"
+          }
+        }
+      }
+    },
+    "目前車數": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trains now"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在の列車数"
+          }
+        }
+      }
+    },
     "目前的檢視沒有「{station}」，請切到含該站的分頁再點": {
       "extractionState": "manual",
       "localizations": {
@@ -10320,6 +10575,23 @@
         }
       }
     },
+    "回": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "!"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "!"
+          }
+        }
+      }
+    },
     "回到列車": {
       "extractionState": "manual",
       "localizations": {
@@ -10422,6 +10694,57 @@
         }
       }
     },
+    "在月台上等車時，把這一站的下一班倒數放上鎖定畫面與動態島，不用一直把 App 開著。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "While waiting on the platform, put the next-train countdown on the Lock Screen and Dynamic Island instead of keeping the app open."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ホームで待つ間、次の列車のカウントダウンをロック画面とDynamic Islandに表示し、アプリを開いたままにする必要がありません。"
+          }
+        }
+      }
+    },
+    "在月台等某一班車時，把那一班的倒數放上鎖定畫面與動態島，不用一直把 App 開著。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "While waiting for a specific train, put its countdown on the Lock Screen and Dynamic Island instead of keeping the app open."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "特定の列車を待つ間、その列車のカウントダウンをロック画面とDynamic Islandに表示できます。"
+          }
+        }
+      }
+    },
+    "在台鐵車站等一班車：鎖定畫面倒數": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wait for a TRA train: Lock Screen countdown"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台湾鉄路の列車を待つ：ロック画面カウントダウン"
+          }
+        }
+      }
+    },
     "在地圖定位": {
       "extractionState": "manual",
       "localizations": {
@@ -10435,6 +10758,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "地図で指定"
+          }
+        }
+      }
+    },
+    "在這站等車：鎖定畫面倒數": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wait at this station: Lock Screen countdown"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この駅で待つ：ロック画面カウントダウン"
           }
         }
       }
@@ -10588,6 +10928,57 @@
           "stringUnit": {
             "state": "translated",
             "value": "通知を許可"
+          }
+        }
+      }
+    },
+    "字": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A"
+          }
+        }
+      }
+    },
+    "字級": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text size"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文字サイズ"
+          }
+        }
+      }
+    },
+    "字級多了三階（標準／大／特大）：「更多」→ 字級打開「顯示與字級」，選一個，整個介面的字、列高與可點範圍會一起放大，欄位一個都不會被收掉，面板下方有即時預覽。手機把系統字級調到輔助使用級別時，軌島也會自動跟著放大到特大——不想要的話，同一張面板裡可以把「跟隨系統字級」關掉": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text size now has Standard, Large and Extra large settings under More → Text size. Text, row height and tap targets grow together without hiding fields, with a live preview. Rail Island also follows accessibility text sizes unless Follow system text size is turned off."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文字サイズに標準／大／特大を追加しました。「その他」→「文字サイズ」で選ぶと、項目を隠さず文字・行・タップ範囲をまとめて拡大し、すぐプレビューできます。アクセシビリティ文字サイズにも追従し、不要なら同じ画面でオフにできます。"
           }
         }
       }
@@ -10911,6 +11302,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "スター列車スタンプをすべて収集"
+          }
+        }
+      }
+    },
+    "收集章": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collection stamps"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コレクションスタンプ"
           }
         }
       }
@@ -12020,6 +12428,23 @@
         }
       }
     },
+    "即時資料": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live data"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リアルタイム情報"
+          }
+        }
+      }
+    },
     "即時資料異常": {
       "extractionState": "manual",
       "localizations": {
@@ -12615,6 +13040,23 @@
         }
       }
     },
+    "找不到就檢查一下車次是不是今天的班次——停駛或加班車不一定在時刻表裡。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If you cannot find it, check that the train runs today. Cancelled or extra services may not appear in the timetable."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "見つからない場合は、本日の列車か確認してください。運休や臨時列車は時刻表にない場合があります。"
+          }
+        }
+      }
+    },
     "找不到路網資料（data/*.json 還在準備）": {
       "extractionState": "manual",
       "localizations": {
@@ -12696,6 +13138,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "自宅・職場・撮影地点を保存し、近くを通る列車を確認します。"
+          }
+        }
+      }
+    },
+    "把捷運站放上主畫面或鎖定畫面，不開 App 就看得到下一班往哪裡、還有幾分鐘。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Put a metro station on your Home or Lock Screen to see the next direction and countdown without opening the app."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メトロ駅をホーム画面やロック画面に置き、アプリを開かずに次の列車の方向と残り時間を確認できます。"
           }
         }
       }
@@ -12802,6 +13261,23 @@
         }
       }
     },
+    "每一列下面會說明原因——資料幾分鐘沒更新、裝置時鐘差幾秒、時間軸不在現在": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Each row explains the reason, such as stale data, device-clock difference or a timeline away from now"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "各行に、データ更新の遅れ、端末時計の差、タイムラインが現在でないなどの理由が表示されます"
+          }
+        }
+      }
+    },
     "每班車的誤點履歷與統計圖表": {
       "extractionState": "manual",
       "localizations": {
@@ -12815,6 +13291,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "列車ごとの遅延履歴・統計グラフ"
+          }
+        }
+      }
+    },
+    "決定地圖上要出現哪些系統的車。手機收在頂端那顆圓鈕裡，點一下展開四個選項。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose which rail systems appear on the map. On phones, tap the round button at the top to reveal four choices."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "地図に表示する鉄道を選びます。スマートフォンでは上部の丸いボタンを押すと4項目が開きます。"
           }
         }
       }
@@ -13206,6 +13699,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "車両混雑度（台北メトロ公式）"
+          }
+        }
+      }
+    },
+    "車進站自動換成下一班，時間到自動收起": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The card advances after each arrival and closes when time expires"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "到着すると次の列車へ進み、時間になると自動で閉じます"
           }
         }
       }
@@ -14672,6 +15182,23 @@
         }
       }
     },
+    "拖曳地圖時，軌道與列車不再比底圖慢半拍；縮放（手機兩指、滑鼠滾輪）收尾的那一瞬，軌道不會先跳回原處再彈回來": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tracks and trains now stay aligned with the base map while dragging. They also remain stable when pinch or wheel zooming ends."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "地図をドラッグするとき、線路と列車が背景地図から遅れなくなりました。ピンチ／ホイールズーム終了時の跳ね戻りも解消しました。"
+          }
+        }
+      }
+    },
     "拖倍速滑桿，1× 到 60×": {
       "extractionState": "manual",
       "localizations": {
@@ -15726,6 +16253,23 @@
         }
       }
     },
+    "長按主畫面空白處進入編輯，從加入小工具的入口搜尋「軌島」": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Touch and hold an empty area on the Home Screen, enter edit mode and search for Rail Island in Add Widget"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ホーム画面の空白を長押しして編集し、ウィジェット追加から「軌島」を検索"
+          }
+        }
+      }
+    },
     "長壽山": {
       "extractionState": "manual",
       "localizations": {
@@ -15879,6 +16423,23 @@
         }
       }
     },
+    "附上的只有版本、目前畫面、地圖視角、跟隨中的列車與瀏覽器版本，不含帳號與定位。開 issue 需要 GitHub 帳號，issue 內容是公開的。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Attachments include only the app version, current screen, map view, followed train and browser version—not your account or location. A GitHub account is required and the issue is public."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添付されるのはバージョン、現在の画面、地図表示、追跡中の列車、ブラウザ版だけで、アカウントや位置情報は含みません。GitHubアカウントが必要で、issueは公開されます。"
+          }
+        }
+      }
+    },
     "附近火車": {
       "extractionState": "manual",
       "localizations": {
@@ -15994,6 +16555,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "青埔"
+          }
+        }
+      }
+    },
+    "非即時": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not live"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "非リアルタイム"
           }
         }
       }
@@ -16746,6 +17324,40 @@
         }
       }
     },
+    "按「附近車站」回到目前位置，點清單裡的站直接開看板": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap Nearby stations to return to your current position, then tap a station to open its board"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「近くの駅」で現在地に戻り、一覧の駅を押すと案内を開けます"
+          }
+        }
+      }
+    },
+    "按「前往 GitHub 開 issue」，內容會幫你填好": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap Continue to GitHub issue; the report will be filled in for you"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「GitHubでissueを開く」を押すと内容が自動入力されます"
+          }
+        }
+      }
+    },
     "按上方的「離開」回到即時地圖": {
       "extractionState": "manual",
       "localizations": {
@@ -16759,6 +17371,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "上部の「終了」でリアルタイム地図へ戻る"
+          }
+        }
+      }
+    },
+    "按小卡上的「結束」停止跟車(× 只是把卡收起來,車還在跟)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use End on the card to stop following. × only hides the card; following continues."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カードの「終了」で列車追跡を止めます。×はカードを隠すだけで追跡は続きます。"
           }
         }
       }
@@ -16827,6 +17456,57 @@
           "stringUnit": {
             "state": "translated",
             "value": "地図右上の四隅ボタンを押す"
+          }
+        }
+      }
+    },
+    "按頁尾（手機在「更多」的關於段）的「回報問題或建議」": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select Report a problem or suggestion in the footer; on phones it is under About in More"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "フッターの「問題・提案を報告」を押す（スマートフォンでは「その他」の概要欄）"
+          }
+        }
+      }
+    },
+    "按站名下方的「追蹤這站」，選方向與要追蹤多久（30／60／90 分鐘）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap Follow this station below the station name, then choose a direction and 30, 60 or 90 minutes"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅名の下にある「この駅を追跡」を押し、方向と30／60／90分を選ぶ"
+          }
+        }
+      }
+    },
+    "按站名旁的「追蹤一班車」": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap Follow a train beside the station name"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅名の横にある「列車を追跡」を押す"
           }
         }
       }
@@ -17201,6 +17881,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "列車を見る"
+          }
+        }
+      }
+    },
+    "看到不對的地方，可以帶著當下的畫面資訊回報。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Report a problem together with details about the current screen."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "問題を見つけたら、現在の画面情報と一緒に報告できます。"
           }
         }
       }
@@ -17694,6 +18391,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "英語・日本語で、お気に入り、本日の台湾鉄路、遅延履歴、アカウント同期、Googleリスト読み込み、共有、「この駅を追跡」もすぐ切り替わるようになりました。災害監視、メトロの行先、列車／駅の選択表示、実績の説明、iPhoneのライブアクティビティとウィジェットにも対応し、中国語だけの公式イベントは原文であることを明記します。"
+          }
+        }
+      }
+    },
+    "英文與日文現在也會即時更新最愛、今日台鐵、誤點履歷、帳號同步、Google 清單匯入、分享與「追蹤這站」；並補上災害監看、捷運終點、點選列車／車站、成就說明、顯示與字級、所在地鏡頭，以及 iPhone 即時動態與小工具，官方活動只有中文時則標示「中文原文」": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "English and Japanese now update favourites, Today’s TRA, delay history, account sync, Google list imports, sharing and Track this station immediately. Hazard monitoring, metro destinations, train/station pickers, achievement descriptions, display and text size, the location camera, iPhone Live Activities and widgets are also covered; Chinese-only official events are labelled as source text."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "英語・日本語で、お気に入り、本日の台湾鉄路、遅延履歴、アカウント同期、Googleリスト読み込み、共有、「この駅を追跡」もすぐ切り替わるようになりました。災害監視、メトロの行先、列車／駅の選択表示、実績の説明、表示と文字サイズ、現在地カメラ、iPhoneのライブアクティビティとウィジェットにも対応し、中国語だけの公式イベントは原文であることを明記します。"
           }
         }
       }
@@ -18429,6 +19143,23 @@
         }
       }
     },
+    "重播中": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replaying"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リプレイ中"
+          }
+        }
+      }
+    },
     "降雨": {
       "extractionState": "manual",
       "localizations": {
@@ -18514,6 +19245,23 @@
         }
       }
     },
+    "首次會問定位權限；Android 建議開啟「精確位置」": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The app asks for location permission the first time. On Android, precise location is recommended."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "初回は位置情報の許可を求めます。Androidでは「正確な位置情報」を推奨します。"
+          }
+        }
+      }
+    },
     "香山": {
       "extractionState": "manual",
       "localizations": {
@@ -18561,6 +19309,57 @@
           "stringUnit": {
             "state": "translated",
             "value": " 倍速　"
+          }
+        }
+      }
+    },
+    "倒數依官方即時到站資訊更新。這項不需要通行證。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The countdown uses official live arrivals. No pass is required."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "公式リアルタイム到着情報で更新します。軌島パスは不要です。"
+          }
+        }
+      }
+    },
+    "倒數照官方表定加即時誤點，車到站後自動收起。鎖定畫面同時只留一張等候卡——追蹤台鐵這班會把捷運那張收掉。時鐘不在「現在」時會先幫你帶回現在。這項不需要通行證。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The countdown combines the official timetable and live delay, then closes after arrival. Only one waiting card can remain on the Lock Screen, so following a TRA train replaces a metro waiting card. If the timeline is away from Now, it returns first. No pass is required."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "公式時刻表とリアルタイム遅延からカウントダウンし、到着後に閉じます。ロック画面の待機カードは同時に1枚だけなので、台湾鉄路を追跡するとメトロのカードは終了します。時刻が「現在」でない場合は先に現在へ戻ります。軌島パスは不要です。"
+          }
+        }
+      }
+    },
+    "候": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "M"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "M"
           }
         }
       }
@@ -18922,6 +19721,23 @@
         }
       }
     },
+    "時段": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Service period"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時間帯"
+          }
+        }
+      }
+    },
     "時間 ±10 分": {
       "extractionState": "manual",
       "localizations": {
@@ -18969,6 +19785,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "時間軸が現在時刻ではありません"
+          }
+        }
+      }
+    },
+    "時鐘旁邊就是資料狀態——畫面夠寬時直接寫出來（LIVE、非即時、尖峰…），窄的時候依序收成小色點，「即時」那顆最後才收。點一下時鐘，會逐項寫出每一項代表什麼、以及為什麼是這個狀態。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The data status sits beside the clock. Wide screens show labels such as LIVE, Not live and Peak; narrow screens collapse them into colored dots, keeping the live indicator longest. Tap the clock to see what each item means and why it has that status."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時計の横がデータ状態です。広い画面ではLIVE、非リアルタイム、ピークなどを文字で表示し、狭い画面では順に色付きの点へ縮小します。時計を押すと各項目の意味と理由を確認できます。"
           }
         }
       }
@@ -19160,6 +19993,40 @@
         }
       }
     },
+    "桌": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "W"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "W"
+          }
+        }
+      }
+    },
+    "桌面：頂端資訊列上的四顆分頁直接點": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desktop: select one of the four tabs in the top information bar"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "デスクトップ：上部情報バーの4つのタブから選ぶ"
+          }
+        }
+      }
+    },
     "桌面也可以按 F": {
       "extractionState": "manual",
       "localizations": {
@@ -19173,6 +20040,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "デスクトップではFキーも利用可能"
+          }
+        }
+      }
+    },
+    "桌面版的四顆分頁就在頂端資訊列上，直接點就能換": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On desktop, use the four tabs in the top information bar."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "デスクトップでは上部の4つのタブで切り替えます。"
           }
         }
       }
@@ -19500,6 +20384,23 @@
         }
       }
     },
+    "班": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "T"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "T"
+          }
+        }
+      }
+    },
     "班表只到 {date} · 請更新軌島": {
       "extractionState": "manual",
       "localizations": {
@@ -19632,6 +20533,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "実際に乗車中、通過する各駅を自動で収集します。"
+          }
+        }
+      }
+    },
+    "真的要結束按卡片上的「結束」": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To stop following, use End on the card."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "追跡を終了するにはカードの「終了」を押します。"
           }
         }
       }
@@ -21013,6 +21931,23 @@
         }
       }
     },
+    "從「接下來的班次」挑你要等的那一班": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose your train from Upcoming services"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「次の列車」から待つ列車を選ぶ"
+          }
+        }
+      }
+    },
     "從下拉選一項——選車次會直接開始跟車": {
       "extractionState": "manual",
       "localizations": {
@@ -21098,6 +22033,23 @@
         }
       }
     },
+    "從選單挑全台同框／台鐵／高鐵／捷運與輕軌": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose Nationwide, TRA, HSR, or Metro and light rail"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台湾全土／台湾鉄路／高鉄／メトロ・ライトレールから選ぶ"
+          }
+        }
+      }
+    },
     "捷": {
       "extractionState": "manual",
       "localizations": {
@@ -21162,6 +22114,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "メトロ・到着まで"
+          }
+        }
+      }
+    },
+    "捷運小工具（主畫面／鎖定畫面）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Metro widgets for Home and Lock Screens"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メトロウィジェット（ホーム／ロック画面）"
           }
         }
       }
@@ -21846,6 +22815,23 @@
         }
       }
     },
+    "移除收藏": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove favorite"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "お気に入りから削除"
+          }
+        }
+      }
+    },
     "移除最愛": {
       "extractionState": "manual",
       "localizations": {
@@ -22135,6 +23121,23 @@
         }
       }
     },
+    "逐列看：台鐵即時誤點是 LIVE 還是「非即時」、捷運看板校正到哪、是不是在重播、目前時段與車數": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Review TRA live-delay status, metro board corrections, replay state, current period and train count"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台湾鉄路の遅延、メトロ案内の補正、リプレイ状態、現在の時間帯と列車数を確認"
+          }
+        }
+      }
+    },
     "逐車校正": {
       "extractionState": "manual",
       "localizations": {
@@ -22284,6 +23287,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "収集マップです。上部の「終了」でリアルタイム地図へ戻ります。"
+          }
+        }
+      }
+    },
+    "這是資料狀態——卡片右上的 ✕ 或按 Esc 關掉": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This is the data-status card. Close it with ✕ at the top right or press Esc."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "データ状態カードです。右上の✕またはEscキーで閉じられます。"
           }
         }
       }
@@ -22539,6 +23559,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "パスには台湾鉄路の90日日別遅延履歴、お気に入りと完乗のクラウド同期、旅程共有、Google Mapsリスト読込、高解像度衛星画像、iOS 17.6以降のロック画面／Dynamic Island表示が含まれます。"
+          }
+        }
+      }
+    },
+    "通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、iPhone 桌面與鎖定畫面的捷運小工具放多站或用「自動（最近的站）」跟著你移動換站（免費可設定一站）、收藏與完乘紀錄跨裝置雲端同步、行程分享、在 App 匯入 Google Maps 已儲存清單、App 非跟車時的衛星高解析圖磚，以及 iOS 17.6 以上可用的跟車鎖定畫面與動態島即時動態。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pass features include 90 days of daily TRA delay history; multiple stations or Auto (nearest station) in iPhone Home and Lock Screen metro widgets, with one station free; cloud sync for favorites and completion records; journey sharing; importing Google Maps saved lists in the app; high-resolution satellite tiles when not following a train; and follow Live Activities on the Lock Screen and Dynamic Island on iOS 17.6 or later."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "パスには、台湾鉄路の過去90日の日別遅延履歴、iPhoneのホーム／ロック画面メトロウィジェットでの複数駅または移動に合わせる「自動（最寄り駅）」（1駅は無料）、お気に入りと完乗記録の端末間同期、旅程共有、Googleマップ保存済みリストの読み込み、列車追跡中以外の高解像度衛星地図、iOS 17.6以降のロック画面／Dynamic Island追跡ライブ表示が含まれます。"
           }
         }
       }
@@ -23117,6 +24154,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "お気に入り"
+          }
+        }
+      }
+    },
+    "最遠征": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Longest journey"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最長遠征"
           }
         }
       }
@@ -25280,6 +26334,23 @@
         }
       }
     },
+    "想放多站，或用「自動（最近的站）」讓它跟著你移動換站，需要軌島通行證（免費可設定一站）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A Rail Island Pass is required for multiple stations or Auto (nearest station), which changes as you move. One station is free."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "複数の駅、または移動に合わせて駅を変える「自動（最寄り駅）」には軌島パスが必要です。1駅は無料です。"
+          }
+        }
+      }
+    },
     "想停就按卡片的 ×，或點地圖空白處": {
       "extractionState": "manual",
       "localizations": {
@@ -26827,6 +27898,23 @@
         }
       }
     },
+    "資料狀態": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data status"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "データ状態"
+          }
+        }
+      }
+    },
     "資料時刻 {time}": {
       "extractionState": "manual",
       "localizations": {
@@ -27010,6 +28098,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "始発から終点まで追跡すると旅程パスポートに完乗スタンプが入ります。早送りは可能ですが、時間を飛ばすと対象外です。"
+          }
+        }
+      }
+    },
+    "跟到終點會蓋一枚完乘章（收在「護照」）。加速播放沒問題，但中途跳時間就不算。手機在跟車途中點車站，看板會和跟車小卡併成同一張卡的兩個分頁，不會互相蓋掉。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Follow to the terminus to earn a completion stamp in Passport. Faster playback still counts, but jumping through time does not. On phones, a station board opens as a second tab in the follow card."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "終点まで追跡すると「パスポート」に完乗スタンプが付きます。早送りは対象ですが、途中で時刻を飛ばすと対象外です。スマートフォンで駅を押すと、追跡カード内の別タブとして案内が開きます。"
           }
         }
       }
@@ -27401,6 +28506,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "初期設定はオフで、この端末だけに保存します。"
+          }
+        }
+      }
+    },
+    "預設關閉；這項設定只會記在目前這台裝置。半透明時字色會自動調整以維持可讀性（亮色加深、暗色提亮），不是靠在字外加光暈。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off by default and saved only on this device. With transparency enabled, text colors adjust automatically for contrast instead of adding a glow."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "初期設定はオフで、この端末だけに保存されます。半透明時は文字色を自動調整して読みやすさを保ち、文字の光彩には頼りません。"
           }
         }
       }
@@ -28969,6 +30091,23 @@
         }
       }
     },
+    "標準": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standard"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "標準"
+          }
+        }
+      }
+    },
     "樟腦寮": {
       "extractionState": "manual",
       "localizations": {
@@ -29067,6 +30206,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "潮州"
+          }
+        }
+      }
+    },
+    "確認要一起附上的資訊——每一項都可以單獨關掉": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Review the attached details; each item can be turned off separately"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添付する情報を確認する（各項目を個別にオフにできます）"
           }
         }
       }
@@ -29373,6 +30529,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "出発駅を選択"
+          }
+        }
+      }
+    },
+    "趟": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "trips"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "回"
           }
         }
       }
@@ -29785,6 +30958,23 @@
         }
       }
     },
+    "縣市快速移動": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quick city and county navigation"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "市・県へすばやく移動"
+          }
+        }
+      }
+    },
     "興南站": {
       "extractionState": "manual",
       "localizations": {
@@ -29853,6 +31043,23 @@
         }
       }
     },
+    "選一個類型、寫一句說明": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a category and add a short description"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "種類を選び、短い説明を書く"
+          }
+        }
+      }
+    },
     "選一張適合你的票，開啟進階功能，也支持軌島繼續運轉。": {
       "extractionState": "manual",
       "localizations": {
@@ -29917,6 +31124,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "で交通機関を選択"
+          }
+        }
+      }
+    },
+    "選捷運小工具，再挑一個車站；鎖定畫面也放得下": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose the Metro widget and select a station; it also fits on the Lock Screen"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メトロウィジェットを選び、駅を指定します。ロック画面にも追加できます"
+          }
+        }
+      }
+    },
+    "選標準／大／特大，面板下方會即時預覽": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose Standard, Large or Extra large; the preview updates immediately"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "標準／大／特大を選ぶと、下部のプレビューがすぐ更新されます"
           }
         }
       }
@@ -30601,6 +31842,23 @@
         }
       }
     },
+    "總里程": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Total distance"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "総距離"
+          }
+        }
+      }
+    },
     "聯合醫院": {
       "extractionState": "manual",
       "localizations": {
@@ -30665,6 +31923,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "あと{n}駅 ▾"
+          }
+        }
+      }
+    },
+    "還有一張「鐵路＋捷運看板」大卡，把台鐵、高鐵與捷運的發車資訊列在同一張。點小工具會直接開啟軌島到那一站。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The large Rail and Metro Board combines TRA, HSR and metro departures. Tap a widget to open Rail Island at that station."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "大きな「鉄道＋メトロ案内」では台湾鉄路、高鉄、メトロの発車情報をまとめて表示します。押すと軌島でその駅を開きます。"
           }
         }
       }
@@ -30890,6 +32165,40 @@
         }
       }
     },
+    "點北捷、高捷或機捷的車站打開看板": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap a Taipei, Kaohsiung or Taoyuan Metro station to open its board"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台北・高雄・桃園メトロの駅を押して案内を開く"
+          }
+        }
+      }
+    },
+    "點台鐵車站打開看板": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap a TRA station to open its board"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台湾鉄路の駅を押して案内を開く"
+          }
+        }
+      }
+    },
     "點任一": {
       "extractionState": "manual",
       "localizations": {
@@ -31043,6 +32352,23 @@
         }
       }
     },
+    "點地圖空白處小卡會收成一顆膠囊——跟車不會斷，點膠囊就展開回來": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap empty map space to collapse the card into a pill. Following continues; tap the pill to expand it again."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "地図の空白を押すとカードが小さくなります。列車追跡は続き、もう一度押すと展開します。"
+          }
+        }
+      }
+    },
     "點我重播": {
       "extractionState": "manual",
       "localizations": {
@@ -31128,6 +32454,23 @@
         }
       }
     },
+    "點時鐘＝現在的資料是不是即時的": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap the clock to check whether current data is live"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時計を押してデータがリアルタイムか確認"
+          }
+        }
+      }
+    },
     "點班次跟隨": {
       "extractionState": "manual",
       "localizations": {
@@ -31175,6 +32518,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "一覧の駅をタップして駅案内を開く"
+          }
+        }
+      }
+    },
+    "點頂端的時鐘（桌面點時鐘那張卡）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap the clock at the top; on desktop, tap the clock card"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上部の時計を押す（デスクトップでは時計カード）"
           }
         }
       }
@@ -32012,6 +33372,23 @@
         }
       }
     },
+    "顯示車種與方向": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show train type and direction"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "列車種別と方向を表示"
+          }
+        }
+      }
+    },
     "顯示資訊（退出極簡）": {
       "extractionState": "manual",
       "localizations": {
@@ -32076,6 +33453,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "麟洛"
+          }
+        }
+      }
+    },
+    "讓看板、列車卡與跟隨面板透出後方地圖，面板底下的路線、車站都看得到；面板最上方的標題列也一起透。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Let the map show through station boards, train cards and follow panels, including their title bars."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅案内、列車カード、追跡パネルとタイトルバーを半透明にし、背後の地図を見えるようにします。"
           }
         }
       }
@@ -32263,6 +33657,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "アプリの旅のパスポートに創始島民バッジ"
+          }
+        }
+      }
+    },
+    "App 留在前景時藍點與所在地鏡頭會持續跟著你；「附近車站」告訴你最近的車站與下一班車還有幾分鐘。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "While the app is in the foreground, the blue dot and location camera keep following you. Nearby stations shows the closest stations and minutes to the next train."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アプリが前面にある間、青い点と現在地カメラが移動を追います。「近くの駅」では最寄り駅と次の列車までの分数を確認できます。"
           }
         }
       }

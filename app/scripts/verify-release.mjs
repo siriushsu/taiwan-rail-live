@@ -227,6 +227,30 @@ const TOAST_REVIEWED = new Map([
   // 🔴 變數名故意不叫 `msg`:指紋是「拿掉字串內容後的結構」,登記 `msg,{wrap:true}` 等於放行
   //    未來所有同形呼叫。取專屬名字讓這兩條只涵蓋這兩個呼叫點,新的通用 msg 仍會被擋下來。
   [`resyncMsg,{wrap:true}`, 'trtcOfficialResyncTick:只插入 mins/count/removed,三者皆先經 Math 收斂為數字'],
+  // 2026-08-28 多語化：下列呼叫只是在原本已審查的值外包 t(...)。t 不做 HTML 逸出，
+  // 所以使用者／外部字串仍逐一要求 escHtml；數量則經 i18nNumber 收斂成在地化數字。
+  [`t(core?'':'')`, 'Core 跟隨失聯提示:core 只選兩個固定翻譯 key'],
+  [`t(info.done?'':'')`, '班次結束提示:info.done 只選兩個固定翻譯 key'],
+  [`t('',{note})`, '定位失敗提示:note 只來自同函式四個固定且已翻譯的說明'],
+  [`t('',{n:i18nNumber(out.added),updated:out.updated?t('',{n:i18nNumber(out.updated)},out.updated):'',skipped:out.skipped?t('',{n:i18nNumber(out.skipped)},out.skipped):'',},out.added)`,
+    '匯入結果:added/updated/skipped 全是匯入計數並經 i18nNumber'],
+  [`label?t('',{label:escHtml(label)}):t('')`, '儲存地點提示:使用者地點名已 escHtml'],
+  [`t('',{station:escHtml(stationName(f.name,f.metroSysId||f.sys))})`, '最愛車站跳轉提示:收藏站名經 stationName 後已 escHtml'],
+  [`j.why===''?t(''):t('',{station:escHtml(stationName(st.name,st.sys)),distance:i18nNumber(Math.round(j.distM)),radius:i18nNumber(j.r)})`,
+    '單站打卡失敗:站名已 escHtml,距離與半徑是數字'],
+  [`t('',{station:escHtml(stationName(st.name,st.sys))})`, '單站打卡提示:站名已 escHtml'],
+  [`t('',{station:escHtml(stationName(st.name,st.sys)),count:e&&e.n>1?t('',{n:i18nNumber(e.n)},e.n):''})`,
+    '單站打卡成功:站名已 escHtml,次數經 i18nNumber'],
+  [`t('',{from:escHtml(stationName(st.name,tr.sys)),to:escHtml(stationName(tr.stops[toIdx].name,tr.sys)),note:j.ok?'':t('')})`,
+    '開始搭乘:兩端站名已 escHtml,note 只選固定翻譯 key'],
+  [`t('',{from:escHtml(stationName(r.fromName,tr.sys)),to:escHtml(stationName(st.name,tr.sys)),n:i18nNumber(n)},n)`,
+    '完成搭乘:localStorage 起站與目的站皆已 escHtml,站數經 i18nNumber'],
+  [`t(res&&res.why===''?'':res&&res.why===''?'':'')`, '等車卡開卡結果:why 只被比較,三個固定翻譯 key 三選一'],
+  [`t('',{station:escHtml(String(station||''))})`, '等車卡深連結站名屬外部輸入,已 escHtml'],
+  [`t(canSat?'':''),{wrap:true}`, '底圖失效提示:canSat 只選兩個固定翻譯 key'],
+  [`t(action.toast)`, '使用說明「試一次」:action 是 HELP_TRY 固定成員,toast 為固定翻譯 key'],
+  [`t(on?'':'')`, '省電模式提示:on 只選兩個固定翻譯 key'],
+  [`p.label?t('',{label:escHtml(p.label)}):t('')`, '預設啟動地點提示:使用者地點名已 escHtml'],
 ]);
 
 // 掃出每一個 showToast( 呼叫的完整參數（括號配對，不是 regex 抓一行）。
@@ -254,7 +278,13 @@ export const toastFingerprint = raw => blankLiterals(raw).replace(/[^\x20-\x7E]/
 
 // 有沒有東西被插進去：拿掉 escHtml(...) 與字串內容後還剩識別字 ⇒ 有。
 export function toastHasInjection(raw) {
-  const rest = blankLiterals(raw.replace(/escHtml\([^()]*\)/g, '')).replace(/[^\x20-\x7E]/g, '');
+  // t(...) 只是翻譯包裝，不會把內容變成 HTML；真正要審的是它的插值值。
+  // 物件的 `name:`／`n:` 是插值欄位名稱，也不是值。兩者若不先排除，多語化後連
+  // `showToast(t('固定字串'))` 都會被誤判；但 `{ name: userValue }` 的 userValue 仍會留下。
+  const rest = blankLiterals(raw.replace(/escHtml\([^()]*\)/g, ''))
+    .replace(/\bt\s*\(/g, '(')
+    .replace(/\b[A-Za-z_$][\w$]*\s*:/g, ':')
+    .replace(/[^\x20-\x7E]/g, '');
   return (rest.match(/[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*/g) || [])
     .some(id => !['true', 'false', 'null', 'undefined'].includes(id));
 }
@@ -621,8 +651,12 @@ export async function verifyRelease({
 
   // Stored XSS 迴歸（QA 2026-07-21）：「我的最愛」的列車／站名是使用者資料,可能來自被污染的
   // 匯入或 localStorage。渲染必須以 escHtml 逸出後才進 innerHTML,否則可在 Capacitor WebView 執行 script。
-  assert(html.includes('escHtml(f.train)') && html.includes('escHtml(f.label)'),
-    '「我的最愛」未以 escHtml 逸出使用者資料——stored XSS 迴歸,不可發行');
+  // 多語版會先把舊收藏的「車種　起站→終點」拆開翻譯，再由 favTrainLabel() 回傳純文字；
+  // 安全邊界仍必須在 innerHTML sink 外層，不能把「有經過翻譯函式」誤當成已逸出。
+  assert(html.includes('escHtml(f.train)')
+      && html.includes('escHtml(favTrainLabel(f))')
+      && html.includes('escHtml(t(f.label))'),
+    '「我的最愛」未在 innerHTML sink 以 escHtml 逸出列車／車站使用者資料——stored XSS 迴歸,不可發行');
   assert(!/<b>\$\{f\.train\}<\/b>/.test(html),
     '「我的最愛」仍把未逸出的 ${f.train} 直接插入 innerHTML——stored XSS 迴歸,不可發行');
 
