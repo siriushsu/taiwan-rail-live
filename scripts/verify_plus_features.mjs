@@ -251,6 +251,16 @@ const REQUIRED = [
   },
   { needle: '行程分享', check: () => fnBodyContains(SRC, 'tripShareVisible', 'plusIsActive()') },
   {
+    needle: '配樂',
+    // 兩道閘要一起驗,少驗一邊另一邊刪掉照樣綠:
+    //  ① 選單的點擊 handler 真的擋(不是只把列畫成灰的)——付費列在無資格時走 plusGateOpen,
+    //     而且【不】落到 musicApplyMode,否則畫面看起來上鎖、點下去其實已經換了模式;
+    //  ② 生效模式在無資格時真的折成 free(不是只藏 UI)——musicEffectiveMode() 的資格判定,
+    //     它是所有播放路徑的共同上游,藏 UI 擋不住已經存在 localStorage 裡的付費模式。
+    check: () => fnBodyContains(SRC, 'musicEffectiveMode', 'plusIsActive()')
+      && /if \(mode !== 'free' && !plusIsActive\(\)\) \{ plusGateOpen\('music-scoring'/.test(SRC),
+  },
+  {
     needle: '已儲存清單',
     // Google Takeout 清單匯入。入口在 setupTakeoutUi():有購買通道時把 takeoutOpen 包進
     // plusRequire('takeout', …),資格判定在 plusRequire 內的 plusIsActive()。兩段都要驗——
