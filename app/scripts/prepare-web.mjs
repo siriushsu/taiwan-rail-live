@@ -105,7 +105,7 @@ for (const file of [
   'favicon-16.png', 'favicon-32.png', 'favicon-48.png', 'favicon-192.png', 'favicon-512.png',
   'apple-touch-180.png', 'icon-maskable-512.png', 'og-1200x630.png'
 ]) await copyFile(file);
-for (const dir of ['assets', 'data']) await copyTree(dir);
+for (const dir of ['assets', 'data', 'i18n']) await copyTree(dir);
 // place_index.json 是本次 build 現場產物，尚未 git add 時不會通過 copyTree 的「只收 tracked」
 // 閘門；明確單檔複製，不放寬其他未追蹤資料進 bundle。
 await copyFile('data/place_index.json');
