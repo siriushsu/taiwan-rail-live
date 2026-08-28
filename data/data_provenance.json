@@ -199,6 +199,15 @@
    "coordinateBasis": "WGS84(OpenStreetMap 定義即 WGS84)",
    "checksum": "7634a5761a1466026c455fbfed34b139"
   },
+  "data/tra_run_profiles.json": {
+   "sourceDescription": "本站自算，無外部上游：由 data/tra_schedule_dense.json（表定時刻）、data/tra.json（軌道線形，供跑段里程）與 data/tra_pass_obs.json（通過站實測時刻）三者，套 index.html 的位置模型（buildObsProfile／speedZoneKnots／a",
+   "sourceField": "source_notes",
+   "effectiveDate": null,
+   "effectiveDateField": null,
+   "geometrySource": null,
+   "coordinateBasis": null,
+   "checksum": "82219e77c6bd6c8067d280de04552657"
+  },
   "data/tra_schedule_dense.json": {
    "sourceDescription": "時刻表來源：https://ods.railway.gov.tw/tra-ods-web/ods/download/dataResource/railway_schedule/JSON/list 清單頁，抓取今天(2026-08-23)起連續 14 天中實際發佈得到的 14 天（2026-08-23…2026-09-0",
    "sourceField": "source_notes",
