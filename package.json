@@ -11,6 +11,7 @@
     "check-ops": "node scripts/verify_stadia_projection.mjs",
     "check-basemap": "node scripts/verify_web_basemap_notice.mjs",
     "check-trainpick": "node scripts/verify_train_overlap_pick.mjs",
+    "check-ipad": "node scripts/verify_ipad_shell.mjs",
     "strip-ship-comments": "node scripts/strip_ship_comments.mjs"
   },
   "dependencies": {
