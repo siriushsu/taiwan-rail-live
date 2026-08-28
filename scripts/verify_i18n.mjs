@@ -234,6 +234,7 @@ async function desktopCore(browser, engine) {
     });
     const hazardEn = `${await bodyText(page, '#alertBanner')} ${await bodyText(page, '#alertDetail')}`;
     assert(hazardEn.includes('Rainfall') && hazardEn.includes('Strong wind') && hazardEn.includes('enhanced monitoring') && hazardEn.includes('do not mean that train service has been suspended') && hazardEn.includes('temporarily unavailable'), `英文災害監看內容未翻譯：${hazardEn}`);
+    assert(hazardEn.includes('more frequently. The warning feed is temporarily unavailable, so the latest successful data is being used until it expires. Follow'), `英文災害監看句子銜接錯誤：${hazardEn}`);
     assert(!/[\u3400-\u9fff]/.test(hazardEn), `英文災害監看仍有中文：${hazardEn}`);
     await page.evaluate(() => { state.hazardWatch = null; document.getElementById('alertDetail').hidden = true; renderAlertBanner(); });
     record(engine, '英文災害類型、監看說明與 stale 降級');
@@ -384,6 +385,11 @@ async function desktopCore(browser, engine) {
       alertChipTitle: document.getElementById('alertChip').getAttribute('title'),
       shareView: document.querySelector('#moreSheet [data-proxy="shareBtn"] span')?.textContent.trim(),
       nativeLanguage: window.__verifyNativeLanguageCalls.at(-1),
+      reviewedCopy: [
+        t('放空模式'), t('◌ 放空模式'), t('離開放空'),
+        t('{train}次', { train: '431' }), t('跟隨 {train} 次', { train: '431' }),
+        t('我上車了'), t('我下車了 · 訂到 {station}', { station: stationName('臺北', 'tra_sched') }),
+      ],
     }));
     assert(immediate.title === '軌島' && immediate.tabs.join('|') === '全|台鉄|高鉄|メトロ', `日文即時切換失敗：${JSON.stringify(immediate)}`);
     assert(immediate.station === '台北', `日文官方站名未套用：${immediate.station}`);
@@ -393,6 +399,7 @@ async function desktopCore(browser, engine) {
     assert(immediate.achievementTitles.includes('最初の完乗を達成') && immediate.officialDestination === '動物園', `日文成就 hover 或官方終點站 fallback 未翻譯：${JSON.stringify(immediate)}`);
     assert(immediate.metroWait.includes('追跡時間') && immediate.metroWait.includes('方向を選択') && immediate.metroWait.includes('南港展覧館') && !immediate.metroWait.includes('追蹤'), `日文等車選單未即時翻譯：${immediate.metroWait}`);
     assert(immediate.alertChipAria === '運行情報。タップして詳細を表示' && immediate.alertChipTitle === '運行情報' && immediate.shareView === '画面を共有', `日文營運公告控制項／分享畫面未翻譯：${JSON.stringify(immediate)}`);
+    assert(immediate.reviewedCopy.join('|') === '鑑賞モード|◌ 鑑賞モード|鑑賞モードを終了|431列車|431列車を追跡|乗車する|下車する・行先：台北', `日文複核用語未統一：${JSON.stringify(immediate.reviewedCopy)}`);
     assert(immediate.nativeLanguage === 'ja', `網頁語言沒有同步到 iPhone 小工具／即時動態：${immediate.nativeLanguage}`);
     await page.evaluate(() => openFontPanel());
     const fontJa = await bodyText(page, '#fontPanel');

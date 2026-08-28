@@ -487,6 +487,8 @@ export async function verifyRelease({
     'privacy.html', 'terms.html',
     'firebase-config.js', 'revenuecat-config.js', 'native-bridge.js',
     'third-party-notices.txt',
+    'i18n/translations.js', 'i18n/content-translations.js',
+    'i18n/legal-translations.js', 'i18n/legal-pages.js', 'i18n/stations.json',
     'data/taiwan_land.json', 'vendor/leaflet/leaflet.css',
     'vendor/leaflet/leaflet.js', 'vendor/fflate.js', 'vendor/firebase.mjs'
   ];

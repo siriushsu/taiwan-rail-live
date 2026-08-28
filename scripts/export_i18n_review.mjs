@@ -34,7 +34,10 @@ let nativeDuplicates = 0;
 function display(value) {
   if (value == null) return '';
   if (typeof value === 'string') return value;
-  return JSON.stringify(value);
+  if (typeof value === 'object') {
+    return Object.entries(value).map(([branch, text]) => `[${branch}] ${display(text)}`).join('\n');
+  }
+  return String(value);
 }
 
 function tripleKey(zh, en, ja) {
@@ -127,7 +130,7 @@ for (const [key, record] of Object.entries(infoCatalog.strings || {})) {
 }
 
 function placeholders(value) {
-  return [...String(value || '').matchAll(/\{([\w]+)\}/g)].map(match => match[1]).sort();
+  return [...new Set([...String(value || '').matchAll(/\{([\w]+)\}/g)].map(match => match[1]))].sort();
 }
 function sameList(a, b) {
   return a.length === b.length && a.every((value, index) => value === b[index]);
@@ -173,6 +176,8 @@ const lines = [
   '## 複核方式',
   '',
   '這份文件直接讀取實際出貨字典、站名資料與 Xcode String Catalog 產生，不是另外手抄的翻譯清單。完全相同的「繁中／英文／日文」組合只列一次，來源欄會合併；同一繁中原文若因使用情境而有不同譯法，會保留成不同列。',
+  '',
+  '若翻譯儲存格以 `[one]`／`[other]` 分行，代表網站 runtime 會依數量的 plural rule 選擇其中一個分支；這是複核用展開格式，介面不會顯示括號標記或整個物件。Xcode 目錄則只收入原生畫面實際可安全插值的純文字值。',
   '',
   '複核時請特別檢查：語意是否自然、鐵道專名是否官方、按鈕字數是否過長、`{station}`／`{n}` 等插值是否完整、付費與權限文字是否可能誤導。可在最後一欄把 `□` 改成 `✓`，或直接在該列後方加註建議。',
   '',
