@@ -1,6 +1,8 @@
 {
   "scripts": {
-    "fetch-schedule": "python3 scripts/fetch_tra_schedule.py && python3 scripts/densify_schedule.py && node scripts/build_pass_obs.mjs && node scripts/build_data_manifest.mjs && node scripts/build_data_provenance.mjs",
+    "fetch-schedule": "python3 scripts/fetch_tra_schedule.py && python3 scripts/densify_schedule.py && node scripts/build_pass_obs.mjs && node scripts/build_run_profiles.mjs && node scripts/build_data_manifest.mjs && node scripts/build_data_provenance.mjs",
+    "build-run-profiles": "node scripts/build_run_profiles.mjs",
+    "check-run-profiles": "node scripts/verify_run_profiles_match.mjs",
     "sync-metro": "python3 scripts/fetch_tdx.py && node scripts/build_metro_times.mjs && node scripts/build_data_manifest.mjs && node scripts/build_data_provenance.mjs",
     "build-bounty-units": "node scripts/build_bounty_units.mjs",
     "check-schedule": "python3 scripts/check_schedule.py",
