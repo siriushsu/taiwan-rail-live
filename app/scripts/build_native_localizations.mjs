@@ -14,9 +14,17 @@ for (const rel of ['i18n/translations.js', 'i18n/content-translations.js']) {
 const web = context.window.RAIL_I18N_MESSAGES;
 if (!web?.en || !web?.ja) throw new Error('找不到網站 en／ja 字典');
 const entries = new Map();
+// 網站 runtime 可依 Intl.PluralRules 選 one／other；原生這份目錄由 RailNativeL10n 做純文字
+// 插值，不能把物件 String() 成「[object Object]」。原生目前沒有使用這幾個複數型網站 key，
+// 仍取 other 作安全目錄值；相同字串的原生專用短格式會在下方 native 表覆寫。
+const nativeString = value => {
+  if (typeof value === 'string') return value;
+  if (value && typeof value === 'object') return value.other ?? value.one ?? Object.values(value).find(item => typeof item === 'string') ?? '';
+  return value == null ? '' : String(value);
+};
 const add = (source, en, ja) => {
   if (!source || !en || !ja) return;
-  entries.set(String(source), { en: String(en), ja: String(ja) });
+  entries.set(String(source), { en: nativeString(en), ja: nativeString(ja) });
 };
 for (const source of new Set([...Object.keys(web.en), ...Object.keys(web.ja)])) {
   add(source, web.en[source], web.ja[source]);
