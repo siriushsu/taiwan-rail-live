@@ -85,7 +85,13 @@ const pools = POOLS.map(p => {
   return { ...p, tracks };
 });
 
-const out = { free: { tracks: free, bundled: BUNDLED }, families: FAMILIES, pools };
+// source_notes 供 build_data_provenance 讀取。刻意不寫時間戳:那個閘門要求重跑逐 byte 相同。
+const out = {
+  source_notes: '本站自製配樂,無外部資料源。曲目由 Suno 生成後人工挑選,'
+    + 'dur/bytes 由 scripts/build_music_data.mjs 以 ffprobe 與檔案大小量出;'
+    + '情境池的分區/時段/家族歸屬是產品設計,定義在同一支建置腳本的 POOLS 常數',
+  free: { tracks: free, bundled: BUNDLED }, families: FAMILIES, pools,
+};
 writeFileSync(path.join(ROOT, 'data', 'music.json'), JSON.stringify(out, null, 2) + '\n');
 const shipped = pools.filter(p => p.tracks.length);
 const mins = (ts) => Math.round(ts.reduce((a, x) => a + x.dur, 0) / 60);

@@ -14128,13 +14128,26 @@ const MUSIC_ORIGIN = 'https://railisland.tw/';
 // 🔴 回傳【未編碼】字串:web 的 <audio> 由 musicSrc() 再 encodeURI,而原生 setQueue 收到的相對
 //    路徑要保持原樣(Swift 的 appendingPathComponent 會自己處理空白,先編碼會變成雙重編碼)。
 function musicIsApp() { return typeof window.RAIL_APP_VERSION === 'string' && !!window.RAIL_APP_VERSION; }
-function musicPath(f) { return (!musicIsApp() || MUSIC_BUNDLED.has(f)) ? MUSIC_DIR + f : MUSIC_ORIGIN + MUSIC_DIR + f; }
+function musicBundledSet() {
+  const b = (window.MUSIC_DATA && window.MUSIC_DATA.free.bundled) || [];
+  return b.length ? new Set(b) : MUSIC_BUNDLED;      // 資料還沒載到就用硬編那份
+}
+function musicPath(f) { return (!musicIsApp() || musicBundledSet().has(f)) ? MUSIC_DIR + f : MUSIC_ORIGIN + MUSIC_DIR + f; }
 function musicSrc(f) { return encodeURI(musicPath(f)); }
 // 原生佇列:相對路徑保持原樣交給 Swift 併進 bundle;絕對網址必須先編碼,URL(string:) 不吃空白。
 function musicNativeSrc(f) { const p = musicPath(f); return p.startsWith('http') ? encodeURI(p) : p; }
 // 顯示名一律取【歌單名】而非檔名(使用者 2026-08-27 裁示:不顯示每條曲目名;新曲庫裡 Moonlake
 // 整組都叫 Untitled-N,印檔名在鎖定畫面上只會更糟)。
-function musicLabel(f) { return String(f).split('/')[0] || '背景音樂'; }
+function musicLabel(f) {
+  const s = String(f);
+  // 付費曲路徑是 _pass/<池 id>/<檔名>,取第一段會變成 "_pass"。顯示池的中文名。
+  if (s.indexOf('_pass/') === 0) {
+    const p = musicPoolById(s.split('/')[1]);
+    return (p && p.zh) || '背景音樂';
+  }
+  return s.split('/')[0] || '背景音樂';
+}
+window.musicLabel = musicLabel;
 function musicAvailable() { return window.RAIL_MUSIC_AVAILABLE !== false; }
 function musicShuffle(a) { // Fisher-Yates 洗牌
   for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
@@ -14221,17 +14234,54 @@ function musicPickPool(zone, hour, pools, lastId) {
   return best[Math.floor(Math.random() * best.length)];
 }
 window.musicZoneOf = musicZoneOf; window.musicHourBucket = musicHourBucket; window.musicPickPool = musicPickPool;
+
+// ── 跟車配樂:播放模式 ─────────────────────────────────────────────────────────
+// free = 免費 57 首隨機;auto = 跟著列車;family/pool = 手動釘住(選了就不再自動換)。
+// 資格是唯一的折疊條件:沒資格就一律 free,但【不改寫】使用者選過的 mode——
+// 資格回來要接得回去(跨 runtime 資格旗標是單向閥,只驗解鎖會照不到這半)。
+function musicEffectiveMode() {
+  const m = (state.music && state.music.mode) || { kind: 'free' };
+  if (m.kind === 'free') return m;
+  return plusIsActive() ? m : { kind: 'free' };
+}
+function musicListFor(mode) {
+  const D = window.MUSIC_DATA;
+  if (!mode || mode.kind === 'free') return (D.free.tracks || []).map(t => t.src);
+  if (mode.kind === 'pool') { const p = musicPoolById(mode.id); return p ? p.tracks.map(t => t.src) : []; }
+  if (mode.kind === 'family') {
+    return musicShippedPools().filter(p => p.family === mode.id).flatMap(p => p.tracks.map(t => t.src));
+  }
+  if (mode.kind === 'auto') {
+    const p = typeof musicAutoPool === 'function' ? musicAutoPool() : null;
+    return p ? p.tracks.map(t => t.src) : [];
+  }
+  return [];
+}
+// 套用模式:換清單、洗牌、從頭起算。清單空(池還沒上架)就退回免費,不讓音樂靜掉。
+function musicApplyMode(mode, opts) {
+  const m = state.music; if (!m) return;
+  if (mode) { m.mode = mode; saveMusicPref(); }
+  const eff = musicEffectiveMode();
+  let list = musicListFor(eff);
+  if (!list.length) list = musicListFor({ kind: 'free' });
+  m.list = musicShuffle(list.slice());
+  m.idx = 0;
+  m._fails = 0;
+  if (!(opts && opts.noLoad)) musicLoadCur();
+}
+window.musicApplyMode = musicApplyMode; window.musicEffectiveMode = musicEffectiveMode;
 function loadMusicPref() {
-  let enabled = true, vol = 0.5;
+  let enabled = true, vol = 0.5, mode = { kind: 'free' };
   try {
     const o = JSON.parse(localStorage.getItem('trainmap-music') || '{}');
     if (o.enabled === false) enabled = false;
     if (typeof o.vol === 'number') vol = Math.max(0, Math.min(1, o.vol));
+    if (o.mode && typeof o.mode.kind === 'string') mode = o.mode;
   } catch (e) {}
-  return { enabled, vol };
+  return { enabled, vol, mode };
 }
 function saveMusicPref() {
-  try { localStorage.setItem('trainmap-music', JSON.stringify({ enabled: state.music.enabled, vol: state.music.vol })); } catch (e) {}
+  try { localStorage.setItem('trainmap-music', JSON.stringify({ enabled: state.music.enabled, vol: state.music.vol, mode: state.music.mode })); } catch (e) {}
 }
 // iOS App 原生播放代理（build 38）:模仿本模組用到的 HTMLAudioElement 表面
 // (src/volume/play/pause/paused/事件)，實際播放走 RailAudioPlugin(AVPlayer)。
@@ -14274,14 +14324,23 @@ function makeNativeMusicShim(na) {
   return shim;
 }
 function initMusic() {
-  musicLoadData();               // 曲庫資料;Task 3 起接上播放清單
   const available = musicAvailable();
   const pref = available ? loadMusicPref() : { enabled: false, vol: 0.5 };
   const audio = window.RAIL_NATIVE_AUDIO ? makeNativeMusicShim(window.RAIL_NATIVE_AUDIO) : new Audio();
   audio.preload = 'none';
   audio.volume = 0;
   // 錄影混音延後到 Plus 使用者播放音樂或開始錄影時才建立，一般訪客不多載一個 AudioContext。
-  state.music = { enabled: pref.enabled, vol: pref.vol, audio, mixCtx: null, mixSrc: null, mixDest: null, list: available ? musicShuffle(MUSIC_FILES.slice()) : [], idx: 0, _fade: null, _fails: 0 };
+  state.music = { enabled: pref.enabled, vol: pref.vol, audio, mixCtx: null, mixSrc: null, mixDest: null,
+    list: available ? musicShuffle(MUSIC_FILES.slice()) : [], idx: 0, _fade: null, _fails: 0,
+    mode: pref.mode, _ctxAt: 0, _ctxKey: '', _ctxCand: '', _lastPoolId: null, _curPoolId: null, _effKey: '' };
+  // 曲庫改由 data/music.json 供給;載不到就維持上面那份硬編清單(部署缺檔時不至於整個沒音樂)。
+  musicLoadData().then(() => {
+    if (!available) return;
+    const D = window.MUSIC_DATA;
+    if (!D.free.tracks.length) D.free.tracks = MUSIC_FILES.map(src => ({ src, dur: 0, bytes: 0 }));
+    if (!D.free.bundled.length) D.free.bundled = [...MUSIC_BUNDLED];
+    musicApplyMode(null, { noLoad: true });
+  });
   audio.addEventListener('ended', musicNext);
   audio.addEventListener('playing', () => { state.music._fails = 0; }); // 有一首放起來就歸零
   audio.addEventListener('error', () => { // 壞檔跳下一首;整份清單都載不到(如部署環境無音檔)就停,不空轉

@@ -129,6 +129,48 @@ const stable = await page.evaluate(() => {
 });
 ok('D3 非平手格必須穩定不亂跳', new Set(stable).size === 1 && stable[0] === 'metro-motion', stable.join(','));
 
+// ── E. 播放模式與資格折疊 ──────────────────────────────────────────────────────
+const e1 = await page.evaluate(() => {
+  state.plus = { active: false };
+  window.musicApplyMode({ kind: 'pool', id: 'metro-motion' }, { noLoad: true });
+  return { mode: state.music.mode, eff: window.musicEffectiveMode().kind, n: state.music.list.length };
+});
+ok('E1 無資格時付費模式折成 free', e1.eff === 'free', JSON.stringify(e1));
+ok('E2 無資格時播的是免費 57 首', e1.n === 57, `實際 ${e1.n}`);
+ok('E3 使用者的選擇要留著(不被改寫)', e1.mode.kind === 'pool' && e1.mode.id === 'metro-motion', JSON.stringify(e1.mode));
+
+const e4 = await page.evaluate(() => {
+  state.plus = { active: true };
+  window.musicApplyMode({ kind: 'pool', id: 'metro-motion' }, { noLoad: true });
+  const pool = state.music.list.slice();
+  window.musicApplyMode({ kind: 'family', id: 'city-circuit' }, { noLoad: true });
+  const fam = state.music.list.slice();
+  window.musicApplyMode({ kind: 'free' }, { noLoad: true });
+  return { pool: pool.length, fam: fam.length, free: state.music.list.length,
+    poolAllPaid: pool.every(x => x.startsWith('_pass/metro-motion/')),
+    famAllPaid: fam.every(x => x.startsWith('_pass/')) };
+});
+ok('E4 單池模式只播那一池(7 首)', e4.pool === 7 && e4.poolAllPaid, JSON.stringify(e4));
+ok('E5 家族模式聚合該家族已上架的池(9+6+7=22 首)', e4.fam === 22 && e4.famAllPaid, JSON.stringify(e4));
+ok('E5b 免費模式回到 57 首', e4.free === 57, JSON.stringify(e4));
+
+// 空池不得讓音樂靜掉:未上架的池要退回免費
+const e6 = await page.evaluate(() => {
+  state.plus = { active: true };
+  window.musicApplyMode({ kind: 'pool', id: 'yilan-line' }, { noLoad: true });   // 尚未上架
+  return { n: state.music.list.length, mode: state.music.mode.id };
+});
+ok('E6 選到未上架的池會退回免費而不是靜掉', e6.n === 57 && e6.mode === 'yilan-line', JSON.stringify(e6));
+
+// musicLabel:付費路徑不得顯示 "_pass"(2026-08-27 裁示:顯示歌單名,不顯示曲名)
+const lab = await page.evaluate(() => [
+  window.musicLabel('Afloat/Zero Gravity Dream.mp3'),
+  window.musicLabel('_pass/metro-motion/Metro Pulse.mp3'),
+  window.musicLabel('_pass/urban-jazz/Blue Signal.mp3'),
+]);
+ok('E7 免費曲標籤 = 資料夾名', lab[0] === 'Afloat', JSON.stringify(lab));
+ok('E8 付費曲標籤 = 池的中文名,不得是 _pass', lab[1] === '捷運流動' && lab[2] === '都市爵士', JSON.stringify(lab));
+
 await browser.close();
 server.close();
 const bad = results.filter(r => !r.pass);
