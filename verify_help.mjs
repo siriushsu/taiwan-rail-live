@@ -34,6 +34,9 @@ const withNative = (qs, native) => !native ? qs : (qs ? qs + '&' : '?') + NATIVE
 
 async function newPage({ w = 1280, h = 900, seen = false } = {}) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h } });
+  // 本驗收的既有斷言以繁中 canonical 文案為準；多語化後首次語言會讀 navigator.language，
+  // 因此固定 zh-TW，英文／日文說明另由 scripts/verify_i18n.mjs 驗證。
+  await ctx.addInitScript(() => { try { localStorage.setItem('trainmap-language', 'zh-TW'); } catch (e) {} });
   if (seen) await ctx.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} });
   const p = await ctx.newPage();
   p.on('pageerror', e => errs.push(String(e).slice(0, 200)));

@@ -71,12 +71,16 @@ async function desktopCore(browser, engine) {
       station: stationName('臺北', 'tra_sched'),
       route: routeName('高鐵', 'thsr_sched'),
       type: trainTypeName('自強'),
+      count: document.getElementById('count').textContent.trim(),
+      metadata: GROUPS.map(group => t(group.plate?.lead || '')).filter(Boolean),
+      official: METRO_OFFICIAL.map(item => t(item.label)),
     }));
     assert(core.lang === 'en' && core.title === 'Rail Island', `英文基本狀態錯誤：${JSON.stringify(core)}`);
     assert(core.tabs.join('|') === 'All|TRA|HSR|Metro', `英文分頁錯誤：${core.tabs.join('|')}`);
     assert(core.topTabs.join('|') === 'All|TRA|HSR|Metro', `英文頂部分頁錯誤：${core.topTabs.join('|')}`);
     assert(core.lead.includes('railways across Taiwan') && core.station === 'Taipei', `英文首屏或站名錯誤：${JSON.stringify(core)}`);
     assert(core.route.includes('High Speed Rail') && core.type.includes('Tze-Chiang'), `英文路線／車種錯誤：${JSON.stringify(core)}`);
+    assert(/trains? running/.test(core.count) && core.metadata.every(text => !/[\u3400-\u9fff]/.test(text)) && core.official.every(text => !/[\u3400-\u9fff]/.test(text)), `英文動態列車數／系統導言／官方連結錯誤：${JSON.stringify(core)}`);
     const cjkCore = await visibleEnglishCjk(page);
     assert(cjkCore.length === 0, `英文可見核心仍有中文：${cjkCore.join(' ｜ ')}`);
     record(engine, '英文首屏、分頁、站名、路線與車種');
@@ -101,6 +105,30 @@ async function desktopCore(browser, engine) {
     assert(boardEn.includes('Taipei') && boardEn.includes('Arrivals in the next 3 hours'), `英文來車看板未即時翻譯：${boardEn.slice(0, 500)}`);
     assert(!/undefined|\bi18n\./i.test(boardEn), `英文來車看板洩漏內部值：${boardEn}`);
     record(engine, '英文車站來車看板');
+
+    const metroBoards = await page.evaluate(() => {
+      const lines = state.decoLines.length ? state.decoLines : state.lines;
+      const candidate = lines.find(line => line.stations?.length > 1 && line._sysLabel);
+      if (!candidate) return null;
+      const li = lines.indexOf(candidate), station = { ...candidate.stations[0], sys: state.decoLines.length ? 'deco' : 'freq' };
+      const destName = candidate.stations[candidate.stations.length - 1].name;
+      const legacy = { kind: 'legacy', ln: candidate, li, ci: 0, t: state.simSec + 120, dtm: 120, destName };
+      const coreView = { groups: [{ kind: 'legacy', ln: candidate, li, destName, rows: [legacy] }], stationLines: [{ ln: candidate, li, si: 0 }], linked: 0 };
+      renderMetroCoreFreqBoard(document.getElementById('board'), station, lines, state.decoLines.length > 0, coreView);
+      const core = document.getElementById('board').textContent.replace(/\s+/g, ' ').trim();
+      const coreTitle = document.querySelector('#board .row')?.title || '';
+      const trtcView = { groups: [{ kind: 'legacy', ln: candidate, li, destName, rows: [legacy] }], nowMs: Date.now() };
+      renderTrtcOfficialFreqBoard(document.getElementById('board'), station, lines, state.decoLines.length > 0, trtcView);
+      const official = document.getElementById('board').textContent.replace(/\s+/g, ' ').trim();
+      const officialTitle = document.querySelector('#board .row')?.title || '';
+      return { core, coreTitle, official, officialTitle };
+    });
+    assert(metroBoards && /Platform arrivals|Tap a linked service/.test(metroBoards.core), `英文 Metro Core 看板未翻譯：${JSON.stringify(metroBoards)}`);
+    assert(/Taipei Metro services use the official live countdown/.test(metroBoards.official), `英文北捷官方倒數看板未翻譯：${JSON.stringify(metroBoards)}`);
+    assert(/Follow service to/.test(metroBoards.coreTitle) && /Follow service to/.test(metroBoards.officialTitle), `英文捷運看板 title 未翻譯：${JSON.stringify(metroBoards)}`);
+    const cjkMetroBoard = await visibleEnglishCjk(page, '#board');
+    assert(cjkMetroBoard.length === 0, `英文捷運即時看板仍有中文：${cjkMetroBoard.join(' ｜ ')}`);
+    record(engine, '英文捷運即時倒數、方向、路線與操作標籤');
 
     const followed = await page.evaluate(() => {
       const train = state.trains.find(item => !item.loop && item.sys === 'tra_sched') || state.trains.find(item => !item.loop);
@@ -136,6 +164,51 @@ async function desktopCore(browser, engine) {
     assert(plusEn.includes('Privacy Policy') && plusEn.includes('Terms of Use'), `英文 Plus 法務連結未翻譯：${plusEn}`);
     record(engine, '英文 Plus、續訂、免費層與法務入口');
 
+    await page.waitForFunction(() => state.special?.namedTrains?.length && state.special?.rollingStock?.length);
+    const contentEn = await page.evaluate(() => {
+      const asText = html => { const node = document.createElement('div'); node.innerHTML = html; return node.textContent.replace(/\s+/g, ' ').trim(); };
+      const shanlan = state.special.namedTrains.find(item => item.id === 'shanlan');
+      renderNamedIntro(shanlan);
+      const stock = state.special.rollingStock.find(item => state.trains.some(train => item.carNames.includes(train.carName)));
+      const stockTrain = stock && state.trains.find(train => stock.carNames.includes(train.carName));
+      if (stockTrain) renderTrainCard(stockTrain);
+      document.getElementById('plusModal').hidden = true;
+      openHelp();
+      document.querySelectorAll('.site-foot details').forEach(detail => { detail.open = true; });
+      const footerCjk = [];
+      const footerWalker = document.createTreeWalker(document.querySelector('.site-foot'), NodeFilter.SHOW_TEXT);
+      let footerNode;
+      while ((footerNode = footerWalker.nextNode())) {
+        const value = footerNode.nodeValue.replace(/\s+/g, ' ').trim(), parent = footerNode.parentElement;
+        if (!value || !/[\u3400-\u9fff]/.test(value) || !parent) continue;
+        const style = getComputedStyle(parent), rect = parent.getBoundingClientRect();
+        if (style.display !== 'none' && style.visibility !== 'hidden' && rect.width && rect.height) footerCjk.push(value);
+      }
+      return {
+        station: asText(stationIntroText('十分')),
+        named: document.getElementById('searchDrop').textContent.replace(/\s+/g, ' ').trim(),
+        train: stockTrain ? document.getElementById('tcIntro').textContent.replace(/\s+/g, ' ').trim() : '',
+        stamps: asText(buildStamps([])),
+        achievements: asText(buildAchv([], 'chip')),
+        achievementTitles: ACHIEVEMENTS.map(item => t(item.desc)),
+        help: document.getElementById('helpBody').textContent.replace(/\s+/g, ' ').trim(),
+        footer: document.querySelector('.site-foot').textContent.replace(/\s+/g, ' ').trim(),
+        recent: document.querySelector('.foot-recent').textContent.replace(/\s+/g, ' ').trim(),
+        history: document.querySelector('.foot-more').textContent.replace(/\s+/g, ' ').trim(),
+        footerCjk: [...new Set(footerCjk)],
+      };
+    });
+    assert(contentEn.station.includes('Station highlight') && contentEn.station.includes('sky-lantern'), `英文特色車站未翻譯：${contentEn.station}`);
+    assert(contentEn.named.includes('Shanlan') && contentEn.named.includes('East Rift Valley'), `英文觀光列車圖鑑未翻譯：${contentEn.named}`);
+    assert(contentEn.train && !/undefined|i18n\./i.test(contentEn.train), `英文特色車種卡未正確渲染：${contentEn.train}`);
+    assert(/Breezy\s*Blue/.test(contentEn.stamps) && /Pingxi\s*Line/.test(contentEn.stamps) && contentEn.stamps.includes('EMU3000'), `英文護照圖鑑未翻譯：${contentEn.stamps}`);
+    assert(contentEn.achievements.includes('First journey') && contentEn.achievementTitles.includes('Complete your first full journey'), `英文成就未翻譯：${contentEn.achievements}`);
+    assert(contentEn.help.includes('Search stations, train numbers and train names') && contentEn.help.includes('Journey Passport and completion stamps') && contentEn.help.includes('Background music'), `英文使用說明未完整翻譯：${contentEn.help.slice(0, 1000)}`);
+    assert(contentEn.footer.includes('Data sources and licences') && contentEn.footer.includes('independent hobby project'), `英文資料來源介紹未翻譯：${contentEn.footer.slice(-1200)}`);
+    assert(contentEn.footerCjk.length === 0, `英文頁尾展開後仍有中文：${contentEn.footerCjk.join(' ｜ ')}`);
+    assert(contentEn.recent.includes('English and Japanese now cover') && contentEn.history.includes('Earlier updates by topic') && contentEn.history.includes('Map and live data'), `英文公開更新紀錄未精簡翻譯：${contentEn.recent} ｜ ${contentEn.history}`);
+    record(engine, '英文品牌、說明、特色站車、圖鑑、護照、成就與精簡更新紀錄');
+
     await setLanguage(page, 'ja');
     const immediate = await page.evaluate(() => ({
       title: document.title,
@@ -143,10 +216,16 @@ async function desktopCore(browser, engine) {
       station: stationName('臺北', 'tra_sched'),
       board: document.getElementById('board').textContent,
       plus: document.getElementById('plusModal').textContent,
+      help: document.getElementById('helpBody').textContent.replace(/\s+/g, ' ').trim(),
+      named: document.getElementById('searchDrop').textContent.replace(/\s+/g, ' ').trim(),
+      achievements: (() => { const node = document.createElement('div'); node.innerHTML = buildAchv([], 'chip'); return node.textContent.replace(/\s+/g, ' ').trim(); })(),
+      history: document.querySelector('.foot-more').textContent.replace(/\s+/g, ' ').trim(),
     }));
     assert(immediate.title === '軌島' && immediate.tabs.join('|') === '全|台鉄|高鉄|メトロ', `日文即時切換失敗：${JSON.stringify(immediate)}`);
     assert(immediate.station === '台北', `日文官方站名未套用：${immediate.station}`);
-    assert(immediate.plus.includes('自動更新') && immediate.plus.includes('無料'), '已開啟 Plus 面板沒有跟著即時切成日文');
+    assert(immediate.help.includes('駅・列車番号・列車名を検索') && immediate.help.includes('旅程パスポートと完乗スタンプ'), '已開啟使用說明沒有跟著即時切成日文');
+    assert(immediate.named.includes('山嵐号') && immediate.named.includes('花東縦谷'), '已開啟觀光列車介紹沒有跟著即時切成日文');
+    assert(immediate.achievements.includes('初乗り記念') && immediate.history.includes('これまでの更新'), '日文成就或精簡更新歷史未翻譯');
     record(engine, '日文即時切換（已開啟動態面板同步）');
 
     await page.evaluate(() => onLocateFail({ code: 3, PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 }));
@@ -295,6 +374,10 @@ async function mobileScenario(browser, engine, width) {
     assert((await bodyText(page, '#tabMore .tl')) === 'More', `${width}px 動態 tab 未立即更新`);
     const cjkSettings = await visibleEnglishCjk(page, '#moreSheet');
     assert(cjkSettings.length === 0, `${width}px 英文設定仍有中文：${cjkSettings.join(' ｜ ')}`);
+    const dataDetails = page.locator('#msAbout details').filter({ hasText: 'Data sources and licences' }).first();
+    await dataDetails.locator('summary').tap();
+    const mobileAbout = (await dataDetails.innerText()).replace(/\s+/g, ' ').trim();
+    assert(mobileAbout.includes('Data sources and licences') && mobileAbout.includes('independent hobby project'), `${width}px 手機品牌／資料來源介紹未翻譯：${mobileAbout.slice(-1000)}`);
 
     await page.tap('#moreClose');
     await page.tap('#tabRide');
