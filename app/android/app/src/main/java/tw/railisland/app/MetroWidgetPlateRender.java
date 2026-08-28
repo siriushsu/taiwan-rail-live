@@ -180,7 +180,7 @@ final class MetroWidgetPlateRender {
             v.setViewVisibility(slot[i][3], p.footLeft.isEmpty() ? View.GONE : View.VISIBLE);
             // 三個數字：第一個是主角（狀態決定形態），後兩個是純分鐘。
             v.setTextViewText(slot[i][4], p.hero == MetroWidgetPlate.Hero.MINUTES ? p.heroValue
-                : p.hero == MetroWidgetPlate.Hero.ARRIVING ? "進站" : "—");
+                : p.hero == MetroWidgetPlate.Hero.ARRIVING ? RailNativeL10n.text(c, "進站") : "—");
             v.setTextColor(slot[i][4], tone(c, p.heroTone));
             v.setTextViewText(slot[i][5], p.boardSecond == null ? "" : p.boardSecond);
             v.setTextViewText(slot[i][6], p.boardThird == null ? "" : p.boardThird);
@@ -206,24 +206,26 @@ final class MetroWidgetPlateRender {
 
     /** 狀態 6 · 未設定車站。文案放這裡而不是 provider 裡，畫廊才會顯示與桌面【同一份】文字。 */
     static RemoteViews unset(Context c) {
-        return message(c, "軌島", "選一個捷運站", "設定之後，這一格就會顯示下一班車還有幾分鐘。", "選擇車站");
+        return message(c, RailNativeL10n.text(c, "軌島"), RailNativeL10n.text(c, "選一個捷運站"),
+            RailNativeL10n.text(c, "設定之後，這一格就會顯示下一班車還有幾分鐘。"), RailNativeL10n.text(c, "選擇車站"));
     }
 
     /** 免費版已經用掉那一站，又設了第二站。 */
     static RemoteViews passNeeded(Context c) {
-        return message(c, "軌島通行證", "再加一站",
-            "免費可以固定一站。通行證解鎖多站、自動選站與擁擠度。", "了解通行證");
+        return message(c, RailNativeL10n.text(c, "軌島通行證"), RailNativeL10n.text(c, "再加一站"),
+            RailNativeL10n.text(c, "免費可以固定一站。通行證解鎖多站、自動選站與擁擠度。"), RailNativeL10n.text(c, "了解通行證"));
     }
 
     /** 自動選站但還沒拿到位置。 */
     static RemoteViews noLocation(Context c) {
-        return message(c, "自動選站", "還不知道你在哪",
-            "請開啟軌島並允許「大概位置」，之後這一格會自己跟著最近的車站。", "開啟軌島");
+        return message(c, RailNativeL10n.text(c, "自動選站"), RailNativeL10n.text(c, "還不知道你在哪"),
+            RailNativeL10n.text(c, "請開啟軌島並允許「大概位置」，之後這一格會自己跟著最近的車站。"), RailNativeL10n.text(c, "開啟軌島"));
     }
 
     /** 連不上而且連快取都沒有（有快取時走狀態 3，不走這張）。 */
     static RemoteViews offline(Context c, String station) {
-        return message(c, station, "暫時連不上", "目前無法取得官方班次。點一下開啟軌島看完整看板。", "開啟軌島");
+        return message(c, RailNativeL10n.name(c, station), RailNativeL10n.text(c, "暫時連不上"),
+            RailNativeL10n.text(c, "目前無法取得官方班次。點一下開啟軌島看完整看板。"), RailNativeL10n.text(c, "開啟軌島"));
     }
 
     /** 狀態 6 與載入／失敗訊息。刻意用另一張版面（見 widget_plate_message.xml）。 */

@@ -50,8 +50,8 @@ final class RailFollowNotification {
         NotificationManager manager = context.getSystemService(NotificationManager.class);
         if (manager == null) return;
         NotificationChannel channel = new NotificationChannel(
-            CHANNEL_ID, "跟隨列車", NotificationManager.IMPORTANCE_DEFAULT);
-        channel.setDescription("在鎖定畫面與 Now Bar 顯示正在跟隨列車的下一站");
+            CHANNEL_ID, RailNativeL10n.text(context, "跟隨列車"), NotificationManager.IMPORTANCE_DEFAULT);
+        channel.setDescription(RailNativeL10n.text(context, "在鎖定畫面與 Now Bar 顯示正在跟隨列車的下一站"));
         channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
         channel.setSound(null, null);
         channel.enableVibration(false);
@@ -95,21 +95,23 @@ final class RailFollowNotification {
         createChannel(context);
         long now = System.currentTimeMillis();
         String trainNo = state.optString("trainNo", "");
-        String kind = state.optString("kind", "列車");
-        String nextStop = state.optString("nextStop", "下一站");
-        String terminus = state.optString("terminus", "");
-        String prevStop = state.optString("prevStop", "");
+        String kind = RailNativeL10n.name(context, state.optString("kind", "列車"));
+        String nextStop = RailNativeL10n.name(context, state.optString("nextStop", "下一站"));
+        String terminus = RailNativeL10n.name(context, state.optString("terminus", ""));
+        String prevStop = RailNativeL10n.name(context, state.optString("prevStop", ""));
         boolean stopping = state.optBoolean("stopping", false);
         long arrival = (long) (state.optDouble("arrivalAt", 0) * 1000);
         long departed = (long) (state.optDouble("departedAt", 0) * 1000);
         int delay = state.optInt("delaySec", 0);
 
-        String title = (kind + " " + trainNo).trim();
-        String status = stopping ? "停靠 " + nextStop : "下一站 " + nextStop;
-        String route = terminus.isEmpty() ? status : status + " · 往 " + terminus;
+        String title = RailNativeL10n.text(context, "{kind} {trainNo}", "kind", kind, "trainNo", trainNo).trim();
+        String status = RailNativeL10n.text(context, stopping ? "停靠 {station}" : "下一站 {station}",
+            "station", nextStop);
+        String route = terminus.isEmpty() ? status : RailNativeL10n.text(context, "{status} · 往 {station}",
+            "status", status, "station", terminus);
         String detail = route;
         if (!prevStop.isEmpty() && !stopping) detail += "\n" + prevStop + " → " + nextStop;
-        if (delay != 0) detail += "\n" + delayText(delay);
+        if (delay != 0) detail += "\n" + delayText(context, delay);
 
         Intent open = new Intent(context, MainActivity.class)
             .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
@@ -127,18 +129,19 @@ final class RailFollowNotification {
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_train)
-            .setContentTitle(title.isEmpty() ? "跟隨列車" : title)
+            .setContentTitle(title.isEmpty() ? RailNativeL10n.text(context, "跟隨列車") : title)
             .setContentText(route)
-            .setSubText(delay == 0 ? "軌島 · 準點" : "軌島 · " + delayText(delay))
+            .setSubText(RailNativeL10n.text(context, "軌島 · {status}", "status",
+                delay == 0 ? RailNativeL10n.text(context, "準點") : delayText(context, delay)))
             .setContentIntent(openPending)
-            .addAction(R.drawable.ic_stop, "結束跟車", stopPending)
+            .addAction(R.drawable.ic_stop, RailNativeL10n.text(context, "結束跟車"), stopPending)
             .setCategory(NotificationCompat.CATEGORY_PROGRESS)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setSilent(true)
             .setRequestPromotedOngoing(true)
-            .setShortCriticalText(shortText(stopping ? "停靠中" : nextStop))
+            .setShortCriticalText(shortText(stopping ? RailNativeL10n.text(context, "停靠中") : nextStop))
             .setPriority(NotificationCompat.PRIORITY_DEFAULT);
         if (accent != null) builder.setColor(accent);
 
@@ -296,6 +299,12 @@ final class RailFollowNotification {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(KEY_STATE).apply();
     }
 
+    /** 手動切換語言後以原狀態重貼，不等待下一次列車資料更新。 */
+    static void refreshLanguage(Context context) {
+        JSONObject state = load(context);
+        if (state != null) post(context, state);
+    }
+
     private static boolean canNotify(Context context) {
         return Build.VERSION.SDK_INT < 33
             || ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
@@ -375,11 +384,11 @@ final class RailFollowNotification {
         return out.toString(StandardCharsets.UTF_8.name());
     }
 
-    private static String delayText(int seconds) {
+    private static String delayText(Context context, int seconds) {
         int minutes = Math.round(Math.abs(seconds) / 60f);
-        if (minutes == 0) return seconds > 0 ? "稍有延誤" : "提早";
-        return seconds > 0 ? String.format(Locale.TAIWAN, "晚 %d 分", minutes)
-            : String.format(Locale.TAIWAN, "早 %d 分", minutes);
+        if (minutes == 0) return RailNativeL10n.text(context, seconds > 0 ? "稍有延誤" : "提早");
+        return RailNativeL10n.text(context, seconds > 0 ? "晚 {n} 分" : "早 {n} 分",
+            "n", String.valueOf(minutes));
     }
 
     private static String shortText(String value) {

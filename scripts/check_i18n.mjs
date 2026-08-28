@@ -94,7 +94,9 @@ for (const [group, fields] of Object.entries(contentFields)) {
 function evaluateConstBlock(startMarker, endMarker, names) {
   const start = indexSource.indexOf(startMarker), end = indexSource.indexOf(endMarker, start);
   if (start < 0 || end < 0) { fail(`找不到內容區塊：${startMarker}`); return {}; }
-  const local = {};
+  // HELP_GROUPS 含 App 平台分支；稽核只需展開字串，不執行功能。用網站端作穩定基準，
+  // Android 分支的額外字串仍會由下方原始碼硬編碼掃描與原生目錄 gate 覆蓋。
+  const local = { IS_NATIVE_APP: false, window: {} };
   vm.createContext(local);
   vm.runInContext(`${indexSource.slice(start, end)}\nglobalThis.__out = { ${names.join(', ')} };`, local);
   return local.__out || {};

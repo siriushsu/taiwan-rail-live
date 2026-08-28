@@ -10,14 +10,14 @@ android {
     namespace = "tw.railisland.app"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        // 測試機可用 -PrailApplicationId=tw.railisland.app.v17test 並存安裝；
+        // 測試機可用 -PrailApplicationId=tw.railisland.app.v18test 並存安裝；
         // 沒傳屬性時仍是唯一可上 Google Play 的正式 package，不會意外改包名。
         applicationId "tw.railisland.app"
         if (project.hasProperty("railApplicationId")) applicationId project.property("railApplicationId")
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 17
-        versionName "1.4.12"
+        versionCode 18
+        versionName "1.5.0"
         if (project.hasProperty("railVersionName")) versionName project.property("railVersionName")
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {

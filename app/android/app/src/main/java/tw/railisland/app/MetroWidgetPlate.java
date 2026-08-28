@@ -14,6 +14,20 @@ package tw.railisland.app;
  */
 final class MetroWidgetPlate {
 
+    interface Texts {
+        String text(String source, String... values);
+        String name(String source);
+    }
+
+    static final Texts ZH = new Texts() {
+        @Override public String text(String source, String... values) {
+            String result = source;
+            for (int i = 0; i + 1 < values.length; i += 2) result = result.replace("{" + values[i] + "}", values[i + 1]);
+            return result;
+        }
+        @Override public String name(String source) { return source == null ? "" : source; }
+    };
+
     /** 設計稿的八種狀態。優先序＝由上到下（先命中的贏）。 */
     enum State {
         UNSET,        // 6 · 未設定車站（空狀態）
@@ -72,6 +86,7 @@ final class MetroWidgetPlate {
 
     /** of(...) 的輸入。全部是已經取好的原始值，這個類別不做任何 I/O。 */
     static final class Input {
+        Texts texts = ZH;
         String station;          // null ⇒ 還沒設定
         String stationEn;
         String stationCode;
@@ -105,21 +120,22 @@ final class MetroWidgetPlate {
 
     static MetroWidgetPlate of(Input in) {
         MetroWidgetPlate p = new MetroWidgetPlate();
+        Texts tx = in.texts == null ? ZH : in.texts;
         if (in.station == null || in.station.isEmpty()) {
             p.state = State.UNSET;
             p.hero = Hero.NONE;
             return p;
         }
-        p.station = in.station;
+        p.station = tx.name(in.station);
         p.stationEn = in.stationEn == null ? "" : in.stationEn.toUpperCase();
         p.badge = in.stationCode;
         p.badgeColor = in.lineColor;
         p.badgeDarkInk = isPaleLine(in.lineColor);
-        p.lineLabel = in.lineLabel;
-        p.dest = in.dest == null || in.dest.isEmpty() ? "" : "往 " + in.dest;
+        p.lineLabel = tx.name(in.lineLabel);
+        p.dest = in.dest == null || in.dest.isEmpty() ? "" : tx.text("往 {station}", "station", tx.name(in.dest));
         p.crowd = in.crowd;
-        p.prevStation = in.prevStation;
-        p.nextStation = in.nextStation;
+        p.prevStation = in.prevStation == null ? null : tx.name(in.prevStation);
+        p.nextStation = in.nextStation == null ? null : tx.name(in.nextStation);
 
         Double left = in.etaEpochSec == null ? null : in.etaEpochSec - in.nowEpochSec;
         boolean arriving = left != null && left < ARRIVING_SECONDS;
@@ -152,19 +168,19 @@ final class MetroWidgetPlate {
                 p.hero = Hero.NONE;
                 break;
             case STALE:
-                p.hero = Hero.TEXT; p.heroValue = "暫無資料"; p.heroTone = Tone.FAINT;
+                p.hero = Hero.TEXT; p.heroValue = tx.text("暫無資料"); p.heroTone = Tone.FAINT;
                 break;
             case CLOSED:
-                p.hero = Hero.TEXT; p.heroValue = "已收班"; p.heroTone = Tone.FAINT;
+                p.hero = Hero.TEXT; p.heroValue = tx.text("已收班"); p.heroTone = Tone.FAINT;
                 break;
             default:
                 if (arriving) {
                     // 末班車進站時也要走實心「進站」，不是「0 分」——所以主角不是純狀態表，
                     // 而是狀態＋還剩幾秒一起決定的。
-                    p.hero = Hero.ARRIVING; p.heroValue = "進站";
+                    p.hero = Hero.ARRIVING; p.heroValue = tx.text("進站");
                 } else {
                     p.hero = Hero.MINUTES;
-                    p.heroValue = minutesText(left, in.minutes);
+                    p.heroValue = minutesText(left, in.minutes, tx);
                     p.heroTone = p.state == State.LAST_TRAIN ? Tone.WARN : Tone.INK;
                 }
         }
@@ -172,7 +188,7 @@ final class MetroWidgetPlate {
         // ── chip 與註腳：一個狀態一列，沒有交叉 ──
         switch (p.state) {
             case SUSPENDED:
-                p.chip = Chip.ALERT; p.chipText = "營運異常"; p.stamp = "";
+                p.chip = Chip.ALERT; p.chipText = tx.text("營運異常"); p.stamp = "";
                 // 🔴 這裡【不准】自己寫「暫停營運」：官方公告可能是延誤、可能是單向不停靠，
                 //    寫死一個更嚴重的說法就是拿官方值去推論。要說什麼由 band 裡的官方標題原文說。
                 p.band = in.alertTitle; p.bandBad = true;
@@ -180,10 +196,10 @@ final class MetroWidgetPlate {
                 p.crowd = null;   // 主角與註腳都空了，擁擠度不要一個人留在版面上
                 break;
             case STALE:
-                p.chip = Chip.RECONNECT; p.chipText = "連線中";
-                p.stamp = in.dataAtEpochSec > 0 ? hhmm(in.dataAtEpochSec) + " 資料" : "";
-                p.footLeft = in.dataAtEpochSec > 0 ? "顯示 " + hhmm(in.dataAtEpochSec) + " 最後資料" : "尚未取得資料";
-                p.footRight = "正在重新連線";
+                p.chip = Chip.RECONNECT; p.chipText = tx.text("連線中");
+                p.stamp = in.dataAtEpochSec > 0 ? tx.text("{time} 資料", "time", hhmm(in.dataAtEpochSec)) : "";
+                p.footLeft = in.dataAtEpochSec > 0 ? tx.text("顯示 {time} 最後資料", "time", hhmm(in.dataAtEpochSec)) : tx.text("尚未取得資料");
+                p.footRight = tx.text("正在重新連線");
                 p.footLeftTone = Tone.WARN;
                 p.crowd = null;   // 舊的擁擠度不要跟著留在畫面上，它是那一刻的事實不是現在的
                 break;
@@ -191,34 +207,34 @@ final class MetroWidgetPlate {
                 p.chip = Chip.PLAIN; p.chipText = ""; p.stamp = hhmm(in.nowEpochSec);
                 // 首班只有在官方值【沒有分歧】時才有（分歧的鍵在資料建置階段就不輸出），
                 // 所以這裡不必判斷、也不准自己挑一個。
-                p.footLeft = in.firstTrainTime == null ? "" : "首班 " + in.firstTrainTime;
-                p.footRight = in.firstTrainTime == null ? "" : untilText(in.firstTrainTime, in.nowEpochSec);
+                p.footLeft = in.firstTrainTime == null ? "" : tx.text("首班 {time}", "time", in.firstTrainTime);
+                p.footRight = in.firstTrainTime == null ? "" : untilText(in.firstTrainTime, in.nowEpochSec, tx);
                 p.crowd = null;
                 break;
             case LAST_TRAIN:
-                p.chip = Chip.LAST; p.chipText = "末班"; p.stamp = in.lastTrainTime;
-                if (!p.dest.isEmpty()) p.dest = p.dest + " · " + in.lastTrainTime + " 發車";
-                p.footLeft = "本日最後一班"; p.footLeftTone = Tone.WARN;
-                p.footRight = "請預留進站時間";
+                p.chip = Chip.LAST; p.chipText = tx.text("末班"); p.stamp = in.lastTrainTime;
+                if (!p.dest.isEmpty()) p.dest = p.dest + " · " + tx.text("{time} 發車", "time", in.lastTrainTime);
+                p.footLeft = tx.text("本日最後一班"); p.footLeftTone = Tone.WARN;
+                p.footRight = tx.text("請預留進站時間");
                 break;
             case PASS_LIMITED:
-                p.chip = Chip.PASS; p.chipText = "通行證"; p.stamp = "";
-                p.footLeft = "第 2 站起需要通行證"; p.footLeftTone = Tone.WARN;
-                p.footRight = "了解";
+                p.chip = Chip.PASS; p.chipText = tx.text("通行證"); p.stamp = "";
+                p.footLeft = tx.text("第 2 站起需要通行證"); p.footLeftTone = Tone.WARN;
+                p.footRight = tx.text("了解");
                 p.crowd = null;   // 註腳右邊被「了解」占用了，擁擠度不硬塞
                 break;
             default:
                 p.chip = Chip.LIVE; p.chipText = "LIVE"; p.stamp = hhmm(in.dataAtEpochSec);
-                p.footLeft = nextText(in.secondMinutes, in.secondApprox, in.thirdMinutes, in.thirdApprox);
-                p.footRight = crowdWord(in.crowd);
+                p.footLeft = nextText(in.secondMinutes, in.secondApprox, in.thirdMinutes, in.thirdApprox, tx);
+                p.footRight = crowdWord(in.crowd, tx);
         }
 
         // 看板那一列的第二、三個數字。設計稿把單位提到註腳（「單位分鐘」）⇒ 這裡只放數字。
         // 🔴 主角不是數字（暫無資料／已收班／營運異常）時，後面兩個數字要一起收掉——
         //    否則畫面會變成「— 9 15」：左邊說沒有資料，右邊卻報得出兩班車。
         boolean numeric = p.hero == Hero.MINUTES || p.hero == Hero.ARRIVING;
-        p.boardSecond = !numeric ? null : boardMinuteText(in.secondMinutes, in.secondApprox);
-        p.boardThird = !numeric ? null : boardMinuteText(in.thirdMinutes, in.thirdApprox);
+        p.boardSecond = !numeric ? null : boardMinuteText(in.secondMinutes, in.secondApprox, tx);
+        p.boardThird = !numeric ? null : boardMinuteText(in.thirdMinutes, in.thirdApprox, tx);
 
         // 本站觀測／資料類提醒：不是營運異常，不能用紅（設計稿：紅只給真異常）。
         if (p.band == null && in.alertTitle != null && !in.alertTitle.isEmpty() && !in.alertFromOperator) {
@@ -253,8 +269,12 @@ final class MetroWidgetPlate {
     /** 分鐘取 floor 不取 ceil（與 iOS 同一條）：ceil 會讓「1 分」只出現一秒就跳掉。
      *  整數分鐘的系統多一個「約」字——那是精度差異在畫面上的唯一顯形處，不可省。 */
     static String minutesText(Double leftSec, Integer minutes) {
+        return minutesText(leftSec, minutes, ZH);
+    }
+
+    private static String minutesText(Double leftSec, Integer minutes, Texts tx) {
         if (leftSec != null) return String.valueOf((int) Math.floor(leftSec / 60));
-        if (minutes != null) return "約 " + minutes;
+        if (minutes != null) return tx.text("約 {n}", "n", String.valueOf(minutes));
         return "—";
     }
 
@@ -263,29 +283,46 @@ final class MetroWidgetPlate {
     }
 
     static String nextText(Integer second, boolean secondApprox, Integer third, boolean thirdApprox) {
+        return nextText(second, secondApprox, third, thirdApprox, ZH);
+    }
+
+    private static String nextText(Integer second, boolean secondApprox, Integer third, boolean thirdApprox, Texts tx) {
         if (second == null) return "";
-        String secondText = minuteText(second, secondApprox);
-        if (third == null) return "再下班 " + secondText + " 分";
-        return "再下班 " + secondText + " 分 · " + minuteText(third, thirdApprox) + " 分";
+        String secondText = minuteText(second, secondApprox, tx);
+        if (third == null) return tx.text("再下班 {value} 分", "value", secondText);
+        return tx.text("再下班 {second} 分 · {third} 分", "second", secondText,
+            "third", minuteText(third, thirdApprox, tx));
     }
 
     private static String boardMinuteText(Integer minutes, boolean approx) {
-        return minutes == null ? null : minuteText(minutes, approx);
+        return boardMinuteText(minutes, approx, ZH);
+    }
+
+    private static String boardMinuteText(Integer minutes, boolean approx, Texts tx) {
+        return minutes == null ? null : minuteText(minutes, approx, tx);
     }
 
     private static String minuteText(int minutes, boolean approx) {
-        return approx ? "約 " + minutes : String.valueOf(minutes);
+        return minuteText(minutes, approx, ZH);
+    }
+
+    private static String minuteText(int minutes, boolean approx, Texts tx) {
+        return approx ? tx.text("約 {n}", "n", String.valueOf(minutes)) : String.valueOf(minutes);
     }
 
     /** 擁擠度旁邊固定附一個詞（顏色不獨立表意）。 */
     static String crowdWord(int[] crowd) {
+        return crowdWord(crowd, ZH);
+    }
+
+    private static String crowdWord(int[] crowd, Texts tx) {
         if (crowd == null || crowd.length == 0) return "";
         int sum = 0;
         for (int c : crowd) sum += c;
         double avg = (double) sum / crowd.length;
-        if (avg < 1.6) return "舒適";
-        if (avg < 2.6) return "略擠";
-        return "擁擠";
+        if (avg < 1.6) return tx.text("舒適");
+        if (avg < 2.6) return tx.text("略擠");
+        return tx.text("擁擠");
     }
 
     static String hhmm(double epochSec) {
@@ -297,6 +334,10 @@ final class MetroWidgetPlate {
 
     /** 「還有 4 小時 48 分」。跨午夜就加一天，不會算出負數。 */
     static String untilText(String hhmm, double nowEpochSec) {
+        return untilText(hhmm, nowEpochSec, ZH);
+    }
+
+    private static String untilText(String hhmm, double nowEpochSec, Texts tx) {
         if (hhmm == null || hhmm.length() < 4 || hhmm.indexOf(':') < 0) return "";
         String[] parts = hhmm.split(":");
         int target;
@@ -306,7 +347,7 @@ final class MetroWidgetPlate {
         long diff = target - nowMin;
         if (diff < 0) diff += 24 * 60;
         long h = diff / 60, m = diff % 60;
-        if (h == 0) return "還有 " + m + " 分";
-        return "還有 " + h + " 小時 " + m + " 分";
+        if (h == 0) return tx.text("還有 {m} 分", "m", String.valueOf(m));
+        return tx.text("還有 {h} 小時 {m} 分", "h", String.valueOf(h), "m", String.valueOf(m));
     }
 }

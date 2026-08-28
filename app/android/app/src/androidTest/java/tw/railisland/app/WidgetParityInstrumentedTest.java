@@ -121,6 +121,7 @@ public final class WidgetParityInstrumentedTest {
         MainActivity activity = (MainActivity) InstrumentationRegistry.getInstrumentation().startActivitySync(intent);
         assertNotNull(activity.getBridge().getPlugin("RailReview"));
         assertNotNull(activity.getBridge().getPlugin("RailStore"));
+        assertNotNull(activity.getBridge().getPlugin("RailLanguage"));
         InstrumentationRegistry.getInstrumentation().runOnMainSync(activity::finish);
     }
 

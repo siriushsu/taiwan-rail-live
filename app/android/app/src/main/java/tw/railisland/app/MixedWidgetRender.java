@@ -19,12 +19,15 @@ final class MixedWidgetRender {
 
     static RemoteViews board(Context context, RailWidgetData.Snapshot rail, MetroWidgetData.Snapshot metro) {
         RemoteViews root = new RemoteViews(context.getPackageName(), R.layout.widget_mixed_4x4);
-        root.setTextViewText(R.id.wmx_head, metro.station + "雙看板");
-        root.setTextViewText(R.id.wmx_stamp, clock(Math.max(rail.generatedAt, (long) (metro.dataAt * 1000))) + " 更新");
-        root.setTextViewText(R.id.wmx_metro_head, "捷運 · " + metro.systemLabel + " · " + metro.station);
-        root.setTextViewText(R.id.wmx_rail_head, "鐵路 · " + rail.systemLabel + " · " + rail.origin);
+        root.setTextViewText(R.id.wmx_head, RailNativeL10n.text(context, "{station}雙看板", "station", RailNativeL10n.name(context, metro.station)));
+        root.setTextViewText(R.id.wmx_stamp, RailNativeL10n.text(context, "{time} 更新", "time", clock(Math.max(rail.generatedAt, (long) (metro.dataAt * 1000)))));
+        root.setTextViewText(R.id.wmx_metro_head, RailNativeL10n.text(context, "捷運 · {system} · {station}",
+            "system", RailNativeL10n.name(context, metro.systemLabel), "station", RailNativeL10n.name(context, metro.station)));
+        root.setTextViewText(R.id.wmx_rail_head, RailNativeL10n.text(context, "鐵路 · {system} · {station}",
+            "system", RailNativeL10n.name(context, rail.systemLabel), "station", RailNativeL10n.name(context, rail.origin)));
         root.setTextViewText(R.id.wmx_note, (metro.failed || rail.failed)
-            ? "部分資料延遲 · 顯示上次成功結果" : "捷運即時 · 台鐵誤點 · 高鐵表定");
+            ? RailNativeL10n.text(context, "部分資料延遲 · 顯示上次成功結果")
+            : RailNativeL10n.text(context, "捷運即時 · 台鐵誤點 · 高鐵表定"));
 
         root.removeAllViews(R.id.wmx_metro_rows);
         List<MetroWidgetPlate> plates = MetroWidgetProvider.plates(context, metro);
@@ -53,8 +56,8 @@ final class MixedWidgetRender {
 
     static RemoteViews message(Context context, String title, String body) {
         RemoteViews root = new RemoteViews(context.getPackageName(), R.layout.widget_mixed_message);
-        root.setTextViewText(R.id.wmxm_title, title);
-        root.setTextViewText(R.id.wmxm_body, body);
+        root.setTextViewText(R.id.wmxm_title, RailNativeL10n.text(context, title));
+        root.setTextViewText(R.id.wmxm_body, RailNativeL10n.text(context, body));
         return root;
     }
 
@@ -64,7 +67,7 @@ final class MixedWidgetRender {
         try { color = Color.parseColor(plate.badgeColor); }
         catch (Exception ignored) { color = context.getColor(R.color.wg_navy); }
         row.setInt(R.id.wmxr_mark, "setColorFilter", color);
-        row.setTextViewText(R.id.wmxr_dest, plate.dest == null || plate.dest.isEmpty() ? "本站列車" : plate.dest);
+        row.setTextViewText(R.id.wmxr_dest, plate.dest == null || plate.dest.isEmpty() ? RailNativeL10n.text(context, "本站列車") : plate.dest);
         String sub = plate.footLeft == null ? "" : plate.footLeft;
         if (sub.isEmpty() && plate.footRight != null) sub = plate.footRight;
         if (!first && plate.state == MetroWidgetPlate.State.PASS_LIMITED) sub = "";

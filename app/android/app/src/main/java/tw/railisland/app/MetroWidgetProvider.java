@@ -197,7 +197,7 @@ public final class MetroWidgetProvider extends AppWidgetProvider {
         if (first.badge != null && !first.badge.isEmpty()) head = first.badge + " " + head;
         return MetroWidgetPlateRender.board(context, layoutRes,
             plates.toArray(new MetroWidgetPlate[0]), maxRows, head,
-            "單位分鐘", first.footRight, first.band, first.bandBad);
+            RailNativeL10n.text(context, "單位分鐘"), first.footRight, first.band, first.bandBad);
     }
 
     /**
@@ -230,8 +230,9 @@ public final class MetroWidgetProvider extends AppWidgetProvider {
             String lineId = head == null ? null : head.lineId;
 
             MetroWidgetPlate.Input in = new MetroWidgetPlate.Input();
+            in.texts = RailNativeL10n.plateTexts(context);
             in.station = snapshot.station;
-            in.stationEn = info == null ? null : info.en;
+            in.stationEn = info == null || "en".equals(RailNativeL10n.language(context)) ? null : info.en;
             in.stationCode = info == null ? null : info.codeForLine(lineId);
             in.lineLabel = head != null && head.lineLabel != null ? head.lineLabel : snapshot.systemLabel;
             in.lineColor = head != null && head.color != null ? head.color : snapshot.stationColor;

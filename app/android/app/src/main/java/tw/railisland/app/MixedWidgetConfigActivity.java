@@ -89,7 +89,7 @@ public final class MixedWidgetConfigActivity extends AppCompatActivity {
         root.addView(pass, matchWrap(dp(18)));
 
         Button done = new Button(this);
-        done.setText("加到桌面");
+        done.setText(RailNativeL10n.text(this, "加到桌面"));
         done.setTextSize(16);
         done.setTextColor(getColor(R.color.wg_on_accent));
         done.setAllCaps(false);
@@ -115,19 +115,20 @@ public final class MixedWidgetConfigActivity extends AppCompatActivity {
 
     private void buildRailChoices() {
         for (RailWidgetData.PlaceOption place : RailWidgetData.places(this, railCatalog, "", null)) {
-            railChoices.add(new RailChoice(place.sys, place.key, place.displayLabel(railCatalog)));
+            railChoices.add(new RailChoice(place.sys, place.key, RailNativeL10n.option(this, place.displayLabel(railCatalog))));
         }
-        railChoices.add(new RailChoice("tra", RailWidgetData.AUTO, "自動（最近的台鐵站）"));
+        railChoices.add(new RailChoice("tra", RailWidgetData.AUTO, RailNativeL10n.text(this, "自動（最近的台鐵站）")));
         RailWidgetData.SystemInfo tra = railCatalog.byId.get("tra");
         if (tra != null) for (RailWidgetData.Station station : tra.stations) {
-            railChoices.add(new RailChoice("tra", station.name, "台鐵 · " + station.name));
+            railChoices.add(new RailChoice("tra", station.name, RailNativeL10n.text(this, "台鐵") + " · " + RailNativeL10n.name(this, station.name)));
         }
         RailWidgetData.SystemInfo thsr = railCatalog.byId.get("thsr");
         if (thsr != null) for (RailWidgetData.Station station : thsr.stations) {
-            railChoices.add(new RailChoice("thsr", station.name, "高鐵 · " + station.name));
+            railChoices.add(new RailChoice("thsr", station.name, RailNativeL10n.text(this, "高鐵") + " · " + RailNativeL10n.name(this, station.name)));
         }
         for (RailWidgetData.Composite pair : railCatalog.composites) {
-            railChoices.add(new RailChoice(RailWidgetData.SYS_COMPOSITE, pair.key, "共站 · " + pair.label));
+            railChoices.add(new RailChoice(RailWidgetData.SYS_COMPOSITE, pair.key,
+                RailNativeL10n.text(this, "共站") + " · " + RailNativeL10n.option(this, pair.label)));
         }
     }
 
@@ -230,12 +231,14 @@ public final class MixedWidgetConfigActivity extends AppCompatActivity {
 
     private TextView text(String value, float size, int color) {
         TextView out = new TextView(this);
-        out.setText(value); out.setTextSize(size); out.setTextColor(color);
+        out.setText(RailNativeL10n.text(this, value)); out.setTextSize(size); out.setTextColor(color);
         return out;
     }
 
     private ArrayAdapter<String> adapter(List<String> values) {
-        ArrayAdapter<String> out = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, values);
+        List<String> localized = new ArrayList<>();
+        for (String value : values) localized.add(RailNativeL10n.option(this, value));
+        ArrayAdapter<String> out = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, localized);
         out.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         return out;
     }

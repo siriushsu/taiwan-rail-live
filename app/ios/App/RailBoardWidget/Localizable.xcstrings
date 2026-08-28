@@ -766,6 +766,23 @@
         }
       }
     },
+    "{kind} {trainNo}": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{kind} {trainNo}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{kind} {trainNo}"
+          }
+        }
+      }
+    },
     "{line} · {n} 班": {
       "extractionState": "manual",
       "localizations": {
@@ -1208,6 +1225,40 @@
         }
       }
     },
+    "{station}發車看板": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{station} departures"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{station}・発車案内"
+          }
+        }
+      }
+    },
+    "{station}雙看板": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{station} dual board"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{station}・二面案内"
+          }
+        }
+      }
+    },
     "{stations} 收進護照": {
       "extractionState": "manual",
       "localizations": {
@@ -1221,6 +1272,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "{stations}をパスポートに追加"
+          }
+        }
+      }
+    },
+    "{status} · 往 {station}": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{status} · To {station}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{status}・{station}方面"
+          }
+        }
+      }
+    },
+    "{status} {time}": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{status} {time}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{status} {time}"
           }
         }
       }
@@ -1378,6 +1463,40 @@
         }
       }
     },
+    "{time} 發車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Departs {time}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{time}発"
+          }
+        }
+      }
+    },
+    "{time} 資料": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data {time}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "データ {time}"
+          }
+        }
+      }
+    },
     "{train} 次": {
       "extractionState": "manual",
       "localizations": {
@@ -1442,6 +1561,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "{trainNo}列車・{station}方面"
+          }
+        }
+      }
+    },
+    "{trainType} {trainNo} 次列車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{trainType} {trainNo}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{trainType} {trainNo}列車"
           }
         }
       }
@@ -2721,6 +2857,40 @@
         }
       }
     },
+    "了解": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Got it"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "了解"
+          }
+        }
+      }
+    },
+    "了解通行證": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View the Pass"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "パスを見る"
+          }
+        }
+      }
+    },
     "二水": {
       "extractionState": "manual",
       "localizations": {
@@ -3316,6 +3486,23 @@
         }
       }
     },
+    "下一站 {station}": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next stop {station}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "次は{station}"
+          }
+        }
+      }
+    },
     "下車站": {
       "extractionState": "manual",
       "localizations": {
@@ -3567,6 +3754,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "大甲"
+          }
+        }
+      }
+    },
+    "大字好讀版": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Large, easy-to-read text"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "大きく読みやすい文字"
           }
         }
       }
@@ -4132,6 +4336,23 @@
         }
       }
     },
+    "已收班": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Service ended"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "運行終了"
+          }
+        }
+      }
+    },
     "已收藏": {
       "extractionState": "manual",
       "localizations": {
@@ -4587,6 +4808,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "口座番号をコピーしました"
+          }
+        }
+      }
+    },
+    "已選 {n} 項篩選": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{n} filters selected"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "表示条件を{n}件選択"
           }
         }
       }
@@ -6427,6 +6665,23 @@
         }
       }
     },
+    "方向 · 往 {station}": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Direction · To {station}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "方向・{station}方面"
+          }
+        }
+      }
+    },
     "方向（可留空）": {
       "extractionState": "manual",
       "localizations": {
@@ -6818,6 +7073,23 @@
         }
       }
     },
+    "加到桌面": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add to Home screen"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ホーム画面に追加"
+          }
+        }
+      }
+    },
     "加速播放沒問題，中途跳時間就不算。": {
       "extractionState": "manual",
       "localizations": {
@@ -7192,6 +7464,23 @@
         }
       }
     },
+    "只看這些": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filters"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "表示条件"
+          }
+        }
+      }
+    },
     "只看這些（可留空）": {
       "extractionState": "manual",
       "localizations": {
@@ -7205,6 +7494,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "表示条件（任意）"
+          }
+        }
+      }
+    },
+    "只看這些（留空就是全部）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filters (leave blank for all)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "表示条件（空欄ですべて表示）"
           }
         }
       }
@@ -7804,6 +8110,40 @@
         }
       }
     },
+    "台鐵＋高鐵": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TRA + HSR"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台湾鉄路＋高鉄"
+          }
+        }
+      }
+    },
+    "台鐵＋高鐵共站": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TRA + HSR shared station"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台湾鉄路＋高鉄共用駅"
+          }
+        }
+      }
+    },
     "台鐵列車的誤點履歷（逐日紀錄，回溯 90 天）": {
       "extractionState": "manual",
       "localizations": {
@@ -7868,6 +8208,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "台湾鉄路のリアルタイム情報が途切れた場合、時計の横に「中断」と最終更新時刻を表示し、追跡できないことも案内します。"
+          }
+        }
+      }
+    },
+    "台鐵即時誤點 · 高鐵表定時刻": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live TRA delays · scheduled HSR times"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台湾鉄路リアルタイム遅延・高鉄予定時刻"
           }
         }
       }
@@ -8004,6 +8361,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "台湾鉄路で最上位の都市間列車です。"
+          }
+        }
+      }
+    },
+    "台鐵等車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TRA station tracking"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台湾鉄路の駅待ち"
           }
         }
       }
@@ -8722,6 +9096,23 @@
         }
       }
     },
+    "末班": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last train"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "終電"
+          }
+        }
+      }
+    },
     "末班 {time}": {
       "extractionState": "manual",
       "localizations": {
@@ -8786,6 +9177,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "終電通知"
+          }
+        }
+      }
+    },
+    "本日最後一班": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last train today"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本日の最終列車"
+          }
+        }
+      }
+    },
+    "本站列車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trains at this station"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当駅の列車"
           }
         }
       }
@@ -8956,6 +9381,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "統合メトロモデルを再取得中です。まだ中断判定の時間には達していません"
+          }
+        }
+      }
+    },
+    "正在重新連線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconnecting"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再接続中"
           }
         }
       }
@@ -9453,6 +9895,23 @@
         }
       }
     },
+    "目前沒有接下來的班次": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No upcoming trains"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この先の列車はありません"
+          }
+        }
+      }
+    },
     "目前車數": {
       "extractionState": "manual",
       "localizations": {
@@ -9521,6 +9980,23 @@
         }
       }
     },
+    "目前無法取得官方班次。點一下開啟軌島看完整看板。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Official arrivals are unavailable. Tap to open the full board in Rail Island."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "公式列車情報を取得できません。タップして軌島の案内を開いてください。"
+          }
+        }
+      }
+    },
     "目前無法取得訂閱方案，請稍後再試。": {
       "extractionState": "manual",
       "localizations": {
@@ -9534,6 +10010,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "現在プランを取得できません。しばらくしてからお試しください。"
+          }
+        }
+      }
+    },
+    "目前無班次": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No trains now"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在列車はありません"
           }
         }
       }
@@ -9946,6 +10439,57 @@
         }
       }
     },
+    "全部方向": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All directions"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全方向"
+          }
+        }
+      }
+    },
+    "全部目的地": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All destinations"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全目的地"
+          }
+        }
+      }
+    },
+    "全部目的地 · 直達／停靠／終到／通過": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All destinations · direct / stopping / terminating / passing"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全目的地・直通／停車／終着／通過"
+          }
+        }
+      }
+    },
     "全畫面": {
       "extractionState": "manual",
       "localizations": {
@@ -10099,6 +10643,23 @@
         }
       }
     },
+    "共站": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shared station"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "共用駅"
+          }
+        }
+      }
+    },
     "共站（台鐵＋高鐵一起看）": {
       "extractionState": "manual",
       "localizations": {
@@ -10133,6 +10694,23 @@
         }
       }
     },
+    "再下一班": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Following train"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "次々発"
+          }
+        }
+      }
+    },
     "再下一班 往 {station}": {
       "extractionState": "manual",
       "localizations": {
@@ -10146,6 +10724,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "次々発は{station}方面"
+          }
+        }
+      }
+    },
+    "再下班 {second} 分 · {third} 分": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Following trains in {second} min · {third} min"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "次々発は{second}分後・その次は{third}分後"
+          }
+        }
+      }
+    },
+    "再下班 {value} 分": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Following train in {value} min"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "次々発は{value}分後"
           }
         }
       }
@@ -10847,6 +11459,23 @@
         }
       }
     },
+    "在同一張大卡片查看一個鐵路站和一個捷運站。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "See one rail station and one metro station on the same large card."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1枚の大きなカードで鉄道駅とメトロ駅を1駅ずつ表示します。"
+          }
+        }
+      }
+    },
     "在地圖定位": {
       "extractionState": "manual",
       "localizations": {
@@ -10894,6 +11523,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "同じ軌島アカウントでWebにログインするとAppの購読資格を利用できます"
+          }
+        }
+      }
+    },
+    "在鎖定畫面與 Now Bar 顯示正在跟隨列車的下一站": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show the next stop of the followed train on the lock screen and Now Bar"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "追跡中列車の次駅をロック画面とNow Barに表示します"
+          }
+        }
+      }
+    },
+    "在鎖定畫面顯示正在追蹤車站的下一班車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show the next train at the tracked station on the lock screen"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "追跡中の駅の次列車をロック画面に表示します"
           }
         }
       }
@@ -11505,7 +12168,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "{n}分早い"
+            "value": "{n}分早着"
           }
         }
       }
@@ -11986,6 +12649,40 @@
         }
       }
     },
+    "自動（最近的台鐵站）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic (nearest TRA station)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動（最寄りの台湾鉄路駅）"
+          }
+        }
+      }
+    },
+    "自動（最近的站・通行證）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic (nearest station · Pass)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動（最寄り駅・パス）"
+          }
+        }
+      }
+    },
     "自動（最近的站）": {
       "extractionState": "manual",
       "localizations": {
@@ -11999,6 +12696,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "自動（最寄り駅）"
+          }
+        }
+      }
+    },
+    "自動（最近的捷運站）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic (nearest metro station)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動（最寄りのメトロ駅）"
           }
         }
       }
@@ -12394,6 +13108,57 @@
         }
       }
     },
+    "免費可以固定一站。通行證解鎖多站、自動選站與擁擠度。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The free version supports one fixed station. A Pass unlocks multiple stations, automatic selection and crowding."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無料版では固定駅を1つ利用できます。パスで複数駅、自動選択、混雑度を利用できます。"
+          }
+        }
+      }
+    },
+    "免費版可以固定一站；多站與自動選站需要軌島通行證。（點這裡看通行證）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The free version supports one fixed station. Multiple stations and automatic selection require a Rail Island Pass. (Tap to view the Pass.)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無料版では固定駅を1つ利用できます。複数駅と自動選択には軌島パスが必要です。（タップしてパスを表示）"
+          }
+        }
+      }
+    },
+    "免費版可使用一個捷運站；多站與自動選站需啟用軌島通行證。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The free version supports one metro station. Multiple stations and automatic selection require a Rail Island Pass."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無料版ではメトロ1駅を利用できます。複数駅と自動選択には軌島パスが必要です。"
+          }
+        }
+      }
+    },
     "免費版可設定一站。點一下開啟軌島，用通行證解鎖多站。": {
       "extractionState": "manual",
       "localizations": {
@@ -12424,6 +13189,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "無料版では1駅を設定できます（現在は「{station}」）。パスで複数駅を利用できます。"
+          }
+        }
+      }
+    },
+    "免費版的那一站已經在用了。要再加一站請開通軌島通行證。（點這裡看通行證）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your free station is already in use. Activate a Rail Island Pass to add another. (Tap to view the Pass.)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無料枠の1駅は使用中です。別の駅を追加するには軌島パスを利用してください。（タップしてパスを表示）"
           }
         }
       }
@@ -12696,6 +13478,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "坑口駅"
+          }
+        }
+      }
+    },
+    "完成": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完了"
           }
         }
       }
@@ -12985,6 +13784,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "保存した場所"
+          }
+        }
+      }
+    },
+    "我的地點 · {name}（{system} {station}）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "My place · {name} ({system} {station})"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存した場所・{name}（{system} {station}）"
           }
         }
       }
@@ -13312,6 +14128,23 @@
         }
       }
     },
+    "更新": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "updated"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新"
+          }
+        }
+      }
+    },
     "更新紀錄": {
       "extractionState": "manual",
       "localizations": {
@@ -13342,6 +14175,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "通知を更新"
+          }
+        }
+      }
+    },
+    "更新頻率": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh frequency"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新頻度"
           }
         }
       }
@@ -13652,6 +14502,23 @@
         }
       }
     },
+    "車次 · {trainNo}": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Train · {trainNo}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "列車番号・{trainNo}"
+          }
+        }
+      }
+    },
     "車埕": {
       "extractionState": "manual",
       "localizations": {
@@ -13822,6 +14689,23 @@
         }
       }
     },
+    "車廂鬆緊": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Car crowding"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "車両混雑度"
+          }
+        }
+      }
+    },
     "車進站自動換成下一班，時間到自動收起": {
       "extractionState": "manual",
       "localizations": {
@@ -13886,6 +14770,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "列車種別"
+          }
+        }
+      }
+    },
+    "車種 · {type}（{n} 班）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Train type · {type} ({n} trains)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "列車種別・{type}（{n}本）"
           }
         }
       }
@@ -14158,6 +15059,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "例：自宅、会社、よく使う駅"
+          }
+        }
+      }
+    },
+    "依 {date} 同星期班表": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Using the {date} timetable for the same weekday"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{date}の同曜日時刻表を使用"
           }
         }
       }
@@ -14604,6 +15522,23 @@
         }
       }
     },
+    "夜行看板（多方向並排）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Night board (multiple directions)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "夜間案内（複数方向）"
+          }
+        }
+      }
+    },
     "奇岩": {
       "extractionState": "manual",
       "localizations": {
@@ -14876,6 +15811,23 @@
         }
       }
     },
+    "尚未取得資料": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No data received yet"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "データをまだ取得していません"
+          }
+        }
+      }
+    },
     "尚未發車": {
       "extractionState": "manual",
       "localizations": {
@@ -14906,6 +15858,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "駅ごとの記録はまだありません。"
+          }
+        }
+      }
+    },
+    "尚無讀數": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No reading"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "データなし"
           }
         }
       }
@@ -15042,6 +16011,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "{station}方面"
+          }
+        }
+      }
+    },
+    "往 {station} · 直達列車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To {station} · direct trains"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{station}方面・直通列車"
           }
         }
       }
@@ -15981,6 +16967,23 @@
         }
       }
     },
+    "版型": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Layout"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "レイアウト"
+          }
+        }
+      }
+    },
     "狀態": {
       "extractionState": "manual",
       "localizations": {
@@ -16045,6 +17048,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "知本"
+          }
+        }
+      }
+    },
+    "知道了": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
           }
         }
       }
@@ -17851,6 +18871,23 @@
         }
       }
     },
+    "省電（5 分鐘，進站前 2 分鐘）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Power saving (5 min; 2 min near arrival)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "省電力（5分、到着2分前）"
+          }
+        }
+      }
+    },
     "省電中": {
       "extractionState": "manual",
       "localizations": {
@@ -18272,6 +19309,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "約{distance}"
+          }
+        }
+      }
+    },
+    "約 {n}": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "about {n}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "約{n}"
           }
         }
       }
@@ -18786,6 +19840,23 @@
         }
       }
     },
+    "軌島 · {status}": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rail Island · {status}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "軌島・{status}"
+          }
+        }
+      }
+    },
     "軌島 {version} 已經上架": {
       "extractionState": "manual",
       "localizations": {
@@ -18918,6 +19989,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "軌島は、台湾鉄路・高速鉄道・各都市のメトロとライトレールを一枚の地図で表示する鉄道アニメーションです。"
+          }
+        }
+      }
+    },
+    "軌島・等車中": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rail Island · Waiting"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "軌島・列車待ち"
           }
         }
       }
@@ -19394,6 +20482,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "初回は位置情報の許可を求めます。Androidでは「正確な位置情報」を推奨します。"
+          }
+        }
+      }
+    },
+    "首班 {time}": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "First train {time}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "始発 {time}"
           }
         }
       }
@@ -21421,6 +22526,23 @@
         }
       }
     },
+    "高鐵 {date} 當日班表": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HSR timetable for {date}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高鉄{date}当日時刻表"
+          }
+        }
+      }
+    },
     "高鐵列車依當日真實時刻表沿西部走廊南北奔馳（南港－左營）— 點列車跟隨、點車站看班次。": {
       "extractionState": "manual",
       "localizations": {
@@ -21529,13 +22651,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Stopped at {station}"
+            "value": "At {station}"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "{station}に停車"
+            "value": "{station}に停車中"
           }
         }
       }
@@ -22271,6 +23393,23 @@
         }
       }
     },
+    "捷運 · {system} · {station}": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Metro · {system} · {station}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メトロ・{system}・{station}"
+          }
+        }
+      }
+    },
     "捷運 · 自動選站": {
       "extractionState": "manual",
       "localizations": {
@@ -22339,6 +23478,23 @@
         }
       }
     },
+    "捷運即時 · 台鐵誤點 · 高鐵表定": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live metro · TRA delays · scheduled HSR"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メトロ即時・台湾鉄路遅延・高鉄予定"
+          }
+        }
+      }
+    },
     "捷運系統": {
       "extractionState": "manual",
       "localizations": {
@@ -22373,6 +23529,23 @@
         }
       }
     },
+    "捷運看板小工具": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Metro board widget"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メトロ到着案内ウィジェット"
+          }
+        }
+      }
+    },
     "捷運站": {
       "extractionState": "manual",
       "localizations": {
@@ -22386,6 +23559,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "メトロ駅"
+          }
+        }
+      }
+    },
+    "捷運等車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Metro station tracking"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メトロの駅待ち"
           }
         }
       }
@@ -22849,6 +24039,23 @@
         }
       }
     },
+    "清除": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "クリア"
+          }
+        }
+      }
+    },
     "清單超過 {n} 筆，請拆成較小檔案再匯入": {
       "extractionState": "manual",
       "localizations": {
@@ -23070,6 +24277,23 @@
         }
       }
     },
+    "第 2 站起需要通行證": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A Pass is required from the second station"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2駅目からパスが必要です"
+          }
+        }
+      }
+    },
     "第一分道": {
       "extractionState": "manual",
       "localizations": {
@@ -23270,6 +24494,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "莒光号／復興号"
+          }
+        }
+      }
+    },
+    "設定之後，這一格就會顯示下一班車還有幾分鐘。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "After setup, this widget will show minutes until the next train."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定すると、次の列車までの分数を表示します。"
           }
         }
       }
@@ -23563,6 +24804,23 @@
         }
       }
     },
+    "這個起站目前沒有可用的篩選項目。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No filters are currently available for this origin."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この出発駅で利用できる表示条件はありません。"
+          }
+        }
+      }
+    },
     "這個帳號目前沒有可恢復的 Plus 訂閱資格。": {
       "extractionState": "manual",
       "localizations": {
@@ -23746,6 +25004,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "パスは有効です"
+          }
+        }
+      }
+    },
+    "通行證已啟用：可以放多站，也可以用自動選站。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pass active: use multiple stations and automatic station selection."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "パス利用中：複数駅と駅の自動選択を利用できます。"
           }
         }
       }
@@ -23950,6 +25225,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "公式データに接続できません。自動で再試行します"
+          }
+        }
+      }
+    },
+    "部分資料延遲 · 顯示上次成功結果": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Some data is delayed · showing the last successful result"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一部データ遅延・前回取得結果を表示"
           }
         }
       }
@@ -24617,6 +25909,23 @@
         }
       }
     },
+    "單位分鐘": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "minutes"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "単位：分"
+          }
+        }
+      }
+    },
     "單趟完乘 300 km 以上": {
       "extractionState": "manual",
       "localizations": {
@@ -24732,6 +26041,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "復興号"
+          }
+        }
+      }
+    },
+    "提早": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Running early"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "早着"
           }
         }
       }
@@ -25246,6 +26572,23 @@
         }
       }
     },
+    "琺瑯站牌（一站一班）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enamel station sign (one station, one train)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "琺瑯駅名標（1駅・1列車）"
+          }
+        }
+      }
+    },
     "畫面上 {n} 台列車是依各站之間的固定行車時間往前推估的，位置與車站倒數都可能不準": {
       "extractionState": "manual",
       "localizations": {
@@ -25433,6 +26776,40 @@
         }
       }
     },
+    "發車看板小工具": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Departure board widget"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "発車案内ウィジェット"
+          }
+        }
+      }
+    },
+    "稍有延誤": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slight delay"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "少々遅れ"
+          }
+        }
+      }
+    },
     "等 {n} 則 · ": {
       "extractionState": "manual",
       "localizations": {
@@ -25463,6 +26840,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "メトロウィジェットからの列車待ちカードを修正しました。すぐに開始し、App復帰時にも補完し、時刻を現在へ戻し、終了済みカードを除外します。応答がない場合は再試行を案内します。次回App更新で反映されます。"
+          }
+        }
+      }
+    },
+    "等車資訊卡": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Station tracking card"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅待ち情報カード"
           }
         }
       }
@@ -25531,6 +26925,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "駅の追跡を終了"
+          }
+        }
+      }
+    },
+    "結束跟車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End following"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "追跡を終了"
           }
         }
       }
@@ -26109,6 +27520,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Appを一度開くか、「設定 › 軌島」で位置情報を許可してください"
+          }
+        }
+      }
+    },
+    "開啟軌島": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Rail Island"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "軌島を開く"
           }
         }
       }
@@ -28119,6 +29547,23 @@
         }
       }
     },
+    "資料延遲 · 顯示上次成功結果": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data delayed · showing the last successful result"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "データ遅延・前回取得結果を表示"
+          }
+        }
+      }
+    },
     "資料狀態": {
       "extractionState": "manual",
       "localizations": {
@@ -28438,6 +29883,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "{train}列車を追跡・過去30日：全区間最大遅延{worst}分、平均{average}分、{days}日分"
+          }
+        }
+      }
+    },
+    "跟隨列車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Train following"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "列車追跡"
           }
         }
       }
@@ -30227,6 +31689,23 @@
         }
       }
     },
+    "暫時連不上": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Temporarily unavailable"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一時的に接続できません"
+          }
+        }
+      }
+    },
     "暫時無法載入誤點履歷{status}，稍後再試。": {
       "extractionState": "manual",
       "localizations": {
@@ -30376,6 +31855,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "標準 1.0"
+          }
+        }
+      }
+    },
+    "標準（1 分鐘，進站前 30 秒）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standard (1 min; 30 sec near arrival)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "標準（1分、到着30秒前）"
           }
         }
       }
@@ -30767,6 +32263,74 @@
           "stringUnit": {
             "state": "translated",
             "value": "列車待ちカードを表示するにはiOS設定で「ライブアクティビティ」を有効にしてください。"
+          }
+        }
+      }
+    },
+    "請稍後再看": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check again later"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "しばらくしてから確認してください"
+          }
+        }
+      }
+    },
+    "請稍後再看或點卡片開啟軌島": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check again later or tap the card to open Rail Island"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "しばらくしてから確認するか、カードをタップして軌島を開いてください"
+          }
+        }
+      }
+    },
+    "請開啟軌島並允許「大概位置」，之後這一格會自己跟著最近的車站。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Rail Island and allow approximate location. This widget will then follow the nearest station."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "軌島を開いて「おおよその位置」を許可すると、最寄り駅へ自動で切り替わります。"
+          }
+        }
+      }
+    },
+    "請預留進站時間": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow time to enter the station"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅へ入る時間に余裕を持ってください"
           }
         }
       }
@@ -31196,6 +32760,23 @@
         }
       }
     },
+    "積極（30 秒）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frequent (30 sec)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高頻度（30秒）"
+          }
+        }
+      }
+    },
     "縣 縣市快速移動": {
       "extractionState": "manual",
       "localizations": {
@@ -31298,6 +32879,40 @@
         }
       }
     },
+    "選一個車站，桌面就會顯示官方的下一班還有幾分鐘。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a station to show the official next-arrival time on your Home screen."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅を選ぶと、公式の次列車到着時分をホーム画面に表示します。"
+          }
+        }
+      }
+    },
+    "選一個捷運站": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a metro station"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メトロ駅を選択"
+          }
+        }
+      }
+    },
     "選一個捷運站，看下一班還有多久。": {
       "extractionState": "manual",
       "localizations": {
@@ -31362,6 +32977,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "現在の画面または追跡列車を選択"
+          }
+        }
+      }
+    },
+    "選台鐵、高鐵或共站，查看接下來的停靠、終到與通過列車。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose TRA, HSR or a shared station to see upcoming stopping, terminating and passing trains."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台湾鉄路、高鉄、共用駅を選び、次の停車・終着・通過列車を確認します。"
           }
         }
       }
@@ -31447,6 +33079,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "表示言語を選択"
+          }
+        }
+      }
+    },
+    "選擇車站": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose station"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅を選択"
           }
         }
       }
@@ -31893,6 +33542,23 @@
         }
       }
     },
+    "營運異常": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Service alert"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "運行情報"
+          }
+        }
+      }
+    },
     "營運異常公告中，位置僅供參考": {
       "extractionState": "manual",
       "localizations": {
@@ -32178,6 +33844,57 @@
           "stringUnit": {
             "state": "translated",
             "value": "初期から軌島を支えていただき、ありがとうございます。"
+          }
+        }
+      }
+    },
+    "還不知道你在哪": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Location not available yet"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在地をまだ取得できません"
+          }
+        }
+      }
+    },
+    "還有 {h} 小時 {m} 分": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{h} hr {m} min remaining"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "残り{h}時間{m}分"
+          }
+        }
+      }
+    },
+    "還有 {m} 分": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{m} min remaining"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "残り{m}分"
           }
         }
       }
@@ -33525,6 +35242,23 @@
         }
       }
     },
+    "鐵路 · {system} · {station}": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rail · {system} · {station}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "鉄道・{system}・{station}"
+          }
+        }
+      }
+    },
     "鐵路＋捷運看板": {
       "extractionState": "manual",
       "localizations": {
@@ -33538,6 +35272,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "鉄道＋メトロ案内"
+          }
+        }
+      }
+    },
+    "鐵路＋捷運雙看板": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rail + metro dual board"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "鉄道＋メトロ二面案内"
+          }
+        }
+      }
+    },
+    "鐵路系統": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rail system"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "鉄道事業者"
           }
         }
       }
@@ -33640,6 +35408,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "ようこそ"
+          }
+        }
+      }
+    },
+    "顯示 {time} 最後資料": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Showing the last data from {time}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{time}の最終データを表示"
           }
         }
       }
@@ -33929,6 +35714,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "表示モード"
+          }
+        }
+      }
+    },
+    "Android 1.5.0 完整加入繁中、English、日本語：App 介面、三種桌面小工具，以及列車跟隨、捷運等車與台鐵等站的鎖定畫面／Now Bar 會同步切換語言；沿用既有正式版更新時，原本的小工具、設定和資料都會保留": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Android 1.5.0 fully adds Traditional Chinese, English and Japanese across the app, all three home-screen widgets, train following, metro waiting and TRA station tracking on the lock screen and Now Bar. Updating the existing release keeps your widgets, settings and data."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Android 1.5.0は繁体字中国語・英語・日本語に対応しました。App本体、3種類のホーム画面ウィジェット、列車追跡、メトロ待ち、台湾鉄路の駅待ちを表示するロック画面／Now Barが同じ言語に切り替わります。既存の正式版から更新しても、ウィジェット、設定、データは保持されます。"
+          }
+        }
+      }
+    },
+    "Android 正式版進到 1.5.0，完整加入繁中、English、日本語。除了 App 內介面，捷運看板、台鐵／高鐵發車看板、鐵路＋捷運雙看板三種桌面小工具，以及列車跟隨、捷運等車和台鐵等站的鎖定畫面／Now Bar 都會使用 App 選定的語言；切換後立即重畫，不必刪除小工具或重開追蹤。使用原簽署版本覆蓋更新，既有設定、小工具與本機資料會保留": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Android release is now 1.5.0 with full Traditional Chinese, English and Japanese support. The metro board, TRA/HSR departure board and combined rail + metro widget, plus lock-screen and Now Bar cards for train following, metro waiting and TRA station tracking all use the language selected in the app. They refresh immediately when the language changes, without removing widgets or restarting tracking. The signed update preserves existing settings, widgets and on-device data."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Android正式版を1.5.0へ更新し、繁体字中国語・英語・日本語に全面対応しました。メトロ案内、台湾鉄路／高鉄発車案内、鉄道＋メトロ案内の3種類のウィジェットと、列車追跡、メトロ待ち、台湾鉄路の駅待ちを表示するロック画面／Now BarもAppで選んだ言語を使います。言語変更後はすぐに再表示され、ウィジェットの削除や追跡の再開は不要です。同じ署名の更新としてインストールするため、設定、ウィジェット、端末内データは保持されます。"
           }
         }
       }

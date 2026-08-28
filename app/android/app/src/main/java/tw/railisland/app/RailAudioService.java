@@ -72,7 +72,8 @@ public final class RailAudioService extends MediaSessionService {
                     Uri uri = src.startsWith("https://") || src.startsWith("http://")
                         ? Uri.parse(src) : Uri.parse("asset:///public/" + Uri.encode(src, "/"));
                     MediaMetadata metadata = new MediaMetadata.Builder()
-                        .setTitle(track.optString("title", "背景音樂")).setArtist("軌島")
+                        .setTitle(RailNativeL10n.text(this, track.optString("title", "背景音樂")))
+                        .setArtist(RailNativeL10n.text(this, "軌島"))
                         .setArtworkUri(Uri.parse("asset:///public/favicon-512.png")).build();
                     items.add(new MediaItem.Builder().setUri(uri).setMediaMetadata(metadata).build());
                 }

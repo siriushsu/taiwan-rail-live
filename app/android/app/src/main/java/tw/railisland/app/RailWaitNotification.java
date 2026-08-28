@@ -70,8 +70,8 @@ final class RailWaitNotification {
         NotificationManager manager = context.getSystemService(NotificationManager.class);
         if (manager == null) return;
         NotificationChannel channel = new NotificationChannel(
-            CHANNEL_ID, "等車資訊卡", NotificationManager.IMPORTANCE_DEFAULT);
-        channel.setDescription("在鎖定畫面顯示正在追蹤車站的下一班車");
+            CHANNEL_ID, RailNativeL10n.text(context, "等車資訊卡"), NotificationManager.IMPORTANCE_DEFAULT);
+        channel.setDescription(RailNativeL10n.text(context, "在鎖定畫面顯示正在追蹤車站的下一班車"));
         channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
         channel.setSound(null, null);
         channel.enableVibration(false);
@@ -123,39 +123,45 @@ final class RailWaitNotification {
             return;
         }
         if (!canNotify(context)) return;
-        String station = state.optString("station", "捷運等車");
-        String line = state.optString("lineLabel", "");
-        String dest = state.optString("nextDest", "—");
-        String secondDest = state.optString("secondDest", "");
+        String rawStation = state.optString("station", "捷運等車");
+        String station = RailNativeL10n.name(context, rawStation);
+        String line = RailNativeL10n.name(context, state.optString("lineLabel", ""));
+        String dest = RailNativeL10n.name(context, state.optString("nextDest", "—"));
+        String secondDest = RailNativeL10n.name(context, state.optString("secondDest", ""));
         Double nextEta = nullableDouble(state, "nextEta");
         Integer nextMinutes = nullableInt(state, "nextMinutes");
         Double secondEta = nullableDouble(state, "secondEta");
         Integer secondMinutes = nullableInt(state, "secondMinutes");
         long now = System.currentTimeMillis();
 
-        String firstText = countdown(nextEta, nextMinutes, now);
-        StringBuilder detail = new StringBuilder("往 ").append(dest).append("　").append(firstText);
+        String firstText = countdown(context, nextEta, nextMinutes, now);
+        StringBuilder detail = new StringBuilder(RailNativeL10n.text(context, "往 {station}", "station", dest))
+            .append("　").append(firstText);
         if (secondEta != null || secondMinutes != null) {
-            detail.append("\n再下一班");
-            if (!secondDest.isEmpty()) detail.append(" 往 ").append(secondDest);
-            detail.append("　").append(countdown(secondEta, secondMinutes, now));
+            detail.append("\n").append(RailNativeL10n.text(context, "再下一班"));
+            if (!secondDest.isEmpty()) detail.append(" ").append(RailNativeL10n.text(context,
+                "往 {station}", "station", secondDest));
+            detail.append("　").append(countdown(context, secondEta, secondMinutes, now));
         }
         String crowd = crowdText(state.optJSONArray("crowd"));
-        if (!crowd.isEmpty()) detail.append("\n車廂鬆緊　").append(crowd);
+        if (!crowd.isEmpty()) detail.append("\n").append(RailNativeL10n.text(context, "車廂鬆緊"))
+            .append("　").append(crowd);
         double dataAt = state.optDouble("dataAt", 0);
         double endAt = state.optDouble("endAt", 0);
         if (dataAt > 0 || endAt > 0) {
             detail.append("\n");
-            if (dataAt > 0) detail.append(formatTime((long) (dataAt * 1000))).append(" 更新");
+            if (dataAt > 0) detail.append(RailNativeL10n.text(context, "{time} 更新",
+                "time", formatTime((long) (dataAt * 1000))));
             if (dataAt > 0 && endAt > 0) detail.append(" ・ ");
-            if (endAt > 0) detail.append("追蹤至 ").append(formatTime((long) (endAt * 1000)));
+            if (endAt > 0) detail.append(RailNativeL10n.text(context, "追蹤至 {time}",
+                "time", formatTime((long) (endAt * 1000))));
         }
         String notice = state.optString("notice", "").trim();
         if (!notice.isEmpty()) detail.append("\n").append(notice);
 
         Uri openUri = new Uri.Builder().scheme("railisland").authority("metro-wait")
             .appendQueryParameter("sys", state.optString("sys", ""))
-            .appendQueryParameter("station", station).build();
+            .appendQueryParameter("station", rawStation).build();
         Intent open = new Intent(Intent.ACTION_VIEW, openUri, context, MainActivity.class)
             .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent openPending = PendingIntent.getActivity(context, 46300, open,
@@ -165,11 +171,13 @@ final class RailWaitNotification {
         PendingIntent stopPending = PendingIntent.getBroadcast(context, END_REQUEST_CODE, stop,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-        StringBuilder compact = new StringBuilder("往 ").append(dest).append("　").append(firstText);
+        StringBuilder compact = new StringBuilder(RailNativeL10n.text(context, "往 {station}", "station", dest))
+            .append("　").append(firstText);
         if (secondEta != null || secondMinutes != null) {
-            compact.append(" · 再下一班");
-            if (!secondDest.isEmpty()) compact.append(" 往 ").append(secondDest);
-            compact.append("　").append(countdown(secondEta, secondMinutes, now));
+            compact.append(" · ").append(RailNativeL10n.text(context, "再下一班"));
+            if (!secondDest.isEmpty()) compact.append(" ").append(RailNativeL10n.text(context,
+                "往 {station}", "station", secondDest));
+            compact.append("　").append(countdown(context, secondEta, secondMinutes, now));
         }
 
         Integer accentColor = null;
@@ -181,9 +189,9 @@ final class RailWaitNotification {
             .setSmallIcon(R.drawable.ic_stat_train)
             .setContentTitle(station)
             .setContentText(compact.toString())
-            .setSubText(line.isEmpty() ? "軌島・等車中" : line)
+            .setSubText(line.isEmpty() ? RailNativeL10n.text(context, "軌島・等車中") : line)
             .setContentIntent(openPending)
-            .addAction(R.drawable.ic_stop, "結束", stopPending)
+            .addAction(R.drawable.ic_stop, RailNativeL10n.text(context, "結束"), stopPending)
             .setCategory(NotificationCompat.CATEGORY_PROGRESS)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOngoing(true)
@@ -245,10 +253,10 @@ final class RailWaitNotification {
         createChannel(context);
         long now = System.currentTimeMillis();
         double nowSec = now / 1000.0;
-        String station = state.optString("station", "台鐵等車");
+        String station = RailNativeL10n.name(context, state.optString("station", "台鐵等車"));
         String trainNo = state.optString("trainNo", "");
-        String trainType = state.optString("trainType", "台鐵");
-        String dest = state.optString("dest", "");
+        String trainType = RailNativeL10n.name(context, state.optString("trainType", "台鐵"));
+        String dest = RailNativeL10n.name(context, state.optString("dest", ""));
         double schedSec = state.optDouble("schedSec", 0);
         Double dataAt = nullableDouble(state, "dataAt");
         Integer rawDelay = nullableInt(state, "delayMin");
@@ -257,19 +265,25 @@ final class RailWaitNotification {
         double etaSec = schedSec + (shownDelay == null ? 0 : shownDelay) * 60.0;
         boolean arrived = shownDelay != null && nowSec >= etaSec;
 
-        String heroCaption = shownDelay == null ? "表定" : "實際約";
+        String heroCaption = RailNativeL10n.text(context, shownDelay == null ? "表定" : "實際約");
         String hero = formatTime((long) (etaSec * 1000));
         String delayText = shownDelay == null
-            ? (expired ? "誤點資訊已過期" : "目前無即時誤點資訊")
-            : shownDelay > 0 ? "誤點 " + shownDelay + " 分"
-            : shownDelay < 0 ? "早到 " + (-shownDelay) + " 分" : "準點";
-        String lead = (trainType + " " + trainNo + " 次").trim();
-        String route = heroCaption + " " + hero + (dest.isEmpty() ? "" : " · 往 " + dest);
+            ? RailNativeL10n.text(context, expired ? "誤點資訊已過期" : "目前無即時誤點資訊")
+            : shownDelay > 0 ? RailNativeL10n.text(context, "誤點 {n} 分", "n", String.valueOf(shownDelay))
+            : shownDelay < 0 ? RailNativeL10n.text(context, "早到 {n} 分", "n", String.valueOf(-shownDelay))
+            : RailNativeL10n.text(context, "準點");
+        String lead = RailNativeL10n.text(context, "{trainType} {trainNo} 次列車",
+            "trainType", trainType, "trainNo", trainNo).trim();
+        String route = RailNativeL10n.text(context, "{status} {time}", "status", heroCaption, "time", hero)
+            + (dest.isEmpty() ? "" : " · " + RailNativeL10n.text(context, "往 {station}", "station", dest));
         StringBuilder detail = new StringBuilder(route)
-            .append("\n表定 ").append(formatTime((long) (schedSec * 1000)))
+            .append("\n").append(RailNativeL10n.text(context, "表定 {time}",
+                "time", formatTime((long) (schedSec * 1000))))
             .append(" · ").append(delayText);
-        if (arrived) detail.append("\n").append(station).append(" 車應已到");
-        if (dataAt != null) detail.append("\n").append(formatTime((long) (dataAt * 1000))).append(" 更新");
+        if (arrived) detail.append("\n").append(RailNativeL10n.text(context, "{station} 車應已到",
+            "station", station));
+        if (dataAt != null) detail.append("\n").append(RailNativeL10n.text(context, "{time} 更新",
+            "time", formatTime((long) (dataAt * 1000))));
         String notice = state.optString("notice", "").trim();
         if (!notice.isEmpty()) detail.append("\n").append(notice);
 
@@ -292,9 +306,9 @@ final class RailWaitNotification {
             .setSmallIcon(R.drawable.ic_stat_train)
             .setContentTitle(lead.isEmpty() ? station : lead + " · " + station)
             .setContentText(route)
-            .setSubText("軌島 · " + delayText)
+            .setSubText(RailNativeL10n.text(context, "軌島 · {status}", "status", delayText))
             .setContentIntent(openPending)
-            .addAction(R.drawable.ic_stop, "結束", stopPending)
+            .addAction(R.drawable.ic_stop, RailNativeL10n.text(context, "結束"), stopPending)
             .setCategory(NotificationCompat.CATEGORY_PROGRESS)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOngoing(true)
@@ -552,6 +566,12 @@ final class RailWaitNotification {
             .putString(KEY_STATE, state.toString()).apply();
     }
 
+    /** 手動切換語言後以原狀態重貼，不等待下一次官方輪詢。 */
+    static void refreshLanguage(Context context) {
+        JSONObject state = load(context);
+        if (state != null) post(context, state);
+    }
+
     private static JSONObject load(Context context) {
         SharedPreferences p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         String raw = p.getString(KEY_STATE, null);
@@ -609,13 +629,14 @@ final class RailWaitNotification {
         if (alarm != null && pending != null) alarm.cancel(pending);
     }
 
-    private static String countdown(Double eta, Integer minutes, long now) {
+    private static String countdown(Context context, Double eta, Integer minutes, long now) {
         if (eta != null) {
             long sec = Math.max(0, Math.round(eta - now / 1000.0));
-            if (sec <= 60) return "進站";
+            if (sec <= 60) return RailNativeL10n.text(context, "進站");
             return String.format(Locale.TAIWAN, "%d:%02d", sec / 60, sec % 60);
         }
-        return minutes == null ? "—" : "約 " + minutes + " 分";
+        return minutes == null ? "—" : RailNativeL10n.text(context, "約 {n} 分",
+            "n", String.valueOf(minutes));
     }
 
     private static String shortCritical(String text) {
