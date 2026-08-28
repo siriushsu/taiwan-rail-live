@@ -5497,7 +5497,7 @@
 // v0828h：動態島三種展開卡統一使用 22pt 圓角安全內距，避免各語言內容被邊緣裁切。
 // v0828i：字級設定的目前值與詳細面板補齊英文、日文即時切換。
 // v0828l：捷運車站資訊頁的緊湊排法從 Android 擴到 iOS（網站維持舊排法）。
-const BUILD = 'v0828m';
+const BUILD = 'v0828n';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -8651,7 +8651,21 @@ function zoneProfileOk(rp, zones) {
   return true;
 }
 // minGrow:先把取用的實測區間往外撐幾格再開始找。呼叫端由小到大試,用 zoneProfileOk 收貨。
-function speedZoneKnots(L, T, zones, vTopK, basePts, minGrow) {
+// 量某條剖面在 [d0,d1] 這段裡的最快瞬時速度與實際通過秒數(nat 是「沒有彎道限制」的原本剖面)。
+function zoneNatural(nat, L, T, d0, d1) {
+  const t0 = profProgToTime(nat, d0 / L), t1 = profProgToTime(nat, d1 / L);
+  let vMax = 0, prev = -1;
+  for (let t = t0; t <= t1 + 1e-9; t += 0.25) {
+    const d = profTimeToProg(nat, t) * L;
+    if (prev >= 0) vMax = Math.max(vMax, (d - prev) / 0.25);
+    prev = d;
+  }
+  return { t: t1 - t0, vMax };
+}
+// keepObs=true:彎道端點上的實測折點留著當彎道節點(校正不損失,但可用的時間窗較窄);
+// keepObs=false:把端點折點也讓出來換取減速空間。呼叫端先試 true,守不住速限才退 false
+// ——速度不超過上限是硬要求,比模型精度重要(使用者 2026-07-29 裁示)。
+function speedZoneKnots(L, T, zones, vTopK, basePts, minGrow, nat, keepObs) {
   const vTop = vTopK / 3.6;
   let ks = [[0, 0], [T, L]];
   for (const p of (basePts || [])) if (p.t > 0 && p.t < T && p.d > 0 && p.d < L) ks.push([p.t, p.d]);
@@ -8664,11 +8678,23 @@ function speedZoneKnots(L, T, zones, vTopK, basePts, minGrow) {
     // 彎道秒數一律【進位】:buildObsProfile 會 Math.round 節點時間,秒數少一秒就等於割線變快。
     // 實測 1500m÷46s＝117.4(限速 115)、1500m÷41s＝131.7(限速 130),與量到的違規值逐位吻合。
     // 寧可多給一秒(畫得比核定再慢一點),不可少給。
-    const tz = Math.ceil((z.d1 - z.d0) / z.v);
+    // 🔴 速限是【上限】,不是目標速度。原本無條件把彎道那段的通過時間釘死成「剛好用速限跑完」,
+    //    於是本來就跑得比速限慢的車(進站減速中、起訖站就在附近的短程車)反而被【加速】到速限
+    //    ——真實班表和仁 401 次原本 79 km/h 被推到 130,那不是速限是目標速度。故:
+    //    (1) 原本就沒超過速限的彎道整個不介入(連節點都不插、也不列進夾限),零失真;
+    //    (2) 真的要減速時,通過秒數取「速限所需」與「原本就要花的」兩者較大者,只會變慢不會變快。
+    const nz = nat ? zoneNatural(nat, L, T, z.d0, z.d1) : null;
+    if (nz && nz.vMax <= z.v) continue;
+    const tz = Math.max(Math.ceil((z.d1 - z.d0) / z.v), nz ? Math.ceil(nz.t) : 0);
     // 落在彎道內的實測折點先拿掉:它們量到的是「沒有彎道限制」前提下的通過時刻,與彎道速限
     // 直接衝突,留著只會兩敗俱傷。彎道外的實測折點一律原封保留(整段幾十公里的校正不能為了
     // 1.3 公里的彎道丟掉——碼錶檢定裡實測剖面勝過梯形)。
-    const base = ks.filter(([, d]) => !(d > z.d0 - 1 && d < z.d1 + 1));
+    // 🔴 只拿掉【嚴格落在彎道內】的折點。彎道端點常常就是錨定站本身(和仁那個彎的起點
+    //    就是和仁站的通過點),把端點上的折點也濾掉會讓包住彎道的區間一路撐到上上站,
+    //    整段幾十公里被拉成一條直線 ⇒ 實測說 t=2155 秒在 54.73km,新剖面畫在 49.31km。
+    //    端點上的折點要留著當彎道節點用(時間直接沿用實測值),見下面的 flush 處理。
+    const base = keepObs ? ks.filter(([, d]) => !(d > z.d0 + 1 && d < z.d1 - 1))
+      : ks.filter(([, d]) => !(d > z.d0 - 1 && d < z.d1 + 1));
     let lo = -1;
     for (let j = 0; j < base.length - 1; j++) if (base[j][1] <= z.d0 && base[j + 1][1] >= z.d1) { lo = j; break; }
     if (lo < 0) continue;
@@ -8680,19 +8706,28 @@ function speedZoneKnots(L, T, zones, vTopK, basePts, minGrow) {
       if (!canLo && !canHi) break;
       if (canLo && (!canHi || base[lo][0] - base[lo - 1][0] >= base[hi + 1][0] - base[hi][0])) lo--; else hi++;
     }
-    for (let grow = 0; grow <= 6; grow++) {
+    // 🔴 只試呼叫端指定的那個寬度,不要自己再往外撐:自己撐等於把「先試最窄」這個偏好架空
+    //    (呼叫端從 grow=0 由窄到寬試,這裡卻在 grow=0 就一路撐到 6,多丟掉的實測折點白丟)。
+    for (let grow = 0; grow <= 0; grow++) {
       const [tA, dA] = base[lo], [tB, dB] = base[hi];
+      // 彎道端點正好落在實測折點上(flush):該折點就是彎道節點本身,通過時刻直接沿用實測值,
+      // 不必也不能在兩者之間再留 ZONE_KNOT_GAP 的間隔。
+      const flush0 = Math.abs(dA - z.d0) < 2, flush1 = Math.abs(dB - z.d1) < 2;
       const outD = (z.d0 - dA) + (dB - z.d1), outT = (tB - tA) - tz;
       if (outT > 0 && (outD <= 0 || outD / outT <= vTop)) {
         const tEnter = Math.round(tA + (outD > 0 ? (z.d0 - dA) / outD * outT : 0));
-        if (tEnter >= tA + ZONE_KNOT_GAP && tEnter + tz <= tB - ZONE_KNOT_GAP) { ok = { lo, hi, tEnter, tz }; break; }
+        if (tEnter >= tA + (flush0 ? 0 : ZONE_KNOT_GAP) && tEnter + tz <= tB - (flush1 ? 0 : ZONE_KNOT_GAP)) {
+          ok = { lo, hi, tEnter, tz, flush0, flush1 }; break;
+        }
       }
       const canLo = lo > 0, canHi = hi < base.length - 1;
       if (!canLo && !canHi) break;
       if (canLo && (!canHi || base[lo][0] - base[lo - 1][0] >= base[hi + 1][0] - base[hi][0])) lo--; else hi++;
     }
     if (!ok) continue;
-    ks = [...base.slice(0, ok.lo + 1), [ok.tEnter, z.d0, true], [ok.tEnter + ok.tz, z.d1, true], ...base.slice(ok.hi)];
+    // flush 的那一端:彎道節點就取代那顆折點(同一個位置不能有兩顆節點,h=0 會讓 PCHIP 爆掉)。
+    ks = [...base.slice(0, ok.flush0 ? ok.lo : ok.lo + 1), [ok.tEnter, z.d0, true],
+      [ok.tEnter + ok.tz, z.d1, true], ...base.slice(ok.hi + (ok.flush1 ? 1 : 0))];
     applied.push(z);
   }
   // z:true 標記彎道節點,讓 buildObsProfile 的幾何閘門不要把它當可疑實測折點刪掉
@@ -8935,12 +8970,33 @@ function assignRunProfiles(s, perf, obs, zoneCls) {
       // 收貨用 zoneProfileOk 量【建好的剖面】,不是量代理指標;全部試完仍不合格就整個不套用,
       // 退回下面原本的實測／梯形路徑——寧可維持原行為,也不畫出一條聲稱有速限卻超速的曲線。
       // 夾限只吃 zk.zones(真的排進節點的那些),不是原本的 zones。
-      for (let grow = 0; grow <= 6 && !rp; grow++) {
-        const zk = speedZoneKnots(runKm * 1000, runT, zones, perf.v, pts, grow);
-        if (!zk) break;
-        const cand = buildObsProfile(runKm, runT, zk.pts, perf.v, zk.zones);
-        if (zoneProfileOk(cand, zk.zones)) rp = cand;
+      // 先建「沒有彎道限制」的原本剖面:它同時是判斷「這個彎本來就沒超速嗎」的依據
+      // (沒超速就完全不介入)與退路。
+      const nat = (pts && pts.length && buildObsProfile(runKm, runT, pts, perf.v))
+        || buildProfile(runKm, runT, perf.a, perf.b, perf.v, perf.coast);
+      // 先試「不動彎道端點上的實測折點」,守不住速限才退讓那顆折點換取減速空間。
+      // 🔴 兩個坑,都會讓某個彎道【靜默地】沒被套用而整批判準照樣全綠:
+      //    (1) 這一格排不進不代表更寬的也排不進(和仁／新馬那個彎的端點就是車站本身,
+      //        窄窗常常一格都塞不下)⇒ 必須 continue 不能 break。
+      //    (2) zoneProfileOk 只驗【真的排進去的】那些彎道,所以「只排進兩個彎道中的一個」
+      //        也會回 true。收貨要挑【排進最多彎道】的那一版,不是第一個通過的那一版
+      //        (真實班表 408 次:第一個通過的版本只守了和仁,新馬那個 65 的彎放著 112 km/h)。
+      // 目標函式:先求【套用最多彎道】,同分再求【保留最多實測折點】。
+      // 不能寫成「先試 keepObs 再試不 keepObs、取第一個過的」——留住彎道端點那顆折點,
+      // 常常得把窗往外撐更多格、丟掉更多【別的】折點,反而虧(246 次:keep 版留 6 顆、
+      // 不 keep 版留 7 顆)。要比的是最後留下幾顆,不是有沒有留住端點那一顆。
+      let best = null;
+      if (nat) for (const keepObs of [true, false]) {
+        for (let grow = 0; grow <= 6; grow++) {
+          const zk = speedZoneKnots(runKm * 1000, runT, zones, perf.v, pts, grow, nat, keepObs);
+          if (!zk) continue;
+          if (best && (zk.zones.length < best.nz
+            || (zk.zones.length === best.nz && zk.pts.length <= best.np))) continue;   // 不可能更好就不用建剖面
+          const cand = buildObsProfile(runKm, runT, zk.pts, perf.v, zk.zones);
+          if (zoneProfileOk(cand, zk.zones)) best = { nz: zk.zones.length, np: zk.pts.length, rp: cand };
+        }
       }
+      if (best) rp = best.rp;
     }
     if (!rp && pts && pts.length) rp = buildObsProfile(runKm, runT, pts, perf.v);
     if (!rp) rp = buildProfile(runKm, runT, perf.a, perf.b, perf.v, perf.coast);
