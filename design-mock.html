@@ -1469,11 +1469,14 @@
     /* 手機:工具全部住在 tab bar「更多」sheet;帶收成速度膠囊(見下) */
     .tabbar { display: flex; }
     .rec-toast { left: 8px; transform: none; max-width: calc(100% - 124px); }
-    /* 版權字單行省略且讓開左下跟隨卡(卡寬 176+邊距):抬到膠囊上方後與卡同高,不截寬會相撞 */
+    /* 版權列讓開左下跟隨卡(卡寬 176+邊距),但不可用 ellipsis 裁掉授權連結:
+       窄機改在右下角換行,每個來源都保留可見、可點的命中框。 */
     .leaflet-control-attribution {
-      max-width: calc(100vw - 216px); white-space: nowrap;
-      overflow: hidden; text-overflow: ellipsis; font-size: 10px;
+      max-width: calc(100vw - 216px); white-space: normal;
+      overflow: visible; text-overflow: clip; text-align: right; line-height: 1.25;
+      font-size: 10px;
     }
+    .leaflet-control-attribution a { display: inline-block; }
     /* 手機改用雙指縮放,隱藏 Leaflet +/- 鈕 */
     .leaflet-control-zoom { display: none; }
     .leaflet-bottom.leaflet-right { bottom: 58px; }

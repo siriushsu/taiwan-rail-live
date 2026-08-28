@@ -27,7 +27,15 @@ const WIDGET = join(ROOT, 'app/ios/App/RailBoardWidget');
 const APP = join(ROOT, 'app/ios/App/App');
 
 // widget target 會編到的 App 側共用型別（Attributes／Intent）。少給就會是「找不到型別」的假錯誤。
-const SHARED = ['MetroWaitAttributes.swift', 'MetroWaitEndIntent.swift', 'RailFollowAttributes.swift'];
+const SHARED = [
+  'MetroWaitAttributes.swift',
+  'MetroWaitEndIntent.swift',
+  'MetroWaitStartIntent.swift',
+  'MetroWidgetShared.swift',
+  'RailFollowAttributes.swift',
+  'TraWaitAttributes.swift',
+  'TraWaitEndIntent.swift',
+];
 
 const sources = [
   ...readdirSync(WIDGET).filter(f => f.endsWith('.swift')).map(f => join(WIDGET, f)),

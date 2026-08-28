@@ -34,7 +34,8 @@ ok('S1 freeStationLimit 已是 1(免費一站)',
    (intentSrc.match(/freeStationLimit.*/) || ['(找不到)'])[0]);
 // 🔴 這條是「明講 CTA」裁示的牙:兩條擋下路徑各自都要帶 passCTA,漏一條就是靜默空白卡。
 const autoBranch = widgetSrc.match(/case \.needPassAuto:[\s\S]*?case \.needPassMulti/);
-ok('S2 needPassAuto 帶 CTA 文案', !!autoBranch && /passCTA:\s*"/.test(autoBranch[0]));
+ok('S2 needPassAuto 帶 CTA 文案', !!autoBranch
+   && /passCTA:\s*(?:RailNativeL10n\.text\()?"[^"\n]+"/.test(autoBranch[0]));
 const multiBranch = widgetSrc.match(/case \.needPassMulti[\s\S]*?case \.allowed/);
 ok('S3 needPassMulti 帶 CTA 文案', !!multiBranch && /passCTA:/.test(multiBranch[0]));
 // 🔴 這條原本綁「if let cta = entry.passCTA … Text(cta)」這個寫法，08-17 改版把判定收進
@@ -45,7 +46,8 @@ const emptyBodyFn = widgetSrc.match(/func emptyBody\(at date: Date\)[\s\S]*?\n  
 ok('S4a passCTA 會從 emptyBody 流出來',
    !!emptyBodyFn && /passCTA/.test(emptyBodyFn[0]) && /true\)/.test(emptyBodyFn[0]));
 ok('S4b 有人把 emptyBody 的字畫成 Text',
-   /emptyBody\(at: entry\.date\)/.test(widgetSrc) && /Text\(body\.text\)/.test(widgetSrc));
+   /emptyBody\(at: entry\.date\)/.test(widgetSrc)
+   && /Text\(\s*(?:RailNativeL10n\.text\()?body\.text/.test(widgetSrc));
 ok('S4c CTA 與錯誤訊息視覺分得開', /body\.isCTA \?/.test(widgetSrc));
 ok('S4d 混合大卡走同一個出口(它曾經完全不講付費被擋)',
    /emptyBody\(at: entry\.date\)/.test(readFileSync(
