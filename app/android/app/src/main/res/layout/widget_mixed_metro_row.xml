@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="30dp"
+    android:baselineAligned="false"
+    android:gravity="center_vertical"
+    android:orientation="horizontal">
+    <ImageView
+        android:id="@+id/wmxr_mark"
+        android:layout_width="3dp"
+        android:layout_height="22dp"
+        android:contentDescription="@null"
+        android:scaleType="fitXY"
+        android:src="@drawable/wg_meter_block" />
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="7dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+        <TextView
+            android:id="@+id/wmxr_dest"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:text="往 淡水"
+            android:textColor="@color/wg_ink"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+        <TextView
+            android:id="@+id/wmxr_sub"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:text="再下班 7 · 14 分"
+            android:textColor="@color/wg_ink_faint"
+            android:textSize="9sp" />
+    </LinearLayout>
+    <TextView
+        android:id="@+id/wmxr_value"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:includeFontPadding="false"
+        android:maxLines="1"
+        android:text="2"
+        android:textColor="@color/wg_ink"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+    <TextView
+        android:id="@+id/wmxr_unit"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="2dp"
+        android:maxLines="1"
+        android:text="分"
+        android:textColor="@color/wg_ink_faint"
+        android:textSize="9sp" />
+</LinearLayout>

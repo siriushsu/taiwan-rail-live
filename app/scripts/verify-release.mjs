@@ -2,6 +2,7 @@ import { inventory, compare as compareShipInventory } from './verify_no_ship_reg
 import { lstat, readFile, readdir } from 'node:fs/promises';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { verifyAndroidWidgetParity } from './verify_android_widget_parity.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '..');
@@ -60,6 +61,36 @@ export function assertAndroidSafeAreaCssContract(html) {
     'Android 手機頂列必須維持緊湊 36px 幾何——360dp＋營運公告時「捷」會被裁掉');
 }
 
+// 2026-08-22 的 63e38b2 曾在三方合併時把 index.html 整檔選成 main 那側，
+// 讓只活在 App 線的功能、定位與公開更新紀錄一起靜默消失；原生碼與 build 全部仍會綠。
+// 這裡鎖住「必須一起存在」的 App 血脈，不再只靠散落且未接進出貨流程的瀏覽器驗收器。
+export function assertAppLineageContent(html) {
+  const requiredSource = [
+    ['id="fpLaCta"', '跟車面板的鎖屏通行證入口'],
+    ['function renderLaCta()', '跟車鎖屏通行證渲染'],
+    ['function maybeSatPlusNotice()', '衛星高解析通行證提示'],
+    ["{ key: 'metrowidget'", '使用說明中心的捷運小工具章節'],
+    ["{ key: 'metrowait'", '使用說明中心的在這站等車章節'],
+    ['function startForegroundGeoWatch(', 'App 前景持續定位'],
+    ['function updateGeoCamera(', '所在地鏡頭跟隨'],
+    ['function zaCalGl(', '捏合縮放的 MapLibre 重標定'],
+    ['const syncDraw = () =>', '拖曳時 overlay 同幀重畫'],
+    ['L.MaplibreGL.prototype', 'MapLibre 同步 redraw 補丁'],
+  ];
+  for (const [needle, label] of requiredSource) {
+    assert(html.includes(needle), `${label}遺失（缺少 ${needle}）——請檢查 index.html 是否又在合併時整檔退回 main`);
+  }
+
+  const requiredHistory = [
+    'apprestore', 'geofollow', 'metrocoreidentity', 'widgetredesign', 'androidwidgets', 'plusctas', 'mapsync',
+    'appwhatsnewlag', 'androidcoarse', 'androidtopgap', 'androidinsets', 'androidbars', 'android142',
+  ];
+  for (const id of requiredHistory) {
+    assert(html.includes(`data-cl="${id}"`),
+      `完整更新歷史缺少 data-cl="${id}"——App 專屬紀錄不可在網站／iOS 合併時被整段吃掉`);
+  }
+}
+
 // Stadia 官方要求的逐字署名(prepare-web 注入、本檔驗證,單一事實來源)
 export const STADIA_ATTRIBUTION = '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
 // OpenFreeMap 要求的逐字署名(index.html 內就有這個常數,本檔驗它沒被改動,單一事實來源)。
@@ -116,7 +147,7 @@ export function assertPlusSandboxTestBuild(html, expectedBuild) {
 }
 
 export const ANDROID_PLUS_GATE_LINE =
-  "  if (IS_NATIVE_APP && window.Capacitor?.getPlatform?.() === 'android') return false;";
+  "  if (IS_NATIVE_APP && window.Capacitor?.getPlatform?.() === 'android') return window.RAIL_ANDROID_PLUS_ENABLED === true;";
 
 export function assertAndroidPlusGate(html) {
   const exactInitializer = [
@@ -127,10 +158,39 @@ export function assertAndroidPlusGate(html) {
     '} catch (e) { return false; } })();',
   ].join('\n');
   assert(html.includes(exactInitializer),
-    'PLUS_ENABLED 必須先對原生 Android fail closed，再逐字保留既有 iOS 原生與 Web ?plus=1 分支；'
+    'PLUS_ENABLED 必須讓原生 Android 只讀 build-time 明確旗標，再逐字保留既有 iOS 原生與 Web ?plus=1 分支；'
     + '不得只藏單一入口或重寫共享判定式');
   assert(html.split(ANDROID_PLUS_GATE_LINE).length === 2,
     'Android 通行證平台 gate 必須且只能出現一次');
+}
+
+export function assertAndroidPlusReleaseConfig(html, expectedVersionCode = '') {
+  const enabled = /window\.RAIL_ANDROID_PLUS_ENABLED=(true|false)/.exec(html)?.[1];
+  assert(enabled, '發行包缺少 window.RAIL_ANDROID_PLUS_ENABLED 明確注入');
+  if (enabled === 'false') {
+    assert(/window\.RAIL_ANDROID_PLUS_SANDBOX_POLICY=null/.test(html)
+      && /window\.RAIL_ANDROID_PLUS_SANDBOX_BUILD=null/.test(html),
+    'Android 通行證關閉時 Sandbox policy/build 必須同時為 null');
+    assert(!/androidApiKey\s*:/.test(html),
+      'Android 通行證關閉時不應把 RevenueCat Android key 打進包內');
+    return false;
+  }
+
+  const key = /androidApiKey\s*:\s*["'](goog_[A-Za-z0-9]+)["']/.exec(html)?.[1] || '';
+  assert(key, 'Android 通行證已開啟，但發行包沒有格式正確的 RevenueCat Android public SDK key（goog_…）');
+  assert(!/androidApiKey\s*:\s*["']sk_/.test(html),
+    'Android App 絕不可打包 RevenueCat secret key（sk_…）');
+  assert(/window\.RAIL_METRO_CORE_ENABLED=true/.test(html),
+    'Android 通行證版必須明確啟用 Metro Core；不可退回舊捷運位置模型');
+  assert(/window\.RAIL_ANDROID_PLUS_SANDBOX_POLICY="revenuecat-allowlist"/.test(html),
+    'Android 通行證正式包必須明確採 revenuecat-allowlist Sandbox policy');
+  const build = /window\.RAIL_ANDROID_PLUS_SANDBOX_BUILD="([1-9]\d*)"/.exec(html)?.[1] || '';
+  assert(build, 'Android 通行證正式包缺少 Sandbox build 號');
+  if (expectedVersionCode) assert(build === String(expectedVersionCode),
+    `Android Sandbox build=${build}，與 versionCode=${expectedVersionCode} 不一致`);
+  assert(/const ANDROID_PLUS_SANDBOX_OK = PLUS_ENABLED[\s\S]*RAIL_ANDROID_PLUS_SANDBOX_POLICY === 'revenuecat-allowlist'[\s\S]*RAIL_ANDROID_PLUS_SANDBOX_BUILD/.test(html),
+    'Android 同 AAB Sandbox 驗收的 runtime 收斂判定消失');
+  return true;
 }
 
 export async function assertLicensedBuildAllowed({ includeLicensedMusic, includeLicensedBasemaps }) {
@@ -374,7 +434,9 @@ export async function verifyRelease({
   const nativeBridgeSource = await readFile(join(appRoot, 'src/native-bridge.mjs'), 'utf8');
   const packagedBridge = await readFile(join(output, 'native-bridge.js'), 'utf8');
   const androidManifest = await readFile(join(appRoot, 'android/app/src/main/AndroidManifest.xml'), 'utf8');
+  verifyAndroidWidgetParity();
   assertAndroidPreciseLocationContract({ nativeBridgeSource, packagedBridge, androidManifest });
+  assertAppLineageContent(html);
 
   // ── 創始會員截止時刻的「上線錨點」(B-4,2026-08-03 裁示)───────────────────────
   // 創始價視窗＝上線錨點時刻起算固定 30 天。上線錨點由 revenuecat-config.js 的
@@ -449,6 +511,8 @@ export async function verifyRelease({
   }
   assert(html.includes("typeof window.RAIL_METRO_CORE_ENABLED === 'boolean'"),
     'App 內的 index.html 沒有把 Metro Core 發版旗標當成顯式布林覆寫');
+  assert(/L\.map\('map',\s*\{[^}]*zoomAnimation:\s*false\s*\}/.test(html),
+    'App 地圖必須在 L.map 建構時設定 zoomAnimation:false；圖磚 CSS 補間會與獨立 overlay canvas 失步');
 
   // 版本號對**所有** build 模式都必須注入(不是只有授權底圖 build)——App 內的更新提示與評分
   // 全靠它判斷「手上這顆是哪一版」。刻意寫在模式分支之外:放進安全 build 的條件裡就漏掉另一半。
@@ -456,6 +520,22 @@ export async function verifyRelease({
   assert(appVerMatch, '所有 build 都必須注入 window.RAIL_APP_VERSION（更新提示與評分靠它判版本）');
   assert(/^\d+(\.\d+)*$/.test(appVerMatch[1]),
     `RAIL_APP_VERSION 格式無法解析：${appVerMatch[1]}——版本比較會直接放棄,提示永遠不出現`);
+  const expectedAppVersion = String(process.env.RAIL_EXPECT_APP_VERSION || '').trim();
+  if (expectedAppVersion) {
+    assert(appVerMatch[1] === expectedAppVersion,
+      `RAIL_APP_VERSION=${appVerMatch[1]}，與本次預期 ${expectedAppVersion} 不一致`);
+    const androidGradle = await readFile(join(appRoot, 'android/app/build.gradle'), 'utf8');
+    const androidVersionName = /\bversionName\s+["']([^"']+)["']/.exec(androidGradle)?.[1] || null;
+    assert(androidVersionName === expectedAppVersion,
+      `Android versionName=${androidVersionName || '找不到'}，與 App 內建版本 ${expectedAppVersion} 不一致`);
+  }
+  const expectedAndroidVersionCode = String(process.env.RAIL_EXPECT_ANDROID_VERSION_CODE || '').trim();
+  if (expectedAndroidVersionCode) {
+    const androidGradle = await readFile(join(appRoot, 'android/app/build.gradle'), 'utf8');
+    const androidVersionCode = /\bversionCode\s+(\d+)/.exec(androidGradle)?.[1] || null;
+    assert(androidVersionCode === expectedAndroidVersionCode,
+      `Android versionCode=${androidVersionCode || '找不到'}，與本次預期 ${expectedAndroidVersionCode} 不一致`);
+  }
 
   // 本版「更新了什麼」內建文案:剛更新完的彈窗與「更多」面板的常駐入口都吃它。
   // 判準刻意是「文案裡要出現本版版號」——擋的正是「版號升了、set-release-mode 的 why
@@ -476,6 +556,9 @@ export async function verifyRelease({
   if (expectPlusSandboxBuild !== null) assertPlusSandboxTestBuild(html, expectPlusSandboxBuild);
   else assertPlusSandboxOff(html);
   assertAndroidPlusGate(html);
+  const androidGradleForPlus = await readFile(join(appRoot, 'android/app/build.gradle'), 'utf8');
+  const androidVersionCodeForPlus = /\bversionCode\s+(\d+)/.exec(androidGradleForPlus)?.[1] || '';
+  assertAndroidPlusReleaseConfig(html, androidVersionCodeForPlus);
 
   await assertLicensedBuildAllowed({
     includeLicensedMusic: musicEnabled,
@@ -812,6 +895,7 @@ export async function verifyRelease({
   const textExtensions = new Set(['.html', '.js', '.mjs', '.json', '.css', '.webmanifest', '.txt', '.md']);
   const suspiciousSecretPatterns = [
     /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/,
+    /\bsk_[A-Za-z0-9_-]{8,}/,
     /REVENUECAT_V2_SECRET_KEY\s*[:=]\s*["'][^"']+/,
     /TDX_CLIENT_SECRET\s*[:=]\s*["'][^"']+/,
     /FIREBASE_WEB_API_KEY\s*[:=]\s*["'][^"']+/

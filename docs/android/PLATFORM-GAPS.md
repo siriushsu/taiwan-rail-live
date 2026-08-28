@@ -8,7 +8,7 @@
 |---|---|---|---|---|
 | Capacitor 平台分支／小工具地點同步 | `native-bridge.mjs:9,17-22` 只在 iOS 註冊 `RailPlaces`；`index.html:7320-7344` 只在 bridge 存在時把地點同步給桌面小工具 | 現階段不需要；若 Android 要桌面 Widget 則需要 | Android 殼先維持 bridge 缺席的 no-op；下一階段若排 Widget，再做 Android App Widget 與專用 bridge，不要假裝已支援 | 中：核心 App 不受影響，但 iPhone 已有的小工具功能在 Android 缺席 |
 | Apple 登入撤銷憑證 | `native-bridge.mjs:24-35`：iOS 取 `authorizationCode`，其他平台取 `accessToken`；`index.html:6928-6935,6992-7011` 在原生重驗後撤銷 Apple token | **Android 完整刪帳已實測通過** | Pixel 7／Android 15 實測 Apple 登入、刪除前重新驗證與 `credential.accessToken` 原生撤銷均成功。首輪 `/api/account-delete` 因 Worker service-account 設定被 Google OAuth 以 HTTP 400 拒絕，前端正確保留 Firebase user；Cloudflare Variables and Secrets 改為同一份 Firebase Admin JSON 的 project id、client email 與 private key 後重試，使用者確認完整刪除成功。實測另發現 Capacitor `production` logging 會將原生登入結果寫入 logcat，已改為 `none` 並加入發行閣門 | 低：功能鏈已通；Worker 三個 Firestore service-account 變數必須永遠來自同一份金鑰 JSON，私鑰需維持 Secret 類型，日後輪替後應重跑刪帳回歸 |
-| RevenueCat 平台 key | `native-bridge.mjs:73-95` 已依 iOS／Android 選 `iosApiKey`／`androidApiKey`，缺 key 就不掛 Plus adapter | 程式分支已備妥；設定待後台 | 取得正式 Android public SDK key 後只注入 runtime 設定，再測 configure／purchase／restore；本階段留空 | 高：填錯或沿用 iOS key 會使付款不可用；目前 Plus 入口仍關閉 |
+| RevenueCat 平台 key | `native-bridge.mjs` 已依 iOS／Android 選平台 key；versionCode 16 另由 build-time 注入 `goog_…` Android public SDK key，缺 key／誤放 secret／build 不一致均拒絕建置 | 程式與 release gates 已完成；Google Play 商家／商品、RevenueCat Android 後台與真 key 待設定 | 依 `ANDROID-PLUS-LAUNCH.md` 完成後台，從 Play 封測安裝同一顆 AAB，實測 purchase／restore／cancel／expire | 高：後台未完成前沒有可上傳的付費 AAB；不得用假 key 產物出貨 |
 | 音訊音量 | 階段二已把首繪 class 改為只對 iOS 加 `music-volume-unavailable`；CSS 仍隱藏 iOS 滑桿，實際音量仍由既有 `audio.volume` 與淡入淡出流程控制 | **已實測、已修正** | Pixel 7／Android 15 WebView 實際播放：設定 `1.0→0.3`，立即與 750 ms 延遲讀回皆為 `0.3`；AudioFlinger speaker power 下降 `10.4 dB`，符合預期 `10.46 dB`。保留 Android 滑桿，iOS 行為不變 | 低：安全 APK 不含正式音樂檔，測試以同 WebView 本地 PCM 音訊驗證平台能力；正式音樂資產回歸留到含資產 build |
 | 安全區／瀏海／手勢列 | `viewport-fit=cover`、top 避讓與底部 `env(safe-area-inset-bottom)` 維持現況 | **已實測通過** | Pixel 7／Android 15 edge-to-edge 實際切換手勢與三鍵導覽並截圖：header 均在狀態列下，tab bar 分別在 gesture pill／三鍵區上方，無遮擋 | 低：本輪覆蓋單一 Pixel 7 AVD profile；異形折疊螢幕尚未覆蓋 |
 | 鍵盤與搜尋 sheet | 搜尋仍採上下錨定與既有 focus／blur 流程 | **已實測，有已知缺陷** | 直式 IME 搜尋結果完整可見；橫向 IME 時 viewport 高僅 122 px，輸入框與結果落到鍵盤後方。Android Back 可先收鍵盤並恢復結果。依本輪邊界只記錄、不修 | 中：橫向使用搜尋時結果不可見；後續應評估橫向 compact 版面或最小高度／捲動策略，不先加 Keyboard 外掛 |
@@ -24,7 +24,7 @@
 ## 下一階段優先順序
 
 1. 優先處理本輪既存的橫向 IME 搜尋內容被鍵盤覆蓋；此缺陷已留證但本次明確不在 44×44 修復範圍。
-2. Worker service-account 金鑰輪替後重跑 Android 刪帳回歸，防止 project id、client email 與 private key 來自不同 JSON。RevenueCat 購買恢復仍待正式 Android 設定。
+2. Worker service-account 金鑰輪替後重跑 Android 刪帳回歸，防止 project id、client email 與 private key 來自不同 JSON。RevenueCat Android 程式與 UI 已備妥，購買／恢復生命週期仍待正式 Play／RevenueCat 後台與商店安裝版驗收。
 3. GPS 校正功能重新開旗標前補 OEM 實體機長時間背景／熄屏矩陣；通知另補 Android 12 以下與省電延遲矩陣。
 
 ## 2026-08-09 近期共享更新追趕（已完成）

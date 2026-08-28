@@ -79,6 +79,23 @@ public final class PlateGate {
         ok(p1.footRight.equals("舒適"), "擁擠度必須附一個詞（顏色不獨立表意），實得 " + p1.footRight);
         ok(p1.stationEn.equals("TAIPEI MAIN STATION"), "英文站名要全大寫（站名牌字樣）");
 
+        // ── eta2 推導列 · 精度紅線 ──
+        MetroWidgetPlate.Input approx = base(now);
+        approx.secondMinutes = 4; approx.secondApprox = true; approx.thirdMinutes = null;
+        MetroWidgetPlate pa = MetroWidgetPlate.of(approx);
+        ok(pa.footLeft.equals("再下班 約 4 分"),
+           "eta2 次班只准顯示「約 N 分」，實得 " + pa.footLeft);
+        ok("約 4".equals(pa.boardSecond),
+           "夜行看板的 eta2 次班也必須帶「約」，實得 " + pa.boardSecond);
+        ok(!pa.footLeft.matches(".*[0-9]{1,2}:[0-9]{2}.*")
+              && !pa.boardSecond.matches(".*[0-9]{1,2}:[0-9]{2}.*"),
+           "eta2 次班絕不准出現 mm:ss 秒級倒數");
+        MetroWidgetPlate.Input officialSecond = base(now);
+        officialSecond.secondMinutes = 4; officialSecond.secondApprox = false; officialSecond.thirdMinutes = null;
+        MetroWidgetPlate po = MetroWidgetPlate.of(officialSecond);
+        ok(po.footLeft.equals("再下班 4 分") && "4".equals(po.boardSecond),
+           "官方次班要維持原樣，不准被一起降級成約分鐘，實得 " + po.footLeft);
+
         // ── 狀態 2 · 即將進站 ──
         MetroWidgetPlate.Input a = base(now); a.etaEpochSec = now + 40;
         MetroWidgetPlate p2 = MetroWidgetPlate.of(a);

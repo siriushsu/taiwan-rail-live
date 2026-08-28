@@ -13,10 +13,13 @@ import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
+import android.provider.Settings;
+import android.service.notification.StatusBarNotification;
 
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.drawable.IconCompat;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -29,7 +32,7 @@ import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/** Android 的「等車資訊卡」：Android 16+ 會請求 Live Update 提升，舊版退化為鎖屏持續通知。 */
+/** Android 的「等車資訊卡」：Android 16+ 使用 Live Update 行程進度樣式，舊版退化為鎖屏持續通知。 */
 final class RailWaitNotification {
     // v2 uses DEFAULT importance so Pixel does not tuck the silent fallback card away from
     // the lock screen. Android notification-channel importance cannot be raised after creation.
@@ -120,12 +123,23 @@ final class RailWaitNotification {
         PendingIntent stopPending = PendingIntent.getBroadcast(context, END_REQUEST_CODE, stop,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
+        StringBuilder compact = new StringBuilder("往 ").append(dest).append("　").append(firstText);
+        if (secondEta != null || secondMinutes != null) {
+            compact.append(" · 再下一班");
+            if (!secondDest.isEmpty()) compact.append(" 往 ").append(secondDest);
+            compact.append("　").append(countdown(secondEta, secondMinutes, now));
+        }
+
+        Integer accentColor = null;
+        String color = state.optString("color", "");
+        try { if (!color.isEmpty()) accentColor = Color.parseColor(color); }
+        catch (IllegalArgumentException ignored) {}
+
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_train)
             .setContentTitle(station)
-            .setContentText("往 " + dest + "　" + firstText)
+            .setContentText(compact.toString())
             .setSubText(line.isEmpty() ? "軌島・等車中" : line)
-            .setStyle(new NotificationCompat.BigTextStyle().bigText(detail.toString()))
             .setContentIntent(openPending)
             .addAction(R.drawable.ic_stop, "結束", stopPending)
             .setCategory(NotificationCompat.CATEGORY_PROGRESS)
@@ -137,21 +151,91 @@ final class RailWaitNotification {
             .setShortCriticalText(shortCritical(firstText))
             .setPriority(NotificationCompat.PRIORITY_DEFAULT);
 
-        String color = state.optString("color", "");
-        try { if (!color.isEmpty()) builder.setColor(Color.parseColor(color)); }
-        catch (IllegalArgumentException ignored) {}
+        if (accentColor != null) builder.setColor(accentColor);
 
-        if (nextEta != null && nextEta * 1000 > now + 60_000L) {
+        int progress = 0;
+        boolean timedProgress = nextEta != null && nextEta * 1000 > now;
+        if (timedProgress) {
             long etaMillis = (long) (nextEta * 1000);
             builder.setWhen(etaMillis).setShowWhen(true).setUsesChronometer(true).setChronometerCountDown(true);
-            long total = Math.max(1, etaMillis - Math.max(now, (long) (dataAt * 1000)));
-            long elapsed = Math.max(0, now - Math.max(now - total, (long) (dataAt * 1000)));
-            builder.setProgress(1000, (int) Math.min(1000, elapsed * 1000 / total), false);
+            long dataMillis = (long) (dataAt * 1000);
+            long progressStart = dataMillis > 0 && dataMillis < etaMillis ? dataMillis : now;
+            long total = Math.max(1, etaMillis - progressStart);
+            long elapsed = Math.max(0, now - progressStart);
+            progress = (int) Math.min(1000, elapsed * 1000 / total);
+            builder.setProgress(1000, progress, false);
         } else {
             builder.setShowWhen(false);
         }
 
-        NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, builder.build());
+        if (Build.VERSION.SDK_INT >= 36) {
+            // Android 16 的 ProgressStyle 是 Live Update／Samsung Now Bar 的原生行程樣式。
+            // 一整段代表「開始等車→下一班抵達」，tracker 用軌島列車圖示沿進度前進；
+            // 只有分鐘級資料的高捷／機捷不偽造秒級 ETA，改用 indeterminate 如實呈現。
+            NotificationCompat.ProgressStyle progressStyle = new NotificationCompat.ProgressStyle()
+                .setStyledByProgress(true)
+                .setProgressTrackerIcon(IconCompat.createWithResource(context, R.drawable.ic_stat_train));
+            NotificationCompat.ProgressStyle.Segment segment =
+                new NotificationCompat.ProgressStyle.Segment(1000).setId(1);
+            NotificationCompat.ProgressStyle.Point destination =
+                new NotificationCompat.ProgressStyle.Point(1000).setId(1);
+            if (accentColor != null) {
+                segment.setColor(accentColor);
+                destination.setColor(accentColor);
+            }
+            progressStyle.addProgressSegment(segment).addProgressPoint(destination);
+            if (timedProgress) progressStyle.setProgress(progress);
+            else progressStyle.setProgress(0).setProgressIndeterminate(true);
+            builder.setStyle(progressStyle);
+        } else {
+            builder.setStyle(new NotificationCompat.BigTextStyle().bigText(detail.toString()));
+        }
+
+        try {
+            NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, builder.build());
+        } catch (SecurityException ignored) {
+            // 權限可能在上方 canNotify() 檢查後立刻被使用者從系統設定撤回。
+        }
+    }
+
+    /** 回傳系統是否允許、通知是否合格，以及 Samsung／Android 是否已實際提升這張卡。 */
+    static JSONObject promotionStatus(Context context) {
+        JSONObject out = new JSONObject();
+        try {
+            boolean supported = Build.VERSION.SDK_INT >= 36;
+            out.put("supported", supported);
+            out.put("allowed", false);
+            out.put("eligible", false);
+            out.put("promoted", false);
+            out.put("settingsAvailable", supported);
+            if (!supported) return out;
+
+            NotificationManager manager = context.getSystemService(NotificationManager.class);
+            if (manager == null) return out;
+            out.put("allowed", manager.canPostPromotedNotifications());
+            for (StatusBarNotification active : manager.getActiveNotifications()) {
+                if (active.getId() != NOTIFICATION_ID) continue;
+                Notification notification = active.getNotification();
+                out.put("eligible", notification.hasPromotableCharacteristics());
+                out.put("promoted", (notification.flags & Notification.FLAG_PROMOTED_ONGOING) != 0);
+                break;
+            }
+        } catch (Exception ignored) {}
+        return out;
+    }
+
+    /** 開啟 Android 16 的 App 即時通知提升設定；不是 Android 16 時不提供假入口。 */
+    static boolean openPromotionSettings(Context context) {
+        if (Build.VERSION.SDK_INT < 36) return false;
+        Intent settings = new Intent(Settings.ACTION_APP_NOTIFICATION_PROMOTION_SETTINGS)
+            .putExtra(Settings.EXTRA_APP_PACKAGE, context.getPackageName())
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        try {
+            context.startActivity(settings);
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     static JSONObject status(Context context) {

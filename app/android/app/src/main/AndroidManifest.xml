@@ -43,8 +43,19 @@
             android:exported="true"
             android:theme="@style/AppTheme.NoActionBar" />
 
+        <activity
+            android:name=".RailWidgetConfigActivity"
+            android:exported="true"
+            android:theme="@style/AppTheme.NoActionBar" />
+
+        <activity
+            android:name=".MixedWidgetConfigActivity"
+            android:exported="true"
+            android:theme="@style/AppTheme.NoActionBar" />
+
         <receiver
             android:name=".MetroWidgetProvider"
+            android:label="@string/metro_widget_name"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -55,7 +66,35 @@
         </receiver>
 
         <receiver
+            android:name=".RailBoardWidgetProvider"
+            android:label="@string/rail_widget_name"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/rail_board_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".MixedBoardWidgetProvider"
+            android:label="@string/mixed_widget_name"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/mixed_board_widget_info" />
+        </receiver>
+
+        <receiver
             android:name=".MetroWaitStopReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".RailFollowStopReceiver"
             android:exported="false" />
 
         <provider
