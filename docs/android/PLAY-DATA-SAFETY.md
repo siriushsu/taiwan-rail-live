@@ -1,12 +1,12 @@
-# Google Play Data safety 填答對照表（Android 1.4.1）
+# Google Play Data safety 填答對照表（Android 1.4.11／versionCode 16 草稿）
 
-> 盤點日期：2026-08-09。適用產物：`tw.railisland.app`、`versionName 1.4.1`、`versionCode 1`，採「Android 原生關閉軌島通行證入口」的 internal-testing build。這是依 release merged manifest、實際打包程式與 release runtime 整理的 Console 填答底稿；Console 欄位文字若改版，以送出當日畫面為準。
+> 盤點日期：2026-08-26。適用候選產物：`tw.railisland.app`、`versionName 1.4.11`、`versionCode 16`，採 Google Play Billing＋RevenueCat Android 通行證。這是尚未送進 Console 的填答草稿；正式 AAB、商店商品與 RevenueCat 尚未完成前不可把本表當成已提交事實。Console 欄位文字若改版，以送出當日畫面為準。
 
 ## 先做的兩項確認
 
 以下兩題不是程式碼能替開發者決定，未確認前請把 Data safety 留在草稿，不要猜：
 
-1. **待使用者確認：服務供應商角色。**確認 Google Firebase、Cloudflare、Stadia Maps 與 Esri 的實際帳號／合約，是否都只依軌島指示代為處理資料，符合 Google Play 的 service-provider sharing 例外。若四者皆符合，本文各資料類型的「分享」可填「否」；任一圖磚或 API 供應商不符合，就要把該供應商收到的資料列為「分享」。
+1. **待使用者確認：服務供應商角色。**確認 Google Firebase／Google Play、RevenueCat、Cloudflare、Stadia Maps 與 Esri 的實際帳號／合約，是否都只依軌島指示代為處理資料，符合 Google Play 的 service-provider sharing 例外。若皆符合，本文各資料類型的「分享」可填「否」；任一供應商不符合，就要把該供應商收到的資料列為「分享」。
 2. **待使用者確認：獨立安全審查。**若沒有完成 Google Play 認可的獨立安全審查，Console 的「是否經過獨立安全審查」填「否」。不要把一般程式碼 review、APK 簽章或本輪測試當成獨立安全審查。
 
 Google Play 將「收集」定義為資料離開裝置，包含 App 內的 SDK／WebView 直接傳給第三方；把資料交給只代開發者處理的服務供應商，通常可落在「分享」例外。官方說明：
@@ -63,9 +63,17 @@ Android source manifest 同時請求 coarse／fine 前景定位：`app/android/a
 
 App interactions 的實際 payload 是相機模式與 zoom：`index.html:14458-14466`；Worker 另由 user-agent 歸類 mobile／desktop 並寫 Cloudflare Analytics Engine：`worker.js:92-102`。它不是廣告追蹤，但仍是使用量 analytics。
 
-Other user-generated content 是最愛地點、最愛列車、最愛車站與完乘紀錄；資料類型及欄位白名單：`index.html:6492-6559`，Firestore transaction：`index.html:7268-7285`。Android gate 讓新使用者沒有通行證同步入口，但帳號刪除深連結與既有登入／登出路徑仍在；為避免漏報，按 release 內可達資料流保守申報。
+Other user-generated content 是最愛地點、最愛列車、最愛車站與完乘紀錄；資料類型及欄位白名單：`index.html:6492-6559`，Firestore transaction：`index.html:7268-7285`。versionCode 16 開啟 Android 通行證後，這條同步路徑會由使用者登入與有效資格觸發，因此維持保守申報。
 
-### 4. Device or other IDs
+### 4. Financial info
+
+| 資料類型 | 收集 | 分享 | ephemeral | 必要性 | 用途 |
+|---|---:|---|---:|---|---|
+| Purchase history | **是** | Google Play 與 RevenueCat 均符合 service-provider 例外時填**否**；否則**待使用者確認** | **否** | **可選**（只有選擇訂閱的人） | **App functionality、Account management、Fraud prevention, security, and compliance** |
+
+RevenueCat 以 Firebase uid 作為 App User ID，處理月票／年票商品、交易狀態、有效期間、購買環境與恢復購買；Worker 另向 RevenueCat Developer API 核對同一 uid 的有效資格。這些都屬購買紀錄／訂閱資格，必須勾 Purchase history。完整卡號、銀行帳戶等付款憑證留在 Google Play，軌島與 RevenueCat App 端不取得，因此 **Payment info 不勾**。
+
+### 5. Device or other IDs
 
 | 欄位 | 建議填答 |
 |---|---|
@@ -81,7 +89,7 @@ Other user-generated content 是最愛地點、最愛列車、最愛車站與完
 
 | 類型 | 本版結論 | 依據／重新評估觸發條件 |
 |---|---|---|
-| Purchase history、Payment info | **不勾** | Android `PLUS_ENABLED=false`：`index.html:6188-6192`；RevenueCat adapter 只有平台 key 非空才建立：`app/src/native-bridge.mjs:80-86`。本次 release 產物執行檢查為 Android key empty、adapter absent。merged manifest 雖含 Billing permission／RevenueCat 元件（`:20-29`、`:165-180`），只是鎖定依賴的 dormant code；接上 RevenueCat Android／Play Billing 前必須新增 Purchase history 並重做本表。 |
+| Payment info | **不勾** | Google Play 負責付款方式與完整卡號；軌島 App／Worker／RevenueCat 資格流程只處理商品、交易狀態與訂閱有效期，已在上節申報 Purchase history。若日後另接自行處理卡號或銀行資料的付款管道，必須重做本表。 |
 | Crash logs、Diagnostics | **不勾** | `app/src/firebase-web.mjs:1-4` 只匯出 Firebase App/Auth/Firestore；release DEX 掃描 `com/google/firebase/analytics` 與 `com/google/firebase/crashlytics` 均 0。沒有 Crashlytics／Analytics SDK。 |
 | Advertising data | **不勾** | release manifest 沒有 `com.google.android.gms.permission.AD_ID`，產品碼無廣告／跨 App 追蹤。DEX 內雖有 transitive `AdvertisingIdClient` class，但無 manifest 權限或軌島呼叫；不可把「class 存在」誤報成實際廣告資料流。隱私政策：`privacy.html:68-78`。 |
 | Photos and videos、Audio files、Files and docs | **不勾** | App 不請求相機、麥克風、媒體或 storage 權限；source manifest 只有 Internet／coarse／fine：`app/android/app/src/main/AndroidManifest.xml:38-42`。Takeout 檔只在裝置解析：`privacy.html:39-48`。 |
@@ -98,5 +106,6 @@ Other user-generated content 是最愛地點、最愛列車、最愛車站與完
 1. 在 Console 先按上表勾選資料類型，讓各子題展開；不要先選「不收集任何資料」。
 2. 完成最上方兩個「待使用者確認」：四家供應商 service-provider 角色、獨立安全審查。
 3. Privacy policy URL 填 `https://railisland.tw/privacy.html`；Account deletion URL 填 `https://railisland.tw/account-deletion.html`。
-4. 若只停在 internal testing，也保存這份答案；升 closed／open／production 前再以 Play 實際下載的商店簽署 APK／split APK 重掃 manifest 與網路網域。
-5. 任何一項變更都要重做本表：啟用 RevenueCat Android／Play Billing、重新開放 GPS 校正旅程、加入 analytics／crash SDK、改底圖供應商、加入背景定位或新增登入 provider。
+4. 在 Financial info 勾選 **Purchase history**；不要因 Google Play 處理卡號就把購買紀錄也一起漏掉。
+5. 先以 Play 封閉式測試實際下載 versionCode 16，再重掃商店簽署 APK／split APK 的 manifest、SDK 與網路網域，確認後才送出本表。
+6. 任何一項變更都要重做本表：調整 RevenueCat／Play Billing 資料流、重新開放 GPS 校正旅程、加入 analytics／crash SDK、改底圖供應商、加入背景定位或新增登入 provider。

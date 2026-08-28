@@ -70,6 +70,13 @@ public final class MetroWidgetProvider extends AppWidgetProvider {
             String station = prefs.getString("station_" + id, null);
             if (sys != null && station != null && !AUTO.equals(station)) active.add(sys + "|" + station);
         }
+        SharedPreferences mixed = context.getSharedPreferences(MixedBoardWidgetProvider.PREFS, Context.MODE_PRIVATE);
+        int[] mixedIds = manager.getAppWidgetIds(new ComponentName(context, MixedBoardWidgetProvider.class));
+        for (int id : mixedIds) {
+            String sys = mixed.getString("metro_sys_" + id, null);
+            String station = mixed.getString("metro_station_" + id, null);
+            if (sys != null && station != null && !AUTO.equals(station)) active.add(sys + "|" + station);
+        }
         String free = prefs.getString("free_station", null);
         if (free != null && active.contains(free)) return;
         SharedPreferences.Editor editor = prefs.edit();
@@ -197,7 +204,7 @@ public final class MetroWidgetProvider extends AppWidgetProvider {
      * 一列＝一個終點方向。第一列是主角（設計稿的 1a 只畫這一列），1b 看板最多三列。
      * 每一列都走同一個 MetroWidgetPlate.of(...)——狀態判定只有一份。
      */
-    private static List<MetroWidgetPlate> plates(Context context, MetroWidgetData.Snapshot snapshot) {
+    static List<MetroWidgetPlate> plates(Context context, MetroWidgetData.Snapshot snapshot) {
         MetroWidgetData.Catalog catalog = null;
         MetroWidgetData.SystemInfo system = null;
         try {
@@ -233,6 +240,8 @@ public final class MetroWidgetProvider extends AppWidgetProvider {
             in.minutes = head == null ? null : head.minutes;
             in.secondMinutes = minutesOf(mine, 1, now);
             in.thirdMinutes = minutesOf(mine, 2, now);
+            in.secondApprox = approxOf(mine, 1);
+            in.thirdApprox = approxOf(mine, 2);
             in.crowd = head == null ? null : head.crowd;
             in.dataAtEpochSec = snapshot.dataAt;
             in.fetchFailed = snapshot.failed;
@@ -261,12 +270,20 @@ public final class MetroWidgetProvider extends AppWidgetProvider {
         return snapshot.lastTrainAt;
     }
 
-    /** 第 index 班的整數分鐘（秒級系統也一樣取 floor，與主角同一條規則）。 */
-    private static Integer minutesOf(List<MetroWidgetData.Row> rows, int index, double now) {
+    /** 第 index 班的整數分鐘。官方列維持 floor；eta2 投影列只准 ceil，且過期就整列留白。 */
+    static Integer minutesOf(List<MetroWidgetData.Row> rows, int index, double now) {
         if (index >= rows.size()) return null;
         MetroWidgetData.Row row = rows.get(index);
+        if (row.eta != null && row.approx) {
+            int minutes = (int) Math.ceil((row.eta - now) / 60);
+            return minutes < 1 ? null : minutes;
+        }
         if (row.eta != null) return (int) Math.floor((row.eta - now) / 60);
         return row.minutes;
+    }
+
+    static boolean approxOf(List<MetroWidgetData.Row> rows, int index) {
+        return index < rows.size() && rows.get(index).approx;
     }
 
     // ── 更新節奏 ──────────────────────────────────────────────────────────────────

@@ -1,5 +1,7 @@
 # 軌島 Android 出貨路徑決策單
 
+> 2026-08-26 更新：本文件保留 versionCode 1 初期決策與當時實測紀錄。Android 通行證的最新準備已移到 [`ANDROID-PLUS-LAUNCH.md`](./ANDROID-PLUS-LAUNCH.md)：versionCode 16 的程式、Google Play 文案與 fail-closed gates 已完成，商家帳戶、商品、RevenueCat Android 後台、真 public key 與 Play 封測購買仍待完成。以下「目前 Plus 入口仍關閉」只描述舊產物，不再是新候選版的目標狀態。
+
 更新時間：2026-08-09 20:35（Asia/Taipei）
 
 ## 已完成的出貨基線
