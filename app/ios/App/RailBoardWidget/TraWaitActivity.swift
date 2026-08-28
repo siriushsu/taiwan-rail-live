@@ -295,9 +295,12 @@ struct TraWaitEndButton: View {
         if #available(iOS 17.6, *) {
             if compact {
                 Button(intent: TraWaitEndIntent()) {
-                    Text(RailNativeL10n.text("結束")).font(.system(size: scale.pt(11), weight: .semibold))
+                    Text(RailNativeL10n.text("結束"))
+                        .font(.system(size: scale.pt(11), weight: .semibold))
+                        .lineLimit(1)
                 }
                 .buttonStyle(.bordered).controlSize(.mini).tint(.secondary)
+                .fixedSize(horizontal: true, vertical: false)
             } else {
                 Button(intent: TraWaitEndIntent()) {
                     RailEndButton(scale: scale, height: height) { Text(RailNativeL10n.text("結束")) }
@@ -358,8 +361,8 @@ struct TraWaitIslandBottom: View {
             }
             .monospacedDigit().lineLimit(1).minimumScaleFactor(0.8)
         }
-        // 展開版面的下緣是圓角，系統預設內距沒有替圓角讓路 ⇒ 最後一列會被切掉。
-        .padding(.horizontal, scale.pt(10))
+        // 與捷運等車卡共用 22pt 圓角安全線；10pt 在實機會讓最右側按鈕進入斜切區。
+        .padding(.horizontal, scale.pt(22))
         .padding(.bottom, scale.pt(6))
     }
 }

@@ -311,9 +311,13 @@ struct MetroWaitEndButton: View {
         if #available(iOS 17.6, *) {
             if compact {
                 Button(intent: MetroWaitEndIntent()) {
-                    Text(RailNativeL10n.text("結束")).font(.system(size: scale.pt(11), weight: .semibold))
+                    Text(RailNativeL10n.text("結束"))
+                        .font(.system(size: scale.pt(11), weight: .semibold))
+                        .lineLimit(1)
                 }
                 .buttonStyle(.bordered).controlSize(.mini).tint(.secondary)
+                // 次班與擁擠度再長都先讓位，不能把唯一能當場收卡的按鈕壓到零寬。
+                .fixedSize(horizontal: true, vertical: false)
             } else {
                 Button(intent: MetroWaitEndIntent()) {
                     RailEndButton(scale: scale, height: height) { Text(RailNativeL10n.text("結束")) }
@@ -363,9 +367,10 @@ struct MetroWaitIslandBottom: View {
                 MetroWaitEndButton(scale: scale, compact: true)
             }
         }
-        // 🔴 展開版面的下緣是圓角，系統預設內距沒有替圓角讓路 ⇒ 最後一列會被切掉
-        //    （實機 1.4.1(30) 實測）。設計稿：「expanded 的內容欄內縮 22pt，避開 44pt 圓角」。
-        .padding(.horizontal, scale.pt(10))
+        // 🔴 展開版面的四角是 44pt 級圓角，system region 沒有替 bottom 內容保留安全區。
+        //    10pt 實機仍會讓右側「結束」膠囊進入圓角斜切區（1.5.0(80) 取證），所以照
+        //    原設計規格完整內縮 22pt；文字長短不同的繁中／英文／日文共用同一條安全線。
+        .padding(.horizontal, scale.pt(22))
         .padding(.bottom, scale.pt(6))
     }
 }
