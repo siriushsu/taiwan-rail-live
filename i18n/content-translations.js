@@ -335,6 +335,7 @@
   });
 
   Object.assign(messages.en, {
+    '網站版重新開啟北捷統一時間軸：地圖列車、車站預告與點選跟隨會使用同一份身分與軌跡；每次更新也會檢查軌跡內部，若列車在五秒內跨過半站以上，會先留在原位重新銜接，不把瞬間跳位送到畫面。Core 連線失敗或單線資料不完整時，仍會自動退回原本模式': 'The website now uses the unified Taipei Metro timeline by default, so map trains, station forecasts and following share one identity and trajectory. A train that would cross more than half a station within five seconds is held for safe reconnection, while Core or line-level failures still fall back automatically.',
     '英文與日文再補齊品牌介紹、使用說明、特色車站與列車、觀光列車圖鑑，以及旅程護照和成就；外語版更新紀錄保留最近八筆精簡內容，較早歷史改用主題摘要': 'English and Japanese now cover the brand story, help guide, featured stations and trains, tourist-train gallery, Journey Passport and achievements. Other languages show eight concise recent updates plus earlier topic summaries.',
     '新增繁中、English、日本語切換：車站與路線名稱、列車跟隨、來車看板、設定、營運提醒、通行證，以及隱私權政策與服務條款會一起切換；選過的語言也會記住': 'Added Traditional Chinese, English and Japanese switching across station and route names, train following, arrival boards, settings, service alerts, the Pass, privacy policy and terms. Your choice is remembered.',
     '放空模式的背景音樂重新整理過：曲目從 29 首增加到 57 首，分成 Afloat、Midnight stories、Moonlake、Rainy day、Star & Neon、peaceful piano 六組不同氛圍': 'Ambient-mode music grew from 29 to 57 tracks across six moods: Afloat, Midnight stories, Moonlake, Rainy day, Star & Neon and peaceful piano.',
@@ -366,6 +367,7 @@
     '身障友善座位': 'Accessible seating', '可帶自行車（兩鐵）': 'Bicycles accepted', '親子車廂': 'Family car', '團體專開列車': 'Chartered group train', '附掛郵政／行包車廂': 'Mail or baggage car'
   });
   Object.assign(messages.ja, {
+    '網站版重新開啟北捷統一時間軸：地圖列車、車站預告與點選跟隨會使用同一份身分與軌跡；每次更新也會檢查軌跡內部，若列車在五秒內跨過半站以上，會先留在原位重新銜接，不把瞬間跳位送到畫面。Core 連線失敗或單線資料不完整時，仍會自動退回原本模式': 'Web版で台北メトロの統一タイムラインを標準で再開し、地図・駅予告・追跡が同じ列車IDと軌跡を使うようになりました。5秒以内に半駅以上飛ぶ軌跡はその場で保持して再接続し、Coreや路線単位の異常時は従来方式へ自動退避します。',
     '英文與日文再補齊品牌介紹、使用說明、特色車站與列車、觀光列車圖鑑，以及旅程護照和成就；外語版更新紀錄保留最近八筆精簡內容，較早歷史改用主題摘要': '英語・日本語でブランド紹介、使い方、特色駅・列車、観光列車図鑑、旅程パスポート、実績を追加しました。最近8件は簡潔に翻訳し、以前の履歴はテーマ別にまとめています。',
     '新增繁中、English、日本語切換：車站與路線名稱、列車跟隨、來車看板、設定、營運提醒、通行證，以及隱私權政策與服務條款會一起切換；選過的語言也會記住': '繁体字中国語・英語・日本語の切替を追加しました。駅・路線名、列車追跡、到着案内、設定、運行情報、パス、プライバシーポリシー、利用規約が切り替わり、選択した言語も保存されます。',
     '放空模式的背景音樂重新整理過：曲目從 29 首增加到 57 首，分成 Afloat、Midnight stories、Moonlake、Rainy day、Star & Neon、peaceful piano 六組不同氛圍': '鑑賞モードのBGMを29曲から57曲へ増やし、Afloat、Midnight stories、Moonlake、Rainy day、Star & Neon、peaceful pianoの6つの雰囲気に分けました。',
