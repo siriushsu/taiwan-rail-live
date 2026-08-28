@@ -1,5 +1,5 @@
 {
-  "updated": "2026-08-27",
+  "updated": "2026-08-28",
   "events": [
     {
       "id": "trtc-20260811-pokemon10",
@@ -71,6 +71,56 @@
       "endGuess": true,
       "anchor": { "kind": "system", "sys": "tymc" },
       "url": "https://www.tymetro.com.tw/tymetro-new/tw/_pages/news/show-2411-1.html"
+    },
+    {
+      "id": "trtc-20260827-netzero-carnival",
+      "source": "official",
+      "title": "淨零新生活親子嘉年華",
+      "note": "兒童新樂園七大關卡闖關換限量小植栽，YOYO 家族柳丁哥哥、草莓姊姊到場；劍潭站出口 3 轉公車可到",
+      "start": "2026-08-30",
+      "end": "2026-08-30",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "劍潭" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=84D0B630B0B03877"
+    },
+    {
+      "id": "trtc-20260827-guangci-market-0830",
+      "source": "official",
+      "title": "廣慈/奉天宮站通車限定市集",
+      "note": "1 號出口 B1 連通道層的輕食與文創手作攤位，14 時到 20 時",
+      "start": "2026-08-30",
+      "end": "2026-08-30",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "廣慈/奉天宮" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=CB42925269CE131D"
+    },
+    {
+      "id": "trtc-20260827-guangci-market-0905",
+      "source": "official",
+      "title": "廣慈/奉天宮站通車限定市集",
+      "note": "1 號出口 B1 連通道層的輕食與文創手作攤位，14 時到 20 時",
+      "start": "2026-09-05",
+      "end": "2026-09-05",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "廣慈/奉天宮" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=CB42925269CE131D"
+    },
+    {
+      "id": "trtc-20260827-guangci-market-0906",
+      "source": "official",
+      "title": "廣慈/奉天宮站通車限定市集",
+      "note": "1 號出口 B1 連通道層的輕食與文創手作攤位，14 時到 20 時",
+      "start": "2026-09-06",
+      "end": "2026-09-06",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "廣慈/奉天宮" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=CB42925269CE131D"
+    },
+    {
+      "id": "trtc-20260827-guangci-concert",
+      "source": "official",
+      "title": "廣慈/奉天宮站通車迎賓音樂會",
+      "note": "站內大廳公共藝術區，六組團體輪番演出；通車首日 14 時 15 分起，之後三個週六同一時段",
+      "start": "2026-08-30",
+      "end": "2026-09-19",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "廣慈/奉天宮" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=CB42925269CE131D"
     }
   ]
 }
