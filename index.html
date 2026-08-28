@@ -2083,15 +2083,16 @@
     background: rgba(255,255,255,.14); border-color: var(--on-navy);
     color: var(--on-navy); box-shadow: none;
   }
-  /* Android 直式站牌：把「追蹤這站」收進站名列，保留 44px 觸控框但只畫一顆矮 pill。
-     iOS 暫時維持既有滿寬 CTA；平台由 native-bridge 在頁面解析 CSS 前掛到 html data attribute。 */
+  /* 原生 App 的直式站牌：把「追蹤這站」收進站名列，保留 44px 觸控框但只畫一顆矮 pill。
+     平台由 native-bridge 在頁面解析 CSS 前掛到 html data attribute，而它【只在原生 App 才掛】
+     ⇒ 用 [data-app-platform] 不帶值就等於「Android 或 iOS」，網站永遠不命中、維持既有滿寬 CTA。 */
   @media (max-width: 900px) {
-    html[data-app-platform="android"] .board h3.has-wait {
+    html[data-app-platform] .board h3.has-wait {
       --board-wait-w: calc(82px * var(--uit));
       min-height: 44px; padding-right: calc(92px + var(--board-wait-w));
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    html[data-app-platform="android"] .board h3.has-wait .board-wait {
+    html[data-app-platform] .board h3.has-wait .board-wait {
       position: absolute; top: 0; right: 88px; z-index: 2;
       display: flex; align-items: center; justify-content: center;
       width: var(--board-wait-w); height: 44px; margin: 0; padding: 0 6px;
@@ -2099,26 +2100,26 @@
       font-size: calc(11.5px * var(--ui)); letter-spacing: 0; white-space: nowrap;
       isolation: isolate;
     }
-    html[data-app-platform="android"] .board h3.has-wait .board-wait::before {
+    html[data-app-platform] .board h3.has-wait .board-wait::before {
       content: ""; position: absolute; inset: 7px 2px; pointer-events: none;
       background: #ffd977; border: 1px solid #ffd977; border-radius: 999px;
       box-shadow: 0 1px 3px rgba(10,16,30,.28); z-index: -1;
     }
-    html[data-app-platform="android"] .board h3.has-wait .board-wait.on {
+    html[data-app-platform] .board h3.has-wait .board-wait.on {
       background: none; border: 0; color: var(--on-navy); box-shadow: none;
     }
-    html[data-app-platform="android"] .board h3.has-wait .board-wait.on::before {
+    html[data-app-platform] .board h3.has-wait .board-wait.on::before {
       background: rgba(255,255,255,.14); border-color: var(--on-navy); box-shadow: none;
     }
-    html[data-app-platform="android"] .board .board-accuracy {
+    html[data-app-platform] .board .board-accuracy {
       margin: 1px 0 7px; line-height: 1.5;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    html[data-app-platform="android"] .board .stnMeta.stnMeta-bottom {
+    html[data-app-platform] .board .stnMeta.stnMeta-bottom {
       margin: 8px 0 0; padding: 8px 0 0;
       border-top: 1.5px dashed var(--line-dash); border-bottom: 0;
     }
-    html[data-app-platform="android"] .board .stnMeta.stnMeta-bottom .mapLink { margin-top: 0; }
+    html[data-app-platform] .board .stnMeta.stnMeta-bottom .mapLink { margin-top: 0; }
   }
   /* 最愛車站的地圖 ★ 記號(掛站點上方一點;點了直接開該站看板) */
   .favst-ico { width: 16px; height: 16px; text-align: center; color: #d9a62e; cursor: pointer; }
@@ -5493,8 +5494,8 @@
 // v0828g：補齊營運公告控制項與「分享畫面」的英文、日文標籤。
 // v0828h：動態島三種展開卡統一使用 22pt 圓角安全內距，避免各語言內容被邊緣裁切。
 // v0828i：字級設定的目前值與詳細面板補齊英文、日文即時切換。
-// v0828j：App build 補入 i18n 靜態資產，並依人工複核統一日文與英文微文案。
-const BUILD = 'v0828k';
+// v0828l：捷運車站資訊頁的緊湊排法從 Android 擴到 iOS（網站維持舊排法）。
+const BUILD = 'v0828l';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -24831,14 +24832,16 @@ function stnMetaHtml(st, omitMap = false) {
   if (omitMap && !details) return '';
   return `<div class="stnMeta">${details}${omitMap ? '' : stnMapLinkHtml(st)}</div>`;
 }
-function androidCompactMetroBoard() { return window.RAIL_APP_PLATFORM === 'android'; }
-// Android 的第一列只回答「這個倒數目前有多準」；其餘平台逐字維持既有內容與順序。
+// 與 CSS 的 html[data-app-platform] 同一個判準：native-bridge 只在原生 App 設這兩個值，
+// 網站是 'web' ⇒ 兩邊的閘門一定同時開或同時關，不會出現「JS 搬了位置、CSS 沒跟上」。
+function nativeCompactMetroBoard() { const p = window.RAIL_APP_PLATFORM; return p === 'android' || p === 'ios'; }
+// 原生 App 的第一列只回答「這個倒數目前有多準」；網站逐字維持既有內容與順序。
 function metroBoardInfoHtml(st, accuracy, legacySub, extras = '') {
-  if (!androidCompactMetroBoard()) return stnMetaHtml(st) + extras + `<div class="sub">${legacySub}</div>`;
+  if (!nativeCompactMetroBoard()) return stnMetaHtml(st) + extras + `<div class="sub">${legacySub}</div>`;
   return `<div class="sub board-accuracy">${escHtml(t('倒數準確度：{accuracy}', { accuracy: t(accuracy) }))}</div>` + stnMetaHtml(st, true) + extras;
 }
 function metroBoardMapFooterHtml(st) {
-  return androidCompactMetroBoard() ? `<div class="stnMeta stnMeta-bottom">${stnMapLinkHtml(st)}</div>` : '';
+  return nativeCompactMetroBoard() ? `<div class="stnMeta stnMeta-bottom">${stnMapLinkHtml(st)}</div>` : '';
 }
 function stationHeadingHtml(name, sysId) {
   const localized = stationName(name, sysId);
