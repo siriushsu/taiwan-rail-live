@@ -279,7 +279,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": " The warning feed is temporarily unavailable, so the latest successful data is being used until it expires"
+            "value": ". The warning feed is temporarily unavailable, so the latest successful data is being used until it expires"
           }
         },
         "ja": {
@@ -1424,7 +1424,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "{train}次"
+            "value": "{train}列車"
           }
         }
       }
@@ -1985,7 +1985,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "◌ 環境モード"
+            "value": "◌ 鑑賞モード"
           }
         }
       }
@@ -12927,13 +12927,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "I boarded"
+            "value": "I’m on board"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "乗車しました"
+            "value": "乗車する"
           }
         }
       }
@@ -12944,13 +12944,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "I got off · planned for {station}"
+            "value": "Get off · destination: {station}"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "下車しました・予定は{station}"
+            "value": "下車する・行先：{station}"
           }
         }
       }
@@ -17534,13 +17534,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Press I’m aboard and choose where you will get off"
+            "value": "Tap “I’m on board” on the card and choose where you will get off"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "カードの「乗車しました」を押して下車駅を選択"
+            "value": "カードの「乗車する」を押して下車駅を選択"
           }
         }
       }
@@ -18424,7 +18424,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "BGM（環境モードで自動再生）"
+            "value": "BGM（鑑賞モードで自動再生）"
           }
         }
       }
@@ -19411,6 +19411,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "香山"
+          }
+        }
+      }
+    },
+    "修好 iPhone App 的語言按鈕：上一個測試版漏帶英、日文字典，按了仍全顯示繁中；現在 App 會完整帶入三語資源。英文與日文文案也完成第二輪複核，統一日文的「鑑賞模式」、車次與乘車按鈕用語，並修順英文災害監看句子": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fixed the language buttons in the iPhone app: the previous test build omitted the English and Japanese dictionaries, so the interface stayed in Traditional Chinese. The app now bundles all three languages. A second copy review also standardized Japanese viewing-mode, train-number and ride-button wording and cleaned up the English hazard-monitoring sentence."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone Appの言語ボタンを修正しました。前のテスト版では英語・日本語の辞書が同梱されず、切り替えても繁体字中国語のままでした。今後は3言語のデータをすべてAppに収録します。英語・日本語の文言も再校正し、日本語の「鑑賞モード」、列車番号、乗車ボタンを統一して、英語の災害監視文も整えました。"
           }
         }
       }
@@ -23104,6 +23121,23 @@
         }
       }
     },
+    "第三方軟體授權": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Third-party software licences"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サードパーティソフトウェアのライセンス"
+          }
+        }
+      }
+    },
     "累積完乘 1,000 km": {
       "extractionState": "manual",
       "localizations": {
@@ -26714,13 +26748,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ride mode: I’m aboard"
+            "value": "Ride mode: I’m on board"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "乗車モード：乗車しました"
+            "value": "乗車モード：乗車する"
           }
         }
       }
@@ -28369,7 +28403,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "{train}次を追跡"
+            "value": "{train}列車を追跡"
           }
         }
       }
@@ -32290,13 +32324,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "No travel records yet—use “I’m aboard” in the follow panel to start collecting."
+            "value": "No travel records yet—use “I’m on board” in the follow panel to start collecting."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "乗車記録はまだありません。追跡パネルの「乗車しました」から収集を始めましょう。"
+            "value": "乗車記録はまだありません。追跡パネルの「乗車する」から収集を始めましょう。"
           }
         }
       }
@@ -33214,7 +33248,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "環境モードを終了"
+            "value": "鑑賞モードを終了"
           }
         }
       }
@@ -34201,6 +34235,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "OpenFreeMap（© OpenFreeMap、© OpenMapTiles、© OpenStreetMap contributors）、CARTO、Esri World Imagery、内政部の県市境界データを利用しています。"
+          }
+        }
+      }
+    },
+    "OpenFreeMap（© OpenFreeMap © OpenMapTiles © OpenStreetMap，街道圖）、Stadia Maps（© Stadia Maps © OpenMapTiles © OpenStreetMap，街道圖退路）、Esri World Imagery（衛星影像）與內政部「直轄市、縣市界線」（離線海陸輪廓，政府資料開放授權條款第1版）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenFreeMap (© OpenFreeMap, © OpenMapTiles and © OpenStreetMap; street map), Stadia Maps (© Stadia Maps, © OpenMapTiles and © OpenStreetMap; street-map fallback), Esri World Imagery (satellite imagery), and Ministry of the Interior city and county boundaries (offline land-and-sea outline; Taiwan Government Data Open Licence 1.0)."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenFreeMap（© OpenFreeMap、© OpenMapTiles、© OpenStreetMap・街路地図）、Stadia Maps（© Stadia Maps、© OpenMapTiles、© OpenStreetMap・街路地図のフォールバック）、Esri World Imagery（衛星画像）、内政部「直轄市・県市界」（オフライン海陸輪郭、政府資料開放授権条款第1版）を利用しています。"
           }
         }
       }
