@@ -3863,6 +3863,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="curve-speed"><span class="d">8/28</span><span>東部幹線的急彎改照官方核定速限行駛：宜蘭線新馬那個半徑 306 公尺的彎（2018 年出軌事故現場）普悠瑪 75、太魯閣 85、其他列車 65，北迴線和仁一帶非傾斜式列車 115。到站時刻完全不變——彎道慢下來的時間由同一段的其他部分吸收；時刻表太緊而做不到時，維持原本的畫法</span></li>
         <li data-cl-of="i18n-dynamic"><span class="d">8/28</span><span>英文與日文現在也會即時更新最愛、今日台鐵、誤點履歷、帳號同步、Google 清單匯入、分享與「追蹤這站」；並補上災害監看、捷運終點、點選列車／車站、成就說明，以及 iPhone 即時動態與小工具，官方活動只有中文時則標示「中文原文」</span></li>
         <li data-cl-of="metrocoredefault"><span class="d">8/28</span><span>網站版重新開啟北捷統一時間軸：地圖列車、車站預告與點選跟隨會使用同一份身分與軌跡；每次更新也會檢查軌跡內部，若列車在五秒內跨過半站以上，會先留在原位重新銜接，不把瞬間跳位送到畫面。Core 連線失敗或單線資料不完整時，仍會自動退回原本模式</span></li>
         <li data-cl-of="i18n-content"><span class="d">8/28</span><span>英文與日文再補齊品牌介紹、使用說明、特色車站與列車、觀光列車圖鑑，以及旅程護照和成就；外語版更新紀錄保留最近八筆精簡內容，較早歷史改用主題摘要</span></li>
@@ -4053,6 +4054,7 @@
           <li class="web-only-donation-log"><span class="d">7/13</span><span>贊助方式更新：「請開發者喝咖啡」的銀行轉帳帳戶改用 LINE Bank（連線商業銀行 824）——謝謝每一位抖內支持軌島的朋友</span></li>
         <!-- APP_STRIP_END donation-log -->
         <li class="grp">資料校正</li>
+        <li data-cl="curve-speed"><span class="d">8/28</span><span>東部幹線的急彎改照官方核定速限行駛：宜蘭線新馬那個半徑 306 公尺的彎（2018 年出軌事故現場）普悠瑪 75、太魯閣 85、其他列車 65，北迴線和仁一帶非傾斜式列車 115。到站時刻完全不變——彎道慢下來的時間由同一段的其他部分吸收；時刻表太緊而做不到時，維持原本的畫法</span></li>
         <li data-cl="trapassjump"><span class="d">8/21</span><span>台鐵列車經過不停靠的小站時，會有一瞬間停在站上、下一瞬間往前跳出去——車速愈快跳得愈遠，自強、太魯閣這類最快的車一次跳將近二十公尺。現在通過那一刻改成連續移動，不再停頓也不再跳。順手修掉另一個少見的狀況：頁面開著跨過午夜、再切換一次系統時，同編號的車會沿用前一天那班的誤點，最遠會把車畫到六公里外</span></li>
         <li data-cl="hsrcoast"><span class="d">8/18</span><span>高鐵列車在兩站之間怎麼跑，重做了。舊做法是把整段時間平均攤成一個固定的巡航速度，於是中段偏慢、末端沒有滑行，最後靠尾段硬跑才追回到站時刻——實際搭車對照就是「一開始領先、中間被真車超過、後段又比真車快」。新做法多了一段惰行：加速到接近該路段實際跑得到的巡航速度後保持，快到站前幾公里收油滑行，最後才煞車進站，中段速度因此往上修（例如嘉義－台南由 267 提高到 300 km/h、桃園－新竹由 212 提高到 279）。另外高鐵時刻表只給到「分」，而真車是在那一分之內關門開走，畫面照分秒整放行等於每站都比真車早開最多一分鐘，現在改成取那一分的中間。兩項都不動到站時刻，每一站的到達分秒與時刻表完全一致；台鐵與捷運的跑法一格都沒動</span>　【8/18 晚補校正】使用者實際搭 0846 北上，在車上連續讀車廂時速表回報四個點（280→295→300→285，接著一分鐘掉到 195、兩分鐘後進桃園）。據此把兩個原本用車輛阻力推估的值換成實測：煞車率由每秒 2.7 公里改為每秒 1.5 公里（原本煞太硬，所以拖到很接近車站才開始減速），滑行減速也放緩。結果是巡航速度中位數由 223 升到 242 公里，台中–苗栗那段由 247 升到 263，減速則提早到站前數公里開始。到站時刻一秒都沒有改。</li>
         <li data-cl="sanying2"><span class="d">8/18</span><span>三鶯線 8/16 起全時段試營運：官方把營業時間延長為每天 6 時至 24 時（原本 08:00–22:00），早尖峰六分鐘班距的起點也提前到 06:30，清晨和深夜這幾個小時現在都看得到車</span></li>
@@ -4456,7 +4458,8 @@
 // v0828c：網站預設重新開啟 Metro Core；?metrocore=0 保留緊急退路。Core 發布前新增 trajectory
 //         內部跨站閘門，五秒內跨半站的候選留在已發布位置重新銜接，不送到 client。
 // v0828e：補齊災害監看、捷運追蹤、地圖點選與成就 hover，並加入 iPhone 即時動態／小工具英日文。
-const BUILD = 'v0828e';
+// v0828p：東部幹線急彎依官方核定速限行駛（宜蘭線新馬 R306、北迴線和仁 R804）。
+const BUILD = 'v0828p';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -7502,6 +7505,141 @@ function resolvePerf(tr) {
 }
 // 顯示層時速的硬上限(車種極速)。每幀要用,快取在車上免得重跑 PERF_RULES 的正整比對。
 function speedCapOf(tr) { return tr._vCap != null ? tr._vCap : (tr._vCap = resolvePerf(tr).v); }
+// ── 地點式速限:彎道 ────────────────────────────────────────────────────────────
+// 車種極速(PERF_RULES 的 v)答的是「這款車最快能跑多少」,答不了「這個彎最快能跑多少」。
+// 東部幹線有幾個急彎的核定速限遠低於車種極速——新馬那個 R=306 公尺的彎(2018-10-21
+// 普悠瑪出軌事故現場,法定最小半徑 300 公尺,只多 6 公尺)普悠瑪核定 75、一般車 65,
+// 而車種極速是 135 ⇒ 動畫本來會在事故現場畫出 130 km/h 通過。
+// 資料與逐條官方出處在 docs/rail/tra_speed_zones.json,只收運安會／行政院調查報告
+// 【逐字】證實的值。🔴 理論傾覆臨界速度(國枝公式,新馬 137–151)刻意不收——那是
+// 「翻覆會發生」的門檻不是速限,拿它當上限畫出來的會比核定速限快一倍,正是要修掉的東西。
+const SPEED_ZONES = [
+  // side＝彎道在錨定站的哪一側;lenKm＝從錨定站往該側延伸多長。方向由列車實際從哪邊來決定。
+  { id: 'yilan-xinma-curve', anchor: '新馬', side: 'north', lenKm: 1.3,
+    v: { puyuma: 75, tilting: 85, regular: 65 } },   // K88+000～K89+300,R=306
+  { id: 'northlink-heren-chongde', anchor: '和仁', side: 'south', lenKm: 1.5,
+    v: { puyuma: 130, tilting: 130, regular: 115 } }, // K51+058 起,R=804(傾斜式不受限,故 130)
+];
+// carName → 速限級別。刻意與 PERF_RULES 用同一組正整比對,兩邊不會各自漂移。
+// 台鐵 106-02-17 行車電報 111:普悠瑪(TEMU2000)在 R≤600 地點按傾斜式限速標再減 10,
+// 故普悠瑪自成一級;太魯閣(TEMU1000)未被該電報點名,沿用傾斜式標示值。
+function speedZoneClassOf(tr) {
+  const cn = tr.carName || '';
+  return /\(普/.test(cn) ? 'puyuma' : /\(太/.test(cn) ? 'tilting' : 'regular';
+}
+// 找出本跑段內真正會咬到的彎道,換算成跑段內座標。回傳 [{d0,d1,v}](公尺、公尺/秒)。
+// 「咬得到」的定義＝該級別速限【嚴於車種極速】;不嚴就跳過,免得白白把跑段換成實測剖面。
+function runSpeedZones(s, k0, k1, segKm, cls, vTopK, runL) {
+  let out = null;
+  for (const z of SPEED_ZONES) {
+    const kmh = z.v[cls];
+    if (!(kmh > 0) || kmh >= vTopK) continue;
+    // 🔴 segKm 是公里、跑段內座標是公尺——這裡換算,不換算的話彎道會被放到跑段裡的錯位置,
+    //    而且錯得很安靜:速限本身仍然守住,只是守在不該慢的地方(雙方向對照才照得出來)。
+    let at = -1, cum = 0, acc = 0;
+    for (let i = k0; i <= k1; i++) {
+      if (s[i].name === z.anchor) { at = i; cum = acc * 1000; break; }
+      if (i < k1) acc += segKm[i - k0];
+    }
+    if (at < 0) continue;
+    // 彎道在錨定站之前還是之後,取決於列車從哪邊來——同一個彎,南下與北上的段內座標相反。
+    // 用緯度判方向而不是靠路線 metadata:錨定站的相鄰節點誰在北邊是幾何事實,不會因資料源改版而變。
+    const ref = at > k0 ? s[at - 1] : (at < k1 ? s[at + 1] : null);
+    if (!ref || !(ref.lat > 0) || !(s[at].lat > 0) || ref.lat === s[at].lat) continue;
+    const fromNorth = at > k0 ? ref.lat > s[at].lat : ref.lat < s[at].lat;
+    const before = (z.side === 'north') === fromNorth;   // 彎道落在錨定站之前?
+    const len = z.lenKm * 1000;
+    const d0 = Math.max(0, before ? cum - len : cum);
+    const d1 = Math.min(runL, before ? cum : cum + len);
+    if (!(d1 - d0 > 50)) continue;                       // 幾乎整段被跑段邊界切掉 ⇒ 不值得動
+    (out || (out = [])).push({ d0, d1, v: kmh / 3.6 });
+  }
+  return out && out.sort((p, q) => p.d0 - q.d0);
+}
+// 把彎道換成 buildObsProfile 吃的節點:彎道兩端各一個折點,彎道區間的割線恰好等於速限。
+// 跑段的 L 與 T 完全不動(端點到離站時刻不變,符合「位置不用準、時間一定要準」),
+// 只是把時間在【彎道所在的那一個區間內】重新分配——彎道慢下來省不掉的時間,由同一區間
+// 內彎道以外的部分吸收,不會波及整個跑段。
+//
+// basePts＝該跑段原本的實測通過時刻折點。彎道節點【疊在它上面】而不是取代它:
+// 實測剖面經碼錶檢定勝過梯形,不能為了 1.3 公里的彎道把整段幾十公里的校正丟掉
+// (受影響的 169 班裡有 108 班原本就有實測資料)。故只切開彎道所在那一個區間,
+// 其餘實測折點原封不動。彎道跨越某個實測折點時直接放棄(回 null)——那會需要改寫
+// 實測量到的通過時刻,寧可不套用。
+// 🔴 GAP＝buildObsProfile 收節點時的最小間距(它要求 t > 前一個 + 4、且離兩端 5 秒以上)。
+//    這裡必須自己先守住:被它丟掉的如果是【彎道節點】,彎道就會被併進一個更寬的區間、
+//    割線隨之變快,而夾限的 max(...,del[i]) 只好承認那個割線 ⇒ 速限靜默失效
+//    (真實班表實測:限速 65 的彎道畫出 120 km/h)。守不住就整個放棄該彎道,不留半套。
+const ZONE_KNOT_GAP = 6;
+// 驗收條件用【建好的剖面實際跑出來的速度】,不用「區間平均速度夠不夠」這種代理指標。
+// 為什麼非這樣不可:夾限是逐區間做的,而節點導數 m[i] 由相鄰兩區間共用——把彎道旁那個
+// 又快又緊的區間壓成線性,會把共用節點的導數推回高檔,彎道區間隨即重新超標,兩邊來回拉扯
+// (真實班表 408 次:節點都在、割線也對,彎道內照樣跑出 123.9)。代理指標看不到這件事。
+function zoneProfileOk(rp, zones) {
+  if (!rp || !zones || !zones.length) return false;
+  for (const z of zones) {
+    const t0 = profProgToTime(rp, z.d0 / rp.L), t1 = profProgToTime(rp, z.d1 / rp.L);
+    if (!(t1 > t0)) return false;
+    const step = Math.max(0.25, (t1 - t0) / 120);
+    let prev = null;
+    for (let t = t0; t <= t1 + 1e-9; t += step) {
+      const d = profTimeToProg(rp, t) * rp.L;
+      if (prev !== null && (d - prev.d) / (t - prev.t) > z.v * 1.02) return false;
+      prev = { t, d };
+    }
+  }
+  return true;
+}
+// minGrow:先把取用的實測區間往外撐幾格再開始找。呼叫端由小到大試,用 zoneProfileOk 收貨。
+function speedZoneKnots(L, T, zones, vTopK, basePts, minGrow) {
+  const vTop = vTopK / 3.6;
+  let ks = [[0, 0], [T, L]];
+  for (const p of (basePts || [])) if (p.t > 0 && p.t < T && p.d > 0 && p.d < L) ks.push([p.t, p.d]);
+  ks.sort((a, b) => a[0] - b[0]);
+  // 🔴 只回報【真的排進節點】的彎道:排不進去卻仍把它列進夾限清單,等於宣稱有速限但沒有節點
+  //    撐住那個割線,夾限的 max(...,del[i]) 就會沿用原本又快又寬的區間割線 ⇒ 限速 65 的彎道
+  //    照樣畫出 130(真實班表 472 次實測:新馬排不進、和仁排得進,只有和仁真的被限住)。
+  const applied = [];
+  for (const z of zones) {
+    // 彎道秒數一律【進位】:buildObsProfile 會 Math.round 節點時間,秒數少一秒就等於割線變快。
+    // 實測 1500m÷46s＝117.4(限速 115)、1500m÷41s＝131.7(限速 130),與量到的違規值逐位吻合。
+    // 寧可多給一秒(畫得比核定再慢一點),不可少給。
+    const tz = Math.ceil((z.d1 - z.d0) / z.v);
+    // 落在彎道內的實測折點先拿掉:它們量到的是「沒有彎道限制」前提下的通過時刻,與彎道速限
+    // 直接衝突,留著只會兩敗俱傷。彎道外的實測折點一律原封保留(整段幾十公里的校正不能為了
+    // 1.3 公里的彎道丟掉——碼錶檢定裡實測剖面勝過梯形)。
+    const base = ks.filter(([, d]) => !(d > z.d0 - 1 && d < z.d1 + 1));
+    let lo = -1;
+    for (let j = 0; j < base.length - 1; j++) if (base[j][1] <= z.d0 && base[j + 1][1] >= z.d1) { lo = j; break; }
+    if (lo < 0) continue;
+    // 最貼近的那個實測區間常常太緊(它的割線本來就接近極速),塞不下減速。此時往時間較寬鬆的
+    // 一側逐步擴一個實測折點再試——擴越多丟掉的實測校正越多,故設上限,擴不出來就放棄該彎道。
+    let hi = lo + 1, ok = null;
+    for (let g = 0; g < (minGrow || 0); g++) {      // 先撐開呼叫端要求的格數,再開始找
+      const canLo = lo > 0, canHi = hi < base.length - 1;
+      if (!canLo && !canHi) break;
+      if (canLo && (!canHi || base[lo][0] - base[lo - 1][0] >= base[hi + 1][0] - base[hi][0])) lo--; else hi++;
+    }
+    for (let grow = 0; grow <= 6; grow++) {
+      const [tA, dA] = base[lo], [tB, dB] = base[hi];
+      const outD = (z.d0 - dA) + (dB - z.d1), outT = (tB - tA) - tz;
+      if (outT > 0 && (outD <= 0 || outD / outT <= vTop)) {
+        const tEnter = Math.round(tA + (outD > 0 ? (z.d0 - dA) / outD * outT : 0));
+        if (tEnter >= tA + ZONE_KNOT_GAP && tEnter + tz <= tB - ZONE_KNOT_GAP) { ok = { lo, hi, tEnter, tz }; break; }
+      }
+      const canLo = lo > 0, canHi = hi < base.length - 1;
+      if (!canLo && !canHi) break;
+      if (canLo && (!canHi || base[lo][0] - base[lo - 1][0] >= base[hi + 1][0] - base[hi][0])) lo--; else hi++;
+    }
+    if (!ok) continue;
+    ks = [...base.slice(0, ok.lo + 1), [ok.tEnter, z.d0, true], [ok.tEnter + ok.tz, z.d1, true], ...base.slice(ok.hi)];
+    applied.push(z);
+  }
+  // z:true 標記彎道節點,讓 buildObsProfile 的幾何閘門不要把它當可疑實測折點刪掉
+  return applied.length
+    ? { pts: ks.slice(1, -1).map(([t, d, z]) => ({ t, d, z: !!z })), zones: applied }   // 端點由 buildObsProfile 自己補
+    : null;
+}
 // 給段距離 Lkm、段時間 T 秒、加速 aK/減速 bK(km/h/s)、極速 vK(km/h) → 相位參數(內部 SI)。
 // 不可行(時間太緊/太短/需超速才追上時刻)回 null,呼叫端退回等速(端點恆安全)。
 // coast(選用,目前只有高鐵掛):{ c:惰行減速 km/h/s, rho:惰行結束速度÷巡航速度 } → 四相位
@@ -7553,15 +7691,18 @@ function buildProfile(Lkm, T, aK, bK, vK, coast) {
 // 折點來自 data/tra_pass_obs.json(7 天 TDX 官方歷史逐站觀測煉出的跑段內時間比例)。
 // 端點斜率設 0 → 在真停靠站仍平滑起停;中間速度連續 → 通過站不會瞬間變速;加權調和平均保證單調不過衝。
 // 產生方式、閘門與留一日交叉驗證數字見 scripts/build_pass_obs.mjs 與 研究_快車跳站校正 文件。
-function buildObsProfile(Lkm, T, pts, vTopK) {   // pts:[{t:段內秒, d:距跑段起點公尺}] 依序;vTopK=該車種極速(km/h)
+// zones(選用):[{d0,d1,v}] 公尺與公尺/秒的地點式速限。節點已對齊彎道兩端,故只需把
+// 落在彎道內的區間夾到該速限——否則 PCHIP 為了銜接兩側較快的區間,會在彎道內部
+// 衝到接近車種極速(相鄰導數的調和平均仍遠高於 75)。
+function buildObsProfile(Lkm, T, pts, vTopK, zones) {   // pts:[{t:段內秒, d:距跑段起點公尺}] 依序;vTopK=該車種極速(km/h)
   const L = Lkm * 1000;
   if (!(L > 0) || !(T > 0) || !pts || !pts.length) return null;
-  const xs = [0], ys = [0];
+  const xs = [0], ys = [0], prot = [false];   // prot:彎道節點,不得被下面的幾何閘門刪掉
   for (const p of pts) {                  // 過濾:必須嚴格遞增且不貼死端點(h→0 會炸出巨大斜率)
     const t = Math.round(p.t);
     if (!(t > xs[xs.length - 1] + 4) || !(p.d > ys[ys.length - 1] + 1)) continue;
     if (t > T - 5 || p.d > L - 1) continue;
-    xs.push(t); ys.push(p.d);
+    xs.push(t); ys.push(p.d); prot.push(!!p.z);
   }
   if (xs.length < 2) return null;         // 一個有效折點都沒有 → 交回梯形
   xs.push(T); ys.push(L);
@@ -7574,16 +7715,21 @@ function buildObsProfile(Lkm, T, pts, vTopK) {   // pts:[{t:段內秒, d:距跑�
   // (buildProfile 需要超速時回 null 再退等速),只是通過站時刻少了實測校正。
   // 端點區間含起停,沿用原本 115/135＝0.85 的比例壓得更嚴。
   const VS_MID = (vTopK > 0 ? vTopK : 135) / 3.6, VS_END = VS_MID * 0.85;
+  // 🔴 彎道節點(prot)對這道閘門免疫:閘門的用途是丟掉「與本線幾何不相容」的【實測】折點,
+  //    而彎道節點是官方核定速限算出來的權威值,不是量出來的。刪掉它的後果是彎道被併進一個
+  //    更寬的區間、割線變快,夾限的 max(...,del[i]) 只好承認 ⇒ 限速 65 的彎道畫出 130 km/h
+  //    (真實班表實測)。改成:某個超標區間唯一可刪的那一側若是彎道節點,就跳過該區間繼續找下一個。
   for (let guard = xs.length; guard > 0; guard--) {   // 上限先求值:xs 會邊刪邊縮,寫成 guard<xs.length 會提早收工
-    let bad = -1;
+    let j = -1;
     for (let i = 0; i < xs.length - 1; i++) {
       const v = (ys[i + 1] - ys[i]) / (xs[i + 1] - xs[i]);
-      if (v > (i === 0 || i === xs.length - 2 ? VS_END : VS_MID)) { bad = i; break; }
+      if (v <= (i === 0 || i === xs.length - 2 ? VS_END : VS_MID)) continue;
+      const cand = i === xs.length - 2 ? i : i + 1;   // 丟該區間較內側的節點
+      if (cand <= 0 || cand >= xs.length - 1 || prot[cand]) continue;
+      j = cand; break;
     }
-    if (bad < 0) break;
-    const j = bad === xs.length - 2 ? bad : bad + 1;   // 丟該區間較內側的節點
-    if (j <= 0 || j >= xs.length - 1) break;
-    xs.splice(j, 1); ys.splice(j, 1);
+    if (j < 0) break;
+    xs.splice(j, 1); ys.splice(j, 1); prot.splice(j, 1);
   }
   if (xs.length < 3) return null;         // 清到只剩兩端 → 沒有實測資訊,交回梯形
   const n = xs.length, h = [], del = [];
@@ -7611,7 +7757,15 @@ function buildObsProfile(Lkm, T, pts, vTopK) {   // pts:[{t:段內秒, d:距跑�
   for (let pass = 0; pass < 12; pass++) {
     let touched = false;
     for (let i = 0; i < n - 1; i++) {
-      const cap = Math.max(VCAP, del[i]);
+      // 區間中點落在哪個彎道內就吃該彎道的速限;取 min 是因為車種極速與地點速限都是上限,
+      // 兩者取嚴。外層仍保留 max(...,del[i]):插值必須通過兩個節點,區間平均恆為割線,
+      // 夾到割線以下無解——而彎道節點的割線【就是】速限,故此處恰好等於速限,不會被放寬。
+      let cap = VCAP;
+      if (zones) {
+        const mid = (ys[i] + ys[i + 1]) / 2;
+        for (const z of zones) if (mid > z.d0 && mid < z.d1 && z.v < cap) cap = z.v;
+      }
+      cap = Math.max(cap, del[i]);
       const dMax = (a, b) => {              // d(s)=A s²+B s+a, s∈[0,1]
         const A = 3 * a + 3 * b - 6 * del[i], B = -4 * a - 2 * b + 6 * del[i];
         let v = Math.max(a, b);
@@ -7689,7 +7843,7 @@ function segProgToTime(seg, f) {            // 段內距離進度 0..1 → 絕�
 }
 function schedSegKmOf(s, i) { return s[i].segLn ? schedSegmentKm(s[i]) : haversineKm(s[i], s[i + 1]); }
 // 沿 stops 掃出各跑段(以實際停靠站/端點為界),整段建一條梯形曲線並回填通過站時刻。
-function assignRunProfiles(s, perf, obs) {
+function assignRunProfiles(s, perf, obs, zoneCls) {
   let k0 = 0;
   for (let k1 = 1; k1 < s.length; k1++) {
     if (s[k1].stop === false && k1 < s.length - 1) continue; // 通過站併入本跑段;末節點強制收尾
@@ -7698,15 +7852,37 @@ function assignRunProfiles(s, perf, obs) {
     const runDep = s[k0].depSec, runT = s[k1].arrSec - runDep;
     // 有實測折點就用實測剖面(僅台鐵且該跑段有通過站),否則照舊梯形。任一步不成立都安全退回。
     let rp = null;
+    // 地點式速限優先於實測折點:彎道節點會重新分配段內時間,而實測折點的通過時刻是在
+    // 「沒有彎道限制」的前提下量到的,兩套時間軸混用會互相矛盾 ⇒ 這個跑段只用彎道節點。
+    // 代價僅限真的咬得到的那幾個跑段(目前只有新馬與和仁兩處,且只對部分車種成立),
+    // 其餘全台所有跑段一律走原本的實測／梯形路徑,逐字不變。
+    // 先算實測折點,彎道節點要【疊在它上面】而不是取代它(理由見 speedZoneKnots)。
+    let pts = null;
     if (obs && k1 - k0 >= 2) {
-      const pts = []; let cum = 0;
+      pts = []; let cum = 0;
       for (let i = k0; i < k1 - 1; i++) {
         cum += segKm[i - k0];
         const nm = s[i + 1].name, f = obs[nm] ?? obs[nm.replace(/台/g, '臺')];
         if (f != null) pts.push({ t: f / 1000 * runT, d: cum * 1000 });
       }
-      if (pts.length) rp = buildObsProfile(runKm, runT, pts, perf.v);
     }
+    // 地點式速限:只有真的咬得到的跑段會走這條(目前只有新馬與和仁兩處,且視車種而定),
+    // 其餘全台所有跑段一律走下面原本的實測／梯形路徑,逐字不變。
+    const zones = zoneCls && runKm > 0
+      ? runSpeedZones(s, k0, k1, segKm, zoneCls, perf.v, runKm * 1000) : null;
+    if (zones) {
+      // 由窄到寬試:先只動彎道所在那一個實測區間,不成才逐步往外撐(撐越多丟掉的實測校正越多)。
+      // 收貨用 zoneProfileOk 量【建好的剖面】,不是量代理指標;全部試完仍不合格就整個不套用,
+      // 退回下面原本的實測／梯形路徑——寧可維持原行為,也不畫出一條聲稱有速限卻超速的曲線。
+      // 夾限只吃 zk.zones(真的排進節點的那些),不是原本的 zones。
+      for (let grow = 0; grow <= 6 && !rp; grow++) {
+        const zk = speedZoneKnots(runKm * 1000, runT, zones, perf.v, pts, grow);
+        if (!zk) break;
+        const cand = buildObsProfile(runKm, runT, zk.pts, perf.v, zk.zones);
+        if (zoneProfileOk(cand, zk.zones)) rp = cand;
+      }
+    }
+    if (!rp && pts && pts.length) rp = buildObsProfile(runKm, runT, pts, perf.v);
     if (!rp) rp = buildProfile(runKm, runT, perf.a, perf.b, perf.v, perf.coast);
     // 軟煞車解不出來的緊排點段,用較硬的煞車再解一次(見 PERF_HSR.bAlt),避免退回直線移動。
     // 軟加減速解不出來的緊排點段,依序用較硬的煞車、再加上較硬的加速重解(見 PERF_HSR.aAlt/bAlt),
@@ -8124,7 +8300,8 @@ function assignSchedShapePathsFor(trains, lines) {
     // 跑段級加減速曲線(需在 segLn/bridge 齊備後,里程才含跨線接續)。通過站時刻在此回填。
     // 台鐵有實測通過時刻(data/tra_pass_obs.json)時改用實測剖面;其餘系統與缺資料者維持梯形。
     // 車次號在系統間會撞號(高鐵/林鐵也有 0801 這種號),故必須以 tr.sys 把查表限定在台鐵。
-    assignRunProfiles(s, perf, tr.sys === 'tra_sched' && state.passObs ? state.passObs[tr.train] : null);
+    assignRunProfiles(s, perf, tr.sys === 'tra_sched' && state.passObs ? state.passObs[tr.train] : null,
+      tr.sys === 'tra_sched' ? speedZoneClassOf(tr) : null);   // 彎道速限目前只有台鐵有官方值
   }
 }
 
