@@ -35,6 +35,9 @@ public final class RailAudioPlugin: CAPPlugin, CAPBridgedPlugin {
     private var commandsWired = false
     private var artwork: MPMediaItemArtwork?
     private var wasPlayingBeforeInterruption = false
+    // 預抓下一首用。nextItemIndex 是它對應的曲序,-1 代表沒有預抓。
+    private var nextItem: AVPlayerItem?
+    private var nextItemIndex = -1
 
     private var isPlaying: Bool { (player?.rate ?? 0) > 0 }
 
@@ -147,7 +150,15 @@ public final class RailAudioPlugin: CAPPlugin, CAPBridgedPlugin {
         if let old = player?.currentItem {
             NotificationCenter.default.removeObserver(self, name: .AVPlayerItemDidPlayToEndTime, object: old)
         }
-        let item = AVPlayerItem(url: entry.url)
+        // 預抓好的那顆用得上就直接用,省掉一次冷啟的網路往返(串流曲目在隧道裡差別最大)。
+        let item: AVPlayerItem
+        if nextItemIndex == idx, let preloaded = nextItem {
+            item = preloaded
+        } else {
+            item = AVPlayerItem(url: entry.url)
+        }
+        nextItem = nil
+        nextItemIndex = -1
         NotificationCenter.default.addObserver(self, selector: #selector(itemEnded(_:)), name: .AVPlayerItemDidPlayToEndTime, object: item)
         if player == nil { player = AVPlayer() }
         player?.replaceCurrentItem(with: item)
@@ -156,8 +167,25 @@ public final class RailAudioPlugin: CAPPlugin, CAPBridgedPlugin {
         player?.play()
         pushNowPlaying()
         notifyListeners("track", data: ["index": idx, "playing": true])
+        preloadNext(after: idx)
         // 本地檔一秒內必已載入時長；補推一次讓播放卡出現正確的進度列。
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in self?.pushNowPlaying() }
+    }
+
+    // 預抓下一首:只建 AVPlayerItem 並給它一段前向緩衝,AVFoundation 就會自己開始拉資料。
+    // 不碰 player、不 replaceCurrentItem ⇒ 完全不影響正在播的那一首。
+    // 🔴 目的是【隧道裡換得了歌】:原本每次換曲都是「當下才建 item」＝一次冷啟網路請求,
+    //    收訊斷掉的那幾秒剛好換曲就會靜掉。本地檔沒有這個問題,所以只對串流曲目預抓。
+    private func preloadNext(after index: Int) {
+        guard !tracks.isEmpty else { nextItem = nil; nextItemIndex = -1; return }
+        let n = ((index + 1) % tracks.count + tracks.count) % tracks.count
+        let url = tracks[n].url
+        guard !url.isFileURL else { nextItem = nil; nextItemIndex = -1; return }
+        if nextItemIndex == n, nextItem != nil { return }   // 同一首已經抓過就不重建
+        let item = AVPlayerItem(url: url)
+        item.preferredForwardBufferDuration = 10
+        nextItem = item
+        nextItemIndex = n
     }
 
     @objc private func itemEnded(_ note: Notification) {
@@ -204,6 +232,9 @@ public final class RailAudioPlugin: CAPPlugin, CAPBridgedPlugin {
                 }
                 return (base.appendingPathComponent("public").appendingPathComponent(rel), title)
             }
+            // 佇列換掉了,舊的預抓對應到的曲序已經不是同一首,一律作廢。
+            self.nextItem = nil
+            self.nextItemIndex = -1
             call.resolve(["ok": true, "count": self.tracks.count])
         }
     }

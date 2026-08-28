@@ -14584,6 +14584,22 @@ function musicLoadCur() {
   if (m.audio.setTrack) { m.audio.setTrack(m.idx, m.list); musicSetMeta(); return; } // 原生路:整份佇列交給原生
   m.audio.src = musicSrc(m.list[m.idx]);
   musicSetMeta();
+  musicPrefetchNext();
+}
+// 預抓下一首:web 端用一個隱藏的 Audio 元素把下一首拉進瀏覽器快取,換曲時就不必冷啟一次網路請求。
+// 🔴 這是為了【隧道裡換得了歌】,不是為了換曲順不順——快網下有沒有預抓看起來一模一樣,
+//    所以驗收判準必須是「下一首的請求在前一首還在播的時候就發出了」,不是「換歌卡不卡」。
+// App 走原生佇列(m.audio.setTrack 存在),預抓由 RailAudioPlugin.preloadNext 負責,這裡直接跳過。
+let _musicPrefetch = null;
+function musicPrefetchNext() {
+  const m = state.music;
+  if (!m || !m.list.length || m.audio.setTrack) return;
+  const next = m.list[(m.idx + 1) % m.list.length];
+  if (!next) return;
+  if (!_musicPrefetch) { _musicPrefetch = new Audio(); _musicPrefetch.preload = 'auto'; _musicPrefetch.volume = 0; }
+  const src = musicSrc(next);
+  // 同一首不重設 src:重設會讓瀏覽器重新發請求,清單只有一首時尤其會變成反覆重抓。
+  if (_musicPrefetch.getAttribute('src') !== src) { _musicPrefetch.setAttribute('src', src); _musicPrefetch.load(); }
 }
 // 鎖定畫面/控制中心的曲目資訊:封面一律用軌島 icon（2026-08-10 使用者裁示），曲名=檔名去副檔名。
 // 只設 metadata、不碰 setActionHandler——播放/暫停控制維持 WKWebView 自動接線，接手了反而會壞。
