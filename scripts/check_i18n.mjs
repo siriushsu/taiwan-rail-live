@@ -59,8 +59,20 @@ for (const [lang, dictionary] of Object.entries(messages)) {
   }
 }
 
+// 英文字典本身不得殘留漢字；否則畫面雖然經過 t()，仍會悄悄露出中文。
+function scanEnglishCjk(value, label) {
+  if (typeof value === 'string') {
+    if (/[\u3400-\u9fff]/.test(value)) fail(`英文翻譯仍含中文：${label} = ${value}`);
+    return;
+  }
+  if (!value || typeof value !== 'object') return;
+  for (const [key, child] of Object.entries(value)) scanEnglishCjk(child, `${label}.${key}`);
+}
+scanEnglishCjk(messages.en, 'messages.en');
+
 // 特色列車／車種／支線以資料檔穩定 id 對譯，不改寫原始 JSON；每個顯示欄位與陣列長度都要對齊。
 const contentData = sandbox.window.RAIL_I18N_CONTENT_DATA || {};
+scanEnglishCjk(contentData.en, 'content.en');
 const contentFields = {
   namedTrains: ['name', 'story', 'tags'],
   rollingStock: ['name', 'story', 'facts'],
@@ -116,6 +128,8 @@ for (const group of helpBlocks.HELP_GROUPS || []) {
   for (const section of group.secs || []) {
     if (hiddenHelpKeys.has(section.key)) continue; // 尚未上線的 GPS 校正實驗功能，不屬公開說明。
     helpSources.push(section.nm, section.one, ...(section.steps || []), section.tip);
+    // 說明卡圖示也是真正顯示的文字；HTML 圖示只取出其中的可見中文字。
+    if (section.ic) helpSources.push(...String(section.ic).replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean));
     if (section.tipDesktop) helpSources.push(...String(section.tipDesktop).split(/<\/?b>/).filter(Boolean));
   }
 }
@@ -137,6 +151,7 @@ for (const lang of languages) {
 }
 
 const legalMessages = sandbox.window.RAIL_I18N_LEGAL_MESSAGES || {};
+scanEnglishCjk(legalMessages.en, 'legal.en');
 const legalKeyCount = Object.keys(legalMessages.en || {}).length;
 for (const file of ['privacy.html', 'terms.html']) {
   const html = fs.readFileSync(path.join(root, file), 'utf8');
@@ -199,6 +214,11 @@ const dynamicRenderers = [
   'renderNearbyStations', 'renderPinCard', 'renderRidePanel', 'renderPassport',
   'stationIntroText', 'renderTrainCard', 'buildStamps', 'buildAchv', 'punctualRow',
   'renderExplorePanel', 'renderNamedIntro', 'renderSearchDrop', 'renderHelp',
+  'takeoutSyncConfirm', 'takeoutRenderPreview', 'takeoutStartManual', 'accountRender', 'accountBtnSlot',
+  'myTrainRow', 'myTrainSection', 'renderFavs', 'renderFavPanel', 'todayRow', 'renderTodayEvents', 'renderTodayPanel',
+  'renderFollowEvents', 'renderDelayRow', 'renderDelayHist', 'eventRowsHtml', 'eventSecHtml',
+  'announceCollections', 'doCheckin', 'startRiding', 'finishRiding', 'updateRideBtn',
+  'renderTripSharePanel', 'renderTripBanner', 'metroWaitOpenPicker',
 ];
 for (const name of dynamicRenderers) {
   const lines = functionSource(name).split('\n');

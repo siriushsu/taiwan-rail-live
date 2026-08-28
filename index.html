@@ -4754,6 +4754,8 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="i18n-dynamic"><span class="d">8/28</span><span>英文與日文現在也會即時更新最愛、今日台鐵、誤點履歷、帳號同步、Google 清單匯入、分享與 App 等車卡；官方活動只有中文時，會清楚標示「中文原文」</span></li>
+        <li data-cl-of="metrocoredefault"><span class="d">8/28</span><span>網站版重新開啟北捷統一時間軸：地圖列車、車站預告與點選跟隨會使用同一份身分與軌跡；每次更新也會檢查軌跡內部，若列車在五秒內跨過半站以上，會先留在原位重新銜接，不把瞬間跳位送到畫面。Core 連線失敗或單線資料不完整時，仍會自動退回原本模式</span></li>
         <li data-cl-of="i18n-content"><span class="d">8/28</span><span>英文與日文再補齊品牌介紹、使用說明、特色車站與列車、觀光列車圖鑑，以及旅程護照和成就；外語版更新紀錄保留最近八筆精簡內容，較早歷史改用主題摘要</span></li>
         <li data-cl-of="i18n-mvp"><span class="d">8/28</span><span>新增繁中、English、日本語切換：車站與路線名稱、列車跟隨、來車看板、設定、營運提醒、通行證，以及隱私權政策與服務條款會一起切換；選過的語言也會記住</span></li>
         <li data-cl-of="music57"><span class="d">8/27</span><span>放空模式的背景音樂重新整理過：曲目從 29 首增加到 57 首，分成 Afloat、Midnight stories、Moonlake、Rainy day、Star &amp; Neon、peaceful piano 六組不同氛圍</span></li>
@@ -4762,9 +4764,6 @@
         <li data-cl-of="fontscale"><span class="d">8/22</span><span>字級多了三階（標準／大／特大）：「更多」→ 字級打開「顯示與字級」，選一個，整個介面的字、列高與可點範圍會一起放大，欄位一個都不會被收掉，面板下方有即時預覽。手機把系統字級調到輔助使用級別時，軌島也會自動跟著放大到特大——不想要的話，同一張面板裡可以把「跟隨系統字級」關掉</span></li>
         <li data-cl-of="metrowaitfix"><span class="d">8/22</span><span>等車卡修好「點了卻沒出現」：從桌面的捷運小工具點一下，現在會直接把卡片開起來，不用先打開軌島——點完馬上鎖屏、之後一直沒回 App，鎖定畫面上照樣會有那張卡（以前必須等你回到 App 才補得開，人沒回來那一次點擊就沒了）；萬一真的開不成，回到 App 時仍會自動補開，也不會再先空等二十秒。另外兩種也一起修好：動過播放速度或拖過時刻尺之後再追蹤，會自動把時間帶回「現在」再開卡，不會再誤說「這一站現在沒有官方班次資訊」；已經結束的舊卡不再被當成還在追蹤，按鈕不會變成「結束追蹤」害你白點一次。萬一系統遲遲沒有回應，也會明白告訴你再點一次，不會停在那裡沒反應。下次 App 更新生效</span></li>
         <li data-cl-of="trapassjump"><span class="d">8/21</span><span>台鐵列車經過不停靠的小站時，會有一瞬間停在站上、下一瞬間往前跳出去——車速愈快跳得愈遠，自強、太魯閣這類最快的車一次跳將近二十公尺。現在通過那一刻改成連續移動，不再停頓也不再跳。順手修掉另一個少見的狀況：頁面開著跨過午夜、再切換一次系統時，同編號的車會沿用前一天那班的誤點，最遠會把車畫到六公里外</span></li>
-        <li data-cl-of="metrosamename"><span class="d">8/21</span><span>不同城市恰好同名的捷運站不再共用同一張看板：台北與台中的「市政府」現在只會顯示各自系統的路線與班次，其他跨系統同名站也一併分開</span></li>
-        <li data-cl-of="metrocorelive"><span class="d">8/21</span><span>北捷即時動畫正式換成同一套時間軸：地圖上的車、站台預告與點選跟隨現在會對到同一班車；官方資料更新時不會整批跳位或交換身分，後車在站外也不會貼到前車 100 公尺內。忠孝復興這類多條路線共用的車站，到站資訊會核對那班車實際屬於哪條線，確認不了就只顯示時刻、不亂標。若某條路線的即時資料忽然變少或不完整，只有那條線會自動退回原本模式，其餘照常</span></li>
-        <li data-cl-of="geofollow"><span class="d">8/21</span><span>App 的藍點現在會在你移動時持續更新，所在地鏡頭也會像一般地圖 App 一樣跟著走，不再停在開啟 App 時的位置；手動拖地圖或改跟列車時會讓出鏡頭，但定位仍持續，按「附近車站」即可回到自己。Android 同時恢復精確位置選項；App 收到背景或鎖屏就停止定位，回到前景才繼續</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -4893,6 +4892,7 @@
         <li data-cl="androidtopgap"><span class="d">8/16</span><span>Android 手機把系統字級放大後，地圖左上的「軌島／基隆—高雄」牌會跟著變高，原本寫死位置的時間欄沒有讓位，兩欄因此黏住甚至重疊；現在時間欄會量牌子的實際底緣並固定留出間距，轉向與一般字級也一起適用（謝謝網友回報）</span></li>
         <li data-cl="androidinsets"><span class="d">8/16</span><span>Android App 在部分手機使用手勢或三鍵導覽時，放空模式的「離開放空／視角」會被系統導覽列壓住；現在所有手機安全區都會照原生系統回報讓位。窄螢幕若同時有營運公告，頂部最右邊的「捷」也不會再被裁掉</span></li>
         <li data-cl="androidbars"><span class="d">8/15</span><span>Android App 更新後，地圖上下曾多出兩塊白色空白；現在移除重複計算的手機安全區，地圖與底部導覽列會重新貼齊整個畫面</span></li>
+        <li data-cl="i18n-dynamic"><span class="d">8/28</span><span>英文與日文現在也會即時更新最愛、今日台鐵、誤點履歷、帳號同步、Google 清單匯入、分享與 App 等車卡；官方活動只有中文時，會清楚標示「中文原文」</span></li>
         <li data-cl="i18n-content"><span class="d">8/28</span><span>英文與日文再補齊品牌介紹、使用說明、特色車站與列車、觀光列車圖鑑，以及旅程護照和成就；外語版更新紀錄保留最近八筆精簡內容，較早歷史改用主題摘要</span></li>
         <li data-cl="i18n-mvp"><span class="d">8/28</span><span>新增繁中、English、日本語切換：車站與路線名稱、列車跟隨、來車看板、設定、營運提醒、通行證，以及隱私權政策與服務條款會一起切換；選過的語言也會記住</span></li>
         <li data-cl="land04c"><span class="d">8/12</span><span>手機橫放第二輪重排（接 8/11 的側邊欄）：時鐘徽章併進頂列、不再浮在地圖上；右下角的「回到列車、隨機跟隨、附近車站、跟隨鎖」收成貼右緣的一疊；跟車資訊欄固定在左側、上下貼齊螢幕，收合成小膠囊時不擋地圖；搜尋改成右半邊全高的面板，打字時鏡頭不會亂跑；停靠站名牌與速度膠囊對齊露出地圖的中線。跟車鏡頭全面改用「露出地圖」置中——把被面板、按鈕、資訊欄蓋住的部分扣掉，列車永遠在看得到的那塊地圖正中央，還會朝行進方向偏一點、提前看到前方路線。這套鏡頭直放也生效：面板展開、跟車小卡浮著時，列車不會再躲到卡片底下</span></li>
@@ -5434,7 +5434,9 @@
     //         兩節,以及 App 前景持續定位與所在地鏡頭跟隨(v0821d 那批的 index.html 那一半)。
     // v0826a：版面試作(字級三階/頂列排法B/看板組標題/站內回報)與出貨線 1.4.10 血脈合流,
     //         並帶上 origin/main 至 7932b2e 的全部更新。
-const BUILD = 'v0828b';
+// v0828c：網站預設重新開啟 Metro Core；?metrocore=0 保留緊急退路。Core 發布前新增 trajectory
+//         內部跨站閘門，五秒內跨半站的候選留在已發布位置重新銜接，不送到 client。
+const BUILD = 'v0828d';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -5640,6 +5642,9 @@ function i18nRenderChangelog() {
 }
 function i18nRefreshDynamic() {
   try { if (typeof refreshBadge === 'function') refreshBadge(); } catch (e) {}
+  // 捷運即時徽章的 title 含動態 error 插值，已展開的中文句子無法靠 DOM key 掃描反推；
+  // 語言切換時必須從原始 key 重畫，否則剛好遇到 Core 503 會殘留中文。
+  try { if (typeof updateMetroBadge === 'function') updateMetroBadge(); } catch (e) {}
   try { if (typeof updateCount === 'function' && state?.ready) updateCount(); } catch (e) {}
   try { if (typeof renderSystemsBar === 'function' && state && state.group) renderSystemsBar(); } catch (e) {}
   try { if (typeof refreshCurrentMetaI18n === 'function') refreshCurrentMetaI18n(); } catch (e) {}
@@ -5662,6 +5667,16 @@ function i18nRefreshDynamic() {
   try { if (typeof renderTrainCard === 'function' && state.followTrain && !document.getElementById('trainCard')?.hidden) renderTrainCard(state.followTrain); } catch (e) {}
   try { if (typeof renderExplorePanel === 'function' && !document.getElementById('explorePanel')?.hidden) renderExplorePanel(); } catch (e) {}
   try { if (typeof renderHelp === 'function' && !document.getElementById('helpModal')?.hidden) renderHelp(); } catch (e) {}
+  try { if (typeof renderFavPanel === 'function' && !document.getElementById('favPanel')?.hidden) renderFavPanel(); } catch (e) {}
+  try { if (typeof renderTodayPanel === 'function' && !document.getElementById('todayPanel')?.hidden) renderTodayPanel(); } catch (e) {}
+  try { if (typeof renderDelayHist === 'function' && !document.getElementById('delayHistPanel')?.hidden) renderDelayHist(); } catch (e) {}
+  try { if (typeof renderFollowEvents === 'function' && !document.getElementById('trainCard')?.hidden) renderFollowEvents(); } catch (e) {}
+  try { if (typeof accountRender === 'function' && !document.getElementById('accountModal')?.hidden) accountRender(); } catch (e) {}
+  try { if (typeof takeoutRenderPreview === 'function' && !document.getElementById('takeoutModal')?.hidden) takeoutRenderPreview(); } catch (e) {}
+  try { if (typeof renderTripSharePanel === 'function' && !document.getElementById('tripPanel')?.hidden) renderTripSharePanel(); } catch (e) {}
+  try { if (typeof renderTripBanner === 'function' && !document.getElementById('tripBanner')?.hidden) renderTripBanner(); } catch (e) {}
+  try { if (typeof updateRideBtn === 'function' && state.followTrain) updateRideBtn(state.followTrain); } catch (e) {}
+  try { if (typeof renderFreeSeat === 'function' && state.followTrain) renderFreeSeat(state.followTrain); } catch (e) {}
   try { if (typeof renderNearbyStations === 'function' && state.meLoc) renderNearbyStations(); } catch (e) {}
   try { if (typeof renderPinCard === 'function' && pinDraft) renderPinCard(); } catch (e) {}
   try {
@@ -6571,7 +6586,7 @@ async function exportTrtcEntityDiagnostics() {
   const url = URL.createObjectURL(blob), a = document.createElement('a');
   a.href = url; a.download = name; a.style.display = 'none'; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-  try { showToast('已匯出最近 10 分鐘的捷運診斷'); } catch (e) {}
+  try { showToast(t('已匯出最近 10 分鐘的捷運診斷')); } catch (e) {}
   return true;
 }
 window.getTrtcEntityDiagnostics = trtcEntityDiagnosticsSnapshot;
@@ -9512,14 +9527,14 @@ function trtcOfficialHitFromTimetable(hit) {
 }
 function applyFreqFollow(hit) { // hit = {ln,tr}／{ln,k}／{ln,vehicleId};不動 autoTour/hotspot，供導播輪車重用
   const target = trtcOfficialHitFromTimetable(hit);
-  if (!target) { showToast('這列車目前沒有可唯一確認的官方身分'); return false; }
+  if (!target) { showToast(t('這列車目前沒有可唯一確認的官方身分')); return false; }
   const identity = target.vehicleId != null
     ? (target.core
       ? metroCoreFollowRecord({ core: true, systemId: target.systemId, lineId: target.ln.id, vehicleId: target.vehicleId }, Date.now() / 1000)
       : trtcOfficialFollowRecord({ lineId: target.ln.id, vehicleId: target.vehicleId }, Date.now() / 1000))
     : true;
   if (target.vehicleId != null && !identity) {
-    showToast('這列車已離開官方即時名冊'); return false;
+    showToast(t('這列車已離開官方即時名冊')); return false;
   }
   if (state.followTrain) clearFollow(); // 全台同框:與台鐵/高鐵跟隨互斥(此刻 freqFollow 尚未設,級聯清不到自己)
   state.geoFollow = false; // 車輛跟隨接管鏡頭；GPS 藍點仍在前景持續更新
@@ -9605,8 +9620,8 @@ function updateFreqFollowCamera(immediate) {
     if (!rec) {
       const core = !!f.core;
       clearFreqFollow();
-      showToast(core ? '這台車已超過 30 秒不在即時模型中，已結束跟隨'
-        : '官方名冊已更新，已結束這台車的跟隨');
+      showToast(t(core ? '這台車已超過 30 秒不在即時模型中，已結束跟隨'
+        : '官方名冊已更新，已結束這台車的跟隨'));
       return;
     }
     const info = f.core ? metroCoreVehicleInfo(rec)
@@ -11535,7 +11550,7 @@ function userDataSaveCollection(kind, values) {
 }
 function userDataMergeEnvelopes(localRaw, remoteRaw) {
   const incoming = userDataNormalizeEnvelope(remoteRaw), local = userDataNormalizeEnvelope(localRaw);
-  if (!incoming || !local) throw new Error('不支援的軌島資料格式');
+  if (!incoming || !local) throw new Error(t('不支援的軌島資料格式'));
   const at = userDataNow();
   USER_DATA_COLLECTIONS.forEach(kind => {
     const items = new Map(), tomb = new Map();
@@ -11554,7 +11569,7 @@ function userDataMergeEnvelopes(localRaw, remoteRaw) {
 }
 function userDataMerge(remote) {
   const merged = userDataMergeEnvelopes(userDataRead(), remote);
-  if (!userDataWrite(merged)) throw new Error('瀏覽器儲存空間不足，無法合併資料');
+  if (!userDataWrite(merged)) throw new Error(t('瀏覽器儲存空間不足，無法合併資料'));
   userDataNotify('remote');
   return userDataJsonClone(merged);
 }
@@ -11578,8 +11593,8 @@ function takeoutLoadFflate() {
   takeoutLoadFflate._p = new Promise((resolve, reject) => {
     const s = document.createElement('script');
     s.src = TAKEOUT_FFLATE_URL; s.integrity = TAKEOUT_FFLATE_SRI; s.crossOrigin = 'anonymous';
-    s.onload = () => window.fflate ? resolve(window.fflate) : reject(new Error('ZIP 解壓元件載入失敗'));
-    s.onerror = () => reject(new Error('無法載入 ZIP 解壓元件；可先解壓縮後改選 CSV 或 GeoJSON'));
+    s.onload = () => window.fflate ? resolve(window.fflate) : reject(new Error(t('ZIP 解壓元件載入失敗')));
+    s.onerror = () => reject(new Error(t('無法載入 ZIP 解壓元件；可先解壓縮後改選 CSV 或 GeoJSON')));
     document.head.appendChild(s);
   });
   return takeoutLoadFflate._p;
@@ -11622,7 +11637,7 @@ function takeoutCoordFromText(value) {
 }
 function takeoutInTaiwan(lat, lon) { return lat >= 20.5 && lat <= 26.7 && lon >= 118 && lon <= 123.8; }
 function takeoutEntry(raw, sourceFile, listName) {
-  const url = takeoutText(raw.url, 2000), title = takeoutText(raw.title || raw.name || '未命名地點', 200);
+  const url = takeoutText(raw.url, 2000), title = takeoutText(raw.title || raw.name || t('未命名地點'), 200);
   const coord = raw.coord || takeoutCoordFromText(url) || takeoutCoordFromText(raw.note);
   return {
     title, url, note: takeoutText(raw.note, 1000), list: takeoutText(raw.list || listName, 200),
@@ -11650,7 +11665,7 @@ function takeoutParseGeoJson(text, sourceFile) {
     const p = f && f.properties || {}, loc = p.Location || p.location || {};
     const c = f && f.geometry && f.geometry.type === 'Point' && Array.isArray(f.geometry.coordinates) ? f.geometry.coordinates : [];
     return takeoutEntry({
-      title: loc['Business Name'] || loc.name || p.name || p.title || p.Title || '地點 ' + (i + 1),
+      title: loc['Business Name'] || loc.name || p.name || p.title || p.Title || t('地點 {n}', { n: i18nNumber(i + 1) }, i + 1),
       url: p['Google Maps URL'] || p.url || p.URL || '',
       note: loc.Address || p.note || p.description || '',
       list: p.list || p.collection || sourceFile.split('/').pop().replace(/\.(?:json|geojson)$/i, ''),
@@ -11659,7 +11674,7 @@ function takeoutParseGeoJson(text, sourceFile) {
   });
 }
 function takeoutSplitEntries(entries, files) {
-  if (entries.length > TAKEOUT_MAX_ENTRIES) throw new Error(`清單超過 ${TAKEOUT_MAX_ENTRIES.toLocaleString()} 筆，請拆成較小檔案再匯入`);
+  if (entries.length > TAKEOUT_MAX_ENTRIES) throw new Error(t('清單超過 {n} 筆，請拆成較小檔案再匯入', { n: i18nNumber(TAKEOUT_MAX_ENTRIES) }));
   const resolved = [], incomplete = [], outside = [], seen = new Set();
   for (const item of entries) {
     if (!item.coord) { incomplete.push(item); continue; }
@@ -11671,9 +11686,9 @@ function takeoutSplitEntries(entries, files) {
   return { resolved, incomplete, outside, files };
 }
 async function takeoutParseFile(file) {
-  if (!file || typeof file.arrayBuffer !== 'function') throw new Error('沒有選擇可讀取的檔案');
+  if (!file || typeof file.arrayBuffer !== 'function') throw new Error(t('沒有選擇可讀取的檔案'));
   const name = String(file.name || 'takeout'), lower = name.toLowerCase();
-  if (Number(file.size) > TAKEOUT_MAX_ARCHIVE) throw new Error('檔案超過 25 MB，請在 Google Takeout 選擇較小的分卷大小');
+  if (Number(file.size) > TAKEOUT_MAX_ARCHIVE) throw new Error(t('檔案超過 25 MB，請在 Google Takeout 選擇較小的分卷大小'));
   const entries = [], files = [];
   const parseOne = (path, bytes) => {
     const low = path.toLowerCase(); if (!/\.(?:csv|json|geojson)$/.test(low)) return;
@@ -11686,19 +11701,19 @@ async function takeoutParseFile(file) {
     const unpacked = z.unzipSync(bytes, { filter: meta => {
       if (!/\.(?:csv|json|geojson)$/i.test(meta.name || '')) return false;
       accepted++; expanded += Number(meta.originalSize) || 0;
-      if (accepted > TAKEOUT_MAX_FILES) throw new Error(`壓縮檔內清單超過 ${TAKEOUT_MAX_FILES} 個，請拆開後分批匯入`);
-      if (expanded > TAKEOUT_MAX_EXPANDED) throw new Error('解壓後資料超過 80 MB，為保護手機記憶體已停止讀取');
+      if (accepted > TAKEOUT_MAX_FILES) throw new Error(t('壓縮檔內清單超過 {n} 個，請拆開後分批匯入', { n: i18nNumber(TAKEOUT_MAX_FILES) }));
+      if (expanded > TAKEOUT_MAX_EXPANDED) throw new Error(t('解壓後資料超過 80 MB，為保護手機記憶體已停止讀取'));
       return true;
     } });
     const actualExpanded = Object.values(unpacked).reduce((n, content) => n + content.byteLength, 0);
-    if (actualExpanded > TAKEOUT_MAX_EXPANDED) throw new Error('解壓後資料超過 80 MB，為保護手機記憶體已停止讀取');
+    if (actualExpanded > TAKEOUT_MAX_EXPANDED) throw new Error(t('解壓後資料超過 80 MB，為保護手機記憶體已停止讀取'));
     for (const [path, content] of Object.entries(unpacked)) parseOne(path, content);
   } else parseOne(name, bytes);
-  if (!files.length) throw new Error('找不到 CSV、JSON 或 GeoJSON 清單');
+  if (!files.length) throw new Error(t('找不到 CSV、JSON 或 GeoJSON 清單'));
   return takeoutSplitEntries(entries, files);
 }
 function takeoutApply(items) {
-  if (!Array.isArray(items)) throw new Error('沒有可匯入的地點');
+  if (!Array.isArray(items)) throw new Error(t('沒有可匯入的地點'));
   const pins = loadPins(), byId = new Map();
   for (const p of pins) byId.set(userDataItemId('pins', p), p);
   let added = 0, updated = 0, skipped = 0;
@@ -11714,7 +11729,7 @@ function takeoutApply(items) {
     else added++;
     byId.set(id, { ...byId.get(id), ...value });
   }
-  if (!savePins([...byId.values()])) throw new Error('裝置儲存空間不足，這批清單沒有寫入');
+  if (!savePins([...byId.values()])) throw new Error(t('裝置儲存空間不足，這批清單沒有寫入'));
   if (typeof renderSavedPins === 'function') renderSavedPins();
   return { added, updated, skipped, total: byId.size };
 }
@@ -11741,7 +11756,8 @@ function takeoutSafeHref(value, fallback) {
 }
 function takeoutSyncConfirm() {
   const b = document.getElementById('takeoutConfirm'); if (!b) return;
-  const n = takeoutSelectedCount(); b.disabled = n === 0; b.textContent = n ? `匯入 ${n} 個地點` : '匯入已勾選地點';
+  const n = takeoutSelectedCount(); b.disabled = n === 0;
+  b.textContent = n ? t('匯入 {n} 個地點', { n: i18nNumber(n) }, n) : t('匯入已勾選地點');
 }
 function takeoutRenderPreview() {
   const box = document.getElementById('takeoutPreview'), r = state.takeoutResult;
@@ -11753,30 +11769,30 @@ function takeoutRenderPreview() {
     else if (x.selected == null) x.selected = true;
   });
   const rowName = item => `<span class="name"><b>${escHtml(item.title)}</b><small>${escHtml(item.list || item.sourceFile || '')}</small></span>`;
-  let html = `<div class="takeout-summary"><span class="ok">可匯入 ${r.resolved.length}</span>` +
-    `<span class="warn">需定位 ${r.incomplete.length}</span><span>海外略過 ${r.outside.length}</span></div>`;
-  html += `<div class="takeout-more">跨裝置同步最多保存 ${USER_DATA_PIN_LIMIT} 個地點；超過時會保留既有收藏並略過多出的新地點。</div>`;
+  let html = `<div class="takeout-summary"><span class="ok">${escHtml(t('可匯入 {n}', { n: i18nNumber(r.resolved.length) }, r.resolved.length))}</span>` +
+    `<span class="warn">${escHtml(t('需定位 {n}', { n: i18nNumber(r.incomplete.length) }, r.incomplete.length))}</span><span>${escHtml(t('海外略過 {n}', { n: i18nNumber(r.outside.length) }, r.outside.length))}</span></div>`;
+  html += `<div class="takeout-more">${escHtml(t('跨裝置同步最多保存 {n} 個地點；超過時會保留既有收藏並略過多出的新地點。', { n: i18nNumber(USER_DATA_PIN_LIMIT) }, USER_DATA_PIN_LIMIT))}</div>`;
   if (shownResolved.length) {
     const unshownCount = r.resolved.length - shownResolved.length;
-    html += `<section class="takeout-sec"><h3>可匯入台灣地點</h3>` +
-      (unshownCount ? `<label class="takeout-bulk"><input class="takeout-include-unshown" type="checkbox" ${r.includeUnshown ? 'checked' : ''}><span><b>也匯入其餘 ${unshownCount} 個未預覽地點</b><small>為避免手機卡頓，這些地點不逐筆顯示；勾選後會全部納入。</small></span></label>` : '') + shownResolved.map((item, i) =>
+    html += `<section class="takeout-sec"><h3>${escHtml(t('可匯入台灣地點'))}</h3>` +
+      (unshownCount ? `<label class="takeout-bulk"><input class="takeout-include-unshown" type="checkbox" ${r.includeUnshown ? 'checked' : ''}><span><b>${escHtml(t('也匯入其餘 {n} 個未預覽地點', { n: i18nNumber(unshownCount) }, unshownCount))}</b><small>${escHtml(t('為避免手機卡頓，這些地點不逐筆顯示；勾選後會全部納入。'))}</small></span></label>` : '') + shownResolved.map((item, i) =>
       `<label class="takeout-row"><input class="takeout-check" type="checkbox" data-i="${i}" ${item.selected !== false ? 'checked' : ''}>${rowName(item)}` +
-      `<a href="${escHtml(takeoutSafeHref(item.url, `https://www.google.com/maps/search/?api=1&query=${item.coord.lat},${item.coord.lon}`))}" target="_blank" rel="noopener">查看</a></label>`).join('') +
-      (unshownCount ? `<div class="takeout-more">其餘 ${unshownCount} 筆預設不匯入；可用上方選項一次納入。</div>` : '') + `</section>`;
+      `<a href="${escHtml(takeoutSafeHref(item.url, `https://www.google.com/maps/search/?api=1&query=${item.coord.lat},${item.coord.lon}`))}" target="_blank" rel="noopener">${escHtml(t('查看'))}</a></label>`).join('') +
+      (unshownCount ? `<div class="takeout-more">${escHtml(t('其餘 {n} 筆預設不匯入；可用上方選項一次納入。', { n: i18nNumber(unshownCount) }, unshownCount))}</div>` : '') + `</section>`;
   }
   if (shownIncomplete.length) {
-    html += `<section class="takeout-sec"><h3>需要人工定位</h3>` + shownIncomplete.map((item, i) =>
-      `<div class="takeout-row"><span aria-hidden="true">?</span>${rowName(item)}<button class="takeout-locate" type="button" data-i="${i}">在地圖定位</button></div>`).join('') +
-      (r.incomplete.length > shownIncomplete.length ? `<div class="takeout-more">另有 ${r.incomplete.length - shownIncomplete.length} 筆未列出；可先完成這批再重新匯入。</div>` : '') + `</section>`;
+    html += `<section class="takeout-sec"><h3>${escHtml(t('需要人工定位'))}</h3>` + shownIncomplete.map((item, i) =>
+      `<div class="takeout-row"><span aria-hidden="true">?</span>${rowName(item)}<button class="takeout-locate" type="button" data-i="${i}">${escHtml(t('在地圖定位'))}</button></div>`).join('') +
+      (r.incomplete.length > shownIncomplete.length ? `<div class="takeout-more">${escHtml(t('另有 {n} 筆未列出；可先完成這批再重新匯入。', { n: i18nNumber(r.incomplete.length - shownIncomplete.length) }, r.incomplete.length - shownIncomplete.length))}</div>` : '') + `</section>`;
   }
-  if (!r.resolved.length && !r.incomplete.length) html += '<div class="takeout-more">這份檔案沒有可匯入的台灣地點。</div>';
+  if (!r.resolved.length && !r.incomplete.length) html += `<div class="takeout-more">${escHtml(t('這份檔案沒有可匯入的台灣地點。'))}</div>`;
   box.innerHTML = html; takeoutSyncConfirm();
 }
 function takeoutStartManual(index) {
   const r = state.takeoutResult, item = r && r.incomplete[index]; if (!item) return;
   state.takeoutPick = { item, index };
   takeoutClose();
-  showToast(`請在地圖上點「${escHtml(item.title)}」的正確位置；點下後會回到確認畫面`);
+  showToast(t('請在地圖上點「{name}」的正確位置；點下後會回到確認畫面', { name: escHtml(item.title) }));
 }
 function setupTakeoutUi() {
   const btn = document.getElementById('importBtn'), modal = document.getElementById('takeoutModal');
@@ -11796,14 +11812,14 @@ function setupTakeoutUi() {
   document.getElementById('takeoutFile').onchange = async e => {
     const file = e.target.files && e.target.files[0], status = document.getElementById('takeoutStatus');
     if (!file) return;
-    status.className = 'takeout-status'; status.textContent = '正在裝置內讀取與解析…';
+    status.className = 'takeout-status'; status.textContent = t('正在裝置內讀取與解析…');
     document.getElementById('takeoutPreview').innerHTML = ''; document.getElementById('takeoutConfirm').disabled = true;
     try {
       state.takeoutResult = await takeoutParseFile(file);
-      status.textContent = `已讀取 ${state.takeoutResult.files.length} 個清單檔案，請確認後再匯入。`;
+      status.textContent = t('已讀取 {n} 個清單檔案，請確認後再匯入。', { n: i18nNumber(state.takeoutResult.files.length) }, state.takeoutResult.files.length);
       takeoutRenderPreview();
     } catch (err) {
-      state.takeoutResult = null; status.className = 'takeout-status err'; status.textContent = err.message || '無法讀取這份檔案'; takeoutRenderPreview();
+      state.takeoutResult = null; status.className = 'takeout-status err'; status.textContent = t(err.message || '無法讀取這份檔案'); takeoutRenderPreview();
     }
   };
   document.getElementById('takeoutPreview').onchange = e => {
@@ -11824,10 +11840,14 @@ function setupTakeoutUi() {
     const items = state.takeoutResult ? state.takeoutResult.resolved.filter(x => x.selected === true) : [];
     try {
       const out = takeoutApply(items); takeoutClose();
-      showToast(`已匯入 ${out.added} 個新地點${out.updated ? `，更新 ${out.updated} 個既有地點` : ''}${out.skipped ? `；${out.skipped} 個因收藏已滿略過` : ''}`);
+      showToast(t('已匯入 {n} 個新地點{updated}{skipped}', {
+        n: i18nNumber(out.added),
+        updated: out.updated ? t('，更新 {n} 個既有地點', { n: i18nNumber(out.updated) }, out.updated) : '',
+        skipped: out.skipped ? t('；{n} 個因收藏已滿略過', { n: i18nNumber(out.skipped) }, out.skipped) : '',
+      }, out.added));
     } catch (err) {
       const status = document.getElementById('takeoutStatus');
-      status.className = 'takeout-status err'; status.textContent = err.message || '無法保存這批清單';
+      status.className = 'takeout-status err'; status.textContent = t(err.message || '無法保存這批清單');
     }
   };
 }
@@ -11859,11 +11879,11 @@ function accountClose() {
   const modal = document.getElementById('accountModal'); if (!modal) return;
   modal.hidden = true; document.body.classList.remove('account-open'); state.plusPending = null;
 }
-function accountDisplayName(user) { return (user && (user.displayName || user.email)) || '軌島使用者'; }
+function accountDisplayName(user) { return (user && (user.displayName || user.email)) || t('軌島使用者'); }
 function accountRender() {
   const body = document.getElementById('accountBody'), a = state.account; if (!body || !a) return;
-  if (a.error) body.innerHTML = `<p class="account-intro">登入與同步目前無法使用。</p><div class="account-error">${escHtml(a.error)}</div>`;
-  else if (!a.ready) body.innerHTML = '<p class="account-intro">正在讀取登入狀態…</p>';
+  if (a.error) body.innerHTML = `<p class="account-intro">${escHtml(t('登入與同步目前無法使用。'))}</p><div class="account-error">${escHtml(a.error)}</div>`;
+  else if (!a.ready) body.innerHTML = `<p class="account-intro">${escHtml(t('正在讀取登入狀態…'))}</p>`;
   else if (!a.user) body.innerHTML =
     // 🔴 2026-08-04 批二-D(整合稽核 I-5):原本這句無條件承諾「訪客資料會在首次登入時合併進帳號」——
     // 但 userDataMigrateAccountPartition() 只在「這台裝置沒登入過其他帳號,或上一個登入的正是這個
@@ -11876,32 +11896,32 @@ function accountRender() {
     // 收藏會被帶進重新註冊的新帳號)。那時「先前登入過別的帳號」為真、資料卻確實會併入 ⇒ 用登入史
     // 描述就是一句不實陳述(方向雖安全——說不併卻併了、資料從不遺失——但仍是說謊)。真正決定行為的
     // 是「這台裝置現在還記不記得別的帳號」,照它寫,兩條路徑就都成立。
-    `<p class="account-intro">登入後會同步「最愛地點、最愛車站、最愛列車、完乘紀錄」。主題、音量與省電等裝置偏好不會同步。若這台裝置沒有記著別的帳號，首次登入時會把裝置上的訪客資料併入帳號；若這台裝置還記著上一個登入的別的帳號，訪客資料不會自動併入，但仍留在裝置上，不會遺失。</p>` +
-    `<div class="account-login"><button type="button" data-login="google">使用 Google 登入</button>${window.RAIL_APPLE_LOGIN === true ? '<button class="apple" type="button" data-login="apple">使用 Apple 登入</button>' : ''}</div>` +
+    `<p class="account-intro">${escHtml(t('登入後會同步「最愛地點、最愛車站、最愛列車、完乘紀錄」。主題、音量與省電等裝置偏好不會同步。若這台裝置沒有記著別的帳號，首次登入時會把裝置上的訪客資料併入帳號；若這台裝置還記著上一個登入的別的帳號，訪客資料不會自動併入，但仍留在裝置上，不會遺失。'))}</p>` +
+    `<div class="account-login"><button type="button" data-login="google">${escHtml(t('使用 Google 登入'))}</button>${window.RAIL_APPLE_LOGIN === true ? `<button class="apple" type="button" data-login="apple">${escHtml(t('使用 Apple 登入'))}</button>` : ''}</div>` +
     // 不想登入的人要回得去 Plus 面板(這張畫面常常是從 Plus 面板的登入 CTA 過來的)。
     // 只在沒有購買通道的平台畫:有購買通道的平台 plusOpen() 未登入時本來就會把人送回這張登入畫面,畫了等於原地打轉。
-    (plusProjectConfigured() && !plusConfigured() ? `<div class="account-user-actions"><button class="wide" type="button" data-action="plus">先看看軌島通行證有什麼</button></div>` : '') +
-    `<div class="account-note">Google 登入只用於軌島帳號，不會因此取得 Google Maps 已儲存清單；清單匯入仍需使用 Google Takeout。</div>`;
+    (plusProjectConfigured() && !plusConfigured() ? `<div class="account-user-actions"><button class="wide" type="button" data-action="plus">${escHtml(t('先看看軌島通行證有什麼'))}</button></div>` : '') +
+    `<div class="account-note">${escHtml(t('Google 登入只用於軌島帳號，不會因此取得 Google Maps 已儲存清單；清單匯入仍需使用 Google Takeout。'))}</div>`;
   else {
     const u = a.user, photo = takeoutSafeHref(u.photoURL, '');
     const avatar = photo ? `<img src="${escHtml(photo)}" alt="">` : escHtml(accountDisplayName(u).slice(0, 1).toUpperCase());
     const subscribed = plusIsActive();
-    const sync = !subscribed ? '訂閱軌島通行證才會同步' : (a.syncing ? '正在合併這台裝置與雲端資料…' : (a.lastSync ? `上次同步：${new Date(a.lastSync).toLocaleString('zh-TW')}` : '尚未完成第一次同步'));
-    const plus = subscribed ? '訂閱中' : '未訂閱';
+    const sync = !subscribed ? t('訂閱軌島通行證才會同步') : (a.syncing ? t('正在合併這台裝置與雲端資料…') : (a.lastSync ? t('上次同步：{time}', { time: new Date(a.lastSync).toLocaleString(I18N_LANG) }) : t('尚未完成第一次同步')));
+    const plus = t(subscribed ? '訂閱中' : '未訂閱');
     // Plus 狀態列與入口以 plusProjectConfigured()(整個 RevenueCat project 是否有 Plus)為準,而非
     // plusConfigured()(此平台能否發起付款)——讓網站即使沒設 Web Billing key 也能查看訂閱狀態與
     // 「請在 App 內訂閱」說明;真正發起付款仍受 plusConfigured() 控管(見 plusOpen 內的 plusRefresh 閘)。
-    body.innerHTML = `<div class="account-profile"><span class="account-avatar">${avatar}</span><span><b>${escHtml(accountDisplayName(u))}</b><small>${escHtml(u.email || 'Apple 隱藏電子郵件')}</small></span></div>` +
-      `<div class="account-syncbox"><b>跨裝置同步</b><span>${escHtml(sync)}</span></div>` +
-      (plusProjectConfigured() ? `<div class="account-syncbox"><b>軌島通行證</b><span>${plus}</span></div>` : '') +
-      `<div class="account-user-actions">${plusProjectConfigured() ? '<button class="wide" type="button" data-action="plus">查看通行證</button>' : ''}<button type="button" data-action="sync" ${(a.syncing || !subscribed) ? 'disabled' : ''}>立即同步</button><button type="button" data-action="logout">登出</button>` +
-      `<button class="wide danger" type="button" data-action="delete">刪除帳號與同步資料</button></div>` +
+    body.innerHTML = `<div class="account-profile"><span class="account-avatar">${avatar}</span><span><b>${escHtml(accountDisplayName(u))}</b><small>${escHtml(u.email || t('Apple 隱藏電子郵件'))}</small></span></div>` +
+      `<div class="account-syncbox"><b>${escHtml(t('跨裝置同步'))}</b><span>${escHtml(sync)}</span></div>` +
+      (plusProjectConfigured() ? `<div class="account-syncbox"><b>${escHtml(t('軌島通行證'))}</b><span>${escHtml(plus)}</span></div>` : '') +
+      `<div class="account-user-actions">${plusProjectConfigured() ? `<button class="wide" type="button" data-action="plus">${escHtml(t('查看通行證'))}</button>` : ''}<button type="button" data-action="sync" ${(a.syncing || !subscribed) ? 'disabled' : ''}>${escHtml(t('立即同步'))}</button><button type="button" data-action="logout">${escHtml(t('登出'))}</button>` +
+      `<button class="wide danger" type="button" data-action="delete">${escHtml(t('刪除帳號與同步資料'))}</button></div>` +
       (a.actionError ? `<div class="account-error">${escHtml(a.actionError)}</div>` : '') +
       // 2026-08-04 複審輪2 Important 4:登出已改成「只換身分、不動資料」(見 accountEndSession),
       // 這句原本寫「從這台裝置移除私人收藏」就不再準確。「下一個登入者看不到、不會被合併」仍然
       // 成立,但靠的是本機資料依 uid 分區＋陌生人判斷,不是靠銷毀。要真的清除裝置上的收藏只有
       // 刪除帳號一條路,文案直接把那個入口指出來。
-      `<div class="account-note">登出會先完成最後同步，再把畫面切回訪客狀態。你的收藏留在這台裝置上，同一個帳號登入就會回來；換別人登入看不到，也不會被合併。要一併清除這台裝置上的收藏，請用下方的「刪除帳號與同步資料」。</div>`;
+      `<div class="account-note">${escHtml(t('登出會先完成最後同步，再把畫面切回訪客狀態。你的收藏留在這台裝置上，同一個帳號登入就會回來；換別人登入看不到，也不會被合併。要一併清除這台裝置上的收藏，請用下方的「刪除帳號與同步資料」。'))}</div>`;
   }
 }
 function accountCloudEnvelope(docs) {
@@ -12011,7 +12031,7 @@ async function accountSyncTxn(reason, myGen, myUid, retried) {
     // 路徑搶先清空)就丟棄這次結果,不寫回本機——這是修復「前一帳號快照寫回、污染下一帳號」的
     // 關鍵一步,見本函式呼叫端 accountSyncNow 頂端的說明。
     if (a.gen !== myGen || !a.user || a.user.uid !== myUid) return false;
-    if (!userDataWrite(merged, myUid)) throw new Error('瀏覽器儲存空間不足，無法保存同步結果');
+    if (!userDataWrite(merged, myUid)) throw new Error(t('瀏覽器儲存空間不足，無法保存同步結果'));
     userDataNotify('remote');
     a.lastSync = Date.now();
     try { localStorage.setItem('trainmap-last-sync-uid', myUid); } catch (e) {}
@@ -12067,7 +12087,7 @@ function accountScheduleSync() {
 }
 function accountNativeCredential(providerName, result) {
   const a = state.account, c = result && result.credential;
-  if (!a || !c || !c.idToken) throw new Error('原生登入沒有回傳可驗證的 ID token');
+  if (!a || !c || !c.idToken) throw new Error(t('原生登入沒有回傳可驗證的 ID token'));
   if (providerName === 'apple') {
     const provider = new a.fb.OAuthProvider('apple.com');
     return provider.credential({ idToken: c.idToken, rawNonce: c.nonce || undefined });
@@ -12178,7 +12198,7 @@ async function accountDeleteServerData(user) {
     headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' },
     body: JSON.stringify({ actor: bountyActor() }),
   });
-  if (!r.ok) throw new Error('無法刪除伺服器上的帳號資料，請稍後再試；目前帳號尚未刪除');
+  if (!r.ok) throw new Error(t('無法刪除伺服器上的帳號資料，請稍後再試；目前帳號尚未刪除'));
 }
 async function accountDelete() {
   const a = state.account, u = a && a.user; if (!a || !u) return;
@@ -12215,14 +12235,14 @@ async function accountDelete() {
     if (providerId === 'apple.com') {
       if (appleNativeCredential && window.RAIL_NATIVE_AUTH.revokeApple) await window.RAIL_NATIVE_AUTH.revokeApple(appleNativeCredential);
       else if (appleAccessToken && a.fb.revokeAccessToken) await a.fb.revokeAccessToken(a.auth, appleAccessToken);
-      else throw new Error('Apple 重新登入沒有回傳可撤銷的授權憑證');
+      else throw new Error(t('Apple 重新登入沒有回傳可撤銷的授權憑證'));
     }
     await accountDeleteServerData(u);
     for (const collection of ['users', 'sandboxUsers']) {
       for (const kind of USER_DATA_COLLECTIONS) await a.fb.deleteDoc(a.fb.doc(a.db, collection, u.uid, 'data', kind));
     }
-    await a.fb.deleteUser(u); accountClearLocal(u.uid); accountClose(); showToast('軌島帳號與同步資料已刪除');
-  } catch (e) { a.actionError = '刪除失敗：' + (e && e.message ? e.message : String(e)); accountRender(); }
+    await a.fb.deleteUser(u); accountClearLocal(u.uid); accountClose(); showToast(t('軌島帳號與同步資料已刪除'));
+  } catch (e) { a.actionError = t('刪除失敗：{error}', { error: e && e.message ? e.message : String(e) }); accountRender(); }
   finally { a.syncSuspended = false; }
 }
 // 帳號系統延遲初始化:免費層匿名(不載 Firebase、不建 state.account),只有需要登入時(購買 Plus,或
@@ -12339,9 +12359,9 @@ function accountBtnSlot(mode) {
   const plus = mode === 'plus';
   if (btn) {
     const ti = btn.querySelector('.ti'), tl = btn.querySelector('.tl');
-    if (ti) ti.textContent = plus ? '＋' : '帳';
-    if (tl) tl.textContent = plus ? '通行證' : '帳號';
-    btn.title = plus ? '軌島通行證：訂閱內容與登入同步' : '登入與跨裝置同步';
+    if (ti) ti.textContent = plus ? '＋' : t('帳');
+    if (tl) tl.textContent = t(plus ? '通行證' : '帳號');
+    btn.title = t(plus ? '軌島通行證：訂閱內容與登入同步' : '登入與跨裝置同步');
     btn.onclick = plus ? () => plusOpen('toolbar') : accountOpen;
     btn.style.display = '';
   }
@@ -12350,7 +12370,7 @@ function accountBtnSlot(mode) {
   // (#accountBtn)重算這一格。所以驗「使用者看不看得到那一列」要在抽屜打開之後量,不能量這一格。
   const row = document.querySelector('.ms-row[data-proxy="accountBtn"]');
   if (row) {
-    const label = row.querySelector('span'); if (label) label.textContent = plus ? '軌島通行證' : '帳號同步';
+    const label = row.querySelector('span'); if (label) label.textContent = t(plus ? '軌島通行證' : '帳號同步');
     row.style.display = '';
   }
 }
@@ -12747,7 +12767,7 @@ function plusFinishPending() {
 }
 function plusRender() {
   const body = document.getElementById('plusBody'), p = state.plus; if (!body || !p) return;
-  const hero = `<div class="plus-hero"><span class="plus-mark">票</span><h3>${escHtml(t('軌島通行證'))}</h3><p>${escHtml(t('選一張適合你的票，開啟進階功能，也支持軌島繼續運轉。'))}</p></div>`;
+  const hero = `<div class="plus-hero"><span class="plus-mark">${escHtml(t('票'))}</span><h3>${escHtml(t('軌島通行證'))}</h3><p>${escHtml(t('選一張適合你的票，開啟進階功能，也支持軌島繼續運轉。'))}</p></div>`;
   // Plus 功能清單。技術契約:清單與資格判定必須一致——每一項都要對映到一個真的資格判定,
   // 由 verify_plus_features.mjs 機械稽核(見該檔 REQUIRED 對映表)。價格一律取自商店回傳,
   // 此處不列任何價格。① 的措辭只涵蓋 /api/delay-history(90 天逐日,有 Plus 閘門)獨有的部分——
@@ -12974,7 +12994,7 @@ async function plusRestore() {
     // 沒有成功提示、afterUnlock 不觸發,而 refresh／purchase／restore 共用的 p.loading 全鎖死。
     // 改成 fire-and-forget:成功提示與解鎖立刻發生,落地了再補同步。
     plusReconcileEntitlement().then(ok => { if (ok) accountSyncNow('entitlement'); }).catch(() => {});
-      if (!plusFinishPending()) { plusClose(); showToast('已恢復通行證資格'); }
+      if (!plusFinishPending()) { plusClose(); showToast(t('已恢復通行證資格')); }
     } else p.error = t('這個帳號目前沒有可恢復的通行證資格。');
   } catch (e) { p.error = t('無法恢復訂閱：{error}', { error: e && e.message ? e.message : String(e) }); }
   finally { p.loading = false; plusRender(); }
@@ -15233,7 +15253,7 @@ function setMusicEnabled(on) {
 const LIVE_REPLAY_FROM = 45 * 60, LIVE_REPLAY_TO = 5 * 3600 + 15 * 60; // 深夜重播時段 00:45–05:15
 function initLive() {
   if (state._liveMapOverride) { state.mapDark = state._liveMapOverride === 'dark'; state.basemap = state._liveMapOverride === 'sat' ? 'sat' : 'map'; setBasemap(); } // &map= 固定底圖
-  try { map.attributionControl.addAttribution('資料: 交通部TDX'); } catch (e) {} // 底圖字樣外補資料來源
+  try { map.attributionControl.addAttribution('資料: 交通部TDX'); i18nTranslateTree(map.attributionControl.getContainer()); } catch (e) {} // 底圖字樣外補資料來源
   document.getElementById('liveHud').hidden = false;
   const go = () => {
     if (!state.ready || !state.trains.length) { setTimeout(go, 500); return; } // 等資料載完列車出現,不空畫面巡航
@@ -15298,7 +15318,7 @@ function advanceDirectorBasemap() {
 }
 function initDirector() {
   if (state._liveMapOverride) { state.mapDark = state._liveMapOverride === 'dark'; state.basemap = state._liveMapOverride === 'sat' ? 'sat' : 'map'; setBasemap(); } // &map= 固定底圖,停用自動輪替(見 fadeSwitch)
-  try { map.attributionControl.addAttribution('資料: 交通部TDX'); } catch (e) {}
+  try { map.attributionControl.addAttribution('資料: 交通部TDX'); i18nTranslateTree(map.attributionControl.getContainer()); } catch (e) {}
   document.getElementById('liveHud').hidden = false;
   const go = () => {
     if (!state.ready || !state.trains.length) { setTimeout(go, 500); return; }
@@ -15388,7 +15408,7 @@ function paintFreeSeat(tr) {
   const onSet = new Set(cars);
   document.getElementById('fsCars').innerHTML = Array.from({ length: total }, (_, i) => i + 1)
     .map(n => `<i class="fs-box${onSet.has(n) ? ' on' : ''}"></i>`).join('');
-  document.getElementById('fsText').textContent = `自由座 ${fsRangeText(cars)} 車`;
+  document.getElementById('fsText').textContent = t('自由座 {cars} 車', { cars: fsRangeText(cars) });
   box.hidden = false;
 }
 // 只有高鐵才有「自由座」概念(台鐵/林鐵/捷運都沒有,isHSR 把關——這個專案的跨系統撞號坑已踩過
@@ -15409,6 +15429,17 @@ function renderFreeSeat(tr) {
 // 前端只用「時刻表系統＋正規化站名」接回同系統 anchor，座標只作同名歧義／來源漂移的上界檢查。
 const TRANSFER_SCHED_SYSTEM = { tra_sched: 'TRA', thsr_sched: 'THSR', afr_sched: 'AFR' };
 const TRANSFER_ROUTE_FALLBACK = { 'THSR:THSR': '高鐵', 'SANYING:LB': '三鶯線' };
+// 共站表採 TDX/營運機構代碼，站名翻譯索引則沿用 app 的系統 id；集中在這裡轉接，
+// 避免每個看板各自猜路線所屬。沒有對應表時 routeName 仍會走一般字典與繁中 fallback。
+const TRANSFER_ROUTE_I18N_SYSTEM = {
+  AFR: 'afr_sched', KLRT: 'krtc', KRTC: 'krtc', NTALRT: 'ntalrt', NTDLRT: 'ntdlrt',
+  NTMC: 'mrt', SANYING: 'sanying', THSR: 'thsr_sched', TMRT: 'tmrt', TRA: 'tra_sched',
+  TRTC: 'mrt', TYMC: 'tymc'
+};
+function transferRouteLabel(route) {
+  const source = (route && route.label) || '';
+  return routeName(source, TRANSFER_ROUTE_I18N_SYSTEM[route && route.system]);
+}
 function transferStationName(name) {
   return String(name || '').normalize('NFKC').replace(/臺/g, '台').replace(/^(高鐵|台鐵)/, '')
     .replace(/火車站$/, '').replace(/車站$/, '').replace(/站$/, '').trim();
@@ -15480,7 +15511,7 @@ function transferRoutesForStop(tr, stop) {
     const route = data.routes && data.routes[routeKey];
     if (!route || currentRoutes.has(routeKey)) continue;
     const label = route.name || TRANSFER_ROUTE_FALLBACK[routeKey] || route.lineId;
-    if (label && !out.some(item => item.key === routeKey)) out.push({ key: routeKey, label });
+    if (label && !out.some(item => item.key === routeKey)) out.push({ key: routeKey, label, system: route.system });
   }
   return out;
 }
@@ -15513,7 +15544,7 @@ function transferRoutesAt(anchor, skip) {
     const route = data.routes && data.routes[routeKey];
     if (!route || skip(routeKey, route, station)) continue;
     const label = route.name || TRANSFER_ROUTE_FALLBACK[routeKey] || route.lineId;
-    if (label && !out.some(item => item.key === routeKey)) out.push({ key: routeKey, label });
+    if (label && !out.some(item => item.key === routeKey)) out.push({ key: routeKey, label, system: route.system });
   }
   return out;
 }
@@ -15552,7 +15583,7 @@ function transferRoutesForMetro(ln, stop) {
 function transferMetaHtml(st) {
   const routes = transferRoutesAtStation(st);
   if (!routes.length) return '';
-  return `<div class="xfer"><span class="k">${escHtml(t('可轉乘'))}</span>${escHtml(routes.map(r => r.label).join('、'))}</div>`;
+  return `<div class="xfer"><span class="k">${escHtml(t('可轉乘'))}</span>${escHtml(routes.map(transferRouteLabel).join(t('、')))}</div>`;
 }
 // 跟隨/搭乘卡「下一站」後面的小標。**列完整清單**,不收成「+N」——收起來就得靠點擊或 title 展開,
 // 而手機叫不出 title、紅框又沒有任何點擊回饋,使用者只會覺得「這東西點不動也看不懂」(v0810b 回報)。
@@ -15561,7 +15592,7 @@ function setTransferTag(id, routes) {
   const el = document.getElementById(id);
   if (!el) return;
   if (!routes || !routes.length) { el.hidden = true; el.textContent = ''; return; }
-  el.textContent = t('轉 {routes}', { routes: routes.map(r => r.label).join('、') });
+  el.textContent = t('轉 {routes}', { routes: routes.map(transferRouteLabel).join(t('、')) });
   el.hidden = false;
 }
 
@@ -15867,9 +15898,9 @@ function myTrainRow(f, rankedSet) {
   const s = (state.delayStats || {})[no] || {};
   const fmt1 = v => (v == null ? '?' : (Number.isInteger(v) ? String(v) : v.toFixed(1)));
   const mTxt = fmt1(s.m), aTxt = fmt1(s.a), dTxt = s.d != null ? s.d : '?';
-  const rankTag = rankedSet.has(no) ? '<span class="okTag">上榜</span>' : '';
-  return `<div class="row myt" data-no="${escHtml(no)}" title="查看 ${escHtml(no)} 次誤點履歷・近30天最糟單日全程誤點 ${mTxt} 分、平均 ${aTxt} 分、${dTxt} 天有紀錄"><span class="dot" style="background:var(--gold)"></span>` +
-    `<b>${escHtml(no)}次</b><span class="dest">${escHtml(f.label || '')}・最糟${mTxt}分・平均${aTxt}分・${dTxt}天</span>${rankTag}</div>`;
+  const rankTag = rankedSet.has(no) ? `<span class="okTag">${escHtml(t('上榜'))}</span>` : '';
+  return `<div class="row myt" data-no="${escHtml(no)}" title="${escHtml(t('查看 {train} 次誤點履歷・近 30 天最糟單日全程誤點 {worst} 分、平均 {average} 分、{days} 天有紀錄', { train: no, worst: mTxt, average: aTxt, days: dTxt }))}"><span class="dot" style="background:var(--gold)"></span>` +
+    `<b>${escHtml(t('{train}次', { train: no }))}</b><span class="dest">${escHtml(favTrainLabel(f))}・${escHtml(t('最糟{worst}分・平均{average}分・{days}天', { worst: mTxt, average: aTxt, days: dTxt }))}</span>${rankTag}</div>`;
 }
 // 「我的車・準點」節本體(favPanel 新增;通行證專屬):收藏的台鐵列車集中看近30天準點,並標示是否上
 // 「準點排行」榜。PLUS_ENABLED 是網站暗啟動旗標(App 恆開、網站要 ?plus=1)——整節一起藏,比照
@@ -15879,19 +15910,19 @@ function myTrainSection() {
   if (!PLUS_ENABLED) return '';
   const favs = myTrainFavs();
   if (favs.length) ensureDelayStats(); // 保險觸發:favPanel 可能在沒跟過車、沒開過探索面板時就先開,比照 ensurePunctualData 同款寫法
-  const head = `<div class="sec">我的車・準點</div>`;
+  const head = `<div class="sec">${escHtml(t('我的車・準點'))}</div>`;
   if (!favs.length) {
-    return head + `<div class="sub">收藏台鐵列車後，這裡會集中列出它們近 30 天的準點表現，通行證訂閱者可完整比較——跟隨列車時點資訊卡的收藏鈕即可收藏。</div>`;
+    return head + `<div class="sub">${escHtml(t('收藏台鐵列車後，這裡會集中列出它們近 30 天的準點表現，通行證訂閱者可完整比較——跟隨列車時點資訊卡的收藏鈕即可收藏。'))}</div>`;
   }
   const rankedSet = new Set(punctualRanked().map(r => r.no));
   const rows = favs.map(f => myTrainRow(f, rankedSet)).join('');
   if (plusIsActive()) {
-    return head + `<div class="sub">收藏的台鐵列車，近 30 天準點表現一覽・點一列看 90 天履歷</div>` + rows;
+    return head + `<div class="sub">${escHtml(t('收藏的台鐵列車，近 30 天準點表現一覽・點一列看 90 天履歷'))}</div>` + rows;
   }
   return head +
     `<div class="myt-lock"><div class="myt-locked">${rows}</div>` +
-    `<div class="myt-cta"><div class="myt-cta-txt">訂閱通行證，集中比較收藏的 ${favs.length} 班台鐵車準點表現</div>` +
-    `<button class="myt-cta-btn" type="button" data-myt-cta="1">訂閱通行證解鎖我的車</button></div></div>`;
+    `<div class="myt-cta"><div class="myt-cta-txt">${escHtml(t('訂閱通行證，集中比較收藏的 {n} 班台鐵車準點表現', { n: i18nNumber(favs.length) }, favs.length))}</div>` +
+    `<button class="myt-cta-btn" type="button" data-myt-cta="1">${escHtml(t('訂閱通行證解鎖我的車'))}</button></div></div>`;
 }
 // 「我的車」列點擊:開既有 90 天誤點履歷卡(openDelayHist)。收藏的車不保證今天有開(findTrain 只在當日
 // 班表裡找),找不到就退而求其次組一個最小 tr 物件——openDelayHist 只讀 tr.sys/tr.train/tr.loop/
@@ -15957,7 +15988,7 @@ function gotoFavStationKey(key) {
   else if (f.sys === 'metro') st = state.deco ? { name: f.name, lat: f.lat, lon: f.lon, sys: 'deco', metroSysId: f.metroSysId } : null;
   else st = state.schedStations.find(s => s.name === f.name && s.sys === f.sys) || null; // 看板靠 name+sys 過濾班次,用活體站物件
   if (st) openBoard(st);
-  else showToast('目前的檢視沒有「' + escHtml(f.name) + '」，請切到含該站的分頁再點');
+  else showToast(t('目前的檢視沒有「{station}」，請切到含該站的分頁再點', { station: escHtml(stationName(f.name, f.metroSysId || f.sys)) }));
 }
 // 地圖上的最愛車站 ★ 記號:恆掛在收藏站點上(目前檢視載有該站才掛),點 ★ 直接開該站看板
 let favStMarks = [];
@@ -15992,17 +16023,24 @@ function renderFavs() {
   const favs = loadFavs();
   if (state.mode !== 'sched' || !favs.length) { box.hidden = true; box.innerHTML = ''; return; }
   box.hidden = false;
-  box.innerHTML = '<div class="lbl">我的最愛（點擊跟隨）</div>';
+  box.innerHTML = `<div class="lbl">${escHtml(t('我的最愛（點擊跟隨）'))}</div>`;
   favs.forEach(f => {
     const el = document.createElement('div');
     el.className = 'favchip';
-    el.innerHTML = `<b>${escHtml(f.train)}</b><span>${escHtml(f.label)}</span><span class="rm" title="移除">×</span>`;
+    el.innerHTML = `<b>${escHtml(f.train)}</b><span>${escHtml(favTrainLabel(f))}</span><span class="rm" title="${escHtml(t('移除'))}">×</span>`;
     el.onclick = e => {
       if (e.target.classList.contains('rm')) { removeFav(f.train, favTrainSys(f)); return; }
       followTrainNo(f.train, { sys: favTrainSys(f) });
     };
     box.appendChild(el);
   });
+}
+function favTrainLabel(f) {
+  const source = String(f && f.label || '');
+  const match = /^(.*?)　(.+?)→(.+)$/.exec(source);
+  if (!match) return t(source);
+  const sys = favTrainSys(f);
+  return `${t(match[1])}　${stationName(match[2], sys)}→${stationName(match[3], sys)}`;
 }
 // 地圖上的最愛面板(★ 鈕開關;與車站時刻板同位置,互斥開啟)
 function renderFavPanel() {
@@ -16011,17 +16049,17 @@ function renderFavPanel() {
   const favs = loadFavs(), stns = loadFavStations(), pins = loadPins();
   // 設計 3f:標題下面是**清點**(幾班車幾站幾個地點),不是操作說明——操作已經自己講清楚了
   // (整列可點、右欄星星按了就移除),說明留在使用說明中心。
-  const counts = [favs.length ? favs.length + ' 班車' : '', stns.length ? stns.length + ' 站' : '',
-    pins.length ? pins.length + ' 個地點' : ''].filter(Boolean).join(' · ');
+  const counts = [favs.length ? t('{n} 班車', { n: i18nNumber(favs.length) }, favs.length) : '', stns.length ? t('{n} 站', { n: i18nNumber(stns.length) }, stns.length) : '',
+    pins.length ? t('{n} 個地點', { n: i18nNumber(pins.length) }, pins.length) : ''].filter(Boolean).join(' · ');
   // 設計 3f:右欄一顆星就是唯一的移除入口(不做「編輯模式」)。星是**實心的**——它代表「已收藏」,
   // 按下去就取消。整顆是 44 觸控格(舊的 × 只有 4px 內距,實測連 20px 都不到)。
   // data-* 與類名逐字沿用,favPanel 的處理常式(closest('.rm') 讀 dataset)一行都不用改。
-  const rmStar = attrs => `<button type="button" class="rm" ${attrs} aria-label="移除收藏" title="移除收藏">` +
+  const rmStar = attrs => `<button type="button" class="rm" ${attrs} aria-label="${escHtml(t('移除收藏'))}" title="${escHtml(t('移除收藏'))}">` +
     railIcon('ui-favorite') + `</button>`;
-  el.innerHTML = `<h3>我的最愛<button class="close" id="favClose">×</button></h3>` +
+  el.innerHTML = `<h3>${escHtml(t('我的最愛'))}<button class="close" id="favClose" aria-label="${escHtml(t('關閉'))}">×</button></h3>` +
     (counts ? `<div class="sub">${counts}</div>` : '') +
     (stns.length
-      ? `<div class="sec">車站</div>` + stns.map(f => {
+      ? `<div class="sec">${escHtml(t('車站'))}</div>` + stns.map(f => {
           const key = escHtml(f.sys + '|' + f.name);
           // 下一班:台鐵/高鐵讀**看板同一份**計算(schedBoardRows);捷運/輕軌的到站時刻來自官方
           // 即時看板、不是班表,這裡不自己推一份 ⇒ **留白**(寧可不寫,也不寫一個可能不對的時間)。
@@ -16029,12 +16067,12 @@ function renderFavPanel() {
           const nx = (f.sys === 'tra_sched' || f.sys === 'thsr_sched') ? schedBoardRows({ name: f.name, sys: f.sys })[0] : null;
           const nxTxt = nx ? `下一班 ${fmtHM(nx.t % 86400)}${nx.off ? '（停駛）' : nx.dl > 0 ? ` +${nx.dl}` : ''}` : '';
           return `<div class="row fvst" data-stkey="${key}"><span class="ico"></span>` +
-            `<b>${escHtml(f.name)}</b><span class="dest">${escHtml(f.label)}</span>` +
+            `<b>${escHtml(stationName(f.name, f.metroSysId || f.sys))}</b><span class="dest">${escHtml(t(f.label))}</span>` +
             (nxTxt ? `<span class="min">${nxTxt}</span>` : '') + rmStar(`data-stkey="${key}"`) + `</div>`;
         }).join('')
       : '') +
     (favs.length
-      ? (stns.length ? `<div class="sec">列車</div>` : '') + favs.map(f => {
+      ? (stns.length ? `<div class="sec">${escHtml(t('列車'))}</div>` : '') + favs.map(f => {
           const no = escHtml(f.train);
           const sys = favTrainSys(f), reminderSys = sys === 'thsr_sched' ? 'thsr' : (sys === 'tra_sched' ? 'tra' : '');
           // 設計 3f:每列右側標它此刻在不在跑(與亮點面板同一支 trainStatusTxt,不另寫一套判斷)。
@@ -16042,27 +16080,27 @@ function renderFavPanel() {
           const tr = (state.trains || []).find(t => String(t.train) === String(f.train) && (t.sys || '') === sys);
           const stat = tr ? trainStatusTxt(tr) : '';
           return `<div class="row fv" data-no="${no}" data-sys="${escHtml(sys)}"><span class="dot" style="background:#d2a12a"></span>` +
-            `<b>${no}</b><span class="dest">${escHtml(f.label)}</span>` +
+            `<b>${no}</b><span class="dest">${escHtml(favTrainLabel(f))}</span>` +
             (stat ? `<span class="min">${stat}</span>` : '') +
-            (NOTIFY_LOCAL_ENABLED && findLocalReminderTrain(f.train, reminderSys) ? `<button class="fv-notify" type="button" data-notify-no="${no}" data-notify-sys="${reminderSys}" aria-label="管理到站提醒">${railIcon('ui-notify')}</button>` : '') +
+            (NOTIFY_LOCAL_ENABLED && findLocalReminderTrain(f.train, reminderSys) ? `<button class="fv-notify" type="button" data-notify-no="${no}" data-notify-sys="${reminderSys}" aria-label="${escHtml(t('管理到站提醒'))}">${railIcon('ui-notify')}</button>` : '') +
             rmStar(`data-no="${no}" data-sys="${escHtml(sys)}"`) + `</div>`;
         }).join('')
       : '') +
     myTrainSection() +
     (pins.length
       ? (() => { const defKey = defaultPlaceKey();
-          return `<div class="sec">地點</div>` + pins.map(p => {
+          return `<div class="sec">${escHtml(t('地點'))}</div>` + pins.map(p => {
             const key = Number(p.lat).toFixed(6) + ',' + Number(p.lon).toFixed(6);
             const isDef = defKey === key;
             return `<div class="row fvpin" data-pin="${key}"><span class="ico"></span>` +
-              `<b>${escHtml(p.label || '未命名地點')}</b>` +
-              `<button class="fv-default${isDef ? ' on' : ''}" type="button" data-defpin="${key}" title="${isDef ? '取消預設啟動地點' : '設為預設啟動地點（開啟時直接來這裡）'}">${isDef ? '預設' : '設為預設'}</button>` +
+              `<b>${escHtml(p.label || t('未命名地點'))}</b>` +
+              `<button class="fv-default${isDef ? ' on' : ''}" type="button" data-defpin="${key}" title="${escHtml(t(isDef ? '取消預設啟動地點' : '設為預設啟動地點（開啟時直接來這裡）'))}">${escHtml(t(isDef ? '預設' : '設為預設'))}</button>` +
               rmStar(`data-pin="${key}"`) + `</div>`;
           }).join('');
         })()
       : '') +
     (!favs.length && !stns.length && !pins.length
-      ? '<div class="empty">還沒有收藏——跟隨列車後點資訊卡的收藏鈕收藏列車；打開車站看板點收藏鈕收藏車站；用工具列「儲存」在地圖上存地點。</div>' : '');
+      ? `<div class="empty">${escHtml(t('還沒有收藏——跟隨列車後點資訊卡的收藏鈕收藏列車；打開車站看板點收藏鈕收藏車站；用工具列「儲存」在地圖上存地點。'))}</div>` : '');
   el.querySelector('#favClose').onclick = closeFavPanel;
 }
 function openFavPanel() {
@@ -16490,10 +16528,11 @@ function appUpdateOpenNotes(latest, title) {
   const wrap = document.createElement('div');
   wrap.className = 'takeout-modal';
   wrap.id = 'updNotes';
+  const sourceZh = I18N_LANG !== 'zh-TW' && /[\u3400-\u9fff]/.test(latest.notes || '');
   wrap.innerHTML = '<section class="takeout-dialog" role="dialog" aria-modal="true" aria-labelledby="updNotesTitle">'
-    + `<div class="takeout-head"><h2 id="updNotesTitle">${escHtml(title)}</h2>`
-    + '<button id="updNotesX" type="button" aria-label="關閉">×</button></div>'
-    + `<div class="takeout-body">${escHtml(latest.notes).replace(/\n/g, '<br>')}</div></section>`;
+    + `<div class="takeout-head"><h2 id="updNotesTitle">${escHtml(t(title))}</h2>`
+    + `<button id="updNotesX" type="button" aria-label="${escHtml(t('關閉'))}">×</button></div>`
+    + `<div class="takeout-body"${sourceZh ? ' data-source-lang="zh-TW"' : ''}>${sourceZh ? `<span class="source-lang">${escHtml(t('中文原文'))}</span>` : ''}${escHtml(latest.notes).replace(/\n/g, '<br>')}</div></section>`;
   document.body.appendChild(wrap);
   wrap.querySelector('#updNotesX').addEventListener('click', () => wrap.remove());
 }
@@ -16512,7 +16551,7 @@ function appUpdateRender(res) {
     // 指名標籤那顆 <span>,不用 firstElementChild:這一列尾端還有 .chev,而列形以後若再加東西
     // (2026-08-27 之前第一個元素是單字圓章,就踩過寫進錯的元素這件事)也不會寫錯地方。
     (row.querySelector('span:not(.chev)') || row).textContent = state.hasUpdate
-      ? `有新版可更新　${latest.v}` : `已是最新版　${window.RAIL_APP_VERSION}`;
+      ? t('有新版可更新　{version}', { version: latest.v }) : t('已是最新版　{version}', { version: window.RAIL_APP_VERSION });
     row.classList.toggle('warnrow', state.hasUpdate);
     // 沒新版時這列改當「看本版更新內容」的常駐入口(有內建文案才可點)——
     // 開機彈窗同版只出一次,之後想再看就從這裡。
@@ -16520,13 +16559,13 @@ function appUpdateRender(res) {
   }
   if (state.showBanner && latest) {
     const b = document.getElementById('updBanner');
-    b.innerHTML = `<span class="ub-title">軌島 ${escHtml(latest.v)} 已經上架</span>`
-      + '<button class="ub-act" id="updBannerNotes" type="button">看更新內容</button>'
-      + '<button class="ub-act" id="updBannerGo" type="button">前往更新</button>'
-      + '<button class="ub-close" id="updBannerClose" type="button" aria-label="關閉">×</button>';
+    b.innerHTML = `<span class="ub-title">${escHtml(t('軌島 {version} 已經上架', { version: latest.v }))}</span>`
+      + `<button class="ub-act" id="updBannerNotes" type="button">${escHtml(t('看更新內容'))}</button>`
+      + `<button class="ub-act" id="updBannerGo" type="button">${escHtml(t('前往更新'))}</button>`
+      + `<button class="ub-close" id="updBannerClose" type="button" aria-label="${escHtml(t('關閉'))}">×</button>`;
     b.hidden = false;
     b.querySelector('#updBannerNotes').addEventListener('click',
-      () => appUpdateOpenNotes(latest, `軌島 ${latest.v} 有什麼新的`));
+      () => appUpdateOpenNotes(latest, t('軌島 {version} 有什麼新的', { version: latest.v })));
     b.querySelector('#updBannerGo').addEventListener('click',
       () => window.open(latest.url, '_blank', 'noopener'));
     b.querySelector('#updBannerClose').addEventListener('click', () => {
@@ -16539,7 +16578,7 @@ function appUpdateRender(res) {
     // 🔴 一定用內建文案,不用 latest.notes——lookup 回的是【線上版】的 releaseNotes,
     //    剛裝的版比線上新時(每次送審前必然)那份是上一版的文。1.4.9 (74) 實踩:
     //    裝了 1.4.9 開機卻彈「軌島 1.4.8 更新了什麼」。
-    appUpdateOpenNotes({ notes: appWhatsNewText() }, `軌島 ${window.RAIL_APP_VERSION} 更新了什麼`);
+    appUpdateOpenNotes({ notes: appWhatsNewText() }, t('軌島 {version} 更新了什麼', { version: window.RAIL_APP_VERSION }));
     appverWrite(APPVER_KEYS.whatsnew, window.RAIL_APP_VERSION);
   }
 }
@@ -16658,15 +16697,15 @@ function showToast(msg, { wrap = false, corner = false } = {}) {
   setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 450); }, 5000);
 }
 function announceCollections(tr, rides, prevColl, prevAch) {
-  const msgs = [`完乘達成　<b>${escHtml(tr.train)} 次</b> 抵達終點`];
+  const msgs = [t('完乘達成　<b>{train} 次</b> 抵達終點', { train: escHtml(tr.train) })];
   const coll = collectionOf(rides), sd = state.special;
   if (sd) {
-    sd.namedTrains.forEach(n => { if (coll.named.has(n.id) && !prevColl.named.has(n.id)) msgs.push(`明星列車　<b>${escHtml(n.name)}</b> 蓋章！`); });
-    sd.rollingStock.forEach(s => { if (coll.stock.has(s.id) && !prevColl.stock.has(s.id)) msgs.push(`車種圖鑑　<b>${escHtml(s.name)}</b> 蓋章！`); });
-    sd.branchLines.forEach(b => { if (coll.branch.has(b.id) && !prevColl.branch.has(b.id)) msgs.push(`支線行腳　<b>${escHtml(b.name)}</b> 蓋章！`); });
+    sd.namedTrains.forEach(n => { if (coll.named.has(n.id) && !prevColl.named.has(n.id)) msgs.push(t('明星列車　<b>{name}</b> 蓋章！', { name: escHtml(i18nContentData('namedTrains', n, 'name')) })); });
+    sd.rollingStock.forEach(s => { if (coll.stock.has(s.id) && !prevColl.stock.has(s.id)) msgs.push(t('車種圖鑑　<b>{name}</b> 蓋章！', { name: escHtml(i18nContentData('rollingStock', s, 'name')) })); });
+    sd.branchLines.forEach(b => { if (coll.branch.has(b.id) && !prevColl.branch.has(b.id)) msgs.push(t('支線行腳　<b>{name}</b> 蓋章！', { name: escHtml(i18nContentData('branchLines', b, 'name')) })); });
   }
   const ach = unlockedAchievements(rides);
-  ACHIEVEMENTS.forEach(a => { if (ach.has(a.id) && !prevAch.has(a.id)) msgs.push(`成就解鎖　<b>${railIcon(a.icon, 'ri-toast-ic')} ${escHtml(a.name)}</b>`); });
+  ACHIEVEMENTS.forEach(a => { if (ach.has(a.id) && !prevAch.has(a.id)) msgs.push(t('成就解鎖　<b>{achievement}</b>', { achievement: `${railIcon(a.icon, 'ri-toast-ic')} ${escHtml(t(a.name))}` })); });
   msgs.forEach((m, i) => setTimeout(() => showToast(m), i * 700));
   // 等自己的「完乘達成 / 蓋章 / 成就解鎖」通知全部跑完再問,不跟它們搶畫面。
   maybeAskReview(msgs.length * 700 + 2000, rides.length);
@@ -16685,7 +16724,7 @@ function dexCandidates(cat, id) {
 // 點收集章:隨機挑一班該類的車(避開上次那班→每點必換),從發車跟一趟;完成過的章一樣能點來再看一班。
 function followDexStamp(cat, id) {
   const cands = dexCandidates(cat, id);
-  if (!cands.length) { showToast('今天沒有這一類的班次可搭'); return; }
+  if (!cands.length) { showToast(t('今天沒有這一類的班次可搭')); return; }
   state._dexLast = state._dexLast || {};
   const key = cat + ':' + id, last = state._dexLast[key];
   const pool = cands.length > 1 ? cands.filter(t => String(t.train) !== String(last)) : cands;
@@ -16963,15 +17002,20 @@ function writeCheckin(st, status, opts) {
 function doCheckin(st) {
   const j = checkinJudge(st);
   if (!j.ok) {
-    showToast(j.why === 'noloc' ? '還沒有你的位置,先按一次「附近車站」定位'
-      : `離「${st.name}」還有 ${Math.round(j.distM)} 公尺,走近一點再蓋(這站的範圍 ${j.r} 公尺)`);
+    showToast(j.why === 'noloc' ? t('還沒有你的位置，先按一次「附近車站」定位')
+      : t('離「{station}」還有 {distance} 公尺，走近一點再蓋（這站的範圍 {radius} 公尺）', {
+          station: escHtml(stationName(st.name, st.sys)), distance: i18nNumber(Math.round(j.distM)), radius: i18nNumber(j.r)
+        }));
     return false;
   }
   if (!writeCheckin(st, 'visit', { dayOnce: true, low: j.low })) {
-    showToast(`「${st.name}」今天已經蓋過章了`); return false;
+    showToast(t('「{station}」今天已經蓋過章了', { station: escHtml(stationName(st.name, st.sys)) })); return false;
   }
   const e = checkinEntry(st);
-  showToast(`蓋章成功 · ${st.name}${e && e.n > 1 ? `(第 ${escHtml(e.n)} 次)` : ''}`);
+  showToast(t('蓋章成功 · {station}{count}', {
+    station: escHtml(stationName(st.name, st.sys)),
+    count: e && e.n > 1 ? t('（第 {n} 次）', { n: i18nNumber(e.n) }, e.n) : ''
+  }));
   renderNearbyStations(); renderRidePanel(); renderPassport();
   return true;
 }
@@ -17162,9 +17206,9 @@ const ridingStObj = (tr, i) => ({ name: tr.stops[i].name, lat: tr.stops[i].lat, 
 function ridingBoardIdx(tr) { return Math.max(0, ridingArrivedIdx(tr, ridingNowSched(tr))); }
 function startRiding(tr, toIdx) {
   if (!tr || tr.loop) return false;
-  if (loadRiding()) { showToast('你已經在搭乘中了,先下車再上車'); return false; }
+  if (loadRiding()) { showToast(t('你已經在搭乘中了，先下車再上車')); return false; }
   const i0 = ridingBoardIdx(tr);
-  if (!(toIdx > i0 && toIdx < tr.stops.length)) { showToast('下車站要在上車站後面'); return false; }
+  if (!(toIdx > i0 && toIdx < tr.stops.length)) { showToast(t('下車站要在上車站後面')); return false; }
   // 上車站能定位就驗一下,驗過算「到訪」;沒定位或不在附近仍照收成「搭過」——
   // 判定寬鬆是刻意的(章是給自己的),嚴格的是要影響別人的眾包校正(批次 C)。
   const st = ridingStObj(tr, i0), j = checkinJudge(st);
@@ -17174,7 +17218,10 @@ function startRiding(tr, toIdx) {
     fromIdx: i0, fromName: st.name, toIdx, toName: tr.stops[toIdx].name,
     atIdx: i0, bv: j.ok ? 1 : 0, startedAt: Date.now(),
   });
-  showToast(`開始收集 · ${st.name} → ${tr.stops[toIdx].name}` + (j.ok ? '' : '(沒定到位置,上車站先算搭過)'));
+  showToast(t('開始收集 · {from} → {to}{note}', {
+    from: escHtml(stationName(st.name, tr.sys)), to: escHtml(stationName(tr.stops[toIdx].name, tr.sys)),
+    note: j.ok ? '' : t('（沒定到位置，上車站先算搭過）')
+  }));
   renderPassport(); renderRidePanel(); updateRideBtn(state.followTrain);
   return true;
 }
@@ -17191,7 +17238,8 @@ function ridingTick() {
   writeSegments(tr, r.atIdx, cur, r.bv === 1); // 站與站之間的那幾段路,同一趟一起記;bv=上車時定位驗過
   r.atIdx = cur; saveRiding(r);
   if (cur >= r.toIdx) { finishRiding(tr, r); return; }
-  pushFollowEvent('ride:st:' + names[names.length - 1], `${names.join('、')} 收進護照`, true);
+  pushFollowEvent('ride:st:' + names[names.length - 1],
+    () => t('{stations} 收進護照', { stations: names.map(name => stationName(name, tr.sys)).join(t('、')) }), true);
   renderPassport(); renderRidePanel();
 }
 function finishRiding(tr, r) {
@@ -17200,8 +17248,13 @@ function finishRiding(tr, r) {
   if (j.ok) writeCheckin(st, 'visit', { low: j.low, count: false });
   saveRiding(null);
   const n = r.toIdx - r.fromIdx + 1;
-  pushFollowEvent('ride:done:' + r.train, `${r.fromName} → ${st.name} 收集完成,${n} 座站進護照`, true);
-  showToast(`收集完成 · ${escHtml(r.fromName)} → ${st.name} 共 ${n} 座站`);
+  pushFollowEvent('ride:done:' + r.train,
+    () => t('{from} → {to} 收集完成，{n} 座站進護照', {
+      from: stationName(r.fromName, tr.sys), to: stationName(st.name, tr.sys), n: i18nNumber(n)
+    }, n), true);
+  showToast(t('收集完成 · {from} → {to} 共 {n} 座站', {
+    from: escHtml(stationName(r.fromName, tr.sys)), to: escHtml(stationName(st.name, tr.sys)), n: i18nNumber(n)
+  }, n));
   renderPassport(); renderRidePanel(); updateRideBtn(state.followTrain);
 }
 // 票券鈕三態:未上車(空心)/搭這班車中(實心紅,按了下車)/搭別班車中(灰虛線,擋住重複上車)
@@ -17217,11 +17270,11 @@ function updateRideBtn(tr) {
   if (box.dataset.open === '1') { btn.hidden = true; box.hidden = false; return; }
   box.hidden = true; btn.hidden = false;
   if (r && r.train === String(tr.train) && r.sys === tr.sys) {
-    btn.textContent = `我下車了 · 訂到 ${r.toName}`; btn.className = 'fp-ride on';
+    btn.textContent = t('我下車了 · 訂到 {station}', { station: stationName(r.toName, r.sys) }); btn.className = 'fp-ride on';
   } else if (r) {
-    btn.textContent = `搭乘中 · ${r.train} 次`; btn.className = 'fp-ride busy';
+    btn.textContent = t('搭乘中 · {train} 次', { train: r.train }); btn.className = 'fp-ride busy';
   } else {
-    btn.textContent = '我上車了'; btn.className = 'fp-ride';
+    btn.textContent = t('我上車了'); btn.className = 'fp-ride';
   }
 }
 // 選下車站:只列上車站之後、今天還沒過的停靠站
@@ -17230,8 +17283,8 @@ function openRideBox(tr) {
   if (!box || !sel || !tr) return;
   const i0 = ridingBoardIdx(tr);
   const opts = [];
-  for (let i = i0 + 1; i < tr.stops.length; i++) opts.push(`<option value="${i}">${escHtml(tr.stops[i].name)}</option>`);
-  if (!opts.length) { showToast('這班車已經到終點了'); return; }
+  for (let i = i0 + 1; i < tr.stops.length; i++) opts.push(`<option value="${i}">${escHtml(stationName(tr.stops[i].name, tr.sys))}</option>`);
+  if (!opts.length) { showToast(t('這班車已經到終點了')); return; }
   sel.innerHTML = opts.join('');
   sel.value = String(tr.stops.length - 1); // 預設終點:最常見的情境,想早下車再自己改
   box.dataset.open = '1';
@@ -19086,7 +19139,7 @@ function closeExplorePanel() {
 // ── 今日台鐵動態:全台鐵當日誤點排行＋每班車逐站歷程(todayBtn 開啟) ──
 // 不綁定當前分頁:一律直查 tra_sched 系統資料(state.trains 只有作用中分頁),站名/車種都用全域反查
 const TODAY_STATUS_TXT = { 0: '進站中', 1: '在站上', 2: '已離站' };
-function traStatusTxt(s) { return TODAY_STATUS_TXT[s] != null ? TODAY_STATUS_TXT[s] : String(s); } // 只認 0/1/2,其他碼顯示原樣不猜
+function traStatusTxt(s) { return TODAY_STATUS_TXT[s] != null ? t(TODAY_STATUS_TXT[s]) : String(s); } // 只認 0/1/2,其他碼顯示原樣不猜
 function traStnName(sid) { return (state.stnIdToName && state.stnIdToName[sid]) || sid; } // StationID→中文站名;查無回原碼
 // 站名 → stnInfoMap 的鍵。兩條規則:
 //  (a) 臺→台:stnInfoMap 的鍵一律用「台」(該檔自述),而班表兩種寫法混用
@@ -19146,30 +19199,30 @@ function ensureStationEvents(no) { // 點列展開才按需抓該車逐站;快�
     .catch(() => { state.stationEvents[no] = 'error'; })
     .finally(() => { if (state._todayOpen === no) renderTodayPanel(); }); // 仍展開著同一列才補畫
 }
-function todayDelayBadge(dl) { return dl >= 5 ? `<span class="td-badge hi">誤點 ${dl} 分</span>` : dl >= 1 ? `<span class="td-badge mid">誤點 ${dl} 分</span>` : `<span class="td-badge ok">準點</span>`; }
-function todayRow(t) { // 徽章＝目前(最新觀測)誤點;今天峰值已追回的部分淡化成「曾誤點」
-  const no = String(t.no), open = state._todayOpen === no;
-  const type = traTrainType(no), dm = t.delayMax || 0, dl = t.delay || 0;
-  const last = `${traStnName(t.sta)}·${traStatusTxt(t.status)} ${String(t.at).slice(11, 16)}`;
-  const past = dm > dl ? `<span class="td-past">曾誤點 ${dm} 分</span>` : '';
+function todayDelayBadge(dl) { return dl >= 5 ? `<span class="td-badge hi">${escHtml(t('誤點 {n} 分', { n: i18nNumber(dl) }, dl))}</span>` : dl >= 1 ? `<span class="td-badge mid">${escHtml(t('誤點 {n} 分', { n: i18nNumber(dl) }, dl))}</span>` : `<span class="td-badge ok">${escHtml(t('準點'))}</span>`; }
+function todayRow(item) { // 徽章＝目前(最新觀測)誤點;今天峰值已追回的部分淡化成「曾誤點」
+  const no = String(item.no), open = state._todayOpen === no;
+  const type = traTrainType(no), dm = item.delayMax || 0, dl = item.delay || 0;
+  const last = `${stationName(traStnName(item.sta), 'tra_sched')}·${traStatusTxt(item.status)} ${String(item.at).slice(11, 16)}`;
+  const past = dm > dl ? `<span class="td-past">${escHtml(t('曾誤點 {n} 分', { n: i18nNumber(dm) }, dm))}</span>` : '';
   const head = `<div class="row td-row${open ? ' open' : ''}" data-no="${no}">` +
-    `<b>${no}</b>` + (type ? `<span class="td-type">${type}</span>` : '') +
-    `<span class="td-last">${last}</span>${past}${todayDelayBadge(dl)}</div>`;
+    `<b>${no}</b>` + (type ? `<span class="td-type">${escHtml(trainTypeName(type))}</span>` : '') +
+    `<span class="td-last">${escHtml(last)}</span>${past}${todayDelayBadge(dl)}</div>`;
   return head + (open ? `<div class="td-detail">${renderTodayEvents(no)}</div>` : '');
 }
 function renderTodayEvents(no) {
   const ev = (state.stationEvents || {})[no];
-  if (ev == null || ev === 'loading') return `<div class="td-loading">載入逐站歷程…</div>`;
-  if (ev === 'error') return `<div class="td-fail">暫時讀不到，稍後再試。</div><button class="td-follow" data-events-retry="${no}">重新整理</button>`;
-  if (!ev.length) return `<div class="td-loading">尚無逐站記錄。</div>`;
+  if (ev == null || ev === 'loading') return `<div class="td-loading">${escHtml(t('載入逐站歷程…'))}</div>`;
+  if (ev === 'error') return `<div class="td-fail">${escHtml(t('暫時讀不到，稍後再試。'))}</div><button class="td-follow" data-events-retry="${no}">${escHtml(t('重新整理'))}</button>`;
+  if (!ev.length) return `<div class="td-loading">${escHtml(t('尚無逐站記錄。'))}</div>`;
   const rows = ev.map(e => {
     const dl = e.delay || 0, dm = e.delayMax || 0;
-    const dtxt = dl > 0 ? `誤點${dl}分` : '準點';
-    const peak = dm > dl ? `<span class="td-peak">峰值${dm}分</span>` : '';
+    const dtxt = dl > 0 ? t('誤點{n}分', { n: i18nNumber(dl) }, dl) : t('準點');
+    const peak = dm > dl ? `<span class="td-peak">${escHtml(t('峰值{n}分', { n: i18nNumber(dm) }, dm))}</span>` : '';
     return `<div class="td-ev"><span class="td-ev-t">${String(e.at).slice(11, 16)}</span>` +
-      `<span class="td-ev-st">${traStnName(e.sta)}</span>` +
-      `<span class="td-ev-stat">${traStatusTxt(e.status)}</span>` +
-      `<span class="td-ev-d${dl > 0 ? ' late' : ''}">${dtxt}</span>${peak}</div>`;
+      `<span class="td-ev-st">${escHtml(stationName(traStnName(e.sta), 'tra_sched'))}</span>` +
+      `<span class="td-ev-stat">${escHtml(traStatusTxt(e.status))}</span>` +
+      `<span class="td-ev-d${dl > 0 ? ' late' : ''}">${escHtml(dtxt)}</span>${peak}</div>`;
   }).join('');
   // 只有即時名單裡的車才給跟車鈕。只看資料鮮度,不用 liveActive()——它綁著「當前分頁是時刻表＋時間軸沒回看」
   // 的地圖徽章語意,切到捷運分頁或暫停/重播過就把鈕全滅;跟車動作本身會自行切系統,不需要那些前提。
@@ -19178,10 +19231,10 @@ function renderTodayEvents(no) {
   // 資料過期(含從未取得,liveDataAgeMs 回 Infinity)⇒ 整份清單一顆跟車鈕都不會有。
   // 這種時候必須說明「為什麼不見」:先前是靜默不渲染,使用者只會看到「點了沒反應」。
   if (age >= 1800e3) {
-    return rows + `<div class="td-nolive">台鐵即時資料中斷${lv && lv.srcAt ? `(停在 ${String(lv.srcAt).slice(11, 16)})` : ''},暫時無法從這裡跟車</div>`;
+    return rows + `<div class="td-nolive">${escHtml(t('台鐵即時資料中斷{stopped}，暫時無法從這裡跟車', { stopped: lv && lv.srcAt ? t('（停在 {time}）', { time: String(lv.srcAt).slice(11, 16) }) : '' }))}</div>`;
   }
   const live = lv && lv.map && lv.map.has(no); // 齡已在上面擋掉,這裡只判「這班車在即時名單裡」
-  return rows + (live ? `<button class="td-follow" data-follow="${no}">跟這班車 →</button>` : '');
+  return rows + (live ? `<button class="td-follow" data-follow="${no}">${escHtml(t('跟這班車 →'))}</button>` : '');
 }
 function renderTodayPanel() {
   const el = document.getElementById('todayPanel');
@@ -19191,20 +19244,20 @@ function renderTodayPanel() {
   if (!Array.isArray(rows)) {
     // 從未成功讀到資料:tried 且非重抓中才算「失敗態」,否則(從未試過/正重抓中)一律顯示載入中
     if (state._todayTried && !state._todayFetching) {
-      const lastOk = state._todayLastOkSec != null ? `<div class="td-fail-meta">上次成功更新 ${fmtHM(state._todayLastOkSec)}</div>` : '';
-      body = `<div class="td-fail">暫時讀不到，稍後再試。</div>${lastOk}<button class="td-follow" data-today-retry="1">重新整理</button>`;
+      const lastOk = state._todayLastOkSec != null ? `<div class="td-fail-meta">${escHtml(t('上次成功更新 {time}', { time: fmtHM(state._todayLastOkSec) }))}</div>` : '';
+      body = `<div class="td-fail">${escHtml(t('暫時讀不到，稍後再試。'))}</div>${lastOk}<button class="td-follow" data-today-retry="1">${escHtml(t('重新整理'))}</button>`;
     } else {
-      body = `<div class="empty">載入中…</div>`;
+      body = `<div class="empty">${escHtml(t('載入中…'))}</div>`;
     }
   } else if (!rows.length) {
-    body = `<div class="empty">今日資料累積中，清晨發車後陸續出現。</div>`;
+    body = `<div class="empty">${escHtml(t('今日資料累積中，清晨發車後陸續出現。'))}</div>`;
   } else {
     const n = rows.length, m = rows.filter(t => (t.delayMax || 0) >= 5).length, c = rows.filter(t => (t.delay || 0) >= 5).length;
     const sorted = rows.slice().sort((a, b) => ((b.delay || 0) - (a.delay || 0)) || ((b.delayMax || 0) - (a.delayMax || 0)) || todayCmpNo(a.no, b.no)); // 目前誤點優先,同分再比今天峰值
-    body = `<div class="sub">今日已觀測 ${n} 班・誤點≥5分：目前 ${c} 班・今天曾有 ${m} 班<br><span class="td-hint">資料自今晨起累積，每天重新開始</span></div>` +
+    body = `<div class="sub">${escHtml(t('今日已觀測 {total} 班・誤點≥5分：目前 {current} 班・今天曾有 {peak} 班', { total: i18nNumber(n), current: i18nNumber(c), peak: i18nNumber(m) }))}<br><span class="td-hint">${escHtml(t('資料自今晨起累積，每天重新開始'))}</span></div>` +
       sorted.map(todayRow).join('');
   }
-  el.innerHTML = `<h3>今日台鐵動態<button class="close" id="todayClose">×</button></h3>` + body;
+  el.innerHTML = `<h3>${escHtml(t('今日台鐵動態'))}<button class="close" id="todayClose">×</button></h3>` + body;
   reframeFocus();     // 掛在 render 尾端而非開啟點:這面板是非同步載入,載完重畫會改高度,要跟著重新讓位
 }
 function openTodayPanel() {
@@ -19273,37 +19326,43 @@ function renderFollowEvents() {
   // (未驗證)。發行閘門的 assertToastSinksReviewed 只掃 showToast，這裡再怎麼髒它都是綠的。
   // 逸出放在 sink 不放呼叫端：六個呼叫點沒有一個刻意傳標記，擋在這裡第七個就不必再審一次。
   el.innerHTML = evs.length
-    ? evs.slice(-6).map(e =>
-        `<div class="tc-ev"><span class="tt">${escHtml(e.tm)}</span><span>${escHtml(e.msg)}</span></div>`).join('')
-    : '<div class="tc-empty">列車跑起來就會記錄——停靠、交會、待避……</div>';
+    ? evs.slice(-6).map(e => {
+        const msg = typeof e.msg === 'function' ? e.msg() : t(e.msg);
+        return `<div class="tc-ev"><span class="tt">${escHtml(e.tm)}</span><span>${escHtml(msg)}</span></div>`;
+      }).join('')
+    : `<div class="tc-empty">${escHtml(t('列車跑起來就會記錄——停靠、交會、待避……'))}</div>`;
   el.scrollTop = el.scrollHeight; // 固定高度容器,永遠捲到最新一條
 }
 // 每 ~0.5s 掃一次:進站停靠、與對向車交會、停站時被同向車通過(待避)
 function scanFollowEvents() {
   const tr = state.followTrain;
   if (!tr || state.mode !== 'sched') return;
-  const t = state.simSec;
-  const myP = trainPos(tr, t); if (!myP) return;
+  const nowT = state.simSec;
+  const myP = trainPos(tr, nowT); if (!myP) return;
   const dw = dwellInfoOf(tr, effTLive(tr));
   if (dw && dw.st.stop !== false && dw.total >= 20) {
     pushFollowEvent('dwell:' + dw.i,
-      dw.total >= 180 ? `停靠 ${dw.st.name}（長時間停車——待避或調度）` : `停靠 ${dw.st.name}`, true);
+      () => dw.total >= 180
+        ? t('停靠 {station}（長時間停車——待避或調度）', { station: stationName(dw.st.name, tr.sys) })
+        : t('停靠 {station}', { station: stationName(dw.st.name, tr.sys) }), true);
   }
   // 本車行進方向:停站時取「開車後 30 秒」的方向,行進中取「現在→30 秒後」
-  const myQ = trainPos(tr, dw ? dw.st.depSec + 30 : t + 30) || myP;
+  const myQ = trainPos(tr, dw ? dw.st.depSec + 30 : nowT + 30) || myP;
   const mvx = myQ.lon - myP.lon, mvy = myQ.lat - myP.lat;
   const myMoving = !dw && Math.hypot(mvx, mvy) > 1e-7;
   for (const o of state.trains) {
     if (o === tr || o.sys !== tr.sys) continue; // 台鐵/高鐵軌距不同、完全獨立軌道,即使地理位置相近(如萬華一帶共用地下走廊)也不可能真的交會或待避
-    const p = trainPos(o, t); if (!p) continue;
+    const p = trainPos(o, nowT); if (!p) continue;
     if (Math.abs(p.lat - myP.lat) > 0.006 || Math.abs(p.lon - myP.lon) > 0.006) continue; // 粗篩 ~600m
     if (haversineKm(myP, p) > 0.45) continue;
-    const q = trainPos(o, t + 30) || p;
+    const q = trainPos(o, nowT + 30) || p;
     const ovx = q.lon - p.lon, ovy = q.lat - p.lat;
     if (Math.hypot(ovx, ovy) < 1e-7) continue; // 對方也停著(同站停靠),不記
     const dot = mvx * ovx + mvy * ovy;
-    if (dw && dot > 0) pushFollowEvent('pass:' + o.train, `${o.typeName} ${o.train} 通過——本列車待避禮讓`);
-    else if (dot < 0) pushFollowEvent('meet:' + o.train, `與${o.typeName} ${o.train} 交會`);
+    if (dw && dot > 0) pushFollowEvent('pass:' + o.train,
+      () => t('{kind} {train} 通過——本列車待避禮讓', { kind: trainTypeName(o.typeName), train: o.train }));
+    else if (dot < 0) pushFollowEvent('meet:' + o.train,
+      () => t('與 {kind} {train} 交會', { kind: trainTypeName(o.typeName), train: o.train }));
     else if (myMoving && dot > 0) { /* 同向併行,不記避免雜訊 */ }
   }
 }
@@ -19429,9 +19488,10 @@ function renderDelayRow() {
   if (!show) { el.hidden = true; el.textContent = ''; el.removeAttribute('title'); return; }
   const a = Number.isInteger(s.a) ? String(s.a) : s.a.toFixed(1); // 2.0→「2」尾數 .0 去掉
   // 值皆為數字(a/p/d 來自 delayStats),innerHTML 內插安全;PLUS_ENABLED 才在尾端掛「誤點履歷 ›」小連結
-  el.innerHTML = `近30天平均誤點 ${a}分・準點 ${s.p}%（${s.d}天）` +
-    (PLUS_ENABLED ? `<span class="fp-dhlink">誤點履歷 ›</span>` : '');
-  el.title = `單日最大誤點 ${s.m} 分`;
+  el.innerHTML = escHtml(t('近 30 天平均誤點 {average} 分・準點 {rate}%（{days} 天）', {
+    average: i18nNumber(a), rate: i18nNumber(s.p), days: i18nNumber(s.d)
+  })) + (PLUS_ENABLED ? `<span class="fp-dhlink">${escHtml(t('誤點履歷 ›'))}</span>` : '');
+  el.title = t('單日最大誤點 {n} 分', { n: i18nNumber(s.m) }, s.m);
   el.hidden = false;
 }
 
@@ -19495,13 +19555,13 @@ function dhBarChart(days) {
   days.forEach((d, i) => {
     const fd = +d.fd || 0, x = padL + i * (bw + gap);
     const h = Math.max(fd > 0 ? 1.4 : 1.0, (Math.min(fd, yMax) / yMax) * plotH);
-    bars += `<rect class="dh-bar ${fd > 5 ? 'hi' : 'ok'}" x="${x.toFixed(2)}" y="${(padT + plotH - h).toFixed(2)}" width="${bw.toFixed(2)}" height="${h.toFixed(2)}"><title>${d.d}｜誤點 ${fd} 分</title></rect>`;
+    bars += `<rect class="dh-bar ${fd > 5 ? 'hi' : 'ok'}" x="${x.toFixed(2)}" y="${(padT + plotH - h).toFixed(2)}" width="${bw.toFixed(2)}" height="${h.toFixed(2)}"><title>${escHtml(t('{date}｜誤點 {n} 分', { date: d.d, n: i18nNumber(fd) }, fd))}</title></rect>`;
   });
   let xlab = '';
   const lab = i => days[i].d.slice(5).replace('-', '/');
   for (let i = 0; i < N - 7; i += 14) xlab += `<text class="dh-axis" x="${(padL + i * (bw + gap) + bw / 2).toFixed(1)}" y="${VBH - 7}" text-anchor="middle">${lab(i)}</text>`;
   xlab += `<text class="dh-axis" x="${(padL + (N - 1) * (bw + gap) + bw / 2).toFixed(1)}" y="${VBH - 7}" text-anchor="end">${lab(N - 1)}</text>`;
-  return `<svg class="dh-bars" viewBox="0 0 ${VBW} ${VBH}" role="img" aria-label="近90天逐日誤點長條圖">${grid}${ref}${bars}${xlab}</svg>`;
+  return `<svg class="dh-bars" viewBox="0 0 ${VBW} ${VBH}" role="img" aria-label="${escHtml(t('近 90 天逐日誤點長條圖'))}">${grid}${ref}${bars}${xlab}</svg>`;
 }
 // 各週幾平均誤點(七柱);日期字串→週幾一律 getUTCDay,避免裝置時區位移。
 function dhWeekday(days) {
@@ -19509,11 +19569,11 @@ function dhWeekday(days) {
   for (const d of days) { const wd = new Date(d.d + 'T00:00:00Z').getUTCDay(); sum[wd] += (+d.fd || 0); cnt[wd]++; }
   const avg = sum.map((v, i) => cnt[i] ? v / cnt[i] : null);
   const maxA = Math.max(1, ...avg.map(a => a == null ? 0 : a));
-  const labels = ['日', '一', '二', '三', '四', '五', '六'];
+  const labels = [t('週日'), t('週一'), t('週二'), t('週三'), t('週四'), t('週五'), t('週六')];
   const cols = avg.map((a, i) => {
     if (a == null) return `<div class="dh-wd-col"><i class="dh-wd-bar none" style="height:2px"></i><span>${labels[i]}</span><em>–</em></div>`;
     const h = Math.max(3, Math.round((a / maxA) * 100));
-    return `<div class="dh-wd-col" title="週${labels[i]}平均誤點 ${a.toFixed(1)} 分"><i class="dh-wd-bar ${a > 5 ? 'hi' : 'ok'}" style="height:${h}%"></i><span>${labels[i]}</span><em>${a < 10 ? a.toFixed(1) : a.toFixed(0)}</em></div>`;
+    return `<div class="dh-wd-col" title="${escHtml(t('{weekday}平均誤點 {n} 分', { weekday: labels[i], n: i18nNumber(a.toFixed(1)) }))}"><i class="dh-wd-bar ${a > 5 ? 'hi' : 'ok'}" style="height:${h}%"></i><span>${escHtml(labels[i])}</span><em>${i18nNumber(a < 10 ? a.toFixed(1) : a.toFixed(0))}</em></div>`;
   }).join('');
   return `<div class="dh-wd">${cols}</div>`;
 }
@@ -19522,44 +19582,44 @@ function renderDelayHist() {
   if (!el || el.hidden) return;
   const no = state._delayHistOpen, kind = state._delayHistKind || '';
   const rec = (state.delayHist || {})[no] || null;
-  const head = `<h3>誤點履歷${kind ? '・' + escHtml(kind) : ''}${escHtml(no || '')}<button class="close" id="delayHistClose" aria-label="關閉">×</button></h3>`;
+  const head = `<h3>${escHtml(t('誤點履歷'))}${kind ? '・' + escHtml(trainTypeName(kind)) : ''}${escHtml(no || '')}<button class="close" id="delayHistClose" aria-label="${escHtml(t('關閉'))}">×</button></h3>`;
   // 統計列:複用 30 天聚合(delayStats);缺值時省略(理論上入口已保證存在)
   const s = (state.delayStats || {})[no] || null;
   const statRow = s ? `<div class="dh-stats">` +
-    `<div class="dh-stat"><b>${Number.isInteger(s.a) ? s.a : s.a.toFixed(1)}</b><span>平均誤點<br>(分)</span></div>` +
-    `<div class="dh-stat"><b>${s.p}%</b><span>準點率</span></div>` +
-    `<div class="dh-stat"><b>${s.m}</b><span>最大誤點<br>(分)</span></div>` +
-    `<div class="dh-stat"><b>${s.d}</b><span>樣本天數</span></div></div>` : '';
+    `<div class="dh-stat"><b>${i18nNumber(Number.isInteger(s.a) ? s.a : s.a.toFixed(1))}</b><span>${escHtml(t('平均誤點'))}<br>${escHtml(t('（分）'))}</span></div>` +
+    `<div class="dh-stat"><b>${i18nNumber(s.p)}%</b><span>${escHtml(t('準點率'))}</span></div>` +
+    `<div class="dh-stat"><b>${i18nNumber(s.m)}</b><span>${escHtml(t('最大誤點'))}<br>${escHtml(t('（分）'))}</span></div>` +
+    `<div class="dh-stat"><b>${i18nNumber(s.d)}</b><span>${escHtml(t('樣本天數'))}</span></div></div>` : '';
   let body;
   if (!rec || rec.loading) {
-    body = statRow + `<div class="dh-msg">載入誤點履歷…</div>`;
+    body = statRow + `<div class="dh-msg">${escHtml(t('載入誤點履歷…'))}</div>`;
   } else if (rec.error && (rec.status === 401 || rec.status === 403)) {
     // 付費牆:未登入(401)或無訂閱資格(403)——引導登入並訂閱 Plus。data-dh-cta 沿用既有 plusGateOpen 回路;
     // 用 dh-msg + dh-cta-btn(皆非絕對定位),不套 .dh-cta(inset:0 絕對定位需 .dh-lock 相對容器,無圖表可鎖)。
     body = statRow +
-      `<div class="dh-msg">登入並訂閱通行證後，可看台鐵列車近 90 天逐日與週幾誤點履歷。</div>` +
-      `<button class="dh-cta-btn" data-dh-cta="1">訂閱通行證解鎖完整履歷</button>`;
+      `<div class="dh-msg">${escHtml(t('登入並訂閱通行證後，可看台鐵列車近 90 天逐日與週幾誤點履歷。'))}</div>` +
+      `<button class="dh-cta-btn" data-dh-cta="1">${escHtml(t('訂閱通行證解鎖完整履歷'))}</button>`;
   } else if (rec.error) {
-    body = statRow + `<div class="dh-msg">暫時無法載入誤點履歷${rec.status ? '（' + rec.status + '）' : ''}，稍後再試。</div>` +
-      `<button class="dh-retry" data-dh-retry="1">重新整理</button>`;
+    body = statRow + `<div class="dh-msg">${escHtml(t('暫時無法載入誤點履歷{status}，稍後再試。', { status: rec.status ? '（' + rec.status + '）' : '' }))}</div>` +
+      `<button class="dh-retry" data-dh-retry="1">${escHtml(t('重新整理'))}</button>`;
   } else {
     const days = (rec.data && Array.isArray(rec.data.days)) ? rec.data.days : [];
     const meta = (rec.data && rec.data._meta) || {};
     if (days.length < 5) {
-      body = statRow + `<div class="dh-msg">誤點履歷資料累積中，天數足夠後會顯示完整圖表。</div>`;
+      body = statRow + `<div class="dh-msg">${escHtml(t('誤點履歷資料累積中，天數足夠後會顯示完整圖表。'))}</div>`;
     } else {
-      const charts = `<div class="dh-sec">近 90 天逐日最終誤點</div>${dhBarChart(days)}` +
-        `<div class="dh-sec">各週幾平均誤點</div>${dhWeekday(days)}`;
+      const charts = `<div class="dh-sec">${escHtml(t('近 90 天逐日最終誤點'))}</div>${dhBarChart(days)}` +
+        `<div class="dh-sec">${escHtml(t('各週幾平均誤點'))}</div>${dhWeekday(days)}`;
       const range = (meta.date_range && meta.date_range.length === 2) ? `${meta.date_range[0]} ～ ${meta.date_range[1]}` : '';
-      const src = `<div class="dh-src">資料：交通部TDX運輸資料流通服務平臺・軌島每日彙整${range ? '<br>統計區間 ' + range : ''}</div>`;
+      const src = `<div class="dh-src">${escHtml(t('資料：交通部 TDX 運輸資料流通服務平臺・軌島每日彙整'))}${range ? '<br>' + escHtml(t('統計區間 {range}', { range })) : ''}</div>`;
       if (plusIsActive()) {
         body = statRow + charts + src;
       } else {
         // 未訂閱:圖表區模糊+置中 CTA;統計列與資料標示仍可見當 teaser
         body = statRow +
           `<div class="dh-lock"><div class="dh-locked">${charts}</div>` +
-          `<div class="dh-cta"><div class="dh-cta-txt">解鎖 90 天逐日與週幾誤點統計</div>` +
-          `<button class="dh-cta-btn" data-dh-cta="1">訂閱通行證解鎖完整履歷</button></div></div>` + src;
+          `<div class="dh-cta"><div class="dh-cta-txt">${escHtml(t('解鎖 90 天逐日與週幾誤點統計'))}</div>` +
+          `<button class="dh-cta-btn" data-dh-cta="1">${escHtml(t('訂閱通行證解鎖完整履歷'))}</button></div></div>` + src;
       }
     }
   }
@@ -24536,13 +24596,16 @@ function eventRowsHtml(st) {
   if (!evs.length) return '';
   return `<div class="ev-rows">` + evs.map(ev => {
     const u = evUrl(ev);
+    const sourceZh = I18N_LANG !== 'zh-TW' && eventHasChineseSource(ev);
+    const sourceAttr = sourceZh ? ' data-source-lang="zh-TW"' : '';
     const inner = `<span class="ev-when">${escHtml(evWhen(ev))}</span>` +
       `<b>${escHtml(ev.title)}</b>` +
       (ev.note ? `<span class="ev-note">${escHtml(ev.note)}</span>` : '') +
-      (ev.source === 'partner' ? `<span class="ev-tag">合作</span>` : '');
+      (ev.source === 'partner' ? `<span class="ev-tag">${escHtml(t('合作'))}</span>` : '') +
+      (sourceZh ? `<span class="ev-tag">${escHtml(t('中文原文'))}</span>` : '');
     return u
-      ? `<a class="ev-row" href="${escHtml(u)}" target="_blank" rel="noopener">${inner}<span class="ev-go">›</span></a>`
-      : `<div class="ev-row">${inner}</div>`;
+      ? `<a class="ev-row"${sourceAttr} href="${escHtml(u)}" target="_blank" rel="noopener">${inner}<span class="ev-go">›</span></a>`
+      : `<div class="ev-row"${sourceAttr}>${inner}</div>`;
   }).join('') + `</div>`;
 }
 // 今日亮點用:一節,沒有活動回空字串。
@@ -24551,11 +24614,18 @@ function eventRowsHtml(st) {
 function eventSecHtml() {
   const evs = activeEvents();
   if (!evs.length) return '';
-  return `<div class="sec">近期活動</div>` + evs.map(ev =>
-    `<div class="row"${(eventStation(ev) || evUrl(ev)) ? ` data-ev="${escHtml(ev.id)}"` : ''} title="${escHtml(ev.title)}">` +
+  const hasChinese = evs.some(eventHasChineseSource);
+  const heading = I18N_LANG !== 'zh-TW' && hasChinese ? t('近期活動（來源中文原文）') : t('近期活動');
+  return `<div class="sec">${escHtml(heading)}</div>` + evs.map(ev => {
+    const sourceZh = I18N_LANG !== 'zh-TW' && eventHasChineseSource(ev);
+    return `<div class="row"${sourceZh ? ' data-source-lang="zh-TW"' : ''}${(eventStation(ev) || evUrl(ev)) ? ` data-ev="${escHtml(ev.id)}"` : ''} title="${escHtml(ev.title)}">` +
     `<b>${escHtml(ev.title)}</b>` +
-    `<span class="dest">${escHtml(evWhere(ev))}${ev.source === 'partner' ? ' · 合作' : ''}</span>` +
-    `<span class="min">${escHtml(evWhen(ev))}</span></div>`).join('');
+    `<span class="dest">${escHtml(evWhere(ev))}${ev.source === 'partner' ? ' · ' + escHtml(t('合作')) : ''}${sourceZh ? ' · ' + escHtml(t('中文原文')) : ''}</span>` +
+    `<span class="min">${escHtml(evWhen(ev))}</span></div>`;
+  }).join('');
+}
+function eventHasChineseSource(ev) {
+  return /[\u3400-\u9fff]/.test([ev && ev.title, evWhere(ev || {}), evWhen(ev || {}), ev && ev.note].filter(Boolean).join(' '));
 }
 function stnMetaHtml(st) {
   const info = st.sys === 'tra_sched' ? stnInfo(st.name) : null; // 車站地址/特色資料庫僅台鐵;高鐵站只給地圖連結
@@ -25565,7 +25635,7 @@ function metroWaitClosePicker(restoreFocus = true) {
   if (restoreFocus && opener && opener.isConnected) { try { opener.focus(); } catch (e) {} }
 }
 function metroWaitChoiceTime(sys, row) {
-  return sys === 'trtc' ? trtcOfficialAbsoluteHM(row.eta) : Number(row.minutes) + ' 分';
+  return sys === 'trtc' ? trtcOfficialAbsoluteHM(row.eta) : t('{n} 分', { n: i18nNumber(Number(row.minutes)) }, Number(row.minutes));
 }
 function metroWaitOpenPicker(sys, st, lines, isDeco, bundle, opener) {
   const modal = document.getElementById('metroWaitPicker'), choices = document.getElementById('metroWaitPickerChoices');
@@ -25585,15 +25655,15 @@ function metroWaitOpenPicker(sys, st, lines, isDeco, bundle, opener) {
   const secDir = document.getElementById('metroWaitPickerSecDir');
   if (secDir) secDir.hidden = !multi;
   choices.innerHTML = multi
-    ? '<button class="metro-wait-choice on" type="button" data-wait-choice="all" aria-label="最快一班，全部方向">' +
-      '<span class="metro-wait-choice-label">最快一班（全部方向）</span></button>' + directions.map((d, i) =>
+    ? '<button class="metro-wait-choice on" type="button" data-wait-choice="all" aria-label="' + escHtml(t('最快一班，全部方向')) + '">' +
+      '<span class="metro-wait-choice-label">' + escHtml(t('最快一班（全部方向）')) + '</span></button>' + directions.map((d, i) =>
         '<button class="metro-wait-choice" type="button" data-wait-choice="' + i + '">' +
-          '<span class="metro-wait-choice-label">往' + escHtml(d.dest) + '</span>' +
+          '<span class="metro-wait-choice-label">' + escHtml(t('往 {station}', { station: stationName(d.dest, st && st.sys) })) + '</span>' +
           '<span class="metro-wait-choice-dash">——</span>' +
           '<span class="metro-wait-choice-time">' + escHtml(metroWaitChoiceTime(sys, d.row)) + '</span>' +
         '</button>').join('')
     : '<button class="metro-wait-choice on" type="button" data-wait-choice="all">' +
-      '<span class="metro-wait-choice-label">開始追蹤 往' + escHtml(directions[0].dest) + '</span>' +
+      '<span class="metro-wait-choice-label">' + escHtml(t('開始追蹤 往 {station}', { station: stationName(directions[0].dest, st && st.sys) })) + '</span>' +
       '<span class="metro-wait-choice-dash">——</span>' +
       '<span class="metro-wait-choice-time">' + escHtml(metroWaitChoiceTime(sys, directions[0].row)) + '</span></button>';
   modal.hidden = false;
@@ -25602,7 +25672,7 @@ function metroWaitOpenPicker(sys, st, lines, isDeco, bundle, opener) {
 async function metroWaitStartFromBoard(sys, st, lines, isDeco, opener) {
   if (!metroWaitEnabled()) return;
   const bundle = await metroWaitReadBundle(sys, st, lines, isDeco);
-  if (!bundle) { showToast('這一站現在沒有官方班次資訊'); return; }
+  if (!bundle) { showToast(t('這一站現在沒有官方班次資訊')); return; }
   // 08-14 追蹤改版:一律開選單——時長(30/60/90)一定要經手,單方向只是把方向段落收起。
   metroWaitOpenPicker(sys, st, lines, isDeco, bundle, opener);
 }
@@ -25640,12 +25710,12 @@ async function metroWaitStartFor(sys, st, lines, isDeco, dest = null, sourceBund
   //    只對 trtc:krtc/tymc 的 bundle 不吃這道閘,不必也不該動使用者的時鐘。
   if (sys === 'trtc' && !sourceBundle && !trtcOfficialBoardRealNow()) {
     jumpToNow();
-    showToast('已把時間帶回「現在」才能追蹤這站');
+    showToast(t('已把時間帶回「現在」才能追蹤這站'));
   }
   const bundle = sourceBundle || await metroWaitReadBundle(sys, st, lines, isDeco);
-  if (!bundle) { showToast('這一站現在沒有官方班次資訊'); return; }
+  if (!bundle) { showToast(t('這一站現在沒有官方班次資訊')); return; }
   const rows = (dest == null ? bundle.rows : bundle.rows.filter(row => row.dest === dest)).slice(0, 2);
-  if (!rows.length) { showToast('這一站現在沒有官方班次資訊'); return; }
+  if (!rows.length) { showToast(t('這一站現在沒有官方班次資訊')); return; }
   const payload = metroWaitPayload(sys, st, { rows, dataAt: bundle.dataAt });
   payload.durationMin = durationMin;
   // dest 一併送給原生只是為了原樣回傳給 JS 的 waitPushToken 比對?不是——原生不需要它。
@@ -25667,9 +25737,9 @@ async function metroWaitStartFor(sys, st, lines, isDeco, dest = null, sourceBund
     if (_mwPendingToken.key === key) metroWaitBind(_mwPendingToken.token, key);
   } else {
     _mwKey = '';              // 開卡失敗:清掉 key,晚到的 token 不會被當成有效卡交班
-    showToast(res && res.why === 'disabled' ? '請到 iOS 設定開啟「即時動態」才能顯示等車卡'
+    showToast(t(res && res.why === 'disabled' ? '請到 iOS 設定開啟「即時動態」才能顯示等車卡'
             : res && res.why === 'timeout' ? '系統沒有回應，請再點一次'
-            : '開卡失敗，請稍後再試');
+            : '開卡失敗，請稍後再試'));
   }
   refreshMetroWaitButton();
 }
@@ -25782,7 +25852,7 @@ function refreshMetroWaitButton() {
   const sys = btn.dataset.sys;
   const cur = state.boardStation;
   const on = !!(state.metroWait && cur && state.metroWait.sys === sys && state.metroWait.station === cur.name);
-  btn.textContent = on ? '結束追蹤' : '追蹤這站';
+  btn.textContent = t(on ? '結束追蹤' : '追蹤這站');
   btn.classList.toggle('on', on);
 }
 // 站名(小工具端正規化字串)→ web 站物件{name,lat,lon,sys},給 waitOpen 深連結與地圖置中用。
@@ -25833,7 +25903,7 @@ function ensureMetroWaitListener() {
       const sys = evt && evt.sys, station = evt && evt.station;
       const st = metroWaitFindStation(station);
       if (!st) {
-        showToast('找不到「' + escHtml(String(station || '')) + '」，請手動搜尋車站');
+        showToast(t('找不到「{station}」，請手動搜尋車站', { station: escHtml(String(station || '')) }));
         return;
       }
       openBoard(st);
@@ -26425,6 +26495,7 @@ async function setupOfflineLand() {
   const renderer = L.canvas({ pane: 'fallbackPane', padding: .35 });
   state.offlineLand = L.geoJSON(land, { pane: 'fallbackPane', renderer, interactive: false, style: offlineLandStyle, smoothFactor: .5 }).addTo(map);
   map.attributionControl.addAttribution('臺灣輪廓：內政部');  // 政府資料開放授權條款：須標示資料提供機關
+  i18nTranslateTree(map.attributionControl.getContainer());
   document.querySelector('.stage').classList.add('offline-land');
 }
 
@@ -26547,8 +26618,9 @@ function ofmNoticeWeb(why) {
   // 那顆在 token 還在飛的時候是 'pending',而 8 秒逾時的時點兩者未必分得清)。
   // 沒有那條路就別叫使用者去點一顆不存在的鈕。
   const canSat = !!document.getElementById('satBtn');
-  showToast('街道底圖載入異常，列車與路線不受影響。'
-    + (canSat ? '可切換到「衛星」底圖。' : '重新整理即可重試。'), { wrap: true });
+  showToast(t(canSat
+    ? '街道底圖載入異常，列車與路線不受影響。可切換到「衛星」底圖。'
+    : '街道底圖載入異常，列車與路線不受影響。重新整理即可重試。'), { wrap: true });
 }
 function ofmFallToRaster(why) {
   if (!ofmRasterFallback) return; // 已經退過(或沒備退路)就不再退:只退一次,不來回跳
@@ -26591,6 +26663,7 @@ function setBasemap() {
     satBtn.querySelector('.tl').textContent = t(sat ? '地圖' : '衛星');
     satBtn.title = t(sat ? '切回一般地圖' : '切換衛星影像');
   }
+  i18nTranslateTree(map.attributionControl && map.attributionControl.getContainer());
 }
 // ── Batch B:長頁內容遷入 sheet 的搬移/建置 helpers(單一 DOM 實例;跨 900 斷界由 resize 同步) ──
 // 搜尋列 .search 手機搬進「搜尋」sheet #searchSlot(v0726a 起;原本搬進亮點 sheet),桌面搬回 header 原位(錨點註記記住老家)
@@ -26819,8 +26892,8 @@ function setupGtabPop() {
 function setupToolRail() {
   const rail = document.getElementById('mapActions');
   if (!rail) return;
-  const tipOf = (btn) => btn.id === 'randBtn' ? ((document.getElementById('randLbl') || {}).textContent || '隨機跟隨')
-    : btn.id === 'nearBtn' ? '附近車站'
+  const tipOf = (btn) => btn.id === 'randBtn' ? ((document.getElementById('randLbl') || {}).textContent || t('隨機跟隨'))
+    : btn.id === 'nearBtn' ? t('附近車站')
     : (btn.getAttribute('aria-label') || '');
   const showTip = (btn, ms) => {
     if (!window.matchMedia(MOBILE_MQ).matches) return;
@@ -27129,10 +27202,16 @@ function helpRichText(source) {
     return escHtml(t(part));
   }).join('');
 }
+function helpIconHtml(s) {
+  if (!s.ic) return '';
+  if (!s.ic.includes('<')) return escHtml(t(s.ic));
+  // 章／站是固定模板裡的裝飾字，不把字典內容當 HTML；只替換文字節點後再插回可信模板。
+  return s.ic.replace(/>(章|站)</g, (_, label) => `>${escHtml(t(label))}<`);
+}
 function helpSecHtml(s, mob) {
   const tgOn = s.tg && state._msState && state._msState[s.tg] ? state._msState[s.tg]() : null;
   let h = '<div class="help-sec" data-sec="' + s.key + '"><div class="help-sech">'
-    + (s.ic ? '<span class="help-ic">' + s.ic + '</span>' : '') + '<span class="help-nm">' + escHtml(t(s.nm)) + '</span>'
+    + (s.ic ? '<span class="help-ic">' + helpIconHtml(s) + '</span>' : '') + '<span class="help-nm">' + escHtml(t(s.nm)) + '</span>'
     + (s.badge ? '<span class="help-badge">' + escHtml(t(s.badge)) + '</span>' : '')
     + (tgOn === null ? '' : '<span class="toggle' + (tgOn ? ' on' : '') + '" aria-hidden="true"></span>')
     + '</div><p class="one">' + escHtml(t(s.one)) + '</p>';
@@ -28292,6 +28371,15 @@ async function boot() {
   // 既根除殘影、又不再有消失感。平移/flyTo/跟車(setView animate:false)不發 zoomanim,一律不受此機制影響。
   map = L.map('map', { zoomControl: true, attributionControl: true, preferCanvas: true, zoomAnimation: true })
     .setView([24.5, 121], 8);
+  // Leaflet 每次增減圖層都會把署名 DOM 重新建立；只在 addAttribution/setBasemap 後翻一次，
+  // 下一次內部 _update 就會退回中文。包住唯一的重繪入口，確保切底圖與晚到資料都維持目前語言。
+  if (map.attributionControl) {
+    const attributionUpdate = map.attributionControl._update;
+    map.attributionControl._update = function () {
+      attributionUpdate.call(this);
+      i18nTranslateTree(this.getContainer());
+    };
+  }
   // 都會呼吸幕(分數 zoom 定場)專用:Leaflet 的 latLngToContainerPoint 對每點 project 取整、又減
   // 取整後的 pixelOrigin,分數 zoom 逐幀推進時整幅畫面(路網+海陸輪廓)會 ±1~2.5px shimmer 抖動。
   // 呼吸中(_breathStage)改走「相對地圖中心的浮點投影」(零取整)→ 每幀平滑縮放;所有繪製消費者
@@ -28613,7 +28701,7 @@ async function boot() {
   const lockCtl = L.control({ position: 'bottomright' });
   lockCtl.onAdd = () => {
     const el = L.DomUtil.create('div', 'leaflet-control follow-lock-ctl');
-    el.innerHTML = '<button id="followLockBtn" type="button" aria-label="解除跟隨鎖定">' + railIcon('ui-follow-lock') + '</button>';
+    el.innerHTML = '<button id="followLockBtn" type="button" aria-label="' + escHtml(t('解除跟隨鎖定')) + '">' + railIcon('ui-follow-lock') + '</button>';
     L.DomEvent.disableClickPropagation(el);
     return el;
   };
@@ -29104,12 +29192,12 @@ function defaultPlaceKey() { const d = loadDefaultPlace(); return d ? d.key : nu
 function clearDefaultPlace() { try { localStorage.removeItem(DEFAULT_PLACE_KEY); } catch (e) {} }
 // 以某個儲存地點(fav 面板列的 key=lat,lon 六位小數)為預設；再點同一列即取消。回饋走 showToast＋重繪面板。
 function toggleDefaultPlace(key) {
-  if (defaultPlaceKey() === key) { clearDefaultPlace(); showToast('已取消預設啟動地點'); }
+  if (defaultPlaceKey() === key) { clearDefaultPlace(); showToast(t('已取消預設啟動地點')); }
   else {
     const p = loadPins().find(p => (Number(p.lat).toFixed(6) + ',' + Number(p.lon).toFixed(6)) === key);
     if (!p) return;
     try { localStorage.setItem(DEFAULT_PLACE_KEY, JSON.stringify({ key, lat: p.lat, lon: p.lon, z: 14, label: p.label || '' })); } catch (e) {}
-    showToast(p.label ? ('已設「' + escHtml(p.label) + '」為預設啟動地點') : '已設為預設啟動地點'); // 同上:匯入/同步來的地點名可能帶標籤
+    showToast(p.label ? t('已設「{label}」為預設啟動地點', { label: escHtml(p.label) }) : t('已設為預設啟動地點')); // 同上:匯入/同步來的地點名可能帶標籤
   }
   renderFavPanel();
 }
@@ -29129,15 +29217,15 @@ function buildShareUrl() {
 async function shareView() {
   const url = buildShareUrl();
   if (window.RAIL_NATIVE_SHARE) {
-    try { await window.RAIL_NATIVE_SHARE.share({ title: '軌島 railisland.tw', text: '看看這個地點的即時列車動態', url, dialogTitle: '分享軌島畫面' }); return; }
+    try { await window.RAIL_NATIVE_SHARE.share({ title: t('軌島 railisland.tw'), text: t('看看這個地點的即時列車動態'), url, dialogTitle: t('分享軌島畫面') }); return; }
     catch (e) { if (e && /cancel/i.test(e.message || '')) return; }
   }
   if (navigator.share) {
-    try { await navigator.share({ title: '軌島 railisland.tw', text: '看看這個地點的即時列車動態', url }); return; }
+    try { await navigator.share({ title: t('軌島 railisland.tw'), text: t('看看這個地點的即時列車動態'), url }); return; }
     catch (e) { if (e && e.name === 'AbortError') return; } // 取消原生面板就結束,不再退而複製
   }
-  try { await navigator.clipboard.writeText(url); showToast('已複製分享連結'); }
-  catch (e) { prompt('複製這個分享連結：', url); }
+  try { await navigator.clipboard.writeText(url); showToast(t('已複製分享連結')); }
+  catch (e) { prompt(t('複製這個分享連結：'), url); }
 }
 document.getElementById('shareBtn').onclick = shareView;
 
@@ -29181,17 +29269,22 @@ function parseTripParam(raw) {
 async function shareTrip(tr, destName) {
   const url = buildTripUrl(tr, destName); if (!url) return;
   const from = tripFromStation(tr);
-  const text = `${from ? from + '→' : '往 '}${destName}・${tr.typeName}${tr.train}——用軌島看我到哪了`;
+  const text = t('{route}・{kind} {train}——用軌島看我到哪了', {
+    route: from
+      ? t('{from} → {to}', { from: stationName(from, tr.sys), to: stationName(destName, tr.sys) })
+      : t('往 {station}', { station: stationName(destName, tr.sys) }),
+    kind: trainTypeName(tr.typeName), train: tr.train,
+  });
   if (window.RAIL_NATIVE_SHARE) {
-    try { await window.RAIL_NATIVE_SHARE.share({ title: '軌島行程分享', text, url, dialogTitle: '分享行程' }); return; }
+    try { await window.RAIL_NATIVE_SHARE.share({ title: t('軌島行程分享'), text, url, dialogTitle: t('分享行程') }); return; }
     catch (e) { if (e && /cancel/i.test(e.message || '')) return; }
   }
   if (navigator.share) {
-    try { await navigator.share({ title: '軌島行程分享', text, url }); return; }
+    try { await navigator.share({ title: t('軌島行程分享'), text, url }); return; }
     catch (e) { if (e && e.name === 'AbortError') return; }
   }
-  try { await navigator.clipboard.writeText(url); showToast('已複製行程連結'); }
-  catch (e) { prompt('複製這個行程連結：', url); }
+  try { await navigator.clipboard.writeText(url); showToast(t('已複製行程連結')); }
+  catch (e) { prompt(t('複製這個行程連結：'), url); }
 }
 // ── 發起端：選目的站面板(board 家族；×鈕放 sticky h3 內，v0717p) ──
 function openTripSharePanel() {
@@ -29206,13 +29299,13 @@ function renderTripSharePanel() {
   const tr = state.followTrain;
   if (!tr) { closeTripSharePanel(); return; }
   const stops = tripRemainingStops(tr);
-  el.innerHTML = `<h3>行程分享<button class="close" id="tripPanelClose" title="關閉">×</button></h3>` +
-    `<div class="sub">選你的目的站，產生一個「活的」行程連結——對方看得到列車位置與到站時刻，你不用一直回傳定位。</div>` +
+  el.innerHTML = `<h3>${escHtml(t('行程分享'))}<button class="close" id="tripPanelClose" title="${escHtml(t('關閉'))}">×</button></h3>` +
+    `<div class="sub">${escHtml(t('選你的目的站，產生一個「活的」行程連結——對方看得到列車位置與到站時刻，你不用一直回傳定位。'))}</div>` +
     (stops.length
       ? stops.map(x =>
           `<div class="row" data-dest="${escHtml(x.s.name)}"><span class="dot" style="background:${tr.color}"></span>` +
-          `<b>${escHtml(x.s.name)}</b><span class="dest">表定 ${fmtHM(x.s.arrSec % 86400)} 到</span></div>`).join('')
-      : `<div class="sub" style="padding:8px 0 4px">這班車沒有剩餘停站了(已接近終點)，沒辦法再選目的站。</div>`);
+          `<b>${escHtml(stationName(x.s.name, tr.sys))}</b><span class="dest">${escHtml(t('表定 {time} 到', { time: fmtHM(x.s.arrSec % 86400) }))}</span></div>`).join('')
+      : `<div class="sub" style="padding:8px 0 4px">${escHtml(t('這班車沒有剩餘停站了（已接近終點），沒辦法再選目的站。'))}</div>`);
 }
 function closeTripSharePanel() {
   const el = document.getElementById('tripPanel');
@@ -29223,7 +29316,7 @@ function applyTripLink(tp) {
   state._tripClosed = false;
   const sysId = tripSysId(tp.code);
   // 日期不符 / 系統碼無效 → 行程已結束(優雅降級)
-  if (!sysId || tp.date !== tripOpsDate()) { state._trip = { err: 'ended', destName: tp.dest, from: tp.from }; renderTripBanner(); return; }
+  if (!sysId || tp.date !== tripOpsDate()) { state._trip = { err: 'ended', code: tp.code, destName: tp.dest, from: tp.from }; renderTripBanner(); return; }
   followTrainNo(String(tp.no), { sys: sysId }); // 既有路徑：切 sched 系統、tra↔thsr 對位、setFollow
   let tr = state.followTrain;
   // 撞號保險：跟到的系統與 payload 不符 → 改跟正確系統的同號車
@@ -29233,10 +29326,10 @@ function applyTripLink(tp) {
     if (alt) { setFollow(alt); tr = state.followTrain; }
   }
   if (!tr || String(tr.train) !== String(tp.no) || tripSysCode(tr.sys) !== tp.code) {
-    state._trip = { err: 'notfound', destName: tp.dest, from: tp.from }; renderTripBanner(); return;
+    state._trip = { err: 'notfound', code: tp.code, destName: tp.dest, from: tp.from }; renderTripBanner(); return;
   }
   const dest = tr.stops.find(s => s.name === tp.dest && s.stop !== false);
-  if (!dest) { state._trip = { err: 'notfound', destName: tp.dest, from: tp.from }; renderTripBanner(); return; }
+  if (!dest) { state._trip = { err: 'notfound', code: tp.code, destName: tp.dest, from: tp.from }; renderTripBanner(); return; }
   // 強制 live(忽略任何回看)：回到台北現在時刻、1×、播放
   setSimSec(nowSecOfDay(activeTz())); setSpeed(1); if (!state.playing) togglePlay();
   state._trip = { tr, dest, from: tp.from || null, err: null };
@@ -29252,29 +29345,35 @@ function renderTripBanner() {
   const stEl = document.getElementById('tripState'), rtEl = document.getElementById('tripRoute'), etaEl = document.getElementById('tripEta');
   if (trip.err) {
     stEl.className = 'tb-state ended';
-    stEl.textContent = trip.err === 'notfound' ? '查無班次' : '行程已結束';
-    rtEl.innerHTML = `${trip.from ? escHtml(trip.from) + ' → ' : '往 '}${escHtml(trip.destName || '目的站')}`;
-    etaEl.innerHTML = trip.err === 'notfound' ? '找不到這個行程連結對應的班次' : '這個行程連結已過期（非今日班次）';
+    stEl.textContent = t(trip.err === 'notfound' ? '查無班次' : '行程已結束');
+    const sys = trip.code ? tripSysId(trip.code) : '';
+    rtEl.textContent = trip.from
+      ? t('{from} → {to}', { from: stationName(trip.from, sys), to: stationName(trip.destName || t('目的站'), sys) })
+      : t('往 {station}', { station: stationName(trip.destName || t('目的站'), sys) });
+    etaEl.textContent = t(trip.err === 'notfound' ? '找不到這個行程連結對應的班次' : '這個行程連結已過期（非今日班次）');
     return;
   }
   const tr = trip.tr, dest = trip.dest;
   const delaySec = tr.sys === 'tra_sched' ? liveDelaySec(tr) : 0; // 高鐵無逐車誤點→不顯誤點徽章
   const dlMin = Math.round(delaySec / 60);
-  const t = effT(tr) - delaySec;
+  const nowT = effT(tr) - delaySec;
   const last = tr.stops[tr.stops.length - 1];
-  rtEl.innerHTML = `${trip.from ? escHtml(trip.from) + ' → ' : '往 '}${escHtml(dest.name)}<span class="kind">${escHtml(tr.typeName + ' ' + tr.train)}</span>`;
-  if (t > last.arrSec + 60) {                          // 當日班次已收
-    stEl.className = 'tb-state ended'; stEl.textContent = '行程已結束';
-    etaEl.innerHTML = `${escHtml(dest.name)} · 今日班次已收`;
-  } else if (t >= dest.arrSec) {                         // 車過目的站
-    stEl.className = 'tb-state arrived'; stEl.textContent = '已到達';
-    etaEl.innerHTML = `${escHtml(dest.name)} · ${fmtHM((dest.arrSec + dlMin * 60) % 86400)} 抵達`;
+  const route = trip.from
+    ? t('{from} → {to}', { from: stationName(trip.from, tr.sys), to: stationName(dest.name, tr.sys) })
+    : t('往 {station}', { station: stationName(dest.name, tr.sys) });
+  rtEl.innerHTML = `${escHtml(route)}<span class="kind">${escHtml(trainTypeName(tr.typeName) + ' ' + tr.train)}</span>`;
+  if (nowT > last.arrSec + 60) {                          // 當日班次已收
+    stEl.className = 'tb-state ended'; stEl.textContent = t('行程已結束');
+    etaEl.textContent = t('{station} · 今日班次已收', { station: stationName(dest.name, tr.sys) });
+  } else if (nowT >= dest.arrSec) {                         // 車過目的站
+    stEl.className = 'tb-state arrived'; stEl.textContent = t('已到達');
+    etaEl.textContent = t('{station} · {time} 抵達', { station: stationName(dest.name, tr.sys), time: fmtHM((dest.arrSec + dlMin * 60) % 86400) });
   } else {                                               // 追蹤中
-    const mm = Math.max(0, Math.round((dest.arrSec - t) / 60));
-    stEl.className = 'tb-state'; stEl.textContent = '追蹤中';
-    etaEl.innerHTML = (mm < 1 ? '即將抵達目的站'
-      : `預計 ${fmtHM((dest.arrSec + dlMin * 60) % 86400)} 抵達 · <b>${mm} 分</b>`)
-      + (dlMin > 0 ? ` <span class="lateTag">誤點 ${dlMin} 分</span>` : '');
+    const mm = Math.max(0, Math.round((dest.arrSec - nowT) / 60));
+    stEl.className = 'tb-state'; stEl.textContent = t('追蹤中');
+    etaEl.innerHTML = (mm < 1 ? escHtml(t('即將抵達目的站'))
+      : t('預計 {time} 抵達 · <b>{n} 分</b>', { time: fmtHM((dest.arrSec + dlMin * 60) % 86400), n: i18nNumber(mm) }, mm))
+      + (dlMin > 0 ? ` <span class="lateTag">${escHtml(t('誤點 {n} 分', { n: i18nNumber(dlMin) }, dlMin))}</span>` : '');
   }
 }
 function closeTripBanner() { state._tripClosed = true; renderTripBanner(); } // 關橫幅不退跟車；同時還原手機上方動作列
@@ -29292,7 +29391,7 @@ if (fpRideEl) fpRideEl.onclick = (e) => {
   const tr = state.followTrain; if (!tr) return;
   const r = loadRiding();
   if (r && r.train === String(tr.train) && r.sys === tr.sys) return endRidingNow();
-  if (r) return showToast(`你正在搭 ${escHtml(r.train)} 次,先下車再上車`);
+  if (r) return showToast(t('你正在搭 {train} 次，先下車再上車', { train: escHtml(r.train) }));
   openRideBox(tr);
 };
 document.getElementById('fpRideBox').onclick = (e) => {
@@ -29354,7 +29453,7 @@ document.getElementById('nowBtn').onclick = jumpToNow;
     const dMin = Math.round(e.clientX - startX);
     state._interactAt = performance.now(); // 省電模式:拖曳期間維持全速重繪
     setSimSec(startSec + dMin * 60);
-    delta.textContent = dMin ? (dMin > 0 ? '＋' : '−') + Math.abs(dMin) + '分' : '';
+    delta.textContent = dMin ? (dMin > 0 ? '＋' : '−') + t('{n} 分', { n: i18nNumber(Math.abs(dMin)) }, Math.abs(dMin)) : '';
   });
   const endDrag = e => {
     if (!dragging) return;
@@ -29377,12 +29476,12 @@ document.getElementById('nowBtn').onclick = jumpToNow;
 const donateCopyBtn = document.getElementById('donateCopy');
 if (donateCopyBtn) donateCopyBtn.onclick = () =>
   navigator.clipboard.writeText('111010691056')
-    .then(() => showToast('已複製帳號'))
+    .then(() => showToast(t('已複製帳號')))
     .catch(() => { // clipboard 被擋(非 HTTPS/權限)時退而選取帳號文字,使用者可直接 ⌘C
       const r = document.createRange();
       r.selectNodeContents(document.querySelector('.acct b'));
       const s = getSelection(); s.removeAllRanges(); s.addRange(r);
-      showToast('已選取帳號，請按 ⌘C／Ctrl+C 複製');
+      showToast(t('已選取帳號，請按 ⌘C／Ctrl+C 複製'));
     });
 // APP_STRIP_END donation-handler
 // ×＝收起資訊卡(跟隨不中斷);膠囊本體展開;「結束」才真的取消跟隨
@@ -29647,10 +29746,13 @@ window.addEventListener('load', boot);
     if (!(known || iosWv || andWv)) return;
     const box = document.getElementById('iabHint'), btns = document.getElementById('iabBtns'), note = document.getElementById('iabNote');
     if (!box || !btns) return;
-    const mkBtn = (label, ghost, fn) => { const b = document.createElement('button'); if (ghost) b.className = 'ih-ghost'; b.textContent = label; b.onclick = fn; btns.appendChild(b); return b; };
+    const mkBtn = (label, ghost, fn) => { const b = document.createElement('button'); if (ghost) b.className = 'ih-ghost'; b.dataset.i18n = label; b.textContent = t(label); b.onclick = fn; btns.appendChild(b); return b; };
     const copyUrl = (b) => {
       const url = location.href;
-      const ok = () => { b.textContent = '已複製 ✓'; if (note && !note.textContent) note.textContent = '貼到 Safari／Chrome 的網址列就能開'; };
+      const ok = () => {
+        delete b.dataset.i18n; b.textContent = t('已複製 ✓');
+        if (note && !note.textContent) { note.dataset.i18n = '貼到 Safari／Chrome 的網址列就能開'; note.textContent = t(note.dataset.i18n); }
+      };
       const legacy = () => { try { const t = document.createElement('textarea'); t.value = url; t.setAttribute('readonly', ''); t.style.cssText = 'position:absolute;left:-9999px'; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); ok(); } catch (e) { if (note) note.textContent = url; } };
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(ok, legacy); else legacy();
     };
@@ -29662,7 +29764,7 @@ window.addEventListener('load', boot);
       mkBtn('複製網址', true, function () { copyUrl(this); });
     } else {
       mkBtn('複製網址', false, function () { copyUrl(this); });
-      if (note) note.textContent = '或點角落「⋯」選「以外部瀏覽器開啟」';
+      if (note) { note.dataset.i18n = '或點角落「⋯」選「以外部瀏覽器開啟」'; note.textContent = t(note.dataset.i18n); }
     }
     const x = document.getElementById('iabClose');
     if (x) x.onclick = () => { box.hidden = true; try { localStorage.setItem('iabHintDismiss', '1'); } catch (e) {} };

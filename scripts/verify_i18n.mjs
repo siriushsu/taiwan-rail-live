@@ -31,7 +31,7 @@ async function visibleEnglishCjk(page, rootSelector = 'body') {
   return page.evaluate(rootSelector => {
     const root = document.querySelector(rootSelector);
     if (!root) return [`找不到 ${rootSelector}`];
-    const excluded = '.site-foot, #msAbout, .sys-chip, .addr, .feat, [data-lang], script, style, noscript, [hidden]';
+    const excluded = '.site-foot, #msAbout, .sys-chip, .addr, .feat, [data-lang], [data-source-lang], script, style, noscript, [hidden]';
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     const found = [];
     let node;
@@ -103,8 +103,11 @@ async function desktopCore(browser, engine) {
     await page.waitForFunction(() => !document.getElementById('board').hidden);
     const boardEn = await bodyText(page, '#board');
     assert(boardEn.includes('Taipei') && boardEn.includes('Arrivals in the next 3 hours'), `英文來車看板未即時翻譯：${boardEn.slice(0, 500)}`);
+    assert(boardEn.includes('Taiwan High Speed Rail') && boardEn.includes('Bannan Line') && boardEn.includes('Airport MRT Line'), `英文轉乘路線未翻譯：${boardEn.slice(0, 500)}`);
     assert(!/undefined|\bi18n\./i.test(boardEn), `英文來車看板洩漏內部值：${boardEn}`);
-    record(engine, '英文車站來車看板');
+    const attributionEn = await bodyText(page, '.leaflet-control-attribution');
+    assert(attributionEn.includes('Taiwan outline: Ministry of the Interior') && !/[臺台]灣輪廓/.test(attributionEn), `英文地圖署名在圖層重繪後退回中文：${attributionEn}`);
+    record(engine, '英文車站來車看板、轉乘路線與地圖署名');
 
     const metroBoards = await page.evaluate(() => {
       const lines = state.decoLines.length ? state.decoLines : state.lines;
@@ -163,6 +166,60 @@ async function desktopCore(browser, engine) {
     assert(/renew automatically/i.test(plusEn) && /remain free/i.test(plusEn), `英文通行證決策文字不完整：${plusEn.slice(0, 800)}`);
     assert(plusEn.includes('Privacy Policy') && plusEn.includes('Terms of Use'), `英文 Plus 法務連結未翻譯：${plusEn}`);
     record(engine, '英文 Plus、續訂、免費層與法務入口');
+
+    const dynamicEn = await page.evaluate(() => {
+      document.getElementById('plusModal').hidden = true;
+
+      const takeout = document.getElementById('takeoutModal');
+      takeout.hidden = false;
+      i18nTranslateTree(takeout);
+      state.takeoutResult = {
+        files: ['saved.csv'], outside: [], incomplete: [], includeUnshown: false,
+        resolved: [{ selected: true, title: 'My station', list: 'Weekend list', coord: { lat: 25.0478, lon: 121.517 }, url: '' }],
+      };
+      takeoutRenderPreview();
+      const takeoutText = takeout.textContent.replace(/\s+/g, ' ').trim();
+      takeout.hidden = true;
+
+      const account = document.getElementById('accountModal');
+      account.hidden = false;
+      state.account = { ready: true, user: null, error: '' };
+      accountRender();
+      i18nTranslateTree(account);
+      const accountText = account.textContent.replace(/\s+/g, ' ').trim();
+      account.hidden = true;
+
+      const fav = document.getElementById('favPanel');
+      fav.hidden = false;
+      renderFavPanel();
+      const favText = fav.textContent.replace(/\s+/g, ' ').trim();
+      const favStored = favTrainLabel({ train: '1', sys: 'tra_sched', label: '平原號　臺北→枋寮' });
+      fav.hidden = true;
+
+      const stationCode = Object.keys(state.stnIdToName || {}).find(code => /[臺台]北/.test(state.stnIdToName[code])) || '1000';
+      const today = document.getElementById('todayPanel');
+      today.hidden = false;
+      state.todayBoard = [{ no: '9998', delayMax: 12, delay: 5, sta: stationCode, status: 1, at: '2026-08-28T11:00:00' }];
+      state._todayTried = true; state._todayFetching = false;
+      renderTodayPanel();
+      const todayText = today.textContent.replace(/\s+/g, ' ').trim();
+      today.hidden = true;
+
+      const day = todayStr('Asia/Taipei');
+      _events = [{ id: 'verify-source', title: '官方中文活動', start: day, end: day,
+        anchor: { kind: 'station', sys: 'tra_sched', name: '臺北' }, source: 'official' }];
+      const eventHost = document.createElement('div');
+      eventHost.innerHTML = eventSecHtml();
+      const eventText = eventHost.textContent.replace(/\s+/g, ' ').trim();
+      const eventMarked = !!eventHost.querySelector('[data-source-lang="zh-TW"]');
+      return { takeoutText, accountText, favText, favStored, todayText, eventText, eventMarked };
+    });
+    assert(dynamicEn.takeoutText.includes('Import Google saved lists') && dynamicEn.takeoutText.includes('My station'), `英文 Takeout 匯入流程未翻譯：${dynamicEn.takeoutText}`);
+    assert(dynamicEn.accountText.includes('Sign in to sync') && dynamicEn.accountText.includes('Sign in with Google'), `英文帳號入口未翻譯：${dynamicEn.accountText}`);
+    assert(dynamicEn.favText.includes('My favourites') && dynamicEn.favStored.includes('Plains Explorer') && dynamicEn.favStored.includes('Taipei'), `英文最愛動態內容未翻譯：${JSON.stringify(dynamicEn)}`);
+    assert(dynamicEn.todayText.includes('TRA today') && dynamicEn.todayText.includes('5 min late') && dynamicEn.todayText.includes('Taipei'), `英文今日台鐵動態未翻譯：${dynamicEn.todayText}`);
+    assert(dynamicEn.eventMarked && dynamicEn.eventText.includes('Recent events (Chinese source text)') && dynamicEn.eventText.includes('Chinese source text'), `中文原文活動未清楚標示：${dynamicEn.eventText}`);
+    record(engine, '英文最愛、今日台鐵、Takeout、帳號與中文原文活動標示');
 
     await page.waitForFunction(() => state.special?.namedTrains?.length && state.special?.rollingStock?.length);
     const contentEn = await page.evaluate(() => {
