@@ -11266,6 +11266,7 @@ function accountForgetIdentity() {
   // 批二-B:cloudSyncReady(資格文件落地)綁在「這個身分」上,身分沒了就不再成立——下一個登入的人
   // 必須自己重新握手一次,不能繼承上一個人的落地結論。
   if (state.plus) { state.plus.active = false; state.plus.entitlementEnvironment = ''; state.plus.founding = false; state.plus.pkgMonthly = null; state.plus.pkgAnnual = null; state.plus.mgmtUrl = ''; state.plus.adapter = null; state.plus.afterUnlock = null; state.plus.cloudSyncReady = false; state.plus.cloudSyncPromise = null; }
+  musicReconcileMode();   // 資格變了就把配樂模式對齊(付費池 ⇄ 免費隨機)
   // ↑ cloudSyncPromise 也要清(最終複審 Minor 2):它是「同一時間只准一發握手在飛」的去重槽,
   //   留著的話換人之後 plusReconcileEntitlement() 會 return 上一個身分的在途 promise,那發的世代
   //   複查必然回 false ⇒ 新使用者白白失敗一輪握手。清掉只是丟棄槽位,在飛的那發自己會照常收尾。
@@ -11607,6 +11608,7 @@ async function plusReconcileEntitlement() {
       if (!now || now.gen !== myGen || !now.user || now.user.uid !== myUid) return false;
       if (data && typeof data.active === 'boolean') {
         p.active = data.active;
+        musicReconcileMode();   // 資格變了就把配樂模式對齊(付費池 ⇄ 免費隨機)
         plusSetEnvironment(p, p.active && data.environment === 'sandbox' && PLUS_SANDBOX_OK
           ? 'sandbox' : (p.active ? 'production' : ''));
       }
@@ -11828,6 +11830,7 @@ async function plusTeardownListener() {
 function plusApplyCustomerInfo(info) {
   const p = plusState();
   p.active = plusActiveFrom(info);
+  musicReconcileMode();   // 資格變了就把配樂模式對齊(付費池 ⇄ 免費隨機)
   plusSetEnvironment(p, plusEnvironmentFrom(info));
   p.founding = p.active && foundingFrom(info);
   p.mgmtUrl = (info && info.managementURL) || p.mgmtUrl || '';
@@ -12000,6 +12003,7 @@ async function plusRefresh() {
         // worker.js /api/plus-status 註解,那裡就是為了讓前端能分辨才把 403 轉成 200 {active:false})。
         if (data && typeof data.active === 'boolean') {
           p.active = data.active;
+          musicReconcileMode();   // 資格變了就把配樂模式對齊(付費池 ⇄ 免費隨機)
           plusSetEnvironment(p, p.active && data.environment === 'sandbox' && PLUS_SANDBOX_OK
             ? 'sandbox' : (p.active ? 'production' : ''));
         }
@@ -12026,6 +12030,7 @@ async function plusRefresh() {
     if (infoR.status === 'fulfilled') {
       const info = infoR.value;
       p.active = plusActiveFrom(info);
+      musicReconcileMode();   // 資格變了就把配樂模式對齊(付費池 ⇄ 免費隨機)
       plusSetEnvironment(p, plusEnvironmentFrom(info));
       p.founding = p.active && foundingFrom(info);
       p.mgmtUrl = (info && info.managementURL) || '';
@@ -12074,6 +12079,7 @@ async function plusPurchase(kind) {
     if (!a2 || a2.gen !== myGen || !a2.user || a2.user.uid !== myUid) return;
     const info = result && (result.customerInfo || result);
     p.active = plusActiveFrom(info);
+    musicReconcileMode();   // 資格變了就把配樂模式對齊(付費池 ⇄ 免費隨機)
     plusSetEnvironment(p, plusEnvironmentFrom(info));
     p.founding = p.active && foundingFrom(info);
     p.mgmtUrl = (info && info.managementURL) || p.mgmtUrl || '';
@@ -12112,6 +12118,7 @@ async function plusRestore() {
     if (!a2 || a2.gen !== myGen || !a2.user || a2.user.uid !== myUid) return;
     const info = result && (result.customerInfo || result);
     p.active = plusActiveFrom(info);
+    musicReconcileMode();   // 資格變了就把配樂模式對齊(付費池 ⇄ 免費隨機)
     plusSetEnvironment(p, plusEnvironmentFrom(info));
     p.founding = p.active && foundingFrom(info);
     p.mgmtUrl = (info && info.managementURL) || p.mgmtUrl || ''; accountRender();
@@ -14305,6 +14312,24 @@ function musicContextTick(nowMs) {
   if (key !== m._ctxKey && t - m._ctxAt >= MUSIC_CTX_HOLD_MS) m._ctxKey = key;  // 連續成立夠久才生效
 }
 window.musicContextTick = musicContextTick; window.musicAutoPool = musicAutoPool;
+
+// 資格變動(登入/登出/購買/恢復/伺服器狀態回來)之後呼叫。
+// 只在【生效模式真的變了】時才動作:開機期 plusApplyCustomerInfo 會跑好幾次,
+// 每次都重洗清單會把正在播的曲子切掉。
+function musicReconcileMode() {
+  const m = state.music;
+  if (!m || !musicAvailable()) return;              // initMusic 之前被呼叫到:初值由 initMusic 負責
+  const eff = musicEffectiveMode();
+  const key = eff.kind + ':' + (eff.id || '');
+  if (key === m._effKey) return;
+  const wasPaid = m._effKey && m._effKey.indexOf('free') !== 0;
+  m._effKey = key;
+  musicApplyMode(null, {});
+  // 退回免費要說一聲:音樂無聲換掉會被當成壞了。只在「付費→免費」那一次講。
+  if (wasPaid && eff.kind === 'free' && m.enabled) showToast(t('通行證已到期,配樂回到隨機播放'));
+  if (typeof musicPlSync === 'function') musicPlSync();   // 選單存在時同步顯示(Task 6 提供)
+}
+window.musicReconcileMode = musicReconcileMode;
 function loadMusicPref() {
   let enabled = true, vol = 0.5, mode = { kind: 'free' };
   try {

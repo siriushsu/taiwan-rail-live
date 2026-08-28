@@ -252,6 +252,42 @@ const auto = await page.evaluate(() => {
 ok('F9 自動模式曲末真的換池(正向對照)',
   auto.from && auto.to && auto.from.split('/')[1] !== auto.to.split('/')[1], JSON.stringify(auto));
 
+// ── G. 資格回得去 ─────────────────────────────────────────────────────────────
+// 🔴 跨 runtime 資格旗標是單向閥(true 推得出、false 推不回)是既有踩坑,
+//    只驗「訂閱後解鎖」會整組全綠而照不到撤銷那半,更照不到「撤銷後回得去」。
+const gg = await page.evaluate(() => {
+  const R = {};
+  state.plus = { active: true };
+  state.music._effKey = '';
+  window.musicApplyMode({ kind: 'family', id: 'city-circuit' }, { noLoad: true });
+  window.musicReconcileMode();
+  R.onEff = window.musicEffectiveMode().kind; R.onN = state.music.list.length;
+  state.plus = { active: false };                 // 撤銷資格
+  window.musicReconcileMode();
+  R.offEff = window.musicEffectiveMode().kind; R.offN = state.music.list.length;
+  R.offMode = state.music.mode.kind + ':' + state.music.mode.id;   // 使用者的選擇要留著
+  state.plus = { active: true };                  // 資格回來
+  window.musicReconcileMode();
+  R.backEff = window.musicEffectiveMode().kind; R.backN = state.music.list.length;
+  return R;
+});
+ok('G1 有資格時家族模式生效(22 首)', gg.onEff === 'family' && gg.onN === 22, JSON.stringify(gg));
+ok('G2 撤銷後退回免費 57 首', gg.offEff === 'free' && gg.offN === 57, JSON.stringify(gg));
+ok('G3 撤銷後【不】改寫使用者的選擇', gg.offMode === 'family:city-circuit', JSON.stringify(gg));
+ok('G4 資格回來自動接回(回得去)', gg.backEff === 'family' && gg.backN === 22, JSON.stringify(gg));
+
+// G5 同一個生效模式重複呼叫不得重洗清單(開機期會跑好幾次,重洗會把正在播的曲子切掉)
+const g5 = await page.evaluate(() => {
+  state.plus = { active: true };
+  state.music._effKey = '';
+  window.musicApplyMode({ kind: 'pool', id: 'urban-jazz' }, { noLoad: true });
+  window.musicReconcileMode();
+  const a = state.music.list.slice();
+  for (let i = 0; i < 5; i++) window.musicReconcileMode();
+  return { same: JSON.stringify(a) === JSON.stringify(state.music.list) };
+});
+ok('G5 生效模式沒變時重複呼叫不重洗', g5.same, JSON.stringify(g5));
+
 await browser.close();
 server.close();
 const bad = results.filter(r => !r.pass);
