@@ -5497,7 +5497,7 @@
 // v0828h：動態島三種展開卡統一使用 22pt 圓角安全內距，避免各語言內容被邊緣裁切。
 // v0828i：字級設定的目前值與詳細面板補齊英文、日文即時切換。
 // v0828l：捷運車站資訊頁的緊湊排法從 Android 擴到 iOS（網站維持舊排法）。
-const BUILD = 'v0828n';
+const BUILD = 'v0828r';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -8937,8 +8937,17 @@ function segProgToTime(seg, f) {            // 段內距離進度 0..1 → 絕�
   return seg.rpDep + profProgToTime(seg.rp, distRun / seg.rp.L);
 }
 function schedSegKmOf(s, i) { return s[i].segLn ? schedSegmentKm(s[i]) : haversineKm(s[i], s[i + 1]); }
+// 預算剖面的採用情形。存在的理由:採不採用【兩種結果都是對的畫面】,差別只在「調校要不要
+// 重出 build 才生效」——所以「預算資料整批沒被採用」會長得跟成功一模一樣,沒有任何紅燈。
+// 有了這個計數器,驗收才寫得出「used 必須 >0 且 stale 必須 =0」這種具名斷言。
+const _rpPre = { used: 0, stale: 0, local: 0 };
 // 沿 stops 掃出各跑段(以實際停靠站/端點為界),整段建一條梯形曲線並回填通過站時刻。
-function assignRunProfiles(s, perf, obs, zoneCls) {
+// pre = 這班車的離線預算剖面表(跑段起點站序 → 剖面),來自 data/tra_run_profiles.json
+// (scripts/build_run_profiles.mjs 產)。目的:實測與彎道剖面的調校是【每日靜態輸入的純函數】
+// (表定時刻＋貼軌里程＋車種＋實測折點＋彎道速限;即時誤點是 easedShift 另一層),
+// 算在這裡就代表改一次演算法要重出 App build 才修得到已安裝的使用者;改成離線算好隨資料出貨,
+// 重跑資料＋部署即可。缺表、對不上、或該跑段是梯形 → 原地現算,行為與改動前逐字相同。
+function assignRunProfiles(s, perf, obs, zoneCls, pre) {
   let k0 = 0;
   for (let k1 = 1; k1 < s.length; k1++) {
     if (s[k1].stop === false && k1 < s.length - 1) continue; // 通過站併入本跑段;末節點強制收尾
@@ -8947,13 +8956,30 @@ function assignRunProfiles(s, perf, obs, zoneCls) {
     const runDep = s[k0].depSec, runT = s[k1].arrSec - runDep;
     // 有實測折點就用實測剖面(僅台鐵且該跑段有通過站),否則照舊梯形。任一步不成立都安全退回。
     let rp = null;
+    // 🔴 預算值只在【幾何與時刻都對得上】時才採用。剖面是對「產生它的那份軌道與班表」算的,
+    //    若 data/tra.json 換過而剖面沒重產,拿舊剖面畫新里程就是把車畫在錯的地方。T 是整數秒
+    //    要求完全相等;L 是浮點,門檻取 1e-9 相對差——實測 Node/V8/WebKit 三方在這條計算上
+    //    逐 bit 相同(相對差 0.000e+0),而軌道資料真的改過時 L 會差到公尺級(相對 1e-4 以上),
+    //    1e-9 落在兩者之間有九個數量級的餘裕。對不上就現算,結果一樣對,只是沒省到。
+    const pk = pre && pre[k0];
+    if (pk && pk.T === runT && Math.abs(pk.L - runKm * 1000) <= 1e-9 * pk.L) {
+      // 檔案不收 h 與 obs 以省體積:h 恆等於 diff(xs)(整數相減 ⇒ 重建逐 bit 精確,不是近似),
+      // obs 對收錄的每一條都是 true。就地補上並快取,換系統重跑貼軌時不會重建第二次。
+      if (!pk.h) {
+        const h = [];
+        for (let i = 0; i < pk.xs.length - 1; i++) h.push(pk.xs[i + 1] - pk.xs[i]);
+        pk.h = h; pk.obs = true;
+      }
+      rp = pk; _rpPre.used++;
+    } else if (pk) _rpPre.stale++;
+    else _rpPre.local++;
     // 地點式速限優先於實測折點:彎道節點會重新分配段內時間,而實測折點的通過時刻是在
     // 「沒有彎道限制」的前提下量到的,兩套時間軸混用會互相矛盾 ⇒ 這個跑段只用彎道節點。
     // 代價僅限真的咬得到的那幾個跑段(目前只有新馬與和仁兩處,且只對部分車種成立),
     // 其餘全台所有跑段一律走原本的實測／梯形路徑,逐字不變。
     // 先算實測折點,彎道節點要【疊在它上面】而不是取代它(理由見 speedZoneKnots)。
     let pts = null;
-    if (obs && k1 - k0 >= 2) {
+    if (!rp && obs && k1 - k0 >= 2) {
       pts = []; let cum = 0;
       for (let i = k0; i < k1 - 1; i++) {
         cum += segKm[i - k0];
@@ -8963,7 +8989,7 @@ function assignRunProfiles(s, perf, obs, zoneCls) {
     }
     // 地點式速限:只有真的咬得到的跑段會走這條(目前只有新馬與和仁兩處,且視車種而定),
     // 其餘全台所有跑段一律走下面原本的實測／梯形路徑,逐字不變。
-    const zones = zoneCls && runKm > 0
+    const zones = !rp && zoneCls && runKm > 0
       ? runSpeedZones(s, k0, k1, segKm, zoneCls, perf.v, runKm * 1000) : null;
     if (zones) {
       // 由窄到寬試:先只動彎道所在那一個實測區間,不成才逐步往外撐(撐越多丟掉的實測校正越多)。
@@ -9417,7 +9443,8 @@ function assignSchedShapePathsFor(trains, lines) {
     // 台鐵有實測通過時刻(data/tra_pass_obs.json)時改用實測剖面;其餘系統與缺資料者維持梯形。
     // 車次號在系統間會撞號(高鐵/林鐵也有 0801 這種號),故必須以 tr.sys 把查表限定在台鐵。
     assignRunProfiles(s, perf, tr.sys === 'tra_sched' && state.passObs ? state.passObs[tr.train] : null,
-      tr.sys === 'tra_sched' ? speedZoneClassOf(tr) : null);   // 彎道速限目前只有台鐵有官方值
+      tr.sys === 'tra_sched' ? speedZoneClassOf(tr) : null,   // 彎道速限目前只有台鐵有官方值
+      tr.sys === 'tra_sched' && state.runProfiles ? state.runProfiles[tr.train] : null);
   }
 }
 
@@ -9491,6 +9518,7 @@ function applySchedSystems(sysList) {
   state.simSec = nowSecOfDay(sysList[0] && sysList[0].tz); state.clockAtNow = true; // 海外群組:以該群當地時間為「現在」
   // 逐系統貼軌:只在同系統軌道上找,避免跨系統誤貼
   state._segStats = { onShape: 0, straight: 0, bridged: 0 };
+  _rpPre.used = _rpPre.stale = _rpPre.local = 0;
   for (const sys of sysList) {
     const trs = state.trains.filter(t => t.sys === sys.id);
     const lns = state.trackLines.filter(l => l.sys === sys.id);
@@ -29583,6 +29611,11 @@ async function boot() {
   // 必須在任何 loadSystem/loadSchedGroup 之前載好——assignRunProfiles 在貼軌時就要讀它建曲線。
   // 缺檔或載入失敗 → state.passObs 為 null,全部跑段自動退回梯形(功能不受影響,只是位置回到估算值)。
   state.passObs = (await fetchJSON('./data/tra_pass_obs.json'))?.trains || null;
+  // 台鐵離線預算的實測／彎道速度剖面(scripts/build_run_profiles.mjs 產)。同樣要在任何
+  // loadSystem/loadSchedGroup 之前載好。存在的理由:這些剖面是每日靜態輸入的純函數(表定時刻＋
+  // 貼軌里程＋車種＋實測折點＋彎道速限;即時誤點是 easedShift 另一層),算在前端就代表【調校
+  // 要重出 App build 才修得到已安裝的使用者】。缺檔 → null ⇒ 每一條跑段原地現算,行為逐字不變。
+  state.runProfiles = (await fetchJSON('./data/tra_run_profiles.json'))?.trains || null;
   // 特別列車故事檔案(車型/具名觀光列車/支線);缺檔時 specialOf 回 null,退回內建簡版介紹
   state.special = await fetchJSON('./data/tra_special_trains.json');
   if (state.special) state.special.branchLines.forEach(b => { b._set = new Set(b.matchStations); });
