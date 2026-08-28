@@ -16,7 +16,9 @@
     "build-native-localizations": "node app/scripts/build_native_localizations.mjs",
     "check-native-localizations": "node app/scripts/verify_native_localizations.mjs",
     "strip-ship-comments": "node scripts/strip_ship_comments.mjs",
-    "ship-web": "node scripts/ship_web.mjs"
+    "ship-web": "node scripts/ship_web.mjs",
+    "build-music": "node scripts/build_music_data.mjs && npm run build-manifest",
+    "check-music": "node scripts/verify_music_data.mjs"
   },
   "dependencies": {
     "playwright": "^1.61.1",
