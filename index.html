@@ -14270,6 +14270,41 @@ function musicApplyMode(mode, opts) {
   if (!(opts && opts.noLoad)) musicLoadCur();
 }
 window.musicApplyMode = musicApplyMode; window.musicEffectiveMode = musicEffectiveMode;
+
+// ── 跟車配樂:自動情境 ─────────────────────────────────────────────────────────
+// 錨點優先序:① 正在跟的那班車 ② 地圖中心(放空模式也是在移動地圖,兩者同一個入口)。
+const MUSIC_CTX_HOLD_MS = 90000;   // 情境要連續成立 90 秒才生效:過個縣界就換歌會非常煩
+function musicContextNow() {
+  if (window.__musicTestCtx) return window.__musicTestCtx;   // 驗收注入點;正式路徑永遠不設這個值
+  const hour = musicHourBucket(state.simSec != null ? state.simSec : (Date.now() / 1000) % 86400);
+  const tr = state.followTrain;
+  if (tr) {
+    try {
+      const p = trainPos(tr, state.simSec);
+      if (p && p.lat != null) return { zone: musicZoneOf(p.lat, p.lon, tr.sys), hour };
+    } catch (e) {}
+  }
+  try { const c = map.getCenter(); return { zone: musicZoneOf(c.lat, c.lng, null), hour }; } catch (e) {}
+  return { zone: null, hour };
+}
+function musicAutoPool() {
+  const m = state.music; if (!m) return null;
+  const parts = (m._ctxKey || '|').split('|');
+  const p = musicPickPool(parts[0] || null, parts[1], musicShippedPools(), m._lastPoolId);
+  if (p) m._lastPoolId = p.id;
+  return p;
+}
+// 每秒呼叫一次。只更新「生效情境」,【不】換歌——換池發生在 musicNext(曲末)。
+function musicContextTick(nowMs) {
+  const m = state.music; if (!m) return;
+  const t = typeof nowMs === 'number' ? nowMs : Date.now();
+  const c = musicContextNow();
+  const key = (c.zone || '') + '|' + c.hour;
+  if (!m._ctxKey) { m._ctxKey = key; m._ctxCand = key; m._ctxAt = t; return; }  // 開機初值立即成立
+  if (key !== m._ctxCand) { m._ctxCand = key; m._ctxAt = t; return; }           // 候選變了就重新計時
+  if (key !== m._ctxKey && t - m._ctxAt >= MUSIC_CTX_HOLD_MS) m._ctxKey = key;  // 連續成立夠久才生效
+}
+window.musicContextTick = musicContextTick; window.musicAutoPool = musicAutoPool;
 function loadMusicPref() {
   let enabled = true, vol = 0.5, mode = { kind: 'free' };
   try {
@@ -14384,6 +14419,7 @@ function initMusic() {
   audio.addEventListener('playing', updateMusicBtn);
   audio.addEventListener('pause', updateMusicBtn);
   audio.addEventListener('error', updateMusicBtn);
+  setInterval(musicContextTick, 1000);   // 情境遲滯計時;換歌一律等 ended,這裡只更新生效值
   updateMusicBtn();
 }
 function updateMusicBtn() {
@@ -14419,6 +14455,19 @@ function musicSetMeta() {
 }
 function musicNext() {
   const m = state.music;
+  // 自動模式:曲末才重新評估情境。這是「絕不打斷正在播的曲子」那條政策的實作點——
+  // 情境在播放中變了只會更新 _ctxKey,真正換池要等到這裡。
+  if (musicEffectiveMode().kind === 'auto') {
+    const p = musicAutoPool();
+    if (p && p.id !== m._curPoolId) {
+      m._curPoolId = p.id;
+      m.list = musicShuffle(p.tracks.map(t => t.src));
+      m.idx = 0;
+      musicLoadCur();
+      if (m.enabled) { m.audio.volume = m.vol; m.audio.play().catch(() => {}); }
+      return;
+    }
+  }
   if (!m.list.length) return;
   m.idx++;
   if (m.idx >= m.list.length) { musicShuffle(m.list); m.idx = 0; } // 一輪播完重洗

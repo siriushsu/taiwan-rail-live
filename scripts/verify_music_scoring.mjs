@@ -171,6 +171,87 @@ const lab = await page.evaluate(() => [
 ok('E7 免費曲標籤 = 資料夾名', lab[0] === 'Afloat', JSON.stringify(lab));
 ok('E8 付費曲標籤 = 池的中文名,不得是 _pass', lab[1] === '捷運流動' && lab[2] === '都市爵士', JSON.stringify(lab));
 
+// ── F. 遲滯與曲末換池 ─────────────────────────────────────────────────────────
+// 🔴 每次改情境要 tick【兩次】:第一次只是把新情境登記成候選並重新計時(必定 return),
+//    遲滯邏輯要到第二次才上場。只 tick 一次的話,遲滯設成 0 也照樣不換 ⇒ 判準恆真。
+//    (2026-08-29 突變測試發現:HOLD=0 的突變讓不動任何判準變紅,才抓到這個真空。)
+const f = await page.evaluate(() => {
+  const R = {};
+  state.plus = { active: true };
+  state.followTrain = null;
+  const set = (z, h) => { window.__musicTestCtx = { zone: z, hour: h }; };
+  set('north-city', 'night');
+  window.musicApplyMode({ kind: 'auto' }, { noLoad: true });
+  state.music._ctxKey = ''; state.music._ctxCand = ''; state.music._ctxAt = 0;
+  window.musicContextTick(0);
+  R.k0 = state.music._ctxKey;
+  set('yilan', 'night');
+  window.musicContextTick(1000);                 // 登記候選,_ctxAt = 1000
+  window.musicContextTick(61000);                // 已過 60 秒 < 90 ⇒ 不得換
+  R.k60 = state.music._ctxKey;
+  set('north-city', 'night'); window.musicContextTick(62000);   // 候選換回去 ⇒ 計時重來
+  set('yilan', 'night');      window.musicContextTick(63000);   // 又換過去 ⇒ _ctxAt = 63000
+  window.musicContextTick(120000);               // 距 63000 才 57 秒 ⇒ 仍不得換
+  R.kReset = state.music._ctxKey;
+  window.musicContextTick(160000);               // 距 63000 已 97 秒 ⇒ 必須換
+  R.kFinal = state.music._ctxKey;
+  return R;
+});
+ok('F1 開機當下的情境立即成立', f.k0 === 'north-city|night', JSON.stringify(f));
+ok('F2 跨區 60 秒不得換(遲滯 90 秒)', f.k60 === 'north-city|night', JSON.stringify(f));
+ok('F3 候選中途變過就重新計時(119 秒但只連續 57 秒 ⇒ 不換)', f.kReset === 'north-city|night', JSON.stringify(f));
+ok('F4 連續成立 97 秒必須換', f.kFinal === 'yilan|night', JSON.stringify(f));
+
+const g = await page.evaluate(() => {
+  state.plus = { active: true };
+  window.__musicTestCtx = { zone: 'metro', hour: 'day' };
+  window.musicApplyMode({ kind: 'auto' }, { noLoad: true });
+  state.music._ctxKey = ''; state.music._ctxCand = ''; state.music._ctxAt = 0;
+  window.musicContextTick(0);
+  const before = state.music.list.slice();
+  window.__musicTestCtx = { zone: 'north-city', hour: 'dusk' };
+  for (let t = 0; t <= 400000; t += 50000) window.musicContextTick(t);
+  return { sameList: JSON.stringify(before) === JSON.stringify(state.music.list), key: state.music._ctxKey };
+});
+ok('F5 情境變了但清單不得當場被換掉(不打斷正在播的曲子)', g.sameList, JSON.stringify(g));
+ok('F6 生效情境已更新(等 ended 才換池)', g.key === 'north-city|dusk', JSON.stringify(g));
+
+// F7/F8 手動即釘住:釘住之後情境再怎麼變、曲末也不得換池。
+// 🔴 情境刻意用 north-city|dusk——那格【選得出】已上架的都市爵士,所以「保護失效就會換池」。
+//    用選不出池的情境(如 north-city|night,三個已上架池全不命中)會讓這條恆真。
+const pin = await page.evaluate(() => {
+  state.plus = { active: true };
+  window.musicApplyMode({ kind: 'pool', id: 'metro-motion' }, { noLoad: true });
+  const before = state.music.list.slice().sort();
+  window.__musicTestCtx = { zone: 'north-city', hour: 'dusk' };
+  state.music._ctxKey = ''; state.music._ctxCand = ''; state.music._ctxAt = 0;
+  window.musicContextTick(0);
+  const wouldPick = window.musicAutoPool();       // 先證明這個情境真的選得出別的池
+  window.musicNext();
+  return { same: JSON.stringify(before) === JSON.stringify(state.music.list.slice().sort()),
+    kind: window.musicEffectiveMode().kind, wouldPick: wouldPick && wouldPick.id };
+});
+ok('F7a 這個情境確實選得出另一個池(前置條件成立)', pin.wouldPick === 'urban-jazz', JSON.stringify(pin));
+ok('F7 釘住後曲末不換池', pin.same, JSON.stringify(pin));
+ok('F8 釘住期間模式維持 pool', pin.kind === 'pool', JSON.stringify(pin));
+
+// F9 自動模式在曲末【要】換池(否則「乾脆都別換」也會讓 F7 全綠)
+const auto = await page.evaluate(() => {
+  state.plus = { active: true };
+  window.__musicTestCtx = { zone: 'metro', hour: 'day' };
+  window.musicApplyMode({ kind: 'auto' }, { noLoad: true });
+  state.music._ctxKey = ''; state.music._ctxCand = ''; state.music._ctxAt = 0;
+  window.musicContextTick(0);
+  window.musicNext();
+  const a = state.music.list.slice();
+  window.__musicTestCtx = { zone: 'north-city', hour: 'dusk' };
+  for (let t = 0; t <= 400000; t += 100000) window.musicContextTick(t);
+  window.musicNext();
+  return { from: a[0], to: state.music.list[0], pool: state.music._curPoolId };
+});
+ok('F9 自動模式曲末真的換池(正向對照)',
+  auto.from && auto.to && auto.from.split('/')[1] !== auto.to.split('/')[1], JSON.stringify(auto));
+
 await browser.close();
 server.close();
 const bad = results.filter(r => !r.pass);
