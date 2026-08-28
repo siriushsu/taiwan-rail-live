@@ -3855,7 +3855,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/28</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/29</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -3863,6 +3863,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="bootfast"><span class="d">8/29</span><span>開啟網站變快了：三十幾份路網與班表資料從一份一份載改成同時下載，重新造訪也不再重抓沒變動的檔案</span></li>
         <li data-cl-of="curve-speed"><span class="d">8/28</span><span>東部幹線的急彎改照官方核定速限行駛：宜蘭線新馬那個半徑 306 公尺的彎（2018 年出軌事故現場）普悠瑪 75、太魯閣 85、其他列車 65，北迴線和仁一帶非傾斜式列車 115。到站時刻完全不變——彎道慢下來的時間由同一段的其他部分吸收；時刻表太緊而做不到時，維持原本的畫法</span></li>
         <li data-cl-of="xinyieast"><span class="d">8/28</span><span>捷運信義東延段 8/30 14 時通車，淡水信義線終點由象山延伸到廣慈/奉天宮站。地圖上這一站與新路段已經先畫好，官方即時到站資料要等通車後才會帶到這一站，在那之前這一段不會有列車，通車後會自動跟上；8/30 至 9/28 行經新通車區間不計票價</span></li>
         <li data-cl-of="i18n-dynamic"><span class="d">8/28</span><span>英文與日文現在也會即時更新最愛、今日台鐵、誤點履歷、帳號同步、Google 清單匯入、分享與「追蹤這站」；並補上災害監看、捷運終點、點選列車／車站、成就說明，以及 iPhone 即時動態與小工具，官方活動只有中文時則標示「中文原文」</span></li>
@@ -3988,6 +3989,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="bootfast"><span class="d">8/29</span><span>開啟網站變快了：三十幾份路網與班表資料原本要一份載完才載下一份，現在改成同時下載；重新造訪時沒變動的檔案也不再重抓。實測到列車出現的時間少了約三分之二</span></li>
         <li data-cl="i18n-dynamic"><span class="d">8/28</span><span>英文與日文現在也會即時更新最愛、今日台鐵、誤點履歷、帳號同步、Google 清單匯入、分享與「追蹤這站」；並補上災害監看、捷運終點、點選列車／車站、成就說明，以及 iPhone 即時動態與小工具，官方活動只有中文時則標示「中文原文」</span></li>
         <li data-cl="i18n-content"><span class="d">8/28</span><span>英文與日文再補齊品牌介紹、使用說明、特色車站與列車、觀光列車圖鑑，以及旅程護照和成就；外語版更新紀錄保留最近八筆精簡內容，較早歷史改用主題摘要</span></li>
         <li data-cl="i18n-mvp"><span class="d">8/28</span><span>新增繁中、English、日本語切換：車站與路線名稱、列車跟隨、來車看板、設定、營運提醒、通行證，以及隱私權政策與服務條款會一起切換；選過的語言也會記住</span></li>
@@ -4459,7 +4461,7 @@
 //         內部跨站閘門，五秒內跨半站的候選留在已發布位置重新銜接，不送到 client。
 // v0828e：補齊災害監看、捷運追蹤、地圖點選與成就 hover，並加入 iPhone 即時動態／小工具英日文。
 // v0828p：東部幹線急彎依官方核定速限行駛（宜蘭線新馬 R306、北迴線和仁 R804）。
-const BUILD = 'v0829b';
+const BUILD = 'v0829c';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -24413,6 +24415,12 @@ function drawFlow() {
   const c = document.getElementById('flowChart');
   if (!c || document.getElementById('flowWrap').hidden || !state.flowBins) return;
   const cssW = c.clientWidth, cssH = c.clientHeight, dpr = state.dpr || 1;
+  // 2026-08-29 效能:量到 0 就別畫。上面那道守衛看的是 hidden【屬性】,但手機是用 CSS 藏的
+  // (body.fs .flow{display:none},而 body.fs 在所有手機開機即掛)⇒ 屬性恆為 false、守衛放行,
+  // 於是每一幀 170 次 fillRect 全部打進 0×0 畫布。實測 10 秒浪費 311,780 次,而整張地圖每幀
+  // 的 canvas 操作總共才約 90 次——浪費的比真正在畫的還多,且發生在最需要那 16.6ms 的平台上。
+  // 用量出來的尺寸判斷而不是補一條 display 檢查:這樣連「容器零寬」「元素脫離文件」一起涵蓋。
+  if (!cssW || !cssH) return;
   if (c.width !== Math.round(cssW * dpr)) { c.width = Math.round(cssW * dpr); c.height = Math.round(cssH * dpr); }
   const g = c.getContext('2d');
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -24457,8 +24465,22 @@ async function fetchJSON(url) {
   }
   return fetchJSONAt(url);
 }
+// 2026-08-29 效能:版本化的靜態資料檔改吃 HTTP 快取,其餘一律維持 no-store。
+// 為什麼原本不行:no-store 的語意是「不讀快取、也不寫快取」⇒ 連條件式請求都不發、永遠拿不到 304。
+// 實測(同一個瀏覽器連載三次)第 2、3 次仍然把 30 個 data/*.json 共 1.33MB 整包重抓,快取命中 0。
+// 放行條件寫得很窄,因為誤放的代價是「顯示舊資料而且不會報錯」:
+//   ✔ 只認 data/ 底下的 .json           ✘ /api/* 即時端點(每 15 秒就要新資料,no-store 是對的)
+//   ✘ data_manifest.json 本身(它就是新鮮度的判準,吃到快取等於判準失效)
+// 伺服器端維持 max-age=0, must-revalidate ⇒ 每次仍然重新驗證,只是命中時回 304 不回 body。
+// 刻意不給 max-age:這批檔裡有每日更新的台鐵班表,新鮮期會讓回訪者看到舊班表且不會報錯。
+const CACHEABLE_DATA_RE = /(^|\/)data\/(?!data_manifest\.json)[^?]*\.json(\?|$)/;
+function jsonCacheMode(url) {
+  const u = String(url);
+  if (/\/api\//.test(u)) return 'no-store';
+  return CACHEABLE_DATA_RE.test(u) ? 'default' : 'no-store';
+}
 async function fetchJSONAt(url) {
-  try { const r = await fetch(url, { cache: 'no-store' }); return r.ok ? await r.json() : null; }
+  try { const r = await fetch(url, { cache: jsonCacheMode(url) }); return r.ok ? await r.json() : null; }
   catch (e) { return null; }
 }
 
@@ -26715,31 +26737,54 @@ async function boot() {
   // 台鐵官方今日車次名冊(停駛偵測):與班表載入並行發出,不擋開機;抓不到就 null ⇒ 維持原行為全畫。
   const traDailyP = fetchJSONAt(apiUrl('api/tra-daily-trains'));
 
-  for (const d of SYS_DEFS) {
+  // 2026-08-29 效能:開機資料【一次全部發出】,不再一個 await 接一個。
+  // 為什麼:這些檔彼此沒有資料相依,序列化只是在累加往返延遲——實測手機版有 25 個檔排成一條鏈,
+  // 橫跨 4.3 秒(4G 6.2 秒),而這 25 個檔加起來只有 864KB、單檔最久 236ms。CPU 在那段期間有
+  // 80-94% 是閒著的,不是算不動,是在排隊。改並行後理論下限＝最慢那一個。
+  // 真正的順序相依只有三條,全部保留在下面的 await 順序裡:
+  //   (1) initDataFreshness() 必須更早(它決定哪些打包檔要改抓網站版) —— 已在上方,不動。
+  //   (2) addSunriseTrains() 要等 _track 載完(站座標取自軌道資料)。
+  //   (3) passObs / runProfiles 要在任何 loadSystem/loadSchedGroup 之前(assignRunProfiles 貼軌時就要讀)。
+  // track/times 依 SYS_DEFS 先發:它們是 def 自己的欄位,與班表載入結果無關;班表失敗的系統
+  // 多抓一個檔的代價 << 少一輪往返,且缺檔時的行為與改動前逐字相同(fetchJSON 失敗回 null)。
+  const _p = p => p.catch(() => null);   // 開機期任何一個檔壞掉都只該退成 null,不該變成 unhandledrejection
+  const sysP = SYS_DEFS.map(d => _p((async () => {
     let raw = await fetchJSON(d.url);
     if (!raw && d.fallbackUrl) raw = await fetchJSON(d.fallbackUrl); // API 失敗(非 2xx/網路錯)退回打包靜態檔,目前僅高鐵設有 fallbackUrl
     let day = resolveScheduleDay(raw);                    // 多日班表→挑台北營運日當日子集;舊格式原樣通過
     day = await refreshStaleSchedule(d, day);             // 保險:清單機制沒生效時,台鐵這一份仍會自救
-    if (day) state.systems.push({ ...d, data: day });
-  }
+    return day ? { ...d, data: day } : null;
+  })()));
+  const trackP = new Map(SYS_DEFS.filter(d => d.track).map(d => [d.id, _p(fetchJSON(d.track))]));
+  const timesP = new Map(SYS_DEFS.filter(d => d.times).map(d => [d.id, _p(fetchJSON(d.times))]));
+  const transfersP = _p(fetchJSON('./data/station_transfers.json'));
+  const stnClassP  = _p(fetchJSON('./data/tra_station_class.json'));
+  const stnInfoP   = _p(fetchJSON('./data/tra_station_info.json'));
+  const platformsP = _p(fetchJSON('./data/tra_platforms.json'));
+  const passObsP   = _p(fetchJSON('./data/tra_pass_obs.json'));
+  const runProfP   = _p(fetchJSON('./data/tra_run_profiles.json'));
+  const specialP   = _p(fetchJSON('./data/tra_special_trains.json'));
+
+  // 以下只是「收貨」,順序與改動前逐字相同(state.systems 仍照 SYS_DEFS 順序 push)
+  for (const s of await Promise.all(sysP)) if (s) state.systems.push(s);
   // 停駛套用必須在 loadSystem 之前:它把名冊複製進 state.trains,之後再改 data.trains 就沒有用了。
   applyTraDailyDelta(state.systems.find(x => x.id === 'tra_sched'), await traDailyP);
   // 各 sched 系統的軌道底圖幾何(台鐵 tra.json / 高鐵 thsr_track.json)掛在該系統上,loadSystem 依系統取用
-  for (const s of state.systems) if (s.track) s._track = await fetchJSON(s.track);
+  for (const s of state.systems) if (s.track) s._track = await trackP.get(s.id);
   addSunriseTrains(); // 要在 _track 載完後(站座標取自軌道資料,與其餘班表同源)、任何 loadSystem 之前
   // 捷運/輕軌逐班時刻(*_times.json,build_metro_times.mjs 產);缺檔時該系統退回班距均勻撒車
-  for (const s of state.systems) if (s.times) s._times = await fetchJSON(s.times);
+  for (const s of state.systems) if (s.times) s._times = await timesP.get(s.id);
   // 純靜態共站表；沒有 runtime 外部 API，缺檔時只是不顯示轉乘提示。
-  initStationTransfers(await fetchJSON('./data/station_transfers.json'));
+  initStationTransfers(await transfersP);
   // 站等資料(特等/一等/…),缺檔就全走停靠班次數啟發式
-  state.stnClassMap = await fetchJSON('./data/tra_station_class.json') || {};
+  state.stnClassMap = await stnClassP || {};
   // 台鐵各站地址(TDX Rail/TRA/Station);key 為「台」正規化站名,feature 欄之後補
-  state.stnInfoMap = await fetchJSON('./data/tra_station_info.json') || {};
+  state.stnInfoMap = await stnInfoP || {};
   // 台鐵各站月台幾何(scripts/fetch_tra_platforms.mjs 由 OSM 產):單站打卡判「人在不在這座站」用。
   // 缺檔 → checkinJudge 全數退回站等半徑,行為與 2026-08-14 之前完全相同。
   // stations＝OSM 實測到的月台幾何;derived＝OSM 沒畫月台的站,用列車停車點沿路線走「該站等的
   // 中位月台長」推出來的。判定不分兩者——反正都與站等半徑取聯集,推歪的代價有上界(只會多給章)。
-  const pf = await fetchJSON('./data/tra_platforms.json');
+  const pf = await platformsP;
   state.stnPlatforms = pf ? { ...pf.stations, ...pf.derived } : null;
   // StationID → 站名反查表(stnInfoMap 是站名→資訊,方向相反):今日台鐵動態的 sta 欄位是 StationID,靠這張表轉中文站名
   state.stnIdToName = {};
@@ -26747,14 +26792,14 @@ async function boot() {
   // 台鐵通過站實測時刻(scripts/build_pass_obs.mjs 由 TDX 7 天歷史逐站觀測產;車次→通過站→跑段內時間比例‰)。
   // 必須在任何 loadSystem/loadSchedGroup 之前載好——assignRunProfiles 在貼軌時就要讀它建曲線。
   // 缺檔或載入失敗 → state.passObs 為 null,全部跑段自動退回梯形(功能不受影響,只是位置回到估算值)。
-  state.passObs = (await fetchJSON('./data/tra_pass_obs.json'))?.trains || null;
+  state.passObs = (await passObsP)?.trains || null;
   // 台鐵離線預算的實測／彎道速度剖面(scripts/build_run_profiles.mjs 產)。同樣要在任何
   // loadSystem/loadSchedGroup 之前載好。存在的理由:這些剖面是每日靜態輸入的純函數(表定時刻＋
   // 貼軌里程＋車種＋實測折點＋彎道速限;即時誤點是 easedShift 另一層),算在前端就代表【調校
   // 要重出 App build 才修得到已安裝的使用者】。缺檔 → null ⇒ 每一條跑段原地現算,行為逐字不變。
-  state.runProfiles = (await fetchJSON('./data/tra_run_profiles.json'))?.trains || null;
+  state.runProfiles = (await runProfP)?.trains || null;
   // 特別列車故事檔案(車型/具名觀光列車/支線);缺檔時 specialOf 回 null,退回內建簡版介紹
-  state.special = await fetchJSON('./data/tra_special_trains.json');
+  state.special = await specialP;
   if (state.special) state.special.branchLines.forEach(b => { b._set = new Set(b.matchStations); });
   if (!state.systems.length) {
     document.getElementById('note').textContent = t('找不到路網資料（data/*.json 還在準備）');
