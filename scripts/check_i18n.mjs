@@ -6,7 +6,9 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const indexSource = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const dictionarySource = fs.readFileSync(path.join(root, 'i18n/translations.js'), 'utf8');
+const contentDictionarySource = fs.readFileSync(path.join(root, 'i18n/content-translations.js'), 'utf8');
 const catalog = JSON.parse(fs.readFileSync(path.join(root, 'i18n/stations.json'), 'utf8'));
+const specialData = JSON.parse(fs.readFileSync(path.join(root, 'data/tra_special_trains.json'), 'utf8'));
 const legalDictionarySource = fs.readFileSync(path.join(root, 'i18n/legal-translations.js'), 'utf8');
 const failures = [];
 
@@ -15,6 +17,7 @@ function fail(message) { failures.push(message); }
 const sandbox = { window: {} };
 vm.createContext(sandbox);
 vm.runInContext(dictionarySource, sandbox, { filename: 'i18n/translations.js' });
+vm.runInContext(contentDictionarySource, sandbox, { filename: 'i18n/content-translations.js' });
 vm.runInContext(legalDictionarySource, sandbox, { filename: 'i18n/legal-translations.js' });
 const messages = sandbox.window.RAIL_I18N_MESSAGES || {};
 const languages = ['en', 'ja'];
@@ -53,6 +56,83 @@ for (const [lang, dictionary] of Object.entries(messages)) {
     if (typeof value !== 'string' && (typeof value !== 'object' || Array.isArray(value))) {
       fail(`${lang} 的翻譯型別不支援：${key}`);
     }
+  }
+}
+
+// 特色列車／車種／支線以資料檔穩定 id 對譯，不改寫原始 JSON；每個顯示欄位與陣列長度都要對齊。
+const contentData = sandbox.window.RAIL_I18N_CONTENT_DATA || {};
+const contentFields = {
+  namedTrains: ['name', 'story', 'tags'],
+  rollingStock: ['name', 'story', 'facts'],
+  branchLines: ['name', 'section', 'story'],
+};
+for (const [group, fields] of Object.entries(contentFields)) {
+  for (const item of specialData[group] || []) for (const lang of languages) {
+    const translated = contentData[lang]?.[group]?.[item.id];
+    if (!translated) { fail(`${group}「${item.id}」缺少 ${lang} 內容資料`); continue; }
+    for (const field of fields) {
+      if (typeof item[field] === 'string' && !translated[field]) fail(`${group}「${item.id}.${field}」缺少 ${lang}`);
+      if (Array.isArray(item[field]) && (!Array.isArray(translated[field]) || translated[field].length !== item[field].length)) {
+        fail(`${group}「${item.id}.${field}」的 ${lang} 陣列未與繁中對齊`);
+      }
+    }
+  }
+}
+
+function evaluateConstBlock(startMarker, endMarker, names) {
+  const start = indexSource.indexOf(startMarker), end = indexSource.indexOf(endMarker, start);
+  if (start < 0 || end < 0) { fail(`找不到內容區塊：${startMarker}`); return {}; }
+  const local = {};
+  vm.createContext(local);
+  vm.runInContext(`${indexSource.slice(start, end)}\nglobalThis.__out = { ${names.join(', ')} };`, local);
+  return local.__out || {};
+}
+const { ACHIEVEMENTS = [] } = evaluateConstBlock('const ACHIEVEMENTS =', 'const ACH_TESTS =', ['ACHIEVEMENTS']);
+const { STATION_INTRO = {} } = evaluateConstBlock('const STATION_INTRO =', '// 有精選特色', ['STATION_INTRO']);
+const helpBlocks = evaluateConstBlock('const HELP_QUICK =', 'const HELP_TRY =', ['HELP_QUICK', 'HELP_GROUPS']);
+const { SYS_META = {} } = evaluateConstBlock('const SYS_META =', '// 播放/速度/時間', ['SYS_META']);
+const { GROUPS = [] } = evaluateConstBlock('const GROUPS =', 'const groupOf', ['GROUPS']);
+const { METRO_OFFICIAL = [] } = evaluateConstBlock('const METRO_OFFICIAL =', 'function metroLinksHtml', ['METRO_OFFICIAL']);
+
+for (const source of Object.values(STATION_INTRO)) for (const lang of languages) {
+  if (!keySets[lang]?.has(source)) fail(`特色車站缺少 ${lang}：${source}`);
+}
+for (const achievement of ACHIEVEMENTS) for (const source of [achievement.name, achievement.desc]) for (const lang of languages) {
+  if (!keySets[lang]?.has(source)) fail(`成就「${achievement.id}」缺少 ${lang}：${source}`);
+}
+const metadataSources = [
+  ...Object.values(SYS_META).flatMap(meta => [meta.sub, meta.lead]),
+  ...GROUPS.flatMap(group => [group.label, group.short, group.plate?.sub, group.plate?.lead]),
+  ...METRO_OFFICIAL.map(item => item.label),
+].filter(value => value && /[\u3400-\u9fff]/.test(value));
+for (const source of new Set(metadataSources)) for (const lang of languages) {
+  if (!keySets[lang]?.has(source)) fail(`系統導言／官方連結缺少 ${lang}：${source}`);
+}
+const hiddenHelpKeys = new Set(['bounty', 'bountyrec', 'bountyme']);
+const helpSources = [];
+for (const quick of helpBlocks.HELP_QUICK || []) helpSources.push(...String(quick.tx || '').split(/<\/?b>/).filter(Boolean));
+for (const group of helpBlocks.HELP_GROUPS || []) {
+  helpSources.push(group.name);
+  for (const section of group.secs || []) {
+    if (hiddenHelpKeys.has(section.key)) continue; // 尚未上線的 GPS 校正實驗功能，不屬公開說明。
+    helpSources.push(section.nm, section.one, ...(section.steps || []), section.tip);
+    if (section.tipDesktop) helpSources.push(...String(section.tipDesktop).split(/<\/?b>/).filter(Boolean));
+  }
+}
+for (const source of new Set(helpSources.filter(value => value && /[\u3400-\u9fff]/.test(value)))) for (const lang of languages) {
+  if (!keySets[lang]?.has(source)) fail(`使用說明缺少 ${lang}：${source}`);
+}
+
+const recentBlock = /<ul class="foot-list foot-recent">([\s\S]*?)<\/ul>/.exec(indexSource)?.[1] || '';
+const recentTexts = [...recentBlock.matchAll(/<li data-cl-of="[^"]+">[\s\S]*?<span>([^<]+)<\/span><\/li>/g)].map(match => match[1].replace(/&amp;/g, '&'));
+if (recentTexts.length !== 8) fail(`公開更新紀錄近期項目應為 8 筆，目前 ${recentTexts.length} 筆`);
+for (const source of recentTexts) for (const lang of languages) {
+  if (!keySets[lang]?.has(source)) fail(`近期更新缺少 ${lang} 精簡翻譯：${source}`);
+}
+for (const lang of languages) {
+  const summaries = sandbox.window.RAIL_I18N_CHANGELOG?.[lang];
+  if (!Array.isArray(summaries) || !summaries.length || summaries.some(group => !group.name || !group.items?.length)) {
+    fail(`${lang} 缺少歷史更新主題摘要`);
   }
 }
 
@@ -117,13 +197,16 @@ const dynamicRenderers = [
   'renderSystemsBar', 'renderFreqBoard', 'renderBoard', 'updateFollowPanel',
   'renderAlertBanner', 'renderAlertDetail', 'plusRender', 'onLocateFail',
   'renderNearbyStations', 'renderPinCard', 'renderRidePanel', 'renderPassport',
+  'stationIntroText', 'renderTrainCard', 'buildStamps', 'buildAchv', 'punctualRow',
+  'renderExplorePanel', 'renderNamedIntro', 'renderSearchDrop', 'renderHelp',
 ];
 for (const name of dynamicRenderers) {
   const lines = functionSource(name).split('\n');
   lines.forEach((line, index) => {
-    if (!/[\u3400-\u9fff]/.test(line) || !/(innerHTML|textContent|showToast|\.title|aria-label|placeholder)/.test(line)) return;
-    if (/\bt\s*\(/.test(line) || /^\s*\/\//.test(line)) return;
-    fail(`${name} 第 ${index + 1} 行仍有未包 t() 的核心 DOM 中文：${line.trim()}`);
+    const code = line.replace(/\/\/.*$/, '');
+    if (!/[\u3400-\u9fff]/.test(code) || !/(innerHTML|textContent|showToast|\.title|aria-label|placeholder)/.test(code)) return;
+    if (/\bt\s*\(/.test(code) || /^\s*\/\//.test(code)) return;
+    fail(`${name} 第 ${index + 1} 行仍有未包 t() 的核心 DOM 中文：${code.trim()}`);
   });
 }
 
@@ -133,4 +216,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`i18n 稽核通過：${keySets.en.size} 個 UI key、${legalKeyCount} 個法務 key、${literalKeys.length} 個 runtime 呼叫、${stationCount} 筆站名，en/ja key 完整對齊。`);
+console.log(`i18n 稽核通過：${keySets.en.size} 個 UI／內容 key、${legalKeyCount} 個法務 key、${literalKeys.length} 個 runtime 呼叫、${stationCount} 筆站名，以及特色列車／車種／支線／特色站／說明／成就／更新紀錄的 en/ja 覆蓋。`);
