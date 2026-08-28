@@ -164,6 +164,71 @@ for (const [engName, engine] of [['chromium', chromium], ['webkit', webkit]]) {
   await browser.close();
 }
 
+// ── 極簡沉浸在手機殼要有入口,而且要能關掉 ──
+// 為什麼:#immBtn 住在 .stage-tools 裡,而手機殼把 .stage-tools 三態全部 display:none
+// ⇒ 父層不算數,`body.fs #immBtn{display:flex}` 救不了它。更糟的是 immersive 會從
+// localStorage 還原(開機時 setImmersive(true)),而 body.fs.immersive 會藏掉 .follow-panel/
+// .followbar/#randBtn/#nearBtn ⇒ 在桌面開過極簡,到 iPad 就卡在沉浸態、沒有 UI 關得掉。
+// 注意:setMore 是 index.html 那個區塊內的 const,page.evaluate 的全域看不到它
+// (原始碼裡 `typeof setMore === 'function'` 那句就是證據)。一律真的點 #tabMore 開抽屜。
+for (const [engName, engine] of [['chromium', chromium], ['webkit', webkit]]) {
+  const browser = await engine.launch();
+
+  // I1 抽屜裡有沉浸列,且點得到(≥44 觸控高)
+  {
+    const { ctx, page } = await bootPage(browser, { width: 1210, height: 834, touch: true });
+    await page.click('#tabMore');
+    await page.waitForFunction(() => document.body.classList.contains('tools-open'), null, { timeout: 5000 });
+    await page.waitForTimeout(250);
+    // 抽屜是可捲容器,這一列在「觀看模式」段、預設位置在視窗外(1210×834 時 y≈1051)。
+    // 直接對視窗外的點做 elementFromPoint 會回 null ⇒ 誤判成「被蓋住/點不到」。
+    // 要問的是「捲得到而且捲到之後點得到」,所以先 scrollIntoView 再命中測試。
+    await page.evaluate(() => {
+      const el = document.querySelector('#moreBody .ms-row[data-proxy="immBtn"]');
+      if (el) el.scrollIntoView({ block: 'center' });
+    });
+    await page.waitForTimeout(300);
+    const row = await page.evaluate(() => {
+      const el = document.querySelector('#moreBody .ms-row[data-proxy="immBtn"]');
+      if (!el) return null;
+      const r = el.getBoundingClientRect(), cs = getComputedStyle(el);
+      const inView = r.top >= 0 && r.bottom <= innerHeight;
+      const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+      return {
+        w: r.width, h: r.height, display: cs.display, inView,
+        hitIsRow: !!(hit && el.contains(hit)),
+        hitWas: hit ? (hit.tagName + (hit.className && typeof hit.className === 'string' ? '.' + hit.className.trim().split(/\s+/)[0] : '')) : 'null',
+      };
+    });
+    ok(`${engName} I1 抽屜有極簡沉浸列,捲得到且點得到`,
+      !!(row && row.w > 0 && row.h >= 44 && row.display !== 'none' && row.inView && row.hitIsRow),
+      row ? JSON.stringify({ ...row, w: Math.round(row.w), h: Math.round(row.h) }) : '找不到該列');
+    await ctx.close();
+  }
+
+  // I2 從「桌面開過沉浸」的狀態進 iPad,關得掉(這是卡死那條)
+  {
+    const { ctx, page } = await bootPage(browser, { width: 1210, height: 834, touch: true, immersive: true });
+    const before = await page.evaluate(() => document.body.classList.contains('immersive'));
+    await page.click('#tabMore');
+    await page.waitForFunction(() => document.body.classList.contains('tools-open'), null, { timeout: 5000 });
+    await page.waitForTimeout(250);
+    const clicked = await page.evaluate(() => {
+      const el = document.querySelector('#moreBody .ms-row[data-proxy="immBtn"]');
+      if (!el) return false;
+      el.click();   // 走真實的 data-proxy 派發器,不是直接呼叫 setImmersive
+      return true;
+    });
+    await page.waitForTimeout(350);
+    const after = await page.evaluate(() => document.body.classList.contains('immersive'));
+    ok(`${engName} I2 沉浸態在 iPad 關得掉`, before === true && clicked && after === false,
+      `before=${before} 找到列=${clicked} after=${after}`);
+    await ctx.close();
+  }
+
+  await browser.close();
+}
+
 // ── D1:互補區塊(原 index.html:4154 的 @media,現為 :where(body:not(.fs)) 巢狀)在桌面逐條仍生效 ──
 // 為什麼要驗:改成巢狀之後,以 body 開頭的選取器會生成 `body … body …` 而靜默失效;
 // 「規則還在檔案裡」不是證據,要看 computed style。

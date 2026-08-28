@@ -4796,6 +4796,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="ipadshell"><span class="d">8/29</span><span>iPad 改用觸控版面：直式與橫式都不再套用為滑鼠設計的桌面工具帶，改拿底部分頁列與「更多」抽屜；橫放時面板會停在右側常駐欄，地圖仍佔七成以上。「更多」裡新增「極簡沉浸」，把資訊卡與跟車橫幅收掉只留地圖與列車，適合把 iPad 立著長時間看；先前在桌面開過極簡再用手機或平板開啟會關不掉，一併修好</span></li>
         <li data-cl="metrosamename"><span class="d">8/21</span><span>捷運站看板原本只用站名找路線，沒有同時確認所屬系統，因此台北捷運與台中捷運都有的「市政府」會被誤認成同一站，混入另一座城市的路線與班次。現在從搜尋、地圖點擊、活動與最愛開站都會保留車站所屬系統；舊收藏若沒有這項資料，也會依車站座標找到正確系統。所有跨系統同名站都套用同一項修正</span></li>
         <li data-cl="metropos819"><span class="d">8/19</span><span>台北捷運各線與環狀線的列車位置整個重做：車子到站後會照官方公布的停靠秒數停一下再開，往下一站的速度改成用「還剩多少路、官方說還剩多少秒」即時算，所以會準時到站，也不會再出現車卡在月台上不動、兩班車黏在一起、或位置突然往回跳。環狀線另外補上官方的逐站行駛時間與停靠時間，之前那條線是用估算的固定秒數在跑</span></li>
         <li data-cl="zuoyingalias"><span class="d">8/16</span><span>台鐵左營站點開會跳出「左營」與「左營(舊城)」兩個選項，後者看板永遠沒班次——其實是同一座站；現在合併成一顆、看板正常。新城站同一問題一併修好（謝謝網友回報）</span></li>
@@ -5323,6 +5324,10 @@
     <button class="ms-row" data-act="flow"><span>全日班次走勢</span><span class="chev">›</span></button>
     <div class="ms-flowslot" id="msFlowSlot" hidden></div>
     <div class="ms-sec">觀看模式</div>
+    <!-- 極簡沉浸的按鈕本體 #immBtn 住在 .stage-tools 裡,而手機殼把 .stage-tools 三態全部 display:none
+         ⇒ 手機殼(含 iPad)沒有任何入口,且 immersive 會從 localStorage 還原而卡死。此列是它在手機殼的唯一入口。
+         刻意不加 data-close="1":極簡是開關不是跳頁,順手關掉抽屜會讓人以為按錯。 -->
+    <button class="ms-row" data-proxy="immBtn"><span>極簡沉浸（只留地圖與列車）</span><span class="toggle" data-tg="immBtn"></span></button>
     <button class="ms-row warnrow" data-proxy="powerBtn"><span>省電模式（30fps）</span><span class="toggle" data-tg="powerBtn"></span></button>
     <button class="ms-row" data-proxy="musicBtn"><span>背景音樂</span><span class="toggle" data-tg="musicBtn"></span></button>
     <button class="ms-row" data-proxy="ambientBtn" data-close="1"><span>放空模式</span><span class="chev">›</span></button>
@@ -27178,6 +27183,8 @@ function setupMapTools() {
     dirBtn: () => !!state.dirArrow,
     pinBtn: () => !!state.dropMode,
     powerBtn: () => !!state.powerSave,
+    // 沉浸的真值住在 body class(setImmersive 只 toggle class);state.immersive 只是開機初值、之後不再同步。
+    immBtn: () => document.body.classList.contains('immersive'),
     musicBtn: () => !!(state.music && state.music.enabled && state.music.audio && !state.music.audio.paused),
   };
   // 資料狀態:值一律從時鐘徽章的那幾顆 span 讀回來(單一事實來源)。徽章那顆藏著 ⇒ 這裡整列不出現,
