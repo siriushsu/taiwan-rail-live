@@ -3831,10 +3831,21 @@
      這樣 ①② 一起消失(地圖有滿高、小卡不必往上讓),③ 也不再需要(高度由上下錨撐出)。
      🔴 條件用 orientation 而不是只用 max-height:窄又矮的視窗(例如 400×430)是直向,塞不下側欄,
         那種形態該維持底部 sheet。iPad 橫放(1024×768)高度充足、不match,維持現狀不受本區塊影響。 */
-  @media (orientation: landscape) and (max-height: 500px) {
+  /* 🔴 這個條件與 JS 的 RAIL_MQ 常數必須逐字同式(兩處)。
+     2026-08-29 加上第二段:橫向、放得下(≥700)、且是觸控裝置 ⇒ iPad 橫放也拿側欄。
+     第一段原封不動——iPhone SE 橫放(667×375)靠它命中,下面 max-width:739 的子區塊就是為它寫的;
+     若把第一段換成 min-width:700 就會把那些機器的側欄整個退掉。
+     第二段的 (max-width:1400px) 不是裝飾:少了它,觸控筆電(>1400 走桌面殼)按 #fsFab 進全螢幕時
+     會拿到 body.fs 然後命中這裡,那是本次沒要求的行為變更。
+     RAIL_MQ ⊆ MOBILE_MQ(第一段 ⊆ max-height:500;第二段 ⊆ coarse and ≤1400),故 JS 不必再乘 MOBILE_MQ。 */
+  @media (orientation: landscape) and (max-height: 500px),
+         (orientation: landscape) and (min-width: 700px) and (max-width: 1400px) and (any-pointer: coarse) {
     /* 側欄寬度的單一事實來源:面板自己、以及所有要讓開它的東西(動作列…)都讀這一個變數,
        改一處全體同步。寫死兩次遲早分岔——randBtn 疊上側欄就是第一版沒共用時當場踩到的。 */
-    :root { --rail-w: min(340px, 42vw); }
+    /* 2026-08-29:把原式 min(340px, 42vw) 整個當成 clamp 的下界,讓現有每個情境逐值不變、
+       只有 iPad 才變寬:667→280(不變) 812→340(不變) 932→340(不變) 1133→340 1210→363 1376→413。
+       ⚠️ 42vw 在 900 以下是會生效的(667 時 = 280),不可簡化成固定 320——那會把 SE 的地圖再吃掉 40px。 */
+    :root { --rail-w: clamp(min(340px, 42vw), 30vw, 420px); }
     /* sheet 家族全體:上下錨撐滿高、靠右、讓出左半。寬度用 min() 讓 667 這種窄橫向也留得住地圖。
        選擇器帶 body.fs 是為了贏過手機殼區塊裡的 `body.fs .board`(0,2,0);矮視窗一律是 fs。 */
     body.fs .board, body.fs #nearCard, body.fs #searchPanel, body.fs .traincard.tc-sheet,
@@ -19519,8 +19530,11 @@ function syncLandFsHint() {
 }
 // 面板是不是「右側欄」形態(橫式矮視窗)。CSS 那條 @media 的 JS 對應——兩邊必須同式,
 // 否則會出現「CSS 已經把面板挪到右邊,JS 還在算底部遮蔽」這種左右手打架。
+// 🔴 RAIL_MQ 必須與側欄那個 @media 的條件逐字同式(兩處)。各段用意見該處註解。
+// 它是 MOBILE_MQ 的真子集,所以這裡不必再與 MOBILE_MQ 相乘。
+const RAIL_MQ = '(orientation: landscape) and (max-height: 500px), (orientation: landscape) and (min-width: 700px) and (max-width: 1400px) and (any-pointer: coarse)';
 function sheetIsSideRail() {
-  return !!(window.matchMedia && window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches);
+  return !!(window.matchMedia && window.matchMedia(RAIL_MQ).matches);
 }
 // §04c「露出地圖」:四邊各自從**當下可見的 HUD 元素實測 rect** 推出,不寫死常數。
 // 每個元素歸屬固定的一邊(不是「最大空矩形」):上=頂列/時鐘徽章;下=底部 sheet、收合速度膠囊、
