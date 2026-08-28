@@ -270,9 +270,9 @@ struct RailFollowIslandBottom: View {
                     .foregroundStyle(.orange).lineLimit(1)
             }
         }
-        // 🔴 展開版面的下緣是圓角，系統預設內距沒有替圓角讓路 ⇒ 最後一列會被切掉
-        //    （實機 1.4.1(30) 實測：「基隆」左半不見、「往 花蓮」下緣被削掉一截）。
-        .padding(.horizontal, scale.pt(10))
+        // 🔴 展開版面四角沒有 system 安全內距；三張 Live Activity 統一退到 22pt 安全線，
+        //    避免長站名與外語文字進入圓角斜切區。
+        .padding(.horizontal, scale.pt(22))
         .padding(.bottom, scale.pt(6))
     }
 }

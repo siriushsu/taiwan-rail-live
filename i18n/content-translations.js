@@ -4,6 +4,7 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    'iPhone 的動態島展開畫面增加圓角安全留白：捷運等車、台鐵等站與列車跟隨的內容都往內收，文字與「結束」按鈕不再被邊緣切掉；繁中、English、日本語一起套用': 'Expanded Dynamic Island views now keep a safe margin from their rounded edges. Metro waiting, TRA station tracking and train following move inward so text and the End button are no longer clipped; the fix applies to Traditional Chinese, English and Japanese.',
     '資料狀態': 'Data status',
     '即時資料': 'Live data',
     '捷運看板': 'Metro boards',
@@ -140,6 +141,7 @@
   });
 
   Object.assign(messages.ja, {
+    'iPhone 的動態島展開畫面增加圓角安全留白：捷運等車、台鐵等站與列車跟隨的內容都往內收，文字與「結束」按鈕不再被邊緣切掉；繁中、English、日本語一起套用': 'iPhoneのDynamic Island展開表示に角丸の安全余白を追加しました。メトロ待ち、台湾鉄路の駅待ち、列車追跡の内容を内側へ寄せ、文字や「終了」ボタンが端で欠けないようにしました。繁体字中国語・英語・日本語すべてに適用されます。',
     '資料狀態': 'データ状態',
     '即時資料': 'リアルタイム情報',
     '捷運看板': 'メトロ案内',

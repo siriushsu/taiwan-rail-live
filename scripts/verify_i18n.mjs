@@ -74,6 +74,9 @@ async function desktopCore(browser, engine) {
       route: routeName('高鐵', 'thsr_sched'),
       type: trainTypeName('自強'),
       count: document.getElementById('count').textContent.trim(),
+      alertChipAria: document.getElementById('alertChip').getAttribute('aria-label'),
+      alertChipTitle: document.getElementById('alertChip').getAttribute('title'),
+      shareView: document.querySelector('#moreSheet [data-proxy="shareBtn"] span')?.textContent.trim(),
       metadata: GROUPS.map(group => t(group.plate?.lead || '')).filter(Boolean),
       official: METRO_OFFICIAL.map(item => t(item.label)),
     }));
@@ -84,6 +87,7 @@ async function desktopCore(browser, engine) {
     assert(core.officialDestinationA === 'Taipei Zoo' && core.officialDestinationB === 'Taipei Nangang Exhibition Center', `英文官方終點站「站」字尾 fallback 錯誤：${JSON.stringify(core)}`);
     assert(core.route.includes('High Speed Rail') && core.type.includes('Tze-Chiang'), `英文路線／車種錯誤：${JSON.stringify(core)}`);
     assert(/trains? running/.test(core.count) && core.metadata.every(text => !/[\u3400-\u9fff]/.test(text)) && core.official.every(text => !/[\u3400-\u9fff]/.test(text)), `英文動態列車數／系統導言／官方連結錯誤：${JSON.stringify(core)}`);
+    assert(core.alertChipAria === 'Service status alerts; tap for details' && core.alertChipTitle === 'Service alert' && core.shareView === 'Share view', `英文營運公告控制項／分享畫面未翻譯：${JSON.stringify(core)}`);
     const cjkCore = await visibleEnglishCjk(page);
     assert(cjkCore.length === 0, `英文可見核心仍有中文：${cjkCore.join(' ｜ ')}`);
     record(engine, '英文首屏、分頁、站名、路線與車種');
@@ -368,6 +372,9 @@ async function desktopCore(browser, engine) {
       officialDestination: stationName('動物園站', 'mrt'),
       history: document.querySelector('.foot-more').textContent.replace(/\s+/g, ' ').trim(),
       metroWait: document.getElementById('metroWaitPicker').textContent.replace(/\s+/g, ' ').trim(),
+      alertChipAria: document.getElementById('alertChip').getAttribute('aria-label'),
+      alertChipTitle: document.getElementById('alertChip').getAttribute('title'),
+      shareView: document.querySelector('#moreSheet [data-proxy="shareBtn"] span')?.textContent.trim(),
       nativeLanguage: window.__verifyNativeLanguageCalls.at(-1),
     }));
     assert(immediate.title === '軌島' && immediate.tabs.join('|') === '全|台鉄|高鉄|メトロ', `日文即時切換失敗：${JSON.stringify(immediate)}`);
@@ -377,6 +384,7 @@ async function desktopCore(browser, engine) {
     assert(immediate.achievements.includes('初乗り記念') && immediate.history.includes('これまでの更新'), '日文成就或精簡更新歷史未翻譯');
     assert(immediate.achievementTitles.includes('最初の完乗を達成') && immediate.officialDestination === '動物園', `日文成就 hover 或官方終點站 fallback 未翻譯：${JSON.stringify(immediate)}`);
     assert(immediate.metroWait.includes('追跡時間') && immediate.metroWait.includes('方向を選択') && immediate.metroWait.includes('南港展覧館') && !immediate.metroWait.includes('追蹤'), `日文等車選單未即時翻譯：${immediate.metroWait}`);
+    assert(immediate.alertChipAria === '運行情報。タップして詳細を表示' && immediate.alertChipTitle === '運行情報' && immediate.shareView === '画面を共有', `日文營運公告控制項／分享畫面未翻譯：${JSON.stringify(immediate)}`);
     assert(immediate.nativeLanguage === 'ja', `網頁語言沒有同步到 iPhone 小工具／即時動態：${immediate.nativeLanguage}`);
     await page.evaluate(() => {
       metroWaitClosePicker(false);

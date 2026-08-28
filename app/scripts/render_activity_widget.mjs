@@ -21,6 +21,7 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const widgetDir = resolve(here, '../ios/App/RailBoardWidget');
 const outDir = resolve(process.argv[2] ?? join(here, '../../tmp/activity-shots'));
+const nativeL10nPath = join(widgetDir, 'RailNativeL10n.swift');
 
 /** 從 Swift 原始碼抽出一個頂層宣告（含大括號區塊）。與其他三支算繪腳本同一份實作。 */
 function extractDeclaration(source, header, { occurrence = 1 } = {}) {
@@ -97,6 +98,38 @@ function intentGate() {
 }
 
 intentGate();
+
+/**
+ * 🔴 原始碼層 gate：Dynamic Island 的 bottom region 沒有替 44pt 級圓角保留安全區。
+ * 1.5.0(80) 真機取證證明 10pt 會把「結束」鈕送進右側斜切區；三種卡與三種語言都必須
+ * 共用完整 22pt 內縮。PNG gate 再以 21.5pt 墨跡界線驗實際輸出。
+ */
+function expandedIslandSafeInsetGate() {
+  const bad = [];
+  for (const [name, src, header] of [
+    ['跟車卡', followSource, 'struct RailFollowIslandBottom'],
+    ['捷運等車卡', waitSource, 'struct MetroWaitIslandBottom'],
+    ['台鐵等站卡', traSource, 'struct TraWaitIslandBottom'],
+  ]) {
+    const body = extractDeclaration(src, header);
+    if (!body.includes('.padding(.horizontal, scale.pt(22))')) {
+      bad.push(`${name}沒有 22pt Dynamic Island 圓角安全內距`);
+    }
+  }
+  for (const [name, src, header] of [
+    ['捷運等車卡', waitSource, 'struct MetroWaitEndButton'],
+    ['台鐵等站卡', traSource, 'struct TraWaitEndButton'],
+  ]) {
+    const body = extractDeclaration(src, header);
+    if (!body.includes('.fixedSize(horizontal: true, vertical: false)')) {
+      bad.push(`${name}的結束按鈕仍可被長文字壓到零寬`);
+    }
+  }
+  if (bad.length) throw new Error('動態島安全內距 gate 失敗：\n' + bad.map((b) => '  ' + b).join('\n'));
+  console.log('gate 通過：三張 Live Activity 的展開動態島都保留 22pt 圓角安全內距');
+}
+
+expandedIslandSafeInsetGate();
 
 /**
  * 🔴 原始碼層 gate：算繪一律把軌道畫成靜態（理由見 pngData），所以它照不到
@@ -234,6 +267,7 @@ struct MetroWaitEndButton: View {
                 .padding(.horizontal, scale.pt(8))
                 .frame(height: scale.pt(20))
                 .background(RoundedRectangle(cornerRadius: scale.pt(5)).fill(Color.primary.opacity(0.12)))
+                .fixedSize(horizontal: true, vertical: false)
         } else {
             RailEndButton(scale: scale, height: height) { Text("結束") }
         }
@@ -253,6 +287,7 @@ struct TraWaitEndButton: View {
                 .padding(.horizontal, scale.pt(8))
                 .frame(height: scale.pt(20))
                 .background(RoundedRectangle(cornerRadius: scale.pt(5)).fill(Color.primary.opacity(0.12)))
+                .fixedSize(horizontal: true, vertical: false)
         } else {
             RailEndButton(scale: scale, height: height) { Text("結束") }
         }
@@ -1163,26 +1198,26 @@ struct Harness {
                    to: outDir + "/la-trawait-late-mono.png")
 
         // 動態島展開版的下半（識別列由 region builder 提供，那一層 ActivityKit only）。
-        // 島上沒有 14pt 邊距，內縮只有 10pt ⇒ inset 放寬到 9.5。
-        _ = render(RailFollowIslandBottom(display: followRunning), width: 360, maxHeight: islandExpandedMaxHeight, inset: 9.5,
+        // bottom region 沒有 system 圓角安全區；出貨版自行內縮 22pt，墨跡至少守住 21.5pt。
+        _ = render(RailFollowIslandBottom(display: followRunning), width: 360, maxHeight: islandExpandedMaxHeight, inset: 21.5,
                    to: outDir + "/island-follow-bottom.png")
-        _ = render(RailFollowIslandBottom(display: followStopping), width: 360, maxHeight: islandExpandedMaxHeight, inset: 9.5,
+        _ = render(RailFollowIslandBottom(display: followStopping), width: 360, maxHeight: islandExpandedMaxHeight, inset: 21.5,
                    to: outDir + "/island-follow-bottom-stopping.png")
-        _ = render(MetroWaitIslandBottom(display: waitNormal), width: 360, maxHeight: islandExpandedMaxHeight, inset: 9.5,
+        _ = render(MetroWaitIslandBottom(display: waitNormal), width: 360, maxHeight: islandExpandedMaxHeight, inset: 21.5,
                    to: outDir + "/island-wait-bottom.png")
-        _ = render(MetroWaitIslandBottom(display: waitWorst), width: 360, maxHeight: islandExpandedMaxHeight, inset: 9.5,
+        _ = render(MetroWaitIslandBottom(display: waitWorst), width: 360, maxHeight: islandExpandedMaxHeight, inset: 21.5,
                    to: outDir + "/island-wait-bottom-worst.png")
         // 進站時島上捨棄「再下一班」保住擁擠度（見 MetroWaitIslandBottom 的註解）。
-        _ = render(MetroWaitIslandBottom(display: waitArriving), width: 360, maxHeight: islandExpandedMaxHeight, inset: 9.5,
+        _ = render(MetroWaitIslandBottom(display: waitArriving), width: 360, maxHeight: islandExpandedMaxHeight, inset: 21.5,
                    to: outDir + "/island-wait-bottom-arriving.png")
 
-        _ = render(TraWaitIslandBottom(display: traLate), width: 360, maxHeight: islandExpandedMaxHeight, inset: 9.5,
+        _ = render(TraWaitIslandBottom(display: traLate), width: 360, maxHeight: islandExpandedMaxHeight, inset: 21.5,
                    to: outDir + "/island-trawait-bottom.png")
-        _ = render(TraWaitIslandBottom(display: traUnknown), width: 360, maxHeight: islandExpandedMaxHeight, inset: 9.5,
+        _ = render(TraWaitIslandBottom(display: traUnknown), width: 360, maxHeight: islandExpandedMaxHeight, inset: 21.5,
                    to: outDir + "/island-trawait-bottom-unknown.png")
-        _ = render(TraWaitIslandBottom(display: traWorst), width: 360, maxHeight: islandExpandedMaxHeight, inset: 9.5,
+        _ = render(TraWaitIslandBottom(display: traWorst), width: 360, maxHeight: islandExpandedMaxHeight, inset: 21.5,
                    to: outDir + "/island-trawait-bottom-worst.png")
-        _ = render(TraWaitIslandBottom(display: traArrived), width: 360, maxHeight: islandExpandedMaxHeight, inset: 9.5,
+        _ = render(TraWaitIslandBottom(display: traArrived), width: 360, maxHeight: islandExpandedMaxHeight, inset: 21.5,
                    to: outDir + "/island-trawait-bottom-arrived.png")
         // 等站卡的 minimal 不塞字（塞不下「18:35」），兩態靠形狀分（gate 已驗過不同）。
         for (name, arrived) in [("waiting", false), ("arrived", true)] {
@@ -1216,5 +1251,5 @@ const swiftPath = join(outDir, 'harness.swift');
 const binPath = join(outDir, 'harness');
 writeFileSync(swiftPath, harness);
 
-execFileSync('swiftc', ['-O', '-parse-as-library', swiftPath, kitPath, '-o', binPath], { stdio: 'inherit' });
+execFileSync('swiftc', ['-O', '-parse-as-library', swiftPath, kitPath, nativeL10nPath, '-o', binPath], { stdio: 'inherit' });
 execFileSync(binPath, [outDir], { stdio: 'inherit' });
