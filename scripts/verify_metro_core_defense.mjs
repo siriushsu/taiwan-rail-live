@@ -59,6 +59,12 @@ const MUTATED_WINDDOWN_HTML = REAL_HTML
     '    if (/* MUTATION winddown */ judgeable && cur < base * METRO_CORE_COUNT_DROP)');
 if (MUTATED_WINDDOWN_HTML === REAL_HTML) throw new Error('收班豁免突變沒有命中');
 
+// 突變體 5：拿掉站列版本閘門的出口（metroCoreLineBlocked 不再看 stationMismatch）。
+// 用來證明 (k) 那條判準真的是這道閘門擋下來的，不是別的閘門順手擋到。
+const MUTATED_STATIONS_HTML = REAL_HTML
+  .replace('  if (stations) return stations.reason;', '  if (false && stations) return stations.reason; // MUTATION stations');
+if (MUTATED_STATIONS_HTML === REAL_HTML) throw new Error('站列版本閘門突變沒有命中');
+
 // 🔴 Leaflet 刻意【不】攔截，走真 CDN：index.html 對它掛了 SRI integrity，
 //    塞本機那份 leaflet.js 進去會因為雜湊不符被瀏覽器擋掉，`L` undefined ⇒ boot 拋錯 ⇒
 //    這支腳本從寫出來的那一刻就不可能綠（2026-08-10 已經踩過一次同款）。
@@ -188,10 +194,25 @@ function buildSnapshot(variant) {
     }
     throw new Error('語料裡找不到可用的 BL 看板（需要兩個不同方向／終點且未來到站的已配對列）');
   }
+  if (variant === 'stationsMatch' || variant === 'stationsShift') {
+    // 站列版本閘門的語料：逐線帶上 {id, stationCount}。counts 是【從頁面自己讀回來的】
+    // stations.length（不是照抄 data/trtc.json），否則判準會與被測物共用同一份推導假設。
+    if (!pageLineCounts) throw new Error('先讓 (k) 從頁面讀到逐線站數');
+    for (const system of snapshot.systems) {
+      const sysId = String(system.systemId), prefix = sysId + ':';
+      const entries = Object.entries(pageLineCounts).filter(([key]) => key.startsWith(prefix));
+      if (!entries.length) continue;
+      system.lines = entries.map(([key, n]) => ({ id: key.slice(prefix.length),
+        stationCount: (variant === 'stationsShift' && key === 'trtc:R') ? n - 1 : n }))
+        .sort((a, b) => a.id.localeCompare(b.id));
+    }
+    return snapshot;
+  }
   if (variant === 'dropFollow') return snapshot; // 由呼叫端在 evaluate 內指定要拿掉哪一台
   throw new Error('unknown variant ' + variant);
 }
 let crossLineCase = null;
+let pageLineCounts = null; // (k) 從頁面讀回的逐線站數：`sysId:lineId` -> ln.stations.length
 
 let currentVariant = 'healthy';
 let dropVehicleId = null;
@@ -265,6 +286,7 @@ async function newPage(browser) {
     state.simSec = nowSecOfDay();
     state.metroCore.snapshot = null; state.metroCore.etag = null; state.metroCore.error = null;
     state.metroCore.blockedLines = {}; state.metroCore.blockedSystems = {};
+    state.metroCore.stationMismatch = {};
     __railMetroCore.resetGates();
     const orig = window.showToast;
     window.showToast = function (msg) { window.__toasts.push(String(msg)); return orig.apply(this, arguments); };
@@ -661,6 +683,76 @@ async function main() {
       check('J7 突變對照：拿掉收班豁免後，J3 必須轉紅（證明 J3 不是「反正那時段不判定」）',
         Object.keys(mutated.after.status.blockedLines).length > 0,
         `舊行為下 blocked=${Object.keys(mutated.after.status.blockedLines).join(',') || '(空)'}`);
+      currentVariant = 'healthy';
+    }
+
+    // ── (k) 站列版本閘門：Core 的站數與自己這份不同 ⇒ 只擋那一條線 ──────────
+    //    2026-08-29 信義東延段實測的事故形態：R 線加一站，Core 還握著舊的 27 站快取，
+    //    於是整條線索引位移一格（往象山變成往廣慈/奉天宮、往北投變成往奇岩）。車數、
+    //    身分、比例全部正常 ⇒ 前面三道閘門一個都照不到，只有站數對得出來。
+    currentVariant = 'healthy';
+    {
+      const { page, errors } = await newPage(browser);
+      pageLineCounts = await page.evaluate(() => {
+        const out = {};
+        for (const ln of state.lines) {
+          const sysId = metroCoreSystemIdForLine(ln);
+          if (sysId && Array.isArray(ln.stations) && ln.stations.length) out[sysId + ':' + ln.id] = ln.stations.length;
+        }
+        return out;
+      });
+      check('K0 從頁面讀得到逐線站數（判準來源與被測物不同源的前提）',
+        pageLineCounts && Object.keys(pageLineCounts).length >= 9 && pageLineCounts['trtc:R'] > 20,
+        `${Object.keys(pageLineCounts || {}).length} 條，trtc:R=${pageLineCounts && pageLineCounts['trtc:R']}`);
+      await page.close();
+      allErrors = allErrors.concat(errors);
+    }
+    // (k-1) 站數一致 ⇒ 什麼都不該擋（正向對照：沒有它，K2 用「乾脆全擋」也會綠）
+    currentVariant = 'stationsMatch';
+    {
+      const { page, errors } = await newPage(browser);
+      const ok = await pollOnce(page);
+      const s = await lineStats(page);
+      const trtc = Object.entries(s.lines).filter(([k]) => k.startsWith('trtc:'));
+      check('K1 站數一致時九線照舊由 Core 驅動、零 stationMismatch',
+        ok === true && trtc.length === 9 && trtc.every(([, v]) => v.core !== null) &&
+        Object.keys(s.status.stationMismatch || {}).length === 0,
+        `core 驅動 ${trtc.filter(([, v]) => v.core !== null).length}/9、mismatch=${JSON.stringify(s.status.stationMismatch)}`);
+      allErrors = allErrors.concat(errors);
+      await page.close();
+    }
+    // (k-2) R 線站數少一站 ⇒ 只有 R 退回官方倒數，其他八線不受影響
+    currentVariant = 'stationsShift';
+    {
+      const { page, errors } = await newPage(browser);
+      const ok = await pollOnce(page);
+      const s = await lineStats(page);
+      const r = s.lines['trtc:R'];
+      const others = Object.entries(s.lines).filter(([k]) => k.startsWith('trtc:') && k !== 'trtc:R');
+      const mismatch = (s.status.stationMismatch || {})['trtc:R'];
+      check('K2 站數對不上的那條線退回既有路徑', ok === true && r && r.core === null, `poll=${ok} trtc:R=${JSON.stringify(r)}`);
+      check('K3 那條線的既有路徑真的有車可畫（正向對照）', r && r.legacy > 0, `legacy=${r && r.legacy} 台`);
+      check('K4 其他八線不受影響（只擋一條，不是整包退掉）',
+        others.length === 8 && others.every(([, v]) => v.core !== null),
+        `core 驅動 ${others.filter(([, v]) => v.core !== null).length}/${others.length}`);
+      check('K5 診斷指名是哪一條、雙方各是幾站',
+        mismatch && mismatch.core === pageLineCounts['trtc:R'] - 1 && mismatch.local === pageLineCounts['trtc:R'],
+        JSON.stringify(s.status.stationMismatch));
+      allErrors = allErrors.concat(errors);
+      await page.close();
+    }
+    // (k-3) 突變對照：拿掉閘門出口，K2 必須轉紅
+    {
+      servedHtml = MUTATED_STATIONS_HTML;
+      const { page, errors } = await newPage(browser);
+      await pollOnce(page);
+      const s = await lineStats(page);
+      const r = s.lines['trtc:R'];
+      check('K6 突變對照：拿掉站列版本閘門後，K2 的判準必須轉紅',
+        r && r.core !== null && r.core > 0, `舊行為下 core=${r && r.core}（有車＝索引位移照畫，正是事故形態）`);
+      allErrors = allErrors.concat(errors.filter(e => !/MUTATION/.test(e)));
+      await page.close();
+      servedHtml = REAL_HTML;
       currentVariant = 'healthy';
     }
 

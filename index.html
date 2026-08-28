@@ -4899,7 +4899,7 @@ const state = {
     // 三道退回閘門的判定結果。blockedLines 的鍵是 `systemId:lineId`,blockedSystems 的鍵是 systemId;
     // 值都是給徽章與診斷看的原因物件。lineIdWarn 收 P0-3 的命名契約落差。
     blockedLines: {}, blockedSystems: {}, lineIdWarn: null, matchRatio: {}, selfCheck: null,
-    failedSince: 0 },
+    stationMismatch: {}, failedSince: 0 },
   // Private Metro Core 的 client cache。只保存 Worker 已完成身分／速度／停站判斷後的 canonical snapshot；
   // 公開前端只做 trajectory 線性補間，失效或過期就自動退回下方既有即時／班表路徑。
   traAnomaly: null, // 台鐵系統級大面積誤點的自家觀測 {d10, maxDelay, since} 或 null(非官方公告;d10=誤點≥10 分的班數)
@@ -20057,7 +20057,11 @@ function metroCoreLineBlocked(systemId, lineId) {
   if (!core) return null;
   const sys = core.blockedSystems && core.blockedSystems[String(systemId)];
   if (sys) return sys.reason;
-  const line = core.blockedLines && core.blockedLines[String(systemId) + ':' + String(lineId)];
+  const key = String(systemId) + ':' + String(lineId);
+  // 站列版本不同步優先於車數判準:索引整體位移時車數通常完全正常,count 閘門看不到。
+  const stations = core.stationMismatch && core.stationMismatch[key];
+  if (stations) return stations.reason;
+  const line = core.blockedLines && core.blockedLines[key];
   return line ? line.reason : null;
 }
 // 這條線改用既有路徑時會畫出幾台車。刻意複製 runningCount 的同一條退路鏈
@@ -20245,6 +20249,32 @@ function metroCoreEvaluateCounts(snapshot, nowEpoch, prior) {
   }
   return blocked;
 }
+// 🔴 站列版本閘門(2026-08-29 信義東延段)。Core 的封包是【純索引】(fromStationIndex／
+// destinationStationIndex／progress),裡面沒有站名也沒有站列版本;而 Core 是在執行期抓
+// railisland.tw 的 data/*.json。網站加站、Core 還握著舊快取的那段時間,整條線的索引會
+// 整體位移,而畫面上車數、身分、比例全部正常——上面三道閘門一個都照不到。實測(R 線加
+// 廣慈/奉天宮):往象山變成往廣慈/奉天宮、往北投變成往奇岩、往淡水變成往紅樹林。
+// Core 從此逐線帶 {id, stationCount},這裡逐線比對自己的站列長度,不同就【只擋那一條線】
+// 退回官方倒數,不影響其他線。
+// 🔴 沒有 lines 欄位時不判定(舊版 Core):判不了不等於判過,但也不能整包擋掉——出貨順序
+//    因此是【Core 先上、網站後上】,這樣加站當下一定有這個欄位可比。
+function metroCoreStationCountBlocks(snapshot) {
+  const blocked = {};
+  for (const system of (snapshot && snapshot.systems) || []) {
+    const sysId = String(system && system.systemId || '');
+    if (!METRO_CORE_LINE_ID_SET.has(sysId) || !Array.isArray(system.lines)) continue;
+    for (const entry of system.lines) {
+      const lineId = String(entry && entry.id || ''), count = Number(entry && entry.stationCount);
+      if (!lineId || !Number.isFinite(count) || count <= 0) continue;
+      const ln = metroCoreLineForId(sysId, lineId);
+      if (!ln || !Array.isArray(ln.stations) || !ln.stations.length) continue; // 這條線還沒載進來,不判定
+      if (ln.stations.length !== count) {
+        blocked[sysId + ':' + lineId] = { reason: 'stations', core: count, local: ln.stations.length };
+      }
+    }
+  }
+  return blocked;
+}
 function metroCoreApplyGates(snapshot, nowEpoch = Date.now() / 1000) {
   const core = state.metroCore;
   const issues = metroCoreLineIdIssues(snapshot);
@@ -20263,12 +20293,16 @@ function metroCoreApplyGates(snapshot, nowEpoch = Date.now() / 1000) {
   core.matchRatio = ratios;
   core.blockedSystems = blockedSystems;
   core.blockedLines = metroCoreEvaluateCounts(snapshot, nowEpoch, core.blockedLines);
+  // 刻意不併進 blockedLines:那個物件會當成下一輪 count 閘門的 prior(有遲滯),
+  // 站列不同步併進去會讓該線在站列修好後還要等好幾輪 good strike 才放行。
+  core.stationMismatch = metroCoreStationCountBlocks(snapshot);
   return core;
 }
 function metroCoreDegradedSummary() {
   const core = state.metroCore;
   if (!core) return null;
-  const lines = Object.keys(core.blockedLines || {}), systems = Object.keys(core.blockedSystems || {});
+  const lines = Object.keys({ ...(core.blockedLines || {}), ...(core.stationMismatch || {}) }),
+    systems = Object.keys(core.blockedSystems || {});
   if (!lines.length && !systems.length && !core.error && !(core.lineIdWarn && core.lineIdWarn.unknown.length)) return null;
   return { lines, systems, error: core.error || null,
     unknown: (core.lineIdWarn && core.lineIdWarn.unknown) || [] };
@@ -20342,6 +20376,7 @@ window.__railMetroCore = { enabled: METRO_CORE_ENABLED, endpoint: METRO_CORE_END
     validUntil: state.metroCore.snapshot && state.metroCore.snapshot.validUntil,
     fetchedAt: state.metroCore.fetchedAt, lastOkAt: state.metroCore.lastOkAt, error: state.metroCore.error,
     blockedLines: state.metroCore.blockedLines, blockedSystems: state.metroCore.blockedSystems,
+    stationMismatch: state.metroCore.stationMismatch,
     matchRatio: state.metroCore.matchRatio, lineIdWarn: state.metroCore.lineIdWarn,
     lineIdSelfCheck: state.metroCore.selfCheck }) };
 
