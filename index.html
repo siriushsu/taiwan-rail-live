@@ -14500,7 +14500,7 @@ function initMusic() {
   audio.volume = 0;
   // 錄影混音延後到 Plus 使用者播放音樂或開始錄影時才建立，一般訪客不多載一個 AudioContext。
   state.music = { enabled: pref.enabled, vol: pref.vol, audio, mixCtx: null, mixSrc: null, mixDest: null,
-    list: available ? musicShuffle(MUSIC_FILES.slice()) : [], idx: 0, _fade: null, _fails: 0,
+    list: available ? musicShuffle(MUSIC_FILES.slice()) : [], idx: 0, _fade: null, _fails: 0, _fellBack: false,
     mode: pref.mode, _ctxAt: 0, _ctxKey: '', _ctxCand: '', _lastPoolId: null, _curPoolId: null, _effKey: '' };
   // 曲庫改由 data/music.json 供給;載不到就維持上面那份硬編清單(部署缺檔時不至於整個沒音樂)。
   musicLoadData().then(() => {
@@ -14511,11 +14511,25 @@ function initMusic() {
     musicApplyMode(null, { noLoad: true });
   });
   audio.addEventListener('ended', musicNext);
-  audio.addEventListener('playing', () => { state.music._fails = 0; }); // 有一首放起來就歸零
-  audio.addEventListener('error', () => { // 壞檔跳下一首;整份清單都載不到(如部署環境無音檔)就停,不空轉
+  audio.addEventListener('playing', () => { state.music._fails = 0; state.music._fellBack = false; }); // 有一首放起來就歸零
+  audio.addEventListener('error', () => { // 壞檔跳下一首;連續失敗多半是斷網,退回內建曲目,不空轉也不靜掉
     const m = state.music;
     if (!m.enabled) return;
-    if (++m._fails >= m.list.length) return;
+    // 連續 3 次失敗＝多半是斷網而不是壞檔:退回打包在 App 二進位裡的那幾首(離線也在),
+    // 音樂不會在隧道裡靜掉——而「在車上聽」正是配樂功能的主場。
+    // 🔴 _fellBack 一次性:少了它,內建清單也載不到時 _fails 每被歸零一次就會再退一次,無限重試。
+    //    它在 'playing' 歸零,所以網路回來後再遇到斷線仍會再退一次。
+    const bundled = (window.MUSIC_DATA.free.bundled || []);
+    if (++m._fails >= 3 && !m._fellBack && musicIsApp() && bundled.length) {
+      m._fellBack = true;
+      m._fails = 0;
+      m.list = musicShuffle(bundled.slice());
+      m.idx = 0;
+      musicLoadCur();
+      if (m.enabled) { m.audio.volume = m.vol; m.audio.play().catch(() => {}); }
+      return;
+    }
+    if (m._fails >= m.list.length) return;
     musicNext();
   });
   // iOS App 背景續播:即使 Info.plist 已宣告 UIBackgroundModes audio,收進背景/鎖定螢幕的瞬間

@@ -34,3 +34,15 @@
 # (curl 得到),CORS 只管「別的網站的 JS 能不能讀」,開 * 不增加任何實質暴露面。
 /data/*
   Access-Control-Allow-Origin: *
+
+# 音檔內容永不就地改寫(換曲＝換檔名),可以無限期快取。
+# 🔴 理由是【離線可用性】不是頻寬:原本 /* 那條沒給音檔明確指示,瀏覽器會拿 ETag 做條件請求,
+#    每換一首都要連線驗證一次——進隧道就換不了歌,而「在車上聽」正是配樂功能的主場。
+# 🔴 路徑含空白。2026-08-29 在 wrangler dev --local 實測:寫原樣空白的 `/suno musics/*` 與
+#    寫成 `/suno%20musics/*` 【兩種都會命中】%20 編碼的請求(runtime 會正規化);把路徑改成
+#    不存在的目錄則掉回預設的 max-age=0, must-revalidate,證明是這條規則在生效。
+#    但那是 workerd 本機,不是 Cloudflare 邊緣——線上行為仍要由
+#    scripts/verify_music_headers.mjs 的 B 段實測把關:升正式站前一定要帶 MUSIC_HEADERS_BASE
+#    跑過,只過 A 段(字面檢查)不算驗證。
+/suno musics/*
+  Cache-Control: public, max-age=31536000, immutable
