@@ -33,16 +33,20 @@ struct BoardRow: Identifiable {
 
     var arrivalText: String? {
         guard let arrivalSecond else { return nil }
-        let nextDay = arrivalSecond >= 86_400 ? " 隔日" : ""
-        return "抵 \(RailBoardClock.timeString(seconds: arrivalSecond))\(nextDay)"
+        let nextDay = arrivalSecond >= 86_400 ? RailNativeL10n.text("隔日") : ""
+        return RailNativeL10n.text("抵 {time}{nextDay}", [
+            "time": RailBoardClock.timeString(seconds: arrivalSecond), "nextDay": nextDay
+        ])
     }
 
     var watchingDestinationText: String {
         switch relation {
         case .arrival:
-            return "終點"
+            return RailNativeL10n.text("終點")
         case .departure, .pass:
-            return "往 \(destinationName ?? "未標示")"
+            return RailNativeL10n.text("往 {station}", [
+                "station": destinationName.map(RailNativeL10n.name) ?? RailNativeL10n.text("未標示")
+            ])
         }
     }
 
@@ -68,9 +72,9 @@ struct BoardRow: Identifiable {
     /// 停靠站是「開」、通過點是「通過」、終到列車是「抵」。
     var relationWord: String {
         switch relation {
-        case .departure: return "開"
-        case .pass:      return "通過"
-        case .arrival:   return "抵"
+        case .departure: return RailNativeL10n.text("開")
+        case .pass:      return RailNativeL10n.text("通過")
+        case .arrival:   return RailNativeL10n.text("抵")
         }
     }
 
@@ -78,8 +82,12 @@ struct BoardRow: Identifiable {
     /// 使用者要自己做加法才能對上月台廣播。
     var departureText: String {
         lateMinutes > 0
-            ? "\(scheduledTime) \(relationWord) → \(effectiveTime)"
-            : "\(scheduledTime) \(relationWord)"
+            ? RailNativeL10n.text("{scheduled} {action} → {effective}", [
+                "scheduled": scheduledTime, "action": relationWord, "effective": effectiveTime
+            ])
+            : RailNativeL10n.text("{time} {action}", [
+                "time": scheduledTime, "action": relationWord
+            ])
     }
 
     /// 準點／誤點標。
@@ -769,10 +777,10 @@ struct RailBoardWidgetEntryView: View {
     @ViewBuilder
     private func unavailableView(_ message: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("軌島")
+            Text(RailNativeL10n.text("軌島"))
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
-            Text(message)
+            Text(RailNativeL10n.text(message))
                 .font(.system(size: 15, weight: .semibold))
                 .minimumScaleFactor(0.75)
         }
@@ -808,7 +816,7 @@ struct BoardNotice: View {
     @Environment(\.railMonochrome) private var mono
 
     var body: some View {
-        Text("⚠ " + notice.text)
+        Text("⚠ " + RailNativeL10n.text(notice.text))
             .font(.system(size: scale.pt(11), weight: .medium))
             .foregroundStyle(mono ? AnyShapeStyle(HierarchicalShapeStyle.primary)
                                   : AnyShapeStyle(RailTokens.colors(scheme).warn))
@@ -874,7 +882,7 @@ struct SmallBoardView: View {
                     //    「標題是一站還是一組對」，不是量出來的斷點寬度。
                     //    直達模式本來就不缺識別：主角那一列寫著「往 臺北-環島」。
                     if snapshot.isWatching {
-                        Text(snapshot.title)
+                        Text(RailNativeL10n.name(snapshot.title))
                             .font(.system(size: scale.pt(11, readable: 15)))
                             .foregroundStyle(.tertiary)
                             .lineLimit(1).minimumScaleFactor(0.75)
@@ -945,11 +953,11 @@ struct SmallBoardView: View {
             }
         } else {
             VStack(alignment: .leading, spacing: scale.pt(6)) {
-                Text(snapshot.title)
+                Text(RailNativeL10n.name(snapshot.title))
                     .font(.system(size: scale.pt(17), weight: .semibold))
                     .lineLimit(1).minimumScaleFactor(0.8)
                     .frame(height: scale.pt(21), alignment: .leading)
-                Text(snapshot.emptyMessage ?? "查無班次")
+                Text(RailNativeL10n.text(snapshot.emptyMessage ?? "查無班次"))
                     .font(.system(size: scale.pt(13)))
                     .foregroundStyle(.secondary)
                 if let notice = snapshot.notice {
@@ -988,10 +996,10 @@ struct SmallBoardView: View {
         // 數字欄已經在畫那個時刻（>90 分鐘的班次）⇒ 註腳不再重複一次。
         var parts = showsClock(row)
             ? []
-            : [today ? row.departureText : "明天 " + row.departureText]
+            : [today ? row.departureText : RailNativeL10n.text("明天 {value}", ["value": row.departureText])]
         // 末班車優先於抵達時刻：錯過它今天就沒有下一班，而抵達時刻只是行程資訊。
         if row.isLastOfDay, today {
-            parts.append("末班車")
+            parts.append(RailNativeL10n.text("末班車"))
         } else if !snapshot.isWatching, let arrival = row.arrivalText {
             parts.append(arrival)
         }
@@ -1045,7 +1053,7 @@ struct LargeBoardView: View {
     private func content(_ scale: RailScale) -> some View {
         let follows = Array(snapshot.rows.dropFirst().prefix(followLimit(scale)))
         VStack(alignment: .leading, spacing: 0) {
-            RailCardTitle(title: snapshot.title, scale: scale) {
+            RailCardTitle(title: RailNativeL10n.name(snapshot.title), scale: scale) {
                 RailStamp(text: RailBoardClock.updateTimeString(snapshot.generatedAt), scale: scale)
             }
             if let notice = snapshot.notice {
@@ -1066,7 +1074,7 @@ struct LargeBoardView: View {
                                  role: .followLarge, scale: scale)
                 }
             } else {
-                Text(snapshot.emptyMessage ?? "查無班次")
+                Text(RailNativeL10n.text(snapshot.emptyMessage ?? "查無班次"))
                     .font(.system(size: scale.pt(15)))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -1141,7 +1149,7 @@ struct MediumBoardView: View {
     private func content(_ scale: RailScale) -> some View {
         let follows = Array(snapshot.rows.dropFirst().prefix(followLimit(scale)))
         VStack(alignment: .leading, spacing: 0) {
-            RailCardTitle(title: snapshot.title, scale: scale) {
+            RailCardTitle(title: RailNativeL10n.name(snapshot.title), scale: scale) {
                 RailStamp(text: RailBoardClock.updateTimeString(snapshot.generatedAt), scale: scale)
             }
             if let notice = snapshot.notice {
@@ -1163,7 +1171,7 @@ struct MediumBoardView: View {
                                  role: .follow,                                  scale: scale)
                 }
             } else {
-                Text(snapshot.emptyMessage ?? "查無班次")
+                Text(RailNativeL10n.text(snapshot.emptyMessage ?? "查無班次"))
                     .font(.system(size: scale.pt(15)))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -1284,7 +1292,7 @@ struct BoardRowView: View {
                         //    「21:43 開 → 21:46」的雙時刻長句（實測 110pt），塞進 40pt 的欄
                         //    不會被裁掉——SwiftUI 的 frame 不裁切，它會直接畫到隔壁的狀態上面
                         //    （算繪實看到兩串字疊在一起）。這一欄按設計檔就是一個乾淨的時刻。
-                        Text(sameDay ? row.scheduledTime : "明天 " + row.scheduledTime)
+                        Text(sameDay ? row.scheduledTime : RailNativeL10n.text("明天 {value}", ["value": row.scheduledTime]))
                             .font(.system(size: scale.pt(13, readable: 17)))
                             .foregroundStyle(.tertiary)
                             .monospacedDigit()
@@ -1306,7 +1314,7 @@ struct BoardRowView: View {
             if showsClock {
                 RailStatusTag(kind: .custom(sameDay ? "表定" : "明天"), fontSize: 13, scale: scale)
             } else {
-                Text(sameDay ? row.departureText : "明天 " + row.departureText)
+                Text(sameDay ? row.departureText : RailNativeL10n.text("明天 {value}", ["value": row.departureText]))
                     .monospacedDigit()
             }
             if let kind = row.statusKind {
@@ -1348,7 +1356,7 @@ struct BoardRowView: View {
             // 🔴 好讀版也不畫：設計檔好讀版的 mock 從班只有誤點才出現狀態，準點那幾列是空的；
             //    而這行是 12pt 的固定字級，放在放大的版面裡本來就讀不到（要嘛放大要嘛砍，
             //    「砍欄不砍字」⇒ 砍）。分鐘欄已經回答了「還要多久」。
-            Text(sameDay ? row.scheduledTime : "明天 " + row.scheduledTime)
+            Text(sameDay ? row.scheduledTime : RailNativeL10n.text("明天 {value}", ["value": row.scheduledTime]))
                 .font(.system(size: scale.pt(12)))
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
@@ -1370,13 +1378,13 @@ struct RectangularBoardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 1) {
             HStack(spacing: 4) {
-                Text(snapshot.title)
+                Text(RailNativeL10n.name(snapshot.title))
                     .font(.system(size: 11, weight: .medium))
                     .lineLimit(1).minimumScaleFactor(0.8)
                 Spacer(minLength: 2)
                 if let notice = snapshot.notice {
                     // 鎖屏三行放不下整句班表警示 ⇒ 只留形狀，全文交給旁白。
-                    Text("⚠").font(.system(size: 10)).accessibilityLabel(notice.text)
+                    Text("⚠").font(.system(size: 10)).accessibilityLabel(RailNativeL10n.text(notice.text))
                 }
             }
             .foregroundStyle(.secondary)
@@ -1408,7 +1416,7 @@ struct RectangularBoardView: View {
                 }
                 .lineLimit(1).minimumScaleFactor(0.7)
             } else {
-                Text(snapshot.emptyMessage ?? "查無班次")
+                Text(RailNativeL10n.text(snapshot.emptyMessage ?? "查無班次"))
                     .font(.system(size: 13, weight: .semibold))
                     .lineLimit(1).minimumScaleFactor(0.75)
             }
@@ -1452,14 +1460,14 @@ struct SmallPlaceBoardView: View {
                 }
                 .frame(height: scale.pt(20))
 
-                RailLineMark(name: line.name, color: Color(hex: line.color),
+                RailLineMark(name: RailNativeL10n.name(line.name), color: Color(hex: line.color),
                              fontSize: 20, scale: scale)
                     .frame(height: scale.pt(24), alignment: .leading)
 
                 HStack(spacing: scale.pt(5)) {
                     RailTrainMark(kind: row.trainType, number: row.trainNumber,
                                   color: trainColor(row.trainType), fontSize: 11, scale: scale)
-                    Text("往 \(row.destinationName)")
+                    Text(RailNativeL10n.text("往 {station}", ["station": RailNativeL10n.name(row.destinationName)]))
                         .font(.system(size: scale.pt(14)))
                         .foregroundStyle(.secondary)
                         .lineLimit(1).minimumScaleFactor(0.8)
@@ -1486,10 +1494,10 @@ struct SmallPlaceBoardView: View {
                     .lineLimit(1).minimumScaleFactor(0.8)
                     .frame(height: scale.pt(21), alignment: .leading)
                 if let line = snapshot.lines.first {
-                    RailLineMark(name: line.name, color: Color(hex: line.color),
+                    RailLineMark(name: RailNativeL10n.name(line.name), color: Color(hex: line.color),
                                  fontSize: 13, scale: scale)
                 }
-                Text("60 分鐘內無車")
+                Text(RailNativeL10n.text("60 分鐘內無車"))
                     .font(.system(size: scale.pt(13)))
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 0)
@@ -1500,13 +1508,13 @@ struct SmallPlaceBoardView: View {
     private func footerText(_ line: PlaceLineSnapshot, _ row: PlaceBoardRow) -> String {
         let sameDay = RailBoardClock.calendar.isDate(row.scheduledDate, inSameDayAs: entryDate)
         let head = "\(row.scheduledTime) \(PlaceDistance.passWord)"
-        var parts = [sameDay ? head : "明天 " + head]
+        var parts = [sameDay ? head : RailNativeL10n.text("明天 {value}", ["value": head])]
         // 🔴 第二條線在五列預算裡放不進一整列，但「旁邊還有另一條鐵路」不能整個消失
         //    ⇒ 壓成註腳一段。它比「同一條線還有 N 班」有資訊量，所以兩者只留前者。
         if let other = snapshot.lines.dropFirst().first, let next = other.rows.first {
-            parts.append("\(other.name) \(next.scheduledTime)")
+            parts.append("\(RailNativeL10n.name(other.name)) \(next.scheduledTime)")
         } else if line.rows.count > 1 {
-            parts.append("另 \(line.rows.count - 1) 班")
+            parts.append(RailNativeL10n.text("另 {n} 班", ["n": String(line.rows.count - 1)]))
         }
         return parts.joined(separator: " · ")
     }
@@ -1554,7 +1562,7 @@ struct MediumPlaceBoardView: View {
         VStack(alignment: .leading, spacing: 0) {
             RailCardTitle(title: snapshot.title, scale: scale) {
                 HStack(spacing: scale.pt(6)) {
-                    RailLineMark(name: line.name, color: Color(hex: line.color),
+                    RailLineMark(name: RailNativeL10n.name(line.name), color: Color(hex: line.color),
                                  fontSize: 12, scale: scale)
                     Text(PlaceDistance.text(line.perpendicularMeters))
                         .font(.system(size: scale.pt(11)))
@@ -1573,7 +1581,7 @@ struct MediumPlaceBoardView: View {
                                  role: .follow, scale: scale)
                 }
             } else {
-                Text("60 分鐘內無車")
+                Text(RailNativeL10n.text("60 分鐘內無車"))
                     .font(.system(size: scale.pt(15)))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -1631,7 +1639,7 @@ private struct PlaceColumnView: View {
         //    結果整欄多出 6pt 而墨跡溢出內容框 8pt（破版 gate 抓到）。
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: scale.pt(4)) {
-                RailLineMark(name: line.name, color: Color(hex: line.color),
+                RailLineMark(name: RailNativeL10n.name(line.name), color: Color(hex: line.color),
                              fontSize: 13, scale: scale)
                 Spacer(minLength: scale.pt(2))
                 Text(PlaceDistance.text(line.perpendicularMeters))
@@ -1649,7 +1657,7 @@ private struct PlaceColumnView: View {
                               color: BoardPalette.trainColor(lead.trainType, in: typeColors),
                               fontSize: 10, scale: scale)
                     .frame(height: scale.pt(18), alignment: .leading)
-                Text("往 \(lead.destinationName)")
+                Text(RailNativeL10n.text("往 {station}", ["station": RailNativeL10n.name(lead.destinationName)]))
                     .font(.system(size: scale.pt(13)))
                     .foregroundStyle(.secondary)
                     .lineLimit(1).minimumScaleFactor(0.7)
@@ -1672,7 +1680,7 @@ private struct PlaceColumnView: View {
                     HStack(spacing: scale.pt(4)) {
                         Text(timeText(row))
                             .monospacedDigit().fixedSize()
-                        Text("\(row.trainType) \(row.trainNumber)")
+                        Text("\(RailNativeL10n.name(row.trainType)) \(row.trainNumber)")
                             .lineLimit(1).minimumScaleFactor(0.7)
                     }
                     .font(.system(size: scale.pt(11)))
@@ -1680,7 +1688,7 @@ private struct PlaceColumnView: View {
                     .frame(height: scale.pt(15), alignment: .leading)
                 }
             } else {
-                Text("60 分鐘內無車")
+                Text(RailNativeL10n.text("60 分鐘內無車"))
                     .font(.system(size: scale.pt(13)))
                     .foregroundStyle(.secondary)
                     .lineLimit(1).minimumScaleFactor(0.75)
@@ -1694,7 +1702,7 @@ private struct PlaceColumnView: View {
     private func timeText(_ row: PlaceBoardRow) -> String {
         RailBoardClock.calendar.isDate(row.scheduledDate, inSameDayAs: entryDate)
             ? row.scheduledTime
-            : "明天 " + row.scheduledTime
+            : RailNativeL10n.text("明天 {value}", ["value": row.scheduledTime])
     }
 }
 
@@ -1725,7 +1733,7 @@ struct PlaceRowView: View {
     }
 
     private var timeText: String {
-        sameDay ? row.scheduledTime : "明天 " + row.scheduledTime
+        sameDay ? row.scheduledTime : RailNativeL10n.text("明天 {value}", ["value": row.scheduledTime])
     }
 
     var body: some View {
@@ -1736,7 +1744,7 @@ struct PlaceRowView: View {
                 RailTrainMark(kind: row.trainType, number: row.trainNumber,
                               color: BoardPalette.trainColor(row.trainType, in: typeColors),
                               fontSize: isHero ? 13 : 12, scale: scale)
-                Text("往 \(row.destinationName)")
+                Text(RailNativeL10n.text("往 {station}", ["station": RailNativeL10n.name(row.destinationName)]))
                     .font(.system(size: scale.pt(isHero ? 20 : 17),
                                   weight: isHero ? .medium : .regular))
                     .foregroundStyle(isHero ? AnyShapeStyle(HierarchicalShapeStyle.primary)
@@ -1781,7 +1789,7 @@ struct RectangularPlaceBoardView: View {
                     .lineLimit(1)
                 Spacer(minLength: 2)
                 if snapshot.lines.count > 1 {
-                    Text("\(snapshot.lines.count) 條線")
+                    Text(RailNativeL10n.text("{n} 條線", ["n": String(snapshot.lines.count)]))
                         .font(.system(size: 10))
                         .fixedSize()
                 }
@@ -1790,7 +1798,7 @@ struct RectangularPlaceBoardView: View {
 
             if let line = snapshot.lines.first, let row = line.rows.first {
                 HStack(spacing: 4) {
-                    RailLineMark(name: line.name, color: Color(hex: line.color), fontSize: 12)
+                    RailLineMark(name: RailNativeL10n.name(line.name), color: Color(hex: line.color), fontSize: 12)
                         .fontWeight(.semibold)
                     Spacer(minLength: 2)
                     RailCountdownText(value: BoardCountdown.of(row: row, at: entryDate),
@@ -1801,7 +1809,7 @@ struct RectangularPlaceBoardView: View {
 
                 HStack(spacing: 4) {
                     RailTrainMark(kind: row.trainType, number: row.trainNumber, fontSize: 9)
-                    Text("往 \(row.destinationName)")
+                    Text(RailNativeL10n.text("往 {station}", ["station": RailNativeL10n.name(row.destinationName)]))
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                     Spacer(minLength: 2)
@@ -1813,7 +1821,7 @@ struct RectangularPlaceBoardView: View {
                 }
                 .lineLimit(1).minimumScaleFactor(0.7)
             } else {
-                Text("60 分鐘內無車")
+                Text(RailNativeL10n.text("60 分鐘內無車"))
                     .font(.system(size: 13, weight: .semibold))
                     .lineLimit(1)
             }
@@ -1834,7 +1842,7 @@ enum BoardPalette {
 
 enum PlaceDistance {
     /// 「我的地點」的列車是從釘子旁邊【經過】，沒有月台可進 ⇒ 不能寫「進站」「開」。
-    static let passWord = "經過"
+    static var passWord: String { RailNativeL10n.text("經過") }
 
     static func text(_ meters: Int) -> String {
         if meters < 1_000 { return "\(meters) m" }
@@ -1855,7 +1863,7 @@ struct PassBadge: View {
     var scale: RailScale = RailScale(k: 1)
 
     var body: some View {
-        Text("通過")
+        Text(RailNativeL10n.text("通過"))
             .font(.system(size: scale.pt(9), weight: .bold))
             .padding(.horizontal, scale.pt(3))
             .padding(.vertical, scale.pt(1))
@@ -1863,7 +1871,7 @@ struct PassBadge: View {
                 Capsule().strokeBorder(.secondary, lineWidth: 0.8)
             )
             .fixedSize()
-            .accessibilityLabel("通過不停靠")
+            .accessibilityLabel(RailNativeL10n.text("通過不停靠"))
     }
 }
 

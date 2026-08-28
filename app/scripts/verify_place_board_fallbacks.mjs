@@ -22,6 +22,10 @@ const sources = {
     repoRoot,
     'app/ios/App/RailBoardWidget/RailBoardData.swift'
   ),
+  l10n: join(
+    repoRoot,
+    'app/ios/App/RailBoardWidget/RailNativeL10n.swift'
+  ),
   widget: join(
     repoRoot,
     'app/ios/App/RailBoardWidget/RailBoardWidget.swift'
@@ -44,6 +48,7 @@ await execFileAsync('xcrun', [
   'swiftc',
   sources.writer,
   sources.data,
+  sources.l10n,
   sources.harness,
   '-o',
   binary,

@@ -97,10 +97,10 @@ enum RailTokens {
         guard !v.isEmpty else { return nil }
         let mean = Double(v.reduce(0, +)) / Double(v.count)
         switch Int(mean.rounded()) {
-        case ...1: return "舒適"
-        case 2:    return "普通"
-        case 3:    return "略擠"
-        default:   return "擁擠"
+        case ...1: return RailNativeL10n.text("舒適")
+        case 2:    return RailNativeL10n.text("普通")
+        case 3:    return RailNativeL10n.text("略擠")
+        default:   return RailNativeL10n.text("擁擠")
         }
     }
 }
@@ -556,17 +556,19 @@ enum RailCountdown: Equatable {
     /// 🔴 主角倒數不准走這條：它少了實心「進站」色塊與數字／單位的兩級字階。
     var plainText: String {
         switch self {
-        case .minutes(let m):       return "\(m) 分"
-        case .approxMinutes(let m): return "約 \(m) 分"
-        case .seconds(let s):       return "\(s) 秒"
-        case .arriving:             return "進站"
-        case .noData:               return "暫無資料"
+        case .minutes(let m):       return RailNativeL10n.text("{n} 分", ["n": String(m)])
+        case .approxMinutes(let m): return RailNativeL10n.text("約 {n} 分", ["n": String(m)])
+        case .seconds(let s):       return RailNativeL10n.text("{n} 秒", ["n": String(s)])
+        case .arriving:             return RailNativeL10n.text("進站")
+        case .noData:               return RailNativeL10n.text("暫無資料")
         case .scheduled(let t):     return t
         // 🔴 靜態快照，只給不自走的第三層文字用。主角倒數走 RailCountdownText 的自走路徑，
         //    落到這裡就等於把 .until 退化回 .minutes（也就是這次要修的那個 bug）。
         case .until(let d):
             let left = d.timeIntervalSinceNow
-            return left < 60 ? "進站" : "\(Int(left / 60)) 分"
+            return left < 60
+                ? RailNativeL10n.text("進站")
+                : RailNativeL10n.text("{n} 分", ["n": String(Int(left / 60))])
         }
     }
 }
@@ -709,9 +711,9 @@ struct RailCountdownText: View {
 
     var body: some View {
         switch value {
-        case .minutes(let m): number("\(m)", unit: "分")
-        case .approxMinutes(let m): number("\(m)", unit: "分", prefix: "約")
-        case .seconds(let s): number("\(s)", unit: "秒")
+        case .minutes(let m): number("\(m)", unit: RailNativeL10n.text("分"))
+        case .approxMinutes(let m): number("\(m)", unit: RailNativeL10n.text("分"), prefix: RailNativeL10n.text("約"))
+        case .seconds(let s): number("\(s)", unit: RailNativeL10n.text("秒"))
         case .noData:
             // 🔴 尺寸【刻意不隨 hero 放大】：主角倒數的槽只有 76pt 寬，「暫無資料」四個字
             //    在 20pt 就要 80pt ⇒ 會被截成「暫無…」（展示廊實測到）。截斷的過期提示
@@ -721,7 +723,7 @@ struct RailCountdownText: View {
             // 🔴 次列（56pt 槽）要再降一階到 13pt：17pt 的「暫無資料」實測 65pt 寬，
             //    而 frame 修飾詞不裁切 ⇒ 那 9pt 會直接畫到終點站名上面（slotGate 抓到）。
             //    主角欄 84／138pt 放得下 17pt，維持不動。
-            Text("暫無資料")
+            Text(RailNativeL10n.text("暫無資料"))
                 .font(.system(size: scale.pt(size.isHero ? 17 : 13), weight: .medium))
                 .foregroundStyle(.secondary)
                 .lineLimit(1).fixedSize()
@@ -802,7 +804,7 @@ struct RailCountdownText: View {
     /// 設計稿：「只有『進站』因為要當主角才給實心」。
     private var arriving: some View {
         let c = RailTokens.colors(scheme)
-        return Text(arrivingWord)
+        return Text(RailNativeL10n.text(arrivingWord))
             .font(.system(size: isHero ? max(scale.pt(19), numberSize * 0.48) : numberSize,
                           weight: .semibold))
             .foregroundStyle(mono ? Color.primary : Color.white)
@@ -905,7 +907,7 @@ struct RailLineMark: View {
             if !mono, let c = color {
                 Circle().fill(c).frame(width: scale.pt(7), height: scale.pt(7))
             }
-            Text(name).font(.system(size: scale.pt(fontSize), weight: .medium))
+            Text(RailNativeL10n.name(name)).font(.system(size: scale.pt(fontSize), weight: .medium))
                 .lineLimit(1).minimumScaleFactor(0.85)
         }
     }
@@ -935,7 +937,7 @@ struct RailTrainMark: View {
 
     var body: some View {
         HStack(spacing: scale.pt(5)) {
-            Text(kind)
+            Text(RailNativeL10n.name(kind))
                 // 車種標 12→15（設計檔對照表）＝×1.25
                 .font(.system(size: scale.pt(fontSize, readable: fontSize * 1.25),
                               weight: .semibold))
@@ -997,7 +999,7 @@ struct RailHeadingMark: View {
             // 正三角的高＝邊長 × √3/2。設計檔的 mock 是 9pt 底、約 7pt 高，比值一致。
             .frame(width: scale.pt(side, readable: side * 1.22),
                    height: scale.pt(side * 0.78, readable: side * 0.95))
-            .accessibilityLabel(heading == .north ? "北上" : "南下")
+            .accessibilityLabel(RailNativeL10n.text(heading == .north ? "北上" : "南下"))
     }
 
     private struct Triangle: Shape {
@@ -1047,18 +1049,20 @@ struct RailStatusTag: View {
 
     private var text: String {
         switch kind {
-        case .onTime:        return "準點"
+        case .onTime:        return RailNativeL10n.text("準點")
         // 🔴 `delay(0)` 是「官方讀數＝零分誤點」也就是準點，不是「誤點 +0 分」。
         //    tint 早就把 0 判成 ok 色了，文字卻還在講誤點——顏色與字互相矛盾。
         //    交給這裡統一，呼叫端就不必自己先把 0 換成 .onTime（漏換就會出現綠色的「誤點」）。
         case .delay(let m):
-            if m == 0 { return "準點" }
-            return m > 0 ? "誤點 +\(m) 分" : "早到 \(-m) 分"
-        case .lastTrain:     return "末班車"
-        case .lastTrainAt(let t): return "末班 \(t)"
-        case .suspended:     return "停駛"
+            if m == 0 { return RailNativeL10n.text("準點") }
+            return m > 0
+                ? RailNativeL10n.text("誤點 {n} 分", ["n": String(m)])
+                : RailNativeL10n.text("早到 {n} 分", ["n": String(-m)])
+        case .lastTrain:     return RailNativeL10n.text("末班車")
+        case .lastTrainAt(let t): return RailNativeL10n.text("末班 {time}", ["time": t])
+        case .suspended:     return RailNativeL10n.text("停駛")
         case .stamp(let s):  return s
-        case .custom(let s): return s
+        case .custom(let s): return RailNativeL10n.text(s)
         }
     }
 
@@ -1220,7 +1224,7 @@ struct RailStamp: View {
 
     var body: some View {
         // 單色模式下警示色失效 ⇒ 靠「⚠」這個形狀承擔（設計稿：每個狀態都要有形狀或文字備援）。
-        Text((warn ? "⚠ " : "") + text + (suffix.isEmpty ? "" : " " + suffix))
+        Text((warn ? "⚠ " : "") + text + (suffix.isEmpty ? "" : " " + RailNativeL10n.text(suffix)))
             .font(.system(size: scale.pt(11)))
             .monospacedDigit()
             .foregroundStyle(warn && !mono ? AnyShapeStyle(RailTokens.colors(scheme).warn)
@@ -1228,7 +1232,13 @@ struct RailStamp: View {
             .lineLimit(1)
             // suffix 省掉時（138pt 的識別列放不下「更新」那兩個字）畫面上只剩一個裸時刻，
             // 而同一張卡上還有發車時刻 ⇒ 至少讓旁白講清楚這是哪一個時間。
-            .accessibilityLabel(suffix.isEmpty ? "資料時刻 \(text)" : "\(text) \(suffix)")
+            .accessibilityLabel(
+                suffix.isEmpty
+                    ? RailNativeL10n.text("資料時刻 {time}", ["time": text])
+                    : RailNativeL10n.text("{time} {suffix}", [
+                        "time": text, "suffix": RailNativeL10n.text(suffix)
+                    ])
+            )
     }
 }
 

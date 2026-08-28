@@ -11,7 +11,10 @@
     "check-ops": "node scripts/verify_stadia_projection.mjs",
     "check-basemap": "node scripts/verify_web_basemap_notice.mjs",
     "check-trainpick": "node scripts/verify_train_overlap_pick.mjs",
-    "strip-ship-comments": "node scripts/strip_ship_comments.mjs"
+    "build-native-localizations": "node app/scripts/build_native_localizations.mjs",
+    "check-native-localizations": "node app/scripts/verify_native_localizations.mjs",
+    "strip-ship-comments": "node scripts/strip_ship_comments.mjs",
+    "ship-web": "node scripts/ship_web.mjs"
   },
   "dependencies": {
     "playwright": "^1.61.1",

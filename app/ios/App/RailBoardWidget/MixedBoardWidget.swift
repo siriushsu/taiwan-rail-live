@@ -26,11 +26,11 @@ struct MixedMetroStationOptionsProvider: DynamicOptionsProvider {
         let catalog = MetroWidgetCatalog.shared
         return ItemCollection(sections: [MetroNearest.optionSection()] + catalog.systems.map { system in
             IntentItemSection(
-                LocalizedStringResource(stringLiteral: system.label),
+                LocalizedStringResource(stringLiteral: RailNativeL10n.name(system.label)),
                 items: system.stationNames.map { station in
                     IntentItem<String>(
                         "\(system.id)|\(station)",
-                        title: LocalizedStringResource(stringLiteral: station)
+                        title: LocalizedStringResource(stringLiteral: RailNativeL10n.name(station))
                     )
                 }
             )
@@ -247,7 +247,7 @@ private struct MixedBoardCard: View {
                              metroAvailable: max(0, metroRows.count - 1),
                              railAvailable: max(0, railCount - 1))
         VStack(alignment: .leading, spacing: 0) {
-            RailCardTitle(title: metro.title, scale: scale) {
+            RailCardTitle(title: RailNativeL10n.name(metro.title), scale: scale) {
                 RailStamp(text: stamp.text, suffix: stamp.suffix, warn: stamp.warn, scale: scale)
             }
             Spacer().frame(height: scale.pt(MixedMetrics.titleGap))
@@ -371,7 +371,7 @@ private struct MixedBoardCard: View {
 
     private func emptyLine(_ body: (text: String, isCTA: Bool)) -> some View {
         plainLine(height: MixedMetrics.message) {
-            Text(body.text)
+            Text(RailNativeL10n.text(body.text))
                 .font(.system(size: scale.pt(13)))
                 .foregroundStyle(body.isCTA ? AnyShapeStyle(HierarchicalShapeStyle.primary)
                                             : AnyShapeStyle(HierarchicalShapeStyle.secondary))
@@ -423,15 +423,20 @@ private struct MixedBoardCard: View {
     }
 
     private var metroHeader: String {
-        metro.auto ? "捷運 · 自動選站" : "捷運 · 倒數"
+        RailNativeL10n.text(metro.auto ? "捷運 · 自動選站" : "捷運 · 倒數")
     }
 
     /// 兩半可以設在不同車站（板橋台鐵＋板橋捷運是常態，但設成不同站也合法）。
     /// 站名不同時分區標題就是唯一講得清楚的地方 ⇒ 站名優先於「時刻／經過」這種量度字。
     private var railHeader: String {
-        if let name = railTitle, name != metro.title { return "臺鐵・高鐵 · \(name)" }
-        if case .place = entry.rail.content { return "臺鐵・高鐵 · 經過" }
-        return "臺鐵・高鐵 · 時刻"
+        if let name = railTitle, name != metro.title {
+            let shown: String
+            if case .place = entry.rail.content { shown = name }
+            else { shown = RailNativeL10n.name(name) }
+            return RailNativeL10n.text("臺鐵・高鐵 · {name}", ["name": shown])
+        }
+        if case .place = entry.rail.content { return RailNativeL10n.text("臺鐵・高鐵 · 經過") }
+        return RailNativeL10n.text("臺鐵・高鐵 · 時刻")
     }
 
     /// 卡片只放一個資料時刻。取捷運那一份：它是官方回應自帶的時刻（會真的變舊），

@@ -108,27 +108,40 @@ struct MetroWaitDisplay {
             // 🔴 與主角同一個理由走 `.until`：次班的 eta 也是官方絕對時刻，折成字串就會凍住。
             let c: RailCountdown? = secondEta.map { RailCountdown.until(Date(timeIntervalSince1970: $0)) }
                 ?? secondMinutes.map { RailCountdown.approxMinutes($0) }
-            if let c { second = SecondTrain(lead: "再下一班 往 \(dest)", countdown: c) }
+            if let c {
+                second = SecondTrain(
+                    lead: RailNativeL10n.text("再下一班 往 {station}", ["station": RailNativeL10n.name(dest)]),
+                    countdown: c
+                )
+            }
         }
 
         var footerParts: [String] = []
-        if let endAt { footerParts.append("追蹤至 \(RailBoardClock.updateTimeString(Date(timeIntervalSince1970: endAt)))") }
-        if let dataAt { footerParts.append("\(RailBoardClock.updateTimeString(Date(timeIntervalSince1970: dataAt))) 更新") }
+        if let endAt {
+            footerParts.append(RailNativeL10n.text("追蹤至 {time}", [
+                "time": RailBoardClock.updateTimeString(Date(timeIntervalSince1970: endAt))
+            ]))
+        }
+        if let dataAt {
+            footerParts.append(RailNativeL10n.text("{time} 更新", [
+                "time": RailBoardClock.updateTimeString(Date(timeIntervalSince1970: dataAt))
+            ]))
+        }
 
         // 🔴 這句話有兩種版本，不可以只留一種：接上伺服器推播的卡會自己換下一班，沒接上的
         //    （綁定失敗、沒網路、伺服器拒收）不會。`pushed` 只有在伺服器真的推過一發之後
         //    才是 true——它證明的正是「推播這條路是通的」，比任何客端旗標都可靠。
         let hint: String? = isStale
-            ? (pushed == true ? "下一班會自動接上" : "卡片不會自己接下一班，要看後續請回軌島重開")
+            ? RailNativeL10n.text(pushed == true ? "下一班會自動接上" : "卡片不會自己接下一班，要看後續請回軌島重開")
             : nil
 
         return MetroWaitDisplay(
-            lineLabel: lineLabel, station: station, color: RailHex.color(colorHex),
-            dest: nextDest, countdown: countdown, track: track, progress: progress,
+            lineLabel: RailNativeL10n.name(lineLabel), station: RailNativeL10n.name(station), color: RailHex.color(colorHex),
+            dest: nextDest.map { RailNativeL10n.name($0) }, countdown: countdown, track: track, progress: progress,
             arriving: isStale, expired: expired, crowd: crowd,
             second: second,
             footer: footerParts.isEmpty ? nil : footerParts.joined(separator: " · "),
-            notice: RailHex.trimmed(notice), staleHint: hint
+            notice: RailHex.trimmed(notice).map { RailNativeL10n.text($0) }, staleHint: hint
         )
     }
 }
@@ -202,10 +215,10 @@ struct MetroWaitLockView: View {
                 // 🔴 「下一班」跟主角同一列，不獨立一列：鎖屏 Live Activity 只有 160pt 高
                 //    （官方：超過就被系統截掉），而這張卡量到 198–216pt ⇒ 使用者看到的是
                 //    上下緣被切掉。跟車卡與動態島本來就是「小標＋大站名」同列。
-                Text("下一班")
+                Text(RailNativeL10n.text("下一班"))
                     .font(.system(size: scale.pt(11)))
                     .foregroundStyle(.secondary)
-                Text("往 \(display.dest ?? "—")")
+                Text(RailNativeL10n.text("往 {station}", ["station": display.dest ?? "—"]))
                     .font(.system(size: scale.pt(26), weight: .semibold))
                     .lineLimit(1).minimumScaleFactor(0.7)
                 Spacer(minLength: scale.pt(4))
@@ -220,7 +233,9 @@ struct MetroWaitLockView: View {
                                phase: display.arriving ? .arriving : .running,
                                lineColor: display.color, scale: scale)
                 // 進站時明講「進站中」——設計稿把狀態同時放在倒數、軌脊圓點與這裡三處。
-                Text(display.arriving ? "\(display.station) 進站中" : display.station)
+                Text(display.arriving
+                     ? RailNativeL10n.text("{station} 進站中", ["station": display.station])
+                     : display.station)
                     .font(.system(size: scale.pt(11)))
                     .foregroundStyle(display.arriving
                                      ? AnyShapeStyle(RailTokens.colors(scheme).ok)
@@ -296,12 +311,12 @@ struct MetroWaitEndButton: View {
         if #available(iOS 17.6, *) {
             if compact {
                 Button(intent: MetroWaitEndIntent()) {
-                    Text("結束").font(.system(size: scale.pt(11), weight: .semibold))
+                    Text(RailNativeL10n.text("結束")).font(.system(size: scale.pt(11), weight: .semibold))
                 }
                 .buttonStyle(.bordered).controlSize(.mini).tint(.secondary)
             } else {
                 Button(intent: MetroWaitEndIntent()) {
-                    RailEndButton(scale: scale, height: height) { Text("結束") }
+                    RailEndButton(scale: scale, height: height) { Text(RailNativeL10n.text("結束")) }
                 }
                 .buttonStyle(.plain)
             }
@@ -320,7 +335,7 @@ struct MetroWaitIslandBottom: View {
     var body: some View {
         VStack(alignment: .leading, spacing: scale.pt(4)) {
             HStack(alignment: .center, spacing: scale.pt(6)) {
-                Text("往 \(display.dest ?? "—")")
+                Text(RailNativeL10n.text("往 {station}", ["station": display.dest ?? "—"]))
                     .font(.system(size: scale.pt(20), weight: .semibold))
                     .lineLimit(1).minimumScaleFactor(0.7)
                 Spacer(minLength: scale.pt(4))
@@ -476,7 +491,7 @@ struct MetroWaitActivityWidget: Widget {
                         Circle().fill(c).frame(width: 8, height: 8)
                     }
                     if let dest = d.dest, !dest.isEmpty {
-                        Text("往\(dest)")
+                        Text(RailNativeL10n.text("往{station}", ["station": dest]))
                             .font(.system(size: 12, weight: .medium))
                             .lineLimit(1).frame(maxWidth: 60)
                     }
