@@ -573,6 +573,28 @@ export async function verifyRelease({
     assert(notes.includes(appVerMatch[1]),
       `RAIL_APP_WHATS_NEW 文案裡沒有本版版號 ${appVerMatch[1]}——十之八九是版號升了、`
       + 'set-release-mode.mjs 的 why 還是上一版的文。每一版都要重寫 why(=App 內「更新了什麼」)');
+
+    // 英日整段文案。1.5.1 之前只注入中文 ⇒ 英日使用者更新完看到的是標著「中文原文」的
+    // 中文說明(日文實機截圖為證),而那一版的頭條正好是「三語真的切得動了」。
+    // 判準刻意驗到「字裡真的是那個語言」:只驗有值的話,把中文貼進 whyEn 也會過,
+    // 而那比現況更糟——連「中文原文」標籤都不會出現。
+    for (const [lang, key, why] of [['en', 'RAIL_APP_WHATS_NEW_EN', 'whyEn'], ['ja', 'RAIL_APP_WHATS_NEW_JA', 'whyJa']]) {
+      const m = new RegExp(`window\\.${key}="((?:[^"\\\\]|\\\\.)*)"`).exec(html);
+      assert(m, `發行包缺少 window.${key} 注入——${lang} 使用者的「更新了什麼」會退回中文。`
+        + `請在 set-release-mode.mjs 該模式補 ${why}`);
+      const text = JSON.parse(`"${m[1]}"`);
+      assert(text.trim().length > 0, `${key} 是空的——${lang} 使用者會看到中文更新說明。補 set-release-mode.mjs 的 ${why}`);
+      assert(text.includes(appVerMatch[1]),
+        `${key} 裡沒有本版版號 ${appVerMatch[1]}——中文改了但 ${why} 還是上一版的文`);
+      if (lang === 'en') {
+        assert(!/[\u3400-\u9fff]/.test(text),
+          `${key} 裡有漢字——十之八九是把中文貼進 whyEn 了。這比沒填更糟:`
+          + '沒填會退回中文並標「中文原文」,填錯則是無標記的中文');
+      } else {
+        assert(/[\u3040-\u30ff]/.test(text),
+          `${key} 裡一個假名都沒有——十之八九是把中文貼進 whyJa 了(日文整段不可能零假名)`);
+      }
+    }
   }
 
   if (expectPlusSandboxBuild !== null) assertPlusSandboxTestBuild(html, expectPlusSandboxBuild);
