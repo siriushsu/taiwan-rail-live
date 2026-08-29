@@ -237,7 +237,7 @@ const liveRow = (s, d, e, st = 0, l = 'BL') => ({ l, s, d, e, st, op: 'KRTC' });
     r.apns[0].body.aps['stale-date'] === mockNowSec + 180, String(r.apns[0].body.aps['stale-date']));
   ok('A7 dataAt 用【上游自己的資料時刻】(所選列 at 的最大值),不是我方的 now',
     cs && cs.dataAt === mockNowSec - 6, `dataAt=${cs && cs.dataAt} now=${mockNowSec}`);
-  ok('A8 crowd 由 trains[].cars 依終點 join(與看板/小工具同一套)',
+  ok('A8 crowd 由 trains[].cars 依【官方車號】逐車 join(與看板/小工具同一套)',
     cs && JSON.stringify(cs.crowd) === JSON.stringify([1, 2, 3, 4, 2, 1]), JSON.stringify(cs && cs.crowd));
   ok('A9 別站的列沒有混進來(民權西路的 60 秒那班不可以變成首班)', cs && cs.nextEta !== mockNowSec + 60);
   ok('A10 推播成功後 last_state 存的是【真的送出去的那一包】',
@@ -245,6 +245,33 @@ const liveRow = (s, d, e, st = 0, l = 'BL') => ({ l, s, d, e, st, op: 'KRTC' });
   ok('A11 apns-topic 是 liveactivity(topic 打錯會整批 DeviceTokenNotForTopic)',
     r.apns[0].headers['apns-topic'] === 'tw.railisland.app.push-type.liveactivity', r.apns[0].headers['apns-topic']);
   ok('A12 apns-priority=5(5 不計入更新預算)', r.apns[0].headers['apns-priority'] === '5');
+}
+{
+  // A8b 負對照:與 A8【除了 trains[].no 以外每一格輸入完全相同】——首班那列的車號是 A1,
+  // 而唯一往淡水且有 cars 的車改成 ZZ。逐車 join ⇒ 必須留白;舊的同終點 join 會回 [1,2,3,4,2,1]。
+  // 沒有這一條,A8 的「有值」無法區分兩種 join,整組判準對這次修的 bug 沒有牙。
+  // (真實形狀:忠孝復興往南港展覽館有文湖線與板南線兩列,文湖線那列會拿到板南線那台的 6 格。)
+  await resetTable();
+  mockNowSec = 1_800_000_000;
+  srcTrtc = {
+    at: new Date(mockNowSec * 1000).toISOString(), src: 'trtc',
+    board: [
+      bRow('台北車站', '淡水', 180, -8, 'A1'),
+      bRow('台北車站', '象山', 420, -6, 'A2'),
+      bRow('民權西路', '淡水', 60, -5, 'B1'),
+    ],
+    trains: [{ no: 'ZZ', dest: '淡水', cars: [1, 2, 3, 4, 2, 1] }, { no: 'Z', dest: '象山', cars: [3, 3, 3, 3, 3, 3] }],
+  };
+  await insRow({ token: T('a8b'), sys: 'trtc', station: '台北', dest: null, end_at: mockNowSec + 1800, apns_env: 'prod' });
+  const r = await tick();
+  const cs = r.apns[0] && r.apns[0].body.aps['content-state'];
+  ok('A8b 前提:這一發有推出去,而且首班仍是 A1 那列(否則下面那條是零資訊)',
+    r.apns.length === 1 && cs && cs.nextEta === mockNowSec + 180 && cs.nextDest === '淡水',
+    `apns=${r.apns.length} nextEta=${cs && cs.nextEta} nextDest=${cs && cs.nextDest}`);
+  ok('A8b 前提:那台同終點的車確實有 cars(可被借,這個陷阱才成立)',
+    Array.isArray(srcTrtc.trains[0].cars) && srcTrtc.trains[0].cars.length === 6);
+  ok('A8b 負對照:同終點但不是同一台車 ⇒ crowd 必須留白,不准拿別台頂替',
+    cs && cs.crowd === null, JSON.stringify(cs && cs.crowd));
 }
 {
   // 資料齡:at 比 now 早超過 45 秒的列一律不可採(與前端 TRTC_OFFICIAL_BOARD_MAX_AGE_MS 同一條)
