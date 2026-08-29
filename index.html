@@ -21382,7 +21382,7 @@ function updateLiveBadge() {
     if (Math.abs(state.simSec - nowSecOfDay()) > 120) why.push(t('時間軸不在現在'));
     el.title = (fresh
       ? t('台鐵即時誤點已套用（每分鐘更新）· {n} 班誤點中 · 來源 {time}', { n: i18nNumber(state.live.delayed), time: String(state.live.srcAt).slice(11, 16) })
-      : t('台鐵誤點目前非即時：依 {time} 的即時資料投射 · {n} 班誤點中', { time: String(state.live.srcAt).slice(11, 16), n: i18nNumber(state.live.delayed) }))
+      : t('台鐵誤點目前非即時：依 {time} 的即時資料投射 · {n} 班誤點中', { time: String(state.live.srcAt).slice(11, 16), n: i18nNumber(state.live.delayed) }, state.live.delayed))
       + (why.length ? ' · ' + why.join('、') : '');
   }
   // LIVE 亮起時收掉「時刻表模擬」標籤,兩者並排語意矛盾;熄滅後每秒刷新會自動恢復
