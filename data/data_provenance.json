@@ -53,7 +53,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "814058678ff89799c83cd3d65aa4de50"
+   "checksum": "b83fbb70c64d9f0c5e91cfc34c085adf"
   },
   "data/ntalrt.json": {
    "sourceDescription": "交通部 TDX 運輸資料流通服務(安坑輕軌:路線幾何/站序,2026-07 抓取);班距為官方公告估算(尖峰約12分/離峰約15分),TDX 無班距/站間時間檔",
@@ -71,7 +71,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "2bb085a233919ae65fe46fe74d34ced1"
+   "checksum": "a92e0345ecc6b960b7689bdf7501bad9"
   },
   "data/ntdlrt.json": {
    "sourceDescription": "交通部 TDX 運輸資料流通服務(淡海輕軌:路線幾何/站序,2026-07 抓取);班距為官方公告估算(尖峰約10分/離峰約15分),TDX 無班距/站間時間檔",
@@ -89,7 +89,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "dbcf7623a03d13afb75a32c4e1fe05bb"
+   "checksum": "2e4da0cbeb30271340c7467c6d62f38f"
   },
   "data/rail_crossing_levels.json": {
    "sourceDescription": "OpenStreetMap (layer / bridge / tunnel) via Overpass API",

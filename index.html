@@ -3863,6 +3863,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="notice0829"><span class="d">8/29</span><span>高鐵台中車站 9/7 至 9/10 軌道大修、三鶯線 9/1 起正式收費，兩則公告已放上通知列；同時更新安坑、淡海輕軌與高雄捷運班表</span></li>
         <li data-cl-of="bootfast"><span class="d">8/29</span><span>開啟網站變快了：三十幾份路網與班表資料從一份一份載改成同時下載，重新造訪也不再重抓沒變動的檔案</span></li>
         <li data-cl-of="curve-speed"><span class="d">8/28</span><span>東部幹線的急彎改照官方核定速限行駛：宜蘭線新馬那個半徑 306 公尺的彎（2018 年出軌事故現場）普悠瑪 75、太魯閣 85、其他列車 65，北迴線和仁一帶非傾斜式列車 115。到站時刻完全不變——彎道慢下來的時間由同一段的其他部分吸收；時刻表太緊而做不到時，維持原本的畫法</span></li>
         <li data-cl-of="xinyieast"><span class="d">8/28</span><span>捷運信義東延段 8/30 14 時通車，淡水信義線終點由象山延伸到廣慈/奉天宮站。地圖上這一站與新路段已經先畫好，官方即時到站資料要等通車後才會帶到這一站，在那之前這一段不會有列車，通車後會自動跟上；8/30 至 9/28 行經新通車區間不計票價</span></li>
@@ -3870,8 +3871,6 @@
         <li data-cl-of="metrocoredefault"><span class="d">8/28</span><span>網站版重新開啟北捷統一時間軸：地圖列車、車站預告與點選跟隨會使用同一份身分與軌跡；每次更新也會檢查軌跡內部，若列車在五秒內跨過半站以上，會先留在原位重新銜接，不把瞬間跳位送到畫面。Core 連線失敗或單線資料不完整時，仍會自動退回原本模式</span></li>
         <li data-cl-of="i18n-content"><span class="d">8/28</span><span>英文與日文再補齊品牌介紹、使用說明、特色車站與列車、觀光列車圖鑑，以及旅程護照和成就；外語版更新紀錄保留最近八筆精簡內容，較早歷史改用主題摘要</span></li>
         <li data-cl-of="i18n-mvp"><span class="d">8/28</span><span>新增繁中、English、日本語切換：車站與路線名稱、列車跟隨、來車看板、設定、營運提醒、通行證，以及隱私權政策與服務條款會一起切換；選過的語言也會記住</span></li>
-        <li data-cl-of="music57"><span class="d">8/27</span><span>放空模式的背景音樂重新整理過：曲目從 29 首增加到 57 首，分成 Afloat、Midnight stories、Moonlake、Rainy day、Star &amp; Neon、peaceful piano 六組不同氛圍</span></li>
-        <li data-cl-of="traoutagenote"><span class="d">8/25</span><span>台鐵即時資料中斷時會明講：時鐘旁出現「中斷」並寫明資料停在幾點，今日台鐵動態也會註明暫時無法跟車</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3893,6 +3892,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="notice0829"><span class="d">8/29</span><span>新增兩則營運公告：台灣高鐵台中車站南下月台軌 9 月 7 日至 10 日全日限速 70 公里，T333 次彰化發車延誤 2 至 4 分鐘、T565 與 T567 次改停西月台；新北捷運三鶯線 9 月 1 日起正式收費，起程 20 元、最高 35 元，另發售 60 元一日票（正式營運後的首末班時間官方尚未公告，這條線仍照試營運時段推算）。同時更新安坑輕軌、淡海輕軌與高雄捷運的班表</span></li>
         <li data-cl="traoutagenote"><span class="d">8/25</span><span>台鐵即時資料中斷時不再靜悄悄：時鐘旁出現「中斷」並寫明資料停在幾點、列車暫改依時刻表位置顯示；今日台鐵動態的「跟這班車」不見時也會註明原因。來源備援也一併加強</span></li>
         <li data-cl="metrocoredefault"><span class="d">8/28</span><span>網站版重新開啟北捷統一時間軸，地圖列車、車站預告與點選跟隨改由同一份 Core 身分與軌跡驅動。尖峰實測找到一種原本漏網的跳位：刷新當下仍在舊位置，下一個軌跡節點卻直接接到數站外，因此舊的刷新點檢查會誤判為零位移。現在產生軌跡時與發布前各檢查一次；五秒內跨過半站以上的車會先留在已發布位置，交回既有銜接機制吸收新官方資料，不用位移或避讓來遮掩。Core 連線失敗、快照過期或單線車數異常時，網站仍會逐線自動退回原本模式</span></li>
         <li data-cl="metrocorelive"><span class="d">8/21</span><span>北捷即時動畫正式切換到統一時間軸：先把官方逐站訊號整理成穩定的車輛身分，再由同一份軌跡驅動地圖、站台預告、到站狀態與列車跟隨，所以從站牌點下去會跟到地圖上的同一台車。每批更新都會檢查倒退、跳位與站外 100 公尺車距，不合格的候選不會覆蓋畫面。忠孝復興這類多條路線共用的車站，到站資訊會核對那班車實際所屬的路線、方向與終點，對不上就只顯示時刻、不連結車輛，不會猜一條路線標上去。若某條路線的即時車數忽然只剩一半、或整批資料不完整，只有受影響的那條線會自動退回原本模式，其餘路線照常；短暫上游失敗或連線中斷時則沿用重新驗證過的上一段軌跡，不會留下卡住的車</span></li>
@@ -22549,6 +22549,20 @@ const CURATED_NOTICES = [
       + '地圖上這一站與新路段我已經先畫出來,線形取自 OSM;官方即時到站資料要等通車後才會帶到這一站,'
       + '在那之前這一段不會有列車、車站倒數也還沒有,通車後會自動跟上。'
       + '8 月 30 日至 9 月 28 日行經新通車區間(象山站至廣慈/奉天宮站)不計票價。以官方公告為準。' },
+  { sys: 'thsr_sched', from: '2026-08-29', until: '2026-09-10',
+    start: '2026-09-07T00:00', end: '2026-09-10T23:59', sysLabel: '台灣高鐵',
+    title: '9/7-9/10 台中車站軌道大修:部分列車調整',
+    desc: '台中車站南下月台軌進行軌道大修,9 月 7 日至 10 日全日限速 70 公里。'
+      + '9 月 7 日至 9 日 T333 次彰化發車延誤 2~4 分鐘,抵達雲林、嘉義預估延誤 1~3 分鐘;'
+      + '9 月 7 日至 10 日 T565、T567 次台中車站改停西月台。'
+      + '地圖上的高鐵列車走的是官方時刻表,這幾天這幾班的實際時間會與畫面略有出入。以官方公告為準。' },
+  { sys: 'sanying', from: '2026-08-29', until: '2026-09-30',
+    start: '2026-09-01T00:00', end: '2026-09-30T23:59', sysLabel: '新北捷運三鶯線',
+    title: '三鶯線 9/1 起正式收費,免費試營運結束',
+    desc: '三鶯線自 9 月 1 日起正式收費營運,票價採階梯費率,起程 20 元、最高 35 元;'
+      + '同步發售每卡 60 元的「三鶯線一日票」,限購票當日營業時間內不限次數進出三鶯線各站。'
+      + '正式營運後的首末班時間官方尚未公告,地圖上這條線目前仍照試營運時段(6 時至 24 時)推算,'
+      + '官方公布後我會更新。以官方公告為準。' },
 ];
 function curatedNoticeEntries(visSys) {
   const today = todayStr('Asia/Taipei');
@@ -22571,8 +22585,12 @@ function activeAlertList() {
   // 一則通阻公告更急著讓使用者知道——公告過期了還在，推估錯位是此刻正在誤導人。
   // 恢復通知排在進行中的中斷之後、官方公告之前：中斷正在誤導人最急，剛跳完的畫面次之，
   // 兩者都比「過期了還掛著」的通阻公告更需要被先看到。
+  // sched 模式看得到哪幾家,權威是 state.schedSel(群內多選)——不是 state.sysId,
+  // 那顆恆等於 list[0](收藏/成就沿用的主系統 key,台鐵),拿它判可見性會讓高鐵的公告永遠不顯示。
+  // 只看 decoLines 也不行:那份只有捷運裝飾層。裝飾層開著時再把捷運那幾家併進來。
   const visSys = state.mode === 'sched'
-    ? (state.deco ? new Set((state.decoLines || []).map(freqSysIdOf)) : new Set())
+    ? new Set([...(state.schedSel || (state.sysId ? [state.sysId] : [])),
+        ...(state.deco ? (state.decoLines || []).map(freqSysIdOf) : [])])
     : (state.freqSel || new Set(state.sysId ? [state.sysId] : []));
   return trtcOutageEntries().concat(trtcRecoveryEntries(), official, hazardWatchEntries(),
     selfAnomalyEntries(), curatedNoticeEntries(visSys));
