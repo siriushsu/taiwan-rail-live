@@ -50,14 +50,14 @@ for (const [engName, eng] of [['chromium', chromium], ['webkit', webkit]]) {
         await page.waitForTimeout(2600);
         // 公告鈕兩側都釘死：它是真的會亮的即時狀態，不釘的話「乾淨」那半會隨當下有沒有公告漂移
         // （實測 08-29 當天真的有公告在亮，整批「乾淨」格量到的其實是有公告的寬度）。
-        // 🔴 用 renderAlertBanner 自己那兩行的做法（改 hidden＋改計數字），不要用 CSS 覆蓋 display——
-        //    覆蓋成 grid 會把這顆 pill 變窄，量到的是一顆現實中不存在的公告鈕。
+        // 🔴 用 CSS 蓋，不要只改元素的 hidden：真的有公告時 renderAlertBanner 每輪重繪都會把 hidden
+        //    設回去，而沒有公告時它又會把它設回 true——兩種漂移都會讓「乾淨／有公告」變成看天吃飯。
+        //    display:flex 是這顆在手機直式下的真實形態（琥珀 pill），不是隨便挑一個值。
+        await page.addStyleTag({ content: chip ? '#alertChip{display:flex !important}' : '#alertChip{display:none !important}' });
+        // 🔴 連「計數字」也要釘：renderAlertBanner 只在公告 ≥2 則時才寫數字，而那顆數字讓 pill
+        //    寬 11px ⇒ 中文 360pt 的四顆頁籤剛好被推出右緣。只釘現身不釘字，量到的是比較寬鬆的那一態。
         await page.evaluate(on => {
-          const c = document.getElementById('alertChip'), n = document.getElementById('alertChipN');
-          if (!c) return;
-          c.hidden = !on;
-          // 🔴 連「計數字」也要釘：renderAlertBanner 只在公告 ≥2 則時才寫數字，而那顆數字讓 pill
-          //    寬 11px ⇒ 中文 360pt 的四顆頁籤剛好被推出右緣。只釘 hidden 不釘字，量到的是比較寬鬆的那一態。
+          const n = document.getElementById('alertChipN');
           if (n) n.textContent = on ? '2' : '';
         }, chip);
         // 🔴 頂列其餘的即時狀態也要一起釘：時鐘每分鐘跳字、LIVE／看板校正／尖峰三顆徽章會自己亮滅，
