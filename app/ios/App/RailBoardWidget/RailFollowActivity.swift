@@ -151,7 +151,7 @@ struct RailFollowLockView: View {
             HStack(spacing: scale.pt(6)) {
                 RailTrainMark(kind: display.kind, number: display.trainNo,
                               color: display.color, fontSize: 12, numberSize: 15, scale: scale)
-                Text("往 \(display.terminus)")
+                Text(RailNativeL10n.text("往 {station}", ["station": RailNativeL10n.name(display.terminus)]))
                     .font(.system(size: scale.pt(13)))
                     .foregroundStyle(.secondary)
                     .lineLimit(1).minimumScaleFactor(0.8)
@@ -259,7 +259,7 @@ struct RailFollowIslandBottom: View {
             if display.notice != nil {
                 // 🔴 動態島塞不下後端那一整句（會爆版），這裡用寫死的短標。
                 //    compact 與 minimal 刻意不動——那兩個版面連站名都只放得下兩三個字。
-                Text("⚠ 資料中斷・位置為預估")
+                Text("⚠ " + RailNativeL10n.text("資料中斷・位置為預估"))
                     .font(.system(size: scale.pt(10)))
                     .foregroundStyle(.orange).lineLimit(1)
             }

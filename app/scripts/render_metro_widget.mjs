@@ -99,11 +99,13 @@ const kitPath = join(widgetDir, 'RailWidgetKit.swift');
 // 🔴 MetroWidgetCatalog 與它的查詢 extension 2026-08-22 搬到 App/MetroWidgetShared.swift。
 const sharedSource = readFileSync(join(widgetDir, '..', 'App', 'MetroWidgetShared.swift'), 'utf8');
 const widgetSource = readFileSync(join(widgetDir, 'MetroBoardWidget.swift'), 'utf8');
+const l10nSource = readFileSync(join(widgetDir, 'RailNativeL10n.swift'), 'utf8');
 const dataPath = join(widgetDir, 'MetroWidgetData.json');
 
 // 只抽版面真正會用到的型別/邏輯:MetroBoardProvider／MetroFetcher／MetroBoardWidget(連網
 // 與 Widget 外殼)刻意不抽——組 entry 這裡改吃凍結樣本,不打真的網路(見上方檔頭說明)。
 const pieces = [
+  extractDeclaration(l10nSource, 'enum RailNativeL10n'),
   extractDeclaration(sharedSource, 'struct MetroWidgetCatalog'),
   // 服務範圍外那張卡的文案要走【真的那一支】,不在這裡重打字面值(文案改了會無聲分岔)。
   extractDeclaration(readFileSync(join(widgetDir, 'MetroNearest.swift'), 'utf8'),

@@ -7,7 +7,9 @@ const ck = (ok, msg) => { console.log((ok ? '  ✓ ' : '  ✗ ') + msg); if (!ok
 
 for (const [name, launcher] of [['chromium', chromium], ['webkit', webkit]]) {
   const br = await launcher.launch();
-  const pg = await br.newPage({ viewport: { width: 375, height: 812 } });
+  // 這支既有回歸驗的是繁中 canonical 名稱；多語化後瀏覽器預設 locale 會影響首次語言，
+  // 故明確固定 zh-TW，英文／日文名稱搜尋由 verify_i18n.mjs 另行覆蓋。
+  const pg = await br.newPage({ viewport: { width: 375, height: 812 }, locale: 'zh-TW' });
   const errs = [];
   pg.on('pageerror', e => errs.push(String(e)));
   await pg.goto(URL, { waitUntil: 'load' });

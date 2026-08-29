@@ -276,12 +276,12 @@ struct TraWaitEndButton: View {
         if #available(iOS 17.6, *) {
             if compact {
                 Button(intent: TraWaitEndIntent()) {
-                    Text("結束").font(.system(size: scale.pt(11), weight: .semibold))
+                    Text(RailNativeL10n.text("結束")).font(.system(size: scale.pt(11), weight: .semibold))
                 }
                 .buttonStyle(.bordered).controlSize(.mini).tint(.secondary)
             } else {
                 Button(intent: TraWaitEndIntent()) {
-                    RailEndButton(scale: scale, height: height) { Text("結束") }
+                    RailEndButton(scale: scale, height: height) { Text(RailNativeL10n.text("結束")) }
                 }
                 .buttonStyle(.plain)
             }

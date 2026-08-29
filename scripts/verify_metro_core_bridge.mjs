@@ -48,9 +48,9 @@ check(graceSandbox.followGrace(follow, 129)?.grace === true, 'Core 短暫漏一�
 check(graceSandbox.followGrace(follow, 131) === null, 'Core 漏超過兩批後仍未結束寬限');
 
 const contracts = [
-  // 2026-08-22 網站預設翻成 shadow（return false）；App 的兩個注入點必須在 return 之前，
+  // 2026-08-28 網站預設重新開啟（return true）；App 的兩個注入點必須在 return 之前，
   // 否則網站的預設值會蓋掉 App v13 的原生恆開。這條同時把「順序」釘住。
-  ['網站預設關閉（shadow）且 App 注入點在預設值之前', /if \(METRO_CORE_QUERY_MODE === 'off'\) return false;[\s\S]*?typeof window\.RAIL_METRO_CORE_ENABLED === 'boolean'[\s\S]*?typeof APP_CFG\.metroCore === 'boolean'[\s\S]*?\n  return false;\n\}[\s\S]*?const METRO_CORE_ENABLED = metroCoreFlag\(location\.search\)/],
+  ['網站預設開啟且 App 注入點在預設值之前', /if \(METRO_CORE_QUERY_MODE === 'off'\) return false;[\s\S]*?typeof window\.RAIL_METRO_CORE_ENABLED === 'boolean'[\s\S]*?typeof APP_CFG\.metroCore === 'boolean'[\s\S]*?\n  return true;\n\}[\s\S]*?const METRO_CORE_ENABLED = metroCoreFlag\(location\.search\)/],
   ['?metrocore=1 仍可顯式開啟（預覽站的開關）', /if \(value === '1' \|\| value === 'preview'\) return true;/],
   ['App 可注入獨立布林旗標', /typeof window\.RAIL_METRO_CORE_ENABLED === 'boolean'/],
   ['正式 endpoint 不再指向 Preview', /https:\/\/railisland-metro-core\.sirius1984\.workers\.dev\/v1\/metro\/snapshot/],
@@ -84,7 +84,7 @@ const contracts = [
   // 不是「兩批」）。判準只綁「講的是即時模型找不到這台車」這個真因，不綁確切措辭，
   // 否則每改一次文案就假紅一次；同時排除舊的錯誤歸因「官方名冊已更新」。
   ['P0-4 退場文案講真因', /不在即時模型中，已結束跟隨/],
-  ['P0-5 徽章不再以 hidden 表示 0 台', /el\.textContent = '即時資料異常';/],
+  ['P0-5 徽章不再以 hidden 表示 0 台', /el\.textContent = t\('即時資料異常'\);/],
   ['P0-5 0 台的判準取自不同來源（既有路徑會畫幾台）', /const legacy = corePool\.reduce\(\(sum, ln\) => sum \+ metroCoreLegacyCountForLine\(ln\), 0\);/],
   ['P1-8 錯誤要推到徽章，不只存在 state', /state\.metroCore\.error = String\(error && error\.message \|\| error\);\s*\n\s*updateMetroBadge\(\);/],
   ['P2-9 match 欄位真的被讀（不再只賦值）', /const declared = row\.match == null \? null : String\(row\.match\);/],

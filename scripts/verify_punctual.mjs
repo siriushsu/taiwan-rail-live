@@ -30,7 +30,9 @@ const ok = (n, p, msg = '') => { R.push({ n, p, msg }); console.log(`${p ? '  ok
 const info = (n, msg) => console.log(`  ·    ${n} — ${msg}`);
 
 async function open(browser, { width = 1440, height = 900, path = '/index.html', dark = false, hasTouch = false } = {}) {
-  const ctx = await browser.newContext({ viewport: { width, height }, colorScheme: dark ? 'dark' : 'light', hasTouch });
+  // 本回歸以繁中標題與誠實線文案作判準；多語化後首次語言會依瀏覽器 locale，固定 zh-TW
+  // 才不會讓 Chromium／WebKit 因預設 locale 不同而驗到兩種語言。
+  const ctx = await browser.newContext({ viewport: { width, height }, colorScheme: dark ? 'dark' : 'light', hasTouch, locale: 'zh-TW' });
   const page = await ctx.newPage();
   await page.goto(BASE + path, { waitUntil: 'load' });
   await page.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, { timeout: 30000 });

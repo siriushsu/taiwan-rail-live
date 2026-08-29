@@ -721,7 +721,7 @@ struct RailCountdownText: View {
             // 🔴 次列（56pt 槽）要再降一階到 13pt：17pt 的「暫無資料」實測 65pt 寬，
             //    而 frame 修飾詞不裁切 ⇒ 那 9pt 會直接畫到終點站名上面（slotGate 抓到）。
             //    主角欄 84／138pt 放得下 17pt，維持不動。
-            Text("暫無資料")
+            Text(RailNativeL10n.text("暫無資料"))
                 .font(.system(size: scale.pt(size.isHero ? 17 : 13), weight: .medium))
                 .foregroundStyle(.secondary)
                 .lineLimit(1).fixedSize()

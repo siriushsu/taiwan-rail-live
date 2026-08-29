@@ -199,6 +199,15 @@
    "coordinateBasis": "WGS84(OpenStreetMap 定義即 WGS84)",
    "checksum": "7634a5761a1466026c455fbfed34b139"
   },
+  "data/tra_run_profiles.json": {
+   "sourceDescription": "本站自算，無外部上游：由 data/tra_schedule_dense.json（表定時刻）、data/tra.json（軌道線形，供跑段里程）與 data/tra_pass_obs.json（通過站實測時刻）三者，套 index.html 的位置模型（buildObsProfile／speedZoneKnots／a",
+   "sourceField": "source_notes",
+   "effectiveDate": null,
+   "effectiveDateField": null,
+   "geometrySource": null,
+   "coordinateBasis": null,
+   "checksum": "82219e77c6bd6c8067d280de04552657"
+  },
   "data/tra_schedule_dense.json": {
    "sourceDescription": "時刻表來源：https://ods.railway.gov.tw/tra-ods-web/ods/download/dataResource/railway_schedule/JSON/list 清單頁，抓取今天(2026-08-23)起連續 14 天中實際發佈得到的 14 天（2026-08-23…2026-09-0",
    "sourceField": "source_notes",
@@ -236,13 +245,13 @@
    "checksum": "e9f9108b960c026c12b35ecbb6cdf9c3"
   },
   "data/trtc.json": {
-   "sourceDescription": "交通部 TDX 運輸資料流通服務(台北捷運路線幾何/站序/班距/站間行駛時間,2026-07 抓取);環狀線為 OSM 幾何+官網公告班距估算;環狀線站間行駛時間補用臺北捷運公司「相鄰兩站間之行駛時間及停靠站時間」(生效 2025-06-03);",
+   "sourceDescription": "信義東延段廣慈/奉天宮站(R01)於 TDX 上架前先行補入(2026-08-28):站點與線形取自 OSM,站間行駛時間依信義線平均營運速度估算,TDX 上架後應以官方值取代;交通部 TDX 運輸資料流通服務(台北捷運路線幾何/站序/班距/站間行駛時間,2026-07 抓取);",
    "sourceField": "source_notes",
    "effectiveDate": null,
    "effectiveDateField": null,
    "geometrySource": "TDX+OSM",
    "coordinateBasis": "WGS84(OSM 段);TDX 段未載明(payload 無 CRS 欄位)——兩者實測同框,build_tdx.mjs 對 K03 的座標修正即以 OSM 座標落在 TDX 軌道幾何上離軌 0m 為據",
-   "checksum": "88a21ba30b1b13171ca8ba4a5c51785f"
+   "checksum": "d412128a902bae91e8e4faaf1191a840"
   },
   "data/trtc_codes.json": {
    "sourceDescription": "交通部 TDX Rail/Metro/TRTC/Station 的站碼與站名(實查 data/tdx/TRTC_Station.json,121/121 逐筆一致);所屬路線取自同批 TRTC_StationOfLine",
@@ -251,7 +260,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "d9977a1383cf8b9a0f724d89c558d9f3"
+   "checksum": "7421673a20c110c4e8305b88667e37b1"
   },
   "data/trtc_times.json": {
    "sourceDescription": "台北捷運/新北捷運(環狀線)各站時刻表:交通部TDX運輸資料流通服務(2026-07-16 抓取);班次依平日/週六/週日/國定假日對應;文湖線無逐站時刻表,以官方班距與首末班推算(非公告時刻)",
@@ -260,7 +269,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "a1dc7694a2f69210fb4a6addf59fa11d"
+   "checksum": "234afed6991e14f0dc0fea9c2331f3cb"
   },
   "data/tymc.json": {
    "sourceDescription": "交通部 TDX 運輸資料流通服務(桃園機場捷運:路線幾何/站序/班距/站間行駛時間,2026-07 抓取);以普通車全站停靠型態繪製 2026-07-11:移除新北產業園區站西側shape反向重走段(同軌去回偽折返,致列車視覺繞圈);站點d重投影。",

@@ -1,6 +1,8 @@
 {
   "scripts": {
-    "fetch-schedule": "python3 scripts/fetch_tra_schedule.py && python3 scripts/densify_schedule.py && node scripts/build_pass_obs.mjs && node scripts/build_data_manifest.mjs && node scripts/build_data_provenance.mjs",
+    "fetch-schedule": "python3 scripts/fetch_tra_schedule.py && python3 scripts/densify_schedule.py && node scripts/build_pass_obs.mjs && node scripts/build_run_profiles.mjs && node scripts/build_data_manifest.mjs && node scripts/build_data_provenance.mjs",
+    "build-run-profiles": "node scripts/build_run_profiles.mjs",
+    "check-run-profiles": "node scripts/verify_run_profiles_match.mjs",
     "sync-metro": "python3 scripts/fetch_tdx.py && node scripts/build_metro_times.mjs && node scripts/build_data_manifest.mjs && node scripts/build_data_provenance.mjs",
     "build-bounty-units": "node scripts/build_bounty_units.mjs",
     "check-schedule": "python3 scripts/check_schedule.py",
@@ -12,7 +14,10 @@
     "check-basemap": "node scripts/verify_web_basemap_notice.mjs",
     "check-trainpick": "node scripts/verify_train_overlap_pick.mjs",
     "check-ipad": "node scripts/verify_ipad_shell.mjs",
-    "strip-ship-comments": "node scripts/strip_ship_comments.mjs"
+    "build-native-localizations": "node app/scripts/build_native_localizations.mjs",
+    "check-native-localizations": "node app/scripts/verify_native_localizations.mjs",
+    "strip-ship-comments": "node scripts/strip_ship_comments.mjs",
+    "ship-web": "node scripts/ship_web.mjs"
   },
   "dependencies": {
     "playwright": "^1.61.1",

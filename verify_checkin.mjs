@@ -56,7 +56,7 @@ const APP_BUILD_GLOBALS = {
 };
 
 async function open(browser, { width = 1440, height = 900, path = '/index.html', touch = false, app = false } = {}) {
-  const ctx = await browser.newContext({ viewport: { width, height }, hasTouch: touch });
+  const ctx = await browser.newContext({ viewport: { width, height }, hasTouch: touch, locale: 'zh-TW' });
   // app:true（或 'safe'）模擬原生殼——必須在頁面腳本執行前注入，IS_NATIVE_APP 讀的就是這些(N 組)。
   if (app) await ctx.addInitScript(g => { Object.assign(window, g); }, APP_BUILD_GLOBALS[app === true ? 'licensed' : app]);
   const page = await ctx.newPage();
@@ -1690,7 +1690,7 @@ try {
     await n3ctx.close();
 
     // N4–N5：App（注入授權 build 的 global，必須在頁面腳本執行前；形狀見 APP_BUILD_GLOBALS）
-    const appCtx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
+    const appCtx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, locale: 'zh-TW' });
     await appCtx.addInitScript(g => { Object.assign(window, g); }, APP_BUILD_GLOBALS.licensed);
     const app = await appCtx.newPage();
     await app.goto(BASE + '/index.html', { waitUntil: 'load' });
@@ -1821,7 +1821,7 @@ try {
   // 防護本身。做法：攔截 document.getElementById，讓「第一次」查 'fpRide' 回傳 null（也就是
   // 13625 那次查詢），之後正常放行——不真的動 DOM，不影響其他元素或其他測試。
   {
-    const guardCtx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const guardCtx = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'zh-TW' });
     const pageErrors = [];
     const guardPage = await guardCtx.newPage();
     guardPage.on('pageerror', e => pageErrors.push(String(e)));

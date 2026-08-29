@@ -227,6 +227,8 @@ const TOAST_REVIEWED = new Map([
   // 🔴 變數名故意不叫 `msg`:指紋是「拿掉字串內容後的結構」,登記 `msg,{wrap:true}` 等於放行
   //    未來所有同形呼叫。取專屬名字讓這兩條只涵蓋這兩個呼叫點,新的通用 msg 仍會被擋下來。
   [`resyncMsg,{wrap:true}`, 'trtcOfficialResyncTick:只插入 mins/count/removed,三者皆先經 Math 收斂為數字'],
+  [`t('',{note})`, '定位失敗提示:note 只可能是四個已翻譯的寫死常數之一,無使用者資料'],
+  [`t(action.toast)`, '使用說明「試一次」:action 必為 HELP_TRY 成員,toast 是寫死字面字串,無使用者資料'],
 ]);
 
 // 掃出每一個 showToast( 呼叫的完整參數（括號配對，不是 regex 抓一行）。
@@ -252,11 +254,170 @@ export function showToastCalls(src) {
 const blankLiterals = s => s.replace(/'[^']*'/g, "''").replace(/"[^"]*"/g, '""');
 export const toastFingerprint = raw => blankLiterals(raw).replace(/[^\x20-\x7E]/g, '').replace(/\s+/g, '');
 
-// 有沒有東西被插進去：拿掉 escHtml(...) 與字串內容後還剩識別字 ⇒ 有。
+function splitTopLevel(source, delimiter = ',') {
+  const parts = [];
+  let start = 0, round = 0, square = 0, curly = 0, quote = '', escaped = false;
+  for (let i = 0; i < source.length; i++) {
+    const c = source[i];
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (c === '\\') escaped = true;
+      else if (c === quote) quote = '';
+      continue;
+    }
+    if (c === "'" || c === '"' || c === '`') { quote = c; continue; }
+    if (c === '(') round++;
+    else if (c === ')') round--;
+    else if (c === '[') square++;
+    else if (c === ']') square--;
+    else if (c === '{') curly++;
+    else if (c === '}') curly--;
+    else if (c === delimiter && round === 0 && square === 0 && curly === 0) {
+      parts.push(source.slice(start, i)); start = i + 1;
+    }
+  }
+  parts.push(source.slice(start));
+  return parts;
+}
+
+function unwrapParens(source) {
+  let value = source.trim();
+  while (value.startsWith('(') && value.endsWith(')')) {
+    let depth = 0, quote = '', escaped = false, closesAtEnd = false;
+    for (let i = 0; i < value.length; i++) {
+      const c = value[i];
+      if (quote) {
+        if (escaped) escaped = false;
+        else if (c === '\\') escaped = true;
+        else if (c === quote) quote = '';
+        continue;
+      }
+      if (c === "'" || c === '"' || c === '`') { quote = c; continue; }
+      if (c === '(') depth++;
+      else if (c === ')' && --depth === 0) { closesAtEnd = i === value.length - 1; break; }
+    }
+    if (!closesAtEnd) break;
+    value = value.slice(1, -1).trim();
+  }
+  return value;
+}
+
+function topLevelConditional(source) {
+  let round = 0, square = 0, curly = 0, quote = '', escaped = false;
+  let question = -1, nested = 0;
+  for (let i = 0; i < source.length; i++) {
+    const c = source[i];
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (c === '\\') escaped = true;
+      else if (c === quote) quote = '';
+      continue;
+    }
+    if (c === "'" || c === '"' || c === '`') { quote = c; continue; }
+    if (c === '(') round++;
+    else if (c === ')') round--;
+    else if (c === '[') square++;
+    else if (c === ']') square--;
+    else if (c === '{') curly++;
+    else if (c === '}') curly--;
+    else if (round === 0 && square === 0 && curly === 0 && c === '?') {
+      if (question < 0) question = i;
+      else nested++;
+    } else if (round === 0 && square === 0 && curly === 0 && c === ':' && question >= 0) {
+      if (nested > 0) nested--;
+      else return [source.slice(question + 1, i), source.slice(i + 1)];
+    }
+  }
+  return null;
+}
+
+function literalTranslationKey(source) {
+  const value = unwrapParens(source);
+  if (/^'(?:\\.|[^'\\])*'$/.test(value) || /^"(?:\\.|[^"\\])*"$/.test(value)) return true;
+  const conditional = topLevelConditional(value);
+  return !!conditional && literalTranslationKey(conditional[0]) && literalTranslationKey(conditional[1]);
+}
+
+function matchingParen(source, openAt) {
+  let depth = 0, quote = '', escaped = false;
+  for (let i = openAt; i < source.length; i++) {
+    const c = source[i];
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (c === '\\') escaped = true;
+      else if (c === quote) quote = '';
+      continue;
+    }
+    if (c === "'" || c === '"' || c === '`') { quote = c; continue; }
+    if (c === '(') depth++;
+    else if (c === ')' && --depth === 0) return i;
+  }
+  return -1;
+}
+
+// t() 的字典內容本身是受信任程式碼，但插值仍可能是使用者資料。把「字面 key 的 t()」
+// 攤平成它的插值值，再交給下方 taint 判斷；動態 key（例如 t(action.toast)）保留並走審查帳本。
+function expandTrustedTranslations(source) {
+  let out = '', cursor = 0;
+  for (let i = 0; i < source.length;) {
+    if (source[i] === 't' && source[i + 1] === '(' && !/[\w$.]/.test(source[i - 1] || '')) {
+      const end = matchingParen(source, i + 1);
+      if (end < 0) break;
+      const inner = source.slice(i + 2, end);
+      const args = splitTopLevel(inner);
+      if (literalTranslationKey(args[0] || '')) {
+        const params = (args[1] || '').trim();
+        let values = [];
+        if (params.startsWith('{') && params.endsWith('}')) {
+          values = splitTopLevel(params.slice(1, -1)).filter(Boolean).map(entry => {
+            const pair = splitTopLevel(entry, ':');
+            return expandTrustedTranslations((pair.length > 1 ? pair.slice(1).join(':') : pair[0]).trim());
+          });
+        } else if (params && params !== 'null' && params !== 'undefined') {
+          values = [expandTrustedTranslations(params)];
+        }
+        out += source.slice(cursor, i) + (values.length ? `(${values.join('+')})` : "''");
+        cursor = end + 1; i = end + 1; continue;
+      }
+      i = end + 1; continue;
+    }
+    i++;
+  }
+  return out + source.slice(cursor);
+}
+
+function eraseTrustedCall(source, name) {
+  let out = '', cursor = 0;
+  for (let i = 0; i < source.length;) {
+    if (source.startsWith(name + '(', i) && !/[\w$.]/.test(source[i - 1] || '')) {
+      const end = matchingParen(source, i + name.length);
+      if (end < 0) break;
+      out += source.slice(cursor, i) + "''"; cursor = end + 1; i = end + 1; continue;
+    }
+    i++;
+  }
+  return out + source.slice(cursor);
+}
+
+function expressionCarriesData(source) {
+  const value = unwrapParens(source);
+  if (!value) return false;
+  if (/^'(?:\\.|[^'\\])*'$/.test(value) || /^"(?:\\.|[^"\\])*"$/.test(value)) return false;
+  if (/^(?:true|false|null|undefined|-?\d+(?:\.\d+)?)$/.test(value)) return false;
+  const conditional = topLevelConditional(value);
+  if (conditional) return expressionCarriesData(conditional[0]) || expressionCarriesData(conditional[1]);
+  const joined = splitTopLevel(value, '+');
+  if (joined.length > 1) return joined.some(expressionCarriesData);
+  return true;
+}
+
+// 只檢查 showToast 的第一個參數；第二參數 {wrap:true} 是渲染選項，不會流入 innerHTML。
+// t() 的字面 key 是受信任字典，插值仍逐一追蹤；escHtml/i18nNumber 的輸出可安全進 HTML。
 export function toastHasInjection(raw) {
-  const rest = blankLiterals(raw.replace(/escHtml\([^()]*\)/g, '')).replace(/[^\x20-\x7E]/g, '');
-  return (rest.match(/[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*/g) || [])
-    .some(id => !['true', 'false', 'null', 'undefined'].includes(id));
+  let first = splitTopLevel(raw)[0] || '';
+  first = expandTrustedTranslations(first);
+  first = eraseTrustedCall(eraseTrustedCall(first, 'escHtml'), 'i18nNumber');
+  return expressionCarriesData(first);
 }
 
 export function assertToastSinksReviewed(html) {
@@ -265,6 +426,12 @@ export function assertToastSinksReviewed(html) {
   const canary = showToastCalls(`showToast('嗨' + attackerControlledName + '你好')`);
   assert(canary.length === 1 && toastHasInjection(canary[0]),
     'showToast 注入偵測器失效——連合成的未逸出拼接都認不出來,這道閘門已經沒有牙,不可發行');
+  const i18nCanary = showToastCalls(`showToast(t('嗨 {name}', { name: attackerControlledName }))`);
+  assert(i18nCanary.length === 1 && toastHasInjection(i18nCanary[0]),
+    'showToast 注入偵測器失效——翻譯插值未逸出也沒有被抓到,不可發行');
+  const escapedI18nCanary = showToastCalls(`showToast(t('嗨 {name}', { name: escHtml(attackerControlledName) }))`);
+  assert(escapedI18nCanary.length === 1 && !toastHasInjection(escapedI18nCanary[0]),
+    'showToast 注入偵測器誤判——已用 escHtml 逸出的翻譯插值仍被擋下');
   assert(!TOAST_REVIEWED.has(toastFingerprint(canary[0])), '合成樣本不該出現在審查帳本裡');
 
   const calls = showToastCalls(html);
@@ -417,8 +584,9 @@ export async function verifyRelease({
   if (expectMetroCore !== undefined) {
     assert(metroCoreEnabled === expectMetroCore, 'Metro Core 旗標與本次 build 模式不一致');
   }
-  assert(html.includes("typeof window.RAIL_METRO_CORE_ENABLED === 'boolean'"),
-    'App 內的 index.html 沒有把 Metro Core 發版旗標當成顯式布林覆寫');
+  assert(html.includes("typeof window.RAIL_METRO_CORE_ENABLED === 'boolean'")
+      && html.includes('return window.RAIL_METRO_CORE_ENABLED;'),
+    'App 內的 index.html 沒有讀取 Metro Core 發版旗標');
 
   // 版本號對**所有** build 模式都必須注入(不是只有授權底圖 build)——App 內的更新提示與評分
   // 全靠它判斷「手上這顆是哪一版」。刻意寫在模式分支之外:放進安全 build 的條件裡就漏掉另一半。
@@ -457,6 +625,7 @@ export async function verifyRelease({
     'privacy.html', 'terms.html',
     'firebase-config.js', 'revenuecat-config.js', 'native-bridge.js',
     'third-party-notices.txt',
+    'i18n/translations.js', 'i18n/content-translations.js', 'i18n/stations.json',
     'data/taiwan_land.json', 'vendor/leaflet/leaflet.css',
     'vendor/leaflet/leaflet.js', 'vendor/fflate.js', 'vendor/firebase.mjs'
   ];
@@ -621,7 +790,7 @@ export async function verifyRelease({
 
   // Stored XSS 迴歸（QA 2026-07-21）：「我的最愛」的列車／站名是使用者資料,可能來自被污染的
   // 匯入或 localStorage。渲染必須以 escHtml 逸出後才進 innerHTML,否則可在 Capacitor WebView 執行 script。
-  assert(html.includes('escHtml(f.train)') && html.includes('escHtml(f.label)'),
+  assert(html.includes('escHtml(f.train)') && html.includes('escHtml(favTrainLabel(f))'),
     '「我的最愛」未以 escHtml 逸出使用者資料——stored XSS 迴歸,不可發行');
   assert(!/<b>\$\{f\.train\}<\/b>/.test(html),
     '「我的最愛」仍把未逸出的 ${f.train} 直接插入 innerHTML——stored XSS 迴歸,不可發行');

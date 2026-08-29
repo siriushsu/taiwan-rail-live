@@ -341,7 +341,7 @@ struct MetroBoardView: View {
                     .frame(height: scale.pt(24), alignment: .leading)
                     .widgetAccentable()
 
-                Text("往 \(lead.dest)")
+                Text(RailNativeL10n.text("往 {station}", ["station": RailNativeL10n.name(lead.dest)]))
                     .font(.system(size: scale.pt(15)))
                     .foregroundStyle(.secondary)
                     .lineLimit(1).minimumScaleFactor(0.85)
@@ -438,7 +438,7 @@ struct MetroBoardView: View {
 
     private func stationName(_ scale: RailScale, size: CGFloat) -> some View {
         HStack(spacing: scale.pt(4)) {
-            Text(entry.title)
+            Text(RailNativeL10n.name(entry.title))
                 .font(.system(size: scale.pt(size), weight: .semibold))
                 .lineLimit(1).minimumScaleFactor(0.8)
             if entry.auto { autoBadge(scale) }
@@ -447,7 +447,7 @@ struct MetroBoardView: View {
 
     /// 自動解析出來的站掛小徽章,跟手選站區分(文字徽章,UI 控件不用 emoji)。
     private func autoBadge(_ scale: RailScale) -> some View {
-        Text("自動").font(.system(size: scale.pt(9)))
+        Text(RailNativeL10n.text("自動")).font(.system(size: scale.pt(9)))
             .foregroundStyle(.secondary)
             .padding(.horizontal, scale.pt(4)).padding(.vertical, scale.pt(1))
             .background(Capsule().fill(.quaternary))
@@ -592,7 +592,7 @@ struct MetroRowView: View {
                 // 設計稿：「主角與倒數加 .widgetAccentable()，其餘留在 base 群組」——
                 // accented 模式下系統把 accentable 群組染上使用者選的色、其餘壓成白，
                 // 所以這裡只點名「往 X」與倒數，副標那一行（線名＋擁擠度）留在 base。
-                Text("往 \(row.dest)")
+                Text(RailNativeL10n.text("往 {station}", ["station": RailNativeL10n.name(row.dest)]))
                     .font(.system(size: scale.pt(20), weight: .semibold))
                     .lineLimit(1).minimumScaleFactor(0.8)
                     .widgetAccentable()
@@ -609,7 +609,7 @@ struct MetroRowView: View {
                 }
             } else {
                 HStack(spacing: scale.pt(6)) {
-                    Text("往 \(row.dest)")
+                    Text(RailNativeL10n.text("往 {station}", ["station": RailNativeL10n.name(row.dest)]))
                         .font(.system(size: scale.pt(17), weight: .medium))
                         .lineLimit(1).minimumScaleFactor(0.85)
                     if disambiguate, let name = ln.name {

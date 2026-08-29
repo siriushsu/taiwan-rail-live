@@ -56,7 +56,7 @@ const server = createServer((req, res) => {
   res.setHeader('content-type', MIME[path.extname(fp)] || 'application/octet-stream');
   res.end(readFileSync(fp));
 });
-await new Promise(r => server.listen(PORT, r));
+await new Promise(r => server.listen(PORT, '127.0.0.1', r));
 // 2026-08-04 PLUS_ENABLED 改回「原生 App 恆開、網站要 ?plus=1」(部署不可分割,見 index.html
 // PLUS_ENABLED 旁的說明)。本檔絕大多數段落要驗的是「Plus 面板長什麼樣/能不能買」,不是旗標
 // 開關本身,所以 BASE 直接帶 ?plus=1,讓它們原封不動照跑;真正要驗旗標開關的兩處
@@ -117,7 +117,7 @@ function attach(page, tag) {
 // (如 window.RAIL_PLUS_SANDBOX_OK——index.html 的 PLUS_SANDBOX_OK 是頂層 const,載入後才設就來不及)。
 async function newPage(browser, { width = 1280, height = 800, touch = false, theme = 'light', init = null } = {}) {
   pagesCreated++;
-  const ctx = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch });
+  const ctx = await browser.newContext({ viewport: { width, height }, locale: 'zh-TW', hasTouch: touch, isMobile: touch });
   await ctx.addInitScript(t => {
     try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {}
     try { localStorage.setItem('trainmap-appearance', t); } catch (e) {}
@@ -1292,10 +1292,10 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
     on.r.modalOpen === true && on.r.feats > 0, JSON.stringify(on.r));
   ok('KS2 正向對照:旗標開啟時同一支收集器抓得到已登入態帳號面板的 Plus 入口與 Plus 狀態列',
     on.r.loggedInPlusBtn === true && on.r.loggedInPlusStatusRow === true, JSON.stringify(on.r));
-  // 工具列槽位的正向對照:同一支 slot 收集器在旗標開著時,必須抓得到一顆標成 Plus 的鈕與抽屜列。
+  // 工具列槽位的正向對照:同一支 slot 收集器在旗標開著時,必須抓得到一顆標成通行證的鈕與抽屜列。
   // 沒有這兩條,下面 KS6/KS7 的「不是 Plus 入口」可能只是收集器根本沒在看(選擇器打錯／改名)。
-  ok('KS1b 正向對照:旗標開啟時同一支槽位收集器抓得到標成「Plus」的工具列鈕',
-    on.r.slot.btnVisible === true && on.r.slot.btnLabel === '通行證' && /軌島通行證/.test(on.r.slot.btnTitle || ''),
+  ok('KS1b 正向對照:旗標開啟時同一支槽位收集器抓得到標成「通行證」的工具列鈕',
+    on.r.slot.btnVisible === true && on.r.slot.btnLabel === '通行證' && /登入|同步/.test(on.r.slot.btnTitle || ''),
     JSON.stringify(on.r.slot));
   ok('KS2b 正向對照:旗標開啟時抽屜真的打開後,那一列可見且標成「軌島通行證」',
     on.r.slot.sheetOpen === true && on.r.slot.rowVisible === true && on.r.slot.rowLabel === '軌島通行證',

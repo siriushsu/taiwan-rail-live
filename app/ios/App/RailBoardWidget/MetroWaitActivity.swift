@@ -202,10 +202,10 @@ struct MetroWaitLockView: View {
                 // 🔴 「下一班」跟主角同一列，不獨立一列：鎖屏 Live Activity 只有 160pt 高
                 //    （官方：超過就被系統截掉），而這張卡量到 198–216pt ⇒ 使用者看到的是
                 //    上下緣被切掉。跟車卡與動態島本來就是「小標＋大站名」同列。
-                Text("下一班")
+                Text(RailNativeL10n.text("下一班"))
                     .font(.system(size: scale.pt(11)))
                     .foregroundStyle(.secondary)
-                Text("往 \(display.dest ?? "—")")
+                Text(RailNativeL10n.text("往 {station}", ["station": RailNativeL10n.name(display.dest ?? "—")]))
                     .font(.system(size: scale.pt(26), weight: .semibold))
                     .lineLimit(1).minimumScaleFactor(0.7)
                 Spacer(minLength: scale.pt(4))
@@ -296,12 +296,12 @@ struct MetroWaitEndButton: View {
         if #available(iOS 17.6, *) {
             if compact {
                 Button(intent: MetroWaitEndIntent()) {
-                    Text("結束").font(.system(size: scale.pt(11), weight: .semibold))
+                    Text(RailNativeL10n.text("結束")).font(.system(size: scale.pt(11), weight: .semibold))
                 }
                 .buttonStyle(.bordered).controlSize(.mini).tint(.secondary)
             } else {
                 Button(intent: MetroWaitEndIntent()) {
-                    RailEndButton(scale: scale, height: height) { Text("結束") }
+                    RailEndButton(scale: scale, height: height) { Text(RailNativeL10n.text("結束")) }
                 }
                 .buttonStyle(.plain)
             }
@@ -320,7 +320,7 @@ struct MetroWaitIslandBottom: View {
     var body: some View {
         VStack(alignment: .leading, spacing: scale.pt(4)) {
             HStack(alignment: .center, spacing: scale.pt(6)) {
-                Text("往 \(display.dest ?? "—")")
+                Text(RailNativeL10n.text("往 {station}", ["station": RailNativeL10n.name(display.dest ?? "—")]))
                     .font(.system(size: scale.pt(20), weight: .semibold))
                     .lineLimit(1).minimumScaleFactor(0.7)
                 Spacer(minLength: scale.pt(4))
@@ -476,7 +476,7 @@ struct MetroWaitActivityWidget: Widget {
                         Circle().fill(c).frame(width: 8, height: 8)
                     }
                     if let dest = d.dest, !dest.isEmpty {
-                        Text("往\(dest)")
+                        Text(RailNativeL10n.text("往{station}", ["station": RailNativeL10n.name(dest)]))
                             .font(.system(size: 12, weight: .medium))
                             .lineLimit(1).frame(maxWidth: 60)
                     }

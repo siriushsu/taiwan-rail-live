@@ -1,0 +1,1700 @@
+{
+ "_source": "臺灣鐵路公司官網時刻查詢頁 availableTags（同一頁面切三種 lang 參數）",
+ "_url": "https://www.railway.gov.tw/tra-tip-web/tip/tip001/tip112/gobytime?lang={ZH_TW|EN_US|JA_JP}",
+ "_method": "先 GET /tra-tip-web/tip?lang=<L> 建立 session（語言存在 session），同一 cookie jar 再 GET 查詢頁，取內嵌的 availableTags 陣列（格式 \"站碼-站名\"）",
+ "_fetched": "2026-08-23",
+ "_count": 240,
+ "_caveats": [
+  "TDX 的 TRA Station 完全沒有 Ja 欄位（v2/v3 皆然，不是空值），所以日文只能從這裡來。",
+  "TDX 有 245 站，本表 240 站。缺：1998 樹林調車場／5170 枋野／5998 南方小站／5999 潮州基地（皆非客運）＋7140 新馬（招呼站，唯一真缺口）。",
+  "187 站日文用字與中文相同，53 站轉成日本漢字（臺→台、豐→豊、榮→栄、內→内、德→徳…）。",
+  "🔴 1001「臺北-環島」→「台北サラウンドアイランド」是機翻殘留（把「環島」直譯成 surround island），該站碼是內部環島線代號，不要照用。",
+  "🔴 兩處換字改變字義，但這是官方自己的寫法：通霄→通宵、銅鑼→銅羅。日文維基用的是原字（通霄駅／銅鑼駅），兩組並存。",
+  "4370 美術館→高雄美術館、4420 科工館→国立科学技術博物館，官方日文比中文完整。",
+  "🔴 車種名在日文版有兩套並存：導覽頁寫「自強号／タロコ号／プユマ号」，時刻查詢結果頁不翻譯（原樣「自強」「自強(3000)」「普悠瑪」）。",
+  "英文有兩筆帶底線的消歧義標記：1100 中壢→Zhongli_Taoyuan、7170 中里→Zhongli_Yilan（兩者羅馬拼音都是 Zhongli）。TDX 逐字相同。顯示時建議改成 Zhongli (Taoyuan) 型式，不要原樣印底線。",
+  "英文最長 31 字元「Chang Jung Christian University」(長榮大學)；日文最長（排除機翻的 1001）9 字元「国立科学技術博物館」(科工館)。兩者都不是終點站，看板方向欄不受影響。"
+ ],
+ "stations": {
+  "1000": {
+   "zh": "臺北",
+   "en": "Taipei",
+   "ja": "台北",
+   "tdx_zh": "臺北",
+   "tdx_en": "Taipei"
+  },
+  "1001": {
+   "zh": "臺北-環島",
+   "en": "Taipei Surround Island",
+   "ja": "台北サラウンドアイランド",
+   "tdx_zh": "臺北-環島",
+   "tdx_en": "Taipei Surround Island"
+  },
+  "1010": {
+   "zh": "萬華",
+   "en": "Wanhua",
+   "ja": "萬華",
+   "tdx_zh": "萬華",
+   "tdx_en": "Wanhua"
+  },
+  "1020": {
+   "zh": "板橋",
+   "en": "Banqiao",
+   "ja": "板橋",
+   "tdx_zh": "板橋",
+   "tdx_en": "Banqiao"
+  },
+  "1030": {
+   "zh": "浮洲",
+   "en": "Fuzhou",
+   "ja": "浮洲",
+   "tdx_zh": "浮洲",
+   "tdx_en": "Fuzhou"
+  },
+  "1040": {
+   "zh": "樹林",
+   "en": "Shulin",
+   "ja": "樹林",
+   "tdx_zh": "樹林",
+   "tdx_en": "Shulin"
+  },
+  "1050": {
+   "zh": "南樹林",
+   "en": "South Shulin",
+   "ja": "南樹林",
+   "tdx_zh": "南樹林",
+   "tdx_en": "South Shulin"
+  },
+  "1060": {
+   "zh": "山佳",
+   "en": "Shanjia",
+   "ja": "山佳",
+   "tdx_zh": "山佳",
+   "tdx_en": "Shanjia"
+  },
+  "1070": {
+   "zh": "鶯歌",
+   "en": "Yingge",
+   "ja": "鶯歌",
+   "tdx_zh": "鶯歌",
+   "tdx_en": "Yingge"
+  },
+  "1075": {
+   "zh": "鳳鳴",
+   "en": "Fengming",
+   "ja": "鳳鳴",
+   "tdx_zh": "鳳鳴",
+   "tdx_en": "Fengming"
+  },
+  "1080": {
+   "zh": "桃園",
+   "en": "Taoyuan",
+   "ja": "桃園",
+   "tdx_zh": "桃園",
+   "tdx_en": "Taoyuan"
+  },
+  "1090": {
+   "zh": "內壢",
+   "en": "Neili",
+   "ja": "内壢",
+   "tdx_zh": "內壢",
+   "tdx_en": "Neili"
+  },
+  "1100": {
+   "zh": "中壢",
+   "en": "Zhongli_Taoyuan",
+   "ja": "中壢",
+   "tdx_zh": "中壢",
+   "tdx_en": "Zhongli_Taoyuan"
+  },
+  "1110": {
+   "zh": "埔心",
+   "en": "Puxin",
+   "ja": "埔心",
+   "tdx_zh": "埔心",
+   "tdx_en": "Puxin"
+  },
+  "1120": {
+   "zh": "楊梅",
+   "en": "Yangmei",
+   "ja": "楊梅",
+   "tdx_zh": "楊梅",
+   "tdx_en": "Yangmei"
+  },
+  "1130": {
+   "zh": "富岡",
+   "en": "Fugang",
+   "ja": "富岡",
+   "tdx_zh": "富岡",
+   "tdx_en": "Fugang"
+  },
+  "1140": {
+   "zh": "新富",
+   "en": "Xinfu",
+   "ja": "新富",
+   "tdx_zh": "新富",
+   "tdx_en": "Xinfu"
+  },
+  "1150": {
+   "zh": "北湖",
+   "en": "Beihu",
+   "ja": "北湖",
+   "tdx_zh": "北湖",
+   "tdx_en": "Beihu"
+  },
+  "1160": {
+   "zh": "湖口",
+   "en": "Hukou",
+   "ja": "湖口",
+   "tdx_zh": "湖口",
+   "tdx_en": "Hukou"
+  },
+  "1170": {
+   "zh": "新豐",
+   "en": "Xinfeng",
+   "ja": "新豊",
+   "tdx_zh": "新豐",
+   "tdx_en": "Xinfeng"
+  },
+  "1180": {
+   "zh": "竹北",
+   "en": "Zhubei",
+   "ja": "竹北",
+   "tdx_zh": "竹北",
+   "tdx_en": "Zhubei"
+  },
+  "1190": {
+   "zh": "北新竹",
+   "en": "North Hsinchu",
+   "ja": "北新竹",
+   "tdx_zh": "北新竹",
+   "tdx_en": "North Hsinchu"
+  },
+  "1191": {
+   "zh": "千甲",
+   "en": "Qianjia",
+   "ja": "千甲",
+   "tdx_zh": "千甲",
+   "tdx_en": "Qianjia"
+  },
+  "1192": {
+   "zh": "新莊",
+   "en": "Xinzhuang",
+   "ja": "新荘",
+   "tdx_zh": "新莊",
+   "tdx_en": "Xinzhuang"
+  },
+  "1193": {
+   "zh": "竹中",
+   "en": "Zhuzhong",
+   "ja": "竹中",
+   "tdx_zh": "竹中",
+   "tdx_en": "Zhuzhong"
+  },
+  "1194": {
+   "zh": "六家",
+   "en": "Liujia",
+   "ja": "六家",
+   "tdx_zh": "六家",
+   "tdx_en": "Liujia"
+  },
+  "1201": {
+   "zh": "上員",
+   "en": "Shangyuan",
+   "ja": "上員",
+   "tdx_zh": "上員",
+   "tdx_en": "Shangyuan"
+  },
+  "1202": {
+   "zh": "榮華",
+   "en": "Ronghua",
+   "ja": "栄華",
+   "tdx_zh": "榮華",
+   "tdx_en": "Ronghua"
+  },
+  "1203": {
+   "zh": "竹東",
+   "en": "Zhudong",
+   "ja": "竹東",
+   "tdx_zh": "竹東",
+   "tdx_en": "Zhudong"
+  },
+  "1204": {
+   "zh": "橫山",
+   "en": "Hengshan",
+   "ja": "横山",
+   "tdx_zh": "橫山",
+   "tdx_en": "Hengshan"
+  },
+  "1205": {
+   "zh": "九讚頭",
+   "en": "Jiuzantou",
+   "ja": "九讃頭",
+   "tdx_zh": "九讚頭",
+   "tdx_en": "Jiuzantou"
+  },
+  "1206": {
+   "zh": "合興",
+   "en": "Hexing",
+   "ja": "合興",
+   "tdx_zh": "合興",
+   "tdx_en": "Hexing"
+  },
+  "1207": {
+   "zh": "富貴",
+   "en": "Fugui",
+   "ja": "富貴",
+   "tdx_zh": "富貴",
+   "tdx_en": "Fugui"
+  },
+  "1208": {
+   "zh": "內灣",
+   "en": "Neiwan",
+   "ja": "内湾",
+   "tdx_zh": "內灣",
+   "tdx_en": "Neiwan"
+  },
+  "1210": {
+   "zh": "新竹",
+   "en": "Hsinchu",
+   "ja": "新竹",
+   "tdx_zh": "新竹",
+   "tdx_en": "Hsinchu"
+  },
+  "1220": {
+   "zh": "三姓橋",
+   "en": "Sanxingqiao",
+   "ja": "三姓橋",
+   "tdx_zh": "三姓橋",
+   "tdx_en": "Sanxingqiao"
+  },
+  "1230": {
+   "zh": "香山",
+   "en": "Xiangshan",
+   "ja": "香山",
+   "tdx_zh": "香山",
+   "tdx_en": "Xiangshan"
+  },
+  "1240": {
+   "zh": "崎頂",
+   "en": "Qiding",
+   "ja": "崎頂",
+   "tdx_zh": "崎頂",
+   "tdx_en": "Qiding"
+  },
+  "1250": {
+   "zh": "竹南",
+   "en": "Zhunan",
+   "ja": "竹南",
+   "tdx_zh": "竹南",
+   "tdx_en": "Zhunan"
+  },
+  "2110": {
+   "zh": "談文",
+   "en": "Tanwen",
+   "ja": "談文",
+   "tdx_zh": "談文",
+   "tdx_en": "Tanwen"
+  },
+  "2120": {
+   "zh": "大山",
+   "en": "Dashan",
+   "ja": "大山",
+   "tdx_zh": "大山",
+   "tdx_en": "Dashan"
+  },
+  "2130": {
+   "zh": "後龍",
+   "en": "Houlong",
+   "ja": "後龍",
+   "tdx_zh": "後龍",
+   "tdx_en": "Houlong"
+  },
+  "2140": {
+   "zh": "龍港",
+   "en": "Longgang",
+   "ja": "龍港",
+   "tdx_zh": "龍港",
+   "tdx_en": "Longgang"
+  },
+  "2150": {
+   "zh": "白沙屯",
+   "en": "Baishatun",
+   "ja": "白沙屯",
+   "tdx_zh": "白沙屯",
+   "tdx_en": "Baishatun"
+  },
+  "2160": {
+   "zh": "新埔",
+   "en": "Xinpu",
+   "ja": "新埔",
+   "tdx_zh": "新埔",
+   "tdx_en": "Xinpu"
+  },
+  "2170": {
+   "zh": "通霄",
+   "en": "Tongxiao",
+   "ja": "通宵",
+   "tdx_zh": "通霄",
+   "tdx_en": "Tongxiao"
+  },
+  "2180": {
+   "zh": "苑裡",
+   "en": "Yuanli",
+   "ja": "苑裡",
+   "tdx_zh": "苑裡",
+   "tdx_en": "Yuanli"
+  },
+  "2190": {
+   "zh": "日南",
+   "en": "Rinan",
+   "ja": "日南",
+   "tdx_zh": "日南",
+   "tdx_en": "Rinan"
+  },
+  "2200": {
+   "zh": "大甲",
+   "en": "Dajia",
+   "ja": "大甲",
+   "tdx_zh": "大甲",
+   "tdx_en": "Dajia"
+  },
+  "2210": {
+   "zh": "臺中港",
+   "en": "Taichung Port",
+   "ja": "台中港",
+   "tdx_zh": "臺中港",
+   "tdx_en": "Taichung Port"
+  },
+  "2220": {
+   "zh": "清水",
+   "en": "Qingshui",
+   "ja": "清水",
+   "tdx_zh": "清水",
+   "tdx_en": "Qingshui"
+  },
+  "2230": {
+   "zh": "沙鹿",
+   "en": "Shalu",
+   "ja": "沙鹿",
+   "tdx_zh": "沙鹿",
+   "tdx_en": "Shalu"
+  },
+  "2240": {
+   "zh": "龍井",
+   "en": "Longjing",
+   "ja": "龍井",
+   "tdx_zh": "龍井",
+   "tdx_en": "Longjing"
+  },
+  "2250": {
+   "zh": "大肚",
+   "en": "Dadu",
+   "ja": "大肚",
+   "tdx_zh": "大肚",
+   "tdx_en": "Dadu"
+  },
+  "2260": {
+   "zh": "追分",
+   "en": "Zhuifen",
+   "ja": "追分",
+   "tdx_zh": "追分",
+   "tdx_en": "Zhuifen"
+  },
+  "3140": {
+   "zh": "造橋",
+   "en": "Zaoqiao",
+   "ja": "造橋",
+   "tdx_zh": "造橋",
+   "tdx_en": "Zaoqiao"
+  },
+  "3150": {
+   "zh": "豐富",
+   "en": "Fengfu",
+   "ja": "豊富",
+   "tdx_zh": "豐富",
+   "tdx_en": "Fengfu"
+  },
+  "3160": {
+   "zh": "苗栗",
+   "en": "Miaoli",
+   "ja": "苗栗",
+   "tdx_zh": "苗栗",
+   "tdx_en": "Miaoli"
+  },
+  "3170": {
+   "zh": "南勢",
+   "en": "Nanshi",
+   "ja": "南勢",
+   "tdx_zh": "南勢",
+   "tdx_en": "Nanshi"
+  },
+  "3180": {
+   "zh": "銅鑼",
+   "en": "Tongluo",
+   "ja": "銅羅",
+   "tdx_zh": "銅鑼",
+   "tdx_en": "Tongluo"
+  },
+  "3190": {
+   "zh": "三義",
+   "en": "Sanyi",
+   "ja": "三義",
+   "tdx_zh": "三義",
+   "tdx_en": "Sanyi"
+  },
+  "3210": {
+   "zh": "泰安",
+   "en": "Tai'an",
+   "ja": "泰安",
+   "tdx_zh": "泰安",
+   "tdx_en": "Tai'an"
+  },
+  "3220": {
+   "zh": "后里",
+   "en": "Houli",
+   "ja": "后里",
+   "tdx_zh": "后里",
+   "tdx_en": "Houli"
+  },
+  "3230": {
+   "zh": "豐原",
+   "en": "Fengyuan",
+   "ja": "豊原",
+   "tdx_zh": "豐原",
+   "tdx_en": "Fengyuan"
+  },
+  "3240": {
+   "zh": "栗林",
+   "en": "Lilin",
+   "ja": "栗林",
+   "tdx_zh": "栗林",
+   "tdx_en": "Lilin"
+  },
+  "3250": {
+   "zh": "潭子",
+   "en": "Tanzi",
+   "ja": "潭子",
+   "tdx_zh": "潭子",
+   "tdx_en": "Tanzi"
+  },
+  "3260": {
+   "zh": "頭家厝",
+   "en": "Toujiacuo",
+   "ja": "頭家厝",
+   "tdx_zh": "頭家厝",
+   "tdx_en": "Toujiacuo"
+  },
+  "3270": {
+   "zh": "松竹",
+   "en": "Songzhu",
+   "ja": "松竹",
+   "tdx_zh": "松竹",
+   "tdx_en": "Songzhu"
+  },
+  "3280": {
+   "zh": "太原",
+   "en": "Taiyuan",
+   "ja": "太原",
+   "tdx_zh": "太原",
+   "tdx_en": "Taiyuan"
+  },
+  "3290": {
+   "zh": "精武",
+   "en": "Jingwu",
+   "ja": "精武",
+   "tdx_zh": "精武",
+   "tdx_en": "Jingwu"
+  },
+  "3300": {
+   "zh": "臺中",
+   "en": "Taichung",
+   "ja": "台中",
+   "tdx_zh": "臺中",
+   "tdx_en": "Taichung"
+  },
+  "3310": {
+   "zh": "五權",
+   "en": "Wuquan",
+   "ja": "五権",
+   "tdx_zh": "五權",
+   "tdx_en": "Wuquan"
+  },
+  "3320": {
+   "zh": "大慶",
+   "en": "Daqing",
+   "ja": "大慶",
+   "tdx_zh": "大慶",
+   "tdx_en": "Daqing"
+  },
+  "3330": {
+   "zh": "烏日",
+   "en": "Wuri",
+   "ja": "烏日",
+   "tdx_zh": "烏日",
+   "tdx_en": "Wuri"
+  },
+  "3340": {
+   "zh": "新烏日",
+   "en": "Xinwuri",
+   "ja": "新烏日",
+   "tdx_zh": "新烏日",
+   "tdx_en": "Xinwuri"
+  },
+  "3350": {
+   "zh": "成功",
+   "en": "Chenggong",
+   "ja": "成功",
+   "tdx_zh": "成功",
+   "tdx_en": "Chenggong"
+  },
+  "3360": {
+   "zh": "彰化",
+   "en": "Changhua",
+   "ja": "彰化",
+   "tdx_zh": "彰化",
+   "tdx_en": "Changhua"
+  },
+  "3370": {
+   "zh": "花壇",
+   "en": "Huatan",
+   "ja": "花壇",
+   "tdx_zh": "花壇",
+   "tdx_en": "Huatan"
+  },
+  "3380": {
+   "zh": "大村",
+   "en": "Dacun",
+   "ja": "大村",
+   "tdx_zh": "大村",
+   "tdx_en": "Dacun"
+  },
+  "3390": {
+   "zh": "員林",
+   "en": "Yuanlin",
+   "ja": "員林",
+   "tdx_zh": "員林",
+   "tdx_en": "Yuanlin"
+  },
+  "3400": {
+   "zh": "永靖",
+   "en": "Yongjing",
+   "ja": "永靖",
+   "tdx_zh": "永靖",
+   "tdx_en": "Yongjing"
+  },
+  "3410": {
+   "zh": "社頭",
+   "en": "Shetou",
+   "ja": "社頭",
+   "tdx_zh": "社頭",
+   "tdx_en": "Shetou"
+  },
+  "3420": {
+   "zh": "田中",
+   "en": "Tianzhong",
+   "ja": "田中",
+   "tdx_zh": "田中",
+   "tdx_en": "Tianzhong"
+  },
+  "3430": {
+   "zh": "二水",
+   "en": "Ershui",
+   "ja": "二水",
+   "tdx_zh": "二水",
+   "tdx_en": "Ershui"
+  },
+  "3431": {
+   "zh": "源泉",
+   "en": "Yuanquan",
+   "ja": "源泉",
+   "tdx_zh": "源泉",
+   "tdx_en": "Yuanquan"
+  },
+  "3432": {
+   "zh": "濁水",
+   "en": "Zhuoshui",
+   "ja": "濁水",
+   "tdx_zh": "濁水",
+   "tdx_en": "Zhuoshui"
+  },
+  "3433": {
+   "zh": "龍泉",
+   "en": "Longquan",
+   "ja": "龍泉",
+   "tdx_zh": "龍泉",
+   "tdx_en": "Longquan"
+  },
+  "3434": {
+   "zh": "集集",
+   "en": "Jiji",
+   "ja": "集集",
+   "tdx_zh": "集集",
+   "tdx_en": "Jiji"
+  },
+  "3435": {
+   "zh": "水里",
+   "en": "Shuili",
+   "ja": "水里",
+   "tdx_zh": "水里",
+   "tdx_en": "Shuili"
+  },
+  "3436": {
+   "zh": "車埕",
+   "en": "Checheng",
+   "ja": "車埕",
+   "tdx_zh": "車埕",
+   "tdx_en": "Checheng"
+  },
+  "3450": {
+   "zh": "林內",
+   "en": "Linnei",
+   "ja": "林内",
+   "tdx_zh": "林內",
+   "tdx_en": "Linnei"
+  },
+  "3460": {
+   "zh": "石榴",
+   "en": "Shiliu",
+   "ja": "石榴",
+   "tdx_zh": "石榴",
+   "tdx_en": "Shiliu"
+  },
+  "3470": {
+   "zh": "斗六",
+   "en": "Douliu",
+   "ja": "斗六",
+   "tdx_zh": "斗六",
+   "tdx_en": "Douliu"
+  },
+  "3480": {
+   "zh": "斗南",
+   "en": "Dounan",
+   "ja": "斗南",
+   "tdx_zh": "斗南",
+   "tdx_en": "Dounan"
+  },
+  "3490": {
+   "zh": "石龜",
+   "en": "Shigui",
+   "ja": "石亀",
+   "tdx_zh": "石龜",
+   "tdx_en": "Shigui"
+  },
+  "4050": {
+   "zh": "大林",
+   "en": "Dalin",
+   "ja": "大林",
+   "tdx_zh": "大林",
+   "tdx_en": "Dalin"
+  },
+  "4060": {
+   "zh": "民雄",
+   "en": "Minxiong",
+   "ja": "民雄",
+   "tdx_zh": "民雄",
+   "tdx_en": "Minxiong"
+  },
+  "4070": {
+   "zh": "嘉北",
+   "en": "Jiabei",
+   "ja": "嘉北",
+   "tdx_zh": "嘉北",
+   "tdx_en": "Jiabei"
+  },
+  "4080": {
+   "zh": "嘉義",
+   "en": "Chiayi",
+   "ja": "嘉義",
+   "tdx_zh": "嘉義",
+   "tdx_en": "Chiayi"
+  },
+  "4090": {
+   "zh": "水上",
+   "en": "Shuishang",
+   "ja": "水上",
+   "tdx_zh": "水上",
+   "tdx_en": "Shuishang"
+  },
+  "4100": {
+   "zh": "南靖",
+   "en": "Nanjing",
+   "ja": "南靖",
+   "tdx_zh": "南靖",
+   "tdx_en": "Nanjing"
+  },
+  "4110": {
+   "zh": "後壁",
+   "en": "Houbi",
+   "ja": "後壁",
+   "tdx_zh": "後壁",
+   "tdx_en": "Houbi"
+  },
+  "4120": {
+   "zh": "新營",
+   "en": "Xinying",
+   "ja": "新営",
+   "tdx_zh": "新營",
+   "tdx_en": "Xinying"
+  },
+  "4130": {
+   "zh": "柳營",
+   "en": "Liuying",
+   "ja": "柳営",
+   "tdx_zh": "柳營",
+   "tdx_en": "Liuying"
+  },
+  "4140": {
+   "zh": "林鳳營",
+   "en": "Linfengying",
+   "ja": "林鳳営",
+   "tdx_zh": "林鳳營",
+   "tdx_en": "Linfengying"
+  },
+  "4150": {
+   "zh": "隆田",
+   "en": "Longtian",
+   "ja": "隆田",
+   "tdx_zh": "隆田",
+   "tdx_en": "Longtian"
+  },
+  "4160": {
+   "zh": "拔林",
+   "en": "Balin",
+   "ja": "抜林",
+   "tdx_zh": "拔林",
+   "tdx_en": "Balin"
+  },
+  "4170": {
+   "zh": "善化",
+   "en": "Shanhua",
+   "ja": "善化",
+   "tdx_zh": "善化",
+   "tdx_en": "Shanhua"
+  },
+  "4180": {
+   "zh": "南科",
+   "en": "Nanke",
+   "ja": "南科",
+   "tdx_zh": "南科",
+   "tdx_en": "Nanke"
+  },
+  "4190": {
+   "zh": "新市",
+   "en": "Xinshi",
+   "ja": "新市",
+   "tdx_zh": "新市",
+   "tdx_en": "Xinshi"
+  },
+  "4200": {
+   "zh": "永康",
+   "en": "Yongkang",
+   "ja": "永康",
+   "tdx_zh": "永康",
+   "tdx_en": "Yongkang"
+  },
+  "4210": {
+   "zh": "大橋",
+   "en": "Daqiao",
+   "ja": "大橋",
+   "tdx_zh": "大橋",
+   "tdx_en": "Daqiao"
+  },
+  "4220": {
+   "zh": "臺南",
+   "en": "Tainan",
+   "ja": "台南",
+   "tdx_zh": "臺南",
+   "tdx_en": "Tainan"
+  },
+  "4250": {
+   "zh": "保安",
+   "en": "Bao'an",
+   "ja": "保安",
+   "tdx_zh": "保安",
+   "tdx_en": "Bao'an"
+  },
+  "4260": {
+   "zh": "仁德",
+   "en": "Rende",
+   "ja": "仁徳",
+   "tdx_zh": "仁德",
+   "tdx_en": "Rende"
+  },
+  "4270": {
+   "zh": "中洲",
+   "en": "Zhongzhou",
+   "ja": "中洲",
+   "tdx_zh": "中洲",
+   "tdx_en": "Zhongzhou"
+  },
+  "4271": {
+   "zh": "長榮大學",
+   "en": "Chang Jung Christian University",
+   "ja": "長栄大学",
+   "tdx_zh": "長榮大學",
+   "tdx_en": "Chang Jung Christian University"
+  },
+  "4272": {
+   "zh": "沙崙",
+   "en": "Shalun",
+   "ja": "沙崙",
+   "tdx_zh": "沙崙",
+   "tdx_en": "Shalun"
+  },
+  "4290": {
+   "zh": "大湖",
+   "en": "Dahu",
+   "ja": "大湖",
+   "tdx_zh": "大湖",
+   "tdx_en": "Dahu"
+  },
+  "4300": {
+   "zh": "路竹",
+   "en": "Luzhu",
+   "ja": "路竹",
+   "tdx_zh": "路竹",
+   "tdx_en": "Luzhu"
+  },
+  "4310": {
+   "zh": "岡山",
+   "en": "Gangshan",
+   "ja": "岡山",
+   "tdx_zh": "岡山",
+   "tdx_en": "Gangshan"
+  },
+  "4320": {
+   "zh": "橋頭",
+   "en": "Qiaotou",
+   "ja": "橋頭",
+   "tdx_zh": "橋頭",
+   "tdx_en": "Qiaotou"
+  },
+  "4330": {
+   "zh": "楠梓",
+   "en": "Nanzi",
+   "ja": "楠梓",
+   "tdx_zh": "楠梓",
+   "tdx_en": "Nanzi"
+  },
+  "4340": {
+   "zh": "新左營",
+   "en": "Xinzuoying",
+   "ja": "新左営",
+   "tdx_zh": "新左營",
+   "tdx_en": "Xinzuoying"
+  },
+  "4350": {
+   "zh": "左營",
+   "en": "Zuoying",
+   "ja": "左営",
+   "tdx_zh": "左營",
+   "tdx_en": "Zuoying"
+  },
+  "4360": {
+   "zh": "內惟",
+   "en": "Neiwei",
+   "ja": "內惟",
+   "tdx_zh": "內惟",
+   "tdx_en": "Neiwei"
+  },
+  "4370": {
+   "zh": "美術館",
+   "en": "Museum of Fine Arts",
+   "ja": "高雄美術館",
+   "tdx_zh": "美術館",
+   "tdx_en": "Museum of Fine Arts"
+  },
+  "4380": {
+   "zh": "鼓山",
+   "en": "Gushan",
+   "ja": "鼓山",
+   "tdx_zh": "鼓山",
+   "tdx_en": "Gushan"
+  },
+  "4390": {
+   "zh": "三塊厝",
+   "en": "Sankuaicuo",
+   "ja": "三塊厝",
+   "tdx_zh": "三塊厝",
+   "tdx_en": "Sankuaicuo"
+  },
+  "4400": {
+   "zh": "高雄",
+   "en": "Kaohsiung",
+   "ja": "高雄",
+   "tdx_zh": "高雄",
+   "tdx_en": "Kaohsiung"
+  },
+  "4410": {
+   "zh": "民族",
+   "en": "Minzu",
+   "ja": "民族",
+   "tdx_zh": "民族",
+   "tdx_en": "Minzu"
+  },
+  "4420": {
+   "zh": "科工館",
+   "en": "Science And Technology Museum",
+   "ja": "国立科学技術博物館",
+   "tdx_zh": "科工館",
+   "tdx_en": "Science And Technology Museum"
+  },
+  "4430": {
+   "zh": "正義",
+   "en": "Zhengyi",
+   "ja": "正義",
+   "tdx_zh": "正義",
+   "tdx_en": "Zhengyi"
+  },
+  "4440": {
+   "zh": "鳳山",
+   "en": "Fongshan",
+   "ja": "鳳山",
+   "tdx_zh": "鳳山",
+   "tdx_en": "Fongshan"
+  },
+  "4450": {
+   "zh": "後庄",
+   "en": "Houzhuang",
+   "ja": "後庄",
+   "tdx_zh": "後庄",
+   "tdx_en": "Houzhuang"
+  },
+  "4460": {
+   "zh": "九曲堂",
+   "en": "Jiuqutang",
+   "ja": "九曲堂",
+   "tdx_zh": "九曲堂",
+   "tdx_en": "Jiuqutang"
+  },
+  "4470": {
+   "zh": "六塊厝",
+   "en": "Liukuaicuo",
+   "ja": "六塊厝",
+   "tdx_zh": "六塊厝",
+   "tdx_en": "Liukuaicuo"
+  },
+  "5000": {
+   "zh": "屏東",
+   "en": "Pingtung",
+   "ja": "屏東",
+   "tdx_zh": "屏東",
+   "tdx_en": "Pingtung"
+  },
+  "5010": {
+   "zh": "歸來",
+   "en": "Guilai",
+   "ja": "帰来",
+   "tdx_zh": "歸來",
+   "tdx_en": "Guilai"
+  },
+  "5020": {
+   "zh": "麟洛",
+   "en": "Linluo",
+   "ja": "麟洛",
+   "tdx_zh": "麟洛",
+   "tdx_en": "Linluo"
+  },
+  "5030": {
+   "zh": "西勢",
+   "en": "Xishi",
+   "ja": "西勢",
+   "tdx_zh": "西勢",
+   "tdx_en": "Xishi"
+  },
+  "5040": {
+   "zh": "竹田",
+   "en": "Zhutian",
+   "ja": "竹田",
+   "tdx_zh": "竹田",
+   "tdx_en": "Zhutian"
+  },
+  "5050": {
+   "zh": "潮州",
+   "en": "Chaozhou",
+   "ja": "潮州",
+   "tdx_zh": "潮州",
+   "tdx_en": "Chaozhou"
+  },
+  "5060": {
+   "zh": "崁頂",
+   "en": "Kanding",
+   "ja": "崁頂",
+   "tdx_zh": "崁頂",
+   "tdx_en": "Kanding"
+  },
+  "5070": {
+   "zh": "南州",
+   "en": "Nanzhou",
+   "ja": "南州",
+   "tdx_zh": "南州",
+   "tdx_en": "Nanzhou"
+  },
+  "5080": {
+   "zh": "鎮安",
+   "en": "Zhen'an",
+   "ja": "鎮安",
+   "tdx_zh": "鎮安",
+   "tdx_en": "Zhen'an"
+  },
+  "5090": {
+   "zh": "林邊",
+   "en": "Linbian",
+   "ja": "林辺",
+   "tdx_zh": "林邊",
+   "tdx_en": "Linbian"
+  },
+  "5100": {
+   "zh": "佳冬",
+   "en": "Jiadong",
+   "ja": "佳冬",
+   "tdx_zh": "佳冬",
+   "tdx_en": "Jiadong"
+  },
+  "5110": {
+   "zh": "東海",
+   "en": "Donghai",
+   "ja": "東海",
+   "tdx_zh": "東海",
+   "tdx_en": "Donghai"
+  },
+  "5120": {
+   "zh": "枋寮",
+   "en": "Fangliao",
+   "ja": "枋寮",
+   "tdx_zh": "枋寮",
+   "tdx_en": "Fangliao"
+  },
+  "5130": {
+   "zh": "加祿",
+   "en": "Jialu",
+   "ja": "加禄",
+   "tdx_zh": "加祿",
+   "tdx_en": "Jialu"
+  },
+  "5140": {
+   "zh": "內獅",
+   "en": "Neishi",
+   "ja": "内獅",
+   "tdx_zh": "內獅",
+   "tdx_en": "Neishi"
+  },
+  "5160": {
+   "zh": "枋山",
+   "en": "Fangshan",
+   "ja": "枋山",
+   "tdx_zh": "枋山",
+   "tdx_en": "Fangshan"
+  },
+  "5190": {
+   "zh": "大武",
+   "en": "Dawu",
+   "ja": "大武",
+   "tdx_zh": "大武",
+   "tdx_en": "Dawu"
+  },
+  "5200": {
+   "zh": "瀧溪",
+   "en": "Longxi",
+   "ja": "瀧渓",
+   "tdx_zh": "瀧溪",
+   "tdx_en": "Longxi"
+  },
+  "5210": {
+   "zh": "金崙",
+   "en": "Jinlun",
+   "ja": "金崙",
+   "tdx_zh": "金崙",
+   "tdx_en": "Jinlun"
+  },
+  "5220": {
+   "zh": "太麻里",
+   "en": "Taimali",
+   "ja": "太麻里",
+   "tdx_zh": "太麻里",
+   "tdx_en": "Taimali"
+  },
+  "5230": {
+   "zh": "知本",
+   "en": "Zhiben",
+   "ja": "知本",
+   "tdx_zh": "知本",
+   "tdx_en": "Zhiben"
+  },
+  "5240": {
+   "zh": "康樂",
+   "en": "Kangle",
+   "ja": "康楽",
+   "tdx_zh": "康樂",
+   "tdx_en": "Kangle"
+  },
+  "6000": {
+   "zh": "臺東",
+   "en": "Taitung",
+   "ja": "台東",
+   "tdx_zh": "臺東",
+   "tdx_en": "Taitung"
+  },
+  "6010": {
+   "zh": "山里",
+   "en": "Shanli",
+   "ja": "山里",
+   "tdx_zh": "山里",
+   "tdx_en": "Shanli"
+  },
+  "6020": {
+   "zh": "鹿野",
+   "en": "Luye",
+   "ja": "鹿野",
+   "tdx_zh": "鹿野",
+   "tdx_en": "Luye"
+  },
+  "6030": {
+   "zh": "瑞源",
+   "en": "Ruiyuan",
+   "ja": "瑞源",
+   "tdx_zh": "瑞源",
+   "tdx_en": "Ruiyuan"
+  },
+  "6040": {
+   "zh": "瑞和",
+   "en": "Ruihe",
+   "ja": "瑞和",
+   "tdx_zh": "瑞和",
+   "tdx_en": "Ruihe"
+  },
+  "6050": {
+   "zh": "關山",
+   "en": "Guanshan",
+   "ja": "関山",
+   "tdx_zh": "關山",
+   "tdx_en": "Guanshan"
+  },
+  "6060": {
+   "zh": "海端",
+   "en": "Haiduan",
+   "ja": "海端",
+   "tdx_zh": "海端",
+   "tdx_en": "Haiduan"
+  },
+  "6070": {
+   "zh": "池上",
+   "en": "Chishang",
+   "ja": "池上",
+   "tdx_zh": "池上",
+   "tdx_en": "Chishang"
+  },
+  "6080": {
+   "zh": "富里",
+   "en": "Fuli",
+   "ja": "富里",
+   "tdx_zh": "富里",
+   "tdx_en": "Fuli"
+  },
+  "6090": {
+   "zh": "東竹",
+   "en": "Dongzhu",
+   "ja": "東竹",
+   "tdx_zh": "東竹",
+   "tdx_en": "Dongzhu"
+  },
+  "6100": {
+   "zh": "東里",
+   "en": "Dongli",
+   "ja": "東里",
+   "tdx_zh": "東里",
+   "tdx_en": "Dongli"
+  },
+  "6110": {
+   "zh": "玉里",
+   "en": "Yuli",
+   "ja": "玉里",
+   "tdx_zh": "玉里",
+   "tdx_en": "Yuli"
+  },
+  "6120": {
+   "zh": "三民",
+   "en": "Sanmin",
+   "ja": "三民",
+   "tdx_zh": "三民",
+   "tdx_en": "Sanmin"
+  },
+  "6130": {
+   "zh": "瑞穗",
+   "en": "Ruisui",
+   "ja": "瑞穂",
+   "tdx_zh": "瑞穗",
+   "tdx_en": "Ruisui"
+  },
+  "6140": {
+   "zh": "富源",
+   "en": "Fuyuan",
+   "ja": "富源",
+   "tdx_zh": "富源",
+   "tdx_en": "Fuyuan"
+  },
+  "6150": {
+   "zh": "大富",
+   "en": "Dafu",
+   "ja": "大富",
+   "tdx_zh": "大富",
+   "tdx_en": "Dafu"
+  },
+  "6160": {
+   "zh": "光復",
+   "en": "Guangfu",
+   "ja": "光復",
+   "tdx_zh": "光復",
+   "tdx_en": "Guangfu"
+  },
+  "6170": {
+   "zh": "萬榮",
+   "en": "Wanrong",
+   "ja": "萬栄",
+   "tdx_zh": "萬榮",
+   "tdx_en": "Wanrong"
+  },
+  "6180": {
+   "zh": "鳳林",
+   "en": "Fenglin",
+   "ja": "鳳林",
+   "tdx_zh": "鳳林",
+   "tdx_en": "Fenglin"
+  },
+  "6190": {
+   "zh": "南平",
+   "en": "Nanping",
+   "ja": "南平",
+   "tdx_zh": "南平",
+   "tdx_en": "Nanping"
+  },
+  "6200": {
+   "zh": "林榮新光",
+   "en": "Linrong Shin Kong",
+   "ja": "林栄新光",
+   "tdx_zh": "林榮新光",
+   "tdx_en": "Linrong Shin Kong"
+  },
+  "6210": {
+   "zh": "豐田",
+   "en": "Fengtian",
+   "ja": "豊田",
+   "tdx_zh": "豐田",
+   "tdx_en": "Fengtian"
+  },
+  "6220": {
+   "zh": "壽豐",
+   "en": "Shoufeng",
+   "ja": "寿豊",
+   "tdx_zh": "壽豐",
+   "tdx_en": "Shoufeng"
+  },
+  "6230": {
+   "zh": "平和",
+   "en": "Pinghe",
+   "ja": "平和",
+   "tdx_zh": "平和",
+   "tdx_en": "Pinghe"
+  },
+  "6240": {
+   "zh": "志學",
+   "en": "Zhixue",
+   "ja": "志学",
+   "tdx_zh": "志學",
+   "tdx_en": "Zhixue"
+  },
+  "6250": {
+   "zh": "吉安",
+   "en": "Ji'an",
+   "ja": "吉安",
+   "tdx_zh": "吉安",
+   "tdx_en": "Ji'an"
+  },
+  "7000": {
+   "zh": "花蓮",
+   "en": "Hualien",
+   "ja": "花蓮",
+   "tdx_zh": "花蓮",
+   "tdx_en": "Hualien"
+  },
+  "7010": {
+   "zh": "北埔",
+   "en": "Beipu",
+   "ja": "北埔",
+   "tdx_zh": "北埔",
+   "tdx_en": "Beipu"
+  },
+  "7020": {
+   "zh": "景美",
+   "en": "Jingmei",
+   "ja": "景美",
+   "tdx_zh": "景美",
+   "tdx_en": "Jingmei"
+  },
+  "7030": {
+   "zh": "新城",
+   "en": "Xincheng",
+   "ja": "新城",
+   "tdx_zh": "新城",
+   "tdx_en": "Xincheng"
+  },
+  "7040": {
+   "zh": "崇德",
+   "en": "Chongde",
+   "ja": "崇徳",
+   "tdx_zh": "崇德",
+   "tdx_en": "Chongde"
+  },
+  "7050": {
+   "zh": "和仁",
+   "en": "Heren",
+   "ja": "和仁",
+   "tdx_zh": "和仁",
+   "tdx_en": "Heren"
+  },
+  "7060": {
+   "zh": "和平",
+   "en": "Heping",
+   "ja": "和平",
+   "tdx_zh": "和平",
+   "tdx_en": "Heping"
+  },
+  "7070": {
+   "zh": "漢本",
+   "en": "Hanben",
+   "ja": "漢本",
+   "tdx_zh": "漢本",
+   "tdx_en": "Hanben"
+  },
+  "7080": {
+   "zh": "武塔",
+   "en": "Wuta",
+   "ja": "武塔",
+   "tdx_zh": "武塔",
+   "tdx_en": "Wuta"
+  },
+  "7090": {
+   "zh": "南澳",
+   "en": "Nan'ao",
+   "ja": "南澳",
+   "tdx_zh": "南澳",
+   "tdx_en": "Nan'ao"
+  },
+  "7100": {
+   "zh": "東澳",
+   "en": "Dong'ao",
+   "ja": "東澳",
+   "tdx_zh": "東澳",
+   "tdx_en": "Dong'ao"
+  },
+  "7110": {
+   "zh": "永樂",
+   "en": "Yongle",
+   "ja": "永楽",
+   "tdx_zh": "永樂",
+   "tdx_en": "Yongle"
+  },
+  "7120": {
+   "zh": "蘇澳",
+   "en": "Su'ao",
+   "ja": "蘇澳",
+   "tdx_zh": "蘇澳",
+   "tdx_en": "Su'ao"
+  },
+  "7130": {
+   "zh": "蘇澳新",
+   "en": "Su'aoxin",
+   "ja": "蘇澳新",
+   "tdx_zh": "蘇澳新",
+   "tdx_en": "Su'aoxin"
+  },
+  "7150": {
+   "zh": "冬山",
+   "en": "Dongshan",
+   "ja": "冬山",
+   "tdx_zh": "冬山",
+   "tdx_en": "Dongshan"
+  },
+  "7160": {
+   "zh": "羅東",
+   "en": "Luodong",
+   "ja": "羅東",
+   "tdx_zh": "羅東",
+   "tdx_en": "Luodong"
+  },
+  "7170": {
+   "zh": "中里",
+   "en": "Zhongli_Yilan",
+   "ja": "中里",
+   "tdx_zh": "中里",
+   "tdx_en": "Zhongli_Yilan"
+  },
+  "7180": {
+   "zh": "二結",
+   "en": "Erjie",
+   "ja": "二結",
+   "tdx_zh": "二結",
+   "tdx_en": "Erjie"
+  },
+  "7190": {
+   "zh": "宜蘭",
+   "en": "Yilan",
+   "ja": "宜蘭",
+   "tdx_zh": "宜蘭",
+   "tdx_en": "Yilan"
+  },
+  "7200": {
+   "zh": "四城",
+   "en": "Sicheng",
+   "ja": "四城",
+   "tdx_zh": "四城",
+   "tdx_en": "Sicheng"
+  },
+  "7210": {
+   "zh": "礁溪",
+   "en": "Jiaoxi",
+   "ja": "礁渓",
+   "tdx_zh": "礁溪",
+   "tdx_en": "Jiaoxi"
+  },
+  "7220": {
+   "zh": "頂埔",
+   "en": "Dingpu",
+   "ja": "頂埔",
+   "tdx_zh": "頂埔",
+   "tdx_en": "Dingpu"
+  },
+  "7230": {
+   "zh": "頭城",
+   "en": "Toucheng",
+   "ja": "頭城",
+   "tdx_zh": "頭城",
+   "tdx_en": "Toucheng"
+  },
+  "7240": {
+   "zh": "外澳",
+   "en": "Wai'ao",
+   "ja": "外澳",
+   "tdx_zh": "外澳",
+   "tdx_en": "Wai'ao"
+  },
+  "7250": {
+   "zh": "龜山",
+   "en": "Guishan",
+   "ja": "亀山",
+   "tdx_zh": "龜山",
+   "tdx_en": "Guishan"
+  },
+  "7260": {
+   "zh": "大溪",
+   "en": "Daxi",
+   "ja": "大渓",
+   "tdx_zh": "大溪",
+   "tdx_en": "Daxi"
+  },
+  "7270": {
+   "zh": "大里",
+   "en": "Dali",
+   "ja": "大里",
+   "tdx_zh": "大里",
+   "tdx_en": "Dali"
+  },
+  "7280": {
+   "zh": "石城",
+   "en": "Shicheng",
+   "ja": "石城",
+   "tdx_zh": "石城",
+   "tdx_en": "Shicheng"
+  },
+  "7290": {
+   "zh": "福隆",
+   "en": "Fulong",
+   "ja": "福隆",
+   "tdx_zh": "福隆",
+   "tdx_en": "Fulong"
+  },
+  "7300": {
+   "zh": "貢寮",
+   "en": "Gongliao",
+   "ja": "貢寮",
+   "tdx_zh": "貢寮",
+   "tdx_en": "Gongliao"
+  },
+  "7310": {
+   "zh": "雙溪",
+   "en": "Shuangxi",
+   "ja": "双渓",
+   "tdx_zh": "雙溪",
+   "tdx_en": "Shuangxi"
+  },
+  "7320": {
+   "zh": "牡丹",
+   "en": "Mudan",
+   "ja": "牡丹",
+   "tdx_zh": "牡丹",
+   "tdx_en": "Mudan"
+  },
+  "7330": {
+   "zh": "三貂嶺",
+   "en": "Sandiaoling",
+   "ja": "三貂嶺",
+   "tdx_zh": "三貂嶺",
+   "tdx_en": "Sandiaoling"
+  },
+  "7331": {
+   "zh": "大華",
+   "en": "Dahua",
+   "ja": "大華",
+   "tdx_zh": "大華",
+   "tdx_en": "Dahua"
+  },
+  "7332": {
+   "zh": "十分",
+   "en": "Shifen",
+   "ja": "十分",
+   "tdx_zh": "十分",
+   "tdx_en": "Shifen"
+  },
+  "7333": {
+   "zh": "望古",
+   "en": "Wanggu",
+   "ja": "望古",
+   "tdx_zh": "望古",
+   "tdx_en": "Wanggu"
+  },
+  "7334": {
+   "zh": "嶺腳",
+   "en": "Lingjiao",
+   "ja": "嶺脚",
+   "tdx_zh": "嶺腳",
+   "tdx_en": "Lingjiao"
+  },
+  "7335": {
+   "zh": "平溪",
+   "en": "Pingxi",
+   "ja": "平渓",
+   "tdx_zh": "平溪",
+   "tdx_en": "Pingxi"
+  },
+  "7336": {
+   "zh": "菁桐",
+   "en": "Jingtong",
+   "ja": "菁桐",
+   "tdx_zh": "菁桐",
+   "tdx_en": "Jingtong"
+  },
+  "7350": {
+   "zh": "猴硐",
+   "en": "Houtong",
+   "ja": "侯硐",
+   "tdx_zh": "猴硐",
+   "tdx_en": "Houtong"
+  },
+  "7360": {
+   "zh": "瑞芳",
+   "en": "Ruifang",
+   "ja": "瑞芳",
+   "tdx_zh": "瑞芳",
+   "tdx_en": "Ruifang"
+  },
+  "7361": {
+   "zh": "海科館",
+   "en": "Haikeguan",
+   "ja": "海科館",
+   "tdx_zh": "海科館",
+   "tdx_en": "Haikeguan"
+  },
+  "7362": {
+   "zh": "八斗子",
+   "en": "Badouzi",
+   "ja": "八斗子",
+   "tdx_zh": "八斗子",
+   "tdx_en": "Badouzi"
+  },
+  "7380": {
+   "zh": "四腳亭",
+   "en": "Sijiaoting",
+   "ja": "四脚亭",
+   "tdx_zh": "四腳亭",
+   "tdx_en": "Sijiaoting"
+  },
+  "7390": {
+   "zh": "暖暖",
+   "en": "Nuannuan",
+   "ja": "暖暖",
+   "tdx_zh": "暖暖",
+   "tdx_en": "Nuannuan"
+  },
+  "0900": {
+   "zh": "基隆",
+   "en": "Keelung",
+   "ja": "基隆",
+   "tdx_zh": "基隆",
+   "tdx_en": "Keelung"
+  },
+  "0910": {
+   "zh": "三坑",
+   "en": "Sankeng",
+   "ja": "三坑",
+   "tdx_zh": "三坑",
+   "tdx_en": "Sankeng"
+  },
+  "0920": {
+   "zh": "八堵",
+   "en": "Badu",
+   "ja": "八堵",
+   "tdx_zh": "八堵",
+   "tdx_en": "Badu"
+  },
+  "0930": {
+   "zh": "七堵",
+   "en": "Qidu",
+   "ja": "七堵",
+   "tdx_zh": "七堵",
+   "tdx_en": "Qidu"
+  },
+  "0940": {
+   "zh": "百福",
+   "en": "Baifu",
+   "ja": "百福",
+   "tdx_zh": "百福",
+   "tdx_en": "Baifu"
+  },
+  "0950": {
+   "zh": "五堵",
+   "en": "Wudu",
+   "ja": "五堵",
+   "tdx_zh": "五堵",
+   "tdx_en": "Wudu"
+  },
+  "0960": {
+   "zh": "汐止",
+   "en": "Xizhi",
+   "ja": "汐止",
+   "tdx_zh": "汐止",
+   "tdx_en": "Xizhi"
+  },
+  "0970": {
+   "zh": "汐科",
+   "en": "Xike",
+   "ja": "汐科",
+   "tdx_zh": "汐科",
+   "tdx_en": "Xike"
+  },
+  "0980": {
+   "zh": "南港",
+   "en": "Nangang",
+   "ja": "南港",
+   "tdx_zh": "南港",
+   "tdx_en": "Nangang"
+  },
+  "0990": {
+   "zh": "松山",
+   "en": "Songshan",
+   "ja": "松山",
+   "tdx_zh": "松山",
+   "tdx_en": "Songshan"
+  }
+ }
+}

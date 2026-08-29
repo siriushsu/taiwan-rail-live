@@ -69,7 +69,7 @@ const info = (name, detail) => { console.log(`INFO ${name}${detail ? ' — ' + d
 const TEST_FOUNDING_LAUNCH_AT = `${new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Taipei' }).format(new Date())}T00:00:00+08:00`;
 
 async function boot(browser, { width = 1280, height = 900, touch = false, theme = 'light', query = '', foundingLaunchAt = TEST_FOUNDING_LAUNCH_AT } = {}) {
-  const ctx = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch });
+  const ctx = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch, locale: 'zh-TW' });
   await ctx.addInitScript((th) => {
     try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {}
     try { localStorage.setItem('trainmap-appearance', th); } catch (e) {}

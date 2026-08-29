@@ -772,7 +772,7 @@ struct RailBoardWidgetEntryView: View {
             Text("軌島")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
-            Text(message)
+            Text(RailNativeL10n.text(message))
                 .font(.system(size: 15, weight: .semibold))
                 .minimumScaleFactor(0.75)
         }
@@ -874,7 +874,7 @@ struct SmallBoardView: View {
                     //    「標題是一站還是一組對」，不是量出來的斷點寬度。
                     //    直達模式本來就不缺識別：主角那一列寫著「往 臺北-環島」。
                     if snapshot.isWatching {
-                        Text(snapshot.title)
+                        Text(RailNativeL10n.name(snapshot.title))
                             .font(.system(size: scale.pt(11, readable: 15)))
                             .foregroundStyle(.tertiary)
                             .lineLimit(1).minimumScaleFactor(0.75)
@@ -945,7 +945,7 @@ struct SmallBoardView: View {
             }
         } else {
             VStack(alignment: .leading, spacing: scale.pt(6)) {
-                Text(snapshot.title)
+                Text(RailNativeL10n.name(snapshot.title))
                     .font(.system(size: scale.pt(17), weight: .semibold))
                     .lineLimit(1).minimumScaleFactor(0.8)
                     .frame(height: scale.pt(21), alignment: .leading)
@@ -1370,7 +1370,7 @@ struct RectangularBoardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 1) {
             HStack(spacing: 4) {
-                Text(snapshot.title)
+                Text(RailNativeL10n.name(snapshot.title))
                     .font(.system(size: 11, weight: .medium))
                     .lineLimit(1).minimumScaleFactor(0.8)
                 Spacer(minLength: 2)
@@ -1440,7 +1440,7 @@ struct SmallPlaceBoardView: View {
         if let line = snapshot.lines.first, let row = line.rows.first {
             VStack(alignment: .leading, spacing: scale.pt(3)) {
                 HStack(spacing: scale.pt(4)) {
-                    Text(snapshot.title)
+                    Text(RailNativeL10n.name(snapshot.title))
                         .font(.system(size: scale.pt(15), weight: .semibold))
                         .lineLimit(1).minimumScaleFactor(0.8)
                     Spacer(minLength: scale.pt(2))
@@ -1459,7 +1459,7 @@ struct SmallPlaceBoardView: View {
                 HStack(spacing: scale.pt(5)) {
                     RailTrainMark(kind: row.trainType, number: row.trainNumber,
                                   color: trainColor(row.trainType), fontSize: 11, scale: scale)
-                    Text("往 \(row.destinationName)")
+                    Text(RailNativeL10n.text("往 {station}", ["station": RailNativeL10n.name(row.destinationName)]))
                         .font(.system(size: scale.pt(14)))
                         .foregroundStyle(.secondary)
                         .lineLimit(1).minimumScaleFactor(0.8)
@@ -1481,7 +1481,7 @@ struct SmallPlaceBoardView: View {
             }
         } else {
             VStack(alignment: .leading, spacing: scale.pt(6)) {
-                Text(snapshot.title)
+                Text(RailNativeL10n.name(snapshot.title))
                     .font(.system(size: scale.pt(17), weight: .semibold))
                     .lineLimit(1).minimumScaleFactor(0.8)
                     .frame(height: scale.pt(21), alignment: .leading)
@@ -1489,7 +1489,7 @@ struct SmallPlaceBoardView: View {
                     RailLineMark(name: line.name, color: Color(hex: line.color),
                                  fontSize: 13, scale: scale)
                 }
-                Text("60 分鐘內無車")
+                Text(RailNativeL10n.text("60 分鐘內無車"))
                     .font(.system(size: scale.pt(13)))
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 0)
@@ -1573,7 +1573,7 @@ struct MediumPlaceBoardView: View {
                                  role: .follow, scale: scale)
                 }
             } else {
-                Text("60 分鐘內無車")
+                Text(RailNativeL10n.text("60 分鐘內無車"))
                     .font(.system(size: scale.pt(15)))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -1649,7 +1649,7 @@ private struct PlaceColumnView: View {
                               color: BoardPalette.trainColor(lead.trainType, in: typeColors),
                               fontSize: 10, scale: scale)
                     .frame(height: scale.pt(18), alignment: .leading)
-                Text("往 \(lead.destinationName)")
+                Text(RailNativeL10n.text("往 {station}", ["station": RailNativeL10n.name(lead.destinationName)]))
                     .font(.system(size: scale.pt(13)))
                     .foregroundStyle(.secondary)
                     .lineLimit(1).minimumScaleFactor(0.7)
@@ -1672,7 +1672,7 @@ private struct PlaceColumnView: View {
                     HStack(spacing: scale.pt(4)) {
                         Text(timeText(row))
                             .monospacedDigit().fixedSize()
-                        Text("\(row.trainType) \(row.trainNumber)")
+                        Text("\(RailNativeL10n.name(row.trainType)) \(row.trainNumber)")
                             .lineLimit(1).minimumScaleFactor(0.7)
                     }
                     .font(.system(size: scale.pt(11)))
@@ -1680,7 +1680,7 @@ private struct PlaceColumnView: View {
                     .frame(height: scale.pt(15), alignment: .leading)
                 }
             } else {
-                Text("60 分鐘內無車")
+                Text(RailNativeL10n.text("60 分鐘內無車"))
                     .font(.system(size: scale.pt(13)))
                     .foregroundStyle(.secondary)
                     .lineLimit(1).minimumScaleFactor(0.75)
@@ -1736,7 +1736,7 @@ struct PlaceRowView: View {
                 RailTrainMark(kind: row.trainType, number: row.trainNumber,
                               color: BoardPalette.trainColor(row.trainType, in: typeColors),
                               fontSize: isHero ? 13 : 12, scale: scale)
-                Text("往 \(row.destinationName)")
+                Text(RailNativeL10n.text("往 {station}", ["station": RailNativeL10n.name(row.destinationName)]))
                     .font(.system(size: scale.pt(isHero ? 20 : 17),
                                   weight: isHero ? .medium : .regular))
                     .foregroundStyle(isHero ? AnyShapeStyle(HierarchicalShapeStyle.primary)
@@ -1744,7 +1744,7 @@ struct PlaceRowView: View {
                     .lineLimit(1).minimumScaleFactor(0.8)
                 if !isHero {
                     Spacer(minLength: scale.pt(4))
-                    Text("\(timeText) \(PlaceDistance.passWord)")
+                    Text(RailNativeL10n.text("{time} 經過", ["time": timeText]))
                         .font(.system(size: scale.pt(12)))
                         .foregroundStyle(.secondary)
                         .monospacedDigit().fixedSize()
@@ -1752,7 +1752,7 @@ struct PlaceRowView: View {
             }
             .widgetAccentable()
             if isHero {
-                Text("\(timeText) \(PlaceDistance.passWord)")
+                Text(RailNativeL10n.text("{time} 經過", ["time": timeText]))
                     .font(.system(size: scale.pt(13)))
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
@@ -1776,12 +1776,12 @@ struct RectangularPlaceBoardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 1) {
             HStack(spacing: 4) {
-                Text(snapshot.title)
+                Text(RailNativeL10n.name(snapshot.title))
                     .font(.system(size: 11, weight: .medium))
                     .lineLimit(1)
                 Spacer(minLength: 2)
                 if snapshot.lines.count > 1 {
-                    Text("\(snapshot.lines.count) 條線")
+                    Text(RailNativeL10n.text("{n} 條線", ["n": String(snapshot.lines.count)]))
                         .font(.system(size: 10))
                         .fixedSize()
                 }
@@ -1801,7 +1801,7 @@ struct RectangularPlaceBoardView: View {
 
                 HStack(spacing: 4) {
                     RailTrainMark(kind: row.trainType, number: row.trainNumber, fontSize: 9)
-                    Text("往 \(row.destinationName)")
+                    Text(RailNativeL10n.text("往 {station}", ["station": RailNativeL10n.name(row.destinationName)]))
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                     Spacer(minLength: 2)
@@ -1813,7 +1813,7 @@ struct RectangularPlaceBoardView: View {
                 }
                 .lineLimit(1).minimumScaleFactor(0.7)
             } else {
-                Text("60 分鐘內無車")
+                Text(RailNativeL10n.text("60 分鐘內無車"))
                     .font(.system(size: 13, weight: .semibold))
                     .lineLimit(1)
             }
@@ -1855,7 +1855,7 @@ struct PassBadge: View {
     var scale: RailScale = RailScale(k: 1)
 
     var body: some View {
-        Text("通過")
+        Text(RailNativeL10n.text("通過"))
             .font(.system(size: scale.pt(9), weight: .bold))
             .padding(.horizontal, scale.pt(3))
             .padding(.vertical, scale.pt(1))
