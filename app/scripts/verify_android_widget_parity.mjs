@@ -47,8 +47,16 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
       && /registerPlugin\([^\n]*'RailFollowLive'/.test(bridge)
   });
   const contentRules = [
+    // 🔴 判準寫「意圖」不寫「當下的函式名」：2026-08-29 把 trtcOfficialCrowdHtmlByNo 併回
+    //    trtcOfficialCrowdHtml(no)，舊寫法的名字比對當場轉紅，但行為完全沒退步——那種紅
+    //    跟真回歸長得一模一樣。這裡改成正反各一半：正向＝Core 板確實拿 publicLabel(官方車號)
+    //    去要擁擠度、且資料源是逐車的 crowdByNo；反向＝同終點的 crowdByDest join 不得復活
+    //    （它正是忠孝復興文湖線列長出板南線 6 格的成因）。兩半都要成立才算過：只留反向那半
+    //    的話，整個功能被刪掉也會「通過」。
     ['Metro Core 看板以逐車車號補上官方擁擠度',
-      /crowdByNo/.test(html) && /trtcOfficialCrowdHtmlByNo\(label\)/.test(html)],
+      /crowdByNo/.test(html)
+        && /const crowdHtml = trtcOfficialCrowdHtml(?:ByNo)?\(label\)/.test(html)
+        && !/crowdByDest/.test(html)],
     ['Android 小工具同步並動態解析「我的地點」',
       /registerPlugin\(RailPlacesPlugin\.class\)/.test(main)
         && /RAIL_NATIVE_PLACES/.test(bridge) && /resolvePlace\(/.test(railData)
