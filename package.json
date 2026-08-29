@@ -15,6 +15,7 @@
     "check-trainpick": "node scripts/verify_train_overlap_pick.mjs",
     "check-ipad": "node scripts/verify_ipad_shell.mjs",
     "check-plus": "node scripts/verify_plus_features.mjs",
+    "check-merge-noloss": "node scripts/verify_merge_noloss.mjs",
     "build-native-localizations": "node app/scripts/build_native_localizations.mjs",
     "check-native-localizations": "node app/scripts/verify_native_localizations.mjs",
     "check-i18n": "node scripts/check_i18n.mjs",
