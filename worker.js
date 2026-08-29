@@ -8,7 +8,7 @@ import {
 import { reduceOfficialRosterSelfHealing } from './scripts/trtc_official_roster.mjs';
 import { laNextIdx, laObsIdx, laSchedIdx, laArrivalEpoch, laStaleDate, laJwt, laJwtReset } from './scripts/la_push_core.mjs';
 import {
-  mwTrtcRows, mwLiveRows, mwCrowdByDest, mwContentState, mwStaleDate, mwShouldPush, mwTrtcDataAt,
+  mwTrtcRows, mwLiveRows, mwCrowdByNo, mwContentState, mwStaleDate, mwShouldPush, mwTrtcDataAt,
   MW_LIVE_MAX_AGE_SEC,
 } from './scripts/metro_wait_core.mjs';
 
@@ -3525,9 +3525,9 @@ async function metroWaitSources(env, baseUrl, systems, now) {
       // 這裡不另外判「整批失效」:board 空 ⇒ 每一列都挑不到班次 ⇒ 走 hold(不推也不收卡),
       // 那正是缺訊時該有的行為(使用者裁示:缺訊只 hold)。
       out.trtc = { ok: !!(j && Array.isArray(j.board)), board: (j && j.board) || [],
-        crowdByDest: mwCrowdByDest(j && j.trains) };
+        crowdByNo: mwCrowdByNo(j && j.trains) };
     } catch (e) {
-      out.trtc = { ok: false, board: [], crowdByDest: {} };
+      out.trtc = { ok: false, board: [], crowdByNo: {} };
       console.error('[cron mw-push] trtc-live 取得失敗,本輪北捷列全部 hold:', String((e && e.message) || e));
     }
   }
@@ -3622,7 +3622,7 @@ async function metroWaitPushAll(env, ctx, baseUrl) {
         //    (突變測試 M6 就是從這裡穿過去的:把一個 key 從 mwContentState 拿掉,更新那發紅了、
         //    收卡那發卻因為走 prev 而全綠。)值沿用 prev 是刻意的:卡片在被系統收走前的最後一瞬
         //    顯示的仍是使用者上次看到的那一班,不是一排空白。
-        const endState = { ...mwContentState(row.sys, picked, src && src.crowdByDest, dataAt), ...(prev || {}), pushed: true };
+        const endState = { ...mwContentState(row.sys, picked, src && src.crowdByNo, dataAt), ...(prev || {}), pushed: true };
         await metroWaitPushEnd(env, jwt, row, endState, now, serviceOver ? 'lastTrain' : 'endAt');
         await env.DELAY_DB.prepare('DELETE FROM metro_wait_bindings WHERE token=?').bind(row.token).run();
         ended++;
@@ -3632,7 +3632,7 @@ async function metroWaitPushAll(env, ctx, baseUrl) {
       //    長得一模一樣,而把其中任何一種當成「該收卡」都會讓卡片在使用者還要等車的時候
       //    憑空消失。使用者裁示:缺訊只 hold。
       if (!picked.length) { held++; continue; }
-      const state = mwContentState(row.sys, picked, src.crowdByDest, dataAt);
+      const state = mwContentState(row.sys, picked, src.crowdByNo, dataAt);
       if (!mwShouldPush(prev, state)) { unchanged++; continue; }
       attempted++;
       const staleDate = mwStaleDate(row.sys, picked, now);
