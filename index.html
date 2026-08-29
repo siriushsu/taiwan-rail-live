@@ -21523,7 +21523,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) poll
 pollLive();
 
 // ── Private Metro Core client（只做 canonical trajectory 線性補間） ────────
-// 網站預設關閉（shadow，2026-08-22）；?metrocore=1 才接管，?metrocore=0 是顯式關的逃生口。
+// 網站預設開啟（2026-08-28 尖峰跨站修正後重新 rollout）；?metrocore=0 是顯式關的逃生口。
 // App build 明確注入布林旗標（v13 原生恆開），網站的預設值管不到它。
 // Worker／snapshot 失敗、過期或時鐘離開現在時，
 // 所有讀者都得到 null，立即退回既有北捷／高捷即時與班表路徑，不留下半套混合狀態。
@@ -21565,13 +21565,11 @@ function metroCoreFlag(search) {
   if (METRO_CORE_QUERY_MODE === 'on') return true;
   if (typeof window.RAIL_METRO_CORE_ENABLED === 'boolean') return window.RAIL_METRO_CORE_ENABLED;
   if (typeof APP_CFG.metroCore === 'boolean') return APP_CFG.metroCore;
-  // 🔴 2026-08-22 起網站預設【關閉】＝shadow：出貨走既有 legacy 路徑，Core 只在
-  //    ?metrocore=1（或預覽站加同一個參數）時才接管。理由：伺服端的逐線 hard gate
-  //    還沒綠，把預設留在 Core 等於讓未驗收的供應鏈直接對到使用者；預設在這一層之後，
-  //    Metro 要回退＝翻旗標，不必回退程式碼、不必再處理「53 檔混批」那種整包回捲。
-  //    上面兩個 App 注入點在這一行【之前】就回傳，所以 App（v13 原生恆開）不受影響。
-  //    伺服端逐線 hard gate 綠了之後，把這行改回 true 就是網站的正式切換點。
-  return false;
+  // 🔴 2026-08-28 網站預設重新開啟：Core 已在產生端與 canonical gate 雙層攔截「刷新點
+  //    連續、下一秒卻跨數站」的尖峰漏網形狀；前端的逐線車數／schema／期限退路仍保留。
+  //    要緊急對照或退回既有模型只需 ?metrocore=0，不必回捲整份 index.html。
+  //    上面兩個 App 注入點在這一行【之前】就回傳，所以原生殼仍以自己的明確旗標為準。
+  return true;
 }
 const METRO_CORE_ENABLED = metroCoreFlag(location.search);
 

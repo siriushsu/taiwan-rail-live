@@ -110,15 +110,26 @@ const openStation = async () => page.evaluate(name => {
 // ── 第 1／2 項：逐車 join ────────────────────────────────────────────────────
 await openStation();
 await page.waitForSelector('#board .row', { timeout: 15000 });
-const rendered = await page.evaluate(() => ({
-  path: document.getElementById('board').dataset.metroCore ? 'core'
-    : document.getElementById('board').dataset.trtcOfficial ? 'official' : 'sched',
-  rows: [...document.querySelectorAll('#board .row')].map(row => ({
-    dest: (row.querySelector('b') || {}).textContent || '',
-    line: (row.querySelector('.dest') || {}).textContent || '',
-    bars: row.querySelectorAll('.crowd i').length
-  }))
-}));
+// 🔴 線名有兩種擺法:列上的 .dest，或組標題 .grp>b(緊湊排法把它移上去，metroBoardRowLabel
+//    在有組標題時回空字串)。判準只認列上那一種的話，換排法就會變成「找不到該列」——
+//    那是判準過期，不是行為錯，而且長得跟真回歸一模一樣。兩種都收，跨排法成立。
+const rendered = await page.evaluate(() => {
+  const board = document.getElementById('board');
+  const rows = [];
+  let head = '';
+  for (const el of board.querySelectorAll('.grp, .row')) {
+    if (el.classList.contains('grp')) { head = (el.querySelector('b') || {}).textContent || ''; continue; }
+    rows.push({
+      dest: (el.querySelector('b') || {}).textContent || '',
+      line: ((el.querySelector('.dest') || {}).textContent || '') + ' ' + head,
+      bars: el.querySelectorAll('.crowd i').length
+    });
+  }
+  return {
+    path: board.dataset.metroCore ? 'core' : board.dataset.trtcOfficial ? 'official' : 'sched',
+    rows,
+  };
+});
 ok('看板走官方板（前提）', rendered.path === 'official', `實際走 ${rendered.path}`);
 
 const brRow = rendered.rows.find(r => r.dest.includes('南港展覽館') && r.line.includes('文湖'));
