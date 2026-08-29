@@ -25,6 +25,10 @@ const MIME = { '.html': 'text/html', '.json': 'application/json', '.js': 'text/j
 const fails = [];
 const check = (n, ok, d) => { console.log(`${ok ? '✓' : '✗'} ${n}${d ? ' · ' + d : ''}`); if (!ok) fails.push(n); };
 
+// 比對鍵＝車次號@day｜@prev（見 boot() 內的說明）。這兩個只是把鍵拆回人看得懂的樣子。
+const noOf = k => k.split('@')[0];
+const labOf = k => k.split('@')[1] === 'prev' ? `${noOf(k)} 次（昨夜借進來的班）` : `${noOf(k)} 次`;
+
 // 比對前先把物件鍵排序：讀預算值那條路徑會【後補】h 與 obs，插入順序因此與現算不同，
 // 而 JSON.stringify 照插入順序輸出。鍵序不是行為屬性（取值一律具名），拿它當差異會是假紅。
 // 注意這只正規化順序，不動任何值——數值仍然是逐字比對，沒有引入容差。
@@ -73,8 +77,10 @@ async function boot(hide, label) {
   check(`${ENGINE}／${label} 開機無 pageerror`, errs.length === 0, errs.join('; ').slice(0, 200));
   const got = await page.evaluate(() => {
     const out = {};
+    let roster = 0;
     for (const tr of state.trains || []) {
       if (tr.sys !== 'tra_sched' || !tr.stops) continue;
+      roster++;
       const profs = [], byRef = new Map();
       const stops = tr.stops.map(s => {
         if (!s.rp) return null;
@@ -82,9 +88,14 @@ async function boot(hide, label) {
         return { i: byRef.get(s.rp), dep: s.rpDep, off: s.rpOff, km: s.rpSegKm,
           arr: s.arrSec, dsec: s.depSec, stop: s.stop !== false };
       });
-      out[String(tr.train)] = { profs, stops };
+      // 鍵不能只有車次號：名冊是【逐日】的（resolveScheduleDay），而且昨夜跨午夜還在路上的班
+      // 會被借進今天的名冊（stops._prevNight）——同一個車次號今天真的可以有兩台車同時在跑
+      // （實測 2026-08-29 的 281：今日班 ＋ 昨夜借進來的那班）。所以鍵要帶「哪一天發的」，
+      // 並把名冊台數一起帶回來當分母，否則併掉一台是零訊號的。
+      out[String(tr.train) + (tr.stops._prevNight ? '@prev' : '@day')] =
+        { profs, stops, rday: tr._rday || '' };
     }
-    return { trains: out, pre: { ..._rpPre }, hasTable: !!state.runProfiles };
+    return { trains: out, roster, pre: { ..._rpPre }, hasTable: !!state.runProfiles };
   });
   await browser.close();
   return got;
@@ -94,6 +105,11 @@ async function boot(hide, label) {
 const fresh = await boot(true, '現算');
 check('藏起剖面檔時，前端確實沒讀到表', !fresh.hasTable, `runProfiles=${fresh.hasTable}`);
 check('藏起剖面檔時，一條預算剖面都沒被採用（控制組）', fresh.pre.used === 0, JSON.stringify(fresh.pre));
+// 分母守恆：名冊上每一台車都要各自有一個比對鍵。同號兩台被併掉時比對照樣全綠，
+// 只是那台從此不在分母裡——這種縮水沒有紅燈，不主動 gate 就會無聲發生。
+check('名冊上每台台鐵車都各有一個比對鍵（同號的兩台沒被併成一台）',
+  Object.keys(fresh.trains).length === fresh.roster,
+  `名冊 ${fresh.roster} 台／鍵 ${Object.keys(fresh.trains).length} 個`);
 
 // ── C：正常供檔，前端應該改讀預算值 ──────────────────────────────────────
 const pre = await boot(false, '讀預算值');
@@ -110,13 +126,13 @@ check('沒有任何一條因幾何對不上而被拒（stale=0）', pre.pre.stal
     for (let k = 0; k < a.stops.length; k++) {
       cmp++;
       if (canon(a.stops[k]) !== canon(b.stops[k])) {
-        diff++; if (ex.length < 3) ex.push(`${tn} 次第 ${k} 站\n    現算 ${JSON.stringify(a.stops[k])}\n    預算 ${JSON.stringify(b.stops[k])}`);
+        diff++; if (ex.length < 3) ex.push(`${labOf(tn)}第 ${k} 站\n    現算 ${JSON.stringify(a.stops[k])}\n    預算 ${JSON.stringify(b.stops[k])}`);
       }
     }
     for (let k = 0; k < a.profs.length; k++) {
       cmp++;
       if (canon(a.profs[k]) !== canon(b.profs[k])) {
-        diff++; if (ex.length < 3) ex.push(`${tn} 次剖面 #${k}\n    現算 ${JSON.stringify(a.profs[k]).slice(0, 180)}\n    預算 ${JSON.stringify(b.profs[k]).slice(0, 180)}`);
+        diff++; if (ex.length < 3) ex.push(`${labOf(tn)}剖面 #${k}\n    現算 ${JSON.stringify(a.profs[k]).slice(0, 180)}\n    預算 ${JSON.stringify(b.profs[k]).slice(0, 180)}`);
       }
     }
   }
@@ -143,6 +159,7 @@ switch (process.env.MUTATE) {
       const o = {}; for (const [n, v] of Object.entries(passObs[k])) o[n] = v * 1.05;
       passObs[k] = o;
     } break;
+  case 'dupswap': break;   // 考「同號對版」：在下面的離線側改挑聯集裡的另一版（見該處說明）
   case 'corrupt': case 'badL': break;   // 在 serveProfiles() 就地弄壞供出去的檔，離線側不動
   case undefined: case '': break;
   default: throw new Error('未知的 MUTATE：' + process.env.MUTATE);
@@ -150,8 +167,45 @@ switch (process.env.MUTATE) {
 if (process.env.MUTATE) console.log(`\n【突變 ${process.env.MUTATE}】離線側已故意弄壞，以下應該要紅\n`);
 
 computeProfiles({ indexPath: join(ROOT, 'index.html'), schedule, track, passObs, mutate });
-const offline = {};
+
+// 🔴 對版要對到【前端今天實際載入的那一版】，不能拿車次號當鍵。
+// 班表檔是 14 天聯集，其中 4 個車次號各對到兩筆停站型態（445／270／281／4041，差在通過站的
+// 推估時刻，4041 還差在冬山停不停）；前端 resolveScheduleDay 只挑今天那一版。用車次號當鍵、
+// 後寫的蓋前面，比到的就會是【別天】那一版：2026-08-28 的名冊剛好全用聯集裡的最後一版 ⇒ 全綠，
+// 2026-08-29 的 270 用的是前面那一版 ⇒ 37 個節點、8 條剖面、1 台幾何全紅。同一份程式碼、同一份
+// 資料，紅綠只取決於今天是哪一天——這種假紅與真回歸不可分辨，等於把整段比對廢掉。
+// 改成照前端自己回報的營運日（tr._rday）去查 dates 索引；昨夜借進來的那班則查前一天的索引。
+const prevOf = d => new Date(Date.parse(d + 'T00:00:00Z') - 86400000).toISOString().slice(0, 10);
+const dayCache = new Map();
+const dayIndex = d => {
+  if (!dayCache.has(d)) {
+    const m = new Map();
+    for (const i of (schedule.dates && schedule.dates[d]) || []) {
+      const tr = schedule.trains[i];
+      if (tr) m.set(String(tr.train), tr);
+    }
+    dayCache.set(d, m);
+  }
+  return dayCache.get(d);
+};
+// 突變 dupswap：考的就是上面這件事——刻意改挑聯集裡的【另一版】，重現 2026-08-29 那天
+// 用車次號當鍵造成的假紅（節點／剖面／幾何三條應該要紅，其餘全綠）。沒有這一發，這條判準
+// 哪天被改回車次號當鍵也不會有人知道——而那種退化只在特定日期才顯形。
+const unionByNo = new Map();
 for (const tr of schedule.trains) {
+  const k = String(tr.train);
+  if (!unionByNo.has(k)) unionByNo.set(k, []);
+  unionByNo.get(k).push(tr);
+}
+
+const offline = {};
+for (const [key, L] of Object.entries(fresh.trains)) {
+  const [no, kind] = key.split('@');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(L.rday)) continue;   // 前端沒回報營運日就別猜，留給下面的斷言紅
+  const day = kind === 'prev' ? prevOf(L.rday) : L.rday;
+  let tr = dayIndex(day).get(no);
+  if (!tr) continue;                       // 查不到就留給下面的「離線缺的車次」斷言去紅
+  if (process.env.MUTATE === 'dupswap') tr = (unionByNo.get(no) || []).find(v => v !== tr) || tr;
   const profs = [], byRef = new Map();
   const stops = tr.stops.map(s => {
     if (!s.rp) return null;
@@ -159,7 +213,7 @@ for (const tr of schedule.trains) {
     return { i: byRef.get(s.rp), dep: s.rpDep, off: s.rpOff, km: s.rpSegKm,
       arr: s.arrSec, dsec: s.depSec, stop: s.stop !== false };
   });
-  offline[String(tr.train)] = { profs, stops };
+  offline[key] = { profs, stops };
 }
 
 // 逐字比對而不是「差值 < ε」：這裡要的是【一模一樣】，不是「差不多」。同一段程式碼、
@@ -186,7 +240,7 @@ for (const [tn, L] of Object.entries(fresh.trains)) {
     const a = canon(L.profs[k]), b = canon(O.profs[k]);
     if (a !== b) {
       diffProfs++; rec.profs++;
-      if (samples.length < 3) samples.push(`${tn} 次剖面 #${k}\n    瀏覽器 ${a.slice(0, 180)}\n    離線   ${b.slice(0, 180)}`);
+      if (samples.length < 3) samples.push(`${labOf(tn)}剖面 #${k}\n    瀏覽器 ${a.slice(0, 180)}\n    離線   ${b.slice(0, 180)}`);
     }
   }
   if (rec.stops || rec.profs) badTrains.set(tn, rec);
@@ -198,7 +252,7 @@ for (const [tn, L] of Object.entries(fresh.trains)) {
 // 只寫「允許缺 2 台」的話，哪天真的漏算兩台真車也會照樣通過。
 const SYNTH = new Set(['8888', '8889']);
 const schedHas = new Set(schedule.trains.map(t => String(t.train)));
-const missed = Object.keys(fresh.trains).filter(tn => !offline[tn]);
+const missed = Object.keys(fresh.trains).filter(tn => !offline[tn]).map(noOf);
 check('離線缺的車次恰好只有合成的環島之星', missed.every(t => SYNTH.has(t)),
   missed.length ? `缺 ${missed.join('／')}` : '一台都不缺');
 check('那些車確實不在班表檔裡（證明是合成的、不是我漏算）',
