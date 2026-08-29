@@ -2585,6 +2585,12 @@
   .takeout-head button { border: 0; background: transparent; color: var(--on-navy); font-size: calc(24px * var(--ui)); line-height: 1; cursor: pointer; min-width: 44px; min-height: 44px; }
   .takeout-body { padding: 14px 16px; overflow-y: auto; overscroll-behavior: contain; }
   .takeout-help { margin: 0 0 10px; color: var(--muted); font-size: calc(12px * var(--uis)); line-height: 1.6; }
+  /* 「中文原文」標記:自成一行。原本沒有任何規則 ⇒ 裸 inline span 直接黏在內文前面
+     (1.5.1 實踩:日文彈窗長成「中国語の原文軌島 1.5.1」)。只有 #updNotes 用到這個 class。 */
+  .source-lang {
+    display: block; margin: 0 0 8px; color: var(--muted);
+    font-size: calc(11px * var(--uis)); letter-spacing: 1px;
+  }
   .metro-wait-picker-dialog { width: min(460px, 100%); }
   .metro-wait-picker-body { display: grid; gap: 8px; }
   .metro-wait-choice {
@@ -16925,7 +16931,14 @@ async function appUpdateInit() {
 
 // 本版內建的「更新了什麼」文案:build 期由 prepare-web 從發行模式的 why 注入。
 // 網站版沒有這個值(和 RAIL_APP_VERSION 一樣),一律回空字串=相關 UI 全部不出現。
+// 🔴 英日各有整段自己的文案(RAIL_APP_WHATS_NEW_EN/_JA)。這段字是自己寫的、本來就翻得了,
+// 不該走 appUpdateOpenNotes 那條「中文原文」退路——那條是給只有中文的營運單位公告用的。
+// 1.5.1 實踩:日文使用者更新完,第一眼看到的是標著「中国語の原文」的中文更新說明。
 function appWhatsNewText() {
+  const alt = I18N_LANG === 'en' ? window.RAIL_APP_WHATS_NEW_EN
+    : I18N_LANG === 'ja' ? window.RAIL_APP_WHATS_NEW_JA
+    : '';
+  if (typeof alt === 'string' && alt.trim()) return alt;
   return typeof window.RAIL_APP_WHATS_NEW === 'string' ? window.RAIL_APP_WHATS_NEW : '';
 }
 

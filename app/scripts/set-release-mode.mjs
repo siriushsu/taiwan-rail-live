@@ -287,6 +287,10 @@ else delete env.RAIL_ENABLE_METRO_CORE;
 // 本版「更新了什麼」內建文案＝why 本人。iTunes lookup 的 releaseNotes 是【線上版】的,
 // 剛裝的版比線上新時(每次送審前必然)彈到的是上一版的文——1.4.9 (74) 實踩。
 env.RAIL_WHATS_NEW = cfg.why;
+// 英日整段文案。沒寫就送空字串 ⇒ appWhatsNewText() 退回中文(行為與 1.5.1 之前相同),
+// 但 verify-release 會對 feature 模式擋下來,免得無聲退回「日文使用者看中文」。
+if (typeof cfg.whyEn === 'string') env.RAIL_WHATS_NEW_EN = cfg.whyEn; else delete env.RAIL_WHATS_NEW_EN;
+if (typeof cfg.whyJa === 'string') env.RAIL_WHATS_NEW_JA = cfg.whyJa; else delete env.RAIL_WHATS_NEW_JA;
 if (cfg.plusSandboxBuild) {
   env.RAIL_PLUS_SANDBOX_OK = '1';
   env.RAIL_PLUS_SANDBOX_BUILD = cfg.plusSandboxBuild;
