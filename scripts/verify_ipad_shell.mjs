@@ -3,6 +3,19 @@
 // 為什麼要有這一支:全 repo 既有 23 支驗收的 hasTouch 一律只配寬度 ≤768,
 // 「(any-pointer: coarse) and (max-width: 1400px)」這條新分支結構上零覆蓋。
 //
+// 突變測試紀錄(2026-08-29,每發都先指名「要考哪一條」再跑;基準 110/110):
+//  A 互補區塊改回 @media(min-width:901px)and(min-height:501px) → 考 S3
+//      ⇒ 90/110:S3×8 S5×8 I1×2 I2×2 紅,D1 正確維持綠(該突變只壞 iPad 不壞桌面)。
+//      診斷值 tabbar=false toolsFab=false stageTools=false ＝兩個區塊打架、兩種控制項都沒有。
+//  B 把 RAIL_MQ 的第一段(原條件)刪掉只留新分支 → 考 iPhone SE 橫 的 S2
+//      ⇒ 104/110:恰好 iPhone SE 橫 的 S2/S4/S5 紅,其餘全綠。這正是「用 min-width:700 取代原條件
+//      會靜默退掉 667×375 的側欄」那個坑。
+//  C --rail-w 改成 clamp(320px,30vw,420px) → 考 iPhone 兩格的 S4
+//      ⇒ 106/110:SE 量到 320(應 280.1)、Pro Max 量到 320(應 340);iPad 三格維持綠。
+//  C2 --rail-w 改成固定 340px → 考 iPad 的 S4
+//      ⇒ 104/110:iPad 11"/13" 與 SE 紅,iPhone 橫(932)正確維持綠。
+//  D 刪掉抽屜的 data-proxy="immBtn" 那一列 → 考 I1/I2 ⇒ 106/110:恰好那 4 條紅。
+//
 // 這支驗不到的事(別誤以為綠就代表沒問題):
 //  1. any-pointer vs pointer 的差別。Playwright 的 isMobile 讓兩者同時為 coarse,
 //     「iPad 接巧控鍵盤觸控板 ⇒ pointer 翻 fine、any-pointer 仍 coarse」只有真機驗得到。
@@ -41,6 +54,21 @@ async function bootPage(browser, { width, height, touch = false, immersive = fal
   }, null, { timeout: 30000 });
   await page.waitForTimeout(400);
   return { ctx, page, errors };
+}
+
+// 開「更多」抽屜。#tabMore 不可見就回 false 而不是逾時崩掉——會死的 harness 比報紅的更糟:
+// 突變測試時它一崩,後面所有判準(含 D1)整段沒跑,看起來像「沒抓到」。
+async function openMoreDrawer(page) {
+  const visible = await page.evaluate(() => {
+    const el = document.getElementById('tabMore');
+    if (!el) return false;
+    const r = el.getBoundingClientRect(), cs = getComputedStyle(el);
+    return r.width > 0 && r.height > 0 && cs.display !== 'none' && cs.visibility !== 'hidden';
+  });
+  if (!visible) return false;
+  await page.click('#tabMore');
+  await page.waitForFunction(() => document.body.classList.contains('tools-open'), null, { timeout: 5000 });
+  return true;
 }
 
 // ── 前提:hasTouch 到底有沒有讓 any-pointer:coarse 為真 ──
@@ -177,8 +205,7 @@ for (const [engName, engine] of [['chromium', chromium], ['webkit', webkit]]) {
   // I1 抽屜裡有沉浸列,且點得到(≥44 觸控高)
   {
     const { ctx, page } = await bootPage(browser, { width: 1210, height: 834, touch: true });
-    await page.click('#tabMore');
-    await page.waitForFunction(() => document.body.classList.contains('tools-open'), null, { timeout: 5000 });
+    const opened = await openMoreDrawer(page);
     await page.waitForTimeout(250);
     // 抽屜是可捲容器,這一列在「觀看模式」段、預設位置在視窗外(1210×834 時 y≈1051)。
     // 直接對視窗外的點做 elementFromPoint 會回 null ⇒ 誤判成「被蓋住/點不到」。
@@ -201,8 +228,9 @@ for (const [engName, engine] of [['chromium', chromium], ['webkit', webkit]]) {
       };
     });
     ok(`${engName} I1 抽屜有極簡沉浸列,捲得到且點得到`,
-      !!(row && row.w > 0 && row.h >= 44 && row.display !== 'none' && row.inView && row.hitIsRow),
-      row ? JSON.stringify({ ...row, w: Math.round(row.w), h: Math.round(row.h) }) : '找不到該列');
+      opened && !!(row && row.w > 0 && row.h >= 44 && row.display !== 'none' && row.inView && row.hitIsRow),
+      !opened ? '開不了「更多」抽屜(#tabMore 不可見)'
+        : row ? JSON.stringify({ ...row, w: Math.round(row.w), h: Math.round(row.h) }) : '找不到該列');
     await ctx.close();
   }
 
@@ -210,10 +238,9 @@ for (const [engName, engine] of [['chromium', chromium], ['webkit', webkit]]) {
   {
     const { ctx, page } = await bootPage(browser, { width: 1210, height: 834, touch: true, immersive: true });
     const before = await page.evaluate(() => document.body.classList.contains('immersive'));
-    await page.click('#tabMore');
-    await page.waitForFunction(() => document.body.classList.contains('tools-open'), null, { timeout: 5000 });
+    const opened = await openMoreDrawer(page);
     await page.waitForTimeout(250);
-    const clicked = await page.evaluate(() => {
+    const clicked = opened && await page.evaluate(() => {
       const el = document.querySelector('#moreBody .ms-row[data-proxy="immBtn"]');
       if (!el) return false;
       el.click();   // 走真實的 data-proxy 派發器,不是直接呼叫 setImmersive
@@ -221,8 +248,8 @@ for (const [engName, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     });
     await page.waitForTimeout(350);
     const after = await page.evaluate(() => document.body.classList.contains('immersive'));
-    ok(`${engName} I2 沉浸態在 iPad 關得掉`, before === true && clicked && after === false,
-      `before=${before} 找到列=${clicked} after=${after}`);
+    ok(`${engName} I2 沉浸態在 iPad 關得掉`, opened && before === true && clicked && after === false,
+      `開抽屜=${opened} before=${before} 找到列=${clicked} after=${after}`);
     await ctx.close();
   }
 
