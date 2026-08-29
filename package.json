@@ -15,6 +15,7 @@
     "check-trainpick": "node scripts/verify_train_overlap_pick.mjs",
     "build-native-localizations": "node app/scripts/build_native_localizations.mjs",
     "check-native-localizations": "node app/scripts/verify_native_localizations.mjs",
+    "check-i18n": "node scripts/check_i18n.mjs",
     "strip-ship-comments": "node scripts/strip_ship_comments.mjs",
     "ship-web": "node scripts/ship_web.mjs"
   },
