@@ -137,9 +137,35 @@ for (const source of new Set(helpSources.filter(value => value && /[\u3400-\u9ff
   if (!keySets[lang]?.has(source)) fail(`使用說明缺少 ${lang}：${source}`);
 }
 
+// 第一層「最近更新」是滾動檢視,不是正本(index.html 的 foot-recent 註解寫明:每條用 data-cl-of
+// 指向第二層某條 data-cl,新功能一進榜舊的就會被合法擠出去)。所以【條數是會漂移的量】——
+// 這裡原本寫死「應為 8 筆」,而實測 08-21～08-29 之間它在 7/8/9 之間來回漂了六次,每次漂到
+// 非 8 就讓整支稽核假紅(唯一失敗項),於是「i18n 有沒有漏譯」實質上沒有閘門在守。
+// 改成綁身分與覆蓋率,不綁條數:(a) 收集器真的收到東西(否則下面全稱斷言全部空過)
+// (b) 區塊裡每一條 li 都被解析到(regex 靜默漏抓一條 ⇒ 那條的 en/ja 永遠不會被檢查)
+// (c) 每條都在第二層有正本——正本是「較早歷史改用主題摘要」能接住被擠出去那幾條的前提。
+// 版面上限 8 條是編排預算不是 i18n 性質,由 verify_plus_subscription.mjs 的 CL2 守,不在這裡重複。
 const recentBlock = /<ul class="foot-list foot-recent">([\s\S]*?)<\/ul>/.exec(indexSource)?.[1] || '';
+const recentItems = [...recentBlock.matchAll(/<li\b([^>]*)>([\s\S]*?)<\/li>/g)]
+  .filter(match => !/class="[^"]*\bgrp\b[^"]*"/.test(match[1])); // li.grp 是「最近更新」標題,不是內容
+const changelogMore = indexSource.slice(indexSource.indexOf('<details class="foot-more">'));
+const canonIds = new Set([...changelogMore.slice(0, changelogMore.indexOf('</details>'))
+  .matchAll(/<li data-cl="([^"]+)"/g)].map(match => match[1]));
 const recentTexts = [...recentBlock.matchAll(/<li data-cl-of="[^"]+">[\s\S]*?<span>([^<]+)<\/span><\/li>/g)].map(match => match[1].replace(/&amp;/g, '&'));
-if (recentTexts.length !== 8) fail(`公開更新紀錄近期項目應為 8 筆，目前 ${recentTexts.length} 筆`);
+// 正向對照:分母自己要有斷言,否則第一層或第二層整個抓不到時,下面三條全稱斷言會一起空過報綠。
+if (!recentItems.length || !canonIds.size) {
+  fail(`公開更新紀錄收集器空轉：第一層內容 ${recentItems.length} 條、第二層正本 ${canonIds.size} 條（兩者都必須 ≥1，否則下面的檢查是空過的）`);
+}
+// 覆蓋率具名斷言:每一條 li 都要被上面那條 regex 解析到,漏抓的那條不會有人檢查它的 en/ja。
+if (recentTexts.length !== recentItems.length) {
+  fail(`公開更新紀錄有 ${recentItems.length} 條內容項目，只解析出 ${recentTexts.length} 條精簡文字（${recentItems.length - recentTexts.length} 條未納入 en/ja 檢查，多半是 li 內部標記變了）`);
+}
+// 比照 CL1:要被擠出第一層,正本必須已經在第二層——否則那次變更唯一一筆可辨識的對外紀錄會整條消失。
+for (const [, attrs, body] of recentItems) {
+  const id = /data-cl-of="([^"]+)"/.exec(attrs)?.[1];
+  if (!id) fail(`公開更新紀錄有一條沒宣告正本（缺 data-cl-of）：${body.replace(/<[^>]+>/g, '').trim().slice(0, 24)}`);
+  else if (!canonIds.has(id)) fail(`公開更新紀錄「${id}」在完整更新歷史裡找不到正本（data-cl-of → data-cl 對不上）`);
+}
 for (const source of recentTexts) for (const lang of languages) {
   if (!keySets[lang]?.has(source)) fail(`近期更新缺少 ${lang} 精簡翻譯：${source}`);
 }

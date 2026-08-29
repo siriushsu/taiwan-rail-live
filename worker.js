@@ -3906,7 +3906,9 @@ const SEC_HEADERS = {
 const APP_ORIGINS = new Set(['capacitor://localhost', 'https://localhost']);
 // 非 GET 的白名單。🔴 這道門是刻意關死的:預設所有 /api/* 只收 GET/HEAD,要開洞就逐條加進來,
 // 不可以改成「全部放行」——擋掉的是「隨手對唯讀端點打 POST」這類探測,而那正是最便宜的防線。
-const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/api/bounty-submit', '/api/bounty-merge', '/api/revenuecat-webhook', '/api/la/bind', '/api/la/unbind', '/api/metro-wait/bind', '/api/metro-wait/unbind']);
+// ⚠️ 這道門的粒度是「路徑」不是「方法」：列進來等於該路徑的所有非 GET 方法都到得了處理函式。
+// /api/pass-admin 正是需要這樣（POST 匯入、DELETE 清批），它自己在函式內分派方法、未知的回 405。
+const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/api/bounty-submit', '/api/bounty-merge', '/api/revenuecat-webhook', '/api/la/bind', '/api/la/unbind', '/api/metro-wait/bind', '/api/metro-wait/unbind', '/api/pass-claim', '/api/pass-admin']);
 // /api 端點白名單——只給流量埋點的 blob 用(不是路由閘門,路由在 fetch 裡)。不在名單內一律記成
 // 'other',否則隨便打 /api/<亂數> 就能把 blob 基數炸開。新增端點時要一起加進來。
 const API_ENDPOINTS = new Set([
@@ -3915,6 +3917,7 @@ const API_ENDPOINTS = new Set([
   'delay-stats', 'delay-history', 'thsr-schedule', 'thsr-freeseat', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'basemap-src', 'account-delete',
   'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge', 'plus-status', 'revenuecat-webhook',
   'la/bind', 'la/unbind', 'metro-wait/bind', 'metro-wait/unbind',
+  'pass-claim', 'pass-admin',
 ]);
 
 function addAppCors(headers, origin) {
@@ -3923,6 +3926,190 @@ function addAppCors(headers, origin) {
   const vary = (headers.get('Vary') || '').split(',').map(v => v.trim()).filter(Boolean);
   if (!vary.some(v => v.toLowerCase() === 'origin')) vary.push('Origin');
   headers.set('Vary', vary.join(', '));
+}
+
+// ══ 通行證兌換碼自助領取 ═══════════════════════════════════════════════════
+// 一批兌換碼（App Store 優惠碼 CSV 的「代碼,兌換URL」，或任何一行一組的字串）放進 D1，
+// 一群人各自到 /pass.html 領走一組，不重複、不必一個一個私訊發。
+//
+// 🔴 碼只存在 D1，絕不進版控——這個 repo 是 public。匯入走 /api/pass-admin（帶
+//    PASS_ADMIN_KEY），由瀏覽器直接寫進 D1，不落任何檔案。
+//
+// 「不重複」的保證放在資料庫層，不是應用邏輯——應用邏輯擋不住兩個分頁同時按：
+//   ・配發是單一 UPDATE ... WHERE code=(SELECT … LIMIT 1) RETURNING。D1 是單寫入者，
+//     「挑一組未領的」與「把它標成已領」之間沒有別人插得進來的縫。
+//   ・(batch, claim_person) 上有 partial unique index。同一個人再來（換裝置、清快取、
+//     忘了存）只會拿回同一組；兩個分頁同時按時慢的那發撞唯一索引 ⇒ 整個 UPDATE rollback
+//     ⇒ 那組碼留在架上沒被吃掉，catch 再把他既有的那組讀回來給他。
+const PASS_SCHEMA = [
+  `CREATE TABLE IF NOT EXISTS pass_codes (
+     code TEXT PRIMARY KEY,
+     batch TEXT NOT NULL,
+     link TEXT,
+     added_at INTEGER NOT NULL,
+     claimed_at INTEGER,
+     claim_person TEXT,
+     claim_label TEXT
+   )`,
+  `CREATE INDEX IF NOT EXISTS pass_codes_open ON pass_codes (batch, claimed_at)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS pass_codes_person ON pass_codes (batch, claim_person)
+     WHERE claim_person IS NOT NULL`,
+];
+let passSchemaReady = false;
+async function ensurePassSchema(env) {
+  if (!env || !env.DELAY_DB) return false;
+  if (!passSchemaReady) {
+    await env.DELAY_DB.batch(PASS_SCHEMA.map(sql => env.DELAY_DB.prepare(sql)));
+    passSchemaReady = true;
+  }
+  return true;
+}
+
+// 領取人識別：同一個人怎麼打都要收斂成同一個鍵，否則「王小明」與「王 小明」會各拿一組。
+// 對帳看的是 claim_label（原字串），claim_person 只負責「同一個人只算一次」。
+function passPersonKey(s) {
+  return String(s || '').toLowerCase().replace(/[\s.,_\-·・]/g, '').slice(0, 40);
+}
+function passBatchKey(s) { return String(s || '').trim().slice(0, 32) || 'default'; }
+
+async function passFindMine(db, batch, person) {
+  const r = await db.prepare('SELECT code, link, claimed_at FROM pass_codes WHERE batch=? AND claim_person=?')
+    .bind(batch, person).first();
+  return r ? { code: r.code, link: r.link || null, claimedAt: Number(r.claimed_at) || null } : null;
+}
+
+// POST /api/pass-claim：領一組。body { gate, who, batch? }
+// gate 是同仁那道通關密語（PASS_GATE secret）。它擋的是「網址被轉出去給不相干的人」，
+// 不是嚴格的身分驗證——真正的界線是總量有限（發完為止）加上事後對帳看得到誰領了什麼。
+async function passClaim(request, env) {
+  // API_POST_ALLOWED 的粒度是路徑，PUT/PATCH 一樣進得來——在這裡收斂成只收 POST，
+  // 免得非預期的方法帶著空 body 一路走到業務邏輯才以 bad_json 收場
+  if (request.method !== 'POST') return jsonRes({ error: 'method' }, 405, 'no-store');
+  // 節流擋在任何 D1 寫入之前（比照 bountyClaim：擋在後面等於沒擋）
+  if (await rateLimited(env.PASS_LIMITER, request, true)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
+  const gate = String(env.PASS_GATE || '');
+  if (!gate) return jsonRes({ error: 'not_configured' }, 503, 'no-store');
+  let b;
+  try { b = await request.json(); } catch (e) { return jsonRes({ error: 'bad_json' }, 400, 'no-store'); }
+  if (!await constantTimeHeaderEqual(String((b && b.gate) || ''), gate))
+    return jsonRes({ error: 'bad_gate' }, 403, 'no-store');
+  const label = String((b && b.who) || '').trim().slice(0, 40);
+  const person = passPersonKey(label);
+  if (person.length < 2) return jsonRes({ error: 'bad_who' }, 400, 'no-store');
+  const batch = passBatchKey(b && b.batch);
+  try {
+    await ensurePassSchema(env);
+    const db = env.DELAY_DB;
+    const mine = await passFindMine(db, batch, person);
+    if (mine) return jsonRes({ ok: true, again: true, ...mine }, 200, 'no-store');
+    const now = Date.now();
+    const got = await db.prepare(
+      `UPDATE pass_codes SET claimed_at=?, claim_person=?, claim_label=?
+         WHERE code = (SELECT code FROM pass_codes WHERE batch=? AND claimed_at IS NULL ORDER BY rowid LIMIT 1)
+       RETURNING code, link`
+    ).bind(now, person, label, batch).first();
+    if (got) return jsonRes({ ok: true, again: false, code: got.code, link: got.link || null, claimedAt: now }, 200, 'no-store');
+    // 沒配到。「這批發完了」與「這批根本沒放碼」要對使用者講不同的話，所以分開回報。
+    const total = await db.prepare('SELECT COUNT(*) AS n FROM pass_codes WHERE batch=?').bind(batch).first();
+    return jsonRes({ error: Number(total && total.n) > 0 ? 'sold_out' : 'empty_batch' }, 409, 'no-store');
+  } catch (e) {
+    // 唯一索引擋下的並發：他其實已經有一組了，讀回來就好（那組碼沒被浪費，UPDATE 整個回退）
+    try {
+      const mine = await passFindMine(env.DELAY_DB, batch, person);
+      if (mine) return jsonRes({ ok: true, again: true, ...mine }, 200, 'no-store');
+    } catch (e2) { /* 讀不到就走下面的通用失敗 */ }
+    return jsonRes({ error: 'claim_failed' }, 503, 'no-store');
+  }
+}
+
+// /api/pass-admin：匯入與對帳。憑證是 PASS_ADMIN_KEY（Cloudflare secret）。
+//   GET    ?batch=…        → 該批統計＋已領清單（誰、何時、拿到哪一組）；不帶 batch 回各批總覽
+//   POST   { codes, batch }→ 匯入。每行可以是「代碼」「兌換URL」或「代碼,兌換URL」，重覆自動略過
+//   DELETE ?batch=…        → 只刪這批還沒領走的；加 &all=1 才連已領的一起刪
+// GET 刻意不回未領的碼：管理者匯入時本來就有全份 CSV，把未領碼再吐一次只是多開一個外洩面。
+async function passAdmin(request, env) {
+  const key = String(env.PASS_ADMIN_KEY || '');
+  if (!key) return jsonRes({ error: 'not_configured' }, 503, 'no-store');
+  const url = new URL(request.url);
+  const given = request.headers.get('x-pass-admin') || url.searchParams.get('key') || '';
+  if (!await constantTimeHeaderEqual(given, key)) return jsonRes({ error: 'forbidden' }, 403, 'no-store');
+  try {
+    await ensurePassSchema(env);
+    const db = env.DELAY_DB;
+    if (request.method === 'GET') {
+      const asked = url.searchParams.get('batch');
+      if (!asked) {
+        const rs = await db.prepare(
+          `SELECT batch, COUNT(*) AS total, SUM(CASE WHEN claimed_at IS NULL THEN 0 ELSE 1 END) AS taken
+             FROM pass_codes GROUP BY batch ORDER BY batch`).all();
+        return jsonRes({ ok: true, batches: (rs.results || []).map(r => ({
+          batch: r.batch, total: Number(r.total) || 0, taken: Number(r.taken) || 0,
+          left: (Number(r.total) || 0) - (Number(r.taken) || 0),
+        })) }, 200, 'no-store');
+      }
+      const batch = passBatchKey(asked);
+      const sum = await db.prepare(
+        `SELECT COUNT(*) AS total, SUM(CASE WHEN claimed_at IS NULL THEN 0 ELSE 1 END) AS taken
+           FROM pass_codes WHERE batch=?`).bind(batch).first();
+      const rs = await db.prepare(
+        `SELECT code, link, claim_label, claimed_at FROM pass_codes
+           WHERE batch=? AND claimed_at IS NOT NULL ORDER BY claimed_at DESC`).bind(batch).all();
+      const total = Number(sum && sum.total) || 0, taken = Number(sum && sum.taken) || 0;
+      return jsonRes({
+        ok: true, batch, total, taken, left: total - taken,
+        claims: (rs.results || []).map(r => ({
+          who: r.claim_label || '', code: r.code, link: r.link || null, at: Number(r.claimed_at) || null,
+        })),
+      }, 200, 'no-store');
+    }
+    if (request.method === 'POST') {
+      let b;
+      try { b = await request.json(); } catch (e) { return jsonRes({ error: 'bad_json' }, 400, 'no-store'); }
+      const batch = passBatchKey(b && b.batch);
+      const rows = passParseCodes(b && b.codes);
+      if (!rows.length) return jsonRes({ error: 'no_codes' }, 400, 'no-store');
+      if (rows.length > PASS_MAX_IMPORT) return jsonRes({ error: 'too_many', max: PASS_MAX_IMPORT }, 400, 'no-store');
+      const now = Date.now();
+      // INSERT OR IGNORE：重貼同一份 CSV 不會多出重覆的碼，也不會把已領的那些重置
+      const stmt = db.prepare('INSERT OR IGNORE INTO pass_codes (code,batch,link,added_at) VALUES (?,?,?,?)');
+      await db.batch(rows.map(r => stmt.bind(r.code, batch, r.link, now)));
+      const sum = await db.prepare(
+        `SELECT COUNT(*) AS total, SUM(CASE WHEN claimed_at IS NULL THEN 0 ELSE 1 END) AS taken
+           FROM pass_codes WHERE batch=?`).bind(batch).first();
+      const total = Number(sum && sum.total) || 0, taken = Number(sum && sum.taken) || 0;
+      return jsonRes({ ok: true, batch, submitted: rows.length, total, taken, left: total - taken }, 200, 'no-store');
+    }
+    if (request.method === 'DELETE') {
+      const batch = passBatchKey(url.searchParams.get('batch'));
+      const all = url.searchParams.get('all') === '1';
+      const r = await db.prepare(
+        all ? 'DELETE FROM pass_codes WHERE batch=?'
+            : 'DELETE FROM pass_codes WHERE batch=? AND claimed_at IS NULL').bind(batch).run();
+      return jsonRes({ ok: true, batch, removed: (r.meta && r.meta.changes) || 0, keptClaimed: !all }, 200, 'no-store');
+    }
+    return jsonRes({ error: 'method' }, 405, 'no-store');
+  } catch (e) {
+    return jsonRes({ error: 'admin_failed' }, 503, 'no-store');
+  }
+}
+
+const PASS_MAX_IMPORT = 3000;   // Apple 的 offer code 一批最多 25000，但一次貼 3000 行已遠超實際用量
+// 一行一組。吃三種形狀：純代碼、純兌換 URL、以及 Apple CSV 的「代碼,兌換URL」。
+// 代碼是配發與去重的鍵，link 只是方便領到的人直接點。純 URL 那種就拿 URL 自己當鍵。
+function passParseCodes(raw) {
+  const out = [], seen = new Set();
+  for (const line of String(raw || '').split(/[\r\n]+/)) {
+    const t = line.trim();
+    if (!t) continue;
+    const parts = t.split(',').map(s => s.trim()).filter(Boolean);
+    const link = parts.find(p => /^https?:\/\//i.test(p)) || null;
+    const code = parts.find(p => !/^https?:\/\//i.test(p)) || link;
+    if (!code || code.length > 200) continue;
+    if (seen.has(code)) continue;
+    seen.add(code);
+    out.push({ code, link });
+  }
+  return out;
 }
 
 // ══ GPS 路段收集懸賞 ═══════════════════════════════════════════════════════
@@ -5635,6 +5822,8 @@ export default {
     else if (url.pathname === '/api/bounty-submit') res = await bountySubmit(request, env);
     else if (url.pathname === '/api/bounty-me') res = await bountyMe(request, env);
     else if (url.pathname === '/api/bounty-merge') res = await bountyMerge(request, env);
+    else if (url.pathname === '/api/pass-claim') res = await passClaim(request, env);
+    else if (url.pathname === '/api/pass-admin') res = await passAdmin(request, env);
     else if (url.pathname === '/api/la/bind') res = await laBind(request, env);
     else if (url.pathname === '/api/la/unbind') res = await laUnbind(request, env);
     else if (url.pathname === '/api/metro-wait/bind') res = await metroWaitBind(request, env);

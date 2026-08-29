@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#efe6d2">
+  <meta name="robots" content="noindex,nofollow">
+  <title>領取軌島通行證｜Rail Island</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#efe6d2;color:#243247;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC","PingFang TC",sans-serif;line-height:1.75}
+    main{width:min(680px,calc(100% - 32px));margin:48px auto;padding:34px;background:#fffdf7;border:1px solid #cfbf9b;box-shadow:0 12px 36px #43391f1c}
+    h1{margin:0 0 8px;font-size:clamp(26px,6vw,38px);letter-spacing:.06em}h2{margin:28px 0 6px;font-size:19px}p,li{font-size:15px}ul,ol{padding-left:1.4em}
+    .brand{color:#9c2f27;font-weight:800;letter-spacing:.12em}
+    .action{display:block;width:100%;margin:22px 0 12px;padding:14px 18px;background:#b43b31;color:#fff;text-align:center;text-decoration:none;font-weight:800;border:0;border-radius:4px;min-height:52px;font-size:16px;cursor:pointer;font-family:inherit}
+    .action:disabled{background:#c9a6a2;cursor:default}
+    /* 拿到碼之後真正要做的事是「去兌換」，複製只是備援 ⇒ 複製鍵降成外框樣式，不跟主要動作搶 */
+    .action.ghost{background:#fffdf7;color:#9c2f27;border:2px solid #c9a6a2}
+    .action:focus-visible,input:focus-visible{outline:3px solid #243247;outline-offset:3px}
+    .note{padding:13px 15px;background:#f5eddc;border-left:4px solid #b49a67;color:#554a38}
+    .back{color:#324f75}
+    label{display:block;margin:16px 0 4px;font-weight:700;font-size:14px}
+    input,textarea{width:100%;padding:12px 14px;font-size:16px;font-family:inherit;border:1px solid #cfbf9b;border-radius:4px;background:#fff;color:#243247}
+    textarea{min-height:150px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;line-height:1.5}
+    .err{margin:16px 0 0;padding:13px 15px;background:#fbe9e7;border-left:4px solid #b43b31;color:#7d2620;font-weight:600}
+    .card{margin:22px 0 0;padding:20px;background:#f0f6ef;border:1px solid #a8c3a3}
+    .code{margin:8px 0 14px;padding:14px;background:#fff;border:1px dashed #7f9c79;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:clamp(17px,4.6vw,22px);font-weight:700;letter-spacing:.06em;word-break:break-all;text-align:center}
+    .row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1 1 180px;margin-top:0}
+    .stat{display:flex;gap:18px;flex-wrap:wrap;margin:14px 0;padding:14px;background:#f5eddc;font-weight:700}
+    .stat b{font-size:22px;display:block;color:#9c2f27}
+    table{width:100%;border-collapse:collapse;margin-top:14px;font-size:14px}
+    th,td{text-align:left;padding:7px 9px;border-bottom:1px solid #e0d4b6;vertical-align:top}
+    th{background:#f5eddc;font-size:13px}
+    td.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;word-break:break-all}
+    .hint{font-size:13px;color:#6b5f4b;margin:4px 0 0}
+    .hide{display:none}
+    @media(max-width:520px){main{width:100%;margin:0;min-height:100vh;padding:26px 20px;border:0;box-shadow:none}}
+  </style>
+</head>
+<body>
+<main>
+  <div class="brand">軌島 · RAIL ISLAND</div>
+
+  <!-- ── 領取（預設）───────────────────────────────────────────── -->
+  <section id="claimView">
+    <h1>領取軌島通行證</h1>
+    <p>輸入通關密語和你的名字，就會拿到一組專屬兌換碼。<b>每人一組、不會重複</b>；領過的人再打開這頁，看到的還是同一組。</p>
+
+    <label for="gate">通關密語</label>
+    <input id="gate" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="我另外告訴你的那串字">
+
+    <label for="who">你的名字</label>
+    <input id="who" type="text" autocomplete="name" placeholder="讓我對帳用，打你平常被叫的名字就好">
+    <p class="hint">同一個名字只會拿到同一組碼。名字打錯會被當成另一個人，所以第二次進來請打一樣的。</p>
+
+    <button class="action" id="go" type="button">領我的兌換碼</button>
+    <div id="claimErr" class="err hide"></div>
+
+    <div id="got" class="card hide">
+      <b id="gotTitle">這是你的兌換碼</b>
+      <div class="code" id="gotCode"></div>
+      <div class="row">
+        <a class="action hide" id="openBtn" href="#" rel="noopener">前往兌換</a>
+        <button class="action ghost" id="copyBtn" type="button">複製代碼</button>
+      </div>
+      <p class="hint" id="gotAt"></p>
+    </div>
+
+    <h2>怎麼用這組碼</h2>
+    <ol>
+      <li><b>先在軌島 App 登入</b>（Google 或 Apple 皆可）。通行證資格綁的是軌島帳號，不是 Apple ID；沒登入就兌換，App 裡會查不到。</li>
+      <li>點上面的「前往兌換」，在 App Store 完成兌換。</li>
+      <li>回到軌島 App，開啟通行證面板按一次<b>恢復購買</b>，年票就會生效。</li>
+    </ol>
+    <p class="note">通行證是軌島 App 的數位功能訂閱，不是搭車票券。兌換後不會自動扣款；到期前若不想續訂，可在 App Store 的訂閱設定取消。</p>
+  </section>
+
+  <!-- ── 管理（?admin=1）─────────────────────────────────────────── -->
+  <section id="adminView" class="hide">
+    <h1>兌換碼管理</h1>
+    <label for="akey">管理密鑰</label>
+    <input id="akey" type="password" autocomplete="off" spellcheck="false" placeholder="PASS_ADMIN_KEY">
+    <label for="abatch">批次名稱</label>
+    <input id="abatch" type="text" value="default" spellcheck="false">
+    <p class="hint">不同群體可以分批（例如 <code>company</code>、<code>friends</code>），領取連結加上 <code>?b=批次名</code> 即可。</p>
+    <button class="action" id="loadBtn" type="button">查看這批狀況</button>
+    <div id="adminErr" class="err hide"></div>
+
+    <div id="adminBody" class="hide">
+      <div class="stat">
+        <span>總數<b id="sTotal">–</b></span>
+        <span>已領<b id="sTaken">–</b></span>
+        <span>剩餘<b id="sLeft">–</b></span>
+      </div>
+      <h2>匯入兌換碼</h2>
+      <p class="hint">一行一組。三種格式都吃：純代碼、純兌換網址，或 Apple 匯出的 <code>代碼,兌換網址</code>。重覆貼同一份不會產生重複，已領走的也不會被重設。</p>
+      <textarea id="codes" placeholder="XXXXXXXXXXXX,https://apps.apple.com/redeem?ctx=offercodes&id=…&code=…"></textarea>
+      <button class="action" id="importBtn" type="button">匯入</button>
+      <h2>已領清單</h2>
+      <div id="claimsWrap"><p class="hint">還沒有人領。</p></div>
+    </div>
+  </section>
+
+  <p><a class="back" href="./">返回軌島</a></p>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  var qs = new URLSearchParams(location.search);
+  var BATCH = (qs.get('b') || 'default').slice(0, 32);
+  var $ = function (id) { return document.getElementById(id); };
+  var show = function (el, on) { el.classList.toggle('hide', !on); };
+  // 伺服器回的碼、名字都要當成純文字塞（textContent），不走 innerHTML——這頁的資料雖然只有
+  // 自己人會寫進去，但「碼」與「名字」都是使用者輸入，習慣不要在這裡破例。
+  var setText = function (el, s) { el.textContent = s == null ? '' : String(s); };
+  var when = function (ms) {
+    if (!ms) return '';
+    try { return new Date(Number(ms)).toLocaleString('zh-TW', { hour12: false }); } catch (e) { return ''; }
+  };
+  var post = function (url, body, headers) {
+    return fetch(url, {
+      method: 'POST', headers: Object.assign({ 'content-type': 'application/json' }, headers || {}),
+      body: JSON.stringify(body),
+    }).then(function (r) { return r.json().then(function (j) { return { status: r.status, body: j }; }); });
+  };
+
+  // ── 領取 ───────────────────────────────────────────────────
+  var ERRS = {
+    bad_gate: '通關密語不對，再確認一次。',
+    bad_who: '名字至少要兩個字。',
+    sold_out: '這批已經全部領完了。跟我說一聲，我再放一批。',
+    empty_batch: '這批還沒放碼進去。跟我說一聲。',
+    rate_limited: '太頻繁了，等一分鐘再試。',
+    not_configured: '還沒設定好（伺服器缺通關密語），跟我說一聲。',
+    claim_failed: '伺服器忙不過來，等幾秒再按一次。',
+  };
+  var gotBox = $('got');
+  function renderGot(d) {
+    setText($('gotTitle'), d.again ? '你先前領的就是這一組' : '這是你的兌換碼');
+    setText($('gotCode'), d.code);
+    var open = $('openBtn');
+    if (d.link) { open.href = d.link; show(open, true); } else { show(open, false); }
+    setText($('gotAt'), d.claimedAt ? '領取時間 ' + when(d.claimedAt) : '');
+    show(gotBox, true);
+    try { localStorage.setItem('rail-pass-who', $('who').value.trim()); } catch (e) {}
+  }
+  $('go').addEventListener('click', function () {
+    var btn = this, err = $('claimErr');
+    show(err, false);
+    var gate = $('gate').value.trim(), who = $('who').value.trim();
+    if (!gate || !who) { setText(err, '通關密語和名字都要填。'); show(err, true); return; }
+    btn.disabled = true; setText(btn, '領取中…');
+    post('/api/pass-claim', { gate: gate, who: who, batch: BATCH }).then(function (r) {
+      if (r.body && r.body.ok) { renderGot(r.body); show(err, false); }
+      else { setText(err, ERRS[r.body && r.body.error] || '領取失敗，等幾秒再試。'); show(err, true); }
+    }).catch(function () {
+      setText(err, '連不上伺服器，檢查一下網路再試。'); show(err, true);
+    }).then(function () { btn.disabled = false; setText(btn, '領我的兌換碼'); });
+  });
+  $('copyBtn').addEventListener('click', function () {
+    var btn = this, txt = $('gotCode').textContent;
+    var done = function () { setText(btn, '已複製'); setTimeout(function () { setText(btn, '複製代碼'); }, 1600); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, done);
+    else done();
+  });
+  try {
+    var remembered = localStorage.getItem('rail-pass-who');
+    if (remembered) $('who').value = remembered;
+  } catch (e) {}
+
+  // ── 管理 ───────────────────────────────────────────────────
+  if (qs.get('admin') !== '1') return;
+  show($('claimView'), false); show($('adminView'), true);
+  $('abatch').value = BATCH;
+  var aerr = $('adminErr');
+  function adminFail(r) {
+    setText(aerr, r && r.body && r.body.error === 'forbidden' ? '管理密鑰不對。'
+      : r && r.body && r.body.error === 'not_configured' ? '伺服器還沒設定 PASS_ADMIN_KEY。'
+      : '操作失敗（' + ((r && r.body && r.body.error) || 'network') + '）。');
+    show(aerr, true);
+  }
+  function renderAdmin(d) {
+    show(aerr, false); show($('adminBody'), true);
+    setText($('sTotal'), d.total); setText($('sTaken'), d.taken); setText($('sLeft'), d.left);
+    var wrap = $('claimsWrap');
+    wrap.textContent = '';
+    if (!d.claims || !d.claims.length) {
+      var p = document.createElement('p'); p.className = 'hint'; p.textContent = '還沒有人領。';
+      wrap.appendChild(p); return;
+    }
+    var t = document.createElement('table');
+    var head = document.createElement('tr');
+    ['誰', '拿到哪一組', '時間'].forEach(function (h) {
+      var th = document.createElement('th'); th.textContent = h; head.appendChild(th);
+    });
+    t.appendChild(head);
+    d.claims.forEach(function (c) {
+      var tr = document.createElement('tr');
+      var td1 = document.createElement('td'); td1.textContent = c.who || '(未填)';
+      var td2 = document.createElement('td'); td2.className = 'mono'; td2.textContent = c.code;
+      var td3 = document.createElement('td'); td3.textContent = when(c.at);
+      tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3); t.appendChild(tr);
+    });
+    wrap.appendChild(t);
+  }
+  function load() {
+    var key = $('akey').value.trim(), batch = $('abatch').value.trim() || 'default';
+    if (!key) { setText(aerr, '要先填管理密鑰。'); show(aerr, true); return Promise.resolve(); }
+    return fetch('/api/pass-admin?batch=' + encodeURIComponent(batch), { headers: { 'x-pass-admin': key } })
+      .then(function (r) { return r.json().then(function (j) { return { status: r.status, body: j }; }); })
+      .then(function (r) { if (r.body && r.body.ok) renderAdmin(r.body); else adminFail(r); })
+      .catch(function () { adminFail(null); });
+  }
+  $('loadBtn').addEventListener('click', load);
+  $('importBtn').addEventListener('click', function () {
+    var btn = this, key = $('akey').value.trim(), batch = $('abatch').value.trim() || 'default';
+    var codes = $('codes').value;
+    if (!key || !codes.trim()) { setText(aerr, '管理密鑰和兌換碼都要填。'); show(aerr, true); return; }
+    btn.disabled = true; setText(btn, '匯入中…');
+    post('/api/pass-admin', { batch: batch, codes: codes }, { 'x-pass-admin': key }).then(function (r) {
+      if (r.body && r.body.ok) { $('codes').value = ''; return load(); }
+      adminFail(r);
+    }).catch(function () { adminFail(null); })
+      .then(function () { btn.disabled = false; setText(btn, '匯入'); });
+  });
+})();
+</script>
+</body>
+</html>

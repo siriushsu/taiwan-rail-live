@@ -16,6 +16,10 @@
 # 寫成 `app/` 後前綴變 "app/"，只有真正在該目錄底下的檔案會命中。
 exclude:
   - app/
+  # 2026-08-29:data/tdx 已移出版控 ⇒ 不在 main 裡,Pages 本來就構不到。這條防「哪天有人又 git add 回來」。
+  # 移除前實測 siriushsu.github.io/taiwan-rail-live/data/tdx/*.json 抽三檔全 200(單檔最大 5.86MB),
+  # 而同一批檔在正式站是靠 .assetsignore 擋的——正是上面說的「兩個站兩種行為」那個破口。
+  - data/tdx/
   - worker.js
   - wrangler.jsonc
   - firebase.json
@@ -34,3 +38,6 @@ exclude:
   - TODO.md
   - design-mock.html
   - scratchpad
+  # 兌換碼領取頁完全靠 /api/pass-* 運作，而備援站沒有 Worker ⇒ 在那邊只會是一個按了沒反應的
+  # 表單。排掉它，免得有人從備援站進來以為壞了。（正式站不受影響：這裡管的是 Jekyll 備援站）
+  - pass.html

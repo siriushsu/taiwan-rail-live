@@ -55,6 +55,16 @@ let ok = false;
 try {
   fs.symlinkSync(path.join(repo, 'node_modules'), path.join(wt, 'node_modules'));
 
+  // ── 2.5 i18n 稽核閘門（漏譯不准出貨）──────────────────────────────────────
+  // 🔴 位置不可移到 strip 之後:check_i18n 的 evaluateConstBlock 拿【註解】當區塊結束標記
+  //    （'// 有精選特色'、'// 播放/速度/時間'），strip 把註解刪光之後它會報「找不到內容區塊」
+  //    ——整條出貨鏈會每次都假紅卡死。2026-08-29 實測:同一顆 strip 前 exit 0、strip 後 exit 1。
+  // 驗的是【這棵乾淨出貨樹】而不是呼叫者的工作樹（腳本 root 由自身檔案位置推導）；實測用
+  // 「只弄壞乾淨樹的 index.html」確認過:乾淨樹紅、呼叫者工作樹綠，兩者確實獨立。
+  const i18n = spawnSync('node', [path.join(wt, 'scripts', 'check_i18n.mjs')], { encoding: 'utf8' });
+  process.stdout.write(i18n.stdout || ''); process.stderr.write(i18n.stderr || '');
+  if (i18n.status !== 0) fail('i18n 稽核未過——補齊 en/ja 再出貨（單獨重跑：npm run check-i18n）');
+
   // ── 3. strip（腳本內建 esbuild AST 重印等價證明，任何不等價都非零退出）────
   const rawBytes = fs.readFileSync(path.join(wt, 'index.html'));
   execFileSync('node', [path.join(wt, 'scripts', 'strip_ship_comments.mjs'), wt], { stdio: 'inherit' });
