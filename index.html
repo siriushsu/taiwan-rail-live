@@ -579,10 +579,20 @@
 
   /* ── 地圖頂浮動列(手機 fs 專屬):桌面隱藏;定位/顯示在 ≤900 媒體塊。迷你牌沿用 .plate 皮膚,只縮尺寸(照 mock §04b A 態) ── */
   .topbar { display: none; }
-  .topbar .tb-plate { padding: 3px 10px 0; border-width: 2px; flex: none; align-self: flex-start; }
+  .topbar .tb-plate { padding: 3px 10px 0; border-width: 2px; flex: 0 1 auto; min-width: 0; align-self: flex-start; }
   .topbar .tb-plate h1 { font-size: calc(14px * var(--ui)); font-weight: 900; letter-spacing: 4px; text-indent: 4px; color: var(--plate-ink); margin: 0; line-height: 1.2; }
-  .topbar .tb-plate .plate-foot { margin: 2px -10px 0; padding: 1px 7px 2px; gap: 8px; }
-  .topbar .tb-plate .plate-foot .stn { font-size: calc(9.5px * var(--uis)); letter-spacing: 1px; text-indent: 1px; }
+  /* 🔴 標題永遠單行,而且擠不下時要收成省略號——牌是被壓的那一方(下面 html[data-fs] 那段的退讓順序),
+     沒有這條就會被 .stage 的 overflow 硬切在字中間(2026-08-29 實機:英文標題變成「Rail Isla」)。 */
+  .topbar .tb-plate h1 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .topbar .tb-plate .plate-foot { margin: 2px -10px 0; padding: 1px 7px 2px; gap: 8px; min-width: 0; }
+  .topbar .tb-plate .plate-foot .stn { font-size: calc(9.5px * var(--uis)); letter-spacing: 1px; text-indent: 1px;
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* 🔴 拉丁字母不吃漢字招牌的排版:4px/1px 字距是為「軌島」「基隆－高雄」這種 2 字招牌留的氣口,
+     套到 Rail Island／Kaohsiung 上是純多出來的 44px/18px;而拉丁小寫本來就有自己的字腔,不需要。
+     標題另降一階(14px 主文 → 11.5px 次要說明,兩階都在設計的字級表裡),因為 11 個字母在 360dp 的
+     頂列裡跟 2 個漢字不可能佔一樣的視覺尺寸——雙語站牌的拉丁行本來就設得比漢字行小。 */
+  html:not([lang^="zh"]):not([lang^="ja"]) .topbar .tb-plate h1 { font-size: calc(11.5px * var(--uis)); letter-spacing: normal; text-indent: 0; }
+  html:not([lang^="zh"]):not([lang^="ja"]) .topbar .tb-plate .plate-foot .stn { letter-spacing: normal; text-indent: 0; }
   .topbar .tb-plate .plate-foot .stn:first-child::before,
   .topbar .tb-plate .plate-foot .stn:last-child::after { font-size: calc(6px * var(--uis)); margin: 0 3px; }
 
@@ -3248,20 +3258,16 @@
       width: calc(36px * var(--uit)); height: calc(36px * var(--uit));
       min-height: calc(36px * var(--uit)); font-size: calc(13px * var(--ui));
     }
-    html[data-fs] .topbar .tb-plate { flex: 0 1 auto; min-width: 0; }
-    /* 🔴 牌可縮,但「軌島」兩個字**永遠不准直排**:h1 沒有 nowrap 時,擠到一定程度會折成上下兩字,
-       整條頂列從 ~50px 撐到 66px(實測 402pt/大 有時 49.5 有時 66,取決於當下狀態旗標多寬)。
-       nowrap 之後牌的最小寬被 h1 撐住,要讓的是 plate-foot 的起訖站名(下面那條省略號),
-       再不夠就由 fitBadgeDetail() 把狀態旗標降成色點——退讓順序:站名 > 狀態字 > 其他。 */
-    html[data-fs] .topbar .tb-plate h1 { white-space: nowrap; }
+    /* 🔴 牌可縮＋牌內文字省略那一組規則,2026-08-29 起**全字級通用**、搬到 .topbar .tb-plate 的基礎規則區
+       (原本只掛 html[data-fs])。搬的原因:英文的牌比中文寬 60px 以上,標準字級＋有公告時就會把群組鈕
+       整顆擠出視窗右緣(360/375 兩個引擎都實測到)——上面那句「要不要連標準檔一起修是另一個決定」的答案
+       就是要,英文把它逼出來了。退讓順序不變:先讓 plate-foot 的起訖站名(省略號),再由 fitBadgeDetail()
+       把狀態旗標降成色點,標題自己是最後一道——它有 nowrap,**永遠不准折成直排的「軌島」**
+       (實測會把整條頂列從 ~50px 撐到 66px),裝不下時收成省略號,不再被 .stage 的 overflow 硬切。 */
     /* 🔴 2026-08-27 使用者裁示:「左上角的軌島招牌大小請跟著時間資訊那顆一起變大變小」。
        原本這裡把牌的三個字級倍率**退回 1**(寫死 14／9.5／6px),理由是「把省下的寬度讓給四顆分頁」
        ——四顆已經收成一顆,那個理由不成立了,整組取消,牌回去吃 base 的 calc(14px * var(--ui))。
        留著 flex:0 1 auto 與 plate-foot 的省略:那是「擠的時候先讓品牌標示」的退路,不是尺寸凍結。 */
-    html[data-fs] .topbar .tb-plate .plate-foot { min-width: 0; }
-    html[data-fs] .topbar .tb-plate .plate-foot .stn {
-      min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    }
     /* 公告警示鈕與四顆短標都固定 36px；透明 ::after 仍補足 44px 觸控熱區。
        v6 在 360dp＋有公告時三者總寬超過可用寬，最右「捷」會被裁掉；固定幾何後不再讓字級／
        公告數量撐寬整列。
@@ -4042,16 +4048,12 @@
        DOM 最後那顆「捷」(見 memory topbar-cut-fix-only-on-app-branch:360–375pt 就開始切)。
        字級放大會把牌寬再推大,必切。這裡只讓「大/特大」兩檔的牌可縮——標準檔的幾何一格都不動,
        已上線的網站行為維持原狀,要不要連標準檔一起修是另一個決定。 */
-    html[data-fs] .topbar .tb-plate { flex: 0 1 auto; min-width: 0; }
-    /* 🔴 牌可縮,但「軌島」兩個字**永遠不准直排**:h1 沒有 nowrap 時,擠到一定程度會折成上下兩字,
-       整條頂列從 ~50px 撐到 66px(實測 402pt/大 有時 49.5 有時 66,取決於當下狀態旗標多寬)。
-       nowrap 之後牌的最小寬被 h1 撐住,要讓的是 plate-foot 的起訖站名(下面那條省略號),
-       再不夠就由 fitBadgeDetail() 把狀態旗標降成色點——退讓順序:站名 > 狀態字 > 其他。 */
-    html[data-fs] .topbar .tb-plate h1 { white-space: nowrap; }
-    html[data-fs] .topbar .tb-plate .plate-foot { min-width: 0; }
-    html[data-fs] .topbar .tb-plate .plate-foot .stn {
-      min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    }
+    /* 🔴 牌可縮＋牌內文字省略那一組規則,2026-08-29 起**全字級通用**、搬到 .topbar .tb-plate 的基礎規則區
+       (原本只掛 html[data-fs])。搬的原因:英文的牌比中文寬 60px 以上,標準字級＋有公告時就會把群組鈕
+       整顆擠出視窗右緣(360/375 兩個引擎都實測到)——上面那句「要不要連標準檔一起修是另一個決定」的答案
+       就是要,英文把它逼出來了。退讓順序不變:先讓 plate-foot 的起訖站名(省略號),再由 fitBadgeDetail()
+       把狀態旗標降成色點,標題自己是最後一道——它有 nowrap,**永遠不准折成直排的「軌島」**
+       (實測會把整條頂列從 ~50px 撐到 66px),裝不下時收成省略號,不再被 .stage 的 overflow 硬切。 */
     /* 「更多」抽屜橫放收斂(2026-08-12 實機退回:left/right 0 的全寬底抽屜直接壓進動態島):
        左右各讓出安全區(--sa-l/--sa-r=env 別名,橫放時動態島就在其中一側)、限寬置中成對話框形,
        高度收斂留出頂列。列高/字級沿用手機值(48px 觸控目標;字太大的真因是 text-size-adjust,見 html)。 */
