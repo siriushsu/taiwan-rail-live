@@ -59,6 +59,35 @@ const MUTATED_WINDDOWN_HTML = REAL_HTML
     '    if (/* MUTATION winddown */ judgeable && cur < base * METRO_CORE_COUNT_DROP)');
 if (MUTATED_WINDDOWN_HTML === REAL_HTML) throw new Error('收班豁免突變沒有命中');
 
+// 突變體 5〜7：三發專打「徽章／吐司會不會對使用者說謊」。這三條判準（A7／D4＋J6／E3）
+// 2026-08-28 起因為多語上線、瀏覽器語系是 en-US 而全部假紅了一週，語系釘死之後必須重新
+// 證明它們還有牙——否則「釘死語系」與「把判準拿掉」在計分板上長得一模一樣。
+
+// 5：健康態下徽章不再宣告「官方即時」（trains > 0 這條路整條走不到）。A7 必須轉紅。
+const MUTATED_BADGE_LIVE_HTML = REAL_HTML
+  .replace('    if (trains > 0) {', '    if (trains > 999) { // MUTATION badge-live');
+if (MUTATED_BADGE_LIVE_HTML === REAL_HTML) throw new Error('徽章健康態突變沒有命中');
+
+// 6：Core 一台都生不出來、備案卻有車時，徽章謊稱「官方即時」且不上 anom——正是 P0-5 要防的
+//    事故形態。D4 與 J6 必須轉紅。
+const MUTATED_BADGE_LIE_HTML = REAL_HTML
+  .replace(`      el.classList.add('anom');
+      el.classList.remove('est');
+      el.textContent = t('即時資料異常');
+      el.title = t('即時模型這一輪一台列車都沒有回報，已改用官方名冊或班表繼續顯示')`,
+    `      el.classList.remove('anom'); // MUTATION badge-lie
+      el.classList.remove('est');
+      el.textContent = t('官方即時');
+      el.title = t('即時模型這一輪一台列車都沒有回報，已改用官方名冊或班表繼續顯示')`);
+if (MUTATED_BADGE_LIE_HTML === REAL_HTML) throw new Error('徽章說謊突變沒有命中');
+
+// 7：跟隨退場吐司回到 994a9ce 之前的錯誤歸因（Core 車也講「官方名冊已更新」）。E3 必須轉紅。
+const MUTATED_TOAST_HTML = REAL_HTML
+  .replace(`      showToast(t(core ? '這台車已超過 30 秒不在即時模型中，已結束跟隨'
+        : '官方名冊已更新，已結束這台車的跟隨'));`,
+    `      showToast(t('官方名冊已更新，已結束這台車的跟隨')); // MUTATION toast`);
+if (MUTATED_TOAST_HTML === REAL_HTML) throw new Error('退場文案突變沒有命中');
+
 // 🔴 Leaflet 刻意【不】攔截，走真 CDN：index.html 對它掛了 SRI integrity，
 //    塞本機那份 leaflet.js 進去會因為雜湊不符被瀏覽器擋掉，`L` undefined ⇒ boot 拋錯 ⇒
 //    這支腳本從寫出來的那一刻就不可能綠（2026-08-10 已經踩過一次同款）。
@@ -212,8 +241,30 @@ function snapshotBody() {
 const results = [];
 const check = (name, pass, detail) => { results.push({ name, pass }); console.log(`${pass ? 'PASS' : 'FAIL'}  ${name} — ${detail}`); };
 
+// 🔴 判準本體抽出來共用：正判準與它的突變對照必須是【同一個表達式】。分開手寫兩份的話，
+//    改了一邊沒改另一邊，對照就不再證明「這條判準會因為這個缺陷轉紅」（心得 37 同族）。
+//    這三條讀的都是使用者眼睛看得到的那行字——語系已在 newPage 釘死 zh-TW，A0 負責看門。
+const badgeSaysLive = b => !!b && b.hidden === false && /官方即時/.test(b.text);
+const badgeSaysAnom = b => !!b && b.anom === true && /異常/.test(b.text);
+const toastNamesRealCause = list => list.some(t => /不在即時模型中，已結束跟隨/.test(t)) &&
+  !list.some(t => t.includes('官方名冊已更新'));
+
+// 🔴 語系必須釘死（2026-08-29）。39ad220 上多語之後，index.html 的 I18N_LANG 會依
+//    navigator.languages 決定，而 Playwright 的 Chromium 預設是 en-US ⇒ 徽章變成
+//    "Official live"、退場吐司變成英文，A7／D4／E3／J6 這四條「徽章不准謊稱即時資料正常」
+//    的判準全部假紅（實測 41/50，與產品回歸長得一模一樣）。
+//    兩道一起下：
+//      * 網址 ?lang=zh-TW —— 這是 index.html 自己的最高優先語系開關（query > localStorage >
+//        navigator），也是唯一能決定 I18N_LANG 的正牌入口；它在 top-level 就讀完，
+//        boot 途中 clearFollow() 清掉 query string 也來不及影響它。
+//      * context locale: 'zh-TW' —— 讓 navigator.language 與所有沒帶 locale 參數的
+//        Intl／toLocaleString 也不隨跑測試的機器語系漂移。
+//    這裡刻意【不】改成「驗結構旗標而不驗文案」：這四條守的就是「使用者眼睛看到的那行字
+//    有沒有說謊」，改驗 dataset 會讓「分支對了但字錯了」整類缺陷穿過去。文案耦合的代價
+//    由 A0 那道具名前置閘門承擔——語系釘不住時它會直接指名，不會讓四條判準各自亂紅。
+const PAGE_LOCALE = 'zh-TW';
 async function newPage(browser) {
-  const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, locale: PAGE_LOCALE });
   const errors = [];
   page.on('pageerror', e => errors.push(String(e && e.message || e)));
   await page.addInitScript(shiftMs => {
@@ -239,7 +290,7 @@ async function newPage(browser) {
     }
     return route.continue();
   });
-  await page.goto(`http://127.0.0.1:${PORT}/index.html?metrocore=1`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await page.goto(`http://127.0.0.1:${PORT}/index.html?metrocore=1&lang=${PAGE_LOCALE}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
   try {
     // 🔴 一定要等到【兩家】的 _times 都載完再建線：只等 s.data 的話 ln.times 會是 null，
     //    prepFreqTimes 直接 return ⇒ 那條線沒有 _tt ⇒ 看板永遠「此時段無停靠班次」，
@@ -302,6 +353,18 @@ async function main() {
 
   const browser = await chromium.launch({ headless: true });
   let allErrors = [];
+  // 只讀徽章的輕量探針：徽章類的突變對照要跑的是【同一個情境、同一個述詞】，
+  // 只有 index.html 那一行不同。回傳 lineStats 的 badge，與正判準讀的是同一個來源。
+  const badgeUnder = async (html, variant) => {
+    servedHtml = html; currentVariant = variant;
+    const { page, errors } = await newPage(browser);
+    await pollOnce(page);
+    const s = await lineStats(page);
+    await page.close();
+    servedHtml = REAL_HTML; currentVariant = 'healthy';
+    allErrors = allErrors.concat(errors.filter(e => !/MUTATION/.test(e)));
+    return s.badge;
+  };
   // 全部情境都跑在同一個「營運中」的時刻（08:30 台北），不吃跑測試當下的牆鐘：
   // 這支腳本裡有兩條判準（B2 的正向對照、D4 的異常徽章）依賴「這個時段真的有車」，
   // 深夜跑會假紅。(j) 會自己把時鐘搬到收班時段再搬回來。
@@ -311,6 +374,15 @@ async function main() {
     currentVariant = 'healthy';
     {
       const { page, errors } = await newPage(browser);
+      // 具名前置閘門：下面 A7／D4／E3／J6 全部在讀「使用者看到的那行中文」，語系一漂
+      // 那四條會同時假紅而且各自報不同的字（39ad220 當天就是這樣，看起來像產品回歸）。
+      // 把前提抽出來單獨判一次：紅的時候一眼就知道是語系沒釘住，不是徽章壞了。
+      const langState = await page.evaluate(() => ({ i18n: window.__i18n && window.__i18n.lang,
+        doc: document.documentElement.lang, nav: navigator.language,
+        sample: window.__i18n ? window.__i18n.t('官方即時') : null }));
+      check('A0 語系釘死在 zh-TW（A7／D4／E3／J6 的文案判準前提）',
+        langState.i18n === 'zh-TW' && langState.doc === 'zh-TW' && langState.sample === '官方即時',
+        JSON.stringify(langState));
       const ok = await pollOnce(page);
       const s = await lineStats(page);
       const trtcLines = Object.entries(s.lines).filter(([k]) => k.startsWith('trtc:'));
@@ -333,10 +405,16 @@ async function main() {
         !s.status.blockedSystems.trtc && !!s.status.blockedSystems.krtc &&
         Object.entries(s.lines).filter(([k]) => k.startsWith('krtc:')).every(([, v]) => v.core === null),
         `blockedSystems=${JSON.stringify(s.status.blockedSystems)}`);
-      check('A7 徽章顯示「官方即時」且不隱藏（(d) 的反向對照）',
-        s.badge && s.badge.hidden === false && /官方即時/.test(s.badge.text), JSON.stringify(s.badge));
+      check('A7 徽章顯示「官方即時」且不隱藏（(d) 的反向對照）', badgeSaysLive(s.badge), JSON.stringify(s.badge));
       allErrors = allErrors.concat(errors);
       await page.close();
+    }
+
+    // ── (a') 突變對照：健康態徽章不再宣告「官方即時」，A7 必須轉紅 ────────────
+    {
+      const badge = await badgeUnder(MUTATED_BADGE_LIVE_HTML, 'healthy');
+      check('A8 突變對照：健康態不再走「官方即時」那條路時，A7 必須轉紅',
+        !badgeSaysLive(badge), `舊行為下 badge=${JSON.stringify(badge)}`);
     }
 
     // ── (b) 某線 0 台 → 該線退回 legacy；其他線不受影響 ──────────────────
@@ -396,14 +474,23 @@ async function main() {
       check('D2 每一條線都退回既有路徑', Object.values(s.lines).every(v => v.core === null),
         `core 驅動線數=${Object.values(s.lines).filter(v => v.core !== null).length}`);
       check('D3 徽章不得隱藏', s.badge && s.badge.hidden === false, JSON.stringify(s.badge));
-      check('D4 徽章顯示異常態而不是「官方即時」', s.badge && s.badge.anom === true && /異常/.test(s.badge.text), JSON.stringify(s.badge));
+      check('D4 徽章顯示異常態而不是「官方即時」', badgeSaysAnom(s.badge), JSON.stringify(s.badge));
       allErrors = allErrors.concat(errors);
       await page.close();
     }
 
-    // ── (e) 跟隨中的車缺席一批 → 30 秒寬限；超過才退場且文案正確 ──────────
-    currentVariant = 'healthy';
+    // ── (d') 突變對照：徽章謊稱「官方即時」，D4 必須轉紅 ───────────────────
     {
+      const badge = await badgeUnder(MUTATED_BADGE_LIE_HTML, 'allEmpty');
+      check('D5 突變對照：Core 0 台卻謊稱「官方即時」時，D4 必須轉紅',
+        !badgeSaysAnom(badge), `舊行為下 badge=${JSON.stringify(badge)}`);
+    }
+
+    // ── (e) 跟隨中的車缺席一批 → 30 秒寬限；超過才退場且文案正確（含突變對照）──────
+    //    佈題整段抽成函式：E4 的突變對照必須跑【逐格相同】的流程，只差 index.html 那一行，
+    //    否則對照證不了「E3 會因為文案回到錯誤歸因而轉紅」。
+    const followDropRun = async () => {
+      currentVariant = 'healthy';
       const { page, errors } = await newPage(browser);
       await pollOnce(page);
       const picked = await page.evaluate(() => {
@@ -417,7 +504,6 @@ async function main() {
         return state.freqFollow ? { vehicleId: item.vehicleId, following: true,
           liveSec: Math.round(Number(item.train.retireAt) - Date.now() / 1000) } : null;
       });
-      check('E0 佈題：真的跟上了一台 Core 車', !!picked && picked.liveSec > 60, JSON.stringify(picked));
       dropVehicleId = picked && picked.vehicleId;
       currentVariant = 'dropFollow';
       await pollOnce(page);
@@ -427,7 +513,6 @@ async function main() {
         return { following: !!state.freqFollow, grace: !!(state.freqFollow && state.freqFollow.lastRecord),
           toasts: window.__toasts.slice() }; // 刻意不清空：清空會把「更早的那一幀就拆掉了」這個真相蓋掉
       });
-      check('E1 缺席一批不拆跟隨（寬限內）', graced.following === true && graced.toasts.length === 0, JSON.stringify(graced));
       const expired = await page.evaluate(() => {
         window.__toasts.length = 0;
         if (!state.freqFollow) return { following: false, toasts: ['(已提前被拆，E1 已記錄)'] };
@@ -435,16 +520,29 @@ async function main() {
         updateFreqFollowCamera();
         return { following: !!state.freqFollow, toasts: window.__toasts.slice() };
       });
+      dropVehicleId = null; currentVariant = 'healthy';
+      await page.close();
+      return { picked, graced, expired, errors };
+    };
+    {
+      const { picked, graced, expired, errors } = await followDropRun();
+      check('E0 佈題：真的跟上了一台 Core 車', !!picked && picked.liveSec > 60, JSON.stringify(picked));
+      check('E1 缺席一批不拆跟隨（寬限內）', graced.following === true && graced.toasts.length === 0, JSON.stringify(graced));
       check('E2 超過寬限才退場', expired.following === false, JSON.stringify(expired));
       // 只綁真因（即時模型找不到這台車）＋排除舊的錯誤歸因，不綁確切措辭：
       // 994a9ce 已把「連續兩批」改成「超過 30 秒」（實際條件是 GRACE_SEC=30），
       // 綁措辭會讓每次改文案都假紅一次。
       check('E3 退場文案講的是真因（不是「官方名冊已更新」）',
-        expired.toasts.some(t => /不在即時模型中，已結束跟隨/.test(t)) &&
-        !expired.toasts.some(t => t.includes('官方名冊已更新')), JSON.stringify(expired.toasts));
-      dropVehicleId = null; currentVariant = 'healthy';
+        toastNamesRealCause(expired.toasts), JSON.stringify(expired.toasts));
       allErrors = allErrors.concat(errors);
-      await page.close();
+    }
+    {
+      servedHtml = MUTATED_TOAST_HTML;
+      const { expired, errors } = await followDropRun();
+      servedHtml = REAL_HTML;
+      check('E4 突變對照：退場文案回到「官方名冊已更新」的錯誤歸因後，E3 必須轉紅',
+        !toastNamesRealCause(expired.toasts), `舊行為下 toasts=${JSON.stringify(expired.toasts)}`);
+      allErrors = allErrors.concat(errors.filter(e => !/MUTATION/.test(e)));
     }
 
     // ── (f) 台北／台中「市政府」看板分家，且兩邊都有列 ──────────────────
@@ -604,6 +702,11 @@ async function main() {
       check('I5 突變對照：拿掉辨線檢查後，I3 必須轉紅',
         !!out.bad && out.bad.vehicleId === crossLineCase.brVehicleId,
         `舊行為下 bad=${JSON.stringify(out.bad)}`);
+      // 同一發突變也要證明 I4 有牙：誤配的列一旦解得出身分，P2-9 就會把它算進分子，
+      // matched 回到健康態的值 ⇒ I4 的「必須少一列」轉紅。
+      check('I6 突變對照：辨線檢查沒了以後誤配列被算成已配對，I4 必須轉紅',
+        out.matched === healthyMatched,
+        `舊行為下 matched=${out.matched}、healthy=${healthyMatched}（正常應為 ${healthyMatched - 1}）`);
       allErrors = allErrors.concat(errors.filter(e => !/MUTATION/.test(e)));
       servedHtml = REAL_HTML;
     }
@@ -650,8 +753,7 @@ async function main() {
         Object.values(peak.after.status.blockedLines).every(v => v && v.reason === 'count'),
         `blocked=${Object.keys(peak.after.status.blockedLines).join(',')}`);
       check('J6 控制組：營運時段 Core 0 台時徽章明講異常（P0-5 沒被豁免蓋掉）',
-        !!peak.after.badge && peak.after.badge.anom === true && /異常/.test(peak.after.badge.text),
-        JSON.stringify(peak.after.badge));
+        badgeSaysAnom(peak.after.badge), JSON.stringify(peak.after.badge));
 
       shiftClockToSecOfDay(CLOSED_SEC);
       servedHtml = MUTATED_WINDDOWN_HTML;
@@ -661,6 +763,13 @@ async function main() {
       check('J7 突變對照：拿掉收班豁免後，J3 必須轉紅（證明 J3 不是「反正那時段不判定」）',
         Object.keys(mutated.after.status.blockedLines).length > 0,
         `舊行為下 blocked=${Object.keys(mutated.after.status.blockedLines).join(',') || '(空)'}`);
+
+      // J6 自己的突變對照：走完整條 (j) 管線（建基線 → 連兩輪 0 台），只把徽章那段改成說謊。
+      servedHtml = MUTATED_BADGE_LIE_HTML;
+      const lied = await run('營運中（突變：徽章說謊）');
+      servedHtml = REAL_HTML;
+      check('J8 突變對照：營運時段 Core 0 台卻謊稱「官方即時」時，J6 必須轉紅',
+        !badgeSaysAnom(lied.after.badge), `舊行為下 badge=${JSON.stringify(lied.after.badge)}`);
       currentVariant = 'healthy';
     }
 

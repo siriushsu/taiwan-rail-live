@@ -19947,10 +19947,16 @@ function metroCoreValidateSnapshot(snapshot) {
     for (const row of board.rows) {
       if (!row || !Number.isFinite(Number(row.arrivalEpoch))) return false;
       if (row.vehicleId == null) continue;
-      const train = byId.get(String(row.vehicleId));
-      if (!train || String(train.lineId) !== String(board.lineId) ||
-          Number(train.direction) !== Number(row.direction) ||
-          Number(train.destinationStationIndex) !== Number(row.destinationStationIndex)) return false;
+      // 🔴 這裡【只】要求「這台車在同一家的名冊裡」。線／方向／終點的一致性刻意不在這道
+      //    整包閘門判——那是下面 metroCoreRowVehicleId 的工作：一列不一致只讓那一列失去身分
+      //    （到站時刻照顯示），並計入 P2-9 誤配率交給逐系統閘門處理。
+      //    2026-08-29：這一條原本是「不一致就整包 return false」，來自 9bc4348；而同一天稍晚的
+      //    6eeda7f 已把這個防線改寫成逐列軟性失效（commit 訊息即「不整包退回」）。兩條在
+      //    15a386b 那顆合併同時留了下來，而這道閘門跑在前面 ⇒ 逐列版本永遠碰不到，
+      //    忠孝復興這類共站只要有一列指錯線，兩家共 129 台車會整批退回 legacy——正是
+      //    下面那段註解說「本批要防的放大效應」。移除它以還原 6eeda7f 的設計；偵測強度不變
+      //    （逐列版查的是同一組線／方向／終點三項），變的只是壞掉一列時的處置範圍。
+      if (!byId.has(String(row.vehicleId))) return false;
     }
   }
   return true;
