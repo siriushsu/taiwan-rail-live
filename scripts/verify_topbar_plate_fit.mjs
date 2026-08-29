@@ -49,7 +49,11 @@ const PAGE = process.env.PLATE_PAGE || 'index.html';
   }
   console.log('目標自檢 ✓ ' + BASE + '/' + PAGE + ' md5 ' + served.slice(0, 8) + '（與工作樹逐 byte 相同）');
 }
-const WIDTHS = [360, 375, 393, 414];
+// 360=Android 最窄、375=iPhone SE/13 mini、393=iPhone 14/15/16、414=iPhone Plus 舊版,
+// 402=iPhone 16/17 Pro、440=iPhone 17 Pro Max(2026-08-30 為 iOS 比照處理時補上——
+// 這條列在 900 以下沒有斷點、純 flex,理論上寬的比窄的鬆,但 fitBadgeDetail() 的降級是離散的,
+// 不量就只是推論)。
+const WIDTHS = [360, 375, 393, 402, 414, 440];
 const SCALES = ['std', 'large', 'xlarge'];
 const LANGS = { 'zh-TW': '軌島', en: 'Rail Island', ja: '軌島' };
 // 已知裝不下的格（engine|lang|scale|width，皆為「有公告」那半）：特大字級＋公告＋360dp。
