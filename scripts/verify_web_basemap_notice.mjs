@@ -47,13 +47,34 @@ if (/if \(APP_CFG\.tiles\) \{ if \(!ofmRasterFallback\)/.test(code)) {
 }
 console.log('[G0] 機制都在這份檔裡,且兩條舊路都已移除');
 
+const PAGE_LOCALE = 'zh-TW';
 const PORT = Number(process.env.WEBNOTICE_PORT || 43977);
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+// 突變對照用：把 index.html 換掉再跑同一個情境。兩發都打「提示會不會說謊」——
+// 2026-08-29 才發現多語上線後 `notice` 在英文語系下【恆為 false】，於是 A／B／E 那三條
+// `!notice` 全部空過（綠得毫無意義），只有 N 那條正判準紅出來。語系釘死之後必須證明
+// 這兩個方向都真的有牙，否則「釘死語系」與「判準本來就沒作用」在計分板上長得一樣。
+//
+// P：退成功時也硬跳提示 ⇒ A 的「退成功不跳提示」必須轉紅。
+const MUT_NOTICE_ON_FALLBACK = src.replace(
+  '  const fail = why => { stop(); ofmFallToRaster(why); };',
+  '  const fail = why => { stop(); ofmFallToRaster(why); ofmNoticeWeb(why); }; // MUTATION notice-on-fallback');
+if (MUT_NOTICE_ON_FALLBACK === src) { console.error('❌ 突變 P 沒有命中'); process.exit(1); }
+// Q：提示整個不發 ⇒ N 的「兩家同時掛要講出來」必須轉紅。
+const MUT_NO_NOTICE = src.replace(
+  'function ofmNoticeWeb(why) {\n  if (ofmNoticeShown) return;',
+  'function ofmNoticeWeb(why) {\n  if (true) return; // MUTATION no-notice\n  if (ofmNoticeShown) return;');
+if (MUT_NO_NOTICE === src) { console.error('❌ 突變 Q 沒有命中'); process.exit(1); }
+
+let servedHtml = null; // null＝供磁碟上那份（G0 已證明它是這棵樹的）
 const server = createServer(async (req, res) => {
   try {
     const p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
     const file = join(ROOT, p === '/' ? 'index.html' : p);
     if (!file.startsWith(ROOT)) { res.statusCode = 403; return res.end(); }
+    if (servedHtml != null && (p === '/' || p === '/index.html')) {
+      res.setHeader('content-type', MIME['.html']); return res.end(servedHtml);
+    }
     const body = await readFile(file);
     res.setHeader('content-type', MIME[extname(file)] || 'application/octet-stream');
     res.end(body);
@@ -70,8 +91,14 @@ const note = (id, detail) => console.log(`ℹ️  ${id} — ${detail}`);
 // carto: 'ok'=回假 PNG 並計數 | 'dead'=一律失敗(模擬「兩家同時掛」)
 //   🔴 一律攔:CARTO 正是這批在談授權的那個服務,驗收不對它打任何一發真請求。
 async function run(engine, { ofm, sat = true, mobile = false, appShell = false, carto = 'ok', waitMs = 14000 }) {
-  const ctx = await engine.launch().then(b => b.newContext(
-    mobile ? { viewport: { width: 375, height: 812 }, hasTouch: true, isMobile: true } : {}));
+  // 🔴 語系釘死（2026-08-29）。index.html 的 I18N_LANG 依 `query > localStorage > navigator`
+  //    決定，而 Playwright 預設 navigator.language=en-US ⇒ 提示會渲染成
+  //    "The street map failed to load…"，而下面整組判準都靠 /街道底圖載入異常/ 認它。
+  //    後果不只是 N 假紅：A／B／E 那三條 `!notice` 會【恆真】而空過一週。
+  //    兩道一起下：context locale（navigator／Intl／toLocaleString 不隨機器漂）＋
+  //    網址 ?lang=zh-TW（index.html 自己的最高優先開關，top-level 就讀完）。G1 負責看門。
+  const ctx = await engine.launch().then(b => b.newContext({ locale: PAGE_LOCALE,
+    ...(mobile ? { viewport: { width: 375, height: 812 }, hasTouch: true, isMobile: true } : {}) }));
   const errs = [];
   if (ofm === 'block') await ctx.route('**://tiles.openfreemap.org/**', r => r.abort('failed'));
   else if (ofm === 'tilesonly') await ctx.route('**://tiles.openfreemap.org/**', r =>
@@ -129,7 +156,7 @@ async function run(engine, { ofm, sat = true, mobile = false, appShell = false, 
       : setTimeout(arm, 0);
     arm();
   });
-  await page.goto(`http://127.0.0.1:${PORT}/index.html`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`http://127.0.0.1:${PORT}/index.html?lang=${PAGE_LOCALE}`, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => typeof baseLayers !== 'undefined' && baseLayers && baseLayers.light,
     null, { timeout: 30000 }).catch(() => {});
   await page.waitForTimeout(waitMs);   // OFM_HEALTH_MS = 8000,留足餘裕
@@ -137,6 +164,9 @@ async function run(engine, { ofm, sat = true, mobile = false, appShell = false, 
     // 量使用者**看得到過**的東西:曾經進到 DOM 的每一則 toast。不是量 ofmNoticeShown 這種
     // 內部旗標——那是實作的下游,會跟著實作一起錯(判準盲點:斷言落在受測物下游)。
     toasts: window.__seenToasts || [],
+    // G1 用：證明下面每一條讀文案的判準是在【中文】頁面上量的
+    lang: (window.__i18n && window.__i18n.lang) || null,
+    langSample: window.__i18n ? window.__i18n.t('街道底圖載入異常，列車與路線不受影響。可切換到「衛星」底圖。') : null,
     satBtn: !!document.getElementById('satBtn'),
     layerKind: (() => { const l = baseLayers && baseLayers.light; return !l ? 'none' : (typeof l._url === 'string' ? 'raster' : 'ofm'); })(),
     layerUrl: (() => { const l = baseLayers && baseLayers.light; return (l && typeof l._url === 'string') ? l._url : ''; })(),
@@ -152,6 +182,12 @@ for (const [name, engine] of ENGINES) {
   console.log(`\n──────── ${name} ────────`);
 
   const a = await run(engine, { ofm: 'block' });
+  // 🔴 具名前置閘門：下面所有讀 `notice` 的判準都在比中文字串，語系一漂它們會【一起】
+  //    失效——而且失效的方向不一致（N 假紅、A／B／E 空過），從計分板上看不出共同上游。
+  //    把前提單獨判一次，紅的時候一眼就知道是語系沒釘住。
+  ok(`G1/${name} 語系釘死在 zh-TW（下面 notice 判準的前提）`,
+    a.lang === 'zh-TW' && a.langSample === '街道底圖載入異常，列車與路線不受影響。可切換到「衛星」底圖。',
+    `lang=${a.lang} sample=${String(a.langSample).slice(0, 24)}…`);
   ok(`A/${name} OFM 全擋 ⇒ 真的退到 CARTO(有打出圖磚請求)`, a.cartoHits > 0 && a.layerKind === 'raster',
     `cartoHits=${a.cartoHits} layer=${a.layerKind} url=${a.layerUrl.slice(0, 46)}`);
   ok(`A/${name} 退到的是 CARTO 不是別家`, /basemaps\.cartocdn\.com/.test(a.layerUrl), a.layerUrl.slice(0, 60) || '(空)');
@@ -191,6 +227,26 @@ for (const [name, engine] of ENGINES) {
   // 那樣就偵測不到。這條**只記錄不判分**:它是機制既有的邊界(App 也一樣),不是這批的回歸。
   const c = await run(engine, { ofm: 'tilesonly' });
   note(`C/${name} 只擋圖磚(TileJSON 放行)`, `退場了=${c.cartoHits > 0}　←　這是 L2 判準的邊界,App 端同此`);
+}
+
+// ── 突變對照：證明 `notice` 這一族兩個方向都真的有牙 ────────────────────────
+// 🔴 只跑一個引擎（下面會印出是哪個）：受測的是「判準會不會因為這個缺陷轉紅」，
+//    而那與瀏覽器引擎無關；上面的功能判準才需要雙引擎。這是刻意的取捨，不是抽樣遺漏。
+if (ENGINES.length) {
+  const [mName, mEngine] = ENGINES[0];
+  console.log(`\n──────── 突變對照（只跑 ${mName}）────────`);
+
+  servedHtml = MUT_NOTICE_ON_FALLBACK;
+  const p = await run(mEngine, { ofm: 'block' });          // 與 A 情境逐格相同
+  ok(`P/${mName} 突變對照：退成功時也跳提示 ⇒ A 的「退成功不跳提示」必須轉紅`, p.notice,
+    `舊行為下 notice=${p.notice} toasts=${JSON.stringify(p.toasts).slice(0, 90)}`);
+
+  servedHtml = MUT_NO_NOTICE;
+  const q = await run(mEngine, { ofm: 'block', carto: 'dead' }); // 與 N 情境逐格相同
+  ok(`Q/${mName} 突變對照：提示整個不發 ⇒ N 的「兩家同時掛要講出來」必須轉紅`, !q.notice,
+    `舊行為下 notice=${q.notice} toasts=${JSON.stringify(q.toasts).slice(0, 90)}`);
+
+  servedHtml = null;
 }
 
 await new Promise(r => server.close(r));

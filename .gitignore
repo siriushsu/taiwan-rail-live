@@ -43,6 +43,14 @@ app/ASC_送審填寫清單_v1_FREE.md
 
 # TDX 歷史原始快取（可重抓，不進版控）
 .cache/
+# TDX／OSM 原始 API 傾印（68 檔 16MB）。只有建置期腳本讀它，index.html 與 worker.js 執行期零引用。
+# 2026-08-29 移出版控：它同時從兩條通道被公開散布——railisland.tw（wrangler 傳磁碟檔）
+# 與 GitHub Pages（從 main 根目錄建置，實測 data/tdx/*.json 回 200／單檔最大 5.86MB）。
+# 理由與上面 .cache 那條一字不差：原始資料不對外散布。
+# 🔴 檔案【留在磁碟上】，14 支建置腳本仍照常讀它（fetch_tdx.py 寫、build_metro_times.mjs 讀…）。
+#    但新 clone 不會有這批檔，那台機器要先跑 scripts/fetch_tdx.py 才能重產下游資料；
+#    且其中三鶯線與環狀線線形其實來自 OSM，TDX 重抓不回來——備份在 repo 外另存一份。
+data/tdx/
 # 跳站校正的逐節點診斷（由 build_pass_obs.mjs 重生，稽核用）
 data/tra_pass_obs_diag.json
 研究_跳站校正覆蓋明細_*.html
