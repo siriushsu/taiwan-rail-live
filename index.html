@@ -3359,12 +3359,32 @@
     /* 手機:工具全部住在 tab bar「更多」sheet;帶收成速度膠囊(見下) */
     .tabbar { display: flex; }
     .rec-toast { left: 8px; transform: none; max-width: calc(100% - 124px); }
-    /* 版權列讓開左下跟隨卡(卡寬 176+邊距),但不可用 ellipsis 裁掉授權連結:
-       窄機改在右下角換行,每個來源都保留可見、可點的命中框。 */
+    /* 版權列:一條單行貼齊底緣(2026-08-29 使用者實機回報)。
+       原本是「右下角換行、每個來源都留可見命中框」,在 CARTO 底圖(字串短)看起來沒事;
+       換衛星底圖後字串變成 'Leaflet | 臺灣輪廓：內政部, Tiles © Esri — Source: Esri, Maxar,
+       Earthstar Geographics',在 360–414dp 折成三行(系統字級放大是四行)、高 37.5px,直接壓住
+       速度膠囊(實測兩引擎四寬全部相交 338–787 px²)。
+       改法:不換行、讓它用滿整條底緣,裝不下的部分改成**橫向可捲**——授權連結一個都沒少、
+       仍然看得到也點得到,沒有回頭用 ellipsis 把它們裁掉(那條紅線維持)。
+       高度回到單行 ⇒ 不再進到跟車卡與速度膠囊的高度帶,所以左側不用再預留 216px。 */
     .leaflet-control-attribution {
-      max-width: calc(100vw - 216px); white-space: normal;
-      overflow: visible; text-overflow: clip; text-align: right; line-height: 1.25;
+      max-width: calc(100vw - 20px); white-space: nowrap;
+      overflow-x: auto; overflow-y: hidden; text-overflow: clip;
+      text-align: right; line-height: 1.25;
       font-size: calc(10px * var(--uis));
+      -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    }
+    .leaflet-control-attribution::-webkit-scrollbar { width: 0; height: 0; }
+    /* 左下的跟車卡(#followPanel)與捷運跟隨小卡(#freqCard)底緣落在這條的同一高度帶
+       (兩者都是 left:8 / bottom:tabbar-clear+2 / 寬 176),所以它們在場時把左側 216px 讓回去。
+       用 :has() 只在真的有卡時才縮——沒卡就整條用滿,那才是「一條平的貼齊下方」。
+       舊瀏覽器不支援 :has() 的話退回整條:結果是重疊,不是壞掉。 */
+    body:has(#followPanel:not([hidden])) .leaflet-control-attribution,
+    body:has(#freqCard:not([hidden])) .leaflet-control-attribution {
+      /* 預留量從卡片自己的式子推導,不要手打常數:卡是 left:8 + width:calc(176px*var(--ui)),
+         右邊再留 8 的間距與 Leaflet 自己的 10 邊距。手打 216 在標準字級剛好夠,
+         放大字級下卡片跟著 --ui 變寬、預留沒跟著長 ⇒ 又壓回去(驗收 G5 實測 171/903 px²)。 */
+      max-width: calc(100vw - 176px * var(--ui) - 26px);
     }
     .leaflet-control-attribution a { display: inline-block; }
     /* 手機改用雙指縮放,隱藏 Leaflet +/- 鈕 */
