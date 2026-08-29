@@ -3863,7 +3863,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
-        <li data-cl-of="crowd-outage"><span class="d">8/29</span><span>車廂擁擠度改成逐車對照：忠孝復興這種兩線共站不會再把板南線的擁擠度掛到文湖線上，認不出是哪一台車就留白不猜；三種車站看板現在都會顯示擁擠度，不會再切換一次就整片消失。即時資料中斷的提示也改成照實說：分不出是官方端還是本站或你的網路時，不再一律寫成臺北捷運訊號中斷</span></li>
+        <li data-cl-of="crowd-outage"><span class="d">8/29</span><span>車廂擁擠度改成逐車對照：忠孝復興這種兩線共站不會再把板南線的擁擠度掛到文湖線上，認不出是哪一台車就留白不猜；三種車站看板現在都會顯示擁擠度，不會再切換一次就整片消失，鎖屏的等車卡也一起改。即時模型暫時缺這個系統的資料時，車站看板不再整片變成「此時段無停靠班次」，會自動退回官方倒數或班表。即時資料中斷的提示也改成照實說：分不出是官方端還是本站或你的網路時，不再一律寫成臺北捷運訊號中斷</span></li>
         <li data-cl-of="notice0829"><span class="d">8/29</span><span>高鐵台中車站 9/7 至 9/10 軌道大修、三鶯線 9/1 起正式收費，兩則公告已放上通知列；同時更新安坑、淡海輕軌與高雄捷運班表</span></li>
         <li data-cl-of="bootfast"><span class="d">8/29</span><span>開啟網站變快了：三十幾份路網與班表資料從一份一份載改成同時下載，重新造訪也不再重抓沒變動的檔案</span></li>
         <li data-cl-of="curve-speed"><span class="d">8/28</span><span>東部幹線的急彎改照官方核定速限行駛：宜蘭線新馬那個半徑 306 公尺的彎（2018 年出軌事故現場）普悠瑪 75、太魯閣 85、其他列車 65，北迴線和仁一帶非傾斜式列車 115。到站時刻完全不變——彎道慢下來的時間由同一段的其他部分吸收；時刻表太緊而做不到時，維持原本的畫法</span></li>
@@ -3892,7 +3892,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
-        <li data-cl="crowd-outage"><span class="d">8/29</span><span>車廂擁擠度原本用「終點」對照官方逐節資料，於是同一個終點的每一列都拿到同一台車的值——忠孝復興往南港展覽館的文湖線列（四節車廂）因此長出六格板南線的擁擠度。現在改用車號逐車對照，對不到就留白，不拿別台的值頂替。另外擁擠度原本只長在其中一種車站看板上，看板在三種資料來源之間切換時就會忽有忽無，現在三種都會顯示。即時資料中斷的提示改成依實際原因措辭：只有官方自報斷訊時才寫「臺北捷運即時訊號中斷」，其餘情況（本站服務發不出來、或你目前的網路連線）改寫成「即時資料連線中斷」並說明不一定是官方端。</span></li>
+        <li data-cl="crowd-outage"><span class="d">8/29</span><span>車廂擁擠度原本用「終點」對照官方逐節資料，於是同一個終點的每一列都拿到同一台車的值——忠孝復興往南港展覽館的文湖線列（四節車廂）因此長出六格板南線的擁擠度。現在改用車號逐車對照，對不到就留白，不拿別台的值頂替；鎖屏等車卡吃的是同一份資料，也一起換成逐車對照。另外擁擠度原本只長在其中一種車站看板上，看板在三種資料來源之間切換時就會忽有忽無，現在三種都會顯示。第三件是車站看板的空值退路：即時模型的資料裡暫時沒有這個系統、或這一站一列都排不出來時，看板原本會直接顯示「此時段無停靠班次」，把官方倒數與班表兩條退路一起吃掉（同一份資料下地圖其實是正確退回的）；現在一列都排不出來就交還給既有路徑，不再宣稱這一站沒有班次。即時資料中斷的提示則改成依實際原因措辭：只有官方自報斷訊時才寫「臺北捷運即時訊號中斷」，其餘情況（本站服務發不出來、或你目前的網路連線）改寫成「即時資料連線中斷」並說明不一定是官方端。</span></li>
         <li data-cl="notice0829"><span class="d">8/29</span><span>新增兩則營運公告：台灣高鐵台中車站南下月台軌 9 月 7 日至 10 日全日限速 70 公里，T333 次彰化發車延誤 2 至 4 分鐘、T565 與 T567 次改停西月台；新北捷運三鶯線 9 月 1 日起正式收費，起程 20 元、最高 35 元，另發售 60 元一日票（正式營運後的首末班時間官方尚未公告，這條線仍照試營運時段推算）。同時更新安坑輕軌、淡海輕軌與高雄捷運的班表</span></li>
         <li data-cl="traoutagenote"><span class="d">8/25</span><span>台鐵即時資料中斷時不再靜悄悄：時鐘旁出現「中斷」並寫明資料停在幾點、列車暫改依時刻表位置顯示；今日台鐵動態的「跟這班車」不見時也會註明原因。來源備援也一併加強</span></li>
         <li data-cl="metrocoredefault"><span class="d">8/28</span><span>網站版重新開啟北捷統一時間軸，地圖列車、車站預告與點選跟隨改由同一份 Core 身分與軌跡驅動。尖峰實測找到一種原本漏網的跳位：刷新當下仍在舊位置，下一個軌跡節點卻直接接到數站外，因此舊的刷新點檢查會誤判為零位移。現在產生軌跡時與發布前各檢查一次；五秒內跨過半站以上的車會先留在已發布位置，交回既有銜接機制吸收新官方資料，不用位移或避讓來遮掩。Core 連線失敗、快照過期或單線車數異常時，網站仍會逐線自動退回原本模式</span></li>
@@ -23474,7 +23474,14 @@ function metroCoreBoardView(st, lines, isDeco, nowEpoch = Date.now() / 1000) {
     // 退回閘門開著的線,看板也要一起走既有時刻表路徑(systemId 給 null 就會落到下面的 _tt 分支);
     // 否則會出現「地圖上這條線用班表、看板卻還在讀空的 Core」這種一半一半的狀態。
     const systemId = metroCoreSystemIdForLine(ln);
-    stationLines.push({ ln, li, si, systemId: systemId && !metroCoreLineBlocked(systemId, ln.id) ? systemId : null });
+    // 🔴 P0-1(看板側):snapshot 裡【沒有這個系統】時要比照「退回閘門開著」處理,systemId 給 null
+    //    讓它落到下面的 _tt 分支。少了 metroCoreSystem 這一項,board 會是 null、
+    //    `board && board.rows || []` 靜默吃成空陣列、迴圈尾的 continue 又跳過 _tt,
+    //    最後整張站看板變「此時段無停靠班次」——而同一份 snapshot 下地圖是正確退回既有路徑的
+    //    (metroCoreItemsForLine 早就有這道門)。2026-08-29 受控實驗:只把 snapshot 的 trtc 濾掉,
+    //    忠孝復興看板 5 列→0 列且顯示「此時段無停靠班次」,地圖同一刻照常。
+    const usable = systemId && !metroCoreLineBlocked(systemId, ln.id) && !!metroCoreSystem(systemId);
+    stationLines.push({ ln, li, si, systemId: usable ? systemId : null });
   });
   if (!stationLines.some(entry => entry.systemId)) return null;
   const groups = [];
@@ -23526,6 +23533,12 @@ function metroCoreBoardView(st, lines, isDeco, nowEpoch = Date.now() / 1000) {
     }
   }
   groups.sort((a, b) => a.li - b.li || ((a.rows[0] && a.rows[0].dtm) || 0) - ((b.rows[0] && b.rows[0].dtm) || 0));
+  // 🔴 P0-1(看板側):空的 groups【不得】短路既有路徑。renderFreqBoard 寫的是
+  //    `if (core) { renderMetroCoreFreqBoard(…); return; }`,而 { groups: [] } 是 truthy 物件
+  //    ⇒ 官方板與班表板兩條退路都被吃掉,畫面顯示「此時段無停靠班次」。與
+  //    metroCoreItemsForLine 的 `return out.length ? out : null` 同一條規矩:「一列都排不出來」
+  //    從來不是「這一站沒有班次」的證據,決定權交還給既有路徑。
+  if (!groups.length) return null;
   return { groups, stationLines, linked: groups.flatMap(group => group.rows).filter(row => row.kind === 'core' && row.vehicleId).length };
 }
 function renderMetroCoreFreqBoard(el, st, lines, isDeco, view) {

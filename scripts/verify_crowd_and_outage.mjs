@@ -180,6 +180,63 @@ ok('Core 板會畫擁擠度（不再只有官方板有）',
   !coreCrowd.skipped && coreCrowd.bars > 0 && coreCrowd.bars === coreCrowd.expect,
   coreCrowd.skipped || `車號 ${coreCrowd.label}：畫出 ${coreCrowd.bars} 格 / 應為 ${coreCrowd.expect} 格`);
 
+// ── 第 3b 項：Core snapshot 缺這個系統時，整張站看板不得變空 ────────────────────
+// 🔴 P0-1（看板側）。地圖路徑早就有這道門（metroCoreItemsForLine 的 `if (!system) return null`
+// 與 `return out.length ? out : null`），看板路徑兩道都沒有：metroCoreSystem 回 null 時
+// `board && board.rows || []` 靜默吃成空陣列、迴圈尾的 continue 又跳過 _tt，最後函式仍回
+// `{ groups: [] }`——那是 truthy 物件，renderFreqBoard 的 `if (core) { …; return; }` 因此
+// 吃掉官方板與班表兩條退路，畫面顯示「此時段無停靠班次」。
+// 正式站實測：Core /v1/metro/snapshot 取樣 104 次全部 200，其中 10 次只有 trtc、1 次只有 krtc
+// ⇒ 這個狀態真的會發生，不是理論上的。
+// 這一對【除了 snapshot.systems 裡有沒有 trtc 以外，每一格輸入完全相同】。
+// mode: 'rows'（系統在、有可排的列）／'norows'（系統在、一列都排不出來）／'nosystem'（系統不在）
+const coreSystemProbe = async mode => page.evaluate(m => {
+  const now = Date.now() / 1000;
+  const station = (state.lines || []).flatMap(line => line.stations || [])
+    .find(s => (s.name || '').replace(/臺/g, '台') === '忠孝復興');
+  const ln = (state.lines || []).find(line => (line.stations || []).includes(station));
+  const si = ln ? ln.stations.indexOf(station) : -1;
+  const trtcSystem = { systemId: metroCoreSystemIdForLine(ln) || 'trtc', trains: [],
+    boards: [{ lineId: ln.id, stationIndex: si, rows: [{ state: 'approaching', direction: 1,
+      destinationStationIndex: ln.stations.length - 1, arrivalEpoch: Math.round(now) + 120,
+      match: 'unmatched' }] }] };
+  state.metroCore = { polling: false, error: null, failedSince: null,
+    snapshot: { schema: METRO_CORE_SCHEMA, generatedAt: now - 5, validUntil: now + 120,
+      // 唯一的變因就是這一行。
+      systems: m === 'nosystem' ? [{ systemId: 'krtc', trains: [], boards: [] }]
+        : m === 'norows' ? [{ ...trtcSystem, boards: [{ lineId: ln.id, stationIndex: si, rows: [] }] }]
+        : [trtcSystem] } };
+  const view = metroCoreBoardView(station, state.lines, false);
+  openBoard(station);
+  const board = document.getElementById('board');
+  return { viewNull: view === null, groups: view ? view.groups.length : -1,
+    path: board.dataset.metroCore ? 'core' : board.dataset.trtcOfficial ? 'official' : 'sched',
+    rows: board.querySelectorAll('.row').length,
+    empty: /此時段無停靠班次/.test(board.textContent || '') };
+}, mode);
+
+const withSys = await coreSystemProbe('rows');
+ok('前提：snapshot 有這個系統時，看板確實走 CORE 板且排得出列（否則下面那條是零資訊）',
+  withSys.path === 'core' && withSys.groups > 0 && withSys.rows > 0,
+  `path=${withSys.path} groups=${withSys.groups} rows=${withSys.rows}`);
+
+const noSys = await coreSystemProbe('nosystem');
+ok('Core snapshot 缺這個系統時，metroCoreBoardView 回 null（把決定權交還既有路徑）',
+  noSys.viewNull === true, `viewNull=${noSys.viewNull} groups=${noSys.groups}`);
+ok('Core snapshot 缺這個系統時，站看板不得變空，要退回官方板／班表',
+  noSys.empty === false && noSys.rows > 0 && noSys.path !== 'core',
+  `path=${noSys.path} rows=${noSys.rows} 顯示無停靠班次=${noSys.empty}`);
+
+// 第二道門單獨必要的情境：系統【在】、但這一站一列都排不出來（深夜收班、或列全被濾掉）。
+// 只有「空 groups 回 null」擋得住這一格——第一道門在這裡完全不會開火（系統存在）。
+const noRows = await coreSystemProbe('norows');
+ok('系統在但一列都排不出來時，也要退回既有路徑（不得宣稱「此時段無停靠班次」）',
+  noRows.viewNull === true && noRows.empty === false && noRows.rows > 0,
+  `viewNull=${noRows.viewNull} path=${noRows.path} rows=${noRows.rows} 顯示無停靠班次=${noRows.empty}`);
+
+// 讓後面的判準拿到乾淨狀態（上面塞的合成 snapshot 不可留給下一節）。
+await page.evaluate(() => { state.metroCore = null; });
+
 // ── 第 4／5 項：Core 在線時不得誤報斷線 ──────────────────────────────────────
 // 判準的反向對照成對出現：其餘輸入逐格相同，只差 Core 這一顆的死活。
 // 🔴 staleNote 只長在班表備援板（renderFreqBoard）——Core 板與官方板的 renderer 裡
