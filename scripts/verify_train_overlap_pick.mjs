@@ -73,6 +73,11 @@ async function boot(browser, tag, vp = { width: 1280, height: 800 }) {
   await ctx.addInitScript(() => {
     try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {}
     try { localStorage.setItem('trainmap-appearance', 'light'); } catch (e) {}
+    // 🔴 語言釘 zh-TW:本檔的判準逐字比對介面文字(「跟隨 2551 次」「車站看板」),而頁面的
+    //    I18N_LANG 順序是 ?lang= → localStorage → navigator.languages,Playwright 的 chromium
+    //    預設 en-US ⇒ 不釘的話標籤會變成 Follow train 2551,整批判準為了語言而不是為了功能轉紅
+    //    (webkit 那組恰好是繁中所以照過,兩引擎不一致本身就是這條沒釘住的證據)。
+    try { localStorage.setItem('trainmap-language', 'zh-TW'); } catch (e) {}
   });
   const page = await ctx.newPage();
   page.on('pageerror', e => allErrors.push(`[${tag}] pageerror: ${e}`));

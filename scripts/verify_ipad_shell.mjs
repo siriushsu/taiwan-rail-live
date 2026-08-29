@@ -40,6 +40,9 @@ async function bootPage(browser, { width, height, touch = false, immersive = fal
   await ctx.addInitScript(imm => {
     localStorage.setItem('trainmap-howto-seen', '1');   // 關首訪教學卡,否則它蓋住地圖
     localStorage.setItem('trainmap-appearance', 'light');
+    // 語言釘 zh-TW,理由同 verify_train_overlap_pick:Playwright chromium 預設 en-US,
+    // 介面語言會影響版面寬度(英文標籤較長)。本檔量的是幾何,不該讓語言當隱藏變因。
+    localStorage.setItem('trainmap-language', 'zh-TW');
     if (imm) localStorage.setItem('trainmap-immersive', '1');
   }, immersive);
   const page = await ctx.newPage();
