@@ -198,6 +198,8 @@
 
   /* ── 系統切換:群組頁籤(互斥)+縣市+群內成員——pill 家族 ── */
   .systems { margin: 0; }
+  /* 收合鈕是手機殼專屬:桌面維持 header 上的四顆分頁,所以基準態就藏起來 */
+  .gtab-one { display: none; }
   .grouptabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; align-items: center; }
   .grouptabs .gtab {
     font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
@@ -2612,10 +2614,47 @@
       display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
       z-index: 620; pointer-events: none;
     }
-    .topbar .tb-plate, .topbar .grouptabs, .topbar .alert-chip { pointer-events: auto; }
+    .topbar .tb-plate, .topbar .grouptabs, .topbar .alert-chip, .topbar .gtab-one { pointer-events: auto; }
     /* 短標分頁不做橫捲與遮罩(mock 遷移表明定停用);.topbar .grouptabs 特異性壓過通案手機 .grouptabs 的 mask/overflow */
     .topbar .grouptabs { margin: 0; flex-wrap: nowrap; overflow: visible; -webkit-mask-image: none; mask-image: none; }
     .topbar .grouptabs .gtab { font-size: 13px; padding: 6px 14px; min-height: 36px; }
+    /* 收合鈕與它的選單:幾何比照 .gtab(同高、同圓角),多一個 ▾ 提示它會開東西。
+       誰現身的唯一判準是語系,不是寬度——寫死斷點的話,以後多一個語系或改一次短標就再錯一次。 */
+    html:not([lang^="zh"]) .topbar .grouptabs { display: none; }
+    html:not([lang^="zh"]) .topbar .gtab-one { display: inline-grid; }
+    .topbar .gtab-one {
+      position: relative; flex: none;
+      height: 36px; padding: 0 9px 0 11px; border-radius: var(--r-pill); gap: 2px;
+      grid-auto-flow: column; place-items: center;
+      background: var(--navy); color: var(--paper); border: 0;
+      font-size: 13px; font-weight: 900; cursor: pointer; box-shadow: var(--shadow-1);
+    }
+    .topbar .gtab-one .go-cv { font-size: 10px; opacity: .8; }
+    /* 熱區補到 44:縮的是看得見的形狀,點得到的範圍不動。鈕本身必須 position:relative
+       (static 會把 ::after 的錨點交給 .topbar,鄰居的熱區會互相蓋掉)。 */
+    .topbar .gtab-one::after {
+      content: ''; position: absolute; left: 50%; top: 50%;
+      width: calc(100% + 8px); height: 44px; transform: translate(-50%, -50%);
+    }
+    #gtabPop {
+      position: fixed; z-index: 1200; width: max-content; min-width: 132px; max-width: calc(100vw - 24px);
+      background: var(--paper); color: var(--ink);
+      border: 1.5px solid var(--navy); border-radius: var(--r-l); box-shadow: var(--shadow-navy);
+      padding: 6px; font-size: 14px;
+    }
+    #gtabPop[hidden] { display: none; }
+    #gtabPop .gp-row {
+      display: flex; align-items: center; gap: 10px; width: 100%;
+      min-height: 44px; padding: 0 10px; border: 0; border-radius: 9px;
+      background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+    }
+    #gtabPop .gp-row .gp-sh {
+      flex: none; width: 26px; height: 26px;
+      display: grid; place-items: center; border-radius: 50%;
+      background: var(--bg-stage); font-weight: 900; font-size: 13px;
+    }
+    #gtabPop .gp-row[aria-current=true] { background: var(--bg-stage); font-weight: 900; }
+    #gtabPop .gp-row[aria-current=true] .gp-sh { background: var(--navy); color: var(--paper); }
     /* 公告警示鈕:與短標分頁同高並肩的琥珀 pill,有公告才出現(JS 控 hidden)。
        margin-left:auto 吃掉軌島牌與分頁之間的空白 → 緊貼分頁左側;窄機(360pt)空白被吃完後才會開始
        壓縮,而 .tb-plate 是 flex:none、分頁是 nowrap,兩者都不縮,故 chip 自己 flex:none 也不縮——
@@ -3192,9 +3231,10 @@
     /* button 不繼承 text-shadow(UA 歸零),halo 要明確接回;自帶不透明底的(軌島牌/群組頁籤/公告圓鈕)不吃 */
     body.fs.panel-translucent .topbar button { text-shadow: inherit; }
     body.fs.panel-translucent .topbar .plate, body.fs.panel-translucent .topbar .plate *,
-    body.fs.panel-translucent .topbar .gtab, body.fs.panel-translucent .topbar .alert-chip { text-shadow: none; }
+    body.fs.panel-translucent .topbar .gtab, body.fs.panel-translucent .topbar .alert-chip,
+    body.fs.panel-translucent .topbar .gtab-one, body.fs.panel-translucent .topbar .gtab-one * { text-shadow: none; }
     /* mock 右上幾何:公告 26 圓鈕、短標 44×28/gap 6；工具堆維持 44×44/gap 8，三者共用右錨。 */
-    .topbar .alert-chip, .topbar .grouptabs { align-self: center; }
+    .topbar .alert-chip, .topbar .grouptabs, .topbar .gtab-one { align-self: center; }
     .topbar .alert-chip {
       width: 26px; min-width: 26px; height: 26px; min-height: 26px;
       padding: 0; gap: 0; justify-content: center; border-radius: 50%; box-shadow: none;
@@ -3202,6 +3242,7 @@
     .topbar .alert-chip .ac-n { display: none; }
     .topbar .grouptabs { gap: 6px; }
     .topbar .grouptabs .gtab { width: 44px; height: 28px; min-height: 28px; padding: 0; }
+    .topbar .gtab-one { height: 28px; }
     /* 「更多」抽屜橫放收斂(2026-08-12 實機退回:left/right 0 的全寬底抽屜直接壓進動態島):
        左右各讓出安全區(--sa-l/--sa-r=env 別名,橫放時動態島就在其中一側)、限寬置中成對話框形,
        高度收斂留出頂列。列高/字級沿用手機值(48px 觸控目標;字太大的真因是 text-size-adjust,見 html)。 */
@@ -3544,6 +3585,14 @@
            版面,那條鏈整條拆掉。margin-left:auto 讓它吃掉軌島牌與頁籤之間的空白、緊貼頁籤左側,窄機
            (360pt)才不會把頁籤擠出畫面。 -->
       <button class="alert-chip" id="alertChip" hidden aria-label="營運通阻公告，點開看詳情" title="營運通阻公告"><span class="ac-ico" aria-hidden="true">⚠</span><span class="ac-n" id="alertChipN"></span></button>
+      <!-- 收合成一顆的群組鈕:只在「短標不是單字」的語系(en/ja)於手機殼現身。英文的四顆短標是整個
+           單字(All／TRA／HSR／Metro),並排後最後一顆整個落在視窗外——實測 en 393pt 第四顆 406~472,
+           vw 只有 393,elementFromPoint 回 null(根本點不到)。做法與 App 端 2026-08-27 那顆裁示同形:
+           「四顆收成一顆,點擊會打開」。中文短標是單字,四顆照舊、零變化。
+           為什麼另做一顆而不是把 #topTabs 收起來:renderTopTabs 每次換群組都 innerHTML 重建那四顆,
+           收合狀態塞進去等於每次重建都要重做;這顆獨立,只由 renderTopTabs 更新它的字。
+           誰現身完全由 CSS 決定(四顆 vs 這顆),JS 不管版面。 -->
+      <button class="gtab-one" id="gtabOne" type="button" aria-haspopup="true" aria-expanded="false"><span class="go-tx" id="gtabOneTx">全</span><span class="go-cv" aria-hidden="true">▾</span></button>
       <div class="grouptabs" id="topTabs">
         <button class="gtab active" title="全台同框">全</button>
         <button class="gtab" title="台鐵">台</button>
@@ -4139,6 +4188,11 @@
      **刻意放 body 層、不放 .stage 裡**:手機版 .stage 是 position:fixed + z-index:1000,自成堆疊脈絡,
      放進去的話 z-index:2200 會被封頂成 1000,底部就被 tabbar(body 層 z1100)蓋住,最後一節點不到
      (2026-07-26 用 elementFromPoint 量到底緣命中 tabbar 的 .tl 才發現)。 -->
+<!-- 群組選單:收合鈕的下拉。放 body 層而不是頂列裡——.stage 建立堆疊脈絡會把 z-index 封頂,
+     浮層一律放 body 層(同 .takeout-modal 家族的理由)。 -->
+<div class="gtab-pop" id="gtabPop" hidden role="dialog">
+  <div class="gp-rows" id="gtabPopRows"></div>
+</div>
 <div class="takeout-modal" id="helpModal" hidden>
   <section class="takeout-dialog help-dialog" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
     <div class="takeout-head"><h2 id="helpTitle">使用說明</h2><button id="helpX" type="button" aria-label="關閉">×</button></div>
@@ -4462,7 +4516,7 @@
 //         內部跨站閘門，五秒內跨半站的候選留在已發布位置重新銜接，不送到 client。
 // v0828e：補齊災害監看、捷運追蹤、地圖點選與成就 hover，並加入 iPhone 即時動態／小工具英日文。
 // v0828p：東部幹線急彎依官方核定速限行駛（宜蘭線新馬 R306、北迴線和仁 R804）。
-const BUILD = 'v0829f';
+const BUILD = 'v0829g';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -13018,6 +13072,65 @@ function renderTopTabs(cur) {
     b.onclick = () => selectGroup(g, true);
     box.appendChild(b);
   });
+  // 收合鈕的字:誰現身由 CSS 決定(見 .gtab-one),這裡只負責讓它顯示「現在在哪一群」。
+  // 四顆與這一顆共用同一個 act,不另外推導,避免兩個入口說法不一致。
+  const one = document.getElementById('gtabOneTx'), oneBtn = document.getElementById('gtabOne');
+  const actG = TAB_GROUPS.find(g => g.id === act) || TAB_GROUPS[0];
+  if (actG) {
+    if (one) one.textContent = t(actG.short);
+    if (oneBtn) { oneBtn.title = t(actG.label); oneBtn.setAttribute('aria-label', t('切換群組')); }
+  }
+  if (!document.getElementById('gtabPop')?.hidden) renderGtabPop();
+}
+
+// ── 群組選單(手機殼把四顆頁籤收成一顆之後的入口;桌面與中文語系沒有這顆,四顆分頁照舊)──
+// 🔴 選項不自己維護一份:逐項照 TAB_GROUPS 生成,點下去呼叫的也是四顆頁籤同一個 selectGroup()
+//    ⇒ 群組定義改了這裡自動跟著改,也不會出現「兩個入口行為不一致」。
+function renderGtabPop() {
+  const box = document.getElementById('gtabPopRows');
+  if (!box) return;
+  const pop = document.getElementById('gtabPop');
+  if (pop) pop.setAttribute('aria-label', t('切換群組'));
+  const cur = GROUPS.find(g => g.id === state.group) || GROUPS[0];   // 與 renderTopTabs 同一個算式
+  const act = tabActiveId(cur.id);
+  box.innerHTML = '';
+  TAB_GROUPS.forEach(g => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'gp-row';
+    if (g.id === act) b.setAttribute('aria-current', 'true');
+    b.innerHTML = '<span class="gp-sh"></span><span class="gp-nm"></span>';
+    b.querySelector('.gp-sh').textContent = t(g.short);
+    b.querySelector('.gp-nm').textContent = t(g.label);
+    b.onclick = () => { gtabPopSet(false); selectGroup(g, true); };
+    box.appendChild(b);
+  });
+}
+function gtabPopPlace() {
+  const pop = document.getElementById('gtabPop'), b = document.getElementById('gtabOne');
+  if (!pop || !b || pop.hidden) return;
+  if (!b.getClientRects().length) { gtabPopSet(false); return; }  // 鈕不在(轉桌面寬/換回中文)⇒ 選單跟著收
+  const r = b.getBoundingClientRect(), box = pop.getBoundingClientRect();
+  // 靠右對齊鈕(它自己就在頂列右緣)、掛在下方;兩軸都夾在視窗內 8px
+  pop.style.left = Math.max(8, Math.min(r.right - box.width, innerWidth - box.width - 8)) + 'px';
+  pop.style.top = Math.max(8, Math.min(r.bottom + 8, innerHeight - box.height - 8)) + 'px';
+}
+function gtabPopSet(on) {
+  const pop = document.getElementById('gtabPop'), b = document.getElementById('gtabOne');
+  if (!pop || pop.hidden === !on) return;
+  pop.hidden = !on;
+  if (b) b.setAttribute('aria-expanded', on ? 'true' : 'false');
+  if (on) { renderGtabPop(); gtabPopPlace(); }
+}
+function setupGtabPop() {
+  const b = document.getElementById('gtabOne'), pop = document.getElementById('gtabPop');
+  if (!b || !pop) return;
+  b.addEventListener('click', e => { e.stopPropagation(); gtabPopSet(pop.hidden); });
+  // 捕獲階段:卡外任一處按下就收(有些面板自己 stopPropagation,冒泡階段收不到)
+  document.addEventListener('pointerdown', e => {
+    if (!pop.hidden && !pop.contains(e.target) && !b.contains(e.target)) gtabPopSet(false);
+  }, true);
+  addEventListener('keydown', e => { if (e.key === 'Escape' && !pop.hidden) gtabPopSet(false); });
+  addEventListener('resize', () => gtabPopPlace());
 }
 
 // 目前視窗內看不看得見這個群組的軌道——群組切換要不要保留視野的判準。
@@ -25824,7 +25937,7 @@ function setupMapTools() {
   });
   // Batch B:開站即建縣市 chip、把搜尋列與頁尾盒放到當前斷點該在的家
   // (§04c 徽章開站也就定位;跟隨鎖此刻還沒建——lockCtl.addTo 之後那裡自己會補一次 placeControlRail)
-  buildMsCities(); placeSearch(); placeFootBoxes(); placeBadge(); setupToolRail();
+  buildMsCities(); placeSearch(); placeFootBoxes(); placeBadge(); setupToolRail(); setupGtabPop();
   // 真全螢幕被使用者(Esc/F11/系統手勢)退掉時,同步收掉 CSS 全畫面狀態並重排地圖。
   // Safari 例外:真機探針實錄(2026-07-21)進場成功後 ~2.4s fullscreenElement 無故變 null(全程無按鍵、無我方呼叫)——
   // 非我方主動退出且距進場<5s 視為瀏覽器抽風,保留 CSS 版全畫面(=requestFullscreen 失敗的既有退路),不連動退出。
