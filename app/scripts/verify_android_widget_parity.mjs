@@ -46,9 +46,17 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
     pass: /platform === 'ios'\s*\|\|\s*platform === 'android'/.test(bridge)
       && /registerPlugin\([^\n]*'RailFollowLive'/.test(bridge)
   });
+  // 逐車擁擠度：不比對函式名（v17 快照叫 trtcOfficialCrowdHtmlByNo、main 的實作叫
+  // trtcOfficialCrowdHtml，同一個能力換過名字就假紅）。改成測那條鏈本身——
+  //   (1) 有以車號為鍵的官方擁擠度對照表 state.trtcOfficialBoard.crowdByNo[<變數>]
+  //   (2) 讀那張表的那個 helper，名字就地取自它的定義
+  //   (3) 看板算 crowdHtml 時真的呼叫「那個」helper，而且傳的是該列的車號
+  const crowdHelper = /function\s+(\w+)\s*\([^)]*\)\s*\{(?:(?!function\s)[^]){0,400}?trtcOfficialBoard\.crowdByNo/.exec(html)?.[1] || '';
   const contentRules = [
     ['Metro Core 看板以逐車車號補上官方擁擠度',
-      /crowdByNo/.test(html) && /trtcOfficialCrowdHtmlByNo\(label\)/.test(html)],
+      /trtcOfficialBoard\.crowdByNo\[\s*[A-Za-z_$]/.test(html)
+        && !!crowdHelper
+        && new RegExp(`crowdHtml\\s*=\\s*${crowdHelper}\\(\\s*(?:label|rec\\.row\\.no)\\s*\\)`).test(html)],
     ['Android 小工具同步並動態解析「我的地點」',
       /registerPlugin\(RailPlacesPlugin\.class\)/.test(main)
         && /RAIL_NATIVE_PLACES/.test(bridge) && /resolvePlace\(/.test(railData)
