@@ -3863,6 +3863,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="crowd-outage"><span class="d">8/29</span><span>車廂擁擠度改成逐車對照：忠孝復興這種兩線共站不會再把板南線的擁擠度掛到文湖線上，認不出是哪一台車就留白不猜；三種車站看板現在都會顯示擁擠度，不會再切換一次就整片消失。即時資料中斷的提示也改成照實說：分不出是官方端還是本站或你的網路時，不再一律寫成臺北捷運訊號中斷</span></li>
         <li data-cl-of="notice0829"><span class="d">8/29</span><span>高鐵台中車站 9/7 至 9/10 軌道大修、三鶯線 9/1 起正式收費，兩則公告已放上通知列；同時更新安坑、淡海輕軌與高雄捷運班表</span></li>
         <li data-cl-of="bootfast"><span class="d">8/29</span><span>開啟網站變快了：三十幾份路網與班表資料從一份一份載改成同時下載，重新造訪也不再重抓沒變動的檔案</span></li>
         <li data-cl-of="curve-speed"><span class="d">8/28</span><span>東部幹線的急彎改照官方核定速限行駛：宜蘭線新馬那個半徑 306 公尺的彎（2018 年出軌事故現場）普悠瑪 75、太魯閣 85、其他列車 65，北迴線和仁一帶非傾斜式列車 115。到站時刻完全不變——彎道慢下來的時間由同一段的其他部分吸收；時刻表太緊而做不到時，維持原本的畫法</span></li>
@@ -3870,7 +3871,6 @@
         <li data-cl-of="i18n-dynamic"><span class="d">8/28</span><span>英文與日文現在也會即時更新最愛、今日台鐵、誤點履歷、帳號同步、Google 清單匯入、分享與「追蹤這站」；並補上災害監看、捷運終點、點選列車／車站、成就說明，以及 iPhone 即時動態與小工具，官方活動只有中文時則標示「中文原文」</span></li>
         <li data-cl-of="metrocoredefault"><span class="d">8/28</span><span>網站版重新開啟北捷統一時間軸：地圖列車、車站預告與點選跟隨會使用同一份身分與軌跡；每次更新也會檢查軌跡內部，若列車在五秒內跨過半站以上，會先留在原位重新銜接，不把瞬間跳位送到畫面。Core 連線失敗或單線資料不完整時，仍會自動退回原本模式</span></li>
         <li data-cl-of="i18n-content"><span class="d">8/28</span><span>英文與日文再補齊品牌介紹、使用說明、特色車站與列車、觀光列車圖鑑，以及旅程護照和成就；外語版更新紀錄保留最近八筆精簡內容，較早歷史改用主題摘要</span></li>
-        <li data-cl-of="i18n-mvp"><span class="d">8/28</span><span>新增繁中、English、日本語切換：車站與路線名稱、列車跟隨、來車看板、設定、營運提醒、通行證，以及隱私權政策與服務條款會一起切換；選過的語言也會記住</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -3892,6 +3892,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="crowd-outage"><span class="d">8/29</span><span>車廂擁擠度原本用「終點」對照官方逐節資料，於是同一個終點的每一列都拿到同一台車的值——忠孝復興往南港展覽館的文湖線列（四節車廂）因此長出六格板南線的擁擠度。現在改用車號逐車對照，對不到就留白，不拿別台的值頂替。另外擁擠度原本只長在其中一種車站看板上，看板在三種資料來源之間切換時就會忽有忽無，現在三種都會顯示。即時資料中斷的提示改成依實際原因措辭：只有官方自報斷訊時才寫「臺北捷運即時訊號中斷」，其餘情況（本站服務發不出來、或你目前的網路連線）改寫成「即時資料連線中斷」並說明不一定是官方端。</span></li>
         <li data-cl="notice0829"><span class="d">8/29</span><span>新增兩則營運公告：台灣高鐵台中車站南下月台軌 9 月 7 日至 10 日全日限速 70 公里，T333 次彰化發車延誤 2 至 4 分鐘、T565 與 T567 次改停西月台；新北捷運三鶯線 9 月 1 日起正式收費，起程 20 元、最高 35 元，另發售 60 元一日票（正式營運後的首末班時間官方尚未公告，這條線仍照試營運時段推算）。同時更新安坑輕軌、淡海輕軌與高雄捷運的班表</span></li>
         <li data-cl="traoutagenote"><span class="d">8/25</span><span>台鐵即時資料中斷時不再靜悄悄：時鐘旁出現「中斷」並寫明資料停在幾點、列車暫改依時刻表位置顯示；今日台鐵動態的「跟這班車」不見時也會註明原因。來源備援也一併加強</span></li>
         <li data-cl="metrocoredefault"><span class="d">8/28</span><span>網站版重新開啟北捷統一時間軸，地圖列車、車站預告與點選跟隨改由同一份 Core 身分與軌跡驅動。尖峰實測找到一種原本漏網的跳位：刷新當下仍在舊位置，下一個軌跡節點卻直接接到數站外，因此舊的刷新點檢查會誤判為零位移。現在產生軌跡時與發布前各檢查一次；五秒內跨過半站以上的車會先留在已發布位置，交回既有銜接機制吸收新官方資料，不用位移或避讓來遮掩。Core 連線失敗、快照過期或單線車數異常時，網站仍會逐線自動退回原本模式</span></li>
@@ -21239,9 +21240,10 @@ function trtcOfficialBoardArrivalState(ln, stationIndex, row, nowEpoch = Date.no
 function trtcOfficialCrowdColor(v) {
   return v <= 1 ? '#4acc73' : v === 2 ? '#f2bf33' : v === 3 ? '#f07d33' : '#d94040';
 }
-function trtcOfficialCrowdHtml(dest) {
-  const cars = state.trtcOfficialBoard && state.trtcOfficialBoard.crowdByDest &&
-    state.trtcOfficialBoard.crowdByDest[dest];
+function trtcOfficialCrowdHtml(no) {
+  const key = String(no || '').trim();
+  const cars = key && state.trtcOfficialBoard && state.trtcOfficialBoard.crowdByNo &&
+    state.trtcOfficialBoard.crowdByNo[key];
   // 沒資料也回【透明佔位】不回空字串——使用者回饋(08-14 第五輪):有無 bars 的列時間欄要對齊,
   // 佔位是唯一不畫假資料又能對齊的做法(同小工具 38pt 佔位的邏輯);寬度鎖在 CSS .crowd。
   if (!Array.isArray(cars) || !cars.length) return '<span class="crowd" aria-hidden="true"></span>';
@@ -21263,22 +21265,26 @@ function applyTrtcOfficialBoard(rows, receivedAt = Date.now(), trains = null) {
   // join 語意與小工具 MetroBoardModel.crowdFor 完全同一套——同終點、有 cars 的第一台;
   // 兩個介面(桌面小工具 vs App 看板)看到的必須是同一份,改 join 要兩邊一起改。
   // 官方沒給就是沒有,不補、不猜。
-  // 🔴 這條 join 的鍵只有終點,所以它答的是「往這個終點的某一台車多擠」,不是「這一站的下一班多擠」
-  // ——同終點的每一列都會拿到同一台車的值。文湖線 2026-08-18 起有了 dest(位置改吃官方倒數),
-  // 因此改由 worker 端不送 BR 的 cars 來維持原狀;正解是逐車 join(看板 no ↔ trains[].stn 前綴),
-  // 見 [[interchange-needs-per-train-key]]。改這裡要連桌面小工具 MetroBoardModel.crowdFor 一起改。
-  const crowdByDest = {};
+  // 🔴 2026-08-29 改成逐車 join(看板 no ↔ trains[].no)。原本的鍵只有終點,答的是「往這個
+  // 終點的某一台車多擠」而不是「這一列多擠」——同終點的每一列都拿到同一台車的值。當天對
+  // 正式站實測 303 列:只有 45 列是對的,160 列顯示的是別台車的值,另外 50 列自己沒有車號卻
+  // 借了別台的。忠孝復興往南港展覽館的文湖線列(4 節車廂)就是這樣長出 6 格板南線的擁擠度。
+  // 逐車 join 對有車號的列命中 205/205。
+  // 🔴 沒有精確逐車鍵就留白,禁止拿同終點的第一台冒充——文湖線與環狀線本來就沒有官方車號,
+  // 留白是誠實,借值是造假。見 [[interchange-needs-per-train-key]]。
+  // 改這裡要連桌面小工具 MetroBoardModel.crowdFor 一起改(那邊仍是舊的同終點 join)。
+  const crowdByNo = {};
   for (const t of Array.isArray(trains) ? trains : []) {
-    const dest = t && typeof t.dest === 'string' ? t.dest : '';
-    if (!dest || crowdByDest[dest]) continue;
+    const no = String(t && t.no || '').trim();
+    if (!no || crowdByNo[no]) continue;
     const cars = t.cars;
     if (Array.isArray(cars) && cars.length && cars.every(v => Number.isFinite(Number(v)))) {
-      crowdByDest[dest] = cars.map(Number);
+      crowdByNo[no] = cars.map(Number);
     }
   }
   state.trtcOfficialBoard = {
     rows: clean,
-    crowdByDest,
+    crowdByNo,
     sourceAt: Math.max(...clean.map(row => row.at)),
     receivedAt: Number(receivedAt),
   };
@@ -22462,6 +22468,23 @@ function selfAnomalyEntries() {
 // 官方即時訊號中斷 → 這條講的是「畫面上的東西現在有多可信」，不是營運公告，所以排在最前面當頭條：
 // 2026-08-15 06:27～07:00 北捷斷 33 分鐘，位置被推到互相超車、車站倒數整個找不到車，而當時畫面上
 // 沒有任何一處告訴使用者發生了什麼。這條就是補這個洞（使用者要求：要更明顯，且要講清楚位置與倒數都不準）。
+// 斷線的「判準」與「文案」必須分家。判準量到的永遠只是「我們多久沒有拿到新資料」,而那有
+// 三種意義完全不同的原因:(a) 官方上游真的斷了 (b) 本站服務(Metro Core／worker)發不出來
+// (c) 這台裝置的網路,或分頁／App 被系統暫停而根本沒去收。舊文案把三者一律寫成
+// 「臺北捷運即時訊號中斷」,等於把 (b)(c) 掛到營運單位頭上——使用者 2026-08-29 回報的正是
+// 這件事:「那可能不是北捷斷線,是 app 或是網路自己停止更新」。
+// 歸因取已經記在案的 hold reason(applyTrtcOfficialRoster 每次失敗都寫),不另外猜:
+//   feed-outage  = 上游自報斷訊          ⇒ 真的是官方那邊
+//   fetch-error  = 這一發沒送到／沒回來  ⇒ 網路或本站,不是官方
+//   malformed／source-revision-regressed／frontend-apply-error ⇒ 本站處理不了
+// 🔴 拿不準時一律歸 unknown 走中性文案,不要預設指向營運單位。
+function trtcOutageAttribution() {
+  const roster = state.trtcOfficialRoster;
+  if (roster && roster.feedMode === 'outage') return 'upstream';
+  const reason = String((state.trtcOfficialRosterHold || {}).reason || '');
+  if (reason === 'feed-outage') return 'upstream';
+  return reason ? 'local' : 'unknown';
+}
 function trtcOutageEntries() {
   // 只報畫面上真的看得到的線——台鐵分頁沒開全台同框時，捷運根本沒畫，報了只是雜訊
   const visible = new Set();
@@ -22477,20 +22500,28 @@ function trtcOutageEntries() {
     if (!trtcVisible.length) return [];
     const mins = Math.max(1, Math.round(core.ageSec / 60));
     const labels = [...new Set(trtcVisible.map(id => trtcFeedGroupOf(id).label))];
+    const upstream = trtcOutageAttribution() === 'upstream';
     return [{ self: true, outage: true, sig: 'trtc-outage',
-      title: labels.join('、') + `即時訊號中斷 ${mins} 分鐘：列車位置與車站倒數都可能不準`,
-      desc: `統一捷運即時模型已經 ${mins} 分鐘沒有取得可安全發布的新資料。這段期間畫面會退回備援推估，`
-        + `位置與車站倒數都可能與實際不符，但這不代表列車停駛。資料恢復後會重新對齊官方位置。`
-        + `此為本站自動偵測，非官方公告。` }];
+      title: (upstream ? labels.join('、') + '即時訊號中斷' : '捷運即時資料中斷')
+        + ` ${mins} 分鐘：列車位置與車站倒數都可能不準`,
+      desc: `統一捷運即時模型已經 ${mins} 分鐘沒有取得可安全發布的新資料。`
+        + (upstream ? `官方上游已自報訊號中斷。`
+          : `這不一定是官方那邊的問題——也可能是本站服務發不出來，或你目前的網路連線中斷。`)
+        + `這段期間畫面會退回備援推估，位置與車站倒數都可能與實際不符，但這不代表列車停駛。`
+        + `資料恢復後會重新對齊官方位置。此為本站自動偵測，非官方公告。` }];
   }
   const feeds = trtcOfficialStaleFeeds(state.trtcOfficialRoster, Date.now() / 1000);
   if (!feeds.length) return [];
   const hit = feeds.filter(f => f.lines.some(id => visible.has(id)));
   if (!hit.length) return [];
   const mins = Math.max(1, Math.round(Math.max(...hit.map(f => f.ageSec)) / 60));
+  const upstream = trtcOutageAttribution() === 'upstream';
   return [{ self: true, outage: true, sig: 'trtc-outage', // 簽章刻意不含分鐘數,見 alertSig
-    title: hit.map(f => f.label).join('、') + `即時訊號中斷 ${mins} 分鐘：列車位置與車站倒數都可能不準`,
-    desc: `官方到站看板已經 ${mins} 分鐘沒有送出新資料。這段期間畫面上的列車是依各站之間的固定行車時間往前推估的，`
+    title: (upstream ? hit.map(f => f.label).join('、') + '即時訊號中斷' : '捷運即時資料中斷')
+      + ` ${mins} 分鐘：列車位置與車站倒數都可能不準`,
+    desc: (upstream ? `官方到站看板已經 ${mins} 分鐘沒有送出新資料。`
+      : `已經 ${mins} 分鐘沒有取得新的到站資料——這不一定是官方那邊的問題，也可能是本站服務或你目前的網路連線。`)
+      + `這段期間畫面上的列車是依各站之間的固定行車時間往前推估的，`
       + `車站倒數也可能找不到車或停住不動——都可能與實際不符，但這不代表列車停駛。`
       + `官方資料恢復後畫面會重新對齊官方位置，部分列車會因此往前跳或往後退。此為本站自動偵測，非官方公告。` }];
 }
@@ -23510,10 +23541,17 @@ function renderMetroCoreFreqBoard(el, st, lines, isDeco, view) {
       const index = records.push(rec) - 1, followable = !!rec.vehicleId;
       const train = followable && metroCoreSystem(rec.systemId).trains.find(item => String(item.vehicleId) === rec.vehicleId);
       const label = train && String(train.publicLabel || '').trim();
-      return `<div class="row" data-core-record="${index}"${followable
+      // 擁擠度:與官方板共用同一份逐車 join(state.trtcOfficialBoard.crowdByNo,由 pollTrtcLive
+      // 每 15 秒無條件餵,與 Core 的名冊各自獨立)。publicLabel 就是官方車號,沒有就留白。
+      // 🔴 08-29 之前擁擠度只長在官方板上,Core 板一格都沒有——於是每當板路徑在 CORE／官方／
+      // 班表之間翻動,使用者就看到擁擠度忽有忽無(實測 86 秒內翻了 7 次)。兩條路徑要嘛都有、
+      // 要嘛都沒有,不可以只有一條有。
+      const crowdHtml = trtcOfficialCrowdHtml(label);
+      return `<div class="row${crowdHtml ? ' has-crowd' : ''}" data-core-record="${index}"${followable
         ? ` data-core-vehicle="${escHtml(rec.vehicleId)}" data-core-system="${escHtml(rec.systemId)}" data-core-line="${escHtml(group.ln.id)}" data-li="${group.li}" title="${escHtml(followTitle)}"` : ''}>` +
         `<span class="dot" style="background:${group.ln.color}"></span><b>${escHtml(direction)}</b>` +
         `<span class="dest">${escHtml(lineLabel)}${label ? '　' + escHtml(label) : ''}</span>` +
+        crowdHtml +
         `<span class="t">${trtcOfficialAbsoluteHM(rec.arrivalEpoch)}</span><span class="min">${escHtml(metroCoreCountdownText(rec))}</span></div>`;
     }
     const minutes = Math.round(rec.dtm / 60);
@@ -23749,7 +23787,7 @@ function renderTrtcOfficialFreqBoard(el, st, lines, isDeco, view) {
       // 註記獨立成 span:手機寬度＋擁擠度格＋註記三者擠不下(375px 實測溢 51px),
       // CSS 只在「窄螢幕且該列有 bars」時藏註記;桌面與無 bars 列照舊(title 仍在)。
       const linkNote = join ? '' : `<span class="linknote"> · ${escHtml(t('未連結動畫'))}</span>`;
-      const crowdHtml = trtcOfficialCrowdHtml(rec.row.dest);
+      const crowdHtml = trtcOfficialCrowdHtml(rec.row.no);
       return `<div class="row${crowdHtml ? ' has-crowd' : ''}" data-trtc-eta="${rec.row.eta}" data-trtc-at="${rec.row.at}"${followAttrs}><span class="dot" style="background:${rec.ambiguousLine ? '#8fa8c6' : group.ln.color}"></span>` +
         `<b>${escHtml(t('往 {station}', { station: destination }))}</b><span class="dest">${escHtml(genericLine)}${linkNote}</span>` +
         crowdHtml +
@@ -23913,11 +23951,28 @@ function renderFreqBoard(el, st, lines, isDeco) {
     if ((!isDeco && !state.visible.has(ln.id)) || !ln.stations) return;
     if (ln.stations.some(s => s.name.replace(/臺/g, '台') === key)) boardLineIds.add(ln.id);
   });
-  const staleHere = trtcOfficialStaleFeeds(state.trtcOfficialRoster, Date.now() / 1000)
-    .filter(f => f.lines.some(id => boardLineIds.has(id)));
+  // 🔴 Core 在線時必須以 Core 的判準為準。這條分支 2026-08-29 之前完全不存在:橫幅
+  // (trtcOutageEntries) 早就先問過 Core 了,唯獨這裡沒有,於是只要分頁進背景、進隧道、
+  // 或我們自己這一發 fetch 失敗滿三分鐘,legacy 名冊的 observedEpoch 就看似超齡,看板照樣
+  // 掛出「臺北捷運即時訊號中斷」——而 Core 其實好端端在發。那是「我們沒去收」不是
+  // 「對方沒發」;metroCoreTrtcFeedState 的兩輪失敗＋canonical 超齡雙條件才算真的斷。
+  const coreFeed = metroCoreTrtcFeedState();
+  const trtcHere = [...boardLineIds].filter(id => TRTC_FEED_GROUPS.some(g => g.lines.includes(id)));
+  const staleHere = coreFeed
+    ? (coreFeed.outage && trtcHere.length
+      ? [...new Set(trtcHere.map(id => trtcFeedGroupOf(id).label))]
+        .map(label => ({ label, lines: trtcHere, ageSec: coreFeed.ageSec }))
+      : [])
+    : trtcOfficialStaleFeeds(state.trtcOfficialRoster, Date.now() / 1000)
+      .filter(f => f.lines.some(id => boardLineIds.has(id)));
   const staleMinutes = staleHere.length ? Math.max(1, Math.round(Math.max(...staleHere.map(f => f.ageSec)) / 60)) : 0;
+  // 歸因不明或明確是我們自己／網路時,不要點名營運單位——見 trtcOutageAttribution。
+  const staleUpstream = trtcOutageAttribution() === 'upstream';
   const staleNote = staleHere.length
-    ? `<div class="sub stale">⚠ ${escHtml(t('{systems}即時訊號中斷 {n} 分鐘：', { systems: staleHere.map(f => t(f.label)).join('、'), n: i18nNumber(staleMinutes) }, staleMinutes))}`
+    ? `<div class="sub stale">⚠ ${escHtml(staleUpstream
+      ? t('{systems}即時訊號中斷 {n} 分鐘：', { systems: staleHere.map(f => t(f.label)).join('、'), n: i18nNumber(staleMinutes) }, staleMinutes)
+      : t('即時資料連線中斷 {n} 分鐘：', { n: i18nNumber(staleMinutes) }, staleMinutes))}`
+      + `${staleUpstream ? '' : escHtml(t('可能是本站服務或你目前的網路連線，不一定是官方端。'))}`
       + `${escHtml(t('以下倒數與地圖上的列車位置都是依各站之間的固定行車時間推估的，可能與實際不符，也可能整段空著。'))}`
       + `${escHtml(t('這不代表列車停駛，請以月台看板為準。'))}</div>`
     : '';
@@ -24023,6 +24078,9 @@ function metroWaitTrtcBundle(st, lines, isDeco) {
       const ln = rec.display && rec.display.ln;
       rows.push({
         dest: String(rec.row.dest || ''),
+        // 擁擠度要逐車 join,所以列身分(官方車號)必須帶到卡上;沒有車號的線(文湖、環狀)
+        // 帶空字串,payload 的 crowd 就會是 null——不借別台車的值。
+        no: String(rec.row.no || ''),
         eta: Math.round(Number(rec.row.eta)),
         // 🔴 用語統一(2026-08-15 使用者裁示):卡上只給中文線名,不給內部代碼——
         //    ln.id 是幾何線 id(如 O_XINZHUANG),曾直接漏到鎖屏卡上。
@@ -24077,13 +24135,14 @@ function metroWaitLiveBundle(sys, st) {
 }
 // 組原生 plugin 的 start() payload。精度誠實鐵則:trtc 只送 nextEta/secondEta(絕對 epoch 秒)、
 // nextMinutes/secondMinutes 恆 null;krtc/tymc 相反——絕不把分鐘換算成 eta、絕不拿分鐘冒充秒級。
-// crowd:與看板同一份 crowdByDest(applyTrtcOfficialBoard 的 join,語意同小工具 crowdFor);
-// krtc/tymc 官方沒有逐節資料,恆 null,不准造。
+// crowd:與看板同一份 crowdByNo(applyTrtcOfficialBoard 的逐車 join);沒有官方車號的列留白,
+// krtc/tymc 官方沒有逐節資料,恆 null,兩者都不准造。
 function metroWaitPayload(sys, st, bundle) {
   const isTrtc = sys === 'trtc';
   const a = bundle.rows[0], b = bundle.rows[1] || null;
-  const crowd = isTrtc && state.trtcOfficialBoard && state.trtcOfficialBoard.crowdByDest
-    ? state.trtcOfficialBoard.crowdByDest[a.dest] || null : null;
+  const crowdKey = String(a && a.no || '').trim();
+  const crowd = isTrtc && crowdKey && state.trtcOfficialBoard && state.trtcOfficialBoard.crowdByNo
+    ? state.trtcOfficialBoard.crowdByNo[crowdKey] || null : null;
   return {
     sys, station: st.name, lineLabel: a.lineLabel, color: a.color,
     nextEta: isTrtc ? a.eta : null,
