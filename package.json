@@ -18,7 +18,8 @@
     "check-native-localizations": "node app/scripts/verify_native_localizations.mjs",
     "check-i18n": "node scripts/check_i18n.mjs",
     "strip-ship-comments": "node scripts/strip_ship_comments.mjs",
-    "ship-web": "node scripts/ship_web.mjs"
+    "ship-web": "node scripts/ship_web.mjs",
+    "check-deploy-config": "node scripts/check_deploy_config.mjs"
   },
   "dependencies": {
     "playwright": "^1.61.1",

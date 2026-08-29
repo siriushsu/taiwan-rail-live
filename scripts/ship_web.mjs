@@ -65,6 +65,16 @@ try {
   process.stdout.write(i18n.stdout || ''); process.stderr.write(i18n.stderr || '');
   if (i18n.status !== 0) fail('i18n 稽核未過——補齊 en/ja 再出貨（單獨重跑：npm run check-i18n）');
 
+  // ── 2.6 部署設定的「整包覆蓋」防線 ────────────────────────────────────────
+  // `triggers.crons` 與 `.assetsignore` 都是宣告式整包覆蓋:部署時拿檔案裡那份【取代】現況。
+  // 少一條不會有任何錯誤訊息——git 不當衝突、wrangler 不報錯、worker.js 的程式碼一行不少,
+  // 只是那個分支永遠不會被呼叫,而少掉的東西可能不可重現（北捷帳本每分鐘的官方取樣）。
+  // 這是唯一會在部署前擋下來的地方。同 i18n:驗的是【這棵乾淨出貨樹】那一份。
+  const cfg = spawnSync('node', [path.join(wt, 'scripts', 'check_deploy_config.mjs')], { encoding: 'utf8' });
+  process.stdout.write(cfg.stdout || ''); process.stderr.write(cfg.stderr || '');
+  if (cfg.status !== 0) fail('部署設定檢查未過——cron 或資產排除少了東西,出貨會靜默關掉功能'
+    + '（單獨重跑：npm run check-deploy-config）');
+
   // ── 3. strip（腳本內建 esbuild AST 重印等價證明，任何不等價都非零退出）────
   const rawBytes = fs.readFileSync(path.join(wt, 'index.html'));
   execFileSync('node', [path.join(wt, 'scripts', 'strip_ship_comments.mjs'), wt], { stdio: 'inherit' });
