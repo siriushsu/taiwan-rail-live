@@ -22,9 +22,33 @@
 //   node scripts/verify_topbar_plate_fit.mjs [http://127.0.0.1:5178]
 // 控制組（證明判準有牙）：PLATE_PAGE=<改動前的 index 檔名> 指過去，en 的多格必須轉紅。
 import { chromium, webkit } from 'playwright';
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const BASE = (process.argv[2] || process.env.PLATE_BASE || 'http://127.0.0.1:5178').replace(/\/$/, '');
+// 🔴 容得下「連檔名一起貼進來」的網址：BASE 後面還會接 /${PAGE}，直接吃 argv 會變成
+//    /index.html/index.html ⇒ 每一格 404、等滿 90 秒 ready 逾時，144 格要三小時才會告訴你。
+//    （2026-08-29 真的這樣白跑了 65 分鐘。）緊接著還有一道目標自檢，指錯就當場停。
+const BASE = (process.argv[2] || process.env.PLATE_BASE || 'http://127.0.0.1:5178')
+  .replace(/\/index[^/]*$/, '').replace(/\/$/, '');
 const PAGE = process.env.PLATE_PAGE || 'index.html';
+
+// ── 第 0 道閘門：我在量的到底是哪一份檔案 ──────────────────────────────────────
+// server 指錯目錄、網址多帶檔名、或有人在別棵 worktree 起了 server，下面 144 格的結論就全是空的。
+{
+  const res = await fetch(BASE + '/' + PAGE).catch(e => ({ ok: false, status: String(e.message) }));
+  if (!res.ok) { console.log('✗ 連不到 ' + BASE + '/' + PAGE + '（' + res.status + '）——先在 repo 根目錄起 server'); process.exit(1); }
+  const served = createHash('md5').update(Buffer.from(await res.arrayBuffer())).digest('hex');
+  const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+  const onDisk = createHash('md5').update(readFileSync(join(repoRoot, PAGE))).digest('hex');
+  if (served !== onDisk) {
+    console.log('✗ server 送出的 ' + PAGE + ' 與這棵樹的不同（送出 ' + served.slice(0, 8) + '、樹上 ' + onDisk.slice(0, 8) + '）');
+    console.log('  ——server 起在別的目錄或別棵 worktree，量到的不是這次的改動');
+    process.exit(1);
+  }
+  console.log('目標自檢 ✓ ' + BASE + '/' + PAGE + ' md5 ' + served.slice(0, 8) + '（與工作樹逐 byte 相同）');
+}
 const WIDTHS = [360, 375, 393, 414];
 const SCALES = ['std', 'large', 'xlarge'];
 const LANGS = { 'zh-TW': '軌島', en: 'Rail Island', ja: '軌島' };
@@ -62,7 +86,12 @@ async function cell(engine, browser, lang, title, scale, w, chip) {
   }
   // 公告鈕由真實公告驅動（renderAlertBanner），本機不保證有；這裡用 CSS 強制現身來造出「有公告」那一半，
   // 幾何等價（同一顆鈕、同一組尺寸規則），而且 G7 會確認它真的排進頂列、佔到寬度。
-  if (chip) await page.addStyleTag({ content: '#alertChip{display:grid !important}' });
+  // 🔴 兩側都釘：公告鈕由真實公告驅動（renderAlertBanner），本機「有沒有公告」是會變的環境條件
+  //    ——2026-08-29 就真的整天有公告在亮，於是「無公告」那半量到的其實是有公告的寬度預算，
+  //    G7 前置閘門 72 格同時轉紅（這正是它存在的理由）。
+  //    改元素的 hidden 沒有用:真的有公告時 renderAlertBanner 每輪重繪都會把它設回 false,
+  //    所以兩側一律用 CSS 蓋——display:grid 就是這顆在 body.fs 底下的真實形態(36 圓鈕)。
+  await page.addStyleTag({ content: chip ? '#alertChip{display:grid !important}' : '#alertChip{display:none !important}' });
   // 🔴 釘死頂列的即時狀態:時鐘每分鐘會變、LIVE／看板校正／尖峰旗標隨資料現身或消失,
   // 而它們就排在牌旁邊——不釘的話同一支腳本兩次跑會量到不同的可用寬(實測差 3–16px,
   // 足以讓「牌被壓多少」整格翻面)。釘法:時鐘凍成固定字串(它每秒會被 tick 覆寫,故改成唯讀屬性),
