@@ -4813,7 +4813,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/29</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/30</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -4821,6 +4821,8 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="attrib-oneline"><span class="d">8/30</span><span>手機地圖右下角的版權資訊不會再折成一大塊蓋住速度調整鈕：改成貼著底緣一整條、放不下的部分橫向可捲，授權連結一個都沒少，仍然看得到也點得到。切到衛星影像時字串較長，原本折成四行最嚴重，現在一樣是一條（謝謝網友回報）</span></li>
+        <li data-cl-of="whatsnew-lang"><span class="d">8/30</span><span>更新完跳出的「更新了什麼」現在會用你正在使用的語言：英文與日文各有整段自己的文案，不會再看到標著「中文原文」的中文說明</span></li>
         <li data-cl-of="crowd-outage"><span class="d">8/29</span><span>車廂擁擠度改成逐車對照：忠孝復興這種兩線共站不會再把板南線的擁擠度掛到文湖線上，認不出是哪一台車就留白不猜；三種車站看板現在都會顯示擁擠度，不會再切換一次就整片消失，鎖屏的等車卡也一起改。即時模型暫時缺這個系統的資料時，車站看板不再整片變成「此時段無停靠班次」，會自動退回官方倒數或班表。即時資料中斷的提示也改成照實說：分不出是官方端還是本站或你的網路時，不再一律寫成臺北捷運訊號中斷</span></li>
         <li data-cl-of="notice0829"><span class="d">8/29</span><span>高鐵台中車站 9/7 至 9/10 軌道大修、三鶯線 9/1 起正式收費，兩則公告已放上通知列；同時更新安坑、淡海輕軌與高雄捷運班表</span></li>
         <li data-cl-of="bootfast"><span class="d">8/29</span><span>開啟網站變快了：三十幾份路網與班表資料從一份一份載改成同時下載，重新造訪也不再重抓沒變動的檔案</span></li>
@@ -4831,8 +4833,6 @@
         <li data-cl-of="translation-polish"><span class="d">8/28</span><span>修好 iPhone App 的語言按鈕：上一個測試版漏帶英、日文字典，按了仍全顯示繁中；現在 App 會完整帶入三語資源。英文與日文文案也完成第二輪複核，統一日文的「鑑賞模式」、車次與乘車按鈕用語，並修順英文災害監看句子</span></li>
         <li data-cl-of="island-safe"><span class="d">8/28</span><span>iPhone 的動態島展開畫面增加圓角安全留白：捷運等車、台鐵等站與列車跟隨的內容都往內收，文字與「結束」按鈕不再被邊緣切掉；繁中、English、日本語一起套用；文字大小設定的目前值與詳細選項也會完整切換語言</span></li>
         <li data-cl-of="i18n-dynamic"><span class="d">8/28</span><span>英文與日文現在也會即時更新最愛、今日台鐵、誤點履歷、帳號同步、Google 清單匯入、分享與「追蹤這站」；並補上災害監看、捷運終點、點選列車／車站、成就說明，以及 iPhone 即時動態與小工具，官方活動只有中文時則標示「中文原文」</span></li>
-        <li data-cl-of="metrocoredefault"><span class="d">8/28</span><span>網站版重新開啟北捷統一時間軸：地圖列車、車站預告與點選跟隨會使用同一份身分與軌跡；每次更新也會檢查軌跡內部，若列車在五秒內跨過半站以上，會先留在原位重新銜接，不把瞬間跳位送到畫面。Core 連線失敗或單線資料不完整時，仍會自動退回原本模式</span></li>
-        <li data-cl-of="i18n-content"><span class="d">8/28</span><span>英文與日文再補齊品牌介紹、使用說明、特色車站與列車、觀光列車圖鑑，以及旅程護照和成就；外語版更新紀錄保留最近八筆精簡內容，較早歷史改用主題摘要</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -4840,6 +4840,8 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="attrib-oneline"><span class="d">8/30</span><span>手機地圖右下角的版權資訊不會再折成一大塊蓋住速度調整鈕：改成貼著底緣一整條、放不下的部分橫向可捲，授權連結一個都沒少，仍然看得到也點得到。切到衛星影像時字串較長（Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics），系統字級放大後原本會折成四行，是最嚴重的一種；左下角有跟車卡或捷運小卡時，版權列會讓出左側，讓位量從卡片自己的寬度推導（謝謝網友回報）</span></li>
+        <li data-cl="whatsnew-lang"><span class="d">8/30</span><span>更新完跳出的「更新了什麼」現在會用你正在使用的語言：英文與日文各有整段自己的文案，不會再看到標著「中文原文」的中文說明。那個「中文原文」標籤是給只有中文的營運單位公告用的，App 自己的更新說明本來就翻得了</span></li>
         <li data-cl="metrosamename"><span class="d">8/21</span><span>捷運站看板原本只用站名找路線，沒有同時確認所屬系統，因此台北捷運與台中捷運都有的「市政府」會被誤認成同一站，混入另一座城市的路線與班次。現在從搜尋、地圖點擊、活動與最愛開站都會保留車站所屬系統；舊收藏若沒有這項資料，也會依車站座標找到正確系統。所有跨系統同名站都套用同一項修正</span></li>
         <li data-cl="metropos819"><span class="d">8/19</span><span>台北捷運各線與環狀線的列車位置整個重做：車子到站後會照官方公布的停靠秒數停一下再開，往下一站的速度改成用「還剩多少路、官方說還剩多少秒」即時算，所以會準時到站，也不會再出現車卡在月台上不動、兩班車黏在一起、或位置突然往回跳。環狀線另外補上官方的逐站行駛時間與停靠時間，之前那條線是用估算的固定秒數在跑</span></li>
         <li data-cl="zuoyingalias"><span class="d">8/16</span><span>台鐵左營站點開會跳出「左營」與「左營(舊城)」兩個選項，後者看板永遠沒班次——其實是同一座站；現在合併成一顆、看板正常。新城站同一問題一併修好（謝謝網友回報）</span></li>
@@ -5535,7 +5537,9 @@
 // v0829f：Android 1.5.0 (16) 出貨——多語線併入 origin/main(709ce37)，帶上信義東延段、開機並行下載與 8/29 公告。
 // v0829g：iOS 1.5.1 (81)——把網站 v0829f 的擁擠度逐車對照併進 App 線（取代原本「沒車號就退回同終點」
 //         的 fallback：那條路正是讓忠孝復興文湖線列長出板南線 6 格的原因），Core 板也補上擁擠度。
-const BUILD = 'v0829g';
+// v0830a：iOS 1.5.1 (82)——「更新了什麼」彈窗的英日文案改用各自語言的整段文字（原本只注入中文，
+//         英日使用者會看到標著「中文原文」的中文說明）；右下角地圖版權在窄螢幕不再折成四行蓋住速度鈕。
+const BUILD = 'v0830a';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -16954,6 +16958,14 @@ async function appUpdateInit() {
 // 🔴 英日各有整段自己的文案(RAIL_APP_WHATS_NEW_EN/_JA)。這段字是自己寫的、本來就翻得了,
 // 不該走 appUpdateOpenNotes 那條「中文原文」退路——那條是給只有中文的營運單位公告用的。
 // 1.5.1 實踩:日文使用者更新完,第一眼看到的是標著「中国語の原文」的中文更新說明。
+// 退回中文時(舊版沒帶 whyEn/whyJa)標籤仍該出現——那時它說的是實話。
+function appWhatsNewLocalized() {
+  if (I18N_LANG === 'zh-TW') return true;
+  const alt = I18N_LANG === 'en' ? window.RAIL_APP_WHATS_NEW_EN
+    : I18N_LANG === 'ja' ? window.RAIL_APP_WHATS_NEW_JA
+    : '';
+  return typeof alt === 'string' && alt.trim().length > 0;
+}
 function appWhatsNewText() {
   const alt = I18N_LANG === 'en' ? window.RAIL_APP_WHATS_NEW_EN
     : I18N_LANG === 'ja' ? window.RAIL_APP_WHATS_NEW_JA
@@ -16978,7 +16990,11 @@ function appUpdateOpenNotes(latest, title) {
   const wrap = document.createElement('div');
   wrap.className = 'takeout-modal';
   wrap.id = 'updNotes';
-  const sourceZh = I18N_LANG !== 'zh-TW' && /[\u3400-\u9fff]/.test(latest.notes || '');
+  // 漢字偵測只能用在「來源真的只有中文」的內容(商店抓回來的公告)。App 自己的更新說明
+  // 英日各有整段譯文,而日文本來就有大量漢字、英文也留著沒有英文名的站(廣慈/奉天宮),
+  // 純靠漢字判斷會把正確的日文標成「中国語の原文」——那比沒標更糟,標籤本身是假的。
+  // 所以由呼叫端明示 localized,不讓這個啟發式去猜。
+  const sourceZh = !latest.localized && I18N_LANG !== 'zh-TW' && /[\u3400-\u9fff]/.test(latest.notes || '');
   wrap.innerHTML = '<section class="takeout-dialog" role="dialog" aria-modal="true" aria-labelledby="updNotesTitle">'
     + `<div class="takeout-head"><h2 id="updNotesTitle">${escHtml(t(title))}</h2>`
     + `<button id="updNotesX" type="button" aria-label="${escHtml(t('關閉'))}">×</button></div>`
@@ -17028,7 +17044,7 @@ function appUpdateRender(res) {
     // 🔴 一定用內建文案,不用 latest.notes——lookup 回的是【線上版】的 releaseNotes,
     //    剛裝的版比線上新時(每次送審前必然)那份是上一版的文。1.4.9 (74) 實踩:
     //    裝了 1.4.9 開機卻彈「軌島 1.4.8 更新了什麼」。
-    appUpdateOpenNotes({ notes: appWhatsNewText() }, t('軌島 {version} 更新了什麼', { version: window.RAIL_APP_VERSION }));
+    appUpdateOpenNotes({ notes: appWhatsNewText(), localized: appWhatsNewLocalized() }, t('軌島 {version} 更新了什麼', { version: window.RAIL_APP_VERSION }));
     appverWrite(APPVER_KEYS.whatsnew, window.RAIL_APP_VERSION);
   }
 }

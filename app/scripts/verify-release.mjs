@@ -587,8 +587,13 @@ export async function verifyRelease({
       assert(text.includes(appVerMatch[1]),
         `${key} 裡沒有本版版號 ${appVerMatch[1]}——中文改了但 ${why} 還是上一版的文`);
       if (lang === 'en') {
-        assert(!/[\u3400-\u9fff]/.test(text),
-          `${key} 裡有漢字——十之八九是把中文貼進 whyEn 了。這比沒填更糟:`
+        // 用比例不用「零漢字」:英文裡本來就會有站名(廣慈/奉天宮這種 App 自己也顯示中文、
+        // stations.json 沒英文名的站),寫羅馬拼音反而跟 App 內顯示不一致。實測 0.3%;
+        // 誤把整段中文貼進來是 84%。10% 兩邊都有數量級的餘裕。
+        const nonSpace = text.replace(/\s/g, '');
+        const han = (text.match(/[\u3400-\u9fff]/g) || []).length;
+        assert(han / Math.max(1, nonSpace.length) < 0.10,
+          `${key} 有 ${han}/${nonSpace.length} 是漢字——十之八九是把中文貼進 whyEn 了。這比沒填更糟:`
           + '沒填會退回中文並標「中文原文」,填錯則是無標記的中文');
       } else {
         assert(/[\u3040-\u30ff]/.test(text),
