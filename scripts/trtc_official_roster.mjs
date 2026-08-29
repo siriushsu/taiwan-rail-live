@@ -435,7 +435,7 @@ function coastForward(model, vehicle, nowEpoch) {
   const dest = Number(vehicle.dest), step = Number(vehicle.dir) === 2 ? 1 : -1;
   let from = Number(vehicle.from), to = Number(vehicle.to), arr = Number(vehicle.arrEpoch);
   if (!Number.isFinite(arr) || !Number.isFinite(dest) || !Number.isFinite(to)) return null;
-  let moved = 0;
+  let moved = 0, legRun = 0;
   // 上限只是防呆：正常一輪最多前進一兩站，走到終點就停。
   while (to !== dest && nowEpoch >= arr + OFFICIAL_COAST_DWELL_DEFAULT_SEC && moved < 64) {
     const next = to + step;
@@ -443,9 +443,30 @@ function coastForward(model, vehicle, nowEpoch) {
     try { run = segmentRun(model, vehicle.line, to, next); } catch { run = 0; }
     if (!(run > 0)) break;
     arr += OFFICIAL_COAST_DWELL_DEFAULT_SEC + run;
-    from = to; to = next; moved++;
+    from = to; to = next; moved++; legRun = run;
   }
-  return moved > 0 ? { from, to, arrEpoch: arr, coasted: true } : null;
+  if (!(moved > 0)) return null;
+  // 🔴 一段式支線（小碧潭 G_XBT／新北投 R_XBT）額外把「這一段的行車秒」一起回報。
+  // 這兩條線只有兩站、兩端都是終點站，官方只公布各站的**發車**倒數，永遠不會有對端到站列
+  // （2026-08-29 實測整份 feed 就 4 列，全部落在自己的起點）⇒ 帳本一律判成起點列 run=0。
+  // 它照上面的規則前進成 from≠to 之後 run 仍是 0，於是：
+  //   (1) 名冊驗證器的幾何規則「非同站必須 run>0」不成立。前端 2026-08-17 已用
+  //       trtcOfficialRosterRepairRun() 在自己那一側把 run 從線形補回來，但那是**前端獨有**的修復；
+  //   (2) Metro Core 直接吃這份 boardPos.vehicles，拿到 run=0 就只能把車釘在原地——2026-08-29
+  //       對正式站量了 3 分鐘：Core 給兩條支線的座標逐輪一字不變（G_XBT 恆為
+  //       24.97188,121.53058 與 24.97503,121.54292），而同一時刻 legacy 的位置是連續前進的
+  //       （floor 0.324→0.364→0.437→…→0.881）。使用者回報的「支線車子不會動」就是這個。
+  // run 是可以從線形算回來的量，補在唯一的源頭上，兩條管線才拿到同一份幾何。
+  // 🔴 只對一段式路線補：一般路線的 coasted 車 run 沿用既有值，行為一個字不動（不外溢到其他站）。
+  return singleSegmentLine(model, vehicle.line)
+    ? { from, to, arrEpoch: arr, run: legRun, coasted: true }
+    : { from, to, arrEpoch: arr, coasted: true };
+}
+
+// 兩端都是終點站的接駁支線。用站數判定而不是比對線代號：它是結構性事實（全網只有
+// G_XBT／R_XBT 兩條），而且與同檔 coastTiming() 既有的 `count <= 2` 單段退場判準同一個來源。
+function singleSegmentLine(model, lineId) {
+  try { return stationCount(model, lineId) <= 2; } catch (e) { return false; }
 }
 
 function carriedVehicle(model, vehicle, sourceRevision, nowEpoch, numberContradicted = false,
