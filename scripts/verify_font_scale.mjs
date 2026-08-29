@@ -775,6 +775,7 @@ async function sectionI(browser, engine) {
     const DEG = ['metroBadge', 'peak', 'replayBadge', 'liveBadge'];
     const bar = document.getElementById('topbar');
     if (!bar) return { err: 'no-topbar' };
+    const plate = bar.querySelector('.tb-plate');
     const els = DEG.map(id => document.getElementById(id))
       .filter(e => e && !e.hidden && e.getClientRects().length && e.textContent.trim());
     const form = e => {
@@ -798,7 +799,14 @@ async function sectionI(browser, engine) {
     if (lastDotIdx >= 0) {
       const e = document.getElementById(forms[lastDotIdx].id);
       e.classList.remove('as-dot');
+      // 🔴 量之前要把軌島牌釘成 flex:none——跟 fitBadgeDetail() 自己那一段同一招,理由也同一個:
+      //    牌是這條列上唯一可縮的東西(2026-08-29 起全字級通用,原本只有大/特大),不釘的話多出來的
+      //    寬度會被 flex 從牌身上吃掉,need 量到的永遠是「剛好不溢出」⇒ 這條反向對照結構上不可能
+      //    成立,會把「降級是必要的」誤判成「降級是多餘的」。
+      const prev = plate ? plate.style.flex : null;
+      if (plate) plate.style.flex = 'none';
       undo = { id: e.id, need: +need().toFixed(1), room: +room.toFixed(1) };
+      if (plate) { if (prev) plate.style.flex = prev; else plate.style.removeProperty('flex'); }
       e.classList.add('as-dot');
     }
     return { forms, prefixOk, undo, room: +room.toFixed(1), need: +need().toFixed(1) };
