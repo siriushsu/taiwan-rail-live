@@ -905,11 +905,34 @@ server.close();
 // 註解。 ══════════
 {
   const fnSrc = extractFnSrc(SRC, 'accountBtnSlot');
+  // ── i18n:四個槽位標籤現在全部包在 t() 裡(2026-08 多語化之後),所以假環境必須供得出 t。
+  // 不在本檔手寫一份「zh-TW 就原字串回傳」的替身:那等於把產品的語意抄一份進驗收腳本,i18n 一改
+  // 就無聲漂移(而且漂移的方向是「真值集合變成別的字」,T8c 會為了錯的理由轉紅)。改成把
+  // i18nLookup() 與 t() 也從 index.html 原始碼抽出來真的求值,字典吃瀏覽器載的同一支
+  // i18n/translations.js(index.html 的 <script src="./i18n/translations.js">)——本檔對「翻譯
+  // 怎麼查」零假設,同上面「真值集合不是本檔手打的清單」那個原則。
+  //
+  // 語言釘在 zh-TW,理由在被驗的那一側:app-support.html 是 <html lang="zh-Hant"> 的純繁中頁、
+  // 不載 translations.js,它宣稱的就是繁中介面上的字。這也是為什麼**不**改成在真頁面用
+  // page.evaluate() 求值:真頁面的 I18N_LANG 來自 navigator.languages,Playwright 預設 en-US ⇒
+  // 真值集合會變成英文標籤(字典裡「帳號同步」是 Account sync),繁中頁的宣稱會整批被判成杜撰;
+  // 而且網站的 PLUS_ENABLED 要 ?plus=1,沒帶的話 setupAccountUi() 會把 #accountBtn 整顆
+  // remove(),真值集合直接變空。兩個都是環境條件偽裝成產品回歸,不是本段想量的東西。
+  function makeProductT() {
+    const lookupSrc = extractFnSrc(SRC, 'i18nLookup'), tSrc = extractFnSrc(SRC, 't');
+    if (!lookupSrc || !tSrc) throw new Error('找不到 i18nLookup()/t() 宣告——index.html 的 i18n 結構已變動,請更新抽取邏輯');
+    const win = {};
+    new Function('window', readFileSync(path.join(ROOT, 'i18n/translations.js'), 'utf8'))(win);
+    if (!win.RAIL_I18N_MESSAGES) throw new Error('i18n/translations.js 沒有設定 window.RAIL_I18N_MESSAGES——字典檔結構已變動');
+    return new Function('I18N_LANG', 'I18N_MESSAGES', `${lookupSrc}\n${tSrc}\nreturn t;`)('zh-TW', win.RAIL_I18N_MESSAGES);
+  }
   // 假 DOM:只給 accountBtnSlot() 實際碰到的兩個節點——#accountBtn(內含 .ti/.tl 兩個 span)
   // 與 .ms-row[data-proxy="accountBtn"](內含一個 span);.style 給空物件讓 display 賦值不出錯;
   // plusOpen/accountOpen 只被「參照」賦給 onclick、從未在函式體內被呼叫,給空函式即可——同
-  // sat_retina G1 的做法:自由變數的值不重要,重要的是它存在,求值才不會因 ReferenceError 中斷。
-  function callAccountBtnSlot(mode) {
+  // sat_retina G1 的做法:這種自由變數的值不重要,重要的是它存在,求值才不會因 ReferenceError
+  // 中斷。t 是唯一的例外:它的**值**就是本段要量的東西(標籤到底長什麼樣),沒有空函式可給,
+  // 一律傳 makeProductT() 抽出來的產品本尊。
+  function callAccountBtnSlot(mode, t) {
     const ti = { textContent: '' }, tl = { textContent: '' }, label = { textContent: '' };
     const btn = { style: {}, querySelector: sel => (sel === '.ti' ? ti : sel === '.tl' ? tl : null) };
     const row = { style: {}, querySelector: sel => (sel === 'span' ? label : null) };
@@ -917,15 +940,16 @@ server.close();
       getElementById: id => (id === 'accountBtn' ? btn : null),
       querySelector: sel => (sel === '.ms-row[data-proxy="accountBtn"]' ? row : null),
     };
-    new Function('document', 'accountOpen', 'plusOpen', `${fnSrc}\naccountBtnSlot(${JSON.stringify(mode)});`)
-      (fakeDocument, () => {}, () => {});
+    new Function('document', 'accountOpen', 'plusOpen', 't', `${fnSrc}\naccountBtnSlot(${JSON.stringify(mode)});`)
+      (fakeDocument, () => {}, () => {}, t);
     return { toolbar: tl.textContent, drawer: label.textContent };
   }
   let plusLabels = null, acctLabels = null, extractError = null;
   try {
     if (!fnSrc) throw new Error('找不到「function accountBtnSlot(...) {」——index.html 結構已變動,請更新 verify_plus_features.mjs 的抽取邏輯');
-    plusLabels = callAccountBtnSlot('plus');
-    acctLabels = callAccountBtnSlot('account');
+    const productT = makeProductT();
+    plusLabels = callAccountBtnSlot('plus', productT);
+    acctLabels = callAccountBtnSlot('account', productT);
   } catch (e) { extractError = e; }
   ok('T8a accountBtnSlot() 可從 index.html 原始碼抽取並在假 DOM 上真實求值(兩種 mode 皆不丟例外;抓不到宣告或求值出錯就是這格錯,不會被誤判成過關)',
     extractError === null && !!plusLabels && !!acctLabels,
