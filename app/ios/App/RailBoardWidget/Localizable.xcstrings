@@ -12632,6 +12632,23 @@
         }
       }
     },
+    "上次位置": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last known"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "前回の位置"
+          }
+        }
+      }
+    },
     "自動（夜間自動淡化）": {
       "extractionState": "manual",
       "localizations": {
@@ -23423,6 +23440,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "メトロ・駅を自動選択"
+          }
+        }
+      }
+    },
+    "捷運 · 上次位置": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Metro · Last known"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メトロ・前回の位置"
           }
         }
       }

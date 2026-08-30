@@ -34,6 +34,9 @@
 //                            標題「含末班車列」的招牌情境,三個一般樣本的時間點都在下午,
 //                            湊不出末班窗,必須刻意撥時鐘才看得到)
 //   metro-small-auto.png     systemSmall ,十四張＋auto 徽章——測「自動」徽章在最窄卡不擠爆標頭
+//   metro-small-auto-stale.png systemSmall,同上但這一輪【拿不到定位】,站名退快取——
+//                            徽章改口「上次位置」(比「自動」寬兩個字),這張專驗它不擠爆標頭
+//   metro-small-auto-stale-long.png systemSmall,最長站名＋「上次位置」徽章的寬度最壞情況
 //   metro-small-auto-fail.png systemSmall,自動選站解析失敗的 autoHint 空狀態(定位指引文案)
 //   metro-small-out-of-range.png systemSmall,定位到了但最近的站在服務範圍外(台中→老街溪站 107km)
 
@@ -292,6 +295,23 @@ let szAutoEntry = MetroEntry(date: szEntry.date, title: szEntry.title, lineColor
                              // 🔴 sys 漏帶就是整張卡的線色與線名一顆都不畫(本檔檔頭 makeEntry
                              //    上方那條警告講的正是這件事,而這個 entry 自己踩了)。
                              sys: szEntry.sys)
+// (1b) 同一張卡但這一輪拿不到定位 ⇒ 站名是退快取來的,徽章改口「上次位置」(2026-08-30)。
+//      徽章文字從兩個字變四個字,標題列本來就擠(站名＋徽章＋時戳),故【必須】各出一張:
+//      只驗「自動」那張等於沒驗到變寬後的形態。
+let szAutoStaleEntry = MetroEntry(date: szEntry.date, title: szEntry.title,
+                                  lineColor: szEntry.lineColor, snapshot: szEntry.snapshot,
+                                  precision: szEntry.precision, lastTrain: szEntry.lastTrain,
+                                  failed: szEntry.failed, deepLink: szEntry.deepLink,
+                                  auto: true, autoStale: true, sys: szEntry.sys)
+// (1c) 最壞寬度:目錄裡最長的站名(灣仔內(大順鼎山),9 字)＋變寬後的徽章。
+//      只換 title 是刻意的——這張要證明的是【標題列的寬度預算】,不是那一站真的有這些班次;
+//      站名縮放與截斷的契約在 stationName()(lineLimit(1)+minimumScaleFactor(0.8)),
+//      徽章 fixedSize() 不被裁 ⇒ 要看的是站名被壓成什麼樣子還認不認得出來。
+let szAutoStaleLongEntry = MetroEntry(date: szEntry.date, title: "灣仔內(大順鼎山)",
+                                      lineColor: szEntry.lineColor, snapshot: szEntry.snapshot,
+                                      precision: szEntry.precision, lastTrain: szEntry.lastTrain,
+                                      failed: szEntry.failed, deepLink: szEntry.deepLink,
+                                      auto: true, autoStale: true, sys: szEntry.sys)
 // (2) 解析失敗=autoHint 空狀態(文案與 MetroBoardProvider.entry(for:) 的字面值一致,
 //     這裡是視覺驗證不是邏輯來源;真源頭在 MetroBoardWidget.swift 的 auto 分支)。
 let autoFailEntry = MetroEntry(date: Date(), title: "自動選站", lineColor: nil, snapshot: nil,
@@ -560,6 +580,10 @@ struct Harness {
                width: 364, height: 382, to: outDir + "/metro-large-taipei.png")
         render(MetroBoardView(entry: szAutoEntry), family: .systemSmall,
                width: 170, height: 170, to: outDir + "/metro-small-auto.png")
+        render(MetroBoardView(entry: szAutoStaleEntry), family: .systemSmall,
+               width: 170, height: 170, to: outDir + "/metro-small-auto-stale.png")
+        render(MetroBoardView(entry: szAutoStaleLongEntry), family: .systemSmall,
+               width: 170, height: 170, to: outDir + "/metro-small-auto-stale-long.png")
         render(MetroBoardView(entry: autoFailEntry), family: .systemSmall,
                width: 170, height: 170, to: outDir + "/metro-small-auto-fail.png")
         render(MetroBoardView(entry: outOfRangeEntry), family: .systemSmall,

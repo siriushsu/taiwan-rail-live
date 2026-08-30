@@ -12,6 +12,9 @@ struct MetroEntry: TimelineEntry {
     let failed: Bool           // 這一輪抓取失敗,畫的是上次的資料
     var deepLink: URL? = nil   // 點小工具 → App 開這一站的等車卡(railisland://metro-wait)
     var auto: Bool = false     // 這一站是「自動(最近的站)」解析出來的,標頭掛小徽章
+    // 這一站是【退快取】來的:這一輪拿不到定位,畫的是上次解析出來的位置。徽章要改口說
+    // 「上次位置」,不能與剛定位到的狀態長得一樣(見 MetroNearest.resolve 的紅字)。
+    var autoStale: Bool = false
     var autoHint: String? = nil // 自動選站解析失敗時的空狀態指引(蓋過通用的「沒有資料」)
     // 通行證閘門擋下時的明講 CTA(2026-08-15)。🔴 這個專案已經有三個「不給用也不說」的付費
     // 功能,這裡一律講清楚「為什麼看不到、去哪裡買」,不做靜默空白卡。
@@ -117,7 +120,8 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
                 MetroEntry(date: Date(timeIntervalSince1970: t), title: e.title,
                            lineColor: e.lineColor, snapshot: e.snapshot, precision: e.precision,
                            lastTrain: e.lastTrain, failed: e.failed, deepLink: e.deepLink,
-                           auto: e.auto, autoHint: e.autoHint, passCTA: e.passCTA, sys: e.sys,
+                           auto: e.auto, autoStale: e.autoStale, autoHint: e.autoHint,
+                           passCTA: e.passCTA, sys: e.sys,
                            waitTarget: e.waitTarget)
             }
         }
@@ -136,6 +140,7 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
         // 🔴 這個分支必須在 sys 查表之前——混合大卡把 metroStation 原值拆出來的 sys 會是
         //    "auto",查表必落空;方向格是為手選站挑的,對自動解析出來的站不一定成立,一併忽略。
         var isAuto = false
+        var isAutoStale = false
         var sysID: String?, stationName: String?
         // 通行證閘門在【定位與抓取之前】:被擋下時不打官方 API、也不叫醒定位,
         // 卡上直接畫明講的升級說明(deepLink 指向 App 的通行證頁,點卡就能買)。
@@ -160,12 +165,12 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
         if cfg.station == MetroNearest.sentinel {
             isAuto = true
             switch await MetroNearest.resolve(catalog: catalog) {
-            case .some(.serviceable(let sys, let station)):
-                sysID = sys; stationName = station
+            case .some((.serviceable(let sys, let station), let stale)):
+                sysID = sys; stationName = station; isAutoStale = stale
             // 定位到了但最近的站太遠(出了雙北／高雄／機捷沿線)。硬解析下去只會畫出一張
             // 幾十公里外那一站的秒級倒數——看起來正常但對使用者零意義,故直說範圍外並
             // 給出路(改選固定車站)。這一支不打官方 API。
-            case .some(.outOfRange(let station, let meters)):
+            case .some((.outOfRange(let station, let meters), _)):
                 return MetroEntry(date: Date(), title: "不在服務範圍", lineColor: nil,
                                   snapshot: nil, precision: "sec", lastTrain: nil, failed: false,
                                   autoHint: MetroNearestMath.outOfRangeHint(station: station,
@@ -213,7 +218,7 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
                                                                station: station, now: now),
                           failed: failed,
                           deepLink: Self.deepLink(sys: sys.id, station: station),
-                          auto: isAuto, sys: sys.id,
+                          auto: isAuto, autoStale: isAutoStale, sys: sys.id,
                           // 自動選站解析出來的站不套方向格(方向是為手選的那一站挑的),
                           // 與上面 filtered 的條件同源,免得卡上列的與追蹤的不是同一批。
                           waitTarget: MetroWaitTarget(sys: sys.id, station: station,
@@ -446,8 +451,10 @@ struct MetroBoardView: View {
     }
 
     /// 自動解析出來的站掛小徽章,跟手選站區分(文字徽章,UI 控件不用 emoji)。
+    /// 退快取時改口說「上次位置」——這一輪沒拿到定位,站名是上次的,必須看得出來。
     private func autoBadge(_ scale: RailScale) -> some View {
-        Text(RailNativeL10n.text("自動")).font(.system(size: scale.pt(9)))
+        Text(RailNativeL10n.text(entry.autoStale ? "上次位置" : "自動"))
+            .font(.system(size: scale.pt(9)))
             .foregroundStyle(.secondary)
             .padding(.horizontal, scale.pt(4)).padding(.vertical, scale.pt(1))
             .background(Capsule().fill(.quaternary))
