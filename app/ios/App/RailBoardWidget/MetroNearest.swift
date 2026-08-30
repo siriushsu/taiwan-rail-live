@@ -25,7 +25,13 @@ enum MetroNearest {
     ///
     /// 定位到手就算最近站並記快取;拿不到定位退上次解析結果——最近站短時間內幾乎不變,
     /// 舊站名比整卡空白有用。
-    static func resolve(catalog: MetroWidgetCatalog) async -> MetroNearestMath.Outcome? {
+    ///
+    /// 🔴 退快取那一路要回 `stale: true` 並【一路帶到卡面】。小工具一段時間沒被看到,
+    ///    系統就不再供應定位(Apple 的 widget in-use 窗,見 isAuthorizedForWidgetUpdates
+    ///    文件),此時卡上畫的是【上次】的位置而不是現在的;不標出來的話畫面與正常狀態
+    ///    一模一樣,使用者只會覺得「自動選站壞了」而無從分辨(2026-08-30 使用者回報)。
+    static func resolve(catalog: MetroWidgetCatalog) async
+        -> (outcome: MetroNearestMath.Outcome, stale: Bool)? {
         if let fix = await OneShotLocation.shared.fix(),
            let outcome = MetroNearestMath.classify(catalog: catalog,
                                                    lat: fix.coordinate.latitude,
@@ -39,11 +45,11 @@ enum MetroNearest {
                 //    因為畫面看起來完全正常(2026-08-18 回報的同一個問題的另一半)。
                 suite?.removeObject(forKey: cacheKey)
             }
-            return outcome
+            return (outcome, false)
         }
         if let cached = suite?.string(forKey: cacheKey) {
             let p = cached.split(separator: "|", maxSplits: 1).map(String.init)
-            if p.count == 2 { return .serviceable(sys: p[0], station: p[1]) }
+            if p.count == 2 { return (.serviceable(sys: p[0], station: p[1]), true) }
         }
         return nil
     }

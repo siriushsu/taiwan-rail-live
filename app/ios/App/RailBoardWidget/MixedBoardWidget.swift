@@ -423,7 +423,9 @@ private struct MixedBoardCard: View {
     }
 
     private var metroHeader: String {
-        RailNativeL10n.text(metro.auto ? "捷運 · 自動選站" : "捷運 · 倒數")
+        guard metro.auto else { return RailNativeL10n.text("捷運 · 倒數") }
+        // 小卡的徽章與大卡的分區標題講同一件事,不分岔(MetroBoardView.autoBadge)。
+        return RailNativeL10n.text(metro.autoStale ? "捷運 · 上次位置" : "捷運 · 自動選站")
     }
 
     /// 兩半可以設在不同車站（板橋台鐵＋板橋捷運是常態，但設成不同站也合法）。
