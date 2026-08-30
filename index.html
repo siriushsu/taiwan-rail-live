@@ -4823,6 +4823,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="enplatefit"><span class="d">8/30</span><span>英文與日文的手機頂列，左上角的軌島牌裝不下時會自己讓位，分組切換鈕留在畫面內</span></li>
         <li data-cl-of="widgetplussync"><span class="d">8/30</span><span>訂閱後桌面小工具立刻能放多站、自動選站，不必等同步或按恢復購買</span></li>
         <li data-cl-of="satfallback"><span class="d">8/30</span><span>衛星影像模式下放大縮小時，畫面會有一瞬間整片變成深綠色（Android 手機上特別明顯）；墊在底下的顏色改成貼齊實際衛星影像，現在幾乎看不出來</span></li>
         <li data-cl-of="attrib-oneline"><span class="d">8/30</span><span>手機地圖右下角的版權資訊不會再折成一大塊蓋住速度調整鈕：改成貼著底緣一整條、放不下的部分橫向可捲，授權連結一個都沒少，仍然看得到也點得到。切到衛星影像時字串較長，原本折成四行最嚴重，現在一樣是一條（謝謝網友回報）</span></li>
@@ -4901,6 +4902,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="enplatefit"><span class="d">8/30</span><span>英文版在 360 寬的手機上，頂列右邊的「捷運」那一顆分組切換鈕整顆在畫面外，而且沒有地方可以捲過去——外層是 overflow:hidden，祖先鏈上沒有任何可捲容器。360dp 的頂列只有 340px 寬，分頁列英文要 248px、日文 234px，中文只要 190px（中文一字一顆），而左上角的軌島牌原本一寸不讓，被擠掉的就是按鈕。現在牌改成被壓的那一方：先讓起訖站名，標題最後，裝不下收成省略號而不是被硬切；拉丁字母也不再套「軌島」那組為漢字招牌留的字距與首行縮排。日文在 360／375 有公告時同樣的情形也一併修好</span></li>
         <li data-cl="widgetplussync"><span class="d">8/30</span><span>訂閱通行證後，桌面小工具立刻就能放多站、也能自動選最近的站，不必等下一次同步或按恢復購買；帳號登出或訂閱結束時也會同步收回。</span></li>
         <li data-cl="androidwidgetparity"><span class="d">8/27</span><span>Android App 的小工具與鎖定畫面功能不再只做捷運：新增台鐵／高鐵發車看板，可選台鐵、高鐵、共站、起站與目的站，依桌面尺寸顯示不同班次數；另新增「鐵路＋捷運雙看板」大卡，在同一張卡同時看鐵路時刻與捷運倒數。跟隨台鐵或高鐵列車時，Android 也會顯示下一站、終點、誤點與行程進度；在台鐵車站看板選定班次後，鎖定畫面會顯示表定、官方誤點與實際約到站時刻，並在背景更新官方資訊。Android 16／Samsung 可把這些卡提升成即時資訊與 Now Bar。這些功能共用現有班表、捷運即時資料與通行證規則，並新增 iOS／Android 出貨功能清單檢查；往後任一平台少掉已上線項目會直接擋住建置</span></li>
         <li data-cl="trawaitcard"><span class="d">8/23</span><span>台鐵車站看板新增「追蹤一班車」：在月台上等車時，挑你要等的那一班，把官方表定、即時誤點與倒數放上鎖定畫面，車到站後自動收起；iPhone 可顯示在動態島，Android 16／Samsung 可顯示在即時資訊與 Now Bar。和捷運等車卡一樣，鎖定畫面同時只留一張，不需要通行證</span></li>
@@ -5544,7 +5546,7 @@
 //         守門人：app/scripts/verify-release.mjs 的 assertWidgetPlusSyncSites（出貨鏈）＋
 //         scripts/verify_metro_widget_plus_sync.mjs（行為層，量 setPlus 的呼叫序列）。
 // v0830i：iOS 1.5.2 (83)——併回 origin/main：衛星影像縮放的閃綠佔位色、通行證資格同步。
-const BUILD = 'v0830i'; // a/b/d/f/g/h 已被別的分支用掉(逐 ref 掃過),跨分支撞號見心得16
+const BUILD = 'v0830j'; // a/b/d/e/f/h/i 已被別的分支或本線前一輪用掉(逐 ref 掃過),跨分支撞號見心得16
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
