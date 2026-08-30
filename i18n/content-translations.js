@@ -403,6 +403,9 @@
   });
 
   Object.assign(messages.en, {
+    "按下「我上車了」之後，再去點一班還沒發車的車，時鐘不會再被撥走（謝謝網友回報）": "After you tap I am on board, tapping a train that has not departed yet no longer winds the clock away from now. Thanks to the rider who reported it.",
+    "英文與日文的手機頂列，左上角的軌島牌裝不下時會自己讓位，分組切換鈕留在畫面內": "On phones in English and Japanese, the Rail Island plate in the top left gives way when it does not fit, so the group tabs stay on screen.",
+    "手機地圖右下角的版權資訊不會再折成一大塊蓋住速度調整鈕：改成貼著底緣一整條、放不下的部分橫向可捲，授權連結一個都沒少，仍然看得到也點得到。切到衛星影像時字串較長，原本折成四行最嚴重，現在一樣是一條（謝謝網友回報）": "The map attribution at the bottom right of the phone map sits on a single line along the bottom edge, scrolling sideways when it does not fit, instead of wrapping into a block over the speed control. Every licence link is still there and still tappable. In satellite mode the text is longer, and it stays on one line there too. (Thanks to the reader who reported this.)",
     '捷運信義東延段 8/30 14 時通車，淡水信義線終點由象山延伸到廣慈/奉天宮站。地圖上這一站與新路段已經先畫好，官方即時到站資料要等通車後才會帶到這一站，在那之前這一段不會有列車，通車後會自動跟上；8/30 至 9/28 行經新通車區間不計票價': 'The Xinyi east extension opens at 14:00 on 30 August, giving the Tamsui–Xinyi line a new terminus one stop beyond Xiangshan. The station and the new stretch of track are already drawn on the map, but official live arrival data only starts once the line opens, so no trains run there until then. Travel through the new section is free from 30 August to 28 September.',
     '英文與日文現在也會即時更新最愛、今日台鐵、誤點履歷、帳號同步、Google 清單匯入、分享與「追蹤這站」；並補上災害監看、捷運終點、點選列車／車站、成就說明，以及 iPhone 即時動態與小工具，官方活動只有中文時則標示「中文原文」': 'English and Japanese now update favourites, Today’s TRA, delay history, account sync, Google list imports, sharing and Track this station immediately. Hazard monitoring, metro destinations, train/station pickers, achievement descriptions, iPhone Live Activities and widgets are also covered; Chinese-only official events are labelled as source text.',
     '英文與日文現在也會即時更新最愛、今日台鐵、誤點履歷、帳號同步、Google 清單匯入、分享與「追蹤這站」；並補上災害監看、捷運終點、點選列車／車站、成就說明、顯示與字級、所在地鏡頭，以及 iPhone 即時動態與小工具，官方活動只有中文時則標示「中文原文」': 'English and Japanese now update favourites, Today’s TRA, delay history, account sync, Google list imports, sharing and Track this station immediately. Hazard monitoring, metro destinations, train/station pickers, achievement descriptions, display and text size, the location camera, iPhone Live Activities and widgets are also covered; Chinese-only official events are labelled as source text.',
@@ -445,6 +448,9 @@
     '身障友善座位': 'Accessible seating', '可帶自行車（兩鐵）': 'Bicycles accepted', '親子車廂': 'Family car', '團體專開列車': 'Chartered group train', '附掛郵政／行包車廂': 'Mail or baggage car'
   });
   Object.assign(messages.ja, {
+    "按下「我上車了」之後，再去點一班還沒發車的車，時鐘不會再被撥走（謝謝網友回報）": "「乗車しました」を押した後に、まだ発車していない列車をタップしても時計が現在からずれなくなりました。ご報告ありがとうございます。",
+    "英文與日文的手機頂列，左上角的軌島牌裝不下時會自己讓位，分組切換鈕留在畫面內": "英語・日本語のスマートフォン表示では、左上の軌島プレートが収まらないときに自ら幅を譲り、グループ切り替えタブが画面内に収まります。",
+    "手機地圖右下角的版權資訊不會再折成一大塊蓋住速度調整鈕：改成貼著底緣一整條、放不下的部分橫向可捲，授權連結一個都沒少，仍然看得到也點得到。切到衛星影像時字串較長，原本折成四行最嚴重，現在一樣是一條（謝謝網友回報）": "スマートフォンの地図右下の著作権表示を、下端に沿った一行にしました。収まらない部分は横にスクロールし、速度調整ボタンを覆うブロックにはなりません。ライセンスのリンクは一つも欠けておらず、表示もタップもできます。衛星画像モードでは文字列が長くなりますが、そこでも一行のままです。（ご報告いただいた方に感謝します。）",
     '捷運信義東延段 8/30 14 時通車，淡水信義線終點由象山延伸到廣慈/奉天宮站。地圖上這一站與新路段已經先畫好，官方即時到站資料要等通車後才會帶到這一站，在那之前這一段不會有列車，通車後會自動跟上；8/30 至 9/28 行經新通車區間不計票價': '8月30日14時に信義線東延伸区間が開業し、淡水信義線の終点が象山から廣慈/奉天宮駅へ延びます。地図には新駅と新しい線路をすでに描いていますが、公式のリアルタイム到着情報は開業後から届くため、それまでこの区間に列車は走りません。8月30日から9月28日まで、新区間を通る乗車は運賃無料です。',
     '英文與日文現在也會即時更新最愛、今日台鐵、誤點履歷、帳號同步、Google 清單匯入、分享與「追蹤這站」；並補上災害監看、捷運終點、點選列車／車站、成就說明，以及 iPhone 即時動態與小工具，官方活動只有中文時則標示「中文原文」': '英語・日本語で、お気に入り、本日の台湾鉄路、遅延履歴、アカウント同期、Googleリスト読み込み、共有、「この駅を追跡」もすぐ切り替わるようになりました。災害監視、メトロの行先、列車／駅の選択表示、実績の説明、iPhoneのライブアクティビティとウィジェットにも対応し、中国語だけの公式イベントは原文であることを明記します。',
     '英文與日文現在也會即時更新最愛、今日台鐵、誤點履歷、帳號同步、Google 清單匯入、分享與「追蹤這站」；並補上災害監看、捷運終點、點選列車／車站、成就說明、顯示與字級、所在地鏡頭，以及 iPhone 即時動態與小工具，官方活動只有中文時則標示「中文原文」': '英語・日本語で、お気に入り、本日の台湾鉄路、遅延履歴、アカウント同期、Googleリスト読み込み、共有、「この駅を追跡」もすぐ切り替わるようになりました。災害監視、メトロの行先、列車／駅の選択表示、実績の説明、表示と文字サイズ、現在地カメラ、iPhoneのライブアクティビティとウィジェットにも対応し、中国語だけの公式イベントは原文であることを明記します。',
@@ -864,6 +870,7 @@
     '收集章': 'Collection stamps',
     '最遠征': 'Longest journey',
     '非即時': 'Not live',
+    '回到現在': 'Back to now',
     '台鐵誤點目前非即時：依 {time} 的即時資料投射 · {n} 班誤點中': 'TRA delays are not live: projected from the live data at {time} · {n} delayed trains',
     '找不到就檢查一下車次是不是今天的班次——停駛或加班車不一定在時刻表裡。': 'If you cannot find it, check that the train runs today. Cancelled or extra services may not appear in the timetable.',
     '顯示車種與方向': 'Show train type and direction',
@@ -943,6 +950,7 @@
     '收集章': 'コレクションスタンプ',
     '最遠征': '最長遠征',
     '非即時': '非リアルタイム',
+    '回到現在': '現在に戻る',
     '台鐵誤點目前非即時：依 {time} 的即時資料投射 · {n} 班誤點中': '台湾鉄路の遅延情報は非リアルタイムです：{time}時点のデータから推定・{n}本が遅延中',
     '找不到就檢查一下車次是不是今天的班次——停駛或加班車不一定在時刻表裡。': '見つからない場合は、本日の列車か確認してください。運休や臨時列車は時刻表にない場合があります。',
     '顯示車種與方向': '列車種別と方向を表示',

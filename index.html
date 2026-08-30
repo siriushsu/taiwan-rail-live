@@ -1397,6 +1397,19 @@
   /* 公告橫幅開著時:同側的看板退到橫幅下方,不再互疊 */
   .alert-banner:not([hidden]) ~ .board { top: 54px; max-height: calc(100% - 216px); }
   /* 跟隨面板的通阻警示列(跟隨中的車行經公告影響路線時顯示) */
+  .stat-pop .sp-now {
+    display: block; width: 100%; margin-top: 8px; padding: 7px 10px; cursor: pointer;
+    font-size: calc(12px * var(--uis)); font-weight: 800;
+    color: var(--paper); background: var(--navy); border: 0; border-radius: 7px;
+  }
+  .follow-panel .fp-nonlive {
+    display: block; width: 100%; margin-top: 7px; text-align: left; cursor: pointer;
+    font-size: calc(10.5px * var(--uis)); font-weight: 800; line-height: 1.35;
+    color: var(--amber-ink, var(--ink-strong)); background: var(--amber-bg, var(--bg-stage));
+    border: 1.5px solid var(--amber-line, var(--line)); border-radius: 7px; padding: 5px 8px;
+  }
+  .follow-panel .fp-nonlive[hidden] { display: none; }
+  .follow-panel.fp-min .fp-nonlive { display: none !important; }
   .follow-panel .fp-alert {
     margin-top: 7px; padding: 5px 8px;
     background: var(--warn-bg); border: 1.5px solid var(--warn-line); border-radius: 5px;
@@ -4553,6 +4566,9 @@
         <button class="fp-close" id="fpClose" title="收起資訊卡（跟隨不中斷）">×</button>
         <button class="fp-end" id="fpEnd" title="取消跟隨">結束</button>
       </div>
+      <!-- 時鐘離開「現在」時的自陳標示。放在卡內而不是只靠頂列膠囊:手機上這張卡就疊在膠囊
+           上方,膠囊那行「非即時 · 班表備案」正好被它蓋住(見 placeFsOverlays 的夾高註解)。 -->
+      <button class="fp-nonlive" id="fpNonLive" type="button" hidden></button>
       <div class="fp-next">
         <span class="lbl">下一站</span>
         <span class="stn" id="fpNext"></span>
@@ -4815,7 +4831,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/30</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/31</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -4823,14 +4839,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="ridingclock"><span class="d">8/31</span><span>按下「我上車了」之後，再去點一班還沒發車的車，時鐘不會再被撥走（謝謝網友回報）</span></li>
+        <li data-cl-of="enplatefit"><span class="d">8/30</span><span>英文與日文的手機頂列，左上角的軌島牌裝不下時會自己讓位，分組切換鈕留在畫面內</span></li>
         <li data-cl-of="satfallback"><span class="d">8/30</span><span>衛星影像模式下放大縮小時，畫面會有一瞬間整片變成深綠色（Android 手機上特別明顯）；墊在底下的顏色改成貼齊實際衛星影像，現在幾乎看不出來</span></li>
         <li data-cl-of="widgetplussync"><span class="d">8/30</span><span>訂閱後桌面小工具立刻能放多站、自動選站，不必等同步或按恢復購買</span></li>
         <li data-cl-of="whatsnew-lang"><span class="d">8/30</span><span>更新完跳出的「更新了什麼」現在會用你正在使用的語言：英文與日文各有整段自己的文案，不會再看到標著「中文原文」的中文說明</span></li>
         <li data-cl-of="crowd-outage"><span class="d">8/29</span><span>車廂擁擠度改成逐車對照：忠孝復興這種兩線共站不會再把板南線的擁擠度掛到文湖線上，認不出是哪一台車就留白不猜；三種車站看板現在都會顯示擁擠度，不會再切換一次就整片消失，鎖屏的等車卡也一起改。即時模型暫時缺這個系統的資料時，車站看板不再整片變成「此時段無停靠班次」，會自動退回官方倒數或班表。即時資料中斷的提示也改成照實說：分不出是官方端還是本站或你的網路時，不再一律寫成臺北捷運訊號中斷</span></li>
         <li data-cl-of="notice0829"><span class="d">8/29</span><span>高鐵台中車站 9/7 至 9/10 軌道大修、三鶯線 9/1 起正式收費，兩則公告已放上通知列；同時更新安坑、淡海輕軌與高雄捷運班表</span></li>
         <li data-cl-of="bootfast"><span class="d">8/29</span><span>開啟網站變快了：三十幾份路網與班表資料從一份一份載改成同時下載，重新造訪也不再重抓沒變動的檔案</span></li>
-        <li data-cl-of="xinyieast"><span class="d">8/28</span><span>捷運信義東延段 8/30 14 時通車，淡水信義線終點由象山延伸到廣慈/奉天宮站。地圖上這一站與新路段已經先畫好，官方即時到站資料要等通車後才會帶到這一站，在那之前這一段不會有列車，通車後會自動跟上；8/30 至 9/28 行經新通車區間不計票價</span></li>
-        <li data-cl-of="i18n-dynamic"><span class="d">8/28</span><span>英文與日文現在也會即時更新最愛、今日台鐵、誤點履歷、帳號同步、Google 清單匯入、分享與「追蹤這站」；並補上災害監看、捷運終點、點選列車／車站、成就說明，以及 iPhone 即時動態與小工具，官方活動只有中文時則標示「中文原文」</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -4901,6 +4917,8 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="ridingclock"><span class="d">8/31</span><span>按下「我上車了」之後，再去點一班還沒發車的車，時鐘不會再被撥到那班車的發車前——原本會整趟停在假的時間，讓地圖上另一班車剛好跟著你走，看起來就像自己搭的車被標成別的車次。時鐘真的不在現在時，跟隨卡上會自己標「非即時」，點一下就回到現在；手機點左上角時鐘也多了一顆「回到現在」。跟隨卡太高時改成卡內捲動，不會再蓋住上面的時鐘（謝謝網友回報）</span></li>
+        <li data-cl="enplatefit"><span class="d">8/30</span><span>英文版在 360 寬的手機上，頂列右邊的「捷運」那一顆分組切換鈕整顆在畫面外，而且沒有地方可以捲過去——外層是 overflow:hidden，祖先鏈上沒有任何可捲容器。360dp 的頂列只有 340px 寬，分頁列英文要 248px、日文 234px，中文只要 190px（中文一字一顆），而左上角的軌島牌原本一寸不讓，被擠掉的就是按鈕。現在牌改成被壓的那一方：先讓起訖站名，標題最後，裝不下收成省略號而不是被硬切；拉丁字母也不再套「軌島」那組為漢字招牌留的字距與首行縮排。日文在 360／375 有公告時同樣的情形也一併修好</span></li>
         <li data-cl="widgetplussync"><span class="d">8/30</span><span>訂閱通行證後，桌面小工具立刻就能放多站、也能自動選最近的站，不必等下一次同步或按恢復購買；帳號登出或訂閱結束時也會同步收回。</span></li>
         <li data-cl="androidwidgetparity"><span class="d">8/27</span><span>Android App 的小工具與鎖定畫面功能不再只做捷運：新增台鐵／高鐵發車看板，可選台鐵、高鐵、共站、起站與目的站，依桌面尺寸顯示不同班次數；另新增「鐵路＋捷運雙看板」大卡，在同一張卡同時看鐵路時刻與捷運倒數。跟隨台鐵或高鐵列車時，Android 也會顯示下一站、終點、誤點與行程進度；在台鐵車站看板選定班次後，鎖定畫面會顯示表定、官方誤點與實際約到站時刻，並在背景更新官方資訊。Android 16／Samsung 可把這些卡提升成即時資訊與 Now Bar。這些功能共用現有班表、捷運即時資料與通行證規則，並新增 iOS／Android 出貨功能清單檢查；往後任一平台少掉已上線項目會直接擋住建置</span></li>
         <li data-cl="trawaitcard"><span class="d">8/23</span><span>台鐵車站看板新增「追蹤一班車」：在月台上等車時，挑你要等的那一班，把官方表定、即時誤點與倒數放上鎖定畫面，車到站後自動收起；iPhone 可顯示在動態島，Android 16／Samsung 可顯示在即時資訊與 Now Bar。和捷運等車卡一樣，鎖定畫面同時只留一張，不需要通行證</span></li>
@@ -5545,7 +5563,13 @@
 //         守門人：app/scripts/verify-release.mjs 的 assertWidgetPlusSyncSites（出貨鏈）＋
 //         scripts/verify_metro_widget_plus_sync.mjs（行為層，量 setPlus 的呼叫序列）。
 // v0830h：Android 1.5.0 (21) 出貨——併回 origin/main（衛星閃綠佔位色、通行證資格同步）。
-const BUILD = 'v0830n'; // a/b/d/f/g/h/j/k/m 已被用掉(逐 ref 掃過),跨分支撞號見心得16
+// v0831b：挑入 iOS 線 8c2595c——修「搭 122 次卻整趟顯示 132 次」(網友回報)。真因不是認錯車,
+//         是「跟隨一班還沒發車的車就把全域時鐘撥到它發車前」這個時光機在【搭乘中】也照撥,
+//         撥完 clockAtNow=false 讓每一條重錨路徑都失效,偏移固定不變,於是晚 2 小時 06 分發車
+//         的 132 次一路黏在使用者真實位置上。四道修法:搭乘中不撥鐘／卡自己標「非即時」可點回／
+//         手機時鐘卡補「回到現在」／跟隨卡改夾高度不再蓋掉時鐘膠囊。
+//         🔴 對方那顆用 v0831a,而 v0830n 兩條線都用過(撞號),故本線跳到 v0831b。
+const BUILD = 'v0831b'; // 0830 全系列與 0831a 已用掉(逐 ref 掃過),跨分支撞號見心得16
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -14670,12 +14694,19 @@ function setFollow(tr, isAuto, noJump, opts) {
     if (!state._followSpeedSaved) { state._preFollowSpd = state.speedMult; state._followSpeedSaved = true; }
     setSpeed(30);
     if (!state.playing) togglePlay();
-  } else if (!running) {
+  } else if (!running && !loadRiding()) {
     // 環島車永遠在跑,不需要把時間拉回發車(已併進 running)
     state.simSec = Math.max(0, first.depSec - 20) % 86400;
     state.clockAtNow = false;
     syncTimeUI();
   }
+  // 🔴 !loadRiding():【正在搭車的人就在「現在」】,不得因為他點到一班還沒發車的車就把全域時鐘
+  //    撥走(2026-08-31 網友回報)。撥走之後 clockAtNow=false ⇒ clockDriftGuard 與回前景重錨兩條
+  //    路都失效、clearFollow 也不還原 ⇒ 整個 session 永遠停在假時間;偏移固定不變,於是「比自己
+  //    晚 N 分鐘發車的那班車」會一路精準黏在使用者真實位置上,看起來就是「我的車被標成別的車次」
+  //    (回報者:搭 122 次卻整趟看到 132 次,偏移恰為兩車時距 2 小時 06 分)。
+  //    而蓋章/護照/附近車站這些功能吃的是真實時間,搭車中撥鐘等於一併把它們送進假時間。
+  //    沒在搭車時時光機照舊生效(搜尋還沒發車的車仍看得到它),只收掉「搭車中」這一種情境。
   state.followWrapStops = wrapMark; // 兩個撥鐘分支都判完才標記,理由見上面
   if (!noJump) {
     const pos = trainPos(tr, state.simSec) || { lat: first.lat, lon: first.lon };
@@ -20252,6 +20283,15 @@ function showFollowPanel(tr) {
 function updateFollowPanel(tr) {
   const fp = document.getElementById('followPanel');
   if (fp.hidden || !tr) return;
+  // 時鐘不在「現在」時,卡片自己講出來並給一條回去的路——手機沒有站台帶,#nowBtn 是 display:none,
+  // 在此之前手機使用者【沒有任何控件】可以回到現在(重新整理也不行:網址帶著 ?train= 會再撥一次)。
+  const nl = document.getElementById('fpNonLive');
+  if (nl) {
+    const off = !state.clockAtNow;
+    nl.hidden = !off;
+    if (off) nl.innerHTML = escHtml(t('非即時') + ' · ' + fmtHM(state.simSec))
+      + `<span class="fp-dhlink">${escHtml(t('回到現在'))}</span>`;
+  }
   const nx = document.getElementById('fpNext'), eta = document.getElementById('fpEta');
   const dlMin = Math.round(liveDelaySec(tr) / 60);
   // 這班車「現在」真實誤點:即時名單 30 分內才可信;sys gate 防高鐵撞號(比照 renderDelayRow)。
@@ -27560,7 +27600,10 @@ function statPopRender() {
       : `<div class="sp-row" data-k="none"><span class="lab">${esc(t('目前沒有即時或重播狀態'))}</span></div>`)
     + (items.some(it => it.why)
       ? `<div class="sp-why">${items.filter(it => it.why).map(it => `<div>${esc(it.lab)}:${esc(it.why)}</div>`).join('')}</div>`
-      : '');
+      : '')
+    // 時鐘被撥走時給一條回去的路。手機的站台帶(#nowBtn 的家)是 display:none,這張卡是點時鐘膠囊
+    // 就打得開的,兩種版面都到得了;沒跟車時它是唯一的退路。
+    + (state.clockAtNow ? '' : `<button class="sp-now" id="statPopNow" type="button">${esc(t('回到現在'))}</button>`);
 }
 function statPopPlace() {
   const pop = document.getElementById('statPop'), b = document.getElementById('statBadge');
@@ -27581,6 +27624,10 @@ function statPopSet(on) {
 function setupStatPop() {
   const b = document.getElementById('statBadge'), pop = document.getElementById('statPop');
   if (!b || !pop) return;
+  pop.addEventListener('click', e => {
+    if (!e.target.closest('#statPopNow')) return;
+    e.stopPropagation(); jumpToNow(); statPopSet(false);
+  });
   const toggle = () => statPopSet(pop.hidden);
   b.addEventListener('click', e => { e.stopPropagation(); toggle(); });
   b.addEventListener('keydown', e => {
@@ -28563,7 +28610,17 @@ function setupMapTools() {
     const ihShown = !!(shellOk && ih && !ih.hidden && ih.offsetParent && +getComputedStyle(ih).opacity >= 0.5);
     if (ih) ih.style.bottom = (ihShown && ctl) ? (Math.round(stR.bottom - ctl.getBoundingClientRect().top) + 8) + 'px' : '';
     // ── 第二層:跟車卡抬到整組下緣家具之上,但不得越過上緣家具 ──
-    let lift = null;
+    let lift = null, capped = false;
+    // 卡的「自然高度」(沒被夾之前有多高)。🔴 不可用「先清掉 inline maxHeight 再量 rect」——
+    // 那會改到被 ResizeObserver 觀察的元素尺寸,每次重排都清一次 ⇒ RO 再觸發一次 ⇒ 自激不停。
+    // 夾住時 scrollHeight 就是內容+內距,補回上下框線即等於未夾時的 border-box 高。
+    const natH = el => {
+      const r = el.getBoundingClientRect();
+      if (!el.style.maxHeight) return r.height;
+      const cs = getComputedStyle(el);
+      return el.scrollHeight + (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.borderBottomWidth) || 0);
+    };
+    const setCap = (el, v) => { if (el && el.style.maxHeight !== v) el.style.maxHeight = v; };
     if (shellOk && (followVisible || freqVisible)) {
       let topmost = ctl.getBoundingClientRect().top;
       // 提示在上一步已就位,這裡量到的是它的**新**位置(它現在是下緣家具的最頂端)。
@@ -28575,7 +28632,7 @@ function setupMapTools() {
       for (const el of [followVisible && fp, freqVisible && fc]) {
         if (!el) continue;
         const r = el.getBoundingClientRect();
-        cardH = Math.max(cardH, r.height); cardL = Math.min(cardL, r.left); cardR = Math.max(cardR, r.right);
+        cardH = Math.max(cardH, natH(el)); cardL = Math.min(cardL, r.left); cardR = Math.max(cardR, r.right);
       }
       let ceil = stR.top; // 底線:卡整張要留在 stage 內(stage overflow:hidden,飛出去連卡自己的 × 都點不到)
       for (const sel of FS_TOP_KEEP) for (const el of document.querySelectorAll(sel)) {
@@ -28584,9 +28641,27 @@ function setupMapTools() {
         if (r.height > 0.5 && r.right > cardL + 0.5 && r.left < cardR - 0.5) ceil = Math.max(ceil, r.bottom);
       }
       lift = Math.max(52, Math.min(lift, Math.round(stR.bottom - (ceil + 8) - cardH)));
+      // 🔴 卡放不下時上面那行的 Math.max(52,…) 會贏,而卡是【下錨往上長】⇒ 它就從上緣家具底下
+      //    整片長出去,把時鐘膠囊(.badge,在 FS_TOP_KEEP 裡)蓋掉。ceil 算得對,只是沒有人負責
+      //    「抬不動就別長那麼高」。卡本身是 overflow-y:auto,夾住高度即改成卡內捲動,不會失去內容。
+      //    2026-08-31 網友回報:搭車中卡片蓋住膠囊,使用者因此看不到「非即時 · 班表備案」那行。
+      // 先寫 bottom 再量可用高:🔴 可用高一律取【卡自己的下緣】而不是拿 lift 反推——sheet 展開時
+      //    `body.sheet-open .follow-panel` 那條 CSS 的 bottom 帶 !important,會蓋掉這裡寫的 lift,
+      //    反推得到的可用高是錯的(而回報者的畫面正是 sheet 展開態)。下錨的卡是往上長,
+      //    下緣不隨高度變,先寫後量安全;bottom 只改位置不改尺寸,不會驚動 ResizeObserver。
+      fp.style.bottom = followVisible ? lift + 'px' : '';
+      if (fc) fc.style.bottom = freqVisible ? lift + 'px' : '';
+      for (const el of [followVisible && fp, freqVisible && fc]) {
+        if (!el) continue;
+        // 96px 下限:視窗矮到連這都放不下時,寧可少讓一點也要讓卡自己還有頭部可讀可關。
+        setCap(el, Math.max(96, Math.round(el.getBoundingClientRect().bottom - (ceil + 8))) + 'px');
+      }
+      capped = true;
     }
-    fp.style.bottom = (lift != null && followVisible) ? lift + 'px' : '';
-    if (fc) fc.style.bottom = (lift != null && freqVisible) ? lift + 'px' : '';
+    if (!capped) {
+      fp.style.bottom = ''; if (fc) fc.style.bottom = '';
+      setCap(fp, ''); if (fc) setCap(fc, '');
+    }
     // 跟隨鎖 §04c 起手機住進 #mapActions 工具欄(placeControlRail),Leaflet 右下控制角只剩桌面在用;
     // 桌面 lift 恆 null,原本的 marginBottom 抬升與 --lockctl-clear 量測整組退役(消費它的 CSS 已移除)。
     if (lc) lc.style.marginBottom = '';
@@ -30382,6 +30457,9 @@ document.getElementById('followPanel').addEventListener('click', (e) => {
   // 🔴 必須排在 .fp-dhlink 那條【前面】:跟車鎖屏 CTA 借用同一個 .fp-dhlink 樣式類(同一種
   //    視覺語彙),不先攔就會被下一行當成「誤點履歷 ›」導去誤點履歷卡。
   if (e.target.closest('#fpLaCta')) { e.stopPropagation(); plusGateOpen('live-activity', renderLaCta); return; }
+  // 🔴 同樣必須排在 .fp-dhlink 那條【前面】:非即時標示的「回到現在」也借用 .fp-dhlink 的視覺語彙,
+  //    不先攔就會被導去誤點履歷卡。也必須排在下面「手機點卡→開列車 sheet」之前。
+  if (e.target.closest('#fpNonLive')) { e.stopPropagation(); jumpToNow(); return; }
   if (e.target.closest('.fp-dhlink')) { e.stopPropagation(); openDelayHist(state.followTrain); return; } // 準點列尾端「誤點履歷 ›」
   // 膠囊態(點空白收起來的那種)點一下就展開回原樣——要排在下面「開列車 sheet」那條之前,
   // 否則手機上點膠囊會跳去另一個介面(列車 sheet),而不是回到收合前看的那張卡。
