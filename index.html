@@ -4831,8 +4831,6 @@
         <li data-cl-of="bootfast"><span class="d">8/29</span><span>開啟網站變快了：三十幾份路網與班表資料從一份一份載改成同時下載，重新造訪也不再重抓沒變動的檔案</span></li>
         <li data-cl-of="xinyieast"><span class="d">8/28</span><span>捷運信義東延段 8/30 14 時通車，淡水信義線終點由象山延伸到廣慈/奉天宮站。地圖上這一站與新路段已經先畫好，官方即時到站資料要等通車後才會帶到這一站，在那之前這一段不會有列車，通車後會自動跟上；8/30 至 9/28 行經新通車區間不計票價</span></li>
         <li data-cl-of="i18n-dynamic"><span class="d">8/28</span><span>英文與日文現在也會即時更新最愛、今日台鐵、誤點履歷、帳號同步、Google 清單匯入、分享與「追蹤這站」；並補上災害監看、捷運終點、點選列車／車站、成就說明，以及 iPhone 即時動態與小工具，官方活動只有中文時則標示「中文原文」</span></li>
-        <li data-cl-of="metrocoredefault"><span class="d">8/28</span><span>網站版重新開啟北捷統一時間軸：地圖列車、車站預告與點選跟隨會使用同一份身分與軌跡；每次更新也會檢查軌跡內部，若列車在五秒內跨過半站以上，會先留在原位重新銜接，不把瞬間跳位送到畫面。Core 連線失敗或單線資料不完整時，仍會自動退回原本模式</span></li>
-        <li data-cl-of="i18n-content"><span class="d">8/28</span><span>英文與日文再補齊品牌介紹、使用說明、特色車站與列車、觀光列車圖鑑，以及旅程護照和成就；外語版更新紀錄保留最近八筆精簡內容，較早歷史改用主題摘要</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5547,7 +5545,7 @@
 //         守門人：app/scripts/verify-release.mjs 的 assertWidgetPlusSyncSites（出貨鏈）＋
 //         scripts/verify_metro_widget_plus_sync.mjs（行為層，量 setPlus 的呼叫序列）。
 // v0830h：Android 1.5.0 (21) 出貨——併回 origin/main（衛星閃綠佔位色、通行證資格同步）。
-const BUILD = 'v0830m'; // a/b/d/f/g/h/j/k 已被用掉(逐 ref 掃過),跨分支撞號見心得16
+const BUILD = 'v0830n'; // a/b/d/f/g/h/j/k/m 已被用掉(逐 ref 掃過),跨分支撞號見心得16
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -12502,7 +12500,10 @@ async function accountSignIn(providerName, legacy) {
       // 刻意【不自動退路】:正常流程的 promise 本來就要等使用者選完帳號才 settle,任何逾時都
       // 分不出「卡死」與「還在選帳號」——自動退路會在使用者面前同時開兩個登入流程,更糟。
       // 逾時只把出口顯示出來(原本那發照常在飛),按不按由使用者決定。
-      if (providerName === 'google' && !legacy) stuckTimer = setTimeout(() => { a.signinStuck = 'google'; accountRender(); }, 15000);
+      // 🔴 閘門限 Android:卡死的是 Credential Manager 那條路徑,只有 Android 走。iOS 的 Google 登入
+      // 走另一套,使用者慢慢挑帳號超過 15 秒是常態,那裡冒出退路等於誘導他在 iOS 上開第二個登入
+      // 流程——正是上面刻意避免的那件事,只是改由使用者觸發。條件寫成兩條線共用同一行。
+      if (providerName === 'google' && !legacy && IS_NATIVE_APP && window.Capacitor?.getPlatform?.() === 'android') stuckTimer = setTimeout(() => { a.signinStuck = 'google'; accountRender(); }, 15000);
       const result = await window.RAIL_NATIVE_AUTH.signIn(providerName, legacy);
       await a.fb.signInWithCredential(a.auth, accountNativeCredential(providerName, result));
     } else {
