@@ -10,6 +10,38 @@ const defaultOut = join(appRoot, 'www');
 const fail = message => { throw new Error(`App 發行檢查失敗：${message}`); };
 const assert = (condition, message) => { if (!condition) fail(message); };
 
+// 2026-08-30:同一顆 63e38b2 還吃掉了另一種東西——不是「識別字不見了」,而是【函式還在、
+// 但它本體裡的那一行呼叫不見了】。420a0a5(08-16)把通行證資格推給小工具的呼叫端從 1 處補到 8 處,
+// 合併整檔取 main 那側之後又退回 1 處,而 metroWidgetSyncPlus 這個函式名本身還在 ⇒
+// assertAppLineageContent 的 includes() 與 verify_no_ship_regression 的識別字盤點【兩道都照不到】,
+// Android 1.5.0(16/19) 與 iOS 1.5.1(82) 三顆出貨顆就這樣帶著單向閥出去(登出後小工具照樣解鎖)。
+// 所以這道閘門判的是「呼叫在不在它該在的那個函式本體裡」,不是全檔數量——數量會被任何一處補寫矇過去。
+// 行為層的判準另有 scripts/verify_metro_widget_plus_sync.mjs(量 setPlus 的呼叫序列),那支要瀏覽器,
+// 不適合掛在這條純 Node 的出貨鏈上;這裡只做「結構還在不在」的廉價守門。
+export function assertWidgetPlusSyncSites(html) {
+  // 每一條都是一個【明確答案】的來源:拿到答案就必須把旗標推給小工具,否則它會停在上一個值。
+  const sites = [
+    ['accountForgetIdentity', '登出'],
+    ['accountEnsureInit', 'auth 明確解出 null(換人／session 失效)'],
+    ['setupAccountUi', '冷啟動就是訪客(「更新即關」的唯一保障)'],
+    ['plusReconcileEntitlement', '資格文件握手'],
+    ['plusApplyCustomerInfo', 'RevenueCat 推播／付費操作前重新驗證'],
+    ['plusRefresh', '回前景／到期／退費'],
+    ['plusPurchase', '購買成功'],
+    ['plusRestore', '恢復購買'],
+  ];
+  for (const [fn, why] of sites) {
+    const start = html.search(new RegExp(String.raw`^(?:async )?function ${fn}\(`, 'm'));
+    assert(start >= 0, `找不到函式 ${fn}——通行證資格同步的閘門失去受測對象,請先確認它是不是改名或被整檔合併吃掉`);
+    const rest = html.slice(start + 1);
+    const nextRelative = rest.search(/^(?:async )?function [A-Za-z_$]/m);
+    const body = html.slice(start, nextRelative < 0 ? html.length : start + 1 + nextRelative);
+    assert(body.includes('metroWidgetSyncPlus('),
+      `${fn}() 沒有把通行證資格推給小工具(${why})——旗標會變成單向閥:寫成 true 之後回不去,` +
+      `登出／到期後小工具照樣解鎖;反向則是付了錢還鎖著。見 index.html 的 metroWidgetSyncPlus 上方說明。`);
+  }
+}
+
 // Stadia 官方要求的逐字署名(prepare-web 注入、本檔驗證,單一事實來源)
 export const STADIA_ATTRIBUTION = '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
 // OpenFreeMap 要求的逐字署名(index.html 內就有這個常數,本檔驗它沒被改動,單一事實來源)。
@@ -693,6 +725,7 @@ export async function verifyRelease({
   // 凡是有東西被插進字串的，都必須在下面的審查帳本裡**。新增動態 toast ⇒ 閘門紅燈 ⇒ 有人得
   // 真的看過它插的是什麼、決定要不要 escHtml，才能登記放行。預設是擋，不是放。
   assertToastSinksReviewed(html);
+  assertWidgetPlusSyncSites(html);
 
   // 版本一致性（QA 2026-07-21）：確保發行包確實含最新網站修正,而不是舊產物綠燈通過。
   const extractBuild = source => source.match(/const BUILD\s*=\s*'([^']+)'/)?.[1] ?? null;
