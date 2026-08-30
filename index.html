@@ -4817,6 +4817,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="widgetplussync"><span class="d">8/30</span><span>訂閱後桌面小工具立刻能放多站、自動選站，不必等同步或按恢復購買</span></li>
         <li data-cl-of="crowd-outage"><span class="d">8/29</span><span>車廂擁擠度改成逐車對照：忠孝復興這種兩線共站不會再把板南線的擁擠度掛到文湖線上，認不出是哪一台車就留白不猜；三種車站看板現在都會顯示擁擠度，不會再切換一次就整片消失，鎖屏的等車卡也一起改。即時模型暫時缺這個系統的資料時，車站看板不再整片變成「此時段無停靠班次」，會自動退回官方倒數或班表。即時資料中斷的提示也改成照實說：分不出是官方端還是本站或你的網路時，不再一律寫成臺北捷運訊號中斷</span></li>
         <li data-cl-of="notice0829"><span class="d">8/29</span><span>高鐵台中車站 9/7 至 9/10 軌道大修、三鶯線 9/1 起正式收費，兩則公告已放上通知列；同時更新安坑、淡海輕軌與高雄捷運班表</span></li>
         <li data-cl-of="bootfast"><span class="d">8/29</span><span>開啟網站變快了：三十幾份路網與班表資料從一份一份載改成同時下載，重新造訪也不再重抓沒變動的檔案</span></li>
@@ -4824,7 +4825,6 @@
         <li data-cl-of="i18n-dynamic"><span class="d">8/28</span><span>英文與日文現在也會即時更新最愛、今日台鐵、誤點履歷、帳號同步、Google 清單匯入、分享與「追蹤這站」；並補上災害監看、捷運終點、點選列車／車站、成就說明，以及 iPhone 即時動態與小工具，官方活動只有中文時則標示「中文原文」</span></li>
         <li data-cl-of="metrocoredefault"><span class="d">8/28</span><span>網站版重新開啟北捷統一時間軸：地圖列車、車站預告與點選跟隨會使用同一份身分與軌跡；每次更新也會檢查軌跡內部，若列車在五秒內跨過半站以上，會先留在原位重新銜接，不把瞬間跳位送到畫面。Core 連線失敗或單線資料不完整時，仍會自動退回原本模式</span></li>
         <li data-cl-of="i18n-content"><span class="d">8/28</span><span>英文與日文再補齊品牌介紹、使用說明、特色車站與列車、觀光列車圖鑑，以及旅程護照和成就；外語版更新紀錄保留最近八筆精簡內容，較早歷史改用主題摘要</span></li>
-        <li data-cl-of="curve-speed"><span class="d">8/28</span><span>東部幹線的急彎改照官方核定速限行駛：宜蘭線新馬那個半徑 306 公尺的彎（2018 年出軌事故現場）普悠瑪 75、太魯閣 85、其他列車 65，北迴線和仁一帶非傾斜式列車 115。到站時刻完全不變——彎道慢下來的時間由同一段的其他部分吸收；時刻表太緊而做不到時，維持原本的畫法</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -4893,6 +4893,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="widgetplussync"><span class="d">8/30</span><span>訂閱通行證後，桌面小工具立刻就能放多站、也能自動選最近的站，不必等下一次同步或按恢復購買；帳號登出或訂閱結束時也會同步收回。</span></li>
         <li data-cl="androidwidgetparity"><span class="d">8/27</span><span>Android App 的小工具與鎖定畫面功能不再只做捷運：新增台鐵／高鐵發車看板，可選台鐵、高鐵、共站、起站與目的站，依桌面尺寸顯示不同班次數；另新增「鐵路＋捷運雙看板」大卡，在同一張卡同時看鐵路時刻與捷運倒數。跟隨台鐵或高鐵列車時，Android 也會顯示下一站、終點、誤點與行程進度；在台鐵車站看板選定班次後，鎖定畫面會顯示表定、官方誤點與實際約到站時刻，並在背景更新官方資訊。Android 16／Samsung 可把這些卡提升成即時資訊與 Now Bar。這些功能共用現有班表、捷運即時資料與通行證規則，並新增 iOS／Android 出貨功能清單檢查；往後任一平台少掉已上線項目會直接擋住建置</span></li>
         <li data-cl="trawaitcard"><span class="d">8/23</span><span>台鐵車站看板新增「追蹤一班車」：在月台上等車時，挑你要等的那一班，把官方表定、即時誤點與倒數放上鎖定畫面，車到站後自動收起；iPhone 可顯示在動態島，Android 16／Samsung 可顯示在即時資訊與 Now Bar。和捷運等車卡一樣，鎖定畫面同時只留一張，不需要通行證</span></li>
         <li data-cl="androidnowbar"><span class="d">8/26</span><span>Android 16 的「追蹤這站」現在採用系統原生的即時行程進度卡：下一班倒數、方向、再下一班與結束按鈕會持續更新，Samsung 手機可由系統放進 Now Bar，其他 Android 16 手機則顯示在鎖定畫面即時資訊區。若系統尚未允許軌島發出即時通知，第一次追蹤時會詢問是否前往設定；Android 15 以下仍顯示原本的鎖定畫面持續通知，不會失去功能</span></li>
@@ -5527,7 +5528,7 @@
 // v0829h：Android 1.5.0 (19) 出貨——併回 main 四顆（擁擠度逐車對照、看板不誤稱無停靠、等車卡鎖屏），
 //         加上英文語系軌島牌不再被切成「Rail Isla」、手機地圖版權列改單行貼底不再壓住速度膠囊。
 //         版號跳 19 是因為 18 已經被建出且側載在實機上，Android 不讓降版安裝。
-const BUILD = 'v0829h';
+const BUILD = 'v0830g'; // a/b/d/e 已被別的分支用掉(逐 ref 掃過),跨分支撞號見心得16
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -12502,6 +12503,10 @@ function accountForgetIdentity() {
   // 批二-B:cloudSyncReady(資格文件落地)綁在「這個身分」上,身分沒了就不再成立——下一個登入的人
   // 必須自己重新握手一次,不能繼承上一個人的落地結論。
   if (state.plus) { state.plus.active = false; state.plus.entitlementEnvironment = ''; state.plus.founding = false; state.plus.pkgMonthly = null; state.plus.pkgAnnual = null; state.plus.mgmtUrl = ''; state.plus.adapter = null; state.plus.afterUnlock = null; state.plus.cloudSyncReady = false; state.plus.cloudSyncPromise = null; }
+  // 🔴 2026-08-16:身分沒了＝這台裝置的資格沒了,小工具那顆旗標必須跟著收回。漏了這一行就是
+  //    使用者回報的「登出後還是可以選擇最近的站、還是可以放好多站」——App 這側已經歸零,
+  //    App Group／SharedPreferences 那側卻停在 true(見 metroWidgetSyncPlus 上方說明)。
+  metroWidgetSyncPlus(false);
   // ↑ cloudSyncPromise 也要清(最終複審 Minor 2):它是「同一時間只准一發握手在飛」的去重槽,
   //   留著的話換人之後 plusReconcileEntitlement() 會 return 上一個身分的在途 promise,那發的世代
   //   複查必然回 false ⇒ 新使用者白白失敗一輪握手。清掉只是丟棄槽位,在飛的那發自己會照常收尾。
@@ -12705,6 +12710,10 @@ function accountEnsureInit() {
           // accountForgetIdentity() 刻意完全不碰收藏資料(本機分區依 uid 留著,同一個帳號回來還在)
           // 也刻意不清 ACCOUNT_LAST_UID_KEY(陌生人判斷要撐過這次事件,只有刪除帳號才清)。
           if (previousUid) await accountForgetIdentity();
+          // 🔴 2026-08-16:auth 明確解出 null 就是一個【明確答案】(不是「還沒解析」,那條走的是
+          //    user 為真的分支)。上面那行有 previousUid 守衛,沒有 previousUid 的人不會走到
+          //    accountForgetIdentity,旗標得在這裡自己收(見 metroWidgetSyncPlus)。
+          metroWidgetSyncPlus(false);
           try { localStorage.removeItem(ACCOUNT_UID_KEY); } catch (e) {}
           userDataRenderAll(); // 畫面立刻換回匿名分區,不留著上一個帳號的私人收藏在螢幕上
         }
@@ -12764,6 +12773,13 @@ function accountSlotMode() {
   return accountReturning() ? 'account' : 'plus'; // 登入過的裝置維持帳號入口;它的登出態另有回 Plus 的鈕(見 accountRender)
 }
 async function setupAccountUi() {
+  // 🔴 2026-08-16「更新即關」:這台裝置沒有已驗證身分(ACCOUNT_UID_KEY 不存在)就不可能有資格——
+  //    資格綁在帳號上,登出時 accountForgetIdentity 會把這把 key 一起清掉。這是一個【明確答案】,
+  //    要把小工具旗標收回來。放在這裡而不是 onAuthStateChanged 的 null 分支,是因為下面那條
+  //    returning 判斷會讓「已經是登出狀態」的人根本不初始化 Firebase ⇒ 那個 callback 永遠不會來,
+  //    只靠它的話,這些人裝了修好的版本、旗標照樣停在舊的 true(scripts/verify_metro_widget_plus_sync.mjs
+  //    的 M5 就是踩到這個才紅的)。已登入的訂閱者走 returning 分支,不經過這裡,不會有閃一下的問題。
+  if (!accountReturning()) metroWidgetSyncPlus(false);
   const btn = document.getElementById('accountBtn'), modal = document.getElementById('accountModal');
   if (!btn || !modal || !accountConfigured()) return;
   const accountIntent = new URLSearchParams(location.search).get('account');
@@ -12845,6 +12861,7 @@ async function plusReconcileEntitlement() {
         p.active = data.active;
         plusSetEnvironment(p, p.active && data.environment === 'sandbox' && PLUS_SANDBOX_OK
           ? 'sandbox' : (p.active ? 'production' : ''));
+        metroWidgetSyncPlus(p.active); // 2026-08-16:拿到明確答案就同步小工具旗標(見 metroWidgetSyncPlus)
       }
       if (data && data.cloudSyncReady === true) return plusMarkCloudSyncReady();
       return false;
@@ -13076,13 +13093,35 @@ function plusApplyCustomerInfo(info) {
   metroWidgetSyncPlus(p.active);
   return p.active;
 }
-// 把通行證資格同步給捷運小工具(App Group)。這裡是所有資格路徑(購買/還原/refresh/登入)的匯流點,
-// 掛一處即全覆蓋。🔴 小工具 extension 讀不到 RevenueCat,不推就永遠停在免費層;非原生殼、
+// 把通行證資格同步給捷運小工具(iOS App Group／Android SharedPreferences)。🔴 小工具 extension／
+// AppWidgetProvider 讀不到 RevenueCat,這顆旗標是它判定的唯一輸入(iOS MetroPlusCore.decide 第一行就是
+// `if plus { return .allowed }`;Android MetroWidgetProvider.updateOne 讀 plus_active);非原生殼、
 // 舊版原生殼(沒有 setPlus)一律靜默略過——網站沒有小工具這回事。
+//
+// 🔴 2026-08-16 使用者實機回報「登出後還是可以選擇最近的站,也可以同時放好多個小工具」的根因就在
+//    這裡:這支原本【只有一個呼叫端】(plusApplyCustomerInfo),而原本這一行上面那句註解卻寫著「所有
+//    資格路徑的匯流點,掛一處即全覆蓋」——那句話從寫下的那一刻就是錯的。真正會寫 state.plus.active
+//    的有八處,其中七處沒推:登出(accountForgetIdentity)、auth 解出 null、冷啟動就是訪客、
+//    到期/退費(plusRefresh 拿到明確的 false)、plusReconcileEntitlement、購買、恢復購買。於是旗標是
+//    「寫進去就再也不會變回 false」,一顆過期的 true 同時解開自動選站與多站兩個閘門;反向也壞——
+//    買完到下次 listener 推播之前,付了錢的人小工具還鎖著。
+//    現在改成:【凡是拿到「明確答案」的地方都推一次】,並在此 memo 去重(回前景每次都 plusRefresh,
+//    值沒變就不該白打一發 IPC 連帶 reloadAllTimelines／updateAll)。行為判準見
+//    scripts/verify_metro_widget_plus_sync.mjs——它量的是 setPlus 的呼叫序列,不是原始碼字面。
+// 🔴 2026-08-30 二度落地:上面這批修法在 2026-08-22 的合併 63e38b2「整檔取 main 那一側」時
+//    連同它的守門腳本一起被吃掉(見 app/scripts/verify_no_ship_regression.mjs 開頭的事故說明),
+//    Android 1.5.0(16/19) 與 iOS 1.5.1(82) 三顆出貨顆全中,使用者 08-30 再報一次。
+//    這次同時把「每個明確答案函式內都要有一發」寫成 verify-release.mjs 的出貨閘門,不再只靠人記得。
+let metroWidgetPlusPushed = null; // 上一次真的送出去的值;null＝這個 session 還沒推過
 function metroWidgetSyncPlus(active) {
   try {
+    const want = !!active;
+    if (metroWidgetPlusPushed === want) return; // 值沒變:不重推,省掉 extension 的無謂重畫
     const p = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.RailMetroWait;
-    if (p && p.setPlus) Promise.resolve(p.setPlus({ active: !!active })).catch(() => {});
+    if (!(p && p.setPlus)) return; // 網站/舊殼:連 memo 都不要動,免得日後 plugin 才註冊上來卻被 memo 擋掉
+    metroWidgetPlusPushed = want;
+    // 推失敗要把 memo 退回去,否則這個 session 剩下的時間都會以為「已經推過了」而不再重試。
+    Promise.resolve(p.setPlus({ active: want })).catch(() => { if (metroWidgetPlusPushed === want) metroWidgetPlusPushed = null; });
   } catch (e) { /* 同步失敗不影響資格本身,下次資格變動再試 */ }
 }
 // 重要付費操作(購買/恢復購買)前重新驗證資格(C-4 第 3 點):adapter 若支援,先取一次目前的
@@ -13254,6 +13293,7 @@ async function plusRefresh() {
           p.active = data.active;
           plusSetEnvironment(p, p.active && data.environment === 'sandbox' && PLUS_SANDBOX_OK
             ? 'sandbox' : (p.active ? 'production' : ''));
+          metroWidgetSyncPlus(p.active); // 2026-08-16:拿到明確答案就同步小工具旗標(見 metroWidgetSyncPlus)
         }
         // 批二-B:這條分支打的就是資格文件的 writer,所以它同時也是一次免費的握手——多讀一個欄位
         // 就好,不另外發請求(verify_plus_refresh_lifecycle 的 L12/L13 在數這條路徑發幾發請求)。
@@ -13281,6 +13321,7 @@ async function plusRefresh() {
       plusSetEnvironment(p, plusEnvironmentFrom(info));
       p.founding = p.active && foundingFrom(info);
       p.mgmtUrl = (info && info.managementURL) || '';
+      metroWidgetSyncPlus(p.active); // 2026-08-16:拿到明確答案就同步小工具旗標(見 metroWidgetSyncPlus)
       if (state.basemap === 'sat') setBasemap(); // 資格變動→衛星解析度跟著換,不必等使用者重切底圖
     } else {
       // 資格讀不出來≠沒訂閱:維持現狀(p.active/p.founding/p.mgmtUrl 一律不動),只把錯誤講出來。
@@ -13329,6 +13370,7 @@ async function plusPurchase(kind) {
     plusSetEnvironment(p, plusEnvironmentFrom(info));
     p.founding = p.active && foundingFrom(info);
     p.mgmtUrl = (info && info.managementURL) || p.mgmtUrl || '';
+    metroWidgetSyncPlus(p.active); // 2026-08-16:買完就要解鎖小工具,不能等下一次 listener 推播(見 metroWidgetSyncPlus)
     if (!p.active) throw new Error(t('付款完成但尚未取得訂閱資格，請按「恢復購買」'));
     if (state.basemap === 'sat') setBasemap(); // 資格變動→衛星解析度跟著換,不必等使用者重切底圖
     // 🔴 2026-08-04 批二-B:買完立刻做資格落地握手,不要等使用者第一次同步撞上 permission-denied
@@ -13367,6 +13409,7 @@ async function plusRestore() {
     plusSetEnvironment(p, plusEnvironmentFrom(info));
     p.founding = p.active && foundingFrom(info);
     p.mgmtUrl = (info && info.managementURL) || p.mgmtUrl || ''; accountRender();
+    metroWidgetSyncPlus(p.active); // 2026-08-16:恢復購買同理,見 plusPurchase 那行與 metroWidgetSyncPlus
     if (p.active) {
       // 批二-B:恢復購買與購買同一個道理——資格是在別台買的,這台裝置的資格文件可能從來沒被
       // 寫過(webhook 只會為購買當下的 uid 寫一次)。同樣先握手再補一次全量同步,見 plusPurchase()。
