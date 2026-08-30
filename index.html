@@ -5568,7 +5568,8 @@
 //         跟隨卡改夾高度不再蓋掉時鐘膠囊。
 // v0831b：併入 Android 線 5dacec9——登入失敗的紅字原本只畫在「已登入」分支,所有登入失敗
 //         一律靜默(iOS 同一份檔案,同樣中招)。同輪照 Android 線訂正日文時態。
-const BUILD = 'v0831b'; // v0831a 出過 IPA 未上傳,內容已變故換號(同號兩載貨見心得 app-shipping-artifacts)
+const BUILD = 'v0831c'; // 🔴 v0831b 撞號:Android 線同時也用了 b(他不知道我從 a 跳到 b),兩顆載貨不同
+                        //    ⇒ 本線讓號跳 c。v0831a 出過 IPA 未上傳。跨分支撞號見心得16
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
