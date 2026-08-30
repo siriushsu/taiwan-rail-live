@@ -5566,7 +5566,9 @@
 //         讓每一條重錨路徑都失效,偏移固定不變,於是晚 2 小時 06 分發車的 132 次一路黏在使用者
 //         真實位置上。四道修法:搭乘中不撥鐘／卡自己標「非即時」可點回／手機時鐘卡補「回到現在」／
 //         跟隨卡改夾高度不再蓋掉時鐘膠囊。
-const BUILD = 'v0831a'; // 0830 全系列已用完(逐 ref 掃過),跨分支撞號見心得16
+// v0831b：併入 Android 線 5dacec9——登入失敗的紅字原本只畫在「已登入」分支,所有登入失敗
+//         一律靜默(iOS 同一份檔案,同樣中招)。同輪照 Android 線訂正日文時態。
+const BUILD = 'v0831b'; // v0831a 出過 IPA 未上傳,內容已變故換號(同號兩載貨見心得 app-shipping-artifacts)
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -12309,6 +12311,12 @@ function accountRender() {
     `<div class="account-login"><button type="button" data-login="google">${escHtml(t('使用 Google 登入'))}</button>${window.RAIL_APPLE_LOGIN === true ? `<button class="apple" type="button" data-login="apple">${escHtml(t('使用 Apple 登入'))}</button>` : ''}</div>` +
     // 不想登入的人要回得去 Plus 面板(這張畫面常常是從 Plus 面板的登入 CTA 過來的)。
     // 只在沒有購買通道的平台畫:有購買通道的平台 plusOpen() 未登入時本來就會把人送回這張登入畫面,畫了等於原地打轉。
+    // 🔴 2026-08-30:登入失敗的紅字原本只寫在下面「已登入」那一支,而登入失敗必然發生在【未登入】
+    // 狀態 ⇒ accountSignIn 的 catch 設好了 a.actionError、accountRender() 也跑了,畫面卻一個字都沒變。
+    // 這正是多位 Android 使用者說的「點下去是直接沒有任何反應,沒有登入失敗」;Apple 之所以「有反應」
+    // 只是因為它會跳出瀏覽器視窗,那本身就是看得見的動靜,與錯誤有沒有顯示無關。
+    // (Android 線 5dacec9 逐字照抄,兩線的這一段必須一致。)
+    (a.actionError ? `<div class="account-error">${escHtml(a.actionError)}</div>` : '') +
     (a.signinStuck === 'google' ? `<div class="account-note">${escHtml(t('沒有跳出 Google 帳號選擇畫面嗎？可以改用另一種方式登入。'))}</div><div class="account-user-actions"><button class="wide" type="button" data-login-legacy="google">${escHtml(t('改用另一種方式登入'))}</button></div>` : '') +
     (plusProjectConfigured() && !plusConfigured() ? `<div class="account-user-actions"><button class="wide" type="button" data-action="plus">${escHtml(t('先看看軌島通行證有什麼'))}</button></div>` : '') +
     `<div class="account-note">${escHtml(t('Google 登入只用於軌島帳號，不會因此取得 Google Maps 已儲存清單；清單匯入仍需使用 Google Takeout。'))}</div>`;
