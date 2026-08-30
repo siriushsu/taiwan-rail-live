@@ -259,6 +259,49 @@ if (mDelta < 0 || (mDelta === 0 && bDelta < 0 && !(ascRebase && process.env.ALLO
       `帶 ALLOW_ASC_REBASE=1 重跑放行這一趟。）\n` : ''));
   process.exit(3);
 }
+
+// ── 出貨回歸基線的新鮮度閘門（2026-08-30 使用者裁示：「出貨前都要仔細檢查前一顆的內容，
+//    不能每次都退掉其他東西」）────────────────────────────────────────────────
+// 為什麼要在這裡擋：verify_no_ship_regression 是拿 app/shipped-baseline.json 當「還在使用者
+// 手上的東西」的清單，可是**推進基線是人手動跑 --update**——沒人跑，基線就停在更早那一顆，
+// 於是「比 80 沒少」照樣綠，而真正該比的 82 早就上架了。這是**沉默的**失效：閘門全綠、
+// 訊息還大聲說「沒有任何一項比已上架的少」，只是它口中的「已上架」是舊的。
+// 判準刻意用線上 lookup 的 version（實查，不用記憶、不用 repo 裡的任何值），
+// 而且**只在 build 之前**跑一次——查不到就放行（fail-open），因為離線不該擋住出貨。
+{
+  const { readFileSync } = await import('node:fs');
+  const baselinePath = join(appRoot, 'shipped-baseline.json');
+  let base = null;
+  try { base = JSON.parse(readFileSync(baselinePath, 'utf8')); } catch { /* 沒基線由 verify 自己報 */ }
+  if (base) {
+    let live = null;
+    try {
+      // 裸 URL 會拿到 CDN 舊值 ⇒ no-cache ＋ 時間戳（心得 itunes-lookup-cdn-cache）
+      const out = execFileSync('curl', ['-s', '--max-time', '12', '-H', 'Cache-Control: no-cache',
+        `https://itunes.apple.com/lookup?id=6792673516&t=${process.hrtime.bigint()}`], { encoding: 'utf8' });
+      const r = JSON.parse(out).results?.[0];
+      if (r?.version) live = { v: r.version, at: r.currentVersionReleaseDate };
+    } catch { /* 離線／查不到 → 放行 */ }
+    if (!live) {
+      console.warn('⚠️  查不到線上版號（離線？），無法確認出貨回歸基線是不是最新的那一顆。');
+      console.warn(`   基線目前是 ${base.marketing} (${base.build})；上傳前請自己對一次。\n`);
+    } else if (cmp(live.v, base.marketing) > 0) {
+      console.error(
+        `\n✋ 拒絕執行：出貨回歸基線比線上落後了。\n` +
+        `   線上已上架 ${live.v}（${live.at}），基線卻還停在 ${base.marketing} (${base.build})。\n` +
+        `   照這樣建下去，「沒有任何一項比已上架的少」比的是 ${base.marketing}，\n` +
+        `   ${live.v} 才加進去的東西這一顆弄不見也不會有人知道。\n\n` +
+        `   先把基線推進到還在使用者手上的所有 build 的聯集：\n` +
+        `     node app/scripts/verify_no_ship_regression.mjs --update \\\n` +
+        `       --from <${base.marketing} 的 index.html>,<${live.v} 的 index.html> \\\n` +
+        `       --marketing ${live.v} --build <那一顆的 build 號>\n` +
+        `   （${live.v} 的 index.html 可從它的 archive 或 IPA 內 Payload/App.app/public/ 取。）\n`);
+      process.exit(4);
+    } else {
+      console.log(`▸ 出貨回歸基線 ${base.marketing} (${base.build}) 已涵蓋線上現行版 ${live.v}（${live.at}）`);
+    }
+  }
+}
 if (ascRebase) console.log(`⚠️ ALLOW_ASC_REBASE：900 系測試號 (${before.b}) → ASC 送審號 (${cfg.build})，已人工確認 ASC 序列後放行這一趟。`);
 src = src.replace(/MARKETING_VERSION = [^;]+;/g, `MARKETING_VERSION = ${cfg.marketing};`)
          .replace(/CURRENT_PROJECT_VERSION = [^;]+;/g, `CURRENT_PROJECT_VERSION = ${cfg.build};`);
