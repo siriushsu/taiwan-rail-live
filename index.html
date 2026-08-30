@@ -5544,7 +5544,10 @@
 //         守門人：app/scripts/verify-release.mjs 的 assertWidgetPlusSyncSites（出貨鏈）＋
 //         scripts/verify_metro_widget_plus_sync.mjs（行為層，量 setPlus 的呼叫序列）。
 // v0830i：iOS 1.5.2 (83)——併回 origin/main：衛星影像縮放的閃綠佔位色、通行證資格同步。
-const BUILD = 'v0830j'; // a/b/d/e/f/h/i 已被別的分支或本線前一輪用掉(逐 ref 掃過),跨分支撞號見心得16
+// v0830n：併入 Android 線 e5e8e94 的共用半邊(登入卡死的手動退路)。退路的 15 秒計時器
+//         【只在 Android 武裝】,iOS 行為一行都不變;共用檔照 Android 線原樣收下,
+//         兩線的 native-bridge.mjs 逐 byte 相同,下次合併是 no-op(見心得 ship-regression)。
+const BUILD = 'v0830n'; // a~k 與 m 已被別的分支或本線前一輪用掉(逐 ref 掃過),跨分支撞號見心得16
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -12287,6 +12290,7 @@ function accountRender() {
     `<div class="account-login"><button type="button" data-login="google">${escHtml(t('使用 Google 登入'))}</button>${window.RAIL_APPLE_LOGIN === true ? `<button class="apple" type="button" data-login="apple">${escHtml(t('使用 Apple 登入'))}</button>` : ''}</div>` +
     // 不想登入的人要回得去 Plus 面板(這張畫面常常是從 Plus 面板的登入 CTA 過來的)。
     // 只在沒有購買通道的平台畫:有購買通道的平台 plusOpen() 未登入時本來就會把人送回這張登入畫面,畫了等於原地打轉。
+    (a.signinStuck === 'google' ? `<div class="account-note">${escHtml(t('沒有跳出 Google 帳號選擇畫面嗎？可以改用另一種方式登入。'))}</div><div class="account-user-actions"><button class="wide" type="button" data-login-legacy="google">${escHtml(t('改用另一種方式登入'))}</button></div>` : '') +
     (plusProjectConfigured() && !plusConfigured() ? `<div class="account-user-actions"><button class="wide" type="button" data-action="plus">${escHtml(t('先看看軌島通行證有什麼'))}</button></div>` : '') +
     `<div class="account-note">${escHtml(t('Google 登入只用於軌島帳號，不會因此取得 Google Maps 已儲存清單；清單匯入仍需使用 Google Takeout。'))}</div>`;
   else {
@@ -12481,12 +12485,24 @@ function accountNativeCredential(providerName, result) {
   }
   return a.fb.GoogleAuthProvider.credential(c.idToken, c.accessToken || null);
 }
-async function accountSignIn(providerName) {
+async function accountSignIn(providerName, legacy) {
   const a = state.account; if (!a || !a.auth) return;
-  a.actionError = ''; accountRender();
+  a.actionError = ''; a.signinStuck = ''; accountRender();
+  let stuckTimer = 0;
   try {
     if (window.RAIL_NATIVE_AUTH) {
-      const result = await window.RAIL_NATIVE_AUTH.signIn(providerName);
+      // 🔴 2026-08-30:多位 Android 使用者回報「點 Google 登入完全沒反應,連錯誤訊息都沒有」。
+      // 根因在 Credential Manager 那條路徑不保證回覆(見 native-bridge.mjs signIn 的長註解),
+      // PluginCall 永遠不 resolve/reject ⇒ 下面這個 await 永遠不回,連 catch 的紅字都輪不到。
+      // 刻意【不自動退路】:正常流程的 promise 本來就要等使用者選完帳號才 settle,任何逾時都
+      // 分不出「卡死」與「還在選帳號」——自動退路會在使用者面前同時開兩個登入流程,更糟。
+      // 逾時只把出口顯示出來(原本那發照常在飛),按不按由使用者決定。
+      // 🔴 只在 Android 武裝:iOS 的 Google 登入不走 Credential Manager(結構上沒有這個 bug),
+      // 而 native-bridge 的 legacy 退路本身也只對 android 生效 ⇒ 在 iOS 上這個出口按了不會
+      // 改變任何行為,只會憑空多一句「沒有跳出選擇畫面嗎」的困惑。閘門放在武裝這一處就夠——
+      // a.signinStuck 只有這支計時器寫得進去,上面那條 render 分支在 iOS 上恆為死碼。
+      if (providerName === 'google' && !legacy && IS_NATIVE_APP && window.Capacitor?.getPlatform?.() === 'android') stuckTimer = setTimeout(() => { a.signinStuck = 'google'; accountRender(); }, 15000);
+      const result = await window.RAIL_NATIVE_AUTH.signIn(providerName, legacy);
       await a.fb.signInWithCredential(a.auth, accountNativeCredential(providerName, result));
     } else {
       let provider;
@@ -12495,6 +12511,9 @@ async function accountSignIn(providerName) {
       await a.fb.signInWithPopup(a.auth, provider);
     }
   } catch (e) { a.actionError = '登入失敗：' + (e && e.message ? e.message : String(e)); accountRender(); }
+  // 出口刻意不在這裡收掉:這一發若稍後才失敗,使用者仍看得到退路可按;登入成功時整張畫面
+  // 會被 onAuthStateChanged 換成已登入版面,出口自然消失。
+  finally { if (stuckTimer) clearTimeout(stuckTimer); }
 }
 // 🔴 2026-08-04 複審輪2 Important 1＋4:登出與刪除帳號原本共用同一支 accountClearLocal(uid),
 // 但兩者該清的範圍其實相反,同一套清法對兩邊都錯:
@@ -12653,13 +12672,15 @@ function accountEnsureInit() {
     const accountBody = document.getElementById('accountBody');
     if (accountBody) accountBody.onclick = e => {
       const login = e.target.closest('[data-login]'), action = e.target.closest('[data-action]');
-      if (login) accountSignIn(login.dataset.login);
+      const legacyLogin = e.target.closest('[data-login-legacy]');
+      if (legacyLogin) accountSignIn(legacyLogin.dataset.loginLegacy, true);
+      else if (login) accountSignIn(login.dataset.login);
       else if (action && action.dataset.action === 'sync') accountSyncNow('manual');
       else if (action && action.dataset.action === 'plus') plusOpen('account');
       else if (action && action.dataset.action === 'logout') accountSignOut();
       else if (action && action.dataset.action === 'delete') accountDelete();
     };
-    state.account = { ready: false, user: null, syncing: false, lastSync: 0, actionError: '', error: '', syncTimer: 0, gen: 0, loggingOut: false, syncSuspended: false, syncPromise: null };
+    state.account = { ready: false, user: null, syncing: false, lastSync: 0, actionError: '', signinStuck: '', error: '', syncTimer: 0, gen: 0, loggingOut: false, syncSuspended: false, syncPromise: null };
     accountRender();
     try {
       const fb = await accountLoadModules(), app = fb.initializeApp(window.RAIL_FIREBASE_CONFIG);
