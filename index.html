@@ -5547,7 +5547,7 @@
 //         守門人：app/scripts/verify-release.mjs 的 assertWidgetPlusSyncSites（出貨鏈）＋
 //         scripts/verify_metro_widget_plus_sync.mjs（行為層，量 setPlus 的呼叫序列）。
 // v0830h：Android 1.5.0 (21) 出貨——併回 origin/main（衛星閃綠佔位色、通行證資格同步）。
-const BUILD = 'v0830k'; // a/b/d/f/g/h/j 已被用掉(逐 ref 掃過),跨分支撞號見心得16
+const BUILD = 'v0830m'; // a/b/d/f/g/h/j/k 已被用掉(逐 ref 掃過),跨分支撞號見心得16
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -12290,6 +12290,11 @@ function accountRender() {
     `<div class="account-login"><button type="button" data-login="google">${escHtml(t('使用 Google 登入'))}</button>${window.RAIL_APPLE_LOGIN === true ? `<button class="apple" type="button" data-login="apple">${escHtml(t('使用 Apple 登入'))}</button>` : ''}</div>` +
     // 不想登入的人要回得去 Plus 面板(這張畫面常常是從 Plus 面板的登入 CTA 過來的)。
     // 只在沒有購買通道的平台畫:有購買通道的平台 plusOpen() 未登入時本來就會把人送回這張登入畫面,畫了等於原地打轉。
+    // 🔴 2026-08-30:登入失敗的紅字原本只寫在下面「已登入」那一支,而登入失敗必然發生在【未登入】
+    // 狀態 ⇒ accountSignIn 的 catch 設好了 a.actionError、accountRender() 也跑了,畫面卻一個字都沒變。
+    // 這正是多位 Android 使用者說的「點下去是直接沒有任何反應,沒有登入失敗」;Apple 之所以「有反應」
+    // 只是因為它會跳出瀏覽器視窗,那本身就是看得見的動靜,與錯誤有沒有顯示無關。
+    (a.actionError ? `<div class="account-error">${escHtml(a.actionError)}</div>` : '') +
     (a.signinStuck === 'google' ? `<div class="account-note">${escHtml(t('沒有跳出 Google 帳號選擇畫面嗎？可以改用另一種方式登入。'))}</div><div class="account-user-actions"><button class="wide" type="button" data-login-legacy="google">${escHtml(t('改用另一種方式登入'))}</button></div>` : '') +
     (plusProjectConfigured() && !plusConfigured() ? `<div class="account-user-actions"><button class="wide" type="button" data-action="plus">${escHtml(t('先看看軌島通行證有什麼'))}</button></div>` : '') +
     `<div class="account-note">${escHtml(t('Google 登入只用於軌島帳號，不會因此取得 Google Maps 已儲存清單；清單匯入仍需使用 Google Takeout。'))}</div>`;
