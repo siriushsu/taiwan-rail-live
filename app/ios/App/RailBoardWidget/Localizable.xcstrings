@@ -3690,6 +3690,23 @@
         }
       }
     },
+    "山線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mountain Line"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "山線"
+          }
+        }
+      }
+    },
     "已切成衛星影像——從「更多」再按一次可切回地圖": {
       "extractionState": "manual",
       "localizations": {
@@ -6121,6 +6138,23 @@
         }
       }
     },
+    "火車站看板改成分方向顯示：南下、北上分開，山線海線與支線各自成區，冷門方向不再被擠掉；顏色比照台鐵新版車站標示的北上藍、南下綠": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Station boards now group trains by direction—southbound, northbound and each branch line get their own section, so quieter directions no longer get squeezed out; colour-coded blue for northbound and green for southbound, matching TRA's new station signage."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅の発車案内を方面別に分割：南行き・北行き・支線がそれぞれ独立し、本数の少ない方面も押し出されません。色分けは台鉄の新しい案内サインに合わせ、北行きは青、南行きは緑。"
+          }
+        }
+      }
+    },
     "世運": {
       "extractionState": "manual",
       "localizations": {
@@ -6202,23 +6236,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "以下のカウントダウンと地図上の列車位置は駅間の固定所要時間から推定しています。実際と異なる場合や、区間全体が表示されない場合があります。"
-          }
-        }
-      }
-    },
-    "以月訂或年訂支持軌島持續運作。同一個軌島帳號可在網站與 App 使用與恢復訂閱資格。": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Support Rail Island with a monthly or annual subscription. The same account can use and restore Plus on the web and in the app."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "月額または年額プランで軌島の運営を支援できます。同じアカウントでWebとアプリの購入を利用・復元できます。"
           }
         }
       }
@@ -6325,6 +6342,23 @@
         }
       }
     },
+    "北上": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Northbound"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "北行き"
+          }
+        }
+      }
+    },
     "北屯總站": {
       "extractionState": "manual",
       "localizations": {
@@ -6406,6 +6440,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "北埔"
+          }
+        }
+      }
+    },
+    "北迴線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "North-Link Line"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "北廻線"
           }
         }
       }
@@ -8949,7 +9000,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Please subscribe in the Rail Island app. Plus will then activate automatically on the web for the same account."
+            "value": "Please subscribe in the Rail Island app. The pass will then activate automatically on the web for the same account."
           }
         },
         "ja": {
@@ -9721,23 +9772,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "列車の進行方向を表示中（タップで非表示）"
-          }
-        }
-      }
-    },
-    "列車位置、誤點資訊與系統覆蓋永遠免費——Plus 不影響準確度。": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Train positions, delay information and system coverage will always stay free—Plus never changes accuracy."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "列車位置、遅延情報、対応路線は今後も無料です。Plusの有無で精度は変わりません。"
           }
         }
       }
@@ -14009,6 +14043,23 @@
         }
       }
     },
+    "宜蘭線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yilan Line"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "宜蘭線"
+          }
+        }
+      }
+    },
     "宜蘭縣": {
       "extractionState": "manual",
       "localizations": {
@@ -14413,6 +14464,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "{time}{nextDay}着"
+          }
+        }
+      }
+    },
+    "抵達本站": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminating here"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当駅止まり"
           }
         }
       }
@@ -15930,6 +15998,23 @@
         }
       }
     },
+    "南下": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Southbound"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "南行き"
+          }
+        }
+      }
+    },
     "南屯": {
       "extractionState": "manual",
       "localizations": {
@@ -16317,6 +16402,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "屏東"
+          }
+        }
+      }
+    },
+    "屏東線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pingtung Line"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "屏東線"
           }
         }
       }
@@ -17728,57 +17830,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "軌島 {version}の更新内容"
-          }
-        }
-      }
-    },
-    "軌島 Plus": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rail Island Plus"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "軌島 Plus"
-          }
-        }
-      }
-    },
-    "軌島 Plus 已啟用": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rail Island Plus is active."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "軌島 Plusが有効になりました。"
-          }
-        }
-      }
-    },
-    "軌島 Plus 訂閱": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rail Island Plus subscription"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "軌島 Plus サブスクリプション"
           }
         }
       }
@@ -22050,23 +22101,6 @@
         }
       }
     },
-    "這個帳號目前沒有可恢復的 Plus 訂閱資格。": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This account has no Plus subscription to restore."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "このアカウントには復元できるPlusサブスクリプションがありません。"
-          }
-        }
-      }
-    },
     "這個帳號目前沒有可恢復的通行證資格。": {
       "extractionState": "manual",
       "localizations": {
@@ -22250,6 +22284,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "パスには台湾鉄路の90日日別遅延履歴、お気に入りと完乗のクラウド同期、旅程共有、Google Mapsリスト読込、高解像度衛星画像、iOS 17.6以降のロック画面／Dynamic Island表示が含まれます。"
+          }
+        }
+      }
+    },
+    "通行證購買元件載入失敗": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The pass purchase component failed to load."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "パス購入コンポーネントを読み込めませんでした。"
           }
         }
       }
@@ -23597,23 +23648,6 @@
         }
       }
     },
-    "無法載入 Plus 購買元件，請檢查網路後再試": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Unable to load Plus purchases. Check your connection and try again."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Plus購入機能を読み込めません。通信状況を確認して再度お試しください。"
-          }
-        }
-      }
-    },
     "無法載入 ZIP 解壓元件；可先解壓縮後改選 CSV 或 GeoJSON": {
       "extractionState": "manual",
       "localizations": {
@@ -23631,19 +23665,19 @@
         }
       }
     },
-    "無法讀取 Plus：{error}": {
+    "無法載入通行證購買元件，請檢查網路後再試": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Unable to load Plus: {error}"
+            "value": "Unable to load pass purchases. Check your connection and try again."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Plusを読み込めません：{error}"
+            "value": "パス購入機能を読み込めません。通信状況を確認して再度お試しください。"
           }
         }
       }
@@ -23661,6 +23695,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "このファイルを読み込めません"
+          }
+        }
+      }
+    },
+    "無法讀取通行證：{error}": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unable to load the pass: {error}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "パスを読み込めません：{error}"
           }
         }
       }
@@ -27745,6 +27796,23 @@
         }
       }
     },
+    "臺東線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taitung Line"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台東線"
+          }
+        }
+      }
+    },
     "臺東縣": {
       "extractionState": "manual",
       "localizations": {
@@ -30108,6 +30176,23 @@
         }
       }
     },
+    "縱貫線南段": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Western Line (South)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "縦貫線南段"
+          }
+        }
+      }
+    },
     "縱貫線南段的日式木造車站": {
       "extractionState": "manual",
       "localizations": {
@@ -32025,40 +32110,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "OpenFreeMap（© OpenFreeMap、© OpenMapTiles、© OpenStreetMap contributors）、CARTO、Esri World Imagery、内政部の県市境界データを利用しています。"
-          }
-        }
-      }
-    },
-    "Plus 已啟用": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Plus is active"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Plus は有効です"
-          }
-        }
-      }
-    },
-    "Plus 購買元件載入失敗": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The Plus purchase component failed to load."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Plus購入コンポーネントを読み込めませんでした。"
           }
         }
       }
