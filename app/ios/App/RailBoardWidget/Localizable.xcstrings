@@ -28918,6 +28918,23 @@
         }
       }
     },
+    "新北投與小碧潭支線的車一發車就從地圖上消失，現在會照官方到站時間走完兩站": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trains on the Xinbeitou and Xiaobitan branches used to vanish from the map the moment they departed. They now run the two stations following the official arrival times."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新北投支線と小碧潭支線の列車が、発車した途端に地図から消えていました。現在は公式の到着時刻に合わせて 2 駅間を走ります。"
+          }
+        }
+      }
+    },
     "新北捷": {
       "extractionState": "manual",
       "localizations": {
