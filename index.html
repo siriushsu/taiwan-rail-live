@@ -5098,6 +5098,7 @@
         <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，面板都住進底部；新增「捷」分頁，北中高捷運一張圖同框</span></li>
         <li><span class="d">7/13</span><span>新增「省電」模式（手機預設開啟）：降到 30fps；手機一次只開一個面板</span></li>
         <li class="grp">外觀與品牌</li>
+        <li data-cl="cartoretreat"><span class="d">8/31</span><span>街道底圖在 OpenFreeMap 載入不順時，原本會自動退回 CARTO 的圖磚。CARTO 從免費改成需要金鑰之後，退過去看到的是一張壓著「API KEY REQUIRED」浮水印的地圖——而且它回的是正常的 200，本站這端偵測不到異常，連「底圖有問題」的提示都不會跳，等於無聲換成一張蓋了章的地圖。現在網站不再退到 CARTO：載不動就直說「街道底圖載入異常，列車與路線不受影響」，並提示可以切到衛星影像，重新整理就會重試 OpenFreeMap。手機 App 不受影響，它退到的是自家付費的底圖</span></li>
         <li data-cl="satunderlay"><span class="d">8/31</span><span>衛星影像模式縮放時「閃一下底圖」的真正修法。8/30 那次只把墊在下面的顏色調成貼近衛星影像的色調，使用者回報「不是換顏色就沒事，還是會干擾」——治標而已。真因是 Leaflet 只保留目前層級往下兩級的圖磚，手機捏合一次動輒縮三四級，於是沒有任何一層蓋得住畫面，底下的平色就露出來。現在在圖磚層下面固定墊兩層衛星影像（一層很糊但涵蓋全台、一層較清晰），兩層都鎖死在自己的縮放級數所以永遠不會被清掉，開啟衛星時先把全台那層一次抓齊（十幾張圖磚）。實測五種縮放路徑、兩種瀏覽器引擎，畫面每一幀都有影像覆蓋，破口從最多九十六幀降到零</span></li>
         <li data-cl="satfallback"><span class="d">8/30</span><span>衛星影像模式下放大或縮小時，畫面會有一瞬間整片變成深綠色，在 Android 手機上特別明顯。一次縮小好幾級的時候，新的衛星圖磚還沒補上，露出來的是墊在底下的台灣輪廓，而它的顏色是當初憑感覺挑的森林綠，和真正的衛星影像差了一整個色相。現在改成照衛星影像在台灣上空的實際顏色（取台北、板橋、桃園、台中、高雄、花蓮與全島七處、四種縮放共 28 張圖磚量出來），圖磚補上前後的色差從一眼就看得到降到幾乎分辨不出來。亮色與暗色地圖本來就已經貼齊各自的底圖，這次沒有變動</span></li>
         <li data-cl="fontscale"><span class="d">8/22</span><span>字級多了三階（標準／大／特大）：在「更多」→「字級」選一個，整個介面的字級、列高與可點範圍一起放大，版面不會因此收掉任何欄位。手機把系統字級調到輔助使用級別（設定 →輔助使用→顯示與文字大小）時，軌島會自動跟著放大到特大，不必再自己設定一次</span></li>
@@ -5670,7 +5671,7 @@
 //         獨立基準覆核:山線／海線／成追線判定 vs 台鐵官方 Line 欄位【908/908 逐車一致】;
 //         純西部方向 vs 官方 LineDir 對稱一致(1↔北上 241、2↔南下 241)。
 //         守門人:scripts/verify_board_direction_groups.mjs(26 項,五發突變各自咬到預期斷言)。
-const BUILD = 'v0831q'; // 908 線併回 origin/main(18 顆:文風閘門、Plus→通行證改名、原生多語重產、併站走 haversine);更新說明補三段＋更新紀錄補 branchdepart;a~p 全被用掉(逐 ref＋逐工作樹掃過)
+const BUILD = 'v0831r'; // 拔除網站的 CARTO 街道底圖退路(CARTO 對無金鑰回 200＋API KEY REQUIRED 浮水印,tileerror 抓不到),改走 ofmNoticeWeb 照實說;a~q 全被用掉
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -11368,9 +11369,11 @@ const TRIP_SHARE_ENABLED = (() => { try { return new URLSearchParams(location.se
 //           (LICENSE.md 逐字 "not available for free public use"),而我們在賣通行證 ⇒ 落在 commercial。
 // 'ofm'   = OpenFreeMap 向量(OSM 資料,免金鑰、無用量上限、明文可商用)。經 maplibre-gl-leaflet
 //           當成一個 Leaflet 圖層掛進來,Leaflet 與既有的 155 處綁定、投影包裝層都不動。
-// ?basemap=ofm|carto 供驗證用(僅該次頁面生效,不改預設)。
+// ?basemap=ofm 供驗證用(僅該次頁面生效,不改預設)。
+// 'carto' 這個值 2026-08-31 移除:網站已經沒有可用的 raster 街道來源,留著它等於提供一個
+// 「看蓋章地圖」的開關,而且會讓人誤以為那條路還是活的。
 const WEB_STREET_SRC = (() => {
-  try { const v = new URLSearchParams(location.search).get('basemap'); if (v === 'ofm' || v === 'carto') return v; } catch (e) {}
+  try { const v = new URLSearchParams(location.search).get('basemap'); if (v === 'ofm') return v; } catch (e) {}
   return 'ofm';
 })();
 const OFM_STYLE = { light: 'vendor/ofm-positron.json', dark: 'vendor/ofm-dark.json' };
@@ -27746,12 +27749,17 @@ const OFM_HEALTH_MS = 8000, OFM_ERROR_LIMIT = 4;
 function ofmWatch(layer) {
   // 🔴 **偵測兩邊都要做**。此前這裡對網站整條 return,於是 OFM 半死時網站是**零訊號**:
   // 使用者看到一片空白底圖上飄著列車,分不清是自己的網路、我們掛了、還是功能壞了。
-  // 2026-08-26 起網站也真的退得了(退到 CARTO raster,見 boot 內建層處的裁示註解),
-  // 所以這裡不再分 App/網站——兩邊都是「偵測到就退」,退完無聲繼續看地圖。
+  // 2026-08-26 起網站也退得了(退到 CARTO raster);2026-08-31 那條退路拔除,網站改成「偵測到就說」,
+  // App 仍是「偵測到就退」(退到 Stadia)。共通的是**兩邊都要偵測**,差別只在偵測到之後做什麼。
   let settled = false, errors = 0, timer = null;
   const stop = () => { settled = true; if (timer) clearTimeout(timer); };
   // 亮/暗各有一個 watcher,但只有第一個會真的換層(ofmFallToRaster 自己早退),所以這裡不必再擋一次。
-  const fail = why => { stop(); ofmFallToRaster(why); };
+  // 🔴 2026-08-31:**網站不再退到 raster**。CARTO 現在對無金鑰的請求回 **HTTP 200 + 一張壓著
+  // 「API KEY REQUIRED」浮水印的真圖磚**(實測 light_all/7/106/55@2x = 200、image/png、28087 bytes),
+  // 於是退過去之後 (a) 使用者看到一張蓋章的地圖 (b) `tileerror` 一次都不會發生 ⇒ 連下面那道
+  // 「退路也掛了」的提示都叫不到,整條路徑零訊號。退到一個壞掉又測不出壞掉的地方比不退更糟,
+  // 所以網站改成直接把話講出來。App 不受影響:它退到自家付費的 Stadia,那是真的能用的。
+  const fail = why => { stop(); if (APP_CFG.tiles) ofmFallToRaster(why); else ofmNoticeWeb(why); };
   // 逾時**只在圖層真的上場後**起算:亮/暗兩層只有一層會被加進地圖,
   // 若一建好就起算,沒上場的那層必然逾時 ⇒ 每次開機都假退場。
   layer.on('add', function () {
@@ -27763,11 +27771,11 @@ function ofmWatch(layer) {
     if (gl.isStyleLoaded && gl.isStyleLoaded()) stop(); else gl.once('load', stop);
   });
 }
-// 連退路都掛了的處置(網站限定)。2026-08-26 之前這是「網站根本沒有退路」的處置;
-// 現在網站退得到 CARTO,所以它的場景縮小成**兩家同時掛**——那時使用者又回到
-// 「空白底圖上飄著列車」,還是得把話講出來,不能因為我們已經盡力了就靜默。
-// 一個 session 只講一次,且**不寫 localStorage**——理由同 ofmFallToRaster:
-// 一次網路抖動不該讓下次開機也帶著這個判斷,重新整理就該重試 OFM。
+// 街道底圖失效的處置(網站限定)。2026-08-31 起這是網站**唯一**的處置——CARTO 退路已拔除,
+// 所以場景回到「OFM 一掛就沒有街道底圖」:使用者會看到空白底圖上飄著列車,一定要把話講出來,
+// 不能因為我們已經盡力了就靜默。
+// 一個 session 只講一次,且**不寫 localStorage**——一次網路抖動不該讓下次開機也帶著這個判斷,
+// 重新整理就該重試 OFM。
 let ofmNoticeShown = false;
 function ofmNoticeWeb(why) {
   if (ofmNoticeShown) return;
@@ -27782,6 +27790,7 @@ function ofmNoticeWeb(why) {
     ? '街道底圖載入異常，列車與路線不受影響。可切換到「衛星」底圖。'
     : '街道底圖載入異常，列車與路線不受影響。重新整理即可重試。'), { wrap: true });
 }
+// 🔴 2026-08-31 起這條只有 App 走得到(退到自家付費的 Stadia)。網站那半已拔除——見 ofmWatch 的 fail。
 function ofmFallToRaster(why) {
   if (!ofmRasterFallback) return; // 已經退過(或沒備退路)就不再退:只退一次,不來回跳
   const built = ofmRasterFallback; ofmRasterFallback = null;
@@ -27790,12 +27799,6 @@ function ofmFallToRaster(why) {
     const old = baseLayers[k];
     if (old && map && map.hasLayer(old)) map.removeLayer(old);
     baseLayers[k] = built[k]();
-    // 退到 raster 不等於得救:兩家可以同時掛。網站再盯一次,連退路都掉圖磚就把話講出來
-    // (App 不掛這條——它的 raster 是自家付費的 Stadia,且 App 另有殼層的離線處置)。
-    if (!APP_CFG.tiles) {
-      let rerr = 0;
-      baseLayers[k].on('tileerror', () => { if (++rerr >= OFM_ERROR_LIMIT) ofmNoticeWeb(why); });
-    }
   }
   try { console.warn('[basemap] OpenFreeMap 退場改用 raster:' + why); } catch (e) {}
   setBasemap(); // 把該顯示的那層重新掛上去(署名也會跟著換成 raster 那份)
@@ -30016,12 +30019,13 @@ async function boot() {
     if (useOfmStreet && (k === 'light' || k === 'dark')) {
       // L2 退路先備好:用「raster 路徑原本就會建的那份設定」包成 thunk,退場時直接叫它,
       // 不重抄一次 maxZoom/keepBuffer/attribution(抄一次就多一個會走樣的地方)。
-      // App 退到 Stadia、網站退到 CARTO。網站這半是 **2026-08-26 使用者在知道 CARTO 條款狀態
-      // 的前提下裁示**的:CARTO 2025-10 起把 hosted 圖磚限定給 enterprise(那正是 08-18 換走它的
-      // 原因),但「OFM 掛掉時一片空白的地圖」被判定比「一條授權有疑慮的緊急退路」更糟。
-      // 只有 ofmWatch 判定 OFM 失效時才叫得到這個 thunk——日常路徑仍然是 OFM,不是 CARTO。
-      if (!ofmRasterFallback) ofmRasterFallback = {};
-      ofmRasterFallback[k] = () => L.tileLayer(t.url, opt);
+      // 🔴 **只有 App 有退路(Stadia)**。網站那半的退路是 2026-08-26 裁示的 CARTO,但 08-31 使用者
+      // 在正式站上看到蓋著「API KEY REQUIRED」浮水印的地圖 ⇒ 該裁示的前提(CARTO 還會發正常圖磚)
+      // 已經不成立,同日裁示拔除。網站的失效處置改走 ofmNoticeWeb,見 ofmWatch 的 fail。
+      if (APP_CFG.tiles) {
+        if (!ofmRasterFallback) ofmRasterFallback = {};
+        ofmRasterFallback[k] = () => L.tileLayer(t.url, opt);
+      }
       baseLayers[k] = L.maplibreGL({ style: OFM_STYLE[k], attribution: OFM_ATTRIBUTION, interactive: false });
       ofmWatch(baseLayers[k]);
       if (ALIGN_DOT) { // 底圖那半的對齊探針:交給底圖引擎自己依經緯度畫,不經過我們任何投影程式碼
@@ -30037,6 +30041,15 @@ async function boot() {
           gl.isStyleLoaded && gl.isStyleLoaded() ? put() : gl.once('load', put);
         });
       }
+      continue;
+    }
+    // 🔴 網站已經沒有可用的 raster 街道來源(CARTO 對無金鑰請求回 200＋浮水印,見 ofmWatch 的 fail)。
+    // 走得到這裡只有一種情況:向量函式庫沒載進來 ⇒ 上面那個 useOfmStreet 分支沒接手。
+    // 與其掛一張蓋著章的地圖,不如什麼都不掛並照實說;列車、路線與衛星底圖都不受影響。
+    // 上面那兩個 cartocdn 的 entry 保留著是因為它們同時是這個迴圈的閘門(t.url 不在就整個 k 被 skip,
+    // 連 OFM 那半都建不起來);網站實際上永遠不會送出那個網址。App 有自己的 APP_CFG.tiles,不走這裡。
+    if (!APP_CFG.tiles && (k === 'light' || k === 'dark')) {
+      setTimeout(() => ofmNoticeWeb('no-street'), OFM_HEALTH_MS);
       continue;
     }
     baseLayers[k] = L.tileLayer(t.url, opt);
