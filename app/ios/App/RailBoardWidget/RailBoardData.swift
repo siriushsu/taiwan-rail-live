@@ -1373,6 +1373,9 @@ struct RailBoardEngine {
                     templates: withPass,
                     system: system,
                     stations: stations,
+                    // 🔴 App 線的 journeys 多一個 originID（方向三角要用它算 headingID）——
+                    //    main 那側沒有這個參數，合併時要補上，否則這一支多載對不起來。
+                    originID: originID,
                     actualServiceDay: serviceDay
                 ).contains { $0.scheduledDate > now }
             }
@@ -1431,7 +1434,10 @@ struct RailBoardEngine {
             stations: first.stations,
             templates: parts.flatMap(\.templates),
             journeys: journeys,
-            meta: first.meta
+            meta: first.meta,
+            // 共站要「每個成員都空、且至少一個成員是因為藏了通過車才空」才算 passHidden——
+            // 任一成員還有車就不是空看板，那句「本站今天只有通過列車」會變成謊話。
+            passHidden: journeys.isEmpty && parts.contains { $0.passHidden }
         )
     }
 
