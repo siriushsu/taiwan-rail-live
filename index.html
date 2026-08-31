@@ -5672,7 +5672,7 @@
 //         獨立基準覆核:山線／海線／成追線判定 vs 台鐵官方 Line 欄位【908/908 逐車一致】;
 //         純西部方向 vs 官方 LineDir 對稱一致(1↔北上 241、2↔南下 241)。
 //         守門人:scripts/verify_board_direction_groups.mjs(26 項,五發突變各自咬到預期斷言)。
-const BUILD = 'v0831r'; // 拔除網站的 CARTO 街道底圖退路(CARTO 對無金鑰回 200＋API KEY REQUIRED 浮水印,tileerror 抓不到),改走 ofmNoticeWeb 照實說;a~q 全被用掉
+const BUILD = 'v0831s'; // 隨機跟隨:單班抽中機率上限 3%＋記住剛跟過的五班(稀有度原本被 TOUR_W 與 stock.rarity 算了兩次);a~r 全被用掉
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
