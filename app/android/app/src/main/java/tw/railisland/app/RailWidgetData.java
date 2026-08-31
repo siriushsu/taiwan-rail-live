@@ -13,6 +13,9 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -48,8 +51,15 @@ final class RailWidgetData {
     private static final double PLACE_TIE_METERS = 300.0;
     private static final String LIVE_URL = "https://railisland.tw/api/tra-live";
     private static final String THSR_SCHEDULE_URL = "https://railisland.tw/api/thsr-schedule";
+    // 台鐵班表是 14 天滾動窗,而打包進 APK 的那份停在出版當天。這個精簡檔一份涵蓋整個窗
+    // (646KB,站名索引化),抓一次撐到窗結束;抓不到就退回內建那份,行為與改動前相同。
+    private static final String TRA_SCHEDULE_URL = "https://railisland.tw/data/tra_widget_schedule.json";
+    private static final String TRA_SCHEDULE_CACHE = "tra_widget_schedule.json";
     private static final TimeZone TAIPEI = TimeZone.getTimeZone("Asia/Taipei");
     private static Catalog cachedCatalog;
+    private static SystemInfo cachedCurrentTra;
+    private static String cachedCurrentTraDay;
+    private static long cachedCurrentTraAt;
     private static SystemInfo cachedCurrentThsr;
     private static String cachedCurrentThsrDay;
     private static long cachedCurrentThsrAt;
@@ -451,7 +461,7 @@ final class RailWidgetData {
         if (SYS_COMPOSITE.equals(sys)) {
             Composite pair = catalog.compositeByKey.get(origin);
             if (pair == null) throw new JSONException("unknown composite");
-            Snapshot tra = prepare(catalog.byId.get("tra"), pair.tra, "", now, includePass);
+            Snapshot tra = prepare(currentTra(context, catalog, now), pair.tra, "", now, includePass);
             Snapshot thsr = prepare(currentThsr(catalog, now), pair.thsr, "", now, includePass);
             out = new Snapshot();
             out.sys = SYS_COMPOSITE;
@@ -464,7 +474,9 @@ final class RailWidgetData {
             out.hiddenPass = tra.hiddenPass + thsr.hiddenPass;
             out.scheduleNote = tra.scheduleNote;
         } else {
-            SystemInfo system = "thsr".equals(sys) ? currentThsr(catalog, now) : catalog.byId.get(sys);
+            SystemInfo system = "thsr".equals(sys) ? currentThsr(catalog, now)
+                : "tra".equals(sys) ? currentTra(context, catalog, now)
+                : catalog.byId.get(sys);
             if (system == null) throw new JSONException("unknown system");
             out = prepare(system, origin, destination, now, includePass);
         }
@@ -696,6 +708,133 @@ final class RailWidgetData {
      * 高鐵靜態檔只保留站名與離線幾何，班次必須讀網站現用的 /api/thsr-schedule。
      * 端點若只剩「最近一天」的降級文件，日期不等於今天就拒絕，不把舊班表偽裝成今日班次。
      */
+    /**
+     * 台鐵班表:優先用線上的精簡檔(涵蓋整個 14 天窗),抓不到或涵蓋不到今天就退回打包的那份。
+     *
+     * 為什麼要連線:台鐵班表是 14 天滾動窗,打包進 APK 的快照過了窗就只能靠
+     * {@link #activeDay} 退到「同星期最近來源日」硬撐——時刻會錯。網頁版本來就會自己抓新的。
+     *
+     * 為什麼不是每天抓:那份檔一份涵蓋整個窗,所以判準是「今天在不在 dates 裡」而不是
+     * 「檔的日期等不等於今天」(高鐵那條是單日文件才用日期相等)。窗還沒過完就一直用磁碟那份。
+     *
+     * 失敗一律安靜退回內建:小工具沒有地方顯示錯誤,而退回之後的行為與這個改動之前完全相同,
+     * 使用者最多是看到 activeDay 本來就會給的「班表只到 X · 請更新軌島」。
+     */
+    private static synchronized SystemInfo currentTra(Context context, Catalog catalog, long now) {
+        String today = dayKey(now);
+        if (cachedCurrentTra != null && today.equals(cachedCurrentTraDay)
+            && now - cachedCurrentTraAt < 5 * 60_000L) return cachedCurrentTra;
+
+        SystemInfo built = null;
+        try {
+            JSONObject doc = readTraCache(context, today);
+            if (doc == null) doc = downloadTraSchedule(context, today);
+            if (doc != null) built = buildTraSystem(doc);
+        } catch (Exception ignored) {
+            built = null;
+        }
+        SystemInfo out = built != null ? built : catalog.byId.get("tra");
+        cachedCurrentTra = out;
+        cachedCurrentTraDay = today;
+        cachedCurrentTraAt = now;
+        return out;
+    }
+
+    /** 磁碟快取:涵蓋窗含今天才算數,否則當作沒有(回 null 讓上層去下載)。 */
+    private static JSONObject readTraCache(Context context, String today) {
+        File file = new File(context.getCacheDir(), TRA_SCHEDULE_CACHE);
+        if (!file.exists()) return null;
+        try (FileInputStream in = new FileInputStream(file)) {
+            JSONObject doc = new JSONObject(readAll(in));
+            JSONObject dates = doc.optJSONObject("dates");
+            return dates != null && dates.has(today) ? doc : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static JSONObject downloadTraSchedule(Context context, String today) throws Exception {
+        HttpURLConnection connection = null;
+        try {
+            connection = (HttpURLConnection) new URL(TRA_SCHEDULE_URL).openConnection();
+            connection.setConnectTimeout(8000);
+            connection.setReadTimeout(12000);
+            connection.setUseCaches(false);
+            connection.setRequestProperty("User-Agent", "RailIsland-Android-RailWidget");
+            if (connection.getResponseCode() != 200) return null;
+            String body = readAll(connection.getInputStream());
+            JSONObject doc = new JSONObject(body);
+            JSONObject dates = doc.optJSONObject("dates");
+            // 涵蓋不到今天的就不要落地——留著舊快取還比較有用(至少它曾經涵蓋過今天)。
+            if (dates == null || !dates.has(today)) return null;
+            try (FileOutputStream out = new FileOutputStream(new File(context.getCacheDir(), TRA_SCHEDULE_CACHE))) {
+                out.write(body.getBytes("UTF-8"));
+            } catch (Exception ignored) {
+                // 寫不進去(空間不足等)不影響這一輪,下次再抓一次而已。
+            }
+            return doc;
+        } finally {
+            if (connection != null) connection.disconnect();
+        }
+    }
+
+    /**
+     * 精簡檔 → 與打包檔相同形狀的 SystemInfo。
+     * 站名在精簡檔裡是索引、depSec 是停站秒數、顏色是車種對照表——這裡全部還原,
+     * 讓下游(prepare／activeDay／filterOptions)完全不必知道資料是哪裡來的。
+     * 車次順序刻意沿用來源順序:dates 裡放的是車次索引,順序一動整份就對不上。
+     */
+    private static SystemInfo buildTraSystem(JSONObject doc) throws JSONException {
+        JSONArray stationList = doc.optJSONArray("stations");
+        JSONArray trainList = doc.optJSONArray("trains");
+        if (stationList == null || trainList == null || trainList.length() == 0) return null;
+        JSONObject types = doc.optJSONObject("types");
+
+        JSONArray stations = new JSONArray();
+        String[] names = new String[stationList.length()];
+        for (int i = 0; i < stationList.length(); i++) {
+            JSONArray one = stationList.optJSONArray(i);
+            if (one == null) return null;
+            names[i] = one.optString(0, "");
+            stations.put(new JSONObject()
+                .put("name", names[i]).put("lat", one.optDouble(1)).put("lon", one.optDouble(2)));
+        }
+
+        JSONArray trains = new JSONArray();
+        for (int i = 0; i < trainList.length(); i++) {
+            JSONArray one = trainList.optJSONArray(i);
+            if (one == null) return null;
+            String type = one.optString(1, "其他");
+            JSONArray stopList = one.optJSONArray(2);
+            JSONArray stops = new JSONArray();
+            if (stopList != null) for (int j = 0; j < stopList.length(); j++) {
+                JSONArray stop = stopList.optJSONArray(j);
+                if (stop == null) continue;
+                int at = stop.optInt(0, -1);
+                if (at < 0 || at >= names.length) continue;
+                int arr = stop.optInt(1, 0);
+                stops.put(new JSONObject()
+                    .put("name", names[at])
+                    .put("arr", arr)
+                    .put("dep", arr + stop.optInt(2, 0))
+                    .put("stop", stop.optInt(3, 1) != 0));
+            }
+            trains.put(new JSONObject()
+                .put("no", one.optString(0, ""))
+                .put("type", type)
+                .put("color", types != null ? types.optString(type, "#8E44AD") : "#8E44AD")
+                .put("stops", stops));
+        }
+
+        JSONArray range = doc.optJSONArray("dateRange");
+        return new SystemInfo(new JSONObject()
+            .put("id", "tra").put("label", "台鐵").put("live", true)
+            .put("date", range != null ? range.optString(0, "") : "")
+            .put("dates", doc.optJSONObject("dates"))
+            .put("stations", stations)
+            .put("trains", trains));
+    }
+
     private static synchronized SystemInfo currentThsr(Catalog catalog, long now) throws Exception {
         String today = dayKey(now).replace("-", "");
         if (cachedCurrentThsr != null && today.equals(cachedCurrentThsrDay)
