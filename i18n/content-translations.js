@@ -4,7 +4,8 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
-    '非即時': 'Not live', '回到現在': 'Back to now',
+    '非即時': 'Not live',
+    '回到現在': 'Back to now',
     '可轉乘': 'Transfers', '轉 {routes}': 'Transfer: {routes}', '列車進站': 'Train arriving',
     '成追線': 'Chengzhui Line', '東部幹線': 'Eastern Trunk Line', '集集線': 'Jiji Line',
     '六家線': 'Liujia Line', '內灣線': 'Neiwan Line', '平溪線': 'Pingxi Line',
@@ -132,7 +133,8 @@
   });
 
   Object.assign(messages.ja, {
-    '非即時': '非リアルタイム', '回到現在': '現在に戻る',
+    '非即時': '非リアルタイム',
+    '回到現在': '現在に戻る',
     '可轉乘': '乗換', '轉 {routes}': '乗換：{routes}', '列車進站': '列車が到着',
     '成追線': '成追線', '東部幹線': '東部幹線', '集集線': '集集線',
     '六家線': '六家線', '內灣線': '内湾線', '平溪線': '平渓線',
@@ -345,11 +347,11 @@
   });
 
   Object.assign(messages.en, {
-    "按下「我上車了」之後，再去點一班還沒發車的車，時鐘不會再被撥走（謝謝網友回報）": "After you tap I am on board, tapping a train that has not departed yet no longer winds the clock away from now. Thanks to the rider who reported it.",
     '捷運信義東延段 8/30 14 時通車，淡水信義線終點由象山延伸到廣慈/奉天宮站。地圖上這一站與新路段已經先畫好，官方即時到站資料要等通車後才會帶到這一站，在那之前這一段不會有列車，通車後會自動跟上；8/30 至 9/28 行經新通車區間不計票價': 'The Xinyi east extension opens at 14:00 on 30 August, giving the Tamsui–Xinyi line a new terminus one stop beyond Xiangshan. The station and the new stretch of track are already drawn on the map, but official live arrival data only starts once the line opens, so no trains run there until then. Travel through the new section is free from 30 August to 28 September.',
     '英文與日文現在也會即時更新最愛、今日台鐵、誤點履歷、帳號同步、Google 清單匯入、分享與「追蹤這站」；並補上災害監看、捷運終點、點選列車／車站、成就說明，以及 iPhone 即時動態與小工具，官方活動只有中文時則標示「中文原文」': 'English and Japanese now update favourites, Today’s TRA, delay history, account sync, Google list imports, sharing and Track this station immediately. Hazard monitoring, metro destinations, train/station pickers, achievement descriptions, iPhone Live Activities and widgets are also covered; Chinese-only official events are labelled as source text.',
     '網站版重新開啟北捷統一時間軸：地圖列車、車站預告與點選跟隨會使用同一份身分與軌跡；每次更新也會檢查軌跡內部，若列車在五秒內跨過半站以上，會先留在原位重新銜接，不把瞬間跳位送到畫面。Core 連線失敗或單線資料不完整時，仍會自動退回原本模式': 'The website now uses the unified Taipei Metro timeline by default, so map trains, station forecasts and following share one identity and trajectory. A train that would cross more than half a station within five seconds is held for safe reconnection, while Core or line-level failures still fall back automatically.',
     '英文與日文再補齊品牌介紹、使用說明、特色車站與列車、觀光列車圖鑑，以及旅程護照和成就；外語版更新紀錄保留最近八筆精簡內容，較早歷史改用主題摘要': 'English and Japanese now cover the brand story, help guide, featured stations and trains, tourist-train gallery, Journey Passport and achievements. Other languages show eight concise recent updates plus earlier topic summaries.',
+    "按下「我上車了」之後，再去點一班還沒發車的車，時鐘不會再被撥走（謝謝網友回報）": "After you tap I am on board, tapping a train that has not departed yet no longer winds the clock away from now. Thanks to the rider who reported it.",
     "衛星影像模式下放大縮小時，畫面會有一瞬間整片變成深綠色（Android 手機上特別明顯）；墊在底下的顏色改成貼齊實際衛星影像，現在幾乎看不出來": "In satellite mode, zooming in or out briefly turned the whole screen dark green (most noticeable on Android phones). The colour underneath the imagery now matches the real satellite view, so the gap is barely visible.",
     '開啟網站變快了：三十幾份路網與班表資料從一份一份載改成同時下載，重新造訪也不再重抓沒變動的檔案': 'Opening the site is much faster: the thirty-odd route and timetable files now download at the same time instead of one after another, and revisits no longer re-fetch files that have not changed.',
     '車廂擁擠度改成逐車對照：忠孝復興這種兩線共站不會再把板南線的擁擠度掛到文湖線上，認不出是哪一台車就留白不猜；三種車站看板現在都會顯示擁擠度，不會再切換一次就整片消失，鎖屏的等車卡也一起改。即時模型暫時缺這個系統的資料時，車站看板不再整片變成「此時段無停靠班次」，會自動退回官方倒數或班表。即時資料中斷的提示也改成照實說：分不出是官方端還是本站或你的網路時，不再一律寫成臺北捷運訊號中斷': 'Carriage crowding is now matched train by train: at interchanges like Zhongxiao Fuxing, crowding from a Bannan line train no longer appears on the Wenhu line row, and any row we cannot match to a specific train is left blank instead of guessed. All three station board views now show crowding, so it no longer vanishes when the board switches source, and the lock screen wait card was changed to match. When the live model is temporarily missing data for a system, the station board no longer collapses to “No departures in this period” — it falls back to the official countdown or the timetable. Outage notices are more honest too: when we cannot tell whether the cause is the operator, our own service or your connection, we no longer say that the Taipei Metro signal is down.',
@@ -385,11 +387,11 @@
     '身障友善座位': 'Accessible seating', '可帶自行車（兩鐵）': 'Bicycles accepted', '親子車廂': 'Family car', '團體專開列車': 'Chartered group train', '附掛郵政／行包車廂': 'Mail or baggage car'
   });
   Object.assign(messages.ja, {
-    "按下「我上車了」之後，再去點一班還沒發車的車，時鐘不會再被撥走（謝謝網友回報）": "「乗車しました」を押した後に、まだ発車していない列車をタップしても時計が現在からずれなくなりました。ご報告ありがとうございます。",
     '捷運信義東延段 8/30 14 時通車，淡水信義線終點由象山延伸到廣慈/奉天宮站。地圖上這一站與新路段已經先畫好，官方即時到站資料要等通車後才會帶到這一站，在那之前這一段不會有列車，通車後會自動跟上；8/30 至 9/28 行經新通車區間不計票價': '8月30日14時に信義線東延伸区間が開業し、淡水信義線の終点が象山から廣慈/奉天宮駅へ延びます。地図には新駅と新しい線路をすでに描いていますが、公式のリアルタイム到着情報は開業後から届くため、それまでこの区間に列車は走りません。8月30日から9月28日まで、新区間を通る乗車は運賃無料です。',
     '英文與日文現在也會即時更新最愛、今日台鐵、誤點履歷、帳號同步、Google 清單匯入、分享與「追蹤這站」；並補上災害監看、捷運終點、點選列車／車站、成就說明，以及 iPhone 即時動態與小工具，官方活動只有中文時則標示「中文原文」': '英語・日本語で、お気に入り、本日の台湾鉄路、遅延履歴、アカウント同期、Googleリスト読み込み、共有、「この駅を追跡」もすぐ切り替わるようになりました。災害監視、メトロの行先、列車／駅の選択表示、実績の説明、iPhoneのライブアクティビティとウィジェットにも対応し、中国語だけの公式イベントは原文であることを明記します。',
     '網站版重新開啟北捷統一時間軸：地圖列車、車站預告與點選跟隨會使用同一份身分與軌跡；每次更新也會檢查軌跡內部，若列車在五秒內跨過半站以上，會先留在原位重新銜接，不把瞬間跳位送到畫面。Core 連線失敗或單線資料不完整時，仍會自動退回原本模式': 'Web版で台北メトロの統一タイムラインを標準で再開し、地図・駅予告・追跡が同じ列車IDと軌跡を使うようになりました。5秒以内に半駅以上飛ぶ軌跡はその場で保持して再接続し、Coreや路線単位の異常時は従来方式へ自動退避します。',
     '英文與日文再補齊品牌介紹、使用說明、特色車站與列車、觀光列車圖鑑，以及旅程護照和成就；外語版更新紀錄保留最近八筆精簡內容，較早歷史改用主題摘要': '英語・日本語でブランド紹介、使い方、特色駅・列車、観光列車図鑑、旅程パスポート、実績を追加しました。最近8件は簡潔に翻訳し、以前の履歴はテーマ別にまとめています。',
+    "按下「我上車了」之後，再去點一班還沒發車的車，時鐘不會再被撥走（謝謝網友回報）": "「乗車しました」を押した後に、まだ発車していない列車をタップしても時計が現在からずれなくなりました。ご報告ありがとうございます。",
     "衛星影像模式下放大縮小時，畫面會有一瞬間整片變成深綠色（Android 手機上特別明顯）；墊在底下的顏色改成貼齊實際衛星影像，現在幾乎看不出來": "衛星画像モードで拡大・縮小した瞬間、画面全体が濃い緑色になっていました（Android端末で特に目立ちました）。下地の色を実際の衛星画像に合わせたため、ほとんど分からなくなりました。",
     '開啟網站變快了：三十幾份路網與班表資料從一份一份載改成同時下載，重新造訪也不再重抓沒變動的檔案': 'サイトの起動が大幅に速くなりました：30 余りの路線・時刻表データを 1 件ずつではなく同時に読み込むようにし、再訪時は変更のないファイルを取得し直さないようにしました。',
     '車廂擁擠度改成逐車對照：忠孝復興這種兩線共站不會再把板南線的擁擠度掛到文湖線上，認不出是哪一台車就留白不猜；三種車站看板現在都會顯示擁擠度，不會再切換一次就整片消失，鎖屏的等車卡也一起改。即時模型暫時缺這個系統的資料時，車站看板不再整片變成「此時段無停靠班次」，會自動退回官方倒數或班表。即時資料中斷的提示也改成照實說：分不出是官方端還是本站或你的網路時，不再一律寫成臺北捷運訊號中斷': '車両混雑度を列車ごとに照合するようにしました：忠孝復興のような乗換駅で板南線の混雑度が文湖線の行に表示されることはなくなり、どの列車か特定できない行は推測せず空欄にします。3 種類の駅発車案内すべてで混雑度を表示するため、表示元が切り替わっても消えなくなり、ロック画面の待ち時間カードも同じ方式に変更しました。リアルタイムモデルにその路線網のデータが一時的に無い場合でも、駅発車案内が「この時間帯に停車する列車はありません」一色になることはなくなり、公式カウントダウンまたは時刻表に自動的に戻ります。リアルタイム情報中断の案内も実態に合わせ、事業者側・当サイト・お使いの回線のどれが原因か判別できない場合は「台北MRTの信号中断」とは表示しません。',
