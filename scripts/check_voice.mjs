@@ -29,20 +29,43 @@ function flattenStrings(value, out = []) {
   return out;
 }
 
+// 抽取的區塊不保證自足:HELP_GROUPS 會依 IS_NATIVE_APP／平台給不同文案。只餵一組旗標
+// 就只驗得到那一支,另一支的文案會【無聲】離開覆蓋範圍——正是 minCount 那條註解在防的事。
+// 所以每一組旗標各跑一次、取聯集;某一組跑不起來不算失敗(不是每個區塊都吃得到每組旗標),
+// 但【每一組都跑不起來】才是真的定位失敗。
+const CONST_BLOCK_SEEDS = [
+  { label: 'web',     seed: { IS_NATIVE_APP: false, window: { Capacitor: undefined } } },
+  { label: 'ios',     seed: { IS_NATIVE_APP: true,  window: { Capacitor: { getPlatform: () => 'ios' } } } },
+  { label: 'android', seed: { IS_NATIVE_APP: true,  window: { Capacitor: { getPlatform: () => 'android' } } } },
+];
+
 function evaluateConstBlock(source, startMarker, endMarker, names) {
   const start = source.indexOf(startMarker), end = source.indexOf(endMarker, start);
   if (start < 0 || end < 0) return null;   // null = 定位失敗,交給 S0 報
-  try {
-    const local = {};
-    vm.createContext(local);
-    vm.runInContext(`${source.slice(start, end)}\nglobalThis.__out = { ${names.join(', ')} };`, local);
-    return local.__out || {};
-  } catch {
-    // names 指到不存在的常數、區塊語法壞掉…等任何 vm 執行期例外,一律當定位失敗回報,
-    // 不要讓整支腳本被 uncaught exception 中止——那樣後面所有 surface 都不會被檢查到,
-    // 而且錯誤訊息(裸 stack trace)不會指名是哪個 surface。
+  const code = `${source.slice(start, end)}\nglobalThis.__out = { ${names.join(', ')} };`;
+  const merged = [];
+  const errors = [];
+  for (const { label, seed } of CONST_BLOCK_SEEDS) {
+    try {
+      const local = { ...seed };
+      vm.createContext(local);
+      vm.runInContext(code, local);
+      merged.push(local.__out || {});
+    } catch (err) {
+      // names 指到不存在的常數、區塊語法壞掉…等任何 vm 執行期例外。單一組失敗容忍,
+      // 全部失敗才回 null——不要讓整支腳本被 uncaught exception 中止,那樣後面所有
+      // surface 都不會被檢查到,而且錯誤訊息(裸 stack trace)不會指名是哪個 surface。
+      errors.push(`${label}: ${err && err.message}`);
+    }
+  }
+  if (!merged.length) {
+    // 真的定位失敗才走這裡。把實際例外帶出去——舊版一律吞掉、統一報「找不到抽取標記」,
+    // 而實測到的真因是 ReferenceError（區塊引用了區塊外的頂層常數），兩者的修法完全不同。
+    evaluateConstBlock.lastErrors = errors;
     return null;
   }
+  evaluateConstBlock.lastErrors = null;
+  return merged;
 }
 
 // 只取真 HTML 的 <button>/<summary> 可見文字。先剝 <style>/<script>——
@@ -105,8 +128,20 @@ function collect(surface) {
     return values;
   }
   if (e.type === 'constBlock') {
-    const block = evaluateConstBlock(source, e.start, e.end, e.names);
-    return block === null ? null : flattenStrings(block);
+    const blocks = evaluateConstBlock(source, e.start, e.end, e.names);
+    if (blocks === null) return null;
+    // 只去掉【跨旗標】的重複,不去掉單組內部本來就有的重複——minCount 那些門檻是在
+    // 「單組、含重複」的計數上校準的(實測:content-groups 全域去重會從 207 掉到 49、
+    // 跌破門檻 58),全域去重等於無聲改掉每一條門檻的意義。這樣算出來的數字＝
+    // 第一組的原始計數 ＋ 其他旗標才有的新字串,只會往上長,舊門檻仍然成立。
+    const seen = new Set(), out = [];
+    blocks.forEach((block, i) => {
+      for (const str of flattenStrings(block)) {
+        if (i > 0 && seen.has(str)) continue;
+        out.push(str); seen.add(str);
+      }
+    });
+    return out;
   }
   if (e.type === 'controls') return extractControls(source);
   if (e.type === 'controlsDynamic') return extractControlsDynamic(source);
