@@ -2078,14 +2078,26 @@
   .board .row .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; align-self: center; }
   .board .row .dest { flex: 1; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .board .row .t, .board .row .min { font-variant-numeric: tabular-nums; }
-  .board .row .t { font-weight: 800; color: var(--ink-strong); }
+  /* 時刻欄同樣鎖住:(a) flex:none——列擠不下時預設會壓縮 .t,要讓的是線名(.dest 有 ellipsis);
+     (b) --t-col 由 boardAlignColumns 量出來。理由是 tabular-nums 只在字型真的有 tnum 時才生效,
+     實測 chromium 的 12:31 比 12:26 窄 2.47px(WebKit 沒這問題)——擁擠度欄就跟著逐列左右跳。
+     內容靠右,寬度不足那幾個 px 留在左邊看不見。 */
+  .board .row .t { font-weight: 800; color: var(--ink-strong); flex: none;
+    width: var(--t-col, auto); text-align: right; }
   /* 官方板三固定欄:擁擠度 40px(含無資料透明佔位)、時刻、倒數 4em——列與列整欄對齊(08-14 第五輪) */
   .board .row .crowd { display: inline-flex; gap: 2px; flex: none; align-self: center; width: 40px; justify-content: flex-end; }
   .board .row .crowd i { width: 5px; height: 10px; border-radius: 1.5px; }
-  .board[data-trtc-official="1"] .row .min { width: 4em; text-align: right; flex: none; }
   /* 手機寬度下,固定佔位＋「未連結動畫」註記擠不下同一列——官方板一律藏註記(title 與 aria-disabled 仍在) */
   @media (max-width: 900px) { .board[data-trtc-official="1"] .row .linknote { display: none; } }
-  .board .row .min { color: var(--navy); font-weight: 700; min-width: 44px; text-align: right; }
+  /* 衛星墊底層不淡入。Leaflet 的圖磚是 opacity 0→1 淡進來的,而這一層的用途正是「上面那層還沒
+     到位時把破口補起來」——淡入等於破口期間它自己也是半透明的,使用者看到的就是那一下閃。 */
+  .sat-underlay img.leaflet-tile { opacity: 1 !important; }
+  /* 倒數欄【逐板等寬】:--min-col 由 boardAlignMinColumn 在每次重繪後量最寬那一列寫進來。
+     為什麼不沿用舊官方板的寫死 4em——「即將進站」在英日是 Arriving／まもなく到着,長度差一倍;
+     App 的字級三階又把整列等比放大。任何寫死的 em 都會在某個語系×字級組合下爆版或留白。
+     量出來之前是 auto(自然寬,下限 44px),量完全板同寬 ⇒ 時刻與擁擠度欄逐列對齊。 */
+  .board .row .min { color: var(--navy); font-weight: 700; flex: none;
+    width: var(--min-col, auto); min-width: 44px; text-align: right; white-space: nowrap; }
   /* 車站看板右上角 ☆／× :兩顆吃同一組尺寸與置中,不靠字級與 UA padding 對齊。
      舊寫法各自 top:8px 切「上緣」,但 .close 沒設 padding 而吃到瀏覽器 UA 預設按鈕 padding
      (chromium 1px 6px、webkit 2px 6px 3px),加上字級 17 vs 15,兩顆實測高度 17/19/22px 各異
@@ -4880,14 +4892,11 @@
         <li class="grp">最近更新</li>
         <li data-cl-of="ambientlock"><span class="d">8/31</span><span>放空模式改成看戲不操作：地圖不會被手指拉歪，離開放空鈕按得到</span></li>
         <li data-cl-of="traboarddir"><span class="d">8/31</span><span>火車站看板改成分方向顯示：南下、北上分開，山線海線與支線各自成區，冷門方向不再被擠掉；顏色比照台鐵新版車站標示的北上藍、南下綠</span></li>
+        <li data-cl-of="widgetdir"><span class="d">8/31</span><span>桌面小工具的發車看板也標出北上／南下：Android 從零補上方向三角，兩個平台的三角一起放大，顏色換成台鐵官方的北上藍、南下綠</span></li>
         <li data-cl-of="ridingclock"><span class="d">8/31</span><span>按下「我上車了」之後，再去點一班還沒發車的車，時鐘不會再被撥走（謝謝網友回報）</span></li>
-        <li data-cl-of="enplatefit"><span class="d">8/30</span><span>英文與日文的手機頂列，左上角的軌島牌裝不下時會自己讓位，分組切換鈕留在畫面內</span></li>
+        <li data-cl-of="satunderlay"><span class="d">8/31</span><span>衛星影像模式下放大縮小會閃一下底色的問題真的修好了：8/30 只是把墊底的顏色調得像衛星影像，換色治標沒治本。現在底下永遠墊著一層真的衛星影像，開衛星時就把全台先抓好，縮放時露出來的是影像不是色塊</span></li>
+        <li data-cl-of="boardalign"><span class="d">8/31</span><span>車站看板的欄位對齊修好：倒數變成「即將進站」那幾列，原本會把時刻與擁擠度往左推、整張板看起來歪歪的，現在倒數與時刻兩欄逐板等寬，每一列都對齊。另外台鐵臺北車站不再多出一顆「臺北-環島」——那是環島之星繞完一圈的官方終點站碼，其實就是臺北站，現在併成一顆，手機小工具的車站清單也一起併</span></li>
         <li data-cl-of="widgetplussync"><span class="d">8/30</span><span>訂閱後桌面小工具立刻能放多站、自動選站，不必等同步或按恢復購買</span></li>
-        <li data-cl-of="satfallback"><span class="d">8/30</span><span>衛星影像模式下放大縮小時，畫面會有一瞬間整片變成深綠色（Android 手機上特別明顯）；墊在底下的顏色改成貼齊實際衛星影像，現在幾乎看不出來</span></li>
-        <li data-cl-of="attrib-oneline"><span class="d">8/30</span><span>手機地圖右下角的版權資訊不會再折成一大塊蓋住速度調整鈕：改成貼著底緣一整條、放不下的部分橫向可捲，授權連結一個都沒少，仍然看得到也點得到。切到衛星影像時字串較長，原本折成四行最嚴重，現在一樣是一條（謝謝網友回報）</span></li>
-        <li data-cl-of="whatsnew-lang"><span class="d">8/30</span><span>更新完跳出的「更新了什麼」現在會用你正在使用的語言：英文與日文各有整段自己的文案，不會再看到標著「中文原文」的中文說明</span></li>
-        <li data-cl-of="crowd-outage"><span class="d">8/29</span><span>車廂擁擠度改成逐車對照：忠孝復興這種兩線共站不會再把板南線的擁擠度掛到文湖線上，認不出是哪一台車就留白不猜；三種車站看板現在都會顯示擁擠度，不會再切換一次就整片消失，鎖屏的等車卡也一起改。即時模型暫時缺這個系統的資料時，車站看板不再整片變成「此時段無停靠班次」，會自動退回官方倒數或班表。即時資料中斷的提示也改成照實說：分不出是官方端還是本站或你的網路時，不再一律寫成臺北捷運訊號中斷</span></li>
-        <li data-cl-of="notice0829"><span class="d">8/29</span><span>高鐵台中車站 9/7 至 9/10 軌道大修、三鶯線 9/1 起正式收費，兩則公告已放上通知列；同時更新安坑、淡海輕軌與高雄捷運班表</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -4958,7 +4967,10 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="boardalign"><span class="d">8/31</span><span>車站看板的欄位對齊。使用者回報「擁擠度跟時間，會因為最後面倒數那邊時間會變成『即將進站』而擠壓到，變成歪掉」。兩個成因：一是倒數欄原本只設了最小寬度，「即將進站」比「3 分」寬，那幾列就把時刻欄往左推；二是時刻的等寬數字設定要字型真的支援才生效，Chrome 上「12:31」比「12:26」窄兩個多像素，擁擠度欄跟著逐列左右跳。現在倒數與時刻兩欄都改成「量出這張板最寬的一列、全板同寬」，英日文與放大字級都自動吃到，不必為每種組合寫死一個數字</span></li>
+        <li data-cl="taipeiloop"><span class="d">8/31</span><span>台鐵臺北車站不再多出一顆站。環島之星繞完一圈回到台北，官方在班表裡用另一個站碼「臺北-環島」記那一次到達，兩點實測相距 74 公尺，於是地圖上是兩顆點、看板也是兩張。使用者裁示「台北車站的火車就都併在一起，不要多環島那一個」，現在併成一顆：判準寫成「名字是 X-… 、X 在同一份班表裡也是站名、兩者 200 公尺內」，不寫死站名，台鐵日後再開別名站也一樣併。手機桌面小工具的班表與車站清單用同一條判準重新產生</span></li>
         <li data-cl="traboarddir"><span class="d">8/31</span><span>火車站的到站看板改成分方向顯示：南下、北上各自成區，不再混成一長串照時間排。竹南、彰化這種山線海線分家的站，同一個方向會再拆成「南下 · 山線」「南下 · 海線」；二水、三貂嶺、新竹這種有支線的站，支線自成一區，並照官方月台的說法寫「往車埕」「往菁桐」「往內灣」，不套南下北上——支線的南北距離常常只有幾公里，講南下北上沒有意義。每一區各給三班（拉到大段六班），冷門方向不會再被熱門方向整個擠掉。方向顏色比照台鐵 2026 年 8 月發表的新版車站標示：北上藍、南下綠。終到本站的車另成一區，只列一小時內會到的。高鐵與阿里山林鐵的車站看板同步套用</span></li>
+        <li data-cl="widgetdir"><span class="d">8/31</span><span>桌面小工具的發車看板也逐列標出北上／南下。iPhone 版本來就有方向三角，但灰得像裝飾；Android 版則完全沒有。現在兩個平台都有，三角一起放大，顏色比照台鐵 2026 年 8 月發表的新版車站標示：北上藍、南下綠，與網站看板的方向色逐字同值。方向指的是「離開這站往哪走」，取下一個停靠站的緯度判斷，所以像臺中往大甲這種先北上到竹南再走海線的繞行車不會指反；終到本站、以及算不出方向的班次就不畫，寧可少一個圖形也不猜。單色與淺色小工具模式下三角退回灰色，方向改由尖端朝向表示，並唸得出北上／南下</span></li>
         <li data-cl="ridingclock"><span class="d">8/31</span><span>按下「我上車了」之後，再去點一班還沒發車的車，時鐘不會再被撥到那班車的發車前——原本會整趟停在假的時間，讓地圖上另一班車剛好跟著你走，看起來就像自己搭的車被標成別的車次。時鐘真的不在現在時，跟隨卡上會自己標「非即時」，點一下就回到現在；手機點左上角時鐘也多了一顆「回到現在」。跟隨卡太高時改成卡內捲動，不會再蓋住上面的時鐘（謝謝網友回報）</span></li>
         <li data-cl="enplatefit"><span class="d">8/30</span><span>英文版在 360 寬的手機上，頂列右邊的「捷運」那一顆分組切換鈕整顆在畫面外，而且沒有地方可以捲過去——外層是 overflow:hidden，祖先鏈上沒有任何可捲容器。360dp 的頂列只有 340px 寬，分頁列英文要 248px、日文 234px，中文只要 190px（中文一字一顆），而左上角的軌島牌原本一寸不讓，被擠掉的就是按鈕。現在牌改成被壓的那一方：先讓起訖站名，標題最後，裝不下收成省略號而不是被硬切；拉丁字母也不再套「軌島」那組為漢字招牌留的字距與首行縮排。日文在 360／375 有公告時同樣的情形也一併修好</span></li>
         <li data-cl="widgetplussync"><span class="d">8/30</span><span>訂閱通行證後，桌面小工具立刻就能放多站、也能自動選最近的站，不必等下一次同步或按恢復購買；帳號登出或訂閱結束時也會同步收回。</span></li>
@@ -5074,6 +5086,7 @@
         <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，面板都住進底部；新增「捷」分頁，北中高捷運一張圖同框</span></li>
         <li><span class="d">7/13</span><span>新增「省電」模式（手機預設開啟）：降到 30fps；手機一次只開一個面板</span></li>
         <li class="grp">外觀與品牌</li>
+        <li data-cl="satunderlay"><span class="d">8/31</span><span>衛星影像模式縮放時「閃一下底圖」的真正修法。8/30 那次只把墊在下面的顏色調成貼近衛星影像的色調，使用者回報「不是換顏色就沒事，還是會干擾」——治標而已。真因是 Leaflet 只保留目前層級往下兩級的圖磚，手機捏合一次動輒縮三四級，於是沒有任何一層蓋得住畫面，底下的平色就露出來。現在在圖磚層下面固定墊兩層衛星影像（一層很糊但涵蓋全台、一層較清晰），兩層都鎖死在自己的縮放級數所以永遠不會被清掉，開啟衛星時先把全台那層一次抓齊（十幾張圖磚）。實測五種縮放路徑、兩種瀏覽器引擎，畫面每一幀都有影像覆蓋，破口從最多九十六幀降到零</span></li>
         <li data-cl="satfallback"><span class="d">8/30</span><span>衛星影像模式下放大或縮小時，畫面會有一瞬間整片變成深綠色，在 Android 手機上特別明顯。一次縮小好幾級的時候，新的衛星圖磚還沒補上，露出來的是墊在底下的台灣輪廓，而它的顏色是當初憑感覺挑的森林綠，和真正的衛星影像差了一整個色相。現在改成照衛星影像在台灣上空的實際顏色（取台北、板橋、桃園、台中、高雄、花蓮與全島七處、四種縮放共 28 張圖磚量出來），圖磚補上前後的色差從一眼就看得到降到幾乎分辨不出來。亮色與暗色地圖本來就已經貼齊各自的底圖，這次沒有變動</span></li>
         <li data-cl="fontscale"><span class="d">8/22</span><span>字級多了三階（標準／大／特大）：在「更多」→「字級」選一個，整個介面的字級、列高與可點範圍一起放大，版面不會因此收掉任何欄位。手機把系統字級調到輔助使用級別（設定 →輔助使用→顯示與文字大小）時，軌島會自動跟著放大到特大，不必再自己設定一次</span></li>
         <li data-cl="cdarrivestamp"><span class="d">8/19</span><span>使用者回報「還是會有推到疊在一起，通常是前車位置不對沒有被認走」。查出官方看板上「列車進站」那一列的到站時刻，每一輪都會被官方重新標成「當下」——連錄 16 輪、107 條進站中的列全部如此，沒有一條保留真正的到站時刻。我們原本拿這個值去算「這台車停站多久了、該不該開走」，展開之後等於在算「我們手上這份資料是幾秒前抓到的」；而抓到的資料新舊本來就會在 2 到 30 秒之間跳，只要超過停站秒數（多數站 25 秒），畫面上所有停靠中的車就同時被推進下一站，下一輪抓到新資料又整批退回來——而畫面只准前進不准倒退，被退的那台就凍在原地等，後車追上來就疊住。回放兩段各 22 輪的真實官方資料實測：基準版分別退站 6 次與 14 次，集中在 2 輪與 3 輪、每次都是整整一站，單輪最多 5 台同時退，第二段還真的出現一對疊在 100 公尺內的車。改成用「第一次看到它進站」的那一刻當真正的到站時刻，同一批官方資料回放：兩段的退站都降到 0 次、那對疊車消失，車數與車輛編號的變動一台都沒少</span></li>
@@ -5645,7 +5658,7 @@
 //         獨立基準覆核:山線／海線／成追線判定 vs 台鐵官方 Line 欄位【908/908 逐車一致】;
 //         純西部方向 vs 官方 LineDir 對稱一致(1↔北上 241、2↔南下 241)。
 //         守門人:scripts/verify_board_direction_groups.mjs(26 項,五發突變各自咬到預期斷言)。
-const BUILD = 'v0831o'; // 908 線 + 小工具方向(feat/widget-pass-default) + 衛星墊底/看板對齊/臺北併站;a~n 已被各線用掉(逐 ref＋逐工作樹掃過),跳 o
+const BUILD = 'v0831o'; // 908 線 ＋ 小工具方向(feat/widget-pass-default) ＋ 衛星墊底/看板對齊/臺北併站(fix/sat-underlay-taipei);a~n 全被各線用掉(逐 ref＋逐工作樹掃過),跳 o
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -9602,6 +9615,43 @@ function assignSchedShapePathsFor(trains, lines) {
 
 // 載入一組 sched 系統(1=單一,2=台鐵+高鐵同框):合併列車/軌道/車站/車種,各打系統標記,
 // 逐系統貼軌(不跨系統),再啟動各自的 LIVE/公告輪詢。共用於 loadSystem 與 loadSchedGroup。
+// 同一座實體站在官方班表裡掛兩個名字時,把停靠紀錄併回同一個名字。
+// 2026-08-31 使用者裁示:「台北車站的火車就都併在一起,不要多環島那一個,太多了」。
+//
+// 實例:臺北(站碼 1000)與臺北-環島(站碼 1001)。後者是環島之星繞完一圈的終點——同一班車
+// 第 0 站叫「臺北」、第 23 站叫「臺北-環島」,兩點實測相距 74 公尺,所以地圖上是兩顆點、
+// 看板是兩張。🔴 既有的 checkinAliasMap 對這一對【從來沒有生效過】:它用「座標完全相同」
+// 分群(74m 不算相同),而且只作用在收集層、刻意不動 schedStations。
+// (memory station-alias-two-stations 寫「臺北/臺北-環島座標完全重合」是錯的,已實測更正。)
+//
+// 判準寫「是什麼關係」不寫站名清單,TDX/ODS 換版才不會腐爛:
+//   名字是 `X-…`、X 在同系統也是站名、且兩者 200 公尺內 → 併成 X。
+// 全台鐵 240 個站名今天只有「臺北-環島」符合(已實測全掃),不會誤傷:
+// 新左營距左營 1.5 公里、而且名字也不是 `左營-…` 這種形式。
+//
+// 併完環島之星會在台北看板出現兩次(出發一次、繞回來到站一次),那是對的。
+// 同一班車出現兩次同名站程式本來就吃得下——buildLoopTrains 造的 8888/8889 末站
+// 用的就是起點那個站物件。
+function canonicalizeAliasStops(sysList) {
+  for (const sys of sysList) {
+    const at = new Map();                       // 站名 → 任一停靠點(只用來取座標)
+    for (const tr of sys.data.trains) for (const st of tr.stops) if (!at.has(st.name)) at.set(st.name, st);
+    const canon = new Map();
+    for (const [name, st] of at) {
+      const i = name.indexOf('-');
+      if (i <= 0) continue;
+      const base = at.get(name.slice(0, i));
+      if (!base) continue;
+      if (map.distance([st.lat, st.lon], [base.lat, base.lon]) > 200) continue;
+      canon.set(name, base.name);
+    }
+    if (!canon.size) continue;
+    for (const tr of sys.data.trains) for (const st of tr.stops) {
+      const c = canon.get(st.name);
+      if (c) st.name = c;
+    }
+  }
+}
 function applySchedSystems(sysList) {
   state.schedSystems = sysList;
   state.mode = 'sched';
@@ -9630,6 +9680,7 @@ function applySchedSystems(sysList) {
   for (const sys of sysList) if (sys._track) for (const ln of sys._track.lines) { ln.sys = sys.id; state.trackLines.push(ln); }
   state.trackData = state.trackLines.length ? { lines: state.trackLines } : null;
   state.trackVisible = new Set(state.trackLines.map(l => l.id));
+  canonicalizeAliasStops(sysList);   // 官方別名站(臺北-環島→臺北)先併,再去重
   // 車站:(系統|站名) 去重——台鐵/高鐵同名站多為相距數公里的不同實體站,不可混
   const seen = new Map();
   for (const sys of sysList) for (const tr of sys.data.trains) for (const st of tr.stops) {
@@ -20792,7 +20843,7 @@ function activeBaseLayer() {
   for (const k in baseLayers) if (map.hasLayer(baseLayers[k])) return baseLayers[k];
   return null;
 }
-function warmTileWindow(minX, minY, maxX, maxY, z, layer) {
+function warmTileWindow(minX, minY, maxX, maxY, z, layer, onLoaded) {
   const ts = layer.getTileSize();
   const tx0 = Math.floor(minX / ts.x), tx1 = Math.floor(maxX / ts.x);
   const ty0 = Math.floor(minY / ts.y), ty1 = Math.floor(maxY / ts.y);
@@ -20814,6 +20865,7 @@ function warmTileWindow(minX, minY, maxX, maxY, z, layer) {
       img.fetchPriority = 'low';
       img.decoding = 'async';
       if (typeof crossVal === 'string') img.crossOrigin = crossVal;
+      if (onLoaded) img.addEventListener('load', onLoaded, { once: true }); // 衛星:預抓也是計費請求,要記進張數
       img.src = url;
     }
   }
@@ -25673,7 +25725,33 @@ function schedBoardRows(st) {
 // 🔴 鍵要帶系統:台鐵/高鐵跨系統重號,只拿車次當鍵會把別家的同號列一起掀開(同 el._downSys 的理由)。
 const boardRxOpen = new Set();
 const boardRxKey = (no, sys) => `${no}|${sys || ''}`;
+// 看板的倒數欄與時刻欄逐板等寬。使用者 2026-08-31 回報:「擁擠度跟時間,會因為最後面倒數
+// 那邊時間會變成『即將進站』而擠壓到,變成歪掉」。兩個成因:
+//   (1) .min 從前只有 min-width:44px ⇒「即將進站」那幾列比「3 分」寬 8px,時刻欄被往左推;
+//   (2) .t 的 tabular-nums 只在字型真的有 tnum 時才生效 ⇒ chromium 實測 12:31 比 12:26 窄
+//       2.47px,擁擠度欄跟著逐列左右跳(WebKit 沒有這一項)。
+// 兩者都用「量這張板實際最寬的那一列、寫進 CSS 變數」解:語系(Arriving／まもなく到着)與
+// App 的字級三階都自動吃到,不必為每種組合猜一個 em 值。
+// 🔴 量之前要先把上一輪寫的值清掉,否則量到的是「已經被撐開的」寬度,只會越量越寬。
+function boardAlignColumns(el) {
+  if (!el || el.hidden) return;
+  el.style.removeProperty('--min-col');
+  el.style.removeProperty('--t-col');
+  const widest = nodes => { let w = 0; for (const n of nodes) w = Math.max(w, n.getBoundingClientRect().width); return w; };
+  const mins = el.querySelectorAll('.row .min');
+  if (mins.length) { const w = widest(mins); if (w > 0) el.style.setProperty('--min-col', w.toFixed(2) + 'px'); }
+  // 時刻欄只有「整板都是純時刻」才鎖等寬。台鐵板的 .t 裡還包著誤點/推算標,逐列內容寬度本來就
+  // 不同,鎖等寬等於替每一列預留一格常常用不到的空位,把車種與終點再擠掉一截。
+  const ts = [...el.querySelectorAll('.row .t')];
+  if (ts.length && ts.every(n => n.children.length === 0)) {
+    const w = widest(ts); if (w > 0) el.style.setProperty('--t-col', w.toFixed(2) + 'px');
+  }
+}
 function renderBoard() {
+  renderBoardBody();
+  boardAlignColumns(document.getElementById('board'));
+}
+function renderBoardBody() {
   const el = document.getElementById('board'), st = state.boardStation;
   // 換站要把捲動歸零(下面 el.scrollTop 那段);同一站的重繪則什麼都不做——見該處說明。
   const stnKey = st ? (st.name + '|' + st.sys) : '';
@@ -27541,6 +27619,18 @@ const SAT_SESSION_MARGIN = 10 * 60000;              // 效期只剩 10 分鐘就
 // ——反而讓「本來該被 session 封頂的重度使用者」全部退回較貴的按張數計價。退避讓它自己解開。
 const SAT_SESSION_RETRY_MS = 60000;
 let satTiles = 0, satSession = null, satSessionBusy = false, satSessionRetryAt = 0;
+// 衛星縮放墊底層。每一層都【固定】在自己的原生縮放——minNativeZoom 與 maxNativeZoom 同值。
+// 🔴 固定是整個修法的關鍵,不是效能微調:Leaflet 的 _pruneTiles 只往下保留 2 級圖磚,一次縮
+//    好幾級(手機捏合很容易)就沒有任何一層蓋得住視窗 ⇒ 露出平色底 ⇒ 使用者說的「閃底圖」。
+//    只鎖 maxNativeZoom 沒有用(實測全空幀數與完全不掛墊底層一樣);兩端都鎖成同一級之後,
+//    這一層的 _tileZoom 永遠不變 ⇒ 層級容器不重建、圖磚不被 prune,只有 CSS 縮放在動。
+// 兩級的分工(由糊到清,清的疊在上面):
+//   6  = 保底。全台在 z6 只有十幾張,開衛星時一次預抓完(見 warmSatUnderlay),之後【任何】
+//        縮放都一定有東西蓋住,連縮到 minZoom 都是。代價是高 zoom 放大倍率極大、幾乎是一塊色。
+//   10 = 好看的那一級。不預抓,跟著使用者瀏覽自然載入;只要在那一帶待過一下,之後從高 zoom
+//        縮回來就是有紋理的影像而不是一塊色。
+const SAT_UNDERLAY_ZS = [6, 10];
+let satUnderlays = [];
 // 衛星圖磚網址的 ? 之前那段,建圖層時抓下來。刻意不在這裡讀 TILES——它是 boot 函式內的區域變數,
 // 這幾支是頂層函式,直接引用會 ReferenceError（改這段時踩過一次,錯誤被 .catch 吃掉、只看到衛星鈕消失）。
 let satTileUrlBase = null;
@@ -27552,6 +27642,8 @@ function applySatToken(tok) {
   const url = satTileUrlBase + '?token=' + encodeURIComponent(tok);
   baseLayers.sat.setUrl(url);
   if (baseLayers.satLQ) baseLayers.satLQ.setUrl(url);
+  for (const layer of satUnderlays) layer.setUrl(url);
+  satUnderlayWarmed = false; warmSatUnderlay();     // 換 token=網址全變,預抓的那批快取要重熱
 }
 
 function satSessionUsable() { return satSession && satSession.exp - Date.now() > SAT_SESSION_MARGIN; }
@@ -27596,6 +27688,24 @@ function satTileLoaded() {
       satSessionRetryAt = Date.now() + SAT_SESSION_RETRY_MS;
     })
     .then(() => { satSessionBusy = false; });
+}
+
+// 衛星墊底層的一次性預抓:把平移硬牆(＝使用者能去的整個台灣)在 SAT_UNDERLAY_Z 的圖磚整批
+// 熱進瀏覽器快取。
+// 🔴 沒有這一步,墊底層等於沒用——Leaflet 只為「目前視窗」建圖磚,z16 時整個視窗在 z8 只佔一張,
+//    於是縮到 z8 的那一刻它才開始抓另外十幾張,破口一秒不少(實測:只鎖 native zoom 的版本,
+//    全空幀數與完全不掛墊底層一模一樣)。全台在 z8 只有十幾張,抓完就一直在快取裡。
+// 計費:每張都經 satTileLoaded 記帳,不會讓 40 張的 session 門檻被低估(見 satTileLoaded)。
+let satUnderlayWarmed = false;
+function warmSatUnderlay() {
+  const base = satUnderlays[0];                     // 只預抓最糊的那一級(保底層),清的那級跟著瀏覽自然載入
+  if (satUnderlayWarmed || !base || !map || !map.hasLayer(base)) return;
+  const b = map.options.maxBounds;
+  if (!b) return;                                   // 硬牆還沒設好(boot 中途),下一次切換再說
+  const z = SAT_UNDERLAY_ZS[0];
+  const a = map.project(b.getNorthWest(), z), c = map.project(b.getSouthEast(), z);
+  satUnderlayWarmed = true;
+  warmTileWindow(Math.min(a.x, c.x), Math.min(a.y, c.y), Math.max(a.x, c.x), Math.max(a.y, c.y), z, base, satTileLoaded);
 }
 
 // ── 底圖切換(亮 CARTO Positron / 暗 Dark Matter / 衛星 Esri) ──
@@ -27679,6 +27789,13 @@ function setBasemap() {
     else if (map.hasLayer(baseLayers[k])) map.removeLayer(baseLayers[k]);
   }
   if (baseLayers[want] && baseLayers[want].bringToBack) baseLayers[want].bringToBack(); // MapLibre 圖層沒有 bringToBack(它本來就在 tilePane 最底)
+  // 衛星縮放墊底層:只在衛星模式掛。刻意不放進 baseLayers——上面那個迴圈是「只留 want 一層」,
+  // 放進去會被當成競爭者移掉,而它本來就該與主層並存(它在自己的 pane,不參與 want 的二選一)。
+  for (const layer of satUnderlays) {
+    if (sat) { if (!map.hasLayer(layer)) layer.addTo(map); }
+    else if (map.hasLayer(layer)) map.removeLayer(layer);
+  }
+  if (sat) warmSatUnderlay();
   if (state.offlineLand) state.offlineLand.setStyle(offlineLandStyle());
   const satBtn = document.getElementById('satBtn');
   if (satBtn && online) {
@@ -29901,12 +30018,44 @@ async function boot() {
     // 衛星兩層並存:sat=detectRetina(高解析,Plus 專屬)、satLQ=標準解析(免費層與跟車時用)。
     // 兩層都建才切得動——資格是 runtime 才知道的(要等 plusRefresh),不能在建層時決定。
     if (k === 'sat') baseLayers.satLQ = L.tileLayer(t.url, { ...opt, detectRetina: false });
+    // ── 衛星縮放墊底層(2026-08-31)──────────────────────────────────────────────
+    // 症狀:手機一次捏合縮小好幾級,整片閃出墊在底下的台灣輪廓(平色島形)。
+    // 2026-08-30 的修法是把那塊平色調到貼近衛星影像(#606050),但使用者回報「不是換顏色就沒事,
+    // 還是會干擾」——他說得對:看到的是「精細影像瞬間變成一塊平色島形」,配色再準,形狀與質感的
+    // 落差還在。根因也不在顏色:縮小時 Leaflet 的 _retainChildren 只往下找 2 級,一次縮 4 級時
+    // 手上那批高 zoom 舊圖磚落在窗外,整個視窗沒有任何圖磚覆蓋。
+    //
+    // 修法:掛一層永遠在的低原生縮放衛星層,壓在主圖磚層底下、輪廓層上面。
+    // 為什麼 maxNativeZoom 而不是「預抓低 zoom 圖磚」:maxNativeZoom 讓 Leaflet 的網格直接建在
+    // 原生層級上,所以不論地圖縮到多深,視窗永遠只對應 1~4 張圖磚,而且那張圖磚涵蓋的地理範圍
+    // 遠大於視窗 ⇒ 縮小時同一張還蓋得住,不必重抓。放大時它被主圖磚完全蓋住,看不到。
+    // 用量:z11 一張約 20km 見方,在台灣框裡任一視窗 1~4 張;縮到 z8 以下時退成 z8,全島共 8 張
+    // (照經緯度實算,不是用面積比推)。都會進瀏覽器快取,實質是一次性的。
+    if (k === 'sat') {
+      if (!map.getPane('satBasePane')) {
+        const bp = map.createPane('satBasePane');
+        bp.style.zIndex = '160';        // fallbackPane(150) 之上、tilePane(200) 之下
+        bp.style.pointerEvents = 'none';
+      }
+      // attribution 不重複掛:主層已經掛了同一句 Esri 署名。
+      // 依 SAT_UNDERLAY_ZS 的順序建,先建的先進 pane ⇒ 清的那一級自然疊在糊的上面。
+      satUnderlays = SAT_UNDERLAY_ZS.map(z => L.tileLayer(t.url, {
+        // 🔴 minZoom: z 是成本閘門,不是顯示偏好——某一級在「比自己還小的顯示縮放」要蓋滿視窗,
+        //    需要的圖磚數是 4^(z-顯示縮放) 倍。實測沒有這道閘門時,z10 那層在 z6 一口氣掛出
+        //    上百張(全是計費請求)。加上它之後每一級最多就是「自己那級的一個視窗」。
+        minZoom: z, maxZoom: t.maxZoom, crossOrigin: true, detectRetina: false,
+        minNativeZoom: z, maxNativeZoom: z,
+        pane: 'satBasePane', keepBuffer: 4, updateWhenZooming: false,
+        className: 'sat-underlay',   // 配 CSS 取消淡入:見 .sat-underlay img.leaflet-tile
+      }));
+    }
   }
   // 衛星計費模式的掛勾:數圖磚、跨門檻換 session、效期快到續一顆(見 satTileLoaded 上方長註解)
   if (baseLayers.sat) {
     satTileUrlBase = TILES.sat.url.split('?')[0];
     baseLayers.sat.on('tileload', satTileLoaded);
     if (baseLayers.satLQ) baseLayers.satLQ.on('tileload', satTileLoaded);
+    for (const layer of satUnderlays) layer.on('tileload', satTileLoaded);  // 墊底層也是真的計費請求,照數不漏報
     // 上次來就已經是重度使用者的話,這次一開衛星就直接用還沒過期的那顆,不必再數 40 張。
     try {
       const d = JSON.parse(localStorage.getItem(SAT_SESSION_KEY) || 'null');
@@ -30467,7 +30616,10 @@ function applyTripLink(tp) {
   if (!tr || String(tr.train) !== String(tp.no) || tripSysCode(tr.sys) !== tp.code) {
     state._trip = { err: 'notfound', code: tp.code, destName: tp.dest, from: tp.from }; renderTripBanner(); return;
   }
-  const dest = tr.stops.find(s => s.name === tp.dest && s.stop !== false);
+  // 取【最後一筆】同名停靠:併站後環島之星的「臺北」會出現兩次(第 0 站出發、末站到達),
+  // 而分享行程的目的站指的是到達那次。非環島車同名站只有一筆,last === only,語意不變。
+  const destAll = tr.stops.filter(s => s.name === tp.dest && s.stop !== false);
+  const dest = destAll[destAll.length - 1];
   if (!dest) { state._trip = { err: 'notfound', code: tp.code, destName: tp.dest, from: tp.from }; renderTripBanner(); return; }
   // 強制 live(忽略任何回看)：回到台北現在時刻、1×、播放
   setSimSec(nowSecOfDay(activeTz())); setSpeed(1); if (!state.playing) togglePlay();
