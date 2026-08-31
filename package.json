@@ -22,7 +22,8 @@
     "check-i18n": "node scripts/check_i18n.mjs",
     "strip-ship-comments": "node scripts/strip_ship_comments.mjs",
     "ship-web": "node scripts/ship_web.mjs",
-    "check-deploy-config": "node scripts/check_deploy_config.mjs"
+    "check-deploy-config": "node scripts/check_deploy_config.mjs",
+    "check-merge": "node scripts/verify_merge_no_loss.mjs"
   },
   "dependencies": {
     "playwright": "^1.61.1",
