@@ -13,6 +13,9 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -40,14 +43,23 @@ final class RailWidgetData {
     static final String SYS_COMPOSITE = "railboth";
     static final String AUTO = "__auto__";
     static final String PLACE_PREFIX = "place|";
+    /** 篩選鍵:預設只顯示停靠與終到,勾了這個才把「通過本站」的列車一起列出來。 */
+    static final String FILTER_PASS = "rel|pass";
     static final String PLACES_PREFS = "rail_places";
     static final String PLACES_KEY = "places";
     private static final double PLACE_MAX_METERS = 5_000.0;
     private static final double PLACE_TIE_METERS = 300.0;
     private static final String LIVE_URL = "https://railisland.tw/api/tra-live";
     private static final String THSR_SCHEDULE_URL = "https://railisland.tw/api/thsr-schedule";
+    // 台鐵班表是 14 天滾動窗,而打包進 APK 的那份停在出版當天。這個精簡檔一份涵蓋整個窗
+    // (646KB,站名索引化),抓一次撐到窗結束;抓不到就退回內建那份,行為與改動前相同。
+    private static final String TRA_SCHEDULE_URL = "https://railisland.tw/data/tra_widget_schedule.json";
+    private static final String TRA_SCHEDULE_CACHE = "tra_widget_schedule.json";
     private static final TimeZone TAIPEI = TimeZone.getTimeZone("Asia/Taipei");
     private static Catalog cachedCatalog;
+    private static SystemInfo cachedCurrentTra;
+    private static String cachedCurrentTraDay;
+    private static long cachedCurrentTraAt;
     private static SystemInfo cachedCurrentThsr;
     private static String cachedCurrentThsrDay;
     private static long cachedCurrentThsrAt;
@@ -185,6 +197,15 @@ final class RailWidgetData {
 
     enum Relation { DEPARTURE, ARRIVAL, PASS }
 
+    /**
+     * 這班車離開本站之後往北還是往南。與 iOS 的 RailHeading（RailWidgetKit.swift）同一套規則。
+     *
+     * 🔴 判準是【緯度誰高】而不是官方的方向欄位：台鐵官方值是「順行／逆行」，順行在南迴線
+     *    是由東往西、在北迴線是由北往南——換算成南北要靠人判斷，而這個專案的鐵則是官方值
+     *    照抄、不自己判斷。緯度不必換算：它【就是】南北。
+     */
+    enum Heading { NORTH, SOUTH }
+
     static final class Row {
         String sys;
         String no;
@@ -192,6 +213,7 @@ final class RailWidgetData {
         String color;
         String terminus;
         Relation relation;
+        Heading heading;
         long scheduledAt;
         Long destinationAt;
         Integer delayMinutes;
@@ -204,6 +226,7 @@ final class RailWidgetData {
             JSONObject out = new JSONObject()
                 .put("sys", sys).put("no", no).put("type", type).put("color", color)
                 .put("terminus", terminus).put("relation", relation.name()).put("scheduledAt", scheduledAt);
+            if (heading != null) out.put("heading", heading.name());
             if (destinationAt != null) out.put("destinationAt", destinationAt);
             if (delayMinutes != null) out.put("delayMinutes", delayMinutes);
             return out;
@@ -218,6 +241,13 @@ final class RailWidgetData {
             row.terminus = raw.optString("terminus", "");
             try { row.relation = Relation.valueOf(raw.optString("relation", Relation.DEPARTURE.name())); }
             catch (IllegalArgumentException ignored) { row.relation = Relation.DEPARTURE; }
+            // 舊版 App 寫的快取沒有 heading 欄 ⇒ 留 null ⇒ 那一輪不畫三角，升級過程中
+            // 不會有人看到猜的方向；下一次抓取就補回來。
+            String heading = raw.optString("heading", "");
+            if (!heading.isEmpty()) {
+                try { row.heading = Heading.valueOf(heading); }
+                catch (IllegalArgumentException ignored) { row.heading = null; }
+            }
             row.scheduledAt = raw.optLong("scheduledAt", 0);
             if (raw.has("destinationAt")) row.destinationAt = raw.optLong("destinationAt");
             if (raw.has("delayMinutes")) row.delayMinutes = raw.optInt("delayMinutes");
@@ -233,12 +263,15 @@ final class RailWidgetData {
         long generatedAt;
         String scheduleNote;
         boolean failed;
+        boolean includePass;
+        /** 這一輪被「預設不顯示通過列」擋掉幾列;>0 而看板又是空的,代表本站今日無車停靠。 */
+        int hiddenPass;
         final List<Row> rows = new ArrayList<>();
 
         JSONObject toJson() throws JSONException {
             JSONObject out = new JSONObject().put("sys", sys).put("systemLabel", systemLabel)
                 .put("origin", origin).put("destination", destination == null ? "" : destination)
-                .put("generatedAt", generatedAt).put("failed", failed);
+                .put("generatedAt", generatedAt).put("failed", failed).put("includePass", includePass).put("hiddenPass", hiddenPass);
             if (scheduleNote != null) out.put("scheduleNote", scheduleNote);
             JSONArray list = new JSONArray();
             for (Row row : rows) list.put(row.toJson());
@@ -255,6 +288,8 @@ final class RailWidgetData {
             out.generatedAt = raw.optLong("generatedAt", 0);
             out.scheduleNote = raw.optString("scheduleNote", null);
             out.failed = raw.optBoolean("failed", false);
+            out.includePass = raw.optBoolean("includePass", false);
+            out.hiddenPass = raw.optInt("hiddenPass", 0);
             JSONArray rows = raw.optJSONArray("rows");
             if (rows != null) for (int i = 0; i < rows.length(); i++) {
                 JSONObject row = rows.optJSONObject(i);
@@ -427,6 +462,7 @@ final class RailWidgetData {
                           List<String> filters) throws Exception {
         Catalog catalog = catalog(context);
         long now = System.currentTimeMillis();
+        boolean includePass = filters != null && filters.contains(FILTER_PASS);
         String originLabel = null, destinationLabel = null;
         if (isPlace(origin)) {
             PlaceOption place = resolvePlace(context, catalog, origin, "", null);
@@ -443,8 +479,8 @@ final class RailWidgetData {
         if (SYS_COMPOSITE.equals(sys)) {
             Composite pair = catalog.compositeByKey.get(origin);
             if (pair == null) throw new JSONException("unknown composite");
-            Snapshot tra = prepare(catalog.byId.get("tra"), pair.tra, "", now);
-            Snapshot thsr = prepare(currentThsr(catalog, now), pair.thsr, "", now);
+            Snapshot tra = prepare(currentTra(context, catalog, now), pair.tra, "", now, includePass);
+            Snapshot thsr = prepare(currentThsr(catalog, now), pair.thsr, "", now, includePass);
             out = new Snapshot();
             out.sys = SYS_COMPOSITE;
             out.systemLabel = "台鐵＋高鐵";
@@ -453,12 +489,16 @@ final class RailWidgetData {
             out.generatedAt = now;
             out.rows.addAll(tra.rows);
             out.rows.addAll(thsr.rows);
+            out.hiddenPass = tra.hiddenPass + thsr.hiddenPass;
             out.scheduleNote = tra.scheduleNote;
         } else {
-            SystemInfo system = "thsr".equals(sys) ? currentThsr(catalog, now) : catalog.byId.get(sys);
+            SystemInfo system = "thsr".equals(sys) ? currentThsr(catalog, now)
+                : "tra".equals(sys) ? currentTra(context, catalog, now)
+                : catalog.byId.get(sys);
             if (system == null) throw new JSONException("unknown system");
-            out = prepare(system, origin, destination, now);
+            out = prepare(system, origin, destination, now, includePass);
         }
+        out.includePass = includePass;
         if (originLabel != null && !originLabel.isEmpty()) out.origin = originLabel;
         if (destinationLabel != null && !destinationLabel.isEmpty()) out.destination = destinationLabel;
         applyFilters(out.rows, filters);
@@ -471,7 +511,8 @@ final class RailWidgetData {
         return out;
     }
 
-    static List<FilterOption> filterOptions(Context context, Catalog catalog, String sys, String origin) {
+    static List<FilterOption> filterOptions(Context context, Catalog catalog, String sys, String origin,
+                                            boolean includePass) {
         boolean placeOrigin = isPlace(origin);
         if (placeOrigin) {
             PlaceOption place = resolvePlace(context, catalog, origin, "", null);
@@ -482,14 +523,22 @@ final class RailWidgetData {
         LinkedHashSet<String> numbers = new LinkedHashSet<>(), termini = new LinkedHashSet<>();
         SystemInfo system = catalog.byId.get(sys);
         if (system == null) return Collections.emptyList();
+        boolean hasPass = false;
         for (Train train : system.trains) {
             int at = indexOf(train.stops, origin);
             if (at < 0 || at >= train.stops.size() - 1) continue;
+            if (!train.stops.get(at).stopping) {
+                hasPass = true;
+                // 車種/車次的班數必須跟「看板實際會顯示什麼」一致,否則會出現
+                // 「車種 · 自強(60 班)」但預設一班都不顯示的矛盾。
+                if (!includePass) continue;
+            }
             types.put(train.type, types.getOrDefault(train.type, 0) + 1);
             if (!train.no.isEmpty()) numbers.add(train.no);
             if (!train.stops.isEmpty()) termini.add(train.stops.get(train.stops.size() - 1).name);
         }
         List<FilterOption> out = new ArrayList<>();
+        if (hasPass) out.add(new FilterOption(FILTER_PASS, "含通過列車"));
         if (placeOrigin) for (String terminus : termini) {
             out.add(new FilterOption("dir|" + sys + "|" + terminus, "方向 · 往 " + terminus));
         }
@@ -522,7 +571,8 @@ final class RailWidgetData {
         });
     }
 
-    private static Snapshot prepare(SystemInfo system, String origin, String destination, long now) throws ParseException {
+    private static Snapshot prepare(SystemInfo system, String origin, String destination, long now,
+                                    boolean includePass) throws ParseException {
         if (system == null || !system.stationByName.containsKey(origin)) throw new IllegalArgumentException("station");
         Snapshot out = new Snapshot();
         out.sys = system.id;
@@ -542,8 +592,14 @@ final class RailWidgetData {
             if (active.note != null) out.scheduleNote = active.note;
             for (Train train : system.trains) {
                 if (active.indices != null && !active.indices.contains(train.index)) continue;
-                Row row = rowAt(train, system.id, origin, out.destination, serviceDay);
+                Row row = rowAt(train, system, origin, out.destination, serviceDay);
                 if (row == null || row.scheduledAt <= now) continue;
+                // 招呼站與小站有一半以上的列是「通過本站」,預設把它們收起來:小工具只有 3-5 列,
+                // 主要用途是「我等的車幾點」。想看通過列車的人在「只看這些」勾 FILTER_PASS 就回來。
+                if (!includePass && row.relation == Relation.PASS) {
+                    if (row.scheduledAt <= horizon) out.hiddenPass++;
+                    continue;
+                }
                 future.add(row);
                 if (row.scheduledAt <= horizon) out.rows.add(row);
             }
@@ -554,7 +610,7 @@ final class RailWidgetData {
         return out;
     }
 
-    private static Row rowAt(Train train, String sys, String origin, String destination, long serviceDay) {
+    private static Row rowAt(Train train, SystemInfo system, String origin, String destination, long serviceDay) {
         int at = indexOf(train.stops, origin);
         if (at < 0) return null;
         Long destinationAt = null;
@@ -570,17 +626,48 @@ final class RailWidgetData {
         }
         Stop originStop = train.stops.get(at);
         Row row = new Row();
-        row.sys = sys;
+        row.sys = system.id;
         row.no = train.no;
         row.type = train.type;
         row.color = train.color;
         row.terminus = train.stops.isEmpty() ? "" : train.stops.get(train.stops.size() - 1).name;
         row.relation = !originStop.stopping ? Relation.PASS
             : at == train.stops.size() - 1 ? Relation.ARRIVAL : Relation.DEPARTURE;
+        // 方向三角指的是「離開本站往哪走」,所以取【下一個停靠站】而不是終點站——山海線繞行車
+        // (如 2600 臺中→大甲:先北上到竹南再南下走海線)拿終點站算會指反。與 iOS 的 headingID
+        // 同一套規則(RailBoardData.swift 的 JourneyTemplate.headingID)：
+        //   發車→下一個停靠站、終到→沒有(車在這裡就結束,「往哪走」這件事不存在)、
+        //   通過→退用終點站(它在本站不停,沒有「下一個停靠站」這筆資料)。
+        String headingTo = null;
+        if (row.relation == Relation.DEPARTURE) {
+            for (int i = at + 1; i < train.stops.size(); i++) {
+                if (train.stops.get(i).stopping) { headingTo = train.stops.get(i).name; break; }
+            }
+        } else if (row.relation == Relation.PASS) {
+            headingTo = row.terminus;
+        }
+        row.heading = heading(system, origin, headingTo);
         int second = row.relation == Relation.DEPARTURE ? originStop.dep : originStop.arr;
         row.scheduledAt = serviceDay + second * 1000L;
         row.destinationAt = destinationAt;
         return row;
+    }
+
+    /**
+     * 🔴 判準只有「緯度誰高」,沒有門檻值。曾想過「緯差太小就不畫」,但那個門檻是手打的魔術
+     *    數字、每次改支線資料都得重調;而三角只宣稱「北邊／南邊」這件事本身——緯差 2 公里的
+     *    支線畫出來仍然是對的,只是資訊量小,不會是錯的。
+     *
+     * 缺座標、查無此站、或兩站同緯度時回 null ⇒ 不畫三角。「不畫」是刻意的:寧可少一個圖形,
+     * 不要畫一個猜的方向。（與 iOS RailHeading.between 逐條對應）
+     */
+    private static Heading heading(SystemInfo system, String from, String to) {
+        if (system == null || from == null || from.isEmpty() || to == null || to.isEmpty()) return null;
+        Station a = system.stationByName.get(from);
+        Station b = system.stationByName.get(to);
+        if (a == null || b == null) return null;
+        if (!Double.isFinite(a.lat) || !Double.isFinite(b.lat) || a.lat == b.lat) return null;
+        return b.lat > a.lat ? Heading.NORTH : Heading.SOUTH;
     }
 
     private static int indexOf(List<Stop> stops, String name) {
@@ -670,6 +757,133 @@ final class RailWidgetData {
      * 高鐵靜態檔只保留站名與離線幾何，班次必須讀網站現用的 /api/thsr-schedule。
      * 端點若只剩「最近一天」的降級文件，日期不等於今天就拒絕，不把舊班表偽裝成今日班次。
      */
+    /**
+     * 台鐵班表:優先用線上的精簡檔(涵蓋整個 14 天窗),抓不到或涵蓋不到今天就退回打包的那份。
+     *
+     * 為什麼要連線:台鐵班表是 14 天滾動窗,打包進 APK 的快照過了窗就只能靠
+     * {@link #activeDay} 退到「同星期最近來源日」硬撐——時刻會錯。網頁版本來就會自己抓新的。
+     *
+     * 為什麼不是每天抓:那份檔一份涵蓋整個窗,所以判準是「今天在不在 dates 裡」而不是
+     * 「檔的日期等不等於今天」(高鐵那條是單日文件才用日期相等)。窗還沒過完就一直用磁碟那份。
+     *
+     * 失敗一律安靜退回內建:小工具沒有地方顯示錯誤,而退回之後的行為與這個改動之前完全相同,
+     * 使用者最多是看到 activeDay 本來就會給的「班表只到 X · 請更新軌島」。
+     */
+    private static synchronized SystemInfo currentTra(Context context, Catalog catalog, long now) {
+        String today = dayKey(now);
+        if (cachedCurrentTra != null && today.equals(cachedCurrentTraDay)
+            && now - cachedCurrentTraAt < 5 * 60_000L) return cachedCurrentTra;
+
+        SystemInfo built = null;
+        try {
+            JSONObject doc = readTraCache(context, today);
+            if (doc == null) doc = downloadTraSchedule(context, today);
+            if (doc != null) built = buildTraSystem(doc);
+        } catch (Exception ignored) {
+            built = null;
+        }
+        SystemInfo out = built != null ? built : catalog.byId.get("tra");
+        cachedCurrentTra = out;
+        cachedCurrentTraDay = today;
+        cachedCurrentTraAt = now;
+        return out;
+    }
+
+    /** 磁碟快取:涵蓋窗含今天才算數,否則當作沒有(回 null 讓上層去下載)。 */
+    private static JSONObject readTraCache(Context context, String today) {
+        File file = new File(context.getCacheDir(), TRA_SCHEDULE_CACHE);
+        if (!file.exists()) return null;
+        try (FileInputStream in = new FileInputStream(file)) {
+            JSONObject doc = new JSONObject(readAll(in));
+            JSONObject dates = doc.optJSONObject("dates");
+            return dates != null && dates.has(today) ? doc : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static JSONObject downloadTraSchedule(Context context, String today) throws Exception {
+        HttpURLConnection connection = null;
+        try {
+            connection = (HttpURLConnection) new URL(TRA_SCHEDULE_URL).openConnection();
+            connection.setConnectTimeout(8000);
+            connection.setReadTimeout(12000);
+            connection.setUseCaches(false);
+            connection.setRequestProperty("User-Agent", "RailIsland-Android-RailWidget");
+            if (connection.getResponseCode() != 200) return null;
+            String body = readAll(connection.getInputStream());
+            JSONObject doc = new JSONObject(body);
+            JSONObject dates = doc.optJSONObject("dates");
+            // 涵蓋不到今天的就不要落地——留著舊快取還比較有用(至少它曾經涵蓋過今天)。
+            if (dates == null || !dates.has(today)) return null;
+            try (FileOutputStream out = new FileOutputStream(new File(context.getCacheDir(), TRA_SCHEDULE_CACHE))) {
+                out.write(body.getBytes("UTF-8"));
+            } catch (Exception ignored) {
+                // 寫不進去(空間不足等)不影響這一輪,下次再抓一次而已。
+            }
+            return doc;
+        } finally {
+            if (connection != null) connection.disconnect();
+        }
+    }
+
+    /**
+     * 精簡檔 → 與打包檔相同形狀的 SystemInfo。
+     * 站名在精簡檔裡是索引、depSec 是停站秒數、顏色是車種對照表——這裡全部還原,
+     * 讓下游(prepare／activeDay／filterOptions)完全不必知道資料是哪裡來的。
+     * 車次順序刻意沿用來源順序:dates 裡放的是車次索引,順序一動整份就對不上。
+     */
+    private static SystemInfo buildTraSystem(JSONObject doc) throws JSONException {
+        JSONArray stationList = doc.optJSONArray("stations");
+        JSONArray trainList = doc.optJSONArray("trains");
+        if (stationList == null || trainList == null || trainList.length() == 0) return null;
+        JSONObject types = doc.optJSONObject("types");
+
+        JSONArray stations = new JSONArray();
+        String[] names = new String[stationList.length()];
+        for (int i = 0; i < stationList.length(); i++) {
+            JSONArray one = stationList.optJSONArray(i);
+            if (one == null) return null;
+            names[i] = one.optString(0, "");
+            stations.put(new JSONObject()
+                .put("name", names[i]).put("lat", one.optDouble(1)).put("lon", one.optDouble(2)));
+        }
+
+        JSONArray trains = new JSONArray();
+        for (int i = 0; i < trainList.length(); i++) {
+            JSONArray one = trainList.optJSONArray(i);
+            if (one == null) return null;
+            String type = one.optString(1, "其他");
+            JSONArray stopList = one.optJSONArray(2);
+            JSONArray stops = new JSONArray();
+            if (stopList != null) for (int j = 0; j < stopList.length(); j++) {
+                JSONArray stop = stopList.optJSONArray(j);
+                if (stop == null) continue;
+                int at = stop.optInt(0, -1);
+                if (at < 0 || at >= names.length) continue;
+                int arr = stop.optInt(1, 0);
+                stops.put(new JSONObject()
+                    .put("name", names[at])
+                    .put("arr", arr)
+                    .put("dep", arr + stop.optInt(2, 0))
+                    .put("stop", stop.optInt(3, 1) != 0));
+            }
+            trains.put(new JSONObject()
+                .put("no", one.optString(0, ""))
+                .put("type", type)
+                .put("color", types != null ? types.optString(type, "#8E44AD") : "#8E44AD")
+                .put("stops", stops));
+        }
+
+        JSONArray range = doc.optJSONArray("dateRange");
+        return new SystemInfo(new JSONObject()
+            .put("id", "tra").put("label", "台鐵").put("live", true)
+            .put("date", range != null ? range.optString(0, "") : "")
+            .put("dates", doc.optJSONObject("dates"))
+            .put("stations", stations)
+            .put("trains", trains));
+    }
+
     private static synchronized SystemInfo currentThsr(Catalog catalog, long now) throws Exception {
         String today = dayKey(now).replace("-", "");
         if (cachedCurrentThsr != null && today.equals(cachedCurrentThsrDay)

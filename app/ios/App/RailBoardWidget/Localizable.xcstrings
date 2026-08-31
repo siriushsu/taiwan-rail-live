@@ -256,6 +256,23 @@
         }
       }
     },
+    "Android 發車小工具的「大字好讀版」現在會真正放大班次、時刻、狀態與列高，不再只是少顯示幾班；使用說明也補上擁擠度、我的地點、班次篩選、背景更新及版本評分入口": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Android’s large-text departure widget now enlarges train, time and status text along with row height instead of merely showing fewer trains. Help now covers crowding, My Places, filters, background updates, version checks and ratings."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Android発車案内ウィジェットの「大きく読みやすい文字」は、表示本数を減らすだけでなく列車、時刻、状態と行の高さを実際に拡大します。使い方には混雑度、保存した場所、列車の絞り込み、バックグラウンド更新、バージョン確認、評価も追加しました。"
+          }
+        }
+      }
+    },
     "App 旅程護照的創始島民徽章": {
       "extractionState": "manual",
       "localizations": {
@@ -286,6 +303,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "Appではバックグラウンドでも再生します。追跡中はロック画面を列車情報に使い、それ以外は音楽操作を表示します。"
+          }
+        }
+      }
+    },
+    "App 版會在「更多」底部顯示目前版本，也保留一個不打擾你的評分入口。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The app shows its current version at the bottom of More and provides a quiet rating entry."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App版は「その他」の下部に現在のバージョンと、控えめな評価入口を表示します。"
+          }
+        }
+      }
+    },
+    "App 版本與評分": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App version and rating"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appのバージョンと評価"
           }
         }
       }
@@ -456,6 +507,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "EMU3000新自強号"
+          }
+        }
+      }
+    },
+    "Google Play 有新版可更新": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An update is available on Google Play"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google Playに更新があります"
           }
         }
       }
@@ -4948,6 +5016,23 @@
         }
       }
     },
+    "倒數準確度：{accuracy}": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Countdown accuracy: {accuracy}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カウントダウン精度：{accuracy}"
+          }
+        }
+      }
+    },
     "倒數照官方表定加即時誤點，車到站後自動收起。鎖定畫面同時只留一張等候卡——追蹤台鐵這班會把捷運那張收掉。時鐘不在「現在」時會先幫你帶回現在。這項不需要通行證。": {
       "extractionState": "manual",
       "localizations": {
@@ -5896,6 +5981,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "全目的地"
+          }
+        }
+      }
+    },
+    "全部目的地 · 停靠與終到": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All destinations · stopping and terminating"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全目的地・停車と終着"
           }
         }
       }
@@ -7005,6 +7107,23 @@
         }
       }
     },
+    "到站倒數會顯示在鎖定畫面的即時資訊卡，卡片上隨時可按「結束」收起。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arrival countdowns appear in the lock-screen live card. Tap End on the card at any time to dismiss it."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "到着カウントダウンはロック画面のライブカードに表示されます。カードの「終了」でいつでも閉じられます。"
+          }
+        }
+      }
+    },
     "到站倒數會顯示在鎖定畫面與動態島，卡片上隨時可按「結束」收起。": {
       "extractionState": "manual",
       "localizations": {
@@ -7630,6 +7749,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "北湖"
+          }
+        }
+      }
+    },
+    "北迴線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "North-Link Line"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "北廻線"
           }
         }
       }
@@ -8739,6 +8875,23 @@
         }
       }
     },
+    "只有通過列車 · 可在設定開啟「含通過列車」": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only passing trains · turn on \"Include passing trains\" in settings"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通過列車のみ・設定で「通過列車も表示」をオンにできます"
+          }
+        }
+      }
+    },
     "只看這些": {
       "extractionState": "manual",
       "localizations": {
@@ -9534,6 +9687,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "台湾鉄路のリアルタイム情報が途切れた場合、時計の横に「中断」と最終更新時刻を表示し、追跡できないことも案内します。"
+          }
+        }
+      }
+    },
+    "台鐵套用官方即時誤點；北捷依官方秒級到站倒數逐班校正，擁擠度也只對應同一車號，不會借用同方向另一班車；高捷、機捷、高雄輕軌依官方到站看板校正。官方資料中斷或你的裝置時鐘明顯不準時，上方的「LIVE」會轉成灰色「非即時」，表示畫面是依稍早的資料投射——點一下時鐘可以看到是哪一項出狀況。台鐵當日官方公告停駛的班次不會出現在地圖上，但看板仍會列出並標成「停駛」。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TRA uses official live delays. Taipei Metro trains are corrected individually from official second-level arrival countdowns, and car crowding is matched only to the same train number. Kaohsiung Metro, Taoyuan Airport MRT and Kaohsiung Light Rail use their official arrival boards. If official data is interrupted or your device clock is clearly inaccurate, LIVE turns into a grey Not live indicator: tap the clock to see why. TRA services officially cancelled for the day are removed from the map but remain listed as Cancelled on boards."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台湾鉄路は公式のリアルタイム遅延を適用します。台北メトロは公式の秒単位到着予測で列車ごとに補正し、混雑度も同じ列車番号だけに対応させます。高雄メトロ、桃園空港MRT、高雄ライトレールは公式到着案内で補正します。公式データが途切れるか端末時計が大きくずれると、LIVEは灰色の「非リアルタイム」に変わります。時計をタップすると理由を確認できます。当日公式に運休となった台湾鉄路の列車は地図から消えますが、案内には「運休」と表示します。"
           }
         }
       }
@@ -12088,6 +12258,23 @@
         }
       }
     },
+    "完成至少兩趟旅程後，App 才可能在適合的時機邀請一次評分；同一版不重複問，是否真的顯示評分視窗仍由 App Store／Google Play 決定。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "After at least two journeys, the app may request a rating once at an appropriate time. It does not repeat the request in the same version; App Store or Google Play still decides whether to show the prompt."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2回以上の旅程を完了した後、適切な時に1度だけ評価をお願いする場合があります。同じバージョンでは繰り返さず、実際に評価画面を表示するかはApp Store／Google Playが決定します。"
+          }
+        }
+      }
+    },
     "完整更新歷史（依主題分類）": {
       "extractionState": "manual",
       "localizations": {
@@ -12305,6 +12492,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "宜蘭"
+          }
+        }
+      }
+    },
+    "宜蘭線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yilan Line"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "宜蘭線"
           }
         }
       }
@@ -12700,6 +12904,23 @@
         }
       }
     },
+    "屏東線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pingtung Line"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "屏東線"
+          }
+        }
+      }
+    },
     "屏東縣": {
       "extractionState": "manual",
       "localizations": {
@@ -12798,6 +13019,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "山海号"
+          }
+        }
+      }
+    },
+    "山線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mountain Line"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "山線"
           }
         }
       }
@@ -15182,6 +15420,23 @@
         }
       }
     },
+    "手機地圖右下角的版權資訊不會再折成一大塊蓋住速度調整鈕：改成貼著底緣一整條、放不下的部分橫向可捲，授權連結一個都沒少，仍然看得到也點得到。切到衛星影像時字串較長，原本折成四行最嚴重，現在一樣是一條（謝謝網友回報）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The map attribution at the bottom right of the phone map sits on a single line along the bottom edge, scrolling sideways when it does not fit, instead of wrapping into a block over the speed control. Every licence link is still there and still tappable. In satellite mode the text is longer, and it stays on one line there too. (Thanks to the reader who reported this.)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スマートフォンの地図右下の著作権表示を、下端に沿った一行にしました。収まらない部分は横にスクロールし、速度調整ボタンを覆うブロックにはなりません。ライセンスのリンクは一つも欠けておらず、表示もタップもできます。衛星画像モードでは文字列が長くなりますが、そこでも一行のままです。（ご報告いただいた方に感謝します。）"
+          }
+        }
+      }
+    },
     "手機拖時刻尺、桌面按 ← → 各移動 10 分鐘": {
       "extractionState": "manual",
       "localizations": {
@@ -15246,6 +15501,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "スマートフォン：現在のグループ名がある右上の丸いボタンを押す"
+          }
+        }
+      }
+    },
+    "打開「更多」，找到「軌島」那一段": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open More and find the Rail Island section"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「その他」を開き、「軌島」セクションを探します"
           }
         }
       }
@@ -15539,6 +15811,23 @@
         }
       }
     },
+    "抵達本站": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminating here"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当駅止まり"
+          }
+        }
+      }
+    },
     "拉太近時衛星影像可能還沒有那麼清晰的圖資。": {
       "extractionState": "manual",
       "localizations": {
@@ -15654,6 +15943,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "「鑑賞モード」を押す"
+          }
+        }
+      }
+    },
+    "按「給軌島評分」會前往 iPhone 的 App Store 或 Android 的 Google Play": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rate Rail Island opens the iPhone App Store or Android Google Play."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「軌島を評価」を押すと、iPhoneはApp Store、AndroidはGoogle Playを開きます。"
           }
         }
       }
@@ -16895,6 +17201,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "コレクションスタンプ"
+          }
+        }
+      }
+    },
+    "改用另一種方式登入": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in another way"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "別の方法でログイン"
           }
         }
       }
@@ -18497,6 +18820,23 @@
         }
       }
     },
+    "更新完跳出的「更新了什麼」現在會用你正在使用的語言：英文與日文各有整段自己的文案，不會再看到標著「中文原文」的中文說明": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The What's new sheet shown after an update now appears in the language you are using: English and Japanese each have their own full text, so Chinese notes labelled as source text no longer show up."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アップデート後に表示される「更新内容」が、お使いの言語で表示されるようになりました。英語と日本語にはそれぞれ専用の文章があり、「中国語の原文」と付いた中国語の説明は表示されなくなります。"
+          }
+        }
+      }
+    },
     "更新提醒": {
       "extractionState": "manual",
       "localizations": {
@@ -18901,6 +19241,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "月間パスと年間パスは自動更新です。App Storeのサブスクリプション設定からいつでも解約でき、支払済み期間の終了時に更新が停止します。"
+          }
+        }
+      }
+    },
+    "月票與年票都是自動續訂方案；你可以隨時在 {store} 的訂閱設定中取消，取消後於當期結束時停止續訂。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Monthly and annual passes renew automatically. You can cancel at any time in {store} subscription settings; renewal stops at the end of the current period."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "月間・年間パスは自動更新です。{store}のサブスクリプション設定からいつでも解約でき、現在の期間終了時に更新が停止します。"
           }
         }
       }
@@ -21455,6 +21812,23 @@
         }
       }
     },
+    "沒有跳出 Google 帳號選擇畫面嗎？可以改用另一種方式登入。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Google account picker appeared? You can sign in another way."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google のアカウント選択画面が表示されませんでしたか？別の方法でログインできます。"
+          }
+        }
+      }
+    },
     "沒有選擇可讀取的檔案": {
       "extractionState": "manual",
       "localizations": {
@@ -22390,6 +22764,23 @@
         }
       }
     },
+    "火車站看板改成分方向顯示：南下、北上分開，山線海線與支線各自成區，冷門方向不再被擠掉；顏色比照台鐵新版車站標示的北上藍、南下綠": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Station boards now group trains by direction—southbound, northbound and each branch line get their own section, so quieter directions no longer get squeezed out; colour-coded blue for northbound and green for southbound, matching TRA's new station signage."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅の発車案内を方面別に分割：南行き・北行き・支線がそれぞれ独立し、本数の少ない方面も押し出されません。色分けは台鉄の新しい案内サインに合わせ、北行きは青、南行きは緑。"
+          }
+        }
+      }
+    },
     "灰色的章可以點——它隨機挑一班該類列車，從發車前 20 秒開始重播給你跟": {
       "extractionState": "manual",
       "localizations": {
@@ -22764,6 +23155,23 @@
         }
       }
     },
+    "版": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ver."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "版"
+          }
+        }
+      }
+    },
     "版型": {
       "extractionState": "manual",
       "localizations": {
@@ -22777,6 +23185,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "レイアウト"
+          }
+        }
+      }
+    },
+    "版本列有新版時會帶你到目前平台的商店；沒有新版時可重看本版更新內容": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When an update is available, the version row opens your platform’s store; otherwise it shows this version’s update notes again."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新がある場合はバージョン欄から現在のプラットフォームのストアへ移動し、更新がない場合はこの版の変更内容を再表示します。"
           }
         }
       }
@@ -23886,6 +24311,23 @@
         }
       }
     },
+    "目前版本　{version}": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current version  {version}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在のバージョン　{version}"
+          }
+        }
+      }
+    },
     "目前班次未連結動畫": {
       "extractionState": "manual",
       "localizations": {
@@ -24290,6 +24732,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "次の列車とカウントダウンを確認"
+          }
+        }
+      }
+    },
+    "看板列出接下來的班次與倒數；北捷有官方逐節資料時，班次旁會畫出每節車廂的鬆緊": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The board lists upcoming trains and countdowns. When official Taipei Metro car data is available, crowding for each car appears beside the train."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "案内には次の列車とカウントダウンを表示します。台北メトロの公式車両別データがある場合は、各車両の混雑度も表示します。"
           }
         }
       }
@@ -26096,6 +26555,23 @@
         }
       }
     },
+    "縱貫線南段": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Western Line (South)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "縦貫線南段"
+          }
+        }
+      }
+    },
     "縱貫線南段的日式木造車站": {
       "extractionState": "manual",
       "localizations": {
@@ -26776,6 +27252,23 @@
         }
       }
     },
+    "臺東線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taitung Line"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台東線"
+          }
+        }
+      }
+    },
     "臺東縣": {
       "extractionState": "manual",
       "localizations": {
@@ -27180,6 +27673,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "英語・日本語で、お気に入り、本日の台湾鉄路、遅延履歴、アカウント同期、Googleリスト読み込み、共有、「この駅を追跡」もすぐ切り替わるようになりました。災害監視、メトロの行先、列車／駅の選択表示、実績の説明、iPhoneのライブアクティビティとウィジェットにも対応し、中国語だけの公式イベントは原文であることを明記します。"
+          }
+        }
+      }
+    },
+    "英文與日文的手機頂列，左上角的軌島牌裝不下時會自己讓位，分組切換鈕留在畫面內": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On phones in English and Japanese, the Rail Island plate in the top left gives way when it does not fit, so the group tabs stay on screen."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "英語・日本語のスマートフォン表示では、左上の軌島プレートが収まらないときに自ら幅を譲り、グループ切り替えタブが画面内に収まります。"
           }
         }
       }
@@ -28357,6 +28867,23 @@
         }
       }
     },
+    "訂閱後桌面小工具立刻能放多站、自動選站，不必等同步或按恢復購買": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Once you subscribe, home screen widgets can hold several stations and choose stations automatically straight away — no waiting for a sync, and no need to tap Restore purchases."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サブスクリプションに登録すると、ホーム画面ウィジェットですぐに複数の駅を設定でき、駅の自動選択も使えます。同期を待ったり「購入を復元」を押したりする必要はありません。"
+          }
+        }
+      }
+    },
     "訂閱月票": {
       "extractionState": "manual",
       "localizations": {
@@ -28421,6 +28948,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "App StoreまたはGoogle Playのサブスクリプション設定で管理してください。"
+          }
+        }
+      }
+    },
+    "訂閱管理請至 {store} 的訂閱設定。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage your subscription in {store} subscription settings."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{store}のサブスクリプション設定で管理してください。"
           }
         }
       }
@@ -28782,6 +29326,23 @@
         }
       }
     },
+    "請允許軌島傳送通知，才能顯示等站卡": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow Rail Island notifications to show the station tracking card."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅待ちカードを表示するには、軌島の通知を許可してください。"
+          }
+        }
+      }
+    },
     "請先登入軌島帳號，訂閱資格才能跨裝置使用": {
       "extractionState": "manual",
       "localizations": {
@@ -28799,6 +29360,23 @@
         }
       }
     },
+    "請到 iOS 設定開啟「即時動態」才能顯示等站卡": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable Live Activities for Rail Island in iOS Settings to show the station tracking card."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅待ちカードを表示するには、iOS設定で軌島のライブアクティビティを有効にしてください。"
+          }
+        }
+      }
+    },
     "請到 iOS 設定開啟「即時動態」才能顯示等車卡": {
       "extractionState": "manual",
       "localizations": {
@@ -28812,6 +29390,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "列車待ちカードを表示するにはiOS設定で「ライブアクティビティ」を有効にしてください。"
+          }
+        }
+      }
+    },
+    "請到系統設定開啟軌島通知／即時動態，才能顯示等車卡": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable Rail Island notifications / Live Activities in system settings to show the station tracking card."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅待ちカードを表示するには、システム設定で軌島の通知／ライブ表示を有効にしてください。"
           }
         }
       }
@@ -30686,6 +31281,23 @@
         }
       }
     },
+    "軌島新版已在 Google Play 上架": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A new Rail Island version is available on Google Play"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "軌島の新しいバージョンをGoogle Playで公開しました"
+          }
+        }
+      }
+    },
     "軌島行程分享": {
       "extractionState": "manual",
       "localizations": {
@@ -32318,6 +32930,23 @@
         }
       }
     },
+    "選一班車，鎖定畫面會顯示它的表定時刻與官方誤點分鐘（實際約幾點到）。卡片上隨時可按「結束」收起。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a train to show its scheduled time and official delay minutes (estimated actual arrival) on the lock screen. Tap End on the card at any time to dismiss it."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "列車を選ぶと、予定時刻と公式遅延分（実際の到着見込み）をロック画面に表示します。カードの「終了」でいつでも閉じられます。"
+          }
+        }
+      }
+    },
     "選你的目的站，產生一個「活的」行程連結——對方看得到列車位置與到站時刻，你不用一直回傳定位。": {
       "extractionState": "manual",
       "localizations": {
@@ -32365,6 +32994,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "台湾鉄路、高鉄、共用駅を選び、次の停車・終着・通過列車を確認します。"
+          }
+        }
+      }
+    },
+    "選台鐵、高鐵或共站，查看接下來的停靠與終到列車；想看通過本站的車，在「只看這些」裡打開。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose TRA, HSR or a shared station to see upcoming stopping and terminating trains. Turn on passing trains under Filters."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台湾鉄路、高鉄、共用駅を選び、次の停車・終着列車を確認します。通過列車は「表示条件」で表示できます。"
           }
         }
       }

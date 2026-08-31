@@ -230,6 +230,9 @@ struct BoardFilterOptionsProvider: DynamicOptionsProvider {
                 }
             }
             options = (types: types, trains: trains)
+            if composite.members.contains(where: { engine.hasPassTrains(originID: $0.st) }) {
+                passSwitch = [passOption]
+            }
         } else if let placeBoard = RailBoardStore.shared.placeLikeBoard(forKey: origin) {
             let engine = RailBoardEngine()
             options = try engine.filterOptions(placeBoard: placeBoard)
@@ -245,13 +248,7 @@ struct BoardFilterOptionsProvider: DynamicOptionsProvider {
             )
             // 只有通過車的小站，車種與車次兩段都會是空的——沒有這一段就整格「沒有可用的選項」，
             // 使用者連把通過列車叫回來的入口都沒有。
-            if engine.hasPassTrains(originID: originID) {
-                passSwitch = [FilterOption(
-                    key: BoardFilter.includePass.key,
-                    title: "含通過列車",
-                    subtitle: "預設只顯示停靠與終到"
-                )]
-            }
+            if engine.hasPassTrains(originID: originID) { passSwitch = [passOption] }
         }
         // 空的 section 不放進去（今天完全沒車的站）——寧可整格顯示「沒有可用的選項」，
         // 也不要塞一個空標題進 IntentItemCollection。
@@ -266,6 +263,14 @@ struct BoardFilterOptionsProvider: DynamicOptionsProvider {
         return IntentItemCollection(
             promptLabel: passSwitch.isEmpty ? "留空就是全部都看" : "留空就是這一站的停靠與終到列車",
             sections: sections
+        )
+    }
+
+    private var passOption: FilterOption {
+        FilterOption(
+            key: BoardFilter.includePass.key,
+            title: "含通過列車",
+            subtitle: "預設只顯示停靠與終到"
         )
     }
 }

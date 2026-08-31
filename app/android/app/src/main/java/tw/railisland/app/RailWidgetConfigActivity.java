@@ -63,7 +63,7 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
         TextView title = text("發車看板小工具", 24, getColor(R.color.wg_ink));
         title.setTypeface(title.getTypeface(), android.graphics.Typeface.BOLD);
         root.addView(title, matchWrap(0));
-        TextView hint = text("選台鐵、高鐵或共站，查看接下來的停靠、終到與通過列車。", 14,
+        TextView hint = text("選台鐵、高鐵或共站，查看接下來的停靠與終到列車；想看通過本站的車，在「只看這些」裡打開。", 14,
             getColor(R.color.wg_ink_soft));
         LinearLayout.LayoutParams hintLp = matchWrap(dp(8));
         hintLp.bottomMargin = dp(18);
@@ -237,7 +237,8 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
 
     private void showFilters() {
         List<RailWidgetData.FilterOption> options = RailWidgetData.filterOptions(
-            this, catalog, selectedSystem(), selectedOrigin());
+            this, catalog, selectedSystem(), selectedOrigin(),
+            selectedFilters.contains(RailWidgetData.FILTER_PASS));
         if (options.isEmpty()) {
             new AlertDialog.Builder(this).setTitle(RailNativeL10n.text(this, "只看這些"))
                 .setMessage(RailNativeL10n.text(this, "這個起站目前沒有可用的篩選項目。"))

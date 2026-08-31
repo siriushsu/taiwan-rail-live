@@ -20,6 +20,8 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
   const railProvider = read('app/android/app/src/main/java/tw/railisland/app/RailBoardWidgetProvider.java');
   const railRender = read('app/android/app/src/main/java/tw/railisland/app/RailWidgetRender.java');
   const railReadable = read('app/android/app/src/main/res/layout/widget_rail_row_readable.xml');
+  const railRow = read('app/android/app/src/main/res/layout/widget_rail_row.xml');
+  const railKit = read('app/ios/App/RailBoardWidget/RailWidgetKit.swift');
   const follow = read('app/android/app/src/main/java/tw/railisland/app/RailFollowNotification.java');
   const audio = read('app/android/app/src/main/java/tw/railisland/app/RailAudioService.java');
   const rules = new Map([
@@ -46,6 +48,12 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
     pass: /platform === 'ios'\s*\|\|\s*platform === 'android'/.test(bridge)
       && /registerPlugin\([^\n]*'RailFollowLive'/.test(bridge)
   });
+  // 逐車擁擠度：不比對函式名（v17 快照叫 trtcOfficialCrowdHtmlByNo、main 的實作叫
+  // trtcOfficialCrowdHtml，同一個能力換過名字就假紅）。改成測那條鏈本身——
+  //   (1) 有以車號為鍵的官方擁擠度對照表 state.trtcOfficialBoard.crowdByNo[<變數>]
+  //   (2) 讀那張表的那個 helper，名字就地取自它的定義
+  //   (3) 看板算 crowdHtml 時真的呼叫「那個」helper，而且傳的是該列的車號
+  const crowdHelper = /function\s+(\w+)\s*\([^)]*\)\s*\{(?:(?!function\s)[^]){0,400}?trtcOfficialBoard\.crowdByNo/.exec(html)?.[1] || '';
   const contentRules = [
     // 🔴 判準寫「意圖」不寫「當下的函式名」：2026-08-29 把 trtcOfficialCrowdHtmlByNo 併回
     //    trtcOfficialCrowdHtml(no)，舊寫法的名字比對當場轉紅，但行為完全沒退步——那種紅
@@ -54,9 +62,9 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
     //    （它正是忠孝復興文湖線列長出板南線 6 格的成因）。兩半都要成立才算過：只留反向那半
     //    的話，整個功能被刪掉也會「通過」。
     ['Metro Core 看板以逐車車號補上官方擁擠度',
-      /crowdByNo/.test(html)
-        && /const crowdHtml = trtcOfficialCrowdHtml(?:ByNo)?\(label\)/.test(html)
-        && !/crowdByDest/.test(html)],
+      /trtcOfficialBoard\.crowdByNo\[\s*[A-Za-z_$]/.test(html)
+        && !!crowdHelper
+        && new RegExp(`crowdHtml\\s*=\\s*${crowdHelper}\\(\\s*(?:label|rec\\.row\\.no)\\s*\\)`).test(html)],
     ['Android 小工具同步並動態解析「我的地點」',
       /registerPlugin\(RailPlacesPlugin\.class\)/.test(main)
         && /RAIL_NATIVE_PLACES/.test(bridge) && /resolvePlace\(/.test(railData)
@@ -84,6 +92,21 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
         && /android:layout_height="42dp"/.test(railReadable)
         && /android:textSize="16sp"/.test(railReadable)
         && /android:textSize="23sp"/.test(railReadable)],
+    // 方向三角：iOS 有 RailHeadingMark 就要求 Android 整條鏈都在。這裡刻意驗【鏈】而不是
+    // 單一字串——只驗 binder 會漏掉「layout 沒那顆 id」,只驗 layout 會漏掉「算出來沒人用」。
+    // 兩個列 layout 都要有：少了好讀版那個，大字版會整批沒方向而小字版正常（最難發現的形態）。
+    // 深入驗證（真的編、真的跑、與獨立重算逐車比對）在 verify_android_widget_direction.mjs，
+    // 那支需要 Android SDK 與 JDK，不放進這條每次出貨都跑的鏈。
+    ['Android 發車看板逐列標出北上／南下（對應 iOS RailHeadingMark）',
+      /struct RailHeadingMark/.test(railKit)
+        && /enum Heading \{ NORTH, SOUTH \}/.test(railData)
+        && /row\.heading = heading\(system, origin, headingTo\)/.test(railData)
+        && /out\.put\("heading", heading\.name\(\)\)/.test(railData)
+        && /R\.drawable\.wg_heading_north/.test(railRender)
+        && /R\.drawable\.wg_heading_south/.test(railRender)
+        && /setContentDescription\(R\.id\.wrr_heading/.test(railRender)
+        && /@\+id\/wrr_heading(?![A-Za-z0-9_])/.test(railRow)
+        && /@\+id\/wrr_heading(?![A-Za-z0-9_])/.test(railReadable)],
     ['Android 使用說明涵蓋擁擠度、我的地點、篩選、大字、背景更新與評分',
       /同一車號，不會借用同方向另一班車/.test(html)
         && /起站與目的站可以選你在軌島儲存的地點/.test(html)
