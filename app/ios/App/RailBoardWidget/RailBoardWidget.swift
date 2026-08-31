@@ -1101,7 +1101,7 @@ struct SmallSecondRow: View {
     var body: some View {
         HStack(spacing: scale.pt(5)) {
             if let heading = row.heading {
-                RailHeadingMark(heading: heading, side: 8, scale: scale)
+                RailHeadingMark(heading: heading, side: 10, scale: scale)
             }
             RailTrainMark(kind: row.trainType, number: nil,
                           color: BoardPalette.trainColor(row.trainType, in: snapshot.typeColors),
@@ -1263,7 +1263,7 @@ struct BoardRowView: View {
             } else {
                 HStack(spacing: scale.pt(7)) {
                     if let heading = row.heading {
-                        RailHeadingMark(heading: heading, side: 8, scale: scale)
+                        RailHeadingMark(heading: heading, side: 10, scale: scale)
                     }
                     RailTrainMark(kind: row.trainType,
                                   number: hidesTrainNumber ? nil : row.trainNumber,

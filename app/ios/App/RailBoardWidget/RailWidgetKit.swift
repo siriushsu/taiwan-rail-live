@@ -70,6 +70,31 @@ enum RailTokens {
         return readable ? lightReadable : light
     }
 
+    /// 方向色。台鐵 2026-08-29《車站標示設計手冊》：「以藍色代表北上，綠色代表南下」。
+    ///
+    /// 🔴 這【不是】狀態色，所以刻意不塞進 RailStateColors——那一層明寫「三層用途，互不借用」，
+    ///    而「準點綠」與「南下綠」語意毫無關係；共用會變成改準點色默默改掉方向色。
+    /// 🔴 值與網站的 --dir-north／--dir-south 逐字相同（亮 #2A4A73／#1B8F4D、
+    ///    暗 #7FA6E0／#3DBF77）。同一件事在網站與小工具必須是同一組藍綠，不然使用者
+    ///    會以為那是兩種不同的分類。
+    /// 好讀版另一組：#1B8F4D 在白底只有 4.1:1，過不了這個檔案自己訂的 5:1；壓深到
+    /// #14663A（7.0:1）。北上沿用好讀版的 brand #1E3756。深色模式沿用標準深色票。
+    static func directionColor(_ heading: RailHeading, _ scheme: ColorScheme, readable: Bool = false) -> Color {
+        if scheme == .dark {
+            return heading == .north
+                ? Color(.sRGB, red: 0x7F / 255, green: 0xA6 / 255, blue: 0xE0 / 255)
+                : Color(.sRGB, red: 0x3D / 255, green: 0xBF / 255, blue: 0x77 / 255)
+        }
+        if readable {
+            return heading == .north
+                ? Color(.sRGB, red: 0x1E / 255, green: 0x37 / 255, blue: 0x56 / 255)
+                : Color(.sRGB, red: 0x14 / 255, green: 0x66 / 255, blue: 0x3A / 255)
+        }
+        return heading == .north
+            ? Color(.sRGB, red: 0x2A / 255, green: 0x4A / 255, blue: 0x73 / 255)
+            : Color(.sRGB, red: 0x1B / 255, green: 0x8F / 255, blue: 0x4D / 255)
+    }
+
     /// 官方擁擠度等級 → 狀態色。數值語意由官方定義，我們只上色不重新分級。
     /// 🔴 設計稿規則 3：這個顏色【永遠】要伴隨一個詞（RailCarriageMeter 的 label），
     ///    因為 tinted／單色模式下顏色會被系統吃掉。
@@ -990,12 +1015,22 @@ enum RailHeading {
 ///    才被讀成連續車站。所以這裡【不准】加任何貫穿列的線、不准把相鄰兩顆三角對齊成軌跡。
 struct RailHeadingMark: View {
     let heading: RailHeading
-    var side: CGFloat = 9
+    /// 🔴 11 而不是設計檔的 9、`.secondary` 而不是 `.tertiary`：使用者 2026-08-31 看了實機
+    ///    問「北上南下的分別顯示有做在小工具裡嗎」——功能在，但灰到會被當成裝飾而看不見。
+    ///    裁示是「維持逐列三角，把它做明顯一點」（不加分組標頭：小尺寸整張只有 2 班車，
+    ///    兩個標頭會把它吃光）。放大與加深都不佔用列的高度，三個尺寸都安全。
+    var side: CGFloat = 11
     var scale: RailScale = RailScale(k: 1)
+
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.railMonochrome) private var mono
 
     var body: some View {
         Triangle(pointingUp: heading == .north)
-            .fill(.tertiary)
+            // 🔴 設計稿規則 3「顏色不獨立表意」在這裡是成立的：方向由【尖端朝向】表意，
+            //    顏色只是加強；單色／tinted 模式退成灰色仍然讀得出來，另有 accessibilityLabel。
+            .fill(mono ? AnyShapeStyle(.secondary)
+                       : AnyShapeStyle(RailTokens.directionColor(heading, scheme, readable: scale.readable)))
             // 正三角的高＝邊長 × √3/2。設計檔的 mock 是 9pt 底、約 7pt 高，比值一致。
             .frame(width: scale.pt(side, readable: side * 1.22),
                    height: scale.pt(side * 0.78, readable: side * 0.95))

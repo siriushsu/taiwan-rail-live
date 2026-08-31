@@ -18,8 +18,8 @@
          沒有方向時由 binder 設成 GONE,整列不留空位。 -->
     <ImageView
         android:id="@+id/wrr_heading"
-        android:layout_width="9dp"
-        android:layout_height="7dp"
+        android:layout_width="10dp"
+        android:layout_height="8dp"
         android:layout_marginStart="6dp"
         android:contentDescription="@null"
         android:scaleType="fitCenter"

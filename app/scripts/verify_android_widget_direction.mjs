@@ -84,9 +84,40 @@ writeFileSync(join(WORK, 'gen/androidx/core/content/ContextCompat.java'),
 check('R 由真實 res/ 產生且含 wrr_heading', ids.has('wrr_heading'),
   `layout ids ${ids.size} 個`);
 check('兩個方向 drawable 都在 res/drawable', drawables.has('wg_heading_north') && drawables.has('wg_heading_south'));
-check('三角用的顏色在淺色與深色都有定義',
-  colors.has('wg_ink_faint') &&
-  readFileSync(join(RES, 'values-night/colors_widget.xml'), 'utf8').includes('wg_ink_faint'));
+// 方向色是台鐵官方的「藍＝北上、綠＝南下」，而且【必須與網站同值】——同一件事在兩個地方
+// 長不一樣，使用者會以為那是兩種不同的分類。所以判準不是「有顏色」，是「兩邊逐字相同」。
+const colorVal = (file, name) =>
+  (new RegExp(`<color name="${name}">\\s*(#[0-9A-Fa-f]{6})`).exec(readFileSync(file, 'utf8')) || [])[1];
+const lightC = join(RES, 'values/colors_widget.xml');
+const nightC = join(RES, 'values-night/colors_widget.xml');
+const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
+const webVar = name => (new RegExp(`--${name}:\\s*(#[0-9A-Fa-f]{6})`).exec(html) || [])[1];
+const androidNorth = colorVal(lightC, 'wg_navy'), androidSouth = colorVal(lightC, 'wg_ok');
+check('北上取 wg_navy、南下取 wg_ok（不是中性灰）',
+  /@color\/wg_navy/.test(readFileSync(join(RES, 'drawable/wg_heading_north.xml'), 'utf8'))
+  && /@color\/wg_ok/.test(readFileSync(join(RES, 'drawable/wg_heading_south.xml'), 'utf8')));
+check('兩個方向不是同一個顏色', !!androidNorth && androidNorth !== androidSouth,
+  `北上 ${androidNorth}／南下 ${androidSouth}`);
+check('方向色在深色模式也有定義',
+  !!colorVal(nightC, 'wg_navy') && !!colorVal(nightC, 'wg_ok'),
+  `深色 北上 ${colorVal(nightC, 'wg_navy')}／南下 ${colorVal(nightC, 'wg_ok')}`);
+check('方向色與網站的 --dir-north／--dir-south 逐字相同',
+  androidNorth === webVar('navy') && androidSouth === webVar('ok'),
+  `Android ${androidNorth}/${androidSouth}　網站 ${webVar('navy')}/${webVar('ok')}`);
+// iOS 也要是同一組值。Swift 那側寫成 0xAB / 255 的分量，抽出來拼回 hex 再比——
+// 三個平台任何一邊被改掉都會紅（這正是「同一件事長得不一樣」唯一抓得到的地方）。
+const kit = readFileSync(join(ROOT, 'app/ios/App/RailBoardWidget/RailWidgetKit.swift'), 'utf8');
+const dirFn = /static func directionColor[\s\S]*?\n    \}/.exec(kit)?.[0] ?? '';
+const iosHexes = [...dirFn.matchAll(/red: 0x([0-9A-Fa-f]{2}) \/ 255, green: 0x([0-9A-Fa-f]{2}) \/ 255, blue: 0x([0-9A-Fa-f]{2}) \/ 255/g)]
+  .map(m => `#${m[1]}${m[2]}${m[3]}`.toUpperCase());
+check('iOS 方向色也與網站同值（暗色與好讀版另計）', iosHexes.includes(webVar('navy').toUpperCase())
+  && iosHexes.includes(webVar('ok').toUpperCase()) && iosHexes.length === 6,
+  `iOS 六個值 ${iosHexes.join(' ')}`);
+check('iOS 三角尺寸有跟著加大（使用者裁示「做明顯一點」）',
+  /var side: CGFloat = 11/.test(kit)
+  && !/RailHeadingMark\(heading: heading, side: [0-9]\b/.test(
+    readFileSync(join(ROOT, 'app/ios/App/RailBoardWidget/RailBoardWidget.swift'), 'utf8')),
+  '次列呼叫點不可再傳個位數 side');
 
 // ── A：型別層（真的編一次）──────────────────────────────────────────────────
 const sources = [
