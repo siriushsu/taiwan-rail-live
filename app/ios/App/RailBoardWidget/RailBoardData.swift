@@ -1373,6 +1373,7 @@ struct RailBoardEngine {
                     templates: withPass,
                     system: system,
                     stations: stations,
+                    originID: originID,
                     actualServiceDay: serviceDay
                 ).contains { $0.scheduledDate > now }
             }
@@ -1431,7 +1432,10 @@ struct RailBoardEngine {
             stations: first.stations,
             templates: parts.flatMap(\.templates),
             journeys: journeys,
-            meta: first.meta
+            meta: first.meta,
+            // 共站取聯集:任一成員站有被預設收起的通過車,空看板就該說「本站今日沒有停靠的
+            // 列車」而不是「今天沒有列車經過」(消費端 RailBoardWidget.swift:678)。
+            passHidden: parts.contains { $0.passHidden }
         )
     }
 
