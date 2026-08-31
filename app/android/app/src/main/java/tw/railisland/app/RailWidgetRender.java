@@ -25,7 +25,9 @@ final class RailWidgetRender {
         root.setTextViewText(R.id.wr_head, compact ? origin : RailNativeL10n.text(context,
             "{station}發車看板", "station", origin));
         root.setTextViewText(R.id.wr_route, snapshot.destination == null || snapshot.destination.isEmpty()
-            ? RailNativeL10n.text(context, "全部目的地 · 直達／停靠／終到／通過")
+            ? RailNativeL10n.text(context, snapshot.includePass
+                ? "全部目的地 · 直達／停靠／終到／通過"
+                : "全部目的地 · 停靠與終到")
             : RailNativeL10n.text(context, "往 {station} · 直達列車", "station", RailNativeL10n.name(context, snapshot.destination)));
         root.setTextViewText(R.id.wr_stamp, clock(snapshot.generatedAt) + (compact ? "" : " " + RailNativeL10n.text(context, "更新")));
         String note = snapshot.failed ? RailNativeL10n.text(context, "資料延遲 · 顯示上次成功結果")
@@ -52,8 +54,11 @@ final class RailWidgetRender {
             RemoteViews empty = new RemoteViews(context.getPackageName(), readable
                 ? R.layout.widget_rail_row_readable : R.layout.widget_rail_row);
             empty.setViewVisibility(R.id.wrr_mark, View.INVISIBLE);
-            empty.setTextViewText(R.id.wrr_train, RailNativeL10n.text(context, "目前沒有接下來的班次"));
-            empty.setTextViewText(R.id.wrr_dest, RailNativeL10n.text(context, "請稍後再看或點卡片開啟軌島"));
+            boolean onlyPassing = snapshot.hiddenPass > 0;
+            empty.setTextViewText(R.id.wrr_train, RailNativeL10n.text(context,
+                onlyPassing ? "本站今日沒有停靠的列車" : "目前沒有接下來的班次"));
+            empty.setTextViewText(R.id.wrr_dest, RailNativeL10n.text(context,
+                onlyPassing ? "只有通過列車 · 可在設定開啟「含通過列車」" : "請稍後再看或點卡片開啟軌島"));
             empty.setViewVisibility(R.id.wrr_status, View.GONE);
             empty.setViewVisibility(R.id.wrr_time, View.GONE);
             root.addView(R.id.wr_rows, empty);

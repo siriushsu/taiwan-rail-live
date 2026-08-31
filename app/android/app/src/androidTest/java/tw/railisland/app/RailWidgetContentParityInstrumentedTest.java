@@ -38,7 +38,7 @@ public final class RailWidgetContentParityInstrumentedTest {
         RailWidgetData.PlaceOption first = places.get(0);
         assertEquals("家", first.label);
         assertEquals("臺北", first.station);
-        List<RailWidgetData.FilterOption> filters = RailWidgetData.filterOptions(context, catalog, first.sys, first.key);
+        List<RailWidgetData.FilterOption> filters = RailWidgetData.filterOptions(context, catalog, first.sys, first.key, false);
         assertTrue("地點起站必須有方向篩選", filters.stream().anyMatch(value -> value.key.startsWith("dir|")));
         assertTrue("地點起站必須有車種篩選", filters.stream().anyMatch(value -> value.key.startsWith("ty|")));
         assertTrue("地點起站必須有車次篩選", filters.stream().anyMatch(value -> value.key.startsWith("no|")));

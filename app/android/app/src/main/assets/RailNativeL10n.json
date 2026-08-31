@@ -2129,7 +2129,12 @@
       "屏東縣": "Pingtung County",
       "宜蘭縣": "Yilan County",
       "花蓮縣": "Hualien County",
-      "臺東縣": "Taitung County"
+      "臺東縣": "Taitung County",
+      "含通過列車": "Include passing trains",
+      "全部目的地 · 停靠與終到": "All destinations · stopping and terminating",
+      "選台鐵、高鐵或共站，查看接下來的停靠與終到列車；想看通過本站的車，在「只看這些」裡打開。": "Choose TRA, HSR or a shared station to see upcoming stopping and terminating trains. Turn on passing trains under Filters.",
+      "本站今日沒有停靠的列車": "No trains stop here today",
+      "只有通過列車 · 可在設定開啟「含通過列車」": "Only passing trains · turn on \"Include passing trains\" in settings"
     },
     "ja": {
       "軌島": "軌島",
@@ -4259,7 +4264,12 @@
       "屏東縣": "屏東県",
       "宜蘭縣": "宜蘭県",
       "花蓮縣": "花蓮県",
-      "臺東縣": "台東県"
+      "臺東縣": "台東県",
+      "含通過列車": "通過列車も表示",
+      "全部目的地 · 停靠與終到": "全目的地・停車と終着",
+      "選台鐵、高鐵或共站，查看接下來的停靠與終到列車；想看通過本站的車，在「只看這些」裡打開。": "台湾鉄路、高鉄、共用駅を選び、次の停車・終着列車を確認します。通過列車は「表示条件」で表示できます。",
+      "本站今日沒有停靠的列車": "本日この駅に停車する列車はありません",
+      "只有通過列車 · 可在設定開啟「含通過列車」": "通過列車のみ・設定で「通過列車も表示」をオンにできます"
     }
   }
 }

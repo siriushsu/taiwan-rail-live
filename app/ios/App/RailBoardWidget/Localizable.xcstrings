@@ -36176,6 +36176,91 @@
           }
         }
       }
+    },
+    "含通過列車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Include passing trains"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通過列車も表示"
+          }
+        }
+      }
+    },
+    "全部目的地 · 停靠與終到": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All destinations · stopping and terminating"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全目的地・停車と終着"
+          }
+        }
+      }
+    },
+    "選台鐵、高鐵或共站，查看接下來的停靠與終到列車；想看通過本站的車，在「只看這些」裡打開。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose TRA, HSR or a shared station to see upcoming stopping and terminating trains. Turn on passing trains under Filters."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台湾鉄路、高鉄、共用駅を選び、次の停車・終着列車を確認します。通過列車は「表示条件」で表示できます。"
+          }
+        }
+      }
+    },
+    "本站今日沒有停靠的列車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No trains stop here today"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本日この駅に停車する列車はありません"
+          }
+        }
+      }
+    },
+    "只有通過列車 · 可在設定開啟「含通過列車」": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only passing trains · turn on \"Include passing trains\" in settings"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通過列車のみ・設定で「通過列車も表示」をオンにできます"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
