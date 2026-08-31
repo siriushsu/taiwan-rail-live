@@ -25,7 +25,7 @@ const CONSTS = ['PERF_DEFAULT', 'PERF_HSR', 'HSR_DEP_MID_SEC', 'PERF_RULES', 'PE
 const FUNCS = ['haversineKm', 'ensureCum', 'posAlongShape', 'isHSR', 'resolvePerf',
   'speedZoneClassOf', 'runSpeedZones', 'zoneProfileOk', 'zoneNatural', 'speedZoneKnots',
   'buildProfile', 'buildObsProfile', 'profTimeToProg', 'profProgToTime',
-  'schedSegmentKm', 'schedSegKmOf', 'assignRunProfiles',
+  'schedSegmentKm', 'schedSegKmOf', 'assignRunProfiles', 'canonicalizeAliasTrains',
   'projectOntoShape', 'assignSchedShapePathsFor'];
 
 // 🔴 前端存進 state.passObs 的是檔案的 .trains 子物件，不是根物件（index.html:26667）。
@@ -55,6 +55,7 @@ export function computeProfiles({ indexPath, schedule, track, passObs, mutate })
   ctx.lines = track.lines;
   for (const tr of schedule.trains) tr.sys = 'tra_sched';
   if (mutate) runInContext(mutate, ctx);   // 只給突變測試用：故意弄壞輸入，確認閘門真的會紅
+  runInContext('canonicalizeAliasTrains(trains)', ctx);   // 併站會動到末段貼軌,必須在貼軌之前
   runInContext('assignSchedShapePathsFor(trains, lines)', ctx);
   return { segStats: ctx.state._segStats };
 }
