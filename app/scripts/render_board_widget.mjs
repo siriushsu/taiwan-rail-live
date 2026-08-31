@@ -72,6 +72,9 @@ function extractDeclaration(source, header, { occurrence = 1 } = {}) {
 // 共用元件層直接交給 swiftc 一起編（不抽宣告）：抽取會有「抽到舊版」的風險，而這一層是
 // 七個畫面的地基，抽錯的症狀是「算繪出來的版面不是出貨的版面」這種不會報錯的假象。
 const kitPath = join(widgetDir, 'RailWidgetKit.swift');
+// 多語落地之後，抽出來的宣告會呼叫 RailNativeL10n.text(...)；它只 import Foundation，
+// 一起編進來即可（缺它的症狀是「cannot find 'RailNativeL10n' in scope」整批編譯失敗）。
+const l10nPath = join(widgetDir, 'RailNativeL10n.swift');
 const widgetSource = readFileSync(join(widgetDir, 'RailBoardWidget.swift'), 'utf8');
 const dataSource = readFileSync(join(widgetDir, 'RailBoardData.swift'), 'utf8');
 
@@ -805,7 +808,7 @@ writeFileSync(swiftPath, harness);
 
 execFileSync(
   'swiftc',
-  ['-O', '-parse-as-library', swiftPath, kitPath, '-o', binPath],
+  ['-O', '-parse-as-library', swiftPath, kitPath, l10nPath, '-o', binPath],
   { stdio: 'inherit' }
 );
 execFileSync(binPath, [outDir], { stdio: 'inherit' });
