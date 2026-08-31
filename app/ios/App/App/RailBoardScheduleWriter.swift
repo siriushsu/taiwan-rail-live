@@ -62,10 +62,15 @@ enum RailBoardScheduleWriter {
             contentsOf: rootURL.appendingPathComponent("places.json")
         )
         let placesFingerprint = fingerprint(placesData)
+        // 台鐵班表是 14 天滾動窗，打包進 IPA 的那份停在送審當天。抓得到線上的就用線上的，
+        // 抓不到就照舊用打包那份——退路的行為與這個改動之前完全相同。
+        let onlineTra = onlineTraSchedule(rootURL: rootURL)
+        let scheduleFingerprint = onlineTra?.fingerprint ?? "bundle"
         guard shouldRebuild(
             rootURL: rootURL,
             appBuild: appBuild,
-            placesFingerprint: placesFingerprint
+            placesFingerprint: placesFingerprint,
+            scheduleFingerprint: scheduleFingerprint
         ) else {
             return .unchanged
         }
@@ -89,16 +94,14 @@ enum RailBoardScheduleWriter {
         var loadedSystemCount = 0
 
         for input in systemInputs {
-            guard
-                let inputURL = Bundle.main.url(
-                    forResource: input.resource,
-                    withExtension: nil
-                ),
-                let data = try? Data(contentsOf: inputURL),
-                let document = try? JSONDecoder().decode(ScheduleDocument.self, from: data)
-            else {
-                continue
+            var document: ScheduleDocument?
+            if input.id == "tra", let onlineTra { document = onlineTra.document }
+            if document == nil,
+               let inputURL = Bundle.main.url(forResource: input.resource, withExtension: nil),
+               let data = try? Data(contentsOf: inputURL) {
+                document = try? JSONDecoder().decode(ScheduleDocument.self, from: data)
             }
+            guard let document else { continue }
 
             builder.add(system: input, document: document)
             loadedSystemCount += 1
@@ -144,6 +147,7 @@ enum RailBoardScheduleWriter {
                 rootURL: rootURL,
                 appBuild: appBuild,
                 placesFingerprint: placesFingerprint,
+                scheduleFingerprint: scheduleFingerprint,
                 fileManager: fileManager
             )
             return .written
@@ -206,6 +210,147 @@ enum RailBoardScheduleWriter {
         }.joined()
     }
 
+    private static let traScheduleURL = "https://railisland.tw/data/tra_widget_schedule.json"
+    private static let traScheduleCacheName = "tra_widget_schedule.json"
+
+    /// 線上台鐵班表（精簡檔）。回傳解好的文件與它的身分字串；任何一步失敗都回 nil，
+    /// 呼叫端照舊用打包的那份——這條路只會讓資料更新，不會讓它變差。
+    ///
+    /// 為什麼要它：台鐵班表是 14 天滾動窗，而打包進 IPA 的那份停在送審當天。App 不重新
+    /// 上架，小工具就一直拿過期班表推算；窗過完之後只能退到「同星期最近來源日」硬撐。
+    /// 網頁版本來就會自己抓新的，小工具沒有這條路。
+    ///
+    /// 為什麼不抓 data/tra_schedule_dense.json：那份 5.9 MB。精簡檔把站名換成索引、
+    /// 顏色抽成車種對照表，646 KB，而且**一份涵蓋整個 14 天窗**——所以判準是「今天在不在
+    /// dates 裡」，抓一次撐到窗結束，不是每天抓一次。
+    ///
+    /// 快取刻意放 Caches 而不是 App Group 根目錄：那裡是 publish 的搬移目標，別去打架；
+    /// Caches 被系統清掉最多就是重抓一次。
+    private static func onlineTraSchedule(rootURL: URL) -> (document: ScheduleDocument, fingerprint: String)? {
+        let today = taipeiToday()
+        let cacheURL = FileManager.default
+            .urls(for: .cachesDirectory, in: .userDomainMask).first?
+            .appendingPathComponent(traScheduleCacheName)
+
+        if let cacheURL,
+           let cached = try? Data(contentsOf: cacheURL),
+           let parsed = decodeCompactTraSchedule(cached, today: today) {
+            return parsed
+        }
+        guard
+            let data = downloadTraSchedule(),
+            let parsed = decodeCompactTraSchedule(data, today: today)
+        else {
+            return nil
+        }
+        if let cacheURL { try? data.write(to: cacheURL, options: .atomic) }
+        return parsed
+    }
+
+    private static func taipeiToday() -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "Asia/Taipei")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: Date())
+    }
+
+    /// 跑在 workQueue（utility）上，不是主執行緒，所以用號誌等同步結果是安全的。
+    private static func downloadTraSchedule() -> Data? {
+        guard let url = URL(string: traScheduleURL) else { return nil }
+        var request = URLRequest(
+            url: url,
+            cachePolicy: .reloadIgnoringLocalCacheData,
+            timeoutInterval: 15
+        )
+        request.setValue("RailIsland-iOS-RailBoardWriter", forHTTPHeaderField: "User-Agent")
+
+        var result: Data?
+        let semaphore = DispatchSemaphore(value: 0)
+        URLSession.shared.dataTask(with: request) { data, response, _ in
+            if let http = response as? HTTPURLResponse, http.statusCode == 200 {
+                result = data
+            }
+            semaphore.signal()
+        }.resume()
+        _ = semaphore.wait(timeout: .now() + 20)
+        return result
+    }
+
+    /// 精簡檔 → 與打包 dense 檔相同語意的 ScheduleDocument。
+    /// 站名還原自索引、停站秒數加回成 depSec、座標從站表補回去（builder 要靠它算共站與地點）。
+    /// 車次順序刻意沿用來源順序：dates 裡放的是車次索引，順序一動整份就對不上。
+    /// 涵蓋不到今天就回 nil——寧可用打包那份，也不要拿一份不含今天的班表去推。
+    private static func decodeCompactTraSchedule(
+        _ data: Data,
+        today: String
+    ) -> (document: ScheduleDocument, fingerprint: String)? {
+        guard
+            let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+            let dates = root["dates"] as? [String: [Int]],
+            dates[today] != nil,
+            let stationRows = root["stations"] as? [[Any]],
+            let trainRows = root["trains"] as? [[Any]]
+        else {
+            return nil
+        }
+
+        var names: [String] = []
+        var lats: [Double?] = []
+        var lons: [Double?] = []
+        names.reserveCapacity(stationRows.count)
+        for row in stationRows {
+            guard row.count >= 3, let name = row[0] as? String else { return nil }
+            names.append(name)
+            lats.append((row[1] as? NSNumber)?.doubleValue)
+            lons.append((row[2] as? NSNumber)?.doubleValue)
+        }
+
+        let colors = root["types"] as? [String: String] ?? [:]
+        var trains: [ScheduleTrain] = []
+        trains.reserveCapacity(trainRows.count)
+        for row in trainRows {
+            guard
+                row.count >= 3,
+                let no = row[0] as? String,
+                let type = row[1] as? String,
+                let stopRows = row[2] as? [[Any]]
+            else {
+                return nil
+            }
+            var stops: [ScheduleStop] = []
+            stops.reserveCapacity(stopRows.count)
+            for stop in stopRows {
+                guard
+                    stop.count >= 4,
+                    let at = (stop[0] as? NSNumber)?.intValue, at >= 0, at < names.count,
+                    let arr = (stop[1] as? NSNumber)?.intValue,
+                    let dwell = (stop[2] as? NSNumber)?.intValue,
+                    let flag = (stop[3] as? NSNumber)?.intValue
+                else {
+                    return nil
+                }
+                stops.append(ScheduleStop(
+                    name: names[at],
+                    arrSec: arr,
+                    depSec: arr + dwell,
+                    stop: flag != 0,
+                    lat: lats[at],
+                    lon: lons[at]
+                ))
+            }
+            trains.append(ScheduleTrain(train: no, typeName: type, stops: stops))
+        }
+
+        let types = colors.keys.sorted().map {
+            ScheduleType(key: $0, color: colors[$0] ?? "#8E44AD")
+        }
+        let fingerprint = (root["generated"] as? String)
+            ?? (root["dateRange"] as? [String])?.joined(separator: "~")
+            ?? "online"
+        return (ScheduleDocument(types: types, trains: trains, dates: dates), fingerprint)
+    }
+
     /// 看板檔的格式版本。**動到 board／place-board／composite-board 的欄位或語意就 +1。**
     ///
     /// 為什麼需要它：重算閘門原本只比 `appBuild`（網頁 BUILD＋CFBundleVersion）與地點指紋，
@@ -222,7 +367,8 @@ enum RailBoardScheduleWriter {
     private static func shouldRebuild(
         rootURL: URL,
         appBuild: String,
-        placesFingerprint: String
+        placesFingerprint: String,
+        scheduleFingerprint: String
     ) -> Bool {
         let metaURL = rootURL.appendingPathComponent("meta.json")
         guard
@@ -234,6 +380,8 @@ enum RailBoardScheduleWriter {
         return meta.appBuild != appBuild
             || meta.boardFormat != boardFormatVersion
             || meta.placesFingerprint != placesFingerprint
+            // 班表換了但 App 沒換版：不比這一項的話，抓回來的新班表永遠不會被寫成看板。
+            || (meta.scheduleFingerprint ?? "") != scheduleFingerprint
     }
 
     /// 索引與線形對「使用者的地點」與「共站入口」是同一份，讀一次就好。
@@ -329,6 +477,7 @@ enum RailBoardScheduleWriter {
         rootURL: URL,
         appBuild: String,
         placesFingerprint: String,
+        scheduleFingerprint: String,
         fileManager: FileManager
     ) throws {
         let stagingURL = rootURL.appendingPathComponent(
@@ -375,6 +524,7 @@ enum RailBoardScheduleWriter {
                 appBuild: appBuild,
                 boardFormat: boardFormatVersion,
                 placesFingerprint: placesFingerprint,
+                scheduleFingerprint: scheduleFingerprint,
                 types: builder.types,
                 systems: builder.systems
             ).utf8
@@ -562,6 +712,8 @@ extension RailBoardScheduleWriter {
         let placesFingerprint: String?
         /// 舊版 App 寫的 meta 沒有這個欄位；缺值一律當作「格式不同」而重算。
         let boardFormat: Int?
+        /// 線上班表的身分（compact 檔的 generated）。缺值＝上一次是用打包班表寫的。
+        let scheduleFingerprint: String?
     }
 
     struct ExistingStationsDocument: Decodable {
@@ -1453,6 +1605,7 @@ extension RailBoardScheduleWriter {
             appBuild: String,
             boardFormat: Int,
             placesFingerprint: String,
+            scheduleFingerprint: String,
             types: [TypeColor],
             systems: [SystemMeta]
         ) -> String {
@@ -1467,7 +1620,7 @@ extension RailBoardScheduleWriter {
             }.joined(separator: ",")
 
             return """
-            {"v":1,"builtAt":\(string(builtAt)),"appBuild":\(string(appBuild)),"boardFormat":\(boardFormat),"placesFingerprint":\(string(placesFingerprint)),"types":{\(typeValues)},"systems":[\(systemValues)]}
+            {"v":1,"builtAt":\(string(builtAt)),"appBuild":\(string(appBuild)),"boardFormat":\(boardFormat),"placesFingerprint":\(string(placesFingerprint)),"scheduleFingerprint":\(string(scheduleFingerprint)),"types":{\(typeValues)},"systems":[\(systemValues)]}
             """
         }
 
