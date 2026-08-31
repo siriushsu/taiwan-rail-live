@@ -47,10 +47,18 @@ const arg = (n, d = null) => { const i = argv.indexOf(n); return i >= 0 ? argv[i
 const DAYS = Number(arg('--days', '21'));
 const NO_NET = argv.includes('--no-net');
 
-const git = (...a) => execFileSync('git', a, { cwd: REPO, maxBuffer: 1 << 28, encoding: 'utf8' });
+// 🔴 QP：core.quotePath 預設 true，路徑只要含非 ASCII 就會被 git 包成 "..." 並逐 byte 轉八進位。
+// 這個 repo 有中文檔名，而下面拿 ls-tree 的輸出去過 CODE_PATH／SCRATCH／ignoredFiles 三道篩子
+// ——跳脫後的字串開頭是一個雙引號，CODE_PATH 的每一支（含 mjs 那支結尾錨點）全部比不中
+// ⇒ 中文檔名的新檔會被**靜默丟掉**。一支專門在找「還沒併進來的東西」的巡檢，結構上看不見
+// 這一整類檔案（實測：main 沒有的 scripts/併入探針.mjs，修法前在報告裡零次出現）。
+// ignoreFiles 帳本同病——帳本寫的是真中文，永遠對不上跳脫形式，那條抑制等於永遠無效。
+// 旗標放在包裝裡而不是逐一呼叫點加：下一支新增的 git 呼叫不會有機會忘記。
+const QP = ['-c', 'core.quotePath=false'];
+const git = (...a) => execFileSync('git', [...QP, ...a], { cwd: REPO, maxBuffer: 1 << 28, encoding: 'utf8' });
 // stdio 指定成三段：execFileSync 預設會把 git 的 stderr 直接吐到父行程，
 // 於是每個「這個 ref 沒有這個檔」的正常情況都會噴一行 fatal 汙染報告。
-const gitQ = (...a) => { try { return execFileSync('git', a, { cwd: REPO, maxBuffer: 1 << 28, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }); } catch { return null; } };
+const gitQ = (...a) => { try { return execFileSync('git', [...QP, ...a], { cwd: REPO, maxBuffer: 1 << 28, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }); } catch { return null; } };
 const show = (ref, f) => gitQ('show', `${ref}:${f}`);
 
 // ── 七類識別字（與 app/scripts/verify_no_ship_regression.mjs 同一套；刻意各留一份，
@@ -202,7 +210,7 @@ for (const blk of git('worktree', 'list', '--porcelain').trim().split('\n\n')) {
   const m = blk.match(/^worktree (.+)$/m); if (!m) continue;
   const wt = m[1];
   if (!existsSync(wt)) { gone.push(wt); continue; }
-  const st = (() => { try { return execFileSync('git', ['-C', wt, 'status', '--porcelain'], { encoding: 'utf8', maxBuffer: 1 << 26 }); } catch { return ''; } })();
+  const st = gitQ('-C', wt, 'status', '--porcelain') || '';   // 收進 gitQ：留一支裸呼叫就是把「下一個人忘記加旗標」的洞再開一次
   const mod = st.split('\n').filter(l => l && !l.startsWith('??')).length;
   if (mod) dirty.push({ wt, mod, br: (gitQ('-C', wt, 'rev-parse', '--abbrev-ref', 'HEAD') || '?').trim() });
 }

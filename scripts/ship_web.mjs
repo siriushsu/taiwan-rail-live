@@ -75,6 +75,18 @@ try {
   if (cfg.status !== 0) fail('部署設定檢查未過——cron 或資產排除少了東西,出貨會靜默關掉功能'
     + '（單獨重跑：npm run check-deploy-config）');
 
+  // ── 2.7 對外用語閘門（更名後的舊名不准出貨）────────────────────────────────
+  // 🔴 位置與 2.5 同一個理由,不可移到 strip 之後:check_voice 的 constBlock surface
+  //    content-station／content-sys 用的 end 標記就是【註解】（'// 有精選特色'、
+  //    '// 播放/速度/時間',與 check_i18n 同兩條),strip 刪光註解後抽不到區塊。
+  // 這支此前【沒有任何呼叫者】（不在 package.json、不在本鏈、無 CI）——等於 2026-08-05
+  // 產品更名(軌島 Plus → 軌島通行證)之後,對外文字再冒出「Plus」完全沒人守,跟 check_i18n
+  // 在 2026-08-29 之前的處境一模一樣。同 i18n:驗的是【這棵乾淨出貨樹】那一份。
+  const voice = spawnSync('node', [path.join(wt, 'scripts', 'check_voice.mjs')], { encoding: 'utf8' });
+  process.stdout.write(voice.stdout || ''); process.stderr.write(voice.stderr || '');
+  if (voice.status !== 0) fail('對外用語稽核未過——出貨文字用了更名前的舊名或未登記的 surface'
+    + '（單獨重跑：npm run check-voice）');
+
   // ── 3. strip（腳本內建 esbuild AST 重印等價證明，任何不等價都非零退出）────
   const rawBytes = fs.readFileSync(path.join(wt, 'index.html'));
   execFileSync('node', [path.join(wt, 'scripts', 'strip_ship_comments.mjs'), wt], { stdio: 'inherit' });
