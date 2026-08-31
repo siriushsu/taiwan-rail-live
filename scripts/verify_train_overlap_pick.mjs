@@ -7,6 +7,7 @@
 //
 // 判準(真的按下去,不是只算幾何):
 //   G0 自檢  先證明我在量的是誰:這份 index.html 真的含本批的機制
+//   G1 前提  這一頁真的是中文——C3／D3 是拿中文字串 parse 選單列的,語系是它們的共同上游
 //   A 繪製端  每顆 _trainHits 都帶命中框 w/h,且尺寸等於該牌用 ctx.measureText 實算的大小
 //   B 命中端  兩車相距 d(0..30) 時,點「下層車露出的可見區」必須跟到下層車 ← 網友回報的那件事
 //   C 選單    兩張牌同時壓住點擊處(含完全重合 d=0)時彈 tapPick,列出兩台,**點哪一列就跟哪一台**
@@ -33,6 +34,20 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
+
+// 🔴 語系釘死(2026-08-31)。C3 與 D3 是拿**中文字串**去 parse 疊車選單的
+//    (C3 用 /(\d+)\s*次/ 從「跟隨 1217 次　區間車 往 苗栗」抽車次;D3 斷言選單同時含
+//    「跟隨」與「車站看板」),而 index.html 的 I18N_LANG 依 `query > localStorage > navigator`
+//    決定,Playwright 的 chromium context 預設 navigator.language=en-US ⇒ 選單渲染成
+//    "Follow train 1217 · Local Train To Miaoli" ⇒ C3 的 wantNo 變 undefined、D3 的
+//    includes('跟隨') 恆假。webkit 那半剛好預設中文,所以長期停在 106/116、十條紅**全在 chromium**,
+//    看起來像引擎差異,其實是機器語系。
+//    修法照 scripts/verify_web_basemap_notice.mjs 的慣例**兩道一起下**:
+//      (1) context locale —— navigator.language／Intl 都不隨機器漂
+//      (2) 網址 ?lang=zh-TW —— index.html 自己的最高優先開關,top-level 就讀完並凍住
+//    G1 是這兩道的守門人:語系再飄一次要紅在 G1 這一條,而不是散落成十條互相矛盾的紅。
+const PAGE_LOCALE = 'zh-TW';
+const PAGE_QS = '?lang=zh-TW';
 
 // ── G0 自檢:先證明我在量的是誰 ─────────────────────────────────────────
 // 🔧 原版只 console.log 出 md5、沒有任何斷言——驗到別的 worktree 一樣全綠,那個 md5 是裝飾。
@@ -69,15 +84,20 @@ const ok = (name, pass, detail = '') => { results.push({ name, pass, detail }); 
 const allErrors = [];
 
 async function boot(browser, tag, vp = { width: 1280, height: 800 }) {
-  const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, hasTouch: !!vp.touch, isMobile: !!vp.touch });
+  const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, hasTouch: !!vp.touch, isMobile: !!vp.touch, locale: PAGE_LOCALE });
   await ctx.addInitScript(() => {
     try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {}
     try { localStorage.setItem('trainmap-appearance', 'light'); } catch (e) {}
+    // G1 要驗「這一頁是不是**帶著 ?lang=zh-TW 開的**」,但開機途中
+    // loadAllGroup→clearFollow 會 `replaceState(location.pathname)` 把整條 query 抹掉
+    // (index.html:13470 的 B4 註解寫得很清楚,是刻意的),事後讀 location.search 一律是空的。
+    // init script 跑在頁面自己的任何 script 之前,這裡取到的才是真正的進場網址。
+    try { window.__bootSearch = location.search; } catch (e) {}
   });
   const page = await ctx.newPage();
   page.on('pageerror', e => allErrors.push(`[${tag}] pageerror: ${e}`));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) allErrors.push(`[${tag}] console.error: ${m.text()}`); });
-  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + PAGE_QS, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => {
     try { return typeof state !== 'undefined' && state.ready === true && (state.trains || []).length > 0; } catch (e) { return false; }
   }, null, { timeout: 45000 });
@@ -176,6 +196,30 @@ const followedNow = page => page.evaluate(() => {
 
 async function run(browser, tag, vp = { width: 1280, height: 800 }, coreOnly = false) {
   const { ctx, page } = await boot(browser, tag, vp);
+
+  // ── G1 具名前置閘門:這一頁真的是中文 ────────────────────────────────────
+  // 為什麼要單獨判一次(而不是相信 boot 裡那兩行):語系是 C3／D3 的**共同上游**,它一漂
+  // 那兩條會一起失效,而且失效的方向不一致——C3 期望值變 undefined(看起來像「選單壞了」)、
+  // D3 只說「PICK:Follow train 2551…」(看起來像「車站那半不見了」)。計分板上是十條互相
+  // 矛盾的紅,看不出共同上游;上一輪就是這樣被當成引擎差異放著。判準對象是**渲染出來的字**,
+  // 不是「我設了 locale」:兩道機制各驗一次,哪一道掉了紅的時候一眼可讀。
+  // 期望值是我在這裡打的中文字面(外部常數),不是從頁面反推的——判準的真值來源不與實作同源。
+  const g1 = await page.evaluate(() => ({
+    docLang: document.documentElement.lang,
+    navLang: navigator.language,
+    qs: window.__bootSearch,          // 進場網址(見 boot 的 init script);不是 location.search
+    follow: t('跟隨 {train} 次　{destination}', { train: '1234', destination: '區間車 往測試' }),
+    board: t('{station}　車站看板', { station: '測試' }),
+  }));
+  const g1ok = g1.docLang === 'zh-TW' && /^zh/i.test(g1.navLang || '')
+    && /(^|[?&])lang=zh-TW(&|$)/.test(g1.qs || '')
+    && g1.follow === '跟隨 1234 次　區間車 往測試' && g1.board === '測試　車站看板';
+  ok(`[${tag}] G1 語系釘死在 zh-TW(C3／D3 讀中文選單列的前提)`, g1ok,
+    `documentElement.lang=${g1.docLang} navigator.language=${g1.navLang} 進場query=${g1.qs || '(空)'}` +
+    ` 選單樣本「${g1.follow}」「${g1.board}」`);
+  // 語系沒釘住就不要再往下跑:下面那些判準會變成一堆互相矛盾、無從診斷的紅(這條閘門的全部意義)
+  if (!g1ok) { await ctx.close(); return; }
+
   const org = await originOf(page);
   // 手機用真觸控(tap)不用滑鼠:這個 bug 在手指誤差下更兇,而 Leaflet 對 touch 走另一條事件路徑
   const click = async (x, y) => {

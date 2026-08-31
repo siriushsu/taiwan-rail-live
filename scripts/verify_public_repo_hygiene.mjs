@@ -18,6 +18,24 @@
 //   全部,縮小會被下面那條「範圍涵蓋」斷言擋下並印出少掃了哪幾顆 commit。
 import { execFileSync } from 'node:child_process';
 
+// 🔴 所有 git 呼叫一律走這裡,為的是 `core.quotePath=false`。
+// git 的預設是 quotePath=true:路徑只要含非 ASCII 位元組,輸出就會被包成 "..." 並逐 byte
+// 轉成八進位跳脫(`app/出貨規則.md` ⇒ `"app/\\345\\207\\272…"`)。這個 repo 有中文檔名,
+// 於是兩層同時壞掉,而且**壞的方向相反**:
+//   (a) 期望集合(`--name-only`)拿到的是**跳脫後**的字串;
+//   (b) 掃描器讀的 diff 表頭變成 `+++ "b/app/\\345…"`——引號跑到 `b/` **前面**,
+//       `line.startsWith('+++ b/')` 當場失效 ⇒ 那個檔永遠進不了 seen。
+// 顯形:兩條覆蓋自檢在**每一條動過中文檔名的分支上**恆紅(實測 269/338、303/338),
+// 而它印出來的檔名是人類讀不懂的八進位——一道恆紅又看不懂的閘門,下場就是被調鬆或跳過。
+// 更安靜的一半:`+` 內容行其實照掃,但 `file` 還停在**前一個檔**上 ⇒ 中文檔裡的命中會被掛到
+// 一個無辜的鄰居檔名上(實測:出貨規則.md 的命中報成 app/src/native-bridge.mjs),
+// 去那個檔 grep 一定找不到,結論就會變成「掃描器誤報」。
+// 另外 looksBinaryAtHead 也吃這個路徑,跳脫過的檔名一律 `does not exist in 'HEAD'`。
+// 修法放在單一入口而不是逐一加旗標:下一支新增的 git 呼叫不會有機會忘記。
+function git(args, opts = { encoding: 'utf8' }) {
+  return execFileSync('git', ['-c', 'core.quotePath=false', ...args], opts);
+}
+
 const ARGV = process.argv.slice(2);
 // 無法辨識的旗標直接 exit 2,不要當成 base 吃下去:`-allow-history-hits=30`(少打一個 `-`)
 // 原本會被 `!a.startsWith('--')` 判成 base,`git merge-base` 再吐一個看不懂的錯——
@@ -181,7 +199,7 @@ function scanMessageText(msg) {
 // 「有檔案沒出現在掃描裡」。期望集合的來源必須與 `-p` 無關(用 --name-only),
 // 否則判準與受測物同源、會一起失明。
 function filesChangedNameOnly(args) {
-  return new Set(execFileSync('git', ['diff', '--name-only', ...args], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+  return new Set(git(['diff', '--name-only', ...args], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
     .split('\n').map(t => t.trim()).filter(Boolean));
 }
 // 真二進位檔(PNG 之類)本來就沒有可掃的文字行,落在集合外是正確的,不該報紅。
@@ -189,7 +207,7 @@ function filesChangedNameOnly(args) {
 // 後者正是被 .gitattributes 操縱的那一個,拿它當判準等於與受測物同源。
 function looksBinaryAtHead(p) {
   try {
-    const buf = execFileSync('git', ['show', `HEAD:${p}`], { encoding: 'buffer', maxBuffer: 16 * 1024 * 1024 });
+    const buf = git(['show', `HEAD:${p}`], { encoding: 'buffer', maxBuffer: 16 * 1024 * 1024 });
     return buf.subarray(0, 8000).includes(0);
   } catch (e) { return false; } // 取不到就當文字:寧可為此紅一次,也不要靜默放過一個沒被掃到的檔
 }
@@ -204,7 +222,7 @@ function looksBinaryAtHead(p) {
 //    被 `.gitattributes -diff` 標掉的文字檔正是回 `-`,把 `-` 當 0 排除等於親手拆掉那一發反向對照。
 // -z 格式(實測):一般檔 `<加>\t<刪>\t<路徑>NUL`;改名 `<加>\t<刪>\tNUL<舊名>NUL<新名>NUL`。
 function zeroAddedPaths(args) {
-  const toks = execFileSync('git', ['diff', '--numstat', '-z', ...args], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }).split('\0');
+  const toks = git(['diff', '--numstat', '-z', ...args], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }).split('\0');
   const zero = new Set();
   for (let i = 0; i < toks.length; i++) {
     const m = /^(\S+)\t(\S+)\t([\s\S]*)$/.exec(toks[i]);
@@ -250,8 +268,8 @@ console.log('\n── 主掃描:合併基準 → 工作樹(含未 commit 的改�
 let diff = '';
 let MERGE_BASE = '';
 try {
-  MERGE_BASE = execFileSync('git', ['merge-base', BASE, 'HEAD'], { encoding: 'utf8' }).trim();
-  diff = execFileSync('git', ['diff', MERGE_BASE, '-U0'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  MERGE_BASE = git(['merge-base', BASE, 'HEAD'], { encoding: 'utf8' }).trim();
+  diff = git(['diff', MERGE_BASE, '-U0'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
 } catch (e) {
   ok(false, `取不到 diff(base=${BASE}):${String(e).slice(0, 120)}`);
   process.exit(1);
@@ -261,8 +279,8 @@ try {
 // (給下面那條「範圍涵蓋」斷言用)。這兩個都**不經過 BASE**,才打得斷「量尺跟著範圍一起縮」。
 let ANCHOR_MERGE_BASE = '', anchorCommits = [], anchorErr = '';
 try {
-  ANCHOR_MERGE_BASE = execFileSync('git', ['merge-base', ANCHOR, 'HEAD'], { encoding: 'utf8' }).trim();
-  anchorCommits = execFileSync('git', ['rev-list', `${ANCHOR}..HEAD`], { encoding: 'utf8' }).trim().split('\n').filter(Boolean);
+  ANCHOR_MERGE_BASE = git(['merge-base', ANCHOR, 'HEAD'], { encoding: 'utf8' }).trim();
+  anchorCommits = git(['rev-list', `${ANCHOR}..HEAD`], { encoding: 'utf8' }).trim().split('\n').filter(Boolean);
 } catch (e) { anchorErr = String(e).replace(/\s+/g, ' ').slice(0, 140); }
 
 const { found: hits, addedLines, allowed, allowedFiles, files: mainFilesSeen } = scanDiffText(diff);
@@ -339,7 +357,7 @@ try {
   //    ⇒ 拿掉 remerge,那個檔仍然在 seen 裡、gap 仍然是空的、覆蓋自檢照樣全綠。
   //    下一個人讀的是這裡不是報告,所以這句話必須跟事實一致:remerge 是這條路上唯一的東西,
   //    刪掉它不會有人接住。
-  const log = execFileSync('git', ['log', '-p', '-U0', '--diff-merges=remerge', `${BASE}..HEAD`], { encoding: 'utf8', maxBuffer: 128 * 1024 * 1024 });
+  const log = git(['log', '-p', '-U0', '--diff-merges=remerge', `${BASE}..HEAD`], { encoding: 'utf8', maxBuffer: 128 * 1024 * 1024 });
   const hr = scanDiffText(log); // 與主掃描同一支解析器 ⇒ 不可能只有這一半被改壞而無聲
   histHits = hr.found; histFilesSeen = hr.files; histCommitsSeen = hr.commits;
 } catch (e) { histScanErrs.push(`git log -p:${String(e).slice(0, 120)}`); }
@@ -353,12 +371,12 @@ try {
 // 那顆的訊息完全沒被看過,而迴圈跑完之後的結果長得跟「全都乾淨」一模一樣。
 let histCommitList = [];
 try {
-  histCommitList = execFileSync('git', ['log', '--format=%H', `${BASE}..HEAD`], { encoding: 'utf8' }).trim().split('\n').filter(Boolean);
+  histCommitList = git(['log', '--format=%H', `${BASE}..HEAD`], { encoding: 'utf8' }).trim().split('\n').filter(Boolean);
 } catch (e) { histScanErrs.push(`git log --format=%H:${String(e).slice(0, 120)}`); }
 histCommits = histCommitList.length;
 for (const c of histCommitList) {
   try {
-    const msg = execFileSync('git', ['log', '-1', '--format=%B', c], { encoding: 'utf8' });
+    const msg = git(['log', '-1', '--format=%B', c], { encoding: 'utf8' });
     for (const h of scanMessageText(msg)) histHits.push({ commit: c.slice(0, 7), file: '(commit message)', rule: h.rule, text: h.text });
   } catch (e) { histScanErrs.push(`git log -1 ${c.slice(0, 7)}:${String(e).slice(0, 80)}`); }
 }
