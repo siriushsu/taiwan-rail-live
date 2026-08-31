@@ -9642,25 +9642,32 @@ function assignSchedShapePathsFor(trains, lines) {
 // 併完環島之星會在台北看板出現兩次(出發一次、繞回來到站一次),那是對的。
 // 同一班車出現兩次同名站程式本來就吃得下——buildLoopTrains 造的 8888/8889 末站
 // 用的就是起點那個站物件。
-function canonicalizeAliasStops(sysList) {
-  for (const sys of sysList) {
-    const at = new Map();                       // 站名 → 任一停靠點(只用來取座標)
-    for (const tr of sys.data.trains) for (const st of tr.stops) if (!at.has(st.name)) at.set(st.name, st);
-    const canon = new Map();
-    for (const [name, st] of at) {
-      const i = name.indexOf('-');
-      if (i <= 0) continue;
-      const base = at.get(name.slice(0, i));
-      if (!base) continue;
-      if (map.distance([st.lat, st.lon], [base.lat, base.lon]) > 200) continue;
-      canon.set(name, base.name);
-    }
-    if (!canon.size) continue;
-    for (const tr of sys.data.trains) for (const st of tr.stops) {
-      const c = canon.get(st.name);
-      if (c) st.name = c;
-    }
+// 🔴 距離用 haversineKm 不用 map.distance:這一支要能在【沒有 Leaflet 的地方】跑——
+//    scripts/build_run_profiles.mjs 把 index.html 的頂層宣告原封切進 vm 沙箱離線預算跑段剖面,
+//    而併站會動到最後一段的貼軌結果(環島之星 1/2 次的末站正是臺北-環島)。用 map.distance
+//    的話沙箱裡會 ReferenceError;不在沙箱裡跑則離線值與前端現算差 0.36 公尺 ⇒
+//    check-run-profiles 的「離線 vs 前端逐字相同」轉紅、那兩台車靜默退回現算。
+function canonicalizeAliasTrains(trains) {
+  const at = new Map();                         // 站名 → 任一停靠點(只用來取座標)
+  for (const tr of trains) for (const st of tr.stops) if (!at.has(st.name)) at.set(st.name, st);
+  const canon = new Map();
+  for (const [name, st] of at) {
+    const i = name.indexOf('-');
+    if (i <= 0) continue;
+    const base = at.get(name.slice(0, i));
+    if (!base) continue;
+    if (haversineKm(st, base) > 0.2) continue;
+    canon.set(name, base.name);
   }
+  if (!canon.size) return canon;
+  for (const tr of trains) for (const st of tr.stops) {
+    const c = canon.get(st.name);
+    if (c) st.name = c;
+  }
+  return canon;
+}
+function canonicalizeAliasStops(sysList) {
+  for (const sys of sysList) canonicalizeAliasTrains(sys.data.trains);
 }
 function applySchedSystems(sysList) {
   state.schedSystems = sysList;

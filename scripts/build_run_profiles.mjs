@@ -25,7 +25,7 @@ const CONSTS = ['PERF_DEFAULT', 'PERF_HSR', 'HSR_DEP_MID_SEC', 'PERF_RULES', 'PE
 const FUNCS = ['haversineKm', 'ensureCum', 'posAlongShape', 'isHSR', 'resolvePerf',
   'speedZoneClassOf', 'runSpeedZones', 'zoneProfileOk', 'zoneNatural', 'speedZoneKnots',
   'buildProfile', 'buildObsProfile', 'profTimeToProg', 'profProgToTime',
-  'schedSegmentKm', 'schedSegKmOf', 'assignRunProfiles',
+  'schedSegmentKm', 'schedSegKmOf', 'assignRunProfiles', 'canonicalizeAliasTrains',
   'projectOntoShape', 'assignSchedShapePathsFor'];
 
 // 🔴 前端存進 state.passObs 的是檔案的 .trains 子物件，不是根物件（index.html:26667）。
@@ -55,6 +55,12 @@ export function computeProfiles({ indexPath, schedule, track, passObs, mutate })
   ctx.lines = track.lines;
   for (const tr of schedule.trains) tr.sys = 'tra_sched';
   if (mutate) runInContext(mutate, ctx);   // 只給突變測試用：故意弄壞輸入，確認閘門真的會紅
+  // 🔴 併官方別名站（臺北-環島→臺北）。前端 applySchedSystems 在貼軌【之前】就併了
+  //    （index.html 的 canonicalizeAliasStops 那一行在 assignSchedShapePathsFor 之上），
+  //    漏在這裡就是離線與前端餵給同一段模型的輸入不同 —— 環島之星 1／2 次的末站正是
+  //    臺北-環島，實測跑段長度差 0.36 公尺，check-run-profiles 的逐字比對會紅、
+  //    那兩台車在使用者手上靜默退回現算。順序也要照前端：併完才貼軌。
+  runInContext('canonicalizeAliasTrains(trains)', ctx);
   runInContext('assignSchedShapePathsFor(trains, lines)', ctx);
   return { segStats: ctx.state._segStats };
 }
