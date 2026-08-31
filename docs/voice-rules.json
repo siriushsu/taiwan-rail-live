@@ -1,0 +1,114 @@
+{
+  "$comment": "軌島對外文字規則正本。scripts/check_voice.mjs 與 .claude/skills/railisland-voice/ 都讀這一份；任何值只寫在這裡，不要在別處複述。",
+  "surfaces": [
+    {
+      "id": "changelog-recent",
+      "file": "index.html",
+      "kind": "changelog",
+      "extract": { "type": "regex", "pattern": "<li data-cl-of=\"[^\"]+\"><span class=\"d\">[^<]*</span><span>([^<]+)</span></li>", "group": 1 },
+      "minCount": 8,
+      "maxChars": 50,
+      "why": "首層「最近更新」。使用者定案每條 ≤50 字。"
+    },
+    {
+      "id": "changelog-canon",
+      "file": "index.html",
+      "kind": "changelog",
+      "extract": { "type": "regex", "pattern": "<li data-cl=\"[^\"]+\"><span class=\"d\">[^<]*</span><span>([^<]+)</span>", "group": 1 },
+      "minCount": 80,
+      "maxChars": 80,
+      "why": "第二層主題組正本。使用者定案每條 ≤80 字。"
+    },
+    {
+      "id": "content-achievements",
+      "file": "index.html",
+      "kind": "content",
+      "extract": { "type": "constBlock", "start": "const ACHIEVEMENTS =", "end": "const ACH_TESTS =", "names": ["ACHIEVEMENTS"] },
+      "minCount": 1,
+      "why": "成就名稱與說明。沿用 check_i18n.mjs 同一組標記。"
+    },
+    {
+      "id": "content-help",
+      "file": "index.html",
+      "kind": "content",
+      "extract": { "type": "constBlock", "start": "const HELP_QUICK =", "end": "const HELP_TRY =", "names": ["HELP_QUICK", "HELP_GROUPS"] },
+      "minCount": 1,
+      "why": "使用說明中心。"
+    },
+    {
+      "id": "content-station",
+      "file": "index.html",
+      "kind": "content",
+      "extract": { "type": "constBlock", "start": "const STATION_INTRO =", "end": "// 有精選特色", "names": ["STATION_INTRO"] },
+      "minCount": 1,
+      "why": "特色車站介紹短語。沿用 check_i18n.mjs 同一組標記。"
+    },
+    {
+      "id": "content-sys",
+      "file": "index.html",
+      "kind": "content",
+      "extract": { "type": "constBlock", "start": "const SYS_META =", "end": "// 播放/速度/時間", "names": ["SYS_META"] },
+      "minCount": 1,
+      "why": "各系統導言（頂列 sub／lead 文案）。沿用 check_i18n.mjs 同一組標記。"
+    },
+    {
+      "id": "content-groups",
+      "file": "index.html",
+      "kind": "content",
+      "extract": { "type": "constBlock", "start": "const GROUPS =", "end": "const groupOf", "names": ["GROUPS"] },
+      "minCount": 1,
+      "why": "地區／縣市分組標籤與導言。沿用 check_i18n.mjs 同一組標記。"
+    },
+    {
+      "id": "content-metro",
+      "file": "index.html",
+      "kind": "content",
+      "extract": { "type": "constBlock", "start": "const METRO_OFFICIAL =", "end": "function metroLinksHtml", "names": ["METRO_OFFICIAL"] },
+      "minCount": 1,
+      "why": "捷運官方連結標籤（如「台北捷運」）。沿用 check_i18n.mjs 同一組標記。"
+    },
+    {
+      "id": "icon-table",
+      "file": "index.html",
+      "kind": "content",
+      "v6Exempt": true,
+      "extract": { "type": "constBlock", "start": "const RAIL_EMOJI =", "end": "function railIcon", "names": ["RAIL_EMOJI"] },
+      "minCount": 20,
+      "why": "成就與車站設施圖示表。內容區，V6 明文排除——新增成就本來就會新增圖示。"
+    },
+    {
+      "id": "ui-control",
+      "file": "index.html",
+      "kind": "ui-control",
+      "extract": { "type": "controls" },
+      "minCount": 120,
+      "why": "真 HTML <button>/<summary> 的可見文字。抽取前先剝除 <style> 與 <script>，否則 CSS 註解裡的『<button>』會被當成控件。不含 <script> 內動態產生的按鈕，那些在 ui-control-dynamic。"
+    },
+    {
+      "id": "ui-control-dynamic",
+      "file": "index.html",
+      "kind": "ui-control",
+      "contentExempt": true,
+      "extract": { "type": "controlsDynamic" },
+      "minCount": 55,
+      "why": "JS 樣板產生的按鈕。內文是原始碼片段(${…}、字串串接、變數名),餵給 V1／V2 詞表會誤判,故 contentExempt。V6 掃它——符號類別不含 JS 語法字元,雜訊對符號棘輪無害;2026-08-31 實測動態符號集(6 種 21 處)是靜態符號集的子集,納入不改變基線。"
+    },
+    {
+      "id": "whatsnew",
+      "file": "app/scripts/set-release-mode.mjs",
+      "kind": "whatsnew",
+      "extract": { "type": "regex", "pattern": "why:\\s*'((?:[^'\\\\]|\\\\.)*)'", "group": 1 },
+      "minCount": 3,
+      "why": "App 內「更新了什麼」彈窗。單語繁中；由 prepare-web.mjs 於 build 時注入 window.RAIL_APP_WHATS_NEW。"
+    },
+    {
+      "id": "i18n-dict",
+      "file": ["i18n/translations.js", "i18n/content-translations.js", "i18n/legal-translations.js"],
+      "kind": "content",
+      "extract": { "type": "wholeFile" },
+      "minCount": 3,
+      "why": "三語字典正本（en/ja 譯文＋法務文案）。整檔文字進 V1／V2 詞表比對；不 vm 求值（IIFE 指派 window.RAIL_I18N_MESSAGES，沒必要 shim window）。"
+    }
+  ],
+  "rules": {}
+}
