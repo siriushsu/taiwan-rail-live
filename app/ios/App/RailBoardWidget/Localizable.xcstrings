@@ -4302,6 +4302,23 @@
         }
       }
     },
+    "山線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mountain Line"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "山線"
+          }
+        }
+      }
+    },
     "已切成衛星影像——從「更多」再按一次可切回地圖": {
       "extractionState": "manual",
       "localizations": {
@@ -6937,6 +6954,23 @@
         }
       }
     },
+    "火車站看板改成分方向顯示：南下、北上分開，山線海線與支線各自成區，冷門方向不再被擠掉；顏色比照台鐵新版車站標示的北上藍、南下綠": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Station boards now group trains by direction—southbound, northbound and each branch line get their own section, so quieter directions no longer get squeezed out; colour-coded blue for northbound and green for southbound, matching TRA's new station signage."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅の発車案内を方面別に分割：南行き・北行き・支線がそれぞれ独立し、本数の少ない方面も押し出されません。色分けは台鉄の新しい案内サインに合わせ、北行きは青、南行きは緑。"
+          }
+        }
+      }
+    },
     "世運": {
       "extractionState": "manual",
       "localizations": {
@@ -7256,6 +7290,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "北埔"
+          }
+        }
+      }
+    },
+    "北迴線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "North-Link Line"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "北廻線"
           }
         }
       }
@@ -16066,6 +16117,23 @@
         }
       }
     },
+    "宜蘭線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yilan Line"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "宜蘭線"
+          }
+        }
+      }
+    },
     "宜蘭縣": {
       "extractionState": "manual",
       "localizations": {
@@ -16538,6 +16606,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "{time}{nextDay}着"
+          }
+        }
+      }
+    },
+    "抵達本站": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminating here"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当駅止まり"
           }
         }
       }
@@ -18646,6 +18731,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "屏東"
+          }
+        }
+      }
+    },
+    "屏東線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pingtung Line"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "屏東線"
           }
         }
       }
@@ -31536,6 +31638,23 @@
         }
       }
     },
+    "臺東線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taitung Line"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台東線"
+          }
+        }
+      }
+    },
     "臺東縣": {
       "extractionState": "manual",
       "localizations": {
@@ -34456,6 +34575,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "縦貫線北段"
+          }
+        }
+      }
+    },
+    "縱貫線南段": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Western Line (South)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "縦貫線南段"
           }
         }
       }

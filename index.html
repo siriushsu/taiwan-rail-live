@@ -101,6 +101,10 @@
     --plate-g1:#FFFFFF; --plate-g2:#F7F5EE; --plate-g3:#EDEBE0; --plate-frame:#767061;
     --red:#D23C2A; --red-deep:#A92C1D;
     --gold:#D2A12A; --ok:#1B8F4D; --gps:#2B8FFF;
+    /* 方向色:台鐵 2026-08-29 發表的新版車站標示設計手冊「以藍色代表北上，綠色代表南下」
+       (該做法承襲高鐵)。借用既有的 --navy／--ok——兩個主題的對比度都已經調校過,
+       且因為是 var() 轉指,暗色主題會自動跟著換值,不必在 [data-theme=dark] 再覆寫一次。 */
+    --dir-north: var(--navy); --dir-south: var(--ok);
     --warn-bg:#FBE9DF; --warn-line:#E0A37E; --warn-ink:#A3641A;
     /* 速度曲線（畫在 canvas，色票放這裡讓亮/暗/半透明三種情境各自可調；JS 讀 computed value，
        故一律寫字面色，不要寫成 var(...) 轉指） */
@@ -2008,6 +2012,20 @@
     width: 44px; height: 44px;
   }
   html[data-fs=xlarge] .board .row[data-no].rx .rmore { transform: rotate(90deg); }
+  /* 方向分組標題(台鐵／高鐵／林鐵車站看板:南下／北上／往支線終點／抵達本站)。
+     刻意【不】做 sticky:一張看板最多三組,三個 sticky 會互相推擠,而組本身很短、捲動時看得到。 */
+  .board .bgrp {
+    display: flex; align-items: center; gap: 6px;
+    margin: 11px 0 0; padding-bottom: 3px; font-size: 11px; font-weight: 800;
+    color: var(--faint); letter-spacing: .04em; border-bottom: 1px solid var(--line-faint);
+  }
+  /* 左側色條吃 currentColor:方向組跟著藍／綠,支線與「抵達本站」自然是中性灰(官方只定義了南北兩色) */
+  .board .bgrp::before { content: ''; width: 3px; height: 11px; border-radius: 2px; background: currentColor; flex: none; }
+  .board .bgrp.dir-n { color: var(--dir-north); }
+  .board .bgrp.dir-s { color: var(--dir-south); }
+  /* 🔴 插入 .bgrp 之後上面那條 `.row:first-of-type` 就再也不匹配了(父層第一個 div 變成 .bgrp),
+     每組第一列會多一條上框線、與組標題的底線疊成雙線。這條把它補回去。 */
+  .board .bgrp + .row { border-top: 0; }
   .board .row[data-no], .board .row[data-rand], .board .row[data-li], .board .row[data-guide], .board .row[data-ev] { cursor: pointer; }
   .board .row[data-no]:hover, .board .row[data-rand]:hover, .board .row[data-li]:hover, .board .row[data-guide]:hover, .board .row[data-ev]:hover { background: var(--bg-stage); }
   /* 停駛列(台鐵):官方今日名冊裡沒有這班(見 applyTraDailyDelta)。車已從地圖名冊移除,看板仍列出來——
@@ -4842,6 +4860,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="traboarddir"><span class="d">8/31</span><span>火車站看板改成分方向顯示：南下、北上分開，山線海線與支線各自成區，冷門方向不再被擠掉；顏色比照台鐵新版車站標示的北上藍、南下綠</span></li>
         <li data-cl-of="ridingclock"><span class="d">8/31</span><span>按下「我上車了」之後，再去點一班還沒發車的車，時鐘不會再被撥走（謝謝網友回報）</span></li>
         <li data-cl-of="enplatefit"><span class="d">8/30</span><span>英文與日文的手機頂列，左上角的軌島牌裝不下時會自己讓位，分組切換鈕留在畫面內</span></li>
         <li data-cl-of="satfallback"><span class="d">8/30</span><span>衛星影像模式下放大縮小時，畫面會有一瞬間整片變成深綠色（Android 手機上特別明顯）；墊在底下的顏色改成貼齊實際衛星影像，現在幾乎看不出來</span></li>
@@ -4849,7 +4868,6 @@
         <li data-cl-of="whatsnew-lang"><span class="d">8/30</span><span>更新完跳出的「更新了什麼」現在會用你正在使用的語言：英文與日文各有整段自己的文案，不會再看到標著「中文原文」的中文說明</span></li>
         <li data-cl-of="crowd-outage"><span class="d">8/29</span><span>車廂擁擠度改成逐車對照：忠孝復興這種兩線共站不會再把板南線的擁擠度掛到文湖線上，認不出是哪一台車就留白不猜；三種車站看板現在都會顯示擁擠度，不會再切換一次就整片消失，鎖屏的等車卡也一起改。即時模型暫時缺這個系統的資料時，車站看板不再整片變成「此時段無停靠班次」，會自動退回官方倒數或班表。即時資料中斷的提示也改成照實說：分不出是官方端還是本站或你的網路時，不再一律寫成臺北捷運訊號中斷</span></li>
         <li data-cl-of="notice0829"><span class="d">8/29</span><span>高鐵台中車站 9/7 至 9/10 軌道大修、三鶯線 9/1 起正式收費，兩則公告已放上通知列；同時更新安坑、淡海輕軌與高雄捷運班表</span></li>
-        <li data-cl-of="bootfast"><span class="d">8/29</span><span>開啟網站變快了：三十幾份路網與班表資料從一份一份載改成同時下載，重新造訪也不再重抓沒變動的檔案</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -4920,6 +4938,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="traboarddir"><span class="d">8/31</span><span>火車站的到站看板改成分方向顯示：南下、北上各自成區，不再混成一長串照時間排。竹南、彰化這種山線海線分家的站，同一個方向會再拆成「南下 · 山線」「南下 · 海線」；二水、三貂嶺、新竹這種有支線的站，支線自成一區，並照官方月台的說法寫「往車埕」「往菁桐」「往內灣」，不套南下北上——支線的南北距離常常只有幾公里，講南下北上沒有意義。每一區各給三班（拉到大段六班），冷門方向不會再被熱門方向整個擠掉。方向顏色比照台鐵 2026 年 8 月發表的新版車站標示：北上藍、南下綠。終到本站的車另成一區，只列一小時內會到的。高鐵與阿里山林鐵的車站看板同步套用</span></li>
         <li data-cl="ridingclock"><span class="d">8/31</span><span>按下「我上車了」之後，再去點一班還沒發車的車，時鐘不會再被撥到那班車的發車前——原本會整趟停在假的時間，讓地圖上另一班車剛好跟著你走，看起來就像自己搭的車被標成別的車次。時鐘真的不在現在時，跟隨卡上會自己標「非即時」，點一下就回到現在；手機點左上角時鐘也多了一顆「回到現在」。跟隨卡太高時改成卡內捲動，不會再蓋住上面的時鐘（謝謝網友回報）</span></li>
         <li data-cl="enplatefit"><span class="d">8/30</span><span>英文版在 360 寬的手機上，頂列右邊的「捷運」那一顆分組切換鈕整顆在畫面外，而且沒有地方可以捲過去——外層是 overflow:hidden，祖先鏈上沒有任何可捲容器。360dp 的頂列只有 340px 寬，分頁列英文要 248px、日文 234px，中文只要 190px（中文一字一顆），而左上角的軌島牌原本一寸不讓，被擠掉的就是按鈕。現在牌改成被壓的那一方：先讓起訖站名，標題最後，裝不下收成省略號而不是被硬切；拉丁字母也不再套「軌島」那組為漢字招牌留的字距與首行縮排。日文在 360／375 有公告時同樣的情形也一併修好</span></li>
         <li data-cl="widgetplussync"><span class="d">8/30</span><span>訂閱通行證後，桌面小工具立刻就能放多站、也能自動選最近的站，不必等下一次同步或按恢復購買；帳號登出或訂閱結束時也會同步收回。</span></li>
@@ -5585,7 +5604,14 @@
 // v0831l：讓號。v0831i 與 fix/ambient-camera-lock(28efb97) 撞號且兩邊載貨不同(md5 ba301be7 vs
 //         afb3860f),由本線讓出、放空那條維持 i。⚠️ 對方建議的「從 k 起算」是錯的——
 //         build/app-1.5.2-908(0e1e781) 已在用 v0831k;逐 ref 掃 a~k 全佔用,故跳到 l。
-const BUILD = 'v0831l'; // a~k 已被六條線用掉(逐 ref 掃過,含註解不只 const 行);撞號見心得16
+// v0831g：火車站看板依方向分組(台鐵／高鐵／林鐵)。分組鍵取自既有的貼軌結果 stops[i].segLn
+//         ＋ dA/dB,與地圖畫的軌道同一個真相源(自己找「本站與下一停靠站的共同線」會被跳站
+//         直達車打敗:實測 28 班無解,用 segLn 是 0 班)。幹線用南下／北上、支線用終點站方向,
+//         色彩照台鐵 2026-08-29 新版標示手冊「北上藍、南下綠」。
+//         獨立基準覆核:山線／海線／成追線判定 vs 台鐵官方 Line 欄位【908/908 逐車一致】;
+//         純西部方向 vs 官方 LineDir 對稱一致(1↔北上 241、2↔南下 241)。
+//         守門人:scripts/verify_board_direction_groups.mjs(26 項,五發突變各自咬到預期斷言)。
+const BUILD = 'v0831m'; // 併 origin/main(方向分組 v0831h)。a~l 已被各線用掉(全 ref 掃過,含註解),跳 m
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -25489,6 +25515,63 @@ function metroBoardLines(st, lines) {
   const sysId = metroStationSystemId(st, source);
   return sysId ? source.filter(ln => freqSysIdOf(ln) === sysId) : source;
 }
+// ── 車站看板的方向分組（台鐵／高鐵／林鐵）──────────────────────────────
+// 使用者要求：南下北上與路線分歧要分開顯示，不要全混在一起（2026-08-31）。
+// 分組鍵取自「這班車離開本站的那一段」已經貼好的軌道（stops[i].segLn 與 dA/dB），
+// 與地圖上畫的軌道是同一個真相源。🔴 不要改成自己找「本站與下一停靠站的共同線」——
+// 跳站直達車（花蓮→羅東把整條北迴線跳過）那樣算會解不出來：實測 28 班無解，
+// 用 segLn 是 0 班（三系統 32,737 段 100% 貼到軌道且方向可解）。
+//
+// 南下／北上只給南北跨度夠大的線用。支線跨度只有 0.005~0.10 度（500 公尺~10 公里），
+// 「集集往車埕＝北上」是錯誤資訊，官方月台本來就寫「往車埕」⇒ 支線一律用終點站方向
+// （2026-08-31 裁示：「支線不需要寫南下北上，就寫終點站方向就好，跟著官方的說法」）。
+// 實測跨度：台鐵七條支線 0.006~0.103、林鐵三線 0.005~0.031（都在支線側）；
+// 九條環島幹線 0.278~1.437、高鐵 1.530（都在幹線側）——門檻落在斷層裡，離兩邊都遠。
+// 🔴 這個常數本身不是判準：驗收咬的是「哪幾條線必須落在哪一側」的身分，線網改了會轉紅。
+const BOARD_TRUNK_LAT_SPAN = 0.15;
+// 「抵達本站」只列 60 分鐘內(使用者裁示 2026-08-31)。分組前是全站取前 12 班,終到車幾乎
+// 不會浮上來;改成逐組配額之後,竹南這種站會冒出 106 分／151 分後才終到的車。終到車對站上
+// 等車的人沒有搭乘價值(它到了就不走了),只有來接人才看,一小時外的沒有意義。
+const BOARD_ARRIVE_MAX_SEC = 3600;
+function boardLineLatSpan(ln) {
+  let lo = Infinity, hi = -Infinity;
+  for (const s of (ln.stations || [])) if (s.lat != null) { if (s.lat < lo) lo = s.lat; if (s.lat > hi) hi = s.lat; }
+  return hi > lo ? hi - lo : 0;
+}
+// 回傳這一列該歸哪一組。order 決定組在看板上的固定位置（南下→北上→支線→抵達），
+// 刻意不依「最近一班倒數」排序：位置每次打開都一樣，使用者不必重新找。
+function boardGroupOf(tr, i, isLast) {
+  if (isLast) return { key: '~arrive', kind: 'arrive', order: 3 };
+  const s = tr.stops[i];
+  if (!s || !s.segLn) return { key: '~other', kind: 'other', order: 4 };  // 貼不到軌道:不猜方向
+  const ln = s.segLn, dir = Math.sign(s.dB - s.dA) || 1;
+  const sts = (ln.stations || []).filter(x => x.d != null && x.name).slice().sort((a, b) => a.d - b.d);
+  if (sts.length < 2) return { key: '~other', kind: 'other', order: 4 };
+  const end = dir > 0 ? sts[sts.length - 1] : sts[0], head = dir > 0 ? sts[0] : sts[sts.length - 1];
+  if (boardLineLatSpan(ln) >= BOARD_TRUNK_LAT_SPAN) {
+    const nb = end.lat > head.lat;   // 幹線:往哪一端走就比那一端的緯度,東部順行=北上故不能用順逆行
+    return { key: (nb ? 'N' : 'S') + '|' + ln.id, kind: 'trunk', nb, lnId: ln.id, lnName: ln.name,
+      order: nb ? 1 : 0 };
+  }
+  return { key: 'B|' + ln.id + '|' + (dir > 0 ? '+' : '-'), kind: 'branch',
+    lnId: ln.id, endName: end.name, order: 2 };
+}
+// 組標題。幹線預設只寫「南下」／「北上」;同一個方向同時有多條幹線（竹南南下＝山線＋海線、
+// 彰化北上＝山線＋海線）時才補線名,否則兩組長得一模一樣分不出來。
+function boardGroupLabel(g, groups, sysId) {
+  if (g.kind === 'arrive') return t('抵達本站');
+  if (g.kind === 'other') return t('其他');
+  if (g.kind === 'branch') return t('往 {station}', { station: stationName(g.endName, sysId) });
+  const dirWord = t(g.nb ? '北上' : '南下');
+  const sameDir = groups.filter(x => x.kind === 'trunk' && x.nb === g.nb);
+  if (sameDir.length < 2) return dirWord;
+  // 「山線（竹南–彰化）」→「山線」:括號內是區間說明,標題塞不下也不需要。
+  // 🔴 routeName 對台鐵回的是原文——i18n/stations.json 的 routes 沒有 tra_sched 這個系統,
+  //    所以外語版會出現「Southbound · 山線」。截短後再過一次 t():台鐵走 t() 的字典,
+  //    未來若真的補了 routes catalog,routeName 先譯、t() 對已譯字串找不到鍵會原樣放行。
+  const short = String(routeName(g.lnName, sysId) || '').replace(/[（(].*$/, '').trim();
+  return short ? dirWord + ' · ' + t(short) : dirWord;
+}
 // 台鐵/高鐵看板的班次列:某站未來 3 小時內、依「估計實際時刻」排序。
 // 🔴 抽成函式是為了讓「我的最愛」的『下一班』與看板讀**同一份**計算(誤點修正、跨午夜換日、
 //    環島車一日兩輪、停駛車併回來標停駛)。同一個時刻兩個地方各算一次遲早會分岔——而分岔的
@@ -25514,6 +25597,7 @@ function schedBoardRows(st) {
         if (dtm > 43200) dtm -= 86400; else if (dtm < -43200) dtm += 86400; // 跨午夜換日對齊
         if (dtm < -30 || dtm > 3 * 3600) continue; // 未來 3 小時內
         rows.push({ tr, t, dtm, dl, isLast, off, dest: stops[stops.length - 1].name,
+          g: boardGroupOf(tr, i, isLast),
           loopDest: tr.loop ? (i < tr.loopApexIdx ? stops[tr.loopApexIdx].name : stops[0].name) : null });
       }
     }
@@ -25542,9 +25626,10 @@ function renderBoard() {
   if (state.mode !== 'sched') { renderFreqBoard(el, st, metroBoardLines(st, state.lines), false); return; } // 捷運/輕軌分頁走獨立邏輯,sched(台鐵/高鐵)以下維持原樣;同名站只讀自己所屬系統
   if (st.sys === 'deco') { renderFreqBoard(el, st, metroBoardLines(st, state.decoLines), true); return; } // 全台同框:點裝飾層捷運站,同款看板但讀 decoLines(無 state.visible 個別開關);同樣依系統分開,避免跨城市同名站合併
   const rows = schedBoardRows(st);
-  // 拉到大段(88%)就多給班次:否則多出來的高度只是一片空白紙(段高切換時 setSheetSize 會重繪本板)
-  // 大段(88%/24 筆)2026-08-26 退役 ⇒ 一律 12 筆(中段 46% 放得下,再多要捲)
-  const list = rows.slice(0, 12).map(r => {
+  // 分組前是全站合計 12 筆(大段 88%/24 筆 2026-08-26 退役);分組後改成【逐組】配額:
+  // 冷門方向不會被熱門方向整個擠掉。🔴 App 線沒有大段 ⇒ el.expand 恆假 ⇒ 實際恆為 3。
+  const perGroup = el.classList.contains('expand') ? 6 : 3;
+  const rowHtml = r => {
     const minutes = Math.round(r.dtm / 60);
     const min = r.off ? t('停駛') : r.dtm < 60 ? t('即將') : t('{n} 分', { n: i18nNumber(minutes) }, minutes);
     const dest = r.tr.loop ? t('往 {station}', { station: stationName(r.loopDest, r.tr.sys) }) : (r.isLast ? t('（終點到達）') : t('往 {station}', { station: stationName(r.dest, r.tr.sys) }));
@@ -25562,7 +25647,18 @@ function renderBoard() {
       `<span class="t"><span class="hm">${fmtHM(r.t % 86400)}</span>${r.off ? '' : r.tr.est ? `<span class="estTag">${escHtml(t('推算'))}</span>` : r.dl > 0 ? `<span class="lateTag" data-min="${r.dl}">+${i18nNumber(r.dl)}</span>` : ''}</span><span class="min">${escHtml(min)}</span>` +
       // 收掉的欄位一定要有可達路徑(設計 6b 明文):這顆只在特大出現,點開就是原本那三個欄位。
       `<button class="rmore" type="button" tabindex="-1" aria-label="${escHtml(t('顯示車種與方向'))}">›</button></div>`;
-  }).join('');
+  };
+  // 依方向分組。空組不畫;組內維持時間序,各取 perGroup 班。
+  const byKey = new Map();
+  for (const r of rows) {
+    if (r.g.kind === 'arrive' && r.dtm > BOARD_ARRIVE_MAX_SEC) continue; // 濾在建組之前:全部超時就連組標題都不畫
+    if (!byKey.has(r.g.key)) byKey.set(r.g.key, Object.assign({}, r.g, { rows: [] }));
+    byKey.get(r.g.key).rows.push(r);
+  }
+  const groups = [...byKey.values()].sort((a, b) => a.order - b.order || a.key.localeCompare(b.key));
+  const list = groups.map(g =>
+    `<div class="bgrp${g.kind === 'trunk' ? (g.nb ? ' dir-n' : ' dir-s') : ''}">${escHtml(boardGroupLabel(g, groups, st.sys))}</div>` +
+    g.rows.slice(0, perGroup).map(rowHtml).join('')).join('');
   const fav = isFavStation(st);
   // 共構站(台北/板橋/南港…)台鐵/高鐵各自成板,標題標系統才分得清這張是誰的
   const sysName = (state.systems.find(x => x.id === st.sys) || {}).label || '';
