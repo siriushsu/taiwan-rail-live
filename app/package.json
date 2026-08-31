@@ -7,6 +7,7 @@
     "build": "node scripts/prepare-web.mjs",
     "verify": "node scripts/verify-release.mjs",
     "verify:android-plus-ui": "node scripts/verify-android-plus-ui.mjs",
+    "verify:android-direction": "node scripts/verify_android_widget_direction.mjs",
     "build:verify": "npm run build && npm run verify",
     "sync": "npm run build && cap sync",
     "build:release": "RAIL_INCLUDE_LICENSED_MUSIC=1 RAIL_INCLUDE_LICENSED_BASEMAPS=1 npm run build",

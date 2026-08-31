@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 南下方向三角（尖端朝下）。畫法與 wg_heading_north 對稱、顏色取官方的「綠色代表南下」
-     （wg_ok #1B8F4D／深色 #3DBF77，＝網站 --dir-south）。其餘說明見 wg_heading_north。 -->
+     （wg_ok #1B8F4D／深色 #3DBF77，＝網站 dir-south）。其餘說明見 wg_heading_north。 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="10dp" android:height="8dp" android:viewportWidth="10" android:viewportHeight="8">
     <path android:fillColor="@color/wg_ok" android:pathData="M5,8 L10,0 L0,0 Z" />
