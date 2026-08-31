@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 南下方向三角（尖端朝下）。畫法與 wg_heading_north 對稱，見該檔說明。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="9dp" android:height="7dp" android:viewportWidth="9" android:viewportHeight="7">
+    <path android:fillColor="@color/wg_ink_faint" android:pathData="M4.5,7 L9,0 L0,0 Z" />
+</vector>

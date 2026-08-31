@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 北上方向三角（尖端朝上）。與 iOS RailHeadingMark 同一個畫法：正三角，高＝邊長×√3/2
+     （9 底 7 高，比值一致）。顏色用 wg_ink_faint 對應 iOS 的 .tertiary，深色模式自動換色。
+     🔴 各列獨立、不連成線——不准加貫穿列的線、不准把相鄰兩顆三角對齊成軌跡（iOS 側裁示，
+        原因是它取代的軌脊圓點正是因為「連成一條線」才被讀成連續車站）。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="9dp" android:height="7dp" android:viewportWidth="9" android:viewportHeight="7">
+    <path android:fillColor="@color/wg_ink_faint" android:pathData="M4.5,0 L9,7 L0,7 Z" />
+</vector>

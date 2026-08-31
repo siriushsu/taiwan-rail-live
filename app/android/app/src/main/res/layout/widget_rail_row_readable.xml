@@ -16,6 +16,17 @@
         android:scaleType="fitXY"
         android:src="@drawable/wg_meter_block" />
 
+    <!-- 方向三角：北上尖端朝上、南下朝下。與 iOS RailHeadingMark 同尺寸比例（底:高＝9:7）。
+         沒有方向時由 binder 設成 GONE,整列不留空位。 -->
+    <ImageView
+        android:id="@+id/wrr_heading"
+        android:layout_width="11dp"
+        android:layout_height="9dp"
+        android:layout_marginStart="7dp"
+        android:contentDescription="@null"
+        android:scaleType="fitCenter"
+        android:src="@drawable/wg_heading_north" />
+
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
