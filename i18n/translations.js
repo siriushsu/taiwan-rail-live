@@ -158,7 +158,6 @@
       '每班車的誤點履歷與統計圖表': 'Delay history and charts for each train', '收藏跨裝置雲端同步': 'Cloud sync for favorites',
       '衛星底圖': 'Satellite basemap', 'App 進階定位與 Live Activity': 'Advanced app location and Live Activity',
       '創始會員徽章': 'Founding member badge',
-      '列車位置、誤點資訊與系統覆蓋永遠免費——Plus 不影響準確度。': 'Train positions, delay information and system coverage will always stay free—Plus never changes accuracy.',
       '管理訂閱': 'Manage subscription', '恢復購買': 'Restore purchases',
       '正在讀取方案與訂閱資格…': 'Loading plans and subscription status…',
       '目前請在軌島 App 內訂閱；訂閱後同一個軌島帳號在網站也會自動生效。': 'Please subscribe in the Rail Island app. Plus will then activate automatically on the web for the same account.',
@@ -453,7 +452,6 @@
       
       '每班車的誤點履歷與統計圖表': '列車ごとの遅延履歴・統計グラフ', '收藏跨裝置雲端同步': 'お気に入りの端末間同期', '衛星底圖': '衛星地図',
       'App 進階定位與 Live Activity': 'アプリの高度な位置情報とLive Activity', '創始會員徽章': '創設メンバーバッジ',
-      '列車位置、誤點資訊與系統覆蓋永遠免費——Plus 不影響準確度。': '列車位置、遅延情報、対応路線は今後も無料です。Plusの有無で精度は変わりません。',
       '管理訂閱': 'サブスクリプションを管理', '恢復購買': '購入を復元', '正在讀取方案與訂閱資格…': 'プランと購入状況を確認中…',
       '目前請在軌島 App 內訂閱；訂閱後同一個軌島帳號在網站也會自動生效。': '現在は軌島アプリ内でご購入ください。同じアカウントでWeb版にも自動反映されます。',
       '最划算': 'おすすめ', '年訂閱': '年間プラン', '月訂閱': '月間プラン', '已訂閱？恢復購買': '購入済みですか？復元する', '目前無法取得訂閱方案，請稍後再試。': '現在プランを取得できません。しばらくしてからお試しください。',

@@ -269,24 +269,6 @@
           "term": "Plus",
           "match": "Please subscribe in the Rail Island app. Plus will then activate automatically on the web for the same account.",
           "why": "活鍵：2026-08-31 實測 index.html 有實際 t() 呼叫在用，不是遺留死文字。改名需同步改 index.html 呼叫點與三本字典的鍵，屬協調性變更，不在這個 task 範圍內，2026-08-31 留待之後處理。（中文原文與日文譯文都不含 Plus，只有英文譯文還留著，翻譯本身也是協調性變更的一部分。）"
-        },
-        {
-          "surface": "i18n-dict",
-          "term": "Plus",
-          "match": "列車位置、誤點資訊與系統覆蓋永遠免費——Plus 不影響準確度。",
-          "why": "2026-08-31 實測這把舊鍵在 index.html 已 0 處呼叫（已被同義的新鍵「列車位置、誤點資訊與系統覆蓋現在免費提供——通行證不影響準確度。」取代），本應可刪；但 scripts/check_i18n.mjs 的 coreStaticKeys 陣列仍列了這把舊鍵、要求它存在於字典中（該表本身疑似未同步 08-05 更名，是本 task 範圍外的既有問題）。若在這裡刪除，check_i18n.mjs 會回報「缺少核心靜態字串」而轉紅。本 task 範圍只含 docs/voice-rules.json 與 scripts/check_voice.mjs（及裁示 4 授權的死鍵刪除），不含修改 check_i18n.mjs，故保留舊鍵並在此 allowlist，留待之後一併清理 check_i18n.mjs 與這把鍵。"
-        },
-        {
-          "surface": "i18n-dict",
-          "term": "Plus",
-          "match": "Train positions, delay information and system coverage will always stay free—Plus never changes accuracy.",
-          "why": "2026-08-31 實測這把舊鍵在 index.html 已 0 處呼叫（已被同義的新鍵「列車位置、誤點資訊與系統覆蓋現在免費提供——通行證不影響準確度。」取代），本應可刪；但 scripts/check_i18n.mjs 的 coreStaticKeys 陣列仍列了這把舊鍵、要求它存在於字典中（該表本身疑似未同步 08-05 更名，是本 task 範圍外的既有問題）。若在這裡刪除，check_i18n.mjs 會回報「缺少核心靜態字串」而轉紅。本 task 範圍只含 docs/voice-rules.json 與 scripts/check_voice.mjs（及裁示 4 授權的死鍵刪除），不含修改 check_i18n.mjs，故保留舊鍵並在此 allowlist，留待之後一併清理 check_i18n.mjs 與這把鍵。"
-        },
-        {
-          "surface": "i18n-dict",
-          "term": "Plus",
-          "match": "列車位置、遅延情報、対応路線は今後も無料です。Plusの有無で精度は変わりません。",
-          "why": "2026-08-31 實測這把舊鍵在 index.html 已 0 處呼叫（已被同義的新鍵「列車位置、誤點資訊與系統覆蓋現在免費提供——通行證不影響準確度。」取代），本應可刪；但 scripts/check_i18n.mjs 的 coreStaticKeys 陣列仍列了這把舊鍵、要求它存在於字典中（該表本身疑似未同步 08-05 更名，是本 task 範圍外的既有問題）。若在這裡刪除，check_i18n.mjs 會回報「缺少核心靜態字串」而轉紅。本 task 範圍只含 docs/voice-rules.json 與 scripts/check_voice.mjs（及裁示 4 授權的死鍵刪除），不含修改 check_i18n.mjs，故保留舊鍵並在此 allowlist，留待之後一併清理 check_i18n.mjs 與這把鍵。"
         }
       ]
     }
