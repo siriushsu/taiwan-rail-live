@@ -1452,6 +1452,10 @@
   /* 放空模式:閒置 5 秒淡出控制,滑鼠動了淡回(時鐘與跟隨面板留著) */
   .controls, .leaflet-control-container, #randBtn, #nearBtn, #fsFab, .tabbar { transition: opacity .7s; }
   body.idle .controls, body.idle .leaflet-control-container, body.idle #randBtn, body.idle #nearBtn, body.idle #fsFab, body.idle .tabbar { opacity: 0; pointer-events: none; }
+  /* 唯一的出口不跟著淡光:放空時控制列只剩「離開放空」＋「視角」兩顆,idle 只降到看得見、且保持可按。
+     原本跟其他家具一起 opacity:0 + pointer-events:none ⇒ 第一下觸控只是喚回控制列、按不到鈕,要按兩下
+     (使用者回報「安卓有時候進放空後連退出的按鈕都會不見按不到」,2026-08-31)。 */
+  body.idle.ambient .controls { opacity: .5; pointer-events: auto; }
   body.idle .stage, body.idle * { cursor: none; }
   #overlay { position: absolute; inset: 0; pointer-events: none; z-index: 500; }
   /* 放空模式的日夜天色(依模擬時刻連續變化,墊在轉場遮罩下) */
@@ -1470,6 +1474,9 @@
   body.fs #immBtn { display: flex; }
   #ambientStyleBtn { display: none; }
   body.ambient #ambientStyleBtn { display: inline-flex; }
+  /* 放空=相機交給程式(見 setMapGestures):桌面的 Leaflet +/- 鈕一併收,免得留一條繞過手勢鎖的路。
+     手機在 max-width:900 那條規則裡本來就是 display:none。 */
+  body.ambient .leaflet-control-zoom { display: none; }
 
   /* ── 直播模式(?live=1,OBS 訊號源):隱藏一切互動 UI,留時鐘徽章/attribution/浮水印 ── */
   body.live .controls, body.live #randBtn, body.live #nearBtn,
@@ -3021,7 +3028,18 @@
     /* 放空模式(手機):看戲不操作——控制列只留「離開放空」一顆,tab bar 也收 */
     body.ambient .controls > :not(#ambientBtn):not(#ambientStyleBtn) { display: none; }
     body.ambient .tabbar, body.ambient .more-sheet, body.ambient .more-scrim { display: none; }
-    body.ambient .controls { left: auto; right: 8px; bottom: 8px; width: max-content; transform: none; overflow: visible; }
+    /* bottom 要讓開系統手勢區:原本寫死 8px,鈕(min-height 32)整個落在 iPhone home indicator／Android
+       手勢列裡,觸控被系統吃掉=看得到按不到(2026-08-31 使用者回報安卓)。 */
+    body.ambient .controls { left: auto; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); width: max-content; transform: none; overflow: visible; }
+    /* 放空的兩顆鈕補到 ≥44 觸控熱區(寫法比照 #pp:position 用 relative 不用 static,否則 ::after 的錨點
+       會跑到 .controls 上、兩顆熱區互相蓋掉——2026-07-26 在 .map-actions 踩過;z-index:-1 讓熱區只在
+       真正的空白處生效,不搶鄰居)。本身寬度已 >44,max(100%,44px) 只會往垂直方向長,兩顆不會相交。 */
+    body.ambient .controls #ambientBtn, body.ambient .controls #ambientStyleBtn { position: relative; }
+    body.ambient .controls #ambientBtn::after, body.ambient .controls #ambientStyleBtn::after {
+      content: ''; position: absolute; left: 50%; top: 50%;
+      width: max(100%, 44px); height: max(100%, 44px); transform: translate(-50%, -50%);
+      z-index: -1;
+    }
     body.ambient .follow-panel, body.ambient .freq-card { width: 176px; padding: 7px 10px 8px; bottom: 8px; }
     body.ambient .follow-panel .fp-prog,
     body.ambient .follow-panel .fp-dest,
@@ -12550,6 +12568,8 @@ function tickCore(now) {
   if (state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain && !state.freqFollow &&
       state.mode === 'sched' && state.playing) { hotspotTick(now); hotCruise(dt, now); }
   else if (map && state._breathStage) breathStageRestore(); // 離開群車放空時,呼吸幕殘留的 CSS scale/舞台旗標兜底還原(安全網:漏掉任一離場點也不會把縮放或旗標交到使用者手上)
+  // 同一種安全網,給手勢鎖:放空已關但手勢還鎖著(漏掉離場點/setAmbient 中途拋例外)⇒ 地圖會變成永久動不了,立刻交還
+  if (!state.ambient && map && map.dragging && !map.dragging.enabled()) setMapGestures(true);
   // 省電模式:把「相機每幀 setView 置中(觸發 reflow,手機跟隨時的主要卡點)＋繪製」統一節流到 ~30fps。
   // 放空/錄影不套(放空游標以 dt 積分,節流會變慢;錄影要滿幀);時間積分與各資訊卡時鐘照每幀跑,不受影響。
   const psActive = state.powerSave && !REC.on && !state.ambient;
@@ -14119,6 +14139,22 @@ function ambientIdleReset() {
 ['mousemove', 'pointerdown', 'keydown', 'touchstart'].forEach(ev =>
   document.addEventListener(ev, () => { if (state.ambient) ambientIdleReset(); }, { passive: true }));
 
+// ── 放空模式的相機主權(2026-08-31 使用者裁示:「放空模式就直接不要讓使用者隨意控制,除非離開放空」) ──
+// 進放空即停用地圖的平移/縮放手勢,兩個視角(跟車/群車)一致;離開時原樣還原。
+// 點擊【不】在此列——點列車接手跟隨、點站看板照舊(map 的 'click' 不經這些 handler),那是明示動作不是隨意控制。
+// 為什麼是「鎖」不是「拖了就讓位」:跟車視角根本沒有讓位機制,拖曳只會跟每幀 recenterTo 對打;捏出去的
+// zoom 也沒人還原(要等下一次換一班的 ambientJumpTo 才回 AMBIENT_Z,那是 60–120 秒後),而「回到列車」鈕
+// 在放空是藏的(見 updateFollowLockUI)⇒ 歪掉之後沒有任何回得來的路。群車視角雖有 _hotYield 讓位,
+// 但兩個視角行為不一致本身就是坑,一併鎖。
+const MAP_GESTURES = ['dragging', 'touchZoom', 'doubleClickZoom', 'scrollWheelZoom', 'boxZoom', 'keyboard'];
+function setMapGestures(on) {
+  if (!map) return;
+  for (const k of MAP_GESTURES) {
+    const h = map[k];
+    if (h && typeof h.enable === 'function') on ? h.enable() : h.disable();
+  }
+}
+
 function setAmbient(on) {
   if (on === !!state.ambient) return;
   state.ambient = on;
@@ -14131,6 +14167,7 @@ function setAmbient(on) {
       loadSystem(s);
     }
     b.textContent = t('離開放空');
+    setMapGestures(false); // 相機交給程式(放在 sched 早退之後:那條路徑沒真的進放空,不該把手勢鎖走)
     // 深夜(00–05)車太少 → 直接重播傍晚尖峰
     if (state.simSec < 5 * 3600) { state.nightReplay = true; setSimSec(18 * 3600); refreshBadge(); }
     if (!document.body.classList.contains('fs')) (state._setFs || (() => {}))(true);
@@ -14151,6 +14188,7 @@ function setAmbient(on) {
     ambientIdleReset();
     if (state.music && state.music.enabled && state.music.audio.paused) musicPlay(); // 已在放就別重來
   } else {
+    setMapGestures(true); // 交還地圖:排在離場的最前面,後面任何一行拋例外都不會把使用者留在「地圖動不了」
     b.textContent = t('放空模式');
     releaseWakeLock();
     // 音樂跟著開關走,離開放空不強制停(要停就按音樂鈕)
@@ -14266,9 +14304,12 @@ function makeNativeMusicShim(na) {
     play() {
       const p = shim._pend >= 0 ? na.play({ index: shim._pend }) : na.resume();
       shim._pend = -1;
+      // 樂觀先寫,對齊 <audio>.play() 同步就把 paused 設 false 的語意。原生的 state 事件要跨 bridge 才回來,
+      // 那段空窗裡任何讀 paused 的 UI(抽屜那列開關、鈕面)都會畫成「沒在播」;真的播失敗時 state 事件會改回來。
+      shim._paused = false;
       return p;
     },
-    pause() { na.pause().catch(() => {}); },
+    pause() { shim._paused = true; na.pause().catch(() => {}); }, // 同理:淡出 800ms 後才 pause,不先寫開關會停在「開」
   };
   na.addListener('track', e => {
     const m = state.music;
@@ -14330,9 +14371,14 @@ function initMusic() {
     musicNext();
   };
   // 鈕面跟著「實際播放狀態」走(而非 enabled 偏好):自動播放被擋、淡出結束、整份清單載入失敗都要即時反映
-  audio.addEventListener('playing', updateMusicBtn);
-  audio.addEventListener('pause', updateMusicBtn);
-  audio.addEventListener('error', updateMusicBtn);
+  // 鈕面與抽屜那一列的開關讀的是同一個「實際在播嗎」(MS_STATE.musicBtn),但抽屜只有 syncMoreSheet 會重畫,
+  // 而它是在 btn.click() 之後同步跑一次就結束。播放狀態卻是非同步落定的(自動播放被擋、淡出 800ms 後才
+  // pause、App 走原生 bridge 要等事件),於是那一列會停在上一個狀態,直到使用者去點別的列(例如正上方的
+  // 省電模式)才被順手重畫——使用者回報的「音樂開著開關顯示關、而且跟省電模式聯動」就是這個。
+  const syncMusicUI = () => { updateMusicBtn(); if (state._syncMoreSheet) state._syncMoreSheet(); };
+  audio.addEventListener('playing', syncMusicUI);
+  audio.addEventListener('pause', syncMusicUI);
+  audio.addEventListener('error', syncMusicUI);
   updateMusicBtn();
 }
 function updateMusicBtn() {
