@@ -812,6 +812,9 @@ struct PreparedBoard {
     let templates: [JourneyTemplate]
     let journeys: [ScheduledJourney]
     let meta: MetaDocument
+    /// 看板空的、但本站今天其實有「通過本站」的列車被預設收起來了。
+    /// 用來把「今天沒有列車經過」換成誠實的說法（招呼站幾乎每天都是這種情形）。
+    let passHidden: Bool
 
     var title: String {
         if let destinationName {
@@ -870,12 +873,16 @@ enum BoardFilter: Hashable {
     case trainNumber(String)
     /// 方向綁在線上：同一個地點可能同時有台鐵與高鐵，兩條線的「順里程」是不同的方向。
     case direction(line: String, forward: Bool)
+    /// 預設只顯示停靠與終到;勾這個才把「通過本站」的列車一起列出來。
+    /// 與 Android 共用同一個鍵字面(rel|pass),兩邊的設定語彙保持一致。
+    case includePass
 
     var key: String {
         switch self {
         case .trainType(let value): return "ty|\(value)"
         case .trainNumber(let value): return "no|\(value)"
         case .direction(let line, let forward): return "dir|\(line)|\(forward ? 1 : 0)"
+        case .includePass: return "rel|pass"
         }
     }
 
@@ -884,6 +891,9 @@ enum BoardFilter: Hashable {
         let value = String(key[key.index(after: separator)...])
         guard !value.isEmpty else { return nil }
         switch key[key.startIndex ..< separator] {
+        case "rel":
+            guard value == "pass" else { return nil }
+            self = .includePass
         case "ty": self = .trainType(value)
         case "no": self = .trainNumber(value)
         case "dir":
@@ -914,6 +924,8 @@ struct BoardFilterSet {
     private let numbers: Set<String>
     /// 鍵是線 id，值是被勾選的方向（可能兩個都勾＝等於沒篩）。
     private let directionsByLine: [String: Set<Bool>]
+    /// 通過列車不是「篩掉什麼」而是「多顯示什麼」,所以不算進 isEmpty。
+    let includePass: Bool
 
     var isEmpty: Bool {
         types.isEmpty && numbers.isEmpty && directionsByLine.isEmpty
@@ -930,6 +942,7 @@ struct BoardFilterSet {
             }
         }
         directionsByLine = directions
+        includePass = parsed.contains { if case .includePass = $0 { return true } else { return false } }
     }
 
     private var hasTrainFilter: Bool { !types.isEmpty || !numbers.isEmpty }
@@ -990,7 +1003,10 @@ struct RailBoardEngine {
     ) throws -> (types: [FilterOption], trains: [FilterOption]) {
         let stations = try store.stations().stations
         let board = try store.board(stationID: originID)
-        let templates = matchingTemplates(board: board, destinationID: destinationID)
+        // 這裡固定不含通過列：AppIntents 的 provider 讀不到「含通過列車」現在有沒有被勾
+        // （只有 origin 能宣告成 parameter dependency），與其猜，不如一律對齊預設看板——
+        // 寧可少列一個可篩的車種，也不要出現「車種 · 自強(60 班)」卻一班都不顯示。
+        let templates = matchingTemplates(board: board, destinationID: destinationID, includePass: false)
 
         var countByType: [String: Int] = [:]
         for template in templates {
@@ -1034,6 +1050,13 @@ struct RailBoardEngine {
         }
 
         return (types, trains)
+    }
+
+    /// 這一站有沒有「通過本站不停靠」的車。有才在設定裡列出開關——
+    /// 臺北這種每班都停的大站列了也是永遠沒作用的選項。
+    func hasPassTrains(originID: Int) -> Bool {
+        guard let board = try? store.board(stationID: originID) else { return false }
+        return !board.pass.isEmpty
     }
 
     /// 每條線每個方向一個選項。標題用「往 X 方向」，X 取這條線這個方向裡最常見的終點站——
@@ -1236,8 +1259,12 @@ struct RailBoardEngine {
             destinationName = nil
         }
 
-        let templates = matchingTemplates(board: board, destinationID: destinationID)
-            .filter { filters.matches($0) }
+        let templates = matchingTemplates(
+            board: board,
+            destinationID: destinationID,
+            includePass: filters.includePass
+        )
+        .filter { filters.matches($0) }
         let today = RailBoardClock.startOfDay(for: now)
         var allJourneys: [ScheduledJourney] = []
 
@@ -1271,6 +1298,22 @@ struct RailBoardEngine {
             visibleJourneys = [firstFuture]
         }
 
+        // 空看板才多算這一次：把通過列放回去看看有沒有東西，有就代表本站今天只有通過車。
+        var passHidden = false
+        if visibleJourneys.isEmpty, !filters.includePass, destinationID == nil, !board.pass.isEmpty {
+            let withPass = matchingTemplates(board: board, destinationID: nil, includePass: true)
+                .filter { filters.matches($0) }
+            passHidden = (-1 ... 2).contains { dayOffset in
+                let serviceDay = RailBoardClock.dateByAdding(days: dayOffset, to: today)
+                return journeys(
+                    templates: withPass,
+                    system: system,
+                    stations: stations,
+                    actualServiceDay: serviceDay
+                ).contains { $0.scheduledDate > now }
+            }
+        }
+
         return PreparedBoard(
             originName: stations[originID].n,
             destinationName: destinationName,
@@ -1281,11 +1324,19 @@ struct RailBoardEngine {
             stations: stations,
             templates: templates,
             journeys: visibleJourneys,
-            meta: meta
+            meta: meta,
+            passHidden: passHidden
         )
     }
 
-    func matchingTemplates(board: BoardDocument, destinationID: Int?) -> [JourneyTemplate] {
+    /// `includePass` 預設關：招呼站與小站有一半以上的列是「通過本站」，
+    /// 而小工具只有 3-5 列、主要用途是「我等的車幾點」。想看的人在設定勾「含通過列車」。
+    /// 閘門開在 templates 產生點，看板、篩選清單、班數就自動一致，不必逐處補。
+    func matchingTemplates(
+        board: BoardDocument,
+        destinationID: Int?,
+        includePass: Bool
+    ) -> [JourneyTemplate] {
         if let destinationID {
             return board.deps.compactMap { departure in
                 guard let destination = departure.to.first(where: {
@@ -1330,19 +1381,21 @@ struct RailBoardEngine {
                 )
             }
         )
-        watching.append(
-            contentsOf: board.pass.map { passing in
-                JourneyTemplate(
-                    trainNumber: passing.no,
-                    trainType: passing.ty,
-                    scheduledSecond: passing.at,
-                    daysMask: passing.days,
-                    arrivalSecond: nil,
-                    destinationID: passing.en,
-                    relation: .pass
-                )
-            }
-        )
+        if includePass {
+            watching.append(
+                    contentsOf: board.pass.map { passing in
+                    JourneyTemplate(
+                        trainNumber: passing.no,
+                        trainType: passing.ty,
+                        scheduledSecond: passing.at,
+                        daysMask: passing.days,
+                        arrivalSecond: nil,
+                        destinationID: passing.en,
+                        relation: .pass
+                    )
+                }
+            )
+        }
         return watching.sorted {
             if $0.scheduledSecond == $1.scheduledSecond {
                 return $0.trainNumber.localizedStandardCompare($1.trainNumber) == .orderedAscending

@@ -43,8 +43,8 @@ const native = {
   '自動（最近的站）': ['Automatic (nearest station)', '自動（最寄り駅）'],
   '留空＝兩個方向都看': ['Leave blank to show both directions', '空欄の場合は両方向を表示'],
   '發車看板': ['Departure board', '発車案内'],
-  '查看台鐵或高鐵接下來的直達、停靠、終到與通過列車。': ['See upcoming direct, stopping, terminating and passing TRA or HSR trains.', '台湾鉄路・高鉄の直通、停車、終着、通過列車を表示します。'],
-  '起訖站清單依縣市由北到南分段，最上面可以直接選你在軌島存過的地點。目的站可留空，以查看所有停靠、終到與通過列車；起站選共站或我的地點時，請用「只看這些」依方向、車種或車次篩選。': ['Origins and destinations are grouped north to south, with your saved places first. Leave the destination blank to show all stopping, terminating and passing trains. For a shared station or saved place, use Filters to narrow by direction, train type or number.', '出発駅と目的地は北から南へ地域別に表示され、保存した場所が先頭に並びます。目的地を空欄にすると停車・終着・通過列車をすべて表示します。共用駅や保存場所では「表示条件」で方向・列車種別・列車番号を絞り込めます。'],
+  '查看台鐵或高鐵接下來的直達、停靠與終到列車；想看通過本站不停靠的車，在「只看這些」打開「含通過列車」。': ['See upcoming direct, stopping and terminating TRA or HSR trains. To also show trains that pass without stopping, turn on "Include passing trains" under Filters.', '台湾鉄路・高鉄の直通・停車・終着列車を表示します。通過（停車しない）列車も表示するには「表示条件」で「通過列車も表示」をオンにしてください。'],
+  '起訖站清單依縣市由北到南分段，最上面可以直接選你在軌島存過的地點。目的站可留空，以查看接下來的停靠與終到列車；想一併看通過本站不停靠的車，或起站選共站或我的地點時，請用「只看這些」篩選。': ['Origins and destinations are grouped north to south, with your saved places first. Leave the destination blank to show upcoming stopping and terminating trains. Use Filters to also show trains that pass without stopping, or to narrow a shared station or saved place by direction, train type or number.', '出発駅と目的地は北から南へ地域別に表示され、保存した場所が先頭に並びます。目的地を空欄にすると、これからの停車・終着列車を表示します。通過（停車しない）列車も表示する場合や、共用駅・保存場所を方向・列車種別・列車番号で絞り込む場合は「表示条件」を使ってください。'],
   '起站': ['Origin', '出発駅'], '目的站（可留空）': ['Destination (optional)', '目的地（任意）'],
   '只看這些（可留空）': ['Filters (optional)', '表示条件（任意）'],
   '共站看板不看目的站，這格可留空': ['Shared-station boards do not use a destination; leave this blank', '共用駅案内では目的地を使わないため空欄にできます'],
@@ -112,6 +112,11 @@ const native = {
   '1.5 公里內 {n} 條路線': ['{n} routes within 1.5 km', '1.5km以内に{n}路線'],
   '班表只到 {date} · 請更新軌島': ['Timetable ends {date} · update Rail Island', '時刻表は{date}までです・軌島を更新してください'],
   '依 {date}（同週{weekday}）班表 · 請更新軌島': ['Using the {date} timetable (same weekday) · update Rail Island', '{date}（同じ曜日）の時刻表を使用・軌島を更新してください'],
+  '含通過列車': ['Include passing trains', '通過列車も表示'],
+  '預設只顯示停靠與終到': ['Stopping and terminating only by default', '既定では停車・終着のみ'],
+  '本站今日沒有停靠的列車': ['No trains stop here today', '本日この駅に停車する列車はありません'],
+  '通過本站的列車': ['Trains passing this station', 'この駅を通過する列車'],
+  '留空就是這一站的停靠與終到列車': ['Leave blank for stopping and terminating trains', '空欄の場合は停車・終着列車を表示'],
   '開啟設定': ['Open Settings', '設定を開く']
 };
 Object.assign(native, {

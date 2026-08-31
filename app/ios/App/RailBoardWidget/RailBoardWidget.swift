@@ -542,7 +542,9 @@ struct Provider: AppIntentTimelineProvider {
         let emptyMessage: String?
         if rows.isEmpty {
             emptyMessage = prepared.isWatching
-                ? "今天沒有列車經過"
+                // 招呼站常常整天只有通過車。說「沒有列車經過」是錯的——月台上明明車來車往，
+                // 只是都不停。字串刻意短：小尺寸是 headline 字級，長句會被縮到看不清。
+                ? (prepared.passHidden ? "本站今日沒有停靠的列車" : "今天沒有列車經過")
                 : "查無直達班次"
         } else {
             emptyMessage = nil
@@ -1467,7 +1469,7 @@ struct RailBoardWidget: Widget {
             RailBoardWidgetEntryView(entry: entry)
         }
         .configurationDisplayName("發車看板")
-        .description("查看台鐵或高鐵接下來的直達、停靠、終到與通過列車。")
+        .description("查看台鐵或高鐵接下來的直達、停靠與終到列車；想看通過本站不停靠的車，在「只看這些」打開「含通過列車」。")
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular])
         .contentMarginsDisabled()
     }

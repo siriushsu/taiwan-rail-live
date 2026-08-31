@@ -8195,6 +8195,23 @@
         }
       }
     },
+    "本站今日沒有停靠的列車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No trains stop here today"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本日この駅に停車する列車はありません"
+          }
+        }
+      }
+    },
     "本站為個人愛好者專案，與台灣鐵路公司及各捷運公司皆無關。": {
       "extractionState": "manual",
       "localizations": {
@@ -11846,6 +11863,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "まもなく到着"
+          }
+        }
+      }
+    },
+    "含通過列車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Include passing trains"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通過列車も表示"
           }
         }
       }
@@ -16491,19 +16525,19 @@
         }
       }
     },
-    "查看台鐵或高鐵接下來的直達、停靠、終到與通過列車。": {
+    "查看台鐵或高鐵接下來的直達、停靠與終到列車；想看通過本站不停靠的車，在「只看這些」打開「含通過列車」。": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "See upcoming direct, stopping, terminating and passing TRA or HSR trains."
+            "value": "See upcoming direct, stopping and terminating TRA or HSR trains. To also show trains that pass without stopping, turn on \"Include passing trains\" under Filters."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "台湾鉄路・高鉄の直通、停車、終着、通過列車を表示します。"
+            "value": "台湾鉄路・高鉄の直通・停車・終着列車を表示します。通過（停車しない）列車も表示するには「表示条件」で「通過列車も表示」をオンにしてください。"
           }
         }
       }
@@ -19211,6 +19245,23 @@
         }
       }
     },
+    "留空就是這一站的停靠與終到列車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leave blank for stopping and terminating trains"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "空欄の場合は停車・終着列車を表示"
+          }
+        }
+      }
+    },
     "真的在車上時按一下，沿路每過一站就自動幫你蓋一枚章。": {
       "extractionState": "manual",
       "localizations": {
@@ -19500,19 +19551,19 @@
         }
       }
     },
-    "起訖站清單依縣市由北到南分段，最上面可以直接選你在軌島存過的地點。目的站可留空，以查看所有停靠、終到與通過列車；起站選共站或我的地點時，請用「只看這些」依方向、車種或車次篩選。": {
+    "起訖站清單依縣市由北到南分段，最上面可以直接選你在軌島存過的地點。目的站可留空，以查看接下來的停靠與終到列車；想一併看通過本站不停靠的車，或起站選共站或我的地點時，請用「只看這些」篩選。": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Origins and destinations are grouped north to south, with your saved places first. Leave the destination blank to show all stopping, terminating and passing trains. For a shared station or saved place, use Filters to narrow by direction, train type or number."
+            "value": "Origins and destinations are grouped north to south, with your saved places first. Leave the destination blank to show upcoming stopping and terminating trains. Use Filters to also show trains that pass without stopping, or to narrow a shared station or saved place by direction, train type or number."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "出発駅と目的地は北から南へ地域別に表示され、保存した場所が先頭に並びます。目的地を空欄にすると停車・終着・通過列車をすべて表示します。共用駅や保存場所では「表示条件」で方向・列車種別・列車番号を絞り込めます。"
+            "value": "出発駅と目的地は北から南へ地域別に表示され、保存した場所が先頭に並びます。目的地を空欄にすると、これからの停車・終着列車を表示します。通過（停車しない）列車も表示する場合や、共用駅・保存場所を方向・列車種別・列車番号で絞り込む場合は「表示条件」を使ってください。"
           }
         }
       }
@@ -22148,6 +22199,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "通過（停車しません）"
+          }
+        }
+      }
+    },
+    "通過本站的列車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trains passing this station"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この駅を通過する列車"
           }
         }
       }
@@ -26789,6 +26857,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "{time}到着予定・<b>あと{n}分</b>"
+          }
+        }
+      }
+    },
+    "預設只顯示停靠與終到": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stopping and terminating only by default"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "既定では停車・終着のみ"
           }
         }
       }
