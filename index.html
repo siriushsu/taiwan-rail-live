@@ -3982,6 +3982,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="tourpickcap"><span class="d">8/31</span><span>「隨機跟隨」按了老是跳到同幾班車：稀有度原本被算了兩次——車種等級已經加過權，接著車型稀有再乘四倍，而莒光號、太魯閣號、DR3100 柴聯是整個車型都標稀有，於是一班莒光等於四十班區間車、藍皮解憂號等於九十六班。在跑的車越少壓得越兇：實測晚上十一點只剩兩班莒光在跑時，554 次一班就吃掉 17% 的抽籤機會（當時有 102 班車在跑，平均應該是 1%），中午的藍皮解憂號是 16.8%。現在任何一班都不得超過當下總權重的 3%，上限跟著各時段在跑的車數自動縮放；另外會記住剛跟過的五班，連按「換一班」不會再在同幾班之間繞。稀有車與觀光列車仍然比一般車更常遇到，只是不再獨佔</span></li>
         <li data-cl="boardalign"><span class="d">8/31</span><span>車站看板的欄位對齊。使用者回報「擁擠度跟時間，會因為最後面倒數那邊時間會變成『即將進站』而擠壓到，變成歪掉」。兩個成因：一是倒數欄原本只設了最小寬度，「即將進站」比「3 分」寬，那幾列就把時刻欄往左推；二是時刻的等寬數字設定要字型真的支援才生效，Chrome 上「12:31」比「12:26」窄兩個多像素，擁擠度欄跟著逐列左右跳。現在倒數與時刻兩欄都改成「量出這張板最寬的一列、全板同寬」，英日文與放大字級都自動吃到，不必為每種組合寫死一個數字</span></li>
         <li data-cl="taipeiloop"><span class="d">8/31</span><span>台鐵臺北車站不再多出一顆站。環島之星繞完一圈回到台北，官方在班表裡用另一個站碼「臺北-環島」記那一次到達，兩點實測相距 74 公尺，於是地圖上是兩顆點、看板也是兩張。使用者裁示「台北車站的火車就都併在一起，不要多環島那一個」，現在併成一顆：判準寫成「名字是 X-… 、X 在同一份班表裡也是站名、兩者 200 公尺內」，不寫死站名，台鐵日後再開別名站也一樣併。手機桌面小工具的班表與車站清單用同一條判準重新產生</span></li>
         <li data-cl="traboarddir"><span class="d">8/31</span><span>火車站的到站看板改成分方向顯示：南下、北上各自成區，不再混成一長串照時間排。竹南、彰化這種山線海線分家的站，同一個方向會再拆成「南下 · 山線」「南下 · 海線」；二水、三貂嶺、新竹這種有支線的站，支線自成一區，並照官方月台的說法寫「往車埕」「往菁桐」「往內灣」，不套南下北上——支線的南北距離常常只有幾公里，講南下北上沒有意義。每一區各給三班（拉到大段六班），冷門方向不會再被熱門方向整個擠掉。方向顏色比照台鐵 2026 年 8 月發表的新版車站標示：北上藍、南下綠。終到本站的車另成一區，只列一小時內會到的。高鐵與阿里山林鐵的車站看板同步套用</span></li>
@@ -13641,22 +13642,37 @@ function trainIntro(tr) {
 // ── 隨機挑車:加權挑一班正在跑的車。放空/導播會定時回來換下一班(1–2 分鐘 / 5–10 分鐘),
 //    使用者手按「隨機跟隨」則只挑這一次,跟到終點為止(換車由使用者按「換一班」,見 tick 的 rotate 閘) ──
 const TOUR_W = { '其他': 24, '莒光/復興': 10, '自強': 5, '區間快': 2, '區間車': 1 };
+// 單班上限:任何一班的權重不得超過「裁切前總權重」的這個比例(裁切後總權重會變小,實際份額約 3.5%)。
+// 稀有度其實被算了兩次——TOUR_W 已按車種等級加權,下面 stock.rarity 又是整個車型類別
+// (莒光、太魯閣、DR3100 全類都標稀有)再 ×4,於是一班莒光=40 班區間車、藍皮解憂號=96 班。
+// 在跑的車越少壓得越兇:2026-08-31 對正式站實測,23:00 只剩兩班莒光時,554 一班就吃掉 17% 的抽籤機會
+// (在跑 102 班,均分應 0.98%);中午的藍皮解憂號 16.8%;19:30 前六名合計 30%。
+// 上限取「當下總權重的比例」而不是寫死的數字,才會跟著各時段的車數自動縮放。
+const TOUR_CAP = 0.03;
+const TOUR_RECENT = 5; // 剛挑過的幾班先不重挑(候選不夠才放寬),免得連按「換一班」在同幾班之間打轉
 function pickTourTrain() {
-  const cands = state.trains.filter(t =>
+  const running = state.trains.filter(t =>
     t !== state.followTrain && state.visible.has(t.typeName) && trainPos(t, state.simSec));
-  if (!cands.length) return null;
-  let total = 0;
+  if (!running.length) return null;
+  const recent = state._tourRecent || (state._tourRecent = []);
+  const fresh = running.filter(t => !recent.includes(t));
+  const cands = fresh.length ? fresh : running; // 深夜車少時可能整池都剛跟過,那就放寬回全池
+  let raw = 0;
   const ws = cands.map(t => {
     // 環島車 24 小時都在跑又掛「其他」高權重,固定成中等權重,免得隨機模式老是選到它
-    if (t.loop) { total += 3; return 3; }
+    if (t.loop) { raw += 3; return 3; }
     let w = TOUR_W[t.typeName] || 1;
     const sp = specialOf(t); // 具名觀光列車與稀有車種加權,放空/隨機模式更常遇到
     if (sp && (sp.named || (sp.stock && sp.stock.rarity === '稀有'))) w *= 4;
-    total += w; return w;
+    raw += w; return w;
   });
-  let r = Math.random() * total;
-  for (let i = 0; i < cands.length; i++) { r -= ws[i]; if (r <= 0) return cands[i]; }
-  return cands[cands.length - 1];
+  const cap = raw * TOUR_CAP;
+  let total = 0;
+  for (let i = 0; i < ws.length; i++) { if (ws[i] > cap) ws[i] = cap; total += ws[i]; }
+  let r = Math.random() * total, pick = cands[cands.length - 1];
+  for (let i = 0; i < cands.length; i++) { r -= ws[i]; if (r <= 0) { pick = cands[i]; break; } }
+  recent.push(pick); if (recent.length > TOUR_RECENT) recent.shift();
+  return pick;
 }
 // 導播偶爾跟捷運/輕軌幽靈車(比照台鐵/高鐵輪車,借 applyFreqFollow 不動 autoTour 狀態)
 const METRO_TOUR_CHANCE = 0.25; // 「偶爾」跟捷運,不要太常搶戲
