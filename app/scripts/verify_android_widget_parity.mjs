@@ -20,6 +20,8 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
   const railProvider = read('app/android/app/src/main/java/tw/railisland/app/RailBoardWidgetProvider.java');
   const railRender = read('app/android/app/src/main/java/tw/railisland/app/RailWidgetRender.java');
   const railReadable = read('app/android/app/src/main/res/layout/widget_rail_row_readable.xml');
+  const railRow = read('app/android/app/src/main/res/layout/widget_rail_row.xml');
+  const railKit = read('app/ios/App/RailBoardWidget/RailWidgetKit.swift');
   const follow = read('app/android/app/src/main/java/tw/railisland/app/RailFollowNotification.java');
   const audio = read('app/android/app/src/main/java/tw/railisland/app/RailAudioService.java');
   const rules = new Map([
@@ -84,6 +86,21 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
         && /android:layout_height="42dp"/.test(railReadable)
         && /android:textSize="16sp"/.test(railReadable)
         && /android:textSize="23sp"/.test(railReadable)],
+    // 方向三角：iOS 有 RailHeadingMark 就要求 Android 整條鏈都在。這裡刻意驗【鏈】而不是
+    // 單一字串——只驗 binder 會漏掉「layout 沒那顆 id」,只驗 layout 會漏掉「算出來沒人用」。
+    // 兩個列 layout 都要有：少了好讀版那個，大字版會整批沒方向而小字版正常（最難發現的形態）。
+    // 深入驗證（真的編、真的跑、與獨立重算逐車比對）在 verify_android_widget_direction.mjs，
+    // 那支需要 Android SDK 與 JDK，不放進這條每次出貨都跑的鏈。
+    ['Android 發車看板逐列標出北上／南下（對應 iOS RailHeadingMark）',
+      /struct RailHeadingMark/.test(railKit)
+        && /enum Heading \{ NORTH, SOUTH \}/.test(railData)
+        && /row\.heading = heading\(system, origin, headingTo\)/.test(railData)
+        && /out\.put\("heading", heading\.name\(\)\)/.test(railData)
+        && /R\.drawable\.wg_heading_north/.test(railRender)
+        && /R\.drawable\.wg_heading_south/.test(railRender)
+        && /setContentDescription\(R\.id\.wrr_heading/.test(railRender)
+        && /@\+id\/wrr_heading(?![A-Za-z0-9_])/.test(railRow)
+        && /@\+id\/wrr_heading(?![A-Za-z0-9_])/.test(railReadable)],
     ['Android 使用說明涵蓋擁擠度、我的地點、篩選、大字、背景更新與評分',
       /同一車號，不會借用同方向另一班車/.test(html)
         && /起站與目的站可以選你在軌島儲存的地點/.test(html)

@@ -197,6 +197,15 @@ final class RailWidgetData {
 
     enum Relation { DEPARTURE, ARRIVAL, PASS }
 
+    /**
+     * 這班車離開本站之後往北還是往南。與 iOS 的 RailHeading（RailWidgetKit.swift）同一套規則。
+     *
+     * 🔴 判準是【緯度誰高】而不是官方的方向欄位：台鐵官方值是「順行／逆行」，順行在南迴線
+     *    是由東往西、在北迴線是由北往南——換算成南北要靠人判斷，而這個專案的鐵則是官方值
+     *    照抄、不自己判斷。緯度不必換算：它【就是】南北。
+     */
+    enum Heading { NORTH, SOUTH }
+
     static final class Row {
         String sys;
         String no;
@@ -204,6 +213,7 @@ final class RailWidgetData {
         String color;
         String terminus;
         Relation relation;
+        Heading heading;
         long scheduledAt;
         Long destinationAt;
         Integer delayMinutes;
@@ -216,6 +226,7 @@ final class RailWidgetData {
             JSONObject out = new JSONObject()
                 .put("sys", sys).put("no", no).put("type", type).put("color", color)
                 .put("terminus", terminus).put("relation", relation.name()).put("scheduledAt", scheduledAt);
+            if (heading != null) out.put("heading", heading.name());
             if (destinationAt != null) out.put("destinationAt", destinationAt);
             if (delayMinutes != null) out.put("delayMinutes", delayMinutes);
             return out;
@@ -230,6 +241,13 @@ final class RailWidgetData {
             row.terminus = raw.optString("terminus", "");
             try { row.relation = Relation.valueOf(raw.optString("relation", Relation.DEPARTURE.name())); }
             catch (IllegalArgumentException ignored) { row.relation = Relation.DEPARTURE; }
+            // 舊版 App 寫的快取沒有 heading 欄 ⇒ 留 null ⇒ 那一輪不畫三角，升級過程中
+            // 不會有人看到猜的方向；下一次抓取就補回來。
+            String heading = raw.optString("heading", "");
+            if (!heading.isEmpty()) {
+                try { row.heading = Heading.valueOf(heading); }
+                catch (IllegalArgumentException ignored) { row.heading = null; }
+            }
             row.scheduledAt = raw.optLong("scheduledAt", 0);
             if (raw.has("destinationAt")) row.destinationAt = raw.optLong("destinationAt");
             if (raw.has("delayMinutes")) row.delayMinutes = raw.optInt("delayMinutes");
@@ -574,7 +592,7 @@ final class RailWidgetData {
             if (active.note != null) out.scheduleNote = active.note;
             for (Train train : system.trains) {
                 if (active.indices != null && !active.indices.contains(train.index)) continue;
-                Row row = rowAt(train, system.id, origin, out.destination, serviceDay);
+                Row row = rowAt(train, system, origin, out.destination, serviceDay);
                 if (row == null || row.scheduledAt <= now) continue;
                 // 招呼站與小站有一半以上的列是「通過本站」,預設把它們收起來:小工具只有 3-5 列,
                 // 主要用途是「我等的車幾點」。想看通過列車的人在「只看這些」勾 FILTER_PASS 就回來。
@@ -592,7 +610,7 @@ final class RailWidgetData {
         return out;
     }
 
-    private static Row rowAt(Train train, String sys, String origin, String destination, long serviceDay) {
+    private static Row rowAt(Train train, SystemInfo system, String origin, String destination, long serviceDay) {
         int at = indexOf(train.stops, origin);
         if (at < 0) return null;
         Long destinationAt = null;
@@ -608,17 +626,48 @@ final class RailWidgetData {
         }
         Stop originStop = train.stops.get(at);
         Row row = new Row();
-        row.sys = sys;
+        row.sys = system.id;
         row.no = train.no;
         row.type = train.type;
         row.color = train.color;
         row.terminus = train.stops.isEmpty() ? "" : train.stops.get(train.stops.size() - 1).name;
         row.relation = !originStop.stopping ? Relation.PASS
             : at == train.stops.size() - 1 ? Relation.ARRIVAL : Relation.DEPARTURE;
+        // 方向三角指的是「離開本站往哪走」,所以取【下一個停靠站】而不是終點站——山海線繞行車
+        // (如 2600 臺中→大甲:先北上到竹南再南下走海線)拿終點站算會指反。與 iOS 的 headingID
+        // 同一套規則(RailBoardData.swift 的 JourneyTemplate.headingID)：
+        //   發車→下一個停靠站、終到→沒有(車在這裡就結束,「往哪走」這件事不存在)、
+        //   通過→退用終點站(它在本站不停,沒有「下一個停靠站」這筆資料)。
+        String headingTo = null;
+        if (row.relation == Relation.DEPARTURE) {
+            for (int i = at + 1; i < train.stops.size(); i++) {
+                if (train.stops.get(i).stopping) { headingTo = train.stops.get(i).name; break; }
+            }
+        } else if (row.relation == Relation.PASS) {
+            headingTo = row.terminus;
+        }
+        row.heading = heading(system, origin, headingTo);
         int second = row.relation == Relation.DEPARTURE ? originStop.dep : originStop.arr;
         row.scheduledAt = serviceDay + second * 1000L;
         row.destinationAt = destinationAt;
         return row;
+    }
+
+    /**
+     * 🔴 判準只有「緯度誰高」,沒有門檻值。曾想過「緯差太小就不畫」,但那個門檻是手打的魔術
+     *    數字、每次改支線資料都得重調;而三角只宣稱「北邊／南邊」這件事本身——緯差 2 公里的
+     *    支線畫出來仍然是對的,只是資訊量小,不會是錯的。
+     *
+     * 缺座標、查無此站、或兩站同緯度時回 null ⇒ 不畫三角。「不畫」是刻意的:寧可少一個圖形,
+     * 不要畫一個猜的方向。（與 iOS RailHeading.between 逐條對應）
+     */
+    private static Heading heading(SystemInfo system, String from, String to) {
+        if (system == null || from == null || from.isEmpty() || to == null || to.isEmpty()) return null;
+        Station a = system.stationByName.get(from);
+        Station b = system.stationByName.get(to);
+        if (a == null || b == null) return null;
+        if (!Double.isFinite(a.lat) || !Double.isFinite(b.lat) || a.lat == b.lat) return null;
+        return b.lat > a.lat ? Heading.NORTH : Heading.SOUTH;
     }
 
     private static int indexOf(List<Stop> stops, String name) {
