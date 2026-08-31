@@ -2092,12 +2092,22 @@
   /* 衛星墊底層不淡入。Leaflet 的圖磚是 opacity 0→1 淡進來的,而這一層的用途正是「上面那層還沒
      到位時把破口補起來」——淡入等於破口期間它自己也是半透明的,使用者看到的就是那一下閃。 */
   .sat-underlay img.leaflet-tile { opacity: 1 !important; }
-  /* 倒數欄【逐板等寬】:--min-col 由 boardAlignMinColumn 在每次重繪後量最寬那一列寫進來。
+  /* 倒數欄【逐板等寬】:--min-col 由 boardAlignColumns 在每次重繪後量最寬那一列寫進來。
      為什麼不沿用舊官方板的寫死 4em——「即將進站」在英日是 Arriving／まもなく到着,長度差一倍;
      App 的字級三階又把整列等比放大。任何寫死的 em 都會在某個語系×字級組合下爆版或留白。
      量出來之前是 auto(自然寬,下限 44px),量完全板同寬 ⇒ 時刻與擁擠度欄逐列對齊。 */
   .board .row .min { color: var(--navy); font-weight: 700; flex: none;
     width: var(--min-col, auto); min-width: 44px; text-align: right; white-space: nowrap; }
+  /* 特大 ×1.5 的那一列只剩 車次·時刻·倒數 三格(設計 6b),而官方板在最後一分鐘會把「3 分」
+     換成「即將進站／列車進站」——四個字擠掉同一列的車次與時刻。使用者裁示:「如果特大字的
+     時候需要精簡,就精簡後面進站那邊」⇒ 特大時改用 data-soon 裡的短字。
+     手法比照上面 lateTag 的 attr() 換字樣(不動 DOM ⇒ 標準/大字級的零變化對照守得住),
+     但短字是 boardAlignColumns 用 t() 產生後寫進屬性的,不像 lateTag 把中文寫死在 content 裡,
+     所以英日(Due／まもなく、Arriving／到着中)一樣吃得到。 */
+  html[data-fs=xlarge] .board .row .min[data-soon] { font-size: 0; letter-spacing: 0; }
+  html[data-fs=xlarge] .board .row .min[data-soon]::after {
+    content: attr(data-soon); font-size: calc(13px * var(--ui)); letter-spacing: normal;
+  }
   /* 車站看板右上角 ☆／× :兩顆吃同一組尺寸與置中,不靠字級與 UA padding 對齊。
      舊寫法各自 top:8px 切「上緣」,但 .close 沒設 padding 而吃到瀏覽器 UA 預設按鈕 padding
      (chromium 1px 6px、webkit 2px 6px 3px),加上字級 17 vs 15,兩顆實測高度 17/19/22px 各異
@@ -25737,8 +25747,16 @@ function boardAlignColumns(el) {
   if (!el || el.hidden) return;
   el.style.removeProperty('--min-col');
   el.style.removeProperty('--t-col');
+  // 特大字級要把「即將進站／列車進站」換成短字(見 .min[data-soon] 那段 CSS)。寫在量寬之前:
+  // 換過字的那一列本來就該用短字的寬度參與「全板最寬」的計算,先量後換會多留一截空白。
+  // 標準與大字級一樣寫這個屬性(CSS 只在特大才讀),讓三階的 DOM 完全相同。
+  const soonText = { [t('即將進站')]: t('即將'), [t('列車進站')]: t('進站') };
   const widest = nodes => { let w = 0; for (const n of nodes) w = Math.max(w, n.getBoundingClientRect().width); return w; };
   const mins = el.querySelectorAll('.row .min');
+  for (const n of mins) {
+    const short = soonText[n.textContent.trim()];
+    if (short) n.dataset.soon = short; else delete n.dataset.soon;
+  }
   if (mins.length) { const w = widest(mins); if (w > 0) el.style.setProperty('--min-col', w.toFixed(2) + 'px'); }
   // 時刻欄只有「整板都是純時刻」才鎖等寬。台鐵板的 .t 裡還包著誤點/推算標,逐列內容寬度本來就
   // 不同,鎖等寬等於替每一列預留一格常常用不到的空位,把車種與終點再擠掉一截。

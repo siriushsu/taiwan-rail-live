@@ -175,7 +175,7 @@
       '依稍早官方資料推估': 'Estimated from the latest official data', '已套用台鐵即時誤點': 'TRA live delays applied',
       '已依即時誤點推估': 'Estimated with live delays', '依時刻表（無誤點資訊）': 'Timetable only (no delay data)',
       '依林鐵官方時刻表（無即時資訊）': 'Alishan official timetable (no live data)',
-      '即將': 'Due', '即將進站': 'Arriving', '推算': 'Estimated', '（終點到達）': '(Terminates here)',
+      '即將': 'Due', '進站': 'Arriving', '即將進站': 'Arriving', '列車進站': 'Train arriving', '推算': 'Estimated', '（終點到達）': '(Terminates here)',
       '往 {station}': 'To {station}', '往{station}': 'To {station}', '{train} 次': 'Train {train}', '跟隨 {train} 次': 'Follow train {train}',
       '南下': 'Southbound', '北上': 'Northbound', '抵達本站': 'Terminating here', '其他': 'Other',
       '放空模式改成看戲不操作：地圖不會被手指拉歪，離開放空鈕按得到':
@@ -468,7 +468,7 @@
       '接下來的班車': '次の列車', '依官方當日時刻表': '公式時刻表', '已依官方即時資訊校正': '公式リアルタイム情報で補正済み',
       '依稍早官方資料推估': '直近の公式情報から推定', '已套用台鐵即時誤點': '台湾鉄路の遅延情報を反映', '已依即時誤點推估': '遅延情報から推定',
       '依時刻表（無誤點資訊）': '時刻表のみ（遅延情報なし）', '依林鐵官方時刻表（無即時資訊）': '阿里山森林鉄道の公式時刻表（リアルタイム情報なし）',
-      '即將': 'まもなく', '即將進站': 'まもなく到着', '推算': '推定', '（終點到達）': '（当駅止まり）', '往 {station}': '{station}行き', '往{station}': '{station}行き',
+      '即將': 'まもなく', '進站': '到着中', '即將進站': 'まもなく到着', '列車進站': '列車が到着中', '推算': '推定', '（終點到達）': '（当駅止まり）', '往 {station}': '{station}行き', '往{station}': '{station}行き',
       '{train} 次': '{train}列車', '跟隨 {train} 次': '{train}列車を追跡', '還有 {n} 分': 'あと{n}分',
       '南下': '南行き', '北上': '北行き', '抵達本站': '当駅止まり', '其他': 'その他',
       '放空模式改成看戲不操作：地圖不會被手指拉歪，離開放空鈕按得到':
