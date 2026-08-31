@@ -1587,6 +1587,10 @@
   /* 放空模式:閒置 5 秒淡出控制,滑鼠動了淡回(時鐘與跟隨面板留著) */
   .controls, .leaflet-control-container, #randBtn, #nearBtn, #fsFab, .tabbar { transition: opacity .7s; }
   body.idle .controls, body.idle .leaflet-control-container, body.idle #randBtn, body.idle #nearBtn, body.idle #fsFab, body.idle .tabbar { opacity: 0; pointer-events: none; }
+  /* 唯一的出口不跟著淡光:放空時控制列只剩「離開放空」＋「視角」兩顆,idle 只降到看得見、且保持可按。
+     原本跟其他家具一起 opacity:0 + pointer-events:none ⇒ 第一下觸控只是喚回控制列、按不到鈕,要按兩下
+     (使用者回報「安卓有時候進放空後連退出的按鈕都會不見按不到」,2026-08-31)。 */
+  body.idle.ambient .controls { opacity: .5; pointer-events: auto; }
   body.idle .stage, body.idle * { cursor: none; }
   #overlay { position: absolute; inset: 0; pointer-events: none; z-index: 500; }
   /* 放空模式的日夜天色(依模擬時刻連續變化,墊在轉場遮罩下) */
@@ -1605,6 +1609,9 @@
   body.fs #immBtn { display: flex; }
   #ambientStyleBtn { display: none; }
   body.ambient #ambientStyleBtn { display: inline-flex; }
+  /* 放空=相機交給程式(見 setMapGestures):桌面的 Leaflet +/- 鈕一併收,免得留一條繞過手勢鎖的路。
+     手機在 max-width:900 那條規則裡本來就是 display:none。 */
+  body.ambient .leaflet-control-zoom { display: none; }
 
   /* ── 直播模式(?live=1,OBS 訊號源):隱藏一切互動 UI,留時鐘徽章/attribution/浮水印 ── */
   body.live .controls, body.live #randBtn, body.live #nearBtn,
@@ -3850,7 +3857,18 @@
     /* 放空模式(手機):看戲不操作——控制列只留「離開放空」一顆,tab bar 也收 */
     body.ambient .controls > :not(#ambientBtn):not(#ambientStyleBtn) { display: none; }
     body.ambient .tabbar, body.ambient .more-sheet, body.ambient .more-scrim { display: none; }
+    /* bottom 讓開系統手勢區。App 線用 --sa-b(= var(--safe-area-inset-bottom, env(...)))——
+       比網站線的裸 env() 多一層 JS 可覆寫,兩者語意相同,合併取 App 線這一側。 */
     body.ambient .controls { left: auto; right: 8px; bottom: calc(8px + var(--sa-b)); width: max-content; transform: none; overflow: visible; }
+    /* 放空的兩顆鈕補到 ≥44 觸控熱區(寫法比照 #pp:position 用 relative 不用 static,否則 ::after 的錨點
+       會跑到 .controls 上、兩顆熱區互相蓋掉——2026-07-26 在 .map-actions 踩過;z-index:-1 讓熱區只在
+       真正的空白處生效,不搶鄰居)。本身寬度已 >44,max(100%,44px) 只會往垂直方向長,兩顆不會相交。 */
+    body.ambient .controls #ambientBtn, body.ambient .controls #ambientStyleBtn { position: relative; }
+    body.ambient .controls #ambientBtn::after, body.ambient .controls #ambientStyleBtn::after {
+      content: ''; position: absolute; left: 50%; top: 50%;
+      width: max(100%, 44px); height: max(100%, 44px); transform: translate(-50%, -50%);
+      z-index: -1;
+    }
     body.ambient .follow-panel, body.ambient .freq-card { width: calc(176px * var(--ui)); padding: 7px 10px 8px; bottom: 8px; }
     body.ambient .follow-panel .fp-prog,
     body.ambient .follow-panel .fp-dest,
@@ -4860,6 +4878,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="ambientlock"><span class="d">8/31</span><span>放空模式改成看戲不操作：地圖不會被手指拉歪，離開放空鈕按得到</span></li>
         <li data-cl-of="traboarddir"><span class="d">8/31</span><span>火車站看板改成分方向顯示：南下、北上分開，山線海線與支線各自成區，冷門方向不再被擠掉；顏色比照台鐵新版車站標示的北上藍、南下綠</span></li>
         <li data-cl-of="ridingclock"><span class="d">8/31</span><span>按下「我上車了」之後，再去點一班還沒發車的車，時鐘不會再被撥走（謝謝網友回報）</span></li>
         <li data-cl-of="enplatefit"><span class="d">8/30</span><span>英文與日文的手機頂列，左上角的軌島牌裝不下時會自己讓位，分組切換鈕留在畫面內</span></li>
@@ -4867,7 +4886,6 @@
         <li data-cl-of="satfallback"><span class="d">8/30</span><span>衛星影像模式下放大縮小時，畫面會有一瞬間整片變成深綠色（Android 手機上特別明顯）；墊在底下的顏色改成貼齊實際衛星影像，現在幾乎看不出來</span></li>
         <li data-cl-of="attrib-oneline"><span class="d">8/30</span><span>手機地圖右下角的版權資訊不會再折成一大塊蓋住速度調整鈕：改成貼著底緣一整條、放不下的部分橫向可捲，授權連結一個都沒少，仍然看得到也點得到。切到衛星影像時字串較長，原本折成四行最嚴重，現在一樣是一條（謝謝網友回報）</span></li>
         <li data-cl-of="crowd-outage"><span class="d">8/29</span><span>車廂擁擠度改成逐車對照：忠孝復興這種兩線共站不會再把板南線的擁擠度掛到文湖線上，認不出是哪一台車就留白不猜；三種車站看板現在都會顯示擁擠度，不會再切換一次就整片消失，鎖屏的等車卡也一起改。即時模型暫時缺這個系統的資料時，車站看板不再整片變成「此時段無停靠班次」，會自動退回官方倒數或班表。即時資料中斷的提示也改成照實說：分不出是官方端還是本站或你的網路時，不再一律寫成臺北捷運訊號中斷</span></li>
-        <li data-cl-of="notice0829"><span class="d">8/29</span><span>高鐵台中車站 9/7 至 9/10 軌道大修、三鶯線 9/1 起正式收費，兩則公告已放上通知列；同時更新安坑、淡海輕軌與高雄捷運班表</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -4970,6 +4988,7 @@
         <li><span class="d">7/13</span><span>列車位置改用車種加減速模型：起步緩加速、進站緩減速，不再全程等速</span></li>
         <li><span class="d">7/10</span><span>跟隨鎖：跟隨中可自由拖曳地圖，按「◉ 回到列車」恢復置中；7/9 鐵道迷功能包（路線高亮、月台站名牌、日夜天色、速度曲線）</span></li>
         <li class="grp">放空模式</li>
+        <li data-cl="ambientlock"><span class="d">8/31</span><span>放空模式鏡頭完全交給程式，兩種視角一樣：地圖不會再被手指拉歪或縮到回不來；「離開放空」鈕不再淡到看不見或被系統手勢區吃掉觸控。背景音樂開關顯示相反也修好</span></li>
         <li data-cl="music57"><span class="d">8/27</span><span>放空模式的背景音樂重新整理過：曲目從 29 首增加到 57 首，分成 Afloat、Midnight stories、Moonlake、Rainy day、Star &amp; Neon、peaceful piano 六組不同氛圍</span></li>
         <li><span class="d">7/28</span><span>換景節奏放慢成 3–5 分鐘一次；閒置 20 分鐘後改停在全島畫面（列車照常在上面跑），動一下就回到原本的地圖</span></li>
         <li><span class="d">7/18</span><span>新增「都會呼吸」定場運鏡</span></li>
@@ -5606,7 +5625,7 @@
 //         獨立基準覆核:山線／海線／成追線判定 vs 台鐵官方 Line 欄位【908/908 逐車一致】;
 //         純西部方向 vs 官方 LineDir 對稱一致(1↔北上 241、2↔南下 241)。
 //         守門人:scripts/verify_board_direction_groups.mjs(26 項,五發突變各自咬到預期斷言)。
-const BUILD = 'v0831j'; // 併 origin/main(方向分組 v0831h);Android 線佔用 i,逐 ref 掃過後跳 j
+const BUILD = 'v0831k'; // = v0831j(出貨線) + 放空模式相機鎖;b/c/f/h/i/j 已被五條線用掉,逐 ref 掃過後跳 k
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -13885,6 +13904,8 @@ function tickCore(now) {
   if (state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain && !state.freqFollow &&
       state.mode === 'sched' && state.playing) { hotspotTick(now); hotCruise(dt, now); }
   else if (map && state._breathStage) breathStageRestore(); // 離開群車放空時,呼吸幕殘留的 CSS scale/舞台旗標兜底還原(安全網:漏掉任一離場點也不會把縮放或旗標交到使用者手上)
+  // 同一種安全網,給手勢鎖:放空已關但手勢還鎖著(漏掉離場點/setAmbient 中途拋例外)⇒ 地圖會變成永久動不了,立刻交還
+  if (!state.ambient && map && map.dragging && !map.dragging.enabled()) setMapGestures(true);
   // 省電模式:把「相機每幀 setView 置中(觸發 reflow,手機跟隨時的主要卡點)＋繪製」統一節流到 ~30fps。
   // 放空/錄影不套(放空游標以 dt 積分,節流會變慢;錄影要滿幀);時間積分與各資訊卡時鐘照每幀跑,不受影響。
   const psActive = state.powerSave && !REC.on && !state.ambient;
@@ -15482,6 +15503,22 @@ function ambientIdleReset() {
 ['mousemove', 'pointerdown', 'keydown', 'touchstart'].forEach(ev =>
   document.addEventListener(ev, () => { if (state.ambient) ambientIdleReset(); }, { passive: true }));
 
+// ── 放空模式的相機主權(2026-08-31 使用者裁示:「放空模式就直接不要讓使用者隨意控制,除非離開放空」) ──
+// 進放空即停用地圖的平移/縮放手勢,兩個視角(跟車/群車)一致;離開時原樣還原。
+// 點擊【不】在此列——點列車接手跟隨、點站看板照舊(map 的 'click' 不經這些 handler),那是明示動作不是隨意控制。
+// 為什麼是「鎖」不是「拖了就讓位」:跟車視角根本沒有讓位機制,拖曳只會跟每幀 recenterTo 對打;捏出去的
+// zoom 也沒人還原(要等下一次換一班的 ambientJumpTo 才回 AMBIENT_Z,那是 60–120 秒後),而「回到列車」鈕
+// 在放空是藏的(見 updateFollowLockUI)⇒ 歪掉之後沒有任何回得來的路。群車視角雖有 _hotYield 讓位,
+// 但兩個視角行為不一致本身就是坑,一併鎖。
+const MAP_GESTURES = ['dragging', 'touchZoom', 'doubleClickZoom', 'scrollWheelZoom', 'boxZoom', 'keyboard'];
+function setMapGestures(on) {
+  if (!map) return;
+  for (const k of MAP_GESTURES) {
+    const h = map[k];
+    if (h && typeof h.enable === 'function') on ? h.enable() : h.disable();
+  }
+}
+
 function setAmbient(on) {
   if (on === !!state.ambient) return;
   if (on) state.geoFollow = false;
@@ -15495,6 +15532,7 @@ function setAmbient(on) {
       loadSystem(s);
     }
     b.textContent = t('離開放空');
+    setMapGestures(false); // 相機交給程式(放在 sched 早退之後:那條路徑沒真的進放空,不該把手勢鎖走)
     // 深夜(00–05)車太少 → 直接重播傍晚尖峰
     if (state.simSec < 5 * 3600) { state.nightReplay = true; setSimSec(18 * 3600); refreshBadge(); }
     if (!document.body.classList.contains('fs')) (state._setFs || (() => {}))(true);
@@ -15515,6 +15553,7 @@ function setAmbient(on) {
     ambientIdleReset();
     if (state.music && state.music.enabled && state.music.audio.paused) musicPlay(); // 已在放就別重來
   } else {
+    setMapGestures(true); // 交還地圖:排在離場的最前面,後面任何一行拋例外都不會把使用者留在「地圖動不了」
     b.textContent = t('放空模式');
     releaseWakeLock();
     // 音樂跟著開關走,離開放空不強制停(要停就按音樂鈕)
@@ -15630,9 +15669,12 @@ function makeNativeMusicShim(na) {
     play() {
       const p = shim._pend >= 0 ? na.play({ index: shim._pend }) : na.resume();
       shim._pend = -1;
+      // 樂觀先寫,對齊 <audio>.play() 同步就把 paused 設 false 的語意。原生的 state 事件要跨 bridge 才回來,
+      // 那段空窗裡任何讀 paused 的 UI(抽屜那列開關、鈕面)都會畫成「沒在播」;真的播失敗時 state 事件會改回來。
+      shim._paused = false;
       return p;
     },
-    pause() { na.pause().catch(() => {}); },
+    pause() { shim._paused = true; na.pause().catch(() => {}); }, // 同理:淡出 800ms 後才 pause,不先寫開關會停在「開」
   };
   na.addListener('track', e => {
     const m = state.music;
@@ -15694,9 +15736,14 @@ function initMusic() {
     musicNext();
   };
   // 鈕面跟著「實際播放狀態」走(而非 enabled 偏好):自動播放被擋、淡出結束、整份清單載入失敗都要即時反映
-  audio.addEventListener('playing', updateMusicBtn);
-  audio.addEventListener('pause', updateMusicBtn);
-  audio.addEventListener('error', updateMusicBtn);
+  // 鈕面與抽屜那一列的開關讀的是同一個「實際在播嗎」(MS_STATE.musicBtn),但抽屜只有 syncMoreSheet 會重畫,
+  // 而它是在 btn.click() 之後同步跑一次就結束。播放狀態卻是非同步落定的(自動播放被擋、淡出 800ms 後才
+  // pause、App 走原生 bridge 要等事件),於是那一列會停在上一個狀態,直到使用者去點別的列(例如正上方的
+  // 省電模式)才被順手重畫——使用者回報的「音樂開著開關顯示關、而且跟省電模式聯動」就是這個。
+  const syncMusicUI = () => { updateMusicBtn(); if (state._syncMoreSheet) state._syncMoreSheet(); };
+  audio.addEventListener('playing', syncMusicUI);
+  audio.addEventListener('pause', syncMusicUI);
+  audio.addEventListener('error', syncMusicUI);
   updateMusicBtn();
 }
 function updateMusicBtn() {
