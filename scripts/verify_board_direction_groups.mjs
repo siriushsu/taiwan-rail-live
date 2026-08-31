@@ -58,7 +58,13 @@ const readBoard = (name, sys, expand = false) => p.evaluate(([n, sy, ex]) => {
     let c = 0, x = n2.nextElementSibling;
     while (x && x.classList.contains('row')) { c++; x = x.nextElementSibling; }
     const cs = getComputedStyle(n2);
-    return { label: n2.textContent, rows: c, cls: n2.className, color: cs.color };
+    const mins = []; let y = n2.nextElementSibling;
+    while (y && y.classList.contains('row')) { // 「即將」＝0 分、「停駛」沒有分鐘（回 null 不參與門檻比較）
+      const txt = y.querySelector('.min').textContent.trim();
+      mins.push(txt === '即將' ? 0 : txt === '停駛' ? null : (txt.match(/-?\d+/) ? +txt.match(/-?\d+/)[0] : null));
+      y = y.nextElementSibling;
+    }
+    return { label: n2.textContent, rows: c, mins, cls: n2.className, color: cs.color };
   });
   return { groups, rows: el.querySelectorAll('.row').length };
 }, [name, sys, expand]);
@@ -113,6 +119,60 @@ const znx = await readBoard('竹南', 'tra_sched', true);
 ok('D5b 展開段每組至多 6 班', znx.groups.every(g => g.rows <= 6), JSON.stringify(znx.groups.map(g => g.rows)));
 ok('D5c 展開後總列數確實變多（配額真的有作用）', znx.rows > zn.rows, `${zn.rows} → ${znx.rows}`);
 ok('D5d 每一組都至少有一班（空組不畫）', znx.groups.every(g => g.rows >= 1), JSON.stringify(znx.groups.map(g => g.rows)));
+
+// ── D10 「抵達本站」只列 60 分鐘內（使用者 2026-08-31 裁示 b）──────────
+// 判準刻意不寫死「應該有幾班」——班數是會漂移的量（心得 35）。改成：在同一個 tick 裡從
+// tr.stops 獨立重算「這站 60 分內／60~180 分的終到車數」，再要求看板恰好等於 min(前者, 配額)。
+// 那份重算不經過 boardGroupOf／配額／上限任何一行（受測的是分組與上限，不是 dtm 算術）。
+const ARR_STN = ['樹林', '潮州', '花蓮', '基隆', '新竹', '七堵', '彰化', '嘉義', '臺東', '竹南'];
+const arrScan = await p.evaluate((STN) => {
+  const res = [];
+  for (const ex of [false, true]) for (const name of STN) {
+    const st = (state.schedStations || []).find(s => s.name === name && s.sys === 'tra_sched');
+    if (!st) { res.push({ name, ex, err: '找不到站' }); continue; }
+    const el = document.getElementById('board');
+    el.classList.toggle('expand', ex);
+    state.boardStation = st; renderBoard();
+    const gs = [...el.querySelectorAll('.bgrp')].map(n2 => {
+      const mins = []; let y = n2.nextElementSibling;
+      while (y && y.classList.contains('row')) {
+        const txt = y.querySelector('.min').textContent.trim();
+        mins.push(txt === '即將' ? 0 : txt === '停駛' ? null : (txt.match(/-?\d+/) ? +txt.match(/-?\d+/)[0] : null));
+        y = y.nextElementSibling;
+      }
+      return { label: n2.textContent, mins };
+    });
+    let within = 0, beyond = 0;                       // 獨立重算，與看板同一個 tick
+    for (const tr of state.trains.concat(state.traCancelled || [])) {
+      if (tr.sys !== 'tra_sched' || tr.loop) continue; // 環島車末站＝起點，看板本來就不列
+      const s = tr.stops[tr.stops.length - 1];
+      if (!s || s.name !== name || s.stop === false) continue;
+      let d = s.arrSec + Math.round((tr._cancelled ? 0 : liveDelaySec(tr)) / 60) * 60 - state.simSec;
+      if (d > 43200) d -= 86400; else if (d < -43200) d += 86400;
+      if (d < -30) continue;
+      if (d <= 3600) within++; else if (d <= 10800) beyond++;
+    }
+    res.push({ name, ex, within, beyond, gs });
+  }
+  return res;
+}, ARR_STN);
+const arrOf = r => r.gs.find(g => g.label === '抵達本站');
+const bad10a = arrScan.filter(r => !r.err).filter(r => (arrOf(r)?.mins || []).some(v => v != null && v > 60));
+ok('D10a 「抵達本站」組不得出現 60 分以上的班次',
+  bad10a.length === 0, JSON.stringify(bad10a.map(r => [r.ex ? '展開' : '一般', r.name, arrOf(r).mins])));
+ok('D10b 正向對照：至少一站真的畫出「抵達本站」組（否則 D10a 是空過）',
+  arrScan.some(r => !r.err && (arrOf(r)?.mins.length || 0) > 0),
+  JSON.stringify(arrScan.map(r => r.name + ':' + (arrOf(r)?.mins.length ?? '無'))));
+ok('D10c 反向對照：確實有 60~180 分的終到車被擋掉（否則這輪沒有鑑別力）',
+  arrScan.some(r => !r.err && r.beyond > 0), JSON.stringify(arrScan.map(r => `${r.name}:${r.beyond}`)));
+const bad10d = arrScan.filter(r => !r.err)
+  .filter(r => (arrOf(r)?.mins.filter(v => v != null).length || 0) !== Math.min(r.within, r.ex ? 6 : 3));
+ok('D10d 抵達組班次數＝min(獨立量到的 60 分內終到車, 每組配額)——是濾掉超時，不是整組砍半',
+  bad10d.length === 0,
+  JSON.stringify(bad10d.map(r => [r.ex ? '展開' : '一般', r.name, arrOf(r)?.mins ?? null, r.within])));
+ok('D10e 誤傷對照：其他組仍看得到 60 分以上的班次（上限只套抵達組）',
+  arrScan.some(r => !r.err && r.gs.filter(g => g.label !== '抵達本站').some(g => g.mins.some(v => v != null && v > 60))),
+  JSON.stringify(arrScan.map(r => r.name + ':' + Math.max(0, ...r.gs.filter(g => g.label !== '抵達本站').flatMap(g => g.mins).filter(v => v != null)))));
 
 // ── D6 官方方向色：北上藍、南下綠；支線無方向色（反向對照）─────────
 const rgb = s => (s.match(/\d+/g) || []).map(Number);
@@ -184,4 +244,5 @@ console.log(`\n${fail ? '❌' : '✅'} 通過 ${pass}／${pass + fail}`);
 //   M5 拿掉 .bgrp.dir-n/.dir-s 兩條 CSS    → 方向色消失 ⇒ D6a/D6b 轉紅
 //   M6 boardGroupOf 一律回同一個 key      → 全部併成一組 ⇒ D2a/D3a/D3c 轉紅
 //   M7 刪掉 i18n 的 '南下' 鍵             → 英文殘留中文 ⇒ D8a/D8b 轉紅
+//   M8 BOARD_ARRIVE_MAX_SEC 改成 10800   → 60 分上限失效 ⇒ D10a/D10d 轉紅
 process.exit(fail ? 1 : 0);
