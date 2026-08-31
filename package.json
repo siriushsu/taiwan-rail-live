@@ -13,6 +13,7 @@
     "check-ops": "node scripts/verify_stadia_projection.mjs",
     "check-basemap": "node scripts/verify_web_basemap_notice.mjs",
     "check-trainpick": "node scripts/verify_train_overlap_pick.mjs",
+    "check-board-align": "node scripts/verify_board_align.mjs",
     "check-xbt-shuttle": "node scripts/verify_xbt_shuttle_motion.mjs",
     "check-crowd-outage": "node scripts/verify_crowd_and_outage.mjs",
     "check-plus": "node scripts/verify_plus_features.mjs",
