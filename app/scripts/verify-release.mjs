@@ -491,6 +491,7 @@ export async function verifyRelease({
   assertAndroidPreciseLocationContract({ nativeBridgeSource, packagedBridge, androidManifest });
   assertAndroidBackButtonContract({ nativeBridgeSource, packagedBridge, html });
   assertAppLineageContent(html);
+  assertWidgetPlusSyncSites(html);
 
   // ── 創始會員截止時刻的「上線錨點」(B-4,2026-08-03 裁示)───────────────────────
   // 創始價視窗＝上線錨點時刻起算固定 30 天。上線錨點由 revenuecat-config.js 的
@@ -628,8 +629,16 @@ export async function verifyRelease({
           `${key} 有 ${han}/${nonSpace.length} 是漢字——十之八九是把中文貼進 whyEn 了。這比沒填更糟:`
           + '沒填會退回中文並標「中文原文」,填錯則是無標記的中文');
       } else {
-        assert(/[\u3040-\u30ff]/.test(text),
-          `${key} 裡一個假名都沒有——十之八九是把中文貼進 whyJa 了(日文整段不可能零假名)`);
+        // 「有沒有假名」對這件事沒有牙:中黑點「・」(U+30FB)在片假名區塊,而中文 why 的
+        // 條列正是用它 ⇒ 整段中文貼進 whyJa 照樣通過(2026-08-30 突變測試實測:中文 why
+        // 8 個「假名」全是・)。改量【平假名】比例——中文不可能有平假名,日文散文則滿是
+        // は/の/を/が。實測:日文 41.5%(Android)、37.9%(iOS 1.5.1),貼中文 0.0%,
+        // 10% 兩邊各有一個數量級的餘裕。
+        const hira = (text.match(/[\u3041-\u3096]/g) || []).length;
+        const nonSpaceJa = text.replace(/\s/g, '').length;
+        assert(hira / Math.max(1, nonSpaceJa) >= 0.10,
+          `${key} 只有 ${hira}/${nonSpaceJa} 是平假名——十之八九是把中文貼進 whyJa 了。`
+          + '注意條列用的「・」是片假名區塊的字元,光看「有沒有假名」擋不住整段中文');
       }
     }
   }
@@ -835,7 +844,6 @@ export async function verifyRelease({
   // 凡是有東西被插進字串的，都必須在下面的審查帳本裡**。新增動態 toast ⇒ 閘門紅燈 ⇒ 有人得
   // 真的看過它插的是什麼、決定要不要 escHtml，才能登記放行。預設是擋，不是放。
   assertToastSinksReviewed(html);
-  assertWidgetPlusSyncSites(html);
 
   // 版本一致性（QA 2026-07-21）：確保發行包確實含最新網站修正,而不是舊產物綠燈通過。
   const extractBuild = source => source.match(/const BUILD\s*=\s*'([^']+)'/)?.[1] ?? null;

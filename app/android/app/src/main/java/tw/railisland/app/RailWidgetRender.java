@@ -25,7 +25,9 @@ final class RailWidgetRender {
         root.setTextViewText(R.id.wr_head, compact ? origin : RailNativeL10n.text(context,
             "{station}發車看板", "station", origin));
         root.setTextViewText(R.id.wr_route, snapshot.destination == null || snapshot.destination.isEmpty()
-            ? RailNativeL10n.text(context, "全部目的地 · 直達／停靠／終到／通過")
+            ? RailNativeL10n.text(context, snapshot.includePass
+                ? "全部目的地 · 直達／停靠／終到／通過"
+                : "全部目的地 · 停靠與終到")
             : RailNativeL10n.text(context, "往 {station} · 直達列車", "station", RailNativeL10n.name(context, snapshot.destination)));
         root.setTextViewText(R.id.wr_stamp, clock(snapshot.generatedAt) + (compact ? "" : " " + RailNativeL10n.text(context, "更新")));
         String note = snapshot.failed ? RailNativeL10n.text(context, "資料延遲 · 顯示上次成功結果")
@@ -52,8 +54,12 @@ final class RailWidgetRender {
             RemoteViews empty = new RemoteViews(context.getPackageName(), readable
                 ? R.layout.widget_rail_row_readable : R.layout.widget_rail_row);
             empty.setViewVisibility(R.id.wrr_mark, View.INVISIBLE);
-            empty.setTextViewText(R.id.wrr_train, RailNativeL10n.text(context, "目前沒有接下來的班次"));
-            empty.setTextViewText(R.id.wrr_dest, RailNativeL10n.text(context, "請稍後再看或點卡片開啟軌島"));
+            empty.setViewVisibility(R.id.wrr_heading, View.GONE);
+            boolean onlyPassing = snapshot.hiddenPass > 0;
+            empty.setTextViewText(R.id.wrr_train, RailNativeL10n.text(context,
+                onlyPassing ? "本站今日沒有停靠的列車" : "目前沒有接下來的班次"));
+            empty.setTextViewText(R.id.wrr_dest, RailNativeL10n.text(context,
+                onlyPassing ? "只有通過列車 · 可在設定開啟「含通過列車」" : "請稍後再看或點卡片開啟軌島"));
             empty.setViewVisibility(R.id.wrr_status, View.GONE);
             empty.setViewVisibility(R.id.wrr_time, View.GONE);
             root.addView(R.id.wr_rows, empty);
@@ -68,6 +74,20 @@ final class RailWidgetRender {
         try { color = Color.parseColor(row.color); }
         catch (IllegalArgumentException ignored) { color = context.getColor(R.color.wg_navy); }
         out.setInt(R.id.wrr_mark, "setColorFilter", color);
+        // 方向三角（與 iOS RailHeadingMark 對等）。沒有方向就整顆收起來,不畫猜的三角;
+        // 🔴 各列獨立、不連成線——不准加貫穿列的線、不准把相鄰兩顆三角對齊成軌跡（iOS 側裁示：
+        //    它取代的軌脊圓點正是因為「連成一條線」才被讀成連續車站）。
+        // 顏色不獨立表意:三角本身是形狀差異（尖端朝上／朝下）,另有 contentDescription 唸出來。
+        if (row.heading == null) {
+            out.setViewVisibility(R.id.wrr_heading, View.GONE);
+        } else {
+            boolean north = row.heading == RailWidgetData.Heading.NORTH;
+            out.setViewVisibility(R.id.wrr_heading, View.VISIBLE);
+            out.setImageViewResource(R.id.wrr_heading,
+                north ? R.drawable.wg_heading_north : R.drawable.wg_heading_south);
+            out.setContentDescription(R.id.wrr_heading,
+                RailNativeL10n.text(context, north ? "北上" : "南下"));
+        }
         out.setTextViewText(R.id.wrr_train, RailNativeL10n.name(context, row.type) + " " + row.no);
         String relation;
         switch (row.relation) {

@@ -865,7 +865,6 @@ struct PreparedBoard {
     let journeys: [ScheduledJourney]
     let meta: MetaDocument
     /// 看板空的、但本站今天其實有「通過本站」的列車被預設收起來了。
-    /// 用來把「今天沒有列車經過」換成誠實的說法（招呼站幾乎每天都是這種情形）。
     let passHidden: Bool
 
     /// 這張看板上有沒有任何一個系統提供即時誤點（只有它為真才值得打即時 API）。
@@ -1066,9 +1065,9 @@ struct RailBoardEngine {
     ) throws -> (types: [FilterOption], trains: [FilterOption]) {
         let stations = try store.stations().stations
         let board = try store.board(stationID: originID)
-        // 這裡固定不含通過列：AppIntents 的 provider 讀不到「含通過列車」現在有沒有被勾
-        // （只有 origin 能宣告成 parameter dependency），與其猜，不如一律對齊預設看板——
-        // 寧可少列一個可篩的車種，也不要出現「車種 · 自強(60 班)」卻一班都不顯示。
+        // 固定不含通過列:AppIntents 的 provider 讀不到「含通過列車」現在有沒有被勾
+        // (只有 origin 能宣告成 parameter dependency),與其猜,不如一律對齊預設看板——
+        // 寧可少列一個可篩的車種,也不要出現「自強 60 班」卻一班都不顯示。
         let templates = matchingTemplates(board: board, destinationID: destinationID, includePass: false)
 
         var countByType: [String: Int] = [:]
@@ -1362,7 +1361,7 @@ struct RailBoardEngine {
             visibleJourneys = [firstFuture]
         }
 
-        // 空看板才多算這一次：把通過列放回去看看有沒有東西，有就代表本站今天只有通過車。
+        // 空看板才多算這一次:把通過列放回去看看有沒有東西,有就代表本站今天只有通過車。
         var passHidden = false
         if visibleJourneys.isEmpty, !filters.includePass, destinationID == nil, !board.pass.isEmpty {
             let withPass = matchingTemplates(board: board, destinationID: nil, includePass: true)

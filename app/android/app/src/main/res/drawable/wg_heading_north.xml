@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 北上方向三角（尖端朝上）。與 iOS RailHeadingMark 同一個畫法：正三角，高＝邊長×√3/2。
+     🔴 顏色是台鐵 2026-08-29《車站標示設計手冊》的「藍色代表北上」，值取 wg_navy
+        （#2A4A73／深色 #7FA6E0），與網站的 --dir-north 逐字相同——同一件事在網站與小工具
+        必須是同一組藍綠，不然使用者會以為那是兩種不同的分類。
+     🔴 各列獨立、不連成線——不准加貫穿列的線、不准把相鄰兩顆三角對齊成軌跡（iOS 側裁示，
+        原因是它取代的軌脊圓點正是因為「連成一條線」才被讀成連續車站）。
+     顏色不獨立表意：方向由【尖端朝向】表意，顏色只是加強，另有 contentDescription 唸出來。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="10dp" android:height="8dp" android:viewportWidth="10" android:viewportHeight="8">
+    <path android:fillColor="@color/wg_navy" android:pathData="M5,0 L10,8 L0,8 Z" />
+</vector>
