@@ -209,66 +209,6 @@
           "term": "Plus",
           "match": "正式更名為",
           "why": "同一段文字同時含「軌島 Plus」與「Plus」兩個 banned term（後者是前者的子字串），V1 逐 term 檢查，兩個 term 都要各自有 allow 條目才不會被判失敗。"
-        },
-        {
-          "surface": "i18n-dict",
-          "term": "Plus",
-          "match": "Plus 購買元件載入失敗",
-          "why": "活鍵：2026-08-31 實測 index.html 有實際 t() 呼叫在用，不是遺留死文字。改名需同步改 index.html 呼叫點與三本字典的鍵，屬協調性變更，不在這個 task 範圍內，2026-08-31 留待之後處理。"
-        },
-        {
-          "surface": "i18n-dict",
-          "term": "Plus",
-          "match": "The Plus purchase component failed to load.",
-          "why": "活鍵：2026-08-31 實測 index.html 有實際 t() 呼叫在用，不是遺留死文字。改名需同步改 index.html 呼叫點與三本字典的鍵，屬協調性變更，不在這個 task 範圍內，2026-08-31 留待之後處理。"
-        },
-        {
-          "surface": "i18n-dict",
-          "term": "Plus",
-          "match": "Plus購入コンポーネントを読み込めませんでした。",
-          "why": "活鍵：2026-08-31 實測 index.html 有實際 t() 呼叫在用，不是遺留死文字。改名需同步改 index.html 呼叫點與三本字典的鍵，屬協調性變更，不在這個 task 範圍內，2026-08-31 留待之後處理。"
-        },
-        {
-          "surface": "i18n-dict",
-          "term": "Plus",
-          "match": "無法載入 Plus 購買元件，請檢查網路後再試",
-          "why": "活鍵：2026-08-31 實測 index.html 有實際 t() 呼叫在用，不是遺留死文字。改名需同步改 index.html 呼叫點與三本字典的鍵，屬協調性變更，不在這個 task 範圍內，2026-08-31 留待之後處理。"
-        },
-        {
-          "surface": "i18n-dict",
-          "term": "Plus",
-          "match": "Unable to load Plus purchases. Check your connection and try again.",
-          "why": "活鍵：2026-08-31 實測 index.html 有實際 t() 呼叫在用，不是遺留死文字。改名需同步改 index.html 呼叫點與三本字典的鍵，屬協調性變更，不在這個 task 範圍內，2026-08-31 留待之後處理。"
-        },
-        {
-          "surface": "i18n-dict",
-          "term": "Plus",
-          "match": "Plus購入機能を読み込めません。通信状況を確認して再度お試しください。",
-          "why": "活鍵：2026-08-31 實測 index.html 有實際 t() 呼叫在用，不是遺留死文字。改名需同步改 index.html 呼叫點與三本字典的鍵，屬協調性變更，不在這個 task 範圍內，2026-08-31 留待之後處理。"
-        },
-        {
-          "surface": "i18n-dict",
-          "term": "Plus",
-          "match": "無法讀取 Plus：{error}",
-          "why": "活鍵：2026-08-31 實測 index.html 有實際 t() 呼叫在用，不是遺留死文字。改名需同步改 index.html 呼叫點與三本字典的鍵，屬協調性變更，不在這個 task 範圍內，2026-08-31 留待之後處理。（2026-08-31 使用者裁示點名的活鍵，index.html 有 2 處呼叫。）"
-        },
-        {
-          "surface": "i18n-dict",
-          "term": "Plus",
-          "match": "Unable to load Plus: {error}",
-          "why": "活鍵：2026-08-31 實測 index.html 有實際 t() 呼叫在用，不是遺留死文字。改名需同步改 index.html 呼叫點與三本字典的鍵，屬協調性變更，不在這個 task 範圍內，2026-08-31 留待之後處理。（2026-08-31 使用者裁示點名的活鍵，index.html 有 2 處呼叫。）"
-        },
-        {
-          "surface": "i18n-dict",
-          "term": "Plus",
-          "match": "Plusを読み込めません：{error}",
-          "why": "活鍵：2026-08-31 實測 index.html 有實際 t() 呼叫在用，不是遺留死文字。改名需同步改 index.html 呼叫點與三本字典的鍵，屬協調性變更，不在這個 task 範圍內，2026-08-31 留待之後處理。（2026-08-31 使用者裁示點名的活鍵，index.html 有 2 處呼叫。）"
-        },
-        {
-          "surface": "i18n-dict",
-          "term": "Plus",
-          "match": "Please subscribe in the Rail Island app. Plus will then activate automatically on the web for the same account.",
-          "why": "活鍵：2026-08-31 實測 index.html 有實際 t() 呼叫在用，不是遺留死文字。改名需同步改 index.html 呼叫點與三本字典的鍵，屬協調性變更，不在這個 task 範圍內，2026-08-31 留待之後處理。（中文原文與日文譯文都不含 Plus，只有英文譯文還留著，翻譯本身也是協調性變更的一部分。）"
         }
       ]
     }
