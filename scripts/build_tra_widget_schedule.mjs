@@ -15,12 +15,16 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { canonicalizeAliasStops, reportAliasMerge } from './alias_stops.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = 'data/tra_schedule_dense.json';
 const OUT = 'data/tra_widget_schedule.json';
 
 const dense = JSON.parse(readFileSync(path.join(ROOT, SRC), 'utf8'));
+
+const aliasMerged = canonicalizeAliasStops(dense.trains);
+reportAliasMerge('widget-schedule', aliasMerged);
 
 const index = new Map();
 const stations = [];
