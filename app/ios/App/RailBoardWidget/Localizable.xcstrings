@@ -6733,6 +6733,23 @@
         }
       }
     },
+    "可能是本站服務或你目前的網路連線，不一定是官方端。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This may be our service or your own connection, not necessarily the operator. "
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当サイトの不具合やお使いの回線が原因の可能性もあり、必ずしも事業者側の問題とは限りません。"
+          }
+        }
+      }
+    },
     "可帶自行車（兩鐵）": {
       "extractionState": "manual",
       "localizations": {
@@ -8191,6 +8208,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "終電通知"
+          }
+        }
+      }
+    },
+    "本站今日沒有停靠的列車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No trains stop here today"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本日この駅に停車する列車はありません"
           }
         }
       }
@@ -10048,6 +10082,23 @@
         }
       }
     },
+    "回到現在": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back to now"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在に戻る"
+          }
+        }
+      }
+    },
     "回報問題或建議": {
       "extractionState": "manual",
       "localizations": {
@@ -11748,6 +11799,23 @@
         }
       }
     },
+    "即時資料連線中斷 {n} 分鐘：": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live data connection lost for {n} minutes: "
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リアルタイムデータの接続が{n}分間中断："
+          }
+        }
+      }
+    },
     "即時運行狀態請洽官方：": {
       "extractionState": "manual",
       "localizations": {
@@ -11846,6 +11914,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "まもなく到着"
+          }
+        }
+      }
+    },
+    "含通過列車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Include passing trains"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通過列車も表示"
           }
         }
       }
@@ -12917,6 +13002,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "車両混雑度（台北メトロ公式）"
+          }
+        }
+      }
+    },
+    "車廂擁擠度改成逐車對照：忠孝復興這種兩線共站不會再把板南線的擁擠度掛到文湖線上，認不出是哪一台車就留白不猜；三種車站看板現在都會顯示擁擠度，不會再切換一次就整片消失，鎖屏的等車卡也一起改。即時模型暫時缺這個系統的資料時，車站看板不再整片變成「此時段無停靠班次」，會自動退回官方倒數或班表。即時資料中斷的提示也改成照實說：分不出是官方端還是本站或你的網路時，不再一律寫成臺北捷運訊號中斷": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carriage crowding is now matched train by train: at interchanges like Zhongxiao Fuxing, crowding from a Bannan line train no longer appears on the Wenhu line row, and any row we cannot match to a specific train is left blank instead of guessed. All three station board views now show crowding, so it no longer vanishes when the board switches source, and the lock screen wait card was changed to match. When the live model is temporarily missing data for a system, the station board no longer collapses to “No departures in this period” — it falls back to the official countdown or the timetable. Outage notices are more honest too: when we cannot tell whether the cause is the operator, our own service or your connection, we no longer say that the Taipei Metro signal is down."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "車両混雑度を列車ごとに照合するようにしました：忠孝復興のような乗換駅で板南線の混雑度が文湖線の行に表示されることはなくなり、どの列車か特定できない行は推測せず空欄にします。3 種類の駅発車案内すべてで混雑度を表示するため、表示元が切り替わっても消えなくなり、ロック画面の待ち時間カードも同じ方式に変更しました。リアルタイムモデルにその路線網のデータが一時的に無い場合でも、駅発車案内が「この時間帯に停車する列車はありません」一色になることはなくなり、公式カウントダウンまたは時刻表に自動的に戻ります。リアルタイム情報中断の案内も実態に合わせ、事業者側・当サイト・お使いの回線のどれが原因か判別できない場合は「台北MRTの信号中断」とは表示しません。"
           }
         }
       }
@@ -14638,6 +14740,23 @@
         }
       }
     },
+    "東部幹線的急彎改照官方核定速限行駛：宜蘭線新馬那個半徑 306 公尺的彎（2018 年出軌事故現場）普悠瑪 75、太魯閣 85、其他列車 65，北迴線和仁一帶非傾斜式列車 115。到站時刻完全不變——彎道慢下來的時間由同一段的其他部分吸收；時刻表太緊而做不到時，維持原本的畫法": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sharp curves on the eastern lines now run at the officially posted speed limits: at the 306 m radius curve by Xinma on the Yilan Line (site of the 2018 derailment) Puyuma runs at 75, Taroko at 85 and other trains at 65 km/h; non-tilting trains run at 115 km/h around Heren on the North Link Line. Arrival times are unchanged — the time lost through a curve is absorbed by the rest of the same run; where the timetable is too tight for that, the previous motion is kept."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "東部幹線の急曲線を公式の運転速度制限に合わせて走らせるようにしました。宜蘭線・新馬の半径306メートルの曲線（2018年の脱線事故現場）ではプユマ75キロ、タロコ85キロ、その他の列車65キロ、北廻線・和仁付近では振り子式以外の列車が115キロで走行します。到着時刻は変わりません——曲線で失った時間は同じ運転区間の他の部分で吸収します。時刻に余裕がない場合は従来の動きを維持します。"
+          }
+        }
+      }
+    },
     "東部鐵路的門戶大站": {
       "extractionState": "manual",
       "localizations": {
@@ -15641,6 +15760,23 @@
         }
       }
     },
+    "非即時": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not live"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "非リアルタイム"
+          }
+        }
+      }
+    },
     "亮": {
       "extractionState": "manual",
       "localizations": {
@@ -16389,6 +16525,23 @@
         }
       }
     },
+    "按下「我上車了」之後，再去點一班還沒發車的車，時鐘不會再被撥走（謝謝網友回報）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "After you tap I am on board, tapping a train that has not departed yet no longer winds the clock away from now. Thanks to the rider who reported it."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「乗車しました」を押した後に、まだ発車していない列車をタップしても時計が現在からずれなくなりました。ご報告ありがとうございます。"
+          }
+        }
+      }
+    },
     "按卡片上的「我上車了」，並選好在哪一站下車": {
       "extractionState": "manual",
       "localizations": {
@@ -16491,19 +16644,19 @@
         }
       }
     },
-    "查看台鐵或高鐵接下來的直達、停靠、終到與通過列車。": {
+    "查看台鐵或高鐵接下來的直達、停靠與終到列車；想看通過本站不停靠的車，在「只看這些」打開「含通過列車」。": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "See upcoming direct, stopping, terminating and passing TRA or HSR trains."
+            "value": "See upcoming direct, stopping and terminating TRA or HSR trains. To also show trains that pass without stopping, turn on \"Include passing trains\" under Filters."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "台湾鉄路・高鉄の直通、停車、終着、通過列車を表示します。"
+            "value": "台湾鉄路・高鉄の直通・停車・終着列車を表示します。通過（停車しない）列車も表示するには「表示条件」で「通過列車も表示」をオンにしてください。"
           }
         }
       }
@@ -19211,6 +19364,23 @@
         }
       }
     },
+    "留空就是這一站的停靠與終到列車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leave blank for stopping and terminating trains"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "空欄の場合は停車・終着列車を表示"
+          }
+        }
+      }
+    },
     "真的在車上時按一下，沿路每過一站就自動幫你蓋一枚章。": {
       "extractionState": "manual",
       "localizations": {
@@ -19500,19 +19670,19 @@
         }
       }
     },
-    "起訖站清單依縣市由北到南分段，最上面可以直接選你在軌島存過的地點。目的站可留空，以查看所有停靠、終到與通過列車；起站選共站或我的地點時，請用「只看這些」依方向、車種或車次篩選。": {
+    "起訖站清單依縣市由北到南分段，最上面可以直接選你在軌島存過的地點。目的站可留空，以查看接下來的停靠與終到列車；想一併看通過本站不停靠的車，或起站選共站或我的地點時，請用「只看這些」篩選。": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Origins and destinations are grouped north to south, with your saved places first. Leave the destination blank to show all stopping, terminating and passing trains. For a shared station or saved place, use Filters to narrow by direction, train type or number."
+            "value": "Origins and destinations are grouped north to south, with your saved places first. Leave the destination blank to show upcoming stopping and terminating trains. Use Filters to also show trains that pass without stopping, or to narrow a shared station or saved place by direction, train type or number."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "出発駅と目的地は北から南へ地域別に表示され、保存した場所が先頭に並びます。目的地を空欄にすると停車・終着・通過列車をすべて表示します。共用駅や保存場所では「表示条件」で方向・列車種別・列車番号を絞り込めます。"
+            "value": "出発駅と目的地は北から南へ地域別に表示され、保存した場所が先頭に並びます。目的地を空欄にすると、これからの停車・終着列車を表示します。通過（停車しない）列車も表示する場合や、共用駅・保存場所を方向・列車種別・列車番号で絞り込む場合は「表示条件」を使ってください。"
           }
         }
       }
@@ -19887,6 +20057,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "高速鉄道"
+          }
+        }
+      }
+    },
+    "高鐵台中車站 9/7 至 9/10 軌道大修、三鶯線 9/1 起正式收費，兩則公告已放上通知列；同時更新安坑、淡海輕軌與高雄捷運班表": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Two operating notices added: THSR's southbound platform track at Taichung is under major track renewal with a 70 km/h limit all day from 7 to 10 September, so train T333 departs Changhua 2-4 minutes late and trains T565 and T567 use the west platform instead; the New Taipei Metro Sanying line starts charging fares on 1 September, from NT$20 up to NT$35, with a NT$60 one-day pass (first and last train times after the trial period have not been announced, so the line still runs on the trial timetable here). Ankeng LRT, Danhai LRT and Kaohsiung Metro timetables were refreshed at the same time."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "運行に関するお知らせを2件追加しました。台湾高鉄の台中駅下り線ホーム軌道は9月7日から10日まで終日70km/h制限の軌道大規模改修が行われ、T333列車は彰化発が2〜4分遅れ、T565・T567列車は西側ホームに変更されます。新北捷運の三鶯線は9月1日から正式に運賃徴収を開始し、初乗り20元・最大35元、60元の1日乗車券も発売されます（正式営業後の始発・終発時刻は未公表のため、本サイトでは試験運行時間のまま推定しています）。あわせて安坑ライトレール・淡海ライトレール・高雄捷運のダイヤを更新しました。"
           }
         }
       }
@@ -20737,6 +20924,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "メトロ事業者"
+          }
+        }
+      }
+    },
+    "捷運信義東延段 8/30 14 時通車，淡水信義線終點由象山延伸到廣慈/奉天宮站。地圖上這一站與新路段已經先畫好，官方即時到站資料要等通車後才會帶到這一站，在那之前這一段不會有列車，通車後會自動跟上；8/30 至 9/28 行經新通車區間不計票價": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Xinyi east extension opens at 14:00 on 30 August, giving the Tamsui–Xinyi line a new terminus one stop beyond Xiangshan. The station and the new stretch of track are already drawn on the map, but official live arrival data only starts once the line opens, so no trains run there until then. Travel through the new section is free from 30 August to 28 September."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "8月30日14時に信義線東延伸区間が開業し、淡水信義線の終点が象山から廣慈/奉天宮駅へ延びます。地図には新駅と新しい線路をすでに描いていますが、公式のリアルタイム到着情報は開業後から届くため、それまでこの区間に列車は走りません。8月30日から9月28日まで、新区間を通る乗車は運賃無料です。"
           }
         }
       }
@@ -22148,6 +22352,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "通過（停車しません）"
+          }
+        }
+      }
+    },
+    "通過本站的列車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trains passing this station"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この駅を通過する列車"
           }
         }
       }
@@ -24375,6 +24596,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "設定を開く"
+          }
+        }
+      }
+    },
+    "開啟網站變快了：三十幾份路網與班表資料從一份一份載改成同時下載，重新造訪也不再重抓沒變動的檔案": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opening the site is much faster: the thirty-odd route and timetable files now download at the same time instead of one after another, and revisits no longer re-fetch files that have not changed."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サイトの起動が大幅に速くなりました：30 余りの路線・時刻表データを 1 件ずつではなく同時に読み込むようにし、再訪時は変更のないファイルを取得し直さないようにしました。"
           }
         }
       }
@@ -26793,6 +27031,23 @@
         }
       }
     },
+    "預設只顯示停靠與終到": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stopping and terminating only by default"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "既定では停車・終着のみ"
+          }
+        }
+      }
+    },
     "預設關閉；這項設定只會記在目前這台裝置。": {
       "extractionState": "manual",
       "localizations": {
@@ -28472,6 +28727,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "衛星画像"
+          }
+        }
+      }
+    },
+    "衛星影像模式下放大縮小時，畫面會有一瞬間整片變成深綠色（Android 手機上特別明顯）；墊在底下的顏色改成貼齊實際衛星影像，現在幾乎看不出來": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In satellite mode, zooming in or out briefly turned the whole screen dark green (most noticeable on Android phones). The colour underneath the imagery now matches the real satellite view, so the gap is barely visible."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "衛星画像モードで拡大・縮小した瞬間、画面全体が濃い緑色になっていました（Android端末で特に目立ちました）。下地の色を実際の衛星画像に合わせたため、ほとんど分からなくなりました。"
           }
         }
       }
