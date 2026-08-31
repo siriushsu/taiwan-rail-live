@@ -5670,7 +5670,7 @@
 //         獨立基準覆核:山線／海線／成追線判定 vs 台鐵官方 Line 欄位【908/908 逐車一致】;
 //         純西部方向 vs 官方 LineDir 對稱一致(1↔北上 241、2↔南下 241)。
 //         守門人:scripts/verify_board_direction_groups.mjs(26 項,五發突變各自咬到預期斷言)。
-const BUILD = 'v0831o'; // 908 線 ＋ 小工具方向(feat/widget-pass-default) ＋ 衛星墊底/看板對齊/臺北併站(fix/sat-underlay-taipei);a~n 全被各線用掉(逐 ref＋逐工作樹掃過),跳 o
+const BUILD = 'v0831q'; // 908 線併回 origin/main(18 顆:文風閘門、Plus→通行證改名、原生多語重產、併站走 haversine);更新說明補三段＋更新紀錄補 branchdepart;a~p 全被用掉(逐 ref＋逐工作樹掃過)
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -9645,10 +9645,10 @@ function assignSchedShapePathsFor(trains, lines) {
 // 同一班車出現兩次同名站程式本來就吃得下——buildLoopTrains 造的 8888/8889 末站
 // 用的就是起點那個站物件。
 // 🔴 距離用 haversineKm 不用 map.distance:這一支要能在【沒有 Leaflet 的地方】跑——
-//    scripts/build_run_profiles.mjs 把 index.html 的頂層宣告原封切進 vm 沙箱離線預算跑段剖面,
-//    而併站會動到最後一段的貼軌結果(環島之星 1/2 次的末站正是臺北-環島)。用 map.distance
-//    的話沙箱裡會 ReferenceError;不在沙箱裡跑則離線值與前端現算差 0.36 公尺 ⇒
-//    check-run-profiles 的「離線 vs 前端逐字相同」轉紅、那兩台車靜默退回現算。
+// scripts/build_run_profiles.mjs 把 index.html 的頂層宣告原封切進 vm 沙箱離線預算跑段剖面,
+// 而併站會動到最後一段的貼軌結果(環島之星 1/2 次的末站正是臺北-環島)。用 map.distance
+// 的話沙箱裡會 ReferenceError;不在沙箱裡跑則離線值與前端現算差 0.36 公尺 ⇒
+// check-run-profiles 的「離線 vs 前端逐字相同」轉紅、那兩台車靜默退回現算。
 function canonicalizeAliasTrains(trains) {
   const at = new Map();                         // 站名 → 任一停靠點(只用來取座標)
   for (const tr of trains) for (const st of tr.stops) if (!at.has(st.name)) at.set(st.name, st);
@@ -13145,8 +13145,8 @@ function plusLoadWebSdk() {
   plusLoadWebSdk._p = new Promise((resolve, reject) => {
     const s = document.createElement('script');
     s.src = REVENUECAT_WEB_URL; s.integrity = REVENUECAT_WEB_SRI; s.crossOrigin = 'anonymous';
-    s.onload = () => window.Purchases && window.Purchases.Purchases ? resolve(window.Purchases) : reject(new Error(t('Plus 購買元件載入失敗')));
-    s.onerror = () => reject(new Error(t('無法載入 Plus 購買元件，請檢查網路後再試')));
+    s.onload = () => window.Purchases && window.Purchases.Purchases ? resolve(window.Purchases) : reject(new Error(t('通行證購買元件載入失敗')));
+    s.onerror = () => reject(new Error(t('無法載入通行證購買元件，請檢查網路後再試')));
     document.head.appendChild(s);
   });
   return plusLoadWebSdk._p;
@@ -13546,7 +13546,7 @@ async function plusRefresh() {
       if (state.basemap === 'sat') setBasemap(); // 資格變動→衛星解析度跟著換,不必等使用者重切底圖
     } else {
       // 資格讀不出來≠沒訂閱:維持現狀(p.active/p.founding/p.mgmtUrl 一律不動),只把錯誤講出來。
-      p.error = t('無法讀取 Plus：{error}', { error: errMsg(infoR.reason) });
+      p.error = t('無法讀取通行證：{error}', { error: errMsg(infoR.reason) });
     }
     if (offeringsR.status === 'fulfilled') {
       const offerings = offeringsR.value;
@@ -13560,7 +13560,7 @@ async function plusRefresh() {
       p.pkgAnnual = null; p.pkgMonthly = null;
     }
     accountRender(); plusFinishPending(); return p.active;
-  } catch (e) { p.error = t('無法讀取 Plus：{error}', { error: e && e.message ? e.message : String(e) }); return false; }
+  } catch (e) { p.error = t('無法讀取通行證：{error}', { error: e && e.message ? e.message : String(e) }); return false; }
   finally { p.loading = false; plusRender(); }
 }
 async function plusPurchase(kind) {
