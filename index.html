@@ -5582,7 +5582,10 @@
 //         故正文全取 v0831d。守門人:scripts/verify_merge_no_loss.mjs --parents 兩顆。
 // v0831i：Android 出貨線併入 origin/main(v0831f)。本線原為 v0831b,兩邊的更新紀錄註解全部保留
 //         成聯集,正文逐 hunk 取本線(較新的一代)。b/c/f/h 已被其他線用掉(逐 ref 掃過),故跳到 i。
-const BUILD = 'v0831i'; // 合併後內容與任一單邊都不同,必須自己的號;跨分支撞號見心得16
+// v0831l：讓號。v0831i 與 fix/ambient-camera-lock(28efb97) 撞號且兩邊載貨不同(md5 ba301be7 vs
+//         afb3860f),由本線讓出、放空那條維持 i。⚠️ 對方建議的「從 k 起算」是錯的——
+//         build/app-1.5.2-908(0e1e781) 已在用 v0831k;逐 ref 掃 a~k 全佔用,故跳到 l。
+const BUILD = 'v0831l'; // a~k 已被六條線用掉(逐 ref 掃過,含註解不只 const 行);撞號見心得16
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
