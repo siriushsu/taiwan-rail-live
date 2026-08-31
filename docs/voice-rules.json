@@ -24,48 +24,48 @@
       "file": "index.html",
       "kind": "content",
       "extract": { "type": "constBlock", "start": "const ACHIEVEMENTS =", "end": "const ACH_TESTS =", "names": ["ACHIEVEMENTS"] },
-      "minCount": 1,
-      "why": "成就名稱與說明。沿用 check_i18n.mjs 同一組標記。"
+      "minCount": 71,
+      "why": "成就名稱與說明。沿用 check_i18n.mjs 同一組標記。2026-08-31 實測 84 條,門檻取 85%≈71,防區塊被切小時無聲漏測仍能通過。"
     },
     {
       "id": "content-help",
       "file": "index.html",
       "kind": "content",
       "extract": { "type": "constBlock", "start": "const HELP_QUICK =", "end": "const HELP_TRY =", "names": ["HELP_QUICK", "HELP_GROUPS"] },
-      "minCount": 1,
-      "why": "使用說明中心。"
+      "minCount": 231,
+      "why": "使用說明中心。2026-08-31 實測 272 條,門檻取 85%≈231——防 HELP_GROUPS(新功能必加一節,會持續長大)哪天被拆成兩個常數時 250 條無聲離開覆蓋範圍。"
     },
     {
       "id": "content-station",
       "file": "index.html",
       "kind": "content",
       "extract": { "type": "constBlock", "start": "const STATION_INTRO =", "end": "// 有精選特色", "names": ["STATION_INTRO"] },
-      "minCount": 1,
-      "why": "特色車站介紹短語。沿用 check_i18n.mjs 同一組標記。"
+      "minCount": 28,
+      "why": "特色車站介紹短語。沿用 check_i18n.mjs 同一組標記。2026-08-31 實測 34 條,門檻取 85%≈28。"
     },
     {
       "id": "content-sys",
       "file": "index.html",
       "kind": "content",
       "extract": { "type": "constBlock", "start": "const SYS_META =", "end": "// 播放/速度/時間", "names": ["SYS_META"] },
-      "minCount": 1,
-      "why": "各系統導言（頂列 sub／lead 文案）。沿用 check_i18n.mjs 同一組標記。"
+      "minCount": 34,
+      "why": "各系統導言（頂列 sub／lead 文案）。沿用 check_i18n.mjs 同一組標記。2026-08-31 實測 40 條,門檻取 85%≈34。"
     },
     {
       "id": "content-groups",
       "file": "index.html",
       "kind": "content",
       "extract": { "type": "constBlock", "start": "const GROUPS =", "end": "const groupOf", "names": ["GROUPS"] },
-      "minCount": 1,
-      "why": "地區／縣市分組標籤與導言。沿用 check_i18n.mjs 同一組標記。"
+      "minCount": 58,
+      "why": "地區／縣市分組標籤與導言。沿用 check_i18n.mjs 同一組標記。2026-08-31 實測 69 條,門檻取 85%≈58。"
     },
     {
       "id": "content-metro",
       "file": "index.html",
       "kind": "content",
       "extract": { "type": "constBlock", "start": "const METRO_OFFICIAL =", "end": "function metroLinksHtml", "names": ["METRO_OFFICIAL"] },
-      "minCount": 1,
-      "why": "捷運官方連結標籤（如「台北捷運」）。沿用 check_i18n.mjs 同一組標記。"
+      "minCount": 15,
+      "why": "捷運官方連結標籤（如「台北捷運」）。沿用 check_i18n.mjs 同一組標記。2026-08-31 實測 18 條,門檻取 85%≈15。"
     },
     {
       "id": "icon-table",
@@ -91,7 +91,7 @@
       "contentExempt": true,
       "extract": { "type": "controlsDynamic" },
       "minCount": 55,
-      "why": "JS 樣板產生的按鈕。內文是原始碼片段(${…}、字串串接、變數名),餵給 V1／V2 詞表會誤判,故 contentExempt。V6 掃它——符號類別不含 JS 語法字元,雜訊對符號棘輪無害;2026-08-31 實測動態符號集(6 種 21 處)是靜態符號集的子集,納入不改變基線。"
+      "why": "JS 樣板產生的按鈕。內文是原始碼片段(${…}、字串串接、變數名),餵給 V1／V2 詞表會誤判,故 contentExempt。V6 掃它——符號類別不含 JS 語法字元,雜訊對符號棘輪無害;2026-08-31 用本檔 extractControlsDynamic 與 V6 的 symbolPattern 程式化量測(非手抄):動態符號集(4 種 7 處：→ ▴ ▾ ✕)是靜態符號集(16 種 24 處)的子集,納入不改變基線。"
     },
     {
       "id": "whatsnew",
@@ -104,10 +104,15 @@
     {
       "id": "i18n-dict",
       "file": ["i18n/translations.js", "i18n/content-translations.js", "i18n/legal-translations.js"],
-      "kind": "content",
+      "kind": "i18n",
       "extract": { "type": "wholeFile" },
       "minCount": 3,
-      "why": "三語字典正本（en/ja 譯文＋法務文案）。整檔文字進 V1／V2 詞表比對；不 vm 求值（IIFE 指派 window.RAIL_I18N_MESSAGES，沒必要 shim window）。"
+      "minCharsPerFile": {
+        "i18n/translations.js": 58000,
+        "i18n/content-translations.js": 93000,
+        "i18n/legal-translations.js": 48000
+      },
+      "why": "三語字典正本（en/ja 譯文＋法務文案）。整檔文字進 V1／V2 詞表比對；不 vm 求值（IIFE 指派 window.RAIL_I18N_MESSAGES，沒必要 shim window）。minCharsPerFile 是 UTF-16 字元數（JS 字串 .length），不是位元組數——2026-08-31 實測三檔字元數分別是 65,222／103,911／53,387（位元組數 111,194／177,733／94,899；因大量 CJK 內容，字元數遠低於位元組數），門檻取字元數的約 90%。"
     }
   ],
   "rules": {}
