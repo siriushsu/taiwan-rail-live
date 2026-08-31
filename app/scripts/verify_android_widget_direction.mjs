@@ -287,6 +287,37 @@ check('「取下一停靠站而非終點站」在真實班表上真的有差別'
   `${ruleMatters} 班車兩種取法會給出不同方向（含山海線繞行車）`);
 
 // ── C：結構層 ───────────────────────────────────────────────────────────────
+// 🔴 這一關用「真的資源編譯器」當裁判，不要自己重寫一套 XML 規則。
+// 由來：2026-08-31 三角剛做好時，這支腳本 19/19 全綠，但 gradle 一跑就死在
+// parseDebugLocalResources——因為 wg_heading_north.xml 的中文註解裡寫了 `-` `-` 相連
+// 的字樣，而 XML 註解內禁止出現連續兩個減號。javac 與 R.java 完全照不到資源檔的內容，
+// 底下所有 regex 判準也照不到（它們檢查的是「有沒有寫對」，不是「Android 收不收」）。
+// aapt2 是出貨真的會跑的那支工具 ⇒ 用它當判準，才不會再有「腳本全綠但建不起來」。
+{
+  const sdk = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT
+    || (existsSync(join(ROOT, 'app/android/local.properties'))
+      && /^sdk\.dir=(.+)$/m.exec(readFileSync(join(ROOT, 'app/android/local.properties'), 'utf8'))?.[1])
+    || join(homedir(), 'Library/Android/sdk');
+  const bt = existsSync(join(sdk, 'build-tools'))
+    ? readdirSync(join(sdk, 'build-tools')).sort().reverse()
+      .map(v => join(sdk, 'build-tools', v, 'aapt2')).find(existsSync)
+    : null;
+  // 找不到就 FAIL，不是 skip——靜靜跳過的關卡跟綠的長得一模一樣。
+  if (!bt) {
+    check('res/ 真的過得了 Android 資源編譯器（aapt2）', false,
+      `找不到 aapt2（找過 ${sdk}/build-tools）⇒ 這一關沒驗到，不可當作通過`);
+  } else {
+    const out = join(WORK, 'aapt2-res.zip');
+    let err = '';
+    try {
+      execFileSync(bt, ['compile', '--dir', RES, '-o', out], { stdio: 'pipe' });
+    } catch (e) {
+      err = String(e.stderr || e.stdout || e.message).trim().split('\n').slice(0, 3).join(' / ');
+    }
+    check('res/ 真的過得了 Android 資源編譯器（aapt2）', !err,
+      err || `${readdirSync(RES).length} 個資源目錄全數編譯通過`);
+  }
+}
 const rowXml = readFileSync(join(RES, 'layout/widget_rail_row.xml'), 'utf8');
 const readXml = readFileSync(join(RES, 'layout/widget_rail_row_readable.xml'), 'utf8');
 const hasHeadingId = xml => /@\+id\/wrr_heading(?![A-Za-z0-9_])/.test(xml);
