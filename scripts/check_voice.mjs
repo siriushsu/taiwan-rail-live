@@ -70,12 +70,28 @@ function extractControlsDynamic(source) {
     .filter(Boolean);
 }
 
+// 抽取原始碼裡每一個單／雙引號字串字面值(鍵與值都要)。用於 i18n 字典類 surface——
+// 那三個檔的形態是 `'中文鍵': '譯文',`,鍵與值都是使用者看得到的文字。
+// 不在乎跨字串邊界的語意(例如是 key 還是 value),V1/V2 詞表比對只在乎「這段文字出現過」。
+function extractStringLiterals(source) {
+  return [...source.matchAll(/'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"/g)].map(m => m[0].slice(1, -1));
+}
+
 function collect(surface) {
   const files = Array.isArray(surface.file) ? surface.file : [surface.file];
   const e = surface.extract;
   if (e.type === 'wholeFile') {
     const contents = files.map(f => sourceOf(f));
     return contents.some(c => c === null) ? null : contents;
+  }
+  if (e.type === 'stringLiterals') {
+    const items = [];
+    for (const f of files) {
+      const source = sourceOf(f);
+      if (source === null) return null;
+      items.push(...extractStringLiterals(source));
+    }
+    return items;
   }
   const source = sourceOf(files[0]);
   if (source === null) return null;
@@ -118,8 +134,9 @@ for (const surface of Array.isArray(spec.surfaces) ? spec.surfaces : []) {
     fail(`surface「${label}」的 minCount 必須是 ≥1 的整數,現在是 ${JSON.stringify(surface?.minCount)}——沒有下限等於這個 surface 永遠通過`);
   }
   const files = Array.isArray(surface?.file) ? surface.file : [surface?.file];
-  if (files.length > 1 && surface?.extract?.type !== 'wholeFile') {
-    fail(`surface「${label}」給了 ${files.length} 個檔案但 extract.type 不是 wholeFile——非 wholeFile 只會讀 files[0],其餘會被靜默丟棄`);
+  const MULTI_FILE_SAFE_TYPES = ['wholeFile', 'stringLiterals']; // 這兩種 collect() 會真的走遍 files[] 全部;其餘類型只讀 files[0]
+  if (files.length > 1 && !MULTI_FILE_SAFE_TYPES.includes(surface?.extract?.type)) {
+    fail(`surface「${label}」給了 ${files.length} 個檔案但 extract.type「${surface?.extract?.type}」不支援多檔——只有 ${MULTI_FILE_SAFE_TYPES.join('／')} 會真的讀完 files[] 全部,其餘只讀 files[0],其餘會被靜默丟棄`);
   }
 }
 
@@ -146,18 +163,50 @@ for (const surface of Array.isArray(spec.surfaces) ? spec.surfaces : []) {
   if (items.length < surface.minCount) {
     fail(`S0 surface「${surface.id}」只抓到 ${items.length} 條,低於下限 ${surface.minCount}——抽取式可能已失效`);
   }
-  // wholeFile 類 surface 的逐檔內容下限——minCount 數的是「幾個檔案」不是「內容多寡」,
-  // 一個檔被整個清空、另一個檔照樣完整時,檔案數不變,minCount 完全看不出來。
-  if (surface.extract?.type === 'wholeFile' && surface.minCharsPerFile) {
+  // 逐檔原始內容下限——minCount 數的是「條目數」(不論是幾個檔案還是幾個字串字面值),
+  // 一個檔被整個清空、另一個檔照樣完整或補了大量條目時,總條目數不變,minCount 完全看不出來。
+  // 直接重讀 sourceOf(f)(原始檔案字元數),獨立於 extract.type 與 items 的粒度——
+  // i18n-dict 從 wholeFile 換成 stringLiterals 後,items 不再是「一個檔案一條」,這條檢查
+  // 不能再靠 items[i] 對應第 i 個檔案,只能自己重讀檔案。
+  if (surface.minCharsPerFile) {
     const files = Array.isArray(surface.file) ? surface.file : [surface.file];
-    files.forEach((f, i) => {
+    files.forEach((f) => {
       const need = surface.minCharsPerFile[f];
       if (need == null) { fail(`S0 surface「${surface.id}」的 minCharsPerFile 沒有 ${f} 的下限`); return; }
-      const actual = items[i].length;
+      const actual = (sourceOf(f) || '').length;
       if (actual < need) fail(`S0 surface「${surface.id}」的 ${f} 只有 ${actual} 字元,低於下限 ${need}——內容可能被清空或大量刪減`);
     });
   }
   collected.set(surface.id, items);
+}
+
+// ── V1：對外用語表 ────────────────────────────────────────────────────────
+// 擋「Plus」「月費方案」「年費方案」這類 2026-08-05 更名後不該再對外出現的舊字——
+// 判準是「使用者會不會看到」,所以只掃 surfaces(對外文字),不掃程式碼識別字本身。
+const v1 = spec.rules.V1;
+if (v1) {
+  for (const surface of Array.isArray(spec.surfaces) ? spec.surfaces : []) {
+    // contentExempt 的 surface(如 ui-control-dynamic)內容是原始碼片段(${…}、字串串接),
+    // 不是乾淨的對外文字,V1/V2 詞表比對對它必然誤判,故跳過——V6(符號棘輪)才看它。
+    if (surface.contentExempt) continue;
+    const items = collected.get(surface.id);
+    if (!items) continue; // 這個 surface 在 S0 已經定位失敗,沒有內容可掃
+    for (const text of items) {
+      for (const term of v1.banned) {
+        if (!text.includes(term)) continue;
+        const allowed = (v1.allow || []).some(a =>
+          a.surface === surface.id && a.term === term && text.includes(a.match));
+        if (!allowed) fail(`V1 對外文字出現「${term}」（surface ${surface.id}）：${text.slice(0, 40)}`);
+      }
+    }
+  }
+  // allowlist 自身健康檢查:命中不到代表那條文字已改,allow 該刪,
+  // 否則 allowlist 會慢慢腐爛成一張「反正都放行」的清單。
+  for (const a of v1.allow || []) {
+    const items = collected.get(a.surface) || [];
+    if (!items.some(t => t.includes(a.term) && t.includes(a.match)))
+      fail(`V1 allowlist 有一筆命中不到,該刪：surface=${a.surface} term=${a.term} match=${a.match}`);
+  }
 }
 
 if (failures.length) {

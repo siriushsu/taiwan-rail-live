@@ -5,7 +5,11 @@
       "id": "changelog-recent",
       "file": "index.html",
       "kind": "changelog",
-      "extract": { "type": "regex", "pattern": "<li data-cl-of=\"[^\"]+\"><span class=\"d\">[^<]*</span><span>([^<]+)</span></li>", "group": 1 },
+      "extract": {
+        "type": "regex",
+        "pattern": "<li data-cl-of=\"[^\"]+\"><span class=\"d\">[^<]*</span><span>([^<]+)</span></li>",
+        "group": 1
+      },
       "minCount": 8,
       "maxChars": 50,
       "why": "首層「最近更新」。使用者定案每條 ≤50 字。"
@@ -14,7 +18,11 @@
       "id": "changelog-canon",
       "file": "index.html",
       "kind": "changelog",
-      "extract": { "type": "regex", "pattern": "<li data-cl=\"[^\"]+\"><span class=\"d\">[^<]*</span><span>([^<]+)</span>", "group": 1 },
+      "extract": {
+        "type": "regex",
+        "pattern": "<li data-cl=\"[^\"]+\"><span class=\"d\">[^<]*</span><span>([^<]+)</span>",
+        "group": 1
+      },
       "minCount": 80,
       "maxChars": 80,
       "why": "第二層主題組正本。使用者定案每條 ≤80 字。"
@@ -23,7 +31,14 @@
       "id": "content-achievements",
       "file": "index.html",
       "kind": "content",
-      "extract": { "type": "constBlock", "start": "const ACHIEVEMENTS =", "end": "const ACH_TESTS =", "names": ["ACHIEVEMENTS"] },
+      "extract": {
+        "type": "constBlock",
+        "start": "const ACHIEVEMENTS =",
+        "end": "const ACH_TESTS =",
+        "names": [
+          "ACHIEVEMENTS"
+        ]
+      },
       "minCount": 71,
       "why": "成就名稱與說明。沿用 check_i18n.mjs 同一組標記。2026-08-31 實測 84 條,門檻取 85%≈71,防區塊被切小時無聲漏測仍能通過。"
     },
@@ -31,7 +46,15 @@
       "id": "content-help",
       "file": "index.html",
       "kind": "content",
-      "extract": { "type": "constBlock", "start": "const HELP_QUICK =", "end": "const HELP_TRY =", "names": ["HELP_QUICK", "HELP_GROUPS"] },
+      "extract": {
+        "type": "constBlock",
+        "start": "const HELP_QUICK =",
+        "end": "const HELP_TRY =",
+        "names": [
+          "HELP_QUICK",
+          "HELP_GROUPS"
+        ]
+      },
       "minCount": 231,
       "why": "使用說明中心。2026-08-31 實測 272 條,門檻取 85%≈231——防 HELP_GROUPS(新功能必加一節,會持續長大)哪天被拆成兩個常數時 250 條無聲離開覆蓋範圍。"
     },
@@ -39,7 +62,14 @@
       "id": "content-station",
       "file": "index.html",
       "kind": "content",
-      "extract": { "type": "constBlock", "start": "const STATION_INTRO =", "end": "// 有精選特色", "names": ["STATION_INTRO"] },
+      "extract": {
+        "type": "constBlock",
+        "start": "const STATION_INTRO =",
+        "end": "// 有精選特色",
+        "names": [
+          "STATION_INTRO"
+        ]
+      },
       "minCount": 28,
       "why": "特色車站介紹短語。沿用 check_i18n.mjs 同一組標記。2026-08-31 實測 34 條,門檻取 85%≈28。"
     },
@@ -47,7 +77,14 @@
       "id": "content-sys",
       "file": "index.html",
       "kind": "content",
-      "extract": { "type": "constBlock", "start": "const SYS_META =", "end": "// 播放/速度/時間", "names": ["SYS_META"] },
+      "extract": {
+        "type": "constBlock",
+        "start": "const SYS_META =",
+        "end": "// 播放/速度/時間",
+        "names": [
+          "SYS_META"
+        ]
+      },
       "minCount": 34,
       "why": "各系統導言（頂列 sub／lead 文案）。沿用 check_i18n.mjs 同一組標記。2026-08-31 實測 40 條,門檻取 85%≈34。"
     },
@@ -55,7 +92,14 @@
       "id": "content-groups",
       "file": "index.html",
       "kind": "content",
-      "extract": { "type": "constBlock", "start": "const GROUPS =", "end": "const groupOf", "names": ["GROUPS"] },
+      "extract": {
+        "type": "constBlock",
+        "start": "const GROUPS =",
+        "end": "const groupOf",
+        "names": [
+          "GROUPS"
+        ]
+      },
       "minCount": 58,
       "why": "地區／縣市分組標籤與導言。沿用 check_i18n.mjs 同一組標記。2026-08-31 實測 69 條,門檻取 85%≈58。"
     },
@@ -63,7 +107,14 @@
       "id": "content-metro",
       "file": "index.html",
       "kind": "content",
-      "extract": { "type": "constBlock", "start": "const METRO_OFFICIAL =", "end": "function metroLinksHtml", "names": ["METRO_OFFICIAL"] },
+      "extract": {
+        "type": "constBlock",
+        "start": "const METRO_OFFICIAL =",
+        "end": "function metroLinksHtml",
+        "names": [
+          "METRO_OFFICIAL"
+        ]
+      },
       "minCount": 15,
       "why": "捷運官方連結標籤（如「台北捷運」）。沿用 check_i18n.mjs 同一組標記。2026-08-31 實測 18 條,門檻取 85%≈15。"
     },
@@ -72,7 +123,14 @@
       "file": "index.html",
       "kind": "content",
       "v6Exempt": true,
-      "extract": { "type": "constBlock", "start": "const RAIL_EMOJI =", "end": "function railIcon", "names": ["RAIL_EMOJI"] },
+      "extract": {
+        "type": "constBlock",
+        "start": "const RAIL_EMOJI =",
+        "end": "function railIcon",
+        "names": [
+          "RAIL_EMOJI"
+        ]
+      },
       "minCount": 20,
       "why": "成就與車站設施圖示表。內容區，V6 明文排除——新增成就本來就會新增圖示。"
     },
@@ -80,7 +138,9 @@
       "id": "ui-control",
       "file": "index.html",
       "kind": "ui-control",
-      "extract": { "type": "controls" },
+      "extract": {
+        "type": "controls"
+      },
       "minCount": 120,
       "why": "真 HTML <button>/<summary> 的可見文字。抽取前先剝除 <style> 與 <script>，否則 CSS 註解裡的『<button>』會被當成控件。不含 <script> 內動態產生的按鈕，那些在 ui-control-dynamic。"
     },
@@ -89,7 +149,9 @@
       "file": "index.html",
       "kind": "ui-control",
       "contentExempt": true,
-      "extract": { "type": "controlsDynamic" },
+      "extract": {
+        "type": "controlsDynamic"
+      },
       "minCount": 55,
       "why": "JS 樣板產生的按鈕。內文是原始碼片段(${…}、字串串接、變數名),餵給 V1／V2 詞表會誤判,故 contentExempt。V6 掃它——符號類別不含 JS 語法字元,雜訊對符號棘輪無害;2026-08-31 用本檔 extractControlsDynamic 與 V6 的 symbolPattern 程式化量測(非手抄):動態符號集(4 種 7 處：→ ▴ ▾ ✕)是靜態符號集(16 種 24 處)的子集,納入不改變基線。"
     },
@@ -97,23 +159,136 @@
       "id": "whatsnew",
       "file": "app/scripts/set-release-mode.mjs",
       "kind": "whatsnew",
-      "extract": { "type": "regex", "pattern": "why:\\s*'((?:[^'\\\\]|\\\\.)*)'", "group": 1 },
+      "extract": {
+        "type": "regex",
+        "pattern": "why:\\s*'((?:[^'\\\\]|\\\\.)*)'",
+        "group": 1
+      },
       "minCount": 3,
       "why": "App 內「更新了什麼」彈窗。單語繁中；由 prepare-web.mjs 於 build 時注入 window.RAIL_APP_WHATS_NEW。"
     },
     {
       "id": "i18n-dict",
-      "file": ["i18n/translations.js", "i18n/content-translations.js", "i18n/legal-translations.js"],
+      "file": [
+        "i18n/translations.js",
+        "i18n/content-translations.js",
+        "i18n/legal-translations.js"
+      ],
       "kind": "i18n",
-      "extract": { "type": "wholeFile" },
-      "minCount": 3,
+      "extract": {
+        "type": "stringLiterals"
+      },
+      "minCount": 5179,
       "minCharsPerFile": {
         "i18n/translations.js": 58000,
         "i18n/content-translations.js": 93000,
         "i18n/legal-translations.js": 48000
       },
-      "why": "三語字典正本（en/ja 譯文＋法務文案）。整檔文字進 V1／V2 詞表比對；不 vm 求值（IIFE 指派 window.RAIL_I18N_MESSAGES，沒必要 shim window）。minCharsPerFile 是 UTF-16 字元數（JS 字串 .length），不是位元組數——2026-08-31 實測三檔字元數分別是 65,222／103,911／53,387（位元組數 111,194／177,733／94,899；因大量 CJK 內容，字元數遠低於位元組數），門檻取字元數的約 90%。"
+      "why": "三語字典正本（en/ja 譯文＋法務文案）。逐個單／雙引號字串字面值（鍵與值都要，兩者都是使用者看得到的文字：鍵是中文原文，值是譯文）進 V1／V2 詞表比對——不用整檔文字，整檔比對會讓任何一條 allowlist 對整份 65,000+ 字元的檔案必然命中，等於整檔豁免（2026-08-31 發現的問題，見 V1 導入紀錄）。minCharsPerFile 檢查獨立直接量測「原始檔案」的字元數，與這裡的抽取粒度無關，不受影響、維持不動。2026-08-31 實測三檔字元數分別是 64,528／103,911／49,789（此為當輪一併刪除 14 個 08-05 更名遺留死鍵後的數值；minCharsPerFile 門檻本身沿用既有的 58,000／93,000／48,000，未變動，legal-translations.js 的餘裕從約 5,387 字元收斂到約 1,789 字元但仍在門檻之上）。逐字串字面值總數 6,093 條（2,563＋2,945＋585，同樣是刪除死鍵後的實測值），門檻取 85%（無條件捨去）＝5,179。"
     }
   ],
-  "rules": {}
+  "rules": {
+    "V1": {
+      "why": "2026-08-05 產品更名：對外一律「軌島通行證／通行證」，方案叫月票／年票，不可再出現「Plus」。程式碼識別字（PLUS_ENABLED、plusOpen()、plusConfigured()、/api/plus-status、RevenueCat 的 entitlement:'plus'）維持 plus 不改——那是外部契約，改了所有已購買者的資格判定會失效；V1 只掃 docs/voice-rules.json 宣告的 surfaces（使用者看得到的文字），不掃程式碼本身，兩者天然分開。判準：這串字使用者會不會看到？",
+      "banned": [
+        "軌島 Plus",
+        "軌島Plus",
+        "Plus",
+        "月費方案",
+        "年費方案"
+      ],
+      "allow": [
+        {
+          "surface": "changelog-canon",
+          "term": "軌島 Plus",
+          "match": "正式更名為",
+          "why": "8/5 更名公告本身（data-cl=\"passrename\"），必須引用舊名才講得清楚。2026-08-31 實測 changelog-canon 只有這 1 條含「Plus」，brief 原先假設的第二條（TestFlight 條目）不存在——那則 8/5 sandbox 測試公告的可見文字裡沒有「Plus」字樣，不需要 allowlist。"
+        },
+        {
+          "surface": "changelog-canon",
+          "term": "Plus",
+          "match": "正式更名為",
+          "why": "同一段文字同時含「軌島 Plus」與「Plus」兩個 banned term（後者是前者的子字串），V1 逐 term 檢查，兩個 term 都要各自有 allow 條目才不會被判失敗。"
+        },
+        {
+          "surface": "i18n-dict",
+          "term": "Plus",
+          "match": "Plus 購買元件載入失敗",
+          "why": "活鍵：2026-08-31 實測 index.html 有實際 t() 呼叫在用，不是遺留死文字。改名需同步改 index.html 呼叫點與三本字典的鍵，屬協調性變更，不在這個 task 範圍內，2026-08-31 留待之後處理。"
+        },
+        {
+          "surface": "i18n-dict",
+          "term": "Plus",
+          "match": "The Plus purchase component failed to load.",
+          "why": "活鍵：2026-08-31 實測 index.html 有實際 t() 呼叫在用，不是遺留死文字。改名需同步改 index.html 呼叫點與三本字典的鍵，屬協調性變更，不在這個 task 範圍內，2026-08-31 留待之後處理。"
+        },
+        {
+          "surface": "i18n-dict",
+          "term": "Plus",
+          "match": "Plus購入コンポーネントを読み込めませんでした。",
+          "why": "活鍵：2026-08-31 實測 index.html 有實際 t() 呼叫在用，不是遺留死文字。改名需同步改 index.html 呼叫點與三本字典的鍵，屬協調性變更，不在這個 task 範圍內，2026-08-31 留待之後處理。"
+        },
+        {
+          "surface": "i18n-dict",
+          "term": "Plus",
+          "match": "無法載入 Plus 購買元件，請檢查網路後再試",
+          "why": "活鍵：2026-08-31 實測 index.html 有實際 t() 呼叫在用，不是遺留死文字。改名需同步改 index.html 呼叫點與三本字典的鍵，屬協調性變更，不在這個 task 範圍內，2026-08-31 留待之後處理。"
+        },
+        {
+          "surface": "i18n-dict",
+          "term": "Plus",
+          "match": "Unable to load Plus purchases. Check your connection and try again.",
+          "why": "活鍵：2026-08-31 實測 index.html 有實際 t() 呼叫在用，不是遺留死文字。改名需同步改 index.html 呼叫點與三本字典的鍵，屬協調性變更，不在這個 task 範圍內，2026-08-31 留待之後處理。"
+        },
+        {
+          "surface": "i18n-dict",
+          "term": "Plus",
+          "match": "Plus購入機能を読み込めません。通信状況を確認して再度お試しください。",
+          "why": "活鍵：2026-08-31 實測 index.html 有實際 t() 呼叫在用，不是遺留死文字。改名需同步改 index.html 呼叫點與三本字典的鍵，屬協調性變更，不在這個 task 範圍內，2026-08-31 留待之後處理。"
+        },
+        {
+          "surface": "i18n-dict",
+          "term": "Plus",
+          "match": "無法讀取 Plus：{error}",
+          "why": "活鍵：2026-08-31 實測 index.html 有實際 t() 呼叫在用，不是遺留死文字。改名需同步改 index.html 呼叫點與三本字典的鍵，屬協調性變更，不在這個 task 範圍內，2026-08-31 留待之後處理。（2026-08-31 使用者裁示點名的活鍵，index.html 有 2 處呼叫。）"
+        },
+        {
+          "surface": "i18n-dict",
+          "term": "Plus",
+          "match": "Unable to load Plus: {error}",
+          "why": "活鍵：2026-08-31 實測 index.html 有實際 t() 呼叫在用，不是遺留死文字。改名需同步改 index.html 呼叫點與三本字典的鍵，屬協調性變更，不在這個 task 範圍內，2026-08-31 留待之後處理。（2026-08-31 使用者裁示點名的活鍵，index.html 有 2 處呼叫。）"
+        },
+        {
+          "surface": "i18n-dict",
+          "term": "Plus",
+          "match": "Plusを読み込めません：{error}",
+          "why": "活鍵：2026-08-31 實測 index.html 有實際 t() 呼叫在用，不是遺留死文字。改名需同步改 index.html 呼叫點與三本字典的鍵，屬協調性變更，不在這個 task 範圍內，2026-08-31 留待之後處理。（2026-08-31 使用者裁示點名的活鍵，index.html 有 2 處呼叫。）"
+        },
+        {
+          "surface": "i18n-dict",
+          "term": "Plus",
+          "match": "Please subscribe in the Rail Island app. Plus will then activate automatically on the web for the same account.",
+          "why": "活鍵：2026-08-31 實測 index.html 有實際 t() 呼叫在用，不是遺留死文字。改名需同步改 index.html 呼叫點與三本字典的鍵，屬協調性變更，不在這個 task 範圍內，2026-08-31 留待之後處理。（中文原文與日文譯文都不含 Plus，只有英文譯文還留著，翻譯本身也是協調性變更的一部分。）"
+        },
+        {
+          "surface": "i18n-dict",
+          "term": "Plus",
+          "match": "列車位置、誤點資訊與系統覆蓋永遠免費——Plus 不影響準確度。",
+          "why": "2026-08-31 實測這把舊鍵在 index.html 已 0 處呼叫（已被同義的新鍵「列車位置、誤點資訊與系統覆蓋現在免費提供——通行證不影響準確度。」取代），本應可刪；但 scripts/check_i18n.mjs 的 coreStaticKeys 陣列仍列了這把舊鍵、要求它存在於字典中（該表本身疑似未同步 08-05 更名，是本 task 範圍外的既有問題）。若在這裡刪除，check_i18n.mjs 會回報「缺少核心靜態字串」而轉紅。本 task 範圍只含 docs/voice-rules.json 與 scripts/check_voice.mjs（及裁示 4 授權的死鍵刪除），不含修改 check_i18n.mjs，故保留舊鍵並在此 allowlist，留待之後一併清理 check_i18n.mjs 與這把鍵。"
+        },
+        {
+          "surface": "i18n-dict",
+          "term": "Plus",
+          "match": "Train positions, delay information and system coverage will always stay free—Plus never changes accuracy.",
+          "why": "2026-08-31 實測這把舊鍵在 index.html 已 0 處呼叫（已被同義的新鍵「列車位置、誤點資訊與系統覆蓋現在免費提供——通行證不影響準確度。」取代），本應可刪；但 scripts/check_i18n.mjs 的 coreStaticKeys 陣列仍列了這把舊鍵、要求它存在於字典中（該表本身疑似未同步 08-05 更名，是本 task 範圍外的既有問題）。若在這裡刪除，check_i18n.mjs 會回報「缺少核心靜態字串」而轉紅。本 task 範圍只含 docs/voice-rules.json 與 scripts/check_voice.mjs（及裁示 4 授權的死鍵刪除），不含修改 check_i18n.mjs，故保留舊鍵並在此 allowlist，留待之後一併清理 check_i18n.mjs 與這把鍵。"
+        },
+        {
+          "surface": "i18n-dict",
+          "term": "Plus",
+          "match": "列車位置、遅延情報、対応路線は今後も無料です。Plusの有無で精度は変わりません。",
+          "why": "2026-08-31 實測這把舊鍵在 index.html 已 0 處呼叫（已被同義的新鍵「列車位置、誤點資訊與系統覆蓋現在免費提供——通行證不影響準確度。」取代），本應可刪；但 scripts/check_i18n.mjs 的 coreStaticKeys 陣列仍列了這把舊鍵、要求它存在於字典中（該表本身疑似未同步 08-05 更名，是本 task 範圍外的既有問題）。若在這裡刪除，check_i18n.mjs 會回報「缺少核心靜態字串」而轉紅。本 task 範圍只含 docs/voice-rules.json 與 scripts/check_voice.mjs（及裁示 4 授權的死鍵刪除），不含修改 check_i18n.mjs，故保留舊鍵並在此 allowlist，留待之後一併清理 check_i18n.mjs 與這把鍵。"
+        }
+      ]
+    }
+  }
 }
