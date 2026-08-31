@@ -42,11 +42,26 @@ const LABEL = {
 const argv = process.argv.slice(2);
 const arg = n => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null; };
 const pi = argv.indexOf('--parents');
-if (pi < 0 || !argv[pi + 1] || !argv[pi + 2] || argv[pi + 2].startsWith('--')) {
-  console.error('✋ 用法：node scripts/verify_merge_no_loss.mjs --parents <refA> <refB> [--cand <index.html>] [--allow a,b]');
+// 省略 --parents 時自動用 HEAD 的兩個父——「剛併完就跑一下」不必記參數（要記參數的閘門
+// 等於沒有閘門）。HEAD 不是 merge commit 就明講並退出，不要猜一個看似合理的對照組。
+let REFS;
+if (pi >= 0 && argv[pi + 1] && argv[pi + 2] && !argv[pi + 2].startsWith('--')) {
+  REFS = [argv[pi + 1], argv[pi + 2]];
+} else if (pi >= 0) {
+  console.error('✋ --parents 要接兩個 ref。用法：node scripts/verify_merge_no_loss.mjs [--parents <refA> <refB>] [--cand <index.html>] [--allow a,b]');
   process.exit(2);
+} else {
+  let parents = [];
+  try { parents = execFileSync('git', ['rev-parse', 'HEAD^@'], { cwd: REPO }).toString().trim().split('\n').filter(Boolean); }
+  catch { parents = []; }
+  if (parents.length !== 2) {
+    console.error(`✋ 沒給 --parents 時要在一顆 merge commit 上跑，但 HEAD 有 ${parents.length} 個父。`);
+    console.error('   用法：node scripts/verify_merge_no_loss.mjs [--parents <refA> <refB>] [--cand <index.html>] [--allow a,b]');
+    process.exit(2);
+  }
+  REFS = ['HEAD^1', 'HEAD^2'];
+  console.log('[G0] 沒給 --parents ⇒ 用 HEAD 的兩個父（HEAD 是 merge commit）');
 }
-const REFS = [argv[pi + 1], argv[pi + 2]];
 const CAND = resolve(arg('--cand') || join(REPO, 'index.html'));
 const ALLOW = new Set((arg('--allow') || '').split(',').map(s => s.trim()).filter(Boolean));
 
