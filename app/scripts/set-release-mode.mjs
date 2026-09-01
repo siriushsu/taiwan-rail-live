@@ -251,10 +251,19 @@ const MODES = {
     // CLI 一顆），我 patch 的是 CLI 那顆、使用者上傳的是另一顆 ⇒ ASC 回 ITMS-90111。
     // 規則四：作廢的號不重用。兩顆都已搬到 ~/Library/Developer/Xcode/_已作廢的archive/1.5.3-86/，
     // 而 ios-release.mjs 的第 3 步連那一區一起掃，所以 86 再也不會被放行。
-    marketing: '1.5.3', build: '87', music: true, metroCore: true,
-    why: '軌島 1.5.3\n\n放空模式的出口\n放空模式離開之後再進去一次，整條控制列會縮成右下角一顆空白的小鈕，找不到「離開放空」也點不出去。現在每次進放空，出口都在（謝謝網友回報）。\n\n隨機跟隨\n按「隨機跟隨」時，同一班車被抽中的機率設了上限，也會記住剛跟過的五班不重複挑，比較不會一直遇到同一批車。\n\n桌面小工具的起站選單\nAndroid 新增車站時，起站選單改成依縣市分段，不必再從一整條長清單裡找。\n\n街道底圖\n街道底圖載入不順時，原本會退回另一家的圖磚，而那家改成需要金鑰之後，退過去看到的是一張蓋著浮水印的地圖，而且它回的是正常的 200，這端偵測不到。現在載不動就直說。',
-    whyEn: 'Rail Island 1.5.3\n\nThe way out of ambient mode\nLeaving ambient mode and going back in could shrink the whole control bar into a blank little pill in the corner, with no Exit ambient mode button to tap. Now the way out is there every time. Thanks to the reader who reported it.\n\nFollow random train\nFollow random train now caps how likely any one train is to be picked, and remembers the last five it followed, so you meet a wider spread of trains.\n\nThe origin picker in home screen widgets\nOn Android, adding a station to a widget now groups the origin picker by city and county instead of one long list.\n\nThe street basemap\nWhen the street basemap was slow to load it used to fall back to another provider, and since that provider started requiring a key the fallback showed a map stamped with a watermark, served as a normal 200 that this end could not detect. Now it says so instead.',
-    whyJa: '軌島 1.5.3\n\n鑑賞モードの出口\n鑑賞モードをいったん終了してもう一度入ると、操作バー全体が隅の小さな空白のボタンに縮み、「鑑賞モードを終了」が押せなくなることがありました。今は毎回そこに出口があります（ご報告ありがとうございました）。\n\nランダム追跡\n「ランダム追跡」では、同じ列車が選ばれる確率に上限を設け、直前に追跡した五本を覚えて重複を避けるようにしました。より幅広い列車に出会えます。\n\nホーム画面ウィジェットの出発駅選択\nAndroid では、ウィジェットに駅を追加するとき、出発駅を県・市別に整理しました。長い一覧から探す必要がありません。\n\n街路地図\n街路地図の読み込みが遅いとき、以前は別の提供元の地図タイルに切り替えていました。その提供元がキーを必須にしてからは、切り替え先が透かし入りの地図になり、しかも通常の 200 で返るためこちら側では検知できませんでした。今は読み込めないことをそのまま表示します。',
+    // 2026-09-01：87 → 88。87 那顆 archive 已搬進 ~/Library/Developer/Xcode/_已作廢的archive/1.5.3-87/
+    //   ⇒ 規則四不重用號。88 的載貨＝87 ＋ 桌面小工具 4x4 版面重整（分北上南下、五筆、每列
+    //   都有開車時刻與準點誤點、依卡片高度分配列高；鎖定畫面與各尺寸最小字級提高到 11pt）。
+    //   why 三語同時換成「只寫做了什麼」的短版體例（memory/release-notes-filter-by-user-value.md，
+    //   09-01 使用者裁示：「不用解釋由來，只需要敘述做了什麼更新」「不要一堆內心話」）。
+    //   逐項對「線上 1.5.2 (85) 的 index.html」核過才留：新增的 data-cl 是 guestmerge／
+    //   signinfallback／tourpickcap／cartoretreat，另加 ambientlock 條目的 9/1 追加段。
+    //   🔴 cartoretreat 刻意不寫進 why：那條退路是**網站限定**（index.html 的
+    //   `if (APP_CFG.tiles)` 只給 App 建 Stadia 退路），App 使用者根本遇不到這個變化。
+    marketing: '1.5.3', build: '88', music: true, metroCore: true,
+    why: '軌島 1.5.3\n\n・登入後看不到原本的完乘紀錄與旅程護照時，帳號面板可以一鍵併回帳號\n・修正登入失敗訊息重複顯示兩行\n・修正再次進入放空模式後找不到「離開放空」\n・隨機跟隨不會一直挑到同一批車\n・大尺寸桌面小工具的發車看板改為分北上南下、一次列出五班，每列都有開車時刻與準點誤點',
+    whyEn: 'Rail Island 1.5.3\n\n• Merge records saved before signing in back into your account, from the account panel\n• Fixed sign-in errors appearing twice\n• Fixed the missing Exit button after re-entering ambient mode\n• Follow random train no longer keeps picking the same trains\n• The large home screen widget now splits departures into northbound and southbound, lists five trains, and shows a departure time and on-time status on every row',
+    whyJa: '軌島 1.5.3\n\n・ログイン前に保存した完乗記録や旅のパスポートを、アカウント画面からまとめて取り込めます\n・ログイン失敗のメッセージが二重に表示される問題を修正\n・鑑賞モードに入り直すと「鑑賞モードを終了」が見つからない問題を修正\n・ランダム追跡で同じ列車ばかり選ばれないようにしました\n・大きいホーム画面ウィジェットの発車標を上り・下りに分け、5 本を表示、各行に発車時刻と定時・遅延を表示',
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
   // 軌島通行證客端功能、雲端同步與伺服器付費牆。這顆不可選去正式送審；正式版必須另推 build 號，
