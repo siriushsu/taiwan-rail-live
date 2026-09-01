@@ -6095,6 +6095,7 @@ const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
   stationTransfers: null, stationTransferAnchors: [], stationTransferGroups: new Map(), stationTransferBySystemName: new Map(),
+  transferDepartures: null, // 轉乘接續:轉乘群當日對向班次表(data/transfer_departures.json),缺檔或版本不符仍為 null,功能靜默消失
   playing: true, speedMult: 1, hour: 8, simSec: 8 * 3600, // 開機即 1× 真實時刻(2026-07-11 使用者裁決,舊示意預設 50×)
   dpr: 1, powerSave: false, t0: 0, elapsed: 0, ready: false, // powerSave:省電模式(相機置中+繪製統一降 30fps,手機預設開),見 tick 節流
 
@@ -16300,6 +16301,36 @@ function setTransferTag(id, routes) {
   if (!routes || !routes.length) { el.hidden = true; el.textContent = ''; return; }
   el.textContent = t('轉 {routes}', { routes: routes.map(transferRouteLabel).join(t('、')) });
   el.hidden = false;
+}
+
+// ── 轉乘接續:我到轉乘站的那一刻,對向系統還有哪幾班 ──────────────────────────
+// 資料是 build 時算好的靜態檔(data/transfer_departures.json),沒有 runtime 外部 API;
+// 缺檔時 state.transferDepartures 為 null,本函式回空陣列 ⇒ 功能靜默消失,不影響其他東西。
+// 🔴 只做「有班表」的系統(台鐵/高鐵/林鐵)。捷運沒有真班表——官方倒數只涵蓋未來幾分鐘,
+//    你 40 分鐘後才到那站,那時的倒數現在還不存在。見規格 §2。
+// 3 小時窗與看板(schedBoardRows)一致:那麼遠的接續本來就不該承諾,而且畫面上
+// 「剩 187 分」對任何人都沒有意義。規格 §5.5。
+const XFER_WINDOW_SEC = 3 * 3600;
+
+function transferConnections(groupId, atSec, fromSys) {
+  const d = state.transferDepartures;
+  if (!d || !groupId || !Number.isFinite(atSec)) return [];
+  const group = d.groups.find(g => g.id === groupId);
+  if (!group) return [];
+  const out = [];
+  for (const [sys, names] of Object.entries(group.members)) {
+    if (sys === fromSys) continue;               // 排除自己那條線
+    for (const t of (d[sys.toLowerCase()] || [])) {
+      for (const [stn, sec, isLast] of t.h) {
+        if (!names.includes(stn) || isLast) continue;  // 終點到達不是可搭的班次
+        const left = sec - atSec;
+        if (left < 0 || left > XFER_WINDOW_SEC) continue;
+        out.push({ sys, n: t.n, ty: t.ty, de: t.de, sec, leftSec: left });
+      }
+    }
+  }
+  out.sort((a, b) => a.sec - b.sec);
+  return out;
 }
 
 // 地圖下方的列車資訊卡:介紹+服務標記,旅程日誌由 renderFollowEvents 填
@@ -30370,6 +30401,7 @@ async function boot() {
   const trackP = new Map(SYS_DEFS.filter(d => d.track).map(d => [d.id, _p(fetchJSON(d.track))]));
   const timesP = new Map(SYS_DEFS.filter(d => d.times).map(d => [d.id, _p(fetchJSON(d.times))]));
   const transfersP = _p(fetchJSON('./data/station_transfers.json'));
+  const xferDepP   = _p(fetchJSON('./data/transfer_departures.json'));
   const stnClassP  = _p(fetchJSON('./data/tra_station_class.json'));
   const stnInfoP   = _p(fetchJSON('./data/tra_station_info.json'));
   const platformsP = _p(fetchJSON('./data/tra_platforms.json'));
@@ -30388,6 +30420,10 @@ async function boot() {
   for (const s of state.systems) if (s.times) s._times = await timesP.get(s.id);
   // 純靜態共站表；沒有 runtime 外部 API，缺檔時只是不顯示轉乘提示。
   initStationTransfers(await transfersP);
+  // 轉乘接續表(轉乘群當日對向班次,scripts/build_transfer_departures.mjs 產)。純靜態、無 runtime 外部
+  // API,缺檔或版本不符就是沒有這個功能,不擋開機(schemaVersion 把關方式比照上面的 initStationTransfers)。
+  const xferDep = await xferDepP;
+  state.transferDepartures = xferDep && xferDep.schemaVersion === 1 ? xferDep : null;
   // 站等資料(特等/一等/…),缺檔就全走停靠班次數啟發式
   state.stnClassMap = await stnClassP || {};
   // 台鐵各站地址(TDX Rail/TRA/Station);key 為「台」正規化站名,feature 欄之後補
