@@ -172,10 +172,19 @@ async function runEngine(engineName, engine) {
       ok(P('F2 跟車中 #fpConn 子節點零汰換(修復前每幀整段換掉 ⇒ 點擊被吃掉)'), s.connMut === 0, JSON.stringify(s));
 
       // ── F3 —— 真滑鼠:移到第一列中心、按住 150ms、放開。不是 dispatchEvent ────────
-      const row = page.locator('#fpConn .xfc-row').first();
-      const no = await row.getAttribute('data-xn');
-      const box = await row.boundingBox();
-      ok(P('F3pre 第一列量得到座標(不是零尺寸/被摺疊)'), !!box && box.width > 0 && box.height > 0, JSON.stringify(box));
+      // 🔴 座標與車次都用 page.evaluate 當場重新查詢,不用 Playwright 的 locator:突變成
+      // 「每幀整段重寫」時 locator.boundingBox() 會因為節點一直被換掉而回 null,於是 F3pre
+      // 先紅、真正要考的 F3 反而拿不到執行機會(第一次跑突變就是這個結果)。改成即時查詢後,
+      // 突變下照樣按得下去,F3 就能具名回報「釘的=null」——那才是這條 finding 的直接證據。
+      const first = await page.evaluate(() => {
+        const r = document.querySelector('#fpConn .xfc-row');
+        if (!r) return null;
+        const b = r.getBoundingClientRect();
+        return { no: r.dataset.xn, x: b.x, y: b.y, width: b.width, height: b.height };
+      });
+      const no = first && first.no;
+      const box = first && first.width > 0 && first.height > 0 ? first : null;
+      ok(P('F3pre 第一列量得到座標(不是零尺寸/被摺疊)'), !!box, JSON.stringify(first));
       if (box) {
         const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
         // 命中判準:那個座標上真的是這一列(或它的子元素),而且節點還在 DOM 上。
@@ -253,18 +262,24 @@ async function runEngine(engineName, engine) {
         const el = document.getElementById('fpConn');
         return el && !el.hidden && el.querySelectorAll('.xfc-row').length >= 1;
       }, null, { timeout: 5000 }).catch(() => {});
-      const rowM = page.locator('#fpConn .xfc-row').first();
-      const noM = await rowM.getAttribute('data-xn').catch(() => null);
+      // 座標與車次同樣即時查詢(理由見桌面段 F3pre)。
+      const RECT = () => page.evaluate(() => {
+        const r = document.querySelector('#fpConn .xfc-row');
+        if (!r) return null;
+        const b = r.getBoundingClientRect();
+        return { no: r.dataset.xn, x: b.x, y: b.y, width: b.width, height: b.height };
+      });
       // 🔴 「列車」sheet 是動畫收合的,收合期間跟隨小卡會邊移動邊回位——直接量座標會量到途中的
       // 位置,tap 就落在別的家具上(第一次跑就踩到:量到 y=773 落在底部 tab bar,pin 是 null)。
       // 等到連續兩次取樣位置完全一樣才算穩定,不用固定睡幾百毫秒。
       let boxM = null;
       for (let i = 0; i < 20; i++) {
-        const a = await rowM.boundingBox().catch(() => null);
+        const a = await RECT();
         await page.waitForTimeout(150);
-        const b = await rowM.boundingBox().catch(() => null);
+        const b = await RECT();
         if (a && b && a.x === b.x && a.y === b.y && a.height === b.height) { boxM = b; break; }
       }
+      const noM = boxM ? boxM.no : (await RECT() || {}).no || null;
       ok(P('F5pre3 手機:接續列量得到座標'), !!boxM && boxM.width > 0 && boxM.height > 0, JSON.stringify(boxM));
       if (boxM) {
         const mx = boxM.x + boxM.width / 2, my = boxM.y + boxM.height / 2;
