@@ -13,10 +13,12 @@ check(index.indexOf('i18n/bus-transfer-translations.js') < index.indexOf('bus-tr
 check(index.indexOf('bus-transfer-ui.js') < index.indexOf('<script>\n// 版本戳記'),
   '公車 UI 模組在主程式之前載入');
 
-for (const [name, stationId] of [['台北', 'TRA:1000'], ['台南', 'TRA:4220'], ['花蓮', 'TRA:7000']]) {
-  check(index.includes(`${name}: '${stationId}'`), `${name} pilot 對應 ${stationId}`);
-}
-check(/st\.sys !== 'tra_sched'/.test(index), 'pilot 入口只出現在台鐵站看板');
+check(/const info = stnInfo\(st\.name\)/.test(index) && /`TRA:\$\{stationCode\}`/.test(index),
+  '入口由既有台鐵站碼資料自動掛載，不再複製三站白名單');
+check(!/BUS_TRANSFER_PILOT_STATIONS/.test(index), '前端已移除三站 pilot 白名單');
+check(/st\.sys !== 'tra_sched'/.test(index), '入口只出現在台鐵站看板');
+check(/COVERAGE = 'all_active_tra_stations'/.test(ui) && /\^TRA:\\d\{4\}\$/.test(ui),
+  'UI 接受全臺四碼台鐵站碼，Worker manifest 再做實站 gate');
 check(/phase:\s*'arrived'/.test(index), '第一階段只掛載已抵達查詢，不推算未來接車');
 check(/translate:\s*t/.test(index), '公車卡沿用 App 既有多語系函式');
 check(/busTransferCloseBoard\(\);[\s\S]{0,160}state\.boardStation = null/.test(index),
@@ -40,7 +42,7 @@ check(/function sweepDisconnectedInstances\(\)/.test(ui) && /sweepDisconnectedIn
 check(/if \(typeof opts\.translate === 'function'\) translateImpl = opts\.translate/.test(ui),
   '模組接受宿主翻譯函式');
 
-for (const key of ['查看現在可搭公車', '步行導航到站牌', '此縣市未提供擁擠度', '資料已過期']) {
+for (const key of ['查看現在可搭公車', '步行導航到站牌', '此縣市未提供擁擠度', '資料已過期', '目前靜態索引在本站 600 公尺內沒有找到可用公車站牌，因此這次沒有發出即時查詢。你仍可改用地圖查看更遠的站牌。']) {
   check(translations.includes(`'${key}'`), `英日翻譯表包含「${key}」`);
 }
 

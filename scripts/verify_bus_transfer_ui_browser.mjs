@@ -14,18 +14,20 @@ const stats = async () => {
   return response.json();
 };
 
-async function openTainan(page) {
+async function openStation(page, query, expected = query) {
   const start = page.getByRole('button', { name: '開始看車' });
   if (await start.isVisible().catch(() => false)) await start.click();
   const input = page.locator('#trainSearch');
   if (!await input.isVisible()) await page.locator('#tabSearch').tap();
-  await input.fill('臺南');
+  await input.fill(query);
   const rows = page.locator('.stn-row');
   await rows.first().waitFor({ state: 'visible' });
-  assert.match(await rows.first().innerText(), /臺南.*台鐵/s);
+  assert.match(await rows.first().innerText(), new RegExp(`${expected}.*台鐵`, 's'));
   await rows.first().click();
   await page.locator('[data-bus-transfer-slot]').waitFor({ state: 'visible' });
 }
+
+const openTainan = page => openStation(page, '臺南');
 
 async function touchAndLayout(browserType, engine, width) {
   const browser = await browserType.launch({ headless: true });
@@ -150,8 +152,38 @@ async function translated(browserType, lang, primary, occupancy) {
   }
 }
 
+async function allStationCoverage() {
+  const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext({ viewport: { width: 393, height: 860 }, isMobile: true, hasTouch: true });
+  await context.addInitScript(() => localStorage.setItem('trainmap-howto-seen', '1'));
+  const page = await context.newPage();
+  try {
+    await page.goto(`${BASE}/?lang=zh-TW`, { waitUntil: 'domcontentloaded' });
+    const before = await stats();
+    await openStation(page, '臺中');
+    assert.equal(await page.getByRole('button', { name: '查看現在可搭公車' }).isVisible(), true);
+    assert.equal((await stats()).station, before.station, '新擴充站只開看板不得查 API');
+    await page.getByRole('button', { name: '查看現在可搭公車' }).tap();
+    await page.locator('.btu-rowbtn').first().waitFor({ state: 'visible' });
+    assert.equal((await stats()).lastStation, 'TRA:3300', '臺中應由既有站碼自動對到 TRA:3300');
+
+    await page.locator('#boardClose').tap();
+    await openStation(page, '北湖');
+    const noStopResponse = page.waitForResponse(response => response.url().includes('/api/bus-transfer'));
+    await page.getByRole('button', { name: '查看現在可搭公車' }).tap();
+    await noStopResponse;
+    await page.getByText(/600 公尺內沒有找到可用公車站牌/).waitFor({ state: 'visible' });
+    assert.equal(await page.locator('.btu-rowbtn').count(), 0);
+    assert.equal((await stats()).lastStation, 'TRA:1150', '北湖應由既有站碼自動對到 TRA:1150');
+    pass('三站白名單外的臺中可查；無附近站牌的北湖照實顯示且不產生假班次');
+  } finally {
+    await browser.close();
+  }
+}
+
 for (const width of [360, 375, 414, 768]) await touchAndLayout(chromium, 'Chromium', width);
 await touchAndLayout(webkit, 'WebKit', 375);
+await allStationCoverage();
 await translated(chromium, 'en', 'See buses you can catch now', 'Occupancy not provided in this area');
 await translated(webkit, 'ja', '今乗れるバスを見る', 'この地域は混雑度を提供していません');
 

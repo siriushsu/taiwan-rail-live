@@ -1,7 +1,7 @@
 // 公車轉乘垂直切片的純函式核心。
 //
 // 這個模組刻意不碰 DOM、timer、fetch 或 Cloudflare binding：
-// - 離線建置用它把 StopOfRoute 收斂成三站的靜態索引。
+// - 離線建置用它把 StopOfRoute 收斂成各台鐵營運站的分站靜態索引。
 // - Worker 用它把使用者點開當下取得的 N1 正規化成穩定資料契約。
 // - 測試可用固定 fixture 驗「退役路線不得混入」「N1 空值不得都說成沒車」等語意。
 
@@ -223,7 +223,7 @@ export function resolveStationN1({ pilotStation, rowsByScope, nowMs = Date.now()
         }
       }
       if (!stop || !ref) {
-        rejected.push({ scope, stopUid, routeUid: liveRouteUid, routeName: zhName(valueOf(row, 'RouteName')), reason: !stop ? 'stop_not_in_pilot_index' : 'route_not_in_current_static_index' });
+        rejected.push({ scope, stopUid, routeUid: liveRouteUid, routeName: zhName(valueOf(row, 'RouteName')), reason: !stop ? 'stop_not_in_static_index' : 'route_not_in_current_static_index' });
         continue;
       }
       const live = normalizeN1State(row, nowMs, staleAfterSec);

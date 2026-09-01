@@ -1,0 +1,1205 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-01T12:08:29.485Z",
+  "coverage": "all_active_tra_stations",
+  "trigger": "user_open_only",
+  "polling": false,
+  "stationCount": 239,
+  "stations": {
+    "TRA:0900": {
+      "id": "TRA:0900",
+      "name": "基隆車站",
+      "asset": "/data/bus-transfer/TRA-0900.json"
+    },
+    "TRA:0910": {
+      "id": "TRA:0910",
+      "name": "三坑車站",
+      "asset": "/data/bus-transfer/TRA-0910.json"
+    },
+    "TRA:0920": {
+      "id": "TRA:0920",
+      "name": "八堵車站",
+      "asset": "/data/bus-transfer/TRA-0920.json"
+    },
+    "TRA:0930": {
+      "id": "TRA:0930",
+      "name": "七堵車站",
+      "asset": "/data/bus-transfer/TRA-0930.json"
+    },
+    "TRA:0940": {
+      "id": "TRA:0940",
+      "name": "百福車站",
+      "asset": "/data/bus-transfer/TRA-0940.json"
+    },
+    "TRA:0950": {
+      "id": "TRA:0950",
+      "name": "五堵車站",
+      "asset": "/data/bus-transfer/TRA-0950.json"
+    },
+    "TRA:0960": {
+      "id": "TRA:0960",
+      "name": "汐止車站",
+      "asset": "/data/bus-transfer/TRA-0960.json"
+    },
+    "TRA:0970": {
+      "id": "TRA:0970",
+      "name": "汐科車站",
+      "asset": "/data/bus-transfer/TRA-0970.json"
+    },
+    "TRA:0980": {
+      "id": "TRA:0980",
+      "name": "南港車站",
+      "asset": "/data/bus-transfer/TRA-0980.json"
+    },
+    "TRA:0990": {
+      "id": "TRA:0990",
+      "name": "松山車站",
+      "asset": "/data/bus-transfer/TRA-0990.json"
+    },
+    "TRA:1000": {
+      "id": "TRA:1000",
+      "name": "臺北車站",
+      "asset": "/data/bus-transfer/TRA-1000.json"
+    },
+    "TRA:1010": {
+      "id": "TRA:1010",
+      "name": "萬華車站",
+      "asset": "/data/bus-transfer/TRA-1010.json"
+    },
+    "TRA:1020": {
+      "id": "TRA:1020",
+      "name": "板橋車站",
+      "asset": "/data/bus-transfer/TRA-1020.json"
+    },
+    "TRA:1030": {
+      "id": "TRA:1030",
+      "name": "浮洲車站",
+      "asset": "/data/bus-transfer/TRA-1030.json"
+    },
+    "TRA:1040": {
+      "id": "TRA:1040",
+      "name": "樹林車站",
+      "asset": "/data/bus-transfer/TRA-1040.json"
+    },
+    "TRA:1050": {
+      "id": "TRA:1050",
+      "name": "南樹林車站",
+      "asset": "/data/bus-transfer/TRA-1050.json"
+    },
+    "TRA:1060": {
+      "id": "TRA:1060",
+      "name": "山佳車站",
+      "asset": "/data/bus-transfer/TRA-1060.json"
+    },
+    "TRA:1070": {
+      "id": "TRA:1070",
+      "name": "鶯歌車站",
+      "asset": "/data/bus-transfer/TRA-1070.json"
+    },
+    "TRA:1075": {
+      "id": "TRA:1075",
+      "name": "鳳鳴車站",
+      "asset": "/data/bus-transfer/TRA-1075.json"
+    },
+    "TRA:1080": {
+      "id": "TRA:1080",
+      "name": "桃園車站",
+      "asset": "/data/bus-transfer/TRA-1080.json"
+    },
+    "TRA:1090": {
+      "id": "TRA:1090",
+      "name": "內壢車站",
+      "asset": "/data/bus-transfer/TRA-1090.json"
+    },
+    "TRA:1100": {
+      "id": "TRA:1100",
+      "name": "中壢車站",
+      "asset": "/data/bus-transfer/TRA-1100.json"
+    },
+    "TRA:1110": {
+      "id": "TRA:1110",
+      "name": "埔心車站",
+      "asset": "/data/bus-transfer/TRA-1110.json"
+    },
+    "TRA:1120": {
+      "id": "TRA:1120",
+      "name": "楊梅車站",
+      "asset": "/data/bus-transfer/TRA-1120.json"
+    },
+    "TRA:1130": {
+      "id": "TRA:1130",
+      "name": "富岡車站",
+      "asset": "/data/bus-transfer/TRA-1130.json"
+    },
+    "TRA:1140": {
+      "id": "TRA:1140",
+      "name": "新富車站",
+      "asset": "/data/bus-transfer/TRA-1140.json"
+    },
+    "TRA:1150": {
+      "id": "TRA:1150",
+      "name": "北湖車站",
+      "asset": "/data/bus-transfer/TRA-1150.json"
+    },
+    "TRA:1160": {
+      "id": "TRA:1160",
+      "name": "湖口車站",
+      "asset": "/data/bus-transfer/TRA-1160.json"
+    },
+    "TRA:1170": {
+      "id": "TRA:1170",
+      "name": "新豐車站",
+      "asset": "/data/bus-transfer/TRA-1170.json"
+    },
+    "TRA:1180": {
+      "id": "TRA:1180",
+      "name": "竹北車站",
+      "asset": "/data/bus-transfer/TRA-1180.json"
+    },
+    "TRA:1190": {
+      "id": "TRA:1190",
+      "name": "北新竹車站",
+      "asset": "/data/bus-transfer/TRA-1190.json"
+    },
+    "TRA:1191": {
+      "id": "TRA:1191",
+      "name": "千甲車站",
+      "asset": "/data/bus-transfer/TRA-1191.json"
+    },
+    "TRA:1192": {
+      "id": "TRA:1192",
+      "name": "新莊車站",
+      "asset": "/data/bus-transfer/TRA-1192.json"
+    },
+    "TRA:1193": {
+      "id": "TRA:1193",
+      "name": "竹中車站",
+      "asset": "/data/bus-transfer/TRA-1193.json"
+    },
+    "TRA:1194": {
+      "id": "TRA:1194",
+      "name": "六家車站",
+      "asset": "/data/bus-transfer/TRA-1194.json"
+    },
+    "TRA:1201": {
+      "id": "TRA:1201",
+      "name": "上員車站",
+      "asset": "/data/bus-transfer/TRA-1201.json"
+    },
+    "TRA:1202": {
+      "id": "TRA:1202",
+      "name": "榮華車站",
+      "asset": "/data/bus-transfer/TRA-1202.json"
+    },
+    "TRA:1203": {
+      "id": "TRA:1203",
+      "name": "竹東車站",
+      "asset": "/data/bus-transfer/TRA-1203.json"
+    },
+    "TRA:1204": {
+      "id": "TRA:1204",
+      "name": "橫山車站",
+      "asset": "/data/bus-transfer/TRA-1204.json"
+    },
+    "TRA:1205": {
+      "id": "TRA:1205",
+      "name": "九讚頭車站",
+      "asset": "/data/bus-transfer/TRA-1205.json"
+    },
+    "TRA:1206": {
+      "id": "TRA:1206",
+      "name": "合興車站",
+      "asset": "/data/bus-transfer/TRA-1206.json"
+    },
+    "TRA:1207": {
+      "id": "TRA:1207",
+      "name": "富貴車站",
+      "asset": "/data/bus-transfer/TRA-1207.json"
+    },
+    "TRA:1208": {
+      "id": "TRA:1208",
+      "name": "內灣車站",
+      "asset": "/data/bus-transfer/TRA-1208.json"
+    },
+    "TRA:1210": {
+      "id": "TRA:1210",
+      "name": "新竹車站",
+      "asset": "/data/bus-transfer/TRA-1210.json"
+    },
+    "TRA:1220": {
+      "id": "TRA:1220",
+      "name": "三姓橋車站",
+      "asset": "/data/bus-transfer/TRA-1220.json"
+    },
+    "TRA:1230": {
+      "id": "TRA:1230",
+      "name": "香山車站",
+      "asset": "/data/bus-transfer/TRA-1230.json"
+    },
+    "TRA:1240": {
+      "id": "TRA:1240",
+      "name": "崎頂車站",
+      "asset": "/data/bus-transfer/TRA-1240.json"
+    },
+    "TRA:1250": {
+      "id": "TRA:1250",
+      "name": "竹南車站",
+      "asset": "/data/bus-transfer/TRA-1250.json"
+    },
+    "TRA:2110": {
+      "id": "TRA:2110",
+      "name": "談文車站",
+      "asset": "/data/bus-transfer/TRA-2110.json"
+    },
+    "TRA:2120": {
+      "id": "TRA:2120",
+      "name": "大山車站",
+      "asset": "/data/bus-transfer/TRA-2120.json"
+    },
+    "TRA:2130": {
+      "id": "TRA:2130",
+      "name": "後龍車站",
+      "asset": "/data/bus-transfer/TRA-2130.json"
+    },
+    "TRA:2140": {
+      "id": "TRA:2140",
+      "name": "龍港車站",
+      "asset": "/data/bus-transfer/TRA-2140.json"
+    },
+    "TRA:2150": {
+      "id": "TRA:2150",
+      "name": "白沙屯車站",
+      "asset": "/data/bus-transfer/TRA-2150.json"
+    },
+    "TRA:2160": {
+      "id": "TRA:2160",
+      "name": "新埔車站",
+      "asset": "/data/bus-transfer/TRA-2160.json"
+    },
+    "TRA:2170": {
+      "id": "TRA:2170",
+      "name": "通霄車站",
+      "asset": "/data/bus-transfer/TRA-2170.json"
+    },
+    "TRA:2180": {
+      "id": "TRA:2180",
+      "name": "苑裡車站",
+      "asset": "/data/bus-transfer/TRA-2180.json"
+    },
+    "TRA:2190": {
+      "id": "TRA:2190",
+      "name": "日南車站",
+      "asset": "/data/bus-transfer/TRA-2190.json"
+    },
+    "TRA:2200": {
+      "id": "TRA:2200",
+      "name": "大甲車站",
+      "asset": "/data/bus-transfer/TRA-2200.json"
+    },
+    "TRA:2210": {
+      "id": "TRA:2210",
+      "name": "臺中港車站",
+      "asset": "/data/bus-transfer/TRA-2210.json"
+    },
+    "TRA:2220": {
+      "id": "TRA:2220",
+      "name": "清水車站",
+      "asset": "/data/bus-transfer/TRA-2220.json"
+    },
+    "TRA:2230": {
+      "id": "TRA:2230",
+      "name": "沙鹿車站",
+      "asset": "/data/bus-transfer/TRA-2230.json"
+    },
+    "TRA:2240": {
+      "id": "TRA:2240",
+      "name": "龍井車站",
+      "asset": "/data/bus-transfer/TRA-2240.json"
+    },
+    "TRA:2250": {
+      "id": "TRA:2250",
+      "name": "大肚車站",
+      "asset": "/data/bus-transfer/TRA-2250.json"
+    },
+    "TRA:2260": {
+      "id": "TRA:2260",
+      "name": "追分車站",
+      "asset": "/data/bus-transfer/TRA-2260.json"
+    },
+    "TRA:3140": {
+      "id": "TRA:3140",
+      "name": "造橋車站",
+      "asset": "/data/bus-transfer/TRA-3140.json"
+    },
+    "TRA:3150": {
+      "id": "TRA:3150",
+      "name": "豐富車站",
+      "asset": "/data/bus-transfer/TRA-3150.json"
+    },
+    "TRA:3160": {
+      "id": "TRA:3160",
+      "name": "苗栗車站",
+      "asset": "/data/bus-transfer/TRA-3160.json"
+    },
+    "TRA:3170": {
+      "id": "TRA:3170",
+      "name": "南勢車站",
+      "asset": "/data/bus-transfer/TRA-3170.json"
+    },
+    "TRA:3180": {
+      "id": "TRA:3180",
+      "name": "銅鑼車站",
+      "asset": "/data/bus-transfer/TRA-3180.json"
+    },
+    "TRA:3190": {
+      "id": "TRA:3190",
+      "name": "三義車站",
+      "asset": "/data/bus-transfer/TRA-3190.json"
+    },
+    "TRA:3210": {
+      "id": "TRA:3210",
+      "name": "泰安車站",
+      "asset": "/data/bus-transfer/TRA-3210.json"
+    },
+    "TRA:3220": {
+      "id": "TRA:3220",
+      "name": "后里車站",
+      "asset": "/data/bus-transfer/TRA-3220.json"
+    },
+    "TRA:3230": {
+      "id": "TRA:3230",
+      "name": "豐原車站",
+      "asset": "/data/bus-transfer/TRA-3230.json"
+    },
+    "TRA:3240": {
+      "id": "TRA:3240",
+      "name": "栗林車站",
+      "asset": "/data/bus-transfer/TRA-3240.json"
+    },
+    "TRA:3250": {
+      "id": "TRA:3250",
+      "name": "潭子車站",
+      "asset": "/data/bus-transfer/TRA-3250.json"
+    },
+    "TRA:3260": {
+      "id": "TRA:3260",
+      "name": "頭家厝車站",
+      "asset": "/data/bus-transfer/TRA-3260.json"
+    },
+    "TRA:3270": {
+      "id": "TRA:3270",
+      "name": "松竹車站",
+      "asset": "/data/bus-transfer/TRA-3270.json"
+    },
+    "TRA:3280": {
+      "id": "TRA:3280",
+      "name": "太原車站",
+      "asset": "/data/bus-transfer/TRA-3280.json"
+    },
+    "TRA:3290": {
+      "id": "TRA:3290",
+      "name": "精武車站",
+      "asset": "/data/bus-transfer/TRA-3290.json"
+    },
+    "TRA:3300": {
+      "id": "TRA:3300",
+      "name": "臺中車站",
+      "asset": "/data/bus-transfer/TRA-3300.json"
+    },
+    "TRA:3310": {
+      "id": "TRA:3310",
+      "name": "五權車站",
+      "asset": "/data/bus-transfer/TRA-3310.json"
+    },
+    "TRA:3320": {
+      "id": "TRA:3320",
+      "name": "大慶車站",
+      "asset": "/data/bus-transfer/TRA-3320.json"
+    },
+    "TRA:3330": {
+      "id": "TRA:3330",
+      "name": "烏日車站",
+      "asset": "/data/bus-transfer/TRA-3330.json"
+    },
+    "TRA:3340": {
+      "id": "TRA:3340",
+      "name": "新烏日車站",
+      "asset": "/data/bus-transfer/TRA-3340.json"
+    },
+    "TRA:3350": {
+      "id": "TRA:3350",
+      "name": "成功車站",
+      "asset": "/data/bus-transfer/TRA-3350.json"
+    },
+    "TRA:3360": {
+      "id": "TRA:3360",
+      "name": "彰化車站",
+      "asset": "/data/bus-transfer/TRA-3360.json"
+    },
+    "TRA:3370": {
+      "id": "TRA:3370",
+      "name": "花壇車站",
+      "asset": "/data/bus-transfer/TRA-3370.json"
+    },
+    "TRA:3380": {
+      "id": "TRA:3380",
+      "name": "大村車站",
+      "asset": "/data/bus-transfer/TRA-3380.json"
+    },
+    "TRA:3390": {
+      "id": "TRA:3390",
+      "name": "員林車站",
+      "asset": "/data/bus-transfer/TRA-3390.json"
+    },
+    "TRA:3400": {
+      "id": "TRA:3400",
+      "name": "永靖車站",
+      "asset": "/data/bus-transfer/TRA-3400.json"
+    },
+    "TRA:3410": {
+      "id": "TRA:3410",
+      "name": "社頭車站",
+      "asset": "/data/bus-transfer/TRA-3410.json"
+    },
+    "TRA:3420": {
+      "id": "TRA:3420",
+      "name": "田中車站",
+      "asset": "/data/bus-transfer/TRA-3420.json"
+    },
+    "TRA:3430": {
+      "id": "TRA:3430",
+      "name": "二水車站",
+      "asset": "/data/bus-transfer/TRA-3430.json"
+    },
+    "TRA:3431": {
+      "id": "TRA:3431",
+      "name": "源泉車站",
+      "asset": "/data/bus-transfer/TRA-3431.json"
+    },
+    "TRA:3432": {
+      "id": "TRA:3432",
+      "name": "濁水車站",
+      "asset": "/data/bus-transfer/TRA-3432.json"
+    },
+    "TRA:3433": {
+      "id": "TRA:3433",
+      "name": "龍泉車站",
+      "asset": "/data/bus-transfer/TRA-3433.json"
+    },
+    "TRA:3434": {
+      "id": "TRA:3434",
+      "name": "集集車站",
+      "asset": "/data/bus-transfer/TRA-3434.json"
+    },
+    "TRA:3435": {
+      "id": "TRA:3435",
+      "name": "水里車站",
+      "asset": "/data/bus-transfer/TRA-3435.json"
+    },
+    "TRA:3436": {
+      "id": "TRA:3436",
+      "name": "車埕車站",
+      "asset": "/data/bus-transfer/TRA-3436.json"
+    },
+    "TRA:3450": {
+      "id": "TRA:3450",
+      "name": "林內車站",
+      "asset": "/data/bus-transfer/TRA-3450.json"
+    },
+    "TRA:3460": {
+      "id": "TRA:3460",
+      "name": "石榴車站",
+      "asset": "/data/bus-transfer/TRA-3460.json"
+    },
+    "TRA:3470": {
+      "id": "TRA:3470",
+      "name": "斗六車站",
+      "asset": "/data/bus-transfer/TRA-3470.json"
+    },
+    "TRA:3480": {
+      "id": "TRA:3480",
+      "name": "斗南車站",
+      "asset": "/data/bus-transfer/TRA-3480.json"
+    },
+    "TRA:3490": {
+      "id": "TRA:3490",
+      "name": "石龜車站",
+      "asset": "/data/bus-transfer/TRA-3490.json"
+    },
+    "TRA:4050": {
+      "id": "TRA:4050",
+      "name": "大林車站",
+      "asset": "/data/bus-transfer/TRA-4050.json"
+    },
+    "TRA:4060": {
+      "id": "TRA:4060",
+      "name": "民雄車站",
+      "asset": "/data/bus-transfer/TRA-4060.json"
+    },
+    "TRA:4070": {
+      "id": "TRA:4070",
+      "name": "嘉北車站",
+      "asset": "/data/bus-transfer/TRA-4070.json"
+    },
+    "TRA:4080": {
+      "id": "TRA:4080",
+      "name": "嘉義車站",
+      "asset": "/data/bus-transfer/TRA-4080.json"
+    },
+    "TRA:4090": {
+      "id": "TRA:4090",
+      "name": "水上車站",
+      "asset": "/data/bus-transfer/TRA-4090.json"
+    },
+    "TRA:4100": {
+      "id": "TRA:4100",
+      "name": "南靖車站",
+      "asset": "/data/bus-transfer/TRA-4100.json"
+    },
+    "TRA:4110": {
+      "id": "TRA:4110",
+      "name": "後壁車站",
+      "asset": "/data/bus-transfer/TRA-4110.json"
+    },
+    "TRA:4120": {
+      "id": "TRA:4120",
+      "name": "新營車站",
+      "asset": "/data/bus-transfer/TRA-4120.json"
+    },
+    "TRA:4130": {
+      "id": "TRA:4130",
+      "name": "柳營車站",
+      "asset": "/data/bus-transfer/TRA-4130.json"
+    },
+    "TRA:4140": {
+      "id": "TRA:4140",
+      "name": "林鳳營車站",
+      "asset": "/data/bus-transfer/TRA-4140.json"
+    },
+    "TRA:4150": {
+      "id": "TRA:4150",
+      "name": "隆田車站",
+      "asset": "/data/bus-transfer/TRA-4150.json"
+    },
+    "TRA:4160": {
+      "id": "TRA:4160",
+      "name": "拔林車站",
+      "asset": "/data/bus-transfer/TRA-4160.json"
+    },
+    "TRA:4170": {
+      "id": "TRA:4170",
+      "name": "善化車站",
+      "asset": "/data/bus-transfer/TRA-4170.json"
+    },
+    "TRA:4180": {
+      "id": "TRA:4180",
+      "name": "南科車站",
+      "asset": "/data/bus-transfer/TRA-4180.json"
+    },
+    "TRA:4190": {
+      "id": "TRA:4190",
+      "name": "新市車站",
+      "asset": "/data/bus-transfer/TRA-4190.json"
+    },
+    "TRA:4200": {
+      "id": "TRA:4200",
+      "name": "永康車站",
+      "asset": "/data/bus-transfer/TRA-4200.json"
+    },
+    "TRA:4210": {
+      "id": "TRA:4210",
+      "name": "大橋車站",
+      "asset": "/data/bus-transfer/TRA-4210.json"
+    },
+    "TRA:4220": {
+      "id": "TRA:4220",
+      "name": "臺南車站",
+      "asset": "/data/bus-transfer/TRA-4220.json"
+    },
+    "TRA:4250": {
+      "id": "TRA:4250",
+      "name": "保安車站",
+      "asset": "/data/bus-transfer/TRA-4250.json"
+    },
+    "TRA:4260": {
+      "id": "TRA:4260",
+      "name": "仁德車站",
+      "asset": "/data/bus-transfer/TRA-4260.json"
+    },
+    "TRA:4270": {
+      "id": "TRA:4270",
+      "name": "中洲車站",
+      "asset": "/data/bus-transfer/TRA-4270.json"
+    },
+    "TRA:4271": {
+      "id": "TRA:4271",
+      "name": "長榮大學車站",
+      "asset": "/data/bus-transfer/TRA-4271.json"
+    },
+    "TRA:4272": {
+      "id": "TRA:4272",
+      "name": "沙崙車站",
+      "asset": "/data/bus-transfer/TRA-4272.json"
+    },
+    "TRA:4290": {
+      "id": "TRA:4290",
+      "name": "大湖車站",
+      "asset": "/data/bus-transfer/TRA-4290.json"
+    },
+    "TRA:4300": {
+      "id": "TRA:4300",
+      "name": "路竹車站",
+      "asset": "/data/bus-transfer/TRA-4300.json"
+    },
+    "TRA:4310": {
+      "id": "TRA:4310",
+      "name": "岡山車站",
+      "asset": "/data/bus-transfer/TRA-4310.json"
+    },
+    "TRA:4320": {
+      "id": "TRA:4320",
+      "name": "橋頭車站",
+      "asset": "/data/bus-transfer/TRA-4320.json"
+    },
+    "TRA:4330": {
+      "id": "TRA:4330",
+      "name": "楠梓車站",
+      "asset": "/data/bus-transfer/TRA-4330.json"
+    },
+    "TRA:4340": {
+      "id": "TRA:4340",
+      "name": "新左營車站",
+      "asset": "/data/bus-transfer/TRA-4340.json"
+    },
+    "TRA:4350": {
+      "id": "TRA:4350",
+      "name": "左營車站",
+      "asset": "/data/bus-transfer/TRA-4350.json"
+    },
+    "TRA:4360": {
+      "id": "TRA:4360",
+      "name": "內惟車站",
+      "asset": "/data/bus-transfer/TRA-4360.json"
+    },
+    "TRA:4370": {
+      "id": "TRA:4370",
+      "name": "美術館車站",
+      "asset": "/data/bus-transfer/TRA-4370.json"
+    },
+    "TRA:4380": {
+      "id": "TRA:4380",
+      "name": "鼓山車站",
+      "asset": "/data/bus-transfer/TRA-4380.json"
+    },
+    "TRA:4390": {
+      "id": "TRA:4390",
+      "name": "三塊厝車站",
+      "asset": "/data/bus-transfer/TRA-4390.json"
+    },
+    "TRA:4400": {
+      "id": "TRA:4400",
+      "name": "高雄車站",
+      "asset": "/data/bus-transfer/TRA-4400.json"
+    },
+    "TRA:4410": {
+      "id": "TRA:4410",
+      "name": "民族車站",
+      "asset": "/data/bus-transfer/TRA-4410.json"
+    },
+    "TRA:4420": {
+      "id": "TRA:4420",
+      "name": "科工館車站",
+      "asset": "/data/bus-transfer/TRA-4420.json"
+    },
+    "TRA:4430": {
+      "id": "TRA:4430",
+      "name": "正義車站",
+      "asset": "/data/bus-transfer/TRA-4430.json"
+    },
+    "TRA:4440": {
+      "id": "TRA:4440",
+      "name": "鳳山車站",
+      "asset": "/data/bus-transfer/TRA-4440.json"
+    },
+    "TRA:4450": {
+      "id": "TRA:4450",
+      "name": "後庄車站",
+      "asset": "/data/bus-transfer/TRA-4450.json"
+    },
+    "TRA:4460": {
+      "id": "TRA:4460",
+      "name": "九曲堂車站",
+      "asset": "/data/bus-transfer/TRA-4460.json"
+    },
+    "TRA:4470": {
+      "id": "TRA:4470",
+      "name": "六塊厝車站",
+      "asset": "/data/bus-transfer/TRA-4470.json"
+    },
+    "TRA:5000": {
+      "id": "TRA:5000",
+      "name": "屏東車站",
+      "asset": "/data/bus-transfer/TRA-5000.json"
+    },
+    "TRA:5010": {
+      "id": "TRA:5010",
+      "name": "歸來車站",
+      "asset": "/data/bus-transfer/TRA-5010.json"
+    },
+    "TRA:5020": {
+      "id": "TRA:5020",
+      "name": "麟洛車站",
+      "asset": "/data/bus-transfer/TRA-5020.json"
+    },
+    "TRA:5030": {
+      "id": "TRA:5030",
+      "name": "西勢車站",
+      "asset": "/data/bus-transfer/TRA-5030.json"
+    },
+    "TRA:5040": {
+      "id": "TRA:5040",
+      "name": "竹田車站",
+      "asset": "/data/bus-transfer/TRA-5040.json"
+    },
+    "TRA:5050": {
+      "id": "TRA:5050",
+      "name": "潮州車站",
+      "asset": "/data/bus-transfer/TRA-5050.json"
+    },
+    "TRA:5060": {
+      "id": "TRA:5060",
+      "name": "崁頂車站",
+      "asset": "/data/bus-transfer/TRA-5060.json"
+    },
+    "TRA:5070": {
+      "id": "TRA:5070",
+      "name": "南州車站",
+      "asset": "/data/bus-transfer/TRA-5070.json"
+    },
+    "TRA:5080": {
+      "id": "TRA:5080",
+      "name": "鎮安車站",
+      "asset": "/data/bus-transfer/TRA-5080.json"
+    },
+    "TRA:5090": {
+      "id": "TRA:5090",
+      "name": "林邊車站",
+      "asset": "/data/bus-transfer/TRA-5090.json"
+    },
+    "TRA:5100": {
+      "id": "TRA:5100",
+      "name": "佳冬車站",
+      "asset": "/data/bus-transfer/TRA-5100.json"
+    },
+    "TRA:5110": {
+      "id": "TRA:5110",
+      "name": "東海車站",
+      "asset": "/data/bus-transfer/TRA-5110.json"
+    },
+    "TRA:5120": {
+      "id": "TRA:5120",
+      "name": "枋寮車站",
+      "asset": "/data/bus-transfer/TRA-5120.json"
+    },
+    "TRA:5130": {
+      "id": "TRA:5130",
+      "name": "加祿車站",
+      "asset": "/data/bus-transfer/TRA-5130.json"
+    },
+    "TRA:5140": {
+      "id": "TRA:5140",
+      "name": "內獅車站",
+      "asset": "/data/bus-transfer/TRA-5140.json"
+    },
+    "TRA:5160": {
+      "id": "TRA:5160",
+      "name": "枋山車站",
+      "asset": "/data/bus-transfer/TRA-5160.json"
+    },
+    "TRA:5190": {
+      "id": "TRA:5190",
+      "name": "大武車站",
+      "asset": "/data/bus-transfer/TRA-5190.json"
+    },
+    "TRA:5200": {
+      "id": "TRA:5200",
+      "name": "瀧溪車站",
+      "asset": "/data/bus-transfer/TRA-5200.json"
+    },
+    "TRA:5210": {
+      "id": "TRA:5210",
+      "name": "金崙車站",
+      "asset": "/data/bus-transfer/TRA-5210.json"
+    },
+    "TRA:5220": {
+      "id": "TRA:5220",
+      "name": "太麻里車站",
+      "asset": "/data/bus-transfer/TRA-5220.json"
+    },
+    "TRA:5230": {
+      "id": "TRA:5230",
+      "name": "知本車站",
+      "asset": "/data/bus-transfer/TRA-5230.json"
+    },
+    "TRA:5240": {
+      "id": "TRA:5240",
+      "name": "康樂車站",
+      "asset": "/data/bus-transfer/TRA-5240.json"
+    },
+    "TRA:6000": {
+      "id": "TRA:6000",
+      "name": "臺東車站",
+      "asset": "/data/bus-transfer/TRA-6000.json"
+    },
+    "TRA:6010": {
+      "id": "TRA:6010",
+      "name": "山里車站",
+      "asset": "/data/bus-transfer/TRA-6010.json"
+    },
+    "TRA:6020": {
+      "id": "TRA:6020",
+      "name": "鹿野車站",
+      "asset": "/data/bus-transfer/TRA-6020.json"
+    },
+    "TRA:6030": {
+      "id": "TRA:6030",
+      "name": "瑞源車站",
+      "asset": "/data/bus-transfer/TRA-6030.json"
+    },
+    "TRA:6040": {
+      "id": "TRA:6040",
+      "name": "瑞和車站",
+      "asset": "/data/bus-transfer/TRA-6040.json"
+    },
+    "TRA:6050": {
+      "id": "TRA:6050",
+      "name": "關山車站",
+      "asset": "/data/bus-transfer/TRA-6050.json"
+    },
+    "TRA:6060": {
+      "id": "TRA:6060",
+      "name": "海端車站",
+      "asset": "/data/bus-transfer/TRA-6060.json"
+    },
+    "TRA:6070": {
+      "id": "TRA:6070",
+      "name": "池上車站",
+      "asset": "/data/bus-transfer/TRA-6070.json"
+    },
+    "TRA:6080": {
+      "id": "TRA:6080",
+      "name": "富里車站",
+      "asset": "/data/bus-transfer/TRA-6080.json"
+    },
+    "TRA:6090": {
+      "id": "TRA:6090",
+      "name": "東竹車站",
+      "asset": "/data/bus-transfer/TRA-6090.json"
+    },
+    "TRA:6100": {
+      "id": "TRA:6100",
+      "name": "東里車站",
+      "asset": "/data/bus-transfer/TRA-6100.json"
+    },
+    "TRA:6110": {
+      "id": "TRA:6110",
+      "name": "玉里車站",
+      "asset": "/data/bus-transfer/TRA-6110.json"
+    },
+    "TRA:6120": {
+      "id": "TRA:6120",
+      "name": "三民車站",
+      "asset": "/data/bus-transfer/TRA-6120.json"
+    },
+    "TRA:6130": {
+      "id": "TRA:6130",
+      "name": "瑞穗車站",
+      "asset": "/data/bus-transfer/TRA-6130.json"
+    },
+    "TRA:6140": {
+      "id": "TRA:6140",
+      "name": "富源車站",
+      "asset": "/data/bus-transfer/TRA-6140.json"
+    },
+    "TRA:6150": {
+      "id": "TRA:6150",
+      "name": "大富車站",
+      "asset": "/data/bus-transfer/TRA-6150.json"
+    },
+    "TRA:6160": {
+      "id": "TRA:6160",
+      "name": "光復車站",
+      "asset": "/data/bus-transfer/TRA-6160.json"
+    },
+    "TRA:6170": {
+      "id": "TRA:6170",
+      "name": "萬榮車站",
+      "asset": "/data/bus-transfer/TRA-6170.json"
+    },
+    "TRA:6180": {
+      "id": "TRA:6180",
+      "name": "鳳林車站",
+      "asset": "/data/bus-transfer/TRA-6180.json"
+    },
+    "TRA:6190": {
+      "id": "TRA:6190",
+      "name": "南平車站",
+      "asset": "/data/bus-transfer/TRA-6190.json"
+    },
+    "TRA:6200": {
+      "id": "TRA:6200",
+      "name": "林榮新光車站",
+      "asset": "/data/bus-transfer/TRA-6200.json"
+    },
+    "TRA:6210": {
+      "id": "TRA:6210",
+      "name": "豐田車站",
+      "asset": "/data/bus-transfer/TRA-6210.json"
+    },
+    "TRA:6220": {
+      "id": "TRA:6220",
+      "name": "壽豐車站",
+      "asset": "/data/bus-transfer/TRA-6220.json"
+    },
+    "TRA:6230": {
+      "id": "TRA:6230",
+      "name": "平和車站",
+      "asset": "/data/bus-transfer/TRA-6230.json"
+    },
+    "TRA:6240": {
+      "id": "TRA:6240",
+      "name": "志學車站",
+      "asset": "/data/bus-transfer/TRA-6240.json"
+    },
+    "TRA:6250": {
+      "id": "TRA:6250",
+      "name": "吉安車站",
+      "asset": "/data/bus-transfer/TRA-6250.json"
+    },
+    "TRA:7000": {
+      "id": "TRA:7000",
+      "name": "花蓮車站",
+      "asset": "/data/bus-transfer/TRA-7000.json"
+    },
+    "TRA:7010": {
+      "id": "TRA:7010",
+      "name": "北埔車站",
+      "asset": "/data/bus-transfer/TRA-7010.json"
+    },
+    "TRA:7020": {
+      "id": "TRA:7020",
+      "name": "景美車站",
+      "asset": "/data/bus-transfer/TRA-7020.json"
+    },
+    "TRA:7030": {
+      "id": "TRA:7030",
+      "name": "新城車站",
+      "asset": "/data/bus-transfer/TRA-7030.json"
+    },
+    "TRA:7040": {
+      "id": "TRA:7040",
+      "name": "崇德車站",
+      "asset": "/data/bus-transfer/TRA-7040.json"
+    },
+    "TRA:7050": {
+      "id": "TRA:7050",
+      "name": "和仁車站",
+      "asset": "/data/bus-transfer/TRA-7050.json"
+    },
+    "TRA:7060": {
+      "id": "TRA:7060",
+      "name": "和平車站",
+      "asset": "/data/bus-transfer/TRA-7060.json"
+    },
+    "TRA:7070": {
+      "id": "TRA:7070",
+      "name": "漢本車站",
+      "asset": "/data/bus-transfer/TRA-7070.json"
+    },
+    "TRA:7080": {
+      "id": "TRA:7080",
+      "name": "武塔車站",
+      "asset": "/data/bus-transfer/TRA-7080.json"
+    },
+    "TRA:7090": {
+      "id": "TRA:7090",
+      "name": "南澳車站",
+      "asset": "/data/bus-transfer/TRA-7090.json"
+    },
+    "TRA:7100": {
+      "id": "TRA:7100",
+      "name": "東澳車站",
+      "asset": "/data/bus-transfer/TRA-7100.json"
+    },
+    "TRA:7110": {
+      "id": "TRA:7110",
+      "name": "永樂車站",
+      "asset": "/data/bus-transfer/TRA-7110.json"
+    },
+    "TRA:7120": {
+      "id": "TRA:7120",
+      "name": "蘇澳車站",
+      "asset": "/data/bus-transfer/TRA-7120.json"
+    },
+    "TRA:7130": {
+      "id": "TRA:7130",
+      "name": "蘇澳新車站",
+      "asset": "/data/bus-transfer/TRA-7130.json"
+    },
+    "TRA:7150": {
+      "id": "TRA:7150",
+      "name": "冬山車站",
+      "asset": "/data/bus-transfer/TRA-7150.json"
+    },
+    "TRA:7160": {
+      "id": "TRA:7160",
+      "name": "羅東車站",
+      "asset": "/data/bus-transfer/TRA-7160.json"
+    },
+    "TRA:7170": {
+      "id": "TRA:7170",
+      "name": "中里車站",
+      "asset": "/data/bus-transfer/TRA-7170.json"
+    },
+    "TRA:7180": {
+      "id": "TRA:7180",
+      "name": "二結車站",
+      "asset": "/data/bus-transfer/TRA-7180.json"
+    },
+    "TRA:7190": {
+      "id": "TRA:7190",
+      "name": "宜蘭車站",
+      "asset": "/data/bus-transfer/TRA-7190.json"
+    },
+    "TRA:7200": {
+      "id": "TRA:7200",
+      "name": "四城車站",
+      "asset": "/data/bus-transfer/TRA-7200.json"
+    },
+    "TRA:7210": {
+      "id": "TRA:7210",
+      "name": "礁溪車站",
+      "asset": "/data/bus-transfer/TRA-7210.json"
+    },
+    "TRA:7220": {
+      "id": "TRA:7220",
+      "name": "頂埔車站",
+      "asset": "/data/bus-transfer/TRA-7220.json"
+    },
+    "TRA:7230": {
+      "id": "TRA:7230",
+      "name": "頭城車站",
+      "asset": "/data/bus-transfer/TRA-7230.json"
+    },
+    "TRA:7240": {
+      "id": "TRA:7240",
+      "name": "外澳車站",
+      "asset": "/data/bus-transfer/TRA-7240.json"
+    },
+    "TRA:7250": {
+      "id": "TRA:7250",
+      "name": "龜山車站",
+      "asset": "/data/bus-transfer/TRA-7250.json"
+    },
+    "TRA:7260": {
+      "id": "TRA:7260",
+      "name": "大溪車站",
+      "asset": "/data/bus-transfer/TRA-7260.json"
+    },
+    "TRA:7270": {
+      "id": "TRA:7270",
+      "name": "大里車站",
+      "asset": "/data/bus-transfer/TRA-7270.json"
+    },
+    "TRA:7280": {
+      "id": "TRA:7280",
+      "name": "石城車站",
+      "asset": "/data/bus-transfer/TRA-7280.json"
+    },
+    "TRA:7290": {
+      "id": "TRA:7290",
+      "name": "福隆車站",
+      "asset": "/data/bus-transfer/TRA-7290.json"
+    },
+    "TRA:7300": {
+      "id": "TRA:7300",
+      "name": "貢寮車站",
+      "asset": "/data/bus-transfer/TRA-7300.json"
+    },
+    "TRA:7310": {
+      "id": "TRA:7310",
+      "name": "雙溪車站",
+      "asset": "/data/bus-transfer/TRA-7310.json"
+    },
+    "TRA:7320": {
+      "id": "TRA:7320",
+      "name": "牡丹車站",
+      "asset": "/data/bus-transfer/TRA-7320.json"
+    },
+    "TRA:7330": {
+      "id": "TRA:7330",
+      "name": "三貂嶺車站",
+      "asset": "/data/bus-transfer/TRA-7330.json"
+    },
+    "TRA:7331": {
+      "id": "TRA:7331",
+      "name": "大華車站",
+      "asset": "/data/bus-transfer/TRA-7331.json"
+    },
+    "TRA:7332": {
+      "id": "TRA:7332",
+      "name": "十分車站",
+      "asset": "/data/bus-transfer/TRA-7332.json"
+    },
+    "TRA:7333": {
+      "id": "TRA:7333",
+      "name": "望古車站",
+      "asset": "/data/bus-transfer/TRA-7333.json"
+    },
+    "TRA:7334": {
+      "id": "TRA:7334",
+      "name": "嶺腳車站",
+      "asset": "/data/bus-transfer/TRA-7334.json"
+    },
+    "TRA:7335": {
+      "id": "TRA:7335",
+      "name": "平溪車站",
+      "asset": "/data/bus-transfer/TRA-7335.json"
+    },
+    "TRA:7336": {
+      "id": "TRA:7336",
+      "name": "菁桐車站",
+      "asset": "/data/bus-transfer/TRA-7336.json"
+    },
+    "TRA:7350": {
+      "id": "TRA:7350",
+      "name": "猴硐車站",
+      "asset": "/data/bus-transfer/TRA-7350.json"
+    },
+    "TRA:7360": {
+      "id": "TRA:7360",
+      "name": "瑞芳車站",
+      "asset": "/data/bus-transfer/TRA-7360.json"
+    },
+    "TRA:7361": {
+      "id": "TRA:7361",
+      "name": "海科館車站",
+      "asset": "/data/bus-transfer/TRA-7361.json"
+    },
+    "TRA:7362": {
+      "id": "TRA:7362",
+      "name": "八斗子車站",
+      "asset": "/data/bus-transfer/TRA-7362.json"
+    },
+    "TRA:7380": {
+      "id": "TRA:7380",
+      "name": "四腳亭車站",
+      "asset": "/data/bus-transfer/TRA-7380.json"
+    },
+    "TRA:7390": {
+      "id": "TRA:7390",
+      "name": "暖暖車站",
+      "asset": "/data/bus-transfer/TRA-7390.json"
+    }
+  }
+}

@@ -1,0 +1,1 @@
+{"schemaVersion":1,"generatedAt":"2026-09-01T12:08:29.485Z","coverage":"all_active_tra_stations","trigger":"user_open_only","polling":false,"station":{"id":"TRA:4470","name":"六塊厝車站","position":{"lat":22.66597,"lon":120.46497},"radiusM":600,"nearbyStopCount":0,"coverageState":"no_nearby_stops","scopes":[]}}

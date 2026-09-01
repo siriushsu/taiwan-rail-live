@@ -69,7 +69,7 @@ if (showSql) console.log(`${sql}\n`);
 const response = JSON.parse(await cloudflare(`https://api.cloudflare.com/client/v4/accounts/${account}/analytics_engine/sql`, { method: 'POST', body: sql }));
 const rows = response.data || [];
 if (!rows.length) {
-  console.log(`過去 ${hours} 小時 ${DATASET} 沒有資料；這份 pilot 沒部署前是預期結果。`);
+  console.log(`過去 ${hours} 小時 ${DATASET} 沒有資料；公車轉乘 API 尚未部署或沒有人查詢時是預期結果。`);
   process.exit(0);
 }
 
@@ -89,4 +89,3 @@ for (const row of rows) {
 console.log(`\n  合計 ${number(total.calls)} 次，${points(total.bytes / 1_000_000)} MB`);
 console.log(`  計次 ${points(pointCalls)} 點＋計量 ${points(pointBytes)} 點＝估計 ${points(pointCalls + pointBytes)} 點`);
 console.log('  註：這是功能自己記錄的增量估算；當月實際扣點仍以 TDX 會員中心為準。\n');
-

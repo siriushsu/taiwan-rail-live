@@ -7,7 +7,11 @@ import { fileURLToPath } from 'node:url';
 import worker, { _busTransfer } from '../worker.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const pilot = readFileSync(path.join(ROOT, 'data', 'bus_transfer_pilot.json'));
+const manifest = readFileSync(path.join(ROOT, 'data', 'bus_transfer_stations.json'));
+const stationAssets = new Map([
+  ['/data/bus-transfer/TRA-4220.json', readFileSync(path.join(ROOT, 'data', 'bus-transfer', 'TRA-4220.json'))],
+  ['/data/bus-transfer/TRA-1150.json', readFileSync(path.join(ROOT, 'data', 'bus-transfer', 'TRA-1150.json'))],
+]);
 const workerSource = readFileSync(path.join(ROOT, 'worker.js'), 'utf8');
 const coreSource = readFileSync(path.join(ROOT, 'scripts', 'bus_transfer_core.mjs'), 'utf8');
 
@@ -21,6 +25,7 @@ const realFetch = globalThis.fetch;
 const realCaches = globalThis.caches;
 const edge = new Map();
 let assetCalls = 0;
+const assetPaths = [];
 let authCalls = 0;
 const n1Calls = [];
 const dynamicCalls = [];
@@ -96,7 +101,9 @@ const env = {
     async fetch(request) {
       assetCalls += 1;
       const url = new URL(request.url);
-      if (url.pathname === '/data/bus_transfer_pilot.json') return new Response(pilot, { headers: { 'content-type': 'application/json' } });
+      assetPaths.push(url.pathname);
+      if (url.pathname === '/data/bus_transfer_stations.json') return new Response(manifest, { headers: { 'content-type': 'application/json' } });
+      if (stationAssets.has(url.pathname)) return new Response(stationAssets.get(url.pathname), { headers: { 'content-type': 'application/json' } });
       return new Response('not found', { status: 404 });
     },
   },
@@ -116,8 +123,25 @@ await check('不支援的站回 400，且不會打 TDX', async () => {
   const response = await worker.fetch(new Request('https://railisland.tw/api/bus-transfer?station=TRA%3A9999'), env, {});
   const body = await response.json();
   assert.equal(response.status, 400);
-  assert.deepEqual(body.allowed.sort(), ['TRA:1000', 'TRA:4220', 'TRA:7000']);
+  assert.equal(body.coverage, 'all_active_tra_stations');
+  assert.equal(body.stationCount, 239);
   assert.equal(n1Calls.length, before);
+});
+
+await check('600 公尺內無站牌的營運站照實回空結果，不取 token、不打 TDX', async () => {
+  edge.clear();
+  _busTransfer.resetBusTransferCaches();
+  const n1Before = n1Calls.length;
+  const authBefore = authCalls;
+  const response = await worker.fetch(new Request('https://railisland.tw/api/bus-transfer?station=TRA%3A1150'), env, {});
+  const body = await response.json();
+  assert.equal(response.status, 200, JSON.stringify(body));
+  assert.equal(body.live.state, 'no_nearby_stops');
+  assert.equal(body.live.cache, 'not_applicable');
+  assert.equal(body.nearbyStopCount, 0);
+  assert.deepEqual(body.arrivals, []);
+  assert.equal(n1Calls.length, n1Before);
+  assert.equal(authCalls, authBefore);
 });
 
 await check('臺南主動查詢只打 City＋InterCity N1，102 進來、退役 2 被 current-static gate 擋掉', async () => {
@@ -129,9 +153,10 @@ await check('臺南主動查詢只打 City＋InterCity N1，102 進來、退役 
   assert.equal(response.status, 200, JSON.stringify(body));
   assert.equal(body.trigger, 'user_open_only');
   assert.equal(body.polling, false);
-  assert.equal(body.pilotOnly, true);
+  assert.equal(body.pilotOnly, false);
+  assert.equal(body.coverage, 'all_active_tra_stations');
   assert.equal(body.live.state, 'live');
-  assert.equal(body.live.scheduleFallback, 'not_implemented_in_pilot');
+  assert.equal(body.live.scheduleFallback, 'not_implemented');
   assert.equal(body.arrivals.length, 1);
   assert.equal(body.arrivals[0].routeName, '102');
   assert.equal(body.arrivals[0].access.includesIndoor, false);
@@ -234,6 +259,9 @@ await check('scheduled 與核心都沒有接入 bus transfer 輪詢／timer', ()
 });
 
 assert(assetCalls >= 1, 'fixture asset 從未讀取');
+assert(assetPaths.includes('/data/bus_transfer_stations.json'), '未讀取 manifest');
+assert(assetPaths.includes('/data/bus-transfer/TRA-4220.json'), '未按站讀取臺南索引');
+assert(!assetPaths.includes('/data/bus-transfer/TRA-1000.json'), '查臺南時不應載入臺北索引');
 globalThis.fetch = realFetch;
 if (realCaches === undefined) delete globalThis.caches;
 else globalThis.caches = realCaches;
