@@ -20658,21 +20658,32 @@ function updateFollowPanel(tr) {
   const lv = state.live;
   const realDl = (tr.sys === 'tra_sched' && lv && lv.map && Date.now() - lv.at < 1800e3) ? (lv.map.get(String(tr.train)) || 0) : 0;
   const info = nextStopInfo(tr, effTLive(tr));
-  // 轉乘接續:與 fpXfer 用同一顆 xstop,但先在 if/else 外面算好——下面 train-open 區塊裡
-  // tcLiveXfer 那個顯示實例也要用同一組值,若擺進 if(info) 裡面會出不了那個範圍。
+  // #fpConn(轉乘接續)跟 #fpXfer(轉乘標,下面)刻意錨定不同的站——DOM 上兩者本來就不是同一件事
+  // (index.html:4651-4656):#fpXfer 掛在 .fp-next 那一列裡,問的是「下一站」,所以繼續吃
+  // info.stop;#fpConn 是 .fp-next 的獨立兄弟區塊,問的是「你到站時/現在能轉什麼」,得看人
+  // 現在實際在哪一站,不能沿用 info.stop。這不是遺漏統一,是兩個問題本來就該問不同的站
+  // (釘住這個分歧的斷言見 verify_transfer_transitions.mjs T2b)。
   // 🔴 xstop 不能直接用 info.stop:nextStopInfo 用 arrSec>t 判斷,車一到轉乘站(arrSec 一過)
   // 就立刻跳去回報下一站,但這時車其實還停在轉乘站月台上(還沒到 depSec)——用 info.stop 會讓
   // 接續區塊在進站那一拍立刻指錯站甚至整塊閃掉(驗收:verify_transfer_transitions.mjs T2)。
-  // 正在停靠時(且是真的停靠站,不是通過站)仍以停靠站為準,「你到站時」錨定的就是到站那一刻,
-  // 不該在月台上還沒走人就悄悄換成別站;真的離站後才交給 nextStopInfo。info 為 falsy
-  // (已到終點)時 xstop 隨之為 falsy,setTransferConn 收到 groupId=null/atSec=NaN 會自然回空字串
-  // 整塊隱藏,不必再另外清一次。
+  // 正在停靠時(且是真的停靠站,不是通過站)仍以停靠站為準,真的離站後才交給 nextStopInfo。
+  // xstop 也給下面 train-open 區塊裡的 tcConn 用(同一顆值,若擺進 if(info) 裡面會出不了
+  // 那個範圍)。info 為 falsy(已到終點)時 xstop 隨之為 falsy,setTransferConn 收到
+  // groupId=null/atSec=NaN 會自然回空字串整塊隱藏,不必再另外清一次。
   const xdwell = dwellInfoOf(tr, effTLive(tr));
   const xsys = TRANSFER_SCHED_SYSTEM[tr.sys] || null;
   const xstop = (xdwell && xdwell.st.stop !== false) ? xdwell.st : (info && info.stop);
   const xanchor = xsys && xstop ? transferAnchorForStop(xsys, xstop) : null;
   const xgid = xanchor && xanchor.station ? xanchor.station.transferId : null;
-  const xat = xstop ? xstop.arrSec + liveDelaySec(tr) : NaN;
+  // atSec 的基準只有停靠中這個分支要換成「現在」:行駛中 xstop 是未來會到的站,問的是
+  // 「我到站時會剩多少」,atSec 用到站時刻(表定+誤點)是誠實預告,這段不要動。停靠中 xstop
+  // 是已經到達的站,「你到站時」那一刻已經發生過,若仍用凍結的到站時刻會讓「剩 N 分」整段
+  // 停靠期間動也不動,對使用者是高估餘裕(2026-09-01 修復輪1 Finding A 實測:南港停 60 秒
+  // 最壞高估 55 秒,台北候選停 240 秒最壞高估近 4 分鐘)——這一刻問的是「我現在還剩多少」,
+  // 改用 effTLive(tr)(與上面判斷是否停靠時用的同一顆值)。
+  const xat = !xstop ? NaN
+    : (xdwell && xdwell.st.stop !== false) ? effTLive(tr)
+    : xstop.arrSec + liveDelaySec(tr);
   setTransferConn('fpConn', xgid, xat, xsys);
   if (info) {
     nx.textContent = stationName(info.name, tr.sys);
@@ -20764,7 +20775,9 @@ function updateFollowPanel(tr) {
       // 轉乘標:sheet 開啟時 body.train-open 把整張跟隨小卡(連同 #fpXfer)藏起來,這裡不補就等於
       // 「手機點開列車卡,剛剛看到的轉乘提示消失了」。第三個顯示實例,與 fpXfer/fcXfer 同一組契約。
       setTransferTag('tcLiveXfer', info && info.stop ? transferRoutesForStop(tr, info.stop) : null);
-      // 轉乘接續:xgid/xat/xsys 已在上面用同一顆 info.stop 算好,這裡沿用,不重算。
+      // 轉乘接續:xgid/xat/xsys 已在上面用同一顆 xstop 算好(不是上一行 tcLiveXfer 用的
+      // info.stop——tcConn/tcLiveXfer 與 fpConn/fpXfer 是同一組刻意分歧,見上方 20661 一帶
+      // 的完整說明),這裡沿用,不重算。
       setTransferConn('tcConn', xgid, xat, xsys);
       const ld = document.getElementById('tcLiveDelay');
       if (realDl > 0) { ld.textContent = t(liveActive() ? '誤點 {n} 分' : '目前誤點 {n} 分', { n: i18nNumber(realDl) }, realDl); ld.className = 'tl-delay lateTag'; }

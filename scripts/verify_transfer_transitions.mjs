@@ -92,8 +92,8 @@ const picked = await page.evaluate(() => {
   function xferRowsFor(stop) {
     const anchor = stop && transferAnchorForStop('TRA', stop);
     const gid = (anchor && anchor.station && anchor.station.transferId) || null;
-    const rows = gid ? transferConnections(gid, stop.arrSec, 'TRA').slice(0, 2).map(r => r.n) : [];
-    return { gid, rows };
+    const list = gid ? transferConnections(gid, stop.arrSec, 'TRA').slice(0, 2) : [];
+    return { gid, rows: list.map(r => r.n), secs: list.map(r => r.sec) };
   }
   for (const tr of state.trains) {
     if (tr.sys !== 'tra_sched') continue;
@@ -105,7 +105,10 @@ const picked = await page.evaluate(() => {
       if (st.stop === false) continue;
       if (!Number.isFinite(st.arrSec) || !Number.isFinite(st.depSec)) continue;
       const dwell = st.depSec - st.arrSec;
-      if (dwell < 20 || dwell > 300) continue;   // 太短 T2(到站+5秒)margin 不夠;太長不像正常轉乘站停靠
+      // 下限拉高到 80(原本 20):修復輪1 新增 T1b/T2c 各自要在同一階段內取兩個相隔至少 65 秒的
+      // 探測點(arr+5 與 dep-5),兩點相隔要 >=60 秒才能保證「剩N分」四捨五入後的分鐘數必然不同
+      // (差不到 60 秒有機率剛好落在同一個分鐘格,測不出遞減——見下方 T2c)。
+      if (dwell < 80 || dwell > 300) continue;   // 太短 T2c 探測點 margin 不夠;太長不像正常轉乘站停靠
       if (st.arrSec + 700 > 86400) continue;      // T3 用 arr+600,留 100 秒緩衝不跨夜
       // T1 用 arr-120:前一個「真的會被 nextStopInfo 算到」的停靠站,到站時刻必須早於 arr-120
       // 至少 130 秒,否則 nextStopInfo(arrSec>t 判斷)在 T1 那一刻會回前一站而不是這一站。
@@ -115,18 +118,32 @@ const picked = await page.evaluate(() => {
         if (stops[j].arrSec > st.arrSec - 130) { priorOk = false; break; }
       }
       if (!priorOk) continue;
+      // Finding B 要釘住的獨立事實:這一站之後「下一個」真的會停的站是誰——純粹依 stops 陣列
+      // 順序找,完全不呼叫 nextStopInfo(待驗證的正是它與 xstop 的分歧是否被誤統一),比重掃
+      // 時間軸更直接可信。
+      let nextName = null;
+      for (let j = i + 1; j < stops.length; j++) { if (stops[j].stop !== false) { nextName = stops[j].name; break; } }
+      if (!nextName || nextName === st.name) continue; // 理論上不該相同,求穩不讓巧合污染 T2b
       const at = xferRowsFor(st);
       if (!at.gid || !at.rows.length) continue;   // 這一刻這一群沒有真正的對向班次,換下一個候選
+      // T2c 兩個停靠探測點固定為 arr+5 與 arr+75(見下方),第一列候選車自己的到站秒數
+      // (at.secs[0])必須比 arr+75 還晚至少 60 秒,否則探測到第二點時它已經到站、掉出
+      // transferConnections 的 [0,3h] 窗口,換成別班車頂替第一列——那不是「同一列在遞減」,
+      // 是「換了一列」,期望值會整個算錯(踩過一次:南港/1217 候選 0841 在 arr+60 就到站,
+      // dep-5 早就是負值)。
+      if (at.secs[0] < st.arrSec + 135) continue;
       // 離站後(arr+600)獨立算出「正確答案該是什麼」,不是「必須跟原本不一樣」——後者在兩個
       // 相鄰轉乘大站(例如同一條高鐵線相鄰兩站)有真實機率巧合出現同一組班次,不能拿來當判準。
       // 但這裡仍然只挑「兩者確實不同」的候選:content 相同時 T3 測不出任何鑑別力,即使
       // 之後改用精確期望值比對,也應該優先挑一個真的能分辨「有沒有修好」的案例。
       const afterStop = resolveStopAt(stops, st.arrSec + 600);
       const after = xferRowsFor(afterStop);
+      if (!after.gid || !after.rows.length) continue; // 換站後也要有真正的對向班次,T3 才有東西可比
       if (JSON.stringify(after.rows) === JSON.stringify(at.rows)) continue;
       return {
         no: tr.train, sys: tr.sys, stn: st.name, arr: st.arrSec, dep: st.depSec,
-        gid: at.gid, expect: at.rows, expectAfter: after.rows,
+        gid: at.gid, expect: at.rows, expectSecs: at.secs, expectAfter: after.rows,
+        nextName,
       };
     }
   }
@@ -152,6 +169,15 @@ ok('G0b 真的跟上了挑到的那班車、跟隨面板已開', followed.train 
 // rAF 迴圈(tick()→updateFollowCamera()→updateFollowPanel(),不受 state.playing 節流),不要自己呼叫 draw。
 const jump = async sec => page.evaluate(s => { state.simSec = s; state.clockAtNow = false; }, sec);
 const rowsOf = id => page.$$eval(`#${id} .xfc-row`, els => els.map(e => e.dataset.xn));
+// Finding A 需要讀「剩 N 分」的精確分鐘數,不只是列表有沒有變。用 $$eval 取第一列再讀 .xfc-left,
+// 不用 ':first-child'——innerHTML 灌進去後,容器裡實際的第一個子元素是 .xfc-h/取消釘選鈕,不是
+// .xfc-row 本身,':first-child' 選不到東西。包 try/catch:若前面的 waitForRows 已經標記某探測點
+// FAIL(內容不是預期的樣子甚至是空的),這裡不該讓整支腳本中止,讓它單純回 NaN 繼續往下跑。
+const leftMinOf = async id => {
+  try {
+    return await page.$$eval(`#${id} .xfc-row`, els => parseInt(els[0].querySelector('.xfc-left').textContent.match(/\d+/)[0], 10));
+  } catch (e) { return NaN; }
+};
 // 等到內容真的變成期望值再往下量,而不是固定睡一段時間:比較快,而且逾時本身就是具名 FAIL,
 // 不會讓「畫面根本沒重繪」跟「重繪了但內容錯」混在一起看不出來(每個 waitForFunction 都包 try/catch)。
 async function waitForRows(id, expect, timeout = 2000) {
@@ -165,11 +191,41 @@ async function waitForRows(id, expect, timeout = 2000) {
     return { settled: false, got: await rowsOf(id) };
   }
 }
+// T1b/T2c 專用:光等「車名列表」不夠——同一次停靠前後兩個探測點,列表本身(data-xn)通常沒變
+// (還是同兩班車),只有 .xfc-left 的分鐘數該變,waitForRows 的條件在 jump() 那一刻就已經是
+// true(舊render留著的列表恰好等於期望值),會立刻resolve、根本沒等到下一次 tick 真的用新
+// simSec 重算——量到的其實是上一個時間點的殘影。改成直接等「顯示的分鐘數」變成期望值,兩者
+// 都能等到真正的重繪(第一次踩到:改用 arr+75 前用 dep-5 讀出的舊值誤判成「換車」,修好選
+// 邏輯後這裡仍量到「12→12」不變,才揪出這一層更底層的競態)。
+async function waitForLeftMin(id, expectMin, timeout = 2000) {
+  try {
+    await page.waitForFunction(({ id, expectMin }) => {
+      const el = document.querySelector(`#${id} .xfc-row`);
+      if (!el) return false;
+      const m = el.querySelector('.xfc-left').textContent.match(/\d+/);
+      return !!m && parseInt(m[0], 10) === expectMin;
+    }, { id, expectMin }, { timeout });
+    return { settled: true };
+  } catch (e) {
+    return { settled: false, got: await leftMinOf(id) };
+  }
+}
 
 // ── T1 —— 到站前:接續內容應等於獨立算出的期望值(正向對照,證明挑到的候選本身是活的) ──────
 await jump(picked.arr - 120);
 const t1 = await waitForRows('fpConn', picked.expect);
 ok('T1 到站前接續內容與期望相符', t1.settled, `期望 ${JSON.stringify(picked.expect)} 實際 ${JSON.stringify(t1.got)}`);
+
+// ── T1b —— Finding A 必需的反向對照:行駛中換一個更晚、仍未到站的時間點,「剩 N 分」必須
+// 跟 T1 那一刻完全相同、且都等於獨立算出的正確值(atSec 凍結在表定到站時刻不該逐秒遞減)。
+// 這條與下面的 T2c 是同一組判準的兩半——只驗其中一半,「乾脆全部改成用現在」也能騙過去。
+const expMoving = Math.round((picked.expectSecs[0] - picked.arr) / 60);
+const w1a = await waitForLeftMin('fpConn', expMoving);
+await jump(picked.arr - 60);
+const w1b = await waitForLeftMin('fpConn', expMoving);
+ok('T1b 行駛中兩拍「剩N分」維持不變(atSec 凍結在到站時刻,不該逐秒遞減)',
+  w1a.settled && w1b.settled,
+  `期望 ${expMoving} 分 實際 arr-120=${w1a.settled ? expMoving : w1a.got} arr-60=${w1b.settled ? expMoving : w1b.got}`);
 
 // ── T2 —— 正在進站那一拍(arrSec 已過、還沒到 depSec):必須維持同一份內容,不能閃掉/換站 ──────
 // 這是本檔最容易「全綠卻沒驗到東西」的一格:nextStopInfo 用 arrSec>t 判斷,車一到站(arrSec 一過)
@@ -178,6 +234,34 @@ ok('T1 到站前接續內容與期望相符', t1.settled, `期望 ${JSON.stringi
 await jump(picked.arr + 5);
 const t2 = await waitForRows('fpConn', picked.expect);
 ok('T2 進站當下內容維持不變(不能閃掉/換站)', t2.settled, `期望 ${JSON.stringify(picked.expect)} 實際 ${JSON.stringify(t2.got)}`);
+
+// ── T2b —— Finding B:#fpConn(接續)跟 #fpNext(下一站,由 #fpXfer 標記轉乘)刻意錨定不同的
+// 站——#fpNext 問的是「下一站是誰」吃 info.stop;#fpConn 問的是「你到站時/現在能轉什麼」,停靠
+// 中吃停靠站。這是唯一能讓「有人好心把兩者統一」當場轉紅的機制,目前為止的驗收從沒讀過 #fpNext。
+const nextText = await page.$eval('#fpNext', el => el.textContent.trim());
+const expectNextText = await page.evaluate(({ name, sys }) => stationName(name, sys), { name: picked.nextName, sys: picked.sys });
+const dwellText = await page.evaluate(({ name, sys }) => stationName(name, sys), { name: picked.stn, sys: picked.sys });
+ok('T2b 停靠中 #fpNext(下一站)與 #fpConn 錨定站不同(刻意分歧,不該被統一)',
+  nextText === expectNextText && nextText !== dwellText,
+  `fpNext=${nextText} 期望下一站=${expectNextText} 停靠站(fpConn錨定)=${dwellText}`);
+
+// ── T2c —— Finding A 正向:同一次停靠內再取一個更晚的時間點,「剩 N 分」必須確實下降,且降成
+// 精確算出的正確值(不是只驗「有變」,連「變成多少」都釘住)。第二點固定用 arr+75(不是
+// dep-5)——挑選階段已經保證 at.secs[0] 在 arr+75 之後至少 60 秒才選中,兩個探測點量到的
+// 必須是同一班候選車,不會中途換車(候選車自己先到站掉出視窗換成第二名頂替第一列)。
+// 🔴 這裡也用 waitForLeftMin,不是「T2 剛 settled 就地讀值」:T2 的 waitForRows 只等車名列表
+// (data-xn),而停靠中列表通常跟行駛中是同一組(同兩班車),T1b/T2 那次 jump 之後列表可能
+// 一直沒變過⇒waitForRows 在 jump 那一刻就已經是 true、沒等到 arr+5 真正重繪,就地讀值撈到
+// 的其實是上一個時間點的殘影(第一次踩到:改好選車邏輯後仍量出「12→12」不變,查到才發現是
+// 這一層更底層的競態,不是 xat 邏輯本身的問題)。
+const expDwellA = Math.round((picked.expectSecs[0] - (picked.arr + 5)) / 60);
+const expDwellB = Math.round((picked.expectSecs[0] - (picked.arr + 75)) / 60);
+const w2a = await waitForLeftMin('fpConn', expDwellA);
+await jump(picked.arr + 75);
+const w2b = await waitForLeftMin('fpConn', expDwellB);
+ok('T2c 停靠中「剩N分」確實遞減(atSec 隨現在時刻走,不再凍結於到站時刻)',
+  w2a.settled && w2b.settled && expDwellA !== expDwellB,
+  `期望 arr+5=${expDwellA}分 arr+75=${expDwellB}分 實際 ${w2a.settled ? expDwellA : w2a.got}→${w2b.settled ? expDwellB : w2b.got}`);
 
 // ── T3 —— 已離站超過 10 分鐘:內容必須換成新站獨立算出的正確答案,不可殘留舊站內容 ─────────
 // 判準是「等於 picked.expectAfter(挑選時已獨立算好、且已確認與 picked.expect 不同的正確值)」,
