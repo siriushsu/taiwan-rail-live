@@ -138,7 +138,7 @@ const seen = (page) => page.evaluate(() => {
     //    的突變都照樣全綠。有數量閘門之後,少一份與多一份兩個方向都會轉紅。
     errCount: el ? el.querySelectorAll('.account-error').length : -1,
     // 🔴 量畫面而不是量 state:這兩句必須真的出現在 #accountBody 的文字裡。
-    showsNoGms: text.includes('這台裝置沒有可用的 Google 登入服務'),
+    showsNoGms: text.includes('這台裝置的 Google 登入試了兩種方式都不成功'),
     showsTimeoutExit: text.includes('沒有跳出 Google 帳號選擇畫面嗎'),
     hasLegacyBtn: !!(el && el.querySelector('[data-login-legacy="google"]'))
   };
