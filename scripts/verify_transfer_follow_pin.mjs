@@ -171,6 +171,85 @@ async function runEngine(engineName, engine) {
       ok(P('F1 跟車 rAF 迴圈確實在跑(#fpNext 在取樣窗內被重寫)'), s.nextMut > 0, JSON.stringify(s));
       ok(P('F2 跟車中 #fpConn 子節點零汰換(修復前每幀整段換掉 ⇒ 點擊被吃掉)'), s.connMut === 0, JSON.stringify(s));
 
+      // ── F8 —— 版面:容器查詢兩個引擎都真的生效,且三語都不會把「剩 N 分」擠成多行 ────
+      // 為什麼要有這一條:.xfer-conn 用了 container-type/@container,那是本 repo 第一次用
+      // (2026-09-01 合併 Claude Design 回包帶進來的),窄/寬兩套排法完全靠它。若某個引擎不支援,
+      // 版面會永遠停在窄版——300 卡上留一大片空白,而所有既有判準都照不到,因為它們只驗
+      // 「點得到」與「內容對」。
+      // 量的是【真的 #fpConn】:改 .follow-panel 的行內寬度、讓真實 cascade 自己算容器寬,
+      // 不自己拼 padding(拼錯就變成量一個不存在的寬度——判準盲點第 0 條「我在量的是誰」)。
+      // 三語都量:規格書把「英文在最窄卡」列為最緊的情形,而英文字串明顯比中文長。
+      const lay = await page.evaluate(({ gid, at, sysKey }) => {
+        const panel = document.getElementById('followPanel');
+        const conn = document.getElementById('fpConn');
+        const oldW = panel.style.width, oldLang = I18N_LANG;
+        const xsys = TRANSFER_SCHED_SYSTEM[sysKey];
+        // 「一行支/兩行支」用 grid 解析出來的 row track 數,不用 getBoundingClientRect().top 比對:
+        // 列是 align-items:baseline,小字級的 .xfc-sys 盒子本來就比 .xfc-no 低,同一行也不相等。
+        const tracks = el => (getComputedStyle(el).gridTemplateRows || '').trim().split(/\s+/).filter(Boolean).length;
+        const wrapped = el => {
+          const lh = parseFloat(getComputedStyle(el).lineHeight) || 16;
+          return el.getBoundingClientRect().height > lh * 1.6;
+        };
+        // 🔴 設計刻意讓「剩 N 分」與車次 white-space:nowrap(「永不壓縮、永不換行」),所以
+        // 原本的缺陷【不可能】再以換行出現——只會變成「衝出卡片右緣」。單量換行是恆真的空斷言
+        // (第一版正向對照就是這樣翻紅的)。主判準改量:這兩欄的右緣有沒有越過容器內容框。
+        const overRight = el => {
+          const c = getComputedStyle(conn);
+          const edge = conn.getBoundingClientRect().right
+            - (parseFloat(c.paddingRight) || 0) - (parseFloat(c.borderRightWidth) || 0);
+          return Math.round(el.getBoundingClientRect().right - edge);
+        };
+        const out = [];
+        try {
+          for (const lang of ['zh-TW', 'en', 'ja']) {
+            I18N_LANG = lang;
+            const html = transferConnectionHtml(gid, at, xsys);
+            for (const w of [176, 240, 300]) {
+              panel.style.width = w + 'px';
+              conn.innerHTML = html;          // 全程同步量完,rAF 沒有機會插進來覆蓋
+              const row = conn.querySelector('.xfc-row');
+              const lefts = [...conn.querySelectorAll('.xfc-left')];
+              const nos = [...conn.querySelectorAll('.xfc-no')];
+              out.push({
+                lang, card: w,
+                connW: Math.round(conn.getBoundingClientRect().width),
+                tracks: row ? tracks(row) : 0,
+                leftWrap: lefts.filter(wrapped).length,
+                lefts: lefts.length,
+                leftOver: Math.max(0, ...lefts.map(overRight)),
+                noOver: Math.max(0, ...nos.map(overRight)),
+                overflow: conn.scrollWidth > conn.clientWidth + 1,
+              });
+            }
+          }
+          // 正向對照:在最窄卡塞一個必定放不下的字串,溢出偵測器要真的翻紅。少了它,
+          // 「零溢出」在偵測器本身壞掉時也是恆真的空斷言(判準盲點第 5 條)。
+          panel.style.width = '176px';
+          I18N_LANG = 'zh-TW';
+          conn.innerHTML = transferConnectionHtml(gid, at, xsys);
+          const probe = conn.querySelector('.xfc-left');
+          if (probe) probe.textContent = '剩 179 分鐘又 45 秒還要再走一段路';
+          return { rows: out, control: probe ? overRight(probe) : null };
+        } finally {
+          I18N_LANG = oldLang;
+          panel.style.width = oldW;
+          // 明確把內容還原成正確語系,不要依賴「下一幀 updateFollowPanel 會修好」——
+          // F3 緊接著就要量座標,兩個 evaluate 之間不保證跨過一次 rAF。
+          conn.innerHTML = transferConnectionHtml(gid, at, xsys);
+        }
+      }, { gid: found.gid, at: found.at, sysKey: found.sys });
+
+      const bad8 = lay.rows.filter(r => r.leftOver > 1 || r.noOver > 1 || r.overflow || r.leftWrap > 0 || r.lefts === 0);
+      ok(P('F8 三語 × 三種卡寬:「剩 N 分」與車次都完整落在卡內(沒有溢出、沒有換行)'),
+        lay.rows.length === 9 && bad8.length === 0,
+        `n=${lay.rows.length} 壞=${JSON.stringify(bad8.slice(0, 3))}`);
+      const cq = lay.rows.filter(r => r.tracks !== (r.card >= 300 ? 1 : 2));
+      ok(P('F8b 容器查詢生效:176/240 走兩行排法、300 收成一行(引擎不支援就會全停在兩行)'),
+        cq.length === 0, lay.rows.map(r => `${r.lang}/${r.card}=${r.tracks}行(容器${r.connW}px)`).join(' '));
+      ok(P('F8c 正向對照:塞不下時溢出偵測器確實翻紅(證明 F8 不是恆真)'),
+        typeof lay.control === 'number' && lay.control > 1, `超出右緣 ${lay.control}px`);
+
       // ── F3 —— 真滑鼠:移到第一列中心、按住 150ms、放開。不是 dispatchEvent ────────
       // 🔴 座標與車次都用 page.evaluate 當場重新查詢,不用 Playwright 的 locator:突變成
       // 「每幀整段重寫」時 locator.boundingBox() 會因為節點一直被換掉而回 null,於是 F3pre
