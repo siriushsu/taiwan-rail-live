@@ -12,19 +12,12 @@
 // 產出一顆版號寫著 hotfix、裡面卻有 154MB 音樂而且授權證據還沒補齊的 IPA。
 // 這支把「哪個模式配哪組設定」變成單一事實來源，改完直接跑到閘門綠燈才收工。
 //
-// 做不到的事：只有「上傳」這一步。本機鑰匙圈只有 Apple Development 憑證，Distribution 是
-// Organizer ▸ Distribute App 當場申請並重簽的——而且 patch-archive-os 改過 Info.plist 之後
-// 本來就得靠那次重簽把簽章補回來，所以上傳一定要走 Organizer。
-// ⚠️ 2026-09-01 訂正：這段原本寫成「Archive 也做不到、必須在 Xcode 裡 Product ▸ Archive」，
-// 我照著它跟使用者說 archive 我做不到，被當場糾正（前面很多顆都是 CLI 出的）。實測
-//   cd app/ios && xcodebuild -workspace App/App.xcworkspace -scheme App -configuration Release \
-//     -destination "generic/platform=iOS" -derivedDataPath ./_dd911 \
-//     -archivePath ~/Library/Developer/Xcode/Archives/<日期>/軌島-<版>-<build>-<BUILD>.xcarchive archive
-// ARCHIVE SUCCEEDED，開發憑證簽得出 archive。**能力邊界的否定式斷言不要寫死在註解裡**，
-// 下一個人會照抄成「做不到」而永遠不去試。
-// 🔴 archive 完先跑 patch-archive-os.mjs，它會比對 archive 內的 public/index.html 與 app/www；
-// 若中間為了出 Android 而重跑過帶 RAIL_ANDROID_* 的 build:release，www 會變成 Android 版而誤報
-//「這顆 archive 不是這棵樹建出來的」——重跑一次本腳本讓 www 回到 iOS 版即可，不必重 archive。
+// 🔴 這支只做「版號＋旗標＋建置＋閘門」。**出檔的完整流程不寫在這裡**——正本是
+// app/出貨規則.md 第五節,可執行版本是 app/scripts/ios-release.mjs（它會呼叫這支）。
+// 2026-09-01：這裡原本自帶一段「我做得到什麼／做不到什麼」的能力宣告,而**同一支腳本在
+// build 線上的那一份寫著相反的話**（「Archive 做不到，你要自己按 Product ▸ Archive」）。
+// 註解跟著分支走,分支會分歧 ⇒ 讀到哪一份就給出哪一套說法,使用者連續幾次拿到不同做法。
+// 能力邊界現在只寫在出貨規則.md 第五節那張表裡,而且要推翻它只能靠當場實測。
 import { execFileSync } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
@@ -254,7 +247,11 @@ const MODES = {
     //     ③ Android 小工具新增車站時，起站選單依縣市分段（issue #40）
     //     ④ 街道底圖載不動時不再退回 CARTO（改成需金鑰後退過去是蓋浮水印的圖，而且回 200 偵測不到）
     //   ⑤ 日文更新紀錄的「環境モード」改回 App 自己的術語「鑑賞モード」——只是措辭，why 不寫。
-    marketing: '1.5.3', build: '86', music: true, metroCore: true,
+    // 2026-09-01：build 86 燒掉了。當天 Archives 底下同時存在兩顆 1.5.3 (86)（使用者一顆、
+    // CLI 一顆），我 patch 的是 CLI 那顆、使用者上傳的是另一顆 ⇒ ASC 回 ITMS-90111。
+    // 規則四：作廢的號不重用。兩顆都已搬到 ~/Library/Developer/Xcode/_已作廢的archive/1.5.3-86/，
+    // 而 ios-release.mjs 的第 3 步連那一區一起掃，所以 86 再也不會被放行。
+    marketing: '1.5.3', build: '87', music: true, metroCore: true,
     why: '軌島 1.5.3\n\n放空模式的出口\n放空模式離開之後再進去一次，整條控制列會縮成右下角一顆空白的小鈕，找不到「離開放空」也點不出去。現在每次進放空，出口都在（謝謝網友回報）。\n\n隨機跟隨\n按「隨機跟隨」時，同一班車被抽中的機率設了上限，也會記住剛跟過的五班不重複挑，比較不會一直遇到同一批車。\n\n桌面小工具的起站選單\nAndroid 新增車站時，起站選單改成依縣市分段，不必再從一整條長清單裡找。\n\n街道底圖\n街道底圖載入不順時，原本會退回另一家的圖磚，而那家改成需要金鑰之後，退過去看到的是一張蓋著浮水印的地圖，而且它回的是正常的 200，這端偵測不到。現在載不動就直說。',
     whyEn: 'Rail Island 1.5.3\n\nThe way out of ambient mode\nLeaving ambient mode and going back in could shrink the whole control bar into a blank little pill in the corner, with no Exit ambient mode button to tap. Now the way out is there every time. Thanks to the reader who reported it.\n\nFollow random train\nFollow random train now caps how likely any one train is to be picked, and remembers the last five it followed, so you meet a wider spread of trains.\n\nThe origin picker in home screen widgets\nOn Android, adding a station to a widget now groups the origin picker by city and county instead of one long list.\n\nThe street basemap\nWhen the street basemap was slow to load it used to fall back to another provider, and since that provider started requiring a key the fallback showed a map stamped with a watermark, served as a normal 200 that this end could not detect. Now it says so instead.',
     whyJa: '軌島 1.5.3\n\n鑑賞モードの出口\n鑑賞モードをいったん終了してもう一度入ると、操作バー全体が隅の小さな空白のボタンに縮み、「鑑賞モードを終了」が押せなくなることがありました。今は毎回そこに出口があります（ご報告ありがとうございました）。\n\nランダム追跡\n「ランダム追跡」では、同じ列車が選ばれる確率に上限を設け、直前に追跡した五本を覚えて重複を避けるようにしました。より幅広い列車に出会えます。\n\nホーム画面ウィジェットの出発駅選択\nAndroid では、ウィジェットに駅を追加するとき、出発駅を県・市別に整理しました。長い一覧から探す必要がありません。\n\n街路地図\n街路地図の読み込みが遅いとき、以前は別の提供元の地図タイルに切り替えていました。その提供元がキーを必須にしてからは、切り替え先が透かし入りの地図になり、しかも通常の 200 で返るためこちら側では検知できませんでした。今は読み込めないことをそのまま表示します。',
@@ -398,4 +395,5 @@ run('npm', ['run', 'sync']);
 // 原生內嵌資產一致性檢查——那個略過就是 CI 從來沒真的驗過打包進 IPA 的那份網頁的原因。
 run('npm', ['run', 'verify']);
 
-console.log(`\n✅ ${mode} 模式就緒。接著在 Xcode：Product ▸ Archive ▸ Distribute App。`);
+console.log(`\n✅ ${mode} 模式就緒（版號、旗標、www、cap sync、發行閘門）。`);
+console.log('  這只是出檔流程的第 2 步。完整流程：node app/scripts/ios-release.mjs ' + mode);

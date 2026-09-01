@@ -1,3 +1,4 @@
+// 出檔流程的第 5 步（正本：app/出貨規則.md 第五節；可執行版本：ios-release.mjs）。
 // Archive 之後、Distribute 之前，把 archive 內**每一個** bundle 的 BuildMachineOSBuild
 // 從 beta macOS 值改成正式版值，否則 App Store Connect 的二進位審查會回 ITMS-90111
 // （Unsupported SDK or Xcode version——Apple 對「在 beta macOS 上建出的 binary」開罰）。
@@ -59,7 +60,7 @@ function newestArchive() {
       found.push({ path, mtime: statSync(path).mtimeMs });
     }
   }
-  if (!found.length) throw new Error('Archives 目錄下沒有任何 .xcarchive——請先在 Xcode 跑 Product ▸ Archive');
+  if (!found.length) throw new Error('Archives 目錄下沒有任何 .xcarchive——先跑 node app/scripts/ios-release.mjs <模式>');
   found.sort((a, b) => b.mtime - a.mtime);
   return found[0].path;
 }
@@ -111,7 +112,7 @@ if (wwwHash !== archHash) {
     `   ・忘了重新 Archive（腳本挑的是 mtime 最新的那顆＝上一次的 archive）\n` +
     `   ・Xcode 開到另一棵 repo 的 App.xcworkspace（同名、同 bundle id、可能連版號都一樣）\n\n` +
     `   確認 Xcode 開的是：${join(appRoot, 'ios/App/App.xcworkspace')}\n` +
-    `   重新 Product ▸ Archive，再跑一次這支腳本；或用參數指定正確的 archive。\n`);
+    `   重跑 node app/scripts/ios-release.mjs <模式>；或用參數指定正確的 archive。\n`);
   process.exit(1);
 }
 
@@ -148,7 +149,7 @@ if (blockers.length) {
    1. 完全結束 Xcode（含 ~/Downloads/Xcode-beta.app），用 /Applications/Xcode.app 重開
       open -a /Applications/Xcode.app "${join(appRoot, 'ios/App/App.xcworkspace')}"
    2. 確認 Xcode ▸ About Xcode 顯示的是正式版（不是 beta）
-   3. 重新 Product ▸ Archive，再跑一次這支腳本
+   3. 重跑 node app/scripts/ios-release.mjs <模式>
 `);
   process.exit(1);
 }
@@ -215,5 +216,6 @@ for (const key of ['DTPlatformBuild', 'DTSDKBuild', 'DTXcodeBuild', 'DTXcode']) 
   console.log(`  ${key.padEnd(18)} ${value}${flag}`);
 }
 
-console.log('\n下一步：Xcode ▸ Window ▸ Organizer ▸ 選這顆 archive ▸ Distribute App ▸ App Store Connect ▸ Upload');
-console.log('（一定要走這條，它會重新簽章；剛才的修改會讓現有簽章失效，靠重簽補回來。）');
+console.log('\n下一步：node app/scripts/verify_archive_ready.mjs');
+console.log('（上傳前的最後一道閘門。它綠了才會印出要在 Organizer 裡挑哪一顆——');
+console.log('  不要跳過它直接去 Organizer：同版號有兩顆時，人眼分不出哪顆 patch 過。）');
