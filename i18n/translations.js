@@ -177,6 +177,8 @@
       '即將': 'Due', '進站': 'Arriving', '即將進站': 'Arriving', '列車進站': 'Train arriving', '推算': 'Estimated', '（終點到達）': '(Terminates here)',
       '往 {station}': 'To {station}', '往{station}': 'To {station}', '{train} 次': 'Train {train}', '跟隨 {train} 次': 'Follow train {train}',
       '南下': 'Southbound', '北上': 'Northbound', '抵達本站': 'Terminating here', '其他': 'Other',
+      '桌面小工具新增車站時，起站選單改成依縣市分段':
+        "When you add a station to a home screen widget, the origin picker is grouped by city.",
       '放空模式：地圖不會被手指拉歪；離開再進入時，「離開放空」鈕不會再縮成按不到的小鈕':
         "Ambient mode is now sit-back-and-watch: the map can no longer be dragged or pinched off course, and leaving then re-entering no longer shrinks the Exit ambient mode button into an empty stub you cannot tap.",
       '火車站看板改成分方向顯示：南下、北上分開，山線海線與支線各自成區，冷門方向不再被擠掉；顏色比照台鐵新版車站標示的北上藍、南下綠':
@@ -469,6 +471,8 @@
       '即將': 'まもなく', '進站': '到着中', '即將進站': 'まもなく到着', '列車進站': '列車が到着中', '推算': '推定', '（終點到達）': '（当駅止まり）', '往 {station}': '{station}行き', '往{station}': '{station}行き',
       '{train} 次': '{train}列車', '跟隨 {train} 次': '{train}列車を追跡', '還有 {n} 分': 'あと{n}分',
       '南下': '南行き', '北上': '北行き', '抵達本站': '当駅止まり', '其他': 'その他',
+      '桌面小工具新增車站時，起站選單改成依縣市分段':
+        'ホーム画面ウィジェットに駅を追加するとき、出発駅を県・市別に整理しています。',
       '放空模式：地圖不會被手指拉歪；離開再進入時，「離開放空」鈕不會再縮成按不到的小鈕':
         '鑑賞モードは「眺めるだけ」に：地図が指で動かされたりズームがずれたりせず、いったん終了してもう一度入っても「鑑賞モードを終了」ボタンが押せない小さなボタンに縮まなくなりました。',
       '火車站看板改成分方向顯示：南下、北上分開，山線海線與支線各自成區，冷門方向不再被擠掉；顏色比照台鐵新版車站標示的北上藍、南下綠':
