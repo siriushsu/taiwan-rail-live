@@ -12470,19 +12470,14 @@ function accountRender() {
     // 只是因為它會跳出瀏覽器視窗,那本身就是看得見的動靜,與錯誤有沒有顯示無關。
     // (與 Android 線 5dacec9／iOS 線 bc066ee 同一段,三線一致。)
     (a.actionError ? `<div class="account-error">${escHtml(a.actionError)}</div>` : '') +
-    // 不想登入的人要回得去 Plus 面板(這張畫面常常是從 Plus 面板的登入 CTA 過來的)。
-    // 只在沒有購買通道的平台畫:有購買通道的平台 plusOpen() 未登入時本來就會把人送回這張登入畫面,畫了等於原地打轉。
-    // 🔴 2026-08-30:登入失敗的紅字原本只寫在下面「已登入」那一支,而登入失敗必然發生在【未登入】
-    // 狀態 ⇒ accountSignIn 的 catch 設好了 a.actionError、accountRender() 也跑了,畫面卻一個字都沒變。
-    // 這正是多位 Android 使用者說的「點下去是直接沒有任何反應,沒有登入失敗」;Apple 之所以「有反應」
-    // 只是因為它會跳出瀏覽器視窗,那本身就是看得見的動靜,與錯誤有沒有顯示無關。
-    // (Android 線 5dacec9 逐字照抄,兩線的這一段必須一致。)
-    (a.actionError ? `<div class="account-error">${escHtml(a.actionError)}</div>` : '') +
     (a.signinStuck === 'google' ? `<div class="account-note">${escHtml(t('沒有跳出 Google 帳號選擇畫面嗎？可以改用另一種方式登入。'))}</div><div class="account-user-actions"><button class="wide" type="button" data-login-legacy="google">${escHtml(t('改用另一種方式登入'))}</button></div>` : '') +
     // 🔴 2026-09-01:兩條原生 Google 路都死掉時的終點。逾時那條給的是「再試一次別的方式」,
     //    這條給的是「這台裝置走不通,改用這個」——文案必須不一樣,否則使用者會對著同一顆按鈕
-    //    重複點到放棄(回報者就是連點兩次,截圖上兩行一模一樣的紅字)。
+    //    重複點到放棄。(回報者截圖上那兩行一模一樣的紅字不是他點了兩次,是上面那個 render 在
+    //    合併時被插了兩份;同輪已刪掉重複的那份,未登入分支現在只准有一個 .account-error。)
     (a.signinStuck === 'google-nogms' ? `<div class="account-note">${escHtml(t('這台裝置沒有可用的 Google 登入服務。請改用上面的「使用 Apple 登入」，它不需要 Google 服務。'))}</div>` : '') +
+    // 不想登入的人要回得去 Plus 面板(這張畫面常常是從 Plus 面板的登入 CTA 過來的)。
+    // 只在沒有購買通道的平台畫:有購買通道的平台 plusOpen() 未登入時本來就會把人送回這張登入畫面,畫了等於原地打轉。
     (plusProjectConfigured() && !plusConfigured() ? `<div class="account-user-actions"><button class="wide" type="button" data-action="plus">${escHtml(t('先看看軌島通行證有什麼'))}</button></div>` : '') +
     `<div class="account-note">${escHtml(t('Google 登入只用於軌島帳號，不會因此取得 Google Maps 已儲存清單；清單匯入仍需使用 Google Takeout。'))}</div>`;
   else {

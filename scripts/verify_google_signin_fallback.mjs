@@ -113,6 +113,16 @@ async function primeAccount(page, plan, platform) {
   }, [plan, platform]);
 }
 
+// 🔴 不要用固定毫秒數等非同步結果:2026-09-01 觀察到一次「檔案未突變卻 B4 紅」,
+//    無法重現但成因只可能是時序。等【實際狀態到位】才讀,壞掉時靠 timeout 自己逾時轉紅,
+//    不會把 flaky 混進判準裡(逾時後照樣往下讀,該紅的還是紅)。
+async function settle(page, expectCalls) {
+  if (expectCalls > 0) {
+    await page.waitForFunction((n) => (window.__calls || []).length >= n, expectCalls, { timeout: 8000 }).catch(() => {});
+  }
+  await page.waitForTimeout(60);   // 讓最後一次 accountRender 落地
+}
+
 const seen = (page) => page.evaluate(() => {
   const el = document.getElementById('accountBody');
   const html = el ? el.innerHTML : '';
@@ -122,6 +132,11 @@ const seen = (page) => page.evaluate(() => {
     popup: window.__popup || 0,
     stuck: state.account ? state.account.signinStuck : '(no account)',
     errText: (html.match(/class="account-error">([^<]*)</) || [, ''])[1],
+    // 🔴 數「畫面上有幾條紅字」,不是只抓第一條。2026-09-01 實際踩到:合併把同一段 render
+    //    插了兩份在未登入分支裡(main／origin/main／各出貨分支與正式站全中),一次登入失敗
+    //    印出兩行一模一樣的紅字,而只抓第一條的判準對這件事完全無感——連「拿掉其中一份」
+    //    的突變都照樣全綠。有數量閘門之後,少一份與多一份兩個方向都會轉紅。
+    errCount: el ? el.querySelectorAll('.account-error').length : -1,
     // 🔴 量畫面而不是量 state:這兩句必須真的出現在 #accountBody 的文字裡。
     showsNoGms: text.includes('這台裝置沒有可用的 Google 登入服務'),
     showsTimeoutExit: text.includes('沒有跳出 Google 帳號選擇畫面嗎'),
@@ -134,13 +149,14 @@ const seen = (page) => page.evaluate(() => {
   const { ctx, page } = await openPage('android');
   await primeAccount(page, ['fail', 'ok'], 'android');
   await page.evaluate(() => accountSignIn('google'));
-  await page.waitForTimeout(300);
+  await settle(page, 2);
   const s = await seen(page);
   check('A1 明確失敗會自動再試一次(共 2 發)', s.calls.length === 2, JSON.stringify(s.calls));
   check('A2 第二發是 legacy=true', s.calls[1] && s.calls[1].legacy === true, JSON.stringify(s.calls[1]));
   check('A3 第一發是 legacy=false(沒有一開始就繞過 CM)', s.calls[0] && s.calls[0].legacy === false, JSON.stringify(s.calls[0]));
   check('A4 legacy 成功後畫面不留紅字', s.errText === '', `errText=${JSON.stringify(s.errText)}`);
   check('A5 legacy 成功後不顯示無 GMS 指引', s.showsNoGms === false, `showsNoGms=${s.showsNoGms}`);
+  check('A6 legacy 成功後畫面上零條紅字', s.errCount === 0, `errCount=${s.errCount}`);
   await ctx.close();
 }
 
@@ -149,13 +165,14 @@ const seen = (page) => page.evaluate(() => {
   const { ctx, page } = await openPage('android');
   await primeAccount(page, ['fail', 'fail'], 'android');
   await page.evaluate(() => accountSignIn('google'));
-  await page.waitForTimeout(300);
+  await settle(page, 2);
   const s = await seen(page);
   check('B1 兩條都試過(共 2 發)', s.calls.length === 2, JSON.stringify(s.calls));
   check('B2 畫面顯示無 GMS 指引(量 DOM 文字)', s.showsNoGms === true, `showsNoGms=${s.showsNoGms}`);
   check('B3 指引與逾時出口是不同文案(不會再叫他按同一顆)', s.showsTimeoutExit === false, `showsTimeoutExit=${s.showsTimeoutExit}`);
   check('B4 紅字仍在(錯誤沒有被自動退路吞掉)', /credential manager/i.test(s.errText), `errText=${JSON.stringify(s.errText)}`);
   check('B5 state 與畫面一致', s.stuck === 'google-nogms', `stuck=${s.stuck}`);
+  check('B6 紅字恰好一條(未登入分支不得有重複 render)', s.errCount === 1, `errCount=${s.errCount}`);
   await ctx.close();
 }
 
@@ -164,11 +181,12 @@ const seen = (page) => page.evaluate(() => {
   const { ctx, page } = await openPage('ios');
   await primeAccount(page, ['fail', 'ok'], 'ios');
   await page.evaluate(() => accountSignIn('google'));
-  await page.waitForTimeout(300);
+  await settle(page, 1);
   const s = await seen(page);
   check('C1 iOS 不自動退路(只 1 發)', s.calls.length === 1, JSON.stringify(s.calls));
   check('C2 iOS 顯示紅字', /credential manager/i.test(s.errText), `errText=${JSON.stringify(s.errText)}`);
   check('C3 iOS 不顯示無 GMS 指引', s.showsNoGms === false, `showsNoGms=${s.showsNoGms}`);
+  check('C4 iOS 紅字恰好一條', s.errCount === 1, `errCount=${s.errCount}`);
   await ctx.close();
 }
 
@@ -177,7 +195,7 @@ const seen = (page) => page.evaluate(() => {
   const { ctx, page } = await openPage(null);
   await primeAccount(page, [], null);
   await page.evaluate(() => accountSignIn('google'));
-  await page.waitForTimeout(300);
+  await settle(page, 0);
   const s = await seen(page);
   check('D1 網站走 signInWithPopup', s.popup === 1, `popup=${s.popup}`);
   check('D2 網站不顯示無 GMS 指引', s.showsNoGms === false, `showsNoGms=${s.showsNoGms}`);
@@ -206,11 +224,12 @@ const seen = (page) => page.evaluate(() => {
   const { ctx, page } = await openPage('android');
   await primeAccount(page, ['ok'], 'android');
   await page.evaluate(() => accountSignIn('google'));
-  await page.waitForTimeout(300);
+  await settle(page, 1);
   const s = await seen(page);
   check('F1 成功時只有 1 發', s.calls.length === 1, JSON.stringify(s.calls));
   check('F2 成功時無紅字', s.errText === '', `errText=${JSON.stringify(s.errText)}`);
   check('F3 成功時無任何出口', s.showsNoGms === false && s.showsTimeoutExit === false, `nogms=${s.showsNoGms} timeout=${s.showsTimeoutExit}`);
+  check('F4 成功時畫面上零條紅字', s.errCount === 0, `errCount=${s.errCount}`);
   await ctx.close();
 }
 
