@@ -407,6 +407,7 @@
   });
 
   Object.assign(messages.en, {
+    '登入失敗訊息不再重複兩行；Android 的 Google 登入多了自動退路（謝謝網友回報）': 'Sign-in error messages no longer appear twice, and Google sign-in on Android now falls back to another method automatically. Thanks to the reader who reported it.',
     "按下「我上車了」之後，再去點一班還沒發車的車，時鐘不會再被撥走（謝謝網友回報）": "After you tap I am on board, tapping a train that has not departed yet no longer winds the clock away from now. Thanks to the rider who reported it.",
     "英文與日文的手機頂列，左上角的軌島牌裝不下時會自己讓位，分組切換鈕留在畫面內": "On phones in English and Japanese, the Rail Island plate in the top left gives way when it does not fit, so the group tabs stay on screen.",
     "手機地圖右下角的版權資訊不會再折成一大塊蓋住速度調整鈕：改成貼著底緣一整條、放不下的部分橫向可捲，授權連結一個都沒少，仍然看得到也點得到。切到衛星影像時字串較長，原本折成四行最嚴重，現在一樣是一條（謝謝網友回報）": "The map attribution at the bottom right of the phone map sits on a single line along the bottom edge, scrolling sideways when it does not fit, instead of wrapping into a block over the speed control. Every licence link is still there and still tappable. In satellite mode the text is longer, and it stays on one line there too. (Thanks to the reader who reported this.)",
@@ -457,6 +458,7 @@
     '身障友善座位': 'Accessible seating', '可帶自行車（兩鐵）': 'Bicycles accepted', '親子車廂': 'Family car', '團體專開列車': 'Chartered group train', '附掛郵政／行包車廂': 'Mail or baggage car'
   });
   Object.assign(messages.ja, {
+    '登入失敗訊息不再重複兩行；Android 的 Google 登入多了自動退路（謝謝網友回報）': 'ログインエラーの表示が二重にならなくなり、Android の Google ログインは別の方式へ自動的に切り替わるようになりました。ご報告ありがとうございます。',
     "按下「我上車了」之後，再去點一班還沒發車的車，時鐘不會再被撥走（謝謝網友回報）": "「乗車しました」を押した後に、まだ発車していない列車をタップしても時計が現在からずれなくなりました。ご報告ありがとうございます。",
     "英文與日文的手機頂列，左上角的軌島牌裝不下時會自己讓位，分組切換鈕留在畫面內": "英語・日本語のスマートフォン表示では、左上の軌島プレートが収まらないときに自ら幅を譲り、グループ切り替えタブが画面内に収まります。",
     "手機地圖右下角的版權資訊不會再折成一大塊蓋住速度調整鈕：改成貼著底緣一整條、放不下的部分橫向可捲，授權連結一個都沒少，仍然看得到也點得到。切到衛星影像時字串較長，原本折成四行最嚴重，現在一樣是一條（謝謝網友回報）": "スマートフォンの地図右下の著作権表示を、下端に沿った一行にしました。収まらない部分は横にスクロールし、速度調整ボタンを覆うブロックにはなりません。ライセンスのリンクは一つも欠けておらず、表示もタップもできます。衛星画像モードでは文字列が長くなりますが、そこでも一行のままです。（ご報告いただいた方に感謝します。）",

@@ -4900,6 +4900,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="signinfallback"><span class="d">9/1</span><span>登入失敗訊息不再重複兩行；Android 的 Google 登入多了自動退路（謝謝網友回報）</span></li>
         <li data-cl-of="ambientlock"><span class="d">9/1</span><span>放空模式：地圖不會被手指拉歪；離開再進入時，「離開放空」鈕不會再縮成按不到的小鈕</span></li>
         <li data-cl-of="androidwidgetparity"><span class="d">9/1</span><span>桌面小工具新增車站時，起站選單改成依縣市分段</span></li>
         <li data-cl-of="traboarddir"><span class="d">8/31</span><span>火車站看板改成分方向顯示：南下、北上分開，山線海線與支線各自成區，冷門方向不再被擠掉；顏色比照台鐵新版車站標示的北上藍、南下綠</span></li>
@@ -4907,7 +4908,6 @@
         <li data-cl-of="ridingclock"><span class="d">8/31</span><span>按下「我上車了」之後，再去點一班還沒發車的車，時鐘不會再被撥走（謝謝網友回報）</span></li>
         <li data-cl-of="satunderlay"><span class="d">8/31</span><span>衛星影像模式下放大縮小會閃一下底色的問題真的修好了：8/30 只是把墊底的顏色調得像衛星影像，換色治標沒治本。現在底下永遠墊著一層真的衛星影像，開衛星時就把全台先抓好，縮放時露出來的是影像不是色塊</span></li>
         <li data-cl-of="boardalign"><span class="d">8/31</span><span>車站看板的欄位對齊修好：倒數變成「即將進站」那幾列，原本會把時刻與擁擠度往左推、整張板看起來歪歪的，現在倒數與時刻兩欄逐板等寬，每一列都對齊。另外台鐵臺北車站不再多出一顆「臺北-環島」——那是環島之星繞完一圈的官方終點站碼，其實就是臺北站，現在併成一顆，手機小工具的車站清單也一起併</span></li>
-        <li data-cl-of="branchdepart"><span class="d">8/31</span><span>新北投與小碧潭支線的車一發車就從地圖上消失，現在會照官方到站時間走完兩站</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5123,6 +5123,7 @@
         <li><span class="d">7/10</span><span>夜間與衛星模式視覺升級；「軌」軌道顯示三段切換：自動／淡化／隱藏</span></li>
         <li><span class="d">7/9</span><span>站名移到軌道側邊不再互相壓住；雙欄版面：搜尋／最愛／旅程收集移到右側欄</span></li>
         <li class="grp">分享與個人化</li>
+        <li data-cl="signinfallback"><span class="d">9/1</span><span>登入失敗時，紅色的錯誤訊息原本會重複顯示兩行，現在只顯示一行。另外，Android 版用 Google 登入時，有些手機會直接跳出「不支援」的錯誤、或是點下去等不到任何結果；現在遇到這兩種情況都會自動改試另一種 Google 登入方式，兩種都走不通時才會建議改用「使用 Apple 登入」（它不需要 Google 服務）——Android 這部分隨下一版 App 生效（謝謝網友回報）</span></li>
         <li data-cl="androidplus"><span class="d">8/26</span><span>Android 版的軌島通行證購買流程補齊：月票與年票會使用 Google Play 顯示的當地價格，支援購買與恢復購買；方案內容、管理與取消訂閱說明也會依 Android 顯示 Google Play，不再混入 iPhone 的 App Store 與動態島功能。這一版也強制使用與網站相同的捷運即時動畫核心，不會因出包漏帶設定而退回舊模型；封測使用同一顆準備上架的 App，但只有列入測試名單的軌島帳號能取得測試資格，正式訂閱與測試訂閱仍分開核對</span></li>
         <li data-cl="release140"><span class="d">8/6</span><span>iPhone／iPad 版升級至 1.4.0：加入軌島帳號、通行證月票與年票、收藏與完乘紀錄跨裝置同步、跟車鎖定畫面與動態島即時動態，以及可自訂起訖站的發車看板小工具；也一併修好 App 分享連結、行程追蹤橫幅蓋住時鐘與小工具設定穩定性</span></li>
         <li data-cl="passproduction"><span class="d">8/6</span><span>App 的軌島通行證改用 App Store 正式訂閱：月票與年票購買後會開啟進階功能與雲端同步；TestFlight 的展示進度不會出現在正式版</span></li>
