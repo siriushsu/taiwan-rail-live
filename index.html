@@ -6117,6 +6117,7 @@ const state = {
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
   stationTransfers: null, stationTransferAnchors: [], stationTransferGroups: new Map(), stationTransferBySystemName: new Map(),
   transferDepartures: null, // 轉乘接續:轉乘群當日對向班次表(data/transfer_departures.json),缺檔或版本不符仍為 null,功能靜默消失
+  xferPin: null, // 轉乘接續:釘選中的那一班 { n, sys } | null(點一列只剩那一班,2026-09-01 裁示)
   playing: true, speedMult: 1, hour: 8, simSec: 8 * 3600, // 開機即 1× 真實時刻(2026-07-11 使用者裁決,舊示意預設 50×)
   dpr: 1, powerSave: false, t0: 0, elapsed: 0, ready: false, // powerSave:省電模式(相機置中+繪製統一降 30fps,手機預設開),見 tick 節流
 
@@ -16400,13 +16401,36 @@ function transferConnectionHtml(groupId, atSec, fromSys) {
 }
 // 三個顯示實例共用。照 setTransferTag 的形狀寫,差別只在這裡寫 innerHTML 不是 textContent
 // (接續列需要按鈕與分段結構,轉乘標只有純文字)。
+// 順便記住每個容器最後一次收到的參數(xferConnArgs):釘選改變時要原地重播,不能重算「下一站」
+// ——重算就是第二份推導,一定會跟跟隨卡漂移(症狀:跟隨卡寫著下一站台中,接續區塊卻算板橋)。
+const xferConnArgs = new Map();
 function setTransferConn(id, groupId, atSec, fromSys) {
   const el = document.getElementById(id);
   if (!el) return;
+  xferConnArgs.set(id, [groupId, atSec, fromSys]);
   const html = transferConnectionHtml(groupId, atSec, fromSys);
   el.innerHTML = html;
   el.hidden = !html;
 }
+// 釘選改變時三個容器原地重畫:各自拿 xferConnArgs 存的參數重播一次 transferConnectionHtml
+// (該函式本來就會讀 state.xferPin 決定要不要收成一列)。刻意不呼叫各卡的整卡重繪——那會把
+// 使用者展開中的其他區塊收合,而釘選只該換這一塊。
+function refreshXferConns() {
+  for (const [id, a] of xferConnArgs) setTransferConn(id, a[0], a[1], a[2]);
+}
+// 轉乘釘選。高鐵是對號座,轉高鐵的人多半已經有票——他不是在「選一班」,是在輸入一個他早就
+// 知道的事實,其餘班次對他是雜訊,甚至會讓他以為趕得上一班他根本上不去的車。釘選後只剩那一班
+// (2026-09-01 裁示)。
+function setXferPin(n, sys) { state.xferPin = { n, sys }; refreshXferConns(); }
+function clearXferPin() { state.xferPin = null; refreshXferConns(); }
+// 事件委派掛在 document 上(三個實例會被 setTransferConn 整段 innerHTML 重畫,直接綁在
+// .xfc-row/.xfc-unpin 本身會被重畫洗掉)。兩個 closest 都限定 .xfer-conn 祖先,不可裸寫
+// .xfc-row/.xfc-unpin——.xc-row(平交道卡)是完全不同的 class,但比照它的教訓仍舊自己作用域化。
+document.addEventListener('click', e => {
+  const row = e.target.closest && e.target.closest('.xfer-conn .xfc-row');
+  if (row) { setXferPin(row.dataset.xn, row.dataset.xs); return; }
+  if (e.target.closest && e.target.closest('.xfer-conn .xfc-unpin')) clearXferPin();
+});
 
 // 地圖下方的列車資訊卡:介紹+服務標記,旅程日誌由 renderFollowEvents 填
 function renderTrainCard(tr) {
