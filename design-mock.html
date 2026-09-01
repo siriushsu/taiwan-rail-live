@@ -969,7 +969,8 @@
   .follow-panel.fp-min { width: auto; max-width: 190px; padding: 6px 12px; cursor: pointer; border-radius: var(--r-pill); }
   .follow-panel.fp-min .fp-next, .follow-panel.fp-min .fp-prog, .follow-panel.fp-min .fp-status,
   .follow-panel.fp-min .fp-alert, .follow-panel.fp-min .fp-dest, .follow-panel.fp-min .fp-head .kind,
-  .follow-panel.fp-min .fp-close, .follow-panel.fp-min .traincard { display: none; }
+  .follow-panel.fp-min .fp-close, .follow-panel.fp-min .traincard,
+  .follow-panel.fp-min .xfer-conn { display: none; }
   .follow-panel.fp-min .fp-head .spd b { font-size: calc(15px * var(--ui)); }
   .follow-panel .fp-end {
     margin-left: 6px; background: none; border: 1px solid var(--line); border-radius: 6px;
@@ -1062,16 +1063,50 @@
     padding: 1px 5px; border: 1.5px solid var(--red); border-radius: 6px; line-height: 1.5;
   }
   /* 轉乘接續。落點在 .xfer-tag 那一列的下方(跟隨卡/捷運卡/手機列車卡),共用那一區的字級變數。 */
-  .xfer-conn { margin-top: 7px; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
-  .xfer-conn .xfc-h { display: block; font-size: calc(11px * var(--uis)); color: var(--faint); }
-  .xfer-conn .xfc-row { display: flex; gap: 7px; align-items: baseline; width: 100%;
-    background: none; border: 0; padding: 3px 0; color: inherit; text-align: left; cursor: pointer; }
+  /* v0901 窄卡排版:容器寬度不是這一塊能決定的(桌面 240 / 全畫面 300 / 手機與放空 176 / 直播 400),
+     所以斷點吃 container query 而不是裝置——放空模式與手機 sheet 也會落到窄支。
+     欄位優先序:車次與「剩 N 分」永不壓縮、永不換行(那是使用者要的兩個數字),
+     只有 .xfc-d(時刻＋往哪)吃 ellipsis。 */
+  .xfer-conn { container-type: inline-size; margin-top: 7px;
+    border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+  .xfer-conn .xfc-h { font-size: calc(11px * var(--uis)); line-height: 1.35; color: var(--faint);
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  /* 窄支(<280px):兩行。第一行只放車次＋剩 N 分(最寬 96px,176 卡可用寬 138px);
+     系統小標與時刻同在第二行——系統名 5 字(阿里山林鐵)時第一行才不會被撐破。 */
+  .xfer-conn .xfc-row { display: grid; grid-template-columns: auto 1fr auto;
+    grid-template-areas: "no . left" "sys d d";
+    align-items: baseline; column-gap: 6px; row-gap: 2px;
+    width: 100%; min-height: 44px; padding: 6px 0;
+    background: none; border: 0; color: inherit; text-align: left; cursor: pointer; }
+  /* 兩列之間才畫線,不包框——只有 gap 會看起來像一坨 */
+  .xfer-conn .xfc-row + .xfc-row { border-top: 1px solid var(--line); }
   /* 混系統/釘選時每列前面的系統小標(同系統時標題已指名,不重複顯示,見 xfcSysName 呼叫端)。 */
-  .xfer-conn .xfc-sys { flex: 0 0 auto; font-size: calc(11px * var(--uis)); color: var(--faint); }
-  .xfer-conn .xfc-no { font-weight: 800; font-variant-numeric: tabular-nums; }
-  .xfer-conn .xfc-d { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .xfer-conn .xfc-left { font-weight: 800; font-variant-numeric: tabular-nums; }
-  .xfer-conn .xfc-f { display: block; font-size: calc(10px * var(--uis)); color: var(--faint); margin-top: 4px; }
+  .xfer-conn .xfc-sys { grid-area: sys; font-size: calc(11px * var(--uis));
+    font-weight: 800; color: var(--faint); white-space: nowrap; }
+  .xfer-conn .xfc-no { grid-area: no; font-size: calc(15px * var(--uis)); font-weight: 800;
+    color: var(--ink-strong); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .xfer-conn .xfc-d { grid-area: d; font-size: calc(11.5px * var(--uis)); min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .xfer-conn .xfc-left { grid-area: left; justify-self: end; font-size: calc(13px * var(--uis));
+    font-weight: 800; color: var(--ink-strong); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  /* 寬支:收成一行。container-type 掛在 .xfer-conn 身上,所以斷點量的是「區塊自己的內容寬」
+     而不是卡片寬——桌面 240 卡＝194px、全畫面 300 卡＝254px、直播 400 卡＝354px。
+     240 一行差 4px 放不下站名(五欄要 199),門檻取 250:240 排除、300 起收一行。 */
+  @container (min-width: 250px) {
+    .xfer-conn .xfc-row { grid-template-columns: auto auto 1fr auto;
+      grid-template-areas: "sys no d left"; min-height: 38px; padding: 5px 0; }
+    .xfer-conn .xfc-no { font-size: calc(14px * var(--uis)); }
+  }
+  /* 釘選態的視覺標記:左緣 2px 主色軌＋紙面加深＋車次轉主色。不加圖示、不加額外文字。 */
+  .xfer-conn .xfc-row[aria-pressed=true] { box-shadow: inset 2px 0 0 var(--navy); padding-left: 8px;
+    background: color-mix(in oklch, var(--paper) 92%, var(--navy)); }
+  .xfer-conn .xfc-row[aria-pressed=true] .xfc-no { color: var(--navy); }
+  /* 取消釘選離開標題列(窄卡上標題被壓成兩欄會斷字),改成右下角獨立按鈕,32px 觸控高 */
+  .xfer-conn .xfc-unpin { display: block; margin: 6px 0 0 auto; min-height: 32px; padding: 6px 11px;
+    font: inherit; font-size: calc(11.5px * var(--uis)); font-weight: 800; color: var(--navy);
+    background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-pill); cursor: pointer; }
+  .xfer-conn .xfc-f { display: block; font-size: calc(10px * var(--uis)); line-height: 1.45;
+    color: var(--faint); margin-top: 4px; }
   .traincard .tc-st.hd { font-weight: 800; color: var(--faint); border-top: 0; cursor: default; font-size: calc(11px * var(--uis)); letter-spacing: 1px; }
   .traincard .tc-st.hd:hover { background: none; }
   .traincard .tc-st.past { opacity: .45; }

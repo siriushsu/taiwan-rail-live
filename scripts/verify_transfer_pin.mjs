@@ -121,19 +121,29 @@ ok('G0b 釘選前沒有取消釘選鈕', unpinBefore === 0, `${unpinBefore} 顆`
 const frame = await page.evaluate(() => {
   const outer = document.getElementById('fpConn');
   const all = [outer, ...outer.querySelectorAll('*')];
-  const bw = el => parseFloat(getComputedStyle(el).borderTopWidth) || 0;
-  const bordered = all.filter(e => bw(e) > 0);
+  // 量【四面都有框】才算一個「框」——v0901 設計在列與列之間加了 border-top 分隔線,
+  // 那是分隔不是框。只看 borderTopWidth 會把分隔線誤判成第二個框(2026-09-01 實際踩到)。
+  const box = el => {
+    const c = getComputedStyle(el);
+    return ['Top', 'Right', 'Bottom', 'Left'].every(d => (parseFloat(c['border' + d + 'Width']) || 0) > 0);
+  };
+  const bordered = all.filter(box);
+  const seps = all.filter(e => !box(e) && (parseFloat(getComputedStyle(e).borderTopWidth) || 0) > 0);
   return {
     nested: outer.querySelectorAll('.xfer-conn').length,
     outerBorder: getComputedStyle(outer).borderTopWidth,
     borderedCount: bordered.length,
     borderedWho: bordered.map(e => (e.id ? '#' + e.id : e.tagName.toLowerCase() + '.' + e.className)),
+    sepCount: seps.length,
   };
 });
 ok('G5 接續區塊沒有巢狀 .xfer-conn(修復前是雙框的結構根因)', frame.nested === 0, `${frame.nested} 層`);
-ok('G5b 整塊只有一個元素有框線,而且是容器本身(0 個也算紅——正向對照)',
+ok('G5b 整塊只有一個【四面框】,而且是容器本身(0 個也算紅——正向對照)',
    frame.borderedCount === 1 && frame.borderedWho[0] === '#fpConn' && parseFloat(frame.outerBorder) > 0,
    JSON.stringify(frame));
+// G5c —— v0901 設計對「兩列看起來像一坨」的解法是列間分隔線(.xfc-row + .xfc-row 的 border-top),
+// 不是把每列包框。未釘選態有兩列 ⇒ 恰好一條分隔線;拿掉那條 CSS 會讓這裡變 0 而轉紅。
+ok('G5c 兩列之間有一條分隔線(不是把列包成框)', frame.sepCount === 1, JSON.stringify(frame));
 
 // ── G1 —— 真的點一下 #fpConn 第一列,量狀態改變 ───────────────────────────────
 const row1 = page.locator('#fpConn .xfc-row').first();
