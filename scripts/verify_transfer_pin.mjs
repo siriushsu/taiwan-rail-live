@@ -168,6 +168,61 @@ ok('G4 點按鈕內的子元素(.xfc-no)一樣能釘住,而且是點的那一班
 await page.locator('#fpConn .xfc-unpin').click();
 await page.waitForFunction(() => !window.__state.xferPin, null, { timeout: 5000 });
 
+// ── G8 —— 真實產線路徑,不繞過生產呼叫點 ───────────────────────────────────────
+// G0–G7 種資料的方式是直接呼叫 setTransferConn(見檔頭說明),這樣測得到「釘選互動」本身,
+// 但測不到「production 到底有沒有在正確的地方呼叫 setTransferConn」——如果
+// updateFollowPanel 裡 setTransferConn('tcConn', …) 那一行被誤刪,G0–G7 完全不會發現
+// (因為我們自己就直接呼叫過 tcConn 了,從沒依賴那一行)。這裡另外補一段:抓一班真的會停
+// 新烏日的台鐵車(T-THSR-1040 的 TRA 成員,Task 3 的 G8 已核實 station_transfers.json 與
+// transfer_departures.json 共用同一個群 id),撥模擬時鐘到它到站前,開 body.train-open
+// (觸發 tcConn 那個呼叫點的 if 分支),直接呼叫 updateFollowPanel(tr)——這是 production
+// 本尊,不是 stub。
+const real = await page.evaluate(() => {
+  const sys = state.systems.find(s => s.id === 'tra_sched');
+  loadSystem(sys);
+  const tr = state.trains.find(t => t.stops.some(s => s.stop !== false && s.name === '新烏日'));
+  if (!tr) return { ok: false, reason: '找不到會停新烏日的台鐵車' };
+  const idx = tr.stops.findIndex(s => s.name === '新烏日');
+  state.followTrain = tr; state.followId = tr.train;
+  // 到站前 60 秒(不能拉太長:前一站可能只離新烏日 1-2 分,拉到 300 秒會落在「上一站還沒到」
+  // 的區間,nextStopInfo 會回上一站而非新烏日,xgid 就會解到錯的轉乘群——已用探針實測驗證)。
+  state.simSec = tr.stops[idx].arrSec - 60;
+  state.clockAtNow = false;
+  state.playing = false; // 停止模擬時鐘前進(不影響下面這段結論,但仍是正確的測試前提)
+  document.getElementById('followPanel').hidden = false;
+  document.body.classList.add('train-open');
+  updateFollowPanel(tr); // production 本尊,不是灌入 stub
+  // updateFollowCamera() 在主 tick 迴圈裡不受 state.playing 節流,每一幀都會再呼叫一次
+  // updateFollowPanel(state.followTrain),於是 #fpConn/#tcConn 整段 innerHTML 每幀被換掉一次
+  // ——實測會讓 Playwright 的點擊在按下與放開之間目標「被偵測到已從 DOM 卸離」而重試到逾時。
+  // 上面那次呼叫已經是我們要驗的「production 呼叫點是否存在」,資料也已經讀進回傳值;
+  // 這裡把 followTrain 清空只是不讓相機迴圈接著替我們重播——不影響已經量到的 real.fp/real.tc。
+  state.followTrain = null;
+  return {
+    ok: true, train: tr.train,
+    fp: [...document.querySelectorAll('#fpConn .xfc-row')].map(e => e.dataset.xn),
+    tc: [...document.querySelectorAll('#tcConn .xfc-row')].map(e => e.dataset.xn),
+  };
+});
+ok('G8 真實產線路徑:真的一班車 + updateFollowPanel,fpConn 收到接續資料',
+  real.ok && real.fp.length >= 1, JSON.stringify(real));
+ok('G8b tcConn 也收到(這行斷言如果被刪掉呼叫點,會在這裡就地現形,不必依賴 G0–G7)',
+  real.ok && real.tc.length >= 1 && JSON.stringify(real.tc) === JSON.stringify(real.fp), JSON.stringify(real));
+
+// G8c —— 用真實產線路徑填出來的列去點,釘選一樣生效、tcConn 一樣同步收斂
+if (real.ok && real.fp.length && real.tc.length) {
+  const rowR = page.locator('#fpConn .xfc-row').first();
+  const noR = await rowR.getAttribute('data-xn');
+  await rowR.click();
+  await page.waitForFunction(() => !!window.__state.xferPin, null, { timeout: 5000 });
+  const tcAfterPin = await page.evaluate(() => [...document.querySelectorAll('#tcConn .xfc-row')].map(e => e.dataset.xn));
+  ok('G8c 真實路徑下釘選後 tcConn 也同步收斂成同一班', tcAfterPin.length === 1 && tcAfterPin[0] === noR, JSON.stringify(tcAfterPin));
+  await page.locator('#fpConn .xfc-unpin').click();
+  await page.waitForFunction(() => !window.__state.xferPin, null, { timeout: 5000 });
+} else {
+  ok('G8c 真實路徑下釘選後 tcConn 也同步收斂成同一班', false, '前置 G8/G8b 未成立,無法測(見上方 detail)');
+}
+
 ok('Z 頁面零例外', errors.length === 0, errors.slice(0, 3).join(' | '));
 
 await browser.close();
