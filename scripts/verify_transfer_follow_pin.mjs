@@ -246,57 +246,37 @@ async function runEngine(engineName, engine) {
       ok(P('F5pre1 手機殼成立(body.fs + MOBILE_MQ + 卡不在整合槽 + sheet 尚未開)'),
         shell.fs && shell.mobile && !shell.trainOpen && !shell.inUniSlot, JSON.stringify(shell));
 
-      // 🔴 正向對照:先用【非排除區】的觸控證明「點卡片→開列車 sheet」那條分支真的活著。
-      // 少了這一條,下面 F6 的「train-open 維持 false」在分支根本沒被走到時是恆真的空斷言。
-      const nextBox = await page.locator('#followPanel .fp-next').boundingBox();
-      if (nextBox) {
-        await page.touchscreen.tap(nextBox.x + nextBox.width / 2, nextBox.y + nextBox.height / 2);
-        await page.waitForFunction(() => document.body.classList.contains('train-open'), null, { timeout: 3000 }).catch(() => {});
-      }
-      const opened = await page.evaluate(() => document.body.classList.contains('train-open'));
-      ok(P('F5pre2 正向對照:點卡片非排除區確實會開「列車」sheet(該分支活著)'), opened, `train-open=${opened}`);
-      await page.evaluate(() => { if (typeof closeTrainSheet === 'function') closeTrainSheet(); });
-      await page.waitForFunction(() => !document.body.classList.contains('train-open'), null, { timeout: 3000 }).catch(() => {});
-
-      await page.waitForFunction(() => {
-        const el = document.getElementById('fpConn');
-        return el && !el.hidden && el.querySelectorAll('.xfc-row').length >= 1;
-      }, null, { timeout: 5000 }).catch(() => {});
-      // 座標與車次同樣即時查詢(理由見桌面段 F3pre)。
-      const RECT = () => page.evaluate(() => {
+      // 座標與車次即時查詢(理由見桌面段 F3pre),並【連命中結果一起量】。
+      // 🔴 停等條件是「這個座標現在真的打得到那一列」,不是「座標不動了」:手機殼開機後跟隨小卡
+      // 還會再挪一次位,兩次取樣相同只證明「這一拍沒動」——實測踩到過 y=773.67 連續兩拍相同、
+      // 其實整列坐在底部 tab bar 底下(elementFromPoint 命中一顆 className 空的 BUTTON,tap 下去
+      // pin 是 null)。改成輪詢到 inRow 為真才算就緒,直接量的就是「點得到」這件事本身。
+      const PROBE = () => page.evaluate(() => {
         const r = document.querySelector('#fpConn .xfc-row');
         if (!r) return null;
         const b = r.getBoundingClientRect();
-        return { no: r.dataset.xn, x: b.x, y: b.y, width: b.width, height: b.height };
+        if (!(b.width > 0 && b.height > 0)) return { no: r.dataset.xn, x: b.x, y: b.y, width: b.width, height: b.height, inRow: false };
+        const el = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2);
+        return {
+          no: r.dataset.xn, x: b.x, y: b.y, width: b.width, height: b.height,
+          inRow: !!(el && el.closest && el.closest('#fpConn .xfc-row')),
+          hitTag: el && el.tagName, hitCls: el && String(el.className).slice(0, 40),
+        };
       });
-      // 🔴 「列車」sheet 是動畫收合的,收合期間跟隨小卡會邊移動邊回位——直接量座標會量到途中的
-      // 位置,tap 就落在別的家具上(第一次跑就踩到:量到 y=773 落在底部 tab bar,pin 是 null)。
-      // 等到連續兩次取樣位置完全一樣才算穩定,不用固定睡幾百毫秒。
-      let boxM = null;
-      for (let i = 0; i < 20; i++) {
-        const a = await RECT();
+      let probe = null;
+      for (let i = 0; i < 25; i++) {
+        probe = await PROBE();
+        if (probe && probe.inRow) break;
         await page.waitForTimeout(150);
-        const b = await RECT();
-        if (a && b && a.x === b.x && a.y === b.y && a.height === b.height) { boxM = b; break; }
       }
-      const noM = boxM ? boxM.no : (await RECT() || {}).no || null;
-      ok(P('F5pre3 手機:接續列量得到座標'), !!boxM && boxM.width > 0 && boxM.height > 0, JSON.stringify(boxM));
-      if (boxM) {
-        const mx = boxM.x + boxM.width / 2, my = boxM.y + boxM.height / 2;
-        // 命中判準:手機底部有 tab bar 等常駐家具,座標算得出來不代表點得到(elementFromPoint
-        // 只答「命中誰」,但拿它當前置條件正好——真正的判準仍是下面量 state.xferPin 的改變)。
-        const hitM = await page.evaluate(({ x, y }) => {
-          const el = document.elementFromPoint(x, y);
-          return {
-            tag: el && el.tagName, cls: el && String(el.className).slice(0, 60),
-            inRow: !!(el && el.closest && el.closest('#fpConn .xfc-row')),
-          };
-        }, { x: mx, y: my });
-        ok(P('F5pre4 手機:該座標命中的是接續列本身(沒被 tab bar 之類的家具蓋住)'), hitM.inRow, JSON.stringify(hitM));
-        await page.touchscreen.tap(mx, my);
+      ok(P('F5pre3 手機:接續列量得到座標'), !!probe && probe.width > 0 && probe.height > 0, JSON.stringify(probe));
+      ok(P('F5pre4 手機:該座標命中的是接續列本身(沒被 tab bar 之類的家具蓋住)'), !!probe && probe.inRow, JSON.stringify(probe));
+      if (probe && probe.inRow) {
+        const noM = probe.no;
+        await page.touchscreen.tap(probe.x + probe.width / 2, probe.y + probe.height / 2);
         await page.waitForFunction(() => !!state.xferPin, null, { timeout: 3000 }).catch(() => {});
         // sheet 是動畫上滑的:多等一拍,不要讓「還沒滑上來」冒充成「沒有被打開」。
-        await page.waitForTimeout(400);
+        await page.waitForTimeout(500);
         const res = await page.evaluate(() => ({
           pin: state.xferPin ? { ...state.xferPin } : null,
           trainOpen: document.body.classList.contains('train-open'),
@@ -304,6 +284,23 @@ async function runEngine(engineName, engine) {
         ok(P('F5 手機真觸控點接續列,確實釘住那一班'), !!res.pin && res.pin.n === noM, `點的=${noM} 釘的=${res.pin && res.pin.n}`);
         ok(P('F6 且不會順便打開「列車」sheet(Finding 2:.xfc-row 要在排除清單裡)'),
           res.trainOpen === false, `train-open=${res.trainOpen}`);
+
+        // 🔴 F7 正向對照必須在 F6 之後、同一頁做:少了它,F6 的「train-open 維持 false」在那條
+        // 分支根本沒被走到時是恆真的空斷言。刻意不擺在 F5/F6 前面——開關一次「列車」sheet 會讓
+        // 跟隨小卡重新排版,收合動畫期間量到的座標會落在別的家具上(見上面 F5pre3 的註解)。
+        const nextBox = await page.evaluate(() => {
+          const e = document.querySelector('#followPanel .fp-next');
+          if (!e) return null;
+          const b = e.getBoundingClientRect();
+          return { x: b.x, y: b.y, width: b.width, height: b.height };
+        });
+        if (nextBox && nextBox.width > 0) {
+          await page.touchscreen.tap(nextBox.x + nextBox.width / 2, nextBox.y + nextBox.height / 2);
+          await page.waitForFunction(() => document.body.classList.contains('train-open'), null, { timeout: 3000 }).catch(() => {});
+        }
+        const opened = await page.evaluate(() => document.body.classList.contains('train-open'));
+        ok(P('F7 正向對照:同一頁點卡片非排除區確實會開「列車」sheet(證明 F6 不是空斷言)'),
+          opened, `train-open=${opened} nextBox=${JSON.stringify(nextBox)}`);
       }
     }
     ok(P('F手機 頁面零例外'), errors.length === 0, errors.slice(0, 3).join(' | '));
