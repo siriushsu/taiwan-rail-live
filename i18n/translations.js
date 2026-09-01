@@ -181,6 +181,8 @@
         "When you add a station to a home screen widget, the origin picker is grouped by city.",
       '放空模式：地圖不會被手指拉歪；離開再進入時，「離開放空」鈕不會再縮成按不到的小鈕':
         "Ambient mode is now sit-back-and-watch: the map can no longer be dragged or pinched off course, and leaving then re-entering no longer shrinks the Exit ambient mode button into an empty stub you cannot tap.",
+      '快到轉乘站時，直接列出對向系統最近兩班和「你到站時還剩幾分」，可以釘住你要搭的那班':
+        "Near a transfer station, the card lists the next two departures on the connecting system and how many minutes you'll have left when you arrive — tap one to pin it.",
       '火車站看板改成分方向顯示：南下、北上分開，山線海線與支線各自成區，冷門方向不再被擠掉；顏色比照台鐵新版車站標示的北上藍、南下綠':
         "Station boards now group trains by direction—southbound, northbound and each branch line get their own section, so quieter directions no longer get squeezed out; colour-coded blue for northbound and green for southbound, matching TRA's new station signage.",
       '山線': 'Mountain Line', '海線': 'Coast Line', '縱貫線北段': 'Western Line (North)',
@@ -478,6 +480,8 @@
         'ホーム画面ウィジェットに駅を追加するとき、出発駅を県・市別に整理しています。',
       '放空模式：地圖不會被手指拉歪；離開再進入時，「離開放空」鈕不會再縮成按不到的小鈕':
         '鑑賞モードは「眺めるだけ」に：地図が指で動かされたりズームがずれたりせず、いったん終了してもう一度入っても「鑑賞モードを終了」ボタンが押せない小さなボタンに縮まなくなりました。',
+      '快到轉乘站時，直接列出對向系統最近兩班和「你到站時還剩幾分」，可以釘住你要搭的那班':
+        '乗り換え駅に近づくと、対向システムの直近2本の発車時刻と「到着時点で残り何分か」をカードに表示。1本をタップすると、その列車に固定できます。',
       '火車站看板改成分方向顯示：南下、北上分開，山線海線與支線各自成區，冷門方向不再被擠掉；顏色比照台鐵新版車站標示的北上藍、南下綠':
         '駅の発車案内を方面別に分割：南行き・北行き・支線がそれぞれ独立し、本数の少ない方面も押し出されません。色分けは台鉄の新しい案内サインに合わせ、北行きは青、南行きは緑。',
       '山線': '山線', '海線': '海線', '縱貫線北段': '縦貫線北段', '縱貫線南段': '縦貫線南段',
