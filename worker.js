@@ -15,6 +15,7 @@ import {
   twDelayFor, twEtaSec, twContentState, twShouldPush, twShouldEnd, twNextEndAt,
   TW_MAX_TRACK_SEC,
 } from './scripts/tra_wait_core.mjs';
+import { BUS_TRANSFER_SCHEMA, resolveBusLegVehicles, resolveStationN1 } from './scripts/bus_transfer_core.mjs';
 
 // Cloudflare Worker 入口:靜態資產(assets binding)+ /api/tra-live 台鐵即時動態代理
 // + /api/tra-alert 台鐵營運通阻公告 + /api/thsr-alert 高鐵營運狀態公告(颱風停駛等)
@@ -4215,6 +4216,311 @@ async function deleteAccountData(request, env) {
   }
 }
 
+// ══ 公車轉乘三站垂直切片 ══════════════════════════════════════════════════
+//
+// 施工邊界（2026-09-01，與 Claude Design／主線工作分流）：
+// - 只支援臺北／臺南／花蓮三站；靜態站牌索引由 data/bus_transfer_pilot.json 提供。
+// - 只有使用者主動打開車站公車資訊時，這支 GET 才查 N1；scheduled()、cron、timer 一律不接。
+// - 這支只回答「哪班快到」；A1/A2 車輛位置、車牌與臺北乘載度要等使用者再點一路公車才另行載入。
+// - 不部署正式站。先把資料契約、退役路線 gate、N1 空值與資料年齡驗完，再與設計分支刻意合流。
+const BUS_TRANSFER_DATA_PATH = '/data/bus_transfer_pilot.json';
+const BUS_N1_BASE = 'https://tdx.transportdata.tw/api/basic/v2/Bus/EstimatedTimeOfArrival';
+const BUS_API_BASE = 'https://tdx.transportdata.tw/api/basic/v2/Bus';
+const BUS_SEAT_URL = 'https://tcgbusfs.blob.core.windows.net/blobbus/BusSeatEvent.gz';
+const BUS_N1_SELECT = 'RouteUID,RouteID,RouteName,SubRouteUID,SubRouteID,SubRouteName,Direction,StopUID,StopID,EstimateTime,NextBusTime,StopStatus,SrcUpdateTime,UpdateTime';
+const BUS_A1_SELECT = 'PlateNumb,RouteUID,RouteID,SubRouteUID,SubRouteID,SubRouteName,Direction,BusPosition,DutyStatus,BusStatus,GPSTime,SrcUpdateTime,UpdateTime';
+const BUS_A2_SELECT = 'PlateNumb,RouteUID,RouteID,SubRouteUID,SubRouteID,SubRouteName,Direction,StopUID,StopID,StopName,StopSequence,DutyStatus,BusStatus,A2EventType,GPSTime,TripStartTime,TripStartTimeType,SrcUpdateTime,UpdateTime';
+const BUS_TRANSFER_RAW_TTL_SEC = 20;
+const BUS_TRANSFER_LAST_GOOD_SEC = 3600;
+let busTransferPilotMem = null;
+const busTransferInflight = new Map();
+const busLegInflight = new Map();
+
+function resetBusTransferCaches() {
+  busTransferPilotMem = null;
+  busTransferInflight.clear();
+  busLegInflight.clear();
+}
+
+async function busTransferPilotData(request, env) {
+  if (busTransferPilotMem) return busTransferPilotMem;
+  const assetUrl = new URL(BUS_TRANSFER_DATA_PATH, request.url);
+  const response = await env.ASSETS.fetch(new Request(assetUrl.toString(), { method: 'GET' }));
+  if (!response.ok) throw new Error(`bus transfer pilot asset ${response.status}`);
+  const data = await response.json();
+  if (!data || data.schemaVersion !== BUS_TRANSFER_SCHEMA || !data.pilotOnly || data.trigger !== 'user_open_only' || data.polling !== false || !data.stations) {
+    throw new Error('bus transfer pilot schema mismatch');
+  }
+  busTransferPilotMem = data;
+  return data;
+}
+
+function busN1Url(env, scope, stopUids) {
+  const base = String(env.BUS_N1_BASE_URL_OVERRIDE || BUS_N1_BASE).replace(/\/$/, '');
+  const url = new URL(`${base}/${scope}`);
+  const safeUids = [...new Set(stopUids.map(uid => String(uid)).filter(uid => /^[A-Za-z0-9_-]{1,64}$/.test(uid)))];
+  if (!safeUids.length || safeUids.length !== stopUids.length) throw new Error('bus transfer invalid StopUID');
+  url.searchParams.set('$filter', safeUids.map(uid => `StopUID eq '${uid}'`).join(' or '));
+  url.searchParams.set('$select', BUS_N1_SELECT);
+  url.searchParams.set('$top', '10000');
+  url.searchParams.set('$format', 'JSON');
+  return url;
+}
+
+function busN1Rows(body) {
+  if (Array.isArray(body)) return body;
+  return body && Array.isArray(body.EstimatedTimeOfArrivals) ? body.EstimatedTimeOfArrivals : [];
+}
+
+async function fetchBusN1(env, scopeData, token) {
+  const stopUids = (scopeData.stops || []).map(stop => stop.stopUid);
+  const response = await fetch(busN1Url(env, scopeData.scope, stopUids), {
+    headers: { authorization: 'Bearer ' + token, accept: 'application/json' },
+    redirect: 'manual',
+  });
+  if (response.status === 401) { tok = null; throw new Error(`tdx bus n1 401 ${scopeData.scope}`); }
+  if (!response.ok) throw new Error(`tdx bus n1 ${response.status} ${scopeData.scope}`);
+  const text = await response.text();
+  let body;
+  try { body = JSON.parse(text); }
+  catch (e) { throw new Error(`tdx bus n1 invalid json ${scopeData.scope}`); }
+  const decodedBytes = new TextEncoder().encode(text).byteLength;
+  const contentLength = Number(response.headers.get('content-length'));
+  return { rows: busN1Rows(body), bytes: Number.isFinite(contentLength) && contentLength >= 0 ? contentLength : decodedBytes, decodedBytes };
+}
+
+function busTransferCacheKey(request, stationId, suffix) {
+  const url = new URL(`/api/bus-transfer__${suffix}`, request.url);
+  url.searchParams.set('station', stationId);
+  return new Request(url.toString(), { method: 'GET' });
+}
+
+async function cachedBusTransferRaw(request, env, station) {
+  const edge = caches.default;
+  const cacheKey = busTransferCacheKey(request, station.id, 'raw');
+  const lastKey = busTransferCacheKey(request, station.id, 'lastgood');
+  try {
+    const hit = await edge.match(cacheKey);
+    if (hit) return { ...(await hit.json()), cacheState: 'hit' };
+  } catch (e) { /* workers.dev／測試環境 cache 不可用時，仍可直查 */ }
+
+  if (busTransferInflight.has(station.id)) return await busTransferInflight.get(station.id);
+  const task = (async () => {
+    let settled;
+    try {
+      const token = await getToken(env); // 兩個 scope 共用同一把 token，避免冷啟並行重複打 OAuth。
+      settled = await Promise.allSettled(station.scopes.map(scopeData => fetchBusN1(env, scopeData, token)));
+    } catch (error) {
+      settled = station.scopes.map(() => ({ status: 'rejected', reason: error }));
+    }
+    const rowsByScope = {};
+    const scopeStatus = [];
+    let successfulScopes = 0;
+    for (let i = 0; i < station.scopes.length; i++) {
+      const scope = station.scopes[i].scope;
+      const result = settled[i];
+      if (result.status === 'fulfilled') {
+        successfulScopes += 1;
+        rowsByScope[scope] = result.value.rows;
+        scopeStatus.push({ scope, state: 'live', rows: result.value.rows.length, bytes: result.value.bytes, decodedBytes: result.value.decodedBytes });
+      } else {
+        rowsByScope[scope] = [];
+        scopeStatus.push({ scope, state: 'unavailable', rows: 0, bytes: 0, decodedBytes: 0 });
+      }
+    }
+    if (!successfulScopes) {
+      try {
+        const last = await edge.match(lastKey);
+        if (last) return { ...(await last.json()), cacheState: 'last_good' };
+      } catch (e) { /* 沒有最後成功值就照下方丟錯 */ }
+      throw new Error('tdx bus n1 all scopes unavailable');
+    }
+    const raw = { fetchedAt: new Date().toISOString(), rowsByScope, scopeStatus };
+    const body = JSON.stringify(raw);
+    try {
+      await edge.put(cacheKey, new Response(body, { headers: { 'content-type': 'application/json', 'cache-control': `public, s-maxage=${BUS_TRANSFER_RAW_TTL_SEC}` } }));
+      await edge.put(lastKey, new Response(body, { headers: { 'content-type': 'application/json', 'cache-control': `public, s-maxage=${BUS_TRANSFER_LAST_GOOD_SEC}` } }));
+    } catch (e) { /* 快取失敗不可讓使用者的主動查詢一起失敗 */ }
+    return { ...raw, cacheState: 'miss' };
+  })().finally(() => busTransferInflight.delete(station.id));
+  busTransferInflight.set(station.id, task);
+  return await task;
+}
+
+async function busTransfer(request, env) {
+  const url = new URL(request.url);
+  const stationId = url.searchParams.get('station') || '';
+  let data;
+  try { data = await busTransferPilotData(request, env); }
+  catch (e) { return jsonRes({ error: 'bus transfer pilot unavailable' }, 503, 'no-store'); }
+  const station = data.stations[stationId];
+  if (!station) return jsonRes({ error: 'unsupported pilot station', allowed: Object.keys(data.stations) }, 400, 'no-store');
+  try {
+    const raw = await cachedBusTransferRaw(request, env, station);
+    const result = resolveStationN1({ pilotStation: station, rowsByScope: raw.rowsByScope, nowMs: Date.now() });
+    return jsonRes({
+      ...result,
+      pilotOnly: true,
+      staticGeneratedAt: data.generatedAt,
+      live: {
+        state: raw.scopeStatus.every(scope => scope.state === 'live') ? 'live' : 'partial',
+        fetchedAt: raw.fetchedAt,
+        cache: raw.cacheState,
+        scopes: raw.scopeStatus,
+        scheduleFallback: 'not_implemented_in_pilot',
+      },
+    }, 200, 'no-store');
+  } catch (e) {
+    return jsonRes({ error: 'bus transfer live unavailable', pilotOnly: true, ...(env.BUS_TRANSFER_DEBUG ? { detail: String(e && e.message || e) } : {}) }, 502, 'no-store');
+  }
+}
+
+function busDynamicUrl(env, kind, arrival) {
+  const base = String(env.BUS_API_BASE_URL_OVERRIDE || BUS_API_BASE).replace(/\/$/, '');
+  const url = new URL(`${base}/${kind}/${arrival.scope}`);
+  const safe = value => String(value || '').replace(/'/g, "''");
+  const filters = [`RouteUID eq '${safe(arrival.routeUid)}'`];
+  if (arrival.subRouteUid) filters.push(`SubRouteUID eq '${safe(arrival.subRouteUid)}'`);
+  if (arrival.direction === 0 || arrival.direction === 1) filters.push(`Direction eq ${arrival.direction}`);
+  url.searchParams.set('$filter', filters.join(' and '));
+  url.searchParams.set('$select', kind === 'RealTimeByFrequency' ? BUS_A1_SELECT : BUS_A2_SELECT);
+  url.searchParams.set('$top', '1000');
+  url.searchParams.set('$format', 'JSON');
+  return url;
+}
+
+async function fetchBusDynamic(env, kind, arrival, token) {
+  const response = await fetch(busDynamicUrl(env, kind, arrival), {
+    headers: { authorization: 'Bearer ' + token, accept: 'application/json' },
+    redirect: 'manual',
+  });
+  if (response.status === 401) { tok = null; throw new Error(`tdx bus ${kind} 401 ${arrival.scope}`); }
+  if (!response.ok) throw new Error(`tdx bus ${kind} ${response.status} ${arrival.scope}`);
+  const text = await response.text();
+  let body;
+  try { body = JSON.parse(text); }
+  catch (e) { throw new Error(`tdx bus ${kind} invalid json ${arrival.scope}`); }
+  const rows = Array.isArray(body) ? body : (kind === 'RealTimeByFrequency' ? body.BusA1Data : body.BusA2Data) || [];
+  const decodedBytes = new TextEncoder().encode(text).byteLength;
+  const contentLength = Number(response.headers.get('content-length'));
+  return { rows: Array.isArray(rows) ? rows : [], bytes: Number.isFinite(contentLength) && contentLength >= 0 ? contentLength : decodedBytes, decodedBytes };
+}
+
+async function ungzipJsonResponse(response) {
+  const compressed = new Uint8Array(await response.arrayBuffer());
+  let text;
+  if (compressed[0] === 0x1f && compressed[1] === 0x8b) {
+    const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream('gzip'));
+    text = await new Response(stream).text();
+  } else text = new TextDecoder().decode(compressed);
+  return { body: JSON.parse(text), bytes: compressed.byteLength, decodedBytes: new TextEncoder().encode(text).byteLength };
+}
+
+async function fetchTaipeiBusSeat(env) {
+  const url = env.BUS_SEAT_URL_OVERRIDE || BUS_SEAT_URL;
+  const response = await fetch(url, { headers: { accept: 'application/gzip,application/json' } });
+  if (!response.ok) throw new Error(`taipei bus seat ${response.status}`);
+  const parsed = await ungzipJsonResponse(response);
+  return {
+    rows: Array.isArray(parsed.body && parsed.body.BusInfo) ? parsed.body.BusInfo : [],
+    updatedAt: parsed.body && parsed.body.EssentialInfo && parsed.body.EssentialInfo.UpdateTime || null,
+    bytes: parsed.bytes,
+    decodedBytes: parsed.decodedBytes,
+  };
+}
+
+async function cachedBusLegRaw(request, env, arrival) {
+  const edge = caches.default;
+  const keyId = arrival.key;
+  const cacheKey = busTransferCacheKey(request, keyId, 'leg-raw');
+  const lastKey = busTransferCacheKey(request, keyId, 'leg-lastgood');
+  try {
+    const hit = await edge.match(cacheKey);
+    if (hit) return { ...(await hit.json()), cacheState: 'hit' };
+  } catch (e) {}
+  if (busLegInflight.has(keyId)) return await busLegInflight.get(keyId);
+  const task = (async () => {
+    try {
+      const token = await getToken(env);
+      const tasks = [
+        fetchBusDynamic(env, 'RealTimeByFrequency', arrival, token),
+        fetchBusDynamic(env, 'RealTimeNearStop', arrival, token),
+      ];
+      if (arrival.scope === 'City/Taipei') tasks.push(fetchTaipeiBusSeat(env));
+      const settled = await Promise.allSettled(tasks);
+      if (settled[0].status !== 'fulfilled') throw settled[0].reason;
+      const a1 = settled[0].value;
+      const a2 = settled[1].status === 'fulfilled' ? settled[1].value : { rows: [], bytes: 0, decodedBytes: 0 };
+      const occupancy = settled[2] && settled[2].status === 'fulfilled' ? settled[2].value : null;
+      const raw = {
+        fetchedAt: new Date().toISOString(),
+        a1Rows: a1.rows,
+        a2Rows: a2.rows,
+        occupancyRows: occupancy ? occupancy.rows : [],
+        occupancyUpdatedAt: occupancy ? occupancy.updatedAt : null,
+        sources: [
+          { kind: 'A1', state: 'live', rows: a1.rows.length, bytes: a1.bytes, decodedBytes: a1.decodedBytes },
+          { kind: 'A2', state: settled[1].status === 'fulfilled' ? 'live' : 'unavailable', rows: a2.rows.length, bytes: a2.bytes, decodedBytes: a2.decodedBytes },
+          ...(arrival.scope === 'City/Taipei' ? [{
+            kind: 'occupancy',
+            state: occupancy ? 'live' : 'unavailable',
+            rows: occupancy ? occupancy.rows.length : 0,
+            bytes: occupancy ? occupancy.bytes : 0,
+            decodedBytes: occupancy ? occupancy.decodedBytes : 0,
+            tdx: false,
+          }] : []),
+        ],
+      };
+      const body = JSON.stringify(raw);
+      try {
+        await edge.put(cacheKey, new Response(body, { headers: { 'content-type': 'application/json', 'cache-control': `public, s-maxage=${BUS_TRANSFER_RAW_TTL_SEC}` } }));
+        await edge.put(lastKey, new Response(body, { headers: { 'content-type': 'application/json', 'cache-control': `public, s-maxage=${BUS_TRANSFER_LAST_GOOD_SEC}` } }));
+      } catch (e) {}
+      return { ...raw, cacheState: 'miss' };
+    } catch (error) {
+      try {
+        const last = await edge.match(lastKey);
+        if (last) return { ...(await last.json()), cacheState: 'last_good' };
+      } catch (e) {}
+      throw error;
+    }
+  })().finally(() => busLegInflight.delete(keyId));
+  busLegInflight.set(keyId, task);
+  return await task;
+}
+
+async function busLegLive(request, env) {
+  const url = new URL(request.url);
+  const stationId = url.searchParams.get('station') || '';
+  const arrivalKey = url.searchParams.get('arrival') || '';
+  if (!arrivalKey || arrivalKey.length > 240) return jsonRes({ error: 'bad arrival key' }, 400, 'no-store');
+  let data;
+  try { data = await busTransferPilotData(request, env); }
+  catch (e) { return jsonRes({ error: 'bus transfer pilot unavailable' }, 503, 'no-store'); }
+  const station = data.stations[stationId];
+  if (!station) return jsonRes({ error: 'unsupported pilot station' }, 400, 'no-store');
+  try {
+    // 通常命中使用者剛開車站卡留下的 20 秒 raw cache；若直打 URL，才補做一次 N1 查詢。
+    const stationRaw = await cachedBusTransferRaw(request, env, station);
+    const stationLive = resolveStationN1({ pilotStation: station, rowsByScope: stationRaw.rowsByScope, nowMs: Date.now() });
+    const arrival = stationLive.arrivals.find(row => row.key === arrivalKey);
+    if (!arrival) return jsonRes({ error: 'arrival not in current station result' }, 404, 'no-store');
+    const raw = await cachedBusLegRaw(request, env, arrival);
+    const result = resolveBusLegVehicles({
+      arrival,
+      a1Rows: raw.a1Rows,
+      a2Rows: raw.a2Rows,
+      occupancyRows: raw.occupancyRows,
+      occupancyUpdatedAt: raw.occupancyUpdatedAt,
+      nowMs: Date.now(),
+    });
+    const partial = raw.sources.some(source => source.state === 'unavailable');
+    return jsonRes({ ...result, pilotOnly: true, live: { state: raw.cacheState === 'last_good' ? 'stale' : (partial ? 'partial' : 'live'), fetchedAt: raw.fetchedAt, cache: raw.cacheState, sources: raw.sources } }, 200, 'no-store');
+  } catch (e) {
+    return jsonRes({ error: 'bus leg live unavailable', pilotOnly: true, ...(env.BUS_TRANSFER_DEBUG ? { detail: String(e && e.message || e) } : {}) }, 502, 'no-store');
+  }
+}
+
 // 安全標頭在 Worker 出口補（只涵蓋 /api/* 與非資產路徑;靜態資產直出不經 Worker,標頭見根目錄 _headers）
 const SEC_HEADERS = {
   'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
@@ -4232,7 +4538,7 @@ const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/
 // 'other',否則隨便打 /api/<亂數> 就能把 blob 基數炸開。新增端點時要一起加進來。
 const API_ENDPOINTS = new Set([
   'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'hazard-alert', 'metro-live', 'ntmetro-live', 'trtc-live',
-  'klrt-position',
+  'klrt-position', 'bus-transfer', 'bus-leg-live',
   'delay-stats', 'delay-history', 'thsr-schedule', 'thsr-freeseat', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'basemap-src', 'basemap-fallback', 'account-delete',
   'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge', 'plus-status', 'revenuecat-webhook',
   'la/bind', 'la/unbind', 'metro-wait/bind', 'metro-wait/unbind', 'tra-wait/bind', 'tra-wait/unbind', 'pass-claim', 'pass-admin',
@@ -6130,6 +6436,8 @@ export default {
     }
     else if (url.pathname === '/api/trtc-live') { res = await trtcLive(request, env); }
     else if (url.pathname === '/api/klrt-position') { res = await klrtPosition(request, env); }
+    else if (url.pathname === '/api/bus-transfer') res = await busTransfer(request, env);
+    else if (url.pathname === '/api/bus-leg-live') res = await busLegLive(request, env);
     else if (url.pathname === '/api/delay-stats') res = await delayStats(request, env);
     else if (url.pathname === '/api/thsr-schedule') res = await thsrSchedule(request, env);
     else if (url.pathname === '/api/tra-daily-trains') res = await traDailyTrains(request, env);
@@ -6176,6 +6484,12 @@ export const _metroAlert = {
 export const _hazard = { ncdrTimeMs, normalizeNcdrHazards, hazardAlert, hazardMonitorScheduled, resetHazardMem };
 // 純函式導出,供離線回歸測試 import:逐站事件 diff 與 mem.at→台北日換算。
 export const _stationEvents = { diffTrains, twDayFromMemAt };
+// 公車轉乘三站垂直切片：核心 resolver 在 scripts/bus_transfer_core.mjs，這裡導出 IO 編排供 fixture 測試。
+// resetBusTransferCaches 只清本 isolate 記憶體；正式路由不會呼叫。
+export const _busTransfer = {
+  busTransfer, busLegLive, busTransferPilotData, busN1Url, busN1Rows, fetchBusN1, cachedBusTransferRaw,
+  busDynamicUrl, fetchBusDynamic, fetchTaipeiBusSeat, cachedBusLegRaw, resetBusTransferCaches,
+};
 // 純函式導出,供離線回歸測試 import:誤點履歷視窗計算、車次驗證與回應組裝。
 export const _delayHistory = { delayHistoryWindow, buildDelayHistoryBody, isValidTrainNo };
 // 供離線回歸測試 import:Plus 資格的環境收斂(scripts/verify_plus_entitlement_env.mjs)。
