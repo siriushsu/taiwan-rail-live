@@ -184,6 +184,7 @@ const SAMPLE = () => {
       // 位移與疊車判定全部失效）
       key: h.vehicleId ? `${ln.id}#${h.vehicleId}` : (tr ? `${ln.id}#tr${(ln._tt || []).indexOf(tr)}` : `${ln.id}#k${h.k}`),
       line: ln.id, abbr: ln.abbr, core: !!h.core, dir, x: h.x, y: h.y, d, dsrc, nearM, nearIdx,
+      label: coreIt && coreIt.train ? String(coreIt.train.publicLabel || '') : '',
       stations: Array.isArray(ln.stations) ? ln.stations.length : null,
       sys: typeof freqSysIdOf === 'function' ? freqSysIdOf(ln) : null,
     });
@@ -199,7 +200,7 @@ const SAMPLE = () => {
   // 🔴 分母必須是 metroCoreSampleTrain 認定的「現在還在跑的車」，不是 system.trains 的長度：
   // 已 retire 的車還留在 trains[] 裡（09-01 實測 KR 14 台裡有 1 台已 retire），拿原始長度當
   // 分母會每一輪都假紅。兩個數都在同一個 epoch 用產品自己的兩支函式量，差額才是真流失。
-  const corePlace = [];
+  const corePlace = [], coreStuck = [];
   try {
     if (typeof metroCoreSystemIdForLine === 'function' && typeof metroCoreSnapshotLive === 'function' &&
         typeof metroCoreSampleTrain === 'function' && metroCoreSnapshotLive()) {
@@ -214,13 +215,32 @@ const SAMPLE = () => {
         if (!live) continue;
         const placed = mine.filter(t => metroCorePositionAt(ln, t, now)).length;
         corePlace.push({ line: ln.id, live, placed, blocked: metroCoreLineBlocked(systemId, ln.id) || null });
+        // 🔴 幽靈車：不問任何官方來源，只看這台車自己的欄位有沒有內部矛盾。
+        // 兩條都是純結構，不需要 CarWeight、不需要班表、也不與名冊同源：
+        //  (a) 終點在行進方向的**後方** ⇒ 它永遠到不了 dest，也就永遠不會觸發終點退場。
+        //  (b) from===to（起點待發）但「下一站」落在線外 ⇒ 它永遠發不了車。
+        // 合法的起點待發車 dest 一定在前方，所以不會被這兩條掃到（那才是分辨線）。
+        const stationMax = ln.stations.length - 1;
+        for (const t of mine) {
+          if (!metroCoreSampleTrain(t, now)) continue;
+          const from = Number(t.fromStationIndex), to = Number(t.toStationIndex);
+          const dest = Number(t.destinationStationIndex), step = Number(t.direction) === 2 ? 1 : -1;
+          if (![from, to, dest].every(Number.isInteger)) continue;
+          const reasons = [];
+          if ((dest - from) * step < 0) reasons.push(`終點 ${dest} 在行進方向後方(from ${from}、dir ${t.direction})`);
+          if (from === to && (from + step < 0 || from + step > stationMax))
+            reasons.push(`起點待發但下一站 ${from + step} 落在線外(0..${stationMax})`);
+          if (reasons.length) coreStuck.push({ line: ln.id, id: String(t.vehicleId),
+            label: String(t.publicLabel || ''), from, to, dest, dir: Number(t.direction),
+            retireAt: t.retireAt == null ? null : Number(t.retireAt), why: reasons.join('、') });
+        }
       }
     }
   } catch (e) {}
   let mpp = null;
   try { mpp = map.distance(map.containerPointToLatLng([100, 300]), map.containerPointToLatLng([101, 300])); }
   catch (e) {}
-  return { at: Date.now(), simSec: state.simSec, zoom: map.getZoom(), n: out.length, hits: out, mpp, corePlace,
+  return { at: Date.now(), simSec: state.simSec, zoom: map.getZoom(), n: out.length, hits: out, mpp, corePlace, coreStuck,
     censusFallbackLines: R.censusFallbackLines || null,
     // 名冊本身的新鮮度：整包被驗證器退掉時車還是會照舊時間線往前跑，位置全綠、
     // 卻是在演一份舊快照（2026-08-17 實測連續 148 秒）。這兩個值是唯一照得到的證據。
@@ -506,6 +526,27 @@ if (s2.corePlace && s2.corePlace.length) {
   else if (fellBack.length) note('warn', `這些線的 Core 位置整條算不出來，已退回既有路徑：${fmt(fellBack)}`, fellBack);
 }
 
+// 0d. 幽靈車：欄位自己互相矛盾，結構上不可能前進、也不可能退場
+// 🔴 這條刻意不問任何外部名冊（不看 CarWeight、不看班表、不看 boardPos）——裁示是
+// 「車子有倒數就是要在」，用外部清單當分母只會再一次把「定義不同」讀成「多畫了車」。
+// 這裡只看一台車自己報出來的四個欄位互相打不打得起來：
+//   (a) 終點在行進方向的**後方** ⇒ 它永遠到不了 dest ⇒ 永遠不會觸發終點退場。
+//   (b) from===to（起點待發）但「下一站」落在線外 ⇒ 它永遠發不了車。
+// 合法的起點待發車終點一定在前方，所以照不到；剛折返、還沒翻方向的那一拍可能瞬間成立，
+// 所以要**兩次取樣（相隔約 25 秒）同一個 vehicleId 都成立**才判 bad，只中一次的當瞬態印出來。
+if (s1.coreStuck && s2.coreStuck) {
+  const k = t => `${t.line}|${t.id}`;
+  const in1 = new Set(s1.coreStuck.map(k));
+  const persist = s2.coreStuck.filter(t => in1.has(k(t)));
+  const transient = s2.coreStuck.filter(t => !in1.has(k(t)));
+  const fmt = arr => arr.map(t => `${t.line} ${t.label || t.id}（${t.why}${t.retireAt == null ? '、retireAt 為 null＝不會退場' : ''}）`).join('；');
+  console.log(`${persist.length ? '❌' : '✅'} 幽靈車：` +
+    (persist.length ? `${persist.length} 台兩次取樣都卡住 ⇒ ${fmt(persist)}`
+                    : `${s2.coreStuck.length ? '沒有連續兩次都卡住的' : '沒有'}方向與終點矛盾的車`) +
+    (transient.length ? `｜只中一次（折返翻向那一拍，不判）：${transient.length} 台` : ''));
+  if (persist.length) note('bad', `幽靈車 ${persist.length} 台（發不了車也退不了場）：${fmt(persist)}`, persist);
+}
+
 // 1. 同向疊車（先分線再分方向；對向交會是正常的）
 const groups = new Map();
 for (const h of s2.hits) {
@@ -695,9 +736,7 @@ if (official && !official.error) {
   // expect 全部 ≤50，六天所有 06:00 那一發的 expect 都 ≤54，而 55–69 之間**一個樣本都沒有**，
   // 70 起才是末班／離峰的正常區（06:10 之後六天零告警）。門檻取 60＝落在那個空隙中央。
   // 末班車反向同理（車隊在收，落後的分母偏高 ⇒ 比值偏低），所以是規模條件不是時鐘條件。
-  // 不完全靜音：真的冒出成倍的幽靈車不可能是時間基準差造成的，超過 2 倍照樣判 bad。
   const CENSUS_FLEET_MIN = 60;   // 官方逐車規模低於此＝正在起／收班
-  const RATIO_ABSURD = 2;        // 起／收班也解釋不了的離譜倍率
   const thinFleet = expect > 0 && expect < CENSUS_FLEET_MIN;
   const ok = ratio >= .7 && ratio <= 1.1;
   // 分子的組成也印出來——「兩邊對齊」是這條判準的前提，不可以只寫在註解裡靠信任
@@ -705,18 +744,24 @@ if (official && !official.error) {
   for (const h of s2.hits) if (censusCovered(h)) numByLine[h.line] = (numByLine[h.line] || 0) + 1;
   const excluded = {};
   for (const h of s2.hits) if (h.sys === 'mrt' && !censusCovered(h)) excluded[h.line] = (excluded[h.line] || 0) + 1;
-  const countMark = ok ? '✅' : (thinFleet && ratio < RATIO_ABSURD ? '⚠️' : '❌');
-  console.log(`${countMark} 車數：${drawnTrtc} 台 vs 官方逐車 ${expect} 台（${(ratio * 100).toFixed(0)}%）` +
-    `　［兩邊都只算高運量＋文湖線］` +
-    (!ok && thinFleet && ratio < RATIO_ABSURD ? `｜官方逐車不足 ${CENSUS_FLEET_MIN} 台＝起／收班，比值不可比，這輪不判` : ''));
+  // 🔴 2026-09-01：降級成資訊行，不再進離開碼。上面那整段門檻推導的前提是「兩邊對齊」，
+  // 而它已經不成立：裁示「不要再給我用 carweight 去找車子，車子有倒數就是要在」之後，
+  // 畫面的名冊來自**站牌倒數**，CarWeight 只做擁擠度與可撤銷的車號標——兩邊已經是
+  // 不同的母體，比值不再是「幾台對不上」。09-01 12:0x 實測：畫 112 台（有車號 77／匿名 35），
+  // 有車號那 77 台裡 73 台在 CarWeight 裡找得到；CarWeight 自己 99 台則有 26 台沒畫。
+  // 兩個方向的差都不是缺陷，而是定義不同。真正的幽靈車改由 0d 判（只看車自己的欄位矛盾，
+  // 不問任何外部名冊），掉車由第五條（整條線不見）與 0c（Core 上圖率）接手。
+  // 車號只有 Core 那條路徑報得出來（publicLabel），退回既有路徑的線沒有 ⇒ 分母限定 Core 車，
+  // 不然那些線會被誤算成「匿名」，把一個環境條件講成產品特徵。
+  const coreCensus = s2.hits.filter(h => censusCovered(h) && h.core);
+  const labelled = coreCensus.filter(h => h.label).length;
+  console.log(`ℹ️  車數（只報不判）：${drawnTrtc} 台 vs 官方 CarWeight ${expect} 台（${(ratio * 100).toFixed(0)}%）` +
+    `｜其中 Core 畫的 ${coreCensus.length} 台：有車號 ${labelled}／匿名 ${coreCensus.length - labelled}` +
+    `　［兩邊母體不同（畫面來自站牌倒數），比值僅供人看］` +
+    (thinFleet ? `｜CarWeight 不足 ${CENSUS_FLEET_MIN} 台＝起／收班` : '') +
+    (ok ? '' : `｜舊門檻（.7–1.1）外`));
   console.log(`     分子 ${JSON.stringify(numByLine)}`);
   console.log(`     兩邊都不算（不在官方逐車清單裡）${JSON.stringify(excluded)}`);
-  if (!ok && thinFleet && ratio < RATIO_ABSURD) {
-    note('warn', `車數比例 ${(ratio * 100).toFixed(0)}%，但官方逐車才 ${expect} 台（起／收班，分母時間基準落後 96–265 秒，不可比）`,
-      { drawnTrtc, expect, numByLine });
-  } else if (!ok) {
-    note('bad', `車數比例異常 ${(ratio * 100).toFixed(0)}%`, { drawnTrtc, expect, numByLine, thinFleet });
-  }
 }
 
 // 5. 整條線不見（官方那份名冊說這條線有車，畫面卻一台都沒有）
