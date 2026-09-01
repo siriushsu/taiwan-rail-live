@@ -92,12 +92,34 @@ const noteLoud = (level, msg, detail) => {
 const SAMPLE = () => {
   const hits = state._freqHits || [];
   const out = [];
+  // 🔴 2026-09-01：Metro Core（2026-08-26 上正式站）接手畫捷運之後，畫面上的車已經不是
+  // 舊官方名冊那一批——車號命名空間換了（Core `cs:…:trip6`／`brseg:2026-09-01:5z`
+  // vs 名冊 `cs:2026-09-01:hw:201`），於是「從 state.trtcOfficialRoster 查方向」與
+  // 「從 _trtcOfficialDisplay 取浮點座標」兩條路對 100% 的捷運車失效（09-01 實測
+  // BR 0/22、BL 0/25、G 0/15、Y 0/11，_trtcOfficialDisplay.size === 0）。
+  // 這裡改問 Core 自己的出口 metroCoreItemsForLine()——那正是繪製路徑用的同一支函式
+  // （index.html drawFreq 的 `const core = metroCoreItemsForLine(ln, officialNow)`），
+  // 純讀不改。取回的浮點座標一樣要回投影跟真正畫出來的 h.x/h.y 對一次才准用。
+  const coreCache = new Map();
+  const coreLookup = (ln, vehicleId) => {
+    if (!ln || typeof metroCoreItemsForLine !== 'function') return null;
+    if (!coreCache.has(ln.id)) {
+      let m = null;
+      try {
+        const items = metroCoreItemsForLine(ln, Date.now() / 1000);
+        if (items) { m = new Map(); for (const it of items) m.set(String(it.vehicleId), it); }
+      } catch (e) {}
+      coreCache.set(ln.id, m);
+    }
+    const m = coreCache.get(ln.id);
+    return m ? m.get(String(vehicleId)) || null : null;
+  };
   for (const h of hits) {
     const ln = h.ln; if (!ln) continue;
     const tr = h.tr;
     // 沿線里程：用畫面座標反投影回線形，這是與繪製同一組座標，但比對的是
     // 「同一台車前後兩次」，不涉及與別條管線的真值比較，所以不受同源問題影響。
-    let d = null, nearM = null, nearIdx = -1, dsrc = 'px';
+    let d = null, nearM = null, nearIdx = -1, dsrc = 'px', coreIt = null;
     try {
       // 🔴 名冊車優先讀「產品自己寫下的最終浮點座標」，不要用畫面整數像素反投影。
       // 疊車門檻 100m 在這支掃描的視野只有 1.45 像素 ⇒ 像素來源帶 ±35m 量化誤差：
@@ -110,7 +132,18 @@ const SAMPLE = () => {
       // 所以浮點值一律回投影成畫面座標與真正畫出來的 h.x/h.y 對一次；對不上就退回像素並記錄，
       // 那本身就是要吵的缺陷（判準不能建立在沒被驗證的不變式上）。
       let ll = null;
-      if (h.vehicleId && typeof _trtcOfficialDisplay !== 'undefined') {
+      // Core 畫的車走這條；回投影對不上 h.x/h.y 就退回像素並記成 mismatch，理由同下方舊路徑
+      // ——判準不能建立在「產品寫下的就是它畫出來的」這個沒被驗證的不變式上。
+      if (h.core && h.vehicleId) {
+        coreIt = coreLookup(ln, h.vehicleId);
+        const p = coreIt && coreIt.pos;
+        if (p && Number.isFinite(Number(p.lat)) && Number.isFinite(Number(p.lon))) {
+          const cp = map.latLngToContainerPoint([p.lat, p.lon]);
+          if (Math.hypot(cp.x - h.x, cp.y - h.y) <= 2) { ll = { lat: Number(p.lat), lng: Number(p.lon) }; dsrc = 'float'; }
+          else dsrc = 'mismatch';
+        }
+      }
+      if (!ll && !h.core && h.vehicleId && typeof _trtcOfficialDisplay !== 'undefined') {
         const rec = _trtcOfficialDisplay.get(`${ln.id}|${h.vehicleId}`);
         if (rec && rec.pos && Number.isFinite(rec.pos.lat) && Number.isFinite(rec.pos.lon)) {
           const cp = map.latLngToContainerPoint([rec.pos.lat, rec.pos.lon]);
@@ -129,11 +162,16 @@ const SAMPLE = () => {
         nearM = best * 1000; nearIdx = bi;
       }
     } catch (e) {}
-    // 方向。三種畫車路徑各有各的 hit 形狀，取不到就是 0（後面的位移判定會跳過）：
-    //   班表車 {ln,tr}／示意車 {ln,k}／名冊車 {ln,vehicleId}（?census=1 與 ?officialroster=1 走這條）
+    // 方向。四種畫車路徑各有各的 hit 形狀，取不到就是 0（後面的位移判定會跳過）：
+    //   班表車 {ln,tr}／示意車 {ln,k}／名冊車 {ln,vehicleId}／Core 車 {ln,core:true,systemId,vehicleId}
     let dir = 0;
     try {
-      if (h.vehicleId) {
+      if (h.core) {
+        // Core 的 direction 與舊名冊的 dir 是同一套慣例（2＝里程遞增）：見 index.html
+        // metroCoreVehicleInfo 的 `Number(train.direction) === 2 ? 1 : -1`。
+        const raw = coreIt && coreIt.train ? Number(coreIt.train.direction) : NaN;
+        if (Number.isFinite(raw)) dir = raw === 2 ? 1 : -1;
+      } else if (h.vehicleId) {
         const v = ((state.trtcOfficialRoster || {}).vehicles || [])
           .find(x => String(x.vehicleId) === String(h.vehicleId));
         if (v) dir = v.dir === 2 ? 1 : -1;   // 統一成「里程遞增為 +1」
@@ -145,7 +183,7 @@ const SAMPLE = () => {
       // 名冊車的身分是 vehicleId（hit 裡沒有 tr／k，用舊寫法會讓整條線塌成同一個 key，
       // 位移與疊車判定全部失效）
       key: h.vehicleId ? `${ln.id}#${h.vehicleId}` : (tr ? `${ln.id}#tr${(ln._tt || []).indexOf(tr)}` : `${ln.id}#k${h.k}`),
-      line: ln.id, abbr: ln.abbr, dir, x: h.x, y: h.y, d, dsrc, nearM, nearIdx,
+      line: ln.id, abbr: ln.abbr, core: !!h.core, dir, x: h.x, y: h.y, d, dsrc, nearM, nearIdx,
       stations: Array.isArray(ln.stations) ? ln.stations.length : null,
       sys: typeof freqSysIdOf === 'function' ? freqSysIdOf(ln) : null,
     });
@@ -155,10 +193,34 @@ const SAMPLE = () => {
   // 所以它的解析度上限就是一個像素。這個值必須跟著回報，否則公尺值會被過度解讀
   // （實測 zoom 11／69m 一像素 ⇒ 100m 門檻只有 1.45 像素、公尺值帶 ±35m 量化誤差；
   //  而在沒有 fitBounds 的全台視野下是 1121m 一像素 ⇒ 同一套判準完全沒有解析度）。
+  // Core 說「這台現在在跑」，產品放不放得上圖。metroCorePositionAt 算不出位置就直接不收，
+  // 沒有任何既有判準看得到：整條線全滅會回 null ⇒ 退回既有路徑（車還在，只是降級），
+  // 但**部分**流失時 Core 那條路照走，那幾台就無聲不見了。
+  // 🔴 分母必須是 metroCoreSampleTrain 認定的「現在還在跑的車」，不是 system.trains 的長度：
+  // 已 retire 的車還留在 trains[] 裡（09-01 實測 KR 14 台裡有 1 台已 retire），拿原始長度當
+  // 分母會每一輪都假紅。兩個數都在同一個 epoch 用產品自己的兩支函式量，差額才是真流失。
+  const corePlace = [];
+  try {
+    if (typeof metroCoreSystemIdForLine === 'function' && typeof metroCoreSnapshotLive === 'function' &&
+        typeof metroCoreSampleTrain === 'function' && metroCoreSnapshotLive()) {
+      const now = Date.now() / 1000;
+      for (const ln of (state.lines || [])) {
+        const systemId = metroCoreSystemIdForLine(ln);
+        if (!systemId || !state.visible || !state.visible.has(ln.id)) continue;
+        const system = metroCoreSystem(systemId);
+        if (!system || !Array.isArray(system.trains)) continue;
+        const mine = system.trains.filter(t => String(t.lineId) === String(ln.id));
+        const live = mine.filter(t => metroCoreSampleTrain(t, now)).length;
+        if (!live) continue;
+        const placed = mine.filter(t => metroCorePositionAt(ln, t, now)).length;
+        corePlace.push({ line: ln.id, live, placed, blocked: metroCoreLineBlocked(systemId, ln.id) || null });
+      }
+    }
+  } catch (e) {}
   let mpp = null;
   try { mpp = map.distance(map.containerPointToLatLng([100, 300]), map.containerPointToLatLng([101, 300])); }
   catch (e) {}
-  return { at: Date.now(), simSec: state.simSec, zoom: map.getZoom(), n: out.length, hits: out, mpp,
+  return { at: Date.now(), simSec: state.simSec, zoom: map.getZoom(), n: out.length, hits: out, mpp, corePlace,
     censusFallbackLines: R.censusFallbackLines || null,
     // 名冊本身的新鮮度：整包被驗證器退掉時車還是會照舊時間線往前跑，位置全綠、
     // 卻是在演一份舊快照（2026-08-17 實測連續 148 秒）。這兩個值是唯一照得到的證據。
@@ -386,6 +448,62 @@ const ROSTER_STALE_SEC = 120;      // 官方 15–60 秒一輪；兩分鐘沒換
   else
     noteLoud('info', `官方名冊 ${s2.rosterN} 台、${ageSec} 秒前換新` + (held ? `（曾被擋：${held}）` : ''),
       { ageSec, held, rosterN: s2.rosterN });
+}
+
+// 0b. 判準對象自證：畫面上的捷運車，這支掃描到底認不認得它
+// 🔴 2026-09-01 補。2026-08-26 Metro Core 上正式站接手畫捷運之後車號命名空間換了，而這支
+// 掃描還在跟 state.trtcOfficialRoster 對號 ⇒ 方向對 100% 的捷運車解析失敗、浮點座標一台
+// 都取不到。後果是倒退判準的 `if (!h.dir) continue` 逐台跳過（日誌上的「N 台正常前進」
+// 全是台鐵班表車），同站堆積的分組鍵 `line|dir@站序` 把上下行併成同一格（日誌上清一色的
+// `R|0@0`、`G|0@0` 就是 dir=0 的指紋）——整整兩週每小時照常出報告，這三條判準卻是瞎的。
+// 「沒發現」跟「沒在看」長得一模一樣，這條就是那個缺掉的自證（assertion-blindspot 形態 0）。
+// 判準寫「是什麼／怎麼排」不寫死數字：整條線全滅＝管線換了（bad）；零星幾台＝取樣瞬態（warn）。
+{
+  const metroVeh = s2.hits.filter(h => h.core);
+  if (!metroVeh.length) {
+    noteLoud('info', '判準對象自證：畫面上沒有 Core 畫的捷運車（本條不適用）');
+  } else {
+    const per = new Map();
+    for (const h of metroVeh) {
+      const r = per.get(h.line) || { n: 0, dir: 0, float: 0 };
+      r.n++; if (h.dir) r.dir++; if (h.dsrc === 'float') r.float++;
+      per.set(h.line, r);
+    }
+    const deadDir = [...per].filter(([, r]) => !r.dir).map(([id, r]) => `${id} 0/${r.n}`);
+    const deadPos = [...per].filter(([, r]) => !r.float).map(([id, r]) => `${id} 0/${r.n}`);
+    const dirOK = metroVeh.filter(h => h.dir).length;
+    const posOK = metroVeh.filter(h => h.dsrc === 'float').length;
+    const summary = `方向 ${dirOK}/${metroVeh.length}、浮點座標 ${posOK}/${metroVeh.length}`;
+    const detail = { n: metroVeh.length, dirOK, posOK, deadDir, deadPos };
+    if (deadDir.length || deadPos.length)
+      noteLoud('bad', `判準認不得畫面上的捷運車（${summary}）：整條線全滅＝產品換了資料管線而判準` +
+        `還接在舊的上面，這一輪的倒退與同站堆積都不可信。` +
+        `${deadDir.length ? `方向全滅 ${deadDir.join('、')}` : ''}` +
+        `${deadDir.length && deadPos.length ? '｜' : ''}${deadPos.length ? `座標全滅 ${deadPos.join('、')}` : ''}`, detail);
+    else if (dirOK < metroVeh.length || posOK < metroVeh.length)
+      noteLoud('warn', `判準對少數捷運車解析不出來（${summary}）`, detail);
+    else
+      console.log(`✅ 判準對象自證：${metroVeh.length} 台 Core 捷運車全部解析得出方向與浮點座標`);
+  }
+}
+
+// 0c. Core 說在跑的車，有沒有被放上圖
+// 分子分母都在同一個 epoch 用產品自己的函式量（在跑＝metroCoreSampleTrain、放得上圖＝
+// metroCorePositionAt）。整條線放不上時 metroCoreItemsForLine 回 null ⇒ 退回既有路徑，
+// 車還在畫面上（降級，不是消失）；**部分**流失時 Core 那條路照走，那幾台真的不見了，
+// 而既有判準只照得到「整條線不見」，照不到「這條線少了三台」。
+if (s2.corePlace && s2.corePlace.length) {
+  const lost = s2.corePlace.filter(c => !c.blocked && c.placed > 0 && c.placed < c.live);
+  const fellBack = s2.corePlace.filter(c => !c.blocked && c.placed === 0);
+  const blocked = s2.corePlace.filter(c => c.blocked);
+  const fmt = arr => arr.map(c => `${c.line} ${c.placed}/${c.live}`).join('、');
+  console.log(`${lost.length ? '❌' : '✅'} Core 上圖率：` +
+    (lost.length ? `${fmt(lost)}（Core 說在跑、產品算不出位置，那幾台直接不見）`
+                 : `${s2.corePlace.length} 條線在跑的車都放得上圖`) +
+    (fellBack.length ? `｜整條算不出位置、已退回既有路徑（車還在，屬降級）：${fmt(fellBack)}` : '') +
+    (blocked.length ? `｜已判退回既有路徑（設計行為）：${blocked.map(c => `${c.line}(${c.blocked})`).join('、')}` : ''));
+  if (lost.length) note('bad', `Core 說在跑的車沒被放上圖：${fmt(lost)}`, lost);
+  else if (fellBack.length) note('warn', `這些線的 Core 位置整條算不出來，已退回既有路徑：${fmt(fellBack)}`, fellBack);
 }
 
 // 1. 同向疊車（先分線再分方向；對向交會是正常的）
