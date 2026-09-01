@@ -266,6 +266,12 @@ await page.evaluate(() => clearXferPin());
 // verify_station_transfer_ui.mjs 既有驗證過的組合(「台北車站」經 transferAnchorNear 正規化
 // 解到 gid=T-THSR-1000,已用 probe 核實 nextSec=63060 下有 93 筆候選、非空)。
 const freq10 = await page.evaluate(() => {
+  // ⚠️ 先強制清空 fcConn(G9 已經種過 T-THSR-1060 留下 ["0838","0658"])——不清空的話,
+  // 如果 index.html:10172 那行被刪掉,updateFreqCard 根本不會碰 fcConn,斷言會讀到 G9
+  // 留下的舊內容誤判「非空」而通過。清到跟開機時一樣的初始態,才能確定接下來讀到的東西
+  // 一定是這次 updateFreqCard 呼叫本身寫進去的(第一次跑就親自撞見這個假陽性,已修正)。
+  const fc = document.getElementById('fcConn');
+  fc.innerHTML = ''; fc.hidden = true;
   loadSystem(state.systems.find(s => s.id === 'mrt'));
   const ln = (state.lines || []).find(l => l.id === 'BL');
   if (!ln) return { ok: false, reason: '找不到 BL 線' };
