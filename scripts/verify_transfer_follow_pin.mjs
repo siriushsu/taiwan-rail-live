@@ -299,8 +299,11 @@ async function runEngine(engineName, engine) {
           await page.waitForFunction(() => document.body.classList.contains('train-open'), null, { timeout: 3000 }).catch(() => {});
         }
         const opened = await page.evaluate(() => document.body.classList.contains('train-open'));
+        // nextBox 要有尺寸才算數:F6 若已經紅了(sheet 早就被那一 tap 打開),.fp-next 會收成
+        // 0×0、這裡等於沒點就宣告成功——正向對照自己也需要「我真的做了那個動作」的證據。
         ok(P('F7 正向對照:同一頁點卡片非排除區確實會開「列車」sheet(證明 F6 不是空斷言)'),
-          opened, `train-open=${opened} nextBox=${JSON.stringify(nextBox)}`);
+          opened && !!nextBox && nextBox.width > 0 && nextBox.height > 0,
+          `train-open=${opened} nextBox=${JSON.stringify(nextBox)}`);
       }
     }
     ok(P('F手機 頁面零例外'), errors.length === 0, errors.slice(0, 3).join(' | '));
