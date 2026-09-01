@@ -28,6 +28,17 @@
 //     onAuthStateChanged 真的被呼叫、userDataMigrateAccountPartition／ACCOUNT_UID_KEY 寫入
 //     全走真程式碼，只有「向 Google 驗證」這一步是替身。不給 Plus 資格 ⇒ accountSyncNow 被
 //     plusIsActive() 擋下（回 false，不碰網路），這正是絕大多數受害者的真實狀態。
+//
+// 突變測試（2026-09-01，四發各指名一層防線；控制組＝全部還原後兩顆引擎 73/73 全綠）：
+//   M1 拔掉【UI 入口】(guestPending ? … : '') 改成 false ⇒ 16 條紅（S1/S3/S4 的框、鈕、
+//      點擊、資料、護照、吐司全滅）。S2 維持全綠——它斷言的正是「不該有鈕」，這個不對稱
+//      本身就是 S2 不是 S1 的鏡像的證據。
+//   M2 拔掉【真的寫進去】guestDataMerge 改成 return true ⇒ 6 條紅（S1g/S1h/S1j、S3f/S3g、
+//      S4b）。框與鈕照畫、pending 照算，只有「按了到底有沒有落地」轉紅。
+//   M3 拔掉【偵測】guestDataPending 恆回 9 ⇒ 7 條紅，含 S2b/S2c 兩條反向對照——
+//      這一發是唯一能證明「按鈕不是無條件出現」有牙的實驗。
+//   M4 拔掉【合併語意】改成整份覆蓋 userDataWrite(guest, uid) ⇒ 只有 S3d/S3e 紅，
+//      S1 全部照樣綠。這正是 S3 存在的理由：盲蓋會通過 S1 的每一條。
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
@@ -291,7 +302,10 @@ async function runEngine(browser, engine) {
   }
 }
 
-for (const [engine, launcher] of [['chromium', chromium], ['webkit', webkit]]) {
+// 突變測試時可用 ENGINES=chromium 只跑一顆引擎（省一半牆鐘）；預設兩顆都跑，
+// 正式驗收與控制組一律不要帶這個 env——WebKit 是 macOS/iOS 使用者的真引擎。
+const ENGINES = (process.env.ENGINES || 'chromium,webkit').split(',').map(x => x.trim());
+for (const [engine, launcher] of [['chromium', chromium], ['webkit', webkit]].filter(([name]) => ENGINES.includes(name))) {
   const browser = await launcher.launch();
   try { await runEngine(browser, engine); } finally { await browser.close(); }
 }
