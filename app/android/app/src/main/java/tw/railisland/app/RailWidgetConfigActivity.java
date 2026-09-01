@@ -3,6 +3,7 @@ package tw.railisland.app;
 import android.appwidget.AppWidgetManager;
 import android.app.AlertDialog;
 import android.content.Context;
+import android.graphics.Typeface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -24,7 +25,9 @@ import org.json.JSONArray;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
@@ -32,6 +35,8 @@ import java.util.Set;
 public final class RailWidgetConfigActivity extends AppCompatActivity {
     private int widgetId = AppWidgetManager.INVALID_APPWIDGET_ID;
     private RailWidgetData.Catalog catalog;
+    /** originKeys 裡是縣市標頭的那些列（索引以 labels 為準，含第 0 列「自動」）。 */
+    private final Set<Integer> originHeaders = new LinkedHashSet<>();
     private Spinner systemSpinner;
     private Spinner originSpinner;
     private Spinner destinationSpinner;
@@ -170,6 +175,7 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
 
     private void updateOrigins(int systemIndex) {
         originKeys.clear();
+        originHeaders.clear();
         List<String> labels = new ArrayList<>();
         labels.add("自動（最近的站）");
         String sys = systemIndex == 1 ? "thsr" : systemIndex == 2 ? RailWidgetData.SYS_COMPOSITE : "tra";
@@ -186,12 +192,26 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
             }
         } else {
             RailWidgetData.SystemInfo system = catalog.byId.get(sys);
-            if (system != null) for (RailWidgetData.Station station : system.stations) {
+            LinkedHashMap<String, List<RailWidgetData.Station>> grouped =
+                RailWidgetData.stationsByRegion(system);
+            if (grouped != null) {
+                for (Map.Entry<String, List<RailWidgetData.Station>> group : grouped.entrySet()) {
+                    originKeys.add(RailWidgetData.REGION_HEADER + group.getKey());
+                    labels.add(group.getKey());
+                    originHeaders.add(labels.size() - 1);
+                    for (RailWidgetData.Station station : group.getValue()) {
+                        originKeys.add(station.name);
+                        labels.add(station.name);
+                    }
+                }
+            } else if (system != null) for (RailWidgetData.Station station : system.stations) {
                 originKeys.add(station.name);
                 labels.add(station.name);
             }
         }
-        originSpinner.setAdapter(adapter(labels));
+        // 給 adapter 一份快照：originHeaders 下一輪 updateOrigins 會被 clear，
+        // 共用同一個實例會讓還沒被換掉的舊 adapter 讀到重建到一半的集合。
+        originSpinner.setAdapter(new OriginAdapter(this, labels, new LinkedHashSet<>(originHeaders)));
         String preferred = RailWidgetData.SYS_COMPOSITE.equals(sys) ? "臺北|台北" : sys.equals("thsr") ? "台北" : "臺北";
         int at = originKeys.indexOf(preferred);
         if (at >= 0) originSpinner.setSelection(at + 1);
@@ -204,7 +224,9 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
 
     private String selectedOrigin() {
         int at = originSpinner.getSelectedItemPosition();
-        return at <= 0 || at - 1 >= originKeys.size() ? RailWidgetData.AUTO : originKeys.get(at - 1);
+        if (at <= 0 || at - 1 >= originKeys.size()) return RailWidgetData.AUTO;
+        String key = originKeys.get(at - 1);
+        return key.startsWith(RailWidgetData.REGION_HEADER) ? RailWidgetData.AUTO : key;
     }
 
     private void updateDestinations() {
@@ -350,6 +372,40 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
         public abstract void selected(int position);
         @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) { selected(position); }
         @Override public void onNothingSelected(AdapterView<?> parent) {}
+    }
+
+    /** 起站清單的分段標頭不可選、字重加粗；其餘與原本的 spinner 樣式相同。 */
+    private static final class OriginAdapter extends ArrayAdapter<String> {
+        private final Set<Integer> headers;
+
+        OriginAdapter(Context context, List<String> labels, Set<Integer> headers) {
+            super(context, android.R.layout.simple_spinner_item, localized(context, labels, headers));
+            setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            this.headers = headers;
+        }
+
+        private static List<String> localized(Context context, List<String> labels, Set<Integer> headers) {
+            List<String> out = new ArrayList<>();
+            for (int i = 0; i < labels.size(); i++) out.add(headers.contains(i)
+                ? RailNativeL10n.name(context, labels.get(i))
+                : RailNativeL10n.option(context, labels.get(i)));
+            return out;
+        }
+
+        @Override public boolean areAllItemsEnabled() { return false; }
+
+        @Override public boolean isEnabled(int position) { return !headers.contains(position); }
+
+        @Override public View getDropDownView(int position, View convertView, ViewGroup parent) {
+            View view = super.getDropDownView(position, convertView, parent);
+            if (view instanceof TextView) {
+                boolean header = headers.contains(position);
+                TextView text = (TextView) view;
+                text.setTypeface(null, header ? Typeface.BOLD : Typeface.NORMAL);
+                text.setAlpha(header ? 0.65f : 1f);
+            }
+            return view;
+        }
     }
 
     private static final class DestinationValue {
