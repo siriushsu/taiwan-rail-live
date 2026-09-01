@@ -1953,6 +1953,19 @@
   /* 設計 6b 的「›」:平常完全不存在(標準/大都不收欄位,不需要出口),只有特大才長出來 */
   .board .row .rmore { display: none; }
 
+  /* 🔴 標準字級看板列的誤點標刻意比 .lateTag 基底大一級。
+     起因(2026-09-01 實測正式站):看板的時鐘印的是【表定開車】,誤點只出現在這顆 +N 與倒數裡
+     ——6 站 33 列交叉驗證,誤點列 15/15 時鐘＝表定開車、0/15 ＝表定+誤點,倒數 15/15 已校正。
+     10.5px 的 +9 掃一眼會被忽略,於是網友回報「台鐵誤點但還是準時開」(他沒看錯,大字確實是表定)。
+     字樣維持 +N 不改成「誤點 N 分」:同一列的 .min 已經寫了「N 分」,兩個「N 分」並排會更難讀
+     (大字級有橫向餘裕才用 attr() 換成完整字樣,見下方 data-fs=large 區塊)。
+     只放大這一顆、不動基底 .lateTag:跟隨卡與今日動態那三處用的是完整字樣,本來就讀得到。
+     🔴 選擇器帶 html:not([data-fs]) ⇒ 只進標準檔(沒有 data-fs 就是標準)。大/特大是全站最會撞版的
+     一列(見下面那段),padding 與 margin 若漏進去會動到它們的幾何——那兩塊要維持零變化對照。 */
+  html:not([data-fs]) .board .row[data-no] .lateTag {
+    font-size: calc(12.5px * var(--uis)); font-weight: 900; padding: 1px 5px 2px; margin-left: 5px;
+  }
+
   /* ── 設計 6b 車站看板列 · 三階實際塞法 ──────────────────────────────────────
      這是全站最會撞版的一列(實測:板橋台鐵板在大/特大 360pt 就把「區間車　往 蘇澳」切掉)。
      大 ×1.25:同樣六個欄位一個都不收,只換排法——時刻上行、方向與誤點下行。
@@ -4900,6 +4913,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="latetagbig"><span class="d">9/1</span><span>車站看板的誤點標示放大加粗，一眼就看得出這班晚了幾分（謝謝網友回報）</span></li>
         <li data-cl-of="widget4x4"><span class="d">9/1</span><span>桌面小工具的發車看板：大尺寸一次列出五班並分北上南下，每列都有開車時刻與準點誤點；也可以改成主要顯示發車時刻</span></li>
         <li data-cl-of="guestmerge"><span class="d">9/1</span><span>登入之後完乘紀錄與旅程護照整個變空：那些紀錄其實一直都還在這台裝置上，帳號面板現在會告訴你有幾筆，按一下就全部併回帳號（謝謝網友回報）</span></li>
         <li data-cl-of="signinfallback"><span class="d">9/1</span><span>登入失敗訊息不再重複兩行；Android 的 Google 登入多了自動退路（謝謝網友回報）</span></li>
