@@ -12,6 +12,8 @@
     "build:verify": "npm run build && npm run verify",
     "sync": "npm run build && cap sync",
     "build:release": "RAIL_INCLUDE_LICENSED_MUSIC=1 RAIL_INCLUDE_LICENSED_BASEMAPS=1 npm run build",
+    "ios:release": "node scripts/ios-release.mjs",
+    "ios:verify-archive": "node scripts/verify_archive_ready.mjs",
     "sync:release": "RAIL_INCLUDE_LICENSED_MUSIC=1 RAIL_INCLUDE_LICENSED_BASEMAPS=1 npm run sync",
     "open:ios": "cap open ios",
     "open:android": "cap open android"
