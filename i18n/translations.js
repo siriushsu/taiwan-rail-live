@@ -343,6 +343,7 @@
       '◎ 附近車站': '◎ Nearby stations', '⏺ 錄影 Beta': '⏺ Recording Beta', '帳號同步': 'Account sync',
       '已是最新版': 'Up to date', '給軌島評分': 'Rate Rail Island', '回報問題或建議': 'Report an issue or suggestion',
       '轉{system} · 你到站時': 'Transfer to {system} · when you arrive', '剩 {n} 分': '{n} min left',
+      '你到站時': 'When you arrive',
       '你的接續班次': 'Your connection', '取消釘選': 'Unpin', '表定時刻 · 未計站內步行': 'Scheduled time · excludes walking inside the station',
     },
     ja: {
@@ -633,6 +634,7 @@
       '◎ 附近車站': '◎ 近くの駅', '⏺ 錄影 Beta': '⏺ 録画 Beta', '帳號同步': 'アカウント同期',
       '已是最新版': '最新バージョンです', '給軌島評分': '軌島を評価', '回報問題或建議': '問題・提案を報告',
       '轉{system} · 你到站時': '{system}へ乗換・到着時点', '剩 {n} 分': 'あと{n}分',
+      '你到站時': '到着時点',
       '你的接續班次': 'あなたの乗継便', '取消釘選': '固定を解除', '表定時刻 · 未計站內步行': '所定時刻・駅構内の徒歩時間は含みません',
     },
   };

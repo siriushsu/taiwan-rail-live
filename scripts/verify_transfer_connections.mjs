@@ -162,5 +162,69 @@ ok('G14 tcConn CSS 有 :not([hidden]) 守門(陷阱A)', !!tcConnRule);
 ok('G14b tcConn CSS 在 sheet 態撐滿一列(陷阱B,flex 0 0 100%)',
    !!(tcConnRule && /flex:\s*0\s+0\s+100%/.test(tcConnRule[1])));
 
+// ── 渲染層真執行(獨立審查發現:G11–G14 全部只做原始碼文字比對,一次都沒有真的呼叫過
+// transferConnectionHtml,硬約束零保護——突變 5/6 46/46 全綠零訊號)。以下把它拉進沙箱實際
+// 執行,補行為面斷言。抽取段擴充 G0 的作法,從 XFER_WINDOW_SEC 一路抓到 transferConnectionHtml
+// 結尾(中間順帶含 transferConnections 本體與新增的 xfcSysName,三者本來就是同一段連續程式碼)。
+const mFull = html.match(/const XFER_WINDOW_SEC[\s\S]*?\nfunction transferConnectionHtml\([\s\S]*?\n\}/);
+// 具名閘門(記憶 verify-fixture-stub-drift.md):先證明抽到的是現行這一份,不是抽到舊版或空字串。
+ok('G15 抽出的原始碼含 xfer-conn 與 xfc-row(具名閘門,防抽到舊版/空字串)',
+   !!mFull && /xfer-conn/.test(mFull[0]) && /xfc-row/.test(mFull[0]));
+if (!mFull) { console.log(`\n${fails} 項未過`); process.exit(1); }
+
+// stub 只求最小、夠撐起結構與分支判斷,不求譯文正確(譯文由 check_i18n.mjs 另外把關):
+// escHtml/fmtHM 抄實作(兩者都無外部依賴,抄了就不會漂移);t 只做 {x} 代入、回傳中文原文。
+const hEscHtml = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const hFmtHM = sec => { sec = ((sec % 86400) + 86400) % 86400; return String(Math.floor(sec / 3600)).padStart(2, '0') + ':' + String(Math.floor(sec % 3600 / 60)).padStart(2, '0'); };
+const hT = (source, vars = {}) => String(source == null ? '' : source).replace(/\{([\w]+)\}/g, (_, k) => (vars[k] == null ? '' : String(vars[k])));
+const hI18nNumber = v => String(v);
+const hState = { transferDepartures: data, xferPin: null };
+const transferConnectionHtml = new Function(
+  'state', 't', 'escHtml', 'fmtHM', 'i18nNumber',
+  `${mFull[0]}\n; return transferConnectionHtml;`
+)(hState, hT, hEscHtml, hFmtHM, hI18nNumber);
+
+// G16 —— 無接續回空字串,不留空殼(打死突變6:把 '' 換成 <div class="xfer-conn"></div>)。
+// 沿用 G2d 已驗過的窗:凌晨 2 點,台中群排除台鐵後窗內無車。
+const emptyHtml = transferConnectionHtml(GID_TAICHUNG, S(2, 0), 'TRA');
+ok('G16 無接續回空字串、不含 xfer-conn', emptyHtml === '' && !/xfer-conn/.test(emptyHtml));
+
+// G17 —— 跨午夜時刻不會印成 25:10。真實資料(非人造):T-KRTC-R16 23:37 查詢,第二筆 sec=87120
+// (24:12 raw)在窗內且入選前二。⚠️ 這條驗的是「輸出恆在 00:00–23:59」這個最終不變量,不是
+// 呼叫端 `fmtHM(r.sec % 86400)` 那個 `% 86400` 運算子本身——fmtHM 內部已有等價 modulo,
+// 對任何 x,`fmtHM(x % 86400) === fmtHM(x)` 恆成立(模一次或模兩次結果相同,可證明的無操作),
+// 移除呼叫端那個 `% 86400` 不會改變任何輸出,黑箱測試分辨不出來,因此保留現狀不動它(選項a,
+// 與其餘 20 幾處呼叫端一致)。這條斷言真正防的是更根本的回歸——fmtHM 自己的內部 modulo 被拿掉。
+const crossMidnight = transferConnectionHtml('T-KRTC-R16', S(23, 37), null);
+ok('G17 跨午夜輸出恆在 00:00–23:59(不出現 2[4-9]:)',
+   /\b([01]\d|2[0-3]):[0-5]\d\b/.test(crossMidnight) && !/\b2[4-9]:/.test(crossMidnight),
+   (crossMidnight.match(/\d\d:\d\d/g) || []).join(','));
+
+// G18 —— 同系統(未釘選,真實資料:台中 15:38 排除台鐵後前兩班都是高鐵):標題含系統名、
+// 不逐列標系統(headSys truthy 分支,畫面不變)。
+const sameSysHtml = transferConnectionHtml(GID_TAICHUNG, S(15, 38), 'TRA');
+ok('G18 同系統:標題含系統名', /轉高鐵/.test(sameSysHtml),
+   (sameSysHtml.match(/<span class="xfc-h">([^<]*)</) || [])[1]);
+ok('G18b 同系統:不逐列標系統(無 xfc-sys)', !/xfc-sys/.test(sameSysHtml));
+
+// G19 —— 混系統(未釘選,真實資料:台中 06:02 前兩班是台鐵3147+高鐵0502):標題中性、
+// 兩列都有小標、且小標彼此不同(不是兩個一樣的標籤混充)。
+const mixedHtml = transferConnectionHtml(GID_TAICHUNG, S(6, 2), null);
+ok('G19 混系統:標題不含系統名(中性標題)',
+   !/轉高鐵|轉台鐵|轉阿里山林鐵/.test(mixedHtml),
+   (mixedHtml.match(/<span class="xfc-h">([^<]*)</) || [])[1]);
+const sysTags = [...mixedHtml.matchAll(/<span class="xfc-sys">([^<]*)<\/span>/g)].map(x => x[1]);
+ok('G19b 混系統:兩列都有 xfc-sys 小標', sysTags.length === 2, sysTags.join(','));
+ok('G19c 混系統:兩列小標不同', sysTags.length === 2 && sysTags[0] !== sysTags[1], sysTags.join(' vs '));
+
+// G20 —— 釘選(state.xferPin 指到 r1 的第一筆):標題不指名系統、改成「你的接續班次」,
+// 且該列仍有 xfc-sys 小標——釘選態的標題從來不指名系統,不給小標就等於整塊沒有系統資訊
+// (findings 明文要求的第三格)。用完把 xferPin 歸位,不影響後面任何斷言。
+hState.xferPin = { n: r1[0].n, sys: r1[0].sys };
+const pinnedHtml = transferConnectionHtml(GID_TAICHUNG, S(15, 38), 'TRA');
+hState.xferPin = null;
+ok('G20 釘選:標題是「你的接續班次」', /你的接續班次/.test(pinnedHtml));
+ok('G20b 釘選:仍有 xfc-sys 小標', /xfc-sys/.test(pinnedHtml));
+
 console.log(fails ? `\n${fails} 項未過` : '\n全部通過');
 process.exit(fails ? 1 : 0);
