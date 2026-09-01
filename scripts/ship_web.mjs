@@ -87,6 +87,14 @@ try {
   if (voice.status !== 0) fail('對外用語稽核未過——出貨文字用了更名前的舊名或未登記的 surface'
     + '（單獨重跑：npm run check-voice）');
 
+  // ── 2.8 公車轉乘完整守門 ────────────────────────────────────────────────
+  // 這裡刻意包含真實 Chromium＋WebKit 手機觸控與故障回應矩陣。公車卡是按需查詢，
+  // 靜態檢查只能證明「看起來有那段程式」，不能證明按鈕真的可點、原始狀態碼不會外露。
+  const busTransfer = spawnSync('node', [path.join(wt, 'scripts', 'verify_bus_transfer_all.mjs')], { encoding: 'utf8' });
+  process.stdout.write(busTransfer.stdout || ''); process.stderr.write(busTransfer.stderr || '');
+  if (busTransfer.status !== 0) fail('公車轉乘驗收未過——修正資料索引、Worker、UI、手機互動或錯誤降級後再出貨'
+    + '（單獨重跑：npm run check-bus-transfer）');
+
   // ── 3. strip（腳本內建 esbuild AST 重印等價證明，任何不等價都非零退出）────
   const rawBytes = fs.readFileSync(path.join(wt, 'index.html'));
   execFileSync('node', [path.join(wt, 'scripts', 'strip_ship_comments.mjs'), wt], { stdio: 'inherit' });

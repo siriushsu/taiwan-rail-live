@@ -3,8 +3,10 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const modules = process.env.WORKSPACE_NODE_MODULES;
-if (!modules) throw new Error('請設定 WORKSPACE_NODE_MODULES 指向 bundled node_modules');
-const { chromium, webkit } = await import(pathToFileURL(path.join(modules, 'playwright/index.mjs')).href);
+const playwrightUrl = modules
+  ? pathToFileURL(path.join(modules, 'playwright/index.mjs')).href
+  : 'playwright';
+const { chromium, webkit } = await import(playwrightUrl);
 const BASE = process.env.BUS_UI_BASE || 'http://127.0.0.1:8793';
 
 const pass = message => console.log(`✓ ${message}`);
@@ -181,9 +183,54 @@ async function allStationCoverage() {
   }
 }
 
+const RAW_ERROR_TEXT = /bus transfer live unavailable|bus transfer index unavailable|bus leg live unavailable|HTTP 50[23]|Failed to fetch/i;
+const FAULTS = [
+  { name: '502 JSON', fulfill: { status: 502, contentType: 'application/json', body: JSON.stringify({ error: 'bus transfer live unavailable' }) } },
+  { name: '502 非 JSON', fulfill: { status: 502, contentType: 'text/plain', body: 'upstream exploded' } },
+  { name: '503 JSON', fulfill: { status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'bus transfer index unavailable' }) } },
+  { name: '網路斷線', abort: 'connectionfailed' },
+];
+
+async function faultMessagesStayPrivate(target) {
+  for (const fault of FAULTS) {
+    const browser = await chromium.launch({ headless: true });
+    const context = await browser.newContext({ viewport: { width: 393, height: 860 }, isMobile: true, hasTouch: true });
+    await context.addInitScript(() => localStorage.setItem('trainmap-howto-seen', '1'));
+    const page = await context.newPage();
+    try {
+      const endpoint = target === 'station' ? '/api/bus-transfer' : '/api/bus-leg-live';
+      await page.route(url => new URL(url).pathname === endpoint, route => {
+        if (fault.abort) return route.abort(fault.abort);
+        return route.fulfill(fault.fulfill);
+      });
+      await page.goto(`${BASE}/?lang=zh-TW`, { waitUntil: 'domcontentloaded' });
+      await openTainan(page);
+      await page.getByRole('button', { name: '查看現在可搭公車' }).tap();
+      if (target === 'leg') {
+        await page.locator('.btu-rowbtn').first().waitFor({ state: 'visible' });
+        await page.locator('.btu-rowbtn').first().tap();
+      }
+      const friendly = target === 'station'
+        ? '暫時無法取得附近公車資訊，請稍後重試。'
+        : '暫時無法取得這一路的車輛位置，請稍後重試。';
+      const errorBox = page.locator('.btu-err');
+      await errorBox.waitFor({ state: 'visible' });
+      assert.match(await errorBox.innerText(), new RegExp(friendly.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+        `${target} ${fault.name} 應顯示固定友善文案`);
+      assert.doesNotMatch(await page.locator('body').innerText(), RAW_ERROR_TEXT,
+        `${target} ${fault.name} 不得把原始錯誤顯示給使用者`);
+    } finally {
+      await browser.close();
+    }
+  }
+  pass(`${target === 'station' ? '附近公車' : '路線車況'}：502 JSON／非 JSON、503 與斷網都只顯示固定文案`);
+}
+
 for (const width of [360, 375, 414, 768]) await touchAndLayout(chromium, 'Chromium', width);
 await touchAndLayout(webkit, 'WebKit', 375);
 await allStationCoverage();
+await faultMessagesStayPrivate('station');
+await faultMessagesStayPrivate('leg');
 await translated(chromium, 'en', 'See buses you can catch now', 'Occupancy not provided in this area');
 await translated(webkit, 'ja', '今乗れるバスを見る', 'この地域は混雑度を提供していません');
 

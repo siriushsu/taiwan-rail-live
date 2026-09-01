@@ -407,7 +407,7 @@
   });
 
   Object.assign(messages.en, {
-    '公車轉乘從三站擴到全臺台鐵營運站：到站後可按需查附近公車，再看車牌、位置、還差幾站與擁擠度；偏遠站若 600 公尺內沒有站牌也會直接說明': 'Bus transfers now cover active TRA passenger stations across Taiwan. After arriving, check nearby buses on demand, then open a route for plate numbers, positions, stop progress and occupancy when available. Remote stations with no indexed stop within 600 m say so directly.',
+    '公車轉乘從三站擴到全臺台鐵營運站：到站後可按需查附近公車，再看車牌、位置、還差幾站與擁擠度；偏遠站若 600 公尺內沒有站牌也會直接說明，查詢失敗則只顯示可重試的說明': 'Bus transfers now cover active TRA passenger stations across Taiwan. After arriving, check nearby buses on demand, then open a route for plate numbers, positions, stop progress and occupancy when available. Remote stations with no indexed stop within 600 m say so directly, while failed queries show only a retryable explanation.',
     '登入失敗訊息不再重複兩行；Android 的 Google 登入多了自動退路（謝謝網友回報）': 'Sign-in error messages no longer appear twice, and Google sign-in on Android now falls back to another method automatically. Thanks to the reader who reported it.',
     "按下「我上車了」之後，再去點一班還沒發車的車，時鐘不會再被撥走（謝謝網友回報）": "After you tap I am on board, tapping a train that has not departed yet no longer winds the clock away from now. Thanks to the rider who reported it.",
     "英文與日文的手機頂列，左上角的軌島牌裝不下時會自己讓位，分組切換鈕留在畫面內": "On phones in English and Japanese, the Rail Island plate in the top left gives way when it does not fit, so the group tabs stay on screen.",
@@ -458,7 +458,7 @@
     '身障友善座位': 'Accessible seating', '可帶自行車（兩鐵）': 'Bicycles accepted', '親子車廂': 'Family car', '團體專開列車': 'Chartered group train', '附掛郵政／行包車廂': 'Mail or baggage car'
   });
   Object.assign(messages.ja, {
-    '公車轉乘從三站擴到全臺台鐵營運站：到站後可按需查附近公車，再看車牌、位置、還差幾站與擁擠度；偏遠站若 600 公尺內沒有站牌也會直接說明': 'バス乗換を3駅から台湾全土の台湾鉄路旅客駅へ拡大しました。到着後に周辺のバスを必要な時だけ照会し、路線を開くと車両番号、位置、あと何停留所か、提供地域では混雑度も確認できます。600m以内に索引済みのバス停がない駅は、その旨を明記します。',
+    '公車轉乘從三站擴到全臺台鐵營運站：到站後可按需查附近公車，再看車牌、位置、還差幾站與擁擠度；偏遠站若 600 公尺內沒有站牌也會直接說明，查詢失敗則只顯示可重試的說明': 'バス乗換を3駅から台湾全土の台湾鉄路旅客駅へ拡大しました。到着後に周辺のバスを必要な時だけ照会し、路線を開くと車両番号、位置、あと何停留所か、提供地域では混雑度も確認できます。600m以内に索引済みのバス停がない駅はその旨を明記し、照会失敗時は再試行できる案内だけを表示します。',
     '登入失敗訊息不再重複兩行；Android 的 Google 登入多了自動退路（謝謝網友回報）': 'ログインエラーの表示が二重にならなくなり、Android の Google ログインは別の方式へ自動的に切り替わるようになりました。ご報告ありがとうございます。',
     "按下「我上車了」之後，再去點一班還沒發車的車，時鐘不會再被撥走（謝謝網友回報）": "「乗車しました」を押した後に、まだ発車していない列車をタップしても時計が現在からずれなくなりました。ご報告ありがとうございます。",
     "英文與日文的手機頂列，左上角的軌島牌裝不下時會自己讓位，分組切換鈕留在畫面內": "英語・日本語のスマートフォン表示では、左上の軌島プレートが収まらないときに自ら幅を譲り、グループ切り替えタブが画面内に収まります。",
