@@ -4155,6 +4155,20 @@ let busTransferPilotMem = null;
 const busTransferInflight = new Map();
 const busLegInflight = new Map();
 
+// 只記「真的打到 TDX 一次」：20 秒快取命中不會進這裡，所以能直接換算點數。
+// doubles = [calls, wire/content-length bytes, decoded JSON bytes]；失敗回應也記一次，
+// 因為平臺是否將它納入計次以 TDX 會員中心實際扣點為最終比對。
+function recordBusTdxUsage(env, kind, scope, status, bytes = 0, decodedBytes = 0) {
+  if (!env.BUS_USAGE) return;
+  try {
+    env.BUS_USAGE.writeDataPoint({
+      blobs: [kind, scope, String(status)],
+      doubles: [1, Number(bytes) || 0, Number(decodedBytes) || 0],
+      indexes: [kind],
+    });
+  } catch (e) { /* 觀測絕不得影響使用者查詢 */ }
+}
+
 function resetBusTransferCaches() {
   busTransferPilotMem = null;
   busTransferInflight.clear();
@@ -4197,15 +4211,21 @@ async function fetchBusN1(env, scopeData, token) {
     headers: { authorization: 'Bearer ' + token, accept: 'application/json' },
     redirect: 'manual',
   });
-  if (response.status === 401) { tok = null; throw new Error(`tdx bus n1 401 ${scopeData.scope}`); }
-  if (!response.ok) throw new Error(`tdx bus n1 ${response.status} ${scopeData.scope}`);
+  if (!response.ok) {
+    const contentLength = Number(response.headers.get('content-length'));
+    recordBusTdxUsage(env, 'N1', scopeData.scope, response.status, Number.isFinite(contentLength) ? contentLength : 0, 0);
+    if (response.status === 401) tok = null;
+    throw new Error(`tdx bus n1 ${response.status} ${scopeData.scope}`);
+  }
   const text = await response.text();
   let body;
   try { body = JSON.parse(text); }
   catch (e) { throw new Error(`tdx bus n1 invalid json ${scopeData.scope}`); }
   const decodedBytes = new TextEncoder().encode(text).byteLength;
   const contentLength = Number(response.headers.get('content-length'));
-  return { rows: busN1Rows(body), bytes: Number.isFinite(contentLength) && contentLength >= 0 ? contentLength : decodedBytes, decodedBytes };
+  const bytes = Number.isFinite(contentLength) && contentLength >= 0 ? contentLength : decodedBytes;
+  recordBusTdxUsage(env, 'N1', scopeData.scope, response.status, bytes, decodedBytes);
+  return { rows: busN1Rows(body), bytes, decodedBytes };
 }
 
 function busTransferCacheKey(request, stationId, suffix) {
@@ -4313,8 +4333,12 @@ async function fetchBusDynamic(env, kind, arrival, token) {
     headers: { authorization: 'Bearer ' + token, accept: 'application/json' },
     redirect: 'manual',
   });
-  if (response.status === 401) { tok = null; throw new Error(`tdx bus ${kind} 401 ${arrival.scope}`); }
-  if (!response.ok) throw new Error(`tdx bus ${kind} ${response.status} ${arrival.scope}`);
+  if (!response.ok) {
+    const contentLength = Number(response.headers.get('content-length'));
+    recordBusTdxUsage(env, kind === 'RealTimeByFrequency' ? 'A1' : 'A2', arrival.scope, response.status, Number.isFinite(contentLength) ? contentLength : 0, 0);
+    if (response.status === 401) tok = null;
+    throw new Error(`tdx bus ${kind} ${response.status} ${arrival.scope}`);
+  }
   const text = await response.text();
   let body;
   try { body = JSON.parse(text); }
@@ -4322,7 +4346,9 @@ async function fetchBusDynamic(env, kind, arrival, token) {
   const rows = Array.isArray(body) ? body : (kind === 'RealTimeByFrequency' ? body.BusA1Data : body.BusA2Data) || [];
   const decodedBytes = new TextEncoder().encode(text).byteLength;
   const contentLength = Number(response.headers.get('content-length'));
-  return { rows: Array.isArray(rows) ? rows : [], bytes: Number.isFinite(contentLength) && contentLength >= 0 ? contentLength : decodedBytes, decodedBytes };
+  const bytes = Number.isFinite(contentLength) && contentLength >= 0 ? contentLength : decodedBytes;
+  recordBusTdxUsage(env, kind === 'RealTimeByFrequency' ? 'A1' : 'A2', arrival.scope, response.status, bytes, decodedBytes);
+  return { rows: Array.isArray(rows) ? rows : [], bytes, decodedBytes };
 }
 
 async function ungzipJsonResponse(response) {
