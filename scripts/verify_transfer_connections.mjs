@@ -21,7 +21,8 @@ ok('G0 抽到 transferConnections(含 XFER_WINDOW_SEC)', !!m, m ? `${m[0].split(
 if (!m) { console.log(`\n${fails} 項未過`); process.exit(1); }
 
 const state = { transferDepartures: data };
-const transferConnections = new Function('state', `${m[0]}; return transferConnections;`)(state);
+const { transferConnections, XFER_WINDOW_SEC } =
+  new Function('state', `${m[0]}; return { transferConnections, XFER_WINDOW_SEC };`)(state);
 
 const S = (h, mm) => h * 3600 + mm * 60;
 
@@ -71,7 +72,13 @@ ok('G5b 沒有資料時回空陣列', Array.isArray(r5) && r5.length === 0);
 // G6 —— atSec 非有限數一律回空陣列，不補預設值、不用 Date.now() 兜底（幽靈車沒有到站秒數）
 ok('G6 atSec=NaN 回空陣列', transferConnections(GID_TAICHUNG, NaN, 'TRA').length === 0);
 ok('G6b atSec=undefined 回空陣列', transferConnections(GID_TAICHUNG, undefined, 'TRA').length === 0);
-ok('G6c atSec=Infinity 回空陣列', transferConnections(GID_TAICHUNG, Infinity, 'TRA').length === 0);
+// G6c(獨立審查發現原版是假陽性,已改法)—— atSec=Infinity 這個輸入無法用「結果是不是空陣列」
+// 測出 guard 在不在:sec-Infinity 恆為 -Infinity,恆滿足 left<0,不管 Number.isFinite(atSec)
+// 這關存不存在,結果都是 []（已用獨立實驗證實:把整道 guard 拿掉,G6/G6b 正確轉紅,但原本這條
+// Infinity 版本仍全綠——是「算術巧合通過」,從未真的命中守門邏輯）。±Infinity 在數學上都會被
+// 視窗的上/下界攔下,無法用任何黑箱輸入分辨,故改讀原始碼:斷言 guard 條件式明文包含
+// Number.isFinite(atSec) 這個判斷——這是唯一能把「關卡在不在」與「這個特定輸入的巧合」分開的方式。
+ok('G6c guard 明文包含 Number.isFinite(atSec)', /Number\.isFinite\(atSec\)/.test(m[0]));
 
 // G7 —— fromSys=null 代表不排除任何系統（規格：搭捷運時傳 null）。
 // 用聯集驗證，不用「筆數相同」：fromSys='TRA' 只留 THSR、fromSys='THSR' 只留 TRA，
@@ -89,6 +96,29 @@ ok('G7b null 的筆數 = 兩次個別排除的總和', rNull.length === rExclTra
 const stationTransfers = JSON.parse(readFileSync(path.join(ROOT, 'data', 'station_transfers.json'), 'utf8'));
 const stIds = new Set((stationTransfers.transferStations || []).map(g => g.id));
 for (const g of data.groups) ok(`G8 群 id ${g.id} 存在於 station_transfers.json`, stIds.has(g.id));
+
+// ── 以下三組是獨立審查(fresh-context agent 對本檔跑突變測試)發現的沉默盲區,補上 ──────────
+
+// G9 —— isLast 到站不是「可搭的班次」(index.html:16325 `if (!names.includes(stn) || isLast) continue;`)。
+// 審查發現:把這個判斷拿掉,原本 27 條照樣全綠——G1 用 atSec=15:38 剛好躲開全部 7 筆 THSR 台中
+// isLast 到站(2 筆在窗前、其餘 5 筆在窗後);G2 用 atSec=16:18 其實會命中 1 筆(18:56 那班該混進來,
+// 已用獨立 Python 重算證實),但 G2/G2b 只驗「首班變了」與「落選的都更早」,不驗「有沒有混進不該有
+// 的」,所以照樣測不到。直接複用 G2 已查過的 r2(查詢窗 (58680,69480]):THSR 車次 1547 於
+// 18:56(68160 秒)到台中是它的終點站,68160 落在這個窗內,若 isLast 判斷被拿掉就會混進來。
+ok('G9 終點到站(THSR 1547・18:56)不得出現在接續清單', !r2.some(x => x.n === '1547'), r2.map(x => x.n).join(','));
+// 正向對照:不是「整段查詢剛好回空」才通過 G9——窗內仍有其他(非終點)班次正常回傳。
+ok('G9b 同一窗內其他(非終點)班次仍正常回傳', r2.length > 0, `${r2.length} 班`);
+
+// G10 —— 3 小時窗是規格 §5.5 寫死的數字,不是「隨便一個夠用的值」。
+// 審查發現:原本只驗「沒超過 3 小時」(G2c)與「length>0」(G1),把窗改成 2 小時(32→20 班)一樣
+// 全綠——「更窄的窗」天生滿足「沒超過 3 小時」,G1 也還是 length>0。先直接釘住常數本身:
+ok('G10 XFER_WINDOW_SEC 等於 3 小時', XFER_WINDOW_SEC === 3 * 3600, `${XFER_WINDOW_SEC}`);
+// 再用行為面補一刀,防止「常數對但比較邏輯抄錯」這種 G10 抓不到的錯(例如筆誤成一半)：
+// r1(atSec=15:38)裡最遠的一班,已核實是 THSR 0846(sec=66960,leftSec=178 分=10680 秒),必須
+// 存在且落在 (2 小時, 3 小時] 之間——窗若被悄悄改小到 2 小時,這班車會從結果消失。
+const farthestLeft = Math.max(...r1.map(x => x.leftSec));
+ok('G10b 窗確實延伸到(2h,3h]區間(非只到 2h)', farthestLeft > 2 * 3600 && farthestLeft <= 3 * 3600,
+   `${farthestLeft / 60} 分`);
 
 console.log(fails ? `\n${fails} 項未過` : '\n全部通過');
 process.exit(fails ? 1 : 0);
