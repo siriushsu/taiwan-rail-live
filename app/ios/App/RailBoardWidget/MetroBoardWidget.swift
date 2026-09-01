@@ -512,7 +512,9 @@ struct MetroBoardView: View {
         case .arriving:             return RailNativeL10n.text("· 下一班進站")
         // .until 只有跟車 Live Activity 會產生（`countdown(_:)` 這條路徑走不到），
         // 這裡只是讓 switch 窮盡；真要畫也不能畫成靜態字串（那正是 .until 要修的東西）。
-        case .noData, .scheduled, .until: return ""
+        // .clock 只有台鐵／高鐵發車看板的「主要顯示發車時刻」設定會產生（捷運看板的
+        // MetroBoardIntent 沒有那個選項），這條路徑走不到，列在這裡只為窮盡。
+        case .noData, .scheduled, .clock, .until: return ""
         }
     }
 

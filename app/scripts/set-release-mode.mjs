@@ -260,10 +260,19 @@ const MODES = {
     //   signinfallback／tourpickcap／cartoretreat，另加 ambientlock 條目的 9/1 追加段。
     //   🔴 cartoretreat 刻意不寫進 why：那條退路是**網站限定**（index.html 的
     //   `if (APP_CFG.tiles)` 只給 App 建 Stadia 退路），App 使用者根本遇不到這個變化。
-    marketing: '1.5.3', build: '88', music: true, metroCore: true,
-    why: '軌島 1.5.3\n\n・登入後看不到原本的完乘紀錄與旅程護照時，帳號面板可以一鍵併回帳號\n・修正登入失敗訊息重複顯示兩行\n・修正再次進入放空模式後找不到「離開放空」\n・隨機跟隨不會一直挑到同一批車\n・大尺寸桌面小工具的發車看板改為分北上南下、一次列出五班，每列都有開車時刻與準點誤點',
-    whyEn: 'Rail Island 1.5.3\n\n• Merge records saved before signing in back into your account, from the account panel\n• Fixed sign-in errors appearing twice\n• Fixed the missing Exit button after re-entering ambient mode\n• Follow random train no longer keeps picking the same trains\n• The large home screen widget now splits departures into northbound and southbound, lists five trains, and shows a departure time and on-time status on every row',
-    whyJa: '軌島 1.5.3\n\n・ログイン前に保存した完乗記録や旅のパスポートを、アカウント画面からまとめて取り込めます\n・ログイン失敗のメッセージが二重に表示される問題を修正\n・鑑賞モードに入り直すと「鑑賞モードを終了」が見つからない問題を修正\n・ランダム追跡で同じ列車ばかり選ばれないようにしました\n・大きいホーム画面ウィジェットの発車標を上り・下りに分け、5 本を表示、各行に発車時刻と定時・遅延を表示',
+    // 2026-09-01：88 → 89。88 的 archive 出得出來、六道閘門也全綠,但使用者當場裁示
+    //   再補兩件小工具的事再出 ⇒ 那顆載貨作廢,規則四不重用號。
+    //   89 的載貨＝88 ＋ (a) 好讀版(×1.5 字級)的三列也畫開車時刻——原本只有第一列有,
+    //   做得到是因為 stacked 版面把時刻疊到列底下自成一行,不跟終點站搶同一排欄位;
+    //   (b) 小工具設定新增「主要顯示發車時刻」(ConfigurationAppIntent.clockFirst),
+    //   起因是網友反應「希望火車的小工具顯示的是到站／出發時間而不是還有幾分鐘到」。
+    //   🔴 (b) 畫的是 effectiveTime(誤點修正後的實際時刻)而不是表定時刻,而且【不】標
+    //      「表定」——那個標記只屬於 >90 分鐘自動退化的 .scheduled。兩者共用一個
+    //      RailCountdown case 會讓偏好設定去偷用降級狀態的樣式,所以另開了 .clock。
+    marketing: '1.5.3', build: '89', music: true, metroCore: true,
+    why: '軌島 1.5.3\n\n・登入後看不到原本的完乘紀錄與旅程護照時，帳號面板可以一鍵併回帳號\n・修正登入失敗訊息重複顯示兩行\n・修正再次進入放空模式後找不到「離開放空」\n・隨機跟隨不會一直挑到同一批車\n・大尺寸桌面小工具的發車看板改為分北上南下、一次列出五班，每列都有開車時刻與準點誤點\n・桌面小工具新增「主要顯示發車時刻」，可以把右側的倒數換成發車時刻',
+    whyEn: 'Rail Island 1.5.3\n\n• Merge records saved before signing in back into your account, from the account panel\n• Fixed sign-in errors appearing twice\n• Fixed the missing Exit button after re-entering ambient mode\n• Follow random train no longer keeps picking the same trains\n• The large widget now splits departures by direction, lists five trains, and shows a departure time and on-time status on every row\n• New widget option: show the departure time instead of the countdown',
+    whyJa: '軌島 1.5.3\n\n・ログイン前に保存した完乗記録や旅のパスポートを、アカウント画面からまとめて取り込めます\n・ログイン失敗のメッセージが二重に表示される問題を修正\n・鑑賞モードに入り直すと「鑑賞モードを終了」が見つからない問題を修正\n・ランダム追跡で同じ列車ばかり選ばれないようにしました\n・大きいホーム画面ウィジェットの発車標を上り・下りに分け、5 本を表示、各行に発車時刻と定時・遅延を表示\n・ウィジェットに「発車時刻を大きく表示」の設定を追加',
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
   // 軌島通行證客端功能、雲端同步與伺服器付費牆。這顆不可選去正式送審；正式版必須另推 build 號，

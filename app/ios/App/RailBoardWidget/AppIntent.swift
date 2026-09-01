@@ -331,6 +331,19 @@ struct ConfigurationAppIntent: WidgetConfigurationIntent {
     // 的人（設計檔明列的需求）。兩者是 OR ⇒ 打開之後不受系統字級影響。
     @Parameter(title: "大字好讀版", default: false)
     var readable: Bool
+
+    // 主要數字要倒數還是時刻。起因是網友反應：「希望火車的小工具顯示的是到站／出發時間
+    // 而不是還有幾分鐘到」，使用者裁示做成讓人自己選（2026-09-01）。
+    // 🔴 兩種模式是【同一份資料的兩種畫法】，不是兩種資料：兩邊都用 effectiveTime／
+    //    effectiveDate（誤點後的實際時刻），所以切換不會改變「這班車幾點走」的答案。
+    // 🔴 有副標的列，倒數退到副標那一行（「2 分後 · 準點」），兩件事都還在；
+    //    但【沒有副標的列會真的只剩時刻】——Small 的主角、Medium 的主角都是這樣，
+    //    那些位置本來就只放得下一個數字。這不是缺陷，正是網友要的「不要看幾分鐘」；
+    //    寫在這裡是因為「打開之後兩者都在」是錯的，不要照那句去寫驗收判準。
+    // 🔴 誤點與末班車排在倒數【前面】（見 BoardRowView.followStatus）：那兩個是狀態，
+    //    倒數只是換了位置的常態資訊，搶在狀態前面會把「這班誤點了」擠掉。
+    @Parameter(title: "主要顯示發車時刻", default: false)
+    var clockFirst: Bool
 }
 
 @available(iOS 17.0, *)

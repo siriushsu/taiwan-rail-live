@@ -109,18 +109,35 @@ enum BoardCountdown {
     ///    90 分鐘＝再遠就沒有人在月台上等了，時刻比倒數有用。
     static let clockThreshold: TimeInterval = 90 * 60
 
-    static func of(effective: Date, clock: String, at date: Date) -> RailCountdown {
+    /// - Parameter clockFirst: 小工具設定「主要顯示發車時刻」。打開之後不管還有多久都畫時刻，
+    ///   倒數退到副標那一行（見 `BoardRowView.trailingCountdownText`）。
+    ///   🔴 傳進來的 clock 一律是【誤點後的實際時刻】(`effectiveTime`)，不是表定時刻——
+    ///      使用者要的是「這班車幾點會走」，誤點三分鐘還印表定時刻就是報錯的答案。
+    static func of(effective: Date, clock: String, at date: Date, clockFirst: Bool = false) -> RailCountdown {
         let left = effective.timeIntervalSince(date)
+        if clockFirst { return .clock(clock) }
         if left >= clockThreshold { return .scheduled(clock) }
         return .from(secondsLeft: left, surface: .widget)
     }
 
-    static func of(row: BoardRow, at date: Date) -> RailCountdown {
-        of(effective: row.effectiveDate, clock: row.effectiveTime, at: date)
+    static func of(row: BoardRow, at date: Date, clockFirst: Bool = false) -> RailCountdown {
+        of(effective: row.effectiveDate, clock: row.effectiveTime, at: date, clockFirst: clockFirst)
     }
 
-    static func of(row: PlaceBoardRow, at date: Date) -> RailCountdown {
-        of(effective: row.scheduledDate, clock: row.scheduledTime, at: date)
+    static func of(row: PlaceBoardRow, at date: Date, clockFirst: Bool = false) -> RailCountdown {
+        of(effective: row.scheduledDate, clock: row.scheduledTime, at: date, clockFirst: clockFirst)
+    }
+
+    /// 時刻當主角時，倒數改寫成「N 分後」放到副標或註腳。
+    /// nil＝這個狀態沒有可讀的倒數（暫無資料，或本來就已經退成時刻）。
+    /// 🔴 一定要有「後」字：單寫「2 分」擺在「19:58」旁邊會被讀成第二個時刻。
+    static func asideText(row: BoardRow, at date: Date) -> String? {
+        switch of(row: row, at: date) {
+        case .minutes(let n):       return RailNativeL10n.text("{n} 分後", ["n": String(n)])
+        case .approxMinutes(let n): return RailNativeL10n.text("約 {n} 分後", ["n": String(n)])
+        case .arriving:             return RailNativeL10n.text("即將進站")
+        default:                    return nil
+        }
     }
 
     /// 倒數是不是已經退成靜態時刻（呼叫端據此決定註腳要不要再重複一次時刻）。
@@ -746,6 +763,10 @@ struct RailBoardWidgetEntryView: View {
         entry.configuration.readable || typeSize >= .accessibility1
     }
 
+    /// 「主要顯示發車時刻」。與 readable 不同，這一個【沒有】系統層的自動來源
+    /// ——它是純粹的偏好，不是無障礙需求，所以只讀小工具設定。
+    private var clockFirst: Bool { entry.configuration.clockFirst }
+
     var body: some View {
         Group {
             switch entry.content {
@@ -756,22 +777,22 @@ struct RailBoardWidgetEntryView: View {
                 // 🔴「我的地點」沒有 large 專屬版面 ⇒ 退回 Medium 那張三欄卡（它撐得起 large
                 //    的寬，只是下半留白）。設計檔的 large 規格是給車站看板的，這裡不硬套。
                 case .systemMedium, .systemLarge:
-                    MediumPlaceBoardView(snapshot: snapshot, entryDate: entry.date)
+                    MediumPlaceBoardView(snapshot: snapshot, entryDate: entry.date, clockFirst: clockFirst)
                 case .accessoryRectangular:
-                    RectangularPlaceBoardView(snapshot: snapshot, entryDate: entry.date)
+                    RectangularPlaceBoardView(snapshot: snapshot, entryDate: entry.date, clockFirst: clockFirst)
                 default:
-                    SmallPlaceBoardView(snapshot: snapshot, entryDate: entry.date)
+                    SmallPlaceBoardView(snapshot: snapshot, entryDate: entry.date, clockFirst: clockFirst)
                 }
             case .board(let snapshot):
                 switch family {
                 case .systemLarge:
-                    LargeBoardView(snapshot: snapshot, entryDate: entry.date)
+                    LargeBoardView(snapshot: snapshot, entryDate: entry.date, clockFirst: clockFirst)
                 case .systemMedium:
-                    MediumBoardView(snapshot: snapshot, entryDate: entry.date)
+                    MediumBoardView(snapshot: snapshot, entryDate: entry.date, clockFirst: clockFirst)
                 case .accessoryRectangular:
-                    RectangularBoardView(snapshot: snapshot, entryDate: entry.date)
+                    RectangularBoardView(snapshot: snapshot, entryDate: entry.date, clockFirst: clockFirst)
                 default:
-                    SmallBoardView(snapshot: snapshot, entryDate: entry.date)
+                    SmallBoardView(snapshot: snapshot, entryDate: entry.date, clockFirst: clockFirst)
                 }
             }
         }
@@ -849,6 +870,7 @@ struct BoardNotice: View {
 struct SmallBoardView: View {
     let snapshot: BoardSnapshot
     let entryDate: Date
+    var clockFirst: Bool = false
     @Environment(\.railReadable) private var readable
 
     var body: some View {
@@ -915,7 +937,7 @@ struct SmallBoardView: View {
 
                 // 倒數 44 ＋右側狀態。設計稿：誤點永遠是 13pt 純文字，不做膠囊、不進主角區。
                 HStack(alignment: .lastTextBaseline, spacing: scale.pt(4)) {
-                    RailCountdownText(value: BoardCountdown.of(row: row, at: entryDate),
+                    RailCountdownText(value: BoardCountdown.of(row: row, at: entryDate, clockFirst: clockFirst),
                                       size: .heroCard, scale: scale)
                         .widgetAccentable()
                     Spacer(minLength: scale.pt(2))
@@ -954,7 +976,7 @@ struct SmallBoardView: View {
                         .frame(height: scale.pt(22, readable: 26), alignment: .leading)
                 } else if let second = snapshot.rows.dropFirst().first {
                     SmallSecondRow(row: second, snapshot: snapshot, entryDate: entryDate,
-                                   scale: scale)
+                                   clockFirst: clockFirst, scale: scale)
                         .frame(height: scale.pt(22), alignment: .leading)
                 } else {
                     footer(row, scale)
@@ -1004,9 +1026,18 @@ struct SmallBoardView: View {
     private func footerText(_ row: BoardRow) -> String {
         let today = sameDay(row)
         // 數字欄已經在畫那個時刻（>90 分鐘的班次）⇒ 註腳不再重複一次。
-        var parts = showsClock(row)
-            ? []
-            : [today ? row.departureText : RailNativeL10n.text("明天 {value}", ["value": row.departureText])]
+        // 數字欄已經在畫那個時刻 ⇒ 註腳不再重複一次。
+        // 🔴 clockFirst 那一種要改放倒數，不能留白：好讀版的 Small 只有一班車、又沒有
+        //    副標那一行，留白等於整張卡完全看不到「還要多久」（實測 board-small-
+        //    clockfirst-readable 原本印的是與主角一模一樣的「20:04 開」）。
+        var parts: [String]
+        if showsClock(row) {
+            parts = []
+        } else if clockFirst {
+            parts = [BoardCountdown.asideText(row: row, at: entryDate)].compactMap { $0 }
+        } else {
+            parts = [today ? row.departureText : RailNativeL10n.text("明天 {value}", ["value": row.departureText])]
+        }
         // 末班車優先於抵達時刻：錯過它今天就沒有下一班，而抵達時刻只是行程資訊。
         if row.isLastOfDay, today {
             parts.append(RailNativeL10n.text("末班車"))
@@ -1033,6 +1064,7 @@ struct SmallBoardView: View {
 struct LargeBoardView: View {
     let snapshot: BoardSnapshot
     let entryDate: Date
+    var clockFirst: Bool = false
     @Environment(\.railReadable) private var readable
 
     var body: some View {
@@ -1160,9 +1192,14 @@ struct LargeBoardView: View {
                     BoardRowView(row: item.row, snapshot: snapshot, entryDate: entryDate,
                                  role: item.isHero ? .hero : .followLarge,
                                  // 設計稿特大字版：後兩列只留倒數，開車時刻那一行一起收。
-                                 showsDepartureLine: item.isHero || !scale.readable,
+                                 // 2026-09-01 裁示：好讀版那幾列也要有開車時刻。
+                                 // 做得到的原因是 stacked 版面把時刻疊到列底下自成一行，
+                                 // 不跟終點站搶同一條橫向欄位——原本擋著不畫的理由
+                                 //（六欄在放大字級下會右溢 15.7pt）只對「同一行再加一欄」成立。
+                                 showsDepartureLine: true,
                                  showsHeading: !sections,
                                  heightOverride: item.isHero ? heights.hero : heights.follow,
+                                 clockFirst: clockFirst,
                                  scale: scale)
                 }
                 Spacer(minLength: 0)
@@ -1250,6 +1287,7 @@ struct SmallSecondRow: View {
     let row: BoardRow
     let snapshot: BoardSnapshot
     var entryDate: Date = Date()
+    var clockFirst: Bool = false
     var scale: RailScale = RailScale(k: 1)
 
     var body: some View {
@@ -1265,7 +1303,7 @@ struct SmallSecondRow: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1).minimumScaleFactor(0.8)
             Spacer(minLength: scale.pt(4))
-            RailCountdownText(value: BoardCountdown.of(row: row, at: entryDate),
+            RailCountdownText(value: BoardCountdown.of(row: row, at: entryDate, clockFirst: clockFirst),
                               size: .minor, scale: scale)
                 .fixedSize()
         }
@@ -1280,6 +1318,7 @@ struct SmallSecondRow: View {
 struct MediumBoardView: View {
     let snapshot: BoardSnapshot
     let entryDate: Date
+    var clockFirst: Bool = false
     @Environment(\.railReadable) private var readable
 
     var body: some View {
@@ -1318,13 +1357,15 @@ struct MediumBoardView: View {
 
             if let lead = snapshot.rows.first {
                 BoardRowView(row: lead, snapshot: snapshot, entryDate: entryDate,
-                             role: .hero, showsDepartureLine: false, scale: scale)
+                             role: .hero, showsDepartureLine: false,
+                             clockFirst: clockFirst, scale: scale)
                 // 主角區與次列之間沒有分隔線也沒有固定間距：剩下的高度全推到這裡，
                 // 三個次列貼著卡底對齊（設計稿的 margin-top:auto）。
                 Spacer(minLength: 0)
                 ForEach(Array(follows.enumerated()), id: \.offset) { index, row in
                     BoardRowView(row: row, snapshot: snapshot, entryDate: entryDate,
-                                 role: .follow,                                  scale: scale)
+                                 role: .follow,
+                                 clockFirst: clockFirst, scale: scale)
                 }
             } else {
                 Text(RailNativeL10n.text(snapshot.emptyMessage ?? "查無班次"))
@@ -1360,6 +1401,8 @@ struct BoardRowView: View {
     /// 由呼叫端算好的列高（設計基準座標系）。Large 分組版把剩餘空間平均分給每一列，
     /// 所以列高不再是常數——nil 時退回 RailRowHeight 的固定值。
     var heightOverride: CGFloat? = nil
+    /// 小工具設定「主要顯示發車時刻」。倒數與時刻【互換位置】，兩者都不會消失。
+    var clockFirst: Bool = false
     var scale: RailScale = RailScale(k: 1)
 
     private var isHero: Bool { role == .hero }
@@ -1397,9 +1440,21 @@ struct BoardRowView: View {
         RailBoardClock.calendar.isDate(row.scheduledDate, inSameDayAs: entryDate)
     }
 
-    /// 倒數已經退成靜態時刻（>90 分鐘）⇒ 內容欄不要再寫一次同一個時刻，改標「表定」。
-    private var showsClock: Bool {
+    /// 數字欄畫的是【時刻】⇒ 內容欄不要再寫一次同一個時刻。
+    /// 兩個來源：>90 分鐘自動退化，或使用者選了「主要顯示發車時刻」。
+    private var showsClock: Bool { clockFirst || isFarClock }
+
+    /// 自動退化的那一種（>90 分鐘）。
+    /// 🔴 只有它該標「表定」：使用者主動選的時刻畫的是 `effectiveTime`（誤點修正過的
+    ///    實際時刻），標成「表定」會把即時值說成表定值——正好是這個功能要避免的誤導。
+    private var isFarClock: Bool {
         BoardCountdown.isClock(effective: row.effectiveDate, at: entryDate)
+    }
+
+    /// 時刻當主角時，倒數搬到副標。nil＝這個狀態沒有可讀的倒數（暫無資料、或本來就是時刻）。
+    private var countdownAside: String? {
+        guard clockFirst, !isFarClock else { return nil }
+        return BoardCountdown.asideText(row: row, at: entryDate)
     }
 
     var body: some View {
@@ -1473,7 +1528,7 @@ struct BoardRowView: View {
                 if stacked { subtitle }
             }
         } trailing: {
-            RailCountdownText(value: BoardCountdown.of(row: row, at: entryDate),
+            RailCountdownText(value: BoardCountdown.of(row: row, at: entryDate, clockFirst: clockFirst),
                               size: isHero ? .heroRow : .row, scale: scale)
                 .widgetAccentable()
         }
@@ -1494,8 +1549,16 @@ struct BoardRowView: View {
 
     private var subtitle: some View {
         HStack(spacing: scale.pt(5)) {
-            if showsClock {
+            if isFarClock {
                 RailStatusTag(kind: .custom(sameDay ? "表定" : "明天"), fontSize: subtitleSize, scale: scale)
+            } else if clockFirst {
+                // 時刻上位之後這一格改放倒數；隔日班次先把「明天」講清楚
+                // ——數字欄的「06:12」自己看不出是哪一天。
+                if !sameDay {
+                    RailStatusTag(kind: .custom("明天"), fontSize: subtitleSize, scale: scale)
+                } else if let aside = countdownAside {
+                    Text(aside).monospacedDigit()
+                }
             } else {
                 Text(sameDay ? departureLineText : RailNativeL10n.text("明天 {value}", ["value": departureLineText]))
                     .monospacedDigit()
@@ -1527,13 +1590,22 @@ struct BoardRowView: View {
     /// 誤點時那個位置換成誤點分鐘（示範是「誤點 +3」與「11:40」交替出現的那兩列）。
     @ViewBuilder
     private var followStatus: some View {
-        if showsClock {
+        if isFarClock {
             RailStatusTag(kind: .custom(sameDay ? "表定" : "明天"), fontSize: 12, scale: scale)
+        } else if clockFirst, !sameDay {
+            RailStatusTag(kind: .custom("明天"), fontSize: 12, scale: scale)
         } else if let delay = row.delay, delay != 0 {
             RailStatusTag(kind: .delay(delay), fontSize: 12, scale: scale)
         } else if row.isLastOfDay, sameDay {
             RailStatusTag(kind: .lastTrain, fontSize: 12, scale: scale)
-        } else if role != .followLarge, !scale.readable {
+        } else if clockFirst, let aside = countdownAside {
+            // 🔴 排在誤點與末班車【之後】：那兩個是狀態，倒數只是換了位置的常態資訊，
+            //    搶在狀態前面會把「這班誤點了」擠掉。
+            Text(aside)
+                .font(.system(size: scale.pt(12)))
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+        } else if !clockFirst, role != .followLarge, !scale.readable {
             // 🔴 這個 else 只留給【沒有發車時刻欄】的尺寸（Medium）。large 有自己那一欄，
             //    兩邊都畫的話同一個時刻會在同一列印兩次並且互相疊上去（算繪實看抓到）。
             // 🔴 好讀版也不畫：設計檔好讀版的 mock 從班只有誤點才出現狀態，準點那幾列是空的；
@@ -1557,6 +1629,7 @@ struct BoardRowView: View {
 struct RectangularBoardView: View {
     let snapshot: BoardSnapshot
     let entryDate: Date
+    var clockFirst: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 1) {
@@ -1583,7 +1656,7 @@ struct RectangularBoardView: View {
                 .widgetAccentable()
 
                 HStack(spacing: 4) {
-                    RailCountdownText(value: BoardCountdown.of(row: row, at: entryDate),
+                    RailCountdownText(value: BoardCountdown.of(row: row, at: entryDate, clockFirst: clockFirst),
                                       size: .minor)
                     Text(row.departureText)
                         .font(.system(size: 11))
@@ -1615,6 +1688,7 @@ struct RectangularBoardView: View {
 struct SmallPlaceBoardView: View {
     let snapshot: PlaceBoardSnapshot
     let entryDate: Date
+    var clockFirst: Bool = false
 
     var body: some View {
         GeometryReader { geo in
@@ -1657,7 +1731,7 @@ struct SmallPlaceBoardView: View {
                 }
                 .frame(height: scale.pt(19))
 
-                RailCountdownText(value: BoardCountdown.of(row: row, at: entryDate),
+                RailCountdownText(value: BoardCountdown.of(row: row, at: entryDate, clockFirst: clockFirst),
                                   size: .heroCard, arrivingWord: PlaceDistance.passWord,
                                   scale: scale)
                     .widgetAccentable()
@@ -1722,6 +1796,7 @@ struct SmallPlaceBoardView: View {
 struct MediumPlaceBoardView: View {
     let snapshot: PlaceBoardSnapshot
     let entryDate: Date
+    var clockFirst: Bool = false
 
     var body: some View {
         GeometryReader { geo in
@@ -1756,12 +1831,13 @@ struct MediumPlaceBoardView: View {
             Spacer().frame(height: scale.pt(8))
             if let lead = rows.first {
                 PlaceRowView(row: lead, typeColors: snapshot.typeColors, entryDate: entryDate,
+                             clockFirst: clockFirst,
                              role: .hero, lineColor: Color(hex: line.color),
                              scale: scale)
                 RailRowGap(scale: scale)
                 ForEach(Array(follows.enumerated()), id: \.offset) { index, row in
                     PlaceRowView(row: row, typeColors: snapshot.typeColors, entryDate: entryDate,
-                                 role: .follow, scale: scale)
+                                 clockFirst: clockFirst, role: .follow, scale: scale)
                 }
             } else {
                 Text(RailNativeL10n.text("60 分鐘內無車"))
@@ -1789,7 +1865,7 @@ struct MediumPlaceBoardView: View {
                             .frame(maxHeight: .infinity)
                     }
                     PlaceColumnView(line: lines[index], typeColors: snapshot.typeColors,
-                                    entryDate: entryDate, scale: scale)
+                                    entryDate: entryDate, clockFirst: clockFirst, scale: scale)
                 }
             }
             Spacer(minLength: 0)
@@ -1809,6 +1885,7 @@ private struct PlaceColumnView: View {
     let line: PlaceLineSnapshot
     let typeColors: [String: String]
     let entryDate: Date
+    var clockFirst: Bool = false
     let scale: RailScale
 
     var body: some View {
@@ -1851,7 +1928,7 @@ private struct PlaceColumnView: View {
                         .foregroundStyle(.secondary)
                         .monospacedDigit().fixedSize()
                     Spacer(minLength: scale.pt(2))
-                    RailCountdownText(value: BoardCountdown.of(row: lead, at: entryDate),
+                    RailCountdownText(value: BoardCountdown.of(row: lead, at: entryDate, clockFirst: clockFirst),
                                       size: .row, arrivingWord: PlaceDistance.passWord,
                                       scale: scale)
                 }
@@ -1897,6 +1974,7 @@ struct PlaceRowView: View {
     let row: PlaceBoardRow
     let typeColors: [String: String]
     var entryDate: Date = Date()
+    var clockFirst: Bool = false
     var role: Role = .follow
     var lineColor: Color? = nil
     var scale: RailScale = RailScale(k: 1)
@@ -1950,7 +2028,7 @@ struct PlaceRowView: View {
                     .lineLimit(1)
             }
         } trailing: {
-            RailCountdownText(value: BoardCountdown.of(row: row, at: entryDate),
+            RailCountdownText(value: BoardCountdown.of(row: row, at: entryDate, clockFirst: clockFirst),
                               size: isHero ? .heroRow : .row,
                               arrivingWord: PlaceDistance.passWord, scale: scale)
                 .widgetAccentable()
@@ -1963,6 +2041,7 @@ struct PlaceRowView: View {
 struct RectangularPlaceBoardView: View {
     let snapshot: PlaceBoardSnapshot
     let entryDate: Date
+    var clockFirst: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 1) {
@@ -1984,7 +2063,7 @@ struct RectangularPlaceBoardView: View {
                     RailLineMark(name: RailNativeL10n.name(line.name), color: Color(hex: line.color), fontSize: 12)
                         .fontWeight(.semibold)
                     Spacer(minLength: 2)
-                    RailCountdownText(value: BoardCountdown.of(row: row, at: entryDate),
+                    RailCountdownText(value: BoardCountdown.of(row: row, at: entryDate, clockFirst: clockFirst),
                                       size: .minor, arrivingWord: PlaceDistance.passWord)
                 }
                 .lineLimit(1).minimumScaleFactor(0.7)

@@ -885,6 +885,23 @@
         }
       }
     },
+    "{n} 分後": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "in {n} min"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{n}分後"
+          }
+        }
+      }
+    },
     "{n} 分鐘": {
       "extractionState": "manual",
       "localizations": {
@@ -7039,6 +7056,23 @@
         }
       }
     },
+    "主要顯示發車時刻": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show departure time first"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "発車時刻を大きく表示"
+          }
+        }
+      }
+    },
     "付款完成但尚未取得訂閱資格，請按「恢復購買」": {
       "extractionState": "manual",
       "localizations": {
@@ -12462,6 +12496,23 @@
         }
       }
     },
+    "有 {n} 筆收藏與完乘紀錄是登入前存的，還沒併進這個帳號。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{n} saved items and completed rides from before you signed in have not been added to this account yet."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ログイン前に保存したお気に入りと乗車記録が {n} 件、このアカウントに取り込まれていません。"
+          }
+        }
+      }
+    },
     "有班次的可以直接跟車": {
       "extractionState": "manual",
       "localizations": {
@@ -15280,6 +15331,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "佳冬"
+          }
+        }
+      }
+    },
+    "併入失敗：這台裝置的儲存空間不足": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not add them: this device is out of storage."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取り込めませんでした：端末の空き容量が足りません。"
+          }
+        }
+      }
+    },
+    "併入這個帳號": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add them to this account"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このアカウントに取り込む"
           }
         }
       }
@@ -19887,6 +19972,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "約{n}分"
+          }
+        }
+      }
+    },
+    "約 {n} 分後": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "in about {n} min"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "約{n}分後"
           }
         }
       }
@@ -25195,6 +25297,23 @@
         }
       }
     },
+    "訪客紀錄已併入這個帳號": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guest records added to this account"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ゲスト記録をこのアカウントに取り込みました"
+          }
+        }
+      }
+    },
     "設定之後，這一格就會顯示下一班車還有幾分鐘。": {
       "extractionState": "manual",
       "localizations": {
@@ -25344,6 +25463,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "この列車は30秒以上リアルタイムモデルにないため追跡を終了しました。"
+          }
+        }
+      }
+    },
+    "這台裝置的 Google 登入試了兩種方式都不成功。可以改用上面的「使用 Apple 登入」，它不需要 Google 服務。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google sign-in failed on this device after trying both methods. You can use \"Sign in with Apple\" above instead — it does not need Google services."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この端末では Google ログインが 2 つの方法とも失敗しました。上の「Appleでログイン」をご利用ください（Google サービス不要）。"
+          }
+        }
+      }
+    },
+    "這台裝置還有訪客紀錄": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guest records on this device"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この端末にゲスト記録があります"
           }
         }
       }
@@ -27367,6 +27520,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "当日の時刻表を再現し、一時停止・早送り・過去の表示ができます。"
+          }
+        }
+      }
+    },
+    "登入之後完乘紀錄與旅程護照整個變空：那些紀錄其實一直都還在這台裝置上，帳號面板現在會告訴你有幾筆，按一下就全部併回帳號（謝謝網友回報）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signed in and your completed rides and Journey Passport went blank? Those records were never lost—they were still on this device. The account panel now tells you how many are waiting, and one tap merges them all back into your account."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ログインしたら完乗記録と旅のパスポートが空になった――その記録は消えていません。この端末にちゃんと残っています。アカウント画面に何件あるかを表示するようにしたので、タップひとつでまとめてアカウントに取り込めます。"
+          }
+        }
+      }
+    },
+    "登入失敗訊息不再重複兩行；Android 的 Google 登入多了自動退路（謝謝網友回報）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign-in error messages no longer appear twice, and Google sign-in on Android now falls back to another method automatically. Thanks to the reader who reported it."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ログインエラーの表示が二重にならなくなり、Android の Google ログインは別の方式へ自動的に切り替わるようになりました。ご報告ありがとうございます。"
           }
         }
       }
@@ -36972,6 +37159,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Google Playに更新があります"
+          }
+        }
+      }
+    },
+    "iPhone 大尺寸（4×4）發車看板小工具改版：一次列出五班、分成北上與南下兩區，每一列都有開車時刻與準點誤點": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The large (4×4) departure board widget on iPhone now lists five trains, split into northbound and southbound sections, with a departure time and on-time status on every row."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone の大きい（4×4）発車標ウィジェットは、上り・下りに分けて 5 本を表示し、各行に発車時刻と定時・遅延を表示するようになりました。"
           }
         }
       }

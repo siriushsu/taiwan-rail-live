@@ -131,6 +131,9 @@ const native = {
   '結束': ['End', '終了'], '自動': ['Auto', '自動'], '終點': ['Terminus', '終点'],
   '終到本站': ['Terminates here', '当駅止まり'], '查無直達班次': ['No direct trains found', '直通列車がありません'],
   '{n} 分': ['{n} min', '{n}分'], '約 {n} 分': ['about {n} min', '約{n}分'],
+  // 「主要顯示發車時刻」打開之後，倒數讓出主角位置、改寫在副標，所以要「後」這個字
+  // ——單寫「2 分」在時刻旁邊會被讀成第二個時刻。
+  '{n} 分後': ['in {n} min', '{n}分後'], '約 {n} 分後': ['in about {n} min', '約{n}分後'],
   '· 再 {n} 分': ['· Another in {n} min', '・次は{n}分後'],
   '· 再約 {n} 分': ['· Another in about {n} min', '・次は約{n}分後'],
   '· 下一班即將進站': ['· Next train arriving soon', '・次の列車がまもなく到着'],
@@ -189,6 +192,7 @@ Object.assign(native, {
   '鐵路系統': ['Rail system', '鉄道事業者'],
   '台鐵＋高鐵共站': ['TRA + HSR shared station', '台湾鉄路＋高鉄共用駅'],
   '大字好讀版': ['Large, easy-to-read text', '大きく読みやすい文字'],
+  '主要顯示發車時刻': ['Show departure time first', '発車時刻を大きく表示'],
   '加到桌面': ['Add to Home screen', 'ホーム画面に追加'],
   '全部目的地': ['All destinations', '全目的地'],
   '只看這些': ['Filters', '表示条件'],
