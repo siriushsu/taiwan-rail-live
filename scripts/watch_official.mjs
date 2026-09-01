@@ -10,7 +10,7 @@
 //   node scripts/watch_official.mjs                 # 巡檢並回報(不寫基準)
 //   node scripts/watch_official.mjs --accept        # 把當前現況收為新基準(處理完變動後跑)
 //   node scripts/watch_official.mjs --json <path>   # 另外寫一份機器可讀報告
-//   node scripts/watch_official.mjs --only tdx|news|tra
+//   node scripts/watch_official.mjs --only tdx|news|tra|trtc
 // 離開碼:0=無變動 10=有變動待處理 1=探針自己壞了(網路/憑證/解析)
 //
 // 基準存 .cache/watch/state.json(.gitignore 與 .assetsignore 都已含 .cache,不會進版控也不會上線)。
@@ -87,7 +87,9 @@ const readState = () => { try { return JSON.parse(readFileSync(STATE_FILE, 'utf8
 const J = f => JSON.parse(readFileSync(path.join(ROOT, f), 'utf8'));
 
 const report = { ranAt: new Date().toISOString(), tdx: { changed: [], errors: [], firstRun: [] },
-  news: { newItems: [], errors: [], firstRun: [] }, tra: null, verdict: 'clean' };
+  news: { newItems: [], errors: [], firstRun: [] },
+  trtc: { added: [], gone: [], health: [], errors: [], firstRun: null, counts: null, ageMs: null, src: null },
+  tra: null, verdict: 'clean' };
 const state = readState();
 
 // ═══════════════ 探針一:TDX 機讀資料 ═══════════════
@@ -278,15 +280,114 @@ function probeTra() {
   report.tra = { rangeEnd: end, daysLeft, needsRefresh: daysLeft < 5 };
 }
 
+// ═══════════════ 探針四:北捷自家會員 API(經 /api/trtc-live) ═══════════════
+// 為什麼要另立一支:**雙北捷運不走 TDX**。北捷的名冊與到站倒數來自自家會員 API
+// (api.metro.taipei 的 getTrackInfo,見 worker.js「北捷官方會員 API 代理」那段;
+//  memory trtc-member-api.md 記著它是「TDX LiveBoard 的超集」、CountDown 為秒級),
+// 且 worker.js 的 pollMetroLive 已把 mrt 排除在 TDX 路徑外。
+// ⇒ 探針一(TDX)對北捷是**結構性盲**的。實證:2026-08-30 14 時廣慈/奉天宮站通車,
+//    到 09-01 TDX 都還沒上架(Station/TRTC 121 站查無此站、StationOfLine 的 R 線第一站
+//    仍是 R02 象山),而北捷自家 API 當天就有它(board 29 列、12 台車以它為終點)。
+//    只盯 TDX 會誤判成「新站還沒上線」——這支就是補這個洞。
+//
+// 帳密只在 Cloudflare Worker secrets(worker.js 明寫「前端直連＝公開帳密」,repo 是 PUBLIC),
+// 本機沒有 ⇒ 走我們自己的代理端點取同一份上游資料,順帶把「代理掛了」也一起偵測到。
+const TRTC_LIVE_URL = process.env.RAIL_TRTC_LIVE || 'https://railisland.tw/api/trtc-live';
+// 即時饋給的成員集合每一刻都在動(收班時段站名會少一截),所以兩種變動不對稱處理:
+//   新增 → 真訊號(新站上線就是這樣顯形),一律報。
+//   消失 → 要「連續 N 次巡檢都沒出現」才報,否則天天假警報。N 以 --accept 次數計
+//          (基準只在 --accept 落盤),排程一天一次 ⇒ 約一個月,夠保守。
+const TRTC_GONE_AFTER = 30;
+const TRTC_MAX_AGE_MS = 15 * 60 * 1000; // 上游 15 秒換值、worker TTL 15 秒 ⇒ 15 分鐘沒動＝斷了
+
+// 成員一律帶類型前綴,報告才講得出「新增的是站還是終點」。
+//
+// 🔴 刻意**不收** trains[].stn(站碼)。它是「車此刻在哪一站」的快照,不是站的集合——
+//    2026-09-01 實測 7 次取樣(間隔 20 秒):站名 117→119 第 3 次起就 +0、終點 18→21 第 3 次起 +0、
+//    系統恆 2,而站碼 92→118 到第 7 次仍在 +3,兩分鐘都沒飽和(一次快照只照得到約 92/122 個有車的站)。
+//    當成集合來差分 ⇒ 每天噴一批假新增、天天 exit 10,真訊號會被淹掉。站碼改用純數字報覆蓋度。
+//    要偵測「新站上線」靠 board[].name 就夠了:廣慈/奉天宮站在突變測試中確實被這條抓到。
+// 也不收 trains[].path[].name:那組站名沒有「站」字尾,與 board[].name 是同站兩種寫法,
+// 混進來會製造一整批假新增。
+function trtcMembers(j) {
+  const m = new Set();
+  for (const b of j.board || []) {
+    if (b.name) m.add('站:' + b.name);
+    if (b.dest) m.add('終:' + b.dest);
+  }
+  for (const t of j.trains || []) {
+    if (t.dest) m.add('終:' + t.dest);
+    if (t.sys) m.add('系:' + t.sys);
+  }
+  return m;
+}
+
+async function probeTrtc() {
+  const url = TRTC_LIVE_URL + (TRTC_LIVE_URL.includes('?') ? '&' : '?') + 'cb=' + Math.random().toString(36).slice(2);
+  let j;
+  try {
+    const r = await fetch(url, { headers: { 'user-agent': UA, 'cache-control': 'no-cache' }, signal: AbortSignal.timeout(45000) });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    j = await r.json();
+    // 解得出 JSON 不等於拿到資料:worker 失敗時會回 {error:...}(實測 /api/metro-live 即如此)
+    if (!j || !Array.isArray(j.board) || !Array.isArray(j.trains)) throw new Error('回應缺 board/trains(可能是 worker 回錯誤物件)');
+  } catch (e) {
+    report.trtc.errors.push({ key: 'trtc-live', error: String(e.message || e) });
+    report.trtc.health.push('端點取不到資料 ⇒ 北捷這面今天沒驗到');
+    return;
+  }
+
+  const live = trtcMembers(j);
+  report.trtc.src = j.src ?? null;
+  report.trtc.ageMs = j.at ? Date.now() - j.at : null;
+  report.trtc.counts = { board: j.board.length, trains: j.trains.length,
+    stations: [...live].filter(k => k.startsWith('站:')).length,
+    codes: new Set((j.trains || []).map(t => t.stn).filter(Boolean)).size }; // 覆蓋度參考,不做差分(見上)
+
+  // ── 健康度:結構沒變不代表資料還活著 ──
+  if (j.src && j.src !== 'trtc') report.trtc.health.push(`資料源不是北捷自家 API(src=${j.src})`);
+  if (report.trtc.ageMs != null && report.trtc.ageMs > TRTC_MAX_AGE_MS)
+    report.trtc.health.push(`資料時間戳已 ${Math.round(report.trtc.ageMs / 60000)} 分鐘沒更新`);
+  const hist = (state.trtc && state.trtc.counts) || [];
+  if (hist.length >= 3) {
+    const med = [...hist].sort((a, b) => a - b)[Math.floor(hist.length / 2)];
+    if (med > 0 && report.trtc.counts.trains < med * 0.5)
+      report.trtc.health.push(`列車數 ${report.trtc.counts.trains} 相對自己腰斬(近期中位 ${med})`);
+  }
+
+  // ── 成員集合差分 ──
+  const prev = state.trtc && state.trtc.seen;
+  if (!prev) report.trtc.firstRun = live.size;  // 首次只建基準,不報 118 個「新增」
+  else {
+    for (const k of live) if (!(k in prev)) report.trtc.added.push(k);
+    for (const k of Object.keys(prev))
+      if (!live.has(k) && (prev[k] || 0) + 1 >= TRTC_GONE_AFTER) report.trtc.gone.push(k);
+  }
+  // 基準:出現的歸零、沒出現的累加。達門檻的報一次就從基準移除——它若再出現會被當新增,
+  // 資訊不會消失,而基準也不會無限長胖。
+  const seen = {};
+  for (const k of live) seen[k] = 0;
+  if (prev) for (const [k, miss] of Object.entries(prev)) {
+    if (live.has(k)) continue;
+    const n = (miss || 0) + 1;
+    if (n < TRTC_GONE_AFTER) seen[k] = n;
+  }
+  state.trtc = { seen, counts: [...hist, report.trtc.counts.trains].slice(-7) };
+}
+
 // ═══════════════ 執行 ═══════════════
 let probeFailed = false;
 try {
   if (want('tdx')) await probeTdx();
+  if (want('trtc')) await probeTrtc();
   if (want('news')) await probeNews();
   if (want('tra')) probeTra();
 } catch (e) { probeFailed = true; report.fatal = String(e.stack || e); }
 
-const acted = report.tdx.changed.length || report.news.newItems.length || (report.tra && report.tra.needsRefresh);
+// 北捷這面的健康度也算「要處理」:上游斷線與結構變動同樣會讓站上畫錯,
+// 不能像其他探針的 errors 那樣只印出來卻仍 exit 0。
+const acted = report.tdx.changed.length || report.news.newItems.length || (report.tra && report.tra.needsRefresh)
+  || report.trtc.added.length || report.trtc.gone.length || report.trtc.health.length;
 report.verdict = probeFailed ? 'probe-error' : acted ? 'action' : 'clean';
 
 // ── 人看的摘要 ──
@@ -314,11 +415,22 @@ if (hm.news.newItems.length) {
   console.log(`\n▍官網公告:${hm.news.newItems.length} 則新的`);
   for (const n of hm.news.newItems) console.log(`  [${n.name}] ${n.date}  ${n.title}`);
 } else if (want('news') && !probeFailed) console.log('\n▍官網公告:無新項目');
+if (want('trtc') && !probeFailed) {
+  const t = hm.trtc;
+  const size = t.counts ? `看板 ${t.counts.board} 列、列車 ${t.counts.trains} 台、站名 ${t.counts.stations} 個、站碼 ${t.counts.codes} 個` : '取不到';
+  if (t.firstRun != null) console.log(`\n▍北捷自家資料源:首次建立基準(不算變動),${t.firstRun} 個成員(${size})`);
+  else if (t.added.length || t.gone.length || t.health.length) {
+    console.log('\n▍北捷自家資料源(不走 TDX,上面那節照不到):');
+    for (const k of t.added) console.log(`  ＋ 新增 ${k}`);
+    for (const k of t.gone) console.log(`  － 連續 ${TRTC_GONE_AFTER} 次巡檢未出現 ${k}(也可能只是長期無車,要人看)`);
+    for (const h of t.health) console.log(`  ⚠ ${h}`);
+  } else console.log(`\n▍北捷自家資料源:與基準一致(${size})`);
+}
 if (hm.news.firstRun.length) console.log(`\n▍首次建立基準(不算變動):${hm.news.firstRun.map(f => `${f.name}×${f.count}`).join('、')}`);
 if (hm.tra) console.log(`\n▍台鐵班表窗:到 ${hm.tra.rangeEnd},剩 ${hm.tra.daysLeft} 天` + (hm.tra.needsRefresh ? '  ⚠ 需重抓' : ''));
-if (hm.tdx.errors.length || hm.news.errors.length) {
+if (hm.tdx.errors.length || hm.news.errors.length || hm.trtc.errors.length) {
   console.log('\n▍探針錯誤(這些來源今天沒驗到,不等於沒變):');
-  for (const e of [...hm.tdx.errors, ...hm.news.errors]) console.log(`  ${e.key || e.name}: ${e.error}`);
+  for (const e of [...hm.tdx.errors, ...hm.trtc.errors, ...hm.news.errors]) console.log(`  ${e.key || e.name}: ${e.error}`);
 }
 if (report.fatal) console.log('\n✗ 探針中斷:\n' + report.fatal);
 console.log(`\n判定:${report.verdict}`);
