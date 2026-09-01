@@ -650,9 +650,17 @@ struct Provider: AppIntentTimelineProvider {
         generatedAt: Date,
         delays: [String: Int]
     ) -> RailBoardEntry {
+        // 🔴 5 而不是 3。Provider 拿不到 `widgetFamily`（那是 View 層的 Environment），
+        //    所以這一個上限同時服務 small／medium／large ⇒ 必須取【最大家族的需求】。
+        //    2026-09-01 才發現：這裡卡在 3 的時候，large 的 `followLimit` 寫著 8／6 卻永遠
+        //    拿不到那麼多列，於是每一張 4x4 都在英雄列與底部兩列之間空掉整卡四成——
+        //    那不是邊角情況，是常態。設計稿「我的站 · 4x4 · 空間利用」診斷的正是這個。
+        //    5 ＝ large 分組版的容量（英雄 1 ＋ 從班 4），medium／small 自己再 prefix 一次。
+        //    刻意不加設計稿寫的「未來 90 分鐘」窗口：臺東這種下一班在兩小時後的站會整張變空卡，
+        //    與它自己「底線是給一句話，不是給一塊空白」的主張衝突。
         let upcoming = prepared.journeys
             .filter { $0.scheduledDate > entryDate }
-            .prefix(3)
+            .prefix(5)
         let rows = upcoming.map { journey in
             BoardRow(
                 trainNumber: journey.trainNumber,
@@ -1031,58 +1039,204 @@ struct LargeBoardView: View {
         GeometryReader { geo in
             let scale = RailScale(width: geo.size.width, reference: RailScale.mediumReference,
                                   readable: readable)
-            content(scale)
+            content(scale, height: geo.size.height)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .padding(RailBoardInsets.content)
     }
 
-    /// 🔴 八班（共九列），比設計檔字面的「8 列」多一列。
-    ///    設計檔的 large mock 是 7 從班＋主角，但實測那樣主角與從班之間會空 37pt——
-    ///    正是設計檔自己批評的「留大片空白」。算式：21（標題）＋4＋64（主角含副標）
-    ///    ＋32×8 ＝ 345／350，多這一列剛好把卡填滿。捷運看板 2026-08 也做過同一個判斷
-    ///    （MetroBoardWidget 的 followLimit 紅字：「Large 一開始寫 6 是照設計稿字面，
-    ///    但實測那樣底部會空 77pt」），兩張卡的取捨一致。
+    /// 五筆＝英雄 1 ＋ 從班 4（設計稿「我的站 · 4x4 · 空間利用」，2026-09-01）。
+    ///
+    /// 🔴 從「八班」改下來。舊值 8／6 是照著「資料層給得出八筆」寫的，但 Provider 那邊
+    ///    一直是 `.prefix(3)`（見 entry() 的紅字）⇒ 這個上限【從來沒有生效過】，實際每張
+    ///    4x4 都只有三列，而版面卻是照八列排的——設計稿診斷的「中段空白吃掉整卡四成」
+    ///    就是這麼來的。資料層已改成給五筆，這裡就照設計稿收在五筆。
+    /// 好讀版降一階：五筆 → 三筆（設計稿「特大字一律讓版位降一階」）。
     /// 班表警示那一行多吃 18pt ⇒ 少一班（同 Medium 的取捨：砍列不縮字）。
     private func followLimit(_ scale: RailScale) -> Int {
-        // 好讀版：21＋4＋76（主角含副標,倒數 52）＋40×6 ＝ 341／350 ⇒ 六班。
-        // 設計檔的對照表寫「large 列數 8 → 5」,但五班會空 89pt（同標準版那條紅字的理由）。
-        let full = scale.readable ? 6 : 8
+        let full = scale.readable ? 2 : 4
         return snapshot.notice == nil ? full : full - 1
     }
 
+    /// 依方向分組。組序＝該組最早那一班的先後，所以英雄（倒數最小的那一班）永遠落在
+    /// 第一組——設計稿：「誰是英雄由倒數決定，不由方向決定，所以英雄可能出現在北上那一組」。
+    private func grouped(_ rows: [BoardRow]) -> [(heading: RailHeading?, rows: [BoardRow])] {
+        var order: [RailHeading?] = []
+        var buckets: [[BoardRow]] = []
+        for row in rows {
+            if let index = order.firstIndex(where: { $0 == row.heading }) {
+                buckets[index].append(row)
+            } else {
+                order.append(row.heading)
+                buckets.append([row])
+            }
+        }
+        return (0..<order.count).map { (heading: order[$0], rows: buckets[$0]) }
+    }
+
+    /// 🔴 分組標頭只在【真的有兩個方向可分】而且每一列都知道自己的方向時才畫。
+    ///    單一方向時標頭換不到任何辨識，卻要吃掉一整列的高度；使用者 2026-08-31 對小尺寸
+    ///    的裁示（RailHeadingMark 的紅字：「維持逐列三角，不加分組標頭」）講的正是這件事，
+    ///    只是那時候的理由是「整張只有 2 班車」——那個「2 班」來自 entry() 的 3 筆上限。
+    ///    2026-09-01 使用者裁示：4x4 拉到五筆之後加標頭，4x2／2x2 維持逐列三角。
+    private func sectionsVisible(_ groups: [(heading: RailHeading?, rows: [BoardRow])]) -> Bool {
+        groups.count >= 2 && groups.allSatisfy { $0.heading != nil }
+    }
+
+    /// 每一列分到多少高度。
+    ///
+    /// 🔴 這裡【不用 Spacer 把從班釘在底部】。舊版是「英雄列 → Spacer → 從班」，於是剩餘空間
+    ///    全部堆在中間變成一個洞（班次少時吃掉整卡四成）。改成：固定的東西（標題／警示／
+    ///    分組標頭／頁尾）先扣掉，剩下的按權重分給列，英雄列權重 1.35；分完還有剩就平均
+    ///    加到每一列的框高上（`.frame(height:)` 會把內容置中 ⇒ 剩餘空間變成每列上下對稱的
+    ///    留白，讀起來是刻意的鬆，不是一個洞）。
+    /// 回傳值是【設計基準座標系】的點數（332pt 寬那把尺），由 RailRow 再乘 scale.k。
+    private func rowHeights(freeRef: CGFloat, rows: Int, scale: RailScale) -> (hero: CGFloat, follow: CGFloat) {
+        let minRow: CGFloat = scale.readable ? 46 : 34
+        let maxRow: CGFloat = scale.readable ? 96 : 74
+        let heroWeight: CGFloat = 1.35
+        guard rows > 0 else { return (minRow * heroWeight, minRow) }
+        let weight = heroWeight + CGFloat(rows - 1)
+        let unit = min(maxRow, max(minRow, freeRef / weight))
+        // 上限 0.6 倍：兩班車的時候若把剩下的全部攤平，一列會高到看起來像三張卡疊著。
+        let extra = min(max(0, freeRef - unit * weight) / CGFloat(rows), unit * 0.6)
+        return (unit * heroWeight + extra, unit + extra)
+    }
+
+    /// 設計稿「班次不足五筆時怎麼填」的最後一階：三種填補都沒有時給一句話。
+    /// 🔴 只在【真的問完了】才講——湊不滿五筆而且最後一班是今天的末班車。單純「這次只抓到
+    ///    三筆」不等於今天沒車了，把它講成沒車是替官方多說一句話。
+    private func fillsTail(_ rows: [BoardRow], scale: RailScale) -> Bool {
+        guard rows.count < followLimit(scale) + 1, let last = rows.last, last.isLastOfDay else {
+            return false
+        }
+        return RailBoardClock.calendar.isDate(last.scheduledDate, inSameDayAs: entryDate)
+    }
+
     @ViewBuilder
-    private func content(_ scale: RailScale) -> some View {
-        let follows = Array(snapshot.rows.dropFirst().prefix(followLimit(scale)))
+    private func content(_ scale: RailScale, height: CGFloat) -> some View {
+        let rows = Array(snapshot.rows.prefix(followLimit(scale) + 1))
+        let groups = grouped(rows)
+        let sections = sectionsVisible(groups)
+        // 🔴 先把實際高度換算回設計基準座標系（332pt 寬那把尺）再算，最後由 RailRow 乘回去。
+        //    直接拿 geo 的實際高度去分會在 393pt 機型（k≈0.92）上雙重縮放。
+        let refHeight = height / max(scale.k, 0.01)
+        let headerRef: CGFloat = scale.readable ? 24 : 20
+        let footerRef: CGFloat = scale.readable ? 19 : 16
+        let noticeRef: CGFloat = snapshot.notice == nil ? 0 : 18
+        let fixedRef = RailRowHeight.cardTitle + 4 + noticeRef + footerRef
+            + (fillsTail(rows, scale: scale) ? footerRef : 0)
+            + (sections ? headerRef * CGFloat(groups.count) : 0)
+        let heights = rowHeights(freeRef: refHeight - fixedRef, rows: rows.count, scale: scale)
+
         VStack(alignment: .leading, spacing: 0) {
             RailCardTitle(title: RailNativeL10n.name(snapshot.title), scale: scale) {
-                RailStamp(text: RailBoardClock.updateTimeString(snapshot.generatedAt), scale: scale)
+                // 設計稿的特大字版把「更新」兩個字收掉，只留裸時刻（頁尾那行會補講一次）。
+                RailStamp(text: RailBoardClock.updateTimeString(snapshot.generatedAt),
+                          suffix: scale.readable ? "" : "更新", scale: scale)
             }
             if let notice = snapshot.notice {
                 BoardNotice(notice: notice, scale: scale)
                     .frame(height: scale.pt(18), alignment: .leading)
-                Spacer().frame(height: scale.pt(4))
-            } else {
-                Spacer().frame(height: scale.pt(4))
             }
+            Spacer().frame(height: scale.pt(4))
 
-            if let lead = snapshot.rows.first {
-                // large 是唯一畫主角副標的尺寸：「發車時刻與月台那一行讓給 large」。
-                BoardRowView(row: lead, snapshot: snapshot, entryDate: entryDate,
-                             role: .hero, scale: scale)
+            if rows.isEmpty {
+                // 🔴 一班都沒有時把那句話擺在卡的正中間，並且【不畫】頁尾的免責聲明——
+                //    「時刻表班次不含即時誤差」在沒有任何班次的卡上是一句沒有主詞的話。
+                //    設計稿：「4x4 不能收合高度，所以底線是給一句話，不是給一塊空白。」
                 Spacer(minLength: 0)
-                ForEach(Array(follows.enumerated()), id: \.offset) { index, row in
-                    BoardRowView(row: row, snapshot: snapshot, entryDate: entryDate,
-                                 role: .followLarge, scale: scale)
-                }
-            } else {
                 Text(RailNativeL10n.text(snapshot.emptyMessage ?? "查無班次"))
-                    .font(.system(size: scale.pt(15)))
+                    .font(.system(size: scale.pt(15, readable: 20)))
                     .foregroundStyle(.secondary)
+                    .lineLimit(2).multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity, alignment: .center)
                 Spacer(minLength: 0)
+            } else {
+                ForEach(Array(largeItems(groups, sections: sections).enumerated()), id: \.offset) { _, item in
+                    if let heading = item.header {
+                        BoardDirectionHeader(heading: heading, height: headerRef, scale: scale)
+                    }
+                    BoardRowView(row: item.row, snapshot: snapshot, entryDate: entryDate,
+                                 role: item.isHero ? .hero : .followLarge,
+                                 // 設計稿特大字版：後兩列只留倒數，開車時刻那一行一起收。
+                                 showsDepartureLine: item.isHero || !scale.readable,
+                                 showsHeading: !sections,
+                                 heightOverride: item.isHero ? heights.hero : heights.follow,
+                                 scale: scale)
+                }
+                Spacer(minLength: 0)
+                if fillsTail(rows, scale: scale) {
+                    Text(RailNativeL10n.text("今日往後已無班次"))
+                        .font(.system(size: scale.pt(11, readable: 15)))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1).minimumScaleFactor(0.8)
+                        .frame(height: scale.pt(footerRef), alignment: .leading)
+                }
+                // 頁尾：設計稿把「資料年齡」與「免責聲明」列為最先被切掉、卻正好是誠實的那兩件，
+                // 所以它是固定扣掉的高度，不參與分配。
+                Text(RailNativeL10n.text(
+                        scale.readable ? "不含即時誤差 · {time} 更新" : "時刻表班次不含即時誤差 · {time} 更新",
+                        ["time": RailBoardClock.updateTimeString(snapshot.generatedAt)]))
+                    .font(.system(size: scale.pt(11, readable: 15)))
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1).minimumScaleFactor(0.8)
+                    .frame(height: scale.pt(footerRef), alignment: .leading)
             }
         }
+    }
+
+    /// 攤平成「這一項前面要不要先畫標頭」的清單，避免在 ViewBuilder 裡做兩層 ForEach
+    /// 又要自己算全域序號（英雄＝全域第一列，也就是第一組的第一列）。
+    private struct LargeItem {
+        let header: RailHeading?
+        let row: BoardRow
+        let isHero: Bool
+    }
+
+    private func largeItems(_ groups: [(heading: RailHeading?, rows: [BoardRow])],
+                            sections: Bool) -> [LargeItem] {
+        var items: [LargeItem] = []
+        for group in groups {
+            var first = true
+            for row in group.rows {
+                items.append(LargeItem(header: (sections && first) ? group.heading : nil,
+                                       row: row, isHero: items.isEmpty))
+                first = false
+            }
+        }
+        return items
+    }
+}
+
+/// 方向區段標頭：三角＋「北上／南下」＋一條延伸到右緣的細線。
+///
+/// 設計稿「我的站 · 4x4」：「方向箭頭只畫一次，省下的每列 20pt 拿去放時刻。」
+/// 🔴 只有 Large 用它。4x2 只有三筆、2x2 只有一筆，兩個標頭會把版面吃光——那是使用者
+///    2026-08-31 的裁示，2026-09-01 只對 4x4 解除。
+struct BoardDirectionHeader: View {
+    let heading: RailHeading
+    var height: CGFloat = 20
+    var scale: RailScale = RailScale(k: 1)
+
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.railMonochrome) private var mono
+
+    var body: some View {
+        HStack(spacing: scale.pt(5)) {
+            RailHeadingMark(heading: heading, side: 10, scale: scale)
+            Text(RailNativeL10n.text(heading == .north ? "北上" : "南下"))
+                // 11pt 地板（設計稿：小工具不能捲動，塞不下就是無聲的資料遺失）。
+                .font(.system(size: scale.pt(11, readable: 15), weight: .semibold))
+                .foregroundStyle(mono
+                    ? AnyShapeStyle(HierarchicalShapeStyle.secondary)
+                    : AnyShapeStyle(RailTokens.directionColor(heading, scheme, readable: scale.readable)))
+                .lineLimit(1).fixedSize()
+            Rectangle()
+                .fill(Color.secondary.opacity(0.22))
+                .frame(height: 1)
+        }
+        .frame(height: scale.pt(height))
     }
 }
 
@@ -1200,9 +1354,20 @@ struct BoardRowView: View {
     /// v2 設計稿把它**只留給 large**：「發車時刻與月台那一行讓給 large——這個尺寸先回答
     /// 『接下來有哪幾班』」。Medium 拿那一行的高度換第四班車（138pt 預算只夠選一個）。
     var showsDepartureLine: Bool = true
+    /// 逐列方向三角要不要畫。Large 分組版把方向升成區段標題之後，列上就不再重複畫一次
+    /// （設計稿：「方向箭頭只畫一次」）；4x2／2x2 仍然逐列畫（2026-08-31 裁示）。
+    var showsHeading: Bool = true
+    /// 由呼叫端算好的列高（設計基準座標系）。Large 分組版把剩餘空間平均分給每一列，
+    /// 所以列高不再是常數——nil 時退回 RailRowHeight 的固定值。
+    var heightOverride: CGFloat? = nil
     var scale: RailScale = RailScale(k: 1)
 
     private var isHero: Bool { role == .hero }
+
+    /// 從班也把「開車時刻 · 準點／誤點」疊在自己底下（設計稿：「每列都帶開車時刻與準點／
+    /// 誤點，品質資訊不再只出現在第一列」）。疊了之後那一行就是狀態的唯一出處，
+    /// 列內的 followStatus 與發車時刻欄要一起收掉，否則同一個時刻會在同一列印兩次。
+    private var stacked: Bool { role == .followLarge && showsDepartureLine }
 
     /// 好讀版：車次號只留在 large 的主角列。
     /// 設計檔規則四「砍欄不砍字」有兩句話，各管一半：
@@ -1214,6 +1379,7 @@ struct BoardRowView: View {
     private var hidesTrainNumber: Bool { scale.readable && !(isHero && showsDepartureLine) }
 
     private var height: CGFloat {
+        if let heightOverride { return heightOverride }
         switch role {
         case .hero:        return scale.readable ? RailRowHeight.heroReadable : RailRowHeight.hero
         case .follow:      return scale.readable ? RailRowHeight.followReadable
@@ -1244,7 +1410,7 @@ struct BoardRowView: View {
                 HStack(spacing: scale.pt(7)) {
                     // v2 設計稿的主角階：車種標 12pt、車次 15pt、終點站 26pt。
                     // 拿掉軌脊省下的 21pt 全給終點站——26pt 的「往 潮州」不再需要截字。
-                    if let heading = row.heading {
+                    if showsHeading, let heading = row.heading {
                         RailHeadingMark(heading: heading, scale: scale)
                     }
                     // 🔴 好讀版砍欄不砍字：車次號在 small／medium 直接不顯示（設計檔
@@ -1262,7 +1428,7 @@ struct BoardRowView: View {
                 if showsDepartureLine { subtitle }
             } else {
                 HStack(spacing: scale.pt(7)) {
-                    if let heading = row.heading {
+                    if showsHeading, let heading = row.heading {
                         RailHeadingMark(heading: heading, side: 10, scale: scale)
                     }
                     RailTrainMark(kind: row.trainType,
@@ -1282,14 +1448,16 @@ struct BoardRowView: View {
                         .lineLimit(1).minimumScaleFactor(0.7)
                     if row.isPassing { PassBadge(scale: scale) }
                     Spacer(minLength: scale.pt(4))
-                    followStatus
+                    // 🔴 分組版（stacked）的狀態與時刻都搬到底下那一行了 ⇒ 列內不再畫，
+                    //    否則同一個時刻會在同一列出現兩次（舊版就踩過，算繪實看到疊字）。
+                    if !stacked { followStatus }
                     // large 才有的發車時刻欄。設計檔：「large 多一個發車時刻欄；長等待用時刻
                     // 回答比用分鐘準」——40 分鐘後那班，「12:04」比「38 分」好用。
                     // 🔴 倒數已經退成靜態時刻（>90 分鐘）時不畫：那時數字欄畫的就是這個時刻，
                     //    畫兩次會讓人以為是兩個不同的時間。
                     // 🔴 好讀版不畫這一欄：字級放大後六欄放不下（破版 gate 抓到），而設計檔
                     //    好讀版的 mock 也沒有發車時刻欄。分鐘欄已經回答了「還要多久」。
-                    if role == .followLarge, !showsClock, !scale.readable {
+                    if role == .followLarge, !stacked, !showsClock, !scale.readable {
                         // 🔴 用 scheduledTime 不用 departureText：後者在誤點時是
                         //    「21:43 開 → 21:46」的雙時刻長句（實測 110pt），塞進 40pt 的欄
                         //    不會被裁掉——SwiftUI 的 frame 不裁切，它會直接畫到隔壁的狀態上面
@@ -1302,6 +1470,7 @@ struct BoardRowView: View {
                             .frame(width: scale.pt(40, readable: 52), alignment: .trailing)
                     }
                 }
+                if stacked { subtitle }
             }
         } trailing: {
             RailCountdownText(value: BoardCountdown.of(row: row, at: entryDate),
@@ -1311,21 +1480,33 @@ struct BoardRowView: View {
     }
 
     /// 主角列副標：「11:38 開 · 準點 · 抵 12:34」。誤點時前段變成「11:35 開 → 11:41」。
+    /// 從班的副標壓到 11pt（設計稿的地板），主角維持 13pt。
+    private var subtitleSize: CGFloat { isHero ? 13 : 11 }
+
+    /// 🔴 從班的副標用【短式】時刻：主角那條「14:03 開 → 14:05」雙時刻長句在 11pt 的
+    ///    從班列上會把「· 誤 2 分」擠出去，而設計稿的 mock 從班寫的正是「14:03 開 · 誤 2 分」。
+    private var departureLineText: String {
+        stacked
+            ? RailNativeL10n.text("{time} {action}",
+                                  ["time": row.scheduledTime, "action": row.relationWord])
+            : row.departureText
+    }
+
     private var subtitle: some View {
         HStack(spacing: scale.pt(5)) {
             if showsClock {
-                RailStatusTag(kind: .custom(sameDay ? "表定" : "明天"), fontSize: 13, scale: scale)
+                RailStatusTag(kind: .custom(sameDay ? "表定" : "明天"), fontSize: subtitleSize, scale: scale)
             } else {
-                Text(sameDay ? row.departureText : RailNativeL10n.text("明天 {value}", ["value": row.departureText]))
+                Text(sameDay ? departureLineText : RailNativeL10n.text("明天 {value}", ["value": departureLineText]))
                     .monospacedDigit()
             }
             if let kind = row.statusKind {
                 dot
-                RailStatusTag(kind: kind, fontSize: 13, scale: scale)
+                RailStatusTag(kind: kind, fontSize: subtitleSize, scale: scale)
             }
             if row.isLastOfDay, sameDay {
                 dot
-                RailStatusTag(kind: .lastTrain, fontSize: 13, scale: scale)
+                RailStatusTag(kind: .lastTrain, fontSize: subtitleSize, scale: scale)
             } else if !snapshot.isWatching, row.lateMinutes == 0,
                       let arrival = row.arrivalText {
                 // 🔴 誤點時【不】再加抵達時刻：那一行已經有「11:35 開 → 11:41」與
@@ -1336,7 +1517,7 @@ struct BoardRowView: View {
             }
             Spacer(minLength: 0)
         }
-        .font(.system(size: scale.pt(13)))
+        .font(.system(size: scale.pt(subtitleSize, readable: subtitleSize * 1.5)))
         .foregroundStyle(.secondary)
         .lineLimit(1)
         .minimumScaleFactor(0.85)

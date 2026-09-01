@@ -105,6 +105,8 @@ const pieces = [
   extractDeclaration(widgetSource, 'struct SmallSecondRow'),
   extractDeclaration(widgetSource, 'struct MediumBoardView'),
   extractDeclaration(widgetSource, 'struct LargeBoardView'),
+  // 4x4 的方向區段標頭（2026-09-01 設計稿）。抽不到就會編不起來，那正是我們要的訊號。
+  extractDeclaration(widgetSource, 'struct BoardDirectionHeader'),
   extractDeclaration(widgetSource, 'struct BoardRowView'),
   extractDeclaration(widgetSource, 'struct RectangularBoardView'),
   extractDeclaration(widgetSource, 'struct SmallPlaceBoardView'),
