@@ -7,6 +7,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const indexSource = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const dictionarySource = fs.readFileSync(path.join(root, 'i18n/translations.js'), 'utf8');
 const contentDictionarySource = fs.readFileSync(path.join(root, 'i18n/content-translations.js'), 'utf8');
+const busTransferDictionarySource = fs.readFileSync(path.join(root, 'i18n/bus-transfer-translations.js'), 'utf8');
+const busTransferSource = fs.readFileSync(path.join(root, 'bus-transfer-ui.js'), 'utf8');
 const catalog = JSON.parse(fs.readFileSync(path.join(root, 'i18n/stations.json'), 'utf8'));
 const specialData = JSON.parse(fs.readFileSync(path.join(root, 'data/tra_special_trains.json'), 'utf8'));
 const legalDictionarySource = fs.readFileSync(path.join(root, 'i18n/legal-translations.js'), 'utf8');
@@ -18,6 +20,7 @@ const sandbox = { window: {} };
 vm.createContext(sandbox);
 vm.runInContext(dictionarySource, sandbox, { filename: 'i18n/translations.js' });
 vm.runInContext(contentDictionarySource, sandbox, { filename: 'i18n/content-translations.js' });
+vm.runInContext(busTransferDictionarySource, sandbox, { filename: 'i18n/bus-transfer-translations.js' });
 vm.runInContext(legalDictionarySource, sandbox, { filename: 'i18n/legal-translations.js' });
 const messages = sandbox.window.RAIL_I18N_MESSAGES || {};
 const languages = ['en', 'ja'];
@@ -32,6 +35,7 @@ for (const key of keySets.ja || []) if (!keySets.en.has(key)) fail(`en 缺少 ja
 
 // runtime 直接呼叫 t('繁中原文') 的 key 必須兩種外語都有；動態變數 key 另外由核心清單守門。
 const literalKeys = [...indexSource.matchAll(/\bt\(\s*(['"])((?:\\.|(?!\1).)*)\1/g)].map(match => match[2]);
+literalKeys.push(...[...busTransferSource.matchAll(/\btr\(\s*(['"])((?:\\.|(?!\1).)*)\1/g)].map(match => match[2]));
 for (const key of new Set(literalKeys)) {
   for (const lang of languages) if (!keySets[lang]?.has(key)) fail(`${lang} 缺少 runtime key：${key}`);
 }
