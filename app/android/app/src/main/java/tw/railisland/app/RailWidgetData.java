@@ -24,6 +24,7 @@ import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Comparator;
@@ -68,11 +69,14 @@ final class RailWidgetData {
         final String name;
         final double lat;
         final double lon;
+        /** 縣市；打包目錄才有，線上精簡檔沒有這一欄時是空字串。 */
+        final String region;
 
-        Station(String name, double lat, double lon) {
+        Station(String name, double lat, double lon, String region) {
             this.name = name;
             this.lat = lat;
             this.lon = lon;
+            this.region = region == null ? "" : region;
         }
     }
 
@@ -157,7 +161,8 @@ final class RailWidgetData {
             if (stationList != null) for (int i = 0; i < stationList.length(); i++) {
                 JSONObject one = stationList.optJSONObject(i);
                 if (one == null) continue;
-                Station station = new Station(one.optString("name", ""), one.optDouble("lat"), one.optDouble("lon"));
+                Station station = new Station(one.optString("name", ""), one.optDouble("lat"),
+                    one.optDouble("lon"), one.optString("region", ""));
                 if (station.name.isEmpty()) continue;
                 stations.add(station);
                 stationByName.put(station.name, station);
@@ -326,6 +331,46 @@ final class RailWidgetData {
             out.compositeByKey.put(one.key, one);
         }
         cachedCatalog = out;
+        return out;
+    }
+
+    /** 起站清單的縣市分段順序，由北到南沿幹線走；與 iOS 的 StationOption.regionOrder 同一份。 */
+    private static final List<String> REGION_ORDER = Arrays.asList(
+        "基隆市", "臺北市", "新北市", "桃園市", "新竹市", "新竹縣", "苗栗縣",
+        "臺中市", "彰化縣", "南投縣", "雲林縣", "嘉義市", "嘉義縣", "臺南市",
+        "高雄市", "屏東縣", "臺東縣", "花蓮縣", "宜蘭縣");
+
+    /** 分段標頭在 originKeys 裡的前綴，讓標頭與站名共用同一個索引空間。 */
+    static final String REGION_HEADER = "\u0000region\u0000";
+
+    /**
+     * 依縣市分段的起站清單（與 iOS AppIntent 的 stationRegionSections 同語意）。名單外的縣市
+     * 排在後面，沒有縣市的收進「其他」放最後——任何一站都不會因為查不到縣市而消失。
+     * 整份目錄都沒有縣市時（舊資產／線上精簡檔）回 null，讓呼叫端退回原本的班表順序平鋪。
+     */
+    static LinkedHashMap<String, List<Station>> stationsByRegion(SystemInfo system) {
+        if (system == null) return null;
+        boolean any = false;
+        for (Station station : system.stations) if (!station.region.isEmpty()) { any = true; break; }
+        if (!any) return null;
+        LinkedHashMap<String, List<Station>> byRegion = new LinkedHashMap<>();
+        for (Station station : system.stations) {
+            String region = station.region.isEmpty() ? "其他" : station.region;
+            List<Station> bucket = byRegion.get(region);
+            if (bucket == null) { bucket = new ArrayList<>(); byRegion.put(region, bucket); }
+            bucket.add(station);
+        }
+        List<String> order = new ArrayList<>();
+        for (String region : REGION_ORDER) if (byRegion.containsKey(region)) order.add(region);
+        List<String> rest = new ArrayList<>();
+        for (String region : byRegion.keySet()) {
+            if (!"其他".equals(region) && !REGION_ORDER.contains(region)) rest.add(region);
+        }
+        Collections.sort(rest);
+        order.addAll(rest);
+        if (byRegion.containsKey("其他")) order.add("其他");
+        LinkedHashMap<String, List<Station>> out = new LinkedHashMap<>();
+        for (String region : order) out.put(region, byRegion.get(region));
         return out;
     }
 
