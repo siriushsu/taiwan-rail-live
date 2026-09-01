@@ -26,6 +26,7 @@
  "data/tra_special_trains.json": "9459957812780e87ee83b35828d8d0f2",
  "data/tra_station_class.json": "699165b04d8f70294b1d0d15e462d58c",
  "data/tra_station_info.json": "e9f9108b960c026c12b35ecbb6cdf9c3",
+ "data/transfer_departures.json": "89f78c5f36644025b982f1befe2bc98b",
  "data/trtc.json": "d412128a902bae91e8e4faaf1191a840",
  "data/trtc_codes.json": "7421673a20c110c4e8305b88667e37b1",
  "data/trtc_times.json": "234afed6991e14f0dc0fea9c2331f3cb",
