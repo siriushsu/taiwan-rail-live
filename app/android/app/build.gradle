@@ -16,7 +16,7 @@ android {
         if (project.hasProperty("railApplicationId")) applicationId project.property("railApplicationId")
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 28
+        versionCode 29
         versionName "1.5.2"
         if (project.hasProperty("railVersionName")) versionName project.property("railVersionName")
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
