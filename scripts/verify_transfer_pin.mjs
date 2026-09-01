@@ -223,6 +223,80 @@ if (real.ok && real.fp.length && real.tc.length) {
   ok('G8c 真實路徑下釘選後 tcConn 也同步收斂成同一班', false, '前置 G8/G8b 未成立,無法測(見上方 detail)');
 }
 
+// ── G9/G9b —— Finding A:釘選不可跨轉乘群外溢(2026-09-01 修復輪1) ────────────────
+// 真實資料核實(node 抽取 transferConnections 直接對 data/transfer_departures.json 跑):
+// THSR 0841 同時是 T-THSR-1000(89 班候選,自然 top2=1208/2233,不含 0841)與
+// T-THSR-1060(29 班候選,自然 top2=0838/0658,不含 0841)兩個群的候選——0841 不在任一群
+// 的自然 top2,無法靠點一顆自然渲染出來的列觸發,所以直接呼叫 setXferPin(production 本尊,
+// 不是點擊模擬)把它釘進 T-THSR-1000 這一群。
+const AT_A = S(15, 38);
+const before9 = await page.evaluate(({ gidA, gidB, at }) => {
+  setTransferConn('fpConn', gidA, at, null);
+  setTransferConn('fcConn', gidB, at, null);
+  return {
+    fp: [...document.querySelectorAll('#fpConn .xfc-row')].map(e => e.dataset.xn),
+    fc: [...document.querySelectorAll('#fcConn .xfc-row')].map(e => e.dataset.xn),
+  };
+}, { gidA: 'T-THSR-1000', gidB: 'T-THSR-1060', at: AT_A });
+ok('G9pre 兩容器種了不同轉乘群、且都不是碰巧已含 0841(測試前提成立)',
+  before9.fp.length >= 2 && before9.fc.length >= 2 &&
+  !before9.fp.includes('0841') && !before9.fc.includes('0841'), JSON.stringify(before9));
+
+const after9 = await page.evaluate(() => {
+  setXferPin('T-THSR-1000', '0841', 'THSR');
+  return {
+    fp: [...document.querySelectorAll('#fpConn .xfc-row')].map(e => e.dataset.xn),
+    fc: [...document.querySelectorAll('#fcConn .xfc-row')].map(e => e.dataset.xn),
+    fpUnpin: document.querySelectorAll('#fpConn .xfc-unpin').length,
+    fcUnpin: document.querySelectorAll('#fcConn .xfc-unpin').length,
+  };
+});
+// 正向對照:先證明真的會收斂,不是「怎麼點都不動」讓下面那條假安全通過。
+ok('G9 釘選在自己那一群(T-THSR-1000)裡生效', after9.fp.length === 1 && after9.fp[0] === '0841' && after9.fpUnpin === 1,
+  JSON.stringify(after9));
+// Finding A 核心斷言:pinned 比對式拿掉 g===groupId 會讓這裡轉紅(T-THSR-1060 也會誤收斂成 0841)。
+ok('G9b 不外溢到別的轉乘群(T-THSR-1060 維持原狀、無取消釘選鈕)',
+  JSON.stringify(after9.fc) === JSON.stringify(before9.fc) && after9.fcUnpin === 0, JSON.stringify(after9));
+await page.evaluate(() => clearXferPin());
+
+// ── G10 —— Finding B:fcConn 唯一正式呼叫點(updateFreqCard,index.html:10172) ──────
+// G0–G8c 種 fcConn 都是直接呼叫 setTransferConn,測不到「updateFreqCard 裡有沒有正確呼叫
+// setTransferConn('fcConn', …)」這件事——審查實測刪掉那一行,21/21 仍全線。這裡改走真實
+// 捷運跟隨路徑:loadSystem('mrt')→BL 線→直接呼叫 updateFreqCard(production 本尊),引數抄自
+// verify_station_transfer_ui.mjs 既有驗證過的組合(「台北車站」經 transferAnchorNear 正規化
+// 解到 gid=T-THSR-1000,已用 probe 核實 nextSec=63060 下有 93 筆候選、非空)。
+const freq10 = await page.evaluate(() => {
+  loadSystem(state.systems.find(s => s.id === 'mrt'));
+  const ln = (state.lines || []).find(l => l.id === 'BL');
+  if (!ln) return { ok: false, reason: '找不到 BL 線' };
+  state.freqFollow = { ln, k: 0 };
+  document.getElementById('freqCard').hidden = false;
+  updateFreqCard({ nextName: '台北車站', nextSec: 63060, loop: false, termName: '南港展覽館' });
+  return { ok: true, fc: [...document.querySelectorAll('#fcConn .xfc-row')].map(e => e.dataset.xn) };
+});
+ok('G10 真實產線路徑(updateFreqCard→fcConn)收到接續資料(刪掉 index.html:10172 那行會在這裡就地現形)',
+  freq10.ok && freq10.fc.length >= 1, JSON.stringify(freq10));
+
+// ── G11 —— Finding C:同車次號、不同系統的釘選消歧(2026-09-01 修復輪1) ─────────────
+// 真實資料核實:T-THSR-1000 群裡車次「1238」同時是 THSR(sec=61020)與 TRA(sec=67500)兩筆
+// 獨立候選,AT_C=58000 落在 [56700,61020] 之間確保兩筆同時在 3 小時窗內。rows 依 sec 升冪
+// 排序,若 pinned 比對式拿掉 && r.sys===xferPin.sys,rows.find 只認車次號會先比對到時間較早
+// 的 THSR 那筆——即便釘的明明是 TRA。
+const AT_C = 58000;
+const before11 = await page.evaluate(({ gid, at }) => {
+  setTransferConn('fpConn', gid, at, null);
+  return [...document.querySelectorAll('#fpConn .xfc-row')].map(e => e.dataset.xn);
+}, { gid: 'T-THSR-1000', at: AT_C });
+ok('G11pre 種好 T-THSR-1000 @ AT_C(測試前提:容器有資料可看)', before11.length >= 1, JSON.stringify(before11));
+
+const after11 = await page.evaluate(() => {
+  setXferPin('T-THSR-1000', '1238', 'TRA');
+  return [...document.querySelectorAll('#fpConn .xfc-row')].map(e => ({ n: e.dataset.xn, sys: e.dataset.xs }));
+});
+ok('G11 釘選同車次號時依 sys 消歧(拿掉 r.sys 比對會在這裡轉紅——會誤收斂成時間較早的 THSR 1238)',
+  after11.length === 1 && after11[0].n === '1238' && after11[0].sys === 'TRA', JSON.stringify(after11));
+await page.evaluate(() => clearXferPin());
+
 ok('Z 頁面零例外', errors.length === 0, errors.slice(0, 3).join(' | '));
 
 await browser.close();

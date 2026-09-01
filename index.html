@@ -6117,7 +6117,9 @@ const state = {
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
   stationTransfers: null, stationTransferAnchors: [], stationTransferGroups: new Map(), stationTransferBySystemName: new Map(),
   transferDepartures: null, // 轉乘接續:轉乘群當日對向班次表(data/transfer_departures.json),缺檔或版本不符仍為 null,功能靜默消失
-  xferPin: null, // 轉乘接續:釘選中的那一班 { n, sys } | null(點一列只剩那一班,2026-09-01 裁示)
+  xferPin: null, // 轉乘接續:釘選中的那一班 { g, n, sys } | null(點一列只剩那一班,2026-09-01 裁示;
+  // g=所屬轉乘群 groupId——3 小時視窗大於高鐵全線行駛時間,同一班車常同時是多個群的候選,
+  // 不綁 g 會讓釘選跨群外溢,見 2026-09-01 修復輪1 Finding A)
   playing: true, speedMult: 1, hour: 8, simSec: 8 * 3600, // 開機即 1× 真實時刻(2026-07-11 使用者裁決,舊示意預設 50×)
   dpr: 1, powerSave: false, t0: 0, elapsed: 0, ready: false, // powerSave:省電模式(相機置中+繪製統一降 30fps,手機預設開),見 tick 節流
 
@@ -16371,7 +16373,10 @@ function xfcSysName(sys) {
 function transferConnectionHtml(groupId, atSec, fromSys) {
   const rows = transferConnections(groupId, atSec, fromSys);
   if (!rows.length) return '';
-  const pinned = state.xferPin && rows.find(r => r.n === state.xferPin.n && r.sys === state.xferPin.sys);
+  // g 必須先比對:不比對的話同一班車若同時是另一個轉乘群的候選,那個群渲染時會誤收斂
+  // (2026-09-01 修復輪1 Finding A,真實資料實測 THSR 0841 同時是 6 個群的候選)。
+  const pinned = state.xferPin && state.xferPin.g === groupId &&
+    rows.find(r => r.n === state.xferPin.n && r.sys === state.xferPin.sys);
   const show = pinned ? [pinned] : rows.slice(0, 2);
   // 標題能指名單一系統的條件:非釘選 且 入選各列同系統。混系統(捷運卡的常態——fromSys=null
   // 時常常一班台鐵一班高鐵)或釘選態一律用中性標題,改成每一列前面加系統小標——否則「轉高鐵」
@@ -16420,15 +16425,28 @@ function refreshXferConns() {
 }
 // 轉乘釘選。高鐵是對號座,轉高鐵的人多半已經有票——他不是在「選一班」,是在輸入一個他早就
 // 知道的事實,其餘班次對他是雜訊,甚至會讓他以為趕得上一班他根本上不去的車。釘選後只剩那一班
-// (2026-09-01 裁示)。
-function setXferPin(n, sys) { state.xferPin = { n, sys }; refreshXferConns(); }
+// (2026-09-01 裁示)。g 一定要傳:釘選只在它自己那一群裡有效(修復輪1 Finding A),
+// 刻意不在 setFollow/換車時清掉——同一個轉乘群可能在跟隨不同班車時再度出現,清掉反而更糟。
+function setXferPin(g, n, sys) { state.xferPin = { g, n, sys }; refreshXferConns(); }
 function clearXferPin() { state.xferPin = null; refreshXferConns(); }
 // 事件委派掛在 document 上(三個實例會被 setTransferConn 整段 innerHTML 重畫,直接綁在
 // .xfc-row/.xfc-unpin 本身會被重畫洗掉)。兩個 closest 都限定 .xfer-conn 祖先,不可裸寫
 // .xfc-row/.xfc-unpin——.xc-row(平交道卡)是完全不同的 class,但比照它的教訓仍舊自己作用域化。
 document.addEventListener('click', e => {
   const row = e.target.closest && e.target.closest('.xfer-conn .xfc-row');
-  if (row) { setXferPin(row.dataset.xn, row.dataset.xs); return; }
+  if (row) {
+    // groupId 只認 xferConnArgs 這一份真相(該容器最後一次收到的參數),不另外寫進 data-
+    // 屬性——同一件事兩份來源會漂移。⚠️ transferConnectionHtml 回傳的字串自己也包一層
+    // <div class="xfer-conn">,被 innerHTML 插進外層容器(#fpConn/#fcConn/#tcConn,本身也是
+    // class="xfer-conn")後 DOM 變兩層同 class 巢狀、只有外層有 id——closest('.xfer-conn')
+    // 會先命中內層那個沒有 id 的 div(box.id 是空字串,xferConnArgs.get('') 是 undefined,
+    // 釘選整個失效),必須用 [id] 限定只認外層。這層巢狀冗餘是 Task 3 留下的既有結構、
+    // verify_transfer_connections.mjs 的 G12 斷言著它的完整字串,本輪不去動它,只在這裡繞開。
+    const box = row.closest('.xfer-conn[id]');
+    const args = box && xferConnArgs.get(box.id);
+    if (args) setXferPin(args[0], row.dataset.xn, row.dataset.xs);
+    return;
+  }
   if (e.target.closest && e.target.closest('.xfer-conn .xfc-unpin')) clearXferPin();
 });
 

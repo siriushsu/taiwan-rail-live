@@ -220,7 +220,10 @@ ok('G19c 混系統:兩列小標不同', sysTags.length === 2 && sysTags[0] !== s
 // G20 —— 釘選(state.xferPin 指到 r1 的第一筆):標題不指名系統、改成「你的接續班次」,
 // 且該列仍有 xfc-sys 小標——釘選態的標題從來不指名系統,不給小標就等於整塊沒有系統資訊
 // (findings 明文要求的第三格)。用完把 xferPin 歸位,不影響後面任何斷言。
-hState.xferPin = { n: r1[0].n, sys: r1[0].sys };
+// g 必須帶且要等於這裡查詢用的 GID_TAICHUNG——2026-09-01 修復輪1 Finding A 之後
+// pinned 判斷式多比對一個 g===groupId,這個 stub 若不帶 g 會恆假、G20/G20b 恆紅
+// (與生產碼邏輯無關,純粹是這份 sandbox fixture 沒跟著新 shape 更新)。
+hState.xferPin = { g: GID_TAICHUNG, n: r1[0].n, sys: r1[0].sys };
 const pinnedHtml = transferConnectionHtml(GID_TAICHUNG, S(15, 38), 'TRA');
 hState.xferPin = null;
 ok('G20 釘選:標題是「你的接續班次」', /你的接續班次/.test(pinnedHtml));
