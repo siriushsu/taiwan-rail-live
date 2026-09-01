@@ -1,0 +1,1 @@
+{"schemaVersion":1,"generatedAt":"2026-09-01T12:08:29.485Z","coverage":"all_active_tra_stations","trigger":"user_open_only","polling":false,"station":{"id":"TRA:7331","name":"大華車站","position":{"lat":25.04998,"lon":121.79732},"radiusM":600,"nearbyStopCount":0,"coverageState":"no_nearby_stops","scopes":[]}}

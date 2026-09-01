@@ -1,0 +1,1 @@
+{"schemaVersion":1,"generatedAt":"2026-09-01T12:08:29.485Z","coverage":"all_active_tra_stations","trigger":"user_open_only","polling":false,"station":{"id":"TRA:3400","name":"永靖車站","position":{"lat":23.92808,"lon":120.57173},"radiusM":600,"nearbyStopCount":0,"coverageState":"no_nearby_stops","scopes":[]}}

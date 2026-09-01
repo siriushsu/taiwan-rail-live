@@ -1,4 +1,4 @@
-/* 軌島 公車轉乘 UI 模組（pilot：臺北／臺南／花蓮三站）
+/* 軌島 公車轉乘 UI 模組（全臺目前有客運班表的台鐵站）
  *
  * 定位：三階段轉乘流程的同一張卡，phase 由呼叫者傳入（模組不猜行程狀態）。
  *
@@ -25,7 +25,8 @@
 (function (global) {
   'use strict';
 
-  const VERSION = '0.3.0-pilot';
+  const VERSION = '0.4.0';
+  const COVERAGE = 'all_active_tra_stations';
   const API_BASE = '';
   const STALE_LABEL_SEC = 180;
   // 不用 timer。只有使用者再次展開同一區塊時，超過 Worker 的 20 秒 raw cache
@@ -41,11 +42,9 @@
     return String(source).replace(/\{([\w]+)\}/g, (_, key) => vars[key] == null ? '' : String(vars[key]));
   }
 
-  const SUPPORTED = Object.freeze({
-    'TRA:1000': '臺北',
-    'TRA:4220': '臺南',
-    'TRA:7000': '花蓮',
-  });
+  // 真正的營運站清單由宿主的 tra_station_info＋目前班表決定，Worker 再以 manifest 做第二道 gate。
+  // UI 只接受四碼台鐵 StationID，避免任意字串進入 API；不在這裡複製一份 239 站白名單造成漂移。
+  const isSupportedStationId = stationId => /^TRA:\d{4}$/.test(String(stationId || ''));
 
   const PHASES = ['planning', 'approaching', 'arrived'];
   const PHASE_META = {
@@ -624,11 +623,16 @@ ${navLink(arrival.stopPosition, true, null, arrival.stopName)}
     const meta = [];
     meta.push(esc(tr('查詢於 {age}', { age: ageText(generatedAge) })));
     if (data.live && data.live.cache === 'hit') meta.push(`<span class="btu-opt">${esc(tr('來源為邊緣快取'))}</span>`);
-    if (data.live && data.live.state && data.live.state !== 'live') meta.push(esc(tr('來源狀態：{state}', { state: data.live.state })));
+    if (data.live && data.live.state && !['live', 'no_nearby_stops'].includes(data.live.state)) {
+      meta.push(esc(tr('來源狀態：{state}', { state: data.live.state })));
+    }
     if (data.totals && data.totals.rejected) meta.push(`<span class="btu-opt">${esc(tr('{n} 筆來源資料不在目前靜態索引內，未顯示', { n: data.totals.rejected }, data.totals.rejected))}</span>`);
 
+    const noNearbyStops = data.live && data.live.state === 'no_nearby_stops';
     const rows = arrivals.length
       ? shown.map(arrival => renderArrivalRow(arrival, data.station || { id: instance.stationId }, state.fetchedAt, view.openLegs)).join('')
+      : noNearbyStops
+        ? `<div class="btu-msg">${esc(tr('目前靜態索引在本站 600 公尺內沒有找到可用公車站牌，因此這次沒有發出即時查詢。你仍可改用地圖查看更遠的站牌。'))}</div>`
       : `<div class="btu-msg">${esc(tr('這一刻來源沒有回報任何本站附近的公車班次。這不代表沒有公車路線經過，只代表現在沒有可呈現的預估。'))}</div>`;
 
     return `<div class="btu-meta">${meta.map(item => `<span>${item}</span>`).join('')}</div>
@@ -817,7 +821,7 @@ ${body}
     const stationId = opts.stationId;
     if (!root || !root.nodeType) throw new Error('BusTransferUI.mount 需要 root 元素');
     if (!stationId) throw new Error('BusTransferUI.mount 需要 stationId');
-    if (!SUPPORTED[stationId]) return null;   // pilot 之外的站：不渲染、不請求、不留痕跡
+    if (!isSupportedStationId(stationId)) return null;
     if (typeof opts.translate === 'function') translateImpl = opts.translate;
     // 即使資料已在快取、這輪不會有 request/finally，仍在每次看板重建時回收舊 root。
     sweepDisconnectedInstances();
@@ -844,7 +848,7 @@ ${body}
     const instance = {
       root,
       stationId,
-      stationName: opts.stationName || SUPPORTED[stationId],
+      stationName: opts.stationName || stationId,
       phase,
       plan: opts.plan || null,
       trainEta: opts.trainEta || null,
@@ -905,7 +909,7 @@ ${body}
     const phases = [...INSTANCES].filter(instance => instance.stationId === stationId).map(instance => instance.phase);
     return {
       stationId,
-      supported: !!SUPPORTED[stationId],
+      supported: isSupportedStationId(stationId),
       phases,
       expanded: views.some(([, view]) => view.expanded),
       views: views.map(([key, view]) => ({ viewKey: key, expanded: view.expanded, showAll: view.showAll, planOpen: view.planOpen, openLegs: [...view.openLegs] })),
@@ -940,9 +944,9 @@ ${body}
 
   global.BusTransferUI = {
     VERSION,
-    SUPPORTED: { ...SUPPORTED },
+    COVERAGE,
     PHASES: [...PHASES],
-    isSupported: stationId => !!SUPPORTED[stationId],
+    isSupported: isSupportedStationId,
     mount,
     unmount,
     // 已抵達階段的主操作（等同使用者按下「查看現在可搭公車」）。回傳 loadStation 的 promise；

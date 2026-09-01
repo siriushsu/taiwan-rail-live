@@ -47,6 +47,7 @@
     '正在查 {station} 附近的公車…': 'Checking buses near {station}…', '查不到附近公車：{error}': 'Could not load nearby buses: {error}',
     '查詢於 {age}': 'Queried {age}', '來源為邊緣快取': 'Served from edge cache', '來源狀態：{state}': 'Source status: {state}',
     '{n} 筆來源資料不在目前靜態索引內，未顯示': { one: '{n} source record was not in the current static index and is hidden', other: '{n} source records were not in the current static index and are hidden' },
+    '目前靜態索引在本站 600 公尺內沒有找到可用公車站牌，因此這次沒有發出即時查詢。你仍可改用地圖查看更遠的站牌。': 'The static index found no usable bus stops within 600 m of this station, so no live request was made. You can still use the map to look for stops farther away.',
     '這一刻來源沒有回報任何本站附近的公車班次。這不代表沒有公車路線經過，只代表現在沒有可呈現的預估。': 'The source has no bus arrivals to show near this station right now. Routes may still serve the area; there is simply no current estimate.',
     '再顯示其餘 {n} 筆': 'Show {n} more', '只顯示最近三筆': 'Show the nearest three only', '重新查詢': 'Refresh on demand',
     '收合即時公車': 'Collapse live buses', '查看現在可搭公車': 'See buses you can catch now'
@@ -90,6 +91,7 @@
     '正在查 {station} 附近的公車…': '{station}付近のバスを確認中…', '查不到附近公車：{error}': '付近のバスを取得できません：{error}',
     '查詢於 {age}': '照会：{age}', '來源為邊緣快取': 'エッジキャッシュから取得', '來源狀態：{state}': '情報源状態：{state}',
     '{n} 筆來源資料不在目前靜態索引內，未顯示': '{n}件の情報が現在の静的索引になく、表示していません',
+    '目前靜態索引在本站 600 公尺內沒有找到可用公車站牌，因此這次沒有發出即時查詢。你仍可改用地圖查看更遠的站牌。': '現在の静的索引では駅から600m以内に利用可能なバス停が見つからないため、リアルタイム照会は行いませんでした。地図でより遠いバス停を確認できます。',
     '這一刻來源沒有回報任何本站附近的公車班次。這不代表沒有公車路線經過，只代表現在沒有可呈現的預估。': '現在、この駅付近で表示できる到着情報がありません。路線がないとは限らず、現在の予測がない状態です。',
     '再顯示其餘 {n} 筆': '残り{n}件を表示', '只顯示最近三筆': '直近3件のみ表示', '重新查詢': '手動で再照会',
     '收合即時公車': 'リアルタイムバスを閉じる', '查看現在可搭公車': '今乗れるバスを見る'

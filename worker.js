@@ -4216,14 +4216,15 @@ async function deleteAccountData(request, env) {
   }
 }
 
-// ══ 公車轉乘三站垂直切片 ══════════════════════════════════════════════════
+// ══ 公車轉乘：全臺台鐵營運站 ══════════════════════════════════════════════
 //
 // 施工邊界（2026-09-01，與 Claude Design／主線工作分流）：
-// - 只支援臺北／臺南／花蓮三站；靜態站牌索引由 data/bus_transfer_pilot.json 提供。
+// - 支援目前客運班表內 239 座實體台鐵站（臺北-環島併回臺北）；manifest 與各站索引由 scripts/build_bus_transfer_index.mjs 產生。
+// - 每站獨立資產：Worker 只載使用者正在看的那站，不在冷啟時吞入整包全臺站牌資料。
 // - 只有使用者主動打開車站公車資訊時，這支 GET 才查 N1；scheduled()、cron、timer 一律不接。
 // - 這支只回答「哪班快到」；A1/A2 車輛位置、車牌與臺北乘載度要等使用者再點一路公車才另行載入。
-// - 不部署正式站。先把資料契約、退役路線 gate、N1 空值與資料年齡驗完，再與設計分支刻意合流。
-const BUS_TRANSFER_DATA_PATH = '/data/bus_transfer_pilot.json';
+// - 600m 內無靜態站牌的站照實回 no_nearby_stops，不打空的 TDX query，也不把它偽裝成來源故障。
+const BUS_TRANSFER_MANIFEST_PATH = '/data/bus_transfer_stations.json';
 const BUS_N1_BASE = 'https://tdx.transportdata.tw/api/basic/v2/Bus/EstimatedTimeOfArrival';
 const BUS_API_BASE = 'https://tdx.transportdata.tw/api/basic/v2/Bus';
 const BUS_SEAT_URL = 'https://tcgbusfs.blob.core.windows.net/blobbus/BusSeatEvent.gz';
@@ -4232,7 +4233,8 @@ const BUS_A1_SELECT = 'PlateNumb,RouteUID,RouteID,SubRouteUID,SubRouteID,SubRout
 const BUS_A2_SELECT = 'PlateNumb,RouteUID,RouteID,SubRouteUID,SubRouteID,SubRouteName,Direction,StopUID,StopID,StopName,StopSequence,DutyStatus,BusStatus,A2EventType,GPSTime,TripStartTime,TripStartTimeType,SrcUpdateTime,UpdateTime';
 const BUS_TRANSFER_RAW_TTL_SEC = 20;
 const BUS_TRANSFER_LAST_GOOD_SEC = 3600;
-let busTransferPilotMem = null;
+let busTransferManifestMem = null;
+const busTransferStationMem = new Map();
 const busTransferInflight = new Map();
 const busLegInflight = new Map();
 
@@ -4251,22 +4253,47 @@ function recordBusTdxUsage(env, kind, scope, status, bytes = 0, decodedBytes = 0
 }
 
 function resetBusTransferCaches() {
-  busTransferPilotMem = null;
+  busTransferManifestMem = null;
+  busTransferStationMem.clear();
   busTransferInflight.clear();
   busLegInflight.clear();
 }
 
-async function busTransferPilotData(request, env) {
-  if (busTransferPilotMem) return busTransferPilotMem;
-  const assetUrl = new URL(BUS_TRANSFER_DATA_PATH, request.url);
+async function busTransferManifestData(request, env) {
+  if (busTransferManifestMem) return busTransferManifestMem;
+  const assetUrl = new URL(BUS_TRANSFER_MANIFEST_PATH, request.url);
   const response = await env.ASSETS.fetch(new Request(assetUrl.toString(), { method: 'GET' }));
-  if (!response.ok) throw new Error(`bus transfer pilot asset ${response.status}`);
+  if (!response.ok) throw new Error(`bus transfer manifest asset ${response.status}`);
   const data = await response.json();
-  if (!data || data.schemaVersion !== BUS_TRANSFER_SCHEMA || !data.pilotOnly || data.trigger !== 'user_open_only' || data.polling !== false || !data.stations) {
-    throw new Error('bus transfer pilot schema mismatch');
+  if (!data || data.schemaVersion !== BUS_TRANSFER_SCHEMA || data.coverage !== 'all_active_tra_stations' ||
+      data.trigger !== 'user_open_only' || data.polling !== false || !data.stations ||
+      data.stationCount !== Object.keys(data.stations).length) {
+    throw new Error('bus transfer manifest schema mismatch');
   }
-  busTransferPilotMem = data;
+  busTransferManifestMem = data;
   return data;
+}
+
+async function busTransferStationData(request, env, stationId) {
+  const manifest = await busTransferManifestData(request, env);
+  const meta = manifest.stations[stationId];
+  if (!meta) return { manifest, station: null };
+  if (busTransferStationMem.has(stationId)) return { manifest, station: busTransferStationMem.get(stationId) };
+  if (!/^TRA:\d{4}$/.test(stationId) || !/^\/data\/bus-transfer\/TRA-\d{4}\.json$/.test(String(meta.asset || ''))) {
+    throw new Error('bus transfer station asset path mismatch');
+  }
+  const assetUrl = new URL(meta.asset, request.url);
+  const response = await env.ASSETS.fetch(new Request(assetUrl.toString(), { method: 'GET' }));
+  if (!response.ok) throw new Error(`bus transfer station asset ${response.status}`);
+  const product = await response.json();
+  const station = product && product.station;
+  if (!product || product.schemaVersion !== BUS_TRANSFER_SCHEMA || product.coverage !== manifest.coverage ||
+      product.trigger !== 'user_open_only' || product.polling !== false || !station || station.id !== stationId ||
+      !Array.isArray(station.scopes) || !['indexed', 'no_nearby_stops'].includes(station.coverageState)) {
+    throw new Error('bus transfer station schema mismatch');
+  }
+  busTransferStationMem.set(stationId, station);
+  return { manifest, station };
 }
 
 function busN1Url(env, scope, stopUids) {
@@ -4316,6 +4343,11 @@ function busTransferCacheKey(request, stationId, suffix) {
 }
 
 async function cachedBusTransferRaw(request, env, station) {
+  // 偏遠站目前靜態索引沒有 600m 內站牌：這是可回答的資料狀態，不是 API 故障。
+  // 不建立空 StopUID filter、不取 OAuth token，也不寫 edge cache。
+  if (!station.scopes.length) {
+    return { fetchedAt: new Date().toISOString(), rowsByScope: {}, scopeStatus: [], cacheState: 'not_applicable' };
+  }
   const edge = caches.default;
   const cacheKey = busTransferCacheKey(request, station.id, 'raw');
   const lastKey = busTransferCacheKey(request, station.id, 'lastgood');
@@ -4370,28 +4402,31 @@ async function cachedBusTransferRaw(request, env, station) {
 async function busTransfer(request, env) {
   const url = new URL(request.url);
   const stationId = url.searchParams.get('station') || '';
-  let data;
-  try { data = await busTransferPilotData(request, env); }
-  catch (e) { return jsonRes({ error: 'bus transfer pilot unavailable' }, 503, 'no-store'); }
-  const station = data.stations[stationId];
-  if (!station) return jsonRes({ error: 'unsupported pilot station', allowed: Object.keys(data.stations) }, 400, 'no-store');
+  let product;
+  try { product = await busTransferStationData(request, env, stationId); }
+  catch (e) { return jsonRes({ error: 'bus transfer index unavailable' }, 503, 'no-store'); }
+  const { manifest, station } = product;
+  if (!station) return jsonRes({ error: 'unsupported station', coverage: manifest.coverage, stationCount: manifest.stationCount }, 400, 'no-store');
   try {
     const raw = await cachedBusTransferRaw(request, env, station);
     const result = resolveStationN1({ pilotStation: station, rowsByScope: raw.rowsByScope, nowMs: Date.now() });
+    const noNearbyStops = station.coverageState === 'no_nearby_stops';
     return jsonRes({
       ...result,
-      pilotOnly: true,
-      staticGeneratedAt: data.generatedAt,
+      pilotOnly: false,
+      coverage: manifest.coverage,
+      staticGeneratedAt: manifest.generatedAt,
+      nearbyStopCount: station.nearbyStopCount,
       live: {
-        state: raw.scopeStatus.every(scope => scope.state === 'live') ? 'live' : 'partial',
+        state: noNearbyStops ? 'no_nearby_stops' : (raw.scopeStatus.every(scope => scope.state === 'live') ? 'live' : 'partial'),
         fetchedAt: raw.fetchedAt,
         cache: raw.cacheState,
         scopes: raw.scopeStatus,
-        scheduleFallback: 'not_implemented_in_pilot',
+        scheduleFallback: 'not_implemented',
       },
     }, 200, 'no-store');
   } catch (e) {
-    return jsonRes({ error: 'bus transfer live unavailable', pilotOnly: true, ...(env.BUS_TRANSFER_DEBUG ? { detail: String(e && e.message || e) } : {}) }, 502, 'no-store');
+    return jsonRes({ error: 'bus transfer live unavailable', pilotOnly: false, coverage: manifest.coverage, ...(env.BUS_TRANSFER_DEBUG ? { detail: String(e && e.message || e) } : {}) }, 502, 'no-store');
   }
 }
 
@@ -4520,11 +4555,11 @@ async function busLegLive(request, env) {
   const stationId = url.searchParams.get('station') || '';
   const arrivalKey = url.searchParams.get('arrival') || '';
   if (!arrivalKey || arrivalKey.length > 240) return jsonRes({ error: 'bad arrival key' }, 400, 'no-store');
-  let data;
-  try { data = await busTransferPilotData(request, env); }
-  catch (e) { return jsonRes({ error: 'bus transfer pilot unavailable' }, 503, 'no-store'); }
-  const station = data.stations[stationId];
-  if (!station) return jsonRes({ error: 'unsupported pilot station' }, 400, 'no-store');
+  let product;
+  try { product = await busTransferStationData(request, env, stationId); }
+  catch (e) { return jsonRes({ error: 'bus transfer index unavailable' }, 503, 'no-store'); }
+  const { manifest, station } = product;
+  if (!station) return jsonRes({ error: 'unsupported station', coverage: manifest.coverage, stationCount: manifest.stationCount }, 400, 'no-store');
   try {
     // 通常命中使用者剛開車站卡留下的 20 秒 raw cache；若直打 URL，才補做一次 N1 查詢。
     const stationRaw = await cachedBusTransferRaw(request, env, station);
@@ -4541,9 +4576,9 @@ async function busLegLive(request, env) {
       nowMs: Date.now(),
     });
     const partial = raw.sources.some(source => source.state === 'unavailable');
-    return jsonRes({ ...result, pilotOnly: true, live: { state: raw.cacheState === 'last_good' ? 'stale' : (partial ? 'partial' : 'live'), fetchedAt: raw.fetchedAt, cache: raw.cacheState, sources: raw.sources } }, 200, 'no-store');
+    return jsonRes({ ...result, pilotOnly: false, coverage: manifest.coverage, live: { state: raw.cacheState === 'last_good' ? 'stale' : (partial ? 'partial' : 'live'), fetchedAt: raw.fetchedAt, cache: raw.cacheState, sources: raw.sources } }, 200, 'no-store');
   } catch (e) {
-    return jsonRes({ error: 'bus leg live unavailable', pilotOnly: true, ...(env.BUS_TRANSFER_DEBUG ? { detail: String(e && e.message || e) } : {}) }, 502, 'no-store');
+    return jsonRes({ error: 'bus leg live unavailable', pilotOnly: false, coverage: manifest.coverage, ...(env.BUS_TRANSFER_DEBUG ? { detail: String(e && e.message || e) } : {}) }, 502, 'no-store');
   }
 }
 
@@ -6510,10 +6545,10 @@ export const _metroAlert = {
 export const _hazard = { ncdrTimeMs, normalizeNcdrHazards, hazardAlert, hazardMonitorScheduled, resetHazardMem };
 // 純函式導出,供離線回歸測試 import:逐站事件 diff 與 mem.at→台北日換算。
 export const _stationEvents = { diffTrains, twDayFromMemAt };
-// 公車轉乘三站垂直切片：核心 resolver 在 scripts/bus_transfer_core.mjs，這裡導出 IO 編排供 fixture 測試。
+// 公車轉乘全臺台鐵站：核心 resolver 在 scripts/bus_transfer_core.mjs，這裡導出 IO 編排供 fixture 測試。
 // resetBusTransferCaches 只清本 isolate 記憶體；正式路由不會呼叫。
 export const _busTransfer = {
-  busTransfer, busLegLive, busTransferPilotData, busN1Url, busN1Rows, fetchBusN1, cachedBusTransferRaw,
+  busTransfer, busLegLive, busTransferManifestData, busTransferStationData, busN1Url, busN1Rows, fetchBusN1, cachedBusTransferRaw,
   busDynamicUrl, fetchBusDynamic, fetchTaipeiBusSeat, cachedBusLegRaw, resetBusTransferCaches,
 };
 // 純函式導出,供離線回歸測試 import:誤點履歷視窗計算、車次驗證與回應組裝。

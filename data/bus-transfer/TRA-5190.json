@@ -1,0 +1,1 @@
+{"schemaVersion":1,"generatedAt":"2026-09-01T12:08:29.485Z","coverage":"all_active_tra_stations","trigger":"user_open_only","polling":false,"station":{"id":"TRA:5190","name":"大武車站","position":{"lat":22.36526,"lon":120.90094},"radiusM":600,"nearbyStopCount":0,"coverageState":"no_nearby_stops","scopes":[]}}

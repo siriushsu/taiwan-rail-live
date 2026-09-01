@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = +(process.env.PORT || 8793);
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf' };
-const calls = { station: 0, leg: 0 };
+const calls = { station: 0, leg: 0, lastStation: null };
 
 const arrival = (key, routeName, state, etaSec, occupancy = 'not_provided') => ({
   key, scope: 'City/Tainan', routeUid: `TNN-${routeName}`, routeName, subRouteUid: '', subRouteName: '',
@@ -24,8 +24,8 @@ const arrival = (key, routeName, state, etaSec, occupancy = 'not_provided') => (
 const stationBody = {
   schemaVersion: 1,
   station: { id: 'TRA:4220', name: '臺南', position: { lat: 22.9971, lon: 120.2127 } },
-  generatedAt: new Date().toISOString(), trigger: 'user_open_only', polling: false, pilotOnly: true,
-  live: { state: 'live', cache: 'miss', scheduleFallback: 'not_implemented_in_pilot' },
+  generatedAt: new Date().toISOString(), trigger: 'user_open_only', polling: false, pilotOnly: false, coverage: 'all_active_tra_stations',
+  live: { state: 'live', cache: 'miss', scheduleFallback: 'not_implemented' },
   arrivals: [
     arrival('fixture-3', '3', 'countdown', 248, 'not_loaded'),
     arrival('fixture-5', '5', 'arriving', 25),
@@ -34,6 +34,16 @@ const stationBody = {
   ],
   totals: { accepted: 4, returned: 4, rejected: 1 },
   rejected: [{ reason: 'route_not_in_current_static_index' }],
+  caveats: { outdoorWalkOnly: true, indoorWalkIncluded: false, occupancyCoverage: 'taipei_only_when_bus_leg_is_opened', vehiclePosition: 'load_on_bus_leg_open' },
+};
+
+const noNearbyBody = {
+  schemaVersion: 1,
+  station: { id: 'TRA:1150', name: '北湖', position: { lat: 24.92218, lon: 121.05575 } },
+  generatedAt: new Date().toISOString(), trigger: 'user_open_only', polling: false, pilotOnly: false,
+  coverage: 'all_active_tra_stations', nearbyStopCount: 0,
+  live: { state: 'no_nearby_stops', cache: 'not_applicable', scopes: [], scheduleFallback: 'not_implemented' },
+  arrivals: [], totals: { accepted: 0, returned: 0, rejected: 0 }, rejected: [],
   caveats: { outdoorWalkOnly: true, indoorWalkIncluded: false, occupancyCoverage: 'taipei_only_when_bus_leg_is_opened', vehiclePosition: 'load_on_bus_leg_open' },
 };
 
@@ -62,8 +72,10 @@ createServer((req, res) => {
   if (url.pathname === '/__bus-test-stats') return sendJson(res, calls);
   if (url.pathname === '/api/bus-transfer') {
     calls.station += 1;
-    console.log(`BUS_TRANSFER station=${calls.station} leg=${calls.leg}`);
-    return sendJson(res, stationBody);
+    calls.lastStation = url.searchParams.get('station');
+    console.log(`BUS_TRANSFER station=${calls.station} leg=${calls.leg} id=${calls.lastStation}`);
+    if (calls.lastStation === 'TRA:1150') return sendJson(res, noNearbyBody);
+    return sendJson(res, { ...stationBody, station: { ...stationBody.station, id: calls.lastStation || stationBody.station.id } });
   }
   if (url.pathname === '/api/bus-leg-live') {
     calls.leg += 1;
