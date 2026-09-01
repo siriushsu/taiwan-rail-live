@@ -12,8 +12,19 @@
 // 產出一顆版號寫著 hotfix、裡面卻有 154MB 音樂而且授權證據還沒補齊的 IPA。
 // 這支把「哪個模式配哪組設定」變成單一事實來源，改完直接跑到閘門綠燈才收工。
 //
-// 做不到的事：簽章與 Archive。本機只有 Apple Development 憑證，沒有 Distribution，
-// 必須在 Xcode 裡 Product ▸ Archive（Xcode 會自動申請 Distribution 憑證）。
+// 做不到的事：只有「上傳」這一步。本機鑰匙圈只有 Apple Development 憑證，Distribution 是
+// Organizer ▸ Distribute App 當場申請並重簽的——而且 patch-archive-os 改過 Info.plist 之後
+// 本來就得靠那次重簽把簽章補回來，所以上傳一定要走 Organizer。
+// ⚠️ 2026-09-01 訂正：這段原本寫成「Archive 也做不到、必須在 Xcode 裡 Product ▸ Archive」，
+// 我照著它跟使用者說 archive 我做不到，被當場糾正（前面很多顆都是 CLI 出的）。實測
+//   cd app/ios && xcodebuild -workspace App/App.xcworkspace -scheme App -configuration Release \
+//     -destination "generic/platform=iOS" -derivedDataPath ./_dd911 \
+//     -archivePath ~/Library/Developer/Xcode/Archives/<日期>/軌島-<版>-<build>-<BUILD>.xcarchive archive
+// ARCHIVE SUCCEEDED，開發憑證簽得出 archive。**能力邊界的否定式斷言不要寫死在註解裡**，
+// 下一個人會照抄成「做不到」而永遠不去試。
+// 🔴 archive 完先跑 patch-archive-os.mjs，它會比對 archive 內的 public/index.html 與 app/www；
+// 若中間為了出 Android 而重跑過帶 RAIL_ANDROID_* 的 build:release，www 會變成 Android 版而誤報
+//「這顆 archive 不是這棵樹建出來的」——重跑一次本腳本讓 www 回到 iOS 版即可，不必重 archive。
 import { execFileSync } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
