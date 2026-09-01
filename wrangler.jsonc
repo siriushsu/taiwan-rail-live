@@ -45,9 +45,13 @@
   // TRAFFIC:每筆 /api/* 按來源分流(App 殼 vs 網頁),用來回答「Worker 請求數裡 App 佔多少」——
   //         兩邊打的是同一顆 Worker 同一個網域,CF 自己的請求計數把它們混成一個數字。
   //         查法:node scripts/usage_split.mjs
+  // BUS_USAGE:只在公車轉乘真的 cache miss 打上 TDX 時記 API 類型／scope／HTTP 狀態與 bytes，
+  //           用來把月用量換算成 TDX 點數；快取命中、臺北擁擠度非 TDX 資料都不記。
+  //           查法:node scripts/bus_tdx_usage.mjs
   "analytics_engine_datasets": [
     { "binding": "USAGE", "dataset": "railisland_usage" },
-    { "binding": "TRAFFIC", "dataset": "railisland_traffic" }
+    { "binding": "TRAFFIC", "dataset": "railisland_traffic" },
+    { "binding": "BUS_USAGE", "dataset": "railisland_bus_tdx_usage" }
   ],
   // Cron 觸發(* * * * *=北捷帳本＋災害觸發器；UTC 15 1=台北 09:15、15 4=台北 12:15):
   // scheduled handler 的每日分支跑台鐵準點統計

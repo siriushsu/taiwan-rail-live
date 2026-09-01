@@ -24,6 +24,7 @@ let assetCalls = 0;
 let authCalls = 0;
 const n1Calls = [];
 const dynamicCalls = [];
+const usageRows = [];
 let selectedTargetSequence = 20;
 let failA2 = false;
 const nowIso = () => new Date(Date.now() - 10_000).toISOString();
@@ -90,6 +91,7 @@ const env = {
   BUS_N1_BASE_URL_OVERRIDE: 'https://bus.test/n1',
   BUS_API_BASE_URL_OVERRIDE: 'https://bus.test/live',
   BUS_TRANSFER_DEBUG: true,
+  BUS_USAGE: { writeDataPoint(row) { usageRows.push(row); } },
   ASSETS: {
     async fetch(request) {
       assetCalls += 1;
@@ -120,6 +122,7 @@ await check('不支援的站回 400，且不會打 TDX', async () => {
 
 await check('臺南主動查詢只打 City＋InterCity N1，102 進來、退役 2 被 current-static gate 擋掉', async () => {
   edge.clear();
+  usageRows.length = 0;
   _busTransfer.resetBusTransferCaches();
   const response = await worker.fetch(new Request('https://railisland.tw/api/bus-transfer?station=TRA%3A4220'), env, {});
   const body = await response.json();
@@ -139,16 +142,20 @@ await check('臺南主動查詢只打 City＋InterCity N1，102 進來、退役 
   assert(body.rejected.some(row => row.routeName === '2' && row.reason === 'route_not_in_current_static_index'));
   assert.equal(n1Calls.length, 2);
   assert.equal(authCalls, 1);
+  assert.equal(usageRows.length, 2);
+  assert(usageRows.every(row => row.blobs[0] === 'N1' && row.doubles[0] === 1));
   selectedTargetSequence = body.arrivals[0].stopSequence;
 });
 
 await check('20 秒 raw cache 命中時不再打 TDX，但每次回應仍重新計算資料 age', async () => {
   const before = n1Calls.length;
+  const usageBefore = usageRows.length;
   const response = await worker.fetch(new Request('https://railisland.tw/api/bus-transfer?station=TRA%3A4220'), env, {});
   const body = await response.json();
   assert.equal(response.status, 200, JSON.stringify(body));
   assert.equal(body.live.cache, 'hit');
   assert.equal(n1Calls.length, before);
+  assert.equal(usageRows.length, usageBefore);
   assert(Number.isFinite(body.arrivals[0].live.ageSec));
 });
 
@@ -169,6 +176,7 @@ await check('點一路公車才查 A1＋A2；N1 車牌經同路線重新驗證�
   const url = new URL('https://railisland.tw/api/bus-leg-live');
   url.searchParams.set('station', 'TRA:4220');
   url.searchParams.set('arrival', selected.key);
+  const usageBefore = usageRows.length;
   const response = await worker.fetch(new Request(url), env, {});
   const body = await response.json();
   assert.equal(response.status, 200, JSON.stringify(body));
@@ -180,6 +188,8 @@ await check('點一路公車才查 A1＋A2；N1 車牌經同路線重新驗證�
   assert.equal(body.vehicles[0].occupancy.state, 'not_provided');
   assert.deepEqual(body.live.sources.map(source => source.kind), ['A1', 'A2']);
   assert.equal(dynamicCalls.length, 2);
+  assert.equal(usageRows.length, usageBefore + 2);
+  assert.deepEqual(usageRows.slice(-2).map(row => row.blobs[0]).sort(), ['A1', 'A2']);
 
   const again = await worker.fetch(new Request(url), env, {});
   const againBody = await again.json();
@@ -209,6 +219,7 @@ await check('A2 暫時失敗時仍回 A1 公車位置，進度與整體狀態如
     assert.equal(body.vehicles[0].progress.state, 'unknown');
     assert.equal(body.live.sources.find(source => source.kind === 'A2').state, 'unavailable');
     assert.equal(dynamicCalls.length, 2);
+    assert(usageRows.slice(-2).some(row => row.blobs[0] === 'A2' && row.blobs[2] === '503'));
   } finally {
     failA2 = false;
   }
