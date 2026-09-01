@@ -20658,12 +20658,18 @@ function updateFollowPanel(tr) {
   const lv = state.live;
   const realDl = (tr.sys === 'tra_sched' && lv && lv.map && Date.now() - lv.at < 1800e3) ? (lv.map.get(String(tr.train)) || 0) : 0;
   const info = nextStopInfo(tr, effTLive(tr));
-  // 轉乘接續:與 fpXfer 用同一顆 info.stop,但先在 if/else 外面算好——下面 train-open 區塊裡
-  // tcLiveXfer 那個顯示實例也要用同一組值,若擺進 if(info) 裡面會出不了那個範圍。info 為 falsy
+  // 轉乘接續:與 fpXfer 用同一顆 xstop,但先在 if/else 外面算好——下面 train-open 區塊裡
+  // tcLiveXfer 那個顯示實例也要用同一組值,若擺進 if(info) 裡面會出不了那個範圍。
+  // 🔴 xstop 不能直接用 info.stop:nextStopInfo 用 arrSec>t 判斷,車一到轉乘站(arrSec 一過)
+  // 就立刻跳去回報下一站,但這時車其實還停在轉乘站月台上(還沒到 depSec)——用 info.stop 會讓
+  // 接續區塊在進站那一拍立刻指錯站甚至整塊閃掉(驗收:verify_transfer_transitions.mjs T2)。
+  // 正在停靠時(且是真的停靠站,不是通過站)仍以停靠站為準,「你到站時」錨定的就是到站那一刻,
+  // 不該在月台上還沒走人就悄悄換成別站;真的離站後才交給 nextStopInfo。info 為 falsy
   // (已到終點)時 xstop 隨之為 falsy,setTransferConn 收到 groupId=null/atSec=NaN 會自然回空字串
   // 整塊隱藏,不必再另外清一次。
+  const xdwell = dwellInfoOf(tr, effTLive(tr));
   const xsys = TRANSFER_SCHED_SYSTEM[tr.sys] || null;
-  const xstop = info && info.stop;
+  const xstop = (xdwell && xdwell.st.stop !== false) ? xdwell.st : (info && info.stop);
   const xanchor = xsys && xstop ? transferAnchorForStop(xsys, xstop) : null;
   const xgid = xanchor && xanchor.station ? xanchor.station.transferId : null;
   const xat = xstop ? xstop.arrSec + liveDelaySec(tr) : NaN;

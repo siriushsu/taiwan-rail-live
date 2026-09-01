@@ -4,6 +4,7 @@
     "check-transfer-departures": "node scripts/verify_transfer_departures.mjs",
     "check-transfer-connections": "node scripts/verify_transfer_connections.mjs",
     "check-transfer-pin": "node scripts/verify_transfer_pin.mjs",
+    "check-transfer-transitions": "node scripts/verify_transfer_transitions.mjs",
     "build-run-profiles": "node scripts/build_run_profiles.mjs",
     "check-run-profiles": "node scripts/verify_run_profiles_match.mjs",
     "sync-metro": "python3 scripts/fetch_tdx.py && node scripts/build_metro_times.mjs && node scripts/build_data_manifest.mjs && node scripts/build_data_provenance.mjs",
