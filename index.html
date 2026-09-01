@@ -4900,6 +4900,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="bustransferpilot"><span class="d">9/1</span><span>臺北、臺南、花蓮三個台鐵站先試行公車轉乘：到站後可查現在幾分鐘有車，再點一路看車牌、位置、還差幾站與擁擠度；也能直接開 Google 地圖走到路邊站牌</span></li>
         <li data-cl-of="signinfallback"><span class="d">9/1</span><span>登入失敗訊息不再重複兩行；Android 的 Google 登入多了自動退路（謝謝網友回報）</span></li>
         <li data-cl-of="ambientlock"><span class="d">9/1</span><span>放空模式：地圖不會被手指拉歪；離開再進入時，「離開放空」鈕不會再縮成按不到的小鈕</span></li>
         <li data-cl-of="androidwidgetparity"><span class="d">9/1</span><span>桌面小工具新增車站時，起站選單改成依縣市分段</span></li>
@@ -4907,7 +4908,6 @@
         <li data-cl-of="widgetdir"><span class="d">8/31</span><span>桌面小工具的發車看板也標出北上／南下：Android 從零補上方向三角，兩個平台的三角一起放大，顏色換成台鐵官方的北上藍、南下綠</span></li>
         <li data-cl-of="ridingclock"><span class="d">8/31</span><span>按下「我上車了」之後，再去點一班還沒發車的車，時鐘不會再被撥走（謝謝網友回報）</span></li>
         <li data-cl-of="satunderlay"><span class="d">8/31</span><span>衛星影像模式下放大縮小會閃一下底色的問題真的修好了：8/30 只是把墊底的顏色調得像衛星影像，換色治標沒治本。現在底下永遠墊著一層真的衛星影像，開衛星時就把全台先抓好，縮放時露出來的是影像不是色塊</span></li>
-        <li data-cl-of="boardalign"><span class="d">8/31</span><span>車站看板的欄位對齊修好：倒數變成「即將進站」那幾列，原本會把時刻與擁擠度往左推、整張板看起來歪歪的，現在倒數與時刻兩欄逐板等寬，每一列都對齊。另外台鐵臺北車站不再多出一顆「臺北-環島」——那是環島之星繞完一圈的官方終點站碼，其實就是臺北站，現在併成一顆，手機小工具的車站清單也一起併</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -4979,6 +4979,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="bustransferpilot"><span class="d">9/1</span><span>公車轉乘先從臺北、臺南、花蓮三個台鐵站試行。打開車站看板不會立刻查資料，只有按「查看現在可搭公車」才查附近到站倒數；再點某一路線，才查那一路的車牌、位置、還差幾站與擁擠度。沒有車牌、預估或擁擠度時會照實標示，不自行猜值；每筆也顯示資料年齡。選定路線後可直接開 Google 地圖步行到該方向的路邊站牌，步行估算明示不含月台、閘門、地下街等站內距離。這項試行不會在背景輪詢全臺公車</span></li>
         <li data-cl="tourpickcap"><span class="d">8/31</span><span>「隨機跟隨」按了老是跳到同幾班車：稀有度原本被算了兩次——車種等級已經加過權，接著車型稀有再乘四倍，而莒光號、太魯閣號、DR3100 柴聯是整個車型都標稀有，於是一班莒光等於四十班區間車、藍皮解憂號等於九十六班。在跑的車越少壓得越兇：實測晚上十一點只剩兩班莒光在跑時，554 次一班就吃掉 17% 的抽籤機會（當時有 102 班車在跑，平均應該是 1%），中午的藍皮解憂號是 16.8%。現在任何一班都不得超過當下總權重的 3%，上限跟著各時段在跑的車數自動縮放；另外會記住剛跟過的五班，連按「換一班」不會再在同幾班之間繞。稀有車與觀光列車仍然比一般車更常遇到，只是不再獨佔</span></li>
         <li data-cl="boardalign"><span class="d">8/31</span><span>車站看板的欄位對齊。使用者回報「擁擠度跟時間，會因為最後面倒數那邊時間會變成『即將進站』而擠壓到，變成歪掉」。兩個成因：一是倒數欄原本只設了最小寬度，「即將進站」比「3 分」寬，那幾列就把時刻欄往左推；二是時刻的等寬數字設定要字型真的支援才生效，Chrome 上「12:31」比「12:26」窄兩個多像素，擁擠度欄跟著逐列左右跳。現在倒數與時刻兩欄都改成「量出這張板最寬的一列、全板同寬」，英日文與放大字級都自動吃到，不必為每種組合寫死一個數字</span></li>
         <li data-cl="taipeiloop"><span class="d">8/31</span><span>台鐵臺北車站不再多出一顆站。環島之星繞完一圈回到台北，官方在班表裡用另一個站碼「臺北-環島」記那一次到達，兩點實測相距 74 公尺，於是地圖上是兩顆點、看板也是兩張。使用者裁示「台北車站的火車就都併在一起，不要多環島那一個」，現在併成一顆：判準寫成「名字是 X-… 、X 在同一份班表裡也是站名、兩者 200 公尺內」，不寫死站名，台鐵日後再開別名站也一樣併。手機桌面小工具的班表與車站清單用同一條判準重新產生</span></li>
@@ -5521,6 +5522,8 @@
 
 <script src="./i18n/translations.js"></script>
 <script src="./i18n/content-translations.js"></script>
+<script src="./i18n/bus-transfer-translations.js"></script>
+<script src="./bus-transfer-ui.js"></script>
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
@@ -5673,7 +5676,7 @@
 //         獨立基準覆核:山線／海線／成追線判定 vs 台鐵官方 Line 欄位【908/908 逐車一致】;
 //         純西部方向 vs 官方 LineDir 對稱一致(1↔北上 241、2↔南下 241)。
 //         守門人:scripts/verify_board_direction_groups.mjs(26 項,五發突變各自咬到預期斷言)。
-const BUILD = 'v0901d'; // a/c 已被別的 ref 佔用(換號前逐 ref 掃過);跨分支撞號見心得16
+const BUILD = 'v0901f'; // a~e 已被各 ref 佔用；本批為三站公車轉乘 UI pilot
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -25179,9 +25182,42 @@ function soloPanel(keep) {
   if (keep !== 'train') closeTrainSheet();
 }
 // 整合卡(設計狀態機 tapStation):點站＝切到「這一站」,跟車不中斷。
+const BUS_TRANSFER_PILOT_STATIONS = Object.freeze({ 台北: 'TRA:1000', 台南: 'TRA:4220', 花蓮: 'TRA:7000' });
+let busTransferBoardStationId = null;
+function busTransferStationId(st) {
+  if (!st || st.sys !== 'tra_sched') return null;
+  const name = String(st.name || '').replace(/臺/g, '台').replace(/車站$/, '').trim();
+  return BUS_TRANSFER_PILOT_STATIONS[name] || null;
+}
+function busTransferSyncBoardStation(st) {
+  const next = busTransferStationId(st);
+  if (busTransferBoardStationId && busTransferBoardStationId !== next && window.BusTransferUI) {
+    window.BusTransferUI.reset(busTransferBoardStationId);
+  }
+  busTransferBoardStationId = next;
+  return next;
+}
+function busTransferCloseBoard() {
+  if (busTransferBoardStationId && window.BusTransferUI) window.BusTransferUI.reset(busTransferBoardStationId);
+  busTransferBoardStationId = null;
+}
+function mountBusTransferBoard(el, st, stationId) {
+  if (!stationId || !window.BusTransferUI) return;
+  const root = el.querySelector('[data-bus-transfer-slot]');
+  if (!root) return;
+  window.BusTransferUI.mount({
+    root,
+    stationId,
+    stationName: stationName(st.name, st.sys),
+    phase: 'arrived',
+    viewKey: `${stationId}|station-board`,
+    translate: t,
+  });
+}
 function openBoard(st) { soloPanel('board'); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel(); closeDelayHist(); closePinCard(); closeNearbyStations(); closeSugarCard(); boardRxOpen.clear(); state.boardStation = st; uniTab = 'station'; uniUncollapseForBoard(); renderBoard(); }
 function closeBoard() {
   unmountUniCard(); // 先把跟車卡搬回家,再清 innerHTML——否則它會跟著被清掉
+  busTransferCloseBoard();
   state.boardStation = null;
   boardRxOpen.clear(); // 展開態屬於這一張看板,關掉就結束
   const el = document.getElementById('board');
@@ -25837,7 +25873,8 @@ function renderBoardBody() {
   //    (實測:跟車卡整顆消失、showFollowPanel 之後對 null 取 .hidden 拋錯)。所以一律先搬回家,
   //    render 完再由尾端的 syncUniCard() 搬進來。renderFreqBoard 由本函式委派,同樣被這行涵蓋。
   unmountUniCard();
-  if (!st) { el.hidden = true; updateSheetOpenClass(); return; }
+  if (!st) { busTransferCloseBoard(); el.hidden = true; updateSheetOpenClass(); return; }
+  const busTransferId = busTransferSyncBoardStation(st);
   state.boardRenderedAt = state.simSec;
   ensureEvents(); // 首次載入時資料還在路上,ensureEvents 載到後會自己再叫一次 renderBoard
   if (state.mode !== 'sched') { renderFreqBoard(el, st, metroBoardLines(st, state.lines), false); return; } // 捷運/輕軌分頁走獨立邏輯,sched(台鐵/高鐵)以下維持原樣;同名站只讀自己所屬系統
@@ -25894,7 +25931,8 @@ function renderBoardBody() {
       // 有停駛才多這一段;零停駛時整條副標與改動前逐字相同
       st.sys === 'tra_sched' && state.traDaily && state.traDaily.cancelled
         ? ' · ' + escHtml(t('今日官方停駛 {n} 班', { n: i18nNumber(state.traDaily.cancelled) }, state.traDaily.cancelled)) : ''} · ${escHtml(t('點班次跟隨'))}</div>` +
-    (list || `<div class="empty">${escHtml(t('此時段無停靠班次'))}</div>`);
+    (list || `<div class="empty">${escHtml(t('此時段無停靠班次'))}</div>`) +
+    (busTransferId ? '<div class="btu-board-slot" data-bus-transfer-slot></div>' : '');
   // 等站卡選單要的是【這張板算出來的那一份 rows】:時鐘被帶回「現在」之後會重繪一次,
   // 掛在 el 上讓 traWaitStartFromBoard 讀重繪後的新值（比照 el._metroCoreRecords）。
   el._traWaitRows = rows;
@@ -25902,6 +25940,7 @@ function renderBoardBody() {
   //    會讓收起來的看板自己彈回畫面(旗標還是收合、畫面卻是展開的)。播放暫停時測不到這條。
   if (!(uniCollapsed && uniCollapsedBoard)) el.hidden = false;
   updateSheetOpenClass();
+  mountBusTransferBoard(el, st, busTransferId);
   syncUniCard();
   el._stnKey = stnKey;
   // 🔴 換站才歸零。`el.innerHTML = …` **不會**把 scrollTop 歸零(瀏覽器只是夾到新的可捲範圍),
