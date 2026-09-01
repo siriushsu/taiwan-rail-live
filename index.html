@@ -26043,6 +26043,9 @@ function mountBusTransferBoard(el, st, stationId) {
     phase: 'arrived',
     viewKey: `${stationId}|station-board`,
     translate: t,
+    // App 載的是本地打包檔(origin capacitor://localhost),相對路徑打不到 Worker;
+    // 走與其餘端點同一個 API_BASE(native-bridge 注入 railisland.tw,網頁端為空字串)。
+    apiBase: API_BASE,
   });
 }
 function openBoard(st) { soloPanel('board'); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel(); closeDelayHist(); closePinCard(); closeNearbyStations(); closeSugarCard(); boardRxOpen.clear(); state.boardStation = st; uniTab = 'station'; uniUncollapseForBoard(); renderBoard(); }

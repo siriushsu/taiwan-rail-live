@@ -6,6 +6,7 @@ import fs from 'node:fs';
 const packageJson = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const ship = fs.readFileSync(new URL('./ship_web.mjs', import.meta.url), 'utf8');
 const all = fs.readFileSync(new URL('./verify_bus_transfer_all.mjs', import.meta.url), 'utf8');
+const index = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 
 assert.equal(packageJson.scripts?.['check-bus-transfer'], 'node scripts/verify_bus_transfer_all.mjs',
   'package.json 必須保留公車轉乘總驗收入口');
@@ -40,5 +41,15 @@ for (const [name, script] of [
   assert.equal(packageJson.scripts?.[name], `node scripts/${script}`,
     `package.json 必須保留 ${name} 子入口，指向 scripts/${script}`);
 }
+
+// 公車卡自帶的 apiBase 預設是空字串＝相對路徑。App 載本地打包檔(origin capacitor://localhost),
+// 相對路徑打不到 Worker ⇒ 卡片在 App 裡永遠顯示「暫時無法取得」,而固定文案讓它看起來只是暫時故障。
+// 本機瀏覽器 harness 與頁面同源,結構上驗不到這件事,只能在這裡靜態釘住。
+const mountCall = index.match(/BusTransferUI\.mount\(\{[\s\S]*?\n\s*\}\)/);
+assert(mountCall, 'index.html 必須以物件參數呼叫 BusTransferUI.mount');
+assert.match(mountCall[0], /apiBase:\s*API_BASE\b/,
+  'BusTransferUI.mount 必須傳 apiBase: API_BASE——App 裡相對路徑打不到 Worker,卡片會全程失敗');
+assert.match(index, /const\s+API_BASE\s*=\s*window\.RAIL_API_BASE/,
+  'index.html 的 API_BASE 必須來自 window.RAIL_API_BASE(原生殼注入正式網域),寫死網域會讓預覽站打到正式站');
 
 console.log('公車轉乘出貨鏈掛載守門通過。');
