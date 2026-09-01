@@ -5672,7 +5672,7 @@
 //         獨立基準覆核:山線／海線／成追線判定 vs 台鐵官方 Line 欄位【908/908 逐車一致】;
 //         純西部方向 vs 官方 LineDir 對稱一致(1↔北上 241、2↔南下 241)。
 //         守門人:scripts/verify_board_direction_groups.mjs(26 項,五發突變各自咬到預期斷言)。
-const BUILD = 'v0901a'; // 放空模式:離開再進入時「離開放空」鈕消失(離場那一下冒泡把速度膠囊展開成 cexp,而 cexp 那條會把出口 display:none)
+const BUILD = 'v0901b'; // 日文更新紀錄把放空模式寫成「環境モード」,但 App 的日文 UI 一直叫「鑑賞モード」——照字面找不到那顆鈕
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
