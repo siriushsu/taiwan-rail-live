@@ -109,6 +109,32 @@ ok('G0 三個容器種資料後都有多於一列可點', seed.fp.length >= 2 &&
 const unpinBefore = await page.evaluate(() => document.querySelectorAll('.xfer-conn .xfc-unpin').length);
 ok('G0b 釘選前沒有取消釘選鈕', unpinBefore === 0, `${unpinBefore} 顆`);
 
+// ── G5 —— Finding 3(2026-09-01):畫面上只能有一圈框。修復前 transferConnectionHtml 自己又包
+// 一層 <div class="xfer-conn">,而 CSS 那條是純 class 選取器 ⇒ 內外兩層都吃到
+// border/padding/margin-top,肉眼看得到兩圈圓角框、中間多一道 7px 空隙(廣審量 computed style:
+// 外 210px 框裡再套一個 192px 框)。這裡量【渲染後的實際框線】,不是原始碼字串:
+//   (a) #fpConn 底下不得再有 .xfer-conn 後代;
+//   (b) 整塊(容器+所有後代)中「borderTopWidth > 0」的元素恰好一個,而且就是容器本身。
+// 🔴 正向對照就在同一次量測裡:borderedCount 必須是 1 不是 0——如果哪天整條 CSS 規則不見了,
+// 這條會因為「一個都沒有」而紅,不會因為「反正沒有雙框」假綠。量的是未釘選態(釘選態多一顆
+// <button class="xfc-unpin">,它沒有自訂 CSS、吃 UA 預設按鈕框線,不屬於「接續框」的一部分)。
+const frame = await page.evaluate(() => {
+  const outer = document.getElementById('fpConn');
+  const all = [outer, ...outer.querySelectorAll('*')];
+  const bw = el => parseFloat(getComputedStyle(el).borderTopWidth) || 0;
+  const bordered = all.filter(e => bw(e) > 0);
+  return {
+    nested: outer.querySelectorAll('.xfer-conn').length,
+    outerBorder: getComputedStyle(outer).borderTopWidth,
+    borderedCount: bordered.length,
+    borderedWho: bordered.map(e => (e.id ? '#' + e.id : e.tagName.toLowerCase() + '.' + e.className)),
+  };
+});
+ok('G5 接續區塊沒有巢狀 .xfer-conn(修復前是雙框的結構根因)', frame.nested === 0, `${frame.nested} 層`);
+ok('G5b 整塊只有一個元素有框線,而且是容器本身(0 個也算紅——正向對照)',
+   frame.borderedCount === 1 && frame.borderedWho[0] === '#fpConn' && parseFloat(frame.outerBorder) > 0,
+   JSON.stringify(frame));
+
 // ── G1 —— 真的點一下 #fpConn 第一列,量狀態改變 ───────────────────────────────
 const row1 = page.locator('#fpConn .xfc-row').first();
 const no1 = await row1.getAttribute('data-xn');
@@ -302,6 +328,26 @@ const after11 = await page.evaluate(() => {
 ok('G11 釘選同車次號時依 sys 消歧(拿掉 r.sys 比對會在這裡轉紅——會誤收斂成時間較早的 THSR 1238)',
   after11.length === 1 && after11[0].n === '1238' && after11[0].sys === 'TRA', JSON.stringify(after11));
 await page.evaluate(() => clearXferPin());
+
+// ── G6 —— Finding 6/M3:「沒有接續就整塊不渲染,不留空殼」(Global Constraint)在執行期原本
+// 完全沒有守門人——把 index.html 的 `el.hidden = !html` 改成 `= false`,五支腳本＋check_i18n＋
+// check_voice 全綠零反應(2026-09-01 廣審突變 M3),退化後每張卡常駐一個 14px 空框,而手機腳本
+// 的「非零尺寸」斷言對空框恆真(空框有高度)。這裡直接量容器本身的 hidden 與 innerHTML。
+// 🔴 反向對照寫在同一格:先量「無接續 ⇒ hidden=true 且 innerHTML 為空」,再量「有接續 ⇒
+// hidden=false 且真的有列」——只驗前半,「整塊永遠 hidden」也會通過(那是功能整個消失)。
+// 兩個時刻沿用 verify_transfer_connections.mjs 已驗過的真實案例:凌晨 2 點窗內無車 / 15:38 有車。
+const hid = await page.evaluate(({ gid, atEmpty, atFull }) => {
+  const el = document.getElementById('fpConn');
+  setTransferConn('fpConn', gid, atEmpty, 'TRA');
+  const empty = { hidden: el.hidden, html: el.innerHTML, rows: el.querySelectorAll('.xfc-row').length };
+  setTransferConn('fpConn', gid, atFull, 'TRA');
+  const full = { hidden: el.hidden, rows: el.querySelectorAll('.xfc-row').length };
+  return { empty, full };
+}, { gid: GID_TAICHUNG, atEmpty: S(2, 0), atFull: AT });
+ok('G6 沒有接續時整塊 hidden 且內容清空(不留空殼)',
+   hid.empty.hidden === true && hid.empty.html === '' && hid.empty.rows === 0, JSON.stringify(hid.empty));
+ok('G6b 正向對照:有接續時 hidden=false 且真的有列(不是「永遠隱藏」蒙混過關)',
+   hid.full.hidden === false && hid.full.rows >= 1, JSON.stringify(hid.full));
 
 ok('Z 頁面零例外', errors.length === 0, errors.slice(0, 3).join(' | '));
 

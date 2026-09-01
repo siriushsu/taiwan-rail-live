@@ -106,8 +106,10 @@ const picked = await page.evaluate(() => {
       if (!Number.isFinite(st.arrSec) || !Number.isFinite(st.depSec)) continue;
       const dwell = st.depSec - st.arrSec;
       // 下限拉高到 80(原本 20):修復輪1 新增 T1b/T2c 各自要在同一階段內取兩個相隔至少 65 秒的
-      // 探測點(arr+5 與 dep-5),兩點相隔要 >=60 秒才能保證「剩N分」四捨五入後的分鐘數必然不同
+      // 探測點(arr+5 與 dep-5),兩點相隔要 >=60 秒才能保證「剩N分」取整後的分鐘數必然不同
       // (差不到 60 秒有機率剛好落在同一個分鐘格,測不出遞減——見下方 T2c)。
+      // ⚠️ 2026-09-01 起顯示改用 Math.floor(原 Math.round,最多高估 29 秒),兩點相隔 >=60 秒
+      // 這個條件對 floor 一樣成立(相隔 70 秒 ⇒ floor 必差 1 或 2),故選車條件不動。
       if (dwell < 80 || dwell > 300) continue;   // 太短 T2c 探測點 margin 不夠;太長不像正常轉乘站停靠
       if (st.arrSec + 700 > 86400) continue;      // T3 用 arr+600,留 100 秒緩衝不跨夜
       // T1 用 arr-120:前一個「真的會被 nextStopInfo 算到」的停靠站,到站時刻必須早於 arr-120
@@ -219,13 +221,50 @@ ok('T1 到站前接續內容與期望相符', t1.settled, `期望 ${JSON.stringi
 // ── T1b —— Finding A 必需的反向對照:行駛中換一個更晚、仍未到站的時間點,「剩 N 分」必須
 // 跟 T1 那一刻完全相同、且都等於獨立算出的正確值(atSec 凍結在表定到站時刻不該逐秒遞減)。
 // 這條與下面的 T2c 是同一組判準的兩半——只驗其中一半,「乾脆全部改成用現在」也能騙過去。
-const expMoving = Math.round((picked.expectSecs[0] - picked.arr) / 60);
+// 🔴 Math.floor 與 index.html 的顯示一致(2026-09-01 Finding 4:原 Math.round 最多高估 29 秒)。
+// 這裡不是「抄實作」——期望值仍由本檔獨立算出(picked.expectSecs 來自查詢層 oracle),只是取整
+// 規則必須跟畫面同一條,否則邊界秒數會假紅。
+const expMoving = Math.floor((picked.expectSecs[0] - picked.arr) / 60);
 const w1a = await waitForLeftMin('fpConn', expMoving);
 await jump(picked.arr - 60);
 const w1b = await waitForLeftMin('fpConn', expMoving);
 ok('T1b 行駛中兩拍「剩N分」維持不變(atSec 凍結在到站時刻,不該逐秒遞減)',
   w1a.settled && w1b.settled,
   `期望 ${expMoving} 分 實際 arr-120=${w1a.settled ? expMoving : w1a.got} arr-60=${w1b.settled ? expMoving : w1b.got}`);
+
+// ── T1c —— Finding 6/M1:行駛中 atSec = 停靠站表定到站 + liveDelaySec(tr)(index.html:20690)。
+// 「剩 N 分含你這班車當下的誤點」是對外更新紀錄的招牌宣稱,而【接線本身】原本零覆蓋——
+// verify_transfer_connections.mjs 的 G2 只在純函式層測(直接餵 atSec),未來任何一次
+// 「統一成 info.stop」的重構都會無聲把誤點修正拿掉(2026-09-01 廣審突變 M1:拿掉那一項,
+// 五支腳本＋check_i18n＋check_voice 全綠零反應)。
+//
+// 做法:把全域 liveDelaySec 覆寫成固定 +120 秒(它是 function 宣告 ⇒ 在 window 上,呼叫端
+// 解析的就是這個名字),同一個 simSec 前後各量一次,顯示分鐘數必須整整少 2 分。
+//  - 用 120 不用 300:挑選階段已保證第一候選的發車秒 >= arr+135,+120 之後它仍在 3 小時窗內、
+//    仍是最早的一班,不會換列(換了列就變成量別班車,結論無效)。
+//  - 探測點用 arr-5 不是 arr-120:liveDelaySec 也被 effTLive 讀(t = simSec - 誤點),覆寫後
+//    effTLive 退 120 秒 ⇒ arr-5 退成 arr-125,仍晚於前一個停靠站(挑選階段保證 <= arr-130),
+//    車還是「行駛中、下一站就是這一站」,不會翻進停靠分支、也不會退回前一站。
+//  - 上面兩件事不靠推論兜底:T1c-pre 當場量「第一列車次」與「#fpNext」有沒有變,真的翻了會
+//    具名 FAIL,而不是靜默把別班車的分鐘數當答案。
+await jump(picked.arr - 5);
+const wNoDelay = await waitForLeftMin('fpConn', expMoving);
+const readRow = () => page.evaluate(() => {
+  const r = document.querySelector('#fpConn .xfc-row');
+  return { no: r ? r.dataset.xn : null, next: document.getElementById('fpNext').textContent.trim() };
+});
+const beforeDelay = await readRow();
+await page.evaluate(() => { window.__liveDelayOrig = liveDelaySec; window.liveDelaySec = () => 120; });
+const expDelayed = Math.floor((picked.expectSecs[0] - (picked.arr + 120)) / 60);
+const wDelayed = await waitForLeftMin('fpConn', expDelayed);
+const afterDelay = await readRow();
+await page.evaluate(() => { window.liveDelaySec = window.__liveDelayOrig; });
+ok('T1c-pre 覆寫誤點前後仍是同一列、同一個下一站(證明量到的是誤點修正,不是換車或換站)',
+  !!beforeDelay.no && beforeDelay.no === afterDelay.no && beforeDelay.next === afterDelay.next,
+  JSON.stringify({ before: beforeDelay, after: afterDelay }));
+ok('T1c 行駛中「剩N分」含本班車誤點(liveDelaySec 灌 +120 秒 ⇒ 顯示必須整整少 2 分)',
+  wNoDelay.settled && wDelayed.settled && expDelayed === expMoving - 2,
+  `無誤點=${wNoDelay.settled ? expMoving : wNoDelay.got} 誤點120秒=${wDelayed.settled ? expDelayed : wDelayed.got}`);
 
 // ── T2 —— 正在進站那一拍(arrSec 已過、還沒到 depSec):必須維持同一份內容,不能閃掉/換站 ──────
 // 這是本檔最容易「全綠卻沒驗到東西」的一格:nextStopInfo 用 arrSec>t 判斷,車一到站(arrSec 一過)
@@ -254,8 +293,8 @@ ok('T2b 停靠中 #fpNext(下一站)與 #fpConn 錨定站不同(刻意分歧,不
 // 一直沒變過⇒waitForRows 在 jump 那一刻就已經是 true、沒等到 arr+5 真正重繪,就地讀值撈到
 // 的其實是上一個時間點的殘影(第一次踩到:改好選車邏輯後仍量出「12→12」不變,查到才發現是
 // 這一層更底層的競態,不是 xat 邏輯本身的問題)。
-const expDwellA = Math.round((picked.expectSecs[0] - (picked.arr + 5)) / 60);
-const expDwellB = Math.round((picked.expectSecs[0] - (picked.arr + 75)) / 60);
+const expDwellA = Math.floor((picked.expectSecs[0] - (picked.arr + 5)) / 60);
+const expDwellB = Math.floor((picked.expectSecs[0] - (picked.arr + 75)) / 60);
 const w2a = await waitForLeftMin('fpConn', expDwellA);
 await jump(picked.arr + 75);
 const w2b = await waitForLeftMin('fpConn', expDwellB);

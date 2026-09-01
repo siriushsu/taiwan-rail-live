@@ -16399,11 +16399,20 @@ function transferConnectionHtml(groupId, atSec, fromSys) {
     + (headSys ? '' : `<span class="xfc-sys">${escHtml(xfcSysName(r.sys))}</span>`)
     + `<span class="xfc-no">${escHtml(r.n)}</span>`
     + `<span class="xfc-d">${fmtHM(r.sec % 86400)} ${escHtml(t('往 {station}', { station: r.de }))}</span>`
-    + `<span class="xfc-left">${escHtml(t('剩 {n} 分', { n: i18nNumber(Math.round(r.leftSec / 60)) }, Math.round(r.leftSec / 60)))}</span>`
+    // 🔴 Math.floor 不是 Math.round:四捨五入最多高估 29 秒(90 秒會顯示「剩 2 分」),而本分支
+    // c6f66f59 已為同一個理由改過一次——「高估餘裕」是 Global Constraint 要避免的方向,寧可讓
+    // 使用者以為剩下的時間比實際少一點,不要反過來。(⚠️ 本函式原始碼受 G13 的字樣掃描,連註解
+    // 都不得出現它攔截的那組承諾用語,改這段措辭前先看 verify_transfer_connections.mjs 的 G13。)
+    + `<span class="xfc-left">${escHtml(t('剩 {n} 分', { n: i18nNumber(Math.floor(r.leftSec / 60)) }, Math.floor(r.leftSec / 60)))}</span>`
     + `</button>`).join('');
   // 高鐵沒有即時誤點 ⇒ 明說它是表定,不要讓人以為那個時刻含即時修正。
   const foot = `<span class="xfc-f">${escHtml(t('表定時刻 · 未計站內步行'))}</span>`;
-  return `<div class="xfer-conn">${head}${body}${foot}</div>`;
+  // 🔴 不要再包一層 <div class="xfer-conn">:三個容器(#fpConn/#fcConn/#tcConn)自己就是
+  // class="xfer-conn",再包一層 DOM 會變成兩層同 class 巢狀,而 CSS 那條規則是純 class 選取器
+  // ⇒ 內外兩層都吃到 border/padding/margin-top,畫面上真的看得到兩圈圓角框、中間多一道 7px
+  // 空隙(2026-09-01 廣審量 computed style:外 210px 框裡再套一個 192px 框,截圖確認)。
+  // 前幾輪把它記成「結構冗餘、不影響畫面」是錯的。
+  return `${head}${body}${foot}`;
 }
 // 三個顯示實例共用。照 setTransferTag 的形狀寫,差別只在這裡寫 innerHTML 不是 textContent
 // (接續列需要按鈕與分段結構,轉乘標只有純文字)。
@@ -16415,7 +16424,15 @@ function setTransferConn(id, groupId, atSec, fromSys) {
   if (!el) return;
   xferConnArgs.set(id, [groupId, atSec, fromSys]);
   const html = transferConnectionHtml(groupId, atSec, fromSys);
-  el.innerHTML = html;
+  // 🔴 內容相同就不要動 DOM。updateFollowCamera 每一個 animation frame 都呼叫 updateFollowPanel
+  // (index.html:14045),無條件 `el.innerHTML = html` 會讓這一塊【每幀被整段汰換】——渲染出來
+  // 逐字元相同,節點卻是新的。使用者按下滑鼠到放開之間原節點已被卸離(isConnected=false),
+  // 依 UI Events 規範 click 根本不會派發 ⇒ 在真正的使用情境(跟車中)釘選 100% 失效。
+  // 2026-09-01 廣審實測:按壓 0/60/120/250ms 全部 state.xferPin=null、click 零派發;同頁同座標
+  // 把這裡換成 no-op 就成功。#fcConn 走 updateFreqCard(index.html:10175)是同一個機制。
+  // ⚠️ 這不是效能優化(實測每次 0.024ms=幀預算 0.3%),是正確性;也不可退化成「乾脆整段不重畫」
+  // ——接續內容本來就要隨時刻與釘選狀態更新,由 verify_transfer_follow_pin.mjs 的 F6 反向把關。
+  if (el.innerHTML !== html) el.innerHTML = html;
   el.hidden = !html;
 }
 // 釘選改變時三個容器原地重畫:各自拿 xferConnArgs 存的參數重播一次 transferConnectionHtml
@@ -16437,12 +16454,10 @@ document.addEventListener('click', e => {
   const row = e.target.closest && e.target.closest('.xfer-conn .xfc-row');
   if (row) {
     // groupId 只認 xferConnArgs 這一份真相(該容器最後一次收到的參數),不另外寫進 data-
-    // 屬性——同一件事兩份來源會漂移。⚠️ transferConnectionHtml 回傳的字串自己也包一層
-    // <div class="xfer-conn">,被 innerHTML 插進外層容器(#fpConn/#fcConn/#tcConn,本身也是
-    // class="xfer-conn")後 DOM 變兩層同 class 巢狀、只有外層有 id——closest('.xfer-conn')
-    // 會先命中內層那個沒有 id 的 div(box.id 是空字串,xferConnArgs.get('') 是 undefined,
-    // 釘選整個失效),必須用 [id] 限定只認外層。這層巢狀冗餘是 Task 3 留下的既有結構、
-    // verify_transfer_connections.mjs 的 G12 斷言著它的完整字串,本輪不去動它,只在這裡繞開。
+    // 屬性——同一件事兩份來源會漂移。[id] 限定只認三個容器本尊:2026-09-01 前
+    // transferConnectionHtml 回傳字串自己又包一層 <div class="xfer-conn">,DOM 變兩層同 class
+    // 巢狀而只有外層有 id,裸寫 closest('.xfer-conn') 會命中內層(box.id='' ⇒ 釘選整個失效)。
+    // 那層巢狀已隨「雙框」修掉,這個 [id] 保留當防線:再有人包回去也不會靜默壞掉。
     const box = row.closest('.xfer-conn[id]');
     const args = box && xferConnArgs.get(box.id);
     if (args) setXferPin(args[0], row.dataset.xn, row.dataset.xs);
@@ -31059,7 +31074,10 @@ document.getElementById('followPanel').addEventListener('click', (e) => {
   if (window.matchMedia(MOBILE_MQ).matches && document.body.classList.contains('fs') && state.followTrain
       && !document.body.classList.contains('live') && !document.body.classList.contains('ambient')
       && !fp.closest('.uni-slot')
-      && !e.target.closest('.fp-end, .fp-close, .fp-tripshare, .fp-notify')) { openTrainSheet(); return; }
+      // 🔴 .xfc-row/.xfc-unpin(轉乘接續)也要排除:#fpConn 就住在這張卡裡,不排除的話手機上點
+      //    一列接續會「順便」把整張列車 sheet 滑上來——使用者只想釘一班車,結果被導去另一個介面
+      //    (2026-09-01 廣審實測 375×812 真觸控:xferPin 有值,body.train-open 同時 false→true)。
+      && !e.target.closest('.fp-end, .fp-close, .fp-tripshare, .fp-notify, .xfc-row, .xfc-unpin')) { openTrainSheet(); return; }
   if (fp.classList.contains('fp-min') && !e.target.closest('.fp-end')) {
     fp.classList.remove('fp-min');
     try { localStorage.setItem('trainmap-fprail-min', '0'); } catch (err) {}

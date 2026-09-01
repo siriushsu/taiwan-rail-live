@@ -24,6 +24,20 @@ console.log(`     驗的是 ${OUT}  schemaVersion=${d.schemaVersion}  date=${d.d
 const dense = JSON.parse(readFileSync(DENSE, 'utf8'));
 ok('G1 日期等於班表當日鍵', d.date === dense.date, `產物 ${d.date} / 班表 ${dense.date}`);
 
+// G1b —— 絕對日期守門人（2026-09-01 Finding 5）。G1 只證明「兩個產物是同一天生的」，兩個一起
+// 落後它是綠的；而 transfer_departures.json 是【建置當日】的單日快照，前端 index.html:30575
+// 開機只檢查 schemaVersion===1，沒有任何日期判斷 ⇒ 檔案放久了畫面照樣顯示，只是顯示的是別天
+// 的班表。這條是唯一能把「整組資料一起過期」照出來的斷言。
+// 門檻取 14 天：npm run fetch-schedule 產出的台鐵窗就是 14 天逐日，超出這個窗連來源班表本身
+// 都沒有那天的資料；廣審量過的「單日快照 vs 14 天窗最多差 3 班（≤2.3%）」也只在這個範圍內
+// 成立，再遠就沒有任何量測支撐。時區釘 Asia/Taipei（比照 scripts/verify_afr.mjs:193），
+// 不吃跑腳本那台機器的本地時區。
+const todayTW = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei' }).format(new Date()); // YYYY-MM-DD
+const ageDays = Math.round((Date.parse(`${todayTW}T00:00:00Z`) - Date.parse(`${d.date}T00:00:00Z`)) / 86400000);
+ok('G1b 資料日期與台北當日相差在 14 天內（單日快照會無聲落後，前端沒有日期守門）',
+   Number.isFinite(ageDays) && ageDays >= -1 && ageDays <= 14,
+   `產物 ${d.date} / 台北今天 ${todayTW} / 差 ${ageDays} 天`);
+
 // G2 —— 9 個轉乘群逐一具名，不是「有 9 個」
 const WANT = ['台北', '南港', '板橋', '新竹', '苗栗', '台中', '台南', '左營', '嘉義'];
 const got = new Set(d.groups.map(g => g.name));

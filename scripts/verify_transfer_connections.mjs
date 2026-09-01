@@ -168,8 +168,12 @@ ok('G14b tcConn CSS 在 sheet 態撐滿一列(陷阱B,flex 0 0 100%)',
 // 結尾(中間順帶含 transferConnections 本體與新增的 xfcSysName,三者本來就是同一段連續程式碼)。
 const mFull = html.match(/const XFER_WINDOW_SEC[\s\S]*?\nfunction transferConnectionHtml\([\s\S]*?\n\}/);
 // 具名閘門(記憶 verify-fixture-stub-drift.md):先證明抽到的是現行這一份,不是抽到舊版或空字串。
-ok('G15 抽出的原始碼含 xfer-conn 與 xfc-row(具名閘門,防抽到舊版/空字串)',
-   !!mFull && /xfer-conn/.test(mFull[0]) && /xfc-row/.test(mFull[0]));
+// 🔴 2026-09-01「雙框」修復後,回傳字串不再自己包一層 <div class="xfer-conn">(外層容器本身
+// 就是 .xfer-conn,包兩層等於兩圈框線),所以具名閘門改認三個永遠會出現的結構性 class:
+// xfc-h(標題)/xfc-row(可點的列)/xfc-f(表定註腳)。判準沒有放寬——三個同時比對比原本
+// 一個 xfer-conn 更難巧合命中,且都是這個函式獨有的字樣。
+ok('G15 抽出的原始碼含 xfc-h/xfc-row/xfc-f(具名閘門,防抽到舊版/空字串)',
+   !!mFull && /xfc-h/.test(mFull[0]) && /xfc-row/.test(mFull[0]) && /xfc-f/.test(mFull[0]));
 if (!mFull) { console.log(`\n${fails} 項未過`); process.exit(1); }
 
 // stub 只求最小、夠撐起結構與分支判斷,不求譯文正確(譯文由 check_i18n.mjs 另外把關):
@@ -186,8 +190,15 @@ const transferConnectionHtml = new Function(
 
 // G16 —— 無接續回空字串,不留空殼(打死突變6:把 '' 換成 <div class="xfer-conn"></div>)。
 // 沿用 G2d 已驗過的窗:凌晨 2 點,台中群排除台鐵後窗內無車。
+// 第二半改比對 xfc-(整個函式所有輸出片段共同的前綴),不再比對 xfer-conn——「雙框」修復後
+// 那個字樣本來就不會出現在回傳值裡,拿它當判準恆真等於零訊號。
 const emptyHtml = transferConnectionHtml(GID_TAICHUNG, S(2, 0), 'TRA');
-ok('G16 無接續回空字串、不含 xfer-conn', emptyHtml === '' && !/xfer-conn/.test(emptyHtml));
+ok('G16 無接續回空字串、連一個 xfc-* 片段都沒有', emptyHtml === '' && !/xfc-/.test(emptyHtml));
+// G16b —— 「雙框」正向對照:有接續時回傳字串不可再自己包一層 .xfer-conn(容器本身就是),
+// 包回去會讓內外兩層都吃到 border/padding/margin ⇒ 畫面出現兩圈框。畫面端的量測在
+// verify_transfer_pin.mjs 的 G5(computed border),這裡守的是產生它的那一行字串。
+ok('G16b 回傳字串不自帶 .xfer-conn 外框(否則與容器疊成雙框)',
+   !/class="xfer-conn"/.test(transferConnectionHtml(GID_TAICHUNG, S(15, 38), 'TRA')));
 
 // G17 —— 跨午夜時刻不會印成 25:10。真實資料(非人造):T-KRTC-R16 23:37 查詢,第二筆 sec=87120
 // (24:12 raw)在窗內且入選前二。⚠️ 這條驗的是「輸出恆在 00:00–23:59」這個最終不變量,不是
@@ -228,6 +239,30 @@ const pinnedHtml = transferConnectionHtml(GID_TAICHUNG, S(15, 38), 'TRA');
 hState.xferPin = null;
 ok('G20 釘選:標題是「你的接續班次」', /你的接續班次/.test(pinnedHtml));
 ok('G20b 釘選:仍有 xfc-sys 小標', /xfc-sys/.test(pinnedHtml));
+
+// ── G21 —— Finding 4:「剩 N 分」用 Math.floor,不是 Math.round(四捨五入最多高估 29 秒,
+// 90 秒會顯示「剩 2 分」)。本分支 c6f66f59 已為同一個理由(高估餘裕是要避免的方向)改過一次。
+// 構造 90 秒情境:從 r1(台中 15:38)挑一班「與前一班相隔 >90 秒」的目標,再把 atSec 設成
+// 它發車前 90 秒——rows 依 sec 升冪,任何 sec 落在 [S-90,S) 的候選都只可能是前一班(已排除),
+// 所以第一列必定是目標本人、leftSec 恰為 90。
+const target90 = r1.find((x, i) => i > 0 && x.sec - r1[i - 1].sec > 90);
+ok('G21pre 找得到「與前一班相隔 >90 秒」的目標班次(構造 90 秒情境的前提)', !!target90,
+   target90 ? `${target90.n} @${target90.sec}` : JSON.stringify(r1.slice(0, 3).map(x => x.sec)));
+const html90 = target90 ? transferConnectionHtml(GID_TAICHUNG, target90.sec - 90, 'TRA') : '';
+const first90 = (html90.match(/data-xn="([^"]*)"/) || [])[1];
+ok('G21pre2 第一列真的是那班(證明我量的是 leftSec=90 的那一列,不是別班)',
+   !!target90 && first90 === target90.n, `${first90} vs ${target90 && target90.n}`);
+ok('G21 剩 90 秒顯示「剩 1 分」(Math.floor;改回 Math.round 會變成 2)',
+   /<span class="xfc-left">剩 1 分<\/span>/.test(html90),
+   (html90.match(/<span class="xfc-left">([^<]*)</) || [])[1]);
+
+// ── G22 —— Finding 6/M2:Global Constraint「高鐵沒有即時誤點 ⇒ 畫面要分得出來」與「不寫
+// 來得及/來不及」的唯一畫面體現就是這行註腳,刪掉它五支腳本零告警(2026-09-01 廣審突變 M2)。
+// 三種形態各驗一次,不是只驗某一格。
+const footRe = /<span class="xfc-f">表定時刻 · 未計站內步行<\/span>/;
+ok('G22 同系統形態帶「表定時刻 · 未計站內步行」註腳', footRe.test(sameSysHtml));
+ok('G22b 混系統形態也帶', footRe.test(mixedHtml));
+ok('G22c 釘選形態也帶', footRe.test(pinnedHtml));
 
 console.log(fails ? `\n${fails} 項未過` : '\n全部通過');
 process.exit(fails ? 1 : 0);
