@@ -120,5 +120,47 @@ const farthestLeft = Math.max(...r1.map(x => x.leftSec));
 ok('G10b 窗確實延伸到(2h,3h]區間(非只到 2h)', farthestLeft > 2 * 3600 && farthestLeft <= 3 * 3600,
    `${farthestLeft / 60} 分`);
 
+// ── 渲染層(三個顯示實例):跟隨小卡 #fpConn、捷運班距卡 #fcConn、手機列車卡 #tcConn ──────────
+// 🔴 命名接續 G10 之後、不重用 G6/G7/G7b/G8——那幾個標籤上面查詢層已經用掉(G6=atSec guard、
+// G7/G7b=fromSys 聯集、G8=群 id 對照 station_transfers.json),重複標籤會讓輸出裡兩件完全不同的
+// 事情印成同一個名字,突變測試時「哪一條紅了」會分不清是查詢層還是渲染層出問題。
+const mh = html.match(/function transferConnectionHtml\([\s\S]*?\n\}/);
+ok('G11 抽到 transferConnectionHtml', !!mh, mh ? `${mh[0].split('\n').length} 行` : '找不到');
+
+// G12 —— 三個實例都要更新(漏一個＝手機點開列車卡後資訊消失),且各自能獨立轉紅:
+// 拿掉某一處的 setTransferConn 呼叫,只有那個 id 的這條斷言會紅,其餘兩個 id 不受擾動。
+// 容器存在的判準比對完整形狀(class+id+hidden),不是只查 id 出現過——避免 id 被放到錯的標籤上
+// 或漏掉 hidden 屬性都測不出來。
+for (const id of ['fpConn', 'fcConn', 'tcConn']) {
+  ok(`G12 ${id} 容器存在(xfer-conn+hidden)`,
+     new RegExp(`<div class="xfer-conn" id="${id}" hidden></div>`).test(html));
+  ok(`G12 ${id} 有接上 setTransferConn`, new RegExp(`setTransferConn\\(\\s*'${id}'`).test(html));
+}
+// G12b —— 捷運卡那一處必須傳 null 當 fromSys(傳錯會把台鐵/高鐵整組排除掉,畫面永遠空的)
+ok('G12b fcConn 的 fromSys 傳 null',
+   /setTransferConn\(\s*'fcConn'[\s\S]{0,200}?null\s*\)/.test(html));
+// G12c/d —— 反向對照:fpConn/tcConn 不可複製 fcConn 的 null 寫法。這兩張卡的 fromSys 該傳「本班車
+// 的系統」,傳 null 會連同系統/本系統都算成有效轉乘,不是規格要的「對向系統」。
+// 🔴 這兩條在函式尚未實作時是空字串比對、恆為真(vacuous pass)——不是「起始已通過」而是「還沒有
+// 東西可比對」,真正的把關力道要靠下面的突變測試(把 fpConn 的最後一個參數換成字面 null)來證明。
+ok('G12c fpConn 的 fromSys 不是字面 null(要傳實際系統)',
+   !/setTransferConn\(\s*'fpConn'[\s\S]{0,200}?null\s*\)/.test(html));
+ok('G12d tcConn 的 fromSys 不是字面 null(要傳實際系統)',
+   !/setTransferConn\(\s*'tcConn'[\s\S]{0,200}?null\s*\)/.test(html));
+
+// G13 —— 不得出現「來得及/來不及」字樣(規格硬約束:站內步行時間沒有資料,猜太短會害人錯過車)。
+// 同上,函式不存在時 mh 為 null、比對空字串恆為真,是 guard 不是「起始通過的功能測試」。
+ok('G13 沒有「來得及」字樣', !/來得及|趕得上|趕不上/.test(mh ? mh[0] : ''));
+
+// G14 —— #tcConn 兩個陷阱(task-3-context.md §3):
+// 陷阱A:[hidden] 是全域 display:none!important(index.html:175),#tcConn 的顯示規則若沒有
+//        :not([hidden]) 限定,hidden=true 就永遠蓋不掉它,手機列車卡會常駐一個空框。
+// 陷阱B:.tc-head 只在 sheet 態才 flex-wrap,#tcConn 必須 flex:0 0 100% 自成一列,且規則要限定在
+//        .traincard.tc-sheet .tc-head 底下——不限定的話桌面併卡會冒出一塊不該出現的東西。
+const tcConnRule = html.match(/\.traincard\.tc-sheet \.tc-head #tcConn:not\(\[hidden\]\)\s*\{([^}]*)\}/);
+ok('G14 tcConn CSS 有 :not([hidden]) 守門(陷阱A)', !!tcConnRule);
+ok('G14b tcConn CSS 在 sheet 態撐滿一列(陷阱B,flex 0 0 100%)',
+   !!(tcConnRule && /flex:\s*0\s+0\s+100%/.test(tcConnRule[1])));
+
 console.log(fails ? `\n${fails} 項未過` : '\n全部通過');
 process.exit(fails ? 1 : 0);

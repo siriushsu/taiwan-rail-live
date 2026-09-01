@@ -342,6 +342,8 @@
       '面板半透明': 'Translucent panels', '診斷資訊': 'Diagnostics', '匯出捷運診斷': 'Export metro diagnostics',
       '◎ 附近車站': '◎ Nearby stations', '⏺ 錄影 Beta': '⏺ Recording Beta', '帳號同步': 'Account sync',
       '已是最新版': 'Up to date', '給軌島評分': 'Rate Rail Island', '回報問題或建議': 'Report an issue or suggestion',
+      '轉{system} · 你到站時': 'Transfer to {system} · when you arrive', '剩 {n} 分': '{n} min left',
+      '你的接續班次': 'Your connection', '取消釘選': 'Unpin', '表定時刻 · 未計站內步行': 'Scheduled time · excludes walking inside the station',
     },
     ja: {
       '軌島': '軌島', '軌島 railisland.tw。看台鐵此刻準點嗎、捷運怎麼穿梭全台，一張會動的台灣鐵道地圖。': '軌島は、台湾鉄路・高速鉄道・各都市のメトロとライトレールを一枚の地図で表示する鉄道アニメーションです。', '台灣鐵道即時軌跡': '台湾鉄道ライブ', '台灣高鐵即時軌跡': '台湾高速鉄道ライブ',
@@ -630,6 +632,8 @@
       '面板半透明': 'パネルを半透明にする', '診斷資訊': '診断情報', '匯出捷運診斷': 'メトロ診断情報を書き出す',
       '◎ 附近車站': '◎ 近くの駅', '⏺ 錄影 Beta': '⏺ 録画 Beta', '帳號同步': 'アカウント同期',
       '已是最新版': '最新バージョンです', '給軌島評分': '軌島を評価', '回報問題或建議': '問題・提案を報告',
+      '轉{system} · 你到站時': '{system}へ乗換・到着時点', '剩 {n} 分': 'あと{n}分',
+      '你的接續班次': 'あなたの乗継便', '取消釘選': '固定を解除', '表定時刻 · 未計站內步行': '所定時刻・駅構内の徒歩時間は含みません',
     },
   };
 })();
