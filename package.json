@@ -36,7 +36,8 @@
     "check-guest-merge": "node scripts/verify_guest_merge.mjs",
     "check-android-direction": "node app/scripts/verify_android_widget_direction.mjs",
     "check-android-regions": "node app/scripts/verify_android_widget_regions.mjs",
-    "check-tracked-ignored": "node scripts/check_tracked_ignored.mjs"
+    "check-tracked-ignored": "node scripts/check_tracked_ignored.mjs",
+    "check-crowd-board": "node scripts/verify_crowd_and_board_width.mjs"
   },
   "dependencies": {
     "playwright": "^1.61.1",

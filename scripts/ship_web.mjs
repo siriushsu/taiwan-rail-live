@@ -93,6 +93,12 @@ try {
   // 不是「班表更新後資料還接得上」這種每次出貨都可能出錯的東西)。同 i18n/voice:驗的是
   // 【這棵乾淨出貨樹】那一份。「不在出貨鏈上的驗收腳本等於不存在」——這兩支本來就不吃
   // 瀏覽器,沒有理由不掛。
+  //
+  // 🔴 2026-09-02 例外:follow_pin 也掛上來(第四支,上面那段寫的時候它還不存在)。它不屬於
+  // 「互動/過渡態」那一類——它守的是【跟車面板每幀重寫 innerHTML 會把點擊整個吃掉】,而那個
+  // 缺陷 (a) 對真人 100% 復現、(b) 其餘 148 條斷言全綠照不到(它們都繞開跟車迴圈)、
+  // (c) 任何一次改到面板算繪路徑都會原地復發。實測整支 6 秒(42 條斷言、兩引擎各 2 次 boot),
+  // 用上面同一把「成本 vs 保護」的尺量,結論和那三支相反。見 [[follow-panel-repaint-eats-clicks]]。
   const xferDep = spawnSync('node', [path.join(wt, 'scripts', 'verify_transfer_departures.mjs')], { encoding: 'utf8' });
   process.stdout.write(xferDep.stdout || ''); process.stderr.write(xferDep.stderr || '');
   if (xferDep.status !== 0) fail('轉乘接續資料未過——多半是班表更新後沒重產'
@@ -102,6 +108,11 @@ try {
   process.stdout.write(xferConn.stdout || ''); process.stderr.write(xferConn.stderr || '');
   if (xferConn.status !== 0) fail('轉乘接續查詢層未過——transferConnections/transferConnectionHtml 邏輯壞了'
     + '（單獨重跑：npm run check-transfer-connections）');
+
+  const xferFollow = spawnSync('node', [path.join(wt, 'scripts', 'verify_transfer_follow_pin.mjs')], { encoding: 'utf8' });
+  process.stdout.write(xferFollow.stdout || ''); process.stderr.write(xferFollow.stderr || '');
+  if (xferFollow.status !== 0) fail('跟車中的接續釘選未過——面板算繪把點擊吃掉,或窄卡版面溢出'
+    + '（單獨重跑：npm run check-transfer-follow-pin）');
 
   // ── 3. strip（腳本內建 esbuild AST 重印等價證明，任何不等價都非零退出）────
   const rawBytes = fs.readFileSync(path.join(wt, 'index.html'));
