@@ -44,7 +44,10 @@ android {
             if (keystorePropertiesFile.exists()) {
                 signingConfig signingConfigs.release
             }
-            minifyEnabled false
+            // Play 要求模糊化比例 >= 25%（期限 2027-02）；R8 關著時我們自己的程式碼
+            // 一行都沒混淆，Play 只量到 4%。keep 規則見 proguard-rules.pro。
+            // 只有 release 會 minify，所以動這裡之後一律要裝 release 版實機驗。
+            minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
