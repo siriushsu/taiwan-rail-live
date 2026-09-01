@@ -4999,6 +4999,23 @@
         }
       }
     },
+    "不含即時誤差 · {time} 更新": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live delay not applied · updated {time}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "遅延は未反映 · {time} 更新"
+          }
+        }
+      }
+    },
     "不知道要看哪班，交給它挑一班。": {
       "extractionState": "manual",
       "localizations": {
@@ -5709,6 +5726,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "本日の公式運休 {n}本"
+          }
+        }
+      }
+    },
+    "今日往後已無班次": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No more departures today"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本日の運行は終了しました"
           }
         }
       }
@@ -16712,19 +16746,19 @@
         }
       }
     },
-    "放空模式改成看戲不操作：地圖不會被手指拉歪，離開放空鈕按得到": {
+    "放空模式：地圖不會被手指拉歪；離開再進入時，「離開放空」鈕不會再縮成按不到的小鈕": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ambient mode is now sit-back-and-watch: the map can no longer be dragged or pinched off course, and the Exit ambient mode button stays visible and easy to tap."
+            "value": "Ambient mode is now sit-back-and-watch: the map can no longer be dragged or pinched off course, and leaving then re-entering no longer shrinks the Exit ambient mode button into an empty stub you cannot tap."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "環境モードは「眺めるだけ」に：地図が指で動かされたりズームがずれたりしなくなり、「環境モードを終了」ボタンも見えたまま押しやすくなりました。"
+            "value": "鑑賞モードは「眺めるだけ」に：地図が指で動かされたりズームがずれたりせず、いったん終了してもう一度入っても「鑑賞モードを終了」ボタンが押せない小さなボタンに縮まなくなりました。"
           }
         }
       }
@@ -21489,6 +21523,40 @@
         }
       }
     },
+    "時刻表班次不含即時誤差": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Timetable times; live delay not applied"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時刻表の時刻です。遅延は反映していません"
+          }
+        }
+      }
+    },
+    "時刻表班次不含即時誤差 · {time} 更新": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Timetable times; live delay not applied · updated {time}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時刻表の時刻です。遅延は未反映 · {time} 更新"
+          }
+        }
+      }
+    },
     "時刻表模擬": {
       "extractionState": "manual",
       "localizations": {
@@ -21859,6 +21927,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "ホーム画面の発車ウィジェットでも各行に上り／下りを表示：Android に方向の三角を新たに追加し、両プラットフォームとも三角を大きくして、台鉄公式の「上り＝青・下り＝緑」に変更しました。"
+          }
+        }
+      }
+    },
+    "桌面小工具新增車站時，起站選單改成依縣市分段": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When you add a station to a home screen widget, the origin picker is grouped by city."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ホーム画面ウィジェットに駅を追加するとき、出発駅を県・市別に整理しています。"
           }
         }
       }

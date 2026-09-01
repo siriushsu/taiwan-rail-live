@@ -1567,14 +1567,14 @@ struct RectangularBoardView: View {
                 Spacer(minLength: 2)
                 if let notice = snapshot.notice {
                     // 鎖屏三行放不下整句班表警示 ⇒ 只留形狀，全文交給旁白。
-                    Text("⚠").font(.system(size: 10)).accessibilityLabel(RailNativeL10n.text(notice.text))
+                    Text("⚠").font(.system(size: 11)).accessibilityLabel(RailNativeL10n.text(notice.text))
                 }
             }
             .foregroundStyle(.secondary)
 
             if let row = snapshot.rows.first {
                 HStack(spacing: 4) {
-                    RailTrainMark(kind: row.trainType, number: row.trainNumber, fontSize: 9)
+                    RailTrainMark(kind: row.trainType, number: row.trainNumber, fontSize: 11)
                     Text(row.watchingDestinationText)
                         .font(.system(size: 13, weight: .semibold))
                         .lineLimit(1).minimumScaleFactor(0.7)
@@ -1838,7 +1838,7 @@ private struct PlaceColumnView: View {
                 // 那顆標在 11pt 就要 60pt，加上四碼車次就排不進去。
                 RailTrainMark(kind: lead.trainType, number: lead.trainNumber,
                               color: BoardPalette.trainColor(lead.trainType, in: typeColors),
-                              fontSize: 10, scale: scale)
+                              fontSize: 11, scale: scale)
                     .frame(height: scale.pt(18), alignment: .leading)
                 Text(RailNativeL10n.text("往 {station}", ["station": RailNativeL10n.name(lead.destinationName)]))
                     .font(.system(size: scale.pt(13)))
@@ -1973,7 +1973,7 @@ struct RectangularPlaceBoardView: View {
                 Spacer(minLength: 2)
                 if snapshot.lines.count > 1 {
                     Text(RailNativeL10n.text("{n} 條線", ["n": String(snapshot.lines.count)]))
-                        .font(.system(size: 10))
+                        .font(.system(size: 11))
                         .fixedSize()
                 }
             }
@@ -1991,7 +1991,7 @@ struct RectangularPlaceBoardView: View {
                 .widgetAccentable()
 
                 HStack(spacing: 4) {
-                    RailTrainMark(kind: row.trainType, number: row.trainNumber, fontSize: 9)
+                    RailTrainMark(kind: row.trainType, number: row.trainNumber, fontSize: 11)
                     Text(RailNativeL10n.text("往 {station}", ["station": RailNativeL10n.name(row.destinationName)]))
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
@@ -2047,7 +2047,9 @@ struct PassBadge: View {
 
     var body: some View {
         Text(RailNativeL10n.text("通過"))
-            .font(.system(size: scale.pt(9), weight: .bold))
+            // 11pt 地板（設計稿 2026-09-01：「版位內任何文字不得小於 11pt」，
+            // Apple 最小系統字級 Caption 2 就是 11pt）。放不下時砍一件事實，不縮字。
+            .font(.system(size: scale.pt(11), weight: .bold))
             .padding(.horizontal, scale.pt(3))
             .padding(.vertical, scale.pt(1))
             .overlay(
