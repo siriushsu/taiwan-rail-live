@@ -33,6 +33,7 @@
     "ship-web": "node scripts/ship_web.mjs",
     "check-deploy-config": "node scripts/check_deploy_config.mjs",
     "check-merge": "node scripts/verify_merge_no_loss.mjs",
+    "check-guest-merge": "node scripts/verify_guest_merge.mjs",
     "check-android-direction": "node app/scripts/verify_android_widget_direction.mjs",
     "check-android-regions": "node app/scripts/verify_android_widget_regions.mjs",
     "check-tracked-ignored": "node scripts/check_tracked_ignored.mjs"

@@ -179,6 +179,8 @@
       '南下': 'Southbound', '北上': 'Northbound', '抵達本站': 'Terminating here', '其他': 'Other',
       '桌面小工具新增車站時，起站選單改成依縣市分段':
         "When you add a station to a home screen widget, the origin picker is grouped by city.",
+      '登入之後完乘紀錄與旅程護照整個變空：那些紀錄其實一直都還在這台裝置上，帳號面板現在會告訴你有幾筆，按一下就全部併回帳號（謝謝網友回報）':
+        "Signed in and your completed rides and Journey Passport went blank? Those records were never lost—they were still on this device. The account panel now tells you how many are waiting, and one tap merges them all back into your account.",
       '放空模式：地圖不會被手指拉歪；離開再進入時，「離開放空」鈕不會再縮成按不到的小鈕':
         "Ambient mode is now sit-back-and-watch: the map can no longer be dragged or pinched off course, and leaving then re-entering no longer shrinks the Exit ambient mode button into an empty stub you cannot tap.",
       '快到轉乘站時，直接列出對向系統最近兩班和「你到站時還剩幾分」，可以釘住你要搭的那班':
@@ -478,6 +480,8 @@
       '南下': '南行き', '北上': '北行き', '抵達本站': '当駅止まり', '其他': 'その他',
       '桌面小工具新增車站時，起站選單改成依縣市分段':
         'ホーム画面ウィジェットに駅を追加するとき、出発駅を県・市別に整理しています。',
+      '登入之後完乘紀錄與旅程護照整個變空：那些紀錄其實一直都還在這台裝置上，帳號面板現在會告訴你有幾筆，按一下就全部併回帳號（謝謝網友回報）':
+        'ログインしたら完乗記録と旅のパスポートが空になった――その記録は消えていません。この端末にちゃんと残っています。アカウント画面に何件あるかを表示するようにしたので、タップひとつでまとめてアカウントに取り込めます。',
       '放空模式：地圖不會被手指拉歪；離開再進入時，「離開放空」鈕不會再縮成按不到的小鈕':
         '鑑賞モードは「眺めるだけ」に：地図が指で動かされたりズームがずれたりせず、いったん終了してもう一度入っても「鑑賞モードを終了」ボタンが押せない小さなボタンに縮まなくなりました。',
       '快到轉乘站時，直接列出對向系統最近兩班和「你到站時還剩幾分」，可以釘住你要搭的那班':
