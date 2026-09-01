@@ -1,0 +1,26 @@
+# 被 .gitignore 排除、但刻意留在版控裡的既有例外。
+# 由 scripts/check_tracked_ignored.mjs 讀取:只有這份清單以外的新增會被擋下。
+#
+# 2026-09-01 建立基線時,origin/main 上就有這 14 個。它們早已隨 public repo 公開,
+# 列在這裡是「記錄現況」不是「認可」——要不要收回是另一個決定。
+# 新增任何一行之前,先確認那個檔案可以公開,並把理由寫進 commit message。
+
+# 設計交接稿(Claude Design 往返用)
+hand off/README.md
+hand off/project/.thumbnail
+hand off/project/Style Options.dc.html
+hand off/project/design-mock.html
+hand off/project/support.js
+hand off/project/uploads/DESIGN_BRIEF.md
+hand off/project/uploads/README.md
+hand off/project/uploads/design-mock.html
+
+# superpowers 計畫書與規格(被 docs/superpowers 的忽略規則掃到)
+docs/superpowers/plans/2026-08-07-live-activity-push.md
+docs/superpowers/plans/2026-08-21-metro-core-relaunch-帳本.md
+docs/superpowers/specs/2026-08-01-official-info-watch-design.md
+docs/superpowers/specs/2026-08-07-live-activity-push-design.md
+
+# 早期研究稿
+研究_快車位置推估模型_2026-07-25.md
+研究_快車跳站校正_2026-07-24.md

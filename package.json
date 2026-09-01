@@ -8,7 +8,7 @@
     "check-schedule": "python3 scripts/check_schedule.py",
     "build-manifest": "node scripts/build_data_manifest.mjs && node scripts/build_data_provenance.mjs",
     "check-manifest": "node scripts/verify_data_manifest.mjs && node scripts/verify_data_provenance.mjs",
-    "check-public": "node scripts/verify_ignore_symmetry.mjs && node scripts/verify_public_repo_hygiene.mjs && node scripts/verify_privacy_providers.mjs",
+    "check-public": "node scripts/check_tracked_ignored.mjs && node scripts/verify_ignore_symmetry.mjs && node scripts/verify_public_repo_hygiene.mjs && node scripts/verify_privacy_providers.mjs",
     "check-privacy": "node scripts/verify_privacy_providers.mjs",
     "check-ops": "node scripts/verify_stadia_projection.mjs",
     "check-basemap": "node scripts/verify_web_basemap_notice.mjs",
@@ -26,7 +26,8 @@
     "ship-web": "node scripts/ship_web.mjs",
     "check-deploy-config": "node scripts/check_deploy_config.mjs",
     "check-merge": "node scripts/verify_merge_no_loss.mjs",
-    "check-android-direction": "node app/scripts/verify_android_widget_direction.mjs"
+    "check-android-direction": "node app/scripts/verify_android_widget_direction.mjs",
+    "check-tracked-ignored": "node scripts/check_tracked_ignored.mjs"
   },
   "dependencies": {
     "playwright": "^1.61.1",
