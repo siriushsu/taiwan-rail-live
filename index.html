@@ -4900,14 +4900,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="guestmerge"><span class="d">9/1</span><span>登入之後完乘紀錄與旅程護照整個變空：那些紀錄其實一直都還在這台裝置上，帳號面板現在會告訴你有幾筆，按一下就全部併回帳號（謝謝網友回報）</span></li>
+        <li data-cl-of="signinfallback"><span class="d">9/1</span><span>登入失敗訊息不再重複兩行；Android 的 Google 登入多了自動退路（謝謝網友回報）</span></li>
         <li data-cl-of="ambientlock"><span class="d">9/1</span><span>放空模式：地圖不會被手指拉歪；離開再進入時，「離開放空」鈕不會再縮成按不到的小鈕</span></li>
         <li data-cl-of="androidwidgetparity"><span class="d">9/1</span><span>桌面小工具新增車站時，起站選單改成依縣市分段</span></li>
         <li data-cl-of="traboarddir"><span class="d">8/31</span><span>火車站看板改成分方向顯示：南下、北上分開，山線海線與支線各自成區，冷門方向不再被擠掉；顏色比照台鐵新版車站標示的北上藍、南下綠</span></li>
         <li data-cl-of="widgetdir"><span class="d">8/31</span><span>桌面小工具的發車看板也標出北上／南下：Android 從零補上方向三角，兩個平台的三角一起放大，顏色換成台鐵官方的北上藍、南下綠</span></li>
         <li data-cl-of="ridingclock"><span class="d">8/31</span><span>按下「我上車了」之後，再去點一班還沒發車的車，時鐘不會再被撥走（謝謝網友回報）</span></li>
         <li data-cl-of="satunderlay"><span class="d">8/31</span><span>衛星影像模式下放大縮小會閃一下底色的問題真的修好了：8/30 只是把墊底的顏色調得像衛星影像，換色治標沒治本。現在底下永遠墊著一層真的衛星影像，開衛星時就把全台先抓好，縮放時露出來的是影像不是色塊</span></li>
-        <li data-cl-of="boardalign"><span class="d">8/31</span><span>車站看板的欄位對齊修好：倒數變成「即將進站」那幾列，原本會把時刻與擁擠度往左推、整張板看起來歪歪的，現在倒數與時刻兩欄逐板等寬，每一列都對齊。另外台鐵臺北車站不再多出一顆「臺北-環島」——那是環島之星繞完一圈的官方終點站碼，其實就是臺北站，現在併成一顆，手機小工具的車站清單也一起併</span></li>
-        <li data-cl-of="branchdepart"><span class="d">8/31</span><span>新北投與小碧潭支線的車一發車就從地圖上消失，現在會照官方到站時間走完兩站</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5030,6 +5030,7 @@
         <li><span class="d">7/13</span><span>新增「附近火車」：地圖上落一根釘，查周邊 60 分鐘內會通過的車次</span></li>
         <li><span class="d">7/12</span><span>新增平交道功能：點一下查接下來會通過的列車（7/13 補上貨運線 21 處）</span></li>
         <li class="grp">收藏、護照與成就</li>
+        <li data-cl="guestmerge"><span class="d">9/1</span><span>登入之後完乘紀錄、旅程護照與累積里程整個變空的問題有解了：如果這台裝置先前登入過另一個帳號，為了不把別人的收藏混進來，新登入的帳號會從空白開始——你的紀錄一直都還在這台裝置上，只是畫面讀不到。現在帳號面板會直接寫出「這台裝置還有幾筆登入前存的紀錄」，按一下「併入這個帳號」就全部回來：完乘紀錄、最愛列車、最愛車站與地圖釘選一起併，帳號裡已經刪掉的不會被救回來，帳號裡原有的資料也不會被蓋掉（謝謝兩位網友回報）</span></li>
         <li data-cl="achvhelp"><span class="d">8/18</span><span>護照上的成就章終於有說明了：電腦把滑鼠移過去、手機點一下，會跳出一張小卡，寫這枚章的達成條件、怎麼拿的建議，以及你現在的進度——像「4 / 100 座」「610 / 1,000 km」。早鳥、夜行者這種一趟就達成的，改成告訴你目前最早（最晚）跟過幾點發車的車。旁邊的明星列車、車種圖鑑、支線行腳三種收集章也共用同一張卡，移過去就看得到那班車的故事，點下去仍然是跳去跟那班車</span></li>
         <li data-cl="linecomplete"><span class="d">8/14</span><span>縱貫線北段完乘率卡在 99%：新竹–北新竹是與內灣線共用的同一段軌道，以前只算給其中一條線。現在兩條線都算得到，已收集的紀錄不用重搭就會自動補上（謝謝網友回報）</span></li>
         <li data-cl="checkinplatform"><span class="d">8/14</span><span>單站蓋章改用月台範圍判定：像汐科這種月台特別長的車站，以前站在月台中段或另一端都按不下去，現在整條月台上任何位置都蓋得到章。全台鐵 241 座車站裡有 239 座換上各自的月台範圍（謝謝網友回報）</span></li>
@@ -5123,6 +5124,7 @@
         <li><span class="d">7/10</span><span>夜間與衛星模式視覺升級；「軌」軌道顯示三段切換：自動／淡化／隱藏</span></li>
         <li><span class="d">7/9</span><span>站名移到軌道側邊不再互相壓住；雙欄版面：搜尋／最愛／旅程收集移到右側欄</span></li>
         <li class="grp">分享與個人化</li>
+        <li data-cl="signinfallback"><span class="d">9/1</span><span>登入失敗時，紅色的錯誤訊息原本會重複顯示兩行，現在只顯示一行。另外，Android 版用 Google 登入時，有些手機會直接跳出「不支援」的錯誤、或是點下去等不到任何結果；現在遇到這兩種情況都會自動改試另一種 Google 登入方式，兩種都走不通時才會建議改用「使用 Apple 登入」（它不需要 Google 服務）——Android 這部分隨下一版 App 生效（謝謝網友回報）</span></li>
         <li data-cl="androidplus"><span class="d">8/26</span><span>Android 版的軌島通行證購買流程補齊：月票與年票會使用 Google Play 顯示的當地價格，支援購買與恢復購買；方案內容、管理與取消訂閱說明也會依 Android 顯示 Google Play，不再混入 iPhone 的 App Store 與動態島功能。這一版也強制使用與網站相同的捷運即時動畫核心，不會因出包漏帶設定而退回舊模型；封測使用同一顆準備上架的 App，但只有列入測試名單的軌島帳號能取得測試資格，正式訂閱與測試訂閱仍分開核對</span></li>
         <li data-cl="release140"><span class="d">8/6</span><span>iPhone／iPad 版升級至 1.4.0：加入軌島帳號、通行證月票與年票、收藏與完乘紀錄跨裝置同步、跟車鎖定畫面與動態島即時動態，以及可自訂起訖站的發車看板小工具；也一併修好 App 分享連結、行程追蹤橫幅蓋住時鐘與小工具設定穩定性</span></li>
         <li data-cl="passproduction"><span class="d">8/6</span><span>App 的軌島通行證改用 App Store 正式訂閱：月票與年票購買後會開啟進階功能與雲端同步；TestFlight 的展示進度不會出現在正式版</span></li>
@@ -5672,7 +5674,7 @@
 //         獨立基準覆核:山線／海線／成追線判定 vs 台鐵官方 Line 欄位【908/908 逐車一致】;
 //         純西部方向 vs 官方 LineDir 對稱一致(1↔北上 241、2↔南下 241)。
 //         守門人:scripts/verify_board_direction_groups.mjs(26 項,五發突變各自咬到預期斷言)。
-const BUILD = 'v0901c'; // 1.5.3 出貨版:更新紀錄補上 Android 小工具起站選單依縣市分段(issue #40),首層擠掉 8/30 那條
+const BUILD = 'v0901e'; // 訪客紀錄併入帳號;a/c/d 都已被別的 ref 佔用(換號前逐 ref 掃過),跨分支撞號見心得16
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -12139,6 +12141,41 @@ function userDataMerge(remote) {
   userDataNotify('remote');
   return userDataJsonClone(merged);
 }
+// ── 訪客紀錄併入帳號（登入時沒被繼承的那一份） ────────────────────────────────
+// userDataMigrateAccountPartition() 的陌生人防護：這台裝置若「還記著別的帳號」
+// （ACCOUNT_LAST_UID_KEY），新登入的帳號一律從空白分區開始，訪客資料不會自動併入。
+// 那道防護只做了「不自動併」這一半，另一半——本人要怎麼把自己的東西拿回來——一直沒有出口。
+// 2026-09-01 兩位 Android 使用者回報「完乘紀錄整個不見、旅程護照空的、累積里程 0」正是這個
+// 缺口：四個 collection 都還好好躺在匿名分區裡（`trainmap-user-data-v1`），只是登入之後的畫面
+// 永遠讀不到它們；旅程護照的章、趟數與里程全部由 rides 現算，所以一份讀不到就長成三個症狀。
+// 判斷「併進來會多幾筆」直接拿 userDataMergeEnvelopes() 的結果去比，不另寫一套規則——另寫的
+// 那套遲早會跟真正的合併語意漂開，而漂開的方向是「說有東西可併、按了卻什麼都沒變」。
+function guestDataEnvelope() {
+  try {
+    const raw = localStorage.getItem(USER_DATA_KEY);
+    return raw ? userDataNormalizeEnvelope(JSON.parse(raw)) : null;
+  } catch (e) { return null; }
+}
+function userDataItemCount(env) {
+  return env ? USER_DATA_COLLECTIONS.reduce((n, kind) => n + env.collections[kind].items.length, 0) : 0;
+}
+// 回傳「把匿名分區併進這個帳號會多出幾筆」。0 ⇒ 沒有東西可併，不要拿這件事打擾使用者
+// （已經併過的人、以及本來就共用同一份的人，都會落在這裡）。
+function guestDataPending(uid) {
+  if (!uid) return 0;
+  const guest = guestDataEnvelope();
+  if (!guest || !userDataItemCount(guest)) return 0;
+  const mine = userDataRead(uid), before = userDataItemCount(mine);
+  return Math.max(0, userDataItemCount(userDataMergeEnvelopes(mine, guest)) - before);
+}
+// 併入刻意不清匿名分區：這台裝置可能還有別的帳號要用它，而且「併入」本身不該是破壞性動作。
+// 重複按是安全的——合併冪等，第二次 guestDataPending() 就回 0，按鈕自己消失。
+function guestDataMerge(uid) {
+  if (!uid) return false;
+  const guest = guestDataEnvelope();
+  if (!guest) return false;
+  return userDataWrite(userDataMergeEnvelopes(userDataRead(uid), guest), uid);
+}
 window.RailIslandUserData = Object.freeze({
   version: USER_DATA_VERSION,
   export: () => userDataJsonClone(userDataRead()),
@@ -12470,21 +12507,21 @@ function accountRender() {
     // 只是因為它會跳出瀏覽器視窗,那本身就是看得見的動靜,與錯誤有沒有顯示無關。
     // (與 Android 線 5dacec9／iOS 線 bc066ee 同一段,三線一致。)
     (a.actionError ? `<div class="account-error">${escHtml(a.actionError)}</div>` : '') +
+    (a.signinStuck === 'google' ? `<div class="account-note">${escHtml(t('沒有跳出 Google 帳號選擇畫面嗎？可以改用另一種方式登入。'))}</div><div class="account-user-actions"><button class="wide" type="button" data-login-legacy="google">${escHtml(t('改用另一種方式登入'))}</button></div>` : '') +
+    // 🔴 2026-09-01:兩條原生 Google 路都死掉時的終點。逾時那條給的是「再試一次別的方式」,
+    //    這條給的是「這台裝置走不通,改用這個」——文案必須不一樣,否則使用者會對著同一顆按鈕
+    //    重複點到放棄。(回報者截圖上那兩行一模一樣的紅字不是他點了兩次,是上面那個 render 在
+    //    合併時被插了兩份;同輪已刪掉重複的那份,未登入分支現在只准有一個 .account-error。)
+    (a.signinStuck === 'google-nogms' ? `<div class="account-note">${escHtml(t('這台裝置的 Google 登入試了兩種方式都不成功。可以改用上面的「使用 Apple 登入」，它不需要 Google 服務。'))}</div>` : '') +
     // 不想登入的人要回得去 Plus 面板(這張畫面常常是從 Plus 面板的登入 CTA 過來的)。
     // 只在沒有購買通道的平台畫:有購買通道的平台 plusOpen() 未登入時本來就會把人送回這張登入畫面,畫了等於原地打轉。
-    // 🔴 2026-08-30:登入失敗的紅字原本只寫在下面「已登入」那一支,而登入失敗必然發生在【未登入】
-    // 狀態 ⇒ accountSignIn 的 catch 設好了 a.actionError、accountRender() 也跑了,畫面卻一個字都沒變。
-    // 這正是多位 Android 使用者說的「點下去是直接沒有任何反應,沒有登入失敗」;Apple 之所以「有反應」
-    // 只是因為它會跳出瀏覽器視窗,那本身就是看得見的動靜,與錯誤有沒有顯示無關。
-    // (Android 線 5dacec9 逐字照抄,兩線的這一段必須一致。)
-    (a.actionError ? `<div class="account-error">${escHtml(a.actionError)}</div>` : '') +
-    (a.signinStuck === 'google' ? `<div class="account-note">${escHtml(t('沒有跳出 Google 帳號選擇畫面嗎？可以改用另一種方式登入。'))}</div><div class="account-user-actions"><button class="wide" type="button" data-login-legacy="google">${escHtml(t('改用另一種方式登入'))}</button></div>` : '') +
     (plusProjectConfigured() && !plusConfigured() ? `<div class="account-user-actions"><button class="wide" type="button" data-action="plus">${escHtml(t('先看看軌島通行證有什麼'))}</button></div>` : '') +
     `<div class="account-note">${escHtml(t('Google 登入只用於軌島帳號，不會因此取得 Google Maps 已儲存清單；清單匯入仍需使用 Google Takeout。'))}</div>`;
   else {
     const u = a.user, photo = takeoutSafeHref(u.photoURL, '');
     const avatar = photo ? `<img src="${escHtml(photo)}" alt="">` : escHtml(accountDisplayName(u).slice(0, 1).toUpperCase());
     const subscribed = plusIsActive();
+    const guestPending = guestDataPending(u.uid);
     const sync = !subscribed ? t('訂閱軌島通行證才會同步') : (a.syncing ? t('正在合併這台裝置與雲端資料…') : (a.lastSync ? t('上次同步：{time}', { time: new Date(a.lastSync).toLocaleString(I18N_LANG) }) : t('尚未完成第一次同步')));
     const plus = t(subscribed ? '訂閱中' : '未訂閱');
     // Plus 狀態列與入口以 plusProjectConfigured()(整個 RevenueCat project 是否有 Plus)為準,而非
@@ -12493,6 +12530,8 @@ function accountRender() {
     body.innerHTML = `<div class="account-profile"><span class="account-avatar">${avatar}</span><span><b>${escHtml(accountDisplayName(u))}</b><small>${escHtml(u.email || t('Apple 隱藏電子郵件'))}</small></span></div>` +
       `<div class="account-syncbox"><b>${escHtml(t('跨裝置同步'))}</b><span>${escHtml(sync)}</span></div>` +
       (plusProjectConfigured() ? `<div class="account-syncbox"><b>${escHtml(t('軌島通行證'))}</b><span>${escHtml(plus)}</span></div>` : '') +
+      (guestPending ? `<div class="account-syncbox guestbox"><b>${escHtml(t('這台裝置還有訪客紀錄'))}</b><span>${escHtml(t('有 {n} 筆收藏與完乘紀錄是登入前存的，還沒併進這個帳號。', { n: guestPending }))}</span></div>` +
+        `<div class="account-user-actions"><button class="wide" type="button" data-action="guest-merge">${escHtml(t('併入這個帳號'))}</button></div>` : '') +
       `<div class="account-user-actions">${plusProjectConfigured() ? `<button class="wide" type="button" data-action="plus">${escHtml(t('查看通行證'))}</button>` : ''}<button type="button" data-action="sync" ${(a.syncing || !subscribed) ? 'disabled' : ''}>${escHtml(t('立即同步'))}</button><button type="button" data-action="logout">${escHtml(t('登出'))}</button>` +
       `<button class="wide danger" type="button" data-action="delete">${escHtml(t('刪除帳號與同步資料'))}</button></div>` +
       (a.actionError ? `<div class="account-error">${escHtml(a.actionError)}</div>` : '') +
@@ -12502,6 +12541,19 @@ function accountRender() {
       // 刪除帳號一條路,文案直接把那個入口指出來。
       `<div class="account-note">${escHtml(t('登出會先完成最後同步，再把畫面切回訪客狀態。你的收藏留在這台裝置上，同一個帳號登入就會回來；換別人登入看不到，也不會被合併。要一併清除這台裝置上的收藏，請用下方的「刪除帳號與同步資料」。'))}</div>`;
   }
+}
+// 使用者按下「併入這個帳號」。刻意做成手動而不是登入時自動併：陌生人防護擋的是「這台裝置上一個
+// 登入的是別人」，那種情形下自動併會把別人的收藏塞進這個帳號——只有本人看著筆數按下去才安全。
+function accountMergeGuestData() {
+  const a = state.account, u = a && a.user; if (!u) return;
+  a.actionError = '';
+  if (!guestDataPending(u.uid)) { accountRender(); return; }   // 併過了或本來就沒東西
+  if (!guestDataMerge(u.uid)) { a.actionError = t('併入失敗：這台裝置的儲存空間不足'); accountRender(); return; }
+  userDataNotify('guest-merge');
+  userDataRenderAll();
+  accountRender();
+  showToast(t('訪客紀錄已併入這個帳號'));
+  accountScheduleSync(); // 有通行證就順便上雲端；沒有的話 accountSyncNow 自己會被資格閘門擋下
 }
 function accountCloudEnvelope(docs) {
   const out = userDataEmpty(); out.deviceId = 'cloud'; out.revision = 0; out.updatedAt = 0;
@@ -12673,6 +12725,11 @@ function accountNativeCredential(providerName, result) {
   }
   return a.fb.GoogleAuthProvider.credential(c.idToken, c.accessToken || null);
 }
+// Android 原生殼專用閘門:Google 登入的兩條原生路(Credential Manager／傳統 GoogleSignIn Intent)
+// 只在這裡成立——iOS 的 Google 登入不走 Credential Manager,網站走的是 signInWithPopup。
+// 逾時出口、明確失敗的自動退路、無 GMS 指引三處判斷的是同一件事,共用一個閘門,免得日後只改到其中一處。
+function accountAndroidNative() { return IS_NATIVE_APP && window.Capacitor?.getPlatform?.() === 'android'; }
+
 async function accountSignIn(providerName, legacy) {
   const a = state.account; if (!a || !a.auth) return;
   a.actionError = ''; a.signinStuck = ''; accountRender();
@@ -12689,7 +12746,7 @@ async function accountSignIn(providerName, legacy) {
       // 而 native-bridge 的 legacy 退路本身也只對 android 生效 ⇒ 在 iOS 上這個出口按了不會
       // 改變任何行為,只會憑空多一句「沒有跳出選擇畫面嗎」的困惑。閘門放在武裝這一處就夠——
       // a.signinStuck 只有這支計時器寫得進去,上面那條 render 分支在 iOS 上恆為死碼。
-      if (providerName === 'google' && !legacy && IS_NATIVE_APP && window.Capacitor?.getPlatform?.() === 'android') stuckTimer = setTimeout(() => { a.signinStuck = 'google'; accountRender(); }, 15000);
+      if (providerName === 'google' && !legacy && accountAndroidNative()) stuckTimer = setTimeout(() => { a.signinStuck = 'google'; accountRender(); }, 15000);
       const result = await window.RAIL_NATIVE_AUTH.signIn(providerName, legacy);
       await a.fb.signInWithCredential(a.auth, accountNativeCredential(providerName, result));
     } else {
@@ -12698,7 +12755,27 @@ async function accountSignIn(providerName, legacy) {
       else provider = new a.fb.GoogleAuthProvider();
       await a.fb.signInWithPopup(a.auth, provider);
     }
-  } catch (e) { a.actionError = '登入失敗：' + (e && e.message ? e.message : String(e)); accountRender(); }
+  } catch (e) {
+    const msg = e && e.message ? e.message : String(e);
+    // 🔴 2026-09-01:Credential Manager 還有第二種死法——【明確 reject】,而不是 8/30 那個靜默卡住。
+    //    使用者回報的原文:"Your device doesn't support credential manager"(裝置上沒有任何
+    //    Credential Manager provider,實務上就是沒有 Google Play services 的機型)。
+    //    這條路徑與逾時那條【互斥】:錯誤當場回來 ⇒ 上面那支 15 秒計時器根本還沒燒完就被 finally
+    //    清掉 ⇒ 使用者看得到紅字、卻【永遠等不到那顆能救他的退路按鈕】,結果是一條死路。
+    //    當初「不自動退路」的唯一理由是「逾時分不出卡死與還在選帳號」——明確失敗沒有這個歧義
+    //    (錯誤都回來了,不可能還在選帳號)⇒ 這裡可以、也應該自動接手,不必再要使用者按一次。
+    if (providerName === 'google' && !legacy && accountAndroidNative()) {
+      a.actionError = ''; accountRender();
+      return accountSignIn('google', true);
+    }
+    a.actionError = '登入失敗：' + msg;
+    // 🔴 legacy(傳統 GoogleSignIn Intent)也失敗 ⇒ Android 上兩條原生 Google 路【都】要 Play
+    //    services,這台裝置兩條都走不了,再挖第三條 Google 路也是死的。但 Apple 登入走的是
+    //    startActivityForSignInWithProvider(瀏覽器 OAuth),結構上不碰 Play services ⇒ 那才是
+    //    這台裝置真正還走得通的路,直接指過去,不要讓他對著紅字重複點同一顆按鈕。
+    if (providerName === 'google' && legacy && accountAndroidNative()) a.signinStuck = 'google-nogms';
+    accountRender();
+  }
   // 出口刻意不在這裡收掉:這一發若稍後才失敗,使用者仍看得到退路可按;登入成功時整張畫面
   // 會被 onAuthStateChanged 換成已登入版面,出口自然消失。
   finally { if (stuckTimer) clearTimeout(stuckTimer); }
@@ -12865,6 +12942,7 @@ function accountEnsureInit() {
       else if (login) accountSignIn(login.dataset.login);
       else if (action && action.dataset.action === 'sync') accountSyncNow('manual');
       else if (action && action.dataset.action === 'plus') plusOpen('account');
+      else if (action && action.dataset.action === 'guest-merge') accountMergeGuestData();
       else if (action && action.dataset.action === 'logout') accountSignOut();
       else if (action && action.dataset.action === 'delete') accountDelete();
     };
