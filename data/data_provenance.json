@@ -244,6 +244,15 @@
    "coordinateBasis": "未載明(TDX 回傳 PositionLat/PositionLon,payload 無 CRS 欄位)",
    "checksum": "e9f9108b960c026c12b35ecbb6cdf9c3"
   },
+  "data/transfer_departures.json": {
+   "sourceDescription": "由 data/station_transfers.json（轉乘群）與 data/{tra,thsr,afr}_schedule_dense.json（時刻）推導,scripts/build_transfer_departures.mjs;只留 9 個轉乘站,台鐵取 d.dates[d.date] 的當日索引（tra_schedule_dense 是 14 天跨日去重聯集,直接用 d.trains 會混進其他日的改點變體）",
+   "sourceField": null,
+   "effectiveDate": "2026-09-01",
+   "effectiveDateField": "date",
+   "geometrySource": null,
+   "coordinateBasis": null,
+   "checksum": "89f78c5f36644025b982f1befe2bc98b"
+  },
   "data/trtc.json": {
    "sourceDescription": "信義東延段廣慈/奉天宮站(R01)於 TDX 上架前先行補入(2026-08-28):站點與線形取自 OSM,站間行駛時間依信義線平均營運速度估算,TDX 上架後應以官方值取代;交通部 TDX 運輸資料流通服務(台北捷運路線幾何/站序/班距/站間行駛時間,2026-07 抓取);",
    "sourceField": "source_notes",
