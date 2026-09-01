@@ -67,7 +67,7 @@ function sendJson(res, body, status = 200) {
   res.end(JSON.stringify(body));
 }
 
-createServer((req, res) => {
+const server = createServer((req, res) => {
   const url = new URL(req.url, 'http://localhost');
   if (url.pathname === '/__bus-test-stats') return sendJson(res, calls);
   if (url.pathname === '/api/bus-transfer') {
@@ -97,4 +97,9 @@ createServer((req, res) => {
   if (outside() || !type || !existsSync(file)) { res.statusCode = 404; return res.end('not found'); }
   res.setHeader('content-type', type);
   res.end(readFileSync(file));
-}).listen(PORT, '127.0.0.1', () => console.log(`bus transfer UI fixture server http://127.0.0.1:${PORT}`));
+});
+server.listen(PORT, '127.0.0.1', () => {
+  const address = server.address();
+  const actualPort = address && typeof address === 'object' ? address.port : PORT;
+  console.log(`bus transfer UI fixture server http://127.0.0.1:${actualPort}`);
+});

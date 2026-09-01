@@ -41,8 +41,12 @@ check(/function sweepDisconnectedInstances\(\)/.test(ui) && /sweepDisconnectedIn
   '每次看板重新 mount 都會回收斷線 instance 與 ResizeObserver');
 check(/if \(typeof opts\.translate === 'function'\) translateImpl = opts\.translate/.test(ui),
   '模組接受宿主翻譯函式');
+check(!/查不到附近公車：\{error\}|查不到這一路的車輛位置：\{error\}/.test(ui),
+  '錯誤畫面不再內插 Worker、HTTP 或瀏覽器原始訊息');
+check(/rememberRequestError\(state, 'station', error\)/.test(ui) && /rememberRequestError\(leg, 'leg', error\)/.test(ui),
+  '原始錯誤只保留供 console 診斷');
 
-for (const key of ['查看現在可搭公車', '步行導航到站牌', '此縣市未提供擁擠度', '資料已過期', '目前靜態索引在本站 600 公尺內沒有找到可用公車站牌，因此這次沒有發出即時查詢。你仍可改用地圖查看更遠的站牌。']) {
+for (const key of ['查看現在可搭公車', '步行導航到站牌', '此縣市未提供擁擠度', '資料已過期', '暫時無法取得附近公車資訊，請稍後重試。', '暫時無法取得這一路的車輛位置，請稍後重試。', '目前靜態索引在本站 600 公尺內沒有找到可用公車站牌，因此這次沒有發出即時查詢。你仍可改用地圖查看更遠的站牌。']) {
   check(translations.includes(`'${key}'`), `英日翻譯表包含「${key}」`);
 }
 

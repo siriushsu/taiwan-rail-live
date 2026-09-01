@@ -25,7 +25,7 @@
 (function (global) {
   'use strict';
 
-  const VERSION = '0.4.0';
+  const VERSION = '0.4.1';
   const COVERAGE = 'all_active_tra_stations';
   const API_BASE = '';
   const STALE_LABEL_SEC = 180;
@@ -580,7 +580,7 @@ ${lines.map(line => `<span class="btu-sec">${line}</span>`).join('')}
     const leg = legData(stationId, arrival.key);
     if (leg.status === 'loading') return `<div class="btu-leg"><div class="btu-skel">${esc(tr('正在查這一路的車輛位置…'))}</div></div>`;
     if (leg.status === 'error') {
-      return `<div class="btu-leg"><div class="btu-msg btu-err">${esc(tr('查不到這一路的車輛位置：{error}', { error: leg.error || tr('未知錯誤') }))}
+      return `<div class="btu-leg"><div class="btu-msg btu-err">${esc(tr('暫時無法取得這一路的車輛位置，請稍後重試。'))}
 <button type="button" class="btu-retry" data-btu-act="leg-retry" data-btu-arrival="${esc(arrival.key)}">${esc(tr('重試'))}</button></div></div>`;
     }
     if (leg.status !== 'ready' || !leg.data) return '';
@@ -609,7 +609,7 @@ ${navLink(arrival.stopPosition, true, null, arrival.stopName)}
     const state = stationData(instance.stationId);
     if (state.status === 'loading') return `<div class="btu-skel">${esc(tr('正在查 {station} 附近的公車…', { station: instance.stationName }))}</div>`;
     if (state.status === 'error') {
-      return `<div class="btu-msg btu-err">${esc(tr('查不到附近公車：{error}', { error: state.error || tr('未知錯誤') }))}
+      return `<div class="btu-msg btu-err">${esc(tr('暫時無法取得附近公車資訊，請稍後重試。'))}
 <button type="button" class="btu-retry" data-btu-act="retry">${esc(tr('重試'))}</button></div>`;
     }
     if (state.status !== 'ready' || !state.data) return '';
@@ -707,6 +707,15 @@ ${body}
     return body;
   }
 
+  function rememberRequestError(target, label, error) {
+    const detail = error && error.message ? error.message : String(error);
+    // 診斷資訊只留在記憶體與 console；畫面一律使用固定、可翻譯的友善文案。
+    target.error = detail;
+    if (global.console && typeof global.console.warn === 'function') {
+      global.console.warn(`[BusTransferUI] ${label} request failed`, error);
+    }
+  }
+
   function loadStation(instance) {
     const state = stationData(instance.stationId);
     // DOM 重建後的 mount 不會走到這裡；只有使用者明示展開／重試才會呼叫。
@@ -728,7 +737,7 @@ ${body}
     }).catch(error => {
       if (error && error.name === 'AbortError') { state.status = 'idle'; return null; }
       state.status = 'error';
-      state.error = error && error.message ? error.message : String(error);
+      rememberRequestError(state, 'station', error);
       return null;
     }).finally(() => {
       if (state.controller === controller) {
@@ -760,7 +769,7 @@ ${body}
     }).catch(error => {
       if (error && error.name === 'AbortError') { leg.status = 'idle'; return null; }
       leg.status = 'error';
-      leg.error = error && error.message ? error.message : String(error);
+      rememberRequestError(leg, 'leg', error);
       return null;
     }).finally(() => {
       if (leg.controller === controller) {
