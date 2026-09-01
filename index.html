@@ -4892,7 +4892,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/8/31</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/9/1</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -4900,7 +4900,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
-        <li data-cl-of="ambientlock"><span class="d">8/31</span><span>放空模式改成看戲不操作：地圖不會被手指拉歪，離開放空鈕按得到</span></li>
+        <li data-cl-of="ambientlock"><span class="d">9/1</span><span>放空模式：地圖不會被手指拉歪；離開再進入時，「離開放空」鈕不會再縮成按不到的小鈕</span></li>
         <li data-cl-of="traboarddir"><span class="d">8/31</span><span>火車站看板改成分方向顯示：南下、北上分開，山線海線與支線各自成區，冷門方向不再被擠掉；顏色比照台鐵新版車站標示的北上藍、南下綠</span></li>
         <li data-cl-of="widgetdir"><span class="d">8/31</span><span>桌面小工具的發車看板也標出北上／南下：Android 從零補上方向三角，兩個平台的三角一起放大，顏色換成台鐵官方的北上藍、南下綠</span></li>
         <li data-cl-of="ridingclock"><span class="d">8/31</span><span>按下「我上車了」之後，再去點一班還沒發車的車，時鐘不會再被撥走（謝謝網友回報）</span></li>
@@ -5015,7 +5015,7 @@
         <li><span class="d">7/13</span><span>列車位置改用車種加減速模型：起步緩加速、進站緩減速，不再全程等速</span></li>
         <li><span class="d">7/10</span><span>跟隨鎖：跟隨中可自由拖曳地圖，按「◉ 回到列車」恢復置中；7/9 鐵道迷功能包（路線高亮、月台站名牌、日夜天色、速度曲線）</span></li>
         <li class="grp">放空模式</li>
-        <li data-cl="ambientlock"><span class="d">8/31</span><span>放空模式鏡頭完全交給程式，兩種視角一樣：地圖不會再被手指拉歪或縮到回不來；「離開放空」鈕不再淡到看不見或被系統手勢區吃掉觸控。背景音樂開關顯示相反也修好</span></li>
+        <li data-cl="ambientlock"><span class="d">9/1</span><span>放空模式鏡頭完全交給程式，兩種視角一樣：地圖不會再被手指拉歪或縮到回不來；「離開放空」鈕不再淡到看不見或被系統手勢區吃掉觸控。背景音樂開關顯示相反也修好。9/1 再修一輪：離開放空之後再進去一次，整條控制列會縮成一顆空白小鈕、找不到「離開放空」也點不出去，現在每次進放空出口都在（謝謝網友回報）</span></li>
         <li data-cl="music57"><span class="d">8/27</span><span>放空模式的背景音樂重新整理過：曲目從 29 首增加到 57 首，分成 Afloat、Midnight stories、Moonlake、Rainy day、Star &amp; Neon、peaceful piano 六組不同氛圍</span></li>
         <li><span class="d">7/28</span><span>換景節奏放慢成 3–5 分鐘一次；閒置 20 分鐘後改停在全島畫面（列車照常在上面跑），動一下就回到原本的地圖</span></li>
         <li><span class="d">7/18</span><span>新增「都會呼吸」定場運鏡</span></li>
@@ -5672,7 +5672,7 @@
 //         獨立基準覆核:山線／海線／成追線判定 vs 台鐵官方 Line 欄位【908/908 逐車一致】;
 //         純西部方向 vs 官方 LineDir 對稱一致(1↔北上 241、2↔南下 241)。
 //         守門人:scripts/verify_board_direction_groups.mjs(26 項,五發突變各自咬到預期斷言)。
-const BUILD = 'v0831s'; // 隨機跟隨:單班抽中機率上限 3%＋記住剛跟過的五班(稀有度原本被 TOUR_W 與 stock.rarity 算了兩次);a~r 全被用掉
+const BUILD = 'v0901a'; // 放空模式:離開再進入時「離開放空」鈕消失(離場那一下冒泡把速度膠囊展開成 cexp,而 cexp 那條會把出口 display:none)
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -15633,6 +15633,12 @@ function setAmbient(on) {
   if (on) state.geoFollow = false;
   state.ambient = on;
   document.body.classList.toggle('ambient', on); // 供 CSS 做放空專屬版面(手機迷你化)
+  // 出口保命:膠囊的 cexp/cfaint 若被帶進放空,body.cexp 那條會把「離開放空」與「視角」兩顆
+  // 一起 display:none,而放空版 .controls 是 width:max-content ⇒ 收成一顆點不到的空膠囊。
+  // _fsCapsuleSync 的註解本來就寫「進出 fs / 尺寸變 / 放空切換時同步」,但手機殼的 setFs(false)
+  // 會早退、setAmbient 也只在需要換 fs 時才呼叫它 ⇒ 手機的放空切換從來沒同步過。這裡補上:
+  // 進場時 body.ambient 已為 true ⇒ capsule() 為 false ⇒ 走清除分支;離場時回到 slim,兩個方向都對。
+  (state._fsCapsuleSync || (() => {}))(true);
   const b = document.getElementById('ambientBtn');
   if (on) {
     if (state.mode !== 'sched') {
@@ -29104,6 +29110,12 @@ function setupMapTools() {
       if (!e.isTrusted) return; // 「更多」sheet 代理點擊帶內工具鈕(btn.click())會冒泡到這裡,別把膠囊偷偷展開
       if (!capsule()) return;
       if (pp.contains(e.target)) return;
+      // 「離開放空」那一下:onclick 已同步跑完 setAmbient(false) 移除 body.ambient,冒泡到這裡時
+      // capsule() 剛從 false 翻成 true ⇒ 會把膠囊展開成 body.cexp。而 cexp 那條
+      // 「.controls #ambientBtn{display:none}」(1-2-2)蓋得過所有放空規則,下次再進放空整條控制列
+      // 就只剩一顆空膠囊、出口消失(2026-09-01 使用者回報「再次進入時離開鈕縮成空的小鈕」)。
+      // 比照上面 #pp 的寫法把出口鈕排除在展開手勢之外。
+      if (e.target.closest && e.target.closest('#ambientBtn')) return;
       if (body.classList.contains('cexp')) return;
       toExpanded();
     });
