@@ -5672,7 +5672,7 @@
 //         獨立基準覆核:山線／海線／成追線判定 vs 台鐵官方 Line 欄位【908/908 逐車一致】;
 //         純西部方向 vs 官方 LineDir 對稱一致(1↔北上 241、2↔南下 241)。
 //         守門人:scripts/verify_board_direction_groups.mjs(26 項,五發突變各自咬到預期斷言)。
-const BUILD = 'v0901c'; // 1.5.3 出貨版:更新紀錄補上 Android 小工具起站選單依縣市分段(issue #40),首層擠掉 8/30 那條
+const BUILD = 'v0901d'; // a/c 已被別的 ref 佔用(換號前逐 ref 掃過);跨分支撞號見心得16
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -12479,6 +12479,10 @@ function accountRender() {
     // (Android 線 5dacec9 逐字照抄,兩線的這一段必須一致。)
     (a.actionError ? `<div class="account-error">${escHtml(a.actionError)}</div>` : '') +
     (a.signinStuck === 'google' ? `<div class="account-note">${escHtml(t('沒有跳出 Google 帳號選擇畫面嗎？可以改用另一種方式登入。'))}</div><div class="account-user-actions"><button class="wide" type="button" data-login-legacy="google">${escHtml(t('改用另一種方式登入'))}</button></div>` : '') +
+    // 🔴 2026-09-01:兩條原生 Google 路都死掉時的終點。逾時那條給的是「再試一次別的方式」,
+    //    這條給的是「這台裝置走不通,改用這個」——文案必須不一樣,否則使用者會對著同一顆按鈕
+    //    重複點到放棄(回報者就是連點兩次,截圖上兩行一模一樣的紅字)。
+    (a.signinStuck === 'google-nogms' ? `<div class="account-note">${escHtml(t('這台裝置沒有可用的 Google 登入服務。請改用上面的「使用 Apple 登入」，它不需要 Google 服務。'))}</div>` : '') +
     (plusProjectConfigured() && !plusConfigured() ? `<div class="account-user-actions"><button class="wide" type="button" data-action="plus">${escHtml(t('先看看軌島通行證有什麼'))}</button></div>` : '') +
     `<div class="account-note">${escHtml(t('Google 登入只用於軌島帳號，不會因此取得 Google Maps 已儲存清單；清單匯入仍需使用 Google Takeout。'))}</div>`;
   else {
@@ -12673,6 +12677,11 @@ function accountNativeCredential(providerName, result) {
   }
   return a.fb.GoogleAuthProvider.credential(c.idToken, c.accessToken || null);
 }
+// Android 原生殼專用閘門:Google 登入的兩條原生路(Credential Manager／傳統 GoogleSignIn Intent)
+// 只在這裡成立——iOS 的 Google 登入不走 Credential Manager,網站走的是 signInWithPopup。
+// 逾時出口、明確失敗的自動退路、無 GMS 指引三處判斷的是同一件事,共用一個閘門,免得日後只改到其中一處。
+function accountAndroidNative() { return IS_NATIVE_APP && window.Capacitor?.getPlatform?.() === 'android'; }
+
 async function accountSignIn(providerName, legacy) {
   const a = state.account; if (!a || !a.auth) return;
   a.actionError = ''; a.signinStuck = ''; accountRender();
@@ -12689,7 +12698,7 @@ async function accountSignIn(providerName, legacy) {
       // 而 native-bridge 的 legacy 退路本身也只對 android 生效 ⇒ 在 iOS 上這個出口按了不會
       // 改變任何行為,只會憑空多一句「沒有跳出選擇畫面嗎」的困惑。閘門放在武裝這一處就夠——
       // a.signinStuck 只有這支計時器寫得進去,上面那條 render 分支在 iOS 上恆為死碼。
-      if (providerName === 'google' && !legacy && IS_NATIVE_APP && window.Capacitor?.getPlatform?.() === 'android') stuckTimer = setTimeout(() => { a.signinStuck = 'google'; accountRender(); }, 15000);
+      if (providerName === 'google' && !legacy && accountAndroidNative()) stuckTimer = setTimeout(() => { a.signinStuck = 'google'; accountRender(); }, 15000);
       const result = await window.RAIL_NATIVE_AUTH.signIn(providerName, legacy);
       await a.fb.signInWithCredential(a.auth, accountNativeCredential(providerName, result));
     } else {
@@ -12698,7 +12707,27 @@ async function accountSignIn(providerName, legacy) {
       else provider = new a.fb.GoogleAuthProvider();
       await a.fb.signInWithPopup(a.auth, provider);
     }
-  } catch (e) { a.actionError = '登入失敗：' + (e && e.message ? e.message : String(e)); accountRender(); }
+  } catch (e) {
+    const msg = e && e.message ? e.message : String(e);
+    // 🔴 2026-09-01:Credential Manager 還有第二種死法——【明確 reject】,而不是 8/30 那個靜默卡住。
+    //    使用者回報的原文:"Your device doesn't support credential manager"(裝置上沒有任何
+    //    Credential Manager provider,實務上就是沒有 Google Play services 的機型)。
+    //    這條路徑與逾時那條【互斥】:錯誤當場回來 ⇒ 上面那支 15 秒計時器根本還沒燒完就被 finally
+    //    清掉 ⇒ 使用者看得到紅字、卻【永遠等不到那顆能救他的退路按鈕】,結果是一條死路。
+    //    當初「不自動退路」的唯一理由是「逾時分不出卡死與還在選帳號」——明確失敗沒有這個歧義
+    //    (錯誤都回來了,不可能還在選帳號)⇒ 這裡可以、也應該自動接手,不必再要使用者按一次。
+    if (providerName === 'google' && !legacy && accountAndroidNative()) {
+      a.actionError = ''; accountRender();
+      return accountSignIn('google', true);
+    }
+    a.actionError = '登入失敗：' + msg;
+    // 🔴 legacy(傳統 GoogleSignIn Intent)也失敗 ⇒ Android 上兩條原生 Google 路【都】要 Play
+    //    services,這台裝置兩條都走不了,再挖第三條 Google 路也是死的。但 Apple 登入走的是
+    //    startActivityForSignInWithProvider(瀏覽器 OAuth),結構上不碰 Play services ⇒ 那才是
+    //    這台裝置真正還走得通的路,直接指過去,不要讓他對著紅字重複點同一顆按鈕。
+    if (providerName === 'google' && legacy && accountAndroidNative()) a.signinStuck = 'google-nogms';
+    accountRender();
+  }
   // 出口刻意不在這裡收掉:這一發若稍後才失敗,使用者仍看得到退路可按;登入成功時整張畫面
   // 會被 onAuthStateChanged 換成已登入版面,出口自然消失。
   finally { if (stuckTimer) clearTimeout(stuckTimer); }
