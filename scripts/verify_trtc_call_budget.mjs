@@ -56,9 +56,14 @@ const hwRows = () => [{ TrainNumber: '201', CN1: '211/212', CID: '1', StationID:
 const brRows = () => [{ TrainNumber: '119,180', CID: '1', DU: '下行', StationID: 'BR08',
   StationName: '科技大樓', Car1: '1', Car2: '1', Car3: '1', Car4: '1', UpdateTime: nowStr() }];
 
+let traceColo = 'NRT';        // DO 自報的 colo,第 6 節之後會改成 'HKG' 驗禁區
+let upstreamDelayMs = 0;      // >0 時上游變慢,用來驗 single-flight
 globalThis.fetch = async (input, init) => {
   const url = String(input && input.url ? input.url : input);
   const body = String((init && init.body) || '');
+  // Durable Object 讀自己落在哪個 colo。這一發不算北捷上游,不進 counts。
+  if (url.includes('cdn-cgi/trace')) return new Response(`fl=1f1\ncolo=${traceColo}\n`, { status: 200 });
+  if (upstreamDelayMs) await new Promise(r => setTimeout(r, upstreamDelayMs));
   if (/getTrackInfo/.test(body)) { counts.tk++; return SOAP(tkRows()); }
   if (/getCarWeightBRInfo/.test(body)) { counts.br++; return SOAP(brRows()); }
   if (/getCarWeightByInfoEx/.test(body)) {
@@ -77,7 +82,7 @@ Date.now = () => NOW;
 const advance = ms => { NOW += ms; };
 
 const { _trtc } = await import('../worker.js');
-const { trtcHwStale, trtcLive } = _trtc;
+const { trtcHwStale, trtcLive, TrtcPoller, TRTC_POLLER_HINT, TRTC_POLLER_DENY_COLO, trtcForgetMemoForTest } = _trtc;
 const { trtcOperatingState } = await import('./trtc_board_ledger.mjs');
 
 // env 替身：ASSETS 直接讀磁碟；刻意不給 TRTC_LEDGER（D1），
@@ -171,6 +176,129 @@ ok('正向對照：窗內同一條路徑真的會打上游（第 4 節的 0 不�
   counts.tk > 0 && counts.br > 0, `tk=${counts.tk}／br=${counts.br}`);
 ok('正向對照：窗內回得出非空看板', openBody && (openBody.board || []).length > 0,
   `board=${openBody && (openBody.board || []).length}`);
+
+
+// ── 第 6 節：集中輪詢 —— 多個 colo 在同一個 15 秒窗內只換來一輪上游 ──────────────
+// 這是整批的全部價值：省下的是「第 2..N 個 colo 本來會各打的那幾發」。回應長得對完全
+// 證明不了這件事，所以這裡直接數 fetch。
+const hints = [];
+function makePollerBinding(env) {
+  const insts = new Map();
+  return {
+    idFromName: name => ({ name }),
+    get(id, opts) {
+      hints.push(opts && opts.locationHint);
+      let inst = insts.get(id.name);
+      if (!inst) insts.set(id.name, inst = new TrtcPoller({}, env));
+      return { fetch: () => inst.fetch(new Request('https://trtc-poller/raw')) };
+    },
+  };
+}
+const pollerEnv = { ...env };
+pollerEnv.TRTC_POLLER = makePollerBinding(pollerEnv);
+const callVia = async (extra = {}) => {
+  const res = await trtcLive(new Request('https://railisland.tw/api/trtc-live'), { ...pollerEnv, ...extra });
+  return res.json();
+};
+
+advance(61e3);                       // 讓 CarWeight 節流到期,起點乾淨
+trtcForgetMemoForTest();
+resetCounts();
+const COLOS = 12;
+let lastBody = null;
+for (let i = 0; i < COLOS; i++) {
+  trtcForgetMemoForTest();           // 模擬「換一個 colo」：新的 isolate、空的記憶體
+  lastBody = await callVia();        // 時鐘不動 ⇒ 全部落在同一個 15 秒窗內
+}
+ok('集中輪詢：12 個 colo 在同一個 15 秒窗內只打一輪 TrackInfo',
+  counts.tk === 1, `tk=${counts.tk}／colo 數=${COLOS}（未集中時會是 ${COLOS}）`);
+ok('集中輪詢：CarWeightBR 同樣只打一輪', counts.br === 1, `br=${counts.br}`);
+ok('集中輪詢：CarWeight 同樣只打一輪', counts.hw === 1, `hw=${counts.hw}`);
+ok('集中輪詢：每個 colo 都拿到同一份非空看板（省呼叫沒有省掉資料）',
+  lastBody && (lastBody.board || []).length > 0, `board=${lastBody && (lastBody.board || []).length}`);
+ok(`集中輪詢：locationHint 一律是 ${TRTC_POLLER_HINT}（apac／無提示實測會落香港）`,
+  hints.length > 0 && hints.every(h => h === TRTC_POLLER_HINT), `取到的提示=${[...new Set(hints)]}`);
+ok('集中輪詢：回傳把「這輪誰打的上游」露出來（cd.poller）',
+  lastBody && lastBody.cd && lastBody.cd.poller === 'NRT', `cd.poller=${lastBody && lastBody.cd && lastBody.cd.poller}`);
+
+// 反向對照（judgment 第七節第 5 條）：上面那組「只打 1 次」若因為根本沒打而成立就毫無意義。
+// 窗一過就必須真的再打一輪。
+advance(16e3);
+resetCounts();
+trtcForgetMemoForTest();
+await callVia();
+ok('反向對照：15 秒窗過了就真的再打一輪（前面的 1 不是 0 偽裝的）',
+  counts.tk === 1 && counts.br === 1, `tk=${counts.tk}／br=${counts.br}`);
+
+// ── 第 7 節：single-flight —— 同時湧入不得放大成 N 發 ───────────────────────────
+// 沒有這道，41 個 colo 同時過期會變成 41 發上游請求，比不集中還糟。
+advance(16e3);
+resetCounts();
+upstreamDelayMs = 30;                // 讓上游慢到足以讓後續請求擠在同一個 inflight 裡
+await Promise.all(Array.from({ length: 25 }, () => { trtcForgetMemoForTest(); return callVia(); }));
+upstreamDelayMs = 0;
+ok('single-flight：25 個 colo 同時撞上過期，上游仍只被打一輪',
+  counts.tk === 1, `tk=${counts.tk}／併發數=25`);
+
+// ── 第 8 節：落點在禁區 —— 一發上游都不准打 ────────────────────────────────────
+// 🔴 順序很重要：擋在【發射之前】。若寫成「DO 先打完、邊緣事後判定違規再退回直打」，
+//    結果是又真的從禁區打了上游、又多打一輪，是最糟的組合。
+advance(16e3);
+traceColo = 'HKG';
+resetCounts();
+trtcForgetMemoForTest();
+const deniedEnv = { ...env };
+deniedEnv.TRTC_POLLER = makePollerBinding(deniedEnv);   // 全新的 DO，這顆會落在 HKG
+const deniedBody = await (async () => {
+  const res = await trtcLive(new Request('https://railisland.tw/api/trtc-live'), deniedEnv);
+  return res.json();
+})();
+ok('落點禁區：DO 在禁區時一發上游都沒打（退回直打的那一輪除外）',
+  counts.tk === 1, `tk=${counts.tk}（若 DO 也打了會是 2）`);
+ok('落點禁區：退回直打，且回傳把原因說出來',
+  deniedBody && deniedBody.cd && deniedBody.cd.poller === 'denied:HKG',
+  `cd.poller=${deniedBody && deniedBody.cd && deniedBody.cd.poller}`);
+ok('落點禁區：仍然給得出正常看板（fail-open，不是整站空手）',
+  deniedBody && (deniedBody.board || []).length > 0, `board=${(deniedBody.board || []).length}`);
+ok('禁區清單確實含香港（實測 apac 3/8、無提示 4/8 會落在這裡）',
+  TRTC_POLLER_DENY_COLO.has('HKG'));
+traceColo = 'NRT';
+
+// ── 第 9 節：DO 掛掉要 fail-open ───────────────────────────────────────────────
+advance(16e3);
+resetCounts();
+trtcForgetMemoForTest();
+const brokenEnv = { ...env, TRTC_POLLER: {
+  idFromName: () => ({}),
+  get: () => ({ fetch: async () => { throw new Error('DO 不可用'); } }),
+} };
+const brokenBody = await (async () => {
+  const res = await trtcLive(new Request('https://railisland.tw/api/trtc-live'), brokenEnv);
+  return res.json();
+})();
+ok('DO 掛掉：退回本 colo 直打，站台照常有資料',
+  brokenBody && (brokenBody.board || []).length > 0 && counts.tk === 1,
+  `board=${(brokenBody.board || []).length}／tk=${counts.tk}`);
+ok('DO 掛掉：cd.poller 標成 direct（量會回到各 colo 各打，必須看得見）',
+  brokenBody && brokenBody.cd && brokenBody.cd.poller === 'direct',
+  `cd.poller=${brokenBody && brokenBody.cd && brokenBody.cd.poller}`);
+
+// ── 第 10 節：CarWeight 的 60 秒節流在 DO 內仍然成立（而且現在是全球一份計時器）────
+advance(61e3);
+resetCounts();
+const thrEnv = { ...env };
+thrEnv.TRTC_POLLER = makePollerBinding(thrEnv);
+const R = 5, STEP = 16e3;
+for (let i = 0; i < R; i++) {
+  trtcForgetMemoForTest();
+  await trtcLive(new Request('https://railisland.tw/api/trtc-live'), thrEnv);
+  advance(STEP);
+}
+const expHw = 1 + Math.floor((STEP * (R - 1)) / 60e3);
+ok('集中輪詢下：TrackInfo 每輪都打', counts.tk === R, `tk=${counts.tk}／輪數=${R}`);
+ok('集中輪詢下：CarWeight 仍依 60 秒節流', counts.hw === expHw, `hw=${counts.hw}／期望=${expHw}`);
+ok('集中輪詢下：節流有作用（CarWeight 確實比 TrackInfo 少）', counts.hw < counts.tk,
+  `hw=${counts.hw} < tk=${counts.tk}`);
 
 Date.now = realNow;
 console.log(failures ? `\n❌ ${failures} 條未通過` : '\n✅ 全部通過');
