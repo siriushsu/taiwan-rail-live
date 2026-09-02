@@ -1002,7 +1002,8 @@
   .follow-panel.fp-min { width: auto; max-width: 190px; padding: 6px 12px; cursor: pointer; border-radius: var(--r-pill); }
   .follow-panel.fp-min .fp-next, .follow-panel.fp-min .fp-prog, .follow-panel.fp-min .fp-status,
   .follow-panel.fp-min .fp-alert, .follow-panel.fp-min .fp-dest, .follow-panel.fp-min .fp-head .kind,
-  .follow-panel.fp-min .fp-close, .follow-panel.fp-min .traincard { display: none; }
+  .follow-panel.fp-min .fp-close, .follow-panel.fp-min .traincard,
+  .follow-panel.fp-min .xfer-conn { display: none; }
   .follow-panel.fp-min .fp-head .spd b { font-size: calc(15px * var(--ui)); }
   .follow-panel .fp-end {
     margin-left: 6px; background: none; border: 1px solid var(--line); border-radius: 6px;
@@ -1030,6 +1031,23 @@
   .freq-card .fc-next { display: flex; align-items: baseline; gap: 8px; row-gap: 4px; flex-wrap: wrap; margin-top: 7px; }
   .freq-card .fc-next .lbl { font-size: calc(11px * var(--uis)); color: var(--faint); font-weight: 800; letter-spacing: 2px; flex: none; }
   .freq-card .fc-next .stn { font-size: calc(16px * var(--ui)); font-weight: 900; color: var(--ink-strong); letter-spacing: 1px; }
+  /* v0901 車廂擁擠度欄(只有北捷有官方逐節資料)。欄位固定保留——沒資料留虛線佔位,不整列消失,
+     資料到了卡片高度才不會跳(同官方板「含無資料透明佔位」慣例)。第三列(資料年齡)高度一律預留,
+     否則「未提供 → 資料到了」之間卡片會跳一行。
+     🔴 色條【不】在這裡定色:等級→色由 trtcOfficialCrowdColor() 出 inline background,與車站看板、
+     桌面小工具 MetroPalette.crowd 同一份色票(三個介面要長一樣)。這裡只定沒資料時的虛線佔位。 */
+  .freq-card .fc-crowd { margin-top: 7px; padding-top: 6px; border-top: 1px dashed var(--line-dash);
+    display: grid; grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto calc(10px * var(--uis) * 1.45);
+    align-items: center; column-gap: 8px; row-gap: 4px; }
+  .freq-card .fc-crowd .lbl { font-size: calc(10px * var(--uis)); font-weight: 800;
+    letter-spacing: 1px; color: var(--faint); white-space: nowrap; }
+  .freq-card .fc-crowd .txt { justify-self: end; font-size: calc(11px * var(--uis));
+    color: var(--faint); font-weight: 600; }
+  .freq-card .fc-crowd .cars { grid-column: 1 / -1; display: flex; gap: 3px; }
+  .freq-card .fc-crowd .cars i { flex: 1 1 0; height: 10px; border-radius: 1.5px; }
+  .freq-card .fc-crowd[data-state=none] .cars i { border: 1px dashed var(--line-dash); }
+  .freq-card .fc-crowd .age { grid-column: 1 / -1; font-size: calc(10px * var(--uis)); color: var(--faint); }
   .freq-card .fc-status { margin-top: 6px; font-size: calc(11px * var(--uis)); color: var(--faint); font-weight: 600; }
   .freq-card .fc-status:empty { display: none; }
   .freq-card .fc-status.on { color: #0f7fa8; }
@@ -1094,6 +1112,51 @@
     font-size: calc(11px * var(--uis)); font-weight: 800; color: var(--red); white-space: normal; overflow-wrap: anywhere;
     padding: 1px 5px; border: 1.5px solid var(--red); border-radius: 6px; line-height: 1.5;
   }
+  /* 轉乘接續。落點在 .xfer-tag 那一列的下方(跟隨卡/捷運卡/手機列車卡),共用那一區的字級變數。 */
+  /* v0901 窄卡排版:容器寬度不是這一塊能決定的(桌面 240 / 全畫面 300 / 手機與放空 176 / 直播 400),
+     所以斷點吃 container query 而不是裝置——放空模式與手機 sheet 也會落到窄支。
+     欄位優先序:車次與「剩 N 分」永不壓縮、永不換行(那是使用者要的兩個數字),
+     只有 .xfc-d(時刻＋往哪)吃 ellipsis。 */
+  .xfer-conn { container-type: inline-size; margin-top: 7px;
+    border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+  .xfer-conn .xfc-h { font-size: calc(11px * var(--uis)); line-height: 1.35; color: var(--faint);
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  /* 窄支(<280px):兩行。第一行只放車次＋剩 N 分(最寬 96px,176 卡可用寬 138px);
+     系統小標與時刻同在第二行——系統名 5 字(阿里山林鐵)時第一行才不會被撐破。 */
+  .xfer-conn .xfc-row { display: grid; grid-template-columns: auto 1fr auto;
+    grid-template-areas: "no . left" "sys d d";
+    align-items: baseline; column-gap: 6px; row-gap: 2px;
+    width: 100%; min-height: 44px; padding: 6px 0;
+    background: none; border: 0; color: inherit; text-align: left; cursor: pointer; }
+  /* 兩列之間才畫線,不包框——只有 gap 會看起來像一坨 */
+  .xfer-conn .xfc-row + .xfc-row { border-top: 1px solid var(--line); }
+  /* 混系統/釘選時每列前面的系統小標(同系統時標題已指名,不重複顯示,見 xfcSysName 呼叫端)。 */
+  .xfer-conn .xfc-sys { grid-area: sys; font-size: calc(11px * var(--uis));
+    font-weight: 800; color: var(--faint); white-space: nowrap; }
+  .xfer-conn .xfc-no { grid-area: no; font-size: calc(15px * var(--uis)); font-weight: 800;
+    color: var(--ink-strong); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .xfer-conn .xfc-d { grid-area: d; font-size: calc(11.5px * var(--uis)); min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .xfer-conn .xfc-left { grid-area: left; justify-self: end; font-size: calc(13px * var(--uis));
+    font-weight: 800; color: var(--ink-strong); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  /* 寬支:收成一行。container-type 掛在 .xfer-conn 身上,所以斷點量的是「區塊自己的內容寬」
+     而不是卡片寬——桌面 240 卡＝194px、全畫面 300 卡＝254px、直播 400 卡＝354px。
+     240 一行差 4px 放不下站名(五欄要 199),門檻取 250:240 排除、300 起收一行。 */
+  @container (min-width: 250px) {
+    .xfer-conn .xfc-row { grid-template-columns: auto auto 1fr auto;
+      grid-template-areas: "sys no d left"; min-height: 38px; padding: 5px 0; }
+    .xfer-conn .xfc-no { font-size: calc(14px * var(--uis)); }
+  }
+  /* 釘選態的視覺標記:左緣 2px 主色軌＋紙面加深＋車次轉主色。不加圖示、不加額外文字。 */
+  .xfer-conn .xfc-row[aria-pressed=true] { box-shadow: inset 2px 0 0 var(--navy); padding-left: 8px;
+    background: color-mix(in oklch, var(--paper) 92%, var(--navy)); }
+  .xfer-conn .xfc-row[aria-pressed=true] .xfc-no { color: var(--navy); }
+  /* 取消釘選離開標題列(窄卡上標題被壓成兩欄會斷字),改成右下角獨立按鈕,32px 觸控高 */
+  .xfer-conn .xfc-unpin { display: block; margin: 6px 0 0 auto; min-height: 32px; padding: 6px 11px;
+    font: inherit; font-size: calc(11.5px * var(--uis)); font-weight: 800; color: var(--navy);
+    background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-pill); cursor: pointer; }
+  .xfer-conn .xfc-f { display: block; font-size: calc(10px * var(--uis)); line-height: 1.45;
+    color: var(--faint); margin-top: 4px; }
   .traincard .tc-st.hd { font-weight: 800; color: var(--faint); border-top: 0; cursor: default; font-size: calc(11px * var(--uis)); letter-spacing: 1px; }
   .traincard .tc-st.hd:hover { background: none; }
   .traincard .tc-st.past { opacity: .45; }
@@ -1781,7 +1844,9 @@
   /* ── 車站時刻板(及其他共用外觀的面板:最愛/旅程/探索/軌道與路線——面板家族統一骨架) ── */
   .board {
     position: absolute; top: 12px; right: 12px; z-index: 650;
-    width: 280px; max-height: calc(100% - 176px); overflow-y: auto; overscroll-behavior: contain; /* 契約④:面板內捲動不外溢到地圖 */
+    /* v0901 加寬 280→360:官方板一列六欄(線色牌/車號/往哪/擁擠度/時刻/倒數),最長樣本
+       「往 松山（經南京復興）」需 119px——280 只給得起 60px、340 仍差 11px。手機仍是整寬 sheet。 */
+    width: 360px; max-height: calc(100% - 176px); overflow-y: auto; overscroll-behavior: contain; /* 契約④:面板內捲動不外溢到地圖 */
     background: var(--paper-tr); border: 2px solid var(--navy); border-radius: 10px;
     padding: 0 14px 12px;
     box-shadow: var(--shadow-navy);
@@ -2133,7 +2198,7 @@
   .board .close:hover, .board .board-star:hover, .board .board-notify:hover { opacity: 1; }
   .board .board-star.on { color: #ffd977; opacity: 1; }
   /* 捷運等車卡入口(Task 6):h3 內另起一行(不像 close/star 用絕對定位插槽——
-     .board 桌面寬僅 280px,硬塞第三顆同款圖示鈕會擠壓長站名),故不影響 h3 padding-right。
+     .board 桌面寬 360px(v0901 前為 280),硬塞第三顆同款圖示鈕仍會擠壓長站名),故不影響 h3 padding-right。
      08-14 真機回饋「按鈕不明顯、不知道用途」——待機態改滿寬金底 CTA,追蹤中反轉成描邊。 */
   .board .board-wait {
     display: block; margin: 6px 0 2px; padding: 6px 12px;
@@ -3608,7 +3673,7 @@
     .board h3 { border-radius: 13px 13px 0 0; padding-top: 12px; }
     /* 🔴 觸控目標(使用者 2026-08-26 回報「再小的字體設定時,關掉的 X 太小了,容易點不到」):
        ✕/☆/🔔 的命中框原本是 22×22,而且**不隨字級放大**(寬高寫死 px,只有字形吃 --ui)——
-       在 40px 高的標題列裡垂直、水平都不到 44。桌面有游標、卡又只有 280px 寬,維持原樣;
+       在 40px 高的標題列裡垂直、水平都不到 44。桌面有游標,維持原樣;
        手機是整條 377px 的抽屜列,沒有理由只給 22px ⇒ 三顆一律撐成 44×44。
        🔴 撐大**必須連間距一起改**:命中框一重疊,DOM 較後的那顆會整個蓋掉前一顆(「兩顆並排鈕
           熱區互蓋、怎麼點都開到後面那顆」的同一個坑),所以水平間距＝寬度 44,不是原本的 22。
@@ -3744,6 +3809,13 @@
       margin-top: 7px; padding-top: 7px; border-top: 1px dashed var(--line-faint);
       font-size: calc(12px * var(--uis)); color: var(--faint);
     }
+    /* #tcConn 是區塊卡片,不是 .tc-live 那個 flex 列的一部分——它是 tc-head 的另一個直接子元素,
+       必須自己拿到同樣的 flex:0 0 100%(自成一列)。用 :not([hidden]) 限定是必要的:[hidden] 是
+       display:none!important(第 175 行全域 reset),若這裡對 #tcConn 不分 hidden 一律 !important,
+       hidden=true 就永遠蓋不掉它,手機列車卡會常駐一個空框(task-3-context.md 陷阱A)。
+       且此規則限定在 .traincard.tc-sheet .tc-head 底下——非 sheet 的桌面併卡不套用,
+       否則會冒出一塊本來不該出現的東西(陷阱B)。 */
+    .traincard.tc-sheet .tc-head #tcConn:not([hidden]) { display: block !important; flex: 0 0 100%; margin-top: 7px; }
     .traincard.tc-sheet .tc-head .tl-spd b { font-size: calc(15px * var(--ui)); font-weight: 900; color: var(--ink-strong); }
     .traincard.tc-sheet .tc-head .tl-next { font-weight: 800; color: var(--navy); }
     .traincard.tc-sheet .tc-tt { display: none; } /* 曲線/時刻表切換鈕:中段常駐展開,小段由段高規則收起內文 */
@@ -4636,6 +4708,7 @@
         <span class="xfer-tag" id="fpXfer" hidden></span>
         <span class="eta" id="fpEta"></span>
       </div>
+      <div class="xfer-conn" id="fpConn" hidden></div>
       <div class="fp-prog">
         <div class="bar"><i id="fpProgFill"></i></div>
         <span class="txt" id="fpProgTxt"></span>
@@ -4668,6 +4741,8 @@
         <span class="stn" id="fcNext"></span>
         <span class="xfer-tag" id="fcXfer" hidden></span>
       </div>
+      <div class="fc-crowd" id="fcCrowd" hidden></div>
+      <div class="xfer-conn" id="fcConn" hidden></div>
       <div class="fc-status" id="fcStatus"></div>
     </div>
     <!-- 全畫面切換獨立鈕(常駐地圖右上,手機也點得到):進入=四角外展,fs 中=四角內收 -->
@@ -4852,6 +4927,7 @@
         <span class="xfer-tag" id="tcLiveXfer" hidden></span>
         <span class="tl-delay" id="tcLiveDelay"></span>
       </div>
+      <div class="xfer-conn" id="tcConn" hidden></div>
     </div>
     <!-- 高鐵自由座車廂(免費功能;只有高鐵才有,renderFreeSeat 依 isHSR 把關):一排小方塊代表車廂,
          自由座 highlight+一行文字複述,「看一眼就懂」放在頭列正下方,不必展開才看得到 -->
@@ -4900,14 +4976,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="crowdcard"><span class="d">9/2</span><span>跟捷運列車時，卡片上會顯示這一台車每一節車廂的擁擠度</span></li>
+        <li data-cl-of="boardwide"><span class="d">9/2</span><span>桌面的車站看板加寬，車種與「往哪」不會再被截掉</span></li>
+        <li data-cl-of="xferconn"><span class="d">9/1</span><span>快到轉乘站時，直接列出對向系統最近兩班和「你到站時還剩幾分」，可以釘住你要搭的那班</span></li>
         <li data-cl-of="widget4x4"><span class="d">9/1</span><span>桌面小工具的發車看板：大尺寸一次列出五班並分北上南下，每列都有開車時刻與準點誤點；也可以改成主要顯示發車時刻</span></li>
         <li data-cl-of="guestmerge"><span class="d">9/1</span><span>登入之後完乘紀錄與旅程護照整個變空：那些紀錄其實一直都還在這台裝置上，帳號面板現在會告訴你有幾筆，按一下就全部併回帳號（謝謝網友回報）</span></li>
         <li data-cl-of="signinfallback"><span class="d">9/1</span><span>登入失敗訊息不再重複兩行；Android 的 Google 登入多了自動退路（謝謝網友回報）</span></li>
         <li data-cl-of="ambientlock"><span class="d">9/1</span><span>放空模式：地圖不會被手指拉歪；離開再進入時，「離開放空」鈕不會再縮成按不到的小鈕</span></li>
         <li data-cl-of="androidwidgetparity"><span class="d">9/1</span><span>桌面小工具新增車站時，起站選單改成依縣市分段</span></li>
-        <li data-cl-of="traboarddir"><span class="d">8/31</span><span>火車站看板改成分方向顯示：南下、北上分開，山線海線與支線各自成區，冷門方向不再被擠掉；顏色比照台鐵新版車站標示的北上藍、南下綠</span></li>
-        <li data-cl-of="widgetdir"><span class="d">8/31</span><span>桌面小工具的發車看板也標出北上／南下：Android 從零補上方向三角，兩個平台的三角一起放大，顏色換成台鐵官方的北上藍、南下綠</span></li>
-        <li data-cl-of="ridingclock"><span class="d">8/31</span><span>按下「我上車了」之後，再去點一班還沒發車的車，時鐘不會再被撥走（謝謝網友回報）</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -4979,6 +5055,9 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="crowdcard"><span class="d">9/2</span><span>跟著台北捷運的列車時，卡片下面會顯示這一台車每一節車廂的擁擠度，色階與車站看板、桌面小工具是同一套。文湖線與環狀線官方沒有給車號，認不出是哪一台就留白，不拿別台的值頂替。其他捷運系統官方沒有這份逐節資料，卡片上不會出現這一欄。</span></li>
+        <li data-cl="boardwide"><span class="d">9/2</span><span>桌面的車站看板由 280 加寬到 360 像素。原本一列要放線色、車號、往哪、擁擠度、時刻與倒數，「往 松山（經南京復興）」這種長方向會被截成「往 松山（經…」；新竹站實測原本有三到四列被截，加寬後一列都不截。手機版本來就是整寬的抽屜，不受影響。</span></li>
+        <li data-cl="xferconn"><span class="d">9/1</span><span>跟台鐵、高鐵，或搭捷運快到台北、南港、板橋、新竹、苗栗、台中、台南、左營、嘉義這些轉乘站時，卡片會直接列出對向系統最近兩班的車次、時刻，以及「你到站時還剩幾分」——這個分鐘數含你這班車當下的誤點。點一列可以把你要搭的那班釘住，之後畫面只留它。高鐵沒有即時誤點，它的時刻是表定；站內步行時間各站差異大，我不替你判斷來不來得及，只告訴你到站那一刻還剩多久</span></li>
         <li data-cl="tourpickcap"><span class="d">8/31</span><span>「隨機跟隨」按了老是跳到同幾班車：稀有度原本被算了兩次——車種等級已經加過權，接著車型稀有再乘四倍，而莒光號、太魯閣號、DR3100 柴聯是整個車型都標稀有，於是一班莒光等於四十班區間車、藍皮解憂號等於九十六班。在跑的車越少壓得越兇：實測晚上十一點只剩兩班莒光在跑時，554 次一班就吃掉 17% 的抽籤機會（當時有 102 班車在跑，平均應該是 1%），中午的藍皮解憂號是 16.8%。現在任何一班都不得超過當下總權重的 3%，上限跟著各時段在跑的車數自動縮放；另外會記住剛跟過的五班，連按「換一班」不會再在同幾班之間繞。稀有車與觀光列車仍然比一般車更常遇到，只是不再獨佔</span></li>
         <li data-cl="boardalign"><span class="d">8/31</span><span>車站看板的欄位對齊。使用者回報「擁擠度跟時間，會因為最後面倒數那邊時間會變成『即將進站』而擠壓到，變成歪掉」。兩個成因：一是倒數欄原本只設了最小寬度，「即將進站」比「3 分」寬，那幾列就把時刻欄往左推；二是時刻的等寬數字設定要字型真的支援才生效，Chrome 上「12:31」比「12:26」窄兩個多像素，擁擠度欄跟著逐列左右跳。現在倒數與時刻兩欄都改成「量出這張板最寬的一列、全板同寬」，英日文與放大字級都自動吃到，不必為每種組合寫死一個數字</span></li>
         <li data-cl="taipeiloop"><span class="d">8/31</span><span>台鐵臺北車站不再多出一顆站。環島之星繞完一圈回到台北，官方在班表裡用另一個站碼「臺北-環島」記那一次到達，兩點實測相距 74 公尺，於是地圖上是兩顆點、看板也是兩張。使用者裁示「台北車站的火車就都併在一起，不要多環島那一個」，現在併成一顆：判準寫成「名字是 X-… 、X 在同一份班表裡也是站名、兩者 200 公尺內」，不寫死站名，台鐵日後再開別名站也一樣併。手機桌面小工具的班表與車站清單用同一條判準重新產生</span></li>
@@ -5675,7 +5754,7 @@
 //         獨立基準覆核:山線／海線／成追線判定 vs 台鐵官方 Line 欄位【908/908 逐車一致】;
 //         純西部方向 vs 官方 LineDir 對稱一致(1↔北上 241、2↔南下 241)。
 //         守門人:scripts/verify_board_direction_groups.mjs(26 項,五發突變各自咬到預期斷言)。
-const BUILD = 'v0901h'; // 小工具:好讀版補開車時刻＋「主要顯示發車時刻」設定;a/c/d/e/f/g 都已被別的 ref 或工作樹佔用(換號前逐 ref＋逐樹掃過),跨分支撞號見心得16
+const BUILD = 'v0902b'; // App 1.5.4(iOS 90／Android 32)的載貨＝正式站 v0902a ＋ 小工具好讀版;v0902a 是正式站那顆,內容不同不可共號(逐 ref＋逐樹掃過)
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -6098,6 +6177,10 @@ const state = {
   systems: [], sysId: null, data: null, speed: 36, mode: 'freq',
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
   stationTransfers: null, stationTransferAnchors: [], stationTransferGroups: new Map(), stationTransferBySystemName: new Map(),
+  transferDepartures: null, // 轉乘接續:轉乘群當日對向班次表(data/transfer_departures.json),缺檔或版本不符仍為 null,功能靜默消失
+  xferPin: null, // 轉乘接續:釘選中的那一班 { g, n, sys } | null(點一列只剩那一班,2026-09-01 裁示;
+  // g=所屬轉乘群 groupId——3 小時視窗大於高鐵全線行駛時間,同一班車常同時是多個群的候選,
+  // 不綁 g 會讓釘選跨群外溢,見 2026-09-01 修復輪1 Finding A)
   playing: true, speedMult: 1, hour: 8, simSec: 8 * 3600, // 開機即 1× 真實時刻(2026-07-11 使用者裁決,舊示意預設 50×)
   dpr: 1, powerSave: false, t0: 0, elapsed: 0, ready: false, // powerSave:省電模式(相機置中+繪製統一降 30fps,手機預設開),見 tick 節流
 
@@ -10131,6 +10214,27 @@ function clearFreqFollow() {
   const cnt = map && map.getContainer(); if (cnt && cnt.style.cursor) cnt.style.cursor = '';
   updateFollowLockUI();
 }
+// 捷運跟車卡的車廂擁擠度。與車站看板吃【同一份】state.trtcOfficialBoard.crowdByNo(逐車 join),
+// 不另開一條資料路徑——兩個介面顯示同一台車時必須給出同一個值。
+// 🔴 join 鍵是【官方車號 officialNo】,不是 freqFollow.vehicleId:後者是由各站官方倒數合成的
+//    內部 id(_trtcCdPrefix + 日期 + tag + 序),拿它去查 crowdByNo 恆為 undefined、整個功能靜默留白。
+// 🔴 文湖線與環狀線本來就沒有官方車號 ⇒ 查不到就留白,禁止拿同終點的另一台頂替。那正是
+//    2026-08-29 修掉的缺陷(文湖線 4 節車廂長出 6 格板南線的值),見 applyTrtcOfficialBoard 註解。
+function freqCrowdCars() {
+  const f = state.freqFollow;
+  if (!f) return null;
+  let no = '';
+  if (f.core) {
+    const rec = metroCoreFollowRecord(f);
+    no = rec && rec.train ? String(rec.train.publicLabel || '').trim() : '';
+  } else if (f.official) {
+    const rec = trtcOfficialFollowRecord(f, Date.now() / 1000);
+    no = rec && rec.vehicle ? String(rec.vehicle.officialNo || '').trim() : '';
+  }
+  const cars = no && state.trtcOfficialBoard && state.trtcOfficialBoard.crowdByNo
+    ? state.trtcOfficialBoard.crowdByNo[no] : null;
+  return Array.isArray(cars) && cars.length ? cars : null;
+}
 function updateFreqCard(info) {
   const f = state.freqFollow; if (!f) return;
   const ln = info.ln || f.ln; if (!ln) return;
@@ -10141,9 +10245,46 @@ function updateFreqCard(info) {
   // 實際時刻班次附下一站發車時刻(HH:MM);班距幽靈車只有站名
   document.getElementById('fcNext').textContent = (stationName(info.nextName, ln._sys) || '—') +
     (info.nextSec != null ? '(' + fmtHM(info.nextSec % 86400) + ')' : '');
+  // 車廂擁擠度:只有北捷官方板路線有逐節資料(TRTC_BOARD_LINES)。其他營運商官方沒有這一份,
+  // 整塊不畫——常駐一行「未提供」對高捷/機捷/中捷是永久噪音;而北捷內部才有「同一張卡忽有忽無」
+  // 的對齊問題,那正是欄位固定保留要解的那件事。
+  const cw = document.getElementById('fcCrowd');
+  if (cw) {
+    const showCrowd = isTrtcBoardLine(ln);
+    cw.hidden = !showCrowd;
+    if (showCrowd) {
+      const cars = freqCrowdCars();
+      // 沒資料時只畫【一條】滿寬虛線佔位,不畫六格:六格會宣稱「這台車有六節」,而文湖線是四節、
+      // 我們在沒有官方值時根本不知道節數。佔位的用途是撐住高度,不是描述車輛編組。
+      const bars = cars
+        ? cars.map(v => `<i style="background:${trtcOfficialCrowdColor(Number(v))}"></i>`).join('')
+        : '<i></i>';
+      const ageMs = state.trtcOfficialBoard ? Date.now() - Number(state.trtcOfficialBoard.receivedAt || 0) : NaN;
+      const secs = Number.isFinite(ageMs) ? Math.max(0, Math.round(ageMs / 1000)) : null;
+      const mins = secs == null ? null : Math.round(secs / 60);
+      const age = cars && secs != null
+        ? `<span class="age">${escHtml(secs < 60
+            ? t('擁擠度 · {n} 秒前', { n: i18nNumber(secs) }, secs)
+            : t('擁擠度 · {n} 分前', { n: i18nNumber(mins) }, mins))}</span>`
+        : '';
+      const html = `<span class="lbl">${escHtml(t('車廂擁擠度'))}</span>` +
+        `<span class="txt">${cars ? '' : escHtml(t('此路線未提供擁擠度'))}</span>` +
+        `<span class="cars">${bars}</span>${age}`;
+      // 🔴 updateFreqCard 每幀跑:無條件寫 innerHTML 會讓子節點每幀汰換,面板內任何可點元件的
+      //    click 都不會派發(見 setTransferConn 同款註解與 [[follow-panel-repaint-eats-clicks]])。
+      if (cw.innerHTML !== html) cw.innerHTML = html;
+      cw.dataset.state = cars ? 'ok' : 'none';
+    }
+  }
   // 轉乘標。捷運卡只有站名沒有站物件,照 renderFreqBoard 的做法用「臺→台」正規化回頭查 ln.stations 取座標。
   const nk = String(info.nextName || '').replace(/臺/g, '台');
-  setTransferTag('fcXfer', nk ? transferRoutesForMetro(ln, (ln.stations || []).find(s => s.name.replace(/臺/g, '台') === nk)) : null);
+  const mstop = nk ? (ln.stations || []).find(s => s.name.replace(/臺/g, '台') === nk) : null;
+  setTransferTag('fcXfer', mstop ? transferRoutesForMetro(ln, mstop) : null);
+  // 轉乘接續:fromSys 傳 null(不排除任何系統)——捷運不在轉乘資料檔的系統清單裡,搭捷運時
+  // 台鐵/高鐵/林鐵都是有效轉乘。info.nextSec 在班距推算的幽靈車上是 null,transferConnections
+  // 的 Number.isFinite(atSec) guard 會讓它自然回空陣列、整塊不渲染,故意不補預設值。
+  const manchor = mstop ? transferAnchorNear(mstop) : null;
+  setTransferConn('fcConn', manchor && manchor.station ? manchor.station.transferId : null, info.nextSec, null);
   // 資料等級誠實標示:即時校正中/時刻表推演/班距推算;營運異常公告時降級為僅供參考
   const st = document.getElementById('fcStatus');
   let txt, cls = '';
@@ -16381,6 +16522,140 @@ function setTransferTag(id, routes) {
   el.hidden = false;
 }
 
+// ── 轉乘接續:我到轉乘站的那一刻,對向系統還有哪幾班 ──────────────────────────
+// 資料是 build 時算好的靜態檔(data/transfer_departures.json),沒有 runtime 外部 API;
+// 缺檔時 state.transferDepartures 為 null,本函式回空陣列 ⇒ 功能靜默消失,不影響其他東西。
+// 🔴 只做「有班表」的系統(台鐵/高鐵/林鐵)。捷運沒有真班表——官方倒數只涵蓋未來幾分鐘,
+//    你 40 分鐘後才到那站,那時的倒數現在還不存在。見規格 §2。
+// 3 小時窗與看板(schedBoardRows)一致:那麼遠的接續本來就不該承諾,而且畫面上
+// 「剩 187 分」對任何人都沒有意義。規格 §5.5。
+const XFER_WINDOW_SEC = 3 * 3600;
+
+function transferConnections(groupId, atSec, fromSys) {
+  const d = state.transferDepartures;
+  if (!d || !groupId || !Number.isFinite(atSec)) return [];
+  const group = d.groups.find(g => g.id === groupId);
+  if (!group) return [];
+  const out = [];
+  for (const [sys, names] of Object.entries(group.members)) {
+    if (sys === fromSys) continue;               // 排除自己那條線
+    for (const t of (d[sys.toLowerCase()] || [])) {
+      for (const [stn, sec, isLast] of t.h) {
+        if (!names.includes(stn) || isLast) continue;  // 終點到達不是可搭的班次
+        const left = sec - atSec;
+        if (left < 0 || left > XFER_WINDOW_SEC) continue;
+        out.push({ sys, n: t.n, ty: t.ty, de: t.de, sec, leftSec: left });
+      }
+    }
+  }
+  out.sort((a, b) => a.sec - b.sec);
+  return out;
+}
+
+// 系統代碼→顯示名稱。標題與逐列小標(見下)共用同一張表,不要複製兩份。
+function xfcSysName(sys) {
+  return { THSR: t('高鐵'), TRA: t('台鐵'), AFR: t('阿里山林鐵') }[sys] || sys;
+}
+// 接續清單的 HTML。沒有接續就回空字串整塊不渲染——留空殼會多一個空框(與既有 transferMetaHtml
+// 同一個約定)。🔴 只寫「剩 N 分」,不寫「來得及/來不及」:站內步行時間沒有任何資料源,
+// 猜太短會害使用者錯過車。
+function transferConnectionHtml(groupId, atSec, fromSys) {
+  const rows = transferConnections(groupId, atSec, fromSys);
+  if (!rows.length) return '';
+  // g 必須先比對:不比對的話同一班車若同時是另一個轉乘群的候選,那個群渲染時會誤收斂
+  // (2026-09-01 修復輪1 Finding A,真實資料實測 THSR 0841 同時是 6 個群的候選)。
+  const pinned = state.xferPin && state.xferPin.g === groupId &&
+    rows.find(r => r.n === state.xferPin.n && r.sys === state.xferPin.sys);
+  const show = pinned ? [pinned] : rows.slice(0, 2);
+  // 標題能指名單一系統的條件:非釘選 且 入選各列同系統。混系統(捷運卡的常態——fromSys=null
+  // 時常常一班台鐵一班高鐵)或釘選態一律用中性標題,改成每一列前面加系統小標——否則「轉高鐵」
+  // 標題底下第二列其實是台鐵,卻沒有任何系統標示,使用者分不出哪一列是哪家。
+  // (使用者裁示 2026-09-01:逐列標系統,標題混系統時改中性;兩列同系統時維持原標題不變。)
+  const headSys = (!pinned && show.every(r => r.sys === show[0].sys)) ? show[0].sys : null;
+  const head = pinned
+    ? `<span class="xfc-h">${escHtml(t('你的接續班次'))}</span>`
+    : headSys
+      ? `<span class="xfc-h">${escHtml(t('轉{system} · 你到站時', { system: xfcSysName(headSys) }))}</span>`
+      : `<span class="xfc-h">${escHtml(t('你到站時'))}</span>`;
+  // fmtHM 是既有的秒→HH:MM(看板 rowHtml 用的同一支),必須帶 % 86400——跨午夜的班次不取模
+  // 會印出 25:10。r.de 是【對向系統】的終點站名,不能餵 stationName(name, tr.sys):那會拿本班車
+  // 的系統去查別家的站,查不到就退回原字串、查得到更糟(撞名)。子集存的已經是可直接顯示的站名,
+  // escHtml 即可。
+  const body = show.map(r =>
+    `<button class="xfc-row" type="button" data-xn="${escHtml(r.n)}" data-xs="${escHtml(r.sys)}"${pinned ? ' aria-pressed="true"' : ''}>`
+    + (headSys ? '' : `<span class="xfc-sys">${escHtml(xfcSysName(r.sys))}</span>`)
+    + `<span class="xfc-no">${escHtml(r.n)}</span>`
+    + `<span class="xfc-d">${fmtHM(r.sec % 86400)} ${escHtml(t('往 {station}', { station: r.de }))}</span>`
+    // 🔴 Math.floor 不是 Math.round:四捨五入最多高估 29 秒(90 秒會顯示「剩 2 分」),而本分支
+    // c6f66f59 已為同一個理由改過一次——「高估餘裕」是 Global Constraint 要避免的方向,寧可讓
+    // 使用者以為剩下的時間比實際少一點,不要反過來。(⚠️ 本函式原始碼受 G13 的字樣掃描,連註解
+    // 都不得出現它攔截的那組承諾用語,改這段措辭前先看 verify_transfer_connections.mjs 的 G13。)
+    + `<span class="xfc-left">${escHtml(t('剩 {n} 分', { n: i18nNumber(Math.floor(r.leftSec / 60)) }, Math.floor(r.leftSec / 60)))}</span>`
+    + `</button>`).join('');
+  // 取消釘選刻意不放進標題列:窄卡(手機 176)上標題會被壓成兩欄而斷字,設計改成列下方
+  // 靠右的獨立按鈕(32px 觸控高)。DOM 順序＝標題→列→取消釘選→註腳。
+  const unpin = pinned ? `<button class="xfc-unpin" type="button">${escHtml(t('取消釘選'))}</button>` : '';
+  // 高鐵沒有即時誤點 ⇒ 明說它是表定,不要讓人以為那個時刻含即時修正。
+  const foot = `<span class="xfc-f">${escHtml(t('表定時刻 · 未計站內步行'))}</span>`;
+  // 🔴 不要再包一層 <div class="xfer-conn">:三個容器(#fpConn/#fcConn/#tcConn)自己就是
+  // class="xfer-conn",再包一層 DOM 會變成兩層同 class 巢狀,而 CSS 那條規則是純 class 選取器
+  // ⇒ 內外兩層都吃到 border/padding/margin-top,畫面上真的看得到兩圈圓角框、中間多一道 7px
+  // 空隙(2026-09-01 廣審量 computed style:外 210px 框裡再套一個 192px 框,截圖確認)。
+  // 前幾輪把它記成「結構冗餘、不影響畫面」是錯的。
+  return `${head}${body}${unpin}${foot}`;
+}
+// 三個顯示實例共用。照 setTransferTag 的形狀寫,差別只在這裡寫 innerHTML 不是 textContent
+// (接續列需要按鈕與分段結構,轉乘標只有純文字)。
+// 順便記住每個容器最後一次收到的參數(xferConnArgs):釘選改變時要原地重播,不能重算「下一站」
+// ——重算就是第二份推導,一定會跟跟隨卡漂移(症狀:跟隨卡寫著下一站台中,接續區塊卻算板橋)。
+const xferConnArgs = new Map();
+function setTransferConn(id, groupId, atSec, fromSys) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  xferConnArgs.set(id, [groupId, atSec, fromSys]);
+  const html = transferConnectionHtml(groupId, atSec, fromSys);
+  // 🔴 內容相同就不要動 DOM。updateFollowCamera 每一個 animation frame 都呼叫 updateFollowPanel
+  // (index.html:14045),無條件 `el.innerHTML = html` 會讓這一塊【每幀被整段汰換】——渲染出來
+  // 逐字元相同,節點卻是新的。使用者按下滑鼠到放開之間原節點已被卸離(isConnected=false),
+  // 依 UI Events 規範 click 根本不會派發 ⇒ 在真正的使用情境(跟車中)釘選 100% 失效。
+  // 2026-09-01 廣審實測:按壓 0/60/120/250ms 全部 state.xferPin=null、click 零派發;同頁同座標
+  // 把這裡換成 no-op 就成功。#fcConn 走 updateFreqCard(index.html:10175)是同一個機制。
+  // ⚠️ 這不是效能優化(實測每次 0.024ms=幀預算 0.3%),是正確性;也不可退化成「乾脆整段不重畫」
+  // ——接續內容本來就要隨時刻與釘選狀態更新,由 verify_transfer_follow_pin.mjs 的 F6 反向把關。
+  if (el.innerHTML !== html) el.innerHTML = html;
+  el.hidden = !html;
+}
+// 釘選改變時三個容器原地重畫:各自拿 xferConnArgs 存的參數重播一次 transferConnectionHtml
+// (該函式本來就會讀 state.xferPin 決定要不要收成一列)。刻意不呼叫各卡的整卡重繪——那會把
+// 使用者展開中的其他區塊收合,而釘選只該換這一塊。
+function refreshXferConns() {
+  for (const [id, a] of xferConnArgs) setTransferConn(id, a[0], a[1], a[2]);
+}
+// 轉乘釘選。高鐵是對號座,轉高鐵的人多半已經有票——他不是在「選一班」,是在輸入一個他早就
+// 知道的事實,其餘班次對他是雜訊,甚至會讓他以為趕得上一班他根本上不去的車。釘選後只剩那一班
+// (2026-09-01 裁示)。g 一定要傳:釘選只在它自己那一群裡有效(修復輪1 Finding A),
+// 刻意不在 setFollow/換車時清掉——同一個轉乘群可能在跟隨不同班車時再度出現,清掉反而更糟。
+function setXferPin(g, n, sys) { state.xferPin = { g, n, sys }; refreshXferConns(); }
+function clearXferPin() { state.xferPin = null; refreshXferConns(); }
+// 事件委派掛在 document 上(三個實例會被 setTransferConn 整段 innerHTML 重畫,直接綁在
+// .xfc-row/.xfc-unpin 本身會被重畫洗掉)。兩個 closest 都限定 .xfer-conn 祖先,不可裸寫
+// .xfc-row/.xfc-unpin——.xc-row(平交道卡)是完全不同的 class,但比照它的教訓仍舊自己作用域化。
+document.addEventListener('click', e => {
+  const row = e.target.closest && e.target.closest('.xfer-conn .xfc-row');
+  if (row) {
+    // groupId 只認 xferConnArgs 這一份真相(該容器最後一次收到的參數),不另外寫進 data-
+    // 屬性——同一件事兩份來源會漂移。[id] 限定只認三個容器本尊:2026-09-01 前
+    // transferConnectionHtml 回傳字串自己又包一層 <div class="xfer-conn">,DOM 變兩層同 class
+    // 巢狀而只有外層有 id,裸寫 closest('.xfer-conn') 會命中內層(box.id='' ⇒ 釘選整個失效)。
+    // 那層巢狀已隨「雙框」修掉,這個 [id] 保留當防線:再有人包回去也不會靜默壞掉。
+    const box = row.closest('.xfer-conn[id]');
+    const args = box && xferConnArgs.get(box.id);
+    if (args) setXferPin(args[0], row.dataset.xn, row.dataset.xs);
+    return;
+  }
+  if (e.target.closest && e.target.closest('.xfer-conn .xfc-unpin')) clearXferPin();
+});
+
 // 地圖下方的列車資訊卡:介紹+服務標記,旅程日誌由 renderFollowEvents 填
 function renderTrainCard(tr) {
   const it = trainIntro(tr);
@@ -20589,6 +20864,33 @@ function updateFollowPanel(tr) {
   const lv = state.live;
   const realDl = (tr.sys === 'tra_sched' && lv && lv.map && Date.now() - lv.at < 1800e3) ? (lv.map.get(String(tr.train)) || 0) : 0;
   const info = nextStopInfo(tr, effTLive(tr));
+  // #fpConn(轉乘接續)跟 #fpXfer(轉乘標,下面)刻意錨定不同的站——DOM 上兩者本來就不是同一件事
+  // (index.html:4651-4656):#fpXfer 掛在 .fp-next 那一列裡,問的是「下一站」,所以繼續吃
+  // info.stop;#fpConn 是 .fp-next 的獨立兄弟區塊,問的是「你到站時/現在能轉什麼」,得看人
+  // 現在實際在哪一站,不能沿用 info.stop。這不是遺漏統一,是兩個問題本來就該問不同的站
+  // (釘住這個分歧的斷言見 verify_transfer_transitions.mjs T2b)。
+  // 🔴 xstop 不能直接用 info.stop:nextStopInfo 用 arrSec>t 判斷,車一到轉乘站(arrSec 一過)
+  // 就立刻跳去回報下一站,但這時車其實還停在轉乘站月台上(還沒到 depSec)——用 info.stop 會讓
+  // 接續區塊在進站那一拍立刻指錯站甚至整塊閃掉(驗收:verify_transfer_transitions.mjs T2)。
+  // 正在停靠時(且是真的停靠站,不是通過站)仍以停靠站為準,真的離站後才交給 nextStopInfo。
+  // xstop 也給下面 train-open 區塊裡的 tcConn 用(同一顆值,若擺進 if(info) 裡面會出不了
+  // 那個範圍)。info 為 falsy(已到終點)時 xstop 隨之為 falsy,setTransferConn 收到
+  // groupId=null/atSec=NaN 會自然回空字串整塊隱藏,不必再另外清一次。
+  const xdwell = dwellInfoOf(tr, effTLive(tr));
+  const xsys = TRANSFER_SCHED_SYSTEM[tr.sys] || null;
+  const xstop = (xdwell && xdwell.st.stop !== false) ? xdwell.st : (info && info.stop);
+  const xanchor = xsys && xstop ? transferAnchorForStop(xsys, xstop) : null;
+  const xgid = xanchor && xanchor.station ? xanchor.station.transferId : null;
+  // atSec 的基準只有停靠中這個分支要換成「現在」:行駛中 xstop 是未來會到的站,問的是
+  // 「我到站時會剩多少」,atSec 用到站時刻(表定+誤點)是誠實預告,這段不要動。停靠中 xstop
+  // 是已經到達的站,「你到站時」那一刻已經發生過,若仍用凍結的到站時刻會讓「剩 N 分」整段
+  // 停靠期間動也不動,對使用者是高估餘裕(2026-09-01 修復輪1 Finding A 實測:南港停 60 秒
+  // 最壞高估 55 秒,台北候選停 240 秒最壞高估近 4 分鐘)——這一刻問的是「我現在還剩多少」,
+  // 改用 effTLive(tr)(與上面判斷是否停靠時用的同一顆值)。
+  const xat = !xstop ? NaN
+    : (xdwell && xdwell.st.stop !== false) ? effTLive(tr)
+    : xstop.arrSec + liveDelaySec(tr);
+  setTransferConn('fpConn', xgid, xat, xsys);
   if (info) {
     nx.textContent = stationName(info.name, tr.sys);
     // 轉乘標:這是唯一會改變行動的時刻——要不要在這站下車換車。用 transferRoutesForStop 而非
@@ -20679,6 +20981,10 @@ function updateFollowPanel(tr) {
       // 轉乘標:sheet 開啟時 body.train-open 把整張跟隨小卡(連同 #fpXfer)藏起來,這裡不補就等於
       // 「手機點開列車卡,剛剛看到的轉乘提示消失了」。第三個顯示實例,與 fpXfer/fcXfer 同一組契約。
       setTransferTag('tcLiveXfer', info && info.stop ? transferRoutesForStop(tr, info.stop) : null);
+      // 轉乘接續:xgid/xat/xsys 已在上面用同一顆 xstop 算好(不是上一行 tcLiveXfer 用的
+      // info.stop——tcConn/tcLiveXfer 與 fpConn/fpXfer 是同一組刻意分歧,見上方 20661 一帶
+      // 的完整說明),這裡沿用,不重算。
+      setTransferConn('tcConn', xgid, xat, xsys);
       const ld = document.getElementById('tcLiveDelay');
       if (realDl > 0) { ld.textContent = t(liveActive() ? '誤點 {n} 分' : '目前誤點 {n} 分', { n: i18nNumber(realDl) }, realDl); ld.className = 'tl-delay lateTag'; }
       else if (dlMin > 0) { ld.textContent = t('誤點 {n} 分', { n: i18nNumber(dlMin) }, dlMin); ld.className = 'tl-delay lateTag'; }
@@ -25909,7 +26215,7 @@ function renderBoardBody() {
     const rx = !r.off && boardRxOpen.has(boardRxKey(r.tr.train, r.tr.sys)) ? ' rx' : '';
     return `<div class="row${r.off ? ' off' : ''}${rx}"${r.off ? '' : ` data-no="${escHtml(r.tr.train)}" data-sys="${escHtml(r.tr.sys || '')}" title="${escHtml(t('跟隨 {train} 次', { train: r.tr.train }))}"`}><span class="dot" style="background:${r.tr.color}"></span>` +
       // 「推算」標貼著時刻放(被推算的是時間不是路線),與 lateTag 同位、不會同時出現(est 車無誤點資料);
-      // 放 dest 欄會把「（終點到達）」擠成「(…」(280px 看板實測)。
+      // 放 dest 欄會把「（終點到達）」擠成「(…」(280px 看板實測;v0901 加寬到 360 後未重測,維持原做法)。
       // 設計 6b:大改兩行、特大把車種與方向收進列尾「›」——兩者都要能各自定位,故各包一層。
       // 標準檔的字元(含中間那個全形空格)與包之前逐字相同,幾何零變化。
       `<b>${escHtml(r.tr.train)}</b><span class="dest"><span class="ty">${escHtml(r.tr.loop ? t(r.tr.loopName) : trainTypeName(r.tr.typeName))}</span>　<span class="to">${escHtml(dest)}</span></span>` +
@@ -26680,7 +26986,7 @@ function metroWaitSysForStation(st, lines, isDeco) {
 }
 // 兩處看板 h3 共用的按鈕 HTML(v0717p 鐵則:必須在 sticky h3 內)。旗標關/這站沒有任何長鈕系統
 // 時整串不輸出(不用 locateBtn 那種 inline 藏法——看板本來就是每次動態重繪)。
-// 純文字 pill、h3 內另起一行(display:block,見 CSS):.board 桌面寬僅 280px,close/star 兩顆
+// 純文字 pill、h3 內另起一行(display:block,見 CSS):.board 桌面寬 360px(v0901 前 280),close/star 兩顆
 // 22px 圖示鈕已吃掉大半 h3 右側,硬塞第三顆同款絕對定位鈕會擠壓長站名;文字鈕另起一行不佔用
 // 既有插槽、不需再調 h3 padding-right。
 function metroWaitBoardHtml(st, sys) {
@@ -30449,6 +30755,7 @@ async function boot() {
   const trackP = new Map(SYS_DEFS.filter(d => d.track).map(d => [d.id, _p(fetchJSON(d.track))]));
   const timesP = new Map(SYS_DEFS.filter(d => d.times).map(d => [d.id, _p(fetchJSON(d.times))]));
   const transfersP = _p(fetchJSON('./data/station_transfers.json'));
+  const xferDepP   = _p(fetchJSON('./data/transfer_departures.json'));
   const stnClassP  = _p(fetchJSON('./data/tra_station_class.json'));
   const stnInfoP   = _p(fetchJSON('./data/tra_station_info.json'));
   const platformsP = _p(fetchJSON('./data/tra_platforms.json'));
@@ -30467,6 +30774,10 @@ async function boot() {
   for (const s of state.systems) if (s.times) s._times = await timesP.get(s.id);
   // 純靜態共站表；沒有 runtime 外部 API，缺檔時只是不顯示轉乘提示。
   initStationTransfers(await transfersP);
+  // 轉乘接續表(轉乘群當日對向班次,scripts/build_transfer_departures.mjs 產)。純靜態、無 runtime 外部
+  // API,缺檔或版本不符就是沒有這個功能,不擋開機(schemaVersion 把關方式比照上面的 initStationTransfers)。
+  const xferDep = await xferDepP;
+  state.transferDepartures = xferDep && xferDep.schemaVersion === 1 ? xferDep : null;
   // 站等資料(特等/一等/…),缺檔就全走停靠班次數啟發式
   state.stnClassMap = await stnClassP || {};
   // 台鐵各站地址(TDX Rail/TRA/Station);key 為「台」正規化站名,feature 欄之後補
@@ -30953,7 +31264,10 @@ document.getElementById('followPanel').addEventListener('click', (e) => {
   if (window.matchMedia(MOBILE_MQ).matches && document.body.classList.contains('fs') && state.followTrain
       && !document.body.classList.contains('live') && !document.body.classList.contains('ambient')
       && !fp.closest('.uni-slot')
-      && !e.target.closest('.fp-end, .fp-close, .fp-tripshare, .fp-notify')) { openTrainSheet(); return; }
+      // 🔴 .xfc-row/.xfc-unpin(轉乘接續)也要排除:#fpConn 就住在這張卡裡,不排除的話手機上點
+      //    一列接續會「順便」把整張列車 sheet 滑上來——使用者只想釘一班車,結果被導去另一個介面
+      //    (2026-09-01 廣審實測 375×812 真觸控:xferPin 有值,body.train-open 同時 false→true)。
+      && !e.target.closest('.fp-end, .fp-close, .fp-tripshare, .fp-notify, .xfc-row, .xfc-unpin')) { openTrainSheet(); return; }
   if (fp.classList.contains('fp-min') && !e.target.closest('.fp-end')) {
     fp.classList.remove('fp-min');
     try { localStorage.setItem('trainmap-fprail-min', '0'); } catch (err) {}

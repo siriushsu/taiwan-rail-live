@@ -183,6 +183,12 @@
         "Signed in and your completed rides and Journey Passport went blank? Those records were never lost—they were still on this device. The account panel now tells you how many are waiting, and one tap merges them all back into your account.",
       '放空模式：地圖不會被手指拉歪；離開再進入時，「離開放空」鈕不會再縮成按不到的小鈕':
         "Ambient mode is now sit-back-and-watch: the map can no longer be dragged or pinched off course, and leaving then re-entering no longer shrinks the Exit ambient mode button into an empty stub you cannot tap.",
+      '跟捷運列車時，卡片上會顯示這一台車每一節車廂的擁擠度':
+        'While following a Taipei Metro train, the card shows how crowded each carriage of that train is.',
+      '桌面的車站看板加寬，車種與「往哪」不會再被截掉':
+        'The desktop station board is wider, so the train type and destination are no longer cut off.',
+      '快到轉乘站時，直接列出對向系統最近兩班和「你到站時還剩幾分」，可以釘住你要搭的那班':
+        "Near a transfer station, the card lists the next two departures on the connecting system and how many minutes you'll have left when you arrive — tap one to pin it.",
       '火車站看板改成分方向顯示：南下、北上分開，山線海線與支線各自成區，冷門方向不再被擠掉；顏色比照台鐵新版車站標示的北上藍、南下綠':
         "Station boards now group trains by direction—southbound, northbound and each branch line get their own section, so quieter directions no longer get squeezed out; colour-coded blue for northbound and green for southbound, matching TRA's new station signage.",
       '山線': 'Mountain Line', '海線': 'Coast Line', '縱貫線北段': 'Western Line (North)',
@@ -201,6 +207,10 @@
       '地圖資料還在載入中': 'Map data is still loading', '載入中…': 'Loading…', '沒有資料': 'No data',
       '網路連線失敗，請稍後再試': 'Network request failed. Please try again later.',
       '{n} 班奔跑中': { one: '{n} train running', other: '{n} trains running' }, '環狀線循環': 'Circular service', '觀光列車': 'Sightseeing train',
+      // 捷運跟車卡的車廂擁擠度欄(v0901)。只有北捷有官方逐節資料;查不到車號就顯示「未提供」。
+      '車廂擁擠度': 'Car crowding', '此路線未提供擁擠度': 'No crowding data on this line',
+      '擁擠度 · {n} 秒前': { one: 'Crowding · {n} sec ago', other: 'Crowding · {n} sec ago' },
+      '擁擠度 · {n} 分前': { one: 'Crowding · {n} min ago', other: 'Crowding · {n} min ago' },
       '車種（篩選列車）': 'Train type (filter)', '鐵道路線（顯示／隱藏軌道）': 'Rail routes (show / hide tracks)',
       '展開 ▼': 'Expand ▼', '收合 ▲': 'Collapse ▲', '時刻表模擬': 'Timetable simulation', '深夜重播 18:00': 'Night replay 18:00',
       '尖峰': 'Peak', '離峰': 'Off-peak', '即時運行狀態請洽官方：': 'Check live service status with the operator: ',
@@ -348,6 +358,9 @@
       '面板半透明': 'Translucent panels', '診斷資訊': 'Diagnostics', '匯出捷運診斷': 'Export metro diagnostics',
       '◎ 附近車站': '◎ Nearby stations', '⏺ 錄影 Beta': '⏺ Recording Beta', '帳號同步': 'Account sync',
       '已是最新版': 'Up to date', '給軌島評分': 'Rate Rail Island', '回報問題或建議': 'Report an issue or suggestion',
+      '轉{system} · 你到站時': 'Transfer to {system} · when you arrive', '剩 {n} 分': '{n} min left',
+      '你到站時': 'When you arrive',
+      '你的接續班次': 'Your connection', '取消釘選': 'Unpin', '表定時刻 · 未計站內步行': 'Scheduled time · excludes walking inside the station',
     },
     ja: {
       '軌島': '軌島', '軌島 railisland.tw。看台鐵此刻準點嗎、捷運怎麼穿梭全台，一張會動的台灣鐵道地圖。': '軌島は、台湾鉄路・高速鉄道・各都市のメトロとライトレールを一枚の地図で表示する鉄道アニメーションです。', '台灣鐵道即時軌跡': '台湾鉄道ライブ', '台灣高鐵即時軌跡': '台湾高速鉄道ライブ',
@@ -483,6 +496,12 @@
         'ログインしたら完乗記録と旅のパスポートが空になった――その記録は消えていません。この端末にちゃんと残っています。アカウント画面に何件あるかを表示するようにしたので、タップひとつでまとめてアカウントに取り込めます。',
       '放空模式：地圖不會被手指拉歪；離開再進入時，「離開放空」鈕不會再縮成按不到的小鈕':
         '鑑賞モードは「眺めるだけ」に：地図が指で動かされたりズームがずれたりせず、いったん終了してもう一度入っても「鑑賞モードを終了」ボタンが押せない小さなボタンに縮まなくなりました。',
+      '跟捷運列車時，卡片上會顯示這一台車每一節車廂的擁擠度':
+        '台北メトロの列車を追跡中、その列車の車両ごとの混雑度をカードに表示します。',
+      '桌面的車站看板加寬，車種與「往哪」不會再被截掉':
+        'デスクトップの駅発車案内を広げ、列車種別と行き先が途中で切れなくなりました。',
+      '快到轉乘站時，直接列出對向系統最近兩班和「你到站時還剩幾分」，可以釘住你要搭的那班':
+        '乗り換え駅に近づくと、対向システムの直近2本の発車時刻と「到着時点で残り何分か」をカードに表示。1本をタップすると、その列車に固定できます。',
       '火車站看板改成分方向顯示：南下、北上分開，山線海線與支線各自成區，冷門方向不再被擠掉；顏色比照台鐵新版車站標示的北上藍、南下綠':
         '駅の発車案内を方面別に分割：南行き・北行き・支線がそれぞれ独立し、本数の少ない方面も押し出されません。色分けは台鉄の新しい案内サインに合わせ、北行きは青、南行きは緑。',
       '山線': '山線', '海線': '海線', '縱貫線北段': '縦貫線北段', '縱貫線南段': '縦貫線南段',
@@ -497,6 +516,8 @@
       '這個裝置或瀏覽器不支援定位': 'この端末またはブラウザは位置情報に対応していません。', '地圖資料還在載入中': '地図データを読み込み中です',
       '載入中…': '読み込み中…', '沒有資料': 'データがありません', '網路連線失敗，請稍後再試': '通信に失敗しました。しばらくしてからお試しください。',
       '{n} 班奔跑中': '{n}本運行中', '環狀線循環': '環状運転', '觀光列車': '観光列車',
+      '車廂擁擠度': '車両混雑度', '此路線未提供擁擠度': 'この路線は混雑度の提供なし',
+      '擁擠度 · {n} 秒前': '混雑度 · {n} 秒前', '擁擠度 · {n} 分前': '混雑度 · {n} 分前',
       '車種（篩選列車）': '列車種別（絞り込み）', '鐵道路線（顯示／隱藏軌道）': '鉄道路線（線路の表示／非表示）',
       '展開 ▼': '展開 ▼', '收合 ▲': '閉じる ▲', '時刻表模擬': '時刻表シミュレーション', '深夜重播 18:00': '深夜リプレイ 18:00',
       '尖峰': 'ラッシュ', '離峰': '通常', '即時運行狀態請洽官方：': '最新の運行情報は公式サイトをご確認ください：',
@@ -642,6 +663,9 @@
       '面板半透明': 'パネルを半透明にする', '診斷資訊': '診断情報', '匯出捷運診斷': 'メトロ診断情報を書き出す',
       '◎ 附近車站': '◎ 近くの駅', '⏺ 錄影 Beta': '⏺ 録画 Beta', '帳號同步': 'アカウント同期',
       '已是最新版': '最新バージョンです', '給軌島評分': '軌島を評価', '回報問題或建議': '問題・提案を報告',
+      '轉{system} · 你到站時': '{system}へ乗換・到着時点', '剩 {n} 分': 'あと{n}分',
+      '你到站時': '到着時点',
+      '你的接續班次': 'あなたの乗継便', '取消釘選': '固定を解除', '表定時刻 · 未計站內步行': '所定時刻・駅構内の徒歩時間は含みません',
     },
   };
 })();

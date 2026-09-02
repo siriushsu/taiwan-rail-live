@@ -184,11 +184,11 @@
   "data/tra_pass_obs.json": {
    "sourceDescription": "TDX api/historical/v2 Historical/Rail/TRA/LiveTrainDelay",
    "sourceField": "source",
-   "effectiveDate": "2026-08-31T01:39:05.413Z",
+   "effectiveDate": "2026-09-01T05:55:27.461Z",
    "effectiveDateField": "built_at",
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "83fe5d9d2de903b14c62e783dda4e3e3"
+   "checksum": "b0421aa78e1047e473ea15994efa8bb3"
   },
   "data/tra_platforms.json": {
    "sourceDescription": "OpenStreetMap contributors — way[railway=platform／public_transport=platform／railway=platform_edge] 與 node[stop_position／railway=stop]，經 Overpass API 取得",
@@ -206,16 +206,16 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "b974d1e30f49c869d9a1bb520e87d9ef"
+   "checksum": "c476952ea758b637697e3eab3bde7aa9"
   },
   "data/tra_schedule_dense.json": {
-   "sourceDescription": "時刻表來源：https://ods.railway.gov.tw/tra-ods-web/ods/download/dataResource/railway_schedule/JSON/list 清單頁，抓取今天(2026-08-31)起連續 14 天中實際發佈得到的 14 天（2026-08-31…2026-09-1",
+   "sourceDescription": "時刻表來源：https://ods.railway.gov.tw/tra-ods-web/ods/download/dataResource/railway_schedule/JSON/list 清單頁，抓取今天(2026-09-01)起連續 14 天中實際發佈得到的 14 天（2026-09-01…2026-09-1",
    "sourceField": "source_notes",
-   "effectiveDate": "2026-08-31…2026-09-13",
+   "effectiveDate": "2026-09-01…2026-09-14",
    "effectiveDateField": "dateRange",
    "geometrySource": "TDX+OSM",
    "coordinateBasis": "WGS84(OSM 段);TDX 段未載明(payload 無 CRS 欄位)——兩者實測同框,build_tdx.mjs 對 K03 的座標修正即以 OSM 座標落在 TDX 軌道幾何上離軌 0m 為據",
-   "checksum": "660c62771bbee24cc6e20640cb0c2211"
+   "checksum": "82f13d61bfd815e94daae7ee6d4086fa"
   },
   "data/tra_special_trains.json": {
    "sourceDescription": "台鐵特別列車故事檔案。事實查證日期 2026-07-09（兩份網路研究＋台鐵官網/媒體抽驗＋當日時刻表交叉比對）。時效敏感條目（班次數、季節路線、退役進度）標註於 status2026，隔年應重新查證。",
@@ -243,6 +243,15 @@
    "geometrySource": "TDX",
    "coordinateBasis": "未載明(TDX 回傳 PositionLat/PositionLon,payload 無 CRS 欄位)",
    "checksum": "e9f9108b960c026c12b35ecbb6cdf9c3"
+  },
+  "data/transfer_departures.json": {
+   "sourceDescription": "由 data/station_transfers.json（轉乘群）與 data/{tra,thsr,afr}_schedule_dense.json（時刻）推導,scripts/build_transfer_departures.mjs;只留 9 個轉乘站,台鐵取 d.dates[d.date] 的當日索引（tra_schedule_dense 是 14 天跨日去重聯集,直接用 d.trains 會混進其他日的改點變體）",
+   "sourceField": null,
+   "effectiveDate": "2026-09-01",
+   "effectiveDateField": "date",
+   "geometrySource": null,
+   "coordinateBasis": null,
+   "checksum": "89f78c5f36644025b982f1befe2bc98b"
   },
   "data/trtc.json": {
    "sourceDescription": "信義東延段廣慈/奉天宮站(R01)於 TDX 上架前先行補入(2026-08-28):站點與線形取自 OSM,站間行駛時間依信義線平均營運速度估算,TDX 上架後應以官方值取代;交通部 TDX 運輸資料流通服務(台北捷運路線幾何/站序/班距/站間行駛時間,2026-07 抓取);",
