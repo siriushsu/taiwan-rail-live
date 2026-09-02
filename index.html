@@ -584,9 +584,12 @@
     flex: none; min-width: 44px; min-height: 44px; padding: 0 12px;
     font: inherit; font-size: 12.5px; font-weight: 800; border-radius: 9px; cursor: pointer;
   }
-  #mplPlay { color: var(--on-navy); background: var(--navy); border: 0; }
-  #mplNext { color: var(--navy); background: var(--paper); border: 1px solid var(--line); }
-  #mplVol { flex: 1; min-width: 40px; accent-color: var(--navy); }
+  .mpl-b1 { color: var(--on-navy); background: var(--navy); border: 0; }
+  .mpl-b2 { color: var(--navy); background: var(--paper); border: 1px solid var(--line); }
+  /* 音量條沿用全站的紅(input[type=range] 那條):同一個控件在工具帶與這裡不該有兩種顏色。
+     🔴 順帶記一個 Chromium 的坑:accent-color 用【裸 class】選擇器蓋不掉 input[type=range],
+     字面色與 var() 都一樣輸,要 `input.x` 或 !important 才蓋得掉——而且它不報錯、只是沒生效。 */
+  .mpl-vol { flex: 1; min-width: 40px; }
   /* 付費界線:整份清單只講一次 */
   .mpl-band {
     display: flex; align-items: center; gap: 9px; margin-bottom: 10px; padding: 8px 10px;
@@ -16412,9 +16415,10 @@ function mplShellHtml() {
     + '<div class="mpl-now-pool" id="mplPool" hidden></div>'
     + '<div class="mpl-now-why" id="mplWhy"></div>'
     + '<div class="mpl-now-pending" id="mplPending" hidden></div>'
-    + '<div class="mpl-now-ctl"><button type="button" id="mplPlay"></button>'
-    + '<button type="button" id="mplNext">' + mplEsc(t('換首')) + '</button>'
-    + '<input type="range" id="mplVol" min="0" max="100" step="1" aria-label="' + mplEsc(t('音量')) + '">'
+    + '<div class="mpl-now-ctl"><button type="button" class="mpl-b1" id="mplPlay"></button>'
+    + '<button type="button" class="mpl-b2" id="mplNext">' + mplEsc(t('換首')) + '</button>'
+    + '<input type="range" class="mpl-vol" id="mplVol" min="0" max="100" step="1" aria-label="'
+    + mplEsc(t('音量')) + '">'
     + '<span class="mpl-now-num" id="mplVolN"></span></div></div>'
     + '<div class="mpl-band"><span id="mplBandTxt"></span>'
     + '<button type="button" id="mplPlans" hidden>' + mplEsc(t('看方案')) + '</button></div>'
@@ -16458,14 +16462,15 @@ function mplNowSync() {
   const src = m.list && m.list[m.idx];
   const eff = musicEffectiveMode();
   const p = playing ? mplPoolOfCur() : null;
-  const ctx = mplCtxLabel(m._ctxKey);
+  const ctx = mplCtxLabel(m._ctxKey);                       // 現在這一刻的情境(主打卡看的是這個)
+  const curCtx = mplCtxLabel(m._curCtxKey || m._ctxKey);    // 正在播的這首當初是在哪個情境下選的
   set('mplTrack', playing ? mplTrackName(src) : t('音樂關閉中'));
   const dur = playing ? mplTrackDur(src) : 0;
   set('mplLen', dur ? mplMmss(dur) : '');
   set('mplPool', p ? t(p.zh) : ''); show('mplPool', !!p);
   let why;
   if (!playing) why = t('按播放開始，或直接選一個情境。');
-  else if (eff.kind === 'auto') why = ctx ? t('自動選池：{ctx}', { ctx }) : t('跟著列車自動選池');
+  else if (eff.kind === 'auto') why = curCtx ? t('自動選池：{ctx}', { ctx: curCtx }) : t('跟著列車自動選池');
   else if (eff.kind === 'pool') why = t('手動選定 · 不隨列車變動');
   else if (eff.kind === 'family') {
     const f = (window.MUSIC_DATA.families || []).find(x => x.id === eff.id);

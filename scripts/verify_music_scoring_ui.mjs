@@ -14,7 +14,13 @@ import { chromium, webkit } from 'playwright';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const PORT = Number(process.env.MUSIC_UI_PORT || 46472);
-const WIDTHS = [360, 375, 414, 768, 1280];
+// 完整矩陣＝雙引擎 x 五寬度。突變測試時可以收窄跑得快一點,但收窄的那一輪會在開頭與結尾
+// 都印警告——收窄的綠不是驗收的綠,兩者長得一樣就等於沒有守門人。
+const ALL_WIDTHS = [360, 375, 414, 768, 1280];
+const WIDTHS = process.env.MUSIC_UI_WIDTHS ? process.env.MUSIC_UI_WIDTHS.split(',').map(Number) : ALL_WIDTHS;
+const ENGINES = process.env.MUSIC_UI_ENGINES ? process.env.MUSIC_UI_ENGINES.split(',') : ['chromium', 'webkit'];
+const NARROW = WIDTHS.length !== ALL_WIDTHS.length || ENGINES.length !== 2;
+if (NARROW) console.log(`⚠️ 矩陣被收窄:${ENGINES.join('/')} x ${WIDTHS.join('/')} — 這一輪不算完整驗收`);
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript',
   '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml',
   '.woff2': 'font/woff2', '.mp3': 'audio/mpeg' };
@@ -43,7 +49,7 @@ await new Promise(r => server.listen(PORT, '127.0.0.1', r));
 const results = [];
 const ok = (id, pass, detail = '') => { results.push({ id, pass }); if (!pass) console.log(`❌ ${id}${detail ? ' — ' + detail : ''}`); };
 
-for (const [eng, launcher] of [['chromium', chromium], ['webkit', webkit]]) {
+for (const [eng, launcher] of [['chromium', chromium], ['webkit', webkit]].filter(([e]) => ENGINES.includes(e))) {
   const browser = await launcher.launch();
   for (const w of WIDTHS) {
     const tag = `${eng}/${w}`;
@@ -265,5 +271,5 @@ for (const [eng, launcher] of [['chromium', chromium], ['webkit', webkit]]) {
 }
 server.close();
 const bad = results.filter(r => !r.pass);
-console.log(`\n總計 ${results.length} 項,PASS ${results.length - bad.length},FAIL ${bad.length}`);
+console.log(`\n總計 ${results.length} 項,PASS ${results.length - bad.length},FAIL ${bad.length}` + (NARROW ? ' ⚠️ 收窄矩陣,不算完整驗收' : ''));
 process.exit(bad.length ? 1 : 0);
