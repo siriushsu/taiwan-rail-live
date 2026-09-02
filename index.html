@@ -4968,7 +4968,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/9/1</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/9/2</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -4976,6 +4976,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="webmcp"><span class="d">9/2</span><span>ChatGPT 在內建瀏覽器打開軌島時，現在能直接查目前畫面、搜尋車站、讀車站看板與營運公告，也能替你開啟車站看板或跟隨指定火車；一般瀏覽器不受影響</span></li>
         <li data-cl-of="crowdcard"><span class="d">9/2</span><span>跟捷運列車時，卡片上會顯示這一台車每一節車廂的擁擠度</span></li>
         <li data-cl-of="boardwide"><span class="d">9/2</span><span>桌面的車站看板加寬，車種與「往哪」不會再被截掉</span></li>
         <li data-cl-of="xferconn"><span class="d">9/1</span><span>快到轉乘站時，直接列出對向系統最近兩班和「你到站時還剩幾分」，可以釘住你要搭的那班</span></li>
@@ -4983,7 +4984,6 @@
         <li data-cl-of="signinfallback"><span class="d">9/1</span><span>登入失敗訊息不再重複兩行；Android 的 Google 登入多了自動退路（謝謝網友回報）</span></li>
         <li data-cl-of="ambientlock"><span class="d">9/1</span><span>放空模式：地圖不會被手指拉歪；離開再進入時，「離開放空」鈕不會再縮成按不到的小鈕</span></li>
         <li data-cl-of="androidwidgetparity"><span class="d">9/1</span><span>桌面小工具新增車站時，起站選單改成依縣市分段</span></li>
-        <li data-cl-of="traboarddir"><span class="d">8/31</span><span>火車站看板改成分方向顯示：南下、北上分開，山線海線與支線各自成區，冷門方向不再被擠掉；顏色比照台鐵新版車站標示的北上藍、南下綠</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5055,6 +5055,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="webmcp"><span class="d">9/2</span><span>軌島加入 WebMCP 網站工具。使用 ChatGPT Work 或 Codex 的內建瀏覽器開啟本站時，ChatGPT 可以讀取目前選到的路網與模擬時間、搜尋全站車站、查目前畫面的車站發車看板、查火車車次狀態與營運公告；經你要求後，也可以切到全台同框並開啟指定車站看板，或切到正確系統跟隨台鐵、高鐵、阿里山林鐵的指定車次。所有資料都沿用畫面正在使用的時刻表、即時校正與公告計算，不新增後端、不提供帳號、最愛、打卡、成就或定位資料；一般瀏覽器沒有 WebMCP 時完全不註冊、原本操作不變</span></li>
         <li data-cl="crowdcard"><span class="d">9/2</span><span>跟著台北捷運的列車時，卡片下面會顯示這一台車每一節車廂的擁擠度，色階與車站看板、桌面小工具是同一套。文湖線與環狀線官方沒有給車號，認不出是哪一台就留白，不拿別台的值頂替。其他捷運系統官方沒有這份逐節資料，卡片上不會出現這一欄。</span></li>
         <li data-cl="boardwide"><span class="d">9/2</span><span>桌面的車站看板由 280 加寬到 360 像素。原本一列要放線色、車號、往哪、擁擠度、時刻與倒數，「往 松山（經南京復興）」這種長方向會被截成「往 松山（經…」；新竹站實測原本有三到四列被截，加寬後一列都不截。手機版本來就是整寬的抽屜，不受影響。</span></li>
         <li data-cl="xferconn"><span class="d">9/1</span><span>跟台鐵、高鐵，或搭捷運快到台北、南港、板橋、新竹、苗栗、台中、台南、左營、嘉義這些轉乘站時，卡片會直接列出對向系統最近兩班的車次、時刻，以及「你到站時還剩幾分」——這個分鐘數含你這班車當下的誤點。點一列可以把你要搭的那班釘住，之後畫面只留它。高鐵沒有即時誤點，它的時刻是表定；站內步行時間各站差異大，我不替你判斷來不來得及，只告訴你到站那一刻還剩多久</span></li>
@@ -5753,7 +5754,9 @@
 //         獨立基準覆核:山線／海線／成追線判定 vs 台鐵官方 Line 欄位【908/908 逐車一致】;
 //         純西部方向 vs 官方 LineDir 對稱一致(1↔北上 241、2↔南下 241)。
 //         守門人:scripts/verify_board_direction_groups.mjs(26 項,五發突變各自咬到預期斷言)。
-const BUILD = 'v0902c'; // 去註解修復＋Smart Placement;v0902b 已被 build/app-1.5.4-90 佔用(換號前逐 ref＋tag 掃過),跨分支撞號見心得16
+// v0902d：加入 WebMCP 網站工具：查目前畫面／車站／看板／火車／公告，並可開站、跟隨火車。
+//         工具只在 document.modelContext.registerTool 存在時註冊；不新增後端，也不碰個人資料。
+const BUILD = 'v0902d'; // v0902c 為去註解修復＋Smart Placement；v0902b 已被 App 分支佔用
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -29988,6 +29991,375 @@ function setupRecorder() {
   document.getElementById('recToastX').onclick = () => { document.getElementById('recToast').hidden = true; };
 }
 
+// ══════════ WebMCP 網站工具(v0902a) ══════════════════════════════════════════
+// ChatGPT 內建瀏覽器提供 document.modelContext.registerTool 時才註冊；一般瀏覽器、PWA 與
+// Capacitor 都直接略過。工具只把畫面原本已載入／已算好的公開鐵道資料整理成小型 JSON，
+// 不讀 localStorage 裡的最愛、護照、打卡、帳號、定位或訂閱狀態，也不新增任何後端請求。
+//
+// Read 工具維持目前畫面不動；兩個 action 工具(open_station_board/follow_train)的描述明說會
+// 切換路網／移動地圖。這兩個動作都等同既有 UI 點擊、可由使用者立即切頁或取消跟隨。
+let _webMcpRegistered = false;
+function webMcpArgs(raw) {
+  if (!raw || typeof raw !== 'object') return {};
+  // WebMCP 現行 execute 直接傳 input；保留 input 包裝相容，方便測試宿主與未來介面演進。
+  return raw.input && typeof raw.input === 'object' ? raw.input : raw;
+}
+function webMcpNorm(value) {
+  return String(value == null ? '' : value).trim().toLowerCase().replace(/臺/g, '台').replace(/[\s　]+/g, '');
+}
+function webMcpSystem(id) { return state.systems.find(sys => sys.id === id) || null; }
+function webMcpSystemIds(value) {
+  if (value == null || String(value).trim() === '') return null;
+  const key = webMcpNorm(value);
+  const aliases = {
+    tra_sched: ['tra', '台鐵', '台灣鐵路', '國營台灣鐵路'],
+    thsr_sched: ['thsr', '高鐵', '台灣高鐵'],
+    afr_sched: ['afr', '林鐵', '阿里山林鐵', '阿里山森林鐵路'],
+    mrt: ['trtc', '北捷', '台北捷運'],
+    tymc: ['桃捷', '機捷', '桃園機場捷運', '桃園捷運'],
+    ntdlrt: ['淡海輕軌'], ntalrt: ['安坑輕軌'], sanying: ['三鶯線'],
+    tmrt: ['中捷', '台中捷運'], krtc: ['高捷', '高雄捷運', '高雄輕軌'],
+  };
+  return state.systems.filter(sys => {
+    if (webMcpNorm(sys.id) === key || webMcpNorm(sys.label) === key) return true;
+    return (aliases[sys.id] || []).some(alias => webMcpNorm(alias) === key);
+  }).map(sys => sys.id);
+}
+function webMcpBase() {
+  let tz = 'Asia/Taipei';
+  try { tz = activeTz() || tz; } catch (e) {}
+  return {
+    build: BUILD,
+    generated_at: new Date().toISOString(),
+    timezone: tz,
+    service_date: todayStr(tz),
+    simulation_time: fmtHM(((Number(state.simSec) || 0) % 86400 + 86400) % 86400),
+    clock_is_now: !!state.clockAtNow,
+  };
+}
+function webMcpStationCatalog() {
+  const byKey = new Map();
+  const add = (sys, name, lat, lon, line) => {
+    if (!sys || !name || !Number.isFinite(Number(lat)) || !Number.isFinite(Number(lon))) return;
+    const normalized = webMcpNorm(name), key = sys.id + '|' + normalized;
+    let rec = byKey.get(key);
+    if (!rec) {
+      rec = { id: key, name: String(name), systemId: sys.id, systemName: sys.label || sys.id,
+        mode: (sys.mode || (sys.id.endsWith('_sched') ? 'sched' : 'freq')),
+        lat: Number(lat), lon: Number(lon), routes: new Map() };
+      byKey.set(key, rec);
+    }
+    if (line) rec.routes.set(String(line.id || line.name || ''), String(line.name || line.abbr || line.id || ''));
+  };
+  for (const sys of state.systems || []) {
+    const mode = sys.mode || (sys.id.endsWith('_sched') ? 'sched' : 'freq');
+    if (mode === 'sched') {
+      for (const tr of (sys.data && sys.data.trains) || []) for (const st of tr.stops || [])
+        add(sys, st.name, st.lat, st.lon, st.segLn || null);
+    } else {
+      for (const line of (sys.data && sys.data.lines) || []) for (const st of line.stations || [])
+        add(sys, st.name, st.lat, st.lon, line);
+    }
+  }
+  return [...byKey.values()].sort((a, b) => a.systemId.localeCompare(b.systemId) || a.name.localeCompare(b.name, 'zh-Hant'));
+}
+function webMcpCurrentStation(rec) {
+  if (!rec) return null;
+  const key = webMcpNorm(rec.name);
+  if (rec.mode === 'sched') {
+    return (state.schedStations || []).find(st => st.sys === rec.systemId && webMcpNorm(st.name) === key) || null;
+  }
+  let lines = null, sys = null;
+  if (state.mode === 'sched' && state.deco && state.decoLines) { lines = state.decoLines; sys = 'deco'; }
+  else if (state.mode === 'freq') { lines = state.lines; sys = 'freq'; }
+  const line = (lines || []).find(ln => freqSysIdOf(ln) === rec.systemId &&
+    (ln.stations || []).some(st => webMcpNorm(st.name) === key));
+  if (!line) return null;
+  const station = line.stations.find(st => webMcpNorm(st.name) === key) || rec;
+  return { name: station.name, lat: Number(station.lat), lon: Number(station.lon), sys, metroSysId: rec.systemId };
+}
+function webMcpPublicStation(rec) {
+  return {
+    station_id: rec.id,
+    name: rec.name,
+    system_id: rec.systemId,
+    system_name: rec.systemName,
+    service_type: rec.mode === 'sched' ? 'rail_timetable' : 'metro_or_light_rail',
+    latitude: +rec.lat.toFixed(6), longitude: +rec.lon.toFixed(6),
+    routes: [...rec.routes.values()].filter(Boolean),
+    available_in_current_view: !!webMcpCurrentStation(rec),
+  };
+}
+function webMcpStationSearch(args) {
+  const query = String(args.query || '').trim(), needle = webMcpNorm(query);
+  if (!needle) return { ok: false, error: 'query_required', message: '請提供車站名稱。', ...webMcpBase() };
+  const ids = webMcpSystemIds(args.system);
+  if (ids && !ids.length) return { ok: false, error: 'unknown_system', message: `找不到系統「${args.system}」。`, ...webMcpBase() };
+  const limit = Math.max(1, Math.min(20, Number(args.limit) || 8));
+  const scored = webMcpStationCatalog().filter(rec => !ids || ids.includes(rec.systemId)).map(rec => {
+    const name = webMcpNorm(rec.name), sys = webMcpNorm(rec.systemName);
+    const score = name === needle ? 0 : name.startsWith(needle) ? 1 : name.includes(needle) ? 2
+      : sys.includes(needle) || webMcpNorm(rec.systemId).includes(needle) ? 3 : 99;
+    return { rec, score };
+  }).filter(item => item.score < 99).sort((a, b) => a.score - b.score || a.rec.name.length - b.rec.name.length);
+  return { ok: true, query, count: Math.min(scored.length, limit), total_matches: scored.length,
+    stations: scored.slice(0, limit).map(item => webMcpPublicStation(item.rec)), ...webMcpBase() };
+}
+function webMcpResolveStation(args) {
+  const station = String(args.station || '').trim(), key = webMcpNorm(station);
+  if (!key) return { ok: false, error: 'station_required', message: '請提供車站名稱。' };
+  const ids = webMcpSystemIds(args.system);
+  if (ids && !ids.length) return { ok: false, error: 'unknown_system', message: `找不到系統「${args.system}」。` };
+  const pool = webMcpStationCatalog().filter(rec => !ids || ids.includes(rec.systemId));
+  const exact = pool.filter(rec => webMcpNorm(rec.name) === key);
+  if (exact.length === 1) return { ok: true, rec: exact[0] };
+  if (exact.length > 1) return { ok: false, error: 'ambiguous_station',
+    message: `「${station}」跨系統同名，請加上 system。`, candidates: exact.map(webMcpPublicStation) };
+  const suggestions = pool.filter(rec => webMcpNorm(rec.name).includes(key)).slice(0, 5).map(webMcpPublicStation);
+  return { ok: false, error: 'station_not_found', message: `找不到車站「${station}」。`, suggestions };
+}
+function webMcpTrainCandidates(number, systemValue) {
+  const ids = webMcpSystemIds(systemValue), no = String(number == null ? '' : number).trim();
+  if (ids && !ids.length) return { ok: false, error: 'unknown_system', message: `找不到系統「${systemValue}」。` };
+  const out = [];
+  for (const sys of state.systems || []) {
+    const mode = sys.mode || (sys.id.endsWith('_sched') ? 'sched' : 'freq');
+    if (mode !== 'sched' || (ids && !ids.includes(sys.id))) continue;
+    for (const tr of (sys.data && sys.data.trains) || []) if (String(tr.train) === no) out.push({ sys, tr });
+  }
+  if (!no) return { ok: false, error: 'train_number_required', message: '請提供火車車次。' };
+  if (!out.length) return { ok: false, error: 'train_not_found', message: `今日班表找不到「${no}」次。` };
+  const unique = new Map(out.map(item => [item.sys.id + '|' + item.tr.train, item]));
+  if (unique.size > 1) return { ok: false, error: 'ambiguous_train',
+    message: `「${no}」次跨系統重號，請加上 system。`,
+    candidates: [...unique.values()].map(item => ({ train_number: no, system_id: item.sys.id, system_name: item.sys.label })) };
+  return { ok: true, ...[...unique.values()][0] };
+}
+function webMcpTrainSummary(item) {
+  const no = String(item.tr.train), sysId = item.sys.id;
+  const active = (state.trains || []).find(tr => String(tr.train) === no && tr.sys === sysId) || null;
+  const tr = active || item.tr, stops = (tr.stops || []).filter(st => st.stop !== false);
+  const first = stops[0] || (tr.stops || [])[0], last = stops[stops.length - 1] || (tr.stops || []).at(-1);
+  let phase = active ? 'not_running_now' : 'not_in_current_view', currentStation = null, nextStation = null, pos = null, effective = null;
+  if (active) {
+    effective = effTLive(active);
+    pos = trainPos(active, state.simSec);
+    if (pos) {
+      phase = 'en_route';
+      for (const st of active.stops || []) {
+        const arr = Number(st.arrSec), dep = Number(st.depSec);
+        if (Number.isFinite(arr) && effective < arr) { nextStation = st; break; }
+        if (Number.isFinite(arr) && Number.isFinite(dep) && effective >= arr && effective <= dep) {
+          currentStation = st; nextStation = st; phase = 'at_station'; break;
+        }
+      }
+    } else if (first && effective < Number(first.depSec)) phase = 'not_started';
+    else if (last && effective > Number(last.arrSec)) phase = 'completed';
+  }
+  const delayMin = active ? Math.round(liveDelaySec(active) / 60) : null;
+  return {
+    train_number: no, system_id: sysId, system_name: item.sys.label || sysId,
+    train_type: tr.typeName || '', car_name: tr.carName || '',
+    origin: first ? first.name : '', destination: last ? last.name : '',
+    scheduled_start: first ? fmtHM(Number(first.depSec) % 86400) : null,
+    scheduled_end: last ? fmtHM(Number(last.arrSec) % 86400) : null,
+    end_day_offset: last && Number(last.arrSec) >= 86400 ? Math.floor(Number(last.arrSec) / 86400) : 0,
+    stop_count: stops.length, phase, active_in_current_view: !!active,
+    current_station: currentStation && currentStation.name || null,
+    next_station: nextStation && nextStation.name || null,
+    delay_minutes: delayMin,
+    position: pos ? { latitude: +Number(pos.lat).toFixed(6), longitude: +Number(pos.lon).toFixed(6) } : null,
+    data_basis: sysId === 'tra_sched' && active && state.clockAtNow
+      ? 'official_timetable_with_live_delay' : 'official_timetable',
+  };
+}
+function webMcpTrainStatus(args) {
+  const found = webMcpTrainCandidates(args.train_number, args.system);
+  return found.ok ? { ok: true, train: webMcpTrainSummary(found), ...webMcpBase() }
+    : { ...found, ...webMcpBase() };
+}
+function webMcpSchedBoardRows(st, limit) {
+  const all = schedBoardRows(st), groupsByKey = new Map();
+  for (const row of all) if (!groupsByKey.has(row.g.key)) groupsByKey.set(row.g.key, Object.assign({}, row.g));
+  const groups = [...groupsByKey.values()];
+  return all.slice(0, limit).map(row => ({
+    train_number: String(row.tr.train), system_id: row.tr.sys, train_type: row.tr.typeName || '',
+    destination: row.loopDest || row.dest,
+    direction: row.g.kind === 'trunk' ? (row.g.nb ? 'northbound' : 'southbound')
+      : row.g.kind === 'branch' ? 'toward_branch_terminal' : row.g.kind === 'arrive' ? 'terminating_here' : 'other',
+    direction_label: boardGroupLabel(row.g, groups, st.sys),
+    scheduled_time: fmtHM(Number(row.t) % 86400),
+    estimated_time: fmtHM((Number(row.t) + Number(row.dl || 0) * 60) % 86400),
+    seconds_until: Math.round(row.dtm), delay_minutes: row.dl || 0,
+    status: row.off ? 'cancelled' : row.dtm < 60 ? 'arriving' : row.isLast ? 'terminating_here' : 'upcoming',
+    is_estimated_schedule: !!row.tr.est, data_basis: row.off ? 'official_cancellation' :
+      (row.tr.sys === 'tra_sched' && state.clockAtNow ? 'official_timetable_with_live_delay' : 'official_timetable'),
+    followable: !row.off,
+  }));
+}
+function webMcpMetroBoardRows(st, lines, isDeco, limit) {
+  const out = [], addLegacy = (group, row) => out.push({
+    system_id: freqSysIdOf(group.ln), line_id: String(group.ln.id || ''),
+    line: String(group.ln.name || group.ln.abbr || ''), destination: row.destName || group.destName || '',
+    arrival_time: fmtHM(Number(row.t) % 86400), seconds_until: Math.round(row.dtm),
+    status: row.dtm < 60 ? 'arriving' : 'upcoming',
+    data_basis: group.ln.times && group.ln.times.estimated ? 'official_headway_estimate' : 'official_timetable',
+    followable: true,
+  });
+  let core = null;
+  try { core = metroCoreBoardView(st, lines, isDeco); } catch (e) {}
+  if (core) for (const group of core.groups) for (const row of group.rows) {
+    if (row.kind !== 'core') { addLegacy(group, row); continue; }
+    out.push({ system_id: freqSysIdOf(group.ln), line_id: String(group.ln.id || ''),
+      line: String(group.ln.name || group.ln.abbr || ''), destination: row.destName || group.destName || '',
+      arrival_time: trtcOfficialAbsoluteHM(row.arrivalEpoch), seconds_until: Math.round(row.dtm),
+      status: row.dtm <= 0 ? 'arriving' : 'upcoming', data_basis: 'official_realtime_model',
+      vehicle_id: row.vehicleId || null, followable: !!row.vehicleId } );
+  }
+  if (!core) {
+    let official = null;
+    try { official = trtcOfficialBoardView(st, lines, isDeco); } catch (e) {}
+    if (official) for (const group of official.groups) for (const row of group.rows) {
+      if (group.kind !== 'official') { addLegacy(group, row); continue; }
+      out.push({ system_id: freqSysIdOf(group.ln), line_id: String(group.ln.id || ''),
+        line: String(group.ln.name || group.ln.abbr || ''), destination: group.destName || row.row.dest || '',
+        arrival_time: trtcOfficialAbsoluteHM(row.row.eta), seconds_until: Math.round(row.left),
+        status: row.left <= 0 ? 'arriving' : 'upcoming', data_basis: 'official_realtime_board',
+        vehicle_label: row.row.no || null, followable: !!row.join });
+    } else {
+      let groups = [];
+      try { groups = trtcOfficialLegacyGroups(st, lines, isDeco, true); } catch (e) {}
+      for (const group of groups) for (const row of group.rows) addLegacy(group, row);
+    }
+  }
+  out.sort((a, b) => a.seconds_until - b.seconds_until || a.line_id.localeCompare(b.line_id));
+  return out.slice(0, limit);
+}
+function webMcpStationBoard(args) {
+  const resolved = webMcpResolveStation(args);
+  if (!resolved.ok) return { ...resolved, ...webMcpBase() };
+  const st = webMcpCurrentStation(resolved.rec);
+  if (!st) return { ok: false, error: 'station_not_in_current_view',
+    message: '這座站不在目前載入的路網；可先使用 open_station_board 切換並開啟它。',
+    station: webMcpPublicStation(resolved.rec), ...webMcpBase() };
+  const limit = Math.max(1, Math.min(20, Number(args.limit) || 12));
+  let rows, kind;
+  if (resolved.rec.mode === 'sched') { rows = webMcpSchedBoardRows(st, limit); kind = 'rail_departures'; }
+  else {
+    const isDeco = state.mode === 'sched', source = isDeco ? state.decoLines : state.lines;
+    rows = webMcpMetroBoardRows(st, metroBoardLines(st, source), isDeco, limit); kind = 'metro_arrivals';
+  }
+  return { ok: true, station: webMcpPublicStation(resolved.rec), board_kind: kind,
+    count: rows.length, departures: rows,
+    caveat: '動畫與倒數供參考；停駛、取消、加開與臨時班距仍以營運單位現場公告為準。',
+    ...webMcpBase() };
+}
+function webMcpCurrentView() {
+  let center = null, zoom = null, running = null;
+  try { const c = map.getCenter(); center = { latitude: +c.lat.toFixed(6), longitude: +c.lng.toFixed(6) }; zoom = map.getZoom(); } catch (e) {}
+  try { running = runningCount(); } catch (e) {}
+  const group = GROUPS.find(item => item.id === state.group);
+  const ids = state.mode === 'sched'
+    ? [...(state.schedSel || new Set(state.sysId ? [state.sysId] : [])), ...(state.deco ? (state.decoLines || []).map(freqSysIdOf) : [])]
+    : [...(state.freqSel || new Set(state.sysId ? [state.sysId] : []))];
+  const visible = [...new Set(ids)].map(id => ({ system_id: id, system_name: (webMcpSystem(id) || {}).label || id }));
+  let following = null;
+  if (state.followTrain) following = { kind: 'rail_train', train_number: String(state.followTrain.train), system_id: state.followTrain.sys };
+  else if (state.freqFollow) following = { kind: 'metro_train', line_id: state.freqFollow.lineId || state.freqFollow.ln && state.freqFollow.ln.id || null,
+    vehicle_id: state.freqFollow.vehicleId || null };
+  return { ok: true, ready: !!state.ready, group_id: state.group, group_name: group && group.label || state.group,
+    mode: state.mode, visible_systems: visible, running_train_count: running,
+    map: { center, zoom, basemap: state.basemap }, playing: !!state.playing, speed_multiplier: state.speedMult,
+    following, ...webMcpBase() };
+}
+function webMcpAlerts() {
+  let list = [];
+  try { list = activeAlertList(); } catch (e) {}
+  return { ok: true, scope: '目前畫面可見的系統', count: list.length,
+    alerts: list.slice(0, 20).map(item => ({
+      kind: item.hazard ? 'hazard_watch' : item.recovery ? 'data_recovery' : item.outage ? 'data_outage'
+        : item.self ? 'site_observation' : 'operator_notice',
+      system: item.sysLabel || null, title: t(item.title || item.sysLabel || '營運通阻公告'),
+      description: item.desc ? t(item.desc) : null, start: item.start || null, end: item.end || null,
+      affected_routes: Array.isArray(item.lines) ? item.lines : [],
+      source: item.hazard ? 'NCDR 民生示警公開資料平台' : item.self ? '軌島自動觀測' : '營運單位／TDX 公告',
+    })),
+    official_data_checked_at: state.mode === 'sched' ? state.alert && state.alert.at || null : state.metroAlert && state.metroAlert.at || null,
+    caveat: '災害示警不等於列車停駛；實際運行以各營運單位最新公告為準。', ...webMcpBase() };
+}
+function webMcpOpenStation(args) {
+  const resolved = webMcpResolveStation(args);
+  if (!resolved.ok) return { ...resolved, ...webMcpBase() };
+  let st = webMcpCurrentStation(resolved.rec), switched = false;
+  if (!st) {
+    const all = GROUPS.find(group => group.mode === 'all');
+    if (all && state.group !== all.id) { loadAllGroup(all, true); switched = true; }
+    st = webMcpCurrentStation(resolved.rec);
+  }
+  if (!st) return { ok: false, error: 'station_open_failed', message: '切換路網後仍無法開啟這座站。', ...webMcpBase() };
+  if (state.autoTour) setAutoTour(false);
+  openBoard(st);
+  try { map.setView(focusCenter(st.lat, st.lon), Math.max(map.getZoom(), 13), { animate: false }); } catch (e) {}
+  return { ok: true, action: 'station_board_opened', station: webMcpPublicStation(resolved.rec),
+    switched_to_all_view: switched, board_is_open: state.boardStation === st, ...webMcpBase() };
+}
+function webMcpFollowTrain(args) {
+  const found = webMcpTrainCandidates(args.train_number, args.system);
+  if (!found.ok) return { ...found, ...webMcpBase() };
+  followTrainNo(found.tr.train, { sys: found.sys.id });
+  const followed = state.followTrain && String(state.followTrain.train) === String(found.tr.train) && state.followTrain.sys === found.sys.id;
+  return followed ? { ok: true, action: 'train_follow_started', train: webMcpTrainSummary(found),
+    following: true, ...webMcpBase() }
+    : { ok: false, error: 'follow_failed', message: '今日班表有這班車，但目前無法開始跟隨。', ...webMcpBase() };
+}
+async function setupWebMcp() {
+  if (_webMcpRegistered || !state.ready) return;
+  let modelContext;
+  try { modelContext = document.modelContext; } catch (e) { return; }
+  if (!modelContext || typeof modelContext.registerTool !== 'function') return;
+  const emptySchema = { type: 'object', properties: {}, additionalProperties: false };
+  const systemProp = { type: 'string', maxLength: 40,
+    description: '可省略；接受系統 id 或名稱，例如 tra_sched、台鐵、thsr_sched、高鐵、mrt、台北捷運。跨系統同名／重號時必填。' };
+  const stationProps = {
+    station: { type: 'string', minLength: 1, maxLength: 60, description: '完整車站名稱，例如「臺北」或「市政府」。' },
+    system: systemProp,
+  };
+  const trainProps = {
+    train_number: { type: 'string', minLength: 1, maxLength: 20, description: '火車車次，保留前導零，例如「0801」。' },
+    system: systemProp,
+  };
+  const tools = [
+    { name: 'get_current_rail_view', description: '讀取軌島目前選到的路網、模擬時間、地圖中心、可見系統與跟隨狀態。不改動畫或地圖。',
+      inputSchema: emptySchema, annotations: { readOnlyHint: true }, execute: async () => webMcpCurrentView() },
+    { name: 'search_rail_stations', description: '依名稱搜尋軌島收錄的台鐵、高鐵、林鐵、捷運與輕軌車站。回傳系統與穩定 station_id；同名站務必用 system 區分。不改畫面。',
+      inputSchema: { type: 'object', properties: { query: { type: 'string', minLength: 1, maxLength: 60 }, system: systemProp,
+        limit: { type: 'integer', minimum: 1, maximum: 20, default: 8 } }, required: ['query'], additionalProperties: false },
+      annotations: { readOnlyHint: true }, execute: async raw => webMcpStationSearch(webMcpArgs(raw)) },
+    { name: 'get_station_departures', description: '讀取目前軌島畫面中指定車站的下一批火車發車或捷運到站資訊，沿用畫面的時刻表、即時校正與停駛判定。不改畫面；若站不在目前路網，先使用 open_station_board。',
+      inputSchema: { type: 'object', properties: { ...stationProps,
+        limit: { type: 'integer', minimum: 1, maximum: 20, default: 12 } }, required: ['station'], additionalProperties: false },
+      annotations: { readOnlyHint: true }, execute: async raw => webMcpStationBoard(webMcpArgs(raw)) },
+    { name: 'get_train_status', description: '查詢今日台鐵、高鐵或阿里山林鐵指定車次的起訖、時刻、目前階段、下一站、位置與台鐵即時誤點。不改畫面；跨系統重號時回傳候選，需補 system。',
+      inputSchema: { type: 'object', properties: trainProps, required: ['train_number'], additionalProperties: false },
+      annotations: { readOnlyHint: true }, execute: async raw => webMcpTrainStatus(webMcpArgs(raw)) },
+    { name: 'get_service_alerts', description: '讀取目前畫面可見鐵路系統的官方營運公告、即時資料中斷、恢復與災害監看提示。不改畫面，也不把災害示警推定為停駛。',
+      inputSchema: emptySchema, annotations: { readOnlyHint: true }, execute: async () => webMcpAlerts() },
+    { name: 'open_station_board', description: '在軌島介面開啟指定車站看板並把地圖移到該站。若目前路網沒有這座站，會切到全台同框，並可能結束既有跟隨或放空；不改任何收藏、帳號或成就資料。',
+      inputSchema: { type: 'object', properties: stationProps, required: ['station'], additionalProperties: false },
+      annotations: { readOnlyHint: false }, execute: async raw => webMcpOpenStation(webMcpArgs(raw)) },
+    { name: 'follow_train', description: '在軌島介面切到正確系統並開始跟隨指定台鐵、高鐵或阿里山林鐵火車；會移動地圖並結束先前跟隨或放空。跨系統重號時需提供 system。',
+      inputSchema: { type: 'object', properties: trainProps, required: ['train_number'], additionalProperties: false },
+      annotations: { readOnlyHint: false }, execute: async raw => webMcpFollowTrain(webMcpArgs(raw)) },
+  ];
+  let count = 0;
+  for (const tool of tools) {
+    try { await modelContext.registerTool(tool); count++; }
+    catch (error) { console.warn('WebMCP 工具註冊失敗', tool.name, error); }
+  }
+  _webMcpRegistered = count > 0;
+  if (count) console.log(`WebMCP 已註冊 ${count} 個軌島工具`);
+}
+
 async function boot() {
   i18nTranslateTree(document.body);
   i18nSyncDocumentMeta();
@@ -30867,6 +31239,7 @@ async function boot() {
   map.on('dragstart', () => { state._userMoved = true; state.geoFollow = false; });
   if (geoBoot) state._bootGeo.then(applyBootGeo);
   state.ready = true;
+  void setupWebMcp(); // 支援的 ChatGPT 內建瀏覽器才註冊；一般瀏覽器立即 no-op
   i18nRefreshDynamic();
   setupNativePlacesSync();
   // 錄製中的投影里程先於重新整理落在裝置端；線網就緒後接回同一趟並恢復前景取樣。
