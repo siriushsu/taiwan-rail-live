@@ -216,8 +216,15 @@ ok('集中輪詢：CarWeightBR 同樣只打一輪', counts.br === 1, `br=${count
 ok('集中輪詢：CarWeight 同樣只打一輪', counts.hw === 1, `hw=${counts.hw}`);
 ok('集中輪詢：每個 colo 都拿到同一份非空看板（省呼叫沒有省掉資料）',
   lastBody && (lastBody.board || []).length > 0, `board=${lastBody && (lastBody.board || []).length}`);
-ok(`集中輪詢：locationHint 一律是 ${TRTC_POLLER_HINT}（apac／無提示實測會落香港）`,
-  hints.length > 0 && hints.every(h => h === TRTC_POLLER_HINT), `取到的提示=${[...new Set(hints)]}`);
+// 🔴 期望值【寫死字面值】,不可寫成 `=== TRTC_POLLER_HINT`——那是從被驗的實作 import 進來的,
+//    實作改成 'apac' 時判準會跟著改,比對永遠成立(judgment 第七節第 1 條:同源相等＝零資訊。
+//    這一條原本就是這樣寫的,M3 突變當場存活才抓到)。'apac-ne' 是 2026-09-02 實測出來的
+//    外部事實:各 8 顆新 DO,apac-ne 落 NRT/KIX/ICN 香港 0;apac 香港 3/8;apac-se 香港 7/8;
+//    無提示 香港 4/8。它是「不會落在香港」的唯一已知選項,不是一個可以順手改的實作細節。
+ok("集中輪詢：locationHint 一律是 apac-ne（apac／apac-se／無提示實測都會落香港）",
+  hints.length > 0 && hints.every(h => h === 'apac-ne'), `取到的提示=${[...new Set(hints)]}`);
+ok('集中輪詢：程式碼裡的常數就是 apac-ne（外部實測值，不是可自由更動的實作細節）',
+  TRTC_POLLER_HINT === 'apac-ne', `TRTC_POLLER_HINT=${TRTC_POLLER_HINT}`);
 ok('集中輪詢：回傳把「這輪誰打的上游」露出來（cd.poller）',
   lastBody && lastBody.cd && lastBody.cd.poller === 'NRT', `cd.poller=${lastBody && lastBody.cd && lastBody.cd.poller}`);
 
