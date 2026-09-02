@@ -49,12 +49,13 @@
   //    位置在建立當下決定且之後不會搬,但提示是 best effort 不是保證 ⇒ worker.js 每一輪都把 DO
   //    自報的 colo 帶回 /api/trtc-live 的 cd.poller,落在禁區就退回各 colo 直打。
   // new_sqlite_classes(不是 new_classes):本帳號已不允許新建 key-value 型 DO 命名空間。
+  // 🔴 script_name 指向【另一顆】Worker(railisland-trtc-poller,設定在 wrangler.poller.jsonc)。
+  // 這裡刻意【沒有】migrations:含 DO migration 的版本不能走 versions upload
+  // (Cloudflare 10211),而本站出貨鏈就是 upload → 預覽 → 升 100%。migration 歸那顆 Worker,
+  // 主站只是綁過去 ⇒ 出貨流程完全不受影響。動這一段前先讀 trtc_poller_worker.mjs 檔頭。
   "durable_objects": {
-    "bindings": [{ "name": "TRTC_POLLER", "class_name": "TrtcPoller" }]
+    "bindings": [{ "name": "TRTC_POLLER", "class_name": "TrtcPoller", "script_name": "railisland-trtc-poller" }]
   },
-  "migrations": [
-    { "tag": "v1", "new_sqlite_classes": ["TrtcPoller"] }
-  ],
   // Analytics Engine 綁定:
   // USAGE  :/api/tra-live 每筆請求埋點(cam/z/裝置),用來回答放空/跟車/靜止各佔多少前景分鐘
   // TRAFFIC:每筆 /api/* 按來源分流(App 殼 vs 網頁),用來回答「Worker 請求數裡 App 佔多少」——

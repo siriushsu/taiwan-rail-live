@@ -871,7 +871,11 @@ function trtcHwStale(mem, now) { return !mem || now - mem.at > 60e3; }
 // 「Durable Objects do not currently change locations after they are created」。
 // ⇒ 提示不是保證，所以不能設完就算：每一輪都把 DO 自報的 colo 帶回來，落在禁區就【不用】這顆
 //    DO、退回各 colo 直打。量會回到原點，但不會違反裁示——這是刻意的取捨方向。
-const TRTC_POLLER_NAME = 'trtc-poller-v1';
+// 🔴 名字不是隨便取的:DO 的落點在【建立當下】決定、之後不會搬,所以「哪個名字」等於
+//    「落在哪個城市」。2026-09-02 以 apac-ne 實測 8 個名字:NRT×4／ICN×2／KIX×2、香港 0;
+//    v2 落在 NRT(東京),符合裁示「亞洲首選東京」,故釘死它。
+//    要換名字＝換一顆新 DO＝重新抽落點,換之前先用 /status?name= 量到東京再換。
+const TRTC_POLLER_NAME = 'trtc-poller-v2';
 const TRTC_POLLER_HINT = 'apac-ne';
 // 只列香港：Cloudflare 的 Durable Objects 不佈署在中國大陸（中國網段是合作夥伴的獨立基礎設施），
 // 所以現實風險只有 HKG。不臆測性地窮舉大陸 colo 代碼——改用「每一輪都把實際 colo 放進回傳」
@@ -951,7 +955,13 @@ export class TrtcPoller {
     this.inflight = run;
     return run;
   }
-  async fetch() {
+  async fetch(request) {
+    // /status：只回落點與新鮮度，【不】觸發輪詢。輪詢者 Worker 有公開網址，若這條會觸發，
+    // 那個網址就變成外人驅動我們去打北捷的把手——正好與這一整批的目的相反。
+    if (request && new URL(request.url).pathname === '/status') {
+      return Response.json({ colo: await this.detectColo(), denied: this.denied,
+        hasFrame: !!this.frame, ageMs: this.frame ? Date.now() - this.frame.at : null });
+    }
     const now = Date.now();
     // 門檻與邊緣的 trtcMemoStale 同為 15 秒：邊緣過期時向這裡要，這裡也剛好該換一輪。
     if (!this.denied && trtcMemoStale(this.frame, now)) {
