@@ -53,7 +53,12 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
   //   (1) 有以車號為鍵的官方擁擠度對照表 state.trtcOfficialBoard.crowdByNo[<變數>]
   //   (2) 讀那張表的那個 helper，名字就地取自它的定義
   //   (3) 看板算 crowdHtml 時真的呼叫「那個」helper，而且傳的是該列的車號
-  const crowdHelper = /function\s+(\w+)\s*\([^)]*\)\s*\{(?:(?!function\s)[^]){0,400}?trtcOfficialBoard\.crowdByNo/.exec(html)?.[1] || '';
+  // 🔴 2026-09-02：原本取【第一個】符合形狀的函式名當 crowdHelper，而那條 400 字視窗會跨過
+  //   函式邊界 ⇒ 只要有第二個地方讀 crowdByNo（09-02 跟車卡加了逐節擁擠度欄就是），第一個
+  //   命中就變成不相干的函式（實測抓到 clearFreqFollow），判準當場假紅，而 Core 板那條鏈
+  //   一個字都沒動。判準盲點第 0 條：沒有指名「我在量的是誰」。改成蒐集【全部】候選，
+  //   只要有任何一個真的被 crowdHtml 呼叫點用到就算過——功能被刪掉時仍然沒有候選成立 ⇒ 照樣紅。
+  const crowdHelpers = [...html.matchAll(/function\s+(\w+)\s*\([^)]*\)\s*\{(?:(?!function\s)[^]){0,400}?trtcOfficialBoard\.crowdByNo/g)].map(m => m[1]);
   const contentRules = [
     // 🔴 判準寫「意圖」不寫「當下的函式名」：2026-08-29 把 trtcOfficialCrowdHtmlByNo 併回
     //    trtcOfficialCrowdHtml(no)，舊寫法的名字比對當場轉紅，但行為完全沒退步——那種紅
@@ -63,8 +68,8 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
     //    的話，整個功能被刪掉也會「通過」。
     ['Metro Core 看板以逐車車號補上官方擁擠度',
       /trtcOfficialBoard\.crowdByNo\[\s*[A-Za-z_$]/.test(html)
-        && !!crowdHelper
-        && new RegExp(`crowdHtml\\s*=\\s*${crowdHelper}\\(\\s*(?:label|rec\\.row\\.no)\\s*\\)`).test(html)],
+        && crowdHelpers.some(h =>
+             new RegExp(`crowdHtml\\s*=\\s*${h}\\(\\s*(?:label|rec\\.row\\.no)\\s*\\)`).test(html))],
     ['Android 小工具同步並動態解析「我的地點」',
       /registerPlugin\(RailPlacesPlugin\.class\)/.test(main)
         && /RAIL_NATIVE_PLACES/.test(bridge) && /resolvePlace\(/.test(railData)
