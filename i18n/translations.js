@@ -189,6 +189,8 @@
         'The desktop station board is wider, so the train type and destination are no longer cut off.',
       '快到轉乘站時，直接列出對向系統最近兩班和「你到站時還剩幾分」，可以釘住你要搭的那班':
         "Near a transfer station, the card lists the next two departures on the connecting system and how many minutes you'll have left when you arrive — tap one to pin it.",
+      'ChatGPT 在內建瀏覽器打開軌島時，現在能直接查目前畫面、搜尋車站、讀車站看板與營運公告，也能替你開啟車站看板或跟隨指定火車；一般瀏覽器不受影響':
+        'When Rail Island is open in ChatGPT’s built-in browser, ChatGPT can now inspect the current view, search stations, read departure boards and service alerts, open a station board, or follow a specified train. Regular browsers are unaffected.',
       '火車站看板改成分方向顯示：南下、北上分開，山線海線與支線各自成區，冷門方向不再被擠掉；顏色比照台鐵新版車站標示的北上藍、南下綠':
         "Station boards now group trains by direction—southbound, northbound and each branch line get their own section, so quieter directions no longer get squeezed out; colour-coded blue for northbound and green for southbound, matching TRA's new station signage.",
       '山線': 'Mountain Line', '海線': 'Coast Line', '縱貫線北段': 'Western Line (North)',
@@ -535,6 +537,8 @@
         'デスクトップの駅発車案内を広げ、列車種別と行き先が途中で切れなくなりました。',
       '快到轉乘站時，直接列出對向系統最近兩班和「你到站時還剩幾分」，可以釘住你要搭的那班':
         '乗り換え駅に近づくと、対向システムの直近2本の発車時刻と「到着時点で残り何分か」をカードに表示。1本をタップすると、その列車に固定できます。',
+      'ChatGPT 在內建瀏覽器打開軌島時，現在能直接查目前畫面、搜尋車站、讀車站看板與營運公告，也能替你開啟車站看板或跟隨指定火車；一般瀏覽器不受影響':
+        'ChatGPTの内蔵ブラウザで軌島を開くと、現在の表示内容の確認、駅検索、発車案内・運行情報の取得、駅案内の表示、指定列車の追跡をChatGPTから行えるようになりました。通常のブラウザには影響しません。',
       '火車站看板改成分方向顯示：南下、北上分開，山線海線與支線各自成區，冷門方向不再被擠掉；顏色比照台鐵新版車站標示的北上藍、南下綠':
         '駅の発車案内を方面別に分割：南行き・北行き・支線がそれぞれ独立し、本数の少ない方面も押し出されません。色分けは台鉄の新しい案内サインに合わせ、北行きは青、南行きは緑。',
       '山線': '山線', '海線': '海線', '縱貫線北段': '縦貫線北段', '縱貫線南段': '縦貫線南段',
