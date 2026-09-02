@@ -845,6 +845,17 @@ let trtcMem = null; // { data, at }
 // 記憶體層門檻抽成獨立可測函式(task-11):驗收腳本要直接量這個條件式的邊界(14999/15001ms),
 // 不透過真的等待 15 秒,也不靠讀常數字面值反推——見 verify_trtc_freshness.mjs。
 function trtcMemoStale(stale, now) { return !stale || now - stale.at > 15e3; }
+// CarWeight(高運量逐車)獨立節流(2026-09-02,北捷來函要求降低呼叫頻率)。
+// 它只供擁擠度與車號標籤,不決定名冊也不畫位置(2026-08-18 裁示:位置一律從官方每站倒數反推),
+// 而它的 utime 是「該車最後一次抵站」的事件時刻、實測中位落後 76–96 秒 ⇒ 15 秒取樣本來就是過取樣。
+// 節流到 60 秒不會讓任何一台車的 at 變老(at 取自上游事件時刻,不是我們的抓取時刻),
+// 只是最多晚 60 秒才看到新的抵站事件——小於上游自己的發佈延遲。
+// 🔴 CarWeightBR 刻意【不】節流:它的 TrainNumber 要與倒數切段的車逐台【順序配對】(:983),
+// 用舊列會把車號標到別台車上,那是「標錯」不是「留白」,違反裁示。
+let trtcHwMem = null; // { rows, at } —— 只快取 CarWeight,與 trtcMem 分開
+// 門檻同樣抽成可測函式(比照 trtcMemoStale 的 task-11 理由):驗收要量 59999/60001ms 的邊界,
+// 不靠讀常數字面值反推,也不真的等 60 秒。
+function trtcHwStale(mem, now) { return !mem || now - mem.at > 60e3; }
 async function trtcLive(request, env) {
   const cacheKey = new Request(new URL('/api/trtc-live', request.url), { method: 'GET' });
   const edge = caches.default;
@@ -856,17 +867,35 @@ async function trtcLive(request, env) {
       // 在發出三支上游 request 前取 acquisition order；慢回的舊 request 不得因完成較晚
       // 反過來覆蓋較晚開始、已成功寫入的 fresh official frame。
       const officialRequestStartedAt = Date.now();
+      // 營運時段閘門(2026-09-02,北捷來函)：窗外(01:20–05:40)三支上游一律不打。
+      // 這不是新的降級路徑——窗外官方本來就整批回「營運時間已過」,現行程式碼把那些列
+      // 全部 fail-closed 丟掉(:900、:924),最終結果就是 board 空、trains 空、boardPos 走
+      // 同一支 anchors。餵空列與打完再丟掉在輸出上等價,差別只有少了三發上游請求。
+      // 🔴 刻意【不】改用 held/outage payload:那會每晚多記一次假的斷訊起點(trtcNoteOfficialOutage),
+      // 也會讓前端的中斷徽章整夜亮著(index.html:24602 把 feedMode==='outage' 讀成上游中斷)。
+      // 時鐘走 trtcLedgerNowEpoch:與每分鐘帳本 cron 用同一個判斷,窗的定義只有一份
+      // (跨 session 必須一致的東西不做成兩份,見 judgment 第九節第 10 條);
+      // 順帶讓 TRTC_NOW_EPOCH 這個既有的測試接縫也蓋得到這道閘門。
+      const inService = trtcOperatingState(trtcLedgerNowEpoch(null, env)).open;
+      // CarWeight 走自己的 60 秒節流(見 trtcHwStale)。命中就不發這一支,其餘兩支照常。
+      const hwFresh = inService && !trtcHwStale(trtcHwMem, officialRequestStartedAt);
       // 三支各自保留成敗：CarWeight 任一支抖動不拖垮 TrackInfo 官方名冊；反過來
       // TrackInfo 失敗也不能被 CarWeight 的位置列偽裝成仍有官方存在性資料。
-      const [hwRaw, brRaw, tkResult] = await Promise.all([
-        trtcCall(trtcApiUrl(env, 'CarWeight'), 'getCarWeightByInfoEx', env).catch(() => []),
+      const [hwFetched, brRaw, tkResult] = inService ? await Promise.all([
+        // 失敗回 null(不是 [])才分得開「這輪沒打」「打了但失敗」「打了是空的」——
+        // 失敗不得寫進 trtcHwMem,否則一次抖動會把擁擠度靜音整整 60 秒而不是下一輪就補回來。
+        hwFresh ? Promise.resolve(null)
+          : trtcCall(trtcApiUrl(env, 'CarWeight'), 'getCarWeightByInfoEx', env).catch(() => null),
         trtcCall(trtcApiUrl(env, 'CarWeightBR'), 'getCarWeightBRInfo', env).catch(() => []),
         // TrackInfo 是官方名冊本體；必須保留「成功但合法空列」與「請求失敗」的差別，
         // 不能都壓成 [] 後讓前端猜某線是不是該拿班表補車。
         trtcCall(trtcApiUrl(env, 'TrackInfo'), 'getTrackInfo', env)
           .then(rows => ({ ok: true, rows: Array.isArray(rows) ? rows : [] }))
           .catch(error => ({ ok: false, rows: [], error: (error && error.message) || String(error) })),
-      ]);
+      ]) : [null, [], { ok: true, rows: [] }];
+      if (hwFetched) trtcHwMem = { rows: hwFetched, at: officialRequestStartedAt };
+      // 節流命中 → 用記憶體那份；這一輪真的打了 → 用新的；打了但失敗 → [](與節流前同行為)。
+      const hwRaw = hwFresh && trtcHwMem ? trtcHwMem.rows : (hwFetched || []);
       const tk = tkResult.rows;
       // official-first：TrackInfo 成功（包含合法空列）就是可發布的權威名冊；CarWeight
       // 只供 legacy trains／擁擠度裝飾，兩支同時空也不可把官方名冊拖成 outage。
@@ -6135,7 +6164,13 @@ export const _bounty = { bountyCardId, bountySegLine, groupBoardRows, bountyBoar
 // trtcMemoStale 是記憶體層門檻的獨立可測版本(task-11),供 verify_trtc_freshness.mjs 量邊界。
 // carsOf 是每節車廂擁擠度的缺值防護(task-12):導出讓驗收腳本直接測邊界(缺值/非數字/
 // 非正數一律回 null),不必等真的上游漏欄位才驗到。
-export const _trtc = { trtcParse, trtcEpoch, dedupeLatest, trtcCall, trtcApiUrl, trtcMemoStale, carsOf };
+// trtcHwStale/trtcLive 是 2026-09-02「降低北捷 API 呼叫量」那批的守門人所需(北捷來函)：
+// 光量純函式的邊界證明不了「節流真的擋在 outbound fetch 之前」，那正是這批唯一在乎的性質
+// ——理由與上面 _rateLimit 的導出完全相同。trtcLive 不是純函式，測試要自備 env／caches／
+// fetch 替身，導出的目的就是讓判準能【數上游被打了幾次】而不是只看回應長得對不對。
+// 見 scripts/verify_trtc_call_budget.mjs。
+export const _trtc = { trtcParse, trtcEpoch, dedupeLatest, trtcCall, trtcApiUrl, trtcMemoStale, carsOf,
+  trtcHwStale, trtcLive };
 // B1 驗收用：導出編排層供本機 D1/fixture 測試，正式 router 不因此增加任何路徑。
 export const _trtcLedger = {
   trtcBoardEpoch, trtcLedgerContext, persistTrtcLedger, trtcLedgerPreview,
