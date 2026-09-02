@@ -38,6 +38,8 @@ public final class RailAudioPlugin: CAPPlugin, CAPBridgedPlugin {
     // 預抓下一首用。nextItemIndex 是它對應的曲序,-1 代表沒有預抓。
     private var nextItem: AVPlayerItem?
     private var nextItemIndex = -1
+    // 目前這一首 item.status 的 KVO 句柄;換曲時先 invalidate,舊 item 的狀態不再回報。
+    private var statusObs: NSKeyValueObservation?
 
     private var isPlaying: Bool { (player?.rate ?? 0) > 0 }
 
@@ -149,7 +151,10 @@ public final class RailAudioPlugin: CAPPlugin, CAPBridgedPlugin {
         }
         if let old = player?.currentItem {
             NotificationCenter.default.removeObserver(self, name: .AVPlayerItemDidPlayToEndTime, object: old)
+            NotificationCenter.default.removeObserver(self, name: .AVPlayerItemFailedToPlayToEndTime, object: old)
         }
+        statusObs?.invalidate()
+        statusObs = nil
         // 預抓好的那顆用得上就直接用,省掉一次冷啟的網路往返(串流曲目在隧道裡差別最大)。
         let item: AVPlayerItem
         if nextItemIndex == idx, let preloaded = nextItem {
@@ -160,8 +165,23 @@ public final class RailAudioPlugin: CAPPlugin, CAPBridgedPlugin {
         nextItem = nil
         nextItemIndex = -1
         NotificationCenter.default.addObserver(self, selector: #selector(itemEnded(_:)), name: .AVPlayerItemDidPlayToEndTime, object: item)
+        NotificationCenter.default.addObserver(self, selector: #selector(itemFailed(_:)), name: .AVPlayerItemFailedToPlayToEndTime, object: item)
         if player == nil { player = AVPlayer() }
         player?.replaceCurrentItem(with: item)
+        // 🔴 串流曲目載入失敗(404、斷網、母站還沒部署)只反映在 item.status,沒有任何通知會來。
+        //    2026-09-03 iOS 91 實測:正式站尚未上 _pass/ 曲目時每一首都靜靜地不播,JS 也收不到
+        //    error ⇒ 「跳下一首、連錯三次退回內建曲」那套從沒被觸發,使用者看到的是「點了沒反應」。
+        //    readyToPlay 才回報 ready(JS 據此才發 'playing'),failed 走與缺檔同一條 trackError。
+        statusObs = item.observe(\.status, options: [.initial, .new]) { [weak self] observed, _ in
+            DispatchQueue.main.async {
+                guard let self, self.player?.currentItem === observed else { return }   // 已換曲的舊 item 不回報
+                switch observed.status {
+                case .readyToPlay: self.notifyListeners("ready", data: ["index": self.idx])
+                case .failed: self.notifyListeners("trackError", data: ["index": self.idx])
+                default: break
+                }
+            }
+        }
         player?.volume = volume
         applySession(activate: true)
         player?.play()
@@ -186,6 +206,14 @@ public final class RailAudioPlugin: CAPPlugin, CAPBridgedPlugin {
         item.preferredForwardBufferDuration = 10
         nextItem = item
         nextItemIndex = n
+    }
+
+    // 播到一半才斷(隧道、伺服器中途掛掉):AVFoundation 不會再改 status,只發這一則通知。
+    @objc private func itemFailed(_ note: Notification) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.notifyListeners("trackError", data: ["index": self.idx])
+        }
     }
 
     @objc private func itemEnded(_ note: Notification) {

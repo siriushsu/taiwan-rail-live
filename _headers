@@ -46,3 +46,9 @@
 #    跑過,只過 A 段(字面檢查)不算驗證。
 /suno musics/*
   Cache-Control: public, max-age=31536000, immutable
+# 🔴 2026-09-03 正式站實測(v0902e 上線後 curl):上面那條原樣空白的寫法在 Cloudflare 邊緣【沒有命中】,
+#    /suno%20musics/... 仍回 max-age=0, must-revalidate(同一份 _headers 的 /data/* 規則有生效,所以
+#    不是整個檔沒被讀)。workerd 本機兩種寫法都命中,線上不是。補一條 %20 形式,
+#    scripts/verify_music_headers.mjs 的 B 段對正式站驗哪一條真的生效。
+/suno%20musics/*
+  Cache-Control: public, max-age=31536000, immutable

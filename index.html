@@ -5894,7 +5894,7 @@
 //         工具只在 document.modelContext.registerTool 存在時註冊；不新增後端，也不碰個人資料。
 // v0902e：把 App 出貨線(ship-main)併回來——小工具七種尺寸／方向可取消／捷運大卡(Android)、v0901h 的好讀版開車時刻、
 //         看板誤點標放大——並帶上跟車配樂選單(feat/music-scoring)。e 換號前逐 ref＋逐樹掃過無人佔用。
-const BUILD = 'v0902e';
+const BUILD = 'v0903a';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -16140,8 +16140,10 @@ async function musicLoadData() {
   try {
     // 🔴 前綴 './' 是契約:build_data_manifest.mjs 掃的是 index.html 裡 './data/xxx.json' 的字面,
     //    寫成 'data/music.json' 會讓它永遠不進 manifest ⇒ App bundle 的舊快照不會被偵測到。
-    const r = await fetch('./data/music.json', { cache: 'no-store' });
-    if (r.ok) window.MUSIC_DATA = await r.json();
+    // 🔴 要走 fetchJSON 才吃得到資料新鮮度機制(bundle 那份比網站舊就改抓網站版)。
+    //    裸 fetch 永遠讀 bundle ⇒ 新歌池要等下一次送審才進得了 App(2026-09-03 iOS 91 實測)。
+    const got = await fetchJSON('./data/music.json');
+    if (got) window.MUSIC_DATA = got;
   } catch (e) {}
   return window.MUSIC_DATA;
 }
@@ -16621,8 +16623,11 @@ function makeNativeMusicShim(na) {
   na.addListener('track', e => {
     const m = state.music;
     if (m && e && typeof e.index === 'number') m.idx = e.index; // 原生自動接下一首時回頭同步 JS 指針
-    shim._paused = false; fire('playing');
+    shim._paused = false;
   });
+  // 'playing' 等原生回報 readyToPlay 才發:track 事件在載入前就到了,串流曲若載入失敗
+  // (404/斷網)會先把 _fails 歸零再收到 error,連錯三次退回內建曲永遠數不到三。
+  na.addListener('ready', () => { shim._paused = false; fire('playing'); });
   na.addListener('state', e => {
     shim._paused = !(e && e.playing);
     fire(shim._paused ? 'pause' : 'playing');
