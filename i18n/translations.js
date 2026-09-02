@@ -183,6 +183,10 @@
         "Signed in and your completed rides and Journey Passport went blank? Those records were never lost—they were still on this device. The account panel now tells you how many are waiting, and one tap merges them all back into your account.",
       '放空模式：地圖不會被手指拉歪；離開再進入時，「離開放空」鈕不會再縮成按不到的小鈕':
         "Ambient mode is now sit-back-and-watch: the map can no longer be dragged or pinched off course, and leaving then re-entering no longer shrinks the Exit ambient mode button into an empty stub you cannot tap.",
+      '跟捷運列車時，卡片上會顯示這一台車每一節車廂的擁擠度':
+        'While following a Taipei Metro train, the card shows how crowded each carriage of that train is.',
+      '桌面的車站看板加寬，車種與「往哪」不會再被截掉':
+        'The desktop station board is wider, so the train type and destination are no longer cut off.',
       '快到轉乘站時，直接列出對向系統最近兩班和「你到站時還剩幾分」，可以釘住你要搭的那班':
         "Near a transfer station, the card lists the next two departures on the connecting system and how many minutes you'll have left when you arrive — tap one to pin it.",
       '火車站看板改成分方向顯示：南下、北上分開，山線海線與支線各自成區，冷門方向不再被擠掉；顏色比照台鐵新版車站標示的北上藍、南下綠':
@@ -488,6 +492,10 @@
         'ログインしたら完乗記録と旅のパスポートが空になった――その記録は消えていません。この端末にちゃんと残っています。アカウント画面に何件あるかを表示するようにしたので、タップひとつでまとめてアカウントに取り込めます。',
       '放空模式：地圖不會被手指拉歪；離開再進入時，「離開放空」鈕不會再縮成按不到的小鈕':
         '鑑賞モードは「眺めるだけ」に：地図が指で動かされたりズームがずれたりせず、いったん終了してもう一度入っても「鑑賞モードを終了」ボタンが押せない小さなボタンに縮まなくなりました。',
+      '跟捷運列車時，卡片上會顯示這一台車每一節車廂的擁擠度':
+        '台北メトロの列車を追跡中、その列車の車両ごとの混雑度をカードに表示します。',
+      '桌面的車站看板加寬，車種與「往哪」不會再被截掉':
+        'デスクトップの駅発車案内を広げ、列車種別と行き先が途中で切れなくなりました。',
       '快到轉乘站時，直接列出對向系統最近兩班和「你到站時還剩幾分」，可以釘住你要搭的那班':
         '乗り換え駅に近づくと、対向システムの直近2本の発車時刻と「到着時点で残り何分か」をカードに表示。1本をタップすると、その列車に固定できます。',
       '火車站看板改成分方向顯示：南下、北上分開，山線海線與支線各自成區，冷門方向不再被擠掉；顏色比照台鐵新版車站標示的北上藍、南下綠':

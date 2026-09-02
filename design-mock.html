@@ -998,6 +998,23 @@
   .freq-card .fc-next { display: flex; align-items: baseline; gap: 8px; row-gap: 4px; flex-wrap: wrap; margin-top: 7px; }
   .freq-card .fc-next .lbl { font-size: calc(11px * var(--uis)); color: var(--faint); font-weight: 800; letter-spacing: 2px; flex: none; }
   .freq-card .fc-next .stn { font-size: calc(16px * var(--ui)); font-weight: 900; color: var(--ink-strong); letter-spacing: 1px; }
+  /* v0901 車廂擁擠度欄(只有北捷有官方逐節資料)。欄位固定保留——沒資料留虛線佔位,不整列消失,
+     資料到了卡片高度才不會跳(同官方板「含無資料透明佔位」慣例)。第三列(資料年齡)高度一律預留,
+     否則「未提供 → 資料到了」之間卡片會跳一行。
+     🔴 色條【不】在這裡定色:等級→色由 trtcOfficialCrowdColor() 出 inline background,與車站看板、
+     桌面小工具 MetroPalette.crowd 同一份色票(三個介面要長一樣)。這裡只定沒資料時的虛線佔位。 */
+  .freq-card .fc-crowd { margin-top: 7px; padding-top: 6px; border-top: 1px dashed var(--line-dash);
+    display: grid; grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto calc(10px * var(--uis) * 1.45);
+    align-items: center; column-gap: 8px; row-gap: 4px; }
+  .freq-card .fc-crowd .lbl { font-size: calc(10px * var(--uis)); font-weight: 800;
+    letter-spacing: 1px; color: var(--faint); white-space: nowrap; }
+  .freq-card .fc-crowd .txt { justify-self: end; font-size: calc(11px * var(--uis));
+    color: var(--faint); font-weight: 600; }
+  .freq-card .fc-crowd .cars { grid-column: 1 / -1; display: flex; gap: 3px; }
+  .freq-card .fc-crowd .cars i { flex: 1 1 0; height: 10px; border-radius: 1.5px; }
+  .freq-card .fc-crowd[data-state=none] .cars i { border: 1px dashed var(--line-dash); }
+  .freq-card .fc-crowd .age { grid-column: 1 / -1; font-size: calc(10px * var(--uis)); color: var(--faint); }
   .freq-card .fc-status { margin-top: 6px; font-size: calc(11px * var(--uis)); color: var(--faint); font-weight: 600; }
   .freq-card .fc-status:empty { display: none; }
   .freq-card .fc-status.on { color: #0f7fa8; }
@@ -1794,7 +1811,9 @@
   /* ── 車站時刻板(及其他共用外觀的面板:最愛/旅程/探索/軌道與路線——面板家族統一骨架) ── */
   .board {
     position: absolute; top: 12px; right: 12px; z-index: 650;
-    width: 280px; max-height: calc(100% - 176px); overflow-y: auto; overscroll-behavior: contain; /* 契約④:面板內捲動不外溢到地圖 */
+    /* v0901 加寬 280→360:官方板一列六欄(線色牌/車號/往哪/擁擠度/時刻/倒數),最長樣本
+       「往 松山（經南京復興）」需 119px——280 只給得起 60px、340 仍差 11px。手機仍是整寬 sheet。 */
+    width: 360px; max-height: calc(100% - 176px); overflow-y: auto; overscroll-behavior: contain; /* 契約④:面板內捲動不外溢到地圖 */
     background: var(--paper-tr); border: 2px solid var(--navy); border-radius: 10px;
     padding: 0 14px 12px;
     box-shadow: var(--shadow-navy);
@@ -2146,7 +2165,7 @@
   .board .close:hover, .board .board-star:hover, .board .board-notify:hover { opacity: 1; }
   .board .board-star.on { color: #ffd977; opacity: 1; }
   /* 捷運等車卡入口(Task 6):h3 內另起一行(不像 close/star 用絕對定位插槽——
-     .board 桌面寬僅 280px,硬塞第三顆同款圖示鈕會擠壓長站名),故不影響 h3 padding-right。
+     .board 桌面寬 360px(v0901 前為 280),硬塞第三顆同款圖示鈕仍會擠壓長站名),故不影響 h3 padding-right。
      08-14 真機回饋「按鈕不明顯、不知道用途」——待機態改滿寬金底 CTA,追蹤中反轉成描邊。 */
   .board .board-wait {
     display: block; margin: 6px 0 2px; padding: 6px 12px;
@@ -3621,7 +3640,7 @@
     .board h3 { border-radius: 13px 13px 0 0; padding-top: 12px; }
     /* 🔴 觸控目標(使用者 2026-08-26 回報「再小的字體設定時,關掉的 X 太小了,容易點不到」):
        ✕/☆/🔔 的命中框原本是 22×22,而且**不隨字級放大**(寬高寫死 px,只有字形吃 --ui)——
-       在 40px 高的標題列裡垂直、水平都不到 44。桌面有游標、卡又只有 280px 寬,維持原樣;
+       在 40px 高的標題列裡垂直、水平都不到 44。桌面有游標,維持原樣;
        手機是整條 377px 的抽屜列,沒有理由只給 22px ⇒ 三顆一律撐成 44×44。
        🔴 撐大**必須連間距一起改**:命中框一重疊,DOM 較後的那顆會整個蓋掉前一顆(「兩顆並排鈕
           熱區互蓋、怎麼點都開到後面那顆」的同一個坑),所以水平間距＝寬度 44,不是原本的 22。

@@ -4976,14 +4976,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="crowdcard"><span class="d">9/2</span><span>跟捷運列車時，卡片上會顯示這一台車每一節車廂的擁擠度</span></li>
+        <li data-cl-of="boardwide"><span class="d">9/2</span><span>桌面的車站看板加寬，車種與「往哪」不會再被截掉</span></li>
         <li data-cl-of="xferconn"><span class="d">9/1</span><span>快到轉乘站時，直接列出對向系統最近兩班和「你到站時還剩幾分」，可以釘住你要搭的那班</span></li>
         <li data-cl-of="guestmerge"><span class="d">9/1</span><span>登入之後完乘紀錄與旅程護照整個變空：那些紀錄其實一直都還在這台裝置上，帳號面板現在會告訴你有幾筆，按一下就全部併回帳號（謝謝網友回報）</span></li>
         <li data-cl-of="signinfallback"><span class="d">9/1</span><span>登入失敗訊息不再重複兩行；Android 的 Google 登入多了自動退路（謝謝網友回報）</span></li>
         <li data-cl-of="ambientlock"><span class="d">9/1</span><span>放空模式：地圖不會被手指拉歪；離開再進入時，「離開放空」鈕不會再縮成按不到的小鈕</span></li>
         <li data-cl-of="androidwidgetparity"><span class="d">9/1</span><span>桌面小工具新增車站時，起站選單改成依縣市分段</span></li>
         <li data-cl-of="traboarddir"><span class="d">8/31</span><span>火車站看板改成分方向顯示：南下、北上分開，山線海線與支線各自成區，冷門方向不再被擠掉；顏色比照台鐵新版車站標示的北上藍、南下綠</span></li>
-        <li data-cl-of="widgetdir"><span class="d">8/31</span><span>桌面小工具的發車看板也標出北上／南下：Android 從零補上方向三角，兩個平台的三角一起放大，顏色換成台鐵官方的北上藍、南下綠</span></li>
-        <li data-cl-of="ridingclock"><span class="d">8/31</span><span>按下「我上車了」之後，再去點一班還沒發車的車，時鐘不會再被撥走（謝謝網友回報）</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5055,6 +5055,8 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="crowdcard"><span class="d">9/2</span><span>跟著台北捷運的列車時，卡片下面會顯示這一台車每一節車廂的擁擠度，色階與車站看板、桌面小工具是同一套。文湖線與環狀線官方沒有給車號，認不出是哪一台就留白，不拿別台的值頂替。其他捷運系統官方沒有這份逐節資料，卡片上不會出現這一欄。</span></li>
+        <li data-cl="boardwide"><span class="d">9/2</span><span>桌面的車站看板由 280 加寬到 360 像素。原本一列要放線色、車號、往哪、擁擠度、時刻與倒數，「往 松山（經南京復興）」這種長方向會被截成「往 松山（經…」；新竹站實測原本有三到四列被截，加寬後一列都不截。手機版本來就是整寬的抽屜，不受影響。</span></li>
         <li data-cl="xferconn"><span class="d">9/1</span><span>跟台鐵、高鐵，或搭捷運快到台北、南港、板橋、新竹、苗栗、台中、台南、左營、嘉義這些轉乘站時，卡片會直接列出對向系統最近兩班的車次、時刻，以及「你到站時還剩幾分」——這個分鐘數含你這班車當下的誤點。點一列可以把你要搭的那班釘住，之後畫面只留它。高鐵沒有即時誤點，它的時刻是表定；站內步行時間各站差異大，我不替你判斷來不來得及，只告訴你到站那一刻還剩多久</span></li>
         <li data-cl="tourpickcap"><span class="d">8/31</span><span>「隨機跟隨」按了老是跳到同幾班車：稀有度原本被算了兩次——車種等級已經加過權，接著車型稀有再乘四倍，而莒光號、太魯閣號、DR3100 柴聯是整個車型都標稀有，於是一班莒光等於四十班區間車、藍皮解憂號等於九十六班。在跑的車越少壓得越兇：實測晚上十一點只剩兩班莒光在跑時，554 次一班就吃掉 17% 的抽籤機會（當時有 102 班車在跑，平均應該是 1%），中午的藍皮解憂號是 16.8%。現在任何一班都不得超過當下總權重的 3%，上限跟著各時段在跑的車數自動縮放；另外會記住剛跟過的五班，連按「換一班」不會再在同幾班之間繞。稀有車與觀光列車仍然比一般車更常遇到，只是不再獨佔</span></li>
         <li data-cl="boardalign"><span class="d">8/31</span><span>車站看板的欄位對齊。使用者回報「擁擠度跟時間，會因為最後面倒數那邊時間會變成『即將進站』而擠壓到，變成歪掉」。兩個成因：一是倒數欄原本只設了最小寬度，「即將進站」比「3 分」寬，那幾列就把時刻欄往左推；二是時刻的等寬數字設定要字型真的支援才生效，Chrome 上「12:31」比「12:26」窄兩個多像素，擁擠度欄跟著逐列左右跳。現在倒數與時刻兩欄都改成「量出這張板最寬的一列、全板同寬」，英日文與放大字級都自動吃到，不必為每種組合寫死一個數字</span></li>
@@ -5751,7 +5753,7 @@
 //         獨立基準覆核:山線／海線／成追線判定 vs 台鐵官方 Line 欄位【908/908 逐車一致】;
 //         純西部方向 vs 官方 LineDir 對稱一致(1↔北上 241、2↔南下 241)。
 //         守門人:scripts/verify_board_direction_groups.mjs(26 項,五發突變各自咬到預期斷言)。
-const BUILD = 'v0901j'; // 轉乘接續;a/c/d/e/g/h/i 都已被別的 ref 佔用(換號前逐 ref 掃過),跨分支撞號見心得16
+const BUILD = 'v0902a'; // 轉乘接續;a/c/d/e/g/h/i 都已被別的 ref 佔用(換號前逐 ref 掃過),跨分支撞號見心得16
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
