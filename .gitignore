@@ -135,3 +135,6 @@ app/送審文字_*
 tools/
 # Android 原生版面試作稿：未定案的設計討論稿。
 android-native-design-mock.html
+# 付費配樂 WAV 母帶：單池 200MB+,且這個 repo 是 public。
+# 進了歷史就永久拿不掉(fork 共用物件庫),一律只留本機。
+suno musics/_masters/

@@ -254,6 +254,16 @@ const REQUIRED = [
   },
   { needle: '行程分享', check: () => fnBodyContains(SRC, 'tripShareVisible', 'plusIsActive()') },
   {
+    needle: '配樂',
+    // 兩道閘要一起驗,少驗一邊另一邊刪掉照樣綠:
+    //  ① 選單的點擊 handler 真的擋(不是只把列畫成灰的)——付費列在無資格時走 plusGateOpen,
+    //     而且【不】落到 musicApplyMode,否則畫面看起來上鎖、點下去其實已經換了模式;
+    //  ② 生效模式在無資格時真的折成 free(不是只藏 UI)——musicEffectiveMode() 的資格判定,
+    //     它是所有播放路徑的共同上游,藏 UI 擋不住已經存在 localStorage 裡的付費模式。
+    check: () => fnBodyContains(SRC, 'musicEffectiveMode', 'plusIsActive()')
+      && /if \(mode !== 'free' && !plusIsActive\(\)\) \{ plusGateOpen\('music-scoring'/.test(SRC),
+  },
+  {
     needle: '已儲存清單',
     // Google Takeout 清單匯入。入口在 setupTakeoutUi():有購買通道時把 takeoutOpen 包進
     // plusRequire('takeout', …),資格判定在 plusRequire 內的 plusIsActive()。兩段都要驗——
@@ -789,6 +799,19 @@ await cr.close();
       await plusOpen('verify-t7a');
       const btn = document.querySelector('.plus-restore');
       if (!btn) return { found: false };
+      // 正向對照先量(捲動前 h3 一定在可視區):對話框標題(#plusModal 的 h3,理應在按鈕矩形之外)不該被命中成這顆按鈕
+      const heroEl = document.querySelector('.plus-hero h3');
+      const hr = heroEl.getBoundingClientRect();
+      const outsideHit = document.elementFromPoint(hr.left + 4, hr.top + 4);
+      const outsideIsBtn = !!(outsideHit && (outsideHit === btn || btn.contains(outsideHit)));
+      // .takeout-body 本來就是 overflow-y:auto 的捲動容器(index.html .takeout-body),方案清單每多一行,
+      // 這顆墊底的鈕在 360/375×800 就會多沉一截到摺線下(2026-09-02 配樂那一行加進來後 360 沉了 51px)。
+      // 這條要抓的是「被別的東西蓋住／堆疊脈絡封頂」(2026-07-26 tabbar 事故),不是「不捲動就看得到」——
+      // 所以先照使用者會做的動作把鈕捲進可視區再量;scrolled 記在 detail 裡,摺線下多深一眼看得到。
+      const scrollBox = btn.closest('.takeout-body');
+      const scrollBefore = scrollBox ? scrollBox.scrollTop : 0;
+      btn.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      const scrolled = scrollBox ? Math.round(scrollBox.scrollTop - scrollBefore) : 0;
       const r = btn.getBoundingClientRect();
       const pts = [[r.left + r.width / 2, r.top + r.height / 2],
         [r.left + Math.min(6, r.width / 3), r.top + Math.min(6, r.height / 3)],
@@ -796,12 +819,7 @@ await cr.close();
         [r.left + Math.min(6, r.width / 3), r.bottom - Math.min(6, r.height / 3)],
         [r.right - Math.min(6, r.width / 3), r.bottom - Math.min(6, r.height / 3)]];
       const hits = pts.map(([x, y]) => { const h = document.elementFromPoint(x, y); return !!(h && (h === btn || btn.contains(h))); });
-      // 正向對照:對話框標題(#plusModal 的 h3,理應在按鈕矩形之外)不該被命中成這顆按鈕
-      const heroEl = document.querySelector('.plus-hero h3');
-      const hr = heroEl.getBoundingClientRect();
-      const outsideHit = document.elementFromPoint(hr.left + 4, hr.top + 4);
-      const outsideIsBtn = !!(outsideHit && (outsideHit === btn || btn.contains(outsideHit)));
-      return { found: true, rect: [r.left, r.top, r.right, r.bottom].map(v => Math.round(v)), hits, outsideIsBtn };
+      return { found: true, rect: [r.left, r.top, r.right, r.bottom].map(v => Math.round(v)), hits, outsideIsBtn, scrolled };
     });
     let tapOk = null;
     if (w === 375 && hit.found) {
@@ -814,7 +832,7 @@ await cr.close();
   }
   ok('T7a 四寬度:「恢復購買」鈕多點 elementFromPoint 皆命中自己(不只證明幾何不重疊,是真的點得到)',
     rowsA.every(r => r.hit.found && r.hit.hits.every(Boolean)),
-    rowsA.map(r => `${r.w}:${r.hit.found ? r.hit.hits.join(',') : 'NOTFOUND'}`).join(' ; '));
+    rowsA.map(r => `${r.w}:${r.hit.found ? r.hit.hits.join(',') + '(捲' + r.hit.scrolled + 'px)' : 'NOTFOUND'}`).join(' ; '));
   ok('T7a 正向對照:對話框標題位置不會被命中成「恢復購買」鈕(證明命中測試分得出有點到/沒點到)',
     rowsA.every(r => r.hit.found && !r.hit.outsideIsBtn),
     rowsA.map(r => `${r.w}:${r.hit.outsideIsBtn}`).join(' ; '));
@@ -853,6 +871,11 @@ await cr.close();
       const btns = [...document.querySelectorAll('.plus-plan')];
       if (btns.length !== 2) return { found: false, count: btns.length };
       const per = btns.map(btn => {
+        // 同 (a):鈕住在 overflow-y:auto 的 .takeout-body 裡,先捲進可視區再量(理由見上方 (a) 註解)
+        const scrollBox = btn.closest('.takeout-body');
+        const scrollBefore = scrollBox ? scrollBox.scrollTop : 0;
+        btn.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        const scrolled = scrollBox ? Math.round(scrollBox.scrollTop - scrollBefore) : 0;
         const r = btn.getBoundingClientRect();
         const pts = [[r.left + r.width / 2, r.top + r.height / 2],
           [r.left + Math.min(6, r.width / 3), r.top + Math.min(6, r.height / 3)],
@@ -860,7 +883,7 @@ await cr.close();
           [r.left + Math.min(6, r.width / 3), r.bottom - Math.min(6, r.height / 3)],
           [r.right - Math.min(6, r.width / 3), r.bottom - Math.min(6, r.height / 3)]];
         const hits = pts.map(([x, y]) => { const h = document.elementFromPoint(x, y); return !!(h && (h === btn || btn.contains(h))); });
-        return { pkg: btn.dataset.pkg, rect: [r.left, r.top, r.right, r.bottom].map(v => Math.round(v)), hits };
+        return { pkg: btn.dataset.pkg, rect: [r.left, r.top, r.right, r.bottom].map(v => Math.round(v)), hits, scrolled };
       });
       return { found: true, count: btns.length, per };
     });
@@ -879,7 +902,7 @@ await cr.close();
     rowsB.map(r => `${r.w}:${r.hit.count}`).join(' ; '));
   ok('T7b 四寬度:月/年方案鈕多點 elementFromPoint 皆命中自己',
     rowsB.every(r => r.hit.found && r.hit.per.every(p => p.hits.every(Boolean))),
-    rowsB.map(r => `${r.w}:${r.hit.found ? r.hit.per.map(p => p.pkg + '=' + p.hits.join(',')).join('|') : 'NOTFOUND'}`).join(' ; '));
+    rowsB.map(r => `${r.w}:${r.hit.found ? r.hit.per.map(p => p.pkg + '=' + p.hits.join(',') + '(捲' + p.scrolled + 'px)').join('|') : 'NOTFOUND'}`).join(' ; '));
   ok('T7b 375px 真觸控 page.tap() 端到端點下年訂閱鈕,事件確實傳到 plusPurchase()→adapter.purchase(拿到正確的 pkg)',
     rowsB.find(r => r.w === 375).tapOk === true, JSON.stringify(rowsB.find(r => r.w === 375)));
   ok('T7b 全程無 JS 例外', rowsB.every(r => r.errors.length === 0), rowsB.map(r => r.errors.join('|')).join(';'));

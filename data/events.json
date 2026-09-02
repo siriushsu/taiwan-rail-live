@@ -1,5 +1,5 @@
 {
-  "updated": "2026-08-29",
+  "updated": "2026-09-02",
   "events": [
     {
       "id": "trtc-20260811-pokemon10",
@@ -191,6 +191,28 @@
       "end": "2026-09-06",
       "anchor": { "kind": "station", "sys": "mrt", "name": "新北投" },
       "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=723174E51435D719"
+    },
+    {
+      "id": "afr-20260901-guaiguai-beimen",
+      "source": "official",
+      "title": "阿里山林鐵×乖乖 藍莓優格米乖乖",
+      "note": "百年 Shay21 號蒸汽火車聯名限量零食，北門車站可買，全臺限量 25,200 包",
+      "start": "2026-09-01",
+      "end": "2026-12-31",
+      "endGuess": true,
+      "anchor": { "kind": "station", "sys": "afr_sched", "name": "北門" },
+      "url": "https://afrch.forest.gov.tw/AllNews/0079128"
+    },
+    {
+      "id": "afr-20260901-guaiguai-alishan",
+      "source": "official",
+      "title": "阿里山林鐵×乖乖 藍莓優格米乖乖",
+      "note": "百年 Shay21 號蒸汽火車聯名限量零食，阿里山車站 1F 旅客服務中心可買",
+      "start": "2026-09-01",
+      "end": "2026-12-31",
+      "endGuess": true,
+      "anchor": { "kind": "station", "sys": "afr_sched", "name": "阿里山" },
+      "url": "https://afrch.forest.gov.tw/AllNews/0079128"
     }
   ]
 }

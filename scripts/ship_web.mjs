@@ -87,11 +87,38 @@ try {
   if (voice.status !== 0) fail('對外用語稽核未過——出貨文字用了更名前的舊名或未登記的 surface'
     + '（單獨重跑：npm run check-voice）');
 
-  // ── 2.8 北捷上游呼叫量閘門 ────────────────────────────────────────────────
+  // ── 2.8 轉乘接續資料閘門（純 node、無瀏覽器，兩支合計數十毫秒，不划算不放進來的理由不成立）─
+  // 只放這兩支（departures/connections),不放 pin/transitions/mobile——那三支要開瀏覽器
+  // (Playwright),每次出貨多開一次瀏覽器的成本换不到對應的保護(它們驗的是互動/過渡態,
+  // 不是「班表更新後資料還接得上」這種每次出貨都可能出錯的東西)。同 i18n/voice:驗的是
+  // 【這棵乾淨出貨樹】那一份。「不在出貨鏈上的驗收腳本等於不存在」——這兩支本來就不吃
+  // 瀏覽器,沒有理由不掛。
+  //
+  // 🔴 2026-09-02 例外:follow_pin 也掛上來(第四支,上面那段寫的時候它還不存在)。它不屬於
+  // 「互動/過渡態」那一類——它守的是【跟車面板每幀重寫 innerHTML 會把點擊整個吃掉】,而那個
+  // 缺陷 (a) 對真人 100% 復現、(b) 其餘 148 條斷言全綠照不到(它們都繞開跟車迴圈)、
+  // (c) 任何一次改到面板算繪路徑都會原地復發。實測整支 6 秒(42 條斷言、兩引擎各 2 次 boot),
+  // 用上面同一把「成本 vs 保護」的尺量,結論和那三支相反。見 [[follow-panel-repaint-eats-clicks]]。
+  const xferDep = spawnSync('node', [path.join(wt, 'scripts', 'verify_transfer_departures.mjs')], { encoding: 'utf8' });
+  process.stdout.write(xferDep.stdout || ''); process.stderr.write(xferDep.stderr || '');
+  if (xferDep.status !== 0) fail('轉乘接續資料未過——多半是班表更新後沒重產'
+    + '（單獨重跑：npm run check-transfer-departures）');
+
+  const xferConn = spawnSync('node', [path.join(wt, 'scripts', 'verify_transfer_connections.mjs')], { encoding: 'utf8' });
+  process.stdout.write(xferConn.stdout || ''); process.stderr.write(xferConn.stderr || '');
+  if (xferConn.status !== 0) fail('轉乘接續查詢層未過——transferConnections/transferConnectionHtml 邏輯壞了'
+    + '（單獨重跑：npm run check-transfer-connections）');
+
+  const xferFollow = spawnSync('node', [path.join(wt, 'scripts', 'verify_transfer_follow_pin.mjs')], { encoding: 'utf8' });
+  process.stdout.write(xferFollow.stdout || ''); process.stderr.write(xferFollow.stderr || '');
+  if (xferFollow.status !== 0) fail('跟車中的接續釘選未過——面板算繪把點擊吃掉,或窄卡版面溢出'
+    + '（單獨重跑：npm run check-transfer-follow-pin）');
+
+  // ── 2.9 北捷上游呼叫量閘門 ────────────────────────────────────────────────
   // 2026-09-02 北捷來函「8 月三支 API 各逾 60 萬次、不似正常使用方式」之後補的。
   // 這裡守的是兩件會【靜默】退回去的事：營運窗外的閘門、CarWeight 的 60 秒節流。
   // 兩者都不影響畫面，所以任何回歸都不會被別的判準或人眼發現——只會在一個月後
-  // 變成下一封信。同 2.7：這支此前沒有任何呼叫者（那條路徑的守門人一直是空的，
+  // 變成下一封信。同 2.7／2.8：這支此前沒有任何呼叫者（那條路徑的守門人一直是空的，
   // worker.js 註解指名的 verify_trtc_freshness.mjs 從來不存在）。
   // 純離線（自帶 fetch／caches 替身，不打真實上游），驗的是這棵乾淨出貨樹那一份。
   const budget = spawnSync('node', [path.join(wt, 'scripts', 'verify_trtc_call_budget.mjs')], { encoding: 'utf8' });

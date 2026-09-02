@@ -34,6 +34,7 @@ export const GEOMETRY_SOURCE = {
   'data/crossings.json': 'TRA-ODS',
   'data/krtc.json': 'TDX',
   'data/krtc_times.json': null,
+  'data/music.json': null,                     // 配樂曲庫,不含座標
   'data/ntalrt.json': 'TDX',
   'data/ntalrt_times.json': null,
   'data/ntdlrt.json': 'TDX',
@@ -55,6 +56,7 @@ export const GEOMETRY_SOURCE = {
   'data/tra_special_trains.json': null,
   'data/tra_station_class.json': null,
   'data/tra_station_info.json': 'TDX',
+  'data/transfer_departures.json': null,       // 輸出只有站名/車次/時刻,不含座標(轉乘群由 station_transfers.json 帶入,它自己也是 null)
   'data/trtc.json': 'TDX+OSM',                 // 環狀線 Y 自 mrt.json 搬入(OSM 幾何)
   'data/trtc_codes.json': null,
   'data/trtc_times.json': null,
@@ -89,6 +91,8 @@ export const HAND = {
     '交通部 TDX v3 Rail/TRA/Station——站名、地址與座標(scripts/fetch_tra_station_info.mjs)',
   'data/trtc_codes.json':
     '交通部 TDX Rail/Metro/TRTC/Station 的站碼與站名(實查 data/tdx/TRTC_Station.json,121/121 逐筆一致);所屬路線取自同批 TRTC_StationOfLine',
+  'data/transfer_departures.json':
+    '由 data/station_transfers.json（轉乘群）與 data/{tra,thsr,afr}_schedule_dense.json（時刻）推導,scripts/build_transfer_departures.mjs;只留 9 個轉乘站,台鐵取 d.dates[d.date] 的當日索引（tra_schedule_dense 是 14 天跨日去重聯集,直接用 d.trains 會混進其他日的改點變體）',
 };
 
 // 取原文開頭、在 MAXDESC 內的【最後一個句號處】收尾;沒有句號就直接截 MAXDESC。

@@ -112,7 +112,12 @@ ok('營運窗：05:41 已在窗內', trtcOperatingState(tpe(5, 41)).open === tru
 // ── 第 2 節：營運窗內——CarWeight 每 60 秒一次，另外兩支每輪都打 ─────────────
 resetCounts();
 const ROUNDS = 5, STEP_MS = 16e3;  // 16 秒 > 15 秒記憶體門檻 ⇒ 每一發都真的走一輪
-for (let i = 0; i < ROUNDS; i++) { await call(); advance(STEP_MS); }
+const bodies = [];
+for (let i = 0; i < ROUNDS; i++) { bodies.push(await call()); advance(STEP_MS); }
+// 🔴 節流的整個賭注：「少打上游」不可以連帶「畫面少東西」。第 2 輪必定是節流命中的那一輪
+// （t=16s，距上次取得 16 秒 < 60），它的擁擠度必須與第 1 輪一模一樣——少了這條，
+// 上面那些次數斷言就算全綠，也可能是把擁擠度整個弄丟換來的。
+const carsOfRound = b => JSON.stringify(((b && b.trains) || []).map(t => [t.no, t.cars || null]));
 // 期望值從時間軸推導，不手打：60 秒節流在 0s 打一次，之後每滿 60 秒再一次。
 const spanMs = STEP_MS * (ROUNDS - 1);
 const expectedHw = 1 + Math.floor(spanMs / 60e3);
@@ -123,6 +128,9 @@ ok('營運窗內：CarWeight 依 60 秒節流', counts.hw === expectedHw,
   `hw=${counts.hw}／期望=${expectedHw}（跨距 ${spanMs / 1000}s）`);
 ok('營運窗內：CarWeight 確實比另外兩支少（節流有作用）', counts.hw < counts.tk,
   `hw=${counts.hw} < tk=${counts.tk}`);
+ok('節流命中的那一輪，擁擠度仍在且與上一輪相同（省的是請求，不是資料）',
+  carsOfRound(bodies[1]) === carsOfRound(bodies[0]) && /\[1,1,2,2,1,1\]/.test(carsOfRound(bodies[1])),
+  `輪1=${carsOfRound(bodies[0])}／輪2=${carsOfRound(bodies[1])}`);
 
 // ── 第 3 節：CarWeight 失敗不得毒化記憶體 ───────────────────────────────────
 // 失敗那輪若把 [] 寫進 trtcHwMem，擁擠度會靜音整整 60 秒；正確行為是下一輪就重試。
