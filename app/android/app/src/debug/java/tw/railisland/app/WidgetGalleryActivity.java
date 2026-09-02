@@ -25,6 +25,7 @@ import java.util.List;
  *    在 src/debug 而不是用 BuildConfig.DEBUG 包起來：後者會把這些示範值一起編進正式版。
  *
  * 用法：adb shell am start -n tw.railisland.app/.WidgetGalleryActivity --es size 4x2 --es kind plate
+ *       size 可為 2x2／4x2／4x3／4x4（4x4＝大張卡片，兩種 kind 都走同一張 widget_board_4x4）
  */
 public final class WidgetGalleryActivity extends Activity {
 
@@ -62,6 +63,9 @@ public final class WidgetGalleryActivity extends Activity {
 
             MetroWidgetPlate[] rows = board ? withSecondDirection(sample.plates()) : sample.plates();
             RemoteViews views = sample.message != null ? sample.message
+                : "4x4".equals(size)
+                ? MetroWidgetPlateRender.large(this, R.layout.widget_board_4x4, rows,
+                    head(rows[0]), "單位分鐘", rows[0].footRight, rows[0].band, rows[0].bandBad, follows(rows))
                 : board
                 ? MetroWidgetPlateRender.board(this, layoutRes, rows, "4x3".equals(size) ? 3 : 2,
                     head(rows[0]), "單位分鐘", rows[0].footRight, rows[0].band, rows[0].bandBad)
@@ -151,6 +155,16 @@ public final class WidgetGalleryActivity extends Activity {
             in.thirdMinutes = null;
         }));
         return new MetroWidgetPlate[] { rows[0], second, third };
+    }
+
+    /** 大張卡片「接下來」七列的示範值：拿樣本的兩個方向輪流排、分鐘數遞增（與 MetroWidgetProvider.large 同一個欄位順序）。 */
+    private static List<String[]> follows(MetroWidgetPlate[] rows) {
+        List<String[]> out = new ArrayList<>();
+        for (int i = 1; i <= 7; i++) {
+            MetroWidgetPlate p = rows[i % rows.length];
+            out.add(new String[] { p.dest, p.lineLabel == null ? "" : p.lineLabel, String.valueOf(2 + i * 3), p.badgeColor });
+        }
+        return out;
     }
 
     private static String head(MetroWidgetPlate plate) {

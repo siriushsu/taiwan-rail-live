@@ -66,6 +66,8 @@
             android:textSize="10sp" />
     </LinearLayout>
 
+    <!-- 主角列的標題與副標各給兩行：英文終點站（To Taipei Nangang Exhibition Center）與
+         「Following train in about 10 min」在 5 欄寬度下一行放不完，中文一行就夠、不會多佔高度。 -->
     <LinearLayout
         android:id="@+id/wb_r1"
         android:layout_width="match_parent"
@@ -97,7 +99,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
-                android:maxLines="1"
+                android:maxLines="2"
                 android:text="往淡水"
                 android:textColor="@color/wg_ink"
                 android:textSize="19sp"
@@ -108,7 +110,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
-                android:maxLines="1"
+                android:maxLines="2"
                 android:text="列車在台大醫院"
                 android:textColor="@color/wg_ink_faint"
                 android:textSize="11sp" />
