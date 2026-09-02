@@ -11604,7 +11604,7 @@ const THEATER_IDLE_SEC = (() => {
 })();
 // ?breath=1 → 放空只抽「都會呼吸」幕(測試用,比照 ?theater 除錯先例;?live 訊號源不受此參數影響)。見 hotspotTick 的城市幕抽選。
 const FORCE_BREATH = (() => { try { return new URLSearchParams(location.search).get('breath') === '1'; } catch (e) { return false; } })();
-// 行程分享(暗啟動):v1 建置完成、旗標關閉出貨,訂閱上線才開(比照 RECORDING_ENABLED 模式)。只鎖「發起端」入口;
+// 行程分享(暗啟動):v1 建置完成、旗標關閉出貨,訂閱上線才開。只鎖「發起端」入口;
 // 接收端 ?trip= 解碼永遠作用(payload 本來就公開,不鎖)。?tripshare=1 當次開發起端測試(比照 ?breath=1,僅該次頁面生效)。
 const TRIP_SHARE_ENABLED = (() => { try { return new URLSearchParams(location.search).get('tripshare') === '1'; } catch (e) { return false; } })();
 // ── 網站街道底圖來源(亮/暗一般地圖;衛星不受此影響) ─────────────────────────────
@@ -31186,7 +31186,7 @@ async function boot() {
       if (!state._theater && state._hotScene && state._hotScene.breath) breathStageRestore(); // 使用者自己縮放才交還(清 CSS scale + 底圖回場);劇場入場的 flyToBounds(_theater 已真)不算
     }
   });
-  // crossOrigin: 錄影功能要把圖磚畫進合成 canvas,沒有 CORS 標記畫布會被汙染(無法 captureStream)
+  // crossOrigin: 圖磚預抓 warmTileWindow 讀 layer.options.crossOrigin 並寫回 img.crossOrigin,拿掉會靜默壞掉預抓(原為錄影合成 canvas 所需,錄影已刪但預抓仍依賴)
   // keepBuffer:桌機加大到 4(視窗外多留兩排,快速平移較常命中已載入邊界圖磚,少一輪重抓);
   // 手機退回預設 2——多留的圖磚 DOM 會讓每幀 setView 的 reflow 更重、也多吃記憶體,小螢幕划不來
   const kb = window.matchMedia('(max-width: 640px)').matches ? 2 : 4; // 裝置等級判斷,非殼斷點,維持 640(iPad 記憶體夠,不因改拿 tabbar 就縮圖磚緩衝)
