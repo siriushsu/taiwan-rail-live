@@ -114,6 +114,18 @@ try {
   if (xferFollow.status !== 0) fail('跟車中的接續釘選未過——面板算繪把點擊吃掉,或窄卡版面溢出'
     + '（單獨重跑：npm run check-transfer-follow-pin）');
 
+  // ── 2.9 北捷上游呼叫量閘門 ────────────────────────────────────────────────
+  // 2026-09-02 北捷來函「8 月三支 API 各逾 60 萬次、不似正常使用方式」之後補的。
+  // 這裡守的是兩件會【靜默】退回去的事：營運窗外的閘門、CarWeight 的 60 秒節流。
+  // 兩者都不影響畫面，所以任何回歸都不會被別的判準或人眼發現——只會在一個月後
+  // 變成下一封信。同 2.7／2.8：這支此前沒有任何呼叫者（那條路徑的守門人一直是空的，
+  // worker.js 註解指名的 verify_trtc_freshness.mjs 從來不存在）。
+  // 純離線（自帶 fetch／caches 替身，不打真實上游），驗的是這棵乾淨出貨樹那一份。
+  const budget = spawnSync('node', [path.join(wt, 'scripts', 'verify_trtc_call_budget.mjs')], { encoding: 'utf8' });
+  process.stdout.write(budget.stdout || ''); process.stderr.write(budget.stderr || '');
+  if (budget.status !== 0) fail('北捷呼叫量閘門未過——營運窗閘門或 CarWeight 節流被改掉了'
+    + '（單獨重跑：node scripts/verify_trtc_call_budget.mjs）');
+
   // ── 3. strip（腳本內建 esbuild AST 重印等價證明，任何不等價都非零退出）────
   const rawBytes = fs.readFileSync(path.join(wt, 'index.html'));
   execFileSync('node', [path.join(wt, 'scripts', 'strip_ship_comments.mjs'), wt], { stdio: 'inherit' });
