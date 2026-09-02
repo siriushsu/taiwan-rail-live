@@ -641,7 +641,6 @@
   #ppTxt { display: none; } /* 帶上播放鍵只出圖示(mock §02);字留在 DOM 給 JS 更新與無障礙 */
   #favRow { display: none !important; } /* 側欄最愛常駐列已取消(統一住 ★ 面板);renderFavs 仍寫這個 stub */
   #favBtn .ti { color: var(--gold); }
-  #recBtn .ti { color: var(--red); }
   .stage-tools button.active { background: var(--red); }
   .stage-tools button.active .ti, .stage-tools button.active .tl { color: #fffdf6; }
 
@@ -679,20 +678,6 @@
   .topbar .tb-plate .plate-foot .stn:first-child::before,
   .topbar .tb-plate .plate-foot .stn:last-child::after { font-size: calc(6px * var(--uis)); margin: 0 3px; }
 
-  /* 錄影中浮條(地圖頂部置中):唯一的錄影狀態指示,點它停止並下載。 */
-  .rec-pill {
-    position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1200;
-    display: flex; align-items: center; gap: 7px;
-    background: var(--paper); color: var(--red); border: 1.5px solid var(--red); border-radius: var(--r-pill);
-    box-shadow: var(--shadow-red); padding: 6px 14px;
-    font-size: calc(13px * var(--ui)); font-weight: 800; letter-spacing: .5px; cursor: pointer;
-    font-variant-numeric: tabular-nums;
-  }
-  .rec-pill[hidden] { display: none; }
-  .rec-pill .rd { width: 9px; height: 9px; border-radius: 50%; background: var(--red); animation: recBlink 1.1s steps(2, start) infinite; }
-  .rec-pill .rstop { font-weight: 700; font-size: calc(12px * var(--uis)); opacity: .85; border-left: 1px solid var(--line); padding-left: 8px; color: var(--muted); }
-  .rec-pill:hover { background: var(--bg-stage); }
-  @keyframes recBlink { to { opacity: 0; } }
   /* ── 劇場模式提示膠囊(獨立 class,亮暗雙主題走 CSS 變數;不被 body.idle 隱藏) ── */
   .theater-pill {
     position: absolute; left: 50%; bottom: calc(var(--sa-b) + 22px);
@@ -850,22 +835,6 @@
   .rc-stop { min-width: 200px; min-height: 56px; font-size: calc(18px * var(--ui)); border-radius: 28px;
     background: #fff; color: #000; border: 0; font-weight: 700; }
   .rc-stop:disabled { opacity: .55; }
-  /* 錄影結束吐司:下載後留 60 秒的「再下載」保險 */
-  .rec-toast {
-    position: absolute; top: 56px; left: 50%; transform: translateX(-50%); z-index: 1200;
-    display: flex; align-items: center; gap: 8px; max-width: calc(100% - 24px);
-    background: var(--paper); color: var(--ink); border: 1.5px solid var(--line); border-radius: var(--r-pill);
-    box-shadow: var(--shadow-1); padding: 6px 8px 6px 14px; font-size: calc(12.5px * var(--ui)); font-weight: 600;
-  }
-  .rec-toast[hidden] { display: none; }
-  .rec-toast span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .rec-toast button {
-    font: inherit; font-size: calc(12.5px * var(--ui)); font-weight: 700; cursor: pointer; white-space: nowrap;
-    background: var(--navy); color: var(--on-navy); border: 0; border-radius: var(--r-pill); padding: 4px 12px;
-  }
-  .rec-toast button:hover { opacity: .9; }
-  .rec-toast button.x { background: none; color: var(--faint); padding: 4px 6px; font-size: calc(15px * var(--ui)); }
-  .rec-toast button.x:hover { background: var(--bg-stage); color: var(--ink); }
 
   /* 停靠站名牌(時鐘儀表正下方、靠左直欄,跟隨列車停站時淡入)——仿台鐵月台站名牌 */
   .dwell-plate {
@@ -1757,7 +1726,7 @@
 
   /* ── 直播模式(?live=1,OBS 訊號源):隱藏一切互動 UI,留時鐘徽章/attribution/浮水印 ── */
   body.live .controls, body.live #randBtn, body.live #nearBtn,
-  body.live .rec-pill, body.live .rec-toast, body.live .leaflet-control-zoom,
+  body.live .leaflet-control-zoom,
   body.live .follow-lock-ctl, body.live .citysel, body.live #fsFab, body.live .tabbar { display: none !important; }
   body.live .leaflet-control-container { opacity: 1 !important; }
   body.live .leaflet-bottom.leaflet-right { bottom: 0; }
@@ -2704,7 +2673,7 @@
     padding: 18px; background: rgba(20,29,42,.58);
   }
   .takeout-modal[hidden] { display: none; }
-  /* 強制更新閘門:蓋過一切(含六顆 modal 的 2200 與錄影層),刻意無關閉鈕。
+  /* 強制更新閘門:蓋過一切(含六顆 modal 的 2200),刻意無關閉鈕。
      背景比一般 modal 更不透明——底下的 App 已宣告停止支援,不該讓人隔著紗繼續看。 */
   #appGate {
     position: fixed; inset: 0; z-index: 3000; display: grid; place-items: center;
@@ -3199,9 +3168,8 @@
   body.tools-open .more-sheet, body.tools-open .more-scrim { display: flex; }
   body.tools-open .more-scrim { display: block; }
 
-  /* ── 中窄寬度(平板/窄視窗):錄影浮條下移讓開左上時鐘徽章;版權字截短讓開置中隨機鈕 ── */
+  /* ── 中窄寬度(平板/窄視窗):版權字截短讓開置中隨機鈕 ── */
   @media (max-width: 1024px) {
-    .rec-pill { top: 56px; }
     .leaflet-control-attribution {
       max-width: 38vw; white-space: nowrap;
       overflow: hidden; text-overflow: ellipsis;
@@ -3568,7 +3536,6 @@
     }
     /* 手機:工具全部住在 tab bar「更多」sheet;帶收成速度膠囊(見下) */
     .tabbar { display: flex; }
-    .rec-toast { left: 8px; transform: none; max-width: calc(100% - 124px); }
     /* 版權列:一條單行貼齊底緣(2026-08-29 使用者實機回報)。
        原本是「右下角換行、每個來源都留可見命中框」,在 CARTO 底圖(字串短)看起來沒事;
        換衛星底圖後字串變成 'Leaflet | 臺灣輪廓：內政部, Tiles © Esri — Source: Esri, Maxar,

@@ -74,7 +74,7 @@ const WIDTHS = [360, 375, 414, 768];
 // 元素各自 `!el.hidden && el.offsetParent` 才納入比較,不強求四顆同時在場——但「目標容器本身
 // 量到非零尺寸」這一關是每個實例都必過的硬門檻,防止祖先仍 [hidden] 時整組收斂成 0 卻誤判過關
 // (見檔頭說明)。
-const OTHERS = ['#statBadge', '.rec-pill', '#randBtn', '#nearBtn'];
+const OTHERS = ['#statBadge', '#randBtn', '#nearBtn'];
 const browser = await chromium.launch();
 let firstPage = true;
 

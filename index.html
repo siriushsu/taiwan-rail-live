@@ -674,7 +674,6 @@
   #ppTxt { display: none; } /* 帶上播放鍵只出圖示(mock §02);字留在 DOM 給 JS 更新與無障礙 */
   #favRow { display: none !important; } /* 側欄最愛常駐列已取消(統一住 ★ 面板);renderFavs 仍寫這個 stub */
   #favBtn .ti { color: var(--gold); }
-  #recBtn .ti { color: var(--red); }
   .stage-tools button.active { background: var(--red); }
   .stage-tools button.active .ti, .stage-tools button.active .tl { color: #fffdf6; }
 
@@ -712,20 +711,6 @@
   .topbar .tb-plate .plate-foot .stn:first-child::before,
   .topbar .tb-plate .plate-foot .stn:last-child::after { font-size: calc(6px * var(--uis)); margin: 0 3px; }
 
-  /* 錄影中浮條(地圖頂部置中):唯一的錄影狀態指示,點它停止並下載。 */
-  .rec-pill {
-    position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1200;
-    display: flex; align-items: center; gap: 7px;
-    background: var(--paper); color: var(--red); border: 1.5px solid var(--red); border-radius: var(--r-pill);
-    box-shadow: var(--shadow-red); padding: 6px 14px;
-    font-size: calc(13px * var(--ui)); font-weight: 800; letter-spacing: .5px; cursor: pointer;
-    font-variant-numeric: tabular-nums;
-  }
-  .rec-pill[hidden] { display: none; }
-  .rec-pill .rd { width: 9px; height: 9px; border-radius: 50%; background: var(--red); animation: recBlink 1.1s steps(2, start) infinite; }
-  .rec-pill .rstop { font-weight: 700; font-size: calc(12px * var(--uis)); opacity: .85; border-left: 1px solid var(--line); padding-left: 8px; color: var(--muted); }
-  .rec-pill:hover { background: var(--bg-stage); }
-  @keyframes recBlink { to { opacity: 0; } }
   /* ── 劇場模式提示膠囊(獨立 class,亮暗雙主題走 CSS 變數;不被 body.idle 隱藏) ── */
   .theater-pill {
     position: absolute; left: 50%; bottom: calc(var(--sa-b) + 22px);
@@ -883,22 +868,6 @@
   .rc-stop { min-width: 200px; min-height: 56px; font-size: calc(18px * var(--ui)); border-radius: 28px;
     background: #fff; color: #000; border: 0; font-weight: 700; }
   .rc-stop:disabled { opacity: .55; }
-  /* 錄影結束吐司:下載後留 60 秒的「再下載」保險 */
-  .rec-toast {
-    position: absolute; top: 56px; left: 50%; transform: translateX(-50%); z-index: 1200;
-    display: flex; align-items: center; gap: 8px; max-width: calc(100% - 24px);
-    background: var(--paper); color: var(--ink); border: 1.5px solid var(--line); border-radius: var(--r-pill);
-    box-shadow: var(--shadow-1); padding: 6px 8px 6px 14px; font-size: calc(12.5px * var(--ui)); font-weight: 600;
-  }
-  .rec-toast[hidden] { display: none; }
-  .rec-toast span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .rec-toast button {
-    font: inherit; font-size: calc(12.5px * var(--ui)); font-weight: 700; cursor: pointer; white-space: nowrap;
-    background: var(--navy); color: var(--on-navy); border: 0; border-radius: var(--r-pill); padding: 4px 12px;
-  }
-  .rec-toast button:hover { opacity: .9; }
-  .rec-toast button.x { background: none; color: var(--faint); padding: 4px 6px; font-size: calc(15px * var(--ui)); }
-  .rec-toast button.x:hover { background: var(--bg-stage); color: var(--ink); }
 
   /* 停靠站名牌(時鐘儀表正下方、靠左直欄,跟隨列車停站時淡入)——仿台鐵月台站名牌 */
   .dwell-plate {
@@ -1790,7 +1759,7 @@
 
   /* ── 直播模式(?live=1,OBS 訊號源):隱藏一切互動 UI,留時鐘徽章/attribution/浮水印 ── */
   body.live .controls, body.live #randBtn, body.live #nearBtn,
-  body.live .rec-pill, body.live .rec-toast, body.live .leaflet-control-zoom,
+  body.live .leaflet-control-zoom,
   body.live .follow-lock-ctl, body.live .citysel, body.live #fsFab, body.live .tabbar { display: none !important; }
   body.live .leaflet-control-container { opacity: 1 !important; }
   body.live .leaflet-bottom.leaflet-right { bottom: 0; }
@@ -2750,7 +2719,7 @@
     padding: 18px; background: rgba(20,29,42,.58);
   }
   .takeout-modal[hidden] { display: none; }
-  /* 強制更新閘門:蓋過一切(含六顆 modal 的 2200 與錄影層),刻意無關閉鈕。
+  /* 強制更新閘門:蓋過一切(含六顆 modal 的 2200),刻意無關閉鈕。
      背景比一般 modal 更不透明——底下的 App 已宣告停止支援,不該讓人隔著紗繼續看。 */
   #appGate {
     position: fixed; inset: 0; z-index: 3000; display: grid; place-items: center;
@@ -3245,9 +3214,8 @@
   body.tools-open .more-sheet, body.tools-open .more-scrim { display: flex; }
   body.tools-open .more-scrim { display: block; }
 
-  /* ── 中窄寬度(平板/窄視窗):錄影浮條下移讓開左上時鐘徽章;版權字截短讓開置中隨機鈕 ── */
+  /* ── 中窄寬度(平板/窄視窗):版權字截短讓開置中隨機鈕 ── */
   @media (max-width: 1024px) {
-    .rec-pill { top: 56px; }
     .leaflet-control-attribution {
       max-width: 38vw; white-space: nowrap;
       overflow: hidden; text-overflow: ellipsis;
@@ -3614,7 +3582,6 @@
     }
     /* 手機:工具全部住在 tab bar「更多」sheet;帶收成速度膠囊(見下) */
     .tabbar { display: flex; }
-    .rec-toast { left: 8px; transform: none; max-width: calc(100% - 124px); }
     /* 版權列:一條單行貼齊底緣(2026-08-29 使用者實機回報)。
        原本是「右下角換行、每個來源都留可見命中框」,在 CARTO 底圖(字串短)看起來沒事;
        換衛星底圖後字串變成 'Leaflet | 臺灣輪廓：內政部, Tiles © Esri — Source: Esri, Maxar,
@@ -4875,8 +4842,6 @@
       <svg class="fs-ic fs-ic-open" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4"/></svg>
       <svg class="fs-ic fs-ic-close" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4v4a1 1 0 0 1-1 1H4M15 4v4a1 1 0 0 0 1 1h4M9 20v-4a1 1 0 0 0-1-1H4M15 20v-4a1 1 0 0 1 1-1h4"/></svg>
     </button>
-    <div class="rec-pill" id="recPill" hidden title="停止錄影並下載影片"><span class="rd"></span>REC <span id="recTime">0:00</span><span class="rstop">停止</span></div>
-    <div class="rec-toast" id="recToast" hidden><span id="recToastTxt"></span><button id="recRedl">再下載一次</button><button class="x" id="recToastX" title="關閉">×</button></div>
     <div class="badge" id="statBadge" role="button" tabindex="0" aria-expanded="false" aria-controls="statPop" title="資料狀態">
       <span class="clock" id="clock">08:00</span>
       <span class="live" id="liveBadge" hidden>LIVE</span>
@@ -5014,8 +4979,6 @@
         <button id="locateBtn" style="display:none" title="定位我的位置，看附近有哪些平交道、火車是否快通過"><span class="ti">◎</span><span class="tl">定位</span></button>
         <button id="immBtn" title="極簡沉浸（只留地圖與列車）"><span class="ti">簡</span><span class="tl">極簡</span></button>
         <button id="powerBtn" title="省電模式（更新降頻至約 30fps，手機掛著看更省電、更不易卡）"><span class="ti">省</span><span class="tl">省電</span></button>
-        <!-- 錄影暫時下架:入口隱藏、程式全保留;見 RECORDING_ENABLED。比照 locateBtn 先 inline 藏(首繪不閃現),setupRecorder 再移除 -->
-        <button id="recBtn" style="display:none" title="錄影 Beta（存成影片下載）"><span class="ti">⏺</span><span class="tl">錄影</span></button>
         <button id="importBtn" style="display:none" title="匯入 Google Maps 已儲存清單"><span class="ti">匯</span><span class="tl">匯入</span></button>
         <!-- 帳號同步暫時下架(轉收費整備):入口隱藏、程式全保留;見 ACCOUNT_ENABLED。?account=delete 深連結仍可進刪帳號流程 -->
         <button id="accountBtn" style="display:none" title="登入與跨裝置同步"><span class="ti">帳</span><span class="tl">帳號</span></button>
@@ -5702,10 +5665,6 @@
     <button class="ms-row warnrow" data-proxy="powerBtn"><span>省電模式（30fps）</span><span class="toggle" data-tg="powerBtn"></span></button>
     <button class="ms-row" data-proxy="musicBtn"><span>背景音樂</span><span class="toggle" data-tg="musicBtn"></span></button>
     <button class="ms-row" data-proxy="ambientBtn" data-close="1"><span>放空模式</span><span class="chev">›</span></button>
-    <!-- 錄影下架(v0717j,Stadia 條款):比照 #recBtn 先 inline 藏,不靠 setupRecorder 才移除——
-         2026-07-26 實測 boot 前段一拋(setupMapTools 抓 null),setupRecorder 就永遠跑不到,這列會整個復活且可點。
-         .ms-row 的 display:flex 蓋得過 [hidden],故只能用 inline style;旗標復活時由 setupRecorder 還原 -->
-    <button class="ms-row" data-proxy="recBtn" data-close="1" style="display:none"><span>錄影 Beta</span><span class="chev">›</span></button>
     <div class="ms-sec">分享與資料</div>
     <button class="ms-row" data-proxy="shareBtn" data-close="1"><span>分享畫面</span><span class="chev">›</span></button>
     <button class="ms-row" data-proxy="importBtn" data-close="1" style="display:none"><span>Google 清單匯入</span><span class="chev">›</span></button>
@@ -11613,7 +11572,6 @@ const BOUNTY_ENABLED = (() => { try {
 } catch (e) { return false; } })();
 // 收集地圖同批下架。它其實不碰 GPS(資料來自既有乘車記錄),所以給它自己的旗標:要單獨復活只動這一行。
 const COLLECT_MAP_ENABLED = flagOnce('collectmap');
-const RECORDING_ENABLED = false; // 2026-07-17 錄影暫時下架(整備中):所有入口隱藏、實作全保留;改 true 即復活(工具列鈕+更多抽屜列+Plus 文案)
 const ACCOUNT_ENABLED = false; // 此旗標只控制帳號 UI 要不要 eager 初始化:false=帳號鈕預設隱藏、不對訪客載 Firebase。
 // 購買鏈不需要它——有購買通道的平台由 plusOpen() 先 accountEnsureInit() 延遲初始化,無購買通道的平台
 // (網站)由 Plus 面板內的「登入以同步」CTA 觸發。true 會讓 setupAccountUi()(互斥二選一)
@@ -13502,9 +13460,6 @@ function plusConfigured() {
   // 不能因設定檔內只有 iOS/Android key 就誤開入口，否則購買時會拿 undefined 初始化 Web SDK。
   return !!(window.RAIL_NATIVE_PLUS_ADAPTER || window.RAIL_PLUS_TEST_ADAPTER || (c.entitlement && c.webApiKey));
 }
-function musicRecordingLicensed() {
-  return REC_MUSIC_PROTOTYPE || (musicAvailable() && plusConfig().musicRecordingLicensed === true);
-}
 function plusLoadWebSdk() {
   if (window.Purchases && window.Purchases.Purchases) return Promise.resolve(window.Purchases);
   if (plusLoadWebSdk._p) return plusLoadWebSdk._p;
@@ -14371,8 +14326,8 @@ function tickCore(now) {
   // 同一種安全網,給手勢鎖:放空已關但手勢還鎖著(漏掉離場點/setAmbient 中途拋例外)⇒ 地圖會變成永久動不了,立刻交還
   if (!state.ambient && map && map.dragging && !map.dragging.enabled()) setMapGestures(true);
   // 省電模式:把「相機每幀 setView 置中(觸發 reflow,手機跟隨時的主要卡點)＋繪製」統一節流到 ~30fps。
-  // 放空/錄影不套(放空游標以 dt 積分,節流會變慢;錄影要滿幀);時間積分與各資訊卡時鐘照每幀跑,不受影響。
-  const psActive = state.powerSave && !REC.on && !state.ambient;
+  // 放空不套(放空游標以 dt 積分,節流會變慢);時間積分與各資訊卡時鐘照每幀跑,不受影響。
+  const psActive = state.powerSave && !state.ambient;
   let renderNow = true;
   // 省電節流「只管待機」:剛互動(1.5s 內——拖曳/縮放/捏合會持續刷新 _interactAt)一律維持顯示器全速。
   // 否則拖曳平移時 Leaflet 圖磚 pane 每幀跟手指(60–120Hz)、軌道 canvas 卻只 30fps 重畫→軌道落後圖磚(實測落後 ~5–11px)。
@@ -14416,12 +14371,12 @@ function tickCore(now) {
     if (state.liveMode && !state.director) liveClockTick(); else if (state.director) directorClockTick(); else clockDriftGuard();
   } // 導播現在也是 1× 貼真實時刻,只是用不含深夜重播替代的簡化版;兩徽章同秒刷,快轉跨門檻時同步轉推估
   // 省電三板斧(繪製節流,不動上面的時間積分):
-  // (1) 分頁隱藏停繪——時間照積分,只是不畫;錄影中例外(recCompose 每幀從主畫布拷貝,停繪會凍結成靜止幀)
-  // (2) 待機時 draw 節流到 ~30fps;跟隨/幽靈車跟隨/放空/錄影/剛互動(1.5s 內)維持顯示器全速,體驗優先
+  // (1) 分頁隱藏停繪——時間照積分,只是不畫
+  // (2) 待機時 draw 節流到 ~30fps;跟隨/幽靈車跟隨/放空/剛互動(1.5s 內)維持顯示器全速,體驗優先
   // (3) 縮放動畫期間(_zoomAnim)改由 zoomAnimFrame 驅動:每幀讀圖磚插值矩陣→仿射重投影+重繪
   //     (幾何跟圖磚同縮、字級線寬不變,見 onZoomAnim 區塊);只有 ~250ms、屬互動高峰,不吃省電節流
-  if ((!document.hidden || REC.on) && state._zoomAnim) { zoomAnimFrame(); }
-  else if (!document.hidden || REC.on) {
+  if ((!document.hidden) && state._zoomAnim) { zoomAnimFrame(); }
+  else if (!document.hidden) {
     // 拖曳/捏合/平移動畫的這一幀,map 'move' 已在 Leaflet 挪 pane 的同一個 callback 裡同步重繪(syncDraw,見 boot):
     // 本幀不再畫第二次(≤2 幀內才算同幀,過期旗標不得壓掉正常重繪)
     const synced = state._syncDrew && now - (state._syncDrawAt || 0) < 34; state._syncDrew = false;
@@ -14429,7 +14384,7 @@ function tickCore(now) {
     else if (psActive) {
       if (renderNow) { state._drawAt = now; state._stg = 'd'; draw(); state._drawDoneAt = now; state._stg = 'i'; } // 省電:跟隨也降到 ~30fps;相機與繪製同一個 renderNow 閘,列車不會與底圖錯位
     } else {
-      const fullRate = state.followTrain || state.freqFollow || state.ambient || REC.on ||
+      const fullRate = state.followTrain || state.freqFollow || state.ambient ||
                        (now - (state._interactAt || 0) < 1500);
       if (fullRate || now - (state._drawAt || 0) >= 30) { state._drawAt = now; state._stg = 'd'; draw(); state._drawDoneAt = now; state._stg = 'i'; } // 30ms 門檻→~30fps(略低於 33 免 60Hz 誤跳成 20fps)
     }
@@ -15935,7 +15890,7 @@ function camBlocked() { return !!state._theater || document.hidden; }
 // 車輛照常在上面跑。省磚原理從「卸掉圖磚層」換成「相機不動就不會有新圖磚」:全島視角是最低 zoom 的固定一屏
 // (數十張),且 Stadia 回 max-age=21600(6 小時),第二次進場之後幾乎全走瀏覽器快取。
 function enterTheater() {
-  if (!state.ambient || state._theater || state.liveMode || REC.on || !map) return; // OBS(?live)/錄影/非放空一律不進
+  if (!state.ambient || state._theater || state.liveMode || !map) return; // OBS(?live)/非放空一律不進
   state._theater = true;
   breathStageRestore();    // 呼吸舞台交棒給劇場:清 CSS scale + 旗標(_theater 已真→內部跳過 setBasemap)
   document.body.classList.add('theater');
@@ -16641,8 +16596,7 @@ function initMusic() {
   const audio = window.RAIL_NATIVE_AUDIO ? makeNativeMusicShim(window.RAIL_NATIVE_AUDIO) : new Audio();
   audio.preload = 'none';
   audio.volume = 0;
-  // 錄影混音延後到 Plus 使用者播放音樂或開始錄影時才建立，一般訪客不多載一個 AudioContext。
-  state.music = { enabled: pref.enabled, vol: pref.vol, audio, mixCtx: null, mixSrc: null, mixDest: null,
+  state.music = { enabled: pref.enabled, vol: pref.vol, audio,
     list: available ? musicShuffle(MUSIC_FILES.slice()) : [], idx: 0, _fade: null, _fails: 0, _fellBack: false,
     mode: pref.mode, _ctxAt: 0, _ctxKey: '', _ctxCand: '', _lastPoolId: null, _curPoolId: null, _curCtxKey: '', _effKey: '' };
   // 曲庫改由 data/music.json 供給;載不到就維持上面那份硬編清單(部署缺檔時不至於整個沒音樂)。
@@ -16799,38 +16753,12 @@ function musicRamp(to, ms, thenPause) { // 音量漸變(50ms 一階)
     if (i >= steps) { clearInterval(state.music._fade); if (thenPause) a.pause(); }
   }, 50);
 }
-// 錄影下架期間絕不建混音（即使授權旗標與通行證都真）:iOS 進背景會暫停 AudioContext，
-// 音樂一旦繞進混音圖，背景續播就變成「在播但無聲」;錄影復活時這裡自動跟著 RECORDING_ENABLED 回來。
-function musicMixEntitled() { return REC_MUSIC_PROTOTYPE || (RECORDING_ENABLED && musicRecordingLicensed() && plusIsActive()); }
-function musicEnsureMix(force) {
-  const m = state.music; if (!m || m.mixDest || (!force && !musicMixEntitled())) return m && m.mixDest;
-  try {
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (!AudioCtx) return null;
-    m.mixCtx = new AudioCtx();
-    m.mixSrc = m.mixCtx.createMediaElementSource(m.audio);
-    m.mixDest = m.mixCtx.createMediaStreamDestination();
-    m.mixSrc.connect(m.mixCtx.destination);
-    m.mixSrc.connect(m.mixDest);
-    return m.mixDest;
-  } catch (e) {
-    console.warn('背景音樂錄影混音初始化失敗，退回一般播放', e);
-    m.mixCtx = m.mixSrc = m.mixDest = null;
-    return null;
-  }
-}
-function musicResumeMix(force) {
-  musicEnsureMix(force);
-  const c = state.music && state.music.mixCtx;
-  if (c && c.state === 'suspended') c.resume().catch(() => {});
-}
 function musicPlay() {
   const m = state.music;
   if (!musicAvailable() || !m.list.length) return;
   clearInterval(m._fade); // 停播淡出未完就再開:取消殘留淡出,免得它的最後一步把剛開播的音樂又暫停(鈕面卡在🔇)
   if (!m.audio.src) musicLoadCur();
   m.audio.volume = 0;
-  musicResumeMix(); // AudioContext 初次必須在使用者手勢內 resume,否則 audio 元素雖在播放但混音輸出仍靜音
   m.audio.play().then(() => musicRamp(m.vol, 1200)).catch(() => {}); // 自動播放被擋就靜默略過
 }
 function musicStop() { musicRamp(0, 800, true); }
@@ -30478,191 +30406,6 @@ function setupMapTools() {
   map.on('zoomend', applyZfar); applyZfar();
 }
 
-// ── 站內錄影:每幀把「圖磚 → Leaflet 向量層 → 列車 overlay → 浮水印」合成到離屏 canvas,
-//    captureStream＋MediaRecorder 在瀏覽器內編碼,停止即下載。全程無伺服器。
-//    DOM UI(面板、按鈕、錄影浮條)不入鏡;Leaflet 版權列是 DOM 也不入鏡,所以圖資出處補畫在影片左下。
-//    前提:三個 tile layer 都開 crossOrigin,否則合成畫布被無 CORS 圖磚汙染,captureStream 直接報廢。 ──
-const REC_MUSIC_PROTOTYPE = LOCAL_DEV
-  && new URLSearchParams(location.search).get('recAudio') === '1'; // 僅限本機技術驗證；正式網站/App 不可用網址繞過 Plus 與授權閘門
-const REC = { on: false, rec: null, chunks: [], cv: null, g: null, raf: 0, t0: 0, scale: 1, w: 0, h: 0, lastBlob: null, withMusic: false, stream: null };
-window.__REC = REC; // 本機驗證用:確認 MediaRecorder 實際收到的影音軌,不提供 UI
-const WM_LOGO = new Image();
-WM_LOGO.onerror = () => { WM_LOGO._missing = true; };
-WM_LOGO.src = 'assets/wm-logo.png'; // Claude Design 產出的 logo 放這路徑即自動入浮水印;缺檔＝純文字版
-
-function recMime(withAudio) {
-  // mp4 優先(LINE/IG 通吃;Safari 只出 mp4、新 Chrome 也支援),不行退 webm
-  const list = withAudio
-    ? ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
-    : ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'];
-  for (const m of list) if (MediaRecorder.isTypeSupported(m)) return m;
-  return '';
-}
-
-function drawWatermark(g, w, h) {
-  const dark = state.basemap === 'sat' || state.mapDark;
-  const ink = dark ? 'rgba(255,253,246,.95)' : 'rgba(30,44,64,.9)';
-  const halo = dark ? 'rgba(0,0,0,.6)' : 'rgba(255,253,246,.9)';
-  const pad = 12, wmFont = '-apple-system, "PingFang TC", "Noto Sans TC", sans-serif';
-  g.save();
-  g.shadowColor = halo; g.shadowBlur = 4;
-  g.fillStyle = ink; g.textAlign = 'right'; g.textBaseline = 'bottom';
-  if (WM_LOGO.complete && WM_LOGO.naturalWidth && !WM_LOGO._missing) {
-    // 方牌 logo(45% 透明已烘焙,不再調 alpha)+牌下網址;「軌島」字樣已在牌上,不重複畫
-    const lh = 54, lw = lh * (WM_LOGO.naturalWidth / WM_LOGO.naturalHeight);
-    g.shadowBlur = 0; // 牌自帶邊框,吃 shadow 會起毛邊
-    g.drawImage(WM_LOGO, w - pad - lw, h - pad - 15 - lh, lw, lh);
-    g.shadowBlur = 4;
-    g.font = '600 11px ' + wmFont;
-    g.globalAlpha = .85;
-    g.fillText('railisland.tw', w - pad, h - pad);
-  } else {
-    g.font = '800 14px ' + wmFont;
-    g.fillText('軌島', w - pad, h - pad - 16);
-    g.font = '600 11px ' + wmFont;
-    g.globalAlpha = .85;
-    g.fillText('railisland.tw', w - pad, h - pad);
-  }
-  // 圖資出處跟著影片走(衛星=Esri,一般/暗色=OSM+CARTO)。
-  // 放上一行與短的站名同列,不與長網址同列——窄畫面(直式錄影)兩者會在中間相撞
-  g.textAlign = 'left'; g.globalAlpha = .8;
-  g.font = '10px ' + wmFont;
-  const mapCredit = REC.fallbackVisible ? '臺灣輪廓：內政部' : (state.basemap === 'sat' ? '© Esri — Maxar, Earthstar Geographics' : '© OpenStreetMap © CARTO');
-  g.fillText(mapCredit, pad, h - pad - 17);
-  g.restore();
-}
-
-function recCompose() {
-  const mapEl = map.getContainer(), mr = mapEl.getBoundingClientRect(), g = REC.g;
-  g.setTransform(REC.scale, 0, 0, REC.scale, 0, 0);
-  g.fillStyle = getComputedStyle(mapEl).backgroundColor || '#e9e2cf'; // 圖磚未載入處墊底色
-  g.fillRect(0, 0, REC.w, REC.h);
-  const loadedTiles = [...mapEl.querySelectorAll('img.leaflet-tile-loaded')];
-  REC.fallbackVisible = loadedTiles.length === 0 && !!state.offlineLand;
-  for (const t of loadedTiles) {
-    const r = t.getBoundingClientRect();
-    if (r.right < mr.left || r.left > mr.right || r.bottom < mr.top || r.top > mr.bottom) continue;
-    g.globalAlpha = t.style.opacity === '' ? 1 : +t.style.opacity; // 跟上 Leaflet 圖磚淡入,換圖不跳格
-    g.drawImage(t, r.left - mr.left, r.top - mr.top, r.width, r.height);
-  }
-  g.globalAlpha = 1;
-  for (const c of mapEl.querySelectorAll('.leaflet-fallback-pane canvas, .leaflet-overlay-pane canvas')) {
-    const r = c.getBoundingClientRect();
-    g.drawImage(c, r.left - mr.left, r.top - mr.top, r.width, r.height);
-  }
-  g.drawImage(cv, 0, 0, REC.w, REC.h);
-  drawWatermark(g, REC.w, REC.h);
-}
-
-function recFrame() {
-  recCompose();
-  // Safari 幀交付不能只靠合成器排程(實測影片開頭整段空白),每幀主動推;上限 ~30fps 免得高刷螢幕灌爆編碼器
-  const now = performance.now();
-  if (REC.track && REC.track.requestFrame && now - (REC._lastReq || 0) >= 33) { REC._lastReq = now; REC.track.requestFrame(); }
-  const sec = Math.floor((performance.now() - REC.t0) / 1000);
-  const txt = Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
-  const tEl = document.getElementById('recTime');
-  if (tEl.textContent !== txt) tEl.textContent = txt;
-  REC.raf = requestAnimationFrame(recFrame);
-}
-
-function recStart() {
-  if (REC.on) return;
-  if (!state.ready) { alert('地圖資料還在載入中,載入完成後再開始錄影'); return; } // 沒資料就錄=整段底色+浮水印的空白片
-  const wantsMusic = !!(state.music && state.music.enabled && !state.music.audio.paused);
-  if (wantsMusic && !musicRecordingLicensed()) showToast('目前錄影先不包含音樂；授權確認後才會開放');
-  // 音樂仍可在使用者裝置播放，但沒有逐首商用證明前不可寫進可分享的錄影檔。
-  if (wantsMusic && musicRecordingLicensed() && plusConfigured() && !musicMixEntitled()) {
-    // 在使用者點錄影的手勢內先建立/啟用 AudioContext，避免付款返回後被行動瀏覽器擋下。
-    musicResumeMix(true);
-    plusRequire('record-music', recStart);
-    return;
-  }
-  const mixDest = wantsMusic ? musicEnsureMix() : null;
-  const mixTrack = mixDest && mixDest.stream.getAudioTracks()[0];
-  REC.withMusic = !!(musicMixEntitled() && mixTrack && wantsMusic);
-  if (REC.withMusic) musicResumeMix();
-  const mime = recMime(REC.withMusic);
-  if (!mime) { alert('這個瀏覽器不支援錄影(無可用影片編碼)'); return; }
-  const mr = map.getContainer().getBoundingClientRect();
-  REC.scale = Math.min(window.devicePixelRatio || 1, 2); // 上限 2x:畫質夠、檔案與編碼負擔不爆
-  REC.w = mr.width; REC.h = mr.height;
-  REC.cv = document.createElement('canvas');
-  REC.cv.width = Math.floor(REC.w * REC.scale / 2) * 2; // h264 要偶數邊
-  REC.cv.height = Math.floor(REC.h * REC.scale / 2) * 2;
-  REC.g = REC.cv.getContext('2d');
-  try { recCompose(); REC.g.getImageData(0, 0, 1, 1); } // 汙染防呆:合成一幀試讀,被無 CORS 圖磚汙染就會 throw
-  catch (e) { alert('錄影初始化失敗:圖磚缺 CORS,請重新整理頁面後再試'); REC.cv = REC.g = null; return; }
-  REC.chunks = [];
-  const stream = REC.cv.captureStream(30);
-  if (REC.withMusic) stream.addTrack(mixTrack); // 不 clone/stop:同一條混音軌可供下一段錄影繼續使用
-  REC.stream = stream;
-  REC.track = stream.getVideoTracks()[0];
-  REC.rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8e6 });
-  if (REC_MUSIC_PROTOTYPE) console.info('錄影音樂驗證', { withMusic: REC.withMusic, mime, audioTracks: stream.getAudioTracks().length, videoTracks: stream.getVideoTracks().length });
-  REC.rec.ondataavailable = e => { if (e.data && e.data.size) REC.chunks.push(e.data); };
-  REC.rec.onstop = recSave;
-  REC.on = true; REC.t0 = performance.now();
-  REC.rec.start(1000); // 立刻啟動+每秒吐一塊。真 Safari 實測:先啟動再讓幀流動,0.2s 內就有內容;延遲啟動反而整段開頭空白
-  // 背景保活:切分頁/切 app 後 rAF 停擺,退化用計時器餵幀(背景被節流到 ~1fps 也夠),錄影不會從此空白凍結
-  REC._bgTimer = setInterval(() => { if (REC.on && document.hidden) { recCompose(); if (REC.track.requestFrame) REC.track.requestFrame(); } }, 500);
-  document.getElementById('recTime').textContent = '0:00';
-  document.getElementById('recToast').hidden = true; // 開新錄影先收吐司;上一段的 blob URL 留到本段存檔時才回收
-  document.getElementById('recPill').hidden = false;
-  const b = document.getElementById('recBtn');
-  b.classList.add('active'); b.title = '停止錄影並下載';
-  b.querySelector('.ti').textContent = '■'; b.querySelector('.tl').textContent = '停止錄影';
-  REC.raf = requestAnimationFrame(recFrame);
-}
-
-function recStop() {
-  if (!REC.on) return;
-  REC.on = false;
-  cancelAnimationFrame(REC.raf);
-  clearInterval(REC._bgTimer);
-  try { REC.rec.stop(); } catch (e) {}
-  document.getElementById('recPill').hidden = true;
-  const b = document.getElementById('recBtn');
-  b.classList.remove('active'); b.title = '錄影 Beta（存成影片下載）';
-  b.querySelector('.ti').textContent = '⏺'; b.querySelector('.tl').textContent = '錄影 Beta';
-}
-
-function recSave() {
-  const mime = (REC.rec && REC.rec.mimeType) || '';
-  const blob = new Blob(REC.chunks, { type: mime });
-  REC.lastBlob = blob; REC.chunks = []; REC.cv = REC.g = null;
-  if (!blob.size) { alert('錄影失敗:沒有錄到內容'); return; }
-  const d = new Date(), p2 = n => String(n).padStart(2, '0');
-  REC.lastName = `軌島_${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}_${p2(d.getHours())}${p2(d.getMinutes())}.${mime.includes('mp4') ? 'mp4' : 'webm'}`;
-  if (REC.lastUrl) URL.revokeObjectURL(REC.lastUrl);
-  REC.lastUrl = URL.createObjectURL(blob); // 留到下一次錄影才回收,「另存」按到取消還能再下載
-  recDownload();
-  document.getElementById('recToastTxt').textContent = `已輸出 ${REC.lastName}（${(blob.size / 1048576).toFixed(1)} MB）`;
-  document.getElementById('recToast').hidden = false;
-  clearTimeout(REC._toastTimer);
-  REC._toastTimer = setTimeout(() => { document.getElementById('recToast').hidden = true; }, 60000);
-}
-
-function recDownload() {
-  if (!REC.lastUrl) return;
-  const a = document.createElement('a');
-  a.href = REC.lastUrl; a.download = REC.lastName;
-  document.body.appendChild(a); a.click(); a.remove();
-}
-
-function setupRecorder() {
-  const btn = document.getElementById('recBtn'), row = document.querySelector('.ms-row[data-proxy="recBtn"]');
-  if (!RECORDING_ENABLED) { if (btn) btn.remove(); if (row) row.remove(); return; } // 下架:鈕與抽屜列一併移除。兩者 HTML 已 inline 藏,這裡是加強(移掉就連 syncMoreSheet 都不必判);btn 取 null 也不准拋,否則連累 boot 後面的步驟
-  if (!btn) return;
-  if (!window.MediaRecorder || !window.HTMLCanvasElement.prototype.captureStream) { btn.style.display = 'none'; return; } // 老瀏覽器藏鈕,不擋其他功能
-  btn.style.display = ''; // 旗標開啟且瀏覽器支援,才還原 HTML 預設的 display:none
-  if (row) row.style.display = ''; // 同上:抽屜列也還原(HTML 預設 inline none)
-  btn.onclick = () => REC.on ? recStop() : recStart();
-  document.getElementById('recPill').onclick = recStop;
-  document.getElementById('recRedl').onclick = recDownload;
-  document.getElementById('recToastX').onclick = () => { document.getElementById('recToast').hidden = true; };
-}
-
 // ══════════ WebMCP 網站工具(v0902a) ══════════════════════════════════════════
 // ChatGPT 內建瀏覽器提供 document.modelContext.registerTool 時才註冊；一般瀏覽器、PWA 與
 // Capacitor 都直接略過。工具只把畫面原本已載入／已算好的公開鐵道資料整理成小型 JSON，
@@ -31623,7 +31366,6 @@ async function boot() {
   setupMapTools();
   // 錄製還原刻意不放這裡：Task 4 的還原會一併啟動取樣，而取樣要投影到線形，
   // 必須等線網載完才有意義。實際呼叫點在下方 boot 尾段（線網就緒後）。
-  setupRecorder();
   await setupLocalNotifications();
   map.on('move zoom resize', reproject); // 縮放「動畫」與捏合手勢(_zoomAnim 凍結中)不在此重投影(會造成 issue #4 殘影);改由下方 onZoomAnim/捏合 zoom handler 專責同步
   // 拖曳/捏合/慣性平移的每一幀,Leaflet 是在自己的 rAF callback 裡挪 pane 再發 'move';overlay 若只靠 tick
@@ -31631,7 +31373,7 @@ async function boot() {
   // 才剛好同幀——順序不歸我們管。改成在 'move' 裡同步重繪(與 pane 位移同一個 callback、同一幀落地),
   // tick 那一幀的重繪跳過(_syncDrew),不重畫兩次。tick 自己發的 setView(跟車鏡頭)不走這條(tick 尾端本來就會畫)。
   const syncDraw = () => {
-    if (!state.ready || state._inTick || state._zoomAnim || (document.hidden && !REC.on)) return;
+    if (!state.ready || state._inTick || state._zoomAnim || document.hidden) return;
     // 同一個視圖連發的 move(零位移 move、_onZoomTransitionEnd 的補發)不重畫;判「同視圖」用投影狀態本身,
     // 不用時間窗——高更新率(120Hz／headless rAF 不鎖 vsync)下相鄰兩幀可能只差 3–5ms,時間窗會把真的位移漏掉
     const c = map.getCenter(), key = c.lat + ',' + c.lng + ',' + map.getZoom();

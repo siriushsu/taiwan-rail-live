@@ -323,7 +323,6 @@ const GATE_CALL_SITES = (GATE_SRC.match(/\bplusRequire\s*\(/g) || []).length
 // (功能整個不存在 ⇒ 沒有東西要揭露)。旗標一旦翻成 true,T1G 那條就會要求它補上 needle。
 const GATE_DISCLOSURE = {
   takeout: { needle: '已儲存清單' },
-  'record-music': { flag: 'RECORDING_ENABLED' },
 };
 
 // ══════════ T0:Step 0 新符號 plusIsActive() 本身的正確性(既有 5 支腳本沒有專門測到這個符號) ══════════

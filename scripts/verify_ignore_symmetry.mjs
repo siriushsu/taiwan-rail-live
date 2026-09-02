@@ -47,7 +47,7 @@ const CLASSES = [
 //    這份清單三次被我用猜的填錯(worker.js、三個不存在的路徑、_config.yml),所以下面那條
 //    「清單本身沒過期」的斷言是必要的——但它只驗得到「檔在不在」,驗不到「這個檔該不該出貨」,
 //    加新項目時要自己去 .assetsignore 確認它不是被刻意排除的。
-const MUST_SHIP = ['index.html', 'data/afr.json', 'assets/wm-logo.png', 'manifest.webmanifest'];
+const MUST_SHIP = ['index.html', 'data/afr.json', 'manifest.webmanifest'];
 
 const results = [];
 const ok = (name, cond, detail = '') => { results.push({ name, pass: !!cond, detail }); };

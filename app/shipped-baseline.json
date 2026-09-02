@@ -2153,5 +2153,37 @@
       "trip",
       "z"
     ]
+  },
+  "allowRemoved": {
+    "_why": "2026-09-02 使用者裁示刪除站內錄影功能(REC 物件/recStart..setupRecorder/WM_LOGO 浮水印/RECORDING_ENABLED、REC_MUSIC_PROTOTYPE 旗標)與其專用混音圖(musicMixEntitled/musicEnsureMix/musicResumeMix/musicRecordingLicensed;唯一消費者是 recStart,音樂播放本身不經混音圖,不受影響)。這些符號刻意不再出現,不是被合併吃掉的回歸。",
+    "functions": [
+      "drawWatermark",
+      "musicEnsureMix",
+      "musicMixEntitled",
+      "musicRecordingLicensed",
+      "musicResumeMix",
+      "recCompose",
+      "recDownload",
+      "recFrame",
+      "recMime",
+      "recSave",
+      "recStart",
+      "recStop",
+      "setupRecorder"
+    ],
+    "elementIds": [
+      "recBtn",
+      "recPill",
+      "recRedl",
+      "recTime",
+      "recToast",
+      "recToastTxt",
+      "recToastX"
+    ],
+    "gates": [
+      "RECORDING_ENABLED",
+      "REC_MUSIC_PROTOTYPE",
+      "WM_LOGO"
+    ]
   }
 }

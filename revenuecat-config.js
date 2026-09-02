@@ -4,8 +4,7 @@
 // 以 Dashboard 的公開設定取代 null。前端一律只顯示商店回傳的價格(含「創始價」由商店端定價),不硬編金額。
 // Web Billing 另需連接 Stripe 並建立 Web app/public key；三平台商品都映射到同一個 plus entitlement,
 // 且網站與 App 一律用 Firebase uid 當 RevenueCat App User ID,才能跨平台共用訂閱資格:
-// musicRecordingLicensed 只有在 app/MUSIC_LICENSE_CHECKLIST.md 全部核對完成後才可設 true。
-// { entitlement:'plus', offeringId:'plus', webApiKey:'...', iosApiKey:'...', androidApiKey:'...', musicRecordingLicensed:false }
+// { entitlement:'plus', offeringId:'plus', webApiKey:'...', iosApiKey:'...', androidApiKey:'...' }
 //   （offeringId 指向的 offering 需含月/年兩個 package;entitlement 檢查走 entitlements.active,訂閱與買斷同路。）
 // 未設定時不載入購買 SDK,Plus 入口也不公開。
 //
@@ -27,8 +26,5 @@ window.RAIL_REVENUECAT_CONFIG = window.RAIL_REVENUECAT_CONFIG || {
   entitlement: 'plus',
   offeringId: 'plus',
   iosApiKey: 'appl_YEaudYjWyOOPGRoMORPzdDgggvQ',
-  // 2026-07-26：29 首 Suno 曲目核對完成（依據＝擁有人明示聲明全部生成於 Pro 訂閱期間，
-  // 非逐首文件證據；證據強度與殘留待查項見 app/MUSIC_LICENSE_CHECKLIST.md）。
-  musicRecordingLicensed: true,
   foundingLaunchAt: '2026-08-10T12:00:00+08:00'
 };

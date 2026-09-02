@@ -258,14 +258,10 @@ export async function assertLicensedBuildAllowed({ includeLicensedMusic, include
     assert(trackRows.length === 57, `音樂核對表應有 57 首，目前是 ${trackRows.length} 首`);
     assert(trackRows.every(line => /\| 已核對 \|\s*$/.test(line)),
       '音樂核對表仍有未核對曲目');
-    const config = await readFile(join(repoRoot, 'revenuecat-config.js'), 'utf8');
-    assert(/musicRecordingLicensed\s*:\s*true/.test(config),
-      'revenuecat-config.js 尚未明確啟用 musicRecordingLicensed:true');
   }
   const basemapRights = [
     ['paidAppUseVerified', '付費 App 商用'],
     ['leafletAndCapacitorUseVerified', 'Leaflet／Capacitor'],
-    ['recordedVideoOutputVerified', '錄影輸出'],
     ['attributionRequirementsVerified', '署名要求']
   ];
   const rights = policy.onlineBasemaps || {};
