@@ -166,8 +166,10 @@ for (const [eng, launcher] of [['chromium', chromium], ['webkit', webkit]].filte
     await page.evaluate(() => { state.plus = { active: true }; window.musicPlRender(); });
     await page.click('#musicPlBody [data-mode="family:city-circuit"]');
     const c1 = await page.evaluate(() => ({ mode: state.music.mode, n: state.music.list.length,
+      // 期望首數從 music.json 推,不寫死:2026-09-03 午夜城市上架讓寫死的 22 假紅一輪
+      expect: window.MUSIC_DATA.pools.filter(p => p.family === 'city-circuit' && p.tracks.length).reduce((a, p) => a + p.tracks.length, 0),
       open: document.querySelector('#musicPlBody [data-fam="city-circuit"]').getAttribute('aria-expanded') }));
-    ok(`${tag} C1 訂閱後點家族真的生效`, c1.mode.kind === 'family' && c1.mode.id === 'city-circuit' && c1.n === 22, JSON.stringify(c1));
+    ok(`${tag} C1 訂閱後點家族真的生效`, c1.mode.kind === 'family' && c1.mode.id === 'city-circuit' && c1.n > 0 && c1.n === c1.expect, JSON.stringify(c1));
     ok(`${tag} C2 選了家族順手攤開它`, c1.open === 'true', JSON.stringify(c1));
 
     // 🔴 右側 44px 是展開鈕:它【只能】改展開狀態,不准順手改選擇——
