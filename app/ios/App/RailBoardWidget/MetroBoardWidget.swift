@@ -207,7 +207,9 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
             snap = MetroFetcher.cached(sys: sys.id, station: station)
             failed = true
         }
-        let filtered = (isAuto ? nil : cfg.dir).flatMap { d in
+        // 「不指定」哨兵在這裡收成 nil;自動選站解析出來的站也不套方向(方向是為手選的那一站挑的)。
+        let dir = isAuto ? nil : MetroBoardIntent.direction(cfg.dir)
+        let filtered = dir.flatMap { d in
             snap.map { MetroSnapshot(station: $0.station, dataAt: $0.dataAt,
                                      rows: $0.rows.filter { $0.dest == d }, stale: $0.stale) }
         } ?? snap
@@ -222,7 +224,7 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
                           // 自動選站解析出來的站不套方向格(方向是為手選的那一站挑的),
                           // 與上面 filtered 的條件同源,免得卡上列的與追蹤的不是同一批。
                           waitTarget: MetroWaitTarget(sys: sys.id, station: station,
-                                                      dest: isAuto ? nil : cfg.dir))
+                                                      dest: dir))
     }
 
     // 🔴 站名是中文:URL(string:) 對非 ASCII 插值會回 nil ⇒ 深連結整條靜默死掉。

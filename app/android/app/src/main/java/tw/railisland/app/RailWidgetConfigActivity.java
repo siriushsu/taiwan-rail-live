@@ -230,6 +230,10 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
     }
 
     private void updateDestinations() {
+        // 重建前記住現在選的目的站,新清單裡還有就選回去——restore() 在起站 setSelection 之後
+        // 立刻選好目的站,但起站 spinner 的 listener 要到下一個 layout 才觸發、再重建一次清單,
+        // 沒有這一步那次重建會把目的站打回「全部目的地」(使用者 2026-09-02 回報只能刪掉重來)。
+        String keep = destinationSpinner.getAdapter() == null ? "" : selectedDestination();
         List<String> values = new ArrayList<>();
         values.add("");
         List<String> labels = new ArrayList<>();
@@ -249,6 +253,8 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
             for (String station : direct) { values.add(station); labels.add("往 " + station); }
         }
         destinationSpinner.setAdapter(new DestinationAdapter(this, labels, values));
+        int at = keep.isEmpty() ? -1 : values.indexOf(keep);
+        if (at > 0) destinationSpinner.setSelection(at);
     }
 
     private String selectedDestination() {

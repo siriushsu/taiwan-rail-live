@@ -2,10 +2,18 @@
 <resources>
     <string name="app_name">Rail Island</string>
     <string name="title_activity_main">Rail Island</string>
-    <string name="metro_widget_name">Metro board</string>
-    <string name="metro_widget_description">Choose a metro station and see the official next arrival</string>
-    <string name="rail_widget_name">Departure board</string>
+    <string name="metro_widget_name">Metro board · Medium</string>
+    <string name="metro_widget_description">Next and following trains at one station, with an optional direction</string>
+    <string name="rail_widget_name">Departure board · Medium</string>
     <string name="rail_widget_description">Upcoming stopping, terminating and passing TRA or HSR trains</string>
+    <string name="metro_widget_small_name">Metro board · Small</string>
+    <string name="metro_widget_small_description">Next train in one direction, the smallest tile</string>
+    <string name="metro_widget_large_name">Metro board · Large</string>
+    <string name="metro_widget_large_description">Several directions, the next eight trains at a glance</string>
+    <string name="rail_widget_small_name">Departure board · Small</string>
+    <string name="rail_widget_small_description">The next two trains, the smallest tile</string>
+    <string name="rail_widget_large_name">Departure board · Large</string>
+    <string name="rail_widget_large_description">The next eight trains, a full departure board</string>
     <string name="mixed_widget_name">Rail + metro board</string>
     <string name="mixed_widget_description">TRA or HSR departures and metro countdowns on one card</string>
 </resources>

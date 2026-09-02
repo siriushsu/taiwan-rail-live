@@ -148,12 +148,26 @@ public final class MixedWidgetConfigActivity extends AppCompatActivity {
         updateMetroDirections();
     }
 
+    /** 方向 spinner 每一列對應的終點值(第 0 列「全部方向」＝空字串)。選擇一律查這張表。 */
+    private final List<String> metroDirectionValues = new ArrayList<>();
+
     private void updateMetroDirections() {
+        // 重建前記住現在選的終點,新清單裡還有就選回去:restore() 選好方向之後,捷運站 spinner 的
+        // listener 要到下一個 layout 才觸發、再重建一次清單,沒有這一步那次重建會把方向打回
+        // 「全部方向」(使用者 2026-09-02 回報「選了方向就取消不了」的 Android 側根因之一)。
+        String keep = selectedDirection();
         List<String> labels = new ArrayList<>();
+        metroDirectionValues.clear();
         labels.add("全部方向");
+        metroDirectionValues.add("");
         MetroWidgetData.StationInfo station = selectedMetroStation();
-        if (station != null) for (String destination : station.destinations) labels.add("往 " + destination);
+        if (station != null) for (String destination : station.destinations) {
+            labels.add("往 " + destination);
+            metroDirectionValues.add(destination);
+        }
         metroDirectionSpinner.setAdapter(adapter(labels));
+        int at = keep.isEmpty() ? -1 : metroDirectionValues.indexOf(keep);
+        if (at > 0) metroDirectionSpinner.setSelection(at);
     }
 
     private void restore() {
@@ -177,12 +191,8 @@ public final class MixedWidgetConfigActivity extends AppCompatActivity {
         if (MetroWidgetData.AUTO.equals(metroStation)) metroStationSpinner.setSelection(0);
         else if (stationIndex >= 0) metroStationSpinner.setSelection(stationIndex + 1);
         updateMetroDirections();
-        String direction = prefs.getString("metro_direction_" + widgetId, "");
-        MetroWidgetData.StationInfo station = selectedMetroStation();
-        if (station != null) {
-            int directionIndex = station.destinations.indexOf(direction);
-            if (directionIndex >= 0) metroDirectionSpinner.setSelection(directionIndex + 1);
-        }
+        int directionAt = metroDirectionValues.indexOf(prefs.getString("metro_direction_" + widgetId, ""));
+        if (directionAt > 0) metroDirectionSpinner.setSelection(directionAt);
     }
 
     private int indexOfMetro(String name) {
@@ -201,9 +211,8 @@ public final class MixedWidgetConfigActivity extends AppCompatActivity {
     }
 
     private String selectedDirection() {
-        MetroWidgetData.StationInfo station = selectedMetroStation();
-        int at = metroDirectionSpinner.getSelectedItemPosition();
-        return station == null || at <= 0 || at - 1 >= station.destinations.size() ? "" : station.destinations.get(at - 1);
+        int at = metroDirectionSpinner == null ? 0 : metroDirectionSpinner.getSelectedItemPosition();
+        return at > 0 && at < metroDirectionValues.size() ? metroDirectionValues.get(at) : "";
     }
 
     private void save() {

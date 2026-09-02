@@ -4,10 +4,18 @@
     <string name="title_activity_main">軌島</string>
     <string name="package_name">tw.railisland.app</string>
     <string name="custom_url_scheme">tw.railisland.app</string>
-    <string name="metro_widget_name">捷運看板</string>
-    <string name="metro_widget_description">選一個捷運站，看官方下一班還有多久</string>
-    <string name="rail_widget_name">發車看板</string>
+    <string name="metro_widget_name">捷運看板・中</string>
+    <string name="metro_widget_description">一站的下一班與再下班，可指定方向</string>
+    <string name="rail_widget_name">發車看板・中</string>
     <string name="rail_widget_description">查看台鐵或高鐵接下來的停靠、終到與通過列車</string>
+    <string name="metro_widget_small_name">捷運看板・小</string>
+    <string name="metro_widget_small_description">一站一方向的下一班，最小的一格</string>
+    <string name="metro_widget_large_name">捷運看板・大</string>
+    <string name="metro_widget_large_description">一站多方向，接下來八班一次看</string>
+    <string name="rail_widget_small_name">發車看板・小</string>
+    <string name="rail_widget_small_description">最近兩班，最小的一格</string>
+    <string name="rail_widget_large_name">發車看板・大</string>
+    <string name="rail_widget_large_description">接下來八班，一整面發車看板</string>
     <string name="mixed_widget_name">鐵路＋捷運雙看板</string>
     <string name="mixed_widget_description">同一張卡查看台鐵或高鐵發車與捷運進站倒數</string>
 </resources>

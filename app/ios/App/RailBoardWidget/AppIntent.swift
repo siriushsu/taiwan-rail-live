@@ -172,18 +172,25 @@ struct DestinationOptionsProvider: DynamicOptionsProvider {
         }
         guard !destinations.isEmpty else { return .empty }
 
+        // 「不指定」永遠排第一:單選 picker 選過就沒有清除手勢(使用者 2026-09-02 回報「選了
+        // 方向就取消不了,只能刪掉小工具重來」)。值是 ASCII 哨兵,timeline 讀 destinationKey 時收成 nil。
+        let anySection = IntentItemSection<String>(
+            LocalizedStringResource(stringLiteral: RailNativeL10n.text("不限")),
+            items: [IntentItem<String>(ConfigurationAppIntent.anyDestination,
+                                       title: LocalizedStringResource(stringLiteral: RailNativeL10n.text("不指定目的站（看全部）")))]
+        )
         let places = placeSection(destinations)
         guard let sections = stationRegionSections(destinations) else {
             var fallbackSections = [IntentItemSection(items: destinations.map(\.intentItem))]
             if let places { fallbackSections.insert(places, at: 0) }
             return IntentItemCollection(
                 promptLabel: promptLabel,
-                sections: fallbackSections
+                sections: [anySection] + fallbackSections
             )
         }
         return IntentItemCollection(
             promptLabel: promptLabel,
-            sections: places.map { [$0] + sections } ?? sections
+            sections: [anySection] + (places.map { [$0] + sections } ?? sections)
         )
     }
 }
@@ -348,6 +355,14 @@ struct ConfigurationAppIntent: WidgetConfigurationIntent {
 
 @available(iOS 17.0, *)
 extension ConfigurationAppIntent {
+    /// 目的站格的「不指定」哨兵(見 DestinationOptionsProvider 的 anySection)。
+    static let anyDestination = "any"
+    /// timeline 讀這個,不直接讀 destination——哨兵在這裡收成 nil,引擎與畫面完全不認得那個字串。
+    var destinationKey: String? {
+        guard let destination, !destination.isEmpty, destination != Self.anyDestination else { return nil }
+        return destination
+    }
+
     static var previewCommute: ConfigurationAppIntent {
         let intent = ConfigurationAppIntent()
         intent.origin = StationOption.makeKey(systemID: "tra", name: "竹北")

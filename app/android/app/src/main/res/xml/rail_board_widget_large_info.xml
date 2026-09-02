@@ -13,18 +13,18 @@
         列數幾乎都由橫放那組決定。中＝110dp（三種格線都算成 2 列）、大＝270dp（4 欄兩種格線都算成
         4 列）是照實測格高算的；改之前先在模擬器切三種格線，看選單上印的「N × M」。
      updatePeriodMillis 只是保命網（最快 30 分鐘一次），真正的節奏是 AlarmManager 排的。 -->
-<!-- 捷運看板・中。小＝metro_board_widget_small_info、大＝metro_board_widget_large_info。 -->
+<!-- 發車看板・大（八班，widget_rail_4x4.xml 本來就在，之前只有拉大才看得到）。 -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
-    android:configure="tw.railisland.app.MetroWidgetConfigActivity"
-    android:description="@string/metro_widget_description"
-    android:initialLayout="@layout/widget_plate_4x2"
+    android:configure="tw.railisland.app.RailWidgetConfigActivity"
+    android:description="@string/rail_widget_large_description"
+    android:initialLayout="@layout/widget_rail_4x4"
     android:minWidth="320dp"
-    android:minHeight="110dp"
+    android:minHeight="270dp"
     android:targetCellWidth="5"
-    android:targetCellHeight="2"
+    android:targetCellHeight="4"
     android:minResizeWidth="110dp"
     android:minResizeHeight="100dp"
-    android:previewLayout="@layout/widget_plate_4x2"
+    android:previewLayout="@layout/widget_rail_4x4"
     android:resizeMode="horizontal|vertical"
     android:updatePeriodMillis="1800000"
     android:widgetCategory="home_screen|keyguard"

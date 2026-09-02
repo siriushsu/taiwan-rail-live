@@ -204,6 +204,37 @@ final class MetroWidgetPlateRender {
         return v;
     }
 
+    /**
+     * 4×4 大張卡片：header／主角／註腳／警示帶走 board(maxRows=1)（同一組 wb_* id），再把「接下來」
+     * 七列綁上（wl_r1 至 wl_r7）。follows 每列 {終點, 線名, 分鐘文字, 線色 hex}，值全部由 provider 算好，
+     * 這裡照樣一個判斷都不做。
+     */
+    static RemoteViews large(Context c, int layoutRes, MetroWidgetPlate[] rows, String head, String footLeft,
+                             String footRight, String band, boolean bandBad, java.util.List<String[]> follows) {
+        RemoteViews v = board(c, layoutRes, rows, 1, head, footLeft, footRight, band, bandBad);
+        int[][] slot = {
+            { R.id.wl_r1, R.id.wl_r1_bar, R.id.wl_r1_title, R.id.wl_r1_sub, R.id.wl_r1_a },
+            { R.id.wl_r2, R.id.wl_r2_bar, R.id.wl_r2_title, R.id.wl_r2_sub, R.id.wl_r2_a },
+            { R.id.wl_r3, R.id.wl_r3_bar, R.id.wl_r3_title, R.id.wl_r3_sub, R.id.wl_r3_a },
+            { R.id.wl_r4, R.id.wl_r4_bar, R.id.wl_r4_title, R.id.wl_r4_sub, R.id.wl_r4_a },
+            { R.id.wl_r5, R.id.wl_r5_bar, R.id.wl_r5_title, R.id.wl_r5_sub, R.id.wl_r5_a },
+            { R.id.wl_r6, R.id.wl_r6_bar, R.id.wl_r6_title, R.id.wl_r6_sub, R.id.wl_r6_a },
+            { R.id.wl_r7, R.id.wl_r7_bar, R.id.wl_r7_title, R.id.wl_r7_sub, R.id.wl_r7_a },
+        };
+        for (int i = 0; i < slot.length; i++) {
+            String[] f = i < follows.size() ? follows.get(i) : null;
+            if (f == null) { v.setViewVisibility(slot[i][0], View.GONE); continue; }
+            v.setViewVisibility(slot[i][0], View.VISIBLE);
+            v.setInt(slot[i][1], "setColorFilter", lineColor(c, f[3]));
+            v.setTextViewText(slot[i][2], RailNativeL10n.name(c, f[0]));
+            v.setTextViewText(slot[i][3], RailNativeL10n.name(c, f[1]));
+            v.setTextViewText(slot[i][4], f[2]);
+        }
+        v.setTextViewText(R.id.wl_caption, RailNativeL10n.text(c, "接下來"));
+        v.setViewVisibility(R.id.wl_caption, follows.isEmpty() ? View.GONE : View.VISIBLE);
+        return v;
+    }
+
     /** 狀態 6 · 未設定車站。文案放這裡而不是 provider 裡，畫廊才會顯示與桌面【同一份】文字。 */
     static RemoteViews unset(Context c) {
         return message(c, RailNativeL10n.text(c, "軌島"), RailNativeL10n.text(c, "選一個捷運站"),

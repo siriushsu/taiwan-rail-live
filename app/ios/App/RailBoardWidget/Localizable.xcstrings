@@ -5050,6 +5050,74 @@
         }
       }
     },
+    "不指定（兩個方向都看）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not set (show both directions)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "指定なし（両方向を表示）"
+          }
+        }
+      }
+    },
+    "不指定目的站（看全部）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not set (show all)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "指定なし（すべて表示）"
+          }
+        }
+      }
+    },
+    "不限": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Any"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "指定なし"
+          }
+        }
+      }
+    },
+    "不限方向": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Any direction"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "方向を指定しない"
+          }
+        }
+      }
+    },
     "不喜歡再按一次換一班": {
       "extractionState": "manual",
       "localizations": {
@@ -7583,6 +7651,23 @@
         }
       }
     },
+    "只列出「{station}」開得到的方向": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only directions served from {station}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{station}から行ける方向のみ表示"
+          }
+        }
+      }
+    },
     "只在上車、下車兩個點用到你的位置，中間由列車自己的時刻推算，所以進隧道、關螢幕都不影響。上車時就要選下車站，否則忘了按下車會一路蓋到終點。": {
       "extractionState": "manual",
       "localizations": {
@@ -9670,6 +9755,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "プランと購入状況を確認中…"
+          }
+        }
+      }
+    },
+    "正在讀取車站，先列出全部方向": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reading the station; showing all directions for now"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅を読み込み中のため全方向を表示します"
           }
         }
       }
@@ -13019,6 +13121,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "駅を自動選択"
+          }
+        }
+      }
+    },
+    "自動選站時不套用方向，這格可留空": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Direction is not applied with automatic station; leave this blank"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動選択時は方向を適用しません。空欄で構いません"
           }
         }
       }
@@ -22016,6 +22135,23 @@
         }
       }
     },
+    "桌面小工具的發車看板：大尺寸一次列出五班並分北上南下，每列都有開車時刻與準點誤點；也可以改成主要顯示發車時刻": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The large departure board widget lists five trains, split into northbound and southbound, with a departure time and on-time status on every row. You can also switch the widget to show the departure time first."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "大きい発車標ウィジェットは、上り・下りに分けて 5 本を表示し、各行に発車時刻と定時・遅延を表示します。発車時刻を大きく表示する設定も追加しました。"
+          }
+        }
+      }
+    },
     "桌面小工具的發車看板也標出北上／南下：Android 從零補上方向三角，兩個平台的三角一起放大，顏色換成台鐵官方的北上藍、南下綠": {
       "extractionState": "manual",
       "localizations": {
@@ -24426,6 +24562,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "見"
+          }
+        }
+      }
+    },
+    "接下來": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next up"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この後"
           }
         }
       }
@@ -37159,23 +37312,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Google Playに更新があります"
-          }
-        }
-      }
-    },
-    "iPhone 大尺寸（4×4）發車看板小工具改版：一次列出五班、分成北上與南下兩區，每一列都有開車時刻與準點誤點": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The large (4×4) departure board widget on iPhone now lists five trains, split into northbound and southbound sections, with a departure time and on-time status on every row."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "iPhone の大きい（4×4）発車標ウィジェットは、上り・下りに分けて 5 本を表示し、各行に発車時刻と定時・遅延を表示するようになりました。"
           }
         }
       }
