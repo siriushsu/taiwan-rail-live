@@ -514,7 +514,33 @@
       ],
       "weather": null,
       "auto": true,
-      "tracks": []
+      "tracks": [
+        {
+          "src": "_pass/midnight-city/Depot Lights Far Away-2.mp3",
+          "dur": 163,
+          "bytes": 4200342
+        },
+        {
+          "src": "_pass/midnight-city/Depot Lights Far Away.mp3",
+          "dur": 165,
+          "bytes": 4196790
+        },
+        {
+          "src": "_pass/midnight-city/Empty Platform Lights.mp3",
+          "dur": 165,
+          "bytes": 4281798
+        },
+        {
+          "src": "_pass/midnight-city/Last Train After Midnight.mp3",
+          "dur": 160,
+          "bytes": 3944742
+        },
+        {
+          "src": "_pass/midnight-city/Windows Still Awake.mp3",
+          "dur": 166,
+          "bytes": 4141806
+        }
+      ]
     },
     {
       "id": "north-coast",
@@ -610,7 +636,38 @@
       "hours": null,
       "weather": null,
       "auto": true,
-      "tracks": []
+      "tracks": [
+        {
+          "src": "_pass/mountain-branch/Cedar Line-2.mp3",
+          "dur": 151,
+          "bytes": 3773910
+        },
+        {
+          "src": "_pass/mountain-branch/Cedar Line.mp3",
+          "dur": 215,
+          "bytes": 5310726
+        },
+        {
+          "src": "_pass/mountain-branch/Mist Between Tunnels.mp3",
+          "dur": 215,
+          "bytes": 5381430
+        },
+        {
+          "src": "_pass/mountain-branch/Quiet Grade.mp3",
+          "dur": 215,
+          "bytes": 5175942
+        },
+        {
+          "src": "_pass/mountain-branch/Small Station in the Hills-2.mp3",
+          "dur": 100,
+          "bytes": 2419494
+        },
+        {
+          "src": "_pass/mountain-branch/Small Station in the Hills.mp3",
+          "dur": 179,
+          "bytes": 4239606
+        }
+      ]
     },
     {
       "id": "first-light",
@@ -623,7 +680,38 @@
       ],
       "weather": null,
       "auto": true,
-      "tracks": []
+      "tracks": [
+        {
+          "src": "_pass/first-light/Blue Hour Departure.mp3",
+          "dur": 180,
+          "bytes": 4389942
+        },
+        {
+          "src": "_pass/first-light/First Train, Pale Sky-2.mp3",
+          "dur": 180,
+          "bytes": 4366998
+        },
+        {
+          "src": "_pass/first-light/First Train, Pale Sky-3.mp3",
+          "dur": 180,
+          "bytes": 3984222
+        },
+        {
+          "src": "_pass/first-light/First Train, Pale Sky.mp3",
+          "dur": 180,
+          "bytes": 4240758
+        },
+        {
+          "src": "_pass/first-light/Morning Over the Rails.mp3",
+          "dur": 170,
+          "bytes": 4045254
+        },
+        {
+          "src": "_pass/first-light/The City Before Voices.mp3",
+          "dur": 160,
+          "bytes": 3659214
+        }
+      ]
     },
     {
       "id": "golden-hour",

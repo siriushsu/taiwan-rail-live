@@ -62,7 +62,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "11d7ce686a850b50b57623321eae069b"
+   "checksum": "3f1c15f1d7357a810608a1f67a09aee3"
   },
   "data/ntalrt.json": {
    "sourceDescription": "交通部 TDX 運輸資料流通服務(安坑輕軌:路線幾何/站序,2026-07 抓取);班距為官方公告估算(尖峰約12分/離峰約15分),TDX 無班距/站間時間檔",

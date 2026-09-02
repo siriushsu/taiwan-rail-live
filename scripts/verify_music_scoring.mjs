@@ -146,12 +146,17 @@ const e4 = await page.evaluate(() => {
   window.musicApplyMode({ kind: 'family', id: 'city-circuit' }, { noLoad: true });
   const fam = state.music.list.slice();
   window.musicApplyMode({ kind: 'free' }, { noLoad: true });
-  return { pool: pool.length, fam: fam.length, free: state.music.list.length,
+  // 期望值從 data/music.json 推,不寫死首數:2026-09-03 午夜城市上架讓寫死的 22 首假紅一輪。
+  const shipped = window.MUSIC_DATA.pools.filter(p => p.tracks && p.tracks.length);
+  const poolExpect = (shipped.find(p => p.id === 'metro-motion') || { tracks: [] }).tracks.length;
+  const famExpect = shipped.filter(p => p.family === 'city-circuit').reduce((a, p) => a + p.tracks.length, 0);
+  return { pool: pool.length, fam: fam.length, free: state.music.list.length, poolExpect, famExpect,
     poolAllPaid: pool.every(x => x.startsWith('_pass/metro-motion/')),
     famAllPaid: fam.every(x => x.startsWith('_pass/')) };
 });
-ok('E4 單池模式只播那一池(7 首)', e4.pool === 7 && e4.poolAllPaid, JSON.stringify(e4));
-ok('E5 家族模式聚合該家族已上架的池(9+6+7=22 首)', e4.fam === 22 && e4.famAllPaid, JSON.stringify(e4));
+ok('E4 單池模式只播那一池(=該池已上架曲數)', e4.pool > 0 && e4.pool === e4.poolExpect && e4.poolAllPaid, JSON.stringify(e4));
+ok('E5 家族模式聚合該家族已上架的池(=Σ city-circuit 已上架曲數,且多於單池)',
+  e4.fam === e4.famExpect && e4.fam > e4.pool && e4.famAllPaid, JSON.stringify(e4));
 ok('E5b 免費模式回到 57 首', e4.free === 57, JSON.stringify(e4));
 
 // 空池不得讓音樂靜掉:未上架的池要退回免費
@@ -262,6 +267,8 @@ const gg = await page.evaluate(() => {
   window.musicApplyMode({ kind: 'family', id: 'city-circuit' }, { noLoad: true });
   window.musicReconcileMode();
   R.onEff = window.musicEffectiveMode().kind; R.onN = state.music.list.length;
+  R.famExpect = window.MUSIC_DATA.pools.filter(p => p.family === 'city-circuit' && p.tracks.length)
+    .reduce((a, p) => a + p.tracks.length, 0);   // 不寫死首數(同 E5)
   state.plus = { active: false };                 // 撤銷資格
   window.musicReconcileMode();
   R.offEff = window.musicEffectiveMode().kind; R.offN = state.music.list.length;
@@ -271,10 +278,10 @@ const gg = await page.evaluate(() => {
   R.backEff = window.musicEffectiveMode().kind; R.backN = state.music.list.length;
   return R;
 });
-ok('G1 有資格時家族模式生效(22 首)', gg.onEff === 'family' && gg.onN === 22, JSON.stringify(gg));
+ok('G1 有資格時家族模式生效(=Σ city-circuit 已上架曲數)', gg.onEff === 'family' && gg.onN > 0 && gg.onN === gg.famExpect, JSON.stringify(gg));
 ok('G2 撤銷後退回免費 57 首', gg.offEff === 'free' && gg.offN === 57, JSON.stringify(gg));
 ok('G3 撤銷後【不】改寫使用者的選擇', gg.offMode === 'family:city-circuit', JSON.stringify(gg));
-ok('G4 資格回來自動接回(回得去)', gg.backEff === 'family' && gg.backN === 22, JSON.stringify(gg));
+ok('G4 資格回來自動接回(回得去)', gg.backEff === 'family' && gg.backN === gg.famExpect, JSON.stringify(gg));
 
 // G5 同一個生效模式重複呼叫不得重洗清單(開機期會跑好幾次,重洗會把正在播的曲子切掉)
 const g5 = await page.evaluate(() => {
