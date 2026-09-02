@@ -925,6 +925,7 @@ export class TrtcPoller {
     this.inflight = null;
     this.colo = null;
     this.denied = null;   // 落點違反區域裁示時記在這裡,之後一律不再碰上游
+    this.noCreds = false; // 這顆 Worker 沒設 TRTC secret(與 denied 不同:每輪重驗,不 latch)
   }
   async detectColo() {
     // DO 的位置建立後就不會變，所以量一次就夠；失敗下一輪再試（不擋資料）。
@@ -942,6 +943,12 @@ export class TrtcPoller {
       //    既真的從禁區打了上游，邊緣又因為判定違規而退回直打再打一輪 ⇒ 又違規又加倍。
       const colo = await this.detectColo();
       if (colo && TRTC_POLLER_DENY_COLO.has(colo)) { this.denied = colo; return; }
+      // 🔴 沒有帳密就一發都不打。這顆 Worker 的 secret 與主站【各存一份】,漏設時 trtcCall 會把
+      //    字面上的 "undefined" 當帳密送去北捷——在對方正因呼叫量來函的時候送一串認證失敗,
+      //    是最不該發生的事。回報 no-credentials 讓邊緣退回直打(主站自己有帳密),站台照常。
+      //    刻意【不】latch(與 denied 不同):設好 secret 之後下一輪自己就恢復,不必人工介入。
+      this.noCreds = !(this.env && this.env.TRTC_API_USER && this.env.TRTC_API_PASS);
+      if (this.noCreds) return;
       const r = await trtcFetchUpstream(this.env, now, this.hwMem);
       this.hwMem = r.hwMem;
       this.frame = { at: now, body: JSON.stringify({ tk: r.tk, hw: r.hw, br: r.br, inService: r.inService }) };
@@ -964,12 +971,14 @@ export class TrtcPoller {
     }
     const now = Date.now();
     // 門檻與邊緣的 trtcMemoStale 同為 15 秒：邊緣過期時向這裡要，這裡也剛好該換一輪。
-    if (!this.denied && trtcMemoStale(this.frame, now)) {
+    if (!this.denied && (this.noCreds || trtcMemoStale(this.frame, now))) {
       try { await this.refresh(now); }
       catch (e) { if (!this.frame) throw e; /* 有舊 frame 就先給舊的，別讓全站空手 */ }
     }
-    // 落點在禁區：一列資料都不給、也【沒有】打過上游，讓邊緣自己退回直打。
+    // 落點在禁區、或這顆 Worker 沒設帳密：一列資料都不給、也【沒有】打過上游，
+    // 讓邊緣自己退回直打（主站有自己的帳密，站台不會因此空手）。
     if (this.denied) return Response.json({ denied: this.denied, colo: this.denied });
+    if (this.noCreds || !this.frame) return Response.json({ denied: 'no-credentials', colo: this.colo });
     return new Response(
       `{"at":${this.frame.at},"ageMs":${Date.now() - this.frame.at},"colo":${JSON.stringify(this.colo)},` +
       this.frame.body.slice(1),

@@ -271,6 +271,24 @@ ok('禁區清單確實含香港（實測 apac 3/8、無提示 4/8 會落在這�
   TRTC_POLLER_DENY_COLO.has('HKG'));
 traceColo = 'NRT';
 
+// ── 第 8.5 節：輪詢者 Worker 沒設 TRTC secret —— 一發都不准打 ──────────────────
+// 輪詢者是獨立 Worker、secret 與主站各存一份，漏設是真實可能。漏設時若照打，送出去的是
+// 字面上的 "undefined" 帳密——在北捷正因呼叫量來函的時候丟一串認證失敗，是最糟的失敗方式。
+advance(16e3);
+resetCounts();
+trtcForgetMemoForTest();
+const noCredEnv = { ...env, TRTC_API_USER: '', TRTC_API_PASS: '' };
+noCredEnv.TRTC_POLLER = makePollerBinding(noCredEnv);
+const noCredBody = await (async () => {
+  const res = await trtcLive(new Request('https://railisland.tw/api/trtc-live'), noCredEnv);
+  return res.json();
+})();
+ok('無帳密：輪詢者一發上游都沒打（退回直打的那一輪除外）',
+  counts.tk === 1, `tk=${counts.tk}（若輪詢者也拿 undefined 去打會是 2）`);
+ok('無帳密：退回直打，站台照常有資料', (noCredBody.board || []).length > 0
+  && noCredBody.cd.poller === 'denied:no-credentials',
+  `board=${(noCredBody.board || []).length}／cd.poller=${noCredBody.cd && noCredBody.cd.poller}`);
+
 // ── 第 9 節：DO 掛掉要 fail-open ───────────────────────────────────────────────
 advance(16e3);
 resetCounts();
