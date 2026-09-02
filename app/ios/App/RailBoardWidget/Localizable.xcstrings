@@ -953,6 +953,23 @@
         }
       }
     },
+    "{n} 首": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{n} tracks"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{n} 曲"
+          }
+        }
+      }
+    },
     "{n} 個地點": {
       "extractionState": "manual",
       "localizations": {
@@ -1085,6 +1102,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "{n}項目"
+          }
+        }
+      }
+    },
+    "{ready} 可播 · {soon} 準備中": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{ready} ready · {soon} coming"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{ready} 配信中 · {soon} 準備中"
           }
         }
       }
@@ -1820,6 +1854,23 @@
         }
       }
     },
+    "「更多」→ 配樂情境": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“More” → Soundtrack"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「その他」→ サウンドトラック"
+          }
+        }
+      }
+    },
     "「更多」→ 衛星影像": {
       "extractionState": "manual",
       "localizations": {
@@ -2088,23 +2139,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "⏸ {station}停車中・あと{time}で発車"
-          }
-        }
-      }
-    },
-    "⏺ 錄影 Beta": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "⏺ Recording Beta"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "⏺ 録画 Beta"
           }
         }
       }
@@ -4183,6 +4217,23 @@
         }
       }
     },
+    "小雨、陣雨與雨後的低彩度城市": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drizzle, downpours and the muted city that follows"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小雨、にわか雨、そして雨上がりの彩度の低い街"
+          }
+        }
+      }
+    },
     "小南門": {
       "extractionState": "manual",
       "localizations": {
@@ -4302,6 +4353,40 @@
         }
       }
     },
+    "山海聚落共創": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Island Community Sessions"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "山と海の集落との共作"
+          }
+        }
+      }
+    },
+    "山區": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mountains"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "山間部"
+          }
+        }
+      }
+    },
     "山鼻站": {
       "extractionState": "manual",
       "localizations": {
@@ -4332,6 +4417,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "山線"
+          }
+        }
+      }
+    },
+    "山線、林鐵與霧": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The mountain line, the forest railway and the mist"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "山線、林鉄、そして霧"
+          }
+        }
+      }
+    },
+    "山霧支線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Misty Branch Line"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "霧の支線"
           }
         }
       }
@@ -4965,6 +5084,23 @@
         }
       }
     },
+    "不分情境,整座曲庫隨機播": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shuffles the whole library, whatever the setting"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "場面を問わず、ライブラリ全体からランダムに再生"
+          }
+        }
+      }
+    },
     "不支援的軌島資料格式": {
       "extractionState": "manual",
       "localizations": {
@@ -5131,6 +5267,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "もう一度押して別の列車へ"
+          }
+        }
+      }
+    },
+    "不屬任何家族，不參與自動選池": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not in any family, never picked automatically"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "どのファミリーにも属さず、自動選択の対象外"
           }
         }
       }
@@ -6376,6 +6529,23 @@
         }
       }
     },
+    "午夜城市": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Midnight City"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "真夜中の街"
+          }
+        }
+      }
+    },
     "太原": {
       "extractionState": "manual",
       "localizations": {
@@ -6457,6 +6627,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "地図を手で動かすと現在地カメラは解除されますが、青い点は更新を続けます"
+          }
+        }
+      }
+    },
+    "手動選定 · 不隨列車變動": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chosen by you · stays put as the train moves"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手動で指定 · 列車では変わりません"
+          }
+        }
+      }
+    },
+    "手動選定家族：{name} · 池輪流": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Family chosen by you: {name} · rotating through its settings"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手動で指定したファミリー：{name} · 場面を順番に"
           }
         }
       }
@@ -6886,6 +7090,23 @@
         }
       }
     },
+    "日常通勤、短站距與乾淨俐落的城市節奏": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Daily commutes, short hops and a clean city rhythm"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日々の通勤、短い駅間、端正な街のリズム"
+          }
+        }
+      }
+    },
     "日期": {
       "extractionState": "manual",
       "localizations": {
@@ -7192,6 +7413,23 @@
         }
       }
     },
+    "以下情境需要通行證。未訂閱也看得到完整清單。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "These settings need a Pass. The full list stays visible either way."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "以下の場面にはパスが必要です。未加入でも一覧はすべて表示されます。"
+          }
+        }
+      }
+    },
     "冬山": {
       "extractionState": "manual",
       "localizations": {
@@ -7409,6 +7647,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "北埔"
+          }
+        }
+      }
+    },
+    "北海岸": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "North Coast"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "北海岸"
+          }
+        }
+      }
+    },
+    "北海岸天色": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Northern Coast Skies"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "北海岸の空"
           }
         }
       }
@@ -8225,6 +8497,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "台東"
+          }
+        }
+      }
+    },
+    "台東開闊線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taitung Open Line"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台東のひらけた線"
           }
         }
       }
@@ -9453,6 +9742,23 @@
         }
       }
     },
+    "末班車後、空月台與仍未睡的窗": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "After the last train — empty platforms and windows still awake"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "終電のあと、無人のホーム、まだ眠らない窓"
+          }
+        }
+      }
+    },
     "末班車提醒": {
       "extractionState": "manual",
       "localizations": {
@@ -10129,6 +10435,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "田中"
+          }
+        }
+      }
+    },
+    "白天": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Daytime"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "昼"
+          }
+        }
+      }
+    },
+    "白天到深夜的城市與捷運": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The city and its metro, from daylight to late night"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "昼から深夜までの街とメトロ"
           }
         }
       }
@@ -12275,6 +12615,23 @@
         }
       }
     },
+    "收合": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collapse"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "閉じる"
+          }
+        }
+      }
+    },
     "收合 ▲": {
       "extractionState": "manual",
       "localizations": {
@@ -12662,6 +13019,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "この時間帯に停車する列車はありません"
+          }
+        }
+      }
+    },
+    "此路線未提供擁擠度": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No crowding data on this line"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この路線は混雑度の提供なし"
           }
         }
       }
@@ -13108,6 +13482,23 @@
         }
       }
     },
+    "自動選池：{ctx}": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Picked automatically: {ctx}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動選択：{ctx}"
+          }
+        }
+      }
+    },
     "自動選站": {
       "extractionState": "manual",
       "localizations": {
@@ -13295,6 +13686,23 @@
         }
       }
     },
+    "西部平原": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Western Plains"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "西部平野"
+          }
+        }
+      }
+    },
     "西部幹線（山線）": {
       "extractionState": "manual",
       "localizations": {
@@ -13414,6 +13822,23 @@
         }
       }
     },
+    "你到站時": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When you arrive"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "到着時点"
+          }
+        }
+      }
+    },
     "你的位置只在這台裝置上用來顯示，不會上傳、也不會在背景取用。不給權限也能用，改用下面的「儲存地點」。": {
       "extractionState": "manual",
       "localizations": {
@@ -13461,6 +13886,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "位置情報はこの端末での表示とスタンプ判定だけに使い、アップロードしません。駅をタップして列車を確認し、「スタンプ」で旅のパスポートに追加できます。"
+          }
+        }
+      }
+    },
+    "你的接續班次": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your connection"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "あなたの乗継便"
           }
         }
       }
@@ -14141,6 +14583,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "早着"
+          }
+        }
+      }
+    },
+    "快到轉乘站時，直接列出對向系統最近兩班和「你到站時還剩幾分」，可以釘住你要搭的那班": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Near a transfer station, the card lists the next two departures on the connecting system and how many minutes you'll have left when you arrive — tap one to pin it."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "乗り換え駅に近づくと、対向システムの直近2本の発車時刻と「到着時点で残り何分か」をカードに表示。1本をタップすると、その列車に固定できます。"
           }
         }
       }
@@ -15131,6 +15590,23 @@
         }
       }
     },
+    "車站看板的誤點標示放大加粗，一眼就看得出這班晚了幾分（謝謝網友回報）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The delay tag on the station board is bigger and bolder, so you can see at a glance how many minutes a train is late. Thanks to the reader who reported it."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅の発車標の遅延表示を大きく太くし、何分遅れているか一目でわかるようにしました(ご報告ありがとうございます)。"
+          }
+        }
+      }
+    },
     "車站看板的欄位對齊修好：倒數變成「即將進站」那幾列，原本會把時刻與擁擠度往左推、整張板看起來歪歪的，現在倒數與時刻兩欄逐板等寬，每一列都對齊。另外台鐵臺北車站不再多出一顆「臺北-環島」——那是環島之星繞完一圈的官方終點站碼，其實就是臺北站，現在併成一顆，手機小工具的車站清單也一起併": {
       "extractionState": "manual",
       "localizations": {
@@ -15178,6 +15654,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "駅の到着案内と地図上の{n}列車は同じリアルタイムの識別情報と時間軸を使用"
+          }
+        }
+      }
+    },
+    "車廂擁擠度": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Car crowding"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "車両混雑度"
           }
         }
       }
@@ -15246,6 +15739,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "到着すると次の列車へ進み、時間になると自動で閉じます"
+          }
+        }
+      }
+    },
+    "車開到哪、現在幾點就換到對應的配樂": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The music changes with where the train is and what time it is"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "列車のいる場所と時刻に合わせて曲が切り替わります"
           }
         }
       }
@@ -15518,6 +16028,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Googleでログイン"
+          }
+        }
+      }
+    },
+    "使用中": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "オン"
           }
         }
       }
@@ -15981,6 +16508,23 @@
         }
       }
     },
+    "取消釘選": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unpin"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "固定を解除"
+          }
+        }
+      }
+    },
     "取消跟隨": {
       "extractionState": "manual",
       "localizations": {
@@ -16113,6 +16657,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "夜間案内（複数方向）"
+          }
+        }
+      }
+    },
+    "夜晚": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Evening"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "夜"
           }
         }
       }
@@ -16368,6 +16929,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "宜蘭県"
+          }
+        }
+      }
+    },
+    "尚未上架": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coming soon"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "準備中"
           }
         }
       }
@@ -17851,6 +18429,23 @@
         }
       }
     },
+    "花蓮山海": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hualien Sea and Cliffs"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "花蓮の山と海"
+          }
+        }
+      }
+    },
     "花蓮縣": {
       "extractionState": "manual",
       "localizations": {
@@ -17949,6 +18544,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "所定{time}{delay}。軌島で現在位置を見る →"
+          }
+        }
+      }
+    },
+    "表定時刻 · 未計站內步行": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scheduled time · excludes walking inside the station"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "所定時刻・駅構内の徒歩時間は含みません"
           }
         }
       }
@@ -18599,6 +19211,23 @@
         }
       }
     },
+    "南方日光": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Southern Sun"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "南のひかり"
+          }
+        }
+      }
+    },
     "南平": {
       "extractionState": "manual",
       "localizations": {
@@ -18735,6 +19364,23 @@
         }
       }
     },
+    "南迴與花東縱谷的開闊": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The openness of the South-link Line and the East Rift Valley"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "南廻線と花東縦谷のひらけた風景"
+          }
+        }
+      }
+    },
     "南迴線": {
       "extractionState": "manual",
       "localizations": {
@@ -18782,6 +19428,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "台東から枋寮へ南廻線を走る観光列車です。窓を開けられる非冷房のレトロな藍皮客車をディーゼル機関車が牽引し、2021年に復活しました。"
+          }
+        }
+      }
+    },
+    "南部": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Southern Taiwan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "南部"
           }
         }
       }
@@ -18952,6 +19615,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "哈瑪星"
+          }
+        }
+      }
+    },
+    "城市雨景": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rainy City"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "雨の街"
+          }
+        }
+      }
+    },
+    "城市環線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "City Loop"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "都市環状"
           }
         }
       }
@@ -19398,6 +20095,23 @@
         }
       }
     },
+    "按播放開始，或直接選一個情境。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Press play to start, or just pick a setting."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再生を押すか、場面を選んでください。"
+          }
+        }
+      }
+    },
     "查看": {
       "extractionState": "manual",
       "localizations": {
@@ -19734,6 +20448,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "次駅・遅延・全区間の速度曲線を確認"
+          }
+        }
+      }
+    },
+    "看方案": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "See plans"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プランを見る"
           }
         }
       }
@@ -20380,6 +21111,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "英語・日本語で、お気に入り、本日の台湾鉄路、遅延履歴、アカウント同期、Googleリスト読み込み、共有、「この駅を追跡」もすぐ切り替わるようになりました。災害監視、メトロの行先、列車／駅の選択表示、実績の説明、表示と文字サイズ、現在地カメラ、iPhoneのライブアクティビティとウィジェットにも対応し、中国語だけの公式イベントは原文であることを明記します。"
+          }
+        }
+      }
+    },
+    "要換回自動，再點一次「跟著列車」": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap “Follow the train” again to go back to automatic"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動に戻すには「列車に合わせる」をもう一度タップ"
           }
         }
       }
@@ -21234,6 +21982,40 @@
         }
       }
     },
+    "音樂跟著你在看的那班車走——車開到哪、現在幾點就換到對應的情境。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The music follows the train you are watching — the setting changes with where it is and what time it is."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "音楽は見ている列車に合わせて変わります——どこを走っているか、いま何時かで場面が切り替わります。"
+          }
+        }
+      }
+    },
+    "音樂關閉中": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Music is off"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "音楽オフ"
+          }
+        }
+      }
+    },
     "首次會問一次定位權限": {
       "extractionState": "manual",
       "localizations": {
@@ -21502,6 +22284,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "埔心"
+          }
+        }
+      }
+    },
+    "展開": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expand"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "開く"
           }
         }
       }
@@ -22135,6 +22934,23 @@
         }
       }
     },
+    "桌面小工具：方向與目的站多了「不指定」，選過也能改回來；捷運看板的方向只列所選車站開得到的終點。Android 補齊到七種尺寸，捷運與火車都有大張卡片，5 欄手機會佔滿五格（謝謝網友回報）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home screen widgets: direction and destination now offer \"Any\", so a choice can be undone, and the metro board only lists directions reachable from the chosen station. Android now has all seven sizes, with large cards for both metro and rail, and fills all five columns on 5-column phones. Thanks to the readers who reported it."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ホーム画面ウィジェット:方向と目的地に「指定なし」が加わり、選んだ後でも戻せるようになりました。地下鉄の発車標は選んだ駅から行ける方面だけを表示します。Android は 7 種類のサイズを揃え、地下鉄と鉄道の両方に大きいカードを追加、5 列の端末では 5 列いっぱいに使います(ご報告ありがとうございます)。"
+          }
+        }
+      }
+    },
     "桌面小工具的發車看板：大尺寸一次列出五班並分北上南下，每列都有開車時刻與準點誤點；也可以改成主要顯示發車時刻": {
       "extractionState": "manual",
       "localizations": {
@@ -22199,6 +23015,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "デスクトップでは上部の4つのタブで切り替えます。"
+          }
+        }
+      }
+    },
+    "桌面的車站看板加寬，車種與「往哪」不會再被截掉": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The desktop station board is wider, so the train type and destination are no longer cut off."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "デスクトップの駅発車案内を広げ、列車種別と行き先が途中で切れなくなりました。"
           }
         }
       }
@@ -22318,6 +23151,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "台湾外を除外 {n}"
+          }
+        }
+      }
+    },
+    "海岸、平原與東部縱谷": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coastlines, plains and the eastern rift valley"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "海岸、平野、そして東部の縦谷"
           }
         }
       }
@@ -22883,6 +23733,23 @@
         }
       }
     },
+    "站前咖啡店、傍晚轉乘與暖色窗光": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cafés by the station, evening transfers and warm window light"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅前のカフェ、夕方の乗り換え、暖色の窓明かり"
+          }
+        }
+      }
+    },
     "站站是風景": {
       "extractionState": "manual",
       "localizations": {
@@ -23240,6 +24107,23 @@
         }
       }
     },
+    "配樂情境": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soundtrack"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サウンドトラック"
+          }
+        }
+      }
+    },
     "釘": {
       "extractionState": "manual",
       "localizations": {
@@ -23287,6 +24171,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "高鉄"
+          }
+        }
+      }
+    },
+    "高架捷運、玻璃帷幕與城市白天的向前感": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elevated metro, glass facades and the forward pull of a city by day"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高架のメトロ、ガラスの街並み、昼の街が前へ進む感覚"
           }
         }
       }
@@ -23903,6 +24804,23 @@
         }
       }
     },
+    "基隆、北海岸與東北角的陰天與港景": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Overcast skies and harbours from Keelung along the northeast coast"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "基隆から北海岸・東北角へ、曇り空と港の風景"
+          }
+        }
+      }
+    },
     "基隆市": {
       "extractionState": "manual",
       "localizations": {
@@ -24277,6 +25195,23 @@
         }
       }
     },
+    "情境已經換到「{ctx}」，這首播完才切。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The setting has moved to “{ctx}” — it switches once this track finishes."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "場面は「{ctx}」に変わりました。この曲が終わってから切り替わります。"
+          }
+        }
+      }
+    },
     "捷": {
       "extractionState": "manual",
       "localizations": {
@@ -24443,6 +25378,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "8月30日14時に信義線東延伸区間が開業し、淡水信義線の終点が象山から廣慈/奉天宮駅へ延びます。地図には新駅と新しい線路をすでに描いていますが、公式のリアルタイム到着情報は開業後から届くため、それまでこの区間に列車は走りません。8月30日から9月28日まで、新区間を通る乗車は運賃無料です。"
+          }
+        }
+      }
+    },
+    "捷運流動": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Metro in Motion"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メトロの流れ"
           }
         }
       }
@@ -24651,6 +25603,23 @@
         }
       }
     },
+    "斜射光與一天的收尾": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Low light and the closing of a day"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "斜めに差す光と、一日の終わり"
+          }
+        }
+      }
+    },
     "晚 {n} 分": {
       "extractionState": "manual",
       "localizations": {
@@ -24664,6 +25633,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "{n}分遅れ"
+          }
+        }
+      }
+    },
+    "晨曦初班": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "First Light"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "始発と朝の光"
           }
         }
       }
@@ -24923,6 +25909,23 @@
         }
       }
     },
+    "深夜": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Late night"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "深夜"
+          }
+        }
+      }
+    },
     "深夜重播 18:00": {
       "extractionState": "manual",
       "localizations": {
@@ -24991,6 +25994,23 @@
         }
       }
     },
+    "清水斷崖與縱谷之間": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Between the Qingshui Cliffs and the rift valley"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清水断崖と縦谷のあいだ"
+          }
+        }
+      }
+    },
     "清除": {
       "extractionState": "manual",
       "localizations": {
@@ -25004,6 +26024,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "クリア"
+          }
+        }
+      }
+    },
+    "清晨": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dawn"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "早朝"
+          }
+        }
+      }
+    },
+    "清晨、山霧與黃昏": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Early mornings, mountain mist and dusk"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "早朝、山霧、そして夕暮れ"
           }
         }
       }
@@ -25038,6 +26092,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "現在"
+          }
+        }
+      }
+    },
+    "現在依 {ctx} 選池": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Now picking by {ctx}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在は {ctx} で選択中"
           }
         }
       }
@@ -25276,6 +26347,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "初めての方へ・3ステップ"
+          }
+        }
+      }
+    },
+    "第一班車與還沒醒的月台": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The first train of the day and a platform not yet awake"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一番列車と、まだ目覚めないホーム"
           }
         }
       }
@@ -25977,6 +27065,23 @@
         }
       }
     },
+    "通行證已到期,配樂回到隨機播放": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your pass has expired — the soundtrack is back to shuffle"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "パスの有効期限が切れたため、シャッフル再生に戻りました"
+          }
+        }
+      }
+    },
     "通行證已啟用": {
       "extractionState": "manual",
       "localizations": {
@@ -26011,36 +27116,53 @@
         }
       }
     },
-    "通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、收藏與完乘紀錄跨裝置雲端同步、行程分享、在 App 匯入 Google Maps 已儲存清單、App 非跟車時的衛星高解析圖磚，以及 iOS 17.6 以上可用的跟車鎖定畫面與動態島即時動態。": {
+    "通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、收藏與完乘紀錄跨裝置雲端同步、行程分享、App 的跟車配樂（音樂跟著你在看的那班車與當下時間換情境；免費的背景音樂不受影響）、在 App 匯入 Google Maps 已儲存清單、App 非跟車時的衛星高解析圖磚，以及 iOS 17.6 以上可用的跟車鎖定畫面與動態島即時動態。": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pass features include 90 days of daily TRA delay history, cloud sync for favorites and journeys, trip sharing, Google Maps list import, high-resolution satellite tiles when not following, and Lock Screen or Dynamic Island status on iOS 17.6+."
+            "value": "Pass features include 90 days of daily TRA delay history, cloud sync for favorites and journeys, trip sharing, the train soundtrack in the app (the music follows the train you are watching and the time of day; the free background music is unaffected), Google Maps list import, high-resolution satellite tiles when not following, and Lock Screen or Dynamic Island status on iOS 17.6+."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "パスには台湾鉄路の90日日別遅延履歴、お気に入りと完乗のクラウド同期、旅程共有、Google Mapsリスト読込、高解像度衛星画像、iOS 17.6以降のロック画面／Dynamic Island表示が含まれます。"
+            "value": "パスには台湾鉄路の90日日別遅延履歴、お気に入りと完乗のクラウド同期、旅程共有、アプリの追跡サウンドトラック（見ている列車と時刻に合わせて場面が切り替わります。無料のBGMには影響しません）、Google Mapsリスト読込、高解像度衛星画像、iOS 17.6以降のロック画面／Dynamic Island表示が含まれます。"
           }
         }
       }
     },
-    "通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、iPhone 桌面與鎖定畫面的捷運小工具放多站或用「自動（最近的站）」跟著你移動換站（免費可設定一站）、收藏與完乘紀錄跨裝置雲端同步、行程分享、在 App 匯入 Google Maps 已儲存清單、App 非跟車時的衛星高解析圖磚，以及 iOS 17.6 以上可用的跟車鎖定畫面與動態島即時動態。": {
+    "通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、iPhone 桌面與鎖定畫面的捷運小工具放多站或用「自動（最近的站）」跟著你移動換站（免費可設定一站）、收藏與完乘紀錄跨裝置雲端同步、行程分享、App 的跟車配樂（音樂跟著你在看的那班車與當下時間換情境；免費的背景音樂不受影響）、在 App 匯入 Google Maps 已儲存清單、App 非跟車時的衛星高解析圖磚，以及 iOS 17.6 以上可用的跟車鎖定畫面與動態島即時動態。": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pass features include 90 days of daily TRA delay history; multiple stations or Auto (nearest station) in iPhone Home and Lock Screen metro widgets, with one station free; cloud sync for favorites and completion records; journey sharing; importing Google Maps saved lists in the app; high-resolution satellite tiles when not following a train; and follow Live Activities on the Lock Screen and Dynamic Island on iOS 17.6 or later."
+            "value": "Pass features include 90 days of daily TRA delay history; multiple stations or Auto (nearest station) in iPhone Home and Lock Screen metro widgets, with one station free; cloud sync for favorites and completion records; journey sharing; the train soundtrack in the app (the music follows the train you are watching and the time of day — the free background music is unaffected); importing Google Maps saved lists in the app; high-resolution satellite tiles when not following a train; and follow Live Activities on the Lock Screen and Dynamic Island on iOS 17.6 or later."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "パスには、台湾鉄路の過去90日の日別遅延履歴、iPhoneのホーム／ロック画面メトロウィジェットでの複数駅または移動に合わせる「自動（最寄り駅）」（1駅は無料）、お気に入りと完乗記録の端末間同期、旅程共有、Googleマップ保存済みリストの読み込み、列車追跡中以外の高解像度衛星地図、iOS 17.6以降のロック画面／Dynamic Island追跡ライブ表示が含まれます。"
+            "value": "パスには、台湾鉄路の過去90日の日別遅延履歴、iPhoneのホーム／ロック画面メトロウィジェットでの複数駅または移動に合わせる「自動（最寄り駅）」（1駅は無料）、お気に入りと完乗記録の端末間同期、旅程共有、アプリの追跡サウンドトラック（見ている列車と時刻に合わせて場面が切り替わります。無料のBGMには影響しません）、Googleマップ保存済みリストの読み込み、列車追跡中以外の高解像度衛星地図、iOS 17.6以降のロック画面／Dynamic Island追跡ライブ表示が含まれます。"
+          }
+        }
+      }
+    },
+    "通行證使用中 · {pools} 個情境池，{shipped} 個已上架。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pass active · {pools} settings, {shipped} available now."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "パス利用中 · 場面 {pools} 種、うち {shipped} 種が配信中。"
           }
         }
       }
@@ -26266,6 +27388,23 @@
         }
       }
     },
+    "都市爵士": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Urban Jazz"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アーバンジャズ"
+          }
+        }
+      }
+    },
     "都會公園": {
       "extractionState": "manual",
       "localizations": {
@@ -26279,6 +27418,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "都会公園"
+          }
+        }
+      }
+    },
+    "都會日行": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Daytime Downtown"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "都会の昼"
           }
         }
       }
@@ -26415,6 +27571,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "鹿麻産"
+          }
+        }
+      }
+    },
+    "傍晚": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dusk"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "夕方"
           }
         }
       }
@@ -26827,6 +28000,23 @@
         }
       }
     },
+    "剩 {n} 分": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{n} min left"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "あと{n}分"
+          }
+        }
+      }
+    },
     "創": {
       "extractionState": "manual",
       "localizations": {
@@ -26959,6 +28149,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "1回で300 km以上完乗"
+          }
+        }
+      }
+    },
+    "單獨情境池": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standalone settings"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "単独の場面"
           }
         }
       }
@@ -27231,6 +28438,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "次へ"
+          }
+        }
+      }
+    },
+    "換情境只發生在一首播完之後，不會把正在聽的曲子切掉；短暫經過一個地區也不會馬上換。通行證到期會自動退回免費的隨機播放，你選過的情境會留著。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The setting only changes once a track finishes, so nothing is cut off mid-song, and passing briefly through an area will not switch it. When your pass expires the soundtrack returns to free shuffle, and the setting you chose is kept."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "場面が変わるのは 1 曲が終わったあとだけで、再生中の曲が途中で切れることはありません。ある地域を短時間通過しただけでは切り替わりません。パスの有効期限が切れると無料のシャッフル再生に戻り、選んでいた場面は保持されます。"
           }
         }
       }
@@ -28697,6 +29921,23 @@
         }
       }
     },
+    "開闊風景": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Country"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ひらけた風景"
+          }
+        }
+      }
+    },
     "陽光運動公園": {
       "extractionState": "manual",
       "localizations": {
@@ -28863,6 +30104,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "雲林県"
+          }
+        }
+      }
+    },
+    "黃昏斜光": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Golden Hour"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "黄昏の斜光"
           }
         }
       }
@@ -29050,6 +30308,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "「現在」で実時刻に戻る"
+          }
+        }
+      }
+    },
+    "想固定聽某一種就直接點家族或情境，會一直停在那裡": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap a family or a setting to stay on it"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "固定したいときは家族または場面を直接タップするとそのままになります"
           }
         }
       }
@@ -29900,6 +31175,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "源泉"
+          }
+        }
+      }
+    },
+    "準備中 · {soon}": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coming soon · {soon}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "準備中 · {soon}"
           }
         }
       }
@@ -30839,6 +32131,23 @@
         }
       }
     },
+    "跟車配樂": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Train Soundtrack"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "追跡サウンドトラック"
+          }
+        }
+      }
+    },
     "跟到終點會蓋一枚完乘章（收在「護照」）。加速播放沒問題，但中途跳時間就不算。": {
       "extractionState": "manual",
       "localizations": {
@@ -30873,6 +32182,23 @@
         }
       }
     },
+    "跟捷運列車時，卡片上會顯示這一台車每一節車廂的擁擠度": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "While following a Taipei Metro train, the card shows how crowded each carriage of that train is."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台北メトロの列車を追跡中、その列車の車両ごとの混雑度をカードに表示します。"
+          }
+        }
+      }
+    },
     "跟這班車 →": {
       "extractionState": "manual",
       "localizations": {
@@ -30903,6 +32229,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "山海号または平原号を台北から折返しの枋寮まで連続追跡"
+          }
+        }
+      }
+    },
+    "跟著列車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Follow the train"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "列車に合わせる"
+          }
+        }
+      }
+    },
+    "跟著列車自動選池": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Picked automatically as the train moves"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "列車に合わせて自動で選択"
           }
         }
       }
@@ -31396,6 +32756,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "嘉北"
+          }
+        }
+      }
+    },
+    "嘉南到屏東的強光與熱空氣": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hard light and hot air from the Chianan Plain down to Pingtung"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "嘉南から屏東へ、強い日差しと熱い空気"
           }
         }
       }
@@ -32229,6 +33606,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "{kind} {train}と交換"
+          }
+        }
+      }
+    },
+    "與原民音樂人共創（尚未開放）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Created with Indigenous musicians (not yet available)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "原住民ミュージシャンとの共作（未公開）"
           }
         }
       }
@@ -33661,6 +35055,40 @@
         }
       }
     },
+    "擁擠度 · {n} 分前": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Crowding · {n} min ago"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "混雑度 · {n} 分前"
+          }
+        }
+      }
+    },
+    "擁擠度 · {n} 秒前": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Crowding · {n} sec ago"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "混雑度 · {n} 秒前"
+          }
+        }
+      }
+    },
     "樹林": {
       "extractionState": "manual",
       "localizations": {
@@ -34086,6 +35514,23 @@
         }
       }
     },
+    "選「跟著列車」就交給它自動換": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pick “Follow the train” and it switches on its own"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「列車に合わせる」を選べば自動で切り替わります"
+          }
+        }
+      }
+    },
     "選一個車站，桌面就會顯示官方的下一班還有幾分鐘。": {
       "extractionState": "manual",
       "localizations": {
@@ -34375,36 +35820,19 @@
         }
       }
     },
-    "錄影": {
+    "隨機": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Record"
+            "value": "Shuffle"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "録画"
-          }
-        }
-      }
-    },
-    "錄影 Beta（存成影片下載）": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Record Beta (download a video)"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "録画 Beta（動画を保存）"
+            "value": "シャッフル"
           }
         }
       }
@@ -34439,6 +35867,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "列車をランダム追跡—もう一度押すと列車を変更（×で追跡終了）"
+          }
+        }
+      }
+    },
+    "隨機播放整座曲庫": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shuffling the whole library"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ライブラリ全体からランダム再生"
+          }
+        }
+      }
+    },
+    "靜謐時刻": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quiet Hours"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "静かな時間"
           }
         }
       }
@@ -34983,6 +36445,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "礁渓"
+          }
+        }
+      }
+    },
+    "縱貫線中段的稻田與長直線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rice fields and long straights along the middle Western Line"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "縦貫線中部の田んぼと長い直線"
           }
         }
       }
@@ -36075,6 +37554,23 @@
         }
       }
     },
+    "轉{system} · 你到站時": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transfer to {system} · when you arrive"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{system}へ乗換・到着時点"
+          }
+        }
+      }
+    },
     "鎮安": {
       "extractionState": "manual",
       "localizations": {
@@ -36483,6 +37979,40 @@
         }
       }
     },
+    "蘭陽平原的雨與開闊": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rain and open space across the Lanyang Plain"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "蘭陽平野の雨とひろがり"
+          }
+        }
+      }
+    },
+    "蘭陽雨原": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lanyang Rain Plain"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "蘭陽の雨の平野"
+          }
+        }
+      }
+    },
     "護照": {
       "extractionState": "manual",
       "localizations": {
@@ -36598,6 +38128,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "鉄道魂"
+          }
+        }
+      }
+    },
+    "鐵道質地的聲音設計": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sound design built from the textures of the railway"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "鉄道の質感からつくるサウンドデザイン"
+          }
+        }
+      }
+    },
+    "鐵道質地配樂": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rail Texture Score"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "鉄道のテクスチャ"
           }
         }
       }
@@ -37078,6 +38642,23 @@
         }
       }
     },
+    "App 的跟車配樂：音樂跟著你在看的那班車與當下時間換情境": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Train soundtrack in the app: the music follows the train you are watching and the time of day"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アプリの追跡サウンドトラック:見ている列車の場所と時刻に合わせて曲の場面が切り替わります"
+          }
+        }
+      }
+    },
     "App 非跟車時的衛星高解析圖磚（支援 Retina 螢幕）": {
       "extractionState": "manual",
       "localizations": {
@@ -37193,6 +38774,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "CARTOベースマップ（© OpenStreetMap）、Esri World Imagery、Natural Earthのオフライン陸地輪郭。"
+          }
+        }
+      }
+    },
+    "ChatGPT 在內建瀏覽器打開軌島時，現在能直接查目前畫面、搜尋車站、讀車站看板與營運公告，也能替你開啟車站看板或跟隨指定火車；一般瀏覽器不受影響": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When Rail Island is open in ChatGPT’s built-in browser, ChatGPT can now inspect the current view, search stations, read departure boards and service alerts, open a station board, or follow a specified train. Regular browsers are unaffected."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ChatGPTの内蔵ブラウザで軌島を開くと、現在の表示内容の確認、駅検索、発車案内・運行情報の取得、駅案内の表示、指定列車の追跡をChatGPTから行えるようになりました。通常のブラウザには影響しません。"
           }
         }
       }
