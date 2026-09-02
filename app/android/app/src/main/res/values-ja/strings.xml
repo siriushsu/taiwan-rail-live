@@ -2,10 +2,18 @@
 <resources>
     <string name="app_name">軌島</string>
     <string name="title_activity_main">軌島</string>
-    <string name="metro_widget_name">メトロ到着案内</string>
-    <string name="metro_widget_description">駅を選び、次の公式到着情報を表示します</string>
-    <string name="rail_widget_name">発車案内</string>
+    <string name="metro_widget_name">メトロ到着案内・中</string>
+    <string name="metro_widget_description">1駅の次発と次々発、方向も指定できます</string>
+    <string name="rail_widget_name">発車案内・中</string>
     <string name="rail_widget_description">台湾鉄路・高鉄の停車、終着、通過列車を表示します</string>
+    <string name="metro_widget_small_name">メトロ到着案内・小</string>
+    <string name="metro_widget_small_description">1方向の次発だけを表示する最小サイズ</string>
+    <string name="metro_widget_large_name">メトロ到着案内・大</string>
+    <string name="metro_widget_large_description">複数方向の直近8本をまとめて表示</string>
+    <string name="rail_widget_small_name">発車案内・小</string>
+    <string name="rail_widget_small_description">直近2本だけを表示する最小サイズ</string>
+    <string name="rail_widget_large_name">発車案内・大</string>
+    <string name="rail_widget_large_description">直近8本を表示するフルサイズの発車案内</string>
     <string name="mixed_widget_name">鉄道＋メトロ案内</string>
     <string name="mixed_widget_description">鉄道の発車とメトロの到着を1枚で表示します</string>
 </resources>

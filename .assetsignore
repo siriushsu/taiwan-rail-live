@@ -111,3 +111,7 @@ CODEX-*
 # 內部出圖工具與 Android 版面試作稿:理由同 .gitignore 那邊,兩邊都要有才擋得住。
 tools
 android-native-design-mock.html
+# 付費配樂的 WAV 母帶(每首 13-42MB、單池 200MB+):只用來重壓 mp3,絕不對外。
+# 2026-08-29 建。比照 .cache 的教訓——wrangler 上傳磁碟檔案,只有本檔擋得住。
+suno musics/_masters
+*.wav

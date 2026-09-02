@@ -19,6 +19,16 @@ struct MetroBoardIntent: AppIntent, WidgetConfigurationIntent {
     /// 不做靜默空白卡(這個專案已經有三個「不給用也不說」的付費功能,不再加第四個)。
     static let freeStationLimit: Int? = 1
 
+    /// 方向格的「不指定」哨兵。iOS 的單選 picker 選過一次就沒有內建的清除手勢——使用者
+    /// 2026-09-02 回報「選了方向就取消不了,只能刪掉小工具重來」。所以清單最上面放一個具名的
+    /// 「不指定」選項,值走 ASCII 哨兵(與 MetroNearest.sentinel 同一種做法);讀的那一端一律經
+    /// direction(_:) 正規化成 nil,畫面與過濾邏輯完全不認得這個字串。
+    static let anyDirection = "any"
+    static func direction(_ raw: String?) -> String? {
+        guard let raw, !raw.isEmpty, raw != anyDirection else { return nil }
+        return raw
+    }
+
     // 🔴 真機實測(08-14):String 參數【沒掛 optionsProvider 就是自由輸入框】——
     //    使用者看到空白格要自己打字。三格每一格都要有 provider,少一個就漏一格。
     @Parameter(title: "系統", optionsProvider: MetroSystemOptionsProvider())
@@ -47,7 +57,7 @@ struct MetroSystemOptionsProvider: DynamicOptionsProvider {
 }
 
 struct MetroStationOptionsProvider: DynamicOptionsProvider {
-    // 本檔唯一的依賴(單一 keypath,與出貨檔同形狀)。車站清單依系統分段。
+    // 依賴單一 keypath \.$sys(與出貨檔同形狀;方向 provider 另綁 \.$station)。車站清單依系統分段。
     // 🔴 變數名照出貨慣例叫 intent(AppIntent.swift:124/202)——驗收 L3 的 regex 鎖這個名字。
     @IntentParameterDependency<MetroBoardIntent>(\.$sys)
     var intent
@@ -76,23 +86,50 @@ struct MetroStationOptionsProvider: DynamicOptionsProvider {
 }
 
 struct MetroDirectionOptionsProvider: DynamicOptionsProvider {
-    // 🔴 這裡刻意【不帶依賴】。發車看板證明「單一依賴讀前一格」的形狀可行
-    //    (DestinationOptionsProvider 依賴 origin),所以依賴 \.$station 來收窄方向
-    //    「可能」可行——但那個形狀用在這裡沒真機驗過,而且要在目錄裡多留 per-station
-    //    的 dests 表。先出保守版:列出所有系統的所有終點,依系統分段;選錯方向時
-    //    看板會是空的,用 promptLabel 說明。真機驗收(Task 7)若嫌清單太長再升級。
-    //    無論如何【不能】偷讀 intent?.station——讀沒宣告的參數當場 fatalError
-    //    (出貨檔 AppIntent.swift:196-198 實測)。
+    // 綁【一個】依賴 \.$station(與車站 provider 綁 \.$sys 同形狀):方向只列「這一站開得到的」。
+    // 原本刻意不帶依賴、把三個系統的終點全部攤平——使用者 2026-09-02 回報「選了北捷的站,
+    // 方向卻選得到高雄／機捷、或不是這條線的站,選完看板永遠是空的」。清單本身就不該給出
+    // 一個保證是空看板的組合。
+    // 🔴 只准讀 intent?.station(讀沒宣告的 sys 當場 fatalError,見 AppIntent.swift:196-198)。
+    @IntentParameterDependency<MetroBoardIntent>(\.$station)
+    var intent
+
     func results() async throws -> ItemCollection<String> {
+        MetroDirectionOptions.collection(stationKey: intent?.station)
+    }
+}
+
+/// 方向格的清單只有一份(捷運看板與混合大卡共用),兩個 provider 只差依賴綁在哪個 Intent 上。
+enum MetroDirectionOptions {
+    static func collection(stationKey: String?) -> IntentItemCollection<String> {
         let data = MetroWidgetCatalog.shared
-        // 🔧 同上一個 provider:改用 .map 組陣列走 sections: 參數,理由與實測錯誤同上。
-        return ItemCollection(
-            promptLabel: "留空＝兩個方向都看",
-            sections: data.systems.map { s in
-                IntentItemSection(LocalizedStringResource(stringLiteral: RailNativeL10n.name(s.label)), items: s.destinations.map { d in
-                    IntentItem<String>(d, title: LocalizedStringResource(stringLiteral: RailNativeL10n.text("往 {station}", ["station": RailNativeL10n.name(d)])))
-                })
-            }
+        // 「不指定」永遠在最上面——這是唯一能把選過的方向清掉的路(見 MetroBoardIntent.anyDirection)。
+        let anySection = IntentItemSection<String>(
+            LocalizedStringResource(stringLiteral: RailNativeL10n.text("不限方向")),
+            items: [IntentItem<String>(MetroBoardIntent.anyDirection,
+                                       title: LocalizedStringResource(stringLiteral: RailNativeL10n.text("不指定（兩個方向都看）")))]
+        )
+        func item(_ d: String) -> IntentItem<String> {
+            IntentItem<String>(d, title: LocalizedStringResource(stringLiteral: RailNativeL10n.text("往 {station}", ["station": RailNativeL10n.name(d)])))
+        }
+        // 全系統攤平的退路:依賴還沒交進來(真機開選單第一拍常是 nil)、自動選站、或舊鍵對不到目錄。
+        // 🔴 不准回 .empty——回空集合等於 iOS 把整張選單收掉(AppIntent.swift:137-141 實測)。
+        func everything(_ prompt: String) -> IntentItemCollection<String> {
+            IntentItemCollection(promptLabel: LocalizedStringResource(stringLiteral: RailNativeL10n.text(prompt)),
+                           sections: [anySection] + data.systems.map { s in
+                IntentItemSection(LocalizedStringResource(stringLiteral: RailNativeL10n.name(s.label)),
+                                  items: s.destinations.map(item))
+            })
+        }
+        guard let stationKey else { return everything("正在讀取車站，先列出全部方向") }
+        if stationKey == MetroNearest.sentinel { return everything("自動選站時不套用方向，這格可留空") }
+        let parts = stationKey.split(separator: "|", maxSplits: 1).map(String.init)
+        guard parts.count == 2 else { return everything("正在讀取車站，先列出全部方向") }
+        let dests = data.destinations(sys: parts[0], station: parts[1])
+        guard !dests.isEmpty else { return everything("正在讀取車站，先列出全部方向") }
+        return IntentItemCollection(
+            promptLabel: LocalizedStringResource(stringLiteral: RailNativeL10n.text("只列出「{station}」開得到的方向", ["station": RailNativeL10n.name(parts[1])])),
+            sections: [anySection, IntentItemSection(LocalizedStringResource(stringLiteral: RailNativeL10n.name(parts[1])), items: dests.map(item))]
         )
     }
 }

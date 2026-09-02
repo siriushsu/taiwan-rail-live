@@ -22,7 +22,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /** 台鐵／高鐵發車看板：Android 對應 iOS RailBoardWidget。 */
-public final class RailBoardWidgetProvider extends AppWidgetProvider {
+// 不是 final:小／大兩個尺寸是空殼子類(RailBoardWidgetSmallProvider／RailBoardWidgetLargeProvider),見 WidgetFamily。
+public class RailBoardWidgetProvider extends AppWidgetProvider {
     static final String PREFS = "rail_board_widget";
     static final String ACTION_REFRESH = "tw.railisland.app.REFRESH_RAIL_BOARD_WIDGET";
     private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor();
@@ -59,7 +60,7 @@ public final class RailBoardWidgetProvider extends AppWidgetProvider {
 
     static void updateAll(Context context) {
         AppWidgetManager manager = AppWidgetManager.getInstance(context);
-        int[] ids = manager.getAppWidgetIds(new ComponentName(context, RailBoardWidgetProvider.class));
+        int[] ids = WidgetFamily.ids(context, manager, WidgetFamily.RAIL);
         for (int id : ids) updateOneAsync(context, manager, id);
     }
 
@@ -126,6 +127,14 @@ public final class RailBoardWidgetProvider extends AppWidgetProvider {
     private static RemoteViews sizes(Context context, int id, RailWidgetData.Snapshot snapshot, boolean readable) {
         PendingIntent tap = openIntent(context, id);
         if (Build.VERSION.SDK_INT < 31) {
+            // 沒有 setSizeSpecificViewLayouts 的機器:照這一格屬於哪個尺寸的 provider 挑一張。
+            String family = WidgetFamily.of(context, id);
+            if (WidgetFamily.SMALL.equals(family)) {
+                return tap(RailWidgetRender.board(context, R.layout.widget_rail_2x2, snapshot, 2, readable, true), tap);
+            }
+            if (WidgetFamily.LARGE.equals(family)) {
+                return tap(RailWidgetRender.board(context, R.layout.widget_rail_4x4, snapshot, 8, readable, false), tap);
+            }
             return tap(RailWidgetRender.board(context, R.layout.widget_rail_4x2, snapshot, 4, readable, false), tap);
         }
         Map<SizeF, RemoteViews> layouts = new HashMap<>();
@@ -133,8 +142,11 @@ public final class RailBoardWidgetProvider extends AppWidgetProvider {
             RailWidgetRender.board(context, R.layout.widget_rail_2x2, snapshot, 2, readable, true), tap));
         layouts.put(new SizeF(200f, 100f), tap(
             RailWidgetRender.board(context, R.layout.widget_rail_4x2, snapshot, 4, readable, false), tap));
-        layouts.put(new SizeF(200f, 250f), tap(
-            RailWidgetRender.board(context, R.layout.widget_rail_4x4, snapshot, 8, readable, false), tap));
+        // 🔴 只有「大」那一族才開 4×4 桶:4×4 格線的兩列就有 276dp 高,中卡不擋會整張變成大卡版面。
+        if (WidgetFamily.LARGE.equals(WidgetFamily.of(context, id))) {
+            layouts.put(new SizeF(200f, 250f), tap(
+                RailWidgetRender.board(context, R.layout.widget_rail_4x4, snapshot, 8, readable, false), tap));
+        }
         return new RemoteViews(layouts);
     }
 

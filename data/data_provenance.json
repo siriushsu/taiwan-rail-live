@@ -55,6 +55,15 @@
    "coordinateBasis": null,
    "checksum": "b83fbb70c64d9f0c5e91cfc34c085adf"
   },
+  "data/music.json": {
+   "sourceDescription": "本站自製配樂,無外部資料源。曲目由 Suno 生成後人工挑選,dur/bytes 由 scripts/build_music_data.mjs 以 ffprobe 與檔案大小量出;情境池的分區/時段/家族歸屬是產品設計,定義在同一支建置腳本的 POOLS 常數",
+   "sourceField": "source_notes",
+   "effectiveDate": null,
+   "effectiveDateField": null,
+   "geometrySource": null,
+   "coordinateBasis": null,
+   "checksum": "11d7ce686a850b50b57623321eae069b"
+  },
   "data/ntalrt.json": {
    "sourceDescription": "交通部 TDX 運輸資料流通服務(安坑輕軌:路線幾何/站序,2026-07 抓取);班距為官方公告估算(尖峰約12分/離峰約15分),TDX 無班距/站間時間檔",
    "sourceField": "source_notes",

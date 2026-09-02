@@ -1,0 +1,664 @@
+{
+  "source_notes": "本站自製配樂,無外部資料源。曲目由 Suno 生成後人工挑選,dur/bytes 由 scripts/build_music_data.mjs 以 ffprobe 與檔案大小量出;情境池的分區/時段/家族歸屬是產品設計,定義在同一支建置腳本的 POOLS 常數",
+  "free": {
+    "tracks": [
+      {
+        "src": "Afloat/Drifting Among Stars-2.mp3",
+        "dur": 178,
+        "bytes": 3844739
+      },
+      {
+        "src": "Afloat/Drifting Among Stars.mp3",
+        "dur": 228,
+        "bytes": 5246902
+      },
+      {
+        "src": "Afloat/Floating in Zero Gravity (Extend)-2.mp3",
+        "dur": 171,
+        "bytes": 3377384
+      },
+      {
+        "src": "Afloat/Floating in Zero Gravity (Extend).mp3",
+        "dur": 168,
+        "bytes": 3851769
+      },
+      {
+        "src": "Afloat/Floating in Zero Gravity-2.mp3",
+        "dur": 217,
+        "bytes": 4570652
+      },
+      {
+        "src": "Afloat/Floating in Zero Gravity.mp3",
+        "dur": 124,
+        "bytes": 2767641
+      },
+      {
+        "src": "Afloat/Zero Gravity Dream-2.mp3",
+        "dur": 187,
+        "bytes": 3881859
+      },
+      {
+        "src": "Afloat/Zero Gravity Dream.mp3",
+        "dur": 131,
+        "bytes": 2824782
+      },
+      {
+        "src": "Midnight stories/Midnight Reverie-2.mp3",
+        "dur": 194,
+        "bytes": 4561944
+      },
+      {
+        "src": "Midnight stories/Midnight Reverie.mp3",
+        "dur": 153,
+        "bytes": 3654233
+      },
+      {
+        "src": "Midnight stories/Midnight Whispers-2.mp3",
+        "dur": 135,
+        "bytes": 2831197
+      },
+      {
+        "src": "Midnight stories/Midnight Whispers.mp3",
+        "dur": 127,
+        "bytes": 2969635
+      },
+      {
+        "src": "Midnight stories/Skyline Pillow Thoughts.mp3",
+        "dur": 125,
+        "bytes": 2892787
+      },
+      {
+        "src": "Moonlake/Untitled-10.mp3",
+        "dur": 125,
+        "bytes": 2719366
+      },
+      {
+        "src": "Moonlake/Untitled-11.mp3",
+        "dur": 144,
+        "bytes": 3292043
+      },
+      {
+        "src": "Moonlake/Untitled-12.mp3",
+        "dur": 122,
+        "bytes": 2809846
+      },
+      {
+        "src": "Moonlake/Untitled-2.mp3",
+        "dur": 137,
+        "bytes": 3180063
+      },
+      {
+        "src": "Moonlake/Untitled-3.mp3",
+        "dur": 173,
+        "bytes": 3919587
+      },
+      {
+        "src": "Moonlake/Untitled-4.mp3",
+        "dur": 102,
+        "bytes": 2266077
+      },
+      {
+        "src": "Moonlake/Untitled-5.mp3",
+        "dur": 123,
+        "bytes": 2845271
+      },
+      {
+        "src": "Moonlake/Untitled-6.mp3",
+        "dur": 112,
+        "bytes": 2507791
+      },
+      {
+        "src": "Moonlake/Untitled-7.mp3",
+        "dur": 232,
+        "bytes": 5396167
+      },
+      {
+        "src": "Moonlake/Untitled-8.mp3",
+        "dur": 81,
+        "bytes": 1906281
+      },
+      {
+        "src": "Moonlake/Untitled-9.mp3",
+        "dur": 145,
+        "bytes": 3366059
+      },
+      {
+        "src": "Moonlake/Untitled.mp3",
+        "dur": 128,
+        "bytes": 2896354
+      },
+      {
+        "src": "Rainy day/City Lights Whisper-2.mp3",
+        "dur": 148,
+        "bytes": 3159967
+      },
+      {
+        "src": "Rainy day/City Lights Whisper.mp3",
+        "dur": 176,
+        "bytes": 4324089
+      },
+      {
+        "src": "Rainy day/City Lights, Fading Nights-2.mp3",
+        "dur": 169,
+        "bytes": 3614390
+      },
+      {
+        "src": "Rainy day/City Lights, Fading Nights.mp3",
+        "dur": 181,
+        "bytes": 4024210
+      },
+      {
+        "src": "Rainy day/City Rain Reverie-2.mp3",
+        "dur": 154,
+        "bytes": 3265525
+      },
+      {
+        "src": "Rainy day/City Rain Reverie-3.mp3",
+        "dur": 166,
+        "bytes": 3560899
+      },
+      {
+        "src": "Rainy day/City Rain Reverie.mp3",
+        "dur": 159,
+        "bytes": 3347391
+      },
+      {
+        "src": "Rainy day/City Rain Thoughts.mp3",
+        "dur": 150,
+        "bytes": 3548672
+      },
+      {
+        "src": "Rainy day/Urban Night-2.mp3",
+        "dur": 153,
+        "bytes": 3673552
+      },
+      {
+        "src": "Rainy day/Urban Night.mp3",
+        "dur": 156,
+        "bytes": 3702125
+      },
+      {
+        "src": "Star & Neon/Neon Glow.mp3",
+        "dur": 171,
+        "bytes": 3606166
+      },
+      {
+        "src": "Star & Neon/Neon Reverie-2.mp3",
+        "dur": 132,
+        "bytes": 3011501
+      },
+      {
+        "src": "Star & Neon/Neon Reverie-3.mp3",
+        "dur": 178,
+        "bytes": 4151834
+      },
+      {
+        "src": "Star & Neon/Neon Reverie.mp3",
+        "dur": 163,
+        "bytes": 3726494
+      },
+      {
+        "src": "Star & Neon/Neon Tide In Slow Motion.mp3",
+        "dur": 203,
+        "bytes": 4579189
+      },
+      {
+        "src": "Star & Neon/Stargazer's Lullaby.mp3",
+        "dur": 158,
+        "bytes": 3448653
+      },
+      {
+        "src": "Star & Neon/Stargazing Dreamscape-2.mp3",
+        "dur": 210,
+        "bytes": 4570591
+      },
+      {
+        "src": "Star & Neon/Stargazing Dreamscape.mp3",
+        "dur": 208,
+        "bytes": 4674057
+      },
+      {
+        "src": "Star & Neon/Starlight Drifts-2.mp3",
+        "dur": 200,
+        "bytes": 4378466
+      },
+      {
+        "src": "Star & Neon/Starlight Drifts.mp3",
+        "dur": 178,
+        "bytes": 3973063
+      },
+      {
+        "src": "peaceful piano/Inspired by peaceful piano-10.mp3",
+        "dur": 127,
+        "bytes": 2847863
+      },
+      {
+        "src": "peaceful piano/Inspired by peaceful piano-11.mp3",
+        "dur": 179,
+        "bytes": 4219328
+      },
+      {
+        "src": "peaceful piano/Inspired by peaceful piano-12.mp3",
+        "dur": 140,
+        "bytes": 3170709
+      },
+      {
+        "src": "peaceful piano/Inspired by peaceful piano-2.mp3",
+        "dur": 160,
+        "bytes": 3760042
+      },
+      {
+        "src": "peaceful piano/Inspired by peaceful piano-3.mp3",
+        "dur": 189,
+        "bytes": 4414224
+      },
+      {
+        "src": "peaceful piano/Inspired by peaceful piano-4.mp3",
+        "dur": 113,
+        "bytes": 2364854
+      },
+      {
+        "src": "peaceful piano/Inspired by peaceful piano-5.mp3",
+        "dur": 166,
+        "bytes": 3873263
+      },
+      {
+        "src": "peaceful piano/Inspired by peaceful piano-6.mp3",
+        "dur": 149,
+        "bytes": 3517458
+      },
+      {
+        "src": "peaceful piano/Inspired by peaceful piano-7.mp3",
+        "dur": 153,
+        "bytes": 3564448
+      },
+      {
+        "src": "peaceful piano/Inspired by peaceful piano-8.mp3",
+        "dur": 245,
+        "bytes": 5553757
+      },
+      {
+        "src": "peaceful piano/Inspired by peaceful piano-9.mp3",
+        "dur": 178,
+        "bytes": 4068405
+      },
+      {
+        "src": "peaceful piano/Inspired by peaceful piano.mp3",
+        "dur": 151,
+        "bytes": 3357887
+      }
+    ],
+    "bundled": [
+      "Afloat/Zero Gravity Dream.mp3",
+      "Afloat/Floating in Zero Gravity (Extend)-2.mp3",
+      "Midnight stories/Midnight Whispers.mp3",
+      "Midnight stories/Skyline Pillow Thoughts.mp3",
+      "Moonlake/Untitled-5.mp3",
+      "Moonlake/Untitled-9.mp3",
+      "Rainy day/City Rain Reverie.mp3",
+      "Rainy day/Urban Night.mp3",
+      "Star & Neon/Neon Glow.mp3",
+      "Star & Neon/Stargazer's Lullaby.mp3",
+      "peaceful piano/Inspired by peaceful piano.mp3",
+      "peaceful piano/Inspired by peaceful piano-6.mp3"
+    ]
+  },
+  "families": [
+    {
+      "id": "city-circuit",
+      "zh": "城市環線",
+      "desc": "白天到深夜的城市與捷運"
+    },
+    {
+      "id": "open-landscape",
+      "zh": "開闊風景",
+      "desc": "海岸、平原與東部縱谷"
+    },
+    {
+      "id": "quiet-hours",
+      "zh": "靜謐時刻",
+      "desc": "清晨、山霧與黃昏"
+    }
+  ],
+  "pools": [
+    {
+      "id": "city-pop-day",
+      "zh": "都會日行",
+      "family": "city-circuit",
+      "desc": "高架捷運、玻璃帷幕與城市白天的向前感",
+      "zones": [
+        "north-city",
+        "west-plain",
+        "south"
+      ],
+      "hours": [
+        "day"
+      ],
+      "weather": null,
+      "auto": true,
+      "tracks": [
+        {
+          "src": "_pass/city-pop-day/Boulevard Momentum.mp3",
+          "dur": 219,
+          "bytes": 5360982
+        },
+        {
+          "src": "_pass/city-pop-day/City Lights Turning On-2.mp3",
+          "dur": 159,
+          "bytes": 4117110
+        },
+        {
+          "src": "_pass/city-pop-day/City Lights Turning On.mp3",
+          "dur": 186,
+          "bytes": 4767006
+        },
+        {
+          "src": "_pass/city-pop-day/Glass Towers at Sunset-2.mp3",
+          "dur": 108,
+          "bytes": 2707734
+        },
+        {
+          "src": "_pass/city-pop-day/Glass Towers at Sunset.mp3",
+          "dur": 145,
+          "bytes": 3668406
+        },
+        {
+          "src": "_pass/city-pop-day/Open Platform-2.mp3",
+          "dur": 143,
+          "bytes": 3611886
+        },
+        {
+          "src": "_pass/city-pop-day/Open Platform.mp3",
+          "dur": 180,
+          "bytes": 4520406
+        },
+        {
+          "src": "_pass/city-pop-day/Weekday Momentum-2.mp3",
+          "dur": 176,
+          "bytes": 4593150
+        },
+        {
+          "src": "_pass/city-pop-day/Weekday Momentum.mp3",
+          "dur": 126,
+          "bytes": 3177558
+        }
+      ]
+    },
+    {
+      "id": "urban-jazz",
+      "zh": "都市爵士",
+      "family": "city-circuit",
+      "desc": "站前咖啡店、傍晚轉乘與暖色窗光",
+      "zones": [
+        "north-city",
+        "west-plain",
+        "south"
+      ],
+      "hours": [
+        "dusk",
+        "evening"
+      ],
+      "weather": null,
+      "auto": true,
+      "tracks": [
+        {
+          "src": "_pass/urban-jazz/Blue Signal.mp3",
+          "dur": 205,
+          "bytes": 4852758
+        },
+        {
+          "src": "_pass/urban-jazz/Evening Interchange-2.mp3",
+          "dur": 205,
+          "bytes": 4874142
+        },
+        {
+          "src": "_pass/urban-jazz/Evening Interchange.mp3",
+          "dur": 205,
+          "bytes": 4864686
+        },
+        {
+          "src": "_pass/urban-jazz/Quiet Connection.mp3",
+          "dur": 206,
+          "bytes": 5073726
+        },
+        {
+          "src": "_pass/urban-jazz/Warm Window Light-2.mp3",
+          "dur": 205,
+          "bytes": 5236038
+        },
+        {
+          "src": "_pass/urban-jazz/Warm Window Light.mp3",
+          "dur": 206,
+          "bytes": 5220606
+        }
+      ]
+    },
+    {
+      "id": "metro-motion",
+      "zh": "捷運流動",
+      "family": "city-circuit",
+      "desc": "日常通勤、短站距與乾淨俐落的城市節奏",
+      "zones": [
+        "metro"
+      ],
+      "hours": null,
+      "weather": null,
+      "auto": true,
+      "tracks": [
+        {
+          "src": "_pass/metro-motion/Before the Train-2.mp3",
+          "dur": 68,
+          "bytes": 1773798
+        },
+        {
+          "src": "_pass/metro-motion/Before the Train.mp3",
+          "dur": 205,
+          "bytes": 4889430
+        },
+        {
+          "src": "_pass/metro-motion/Four Stops to Home-2.mp3",
+          "dur": 221,
+          "bytes": 5691294
+        },
+        {
+          "src": "_pass/metro-motion/Four Stops to Home.mp3",
+          "dur": 219,
+          "bytes": 5556294
+        },
+        {
+          "src": "_pass/metro-motion/Metro Pulse.mp3",
+          "dur": 145,
+          "bytes": 3926982
+        },
+        {
+          "src": "_pass/metro-motion/River Crossing-2.mp3",
+          "dur": 103,
+          "bytes": 2878710
+        },
+        {
+          "src": "_pass/metro-motion/River Crossing.mp3",
+          "dur": 70,
+          "bytes": 1742742
+        }
+      ]
+    },
+    {
+      "id": "rainy-city",
+      "zh": "城市雨景",
+      "family": "city-circuit",
+      "desc": "小雨、陣雨與雨後的低彩度城市",
+      "zones": [
+        "north-city",
+        "west-plain",
+        "south"
+      ],
+      "hours": null,
+      "weather": [
+        "rain"
+      ],
+      "auto": false,
+      "tracks": []
+    },
+    {
+      "id": "midnight-city",
+      "zh": "午夜城市",
+      "family": "city-circuit",
+      "desc": "末班車後、空月台與仍未睡的窗",
+      "zones": [
+        "north-city",
+        "west-plain",
+        "south"
+      ],
+      "hours": [
+        "night"
+      ],
+      "weather": null,
+      "auto": true,
+      "tracks": []
+    },
+    {
+      "id": "north-coast",
+      "zh": "北海岸天色",
+      "family": "open-landscape",
+      "desc": "基隆、北海岸與東北角的陰天與港景",
+      "zones": [
+        "north-coast"
+      ],
+      "hours": null,
+      "weather": null,
+      "auto": true,
+      "tracks": []
+    },
+    {
+      "id": "yilan-line",
+      "zh": "蘭陽雨原",
+      "family": "open-landscape",
+      "desc": "蘭陽平原的雨與開闊",
+      "zones": [
+        "yilan"
+      ],
+      "hours": null,
+      "weather": null,
+      "auto": true,
+      "tracks": []
+    },
+    {
+      "id": "hualien-cliffs",
+      "zh": "花蓮山海",
+      "family": "open-landscape",
+      "desc": "清水斷崖與縱谷之間",
+      "zones": [
+        "hualien"
+      ],
+      "hours": null,
+      "weather": null,
+      "auto": true,
+      "tracks": []
+    },
+    {
+      "id": "taitung-open",
+      "zh": "台東開闊線",
+      "family": "open-landscape",
+      "desc": "南迴與花東縱谷的開闊",
+      "zones": [
+        "taitung"
+      ],
+      "hours": null,
+      "weather": null,
+      "auto": true,
+      "tracks": []
+    },
+    {
+      "id": "western-plains",
+      "zh": "西部平原",
+      "family": "open-landscape",
+      "desc": "縱貫線中段的稻田與長直線",
+      "zones": [
+        "west-plain"
+      ],
+      "hours": [
+        "day",
+        "dusk"
+      ],
+      "weather": null,
+      "auto": true,
+      "tracks": []
+    },
+    {
+      "id": "southern-sun",
+      "zh": "南方日光",
+      "family": "open-landscape",
+      "desc": "嘉南到屏東的強光與熱空氣",
+      "zones": [
+        "south"
+      ],
+      "hours": [
+        "day"
+      ],
+      "weather": null,
+      "auto": true,
+      "tracks": []
+    },
+    {
+      "id": "mountain-branch",
+      "zh": "山霧支線",
+      "family": "quiet-hours",
+      "desc": "山線、林鐵與霧",
+      "zones": [
+        "mountain"
+      ],
+      "hours": null,
+      "weather": null,
+      "auto": true,
+      "tracks": []
+    },
+    {
+      "id": "first-light",
+      "zh": "晨曦初班",
+      "family": "quiet-hours",
+      "desc": "第一班車與還沒醒的月台",
+      "zones": null,
+      "hours": [
+        "dawn"
+      ],
+      "weather": null,
+      "auto": true,
+      "tracks": []
+    },
+    {
+      "id": "golden-hour",
+      "zh": "黃昏斜光",
+      "family": "quiet-hours",
+      "desc": "斜射光與一天的收尾",
+      "zones": null,
+      "hours": [
+        "dusk"
+      ],
+      "weather": null,
+      "auto": true,
+      "tracks": []
+    },
+    {
+      "id": "island-community",
+      "zh": "山海聚落共創",
+      "family": null,
+      "desc": "與原民音樂人共創（尚未開放）",
+      "zones": null,
+      "hours": null,
+      "weather": null,
+      "auto": false,
+      "tracks": []
+    },
+    {
+      "id": "rail-texture-score",
+      "zh": "鐵道質地配樂",
+      "family": null,
+      "desc": "鐵道質地的聲音設計",
+      "zones": null,
+      "hours": null,
+      "weather": null,
+      "auto": false,
+      "tracks": []
+    }
+  ]
+}

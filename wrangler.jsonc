@@ -13,6 +13,17 @@
   ],
   "workers_dev": true,
   "preview_urls": true,
+  // Smart Placement(2026-09-02 試行):讓 Cloudflare 把 fetch handler 集中到靠近上游的少數位置執行,
+  // 目的是壓掉「TDX 點數隨活躍 colo 數線性上升」——caches.default 與 isolate 記憶體都是每個 colo
+  // 各一份,所以同一份 TDX 資料現在被每個活躍 colo 各買一次(memory: tdx-points-quota)。
+  // 安全性:官方文件明寫「Smart Placement only affects the execution of fetch event handlers」
+  //   ⇒ cron(scheduled)不受影響;而本檔頭的鐵則「不設 run_worker_first」讓靜態資產直出不經
+  //   Worker ⇒ 2.3MB 的 index.html 與 data/*.json 的送達位置也不受影響,只有 /api/* 會被搬。
+  // 🔴 它是為【延遲】最佳化的,不是為我們的點數帳單——Cloudflare 可能判定不搬(狀態
+  //   INSUFFICIENT_INVOCATIONS 或分析後不動),那樣本項就零效果,不是壞掉。
+  // 驗法:回應標頭 cf-placement,`remote-XXX`=已被 Smart Placement 轉送,`local-XXX`=預設路由。
+  //   要回退就把這一整塊刪掉重新部署。
+  "placement": { "mode": "smart" },
   // Plus 資格文件的 Firestore REST 寫入身分。project/email 都是公開識別值；
   // 對應的 FIRESTORE_SERVICE_ACCOUNT_PRIVATE_KEY 仍只放 Cloudflare secret，絕不進版控。
   "vars": {

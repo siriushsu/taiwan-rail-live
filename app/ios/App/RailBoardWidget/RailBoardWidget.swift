@@ -294,10 +294,10 @@ struct Provider: AppIntentTimelineProvider {
                 prepared = try engine.prepare(composite: composite, filters: filters, now: now)
             } else {
                 let originSelection = try RailBoardStore.shared.stationSelection(forKey: originKey)
-                let destinationSelection = try configuration.destination.flatMap {
+                let destinationSelection = try configuration.destinationKey.flatMap {
                     try RailBoardStore.shared.stationSelection(forKey: $0)
                 }
-                let destinationLost = configuration.destination != nil && destinationSelection == nil
+                let destinationLost = configuration.destinationKey != nil && destinationSelection == nil
                 guard let originSelection, !destinationLost else {
                     let entry = RailBoardEntry(
                         date: now,
@@ -393,10 +393,10 @@ struct Provider: AppIntentTimelineProvider {
                 prepared = try engine.prepare(composite: composite, filters: filters, now: now)
             } else {
                 let originSelection = try RailBoardStore.shared.stationSelection(forKey: originKey)
-                let destinationSelection = try configuration.destination.flatMap {
+                let destinationSelection = try configuration.destinationKey.flatMap {
                     try RailBoardStore.shared.stationSelection(forKey: $0)
                 }
-                let destinationLost = configuration.destination != nil && destinationSelection == nil
+                let destinationLost = configuration.destinationKey != nil && destinationSelection == nil
                 guard let originSelection, !destinationLost else {
                     return RailBoardEntry(
                         date: now,

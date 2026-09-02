@@ -47,10 +47,15 @@ public final class WidgetParityInstrumentedTest {
     }
 
     @Test
-    public void allThreeProvidersArePackagedAndNewLayoutsInflate() throws Exception {
+    public void allSevenProvidersArePackagedAndNewLayoutsInflate() throws Exception {
         PackageManager packages = context.getPackageManager();
+        // 2026-09-02 起小／中／大各自一個 provider(選單一項一張),七個都要在封裝裡。
         packages.getReceiverInfo(new ComponentName(context, MetroWidgetProvider.class), 0);
+        packages.getReceiverInfo(new ComponentName(context, MetroWidgetSmallProvider.class), 0);
+        packages.getReceiverInfo(new ComponentName(context, MetroWidgetLargeProvider.class), 0);
         packages.getReceiverInfo(new ComponentName(context, RailBoardWidgetProvider.class), 0);
+        packages.getReceiverInfo(new ComponentName(context, RailBoardWidgetSmallProvider.class), 0);
+        packages.getReceiverInfo(new ComponentName(context, RailBoardWidgetLargeProvider.class), 0);
         packages.getReceiverInfo(new ComponentName(context, MixedBoardWidgetProvider.class), 0);
 
         long now = System.currentTimeMillis();

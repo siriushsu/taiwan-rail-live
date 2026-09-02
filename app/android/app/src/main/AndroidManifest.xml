@@ -89,6 +89,57 @@
                 android:resource="@xml/mixed_board_widget_info" />
         </receiver>
 
+        <!-- 小／大尺寸各自一個 provider（選單一項一張，跟 iOS 藝廊一對一）。
+             既有的 MetroWidgetProvider／RailBoardWidgetProvider 保留原類名＝「中」，
+             使用者桌面上已經放著的小工具綁的是那個 ComponentName，改名等於全部消失。 -->
+        <receiver
+            android:name=".MetroWidgetSmallProvider"
+            android:label="@string/metro_widget_small_name"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/metro_board_widget_small_info" />
+        </receiver>
+
+        <receiver
+            android:name=".MetroWidgetLargeProvider"
+            android:label="@string/metro_widget_large_name"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/metro_board_widget_large_info" />
+        </receiver>
+
+        <receiver
+            android:name=".RailBoardWidgetSmallProvider"
+            android:label="@string/rail_widget_small_name"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/rail_board_widget_small_info" />
+        </receiver>
+
+        <receiver
+            android:name=".RailBoardWidgetLargeProvider"
+            android:label="@string/rail_widget_large_name"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/rail_board_widget_large_info" />
+        </receiver>
+
         <receiver
             android:name=".MetroWaitStopReceiver"
             android:exported="false" />

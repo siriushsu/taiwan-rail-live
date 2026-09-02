@@ -1,16 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 三種尺寸各自一個 provider（小／中／大），選單上一項一張，跟 iOS 藝廊的 小／中／大 一對一
+     （使用者 2026-09-02 裁示「種類要跟 iOS 一樣多」）。三個共用同一支 provider 的邏輯與同一份
+     setSizeSpecificViewLayouts 版面表，差別只有「加進桌面時預設多大」與大張桶開不開（WidgetFamily）。
+     🔴 寬度「4 欄手機給 4、5 欄手機給 5」（使用者裁示）的做法：targetCellWidth 寫 5。
+        Launcher3 系（Pixel 與多數原廠桌面）只在 targetCell 落在 [minSpan, 欄數] 之內才採用：
+        5 欄手機直接得到 5 格；4 欄手機因為 5 大於欄數，整組 targetCell 被丟掉、改用
+        minWidth／minHeight 換算，minWidth=320dp 在 4 欄（格寬約 80dp）算成 4 格。
+        舊版 targetCellWidth=4 加 maxResizeWidth=320dp：5 欄手機永遠只佔 4 格，連手動拉寬都被擋
+        （網友回報「五格寬的小工具從來沒有」），所以不再寫 maxResizeWidth／Height。
+     🔴 minHeight 不是「想要幾列乘格高」：Launcher3 對每個 profile 各算一次取最大，橫放的格高
+        只有直放的六成（Pixel 模擬器實測 5×5：直 103dp／橫 64dp；4×5：直 104／橫 63；4×4：直 130／橫 78），
+        列數幾乎都由橫放那組決定。中＝110dp（三種格線都算成 2 列）、大＝270dp（4 欄兩種格線都算成
+        4 列）是照實測格高算的；改之前先在模擬器切三種格線，看選單上印的「N × M」。
+     updatePeriodMillis 只是保命網（最快 30 分鐘一次），真正的節奏是 AlarmManager 排的。 -->
+<!-- 鐵路＋捷運雙看板（只有大）。 -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:configure="tw.railisland.app.MixedWidgetConfigActivity"
     android:description="@string/mixed_widget_description"
     android:initialLayout="@layout/widget_mixed_4x4"
-    android:minWidth="250dp"
-    android:minHeight="250dp"
+    android:minWidth="320dp"
+    android:minHeight="270dp"
+    android:targetCellWidth="5"
+    android:targetCellHeight="4"
     android:minResizeWidth="250dp"
     android:minResizeHeight="250dp"
     android:previewLayout="@layout/widget_mixed_4x4"
     android:resizeMode="horizontal|vertical"
-    android:targetCellWidth="4"
-    android:targetCellHeight="4"
     android:updatePeriodMillis="1800000"
     android:widgetCategory="home_screen|keyguard"
     android:widgetFeatures="reconfigurable" />
