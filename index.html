@@ -535,7 +535,9 @@
   @keyframes eqb { 0%, 100% { height: 4px; } 50% { height: 12px; } }
   /* 停播:等化器留在原位凍結(不佔位變化=鈕寬不跳動),條子壓底、淡出存在感 */
   #musicBtn:not(.playing) .eq i { animation: none; height: 4px; opacity: .45; }
-  /* 配樂情境選單:家族 → 歌池兩層 */
+  /* 配樂情境選單:現在播放 → 主打(跟著列車) → 家族/歌池。
+     付費界線由頂端一條帶講一次,不再逐列掛「通行證」——21 列裡 20 列都掛,等於對已經知道的
+     事重複吼,而真正該講的「這裡有你還沒有的東西」反而被稀釋掉(2026-09-02 設計輪)。 */
   .mpl-row {
     display: flex; align-items: center; gap: 10px; width: 100%;
     min-height: 48px; padding: 9px 4px; background: none; border: 0;
@@ -543,16 +545,105 @@
     font-family: inherit; font-size: 14px; text-align: left; cursor: pointer;
   }
   .mpl-row:last-child { border-bottom: 0; }
-  .mpl-row.sub { padding-left: 22px; font-size: 13.5px; }        /* 歌池縮排在家族底下 */
-  .mpl-dot { flex: none; width: 16px; font-size: 13px; opacity: .35; }
-  .mpl-row.on .mpl-dot { opacity: 1; }
+  /* 歌池縮排在家族底下。width:auto 是必要的——.mpl-row 本體是 width:100%,再加 margin-left
+     會整列超出 .takeout-body 的右內距。 */
+  .mpl-row.sub { width: auto; margin-left: 14px; padding-left: 0; font-size: 13.5px; }
+  .mpl-dot {
+    flex: none; width: 14px; height: 14px; border-radius: 50%; box-sizing: border-box;
+    border: 2px solid var(--navy); background: transparent;
+  }
+  .mpl-row.sub .mpl-dot { width: 12px; height: 12px; }
+  .mpl-row.on .mpl-dot { background: var(--navy); }
   .mpl-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
   .mpl-txt b { font-weight: 800; letter-spacing: 1px; }
   .mpl-txt i { font-style: normal; font-size: 11.5px; opacity: .62; }
   /* 狀態槽:v1 放「7 首・17 分」,離線下載那批換成下載狀態。先留好,UI 才不會被撕裂重做。 */
   .mpl-slot { flex: none; font-size: 11.5px; opacity: .62; white-space: nowrap; }
-  /* 未訂閱標記:用文字不用鎖頭 emoji(UI 控件不放 emoji) */
-  .mpl-lock { flex: none; font-size: 11.5px; font-weight: 700; white-space: nowrap; opacity: .8; }
+  /* 現在播放:曲名/所屬池/為什麼是這首。這一區【只建一次】,之後只改文字節點——
+     整區重畫會把 mousedown 與 mouseup 之間的按鈕換掉,點擊就永遠不派發(跟車面板踩過)。 */
+  .mpl-now {
+    display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px;
+    padding: 10px 11px; background: var(--bg-stage);
+    border: 1px solid var(--line); border-radius: 10px;
+  }
+  .mpl-now-hd { display: flex; align-items: baseline; gap: 7px; }
+  .mpl-now-track {
+    flex: 1; min-width: 0; font-size: 14px; font-weight: 800; color: var(--ink-strong);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .mpl-now-num { flex: none; font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
+  .mpl-now-pool { font-size: 11.5px; color: var(--muted); }
+  .mpl-now-why { font-size: 11px; color: var(--faint); }
+  /* 曲末待換池:情境已經變了,但換池只發生在曲末。不說明會被當成「自動根本沒在運作」。 */
+  .mpl-now-pending {
+    font-size: 11px; line-height: 1.5; color: var(--muted); padding: 6px 8px;
+    background: var(--paper); border: 1px dashed var(--line); border-radius: 7px;
+  }
+  .mpl-now-ctl { display: flex; align-items: center; gap: 8px; }
+  .mpl-now-ctl button {
+    flex: none; min-width: 44px; min-height: 44px; padding: 0 12px;
+    font: inherit; font-size: 12.5px; font-weight: 800; border-radius: 9px; cursor: pointer;
+  }
+  #mplPlay { color: var(--on-navy); background: var(--navy); border: 0; }
+  #mplNext { color: var(--navy); background: var(--paper); border: 1px solid var(--line); }
+  #mplVol { flex: 1; min-width: 40px; accent-color: var(--navy); }
+  /* 付費界線:整份清單只講一次 */
+  .mpl-band {
+    display: flex; align-items: center; gap: 9px; margin-bottom: 10px; padding: 8px 10px;
+    background: var(--bg-stage); border-left: 3px solid var(--navy); border-radius: 0 8px 8px 0;
+  }
+  .mpl-band span { flex: 1; min-width: 0; font-size: 11.5px; line-height: 1.5; color: var(--muted); }
+  .mpl-band button {
+    flex: none; min-height: 36px; padding: 6px 12px; font: inherit; font-size: 11.5px; font-weight: 800;
+    color: var(--on-navy); background: var(--navy); border: 0; border-radius: 999px; cursor: pointer;
+  }
+  /* 跟著列車:主打卡,不是清單的第一列 */
+  .mpl-hero {
+    display: flex; flex-direction: column; gap: 5px; width: 100%; margin-bottom: 10px;
+    min-height: 64px; padding: 11px 12px; box-sizing: border-box; background: var(--paper);
+    border: 1.5px solid var(--line); border-radius: 10px;
+    color: inherit; font-family: inherit; text-align: left; cursor: pointer;
+  }
+  .mpl-hero.on { background: var(--bg-stage); border-color: var(--navy); }
+  .mpl-hero-hd { display: flex; align-items: center; gap: 8px; width: 100%; }
+  .mpl-hero-hd b {
+    flex: 1; min-width: 0; font-size: 14.5px; font-weight: 900;
+    letter-spacing: 1px; color: var(--ink-strong);
+  }
+  .mpl-tag { flex: none; font-size: 11px; font-weight: 800; color: var(--navy); }
+  .mpl-hero i { font-style: normal; font-size: 11.5px; line-height: 1.5; color: var(--muted); }
+  .mpl-hero em { font-style: normal; font-size: 11px; font-weight: 800; color: var(--navy); }
+  /* 家族:有框橫條。整列＝選這個家族(硬條件),只有右側 44px 是展開/收合。 */
+  .mpl-fam {
+    display: flex; align-items: stretch; margin-bottom: 8px;
+    border: 1px solid var(--line); border-radius: 9px; overflow: hidden;
+  }
+  .mpl-fam.on { background: var(--bg-stage); }
+  .mpl-fam > .mpl-row { flex: 1; min-width: 0; width: auto; min-height: 52px; padding: 8px 10px; border-bottom: 0; }
+  .mpl-fam-x {
+    flex: none; width: 44px; min-height: 52px; background: none; color: var(--navy);
+    border: 0; border-left: 1px dashed var(--line-faint); font: inherit; font-size: 12px; cursor: pointer;
+  }
+  /* 家族副標英文會折兩行,截兩行不截字(硬條件:三語都要塞得下)。
+     選擇器要帶 i:.mpl-txt i 的特異度(0,1,1)壓得過單一 class(0,1,0)。 */
+  .mpl-txt i.mpl-fam-sub {
+    font-size: 11px; line-height: 1.4; opacity: 1; color: var(--faint);
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  /* 隨機:家族層級的選項,給它跟家族一樣的框(它不是任何家族底下的池) */
+  .mpl-row.mpl-free { margin-top: 6px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; }
+  .mpl-row.mpl-free.on { background: var(--bg-stage); }
+  /* 不屬任何家族的兩個池:家族層級的標頭,不縮排 */
+  .mpl-lone-head, .mpl-soon-head { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+  .mpl-lone-head b { font-size: 11.5px; font-weight: 900; letter-spacing: 1px; color: var(--ink-strong); }
+  .mpl-lone-head i { font-style: normal; font-size: 10.5px; color: var(--faint); }
+  .mpl-soon-head { margin-left: 14px; }
+  .mpl-soon-head b { font-size: 10.5px; font-weight: 800; letter-spacing: 1px; color: var(--faint); }
+  .mpl-lone-head hr, .mpl-soon-head hr { flex: 1; height: 1px; margin: 0; border: 0; background: var(--line-faint); }
+  /* 準備中:降級但看得見(使用者裁示)。不可點,但仍留在它本來的家族底下。 */
+  .mpl-row.soon { min-height: 32px; padding: 5px 0; opacity: .5; pointer-events: none; border-bottom: 0; cursor: default; }
+  .mpl-row.soon .mpl-dot { width: 12px; height: 2px; border: 0; border-radius: 2px; background: var(--faint); }
+  .mpl-row.soon .mpl-txt b { font-size: 12.5px; font-weight: 700; }
   #musicNextBtn { padding: 5px 9px; }
   .kbd-hint { margin: 8px 2px 0; color: var(--faint); font-size: calc(12px * var(--uis)); line-height: 1.9; }
   .kbd-hint b {
@@ -16133,6 +16224,7 @@ function musicApplyMode(mode, opts) {
   m.list = musicShuffle(list.slice());
   m.idx = 0;
   m._fails = 0;
+  m._curCtxKey = m._ctxKey || '';   // 曲末待換池的提示要比對「當初選這份清單的情境」
   if (!(opts && opts.noLoad)) musicLoadCur();
 }
 window.musicApplyMode = musicApplyMode; window.musicEffectiveMode = musicEffectiveMode;
@@ -16169,6 +16261,7 @@ function musicContextTick(nowMs) {
   if (!m._ctxKey) { m._ctxKey = key; m._ctxCand = key; m._ctxAt = t; return; }  // 開機初值立即成立
   if (key !== m._ctxCand) { m._ctxCand = key; m._ctxAt = t; return; }           // 候選變了就重新計時
   if (key !== m._ctxKey && t - m._ctxAt >= MUSIC_CTX_HOLD_MS) m._ctxKey = key;  // 連續成立夠久才生效
+  mplNowSync();   // 選單開著才會做事;情境生效的那一秒要讓「曲末待換池」立刻現形
 }
 window.musicContextTick = musicContextTick; window.musicAutoPool = musicAutoPool;
 
@@ -16190,46 +16283,223 @@ function musicReconcileMode() {
 }
 window.musicReconcileMode = musicReconcileMode;
 
-// ── 跟車配樂:情境選單(家族 → 歌池兩層) ────────────────────────────────────────
-// 免費使用者【看得到】整份清單,付費列掛「通行證」標記——不做就變成沉默的閘門。
+// ── 跟車配樂:情境選單(現在播放 → 主打 → 家族/歌池) ────────────────────────────
+// 免費使用者【看得到】整份清單;付費界線由頂端一條說明帶講一次,不逐列掛標記——
+// 21 列裡 20 列都寫「通行證」時,那四個字就不再是資訊了(2026-09-02 設計輪)。
 function mplEsc(x) { return String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 function musicPoolSlot(p) {
   if (!p.tracks.length) return t('尚未上架');
   const min = Math.round(p.tracks.reduce((a, x) => a + x.dur, 0) / 60);
   return t('{n} 首', { n: p.tracks.length }) + '・' + t('{n} 分', { n: min });
 }
-function musicPlRow(mode, zh, desc, slot, sub) {
+// 情境標籤(「捷運 · 白天」)。認不出來的分區留白,不編造。
+const MPL_ZONE_ZH = { 'north-city': '北北桃', 'north-coast': '北海岸', yilan: '宜蘭', hualien: '花蓮',
+  taitung: '台東', 'west-plain': '西部平原', south: '南部', mountain: '山區', metro: '捷運' };
+const MPL_HOUR_ZH = { dawn: '清晨', day: '白天', dusk: '傍晚', evening: '夜晚', night: '深夜' };
+function mplCtxLabel(key) {
+  const parts = String(key || '').split('|');
+  return [MPL_ZONE_ZH[parts[0]], MPL_HOUR_ZH[parts[1]]].filter(Boolean).map(x => t(x)).join(' · ');
+}
+function mplMmss(sec) {
+  const s = Math.max(0, Math.round(sec || 0));
+  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+}
+// 正在播的那首屬於哪個池:以【實際在播的檔案】回推,不看模式——自動剛切過去、
+// 家族模式在池之間輪流時,只有檔名答得出真話(模式只說得出「使用者選了什麼」)。
+function mplPoolOfCur() {
+  const m = state.music;
+  const src = m && m.list && m.list[m.idx];
+  return src ? (musicShippedPools().find(p => p.tracks.some(x => x.src === src)) || null) : null;
+}
+// 🔴 曲名不能用 musicLabel():那支是【鎖定畫面】用的,付費曲一律回池的中文名(2026-08-10 裁示),
+//    拿來當曲名會讓「現在播放」的第一行與第二行印出同一個詞。曲名就是檔名。
+function mplTrackName(src) {
+  const name = decodeURIComponent(String(src || '')).split('/').pop().replace(/\.[^.]+$/, '');
+  return name || t('背景音樂');
+}
+// 曲長取自 music.json:App 走原生佇列,shim 沒有 currentTime/duration 可讀,
+// 顯示「播到第幾秒」在正式路徑上做不到,所以只給總長。
+function mplTrackDur(src) {
+  const D = window.MUSIC_DATA;
+  for (const list of [D.free.tracks || []].concat((D.pools || []).map(p => p.tracks || []))) {
+    const hit = list.find(x => x.src === src);
+    if (hit) return hit.dur;
+  }
+  return 0;
+}
+function mplActiveFamily() {
   const eff = musicEffectiveMode();
-  const cur = eff.kind + (eff.id ? ':' + eff.id : '');
-  const on = cur === mode;
-  const locked = mode !== 'free' && !plusIsActive();
-  return '<button type="button" class="mpl-row' + (sub ? ' sub' : '') + (on ? ' on' : '') + (locked ? ' locked' : '')
+  if (eff.kind === 'family') return eff.id;
+  if (eff.kind === 'pool') { const p = musicPoolById(eff.id); return p ? p.family : null; }
+  const p = eff.kind === 'auto' ? mplPoolOfCur() : null;
+  return p ? p.family : null;
+}
+let MPL_OPEN = null;   // Set<家族 id>:展開中的家族。每次開啟重算預設(只展開作用中的那個)。
+
+function musicPlRow(mode, zh, desc, slot, cls) {
+  const eff = musicEffectiveMode();
+  const on = eff.kind + (eff.id ? ':' + eff.id : '') === mode;
+  return '<button type="button" class="mpl-row' + (cls ? ' ' + cls : '') + (on ? ' on' : '')
     + '" data-mode="' + mplEsc(mode) + '">'
-    + '<span class="mpl-dot">' + (on ? '●' : '○') + '</span>'
+    + '<span class="mpl-dot"></span>'
     + '<span class="mpl-txt"><b>' + mplEsc(t(zh)) + '</b>' + (desc ? '<i>' + mplEsc(t(desc)) + '</i>' : '') + '</span>'
     + '<span class="mpl-slot">' + mplEsc(slot || '') + '</span>'
-    + (locked ? '<span class="mpl-lock">' + mplEsc(t('通行證')) + '</span>' : '')
     + '</button>';
 }
-function musicPlRender() {
+// 還沒上架的池:降級成單行、不可點,但仍留在它本來的家族底下(使用者裁示:降級但看得見)。
+// 補滿之後這一段自然縮短、池升回正常列,版面不必重畫。
+function mplSoonRow(p) {
+  return '<div class="mpl-row sub soon"><span class="mpl-dot"></span>'
+    + '<span class="mpl-txt"><b>' + mplEsc(t(p.zh)) + '</b></span>'
+    + '<span class="mpl-slot">' + mplEsc(t('尚未上架')) + '</span></div>';
+}
+// 家族:整列就是「選這個家族」(硬條件,選家族不能消失),只有右側 44px 是展開/收合。
+function mplFamHtml(f) {
+  const eff = musicEffectiveMode();
+  const on = eff.kind === 'family' && eff.id === f.id;
+  const open = !!(MPL_OPEN && MPL_OPEN.has(f.id));
+  const mine = (window.MUSIC_DATA.pools || []).filter(p => p.family === f.id);
+  const ready = mine.filter(p => p.tracks.length), soon = mine.filter(p => !p.tracks.length);
+  let h = '<div class="mpl-fam' + (on ? ' on' : '') + '">'
+    + '<button type="button" class="mpl-row' + (on ? ' on' : '') + '" data-mode="family:' + mplEsc(f.id) + '">'
+    + '<span class="mpl-dot"></span>'
+    + '<span class="mpl-txt"><b>' + mplEsc(t(f.zh)) + '</b><i class="mpl-fam-sub">' + mplEsc(t(f.desc)) + '</i></span>'
+    + '<span class="mpl-slot">' + mplEsc(t('{ready} 可播 · {soon} 準備中', { ready: ready.length, soon: soon.length })) + '</span>'
+    + '</button><button type="button" class="mpl-fam-x" data-fam="' + mplEsc(f.id) + '"'
+    + ' aria-expanded="' + (open ? 'true' : 'false') + '" aria-label="' + mplEsc(t(open ? '收合' : '展開')) + '">'
+    + (open ? '▾' : '▸') + '</button></div>';
+  if (!open) return h;
+  for (const p of ready) h += musicPlRow('pool:' + p.id, p.zh, p.desc, musicPoolSlot(p), 'sub');
+  if (soon.length) {
+    h += '<div class="mpl-soon-head"><b>' + mplEsc(t('準備中 · {soon}', { soon: soon.length })) + '</b><hr></div>';
+    for (const p of soon) h += mplSoonRow(p);
+  }
+  return h;
+}
+function mplHeroHtml() {
+  const on = musicEffectiveMode().kind === 'auto';
+  const ctx = mplCtxLabel(state.music && state.music._ctxKey);
+  return '<button type="button" class="mpl-hero' + (on ? ' on' : '') + '" data-mode="auto">'
+    + '<span class="mpl-hero-hd"><b>' + mplEsc(t('跟著列車')) + '</b>'
+    + (on ? '<span class="mpl-tag">' + mplEsc(t('使用中')) + '</span>' : '') + '</span>'
+    + '<i>' + mplEsc(t('車開到哪、現在幾點就換到對應的配樂')) + '</i>'
+    + (on && ctx ? '<em>' + mplEsc(t('現在依 {ctx} 選池', { ctx })) + '</em>' : '')
+    + '</button>';
+}
+function mplListHtml() {
   const D = window.MUSIC_DATA;
-  const body = document.getElementById('musicPlBody'); if (!body) return;
   const freeMin = Math.round(D.free.tracks.reduce((a, x) => a + x.dur, 0) / 60);
-  let h = musicPlRow('auto', '跟著列車', '車開到哪、現在幾點就換到對應的配樂', '');
-  h += musicPlRow('free', '隨機', '不分情境,整座曲庫隨機播',
-    t('{n} 首', { n: D.free.tracks.length }) + '・' + t('{n} 分', { n: freeMin }));
-  for (const f of D.families) {
-    h += musicPlRow('family:' + f.id, f.zh, f.desc, '');
-    for (const p of D.pools.filter(x => x.family === f.id)) {
-      h += musicPlRow('pool:' + p.id, p.zh, p.desc, musicPoolSlot(p), true);
+  let h = mplHeroHtml();
+  for (const f of D.families) h += mplFamHtml(f);
+  const lone = (D.pools || []).filter(p => p.family === null);
+  if (lone.length) {
+    h += '<div class="mpl-lone-head"><b>' + mplEsc(t('單獨情境池')) + '</b><i>'
+      + mplEsc(t('不屬任何家族，不參與自動選池')) + '</i><hr></div>';
+    for (const p of lone) {
+      h += p.tracks.length ? musicPlRow('pool:' + p.id, p.zh, p.desc, musicPoolSlot(p), 'sub') : mplSoonRow(p);
     }
   }
-  for (const p of D.pools.filter(x => x.family === null)) {
-    h += musicPlRow('pool:' + p.id, p.zh, p.desc, musicPoolSlot(p));
-  }
-  body.innerHTML = h;
+  h += musicPlRow('free', '隨機', '不分情境,整座曲庫隨機播',
+    t('{n} 首', { n: D.free.tracks.length }) + '・' + t('{n} 分', { n: freeMin }), 'mpl-free');
+  return h;
 }
-function musicPlOpen() { musicPlRender(); const el = document.getElementById('musicPlModal'); if (el) el.hidden = false; }
+// 🔴 現在播放與付費說明帶【只建一次】,之後只寫 textContent。整區重畫會把 mousedown 與
+//    mouseup 之間的按鈕節點換掉,點擊就永遠不派發——跟車面板正是這樣壞掉的。
+function mplShellHtml() {
+  return '<div class="mpl-now">'
+    + '<div class="mpl-now-hd"><span class="mpl-now-track" id="mplTrack"></span>'
+    + '<span class="mpl-now-num" id="mplLen"></span></div>'
+    + '<div class="mpl-now-pool" id="mplPool" hidden></div>'
+    + '<div class="mpl-now-why" id="mplWhy"></div>'
+    + '<div class="mpl-now-pending" id="mplPending" hidden></div>'
+    + '<div class="mpl-now-ctl"><button type="button" id="mplPlay"></button>'
+    + '<button type="button" id="mplNext">' + mplEsc(t('換首')) + '</button>'
+    + '<input type="range" id="mplVol" min="0" max="100" step="1" aria-label="' + mplEsc(t('音量')) + '">'
+    + '<span class="mpl-now-num" id="mplVolN"></span></div></div>'
+    + '<div class="mpl-band"><span id="mplBandTxt"></span>'
+    + '<button type="button" id="mplPlans" hidden>' + mplEsc(t('看方案')) + '</button></div>'
+    + '<div id="mplList"></div>';
+}
+function mplEnsureShell() {
+  const body = document.getElementById('musicPlBody');
+  if (!body || document.getElementById('mplList')) return body;
+  body.innerHTML = mplShellHtml();
+  document.getElementById('mplPlay').onclick = () => {
+    setMusicEnabled(state.music.audio.paused ? true : !state.music.enabled);
+    mplNowSync();
+  };
+  document.getElementById('mplNext').onclick = () => {
+    const m = state.music;
+    if (!m.enabled) { m.enabled = true; saveMusicPref(); }
+    clearInterval(m._fade);
+    musicNext();
+    mplNowSync();
+  };
+  document.getElementById('mplVol').oninput = e => {
+    const m = state.music;
+    m.vol = (+e.target.value) / 100;
+    clearInterval(m._fade);
+    m.audio.volume = m.vol;
+    saveMusicPref();
+    const s = document.getElementById('musicVol'); if (s) s.value = e.target.value;   // 工具帶那顆一起走
+    mplNowSync();
+  };
+  document.getElementById('mplPlans').onclick = () => plusGateOpen('music-scoring', () => { musicPlRender(); });
+  return body;
+}
+// 只寫既有節點的文字與 hidden,絕不重建這一區(理由見 mplShellHtml)。選單沒開就整支不做事。
+function mplNowSync() {
+  const modal = document.getElementById('musicPlModal');
+  if (!modal || modal.hidden || !document.getElementById('mplTrack')) return;
+  const m = state.music; if (!m) return;
+  const set = (id, txt) => { const n = document.getElementById(id); if (n && n.textContent !== txt) n.textContent = txt; };
+  const show = (id, on) => { const n = document.getElementById(id); if (n) n.hidden = !on; };
+  const playing = m.enabled && !m.audio.paused;
+  const src = m.list && m.list[m.idx];
+  const eff = musicEffectiveMode();
+  const p = playing ? mplPoolOfCur() : null;
+  const ctx = mplCtxLabel(m._ctxKey);
+  set('mplTrack', playing ? mplTrackName(src) : t('音樂關閉中'));
+  const dur = playing ? mplTrackDur(src) : 0;
+  set('mplLen', dur ? mplMmss(dur) : '');
+  set('mplPool', p ? t(p.zh) : ''); show('mplPool', !!p);
+  let why;
+  if (!playing) why = t('按播放開始，或直接選一個情境。');
+  else if (eff.kind === 'auto') why = ctx ? t('自動選池：{ctx}', { ctx }) : t('跟著列車自動選池');
+  else if (eff.kind === 'pool') why = t('手動選定 · 不隨列車變動');
+  else if (eff.kind === 'family') {
+    const f = (window.MUSIC_DATA.families || []).find(x => x.id === eff.id);
+    why = t('手動選定家族：{name} · 池輪流', { name: f ? t(f.zh) : '' });
+  } else why = t('隨機播放整座曲庫');
+  set('mplWhy', why);
+  // 曲末待換池:情境已經生效,但換池只發生在曲末(絕不打斷正在播的曲子)。不講就會被當成自動沒在運作。
+  const pend = playing && eff.kind === 'auto' && ctx && m._curCtxKey && m._curCtxKey !== m._ctxKey
+    ? t('情境已經換到「{ctx}」，這首播完才切。', { ctx }) : '';
+  set('mplPending', pend); show('mplPending', !!pend);
+  set('mplPlay', playing ? t('暫停') : t('播放'));
+  const vol = Math.round(m.vol * 100);
+  const v = document.getElementById('mplVol');
+  if (v && document.activeElement !== v) v.value = String(vol);
+  set('mplVolN', String(vol));
+  const D = window.MUSIC_DATA;
+  set('mplBandTxt', plusIsActive()
+    ? t('通行證使用中 · {pools} 個情境池，{shipped} 個已上架。',
+        { pools: (D.pools || []).length, shipped: musicShippedPools().length })
+    : t('以下情境需要通行證。未訂閱也看得到完整清單。'));
+  show('mplPlans', !plusIsActive());
+}
+function musicPlRender() {
+  if (!mplEnsureShell()) return;
+  const list = document.getElementById('mplList');
+  if (list) list.innerHTML = mplListHtml();
+  mplNowSync();
+}
+function musicPlOpen() {
+  const f = mplActiveFamily();
+  MPL_OPEN = new Set(f ? [f] : []);   // 預設只展開作用中的那個家族,其餘收合
+  const el = document.getElementById('musicPlModal'); if (el) el.hidden = false;   // 先現形,mplNowSync 才量得到
+  musicPlRender();
+}
 function musicPlClose() { const el = document.getElementById('musicPlModal'); if (el) el.hidden = true; }
 // 兩個入口的「目前配樂」同步。musicReconcileMode 會呼叫它。
 function musicPlSync() {
@@ -16261,14 +16531,23 @@ function setupMusicPlUi() {
   if (modal) modal.addEventListener('click', e => { if (e.target === modal) musicPlClose(); });
   const body = document.getElementById('musicPlBody');
   if (body) body.onclick = e => {
-    const row = e.target.closest('.mpl-row'); if (!row) return;
+    // 家族列右側那 44px 只管展開/收合,不改選擇——整列可點＝選這個家族是硬條件。
+    const x = e.target.closest('.mpl-fam-x');
+    if (x) {
+      if (!MPL_OPEN) MPL_OPEN = new Set();
+      if (MPL_OPEN.has(x.dataset.fam)) MPL_OPEN.delete(x.dataset.fam); else MPL_OPEN.add(x.dataset.fam);
+      musicPlRender();
+      return;
+    }
+    const row = e.target.closest('[data-mode]'); if (!row) return;
     const mode = row.dataset.mode;
     if (mode !== 'free' && !plusIsActive()) { plusGateOpen('music-scoring', () => { musicPlRender(); }); return; }
     const parts = mode.split(':');
     musicApplyMode(parts[1] ? { kind: parts[0], id: parts[1] } : { kind: parts[0] }, {});
     state.music._effKey = musicEffectiveMode().kind + ':' + (musicEffectiveMode().id || '');
+    if (parts[0] === 'family') { if (!MPL_OPEN) MPL_OPEN = new Set(); MPL_OPEN.add(parts[1]); }  // 選了就順手攤開給他看
     if (state.music.enabled) { state.music.audio.volume = state.music.vol; state.music.audio.play().catch(() => {}); }
-    musicPlSync(); musicPlRender();
+    musicPlSync();
   };
 }
 window.musicPlOpen = musicPlOpen; window.musicPlRender = musicPlRender; window.musicPlSync = musicPlSync;
@@ -16337,7 +16616,7 @@ function initMusic() {
   // 錄影混音延後到 Plus 使用者播放音樂或開始錄影時才建立，一般訪客不多載一個 AudioContext。
   state.music = { enabled: pref.enabled, vol: pref.vol, audio, mixCtx: null, mixSrc: null, mixDest: null,
     list: available ? musicShuffle(MUSIC_FILES.slice()) : [], idx: 0, _fade: null, _fails: 0, _fellBack: false,
-    mode: pref.mode, _ctxAt: 0, _ctxKey: '', _ctxCand: '', _lastPoolId: null, _curPoolId: null, _effKey: '' };
+    mode: pref.mode, _ctxAt: 0, _ctxKey: '', _ctxCand: '', _lastPoolId: null, _curPoolId: null, _curCtxKey: '', _effKey: '' };
   // 曲庫改由 data/music.json 供給;載不到就維持上面那份硬編清單(部署缺檔時不至於整個沒音樂)。
   musicLoadData().then(() => {
     if (!available) return;
@@ -16404,7 +16683,7 @@ function initMusic() {
   // 而它是在 btn.click() 之後同步跑一次就結束。播放狀態卻是非同步落定的(自動播放被擋、淡出 800ms 後才
   // pause、App 走原生 bridge 要等事件),於是那一列會停在上一個狀態,直到使用者去點別的列(例如正上方的
   // 省電模式)才被順手重畫——使用者回報的「音樂開著開關顯示關、而且跟省電模式聯動」就是這個。
-  const syncMusicUI = () => { updateMusicBtn(); if (state._syncMoreSheet) state._syncMoreSheet(); };
+  const syncMusicUI = () => { updateMusicBtn(); mplNowSync(); if (state._syncMoreSheet) state._syncMoreSheet(); };
   audio.addEventListener('playing', syncMusicUI);
   audio.addEventListener('pause', syncMusicUI);
   audio.addEventListener('error', syncMusicUI);
@@ -16465,6 +16744,7 @@ function musicNext() {
   // 情境在播放中變了只會更新 _ctxKey,真正換池要等到這裡。
   if (musicEffectiveMode().kind === 'auto') {
     const p = musicAutoPool();
+    if (p) m._curCtxKey = m._ctxKey;   // 這一輪的池是在此刻的情境下選的
     if (p && p.id !== m._curPoolId) {
       m._curPoolId = p.id;
       m.list = musicShuffle(p.tracks.map(t => t.src));
