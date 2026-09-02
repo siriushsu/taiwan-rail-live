@@ -273,10 +273,13 @@ const MODES = {
     //   都在正式站 v0902a 上了），89 依規則四作廢不重用號。90 的載貨＝v0902b。
     //   marketing 從 1.5.3 進到 1.5.4：Android 31 已經帶著 1.5.3 上 Play，1.5.3→1.5.3 不會跳
     //   App 內「更新了什麼」（appUpdateState 比的是行銷版號），兩台要一起進位才不會有人看不到。
-    marketing: '1.5.4', build: '90', music: true, metroCore: true,
-    why: '軌島 1.5.4\n\n・快到轉乘站時，卡片會列出對向系統最近兩班與你到站時還剩幾分，可以釘住其中一班\n・跟台北捷運的車時，卡片會顯示這一台車每一節車廂的擁擠度\n・大尺寸桌面小工具改為分北上南下、一次列出五班，每列都有開車時刻與準點誤點，也可以改成主要顯示發車時刻\n・登入後看不到原本的完乘紀錄與旅程護照時，帳號面板可以一鍵併回帳號\n・修正再次進入放空模式後找不到「離開放空」\n・隨機跟隨不會一直挑到同一批車',
-    whyEn: 'Rail Island 1.5.4\n\n• Near a transfer station, see the next two departures on the connecting system and the minutes left on arrival — tap to pin one\n• Following a Taipei Metro train shows how crowded each carriage is\n• The large widget groups departures by direction, lists five trains, and can show times instead of countdowns\n• Merge records saved before signing in back into your account\n• Fixed the missing Exit button in ambient mode\n• Follow random train picks from a wider spread',
-    whyJa: '軌島 1.5.4\n\n・乗り換え駅に近づくと、対向システムの直近 2 本と、到着時点で残り何分かを表示。1 本を固定できます\n・台北メトロの列車を追跡中、車両ごとの混雑度を表示\n・大きいウィジェットの発車標を上り・下りに分けて 5 本表示、各行に発車時刻と定時・遅延を表示。発車時刻を大きく表示する設定も追加\n・ログイン前に保存した完乗記録や旅のパスポートを、アカウント画面からまとめて取り込めます\n・鑑賞モードに入り直すと「鑑賞モードを終了」が見つからない問題を修正\n・ランダム追跡で同じ列車ばかり選ばれないようにしました',
+    // 91（2026-09-03）：iOS 1.5.3 (89) 已於 09-02 07:20Z 上架 ⇒ why 只寫 89 之後的事；90 從未上傳、
+//   載貨已被 main e0f99b41 追過（小工具七尺寸／方向可取消／配樂選單／誤點標放大），規則四不重用號。
+//   Android 同輪 32→33（31 已在 Play，why 多列小工具七尺寸那一條）。
+    marketing: '1.5.4', build: '91', music: true, metroCore: true,
+    why: '軌島 1.5.4\n\n・快到轉乘站時，卡片會列出對向系統最近兩班與你到站時還剩幾分，可以釘住其中一班\n・跟台北捷運的車時，卡片會顯示這一台車每一節車廂的擁擠度\n・音樂鈕旁多了「情境」選單，配樂會跟著你在看的那班車與當下時段換，也可以自己挑\n・桌面小工具的方向與目的站多了「不指定」，選過也能改回來；捷運看板的方向只列所選車站開得到的終點\n・車站看板的誤點標示放大加粗',
+    whyEn: 'Rail Island 1.5.4\n\n• Near a transfer station, see the next two connecting departures and your minutes to spare; tap to pin one\n• Following a Taipei Metro train shows how crowded each carriage is\n• Scene menu by the music button: music follows the train you watch and the time of day, or pick a scene\n• Widget direction and destination offer "Any" so a choice can be undone; the metro board lists only directions from the chosen station\n• Bigger delay tags on station boards',
+    whyJa: '軌島 1.5.4\n\n・乗り換え駅に近づくと、対向システムの直近 2 本と、到着時点で残り何分かを表示。1 本を固定できます\n・台北メトロの列車を追跡中、車両ごとの混雑度を表示\n・音楽ボタンの横に「シーン」メニューを追加。見ている列車と時間帯に合わせて曲が変わり、自分で選ぶこともできます\n・ウィジェットの方向と目的地に「指定なし」を追加、選んだ後でも戻せます。メトロ発車標の方向は選んだ駅から行ける方面だけを表示\n・駅の発車標の遅延表示を大きく太くしました',
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
   // 軌島通行證客端功能、雲端同步與伺服器付費牆。這顆不可選去正式送審；正式版必須另推 build 號，
