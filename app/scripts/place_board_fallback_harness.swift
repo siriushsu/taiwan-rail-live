@@ -1,5 +1,12 @@
 import Foundation
 
+// RailBoardData extends this UI-owned enum. The production target gets it from
+// RailWidgetKit.swift; this Foundation-only model harness supplies the same shape.
+enum RailHeading {
+    case north
+    case south
+}
+
 @main
 private struct PlaceBoardFallbackHarness {
     static func main() throws {

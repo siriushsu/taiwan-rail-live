@@ -1,0 +1,372 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 1a 琺瑯站牌 · 2×2（160×158dp）。設計稿：「欄位順序與 4×2 一致：倒數靠右下」
+     ⇒ 站名與方向占滿整寬，主角搬到註腳那一列的最右邊（與擁擠度同一條基線）；
+     英文站名、狀態文字、時戳、分隔線這四樣在 160dp 寬放不下，直接 gone
+     （id 仍在，binder 照設定它們的文字，不必為尺寸分岔）。
+     設計稿：「一站一方向。站號、站名、倒數，三個東西講完一件事：現在該不該走去月台。」
+     高度預算：header 19、站名 31、方向 16、註腳 23，其餘留給倒數與間距。
+
+     🔴 三種尺寸的【id 完全相同】，binder 只有一份（MetroWidgetPlateRender）。尺寸差異全部
+        寫在 xml 裡（該尺寸不顯示的東西直接 visibility="gone"），binder 只碰「狀態」決定的
+        那幾個（主角形態、警示帶、按鈕、擁擠度）——否則每加一個尺寸就要多一條 if，
+        而漏掉的那條會在真機上長成「某個尺寸少一行」而算繪看不出來。
+     🔴 主角不用 Chronometer：那個東西的倒數格式固定是 m:ss（畫面上「2:30」），設計稿明文
+        禁止（「1:30 在候車情境會被讀成 1 小時 30 分」）。四種主角形態就是分鐘數字、實心
+        「進站」、灰字「暫無資料／已收班」、警示帶，沒有第五種。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/wg_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/wg_card"
+    android:orientation="vertical"
+    android:paddingStart="13dp"
+    android:paddingEnd="13dp"
+    android:paddingTop="12dp"
+    android:paddingBottom="11dp">
+
+    <!-- ── header：站號徽章｜線名｜狀態 chip｜時戳 ── -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:baselineAligned="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <!-- 🔴 徽章底色用「ImageView 疊在文字後面」而不是 TextView 的 background：
+             RemoteViews 沒有跨版本可用的「給 background drawable 上色」的方法
+             （setColorInt 要 API 31），而 setBackgroundColor 會把圓角一起弄掉。
+             ImageView 可以 setColorFilter，所有版本都行。 -->
+        <FrameLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+
+        <ImageView
+            android:id="@+id/wg_badge_bg"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="@null"
+            android:scaleType="fitXY"
+            android:src="@drawable/wg_badge" />
+
+        <TextView
+            android:id="@+id/wg_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="30dp"
+            android:gravity="center"
+            android:paddingStart="5dp"
+            android:paddingEnd="5dp"
+            android:paddingTop="1dp"
+            android:paddingBottom="1dp"
+            android:text="R10"
+            android:textColor="@color/wg_on_accent"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/wg_line"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="7dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="淡水信義線"
+            android:textColor="@color/wg_ink_soft"
+            android:textSize="11sp" />
+
+        <ImageView
+            android:id="@+id/wg_chip_dot"
+            android:layout_width="6dp"
+            android:layout_height="6dp"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_dot" />
+
+        <TextView
+            android:id="@+id/wg_chip"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:maxLines="1"
+            android:text="LIVE"
+            android:textColor="@color/wg_ok"
+            android:textSize="10sp"
+            android:textStyle="bold" android:visibility="gone"
+            />
+
+        <TextView
+            android:id="@+id/wg_stamp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:maxLines="1"
+            android:text="09:41"
+            android:textColor="@color/wg_ink_faint"
+            android:textSize="10sp" android:visibility="gone"
+            />
+    </LinearLayout>
+
+    <!-- ── body：左邊站名／英文／方向，右邊主角 ── -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:baselineAligned="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/wg_station"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="台北車站"
+                android:textColor="@color/wg_ink"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/wg_station_en"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:letterSpacing="0.09"
+                android:maxLines="1"
+                android:text="TAIPEI MAIN STATION"
+                android:textColor="@color/wg_ink_faint"
+                android:textSize="8sp" android:visibility="gone"
+            />
+
+            <TextView
+                android:id="@+id/wg_dest"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:text="往 淡水"
+                android:textColor="@color/wg_ink_soft"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- ── 狀態 5 的警示帶（唯一用紅的地方）／狀態 6-7 的按鈕 ── -->
+    <TextView
+        android:id="@+id/wg_band"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:background="@drawable/wg_band_bad"
+        android:ellipsize="end"
+        android:maxLines="2"
+        android:paddingStart="9dp"
+        android:paddingEnd="8dp"
+        android:paddingTop="5dp"
+        android:paddingBottom="5dp"
+        android:text="中山—淡水 區間電力事故，恢復時間未定。點一下看公告。"
+        android:textColor="@color/wg_bad"
+        android:textSize="10sp"
+        android:visibility="gone" />
+
+    <!-- ── 註腳：左邊再下班／右邊擁擠度或說明 ── -->
+    <ImageView
+        android:id="@+id/wg_rule"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:scaleType="fitXY"
+        android:layout_marginTop="6dp"
+        android:background="@drawable/wg_rule" android:visibility="gone"
+        />
+
+    <LinearLayout
+        android:id="@+id/wg_foot"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:baselineAligned="false"
+        android:gravity="end|center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/wg_foot_left"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="再下班 7 分 · 14 分"
+            android:textColor="@color/wg_ink_soft"
+            android:textSize="10sp" />
+
+        <!-- 擁擠度：六節逐節上色，車頭那節帶圓鼻標出行進方向 -->
+        <LinearLayout
+            android:id="@+id/wg_meter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="5dp"
+            android:orientation="horizontal">
+
+            <ImageView android:id="@+id/wg_m1" android:layout_width="6dp" android:layout_height="9dp" android:layout_marginEnd="1.5dp" android:contentDescription="@null" android:scaleType="fitXY" android:src="@drawable/wg_meter_block" />
+            <ImageView android:id="@+id/wg_m2" android:layout_width="6dp" android:layout_height="9dp" android:layout_marginEnd="1.5dp" android:contentDescription="@null" android:scaleType="fitXY" android:src="@drawable/wg_meter_block" />
+            <ImageView android:id="@+id/wg_m3" android:layout_width="6dp" android:layout_height="9dp" android:layout_marginEnd="1.5dp" android:contentDescription="@null" android:scaleType="fitXY" android:src="@drawable/wg_meter_block" />
+            <ImageView android:id="@+id/wg_m4" android:layout_width="6dp" android:layout_height="9dp" android:layout_marginEnd="1.5dp" android:contentDescription="@null" android:scaleType="fitXY" android:src="@drawable/wg_meter_block" />
+            <ImageView android:id="@+id/wg_m5" android:layout_width="6dp" android:layout_height="9dp" android:layout_marginEnd="1.5dp" android:contentDescription="@null" android:scaleType="fitXY" android:src="@drawable/wg_meter_block" />
+            <ImageView android:id="@+id/wg_m6" android:layout_width="7dp" android:layout_height="9dp" android:contentDescription="@null" android:scaleType="fitXY" android:src="@drawable/wg_meter_nose" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/wg_foot_right"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:maxLines="1"
+            android:text="舒適"
+            android:textColor="@color/wg_ink_soft"
+            android:textSize="10sp" />
+
+        <!-- 主角區：三種形態互斥（數字＋分／實心進站／灰字），永遠靠右對齊同一條線 -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:baselineAligned="false"
+            android:gravity="bottom"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/wg_hero_num"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="2"
+                android:textColor="@color/wg_ink"
+                android:textSize="34sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/wg_hero_unit"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                android:layout_marginStart="2dp"
+                android:includeFontPadding="false"
+                android:text="分"
+                android:textColor="@color/wg_ink_soft"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/wg_hero_pill"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="3dp"
+                android:background="@drawable/wg_pill_ok"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="5dp"
+                android:paddingBottom="5dp"
+                android:text="進站"
+                android:textColor="@color/wg_on_accent"
+                android:textSize="19sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/wg_hero_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                android:maxLines="1"
+                android:text="暫無資料"
+                android:textColor="@color/wg_ink_faint"
+                android:textSize="19sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- 4×3 才有的兩塊；小尺寸留在版面裡但 gone，binder 就不必為尺寸分岔 -->
+    <LinearLayout
+        android:id="@+id/wg_hint_box"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="7dp"
+        android:background="@drawable/wg_hint_box"
+        android:baselineAligned="false"
+        android:orientation="horizontal"
+        android:paddingStart="9dp"
+        android:paddingEnd="9dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/wg_hint_left"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:maxLines="1"
+            android:text="走到月台 3 分"
+            android:textColor="@color/wg_ink_soft"
+            android:textSize="11sp" />
+
+        <TextView
+            android:id="@+id/wg_hint_right"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:maxLines="1"
+            android:text="現在出門剛好"
+            android:textColor="@color/wg_ok"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/wg_strip"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="7dp"
+        android:baselineAligned="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/wg_strip_prev"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="◀ 台大醫院"
+            android:textColor="@color/wg_ink_faint"
+            android:textSize="10sp" />
+
+        <ImageView
+            android:id="@+id/wg_strip_dot"
+            android:layout_width="7dp"
+            android:layout_height="7dp"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_dot" />
+
+        <TextView
+            android:id="@+id/wg_strip_next"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:gravity="end"
+            android:maxLines="1"
+            android:text="中山 ▶"
+            android:textColor="@color/wg_ink_faint"
+            android:textSize="10sp" />
+    </LinearLayout>
+</LinearLayout>

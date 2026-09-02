@@ -19,6 +19,7 @@ for (const [key, value] of Object.entries(strings)) {
     const translated = value?.localizations?.[lang]?.stringUnit?.value;
     assert(typeof translated === 'string' && translated.trim(), `原生 ${lang} 缺字串：${key}`);
     assert(translated !== 'undefined', `原生 ${lang} 洩漏 undefined：${key}`);
+    assert(translated !== '[object Object]', `原生 ${lang} 把網站複數物件直接字串化：${key}`);
   }
 }
 

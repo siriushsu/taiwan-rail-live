@@ -1,0 +1,1104 @@
+PASS T0 伺服器送出的 index.html 與這棵樹逐 byte 相同(md5 50ce6ff9) — /Users/xuxiang/Code/捷運小動畫/.claude/worktrees/app-redesign
+PASS A1 chromium std 360pt 正向對照:四顆群組分頁都量得到 — n=4
+PASS A2 chromium std 360pt 四顆分頁都在視窗內
+PASS A3 chromium std 360pt 分頁的字沒有被自己的框切掉
+PASS A4 chromium std 360pt tab bar 的文字標籤沒有被切在畫面外
+PASS A5 chromium std 360pt 零 pageerror
+PASS A6 chromium std 360pt 正向對照:頂列與時鐘徽章都量得到
+PASS A7 chromium std 360pt 時鐘徽章併入頂列:裝得進去且與同列控件互不相疊 — contained=true 與兄弟相疊=0 兄弟數=6
+PASS A8 chromium std 360pt 徽章位置不是 JS 寫死的絕對 px — inline top=
+PASS A1 chromium std 393pt 正向對照:四顆群組分頁都量得到 — n=4
+PASS A2 chromium std 393pt 四顆分頁都在視窗內
+PASS A3 chromium std 393pt 分頁的字沒有被自己的框切掉
+PASS A4 chromium std 393pt tab bar 的文字標籤沒有被切在畫面外
+PASS A5 chromium std 393pt 零 pageerror
+PASS A6 chromium std 393pt 正向對照:頂列與時鐘徽章都量得到
+PASS A7 chromium std 393pt 時鐘徽章併入頂列:裝得進去且與同列控件互不相疊 — contained=true 與兄弟相疊=0 兄弟數=6
+PASS A8 chromium std 393pt 徽章位置不是 JS 寫死的絕對 px — inline top=
+PASS A1 chromium std 414pt 正向對照:四顆群組分頁都量得到 — n=4
+PASS A2 chromium std 414pt 四顆分頁都在視窗內
+PASS A3 chromium std 414pt 分頁的字沒有被自己的框切掉
+PASS A4 chromium std 414pt tab bar 的文字標籤沒有被切在畫面外
+PASS A5 chromium std 414pt 零 pageerror
+PASS A6 chromium std 414pt 正向對照:頂列與時鐘徽章都量得到
+PASS A7 chromium std 414pt 時鐘徽章併入頂列:裝得進去且與同列控件互不相疊 — contained=true 與兄弟相疊=0 兄弟數=6
+PASS A8 chromium std 414pt 徽章位置不是 JS 寫死的絕對 px — inline top=
+PASS A1 chromium large 360pt 正向對照:四顆群組分頁都量得到 — n=4
+PASS A2 chromium large 360pt 四顆分頁都在視窗內
+PASS A3 chromium large 360pt 分頁的字沒有被自己的框切掉
+PASS A4 chromium large 360pt tab bar 的文字標籤沒有被切在畫面外
+PASS A5 chromium large 360pt 零 pageerror
+PASS A6 chromium large 360pt 正向對照:頂列與時鐘徽章都量得到
+PASS A7 chromium large 360pt 時鐘徽章併入頂列:裝得進去且與同列控件互不相疊 — contained=true 與兄弟相疊=0 兄弟數=6
+PASS A8 chromium large 360pt 徽章位置不是 JS 寫死的絕對 px — inline top=
+PASS A1 chromium large 393pt 正向對照:四顆群組分頁都量得到 — n=4
+PASS A2 chromium large 393pt 四顆分頁都在視窗內
+PASS A3 chromium large 393pt 分頁的字沒有被自己的框切掉
+PASS A4 chromium large 393pt tab bar 的文字標籤沒有被切在畫面外
+PASS A5 chromium large 393pt 零 pageerror
+PASS A6 chromium large 393pt 正向對照:頂列與時鐘徽章都量得到
+PASS A7 chromium large 393pt 時鐘徽章併入頂列:裝得進去且與同列控件互不相疊 — contained=true 與兄弟相疊=0 兄弟數=6
+PASS A8 chromium large 393pt 徽章位置不是 JS 寫死的絕對 px — inline top=
+PASS A1 chromium large 414pt 正向對照:四顆群組分頁都量得到 — n=4
+PASS A2 chromium large 414pt 四顆分頁都在視窗內
+PASS A3 chromium large 414pt 分頁的字沒有被自己的框切掉
+PASS A4 chromium large 414pt tab bar 的文字標籤沒有被切在畫面外
+PASS A5 chromium large 414pt 零 pageerror
+PASS A6 chromium large 414pt 正向對照:頂列與時鐘徽章都量得到
+PASS A7 chromium large 414pt 時鐘徽章併入頂列:裝得進去且與同列控件互不相疊 — contained=true 與兄弟相疊=0 兄弟數=6
+PASS A8 chromium large 414pt 徽章位置不是 JS 寫死的絕對 px — inline top=
+PASS A1 chromium xlarge 360pt 正向對照:四顆群組分頁都量得到 — n=4
+PASS A2 chromium xlarge 360pt 四顆分頁都在視窗內
+PASS A3 chromium xlarge 360pt 分頁的字沒有被自己的框切掉
+PASS A4 chromium xlarge 360pt tab bar 的文字標籤沒有被切在畫面外
+PASS A5 chromium xlarge 360pt 零 pageerror
+PASS A6 chromium xlarge 360pt 正向對照:頂列與時鐘徽章都量得到
+PASS A7 chromium xlarge 360pt 時鐘徽章併入頂列:裝得進去且與同列控件互不相疊 — contained=true 與兄弟相疊=0 兄弟數=6
+PASS A8 chromium xlarge 360pt 徽章位置不是 JS 寫死的絕對 px — inline top=
+PASS A1 chromium xlarge 393pt 正向對照:四顆群組分頁都量得到 — n=4
+PASS A2 chromium xlarge 393pt 四顆分頁都在視窗內
+PASS A3 chromium xlarge 393pt 分頁的字沒有被自己的框切掉
+PASS A4 chromium xlarge 393pt tab bar 的文字標籤沒有被切在畫面外
+PASS A5 chromium xlarge 393pt 零 pageerror
+PASS A6 chromium xlarge 393pt 正向對照:頂列與時鐘徽章都量得到
+PASS A7 chromium xlarge 393pt 時鐘徽章併入頂列:裝得進去且與同列控件互不相疊 — contained=true 與兄弟相疊=0 兄弟數=6
+PASS A8 chromium xlarge 393pt 徽章位置不是 JS 寫死的絕對 px — inline top=
+PASS A1 chromium xlarge 414pt 正向對照:四顆群組分頁都量得到 — n=4
+PASS A2 chromium xlarge 414pt 四顆分頁都在視窗內
+PASS A3 chromium xlarge 414pt 分頁的字沒有被自己的框切掉
+PASS A4 chromium xlarge 414pt tab bar 的文字標籤沒有被切在畫面外
+PASS A5 chromium xlarge 414pt 零 pageerror
+PASS A6 chromium xlarge 414pt 正向對照:頂列與時鐘徽章都量得到
+PASS A7 chromium xlarge 414pt 時鐘徽章併入頂列:裝得進去且與同列控件互不相疊 — contained=true 與兄弟相疊=0 兄弟數=6
+PASS A8 chromium xlarge 414pt 徽章位置不是 JS 寫死的絕對 px — inline top=
+PASS B1 chromium 沒選過時是標準檔 — {"ui":"1","fs":null,"ls":null,"lsFollow":null,"rowPx":13.5,"prevPx":19,"msVal":"標準","panelOpen":false,"follow":true,"on":["std"]}
+PASS B2 chromium 「更多」→ 字級 開得起「顯示與字級」面板 — {"ui":"1","fs":null,"ls":null,"lsFollow":null,"rowPx":13.5,"prevPx":19,"msVal":"標準","panelOpen":true,"follow":true,"on":["std"]}
+PASS B3 chromium 點特大 → 倍率 1.5 且預覽卡的字真的變大 — {"ui":"1.5","fs":"xlarge","ls":"xlarge","lsFollow":null,"rowPx":20.25,"prevPx":28.5,"msVal":"特大","panelOpen":true,"follow":true,"on":["xlarge"]}
+PASS B4 chromium 選中態回饋在那一顆鈕上 — ["xlarge"]
+PASS B5 chromium 偏好寫進 localStorage
+PASS B6 chromium 點回標準真的回得去(不是單向閥) — {"ui":"1","fs":null,"ls":"std","lsFollow":null,"rowPx":13.5,"prevPx":19,"msVal":"標準","panelOpen":true,"follow":true,"on":["std"]}
+PASS B6b chromium 「更多」那一列顯示目前的階 — msVal=標準
+PASS B7 chromium 重新載入後保留「大」 — {"ui":"1.25","fs":"large","ls":"large","lsFollow":null,"rowPx":16.875,"prevPx":23.75,"msVal":"大","panelOpen":false,"follow":true,"on":["large"]}
+PASS B8 chromium data-fs 由 head 首繪腳本掛上(不會先閃一下標準字級)
+PASS B9 chromium 全程零 pageerror
+PASS C1 chromium ?live=1 即使存過特大也恆定標準字級 — {"fs":null,"ui":"1"}
+PASS C2 chromium 系統字級 30px(輔助使用級別) → data-fs=xlarge — got=xlarge
+PASS C2 chromium 系統字級 16px(一般級別) → data-fs=null — got=null
+PASS D0 chromium 跟隨系統字級預設是開的
+PASS D1 chromium 開關【開】+ 系統輔助使用級別 → 自動切到特大 — {"fs":"xlarge","follow":true,"msVal":"特大(跟隨系統)","lsFollow":null}
+PASS D2 chromium 抽屜列標示「跟隨系統」 — msVal=特大(跟隨系統)
+PASS D3 chromium 開關【關】+ 同一個系統字級 → 退回標準(反向對照) — {"fs":null,"follow":false,"msVal":"標準","lsFollow":"0"}
+PASS D4 chromium 關掉的偏好寫進 localStorage — lsFollow=0
+PASS D5 chromium 重新載入後仍然是關的(不會自己開回來) — data-fs=null
+PASS D6 chromium 全程零 pageerror
+PASS E1 chromium std 360pt 正向對照:看板列量得到 — n=4
+PASS E2 chromium std 360pt 沒有任何一列的車種／方向被切字 — clipped=0
+PASS E3 chromium std 360pt 標準／大不收任何欄位(車種與方向都在) — 4/4
+PASS E1 chromium std 393pt 正向對照:看板列量得到 — n=4
+PASS E2 chromium std 393pt 沒有任何一列的車種／方向被切字 — clipped=0
+PASS E3 chromium std 393pt 標準／大不收任何欄位(車種與方向都在) — 4/4
+PASS E1 chromium large 360pt 正向對照:看板列量得到 — n=4
+PASS E2 chromium large 360pt 沒有任何一列的車種／方向被切字 — clipped=0
+PASS E3 chromium large 360pt 標準／大不收任何欄位(車種與方向都在) — 4/4
+PASS E1 chromium large 393pt 正向對照:看板列量得到 — n=4
+PASS E2 chromium large 393pt 沒有任何一列的車種／方向被切字 — clipped=0
+PASS E3 chromium large 393pt 標準／大不收任何欄位(車種與方向都在) — 4/4
+PASS E1 chromium xlarge 360pt 正向對照:看板列量得到 — n=4
+PASS E2 chromium xlarge 360pt 沒有任何一列的車種／方向被切字 — clipped=0
+PASS E3 chromium xlarge 360pt 特大預設收起車種與方向 — 0/4
+PASS E1 chromium xlarge 393pt 正向對照:看板列量得到 — n=4
+PASS E2 chromium xlarge 393pt 沒有任何一列的車種／方向被切字 — clipped=0
+PASS E3 chromium xlarge 393pt 特大預設收起車種與方向 — 0/4
+PASS E4a chromium 特大時列尾有「›」出口
+PASS E4b chromium 點「›」把車種與方向叫回來 — {"boardOpen":true,"following":false,"destShown":true,"txt":"往 蘇澳","n":1,"redraw":0,"rx":true,"等到rx":true}
+PASS E5 chromium 點「›」不會誤觸跟車(看板還開著、沒有跟車) — {"boardOpen":true,"following":false,"destShown":true,"txt":"往 蘇澳","n":1,"redraw":0,"rx":true}
+PASS E4c chromium 正向對照:renderBoard() 真的把整批列重建了(舊節點已離開文件) — {"重建":true,"重繪後列數":4}
+PASS E4d chromium 重繪之後展開中的那一列還是展開的(車種與方向仍在畫面上) — {"rebuilt":true,"n":4,"openBefore":["4128|tra_sched"],"openAfter":["4128|tra_sched"],"destShown":true}
+PASS E4e chromium 對照組:沒展開過的列不會自己長出展開態 — {"展開":["4128|tra_sched"],"原本展開":["4128|tra_sched"],"總列數":4}
+PASS E6 chromium 反向對照:點列本身仍然會跟車 — {"fs":true,"following":true,"boardOpen":true,"tab":"這班車"}
+PASS E7 chromium 跟完之後手機保留看板當「這一站」分頁並切到「這班車」 — {"fs":true,"following":true,"boardOpen":true,"tab":"這班車"}
+PASS E7 chromium 全程零 pageerror
+PASS F0a 12px 以下的字級沒有一處還留在主倍率 --ui 上
+PASS F0b 12.5px 以上的字級沒有一處跑到小倍率 --uis 上
+PASS F0c 兩條倍率三檔都宣告齊全
+PASS F1 chromium std 360pt 正向對照:抽屜列與段標題都量得到 — n=20 sec=11
+PASS F2 chromium std 360pt 每一列都不低於設計列高 48px — minH=48
+PASS F3 chromium std 360pt 段標題字級 ≈ 11px(小倍率) — secPx=11
+PASS F4 chromium std 360pt 小字倍率確實比主倍率溫和(1.00× vs 1.00×) — small=1.000 main=1.000
+PASS F5 chromium std 360pt 目前值與標籤同一行 — {"inline":true,"stacked":false,"valLeft":false}
+PASS F6 chromium std 360pt 「›」始終留在右緣且垂直置中 — {"chevRight":true,"chevMid":true}
+PASS F7 chromium std 360pt 零 pageerror
+PASS F1 chromium std 393pt 正向對照:抽屜列與段標題都量得到 — n=20 sec=11
+PASS F2 chromium std 393pt 每一列都不低於設計列高 48px — minH=48
+PASS F3 chromium std 393pt 段標題字級 ≈ 11px(小倍率) — secPx=11
+PASS F4 chromium std 393pt 小字倍率確實比主倍率溫和(1.00× vs 1.00×) — small=1.000 main=1.000
+PASS F5 chromium std 393pt 目前值與標籤同一行 — {"inline":true,"stacked":false,"valLeft":false}
+PASS F6 chromium std 393pt 「›」始終留在右緣且垂直置中 — {"chevRight":true,"chevMid":true}
+PASS F7 chromium std 393pt 零 pageerror
+PASS F1 chromium large 360pt 正向對照:抽屜列與段標題都量得到 — n=20 sec=12.54
+PASS F2 chromium large 360pt 每一列都不低於設計列高 68px — minH=68
+PASS F3 chromium large 360pt 段標題字級 ≈ 12.5px(小倍率) — secPx=12.54
+PASS F4 chromium large 360pt 小字倍率確實比主倍率溫和(1.14× vs 1.25×) — small=1.140 main=1.250
+PASS F5 chromium large 360pt 目前值與標籤同一行 — {"inline":true,"stacked":false,"valLeft":false}
+PASS F6 chromium large 360pt 「›」始終留在右緣且垂直置中 — {"chevRight":true,"chevMid":true}
+PASS F7 chromium large 360pt 零 pageerror
+PASS F1 chromium large 393pt 正向對照:抽屜列與段標題都量得到 — n=20 sec=12.54
+PASS F2 chromium large 393pt 每一列都不低於設計列高 68px — minH=68
+PASS F3 chromium large 393pt 段標題字級 ≈ 12.5px(小倍率) — secPx=12.54
+PASS F4 chromium large 393pt 小字倍率確實比主倍率溫和(1.14× vs 1.25×) — small=1.140 main=1.250
+PASS F5 chromium large 393pt 目前值與標籤同一行 — {"inline":true,"stacked":false,"valLeft":false}
+PASS F6 chromium large 393pt 「›」始終留在右緣且垂直置中 — {"chevRight":true,"chevMid":true}
+PASS F7 chromium large 393pt 零 pageerror
+PASS F1 chromium xlarge 360pt 正向對照:抽屜列與段標題都量得到 — n=20 sec=14.19
+PASS F2 chromium xlarge 360pt 每一列都不低於設計列高 80px — minH=80
+PASS F3 chromium xlarge 360pt 段標題字級 ≈ 14px(小倍率) — secPx=14.19
+PASS F4 chromium xlarge 360pt 小字倍率確實比主倍率溫和(1.29× vs 1.50×) — small=1.290 main=1.500
+PASS F5 chromium xlarge 360pt 目前值掉到第二行並切齊標籤左緣 — {"inline":false,"stacked":true,"valLeft":true}
+PASS F6 chromium xlarge 360pt 「›」始終留在右緣且垂直置中 — {"chevRight":true,"chevMid":true}
+PASS F7 chromium xlarge 360pt 零 pageerror
+PASS F1 chromium xlarge 393pt 正向對照:抽屜列與段標題都量得到 — n=20 sec=14.19
+PASS F2 chromium xlarge 393pt 每一列都不低於設計列高 80px — minH=80
+PASS F3 chromium xlarge 393pt 段標題字級 ≈ 14px(小倍率) — secPx=14.19
+PASS F4 chromium xlarge 393pt 小字倍率確實比主倍率溫和(1.29× vs 1.50×) — small=1.290 main=1.500
+PASS F5 chromium xlarge 393pt 目前值掉到第二行並切齊標籤左緣 — {"inline":false,"stacked":true,"valLeft":true}
+PASS F6 chromium xlarge 393pt 「›」始終留在右緣且垂直置中 — {"chevRight":true,"chevMid":true}
+PASS F7 chromium xlarge 393pt 零 pageerror
+PASS G1 chromium std 393pt 正向對照:tab 鈕與章都量得到 — tab=5 seal=19
+PASS G2 chromium std 393pt tab 觸控目標 ≈ 設計的 44px — tapMin=44
+PASS G3 chromium std 393pt 章直徑 ≈ 56px — seal=56
+PASS G4 chromium std 393pt 三條倍率在標準檔全部是 1 — ui=1 uis=1 uit=1
+PASS G5 chromium std 393pt 章仍然是歪的、日期還在 — rot=true date=true
+PASS G6 chromium std 393pt 沒有任何一枚章被擠出面板 — out=0
+PASS G7 chromium std 393pt 零 pageerror
+PASS G1 chromium large 393pt 正向對照:tab 鈕與章都量得到 — tab=5 seal=19
+PASS G2 chromium large 393pt tab 觸控目標 ≈ 設計的 52px — tapMin=51.90625
+PASS G3 chromium large 393pt 章直徑 ≈ 66px — seal=66.1
+PASS G4 chromium large 393pt 三條倍率互不相等且 --uis < --uit < --ui — ui=1.25 uis=1.14 uit=1.18
+PASS G5 chromium large 393pt 章仍然是歪的、日期還在 — rot=true date=true
+PASS G6 chromium large 393pt 沒有任何一枚章被擠出面板 — out=0
+PASS G7 chromium large 393pt 零 pageerror
+PASS G1 chromium xlarge 393pt 正向對照:tab 鈕與章都量得到 — tab=5 seal=19
+PASS G2 chromium xlarge 393pt tab 觸控目標 ≈ 設計的 60px — tapMin=59.828125
+PASS G3 chromium xlarge 393pt 章直徑 ≈ 76px — seal=76.2
+PASS G4 chromium xlarge 393pt 三條倍率互不相等且 --uis < --uit < --ui — ui=1.5 uis=1.29 uit=1.36
+PASS G5 chromium xlarge 393pt 章仍然是歪的、日期還在 — rot=true date=true
+PASS G6 chromium xlarge 393pt 沒有任何一枚章被擠出面板 — out=0
+PASS G7 chromium xlarge 393pt 零 pageerror
+PASS H1 chromium 393pt 正向對照:跟到車(其他)且跟車卡開著 — picked=其他 panel=true
+PASS H2 chromium 393pt 跟車目標落在可視地圖窗內(上58~下緣721) — 車y=409
+PASS H3 chromium 393pt 跟車目標沒有被任何卡片蓋住 — 命中 leaflet-gl-layer maplibregl-
+PASS H4 chromium 393pt 上界已收到 ≤62px(徽章併入頂列) — 上界=58 chrome=[topbar,badge,tabbar,controls,followPanel]
+PASS H5 chromium 393pt 解除跟隨後讓位記帳 = 我獨立量到的 (下界−上界)/2 — shiftY=30.9 應為 31 chrome=[topbar,badge,tabbar,controls] 上58 下120
+PASS H6 chromium 393pt 零 pageerror
+PASS H7 chromium 393pt 正向對照:跟車中開得起看板,而且看板真的吃進開板前看得到的地圖 —  sheet=true 開板前下緣=721 開板後下緣=528.40625 看板頂緣=536 看板高=256(班次列 4)
+PASS H8 chromium 393pt 看板開著時跟車目標仍在可視窗內(58~528.40625) — 車y=339
+PASS H9 chromium 393pt 看板開著時跟車目標沒有被卡片蓋住 — 命中 leaflet-gl-layer maplibregl-
+PASS H10 chromium 393pt 零 pageerror
+PASS I1 chromium 393pt 正向對照:手機殼、徽章併入頂列、時鐘還讀得到 — fs=true inBar=true clock=16
+PASS I2 chromium 393pt 亮著的狀態旗標全部收成色點(非文字) — 亮著 2 顆 live={"w":7,"h":7,"fs":0,"br":"50%"} mlive={"w":7,"h":7,"fs":0,"br":"50%"}
+PASS I3 chromium 393pt 列車數有值但已從頂列收起 — text=「2 班奔跑中」drawn=false
+PASS I4 chromium 393pt 正向對照:「資料狀態」段與至少兩列真的畫出來 — sec=true live=true metro=true count=true
+PASS I5 chromium 393pt 資料狀態的值逐字鏡射徽章 — live「LIVE」vs「LIVE」metro「班表備案・非即時」vs「班表備案」count「2 班奔跑中」vs「2 班奔跑中」
+PASS I6a chromium 393pt 前置·徽章真的還藏著(產品的下一拍沒把它撤銷) — hidden=true
+PASS I6 chromium 393pt 反向對照:徽章藏起來 ⇒ 該列整列消失 — drawn=false h=0
+PASS I7 chromium 393pt 反向對照:旗標亮起來 ⇒ 該列出現 — drawn=true h=48
+PASS I8 chromium 393pt 零 pageerror
+PASS J1 chromium 393pt 正向對照:跟到車、跟車卡看得到、還沒有分頁列 — {"boardOpen":false,"following":true,"tabN":0,"tabSel":"","fpInBoard":false,"fpExists":true,"fpVisible":true,"fpFields":3,"rows":0}
+PASS J2 chromium 393pt 跟車中開看板 ⇒ 兩個分頁、落在「這一站」、跟車不斷 — {"boardOpen":true,"following":true,"tabN":2,"tabSel":"這一站","fpInBoard":true,"fpExists":true,"fpVisible":false,"fpFields":0,"rows":4}
+PASS J3 chromium 393pt 切「這班車」⇒ 看板列全收、跟車卡欄位露出 — {"boardOpen":true,"following":true,"tabN":2,"tabSel":"這班車","fpInBoard":true,"fpExists":true,"fpVisible":true,"fpFields":3,"rows":0}
+PASS J4 chromium 393pt 看板重繪後:分頁列還在、選中沒變、跟車卡沒被銷毀 — {"boardOpen":true,"following":true,"tabN":2,"tabSel":"這班車","fpInBoard":true,"fpExists":true,"fpVisible":true,"fpFields":3,"rows":0}
+PASS J5 chromium 393pt 整合卡掛著時跟車目標仍在可視窗內、沒被卡片蓋住 — 車y=340 窗=58~528.40625 命中=leaflet-gl-layer maplibregl-
+PASS J6 chromium 393pt 反向對照:關看板 ⇒ 跟車卡搬回原位且仍看得到 — {"boardOpen":false,"following":true,"tabN":0,"tabSel":"","fpInBoard":false,"fpExists":true,"fpVisible":true,"fpFields":3,"rows":0}
+PASS J7 chromium 393pt 反向對照:沒跟車開看板 ⇒ 沒有分頁列(D3)、看板列照常 — {"boardOpen":true,"following":false,"tabN":0,"tabSel":"","fpInBoard":false,"fpExists":true,"fpVisible":false,"fpFields":0,"rows":4}
+PASS J8 chromium 393pt 零 pageerror
+PASS J9 chromium 393pt 正向對照:兩個分頁都切得到 — tabs=2/2
+PASS J10 chromium 393pt 切分頁不改變左右讓位(搬進來的卡沒被當成左側遮蔽) — 這一站 左0右62 ／ 這班車 左0右62
+PASS J11 chromium 393pt 零 pageerror
+PASS K1 chromium 393pt 正向對照:跟到車、整合卡掛著、還沒收合、找得到空白點 — {"following":true,"collapsed":false,"fpMin":false,"fpVis":false,"fpH":0,"fpW":0,"fpInSlot":true,"fpTxt":"8888山海號・觀光列車 76 km/h × 結束 下一站 臺東 15:19 · 36 分 環島完乘 0% ▶ 行進中 臺北 ⇄ 枋寮 永續來回 · 一輪 12 小時 · 永不到站 到 開始收集取消 ↗ 行程分享 詳細往上拉看完整資料› 8888 觀光列車 臺北 08:02 → 臺北 20:00 曲線 ▴ 時刻表 ▾ ✕ 山海號 本站原創的虛構觀光列車：自臺北往東，沿宜蘭線、北迴線、臺東線與南迴線直抵枋寮——一側太平洋、一側中央山脈，龜山島、清水斷崖與縱谷稻田輪流入窗。永不停駛，到枋寮即折返，十二小時一輪來回。與走西部的平原號是兄弟車，在枋寮擦肩。停靠 9 站 · 全程約 11 小時 58 分 旅程日誌 列車跑起來就會記錄——停靠、交會、待避…… 誤點履歷 › 全程速度曲線 停靠站到開臺北08:0008:02宜蘭09:1809:20花蓮10:3810:40臺東12:4012:42枋寮14:0014:02臺東15:1915:21花蓮17:2117:23宜蘭18:4118:43臺北20:0020:00","endVis":false,"hit3":0,"hitWho":"invisible","fpRect":[0,0,0,0],"boardVis":true,"boardHiddenAttr":false,"boardStation":true,"boardRows":4,"sheetOpen":true,"fpOpacity":1,"fpPE":"auto","tabN":2,"tabSel":"這一站","trainOpen":false,"tapPick":false,"ls":null,"pt":{"x":40,"y":150,"ml":0,"mt":0}}
+PASS K2 chromium 393pt 點地圖空白 ⇒ 收成膠囊,而且【跟車沒斷】 — {"following":true,"collapsed":true,"fpMin":true,"fpVis":true,"fpH":44,"fpW":172,"fpInSlot":false,"fpTxt":"8888 76 km/h 結束","endVis":true,"hit3":3,"hitWho":"#fpSpd.spd < div.fp-head < #followPanel.follow-panel.fp-min < div.stage.offline-land","fpRect":[8,676,172,44],"boardVis":false,"boardHiddenAttr":true,"boardStation":true,"boardRows":4,"sheetOpen":false,"fpOpacity":1,"fpPE":"auto","tabN":0,"tabSel":"","trainOpen":false,"tapPick":false,"ls":null}
+PASS K3 chromium 393pt 膠囊內容＝車次·時速·結束(設計 1a) — 膠囊字=「8888 76 km/h 結束」
+PASS K4 chromium 393pt 膠囊觸控目標 ≥44 且三點都命中自己 — 高44 寬172 命中3/3
+PASS K5 chromium 393pt 收合＝藏起來不是關掉:內容留著、但 sheet-open 跟著關 — {"following":true,"collapsed":true,"fpMin":true,"fpVis":true,"fpH":44,"fpW":172,"fpInSlot":false,"fpTxt":"8888 76 km/h 結束","endVis":true,"hit3":3,"hitWho":"#fpSpd.spd < div.fp-head < #followPanel.follow-panel.fp-min < div.stage.offline-land","fpRect":[8,676,172,44],"boardVis":false,"boardHiddenAttr":true,"boardStation":true,"boardRows":4,"sheetOpen":false,"fpOpacity":1,"fpPE":"auto","tabN":0,"tabSel":"","trainOpen":false,"tapPick":false,"ls":null}
+PASS K6 chromium 393pt 收合把地圖還出來:可視窗下界變低,而且不寫 localStorage — 下界 528.40625→720 ls=null
+PASS K18 chromium 393pt 收合中看板重繪:不會把收起來的看板掀回畫面 — {"following":true,"collapsed":true,"fpMin":true,"fpVis":true,"fpH":44,"fpW":172,"fpInSlot":false,"fpTxt":"8888 76 km/h 結束","endVis":true,"hit3":3,"hitWho":"#fpSpd.spd < div.fp-head < #followPanel.follow-panel.fp-min < div.stage.offline-land","fpRect":[8,688,172,44],"boardVis":false,"boardHiddenAttr":true,"boardStation":true,"boardRows":4,"sheetOpen":false,"fpOpacity":1,"fpPE":"auto","tabN":0,"tabSel":"","trainOpen":false,"tapPick":false,"ls":null}
+PASS K7 chromium 393pt 點膠囊 ⇒ 展開回收合前那一頁(跟車仍在、卡回槽裡、沒跳去列車 sheet) — {"following":true,"collapsed":false,"fpMin":false,"fpVis":false,"fpH":0,"fpW":0,"fpInSlot":true,"fpTxt":"8888山海號・觀光列車 76 km/h × 結束 下一站 臺東 15:19 · 36 分 環島完乘 0% ▶ 行進中 臺北 ⇄ 枋寮 永續來回 · 一輪 12 小時 · 永不到站 到 開始收集取消 ↗ 行程分享 詳細往上拉看完整資料› 8888 觀光列車 臺北 08:02 → 臺北 20:00 曲線 ▴ 時刻表 ▾ ✕ 山海號 本站原創的虛構觀光列車：自臺北往東，沿宜蘭線、北迴線、臺東線與南迴線直抵枋寮——一側太平洋、一側中央山脈，龜山島、清水斷崖與縱谷稻田輪流入窗。永不停駛，到枋寮即折返，十二小時一輪來回。與走西部的平原號是兄弟車，在枋寮擦肩。停靠 9 站 · 全程約 11 小時 58 分 旅程日誌 列車跑起來就會記錄——停靠、交會、待避…… 誤點履歷 › 全程速度曲線 停靠站到開臺北08:0008:02宜蘭09:1809:20花蓮10:3810:40臺東12:4012:42枋寮14:0014:02臺東15:1915:21花蓮17:2117:23宜蘭18:4118:43臺北20:0020:00","endVis":false,"hit3":0,"hitWho":"invisible","fpRect":[0,0,0,0],"boardVis":true,"boardHiddenAttr":false,"boardStation":true,"boardRows":4,"sheetOpen":true,"fpOpacity":1,"fpPE":"auto","tabN":2,"tabSel":"這一站","trainOpen":false,"tapPick":false,"ls":"0"}
+PASS K8 chromium 393pt 整合卡掛著時點卡片本體:看板還在、沒被換成列車 sheet — {"following":true,"collapsed":false,"fpMin":false,"fpVis":true,"fpH":777,"fpW":345,"fpInSlot":true,"fpTxt":"8888 山海號・觀光列車 76 km/h × 下一站 臺東 15:19 · 36 分 環島完乘 0% ▶ 行進中 臺北 ⇄ 枋寮 永續來回 · 一輪 12 小時 · 永不到站 詳細 往上拉看完整資料 › 曲線 ▴ 時刻表 ▴ 山海號 本站原創的虛構觀光列車：自臺北往東，沿宜蘭線、北迴線、臺東線與南迴線直抵枋寮——一側太平洋、一側中央山脈，龜山島、清水斷崖與縱谷稻田輪流入窗。永不停駛，到枋寮即折返，十二小時一輪來回。與走西部的平原號是兄弟車，在枋寮擦肩。 停靠 9 站 · 全程約 11 小時 58 分 旅程日誌 列車跑起來就會記錄——停靠、交會、待避…… 全程速度曲線 停靠站 到 開 臺北 08:00 08:02 宜蘭 09:18 09:20 花蓮 10:38 10:40 臺東 12:40 12:42 枋寮 14:00 14:02 臺東 15:19 15:21 花蓮 17:21 17:23 宜蘭 18:41 18:43 臺北 20:00 20:00","endVis":false,"hit3":1,"hitWho":"none","fpRect":[24,631,345,777],"boardVis":true,"boardHiddenAttr":false,"boardStation":true,"boardRows":4,"sheetOpen":true,"fpOpacity":1,"fpPE":"auto","tabN":2,"tabSel":"這班車","trainOpen":false,"tapPick":false,"ls":"0"}
+PASS K9 chromium 393pt 膠囊的「結束」仍然結束跟隨、旗標歸零、收起來的看板當場還回去 — {"following":false,"collapsed":false,"fpMin":true,"fpVis":false,"fpH":0,"fpW":0,"fpInSlot":false,"fpTxt":"8888山海號・觀光列車 76 km/h × 結束 下一站 臺東 15:19 · 36 分 環島完乘 0% ▶ 行進中 臺北 ⇄ 枋寮 永續來回 · 一輪 12 小時 · 永不到站 到 開始收集取消 ↗ 行程分享","endVis":false,"hit3":0,"hitWho":"invisible","fpRect":[0,0,0,0],"boardVis":true,"boardHiddenAttr":false,"boardStation":true,"boardRows":4,"sheetOpen":true,"fpOpacity":1,"fpPE":"auto","tabN":0,"tabSel":"","trainOpen":false,"tapPick":false,"ls":"0"}
+PASS K10 chromium 393pt 結束跟車後看板照樣開得起來(收合旗標沒留下來把它藏死) — {"following":false,"collapsed":false,"fpMin":true,"fpVis":false,"fpH":0,"fpW":0,"fpInSlot":false,"fpTxt":"8888山海號・觀光列車 76 km/h × 結束 下一站 臺東 15:19 · 36 分 環島完乘 0% ▶ 行進中 臺北 ⇄ 枋寮 永續來回 · 一輪 12 小時 · 永不到站 到 開始收集取消 ↗ 行程分享","endVis":false,"hit3":0,"hitWho":"invisible","fpRect":[0,0,0,0],"boardVis":true,"boardHiddenAttr":false,"boardStation":true,"boardRows":4,"sheetOpen":true,"fpOpacity":1,"fpPE":"auto","tabN":0,"tabSel":"","trainOpen":false,"tapPick":false,"ls":"0"}
+PASS K11 chromium 393pt 反向對照:沒跟車時點空白 ⇒ 什麼都不收(沒有收合、沒有膠囊) — {"following":false,"collapsed":false,"fpMin":true,"fpVis":false,"fpH":0,"fpW":0,"fpInSlot":false,"fpTxt":"8888山海號・觀光列車 76 km/h × 結束 下一站 臺東 15:19 · 36 分 環島完乘 0% ▶ 行進中 臺北 ⇄ 枋寮 永續來回 · 一輪 12 小時 · 永不到站 到 開始收集取消 ↗ 行程分享","endVis":false,"hit3":0,"hitWho":"invisible","fpRect":[0,0,0,0],"boardVis":false,"boardHiddenAttr":true,"boardStation":false,"boardRows":0,"sheetOpen":false,"fpOpacity":1,"fpPE":"auto","tabN":0,"tabSel":"","trainOpen":false,"tapPick":false,"ls":"0"}
+PASS K12 chromium 393pt 反向對照:再點一次跟隨中的那台車仍然是取消跟隨(沒被收合搶走) — {"following":false,"collapsed":false,"fpMin":true,"fpVis":false,"fpH":0,"fpW":0,"fpInSlot":false,"fpTxt":"8888山海號・觀光列車 76 km/h × 結束 下一站 臺東 15:19 · 36 分 環島完乘 0% ▶ 行進中 臺北 ⇄ 枋寮 永續來回 · 一輪 12 小時 · 永不到站 到 開始收集取消 ↗ 行程分享","endVis":false,"hit3":0,"hitWho":"invisible","fpRect":[0,0,0,0],"boardVis":false,"boardHiddenAttr":true,"boardStation":false,"boardRows":0,"sheetOpen":false,"fpOpacity":1,"fpPE":"auto","tabN":0,"tabSel":"","trainOpen":false,"tapPick":false,"ls":"0"}
+PASS K13 chromium 393pt × 收合:寫入長期偏好、膠囊沒被留在看板槽裡 — {"following":true,"collapsed":true,"fpMin":true,"fpVis":true,"fpH":44,"fpW":172,"fpInSlot":false,"fpTxt":"8888 76 km/h 結束","endVis":true,"hit3":3,"hitWho":"#fpSpd.spd < div.fp-head < #followPanel.follow-panel.fp-min < div.stage.offline-land","fpRect":[8,688,172,44],"boardVis":false,"boardHiddenAttr":true,"boardStation":false,"boardRows":0,"sheetOpen":false,"fpOpacity":1,"fpPE":"auto","tabN":0,"tabSel":"","trainOpen":false,"tapPick":false,"ls":"1"}
+PASS K14 chromium 393pt × 收合中開站看板 ⇒ 展開成整合卡,但長期偏好留著 '1' — {"following":true,"collapsed":false,"fpMin":false,"fpVis":false,"fpH":0,"fpW":0,"fpInSlot":true,"fpTxt":"8888山海號・觀光列車 76 km/h × 結束 下一站 臺東 15:19 · 36 分 環島完乘 0% ▶ 行進中 臺北 ⇄ 枋寮 永續來回 · 一輪 12 小時 · 永不到站 到 開始收集取消 ↗ 行程分享 詳細往上拉看完整資料› 8888 觀光列車 臺北 08:02 → 臺北 20:00 曲線 ▴ 時刻表 ▴ ✕ 山海號 本站原創的虛構觀光列車：自臺北往東，沿宜蘭線、北迴線、臺東線與南迴線直抵枋寮——一側太平洋、一側中央山脈，龜山島、清水斷崖與縱谷稻田輪流入窗。永不停駛，到枋寮即折返，十二小時一輪來回。與走西部的平原號是兄弟車，在枋寮擦肩。停靠 9 站 · 全程約 11 小時 58 分 旅程日誌 列車跑起來就會記錄——停靠、交會、待避…… 誤點履歷 › 全程速度曲線 停靠站到開臺北08:0008:02宜蘭09:1809:20花蓮10:3810:40臺東12:4012:42枋寮14:0014:02臺東15:1915:21花蓮17:2117:23宜蘭18:4118:43臺北20:0020:00","endVis":false,"hit3":0,"hitWho":"invisible","fpRect":[0,0,0,0],"boardVis":true,"boardHiddenAttr":false,"boardStation":true,"boardRows":4,"sheetOpen":true,"fpOpacity":1,"fpPE":"auto","tabN":2,"tabSel":"這一站","trainOpen":false,"tapPick":false,"ls":"1"}
+PASS K16 chromium 393pt 停靠中(dwell-show)整合卡的「這班車」頁仍看得見、仍點得動 — {"sheetOpen":true,"inSlot":true,"mounted":{"op":1,"pe":"auto"},"outside":{"op":0,"pe":"none"}}
+PASS K17 chromium 393pt 正向對照:同一顆卡搬出槽就真的被淡掉(證明讓位規則此刻是活的) — {"op":0,"pe":"none"}
+PASS K15 chromium 393pt 零 pageerror
+PASS L1 chromium 393pt 正向對照:跟到車、在「這班車」那一頁、資訊卡併進卡裡 — {"following":true,"tabSel":"這班車","fpInSlot":true,"tcInFp":true,"tcVis":true,"intro":133,"events":37,"spark":46,"stops":237,"eventsNote":true,"stopRows":10,"stopsHidden":false,"boardScroll":630,"fpOverflowY":"visible","fpMaxH":"none","boardOverflowY":"auto","nestedScrollers":[],"boardTop":0,"size":"small","hintVis":true,"hintH":44,"hintHit":true,"hintTxt":"詳細往上拉看完整資料›","fpOpacity":1,"cardHit":false}
+PASS L2 chromium 393pt 詳細四段都在:車型介紹／旅程日誌／速度曲線／停靠時刻 — {"intro":133,"events":37,"日誌有字":true,"spark":46,"stops":237,"rows":10}
+PASS L3 chromium 393pt 一個捲軸:看板是捲動容器、卡沒有自己的捲軸也沒有限高 — {"看板可捲":630,"看板overflowY":"auto","卡overflowY":"visible","卡maxHeight":"none","槽內還能捲的盒子":[]}
+PASS L4 chromium 393pt 停靠時刻表預設就是打開的(不用先找到那顆鈕) — {"hidden":false,"h":237}
+PASS L5 chromium 393pt 卡緣有「往上拉看完整資料」提示,觸控目標 ≥44 且命中自己 — {"vis":true,"h":44,"hit":true,"txt":"詳細往上拉看完整資料›"}
+PASS L6 chromium 393pt 點提示列 ⇒ 段高變最大段,提示列自己收掉,而且那一頁真的畫得出來 — {"點得到":true,"有畫東西":true,"區域":"345×357","following":true,"tabSel":"這班車","fpInSlot":true,"tcInFp":true,"tcVis":true,"intro":133,"events":37,"spark":46,"stops":237,"eventsNote":true,"stopRows":10,"stopsHidden":false,"boardScroll":441,"fpOverflowY":"visible","fpMaxH":"none","boardOverflowY":"auto","nestedScrollers":[],"boardTop":0,"size":"medium","hintVis":false,"hintH":0,"hintHit":false,"hintTxt":"詳細往上拉看完整資料›","fpOpacity":1,"cardHit":true}
+PASS L12 chromium 393pt 展開段那一頁不是透明的:不透明度 1 且卡內容命中自己 — {"opacity":1,"命中卡":true}
+PASS L7 chromium 393pt 反向對照:回到小段提示列又出現,而且照樣命中自己 — {"size":"small","hintVis":true,"hit":true}
+PASS L8 chromium 393pt 捲到停靠表後重繪:捲動位置保留(詳細不會每 20 秒被彈回頂端) — 捲到 630 → 重繪後 630
+PASS L9 chromium 393pt 反向對照:換一站捲動歸零 — {"top":0}
+PASS L10 chromium 393pt 反向對照:關看板 ⇒ 資訊卡搬回原位且重新隱藏、提示列不留 — {"following":true,"tabSel":"","fpInSlot":false,"tcInFp":false,"tcVis":false,"intro":0,"events":0,"spark":0,"stops":0,"eventsNote":false,"stopRows":10,"stopsHidden":false,"boardScroll":0,"fpOverflowY":"auto","fpMaxH":"692px","boardOverflowY":"auto","nestedScrollers":[],"boardTop":0,"size":"medium","hintVis":false,"hintH":0,"hintHit":false,"hintTxt":"","fpOpacity":1,"cardHit":false}
+PASS L11 chromium 393pt 零 pageerror
+PASS M1 chromium 393pt 正向對照:亮點面板開著,今日之最四格,而且排在最前面 — {"open":true,"n":4,"區塊順序":["今日之最","特別列車出沒中","近期活動"]}
+PASS M2 chromium 393pt 四個頭銜齊全,而且是四班不同的車 — {"頭銜":["最遠征","開最久","停最多站","平均最快"],"車次":["2","1","3132","0108"]}
+PASS M3 chromium 393pt 每一格都是觸控目標(≥44)且四格各自命中自己 — {"高度":[79,79,79,79],"命中":[true,true,true,true]}
+PASS M4 chromium 393pt 邊框卡不是實色底(樣式表宣告 1.5px、畫面上是實線邊框、背景透明) — {"宣告":"border: 1.5px solid var(--line)","用到":1,"線型":"solid","底色不透明度":0}
+PASS M5 chromium 393pt 兩欄不撐破面板(面板推不動、卡的右緣不出界) — {"面板橫向":{"over":0,"moved":0},"卡都在面板內":true}
+PASS M6 chromium 393pt 點第二格 ⇒ 面板收掉且跟到卡上那一班(1) — {"面板還開著":false,"跟到":"1","應該是":"1"}
+PASS M7 chromium 393pt 零 pageerror
+PASS M1 chromium 393pt xlarge 正向對照:亮點面板開著,今日之最四格,而且排在最前面 — {"open":true,"n":4,"區塊順序":["今日之最","特別列車出沒中","近期活動"]}
+PASS M2 chromium 393pt xlarge 四個頭銜齊全,而且是四班不同的車 — {"頭銜":["最遠征","開最久","停最多站","平均最快"],"車次":["2","1","3132","0108"]}
+PASS M3 chromium 393pt xlarge 每一格都是觸控目標(≥44)且四格各自命中自己 — {"高度":[98,98,98,98],"命中":[true,true,true,true]}
+PASS M4 chromium 393pt xlarge 邊框卡不是實色底(樣式表宣告 1.5px、畫面上是實線邊框、背景透明) — {"宣告":"border: 1.5px solid var(--line)","用到":1,"線型":"solid","底色不透明度":0}
+PASS M5 chromium 393pt xlarge 兩欄不撐破面板(面板推不動、卡的右緣不出界) — {"面板橫向":{"over":0,"moved":0},"卡都在面板內":true}
+PASS M6 chromium 393pt xlarge 點第二格 ⇒ 面板收掉且跟到卡上那一班(1) — {"面板還開著":false,"跟到":"1","應該是":"1"}
+PASS M7 chromium 393pt xlarge 零 pageerror
+PASS N1 chromium 393pt 正向對照:搜尋面板開著,輸入框 16px 起跳(iOS 聚焦不放大),空欄沒有清除鈕 — {"open":true,"字級":16,"清除鈕寬":0}
+PASS N2 chromium 393pt 未聚焦是中性框(樣式表宣告 1.5px,顏色不是藏青) — {"宣告":"border: 1.5px solid var(--line)","用到":1,"顏色":"rgb(201, 185, 143)"}
+PASS N3 chromium 393pt 聚焦 ⇒ 藏青框、比未聚焦粗,而且不是全域那圈紅色 outline — {"未聚焦":1,"聚焦":2,"顏色":"rgb(42, 74, 115)","藏青":"rgb(42, 74, 115)","outline":"none"}
+PASS N4 chromium 393pt 打字後清除鈕出現:熱區 ≥44、命中自己、貼在框內、文字讓開 — {"寬":44,"高":44,"命中":true,"在框內":true,"右內距":44}
+PASS N5 chromium 393pt 點清除 ⇒ 值清空·下拉收起·焦點留在輸入框·鈕自己消失 — {"值":"","下拉收起":true,"焦點":"trainSearch","清除鈕寬":0}
+PASS N6 chromium 393pt 反向對照:程式直接寫 value(不觸發 input 事件)⇒ 清除鈕照樣出現 — {"清除鈕寬":44,"值":"152"}
+PASS N7 chromium 393pt 查無結果時給下一步(不是只寫「查無」) — 找不到就檢查一下車次是不是今天的班次——停駛或加班車不一定在時刻表裡。
+PASS N8 chromium 393pt 零 pageerror
+PASS N1 chromium 393pt xlarge 正向對照:搜尋面板開著,輸入框 16px 起跳(iOS 聚焦不放大),空欄沒有清除鈕 — {"open":true,"字級":24,"清除鈕寬":0}
+PASS N2 chromium 393pt xlarge 未聚焦是中性框(樣式表宣告 1.5px,顏色不是藏青) — {"宣告":"border: 1.5px solid var(--line)","用到":1,"顏色":"rgb(201, 185, 143)"}
+PASS N3 chromium 393pt xlarge 聚焦 ⇒ 藏青框、比未聚焦粗,而且不是全域那圈紅色 outline — {"未聚焦":1,"聚焦":2,"顏色":"rgb(42, 74, 115)","藏青":"rgb(42, 74, 115)","outline":"none"}
+PASS N4 chromium 393pt xlarge 打字後清除鈕出現:熱區 ≥44、命中自己、貼在框內、文字讓開 — {"寬":60,"高":60,"命中":true,"在框內":true,"右內距":59.84}
+PASS N5 chromium 393pt xlarge 點清除 ⇒ 值清空·下拉收起·焦點留在輸入框·鈕自己消失 — {"值":"","下拉收起":true,"焦點":"trainSearch","清除鈕寬":0}
+PASS N6 chromium 393pt xlarge 反向對照:程式直接寫 value(不觸發 input 事件)⇒ 清除鈕照樣出現 — {"清除鈕寬":60,"值":"152"}
+PASS N7 chromium 393pt xlarge 查無結果時給下一步(不是只寫「查無」) — 找不到就檢查一下車次是不是今天的班次——停駛或加班車不一定在時刻表裡。
+PASS N8 chromium 393pt xlarge 零 pageerror
+PASS O1 chromium 393pt 正向對照:面板開著,種進去的站/車/地點三種列都在 — {"open":true,"站":5,"車":3,"地點":1,"種":{"st":5,"tr":3,"pin":1,"trNos":["2551","1217","2548"],"soon":"南科"}}
+PASS O2 chromium 393pt 標題下面是清點,而且數字＝實際筆數 — 實際「3 班車 · 5 站 · 1 個地點」應為「3 班車 · 5 站 · 1 個地點」
+PASS O3 chromium 393pt 每一列右欄都有一顆實心星:44 觸控格·真的命中自己·是 button·貼在最右 — 9 列全過(星 44×44 fill=rgb(210, 161, 42))
+PASS O4 chromium 393pt 反向對照:星是唯一的移除入口(沒有第二顆 × 也沒有編輯模式) — 另外找到 0 個移除入口
+PASS O5 chromium 393pt 每一列高 ≥44(整列都是觸控目標) — [49,49,49,49,49,49,49,49,49]
+PASS O5b chromium 393pt 星與列名在同一條水平線上(不是字在上、星掛右下) — 最大落差 0px
+PASS O6 chromium 393pt 「下一班」與車站看板是同一個時刻(走到正向那一半:有班次,要對得上) — {"name":"南科","panel":"下一班 08:20","boardRows":12,"boardFirst":"08:20","boardLate":""}
+PASS O7 chromium 393pt 捷運站不猜下一班(留白,不是 0 或 --) — min=「」
+PASS O8a chromium 393pt 從看板回到最愛,四種列原封不動 — 站 5 sub「3 班車 · 5 站 · 1 個地點」
+PASS O8 chromium 393pt 真的點星 ⇒ 那一筆被移除,其他列原封不動,清點跟著減一 — 點到=true 站 5→4 sub「3 班車 · 4 站 · 1 個地點」
+PASS O9 chromium 393pt 零 pageerror
+PASS P1 chromium 393pt 正向對照:護照開著,統計列是三格(完乘/總里程/收集章) — {"seed":4,"cells":[{"k":"完乘","v":"4 趟"},{"k":"總里程","v":"1,346 km"},{"k":"收集章","v":"3 / 19"}]}
+PASS P2 chromium 393pt 完乘趟數與總里程＝種進去的資料算出來的值(含千分位) — {"趟":"4 趟","里程":"1,346 km","應為":1346}
+PASS P3 chromium 393pt 收集章 G/T:G＝畫面上真的亮著的章數,T＝章總數 — 顯示「3 / 19」 亮著的章 3 總數 19
+PASS P4 chromium 393pt 金章印取得日期,同一枚章有兩趟時取最早那天(08.02 不是 08.19) — 藍皮解憂號 章印「08.02」
+PASS P5 chromium 393pt 反向對照:沒蓋到的灰章仍寫「點我重播」(日期沒印到灰章上) — ["點我重播"]
+PASS P6 chromium 393pt 統計列沒把面板撐到可以橫捲 — scrollLeft=0
+PASS P7 chromium 393pt 反向對照:桌面護照那條路徑仍是「已收藏」(日期只給護照 sheet) — ["已收藏"]
+PASS P8 chromium 393pt 零 pageerror
+PASS Q1 chromium 393pt 正向對照:更多開得起來,動作列量得到 — {"動作列":17,"讀數列":3}
+PASS Q2 chromium 393pt 每一列前面都沒有單字圓章了 — {"選單內圓章數":0,"還帶章的列":[]}
+PASS Q3 chromium 393pt 所有動作列的標籤起點對齊,尾巴仍貼右 — {"標籤左緣":[14],"尾巴離右緣":[14]}
+PASS Q4 chromium 393pt 資料狀態列與動作列的標籤起點一致(縮排也一起拆乾淨了,現身 3 列) — {"讀數列":3,"左緣":[14],"動作列左緣":[14]}
+PASS Q5 chromium 393pt 四段分組標題都在 — ["地圖顯示","資料狀態","資訊","觀看模式","分享與資料","軌島","關於"]
+PASS Q6 chromium 393pt 反向對照:標籤裡沒有任何臨時符號 — []
+PASS Q7 chromium 393pt 每一列 ≥48 高,而且標籤區真的點得到 — []
+PASS Q8 chromium 393pt 反向對照:更新列換字換的是標籤,不是列尾的「›」 — {"chev":"›","label":"有新版可更新　9.9.9"}
+PASS Q9 chromium 393pt 零 pageerror
+PASS R1 chromium 四處共用同一條規則,宣告 1.5px dashed 且沿用專案既有的 --line-dash — border: 1.5px dashed var(--line-dash); border-radius: 10px; padding: 12px;
+PASS R2 chromium 釘選卡 空狀態量得到,而且長出虛線框 — {"style":"dashed","w":1,"r":10,"padL":10,"txt":"這個位置 1.5 公里內"}
+PASS R2 chromium 護照 空狀態量得到,而且長出虛線框 — {"style":"dashed","w":1,"r":10,"padL":12,"txt":"還沒有完乘記錄——從地圖"}
+PASS R2 chromium 看板 空狀態量得到,而且長出虛線框 — {"style":"dashed","w":1,"r":10,"padL":12,"txt":"此時段無停靠班次"}
+PASS R2 chromium 搜尋 空狀態量得到,而且長出虛線框 — {"style":"dashed","w":1,"r":10,"padL":12,"txt":"查無車站、車次或列車找不"}
+PASS R3 chromium 正向對照:看板真的挑到一個沒有班次的站 — 站=加祿
+PASS R5 chromium 三處的框都沒有貼齊容器邊緣(左右各 ≥8px) — {"釘選卡":{"l":12,"r":12},"看板":{"l":16,"r":16},"搜尋":{"l":12,"r":12}}
+PASS R4 chromium 反向對照:看板有班次時沒有空狀態框,班次列也沒被套上四邊框 — {"rows":12,"em":0,"rowCs":"none"}
+PASS R6 chromium 零 pageerror
+PASS S1 chromium 393pt 反向對照:沒開落釘模式時提示條不存在於畫面上 — {"hidden":true,"rects":0,"drop":false}
+PASS S2 chromium 393pt 開了模式就有常駐提示,整條在視窗內 — {"shown":true,"inView":true,"w":377}
+PASS S3 chromium 393pt 說明講明白「點地圖」與「不會收起面板」這個 1a 的例外 — 落釘模式進行中點地圖任一處查附近火車，拖曳釘子可微調；此時點空白處不會收起面板。
+PASS S4 chromium 393pt 出口鈕 ≥44 而且命中自己(沒被別的東西蓋住) — {"w":53,"h":44,"hit":true}
+PASS S5 chromium 393pt 提示條沒有壓到頂列或分頁列 — {"頂列":false,"分頁列":false}
+PASS S6 chromium 393pt 落釘之後卡接手、提示條讓位(同一個槽位不重疊) — {"card":true,"hint":false,"drop":true}
+PASS S7 chromium 393pt 收掉卡之後提示條回來(模式還開著) — {"hint":true,"drop":true}
+PASS S8 chromium 393pt 點「結束」真的退出落釘模式(旗標、地圖游標、鈕的標籤全部跟著回去) — {"drop":false,"hidden":true,"cursor":"","btn":"儲存"}
+PASS S9 chromium 393pt 零 pageerror
+PASS S1 chromium 1280pt 反向對照:沒開落釘模式時提示條不存在於畫面上 — {"hidden":true,"rects":0,"drop":false}
+PASS S2 chromium 1280pt 開了模式就有常駐提示,整條在視窗內 — {"shown":true,"inView":true,"w":264}
+PASS S3 chromium 1280pt 說明講明白「點地圖」與「不會收起面板」這個 1a 的例外 — 落釘模式進行中點地圖任一處查附近火車，拖曳釘子可微調；此時點空白處不會收起面板。
+PASS S4 chromium 1280pt 出口鈕 ≥44 而且命中自己(沒被別的東西蓋住) — {"w":53,"h":44,"hit":true}
+PASS S5 chromium 1280pt 提示條沒有壓到頂列或分頁列 — {"頂列":false,"分頁列":false}
+PASS S6 chromium 1280pt 落釘之後卡接手、提示條讓位(同一個槽位不重疊) — {"card":true,"hint":false,"drop":true}
+PASS S7 chromium 1280pt 收掉卡之後提示條回來(模式還開著) — {"hint":true,"drop":true}
+PASS S8 chromium 1280pt 點「結束」真的退出落釘模式(旗標、地圖游標、鈕的標籤全部跟著回去) — {"drop":false,"hidden":true,"cursor":"","btn":"儲存"}
+PASS S9 chromium 1280pt 零 pageerror
+PASS T1 chromium 正向對照:量得到車種 chip — chip=30
+PASS T2 chromium 開著的圓點是實心(背景就是車種色,沒有框) — {"txt":"其他","bg":"rgb(142, 68, 173)","bw":0,"bc":"rgb(58, 50, 38)","deco":"none","w":9}
+PASS T3 chromium 關掉之後圓點變空心(背景透明、框線有寬度) — {"txt":"其他","bg":"rgba(0, 0, 0, 0)","bw":1,"bc":"rgb(142, 68, 173)","deco":"none","w":9}
+PASS T4 chromium 🔴 車種色沒有被狀態吃掉:關閉態的框線色逐字等於開啟態的背景色 — {"開啟背景":"rgb(142, 68, 173)","關閉框線":"rgb(142, 68, 173)","同一顆":true}
+PASS T5 chromium 關掉之後沒有刪除線(刪除線的語意是「沒了」,這裡只是「暫時不看」) — none
+PASS T6 chromium 圓點沒有因為多了框而變大(全域 box-sizing 有吃到) — 開 9 / 關 9
+PASS T7 chromium 點下去真的切到篩選(可見車種 −1、關閉數 +1) — {"before":{"vis":10,"cnt":0},"after":{"vis":9,"cnt":1}}
+PASS T8 chromium 零 pageerror
+PASS U1 chromium/light 正向對照:流量圖有顯示、有資料 — {"hidden":false,"bins":144,"max":186}
+PASS U2 chromium/light 當下那根是不透明的印章紅 — {"nowBin":107,"px":[210,60,42,255]}
+PASS U3 chromium/light 其餘的柱是藏青【半透明】(alpha 明顯低於飽和) — [42,75,115,140]
+PASS U4 chromium/light 🔴 兩者不同色(不是整排同色再疊東西上去) — {"當下":[210,60,42,255],"其餘":[42,75,115,140]}
+PASS U5 chromium/light 柱色不再是寫死的 #8fa8c6(143,168,198) — [42,75,115,140]
+PASS U6 chromium/light 🔴 深夜柱高趨近 0 時「現在」仍找得到(上半部有貫穿的紅) — {"barH":0.5,"redPxUpperHalf":174}
+PASS U7 chromium/light 點圖表仍會跳到該時刻(mode=sched) — {"mode":"sched","before":12600,"after":43200,"moved":true}
+PASS U11 chromium/light 整點刻度與紙底有對比(暗色不能沿用亮色的奶油色,也不能低到看不見) — {"tick":[201,185,143,255],"paper":[255,253,246],"d":68}
+PASS U8 chromium/light 零 pageerror
+PASS U1 chromium/dark 正向對照:流量圖有顯示、有資料 — {"hidden":false,"bins":144,"max":186}
+PASS U2 chromium/dark 當下那根是不透明的印章紅 — {"nowBin":107,"px":[255,123,103,255]}
+PASS U3 chromium/dark 其餘的柱是藏青【半透明】(alpha 明顯低於飽和) — [128,166,224,140]
+PASS U4 chromium/dark 🔴 兩者不同色(不是整排同色再疊東西上去) — {"當下":[255,123,103,255],"其餘":[128,166,224,140]}
+PASS U5 chromium/dark 柱色不再是寫死的 #8fa8c6(143,168,198) — [128,166,224,140]
+PASS U6 chromium/dark 🔴 深夜柱高趨近 0 時「現在」仍找得到(上半部有貫穿的紅) — {"barH":0.5,"redPxUpperHalf":174}
+PASS U7 chromium/dark 點圖表仍會跳到該時刻(mode=sched) — {"mode":"sched","before":12600,"after":43200,"moved":true}
+PASS U11 chromium/dark 整點刻度與紙底有對比(暗色不能沿用亮色的奶油色,也不能低到看不見) — {"tick":[114,134,168,255],"paper":[20,29,49],"d":104}
+PASS U8 chromium/dark 零 pageerror
+PASS U9 chromium 🔴 兩個主題畫出來的柱色【真的不同】(色票有跟著主題翻面) — {"亮":[42,75,115,140],"暗":[128,166,224,140]}
+PASS U10 chromium 🔴 兩個主題的「當下」色也不同 — {"亮":[210,60,42,255],"暗":[255,123,103,255]}
+FAIL V1 chromium/1280 正向對照:古亭看板有列可量(深夜收班會紅,那是環境) — []
+FAIL V2 chromium/1280 轉乘站長出 ≥2 個組標題 — []
+FAIL V3 chromium/1280 🔴 每個標題底下的列都真的屬於那條線(用色點驗,標題沒配錯組) — []
+FAIL V4 chromium/1280 🔴 兩個分支收成一個「中和新蘆線」標題(不切成兩條線、括號有去掉) — {"O標題":[],"全部標題":[]}
+PASS V4b chromium/1280 標題字兩兩不重複 — []
+FAIL V14 chromium/1280 🔴 有標題時,列上不再重複標題那串線名 — []
+FAIL V15 chromium/1280 🔴 分支字樣只在目的地沒講過時出現(不結巴,也不把分支資訊弄丟) — []
+PASS V16 chromium/1280 線名空掉時沒有在車輛標籤前留下全形空白 — []
+FAIL V5 chromium/1280 🔴 色點逐字等於該線的官方線色(不是「有顏色就好」) — []
+FAIL V6 chromium/1280 第一組沒有上分隔線、之後每組都有;組內第一列不再畫列間分隔 — []
+PASS V7 chromium/1280 標題與列都沒有溢出視窗 — {"winW":1280,"標題右緣":[]}
+FAIL V12 chromium/1280 標題字比列小(組標題是層級,不是又一列) — []
+FAIL V13 chromium/1280 標題色點是圓角方塊、列的是圓——兩者形狀分得開 — []
+FAIL V✱ chromium 該段執行時拋例外(視同不通過) — Error: page.evaluate: TypeError: Cannot read properties of null (reading 'dispatchEvent')
+PASS W1 chromium/393 兩顆入口都在,且【JS 壞掉時仍退回原本的 GitHub 連結】(href 沒被拿掉) — {"n":2,"hrefs":["https://github.com/siriushsu/taiwan-rail-live/issues/new"]}
+PASS W2 chromium/393 點入口開的是站內表單(不是直接跳走),四個類型齊、恰一個選中 — {"open":true,"kinds":["位置不對","時刻不對","畫面壞了","建議"],"checked":1,"rows":["版本","畫面","視角","跟隨中","瀏覽器"]}
+PASS W3 chromium/393 診斷資訊【逐項攤開在畫面上】 — ["版本","畫面","視角","跟隨中","瀏覽器"]
+PASS W4 chromium/393 🔴 輸入框恰為 16px(iOS 對更小的輸入框聚焦會放大整頁且退不回來) — {"fs":16,"mono":"ui-monospace, SFMono-Regular, Menlo, monospace"}
+PASS W5 chromium/393 診斷欄位用等寬字 — ui-monospace, SFMono-Regular, Menlo, monospace
+PASS W6 chromium/393 沒寫說明時擋住(空的回報幫不上忙) — true
+PASS W7 chromium/393 寫了說明就放行,網址是 GitHub 新 issue 且帶著標題與內文 — {"title":"[位置不對] 文湖線的車停在忠孝復興沒動","dis":false}
+PASS W8 chromium/393 換問題類型,標題跟著換 — [畫面壞了] 文湖線的車停在忠孝復興沒動
+PASS W9 chromium/393 🔴 關掉某一項,它【真的從送出的網址裡消失】(不是只把畫面變灰) — {"關掉":"瀏覽器","關前有":true,"關後有":false}
+PASS W10 chromium/393 🔴 網址裡的每一個值都是畫面上攤開過的那一份(沒有夾帶沒顯示的東西) — {"shown":["v0826b","全台同框 · 02:45（現在） · 36×","23.7753, 121.4154 · z7","未跟隨任何列車"],"vals":["v0826b","全台同框 · 02:45（現在） · 36×","23.7753, 121.4154 · z7","未跟隨任何列車"]}
+PASS W11 chromium/393 🔴 對話框在 body 層;開著時連 tabbar 的位置都吃得到點擊(scrim 不是虛設) — {"host":"BODY","tabbar":true,"hit":"reportModal","inModal":true,"dialogInView":true}
+PASS W11b chromium/393 對話框整個在視窗內(底部沒被切掉) — {"host":"BODY","tabbar":true,"hit":"reportModal","inModal":true,"dialogInView":true}
+PASS W12 chromium/393 Esc 關得掉 — true
+PASS W14 chromium/393 🔴 送出鍵與並排的「取消」在字級/字重/高度/圓角上一致(<a> 不吃 button 的 UA 樣式) — {"go":{"fs":"13.3333px","fw":"800","r":"7px","h":44},"cancel":{"fs":"13.3333px","fw":"800","r":"7px","h":44}}
+PASS W15 chromium/393 🔴 真的按下去會開一個分頁,而且它請求的就是那條 GitHub 新 issue 網址 — https://github.com/siriushsu/taiwan-rail-live/issues/new?title=%5B%E7%95%AB%E9%9D%A2%E5%A3%9E%E4%BA%86%5D%20%E
+PASS W13 chromium/393 零 pageerror
+PASS W1 chromium/1280 兩顆入口都在,且【JS 壞掉時仍退回原本的 GitHub 連結】(href 沒被拿掉) — {"n":2,"hrefs":["https://github.com/siriushsu/taiwan-rail-live/issues/new"]}
+PASS W2 chromium/1280 點入口開的是站內表單(不是直接跳走),四個類型齊、恰一個選中 — {"open":true,"kinds":["位置不對","時刻不對","畫面壞了","建議"],"checked":1,"rows":["版本","畫面","視角","跟隨中","瀏覽器"]}
+PASS W3 chromium/1280 診斷資訊【逐項攤開在畫面上】 — ["版本","畫面","視角","跟隨中","瀏覽器"]
+PASS W4 chromium/1280 🔴 輸入框恰為 16px(iOS 對更小的輸入框聚焦會放大整頁且退不回來) — {"fs":16,"mono":"ui-monospace, SFMono-Regular, Menlo, monospace"}
+PASS W5 chromium/1280 診斷欄位用等寬字 — ui-monospace, SFMono-Regular, Menlo, monospace
+PASS W6 chromium/1280 沒寫說明時擋住(空的回報幫不上忙) — true
+PASS W7 chromium/1280 寫了說明就放行,網址是 GitHub 新 issue 且帶著標題與內文 — {"title":"[位置不對] 文湖線的車停在忠孝復興沒動","dis":false}
+PASS W8 chromium/1280 換問題類型,標題跟著換 — [畫面壞了] 文湖線的車停在忠孝復興沒動
+PASS W9 chromium/1280 🔴 關掉某一項,它【真的從送出的網址裡消失】(不是只把畫面變灰) — {"關掉":"瀏覽器","關前有":true,"關後有":false}
+PASS W10 chromium/1280 🔴 網址裡的每一個值都是畫面上攤開過的那一份(沒有夾帶沒顯示的東西) — {"shown":["v0826b","全台同框 · 02:45（現在） · 36×","23.7424, 120.9749 · z7","未跟隨任何列車"],"vals":["v0826b","全台同框 · 02:45（現在） · 36×","23.7424, 120.9749 · z7","未跟隨任何列車"]}
+PASS W11 chromium/1280 🔴 對話框在 body 層;開著時連 tabbar 的位置都吃得到點擊(scrim 不是虛設) — {"host":"BODY","tabbar":false,"hit":"rp-field","inModal":true,"dialogInView":true}
+PASS W11b chromium/1280 對話框整個在視窗內(底部沒被切掉) — {"host":"BODY","tabbar":false,"hit":"rp-field","inModal":true,"dialogInView":true}
+PASS W12 chromium/1280 Esc 關得掉 — true
+PASS W14 chromium/1280 🔴 送出鍵與並排的「取消」在字級/字重/高度/圓角上一致(<a> 不吃 button 的 UA 樣式) — {"go":{"fs":"13.3333px","fw":"800","r":"7px","h":44},"cancel":{"fs":"13.3333px","fw":"800","r":"7px","h":44}}
+PASS W15 chromium/1280 🔴 真的按下去會開一個分頁,而且它請求的就是那條 GitHub 新 issue 網址 — https://github.com/siriushsu/taiwan-rail-live/issues/new?title=%5B%E7%95%AB%E9%9D%A2%E5%A3%9E%E4%BA%86%5D%20%E
+PASS W13 chromium/1280 零 pageerror
+PASS X1 chromium 360pt std 正向對照:頂列與隨機跟隨鈕都真的量得到(不是靠沒渲染騙過相交判準) — {"頂列高":42,"隨機鈕高":44,"列車":0,"tbh":"42.0px"}
+PASS X2 chromium 360pt std 🔴 頂列與地圖動作列相交面積 = 0 — {"相交":0,"頂列底":50,"動作列頂":100}
+PASS X3 chromium 360pt std 🔴 沒有任何一顆群組分頁被隨機跟隨鈕蓋到 — 最嚴重的是「全」相交 0px²
+PASS X4 chromium 360pt std 🔴 上錨元件的 top 全部不高於頂列底緣(整族掃,不只今天壞的那個) — 7 個全過(頂列底 50)
+PASS X5 chromium 360pt std 結構性:上錨元件的 top 不得是 JS 寫死的絕對 px(安全區晚注入會對不上) — 零個
+PASS X6 chromium 360pt std 零 pageerror — 無
+PASS X1 chromium 393pt std 正向對照:頂列與隨機跟隨鈕都真的量得到(不是靠沒渲染騙過相交判準) — {"頂列高":42,"隨機鈕高":44,"列車":0,"tbh":"42.0px"}
+PASS X2 chromium 393pt std 🔴 頂列與地圖動作列相交面積 = 0 — {"相交":0,"頂列底":50,"動作列頂":100}
+PASS X3 chromium 393pt std 🔴 沒有任何一顆群組分頁被隨機跟隨鈕蓋到 — 最嚴重的是「全」相交 0px²
+PASS X4 chromium 393pt std 🔴 上錨元件的 top 全部不高於頂列底緣(整族掃,不只今天壞的那個) — 7 個全過(頂列底 50)
+PASS X5 chromium 393pt std 結構性:上錨元件的 top 不得是 JS 寫死的絕對 px(安全區晚注入會對不上) — 零個
+PASS X6 chromium 393pt std 零 pageerror — 無
+PASS X1 chromium 414pt std 正向對照:頂列與隨機跟隨鈕都真的量得到(不是靠沒渲染騙過相交判準) — {"頂列高":42,"隨機鈕高":44,"列車":0,"tbh":"42.0px"}
+PASS X2 chromium 414pt std 🔴 頂列與地圖動作列相交面積 = 0 — {"相交":0,"頂列底":50,"動作列頂":100}
+PASS X3 chromium 414pt std 🔴 沒有任何一顆群組分頁被隨機跟隨鈕蓋到 — 最嚴重的是「全」相交 0px²
+PASS X4 chromium 414pt std 🔴 上錨元件的 top 全部不高於頂列底緣(整族掃,不只今天壞的那個) — 7 個全過(頂列底 50)
+PASS X5 chromium 414pt std 結構性:上錨元件的 top 不得是 JS 寫死的絕對 px(安全區晚注入會對不上) — 零個
+PASS X6 chromium 414pt std 零 pageerror — 無
+PASS X1 chromium 360pt large 正向對照:頂列與隨機跟隨鈕都真的量得到(不是靠沒渲染騙過相交判準) — {"頂列高":104,"隨機鈕高":44,"列車":0,"tbh":"104.1px"}
+PASS X2 chromium 360pt large 🔴 頂列與地圖動作列相交面積 = 0 — {"相交":0,"頂列底":112,"動作列頂":162}
+PASS X3 chromium 360pt large 🔴 沒有任何一顆群組分頁被隨機跟隨鈕蓋到 — 最嚴重的是「全」相交 0px²
+PASS X4 chromium 360pt large 🔴 上錨元件的 top 全部不高於頂列底緣(整族掃,不只今天壞的那個) — 7 個全過(頂列底 112)
+PASS X5 chromium 360pt large 結構性:上錨元件的 top 不得是 JS 寫死的絕對 px(安全區晚注入會對不上) — 零個
+PASS X6 chromium 360pt large 零 pageerror — 無
+PASS X1 chromium 393pt large 正向對照:頂列與隨機跟隨鈕都真的量得到(不是靠沒渲染騙過相交判準) — {"頂列高":104,"隨機鈕高":44,"列車":0,"tbh":"104.1px"}
+PASS X2 chromium 393pt large 🔴 頂列與地圖動作列相交面積 = 0 — {"相交":0,"頂列底":112,"動作列頂":162}
+PASS X3 chromium 393pt large 🔴 沒有任何一顆群組分頁被隨機跟隨鈕蓋到 — 最嚴重的是「全」相交 0px²
+PASS X4 chromium 393pt large 🔴 上錨元件的 top 全部不高於頂列底緣(整族掃,不只今天壞的那個) — 7 個全過(頂列底 112)
+PASS X5 chromium 393pt large 結構性:上錨元件的 top 不得是 JS 寫死的絕對 px(安全區晚注入會對不上) — 零個
+PASS X6 chromium 393pt large 零 pageerror — 無
+PASS X1 chromium 414pt large 正向對照:頂列與隨機跟隨鈕都真的量得到(不是靠沒渲染騙過相交判準) — {"頂列高":104,"隨機鈕高":44,"列車":0,"tbh":"104.1px"}
+PASS X2 chromium 414pt large 🔴 頂列與地圖動作列相交面積 = 0 — {"相交":0,"頂列底":112,"動作列頂":162}
+PASS X3 chromium 414pt large 🔴 沒有任何一顆群組分頁被隨機跟隨鈕蓋到 — 最嚴重的是「全」相交 0px²
+PASS X4 chromium 414pt large 🔴 上錨元件的 top 全部不高於頂列底緣(整族掃,不只今天壞的那個) — 7 個全過(頂列底 112)
+PASS X5 chromium 414pt large 結構性:上錨元件的 top 不得是 JS 寫死的絕對 px(安全區晚注入會對不上) — 零個
+PASS X6 chromium 414pt large 零 pageerror — 無
+PASS X1 chromium 360pt xlarge 正向對照:頂列與隨機跟隨鈕都真的量得到(不是靠沒渲染騙過相交判準) — {"頂列高":119,"隨機鈕高":44,"列車":0,"tbh":"119.2px"}
+PASS X2 chromium 360pt xlarge 🔴 頂列與地圖動作列相交面積 = 0 — {"相交":0,"頂列底":127,"動作列頂":177}
+PASS X3 chromium 360pt xlarge 🔴 沒有任何一顆群組分頁被隨機跟隨鈕蓋到 — 最嚴重的是「全」相交 0px²
+PASS X4 chromium 360pt xlarge 🔴 上錨元件的 top 全部不高於頂列底緣(整族掃,不只今天壞的那個) — 7 個全過(頂列底 127)
+PASS X5 chromium 360pt xlarge 結構性:上錨元件的 top 不得是 JS 寫死的絕對 px(安全區晚注入會對不上) — 零個
+PASS X6 chromium 360pt xlarge 零 pageerror — 無
+PASS X1 chromium 393pt xlarge 正向對照:頂列與隨機跟隨鈕都真的量得到(不是靠沒渲染騙過相交判準) — {"頂列高":119,"隨機鈕高":44,"列車":0,"tbh":"119.2px"}
+PASS X2 chromium 393pt xlarge 🔴 頂列與地圖動作列相交面積 = 0 — {"相交":0,"頂列底":127,"動作列頂":177}
+PASS X3 chromium 393pt xlarge 🔴 沒有任何一顆群組分頁被隨機跟隨鈕蓋到 — 最嚴重的是「全」相交 0px²
+PASS X4 chromium 393pt xlarge 🔴 上錨元件的 top 全部不高於頂列底緣(整族掃,不只今天壞的那個) — 7 個全過(頂列底 127)
+PASS X5 chromium 393pt xlarge 結構性:上錨元件的 top 不得是 JS 寫死的絕對 px(安全區晚注入會對不上) — 零個
+PASS X6 chromium 393pt xlarge 零 pageerror — 無
+PASS X1 chromium 414pt xlarge 正向對照:頂列與隨機跟隨鈕都真的量得到(不是靠沒渲染騙過相交判準) — {"頂列高":119,"隨機鈕高":44,"列車":0,"tbh":"119.2px"}
+PASS X2 chromium 414pt xlarge 🔴 頂列與地圖動作列相交面積 = 0 — {"相交":0,"頂列底":127,"動作列頂":177}
+PASS X3 chromium 414pt xlarge 🔴 沒有任何一顆群組分頁被隨機跟隨鈕蓋到 — 最嚴重的是「全」相交 0px²
+PASS X4 chromium 414pt xlarge 🔴 上錨元件的 top 全部不高於頂列底緣(整族掃,不只今天壞的那個) — 7 個全過(頂列底 127)
+PASS X5 chromium 414pt xlarge 結構性:上錨元件的 top 不得是 JS 寫死的絕對 px(安全區晚注入會對不上) — 零個
+PASS X6 chromium 414pt xlarge 零 pageerror — 無
+PASS Y1 chromium freq 正向對照:真的點一顆車站 ⇒ 看板打得開 — 點「動物園」→ 看板 開(動物園)
+PASS Y2 chromium freq 結構前提:找得到一個真的空白的點(離最近站>60px、無車牌、最上層是地圖) — (26,180) 離最近站 192px,命中 leaflet-gl-layer maplibregl-map
+PASS Y3 chromium freq 看板開著時點地圖空白處 ⇒ 看板收掉 — 點空白前 開 → 點空白後 關(boardStation=null)
+PASS Y4 chromium freq 反向對照:收掉之後再點同一顆站,看板重新開得起來(沒把地圖點擊弄壞) — 重點「動物園」→ 開(動物園)
+PASS Y5 chromium freq 零 pageerror — 無
+PASS Y1 chromium sched 正向對照:真的點一顆車站 ⇒ 看板打得開 — 點「新竹」→ 看板 開(新竹)
+PASS Y2 chromium sched 結構前提:找得到一個真的空白的點(離最近站>60px、無車牌、最上層是地圖) — (26,180) 離最近站 227px,命中 leaflet-gl-layer maplibregl-map
+PASS Y3 chromium sched 看板開著時點地圖空白處 ⇒ 看板收掉 — 點空白前 開 → 點空白後 關(boardStation=null)
+PASS Y4 chromium sched 反向對照:收掉之後再點同一顆站,看板重新開得起來(沒把地圖點擊弄壞) — 重點「新竹」→ 開(新竹)
+PASS Y5 chromium sched 零 pageerror — 無
+PASS Z1 chromium std 看板 ✕／☆ 命中框 ≥44×44 — {"close":{"w":44,"h":44,"x":339,"y":535.5,"cx":361,"cy":557.5},"star":{"w":44,"h":44,"x":295,"y":538.4,"cx":317,"cy":560.4}}
+PASS Z2 chromium std 看板標題列各鈕命中框互不重疊 — 重疊 0 px²
+PASS Z3 chromium std ✕ 命中框中心＋四角都命中 ✕ 本身 — ["ok","ok","ok","ok","ok"]
+PASS Z4 chromium std 真按 ☆:最愛翻轉且看板沒關(✕ 的正向對照) — {"favBefore":false,"favAfter":true,"hidden":false}
+PASS Z5 chromium std 真按 ✕:看板關掉 — {"hidden":true}
+PASS Z6 chromium std 無 pageerror
+PASS Z1 chromium large 看板 ✕／☆ 命中框 ≥44×44 — {"close":{"w":44,"h":44,"x":339,"y":526.1,"cx":361,"cy":548.1},"star":{"w":44,"h":44,"x":295,"y":529,"cx":317,"cy":551}}
+PASS Z2 chromium large 看板標題列各鈕命中框互不重疊 — 重疊 0 px²
+PASS Z3 chromium large ✕ 命中框中心＋四角都命中 ✕ 本身 — ["ok","ok","ok","ok","ok"]
+PASS Z4 chromium large 真按 ☆:最愛翻轉且看板沒關(✕ 的正向對照) — {"favBefore":false,"favAfter":true,"hidden":false}
+PASS Z5 chromium large 真按 ✕:看板關掉 — {"hidden":true}
+PASS Z6 chromium large 無 pageerror
+PASS Z1 chromium xlarge 看板 ✕／☆ 命中框 ≥44×44 — {"close":{"w":44,"h":44,"x":339,"y":516.8,"cx":361,"cy":538.8},"star":{"w":44,"h":44,"x":295,"y":519.7,"cx":317,"cy":541.7}}
+PASS Z2 chromium xlarge 看板標題列各鈕命中框互不重疊 — 重疊 0 px²
+PASS Z3 chromium xlarge ✕ 命中框中心＋四角都命中 ✕ 本身 — ["ok","ok","ok","ok","ok"]
+PASS Z4 chromium xlarge 真按 ☆:最愛翻轉且看板沒關(✕ 的正向對照) — {"favBefore":false,"favAfter":true,"hidden":false}
+PASS Z5 chromium xlarge 真按 ✕:看板關掉 — {"hidden":true}
+PASS Z6 chromium xlarge 無 pageerror
+PASS chromium Z7 前置·三顆鈕真的都在(鈴鐺靠原生旗標) — {"notify":{"w":44,"h":44,"x":251,"y":519.7,"cx":273,"cy":541.7}}
+PASS chromium Z7 三顆鈕都 ≥44×44 — {"close":{"w":44,"h":44,"x":339,"y":516.8,"cx":361,"cy":538.8},"star":{"w":44,"h":44,"x":295,"y":519.7,"cx":317,"cy":541.7},"notify":{"w":44,"h":44,"x":251,"y":519.7,"cx":273,"cy":541.7}}
+PASS chromium Z7 三顆鈕兩兩不重疊 — ✕☆ 0 ／ ☆🔔 0 ／ ✕🔔 0 px²
+PASS chromium Z7 長站名＋三顆鈕標題列沒有被擠到換行 — 兩顆 48.3 → 三顆 48.3
+PASS chromium Z7 無 pageerror
+PASS SP1 chromium std/LIVE 前置·強制新鮮後徽章自己就寫「LIVE」 — {"txt":"LIVE","hidden":false,"title":"台鐵即時誤點已套用(每分鐘更新)· 3 班誤點中 · 來源 09:00"}
+PASS SP2 chromium std/LIVE 真的點徽章(在 topbar)就開卡,五個取樣點都看得見 — {"vis":true,"hits":["ok","ok","ok","ok","ok"],"rect":{"l":60,"t":58,"w":300,"h":215.2},"inView":true}
+PASS SP2b chromium std/LIVE 卡完整落在視窗內 — {"l":60,"t":58,"w":300,"h":215.2}
+PASS SP3 chromium std/LIVE 「即時資料」那列逐字等於徽章的字 — {"live":{"k":"live","lab":"即時資料","val":"LIVE"},"badge":"LIVE"}
+PASS SP4 chromium std/LIVE 燈號的「為什麼」(title 原文)出現在卡上 — {"title":"台鐵即時誤點已套用(每分鐘更新)· 3 班誤點中 · 來源 09:00","why":"即時資料:台鐵即時誤點已套用(每分鐘更新)· 3 班誤點中 · 來源 09:00捷運看板:尚未取得北捷即時名冊，或時鐘已離開「現在」，目前使用班表備案"}
+PASS SP5 chromium std/LIVE 徽章看得見的燈全部有列(3/3) — {"燈":["liveBadge","metroBadge","count"],"有列":["liveBadge","metroBadge","count"],"列":["live","metro","count"]}
+PASS SP6 chromium std/LIVE aria-expanded 開著時是 true — true
+PASS SP7 chromium std/LIVE Esc 收得掉且 aria 跟著回 false — {"hidden":true,"aria":"false"}
+PASS SP1 chromium std/非即時 前置·強制不新鮮後徽章自己就寫「非即時」 — {"txt":"非即時","hidden":false,"title":"台鐵誤點目前非即時:依 09:00 的即時資料投射 · 3 班誤點中 · 資料已 10 分鐘未更新"}
+PASS SP2 chromium std/非即時 真的點徽章(在 topbar)就開卡,五個取樣點都看得見 — {"vis":true,"hits":["ok","ok","ok","ok","ok"],"rect":{"l":60,"t":58,"w":300,"h":215.2},"inView":true}
+PASS SP2b chromium std/非即時 卡完整落在視窗內 — {"l":60,"t":58,"w":300,"h":215.2}
+PASS SP3 chromium std/非即時 「即時資料」那列逐字等於徽章的字 — {"live":{"k":"live","lab":"即時資料","val":"非即時"},"badge":"非即時"}
+PASS SP4 chromium std/非即時 燈號的「為什麼」(title 原文)出現在卡上 — {"title":"台鐵誤點目前非即時:依 09:00 的即時資料投射 · 3 班誤點中 · 資料已 10 分鐘未更新","why":"即時資料:台鐵誤點目前非即時:依 09:00 的即時資料投射 · 3 班誤點中 · 資料已 10 分鐘未更新捷運看板:尚未取得北捷即時名冊，或時鐘已離開「現在」，目前使用班表備案"}
+PASS SP5 chromium std/非即時 徽章看得見的燈全部有列(3/3) — {"燈":["liveBadge","metroBadge","count"],"有列":["liveBadge","metroBadge","count"],"列":["live","metro","count"]}
+PASS SP6 chromium std/非即時 aria-expanded 開著時是 true — true
+PASS SP7 chromium std/非即時 Esc 收得掉且 aria 跟著回 false — {"hidden":true,"aria":"false"}
+PASS SP8 chromium std 反向對照:只改新鮮度 ⇒ 即時那列變了,其餘列一字不差 — {"live":["live=LIVE","live=非即時"],"其餘":[["metro=班表備案・非即時","metro=班表備案・非即時"],["count=2 班奔跑中","count=2 班奔跑中"]]}
+PASS SP9 chromium std 反向對照:「為什麼」也跟著換(不是印死的同一段) — {"a":"即時資料:台鐵即時誤點已套用(每分鐘更新)· 3 班誤點中 · 來源 09:00捷運看板:尚未取得北捷即時名冊，或時鐘已","b":"即時資料:台鐵誤點目前非即時:依 09:00 的即時資料投射 · 3 班誤點中 · 資料已 10 分鐘未更新捷運看板:尚"}
+PASS SP10 chromium std 關閉鈕熱區 ≥44×44 — {"w":44,"h":44,"cx":336,"cy":79}
+PASS SP10b chromium std 熱區下緣(離視覺圓心 18px)仍命中關閉鈕 — statPopClose
+PASS SP11 chromium std 按 ✕ 收得掉
+PASS SP12 chromium std 前置·再點一次徽章又開起來
+PASS SP13 chromium std 開著時燈號變了,卡不用重開就跟著換 — {"before":"LIVE","after":"非即時","open":true}
+PASS SP14 chromium std 點卡外任一處就收 — [196.5,423.1875]
+PASS SP15 chromium std 零 pageerror
+PASS SP1 chromium large/LIVE 前置·強制新鮮後徽章自己就寫「LIVE」 — {"txt":"LIVE","hidden":false,"title":"台鐵即時誤點已套用(每分鐘更新)· 3 班誤點中 · 來源 09:00"}
+PASS SP2 chromium large/LIVE 真的點徽章(在 topbar)就開卡,五個取樣點都看得見 — {"vis":true,"hits":["ok","ok","ok","ok","ok"],"rect":{"l":10,"t":120.1,"w":300,"h":239.8},"inView":true}
+PASS SP2b chromium large/LIVE 卡完整落在視窗內 — {"l":10,"t":120.1,"w":300,"h":239.8}
+PASS SP3 chromium large/LIVE 「即時資料」那列逐字等於徽章的字 — {"live":{"k":"live","lab":"即時資料","val":"LIVE"},"badge":"LIVE"}
+PASS SP4 chromium large/LIVE 燈號的「為什麼」(title 原文)出現在卡上 — {"title":"台鐵即時誤點已套用(每分鐘更新)· 3 班誤點中 · 來源 09:00","why":"即時資料:台鐵即時誤點已套用(每分鐘更新)· 3 班誤點中 · 來源 09:00捷運看板:尚未取得北捷即時名冊，或時鐘已離開「現在」，目前使用班表備案"}
+PASS SP5 chromium large/LIVE 徽章看得見的燈全部有列(3/3) — {"燈":["liveBadge","metroBadge","count"],"有列":["liveBadge","metroBadge","count"],"列":["live","metro","count"]}
+PASS SP6 chromium large/LIVE aria-expanded 開著時是 true — true
+PASS SP7 chromium large/LIVE Esc 收得掉且 aria 跟著回 false — {"hidden":true,"aria":"false"}
+PASS SP1 chromium large/非即時 前置·強制不新鮮後徽章自己就寫「非即時」 — {"txt":"非即時","hidden":false,"title":"台鐵誤點目前非即時:依 09:00 的即時資料投射 · 3 班誤點中 · 資料已 10 分鐘未更新"}
+PASS SP2 chromium large/非即時 真的點徽章(在 topbar)就開卡,五個取樣點都看得見 — {"vis":true,"hits":["ok","ok","ok","ok","ok"],"rect":{"l":10,"t":120.1,"w":300,"h":239.8},"inView":true}
+PASS SP2b chromium large/非即時 卡完整落在視窗內 — {"l":10,"t":120.1,"w":300,"h":239.8}
+PASS SP3 chromium large/非即時 「即時資料」那列逐字等於徽章的字 — {"live":{"k":"live","lab":"即時資料","val":"非即時"},"badge":"非即時"}
+PASS SP4 chromium large/非即時 燈號的「為什麼」(title 原文)出現在卡上 — {"title":"台鐵誤點目前非即時:依 09:00 的即時資料投射 · 3 班誤點中 · 資料已 10 分鐘未更新","why":"即時資料:台鐵誤點目前非即時:依 09:00 的即時資料投射 · 3 班誤點中 · 資料已 10 分鐘未更新捷運看板:尚未取得北捷即時名冊，或時鐘已離開「現在」，目前使用班表備案"}
+PASS SP5 chromium large/非即時 徽章看得見的燈全部有列(3/3) — {"燈":["liveBadge","metroBadge","count"],"有列":["liveBadge","metroBadge","count"],"列":["live","metro","count"]}
+PASS SP6 chromium large/非即時 aria-expanded 開著時是 true — true
+PASS SP7 chromium large/非即時 Esc 收得掉且 aria 跟著回 false — {"hidden":true,"aria":"false"}
+PASS SP8 chromium large 反向對照:只改新鮮度 ⇒ 即時那列變了,其餘列一字不差 — {"live":["live=LIVE","live=非即時"],"其餘":[["metro=班表備案・非即時","metro=班表備案・非即時"],["count=2 班奔跑中","count=2 班奔跑中"]]}
+PASS SP9 chromium large 反向對照:「為什麼」也跟著換(不是印死的同一段) — {"a":"即時資料:台鐵即時誤點已套用(每分鐘更新)· 3 班誤點中 · 來源 09:00捷運看板:尚未取得北捷即時名冊，或時鐘已","b":"即時資料:台鐵誤點目前非即時:依 09:00 的即時資料投射 · 3 班誤點中 · 資料已 10 分鐘未更新捷運看板:尚"}
+PASS SP10 chromium large 關閉鈕熱區 ≥44×44 — {"w":44,"h":44,"cx":286,"cy":141.09375}
+PASS SP10b chromium large 熱區下緣(離視覺圓心 18px)仍命中關閉鈕 — statPopClose
+PASS SP11 chromium large 按 ✕ 收得掉
+PASS SP12 chromium large 前置·再點一次徽章又開起來
+PASS SP13 chromium large 開著時燈號變了,卡不用重開就跟著換 — {"before":"LIVE","after":"非即時","open":true}
+PASS SP14 chromium large 點卡外任一處就收 — [196.5,509.84375]
+PASS SP15 chromium large 零 pageerror
+PASS A1 webkit std 360pt 正向對照:四顆群組分頁都量得到 — n=4
+PASS A2 webkit std 360pt 四顆分頁都在視窗內
+PASS A3 webkit std 360pt 分頁的字沒有被自己的框切掉
+PASS A4 webkit std 360pt tab bar 的文字標籤沒有被切在畫面外
+PASS A5 webkit std 360pt 零 pageerror
+PASS A6 webkit std 360pt 正向對照:頂列與時鐘徽章都量得到
+PASS A7 webkit std 360pt 時鐘徽章併入頂列:裝得進去且與同列控件互不相疊 — contained=true 與兄弟相疊=0 兄弟數=6
+PASS A8 webkit std 360pt 徽章位置不是 JS 寫死的絕對 px — inline top=
+PASS A1 webkit std 393pt 正向對照:四顆群組分頁都量得到 — n=4
+PASS A2 webkit std 393pt 四顆分頁都在視窗內
+PASS A3 webkit std 393pt 分頁的字沒有被自己的框切掉
+PASS A4 webkit std 393pt tab bar 的文字標籤沒有被切在畫面外
+PASS A5 webkit std 393pt 零 pageerror
+PASS A6 webkit std 393pt 正向對照:頂列與時鐘徽章都量得到
+PASS A7 webkit std 393pt 時鐘徽章併入頂列:裝得進去且與同列控件互不相疊 — contained=true 與兄弟相疊=0 兄弟數=6
+PASS A8 webkit std 393pt 徽章位置不是 JS 寫死的絕對 px — inline top=
+PASS A1 webkit std 414pt 正向對照:四顆群組分頁都量得到 — n=4
+PASS A2 webkit std 414pt 四顆分頁都在視窗內
+PASS A3 webkit std 414pt 分頁的字沒有被自己的框切掉
+PASS A4 webkit std 414pt tab bar 的文字標籤沒有被切在畫面外
+PASS A5 webkit std 414pt 零 pageerror
+PASS A6 webkit std 414pt 正向對照:頂列與時鐘徽章都量得到
+PASS A7 webkit std 414pt 時鐘徽章併入頂列:裝得進去且與同列控件互不相疊 — contained=true 與兄弟相疊=0 兄弟數=6
+PASS A8 webkit std 414pt 徽章位置不是 JS 寫死的絕對 px — inline top=
+PASS A1 webkit large 360pt 正向對照:四顆群組分頁都量得到 — n=4
+PASS A2 webkit large 360pt 四顆分頁都在視窗內
+PASS A3 webkit large 360pt 分頁的字沒有被自己的框切掉
+PASS A4 webkit large 360pt tab bar 的文字標籤沒有被切在畫面外
+PASS A5 webkit large 360pt 零 pageerror
+PASS A6 webkit large 360pt 正向對照:頂列與時鐘徽章都量得到
+PASS A7 webkit large 360pt 時鐘徽章併入頂列:裝得進去且與同列控件互不相疊 — contained=true 與兄弟相疊=0 兄弟數=6
+PASS A8 webkit large 360pt 徽章位置不是 JS 寫死的絕對 px — inline top=
+PASS A1 webkit large 393pt 正向對照:四顆群組分頁都量得到 — n=4
+PASS A2 webkit large 393pt 四顆分頁都在視窗內
+PASS A3 webkit large 393pt 分頁的字沒有被自己的框切掉
+PASS A4 webkit large 393pt tab bar 的文字標籤沒有被切在畫面外
+PASS A5 webkit large 393pt 零 pageerror
+PASS A6 webkit large 393pt 正向對照:頂列與時鐘徽章都量得到
+PASS A7 webkit large 393pt 時鐘徽章併入頂列:裝得進去且與同列控件互不相疊 — contained=true 與兄弟相疊=0 兄弟數=6
+PASS A8 webkit large 393pt 徽章位置不是 JS 寫死的絕對 px — inline top=
+PASS A1 webkit large 414pt 正向對照:四顆群組分頁都量得到 — n=4
+PASS A2 webkit large 414pt 四顆分頁都在視窗內
+PASS A3 webkit large 414pt 分頁的字沒有被自己的框切掉
+PASS A4 webkit large 414pt tab bar 的文字標籤沒有被切在畫面外
+PASS A5 webkit large 414pt 零 pageerror
+PASS A6 webkit large 414pt 正向對照:頂列與時鐘徽章都量得到
+PASS A7 webkit large 414pt 時鐘徽章併入頂列:裝得進去且與同列控件互不相疊 — contained=true 與兄弟相疊=0 兄弟數=6
+PASS A8 webkit large 414pt 徽章位置不是 JS 寫死的絕對 px — inline top=
+PASS A1 webkit xlarge 360pt 正向對照:四顆群組分頁都量得到 — n=4
+PASS A2 webkit xlarge 360pt 四顆分頁都在視窗內
+PASS A3 webkit xlarge 360pt 分頁的字沒有被自己的框切掉
+PASS A4 webkit xlarge 360pt tab bar 的文字標籤沒有被切在畫面外
+PASS A5 webkit xlarge 360pt 零 pageerror
+PASS A6 webkit xlarge 360pt 正向對照:頂列與時鐘徽章都量得到
+PASS A7 webkit xlarge 360pt 時鐘徽章併入頂列:裝得進去且與同列控件互不相疊 — contained=true 與兄弟相疊=0 兄弟數=6
+PASS A8 webkit xlarge 360pt 徽章位置不是 JS 寫死的絕對 px — inline top=
+PASS A1 webkit xlarge 393pt 正向對照:四顆群組分頁都量得到 — n=4
+PASS A2 webkit xlarge 393pt 四顆分頁都在視窗內
+PASS A3 webkit xlarge 393pt 分頁的字沒有被自己的框切掉
+PASS A4 webkit xlarge 393pt tab bar 的文字標籤沒有被切在畫面外
+PASS A5 webkit xlarge 393pt 零 pageerror
+PASS A6 webkit xlarge 393pt 正向對照:頂列與時鐘徽章都量得到
+PASS A7 webkit xlarge 393pt 時鐘徽章併入頂列:裝得進去且與同列控件互不相疊 — contained=true 與兄弟相疊=0 兄弟數=6
+PASS A8 webkit xlarge 393pt 徽章位置不是 JS 寫死的絕對 px — inline top=
+PASS A1 webkit xlarge 414pt 正向對照:四顆群組分頁都量得到 — n=4
+PASS A2 webkit xlarge 414pt 四顆分頁都在視窗內
+PASS A3 webkit xlarge 414pt 分頁的字沒有被自己的框切掉
+PASS A4 webkit xlarge 414pt tab bar 的文字標籤沒有被切在畫面外
+PASS A5 webkit xlarge 414pt 零 pageerror
+PASS A6 webkit xlarge 414pt 正向對照:頂列與時鐘徽章都量得到
+PASS A7 webkit xlarge 414pt 時鐘徽章併入頂列:裝得進去且與同列控件互不相疊 — contained=true 與兄弟相疊=0 兄弟數=6
+PASS A8 webkit xlarge 414pt 徽章位置不是 JS 寫死的絕對 px — inline top=
+PASS B1 webkit 沒選過時是標準檔 — {"ui":"1","fs":null,"ls":null,"lsFollow":null,"rowPx":13.5,"prevPx":19,"msVal":"標準","panelOpen":false,"follow":true,"on":["std"]}
+PASS B2 webkit 「更多」→ 字級 開得起「顯示與字級」面板 — {"ui":"1","fs":null,"ls":null,"lsFollow":null,"rowPx":13.5,"prevPx":19,"msVal":"標準","panelOpen":true,"follow":true,"on":["std"]}
+PASS B3 webkit 點特大 → 倍率 1.5 且預覽卡的字真的變大 — {"ui":"1.5","fs":"xlarge","ls":"xlarge","lsFollow":null,"rowPx":13.5,"prevPx":28.5,"msVal":"特大","panelOpen":true,"follow":true,"on":["xlarge"]}
+PASS B4 webkit 選中態回饋在那一顆鈕上 — ["xlarge"]
+PASS B5 webkit 偏好寫進 localStorage
+PASS B6 webkit 點回標準真的回得去(不是單向閥) — {"ui":"1","fs":null,"ls":"std","lsFollow":null,"rowPx":13.5,"prevPx":19,"msVal":"標準","panelOpen":true,"follow":true,"on":["std"]}
+PASS B6b webkit 「更多」那一列顯示目前的階 — msVal=標準
+PASS B7 webkit 重新載入後保留「大」 — {"ui":"1.25","fs":"large","ls":"large","lsFollow":null,"rowPx":16.875,"prevPx":23.75,"msVal":"大","panelOpen":false,"follow":true,"on":["large"]}
+PASS B8 webkit data-fs 由 head 首繪腳本掛上(不會先閃一下標準字級)
+PASS B9 webkit 全程零 pageerror
+PASS C1 webkit ?live=1 即使存過特大也恆定標準字級 — {"fs":null,"ui":"1"}
+PASS C2 webkit 系統字級 30px(輔助使用級別) → data-fs=xlarge — got=xlarge
+PASS C2 webkit 系統字級 16px(一般級別) → data-fs=null — got=null
+PASS D0 webkit 跟隨系統字級預設是開的
+PASS D1 webkit 開關【開】+ 系統輔助使用級別 → 自動切到特大 — {"fs":"xlarge","follow":true,"msVal":"特大(跟隨系統)","lsFollow":null}
+PASS D2 webkit 抽屜列標示「跟隨系統」 — msVal=特大(跟隨系統)
+PASS D3 webkit 開關【關】+ 同一個系統字級 → 退回標準(反向對照) — {"fs":null,"follow":false,"msVal":"標準","lsFollow":"0"}
+PASS D4 webkit 關掉的偏好寫進 localStorage — lsFollow=0
+PASS D5 webkit 重新載入後仍然是關的(不會自己開回來) — data-fs=null
+PASS D6 webkit 全程零 pageerror
+PASS E1 webkit std 360pt 正向對照:看板列量得到 — n=4
+PASS E2 webkit std 360pt 沒有任何一列的車種／方向被切字 — clipped=0
+PASS E3 webkit std 360pt 標準／大不收任何欄位(車種與方向都在) — 4/4
+PASS E1 webkit std 393pt 正向對照:看板列量得到 — n=4
+PASS E2 webkit std 393pt 沒有任何一列的車種／方向被切字 — clipped=0
+PASS E3 webkit std 393pt 標準／大不收任何欄位(車種與方向都在) — 4/4
+PASS E1 webkit large 360pt 正向對照:看板列量得到 — n=4
+PASS E2 webkit large 360pt 沒有任何一列的車種／方向被切字 — clipped=0
+PASS E3 webkit large 360pt 標準／大不收任何欄位(車種與方向都在) — 4/4
+PASS E1 webkit large 393pt 正向對照:看板列量得到 — n=4
+PASS E2 webkit large 393pt 沒有任何一列的車種／方向被切字 — clipped=0
+PASS E3 webkit large 393pt 標準／大不收任何欄位(車種與方向都在) — 4/4
+PASS E1 webkit xlarge 360pt 正向對照:看板列量得到 — n=4
+PASS E2 webkit xlarge 360pt 沒有任何一列的車種／方向被切字 — clipped=0
+PASS E3 webkit xlarge 360pt 特大預設收起車種與方向 — 0/4
+PASS E1 webkit xlarge 393pt 正向對照:看板列量得到 — n=4
+PASS E2 webkit xlarge 393pt 沒有任何一列的車種／方向被切字 — clipped=0
+PASS E3 webkit xlarge 393pt 特大預設收起車種與方向 — 0/4
+PASS E4a webkit 特大時列尾有「›」出口
+PASS E4b webkit 點「›」把車種與方向叫回來 — {"boardOpen":true,"following":false,"destShown":true,"txt":"往 蘇澳","n":1,"redraw":0,"rx":true,"等到rx":true}
+PASS E5 webkit 點「›」不會誤觸跟車(看板還開著、沒有跟車) — {"boardOpen":true,"following":false,"destShown":true,"txt":"往 蘇澳","n":1,"redraw":0,"rx":true}
+PASS E4c webkit 正向對照:renderBoard() 真的把整批列重建了(舊節點已離開文件) — {"重建":true,"重繪後列數":4}
+PASS E4d webkit 重繪之後展開中的那一列還是展開的(車種與方向仍在畫面上) — {"rebuilt":true,"n":4,"openBefore":["4128|tra_sched"],"openAfter":["4128|tra_sched"],"destShown":true}
+PASS E4e webkit 對照組:沒展開過的列不會自己長出展開態 — {"展開":["4128|tra_sched"],"原本展開":["4128|tra_sched"],"總列數":4}
+PASS E6 webkit 反向對照:點列本身仍然會跟車 — {"fs":true,"following":true,"boardOpen":true,"tab":"這班車"}
+PASS E7 webkit 跟完之後手機保留看板當「這一站」分頁並切到「這班車」 — {"fs":true,"following":true,"boardOpen":true,"tab":"這班車"}
+PASS E7 webkit 全程零 pageerror
+PASS F1 webkit std 360pt 正向對照:抽屜列與段標題都量得到 — n=20 sec=11
+PASS F2 webkit std 360pt 每一列都不低於設計列高 48px — minH=48
+PASS F3 webkit std 360pt 段標題字級 ≈ 11px(小倍率) — secPx=11
+PASS F4 webkit std 360pt 小字倍率確實比主倍率溫和(1.00× vs 1.00×) — small=1.000 main=1.000
+PASS F5 webkit std 360pt 目前值與標籤同一行 — {"inline":true,"stacked":false,"valLeft":false}
+PASS F6 webkit std 360pt 「›」始終留在右緣且垂直置中 — {"chevRight":true,"chevMid":true}
+PASS F7 webkit std 360pt 零 pageerror
+PASS F1 webkit std 393pt 正向對照:抽屜列與段標題都量得到 — n=20 sec=11
+PASS F2 webkit std 393pt 每一列都不低於設計列高 48px — minH=48
+PASS F3 webkit std 393pt 段標題字級 ≈ 11px(小倍率) — secPx=11
+PASS F4 webkit std 393pt 小字倍率確實比主倍率溫和(1.00× vs 1.00×) — small=1.000 main=1.000
+PASS F5 webkit std 393pt 目前值與標籤同一行 — {"inline":true,"stacked":false,"valLeft":false}
+PASS F6 webkit std 393pt 「›」始終留在右緣且垂直置中 — {"chevRight":true,"chevMid":true}
+PASS F7 webkit std 393pt 零 pageerror
+PASS F1 webkit large 360pt 正向對照:抽屜列與段標題都量得到 — n=20 sec=12.54
+PASS F2 webkit large 360pt 每一列都不低於設計列高 68px — minH=68
+PASS F3 webkit large 360pt 段標題字級 ≈ 12.5px(小倍率) — secPx=12.54
+PASS F4 webkit large 360pt 小字倍率確實比主倍率溫和(1.14× vs 1.25×) — small=1.140 main=1.250
+PASS F5 webkit large 360pt 目前值與標籤同一行 — {"inline":true,"stacked":false,"valLeft":false}
+PASS F6 webkit large 360pt 「›」始終留在右緣且垂直置中 — {"chevRight":true,"chevMid":true}
+PASS F7 webkit large 360pt 零 pageerror
+PASS F1 webkit large 393pt 正向對照:抽屜列與段標題都量得到 — n=20 sec=12.54
+PASS F2 webkit large 393pt 每一列都不低於設計列高 68px — minH=68
+PASS F3 webkit large 393pt 段標題字級 ≈ 12.5px(小倍率) — secPx=12.54
+PASS F4 webkit large 393pt 小字倍率確實比主倍率溫和(1.14× vs 1.25×) — small=1.140 main=1.250
+PASS F5 webkit large 393pt 目前值與標籤同一行 — {"inline":true,"stacked":false,"valLeft":false}
+PASS F6 webkit large 393pt 「›」始終留在右緣且垂直置中 — {"chevRight":true,"chevMid":true}
+PASS F7 webkit large 393pt 零 pageerror
+PASS F1 webkit xlarge 360pt 正向對照:抽屜列與段標題都量得到 — n=20 sec=14.19
+PASS F2 webkit xlarge 360pt 每一列都不低於設計列高 80px — minH=80
+PASS F3 webkit xlarge 360pt 段標題字級 ≈ 14px(小倍率) — secPx=14.19
+PASS F4 webkit xlarge 360pt 小字倍率確實比主倍率溫和(1.29× vs 1.50×) — small=1.290 main=1.500
+PASS F5 webkit xlarge 360pt 目前值掉到第二行並切齊標籤左緣 — {"inline":false,"stacked":true,"valLeft":true}
+PASS F6 webkit xlarge 360pt 「›」始終留在右緣且垂直置中 — {"chevRight":true,"chevMid":true}
+PASS F7 webkit xlarge 360pt 零 pageerror
+PASS F1 webkit xlarge 393pt 正向對照:抽屜列與段標題都量得到 — n=20 sec=14.19
+PASS F2 webkit xlarge 393pt 每一列都不低於設計列高 80px — minH=80
+PASS F3 webkit xlarge 393pt 段標題字級 ≈ 14px(小倍率) — secPx=14.19
+PASS F4 webkit xlarge 393pt 小字倍率確實比主倍率溫和(1.29× vs 1.50×) — small=1.290 main=1.500
+PASS F5 webkit xlarge 393pt 目前值掉到第二行並切齊標籤左緣 — {"inline":false,"stacked":true,"valLeft":true}
+PASS F6 webkit xlarge 393pt 「›」始終留在右緣且垂直置中 — {"chevRight":true,"chevMid":true}
+PASS F7 webkit xlarge 393pt 零 pageerror
+PASS G1 webkit std 393pt 正向對照:tab 鈕與章都量得到 — tab=5 seal=19
+PASS G2 webkit std 393pt tab 觸控目標 ≈ 設計的 44px — tapMin=44
+PASS G3 webkit std 393pt 章直徑 ≈ 56px — seal=56
+PASS G4 webkit std 393pt 三條倍率在標準檔全部是 1 — ui=1 uis=1 uit=1
+PASS G5 webkit std 393pt 章仍然是歪的、日期還在 — rot=true date=true
+PASS G6 webkit std 393pt 沒有任何一枚章被擠出面板 — out=0
+PASS G7 webkit std 393pt 零 pageerror
+PASS G1 webkit large 393pt 正向對照:tab 鈕與章都量得到 — tab=5 seal=19
+PASS G2 webkit large 393pt tab 觸控目標 ≈ 設計的 52px — tapMin=51.90625
+PASS G3 webkit large 393pt 章直徑 ≈ 66px — seal=66.1
+PASS G4 webkit large 393pt 三條倍率互不相等且 --uis < --uit < --ui — ui=1.25 uis=1.14 uit=1.18
+PASS G5 webkit large 393pt 章仍然是歪的、日期還在 — rot=true date=true
+PASS G6 webkit large 393pt 沒有任何一枚章被擠出面板 — out=0
+PASS G7 webkit large 393pt 零 pageerror
+PASS G1 webkit xlarge 393pt 正向對照:tab 鈕與章都量得到 — tab=5 seal=19
+PASS G2 webkit xlarge 393pt tab 觸控目標 ≈ 設計的 60px — tapMin=59.828125
+PASS G3 webkit xlarge 393pt 章直徑 ≈ 76px — seal=76.2
+PASS G4 webkit xlarge 393pt 三條倍率互不相等且 --uis < --uit < --ui — ui=1.5 uis=1.29 uit=1.36
+PASS G5 webkit xlarge 393pt 章仍然是歪的、日期還在 — rot=true date=true
+PASS G6 webkit xlarge 393pt 沒有任何一枚章被擠出面板 — out=0
+PASS G7 webkit xlarge 393pt 零 pageerror
+PASS H1 webkit 393pt 正向對照:跟到車(其他)且跟車卡開著 — picked=其他 panel=true
+PASS H2 webkit 393pt 跟車目標落在可視地圖窗內(上58~下緣722.53125) — 車y=411
+PASS H3 webkit 393pt 跟車目標沒有被任何卡片蓋住 — 命中 leaflet-gl-layer maplibregl-
+PASS H4 webkit 393pt 上界已收到 ≤62px(徽章併入頂列) — 上界=58 chrome=[topbar,badge,tabbar,controls,followPanel]
+PASS H5 webkit 393pt 解除跟隨後讓位記帳 = 我獨立量到的 (下界−上界)/2 — shiftY=29.9 應為 30 chrome=[topbar,badge,tabbar,controls] 上58 下118
+PASS H6 webkit 393pt 零 pageerror
+PASS H7 webkit 393pt 正向對照:跟車中開得起看板,而且看板真的吃進開板前看得到的地圖 —  sheet=true 開板前下緣=722.53125 開板後下緣=528.40625 看板頂緣=536 看板高=256(班次列 4)
+PASS H8 webkit 393pt 看板開著時跟車目標仍在可視窗內(58~528.40625) — 車y=340
+PASS H9 webkit 393pt 看板開著時跟車目標沒有被卡片蓋住 — 命中 leaflet-gl-layer maplibregl-
+PASS H10 webkit 393pt 零 pageerror
+PASS I1 webkit 393pt 正向對照:手機殼、徽章併入頂列、時鐘還讀得到 — fs=true inBar=true clock=16
+PASS I2 webkit 393pt 亮著的狀態旗標全部收成色點(非文字) — 亮著 2 顆 live={"w":7,"h":7,"fs":0,"br":"50%"} mlive={"w":7,"h":7,"fs":0,"br":"50%"}
+PASS I3 webkit 393pt 列車數有值但已從頂列收起 — text=「2 班奔跑中」drawn=false
+PASS I4 webkit 393pt 正向對照:「資料狀態」段與至少兩列真的畫出來 — sec=true live=true metro=true count=true
+PASS I5 webkit 393pt 資料狀態的值逐字鏡射徽章 — live「LIVE」vs「LIVE」metro「班表備案・非即時」vs「班表備案」count「2 班奔跑中」vs「2 班奔跑中」
+PASS I6a webkit 393pt 前置·徽章真的還藏著(產品的下一拍沒把它撤銷) — hidden=true
+PASS I6 webkit 393pt 反向對照:徽章藏起來 ⇒ 該列整列消失 — drawn=false h=0
+PASS I7 webkit 393pt 反向對照:旗標亮起來 ⇒ 該列出現 — drawn=true h=48
+PASS I8 webkit 393pt 零 pageerror
+PASS J1 webkit 393pt 正向對照:跟到車、跟車卡看得到、還沒有分頁列 — {"boardOpen":false,"following":true,"tabN":0,"tabSel":"","fpInBoard":false,"fpExists":true,"fpVisible":true,"fpFields":3,"rows":0}
+PASS J2 webkit 393pt 跟車中開看板 ⇒ 兩個分頁、落在「這一站」、跟車不斷 — {"boardOpen":true,"following":true,"tabN":2,"tabSel":"這一站","fpInBoard":true,"fpExists":true,"fpVisible":false,"fpFields":0,"rows":4}
+PASS J3 webkit 393pt 切「這班車」⇒ 看板列全收、跟車卡欄位露出 — {"boardOpen":true,"following":true,"tabN":2,"tabSel":"這班車","fpInBoard":true,"fpExists":true,"fpVisible":true,"fpFields":3,"rows":0}
+PASS J4 webkit 393pt 看板重繪後:分頁列還在、選中沒變、跟車卡沒被銷毀 — {"boardOpen":true,"following":true,"tabN":2,"tabSel":"這班車","fpInBoard":true,"fpExists":true,"fpVisible":true,"fpFields":3,"rows":0}
+PASS J5 webkit 393pt 整合卡掛著時跟車目標仍在可視窗內、沒被卡片蓋住 — 車y=341 窗=58~528.40625 命中=leaflet-gl-layer maplibregl-
+PASS J6 webkit 393pt 反向對照:關看板 ⇒ 跟車卡搬回原位且仍看得到 — {"boardOpen":false,"following":true,"tabN":0,"tabSel":"","fpInBoard":false,"fpExists":true,"fpVisible":true,"fpFields":3,"rows":0}
+PASS J7 webkit 393pt 反向對照:沒跟車開看板 ⇒ 沒有分頁列(D3)、看板列照常 — {"boardOpen":true,"following":false,"tabN":0,"tabSel":"","fpInBoard":false,"fpExists":true,"fpVisible":false,"fpFields":0,"rows":4}
+PASS J8 webkit 393pt 零 pageerror
+PASS J9 webkit 393pt 正向對照:兩個分頁都切得到 — tabs=2/2
+PASS J10 webkit 393pt 切分頁不改變左右讓位(搬進來的卡沒被當成左側遮蔽) — 這一站 左0右62 ／ 這班車 左0右62
+PASS J11 webkit 393pt 零 pageerror
+PASS K1 webkit 393pt 正向對照:跟到車、整合卡掛著、還沒收合、找得到空白點 — {"following":true,"collapsed":false,"fpMin":false,"fpVis":false,"fpH":0,"fpW":0,"fpInSlot":true,"fpTxt":"8888山海號・觀光列車 76 km/h × 結束 下一站 臺東 15:19 · 32 分 環島完乘 0% ▶ 行進中 臺北 ⇄ 枋寮 永續來回 · 一輪 12 小時 · 永不到站 到 開始收集取消 ↗ 行程分享 詳細往上拉看完整資料› 8888 觀光列車 臺北 08:02 → 臺北 20:00 曲線 ▴ 時刻表 ▾ ✕ 山海號 本站原創的虛構觀光列車：自臺北往東，沿宜蘭線、北迴線、臺東線與南迴線直抵枋寮——一側太平洋、一側中央山脈，龜山島、清水斷崖與縱谷稻田輪流入窗。永不停駛，到枋寮即折返，十二小時一輪來回。與走西部的平原號是兄弟車，在枋寮擦肩。停靠 9 站 · 全程約 11 小時 58 分 旅程日誌 列車跑起來就會記錄——停靠、交會、待避…… 誤點履歷 › 全程速度曲線 停靠站到開臺北08:0008:02宜蘭09:1809:20花蓮10:3810:40臺東12:4012:42枋寮14:0014:02臺東15:1915:21花蓮17:2117:23宜蘭18:4118:43臺北20:0020:00","endVis":false,"hit3":0,"hitWho":"invisible","fpRect":[0,0,0,0],"boardVis":true,"boardHiddenAttr":false,"boardStation":true,"boardRows":4,"sheetOpen":true,"fpOpacity":1,"fpPE":"auto","tabN":2,"tabSel":"這一站","trainOpen":false,"tapPick":false,"ls":null,"pt":{"x":40,"y":150,"ml":0,"mt":0}}
+PASS K2 webkit 393pt 點地圖空白 ⇒ 收成膠囊,而且【跟車沒斷】 — {"following":true,"collapsed":true,"fpMin":true,"fpVis":true,"fpH":44,"fpW":178,"fpInSlot":false,"fpTxt":"8888 76 km/h 結束","endVis":true,"hit3":3,"hitWho":"b < #fpSpd.spd < div.fp-head < #followPanel.follow-panel.fp-min","fpRect":[8,679,178,44],"boardVis":false,"boardHiddenAttr":true,"boardStation":true,"boardRows":4,"sheetOpen":false,"fpOpacity":1,"fpPE":"auto","tabN":0,"tabSel":"","trainOpen":false,"tapPick":false,"ls":null}
+PASS K3 webkit 393pt 膠囊內容＝車次·時速·結束(設計 1a) — 膠囊字=「8888 76 km/h 結束」
+PASS K4 webkit 393pt 膠囊觸控目標 ≥44 且三點都命中自己 — 高44 寬178 命中3/3
+PASS K5 webkit 393pt 收合＝藏起來不是關掉:內容留著、但 sheet-open 跟著關 — {"following":true,"collapsed":true,"fpMin":true,"fpVis":true,"fpH":44,"fpW":178,"fpInSlot":false,"fpTxt":"8888 76 km/h 結束","endVis":true,"hit3":3,"hitWho":"b < #fpSpd.spd < div.fp-head < #followPanel.follow-panel.fp-min","fpRect":[8,679,178,44],"boardVis":false,"boardHiddenAttr":true,"boardStation":true,"boardRows":4,"sheetOpen":false,"fpOpacity":1,"fpPE":"auto","tabN":0,"tabSel":"","trainOpen":false,"tapPick":false,"ls":null}
+PASS K6 webkit 393pt 收合把地圖還出來:可視窗下界變低,而且不寫 localStorage — 下界 528.40625→723 ls=null
+PASS K18 webkit 393pt 收合中看板重繪:不會把收起來的看板掀回畫面 — {"following":true,"collapsed":true,"fpMin":true,"fpVis":true,"fpH":44,"fpW":178,"fpInSlot":false,"fpTxt":"8888 76 km/h 結束","endVis":true,"hit3":3,"hitWho":"b < #fpSpd.spd < div.fp-head < #followPanel.follow-panel.fp-min","fpRect":[8,690,178,44],"boardVis":false,"boardHiddenAttr":true,"boardStation":true,"boardRows":4,"sheetOpen":false,"fpOpacity":1,"fpPE":"auto","tabN":0,"tabSel":"","trainOpen":false,"tapPick":false,"ls":null}
+PASS K7 webkit 393pt 點膠囊 ⇒ 展開回收合前那一頁(跟車仍在、卡回槽裡、沒跳去列車 sheet) — {"following":true,"collapsed":false,"fpMin":false,"fpVis":false,"fpH":0,"fpW":0,"fpInSlot":true,"fpTxt":"8888山海號・觀光列車 76 km/h × 結束 下一站 臺東 15:19 · 32 分 環島完乘 0% ▶ 行進中 臺北 ⇄ 枋寮 永續來回 · 一輪 12 小時 · 永不到站 到 開始收集取消 ↗ 行程分享 詳細往上拉看完整資料› 8888 觀光列車 臺北 08:02 → 臺北 20:00 曲線 ▴ 時刻表 ▾ ✕ 山海號 本站原創的虛構觀光列車：自臺北往東，沿宜蘭線、北迴線、臺東線與南迴線直抵枋寮——一側太平洋、一側中央山脈，龜山島、清水斷崖與縱谷稻田輪流入窗。永不停駛，到枋寮即折返，十二小時一輪來回。與走西部的平原號是兄弟車，在枋寮擦肩。停靠 9 站 · 全程約 11 小時 58 分 旅程日誌 列車跑起來就會記錄——停靠、交會、待避…… 誤點履歷 › 全程速度曲線 停靠站到開臺北08:0008:02宜蘭09:1809:20花蓮10:3810:40臺東12:4012:42枋寮14:0014:02臺東15:1915:21花蓮17:2117:23宜蘭18:4118:43臺北20:0020:00","endVis":false,"hit3":0,"hitWho":"invisible","fpRect":[0,0,0,0],"boardVis":true,"boardHiddenAttr":false,"boardStation":true,"boardRows":4,"sheetOpen":true,"fpOpacity":1,"fpPE":"auto","tabN":2,"tabSel":"這一站","trainOpen":false,"tapPick":false,"ls":"0"}
+PASS K8 webkit 393pt 整合卡掛著時點卡片本體:看板還在、沒被換成列車 sheet — {"following":true,"collapsed":false,"fpMin":false,"fpVis":true,"fpH":734,"fpW":345,"fpInSlot":true,"fpTxt":"8888 山海號・觀光列車 76 km/h × 下一站 臺東 15:19 · 32 分 環島完乘 0% ▶ 行進中 臺北 ⇄ 枋寮 永續來回 · 一輪 12 小時 · 永不到站 詳細 往上拉看完整資料 › 曲線 ▴ 時刻表 ▴ 山海號 本站原創的虛構觀光列車：自臺北往東，沿宜蘭線、北迴線、臺東線與南迴線直抵枋寮——一側太平洋、一側中央山脈，龜山島、清水斷崖與縱谷稻田輪流入窗。永不停駛，到枋寮即折返，十二小時一輪來回。與走西部的平原號是兄弟車，在枋寮擦肩。 停靠 9 站 · 全程約 11 小時 58 分 旅程日誌 列車跑起來就會記錄——停靠、交會、待避…… 全程速度曲線 停靠站 到 開 臺北 08:00 08:02 宜蘭 09:18 09:20 花蓮 10:38 10:40 臺東 12:40 12:42 枋寮 14:00 14:02 臺東 15:19 15:21 花蓮 17:21 17:23 宜蘭 18:41 18:43 臺北 20:00 20:00","endVis":false,"hit3":1,"hitWho":"none","fpRect":[24,629,345,734],"boardVis":true,"boardHiddenAttr":false,"boardStation":true,"boardRows":4,"sheetOpen":true,"fpOpacity":1,"fpPE":"auto","tabN":2,"tabSel":"這班車","trainOpen":false,"tapPick":false,"ls":"0"}
+PASS K9 webkit 393pt 膠囊的「結束」仍然結束跟隨、旗標歸零、收起來的看板當場還回去 — {"following":false,"collapsed":false,"fpMin":true,"fpVis":false,"fpH":0,"fpW":0,"fpInSlot":false,"fpTxt":"8888山海號・觀光列車 76 km/h × 結束 下一站 臺東 15:19 · 32 分 環島完乘 0% ▶ 行進中 臺北 ⇄ 枋寮 永續來回 · 一輪 12 小時 · 永不到站 到 開始收集取消 ↗ 行程分享","endVis":false,"hit3":0,"hitWho":"invisible","fpRect":[0,0,0,0],"boardVis":true,"boardHiddenAttr":false,"boardStation":true,"boardRows":4,"sheetOpen":true,"fpOpacity":1,"fpPE":"auto","tabN":0,"tabSel":"","trainOpen":false,"tapPick":false,"ls":"0"}
+PASS K10 webkit 393pt 結束跟車後看板照樣開得起來(收合旗標沒留下來把它藏死) — {"following":false,"collapsed":false,"fpMin":true,"fpVis":false,"fpH":0,"fpW":0,"fpInSlot":false,"fpTxt":"8888山海號・觀光列車 76 km/h × 結束 下一站 臺東 15:19 · 32 分 環島完乘 0% ▶ 行進中 臺北 ⇄ 枋寮 永續來回 · 一輪 12 小時 · 永不到站 到 開始收集取消 ↗ 行程分享","endVis":false,"hit3":0,"hitWho":"invisible","fpRect":[0,0,0,0],"boardVis":true,"boardHiddenAttr":false,"boardStation":true,"boardRows":4,"sheetOpen":true,"fpOpacity":1,"fpPE":"auto","tabN":0,"tabSel":"","trainOpen":false,"tapPick":false,"ls":"0"}
+PASS K11 webkit 393pt 反向對照:沒跟車時點空白 ⇒ 什麼都不收(沒有收合、沒有膠囊) — {"following":false,"collapsed":false,"fpMin":true,"fpVis":false,"fpH":0,"fpW":0,"fpInSlot":false,"fpTxt":"8888山海號・觀光列車 76 km/h × 結束 下一站 臺東 15:19 · 32 分 環島完乘 0% ▶ 行進中 臺北 ⇄ 枋寮 永續來回 · 一輪 12 小時 · 永不到站 到 開始收集取消 ↗ 行程分享","endVis":false,"hit3":0,"hitWho":"invisible","fpRect":[0,0,0,0],"boardVis":false,"boardHiddenAttr":true,"boardStation":false,"boardRows":0,"sheetOpen":false,"fpOpacity":1,"fpPE":"auto","tabN":0,"tabSel":"","trainOpen":false,"tapPick":false,"ls":"0"}
+PASS K12 webkit 393pt 反向對照:再點一次跟隨中的那台車仍然是取消跟隨(沒被收合搶走) — {"following":false,"collapsed":false,"fpMin":true,"fpVis":false,"fpH":0,"fpW":0,"fpInSlot":false,"fpTxt":"8888山海號・觀光列車 76 km/h × 結束 下一站 臺東 15:19 · 32 分 環島完乘 0% ▶ 行進中 臺北 ⇄ 枋寮 永續來回 · 一輪 12 小時 · 永不到站 到 開始收集取消 ↗ 行程分享","endVis":false,"hit3":0,"hitWho":"invisible","fpRect":[0,0,0,0],"boardVis":false,"boardHiddenAttr":true,"boardStation":false,"boardRows":0,"sheetOpen":false,"fpOpacity":1,"fpPE":"auto","tabN":0,"tabSel":"","trainOpen":false,"tapPick":false,"ls":"0"}
+PASS K13 webkit 393pt × 收合:寫入長期偏好、膠囊沒被留在看板槽裡 — {"following":true,"collapsed":true,"fpMin":true,"fpVis":true,"fpH":44,"fpW":178,"fpInSlot":false,"fpTxt":"8888 76 km/h 結束","endVis":true,"hit3":3,"hitWho":"b < #fpSpd.spd < div.fp-head < #followPanel.follow-panel.fp-min","fpRect":[8,690,178,44],"boardVis":false,"boardHiddenAttr":true,"boardStation":false,"boardRows":0,"sheetOpen":false,"fpOpacity":1,"fpPE":"auto","tabN":0,"tabSel":"","trainOpen":false,"tapPick":false,"ls":"1"}
+PASS K14 webkit 393pt × 收合中開站看板 ⇒ 展開成整合卡,但長期偏好留著 '1' — {"following":true,"collapsed":false,"fpMin":false,"fpVis":false,"fpH":0,"fpW":0,"fpInSlot":true,"fpTxt":"8888山海號・觀光列車 76 km/h × 結束 下一站 臺東 15:19 · 32 分 環島完乘 0% ▶ 行進中 臺北 ⇄ 枋寮 永續來回 · 一輪 12 小時 · 永不到站 到 開始收集取消 ↗ 行程分享 詳細往上拉看完整資料› 8888 觀光列車 臺北 08:02 → 臺北 20:00 曲線 ▴ 時刻表 ▴ ✕ 山海號 本站原創的虛構觀光列車：自臺北往東，沿宜蘭線、北迴線、臺東線與南迴線直抵枋寮——一側太平洋、一側中央山脈，龜山島、清水斷崖與縱谷稻田輪流入窗。永不停駛，到枋寮即折返，十二小時一輪來回。與走西部的平原號是兄弟車，在枋寮擦肩。停靠 9 站 · 全程約 11 小時 58 分 旅程日誌 列車跑起來就會記錄——停靠、交會、待避…… 誤點履歷 › 全程速度曲線 停靠站到開臺北08:0008:02宜蘭09:1809:20花蓮10:3810:40臺東12:4012:42枋寮14:0014:02臺東15:1915:21花蓮17:2117:23宜蘭18:4118:43臺北20:0020:00","endVis":false,"hit3":0,"hitWho":"invisible","fpRect":[0,0,0,0],"boardVis":true,"boardHiddenAttr":false,"boardStation":true,"boardRows":4,"sheetOpen":true,"fpOpacity":1,"fpPE":"auto","tabN":2,"tabSel":"這一站","trainOpen":false,"tapPick":false,"ls":"1"}
+PASS K16 webkit 393pt 停靠中(dwell-show)整合卡的「這班車」頁仍看得見、仍點得動 — {"sheetOpen":true,"inSlot":true,"mounted":{"op":1,"pe":"auto"},"outside":{"op":0,"pe":"none"}}
+PASS K17 webkit 393pt 正向對照:同一顆卡搬出槽就真的被淡掉(證明讓位規則此刻是活的) — {"op":0,"pe":"none"}
+PASS K15 webkit 393pt 零 pageerror
+PASS L1 webkit 393pt 正向對照:跟到車、在「這班車」那一頁、資訊卡併進卡裡 — {"following":true,"tabSel":"這班車","fpInSlot":true,"tcInFp":true,"tcVis":true,"intro":133,"events":32,"spark":46,"stops":217,"eventsNote":true,"stopRows":10,"stopsHidden":false,"boardScroll":584,"fpOverflowY":"visible","fpMaxH":"none","boardOverflowY":"auto","nestedScrollers":[],"boardTop":0,"size":"small","hintVis":true,"hintH":44,"hintHit":true,"hintTxt":"詳細往上拉看完整資料›","fpOpacity":1,"cardHit":false}
+PASS L2 webkit 393pt 詳細四段都在:車型介紹／旅程日誌／速度曲線／停靠時刻 — {"intro":133,"events":32,"日誌有字":true,"spark":46,"stops":217,"rows":10}
+PASS L3 webkit 393pt 一個捲軸:看板是捲動容器、卡沒有自己的捲軸也沒有限高 — {"看板可捲":584,"看板overflowY":"auto","卡overflowY":"visible","卡maxHeight":"none","槽內還能捲的盒子":[]}
+PASS L4 webkit 393pt 停靠時刻表預設就是打開的(不用先找到那顆鈕) — {"hidden":false,"h":217}
+PASS L5 webkit 393pt 卡緣有「往上拉看完整資料」提示,觸控目標 ≥44 且命中自己 — {"vis":true,"h":44,"hit":true,"txt":"詳細往上拉看完整資料›"}
+PASS L6 webkit 393pt 點提示列 ⇒ 段高變最大段,提示列自己收掉,而且那一頁真的畫得出來 — {"點得到":true,"有畫東西":true,"區域":"345×359","following":true,"tabSel":"這班車","fpInSlot":true,"tcInFp":true,"tcVis":true,"intro":133,"events":32,"spark":46,"stops":217,"eventsNote":true,"stopRows":10,"stopsHidden":false,"boardScroll":395,"fpOverflowY":"visible","fpMaxH":"none","boardOverflowY":"auto","nestedScrollers":[],"boardTop":0,"size":"medium","hintVis":false,"hintH":0,"hintHit":false,"hintTxt":"詳細往上拉看完整資料›","fpOpacity":1,"cardHit":true}
+PASS L12 webkit 393pt 展開段那一頁不是透明的:不透明度 1 且卡內容命中自己 — {"opacity":1,"命中卡":true}
+PASS L7 webkit 393pt 反向對照:回到小段提示列又出現,而且照樣命中自己 — {"size":"small","hintVis":true,"hit":true}
+PASS L8 webkit 393pt 捲到停靠表後重繪:捲動位置保留(詳細不會每 20 秒被彈回頂端) — 捲到 584 → 重繪後 584
+PASS L9 webkit 393pt 反向對照:換一站捲動歸零 — {"top":0}
+PASS L10 webkit 393pt 反向對照:關看板 ⇒ 資訊卡搬回原位且重新隱藏、提示列不留 — {"following":true,"tabSel":"","fpInSlot":false,"tcInFp":false,"tcVis":false,"intro":0,"events":0,"spark":0,"stops":0,"eventsNote":false,"stopRows":10,"stopsHidden":false,"boardScroll":0,"fpOverflowY":"auto","fpMaxH":"692.000061px","boardOverflowY":"auto","nestedScrollers":[],"boardTop":0,"size":"medium","hintVis":false,"hintH":0,"hintHit":false,"hintTxt":"","fpOpacity":1,"cardHit":false}
+PASS L11 webkit 393pt 零 pageerror
+PASS M1 webkit 393pt 正向對照:亮點面板開著,今日之最四格,而且排在最前面 — {"open":true,"n":4,"區塊順序":["今日之最","特別列車出沒中","近期活動"]}
+PASS M2 webkit 393pt 四個頭銜齊全,而且是四班不同的車 — {"頭銜":["最遠征","開最久","停最多站","平均最快"],"車次":["2","1","3132","0108"]}
+PASS M3 webkit 393pt 每一格都是觸控目標(≥44)且四格各自命中自己 — {"高度":[71,71,71,71],"命中":[true,true,true,true]}
+PASS M4 webkit 393pt 邊框卡不是實色底(樣式表宣告 1.5px、畫面上是實線邊框、背景透明) — {"宣告":"border: 1.5px solid var(--line)","用到":1.5,"線型":"solid","底色不透明度":0}
+PASS M5 webkit 393pt 兩欄不撐破面板(面板推不動、卡的右緣不出界) — {"面板橫向":{"over":0,"moved":0},"卡都在面板內":true}
+PASS M6 webkit 393pt 點第二格 ⇒ 面板收掉且跟到卡上那一班(1) — {"面板還開著":false,"跟到":"1","應該是":"1"}
+PASS M7 webkit 393pt 零 pageerror
+PASS M1 webkit 393pt xlarge 正向對照:亮點面板開著,今日之最四格,而且排在最前面 — {"open":true,"n":4,"區塊順序":["今日之最","特別列車出沒中","近期活動"]}
+PASS M2 webkit 393pt xlarge 四個頭銜齊全,而且是四班不同的車 — {"頭銜":["最遠征","開最久","停最多站","平均最快"],"車次":["2","1","3132","0108"]}
+PASS M3 webkit 393pt xlarge 每一格都是觸控目標(≥44)且四格各自命中自己 — {"高度":[88,88,88,88],"命中":[true,true,true,true]}
+PASS M4 webkit 393pt xlarge 邊框卡不是實色底(樣式表宣告 1.5px、畫面上是實線邊框、背景透明) — {"宣告":"border: 1.5px solid var(--line)","用到":1.5,"線型":"solid","底色不透明度":0}
+PASS M5 webkit 393pt xlarge 兩欄不撐破面板(面板推不動、卡的右緣不出界) — {"面板橫向":{"over":0,"moved":0},"卡都在面板內":true}
+PASS M6 webkit 393pt xlarge 點第二格 ⇒ 面板收掉且跟到卡上那一班(1) — {"面板還開著":false,"跟到":"1","應該是":"1"}
+PASS M7 webkit 393pt xlarge 零 pageerror
+PASS N1 webkit 393pt 正向對照:搜尋面板開著,輸入框 16px 起跳(iOS 聚焦不放大),空欄沒有清除鈕 — {"open":true,"字級":16,"清除鈕寬":0}
+PASS N2 webkit 393pt 未聚焦是中性框(樣式表宣告 1.5px,顏色不是藏青) — {"宣告":"border: 1.5px solid var(--line)","用到":1.5,"顏色":"rgb(201, 185, 143)"}
+PASS N3 webkit 393pt 聚焦 ⇒ 藏青框、比未聚焦粗,而且不是全域那圈紅色 outline — {"未聚焦":1.5,"聚焦":2,"顏色":"rgb(42, 74, 115)","藏青":"rgb(42, 74, 115)","outline":"none"}
+PASS N4 webkit 393pt 打字後清除鈕出現:熱區 ≥44、命中自己、貼在框內、文字讓開 — {"寬":44,"高":44,"命中":true,"在框內":true,"右內距":44}
+PASS N5 webkit 393pt 點清除 ⇒ 值清空·下拉收起·焦點留在輸入框·鈕自己消失 — {"值":"","下拉收起":true,"焦點":"trainSearch","清除鈕寬":0}
+PASS N6 webkit 393pt 反向對照:程式直接寫 value(不觸發 input 事件)⇒ 清除鈕照樣出現 — {"清除鈕寬":44,"值":"152"}
+PASS N7 webkit 393pt 查無結果時給下一步(不是只寫「查無」) — 找不到就檢查一下車次是不是今天的班次——停駛或加班車不一定在時刻表裡。
+PASS N8 webkit 393pt 零 pageerror
+PASS N1 webkit 393pt xlarge 正向對照:搜尋面板開著,輸入框 16px 起跳(iOS 聚焦不放大),空欄沒有清除鈕 — {"open":true,"字級":24,"清除鈕寬":0}
+PASS N2 webkit 393pt xlarge 未聚焦是中性框(樣式表宣告 1.5px,顏色不是藏青) — {"宣告":"border: 1.5px solid var(--line)","用到":1.5,"顏色":"rgb(201, 185, 143)"}
+PASS N3 webkit 393pt xlarge 聚焦 ⇒ 藏青框、比未聚焦粗,而且不是全域那圈紅色 outline — {"未聚焦":1.5,"聚焦":2,"顏色":"rgb(42, 74, 115)","藏青":"rgb(42, 74, 115)","outline":"none"}
+PASS N4 webkit 393pt xlarge 打字後清除鈕出現:熱區 ≥44、命中自己、貼在框內、文字讓開 — {"寬":60,"高":60,"命中":true,"在框內":true,"右內距":59.84}
+PASS N5 webkit 393pt xlarge 點清除 ⇒ 值清空·下拉收起·焦點留在輸入框·鈕自己消失 — {"值":"","下拉收起":true,"焦點":"trainSearch","清除鈕寬":0}
+PASS N6 webkit 393pt xlarge 反向對照:程式直接寫 value(不觸發 input 事件)⇒ 清除鈕照樣出現 — {"清除鈕寬":60,"值":"152"}
+PASS N7 webkit 393pt xlarge 查無結果時給下一步(不是只寫「查無」) — 找不到就檢查一下車次是不是今天的班次——停駛或加班車不一定在時刻表裡。
+PASS N8 webkit 393pt xlarge 零 pageerror
+PASS O1 webkit 393pt 正向對照:面板開著,種進去的站/車/地點三種列都在 — {"open":true,"站":5,"車":3,"地點":1,"種":{"st":5,"tr":3,"pin":1,"trNos":["2551","1217","2548"],"soon":"南科"}}
+PASS O2 webkit 393pt 標題下面是清點,而且數字＝實際筆數 — 實際「3 班車 · 5 站 · 1 個地點」應為「3 班車 · 5 站 · 1 個地點」
+PASS O3 webkit 393pt 每一列右欄都有一顆實心星:44 觸控格·真的命中自己·是 button·貼在最右 — 9 列全過(星 44×44 fill=rgb(210, 161, 42))
+PASS O4 webkit 393pt 反向對照:星是唯一的移除入口(沒有第二顆 × 也沒有編輯模式) — 另外找到 0 個移除入口
+PASS O5 webkit 393pt 每一列高 ≥44(整列都是觸控目標) — [49,49,49,49,49,49,49,49,49]
+PASS O5b webkit 393pt 星與列名在同一條水平線上(不是字在上、星掛右下) — 最大落差 0px
+PASS O6 webkit 393pt 「下一班」與車站看板是同一個時刻(走到正向那一半:有班次,要對得上) — {"name":"宜蘭","panel":"下一班 08:20","boardRows":12,"boardFirst":"08:20","boardLate":""}
+PASS O7 webkit 393pt 捷運站不猜下一班(留白,不是 0 或 --) — min=「」
+PASS O8a webkit 393pt 從看板回到最愛,四種列原封不動 — 站 5 sub「3 班車 · 5 站 · 1 個地點」
+PASS O8 webkit 393pt 真的點星 ⇒ 那一筆被移除,其他列原封不動,清點跟著減一 — 點到=true 站 5→4 sub「3 班車 · 4 站 · 1 個地點」
+PASS O9 webkit 393pt 零 pageerror
+PASS P1 webkit 393pt 正向對照:護照開著,統計列是三格(完乘/總里程/收集章) — {"seed":4,"cells":[{"k":"完乘","v":"4 趟"},{"k":"總里程","v":"1,346 km"},{"k":"收集章","v":"3 / 19"}]}
+PASS P2 webkit 393pt 完乘趟數與總里程＝種進去的資料算出來的值(含千分位) — {"趟":"4 趟","里程":"1,346 km","應為":1346}
+PASS P3 webkit 393pt 收集章 G/T:G＝畫面上真的亮著的章數,T＝章總數 — 顯示「3 / 19」 亮著的章 3 總數 19
+PASS P4 webkit 393pt 金章印取得日期,同一枚章有兩趟時取最早那天(08.02 不是 08.19) — 藍皮解憂號 章印「08.02」
+PASS P5 webkit 393pt 反向對照:沒蓋到的灰章仍寫「點我重播」(日期沒印到灰章上) — ["點我重播"]
+PASS P6 webkit 393pt 統計列沒把面板撐到可以橫捲 — scrollLeft=0
+PASS P7 webkit 393pt 反向對照:桌面護照那條路徑仍是「已收藏」(日期只給護照 sheet) — ["已收藏"]
+PASS P8 webkit 393pt 零 pageerror
+PASS Q1 webkit 393pt 正向對照:更多開得起來,動作列量得到 — {"動作列":17,"讀數列":3}
+PASS Q2 webkit 393pt 每一列前面都沒有單字圓章了 — {"選單內圓章數":0,"還帶章的列":[]}
+PASS Q3 webkit 393pt 所有動作列的標籤起點對齊,尾巴仍貼右 — {"標籤左緣":[14],"尾巴離右緣":[14]}
+PASS Q4 webkit 393pt 資料狀態列與動作列的標籤起點一致(縮排也一起拆乾淨了,現身 3 列) — {"讀數列":3,"左緣":[14],"動作列左緣":[14]}
+PASS Q5 webkit 393pt 四段分組標題都在 — ["地圖顯示","資料狀態","資訊","觀看模式","分享與資料","軌島","關於"]
+PASS Q6 webkit 393pt 反向對照:標籤裡沒有任何臨時符號 — []
+PASS Q7 webkit 393pt 每一列 ≥48 高,而且標籤區真的點得到 — []
+PASS Q8 webkit 393pt 反向對照:更新列換字換的是標籤,不是列尾的「›」 — {"chev":"›","label":"有新版可更新　9.9.9"}
+PASS Q9 webkit 393pt 零 pageerror
+PASS R1 webkit 四處共用同一條規則,宣告 1.5px dashed 且沿用專案既有的 --line-dash — border: 1.5px dashed var(--line-dash); border-radius: 10px; padding: 12px;
+PASS R2 webkit 釘選卡 空狀態量得到,而且長出虛線框 — {"style":"dashed","w":1.5,"r":10,"padL":10,"txt":"這個位置 1.5 公里內"}
+PASS R2 webkit 護照 空狀態量得到,而且長出虛線框 — {"style":"dashed","w":1.5,"r":10,"padL":12,"txt":"還沒有完乘記錄——從地圖"}
+PASS R2 webkit 看板 空狀態量得到,而且長出虛線框 — {"style":"dashed","w":1.5,"r":10,"padL":12,"txt":"此時段無停靠班次"}
+PASS R2 webkit 搜尋 空狀態量得到,而且長出虛線框 — {"style":"dashed","w":1.5,"r":10,"padL":12,"txt":"查無車站、車次或列車找不"}
+PASS R3 webkit 正向對照:看板真的挑到一個沒有班次的站 — 站=加祿
+PASS R5 webkit 三處的框都沒有貼齊容器邊緣(左右各 ≥8px) — {"釘選卡":{"l":12,"r":12},"看板":{"l":16,"r":16},"搜尋":{"l":12,"r":12}}
+PASS R4 webkit 反向對照:看板有班次時沒有空狀態框,班次列也沒被套上四邊框 — {"rows":12,"em":0,"rowCs":"none"}
+PASS R6 webkit 零 pageerror
+PASS S1 webkit 393pt 反向對照:沒開落釘模式時提示條不存在於畫面上 — {"hidden":true,"rects":0,"drop":false}
+PASS S2 webkit 393pt 開了模式就有常駐提示,整條在視窗內 — {"shown":true,"inView":true,"w":377}
+PASS S3 webkit 393pt 說明講明白「點地圖」與「不會收起面板」這個 1a 的例外 — 落釘模式進行中點地圖任一處查附近火車，拖曳釘子可微調；此時點空白處不會收起面板。
+PASS S4 webkit 393pt 出口鈕 ≥44 而且命中自己(沒被別的東西蓋住) — {"w":54,"h":44,"hit":true}
+PASS S5 webkit 393pt 提示條沒有壓到頂列或分頁列 — {"頂列":false,"分頁列":false}
+PASS S6 webkit 393pt 落釘之後卡接手、提示條讓位(同一個槽位不重疊) — {"card":true,"hint":false,"drop":true}
+PASS S7 webkit 393pt 收掉卡之後提示條回來(模式還開著) — {"hint":true,"drop":true}
+PASS S8 webkit 393pt 點「結束」真的退出落釘模式(旗標、地圖游標、鈕的標籤全部跟著回去) — {"drop":false,"hidden":true,"cursor":"","btn":"儲存"}
+PASS S9 webkit 393pt 零 pageerror
+PASS S1 webkit 1280pt 反向對照:沒開落釘模式時提示條不存在於畫面上 — {"hidden":true,"rects":0,"drop":false}
+PASS S2 webkit 1280pt 開了模式就有常駐提示,整條在視窗內 — {"shown":true,"inView":true,"w":264}
+PASS S3 webkit 1280pt 說明講明白「點地圖」與「不會收起面板」這個 1a 的例外 — 落釘模式進行中點地圖任一處查附近火車，拖曳釘子可微調；此時點空白處不會收起面板。
+PASS S4 webkit 1280pt 出口鈕 ≥44 而且命中自己(沒被別的東西蓋住) — {"w":54,"h":44,"hit":true}
+PASS S5 webkit 1280pt 提示條沒有壓到頂列或分頁列 — {"頂列":false,"分頁列":false}
+PASS S6 webkit 1280pt 落釘之後卡接手、提示條讓位(同一個槽位不重疊) — {"card":true,"hint":false,"drop":true}
+PASS S7 webkit 1280pt 收掉卡之後提示條回來(模式還開著) — {"hint":true,"drop":true}
+PASS S8 webkit 1280pt 點「結束」真的退出落釘模式(旗標、地圖游標、鈕的標籤全部跟著回去) — {"drop":false,"hidden":true,"cursor":"","btn":"儲存"}
+PASS S9 webkit 1280pt 零 pageerror
+PASS T1 webkit 正向對照:量得到車種 chip — chip=30
+PASS T2 webkit 開著的圓點是實心(背景就是車種色,沒有框) — {"txt":"其他","bg":"rgb(142, 68, 173)","bw":0,"bc":"rgb(58, 50, 38)","deco":"none","w":9}
+PASS T3 webkit 關掉之後圓點變空心(背景透明、框線有寬度) — {"txt":"其他","bg":"rgba(0, 0, 0, 0)","bw":1.5,"bc":"rgb(142, 68, 173)","deco":"none","w":9}
+PASS T4 webkit 🔴 車種色沒有被狀態吃掉:關閉態的框線色逐字等於開啟態的背景色 — {"開啟背景":"rgb(142, 68, 173)","關閉框線":"rgb(142, 68, 173)","同一顆":true}
+PASS T5 webkit 關掉之後沒有刪除線(刪除線的語意是「沒了」,這裡只是「暫時不看」) — none
+PASS T6 webkit 圓點沒有因為多了框而變大(全域 box-sizing 有吃到) — 開 9 / 關 9
+PASS T7 webkit 點下去真的切到篩選(可見車種 −1、關閉數 +1) — {"before":{"vis":10,"cnt":0},"after":{"vis":9,"cnt":1}}
+PASS T8 webkit 零 pageerror
+PASS U1 webkit/light 正向對照:流量圖有顯示、有資料 — {"hidden":false,"bins":144,"max":186}
+PASS U2 webkit/light 當下那根是不透明的印章紅 — {"nowBin":107,"px":[210,60,42,255]}
+PASS U3 webkit/light 其餘的柱是藏青【半透明】(alpha 明顯低於飽和) — [42,75,115,140]
+PASS U4 webkit/light 🔴 兩者不同色(不是整排同色再疊東西上去) — {"當下":[210,60,42,255],"其餘":[42,75,115,140]}
+PASS U5 webkit/light 柱色不再是寫死的 #8fa8c6(143,168,198) — [42,75,115,140]
+PASS U6 webkit/light 🔴 深夜柱高趨近 0 時「現在」仍找得到(上半部有貫穿的紅) — {"barH":0.5,"redPxUpperHalf":228}
+PASS U7 webkit/light 點圖表仍會跳到該時刻(mode=sched) — {"mode":"sched","before":12600,"after":43234.810636583396,"moved":true}
+PASS U11 webkit/light 整點刻度與紙底有對比(暗色不能沿用亮色的奶油色,也不能低到看不見) — {"tick":[201,185,143,255],"paper":[255,253,246],"d":68}
+PASS U8 webkit/light 零 pageerror
+PASS U1 webkit/dark 正向對照:流量圖有顯示、有資料 — {"hidden":false,"bins":144,"max":186}
+PASS U2 webkit/dark 當下那根是不透明的印章紅 — {"nowBin":107,"px":[255,123,103,255]}
+PASS U3 webkit/dark 其餘的柱是藏青【半透明】(alpha 明顯低於飽和) — [128,166,224,140]
+PASS U4 webkit/dark 🔴 兩者不同色(不是整排同色再疊東西上去) — {"當下":[255,123,103,255],"其餘":[128,166,224,140]}
+PASS U5 webkit/dark 柱色不再是寫死的 #8fa8c6(143,168,198) — [128,166,224,140]
+PASS U6 webkit/dark 🔴 深夜柱高趨近 0 時「現在」仍找得到(上半部有貫穿的紅) — {"barH":0.5,"redPxUpperHalf":228}
+PASS U7 webkit/dark 點圖表仍會跳到該時刻(mode=sched) — {"mode":"sched","before":12600,"after":43234.810636583396,"moved":true}
+PASS U11 webkit/dark 整點刻度與紙底有對比(暗色不能沿用亮色的奶油色,也不能低到看不見) — {"tick":[114,134,168,255],"paper":[20,29,49],"d":104}
+PASS U8 webkit/dark 零 pageerror
+PASS U9 webkit 🔴 兩個主題畫出來的柱色【真的不同】(色票有跟著主題翻面) — {"亮":[42,75,115,140],"暗":[128,166,224,140]}
+PASS U10 webkit 🔴 兩個主題的「當下」色也不同 — {"亮":[210,60,42,255],"暗":[255,123,103,255]}
+FAIL V1 webkit/1280 正向對照:古亭看板有列可量(深夜收班會紅,那是環境) — []
+FAIL V2 webkit/1280 轉乘站長出 ≥2 個組標題 — []
+FAIL V3 webkit/1280 🔴 每個標題底下的列都真的屬於那條線(用色點驗,標題沒配錯組) — []
+FAIL V4 webkit/1280 🔴 兩個分支收成一個「中和新蘆線」標題(不切成兩條線、括號有去掉) — {"O標題":[],"全部標題":[]}
+PASS V4b webkit/1280 標題字兩兩不重複 — []
+FAIL V14 webkit/1280 🔴 有標題時,列上不再重複標題那串線名 — []
+FAIL V15 webkit/1280 🔴 分支字樣只在目的地沒講過時出現(不結巴,也不把分支資訊弄丟) — []
+PASS V16 webkit/1280 線名空掉時沒有在車輛標籤前留下全形空白 — []
+FAIL V5 webkit/1280 🔴 色點逐字等於該線的官方線色(不是「有顏色就好」) — []
+FAIL V6 webkit/1280 第一組沒有上分隔線、之後每組都有;組內第一列不再畫列間分隔 — []
+PASS V7 webkit/1280 標題與列都沒有溢出視窗 — {"winW":1280,"標題右緣":[]}
+FAIL V12 webkit/1280 標題字比列小(組標題是層級,不是又一列) — []
+FAIL V13 webkit/1280 標題色點是圓角方塊、列的是圓——兩者形狀分得開 — []
+FAIL V✱ webkit 該段執行時拋例外(視同不通過) — Error: page.evaluate: TypeError: null is not an object (evaluating 'g.dispatchEvent')
+PASS W1 webkit/393 兩顆入口都在,且【JS 壞掉時仍退回原本的 GitHub 連結】(href 沒被拿掉) — {"n":2,"hrefs":["https://github.com/siriushsu/taiwan-rail-live/issues/new"]}
+PASS W2 webkit/393 點入口開的是站內表單(不是直接跳走),四個類型齊、恰一個選中 — {"open":true,"kinds":["位置不對","時刻不對","畫面壞了","建議"],"checked":1,"rows":["版本","畫面","視角","跟隨中","瀏覽器"]}
+PASS W3 webkit/393 診斷資訊【逐項攤開在畫面上】 — ["版本","畫面","視角","跟隨中","瀏覽器"]
+PASS W4 webkit/393 🔴 輸入框恰為 16px(iOS 對更小的輸入框聚焦會放大整頁且退不回來) — {"fs":16,"mono":"ui-monospace, SFMono-Regular, Menlo, monospace"}
+PASS W5 webkit/393 診斷欄位用等寬字 — ui-monospace, SFMono-Regular, Menlo, monospace
+PASS W6 webkit/393 沒寫說明時擋住(空的回報幫不上忙) — true
+PASS W7 webkit/393 寫了說明就放行,網址是 GitHub 新 issue 且帶著標題與內文 — {"title":"[位置不對] 文湖線的車停在忠孝復興沒動","dis":false}
+PASS W8 webkit/393 換問題類型,標題跟著換 — [畫面壞了] 文湖線的車停在忠孝復興沒動
+PASS W9 webkit/393 🔴 關掉某一項,它【真的從送出的網址裡消失】(不是只把畫面變灰) — {"關掉":"瀏覽器","關前有":true,"關後有":false}
+PASS W10 webkit/393 🔴 網址裡的每一個值都是畫面上攤開過的那一份(沒有夾帶沒顯示的東西) — {"shown":["v0826b","全台同框 · 02:49（現在） · 36×","23.7753, 121.4154 · z7","未跟隨任何列車"],"vals":["v0826b","全台同框 · 02:49（現在） · 36×","23.7753, 121.4154 · z7","未跟隨任何列車"]}
+PASS W11 webkit/393 🔴 對話框在 body 層;開著時連 tabbar 的位置都吃得到點擊(scrim 不是虛設) — {"host":"BODY","tabbar":true,"hit":"reportModal","inModal":true,"dialogInView":true}
+PASS W11b webkit/393 對話框整個在視窗內(底部沒被切掉) — {"host":"BODY","tabbar":true,"hit":"reportModal","inModal":true,"dialogInView":true}
+PASS W12 webkit/393 Esc 關得掉 — true
+PASS W14 webkit/393 🔴 送出鍵與並排的「取消」在字級/字重/高度/圓角上一致(<a> 不吃 button 的 UA 樣式) — {"go":{"fs":"11px","fw":"800","r":"7px","h":44},"cancel":{"fs":"11px","fw":"800","r":"7px","h":44}}
+PASS W15 webkit/393 🔴 真的按下去會開一個分頁,而且它請求的就是那條 GitHub 新 issue 網址 — https://github.com/siriushsu/taiwan-rail-live/issues/new?title=%5B%E7%95%AB%E9%9D%A2%E5%A3%9E%E4%BA%86%5D%20%E
+PASS W13 webkit/393 零 pageerror
+PASS W1 webkit/1280 兩顆入口都在,且【JS 壞掉時仍退回原本的 GitHub 連結】(href 沒被拿掉) — {"n":2,"hrefs":["https://github.com/siriushsu/taiwan-rail-live/issues/new"]}
+PASS W2 webkit/1280 點入口開的是站內表單(不是直接跳走),四個類型齊、恰一個選中 — {"open":true,"kinds":["位置不對","時刻不對","畫面壞了","建議"],"checked":1,"rows":["版本","畫面","視角","跟隨中","瀏覽器"]}
+PASS W3 webkit/1280 診斷資訊【逐項攤開在畫面上】 — ["版本","畫面","視角","跟隨中","瀏覽器"]
+PASS W4 webkit/1280 🔴 輸入框恰為 16px(iOS 對更小的輸入框聚焦會放大整頁且退不回來) — {"fs":16,"mono":"ui-monospace, SFMono-Regular, Menlo, monospace"}
+PASS W5 webkit/1280 診斷欄位用等寬字 — ui-monospace, SFMono-Regular, Menlo, monospace
+PASS W6 webkit/1280 沒寫說明時擋住(空的回報幫不上忙) — true
+PASS W7 webkit/1280 寫了說明就放行,網址是 GitHub 新 issue 且帶著標題與內文 — {"title":"[位置不對] 文湖線的車停在忠孝復興沒動","dis":false}
+PASS W8 webkit/1280 換問題類型,標題跟著換 — [畫面壞了] 文湖線的車停在忠孝復興沒動
+PASS W9 webkit/1280 🔴 關掉某一項,它【真的從送出的網址裡消失】(不是只把畫面變灰) — {"關掉":"瀏覽器","關前有":true,"關後有":false}
+PASS W10 webkit/1280 🔴 網址裡的每一個值都是畫面上攤開過的那一份(沒有夾帶沒顯示的東西) — {"shown":["v0826b","全台同框 · 02:49（現在） · 36×","23.7424, 120.9749 · z7","未跟隨任何列車"],"vals":["v0826b","全台同框 · 02:49（現在） · 36×","23.7424, 120.9749 · z7","未跟隨任何列車"]}
+PASS W11 webkit/1280 🔴 對話框在 body 層;開著時連 tabbar 的位置都吃得到點擊(scrim 不是虛設) — {"host":"BODY","tabbar":false,"hit":"rp-field","inModal":true,"dialogInView":true}
+PASS W11b webkit/1280 對話框整個在視窗內(底部沒被切掉) — {"host":"BODY","tabbar":false,"hit":"rp-field","inModal":true,"dialogInView":true}
+PASS W12 webkit/1280 Esc 關得掉 — true
+PASS W14 webkit/1280 🔴 送出鍵與並排的「取消」在字級/字重/高度/圓角上一致(<a> 不吃 button 的 UA 樣式) — {"go":{"fs":"11px","fw":"800","r":"7px","h":44},"cancel":{"fs":"11px","fw":"800","r":"7px","h":44}}
+PASS W15 webkit/1280 🔴 真的按下去會開一個分頁,而且它請求的就是那條 GitHub 新 issue 網址 — https://github.com/siriushsu/taiwan-rail-live/issues/new?title=%5B%E7%95%AB%E9%9D%A2%E5%A3%9E%E4%BA%86%5D%20%E
+PASS W13 webkit/1280 零 pageerror
+PASS X1 webkit 360pt std 正向對照:頂列與隨機跟隨鈕都真的量得到(不是靠沒渲染騙過相交判準) — {"頂列高":42,"隨機鈕高":44,"列車":0,"tbh":"42.0px"}
+PASS X2 webkit 360pt std 🔴 頂列與地圖動作列相交面積 = 0 — {"相交":0,"頂列底":50,"動作列頂":100}
+PASS X3 webkit 360pt std 🔴 沒有任何一顆群組分頁被隨機跟隨鈕蓋到 — 最嚴重的是「全」相交 0px²
+PASS X4 webkit 360pt std 🔴 上錨元件的 top 全部不高於頂列底緣(整族掃,不只今天壞的那個) — 7 個全過(頂列底 50)
+PASS X5 webkit 360pt std 結構性:上錨元件的 top 不得是 JS 寫死的絕對 px(安全區晚注入會對不上) — 零個
+PASS X6 webkit 360pt std 零 pageerror — 無
+PASS X1 webkit 393pt std 正向對照:頂列與隨機跟隨鈕都真的量得到(不是靠沒渲染騙過相交判準) — {"頂列高":42,"隨機鈕高":44,"列車":0,"tbh":"42.0px"}
+PASS X2 webkit 393pt std 🔴 頂列與地圖動作列相交面積 = 0 — {"相交":0,"頂列底":50,"動作列頂":100}
+PASS X3 webkit 393pt std 🔴 沒有任何一顆群組分頁被隨機跟隨鈕蓋到 — 最嚴重的是「全」相交 0px²
+PASS X4 webkit 393pt std 🔴 上錨元件的 top 全部不高於頂列底緣(整族掃,不只今天壞的那個) — 7 個全過(頂列底 50)
+PASS X5 webkit 393pt std 結構性:上錨元件的 top 不得是 JS 寫死的絕對 px(安全區晚注入會對不上) — 零個
+PASS X6 webkit 393pt std 零 pageerror — 無
+PASS X1 webkit 414pt std 正向對照:頂列與隨機跟隨鈕都真的量得到(不是靠沒渲染騙過相交判準) — {"頂列高":42,"隨機鈕高":44,"列車":0,"tbh":"42.0px"}
+PASS X2 webkit 414pt std 🔴 頂列與地圖動作列相交面積 = 0 — {"相交":0,"頂列底":50,"動作列頂":100}
+PASS X3 webkit 414pt std 🔴 沒有任何一顆群組分頁被隨機跟隨鈕蓋到 — 最嚴重的是「全」相交 0px²
+PASS X4 webkit 414pt std 🔴 上錨元件的 top 全部不高於頂列底緣(整族掃,不只今天壞的那個) — 7 個全過(頂列底 50)
+PASS X5 webkit 414pt std 結構性:上錨元件的 top 不得是 JS 寫死的絕對 px(安全區晚注入會對不上) — 零個
+PASS X6 webkit 414pt std 零 pageerror — 無
+PASS X1 webkit 360pt large 正向對照:頂列與隨機跟隨鈕都真的量得到(不是靠沒渲染騙過相交判準) — {"頂列高":104,"隨機鈕高":44,"列車":0,"tbh":"104.1px"}
+PASS X2 webkit 360pt large 🔴 頂列與地圖動作列相交面積 = 0 — {"相交":0,"頂列底":112,"動作列頂":162}
+PASS X3 webkit 360pt large 🔴 沒有任何一顆群組分頁被隨機跟隨鈕蓋到 — 最嚴重的是「全」相交 0px²
+PASS X4 webkit 360pt large 🔴 上錨元件的 top 全部不高於頂列底緣(整族掃,不只今天壞的那個) — 7 個全過(頂列底 112)
+PASS X5 webkit 360pt large 結構性:上錨元件的 top 不得是 JS 寫死的絕對 px(安全區晚注入會對不上) — 零個
+PASS X6 webkit 360pt large 零 pageerror — 無
+PASS X1 webkit 393pt large 正向對照:頂列與隨機跟隨鈕都真的量得到(不是靠沒渲染騙過相交判準) — {"頂列高":104,"隨機鈕高":44,"列車":0,"tbh":"104.1px"}
+PASS X2 webkit 393pt large 🔴 頂列與地圖動作列相交面積 = 0 — {"相交":0,"頂列底":112,"動作列頂":162}
+PASS X3 webkit 393pt large 🔴 沒有任何一顆群組分頁被隨機跟隨鈕蓋到 — 最嚴重的是「全」相交 0px²
+PASS X4 webkit 393pt large 🔴 上錨元件的 top 全部不高於頂列底緣(整族掃,不只今天壞的那個) — 7 個全過(頂列底 112)
+PASS X5 webkit 393pt large 結構性:上錨元件的 top 不得是 JS 寫死的絕對 px(安全區晚注入會對不上) — 零個
+PASS X6 webkit 393pt large 零 pageerror — 無
+PASS X1 webkit 414pt large 正向對照:頂列與隨機跟隨鈕都真的量得到(不是靠沒渲染騙過相交判準) — {"頂列高":104,"隨機鈕高":44,"列車":0,"tbh":"104.1px"}
+PASS X2 webkit 414pt large 🔴 頂列與地圖動作列相交面積 = 0 — {"相交":0,"頂列底":112,"動作列頂":162}
+PASS X3 webkit 414pt large 🔴 沒有任何一顆群組分頁被隨機跟隨鈕蓋到 — 最嚴重的是「全」相交 0px²
+PASS X4 webkit 414pt large 🔴 上錨元件的 top 全部不高於頂列底緣(整族掃,不只今天壞的那個) — 7 個全過(頂列底 112)
+PASS X5 webkit 414pt large 結構性:上錨元件的 top 不得是 JS 寫死的絕對 px(安全區晚注入會對不上) — 零個
+PASS X6 webkit 414pt large 零 pageerror — 無
+PASS X1 webkit 360pt xlarge 正向對照:頂列與隨機跟隨鈕都真的量得到(不是靠沒渲染騙過相交判準) — {"頂列高":119,"隨機鈕高":44,"列車":0,"tbh":"119.2px"}
+PASS X2 webkit 360pt xlarge 🔴 頂列與地圖動作列相交面積 = 0 — {"相交":0,"頂列底":127,"動作列頂":177}
+PASS X3 webkit 360pt xlarge 🔴 沒有任何一顆群組分頁被隨機跟隨鈕蓋到 — 最嚴重的是「全」相交 0px²
+PASS X4 webkit 360pt xlarge 🔴 上錨元件的 top 全部不高於頂列底緣(整族掃,不只今天壞的那個) — 7 個全過(頂列底 127)
+PASS X5 webkit 360pt xlarge 結構性:上錨元件的 top 不得是 JS 寫死的絕對 px(安全區晚注入會對不上) — 零個
+PASS X6 webkit 360pt xlarge 零 pageerror — 無
+PASS X1 webkit 393pt xlarge 正向對照:頂列與隨機跟隨鈕都真的量得到(不是靠沒渲染騙過相交判準) — {"頂列高":119,"隨機鈕高":44,"列車":0,"tbh":"119.2px"}
+PASS X2 webkit 393pt xlarge 🔴 頂列與地圖動作列相交面積 = 0 — {"相交":0,"頂列底":127,"動作列頂":177}
+PASS X3 webkit 393pt xlarge 🔴 沒有任何一顆群組分頁被隨機跟隨鈕蓋到 — 最嚴重的是「全」相交 0px²
+PASS X4 webkit 393pt xlarge 🔴 上錨元件的 top 全部不高於頂列底緣(整族掃,不只今天壞的那個) — 7 個全過(頂列底 127)
+PASS X5 webkit 393pt xlarge 結構性:上錨元件的 top 不得是 JS 寫死的絕對 px(安全區晚注入會對不上) — 零個
+PASS X6 webkit 393pt xlarge 零 pageerror — 無
+PASS X1 webkit 414pt xlarge 正向對照:頂列與隨機跟隨鈕都真的量得到(不是靠沒渲染騙過相交判準) — {"頂列高":119,"隨機鈕高":44,"列車":0,"tbh":"119.2px"}
+PASS X2 webkit 414pt xlarge 🔴 頂列與地圖動作列相交面積 = 0 — {"相交":0,"頂列底":127,"動作列頂":177}
+PASS X3 webkit 414pt xlarge 🔴 沒有任何一顆群組分頁被隨機跟隨鈕蓋到 — 最嚴重的是「全」相交 0px²
+PASS X4 webkit 414pt xlarge 🔴 上錨元件的 top 全部不高於頂列底緣(整族掃,不只今天壞的那個) — 7 個全過(頂列底 127)
+PASS X5 webkit 414pt xlarge 結構性:上錨元件的 top 不得是 JS 寫死的絕對 px(安全區晚注入會對不上) — 零個
+PASS X6 webkit 414pt xlarge 零 pageerror — 無
+PASS Y1 webkit freq 正向對照:真的點一顆車站 ⇒ 看板打得開 — 點「動物園」→ 看板 開(動物園)
+PASS Y2 webkit freq 結構前提:找得到一個真的空白的點(離最近站>60px、無車牌、最上層是地圖) — (26,180) 離最近站 196px,命中 leaflet-gl-layer maplibregl-map
+PASS Y3 webkit freq 看板開著時點地圖空白處 ⇒ 看板收掉 — 點空白前 開 → 點空白後 關(boardStation=null)
+PASS Y4 webkit freq 反向對照:收掉之後再點同一顆站,看板重新開得起來(沒把地圖點擊弄壞) — 重點「動物園」→ 開(動物園)
+PASS Y5 webkit freq 零 pageerror — 無
+PASS Y1 webkit sched 正向對照:真的點一顆車站 ⇒ 看板打得開 — 點「新竹」→ 看板 開(新竹)
+PASS Y2 webkit sched 結構前提:找得到一個真的空白的點(離最近站>60px、無車牌、最上層是地圖) — (26,180) 離最近站 227px,命中 leaflet-gl-layer maplibregl-map
+PASS Y3 webkit sched 看板開著時點地圖空白處 ⇒ 看板收掉 — 點空白前 開 → 點空白後 關(boardStation=null)
+PASS Y4 webkit sched 反向對照:收掉之後再點同一顆站,看板重新開得起來(沒把地圖點擊弄壞) — 重點「新竹」→ 開(新竹)
+PASS Y5 webkit sched 零 pageerror — 無
+PASS Z1 webkit std 看板 ✕／☆ 命中框 ≥44×44 — {"close":{"w":44,"h":44,"x":339,"y":535.5,"cx":361,"cy":557.5},"star":{"w":44,"h":44,"x":295,"y":538.4,"cx":317,"cy":560.4}}
+PASS Z2 webkit std 看板標題列各鈕命中框互不重疊 — 重疊 0 px²
+PASS Z3 webkit std ✕ 命中框中心＋四角都命中 ✕ 本身 — ["ok","ok","ok","ok","ok"]
+PASS Z4 webkit std 真按 ☆:最愛翻轉且看板沒關(✕ 的正向對照) — {"favBefore":false,"favAfter":true,"hidden":false}
+PASS Z5 webkit std 真按 ✕:看板關掉 — {"hidden":true}
+PASS Z6 webkit std 無 pageerror
+PASS Z1 webkit large 看板 ✕／☆ 命中框 ≥44×44 — {"close":{"w":44,"h":44,"x":339,"y":526.1,"cx":361,"cy":548.1},"star":{"w":44,"h":44,"x":295,"y":529,"cx":317,"cy":551}}
+PASS Z2 webkit large 看板標題列各鈕命中框互不重疊 — 重疊 0 px²
+PASS Z3 webkit large ✕ 命中框中心＋四角都命中 ✕ 本身 — ["ok","ok","ok","ok","ok"]
+PASS Z4 webkit large 真按 ☆:最愛翻轉且看板沒關(✕ 的正向對照) — {"favBefore":false,"favAfter":true,"hidden":false}
+PASS Z5 webkit large 真按 ✕:看板關掉 — {"hidden":true}
+PASS Z6 webkit large 無 pageerror
+PASS Z1 webkit xlarge 看板 ✕／☆ 命中框 ≥44×44 — {"close":{"w":44,"h":44,"x":339,"y":516.8,"cx":361,"cy":538.8},"star":{"w":44,"h":44,"x":295,"y":519.7,"cx":317,"cy":541.7}}
+PASS Z2 webkit xlarge 看板標題列各鈕命中框互不重疊 — 重疊 0 px²
+PASS Z3 webkit xlarge ✕ 命中框中心＋四角都命中 ✕ 本身 — ["ok","ok","ok","ok","ok"]
+PASS Z4 webkit xlarge 真按 ☆:最愛翻轉且看板沒關(✕ 的正向對照) — {"favBefore":false,"favAfter":true,"hidden":false}
+PASS Z5 webkit xlarge 真按 ✕:看板關掉 — {"hidden":true}
+PASS Z6 webkit xlarge 無 pageerror
+PASS webkit Z7 前置·三顆鈕真的都在(鈴鐺靠原生旗標) — {"notify":{"w":44,"h":44,"x":251,"y":519.7,"cx":273,"cy":541.7}}
+PASS webkit Z7 三顆鈕都 ≥44×44 — {"close":{"w":44,"h":44,"x":339,"y":516.8,"cx":361,"cy":538.8},"star":{"w":44,"h":44,"x":295,"y":519.7,"cx":317,"cy":541.7},"notify":{"w":44,"h":44,"x":251,"y":519.7,"cx":273,"cy":541.7}}
+PASS webkit Z7 三顆鈕兩兩不重疊 — ✕☆ 0 ／ ☆🔔 0 ／ ✕🔔 0 px²
+PASS webkit Z7 長站名＋三顆鈕標題列沒有被擠到換行 — 兩顆 45 → 三顆 45
+PASS webkit Z7 無 pageerror
+PASS SP1 webkit std/LIVE 前置·強制新鮮後徽章自己就寫「LIVE」 — {"txt":"LIVE","hidden":false,"title":"台鐵即時誤點已套用(每分鐘更新)· 3 班誤點中 · 來源 09:00"}
+PASS SP2 webkit std/LIVE 真的點徽章(在 topbar)就開卡,五個取樣點都看得見 — {"vis":true,"hits":["ok","ok","ok","ok","ok"],"rect":{"l":60,"t":58,"w":300,"h":210.2},"inView":true}
+PASS SP2b webkit std/LIVE 卡完整落在視窗內 — {"l":60,"t":58,"w":300,"h":210.2}
+PASS SP3 webkit std/LIVE 「即時資料」那列逐字等於徽章的字 — {"live":{"k":"live","lab":"即時資料","val":"LIVE"},"badge":"LIVE"}
+PASS SP4 webkit std/LIVE 燈號的「為什麼」(title 原文)出現在卡上 — {"title":"台鐵即時誤點已套用(每分鐘更新)· 3 班誤點中 · 來源 09:00","why":"即時資料:台鐵即時誤點已套用(每分鐘更新)· 3 班誤點中 · 來源 09:00捷運看板:尚未取得北捷即時名冊，或時鐘已離開「現在」，目前使用班表備案"}
+PASS SP5 webkit std/LIVE 徽章看得見的燈全部有列(3/3) — {"燈":["liveBadge","metroBadge","count"],"有列":["liveBadge","metroBadge","count"],"列":["live","metro","count"]}
+PASS SP6 webkit std/LIVE aria-expanded 開著時是 true — true
+PASS SP7 webkit std/LIVE Esc 收得掉且 aria 跟著回 false — {"hidden":true,"aria":"false"}
+PASS SP1 webkit std/非即時 前置·強制不新鮮後徽章自己就寫「非即時」 — {"txt":"非即時","hidden":false,"title":"台鐵誤點目前非即時:依 09:00 的即時資料投射 · 3 班誤點中 · 資料已 10 分鐘未更新"}
+PASS SP2 webkit std/非即時 真的點徽章(在 topbar)就開卡,五個取樣點都看得見 — {"vis":true,"hits":["ok","ok","ok","ok","ok"],"rect":{"l":60,"t":58,"w":300,"h":210.2},"inView":true}
+PASS SP2b webkit std/非即時 卡完整落在視窗內 — {"l":60,"t":58,"w":300,"h":210.2}
+PASS SP3 webkit std/非即時 「即時資料」那列逐字等於徽章的字 — {"live":{"k":"live","lab":"即時資料","val":"非即時"},"badge":"非即時"}
+PASS SP4 webkit std/非即時 燈號的「為什麼」(title 原文)出現在卡上 — {"title":"台鐵誤點目前非即時:依 09:00 的即時資料投射 · 3 班誤點中 · 資料已 10 分鐘未更新","why":"即時資料:台鐵誤點目前非即時:依 09:00 的即時資料投射 · 3 班誤點中 · 資料已 10 分鐘未更新捷運看板:尚未取得北捷即時名冊，或時鐘已離開「現在」，目前使用班表備案"}
+PASS SP5 webkit std/非即時 徽章看得見的燈全部有列(3/3) — {"燈":["liveBadge","metroBadge","count"],"有列":["liveBadge","metroBadge","count"],"列":["live","metro","count"]}
+PASS SP6 webkit std/非即時 aria-expanded 開著時是 true — true
+PASS SP7 webkit std/非即時 Esc 收得掉且 aria 跟著回 false — {"hidden":true,"aria":"false"}
+PASS SP8 webkit std 反向對照:只改新鮮度 ⇒ 即時那列變了,其餘列一字不差 — {"live":["live=LIVE","live=非即時"],"其餘":[["metro=班表備案・非即時","metro=班表備案・非即時"],["count=2 班奔跑中","count=2 班奔跑中"]]}
+PASS SP9 webkit std 反向對照:「為什麼」也跟著換(不是印死的同一段) — {"a":"即時資料:台鐵即時誤點已套用(每分鐘更新)· 3 班誤點中 · 來源 09:00捷運看板:尚未取得北捷即時名冊，或時鐘已","b":"即時資料:台鐵誤點目前非即時:依 09:00 的即時資料投射 · 3 班誤點中 · 資料已 10 分鐘未更新捷運看板:尚"}
+PASS SP10 webkit std 關閉鈕熱區 ≥44×44 — {"w":44,"h":44,"cx":335.5,"cy":79.5}
+PASS SP10b webkit std 熱區下緣(離視覺圓心 18px)仍命中關閉鈕 — statPopClose
+PASS SP11 webkit std 按 ✕ 收得掉
+PASS SP12 webkit std 前置·再點一次徽章又開起來
+PASS SP13 webkit std 開著時燈號變了,卡不用重開就跟著換 — {"before":"LIVE","after":"非即時","open":true}
+PASS SP14 webkit std 點卡外任一處就收 — [196.5,418.1875]
+PASS SP15 webkit std 零 pageerror
+PASS SP1 webkit large/LIVE 前置·強制新鮮後徽章自己就寫「LIVE」 — {"txt":"LIVE","hidden":false,"title":"台鐵即時誤點已套用(每分鐘更新)· 3 班誤點中 · 來源 09:00"}
+PASS SP2 webkit large/LIVE 真的點徽章(在 topbar)就開卡,五個取樣點都看得見 — {"vis":true,"hits":["ok","ok","ok","ok","ok"],"rect":{"l":10,"t":120.1,"w":300,"h":228.7},"inView":true}
+PASS SP2b webkit large/LIVE 卡完整落在視窗內 — {"l":10,"t":120.1,"w":300,"h":228.7}
+PASS SP3 webkit large/LIVE 「即時資料」那列逐字等於徽章的字 — {"live":{"k":"live","lab":"即時資料","val":"LIVE"},"badge":"LIVE"}
+PASS SP4 webkit large/LIVE 燈號的「為什麼」(title 原文)出現在卡上 — {"title":"台鐵即時誤點已套用(每分鐘更新)· 3 班誤點中 · 來源 09:00","why":"即時資料:台鐵即時誤點已套用(每分鐘更新)· 3 班誤點中 · 來源 09:00捷運看板:尚未取得北捷即時名冊，或時鐘已離開「現在」，目前使用班表備案"}
+PASS SP5 webkit large/LIVE 徽章看得見的燈全部有列(3/3) — {"燈":["liveBadge","metroBadge","count"],"有列":["liveBadge","metroBadge","count"],"列":["live","metro","count"]}
+PASS SP6 webkit large/LIVE aria-expanded 開著時是 true — true
+PASS SP7 webkit large/LIVE Esc 收得掉且 aria 跟著回 false — {"hidden":true,"aria":"false"}
+PASS SP1 webkit large/非即時 前置·強制不新鮮後徽章自己就寫「非即時」 — {"txt":"非即時","hidden":false,"title":"台鐵誤點目前非即時:依 09:00 的即時資料投射 · 3 班誤點中 · 資料已 10 分鐘未更新"}
+PASS SP2 webkit large/非即時 真的點徽章(在 topbar)就開卡,五個取樣點都看得見 — {"vis":true,"hits":["ok","ok","ok","ok","ok"],"rect":{"l":10,"t":120.1,"w":300,"h":228.7},"inView":true}
+PASS SP2b webkit large/非即時 卡完整落在視窗內 — {"l":10,"t":120.1,"w":300,"h":228.7}
+PASS SP3 webkit large/非即時 「即時資料」那列逐字等於徽章的字 — {"live":{"k":"live","lab":"即時資料","val":"非即時"},"badge":"非即時"}
+PASS SP4 webkit large/非即時 燈號的「為什麼」(title 原文)出現在卡上 — {"title":"台鐵誤點目前非即時:依 09:00 的即時資料投射 · 3 班誤點中 · 資料已 10 分鐘未更新","why":"即時資料:台鐵誤點目前非即時:依 09:00 的即時資料投射 · 3 班誤點中 · 資料已 10 分鐘未更新捷運看板:尚未取得北捷即時名冊，或時鐘已離開「現在」，目前使用班表備案"}
+PASS SP5 webkit large/非即時 徽章看得見的燈全部有列(3/3) — {"燈":["liveBadge","metroBadge","count"],"有列":["liveBadge","metroBadge","count"],"列":["live","metro","count"]}
+PASS SP6 webkit large/非即時 aria-expanded 開著時是 true — true
+PASS SP7 webkit large/非即時 Esc 收得掉且 aria 跟著回 false — {"hidden":true,"aria":"false"}
+PASS SP8 webkit large 反向對照:只改新鮮度 ⇒ 即時那列變了,其餘列一字不差 — {"live":["live=LIVE","live=非即時"],"其餘":[["metro=班表備案・非即時","metro=班表備案・非即時"],["count=2 班奔跑中","count=2 班奔跑中"]]}
+PASS SP9 webkit large 反向對照:「為什麼」也跟著換(不是印死的同一段) — {"a":"即時資料:台鐵即時誤點已套用(每分鐘更新)· 3 班誤點中 · 來源 09:00捷運看板:尚未取得北捷即時名冊，或時鐘已","b":"即時資料:台鐵誤點目前非即時:依 09:00 的即時資料投射 · 3 班誤點中 · 資料已 10 分鐘未更新捷運看板:尚"}
+PASS SP10 webkit large 關閉鈕熱區 ≥44×44 — {"w":44,"h":44,"cx":285.5,"cy":141.59375}
+PASS SP10b webkit large 熱區下緣(離視覺圓心 18px)仍命中關閉鈕 — statPopClose
+PASS SP11 webkit large 按 ✕ 收得掉
+PASS SP12 webkit large 前置·再點一次徽章又開起來
+PASS SP13 webkit large 開著時燈號變了,卡不用重開就跟著換 — {"before":"LIVE","after":"非即時","open":true}
+PASS SP14 webkit large 點卡外任一處就收 — [196.5,498.78125]
+PASS SP15 webkit large 零 pageerror
+
+=== 1058/1080 通過 ===
+  FAIL V1 chromium/1280 正向對照:古亭看板有列可量(深夜收班會紅,那是環境)
+  FAIL V2 chromium/1280 轉乘站長出 ≥2 個組標題
+  FAIL V3 chromium/1280 🔴 每個標題底下的列都真的屬於那條線(用色點驗,標題沒配錯組)
+  FAIL V4 chromium/1280 🔴 兩個分支收成一個「中和新蘆線」標題(不切成兩條線、括號有去掉)
+  FAIL V14 chromium/1280 🔴 有標題時,列上不再重複標題那串線名
+  FAIL V15 chromium/1280 🔴 分支字樣只在目的地沒講過時出現(不結巴,也不把分支資訊弄丟)
+  FAIL V5 chromium/1280 🔴 色點逐字等於該線的官方線色(不是「有顏色就好」)
+  FAIL V6 chromium/1280 第一組沒有上分隔線、之後每組都有;組內第一列不再畫列間分隔
+  FAIL V12 chromium/1280 標題字比列小(組標題是層級,不是又一列)
+  FAIL V13 chromium/1280 標題色點是圓角方塊、列的是圓——兩者形狀分得開
+  FAIL V✱ chromium 該段執行時拋例外(視同不通過)
+  FAIL V1 webkit/1280 正向對照:古亭看板有列可量(深夜收班會紅,那是環境)
+  FAIL V2 webkit/1280 轉乘站長出 ≥2 個組標題
+  FAIL V3 webkit/1280 🔴 每個標題底下的列都真的屬於那條線(用色點驗,標題沒配錯組)
+  FAIL V4 webkit/1280 🔴 兩個分支收成一個「中和新蘆線」標題(不切成兩條線、括號有去掉)
+  FAIL V14 webkit/1280 🔴 有標題時,列上不再重複標題那串線名
+  FAIL V15 webkit/1280 🔴 分支字樣只在目的地沒講過時出現(不結巴,也不把分支資訊弄丟)
+  FAIL V5 webkit/1280 🔴 色點逐字等於該線的官方線色(不是「有顏色就好」)
+  FAIL V6 webkit/1280 第一組沒有上分隔線、之後每組都有;組內第一列不再畫列間分隔
+  FAIL V12 webkit/1280 標題字比列小(組標題是層級,不是又一列)
+  FAIL V13 webkit/1280 標題色點是圓角方塊、列的是圓——兩者形狀分得開
+  FAIL V✱ webkit 該段執行時拋例外(視同不通過)

@@ -25,6 +25,7 @@ const WORKER = path.join(ROOT, 'worker.js');
 const WRANGLER = path.join(ROOT, 'wrangler.jsonc');
 const RELEASE = path.join(ROOT, 'app/scripts/verify-release.mjs');
 const PREPARE = path.join(ROOT, 'app/scripts/prepare-web.mjs');
+const INDEX = path.join(ROOT, 'index.html');
 console.log(`[G0] ROOT=${ROOT}`);
 console.log(`[G0] worker.js md5=${md5(WORKER)}`);
 console.log(`[G0] wrangler.jsonc md5=${md5(WRANGLER)}`);
@@ -34,7 +35,7 @@ console.log(`[G0] app/scripts/prepare-web.mjs md5=${md5(PREPARE)}`);
 const workerModule = await import('../worker.js');
 const { _plus } = workerModule;
 const worker = workerModule.default;
-const { assertPlusSandboxOff, assertPlusSandboxTestBuild } = await import('../app/scripts/verify-release.mjs');
+const { assertPlusSandboxOff, assertPlusSandboxTestBuild, assertAndroidPlusReleaseConfig } = await import('../app/scripts/verify-release.mjs');
 const { checkPlusEntitlement, plusStatus, resolveRcNextPage, rcSubscriptionsPageError,
   subscriptionMatchesPlus, plusEntitlementDocument } = _plus;
 
@@ -88,7 +89,8 @@ globalThis.fetch = async (url) => {
 };
 
 const ENV = (over = {}) => ({
-  FIREBASE_WEB_API_KEY: 'k', REVENUECAT_PROJECT_ID: 'proj_x', REVENUECAT_V2_SECRET_KEY: 'sk_x', ...over,
+  FIREBASE_WEB_API_KEY: 'k', REVENUECAT_PROJECT_ID: 'proj_x', REVENUECAT_V2_SECRET_KEY: 'sk_x',
+  REVENUECAT_SANDBOX_ALLOWED_UIDS: 'uid-under-test', ...over,
 });
 const req = (sandboxBuild = '') => new Request('https://railisland.tw/api/plus-status', {
   headers: {
@@ -139,6 +141,18 @@ section(SECTIONS[0]);
   const wrongBuild = await run({ body: { items: [SANDBOX_SUB] }, request: req('20') });
   check(wrongBuild.ok === false && wrongBuild.status === 403,
     '未核准的 build 20 即使自帶 Sandbox header 仍無資格', JSON.stringify(wrongBuild));
+
+  const android16 = await run({ body: { items: [SANDBOX_SUB] }, request: req('16') });
+  check(android16.ok === true && android16.entitlementEnvironment === 'sandbox',
+    'Android build 16＋Firebase UID 命中 Worker allowlist＋真正 Sandbox subscription ⇒ 取得測試資格',
+    JSON.stringify(android16));
+
+  const android16NotAllowed = await run({
+    body: { items: [SANDBOX_SUB] }, request: req('16'), env: ENV({ REVENUECAT_SANDBOX_ALLOWED_UIDS: 'somebody-else' })
+  });
+  check(android16NotAllowed.ok === false && android16NotAllowed.status === 403,
+    'Android build 16 的 Firebase UID 未命中 Worker allowlist ⇒ 即使有 Sandbox subscription 也不放行',
+    JSON.stringify(android16NotAllowed));
 
   const testflight = await run({ body: { items: [SANDBOX_SUB] }, request: req('21') });
   const testflightRc = upstream.filter(u => u.includes('api.revenuecat.com'));
@@ -391,6 +405,36 @@ section(SECTIONS[6]);
   check(/window\.RAIL_PLUS_SANDBOX_OK=\$\{plusSandboxOk\}/.test(prepareSrc)
     && /process\.env\.RAIL_PLUS_SANDBOX_OK\s*===\s*'1'/.test(prepareSrc),
     'prepare-web.mjs 真的在注入同一個變數名，且值來自建置期環境變數（不是頁面上可改的東西）');
+
+  const indexSrc = readFileSync(INDEX, 'utf8');
+  const androidDisabled = '<script>window.RAIL_ANDROID_PLUS_ENABLED=false;window.RAIL_ANDROID_PLUS_SANDBOX_POLICY=null;window.RAIL_ANDROID_PLUS_SANDBOX_BUILD=null</script>' + indexSrc;
+  let androidDisabledMsg = null;
+  try { assertAndroidPlusReleaseConfig(androidDisabled, '16'); } catch (e) { androidDisabledMsg = e.message; }
+  check(androidDisabledMsg === null,
+    'Android Plus 明確關閉＋policy/build 都是 null ⇒ 發版設定閘門放行免費版本', String(androidDisabledMsg));
+
+  const androidEnabled = '<script>window.RAIL_METRO_CORE_ENABLED=true;window.RAIL_ANDROID_PLUS_ENABLED=true;window.RAIL_ANDROID_PLUS_SANDBOX_POLICY="revenuecat-allowlist";window.RAIL_ANDROID_PLUS_SANDBOX_BUILD="16";window.RAIL_REVENUECAT_CONFIG={androidApiKey:"goog_PUBLIC123"}</script>' + indexSrc;
+  let androidEnabledMsg = null;
+  try { assertAndroidPlusReleaseConfig(androidEnabled, '16'); } catch (e) { androidEnabledMsg = e.message; }
+  check(androidEnabledMsg === null,
+    'Android Plus 開啟＋goog_ public key＋allowlist policy＋build 16 ⇒ 發版設定閘門放行', String(androidEnabledMsg));
+
+  const androidMissingKey = androidEnabled.replace(';window.RAIL_REVENUECAT_CONFIG={androidApiKey:"goog_PUBLIC123"}', '');
+  let androidMissingKeyMsg = null;
+  try { assertAndroidPlusReleaseConfig(androidMissingKey, '16'); } catch (e) { androidMissingKeyMsg = e.message; }
+  check(typeof androidMissingKeyMsg === 'string' && /public SDK key/.test(androidMissingKeyMsg),
+    'Android Plus 開啟但缺 goog_ public key ⇒ 擋下', String(androidMissingKeyMsg));
+
+  const androidMetroCoreOff = androidEnabled.replace('window.RAIL_METRO_CORE_ENABLED=true', 'window.RAIL_METRO_CORE_ENABLED=false');
+  let androidMetroCoreOffMsg = null;
+  try { assertAndroidPlusReleaseConfig(androidMetroCoreOff, '16'); } catch (e) { androidMetroCoreOffMsg = e.message; }
+  check(typeof androidMetroCoreOffMsg === 'string' && /Metro Core/.test(androidMetroCoreOffMsg),
+    'Android Plus 開啟但 Metro Core 關閉 ⇒ 擋下', String(androidMetroCoreOffMsg));
+
+  let androidWrongBuildMsg = null;
+  try { assertAndroidPlusReleaseConfig(androidEnabled, '17'); } catch (e) { androidWrongBuildMsg = e.message; }
+  check(typeof androidWrongBuildMsg === 'string' && /versionCode=17/.test(androidWrongBuildMsg),
+    'Android Sandbox build 與 versionCode 不一致 ⇒ 擋下', String(androidWrongBuildMsg));
 }
 
 // ── 8. 分頁：limit 上限、跟 next_page 直到找到或翻完、翻頁上限的安全方向（F-1）；

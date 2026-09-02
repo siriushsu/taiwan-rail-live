@@ -98,7 +98,13 @@ public final class RailLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
             do {
                 let act = try Activity.request(
                     attributes: attrs,
-                    content: .init(state: st, staleDate: Date().addingTimeInterval(8 * 3600)),
+                    // 🔴 staleDate 綁在【這一份內容的到站時刻】上,不是寫死的 8 小時:
+                    //    卡片交班給伺服器之後就沒有本機 update,而伺服器「四個量都沒變就不推」
+                    //    ⇒ 準點車可以整段零推播。到站時刻過去而沒有新推播時,ActivityKit 靠這個
+                    //    日期把 isStale 翻成 true 並【觸發一次重繪】——那正是「0 秒／行駛中」
+                    //    這種凍住畫面唯一能自己脫困的路徑(視圖端的過期判斷要重繪才生效,
+                    //    而零推播正好就是不會重繪)。算不出 ETA 時退回 8 小時的孤兒兜底。
+                    content: .init(state: st, staleDate: RailFollowStale.date(arrival: st.arrivalDate)),
                     pushType: .token          // 🔴 少了這個參數就拿不到 token,卡片只能靠前景更新
                 )
                 self.current = act
@@ -131,7 +137,9 @@ public final class RailLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
             guard let act = self.current as? Activity<RailFollowAttributes> else {
                 call.resolve(["ok": false, "why": "noactivity"]); return
             }
-            await act.update(.init(state: next, staleDate: Date().addingTimeInterval(8 * 3600)))
+            // staleDate 每一發都要重算(理由見 start 那側)。前景更新期間它會被一路往後推,
+            // 只有「停止更新」之後才真的走到期——這正是要量的那件事。
+            await act.update(.init(state: next, staleDate: RailFollowStale.date(arrival: next.arrivalDate)))
             call.resolve(["ok": true])
         }
     }

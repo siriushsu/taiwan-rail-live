@@ -1,5 +1,5 @@
 {
-  "updated": "2026-08-27",
+  "updated": "2026-09-02",
   "events": [
     {
       "id": "trtc-20260811-pokemon10",
@@ -71,6 +71,148 @@
       "endGuess": true,
       "anchor": { "kind": "system", "sys": "tymc" },
       "url": "https://www.tymetro.com.tw/tymetro-new/tw/_pages/news/show-2411-1.html"
+    },
+    {
+      "id": "trtc-20260827-netzero-carnival",
+      "source": "official",
+      "title": "淨零新生活親子嘉年華",
+      "note": "兒童新樂園七大關卡闖關換限量小植栽，YOYO 家族柳丁哥哥、草莓姊姊到場；劍潭站出口 3 轉公車可到",
+      "start": "2026-08-30",
+      "end": "2026-08-30",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "劍潭" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=84D0B630B0B03877"
+    },
+    {
+      "id": "trtc-20260827-guangci-market-0830",
+      "source": "official",
+      "title": "廣慈/奉天宮站通車限定市集",
+      "note": "1 號出口 B1 連通道層的輕食與文創手作攤位，14 時到 20 時",
+      "start": "2026-08-30",
+      "end": "2026-08-30",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "廣慈/奉天宮" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=CB42925269CE131D"
+    },
+    {
+      "id": "trtc-20260827-guangci-market-0905",
+      "source": "official",
+      "title": "廣慈/奉天宮站通車限定市集",
+      "note": "1 號出口 B1 連通道層的輕食與文創手作攤位，14 時到 20 時",
+      "start": "2026-09-05",
+      "end": "2026-09-05",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "廣慈/奉天宮" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=CB42925269CE131D"
+    },
+    {
+      "id": "trtc-20260827-guangci-market-0906",
+      "source": "official",
+      "title": "廣慈/奉天宮站通車限定市集",
+      "note": "1 號出口 B1 連通道層的輕食與文創手作攤位，14 時到 20 時",
+      "start": "2026-09-06",
+      "end": "2026-09-06",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "廣慈/奉天宮" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=CB42925269CE131D"
+    },
+    {
+      "id": "trtc-20260829-guangci-concert-0830",
+      "source": "official",
+      "title": "廣慈/奉天宮站通車音樂會",
+      "note": "站內大廳公共藝術區，通車當天 14 時 15 分至 17 時，長笛姐姐樂團、臺北市名聲樂團、天韻樂團接力演出",
+      "start": "2026-08-30",
+      "end": "2026-08-30",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "廣慈/奉天宮" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=196975BB815C087E"
+    },
+    {
+      "id": "trtc-20260829-guangci-concert-0905",
+      "source": "official",
+      "title": "廣慈/奉天宮站通車音樂會",
+      "note": "站內大廳公共藝術區，14 時 15 分起，臺灣拉丁重擊樂團；特別嘉賓臺北市名聲樂團",
+      "start": "2026-09-05",
+      "end": "2026-09-05",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "廣慈/奉天宮" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=196975BB815C087E"
+    },
+    {
+      "id": "trtc-20260829-guangci-concert-0912",
+      "source": "official",
+      "title": "廣慈/奉天宮站通車音樂會",
+      "note": "站內大廳公共藝術區，14 時 15 分起，凱爵 Kai Jazz 紐奧良爵士；特別嘉賓臺北市名聲樂團",
+      "start": "2026-09-12",
+      "end": "2026-09-12",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "廣慈/奉天宮" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=196975BB815C087E"
+    },
+    {
+      "id": "trtc-20260829-guangci-concert-0919",
+      "source": "official",
+      "title": "廣慈/奉天宮站通車音樂會",
+      "note": "站內大廳公共藝術區，14 時 15 分起，雨帆藝術結合傳統國樂與現代音樂；特別嘉賓臺北市名聲樂團",
+      "start": "2026-09-19",
+      "end": "2026-09-19",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "廣慈/奉天宮" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=196975BB815C087E"
+    },
+    {
+      "id": "trtc-20260828-nakasi-0829",
+      "source": "official",
+      "title": "捷運那卡西－潮．月琴",
+      "note": "「北投-新北投」列車上現場彈唱，14 時至 16 時；月琴民謠與跨界演出",
+      "start": "2026-08-29",
+      "end": "2026-08-29",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "新北投" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=723174E51435D719"
+    },
+    {
+      "id": "trtc-20260828-nakasi-0830",
+      "source": "official",
+      "title": "捷運那卡西－潮．月琴",
+      "note": "「北投-新北投」列車上現場彈唱，14 時至 16 時；月琴民謠與跨界演出",
+      "start": "2026-08-30",
+      "end": "2026-08-30",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "新北投" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=723174E51435D719"
+    },
+    {
+      "id": "trtc-20260828-nakasi-0905",
+      "source": "official",
+      "title": "捷運那卡西－潮．月琴",
+      "note": "「北投-新北投」列車上現場彈唱，14 時至 16 時；月琴民謠與跨界演出",
+      "start": "2026-09-05",
+      "end": "2026-09-05",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "新北投" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=723174E51435D719"
+    },
+    {
+      "id": "trtc-20260828-nakasi-0906",
+      "source": "official",
+      "title": "捷運那卡西－潮．月琴",
+      "note": "「北投-新北投」列車上現場彈唱，14 時至 16 時；月琴民謠與跨界演出",
+      "start": "2026-09-06",
+      "end": "2026-09-06",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "新北投" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=723174E51435D719"
+    },
+    {
+      "id": "afr-20260901-guaiguai-beimen",
+      "source": "official",
+      "title": "阿里山林鐵×乖乖 藍莓優格米乖乖",
+      "note": "百年 Shay21 號蒸汽火車聯名限量零食，北門車站可買，全臺限量 25,200 包",
+      "start": "2026-09-01",
+      "end": "2026-12-31",
+      "endGuess": true,
+      "anchor": { "kind": "station", "sys": "afr_sched", "name": "北門" },
+      "url": "https://afrch.forest.gov.tw/AllNews/0079128"
+    },
+    {
+      "id": "afr-20260901-guaiguai-alishan",
+      "source": "official",
+      "title": "阿里山林鐵×乖乖 藍莓優格米乖乖",
+      "note": "百年 Shay21 號蒸汽火車聯名限量零食，阿里山車站 1F 旅客服務中心可買",
+      "start": "2026-09-01",
+      "end": "2026-12-31",
+      "endGuess": true,
+      "anchor": { "kind": "station", "sys": "afr_sched", "name": "阿里山" },
+      "url": "https://afrch.forest.gov.tw/AllNews/0079128"
     }
   ]
 }

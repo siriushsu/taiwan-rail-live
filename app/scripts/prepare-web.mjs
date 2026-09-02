@@ -9,21 +9,68 @@ const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '..');
 const repoRoot = resolve(appRoot, '..');
 const out = join(appRoot, 'www');
+// 隔離 worktree 不會自動帶入 gitignored .env；允許出包端明確指向同一份本機祕密檔，
+// 檔案內容仍不複製、不寫入產物或版控。未設定時維持既有 repo 根 .env 行為。
+const envFile = process.env.RAIL_ENV_FILE ? resolve(process.env.RAIL_ENV_FILE) : join(repoRoot, '.env');
 const includeLicensedMusic = process.env.RAIL_INCLUDE_LICENSED_MUSIC === '1';
 const includeLicensedBasemaps = process.env.RAIL_INCLUDE_LICENSED_BASEMAPS === '1';
 // Metro Core 的公開 client 已隨 index.html 打包；這顆旗標只決定是否切到 Private Worker snapshot。
 // 首次切換仍要出一顆 App build，此後模型更新只動 Worker，不必再改 App。
 const enableMetroCore = process.env.RAIL_ENABLE_METRO_CORE === '1';
 
+// Android 通行證採「明確開啟才存在」：沒有 public SDK key、Sandbox build 或後台 allowlist
+// 任一項時都拒絕產出付費版，避免再次得到「看得到入口但買不到」的半套 AAB。
+// RevenueCat 的 goog_ key 是可放在 App 端的 public SDK key；sk_ 類 secret 絕不可進 bundle。
+const androidPlusEnabled = process.env.RAIL_ANDROID_PLUS_ENABLED === '1';
+
+async function readOptionalEnv(name) {
+  const direct = String(process.env[name] || '').trim();
+  if (direct) return direct;
+  try {
+    const source = await readFile(envFile, 'utf8');
+    const line = source.split(/\r?\n/).find(candidate => new RegExp(`^\\s*(?:export\\s+)?${name}\\s*=`).test(candidate));
+    if (!line) return '';
+    let value = line.slice(line.indexOf('=') + 1).trim();
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1);
+    return value.trim();
+  } catch { return ''; }
+}
+
+const androidRevenueCatApiKey = androidPlusEnabled
+  ? await readOptionalEnv('RAIL_REVENUECAT_ANDROID_API_KEY') : '';
+const androidPlusSandboxPolicy = String(process.env.RAIL_ANDROID_PLUS_SANDBOX_POLICY || '').trim();
+const androidPlusSandboxBuild = String(process.env.RAIL_ANDROID_PLUS_SANDBOX_BUILD || '').trim();
+if (androidPlusEnabled) {
+  if (!/^goog_[A-Za-z0-9]+$/.test(androidRevenueCatApiKey)) {
+    throw new Error('RAIL_ANDROID_PLUS_ENABLED=1 時必須提供 RevenueCat Android public SDK key（RAIL_REVENUECAT_ANDROID_API_KEY，格式 goog_…）；sk_ secret 絕不可放進 App');
+  }
+  if (!enableMetroCore) {
+    throw new Error('Android 通行證版必須同時設定 RAIL_ENABLE_METRO_CORE=1；拒絕產出退回舊捷運位置模型的 AAB');
+  }
+  if (androidPlusSandboxPolicy !== 'revenuecat-allowlist') {
+    throw new Error('Android 通行證正式包必須設定 RAIL_ANDROID_PLUS_SANDBOX_POLICY=revenuecat-allowlist，並先在 RevenueCat 與 Worker 限定測試 UID');
+  }
+  if (!/^[1-9]\d*$/.test(androidPlusSandboxBuild)) {
+    throw new Error('Android 通行證正式包必須設定正整數 RAIL_ANDROID_PLUS_SANDBOX_BUILD，讓同一顆 Play AAB 能在 UID allowlist 內驗收測試購買');
+  }
+  const androidGradle = await readFile(join(appRoot, 'android/app/build.gradle'), 'utf8');
+  const versionCode = /\bversionCode\s+(\d+)/.exec(androidGradle)?.[1] || '';
+  if (versionCode !== androidPlusSandboxBuild) {
+    throw new Error(`RAIL_ANDROID_PLUS_SANDBOX_BUILD=${androidPlusSandboxBuild} 與 Android versionCode=${versionCode || '找不到'} 不一致`);
+  }
+} else if (androidPlusSandboxPolicy || androidPlusSandboxBuild) {
+  throw new Error('RAIL_ANDROID_PLUS_ENABLED 未開啟，卻留下 Android Sandbox policy/build；拒絕產出含糊的半啟用版本');
+}
+
 async function readRequiredEnv(name) {
   let source;
-  try { source = await readFile(join(repoRoot, '.env'), 'utf8'); }
-  catch { throw new Error(`建立含授權底圖的 App 前，repo 根目錄 .env 必須設定 ${name}`); }
+  try { source = await readFile(envFile, 'utf8'); }
+  catch { throw new Error(`建立含授權底圖的 App 前，建置用 .env 必須設定 ${name}`); }
   const line = source.split(/\r?\n/).find(candidate => new RegExp(`^\\s*(?:export\\s+)?${name}\\s*=`).test(candidate));
-  if (!line) throw new Error(`建立含授權底圖的 App 前，repo 根目錄 .env 必須設定 ${name}`);
+  if (!line) throw new Error(`建立含授權底圖的 App 前，建置用 .env 必須設定 ${name}`);
   let value = line.slice(line.indexOf('=') + 1).trim();
   if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1);
-  if (!value) throw new Error(`repo 根目錄 .env 的 ${name} 不可為空`);
+  if (!value) throw new Error(`建置用 .env 的 ${name} 不可為空`);
   return value;
 }
 
@@ -105,6 +152,9 @@ for (const file of [
   'favicon-16.png', 'favicon-32.png', 'favicon-48.png', 'favicon-192.png', 'favicon-512.png',
   'apple-touch-180.png', 'icon-maskable-512.png', 'og-1200x630.png'
 ]) await copyFile(file);
+// i18n 是首頁 runtime 的必要靜態資產，不是只供網站維護的資料。漏掉時 App 仍能啟動，
+// 語言按鈕也會改變 html lang，但英／日字典 404 後所有文字都安全 fallback 回繁中，
+// 真機看起來就像按鈕完全失效。與 assets/data 一樣只複製 git 已追蹤檔案。
 for (const dir of ['assets', 'data', 'i18n']) await copyTree(dir);
 // place_index.json 是本次 build 現場產物，尚未 git add 時不會通過 copyTree 的「只收 tracked」
 // 閘門；明確單檔複製，不放寬其他未追蹤資料進 bundle。
@@ -243,9 +293,11 @@ const plusSandboxBuild = String(process.env.RAIL_PLUS_SANDBOX_BUILD || '');
 if (plusSandboxOk && !/^[1-9]\d*$/.test(plusSandboxBuild)) {
   throw new Error('RAIL_PLUS_SANDBOX_OK=1 時必須同時提供正整數 RAIL_PLUS_SANDBOX_BUILD，讓 Worker 能把測試通道限縮到指定 build');
 }
-// App 版本號:直接讀 pbxproj 的 MARKETING_VERSION——那是真正會被打進這顆 build 的值。
-// 刻意不讀 set-release-mode.mjs 的 MODES 表:那只是「打算寫成什麼」,有人手改 pbxproj 時兩者會不一致。
-// App 與 widget 兩個 target 的值必須相同,不同就是版號沒推乾淨,當場擋下。
+// App 版本號:iOS 預設直接讀 pbxproj 的 MARKETING_VERSION——那是真正會被打進這顆 build 的值。
+// Android 的 Play 版號獨立遞增；Android-only 修正版可明確傳 RAIL_APP_VERSION_OVERRIDE，
+// 讓內建更新提示與 Gradle versionName 一致，而不必為了 Android 動到 iOS 專案版號。
+// 刻意不讀 set-release-mode.mjs 的 MODES 表:那只是「打算寫成什麼」,有人手改原生設定時兩者會不一致。
+// 沒有 override 時，App 與 widget 兩個 iOS target 的值必須相同,不同就是版號沒推乾淨,當場擋下。
 // 🔴 無條件注入,不可放進下面 appConfig 的三元——那個物件只在授權底圖 build 才有,
 // 而安全 build 是受支援的產出模式(verify-release 還斷言安全 build 裡不存在 RAIL_APP_CONFIG),
 // 放錯地方＝安全 build 出來的 App 版本提示與評分整套靜默消失。
@@ -253,16 +305,29 @@ const pbxSrc = await readFile(join(appRoot, 'ios/App/App.xcodeproj/project.pbxpr
 const pbxVers = [...new Set([...pbxSrc.matchAll(/MARKETING_VERSION = ([^;]+);/g)].map(m => m[1].trim()))];
 if (pbxVers.length !== 1) throw new Error(`pbxproj 的 MARKETING_VERSION 不唯一：${pbxVers.join(' / ')}`);
 if (!/^\d+(\.\d+)*$/.test(pbxVers[0])) throw new Error(`MARKETING_VERSION 格式無法解析：${pbxVers[0]}`);
-const appVersion = pbxVers[0];
+const appVersionOverride = String(process.env.RAIL_APP_VERSION_OVERRIDE || '').trim();
+if (appVersionOverride && !/^\d+(\.\d+)*$/.test(appVersionOverride)) {
+  throw new Error(`RAIL_APP_VERSION_OVERRIDE 格式無法解析：${appVersionOverride}`);
+}
+const appVersion = appVersionOverride || pbxVers[0];
 // 本版「更新了什麼」內建文案(set-release-mode 把發行模式的 why 經 RAIL_WHATS_NEW 傳進來)。
 // 為什麼要內建:App 內那張卡原本抓 iTunes lookup 的 releaseNotes——那是【線上版】的文,
 // 剛裝的版比線上新時(每次送審前必然)彈到的是上一版內容(1.4.9 build 74 實踩)。
 // 沒給就注入空字串:相關 UI 整組不出現,不炸開機。
 const whatsNew = typeof process.env.RAIL_WHATS_NEW === 'string' ? process.env.RAIL_WHATS_NEW.trim() : '';
+// 英日各自的整段文案。刻意做成【兩個獨立字串】而不是一個物件:verify-release 既有的
+// gate 用一條已驗證的 regex 解析 RAIL_APP_WHATS_NEW,同一條形狀可以原樣複用兩次,
+// 不必為了新欄位去改那條擋過真事故(1.4.9 build 74)的 gate。
+const whatsNewEn = typeof process.env.RAIL_WHATS_NEW_EN === 'string' ? process.env.RAIL_WHATS_NEW_EN.trim() : '';
+const whatsNewJa = typeof process.env.RAIL_WHATS_NEW_JA === 'string' ? process.env.RAIL_WHATS_NEW_JA.trim() : '';
+
+const androidPlusConfigInjection = androidPlusEnabled
+  ? `;window.RAIL_REVENUECAT_CONFIG={...(window.RAIL_REVENUECAT_CONFIG||{}),androidApiKey:${JSON.stringify(androidRevenueCatApiKey)}}`
+  : '';
 
 html = html
   .replace('<span class="ver" id="buildVer"></span>', '<a href="third-party-notices.txt" target="_blank" rel="noopener" style="min-height:44px;display:inline-flex;align-items:center;padding:0 4px">第三方軟體授權</a>\n      <span class="ver" id="buildVer"></span>')
-  .replace('<script src="revenuecat-config.js"></script>', `<script src="revenuecat-config.js"></script>\n<script>window.RAIL_MUSIC_AVAILABLE=${includeLicensedMusic};window.RAIL_ONLINE_BASEMAPS_AVAILABLE=${includeLicensedBasemaps};window.RAIL_METRO_CORE_ENABLED=${enableMetroCore};window.RAIL_APP_VERSION=${JSON.stringify(appVersion)};window.RAIL_APP_WHATS_NEW=${JSON.stringify(whatsNew)};window.RAIL_PLUS_SANDBOX_OK=${plusSandboxOk};window.RAIL_PLUS_SANDBOX_BUILD=${plusSandboxOk ? JSON.stringify(plusSandboxBuild) : 'null'}${appConfig ? `;window.RAIL_APP_CONFIG=${JSON.stringify(appConfig)}` : ''}</script>\n<script src="native-bridge.js"></script>`);
+  .replace('<script src="revenuecat-config.js"></script>', `<script src="revenuecat-config.js"></script>\n<script>window.RAIL_MUSIC_AVAILABLE=${includeLicensedMusic};window.RAIL_ONLINE_BASEMAPS_AVAILABLE=${includeLicensedBasemaps};window.RAIL_METRO_CORE_ENABLED=${enableMetroCore};window.RAIL_APP_VERSION=${JSON.stringify(appVersion)};window.RAIL_APP_WHATS_NEW=${JSON.stringify(whatsNew)};window.RAIL_APP_WHATS_NEW_EN=${JSON.stringify(whatsNewEn)};window.RAIL_APP_WHATS_NEW_JA=${JSON.stringify(whatsNewJa)};window.RAIL_PLUS_SANDBOX_OK=${plusSandboxOk};window.RAIL_PLUS_SANDBOX_BUILD=${plusSandboxOk ? JSON.stringify(plusSandboxBuild) : 'null'};window.RAIL_ANDROID_PLUS_ENABLED=${androidPlusEnabled};window.RAIL_ANDROID_PLUS_SANDBOX_POLICY=${androidPlusEnabled ? JSON.stringify(androidPlusSandboxPolicy) : 'null'};window.RAIL_ANDROID_PLUS_SANDBOX_BUILD=${androidPlusEnabled ? JSON.stringify(androidPlusSandboxBuild) : 'null'}${androidPlusConfigInjection}${appConfig ? `;window.RAIL_APP_CONFIG=${JSON.stringify(appConfig)}` : ''}</script>\n<script src="native-bridge.js"></script>`);
 if (!html.includes('vendor/leaflet/leaflet.js') || !html.includes('native-bridge.js')) throw new Error('App index vendor/native bridge injection failed');
 if (/ko-fi|PayPal|111010691056|web-only-donation-log|贊助方式更新/i.test(html) || html.includes('id="donateCopy"') || html.includes('class="foot-box foot-donate"')) throw new Error('External donation content leaked into native App');
 if (/cartocdn\.com|arcgisonline\.com/i.test(html)) throw new Error('App index still contains unlicensed CARTO/Esri tile URLs');

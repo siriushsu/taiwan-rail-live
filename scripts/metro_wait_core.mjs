@@ -71,7 +71,11 @@ export function mwTrtcRows(board, station, dest, nowSec) {
     if (!group) byDir.set(dirKey, group = []);
     // at 一併帶出來:它是上游自己的資料時刻(NowDateTime),ContentState.dataAt 要用它,
     // 不可以用我方的 now——那是「我什麼時候算的」不是「這批資料多新」。
-    group.push({ dest: rowDest, eta: Math.round(eta), at: Math.round(at) });
+    // no 一併帶出來:擁擠度是逐車 join 的鍵(mwCrowdByNo)。看板列自己的車號才是它自己那台車,
+    // 用終點當鍵會讓同終點的每一列拿到同一台車的值(2026-08-29 忠孝復興實測:文湖線那列
+    // 長出板南線的 6 格,而文湖線只有 4 節)。index.html metroWaitTrtcBundle 逐字同一件事。
+    group.push({ dest: rowDest, eta: Math.round(eta), at: Math.round(at),
+      no: String((row && row.no) || '').trim() });
   }
   const out = [];
   for (const group of byDir.values()) {
@@ -109,16 +113,20 @@ export function mwLiveRows(rows, station, dest) {
   return { rows: out, serviceOver: atStation > 0 && over === atStation };
 }
 
-// 車廂擁擠度:同終點、有 cars 的第一台。index.html:16561-16569 的 crowdByDest 逐字同一套 join
+// 車廂擁擠度:【逐車號】join。index.html applyTrtcOfficialBoard 的 crowdByNo 逐字同一套
 // (那裡的註解寫死「兩個介面看到的必須是同一份,改 join 要兩邊一起改」——這裡是第三個介面)。
-export function mwCrowdByDest(trains) {
+// 🔴 2026-08-29 之前這裡的鍵是【終點】,與看板/小工具同一套錯:同終點的每一列都拿到「第一台
+//    有 cars 的車」的值。忠孝復興往南港展覽館有文湖線與板南線兩列,文湖線那列(4 節車廂)因此
+//    長出板南線那台的 6 格。正式站實測 306 列只有 56 列兩代一致,鎖屏卡片吃的是同一份。
+//    對不到自己那台車就留白——不拿別台頂替(「不畫假資料、不猜」)。
+export function mwCrowdByNo(trains) {
   const out = {};
   for (const t of Array.isArray(trains) ? trains : []) {
-    const dest = t && typeof t.dest === 'string' ? t.dest : '';
-    if (!dest || out[dest]) continue;
+    const no = String((t && t.no) || '').trim();
+    if (!no || out[no]) continue;
     const cars = t && t.cars;
     if (Array.isArray(cars) && cars.length && cars.every(v => Number.isFinite(Number(v)))) {
-      out[dest] = cars.map(Number);
+      out[no] = cars.map(Number);
     }
   }
   return out;
@@ -129,10 +137,12 @@ export function mwCrowdByDest(trains) {
 // app/ios/App/App/MetroWaitAttributes.swift 的 ContentState。
 // 精度誠實(index.html:18806 的鐵則):北捷只送 nextEta/secondEta(絕對 epoch 秒),
 // 分鐘級系統只送 nextMinutes/secondMinutes,絕不把分鐘換算成 eta。
-export function mwContentState(sys, rows, crowdByDest, dataAt) {
+export function mwContentState(sys, rows, crowdByNo, dataAt) {
   const isTrtc = sys === 'trtc';
   const a = rows[0] || null, b = rows[1] || null;
-  const crowd = isTrtc && a && crowdByDest ? (crowdByDest[a.dest] || null) : null;
+  // 鍵是這一列自己的官方車號;沒有車號(文湖線恆無)或對不到就留白,不退回終點比對。
+  const crowdKey = String((a && a.no) || '').trim();
+  const crowd = isTrtc && crowdKey && crowdByNo ? (crowdByNo[crowdKey] || null) : null;
   return {
     nextEta: isTrtc && a ? a.eta : null,
     nextMinutes: !isTrtc && a ? a.minutes : null,

@@ -8,9 +8,13 @@ import {
 import { reduceOfficialRosterSelfHealing } from './scripts/trtc_official_roster.mjs';
 import { laNextIdx, laObsIdx, laSchedIdx, laArrivalEpoch, laStaleDate, laJwt, laJwtReset } from './scripts/la_push_core.mjs';
 import {
-  mwTrtcRows, mwLiveRows, mwCrowdByDest, mwContentState, mwStaleDate, mwShouldPush, mwTrtcDataAt,
+  mwTrtcRows, mwLiveRows, mwCrowdByNo, mwContentState, mwStaleDate, mwShouldPush, mwTrtcDataAt,
   MW_LIVE_MAX_AGE_SEC,
 } from './scripts/metro_wait_core.mjs';
+import {
+  twDelayFor, twEtaSec, twContentState, twShouldPush, twShouldEnd, twNextEndAt,
+  TW_MAX_TRACK_SEC,
+} from './scripts/tra_wait_core.mjs';
 
 // Cloudflare Worker 入口:靜態資產(assets binding)+ /api/tra-live 台鐵即時動態代理
 // + /api/tra-alert 台鐵營運通阻公告 + /api/thsr-alert 高鐵營運狀態公告(颱風停駛等)
@@ -107,6 +111,14 @@ async function getToken(env) {
 }
 
 let mem = null, memAt = 0;
+// 🔴 上游刷新的 in-flight 去重。加這一條的直接原因是 cron:laPushAll(跟車卡)與
+//    traWaitPushAll(等站卡)是【並行】起跑的,兩邊都要 /api/tra-live。cron 每分鐘一發、
+//    邊緣快取 s-maxage=55、mem 也是 55 秒 ⇒ 兩邊在同一瞬間都會是「剛好過期」,於是
+//    【同一分鐘打兩次 TDX】。TDX 是點數制而且 105% 是硬斷線不是超額計費
+//    (memory: tdx-points-quota),把同一份資料買兩次是純粹的浪費。
+//    這一條同時也保護前景路徑(邊緣快取失效那一瞬間湧入的多個訪客本來也是各打各的)。
+//    存 promise 而不是加鎖:Workers 是單執行緒事件迴圈,同步區段內指派＋讀取即是原子的。
+let traLiveInflight = null;
 const jsonRes = (obj, status, cc) => new Response(JSON.stringify(obj), {
   status,
   headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': cc },
@@ -157,27 +169,34 @@ async function traLive(request, env, ctx) {
   if (hit) return hit;
   try {
     if (!mem || Date.now() - memAt > 55e3) {
-      const r = await fetch(API_URL, { headers: { authorization: 'Bearer ' + await getToken(env) }, redirect: 'manual' });
-      if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
-      if (!r.ok) throw new Error('tdx api ' + r.status);
-      const d = await r.json();
-      const list = Array.isArray(d) ? d : d.TrainLiveBoards || [];
-      mem = {
-        at: d.UpdateTime || new Date().toISOString(),
-        trains: list.map(t => ({ no: t.TrainNo, delay: t.DelayTime || 0, sta: t.StationID, status: t.TrainStationStatus })),
-      };
-      memAt = Date.now();
-      // 逐站觀測事件擷取:只搭「真的刷新上游」這班順風車(cache 命中/mem 未過期都到不了這裡),零新增 TDX 呼叫
-      recordStationEvents(mem, env, ctx);
-      // 同一班順風車:更新 colo 級「最後成功值」。刻意【不】存 srv——srv 是時鐘偏差量測用的
-      // 「回應產生當下的伺服器時鐘」,存進快取幾小時後再吐出來會讓前端誤判裝置時鐘偏差幾小時,
-      // 所以取用時才現場補。丟背景不擋回應,失敗吞掉(這只是退路的退路)。
-      const lastBody = JSON.stringify(mem);
-      const putLast = edge.put(lastKey, new Response(lastBody, {
-        status: 200,
-        headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'public, s-maxage=21600' },
-      })).catch(() => {});
-      if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(putLast);
+      // 已經有人在刷了就搭他的便車(見 traLiveInflight 的註解)。失敗會照樣傳播給每一個
+      // 等待者 ⇒ 下面 catch 的「回舊 mem」退路對搭便車的人一樣有效。
+      if (!traLiveInflight) {
+        traLiveInflight = (async () => {
+          const r = await fetch(API_URL, { headers: { authorization: 'Bearer ' + await getToken(env) }, redirect: 'manual' });
+          if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
+          if (!r.ok) throw new Error('tdx api ' + r.status);
+          const d = await r.json();
+          const list = Array.isArray(d) ? d : d.TrainLiveBoards || [];
+          mem = {
+            at: d.UpdateTime || new Date().toISOString(),
+            trains: list.map(t => ({ no: t.TrainNo, delay: t.DelayTime || 0, sta: t.StationID, status: t.TrainStationStatus })),
+          };
+          memAt = Date.now();
+          // 逐站觀測事件擷取:只搭「真的刷新上游」這班順風車(cache 命中/mem 未過期都到不了這裡),零新增 TDX 呼叫
+          recordStationEvents(mem, env, ctx);
+          // 同一班順風車:更新 colo 級「最後成功值」。刻意【不】存 srv——srv 是時鐘偏差量測用的
+          // 「回應產生當下的伺服器時鐘」,存進快取幾小時後再吐出來會讓前端誤判裝置時鐘偏差幾小時,
+          // 所以取用時才現場補。丟背景不擋回應,失敗吞掉(這只是退路的退路)。
+          const lastBody = JSON.stringify(mem);
+          const putLast = edge.put(lastKey, new Response(lastBody, {
+            status: 200,
+            headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'public, s-maxage=21600' },
+          })).catch(() => {});
+          if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(putLast);
+        })().finally(() => { traLiveInflight = null; });
+      }
+      await traLiveInflight;
     }
     // srv=本次回應產生當下的伺服器時鐘(epoch ms)。前端拿它跟 Date.now() 相減、取多次取樣的最小值,
     // 就量得出「裝置時鐘偏差」——裝置時鐘錯 N 分鐘會讓全部台鐵/高鐵位置與倒數整體偏 N 分鐘,
@@ -1985,13 +2004,15 @@ const RC_WEBHOOK_ENV_PRODUCTION = 'PRODUCTION';
 const RC_WEBHOOK_ENV_SANDBOX = 'SANDBOX';
 // TRANSFER 是唯一「主體不是單一 app_user_id」的事件型別，見 webhookTargetUids() 的說明。
 const RC_WEBHOOK_TYPE_TRANSFER = 'TRANSFER';
-// build 21、22 是專供 TestFlight 做端到端 Sandbox 購買驗收的版本。前端只有在建置期明確打開
-// RAIL_PLUS_SANDBOX_OK 且把 build 號注入時才會帶這顆 header；正式 App 與網站不帶。
+// build 21、22 是既有 TestFlight Sandbox 驗收版；Android versionCode 16 則是第一顆準備用
+// 「同一顆封測／正式 AAB」驗收 Google Play Billing 的版本。Android 16 除了 build header，
+// 還必須命中 Worker 的 Firebase UID allowlist，避免可偽造的 build 字串自己變成授權邊界。
 // header 本身不是授權憑證——呼叫者仍須先通過 Firebase ID token，接著由 RevenueCat
 // Developer API 證明同一個 uid 真的有 gives_access 的 sandbox subscription。把 build 號釘死
 // 是縮小測試通道的操作範圍，不把可偽造的客端字串誤當成安全邊界。
 const PLUS_SANDBOX_TEST_HEADER = 'x-rail-plus-sandbox-build';
-const PLUS_SANDBOX_TEST_BUILDS = new Set(['21', '22']);
+const PLUS_SANDBOX_LEGACY_BUILDS = new Set(['21', '22']);
+const PLUS_SANDBOX_UID_ALLOWLIST_BUILDS = new Set(['16']);
 const PLUS_ENTITLEMENT_COLLECTION = Object.freeze({
   [RC_ENV_PRODUCTION]: 'entitlements',
   [RC_ENV_SANDBOX]: 'sandboxEntitlements',
@@ -2001,8 +2022,13 @@ function plusEnvironment(value) {
   return value === RC_ENV_SANDBOX ? RC_ENV_SANDBOX : RC_ENV_PRODUCTION;
 }
 
-function sandboxPlusRequested(request) {
-  return PLUS_SANDBOX_TEST_BUILDS.has(request.headers.get(PLUS_SANDBOX_TEST_HEADER));
+function sandboxPlusRequested(request, uid, env) {
+  const build = request.headers.get(PLUS_SANDBOX_TEST_HEADER) || '';
+  if (PLUS_SANDBOX_LEGACY_BUILDS.has(build)) return true;
+  if (!PLUS_SANDBOX_UID_ALLOWLIST_BUILDS.has(build)) return false;
+  const allowed = new Set(String(env.REVENUECAT_SANDBOX_ALLOWED_UIDS || '')
+    .split(/[\s,]+/).map(value => value.trim()).filter(Boolean));
+  return allowed.has(uid);
 }
 
 const GOOGLE_OAUTH_TOKEN_URL = 'https://oauth2.googleapis.com/token';
@@ -2511,8 +2537,9 @@ async function fetchRevenueCatSubscriptions(uid, env, wantEntitlement, entitleme
 // 改打 /subscriptions:它有 environment query 參數,回應的 Subscription 也有 top-level 必填的
 // environment 與 gives_access 兩個欄位(判定細節見 plusEntitledFromSubscriptions)。
 // secret 未設定→fail-closed 503(不放行任何人)。驗證範式抄自 deleteAccountData(同一組 env secret)。
-// 正常請求只查 production。只有 build 21／22 TestFlight 明確帶測試 header 時，才會在 production
-// 沒資格後回退查 sandbox；兩邊仍各由 environment query 與逐筆 environment 欄位雙重收斂。
+// 正常請求只查 production。只有既有 TestFlight build，或命中 UID allowlist 的 Android build 16
+// 明確帶測試 header 時，才會在 production 沒資格後回退查 sandbox；兩邊仍各由 environment query
+// 與逐筆 environment 欄位雙重收斂。
 // 成功與明確無資格都會附上 uid、選中的環境與跨頁累積的命中 subscriptions，供資格文件使用；
 // 呼叫端自行決定 403(not_entitled)要不要原樣回傳，或(如 /api/plus-status)改寫成 200 {active:false}。
 async function checkPlusEntitlement(request, env) {
@@ -2537,7 +2564,7 @@ async function checkPlusEntitlement(request, env) {
     let entitlementEnvironment = RC_ENV_PRODUCTION;
     let truth = productionTruth;
     if (!plusEntitledFromSubscriptions(productionTruth.subscriptions, wantEntitlement, RC_ENV_PRODUCTION)
-        && sandboxPlusRequested(request)) {
+        && sandboxPlusRequested(request, uid, env)) {
       const sandboxTruth = await fetchRevenueCatSubscriptions(uid, env, wantEntitlement, RC_ENV_SANDBOX);
       if (!sandboxTruth.ok) return sandboxTruth;
       entitlementEnvironment = RC_ENV_SANDBOX;
@@ -2959,6 +2986,72 @@ async function metroWaitUnbind(request, env) {
   // 一張卡退回零推播行為(倒數照樣自走),不是資料損失。
   if (b && LA_TOKEN_RE.test(String(b.token || ''))) {
     try { await env.DELAY_DB.prepare('DELETE FROM metro_wait_bindings WHERE token=?').bind(String(b.token)).run(); }
+    catch (e) { /* 表還沒建或 D1 暫時不可用:回 200,前端沒有可做的補救 */ }
+  }
+  return jsonRes({ ok: true }, 200, 'no-store');
+}
+
+// ── 台鐵等站卡:交班與註銷 ────────────────────────────────────────────
+// 與捷運等車卡(上面)的唯一結構差異:交的是【一班指定的車】,不是「哪一站的下一班」。
+// 表訂到站時刻在開卡當下就固定了 ⇒ 伺服器不必每分鐘重新挑班次,只要把官方誤點 join 回來。
+// 其餘規矩全部沿用:不驗通行證(免費功能)、沒有 uid、防濫用靠限流＋token 格式＋end_at 上限。
+// 車次號:台鐵是純數字(1–4 碼),留到 8 碼英數是給日後加班車/特殊車次的餘裕,同時擋掉
+// 「用超長字串撐爆 D1 單列」。刻意不收其他字元——這一欄是 join 鍵,寬鬆只會讓對不上的東西
+// 靜靜地永遠對不上。
+const TW_TRAIN_NO_RE = /^[0-9A-Za-z]{1,8}$/;
+// 表訂時刻可以落在過去多久之內。看板點得到的班次都是未來的,但「使用者盯著一班已誤點
+// 20 分鐘、表訂時刻已經過去的車」正是本功能最典型的情境 ⇒ 往過去開 1 小時。
+const TW_SCHED_PAST_SEC = 3600;
+async function traWaitBind(request, env) {
+  if (request.method !== 'POST') return jsonRes({ error: 'method not allowed' }, 405, 'no-store');
+  if (await rateLimited(env.LA_LIMITER, request, true)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
+  let b;
+  try { b = await request.json(); } catch (e) { return jsonRes({ error: 'bad_json' }, 400, 'no-store'); }
+  if (!b) return jsonRes({ error: 'bad_json' }, 400, 'no-store');
+  if (!LA_TOKEN_RE.test(String(b.token || ''))) return jsonRes({ error: 'bad_token' }, 400, 'no-store');
+  const station = mwCleanName(b.station);
+  if (!station || station.length > MW_NAME_MAX) return jsonRes({ error: 'bad_station' }, 400, 'no-store');
+  const trainNo = mwCleanName(b.trainNo);
+  if (!TW_TRAIN_NO_RE.test(trainNo)) return jsonRes({ error: 'bad_train' }, 400, 'no-store');
+  const now = Math.floor(Date.now() / 1000);
+  const schedSec = Math.round(Number(b.schedSec));
+  if (!Number.isFinite(schedSec) || schedSec < now - TW_SCHED_PAST_SEC || schedSec > now + TW_MAX_TRACK_SEC) {
+    return jsonRes({ error: 'bad_sched' }, 400, 'no-store');
+  }
+  const endAt = Math.round(Number(b.endAt));
+  // endAt 由原生端算完送上來(同 metro-wait),這裡只驗它落在合理區間。
+  // 🔴 與捷運卡不同的是:這個值【之後會被伺服器往後延】(誤點把實際到站推遠時)。
+  //    之所以不違反那條「兩邊必須是同一個數」的鐵則,是因為這張卡不印「追蹤至 HH:mm」——
+  //    沒有對使用者承諾這個數,伺服器就可以自己延。見 schema/0010 的同一條註解。
+  if (!Number.isFinite(endAt) || endAt <= now || endAt > now + TW_MAX_TRACK_SEC + 60) {
+    return jsonRes({ error: 'bad_end' }, 400, 'no-store');
+  }
+  try {
+    await env.DELAY_DB.prepare(
+      'INSERT INTO tra_wait_bindings (token,station,train_no,sched_sec,end_at,last_state,fail_streak,bound_at,expire_at)' +
+      ' VALUES (?,?,?,?,?,NULL,0,?,?) ON CONFLICT(token) DO UPDATE SET' +
+      // last_state 與 fail_streak 一起歸零(同 0009 的理由):同一顆 token 換綁另一班車時,
+      // 舊車的「上次送出去的內容」若黏著,新車第一輪只要碰巧同樣是「誤點 3 分」就不會推,
+      // 卡片會停在舊車的資訊直到內容自己變。
+      // bound_at 一起重設:3.5 小時的追蹤硬上限是「這張卡」的,不是「這顆 token」的。
+      // apns_env 刻意不重設(環境是這個 App 安裝的屬性,見 schema/0008)。
+      ' station=excluded.station, train_no=excluded.train_no, sched_sec=excluded.sched_sec,' +
+      ' end_at=excluded.end_at, last_state=NULL, fail_streak=0,' +
+      ' bound_at=excluded.bound_at, expire_at=excluded.expire_at'
+    ).bind(String(b.token), station, trainNo, schedSec, endAt, now, endAt + 300).run();
+    return jsonRes({ ok: true }, 200, 'no-store');
+  } catch (e) {
+    return jsonRes({ error: 'bind_failed' }, 503, 'no-store');
+  }
+}
+
+async function traWaitUnbind(request, env) {
+  if (request.method !== 'POST') return jsonRes({ error: 'method not allowed' }, 405, 'no-store');
+  if (await rateLimited(env.LA_LIMITER, request, true)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
+  let b;
+  try { b = await request.json(); } catch (e) { return jsonRes({ ok: true }, 200, 'no-store'); }
+  if (b && LA_TOKEN_RE.test(String(b.token || ''))) {
+    try { await env.DELAY_DB.prepare('DELETE FROM tra_wait_bindings WHERE token=?').bind(String(b.token)).run(); }
     catch (e) { /* 表還沒建或 D1 暫時不可用:回 200,前端沒有可做的補救 */ }
   }
   return jsonRes({ ok: true }, 200, 'no-store');
@@ -3525,9 +3618,9 @@ async function metroWaitSources(env, baseUrl, systems, now) {
       // 這裡不另外判「整批失效」:board 空 ⇒ 每一列都挑不到班次 ⇒ 走 hold(不推也不收卡),
       // 那正是缺訊時該有的行為(使用者裁示:缺訊只 hold)。
       out.trtc = { ok: !!(j && Array.isArray(j.board)), board: (j && j.board) || [],
-        crowdByDest: mwCrowdByDest(j && j.trains) };
+        crowdByNo: mwCrowdByNo(j && j.trains) };
     } catch (e) {
-      out.trtc = { ok: false, board: [], crowdByDest: {} };
+      out.trtc = { ok: false, board: [], crowdByNo: {} };
       console.error('[cron mw-push] trtc-live 取得失敗,本輪北捷列全部 hold:', String((e && e.message) || e));
     }
   }
@@ -3554,15 +3647,16 @@ async function metroWaitSources(env, baseUrl, systems, now) {
 
 // 收卡推播。與 laPushEnd 同一條規矩:任何失敗都只 log 不拋,呼叫端無論如何都要刪列——
 // 不可以因為推播失敗就把列留著永遠重試。
-async function metroWaitPushEnd(env, jwt, row, state, now, why) {
+// tag 只影響 log 前綴(等站卡共用這支,見 traWaitPushAll)——診斷時分得出是哪一條迴圈在收卡。
+async function metroWaitPushEnd(env, jwt, row, state, now, why, tag = 'mw-push') {
   try {
     const r = await laApnsSend(env, jwt, row.token, {
       aps: { timestamp: now, event: 'end', 'dismissal-date': now, 'content-state': state },
     }, row.apns_env);
-    if (!r.ok) console.error(`[cron mw-push] 收卡 end 推播非 2xx(仍照常刪列): why=${why} status=${r.status} reason=${r.reason || '(無)'} env=${r.envName} token=${String(row.token).slice(0, 8)}…`);
+    if (!r.ok) console.error(`[cron ${tag}] 收卡 end 推播非 2xx(仍照常刪列): why=${why} status=${r.status} reason=${r.reason || '(無)'} env=${r.envName} token=${String(row.token).slice(0, 8)}…`);
     return r.ok;
   } catch (e) {
-    console.error(`[cron mw-push] 收卡 end 推播失敗(仍照常刪列) why=${why} token=${String(row.token).slice(0, 8)}… :`, String((e && e.message) || e));
+    console.error(`[cron ${tag}] 收卡 end 推播失敗(仍照常刪列) why=${why} token=${String(row.token).slice(0, 8)}… :`, String((e && e.message) || e));
     return false;
   }
 }
@@ -3622,7 +3716,7 @@ async function metroWaitPushAll(env, ctx, baseUrl) {
         //    (突變測試 M6 就是從這裡穿過去的:把一個 key 從 mwContentState 拿掉,更新那發紅了、
         //    收卡那發卻因為走 prev 而全綠。)值沿用 prev 是刻意的:卡片在被系統收走前的最後一瞬
         //    顯示的仍是使用者上次看到的那一班,不是一排空白。
-        const endState = { ...mwContentState(row.sys, picked, src && src.crowdByDest, dataAt), ...(prev || {}), pushed: true };
+        const endState = { ...mwContentState(row.sys, picked, src && src.crowdByNo, dataAt), ...(prev || {}), pushed: true };
         await metroWaitPushEnd(env, jwt, row, endState, now, serviceOver ? 'lastTrain' : 'endAt');
         await env.DELAY_DB.prepare('DELETE FROM metro_wait_bindings WHERE token=?').bind(row.token).run();
         ended++;
@@ -3632,7 +3726,7 @@ async function metroWaitPushAll(env, ctx, baseUrl) {
       //    長得一模一樣,而把其中任何一種當成「該收卡」都會讓卡片在使用者還要等車的時候
       //    憑空消失。使用者裁示:缺訊只 hold。
       if (!picked.length) { held++; continue; }
-      const state = mwContentState(row.sys, picked, src.crowdByDest, dataAt);
+      const state = mwContentState(row.sys, picked, src.crowdByNo, dataAt);
       if (!mwShouldPush(prev, state)) { unchanged++; continue; }
       attempted++;
       const staleDate = mwStaleDate(row.sys, picked, now);
@@ -3677,6 +3771,150 @@ async function metroWaitPushAll(env, ctx, baseUrl) {
     dropped++;
   }
   console.log(`[cron mw-push] tick 完成: rows=${rows.length} attempted=${attempted} sent=${sent} ended=${ended} unchanged=${unchanged} held=${held} dropped=${dropped} apnsRetry=${apnsRetried}${heldBack ? ` heldBack=${heldBack}(熔斷)` : ''}${budgetExhausted ? ` budgetExhausted(未處理 ${notReached} 列)` : ''}`);
+  return { sent, ended, dropped };
+}
+
+// ══════════ 台鐵等站卡:每分鐘推播迴圈 ══════════
+// 與 metroWaitPushAll 的分工同理:共用 APNs 送信(laApnsSend,含雙環境退路)、JWT、
+// 永久失敗 reason 名單與熔斷門檻;不共用迴圈本體,因為判定完全不同——
+// 那邊問「這一站的下一班是誰」,這邊問「我盯的那一班現在誤點幾分」。
+const TW_ROW_LIMIT = 300;
+// 牆鐘預算:三條迴圈在同一分鐘的 cron 裡【並行】跑(上界是 max 不是和)。這一條的
+// 上游成本最低(只一發 tra-live,且與 laPushAll 共用同一份快取與 in-flight 去重),
+// 每列的工作也最少(一次 join 而已),30 秒綽綽有餘。
+const TW_TICK_BUDGET_MS = 30000;
+
+// 這一輪要用的官方即時動態。走 traLive 的雙層快取(邊緣＋isolate 記憶體)＋ in-flight 去重
+// ⇒ 與 laPushAll 在同一 tick 各要一次也只會打上游一次(見 traLiveInflight)。
+// _src=cron:不計入用量分析(同 laPushAll,否則每分鐘一筆合成的假前景資料)。
+async function traWaitLive(env, ctx, baseUrl) {
+  try {
+    const r = await traLive(new Request(baseUrl + '/api/tra-live?_src=cron'), env, ctx);
+    const j = await r.json();
+    if (!r.ok || !Array.isArray(j && j.trains)) {
+      console.error(`[cron tw-push] tra-live 不可用(status=${r.status}),本輪全部列拿不到官方誤點`);
+      return null;
+    }
+    return j;
+  } catch (e) {
+    console.error('[cron tw-push] tra-live 取得失敗,本輪全部列拿不到官方誤點:', String((e && e.message) || e));
+    return null;
+  }
+}
+
+async function traWaitPushAll(env, ctx, baseUrl) {
+  if (!env.APNS_KEY_P8 || !env.DELAY_DB) {
+    console.error('[cron tw-push] APNS_KEY_P8 或 DELAY_DB 未設定,cron 本輪整支跳過');
+    return { sent: 0, ended: 0, dropped: 0 };
+  }
+  const tickStartMs = Date.now();
+  const now = Math.floor(tickStartMs / 1000);
+  // 過期列的兜底清理(end 推播整發失敗時的唯一出路)。
+  await env.DELAY_DB.prepare('DELETE FROM tra_wait_bindings WHERE expire_at < ?').bind(now).run();
+  // ORDER BY end_at ASC:最快到期的排最前面(同 metroWaitPushAll——收卡遲到使用者看得見)。
+  const rs = await env.DELAY_DB.prepare('SELECT * FROM tra_wait_bindings ORDER BY end_at ASC LIMIT ?').bind(TW_ROW_LIMIT + 1).all();
+  let rows = rs.results || [];
+  if (rows.length > TW_ROW_LIMIT) {
+    console.error(`[cron tw-push] 列數觸頂:本輪 ${rows.length}>${TW_ROW_LIMIT},只處理最快到期的前 ${TW_ROW_LIMIT} 列`);
+    rows = rows.slice(0, TW_ROW_LIMIT);
+  }
+  if (!rows.length) return { sent: 0, ended: 0, dropped: 0 };
+  const live = await traWaitLive(env, ctx, baseUrl);
+  const jwt = await laJwt(env);
+  let sent = 0, ended = 0, dropped = 0, unchanged = 0, held = 0, extended = 0, attempted = 0, apnsRetried = 0;
+  let budgetExhausted = false, notReached = 0;
+  const permFailCandidates = [];
+  for (let ri = 0; ri < rows.length; ri++) {
+    if (Date.now() - tickStartMs > TW_TICK_BUDGET_MS) { budgetExhausted = true; notReached = rows.length - ri; break; }
+    const row = rows[ri];
+    try {
+      let prev = null;
+      try { prev = row.last_state ? JSON.parse(row.last_state) : null; }
+      catch (e) { prev = null; }   // 壞掉的舊內容只代表「這一輪必推一發」,不該讓整列停擺
+      const delay = twDelayFor(live, row.train_no, now);
+      // ── hold 的判定要先算,因為底下每一件事都取決於「卡片這一刻顯示的是什麼」 ──
+      // 🔴 這一條【不是】「缺訊只 hold」那條(那條講的是不收卡)。這裡講的是不改內容:
+      //    TDX 的動態窗只有前後 30 分鐘,站間跑很久的區段(南迴)會讓一班在途的車整段掉出窗外。
+      //    翻成「目前無即時誤點資訊」會讓主角時刻在 18:35↔18:32 之間來回跳,而我們其實
+      //    上一分鐘才剛從官方拿到 3 分。真正該翻成無資訊的是 fresh=false(整份資料過舊)。
+      const holding = !delay.known && delay.fresh && !!prev && prev.delayMin != null;
+      // 卡片這一刻【顯示中】的誤點分鐘。null = 卡片上寫著「目前無即時誤點資訊」。
+      const shownDelay = delay.known ? delay.delayMin : (holding ? prev.delayMin : null);
+      // 實際約到站 = 表訂 + 顯示中的誤點。誤點未知時退回表訂本人(唯一有的官方值)。
+      const eta = twEtaSec(row.sched_sec, shownDelay);
+
+      // ── 收卡 ──
+      // 🔴 「已到站」這個條件只在【我們真的告訴過使用者一個到站時刻】時才成立。誤點未知時
+      //    eta 退回表訂,拿它收卡等於宣稱「表訂 + 3 分車就到了」——那正是官方沒給、我們也
+      //    不准造的精度。這種列改由 end_at 收(bind 當下就有界,不會變成殭屍卡)。
+      const why = twShouldEnd(now, shownDelay == null ? null : eta, row.end_at);
+      if (why) {
+        // 形狀以現算的為準、值沿用上一次送出去的(理由同 metroWaitPushAll 的同一行:
+        // 欄位集合是跨行程契約,直接送 prev 會讓舊版存下來的 last_state 決定欄位集合)。
+        const endState = { ...twContentState(delay, delay.dataAt), ...(prev || {}), pushed: true };
+        await metroWaitPushEnd(env, jwt, row, endState, now, why, 'tw-push');
+        await env.DELAY_DB.prepare('DELETE FROM tra_wait_bindings WHERE token=?').bind(row.token).run();
+        ended++;
+        continue;
+      }
+
+      // ── 誤點延長追蹤窗 ──
+      // 🔴 放在收卡判定【之後】、推播判定【之前】:誤點把實際到站推遠時,end_at 必須先跟著延,
+      //    否則下一輪就會用一個過期的 end_at 把還沒到的車收掉。而且它與「內容有沒有變」無關——
+      //    誤點從 40 分變 41 分會推播,從 40 分變 40 分不推播,但兩種情況 end_at 都可能要延。
+      const nextEnd = twNextEndAt(eta, row.end_at, row.bound_at);
+      if (nextEnd != null) {
+        await env.DELAY_DB.prepare('UPDATE tra_wait_bindings SET end_at=?, expire_at=? WHERE token=?')
+          .bind(nextEnd, nextEnd + 300, row.token).run();
+        extended++;
+      }
+
+      // hold ⇒ 這一輪什麼都不推,卡片繼續顯示上一次送出去的內容(含它那個較舊的「HH:mm 更新」,
+      // 那正是誠實的新鮮度指示)。判定理由見上面 holding。
+      if (holding) { held++; continue; }
+
+      const state = twContentState(delay, delay.dataAt);
+      if (!twShouldPush(prev, state)) { unchanged++; continue; }
+      attempted++;
+      const body = { aps: { timestamp: now, event: 'update', 'content-state': state } };
+      // 🔴 stale-date 每一發都要帶:推播的 content 會【整包取代】舊 content,少送就等於把
+      //    卡片的「已進站」語意拿掉(視圖靠 isStale 翻色)。這張卡的 stale-date ＝實際到站
+      //    時刻本人——不是倒數歸零,是「車該到了」。
+      if (eta != null) body.aps['stale-date'] = Math.round(eta);
+      const r = await laApnsSend(env, jwt, row.token, body, row.apns_env);
+      if (r.retried) apnsRetried++;
+      if (r.ok) {
+        await env.DELAY_DB.prepare('UPDATE tra_wait_bindings SET last_state=?, apns_env=?, fail_streak=0 WHERE token=?')
+          .bind(JSON.stringify(state), r.envName, row.token).run();
+        sent++;
+        continue;
+      }
+      const failStreak = (Number(row.fail_streak) || 0) + 1;
+      await env.DELAY_DB.prepare('UPDATE tra_wait_bindings SET fail_streak=? WHERE token=?').bind(failStreak, row.token).run();
+      console.error(`[cron tw-push] APNs 非 2xx: status=${r.status} reason=${r.reason || '(無法解析)'} env=${r.envName}${r.retried ? '(已試過另一個環境)' : ''} token=${String(row.token).slice(0, 8)}…`);
+      if (r.status === 403 && !laJwtReset()) console.error('[cron tw-push] 403 但 provider token 仍在 20 分鐘冷卻期內,本輪沿用快取的 JWT');
+      if (LA_PERM_FAIL_REASONS.has(r.reason)) permFailCandidates.push({ token: row.token, streak: failStreak });
+    } catch (e) {
+      console.error(`[cron tw-push] 單列處理失敗(不影響其他列)token=${String(row.token).slice(0, 8)}… :`, (e && e.stack) || String(e));
+    }
+  }
+  if (budgetExhausted) {
+    console.error(`[cron tw-push] 本輪預算用盡:已用 ${Math.round((Date.now() - tickStartMs) / 1000)} 秒(上限 ${TW_TICK_BUDGET_MS / 1000} 秒),rows=${rows.length} 中還有 ${notReached} 列本輪未處理`);
+  }
+  // 熔斷:門檻與理由完全沿用 laPushAll(見那邊 LA_BREAKER_* 的長註解)。
+  const breakerRatio = attempted ? permFailCandidates.length / attempted : 0;
+  const breakerTripped = (attempted >= LA_BREAKER_MIN_ATTEMPTED && breakerRatio >= LA_BREAKER_RATIO)
+                      || (attempted >= LA_BREAKER_ALL_FAIL_MIN && permFailCandidates.length === attempted);
+  const toDelete = breakerTripped ? permFailCandidates.filter(c => c.streak >= LA_FAIL_STREAK_MAX) : permFailCandidates;
+  const heldBack = permFailCandidates.length - toDelete.length;
+  if (breakerTripped) {
+    console.error(`[cron tw-push] 熔斷觸發:本輪 ${permFailCandidates.length}/${attempted} 列回報永久失敗 reason,暫緩刪除其中 ${heldBack} 列(連續失敗輪數 ${JSON.stringify(permFailCandidates.map(c => c.streak))},上限 ${LA_FAIL_STREAK_MAX})`);
+  }
+  for (const c of toDelete) {
+    await env.DELAY_DB.prepare('DELETE FROM tra_wait_bindings WHERE token=?').bind(c.token).run();
+    dropped++;
+  }
+  console.log(`[cron tw-push] tick 完成: rows=${rows.length} attempted=${attempted} sent=${sent} ended=${ended} unchanged=${unchanged} held=${held} extended=${extended} dropped=${dropped} apnsRetry=${apnsRetried}${live ? '' : ' traLiveDown'}${heldBack ? ` heldBack=${heldBack}(熔斷)` : ''}${budgetExhausted ? ` budgetExhausted(未處理 ${notReached} 列)` : ''}`);
   return { sent, ended, dropped };
 }
 
@@ -3906,7 +4144,9 @@ const SEC_HEADERS = {
 const APP_ORIGINS = new Set(['capacitor://localhost', 'https://localhost']);
 // 非 GET 的白名單。🔴 這道門是刻意關死的:預設所有 /api/* 只收 GET/HEAD,要開洞就逐條加進來,
 // 不可以改成「全部放行」——擋掉的是「隨手對唯讀端點打 POST」這類探測,而那正是最便宜的防線。
-const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/api/bounty-submit', '/api/bounty-merge', '/api/revenuecat-webhook', '/api/la/bind', '/api/la/unbind', '/api/metro-wait/bind', '/api/metro-wait/unbind']);
+// ⚠️ 這道門的粒度是「路徑」不是「方法」：列進來等於該路徑的所有非 GET 方法都到得了處理函式。
+// /api/pass-admin 正是需要這樣（POST 匯入、DELETE 清批），它自己在函式內分派方法、未知的回 405。
+const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/api/bounty-submit', '/api/bounty-merge', '/api/revenuecat-webhook', '/api/la/bind', '/api/la/unbind', '/api/metro-wait/bind', '/api/metro-wait/unbind', '/api/tra-wait/bind', '/api/tra-wait/unbind', '/api/pass-claim', '/api/pass-admin']);
 // /api 端點白名單——只給流量埋點的 blob 用(不是路由閘門,路由在 fetch 裡)。不在名單內一律記成
 // 'other',否則隨便打 /api/<亂數> 就能把 blob 基數炸開。新增端點時要一起加進來。
 const API_ENDPOINTS = new Set([
@@ -3914,7 +4154,7 @@ const API_ENDPOINTS = new Set([
   'klrt-position',
   'delay-stats', 'delay-history', 'thsr-schedule', 'thsr-freeseat', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'basemap-src', 'account-delete',
   'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge', 'plus-status', 'revenuecat-webhook',
-  'la/bind', 'la/unbind', 'metro-wait/bind', 'metro-wait/unbind',
+  'la/bind', 'la/unbind', 'metro-wait/bind', 'metro-wait/unbind', 'tra-wait/bind', 'tra-wait/unbind', 'pass-claim', 'pass-admin',
 ]);
 
 function addAppCors(headers, origin) {
@@ -3923,6 +4163,190 @@ function addAppCors(headers, origin) {
   const vary = (headers.get('Vary') || '').split(',').map(v => v.trim()).filter(Boolean);
   if (!vary.some(v => v.toLowerCase() === 'origin')) vary.push('Origin');
   headers.set('Vary', vary.join(', '));
+}
+
+// ══ 通行證兌換碼自助領取 ═══════════════════════════════════════════════════
+// 一批兌換碼（App Store 優惠碼 CSV 的「代碼,兌換URL」，或任何一行一組的字串）放進 D1，
+// 一群人各自到 /pass.html 領走一組，不重複、不必一個一個私訊發。
+//
+// 🔴 碼只存在 D1，絕不進版控——這個 repo 是 public。匯入走 /api/pass-admin（帶
+//    PASS_ADMIN_KEY），由瀏覽器直接寫進 D1，不落任何檔案。
+//
+// 「不重複」的保證放在資料庫層，不是應用邏輯——應用邏輯擋不住兩個分頁同時按：
+//   ・配發是單一 UPDATE ... WHERE code=(SELECT … LIMIT 1) RETURNING。D1 是單寫入者，
+//     「挑一組未領的」與「把它標成已領」之間沒有別人插得進來的縫。
+//   ・(batch, claim_person) 上有 partial unique index。同一個人再來（換裝置、清快取、
+//     忘了存）只會拿回同一組；兩個分頁同時按時慢的那發撞唯一索引 ⇒ 整個 UPDATE rollback
+//     ⇒ 那組碼留在架上沒被吃掉，catch 再把他既有的那組讀回來給他。
+const PASS_SCHEMA = [
+  `CREATE TABLE IF NOT EXISTS pass_codes (
+     code TEXT PRIMARY KEY,
+     batch TEXT NOT NULL,
+     link TEXT,
+     added_at INTEGER NOT NULL,
+     claimed_at INTEGER,
+     claim_person TEXT,
+     claim_label TEXT
+   )`,
+  `CREATE INDEX IF NOT EXISTS pass_codes_open ON pass_codes (batch, claimed_at)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS pass_codes_person ON pass_codes (batch, claim_person)
+     WHERE claim_person IS NOT NULL`,
+];
+let passSchemaReady = false;
+async function ensurePassSchema(env) {
+  if (!env || !env.DELAY_DB) return false;
+  if (!passSchemaReady) {
+    await env.DELAY_DB.batch(PASS_SCHEMA.map(sql => env.DELAY_DB.prepare(sql)));
+    passSchemaReady = true;
+  }
+  return true;
+}
+
+// 領取人識別：同一個人怎麼打都要收斂成同一個鍵，否則「王小明」與「王 小明」會各拿一組。
+// 對帳看的是 claim_label（原字串），claim_person 只負責「同一個人只算一次」。
+function passPersonKey(s) {
+  return String(s || '').toLowerCase().replace(/[\s.,_\-·・]/g, '').slice(0, 40);
+}
+function passBatchKey(s) { return String(s || '').trim().slice(0, 32) || 'default'; }
+
+async function passFindMine(db, batch, person) {
+  const r = await db.prepare('SELECT code, link, claimed_at FROM pass_codes WHERE batch=? AND claim_person=?')
+    .bind(batch, person).first();
+  return r ? { code: r.code, link: r.link || null, claimedAt: Number(r.claimed_at) || null } : null;
+}
+
+// POST /api/pass-claim：領一組。body { gate, who, batch? }
+// gate 是同仁那道通關密語（PASS_GATE secret）。它擋的是「網址被轉出去給不相干的人」，
+// 不是嚴格的身分驗證——真正的界線是總量有限（發完為止）加上事後對帳看得到誰領了什麼。
+async function passClaim(request, env) {
+  // API_POST_ALLOWED 的粒度是路徑，PUT/PATCH 一樣進得來——在這裡收斂成只收 POST，
+  // 免得非預期的方法帶著空 body 一路走到業務邏輯才以 bad_json 收場
+  if (request.method !== 'POST') return jsonRes({ error: 'method' }, 405, 'no-store');
+  // 節流擋在任何 D1 寫入之前（比照 bountyClaim：擋在後面等於沒擋）
+  if (await rateLimited(env.PASS_LIMITER, request, true)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
+  const gate = String(env.PASS_GATE || '');
+  if (!gate) return jsonRes({ error: 'not_configured' }, 503, 'no-store');
+  let b;
+  try { b = await request.json(); } catch (e) { return jsonRes({ error: 'bad_json' }, 400, 'no-store'); }
+  if (!await constantTimeHeaderEqual(String((b && b.gate) || ''), gate))
+    return jsonRes({ error: 'bad_gate' }, 403, 'no-store');
+  const label = String((b && b.who) || '').trim().slice(0, 40);
+  const person = passPersonKey(label);
+  if (person.length < 2) return jsonRes({ error: 'bad_who' }, 400, 'no-store');
+  const batch = passBatchKey(b && b.batch);
+  try {
+    await ensurePassSchema(env);
+    const db = env.DELAY_DB;
+    const mine = await passFindMine(db, batch, person);
+    if (mine) return jsonRes({ ok: true, again: true, ...mine }, 200, 'no-store');
+    const now = Date.now();
+    const got = await db.prepare(
+      `UPDATE pass_codes SET claimed_at=?, claim_person=?, claim_label=?
+         WHERE code = (SELECT code FROM pass_codes WHERE batch=? AND claimed_at IS NULL ORDER BY rowid LIMIT 1)
+       RETURNING code, link`
+    ).bind(now, person, label, batch).first();
+    if (got) return jsonRes({ ok: true, again: false, code: got.code, link: got.link || null, claimedAt: now }, 200, 'no-store');
+    // 沒配到。「這批發完了」與「這批根本沒放碼」要對使用者講不同的話，所以分開回報。
+    const total = await db.prepare('SELECT COUNT(*) AS n FROM pass_codes WHERE batch=?').bind(batch).first();
+    return jsonRes({ error: Number(total && total.n) > 0 ? 'sold_out' : 'empty_batch' }, 409, 'no-store');
+  } catch (e) {
+    // 唯一索引擋下的並發：他其實已經有一組了，讀回來就好（那組碼沒被浪費，UPDATE 整個回退）
+    try {
+      const mine = await passFindMine(env.DELAY_DB, batch, person);
+      if (mine) return jsonRes({ ok: true, again: true, ...mine }, 200, 'no-store');
+    } catch (e2) { /* 讀不到就走下面的通用失敗 */ }
+    return jsonRes({ error: 'claim_failed' }, 503, 'no-store');
+  }
+}
+
+// /api/pass-admin：匯入與對帳。憑證是 PASS_ADMIN_KEY（Cloudflare secret）。
+//   GET    ?batch=…        → 該批統計＋已領清單（誰、何時、拿到哪一組）；不帶 batch 回各批總覽
+//   POST   { codes, batch }→ 匯入。每行可以是「代碼」「兌換URL」或「代碼,兌換URL」，重覆自動略過
+//   DELETE ?batch=…        → 只刪這批還沒領走的；加 &all=1 才連已領的一起刪
+// GET 刻意不回未領的碼：管理者匯入時本來就有全份 CSV，把未領碼再吐一次只是多開一個外洩面。
+async function passAdmin(request, env) {
+  const key = String(env.PASS_ADMIN_KEY || '');
+  if (!key) return jsonRes({ error: 'not_configured' }, 503, 'no-store');
+  const url = new URL(request.url);
+  const given = request.headers.get('x-pass-admin') || url.searchParams.get('key') || '';
+  if (!await constantTimeHeaderEqual(given, key)) return jsonRes({ error: 'forbidden' }, 403, 'no-store');
+  try {
+    await ensurePassSchema(env);
+    const db = env.DELAY_DB;
+    if (request.method === 'GET') {
+      const asked = url.searchParams.get('batch');
+      if (!asked) {
+        const rs = await db.prepare(
+          `SELECT batch, COUNT(*) AS total, SUM(CASE WHEN claimed_at IS NULL THEN 0 ELSE 1 END) AS taken
+             FROM pass_codes GROUP BY batch ORDER BY batch`).all();
+        return jsonRes({ ok: true, batches: (rs.results || []).map(r => ({
+          batch: r.batch, total: Number(r.total) || 0, taken: Number(r.taken) || 0,
+          left: (Number(r.total) || 0) - (Number(r.taken) || 0),
+        })) }, 200, 'no-store');
+      }
+      const batch = passBatchKey(asked);
+      const sum = await db.prepare(
+        `SELECT COUNT(*) AS total, SUM(CASE WHEN claimed_at IS NULL THEN 0 ELSE 1 END) AS taken
+           FROM pass_codes WHERE batch=?`).bind(batch).first();
+      const rs = await db.prepare(
+        `SELECT code, link, claim_label, claimed_at FROM pass_codes
+           WHERE batch=? AND claimed_at IS NOT NULL ORDER BY claimed_at DESC`).bind(batch).all();
+      const total = Number(sum && sum.total) || 0, taken = Number(sum && sum.taken) || 0;
+      return jsonRes({
+        ok: true, batch, total, taken, left: total - taken,
+        claims: (rs.results || []).map(r => ({
+          who: r.claim_label || '', code: r.code, link: r.link || null, at: Number(r.claimed_at) || null,
+        })),
+      }, 200, 'no-store');
+    }
+    if (request.method === 'POST') {
+      let b;
+      try { b = await request.json(); } catch (e) { return jsonRes({ error: 'bad_json' }, 400, 'no-store'); }
+      const batch = passBatchKey(b && b.batch);
+      const rows = passParseCodes(b && b.codes);
+      if (!rows.length) return jsonRes({ error: 'no_codes' }, 400, 'no-store');
+      if (rows.length > PASS_MAX_IMPORT) return jsonRes({ error: 'too_many', max: PASS_MAX_IMPORT }, 400, 'no-store');
+      const now = Date.now();
+      // INSERT OR IGNORE：重貼同一份 CSV 不會多出重覆的碼，也不會把已領的那些重置
+      const stmt = db.prepare('INSERT OR IGNORE INTO pass_codes (code,batch,link,added_at) VALUES (?,?,?,?)');
+      await db.batch(rows.map(r => stmt.bind(r.code, batch, r.link, now)));
+      const sum = await db.prepare(
+        `SELECT COUNT(*) AS total, SUM(CASE WHEN claimed_at IS NULL THEN 0 ELSE 1 END) AS taken
+           FROM pass_codes WHERE batch=?`).bind(batch).first();
+      const total = Number(sum && sum.total) || 0, taken = Number(sum && sum.taken) || 0;
+      return jsonRes({ ok: true, batch, submitted: rows.length, total, taken, left: total - taken }, 200, 'no-store');
+    }
+    if (request.method === 'DELETE') {
+      const batch = passBatchKey(url.searchParams.get('batch'));
+      const all = url.searchParams.get('all') === '1';
+      const r = await db.prepare(
+        all ? 'DELETE FROM pass_codes WHERE batch=?'
+            : 'DELETE FROM pass_codes WHERE batch=? AND claimed_at IS NULL').bind(batch).run();
+      return jsonRes({ ok: true, batch, removed: (r.meta && r.meta.changes) || 0, keptClaimed: !all }, 200, 'no-store');
+    }
+    return jsonRes({ error: 'method' }, 405, 'no-store');
+  } catch (e) {
+    return jsonRes({ error: 'admin_failed' }, 503, 'no-store');
+  }
+}
+
+const PASS_MAX_IMPORT = 3000;   // Apple 的 offer code 一批最多 25000，但一次貼 3000 行已遠超實際用量
+// 一行一組。吃三種形狀：純代碼、純兌換 URL、以及 Apple CSV 的「代碼,兌換URL」。
+// 代碼是配發與去重的鍵，link 只是方便領到的人直接點。純 URL 那種就拿 URL 自己當鍵。
+function passParseCodes(raw) {
+  const out = [], seen = new Set();
+  for (const line of String(raw || '').split(/[\r\n]+/)) {
+    const t = line.trim();
+    if (!t) continue;
+    const parts = t.split(',').map(s => s.trim()).filter(Boolean);
+    const link = parts.find(p => /^https?:\/\//i.test(p)) || null;
+    const code = parts.find(p => !/^https?:\/\//i.test(p)) || link;
+    if (!code || code.length > 200) continue;
+    if (seen.has(code)) continue;
+    seen.add(code);
+    out.push({ code, link });
+  }
+  return out;
 }
 
 // ══ GPS 路段收集懸賞 ═══════════════════════════════════════════════════════
@@ -5497,6 +5921,13 @@ export default {
         return { error: String((e && e.message) || e) };
       });
       if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(mwTask);
+      // 台鐵等站卡:第三條推播迴圈。自帶 .catch ⇒ 不可能改變 scheduled 的成功/失敗契約
+      // (同 laTask/mwTask)。三者【並行】起跑,牆鐘是 max 不是相加。
+      const twTask = traWaitPushAll(env, ctx, 'https://railisland.tw').catch(e => {
+        console.error('[cron tw-push] 失敗:', (e && e.stack) || String(e));
+        return { error: String((e && e.message) || e) };
+      });
+      if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(twTask);
       // 高鐵班表自我檢查:與帳本、推播都無關,自帶 .catch ⇒ 不可能改變 scheduled 的成功/失敗契約
       // (同 hazardTask/laTask)。絕大多數 tick 會在第一行就 return(不到檢查週期),不碰 D1。
       const thsrHealTask = thsrSelfHeal(event, env).catch(e => {
@@ -5518,6 +5949,7 @@ export default {
         // 牆鐘是 max(45s, 40s) 不是兩者相加。
         await laTask;
         await mwTask;
+        await twTask;
         // 同理 await:北捷營運窗外(約 01:00–06:00)trtcLedgerScheduled 會立刻早退,handler 一 return
         // 就可能把 waitUntil 截斷——而 05:00–06:00 正是自癒該把今天班表準備好的時段。
         await thsrHealTask;
@@ -5635,10 +6067,14 @@ export default {
     else if (url.pathname === '/api/bounty-submit') res = await bountySubmit(request, env);
     else if (url.pathname === '/api/bounty-me') res = await bountyMe(request, env);
     else if (url.pathname === '/api/bounty-merge') res = await bountyMerge(request, env);
+    else if (url.pathname === '/api/pass-claim') res = await passClaim(request, env);
+    else if (url.pathname === '/api/pass-admin') res = await passAdmin(request, env);
     else if (url.pathname === '/api/la/bind') res = await laBind(request, env);
     else if (url.pathname === '/api/la/unbind') res = await laUnbind(request, env);
     else if (url.pathname === '/api/metro-wait/bind') res = await metroWaitBind(request, env);
     else if (url.pathname === '/api/metro-wait/unbind') res = await metroWaitUnbind(request, env);
+    else if (url.pathname === '/api/tra-wait/bind') res = await traWaitBind(request, env);
+    else if (url.pathname === '/api/tra-wait/unbind') res = await traWaitUnbind(request, env);
     else res = await env.ASSETS.fetch(request);
     const h = new Headers(res.headers);
     for (const [k, v] of Object.entries(SEC_HEADERS)) h.set(k, v);
@@ -5722,6 +6158,9 @@ export const _la = { laPushAll, traLive, laBind };
 // 走 getPlatformProxy 在 Node 端直接呼叫)。見 scripts/verify_metro_wait_push.mjs。
 // bind/unbind 一併導出:兩支端點的驗證(欄位驗證、換站重設狀態欄)不必再起一個 HTTP 伺服器。
 export const _mw = { metroWaitPushAll, metroWaitBind, metroWaitUnbind };
+// 台鐵等站卡推播鏈導出,理由與 _mw 完全相同(D1／APNs／tra-live 三個 IO)。
+// 見 scripts/verify_tra_wait_push.mjs。
+export const _tw = { traWaitPushAll, traWaitBind, traWaitUnbind };
 // 純函式與端點/cron 導出,供離線回歸測試 import(scripts/verify_thsr_schedule.mjs)。
 // thsrConvertDaily/thsrBuildStationMap/thsrSelectServedDay/thsrKeyToMs 是純函式,可直接餵 fixture。
 // fetchThsrDaily/thsrStationMap/ingestThsrSchedule/thsrSchedule 會碰 D1/ASSETS/網路,測試要自備

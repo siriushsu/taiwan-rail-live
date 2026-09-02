@@ -1,0 +1,566 @@
+{
+  "generatedAt": "2026-08-09T12:30:33.208Z",
+  "targetDescription": {
+    "attached": true,
+    "empty": false,
+    "height": 2201,
+    "never_attached": false,
+    "screenX": 0,
+    "screenY": 136,
+    "visible": true,
+    "width": 1080
+  },
+  "initial": {
+    "viewport": {
+      "width": 412,
+      "height": 839,
+      "dpr": 2.625
+    },
+    "rows": [
+      {
+        "key": "alert",
+        "text": "⚠",
+        "rect": {
+          "x": 164.78,
+          "y": 8,
+          "width": 38.29,
+          "height": 36
+        },
+        "center": {
+          "x": 183.93,
+          "y": 26
+        },
+        "points": [
+          {
+            "name": "center",
+            "x": 183.93,
+            "y": 26,
+            "owner": "alert"
+          },
+          {
+            "name": "left",
+            "x": 162.93,
+            "y": 26,
+            "owner": "alert"
+          },
+          {
+            "name": "right",
+            "x": 204.93,
+            "y": 26,
+            "owner": "alert"
+          },
+          {
+            "name": "top",
+            "x": 183.93,
+            "y": 5,
+            "owner": "alert"
+          },
+          {
+            "name": "bottom",
+            "x": 183.93,
+            "y": 47,
+            "owner": "alert"
+          }
+        ],
+        "effectiveHit": {
+          "left": 162,
+          "right": 205,
+          "top": 4,
+          "bottom": 47,
+          "width": 44,
+          "height": 44
+        },
+        "pseudoAfter": {
+          "content": "\"\"",
+          "width": "44px",
+          "height": "44px",
+          "pointerEvents": "auto"
+        }
+      },
+      {
+        "key": "全",
+        "text": "全",
+        "rect": {
+          "x": 211.07,
+          "y": 8,
+          "width": 43.28,
+          "height": 36
+        },
+        "center": {
+          "x": 232.71,
+          "y": 26
+        },
+        "points": [
+          {
+            "name": "center",
+            "x": 232.71,
+            "y": 26,
+            "owner": "全"
+          },
+          {
+            "name": "left",
+            "x": 211.71,
+            "y": 26,
+            "owner": "全"
+          },
+          {
+            "name": "right",
+            "x": 253.71,
+            "y": 26,
+            "owner": "全"
+          },
+          {
+            "name": "top",
+            "x": 232.71,
+            "y": 5,
+            "owner": "全"
+          },
+          {
+            "name": "bottom",
+            "x": 232.71,
+            "y": 47,
+            "owner": "全"
+          }
+        ],
+        "effectiveHit": {
+          "left": 211,
+          "right": 254,
+          "top": 4,
+          "bottom": 47,
+          "width": 44,
+          "height": 44
+        },
+        "pseudoAfter": {
+          "content": "\"\"",
+          "width": "44px",
+          "height": "44px",
+          "pointerEvents": "auto"
+        }
+      },
+      {
+        "key": "台",
+        "text": "台",
+        "rect": {
+          "x": 260.35,
+          "y": 8,
+          "width": 43.28,
+          "height": 36
+        },
+        "center": {
+          "x": 281.99,
+          "y": 26
+        },
+        "points": [
+          {
+            "name": "center",
+            "x": 281.99,
+            "y": 26,
+            "owner": "台"
+          },
+          {
+            "name": "left",
+            "x": 260.99,
+            "y": 26,
+            "owner": "台"
+          },
+          {
+            "name": "right",
+            "x": 302.99,
+            "y": 26,
+            "owner": "台"
+          },
+          {
+            "name": "top",
+            "x": 281.99,
+            "y": 5,
+            "owner": "台"
+          },
+          {
+            "name": "bottom",
+            "x": 281.99,
+            "y": 47,
+            "owner": "台"
+          }
+        ],
+        "effectiveHit": {
+          "left": 260,
+          "right": 303,
+          "top": 4,
+          "bottom": 47,
+          "width": 44,
+          "height": 44
+        },
+        "pseudoAfter": {
+          "content": "\"\"",
+          "width": "44px",
+          "height": "44px",
+          "pointerEvents": "auto"
+        }
+      },
+      {
+        "key": "高",
+        "text": "高",
+        "rect": {
+          "x": 309.63,
+          "y": 8,
+          "width": 43.28,
+          "height": 36
+        },
+        "center": {
+          "x": 331.27,
+          "y": 26
+        },
+        "points": [
+          {
+            "name": "center",
+            "x": 331.27,
+            "y": 26,
+            "owner": "高"
+          },
+          {
+            "name": "left",
+            "x": 310.27,
+            "y": 26,
+            "owner": "高"
+          },
+          {
+            "name": "right",
+            "x": 352.27,
+            "y": 26,
+            "owner": "高"
+          },
+          {
+            "name": "top",
+            "x": 331.27,
+            "y": 5,
+            "owner": "高"
+          },
+          {
+            "name": "bottom",
+            "x": 331.27,
+            "y": 47,
+            "owner": "高"
+          }
+        ],
+        "effectiveHit": {
+          "left": 309,
+          "right": 353,
+          "top": 4,
+          "bottom": 47,
+          "width": 45,
+          "height": 44
+        },
+        "pseudoAfter": {
+          "content": "\"\"",
+          "width": "44px",
+          "height": "44px",
+          "pointerEvents": "auto"
+        }
+      },
+      {
+        "key": "捷",
+        "text": "捷",
+        "rect": {
+          "x": 358.91,
+          "y": 8,
+          "width": 43.28,
+          "height": 36
+        },
+        "center": {
+          "x": 380.55,
+          "y": 26
+        },
+        "points": [
+          {
+            "name": "center",
+            "x": 380.55,
+            "y": 26,
+            "owner": "捷"
+          },
+          {
+            "name": "left",
+            "x": 359.55,
+            "y": 26,
+            "owner": "捷"
+          },
+          {
+            "name": "right",
+            "x": 401.55,
+            "y": 26,
+            "owner": "捷"
+          },
+          {
+            "name": "top",
+            "x": 380.55,
+            "y": 5,
+            "owner": "捷"
+          },
+          {
+            "name": "bottom",
+            "x": 380.55,
+            "y": 47,
+            "owner": "捷"
+          }
+        ],
+        "effectiveHit": {
+          "left": 359,
+          "right": 402,
+          "top": 4,
+          "bottom": 47,
+          "width": 44,
+          "height": 44
+        },
+        "pseudoAfter": {
+          "content": "\"\"",
+          "width": "44px",
+          "height": "44px",
+          "pointerEvents": "auto"
+        }
+      }
+    ],
+    "midpoints": [
+      {
+        "left": "alert",
+        "right": "全",
+        "x": 208.32,
+        "y": 26,
+        "owner": null,
+        "leftHitRight": 205,
+        "rightHitLeft": 211
+      },
+      {
+        "left": "全",
+        "right": "台",
+        "x": 257.35,
+        "y": 26,
+        "owner": null,
+        "leftHitRight": 254,
+        "rightHitLeft": 260
+      },
+      {
+        "left": "台",
+        "right": "高",
+        "x": 306.63,
+        "y": 26,
+        "owner": null,
+        "leftHitRight": 303,
+        "rightHitLeft": 309
+      },
+      {
+        "left": "高",
+        "right": "捷",
+        "x": 355.91,
+        "y": 26,
+        "owner": null,
+        "leftHitRight": 353,
+        "rightHitLeft": 359
+      }
+    ]
+  },
+  "actions": [
+    {
+      "key": "alert",
+      "type": "alert",
+      "cssTap": {
+        "x": 183.93,
+        "y": 5
+      },
+      "deviceTap": {
+        "x": 483,
+        "y": 149
+      },
+      "visualTop": 8,
+      "tapOutsideVisual": true,
+      "elementFromPointOwner": "alert",
+      "after": {
+        "group": "all",
+        "detailOpen": true,
+        "activeTopTab": "全",
+        "events": [
+          {
+            "type": "pointerdown",
+            "owner": "alert",
+            "target": "alertChip"
+          },
+          {
+            "type": "pointerup",
+            "owner": "alert",
+            "target": "alertChip"
+          },
+          {
+            "type": "click",
+            "owner": "alert",
+            "target": "alertChip"
+          }
+        ]
+      },
+      "pass": true
+    },
+    {
+      "key": "全",
+      "type": "group",
+      "expected": "all",
+      "seed": "metro",
+      "cssTap": {
+        "x": 232.71,
+        "y": 5
+      },
+      "deviceTap": {
+        "x": 611,
+        "y": 149
+      },
+      "visualTop": 8,
+      "tapOutsideVisual": true,
+      "elementFromPointOwner": "全",
+      "after": {
+        "group": "all",
+        "detailOpen": false,
+        "activeTopTab": "全",
+        "events": [
+          {
+            "type": "pointerdown",
+            "owner": "全",
+            "target": "全"
+          },
+          {
+            "type": "pointerup",
+            "owner": "全",
+            "target": "全"
+          },
+          {
+            "type": "click",
+            "owner": "全",
+            "target": "全"
+          }
+        ]
+      },
+      "pass": true
+    },
+    {
+      "key": "台",
+      "type": "group",
+      "expected": "tra",
+      "seed": "all",
+      "cssTap": {
+        "x": 281.99,
+        "y": 5
+      },
+      "deviceTap": {
+        "x": 740,
+        "y": 149
+      },
+      "visualTop": 8,
+      "tapOutsideVisual": true,
+      "elementFromPointOwner": "台",
+      "after": {
+        "group": "tra",
+        "detailOpen": false,
+        "activeTopTab": "台",
+        "events": [
+          {
+            "type": "pointerdown",
+            "owner": "台",
+            "target": "台"
+          },
+          {
+            "type": "pointerup",
+            "owner": "台",
+            "target": "台"
+          },
+          {
+            "type": "click",
+            "owner": "台",
+            "target": "台"
+          }
+        ]
+      },
+      "pass": true
+    },
+    {
+      "key": "高",
+      "type": "group",
+      "expected": "hsr",
+      "seed": "tra",
+      "cssTap": {
+        "x": 331.27,
+        "y": 5
+      },
+      "deviceTap": {
+        "x": 870,
+        "y": 149
+      },
+      "visualTop": 8,
+      "tapOutsideVisual": true,
+      "elementFromPointOwner": "高",
+      "after": {
+        "group": "hsr",
+        "detailOpen": false,
+        "activeTopTab": "高",
+        "events": [
+          {
+            "type": "pointerdown",
+            "owner": "高",
+            "target": "高"
+          },
+          {
+            "type": "pointerup",
+            "owner": "高",
+            "target": "高"
+          },
+          {
+            "type": "click",
+            "owner": "高",
+            "target": "高"
+          }
+        ]
+      },
+      "pass": true
+    },
+    {
+      "key": "捷",
+      "type": "group",
+      "expected": "metro",
+      "seed": "hsr",
+      "cssTap": {
+        "x": 380.55,
+        "y": 5
+      },
+      "deviceTap": {
+        "x": 999,
+        "y": 149
+      },
+      "visualTop": 8,
+      "tapOutsideVisual": true,
+      "elementFromPointOwner": "捷",
+      "after": {
+        "group": "metro",
+        "detailOpen": false,
+        "activeTopTab": "捷",
+        "events": [
+          {
+            "type": "pointerdown",
+            "owner": "捷",
+            "target": "捷"
+          },
+          {
+            "type": "pointerup",
+            "owner": "捷",
+            "target": "捷"
+          },
+          {
+            "type": "click",
+            "owner": "捷",
+            "target": "捷"
+          }
+        ]
+      },
+      "pass": true
+    }
+  ],
+  "summary": {
+    "pointFailures": [],
+    "sizeFailures": [],
+    "midpointViolations": [],
+    "actionFailures": []
+  }
+}

@@ -1,0 +1,110 @@
+apply plugin: 'com.android.application'
+
+def keystorePropertiesFile = rootProject.file('key.properties')
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
+}
+
+android {
+    namespace = "tw.railisland.app"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        // 測試機可用 -PrailApplicationId=tw.railisland.app.v18test 並存安裝；
+        // 沒傳屬性時仍是唯一可上 Google Play 的正式 package，不會意外改包名。
+        applicationId "tw.railisland.app"
+        if (project.hasProperty("railApplicationId")) applicationId project.property("railApplicationId")
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 31
+        versionName "1.5.3"
+        if (project.hasProperty("railVersionName")) versionName project.property("railVersionName")
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    sourceSets {
+        androidTest.assets.srcDir file('../../../docs/android/fixtures')
+    }
+    signingConfigs {
+        if (keystorePropertiesFile.exists()) {
+            release {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
+    buildTypes {
+        release {
+            if (keystorePropertiesFile.exists()) {
+                signingConfig signingConfigs.release
+            }
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation "androidx.core:core:$androidxCoreVersion"
+    implementation project(':capacitor-android')
+    implementation "androidx.media3:media3-exoplayer:1.11.0"
+    implementation "androidx.media3:media3-session:1.11.0"
+    implementation "com.google.android.play:review:2.0.2"
+    implementation "com.google.android.play:app-update:2.1.0"
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+// iOS 與 Android 小工具共用同一份站名／路線／末班車目錄，避免兩邊各自維護後漂移。
+def metroWidgetAssetsDir = file("$buildDir/generated/metroWidgetAssets")
+tasks.register('syncMetroWidgetData', Copy) {
+    from file('../../ios/App/RailBoardWidget/MetroWidgetData.json')
+    into metroWidgetAssetsDir
+}
+android.sourceSets.main.assets.srcDir metroWidgetAssetsDir
+tasks.named('preBuild').configure { dependsOn tasks.named('syncMetroWidgetData') }
+
+// Android 鐵路看板的站名／座標與台鐵逐日班表由 repo 同一份 dense 資料產生；高鐵班次在
+// runtime 改讀網站現用的 /api/thsr-schedule 今日文件，打包的舊單日檔只供站目錄使用。
+def railWidgetAssetsDir = file("$buildDir/generated/railWidgetAssets")
+def railWidgetDataFile = file("$railWidgetAssetsDir/RailWidgetData.json")
+tasks.register('buildRailWidgetData', Exec) {
+    workingDir file('../../..')
+    commandLine 'node', 'app/scripts/build_rail_widget_data.mjs', '--out', railWidgetDataFile.absolutePath
+    inputs.files file('../../../data/tra_schedule_dense.json'), file('../../../data/thsr_schedule_dense.json')
+    inputs.file file('../../scripts/build_rail_widget_data.mjs')
+    outputs.file railWidgetDataFile
+}
+android.sourceSets.main.assets.srcDir railWidgetAssetsDir
+tasks.named('preBuild').configure { dependsOn tasks.named('buildRailWidgetData') }
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    // 並存 instrumentation 包使用獨立 applicationId，不能誤套正式 Firebase client；
+    // 正式 build 不傳 railSkipGoogleServices，行為與原本完全相同。
+    if (servicesJSON.text && !project.hasProperty('railSkipGoogleServices')) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

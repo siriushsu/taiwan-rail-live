@@ -76,7 +76,13 @@ const server = createServer((req, res) => {
   res.end(readFileSync(fp));
 });
 await new Promise(r => server.listen(0, r));
-const base = `http://localhost:${server.address().port}/`;
+// 🔴 釘死 ?metrocore=0:本檔每一塊測的都是【官方板】路徑(全檔零個 Core 參照),而看板實際走
+//    CORE 板還是官方板取決於「此刻線上 Metro Core 活不活」——那是環境,不是產品。不釘死的話
+//    Core 一健康,官方板的 .row[data-trtc-eta] 就一列都不存在(CORE 板的列是 data-core-record),
+//    E-crowd 三條與 A2 前置會集體變紅,而程式一行都沒改(2026-08-29 實測:同一棵 origin/main
+//    連跑兩次,一次全綠一次四紅)。這個旗標是載入當下凍結的 const,只能帶在網址上,
+//    在 page.evaluate 裡設來不及。
+const base = `http://localhost:${server.address().port}/?metrocore=0`;
 
 // G0 第二半:證明「等一下瀏覽器抓到的」就是 ROOT 這棵樹的檔案。
 {
@@ -90,31 +96,37 @@ const ok = (name, pass, detail = '') => { results.push({ name, pass, detail }); 
 
 // 假橋接必須在頁面腳本執行「之前」就位:METRO_WAIT_ENABLED 相關判斷雖然是函式(每次重讀,見
 // index.html metroWaitEnabled),但 addInitScript 仍是唯一乾淨的注入時機,不依賴此特性也一樣成立。
-async function boot(browser, { withPlugin = true, startResult = { ok: true }, initialGroup = 'metro', viewport = { width: 1280, height: 900 } } = {}) {
+async function boot(browser, { withPlugin = true, startResult = { ok: true }, confirmResult = null,
+  initialGroup = 'metro', viewport = { width: 1280, height: 900 } } = {}) {
   const ctx = await browser.newContext({ viewport });
-  await ctx.addInitScript(({ withPlugin, startResult }) => {
+  await ctx.addInitScript(({ withPlugin, startResult, confirmResult }) => {
     try {
       localStorage.setItem('trainmap-howto-seen', '1'); // 首訪教學卡先關,否則 elementFromPoint 全滅
       localStorage.setItem('trainmap-language', 'zh-TW'); // 本腳本的既有產品文案斷言以繁中為準
     } catch (e) {}
+    window.__confirmCalls = 0;
+    if (confirmResult !== null) window.confirm = () => { window.__confirmCalls++; return confirmResult; };
     if (!withPlugin) return;
     window.__waitCalls = [];
     window.__waitListeners = {};
     window.__waitStartResult = startResult;
     const rec = (m, p) => {
       window.__waitCalls.push({ m, p: p ? JSON.parse(JSON.stringify(p)) : null, t: Date.now() });
-      return Promise.resolve(m === 'start' ? window.__waitStartResult : { ok: true });
+      if (m === 'start') return Promise.resolve(window.__waitStartResult);
+      if (m === 'openLiveUpdateSettings') return Promise.resolve({ opened: true });
+      return Promise.resolve({ ok: true });
     };
     window.__waitEmit = (ev, payload) => (window.__waitListeners[ev] || []).forEach(f => f(payload));
     window.Capacitor = { Plugins: { RailMetroWait: {
       start: p => rec('start', p),
       stop: () => rec('stop', null),
+      openLiveUpdateSettings: () => rec('openLiveUpdateSettings', null),
       addListener: (ev, cb) => {
         (window.__waitListeners[ev] = window.__waitListeners[ev] || []).push(cb);
         return Promise.resolve({ remove: () => {} });
       },
     } } };
-  }, { withPlugin, startResult });
+  }, { withPlugin, startResult, confirmResult });
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push('pageerror:' + String(e)));
@@ -250,7 +262,8 @@ const cr = await chromium.launch();
   ok('C payload.nextMinutes===null(精度誠實鐵則)', !!p && p.nextMinutes === null, `nextMinutes=${p && p.nextMinutes}`);
   ok('C payload.nextDest 非空', !!p && typeof p.nextDest === 'string' && p.nextDest.length > 0, JSON.stringify(p && p.nextDest));
   ok('C payload.dataAt 為秒級 epoch', !!p && p.dataAt > 1.7e9 && p.dataAt < 2.1e9, `dataAt=${p && p.dataAt}`);
-  ok('C payload.crowd===null(環狀線實錄 trains 無可 join 的 cars——負對照,不准造)', !!p && p.crowd === null, `crowd=${JSON.stringify(p && p.crowd)}`);
+  ok('C payload.crowd===null(環狀線實錄的看板列沒有官方車號,逐車 join 必然留白——不准借別台)',
+    !!p && p.crowd === null, `crowd=${JSON.stringify(p && p.crowd)}`);
   ok('C payload.durationMin 不經時長段=預設 30', !!p && p.durationMin === 30, `durationMin=${p && p.durationMin}`);
   const btnAfterStart = await page.evaluate(() => document.getElementById('boardWait').textContent.trim());
   ok('C start 成功後文案變「結束追蹤」', btnAfterStart === '結束追蹤', `text=${btnAfterStart}`);
@@ -261,28 +274,51 @@ const cr = await chromium.launch();
   ok('C 同站再點 → stop 恰好 1 次', sp.length === 1, `stop=${sp.length}`);
   const btnAfterStop = await page.evaluate(() => document.getElementById('boardWait').textContent.trim());
   ok('C stop 後文案回「追蹤這站」', btnAfterStop === '追蹤這站', `text=${btnAfterStop}`);
-  // C2 正對照(08-14 擁擠度接通):同站同鈕,這次 override 帶兩個方向各一台有 cars 的車
-  // (合成 harness 資料,只為打穿 join 路徑;實錄 Y 線 feed 本來就沒有 cars)。
-  // 兩方向都給值 ⇒ 不必假設哪個方向先到,斷言綁「nextDest 對應的那台車的 cars 原值」。
-  trtcLiveOverride = { ...freshenTrtc(trtcYRaw),
-    trains: [{ no: '901', dest: '大坪林站', cars: [1, 2, 3, 2] },
-             { no: '902', dest: '新北產業園區站', cars: [3, 3, 2, 1] }] };
+  // ── C2/C2b:逐車 join 的一對對照(2026-08-29 改) ──────────────────────────
+  // 環狀線實錄的看板列【沒有官方車號】(no 全為空字串,實測 0/6),所以真實 Y 線在逐車 join 下
+  // 必然留白——那正是上面 C 那條在講的事。要驗「join 本身接得通」就得自己造出有車號的列,
+  // 因此以下兩組都在同一份實錄上蓋 no,且【除了 trains[].no 以外每一格輸入完全相同】:
+  //   C2  trains[].no === 看板列的 no      ⇒ 必須拿到那台車的 cars
+  //   C2b trains[].no 換一個值(終點不變)   ⇒ 必須留白
+  // C2b 就是舊 join 的形狀:舊版拿【終點】當鍵,兩組都會回 [1,2,3,2] ⇒ 這一對才有牙。
+  // 少了 C2b,「有值」單獨成立無法區分逐車與同終點兩種 join。
+  const stampNo = (raw, no) => { const f = freshenTrtc(raw);
+    return { ...f, board: (f.board || []).map(row => ({ ...row, no })) }; };
   // pollTrtcLive 有 _trtcPolling 防重入鎖(見 ensureTrtcBoardLanded 的踩坑註解)——
-  // 等「crowdByDest 真的落地」這個可觀察內容,不等固定毫秒數。
-  for (let i = 0; i < 10; i++) {
+  // 等「這一輪的 crowdByNo 真的落地」這個可觀察內容,不等固定毫秒數。
+  const landCrowd = async key => { for (let i = 0; i < 10; i++) {
     await page.evaluate(() => pollTrtcLive());
     await page.waitForTimeout(80);
-    if (await page.evaluate(() => !!(state.trtcOfficialBoard && state.trtcOfficialBoard.crowdByDest
-      && state.trtcOfficialBoard.crowdByDest['大坪林站']))) break;
-  }
+    if (await page.evaluate(k => !!(state.trtcOfficialBoard && state.trtcOfficialBoard.crowdByNo
+      && state.trtcOfficialBoard.crowdByNo[k]), key)) return true;
+  } return false; };
+
+  trtcLiveOverride = { ...stampNo(trtcYRaw, 'Y901'),
+    trains: [{ no: 'Y901', dest: '大坪林站', cars: [1, 2, 3, 2] }] };
+  const landed2 = await landCrowd('Y901');
+  ok('C2 前提:這一輪的 crowdByNo 真的落地了(沒落地的話下面那條是零資訊)', landed2);
   await clearCalls(page);
   await clickWaitThroughPicker(page);
-  const st2 = await calls(page, 'start');
-  const p2 = st2[0] && st2[0].p;
-  const expCrowd = p2 && ({ '大坪林站': [1, 2, 3, 2], '新北產業園區站': [3, 3, 2, 1] })[p2.nextDest];
-  ok('C2 正對照:payload.crowd 深等於 nextDest 對應車的 cars',
-    !!p2 && JSON.stringify(p2.crowd) === JSON.stringify(expCrowd || null),
-    `nextDest=${p2 && p2.nextDest} crowd=${JSON.stringify(p2 && p2.crowd)} exp=${JSON.stringify(expCrowd)}`);
+  const p2 = (await calls(page, 'start'))[0] && (await calls(page, 'start'))[0].p;
+  ok('C2 正對照:看板列車號對得上那台車 ⇒ payload.crowd 深等於它的 cars',
+    !!p2 && JSON.stringify(p2.crowd) === JSON.stringify([1, 2, 3, 2]),
+    `nextDest=${p2 && p2.nextDest} crowd=${JSON.stringify(p2 && p2.crowd)}`);
+  await page.click('#boardWait');
+  await page.waitForTimeout(150);
+
+  // 只改 trains[].no,其餘(看板列、終點、cars 值)逐格相同。
+  trtcLiveOverride = { ...stampNo(trtcYRaw, 'Y901'),
+    trains: [{ no: 'Y999', dest: '大坪林站', cars: [1, 2, 3, 2] }] };
+  const landed3 = await landCrowd('Y999');
+  ok('C2b 前提:這一輪的 crowdByNo 也落地了(值在,只是鍵對不上看板列)', landed3);
+  await clearCalls(page);
+  await clickWaitThroughPicker(page);
+  const p3 = (await calls(page, 'start'))[0] && (await calls(page, 'start'))[0].p;
+  ok('C2b 負對照:同終點但不是同一台車 ⇒ payload.crowd 必須留白(舊的同終點 join 會回 [1,2,3,2])',
+    !!p3 && p3.crowd === null,
+    `nextDest=${p3 && p3.nextDest} crowd=${JSON.stringify(p3 && p3.crowd)}`);
+  await page.click('#boardWait');
+  await page.waitForTimeout(150);
   ok('C 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
 }
@@ -451,6 +487,55 @@ const cr = await chromium.launch();
   ok('H 幽靈站 start 未被呼叫', st.length === 0, `start=${st.length}`);
   ok('H 頁面仍存活可查詢', alive === true, `alive=${alive}`);
   ok('H 無 JS 例外(listener 不炸 boot)', errors.length === 0, errors.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
+// ══════════ I:Android 16 Live Update 未允許——明示同意才開系統設定，同一 session 只問一次 ══════════
+{
+  const startResult = { ok: true, endAt: Math.round(Date.now() / 1000) + 1800,
+    liveUpdate: { supported: true, allowed: false, eligible: true, promoted: false } };
+  const { ctx, page, errors } = await boot(cr, { withPlugin: true, startResult, confirmResult: true,
+    viewport: { width: 390, height: 844 } });
+  metroLiveOverride.krtc = freshenLive(krtcRaw);
+  await page.evaluate(() => pollMetroLive());
+  await openFreqStation(page, '哈瑪星');
+  await page.waitForTimeout(150);
+  await clearCalls(page);
+  await clickWaitThroughPicker(page);
+  await page.waitForTimeout(250);
+  const first = await calls(page, 'openLiveUpdateSettings');
+  const confirmFirst = await page.evaluate(() => window.__confirmCalls);
+  ok('I Android 16 未允許即時通知時會先詢問一次', confirmFirst === 1, `confirm=${confirmFirst}`);
+  ok('I 使用者明示同意後才開系統即時通知設定', first.length === 1, `open=${first.length}`);
+
+  // 直接再餵一次相同系統回應；判準落在產品的 session 防重旗標，不靠測試端改 state。
+  await page.evaluate(live => metroWaitOfferLiveUpdateSettings(
+    window.Capacitor.Plugins.RailMetroWait, live), startResult.liveUpdate);
+  await page.waitForTimeout(100);
+  const second = await calls(page, 'openLiveUpdateSettings');
+  const confirmSecond = await page.evaluate(() => window.__confirmCalls);
+  ok('I 同一 session 換站或重試不會重複追問', confirmSecond === 1 && second.length === 1,
+    `confirm=${confirmSecond} open=${second.length}`);
+  ok('I-允許路徑無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+{
+  const startResult = { ok: true, endAt: Math.round(Date.now() / 1000) + 1800,
+    liveUpdate: { supported: true, allowed: false, eligible: true, promoted: false } };
+  const { ctx, page, errors } = await boot(cr, { withPlugin: true, startResult, confirmResult: false,
+    viewport: { width: 390, height: 844 } });
+  metroLiveOverride.krtc = freshenLive(krtcRaw);
+  await page.evaluate(() => pollMetroLive());
+  await openFreqStation(page, '哈瑪星');
+  await page.waitForTimeout(150);
+  await clearCalls(page);
+  await clickWaitThroughPicker(page);
+  await page.waitForTimeout(250);
+  const opened = await calls(page, 'openLiveUpdateSettings');
+  const confirms = await page.evaluate(() => window.__confirmCalls);
+  ok('I-拒絕路徑仍有詢問，且不擅自打開設定', confirms === 1 && opened.length === 0,
+    `confirm=${confirms} open=${opened.length}`);
+  ok('I-拒絕路徑無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
 }
 

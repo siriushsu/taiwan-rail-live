@@ -208,7 +208,32 @@ struct BoardFilterOptionsProvider: DynamicOptionsProvider {
         let options: (types: [FilterOption], trains: [FilterOption])
         // 方向只有地點看板有：車站看板本來就是「這一站的發車」，方向由目的站決定。
         var directions: [FilterOption] = []
-        if let placeBoard = RailBoardStore.shared.placeLikeBoard(forKey: origin) {
+        // 「含通過列車」不是篩掉什麼、是多顯示什麼，所以獨立一段，也不算進「留空就是全部」。
+        var passSwitch: [FilterOption] = []
+        if let composite = RailBoardStore.shared.compositeSelection(forKey: origin) {
+            // 🔴 共站改吃官方發車看板之後，這一格是「兩站的車種與車次聯集」。
+            //    方向那一刀跟著消失：官方發車看板的方向就是終點站，而共站這個入口不吃目的站。
+            //    既有設定裡若還存著方向鍵，`BoardFilterSet.matches(_ template:)` 只看車種與車次
+            //    ⇒ 那些鍵變成無效但不會把看板篩成空的。
+            let engine = RailBoardEngine()
+            var types: [FilterOption] = []
+            var trains: [FilterOption] = []
+            var seen = Set<String>()
+            for member in composite.members {
+                let part = try engine.filterOptions(originID: member.st, destinationID: nil)
+                for option in part.types + part.trains where seen.insert(option.key).inserted {
+                    if option.key.hasPrefix(BoardFilter.trainTypePrefix) {
+                        types.append(option)
+                    } else {
+                        trains.append(option)
+                    }
+                }
+            }
+            options = (types: types, trains: trains)
+            if composite.members.contains(where: { engine.hasPassTrains(originID: $0.st) }) {
+                passSwitch = [passOption]
+            }
+        } else if let placeBoard = RailBoardStore.shared.placeLikeBoard(forKey: origin) {
             let engine = RailBoardEngine()
             options = try engine.filterOptions(placeBoard: placeBoard)
             directions = engine.directionOptions(placeBoard: placeBoard)
@@ -216,21 +241,37 @@ struct BoardFilterOptionsProvider: DynamicOptionsProvider {
             guard let originID = try RailBoardStore.shared.stationIndex(forKey: origin) else {
                 return .empty
             }
-            options = try RailBoardEngine().filterOptions(
+            let engine = RailBoardEngine()
+            options = try engine.filterOptions(
                 originID: originID,
                 destinationID: nil
             )
+            // 只有通過車的小站，車種與車次兩段都會是空的——沒有這一段就整格「沒有可用的選項」，
+            // 使用者連把通過列車叫回來的入口都沒有。
+            if engine.hasPassTrains(originID: originID) { passSwitch = [passOption] }
         }
         // 空的 section 不放進去（今天完全沒車的站）——寧可整格顯示「沒有可用的選項」，
         // 也不要塞一個空標題進 IntentItemCollection。
         // 方向排在最前面：它是最粗的一刀（一次砍掉一半），車種車次是在那之上再細分。
         let sections = [
             directions.isEmpty ? nil : IntentItemSection<String>("方向（與下面的條件同時成立）", items: directions.map(\.intentItem)),
+            passSwitch.isEmpty ? nil : IntentItemSection<String>("通過本站的列車", items: passSwitch.map(\.intentItem)),
             options.types.isEmpty ? nil : IntentItemSection<String>("車種", items: options.types.map(\.intentItem)),
             options.trains.isEmpty ? nil : IntentItemSection<String>("車次", items: options.trains.map(\.intentItem)),
         ].compactMap { $0 }
         if sections.isEmpty { return .empty }
-        return IntentItemCollection(promptLabel: "留空就是全部都看", sections: sections)
+        return IntentItemCollection(
+            promptLabel: passSwitch.isEmpty ? "留空就是全部都看" : "留空就是這一站的停靠與終到列車",
+            sections: sections
+        )
+    }
+
+    private var passOption: FilterOption {
+        FilterOption(
+            key: BoardFilter.includePass.key,
+            title: "含通過列車",
+            subtitle: "預設只顯示停靠與終到"
+        )
     }
 }
 
@@ -272,7 +313,7 @@ extension PlaceStationOption {
 struct ConfigurationAppIntent: WidgetConfigurationIntent {
     static var title: LocalizedStringResource { "發車看板" }
     static var description: IntentDescription {
-        IntentDescription("起訖站清單依縣市由北到南分段，最上面可以直接選你在軌島存過的地點。目的站可留空，以查看所有停靠、終到與通過列車；起站選共站或我的地點時，請用「只看這些」依方向、車種或車次篩選。")
+        IntentDescription("起訖站清單依縣市由北到南分段，最上面可以直接選你在軌島存過的地點。目的站可留空，以查看接下來的停靠與終到列車；想一併看通過本站不停靠的車，或起站選共站或我的地點時，請用「只看這些」篩選。")
     }
 
     @Parameter(title: "起站", optionsProvider: OriginOptionsProvider())
@@ -285,6 +326,11 @@ struct ConfigurationAppIntent: WidgetConfigurationIntent {
     // 兩者共用一個入口，勾選之間是 OR。
     @Parameter(title: "只看這些（可留空）", optionsProvider: BoardFilterOptionsProvider())
     var filters: [String]?
+
+    // 好讀版：系統放大字級（AX1 以上）會自動切，這個開關是給「系統字級正常但仍想要大字看板」
+    // 的人（設計檔明列的需求）。兩者是 OR ⇒ 打開之後不受系統字級影響。
+    @Parameter(title: "大字好讀版", default: false)
+    var readable: Bool
 }
 
 @available(iOS 17.0, *)

@@ -1,4 +1,5 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
+import { App } from '@capacitor/app';
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import { Geolocation } from '@capacitor/geolocation';
 import { LocalNotifications } from '@capacitor/local-notifications';
@@ -7,27 +8,55 @@ import { Purchases } from '@revenuecat/purchases-capacitor';
 
 const native = Capacitor.isNativePlatform();
 const platform = Capacitor.getPlatform();
+const ANDROID_PRECISE_LOCATION = Object.freeze({ permissions: ['location'] });
+const ensureAndroidPreciseLocation = async () => {
+  if (platform !== 'android') return null;
+  return Geolocation.requestPermissions(ANDROID_PRECISE_LOCATION);
+};
 window.RAIL_APP = native;
+window.RAIL_APP_PLATFORM = native ? platform : 'web';
+if (native && document.documentElement) document.documentElement.dataset.appPlatform = platform;
 window.RAIL_FFLATE_URL = 'vendor/fflate.js';
 
 if (native) {
   window.RAIL_API_BASE = 'https://railisland.tw/';
   window.RAIL_FIREBASE_MODULE_URL = './vendor/firebase.mjs';
 
-  if (platform === 'ios') {
+  if (platform === 'android') {
+    // 註冊 backButton listener 後 Capacitor 不再執行預設返回行為，所以前端先用可取消事件
+    // 收自己的浮層；沒有浮層接手時，再依 canGoBack 回上一頁或把 App 收到背景。
+    App.addListener('backButton', ({ canGoBack }) => {
+      const event = new CustomEvent('rail:native-back', { cancelable: true });
+      window.dispatchEvent(event);
+      if (event.defaultPrevented) return;
+      if (canGoBack) window.history.back();
+      else void App.minimizeApp();
+    });
+  }
+
+  if (platform === 'ios' || platform === 'android') {
     const RailPlaces = registerPlugin('RailPlaces');
     window.RAIL_NATIVE_PLACES = {
       sync: places => RailPlaces.sync({ places })
     };
+  }
 
-    const RailLiveActivity = registerPlugin('RailLiveActivity');
+  if (platform === 'android') {
+    const RailStore = registerPlugin('RailStore');
+    window.RAIL_NATIVE_APPUPDATE = { check: () => RailStore.checkUpdate() };
+  }
+
+  if (platform === 'ios' || platform === 'android') {
+    const RailLiveActivity = registerPlugin(platform === 'ios' ? 'RailLiveActivity' : 'RailFollowLive');
     window.RAIL_NATIVE_LIVEACTIVITY = {
       start: p => RailLiveActivity.start(p),
       update: p => RailLiveActivity.update(p),
       end: () => RailLiveActivity.end(),
       addListener: (ev, cb) => RailLiveActivity.addListener(ev, cb),
     };
+  }
 
+  if (platform === 'ios' || platform === 'android') {
     // 原生背景音樂（RailAudioPlugin）：佇列與自動接下一首在原生層，
     // 跟車時讓位（收播放卡）、平時鎖定畫面有播放卡。index.html 以 shim 對接（makeNativeMusicShim）。
     const RailAudio = registerPlugin('RailAudio');
@@ -42,11 +71,25 @@ if (native) {
   }
 
   window.RAIL_NATIVE_AUTH = {
-    async signIn(provider) {
+    // legacy=true 時 Google 改走傳統帳號選擇畫面(見下方長註解)。Apple 不受影響——它在 Android 上
+    // 走的是 Firebase 的 startActivityForSignInWithProvider(瀏覽器 OAuth),跟這條路徑毫無交集,
+    // 這也是「Google 沒反應但 Apple 有反應」在結構上唯一說得通的解釋。
+    async signIn(provider, legacy) {
       const options = { skipNativeAuth: true, scopes: ['email', 'name'] };
-      return provider === 'apple'
-        ? FirebaseAuthentication.signInWithApple(options)
-        : FirebaseAuthentication.signInWithGoogle({ skipNativeAuth: true });
+      if (provider === 'apple') return FirebaseAuthentication.signInWithApple(options);
+      // 2026-08-30:多位 Android 使用者回報「點 Google 登入完全沒反應,連錯誤訊息都沒有」。
+      // Android 的 Google 登入預設走 Credential Manager,而 plugin 那條路徑有兩處不保證回覆:
+      // 成功處理只認 GOOGLE_ID_TOKEN 型別、沒有 else 分支;憑證解析是在自建的 executor 執行緒上
+      // 做的,拋錯不會 reject。兩者都讓 PluginCall 永遠不 resolve/reject ⇒ 前端 await 永遠不回,
+      // 畫面上什麼都不會發生(連 catch 裡的紅字都不會出現)。
+      // 退路刻意【不自動觸發】:正常流程的 promise 本來就要等使用者選完帳號才 settle,任何逾時
+      // 都分不出「卡死」與「還在選帳號」,自動退路只會在使用者面前同時開兩個登入流程。改由前端
+      // 逾時後給一個出口,使用者按了才走這裡(見 index.html accountSignIn 的 signinStuck)。
+      // useCredentialManager:false 走傳統 GoogleSignIn Intent——它是 Activity result,取消或失敗
+      // 一定回得來,結構上不會靜默卡住。需要的 SHA-1 與 Credential Manager 同一組(已登記四把)。
+      const opts = { skipNativeAuth: true };
+      if (legacy && platform === 'android') opts.useCredentialManager = false;
+      return FirebaseAuthentication.signInWithGoogle(opts);
     },
     async revokeApple(credential) {
       const token = platform === 'ios' ? credential?.authorizationCode : credential?.accessToken;
@@ -56,11 +99,27 @@ if (native) {
   };
 
   window.RAIL_NATIVE_GEOLOCATION = {
-    getCurrentPosition: options => Geolocation.getCurrentPosition(options),
-    // 校正旅程只在前景連續取樣，走 When-in-use；鎖屏／退到背景才需要的 Always 權限不在本功能範圍。
+    async requestPermissions() {
+      const result = platform === 'android'
+        ? await ensureAndroidPreciseLocation()
+        : await Geolocation.requestPermissions();
+      return result.location;
+    },
+    async checkPermissions() {
+      const result = await Geolocation.checkPermissions();
+      return result.location;
+    },
+    async getCurrentPosition(options) {
+      await ensureAndroidPreciseLocation();
+      return Geolocation.getCurrentPosition(options);
+    },
+    // 藍點跟隨與校正旅程都只在前景連續取樣，走 When-in-use；鎖屏／退到背景才需要的 Always 權限不在本功能範圍。
     // 錯誤也回給前端，否則錄製黑幕上只會永遠停在「等待定位」，使用者無從補救。
-    watchPosition: (options, cb) =>
-      Geolocation.watchPosition(options, (pos, err) => cb(pos || null, err || null)),
+    async watchPosition(options, cb) {
+      await ensureAndroidPreciseLocation();
+      return Geolocation.watchPosition(options,
+        (pos, err) => cb(pos || null, err || null));
+    },
     clearWatch: id => Geolocation.clearWatch({ id }),
     // Capacitor Geolocation 沒有開啟系統設定頁的 API；前端見 null 時改顯示純文字引導
     // （與同檔 RAIL_NATIVE_LOCALNOTIFY.openSettings 的既有做法一致）。

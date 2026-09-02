@@ -6,6 +6,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { canonicalizeAliasStops, reportAliasMerge } from '../../scripts/alias_stops.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '../..');
@@ -22,6 +23,9 @@ const [traSchedule, thsrSchedule, stationInfo] = await Promise.all([
   readJSON('data/thsr_schedule_dense.json'),
   readJSON('data/tra_station_info.json'),
 ]);
+
+// 別名站(臺北-環島→臺北)在建站清單前先併,否則 AppIntent 的選站清單會多一顆。
+reportAliasMerge('widget-fallback', canonicalizeAliasStops(traSchedule.trains));
 
 const orderedNames = schedule => {
   const seen = new Set();

@@ -62,10 +62,15 @@ enum RailBoardScheduleWriter {
             contentsOf: rootURL.appendingPathComponent("places.json")
         )
         let placesFingerprint = fingerprint(placesData)
+        // 台鐵班表是 14 天滾動窗，打包進 IPA 的那份停在送審當天。抓得到線上的就用線上的，
+        // 抓不到就照舊用打包那份——退路的行為與這個改動之前完全相同。
+        let onlineTra = onlineTraSchedule(rootURL: rootURL)
+        let scheduleFingerprint = onlineTra?.fingerprint ?? "bundle"
         guard shouldRebuild(
             rootURL: rootURL,
             appBuild: appBuild,
-            placesFingerprint: placesFingerprint
+            placesFingerprint: placesFingerprint,
+            scheduleFingerprint: scheduleFingerprint
         ) else {
             return .unchanged
         }
@@ -89,16 +94,14 @@ enum RailBoardScheduleWriter {
         var loadedSystemCount = 0
 
         for input in systemInputs {
-            guard
-                let inputURL = Bundle.main.url(
-                    forResource: input.resource,
-                    withExtension: nil
-                ),
-                let data = try? Data(contentsOf: inputURL),
-                let document = try? JSONDecoder().decode(ScheduleDocument.self, from: data)
-            else {
-                continue
+            var document: ScheduleDocument?
+            if input.id == "tra", let onlineTra { document = onlineTra.document }
+            if document == nil,
+               let inputURL = Bundle.main.url(forResource: input.resource, withExtension: nil),
+               let data = try? Data(contentsOf: inputURL) {
+                document = try? JSONDecoder().decode(ScheduleDocument.self, from: data)
             }
+            guard let document else { continue }
 
             builder.add(system: input, document: document)
             loadedSystemCount += 1
@@ -117,25 +120,34 @@ enum RailBoardScheduleWriter {
                     uniqueKeysWithValues: systemInputs.map { ($0.id, $0.label) }
                 )
             )
-            let compositeBoards = buildPlaceBoards(
-                places: composites.map(\.place)
-            )
+            // 🔴 共站【不再】走 buildPlaceBoards：那是幾何管線（把座標投影到軌道、算幾點跨過
+            //    那個里程），對「我的地點」是對的，對共站是錯的——台北車站有月台，車會停，
+            //    而幾何時刻不含停靠時間，畫面上還得寫「經過」才對得上資料，等於告訴使用者
+            //    這班車不停（2026-08-17 使用者在真機回報）。共站改成記下成員站，讓看板端
+            //    直接讀那些站的官方發車看板。
             try publish(
                 builder: builder,
                 placeBoards: placeBoards,
-                compositeBoards: compositeBoards,
-                compositeRecords: zip(composites, compositeBoards).map {
-                    CompositeStationRecord(
-                        i: $0.1.i,
-                        label: $0.0.place.label,
-                        subtitle: $0.0.subtitle,
-                        lat: $0.0.place.lat,
-                        lon: $0.0.place.lon
+                compositeRecords: composites.enumerated().compactMap { offset, composite in
+                    let members = composite.members.compactMap { station -> CompositeMember? in
+                        guard let index = builder.stations.firstIndex(of: station) else { return nil }
+                        return CompositeMember(sys: station.s, st: index)
+                    }
+                    // 少一個系統就不是共站了 ⇒ 整筆不出（寧可少一個入口，不要半套看板）。
+                    guard members.count == composite.members.count else { return nil }
+                    return CompositeStationRecord(
+                        i: offset,
+                        label: composite.place.label,
+                        subtitle: composite.subtitle,
+                        lat: composite.place.lat,
+                        lon: composite.place.lon,
+                        sts: members
                     )
                 },
                 rootURL: rootURL,
                 appBuild: appBuild,
                 placesFingerprint: placesFingerprint,
+                scheduleFingerprint: scheduleFingerprint,
                 fileManager: fileManager
             )
             return .written
@@ -198,6 +210,147 @@ enum RailBoardScheduleWriter {
         }.joined()
     }
 
+    private static let traScheduleURL = "https://railisland.tw/data/tra_widget_schedule.json"
+    private static let traScheduleCacheName = "tra_widget_schedule.json"
+
+    /// 線上台鐵班表（精簡檔）。回傳解好的文件與它的身分字串；任何一步失敗都回 nil，
+    /// 呼叫端照舊用打包的那份——這條路只會讓資料更新，不會讓它變差。
+    ///
+    /// 為什麼要它：台鐵班表是 14 天滾動窗，而打包進 IPA 的那份停在送審當天。App 不重新
+    /// 上架，小工具就一直拿過期班表推算；窗過完之後只能退到「同星期最近來源日」硬撐。
+    /// 網頁版本來就會自己抓新的，小工具沒有這條路。
+    ///
+    /// 為什麼不抓 data/tra_schedule_dense.json：那份 5.9 MB。精簡檔把站名換成索引、
+    /// 顏色抽成車種對照表，646 KB，而且**一份涵蓋整個 14 天窗**——所以判準是「今天在不在
+    /// dates 裡」，抓一次撐到窗結束，不是每天抓一次。
+    ///
+    /// 快取刻意放 Caches 而不是 App Group 根目錄：那裡是 publish 的搬移目標，別去打架；
+    /// Caches 被系統清掉最多就是重抓一次。
+    private static func onlineTraSchedule(rootURL: URL) -> (document: ScheduleDocument, fingerprint: String)? {
+        let today = taipeiToday()
+        let cacheURL = FileManager.default
+            .urls(for: .cachesDirectory, in: .userDomainMask).first?
+            .appendingPathComponent(traScheduleCacheName)
+
+        if let cacheURL,
+           let cached = try? Data(contentsOf: cacheURL),
+           let parsed = decodeCompactTraSchedule(cached, today: today) {
+            return parsed
+        }
+        guard
+            let data = downloadTraSchedule(),
+            let parsed = decodeCompactTraSchedule(data, today: today)
+        else {
+            return nil
+        }
+        if let cacheURL { try? data.write(to: cacheURL, options: .atomic) }
+        return parsed
+    }
+
+    private static func taipeiToday() -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "Asia/Taipei")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: Date())
+    }
+
+    /// 跑在 workQueue（utility）上，不是主執行緒，所以用號誌等同步結果是安全的。
+    private static func downloadTraSchedule() -> Data? {
+        guard let url = URL(string: traScheduleURL) else { return nil }
+        var request = URLRequest(
+            url: url,
+            cachePolicy: .reloadIgnoringLocalCacheData,
+            timeoutInterval: 15
+        )
+        request.setValue("RailIsland-iOS-RailBoardWriter", forHTTPHeaderField: "User-Agent")
+
+        var result: Data?
+        let semaphore = DispatchSemaphore(value: 0)
+        URLSession.shared.dataTask(with: request) { data, response, _ in
+            if let http = response as? HTTPURLResponse, http.statusCode == 200 {
+                result = data
+            }
+            semaphore.signal()
+        }.resume()
+        _ = semaphore.wait(timeout: .now() + 20)
+        return result
+    }
+
+    /// 精簡檔 → 與打包 dense 檔相同語意的 ScheduleDocument。
+    /// 站名還原自索引、停站秒數加回成 depSec、座標從站表補回去（builder 要靠它算共站與地點）。
+    /// 車次順序刻意沿用來源順序：dates 裡放的是車次索引，順序一動整份就對不上。
+    /// 涵蓋不到今天就回 nil——寧可用打包那份，也不要拿一份不含今天的班表去推。
+    private static func decodeCompactTraSchedule(
+        _ data: Data,
+        today: String
+    ) -> (document: ScheduleDocument, fingerprint: String)? {
+        guard
+            let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+            let dates = root["dates"] as? [String: [Int]],
+            dates[today] != nil,
+            let stationRows = root["stations"] as? [[Any]],
+            let trainRows = root["trains"] as? [[Any]]
+        else {
+            return nil
+        }
+
+        var names: [String] = []
+        var lats: [Double?] = []
+        var lons: [Double?] = []
+        names.reserveCapacity(stationRows.count)
+        for row in stationRows {
+            guard row.count >= 3, let name = row[0] as? String else { return nil }
+            names.append(name)
+            lats.append((row[1] as? NSNumber)?.doubleValue)
+            lons.append((row[2] as? NSNumber)?.doubleValue)
+        }
+
+        let colors = root["types"] as? [String: String] ?? [:]
+        var trains: [ScheduleTrain] = []
+        trains.reserveCapacity(trainRows.count)
+        for row in trainRows {
+            guard
+                row.count >= 3,
+                let no = row[0] as? String,
+                let type = row[1] as? String,
+                let stopRows = row[2] as? [[Any]]
+            else {
+                return nil
+            }
+            var stops: [ScheduleStop] = []
+            stops.reserveCapacity(stopRows.count)
+            for stop in stopRows {
+                guard
+                    stop.count >= 4,
+                    let at = (stop[0] as? NSNumber)?.intValue, at >= 0, at < names.count,
+                    let arr = (stop[1] as? NSNumber)?.intValue,
+                    let dwell = (stop[2] as? NSNumber)?.intValue,
+                    let flag = (stop[3] as? NSNumber)?.intValue
+                else {
+                    return nil
+                }
+                stops.append(ScheduleStop(
+                    name: names[at],
+                    arrSec: arr,
+                    depSec: arr + dwell,
+                    stop: flag != 0,
+                    lat: lats[at],
+                    lon: lons[at]
+                ))
+            }
+            trains.append(ScheduleTrain(train: no, typeName: type, stops: stops))
+        }
+
+        let types = colors.keys.sorted().map {
+            ScheduleType(key: $0, color: colors[$0] ?? "#8E44AD")
+        }
+        let fingerprint = (root["generated"] as? String)
+            ?? (root["dateRange"] as? [String])?.joined(separator: "~")
+            ?? "online"
+        return (ScheduleDocument(types: types, trains: trains, dates: dates), fingerprint)
+    }
+
     /// 看板檔的格式版本。**動到 board／place-board／composite-board 的欄位或語意就 +1。**
     ///
     /// 為什麼需要它：重算閘門原本只比 `appBuild`（網頁 BUILD＋CFBundleVersion）與地點指紋，
@@ -207,12 +360,15 @@ enum RailBoardScheduleWriter {
     /// 但那要靠人記得。改成把版本寫在格式旁邊，改格式的那一手就會看到它。
     ///
     /// 2＝加入 `PlaceBoardPass.dir` 與 composite-board（2026-07-31）。
-    private static let boardFormatVersion = 2
+    /// 3＝共站改吃官方發車看板：`composites.json` 加 `sts`，`composite-board/` 整個廢除
+    ///    （2026-08-17，使用者在真機看到共站寫「經過」）。
+    private static let boardFormatVersion = 3
 
     private static func shouldRebuild(
         rootURL: URL,
         appBuild: String,
-        placesFingerprint: String
+        placesFingerprint: String,
+        scheduleFingerprint: String
     ) -> Bool {
         let metaURL = rootURL.appendingPathComponent("meta.json")
         guard
@@ -224,6 +380,8 @@ enum RailBoardScheduleWriter {
         return meta.appBuild != appBuild
             || meta.boardFormat != boardFormatVersion
             || meta.placesFingerprint != placesFingerprint
+            // 班表換了但 App 沒換版：不比這一項的話，抓回來的新班表永遠不會被寫成看板。
+            || (meta.scheduleFingerprint ?? "") != scheduleFingerprint
     }
 
     /// 索引與線形對「使用者的地點」與「共站入口」是同一份，讀一次就好。
@@ -315,11 +473,11 @@ enum RailBoardScheduleWriter {
     private static func publish(
         builder: BoardBuilder,
         placeBoards: [PlaceBoardDocument],
-        compositeBoards: [PlaceBoardDocument],
         compositeRecords: [CompositeStationRecord],
         rootURL: URL,
         appBuild: String,
         placesFingerprint: String,
+        scheduleFingerprint: String,
         fileManager: FileManager
     ) throws {
         let stagingURL = rootURL.appendingPathComponent(
@@ -334,10 +492,6 @@ enum RailBoardScheduleWriter {
             "place-board",
             isDirectory: true
         )
-        let stagingCompositeBoardURL = stagingURL.appendingPathComponent(
-            "composite-board",
-            isDirectory: true
-        )
 
         try fileManager.createDirectory(
             at: stagingBoardURL,
@@ -345,10 +499,6 @@ enum RailBoardScheduleWriter {
         )
         try fileManager.createDirectory(
             at: stagingPlaceBoardURL,
-            withIntermediateDirectories: true
-        )
-        try fileManager.createDirectory(
-            at: stagingCompositeBoardURL,
             withIntermediateDirectories: true
         )
         defer {
@@ -374,6 +524,7 @@ enum RailBoardScheduleWriter {
                 appBuild: appBuild,
                 boardFormat: boardFormatVersion,
                 placesFingerprint: placesFingerprint,
+                scheduleFingerprint: scheduleFingerprint,
                 types: builder.types,
                 systems: builder.systems
             ).utf8
@@ -403,15 +554,7 @@ enum RailBoardScheduleWriter {
                 options: .atomic
             )
         }
-        for compositeBoard in compositeBoards {
-            try placeEncoder.encode(compositeBoard).write(
-                to: stagingCompositeBoardURL.appendingPathComponent(
-                    "\(compositeBoard.i).json"
-                ),
-                options: .atomic
-            )
-        }
-        // 索引與看板檔在同一次發布裡一起產生，所以 `i` 永遠對得上；
+        // 共站索引指的是「成員站的官方看板」，那些檔在上面的 board 迴圈裡已經全部寫好；
         // 設定裡存的是 label 不是 i，站增減造成的索引位移影響不到既有設定。
         let compositesData = try placeEncoder.encode(compositeRecords)
         try compositesData.write(
@@ -424,10 +567,6 @@ enum RailBoardScheduleWriter {
             "place-board",
             isDirectory: true
         )
-        let compositeBoardURL = rootURL.appendingPathComponent(
-            "composite-board",
-            isDirectory: true
-        )
         try fileManager.createDirectory(
             at: boardURL,
             withIntermediateDirectories: true
@@ -436,9 +575,10 @@ enum RailBoardScheduleWriter {
             at: placeBoardURL,
             withIntermediateDirectories: true
         )
-        try fileManager.createDirectory(
-            at: compositeBoardURL,
-            withIntermediateDirectories: true
+        // 舊版留下的幾何共站看板整個清掉：它已經沒有讀者，留著只會讓下一個人以為
+        // 共站還有第二條資料路可走（那條正是「經過」的來源）。
+        try? fileManager.removeItem(
+            at: rootURL.appendingPathComponent("composite-board", isDirectory: true)
         )
 
         // 每一站都是獨立原子替換；既有站索引永不改指向，因此發布途中讀到的
@@ -467,26 +607,6 @@ enum RailBoardScheduleWriter {
             includingPropertiesForKeys: nil
         ) where staleURL.pathExtension == "json"
             && !validPlaceBoardNames.contains(staleURL.lastPathComponent)
-        {
-            try fileManager.removeItem(at: staleURL)
-        }
-        for compositeBoard in compositeBoards {
-            try atomicallyInstall(
-                stagedURL: stagingCompositeBoardURL.appendingPathComponent(
-                    "\(compositeBoard.i).json"
-                ),
-                destinationURL: compositeBoardURL.appendingPathComponent(
-                    "\(compositeBoard.i).json"
-                ),
-                fileManager: fileManager
-            )
-        }
-        let validCompositeNames = Set(compositeBoards.map { "\($0.i).json" })
-        for staleURL in try fileManager.contentsOfDirectory(
-            at: compositeBoardURL,
-            includingPropertiesForKeys: nil
-        ) where staleURL.pathExtension == "json"
-            && !validCompositeNames.contains(staleURL.lastPathComponent)
         {
             try fileManager.removeItem(at: staleURL)
         }
@@ -592,6 +712,8 @@ extension RailBoardScheduleWriter {
         let placesFingerprint: String?
         /// 舊版 App 寫的 meta 沒有這個欄位；缺值一律當作「格式不同」而重算。
         let boardFormat: Int?
+        /// 線上班表的身分（compact 檔的 generated）。缺值＝上一次是用打包班表寫的。
+        let scheduleFingerprint: String?
     }
 
     struct ExistingStationsDocument: Decodable {
@@ -702,6 +824,12 @@ extension RailBoardScheduleWriter {
         let dir: Int
     }
 
+    /// 共站的一個成員站：`st` 就是 `board/<st>.json` 的索引。
+    struct CompositeMember: Encodable {
+        let sys: String
+        let st: Int
+    }
+
     /// 共站（台鐵與高鐵同一個地方）的一筆。
     struct CompositeStationRecord: Encodable {
         let i: Int
@@ -709,6 +837,10 @@ extension RailBoardScheduleWriter {
         let subtitle: String
         let lat: Double
         let lon: Double
+        /// 🔴 成員站的官方看板索引。看板端只認這個欄位——共站的時刻一律取官方發車看板，
+        ///    不再用座標算幾何通過時刻（2026-08-17 改）。缺這個欄位的舊資料要被當成
+        ///    「還沒重算」處理，不可以退回幾何那條路。
+        let sts: [CompositeMember]
     }
 
     /// 找出「不同系統但實際上在同一個地方」的車站，做成一筆合併入口。
@@ -727,11 +859,16 @@ extension RailBoardScheduleWriter {
             name.replacingOccurrences(of: "臺", with: "台")
         }
 
+        /// 🔴 `members` 是共站真正的成員站（每個系統一個代表），一定要跟著回傳：
+        ///    共站看板要讀這些站的**官方發車看板**，而站名反推做不到——12 個高鐵站有 8 個
+        ///    與台鐵共站、其中 5 個名字不一樣（六家／新竹、豐富／苗栗、新烏日／台中、
+        ///    沙崙／台南、新左營／左營），靠 label 拆字比對會漏掉一半。這裡是唯一
+        ///    同時握有「哪些站被判為共站」與「它們的 Station 身分」的地方。
         static func find(
             coordinates: [Station: (lat: Double, lon: Double)],
             systemOrder: [String],
             systemLabels: [String: String]
-        ) -> [(place: PlaceInput, subtitle: String)] {
+        ) -> [(place: PlaceInput, subtitle: String, members: [Station])] {
             let entries = coordinates.map {
                 (station: $0.key, lat: $0.value.lat, lon: $0.value.lon)
             }.sorted {
@@ -769,7 +906,8 @@ extension RailBoardScheduleWriter {
                 groups[root(index), default: []].append(index)
             }
 
-            return groups.keys.sorted().compactMap { key -> (PlaceInput, String)? in
+            return groups.keys.sorted().compactMap {
+                key -> (PlaceInput, String, [Station])? in
                 guard let members = groups[key] else { return nil }
                 let systems = Set(members.map { entries[$0].station.s })
                 guard systems.count > 1 else { return nil }
@@ -808,9 +946,11 @@ extension RailBoardScheduleWriter {
                 let lon = representatives.reduce(0.0) { $0 + entries[$1].lon }
                     / Double(representatives.count)
                 // manual 只影響「我的地點」在選單裡的排序，共站不走那條路徑、值不被讀。
+                // 座標留著：選單副標與排序仍用得到，只是不再拿去算幾何通過時刻。
                 return (
                     PlaceInput(label: label, lat: lat, lon: lon, manual: false),
-                    subtitle
+                    subtitle,
+                    representatives.map { entries[$0].station }
                 )
             }
         }
@@ -1465,6 +1605,7 @@ extension RailBoardScheduleWriter {
             appBuild: String,
             boardFormat: Int,
             placesFingerprint: String,
+            scheduleFingerprint: String,
             types: [TypeColor],
             systems: [SystemMeta]
         ) -> String {
@@ -1479,7 +1620,7 @@ extension RailBoardScheduleWriter {
             }.joined(separator: ",")
 
             return """
-            {"v":1,"builtAt":\(string(builtAt)),"appBuild":\(string(appBuild)),"boardFormat":\(boardFormat),"placesFingerprint":\(string(placesFingerprint)),"types":{\(typeValues)},"systems":[\(systemValues)]}
+            {"v":1,"builtAt":\(string(builtAt)),"appBuild":\(string(appBuild)),"boardFormat":\(boardFormat),"placesFingerprint":\(string(placesFingerprint)),"scheduleFingerprint":\(string(scheduleFingerprint)),"types":{\(typeValues)},"systems":[\(systemValues)]}
             """
         }
 

@@ -33,7 +33,7 @@ struct MetroWidgetCatalog {
     /// "<sys>|<站名>" → 站座標(自動選站的最近站計算用)。同站多線座標相同,取第一筆。
     let coords: [String: Coord]
     /// "<sys>|<線 id>" → 該線色票。官方 `trains[].stn` 的字母前綴就是線 id(BL13 → BL),
-    /// 用來把看板每一列對回它真正的路線色(見 MetroPalette.rowColor)。
+    /// 用來把看板每一列對回它真正的路線色(見 MetroPalette.rowLine)。
     let lineColorByID: [String: String]
     /// "<sys>|<線 id>" → 該線的中文顯示名(「文湖線」)。與 lineColorByID 同一把鑰匙:
     /// 等車卡的標頭要「圓點＋線名」兩件,色票只給得起圓點。
@@ -82,7 +82,10 @@ struct MetroWidgetCatalog {
                 guard let color = line["color"] as? String else { continue }
                 if let lid = line["id"] as? String {
                     byLineID["\(sysID)|\(lid)"] = color
-                    if let nm = line["name"] as? String { nameByLineID["\(sysID)|\(lid)"] = nm }
+                    // 線名缺就不收(查不到時畫面層不畫這個元件,而不是畫一顆沒標籤的點)。
+                    if let nm = line["name"] as? String, !nm.isEmpty {
+                        nameByLineID["\(sysID)|\(lid)"] = nm
+                    }
                 }
                 for st in (line["stations"] as? [[String: Any]] ?? []) {
                     guard let n = st["name"] as? String else { continue }
@@ -173,6 +176,8 @@ enum MetroFetcher {
             // (車號是「板南／文湖」那一種列唯一的判別依據,見 MetroBoardModel.resolveLine)。
             if let l = r.lineCode { d["line"] = l }
             if let n = r.trainNo { d["no"] = n }
+            // approx 不存就會在退路那份掉旗標——合成的「約」列會被畫成秒級倒數冒充官方精度。
+            if r.approx { d["approx"] = true }
             return d
         }
         suite?.set(["at": s.dataAt, "rows": rows, "stale": s.stale], forKey: key(sys, station))
@@ -184,7 +189,8 @@ enum MetroFetcher {
         let rows = raw.map { r in
             MetroRow(dest: r["dest"] as? String ?? "", etaEpoch: r["eta"] as? Double,
                      minutes: r["min"] as? Int, crowd: r["crowd"] as? [Int],
-                     lineCode: r["line"] as? String, trainNo: r["no"] as? String)
+                     lineCode: r["line"] as? String, trainNo: r["no"] as? String,
+                     approx: r["approx"] as? Bool ?? false)
         }
         // 🔴 Swift 的 memberwise init 必須照【宣告順序】給參數,不能重排:
         //    MetroSnapshot 是 station → dataAt → rows → stale。

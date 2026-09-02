@@ -16,6 +16,13 @@ r.json
 # TDX 歷史原始資料快取(建校正模型用,60 天約 50MB)。**實測從工作樹上傳時它會變成公開路徑**
 # (2026-07-26 在預覽站抓到 .cache/tra_hist/2026-07-20.jsonl.gz 回 200/849KB)——原始資料不對外散布。
 .cache
+# TDX／OSM 原始 API 傾印(68 檔 16.3MB)。理由與上面 .cache 同族,但這裡是**第二道**:
+# 2026-08-29 已把 data/tdx 移出版控,而 ship-web 從乾淨 detached worktree 出貨(只含追蹤檔)
+# ⇒ 正常出貨路徑已經不會帶它。這條擋的是**裸跑 wrangler versions upload**——那會傳磁碟檔,
+# 未追蹤但仍在磁碟上的 data/tdx 會再度變成公開路徑(08-27 裸 wrangler 出過兩次)。
+data/tdx
+# 資料庫結構定義(10 個 .sql),執行期零引用。
+schema
 # 逐節點診斷檔(內部除錯用,前端不讀)
 data/*_diag.json
 # 站間距稽核報告(561KB、20311 行的內部分析,前端不讀;產物是 data/tra_seg_cumdist.json,

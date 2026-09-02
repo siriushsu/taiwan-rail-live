@@ -1,6 +1,8 @@
+import { inventory, compare as compareShipInventory } from './verify_no_ship_regression.mjs';
 import { lstat, readFile, readdir } from 'node:fs/promises';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { verifyAndroidWidgetParity } from './verify_android_widget_parity.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '..');
@@ -9,6 +11,138 @@ const defaultOut = join(appRoot, 'www');
 
 const fail = message => { throw new Error(`App 發行檢查失敗：${message}`); };
 const assert = (condition, message) => { if (!condition) fail(message); };
+
+export function assertNativeBridgeLoggingDisabled(capacitorConfig) {
+  assert(capacitorConfig?.loggingBehavior === 'none',
+    'capacitor.config.json loggingBehavior 必須是 none——Firebase 原生登入結果含憑證，不可寫入 Android logcat');
+}
+
+// Android v5 曾在 MainActivity.super.onCreate() 之前呼叫 EdgeToEdge.enable()。那一步會提早把
+// SplashScreen theme 的 ActionBar 建出來；Capacitor BridgeActivity 隨後才切 NoActionBar 已經來不及，
+// WebView 因而被上下各擠出一塊系統底色。Capacitor 8 自帶 SystemBars/insets handling，殼不應再手動開一次。
+export function assertAndroidMainActivityDoesNotPreInitWindow(mainActivity) {
+  assert(!/\bEdgeToEdge\s*\.\s*enable\s*\(/.test(mainActivity),
+    'Android MainActivity 不可手動呼叫 EdgeToEdge.enable()——會在 Capacitor 套用 NoActionBar 前初始化 launch theme，讓上下白帶回歸');
+}
+
+// Android 前景定位契約：同時宣告 coarse/fine，並明確請求 location alias，讓系統提供「精確位置」
+// 選項。一次性與連續定位都必須保留呼叫端的 enableHighAccuracy，不可在 bridge 偷壓回 false。
+export function assertAndroidPreciseLocationContract({ nativeBridgeSource, packagedBridge, androidManifest }) {
+  assert(androidManifest.includes('android.permission.ACCESS_COARSE_LOCATION'),
+    'Android manifest 必須宣告 ACCESS_COARSE_LOCATION');
+  assert(androidManifest.includes('android.permission.ACCESS_FINE_LOCATION'),
+    'Android manifest 必須宣告 ACCESS_FINE_LOCATION，否則無法提供精確位置');
+  assert(/ANDROID_PRECISE_LOCATION\s*=\s*Object\.freeze\(\{\s*permissions:\s*\['location'\]\s*\}\)/s.test(nativeBridgeSource),
+    'Android 定位 bridge 必須以 location alias 請求精確位置');
+  assert(/Geolocation\.requestPermissions\(ANDROID_PRECISE_LOCATION\)/.test(nativeBridgeSource),
+    'Android 定位 bridge 沒有明確呼叫 Geolocation.requestPermissions(location)');
+  assert(!/androidGeoOptions|enableHighAccuracy:\s*false/.test(nativeBridgeSource),
+    'Android 定位 bridge 不可強制降為模糊位置');
+  assert(/Geolocation\.getCurrentPosition\(options\)/.test(nativeBridgeSource),
+    '一次性定位沒有原樣保留精確定位選項');
+  assert(/Geolocation\.watchPosition\(options,/.test(nativeBridgeSource),
+    '連續定位沒有原樣保留精確定位選項');
+  assert(/permissions:\[?["']location["']\]?/.test(packagedBridge),
+    '打包後 native-bridge.js 不含精確位置契約——原始碼修正沒有進入發行包');
+}
+
+// Android 實體／手勢返回鍵契約：官方 App plugin 接原生事件，index.html 決定浮層優先序。
+// 一旦註冊 listener，Capacitor 就不再代做預設返回；所以「沒有浮層時」的 history/minimize
+// 退路也必須一起存在，否則補了關閉選單卻會讓一般返回鍵整顆失效。
+export function assertAndroidBackButtonContract({ nativeBridgeSource, packagedBridge, html }) {
+  assert(nativeBridgeSource.includes("import { App } from '@capacitor/app'"),
+    'Android 返回鍵必須使用官方 @capacitor/app，不可另開自製原生橋');
+  assert(/App\.addListener\('backButton',[\s\S]*new CustomEvent\('rail:native-back', \{ cancelable: true \}\)/.test(nativeBridgeSource),
+    'native bridge 沒有把官方 backButton 轉成可取消的 rail:native-back 事件');
+  assert(/if \(canGoBack\) window\.history\.back\(\);[\s\S]*App\.minimizeApp\(\)/.test(nativeBridgeSource),
+    '返回鍵沒有保留「可返回就上一頁，否則收 App 到背景」的既有退路');
+  assert(packagedBridge.includes('rail:native-back') && packagedBridge.includes('backButton'),
+    '打包後 native-bridge.js 缺少 Android 返回鍵接線');
+  const setup = (html.match(/function setupNativeBackButton\(\) \{[\s\S]*?\n\}/) || [''])[0];
+  assert(setup.includes("addEventListener('rail:native-back'")
+      && setup.includes('gtabPopSet(false)') && setup.includes('statPopSet(false)')
+      && setup.includes('e.preventDefault()'),
+    'index.html 必須讓返回鍵依序先收群組選單／資料狀態卡，並攔下該次原生返回');
+  assert(html.includes('setupGtabPop(); setupNativeBackButton();'),
+    'Android 返回鍵處理函式存在但沒有在 boot 掛上');
+}
+
+// Android WebView <140 的 env(safe-area-inset-*) 有已知錯誤；Capacitor 8 會把正確值注入
+// --safe-area-inset-*。所有版面只准從 --sa-* 別名取值，否則三鍵導覽／手勢條會再次蓋住貼底控制。
+export function assertAndroidSafeAreaCssContract(html) {
+  for (const [short, edge] of [['t', 'top'], ['r', 'right'], ['b', 'bottom'], ['l', 'left']]) {
+    const pattern = new RegExp(`--sa-${short}:\\s*var\\(--safe-area-inset-${edge},\\s*env\\(safe-area-inset-${edge},\\s*0px\\)\\)`);
+    assert(pattern.test(html),
+      `CSS --sa-${short} 必須優先讀 Capacitor --safe-area-inset-${edge}，再退回 env(safe-area-inset-${edge})`);
+  }
+  assert(/body\.ambient \.controls\s*\{[^}]*bottom:\s*calc\(8px \+ var\(--sa-b\)\)/s.test(html),
+    'Android 放空模式底部控制未避讓 --sa-b——系統導覽列會再次蓋住「離開放空」');
+  assert(/\.topbar \.grouptabs \.gtab\s*\{[^}]*width:\s*36px[^}]*height:\s*36px/s.test(html)
+      && /\.topbar \.alert-chip\s*\{[^}]*width:\s*36px[^}]*height:\s*36px/s.test(html),
+    'Android 手機頂列必須維持緊湊 36px 幾何——360dp＋營運公告時「捷」會被裁掉');
+}
+
+// 2026-08-22 的 63e38b2 曾在三方合併時把 index.html 整檔選成 main 那側，
+// 讓只活在 App 線的功能、定位與公開更新紀錄一起靜默消失；原生碼與 build 全部仍會綠。
+// 這裡鎖住「必須一起存在」的 App 血脈，不再只靠散落且未接進出貨流程的瀏覽器驗收器。
+export function assertAppLineageContent(html) {
+  const requiredSource = [
+    ['id="fpLaCta"', '跟車面板的鎖屏通行證入口'],
+    ['function renderLaCta()', '跟車鎖屏通行證渲染'],
+    ['function maybeSatPlusNotice()', '衛星高解析通行證提示'],
+    ["{ key: 'metrowidget'", '使用說明中心的捷運小工具章節'],
+    ["{ key: 'metrowait'", '使用說明中心的在這站等車章節'],
+    ['function startForegroundGeoWatch(', 'App 前景持續定位'],
+    ['function updateGeoCamera(', '所在地鏡頭跟隨'],
+    ['function zaCalGl(', '捏合縮放的 MapLibre 重標定'],
+    ['const syncDraw = () =>', '拖曳時 overlay 同幀重畫'],
+    ['L.MaplibreGL.prototype', 'MapLibre 同步 redraw 補丁'],
+  ];
+  for (const [needle, label] of requiredSource) {
+    assert(html.includes(needle), `${label}遺失（缺少 ${needle}）——請檢查 index.html 是否又在合併時整檔退回 main`);
+  }
+
+  const requiredHistory = [
+    'apprestore', 'geofollow', 'metrocoreidentity', 'widgetredesign', 'androidwidgets', 'plusctas', 'mapsync',
+    'appwhatsnewlag', 'androidcoarse', 'androidtopgap', 'androidinsets', 'androidbars', 'android142',
+  ];
+  for (const id of requiredHistory) {
+    assert(html.includes(`data-cl="${id}"`),
+      `完整更新歷史缺少 data-cl="${id}"——App 專屬紀錄不可在網站／iOS 合併時被整段吃掉`);
+  }
+}
+
+// 2026-08-30:同一顆 63e38b2 還吃掉了另一種東西——不是「識別字不見了」,而是【函式還在、
+// 但它本體裡的那一行呼叫不見了】。420a0a5(08-16)把通行證資格推給小工具的呼叫端從 1 處補到 8 處,
+// 合併整檔取 main 那側之後又退回 1 處,而 metroWidgetSyncPlus 這個函式名本身還在 ⇒
+// assertAppLineageContent 的 includes() 與 verify_no_ship_regression 的識別字盤點【兩道都照不到】,
+// Android 1.5.0(16/19) 與 iOS 1.5.1(82) 三顆出貨顆就這樣帶著單向閥出去(登出後小工具照樣解鎖)。
+// 所以這道閘門判的是「呼叫在不在它該在的那個函式本體裡」,不是全檔數量——數量會被任何一處補寫矇過去。
+// 行為層的判準另有 scripts/verify_metro_widget_plus_sync.mjs(量 setPlus 的呼叫序列),那支要瀏覽器,
+// 不適合掛在這條純 Node 的出貨鏈上;這裡只做「結構還在不在」的廉價守門。
+export function assertWidgetPlusSyncSites(html) {
+  // 每一條都是一個【明確答案】的來源:拿到答案就必須把旗標推給小工具,否則它會停在上一個值。
+  const sites = [
+    ['accountForgetIdentity', '登出'],
+    ['accountEnsureInit', 'auth 明確解出 null(換人／session 失效)'],
+    ['setupAccountUi', '冷啟動就是訪客(「更新即關」的唯一保障)'],
+    ['plusReconcileEntitlement', '資格文件握手'],
+    ['plusApplyCustomerInfo', 'RevenueCat 推播／付費操作前重新驗證'],
+    ['plusRefresh', '回前景／到期／退費'],
+    ['plusPurchase', '購買成功'],
+    ['plusRestore', '恢復購買'],
+  ];
+  for (const [fn, why] of sites) {
+    const start = html.search(new RegExp(String.raw`^(?:async )?function ${fn}\(`, 'm'));
+    assert(start >= 0, `找不到函式 ${fn}——通行證資格同步的閘門失去受測對象,請先確認它是不是改名或被整檔合併吃掉`);
+    const rest = html.slice(start + 1);
+    const nextRelative = rest.search(/^(?:async )?function [A-Za-z_$]/m);
+    const body = html.slice(start, nextRelative < 0 ? html.length : start + 1 + nextRelative);
+    assert(body.includes('metroWidgetSyncPlus('),
+      `${fn}() 沒有把通行證資格推給小工具(${why})——旗標會變成單向閥:寫成 true 之後回不去,` +
+      `登出／到期後小工具照樣解鎖;反向則是付了錢還鎖著。見 index.html 的 metroWidgetSyncPlus 上方說明。`);
+  }
+}
 
 // Stadia 官方要求的逐字署名(prepare-web 注入、本檔驗證,單一事實來源)
 export const STADIA_ATTRIBUTION = '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
@@ -65,6 +199,53 @@ export function assertPlusSandboxTestBuild(html, expectedBuild) {
     `TestFlight Sandbox 包的測試通道 build 標記不是 ${build}`);
 }
 
+export const ANDROID_PLUS_GATE_LINE =
+  "  if (IS_NATIVE_APP && window.Capacitor?.getPlatform?.() === 'android') return window.RAIL_ANDROID_PLUS_ENABLED === true;";
+
+export function assertAndroidPlusGate(html) {
+  const exactInitializer = [
+    'const PLUS_ENABLED = (() => { try {',
+    ANDROID_PLUS_GATE_LINE,
+    '  if (window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()) return true;',
+    "  return new URLSearchParams(location.search).get('plus') === '1';",
+    '} catch (e) { return false; } })();',
+  ].join('\n');
+  assert(html.includes(exactInitializer),
+    'PLUS_ENABLED 必須讓原生 Android 只讀 build-time 明確旗標，再逐字保留既有 iOS 原生與 Web ?plus=1 分支；'
+    + '不得只藏單一入口或重寫共享判定式');
+  assert(html.split(ANDROID_PLUS_GATE_LINE).length === 2,
+    'Android 通行證平台 gate 必須且只能出現一次');
+}
+
+export function assertAndroidPlusReleaseConfig(html, expectedVersionCode = '') {
+  const enabled = /window\.RAIL_ANDROID_PLUS_ENABLED=(true|false)/.exec(html)?.[1];
+  assert(enabled, '發行包缺少 window.RAIL_ANDROID_PLUS_ENABLED 明確注入');
+  if (enabled === 'false') {
+    assert(/window\.RAIL_ANDROID_PLUS_SANDBOX_POLICY=null/.test(html)
+      && /window\.RAIL_ANDROID_PLUS_SANDBOX_BUILD=null/.test(html),
+    'Android 通行證關閉時 Sandbox policy/build 必須同時為 null');
+    assert(!/androidApiKey\s*:/.test(html),
+      'Android 通行證關閉時不應把 RevenueCat Android key 打進包內');
+    return false;
+  }
+
+  const key = /androidApiKey\s*:\s*["'](goog_[A-Za-z0-9]+)["']/.exec(html)?.[1] || '';
+  assert(key, 'Android 通行證已開啟，但發行包沒有格式正確的 RevenueCat Android public SDK key（goog_…）');
+  assert(!/androidApiKey\s*:\s*["']sk_/.test(html),
+    'Android App 絕不可打包 RevenueCat secret key（sk_…）');
+  assert(/window\.RAIL_METRO_CORE_ENABLED=true/.test(html),
+    'Android 通行證版必須明確啟用 Metro Core；不可退回舊捷運位置模型');
+  assert(/window\.RAIL_ANDROID_PLUS_SANDBOX_POLICY="revenuecat-allowlist"/.test(html),
+    'Android 通行證正式包必須明確採 revenuecat-allowlist Sandbox policy');
+  const build = /window\.RAIL_ANDROID_PLUS_SANDBOX_BUILD="([1-9]\d*)"/.exec(html)?.[1] || '';
+  assert(build, 'Android 通行證正式包缺少 Sandbox build 號');
+  if (expectedVersionCode) assert(build === String(expectedVersionCode),
+    `Android Sandbox build=${build}，與 versionCode=${expectedVersionCode} 不一致`);
+  assert(/const ANDROID_PLUS_SANDBOX_OK = PLUS_ENABLED[\s\S]*RAIL_ANDROID_PLUS_SANDBOX_POLICY === 'revenuecat-allowlist'[\s\S]*RAIL_ANDROID_PLUS_SANDBOX_BUILD/.test(html),
+    'Android 同 AAB Sandbox 驗收的 runtime 收斂判定消失');
+  return true;
+}
+
 export async function assertLicensedBuildAllowed({ includeLicensedMusic, includeLicensedBasemaps }) {
   const policy = await readReleasePolicy();
   if (includeLicensedMusic) {
@@ -72,6 +253,8 @@ export async function assertLicensedBuildAllowed({ includeLicensedMusic, include
       '音樂授權政策尚未核准，不可建立含 Suno 音樂的 App');
     const checklist = await readFile(join(appRoot, 'MUSIC_LICENSE_CHECKLIST.md'), 'utf8');
     const trackRows = checklist.split('\n').filter(line => /^\| .+\.mp3 \|/.test(line));
+    // 2026-08-27：曲庫由 29 首換成 57 首(六個歌單資料夾)。這個數字是硬編的,因為它的用途是
+    // 「有人動了曲庫卻沒回頭補核對表」的警報——跟著曲庫自動走就永遠不會響。
     assert(trackRows.length === 57, `音樂核對表應有 57 首，目前是 ${trackRows.length} 首`);
     assert(trackRows.every(line => /\| 已核對 \|\s*$/.test(line)),
       '音樂核對表仍有未核對曲目');
@@ -102,16 +285,10 @@ export async function assertLicensedBuildAllowed({ includeLicensedMusic, include
 // 指紋＝呼叫參數拿掉「所有字串literal內容」與空白之後剩下的程式結構。
 // 這樣改文案不會動到指紋（不會為了改一句話就紅燈），改結構才會。
 const TOAST_REVIEWED = new Map([
-  // 2026-08-18 登記:北捷「官方訂正位置」(trtcOfficialCorrectTick)與「官方訊號恢復」
-  // (trtcOfficialResyncTick)兩則通知。兩處的 msg 都是樣板字串,插值只有 count／maxM／mins／
-  // removed 四個,全部由 Math.round()／Number() 產生的數字,無使用者資料、無外部輸入;
-  // 字串裡的 <b> 是刻意要的粗體,所以不能整段 escHtml。
-  // ⚠️ 這個指紋是「變數名＋選項」的形狀,不綁呼叫點:日後若出現**新的**
-  // showToast(msg, { wrap: true }),會被這一筆自動放行 ⇒ 新增這種呼叫時必須回來重審,
-  // 不要因為帳本裡已經有這個指紋就當作有人審過。
-  ['msg,{wrap:true}', '北捷官方訂正/訊號恢復通知:插值只有 count/maxM/mins/removed 四個數字,無使用者資料'],
+  [`res&&res.why===''?'':res&&res.why===''?'':''`, '等車卡開卡失敗提示:res.why 只被比較,三個寫死字串三選一,無插入'],
   [`info.done?'':''`, '兩個寫死字串二選一,無插入'],
   [`on?'':''`, '兩個寫死字串二選一,無插入'],
+  [`core?'':''`, 'Core 跟隨失聯提示:core 只在兩個寫死字串間二選一,無插入'],
   [`''+note+''`, 'onLocateFail:note 只可能是四個寫死常數之一,無使用者資料'],
   [`m`, 'announceCollections:msgs 每個插值都已 escHtml;此處刻意傳 <b> 做粗體'],
   ['`${escHtml(item.title)}`', '眾包校正提示,已逸出'],
@@ -124,6 +301,29 @@ const TOAST_REVIEWED = new Map([
   [`t.toast`, '使用說明「試一次」:t 必為 HELP_TRY 成員,其 toast 全是寫死字面字串,無插入'],
   ["j.why===''?'':`${st.name}${Math.round(j.distM)},(${j.r})`", '單站打卡:st.name 來自內建班表/路線資料;distM 是 haversineKm 計算值,r 是 CHECKIN_RADIUS_M 數字常數'],
   ['`${st.name}`', '單站打卡:st 只由 nearbyStationCandidates 的內建班表/路線車站產生,站名不可由使用者編輯'],
+  // 2026-08-26 登記:網站 OpenFreeMap 失效提示(ofmNoticeWeb,來自 origin/main 的 fdf04b0)。
+  // main 上沒有人跑 App 發版閘門,所以這條進 App 血脈的第一天才被擋——不是回歸。
+  // 實查:canSat = !!document.getElementById('satBtn') ⇒ 布林;三段字串(前綴與三元的兩個分支)
+  // 全是寫死字面值,全檔 canSat 只出現 2 次(宣告＋此處),零插值、零使用者資料。
+  // 指紋帶著 canSat 這個專屬變數名 ⇒ 只涵蓋這一個呼叫點,不會一次放行所有同形呼叫。
+  [`''+(canSat?'':''),{wrap:true}`, '底圖失效提示:canSat 是布林,兩個分支與前綴都是寫死字串,無插入'],
+  // 2026-08-15 登記:北捷官方訊號恢復通知(trtcOfficialResyncTick,index.html:5059,斷訊挽救批次)。
+  // msg 是本地變數,由三個插值組成、全部是數字:
+  //   mins    = Math.max(1, Math.round(r.outageSec / 60));r.outageSec 唯一寫入點是
+  //             `Math.max(Number(...) || 0, coastedFor)`(index.html:5197)⇒ 數字
+  //   count   = r.count,唯一寫入點是 `(Number(...) || 0) + 1`(index.html:5198)⇒ 數字
+  //   removed = Number(rec.removed),且被 `Number(rec.removed) > 0` 守著 ⇒ 有限正數
+  // rec 來自自家 /api/trtc-live 的 recovery 物件,但即使上游吐 HTML 字串,Number() 也會變 NaN
+  // 而被 >0 擋掉。三處皆無字串路徑進 innerHTML;句中的 <b> 是刻意的粗體排版。
+  [`msg,{wrap:true}`, '官方訊號恢復通知:三個插值(分鐘/台數/移除台數)全經 Number()/Math.* 收斂為數字,無字串來源'],
+  // 2026-08-16 登記:通行證提示批次的兩發說明型 toast(看板的小工具引導、衛星的高解析說明)。
+  // 這個指紋是**偵測器的已知假陽性**,不是「有插入但我判斷安全」:blankLiterals 把整段字面字串
+  // 換成 '',於是只剩選項物件 `{wrap:true}` 裡的識別字 `wrap` 被 toastHasInjection 認成插入。
+  // 這一格涵蓋的呼叫形狀是【單一字串字面值 ＋ {wrap:true}】,結構上不存在插入點:
+  //   · 若有人日後改成 showToast('前綴' + name, {wrap:true}),blankLiterals 後是 ''+name,{wrap:true}
+  //     ⇒ 指紋不同 ⇒ 仍會被擋下來(這一格【不會】順便放行拼接版本)。
+  //   · 若改成樣板字串帶插值,指紋也會帶著 ${...} 而不同,同樣擋得住。
+  [`'',{wrap:true}`, '純字面字串＋{wrap:true} 選項:指紋裡的 wrap 是選項名不是插值,無任何值進 innerHTML'],
   // 2026-08-14 登記:捷運等車卡(Task 6)。
   [`res&&res.why===''?'':''`, '等車卡開卡失敗:兩個寫死字串二選一(why===disabled 與否),無插入'],
   [`''+escHtml(String(station||''))+''`, '等車卡深連結找不到站:station 來自小工具深連結(外部輸入),已 escHtml 逸出;verify_metro_wait_entry.mjs H 組實測覆蓋'],
@@ -140,8 +340,30 @@ const TOAST_REVIEWED = new Map([
   // 🔴 變數名故意不叫 `msg`:指紋是「拿掉字串內容後的結構」,登記 `msg,{wrap:true}` 等於放行
   //    未來所有同形呼叫。取專屬名字讓這兩條只涵蓋這兩個呼叫點,新的通用 msg 仍會被擋下來。
   [`resyncMsg,{wrap:true}`, 'trtcOfficialResyncTick:只插入 mins/count/removed,三者皆先經 Math 收斂為數字'],
-  [`t('',{note})`, '定位失敗提示:note 只可能是四個已翻譯的寫死常數之一,無使用者資料'],
-  [`t(action.toast)`, '使用說明「試一次」:action 必為 HELP_TRY 成員,toast 是寫死字面字串,無使用者資料'],
+  // 2026-08-28 多語化：下列呼叫只是在原本已審查的值外包 t(...)。t 不做 HTML 逸出，
+  // 所以使用者／外部字串仍逐一要求 escHtml；數量則經 i18nNumber 收斂成在地化數字。
+  [`t(core?'':'')`, 'Core 跟隨失聯提示:core 只選兩個固定翻譯 key'],
+  [`t(info.done?'':'')`, '班次結束提示:info.done 只選兩個固定翻譯 key'],
+  [`t('',{note})`, '定位失敗提示:note 只來自同函式四個固定且已翻譯的說明'],
+  [`t('',{n:i18nNumber(out.added),updated:out.updated?t('',{n:i18nNumber(out.updated)},out.updated):'',skipped:out.skipped?t('',{n:i18nNumber(out.skipped)},out.skipped):'',},out.added)`,
+    '匯入結果:added/updated/skipped 全是匯入計數並經 i18nNumber'],
+  [`label?t('',{label:escHtml(label)}):t('')`, '儲存地點提示:使用者地點名已 escHtml'],
+  [`t('',{station:escHtml(stationName(f.name,f.metroSysId||f.sys))})`, '最愛車站跳轉提示:收藏站名經 stationName 後已 escHtml'],
+  [`j.why===''?t(''):t('',{station:escHtml(stationName(st.name,st.sys)),distance:i18nNumber(Math.round(j.distM)),radius:i18nNumber(j.r)})`,
+    '單站打卡失敗:站名已 escHtml,距離與半徑是數字'],
+  [`t('',{station:escHtml(stationName(st.name,st.sys))})`, '單站打卡提示:站名已 escHtml'],
+  [`t('',{station:escHtml(stationName(st.name,st.sys)),count:e&&e.n>1?t('',{n:i18nNumber(e.n)},e.n):''})`,
+    '單站打卡成功:站名已 escHtml,次數經 i18nNumber'],
+  [`t('',{from:escHtml(stationName(st.name,tr.sys)),to:escHtml(stationName(tr.stops[toIdx].name,tr.sys)),note:j.ok?'':t('')})`,
+    '開始搭乘:兩端站名已 escHtml,note 只選固定翻譯 key'],
+  [`t('',{from:escHtml(stationName(r.fromName,tr.sys)),to:escHtml(stationName(st.name,tr.sys)),n:i18nNumber(n)},n)`,
+    '完成搭乘:localStorage 起站與目的站皆已 escHtml,站數經 i18nNumber'],
+  [`t(res&&res.why===''?'':res&&res.why===''?'':'')`, '等車卡開卡結果:why 只被比較,三個固定翻譯 key 三選一'],
+  [`t('',{station:escHtml(String(station||''))})`, '等車卡深連結站名屬外部輸入,已 escHtml'],
+  [`t(canSat?'':''),{wrap:true}`, '底圖失效提示:canSat 只選兩個固定翻譯 key'],
+  [`t(action.toast)`, '使用說明「試一次」:action 是 HELP_TRY 固定成員,toast 為固定翻譯 key'],
+  [`t(on?'':'')`, '省電模式提示:on 只選兩個固定翻譯 key'],
+  [`p.label?t('',{label:escHtml(p.label)}):t('')`, '預設啟動地點提示:使用者地點名已 escHtml'],
 ]);
 
 // 掃出每一個 showToast( 呼叫的完整參數（括號配對，不是 regex 抓一行）。
@@ -167,170 +389,17 @@ export function showToastCalls(src) {
 const blankLiterals = s => s.replace(/'[^']*'/g, "''").replace(/"[^"]*"/g, '""');
 export const toastFingerprint = raw => blankLiterals(raw).replace(/[^\x20-\x7E]/g, '').replace(/\s+/g, '');
 
-function splitTopLevel(source, delimiter = ',') {
-  const parts = [];
-  let start = 0, round = 0, square = 0, curly = 0, quote = '', escaped = false;
-  for (let i = 0; i < source.length; i++) {
-    const c = source[i];
-    if (quote) {
-      if (escaped) escaped = false;
-      else if (c === '\\') escaped = true;
-      else if (c === quote) quote = '';
-      continue;
-    }
-    if (c === "'" || c === '"' || c === '`') { quote = c; continue; }
-    if (c === '(') round++;
-    else if (c === ')') round--;
-    else if (c === '[') square++;
-    else if (c === ']') square--;
-    else if (c === '{') curly++;
-    else if (c === '}') curly--;
-    else if (c === delimiter && round === 0 && square === 0 && curly === 0) {
-      parts.push(source.slice(start, i)); start = i + 1;
-    }
-  }
-  parts.push(source.slice(start));
-  return parts;
-}
-
-function unwrapParens(source) {
-  let value = source.trim();
-  while (value.startsWith('(') && value.endsWith(')')) {
-    let depth = 0, quote = '', escaped = false, closesAtEnd = false;
-    for (let i = 0; i < value.length; i++) {
-      const c = value[i];
-      if (quote) {
-        if (escaped) escaped = false;
-        else if (c === '\\') escaped = true;
-        else if (c === quote) quote = '';
-        continue;
-      }
-      if (c === "'" || c === '"' || c === '`') { quote = c; continue; }
-      if (c === '(') depth++;
-      else if (c === ')' && --depth === 0) { closesAtEnd = i === value.length - 1; break; }
-    }
-    if (!closesAtEnd) break;
-    value = value.slice(1, -1).trim();
-  }
-  return value;
-}
-
-function topLevelConditional(source) {
-  let round = 0, square = 0, curly = 0, quote = '', escaped = false;
-  let question = -1, nested = 0;
-  for (let i = 0; i < source.length; i++) {
-    const c = source[i];
-    if (quote) {
-      if (escaped) escaped = false;
-      else if (c === '\\') escaped = true;
-      else if (c === quote) quote = '';
-      continue;
-    }
-    if (c === "'" || c === '"' || c === '`') { quote = c; continue; }
-    if (c === '(') round++;
-    else if (c === ')') round--;
-    else if (c === '[') square++;
-    else if (c === ']') square--;
-    else if (c === '{') curly++;
-    else if (c === '}') curly--;
-    else if (round === 0 && square === 0 && curly === 0 && c === '?') {
-      if (question < 0) question = i;
-      else nested++;
-    } else if (round === 0 && square === 0 && curly === 0 && c === ':' && question >= 0) {
-      if (nested > 0) nested--;
-      else return [source.slice(question + 1, i), source.slice(i + 1)];
-    }
-  }
-  return null;
-}
-
-function literalTranslationKey(source) {
-  const value = unwrapParens(source);
-  if (/^'(?:\\.|[^'\\])*'$/.test(value) || /^"(?:\\.|[^"\\])*"$/.test(value)) return true;
-  const conditional = topLevelConditional(value);
-  return !!conditional && literalTranslationKey(conditional[0]) && literalTranslationKey(conditional[1]);
-}
-
-function matchingParen(source, openAt) {
-  let depth = 0, quote = '', escaped = false;
-  for (let i = openAt; i < source.length; i++) {
-    const c = source[i];
-    if (quote) {
-      if (escaped) escaped = false;
-      else if (c === '\\') escaped = true;
-      else if (c === quote) quote = '';
-      continue;
-    }
-    if (c === "'" || c === '"' || c === '`') { quote = c; continue; }
-    if (c === '(') depth++;
-    else if (c === ')' && --depth === 0) return i;
-  }
-  return -1;
-}
-
-// t() 的字典內容本身是受信任程式碼，但插值仍可能是使用者資料。把「字面 key 的 t()」
-// 攤平成它的插值值，再交給下方 taint 判斷；動態 key（例如 t(action.toast)）保留並走審查帳本。
-function expandTrustedTranslations(source) {
-  let out = '', cursor = 0;
-  for (let i = 0; i < source.length;) {
-    if (source[i] === 't' && source[i + 1] === '(' && !/[\w$.]/.test(source[i - 1] || '')) {
-      const end = matchingParen(source, i + 1);
-      if (end < 0) break;
-      const inner = source.slice(i + 2, end);
-      const args = splitTopLevel(inner);
-      if (literalTranslationKey(args[0] || '')) {
-        const params = (args[1] || '').trim();
-        let values = [];
-        if (params.startsWith('{') && params.endsWith('}')) {
-          values = splitTopLevel(params.slice(1, -1)).filter(Boolean).map(entry => {
-            const pair = splitTopLevel(entry, ':');
-            return expandTrustedTranslations((pair.length > 1 ? pair.slice(1).join(':') : pair[0]).trim());
-          });
-        } else if (params && params !== 'null' && params !== 'undefined') {
-          values = [expandTrustedTranslations(params)];
-        }
-        out += source.slice(cursor, i) + (values.length ? `(${values.join('+')})` : "''");
-        cursor = end + 1; i = end + 1; continue;
-      }
-      i = end + 1; continue;
-    }
-    i++;
-  }
-  return out + source.slice(cursor);
-}
-
-function eraseTrustedCall(source, name) {
-  let out = '', cursor = 0;
-  for (let i = 0; i < source.length;) {
-    if (source.startsWith(name + '(', i) && !/[\w$.]/.test(source[i - 1] || '')) {
-      const end = matchingParen(source, i + name.length);
-      if (end < 0) break;
-      out += source.slice(cursor, i) + "''"; cursor = end + 1; i = end + 1; continue;
-    }
-    i++;
-  }
-  return out + source.slice(cursor);
-}
-
-function expressionCarriesData(source) {
-  const value = unwrapParens(source);
-  if (!value) return false;
-  if (/^'(?:\\.|[^'\\])*'$/.test(value) || /^"(?:\\.|[^"\\])*"$/.test(value)) return false;
-  if (/^(?:true|false|null|undefined|-?\d+(?:\.\d+)?)$/.test(value)) return false;
-  const conditional = topLevelConditional(value);
-  if (conditional) return expressionCarriesData(conditional[0]) || expressionCarriesData(conditional[1]);
-  const joined = splitTopLevel(value, '+');
-  if (joined.length > 1) return joined.some(expressionCarriesData);
-  return true;
-}
-
-// 只檢查 showToast 的第一個參數；第二參數 {wrap:true} 是渲染選項，不會流入 innerHTML。
-// t() 的字面 key 是受信任字典，插值仍逐一追蹤；escHtml/i18nNumber 的輸出可安全進 HTML。
+// 有沒有東西被插進去：拿掉 escHtml(...) 與字串內容後還剩識別字 ⇒ 有。
 export function toastHasInjection(raw) {
-  let first = splitTopLevel(raw)[0] || '';
-  first = expandTrustedTranslations(first);
-  first = eraseTrustedCall(eraseTrustedCall(first, 'escHtml'), 'i18nNumber');
-  return expressionCarriesData(first);
+  // t(...) 只是翻譯包裝，不會把內容變成 HTML；真正要審的是它的插值值。
+  // 物件的 `name:`／`n:` 是插值欄位名稱，也不是值。兩者若不先排除，多語化後連
+  // `showToast(t('固定字串'))` 都會被誤判；但 `{ name: userValue }` 的 userValue 仍會留下。
+  const rest = blankLiterals(raw.replace(/escHtml\([^()]*\)/g, ''))
+    .replace(/\bt\s*\(/g, '(')
+    .replace(/\b[A-Za-z_$][\w$]*\s*:/g, ':')
+    .replace(/[^\x20-\x7E]/g, '');
+  return (rest.match(/[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*/g) || [])
+    .some(id => !['true', 'false', 'null', 'undefined'].includes(id));
 }
 
 export function assertToastSinksReviewed(html) {
@@ -339,12 +408,6 @@ export function assertToastSinksReviewed(html) {
   const canary = showToastCalls(`showToast('嗨' + attackerControlledName + '你好')`);
   assert(canary.length === 1 && toastHasInjection(canary[0]),
     'showToast 注入偵測器失效——連合成的未逸出拼接都認不出來,這道閘門已經沒有牙,不可發行');
-  const i18nCanary = showToastCalls(`showToast(t('嗨 {name}', { name: attackerControlledName }))`);
-  assert(i18nCanary.length === 1 && toastHasInjection(i18nCanary[0]),
-    'showToast 注入偵測器失效——翻譯插值未逸出也沒有被抓到,不可發行');
-  const escapedI18nCanary = showToastCalls(`showToast(t('嗨 {name}', { name: escHtml(attackerControlledName) }))`);
-  assert(escapedI18nCanary.length === 1 && !toastHasInjection(escapedI18nCanary[0]),
-    'showToast 注入偵測器誤判——已用 escHtml 逸出的翻譯插值仍被擋下');
   assert(!TOAST_REVIEWED.has(toastFingerprint(canary[0])), '合成樣本不該出現在審查帳本裡');
 
   const calls = showToastCalls(html);
@@ -410,7 +473,8 @@ export async function verifyRelease({
   out = defaultOut,
   expectLicensedMusic,
   expectLicensedBasemaps,
-  expectMetroCore,
+  expectMetroCore = process.env.RAIL_EXPECT_METRO_CORE === '1' ? true
+    : process.env.RAIL_EXPECT_METRO_CORE === '0' ? false : undefined,
   expectPlusSandboxBuild = process.env.RAIL_PLUS_SANDBOX_OK === '1'
     ? String(process.env.RAIL_PLUS_SANDBOX_BUILD || '') : null,
   skipNativeSyncCheck = false
@@ -420,6 +484,14 @@ export async function verifyRelease({
   const relativeFiles = files.map(file => relative(output, file).replaceAll('\\', '/'));
   const indexPath = join(output, 'index.html');
   const html = await readFile(indexPath, 'utf8');
+  const nativeBridgeSource = await readFile(join(appRoot, 'src/native-bridge.mjs'), 'utf8');
+  const packagedBridge = await readFile(join(output, 'native-bridge.js'), 'utf8');
+  const androidManifest = await readFile(join(appRoot, 'android/app/src/main/AndroidManifest.xml'), 'utf8');
+  verifyAndroidWidgetParity();
+  assertAndroidPreciseLocationContract({ nativeBridgeSource, packagedBridge, androidManifest });
+  assertAndroidBackButtonContract({ nativeBridgeSource, packagedBridge, html });
+  assertAppLineageContent(html);
+  assertWidgetPlusSyncSites(html);
 
   // ── 創始會員截止時刻的「上線錨點」(B-4,2026-08-03 裁示)───────────────────────
   // 創始價視窗＝上線錨點時刻起算固定 30 天。上線錨點由 revenuecat-config.js 的
@@ -492,9 +564,10 @@ export async function verifyRelease({
   if (expectMetroCore !== undefined) {
     assert(metroCoreEnabled === expectMetroCore, 'Metro Core 旗標與本次 build 模式不一致');
   }
-  assert(html.includes("typeof window.RAIL_METRO_CORE_ENABLED === 'boolean'")
-      && html.includes('return window.RAIL_METRO_CORE_ENABLED;'),
-    'App 內的 index.html 沒有讀取 Metro Core 發版旗標');
+  assert(html.includes("typeof window.RAIL_METRO_CORE_ENABLED === 'boolean'"),
+    'App 內的 index.html 沒有把 Metro Core 發版旗標當成顯式布林覆寫');
+  assert(/L\.map\('map',\s*\{[^}]*zoomAnimation:\s*false\s*\}/.test(html),
+    'App 地圖必須在 L.map 建構時設定 zoomAnimation:false；圖磚 CSS 補間會與獨立 overlay canvas 失步');
 
   // 版本號對**所有** build 模式都必須注入(不是只有授權底圖 build)——App 內的更新提示與評分
   // 全靠它判斷「手上這顆是哪一版」。刻意寫在模式分支之外:放進安全 build 的條件裡就漏掉另一半。
@@ -502,6 +575,22 @@ export async function verifyRelease({
   assert(appVerMatch, '所有 build 都必須注入 window.RAIL_APP_VERSION（更新提示與評分靠它判版本）');
   assert(/^\d+(\.\d+)*$/.test(appVerMatch[1]),
     `RAIL_APP_VERSION 格式無法解析：${appVerMatch[1]}——版本比較會直接放棄,提示永遠不出現`);
+  const expectedAppVersion = String(process.env.RAIL_EXPECT_APP_VERSION || '').trim();
+  if (expectedAppVersion) {
+    assert(appVerMatch[1] === expectedAppVersion,
+      `RAIL_APP_VERSION=${appVerMatch[1]}，與本次預期 ${expectedAppVersion} 不一致`);
+    const androidGradle = await readFile(join(appRoot, 'android/app/build.gradle'), 'utf8');
+    const androidVersionName = /\bversionName\s+["']([^"']+)["']/.exec(androidGradle)?.[1] || null;
+    assert(androidVersionName === expectedAppVersion,
+      `Android versionName=${androidVersionName || '找不到'}，與 App 內建版本 ${expectedAppVersion} 不一致`);
+  }
+  const expectedAndroidVersionCode = String(process.env.RAIL_EXPECT_ANDROID_VERSION_CODE || '').trim();
+  if (expectedAndroidVersionCode) {
+    const androidGradle = await readFile(join(appRoot, 'android/app/build.gradle'), 'utf8');
+    const androidVersionCode = /\bversionCode\s+(\d+)/.exec(androidGradle)?.[1] || null;
+    assert(androidVersionCode === expectedAndroidVersionCode,
+      `Android versionCode=${androidVersionCode || '找不到'}，與本次預期 ${expectedAndroidVersionCode} 不一致`);
+  }
 
   // 本版「更新了什麼」內建文案:剛更新完的彈窗與「更多」面板的常駐入口都吃它。
   // 判準刻意是「文案裡要出現本版版號」——擋的正是「版號升了、set-release-mode 的 why
@@ -517,10 +606,49 @@ export async function verifyRelease({
     assert(notes.includes(appVerMatch[1]),
       `RAIL_APP_WHATS_NEW 文案裡沒有本版版號 ${appVerMatch[1]}——十之八九是版號升了、`
       + 'set-release-mode.mjs 的 why 還是上一版的文。每一版都要重寫 why(=App 內「更新了什麼」)');
+
+    // 英日整段文案。1.5.1 之前只注入中文 ⇒ 英日使用者更新完看到的是標著「中文原文」的
+    // 中文說明(日文實機截圖為證),而那一版的頭條正好是「三語真的切得動了」。
+    // 判準刻意驗到「字裡真的是那個語言」:只驗有值的話,把中文貼進 whyEn 也會過,
+    // 而那比現況更糟——連「中文原文」標籤都不會出現。
+    for (const [lang, key, why] of [['en', 'RAIL_APP_WHATS_NEW_EN', 'whyEn'], ['ja', 'RAIL_APP_WHATS_NEW_JA', 'whyJa']]) {
+      const m = new RegExp(`window\\.${key}="((?:[^"\\\\]|\\\\.)*)"`).exec(html);
+      assert(m, `發行包缺少 window.${key} 注入——${lang} 使用者的「更新了什麼」會退回中文。`
+        + `請在 set-release-mode.mjs 該模式補 ${why}`);
+      const text = JSON.parse(`"${m[1]}"`);
+      assert(text.trim().length > 0, `${key} 是空的——${lang} 使用者會看到中文更新說明。補 set-release-mode.mjs 的 ${why}`);
+      assert(text.includes(appVerMatch[1]),
+        `${key} 裡沒有本版版號 ${appVerMatch[1]}——中文改了但 ${why} 還是上一版的文`);
+      if (lang === 'en') {
+        // 用比例不用「零漢字」:英文裡本來就會有站名(廣慈/奉天宮這種 App 自己也顯示中文、
+        // stations.json 沒英文名的站),寫羅馬拼音反而跟 App 內顯示不一致。實測 0.3%;
+        // 誤把整段中文貼進來是 84%。10% 兩邊都有數量級的餘裕。
+        const nonSpace = text.replace(/\s/g, '');
+        const han = (text.match(/[\u3400-\u9fff]/g) || []).length;
+        assert(han / Math.max(1, nonSpace.length) < 0.10,
+          `${key} 有 ${han}/${nonSpace.length} 是漢字——十之八九是把中文貼進 whyEn 了。這比沒填更糟:`
+          + '沒填會退回中文並標「中文原文」,填錯則是無標記的中文');
+      } else {
+        // 「有沒有假名」對這件事沒有牙:中黑點「・」(U+30FB)在片假名區塊,而中文 why 的
+        // 條列正是用它 ⇒ 整段中文貼進 whyJa 照樣通過(2026-08-30 突變測試實測:中文 why
+        // 8 個「假名」全是・)。改量【平假名】比例——中文不可能有平假名,日文散文則滿是
+        // は/の/を/が。實測:日文 41.5%(Android)、37.9%(iOS 1.5.1),貼中文 0.0%,
+        // 10% 兩邊各有一個數量級的餘裕。
+        const hira = (text.match(/[\u3041-\u3096]/g) || []).length;
+        const nonSpaceJa = text.replace(/\s/g, '').length;
+        assert(hira / Math.max(1, nonSpaceJa) >= 0.10,
+          `${key} 只有 ${hira}/${nonSpaceJa} 是平假名——十之八九是把中文貼進 whyJa 了。`
+          + '注意條列用的「・」是片假名區塊的字元,光看「有沒有假名」擋不住整段中文');
+      }
+    }
   }
 
   if (expectPlusSandboxBuild !== null) assertPlusSandboxTestBuild(html, expectPlusSandboxBuild);
   else assertPlusSandboxOff(html);
+  assertAndroidPlusGate(html);
+  const androidGradleForPlus = await readFile(join(appRoot, 'android/app/build.gradle'), 'utf8');
+  const androidVersionCodeForPlus = /\bversionCode\s+(\d+)/.exec(androidGradleForPlus)?.[1] || '';
+  assertAndroidPlusReleaseConfig(html, androidVersionCodeForPlus);
 
   await assertLicensedBuildAllowed({
     includeLicensedMusic: musicEnabled,
@@ -532,7 +660,8 @@ export async function verifyRelease({
     'privacy.html', 'terms.html',
     'firebase-config.js', 'revenuecat-config.js', 'native-bridge.js',
     'third-party-notices.txt',
-    'i18n/translations.js', 'i18n/content-translations.js', 'i18n/stations.json',
+    'i18n/translations.js', 'i18n/content-translations.js',
+    'i18n/legal-translations.js', 'i18n/legal-pages.js', 'i18n/stations.json',
     'data/taiwan_land.json', 'vendor/leaflet/leaflet.css',
     'vendor/leaflet/leaflet.js', 'vendor/fflate.js', 'vendor/firebase.mjs'
   ];
@@ -600,6 +729,24 @@ export async function verifyRelease({
     const extra = [...shipped].filter(rel => !declared.includes(rel));
     assert(missing.length === 0, `內建曲目缺 ${missing.length} 首:${missing.slice(0, 3).join('、')}`);
     assert(extra.length === 0, `bundle 多出 ${extra.length} 首不在 MUSIC_BUNDLED:${extra.slice(0, 3).join('、')}`);
+
+    // 🔴 2026-08-27 補：把「授權核對表」綁到「實際會播的曲目」。
+    //    為什麼非有不可：核對表的首數斷言(上面 readReleasePolicy 那段)只是核對表與一個常數
+    //    互相同意,兩者可以一起停在舊曲庫上而閘門全綠——曲庫 29→57 那次就是這樣穿過去的
+    //    (核對表 29 列、斷言 ===29、App 裡卻是另一批 57 首,零告警)。判準要架在產物上。
+    const chk = await readFile(join(appRoot, 'MUSIC_LICENSE_CHECKLIST.md'), 'utf8');
+    const listed = new Set(chk.split('\n').filter(line => /^\| .+\.mp3 \|/.test(line))
+      .map(line => line.split('|')[1].trim()));
+    const allBlock = html.match(/const MUSIC_FILES = \[([\s\S]*?)\];/);
+    assert(!!allBlock, '含音樂 build 的 index.html 必須宣告 MUSIC_FILES');
+    const allTracks = [...allBlock[1].matchAll(/'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"/g)]
+      .map(m => (m[1] ?? m[2]).replace(/\\(.)/g, '$1'));
+    const noLicence = allTracks.filter(rel => !listed.has(rel));
+    const orphan = [...listed].filter(rel => !allTracks.includes(rel));
+    assert(noLicence.length === 0,
+      `有 ${noLicence.length} 首會播但不在授權核對表裡:${noLicence.slice(0, 3).join('、')}`);
+    assert(orphan.length === 0,
+      `授權核對表有 ${orphan.length} 首已不在曲目清單裡(核對表沒跟上換庫):${orphan.slice(0, 3).join('、')}`);
   }
   else {
     assert(musicFiles.length === 0, '安全 build 不可含 suno musics/');
@@ -679,8 +826,12 @@ export async function verifyRelease({
 
   // Stored XSS 迴歸（QA 2026-07-21）：「我的最愛」的列車／站名是使用者資料,可能來自被污染的
   // 匯入或 localStorage。渲染必須以 escHtml 逸出後才進 innerHTML,否則可在 Capacitor WebView 執行 script。
-  assert(html.includes('escHtml(f.train)') && html.includes('escHtml(favTrainLabel(f))'),
-    '「我的最愛」未以 escHtml 逸出使用者資料——stored XSS 迴歸,不可發行');
+  // 多語版會先把舊收藏的「車種　起站→終點」拆開翻譯，再由 favTrainLabel() 回傳純文字；
+  // 安全邊界仍必須在 innerHTML sink 外層，不能把「有經過翻譯函式」誤當成已逸出。
+  assert(html.includes('escHtml(f.train)')
+      && html.includes('escHtml(favTrainLabel(f))')
+      && html.includes('escHtml(t(f.label))'),
+    '「我的最愛」未在 innerHTML sink 以 escHtml 逸出列車／車站使用者資料——stored XSS 迴歸,不可發行');
   assert(!/<b>\$\{f\.train\}<\/b>/.test(html),
     '「我的最愛」仍把未逸出的 ${f.train} 直接插入 innerHTML——stored XSS 迴歸,不可發行');
 
@@ -701,6 +852,7 @@ export async function verifyRelease({
   const repoIndex = await readFile(join(repoRoot, 'index.html'), 'utf8');
   const repoBuild = extractBuild(repoIndex);
   assert(repoBuild, '根目錄 index.html 找不到 BUILD 版本戳記');
+  assertAndroidSafeAreaCssContract(repoIndex);
 
   // 金鑰不得寫死進公開 repo（稽核 2026-07-26）：2026-07-25 的 commit 5aab5c4 把網站用的 Esri
   // token 直接寫進 index.html，於是隨 public repo 推上 GitHub、也印在 railisland.tw 的網頁原始碼裡。
@@ -717,11 +869,14 @@ export async function verifyRelease({
   // 原生內嵌資產一致性：iOS／Android 打包的 public/ 必須與 app/www 同版。
   // build 結尾呼叫時 cap sync 尚未跑,故 skipNativeSyncCheck=true;獨立 npm run verify 才做此比對。
   if (!skipNativeSyncCheck) {
+    const nativeTarget = String(process.env.RAIL_VERIFY_NATIVE || 'all').toLowerCase();
+    assert(['all', 'ios', 'android'].includes(nativeTarget),
+      'RAIL_VERIFY_NATIVE 只接受 all、ios 或 android');
     const nativeIndexes = [
-      ['iOS', join(appRoot, 'ios/App/App/public/index.html')]
-      // Android 生成後補上 ['Android', join(appRoot, 'android/app/src/main/assets/public/index.html')]
-    ];
-    for (const [label, nativeIndex] of nativeIndexes) {
+      ['ios', 'iOS', join(appRoot, 'ios/App/App/public/index.html')],
+      ['android', 'Android', join(appRoot, 'android/app/src/main/assets/public/index.html')]
+    ].filter(([platform]) => nativeTarget === 'all' || nativeTarget === platform);
+    for (const [, label, nativeIndex] of nativeIndexes) {
       let nativeHtml;
       try { nativeHtml = await readFile(nativeIndex, 'utf8'); }
       catch {
@@ -735,6 +890,16 @@ export async function verifyRelease({
       const nativeBuild = extractBuild(nativeHtml);
       assert(nativeBuild === wwwBuild,
         `${label} 內嵌資產版本不一致：${relative(repoRoot, nativeIndex)} 為 ${nativeBuild},app/www 為 ${wwwBuild};請執行 npm run sync（build + cap sync）`);
+    }
+    if (nativeTarget === 'all' || nativeTarget === 'android') {
+      const mainActivityPath = join(appRoot, 'android/app/src/main/java/tw/railisland/app/MainActivity.java');
+      let mainActivity = null;
+      try { mainActivity = await readFile(mainActivityPath, 'utf8'); }
+      catch {
+        assert(!process.env.RAIL_REQUIRE_NATIVE,
+          `Android MainActivity 不存在（${relative(repoRoot, mainActivityPath)}）——無法驗證 launch theme 不會重生 ActionBar`);
+      }
+      if (mainActivity !== null) assertAndroidMainActivityDoesNotPreInitWindow(mainActivity);
     }
   }
 
@@ -793,9 +958,34 @@ export async function verifyRelease({
       '登入鈕可能被畫出(Firebase 已配置)但 RAIL_APPLE_LOGIN 不是 true——半套登入（有 Google 無 Apple）會被 App Store 4.8 退件');
   }
 
+  // Capacitor 的 production logging 是「正式版也開啟」，Bridge 會把 plugin call/result
+  // 完整序列化到 logcat。FirebaseAuthentication 回傳含 access token 與 ID token，
+  // 因此不能只依賴「不手動 console.log」：發行閣門必須強制關閉原生橋接日誌。
+  const capacitorConfig = JSON.parse(await readFile(join(appRoot, 'capacitor.config.json'), 'utf8'));
+  assertNativeBridgeLoggingDisabled(capacitorConfig);
+
+  // 出貨回歸閘門(2026-08-23 新增):這一顆不准比「還在使用者手上的 build」少東西。
+  // 事故背景:63e38b2 那顆合併把 index.html 整檔取 main 那一側,靜默吃掉跟車鎖屏與衛星高解析
+  // 兩個通行證入口、說明中心兩節、前景持續定位與 11 條更新紀錄——build 成功、archive 成功、
+  // 這支發行檢查也全綠,使用者是在 1.4.9 上架之後才發現。基線與判準見
+  // app/scripts/verify_no_ship_regression.mjs 與 app/shipped-baseline.json。
+  const shipInv = inventory(await readFile(join(output, 'index.html'), 'utf8'));
+  const shipBase = JSON.parse(await readFile(join(appRoot, 'shipped-baseline.json'), 'utf8'));
+  const shipGone = compareShipInventory(shipBase.inventory, shipInv, shipBase.allowRemoved || {});
+  const shipGoneCount = Object.values(shipGone).reduce((n, a) => n + a.length, 0);
+  // 基線是「所有還在使用者手上的 build」的聯集,不是只有最新那顆——訊息要照實講,
+  // 否則下次有人看到「比 1.4.9 少」會誤以為只要對 1.4.9 交代就好(08-23 的損失正是 68 有、75 沒有)。
+  const shipBaseLabel = shipBase.covers || `${shipBase.marketing} (${shipBase.build})`;
+  assert(shipGoneCount === 0,
+    `比已上架的 ${shipBaseLabel} 少了 ${shipGoneCount} 項：` +
+    Object.entries(shipGone).map(([k, v]) => `${k}=${v.join('/')}`).join('；') +
+    '（單獨跑 node app/scripts/verify_no_ship_regression.mjs 看完整說明）');
+  console.log(`  · 出貨回歸閘門通過:沒有任何一項比已上架的 ${shipBaseLabel} 少`);
+
   const textExtensions = new Set(['.html', '.js', '.mjs', '.json', '.css', '.webmanifest', '.txt', '.md']);
   const suspiciousSecretPatterns = [
     /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/,
+    /\bsk_[A-Za-z0-9_-]{8,}/,
     /REVENUECAT_V2_SECRET_KEY\s*[:=]\s*["'][^"']+/,
     /TDX_CLIENT_SECRET\s*[:=]\s*["'][^"']+/,
     /FIREBASE_WEB_API_KEY\s*[:=]\s*["'][^"']+/

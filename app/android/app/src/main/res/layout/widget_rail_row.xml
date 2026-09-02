@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="30dp"
+    android:baselineAligned="false"
+    android:gravity="center_vertical"
+    android:orientation="horizontal">
+
+    <ImageView
+        android:id="@+id/wrr_mark"
+        android:layout_width="3dp"
+        android:layout_height="22dp"
+        android:contentDescription="@null"
+        android:scaleType="fitXY"
+        android:src="@drawable/wg_meter_block" />
+
+    <!-- 方向三角：北上尖端朝上、南下朝下。與 iOS RailHeadingMark 同尺寸比例（底:高＝9:7）。
+         沒有方向時由 binder 設成 GONE,整列不留空位。 -->
+    <ImageView
+        android:id="@+id/wrr_heading"
+        android:layout_width="10dp"
+        android:layout_height="8dp"
+        android:layout_marginStart="6dp"
+        android:contentDescription="@null"
+        android:scaleType="fitCenter"
+        android:src="@drawable/wg_heading_north" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="7dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/wrr_train"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:text="自強 123"
+            android:textColor="@color/wg_ink"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/wrr_dest"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:text="往 花蓮"
+            android:textColor="@color/wg_ink_faint"
+            android:textSize="9sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/wrr_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="7dp"
+        android:maxLines="1"
+        android:text="準點"
+        android:textColor="@color/wg_ok"
+        android:textSize="9sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/wrr_time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:includeFontPadding="false"
+        android:maxLines="1"
+        android:text="09:41"
+        android:textColor="@color/wg_ink"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+</LinearLayout>

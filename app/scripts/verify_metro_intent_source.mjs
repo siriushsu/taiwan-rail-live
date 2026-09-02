@@ -143,6 +143,43 @@ ok('L6 沒有 parameterSummary', !/\bvar\s+parameterSummary\b/.test(code),
        /static\s+func\s+encode\([\s\S]{0,200}?\\t/.test(codeStart) &&
        /components\(separatedBy:\s*"\\t"\)/.test(codeStart),
        '(encode 或 decode 沒用 \\t)');
+
+    // ── L8 approx 精度契約(2026-08-22 build 73 實踩) ─────────────────────────
+    // 伺服端 eta2 推導列帶 approx:true,etaEpoch 是「約 N 分」的投影值不是官方站牌原文。
+    // build 73 的 seed() 無條件 st.secondEta = b?.etaEpoch ⇒ MetroWaitActivity 的
+    // .until 把投影畫成 mm:ss 秒級倒數=冒充官方精度(小工具側 MetroCountdown 有攔,
+    // 卡片側漏了)。這組鎖:approx 列只准折整分鐘走 secondMinutes,secondEta 必須留空;
+    // 官方列(else 路)必須照抄 etaEpoch——兩側都驗,免得「乾脆全走分鐘」也全綠。
+    const seedBranch = codeStart.match(
+      /if\s+let\s+b\s*,\s*b\.approx\s*,\s*let\s+e2\s*=\s*b\.etaEpoch\s*\{([\s\S]*?)\}\s*else\s*\{([\s\S]*?)\}/);
+    ok('L8a seed() 有 approx 分支(if let b, b.approx, let e2)', !!seedBranch,
+       '(找不到 approx 分支——回到 build 73 的無條件照抄形狀)');
+    if (seedBranch) {
+      const [, approxBody, elseBody] = seedBranch;
+      ok('L8b approx 路不寫 secondEta', !/st\.secondEta/.test(approxBody),
+         '(approx 分支裡出現 st.secondEta=投影值又會被 .until 畫成秒)');
+      ok('L8c approx 路以 ceil((e2 - now) / 60) 折整分鐘進 secondMinutes',
+         /ceil\(\(e2\s*-\s*now\)\s*\/\s*60\)/.test(approxBody) && /st\.secondMinutes\s*=/.test(approxBody),
+         approxBody.trim().slice(0, 120));
+      ok('L8d approx 路有 m >= 1 閘(到期整行不畫,不出「約 0 分」)',
+         /m\s*>=\s*1/.test(approxBody) && /st\.secondDest\s*=\s*m\s*>=\s*1/.test(approxBody),
+         '(缺 m>=1 閘或 secondDest 沒跟著閘)');
+      // 反向對照:官方列的照抄必須還在——沒有這條,「把 secondEta 整個刪掉」也能讓 L8b 全綠,
+      // 但那會把北捷官方秒級倒數降級成分鐘,違反「有資訊就一定要對」。
+      ok('L8e 官方路(else)照抄 st.secondEta = b?.etaEpoch', /st\.secondEta\s*=\s*b\?\.etaEpoch/.test(elseBody),
+         elseBody.trim().slice(0, 120));
+      ok('L8f 官方路同時保留 secondMinutes 與 secondDest',
+         /st\.secondMinutes\s*=\s*b\?\.minutes/.test(elseBody) && /st\.secondDest\s*=\s*b\?\.dest/.test(elseBody),
+         '(else 路少欄位)');
+    }
+    // 消費端契約:卡片把 secondEta 餵給 RailCountdown.until(秒級)、secondMinutes 餵給
+    // approxMinutes——這正是 approx 不准進 secondEta 的原因;渲染偏好若改了,這組要重審。
+    const actC = readFileSync(join(ROOT, 'app/ios/App/RailBoardWidget/MetroWaitActivity.swift'), 'utf8')
+      .split('\n').map(l => l.replace(/\/\/.*$/, '')).join('\n');
+    ok('L8g MetroWaitActivity:secondEta→.until、secondMinutes→approxMinutes 的偏好序仍在',
+       /secondEta[\s\S]{0,120}?RailCountdown\.until/.test(actC) &&
+       /secondMinutes[\s\S]{0,120}?RailCountdown\.approxMinutes/.test(actC),
+       '(渲染偏好變了——重審 L8 全組前提)');
   }
 }
 

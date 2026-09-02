@@ -58,7 +58,7 @@ const coreStaticKeys = [
   '暫停／播放（空白鍵）', '模擬時刻：左右拖曳調整，方向鍵每次 1 分鐘',
   '更多設定：外觀、軌道與路線、平交道、站介紹、方向箭頭、省電模式',
   '語言', '選擇介面語言', '隱私權政策', '使用條款',
-  '列車位置、誤點資訊與系統覆蓋永遠免費——Plus 不影響準確度。',
+  '列車位置、誤點資訊與系統覆蓋現在免費提供——通行證不影響準確度。',
   '訂閱到期前會依商店規則自動續訂扣款；你可以隨時在 App Store／Google Play 或帳號的訂閱設定中取消，取消後於當期結束時停止續訂。',
   '載入中…', '沒有資料', '網路連線失敗，請稍後再試',
 ];
@@ -110,7 +110,9 @@ for (const [group, fields] of Object.entries(contentFields)) {
 function evaluateConstBlock(startMarker, endMarker, names) {
   const start = indexSource.indexOf(startMarker), end = indexSource.indexOf(endMarker, start);
   if (start < 0 || end < 0) { fail(`找不到內容區塊：${startMarker}`); return {}; }
-  const local = {};
+  // HELP_GROUPS 含 App 平台分支；稽核只需展開字串，不執行功能。用網站端作穩定基準，
+  // Android 分支的額外字串仍會由下方原始碼硬編碼掃描與原生目錄 gate 覆蓋。
+  const local = { IS_NATIVE_APP: false, window: {} };
   vm.createContext(local);
   vm.runInContext(`${indexSource.slice(start, end)}\nglobalThis.__out = { ${names.join(', ')} };`, local);
   return local.__out || {};
@@ -153,9 +155,54 @@ for (const source of new Set(helpSources.filter(value => value && /[\u3400-\u9ff
   if (!keySets[lang]?.has(source)) fail(`使用說明缺少 ${lang}：${source}`);
 }
 
+// 第一層「最近更新」是滾動檢視,不是正本(index.html 的 foot-recent 註解寫明:每條用 data-cl-of
+// 指向第二層某條 data-cl,新功能一進榜舊的就會被合法擠出去)。所以【條數是會漂移的量】——
+// 這裡原本寫死「應為 8 筆」,而實測 08-21～08-29 之間它在 7/8/9 之間來回漂了六次,每次漂到
+// 非 8 就讓整支稽核假紅(唯一失敗項),於是「i18n 有沒有漏譯」實質上沒有閘門在守。
+// 改成綁身分與覆蓋率,不綁條數:(a) 收集器真的收到東西(否則下面全稱斷言全部空過)
+// (b) 區塊裡每一條 li 都被解析到(regex 靜默漏抓一條 ⇒ 那條的 en/ja 永遠不會被檢查)
+// (c) 每條都在第二層有正本——正本是「較早歷史改用主題摘要」能接住被擠出去那幾條的前提。
+// 🔴 2026-08-30 改判:原本這裡寫「版面上限 8 條由 verify_plus_subscription.mjs 的 CL2 守」——那是
+// 空的委派。那支是 Playwright 腳本,不在 package.json、不在 ship-web preflight、不在任何鏈上,
+// 「不在出貨鏈上的驗收腳本等於不存在」。實際後果:App 線 build/android-1.5.0-16 把第一層養到 12 條、
+// 第二層長出兩份 8/23「追蹤一班車」,一路出到 Android 1.5.0 都沒有任何閘門紅過。所以那兩條搬進這裡
+// ——本支已經在解析同樣這兩個區塊,而且它是 ship-web preflight 真的會跑到的地方(CL 那邊原樣保留,
+// 當走 DOM 的第二層防線)。
 const recentBlock = /<ul class="foot-list foot-recent">([\s\S]*?)<\/ul>/.exec(indexSource)?.[1] || '';
+const recentItems = [...recentBlock.matchAll(/<li\b([^>]*)>([\s\S]*?)<\/li>/g)]
+  .filter(match => !/class="[^"]*\bgrp\b[^"]*"/.test(match[1])); // li.grp 是「最近更新」標題,不是內容
+const changelogMore = indexSource.slice(indexSource.indexOf('<details class="foot-more">'));
+const canonIdList = [...changelogMore.slice(0, changelogMore.indexOf('</details>'))
+  .matchAll(/<li data-cl="([^"]+)"/g)].map(match => match[1]);
+const canonIds = new Set(canonIdList);
 const recentTexts = [...recentBlock.matchAll(/<li data-cl-of="[^"]+">[\s\S]*?<span>([^<]+)<\/span><\/li>/g)].map(match => match[1].replace(/&amp;/g, '&'));
-if (recentTexts.length !== 8) fail(`公開更新紀錄近期項目應為 8 筆，目前 ${recentTexts.length} 筆`);
+// 正向對照:分母自己要有斷言,否則第一層或第二層整個抓不到時,下面三條全稱斷言會一起空過報綠。
+if (!recentItems.length || !canonIds.size) {
+  fail(`公開更新紀錄收集器空轉：第一層內容 ${recentItems.length} 條、第二層正本 ${canonIds.size} 條（兩者都必須 ≥1，否則下面的檢查是空過的）`);
+}
+// 覆蓋率具名斷言:每一條 li 都要被上面那條 regex 解析到,漏抓的那條不會有人檢查它的 en/ja。
+if (recentTexts.length !== recentItems.length) {
+  fail(`公開更新紀錄有 ${recentItems.length} 條內容項目，只解析出 ${recentTexts.length} 條精簡文字（${recentItems.length - recentTexts.length} 條未納入 en/ja 檢查，多半是 li 內部標記變了）`);
+}
+// 比照 CL1:要被擠出第一層,正本必須已經在第二層——否則那次變更唯一一筆可辨識的對外紀錄會整條消失。
+for (const [, attrs, body] of recentItems) {
+  const id = /data-cl-of="([^"]+)"/.exec(attrs)?.[1];
+  if (!id) fail(`公開更新紀錄有一條沒宣告正本（缺 data-cl-of）：${body.replace(/<[^>]+>/g, '').trim().slice(0, 24)}`);
+  else if (!canonIds.has(id)) fail(`公開更新紀錄「${id}」在完整更新歷史裡找不到正本（data-cl-of → data-cl 對不上）`);
+}
+// 正本 id 不得重複(CL1b)。重複在這支特別隱形:canonIds 是 Set,兩條同 id 會靜默收斂成一條,
+// 於是上面那條「正本找得到嗎」照樣綠——但 DOM 的 querySelector 只取得到其中一顆,另一顆是
+// 沒人指得到、卻照樣渲染在完整更新歷史裡的死文字(使用者會看到同一件事寫兩遍)。
+const dupCanon = [...new Set(canonIdList.filter((id, index) => canonIdList.indexOf(id) !== index))];
+if (dupCanon.length) {
+  fail(`完整更新歷史有重複的正本 id：${dupCanon.join('、')}（兩條互相蓋掉，對映指到哪一條無法預期，沒被指到的那條是渲染得出來卻沒人維護的死文字）`);
+}
+// 版面預算 8 條(CL2)。這是 index.html 的 foot-recent 註解自己訂的編排上限,不是量出來的值,
+// 所以判準直接綁那個數字;要改預算就連同那段註解一起改。li.grp 標題不計入(recentItems 已濾掉)。
+const RECENT_BUDGET = 8;
+if (recentItems.length > RECENT_BUDGET) {
+  fail(`公開更新紀錄第一層有 ${recentItems.length} 條內容，超出版面預算 ${RECENT_BUDGET} 條（li.grp 標題不算）——要放新的就先擠掉舊的，被擠掉那條的正本已經在完整更新歷史裡`);
+}
 for (const source of recentTexts) for (const lang of languages) {
   if (!keySets[lang]?.has(source)) fail(`近期更新缺少 ${lang} 精簡翻譯：${source}`);
 }

@@ -461,4 +461,3 @@ const traLookup = buildTraLookup(report, generatedAt);
 writeJson(AUDIT_PATH, report);
 writeJson(TRA_TABLE_PATH, traLookup);
 printHumanReport(report);
-

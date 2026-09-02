@@ -13,6 +13,7 @@
 | `0007_la_last_stopping.sql` | ✅ **權威** | 補 `last_stopping` 欄位（停靠中）。**所有環境都要跑**——0003 上線後「就地補進建表腳本」的例外已失效，新環境＝`0003` + `0007`。 |
 | `0008_la_apns_env.sql` | ✅ **權威** | 補 `apns_env` 欄位（記住這顆 token 打得通的 APNs 環境）。**所有環境都要跑**，新環境＝`0003` + `0007` + `0008`。 |
 | `0009_metro_wait.sql` | ✅ **權威** | 捷運等車卡的推播交班表 `metro_wait_bindings`（**與跟車的 `la_bindings` 是兩張獨立的表**，那張的 `train_no`／`stops`／`sta_map` 都是 NOT NULL 且綁單一車次，等車卡沒有車次可填）。**所有環境都要跑，與 0003 系列彼此無關**。 |
+| `0010_tra_wait.sql` | ✅ **權威** | 台鐵等站卡的推播交班表 `tra_wait_bindings`（**與 `metro_wait_bindings` 也是兩張獨立的表**：那張每分鐘要重新挑「這一站的下一班是誰」，這張追的是**一班指定的車**、表訂時刻在開卡當下就固定）。**所有環境都要跑，與 0003／0009 彼此無關**。 |
 
 ## 套用到正式庫
 
@@ -20,6 +21,7 @@
 arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0002_bounty.sql
 arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0003_live_activity.sql
 arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0009_metro_wait.sql
+arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0010_tra_wait.sql
 ```
 
 （`npx wrangler` 在這台機器是壞的，一律用上面的完整寫法。）
@@ -36,6 +38,12 @@ metro_wait_bindings`。**症狀在使用者端幾乎看不出來**——等車�
 永遠停在「進站」、追蹤時間到了也不會自動收卡，跟沒接推播長得一模一樣。
 （`verify_metro_wait_push.mjs` 的 `G1(schema gate)` 會先擋下來：表不在就直接 abort，
 欄位集合對不上就 FAIL，不會讓整批斷言在缺表的庫上假綠。）
+
+🔴 **0010 忘了套的症狀**：與 0009 完全同形——`/api/tra-wait/bind` 回 503 `bind_failed`
+（前端靜默忽略、卡片照開），cron 每分鐘噴一則 `[cron tw-push] 失敗: ... no such table:
+tra_wait_bindings`。**使用者端一樣看不出來**：等站卡開卡時就把表訂時刻與當下誤點寫進卡片，
+沒有推播只是「誤點分鐘從此不再更新、到站也不自動收卡」。
+（`verify_tra_wait_push.mjs` 的 schema gate 同樣會先擋下來。）
 
 🔴 **只有「已經用舊版 0003 建過表」的環境才要再依序套 0004／0005／0006**（本機 `.wrangler`、
 開發庫）。`CREATE TABLE IF NOT EXISTS` 不會替既有的表補欄位，少了 `fail_streak` 會讓 cron

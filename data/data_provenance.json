@@ -53,7 +53,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "814058678ff89799c83cd3d65aa4de50"
+   "checksum": "b83fbb70c64d9f0c5e91cfc34c085adf"
   },
   "data/music.json": {
    "sourceDescription": "本站自製配樂,無外部資料源。曲目由 Suno 生成後人工挑選,dur/bytes 由 scripts/build_music_data.mjs 以 ffprobe 與檔案大小量出;情境池的分區/時段/家族歸屬是產品設計,定義在同一支建置腳本的 POOLS 常數",
@@ -80,7 +80,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "2bb085a233919ae65fe46fe74d34ced1"
+   "checksum": "a92e0345ecc6b960b7689bdf7501bad9"
   },
   "data/ntdlrt.json": {
    "sourceDescription": "交通部 TDX 運輸資料流通服務(淡海輕軌:路線幾何/站序,2026-07 抓取);班距為官方公告估算(尖峰約10分/離峰約15分),TDX 無班距/站間時間檔",
@@ -98,7 +98,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "dbcf7623a03d13afb75a32c4e1fe05bb"
+   "checksum": "2e4da0cbeb30271340c7467c6d62f38f"
   },
   "data/rail_crossing_levels.json": {
    "sourceDescription": "OpenStreetMap (layer / bridge / tunnel) via Overpass API",
@@ -193,11 +193,11 @@
   "data/tra_pass_obs.json": {
    "sourceDescription": "TDX api/historical/v2 Historical/Rail/TRA/LiveTrainDelay",
    "sourceField": "source",
-   "effectiveDate": "2026-08-23T01:29:10.652Z",
+   "effectiveDate": "2026-09-01T05:55:27.461Z",
    "effectiveDateField": "built_at",
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "42e8d354566a4e973aed4f24a4585b3f"
+   "checksum": "b0421aa78e1047e473ea15994efa8bb3"
   },
   "data/tra_platforms.json": {
    "sourceDescription": "OpenStreetMap contributors — way[railway=platform／public_transport=platform／railway=platform_edge] 與 node[stop_position／railway=stop]，經 Overpass API 取得",
@@ -215,16 +215,16 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "82219e77c6bd6c8067d280de04552657"
+   "checksum": "c476952ea758b637697e3eab3bde7aa9"
   },
   "data/tra_schedule_dense.json": {
-   "sourceDescription": "時刻表來源：https://ods.railway.gov.tw/tra-ods-web/ods/download/dataResource/railway_schedule/JSON/list 清單頁，抓取今天(2026-08-23)起連續 14 天中實際發佈得到的 14 天（2026-08-23…2026-09-0",
+   "sourceDescription": "時刻表來源：https://ods.railway.gov.tw/tra-ods-web/ods/download/dataResource/railway_schedule/JSON/list 清單頁，抓取今天(2026-09-01)起連續 14 天中實際發佈得到的 14 天（2026-09-01…2026-09-1",
    "sourceField": "source_notes",
-   "effectiveDate": "2026-08-23…2026-09-05",
+   "effectiveDate": "2026-09-01…2026-09-14",
    "effectiveDateField": "dateRange",
    "geometrySource": "TDX+OSM",
    "coordinateBasis": "WGS84(OSM 段);TDX 段未載明(payload 無 CRS 欄位)——兩者實測同框,build_tdx.mjs 對 K03 的座標修正即以 OSM 座標落在 TDX 軌道幾何上離軌 0m 為據",
-   "checksum": "42d815dff5956a81bec1ed7ba82af462"
+   "checksum": "82f13d61bfd815e94daae7ee6d4086fa"
   },
   "data/tra_special_trains.json": {
    "sourceDescription": "台鐵特別列車故事檔案。事實查證日期 2026-07-09（兩份網路研究＋台鐵官網/媒體抽驗＋當日時刻表交叉比對）。時效敏感條目（班次數、季節路線、退役進度）標註於 status2026，隔年應重新查證。",
@@ -253,14 +253,23 @@
    "coordinateBasis": "未載明(TDX 回傳 PositionLat/PositionLon,payload 無 CRS 欄位)",
    "checksum": "e9f9108b960c026c12b35ecbb6cdf9c3"
   },
+  "data/transfer_departures.json": {
+   "sourceDescription": "由 data/station_transfers.json（轉乘群）與 data/{tra,thsr,afr}_schedule_dense.json（時刻）推導,scripts/build_transfer_departures.mjs;只留 9 個轉乘站,台鐵取 d.dates[d.date] 的當日索引（tra_schedule_dense 是 14 天跨日去重聯集,直接用 d.trains 會混進其他日的改點變體）",
+   "sourceField": null,
+   "effectiveDate": "2026-09-01",
+   "effectiveDateField": "date",
+   "geometrySource": null,
+   "coordinateBasis": null,
+   "checksum": "89f78c5f36644025b982f1befe2bc98b"
+  },
   "data/trtc.json": {
-   "sourceDescription": "交通部 TDX 運輸資料流通服務(台北捷運路線幾何/站序/班距/站間行駛時間,2026-07 抓取);環狀線為 OSM 幾何+官網公告班距估算;環狀線站間行駛時間補用臺北捷運公司「相鄰兩站間之行駛時間及停靠站時間」(生效 2025-06-03);",
+   "sourceDescription": "信義東延段廣慈/奉天宮站(R01)於 TDX 上架前先行補入(2026-08-28):站點與線形取自 OSM,站間行駛時間依信義線平均營運速度估算,TDX 上架後應以官方值取代;交通部 TDX 運輸資料流通服務(台北捷運路線幾何/站序/班距/站間行駛時間,2026-07 抓取);",
    "sourceField": "source_notes",
    "effectiveDate": null,
    "effectiveDateField": null,
    "geometrySource": "TDX+OSM",
    "coordinateBasis": "WGS84(OSM 段);TDX 段未載明(payload 無 CRS 欄位)——兩者實測同框,build_tdx.mjs 對 K03 的座標修正即以 OSM 座標落在 TDX 軌道幾何上離軌 0m 為據",
-   "checksum": "88a21ba30b1b13171ca8ba4a5c51785f"
+   "checksum": "d412128a902bae91e8e4faaf1191a840"
   },
   "data/trtc_codes.json": {
    "sourceDescription": "交通部 TDX Rail/Metro/TRTC/Station 的站碼與站名(實查 data/tdx/TRTC_Station.json,121/121 逐筆一致);所屬路線取自同批 TRTC_StationOfLine",
@@ -269,7 +278,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "d9977a1383cf8b9a0f724d89c558d9f3"
+   "checksum": "7421673a20c110c4e8305b88667e37b1"
   },
   "data/trtc_times.json": {
    "sourceDescription": "台北捷運/新北捷運(環狀線)各站時刻表:交通部TDX運輸資料流通服務(2026-07-16 抓取);班次依平日/週六/週日/國定假日對應;文湖線無逐站時刻表,以官方班距與首末班推算(非公告時刻)",
@@ -278,7 +287,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "a1dc7694a2f69210fb4a6addf59fa11d"
+   "checksum": "234afed6991e14f0dc0fea9c2331f3cb"
   },
   "data/tymc.json": {
    "sourceDescription": "交通部 TDX 運輸資料流通服務(桃園機場捷運:路線幾何/站序/班距/站間行駛時間,2026-07 抓取);以普通車全站停靠型態繪製 2026-07-11:移除新北產業園區站西側shape反向重走段(同軌去回偽折返,致列車視覺繞圈);站點d重投影。",

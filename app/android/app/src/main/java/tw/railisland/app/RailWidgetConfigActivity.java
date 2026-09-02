@@ -1,0 +1,437 @@
+package tw.railisland.app;
+
+import android.appwidget.AppWidgetManager;
+import android.app.AlertDialog;
+import android.content.Context;
+import android.graphics.Typeface;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.os.Bundle;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.Spinner;
+import android.widget.TextView;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+import org.json.JSONArray;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.LinkedHashSet;
+import java.util.Set;
+
+/** Android 發車看板設定：台鐵／高鐵／共站、起訖站、自動最近站與大字好讀版。 */
+public final class RailWidgetConfigActivity extends AppCompatActivity {
+    private int widgetId = AppWidgetManager.INVALID_APPWIDGET_ID;
+    private RailWidgetData.Catalog catalog;
+    /** originKeys 裡是縣市標頭的那些列（索引以 labels 為準，含第 0 列「自動」）。 */
+    private final Set<Integer> originHeaders = new LinkedHashSet<>();
+    private Spinner systemSpinner;
+    private Spinner originSpinner;
+    private Spinner destinationSpinner;
+    private CheckBox readable;
+    private Button filtersButton;
+    private FrameLayout preview;
+    private TextView destinationLabel;
+    private final List<String> originKeys = new ArrayList<>();
+    private final Set<String> selectedFilters = new LinkedHashSet<>();
+
+    @Override
+    protected void onCreate(Bundle state) {
+        super.onCreate(state);
+        setResult(RESULT_CANCELED);
+        widgetId = getIntent().getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,
+            AppWidgetManager.INVALID_APPWIDGET_ID);
+        if (widgetId == AppWidgetManager.INVALID_APPWIDGET_ID) { finish(); return; }
+        try { catalog = RailWidgetData.catalog(this); }
+        catch (Exception error) { finish(); return; }
+        buildUi();
+    }
+
+    private void buildUi() {
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(dp(24), dp(28), dp(24), dp(24));
+        root.setBackgroundColor(getColor(R.color.wg_paper));
+
+        TextView title = text("發車看板小工具", 24, getColor(R.color.wg_ink));
+        title.setTypeface(title.getTypeface(), android.graphics.Typeface.BOLD);
+        root.addView(title, matchWrap(0));
+        TextView hint = text("選台鐵、高鐵或共站，查看接下來的停靠與終到列車；想看通過本站的車，在「只看這些」裡打開。", 14,
+            getColor(R.color.wg_ink_soft));
+        LinearLayout.LayoutParams hintLp = matchWrap(dp(8));
+        hintLp.bottomMargin = dp(18);
+        root.addView(hint, hintLp);
+
+        preview = new FrameLayout(this);
+        LinearLayout.LayoutParams previewLp = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(158));
+        previewLp.bottomMargin = dp(20);
+        root.addView(preview, previewLp);
+
+        root.addView(label("鐵路系統"), matchWrap(0));
+        systemSpinner = new Spinner(this);
+        systemSpinner.setAdapter(adapter(Arrays.asList("台鐵", "高鐵", "台鐵＋高鐵共站")));
+        root.addView(systemSpinner, matchWrap(dp(4)));
+
+        root.addView(label("起站"), matchWrap(dp(16)));
+        originSpinner = new Spinner(this);
+        root.addView(originSpinner, matchWrap(dp(4)));
+
+        destinationLabel = label("目的站（可留空）");
+        root.addView(destinationLabel, matchWrap(dp(16)));
+        destinationSpinner = new Spinner(this);
+        root.addView(destinationSpinner, matchWrap(dp(4)));
+
+        filtersButton = new Button(this);
+        filtersButton.setAllCaps(false);
+        filtersButton.setText(RailNativeL10n.text(this, "只看這些（可留空）"));
+        root.addView(filtersButton, matchWrap(dp(16)));
+
+        readable = new CheckBox(this);
+        readable.setText(RailNativeL10n.text(this, "大字好讀版"));
+        readable.setTextColor(getColor(R.color.wg_ink));
+        readable.setTextSize(15);
+        root.addView(readable, matchWrap(dp(18)));
+
+        Button done = new Button(this);
+        done.setText(RailNativeL10n.text(this, "加到桌面"));
+        done.setTextSize(16);
+        done.setTextColor(getColor(R.color.wg_on_accent));
+        done.setAllCaps(false);
+        done.setBackgroundColor(getColor(R.color.wg_navy));
+        LinearLayout.LayoutParams buttonLp = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(52));
+        buttonLp.topMargin = dp(22);
+        root.addView(done, buttonLp);
+
+        systemSpinner.setOnItemSelectedListener(new Selection() {
+            @Override public void selected(int position) { updateOrigins(position); }
+        });
+        originSpinner.setOnItemSelectedListener(new Selection() {
+            @Override public void selected(int position) { updateDestinations(); refreshPreview(); }
+        });
+        destinationSpinner.setOnItemSelectedListener(new Selection() {
+            @Override public void selected(int position) { refreshPreview(); }
+        });
+        readable.setOnCheckedChangeListener((button, checked) -> refreshPreview());
+        filtersButton.setOnClickListener(view -> showFilters());
+        done.setOnClickListener(view -> save());
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(root, new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        setContentView(scroll);
+        restore();
+    }
+
+    private void restore() {
+        SharedPreferences prefs = getSharedPreferences(RailBoardWidgetProvider.PREFS, Context.MODE_PRIVATE);
+        String sys = prefs.getString("sys_" + widgetId, "tra");
+        int sysIndex = "thsr".equals(sys) ? 1 : RailWidgetData.SYS_COMPOSITE.equals(sys) ? 2 : 0;
+        systemSpinner.setSelection(sysIndex);
+        updateOrigins(sysIndex);
+        String origin = prefs.getString("origin_" + widgetId, null);
+        if (origin != null) {
+            if (RailWidgetData.AUTO.equals(origin)) originSpinner.setSelection(0);
+            else {
+                int at = originKeys.indexOf(origin);
+                if (at >= 0) originSpinner.setSelection(at + 1);
+            }
+        }
+        updateDestinations();
+        String destination = prefs.getString("destination_" + widgetId, "");
+        for (int i = 0; i < destinationSpinner.getCount(); i++) {
+            Object item = destinationSpinner.getItemAtPosition(i);
+            if (item instanceof DestinationValue && destination.equals(((DestinationValue) item).value)) {
+                destinationSpinner.setSelection(i); break;
+            }
+        }
+        readable.setChecked(prefs.getBoolean("readable_" + widgetId, false));
+        selectedFilters.clear();
+        try {
+            JSONArray values = new JSONArray(prefs.getString("filters_" + widgetId, "[]"));
+            for (int i = 0; i < values.length(); i++) selectedFilters.add(values.optString(i));
+        } catch (Exception ignored) {}
+        updateFilterLabel();
+        refreshPreview();
+    }
+
+    private String selectedSystem() {
+        int at = systemSpinner.getSelectedItemPosition();
+        return at == 1 ? "thsr" : at == 2 ? RailWidgetData.SYS_COMPOSITE : "tra";
+    }
+
+    private void updateOrigins(int systemIndex) {
+        originKeys.clear();
+        originHeaders.clear();
+        List<String> labels = new ArrayList<>();
+        labels.add("自動（最近的站）");
+        String sys = systemIndex == 1 ? "thsr" : systemIndex == 2 ? RailWidgetData.SYS_COMPOSITE : "tra";
+        if (!RailWidgetData.SYS_COMPOSITE.equals(sys)) {
+            for (RailWidgetData.PlaceOption place : RailWidgetData.places(this, catalog, "", null)) {
+                originKeys.add(place.key);
+                labels.add(place.displayLabel(catalog));
+            }
+        }
+        if (RailWidgetData.SYS_COMPOSITE.equals(sys)) {
+            for (RailWidgetData.Composite pair : catalog.composites) {
+                originKeys.add(pair.key);
+                labels.add(pair.label);
+            }
+        } else {
+            RailWidgetData.SystemInfo system = catalog.byId.get(sys);
+            LinkedHashMap<String, List<RailWidgetData.Station>> grouped =
+                RailWidgetData.stationsByRegion(system);
+            if (grouped != null) {
+                for (Map.Entry<String, List<RailWidgetData.Station>> group : grouped.entrySet()) {
+                    originKeys.add(RailWidgetData.REGION_HEADER + group.getKey());
+                    labels.add(group.getKey());
+                    originHeaders.add(labels.size() - 1);
+                    for (RailWidgetData.Station station : group.getValue()) {
+                        originKeys.add(station.name);
+                        labels.add(station.name);
+                    }
+                }
+            } else if (system != null) for (RailWidgetData.Station station : system.stations) {
+                originKeys.add(station.name);
+                labels.add(station.name);
+            }
+        }
+        // 給 adapter 一份快照：originHeaders 下一輪 updateOrigins 會被 clear，
+        // 共用同一個實例會讓還沒被換掉的舊 adapter 讀到重建到一半的集合。
+        originSpinner.setAdapter(new OriginAdapter(this, labels, new LinkedHashSet<>(originHeaders)));
+        String preferred = RailWidgetData.SYS_COMPOSITE.equals(sys) ? "臺北|台北" : sys.equals("thsr") ? "台北" : "臺北";
+        int at = originKeys.indexOf(preferred);
+        if (at >= 0) originSpinner.setSelection(at + 1);
+        boolean composite = RailWidgetData.SYS_COMPOSITE.equals(sys);
+        destinationLabel.setVisibility(composite ? View.GONE : View.VISIBLE);
+        destinationSpinner.setVisibility(composite ? View.GONE : View.VISIBLE);
+        updateDestinations();
+        refreshPreview();
+    }
+
+    private String selectedOrigin() {
+        int at = originSpinner.getSelectedItemPosition();
+        if (at <= 0 || at - 1 >= originKeys.size()) return RailWidgetData.AUTO;
+        String key = originKeys.get(at - 1);
+        return key.startsWith(RailWidgetData.REGION_HEADER) ? RailWidgetData.AUTO : key;
+    }
+
+    private void updateDestinations() {
+        List<String> values = new ArrayList<>();
+        values.add("");
+        List<String> labels = new ArrayList<>();
+        labels.add("全部目的地");
+        String sys = selectedSystem();
+        String origin = selectedOrigin();
+        if (!RailWidgetData.SYS_COMPOSITE.equals(sys) && !RailWidgetData.AUTO.equals(origin)) {
+            if (RailWidgetData.isPlace(origin)) {
+                RailWidgetData.PlaceOption place = RailWidgetData.resolvePlace(this, catalog, origin, "", null);
+                if (place != null) { sys = place.sys; origin = place.station; }
+            }
+            List<String> direct = RailWidgetData.destinations(catalog, sys, origin);
+            java.util.Set<String> allowed = new java.util.LinkedHashSet<>(direct);
+            for (RailWidgetData.PlaceOption place : RailWidgetData.places(this, catalog, sys, allowed)) {
+                values.add(place.key); labels.add(place.displayLabel(catalog));
+            }
+            for (String station : direct) { values.add(station); labels.add("往 " + station); }
+        }
+        destinationSpinner.setAdapter(new DestinationAdapter(this, labels, values));
+    }
+
+    private String selectedDestination() {
+        Object selected = destinationSpinner.getSelectedItem();
+        if (selected instanceof DestinationValue) return ((DestinationValue) selected).value;
+        return "";
+    }
+
+    private void showFilters() {
+        List<RailWidgetData.FilterOption> options = RailWidgetData.filterOptions(
+            this, catalog, selectedSystem(), selectedOrigin(),
+            selectedFilters.contains(RailWidgetData.FILTER_PASS));
+        if (options.isEmpty()) {
+            new AlertDialog.Builder(this).setTitle(RailNativeL10n.text(this, "只看這些"))
+                .setMessage(RailNativeL10n.text(this, "這個起站目前沒有可用的篩選項目。"))
+                .setPositiveButton(RailNativeL10n.text(this, "知道了"), null).show();
+            return;
+        }
+        String[] labels = new String[options.size()];
+        boolean[] checked = new boolean[options.size()];
+        Set<String> draft = new LinkedHashSet<>(selectedFilters);
+        for (int i = 0; i < options.size(); i++) {
+            labels[i] = RailNativeL10n.option(this, options.get(i).label); checked[i] = draft.contains(options.get(i).key);
+        }
+        new AlertDialog.Builder(this).setTitle(RailNativeL10n.text(this, "只看這些（留空就是全部）"))
+            .setMultiChoiceItems(labels, checked, (dialog, which, value) -> {
+                if (value) draft.add(options.get(which).key); else draft.remove(options.get(which).key);
+            })
+            .setNeutralButton(RailNativeL10n.text(this, "清除"), (dialog, which) -> {
+                selectedFilters.clear(); updateFilterLabel(); refreshPreview();
+            })
+            .setNegativeButton(RailNativeL10n.text(this, "取消"), null)
+            .setPositiveButton(RailNativeL10n.text(this, "完成"), (dialog, which) -> {
+                selectedFilters.clear(); selectedFilters.addAll(draft); updateFilterLabel(); refreshPreview();
+            }).show();
+    }
+
+    private void updateFilterLabel() {
+        if (filtersButton == null) return;
+        filtersButton.setText(selectedFilters.isEmpty() ? RailNativeL10n.text(this, "只看這些（可留空）")
+            : RailNativeL10n.text(this, "已選 {n} 項篩選", "n", String.valueOf(selectedFilters.size())));
+    }
+
+    private void refreshPreview() {
+        if (preview == null) return;
+        preview.removeAllViews();
+        long now = System.currentTimeMillis();
+        RailWidgetData.Snapshot snapshot = new RailWidgetData.Snapshot();
+        snapshot.sys = selectedSystem();
+        snapshot.systemLabel = RailWidgetData.SYS_COMPOSITE.equals(snapshot.sys) ? "台鐵＋高鐵"
+            : snapshot.sys.equals("thsr") ? "高鐵" : "台鐵";
+        int originAt = originSpinner == null ? 0 : originSpinner.getSelectedItemPosition();
+        snapshot.origin = originAt <= 0 ? "自動選站" : selectedOrigin();
+        snapshot.destination = selectedDestination();
+        snapshot.generatedAt = now;
+        for (int i = 0; i < 3; i++) {
+            RailWidgetData.Row row = new RailWidgetData.Row();
+            row.sys = i == 1 && RailWidgetData.SYS_COMPOSITE.equals(snapshot.sys) ? "thsr" : snapshot.sys;
+            row.no = i == 0 ? "123" : i == 1 ? "0567" : "2551";
+            row.type = row.sys.equals("thsr") ? "高鐵" : i == 0 ? "自強" : "區間車";
+            row.color = row.sys.equals("thsr") ? "#E85D0D" : i == 0 ? "#C0392B" : "#2E6FB0";
+            row.terminus = snapshot.destination.isEmpty() ? (i == 1 ? "南港" : "花蓮") : snapshot.destination;
+            row.relation = i == 2 ? RailWidgetData.Relation.PASS : RailWidgetData.Relation.DEPARTURE;
+            row.scheduledAt = now + (i + 1) * 8 * 60_000L;
+            row.delayMinutes = i == 0 ? Integer.valueOf(0)
+                : i == 2 ? Integer.valueOf(3) : null;
+            snapshot.rows.add(row);
+        }
+        RemoteViewsHost.attach(this, preview,
+            RailWidgetRender.board(this, R.layout.widget_rail_4x2, snapshot, 3, readable.isChecked(), false));
+    }
+
+    private void save() {
+        String sys = selectedSystem();
+        String origin = selectedOrigin();
+        String destination = RailWidgetData.SYS_COMPOSITE.equals(sys) ? "" : selectedDestination();
+        getSharedPreferences(RailBoardWidgetProvider.PREFS, Context.MODE_PRIVATE).edit()
+            .putString("sys_" + widgetId, sys)
+            .putString("origin_" + widgetId, origin)
+            .putString("destination_" + widgetId, destination)
+            .putBoolean("readable_" + widgetId, readable.isChecked())
+            .putString("filters_" + widgetId, new JSONArray(selectedFilters).toString())
+            .apply();
+        AppWidgetManager manager = AppWidgetManager.getInstance(this);
+        RailBoardWidgetProvider.updateOneAsync(this, manager, widgetId);
+        Intent result = new Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId);
+        setResult(RESULT_OK, result);
+        finish();
+    }
+
+    private TextView label(String value) {
+        TextView out = text(value, 13, getColor(R.color.wg_ink_soft));
+        out.setTypeface(out.getTypeface(), android.graphics.Typeface.BOLD);
+        return out;
+    }
+
+    private TextView text(String value, float size, int color) {
+        TextView out = new TextView(this);
+        out.setText(RailNativeL10n.text(this, value)); out.setTextSize(size); out.setTextColor(color);
+        return out;
+    }
+
+    private ArrayAdapter<String> adapter(List<String> values) {
+        List<String> localized = new ArrayList<>();
+        for (String value : values) localized.add(RailNativeL10n.option(this, value));
+        ArrayAdapter<String> out = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, localized);
+        out.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        return out;
+    }
+
+    private LinearLayout.LayoutParams matchWrap(int top) {
+        LinearLayout.LayoutParams out = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        out.topMargin = top;
+        return out;
+    }
+
+    private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
+
+    private abstract static class Selection implements AdapterView.OnItemSelectedListener {
+        public abstract void selected(int position);
+        @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) { selected(position); }
+        @Override public void onNothingSelected(AdapterView<?> parent) {}
+    }
+
+    /** 起站清單的分段標頭不可選、字重加粗；其餘與原本的 spinner 樣式相同。 */
+    private static final class OriginAdapter extends ArrayAdapter<String> {
+        private final Set<Integer> headers;
+
+        OriginAdapter(Context context, List<String> labels, Set<Integer> headers) {
+            super(context, android.R.layout.simple_spinner_item, localized(context, labels, headers));
+            setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            this.headers = headers;
+        }
+
+        private static List<String> localized(Context context, List<String> labels, Set<Integer> headers) {
+            List<String> out = new ArrayList<>();
+            for (int i = 0; i < labels.size(); i++) out.add(headers.contains(i)
+                ? RailNativeL10n.name(context, labels.get(i))
+                : RailNativeL10n.option(context, labels.get(i)));
+            return out;
+        }
+
+        @Override public boolean areAllItemsEnabled() { return false; }
+
+        @Override public boolean isEnabled(int position) { return !headers.contains(position); }
+
+        @Override public View getDropDownView(int position, View convertView, ViewGroup parent) {
+            View view = super.getDropDownView(position, convertView, parent);
+            if (view instanceof TextView) {
+                boolean header = headers.contains(position);
+                TextView text = (TextView) view;
+                text.setTypeface(null, header ? Typeface.BOLD : Typeface.NORMAL);
+                text.setAlpha(header ? 0.65f : 1f);
+            }
+            return view;
+        }
+    }
+
+    private static final class DestinationValue {
+        final String label;
+        final String value;
+        DestinationValue(String label, String value) { this.label = label; this.value = value; }
+        @Override public String toString() { return label; }
+    }
+
+    private static final class DestinationAdapter extends ArrayAdapter<DestinationValue> {
+        DestinationAdapter(Context context, List<String> labels, List<String> values) {
+            super(context, android.R.layout.simple_spinner_item, build(context, labels, values));
+            setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        }
+        private static List<DestinationValue> build(Context context, List<String> labels, List<String> values) {
+            List<DestinationValue> out = new ArrayList<>();
+            for (int i = 0; i < labels.size(); i++) out.add(new DestinationValue(
+                RailNativeL10n.option(context, labels.get(i)), values.get(i)));
+            return out;
+        }
+    }
+
+    /** RemoteViews.apply 的小包裝，讓設定頁預覽與桌面共用出貨 binder。 */
+    private static final class RemoteViewsHost {
+        static void attach(Context context, FrameLayout host, android.widget.RemoteViews views) {
+            host.addView(views.apply(context, host));
+        }
+    }
+}

@@ -109,7 +109,7 @@ function resolveApp(input) {
 const input = process.argv[2] || newestArchive();
 // 🔴 找不到產物一律中止（exit 2），不可靜默略過：這支存在的理由就是「沒有任何產物證明過
 // aps-environment 簽得進去」，把「沒東西可驗」印成綠燈等於把它自己廢掉。
-if (!input) abort('沒有指定產物、也找不到任何 .xcarchive——先 Product ▸ Archive 再跑這支');
+if (!input) abort('沒有指定產物、也找不到任何 .xcarchive——先跑 node app/scripts/ios-release.mjs <模式>');
 if (!existsSync(input)) abort(`產物不存在：${input}`);
 console.log(`[APS] 產物：${input}`);
 console.log(`[APS] 期望的 aps-environment：${EXPECT}（RAIL_APS_EXPECT 可覆寫）`);
