@@ -138,6 +138,9 @@ ok('CarWeight 失敗後下一輪立刻重試（沒有把失敗寫進記憶體）
   `失敗輪後 hw=${afterFail}，再一輪後 hw=${counts.hw}`);
 
 // ── 第 4 節：營運窗外——三支都是 0，而且回應仍是可用的空看板 ─────────────────
+// 🔴 先讓 60 秒節流到期再進窗外，否則「CarWeight 0 次」會是被【節流】擋住而不是被【閘門】擋住
+//    ——那條斷言就會因為錯的理由而通過（M1 突變實測到的盲點：拿掉閘門它依然綠）。
+advance(61e3);
 resetCounts();
 const closedEnv = { TRTC_NOW_EPOCH: String(tpe(3, 0)) };   // 03:00 台北，窗外
 let closedBody = null;
