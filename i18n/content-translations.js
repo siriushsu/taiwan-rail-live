@@ -4,6 +4,7 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    '晚尖峰即時資料恢復時，捷運列車不再整批跳位；轉乘站偶爾缺一個方向時，來車看板會先補上該方向的班表': 'Metro trains no longer jump together when live data resumes during the evening peak. If one direction briefly disappears at an interchange, its timetable fills that gap on the station board.',
     'Android 1.5.0 完整加入繁中、English、日本語：App 介面、三種桌面小工具，以及列車跟隨、捷運等車與台鐵等站的鎖定畫面／Now Bar 會同步切換語言；沿用既有正式版更新時，原本的小工具、設定和資料都會保留': 'Android 1.5.0 fully adds Traditional Chinese, English and Japanese across the app, all three home-screen widgets, train following, metro waiting and TRA station tracking on the lock screen and Now Bar. Updating the existing release keeps your widgets, settings and data.',
     'Android 正式版進到 1.5.0，完整加入繁中、English、日本語。除了 App 內介面，捷運看板、台鐵／高鐵發車看板、鐵路＋捷運雙看板三種桌面小工具，以及列車跟隨、捷運等車和台鐵等站的鎖定畫面／Now Bar 都會使用 App 選定的語言；切換後立即重畫，不必刪除小工具或重開追蹤。使用原簽署版本覆蓋更新，既有設定、小工具與本機資料會保留': 'The Android release is now 1.5.0 with full Traditional Chinese, English and Japanese support. The metro board, TRA/HSR departure board and combined rail + metro widget, plus lock-screen and Now Bar cards for train following, metro waiting and TRA station tracking all use the language selected in the app. They refresh immediately when the language changes, without removing widgets or restarting tracking. The signed update preserves existing settings, widgets and on-device data.',
     '修好 iPhone App 的語言按鈕：上一個測試版漏帶英、日文字典，按了仍全顯示繁中；現在 App 會完整帶入三語資源。英文與日文文案也完成第二輪複核，統一日文的「鑑賞模式」、車次與乘車按鈕用語，並修順英文災害監看句子': 'Fixed the language buttons in the iPhone app: the previous test build omitted the English and Japanese dictionaries, so the interface stayed in Traditional Chinese. The app now bundles all three languages. A second copy review also standardized Japanese viewing-mode, train-number and ride-button wording and cleaned up the English hazard-monitoring sentence.',
@@ -163,6 +164,7 @@
   });
 
   Object.assign(messages.ja, {
+    '晚尖峰即時資料恢復時，捷運列車不再整批跳位；轉乘站偶爾缺一個方向時，來車看板會先補上該方向的班表': '夕方ラッシュ時にリアルタイム情報が再開しても、メトロ列車が一斉に飛ばなくなりました。乗換駅で一方向だけ一時的に欠けた場合は、その方向を時刻表で補います。',
     'Android 1.5.0 完整加入繁中、English、日本語：App 介面、三種桌面小工具，以及列車跟隨、捷運等車與台鐵等站的鎖定畫面／Now Bar 會同步切換語言；沿用既有正式版更新時，原本的小工具、設定和資料都會保留': 'Android 1.5.0は繁体字中国語・英語・日本語に対応しました。App本体、3種類のホーム画面ウィジェット、列車追跡、メトロ待ち、台湾鉄路の駅待ちを表示するロック画面／Now Barが同じ言語に切り替わります。既存の正式版から更新しても、ウィジェット、設定、データは保持されます。',
     'Android 正式版進到 1.5.0，完整加入繁中、English、日本語。除了 App 內介面，捷運看板、台鐵／高鐵發車看板、鐵路＋捷運雙看板三種桌面小工具，以及列車跟隨、捷運等車和台鐵等站的鎖定畫面／Now Bar 都會使用 App 選定的語言；切換後立即重畫，不必刪除小工具或重開追蹤。使用原簽署版本覆蓋更新，既有設定、小工具與本機資料會保留': 'Android正式版を1.5.0へ更新し、繁体字中国語・英語・日本語に全面対応しました。メトロ案内、台湾鉄路／高鉄発車案内、鉄道＋メトロ案内の3種類のウィジェットと、列車追跡、メトロ待ち、台湾鉄路の駅待ちを表示するロック画面／Now BarもAppで選んだ言語を使います。言語変更後はすぐに再表示され、ウィジェットの削除や追跡の再開は不要です。同じ署名の更新としてインストールするため、設定、ウィジェット、端末内データは保持されます。',
     '修好 iPhone App 的語言按鈕：上一個測試版漏帶英、日文字典，按了仍全顯示繁中；現在 App 會完整帶入三語資源。英文與日文文案也完成第二輪複核，統一日文的「鑑賞模式」、車次與乘車按鈕用語，並修順英文災害監看句子': 'iPhone Appの言語ボタンを修正しました。前のテスト版では英語・日本語の辞書が同梱されず、切り替えても繁体字中国語のままでした。今後は3言語のデータをすべてAppに収録します。英語・日本語の文言も再校正し、日本語の「鑑賞モード」、列車番号、乗車ボタンを統一して、英語の災害監視文も整えました。',
