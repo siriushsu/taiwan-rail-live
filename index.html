@@ -6336,6 +6336,176 @@ function createLeafletEngine(containerId, view) {
   };
   return E;
 }
+// ── MapLibre 實作 ─────────────────────────────────────────────────────────────
+// 引擎中立的經緯度框:方法子集對齊 L.LatLngBounds,只實作 index.html 真的用到的
+// (pad/contains/getCenter/get{North,South,East,West,NorthWest,SouthEast,SouthWest,NorthEast}/extend/equals)。
+class MBounds {
+  constructor(a, b) { this._sw = null; this._ne = null; if (a != null) this.extend(a); if (b != null) this.extend(b); }
+  extend(p) {
+    if (p instanceof MBounds) { if (p._sw) { this.extend(p._sw); this.extend(p._ne); } return this; }
+    if (Array.isArray(p) && Array.isArray(p[0])) { for (const q of p) this.extend(q); return this; }
+    const ll = mlToLL(p); if (!ll) return this;
+    if (!this._sw) { this._sw = { lat: ll.lat, lng: ll.lng }; this._ne = { lat: ll.lat, lng: ll.lng }; return this; }
+    this._sw.lat = Math.min(this._sw.lat, ll.lat); this._sw.lng = Math.min(this._sw.lng, ll.lng);
+    this._ne.lat = Math.max(this._ne.lat, ll.lat); this._ne.lng = Math.max(this._ne.lng, ll.lng);
+    return this;
+  }
+  getSouthWest() { return { lat: this._sw.lat, lng: this._sw.lng }; }
+  getNorthEast() { return { lat: this._ne.lat, lng: this._ne.lng }; }
+  getNorthWest() { return { lat: this._ne.lat, lng: this._sw.lng }; }
+  getSouthEast() { return { lat: this._sw.lat, lng: this._ne.lng }; }
+  getNorth() { return this._ne.lat; } getSouth() { return this._sw.lat; } getEast() { return this._ne.lng; } getWest() { return this._sw.lng; }
+  getCenter() { return { lat: (this._sw.lat + this._ne.lat) / 2, lng: (this._sw.lng + this._ne.lng) / 2 }; }
+  pad(r) { // 與 L.LatLngBounds.pad 同義:各邊往外擴「該邊長 × r」
+    const h = (this._ne.lat - this._sw.lat) * r, w = (this._ne.lng - this._sw.lng) * r;
+    return new MBounds([this._sw.lat - h, this._sw.lng - w], [this._ne.lat + h, this._ne.lng + w]);
+  }
+  contains(p) {
+    if (p instanceof MBounds) return this.contains(p._sw) && this.contains(p._ne);
+    const ll = mlToLL(p); if (!ll) return false;
+    return ll.lat >= this._sw.lat && ll.lat <= this._ne.lat && ll.lng >= this._sw.lng && ll.lng <= this._ne.lng;
+  }
+  equals(o) { return !!o && typeof o.getSouth === 'function' && o.getSouth() === this.getSouth() && o.getNorth() === this.getNorth() && o.getWest() === this.getWest() && o.getEast() === this.getEast(); }
+}
+// [lat, lon] 陣列 / {lat, lng} / {lat, lon}(Leaflet toLatLng 也收 lon)→ {lat, lng};不合法回 null
+function mlToLL(p) {
+  if (!p) return null;
+  if (Array.isArray(p)) return (Number.isFinite(p[0]) && Number.isFinite(p[1])) ? { lat: +p[0], lng: +p[1] } : null;
+  const lat = p.lat, lng = (p.lng != null ? p.lng : p.lon);
+  return (Number.isFinite(lat) && Number.isFinite(lng)) ? { lat: +lat, lng: +lng } : null;
+}
+// 任何框(MBounds / Leaflet 形 / [[lat,lon],[lat,lon]])→ MapLibre 的 [[w,s],[e,n]]
+function mlToLngLatBounds(b) {
+  const mb = (b instanceof MBounds) ? b : (b && typeof b.getSouthWest === 'function') ? new MBounds(b.getSouthWest(), b.getNorthEast()) : new MBounds(b);
+  return [[mb.getWest(), mb.getSouth()], [mb.getEast(), mb.getNorth()]];
+}
+// Leaflet 的 padding 形式([x, y] 或 {x, y} 或數字)→ MapLibre 的 {top,bottom,left,right}
+function mlPadding(p) {
+  if (p == null) return 0;
+  if (typeof p === 'number') return p;
+  const x = Array.isArray(p) ? p[0] : p.x, y = Array.isArray(p) ? p[1] : p.y;
+  return { top: y || 0, bottom: y || 0, left: x || 0, right: x || 0 };
+}
+// Leaflet 動畫選項 → MapLibre duration(ms):animate:false → 0;duration 秒 → ms;都沒給 → undefined(MapLibre 預設)
+function mlDuration(o) {
+  if (!o) return undefined;
+  if (o.animate === false) return 0;
+  if (Number.isFinite(o.duration)) return o.duration * 1000;
+  return undefined;
+}
+// 純數學的 Web Mercator 世界像素(Leaflet 慣例:z 的世界寬 = 256·2^z),與 L.CRS.EPSG3857.project 同值
+const ML_MAX_LAT = 85.0511287798;
+function mlWorldPx(ll, z) {
+  const p = mlToLL(ll), s = 256 * Math.pow(2, z);
+  const lat = Math.max(-ML_MAX_LAT, Math.min(ML_MAX_LAT, p.lat)) * Math.PI / 180;
+  return { x: s * (p.lng / 360 + 0.5), y: s * (0.5 - Math.log(Math.tan(Math.PI / 4 + lat / 2)) / (2 * Math.PI)) };
+}
+function mlWorldUnpx(pt, z) {
+  const s = 256 * Math.pow(2, z);
+  const lng = (pt.x / s - 0.5) * 360;
+  const lat = (2 * Math.atan(Math.exp((0.5 - pt.y / s) * 2 * Math.PI)) - Math.PI / 2) * 180 / Math.PI;
+  return { lat, lng };
+}
+// 🔴 zoom 尺度:MapLibre 用 512px 圖磚,同一個畫面比例的 zoom 比 Leaflet(256px)少 1。
+//    M 對外一律 Leaflet 尺度;進出 MapLibre 時加減 ML_Z。verify_engine_adapter G6 用「兩引擎同 zoom 下
+//    兩點的螢幕距離相等」實測這個常數——若差兩倍就是這裡錯了,不是別處。
+const ML_Z = 1;
+function createMaplibreEngine(containerId, view) {
+  const c0 = mlToLL(view.center);
+  let styleKind = state.mapDark ? 'dark' : 'light';
+  const raw = new maplibregl.Map({
+    container: containerId, style: OFM_STYLE[styleKind],
+    center: [c0.lng, c0.lat], zoom: view.zoom - ML_Z,
+    attributionControl: { compact: false }, renderWorldCopies: false, fadeDuration: 0,
+    dragRotate: false, pitchWithRotate: false, touchPitch: false, maxPitch: 0, // M0:旋轉/傾斜一律關,M2 才開
+  });
+  raw.touchZoomRotate.disableRotation();
+  raw.addControl(new maplibregl.NavigationControl({ showCompass: false, showZoom: true }), 'bottom-right');
+  // 事件:名稱沿用 Leaflet。click/mousemove/contextmenu 的 handler 收到的 e 補 containerPoint/latlng(Leaflet 形),
+  // 其餘事件原樣轉發。off 要對得回同一個包裝函式,所以每個 (event, fn) 記一份。
+  const wrapped = new Map(); // key = ev + ' ' + fn 的序號 → wrapper
+  const fnIds = new WeakMap(); let fnSeq = 0;
+  const fid = fn => { if (!fnIds.has(fn)) fnIds.set(fn, ++fnSeq); return fnIds.get(fn); };
+  const POINTER_EVS = new Set(['click', 'mousemove', 'contextmenu', 'dblclick', 'mousedown', 'mouseup']);
+  const wrap = (ev, fn) => {
+    if (!POINTER_EVS.has(ev)) return fn;
+    const k = ev + ' ' + fid(fn);
+    if (!wrapped.has(k)) wrapped.set(k, e => {
+      if (e && e.point && !e.containerPoint) e.containerPoint = { x: e.point.x, y: e.point.y };
+      if (e && e.lngLat && !e.latlng) e.latlng = { lat: e.lngLat.lat, lng: e.lngLat.lng };
+      return fn(e);
+    });
+    return wrapped.get(k);
+  };
+  const E = {
+    engine: 'maplibre', raw, leaflet: null,
+    // 投影(全程浮點;MapLibre project 回的是 Point{x,y})
+    toScreen: ll => { const p = mlToLL(ll); const q = raw.project([p.lng, p.lat]); return { x: q.x, y: q.y }; },
+    fromScreen: pt => { const q = raw.unproject([Array.isArray(pt) ? pt[0] : pt.x, Array.isArray(pt) ? pt[1] : pt.y]); return { lat: q.lat, lng: q.lng }; },
+    worldPx: (ll, z) => mlWorldPx(ll, z),
+    worldUnpx: (pt, z) => mlWorldUnpx(pt, z),
+    // 相機
+    getZoom: () => raw.getZoom() + ML_Z,
+    getCenter: () => { const c = raw.getCenter(); return { lat: c.lat, lng: c.lng }; },
+    getBounds: () => { const b = raw.getBounds(); return new MBounds([b.getSouth(), b.getWest()], [b.getNorth(), b.getEast()]); },
+    getBoundsZoom: (b, inside, pad) => {
+      const cam = raw.cameraForBounds(mlToLngLatBounds(b), { padding: mlPadding(pad) });
+      if (!cam) return raw.getZoom() + ML_Z;
+      const z = cam.zoom + ML_Z; // Leaflet 預設 zoomSnap=1:inside 取 ceil,否則 floor
+      return inside ? Math.ceil(z) : Math.floor(z);
+    },
+    setView: (c, z, o) => {
+      const p = mlToLL(c), d = mlDuration(o);
+      const opts = { center: [p.lng, p.lat], zoom: (z == null ? raw.getZoom() : z - ML_Z) };
+      if (d === 0 || (d === undefined && (!o || o.animate === undefined))) raw.jumpTo(opts); // 專案裡 24 處 setView 全是 animate:false
+      else raw.easeTo({ ...opts, duration: d == null ? 250 : d });
+      return E;
+    },
+    panTo: (c, o) => { const p = mlToLL(c), d = mlDuration(o); raw.panTo([p.lng, p.lat], d == null ? {} : { duration: d }); return E; },
+    panBy: (dlt, o) => { const x = Array.isArray(dlt) ? dlt[0] : dlt.x, y = Array.isArray(dlt) ? dlt[1] : dlt.y; const d = mlDuration(o); raw.panBy([x, y], d == null ? {} : { duration: d }); return E; },
+    flyTo: (c, z, o) => { const p = mlToLL(c); const opts = { center: [p.lng, p.lat] }; if (z != null) opts.zoom = z - ML_Z; const d = mlDuration(o); if (d != null) opts.duration = d; raw.flyTo(opts); return E; },
+    fitBounds: (b, o) => {
+      const opts = { padding: mlPadding(o && o.padding) }; const d = mlDuration(o); if (d != null) opts.duration = d;
+      if (o && Number.isFinite(o.maxZoom)) opts.maxZoom = o.maxZoom - ML_Z;
+      raw.fitBounds(mlToLngLatBounds(b), opts); return E;
+    },
+    flyToBounds: (b, o) => E.fitBounds(b, o), // MapLibre 的 fitBounds 本來就會動畫;duration 由 o 決定
+    stop: () => { raw.stop(); return E; },
+    setMinZoom: z => { raw.setMinZoom(z - ML_Z); return E; },
+    setMaxZoom: z => { raw.setMaxZoom(z - ML_Z); return E; },
+    setMaxBounds: b => { raw.setMaxBounds(b ? mlToLngLatBounds(b) : null); return E; },
+    distance: (a, b) => { // 與 L.CRS.Earth.distance 同公式(R=6371000 haversine)
+      const p = mlToLL(a), q = mlToLL(b), rad = Math.PI / 180, R = 6371000;
+      const dl = (q.lat - p.lat) * rad, dg = (q.lng - p.lng) * rad;
+      const h = Math.sin(dl / 2) ** 2 + Math.cos(p.lat * rad) * Math.cos(q.lat * rad) * Math.sin(dg / 2) ** 2;
+      return 2 * R * Math.asin(Math.sqrt(h));
+    },
+    // 容器
+    getSize: () => { const el = raw.getContainer(); return { x: el.clientWidth, y: el.clientHeight }; },
+    getContainer: () => raw.getContainer(),
+    resize: () => { raw.resize(); return E; },
+    // 事件
+    on: (evs, fn) => { for (const ev of String(evs).split(/\s+/).filter(Boolean)) raw.on(ev, wrap(ev, fn)); return E; },
+    off: (evs, fn) => { for (const ev of String(evs).split(/\s+/).filter(Boolean)) raw.off(ev, wrap(ev, fn)); return E; },
+    fire: (ev, data) => { raw.fire(ev, data || {}); return E; }, // maplibregl.Evented.fire(type, properties):屬性直接掛在事件物件上
+    // 幾何工廠
+    latLngBounds: (a, b) => new MBounds(a, b),
+    latLng: (lat, lng) => ({ lat, lng }),
+    point: (x, y) => ({ x, y }),
+    // MapLibre 專屬(Leaflet 實作沒有這兩個;呼叫端一律 `M.setStyleKind && M.setStyleKind(...)`)
+    setStyleKind: kind => { // 'light' | 'dark';{diff:false} 是 spike 實測必要選項(diff 路徑不觸發 style.load)
+      if (kind !== 'light' && kind !== 'dark') return E;
+      if (kind === styleKind && raw.isStyleLoaded()) return E;
+      styleKind = kind; raw.setStyle(OFM_STYLE[kind], { diff: false }); return E;
+    },
+    setGestures: on => { // 對應 Leaflet 的 dragging/touchZoom/scrollWheelZoom/doubleClickZoom/boxZoom/keyboard 整組開關(放空模式用)
+      for (const h of [raw.dragPan, raw.scrollZoom, raw.boxZoom, raw.doubleClickZoom, raw.touchZoomRotate, raw.keyboard]) { if (h) on ? h.enable() : h.disable(); }
+      if (on) raw.touchZoomRotate.disableRotation(); // enable() 會把旋轉一起打開,M0 要維持關閉
+      return E;
+    },
+  };
+  return E;
+}
 function createEngine(containerId, view) {
   if (ENGINE === 'maplibre' && typeof createMaplibreEngine === 'function') return createMaplibreEngine(containerId, view);
   return createLeafletEngine(containerId, view); // MapLibre 實作尚未落地(M0b)時,旗標指到 maplibre 也退回 Leaflet
@@ -15881,7 +16051,8 @@ function ambientIdleReset() {
 // 但兩個視角行為不一致本身就是坑,一併鎖。
 const MAP_GESTURES = ['dragging', 'touchZoom', 'doubleClickZoom', 'scrollWheelZoom', 'boxZoom', 'keyboard'];
 function setMapGestures(on) {
-  if (!M || !M.leaflet) return; // Leaflet handler 物件(dragging/touchZoom…);MapLibre 在 M0b 的 createMaplibreEngine 內另設
+  if (!M) return;
+  if (!M.leaflet) { if (M.setGestures) M.setGestures(on); return; } // MapLibre:整組 handler 由引擎實作開關
   for (const k of MAP_GESTURES) {
     const h = M.leaflet[k];
     if (h && typeof h.enable === 'function') on ? h.enable() : h.disable();
@@ -28768,7 +28939,15 @@ function ofmFallToRaster(why) {
   setBasemap(); // 把該顯示的那層重新掛上去(署名也會跟著換成 raster 那份)
 }
 function setBasemap() {
-  if (!M || !M.leaflet) return; // MapLibre 引擎的底圖切換在 M0b 於此分流
+  if (!M) return;
+  if (!M.leaflet) { // MapLibre 引擎(M0):底圖就是 style 本身,只切深淺色;衛星/離線輪廓是 M1 的事,這裡把狀態壓回一般地圖
+    const stage0 = document.querySelector('.stage');
+    state.basemap = 'map';
+    stage0.classList.toggle('sat', false);
+    stage0.classList.toggle('dark', !!state.mapDark);
+    if (M.setStyleKind) M.setStyleKind(state.mapDark ? 'dark' : 'light');
+    return;
+  }
   const stage = document.querySelector('.stage');
   const online = onlineBasemapsAvailable();
   if (!online) state.basemap = 'map';
