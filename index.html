@@ -5859,7 +5859,9 @@
 // v0902e：把 App 出貨線(ship-main)併回來——小工具七種尺寸／方向可取消／捷運大卡(Android)、v0901h 的好讀版開車時刻、
 //         看板誤點標放大——並帶上跟車配樂選單(feat/music-scoring)。e 換號前逐 ref＋逐樹掃過無人佔用。
 // v0903b：刪除錄影功能殘留（程式碼、i18n、法律文件與支援頁；使用者 09-02／09-03 裁示）。執行路徑零變更。
-const BUILD = 'v0903d';
+// v0903e：L2 退場埋點——OpenFreeMap 健康判定失敗(ofmWatch 的 fail)時打一發 /api/basemap-fallback,Worker 寫一筆
+//         USAGE(blob1='ofmfail')。使用者 09-03 裁示「先量頻率」。地圖行為零變更;守門人:scripts/verify_ofm_fallback_beacon.mjs。
+const BUILD = 'v0903e';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -28785,7 +28787,25 @@ function onlineBasemapsAvailable() { return window.RAIL_ONLINE_BASEMAPS_AVAILABL
 // 症狀只有「第一批圖磚遲遲載不完」。所以主訊號是「上場後 T 秒內有沒有 load」,error 只是副訊號。
 // 退場只在本次 session 生效、**不寫 localStorage**——一次網路抖動不該讓使用者永久留在計費底圖上
 // (那是每個月真金白銀的差別);下次開機自己重試 OFM。這條是「回得去」的唯一保證。
+// 每一次 fail 都先打一發 ofmFailBeacon(緊接在下面):在此之前 L2 有沒有觸發,只有使用者自己的 console 知道。
 const OFM_HEALTH_MS = 8000, OFM_ERROR_LIMIT = 4;
+// ── L2 退場埋點(2026-09-03)────────────────────────────────────────────────────
+// 量「OpenFreeMap 的健康判定失敗」多常發生。App 那半每中一次＝整個 session 燒 Stadia(計費),
+// 網站那半＝使用者看到「街道底圖載入異常」。在此之前這件事只在 console 留一行 warn,
+// 全體使用者裡有多少人正在燒 Stadia 一個數字都沒有(2026-09-03 使用者自己的手機在 WiFi 上
+// 就中過一次,重開才回到 OFM)。Worker 端 /api/basemap-fallback 只寫一筆 Analytics Engine
+// 資料點(railisland_usage,blob1='ofmfail');查法:node scripts/usage_ofm_fallback.mjs。
+// 帶的只有原因(slow|error)與當下 zoom;來源(app|web)與裝置由 Worker 依 Origin/UA 判,與其他埋點同一把尺。
+// 🔴 fire-and-forget:不 await、失敗整段吞掉、絕不擋住退場本身——觀測不可以影響服務(同 tra-live 埋點精神)。
+//    keepalive 讓這一發在頁面被收掉時也送得出去(退場多半發生在開機那幾秒,使用者可能已經切走)。
+// 次數上限由 ofmWatch 決定:亮/暗各一個 watcher、每個最多 fail 一次(stop() 之後 settled=true),
+// 所以一個 session 實務上最多兩發,這裡不另外計數。
+function ofmFailBeacon(why) {
+  try {
+    const z = map ? Math.round(map.getZoom()) : 0;
+    fetch(apiUrl('api/basemap-fallback?why=' + encodeURIComponent(why) + '&z=' + z), { cache: 'no-store', keepalive: true }).catch(() => {});
+  } catch (e) {}
+}
 function ofmWatch(layer) {
   // 🔴 **偵測兩邊都要做**。此前這裡對網站整條 return,於是 OFM 半死時網站是**零訊號**:
   // 使用者看到一片空白底圖上飄著列車,分不清是自己的網路、我們掛了、還是功能壞了。
@@ -28799,7 +28819,7 @@ function ofmWatch(layer) {
   // 於是退過去之後 (a) 使用者看到一張蓋章的地圖 (b) `tileerror` 一次都不會發生 ⇒ 連下面那道
   // 「退路也掛了」的提示都叫不到,整條路徑零訊號。退到一個壞掉又測不出壞掉的地方比不退更糟,
   // 所以網站改成直接把話講出來。App 不受影響:它退到自家付費的 Stadia,那是真的能用的。
-  const fail = why => { stop(); if (APP_CFG.tiles) ofmFallToRaster(why); else ofmNoticeWeb(why); };
+  const fail = why => { stop(); ofmFailBeacon(why); if (APP_CFG.tiles) ofmFallToRaster(why); else ofmNoticeWeb(why); };
   // 逾時**只在圖層真的上場後**起算:亮/暗兩層只有一層會被加進地圖,
   // 若一建好就起算,沒上場的那層必然逾時 ⇒ 每次開機都假退場。
   layer.on('add', function () {
