@@ -16,6 +16,8 @@
 #    2026-08-18 就是踩這個：網站改走 OpenFreeMap 後預覽站底圖整片空白，本機測試 server 不送 CSP
 #    所以完全照不到，只有真的部署上去才現形。加向量底圖供應商或跨來源即時資料服務時，
 #    connect-src 要一起加；Private Metro Core 的 production endpoint 也屬於這一類。
+#    2026-09-03(換引擎 M1a):MapLibre 引擎的 Esri 衛星改成 raster source,圖磚也走 fetch/XHR ⇒ connect-src 加 ibasemaps-api.arcgis.com;
+#    Leaflet 路徑仍是 <img>,不受影響。守門人 verify_gl_basemap.mjs S6 靜態檢查這一條。
 #
 /*
   Strict-Transport-Security: max-age=31536000; includeSubDomains
@@ -23,7 +25,7 @@
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: accelerometer=(), autoplay=(self), camera=(), display-capture=(), encrypted-media=(), fullscreen=(self), geolocation=(self), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(self), publickey-credentials-get=(), screen-wake-lock=(self), usb=(), xr-spatial-tracking=(), browsing-topics=()
-  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://static.cloudflareinsights.com https://www.gstatic.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: blob: https:; media-src 'self' data: blob:; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; connect-src 'self' https://cloudflareinsights.com https://*.googleapis.com https://api.revenuecat.com https://tiles.openfreemap.org https://railisland-metro-core.sirius1984.workers.dev
+  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://static.cloudflareinsights.com https://www.gstatic.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: blob: https:; media-src 'self' data: blob:; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; connect-src 'self' https://cloudflareinsights.com https://*.googleapis.com https://api.revenuecat.com https://tiles.openfreemap.org https://ibasemaps-api.arcgis.com https://railisland-metro-core.sirius1984.workers.dev
 
 # App 殼要跨來源抓這些資料檔(index.html 的 initDataFreshness / refreshStaleSchedule):打包進
 # bundle 的 data/*.json 是送審當下的快照,之後只有再送審才會更新——台鐵班表 14 天窗必然過期、

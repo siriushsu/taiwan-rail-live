@@ -6471,14 +6471,22 @@ const ML_Z = 1;
 function createMaplibreEngine(containerId, view) {
   const c0 = mlToLL(view.center);
   let styleKind = state.mapDark ? 'dark' : 'light';
+  let tileHook = null; // M1a:每個 raster tile 請求(含重試)呼叫一次,由 setTileRequestHook 裝上(Esri 記帳)
+  let styleLoaded = false; // M1a:style JSON 載好就 true(自己記;raw.isStyleLoaded() 要等圖磚與 sprite 全到,圖磚在飛時恆 false,拿它當「可以加層了」會漏裝)
   const raw = new maplibregl.Map({
     container: containerId, style: OFM_STYLE[styleKind],
     center: [c0.lng, c0.lat], zoom: view.zoom - ML_Z,
-    attributionControl: { compact: false }, renderWorldCopies: false, fadeDuration: 0,
+    attributionControl: false, renderWorldCopies: false, fadeDuration: 0,
     dragRotate: false, pitchWithRotate: false, touchPitch: false, maxPitch: 0, // M0:旋轉/傾斜一律關,M2 才開
+    transformRequest: (url, type) => { if (type === 'Tile' && tileHook) tileHook(url); return { url }; },
   });
   raw.touchZoomRotate.disableRotation();
-  raw.addControl(new maplibregl.NavigationControl({ showCompass: false, showZoom: true }), 'bottom-right');
+  raw.on('style.load', () => { styleLoaded = true; }); // 比所有 onStyleLoad 回呼先註冊,旗標永遠先翻
+  // 署名控件自己建(不用 Map 內建那顆):setAttribution 要整份替換,替換時連縮放鈕一起重掛,DOM 順序才不會翻(bottom 位置的 addControl 是 prepend:後加的縮放鈕在上、署名貼底,與 M0 相同)
+  let attrib = new maplibregl.AttributionControl({ compact: false, customAttribution: [] });
+  const nav = new maplibregl.NavigationControl({ showCompass: false, showZoom: true });
+  raw.addControl(attrib, 'bottom-right');
+  raw.addControl(nav, 'bottom-right');
   // 事件:名稱沿用 Leaflet。click/mousemove/contextmenu 的 handler 收到的 e 補 containerPoint/latlng(Leaflet 形),
   // 其餘事件原樣轉發。off 要對得回同一個包裝函式,所以每個 (event, fn) 記一份。
   const wrapped = new Map(); // key = ev + ' ' + fn 的序號 → wrapper
@@ -28929,6 +28937,41 @@ function glAttributionSync() {
   if (glLand) list.push(t('臺灣輪廓：內政部'));
   M.setAttribution(list);
 }
+// MapLibre 引擎的衛星:整份 style=「background(海面色)+ z6 保底 raster + 主 raster」,離線陸地由 glLandInstall 在 style.load 插進 background 之上。
+// 主 raster 的 tileSize 決定要哪一級圖磚:256 ⇒ 圖磚 z=Leaflet 尺 z(同 satLQ);128 ⇒ z+1(同 detectRetina,4 倍張數,Plus 且非跟車才用)。
+// z6 保底層固定 minzoom=maxzoom=6:任何 zoom 都 overzoom 那十幾張,與 Leaflet 的 minNativeZoom=maxNativeZoom 同義(計畫 D8)。
+let satGlUrl = null; // 已套 token 的圖磚網址(boot 給初值;applySatToken 換)
+function satGlStyle(hi) {
+  const tiles = [satGlUrl];
+  return {
+    version: 8,
+    sources: {
+      sat6: { type: 'raster', tiles, tileSize: 256, minzoom: 6, maxzoom: 6 },
+      sat: { type: 'raster', tiles, tileSize: hi ? 128 : 256, maxzoom: 19 },
+    },
+    layers: [
+      { id: 'background', type: 'background', paint: { 'background-color': GL_SEA.sat } },
+      { id: 'sat6', type: 'raster', source: 'sat6', paint: { 'raster-fade-duration': 0 } },
+      { id: 'sat', type: 'raster', source: 'sat', paint: { 'raster-fade-duration': 0 } },
+    ],
+  };
+}
+// 保底層預抓(MapLibre 版 warmSatUnderlay):z6 全台十幾張用 fetch 拉進 HTTP 快取,GL 之後要同一網址時直接命中;每張都是真的計費請求,成功一張記一張。
+function warmSatUnderlayGl() {
+  if (satUnderlayWarmed || !satGlUrl || !M || M.engine !== 'maplibre') return;
+  const b = M.raw.getMaxBounds && M.raw.getMaxBounds(); if (!b) return; // 硬牆還沒設好(boot 中途),下一次切換再說
+  const z = SAT_UNDERLAY_ZS[0], n = 2 ** z;
+  const tx = lng => Math.floor((lng + 180) / 360 * n);
+  const ty = lat => { const r = lat * Math.PI / 180; return Math.floor((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n); };
+  satUnderlayWarmed = true;
+  for (let x = tx(b.getWest()); x <= tx(b.getEast()); x++) for (let y = ty(b.getNorth()); y <= ty(b.getSouth()); y++) {
+    const u = satGlUrl.replace('{z}', z).replace('{x}', x).replace('{y}', y);
+    fetch(u, { mode: 'cors' }).then(r => { if (r.ok) satTileLoaded(); }).catch(() => {});
+  }
+}
+window.__satStats = () => ({ tiles: satTiles, session: !!satSession, url: satGlUrl }); // 守門人把手(verify_gl_basemap.mjs S2/S3)
+// ==== GL BASEMAP END ====
+
 function offlineLandStyle() {
   // 衛星陸地色貼齊 Esri World Imagery 在台灣上空的實際色:2026-08-30 抓 7 個地點 × z10/12/14/16
   // 共 28 張圖磚量平均色,在 RGB 立方體上取 minimax(最壞 ΔE 最小)得 #606050,最壞 ΔE 32.2→21.3、
@@ -28990,8 +29033,14 @@ let satTileUrlBase = null;
 // 把衛星圖層的 token 換掉。網站版的網址本來沒有 query,App 殼的則已由 prepare-web 烤上
 // ?token=<API key>——一律砍掉 ? 之後重接,兩種來源共用同一條路。
 function applySatToken(tok) {
-  if (!satTileUrlBase || !baseLayers.sat) return;
+  if (!satTileUrlBase) return;
   const url = satTileUrlBase + '?token=' + encodeURIComponent(tok);
+  if (M && M.engine === 'maplibre') { // MapLibre:主層與 z6 保底層共用同一個網址;正在衛星模式就地換 tiles(不重載整份 style)
+    satGlUrl = url; satUnderlayWarmed = false;
+    if (state.basemap === 'sat' && M.setSourceTiles) { M.setSourceTiles('sat', [url]); M.setSourceTiles('sat6', [url]); warmSatUnderlayGl(); }
+    return;
+  }
+  if (!baseLayers.sat) return;
   baseLayers.sat.setUrl(url);
   if (baseLayers.satLQ) baseLayers.satLQ.setUrl(url);
   for (const layer of satUnderlays) layer.setUrl(url);
@@ -29145,12 +29194,25 @@ function ofmFallToRaster(why) {
 }
 function setBasemap() {
   if (!M) return;
-  if (!M.leaflet) { // MapLibre 引擎(M0):底圖就是 style 本身,只切深淺色;衛星/離線輪廓是 M1 的事,這裡把狀態壓回一般地圖
+  if (!M.leaflet) { // MapLibre 引擎:底圖就是 style 本身。light/dark 用內建 OFM,衛星用 satGlStyle(M1a);離線陸地與署名在 style.load 重掛
     const stage0 = document.querySelector('.stage');
-    state.basemap = 'map';
-    stage0.classList.toggle('sat', false);
-    stage0.classList.toggle('dark', !!state.mapDark);
-    if (M.setStyleKind) M.setStyleKind(state.mapDark ? 'dark' : 'light');
+    const online0 = onlineBasemapsAvailable();
+    if (!online0) state.basemap = 'map';
+    const sat0 = online0 && state.basemap === 'sat' && satTokenState === 'ready' && !!satGlUrl; // token 未到位前維持一般地圖,不送無 token 的圖磚請求
+    stage0.classList.toggle('sat', sat0);
+    stage0.classList.toggle('dark', !!state.mapDark && !sat0);
+    const hi0 = sat0 && !state.followTrain && satRetinaAllowed(); // 跟車中或非 Plus 一律標準解析(與 Leaflet 的 wantLQ 同義)
+    if (sat0) M.setStyleKind(hi0 ? 'sat-hi' : 'sat-lq', satGlStyle(hi0));
+    else M.setStyleKind(state.mapDark ? 'dark' : 'light');
+    if (sat0) warmSatUnderlayGl();
+    glLandInstall();      // 同 kind 早退時 style 沒換,層都在只重套主題;換了 style 則 style.load 會再呼叫一次(冪等)
+    glAttributionSync();
+    const satBtn0 = document.getElementById('satBtn');
+    if (satBtn0 && online0) {
+      satBtn0.querySelector('.ti').textContent = t(sat0 ? '圖' : '衛');
+      satBtn0.querySelector('.tl').textContent = t(sat0 ? '地圖' : '衛星');
+      satBtn0.title = t(sat0 ? '切回一般地圖' : '切換衛星影像');
+    }
     return;
   }
   const stage = document.querySelector('.stage');
@@ -31628,11 +31690,20 @@ async function boot() {
     }
   }
   // 衛星計費模式的掛勾:數圖磚、跨門檻換 session、效期快到續一顆(見 satTileLoaded 上方長註解)
-  if (baseLayers.sat) {
+  const satGl = M.engine === 'maplibre' && TILES && TILES.sat && TILES.sat.url && onlineBasemapsAvailable();
+  if (baseLayers.sat || satGl) {
     satTileUrlBase = TILES.sat.url.split('?')[0];
-    baseLayers.sat.on('tileload', satTileLoaded);
-    if (baseLayers.satLQ) baseLayers.satLQ.on('tileload', satTileLoaded);
-    for (const layer of satUnderlays) layer.on('tileload', satTileLoaded);  // 墊底層也是真的計費請求,照數不漏報
+    if (baseLayers.sat) {
+      baseLayers.sat.on('tileload', satTileLoaded);
+      if (baseLayers.satLQ) baseLayers.satLQ.on('tileload', satTileLoaded);
+      for (const layer of satUnderlays) layer.on('tileload', satTileLoaded);  // 墊底層也是真的計費請求,照數不漏報
+    }
+    if (satGl) { // MapLibre:每個 raster tile 請求(含重試)記一張;App 殼的網址已烤 token,網站版等 /api/basemap-token 回來才有
+      satAttribution = TILES.sat.attribution || null;
+      satGlUrl = /[?&]token=/.test(TILES.sat.url) ? TILES.sat.url : null;
+      const satUrlPrefix = satTileUrlBase.split('{')[0]; // satTileUrlBase 是含 {z}/{y}/{x} 的樣板,拿整串 startsWith 永遠對不到
+      M.setTileRequestHook(url => { if (url.startsWith(satUrlPrefix)) satTileLoaded(); });
+    }
     // 上次來就已經是重度使用者的話,這次一開衛星就直接用還沒過期的那顆,不必再數 40 張。
     try {
       const d = JSON.parse(localStorage.getItem(SAT_SESSION_KEY) || 'null');
@@ -31642,7 +31713,7 @@ async function boot() {
   // 網站版:向 Worker 要 Esri token 再補進圖層網址(App 殼的 APP_CFG.tiles 已自帶金鑰,不走這條)。
   // token 拿到前 satTokenState='pending',setBasemap 會暫時維持一般地圖——不是為了畫面好看,
   // 是不讓沒有 token 的圖磚請求送出去(那會是一整片 401)。要不到就把「衛星」鈕整顆藏掉。
-  if (TILES && TILES.sat && TILES.sat.needsToken === 'esri' && baseLayers.sat) {
+  if (TILES && TILES.sat && TILES.sat.needsToken === 'esri' && (baseLayers.sat || satGl)) {
     satTokenState = 'pending';
     fetch('/api/basemap-token', { cache: 'no-store' })
       .then(r => r.ok ? r.json() : null)
