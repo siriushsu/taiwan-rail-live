@@ -408,6 +408,7 @@
 
   Object.assign(messages.en, {
     '桌面小工具的發車看板：大尺寸一次列出五班並分北上南下，每列都有開車時刻與準點誤點；也可以改成主要顯示發車時刻': 'The large departure board widget lists five trains, split into northbound and southbound, with a departure time and on-time status on every row. You can also switch the widget to show the departure time first.',
+    '捷運列車的車廂擁擠度不會再整批消失一輪：官方擁擠度偶爾抓不到時改用剛才那一份，最多兩分鐘，超過就留白（謝謝網友回報）': 'Car-by-car crowding on metro trains no longer disappears for a whole refresh: when the official crowding feed is briefly unavailable, the reading from moments earlier is reused for up to two minutes, and after that the space is left blank. Thanks to the reader who reported it.',
     '桌面小工具：方向與目的站多了「不指定」，選過也能改回來；捷運看板的方向只列所選車站開得到的終點。Android 補齊到七種尺寸，捷運與火車都有大張卡片，5 欄手機會佔滿五格（謝謝網友回報）': 'Home screen widgets: direction and destination now offer "Any", so a choice can be undone, and the metro board only lists directions reachable from the chosen station. Android now has all seven sizes, with large cards for both metro and rail, and fills all five columns on 5-column phones. Thanks to the readers who reported it.',
     '車站看板的誤點標示放大加粗，一眼就看得出這班晚了幾分（謝謝網友回報）': 'The delay tag on the station board is bigger and bolder, so you can see at a glance how many minutes a train is late. Thanks to the reader who reported it.',
     '登入失敗訊息不再重複兩行；Android 的 Google 登入多了自動退路（謝謝網友回報）': 'Sign-in error messages no longer appear twice, and Google sign-in on Android now falls back to another method automatically. Thanks to the reader who reported it.',
@@ -461,6 +462,7 @@
   });
   Object.assign(messages.ja, {
     '桌面小工具的發車看板：大尺寸一次列出五班並分北上南下，每列都有開車時刻與準點誤點；也可以改成主要顯示發車時刻': '大きい発車標ウィジェットは、上り・下りに分けて 5 本を表示し、各行に発車時刻と定時・遅延を表示します。発車時刻を大きく表示する設定も追加しました。',
+    '捷運列車的車廂擁擠度不會再整批消失一輪：官方擁擠度偶爾抓不到時改用剛才那一份，最多兩分鐘，超過就留白（謝謝網友回報）': '地下鉄の車両ごとの混雑度が、更新のたびにまとめて消えることがなくなりました。公式の混雑度データが一時的に取得できないときは直前の値を最大 2 分まで使い、それを過ぎた場合は表示しません(ご報告ありがとうございます)。',
     '桌面小工具：方向與目的站多了「不指定」，選過也能改回來；捷運看板的方向只列所選車站開得到的終點。Android 補齊到七種尺寸，捷運與火車都有大張卡片，5 欄手機會佔滿五格（謝謝網友回報）': 'ホーム画面ウィジェット:方向と目的地に「指定なし」が加わり、選んだ後でも戻せるようになりました。地下鉄の発車標は選んだ駅から行ける方面だけを表示します。Android は 7 種類のサイズを揃え、地下鉄と鉄道の両方に大きいカードを追加、5 列の端末では 5 列いっぱいに使います(ご報告ありがとうございます)。',
     '車站看板的誤點標示放大加粗，一眼就看得出這班晚了幾分（謝謝網友回報）': '駅の発車標の遅延表示を大きく太くし、何分遅れているか一目でわかるようにしました(ご報告ありがとうございます)。',
     '登入失敗訊息不再重複兩行；Android 的 Google 登入多了自動退路（謝謝網友回報）': 'ログインエラーの表示が二重にならなくなり、Android の Google ログインは別の方式へ自動的に切り替わるようになりました。ご報告ありがとうございます。',
