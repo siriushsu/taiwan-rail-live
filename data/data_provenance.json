@@ -253,6 +253,33 @@
    "coordinateBasis": "未載明(TDX 回傳 PositionLat/PositionLon,payload 無 CRS 欄位)",
    "checksum": "e9f9108b960c026c12b35ecbb6cdf9c3"
   },
+  "data/track_lines.geojson": {
+   "sourceDescription": "由 data/{tra,thsr_track,afr,trtc,tymc,ntdlrt,ntalrt,sanying,krtc,tmrt}.json 的 lines[].shape 與 lines[].stations 轉成 GeoJSON([lon,lat],小數 6 位),scripts/build_track_g",
+   "sourceField": "source",
+   "effectiveDate": null,
+   "effectiveDateField": null,
+   "geometrySource": "TDX+OSM",
+   "coordinateBasis": "WGS84(OSM 段);TDX 段未載明(payload 無 CRS 欄位)——兩者實測同框,build_tdx.mjs 對 K03 的座標修正即以 OSM 座標落在 TDX 軌道幾何上離軌 0m 為據",
+   "checksum": "0e1d1f600c26f794420aefe289e06afc"
+  },
+  "data/track_stations.geojson": {
+   "sourceDescription": "由 data/{tra,thsr_track,afr,trtc,tymc,ntdlrt,ntalrt,sanying,krtc,tmrt}.json 的 lines[].shape 與 lines[].stations 轉成 GeoJSON([lon,lat],小數 6 位),scripts/build_track_g",
+   "sourceField": "source",
+   "effectiveDate": null,
+   "effectiveDateField": null,
+   "geometrySource": "TDX+OSM",
+   "coordinateBasis": "WGS84(OSM 段);TDX 段未載明(payload 無 CRS 欄位)——兩者實測同框,build_tdx.mjs 對 K03 的座標修正即以 OSM 座標落在 TDX 軌道幾何上離軌 0m 為據",
+   "checksum": "80119bc52c79b4b8389b984680535223"
+  },
+  "data/track_style_layers.json": {
+   "sourceDescription": "軌道/站點的 MapLibre style 片段(三層、四種 runtime 狀態、三主題、跟隨兩層),顏色由 index.html 的 MAP_PAL 與 railMix 常數推導;scripts/verify_track_geojson.mjs G8/G10 對 index.html 逐值驗算",
+   "sourceField": null,
+   "effectiveDate": null,
+   "effectiveDateField": null,
+   "geometrySource": null,
+   "coordinateBasis": null,
+   "checksum": "77bbf92987aac64da9b7f27b63bb7cff"
+  },
   "data/transfer_departures.json": {
    "sourceDescription": "由 data/station_transfers.json（轉乘群）與 data/{tra,thsr,afr}_schedule_dense.json（時刻）推導,scripts/build_transfer_departures.mjs;只留 9 個轉乘站,台鐵取 d.dates[d.date] 的當日索引（tra_schedule_dense 是 14 天跨日去重聯集,直接用 d.trains 會混進其他日的改點變體）",
    "sourceField": null,

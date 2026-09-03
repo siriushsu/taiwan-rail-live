@@ -6264,6 +6264,8 @@ const ENGINE = (() => {
   try { s = ok(localStorage.getItem('trainmap-engine')); } catch (e) {}
   return q || s || 'leaflet';
 })();
+// MapLibre 引擎下軌道/站點圓改由 GL 層畫(M1a)。?gltracks=0 關掉=canvas 照舊畫,給真機 A/B 與守門人正向對照;Leaflet 引擎無作用。
+const GL_TRACKS = (() => { try { return new URLSearchParams(location.search).get('gltracks') !== '0'; } catch (e) { return true; } })();
 window.__ENGINE = ENGINE; // 驗證腳本用的把手
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
@@ -10375,7 +10377,7 @@ function drawFreq(w, h) {
   const drawnNames = new Set();
   ctx.textAlign = 'center';
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  state.lines.forEach(ln => {
+  if (!glTracksActive()) state.lines.forEach(ln => {
     if (!state.visible.has(ln.id) || !ln.pts) return;
     const line = ln.shapePts || ln.pts;
     ctx.beginPath();
@@ -10389,10 +10391,12 @@ function drawFreq(w, h) {
   state.lines.forEach(ln => {
     if (!state.visible.has(ln.id) || !ln.pts) return;
     ln.pts.forEach((p, idx) => {
-      ctx.beginPath(); ctx.arc(p.x, p.y, 2.4, 0, 7);
-      ctx.fillStyle = P.stnFill; ctx.fill();
-      ctx.lineWidth = 1.5; ctx.strokeStyle = metroLineColor(ln.color); ctx.globalAlpha = 0.9; ctx.stroke();
-      ctx.globalAlpha = 1;
+      if (!glTracksActive()) {
+        ctx.beginPath(); ctx.arc(p.x, p.y, 2.4, 0, 7);
+        ctx.fillStyle = P.stnFill; ctx.fill();
+        ctx.lineWidth = 1.5; ctx.strokeStyle = metroLineColor(ln.color); ctx.globalAlpha = 0.9; ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
       if (showStation && inView(p)) freqLabels.push({
         p, name: stationName(ln.stations[idx].name, ln._sys),
         pa: ln.pts[Math.max(0, idx - 1)], pb: ln.pts[Math.min(ln.pts.length - 1, idx + 1)],
@@ -10741,7 +10745,7 @@ function drawDecoBase(w, h) {
   const offLine = ln => ln._bbox && (ln._bbox[2] < -40 || ln._bbox[0] > w + 40 || ln._bbox[3] < -40 || ln._bbox[1] > h + 40); // 整條離屏
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   decoLabels.length = 0;
-  for (const ln of state.decoLines) {
+  if (!glTracksActive()) for (const ln of state.decoLines) {
     const line = ln.shapePts || ln.pts;
     if (!line || line.length < 2) continue;
     if (offLine(ln)) continue; // 省電關鍵:全台同框跟車時 18 條裝飾線多半整條離屏,跳過描邊(8千餘點/幀)
@@ -10756,10 +10760,12 @@ function drawDecoBase(w, h) {
     if (offLine(ln)) continue; // 整條離屏:連站點都不必逐點測
     ln.pts.forEach((p, idx) => {
       if (!inView(p)) return;
-      ctx.beginPath(); ctx.arc(p.x, p.y, 2.4, 0, 7);
-      ctx.fillStyle = P.stnFill; ctx.fill();
-      ctx.lineWidth = 1.5; ctx.strokeStyle = metroLineColor(ln.color); ctx.globalAlpha = 0.9; ctx.stroke();
-      ctx.globalAlpha = 1;
+      if (!glTracksActive()) {
+        ctx.beginPath(); ctx.arc(p.x, p.y, 2.4, 0, 7);
+        ctx.fillStyle = P.stnFill; ctx.fill();
+        ctx.lineWidth = 1.5; ctx.strokeStyle = metroLineColor(ln.color); ctx.globalAlpha = 0.9; ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
       if (showStation) decoLabels.push({
         p, name: stationName(ln.stations[idx].name, ln._sys),
         pa: ln.pts[Math.max(0, idx - 1)], pb: ln.pts[Math.min(ln.pts.length - 1, idx + 1)],
@@ -10884,6 +10890,82 @@ function metroLineColor(color) {
 // 兩份實作才不會日後分岔。沒線形的線(shape 缺)退化成站到站直線,總比整段不畫好;整段離屏時
 // 路徑已建但不描,省下兩次 stroke。lineWidth 是「顏色線」寬度,外描(knockout case)固定比它寬 2.6px
 // ——原本「走過」寫死 6.4/3.8,兩者差正好 2.6,沿用同一個比例關係。
+// ==== GL TRACKS (M1a) ====
+// MapLibre 引擎下軌道線與捷運站點圓改由 GL 層畫;canvas 只留列車/站名/站等圖示/跟隨高亮/收集亮段/平交道(疊在 GL 之上,順序不變)。
+// 資料 data/track_lines.geojson(71 個 LineString,property 見 build_track_geojson.mjs)與 data/track_stations.geojson(607 點);
+// 樣式 data/track_style_layers.json(states × themes)。四條裁示(計畫 D1–D4):auto+dark 只壓班表軌道、GL 站點圓只畫捷運/輕軌線、
+// 跟隨高亮留 canvas、casing/色線依 sortKey 階級交錯。每幀 glTracksSync 用簽名比對,狀態沒變就不碰 GL。
+const glTracks = { ready: false, style: null, lines: null, stations: null, ranks: [], sig: '' };
+function glTracksActive() { return GL_TRACKS && glTracks.ready && !!M && M.engine === 'maplibre'; }
+async function glTracksLoad() {
+  if (!GL_TRACKS || !M || M.engine !== 'maplibre' || !M.onStyleLoad) return;
+  const [style, lines, stations] = await Promise.all([fetchJSON('./data/track_style_layers.json'), fetchJSON('./data/track_lines.geojson'), fetchJSON('./data/track_stations.geojson')]);
+  if (!style || !lines || !stations) return; // 任一缺檔就整個不啟用:canvas 照舊畫,不會出現「有 GL 沒資料」的空軌道
+  glTracks.style = style; glTracks.lines = lines; glTracks.stations = stations;
+  glTracks.ranks = [...new Set(lines.features.map(f => f.properties.sortKey))].sort((a, b) => a - b);
+  glTracks.ready = true;
+  M.onStyleLoad(glTracksInstall);
+}
+function glTracksInstall() {
+  if (!glTracks.ready || !M || M.engine !== 'maplibre') return;
+  const raw = M.raw;
+  if (raw.getLayer('track-line-' + glTracks.ranks[0])) return; // 冪等:同一份 style 只裝一次
+  if (!raw.getSource('track-lines')) raw.addSource('track-lines', { type: 'geojson', data: glTracks.lines });
+  if (!raw.getSource('track-stations')) raw.addSource('track-stations', { type: 'geojson', data: glTracks.stations });
+  const before = raw.getLayer('aligndot') ? 'aligndot' : undefined; // 對齊探針永遠在最上
+  const base = Object.fromEntries(glTracks.style.layers.map(l => [l.id, l]));
+  const none = ['in', ['get', 'lineKey'], ['literal', []]];
+  for (const k of glTracks.ranks) { // 依 sortKey 階級交錯:上層線的 casing 才會挖掉下層線的色線(canvas 逐線 knockout 的近似,計畫 D4)
+    const f = ['all', ['==', ['get', 'sortKey'], k], none];
+    raw.addLayer({ ...base['track-casing'], id: 'track-casing-' + k, filter: f }, before);
+    raw.addLayer({ ...base['track-line'], id: 'track-line-' + k, filter: f }, before);
+  }
+  raw.addLayer({ ...base['track-stations'], minzoom: 0, filter: none }, before); // zoom 閘由 glTracksSync 依模式 setLayerZoomRange
+  glTracks.sig = ''; // 新 style 上的層是空 filter/預設 paint,強制下一幀重套
+}
+// 可見集合與 canvas 三條路徑同源:drawFreq 看 state.visible、drawDecoBase 全部、drawSched 看 state.trackVisible。
+// 站點圓只給捷運/輕軌線(sched 車站是 canvas 站等圖示,計畫 D2)。
+function glTracksKeys() {
+  const lineKeys = [], stnKeys = [];
+  if (state.mode === 'sched') {
+    for (const ln of state.trackLines || []) if (!state.trackVisible || state.trackVisible.has(ln.id)) lineKeys.push(ln.sys + '|' + ln.id);
+    if (state.deco && state.decoLines) for (const ln of state.decoLines) { const k = ln._sys + '|' + ln.id; lineKeys.push(k); stnKeys.push(k); }
+  } else {
+    for (const ln of state.lines || []) if (state.visible.has(ln.id)) { const k = ln._sys + '|' + ln.id; lineKeys.push(k); stnKeys.push(k); }
+  }
+  const schedKeys = (state.trackLines || []).map(ln => ln.sys + '|' + ln.id);
+  return { lineKeys, stnKeys, schedKeys };
+}
+function glTracksSync() {
+  if (!glTracksActive()) return;
+  const raw = M.raw;
+  if (!raw.getLayer('track-line-' + glTracks.ranks[0])) { if (M.isStyleReady()) glTracksInstall(); if (!raw.getLayer('track-line-' + glTracks.ranks[0])) return; }
+  const K = glTracksKeys();
+  const st = state.collectMap ? 'collect' : state.trackStyle;           // 與 trackLineColor 的優先序相同:collectMap > hidden/faint > auto
+  const theme = state.basemap === 'sat' ? 'sat' : (state.mapDark ? 'dark' : 'light'); // 同 pal()
+  const stnMin = state.mode === 'sched' ? 11 - ML_Z : 0;                 // drawDecoBase 的 showStop = z>=11(Leaflet 尺);drawFreq 無 zoom 閘
+  const sig = [st, theme, stnMin, K.lineKeys.join(','), K.stnKeys.join(','), K.schedKeys.join(',')].join('#');
+  if (sig === glTracks.sig) return;
+  glTracks.sig = sig;
+  const S = (glTracks.style.states[st] && glTracks.style.states[st][theme]) || glTracks.style.themes[theme];
+  const casing = S['track-casing'].paint, line = { ...S['track-line'].paint }, stn = { ...S['track-stations'].paint };
+  if (st === 'auto' && theme === 'dark') { // 計畫 D1:只有班表軌道(drawSched 那批)壓暗成 colorDark,捷運/裝飾層維持原色(metroLineColor 契約)
+    line['line-color'] = ['case', ['in', ['get', 'lineKey'], ['literal', K.schedKeys]], ['get', 'colorDark'], ['get', 'color']];
+    stn['circle-stroke-color'] = ['get', 'color'];
+  }
+  for (const k of glTracks.ranks) {
+    const f = ['all', ['==', ['get', 'sortKey'], k], ['in', ['get', 'lineKey'], ['literal', K.lineKeys]]];
+    raw.setFilter('track-casing-' + k, f); raw.setFilter('track-line-' + k, f);
+    for (const [p, v] of Object.entries(casing)) raw.setPaintProperty('track-casing-' + k, p, v);
+    for (const [p, v] of Object.entries(line)) raw.setPaintProperty('track-line-' + k, p, v);
+  }
+  raw.setFilter('track-stations', ['in', ['get', 'lineKey'], ['literal', K.stnKeys]]);
+  raw.setLayerZoomRange('track-stations', stnMin, 24);
+  for (const [p, v] of Object.entries(stn)) raw.setPaintProperty('track-stations', p, v);
+}
+window.__glTracks = glTracks; // 守門人把手(verify_gl_tracks.mjs)
+// ==== GL TRACKS END ====
+
 function drawSegOnShape(ln, s, color, lineWidth, w, h) {
   const inPad = p => p.x >= -60 && p.x <= w + 60 && p.y >= -60 && p.y <= h + 60;
   const pts = ln.shape ? shapeSlice(ln, s.dA, s.dB) : [s.pA, s.pB];
@@ -10933,7 +11015,7 @@ function drawSched(w, h, paintDecoTrains) {
   const inView = p => p.x >= -40 && p.x <= w + 40 && p.y >= -20 && p.y <= h + 20;
   if (state.trackLines) {
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    for (const ln of state.trackLines) {
+    if (!glTracksActive()) for (const ln of state.trackLines) {
       if (state.trackVisible && !state.trackVisible.has(ln.id)) continue;
       if (ln._bbox && (ln._bbox[2] < -40 || ln._bbox[0] > w + 40 || ln._bbox[3] < -40 || ln._bbox[1] > h + 40)) continue; // 整條離屏:跳過描邊(跟車時遠端系統的軌道多半在屏外)
       ctx.beginPath();
@@ -14517,6 +14599,7 @@ function draw() {
   labelBoxes = [];
   trainPaintQ = null; // 上一幀若中途拋例外,殘留佇列不可帶進這一幀(否則車會被收進去卻沒人畫)
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  if (glTracksActive()) glTracksSync(); // GL 軌道:狀態沒變就早退(簽名比對),有變才 setFilter/setPaintProperty
   if (state.mode === 'sched') { if (state.deco) drawDecoBase(w, h); drawSched(w, h, state.deco ? () => drawDecoTrains(w, h) : null); if (state.deco) drawDecoLabels(); } else drawFreq(w, h);
   drawMe(); // 「我的位置」畫最後=在所有軌道與列車之上,不會被蓋掉
   ctx.globalAlpha = 1; ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
@@ -31041,6 +31124,7 @@ async function boot() {
   await setupOfflineLand();
   window.__map = M.raw; // 驗證腳本用的把手(Leaflet 時就是 Leaflet map;MapLibre 時是 maplibregl.Map)
   window.__M = M; // 適配層把手(verify_engine_adapter.mjs)
+  if (M.engine === 'maplibre') glTracksLoad(); // GL 軌道(M1a):抓 geojson/style,style.load 時冪等裝層;抓失敗就維持 canvas 畫法
   // 跨層對齊探針(只在 ?aligndot=lat,lng 時存在):同一個經緯度,底圖引擎畫一顆、overlay 畫一顆。
   // 兩顆在最終畫面上的像素距離＝底圖與列車圖層錯開多少。overlay 這顆刻意走 latLngToContainerPoint
   // (＝列車用的同一條路徑),底圖那顆交給底圖引擎自己算,兩邊沒有共用的投影假設。
