@@ -30,6 +30,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, resolve } from 'node:path';
 import { chromium, webkit } from 'playwright';
+import { runEngineMatrix } from './lib/engine_matrix.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript',
@@ -95,6 +96,11 @@ const server = createServer(async (req, res) => {
 });
 await new Promise(r => server.listen(PORT, '127.0.0.1', r));
 
+// 雙引擎矩陣(換引擎 M1):同一支腳本對 Leaflet 與 MapLibre 各跑一次。
+// server 與 G0 靜態檢查共用放矩陣外;browser/context/page 與斷言累計每個地圖引擎各自新建。
+// 斷言語意一字未改,只把 page.goto 的網址換成帶 engine 參數的版本。
+const matrix = await runEngineMatrix(async ({ engineUrl, check }) => {
+
 // ── 一個情境 ─────────────────────────────────────────────────────────────────
 // ofm: 'block'=全擋(OFM 掛掉) | 'stub'=本機假 OFM(TileJSON＋204 空圖磚＋空 sprite,讓 MapLibre 的 load 真的發)
 // sat: true=/api/basemap-token 給假 token(衛星鈕留著) | false=404(鈕被 remove ⇒ 提示改說重新整理)
@@ -152,7 +158,7 @@ async function run(browser, { ofm, appShell = false, sat = true, mobile = false,
       : setTimeout(arm, 0);
     arm();
   });
-  await page.goto(`http://127.0.0.1:${PORT}/index.html?lang=${PAGE_LOCALE}`, { waitUntil: 'domcontentloaded' });
+  await page.goto(engineUrl(`http://127.0.0.1:${PORT}/index.html?lang=${PAGE_LOCALE}`), { waitUntil: 'domcontentloaded' });
   const booted = await page.waitForFunction(() => typeof baseLayers !== 'undefined' && baseLayers && baseLayers.light, null, { timeout: 30000 })
     .then(() => true).catch(() => false);
   await page.waitForTimeout(waitMs); // OFM_HEALTH_MS = 8000 自圖層上場起算,留足餘裕
@@ -191,7 +197,7 @@ const crit = {
   ofmLive: r => r.glLoaded && r.hits.ofmTileJson > 0,                                            // 負向對照的牙:樣式真的載完
 };
 const R = [];
-const ok = (id, pass, detail) => { R.push({ id, pass }); console.log(`${pass ? '✅' : '❌'} ${id} — ${detail}`); };
+const ok = (id, pass, detail) => { R.push({ id, pass }); check(pass, id, detail); };
 const note = (id, detail) => console.log(`ℹ️  ${id} — ${detail}`);
 const detail = r => `layer=${r.layerKind}${r.layerUrl ? '(' + r.layerUrl.replace(/^https:\/\//, '').slice(0, 34) + ')' : ''}`
   + ` carto=${r.hits.carto} stadia=${r.hits.stadia} ofm=${r.hits.ofm}(tilejson ${r.hits.ofmTileJson}) beacon=${r.hits.beacon}`
@@ -283,7 +289,9 @@ if (ENGINES.length) {
   } finally { await browser.close(); }
 }
 
-await new Promise(r => server.close(r));
 const fail = R.filter(r => !r.pass).length;
 console.log(`\n總計 ${R.length - fail}/${R.length} 通過`);
-process.exit(fail ? 1 : 0);
+});
+
+await new Promise(r => server.close(r));
+if (!matrix.passed) process.exitCode = 1;

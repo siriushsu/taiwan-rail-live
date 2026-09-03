@@ -10,6 +10,7 @@ import { createServer } from 'node:http';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { runEngineMatrix } from './lib/engine_matrix.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE = readFileSync(path.join(ROOT, 'index.html'), 'utf8');
@@ -18,11 +19,12 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/jav
   '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
 const TOOL_NAMES = ['get_current_rail_view', 'search_rail_stations', 'get_station_departures', 'get_train_status',
   'get_service_alerts', 'open_station_board', 'follow_train'];
+const matrix = await runEngineMatrix(async ({ engineUrl, check: matrixCheck }) => {
 const failures = [];
-const pass = (label, detail = '') => console.log(`PASS ${label}${detail ? ' — ' + detail : ''}`);
+const pass = (label, detail = '') => matrixCheck(true, label, detail);
 const check = (condition, label, detail = '') => {
+  matrixCheck(condition, label, detail);
   if (!condition) throw new Error(`${label}${detail ? ' — ' + detail : ''}`);
-  pass(label, detail);
 };
 
 check(/const BUILD = 'v\d{4}[a-z]';/.test(SOURCE), 'G0 BUILD 維持公開版號格式');
@@ -43,7 +45,7 @@ const server = createServer((req, res) => {
   res.end(readFileSync(file));
 });
 await new Promise(resolve => server.listen(0, resolve));
-const BASE = `http://127.0.0.1:${server.address().port}/?lang=zh-TW&webmcptest=1`;
+const BASE = engineUrl(`http://127.0.0.1:${server.address().port}/?lang=zh-TW&webmcptest=1`);
 
 async function contextFor(browser, viewport, modelContext = true) {
   const context = await browser.newContext({ viewport, locale: 'zh-TW',
@@ -229,12 +231,16 @@ try {
       for (const width of [360, 375, 414, 768]) await mobileScenario(browser, engine, width);
     } catch (error) {
       failures.push(`${engine}: ${error.stack || error.message}`);
-      console.error(`FAIL ${engine} — ${error.message}`);
+      matrixCheck(false, `${engine} 瀏覽器情境完整執行`, error.message);
+      console.error(`BROWSER ERROR ${engine} — ${error.message}`);
     } finally { if (browser) await browser.close(); }
   }
 } finally { server.close(); }
 
 if (failures.length) {
-  console.error('\nWebMCP 驗證失敗：'); failures.forEach(failure => console.error(failure)); process.exit(1);
+  console.error('\nWebMCP 驗證失敗：'); failures.forEach(failure => console.error(failure));
+} else {
+  console.log('\nWebMCP 驗證全部通過。');
 }
-console.log('\nWebMCP 驗證全部通過。');
+});
+if (!matrix.passed) process.exitCode = 1;
