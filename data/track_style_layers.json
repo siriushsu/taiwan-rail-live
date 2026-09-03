@@ -1,5 +1,5 @@
 {
-  "_readme": "MapLibre 軌道與站點 style 片段；layers 以 light 為預設，切換底圖時把 themes[theme][layerId].paint 逐項交給 setPaintProperty。",
+  "_readme": "MapLibre 軌道與站點 style 片段。layers 以 light/auto 為預設；themes 保留既有切換契約，states.auto 與 themes 完全一致。切換 runtime 狀態時套用 states[state][theme][layerId].paint。hidden 狀態必須把 followLayers 兩層整組關掉。",
   "layers": [
     {
       "id": "track-casing",
@@ -8,10 +8,7 @@
       "layout": {
         "line-cap": "round",
         "line-join": "round",
-        "line-sort-key": [
-          "get",
-          "sortKey"
-        ]
+        "line-sort-key": ["get", "sortKey"]
       },
       "paint": {
         "line-color": "#f2ede2",
@@ -25,16 +22,10 @@
       "layout": {
         "line-cap": "round",
         "line-join": "round",
-        "line-sort-key": [
-          "get",
-          "sortKey"
-        ]
+        "line-sort-key": ["get", "sortKey"]
       },
       "paint": {
-        "line-color": [
-          "get",
-          "color"
-        ],
+        "line-color": ["get", "color"],
         "line-width": 3
       }
     },
@@ -47,86 +38,149 @@
         "circle-radius": 2.4,
         "circle-color": "#f2ede2",
         "circle-stroke-width": 1.5,
-        "circle-stroke-color": [
-          "get",
-          "color"
-        ],
+        "circle-stroke-color": ["get", "color"],
         "circle-stroke-opacity": 0.9
       }
     }
   ],
   "themes": {
     "light": {
-      "track-casing": {
-        "paint": {
-          "line-color": "#f2ede2"
-        }
-      },
-      "track-line": {
-        "paint": {
-          "line-color": [
-            "get",
-            "color"
-          ]
-        }
-      },
-      "track-stations": {
-        "paint": {
-          "circle-color": "#f2ede2",
-          "circle-stroke-color": [
-            "get",
-            "color"
-          ]
-        }
-      }
+      "track-casing": { "paint": { "line-color": "#f2ede2" } },
+      "track-line": { "paint": { "line-color": ["get", "color"] } },
+      "track-stations": { "paint": { "circle-color": "#f2ede2", "circle-stroke-color": ["get", "color"] } }
     },
     "dark": {
-      "track-casing": {
-        "paint": {
-          "line-color": "#10141c"
-        }
-      },
-      "track-line": {
-        "paint": {
-          "line-color": [
-            "get",
-            "colorDark"
-          ]
-        }
-      },
-      "track-stations": {
-        "paint": {
-          "circle-color": "#10141c",
-          "circle-stroke-color": [
-            "get",
-            "colorDark"
-          ]
-        }
-      }
+      "track-casing": { "paint": { "line-color": "#10141c" } },
+      "track-line": { "paint": { "line-color": ["get", "colorDark"] } },
+      "track-stations": { "paint": { "circle-color": "#10141c", "circle-stroke-color": ["get", "colorDark"] } }
     },
     "sat": {
-      "track-casing": {
-        "paint": {
-          "line-color": "#24382c"
-        }
+      "track-casing": { "paint": { "line-color": "#24382c" } },
+      "track-line": { "paint": { "line-color": ["get", "color"] } },
+      "track-stations": { "paint": { "circle-color": "#24382c", "circle-stroke-color": ["get", "color"] } }
+    }
+  },
+  "states": {
+    "auto": {
+      "light": {
+        "track-casing": { "paint": { "line-color": "#f2ede2" } },
+        "track-line": { "paint": { "line-color": ["get", "color"] } },
+        "track-stations": { "paint": { "circle-color": "#f2ede2", "circle-stroke-color": ["get", "color"] } }
       },
-      "track-line": {
-        "paint": {
-          "line-color": [
-            "get",
-            "color"
-          ]
-        }
+      "dark": {
+        "track-casing": { "paint": { "line-color": "#10141c" } },
+        "track-line": { "paint": { "line-color": ["get", "colorDark"] } },
+        "track-stations": { "paint": { "circle-color": "#10141c", "circle-stroke-color": ["get", "colorDark"] } }
       },
-      "track-stations": {
-        "paint": {
-          "circle-color": "#24382c",
-          "circle-stroke-color": [
-            "get",
-            "color"
-          ]
-        }
+      "sat": {
+        "track-casing": { "paint": { "line-color": "#24382c" } },
+        "track-line": { "paint": { "line-color": ["get", "color"] } },
+        "track-stations": { "paint": { "circle-color": "#24382c", "circle-stroke-color": ["get", "color"] } }
+      }
+    },
+    "faint": {
+      "light": {
+        "track-casing": { "paint": { "line-color": "#f2ede2" } },
+        "track-line": { "paint": { "line-color": ["get", "colorFaintLight"] } },
+        "track-stations": { "paint": { "circle-color": "#f2ede2", "circle-stroke-color": ["get", "colorFaintLight"] } }
+      },
+      "dark": {
+        "track-casing": { "paint": { "line-color": "#10141c" } },
+        "track-line": { "paint": { "line-color": ["get", "colorFaintDark"] } },
+        "track-stations": { "paint": { "circle-color": "#10141c", "circle-stroke-color": ["get", "colorFaintDark"] } }
+      },
+      "sat": {
+        "track-casing": { "paint": { "line-color": "#24382c" } },
+        "track-line": { "paint": { "line-color": ["get", "colorFaintSat"] } },
+        "track-stations": { "paint": { "circle-color": "#24382c", "circle-stroke-color": ["get", "colorFaintSat"] } }
+      }
+    },
+    "hidden": {
+      "light": {
+        "track-casing": { "paint": { "line-color": "#f2ede2" } },
+        "track-line": { "paint": { "line-color": ["get", "colorHiddenLight"] } },
+        "track-stations": { "paint": { "circle-color": "#f2ede2", "circle-stroke-color": ["get", "colorHiddenLight"] } }
+      },
+      "dark": {
+        "track-casing": { "paint": { "line-color": "#10141c" } },
+        "track-line": { "paint": { "line-color": ["get", "colorHiddenDark"] } },
+        "track-stations": { "paint": { "circle-color": "#10141c", "circle-stroke-color": ["get", "colorHiddenDark"] } }
+      },
+      "sat": {
+        "track-casing": { "paint": { "line-color": "#24382c" } },
+        "track-line": { "paint": { "line-color": ["get", "colorHiddenSat"] } },
+        "track-stations": { "paint": { "circle-color": "#24382c", "circle-stroke-color": ["get", "colorHiddenSat"] } }
+      }
+    },
+    "collect": {
+      "light": {
+        "track-casing": { "paint": { "line-color": "#f2ede2" } },
+        "track-line": { "paint": { "line-color": "#a0a6ad" } },
+        "track-stations": { "paint": { "circle-color": "#f2ede2", "circle-stroke-color": "#a0a6ad" } }
+      },
+      "dark": {
+        "track-casing": { "paint": { "line-color": "#10141c" } },
+        "track-line": { "paint": { "line-color": "#3b3f46" } },
+        "track-stations": { "paint": { "circle-color": "#10141c", "circle-stroke-color": "#3b3f46" } }
+      },
+      "sat": {
+        "track-casing": { "paint": { "line-color": "#24382c" } },
+        "track-line": { "paint": { "line-color": "#b9c0c8" } },
+        "track-stations": { "paint": { "circle-color": "#24382c", "circle-stroke-color": "#b9c0c8" } }
       }
     }
+  },
+  "followLayers": {
+    "_readme": "以 filter 中的 lineKey 清單選出跟隨路線；hidden 狀態下兩層必須整組關掉。",
+    "layers": [
+      {
+        "id": "track-follow-casing",
+        "type": "line",
+        "source": "track-lines",
+        "filter": ["in", ["get", "lineKey"], ["literal", []]],
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round",
+          "line-sort-key": ["get", "sortKey"]
+        },
+        "paint": {
+          "line-color": "#fffdf6",
+          "line-width": 8.5
+        }
+      },
+      {
+        "id": "track-follow-line",
+        "type": "line",
+        "source": "track-lines",
+        "filter": ["in", ["get", "lineKey"], ["literal", []]],
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round",
+          "line-sort-key": ["get", "sortKey"]
+        },
+        "paint": {
+          "line-color": ["get", "color"],
+          "line-width": 4.4
+        }
+      }
+    ],
+    "themes": {
+      "light": {
+        "track-follow-casing": { "paint": { "line-color": "#fffdf6" } },
+        "track-follow-line": { "paint": { "line-color": ["get", "color"] } }
+      },
+      "dark": {
+        "track-follow-casing": { "paint": { "line-color": "#10141c" } },
+        "track-follow-line": { "paint": { "line-color": ["get", "colorFollowDark"] } }
+      },
+      "sat": {
+        "track-follow-casing": { "paint": { "line-color": "#24382c" } },
+        "track-follow-line": { "paint": { "line-color": ["get", "color"] } }
+      }
+    }
+  },
+  "visibilityFilter": {
+    "_readme": "整合端須將 state.trackVisible 與 freq 各線 state.visible 的可見 lineKey 取聯集後，填入 literal 陣列。",
+    "filter": ["in", ["get", "lineKey"], ["literal", []]]
   }
 }

@@ -12,10 +12,22 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// 產出與來源永遠是同一棵樹。原本有個 TRACK_SOURCE_ROOT 環境變數供沙箱隔離目錄用,交付後拔掉:
+// 「驗哪個目錄」的可覆寫參數會讓守門人在某次呼叫悄悄改讀別棵樹的來源,綠了也不知道量的是誰。
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DATA_DIR = path.join(ROOT, 'data');
+const SOURCE_DATA_DIR = DATA_DIR;
 const RAIL_DIM = 0.40;
-const DARK_RAIL_CASE = '#10141c';
+const FOLLOW_DIM = 0.62;
+const FAINT_GLOW = 0.22;
+const FAINT_LIGHT = 0.35;
+const GHOST_GLOW = 0.12;
+const GHOST_LIGHT = 0.18;
+const RAIL_CASE = {
+  light: '#f2ede2',
+  dark: '#10141c',
+  sat: '#24382c',
+};
 
 const SOURCES = [
   { sys: 'tra_sched', label: '台鐵', file: 'tra.json' },
@@ -35,7 +47,7 @@ const lineKey = (sys, id) => `${sys}\u0000${id}`;
 const displayKey = key => key.replace('\u0000', '/');
 const round6 = value => Number(Number(value).toFixed(6));
 
-function railMix(color, keep = RAIL_DIM, base = DARK_RAIL_CASE) {
+function railMix(color, keep = RAIL_DIM, base = RAIL_CASE.dark) {
   if (!/^#[0-9a-fA-F]{6}$/.test(color) || !/^#[0-9a-fA-F]{6}$/.test(base)) return color;
   const ch = (value, index) => parseInt(value.slice(index, index + 2), 16);
   let out = '#';
@@ -46,10 +58,24 @@ function railMix(color, keep = RAIL_DIM, base = DARK_RAIL_CASE) {
   return out;
 }
 
+function runtimeColors(color) {
+  return {
+    colorDark: railMix(color, RAIL_DIM, RAIL_CASE.dark),
+    colorFaintLight: railMix(color, FAINT_LIGHT, RAIL_CASE.light),
+    colorFaintDark: railMix(color, FAINT_GLOW, RAIL_CASE.dark),
+    colorFaintSat: railMix(color, FAINT_GLOW, RAIL_CASE.sat),
+    colorHiddenLight: railMix(color, GHOST_LIGHT, RAIL_CASE.light),
+    colorHiddenDark: railMix(color, GHOST_GLOW, RAIL_CASE.dark),
+    colorHiddenSat: railMix(color, GHOST_GLOW, RAIL_CASE.sat),
+    // follow 的 railDimColor 只在 dark 主題混色；light／sat 直接使用 color。
+    colorFollowDark: railMix(color, FOLLOW_DIM, RAIL_CASE.dark),
+  };
+}
+
 function loadLines() {
   const records = [];
   for (const source of SOURCES) {
-    const data = readJson(path.join(DATA_DIR, source.file));
+    const data = readJson(path.join(SOURCE_DATA_DIR, source.file));
     if (!Array.isArray(data.lines)) throw new Error(`${source.file} 缺少 lines[]`);
     for (const line of data.lines) {
       if (!line.id || !Array.isArray(line.shape) || line.shape.length < 2 || !Array.isArray(line.stations)) {
@@ -235,7 +261,7 @@ function segmentAtCrossing(record, segmentsByLine, crossing) {
 
 function build() {
   const records = loadLines();
-  const crossingData = readJson(path.join(DATA_DIR, 'rail_crossing_levels.json'));
+  const crossingData = readJson(path.join(SOURCE_DATA_DIR, 'rail_crossing_levels.json'));
   if (!Array.isArray(crossingData.crossings)) throw new Error('rail_crossing_levels.json 缺少 crossings[]');
   const crossings = crossingData.crossings;
   const logical = crossingEdges(crossings, records);
@@ -268,9 +294,10 @@ function build() {
       properties: {
         sys: record.sys,
         id: record.line.id,
+        lineKey: `${record.sys}|${record.line.id}`,
         name: record.line.name,
         color: record.line.color,
-        colorDark: railMix(record.line.color),
+        ...runtimeColors(record.line.color),
         sortKey: ranks.get(segment.uid),
         kind: 'track',
       },
@@ -287,9 +314,10 @@ function build() {
     properties: {
       sys: record.sys,
       lineId: record.line.id,
+      lineKey: `${record.sys}|${record.line.id}`,
       name: station.name,
       color: record.line.color,
-      colorDark: railMix(record.line.color),
+      ...runtimeColors(record.line.color),
     },
     geometry: {
       type: 'Point',
