@@ -590,6 +590,14 @@
      🔴 順帶記一個 Chromium 的坑:accent-color 用【裸 class】選擇器蓋不掉 input[type=range],
      字面色與 var() 都一樣輸,要 `input.x` 或 !important 才蓋得掉——而且它不報錯、只是沒生效。 */
   .mpl-vol { flex: 1; min-width: 40px; }
+  /* 車聲圖層(App 限定):鐵軌環境音的開關列,住在「現在播放」區底部——它是聲音控制不是情境,
+     刻意不用 .mpl-row,計數類判準(soon/rows)才不會把它算成一個情境。沒內建音檔(網站/安全 build)整列不現形。 */
+  .mpl-amb { display: none; align-items: center; gap: 9px; padding-top: 8px; border-top: 1px dashed var(--line); }
+  .mpl-amb.avail { display: flex; }
+  .mpl-amb-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .mpl-amb-txt b { font-size: 12.5px; font-weight: 800; letter-spacing: 1px; color: var(--ink-strong); }
+  .mpl-amb-txt i { font-style: normal; font-size: 11px; line-height: 1.45; color: var(--faint); }
+  .mpl-amb .toggle { flex: none; }
   /* 付費界線:整份清單只講一次 */
   .mpl-band {
     display: flex; align-items: center; gap: 9px; margin-bottom: 10px; padding: 8px 10px;
@@ -5068,6 +5076,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="railsound"><span class="d">9/3</span><span>App 版配樂情境多了「車聲」開關：跟車時車一動就有鐵軌聲，停站淡出；放空模式一直放。</span></li>
         <li data-cl-of="rideseq"><span class="d">9/3</span><span>完乘記錄多了「順序」排法，照你實際跟完的先後排、最早那趟在最上面；手機的旅程護照也補上排序鈕（謝謝網友回報）</span></li>
         <li data-cl-of="crowdfallback"><span class="d">9/3</span><span>捷運列車的車廂擁擠度不會再整批消失一輪：官方擁擠度偶爾抓不到時改用剛才那一份，最多兩分鐘，超過就留白（謝謝網友回報）</span></li>
         <li data-cl-of="widgetsizes"><span class="d">9/2</span><span>桌面小工具：方向與目的站多了「不指定」，選過也能改回來；捷運看板的方向只列所選車站開得到的終點。Android 補齊到七種尺寸，捷運與火車都有大張卡片，5 欄手機會佔滿五格（謝謝網友回報）</span></li>
@@ -5075,7 +5084,6 @@
         <li data-cl-of="crowdcard"><span class="d">9/2</span><span>跟捷運列車時，卡片上會顯示這一台車每一節車廂的擁擠度</span></li>
         <li data-cl-of="boardwide"><span class="d">9/2</span><span>桌面的車站看板加寬，車種與「往哪」不會再被截掉</span></li>
         <li data-cl-of="latetagbig"><span class="d">9/1</span><span>車站看板的誤點標示放大加粗，一眼就看得出這班晚了幾分（謝謝網友回報）</span></li>
-        <li data-cl-of="widget4x4"><span class="d">9/1</span><span>桌面小工具的發車看板：大尺寸一次列出五班並分北上南下，每列都有開車時刻與準點誤點；也可以改成主要顯示發車時刻</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5192,6 +5200,7 @@
         <li><span class="d">7/10</span><span>跟隨鎖：跟隨中可自由拖曳地圖，按「◉ 回到列車」恢復置中；7/9 鐵道迷功能包（路線高亮、月台站名牌、日夜天色、速度曲線）</span></li>
         <li class="grp">放空模式</li>
         <li data-cl="ambientlock"><span class="d">9/1</span><span>放空模式鏡頭完全交給程式，兩種視角一樣：地圖不會再被手指拉歪或縮到回不來；「離開放空」鈕不再淡到看不見或被系統手勢區吃掉觸控。背景音樂開關顯示相反也修好。9/1 再修一輪：離開放空之後再進去一次，整條控制列會縮成一顆空白小鈕、找不到「離開放空」也點不出去，現在每次進放空出口都在（謝謝網友回報）</span></li>
+        <li data-cl="railsound"><span class="d">9/3</span><span>App 版「配樂情境」新增「車聲」開關：跟車時車一動就有鐵軌聲，停站淡出、發車淡入；放空模式一直放。鐵軌環境音是 Envato 授權素材，只烤進 App，網站沒有。</span></li>
         <li data-cl="music57"><span class="d">8/27</span><span>放空模式的背景音樂重新整理過：曲目從 29 首增加到 57 首，分成 Afloat、Midnight stories、Moonlake、Rainy day、Star &amp; Neon、peaceful piano 六組不同氛圍</span></li>
         <li><span class="d">7/28</span><span>換景節奏放慢成 3–5 分鐘一次；閒置 20 分鐘後改停在全島畫面（列車照常在上面跑），動一下就回到原本的地圖</span></li>
         <li><span class="d">7/18</span><span>新增「都會呼吸」定場運鏡</span></li>
@@ -5859,7 +5868,7 @@
 // v0902e：把 App 出貨線(ship-main)併回來——小工具七種尺寸／方向可取消／捷運大卡(Android)、v0901h 的好讀版開車時刻、
 //         看板誤點標放大——並帶上跟車配樂選單(feat/music-scoring)。e 換號前逐 ref＋逐樹掃過無人佔用。
 // v0903b：刪除錄影功能殘留（程式碼、i18n、法律文件與支援頁；使用者 09-02／09-03 裁示）。執行路徑零變更。
-const BUILD = 'v0903d';
+const BUILD = 'v0903e';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -10314,6 +10323,7 @@ function setFreqFollow(hit) { // hit = 實際時刻班次／班距幽靈車／�
 function clearFreqFollow() {
   if (!state.freqFollow) return;
   state.freqFollow = null;
+  if (state.amb) state.amb.at = 0; // 車聲圖層:停跟即淡出
   syncPanFence(); // 捷運停跟:恢復台灣平移硬牆(若非台鐵/高鐵跟隨中)
   const c = document.getElementById('freqCard'); if (c) c.hidden = true;
   const cnt = map && map.getContainer(); if (cnt && cnt.style.cursor) cnt.style.cursor = '';
@@ -10440,6 +10450,7 @@ function updateFreqFollowCamera(immediate) {
     const info = f.core ? metroCoreVehicleInfo(rec)
       : trtcOfficialVehicleInfo(rec.ln, rec.vehicle, Date.now() / 1000);
     if (!info.pos) { clearFreqFollow(); return; }
+    ambNotePos(info.pos.lat, info.pos.lon);
     if (immediate) map.setView([info.pos.lat, info.pos.lon], followEntryZoom(), { animate: false });
     else if (state.followLock) recenterTo(info.pos.lat, info.pos.lon);
     updateFreqCard(info);
@@ -10449,6 +10460,7 @@ function updateFreqFollowCamera(immediate) {
   if (f.tr) { // 實際時刻班次:跟 simSec 時鐘;抵達終點自動結束跟隨
     const info = freqTrainInfoAt(ln, f.tr, state.simSec);
     if (!info.pos) { clearFreqFollow(); showToast(t(info.done ? '列車已抵達終點' : '已離開此班次的行駛時段')); return; }
+    ambNotePos(info.pos.lat, info.pos.lon);
     if (immediate) map.setView([info.pos.lat, info.pos.lon], followEntryZoom(), { animate: false });
     else if (state.followLock) recenterTo(info.pos.lat, info.pos.lon);
     updateFreqCard(info);
@@ -10458,6 +10470,7 @@ function updateFreqFollowCamera(immediate) {
   // 時間基準:全台同框(sched+裝飾層)走獨立時鐘 decoElapsed,各捷運分頁走 elapsed
   const base = state.mode === 'sched' ? (state.decoElapsed || 0) : state.elapsed;
   const info = freqTrainInfo(ln, base * state.speedMult + f.k * ln.period / ln.n);
+  ambNotePos(info.lat, info.lon);
   if (immediate) map.setView([info.lat, info.lon], followEntryZoom(), { animate: false });
   else if (state.followLock) recenterTo(info.lat, info.lon);
   updateFreqCard(info);
@@ -15240,6 +15253,7 @@ function clearFollow() {
   restoreFollowSpeed(); // 中途取消跟隨也要還原 fromStart 重播強制的速度
   state.followTrain = null; state.followId = null; state.followStatus = null;
   state.followWrapStops = null;
+  if (state.amb) state.amb.at = 0; // 車聲圖層:停跟即淡出(下一拍 ambTick 判無新位置)
   setBasemap(); // 停跟:衛星模式換回高解析度圖磚
   syncPanFence(); // 台鐵/高鐵停跟:恢復台灣平移硬牆(setMaxBounds 會即刻把邊緣視野拉回框內)
   state._routePts = null;
@@ -16400,10 +16414,18 @@ function mplShellHtml() {
     + '<button type="button" class="mpl-b2" id="mplNext">' + mplEsc(t('換首')) + '</button>'
     + '<input type="range" class="mpl-vol" id="mplVol" min="0" max="100" step="1" aria-label="'
     + mplEsc(t('音量')) + '">'
-    + '<span class="mpl-now-num" id="mplVolN"></span></div></div>'
+    + '<span class="mpl-now-num" id="mplVolN"></span></div>'
+    + mplAmbRowHtml() + '</div>'
     + '<div class="mpl-band"><span id="mplBandTxt"></span>'
     + '<button type="button" id="mplPlans" hidden>' + mplEsc(t('看方案')) + '</button></div>'
     + '<div id="mplList"></div>';
+}
+// 車聲圖層那一列:跟其他「只建一次」的控件住在同一區,狀態改變只動 aria-checked/class。
+function mplAmbRowHtml() {
+  return '<div class="mpl-amb" id="mplAmb"><span class="mpl-amb-txt"><b>' + mplEsc(t('車聲')) + '</b><i>'
+    + mplEsc(t('跟車時車一動就有鐵軌聲，停站淡出；放空模式一直放')) + '</i></span>'
+    + '<button type="button" class="toggle" id="mplAmbTg" role="switch" aria-checked="false" aria-label="'
+    + mplEsc(t('車聲')) + '"></button></div>';
 }
 function mplEnsureShell() {
   const body = document.getElementById('musicPlBody');
@@ -16430,6 +16452,7 @@ function mplEnsureShell() {
     mplNowSync();
   };
   document.getElementById('mplPlans').onclick = () => plusGateOpen('music-scoring', () => { musicPlRender(); });
+  ambBindToggle();
   return body;
 }
 // 只寫既有節點的文字與 hidden,絕不重建這一區(理由見 mplShellHtml)。選單沒開就整支不做事。
@@ -16596,6 +16619,65 @@ function makeNativeMusicShim(na) {
   na.addListener('trackError', () => fire('error'));
   return shim;
 }
+// ── 車聲圖層(App 限定):Envato 授權的鐵軌環境音 loop,墊在配樂底下 ─────────────────────────
+// 誰/何時/為什麼:跟車的人在車開動時要「人在車上」的臨場感;放空模式當背景聲。純看地圖時鐵軌聲跟畫面
+// 無關,所以它不是全域開關——開了之後只在「跟車中車在動」與「放空模式」出聲,停站淡出、發車淡入。
+// 聲音一律走原生層(WKWebView 的 <audio> 會被 WebKit 的 session 蓋掉,見 makeNativeMusicShim 註解);
+// 音檔由 prepare-web 從 repo 外烤進 bundle(Envato 授權不允許公開散布原檔 ⇒ 不進 repo、不上網站)。
+const AMB_SRC = 'audio/train-ride-loop.mp3';
+const AMB_GAIN = 0.8;   // 相對配樂:loop 本身 -21 LUFS 已比配樂低約 7 dB,再乘使用者的音量滑桿
+const AMB_MOVE_MPS = 1.5, AMB_STOP_MPS = 0.5;   // 由跟隨目標的位移推速度;遲滯避免停站邊緣抖動
+function ambAvailable() {
+  return musicIsApp() && window.RAIL_AMBIENCE_AVAILABLE === true
+    && !!(window.RAIL_NATIVE_AUDIO && window.RAIL_NATIVE_AUDIO.setAmbience);
+}
+function ambLoadPref() { try { return JSON.parse(localStorage.getItem('trainmap-ambience') || '{}').on === true; } catch (e) { return false; } }
+function ambSavePref() { try { localStorage.setItem('trainmap-ambience', JSON.stringify({ on: !!state.amb.on })); } catch (e) {} }
+// 跟隨相機每幀把目標位置丟進來;速度留給 1Hz 的 ambTick 算(每幀算等於 60Hz 的三角函數)。
+function ambNotePos(lat, lon) { const a = state.amb; if (!a) return; a.lat = lat; a.lon = lon; a.at = performance.now(); }
+function ambTick(force) {
+  const a = state.amb; if (!a || !ambAvailable()) return;   // 網站/沒內建音檔:整條路徑不碰原生
+  const now = performance.now();
+  let moving = false;
+  if (a.on && (state.followTrain || state.freqFollow) && now - a.at < 2500 && a.plat != null && a.lat != null) {
+    const dt = (a.at - a.pat) / 1000;
+    if (dt > 0) {
+      const mps = haversineKm({ lat: a.plat, lon: a.plon }, { lat: a.lat, lon: a.lon }) * 1000 / dt;
+      moving = a.playing ? mps > AMB_STOP_MPS : mps > AMB_MOVE_MPS;
+    } else moving = a.playing;   // 這一秒相機沒有新位置(頁面被凍結/轉場):維持原狀,不亂切
+  } else if (a.on && state.ambient && !(state.followTrain || state.freqFollow)) moving = true;   // 群車放空:沒有單一目標,一直放
+  if (a.lat != null) { a.plat = a.lat; a.plon = a.lon; a.pat = a.at; }
+  const want = !!(a.on && moving);
+  const gain = Math.max(0, Math.min(1, state.music.vol * AMB_GAIN));
+  if (force || want !== a.playing || (want && Math.abs(gain - a.gain) > 0.02)) {
+    a.playing = want; a.gain = gain;
+    window.RAIL_NATIVE_AUDIO.setAmbience({ on: want, src: AMB_SRC, gain }).catch(() => {});
+  }
+}
+function ambSetOn(on) {
+  const a = state.amb; if (!a) return;
+  a.on = !!on; ambSavePref(); ambSyncUi(); ambTick();
+}
+function ambSyncUi() {
+  const b = document.getElementById('mplAmbTg'); if (!b) return;
+  const on = !!(state.amb && state.amb.on);
+  b.setAttribute('aria-checked', on ? 'true' : 'false'); b.classList.toggle('on', on);
+}
+function ambBindToggle() {
+  const row = document.getElementById('mplAmb'); if (!row || !ambAvailable()) return;   // 網站/未內建音檔:整列不現形
+  row.classList.add('avail');
+  document.getElementById('mplAmbTg').onclick = () => ambSetOn(!state.amb.on);
+  ambSyncUi();
+}
+function initAmbience() {
+  state.amb = { on: false, playing: false, gain: 0, lat: null, lon: null, at: 0, plat: null, plon: null, pat: 0 };
+  if (!ambAvailable()) return;
+  state.amb.on = ambLoadPref();
+  setInterval(ambTick, 1000);
+  // 回前景重送一次現況:背景期間原生自己處理中斷,JS 這邊的 playing 可能已與原生不同步。
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) ambTick(true); });
+}
+window.ambSetOn = ambSetOn; window.ambTick = ambTick; window.ambNotePos = ambNotePos;
 function initMusic() {
   const available = musicAvailable();
   const pref = available ? loadMusicPref() : { enabled: false, vol: 0.5 };
@@ -16677,6 +16759,7 @@ function initMusic() {
   audio.addEventListener('error', syncMusicUI);
   setInterval(musicContextTick, 1000);   // 情境遲滯計時;換歌一律等 ended,這裡只更新生效值
   setupMusicPlUi();
+  initAmbience();
   updateMusicBtn();
 }
 function updateMusicBtn() {
@@ -22021,6 +22104,7 @@ function updateFollowCamera() {
   }
   const pos = trainPos(tr, state.simSec);
   if (!pos) { const f = tr.stops[0]; if (state.followLock) recenterTo(f.lat, f.lon); setFollowStatus('pre', '尚未發車'); return; }
+  ambNotePos(pos.lat, pos.lon); // 車聲圖層:1Hz 的 ambTick 由位移推「車在動嗎」
   setFollowStatus('run', '');
   if (state.followLock) recenterTo(pos.lat, pos.lon, followAheadPx(tr, pos));
   // 相機自癒 v2(2026-08-12 Codex 複審修訂):量結果不猜原因——鎖定跟隨中,車的容器點連續
@@ -29344,7 +29428,8 @@ const HELP_GROUPS = [
       steps: ['按「放空模式」', '用「視角」切換：跟車＝跟著一班車跑；群車＝鏡頭停在當下最忙的路段看列車交錯', '動一下畫面就回到手動'],
       tip: '久沒動會進「劇場模式」把介面淡掉，動一下就回來。', try: 'ambient' },
     { key: 'music', ic: '♪', nm: '背景音樂', tg: 'musicBtn', needs: 'musicBtn', one: '掛著看車時的背景音樂，可以換首。',
-      steps: ['「更多」→ 背景音樂', '「換首」跳下一首', 'App 版收起或鎖定螢幕也繼續播；跟車時鎖定畫面讓位給列車動態，其餘時候可在鎖定畫面暫停／換首'], try: 'music' },
+      steps: ['「更多」→ 背景音樂', '「換首」跳下一首', 'App 版收起或鎖定螢幕也繼續播；跟車時鎖定畫面讓位給列車動態，其餘時候可在鎖定畫面暫停／換首',
+        'App 版「配樂情境」裡有「車聲」開關：跟車時車一動就有鐵軌聲，停站淡出；放空模式一直放'], try: 'music' },
     { key: 'musicscore', ic: '♫', nm: '跟車配樂', tg: 'musicPlBtn', needs: 'musicPlBtn', try: 'musicscore',
       one: '音樂跟著你在看的那班車走——車開到哪、現在幾點就換到對應的情境。',
       steps: ['「更多」→ 配樂情境', '選「跟著列車」就交給它自動換',

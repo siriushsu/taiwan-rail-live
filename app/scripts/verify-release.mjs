@@ -743,10 +743,18 @@ export async function verifyRelease({
       `有 ${noLicence.length} 首會播但不在授權核對表裡:${noLicence.slice(0, 3).join('、')}`);
     assert(orphan.length === 0,
       `授權核對表有 ${orphan.length} 首已不在曲目清單裡(核對表沒跟上換庫):${orphan.slice(0, 3).join('、')}`);
+
+    // 🔴 車聲圖層(2026-09-03):Envato 授權的鐵軌環境音 loop,只在含音樂 build 內建、不進 repo 不上網站。
+    //    缺檔或旗標沒帶的症狀只有「車聲開關不見了」,沒有別的訊號;授權條目綁在同一份核對表上。
+    assert(relativeFiles.includes('audio/train-ride-loop.mp3'), '含音樂 build 必須內建車聲 loop(audio/train-ride-loop.mp3)');
+    assert(html.includes('window.RAIL_AMBIENCE_AVAILABLE=true'), '含音樂 build 的 index.html 必須宣告 RAIL_AMBIENCE_AVAILABLE=true');
+    assert(chk.includes('train-ride-loop') && /Envato/.test(chk), '音樂授權核對表缺車聲 loop 的 Envato 授權條目');
   }
   else {
     assert(musicFiles.length === 0, '安全 build 不可含 suno musics/');
     assert(html.includes('window.RAIL_MUSIC_AVAILABLE=false'), '安全 build 必須明確關閉音樂');
+    assert(!relativeFiles.includes('audio/train-ride-loop.mp3'), '安全 build 不得內建車聲 loop');
+    assert(html.includes('window.RAIL_AMBIENCE_AVAILABLE=false'), '安全 build 必須明確關閉車聲圖層');
   }
 
   if (basemapsEnabled) {

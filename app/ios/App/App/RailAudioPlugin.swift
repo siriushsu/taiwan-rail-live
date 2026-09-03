@@ -23,6 +23,7 @@ public final class RailAudioPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "resume", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "pause", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setVolume", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setAmbience", returnType: CAPPluginReturnPromise),
     ]
 
     // 全部狀態只在 main queue 讀寫（bridge 方法一律 DispatchQueue.main.async 進來）。
@@ -40,6 +41,14 @@ public final class RailAudioPlugin: CAPPlugin, CAPBridgedPlugin {
     private var nextItemIndex = -1
     // 目前這一首 item.status 的 KVO 句柄;換曲時先 invalidate,舊 item 的狀態不再回報。
     private var statusObs: NSKeyValueObservation?
+    // 車聲圖層(2026-09-03):與配樂並行的第二條聲道——AVAudioPlayer 單檔無限循環,音量用
+    // setVolume(_:fadeDuration:) 淡入淡出。不碰 NowPlaying(鎖定畫面仍只顯示配樂)、不改 session 模式;
+    // 「此刻該不該有聲」(跟車中車在動/放空模式)由 JS 決定,這裡只管開、關、淡。
+    private var amb: AVAudioPlayer?
+    private var ambSrc = ""
+    private var ambOn = false
+    private var ambGen = 0
+    private static let ambFade: TimeInterval = 1.2
 
     private var isPlaying: Bool { (player?.rate ?? 0) > 0 }
 
@@ -58,10 +67,12 @@ public final class RailAudioPlugin: CAPPlugin, CAPBridgedPlugin {
             if type == .began {
                 self.wasPlayingBeforeInterruption = self.isPlaying
                 if self.isPlaying { self.player?.pause(); self.pushState(playing: false); self.pushNowPlaying() }
-            } else if type == .ended, self.wasPlayingBeforeInterruption {
+                self.amb?.pause()   // 車聲跟著讓位;ended 且 shouldResume 時照 ambOn 續播
+            } else if type == .ended {
                 let opts = AVAudioSession.InterruptionOptions(rawValue: (note.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt) ?? 0)
-                if opts.contains(.shouldResume), self.player?.currentItem != nil {
-                    self.doResume()
+                if opts.contains(.shouldResume) {
+                    if self.wasPlayingBeforeInterruption, self.player?.currentItem != nil { self.doResume() }
+                    self.ambResume()
                 }
             }
         }
@@ -241,6 +252,48 @@ public final class RailAudioPlugin: CAPPlugin, CAPBridgedPlugin {
         notifyListeners("state", data: ["playing": playing, "index": idx])
     }
 
+    // MARK: - 車聲圖層
+
+    private func ambApply(on: Bool, src: String, gain: Float) {
+        ambGen += 1
+        let gen = ambGen
+        if on {
+            if amb == nil || ambSrc != src {
+                amb?.stop(); amb = nil
+                guard let base = Bundle.main.resourceURL else { return }
+                let url = base.appendingPathComponent("public").appendingPathComponent(src)
+                guard let p = try? AVAudioPlayer(contentsOf: url) else {
+                    notifyListeners("ambienceError", data: ["src": src])
+                    return
+                }
+                p.numberOfLoops = -1
+                p.volume = 0
+                p.prepareToPlay()
+                amb = p
+                ambSrc = src
+            }
+            ambOn = true
+            applySession(activate: true)
+            guard let p = amb else { return }
+            if !p.isPlaying { p.volume = 0; p.play() }
+            p.setVolume(max(0, min(1, gain)), fadeDuration: Self.ambFade)
+        } else {
+            ambOn = false
+            guard let p = amb, p.isPlaying else { return }
+            p.setVolume(0, fadeDuration: Self.ambFade)
+            // 淡出結束才 pause;期間若又被打開(gen 變了或 ambOn 回真)就不 pause。
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.ambFade + 0.1) { [weak self] in
+                guard let self, self.ambGen == gen, !self.ambOn else { return }
+                self.amb?.pause()
+            }
+        }
+    }
+
+    private func ambResume() {
+        guard ambOn, let p = amb, !p.isPlaying else { return }
+        p.play()
+    }
+
     // MARK: - bridge 方法
 
     @objc func setQueue(_ call: CAPPluginCall) {
@@ -281,6 +334,16 @@ public final class RailAudioPlugin: CAPPlugin, CAPBridgedPlugin {
 
     @objc func pause(_ call: CAPPluginCall) {
         DispatchQueue.main.async { self.doPause(); call.resolve(["ok": true]) }
+    }
+
+    @objc func setAmbience(_ call: CAPPluginCall) {
+        let on = call.getBool("on") ?? false
+        let src = call.getString("src") ?? ""
+        let gain = Float(call.getDouble("gain") ?? 0.5)
+        DispatchQueue.main.async {
+            self.ambApply(on: on, src: src, gain: gain)
+            call.resolve(["ok": true])
+        }
     }
 
     @objc func setVolume(_ call: CAPPluginCall) {

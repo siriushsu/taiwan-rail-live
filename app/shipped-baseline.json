@@ -2178,12 +2178,14 @@
       "recTime",
       "recToast",
       "recToastTxt",
-      "recToastX"
+      "recToastX",
+      "phSortSeg"
     ],
     "gates": [
       "RECORDING_ENABLED",
       "REC_MUSIC_PROTOTYPE",
       "WM_LOGO"
-    ]
+    ],
+    "_why_elementIds": "2026-09-03 phSortSeg:5786cd0d(v0903d 完乘記錄「順序」排法)把寫死的 id=\"phSortSeg\" 改成 buildRideSortSeg(rideSort, 'phSortSeg') 在執行期產生,元素仍在、點擊改認 .ph-sort class;閘門的靜態 regex 看不到執行期字串,不是被合併吃掉的回歸。"
   }
 }
