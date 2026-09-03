@@ -1312,8 +1312,11 @@
   .passport .ph-sec b, #ridePanel .ph-sec b { color: var(--navy); letter-spacing: 0; }
   /* 排序控制擠不下就整組換行,不擠壓按鈕本身。原本用 justify-content:space-between,
      但加了前置收合箭頭之後變成三個子項平分,把「完乘記錄」推到正中間——改成只讓排序組自己靠右。 */
-  .passport .ph-sec.ph-sec-rides { flex-wrap: wrap; }
-  .passport .ph-sec.ph-sec-rides .ph-sort { margin-left: auto; }
+  .passport .ph-sec.ph-sec-rides, #ridePanel .ph-sec.ph-sec-rides { flex-wrap: wrap; }
+  .passport .ph-sec.ph-sec-rides .ph-sort, #ridePanel .ph-sec.ph-sec-rides .ph-sort { margin-left: auto; }
+  /* 手機 sheet(2026-09-03,issue#43):寬度只有一支手機,五顆鈕靠右擠會被標題擠成兩行還放不下——
+     這裡讓整組排序自己佔滿一列、靠左從標題下方開始,margin-left:auto 在換行後不再有意義故歸零。 */
+  #ridePanel .ph-sec.ph-sec-rides .ph-sort { flex: 1 1 100%; margin-left: 0; margin-top: 6px; }
   .passport .ph-sec .seg { letter-spacing: normal; } /* .ph-sec 的 3px letter-spacing 不inherit 進排序鈕文字 */
   /* 分節收合(2026-07-26):標題列整條可點,箭頭放在**最前面**——「路線完乘」那節的收集地圖鈕
      已經吃掉 margin-left:auto,箭頭再搶一次靠右會讓兩者平分剩餘空間、把鈕推到中間。 */
@@ -5065,6 +5068,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="rideseq"><span class="d">9/3</span><span>完乘記錄多了「順序」排法，照你實際跟完的先後排、最早那趟在最上面；手機的旅程護照也補上排序鈕（謝謝網友回報）</span></li>
         <li data-cl-of="crowdfallback"><span class="d">9/3</span><span>捷運列車的車廂擁擠度不會再整批消失一輪：官方擁擠度偶爾抓不到時改用剛才那一份，最多兩分鐘，超過就留白（謝謝網友回報）</span></li>
         <li data-cl-of="widgetsizes"><span class="d">9/2</span><span>桌面小工具：方向與目的站多了「不指定」，選過也能改回來；捷運看板的方向只列所選車站開得到的終點。Android 補齊到七種尺寸，捷運與火車都有大張卡片，5 欄手機會佔滿五格（謝謝網友回報）</span></li>
         <li data-cl-of="webmcp"><span class="d">9/2</span><span>ChatGPT 在內建瀏覽器打開軌島時，現在能直接查目前畫面、搜尋車站、讀車站看板與營運公告，也能替你開啟車站看板或跟隨指定火車；一般瀏覽器不受影響</span></li>
@@ -5072,7 +5076,6 @@
         <li data-cl-of="boardwide"><span class="d">9/2</span><span>桌面的車站看板加寬，車種與「往哪」不會再被截掉</span></li>
         <li data-cl-of="latetagbig"><span class="d">9/1</span><span>車站看板的誤點標示放大加粗，一眼就看得出這班晚了幾分（謝謝網友回報）</span></li>
         <li data-cl-of="widget4x4"><span class="d">9/1</span><span>桌面小工具的發車看板：大尺寸一次列出五班並分北上南下，每列都有開車時刻與準點誤點；也可以改成主要顯示發車時刻</span></li>
-        <li data-cl-of="xferconn"><span class="d">9/1</span><span>快到轉乘站時，直接列出對向系統最近兩班和「你到站時還剩幾分」，可以釘住你要搭的那班</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5203,6 +5206,7 @@
         <li><span class="d">7/13</span><span>新增「附近火車」：地圖上落一根釘，查周邊 60 分鐘內會通過的車次</span></li>
         <li><span class="d">7/12</span><span>新增平交道功能：點一下查接下來會通過的列車（7/13 補上貨運線 21 處）</span></li>
         <li class="grp">收藏、護照與成就</li>
+        <li data-cl="rideseq"><span class="d">9/3</span><span>完乘記錄多了「順序」排法：照你實際跟完的先後排，最早那趟在最上面，像護照一頁一頁往後翻。原本的「日期」在同一天完成好幾趟時，是照那些車的發車時刻排，不是你完成的先後。另外手機版的旅程護照終於也有排序鈕了（順序／日期／車次／距離／車種），以前那排鈕只有電腦版的護照側欄才有。比較早以前的記錄沒有留下完成的時刻，那批仍照日期加發車時刻排（謝謝網友回報）</span></li>
         <li data-cl="guestmerge"><span class="d">9/1</span><span>登入之後完乘紀錄、旅程護照與累積里程整個變空的問題有解了：如果這台裝置先前登入過另一個帳號，為了不把別人的收藏混進來，新登入的帳號會從空白開始——你的紀錄一直都還在這台裝置上，只是畫面讀不到。現在帳號面板會直接寫出「這台裝置還有幾筆登入前存的紀錄」，按一下「併入這個帳號」就全部回來：完乘紀錄、最愛列車、最愛車站與地圖釘選一起併，帳號裡已經刪掉的不會被救回來，帳號裡原有的資料也不會被蓋掉（謝謝兩位網友回報）</span></li>
         <li data-cl="achvhelp"><span class="d">8/18</span><span>護照上的成就章終於有說明了：電腦把滑鼠移過去、手機點一下，會跳出一張小卡，寫這枚章的達成條件、怎麼拿的建議，以及你現在的進度——像「4 / 100 座」「610 / 1,000 km」。早鳥、夜行者這種一趟就達成的，改成告訴你目前最早（最晚）跟過幾點發車的車。旁邊的明星列車、車種圖鑑、支線行腳三種收集章也共用同一張卡，移過去就看得到那班車的故事，點下去仍然是跳去跟那班車</span></li>
         <li data-cl="linecomplete"><span class="d">8/14</span><span>縱貫線北段完乘率卡在 99%：新竹–北新竹是與內灣線共用的同一段軌道，以前只算給其中一條線。現在兩條線都算得到，已收集的紀錄不用重搭就會自動補上（謝謝網友回報）</span></li>
@@ -5855,7 +5859,7 @@
 // v0902e：把 App 出貨線(ship-main)併回來——小工具七種尺寸／方向可取消／捷運大卡(Android)、v0901h 的好讀版開車時刻、
 //         看板誤點標放大——並帶上跟車配樂選單(feat/music-scoring)。e 換號前逐 ref＋逐樹掃過無人佔用。
 // v0903b：刪除錄影功能殘留（程式碼、i18n、法律文件與支援頁；使用者 09-02／09-03 裁示）。執行路徑零變更。
-const BUILD = 'v0903c';
+const BUILD = 'v0903d';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -17849,7 +17853,11 @@ function renderRidePanel() {
   const rides = loadRides();
   const coll = collectionOf(rides);
   const collGot = coll.named.size + coll.stock.size + coll.branch.size;
-  const list = buildRideRows(rides, 'date'); // 手機不做排序鈕,固定日期最新在前
+  // 排序鈕本來只掛在桌面側欄護照,手機這條路徑固定「日期最新在前」——回報者(issue#43)用的是
+  // Android App,走的就是這條,所以他連既有的四個排法都看不到。改成與桌面共用同一個模式與同一份
+  // markup(localStorage 'trainmap-ride-sort' 一把鑰匙,兩邊選了就一致)。
+  const rideSort = getRideSortMode();
+  const list = buildRideRows(rides, rideSort);
   // 設計 3g 的統計列:三格大數字(完乘/總里程/收集章)。
   // 🔴 舊的四個數字裡有三個是重複的——「站」「成就」「章」在下面各自的分段標題就寫著
   //    (車站 M/N、成就 K/17、明星列車 x/y…);這裡留下的兩個(趟數、總里程)是**別處都沒有**的。
@@ -17869,7 +17877,7 @@ function renderRidePanel() {
     buildLineBars() +
     buildCorrectSection() +
     buildAchv(rides, 'chip') +
-    phSec('rides', rides.length, 12, t('完乘記錄')) +
+    phSec('rides', rides.length, 12, `${escHtml(t('完乘記錄'))}${list ? buildRideSortSeg(rideSort) : ''}`, 'ph-sec-rides') +
     (list ? `<div class="ph-list">${list}</div>`
       : `<div class="ph-empty">${escHtml(t('還沒有完乘記錄——從地圖角落「探」挑一班有趣的車，陪它跑完全程吧。'))}</div>`);
   el.querySelector('#rideClose').onclick = closeRidePanel;
@@ -17877,6 +17885,8 @@ function renderRidePanel() {
   el.onclick = e => {
     if (e.target.closest('.close')) return;
     if (ppSecClick(e)) { renderRidePanel(); return; }
+    const sortBtn = e.target.closest('.ph-sort button'); // 完乘記錄排序(issue#43,與桌面同一把設定)
+    if (sortBtn) { setRideSortMode(sortBtn.dataset.v); return; }
     if (e.target.closest('[data-act="collectmap"]')) { setCollectMap(true); return; } // setCollectMap 自己會收面板
     if (e.target.closest('[data-act="bountyboard"]')) { openBountyBoard(); return; }
     const st = e.target.closest('.seal[data-cat]');
@@ -18465,7 +18475,7 @@ function followDexStamp(cat, id) {
   followTrainNo(String(tr.train), { fromStart: true, sys: tr.sys });
 }
 // 完乘記錄排序(issue#8,純顯示層):不碰資料/同步,只改 renderPassport 讀出後的呈現順序
-const RIDE_SORT_LABELS = { date: '日期', train: '車次', km: '距離', kind: '車種' };
+const RIDE_SORT_LABELS = { seq: '順序', date: '日期', train: '車次', km: '距離', kind: '車種' };
 function rideTrainCompare(a, b) {
   const na = Number(a), nb = Number(b), va = Number.isFinite(na), vb = Number.isFinite(nb);
   if (va && vb) return na - nb;
@@ -18475,9 +18485,28 @@ function rideTrainCompare(a, b) {
 function rideDateDesc(a, b) {
   return String(b.date || '').localeCompare(String(a.date || '')) || ((b.dep ?? 0) - (a.dep ?? 0));
 }
+function rideDateAsc(a, b) { return -rideDateDesc(a, b); }
+// 「順序」模式(issue#43)＝真正的完乘先後,最早那趟在最上面。
+// ride 物件本身存不到這件事:recordRide() 只寫 date(完乘當天,日精度)與 dep(那班車的發車秒),
+// 所以同一天完成好幾趟時,date 模式排出來的是「那些車的發車時刻」而不是「我完成的先後」;
+// 陣列順序也不行——items 落盤時一律照 id(sys|train|date)字串重排(userDataSaveCollection)。
+// 真正的完成時刻在 envelope 每筆的 updatedAt:第一次寫入那一刻蓋下,而 userDataSaveCollection
+// 對「值沒變」的筆沿用舊 updatedAt,所以後續每次存檔都不會把它往前推。
+// 舊格式遷移過來的那批共用同一個時戳(userDataMigrateLegacy 全部蓋成遷移當下),彼此分不出先後,
+// 靠 rideDateAsc 退回日期＋發車時刻;那個時戳早於之後每一趟,所以它們仍整批排在前面,不會插隊。
+function rideDoneAtMap() {
+  const m = new Map();
+  try { for (const it of userDataRead().collections.rides.items) m.set(it.id, it.updatedAt); } catch (e) {}
+  return m;
+}
 function sortRides(arr, mode) {
   const list = arr.slice();
-  if (mode === 'train') list.sort((a, b) => rideTrainCompare(a.train, b.train) || rideDateDesc(a, b));
+  if (mode === 'seq') {
+    const at = rideDoneAtMap(); // 一次渲染算一次,不進每次比較
+    const key = r => at.get(userDataItemId('rides', r)) ?? 0;
+    list.sort((a, b) => (key(a) - key(b)) || rideDateAsc(a, b) || rideTrainCompare(a.train, b.train));
+  }
+  else if (mode === 'train') list.sort((a, b) => rideTrainCompare(a.train, b.train) || rideDateDesc(a, b));
   else if (mode === 'km') list.sort((a, b) => ((b.km ?? 0) - (a.km ?? 0)) || rideDateDesc(a, b));
   else if (mode === 'kind') list.sort((a, b) => String(a.kind || '').localeCompare(String(b.kind || ''), 'zh-Hant') || rideDateDesc(a, b));
   else list.sort((a, b) => rideDateDesc(a, b) || rideTrainCompare(a.train, b.train));
@@ -18492,6 +18521,13 @@ function setRideSortMode(m) {
   if (!RIDE_SORT_LABELS[m]) return;
   try { localStorage.setItem('trainmap-ride-sort', m); } catch (e) {}
   renderPassport();
+  renderRidePanel(); // 手機 sheet 也吃同一個模式(issue#43);面板沒開時它自己會早退
+}
+// 排序切換鈕:桌面護照與手機 sheet 共用同一份 markup。id 只給桌面那顆(既有驗收腳本以
+// #phSortSeg 定位),兩邊的點擊一律靠 .ph-sort 這個 class 認,不依賴 id。
+function buildRideSortSeg(mode, id) {
+  return `<span class="seg ph-sort"${id ? ` id="${id}"` : ''}>${Object.entries(RIDE_SORT_LABELS)
+    .map(([v, lbl]) => `<button data-v="${v}"${v === mode ? ' class="on"' : ''}>${escHtml(t(lbl))}</button>`).join('')}</span>`;
 }
 // ── 護照共用 builder(Batch B:桌面 #passport 與護照 sheet #ridePanel 單一事實來源) ──
 // 章名折行:4 字以上折行塞進圓章(仿 mock「藍皮/解憂號」)。
@@ -20619,8 +20655,7 @@ function renderPassport() {
   const stnCount = stationCollection(rides).size;
   const list = buildRideRows(rides, rideSort);
   // 排序切換鈕:有記錄才顯示(空清單沒東西可排);選中狀態直接烤進 HTML,不用另外 sync
-  const sortSeg = list ? `<span class="seg ph-sort" id="phSortSeg">${Object.entries(RIDE_SORT_LABELS)
-    .map(([v, lbl]) => `<button data-v="${v}"${v === rideSort ? ' class="on"' : ''}>${escHtml(t(lbl))}</button>`).join('')}</span>` : '';
+  const sortSeg = list ? buildRideSortSeg(rideSort, 'phSortSeg') : '';
   // 收合狀態記 localStorage(預設收合,免得側欄一次攤開太多資訊);點標題列切換
   let open = false;
   try { open = localStorage.getItem('trainmap-passport-open') === '1'; } catch (e) {}
@@ -20645,7 +20680,7 @@ function renderPassport() {
       return;
     }
     if (ppSecClick(e)) { renderPassport(); return; } // 分節收合／車站牆展開(自己會讓開節內按鈕)
-    const sortBtn = e.target.closest('#phSortSeg button');
+    const sortBtn = e.target.closest('.ph-sort button');
     if (sortBtn) { setRideSortMode(sortBtn.dataset.v); return; } // 完乘記錄排序切換(純顯示層,見 sortRides)
     if (e.target.closest('[data-act="collectmap"]')) { setCollectMap(true); return; }
     if (e.target.closest('[data-act="bountyboard"]')) { openBountyBoard(); return; }
