@@ -1,0 +1,132 @@
+{
+  "_readme": "MapLibre 軌道與站點 style 片段；layers 以 light 為預設，切換底圖時把 themes[theme][layerId].paint 逐項交給 setPaintProperty。",
+  "layers": [
+    {
+      "id": "track-casing",
+      "type": "line",
+      "source": "track-lines",
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round",
+        "line-sort-key": [
+          "get",
+          "sortKey"
+        ]
+      },
+      "paint": {
+        "line-color": "#f2ede2",
+        "line-width": 5.6
+      }
+    },
+    {
+      "id": "track-line",
+      "type": "line",
+      "source": "track-lines",
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round",
+        "line-sort-key": [
+          "get",
+          "sortKey"
+        ]
+      },
+      "paint": {
+        "line-color": [
+          "get",
+          "color"
+        ],
+        "line-width": 3
+      }
+    },
+    {
+      "id": "track-stations",
+      "type": "circle",
+      "source": "track-stations",
+      "minzoom": 11,
+      "paint": {
+        "circle-radius": 2.4,
+        "circle-color": "#f2ede2",
+        "circle-stroke-width": 1.5,
+        "circle-stroke-color": [
+          "get",
+          "color"
+        ],
+        "circle-stroke-opacity": 0.9
+      }
+    }
+  ],
+  "themes": {
+    "light": {
+      "track-casing": {
+        "paint": {
+          "line-color": "#f2ede2"
+        }
+      },
+      "track-line": {
+        "paint": {
+          "line-color": [
+            "get",
+            "color"
+          ]
+        }
+      },
+      "track-stations": {
+        "paint": {
+          "circle-color": "#f2ede2",
+          "circle-stroke-color": [
+            "get",
+            "color"
+          ]
+        }
+      }
+    },
+    "dark": {
+      "track-casing": {
+        "paint": {
+          "line-color": "#10141c"
+        }
+      },
+      "track-line": {
+        "paint": {
+          "line-color": [
+            "get",
+            "colorDark"
+          ]
+        }
+      },
+      "track-stations": {
+        "paint": {
+          "circle-color": "#10141c",
+          "circle-stroke-color": [
+            "get",
+            "colorDark"
+          ]
+        }
+      }
+    },
+    "sat": {
+      "track-casing": {
+        "paint": {
+          "line-color": "#24382c"
+        }
+      },
+      "track-line": {
+        "paint": {
+          "line-color": [
+            "get",
+            "color"
+          ]
+        }
+      },
+      "track-stations": {
+        "paint": {
+          "circle-color": "#24382c",
+          "circle-stroke-color": [
+            "get",
+            "color"
+          ]
+        }
+      }
+    }
+  }
+}
