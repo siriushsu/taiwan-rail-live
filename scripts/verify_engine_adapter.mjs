@@ -184,27 +184,27 @@ try {
     ck(Math.abs(r.bz - base.bz) <= 1, 'G6e getBoundsZoom 與 Leaflet 差 ≤1 級', `ml=${r.bz} lf=${base.bz}`);
     ck(r.inBounds && r.rt, 'G6f getBounds 含中心;bearing/pitch 為 0(M0 不開旋轉)');
     ck(errs.length === 0, 'G6g MapLibre 開機零 pageerror', errs.join(' | ').slice(0, 300));
-    // ── G7 對齊探針:洋紅(引擎)與青(overlay)質心距離 ≤ 2px(桌面 dpr 1) ──
-    // 探針座標刻意選在海上(25.20,121.80,基隆外海,無鐵路)而非 G6 用的台北車站:實測台北車站在 z13
-    // 密集的路網/站名會被 overlay 蓋在洋紅點上(量到 mag.n=16,應有的 ~1017px 幾乎全被蓋掉,cyn.n=22
-    // 也被字壓縮),refine 半徑鎖到不相干的殘片,量出 d=260px 的假錯位。海上座標實測 mag.n=880/cyn.n=76
-    // (與各自純色圓面積 π·18²≈1017、π·5²≈78.5 相符)、兩顆質心完全重合,才是判準要量的乾淨基準——
-    // 與 verify_basemap_align.mjs 選中央山脈當探針點同一個理由(brief Step3 附註已預告此坑)。
+    // ── G7 對齊探針:洋紅(引擎)與青(overlay)圓心距離 ≤ 2px(桌面 dpr 1) ──
+    // 探針座標刻意選在海上(25.20,121.80,基隆外海,無鐵路)而非 G6 用的台北車站:台北車站在 z13 會被 overlay 的
+    // 路網/站名/車站牌壓在洋紅點上;圓擬合(probe_centroids.mjs)雖能容忍部分遮擋,判準的乾淨基準仍該是
+    // 「兩顆探針完整可見」——與 verify_basemap_align.mjs 選中央山脈當探針點同一個理由。半徑明示為桌面 dpr 1 的值
+    // (circle-radius 18css、ctx.arc 5css);真機錄影走 analyze_device_recording.mjs 以 --dpr 換算。
     const pr = await boot(browser, 'engine=maplibre&aligndot=25.20,121.80');
     await pr.page.waitForFunction(() => window.__ofmGl && window.__ofmGl.getLayer && window.__ofmGl.getLayer('aligndot'), null, { timeout: 30000 });
     await pr.page.evaluate(() => window.__M.setView([25.20, 121.80], 13, { animate: false }));
     await pr.page.waitForTimeout(1500);
     const png = await pr.page.screenshot({ type: 'png' });
     const { data, info } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-    const cen = probeCentroids(data, info.width, info.height);
+    const RADII = { magR: 18, cynR: 5 }; // 桌面 dpr 1
+    const cen = probeCentroids(data, info.width, info.height, RADII);
     const dist = cen.mag && cen.cyn ? Math.hypot(cen.mag.x - cen.cyn.x, cen.mag.y - cen.cyn.y) : NaN;
-    ck(cen.mag && cen.cyn && dist <= 2, 'G7 對齊探針洋紅/青質心距離 ≤2px', `mag=${JSON.stringify(cen.mag)} cyn=${JSON.stringify(cen.cyn)} d=${dist.toFixed(2)}`);
+    ck(cen.mag && cen.cyn && dist <= 2, 'G7 對齊探針洋紅/青圓心距離 ≤2px', `mag=${JSON.stringify(cen.mag)} cyn=${JSON.stringify(cen.cyn)} d=${dist.toFixed(2)}`);
     // 正向對照:把青點往右挪 30px 重畫一次,距離必須 ≥ 25(證明量得到錯位)
     await pr.page.evaluate(() => { const M = window.__M; const o = M.toScreen; M.toScreen = ll => { const p = o(ll); return { x: p.x + 30, y: p.y }; }; if (window.__state.ready) draw(); });
     await pr.page.waitForTimeout(300);
     const png2 = await pr.page.screenshot({ type: 'png' });
     const r2 = await sharp(png2).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-    const cen2 = probeCentroids(r2.data, r2.info.width, r2.info.height);
+    const cen2 = probeCentroids(r2.data, r2.info.width, r2.info.height, RADII);
     const dist2 = cen2.mag && cen2.cyn ? Math.hypot(cen2.mag.x - cen2.cyn.x, cen2.mag.y - cen2.cyn.y) : NaN;
     ck(dist2 >= 25, 'G7 正向對照:overlay 投影挪 30px 後量到 ≥25px', `d=${dist2.toFixed(2)}`);
     await pr.ctx.close();
