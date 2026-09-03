@@ -6388,13 +6388,13 @@ function applySpeedZoomCap() {
   if (fast) {
     // 只有真的把他從高處壓下來才記(≤CAP 就沒動他,也無從還原)
     state._preCapZoom = M.getZoom() > HISPEED_ZOOM_CAP ? M.getZoom() : null;
-    if (M.getZoom() > HISPEED_ZOOM_CAP) map.setView(M.getCenter(), HISPEED_ZOOM_CAP, { animate: false });
-    map.setMaxZoom(HISPEED_ZOOM_CAP);
+    if (M.getZoom() > HISPEED_ZOOM_CAP) M.setView(M.getCenter(), HISPEED_ZOOM_CAP, { animate: false });
+    M.setMaxZoom(HISPEED_ZOOM_CAP);
   } else {
-    map.setMaxZoom(state.basemap === 'sat' ? 19 : 20); // 還原各底圖層原本的上限
+    M.setMaxZoom(state.basemap === 'sat' ? 19 : 20); // 還原各底圖層原本的上限
     // 只有他還停在 CAP(高速時沒自己再改縮放)才還原,免得蓋掉他刻意選的全景視角
     if (state._preCapZoom != null && Math.abs(M.getZoom() - HISPEED_ZOOM_CAP) < 0.01)
-      map.setView(M.getCenter(), state._preCapZoom, { animate: false });
+      M.setView(M.getCenter(), state._preCapZoom, { animate: false });
     state._preCapZoom = null;
   }
 }
@@ -9918,7 +9918,7 @@ function applySchedSystems(sysList) {
     for (let j = i + 1; j < state.schedStations.length; j++) {
       const b = state.schedStations[j];
       if (a.sys === b.sys) continue;
-      if (map.distance([a.lat, a.lon], [b.lat, b.lon]) <= 150) {
+      if (M.distance([a.lat, a.lon], [b.lat, b.lon]) <= 150) {
         (a._co = a._co || []).push(b);
         (b._co = b._co || []).push(a);
       }
@@ -10254,7 +10254,7 @@ function freqTrainInfo(ln, t) {
 function syncPanFence() {
   if (state._fenceOn) return;          // 已開就不動(boot 後恆為 true)
   state._fenceOn = true;
-  map.setMaxBounds(state._panFence);
+  M.setMaxBounds(state._panFence);
 }
 function trtcOfficialLineForId(lineId) {
   const seen = new Set();
@@ -10439,7 +10439,7 @@ function updateFreqFollowCamera(immediate) {
     const info = f.core ? metroCoreVehicleInfo(rec)
       : trtcOfficialVehicleInfo(rec.ln, rec.vehicle, Date.now() / 1000);
     if (!info.pos) { clearFreqFollow(); return; }
-    if (immediate) map.setView([info.pos.lat, info.pos.lon], followEntryZoom(), { animate: false });
+    if (immediate) M.setView([info.pos.lat, info.pos.lon], followEntryZoom(), { animate: false });
     else if (state.followLock) recenterTo(info.pos.lat, info.pos.lon);
     updateFreqCard(info);
     return;
@@ -10448,7 +10448,7 @@ function updateFreqFollowCamera(immediate) {
   if (f.tr) { // 實際時刻班次:跟 simSec 時鐘;抵達終點自動結束跟隨
     const info = freqTrainInfoAt(ln, f.tr, state.simSec);
     if (!info.pos) { clearFreqFollow(); showToast(t(info.done ? '列車已抵達終點' : '已離開此班次的行駛時段')); return; }
-    if (immediate) map.setView([info.pos.lat, info.pos.lon], followEntryZoom(), { animate: false });
+    if (immediate) M.setView([info.pos.lat, info.pos.lon], followEntryZoom(), { animate: false });
     else if (state.followLock) recenterTo(info.pos.lat, info.pos.lon);
     updateFreqCard(info);
     return;
@@ -10457,7 +10457,7 @@ function updateFreqFollowCamera(immediate) {
   // 時間基準:全台同框(sched+裝飾層)走獨立時鐘 decoElapsed,各捷運分頁走 elapsed
   const base = state.mode === 'sched' ? (state.decoElapsed || 0) : state.elapsed;
   const info = freqTrainInfo(ln, base * state.speedMult + f.k * ln.period / ln.n);
-  if (immediate) map.setView([info.lat, info.lon], followEntryZoom(), { animate: false });
+  if (immediate) M.setView([info.lat, info.lon], followEntryZoom(), { animate: false });
   else if (state.followLock) recenterTo(info.lat, info.lon);
   updateFreqCard(info);
 }
@@ -10702,7 +10702,7 @@ function drawSched(w, h, paintDecoTrains) {
   }
   // 台鐵平交道:開關開啟且 zoom 深(≥12)才畫、僅視口內、記號墊在車站與列車之下(名稱進點擊卡片)
   if (state.xingOn && z >= 12 && state.crossings && state.crossings.length) {
-    const cb = map.getBounds().pad(0.06);
+    const cb = M.getBounds().pad(0.06);
     for (const cr of state.crossings) {
       if (state.trackVisible && !cr.noSched && !state.trackVisible.has(cr.lnId)) continue; // 只顯示屬於當前已載入線形的平交道(noSched 筆無 lnId,一律放行)
       if (!cb.contains([cr.lat, cr.lon])) continue;                          // 僅視口內才計算/繪製
@@ -10714,7 +10714,7 @@ function drawSched(w, h, paintDecoTrains) {
   // 台糖五分車園區記號:z≥10 畫、墊在車站/列車之下;園區名等站名標完才標(站名優先佔位)
   const sugarLbls = [];
   if (z >= 10 && SUGAR_PARKS.length) {
-    const sb = map.getBounds().pad(0.06);
+    const sb = M.getBounds().pad(0.06);
     for (const pk of SUGAR_PARKS) {
       if (!sb.contains([pk.lat, pk.lon])) continue;
       const cp = M.toScreen([pk.lat, pk.lon]);
@@ -11768,7 +11768,7 @@ function updateGeoCamera(loc) {
   if (prev && now - (state._geoCameraAt || 0) < 1000 && haversineKm(prev, loc) < .003) return;
   state._geoCameraAt = now; state._geoCameraLoc = loc;
   const z = M.getZoom();
-  map.setView(focusCenter(loc.lat, loc.lon, z), z, { animate: false });
+  M.setView(focusCenter(loc.lat, loc.lon, z), z, { animate: false });
 }
 function acceptGeoFix(coords) {
   if (!coords || !inTaiwan(coords.latitude, coords.longitude)) return null;
@@ -11877,8 +11877,8 @@ function applyBootGeo(c) {
   // 已經用快取落過點:同一帶的微調,靜靜換位置不做動畫(動畫會讓人以為地圖自己亂跑);
   // 沒落過點(首開):從全台同框飛過去,讓使用者看得出「地圖正在移到我這裡」。
   const t = focusCenter(c.latitude, c.longitude, GEO_BOOT_ZOOM);
-  if (state._geoLanded) map.setView(t, GEO_BOOT_ZOOM, { animate: false });
-  else map.flyTo(t, GEO_BOOT_ZOOM, { duration: .8 });
+  if (state._geoLanded) M.setView(t, GEO_BOOT_ZOOM, { animate: false });
+  else M.flyTo(t, GEO_BOOT_ZOOM, { duration: .8 });
   state._geoCameraAt = performance.now(); state._geoCameraLoc = { lat: c.latitude, lon: c.longitude };
   state._geoLanded = true;
 }
@@ -11898,7 +11898,7 @@ async function showNearby() {
   showMeMarker(loc.lat, loc.lon, loc.acc || 0);
   // 先開卡再算鏡頭:卡開了才知道地圖被遮掉多少,藍點才落在「露出來的那塊」中央而不是被卡片吃掉
   const nz = Math.max(M.getZoom(), GEO_BOOT_ZOOM);
-  map.flyTo(focusCenter(loc.lat, loc.lon, nz), nz, { duration: .6 });
+  M.flyTo(focusCenter(loc.lat, loc.lon, nz), nz, { duration: .6 });
   // 快取可先顯示，但一定接回前景 watch；新 fix 到了會自動更新藍點、鏡頭與清單。
   void startForegroundGeoWatch({ force: true });
 }
@@ -11927,7 +11927,7 @@ async function onLocated(lat, lon, accM) {
   showMeMarker(lat, lon, accM);
   openNearbyStations(lat, lon, accM); // 先出資訊卡,不讓相機動畫的任何意外吞掉清單
   const t = focusCenter(lat, lon, 15); // 卡片遮掉的地圖不算:藍點落在露出來那塊的中央
-  try { map.flyTo(t, 15, { duration: .8 }); } catch (e) { map.setView(t, 15); }
+  try { M.flyTo(t, 15, { duration: .8 }); } catch (e) { M.setView(t, 15); }
 }
 function openNearbyStations(lat, lon, acc) {
   // 互斥的單一入口:清單真的要開了才收掉跟隨/放空。刻意不放在 showNearby() 開頭——
@@ -12031,7 +12031,7 @@ function renderNearbyStations() {
       const row = e.target.closest('.nx-row'); if (!row) return;
       const st = state._nearList && state._nearList[+row.dataset.i];
       // 先開看板再算鏡頭:sheet 開了才知道地圖被遮多少,這一站才落在露出來那塊(見 focusCenter)
-      if (st) { openBoard(st); map.panTo(focusCenter(st.lat, st.lon)); }
+      if (st) { openBoard(st); M.panTo(focusCenter(st.lat, st.lon)); }
     };
   }
 }
@@ -14195,7 +14195,7 @@ function removePinByKey(key) { // key = lat,lon(各 6 位小數),同 userDataIte
 function gotoSavedPin(key) {
   const p = loadPins().find(p => (Number(p.lat).toFixed(6) + ',' + Number(p.lon).toFixed(6)) === key);
   if (!p) return;
-  map.setView([p.lat, p.lon], Math.max(M.getZoom(), 14));
+  M.setView([p.lat, p.lon], Math.max(M.getZoom(), 14));
   openPinAt(p.lat, p.lon);
 }
 function renderSavedPins() { // 已存地點:恆掛地圖的釘,點了重開卡;預測只在 sched,捷運頁不掛
@@ -14204,7 +14204,7 @@ function renderSavedPins() { // 已存地點:恆掛地圖的釘,點了重開卡;
   for (const p of loadPins()) {
     const mk = L.marker([p.lat, p.lon], { icon: pinIcon(true), zIndexOffset: 900 }).addTo(map);
     if (p.label) mk.bindTooltip(escHtml(String(p.label)), { direction: 'top', offset: [0, -12] });
-    mk.on('click', () => { map.panTo([p.lat, p.lon]); openPinAt(p.lat, p.lon); });
+    mk.on('click', () => { M.panTo([p.lat, p.lon]); openPinAt(p.lat, p.lon); });
     pinSaved.push(mk);
   }
 }
@@ -14476,7 +14476,7 @@ function fitData(latlngs, padRatio, keepView) {
   // 先等到 stage 有實際高度再 fit(最多重試約 1 秒)。
   // padRatio:外接框外擴比例(全台同框在手機/App 傳入,讓上下左右各留約一個台灣的空間;其餘群組不傳=貼合)。
   // keepView:只更新 _fitBounds、不動相機(群組切換不跳動)。_fitBounds 仍要更新,否則劇場模式會飛回上一個群組的框。
-  const b0 = L.latLngBounds(latlngs);
+  const b0 = M.latLngBounds(latlngs);
   const b = padRatio ? b0.pad(padRatio) : b0;
   state._fitBounds = b; // 記住實際框住的範圍:劇場模式 flyToBounds 沿用此框回到全群組視角
   if (keepView) return;
@@ -14485,7 +14485,7 @@ function fitData(latlngs, padRatio, keepView) {
     M.resize();
     const sz = M.getSize();
     if ((sz.x < 20 || sz.y < 20) && tries++ < 60) { requestAnimationFrame(doFit); return; }
-    map.fitBounds(b, { padding: [30, 30], animate: false });
+    M.fitBounds(b, { padding: [30, 30], animate: false });
   };
   doFit();
 }
@@ -14647,7 +14647,7 @@ function flyToCity(id) {
   if (!map || !id) return;
   const b = CITY_BBOX[id]; if (!b) return;
   if (state.autoTour) setAutoTour(false); // 手動書籤即接手,退出隨機/放空巡航(比照換系統)
-  map.flyToBounds(L.latLngBounds([[b[0], b[1]], [b[2], b[3]]]), { padding: [30, 30], duration: 0.8, maxZoom: 13 });
+  M.flyToBounds(M.latLngBounds([[b[0], b[1]], [b[2], b[3]]]), { padding: [30, 30], duration: 0.8, maxZoom: 13 });
 }
 // 縣市選單(附到 renderSystemsBar 的群組頁籤列尾端):選了就飛,飛完重置回「縣市」佔位——純動作選單,可連續使用同一縣市
 function buildCitySelect() {
@@ -14895,7 +14895,7 @@ function renderTopTabs(cur) {
 function groupInView(g) {
   if (!map) return false;
   const ids = g.members.length ? g.members : state.systems.map(s => s.id); // all 群 members 為空 = 全部系統
-  const b = map.getBounds(), s = b.getSouth(), n = b.getNorth(), w = b.getWest(), e = b.getEast();
+  const b = M.getBounds(), s = b.getSouth(), n = b.getNorth(), w = b.getWest(), e = b.getEast();
   let pts = 0;
   for (const id of ids) {
     const sys = state.systems.find(x => x.id === id);
@@ -15077,7 +15077,7 @@ function loadAllGroup(g, keepView) {
   // boot 首算地板時本值還沒有(用保守近似),進到全台同框後在此校正並回呼重算(_applyTaiwanFloor 是 boot 閉包函式)。
   // 保留視野時地圖沒動,M.getZoom() 是使用者當下的縮放不是開場視野 → 改用 getBoundsZoom 直接推算(與 fitBounds 同 padding)。
   state._twOpenZoom = keepView && state._fitBounds
-    ? map.getBoundsZoom(state._fitBounds, false, L.point(30, 30))
+    ? M.getBoundsZoom(state._fitBounds, false, M.point(30, 30))
     : M.getZoom();
   if (state._applyTaiwanFloor) state._applyTaiwanFloor();
   reproject();
@@ -15203,7 +15203,7 @@ function setFollow(tr, isAuto, noJump, opts) {
   state.followWrapStops = wrapMark; // 兩個撥鐘分支都判完才標記,理由見上面
   if (!noJump) {
     const pos = trainPos(tr, state.simSec) || { lat: first.lat, lon: first.lon };
-    map.setView([pos.lat, pos.lon], followEntryZoom(), { animate: false });
+    M.setView([pos.lat, pos.lon], followEntryZoom(), { animate: false });
   }
   state.followStatus = null; renderFollowBar();
   state.followEvents = []; state._evSeen = {};
@@ -15414,7 +15414,7 @@ const AMBIENT_Z = 14;
 function ambientJumpTo(tr) {
   setFollow(tr, true, true);
   const p = trainPos(tr, state.simSec) || tr.stops[0];
-  map.setView([p.lat, p.lon], AMBIENT_Z, { animate: false });
+  M.setView([p.lat, p.lon], AMBIENT_Z, { animate: false });
 }
 // 放空模式換車:淡出 → 直接切到下一班 → 淡入(不拉高俯瞰)
 function fadeSwitch(tr) {
@@ -15628,7 +15628,7 @@ function hotspotTick(now) {
     state._hotFresh = false;
     state._hotCam = true; // 自家跳景的 zoomstart 不算使用者操作
     if (sc.breath) { breathStage(); breathScale(1); } else breathStageRestore(); // 進呼吸:設旗標+起始 scale 歸 1(bt=0);出呼吸:清 scale 還原底圖
-    map.setView([sc.lat, sc.lon], sc.z, { animate: false });
+    M.setView([sc.lat, sc.lon], sc.z, { animate: false });
     state._hotCam = false;
   } else hotFadeTo(sc);
 }
@@ -15643,7 +15643,7 @@ function hotFadeTo(sc) {
     if (!alive) { veil.style.opacity = 0; state._transition = false; return; }
     state._hotCam = true; // 自家跳景的 zoomstart 不算使用者操作
     if (sc.breath) { breathStage(); breathScale(1); } else breathStageRestore(); // 進呼吸:設旗標+起始 scale 歸 1(bt=0,避免遮幕下殘留前一幕縮放);出呼吸:清 scale 還原底圖
-    map.setView([sc.lat, sc.lon], sc.z, { animate: false });
+    M.setView([sc.lat, sc.lon], sc.z, { animate: false });
     state._hotCam = false;
     veil.style.opacity = 0;
     setTimeout(() => { state._transition = false; }, 750);
@@ -15674,7 +15674,7 @@ function hotCruise(dt, now) {
   // 錨點:每 2 秒重算視野(外擴 20%)內運行列車的重心,視野內沒車就取全圖最近的一台
   if (!sc.anchorAt || now - sc.anchorAt > 2000) {
     sc.anchorAt = now;
-    const box = map.getBounds().pad(0.2), c = M.getCenter();
+    const box = M.getBounds().pad(0.2), c = M.getCenter();
     let lat = 0, lon = 0, n = 0, near = null, nd = Infinity;
     for (const t of state.trains) {
       if (!state.visible.has(t.typeName)) continue;
@@ -15701,9 +15701,9 @@ function hotCruise(dt, now) {
   }
   sc.dir += turn;
   const step = HOT_SPEED * dt;
-  sc.px = L.point(sc.px.x + Math.cos(sc.dir) * step, sc.px.y + Math.sin(sc.dir) * step);
+  sc.px = M.point(sc.px.x + Math.cos(sc.dir) * step, sc.px.y + Math.sin(sc.dir) * step);
   const dst = M.worldUnpx(sc.px, zNow);
-  map.setView(dst, zNow, { animate: false });
+  M.setView(dst, zNow, { animate: false });
 }
 function hotspotStop() {
   state._hotScene = null; state._hotNext = 0; state._hotYield = 0;
@@ -15818,7 +15818,7 @@ function enterTheater() {
   setTimeout(() => {
     if (!state._theater) { if (veil) veil.style.opacity = 0; state._transition = false; return; } // 淡出途中被互動叫醒
     state._hotCam = true; // 自家跳景的 zoomstart 不算使用者操作
-    try { map.fitBounds(L.latLngBounds(TW_BOX[0], TW_BOX[1]), { padding: [30, 30], animate: false }); } catch (e) {}
+    try { M.fitBounds(M.latLngBounds(TW_BOX[0], TW_BOX[1]), { padding: [30, 30], animate: false }); } catch (e) {}
     state._hotCam = false;
     if (veil) veil.style.opacity = 0;
     setTimeout(() => { state._transition = false; }, 750);
@@ -17487,7 +17487,7 @@ function gotoFavStationKey(key) {
     || GROUPS[0];
   selectGroup(g); // 已在該群組時內部直接 return,不重載
   closeFavPanel();
-  map.setView([f.lat, f.lon], Math.max(M.getZoom(), 13), { animate: false });
+  M.setView([f.lat, f.lon], Math.max(M.getZoom(), 13), { animate: false });
   let st = null;
   if (state.mode !== 'sched') st = { name: f.name, lat: f.lat, lon: f.lon, sys: 'freq', metroSysId: f.metroSysId };
   else if (f.sys === 'metro') st = state.deco ? { name: f.name, lat: f.lat, lon: f.lon, sys: 'deco', metroSysId: f.metroSysId } : null;
@@ -20706,7 +20706,7 @@ function renderExplorePanel() {
       const st = eventStation(ev), u = evUrl(ev);
       // 解析得到就飛過去開板(openBoard 自己會關本面板);解析不到(例如在台鐵分頁點北捷活動)
       // 給原文連結,不自動切分頁
-      if (st) { openBoard(st); map.panTo(focusCenter(st.lat, st.lon)); }
+      if (st) { openBoard(st); M.panTo(focusCenter(st.lat, st.lon)); }
       else if (u) window.open(u, '_blank', 'noopener');
       return;
     }
@@ -21663,9 +21663,9 @@ function focusCenter(lat, lon, z, extra) {
   // want(只含讓位)對上 have(讓位+前瞻),差量自動把前瞻退掉,不需要任何專屬清理碼
   const want = { x: s.x + (extra ? extra.x : 0), y: s.y + (extra ? extra.y : 0) };
   const zz = (z == null ? M.getZoom() : z);
-  if (!want.x && !want.y) { state._focusShift = { x: 0, y: 0 }; return L.latLng(lat, lon); }
+  if (!want.x && !want.y) { state._focusShift = { x: 0, y: 0 }; return M.latLng(lat, lon); }
   const p = M.worldPx([lat, lon], zz);
-  const t = M.worldUnpx(L.point(p.x + want.x, p.y + want.y), zz);
+  const t = M.worldUnpx(M.point(p.x + want.x, p.y + want.y), zz);
   return focusApplyLimit(t, zz, want);
 }
 // 面板開/關/換段高:只補「位移量的差」,不去猜使用者在看誰。
@@ -21686,7 +21686,7 @@ function reframeFocus() {
   // 記帳前先問「這段位移做得到嗎」:maxBounds 會夾(見 focusCenter 的說明),夾了還記成做到就會帳實不符
   const before = M.getCenter();
   state._autoPan = true;
-  map.panBy([dx, dy], { animate: false }); // 刻意不補間:圖磚層與列車 canvas 是兩層,動畫期間會脫鉤(v0713u 的教訓)
+  M.panBy([dx, dy], { animate: false }); // 刻意不補間:圖磚層與列車 canvas 是兩層,動畫期間會脫鉤(v0713u 的教訓)
   state._autoPan = false;
   const z = M.getZoom(), pb = M.worldPx(before, z), pa = M.worldPx(M.getCenter(), z);
   state._focusShift = { x: (have.x || 0) + (pa.x - pb.x), y: (have.y || 0) + (pa.y - pb.y) };
@@ -21703,7 +21703,7 @@ function recenterTo(lat, lon, extra) {
   const c = M.getCenter();
   if (Math.abs(c.lat - t.lat) < 1e-6 && Math.abs(c.lng - t.lng) < 1e-6) return; // 中心已到位(停站/暫停)免重複 setView
   state._autoPan = true; // 標記「這是跟隨鏡頭不是使用者拖曳」——tap-pick 選單靠它分辨,別誤收(見 closeTapPickOnUserMove)
-  map.setView(t, M.getZoom(), { animate: false });
+  M.setView(t, M.getZoom(), { animate: false });
   state._autoPan = false;
 }
 
@@ -21856,10 +21856,10 @@ function updateFollowCamera() {
     else if (!state._camOffAt) state._camOffAt = nowMs;
     else if (!animBusy && nowMs - state._camOffAt > 3500 && nowMs - (state._gestureAt || 0) > 2000) {
       state._camOffAt = 0; state._camRescues = (state._camRescues || 0) + 1;
-      if (zaStuck) { try { map.stop(); } catch (e) {} if (state._endZoomAnim) state._endZoomAnim(); }
+      if (zaStuck) { try { M.stop(); } catch (e) {} if (state._endZoomAnim) state._endZoomAnim(); }
       state._autoPan = true;
       try {
-        map.setView(focusCenter(pos.lat, pos.lon, followEntryZoom(), followAheadPx(tr, pos)), followEntryZoom(), { animate: false });
+        M.setView(focusCenter(pos.lat, pos.lon, followEntryZoom(), followAheadPx(tr, pos)), followEntryZoom(), { animate: false });
       } finally { state._autoPan = false; }
     }
   }
@@ -25959,7 +25959,7 @@ function gotoStn(e) {
   const r = stnNavResolve(e);
   if (r.group) selectGroup(r.group); // 已在該群組時內部直接 return,不重載
   closeSearchDrop();
-  map.setView([e.lat, e.lon], Math.max(M.getZoom(), 13), { animate: false });
+  M.setView([e.lat, e.lon], Math.max(M.getZoom(), 13), { animate: false });
   openBoard(r.st);
 }
 
@@ -27864,7 +27864,7 @@ function ensureMetroWaitListener() {
         return;
       }
       openBoard(st);
-      map.panTo(focusCenter(st.lat, st.lon));
+      M.panTo(focusCenter(st.lat, st.lon));
       metroWaitStartFor(sys, st, state.lines, state.deco);
     } catch (e) { console.error('waitOpen 深連結處理失敗', e); }
   });
@@ -29198,7 +29198,7 @@ const HELP_TRY = {
     run: () => { const i = document.getElementById('trainSearch'); if (!i) return; i.focus(); i.value = stationName('台北', 'tra_sched'); i.dispatchEvent(new Event('input', { bubbles: true })); } },
   follow: { id: 'randBtn', toast: '正在跟一班車——小卡的 × 可以結束' },
   board: { ok: () => !!helpNearestStation(),
-    run: () => { const st = helpNearestStation(); if (!st) return showToast(t('這個檢視附近沒有車站，換個系統頁籤再試')); openBoard(st); map.panTo(focusCenter(st.lat, st.lon)); } },
+    run: () => { const st = helpNearestStation(); if (!st) return showToast(t('這個檢視附近沒有車站，換個系統頁籤再試')); openBoard(st); M.panTo(focusCenter(st.lat, st.lon)); } },
   // 這兩顆都是「開一張浮層」型:代點就是真的按下去,不寫 localStorage、沒有副作用。
   // 🔴 群組鈕只在手機殼現身(桌面是四顆分頁),所以先驗它看不看得見,看不見就用吐司指路——
   //    直接 click 一顆 display:none 的鈕不會有任何反應,那種「試一次」等於壞掉。
@@ -30559,7 +30559,7 @@ function webMcpOpenStation(args) {
   if (!st) return { ok: false, error: 'station_open_failed', message: '切換路網後仍無法開啟這座站。', ...webMcpBase() };
   if (state.autoTour) setAutoTour(false);
   openBoard(st);
-  try { map.setView(focusCenter(st.lat, st.lon), Math.max(M.getZoom(), 13), { animate: false }); } catch (e) {}
+  try { M.setView(focusCenter(st.lat, st.lon), Math.max(M.getZoom(), 13), { animate: false }); } catch (e) {}
   return { ok: true, action: 'station_board_opened', station: webMcpPublicStation(resolved.rec),
     switched_to_all_view: switched, board_is_open: state.boardStation === st, ...webMcpBase() };
 }
@@ -30696,7 +30696,7 @@ async function boot() {
   //      於此重算;全台同框開場視野等於「地板+N 級」,不受影響。
   //  (2) 平移硬牆:視野被鉗在「活動範圍」(台灣框外擴 ROAM_PAD,一圈海域當邊距)內,拖到邊界即停。
   //      viscosity 1.0=硬牆拖不出去;setView 也會被 Leaflet 一併鉗回(異常深連結亦擋)。
-  const TW_BOUNDS = L.latLngBounds(TW_BOX[0], TW_BOX[1]); // 台灣本島外接框(離島無鐵路不納);定位守門 inTaiwan 共用同一個框
+  const TW_BOUNDS = M.latLngBounds(TW_BOX[0], TW_BOX[1]); // 台灣本島外接框(離島無鐵路不納);定位守門 inTaiwan 共用同一個框
   // 註:曾經給圖磚層掛 bounds 只載入台灣周遭(省框外圖磚),但把畫面切得太緊、四周留白像壞掉(使用者回報),
   // 已移除。改由 minZoom 地板(開場再往外縮 N 級為限,不會縮到看全世界)＋平移硬牆(活動範圍)共同界定合理範圍,
   // 圖磚在此範圍內自然填滿、不留白。要重新省框外圖磚,得另想不切出留白的做法(例如提高地板那會犧牲全台同框)。
@@ -30706,7 +30706,7 @@ async function boot() {
   function roamBounds() { return TW_BOUNDS.pad(ROAM_PAD); }
   function openFitZoom() { // 用台灣框近似「全台同框開場等效 zoom」(手機/App 外擴 0.55、桌機 0)
     const margin = railWantsTaiwanMargin() ? TW_MOBILE_MARGIN : 0;
-    return map.getBoundsZoom(TW_BOUNDS.pad(margin), false);
+    return M.getBoundsZoom(TW_BOUNDS.pad(margin), false);
   }
   function applyTaiwanFloor() {
     state._panFence = roamBounds();
@@ -30715,9 +30715,9 @@ async function boot() {
     // 通常比真實開場低 1 級,直接拿它-N 會偷放到東亞,故 fallback 不減級,待進過一次全台同框就校正到精準值。
     let floor;
     if (Number.isFinite(state._twOpenZoom)) floor = state._twOpenZoom - ZOOM_OUT_LEVELS;
-    else { const a = openFitZoom(); floor = Number.isFinite(a) ? a : map.getBoundsZoom(roamBounds(), false); }
-    if (Number.isFinite(floor)) map.setMinZoom(floor); // 從開場再往外 N 級才停(非東亞/全世界)
-    if (state._fenceOn) map.setMaxBounds(state._panFence); // 平移硬牆=活動範圍(硬牆恆開,見 syncPanFence)
+    else { const a = openFitZoom(); floor = Number.isFinite(a) ? a : M.getBoundsZoom(roamBounds(), false); }
+    if (Number.isFinite(floor)) M.setMinZoom(floor); // 從開場再往外 N 級才停(非東亞/全世界)
+    if (state._fenceOn) M.setMaxBounds(state._panFence); // 平移硬牆=活動範圍(硬牆恆開,見 syncPanFence)
   }
   state._applyTaiwanFloor = applyTaiwanFloor; // 頂層 loadAllGroup 擷取真實開場 zoom 後,回呼此閉包函式校正地板
   // 🔴 maxBounds 的語意是「使用者**看得到**的範圍不要跑出台灣」。Leaflet 原生拿「整個容器」當可視框去夾,
@@ -30975,7 +30975,7 @@ async function boot() {
   document.getElementById('xingCard').addEventListener('click', ev => {
     if (ev.target.closest('button')) return;
     const r = M.getContainer().getBoundingClientRect();
-    const cp = L.point(ev.clientX - r.left, ev.clientY - r.top);
+    const cp = M.point(ev.clientX - r.left, ev.clientY - r.top);
     let stD = 1e9;
     for (const st of (state.schedStations || [])) {
       const p = M.toScreen([st.lat, st.lon]);
@@ -31472,16 +31472,16 @@ async function boot() {
       const tr0 = findTrain(deepTrain);
       if (tr0) { document.getElementById('trainSearch').value = tr0.train; setFollow(tr0); }
     } else if (deepAt) {
-      map.setView(deepAt, deepZ != null ? deepZ : M.getZoom(), { animate: false });
+      M.setView(deepAt, deepZ != null ? deepZ : M.getZoom(), { animate: false });
     } else if (defPlace) {
-      map.setView([defPlace.lat, defPlace.lon], defPlace.z, { animate: false }); // 預設啟動地點:置中到儲存地點(全台同框群組已載入)
+      M.setView([defPlace.lat, defPlace.lon], defPlace.z, { animate: false }); // 預設啟動地點:置中到儲存地點(全台同框群組已載入)
     } else if (geoCache) {
-      map.setView([geoCache.lat, geoCache.lon], GEO_BOOT_ZOOM, { animate: false }); // 上次定位到的地方:0 秒落點,真定位回來再校正
+      M.setView([geoCache.lat, geoCache.lon], GEO_BOOT_ZOOM, { animate: false }); // 上次定位到的地方:0 秒落點,真定位回來再校正
       state.geoLoc = { lat: geoCache.lat, lon: geoCache.lon, acc: geoCache.acc || 0 };
       state.geoFollow = true; showMeMarker(geoCache.lat, geoCache.lon, geoCache.acc || 0);
       state._geoLanded = true;
     } else if (lastView) {
-      map.setView([lastView.lat, lastView.lon], lastView.z, { animate: false }); // 回到上次離開的位置(群組已於上面一併還原)
+      M.setView([lastView.lat, lastView.lon], lastView.z, { animate: false }); // 回到上次離開的位置(群組已於上面一併還原)
     }
   }
   map.on('moveend', saveLastView); // 記住使用者最後看的畫面;守門條件都在 saveLastView 內(巡航/跟車皆不寫)
