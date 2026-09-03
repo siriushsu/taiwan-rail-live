@@ -187,6 +187,8 @@
         "Ambient mode is now sit-back-and-watch: the map can no longer be dragged or pinched off course, and leaving then re-entering no longer shrinks the Exit ambient mode button into an empty stub you cannot tap.",
       '跟捷運列車時，卡片上會顯示這一台車每一節車廂的擁擠度':
         'While following a Taipei Metro train, the card shows how crowded each carriage of that train is.',
+      'iPad 與 Android 平板改用完整觸控版面；橫放時資訊停在右側，地圖保留主要空間':
+        'iPad and Android tablets now use the full touch layout; in landscape, information stays in a right rail so the map remains the focus.',
       '更新紀錄改得更精簡好讀，資料來源、專案授權與隱私說明也同步校正':
         'The update history is now shorter and easier to scan, with source, licensing and privacy notices brought up to date.',
       'App 配樂新增「車聲」：跟車時隨行駛播放，停站淡出；放空模式持續播放':
@@ -572,6 +574,8 @@
         '鑑賞モードは「眺めるだけ」に：地図が指で動かされたりズームがずれたりせず、いったん終了してもう一度入っても「鑑賞モードを終了」ボタンが押せない小さなボタンに縮まなくなりました。',
       '跟捷運列車時，卡片上會顯示這一台車每一節車廂的擁擠度':
         '台北メトロの列車を追跡中、その列車の車両ごとの混雑度をカードに表示します。',
+      'iPad 與 Android 平板改用完整觸控版面；橫放時資訊停在右側，地圖保留主要空間':
+        'iPadとAndroidタブレットでタッチ向けレイアウトを完全に利用できるようにし、横向きでは情報を右レールにまとめて地図を広く保ちます。',
       '更新紀錄改得更精簡好讀，資料來源、專案授權與隱私說明也同步校正':
         '更新履歴を短く読みやすく整理し、データ出典・ライセンス・プライバシーの案内も現状に合わせました。',
       'App 配樂新增「車聲」：跟車時隨行駛播放，停站淡出；放空模式持續播放':
