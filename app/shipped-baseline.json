@@ -2157,11 +2157,22 @@
   "allowRemoved": {
     "_why": "2026-09-02 使用者裁示刪除站內錄影功能(REC 物件/recStart..setupRecorder/WM_LOGO 浮水印/RECORDING_ENABLED、REC_MUSIC_PROTOTYPE 旗標)與其專用混音圖(musicMixEntitled/musicEnsureMix/musicResumeMix/musicRecordingLicensed;唯一消費者是 recStart,音樂播放本身不經混音圖,不受影響)。這些符號刻意不再出現,不是被合併吃掉的回歸。",
     "functions": [
+      "advanceDirectorBasemap",
+      "ambientJumpToMetro",
+      "directorClockTick",
+      "directorTick",
       "drawWatermark",
+      "fadeSwitchMetro",
+      "initDirector",
+      "initLive",
+      "liveClockTick",
+      "metroCoverage",
       "musicEnsureMix",
       "musicMixEntitled",
       "musicRecordingLicensed",
       "musicResumeMix",
+      "pickCityOverview",
+      "pickTourMetro",
       "recCompose",
       "recDownload",
       "recFrame",
@@ -2172,6 +2183,10 @@
       "setupRecorder"
     ],
     "elementIds": [
+      "liveHud",
+      "msStatReplay",
+      "msStatReplayVal",
+      "phSortSeg",
       "recBtn",
       "recPill",
       "recRedl",
@@ -2179,13 +2194,24 @@
       "recToast",
       "recToastTxt",
       "recToastX",
-      "phSortSeg"
+      "replayBadge"
     ],
     "gates": [
+      "CITY_OVERVIEW_SPEED",
+      "DIRECTOR_FOLLOW_Z",
+      "DIRECTOR_KEY",
+      "DIR_BASEMAPS",
+      "DIR_FOLLOW_BLOCK",
+      "LIVE_REPLAY_FROM",
+      "METRO_TOUR_CHANCE",
       "RECORDING_ENABLED",
       "REC_MUSIC_PROTOTYPE",
       "WM_LOGO"
     ],
-    "_why_elementIds": "2026-09-03 phSortSeg:5786cd0d(v0903d 完乘記錄「順序」排法)把寫死的 id=\"phSortSeg\" 改成 buildRideSortSeg(rideSort, 'phSortSeg') 在執行期產生,元素仍在、點擊改認 .ph-sort class;閘門的靜態 regex 看不到執行期字串,不是被合併吃掉的回歸。"
+    "urlParams": [
+      "live"
+    ],
+    "_why_obs": "2026-09-03 使用者裁示刪除 OBS 直播殼(?live=1)與導播模式(?live=2&k=):initLive/initDirector 等函式、liveHud/replayBadge/msStatReplay* 元素、DIRECTOR_KEY 等常數、URL 參數 live,以及放空模式裡只服務導播的 pickTourMetro/pickCityOverview/metroCoverage/fadeSwitchMetro/ambientJumpToMetro。從未對外宣布,無更新紀錄條目;守門人 scripts/verify_obs_removed.mjs。main 5122754e、正式站 v0903e。",
+    "_why_phSortSeg": "與 OBS 無關:v0903c/d 完乘「順序」排法改由 buildRideSortSeg(rideSort, \"phSortSeg\") 動態組出 id,靜態 grep 看不到 id=\"phSortSeg\" 字面,元素在執行期仍存在(index.html 約 20472 行)。"
   }
 }

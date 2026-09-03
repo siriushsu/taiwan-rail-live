@@ -10,7 +10,7 @@
 // 這支腳本刻意分成三段,對應三種不同的失效方式:
 //   A 段 幾何:字放大之後東西還在不在畫面裡(頂列四顆分頁、tab bar 標籤)
 //   B 段 互動:真的用手指點那顆鈕會不會發生事(不是只看 CSS 算出什麼)
-//   C 段 契約:?live=1 直播殼恆定標準字級、系統字級的正反向對照
+//   C 段 契約:系統字級的正反向對照
 import { chromium, webkit } from 'playwright';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -243,17 +243,8 @@ async function sectionB(browser, engine) {
   await close();
 }
 
-// ── C 段:契約——直播殼與系統字級 ────────────────────────────────────────────
+// ── C 段:契約——系統字級 ────────────────────────────────────────────
 async function sectionC(browser, engine) {
-  // ?live=1 是 OBS 訊號源契約:版面固定,不可以因為某台裝置存過字級偏好就變形
-  const live = await boot(browser, { tier: 'xlarge', query: '?live=1' });
-  const lr = await live.page.evaluate(() => ({
-    fs: document.documentElement.getAttribute('data-fs'),
-    ui: getComputedStyle(document.documentElement).getPropertyValue('--ui').trim(),
-  }));
-  ok(`C1 ${engine} ?live=1 即使存過特大也恆定標準字級`, lr.fs === null && lr.ui === '1', JSON.stringify(lr));
-  await live.close();
-
   // 系統字級:正反向對照。iOS 的 -apple-system-body 在輔助使用級別會回報 >= 28px。
   // 這裡用 !important 蓋掉探針 span 的字級來模擬——只有正向沒有反向的話,「永遠回 xlarge」也會全綠。
   const { page, close } = await boot(browser, { tier: 'std' });
@@ -772,7 +763,7 @@ async function sectionI(browser, engine) {
   //    I2c 反向對照——把最後降級的那一顆放回文字,整排必須**真的**塞不下。少了這條,
   //        「乾脆永遠全部收成色點」照樣全綠(那正是舊判準的樣子)。
   const fitProbe = await page.evaluate(() => {
-    const DEG = ['metroBadge', 'peak', 'replayBadge', 'liveBadge'];
+    const DEG = ['metroBadge', 'peak', 'liveBadge'];
     const bar = document.getElementById('topbar');
     if (!bar) return { err: 'no-topbar' };
     const plate = bar.querySelector('.tb-plate');
@@ -841,7 +832,7 @@ async function sectionI(browser, engine) {
       };
       const src = id => { const e = document.getElementById(id); return e && !e.hidden ? e.textContent.trim() : null; };
       return { secDrawn: !!sec && sec.getClientRects().length > 0,
-        live: row('msStatLive'), metro: row('msStatMetro'), replay: row('msStatReplay'), count: row('msStatCount'),
+        live: row('msStatLive'), metro: row('msStatMetro'), count: row('msStatCount'),
         srcLive: src('liveBadge'), srcMetro: src('metroBadge'), srcCount: src('count'),
         liveHidden: !!document.getElementById('liveBadge').hidden };
     });
@@ -876,14 +867,24 @@ async function sectionI(browser, engine) {
   ok(`I6 ${tag} 反向對照:徽章藏起來 ⇒ 該列整列消失`,
     !B.live.drawn && B.live.h === 0, `drawn=${B.live.drawn} h=${B.live.h}`);
   await page.evaluate(() => { if (window.__realULB) window.updateLiveBadge = window.__realULB; });
-  // 反向對照②:本來沒有的旗標亮起來 ⇒ 對應列必須出現
+  // 反向對照②:旗標從暗變亮 ⇒ 對應列必須出現。改拿捷運看板燈當受測旗標(REPLAY 燈已隨 OBS 模式刪除)。
+  // 它在捷運即時資料在場時本來就亮,所以不能假設它暗:先凍住 updateMetroBadge(同 I6 凍 updateLiveBadge 的理由)
+  // 把它弄暗、驗過那一列真的塌成 0 高(前置),再點亮驗列出現——沒有這個前置,「本來就亮」會讓 I7 恆真。
   await page.evaluate(() => {
-    const r = document.getElementById('replayBadge');
-    r.hidden = false; r.textContent = 'REPLAY';
+    window.__realUMB = window.updateMetroBadge;
+    window.updateMetroBadge = () => {};
+    document.getElementById('metroBadge').hidden = true;
+  });
+  const B2 = await open();
+  ok(`I7a ${tag} 前置·捷運看板燈弄暗後該列真的消失`, !B2.metro.drawn && B2.metro.h === 0, `drawn=${B2.metro.drawn} h=${B2.metro.h}`);
+  await page.evaluate(() => {
+    const r = document.getElementById('metroBadge');
+    r.hidden = false; r.textContent = '看板校正';
   });
   const C = await open();
-  ok(`I7 ${tag} 反向對照:旗標亮起來 ⇒ 該列出現`, C.replay.drawn && C.replay.h > 0,
-    `drawn=${C.replay.drawn} h=${C.replay.h}`);
+  ok(`I7 ${tag} 反向對照:旗標亮起來 ⇒ 該列出現`, C.metro.drawn && C.metro.h > 0,
+    `drawn=${C.metro.drawn} h=${C.metro.h}`);
+  await page.evaluate(() => { if (window.__realUMB) window.updateMetroBadge = window.__realUMB; });
   ok(`I8 ${tag} 零 pageerror`, errs.length === 0, errs.slice(0, 1).join(''));
   await close();
 }
@@ -2892,14 +2893,14 @@ const SP_SEE = () => {
 // 卡的內容 + 徽章當下**看得見**的燈(覆蓋率斷言用)。k→id 這張表測試自己寫一份,不讀實作的
 // STAT_POP_KEYS——判準與實作同源會一起錯(judgment 心得 29)。
 const SP_READ = () => {
-  const K2ID = { live: 'liveBadge', metro: 'metroBadge', replay: 'replayBadge', peak: 'peak', count: 'count' };
+  const K2ID = { live: 'liveBadge', metro: 'metroBadge', peak: 'peak', count: 'count' };
   const pop = document.getElementById('statPop');
   const rows = [...pop.querySelectorAll('.sp-row')].map(r => ({
     k: r.dataset.k,
     lab: ((r.querySelector('.lab') || {}).textContent || '').trim(),
     val: ((r.querySelector('.val') || {}).textContent || '').trim(),
   }));
-  const lampIds = ['liveBadge', 'metroBadge', 'replayBadge', 'peak', 'count']
+  const lampIds = ['liveBadge', 'metroBadge', 'peak', 'count']
     .filter(id => { const e = document.getElementById(id); return e && !e.hidden && e.textContent.trim(); });
   return { rows, lampIds,
     covered: lampIds.filter(id => rows.some(r => K2ID[r.k] === id)),

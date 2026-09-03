@@ -222,22 +222,6 @@ for (const [engName, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     await ctx.close();
   }
 
-  // ── E. ?live=1 直播殼:互動 UI 全藏、HUD 放大 ──
-  {
-    const { ctx, page } = await bootPage(browser, { width: 1920, height: 1080, url: URL + '?live=1' });
-    await page.waitForTimeout(1500);
-    const live = await page.evaluate(() => ({
-      liveClass: document.body.classList.contains('live'),
-      controls: getComputedStyle(document.querySelector('.controls')).display,
-      tabbar: getComputedStyle(document.querySelector('.tabbar')).display,
-      clock: getComputedStyle(document.querySelector('.badge .clock')).fontSize,
-      wm: getComputedStyle(document.querySelector('.live-wm')).fontSize,
-      attr: getComputedStyle(document.querySelector('.leaflet-control-attribution')).fontSize,
-    }));
-    ok(`${engName} E1 直播殼`, live.liveClass && live.controls === 'none' && live.tabbar === 'none' && live.clock === '46px' && live.wm === '24px' && live.attr === '16px', JSON.stringify(live));
-    await ctx.close();
-  }
-
   await browser.close();
 }
 

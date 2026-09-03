@@ -46,7 +46,7 @@
     color-scheme:light;
     /* 字級三階(標準/大/特大)的倍率。全檔 font-size 都寫成 calc(Npx * var(--ui)),
        改這一顆就整個介面跟著放大;padding/gap/圓角刻意不吃倍率——設計要的是「同一份版面塞進更多字」,
-       不是整體放大鏡(見設計檔 TURN 10/12「欄位一個都沒收」)。?live=1 直播殼強制 1(OBS 契約)。 */
+       不是整體放大鏡(見設計檔 TURN 10/12「欄位一個都沒收」)。 */
     --ui: 1;
     /* 設計檔 TURN 5/6 的字級對照表不是單一倍率:主文與主要數值走 1／1.25／1.5,
        但小標籤(11→12.5→14)與次要說明(11.5→13→15)只走 1／1.14／1.29——它們本來就小,
@@ -1202,7 +1202,7 @@
     padding: 1px 5px; border: 1.5px solid var(--red); border-radius: 6px; line-height: 1.5;
   }
   /* 轉乘接續。落點在 .xfer-tag 那一列的下方(跟隨卡/捷運卡/手機列車卡),共用那一區的字級變數。 */
-  /* v0901 窄卡排版:容器寬度不是這一塊能決定的(桌面 240 / 全畫面 300 / 手機與放空 176 / 直播 400),
+  /* v0901 窄卡排版:容器寬度不是這一塊能決定的(桌面 240 / 全畫面 300 / 手機與放空 176),
      所以斷點吃 container query 而不是裝置——放空模式與手機 sheet 也會落到窄支。
      欄位優先序:車次與「剩 N 分」永不壓縮、永不換行(那是使用者要的兩個數字),
      只有 .xfc-d(時刻＋往哪)吃 ellipsis。 */
@@ -1229,7 +1229,7 @@
   .xfer-conn .xfc-left { grid-area: left; justify-self: end; font-size: calc(13px * var(--uis));
     font-weight: 800; color: var(--ink-strong); font-variant-numeric: tabular-nums; white-space: nowrap; }
   /* 寬支:收成一行。container-type 掛在 .xfer-conn 身上,所以斷點量的是「區塊自己的內容寬」
-     而不是卡片寬——桌面 240 卡＝194px、全畫面 300 卡＝254px、直播 400 卡＝354px。
+     而不是卡片寬——桌面 240 卡＝194px、全畫面 300 卡＝254px。
      240 一行差 4px 放不下站名(五欄要 199),門檻取 250:240 排除、300 起收一行。 */
   @container (min-width: 250px) {
     .xfer-conn .xfc-row { grid-template-columns: auto auto 1fr auto;
@@ -1767,57 +1767,6 @@
   /* 放空=相機交給程式(見 setMapGestures):桌面的 Leaflet +/- 鈕一併收,免得留一條繞過手勢鎖的路。
      手機在 max-width:900 那條規則裡本來就是 display:none。 */
   body.ambient .leaflet-control-zoom { display: none; }
-
-  /* ── 直播模式(?live=1,OBS 訊號源):隱藏一切互動 UI,留時鐘徽章/attribution/浮水印 ── */
-  body.live .controls, body.live #randBtn, body.live #nearBtn,
-  body.live .leaflet-control-zoom,
-  body.live .follow-lock-ctl, body.live .citysel, body.live #fsFab, body.live .tabbar { display: none !important; }
-  body.live .leaflet-control-container { opacity: 1 !important; }
-  body.live .leaflet-bottom.leaflet-right { bottom: 0; }
-  .live-hud { position: absolute; top: 64px; left: 12px; z-index: 600; pointer-events: none; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
-  .live-hud[hidden] { display: none; }
-  .live-wm { font-size: calc(11.5px * var(--uis)); font-weight: 800; letter-spacing: .8px; color: rgba(30,44,64,.55); padding-left: 2px; }
-  html[data-theme=dark] .live-wm { color: rgba(236,240,248,.5); }
-  .badge .replay { font-size: calc(11px * var(--uis)); font-weight: 900; color: #fffdf6; background: var(--red); border-radius: 3px; padding: 0 5px; letter-spacing: .5px; }
-
-  /* 直播訊號資訊欄放大(僅 body.live):1080p 實尺——時鐘 46/LIVE 22/REPLAY 20/浮水印 24/attribution 16 */
-  body.live .badge { padding: 14px 26px 15px; gap: 18px; }
-  body.live .badge .clock { font-size: calc(46px * var(--ui)); }
-  body.live .badge .peak { font-size: calc(20px * var(--ui)); padding: 4px 14px; }
-  body.live .badge .count { font-size: calc(20px * var(--ui)); }
-  body.live .badge .live, body.live .badge .mlive { font-size: calc(22px * var(--ui)); }
-  body.live .badge .replay { font-size: calc(20px * var(--ui)); }
-  body.live .live-hud { top: 118px; gap: 10px; }
-  body.live .live-wm { font-size: calc(24px * var(--ui)); }
-  body.live .leaflet-control-attribution { font-size: calc(16px * var(--ui)); }
-  body.live .dwell-plate {
-    min-width: 460px; left: 50%; top: 20px;
-    transform: translateX(-50%) translateY(-5px);
-  }
-  body.live .dwell-plate.show { transform: translateX(-50%); }
-  body.live .dwell-plate b { font-size: calc(46px * var(--ui)); padding: 15px 32px 11px; }
-  body.live .dwell-plate .dp-intro { font-size: calc(19px * var(--ui)); }
-  body.live .dwell-plate .dp-intro .dp-intro-lbl { font-size: calc(16px * var(--ui)); }
-  body.live .dwell-plate .dp-strip { padding: 9px 20px 10px; }
-  body.live .dwell-plate .side { font-size: calc(19px * var(--ui)); }
-  body.live .dwell-plate .side .arr { font-size: calc(17px * var(--ui)); }
-  body.live .dwell-plate .side .km { font-size: calc(16px * var(--ui)); }
-  body.live .follow-panel { width: 400px; bottom: 12px; }
-  body.live .follow-panel .fp-head b { font-size: calc(25px * var(--ui)); }
-  body.live .follow-panel .fp-head .kind { font-size: calc(19px * var(--ui)); }
-  body.live .follow-panel .fp-head .spd { font-size: calc(18px * var(--ui)); }
-  body.live .follow-panel .fp-head .spd b { font-size: calc(40px * var(--ui)); }
-  body.live .follow-panel .fp-next .lbl { font-size: calc(17px * var(--ui)); }
-  body.live .follow-panel .fp-next .stn { font-size: calc(26px * var(--ui)); }
-  body.live .follow-panel .fp-next .eta { font-size: calc(20px * var(--ui)); }
-  body.live .follow-panel .fp-prog .txt { font-size: calc(17px * var(--ui)); }
-  body.live .follow-panel .fp-dest { font-size: calc(18px * var(--ui)); }
-  body.live .follow-panel .fp-status { font-size: calc(19px * var(--ui)); }
-  body.live .freq-card { width: 340px; bottom: 12px; }
-  body.live .freq-card .fc-head b { font-size: calc(24px * var(--ui)); }
-  body.live .freq-card .fc-dir { font-size: calc(18px * var(--ui)); }
-  body.live .freq-card .fc-next .lbl { font-size: calc(17px * var(--ui)); }
-  body.live .freq-card .fc-next .stn { font-size: calc(25px * var(--ui)); }
 
   /* 地圖動作列容器:桌面 display:contents ＝盒子不生成,兩顆鈕照舊各自對 #stage 絕對定位(零變化);
      手機(≤900)才變成真正的並排 flex 列,見手機區塊。 */
@@ -3300,7 +3249,7 @@
     .stage { height: calc(100dvh - 252px); min-height: 380px; }
     /* 手機開站即全螢幕殼:⛶ 全畫面切換鈕廢止(fs 常駐,無退出動作) */
     #fsFab { display: none !important; }
-    /* 地圖頂浮動列:手機 fs 常駐——左=軌島迷你牌,右=全/台/高/捷短標;首繪即佔位(topTabs 靜態預置);直播/放空不顯示 */
+    /* 地圖頂浮動列:手機 fs 常駐——左=軌島迷你牌,右=全/台/高/捷短標;首繪即佔位(topTabs 靜態預置);放空不顯示 */
     body.fs .topbar {
       position: absolute; top: calc(8px + var(--sa-t)); left: 10px; right: 10px;
       display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
@@ -3369,7 +3318,6 @@
          判準不是字級也不是寬度常數,是「頂列這一排真的塞不塞得下」,量出來才知道。 */
     body.fs .topbar .badge .live,
     body.fs .topbar .badge .mlive { font-size: calc(10px * var(--uis)); letter-spacing: .3px; }
-    body.fs .topbar .badge .replay { font-size: calc(10px * var(--uis)); padding: 1px 5px 2px; }
     body.fs .topbar .badge .peak { font-size: calc(10.5px * var(--uis)); padding: 1px 7px 2px; }
     body.fs .topbar .badge .peak:empty { display: none; }
     /* 非即時不脈動——與獨立卡時期的語意一致 */
@@ -3378,13 +3326,12 @@
     /* 列車數留在「資料狀態」卡裡,不進膠囊 */
     body.fs .topbar .badge .count { display: none; }
     /* 排不下時的退路:**逐顆**降級成 7px 脈動色點(08-22 那版的樣子),不是整排一起變——
-       放得下幾顆字就留幾顆,由 fitBadgeDetail() 依優先序(即時 > 重播 > 尖峰 > 看板校正)決定。
+       放得下幾顆字就留幾顆,由 fitBadgeDetail() 依優先序(即時 > 尖峰 > 看板校正)決定。
        時間本身永遠是字,任何情況都不降級。
        🔴 這四條刻意不宣告 display——[hidden] 的 UA display:none 才蓋得住(同 .ms-row 的既有教訓);
        #peak 不是用 hidden 而是用空字串控制,所以另外用 :empty 收掉。 */
     body.fs .topbar .badge .live.as-dot,
     body.fs .topbar .badge .mlive.as-dot,
-    body.fs .topbar .badge .replay.as-dot,
     body.fs .topbar .badge .peak.as-dot {
       width: 7px; height: 7px; flex: none; align-self: center;
       border-radius: 50%; padding: 0; border: 0;
@@ -3393,7 +3340,6 @@
     }
     body.fs .topbar .badge .live.as-dot::before,
     body.fs .topbar .badge .mlive.as-dot::before { content: none; }
-    body.fs .topbar .badge .replay.as-dot { color: var(--red); }
     body.fs .topbar .badge .peak.as-dot { color: var(--warn-ink); }
     body.fs .topbar .badge .peak.as-dot.sim { color: #3A5680; }
     body.fs .topbar .badge .live.as-dot.est,
@@ -3528,7 +3474,6 @@
     .topbar .alert-chip .ac-ico { font-size: 14px; line-height: 1; }
     .topbar .alert-chip .ac-n { display: none; }
     html[data-fs] .topbar .alert-chip .ac-ico { font-size: calc(14px * var(--ui)); }
-    body.live .topbar { display: none !important; }
     body.ambient .topbar { display: none; }
     /* GPS 錄製常駐列 × 頂列頁籤衝突修復(2026-07-28 迴歸修復,獨立驗收抓到):#recordBar 原本
        用 z-index(820>620)贏過 .topbar、浮在其上,寬度覆蓋到 .topbar 左半——360/390/414px 時
@@ -3547,23 +3492,23 @@
        space-between 的兩子項(tb-plate/topTabs)——display:none 會把 tb-plate 整個抽出排版,
        topTabs 變成唯一子項後被 space-between 推去起點(左邊),直接撞上 #recordBar(實測抓到:
        topTabs 從 l190 掉到 l10)。visibility:hidden 保留版位不佔視覺,topTabs 才會留在右側原地。 */
-    body.fs.recording:not(.rec-panel):not(.live):not(.ambient) .topbar .tb-plate { visibility: hidden; }
-    body.fs.recording:not(.rec-panel):not(.live):not(.ambient) .record-bar {
+    body.fs.recording:not(.rec-panel):not(.ambient) .topbar .tb-plate { visibility: hidden; }
+    body.fs.recording:not(.rec-panel):not(.ambient) .record-bar {
       position: absolute; top: calc(8px + var(--sa-t)); left: 10px;
       transform: none; width: max-content; max-width: 150px;
       flex-direction: column; align-items: stretch; justify-content: flex-start;
       gap: 2px; padding: 2px 7px 3px 9px; line-height: 1.15;
     }
-    body.fs.recording:not(.rec-panel):not(.live):not(.ambient) .record-bar .rb-row1,
-    body.fs.recording:not(.rec-panel):not(.live):not(.ambient) .record-bar .rb-row2 {
+    body.fs.recording:not(.rec-panel):not(.ambient) .record-bar .rb-row1,
+    body.fs.recording:not(.rec-panel):not(.ambient) .record-bar .rb-row2 {
       display: flex; align-items: center; gap: 5px;
     }
-    body.fs.recording:not(.rec-panel):not(.live):not(.ambient) .record-bar .rb-ttl { font-size: calc(11px * var(--uis)); }
-    body.fs.recording:not(.rec-panel):not(.live):not(.ambient) .record-bar .rb-detail { display: none; }
-    body.fs.recording:not(.rec-panel):not(.live):not(.ambient) .record-bar .rb-stat {
+    body.fs.recording:not(.rec-panel):not(.ambient) .record-bar .rb-ttl { font-size: calc(11px * var(--uis)); }
+    body.fs.recording:not(.rec-panel):not(.ambient) .record-bar .rb-detail { display: none; }
+    body.fs.recording:not(.rec-panel):not(.ambient) .record-bar .rb-stat {
       flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
     }
-    body.fs.recording:not(.rec-panel):not(.live):not(.ambient) .record-bar .rb-stop {
+    body.fs.recording:not(.rec-panel):not(.ambient) .record-bar .rb-stop {
       flex: none; min-height: 28px; padding-top: 2px; padding-bottom: 2px;
     }
     /* 時鐘徽章讓位頂列:移到頂列下方(safe-area 隨動態島下移,與頂列一致) */
@@ -3962,7 +3907,7 @@
     /* 版權字放**最下角**、膠囊疊在它上方(v0819a 使用者裁決:原本把版權抬到膠囊上方,那行字看起來像浮在畫面中間)。
        仍然是垂直分離——膠囊置中、版權右對齊,窄寬(≤414)兩者水平必然重疊(實測 360/375/414 都疊),
        所以只能靠上下錯開,不能靠左右讓位。這裡刻意**不另寫規則**,直接讓上面那條 body.fs 的
-       tabbar-clear+6px 生效(與放空/直播態同高),順序改由膠囊上抬達成,見下方 .controls 那條。
+       tabbar-clear+6px 生效(與放空態同高),順序改由膠囊上抬達成,見下方 .controls 那條。
        🔴 不要再把版權往上抬:跟隨小卡的讓位(placeFsOverlays 的 lift)只認膠囊當下緣家具的最高點,
        版權不在那本帳裡,抬高它不會讓卡跟著讓,只會讓它自己漂到畫面中央。 */
     /* 展開態(cexp):完整帶佔滿下緣會壓住版權角→比照 sheet-open 淡出版權(短暫互動態,收合即回,不影響授權常態顯示) */
@@ -3973,10 +3918,10 @@
        淡出的提示不再算「下緣家具」,跟車卡才不會白白多讓 88px。 */
     body.cexp .iab-hint { opacity: 0; pointer-events: none; }
 
-    /* ── 手機速度控制膠囊(≤900 一律;非放空非直播;桌面完全不變) ──
+    /* ── 手機速度控制膠囊(≤900 一律;非放空;桌面完全不變) ──
        預設 slim:貼底置中細長膠囊,只露 ▶/⏸ + 倍速 + 模擬時刻。
        點膠囊本體 → body.cexp 展開成完整帶;5s 無互動自動收回;再閒置 5s → cfaint 半透明把手。 */
-    body:not(.ambient):not(.live):not(.cexp) .controls {
+    body:not(.ambient):not(.cexp) .controls {
       left: 50%; right: auto; transform: translateX(-50%);
       bottom: 10px; width: max-content; max-width: calc(100vw - 24px);
       flex-wrap: nowrap; align-items: center; gap: 7px;
@@ -3987,38 +3932,38 @@
     /* v0718i 觸控熱區:收合膠囊整體(實測約41高)命中框補到 ≥44,置中擴張;z-index:-2(比 #pp::after
        的 -1 更低一階)墊在 #pp/#todOut/#speedOut 等真子元素、以及 #pp 自己的熱區之下,不搶走任何人的點擊,
        只補滿膠囊邊緣的空白窄邊 */
-    body:not(.ambient):not(.live):not(.cexp) .controls::after {
+    body:not(.ambient):not(.cexp) .controls::after {
       content: ''; position: absolute; left: 50%; top: 50%;
       width: 100%; height: max(100%, 44px); transform: translate(-50%, -50%); z-index: -2;
     }
     /* +30 而不是原本的 +10:下面要讓出「版權字(高 14,底 tabbar-clear+6 ⇒ 頂 tabbar-clear+20)+ 約 10px 間距」。
        跟隨小卡不必跟著改——placeFsOverlays 是依膠囊實測 top 動態算 lift,膠囊上抬多少,卡就跟著抬多少。 */
-    body.fs:not(.ambient):not(.live):not(.cexp) .controls { bottom: calc(var(--tabbar-clear) + 30px); }
-    body:not(.ambient):not(.live):not(.cexp) .controls #ppTxt,
-    body:not(.ambient):not(.live):not(.cexp) .controls .speedrail,
-    body:not(.ambient):not(.live):not(.cexp) .controls .band-div,
-    body:not(.ambient):not(.live):not(.cexp) .controls .stage-tools,
-    body:not(.ambient):not(.live):not(.cexp) .controls #nowBtn,
-    body:not(.ambient):not(.live):not(.cexp) .controls #ambientBtn,
-    body:not(.ambient):not(.live):not(.cexp) .controls #ambientStyleBtn,
-    body:not(.ambient):not(.live):not(.cexp) .controls #musicCtl { display: none; }
+    body.fs:not(.ambient):not(.cexp) .controls { bottom: calc(var(--tabbar-clear) + 30px); }
+    body:not(.ambient):not(.cexp) .controls #ppTxt,
+    body:not(.ambient):not(.cexp) .controls .speedrail,
+    body:not(.ambient):not(.cexp) .controls .band-div,
+    body:not(.ambient):not(.cexp) .controls .stage-tools,
+    body:not(.ambient):not(.cexp) .controls #nowBtn,
+    body:not(.ambient):not(.cexp) .controls #ambientBtn,
+    body:not(.ambient):not(.cexp) .controls #ambientStyleBtn,
+    body:not(.ambient):not(.cexp) .controls #musicCtl { display: none; }
     /* 時鐘不在「現在」時才把「現在」鈕放回手機的站台帶——見 syncTimeUI 的 clock-off。
        選擇器刻意與上面那條隱藏規則同形只多一個類,確保在它匹配的每個情境都蓋得過它。 */
-    body:not(.ambient):not(.live):not(.cexp).clock-off .controls #nowBtn { display: flex; }
-    body:not(.ambient):not(.live):not(.cexp) .controls .ctl { flex: none; gap: 0; margin: 0; padding: 0; border: 0; min-width: 0; }
-    body:not(.ambient):not(.live):not(.cexp) .controls .tod-wrap { padding: 0; }
-    body:not(.ambient):not(.live):not(.cexp) .controls #pp { padding: 3px 6px; font-size: calc(15px * var(--ui)); background: none; border: 0; box-shadow: none; color: var(--ink-strong); min-height: 0; }
-    body:not(.ambient):not(.live):not(.cexp) .controls #speedOut { font-size: calc(14.5px * var(--ui)); font-weight: 800; color: var(--red); min-width: 0; }
-    body:not(.ambient):not(.live):not(.cexp) .controls #todOut { font-size: calc(14px * var(--ui)); font-weight: 700; color: var(--navy); min-width: 0; border: 0; padding: 0; }
+    body:not(.ambient):not(.cexp).clock-off .controls #nowBtn { display: flex; }
+    body:not(.ambient):not(.cexp) .controls .ctl { flex: none; gap: 0; margin: 0; padding: 0; border: 0; min-width: 0; }
+    body:not(.ambient):not(.cexp) .controls .tod-wrap { padding: 0; }
+    body:not(.ambient):not(.cexp) .controls #pp { padding: 3px 6px; font-size: calc(15px * var(--ui)); background: none; border: 0; box-shadow: none; color: var(--ink-strong); min-height: 0; }
+    body:not(.ambient):not(.cexp) .controls #speedOut { font-size: calc(14.5px * var(--ui)); font-weight: 800; color: var(--red); min-width: 0; }
+    body:not(.ambient):not(.cexp) .controls #todOut { font-size: calc(14px * var(--ui)); font-weight: 700; color: var(--navy); min-width: 0; border: 0; padding: 0; }
     /* 收合膠囊點到時間讀數要先「展開完整帶」,不能直接跳原生選時器——非展開態關掉透明 time input 的點擊,
        點擊落到膠囊本體走展開;展開(cexp)後規則失效,再點時間才開選時器 */
-    body:not(.ambient):not(.live):not(.cexp) .controls .tod-wrap input[type=time] { pointer-events: none; }
+    body:not(.ambient):not(.cexp) .controls .tod-wrap input[type=time] { pointer-events: none; }
     /* 閒置淡成半透明把手:整條變淡,倍速數字仍讀得到。
        :not(.sheet-open) 護欄:sheet 開啟時膠囊本應 opacity:0 讓位,但 cfaint 這條(特異度較高)會把它拉回 .5 而「仍可見」
        (Batch B 真機截圖病灶);排除 sheet-open 後,讓位規則 body.sheet-open .controls{opacity:0} 得以生效。 */
-    body:not(.ambient):not(.live):not(.cexp):not(.sheet-open).cfaint .controls { opacity: .5; padding: 4px 13px; }
-    body:not(.ambient):not(.live):not(.cexp).cfaint .controls #pp,
-    body:not(.ambient):not(.live):not(.cexp).cfaint .controls #todOut { display: none; }
+    body:not(.ambient):not(.cexp):not(.sheet-open).cfaint .controls { opacity: .5; padding: 4px 13px; }
+    body:not(.ambient):not(.cexp).cfaint .controls #pp,
+    body:not(.ambient):not(.cexp).cfaint .controls #todOut { display: none; }
     /* ── 展開態(cexp):完整帶貼底整寬,三列格線 ──
        ① 播放 ＋ 速度軌　② 時刻尺（整列可拖）＋「現在」　③ 音樂
        2026-07-25 裁決:原本第 2 列是「時刻讀數｜現在｜放空模式」,那個位置讓給時刻尺;
@@ -4270,8 +4215,6 @@
     body.fs.ambient .dwell-plate {
       opacity: 0; pointer-events: none; transition: opacity .18s ease;
     }
-    /* live(OBS 版面契約)維持 v2 行為:橫式不出跟車側欄,浮層版面一格不動 */
-    body.fs.live .follow-panel { display: none; }
     /* 🔴 出口保命:上面那條「sheet 開著就把速度膠囊淡掉讓位」(body.sheet-open .controls,特定度 0-2-1)
        在放空模式下會把唯一的出口一起淡成 opacity 0——實測進放空時 setAmbient() 只收亮點面板,
        車站看板是留著的,於是 .controls 整條 opacity:0 而「離開放空」鈕就在裡面(V3 判準抓到)。
@@ -4379,7 +4322,7 @@
        🔴 縮窄之後不能還放左上角:矮視窗把跟隨小卡頂到 y127(placeFsOverlays 的讓位),
           原本 836px 寬的整寬版是「兩側都露出來」才看得到,縮到 129px 就整個躲進小卡後面
           (小卡不透明、且淡出契約只在另有面板開著時生效)——縮小反而變成看不見。
-          改成在「露出的地圖」裡水平置中:沿用 body.live 那套 translateX(-50%) 的既有慣例,
+          改成在「露出的地圖」裡水平置中:沿用既有的 translateX(-50%) 置中慣例,
           左邊給小卡、右邊給動作列與側欄,三者結構上互不重疊。 */
     /* §04c 契約8:中線=[左界, 側欄左緣−8] 的中點。
        🔴 v2(2026-08-26):跟隨欄廢除 ⇒ 左界**恆為安全區**,原本讀 body.follow-on 讓 238px
@@ -4395,8 +4338,8 @@
     }
     body.fs .dwell-plate.show { transform: translateX(-50%); }
     /* 契約8 後半:速度膠囊(收合的 .controls)共用同一條中線。cexp 展開是操作暫態、cfaint 只是變淡,
-       都不改水平錨。直式那條基底規則(body:not×3 .controls)特定度 0-4-1,這裡加 .fs 一級蓋過。 */
-    body.fs:not(.ambient):not(.live):not(.cexp) .controls {
+       都不改水平錨。直式那條基底規則(body:not×2 .controls)特定度 0-3-1,這裡加 .fs 一級蓋過。 */
+    body.fs:not(.ambient):not(.cexp) .controls {
       left: calc(var(--land-lb) + (100% - var(--land-lb) - var(--rail-occupy)) / 2); right: auto;
     }
     body.fs .dwell-plate b { font-size: calc(18px * var(--ui)); letter-spacing: 6px; text-indent: 6px; padding: 6px 14px 5px; }
@@ -4539,9 +4482,8 @@
   var mt = document.querySelector('meta[name=theme-color]'); if (mt) mt.content = dark ? '#10141c' : '#F2EDE2';
 } catch (e) {} })();
 // 字級 FOUC 防護:同上,首繪前就把 data-fs 掛上去,不然開圖那一瞬間會用標準字級再跳大。
-// 完整切換邏輯(含跟隨系統字級)在檔尾 applyFontScale。?live 的直播殼恆定標準字級(OBS 版面契約)。
+// 完整切換邏輯(含跟隨系統字級)在檔尾 applyFontScale。
 (function () { try {
-  if (new URLSearchParams(location.search).get('live')) return;
   var fsz = localStorage.getItem('trainmap-fontscale');
   if (fsz === 'large' || fsz === 'xlarge') document.documentElement.setAttribute('data-fs', fsz);
 } catch (e) {} })();
@@ -4692,7 +4634,7 @@
     <canvas id="overlay"></canvas>
     <div id="skyTint"></div>
     <div id="veil"></div>
-    <!-- 地圖頂浮動列(手機 fs 專屬;桌面/直播/放空不顯示):左=軌島迷你牌(資訊),右=全/台/高/捷短標(動作)。
+    <!-- 地圖頂浮動列(手機 fs 專屬;桌面/放空不顯示):左=軌島迷你牌(資訊),右=全/台/高/捷短標(動作)。
          topTabs 四顆為 CLS 靜態預置佔位,boot 的 renderSystemsBar→renderTopTabs 以同幾何重建(cls-static-placeholder) -->
     <div class="topbar" id="topbar">
       <!-- 設計 D4 排法B:牌換成 42x42 的 logo 方牌(整個 logo 縮小,不是只留字)。
@@ -4857,13 +4799,8 @@
       <span class="clock" id="clock">08:00</span>
       <span class="live" id="liveBadge" hidden>LIVE</span>
       <span class="mlive" id="metroBadge" hidden>看板校正</span>
-      <span class="replay" id="replayBadge" hidden>REPLAY</span>
       <span class="peak" id="peak"></span>
       <span class="count" id="count"></span>
-    </div>
-    <!-- 直播模式(?live=1)角落資訊:頻道浮水印(與右下 attribution 對角) -->
-    <div class="live-hud" id="liveHud" hidden>
-      <div class="live-wm">railisland.tw</div>
     </div>
     <div class="dwell-plate" id="dwellPlate">
       <b id="dpName"></b>
@@ -5665,7 +5602,6 @@
     <div class="ms-sec" id="msSecStat">資料狀態</div>
     <div class="ms-row ms-stat" id="msStatLive" hidden><span>即時資料</span><span class="ms-tail"><b id="msStatLiveVal"></b></span></div>
     <div class="ms-row ms-stat" id="msStatMetro" hidden><span>捷運看板</span><span class="ms-tail"><b id="msStatMetroVal"></b></span></div>
-    <div class="ms-row ms-stat" id="msStatReplay" hidden><span>重播</span><span class="ms-tail"><b id="msStatReplayVal"></b></span></div>
     <div class="ms-row ms-stat" id="msStatPeak" hidden><span>時段</span><span class="ms-tail"><b id="msStatPeakVal"></b></span></div>
     <div class="ms-row ms-stat" id="msStatCount" hidden><span>目前車數</span><span class="ms-tail"><b id="msStatCountVal"></b></span></div>
     <div class="ms-sec">資訊</div>
@@ -5868,7 +5804,7 @@
 // v0902e：把 App 出貨線(ship-main)併回來——小工具七種尺寸／方向可取消／捷運大卡(Android)、v0901h 的好讀版開車時刻、
 //         看板誤點標放大——並帶上跟車配樂選單(feat/music-scoring)。e 換號前逐 ref＋逐樹掃過無人佔用。
 // v0903b：刪除錄影功能殘留（程式碼、i18n、法律文件與支援頁；使用者 09-02／09-03 裁示）。執行路徑零變更。
-const BUILD = 'v0903e';
+const BUILD = 'v0903f';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -6320,7 +6256,6 @@ const state = {
   // 公開前端只做 trajectory 線性補間，失效或過期就自動退回下方既有即時／班表路徑。
   traAnomaly: null, // 台鐵系統級大面積誤點的自家觀測 {d10, maxDelay, since} 或 null(非官方公告;d10=誤點≥10 分的班數)
   hazardWatch: null, // NCDR 生效中災害示警；只觸發重查與文字提示，不參與列車名冊/位置
-  liveMode: false, director: false, liveReplay: false, // 直播模式(?live=1 即時 / ?live=2 導播)與其深夜重播段(00:45–05:15 重播 08:00 起)
   clockAtNow: false, // 模擬時鐘是否處於「跟著現在」的狀態(開機對齊/按現在鈕為真,拖時刻尺或快轉即false)
 
   stnIntro: false, immersive: false, // 特殊站介紹開關(放空自動開)、極簡沉浸(全畫面隱藏左側卡)
@@ -10289,7 +10224,7 @@ function trtcOfficialHitFromTimetable(hit) {
     String(vehicle.line) === String(hit.ln.id) && String(vehicle.tripKey || '') === localKey);
   return matches.length === 1 ? { ln: hit.ln, vehicleId: String(matches[0].vehicleId) } : null;
 }
-function applyFreqFollow(hit) { // hit = {ln,tr}／{ln,k}／{ln,vehicleId};不動 autoTour/hotspot，供導播輪車重用
+function applyFreqFollow(hit) { // hit = {ln,tr}／{ln,k}／{ln,vehicleId};不動 autoTour/hotspot
   const target = trtcOfficialHitFromTimetable(hit);
   if (!target) { showToast(t('這列車目前沒有可唯一確認的官方身分')); return false; }
   const identity = target.vehicleId != null
@@ -11621,7 +11556,7 @@ const THEATER_IDLE_SEC = (() => {
   // 任何互動都會重新起算(ambientIdleReset),真的在看又會動手的人碰不到這條線。
   return 20 * 60;
 })();
-// ?breath=1 → 放空只抽「都會呼吸」幕(測試用,比照 ?theater 除錯先例;?live 訊號源不受此參數影響)。見 hotspotTick 的城市幕抽選。
+// ?breath=1 → 放空只抽「都會呼吸」幕(測試用,比照 ?theater 除錯先例)。見 hotspotTick 的城市幕抽選。
 const FORCE_BREATH = (() => { try { return new URLSearchParams(location.search).get('breath') === '1'; } catch (e) { return false; } })();
 // 行程分享(暗啟動):v1 建置完成、旗標關閉出貨,訂閱上線才開。只鎖「發起端」入口;
 // 接收端 ?trip= 解碼永遠作用(payload 本來就公開,不鎖)。?tripshare=1 當次開發起端測試(比照 ?breath=1,僅該次頁面生效)。
@@ -11630,7 +11565,7 @@ const TRIP_SHARE_ENABLED = (() => { try { return new URLSearchParams(location.se
 // 'carto' = 現況。⚠️ 合規破口:CARTO 2025-10 起把 hosted 圖磚限定給 enterprise 客戶與非營利 grants
 //           (LICENSE.md 逐字 "not available for free public use"),而我們在賣通行證 ⇒ 落在 commercial。
 // 'ofm'   = OpenFreeMap 向量(OSM 資料,免金鑰、無用量上限、明文可商用)。經 maplibre-gl-leaflet
-//           當成一個 Leaflet 圖層掛進來,Leaflet 與既有的 155 處綁定、投影包裝層都不動。
+//           當成一個 Leaflet 圖層掛進來,Leaflet 與既有的地圖綁定、投影包裝層都不動。
 // ?basemap=ofm 供驗證用(僅該次頁面生效,不改預設)。
 // 'carto' 這個值 2026-08-31 移除:網站已經沒有可用的 raster 街道來源,留著它等於提供一個
 // 「看蓋章地圖」的開關,而且會讓人誤以為那條路還是活的。
@@ -11774,7 +11709,7 @@ function geoPermissionDenied(err) {
 }
 function geoCameraCanFollow() {
   return !!(state.geoFollow && state.ready && map && !document.hidden && !state.followTrain && !state.freqFollow &&
-    !state.autoTour && !state.ambient && !state.liveMode && !state._transition);
+    !state.autoTour && !state.ambient && !state._transition);
 }
 function updateGeoCamera(loc) {
   if (!geoCameraCanFollow()) return;
@@ -11876,7 +11811,7 @@ function startBootGeo() {
   if (!LOCATE_ENABLED) return;
   try {
     const qs = new URLSearchParams(location.search);
-    if (qs.get('train') || qs.get('at') || qs.get('g') || qs.get('trip') || qs.get('live')) return;
+    if (qs.get('train') || qs.get('at') || qs.get('g') || qs.get('trip')) return;
   } catch (e) {}
   if (loadDefaultPlace()) return;
   state._geoTrackingWanted = true;
@@ -11885,7 +11820,7 @@ function startBootGeo() {
 // 定位回來時才決定要不要動鏡頭:使用者已經自己在操作(拖地圖/跟車/放空)就不搶,寧可不動也不要把畫面拉走。
 function applyBootGeo(c) {
   if (!c || !inTaiwan(c.latitude, c.longitude)) return; // 海外:維持原落點(地圖本來就鎖台灣,飛過去只會撞硬牆)
-  if (state._userMoved || state.followTrain || state.freqFollow || state.autoTour || state.liveMode) return;
+  if (state._userMoved || state.followTrain || state.freqFollow || state.autoTour) return;
   state.geoFollow = true;
   showMeMarker(c.latitude, c.longitude, c.accuracy);
   // 已經用快取落過點:同一帶的微調,靜靜換位置不做動畫(動畫會讓人以為地圖自己亂跑);
@@ -14327,13 +14262,12 @@ function tickCore(now) {
   updateBlockHolds(); // 後車不穿越前車:算完 simSec 之後、任何人問位置之前先更新阻擋回撥(相機與繪製都吃 trainPos)
   // 版面尺寸守衛(見 syncMapSizeIfStale):必須在相機與繪製之前,否則本幀仍以過期尺寸算座標
   if (now - (state._szChkAt || 0) >= 200) { state._szChkAt = now; syncMapSizeIfStale(); }
-  if (state.director && state.playing) directorTick(now); // 導播相位機:跟車段↔群車段循環(先於 autoTour,可能切換 autoTour 開關)
   if (state.autoTour && state.mode === 'sched' && state.playing) {
     const ftr = state.followTrain;
-    // 自動輪車(計時到就換、到終點就接下一班)只屬於放空/導播——那是螢幕保護與 OBS 訊號源,本來就要一直有新畫面。
+    // 自動輪車(計時到就換、到終點就接下一班)只屬於放空——那是螢幕保護,本來就要一直有新畫面。
     // 使用者自己按「隨機跟隨」是「幫我挑一班」,挑到就陪他跑完:中途不換車、到終點也不接下一班
     // (2026-07-28 使用者要求)。要換車按「換一班」,結束按小卡 ×。
-    const rotate = state.ambient || state.director;
+    const rotate = state.ambient;
     // 捷運幽靈車跟隨中(freqFollow 有值、無 followTrain)不算「沒目標」,否則每幀都會誤判成該換車
     if ((!ftr && !state.freqFollow) ||
         (rotate && ((ftr && effTLive(ftr) > ftr.stops[ftr.stops.length - 1].arrSec) || now >= (state._tourNext || 0))))
@@ -14387,8 +14321,8 @@ function tickCore(now) {
     //    少了這道閘門,人在「台」「高」分頁(畫面上一條捷運都沒有)照樣被北捷的通知打斷。
     if (OFFICIAL_ROSTER_ENABLED && metroLivePool().some(isTrtcBoardLine))
       trtcOfficialCorrectTick(Date.now() / 1000); // 官方訂正位置 → 說明是官方更新，不是我們算錯
-    if (state.liveMode && !state.director) liveClockTick(); else if (state.director) directorClockTick(); else clockDriftGuard();
-  } // 導播現在也是 1× 貼真實時刻,只是用不含深夜重播替代的簡化版;兩徽章同秒刷,快轉跨門檻時同步轉推估
+    clockDriftGuard();
+  }
   // 省電三板斧(繪製節流,不動上面的時間積分):
   // (1) 分頁隱藏停繪——時間照積分,只是不畫
   // (2) 待機時 draw 節流到 ~30fps;跟隨/幽靈車跟隨/放空/剛互動(1.5s 內)維持顯示器全速,體驗優先
@@ -15372,7 +15306,7 @@ function trainIntro(tr) {
   return { special: sp || null, named: spd?.named || null, stock: spd?.stock || null,
     kind, desc: sp ? sp.desc : desc, amens, nStops: stops.length, dur, fact, factIndex, branch };
 }
-// ── 隨機挑車:加權挑一班正在跑的車。放空/導播會定時回來換下一班(1–2 分鐘 / 5–10 分鐘),
+// ── 隨機挑車:加權挑一班正在跑的車。放空會定時回來換下一班(1–2 分鐘),
 //    使用者手按「隨機跟隨」則只挑這一次,跟到終點為止(換車由使用者按「換一班」,見 tick 的 rotate 閘) ──
 const TOUR_W = { '其他': 24, '莒光/復興': 10, '自強': 5, '區間快': 2, '區間車': 1 };
 // 單班上限:任何一班的權重不得超過「裁切前總權重」的這個比例(裁切後總權重會變小,實際份額約 3.5%)。
@@ -15407,53 +15341,17 @@ function pickTourTrain() {
   recent.push(pick); if (recent.length > TOUR_RECENT) recent.shift();
   return pick;
 }
-// 導播偶爾跟捷運/輕軌幽靈車(比照台鐵/高鐵輪車,借 applyFreqFollow 不動 autoTour 狀態)
-const METRO_TOUR_CHANCE = 0.25; // 「偶爾」跟捷運,不要太常搶戲
-function pickTourMetro() {
-  if (!state.decoLines) return null;
-  const cands = [];
-  for (const ln of state.decoLines) {
-    const core = metroCoreItemsForLine(ln, Date.now() / 1000);
-    if (core !== null) {
-      if (core.length) {
-        const item = core[Math.floor(Math.random() * core.length)];
-        cands.push({ ln, core: true, systemId: item.systemId, vehicleId: item.vehicleId });
-      }
-      continue;
-    }
-    const official = trtcOfficialItemsForLine(ln, Date.now() / 1000);
-    if (official !== null) {
-      if (official.length) {
-        const item = official[Math.floor(Math.random() * official.length)];
-        cands.push({ ln, vehicleId: item.vehicleId });
-      }
-      continue;
-    }
-    if (ln._tt && ln._tt.length) { // 大多數線現已有實際時刻(v0711l):挑一班現在真的在跑的班次
-      const running = ln._tt.filter(tr => freqTrainTime(tr, state.simSec) != null);
-      if (running.length) cands.push({ ln, tr: running[Math.floor(Math.random() * running.length)] });
-    } else if (ln.sched && ln.n > 0) cands.push({ ln, k: Math.floor(Math.random() * ln.n) }); // 無時刻檔的線退回班距幽靈車
-  }
-  if (!cands.length) return null;
-  return cands[Math.floor(Math.random() * cands.length)];
-}
 function nextTourTrain(now) {
   if (camBlocked()) return; // 劇場/背景分頁:不切換跟隨列車、不飛鏡頭(autoTour 狀態保留,回場續跑;成本防線)
   // 轉場防重入:到站觸發的換車條件(effT>終點arrSec)在淡出等待的每一幀都成立,
   // 不擋會機關槍連發幾十條轉場鏈,veil 淡入後殘餘 callback 輪流裸跳到不同隨機車
   if (state._transition) return;
-  const metro = (state.director && Math.random() < METRO_TOUR_CHANCE) ? pickTourMetro() : null;
-  const tr = metro ? null : pickTourTrain();
-  // 導播模式每車跟 5–10 分鐘(使用者要求),放空一般 1–2 分鐘
-  state._tourNext = (now || performance.now()) + ((tr || metro) ? (state.director ? 300000 + Math.random() * 300000 : 60000 + Math.random() * 60000) : 5000);
-  if (!tr && !metro) {
-    // 深夜幾乎沒車 → 重播傍晚尖峰(模擬時鐘本來就支援任意時間);導播要 5× 忠實循環,深夜就少,不跳
-    if (state.ambient && !state.nightReplay && !state.director) { state.nightReplay = true; setSimSec(18 * 3600); refreshBadge(); }
-    return;
-  }
-  if (metro) {
-    if (state._ambientFresh) { state._ambientFresh = false; ambientJumpToMetro(metro); }
-    else fadeSwitchMetro(metro);
+  const tr = pickTourTrain();
+  // 放空每車跟 1–2 分鐘
+  state._tourNext = (now || performance.now()) + (tr ? 60000 + Math.random() * 60000 : 5000);
+  if (!tr) {
+    // 深夜幾乎沒車 → 重播傍晚尖峰(模擬時鐘本來就支援任意時間)
+    if (state.ambient && !state.nightReplay) { state.nightReplay = true; setSimSec(18 * 3600); refreshBadge(); }
     return;
   }
   const ts = document.getElementById('trainSearch'); if (ts) ts.value = tr.train;
@@ -15466,11 +15364,7 @@ const AMBIENT_Z = 14;
 function ambientJumpTo(tr) {
   setFollow(tr, true, true);
   const p = trainPos(tr, state.simSec) || tr.stops[0];
-  map.setView([p.lat, p.lon], state.director ? DIRECTOR_FOLLOW_Z : AMBIENT_Z, { animate: false }); // 導播跟車放大到 DIRECTOR_FOLLOW_Z(網站 z18;App 計量底圖收斂 z16)
-}
-function ambientJumpToMetro(pick) {
-  applyFreqFollow(pick);
-  map.setView(map.getCenter(), DIRECTOR_FOLLOW_Z, { animate: false }); // 導播跟捷運同樣用 DIRECTOR_FOLLOW_Z,跟台鐵/高鐵跟車一致
+  map.setView([p.lat, p.lon], AMBIENT_Z, { animate: false });
 }
 // 放空模式換車:淡出 → 直接切到下一班 → 淡入(不拉高俯瞰)
 function fadeSwitch(tr) {
@@ -15481,21 +15375,6 @@ function fadeSwitch(tr) {
   setTimeout(() => {
     if (!state.autoTour) { veil.style.opacity = 0; state._transition = false; return; }
     ambientJumpTo(tr);
-    if (state.director && !state._liveMapOverride) advanceDirectorBasemap(); // 導播每換一班車順便換底圖,藏在遮幕後面切,不會看到硬切;&map= 指定固定底圖時不輪替
-    veil.style.opacity = 0;
-    setTimeout(() => { state._transition = false; }, 750);
-  }, 800);
-}
-// 放空模式換捷運幽靈車:結構同 fadeSwitch,套 freqFollow 而非 followTrain
-function fadeSwitchMetro(pick) {
-  const veil = document.getElementById('veil');
-  state._transition = true; state._traAt = performance.now();
-  state._tourNext += 1600;
-  veil.style.opacity = 1;
-  setTimeout(() => {
-    if (!state.autoTour) { veil.style.opacity = 0; state._transition = false; return; }
-    ambientJumpToMetro(pick);
-    if (state.director && !state._liveMapOverride) advanceDirectorBasemap();
     veil.style.opacity = 0;
     setTimeout(() => { state._transition = false; }, 750);
   }, 800);
@@ -15551,16 +15430,7 @@ function computeHotspots() {
   }
   return out;
 }
-// 導播群車:該熱區附近有幾條捷運/輕軌路線經過(供 pickHotspot 加權,不影響一般放空使用者)
-function metroCoverage(lat, lon) {
-  if (!state.decoLines) return 0;
-  let n = 0;
-  for (const ln of state.decoLines) {
-    if (ln.stations.some(s => Math.abs(s.lat - lat) < HOT_CELL * 1.5 && Math.abs(s.lon - lon) < HOT_CELL * 1.5)) n++;
-  }
-  return n;
-}
-// 熱區概略歸類北/中/南/東(取最近 CITY_BBOX 縣市中心),供導播地區輪替加權——
+// 熱區概略歸類北/中/南/東(取最近 CITY_BBOX 縣市中心),供呼吸幕的都會輪替加權——
 // 台鐵/高鐵車流與捷運覆蓋皆天生偏北,不加此輪替北部幾乎壟斷群車畫面
 const REGION_OF_CITY = {
   keelung: '北', taipei: '北', ntpc: '北', taoyuan: '北', hsinchu: '北',
@@ -15584,39 +15454,20 @@ function pickHotspot(hs) {
     const far = hs.filter(h => Math.hypot(h.lat - last.lat, h.lon - last.lon) > HOT_CELL * 1.5);
     if (far.length) cands = far;
   }
-  const hist = state._hotRegionHist || (state._hotRegionHist = []); // 近幾幕的地區序列(導播限定)
   let total = 0;
   const ws = cands.map(h => {
     let w = h.n; // 改線性(原 n² 讓車流本就偏多的北部幾乎壟斷,削弱才吃得到下面的地區輪替)
-    if (state.director) {
-      w *= 1 + 0.08 * metroCoverage(h.lat, h.lon); // 捷運覆蓋加權調輕(原 0.2 疊北部車流優勢過重)
-      const recent = hist.filter(r => r === regionOf(h.lat, h.lon)).length;
-      w /= (1 + recent); // 近期出現越多次的地區,這次權重打越低,讓北中南東更平均輪替
-    }
     total += w; return w;
   });
   let r = Math.random() * total;
   let picked = cands[cands.length - 1];
   for (let i = 0; i < cands.length; i++) { r -= ws[i]; if (r <= 0) { picked = cands[i]; break; } }
   state._hotLast = picked;
-  if (state.director) {
-    hist.push(regionOf(picked.lat, picked.lon));
-    if (hist.length > 6) hist.shift();
-  }
   return picked;
 }
-// 導播群車偶爾整座城市俯瞰(北北基/台中/高雄),極慢速飄移,不追熱區——錨點固定在城市中心,見 hotCruise 的 sc.slow 分支
+// 放空 30% 出城市幕(CITY_OVERVIEW_CHANCE),抽中後再依 BREATH_CHANCE 決定走都會呼吸;CITY_OVERVIEWS 是呼吸幕的三大都會名單。
 const CITY_OVERVIEW_CHANCE = 0.3; // 「偶爾」出現整座城市畫面
-const CITY_OVERVIEW_SPEED = 1.5;  // 極慢速飄移(對比 HOT_SPEED=7 的熱區巡航)
 const CITY_OVERVIEWS = ['taipei', 'taichung', 'kaohsiung']; // 沿用既有 CITY_BBOX(縣市書籤同一份資料)
-function pickCityOverview() {
-  const id = CITY_OVERVIEWS[Math.floor(Math.random() * CITY_OVERVIEWS.length)];
-  const b = CITY_BBOX[id];
-  const bounds = L.latLngBounds([[b[0], b[1]], [b[2], b[3]]]);
-  const z = map.getBoundsZoom(bounds, false, [20, 20]);
-  const c = bounds.getCenter();
-  return { lat: c.lat, lon: c.lng, z, dir: Math.random() * Math.PI * 2, anchor: { lat: c.lat, lon: c.lng }, slow: true };
-}
 // 都會呼吸(放空定場鏡頭):地圖固定整數 z13(圖磚正常載入),鏡頭停在三大都會「固定錨點」;
 // 放大縮小改由 CSS transform 對 #map+#overlay 同幀施加(見 breathStage/hotCruise)——真實底圖(街道或衛星,跟 basemap 設定走)全程在場、圖磚零重載。
 const BREATH_CHANCE = 0.5;      // 抽到城市幕後,一半機率改走呼吸(淨機率約 15% = CITY_OVERVIEW_CHANCE × 此值)
@@ -15701,31 +15552,27 @@ function hotspotTick(now) {
   if (state._transition || now < (state._hotNext || 0)) return;
   const hs = computeHotspots();
   if (!hs.length) {
-    // 深夜沒車 → 比照跟車視角,重播傍晚尖峰(導播直播不要,只播現在真的在跑的車,見 initDirector)
-    if (!state.nightReplay && !state.director) { state.nightReplay = true; setSimSec(18 * 3600); refreshBadge(); }
+    // 深夜沒車 → 比照跟車視角,重播傍晚尖峰
+    if (!state.nightReplay) { state.nightReplay = true; setSimSec(18 * 3600); refreshBadge(); }
     state._hotNext = now + 5000;
     return;
   }
-  // 城市幕抽選:放空 30% 出城市幕(director⟹ambient,故閘只看 ambient)。抽中後一半機率改走「都會呼吸」
-  // 定場鏡頭(?breath=1 強制,測試用);導播維持既有平移俯瞰。OBS 訊號源(?live)一律不抽呼吸——
-  // 呼吸幕上台的是離線輪廓舞台(見 breathStage),直播畫面要維持街圖。
-  const canBreath = !state.liveMode;
+  // 城市幕抽選:放空 30% 出城市幕,抽中後一半機率改走「都會呼吸」定場鏡頭(?breath=1 強制,測試用);
+  // 沒抽到呼吸就回一般熱區巡航。
   let sc = null;
-  if ((FORCE_BREATH && canBreath) || (state.ambient && Math.random() < CITY_OVERVIEW_CHANCE)) {
-    if (canBreath && (FORCE_BREATH || Math.random() < BREATH_CHANCE)) sc = pickBreathScene();
-    else if (state.director) sc = pickCityOverview();
+  if (FORCE_BREATH || (state.ambient && Math.random() < CITY_OVERVIEW_CHANCE)) {
+    if (FORCE_BREATH || Math.random() < BREATH_CHANCE) sc = pickBreathScene();
   }
   if (!sc) {
     const h = pickHotspot(hs);
-    const zTier = state.director ? [16, 15] : [15, 14]; // 導播 1× 較慢,群車俯瞰放大一級才看得出移動
+    const zTier = [15, 14];
     sc = { lat: h.lat, lon: h.lon, z: h.n >= 25 ? zTier[0] : zTier[1], dir: Math.random() * Math.PI * 2 };
   }
   state._hotScene = sc;
-  // 城市俯瞰/呼吸是慢節奏定場,幕拉長:呼吸 150–300 秒、平移俯瞰 90–150 秒;一般熱區 180–300 秒
+  // 城市俯瞰/呼吸是慢節奏定場,幕拉長:呼吸 150–300 秒;一般熱區 180–300 秒
   // (2026-07-28 由 60–90 秒拉長:換幕＝整屏重載,是群車模式最大的圖磚來源——鏡頭巡航才 7px/s,
   //  跨一格要 36 秒,而換一次幕就是一整屏。拉到 3–5 分鐘把這塊砍掉約三分之二。)
   state._hotNext = now + (sc.breath ? BREATH_SCENE_MIN + Math.random() * (BREATH_SCENE_MAX - BREATH_SCENE_MIN)
-                          : sc.slow ? 90000 + Math.random() * 60000
                           : 180000 + Math.random() * 120000);
   if (state._hotFresh) {
     state._hotFresh = false;
@@ -15774,9 +15621,8 @@ function hotCruise(dt, now) {
   // 必須用不取整的 project 自己累積;使用者調了縮放就在新 zoom 重建游標接著巡
   const zNow = map.getZoom();
   if (!sc.px || sc.pxZ !== zNow) { sc.px = map.project(map.getCenter(), zNow); sc.pxZ = zNow; sc.anchorAt = 0; }
-  // 錨點:一般熱區每 2 秒重算視野(外擴 20%)內運行列車的重心,視野內沒車就取全圖最近的一台;
-  // 城市俯瞰(sc.slow)錨點固定在城市中心(pickCityOverview 已給),不追熱區,避免拉走整座城市的構圖
-  if (!sc.slow && (!sc.anchorAt || now - sc.anchorAt > 2000)) {
+  // 錨點:每 2 秒重算視野(外擴 20%)內運行列車的重心,視野內沒車就取全圖最近的一台
+  if (!sc.anchorAt || now - sc.anchorAt > 2000) {
     sc.anchorAt = now;
     const box = map.getBounds().pad(0.2), c = map.getCenter();
     let lat = 0, lon = 0, n = 0, near = null, nd = Infinity;
@@ -15804,7 +15650,7 @@ function hotCruise(dt, now) {
     }
   }
   sc.dir += turn;
-  const step = (sc.slow ? CITY_OVERVIEW_SPEED : HOT_SPEED) * dt;
+  const step = HOT_SPEED * dt;
   sc.px = L.point(sc.px.x + Math.cos(sc.dir) * step, sc.px.y + Math.sin(sc.dir) * step);
   const dst = map.unproject(sc.px, zNow);
   map.setView(dst, zNow, { animate: false });
@@ -15871,7 +15717,7 @@ document.addEventListener('visibilitychange', () => {
     // 判斷改看 clockAtNow 旗標,不看「與現在的差距 ≤120 秒」:那個寫法是單向陷阱——
     // 時鐘一旦因故漂超過 120 秒(裝置休眠、rAF 長期凍結),就被判定「不是即時」而永遠不再重錨,
     // 漂移只會越積越大。實測把時鐘推到漂 200 秒後切背景再回來,仍原封不動停在 199.5 秒。
-    state._wasLiveOnHide = state.playing && state.speedMult === 1 && !state.liveMode && !state.director &&
+    state._wasLiveOnHide = state.playing && state.speedMult === 1 &&
       state.clockAtNow;
     return;
   }
@@ -15882,8 +15728,8 @@ document.addEventListener('visibilitychange', () => {
   // 回前景重新錨定模擬時鐘到真實時刻:背景期間 rAF 完全凍結(省電/成本防線刻意如此,見下方相機守衛註解),
   // 純靠 dt 累加追不回背景這段真實經過時間,simSec 會停在背景前那刻——手機背景遠比桌機分頁頻繁,
   // 長時間掛著會讓 App 與網頁的「現在」對不上(車次跑在不同位置)。只在背景前本就貼著真實時刻才重錨,
-  // 不動使用者手動拖到過去/未來的時間軸(scrub)或快轉/重播/直播中的時鐘。
-  if (state._wasLiveOnHide && state.playing && state.speedMult === 1 && !state.liveMode && !state.director) {
+  // 不動使用者手動拖到過去/未來的時間軸(scrub)或快轉/重播中的時鐘。
+  if (state._wasLiveOnHide && state.playing && state.speedMult === 1) {
     state.simSec = nowSecOfDay(activeTz());
     // 同時歸零 tick 的 dt 基準:t0 在 rAF 凍結期間停在背景前那一刻,不歸零的話下一幀的
     // dt=整段背景時長,會把剛錨對的時鐘再往未來推一遍(桌面分頁原本就是靠這個巨大 dt 追齊,
@@ -15910,7 +15756,7 @@ function camBlocked() { return !!state._theater || document.hidden; }
 // 車輛照常在上面跑。省磚原理從「卸掉圖磚層」換成「相機不動就不會有新圖磚」:全島視角是最低 zoom 的固定一屏
 // (數十張),且 Stadia 回 max-age=21600(6 小時),第二次進場之後幾乎全走瀏覽器快取。
 function enterTheater() {
-  if (!state.ambient || state._theater || state.liveMode || !map) return; // OBS(?live)/非放空一律不進
+  if (!state.ambient || state._theater || !map) return; // 非放空一律不進
   state._theater = true;
   breathStageRestore();    // 呼吸舞台交棒給劇場:清 CSS scale + 旗標(_theater 已真→內部跳過 setBasemap)
   document.body.classList.add('theater');
@@ -15951,7 +15797,7 @@ function ambientIdleReset() {
   clearTimeout(state._theaterT);
   if (state.ambient) {
     state._idleT = setTimeout(() => document.body.classList.add('idle'), 5000);
-    if (!state.liveMode) state._theaterT = setTimeout(enterTheater, THEATER_IDLE_SEC * 1000); // OBS 不進劇場
+    state._theaterT = setTimeout(enterTheater, THEATER_IDLE_SEC * 1000);
   }
 }
 ['mousemove', 'pointerdown', 'keydown', 'touchstart'].forEach(ev =>
@@ -16859,114 +16705,19 @@ function setMusicEnabled(on) {
   on ? musicPlay() : musicStop(); // 開關即播/停,放空與否都一樣
 }
 
-// ── 直播模式(?live=1,隱藏入口):OBS Browser Source 當 24/7 訊號源,一般訪客不受影響 ──
-// boot 完成後自動進放空巡航+背景音樂;互動 UI 由 body.live CSS 隱藏(attribution 依授權保留)
-const LIVE_REPLAY_FROM = 45 * 60, LIVE_REPLAY_TO = 5 * 3600 + 15 * 60; // 深夜重播時段 00:45–05:15
-function initLive() {
-  if (state._liveMapOverride) { state.mapDark = state._liveMapOverride === 'dark'; state.basemap = state._liveMapOverride === 'sat' ? 'sat' : 'map'; setBasemap(); } // &map= 固定底圖
-  try { map.attributionControl.addAttribution('資料: 交通部TDX'); i18nTranslateTree(map.attributionControl.getContainer()); } catch (e) {} // 底圖字樣外補資料來源
-  document.getElementById('liveHud').hidden = false;
-  const go = () => {
-    if (!state.ready || !state.trains.length) { setTimeout(go, 500); return; } // 等資料載完列車出現,不空畫面巡航
-    setAmbientStyle('hotspot'); // 直播固定群車巡航視角
-    setAmbient(true); // 進放空:全畫面+自動導演+防休眠+音樂(enabled 者自動開播)
-    setSpeed(1); // 蓋掉放空預設 5×:直播貼真實時刻跑(重播段亦 1×)
-    if (!state.music.enabled) setMusicEnabled(true); // 上次關過音樂也強制開,直播要有聲
-    // 自動播放被擋的保險(OBS 帶 --autoplay-policy 旗標時不會走到):首次點擊補播一次
-    setTimeout(() => {
-      if (state.music.enabled && state.music.audio.paused)
-        document.addEventListener('pointerdown', () => { if (state.music.audio.paused) musicPlay(); }, { once: true });
-    }, 1500);
-    liveClockTick(); // 立即判一次深夜重播,不等下一秒
-  };
-  go();
-}
-// 一般模式(非 OBS/導播)的時鐘防漂移,每秒由 tick 呼叫。
-// 原本只有 ?live 直播訊號源有 liveClockTick 顧時鐘,一般使用者完全沒有這道校正——前景純靠 rAF 的
+// 時鐘防漂移,每秒由 tick 呼叫。前景純靠 rAF 的
 // dt 累加(實測 headless 45 秒只漂 0.11 秒,但 iOS App 的 WebView 背景行為與桌面不同,無法假設)。
 // 門檻取 2 秒:時鐘顯示到分(fmtHM),2 秒不影響讀數;列車位置在 2 秒內最多移動約 75 公尺(135km/h),
 // 短於一個月台。低於此值不動,免得每秒都在微調位置。
 function clockDriftGuard() {
   if (!state.clockAtNow || !state.playing || state.speedMult !== 1 || state._scrubTime) return;
-  if (state.liveReplay || state.nightReplay || state.mode !== 'sched') return;
+  if (state.nightReplay || state.mode !== 'sched') return;
   const now = nowSecOfDay(activeTz());
   if (Math.abs(state.simSec - now) <= 2) return;
   state.simSec = now;          // 不走 setSimSec:那會清掉 clockAtNow,而這正是「維持跟著現在」
   state.t0 = performance.now(); // 同步歸零 dt 基準,免得下一幀把剛校好的時鐘再推一次
   syncTimeUI();
 }
-// 每秒由 tick 呼叫:真實時刻 00:45–05:15 沒車,切到 08:00 起 1× 重播(REPLAY 標記);時段外貼回真實時刻
-function liveClockTick() {
-  if (state.mode !== 'sched') return;
-  const now = nowSecOfDay(activeTz());
-  const inWin = now >= LIVE_REPLAY_FROM && now < LIVE_REPLAY_TO;
-  if (inWin && !state.liveReplay) {
-    state.liveReplay = true;
-    state.nightReplay = false; // 接手放空自帶的 18:00 深夜重播
-    setSpeed(1);
-    setSimSec(8 * 3600); // 既有時光機路徑:清晨 08:00 起連續前進
-    refreshBadge();
-  } else if (!inWin && state.liveReplay) {
-    state.liveReplay = false;
-    jumpToNow(); // 既有「回到現在」路徑:真實時刻+1×+誤點重新套用
-  } else if (!inWin && !state.liveReplay && !state.nightReplay && Math.abs(state.simSec - now) > 120) {
-    setSimSec(now); // 24/7 長跑防漂移:非重播時段把模擬時鐘貼回真實時刻(誤點套用門檻 ±120s)
-    state.clockAtNow = true;  // setSimSec 會清旗標,這裡是「貼回現在」要補設回來
-  }
-  document.getElementById('replayBadge').hidden = !state.liveReplay;
-}
-
-// ── 導播模式(?live=2&k=,隱藏私用,密鑰 gated):5× 循環,跟單車 5–10 分輪替(z18)+偶爾群車俯瞰,列車資訊/站介紹全開 ──
-const DIRECTOR_KEY = 'S4_1HiKreSVsjFHN';   // 只有帶此 key 的網址能開;換 key 即失效舊連結
-const DIRECTOR_FOLLOW_Z = Math.min(18, FOLLOW_ZOOM_CAP); // 跟車縮放(使用者要求「最大縮小兩級」≈z18);App 計量底圖由 followZoomCap 收斂(=16)
-const DIR_FOLLOW_BLOCK = 20 * 60000, DIR_GROUP_BLOCK = 5 * 60000; // 跟車段~20分 ↔ 群車段~5分 循環(使用者要求群車畫面多一些,原 2.5 分加倍)
-const DIR_BASEMAPS = ['light', 'dark', 'sat']; // 每換一班跟隨列車依序輪一種底圖(白/黑/衛星)
-function advanceDirectorBasemap() {
-  const mode = DIR_BASEMAPS[(state._dirBmIdx = ((state._dirBmIdx || 0) + 1) % DIR_BASEMAPS.length)];
-  state.mapDark = mode === 'dark';
-  state.basemap = mode === 'sat' ? 'sat' : 'map';
-  setBasemap();
-}
-function initDirector() {
-  if (state._liveMapOverride) { state.mapDark = state._liveMapOverride === 'dark'; state.basemap = state._liveMapOverride === 'sat' ? 'sat' : 'map'; setBasemap(); } // &map= 固定底圖,停用自動輪替(見 fadeSwitch)
-  try { map.attributionControl.addAttribution('資料: 交通部TDX'); i18nTranslateTree(map.attributionControl.getContainer()); } catch (e) {}
-  document.getElementById('liveHud').hidden = false;
-  const go = () => {
-    if (!state.ready || !state.trains.length) { setTimeout(go, 500); return; }
-    setAmbientStyle('follow');  // 跟單車風格(自動導演),非群車
-    setAmbient(true);           // 進放空:全畫面+自動導演+站介紹+音樂+防休眠
-    state.nightReplay = false;  // 取消放空自帶的深夜跳 18:00,一律播現在時刻的真實列車
-    setSpeed(1);                 // 直播固定 1× 貼真實時刻,蓋掉放空預設的 5×
-    setSimSec(nowSecOfDay(activeTz())); // 貼回現在時刻(蓋掉上一行 setAmbient 深夜時段可能做的跳 18:00)
-    if (!state.music.enabled) setMusicEnabled(true);
-    setTimeout(() => { if (state.music.enabled && state.music.audio.paused)
-      document.addEventListener('pointerdown', () => { if (state.music.audio.paused) musicPlay(); }, { once: true }); }, 1500);
-    state._dirPhase = 'follow'; state._dirNext = performance.now() + DIR_FOLLOW_BLOCK;
-  };
-  go();
-}
-// 相位機:跟車段(autoTour 輪車 z18)↔ 群車段(hotspot 俯瞰)循環;每幀由 tick 呼叫
-function directorTick(now) {
-  if (state.mode !== 'sched' || now < (state._dirNext || 0)) return;
-  if (state._dirPhase === 'group') {          // 群車段結束 → 回跟車段
-    state._dirPhase = 'follow';
-    setAmbientStyle('follow'); state._ambientFresh = true; setAutoTour(true);
-    state._dirNext = now + DIR_FOLLOW_BLOCK;
-  } else {                                      // 跟車段結束 → 群車段
-    state._dirPhase = 'group';
-    if (state.autoTour) setAutoTour(false);
-    clearFollow(); clearFreqFollow(); // 跟車段可能正跟捷運幽靈車,群車段開始前一併清掉(否則卡住擋 hotspotTick 的 !freqFollow 條件)
-    setAmbientStyle('hotspot'); state._hotFresh = true; state._hotScene = null; state._hotNext = 0;
-    state._dirNext = now + DIR_GROUP_BLOCK;
-  }
-}
-// 導播 1× 防漂移:每秒由 tick 呼叫,只貼回現在時刻,不做 liveClockTick 的深夜 08:00 重播替代(直播只播現在真實列車)
-function directorClockTick() {
-  if (state.mode !== 'sched') return;
-  const now = nowSecOfDay(activeTz());
-  if (Math.abs(state.simSec - now) > 120) setSimSec(now);
-}
-
 // ── 高鐵自由座車廂(免費功能:資料一天最多變一次,實測連續四天觀察同一批車次皆未變動,
 // 原本設想要收進通行證的理由不成立,故改回免費)。資料來源:交通部 TDX 高鐵每日自由座公告,
 // 不是即時車廂擁擠度(沒有這份資料),文案只能講「自由座」不能暗示「目前擁擠程度」。
@@ -17779,7 +17530,6 @@ function favStationHere(f) { // 解析目前檢視能開板的站物件;開不�
 }
 function renderFavStationMarkers() {
   favStMarks.forEach(m => map.removeLayer(m)); favStMarks = [];
-  if (state.liveMode) return; // 直播訊號源不放個人收藏(OBS 契約:藏 UI)
   for (const f of loadFavStations()) {
     const st = favStationHere(f);
     if (!st) continue;
@@ -21818,7 +21568,7 @@ function computeMapInsets() {
   if (!window.matchMedia(MOBILE_MQ).matches) return NONE;
   const body = document.body;
   // 直播/放空是乾淨 HUD(頂列/工具欄全藏),沿用整容器置中
-  if (body.classList.contains('live') || body.classList.contains('ambient')) return NONE;
+  if (body.classList.contains('ambient')) return NONE;
   const mc = map.getContainer().getBoundingClientRect();
   if (!mc.width || !mc.height) return NONE;
   // 🔴 不用 offsetParent 判可見:.tabbar 是 position:fixed,offsetParent 恆 null 會被誤判成不在
@@ -25915,7 +25665,7 @@ function updateSheetOpenClass() {
 // ── 「列車」sheet(手機 fs):點跟隨小卡展開 #trainCard 內容(不搬 DOM) ──
 function openTrainSheet() {
   if (!window.matchMedia(MOBILE_MQ).matches || !document.body.classList.contains('fs') || !state.followTrain) return;
-  if (document.body.classList.contains('live') || document.body.classList.contains('ambient')) return; // 直播/放空 HUD 不受影響(§04b)
+  if (document.body.classList.contains('ambient')) return; // 直播/放空 HUD 不受影響(§04b)
   soloPanel('train'); // 關掉其他 sheet(保留自己)
   const tc = document.getElementById('trainCard');
   document.getElementById('followPanel').classList.remove('fp-min'); // 收合小卡態也一致地開 sheet
@@ -29014,8 +28764,7 @@ function placeBadge() {
   const bar = document.getElementById('topbar');
   if (!badge || !bar) return;
   if (!_badgeHomeAnchor) { _badgeHomeAnchor = document.createComment('badge-home'); badge.parentNode.insertBefore(_badgeHomeAnchor, badge); }
-  // live 的頂列整條 display:none,徽章搬進去會跟著消失,而 live 恰恰要大字時鐘——留在老家
-  if ((document.body.classList.contains('fs') || sheetIsSideRail()) && !document.body.classList.contains('live')) {
+  if (document.body.classList.contains('fs') || sheetIsSideRail()) {
     if (badge.parentNode !== bar) bar.insertBefore(badge, document.getElementById('alertChip'));
   } else if (badge.parentNode !== _badgeHomeAnchor.parentNode || badge.previousSibling !== _badgeHomeAnchor) {
     _badgeHomeAnchor.parentNode.insertBefore(badge, _badgeHomeAnchor.nextSibling);
@@ -29031,16 +28780,15 @@ function placeBadge() {
 //    桌面靠 hover 看得到、觸控裝置完全沒有入口——這張卡就是為了那段字開的。
 const STAT_POP_KEYS = [
   ['live', '即時資料', 'liveBadge'], ['metro', '捷運看板', 'metroBadge'],
-  ['replay', '重播', 'replayBadge'], ['peak', '時段', 'peak'], ['count', '目前車數', 'count'],
+  ['peak', '時段', 'peak'], ['count', '目前車數', 'count'],
 ];
 function statPopItems() {
   return STAT_POP_KEYS.map(([k, lab, id]) => {
     const el = document.getElementById(id);
     if (!el || el.hidden || !el.textContent.trim()) return null;
     const badgeText = el.textContent.trim();
-    // REPLAY 是英文標記不是給人看的字;其餘逐字照抄徽章(徽章寫「官方即時」就顯示「官方即時」)
-    const val = k === 'replay' ? t('重播中')
-      : badgeText + (el.classList.contains('est') && !/非即時/.test(badgeText) ? `・${t('非即時')}` : '');
+    // 逐字照抄徽章(徽章寫「官方即時」就顯示「官方即時」)
+    const val = badgeText + (el.classList.contains('est') && !/非即時/.test(badgeText) ? `・${t('非即時')}` : '');
     return { k, lab: t(lab), val, why: (el.title || '').trim() };
   }).filter(Boolean);
 }
@@ -29136,7 +28884,7 @@ let _fitSig = '';
 function fitBadgeDetail(force) {
   const bar = document.getElementById('topbar'), badge = document.getElementById('statBadge');
   if (!bar || !badge || !bar.getClientRects().length) return;   // 桌面殼沒有這條列
-  const flags = ['liveBadge', 'metroBadge', 'replayBadge', 'peak']
+  const flags = ['liveBadge', 'metroBadge', 'peak']
     .map(id => { const e = document.getElementById(id); return e && !e.hidden && e.textContent.trim() ? e.textContent.trim() : ''; }).join('|');
   const sig = flags + '§' + (document.documentElement.getAttribute('data-fs') || 'std') + '§' + Math.round(bar.clientWidth)
     + '§' + (document.getElementById('alertChip')?.hidden ? '0' : '1');
@@ -29144,8 +28892,8 @@ function fitBadgeDetail(force) {
   _fitSig = sig;
   const plate = bar.querySelector('.tb-plate');
   // 優先序:先讓最不急的那顆變回色點。即時資料(LIVE／非即時)最後才降級——
-  // 它是「畫面現在可不可信」的唯一指標,其餘三顆在資料狀態卡裡都寫得更清楚。
-  const DEGRADE = ['metroBadge', 'peak', 'replayBadge', 'liveBadge'];
+  // 它是「畫面現在可不可信」的唯一指標,其餘兩顆在資料狀態卡裡都寫得更清楚。
+  const DEGRADE = ['metroBadge', 'peak', 'liveBadge'];
   const els = DEGRADE.map(id => document.getElementById(id)).filter(Boolean);
   els.forEach(e => e.classList.remove('as-dot'));      // 量之前先全部回到「寫字」那一態
   const prev = plate ? plate.style.flex : null;
@@ -29746,9 +29494,9 @@ function setupHelp() {
   }));
   const more = document.getElementById('howtoMore');
   if (more) more.onclick = () => openHelp(); // openHelp 自己會收首訪卡並寫入 seen
-  // ?help=1:客服頁/商店文案/回信可以直接連進來(不必另外維護一份說明頁)。直播/導播模式不彈。
+  // ?help=1:客服頁/商店文案/回信可以直接連進來(不必另外維護一份說明頁)。
   let want = false; try { want = new URLSearchParams(location.search).get('help') === '1'; } catch (e) {}
-  if (want && !state.liveMode && !state.director) {
+  if (want) {
     // 不能立刻開:setupHelp 跑在 boot 中段,此時班表還沒算完、衛星 token 還沒回、隨機跟隨還沒露出,
     // 渲染出來的節會是過期的(缺「試一次」或列出其實不存在的功能)。等時鐘徽章的班次數出現(=資料就位)再開,
     // 最多等 4 秒就照現況開,不讓深連結永遠開不出來。
@@ -29779,7 +29527,7 @@ function setupMapTools() {
       return;
     }
     const r = fab.getBoundingClientRect();
-    if (!r.width) return; // 鈕被藏(放空/直播)時不動,維持 CSS 的右下角落點
+    if (!r.width) return; // 鈕被藏(放空)時不動,維持 CSS 的右下角落點
     const W = 340;
     sheet.style.left = Math.max(12, Math.min(r.left, window.innerWidth - W - 12)) + 'px';
     sheet.style.right = 'auto';
@@ -29938,7 +29686,6 @@ function setupMapTools() {
     const cnt = document.getElementById('count');
     put('msStatLive', 'msStatLiveVal', live, mirror(live));
     put('msStatMetro', 'msStatMetroVal', mlive, mirror(mlive));
-    put('msStatReplay', 'msStatReplayVal', document.getElementById('replayBadge'), t('重播中'));
     put('msStatPeak', 'msStatPeakVal', peak, mirror(peak));
     put('msStatCount', 'msStatCountVal', cnt, mirror(cnt));
   }
@@ -30016,11 +29763,11 @@ function setupMapTools() {
     btn.click();
     syncMoreSheet();
   });
-  // 首訪「怎麼玩」卡:僅首次(localStorage 記憶);直播/導播模式不彈
+  // 首訪「怎麼玩」卡:僅首次(localStorage 記憶)
   (function setupHowto() {
     const wrap = document.getElementById('howtoWrap');
     let seen = null; try { seen = localStorage.getItem('trainmap-howto-seen'); } catch (e) {}
-    if (!wrap || seen || state.liveMode || state.director) return;
+    if (!wrap || seen) return;
     const opener = document.activeElement; // v0718i:關閉時還原 focus 到開啟前的焦點(多半是 body,無害)
     const done = () => {
       wrap.hidden = true;
@@ -30055,7 +29802,7 @@ function setupMapTools() {
     const ih = document.getElementById('iabHint');
     const ctl = document.querySelector('.controls');
     const stR = document.querySelector('.stage').getBoundingClientRect();
-    const shellOk = isMobile && !document.body.classList.contains('ambient') && !document.body.classList.contains('live');
+    const shellOk = isMobile && !document.body.classList.contains('ambient');
     const immersive = document.body.classList.contains('immersive');
     // 側欄形態的跟隨欄是上下錨定(CSS 唯一權威,bottom 帶 !important),不參與底部讓位的抬升記帳;
     // 這裡把它當「不在」,尾端的歸零寫入(空字串)順便清掉直向時代殘留的 inline bottom
@@ -30191,15 +29938,14 @@ function setupMapTools() {
     if (!on && state.ambient) setAmbient(false); // 退出全畫面=退出放空
   }
   state._setFs = setFs;
-  if (state.liveMode && !document.body.classList.contains('fs')) setFs(true); // 直播/導播不等資料就緒就先進全畫面,OBS 一開始就是乾淨地圖,不會先閃出整頁版型
-  // ── 手機速度控制膠囊狀態機(≤640 一律;非放空非直播;膠囊/展開/把手的樣式見 640 媒體塊)──
+  // ── 手機速度控制膠囊狀態機(≤640 一律;非放空;膠囊/展開/把手的樣式見 640 媒體塊)──
   (function setupFsCapsule() {
     const controls = document.querySelector('.controls');
     const pp = document.getElementById('pp');
     const body = document.body;
     let collapseT = null, faintT = null, sliderHold = false;
     const capsule = () => window.matchMedia(MOBILE_MQ).matches
-      && !body.classList.contains('ambient') && !body.classList.contains('live');
+      && !body.classList.contains('ambient');
     const clearTimers = () => { clearTimeout(collapseT); clearTimeout(faintT); collapseT = faintT = null; };
     const syncOverlays = () => placeFsOverlays(); // 膠囊高度變 → 跟隨卡/鈕依實高重新讓位
     function scheduleCollapse() { clearTimers(); if (!sliderHold) collapseT = setTimeout(toSlim, 5000); } // 展開 5s 無互動 → slim
@@ -30256,7 +30002,7 @@ function setupMapTools() {
     wasSideRail = rail;
     if (crossedMobileShell) {
       if (mob) { if (!document.body.classList.contains('fs')) setFs(true); }
-      else if (!state.liveMode && !document.fullscreenElement && document.body.classList.contains('fs')) setFs(false);
+      else if (!document.fullscreenElement && document.body.classList.contains('fs')) setFs(false);
       if (!mob) closeTrainSheet(); // 「列車」sheet 是手機專屬構造:離開手機斷點即收(桌面走併卡);desktop 無 tc-sheet 時為 no-op
       renderAlertBanner(); // 公告的形態綁斷點(手機=頂列鈕、桌面=橫幅),跨界要重算 alertBanner.hidden
     }
@@ -30395,9 +30141,7 @@ function setupMapTools() {
     // 設計 6a 的「跟隨系統字級」是可關的開關(預設開)。關掉之後系統字級再大也不介入——
     // 有人只是把整支手機的字調大、但希望地圖這一頁維持資訊密度,那是合理的選擇。
     const sysTier = state.fontFollowSys === false ? 'std' : systemFontTier();
-    // ?live=1 的直播殼版面是對外契約(OBS 場景固定裁切),字級恆定標準
-    const eff = state.liveMode ? 'std'
-      : (FS_SCALE[sysTier] > FS_SCALE[user] ? sysTier : user);
+    const eff = FS_SCALE[sysTier] > FS_SCALE[user] ? sysTier : user;
     if (eff === 'std') document.documentElement.removeAttribute('data-fs');
     else document.documentElement.setAttribute('data-fs', eff);
     if (state.ready) { try { map.invalidateSize({ pan: false }); } catch (e) {} } // 字級改變會動到面板高度,地圖尺寸快取要重量
@@ -30905,16 +30649,6 @@ async function boot() {
   document.getElementById('buildVer').textContent = BUILD;
   { const mv = document.getElementById('msBuildVer'); if (mv) mv.textContent = BUILD; } // Batch B:關於段版本號同步
   console.log('台灣鐵道·列車流動 BUILD', BUILD);
-  // 直播模式:開頭就掛 class,互動 UI 首繪即隱藏(資料載入要幾秒,不在 OBS 畫面閃 UI)
-  // ?live=1 即時模式;?live=2&k=<密鑰> 導播模式(隱藏私用,密鑰對才開,否則當一般站台)
-  try {
-    const sp = new URLSearchParams(location.search), lv = sp.get('live');
-    if (lv === '2') { if (sp.get('k') === DIRECTOR_KEY) { state.liveMode = true; state.director = true; } }
-    else if (lv) state.liveMode = true;
-    if (state.liveMode) { const m = sp.get('map'); if (m === 'light' || m === 'dark' || m === 'sat') state._liveMapOverride = m; } // &map= 固定底圖,導播模式並停用自動輪替
-  } catch (e) {}
-  if (state.liveMode) document.body.classList.add('live');
-  if (state.director) document.body.classList.add('director');
   // 開機自動定位(原生 App)要盡早發起,才能與底下整串資料載入並行、把等待藏起來。
   // 不 await:定位回不回得來、幾秒回來都不該卡住開機;結果晚點在落點決定處接。
   startBootGeo();
@@ -31336,7 +31070,7 @@ async function boot() {
     // 只開 sat——light/dark(Stadia,付費)刻意不開,同 @2x 全流量曝險教訓(見 monetization-cost-decisions)
     if (k === 'sat') opt.detectRetina = SAT_RETINA;
     // 街道底圖(亮/暗)走 OSM 向量:MapLibre 只當成一個 Leaflet 圖層,Leaflet 仍是地圖引擎,
-    // 155 處 map.* 綁定與投影包裝層一行都不用動。衛星維持 raster 不受影響。
+    // 既有的地圖綁定與投影包裝層一行都不用動。衛星維持 raster 不受影響。
     if (useOfmStreet && (k === 'light' || k === 'dark')) {
       // L2 退路先備好:用「raster 路徑原本就會建的那份設定」包成 thunk,退場時直接叫它,
       // 不重抄一次 maxZoom/keepBuffer/attribution(抄一次就多一個會走樣的地方)。
@@ -31732,13 +31466,13 @@ async function boot() {
   } catch (e) {}
   // 開站落點優先序：深連結 > 預設啟動地點(儲存地點設的) > 上次視野 > 首屏全台同框。
   // 分享連結進來的訪客絕不能被本機記憶/預設蓋掉；設了預設地點就蓋過「上次視野」。預設地點一律開在全台同框並置中。
-  const defPlace = (deepG || deepAt || deepTrain || deepTrip || state.liveMode) ? null : loadDefaultPlace();
+  const defPlace = (deepG || deepAt || deepTrain || deepTrip) ? null : loadDefaultPlace();
   // 開機自動定位(App):geoBoot 由 startBootGeo 自己的守門決定(深連結/預設地點/非原生一律不發起),這裡直接沿用,
   // 不重寫一份條件免得兩處漂移。定位有兩個時態——快取座標 0 秒可用,先落點蓋過「上次視野」;
   // 真定位晚幾秒到再校正(applyBootGeo)。首開沒有快取時不空等,照舊落上次視野/全台同框,定位到了再飛過去。
   const geoBoot = !!state._bootGeo;
   const geoCache = geoBoot ? loadGeoCache() : null;
-  const lastView = (deepG || deepAt || deepTrain || deepTrip || state.liveMode || defPlace || geoCache) ? null : loadLastView();
+  const lastView = (deepG || deepAt || deepTrain || deepTrip || defPlace || geoCache) ? null : loadLastView();
   // 開場群組:分享連結帶 g 就開該群組;預設地點沿用全台同框(all,已是預設值);其次上次待的群組
   let bootGroup = GROUPS.find(g => g.id === 'all');
   if (deepG) { const gg = GROUPS.find(g => g.id === deepG); if (gg) bootGroup = gg; }
@@ -31770,7 +31504,7 @@ async function boot() {
       map.setView([lastView.lat, lastView.lon], lastView.z, { animate: false }); // 回到上次離開的位置(群組已於上面一併還原)
     }
   }
-  map.on('moveend', saveLastView); // 記住使用者最後看的畫面;守門條件都在 saveLastView 內(巡航/跟車/直播皆不寫)
+  map.on('moveend', saveLastView); // 記住使用者最後看的畫面;守門條件都在 saveLastView 內(巡航/跟車皆不寫)
   // 使用者一開始自己拖地圖,開機定位就別再搶鏡頭(dragstart 只有真的手動拖曳才發,程式化的 setView/flyTo 不會)
   map.on('dragstart', () => { state._userMoved = true; state.geoFollow = false; });
   if (geoBoot) state._bootGeo.then(applyBootGeo);
@@ -31793,17 +31527,14 @@ async function boot() {
     if (cross) document.documentElement.dataset.notifyMockCrossDay = JSON.stringify({ train: String(cross.train), sys: reminderSysOf(cross) });
   }
   requestAnimationFrame(tick);
-  if (state.director) initDirector(); // 導播模式(?live=2):5× 循環,跟車 5–10 分輪替(z18)+偶爾群車俯瞰,資訊卡全開
-  else if (state.liveMode) initLive(); // 即時模式(?live=1):資料就緒後貼真實時刻放空巡航+音樂
 }
 
 // ══════════ 上次視野記憶(v0718o)：回訪自動回到離開時的路網與位置，不需登入 ══════════
-// 只記「使用者自己在看的畫面」——放空巡航/跟車/導播的鏡頭不是使用者的意圖，一律不寫入；
+// 只記「使用者自己在看的畫面」——放空巡航/跟車的鏡頭不是使用者的意圖，一律不寫入；
 // 也不記時刻與跟隨中的車次(那班車隔天就不存在了，時間軸每次開一律回到「現在」)。
 const LAST_VIEW_KEY = 'trainmap-last-view';
 function saveLastView() {
   if (!state.ready) return;                          // 開機期間的框景不算(還原用的 setView 也在 ready 之前)
-  if (state.liveMode || state.director) return;      // ?live= 是 OBS 訊號源契約：不讀也不寫
   if (state.autoTour || state._hotScene) return;     // 放空巡航/群車俯瞰的鏡頭自己會飄，存了下次開就被丟到隨機位置
   if (state.followTrain || state.freqFollow) return; // 跟車鏡頭同理
   const g = GROUPS.find(x => x.id === state.group);
@@ -32166,11 +31897,11 @@ document.getElementById('followPanel').addEventListener('click', (e) => {
   // 膠囊態(點空白收起來的那種)點一下就展開回原樣——要排在下面「開列車 sheet」那條之前,
   // 否則手機上點膠囊會跳去另一個介面(列車 sheet),而不是回到收合前看的那張卡。
   if (uniCollapsed && !e.target.closest('.fp-end')) { e.stopPropagation(); uniExpand(); return; }
-  // 手機全畫面:點跟隨小卡(非結束/收合/分享鈕)→ 展開「列車」sheet(桌面走原 fp-min 展開;直播/放空不攔,維持既有行為)
+  // 手機全畫面:點跟隨小卡(非結束/收合/分享鈕)→ 展開「列車」sheet(桌面走原 fp-min 展開;放空不攔,維持既有行為)
   // 🔴 卡已經搬進整合卡的分頁槽時不轉去列車 sheet:那一頁本身就是展開的完整卡,
   //    再跳一個 sheet 會 soloPanel('train') 把看板關掉,整合卡當場散掉。
   if (window.matchMedia(MOBILE_MQ).matches && document.body.classList.contains('fs') && state.followTrain
-      && !document.body.classList.contains('live') && !document.body.classList.contains('ambient')
+      && !document.body.classList.contains('ambient')
       && !fp.closest('.uni-slot')
       // 🔴 .xfc-row/.xfc-unpin(轉乘接續)也要排除:#fpConn 就住在這張卡裡,不排除的話手機上點
       //    一列接續會「順便」把整張列車 sheet 滑上來——使用者只想釘一班車,結果被導去另一個介面
