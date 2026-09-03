@@ -2241,7 +2241,9 @@
   .board .row .crowd { display: inline-flex; gap: 2px; flex: none; align-self: center; width: 40px; justify-content: flex-end; }
   .board .row .crowd i { width: 5px; height: 10px; border-radius: 1.5px; }
   /* 手機寬度下,固定佔位＋「未連結動畫」註記擠不下同一列——官方板一律藏註記(title 與 aria-disabled 仍在) */
-  @media (max-width: 900px) { .board[data-trtc-official="1"] .row .linknote { display: none; } }
+  @media (max-width: 900px), (max-height: 500px), (any-pointer: coarse) and (max-width: 1400px) {
+    .board[data-trtc-official="1"] .row .linknote { display: none; }
+  }
   /* 衛星墊底層不淡入。Leaflet 的圖磚是 opacity 0→1 淡進來的,而這一層的用途正是「上面那層還沒
      到位時把破口補起來」——淡入等於破口期間它自己也是半透明的,使用者看到的就是那一下閃。 */
   .sat-underlay img.leaflet-tile { opacity: 1 !important; }
@@ -2309,7 +2311,7 @@
   /* 原生 App 的直式站牌：把「追蹤這站」收進站名列，保留 44px 觸控框但只畫一顆矮 pill。
      平台由 native-bridge 在頁面解析 CSS 前掛到 html data attribute，而它【只在原生 App 才掛】
      ⇒ 用 [data-app-platform] 不帶值就等於「Android 或 iOS」，網站永遠不命中、維持既有滿寬 CTA。 */
-  @media (max-width: 900px) {
+  @media (max-width: 900px), (max-height: 500px), (any-pointer: coarse) and (max-width: 1400px) {
     html[data-app-platform] .board h3.has-wait {
       --board-wait-w: calc(82px * var(--uit));
       min-height: 44px; padding-right: calc(92px + var(--board-wait-w));
@@ -2383,7 +2385,9 @@
   #searchDrop .sd-named .sd-note { margin-top: 8px; color: var(--faint); font-size: calc(11px * var(--uis)); }
   /* 亮點 sheet 骨架(Batch B):#note 遷入的註腳桌面不顯示(桌面另有頁尾 .note) */
   #explorePanel .exp-note { margin: 8px -14px 0; padding: 10px 14px 12px; border-top: 1.5px dashed var(--line-dash); font-size: calc(10.5px * var(--uis)); line-height: 1.7; color: var(--faint); }
-  @media (min-width: 901px) and (min-height: 501px) { #explorePanel .exp-note { display: none; } }
+  @media (min-width: 901px) and (min-height: 501px) {
+    body:not(.mobile-shell) #explorePanel .exp-note { display: none; }
+  }
   .board .empty { color: var(--faint); font-size: calc(13px * var(--ui)); padding: 8px 0; }
   /* 設計 14c:空狀態一律 1.5px 虛線框——跟有內容的實線卡一眼分得開,不用灰字大標「無資料」。
      四處(釘選卡/護照/車站看板/搜尋)共用這一條,各自原有的字級、顏色、對齊都不動,只多一個框。
@@ -3216,13 +3220,15 @@
     }
   }
 
-  /* ── 手機／平板直式殼(議題1主案:上限 640→900;iPad 直式 768 改拿 tab bar＋「更多」抽屜＋速度膠囊,不再吃桌面帶) ──
+  /* ── 手機／觸控平板殼(議題1主案:上限 640→900;iPad/Android 平板改拿 tab bar＋「更多」抽屜＋速度膠囊,不再吃桌面帶) ──
      2026-08-11 加上 (max-height: 500px):iPhone Pro Max **橫放**的邏輯寬度是 932/956,超過 900 ⇒ 原本掉出
      這個殼、改走桌面長頁版面,而桌面版面把內容縱向堆疊(header 就 283px),總高約 1023px 塞進 430px 的視窗
      ⇒ 地圖容器有一半在視窗外、跟車時列車算在 y≈522 根本沒進畫面,站台帶與列車資訊卡也一起在視窗外。
      判準改成「寬度窄 **或** 高度矮」:矮視窗本來就放不下桌面長頁,一律走手機殼才是對的形態。
-     🔴 與 JS 的 MOBILE_MQ 必須逐字同式(三處:此處、開機 inline script、MOBILE_MQ 常數)。 */
-  @media (max-width: 900px), (max-height: 500px) {
+     2026-09-03 加上觸控平板條件：any-pointer:coarse 且寬度不超過 1400px。用 any-pointer
+     是因 iPad 接上觸控板後主要 pointer 會變 fine，但螢幕仍可觸控；Android 大平板也走同一套殼。
+     🔴 與 JS 的 MOBILE_MQ 必須逐字同式（三段 CSS、開機 inline script、MOBILE_MQ 常數）。 */
+  @media (max-width: 900px), (max-height: 500px), (any-pointer: coarse) and (max-width: 1400px) {
     /* 底錨面板統一避讓基準:fixed tab bar 實高(58px)＋iOS 安全區(有瀏海才 >0);所有貼底表面以此為基準讓位,
        改一處全體同步。原本各自寫死的 66/64/68px 就是 58+讓位間距,改成 var+間距後計算值不變(桌面 var 未定義故不影響)。 */
     :root { --tabbar-clear: calc(52px * var(--uit) + max(var(--sa-b) - 6px, 0px)); } /* 與 .tabbar height 同式(v0721f 收斂) */
@@ -4134,11 +4140,12 @@
      修法不是把 sheet 壓扁,是**換一個軸**:面板靠右成側欄、讓出左半給地圖,讓位從垂直改水平。
      這樣 ①② 一起消失(地圖有滿高、小卡不必往上讓),③ 也不再需要(高度由上下錨撐出)。
      🔴 條件用 orientation 而不是只用 max-height:窄又矮的視窗(例如 400×430)是直向,塞不下側欄,
-        那種形態該維持底部 sheet。iPad 橫放(1024×768)高度充足、不match,維持現狀不受本區塊影響。 */
-  @media (orientation: landscape) and (max-height: 500px) {
+        那種形態該維持底部 sheet。第二段讓橫向觸控平板使用右側欄；兩段必須與 RAIL_MQ 同式。 */
+  @media (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (min-width: 700px) and (max-width: 1400px) and (any-pointer: coarse) {
     /* 側欄寬度的單一事實來源:面板自己、以及所有要讓開它的東西(動作列…)都讀這一個變數,
        改一處全體同步。寫死兩次遲早分岔——randBtn 疊上側欄就是第一版沒共用時當場踩到的。 */
-    :root { --rail-w: min(340px, 42vw); }
+    /* 舊手機逐值不變，平板再依寬度放大：667→280、932→340、1210→363、1376→413。 */
+    :root { --rail-w: clamp(min(340px, 42vw), 30vw, 420px); }
     /* sheet 家族全體:上下錨撐滿高、靠右、讓出左半。寬度用 min() 讓 667 這種窄橫向也留得住地圖。
        選擇器帶 body.fs 是為了贏過手機殼區塊裡的 `body.fs .board`(0,2,0);矮視窗一律是 fs。 */
     body.fs .board, body.fs #nearCard, body.fs #searchPanel, body.fs .traincard.tc-sheet,
@@ -4455,47 +4462,54 @@
   }
 
   /* ── 桌面(≥901 且高度夠):tab bar/更多 sheet 不出現;桌面帶把音樂控制收成 ♪ 圖示鈕＋彈出面板(議題1主案,省~110px→帶內容壓進~1220px,1280 不裁);右上角橫幅/詳情/平交道卡/看板讓開 #fsFab ──
-     🔴 (min-height: 501px) 是上面那個殼斷點的**互補條件**,兩者必須恰好互斥:少了它,Pro Max 橫放(932×430)
-     會同時吃到兩個區塊——手機殼給了 tab bar,這裡的 `.tabbar{display:none !important}` 又把它整個藏掉。 */
+     🔴 觸控平板雖然寬度大於 900，仍屬 mobile-shell；每條桌面規則都以 body:not(.mobile-shell)
+     守住。不能改看 body.fs——桌面使用者按全畫面也會有 fs，但仍應保留桌面工具配置。 */
   @media (min-width: 901px) and (min-height: 501px) {
-    .tabbar, .more-scrim { display: none !important; }
+    body:not(.mobile-shell) .tabbar, body:not(.mobile-shell) .more-scrim { display: none !important; }
     /* ── 「更多」抽屜桌面版(v0725g):同一份 sheet、同一套代理邏輯,只換形狀——手機是全寬底部抽屜,
        桌面改成錨在帶上 ☰ 鈕正上方的 340px 面板(實際 left/bottom 由 positionMoreSheet 貼齊鈕)。
        抽屜是 body 層 fixed(z1110)、不在 .controls 內,所以不吃帶的 overflow 裁切,也不受帶 z700 的
        stacking context 封頂(音樂彈出面板 v0718m 踩過的那兩個坑)。display 交給 body.tools-open 規則。 ── */
-    .more-sheet {
+    body:not(.mobile-shell) .more-sheet {
       left: auto; right: 12px; bottom: 80px; width: 340px;
       max-height: min(78vh, 700px); /* 12 列＋4 段標題約 640px:一般桌面(≥900 高)一眼看完不必捲 */
       border: 1.5px solid var(--navy); border-radius: 12px;
       box-shadow: var(--shadow-1), 0 10px 28px rgba(20, 30, 50, .18);
       padding-bottom: 8px;
     }
-    .more-sheet .grab { display: none; } /* 拖曳把手是觸控隱喻,桌面不需要 */
+    body:not(.mobile-shell) .more-sheet .grab { display: none; } /* 拖曳把手是觸控隱喻,桌面不需要 */
     /* 列高:手機 48px 是觸控目標下限,桌面滑鼠不需要那麼高——收緊讓整份設定一屏看完 */
-    .more-sheet .ms-row { min-height: 40px; padding: 8px 14px; font-size: calc(13px * var(--ui)); }
+    body:not(.mobile-shell) .more-sheet .ms-row { min-height: 40px; padding: 8px 14px; font-size: calc(13px * var(--ui)); }
     /* 「資料狀態」是手機限定:那些字樣只在手機被收成色點(設計 D4 排法B),桌面頂列徽章本來就寫著全文,
        再列一次是純重複。DOM 留著、只在桌面藏起來——旗標/版面回到手機就自己回來。 */
-    .more-sheet #msSecStat, .more-sheet .ms-row.ms-stat { display: none; }
-    .more-sheet .ms-sec { padding: 7px 14px 2px; }
-    #toolsFab { display: inline-flex !important; } /* 桌面重新啟用抽屜開關(手機仍由 tab bar「更多」負責) */
+    body:not(.mobile-shell) .more-sheet #msSecStat,
+    body:not(.mobile-shell) .more-sheet .ms-row.ms-stat { display: none; }
+    body:not(.mobile-shell) .more-sheet .ms-sec { padding: 7px 14px 2px; }
+    body:not(.mobile-shell) #toolsFab { display: inline-flex !important; } /* 桌面重新啟用抽屜開關(手機仍由 tab bar「更多」負責) */
     /* 偏好類設定收進抽屜(2026-07-25 使用者拍板):站介紹/方向/平交道/省電/外觀/軌道 帶上不再常駐。
        元素留在 DOM,抽屜列照樣靠 btn.click() 代理它們。
        刻意用 CSS 而非 inline display——syncMoreSheet 以 btn.style.display==='none' 判斷
        「功能未開放就連抽屜列一起藏」,改 inline 會把抽屜裡的列也藏掉。 */
-    #introBtn, #dirBtn, #xingBtn, #powerBtn, #themeBtn, #trackBtn { display: none !important; }
+    body:not(.mobile-shell) #introBtn, body:not(.mobile-shell) #dirBtn,
+    body:not(.mobile-shell) #xingBtn, body:not(.mobile-shell) #powerBtn,
+    body:not(.mobile-shell) #themeBtn, body:not(.mobile-shell) #trackBtn { display: none !important; }
     /* 桌面已有本體的列不重複也不搶:全日走勢(點列會把 #flowWrap 搬進抽屜、頁面上那張就不見了)、
        縣市下拉(header 常駐)、關於段(placeFootBoxes 桌面把四個盒子搬回頁尾,這裡是空的) */
-    .ms-row[data-act="flow"], .ms-row[data-act="cities"], #msCities,
-    #msAboutSec, #msAbout, .ms-aeo-links, .ms-about-links { display: none !important; }
-    .alert-banner, .alert-detail, .upd-banner, .xing-card, .board { right: 64px; }
+    body:not(.mobile-shell) .ms-row[data-act="flow"], body:not(.mobile-shell) .ms-row[data-act="cities"],
+    body:not(.mobile-shell) #msCities, body:not(.mobile-shell) #msAboutSec,
+    body:not(.mobile-shell) #msAbout, body:not(.mobile-shell) .ms-aeo-links,
+    body:not(.mobile-shell) .ms-about-links { display: none !important; }
+    body:not(.mobile-shell) .alert-banner, body:not(.mobile-shell) .alert-detail,
+    body:not(.mobile-shell) .upd-banner, body:not(.mobile-shell) .xing-card,
+    body:not(.mobile-shell) .board { right: 64px; }
     /* 音樂控制收合:帶內常駐只留 #musicBtn(♪ 音樂),#musicNextBtn＋#musicVol 移進 hover/focus 彈出面板 */
-    #musicCtl { position: relative; }
+    body:not(.mobile-shell) #musicCtl { position: relative; }
     /* v0718m 修:原設計「帶上方 8px」absolute 上彈被 .controls 的 overflow-y:hidden 滾動盒裁掉(結構性不可見,雙引擎皆然);
        fixed 逃逸裁切也不行——.controls 自身 z-index:700 建立 stacking context,fixed 子孫對外仍以 700 參戰,
        蓋不過 leaflet corner 控件(z1000,版權列恰橫過帶上方位置)。改帶內「向左彈出」:面板(高~40)在帶盒(高60)
        垂直置中不觸 overflow-y,musicCtl 在帶內容最右端故左側必在可視捲動區內;同 context 內 z5 蓋過鄰近工具鈕,
        hover 暫態覆蓋可接受。純 CSS 零 JS。 */
-    #musicCtl .music-pop {
+    body:not(.mobile-shell) #musicCtl .music-pop {
       position: absolute; right: calc(100% + 8px); top: 50%; z-index: 5;
       display: flex; align-items: center; gap: 6px;
       background: var(--paper); border: 1.5px solid var(--line); border-radius: var(--r-m);
@@ -4505,16 +4519,17 @@
       pointer-events: none;
     }
     /* 不用 visibility:hidden——它會讓 pop 內的換首/音量無法被 Tab 聚焦(於是 :focus-within 永遠觸發不了);改以 opacity+pointer-events 隱藏,鍵盤仍可 Tab 進而展開 */
-    #musicCtl:hover .music-pop, #musicCtl:focus-within .music-pop {
+    body:not(.mobile-shell) #musicCtl:hover .music-pop,
+    body:not(.mobile-shell) #musicCtl:focus-within .music-pop {
       opacity: 1; transform: translateY(-50%); pointer-events: auto;
     }
     /* 桌面帶下移到 stage 底 6px(原 12):WebKit 把帶算高 60(Blink 54),帶頂↔版權底只剩 6px < 8;
        下移帶頂讓出 ≥8px,不動版權/縮放鈕位置故 縮放↔版權 10px 不變(符合「不得讓其他控件更近」)。 */
-    .controls { bottom: 6px; }
+    body:not(.mobile-shell) .controls { bottom: 6px; }
     /* 帶內容再壓到 <1224px@1280:桌面 gap 10→6、音樂鈕純圖示(♪)、視角:群車 僅放空模式中現身(它是放空子設定,非放空時無作用)。三者皆 CSS-only 可逆,不動 DOM/id/JS class */
-    .controls { gap: 6px; }
-    #musicBtn .tl { display: none; }
-    body:not(.ambient) #ambientStyleBtn { display: none; }
+    body:not(.mobile-shell) .controls { gap: 6px; }
+    body:not(.mobile-shell) #musicBtn .tl { display: none; }
+    body:not(.mobile-shell):not(.ambient) #ambientStyleBtn { display: none; }
   }
 </style>
 <script>
@@ -4570,8 +4585,10 @@
 <script>
 /* 首繪前套用手機殼、面板偏好與平台能力 class，避免解析完整份大檔前短暫閃出不該有的控制。 */
 (function () { try {
-  /* 與 CSS 殼斷點、JS 的 MOBILE_MQ 三處逐字同式（矮視窗也走手機殼——Pro Max 橫放 932×430 就是靠這條） */
-  if (matchMedia('(max-width: 900px), (max-height: 500px)').matches) document.body.classList.add('fs');
+  /* 與三段 CSS 殼斷點、JS 的 MOBILE_MQ 逐字同式。mobile-shell 與 fs 分開：
+     前者只表示響應式殼，後者也可能是桌面使用者主動進全畫面。 */
+  var mobileShell = matchMedia('(max-width: 900px), (max-height: 500px), (any-pointer: coarse) and (max-width: 1400px)').matches;
+  if (mobileShell) document.body.classList.add('mobile-shell', 'fs');
   if (localStorage.getItem('trainmap-panel-translucent') === '1') document.body.classList.add('panel-translucent');
   var ua = navigator.userAgent || '';
   var iOS = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document);
@@ -5058,14 +5075,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="metropeak0903"><span class="d">9/3</span><span>轉乘站的官方來車資料換班時，偶爾會短暫缺一個方向；現在看板會先補上該方向的班表</span></li>
+        <li data-cl-of="tabletshell"><span class="d">9/3</span><span>iPad 與 Android 平板改用完整觸控版面；橫放時資訊停在右側，地圖保留主要空間</span></li>
         <li data-cl-of="copyaudit"><span class="d">9/3</span><span>更新紀錄改得更精簡好讀，資料來源、專案授權與隱私說明也同步校正</span></li>
         <li data-cl-of="aeo"><span class="d">9/3</span><span>新增關於、準確度、資料來源、車站索引與 20 個常查車站頁，方便搜尋與引用</span></li>
         <li data-cl-of="railsound"><span class="d">9/3</span><span>App 配樂新增「車聲」：跟車時隨行駛播放，停站淡出；放空模式持續播放</span></li>
         <li data-cl-of="rideseq"><span class="d">9/3</span><span>完乘記錄新增「順序」排序，手機旅程護照也能切換排序方式（謝謝網友回報）</span></li>
         <li data-cl-of="crowdfallback"><span class="d">9/3</span><span>捷運列車的車廂擁擠度不會再整批消失一輪：官方擁擠度偶爾抓不到時改用剛才那一份，最多兩分鐘，超過就留白（謝謝網友回報）</span></li>
         <li data-cl-of="widgetsizes"><span class="d">9/2</span><span>桌面小工具的方向與目的站可改回「不指定」；Android 另補齊七種尺寸（謝謝網友回報）</span></li>
-        <li data-cl-of="webmcp"><span class="d">9/2</span><span>ChatGPT／Codex 內建瀏覽器可查軌島資料、開啟車站看板或跟隨火車；一般瀏覽器不受影響</span></li>
-        <li data-cl-of="crowdcard"><span class="d">9/2</span><span>跟捷運列車時，卡片上會顯示這一台車每一節車廂的擁擠度</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5090,6 +5107,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="metropeak0903"><span class="d">9/3</span><span>官方來車資料在舊車離站、下一班尚未接上的換班空窗，偶爾會讓轉乘站的單一方向短暫空白；現在看板只替缺少的方向補上班表，其他方向維持官方即時資訊。</span></li>
         <li data-cl="crowdfallback"><span class="d">9/3</span><span>官方擁擠度短暫抓不到時沿用上一份資料，最多兩分鐘，超過就留白，不再整批閃失（謝謝網友回報）</span></li>
         <li data-cl="branchdepart"><span class="d">8/31</span><span>新北投與小碧潭支線補上兩站間的行車時間，列車發車後不再從地圖消失。</span></li>
         <li data-cl="crowd-outage"><span class="d">8/29</span><span>北捷車廂擁擠度改以車號逐車對照，各種看板資料源都能顯示；即時資料不足時會退回官方倒數或班表，斷線提示也會區分官方與本站連線異常。</span></li>
@@ -5217,6 +5235,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="tabletshell"><span class="d">9/3</span><span>iPad 與 Android 平板改用完整觸控版面：直式提供底部分頁與「更多」，橫式把看板、搜尋和列車資訊放進右側欄，保留主要地圖空間；分割畫面會自動改用直式配置。「更多」也補上極簡沉浸開關，避免跨裝置同步設定後找不到關閉入口。</span></li>
         <li data-cl="bootfast"><span class="d">8/29</span><span>開啟網站變快了：三十幾份路網與班表資料原本要一份載完才載下一份，現在改成同時下載；重新造訪時沒變動的檔案也不再重抓。實測到列車出現的時間少了約三分之二</span></li>
         <li data-cl="android150i18n"><span class="d">8/28</span><span>Android 1.5.0 加入繁中、English、日本語；App、小工具、鎖定畫面與 Now Bar 會同步切換，更新時保留既有設定與本機資料。</span></li>
         <li data-cl="androidreadablehelp"><span class="d">8/28</span><span>Android 發車小工具的大字版放大主要文字，空間不足時減少班次而不縮字；使用說明也補齊小工具、擁擠度、背景更新與評分入口。</span></li>
@@ -5662,6 +5681,9 @@
     <button class="ms-row" data-act="flow"><span>全日班次走勢</span><span class="chev">›</span></button>
     <div class="ms-flowslot" id="msFlowSlot" hidden></div>
     <div class="ms-sec">觀看模式</div>
+    <!-- #immBtn 住在桌面工具帶，手機／平板殼會隱藏其父層；這列是觸控殼切換極簡沉浸的可達入口。
+         不自動關抽屜，讓使用者能直接看見開關狀態已改變。 -->
+    <button class="ms-row" data-proxy="immBtn"><span>極簡沉浸（只留地圖與列車）</span><span class="toggle" data-tg="immBtn"></span></button>
     <button class="ms-row warnrow" data-proxy="powerBtn"><span>省電模式（30fps）</span><span class="toggle" data-tg="powerBtn"></span></button>
     <button class="ms-row" data-proxy="musicBtn"><span>背景音樂</span><span class="toggle" data-tg="musicBtn"></span></button>
     <button class="ms-row" data-proxy="ambientBtn" data-close="1"><span>放空模式</span><span class="chev">›</span></button>
@@ -5863,6 +5885,12 @@
 //         USAGE(blob1='ofmfail')。使用者 09-03 裁示「先量頻率」。地圖行為零變更;守門人:scripts/verify_ofm_fallback_beacon.mjs。
 // v0903g：把 claude/map-stadia-revert-xvjirk(上面 v0903e 那段的退場埋點＋check-basemap 守門人重寫:網站 OFM 失效只提示不掛 raster)
 //         併回 main。e 與 f 都撞號(e 另有 5122754e、f 是 371e4105 車聲圖層),改取 g(逐 ref＋逐樹掃過無人佔用)。地圖行為零變更。
+// v0903h：新增 AEO 靜態內容層、robots/sitemap、首頁結構化資料與 20 個常查車站頁；地圖行為零變更。
+// v0903i：更新紀錄瘦身；校正 source-available、網站底圖供應商與 Android 帳號刪除等公開宣告。地圖行為零變更。
+// v0903k：iPad／Android 平板啟用觸控殼與橫式右側欄，補極簡沉浸入口；j 已被並行公車轉乘線使用。
+// v0903l：晚尖峰觀測加入 Core 顯示層平滑與站牌缺方向補表（前者在查明來源端原因後撤回）。
+// v0903m：站牌只替官方換班空窗暫缺的方向補時刻表；列車位置仍逐字採用 canonical。
+// v0903p：MapLibre 引擎（?engine=maplibre）下軌道／車站圓／離線陸地／衛星底圖改 GL 層並做 Esri 記帳（M1a 預覽）；預設 Leaflet 路徑零變更。
 const BUILD = 'v0903p';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
@@ -6271,12 +6299,14 @@ const ENGINE = (() => {
 // MapLibre 引擎下軌道/站點圓改由 GL 層畫(M1a)。?gltracks=0 關掉=canvas 照舊畫,給真機 A/B 與守門人正向對照;Leaflet 引擎無作用。
 const GL_TRACKS = (() => { try { return new URLSearchParams(location.search).get('gltracks') !== '0'; } catch (e) { return true; } })();
 window.__ENGINE = ENGINE; // 驗證腳本用的把手
-// 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
+// 手機/觸控平板「殼」斷點：與 CSS @media、開機 inline script 同步，版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
 // 2026-08-11 加上 (max-height: 500px):矮視窗(iPhone Pro Max 橫放 932×430/956×440)寬度超過 900,
 // 原本會掉出手機殼去走桌面長頁版面 ⇒ 內容總高約 1023px 塞進 430px 的視窗、列車直接在畫面外。
-// 🔴 CSS 那兩處(殼斷點與其互補的 min-width:901px 桌面塊)、開機 inline script,三者必須同式。
-const MOBILE_MQ = '(max-width: 900px), (max-height: 500px)';
+// 2026-09-03 加上 any-pointer:coarse 且 ≤1400px：涵蓋 iPad 與 Android 大平板；
+// any-pointer 可避免 iPad 接上觸控板後因主要 pointer 變 fine 而整頁換殼。
+// 🔴 CSS 殼斷點與開機 inline script，三處必須逐字同式。
+const MOBILE_MQ = '(max-width: 900px), (max-height: 500px), (any-pointer: coarse) and (max-width: 1400px)';
 // 手機直式窄畫面或原生 App:地圖框住台灣時上下左右各留約「一個台灣」的空間(使用者要求),不頂邊透氣。
 // 桌機寬螢幕本就有大片水平邊距(台灣直式、螢幕橫式),維持原樣免得台灣被縮太小。原生 App(任何裝置)一律給邊距。
 function railWantsTaiwanMargin() {
@@ -21953,10 +21983,11 @@ function syncLandFsHint() {
   box.hidden = !(!done && sheetIsSideRail()
     && document.documentElement.getAttribute('data-fs') === 'xlarge');
 }
-// 面板是不是「右側欄」形態(橫式矮視窗)。CSS 那條 @media 的 JS 對應——兩邊必須同式,
+// 面板是不是「右側欄」形態。CSS 那條 @media 的 JS 對應——兩邊必須同式,
 // 否則會出現「CSS 已經把面板挪到右邊,JS 還在算底部遮蔽」這種左右手打架。
+const RAIL_MQ = '(orientation: landscape) and (max-height: 500px), (orientation: landscape) and (min-width: 700px) and (max-width: 1400px) and (any-pointer: coarse)';
 function sheetIsSideRail() {
-  return !!(window.matchMedia && window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches);
+  return !!(window.matchMedia && window.matchMedia(RAIL_MQ).matches);
 }
 // §04c「露出地圖」:四邊各自從**當下可見的 HUD 元素實測 rect** 推出,不寫死常數。
 // 每個元素歸屬固定的一邊(不是「最大空矩形」):上=頂列/時鐘徽章;下=底部 sheet、收合速度膠囊、
@@ -27218,6 +27249,35 @@ function metroCoreCountdownText(rec, nowEpoch = Date.now() / 1000) {
   const sec = Math.max(0, Math.ceil(left));
   return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
 }
+// Core 的某站某線在單輪可能只回一個方向，晚尖峰實測轉乘站會因此整組忽隱忽現。
+// 只替「這輪完全沒有 Core 列」的方向補兩班表定車；有官方列的方向一字不碰。
+function metroCoreLegacyGroupsForEntry(entry, officialDirections = null) {
+  if (!entry || !entry.ln || !entry.ln._tt) return [];
+  const byDest = new Map();
+  entry.ln._tt.forEach((trip, ci) => {
+    let k = -1;
+    for (let i = 0; i < trip.length; i += 2) if (trip[i] === entry.si) { k = i; break; }
+    if (k < 0 || k === trip.length - 2) return;
+    const next = Number(trip[k + 2]), direction = next > entry.si ? 2 : 1;
+    if (officialDirections && officialDirections.has(direction)) return;
+    const t = trip[k + 1] + metroShiftSec(entry.ln, trip);
+    let dtm = t - state.simSec;
+    if (dtm > 43200) dtm -= 86400; else if (dtm < -43200) dtm += 86400;
+    if (dtm < -30 || dtm > METRO_CORE_BOARD_WINDOW_SEC) return;
+    const destName = entry.ln.stations[trip[trip.length - 2]].name;
+    const key = direction + '|' + destName;
+    if (!byDest.has(key)) byDest.set(key, { direction, destName, rows: [] });
+    byDest.get(key).rows.push({ kind: 'legacy', ...entry, ci, t, dtm, destName, direction });
+  });
+  const candidates = [...byDest.values()];
+  for (const group of candidates) group.rows.sort((a, b) => a.dtm - b.dtm);
+  // 缺方向時只取該方向眼前最近的目的地；否則尖峰短程車會在還很久以前就被畫成額外一組。
+  const picked = officialDirections ? [...new Set(candidates.map(group => group.direction))].map(direction =>
+    candidates.filter(group => group.direction === direction)
+      .sort((a, b) => a.rows[0].dtm - b.rows[0].dtm)[0]) : candidates;
+  return picked.filter(Boolean).map(group => ({ kind: 'legacy', ...entry, destName: group.destName,
+    rows: group.rows.slice(0, 2) }));
+}
 function metroCoreBoardView(st, lines, isDeco, nowEpoch = Date.now() / 1000) {
   if (!metroCoreSnapshotLive(nowEpoch)) return null;
   const stationKey = st.name.replace(/臺/g, '台'), stationLines = [];
@@ -27265,26 +27325,11 @@ function metroCoreBoardView(st, lines, isDeco, nowEpoch = Date.now() / 1000) {
         rows.sort((a, b) => a.dtm - b.dtm);
         groups.push({ kind: 'core', ...entry, destName: rows[0].destName, rows: rows.slice(0, 2) });
       }
+      const officialDirections = new Set([...byDest.values()].flat().map(rec => Number(rec.direction)));
+      groups.push(...metroCoreLegacyGroupsForEntry(entry, officialDirections));
       continue;
     }
-    if (!entry.ln._tt) continue;
-    const byDest = new Map();
-    entry.ln._tt.forEach((trip, ci) => {
-      let k = -1;
-      for (let i = 0; i < trip.length; i += 2) if (trip[i] === entry.si) { k = i; break; }
-      if (k < 0 || k === trip.length - 2) return;
-      const t = trip[k + 1] + metroShiftSec(entry.ln, trip);
-      let dtm = t - state.simSec;
-      if (dtm > 43200) dtm -= 86400; else if (dtm < -43200) dtm += 86400;
-      if (dtm < -30 || dtm > 7200) return;
-      const destName = entry.ln.stations[trip[trip.length - 2]].name;
-      if (!byDest.has(destName)) byDest.set(destName, []);
-      byDest.get(destName).push({ kind: 'legacy', ...entry, ci, t, dtm, destName });
-    });
-    for (const [destName, rows] of byDest) {
-      rows.sort((a, b) => a.dtm - b.dtm);
-      groups.push({ kind: 'legacy', ...entry, destName, rows: rows.slice(0, 2) });
-    }
+    groups.push(...metroCoreLegacyGroupsForEntry(entry));
   }
   groups.sort((a, b) => a.li - b.li || ((a.rows[0] && a.rows[0].dtm) || 0) - ((b.rows[0] && b.rows[0].dtm) || 0));
   // 🔴 P0-1(看板側):空的 groups【不得】短路既有路徑。renderFreqBoard 寫的是
@@ -30199,6 +30244,8 @@ function setupMapTools() {
     dirBtn: () => !!state.dirArrow,
     pinBtn: () => !!state.dropMode,
     powerBtn: () => !!state.powerSave,
+    // setImmersive 的單一真值在 body class；state.immersive 只保存開機初值。
+    immBtn: () => document.body.classList.contains('immersive'),
     musicBtn: () => !!(state.music && state.music.enabled && state.music.audio && !state.music.audio.paused),
   };
   // 資料狀態:值一律從時鐘徽章的那幾顆 span 讀回來(單一事實來源)。徽章那顆藏著 ⇒ 這裡整列不出現,
@@ -30529,8 +30576,9 @@ function setupMapTools() {
   })();
   let wasMobileShell = window.matchMedia(MOBILE_MQ).matches, wasSideRail = sheetIsSideRail();
   window.addEventListener('resize', () => {
-    // 只在真正跨越 900 斷界時同步全螢幕殼；Fullscreen API 本身造成的桌面 resize 不得退出。
+    // 只在真正跨越手機／觸控平板殼斷界時同步全螢幕殼；Fullscreen API 本身造成的桌面 resize 不得退出。
     const mob = window.matchMedia(MOBILE_MQ).matches;
+    document.body.classList.toggle('mobile-shell', mob);
     const crossedMobileShell = mob !== wasMobileShell;
     wasMobileShell = mob;
     const rail = sheetIsSideRail();

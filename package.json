@@ -26,6 +26,7 @@
     "check-basemap": "node scripts/verify_web_basemap_notice.mjs",
     "check-ofm-beacon": "node scripts/verify_ofm_fallback_beacon.mjs",
     "check-trainpick": "node scripts/verify_train_overlap_pick.mjs",
+    "check-tablet": "node scripts/verify_tablet_shell.mjs",
     "check-board-align": "node scripts/verify_board_align.mjs",
     "check-xbt-shuttle": "node scripts/verify_xbt_shuttle_motion.mjs",
     "check-crowd-outage": "node scripts/verify_crowd_and_outage.mjs",
