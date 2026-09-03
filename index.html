@@ -15350,7 +15350,7 @@ function trainIntro(tr) {
   return { special: sp || null, named: spd?.named || null, stock: spd?.stock || null,
     kind, desc: sp ? sp.desc : desc, amens, nStops: stops.length, dur, fact, factIndex, branch };
 }
-// ── 隨機挑車:加權挑一班正在跑的車。放空/導播會定時回來換下一班(1–2 分鐘 / 5–10 分鐘),
+// ── 隨機挑車:加權挑一班正在跑的車。放空會定時回來換下一班(1–2 分鐘),
 //    使用者手按「隨機跟隨」則只挑這一次,跟到終點為止(換車由使用者按「換一班」,見 tick 的 rotate 閘) ──
 const TOUR_W = { '其他': 24, '莒光/復興': 10, '自強': 5, '區間快': 2, '區間車': 1 };
 // 單班上限:任何一班的權重不得超過「裁切前總權重」的這個比例(裁切後總權重會變小,實際份額約 3.5%)。
@@ -15385,53 +15385,17 @@ function pickTourTrain() {
   recent.push(pick); if (recent.length > TOUR_RECENT) recent.shift();
   return pick;
 }
-// 導播偶爾跟捷運/輕軌幽靈車(比照台鐵/高鐵輪車,借 applyFreqFollow 不動 autoTour 狀態)
-const METRO_TOUR_CHANCE = 0.25; // 「偶爾」跟捷運,不要太常搶戲
-function pickTourMetro() {
-  if (!state.decoLines) return null;
-  const cands = [];
-  for (const ln of state.decoLines) {
-    const core = metroCoreItemsForLine(ln, Date.now() / 1000);
-    if (core !== null) {
-      if (core.length) {
-        const item = core[Math.floor(Math.random() * core.length)];
-        cands.push({ ln, core: true, systemId: item.systemId, vehicleId: item.vehicleId });
-      }
-      continue;
-    }
-    const official = trtcOfficialItemsForLine(ln, Date.now() / 1000);
-    if (official !== null) {
-      if (official.length) {
-        const item = official[Math.floor(Math.random() * official.length)];
-        cands.push({ ln, vehicleId: item.vehicleId });
-      }
-      continue;
-    }
-    if (ln._tt && ln._tt.length) { // 大多數線現已有實際時刻(v0711l):挑一班現在真的在跑的班次
-      const running = ln._tt.filter(tr => freqTrainTime(tr, state.simSec) != null);
-      if (running.length) cands.push({ ln, tr: running[Math.floor(Math.random() * running.length)] });
-    } else if (ln.sched && ln.n > 0) cands.push({ ln, k: Math.floor(Math.random() * ln.n) }); // 無時刻檔的線退回班距幽靈車
-  }
-  if (!cands.length) return null;
-  return cands[Math.floor(Math.random() * cands.length)];
-}
 function nextTourTrain(now) {
   if (camBlocked()) return; // 劇場/背景分頁:不切換跟隨列車、不飛鏡頭(autoTour 狀態保留,回場續跑;成本防線)
   // 轉場防重入:到站觸發的換車條件(effT>終點arrSec)在淡出等待的每一幀都成立,
   // 不擋會機關槍連發幾十條轉場鏈,veil 淡入後殘餘 callback 輪流裸跳到不同隨機車
   if (state._transition) return;
-  const metro = (state.director && Math.random() < METRO_TOUR_CHANCE) ? pickTourMetro() : null;
-  const tr = metro ? null : pickTourTrain();
-  // 導播模式每車跟 5–10 分鐘(使用者要求),放空一般 1–2 分鐘
-  state._tourNext = (now || performance.now()) + ((tr || metro) ? (state.director ? 300000 + Math.random() * 300000 : 60000 + Math.random() * 60000) : 5000);
-  if (!tr && !metro) {
-    // 深夜幾乎沒車 → 重播傍晚尖峰(模擬時鐘本來就支援任意時間);導播要 5× 忠實循環,深夜就少,不跳
-    if (state.ambient && !state.nightReplay && !state.director) { state.nightReplay = true; setSimSec(18 * 3600); refreshBadge(); }
-    return;
-  }
-  if (metro) {
-    if (state._ambientFresh) { state._ambientFresh = false; ambientJumpToMetro(metro); }
-    else fadeSwitchMetro(metro);
+  const tr = pickTourTrain();
+  // 放空每車跟 1–2 分鐘
+  state._tourNext = (now || performance.now()) + (tr ? 60000 + Math.random() * 60000 : 5000);
+  if (!tr) {
+    // 深夜幾乎沒車 → 重播傍晚尖峰(模擬時鐘本來就支援任意時間)
+    if (state.ambient && !state.nightReplay) { state.nightReplay = true; setSimSec(18 * 3600); refreshBadge(); }
     return;
   }
   const ts = document.getElementById('trainSearch'); if (ts) ts.value = tr.train;
@@ -15444,11 +15408,7 @@ const AMBIENT_Z = 14;
 function ambientJumpTo(tr) {
   setFollow(tr, true, true);
   const p = trainPos(tr, state.simSec) || tr.stops[0];
-  map.setView([p.lat, p.lon], state.director ? DIRECTOR_FOLLOW_Z : AMBIENT_Z, { animate: false }); // 導播跟車放大到 DIRECTOR_FOLLOW_Z(網站 z18;App 計量底圖收斂 z16)
-}
-function ambientJumpToMetro(pick) {
-  applyFreqFollow(pick);
-  map.setView(map.getCenter(), DIRECTOR_FOLLOW_Z, { animate: false }); // 導播跟捷運同樣用 DIRECTOR_FOLLOW_Z,跟台鐵/高鐵跟車一致
+  map.setView([p.lat, p.lon], AMBIENT_Z, { animate: false });
 }
 // 放空模式換車:淡出 → 直接切到下一班 → 淡入(不拉高俯瞰)
 function fadeSwitch(tr) {
@@ -15459,21 +15419,6 @@ function fadeSwitch(tr) {
   setTimeout(() => {
     if (!state.autoTour) { veil.style.opacity = 0; state._transition = false; return; }
     ambientJumpTo(tr);
-    if (state.director && !state._liveMapOverride) advanceDirectorBasemap(); // 導播每換一班車順便換底圖,藏在遮幕後面切,不會看到硬切;&map= 指定固定底圖時不輪替
-    veil.style.opacity = 0;
-    setTimeout(() => { state._transition = false; }, 750);
-  }, 800);
-}
-// 放空模式換捷運幽靈車:結構同 fadeSwitch,套 freqFollow 而非 followTrain
-function fadeSwitchMetro(pick) {
-  const veil = document.getElementById('veil');
-  state._transition = true; state._traAt = performance.now();
-  state._tourNext += 1600;
-  veil.style.opacity = 1;
-  setTimeout(() => {
-    if (!state.autoTour) { veil.style.opacity = 0; state._transition = false; return; }
-    ambientJumpToMetro(pick);
-    if (state.director && !state._liveMapOverride) advanceDirectorBasemap();
     veil.style.opacity = 0;
     setTimeout(() => { state._transition = false; }, 750);
   }, 800);
@@ -15529,16 +15474,7 @@ function computeHotspots() {
   }
   return out;
 }
-// 導播群車:該熱區附近有幾條捷運/輕軌路線經過(供 pickHotspot 加權,不影響一般放空使用者)
-function metroCoverage(lat, lon) {
-  if (!state.decoLines) return 0;
-  let n = 0;
-  for (const ln of state.decoLines) {
-    if (ln.stations.some(s => Math.abs(s.lat - lat) < HOT_CELL * 1.5 && Math.abs(s.lon - lon) < HOT_CELL * 1.5)) n++;
-  }
-  return n;
-}
-// 熱區概略歸類北/中/南/東(取最近 CITY_BBOX 縣市中心),供導播地區輪替加權——
+// 熱區概略歸類北/中/南/東(取最近 CITY_BBOX 縣市中心),供呼吸幕的都會輪替加權——
 // 台鐵/高鐵車流與捷運覆蓋皆天生偏北,不加此輪替北部幾乎壟斷群車畫面
 const REGION_OF_CITY = {
   keelung: '北', taipei: '北', ntpc: '北', taoyuan: '北', hsinchu: '北',
@@ -15562,39 +15498,20 @@ function pickHotspot(hs) {
     const far = hs.filter(h => Math.hypot(h.lat - last.lat, h.lon - last.lon) > HOT_CELL * 1.5);
     if (far.length) cands = far;
   }
-  const hist = state._hotRegionHist || (state._hotRegionHist = []); // 近幾幕的地區序列(導播限定)
   let total = 0;
   const ws = cands.map(h => {
     let w = h.n; // 改線性(原 n² 讓車流本就偏多的北部幾乎壟斷,削弱才吃得到下面的地區輪替)
-    if (state.director) {
-      w *= 1 + 0.08 * metroCoverage(h.lat, h.lon); // 捷運覆蓋加權調輕(原 0.2 疊北部車流優勢過重)
-      const recent = hist.filter(r => r === regionOf(h.lat, h.lon)).length;
-      w /= (1 + recent); // 近期出現越多次的地區,這次權重打越低,讓北中南東更平均輪替
-    }
     total += w; return w;
   });
   let r = Math.random() * total;
   let picked = cands[cands.length - 1];
   for (let i = 0; i < cands.length; i++) { r -= ws[i]; if (r <= 0) { picked = cands[i]; break; } }
   state._hotLast = picked;
-  if (state.director) {
-    hist.push(regionOf(picked.lat, picked.lon));
-    if (hist.length > 6) hist.shift();
-  }
   return picked;
 }
-// 導播群車偶爾整座城市俯瞰(北北基/台中/高雄),極慢速飄移,不追熱區——錨點固定在城市中心,見 hotCruise 的 sc.slow 分支
+// 放空 30% 出城市幕(CITY_OVERVIEW_CHANCE),抽中後再依 BREATH_CHANCE 決定走都會呼吸;CITY_OVERVIEWS 是呼吸幕的三大都會名單。
 const CITY_OVERVIEW_CHANCE = 0.3; // 「偶爾」出現整座城市畫面
-const CITY_OVERVIEW_SPEED = 1.5;  // 極慢速飄移(對比 HOT_SPEED=7 的熱區巡航)
 const CITY_OVERVIEWS = ['taipei', 'taichung', 'kaohsiung']; // 沿用既有 CITY_BBOX(縣市書籤同一份資料)
-function pickCityOverview() {
-  const id = CITY_OVERVIEWS[Math.floor(Math.random() * CITY_OVERVIEWS.length)];
-  const b = CITY_BBOX[id];
-  const bounds = L.latLngBounds([[b[0], b[1]], [b[2], b[3]]]);
-  const z = map.getBoundsZoom(bounds, false, [20, 20]);
-  const c = bounds.getCenter();
-  return { lat: c.lat, lon: c.lng, z, dir: Math.random() * Math.PI * 2, anchor: { lat: c.lat, lon: c.lng }, slow: true };
-}
 // 都會呼吸(放空定場鏡頭):地圖固定整數 z13(圖磚正常載入),鏡頭停在三大都會「固定錨點」;
 // 放大縮小改由 CSS transform 對 #map+#overlay 同幀施加(見 breathStage/hotCruise)——真實底圖(街道或衛星,跟 basemap 設定走)全程在場、圖磚零重載。
 const BREATH_CHANCE = 0.5;      // 抽到城市幕後,一半機率改走呼吸(淨機率約 15% = CITY_OVERVIEW_CHANCE × 此值)
@@ -15679,31 +15596,27 @@ function hotspotTick(now) {
   if (state._transition || now < (state._hotNext || 0)) return;
   const hs = computeHotspots();
   if (!hs.length) {
-    // 深夜沒車 → 比照跟車視角,重播傍晚尖峰(導播直播不要,只播現在真的在跑的車,見 initDirector)
-    if (!state.nightReplay && !state.director) { state.nightReplay = true; setSimSec(18 * 3600); refreshBadge(); }
+    // 深夜沒車 → 比照跟車視角,重播傍晚尖峰
+    if (!state.nightReplay) { state.nightReplay = true; setSimSec(18 * 3600); refreshBadge(); }
     state._hotNext = now + 5000;
     return;
   }
-  // 城市幕抽選:放空 30% 出城市幕(director⟹ambient,故閘只看 ambient)。抽中後一半機率改走「都會呼吸」
-  // 定場鏡頭(?breath=1 強制,測試用);導播維持既有平移俯瞰。OBS 訊號源(?live)一律不抽呼吸——
-  // 呼吸幕上台的是離線輪廓舞台(見 breathStage),直播畫面要維持街圖。
-  const canBreath = !state.liveMode;
+  // 城市幕抽選:放空 30% 出城市幕,抽中後一半機率改走「都會呼吸」定場鏡頭(?breath=1 強制,測試用);
+  // 沒抽到呼吸就回一般熱區巡航。
   let sc = null;
-  if ((FORCE_BREATH && canBreath) || (state.ambient && Math.random() < CITY_OVERVIEW_CHANCE)) {
-    if (canBreath && (FORCE_BREATH || Math.random() < BREATH_CHANCE)) sc = pickBreathScene();
-    else if (state.director) sc = pickCityOverview();
+  if (FORCE_BREATH || (state.ambient && Math.random() < CITY_OVERVIEW_CHANCE)) {
+    if (FORCE_BREATH || Math.random() < BREATH_CHANCE) sc = pickBreathScene();
   }
   if (!sc) {
     const h = pickHotspot(hs);
-    const zTier = state.director ? [16, 15] : [15, 14]; // 導播 1× 較慢,群車俯瞰放大一級才看得出移動
+    const zTier = [15, 14];
     sc = { lat: h.lat, lon: h.lon, z: h.n >= 25 ? zTier[0] : zTier[1], dir: Math.random() * Math.PI * 2 };
   }
   state._hotScene = sc;
-  // 城市俯瞰/呼吸是慢節奏定場,幕拉長:呼吸 150–300 秒、平移俯瞰 90–150 秒;一般熱區 180–300 秒
+  // 城市俯瞰/呼吸是慢節奏定場,幕拉長:呼吸 150–300 秒;一般熱區 180–300 秒
   // (2026-07-28 由 60–90 秒拉長:換幕＝整屏重載,是群車模式最大的圖磚來源——鏡頭巡航才 7px/s,
   //  跨一格要 36 秒,而換一次幕就是一整屏。拉到 3–5 分鐘把這塊砍掉約三分之二。)
   state._hotNext = now + (sc.breath ? BREATH_SCENE_MIN + Math.random() * (BREATH_SCENE_MAX - BREATH_SCENE_MIN)
-                          : sc.slow ? 90000 + Math.random() * 60000
                           : 180000 + Math.random() * 120000);
   if (state._hotFresh) {
     state._hotFresh = false;
@@ -15752,9 +15665,8 @@ function hotCruise(dt, now) {
   // 必須用不取整的 project 自己累積;使用者調了縮放就在新 zoom 重建游標接著巡
   const zNow = map.getZoom();
   if (!sc.px || sc.pxZ !== zNow) { sc.px = map.project(map.getCenter(), zNow); sc.pxZ = zNow; sc.anchorAt = 0; }
-  // 錨點:一般熱區每 2 秒重算視野(外擴 20%)內運行列車的重心,視野內沒車就取全圖最近的一台;
-  // 城市俯瞰(sc.slow)錨點固定在城市中心(pickCityOverview 已給),不追熱區,避免拉走整座城市的構圖
-  if (!sc.slow && (!sc.anchorAt || now - sc.anchorAt > 2000)) {
+  // 錨點:每 2 秒重算視野(外擴 20%)內運行列車的重心,視野內沒車就取全圖最近的一台
+  if (!sc.anchorAt || now - sc.anchorAt > 2000) {
     sc.anchorAt = now;
     const box = map.getBounds().pad(0.2), c = map.getCenter();
     let lat = 0, lon = 0, n = 0, near = null, nd = Infinity;
@@ -15782,7 +15694,7 @@ function hotCruise(dt, now) {
     }
   }
   sc.dir += turn;
-  const step = (sc.slow ? CITY_OVERVIEW_SPEED : HOT_SPEED) * dt;
+  const step = HOT_SPEED * dt;
   sc.px = L.point(sc.px.x + Math.cos(sc.dir) * step, sc.px.y + Math.sin(sc.dir) * step);
   const dst = map.unproject(sc.px, zNow);
   map.setView(dst, zNow, { animate: false });
