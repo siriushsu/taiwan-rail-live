@@ -11826,7 +11826,7 @@ function acceptGeoFix(coords) {
   }
   updateGeoCamera(loc);
   // 一般藍點只留在本機；只有使用者另行開啟「分享我的即時位置」時，這裡才會把
-  // 同一筆前景定位送進短效分享。journeyShareSendPosition 內仍有 15 秒／50 公尺節流。
+  // 同一筆前景定位送進短效分享。journeyShareSendPosition 硬限 15 秒一筆，未移動 50 公尺則降到每分鐘一筆。
   void journeyShareSendPosition(loc);
   return coords;
 }
@@ -32158,7 +32158,11 @@ async function journeyShareSendPosition(loc, force = false) {
   const active = journeyShareActive;
   if (document.hidden || !active || !active.locationEnabled || !loc || !inTaiwan(loc.lat, loc.lon)) return;
   const now = Date.now();
-  if (!force && now - journeySharePositionAt < 15000 && journeySharePositionLoc && haversineKm(journeySharePositionLoc, loc) < .05) return;
+  if (!force && journeySharePositionAt) {
+    const elapsed = now - journeySharePositionAt;
+    const movedKm = journeySharePositionLoc ? haversineKm(journeySharePositionLoc, loc) : Infinity;
+    if (elapsed < 15000 || (movedKm < .05 && elapsed < 60000)) return;
+  }
   journeySharePositionAt = now; journeySharePositionLoc = loc;
   try {
     await journeyShareRequest('POST', { action: 'position', id: active.id, editToken: active.editToken,
@@ -32177,9 +32181,14 @@ async function startJourneyShareLocation(active) {
     if (!coords) { await stopJourneyShareLocation(); throw new Error('location_unavailable'); }
     await journeyShareSendPosition({ lat: coords.latitude, lon: coords.longitude, acc: coords.accuracy }, true);
   } else if ('geolocation' in navigator) {
+    let firstFix = true;
     journeyShareBrowserWatch = navigator.geolocation.watchPosition(pos => {
-      const c = pos.coords; journeyShareSendPosition({ lat: c.latitude, lon: c.longitude, acc: c.accuracy });
-    }, () => {
+      const c = pos.coords;
+      void journeyShareSendPosition({ lat: c.latitude, lon: c.longitude, acc: c.accuracy }, firstFix);
+      firstFix = false;
+    }, error => {
+      // 暫時收不到 GPS／單次 timeout 不代表使用者撤回同意；只有明確拒絕權限才關閉分享。
+      if (!geoPermissionDenied(error)) return;
       const current = journeyShareActive;
       if (!current || current.id !== active.id || !current.locationEnabled) return;
       if (journeyShareBrowserWatch != null) navigator.geolocation.clearWatch(journeyShareBrowserWatch);
@@ -32248,6 +32257,8 @@ async function updateActiveJourneyShare(detail, forcedState, locationEnabled = j
   if (!payload) return;
   try {
     await journeyShareRequest('POST', { action: 'update', id: active.id, editToken: active.editToken, payload, locationEnabled: !!locationEnabled });
+    // 「上車／完成」更新可能和使用者按下停止同時在途；停止成功或進入待重試狀態後，舊回應不得復活憑證。
+    if (!journeyShareActive || journeyShareActive.id !== active.id || journeyShareActive.stopFailed) return;
     saveActiveJourneyShare({ ...active, payload, locationEnabled: !!locationEnabled });
   } catch (e) { if (e.status === 404) { await stopJourneyShareLocation(); saveActiveJourneyShare(null); } }
 }

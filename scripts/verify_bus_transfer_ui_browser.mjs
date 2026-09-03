@@ -396,6 +396,10 @@ async function wholeJourneyShareRoundTrip() {
     const afterCreate = await stats();
     assert.equal(afterCreate.journeyCreate >= 1, true);
     assert.equal(afterCreate.journeyPosition >= 1, true, '明示勾選後才送第一筆手機位置');
+    await senderContext.setGeolocation({ latitude: 22.99901, longitude: 120.21401, accuracy: 16 });
+    await sender.waitForTimeout(350);
+    assert.equal((await stats()).journeyPosition, afterCreate.journeyPosition,
+      '即使快速移動超過 50 公尺，15 秒內也不得再寫一筆位置');
     await sender.locator('#journeyShareCancel').tap();
 
     await receiver.goto(`${BASE}/?journey=${active.id}&lang=zh-TW`, { waitUntil: 'domcontentloaded' });
@@ -420,7 +424,7 @@ async function wholeJourneyShareRoundTrip() {
     });
     await sender.waitForFunction(() => document.hidden && journeyShareBrowserWatch == null);
     const beforeBackgroundMove = await stats();
-    await senderContext.setGeolocation({ latitude: 22.99901, longitude: 120.21401, accuracy: 16 });
+    await senderContext.setGeolocation({ latitude: 23.00001, longitude: 120.21501, accuracy: 16 });
     await sender.waitForTimeout(350);
     assert.equal((await stats()).journeyPosition, beforeBackgroundMove.journeyPosition,
       '發起頁在背景時不得繼續傳送手機位置');
@@ -429,11 +433,13 @@ async function wholeJourneyShareRoundTrip() {
       document.dispatchEvent(new Event('visibilitychange'));
     });
     await sender.waitForFunction(() => !document.hidden && journeyShareBrowserWatch != null);
-    await senderContext.setGeolocation({ latitude: 22.99902, longitude: 120.21402, accuracy: 16 });
+    await senderContext.setGeolocation({ latitude: 23.00002, longitude: 120.21502, accuracy: 16 });
     await sender.waitForFunction(async before => (await (await fetch('/__bus-test-stats')).json()).journeyPosition > before,
       beforeBackgroundMove.journeyPosition);
+    const beforeBoard = await stats();
     await sender.locator('.btu-journey [data-btu-act="journey-board"]').tap();
-    await sender.waitForFunction(async () => (await (await fetch('/__bus-test-stats')).json()).journeyUpdate >= 1);
+    await sender.waitForFunction(async before => (await (await fetch('/__bus-test-stats')).json()).journeyUpdate > before,
+      beforeBoard.journeyUpdate);
     await receiver.evaluate(() => fetchJourneyShareRemote(journeyShareRemote.id));
     await receiver.getByText('搭乘公車中', { exact: true }).waitFor({ state: 'visible' });
 
@@ -442,6 +448,7 @@ async function wholeJourneyShareRoundTrip() {
       response.request().method() === 'POST' && response.request().postDataJSON()?.action === 'end');
     await sender.locator('#journeyShareStop').tap();
     await endResponse;
+    await sender.waitForFunction(() => localStorage.getItem('rail-island-journey-share-v1') == null);
     assert.equal(await sender.evaluate(() => localStorage.getItem('rail-island-journey-share-v1')), null);
     await receiver.evaluate(() => fetchJourneyShareRemote(journeyShareRemote.id));
     await receiver.getByText('分享已結束', { exact: true }).waitFor({ state: 'visible' });
