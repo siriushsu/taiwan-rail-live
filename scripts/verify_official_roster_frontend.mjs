@@ -563,8 +563,8 @@ async function browserMatrix(baseUrl) {
                 vehicleId:directionVehicle.vehicleId, vehicle:directionVehicle },
               true, () => true, false, Date.now() / 1000);
               const directionPrevious = trtcOfficialDirectionPrevious(brLine, directionVehicle, directionPos);
-              const projectedNow = map.project([directionPos.lat, directionPos.lon], 18);
-              const projectedBefore = map.project([directionPrevious.lat, directionPrevious.lon], 18);
+              const projectedNow = window.__map.project([directionPos.lat, directionPos.lon], 18);
+              const projectedBefore = window.__map.project([directionPrevious.lat, directionPrevious.lon], 18);
               const expected = Math.atan2(projectedNow.y - projectedBefore.y,
                 projectedNow.x - projectedBefore.x);
               const directionAngle = directionAngles[directionAngles.length - 1];
@@ -577,7 +577,7 @@ async function browserMatrix(baseUrl) {
           } finally { drawTag = oldTag; drawDot = oldDot; drawArrowAt = oldArrow; }
           return { before, after, monotonic, rendered, roster:state.trtcOfficialRoster.vehicles.length,
             fallbackTag:{ tagLabels, dotCalls, halfWidth:trtcOfficialTagHalfWidth('BR'),
-              directionAngles, directionErrors, zoom:map.getZoom() } };
+              directionAngles, directionErrors, zoom:window.__map.getZoom() } };
         });
         const tapTarget = await page.evaluate(() => [...document.querySelectorAll('button[id],a[id],[role=button][id]')]
           .find(element => { const style = getComputedStyle(element), rect = element.getBoundingClientRect();

@@ -163,7 +163,7 @@ async function desktopCore(browser, engine) {
         state.mode = 'freq'; state.lines = [line]; state.visible = new Set([line.id]); state.freqFollow = null;
         state.trtcOfficialRoster = { vehicles: [{ vehicleId: 'i18n-picker', officialNo: '107', dest: destinationIndex }] };
         state._freqHits = [{ x: p.x, y: p.y, ln: line, vehicleId: 'i18n-picker', officialNo: '107', halfW: 24, halfH: 10 }];
-        map.fire('click', { containerPoint: L.point(p.x, p.y), latlng: L.latLng(st.lat, st.lon) });
+        window.__map.fire('click', { containerPoint: L.point(p.x, p.y), latlng: L.latLng(st.lat, st.lon) });
         return document.getElementById('tapPick').textContent.replace(/\s+/g, ' ').trim();
       } finally {
         state.mode = previous.mode; state.lines = previous.lines; state.visible = previous.visible;

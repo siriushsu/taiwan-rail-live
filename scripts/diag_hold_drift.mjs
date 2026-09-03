@@ -14,7 +14,7 @@ await p.evaluate(() => {
   if (g) selectGroup(g);
 });
 await p.waitForTimeout(2500);
-await p.evaluate(() => map.fitBounds([[24.90, 121.30], [25.25, 121.75]], { animate: false }));
+await p.evaluate(() => window.__map.fitBounds([[24.90, 121.30], [25.25, 121.75]], { animate: false }));
 await p.waitForTimeout(4000);
 
 for (let r = 0; r < ROUNDS; r++) {

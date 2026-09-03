@@ -80,10 +80,10 @@ async function call(page, name, input = {}) {
 }
 async function stateSignature(page) {
   return page.evaluate(() => {
-    const center = map.getCenter();
+    const center = window.__map.getCenter();
     return { group: state.group, follow: state.followTrain && `${state.followTrain.sys}|${state.followTrain.train}`,
       freqFollow: !!state.freqFollow, board: state.boardStation && `${state.boardStation.sys}|${state.boardStation.name}`,
-      lat: +center.lat.toFixed(5), lon: +center.lng.toFixed(5), zoom: map.getZoom() };
+      lat: +center.lat.toFixed(5), lon: +center.lng.toFixed(5), zoom: window.__map.getZoom() };
   });
 }
 async function controlAudit(page, scope = 'body') {

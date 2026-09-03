@@ -115,7 +115,7 @@ const originOf = page => page.evaluate(() => {
 // 場地沒選乾淨的話點下去彈的是車站選單,量到的根本不是車與車的勝負(第一版就踩到)。
 const findEmptySpot = page => page.evaluate(() => {
   const pts = [];
-  for (const st of (state.schedStations || [])) pts.push(map.latLngToContainerPoint([st.lat, st.lon]));
+  for (const st of (state.schedStations || [])) pts.push(window.__map.latLngToContainerPoint([st.lat, st.lon]));
   if (state.deco) for (const ln of (state.decoLines || [])) for (const p of (ln.pts || [])) pts.push(p);
   for (const ln of (state.lines || [])) for (const p of (ln.pts || [])) pts.push(p);
   const r = document.getElementById('map').getBoundingClientRect();
@@ -173,7 +173,7 @@ async function freezeAndInject(page, { pair }) {
 async function waitMapStill(page, ms = 4000) {
   const t0 = Date.now(); let prev = null;
   while (Date.now() - t0 < ms) {
-    const now = await page.evaluate(() => { const c = map.getCenter(); return `${c.lat.toFixed(7)},${c.lng.toFixed(7)},${map.getZoom()}`; });
+    const now = await page.evaluate(() => { const c = window.__map.getCenter(); return `${c.lat.toFixed(7)},${c.lng.toFixed(7)},${window.__map.getZoom()}`; });
     if (prev === now) return true;
     prev = now;
     await page.waitForTimeout(150);
@@ -236,13 +236,13 @@ async function run(browser, tag, vp = { width: 1280, height: 800 }, coreOnly = f
       const FONT = getComputedStyle(document.body).fontFamily;
       const cx = document.getElementById('overlay').getContext('2d');
       cx.font = '700 10px ' + FONT;
-      const tagMode = map.getZoom() >= 11;           // drawSched 的 showTrain
+      const tagMode = window.__map.getZoom() >= 11;           // drawSched 的 showTrain
       const hits = (state._trainHits || []);
       const withBox = hits.filter(h => h.w > 0 && h.h > 0);
       // 期望值從繪製公式推導,不用寬鬆容差:drawTag 是 measureText+10、drawHSRTag 是 +13 再加兩端尖頭 2×5
       const want = h => cx.measureText(String(h.tr.train)).width + (isHSR(h.tr) ? 23 : 10);
       const mism = withBox.filter(h => tagMode ? (h.h !== 15 || Math.abs(h.w - want(h)) > 1) : (h.w !== 12 || h.h !== 12));
-      return { z: map.getZoom(), tagMode, n: hits.length, boxed: withBox.length, mism: mism.length,
+      return { z: window.__map.getZoom(), tagMode, n: hits.length, boxed: withBox.length, mism: mism.length,
         bad: mism.slice(0, 3).map(h => ({ t: h.tr.train, hsr: isHSR(h.tr), w: +h.w.toFixed(1), h: h.h, want: +want(h).toFixed(1) })),
         sample: hits.slice(0, 3).map(h => ({ t: h.tr.train, w: Math.round(h.w), h: h.h })) };
     });
@@ -254,13 +254,14 @@ async function run(browser, tag, vp = { width: 1280, height: 800 }, coreOnly = f
   await measureA('遠景圓點', false);
   // 放大到「某一台車所在的位置」再量,單純 setZoom 會落在沒有車的地方(量到 hits=0 的空綠)
   await page.evaluate(() => {
+    const map = window.__map;
     window.__save = { c: map.getCenter(), z: map.getZoom() };
     const h = (state._trainHits || [])[0];
     if (h) map.setView(map.containerPointToLatLng([h.x, h.y]), 12); else map.setZoom(12);
   });
   await page.waitForTimeout(1500);
   await measureA('近景車號牌', true);
-  await page.evaluate(() => map.setView(window.__save.c, window.__save.z));  // 還原,否則後面的實驗場會被挪到面板底下
+  await page.evaluate(() => window.__map.setView(window.__save.c, window.__save.z));  // 還原,否則後面的實驗場會被挪到面板底下
   await page.waitForTimeout(1200);
   }
 
@@ -294,7 +295,7 @@ async function run(browser, tag, vp = { width: 1280, height: 800 }, coreOnly = f
       //    解凍→擺好→下面的 evaluate 會再凍回去,注入的命中點才落在有意義的座標系上。
       if (window.__origDraw) { window.draw = window.__origDraw; }
       const st = (state.schedStations || [])[0];
-      if (st) map.setView([st.lat, st.lon], 12);
+      if (st) window.__map.setView([st.lat, st.lon], 12);
     });
     await page.waitForTimeout(400);
     const still = await waitMapStill(page);
@@ -306,7 +307,7 @@ async function run(browser, tag, vp = { width: 1280, height: 800 }, coreOnly = f
       // ——而選單自己的定位本來就會夾在畫面內(openTapPick 有 clamp),那個邊界是多餘的自殘。
       let best = null, bd = 1e9, onScreen = 0, clickable = 0;
       for (const st of (state.schedStations || [])) {
-        const p = map.latLngToContainerPoint([st.lat, st.lon]);
+        const p = window.__map.latLngToContainerPoint([st.lat, st.lon]);
         if (p.x < 8 || p.y < 8 || p.x > r.width - 8 || p.y > r.height - 8) continue;
         onScreen++;
         const el = document.elementFromPoint(r.left + p.x, r.top + p.y);
@@ -316,9 +317,9 @@ async function run(browser, tag, vp = { width: 1280, height: 800 }, coreOnly = f
         if (d < bd) { bd = d; best = { x: p.x, y: p.y, name: st.name }; }
       }
       if (!best) return { skip: `畫面上沒有可點的車站(在畫面內 ${onScreen} 個、沒被蓋住 ${clickable} 個)`,
-        diag: { n: (state.schedStations || []).length, mode: state.mode, z: map.getZoom(),
+        diag: { n: (state.schedStations || []).length, mode: state.mode, z: window.__map.getZoom(),
           rect: [Math.round(r.width), Math.round(r.height)],
-          sample: (state.schedStations || []).slice(0, 3).map(st => { const p = map.latLngToContainerPoint([st.lat, st.lon]); return `${st.name}@${Math.round(p.x)},${Math.round(p.y)}`; }) } };
+          sample: (state.schedStations || []).slice(0, 3).map(st => { const p = window.__map.latLngToContainerPoint([st.lat, st.lon]); return `${st.name}@${Math.round(p.x)},${Math.round(p.y)}`; }) } };
       // 同一拍把車放到站的位置上,兩者之間不給地圖任何移動的機會
       if (!window.__origDraw) { window.__origDraw = window.draw; }
       window.draw = () => {};
@@ -332,7 +333,7 @@ async function run(browser, tag, vp = { width: 1280, height: 800 }, coreOnly = f
       // 回報這一拍的實際站距:>16 就是場地沒站穩,後面那條不判分
       let sd = 1e9;
       for (const st of (state.schedStations || [])) {
-        const p = map.latLngToContainerPoint([st.lat, st.lon]);
+        const p = window.__map.latLngToContainerPoint([st.lat, st.lon]);
         const d = Math.hypot(p.x - best.x, p.y - best.y); if (d < sd) sd = d;
       }
       return { ...best, stDist: +sd.toFixed(1), label: String(trs[0].train) };
@@ -348,7 +349,7 @@ async function run(browser, tag, vp = { width: 1280, height: 800 }, coreOnly = f
       const after = await page.evaluate(({ x, y }) => {
         let d = 1e9;
         for (const st of (state.schedStations || [])) {
-          const p = map.latLngToContainerPoint([st.lat, st.lon]);
+          const p = window.__map.latLngToContainerPoint([st.lat, st.lon]);
           const k = Math.hypot(p.x - x, p.y - y); if (k < d) d = k;
         }
         return +d.toFixed(1);

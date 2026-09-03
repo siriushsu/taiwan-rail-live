@@ -49,7 +49,7 @@ const pickOnscreenTraTrain = page => page.evaluate(() => {
   const cands = state.trains.filter(t => t.sys === 'tra_sched' && state.visible.has(t.typeName) && trainPos(t, state.simSec));
   for (const tr of cands) {
     const pos = trainPos(tr, state.simSec);
-    const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
+    const cp = window.__map.latLngToContainerPoint([pos.lat, pos.lon]);
     if (cp.x >= 30 && cp.x <= innerWidth - 30 && cp.y >= 30 && cp.y <= innerHeight - 30) return String(tr.train);
   }
   return null;
@@ -286,7 +286,7 @@ try {
       const cp = await page.evaluate((no) => {
         const tr = state.trains.find(t => String(t.train) === no && t.sys === 'tra_sched');
         const pos = trainPos(tr, state.simSec);
-        return map.latLngToContainerPoint([pos.lat, pos.lon]);
+        return window.__map.latLngToContainerPoint([pos.lat, pos.lon]);
       }, no);
       const px = await samplePixels(page, cp.x, cp.y, 44);
       ok('C1 綠環在亮色主題確實畫出綠色像素', px.green > 50, `green px=${px.green}／取樣框 ${px.total}px`);
@@ -336,8 +336,8 @@ try {
         const tr = [...state._featured].find(t => String(t.train) === fno);
         const pos = trainPos(tr, state.simSec);
         if (!pos) return null;
-        map.setView([pos.lat, pos.lon], 13, { animate: false });
-        const cp2 = map.latLngToContainerPoint([pos.lat, pos.lon]);
+        window.__map.setView([pos.lat, pos.lon], 13, { animate: false });
+        const cp2 = window.__map.latLngToContainerPoint([pos.lat, pos.lon]);
         draw();
         return cp2;
       }, fno);
@@ -468,7 +468,7 @@ try {
     const cp = await page.evaluate((no) => {
       const tr = state.trains.find(t => String(t.train) === no && t.sys === 'tra_sched');
       const pos = trainPos(tr, state.simSec);
-      return map.latLngToContainerPoint([pos.lat, pos.lon]);
+      return window.__map.latLngToContainerPoint([pos.lat, pos.lon]);
     }, no);
     const px = await samplePixels(page, cp.x, cp.y, 44);
     ok('E2 WebKit：綠環確實畫出綠色像素', px.green > 50, `green px=${px.green}`);

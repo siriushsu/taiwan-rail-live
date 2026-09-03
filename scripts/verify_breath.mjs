@@ -51,7 +51,7 @@ async function bootBreath(browser, { width = 1280, height = 800, touch = false, 
   page.on('pageerror', e => errors.push(String(e)));
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   await page.goto(`http://localhost:${PORT}/?breath=1`, { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready && map && state.mode === 'sched'; } catch (e) { return false; } }, null, { timeout: 30000 });
+  await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready && window.__map && state.mode === 'sched'; } catch (e) { return false; } }, null, { timeout: 30000 });
   await page.waitForTimeout(400);
   await page.evaluate(({ forceCity, bt, basemap }) => {
     state.ambientStyle = 'hotspot'; state.ambient = true; state.playing = true;
@@ -63,13 +63,13 @@ async function bootBreath(browser, { width = 1280, height = 800, touch = false, 
     }
     // 進場:比照 hotspotTick 換幕(設旗標→scale 歸 1→setView 一次到 z13 錨點),之後 app 的 tick 迴圈由 hotCruise 逐幀縮放
     state._hotScene = sc; state._hotFresh = false; state._hotNext = performance.now() + 9e8;
-    state._hotCam = true; breathStage(); breathScale(1); map.setView([sc.lat, sc.lon], sc.z, { animate: false }); state._hotCam = false;
+    state._hotCam = true; breathStage(); breathScale(1); window.__map.setView([sc.lat, sc.lon], sc.z, { animate: false }); state._hotCam = false;
     sc.bt = bt;
   }, { forceCity, bt, basemap });
   // 等進場穩定:_breathStage、固定整數 z13、CSS scale 已被 hotCruise 施加(computed transform 非 none)
   await page.waitForFunction(() => {
     try {
-      if (!(state._breathStage && map.getZoom() === 13)) return false;
+      if (!(state._breathStage && window.__map.getZoom() === 13)) return false;
       const t = getComputedStyle(document.getElementById('map')).transform;
       return t && t !== 'none';
     } catch (e) { return false; }
@@ -85,12 +85,12 @@ async function sampleScales(page, N = 90) {
     const parse = s => { if (!s || s === 'none') return 1; const m = s.match(/matrix\(([^,]+),/); return m ? parseFloat(m[1]) : 1; };
     let moveEnds = 0, zoomEnds = 0;
     const onMove = () => moveEnds++, onZoom = () => zoomEnds++;
-    map.on('moveend', onMove); map.on('zoomend', onZoom);
+    window.__map.on('moveend', onMove); window.__map.on('zoomend', onZoom);
     const out = []; let n = 0;
     (function tick() {
       const ms = getComputedStyle(mEl).transform, os = getComputedStyle(oEl).transform;
-      out.push({ t: performance.now(), ms, os, m: parse(ms), o: parse(os), z: map.getZoom() });
-      if (++n >= N) { map.off('moveend', onMove); map.off('zoomend', onZoom); return resolve({ frames: out, moveEnds, zoomEnds }); }
+      out.push({ t: performance.now(), ms, os, m: parse(ms), o: parse(os), z: window.__map.getZoom() });
+      if (++n >= N) { window.__map.off('moveend', onMove); window.__map.off('zoomend', onZoom); return resolve({ frames: out, moveEnds, zoomEnds }); }
       requestAnimationFrame(tick);
     })();
   }), N);
@@ -114,8 +114,8 @@ async function tileState(page) {
     const srcs = tiles.map(t => t.src).filter(Boolean).sort();
     const want = state.mapDark ? 'dark' : (state.basemap === 'sat' ? 'sat' : 'light');
     // 掛著哪幾層要具名回報:衛星有 sat(retina)/satLQ 兩顆,只認其中一顆的判準會在門檻改變時假紅(見 T6b)。
-    const mountedKeys = Object.keys(baseLayers).filter(k => map.hasLayer(baseLayers[k]));
-    return { count: tiles.length, srcs, mountedKeys, satMounted: !!(baseLayers.sat && map.hasLayer(baseLayers.sat)), wantMounted: !!(baseLayers[want] && map.hasLayer(baseLayers[want])), z: map.getZoom() };
+    const mountedKeys = Object.keys(baseLayers).filter(k => window.__map.hasLayer(baseLayers[k]));
+    return { count: tiles.length, srcs, mountedKeys, satMounted: !!(baseLayers.sat && window.__map.hasLayer(baseLayers.sat)), wantMounted: !!(baseLayers[want] && window.__map.hasLayer(baseLayers[want])), z: window.__map.getZoom() };
   });
 }
 
@@ -159,7 +159,7 @@ async function tileState(page) {
     await b.page.evaluate(() => setAmbient(false));
     await b.page.waitForTimeout(400);
     const off = await b.page.evaluate(() => {
-      const mt = getComputedStyle(document.getElementById('map')).transform, z = map.getZoom();
+      const mt = getComputedStyle(document.getElementById('map')).transform, z = window.__map.getZoom();
       return { bs: state._breathStage, mtNone: mt === 'none' || mt === '', zInt: z === Math.round(z), tiles: document.querySelectorAll('#map .leaflet-tile').length };
     });
     ok('chromium T3d 離開放空→transform 歸空、z 整數、圖磚在場、_breathStage=false', off.bs === false && off.mtNone && off.zInt && off.tiles > 0, JSON.stringify(off));

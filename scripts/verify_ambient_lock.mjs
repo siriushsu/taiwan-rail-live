@@ -80,7 +80,7 @@ const errors = [];
 page.on('pageerror', e => errors.push(String(e)));          // waitReady 逾時=boot 靜默拋錯,先掛這個
 await page.goto(`http://localhost:${PORT}/?lang=zh-TW`, { waitUntil: 'domcontentloaded' });
 try {
-  await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready && map && state.mode === 'sched'; } catch (e) { return false; } }, null, { timeout: 30000 });
+  await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready && window.__map && state.mode === 'sched'; } catch (e) { return false; } }, null, { timeout: 30000 });
 } catch (e) {
   console.log('boot 失敗,pageerror:', errors.slice(0, 3));
   throw e;
@@ -91,16 +91,16 @@ const cdp = await ctx.newCDPSession(page);
 // 事件計數器:程式自己的 setView(animate:false) 不會發 dragstart;zoom 不變也不會發 zoomstart
 await page.evaluate(() => {
   window.__ev = { dragstart: 0, zoomstart: 0, click: 0 };
-  map.on('dragstart', () => window.__ev.dragstart++);
-  map.on('zoomstart', () => window.__ev.zoomstart++);
-  map.on('click', () => window.__ev.click++);
+  window.__map.on('dragstart', () => window.__ev.dragstart++);
+  window.__map.on('zoomstart', () => window.__ev.zoomstart++);
+  window.__map.on('click', () => window.__ev.click++);
 });
 const resetEv = () => page.evaluate(() => { window.__ev.dragstart = 0; window.__ev.zoomstart = 0; window.__ev.click = 0; });
 const ev = () => page.evaluate(() => ({ ...window.__ev }));
-const zoom = () => page.evaluate(() => map.getZoom());
+const zoom = () => page.evaluate(() => window.__map.getZoom());
 const handlers = () => page.evaluate(() =>
   ['dragging', 'touchZoom', 'doubleClickZoom', 'scrollWheelZoom', 'boxZoom', 'keyboard']
-    .filter(k => map[k] && map[k].enabled()));
+    .filter(k => window.__map[k] && window.__map[k].enabled()));
 
 // 真觸控拖曳(CDP;Playwright 的 touchscreen 只有 tap)
 async function touchDrag(x0, y0, dx, dy) {
@@ -159,7 +159,7 @@ ok('A7b 放空(群車) 真拖曳/縮放都動不了', gHot.dragstart === 0 && !g
 await leaveAmbient();
 
 // A9 安全網:ambient 已關但手勢被留在鎖住 ⇒ 下一幀必須自動交還
-await page.evaluate(() => { map.dragging.disable(); map.touchZoom.disable(); });
+await page.evaluate(() => { window.__map.dragging.disable(); window.__map.touchZoom.disable(); });
 await page.waitForTimeout(400);
 ok('A9 安全網:非放空卻手勢鎖著 ⇒ tick 自動交還', (await handlers()).length === 6, `開著: ${(await handlers()).length}/6`);
 
