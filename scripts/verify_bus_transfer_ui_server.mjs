@@ -24,7 +24,7 @@ const arrival = (key, routeName, state, etaSec, occupancy = 'not_provided') => (
 const stationBody = {
   schemaVersion: 1,
   station: { id: 'TRA:4220', name: '臺南', position: { lat: 22.9971, lon: 120.2127 } },
-  generatedAt: new Date().toISOString(), trigger: 'user_open_only', polling: false, pilotOnly: false, coverage: 'all_active_tra_stations',
+  generatedAt: new Date().toISOString(), trigger: 'user_open_only', polling: false, pilotOnly: false, coverage: 'all_active_rail_stations',
   live: { state: 'live', cache: 'miss', scheduleFallback: 'not_implemented' },
   arrivals: [
     arrival('fixture-3', '3', 'countdown', 248, 'not_loaded'),
@@ -41,7 +41,7 @@ const noNearbyBody = {
   schemaVersion: 1,
   station: { id: 'TRA:1150', name: '北湖', position: { lat: 24.92218, lon: 121.05575 } },
   generatedAt: new Date().toISOString(), trigger: 'user_open_only', polling: false, pilotOnly: false,
-  coverage: 'all_active_tra_stations', nearbyStopCount: 0,
+  coverage: 'all_active_rail_stations', nearbyStopCount: 0,
   live: { state: 'no_nearby_stops', cache: 'not_applicable', scopes: [], scheduleFallback: 'not_implemented' },
   arrivals: [], totals: { accepted: 0, returned: 0, rejected: 0 }, rejected: [],
   caveats: { outdoorWalkOnly: true, indoorWalkIncluded: false, occupancyCoverage: 'taipei_only_when_bus_leg_is_opened', vehiclePosition: 'load_on_bus_leg_open' },

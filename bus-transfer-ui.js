@@ -26,8 +26,8 @@
 (function (global) {
   'use strict';
 
-  const VERSION = '0.5.0';
-  const COVERAGE = 'all_active_tra_stations';
+  const VERSION = '0.6.0';
+  const COVERAGE = 'all_active_rail_stations';
   const API_BASE = '';
   const STALE_LABEL_SEC = 180;
   // 不用 timer。只有使用者再次展開同一區塊時，超過 Worker 的 20 秒 raw cache
@@ -45,7 +45,9 @@
 
   // 真正的營運站清單由宿主的 tra_station_info＋目前班表決定，Worker 再以 manifest 做第二道 gate。
   // UI 只接受四碼台鐵 StationID，避免任意字串進入 API；不在這裡複製一份 239 站白名單造成漂移。
-  const isSupportedStationId = stationId => /^TRA:\d{4}$/.test(String(stationId || ''));
+  // 台鐵沿用四碼 StationID；其餘鐵路／捷運優先用官方系統 StationID，新站尚未進官方共站表時
+  // 使用 RI 穩定 id。只接受單一冒號與安全字元，實際是否存在仍由 Worker manifest 判定。
+  const isSupportedStationId = stationId => /^[A-Z]+:[A-Za-z0-9_]+$/.test(String(stationId || ''));
 
   const PHASES = ['planning', 'approaching', 'arrived'];
   const PHASE_META = {

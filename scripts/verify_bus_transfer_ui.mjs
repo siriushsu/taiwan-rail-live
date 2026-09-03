@@ -13,18 +13,24 @@ check(index.indexOf('i18n/bus-transfer-translations.js') < index.indexOf('bus-tr
 check(index.indexOf('bus-transfer-ui.js') < index.indexOf('<script>\n// 版本戳記'),
   '公車 UI 模組在主程式之前載入');
 
-check(/const info = stnInfo\(st\.name\)/.test(index) && /`TRA:\$\{stationCode\}`/.test(index),
-  '入口由既有台鐵站碼資料自動掛載，不再複製三站白名單');
+check(/function busTransferStationId\(st\)/.test(index) && /transferAnchorForStop\(sourceSystem, st\)/.test(index)
+  && /busTransferFallbackStationId\(appSystem, st\.name\)/.test(index),
+  '入口由全系統官方站碼與穩定 fallback 自動掛載，不複製逐站白名單');
 check(!/BUS_TRANSFER_PILOT_STATIONS/.test(index), '前端已移除三站 pilot 白名單');
-check(/st\.sys !== 'tra_sched'/.test(index), '入口只出現在台鐵站看板');
-check(/COVERAGE = 'all_active_tra_stations'/.test(ui) && /\^TRA:\\d\{4\}\$/.test(ui),
-  'UI 接受全臺四碼台鐵站碼，Worker manifest 再做實站 gate');
+check(/BUS_TRANSFER_APP_SYSTEMS = new Set/.test(index) && /'tra_sched', 'thsr_sched', 'afr_sched', 'mrt', 'tymc'/.test(index),
+  '車站看板入口涵蓋台鐵、高鐵、林鐵與全部捷運輕軌系統');
+check((index.match(/renderFreqBoard\([^;]+; appendBusTransferBoard\(el, st, busTransferId\); return;/g) || []).length === 2,
+  '一般捷運分頁與全台同框裝飾層都在看板完成後掛上公車卡');
+check(/COVERAGE = 'all_active_rail_stations'/.test(ui) && /\^\[A-Z\]\+:\[A-Za-z0-9_\]\+\$/.test(ui),
+  'UI 接受全鐵路安全 StationID，Worker manifest 再做實站 gate');
 check(/phase:\s*'arrived'/.test(index), '第一階段只掛載已抵達查詢，不推算未來接車');
 check(/id="fpBus"[\s\S]*id="fpBusTo"[\s\S]*id="fpBusTransfer"/.test(index),
   '跟車卡提供先選轉乘站、再承接動態助手的完整入口');
 check(/function busTransferStartJourney\(tr, stopIndex\)/.test(index)
   && /busTransferStopTarget\(tr, stopIndex\)/.test(index),
   '公車動態綁定使用者選定的單一轉乘站，不沿途逐站查');
+check(/!TRANSFER_SCHED_SYSTEM\[tr\.sys\]/.test(index) && /高鐵時刻表推估/.test(index) && /林鐵時刻表推估/.test(index),
+  '跟車轉乘助手同時支援台鐵、高鐵與林鐵');
 check(/remainSec <= 0 \? 'arrived' : remainSec <= 5 \* 60 \? 'near-5' : 'near-15'/.test(index),
   '自動查詢只有抵達前 15 分、5 分與到站三個里程碑');
 check(/state\.clockAtNow && state\.playing && state\.speedMult === 1[\s\S]{0,100}!document\.hidden/.test(index),
@@ -59,7 +65,7 @@ check(!/查不到附近公車：\{error\}|查不到這一路的車輛位置：\{
 check(/rememberRequestError\(state, 'station', error\)/.test(ui) && /rememberRequestError\(leg, 'leg', error\)/.test(ui),
   '原始錯誤只保留供 console 診斷');
 
-for (const key of ['查看現在可搭公車', '步行導航到站牌', '此縣市未提供擁擠度', '資料已過期', '暫時無法取得附近公車資訊，請稍後重試。', '暫時無法取得這一路的車輛位置，請稍後重試。', '目前靜態索引在本站 600 公尺內沒有找到可用公車站牌，因此這次沒有發出即時查詢。你仍可改用地圖查看更遠的站牌。', '預估可轉乘・保守裕度 {n} 分', '轉乘時間偏緊・保守裕度 {n} 分', '這一班目前可能接不上', '轉乘助手 · {station}']) {
+for (const key of ['查看現在可搭公車', '步行導航到站牌', '此縣市未提供擁擠度', '資料已過期', '暫時無法取得附近公車資訊，請稍後重試。', '暫時無法取得這一路的車輛位置，請稍後重試。', '目前靜態索引在本站 600 公尺內沒有找到可用公車站牌，因此這次沒有發出即時查詢。你仍可改用地圖查看更遠的站牌。', '預估可轉乘・保守裕度 {n} 分', '轉乘時間偏緊・保守裕度 {n} 分', '這一班目前可能接不上', '轉乘助手 · {station}', '高鐵時刻表推估', '林鐵時刻表推估']) {
   check(translations.includes(`'${key}'`), `英日翻譯表包含「${key}」`);
 }
 

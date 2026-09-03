@@ -27,7 +27,8 @@ const stationBytes = readNumber('station-bytes', defaults.stationBytes);
 const routeBytes = readNumber('route-bytes', defaults.routeBytes);
 if (cacheHitRate > 1) throw new Error('--cache-hit-rate 請用 0–1 之間的小數');
 
-// 車站卡：City N1 + InterCity N1；路線展開：A1 + A2。
+// 車站卡：每個靜態索引內有站牌的 City／InterCity scope 各一支 N1（目前全 541 站平均 1.62 支，
+// 此處維持每次 2 支的保守估算）；路線展開：A1 + A2。
 // OAuth token 取得不列入資料 API 呼叫；臺北擁擠度來自臺北市公開檔，不列入 TDX。
 const missRate = 1 - cacheHitRate;
 const coldStationOpens = stationOpens * missRate;
@@ -48,4 +49,3 @@ console.log(`20 秒 raw cache 命中率: ${decimal.format(cacheHitRate * 100)}%`
 console.log(`TDX 資料 API 呼叫: ${integer.format(calls)} 次 → ${decimal.format(pointsByCalls)} 點（計次）`);
 console.log(`TDX 傳輸量: ${decimal.format(mb)} MB → ${decimal.format(pointsByBytes)} 點（計量）`);
 console.log(`估計增量合計: ${decimal.format(totalPoints)} 點/月`);
-

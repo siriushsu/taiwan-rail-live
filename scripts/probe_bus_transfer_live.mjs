@@ -23,7 +23,7 @@ const manifestBody = readFileSync(path.join(ROOT, 'data', 'bus_transfer_stations
 env.ASSETS = { async fetch(request) {
   const pathname = new URL(request.url).pathname;
   if (pathname === '/data/bus_transfer_stations.json') return new Response(manifestBody, { headers: { 'content-type': 'application/json' } });
-  if (/^\/data\/bus-transfer\/TRA-\d{4}\.json$/.test(pathname)) {
+  if (/^\/data\/bus-transfer\/[A-Za-z][A-Za-z0-9_-]*\.json$/.test(pathname)) {
     try { return new Response(readFileSync(path.join(ROOT, pathname)), { headers: { 'content-type': 'application/json' } }); }
     catch (error) { return new Response('not found', { status: 404 }); }
   }
@@ -39,7 +39,7 @@ globalThis.caches = { default: {
 _busTransfer.resetBusTransferCaches();
 let totalTdxCalls = 0;
 let totalTdxBytes = 0;
-const stationArgs = process.argv.filter(arg => /^TRA:\d{4}$/.test(arg));
+const stationArgs = process.argv.filter(arg => /^[A-Z]+:[A-Za-z0-9_]+$/.test(arg));
 const stationIds = stationArgs.length ? stationArgs : ['TRA:1000', 'TRA:4220', 'TRA:7000'];
 const openLeg = !process.argv.includes('--no-leg');
 const delayArg = process.argv.find(arg => /^--delay-ms=\d+$/.test(arg));

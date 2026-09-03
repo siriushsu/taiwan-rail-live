@@ -16,7 +16,7 @@ const stats = async () => {
   return response.json();
 };
 
-async function openStation(page, query, expected = query) {
+async function openStation(page, query, expected = query, system = '台鐵') {
   const start = page.getByRole('button', { name: '開始看車' });
   if (await start.isVisible().catch(() => false)) await start.click();
   const input = page.locator('#trainSearch');
@@ -24,8 +24,9 @@ async function openStation(page, query, expected = query) {
   await input.fill(query);
   const rows = page.locator('.stn-row');
   await rows.first().waitFor({ state: 'visible' });
-  assert.match(await rows.first().innerText(), new RegExp(`${expected}.*台鐵`, 's'));
-  await rows.first().click();
+  const target = rows.filter({ hasText: expected }).filter({ hasText: system }).first();
+  assert.equal(await target.count(), 1, `找不到 ${system} ${expected}`);
+  await target.click();
   await page.locator('[data-bus-transfer-slot]').waitFor({ state: 'visible' });
 }
 
@@ -243,7 +244,21 @@ async function allStationCoverage() {
     await page.getByText(/600 公尺內沒有找到可用公車站牌/).waitFor({ state: 'visible' });
     assert.equal(await page.locator('.btu-rowbtn').count(), 0);
     assert.equal((await stats()).lastStation, 'TRA:1150', '北湖應由既有站碼自動對到 TRA:1150');
-    pass('三站白名單外的臺中可查；無附近站牌的北湖照實顯示且不產生假班次');
+
+    await page.locator('#boardClose').tap();
+    await openStation(page, '台中', '台中', '高鐵');
+    const hsrResponse = page.waitForResponse(response => response.url().includes('/api/bus-transfer'));
+    await page.getByRole('button', { name: '查看現在可搭公車' }).tap();
+    await hsrResponse;
+    assert.equal((await stats()).lastStation, 'THSR:1040', '高鐵台中必須接到高鐵 StationID');
+
+    await page.locator('#boardClose').tap();
+    await openStation(page, '廣慈', '廣慈/奉天宮', '台北捷運');
+    const metroResponse = page.waitForResponse(response => response.url().includes('/api/bus-transfer'));
+    await page.getByRole('button', { name: '查看現在可搭公車' }).tap();
+    await metroResponse;
+    assert.equal((await stats()).lastStation, 'RI:MRT_94D3C0FE', '官方名冊尚未收錄的新捷運站必須走穩定 fallback id');
+    pass('台鐵、高鐵、捷運與無附近站牌四種入口皆可用，且仍是點開才查');
   } finally {
     await browser.close();
   }

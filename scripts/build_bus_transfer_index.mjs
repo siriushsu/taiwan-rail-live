@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// TDX StopOfRoute → 全臺目前有台鐵客運班表車站的靜態附近站牌索引。
+// TDX StopOfRoute → 軌島地圖上所有客運鐵路／捷運／輕軌車站的靜態附近站牌索引。
 // 這支只由開發者手動執行，不掛 package script、cron 或 Worker scheduled；正式服務不會背景重抓。
 // 索引按站分檔，避免 Worker 冷啟時為查一站而載入全臺數 MB 的站牌資料。
 
@@ -15,6 +15,7 @@ const AUTH_URL = 'https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/o
 const API_BASE = 'https://tdx.transportdata.tw/api/basic/v2/Bus';
 const RADIUS_M = 600;
 const MAX_STOP_UIDS = 24;
+const COVERAGE = 'all_active_rail_stations';
 
 // tra_station_info.address 的縣市名稱 → TDX Bus City scope。順序刻意把「市」放在同名「縣」前。
 const ADDRESS_SCOPES = [
@@ -26,9 +27,79 @@ const ADDRESS_SCOPES = [
   ['宜蘭縣', 'YilanCounty'], ['花蓮縣', 'HualienCounty'], ['臺東縣', 'TaitungCounty'], ['台東縣', 'TaitungCounty'],
 ];
 
-const stationKey = name => String(name).replace(/臺/g, '台').replace(/\s*\([^)]*\)\s*$/, '').trim();
+// App 的七組捷運／輕軌資料有些是一個畫面系統包兩個 TDX 營運機構（台北捷運含環狀線、
+// 高雄捷運含輕軌）。station_transfers.json 已保留官方 StationID 與座標，這裡只負責把地圖
+// 實際會出現的站接回官方身份；找不到才用穩定 RI id，不能因官方名冊晚一版就漏掉新站。
+const APP_RAIL_SYSTEMS = [
+  { appSystem: 'mrt', label: '台北捷運', file: 'trtc.json', sourceSystems: ['TRTC', 'NTMC'], cityScopes: ['Taipei', 'NewTaipei'] },
+  { appSystem: 'tymc', label: '桃園機場捷運', file: 'tymc.json', sourceSystems: ['TYMC'], cityScopes: ['Taipei', 'NewTaipei', 'Taoyuan'] },
+  { appSystem: 'tmrt', label: '台中捷運', file: 'tmrt.json', sourceSystems: ['TMRT'], cityScopes: ['Taichung'] },
+  { appSystem: 'krtc', label: '高雄捷運與輕軌', file: 'krtc.json', sourceSystems: ['KRTC', 'KLRT'], cityScopes: ['Kaohsiung'] },
+  { appSystem: 'ntalrt', label: '安坑輕軌', file: 'ntalrt.json', sourceSystems: ['NTALRT'], cityScopes: ['NewTaipei'] },
+  { appSystem: 'ntdlrt', label: '淡海輕軌', file: 'ntdlrt.json', sourceSystems: ['NTDLRT'], cityScopes: ['NewTaipei'] },
+  { appSystem: 'sanying', label: '三鶯線', file: 'sanying.json', sourceSystems: ['SANYING'], cityScopes: ['NewTaipei', 'Taoyuan'] },
+  { appSystem: 'afr_sched', label: '阿里山林鐵', file: 'afr.json', sourceSystems: ['AFR'], cityScopes: ['Chiayi', 'ChiayiCounty'] },
+  { appSystem: 'thsr_sched', label: '高鐵', file: 'thsr_track.json', sourceSystems: ['THSR'], cityScopes: [
+    'Taipei', 'NewTaipei', 'Taoyuan', 'HsinchuCounty', 'MiaoliCounty', 'Taichung',
+    'ChanghuaCounty', 'YunlinCounty', 'ChiayiCounty', 'Tainan', 'Kaohsiung',
+  ] },
+];
 
-function activeStations() {
+const stationKey = name => String(name).replace(/臺/g, '台').replace(/\s*\([^)]*\)\s*$/, '').trim();
+const railStationKey = name => stationKey(String(name || '').normalize('NFKC'))
+  .replace(/^(高鐵|台鐵)/, '').replace(/火車站$/, '').replace(/車站$/, '').replace(/站$/, '').trim();
+
+function stableRailId(appSystem, name) {
+  const source = `${appSystem}|${stationKey(name)}`;
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < source.length; i++) hash = Math.imul(hash ^ source.charCodeAt(i), 0x01000193);
+  return `RI:${String(appSystem).toUpperCase()}_${(hash >>> 0).toString(16).toUpperCase().padStart(8, '0')}`;
+}
+
+function officialRailAnchors() {
+  const data = JSON.parse(readFileSync(path.join(ROOT, 'data', 'station_transfers.json'), 'utf8'));
+  return Object.entries(data.stations || {}).map(([id, station]) => ({
+    id,
+    system: station.system,
+    name: station.name,
+    nameKey: station.normalizedName || railStationKey(station.name),
+    position: { lat: Number(station.position && station.position[0]), lon: Number(station.position && station.position[1]) },
+  })).filter(station => Number.isFinite(station.position.lat) && Number.isFinite(station.position.lon));
+}
+
+function appRailStations() {
+  const anchors = officialRailAnchors();
+  const stations = [];
+  for (const definition of APP_RAIL_SYSTEMS) {
+    const data = JSON.parse(readFileSync(path.join(ROOT, 'data', definition.file), 'utf8'));
+    const byName = new Map();
+    for (const line of data.lines || []) for (const station of line.stations || []) {
+      const key = stationKey(station.name);
+      if (!byName.has(key)) byName.set(key, station);
+    }
+    for (const station of byName.values()) {
+      const position = { lat: Number(station.lat), lon: Number(station.lon) };
+      if (!Number.isFinite(position.lat) || !Number.isFinite(position.lon)) throw new Error(`${definition.label} ${station.name} 缺座標`);
+      const candidates = anchors.filter(anchor => definition.sourceSystems.includes(anchor.system) &&
+        anchor.nameKey === railStationKey(station.name)).map(anchor => ({
+          ...anchor,
+          distanceM: haversineMeters(position, anchor.position),
+        })).filter(anchor => anchor.distanceM < 450).sort((a, b) => a.distanceM - b.distanceM || a.id.localeCompare(b.id));
+      const official = candidates[0] || null;
+      stations.push({
+        id: official ? official.id : stableRailId(definition.appSystem, station.name),
+        name: station.name,
+        appSystem: definition.appSystem,
+        systemLabel: definition.label,
+        position,
+        scopes: [...definition.cityScopes.map(scope => `City/${scope}`), 'InterCity'],
+      });
+    }
+  }
+  return stations;
+}
+
+function activeTraStations() {
   const info = JSON.parse(readFileSync(path.join(ROOT, 'data', 'tra_station_info.json'), 'utf8'));
   const schedule = JSON.parse(readFileSync(path.join(ROOT, 'data', 'tra_schedule.json'), 'utf8'));
   const infoByName = new Map();
@@ -60,6 +131,8 @@ function activeStations() {
     return {
       id: `TRA:${source.id}`,
       name: `${source.name || name}車站`,
+      appSystem: 'tra_sched',
+      systemLabel: '台鐵',
       position: { lat: Number(source.lat), lon: Number(source.lon) },
       scopes: [`City/${city[1]}`, 'InterCity'],
     };
@@ -67,6 +140,21 @@ function activeStations() {
   const ids = new Set(stations.map(station => station.id));
   if (ids.size !== stations.length) throw new Error('營運站 StationID 重複，拒絕覆寫分站索引');
   return stations.sort((a, b) => a.id.localeCompare(b.id));
+}
+
+function activeRailStations() {
+  const stations = [...activeTraStations(), ...appRailStations()];
+  const byId = new Map();
+  for (const station of stations) {
+    const previous = byId.get(station.id);
+    // 同一個官方站碼可能被同一系統的轉乘線各列一次；位置相同就共用一份公車索引。
+    if (previous) {
+      if (haversineMeters(previous.position, station.position) >= 450) throw new Error(`車站索引 id 撞號：${station.id}`);
+      continue;
+    }
+    byId.set(station.id, station);
+  }
+  return [...byId.values()].sort((a, b) => a.id.localeCompare(b.id));
 }
 
 function readEnv() {
@@ -135,12 +223,14 @@ export function buildStationProduct(station, rowsByScope, generatedAt) {
   return {
     schemaVersion: BUS_TRANSFER_SCHEMA,
     generatedAt,
-    coverage: 'all_active_tra_stations',
+    coverage: COVERAGE,
     trigger: 'user_open_only',
     polling: false,
     station: {
       id: station.id,
       name: station.name,
+      appSystem: station.appSystem,
+      systemLabel: station.systemLabel,
       position: station.position,
       radiusM: RADIUS_M,
       nearbyStopCount,
@@ -151,23 +241,28 @@ export function buildStationProduct(station, rowsByScope, generatedAt) {
 }
 
 export function buildManifest(stations, generatedAt) {
+  const systemCounts = {};
+  for (const station of stations) systemCounts[station.appSystem] = (systemCounts[station.appSystem] || 0) + 1;
   return {
     schemaVersion: BUS_TRANSFER_SCHEMA,
     generatedAt,
-    coverage: 'all_active_tra_stations',
+    coverage: COVERAGE,
     trigger: 'user_open_only',
     polling: false,
     stationCount: stations.length,
+    systemCounts: Object.fromEntries(Object.entries(systemCounts).sort(([a], [b]) => a.localeCompare(b))),
     stations: Object.fromEntries(stations.map(station => [station.id, {
       id: station.id,
       name: station.name,
+      appSystem: station.appSystem,
+      systemLabel: station.systemLabel,
       asset: `/data/bus-transfer/${station.id.replace(':', '-')}.json`,
     }])),
   };
 }
 
 async function main() {
-  const stations = activeStations();
+  const stations = activeRailStations();
   const env = readEnv();
   const token = await tokenOf(env);
   const scopes = [...new Set(stations.flatMap(station => station.scopes))].sort();
@@ -193,7 +288,7 @@ async function main() {
     stopRefs += product.station.nearbyStopCount;
   }
   for (const filename of readdirSync(OUTPUT_DIR)) {
-    if (/^TRA-\d{4}\.json$/.test(filename) && !expectedFiles.has(filename)) unlinkSync(path.join(OUTPUT_DIR, filename));
+    if (/^[A-Za-z][A-Za-z0-9_-]*\.json$/.test(filename) && !expectedFiles.has(filename)) unlinkSync(path.join(OUTPUT_DIR, filename));
   }
   const manifest = buildManifest(stations, generatedAt);
   writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2) + '\n');
@@ -203,4 +298,4 @@ async function main() {
 
 if (path.resolve(process.argv[1] || '') === fileURLToPath(import.meta.url)) await main();
 
-export { activeStations };
+export { activeRailStations, activeTraStations, stableRailId };

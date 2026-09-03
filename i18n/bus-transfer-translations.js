@@ -64,6 +64,7 @@
     '這一站目前沒有可用的公車轉乘資料': 'Bus transfer data is not available at this station',
     '已設定在 {station} 接公車': 'Bus transfer set at {station}',
     '台鐵即時誤點': 'TRA live delay', '台鐵時刻表推估': 'TRA timetable estimate',
+    '高鐵時刻表推估': 'HSR timetable estimate', '林鐵時刻表推估': 'Forest Railway timetable estimate',
     '轉乘站': 'Transfer stop', '選擇公車轉乘站': 'Choose a bus transfer stop'
   });
   messages.ja = Object.assign(messages.ja || {}, {
@@ -122,6 +123,7 @@
     '這一站目前沒有可用的公車轉乘資料': 'この駅では現在バス乗換データを利用できません',
     '已設定在 {station} 接公車': '{station}でのバス乗換を設定しました',
     '台鐵即時誤點': '台鉄リアルタイム遅延', '台鐵時刻表推估': '台鉄時刻表推定',
+    '高鐵時刻表推估': '高速鉄道時刻表推定', '林鐵時刻表推估': '森林鉄道時刻表推定',
     '轉乘站': '乗換駅', '選擇公車轉乘站': 'バス乗換駅を選択'
   });
 })(window);

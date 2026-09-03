@@ -4216,15 +4216,16 @@ async function deleteAccountData(request, env) {
   }
 }
 
-// ══ 公車轉乘：全臺台鐵營運站 ══════════════════════════════════════════════
+// ══ 公車轉乘：軌島全部客運鐵路／捷運／輕軌車站 ═══════════════════════════
 //
-// 施工邊界（2026-09-01，與 Claude Design／主線工作分流）：
-// - 支援目前客運班表內 239 座實體台鐵站（臺北-環島併回臺北）；manifest 與各站索引由 scripts/build_bus_transfer_index.mjs 產生。
+// 施工邊界（2026-09-03）：
+// - 支援地圖上 541 座客運台鐵／高鐵／林鐵／捷運／輕軌站；manifest 與各站索引由 scripts/build_bus_transfer_index.mjs 產生。
 // - 每站獨立資產：Worker 只載使用者正在看的那站，不在冷啟時吞入整包全臺站牌資料。
 // - 只有使用者主動打開車站公車資訊時，這支 GET 才查 N1；scheduled()、cron、timer 一律不接。
 // - 這支只回答「哪班快到」；A1/A2 車輛位置、車牌與臺北乘載度要等使用者再點一路公車才另行載入。
 // - 600m 內無靜態站牌的站照實回 no_nearby_stops，不打空的 TDX query，也不把它偽裝成來源故障。
 const BUS_TRANSFER_MANIFEST_PATH = '/data/bus_transfer_stations.json';
+const BUS_TRANSFER_COVERAGE = 'all_active_rail_stations';
 const BUS_N1_BASE = 'https://tdx.transportdata.tw/api/basic/v2/Bus/EstimatedTimeOfArrival';
 const BUS_API_BASE = 'https://tdx.transportdata.tw/api/basic/v2/Bus';
 const BUS_SEAT_URL = 'https://tcgbusfs.blob.core.windows.net/blobbus/BusSeatEvent.gz';
@@ -4265,7 +4266,7 @@ async function busTransferManifestData(request, env) {
   const response = await env.ASSETS.fetch(new Request(assetUrl.toString(), { method: 'GET' }));
   if (!response.ok) throw new Error(`bus transfer manifest asset ${response.status}`);
   const data = await response.json();
-  if (!data || data.schemaVersion !== BUS_TRANSFER_SCHEMA || data.coverage !== 'all_active_tra_stations' ||
+  if (!data || data.schemaVersion !== BUS_TRANSFER_SCHEMA || data.coverage !== BUS_TRANSFER_COVERAGE ||
       data.trigger !== 'user_open_only' || data.polling !== false || !data.stations ||
       data.stationCount !== Object.keys(data.stations).length) {
     throw new Error('bus transfer manifest schema mismatch');
@@ -4279,7 +4280,8 @@ async function busTransferStationData(request, env, stationId) {
   const meta = manifest.stations[stationId];
   if (!meta) return { manifest, station: null };
   if (busTransferStationMem.has(stationId)) return { manifest, station: busTransferStationMem.get(stationId) };
-  if (!/^TRA:\d{4}$/.test(stationId) || !/^\/data\/bus-transfer\/TRA-\d{4}\.json$/.test(String(meta.asset || ''))) {
+  if (!/^[A-Z]+:[A-Za-z0-9_]+$/.test(stationId) ||
+      !/^\/data\/bus-transfer\/[A-Za-z][A-Za-z0-9_-]*\.json$/.test(String(meta.asset || ''))) {
     throw new Error('bus transfer station asset path mismatch');
   }
   const assetUrl = new URL(meta.asset, request.url);

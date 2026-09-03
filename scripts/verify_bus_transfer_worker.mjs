@@ -11,6 +11,7 @@ const manifest = readFileSync(path.join(ROOT, 'data', 'bus_transfer_stations.jso
 const stationAssets = new Map([
   ['/data/bus-transfer/TRA-4220.json', readFileSync(path.join(ROOT, 'data', 'bus-transfer', 'TRA-4220.json'))],
   ['/data/bus-transfer/TRA-1150.json', readFileSync(path.join(ROOT, 'data', 'bus-transfer', 'TRA-1150.json'))],
+  ['/data/bus-transfer/AFR-365.json', readFileSync(path.join(ROOT, 'data', 'bus-transfer', 'AFR-365.json'))],
 ]);
 const workerSource = readFileSync(path.join(ROOT, 'worker.js'), 'utf8');
 const coreSource = readFileSync(path.join(ROOT, 'scripts', 'bus_transfer_core.mjs'), 'utf8');
@@ -123,8 +124,8 @@ await check('不支援的站回 400，且不會打 TDX', async () => {
   const response = await worker.fetch(new Request('https://railisland.tw/api/bus-transfer?station=TRA%3A9999'), env, {});
   const body = await response.json();
   assert.equal(response.status, 400);
-  assert.equal(body.coverage, 'all_active_tra_stations');
-  assert.equal(body.stationCount, 239);
+  assert.equal(body.coverage, 'all_active_rail_stations');
+  assert.equal(body.stationCount, 541);
   assert.equal(n1Calls.length, before);
 });
 
@@ -144,6 +145,19 @@ await check('600 公尺內無站牌的營運站照實回空結果，不取 token
   assert.equal(authCalls, authBefore);
 });
 
+await check('非台鐵 StationID 也從安全分站資產讀取，林鐵無站牌站不打 TDX', async () => {
+  edge.clear();
+  _busTransfer.resetBusTransferCaches();
+  const n1Before = n1Calls.length;
+  const response = await worker.fetch(new Request('https://railisland.tw/api/bus-transfer?station=AFR%3A365'), env, {});
+  const body = await response.json();
+  assert.equal(response.status, 200, JSON.stringify(body));
+  assert.equal(body.station.id, 'AFR:365');
+  assert.equal(body.live.state, 'no_nearby_stops');
+  assert.equal(n1Calls.length, n1Before);
+  assert(assetPaths.includes('/data/bus-transfer/AFR-365.json'));
+});
+
 await check('臺南主動查詢只打 City＋InterCity N1，102 進來、退役 2 被 current-static gate 擋掉', async () => {
   edge.clear();
   usageRows.length = 0;
@@ -154,7 +168,7 @@ await check('臺南主動查詢只打 City＋InterCity N1，102 進來、退役 
   assert.equal(body.trigger, 'user_open_only');
   assert.equal(body.polling, false);
   assert.equal(body.pilotOnly, false);
-  assert.equal(body.coverage, 'all_active_tra_stations');
+  assert.equal(body.coverage, 'all_active_rail_stations');
   assert.equal(body.live.state, 'live');
   assert.equal(body.live.scheduleFallback, 'not_implemented');
   assert.equal(body.arrivals.length, 1);

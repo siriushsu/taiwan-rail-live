@@ -5042,6 +5042,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="busallrail"><span class="d">9/3</span><span>公車轉乘入口擴到軌島地圖上的全部 541 座客運鐵路、捷運與輕軌站；高鐵、林鐵跟車也能先指定下車站接公車。仍只在使用者打開或接近轉乘站時查即時，不會全臺背景輪詢。</span></li>
         <li data-cl-of="busassistant"><span class="d">9/3</span><span>跟台鐵列車時可以先指定在哪一站接公車；抵達前 15 分、5 分與實際到站才查一次動態，並把列車抵達、站外步行和公車到站合成保守的轉乘裕度。時光機與加速重播不查即時資料。</span></li>
         <li data-cl-of="railsound"><span class="d">9/3</span><span>App 版配樂情境多了「車聲」開關：跟車時車一動就有鐵軌聲，停站淡出；放空模式一直放。</span></li>
         <li data-cl-of="rideseq"><span class="d">9/3</span><span>完乘記錄多了「順序」排法，照你實際跟完的先後排、最早那趟在最上面；手機的旅程護照也補上排序鈕（謝謝網友回報）</span></li>
@@ -5049,7 +5050,6 @@
         <li data-cl-of="widgetsizes"><span class="d">9/2</span><span>桌面小工具：方向與目的站多了「不指定」，選過也能改回來；捷運看板的方向只列所選車站開得到的終點。Android 補齊到七種尺寸，捷運與火車都有大張卡片，5 欄手機會佔滿五格（謝謝網友回報）</span></li>
         <li data-cl-of="webmcp"><span class="d">9/2</span><span>ChatGPT 在內建瀏覽器打開軌島時，現在能直接查目前畫面、搜尋車站、讀車站看板與營運公告，也能替你開啟車站看板或跟隨指定火車；一般瀏覽器不受影響</span></li>
         <li data-cl-of="crowdcard"><span class="d">9/2</span><span>跟捷運列車時，卡片上會顯示這一台車每一節車廂的擁擠度</span></li>
-        <li data-cl-of="boardwide"><span class="d">9/2</span><span>桌面的車站看板加寬，車種與「往哪」不會再被截掉</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5128,6 +5128,7 @@
         <li data-cl="boardwide"><span class="d">9/2</span><span>桌面的車站看板由 280 加寬到 360 像素。原本一列要放線色、車號、往哪、擁擠度、時刻與倒數，「往 松山（經南京復興）」這種長方向會被截成「往 松山（經…」；新竹站實測原本有三到四列被截，加寬後一列都不截。手機版本來就是整寬的抽屜，不受影響。</span></li>
         <li data-cl="xferconn"><span class="d">9/1</span><span>跟台鐵、高鐵，或搭捷運快到台北、南港、板橋、新竹、苗栗、台中、台南、左營、嘉義這些轉乘站時，卡片會直接列出對向系統最近兩班的車次、時刻，以及「你到站時還剩幾分」——這個分鐘數含你這班車當下的誤點。點一列可以把你要搭的那班釘住，之後畫面只留它。高鐵沒有即時誤點，它的時刻是表定；站內步行時間各站差異大，我不替你判斷來不來得及，只告訴你到站那一刻還剩多久</span></li>
         <li data-cl="busassistant"><span class="d">9/3</span><span>公車轉乘從「到站後自己打開車站看板查」接進跟車流程：跟台鐵列車時先按「接公車」、指定要下車的轉乘站，App 才會追這一站。距離抵達 15 分鐘時查第一輪、5 分鐘時重查、實際到站再查一次；同一里程碑不會因地圖每幀更新而重複發送，也不會沿途每站查。畫面把列車預估抵達、車站到路邊站牌的戶外步行時間、公車到站倒數與兩分鐘安全緩衝合成保守裕度，分成預估可轉乘、時間偏緊與可能接不上；仍明示不含月台、閘門、地下街等站內步行。使用時光機、加速播放、暫停或分頁在背景時不查即時資料；選定路線後仍可查看車牌、位置、擁擠度與開 Google 地圖步行到正確方向站牌。</span></li>
+        <li data-cl="busallrail"><span class="d">9/3</span><span>公車轉乘不再只掛台鐵站：索引依軌島目前地圖實際可點的車站，完整納入台鐵 239、高鐵 12、阿里山林鐵 21，以及台北捷運、機場捷運、台中捷運、高雄捷運與輕軌、安坑輕軌、淡海輕軌、三鶯線共 269 站，合計 541 座。這一輪在 513 站的 600 公尺內找到公車站牌；其餘 28 站是 17 座台鐵小站與 11 座林鐵山區站，仍保留入口並誠實說明附近沒有可用站牌，不發空查詢。所有高鐵與捷運輕軌站目前都找到附近站牌。共站可共用同一份附近公車資料，官方新站名冊還沒跟上時則用穩定站碼補位，不讓剛通車的站消失。高鐵與林鐵的跟車卡也能設定下車接公車；即時查詢規則不變，只有使用者打開車站卡，或已設定的列車在抵達前 15 分、5 分與到站時才查，不做全臺背景輪詢。</span></li>
         <li data-cl="bustransferall"><span class="d">9/1</span><span>公車轉乘由臺北、臺南、花蓮三站擴到目前班表中的 239 座實體台鐵客運站（官方另列的「臺北-環島」站碼已併回臺北，不重複計算）。打開車站看板不會立刻查資料，只有按「查看現在可搭公車」才查該站 600 公尺內的到站倒數；再點某一路線，才查那一路的車牌、位置、還差幾站與擁擠度。沒有車牌、預估或擁擠度時會照實標示，不自行猜值；每筆也顯示資料年齡。選定路線後可直接開 Google 地圖步行到該方向的路邊站牌，步行估算明示不含月台、閘門、地下街等站內距離。索引目前在 221 站找到附近站牌，其餘 18 站會直接說明 600 公尺內沒有可用站牌，不發出空的即時查詢。查詢失敗時只顯示可重試的友善說明，不把伺服器狀態碼或瀏覽器錯誤直接放到畫面上。全程維持使用者點開才查，不在背景輪詢全臺公車</span></li>
         <li data-cl="tourpickcap"><span class="d">8/31</span><span>「隨機跟隨」按了老是跳到同幾班車：稀有度原本被算了兩次——車種等級已經加過權，接著車型稀有再乘四倍，而莒光號、太魯閣號、DR3100 柴聯是整個車型都標稀有，於是一班莒光等於四十班區間車、藍皮解憂號等於九十六班。在跑的車越少壓得越兇：實測晚上十一點只剩兩班莒光在跑時，554 次一班就吃掉 17% 的抽籤機會（當時有 102 班車在跑，平均應該是 1%），中午的藍皮解憂號是 16.8%。現在任何一班都不得超過當下總權重的 3%，上限跟著各時段在跑的車數自動縮放；另外會記住剛跟過的五班，連按「換一班」不會再在同幾班之間繞。稀有車與觀光列車仍然比一般車更常遇到，只是不再獨佔</span></li>
         <li data-cl="boardalign"><span class="d">8/31</span><span>車站看板的欄位對齊。使用者回報「擁擠度跟時間，會因為最後面倒數那邊時間會變成『即將進站』而擠壓到，變成歪掉」。兩個成因：一是倒數欄原本只設了最小寬度，「即將進站」比「3 分」寬，那幾列就把時刻欄往左推；二是時刻的等寬數字設定要字型真的支援才生效，Chrome 上「12:31」比「12:26」窄兩個多像素，擁擠度欄跟著逐列左右跳。現在倒數與時刻兩欄都改成「量出這張板最寬的一列、全板同寬」，英日文與放大字級都自動吃到，不必為每種組合寫死一個數字</span></li>
@@ -5843,7 +5844,9 @@
 //         併回 main。e 與 f 都撞號(e 另有 5122754e、f 是 371e4105 車聲圖層),改取 g(逐 ref＋逐樹掃過無人佔用)。地圖行為零變更。
 // v0903h：公車動態接進台鐵跟車流程。使用者指定轉乘站後，僅在 15 分／5 分／到站三個事件查詢；
 //         非即時、加速、暫停與背景頁不查。列車 ETA＋戶外步行＋公車 ETA 以向下取整與 2 分緩衝算保守裕度。
-const BUILD = 'v0903h';
+// v0903i：公車站牌靜態索引擴到地圖全部 541 座客運鐵路／捷運／輕軌站；高鐵與林鐵跟車同步開放接公車。
+//         即時仍只由主動開站或 15 分／5 分／到站里程碑觸發，不新增背景輪詢。
+const BUILD = 'v0903i';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -26063,13 +26066,12 @@ function busTransferTrainKey(tr) {
 function busTransferStopTarget(tr, index) {
   const stop = tr && tr.stops && tr.stops[index];
   if (!stop || stop.stop === false) return null;
-  const info = stnInfo(stop.name), code = String(info && info.id || '');
-  const stationId = /^\d{4}$/.test(code) ? `TRA:${code}` : '';
+  const stationId = busTransferStationId({ name: stop.name, lat: stop.lat, lon: stop.lon, sys: tr.sys });
   if (!stationId || !window.BusTransferUI || !window.BusTransferUI.isSupported(stationId)) return null;
   return { index, stop, stationId, stationName: stationName(stop.name, tr.sys) };
 }
 function busTransferRemainingTargets(tr) {
-  if (!tr || tr.sys !== 'tra_sched' || tr.loop) return [];
+  if (!tr || !TRANSFER_SCHED_SYSTEM[tr.sys] || tr.loop) return [];
   const now = effTLive(tr), out = [];
   for (let i = 0; i < tr.stops.length; i++) {
     const stop = tr.stops[i];
@@ -26083,7 +26085,7 @@ function busTransferRemainingTargets(tr) {
 function busTransferUpdateControl(tr) {
   const btn = document.getElementById('fpBus'), box = document.getElementById('fpBusBox');
   if (!btn || !box) return;
-  const eligible = !!(tr && tr.sys === 'tra_sched' && !tr.loop && busTransferRemainingTargets(tr).length);
+  const eligible = !!(tr && TRANSFER_SCHED_SYSTEM[tr.sys] && !tr.loop && busTransferRemainingTargets(tr).length);
   btn.hidden = !eligible;
   if (!eligible) { box.hidden = true; return; }
   const active = busTransferJourney && busTransferJourney.trainKey === busTransferTrainKey(tr);
@@ -26135,11 +26137,14 @@ function busTransferStartJourney(tr, stopIndex) {
   return true;
 }
 function busTransferTrainEta(tr, target, remainSec) {
-  const liveAge = state.live && state.live.at ? Math.max(0, Math.round((Date.now() - state.live.at) / 1000)) : null;
+  const tra = tr && tr.sys === 'tra_sched';
+  const liveAge = tra && state.live && state.live.at ? Math.max(0, Math.round((Date.now() - state.live.at) / 1000)) : null;
+  const source = tra ? (liveFresh() ? t('台鐵即時誤點') : t('台鐵時刻表推估'))
+    : tr && tr.sys === 'thsr_sched' ? t('高鐵時刻表推估') : t('林鐵時刻表推估');
   return {
     arrivalAt: new Date(Date.now() + Math.max(0, remainSec) * 1000).toISOString(),
     ageSec: liveAge,
-    source: liveFresh() ? t('台鐵即時誤點') : t('台鐵時刻表推估'),
+    source,
   };
 }
 function syncBusTransferJourney(tr, force) {
@@ -26173,11 +26178,25 @@ function syncBusTransferJourney(tr, force) {
     window.BusTransferUI.refresh(root, milestone);
   }
 }
+const BUS_TRANSFER_APP_SYSTEMS = new Set([
+  'tra_sched', 'thsr_sched', 'afr_sched', 'mrt', 'tymc', 'tmrt', 'krtc', 'ntalrt', 'ntdlrt', 'sanying',
+]);
+function busTransferFallbackStationId(appSystem, name) {
+  const normalized = String(name || '').normalize('NFKC').replace(/臺/g, '台').replace(/\s*\([^)]*\)\s*$/, '').trim();
+  const source = `${appSystem}|${normalized}`;
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < source.length; i++) hash = Math.imul(hash ^ source.charCodeAt(i), 0x01000193);
+  return `RI:${String(appSystem).toUpperCase()}_${(hash >>> 0).toString(16).toUpperCase().padStart(8, '0')}`;
+}
 function busTransferStationId(st) {
-  if (!st || st.sys !== 'tra_sched') return null;
-  const info = stnInfo(st.name);
-  const stationCode = String(info && info.id || '');
-  return /^\d{4}$/.test(stationCode) ? `TRA:${stationCode}` : null;
+  if (!st || !Number.isFinite(Number(st.lat)) || !Number.isFinite(Number(st.lon))) return null;
+  const sourceSystem = TRANSFER_SCHED_SYSTEM[st.sys] || null;
+  const anchor = (sourceSystem && transferAnchorForStop(sourceSystem, st)) || transferAnchorNear(st);
+  if (anchor) return anchor.key;
+  // 官方共站名冊偶爾會晚於剛通車的地圖資料；fallback 與離線索引用同一個 FNV id，仍能讓新站有入口。
+  const appSystem = sourceSystem ? st.sys : (st.metroSysId ||
+    metroStationSystemId(st, st.sys === 'deco' ? state.decoLines : state.lines));
+  return BUS_TRANSFER_APP_SYSTEMS.has(appSystem) ? busTransferFallbackStationId(appSystem, st.name) : null;
 }
 function busTransferSyncBoardStation(st) {
   const next = busTransferStationId(st);
@@ -26206,6 +26225,17 @@ function mountBusTransferBoard(el, st, stationId) {
     // 走與其餘端點同一個 API_BASE(native-bridge 注入 railisland.tw,網頁端為空字串)。
     apiBase: API_BASE,
   });
+}
+function appendBusTransferBoard(el, st, stationId) {
+  if (!el || !stationId) return;
+  let root = el.querySelector('[data-bus-transfer-slot]');
+  if (!root) {
+    root = document.createElement('div');
+    root.className = 'btu-board-slot';
+    root.dataset.busTransferSlot = '';
+    el.appendChild(root);
+  }
+  mountBusTransferBoard(el, st, stationId);
 }
 function openBoard(st) { soloPanel('board'); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel(); closeDelayHist(); closePinCard(); closeNearbyStations(); closeSugarCard(); boardRxOpen.clear(); state.boardStation = st; uniTab = 'station'; uniUncollapseForBoard(); renderBoard(); }
 function closeBoard() {
@@ -26870,8 +26900,8 @@ function renderBoardBody() {
   const busTransferId = busTransferSyncBoardStation(st);
   state.boardRenderedAt = state.simSec;
   ensureEvents(); // 首次載入時資料還在路上,ensureEvents 載到後會自己再叫一次 renderBoard
-  if (state.mode !== 'sched') { renderFreqBoard(el, st, metroBoardLines(st, state.lines), false); return; } // 捷運/輕軌分頁走獨立邏輯,sched(台鐵/高鐵)以下維持原樣;同名站只讀自己所屬系統
-  if (st.sys === 'deco') { renderFreqBoard(el, st, metroBoardLines(st, state.decoLines), true); return; } // 全台同框:點裝飾層捷運站,同款看板但讀 decoLines(無 state.visible 個別開關);同樣依系統分開,避免跨城市同名站合併
+  if (state.mode !== 'sched') { renderFreqBoard(el, st, metroBoardLines(st, state.lines), false); appendBusTransferBoard(el, st, busTransferId); return; } // 捷運/輕軌分頁走獨立邏輯,sched(台鐵/高鐵)以下維持原樣;同名站只讀自己所屬系統
+  if (st.sys === 'deco') { renderFreqBoard(el, st, metroBoardLines(st, state.decoLines), true); appendBusTransferBoard(el, st, busTransferId); return; } // 全台同框:點裝飾層捷運站,同款看板但讀 decoLines(無 state.visible 個別開關);同樣依系統分開,避免跨城市同名站合併
   const rows = schedBoardRows(st);
   // 分組前是全站合計 12 筆(大段 88%/24 筆 2026-08-26 退役);分組後改成【逐組】配額:
   // 冷門方向不會被熱門方向整個擠掉。🔴 App 線沒有大段 ⇒ el.expand 恆假 ⇒ 實際恆為 3。

@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { activeRailStations, stableRailId } from './build_bus_transfer_index.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const manifest = JSON.parse(readFileSync(path.join(ROOT, 'data', 'bus_transfer_stations.json'), 'utf8'));
@@ -31,36 +32,52 @@ const nearbyAliasBase = name => {
   return Math.hypot(dx, dy) <= 200 ? base.name : name;
 };
 const physicalNames = [...new Set(scheduleNames.map(nearbyAliasBase))];
+const expectedRailStations = activeRailStations();
 const stationProducts = Object.fromEntries(Object.entries(manifest.stations).map(([id, meta]) => {
   const assetPath = path.join(ROOT, meta.asset);
   assert(existsSync(assetPath), `${id} 缺 ${meta.asset}`);
   return [id, { meta, assetPath, data: JSON.parse(readFileSync(assetPath, 'utf8')) }];
 }));
 
-check('資料契約明示全臺營運台鐵站、使用者點開觸發、沒有 polling', () => {
+check('資料契約明示軌島全部客運鐵路站、使用者點開觸發、沒有 polling', () => {
   assert.equal(manifest.schemaVersion, 1);
-  assert.equal(manifest.coverage, 'all_active_tra_stations');
+  assert.equal(manifest.coverage, 'all_active_rail_stations');
   assert.equal(manifest.trigger, 'user_open_only');
   assert.equal(manifest.polling, false);
   assert.equal(manifest.stationCount, Object.keys(manifest.stations).length);
 });
 
-check('目前班表的 239 座實體客運站全部有唯一索引，別名站、維修基地與已停靠站不混入', () => {
+check('目前班表的 239 座實體台鐵客運站全部有唯一索引，別名站、維修基地與已停靠站不混入', () => {
   assert.equal(scheduleNames.length, 240);
   assert.equal(physicalNames.length, 239);
-  assert.equal(manifest.stationCount, physicalNames.length);
   const expectedIds = physicalNames.map(name => {
     const info = infoByName.get(stnKey(name));
     assert(info, `班表站 ${name} 缺 tra_station_info`);
     return `TRA:${info.id}`;
   }).sort();
-  assert.deepEqual(Object.keys(manifest.stations).sort(), expectedIds);
+  assert.deepEqual(Object.keys(manifest.stations).filter(id => id.startsWith('TRA:')).sort(), expectedIds);
   for (const forbidden of ['TRA:1001', 'TRA:1998', 'TRA:5170', 'TRA:5998', 'TRA:5999', 'TRA:7140']) {
     assert(!manifest.stations[forbidden], `非目前客運停靠站 ${forbidden} 混入`);
   }
 });
 
-check('每站獨立檔案且不超過 128 KiB，全臺索引總量不超過 5 MiB', () => {
+check('高鐵、林鐵與七組捷運輕軌的 302 座地圖實體站全進索引，合計 541 站', () => {
+  assert.equal(expectedRailStations.length, 541);
+  assert.equal(manifest.stationCount, expectedRailStations.length);
+  assert.deepEqual(Object.keys(manifest.stations).sort(), expectedRailStations.map(station => station.id).sort());
+  assert.deepEqual(manifest.systemCounts, {
+    afr_sched: 21, krtc: 75, mrt: 119, ntalrt: 9, ntdlrt: 14,
+    sanying: 12, thsr_sched: 12, tmrt: 18, tra_sched: 239, tymc: 22,
+  });
+  for (const id of ['THSR:0990', 'TRTC:BL01', 'TYMC:A1', 'TMRT:G0', 'KRTC:R3', 'KLRT:C1',
+    'NTALRT:K01', 'NTDLRT:V01', 'SANYING:LB01', 'AFR:360']) assert(manifest.stations[id], `缺少 ${id}`);
+  // 官方共站表仍未收錄／座標差距超過嚴格閘門的新站也必須有穩定 fallback，不得整站消失。
+  for (const [system, name] of [['mrt', '廣慈/奉天宮'], ['ntalrt', '台北小城'], ['krtc', '灣仔內(大順鼎山)']]) {
+    assert(manifest.stations[stableRailId(system, name)], `缺少 ${system} ${name} fallback 索引`);
+  }
+});
+
+check('每站獨立檔案且不超過 128 KiB，全臺索引總量不超過 12 MiB', () => {
   let total = 0;
   for (const [id, product] of Object.entries(stationProducts)) {
     const bytes = statSync(product.assetPath).size;
@@ -70,7 +87,7 @@ check('每站獨立檔案且不超過 128 KiB，全臺索引總量不超過 5 Mi
     assert.equal(product.data.generatedAt, manifest.generatedAt);
     assert.equal(product.data.coverage, manifest.coverage);
   }
-  assert(total <= 5 * 1024 * 1024, `全臺分站索引 ${total} bytes 過大`);
+  assert(total <= 12 * 1024 * 1024, `全臺分站索引 ${total} bytes 過大`);
 });
 
 check('每個 scope 最多 24 個 StopUID，所有站牌都在 600 公尺內且 routeStops 可解析', () => {
@@ -106,7 +123,7 @@ check('每個 scope 最多 24 個 StopUID，所有站牌都在 600 公尺內且 
       }
     }
   }
-  assert(indexed >= 200, `只有 ${indexed} 個營運站有附近公車索引`);
+  assert(indexed >= 500, `只有 ${indexed} 個營運站有附近公車索引`);
   assert(indexed + withoutStops === manifest.stationCount);
 });
 
