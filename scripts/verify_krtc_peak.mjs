@@ -7,6 +7,7 @@ import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { runEngineMatrix } from './lib/engine_matrix.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = +(process.env.PORT || 5192);
@@ -29,12 +30,14 @@ const server = createServer((req, res) => {
 });
 await new Promise(resolve => server.listen(PORT, resolve));
 
+const matrix = await runEngineMatrix(async ({ engineUrl, check: matrixCheck }) => {
 const checks = [];
 function check(name, pass, detail = '') {
   checks.push({ name, pass });
-  console.log(`${pass ? 'PASS' : 'FAIL'} ${name}${detail ? ' — ' + detail : ''}`);
+  matrixCheck(pass, name, detail);
 }
 const browser = await chromium.launch();
+try {
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
 const pageErrors = [];
 page.on('pageerror', e => pageErrors.push(String(e)));
@@ -46,7 +49,7 @@ await page.addInitScript(() => {
   localStorage.setItem('trainmap-howto-seen', '1');
   localStorage.setItem('trainmap-appearance', 'light');
 });
-await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded' });
+await page.goto(engineUrl(`http://localhost:${PORT}/`), { waitUntil: 'domcontentloaded' });
 await page.waitForFunction(() => typeof state !== 'undefined' && state.ready && state.systems &&
   state.systems.some(s => s.id === 'krtc' && s.data), null, { timeout: 30000 });
 
@@ -237,6 +240,9 @@ if (FIXTURE) {
 
 check('瀏覽器執行無未捕捉錯誤', pageErrors.length === 0, pageErrors.join(' | '));
 console.log(`總配對 ${synthetic.matched}、保守略過 ${synthetic.skipped}、錯配 ${synthetic.wrong}；seeds=${SEEDS}`);
-await browser.close();
+} finally {
+  await browser.close();
+}
+});
 await new Promise(resolve => server.close(resolve));
-if (checks.some(x => !x.pass)) process.exitCode = 1;
+if (!matrix.passed) process.exitCode = 1;
