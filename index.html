@@ -29907,11 +29907,11 @@ function setupMapTools() {
             off = Math.round(Math.hypot(cp.x - cx, cp.y - cy));
           }
         }
-        // 欄位鍵(截圖判讀用):rf=原生rAF心跳距今ms(看門狗補幀不算) wd=看門狗補幀數 dD=上次完繪距今
+        // 欄位鍵(截圖判讀用):lf|gl=地圖引擎(Leaflet/MapLibre) rf=原生rAF心跳距今ms(看門狗補幀不算) wd=看門狗補幀數 dD=上次完繪距今
         // st=本幀階段(t=core起點/d=進draw/i=完繪) z=zoom L=跟隨鎖 T=_transition Z=_zoomAnim
         // of=車距露出中心px rs=自癒數 sh=版面尺寸過期修復數 e=tick例外數 w=頁面例外數 h=hidden
         const errs = state._tickErrs || [];
-        return BUILD + ' rf' + Math.round(now - (state._rafAlive || 0))
+        return BUILD + (M && M.engine === 'maplibre' ? ' gl' : ' lf') + ' rf' + Math.round(now - (state._rafAlive || 0)) // lf/gl=地圖引擎(換引擎 M0 真機截圖判讀用)
           + ' wd' + (state._wdN || 0)
           + ' dD' + Math.round(now - (state._drawDoneAt || 0))
           + ' st' + (state._stg || '-')
