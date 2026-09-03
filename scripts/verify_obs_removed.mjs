@@ -22,7 +22,8 @@ const ok = (name, pass, detail = '') => { results.push({ name, pass }); console.
 for (const f of ['index.html', 'design-mock.html']) {
   const src = await readFile(join(ROOT, f), 'utf8');
   const hits = [];
-  src.split('\n').forEach((ln, i) => { if (PATTERN.test(ln)) hits.push(`${i + 1}: ${ln.trim().slice(0, 100)}`); PATTERN.lastIndex = 0; });
+  // 命中 DIRECTOR_KEY 那行只印行號不印內容:repo 是 PUBLIC,守門人的輸出會被貼進回報
+  src.split('\n').forEach((ln, i) => { if (PATTERN.test(ln)) hits.push(`${i + 1}: ${/DIRECTOR_KEY/.test(ln) ? '(DIRECTOR_KEY 那行,不印)' : ln.trim().slice(0, 100)}`); PATTERN.lastIndex = 0; });
   ok(`G1 ${f} OBS 殘留為 0`, hits.length === 0, hits.length ? `${hits.length} 處,前 5:\n   ${hits.slice(0, 5).join('\n   ')}` : '');
 }
 
@@ -61,19 +62,20 @@ try {
   let ready = true;
   await page.waitForFunction(() => window.__state && window.__state.ready, null, { timeout: 60000 }).catch(() => { ready = false; });
   ok('G2a boot 到 state.ready', ready, ready ? '' : '60 秒內沒 ready——先看 pageerror');
-  const r = await page.evaluate(() => ({
+  // boot 沒到 window.__state 時 G2b–G3 仍要印成紅,不能讓 evaluate 拋錯把整支腳本炸掉
+  const r = await page.evaluate(() => { const s = window.__state || {}; return {
     liveClass: document.body.classList.contains('live'),
     directorClass: document.body.classList.contains('director'),
-    liveMode: typeof window.__state.liveMode,
-    director: typeof window.__state.director,
+    liveMode: typeof s.liveMode,
+    director: typeof s.director,
     liveHud: !!document.getElementById('liveHud'),
     replayBadge: !!document.getElementById('replayBadge'),
     msStatReplay: !!document.getElementById('msStatReplay'),
     liveBadge: !!document.getElementById('liveBadge'),
     ulb: typeof window.updateLiveBadge,
-  }));
+  }; });
   ok('G2b ?live=1 不再掛 body.live／body.director', !r.liveClass && !r.directorClass, JSON.stringify(r));
-  ok('G2c state 沒有 liveMode／director 欄位', r.liveMode === 'undefined' && r.director === 'undefined');
+  ok('G2c state 沒有 liveMode／director 欄位', r.liveMode === 'undefined' && r.director === 'undefined', JSON.stringify({ liveMode: r.liveMode, director: r.director }));
   ok('G2d #liveHud／#replayBadge／#msStatReplay 不存在', !r.liveHud && !r.replayBadge && !r.msStatReplay);
   ok('G2e 零 pageerror', errs.length === 0, errs.slice(0, 2).join(' | '));
   ok('G3 正向對照:#liveBadge 在、updateLiveBadge 是函式、原始碼仍有 state.nightReplay = true', r.liveBadge && r.ulb === 'function' && nightReplayKept, JSON.stringify({ liveBadge: r.liveBadge, ulb: r.ulb, nightReplayKept }));
