@@ -10,11 +10,16 @@ const index = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8')
 const nativeBridge = fs.readFileSync(new URL('../app/src/native-bridge.mjs', import.meta.url), 'utf8');
 const androidManifest = fs.readFileSync(new URL('../app/android/app/src/main/AndroidManifest.xml', import.meta.url), 'utf8');
 const iosInfo = fs.readFileSync(new URL('../app/ios/App/App/Info.plist', import.meta.url), 'utf8');
+const iosRelease = fs.readFileSync(new URL('../app/scripts/ios-release.mjs', import.meta.url), 'utf8');
 
 assert.equal(packageJson.scripts?.['check-bus-transfer'], 'node scripts/verify_bus_transfer_all.mjs',
   'package.json 必須保留公車轉乘總驗收入口');
 assert.match(ship, /verify_bus_transfer_all\.mjs/,
   'ship-web preflight 必須執行公車轉乘總驗收');
+assert.match(iosRelease, /sh\('npm', \['run', 'check-tablet'\], \{ cwd: repoRoot \}\)/,
+  'iOS 唯一出檔流程必須執行 iPhone／iPad 觸控版面矩陣');
+assert.match(iosRelease, /sh\('npm', \['run', 'check-bus-transfer'\], \{ cwd: repoRoot \}\)/,
+  'iOS 唯一出檔流程必須執行公車轉乘與旅程分享總驗收');
 
 // 只斷言「有執行」擋不住「執行了但不擋」：把 `if (x.status !== 0) fail(...)` 改成
 // `if (false)`，驗收照跑、紅字照印，版本仍然出得去，而 diff 只有一行。

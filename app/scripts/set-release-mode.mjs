@@ -281,10 +281,14 @@ const MODES = {
     //   「跳下一首、連錯三次退回內建曲」從沒被觸發。92 的載貨＝v0903a：原生回報 readyToPlay/failed、
     //   曲庫改走資料新鮮度機制（新歌池不必再送審）、三個新歌池（山霧支線／午夜城市／晨曦初班）。
     //   why 沿用 91 的 1.5.4 文案（情境選單那條已涵蓋）。規則四不重用號。
-    marketing: '1.5.4', build: '92', music: true, metroCore: true,
-    why: '軌島 1.5.4\n\n・快到轉乘站時，卡片會列出對向系統最近兩班與你到站時還剩幾分，可以釘住其中一班\n・跟台北捷運的車時，卡片會顯示這一台車每一節車廂的擁擠度\n・音樂鈕旁多了「情境」選單，配樂會跟著你在看的那班車與當下時段換，也可以自己挑\n・桌面小工具的方向與目的站多了「不指定」，選過也能改回來；捷運看板的方向只列所選車站開得到的終點\n・車站看板的誤點標示放大加粗',
-    whyEn: 'Rail Island 1.5.4\n\n• Near a transfer station, see the next two connecting departures and your minutes to spare; tap to pin one\n• Following a Taipei Metro train shows how crowded each carriage is\n• Scene menu by the music button: music follows the train you watch and the time of day, or pick a scene\n• Widget direction and destination offer "Any" so a choice can be undone; the metro board lists only directions from the chosen station\n• Bigger delay tags on station boards',
-    whyJa: '軌島 1.5.4\n\n・乗り換え駅に近づくと、対向システムの直近 2 本と、到着時点で残り何分かを表示。1 本を固定できます\n・台北メトロの列車を追跡中、車両ごとの混雑度を表示\n・音楽ボタンの横に「シーン」メニューを追加。見ている列車と時間帯に合わせて曲が変わり、自分で選ぶこともできます\n・ウィジェットの方向と目的地に「指定なし」を追加、選んだ後でも戻せます。メトロ発車標の方向は選んだ駅から行ける方面だけを表示\n・駅の発車標の遅延表示を大きく太くしました',
+    // 93（2026-09-04）：Apple lookup 實查 1.5.4 已於 09-03 05:03Z 上架，該 train 已關，
+    //   行銷版號進到 1.5.5。載貨＝v0904a：iOS target 改 Universal（iPhone+iPad）、平板觸控殼、
+    //   541 站軌道轉公車完整旅程、12 小時短效旅程分享、車聲、完乘順序與擁擠度短暫沿用。
+    //   92 archive 已存在且為線上 1.5.4 正本；93 是 Archives／git refs 都未使用的新號。
+    marketing: '1.5.5', build: '93', music: true, metroCore: true,
+    why: '軌島 1.5.5\n\n・iPad 正式支援完整觸控版面：直式使用底部分頁，橫式把資訊放在右側，並支援分割畫面\n・列車轉公車接成可恢復的完整旅程：全台 541 座軌道車站都可接續查詢；有附近公車時提供步行導航、到站倒數與剩餘站數\n・旅程可用 12 小時短效連結分享；位置預設關閉，另行同意後只在 App 前景更新\n・跟車時可開啟車聲；完乘護照新增「順序」排序\n・北捷擁擠度短暫中斷時沿用最近資料最多兩分鐘，避免整批閃失',
+    whyEn: 'Rail Island 1.5.5\n\n• Full iPad support: bottom tabs in portrait, a right-side information rail in landscape, and Split View support\n• Rail-to-bus journeys now persist across the app; all 541 rail stations can start a transfer search, with nearby buses, walking directions, arrival countdowns and stops remaining where available\n• Share a journey with a 12-hour link; location stays off by default and updates only in the foreground after separate consent\n• Optional rail sounds while following a train, plus completion-order sorting in Journey Passport\n• Taipei Metro crowding briefly reuses the latest reading for up to two minutes instead of disappearing all at once',
+    whyJa: '軌島 1.5.5\n\n・iPad に正式対応：縦向きは下部タブ、横向きは右側の情報レールを使い、Split View にも対応\n・鉄道からバスまでを復元可能な一つの旅程に統合。全 541 の鉄道駅から乗り換え検索を開始でき、周辺バスがある駅では徒歩案内、到着カウントダウン、残り停留所を確認できます\n・旅程を 12 時間有効のリンクで共有可能。位置情報は初期状態では共有せず、別途同意した場合のみアプリが前面にある間更新します\n・列車追跡中の走行音と、旅のパスポートの「完乗順」並べ替えを追加\n・台北メトロの混雑度が一時的に取得できない場合、直前の値を最長 2 分だけ使い、一斉に消えないようにしました',
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
   // 軌島通行證客端功能、雲端同步與伺服器付費牆。這顆不可選去正式送審；正式版必須另推 build 號，
