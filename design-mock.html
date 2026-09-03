@@ -13,7 +13,7 @@
     color-scheme:light;
     /* 字級三階(標準/大/特大)的倍率。全檔 font-size 都寫成 calc(Npx * var(--ui)),
        改這一顆就整個介面跟著放大;padding/gap/圓角刻意不吃倍率——設計要的是「同一份版面塞進更多字」,
-       不是整體放大鏡(見設計檔 TURN 10/12「欄位一個都沒收」)。?live=1 直播殼強制 1(OBS 契約)。 */
+       不是整體放大鏡(見設計檔 TURN 10/12「欄位一個都沒收」)。 */
     --ui: 1;
     /* 設計檔 TURN 5/6 的字級對照表不是單一倍率:主文與主要數值走 1／1.25／1.5,
        但小標籤(11→12.5→14)與次要說明(11.5→13→15)只走 1／1.14／1.29——它們本來就小,
@@ -1161,7 +1161,7 @@
     padding: 1px 5px; border: 1.5px solid var(--red); border-radius: 6px; line-height: 1.5;
   }
   /* 轉乘接續。落點在 .xfer-tag 那一列的下方(跟隨卡/捷運卡/手機列車卡),共用那一區的字級變數。 */
-  /* v0901 窄卡排版:容器寬度不是這一塊能決定的(桌面 240 / 全畫面 300 / 手機與放空 176 / 直播 400),
+  /* v0901 窄卡排版:容器寬度不是這一塊能決定的(桌面 240 / 全畫面 300 / 手機與放空 176),
      所以斷點吃 container query 而不是裝置——放空模式與手機 sheet 也會落到窄支。
      欄位優先序:車次與「剩 N 分」永不壓縮、永不換行(那是使用者要的兩個數字),
      只有 .xfc-d(時刻＋往哪)吃 ellipsis。 */
@@ -1188,7 +1188,7 @@
   .xfer-conn .xfc-left { grid-area: left; justify-self: end; font-size: calc(13px * var(--uis));
     font-weight: 800; color: var(--ink-strong); font-variant-numeric: tabular-nums; white-space: nowrap; }
   /* 寬支:收成一行。container-type 掛在 .xfer-conn 身上,所以斷點量的是「區塊自己的內容寬」
-     而不是卡片寬——桌面 240 卡＝194px、全畫面 300 卡＝254px、直播 400 卡＝354px。
+     而不是卡片寬——桌面 240 卡＝194px、全畫面 300 卡＝254px。
      240 一行差 4px 放不下站名(五欄要 199),門檻取 250:240 排除、300 起收一行。 */
   @container (min-width: 250px) {
     .xfer-conn .xfc-row { grid-template-columns: auto auto 1fr auto;
@@ -1724,57 +1724,6 @@
      手機在 max-width:900 那條規則裡本來就是 display:none。 */
   body.ambient .leaflet-control-zoom { display: none; }
 
-  /* ── 直播模式(?live=1,OBS 訊號源):隱藏一切互動 UI,留時鐘徽章/attribution/浮水印 ── */
-  body.live .controls, body.live #randBtn, body.live #nearBtn,
-  body.live .leaflet-control-zoom,
-  body.live .follow-lock-ctl, body.live .citysel, body.live #fsFab, body.live .tabbar { display: none !important; }
-  body.live .leaflet-control-container { opacity: 1 !important; }
-  body.live .leaflet-bottom.leaflet-right { bottom: 0; }
-  .live-hud { position: absolute; top: 64px; left: 12px; z-index: 600; pointer-events: none; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
-  .live-hud[hidden] { display: none; }
-  .live-wm { font-size: calc(11.5px * var(--uis)); font-weight: 800; letter-spacing: .8px; color: rgba(30,44,64,.55); padding-left: 2px; }
-  html[data-theme=dark] .live-wm { color: rgba(236,240,248,.5); }
-  .badge .replay { font-size: calc(11px * var(--uis)); font-weight: 900; color: #fffdf6; background: var(--red); border-radius: 3px; padding: 0 5px; letter-spacing: .5px; }
-
-  /* 直播訊號資訊欄放大(僅 body.live):1080p 實尺——時鐘 46/LIVE 22/REPLAY 20/浮水印 24/attribution 16 */
-  body.live .badge { padding: 14px 26px 15px; gap: 18px; }
-  body.live .badge .clock { font-size: calc(46px * var(--ui)); }
-  body.live .badge .peak { font-size: calc(20px * var(--ui)); padding: 4px 14px; }
-  body.live .badge .count { font-size: calc(20px * var(--ui)); }
-  body.live .badge .live, body.live .badge .mlive { font-size: calc(22px * var(--ui)); }
-  body.live .badge .replay { font-size: calc(20px * var(--ui)); }
-  body.live .live-hud { top: 118px; gap: 10px; }
-  body.live .live-wm { font-size: calc(24px * var(--ui)); }
-  body.live .leaflet-control-attribution { font-size: calc(16px * var(--ui)); }
-  body.live .dwell-plate {
-    min-width: 460px; left: 50%; top: 20px;
-    transform: translateX(-50%) translateY(-5px);
-  }
-  body.live .dwell-plate.show { transform: translateX(-50%); }
-  body.live .dwell-plate b { font-size: calc(46px * var(--ui)); padding: 15px 32px 11px; }
-  body.live .dwell-plate .dp-intro { font-size: calc(19px * var(--ui)); }
-  body.live .dwell-plate .dp-intro .dp-intro-lbl { font-size: calc(16px * var(--ui)); }
-  body.live .dwell-plate .dp-strip { padding: 9px 20px 10px; }
-  body.live .dwell-plate .side { font-size: calc(19px * var(--ui)); }
-  body.live .dwell-plate .side .arr { font-size: calc(17px * var(--ui)); }
-  body.live .dwell-plate .side .km { font-size: calc(16px * var(--ui)); }
-  body.live .follow-panel { width: 400px; bottom: 12px; }
-  body.live .follow-panel .fp-head b { font-size: calc(25px * var(--ui)); }
-  body.live .follow-panel .fp-head .kind { font-size: calc(19px * var(--ui)); }
-  body.live .follow-panel .fp-head .spd { font-size: calc(18px * var(--ui)); }
-  body.live .follow-panel .fp-head .spd b { font-size: calc(40px * var(--ui)); }
-  body.live .follow-panel .fp-next .lbl { font-size: calc(17px * var(--ui)); }
-  body.live .follow-panel .fp-next .stn { font-size: calc(26px * var(--ui)); }
-  body.live .follow-panel .fp-next .eta { font-size: calc(20px * var(--ui)); }
-  body.live .follow-panel .fp-prog .txt { font-size: calc(17px * var(--ui)); }
-  body.live .follow-panel .fp-dest { font-size: calc(18px * var(--ui)); }
-  body.live .follow-panel .fp-status { font-size: calc(19px * var(--ui)); }
-  body.live .freq-card { width: 340px; bottom: 12px; }
-  body.live .freq-card .fc-head b { font-size: calc(24px * var(--ui)); }
-  body.live .freq-card .fc-dir { font-size: calc(18px * var(--ui)); }
-  body.live .freq-card .fc-next .lbl { font-size: calc(17px * var(--ui)); }
-  body.live .freq-card .fc-next .stn { font-size: calc(25px * var(--ui)); }
-
   /* 地圖動作列容器:桌面 display:contents ＝盒子不生成,兩顆鈕照舊各自對 #stage 絕對定位(零變化);
      手機(≤900)才變成真正的並排 flex 列,見手機區塊。 */
   .map-actions { display: contents; }
@@ -2065,6 +2014,19 @@
   .report-dialog .rp-go:disabled { opacity: .45; cursor: default; }
   /* 設計 6b 的「›」:平常完全不存在(標準/大都不收欄位,不需要出口),只有特大才長出來 */
   .board .row .rmore { display: none; }
+
+  /* 🔴 標準字級看板列的誤點標刻意比 .lateTag 基底大一級。
+     起因(2026-09-01 實測正式站):看板的時鐘印的是【表定開車】,誤點只出現在這顆 +N 與倒數裡
+     ——6 站 33 列交叉驗證,誤點列 15/15 時鐘＝表定開車、0/15 ＝表定+誤點,倒數 15/15 已校正。
+     10.5px 的 +9 掃一眼會被忽略,於是網友回報「台鐵誤點但還是準時開」(他沒看錯,大字確實是表定)。
+     字樣維持 +N 不改成「誤點 N 分」:同一列的 .min 已經寫了「N 分」,兩個「N 分」並排會更難讀
+     (大字級有橫向餘裕才用 attr() 換成完整字樣,見下方 data-fs=large 區塊)。
+     只放大這一顆、不動基底 .lateTag:跟隨卡與今日動態那三處用的是完整字樣,本來就讀得到。
+     🔴 選擇器帶 html:not([data-fs]) ⇒ 只進標準檔(沒有 data-fs 就是標準)。大/特大是全站最會撞版的
+     一列(見下面那段),padding 與 margin 若漏進去會動到它們的幾何——那兩塊要維持零變化對照。 */
+  html:not([data-fs]) .board .row[data-no] .lateTag {
+    font-size: calc(12.5px * var(--uis)); font-weight: 900; padding: 1px 5px 2px; margin-left: 5px;
+  }
 
   /* ── 設計 6b 車站看板列 · 三階實際塞法 ──────────────────────────────────────
      這是全站最會撞版的一列(實測:板橋台鐵板在大/特大 360pt 就把「區間車　往 蘇澳」切掉)。
@@ -3243,7 +3205,7 @@
     .stage { height: calc(100dvh - 252px); min-height: 380px; }
     /* 手機開站即全螢幕殼:⛶ 全畫面切換鈕廢止(fs 常駐,無退出動作) */
     #fsFab { display: none !important; }
-    /* 地圖頂浮動列:手機 fs 常駐——左=軌島迷你牌,右=全/台/高/捷短標;首繪即佔位(topTabs 靜態預置);直播/放空不顯示 */
+    /* 地圖頂浮動列:手機 fs 常駐——左=軌島迷你牌,右=全/台/高/捷短標;首繪即佔位(topTabs 靜態預置);放空不顯示 */
     body.fs .topbar {
       position: absolute; top: calc(8px + var(--sa-t)); left: 10px; right: 10px;
       display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
@@ -3312,7 +3274,6 @@
          判準不是字級也不是寬度常數,是「頂列這一排真的塞不塞得下」,量出來才知道。 */
     body.fs .topbar .badge .live,
     body.fs .topbar .badge .mlive { font-size: calc(10px * var(--uis)); letter-spacing: .3px; }
-    body.fs .topbar .badge .replay { font-size: calc(10px * var(--uis)); padding: 1px 5px 2px; }
     body.fs .topbar .badge .peak { font-size: calc(10.5px * var(--uis)); padding: 1px 7px 2px; }
     body.fs .topbar .badge .peak:empty { display: none; }
     /* 非即時不脈動——與獨立卡時期的語意一致 */
@@ -3327,7 +3288,6 @@
        #peak 不是用 hidden 而是用空字串控制,所以另外用 :empty 收掉。 */
     body.fs .topbar .badge .live.as-dot,
     body.fs .topbar .badge .mlive.as-dot,
-    body.fs .topbar .badge .replay.as-dot,
     body.fs .topbar .badge .peak.as-dot {
       width: 7px; height: 7px; flex: none; align-self: center;
       border-radius: 50%; padding: 0; border: 0;
@@ -3336,7 +3296,6 @@
     }
     body.fs .topbar .badge .live.as-dot::before,
     body.fs .topbar .badge .mlive.as-dot::before { content: none; }
-    body.fs .topbar .badge .replay.as-dot { color: var(--red); }
     body.fs .topbar .badge .peak.as-dot { color: var(--warn-ink); }
     body.fs .topbar .badge .peak.as-dot.sim { color: #3A5680; }
     body.fs .topbar .badge .live.as-dot.est,
@@ -3471,7 +3430,6 @@
     .topbar .alert-chip .ac-ico { font-size: 14px; line-height: 1; }
     .topbar .alert-chip .ac-n { display: none; }
     html[data-fs] .topbar .alert-chip .ac-ico { font-size: calc(14px * var(--ui)); }
-    body.live .topbar { display: none !important; }
     body.ambient .topbar { display: none; }
     /* GPS 錄製常駐列 × 頂列頁籤衝突修復(2026-07-28 迴歸修復,獨立驗收抓到):#recordBar 原本
        用 z-index(820>620)贏過 .topbar、浮在其上,寬度覆蓋到 .topbar 左半——360/390/414px 時
@@ -3490,23 +3448,23 @@
        space-between 的兩子項(tb-plate/topTabs)——display:none 會把 tb-plate 整個抽出排版,
        topTabs 變成唯一子項後被 space-between 推去起點(左邊),直接撞上 #recordBar(實測抓到:
        topTabs 從 l190 掉到 l10)。visibility:hidden 保留版位不佔視覺,topTabs 才會留在右側原地。 */
-    body.fs.recording:not(.rec-panel):not(.live):not(.ambient) .topbar .tb-plate { visibility: hidden; }
-    body.fs.recording:not(.rec-panel):not(.live):not(.ambient) .record-bar {
+    body.fs.recording:not(.rec-panel):not(.ambient) .topbar .tb-plate { visibility: hidden; }
+    body.fs.recording:not(.rec-panel):not(.ambient) .record-bar {
       position: absolute; top: calc(8px + var(--sa-t)); left: 10px;
       transform: none; width: max-content; max-width: 150px;
       flex-direction: column; align-items: stretch; justify-content: flex-start;
       gap: 2px; padding: 2px 7px 3px 9px; line-height: 1.15;
     }
-    body.fs.recording:not(.rec-panel):not(.live):not(.ambient) .record-bar .rb-row1,
-    body.fs.recording:not(.rec-panel):not(.live):not(.ambient) .record-bar .rb-row2 {
+    body.fs.recording:not(.rec-panel):not(.ambient) .record-bar .rb-row1,
+    body.fs.recording:not(.rec-panel):not(.ambient) .record-bar .rb-row2 {
       display: flex; align-items: center; gap: 5px;
     }
-    body.fs.recording:not(.rec-panel):not(.live):not(.ambient) .record-bar .rb-ttl { font-size: calc(11px * var(--uis)); }
-    body.fs.recording:not(.rec-panel):not(.live):not(.ambient) .record-bar .rb-detail { display: none; }
-    body.fs.recording:not(.rec-panel):not(.live):not(.ambient) .record-bar .rb-stat {
+    body.fs.recording:not(.rec-panel):not(.ambient) .record-bar .rb-ttl { font-size: calc(11px * var(--uis)); }
+    body.fs.recording:not(.rec-panel):not(.ambient) .record-bar .rb-detail { display: none; }
+    body.fs.recording:not(.rec-panel):not(.ambient) .record-bar .rb-stat {
       flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
     }
-    body.fs.recording:not(.rec-panel):not(.live):not(.ambient) .record-bar .rb-stop {
+    body.fs.recording:not(.rec-panel):not(.ambient) .record-bar .rb-stop {
       flex: none; min-height: 28px; padding-top: 2px; padding-bottom: 2px;
     }
     /* 時鐘徽章讓位頂列:移到頂列下方(safe-area 隨動態島下移,與頂列一致) */
@@ -3905,7 +3863,7 @@
     /* 版權字放**最下角**、膠囊疊在它上方(v0819a 使用者裁決:原本把版權抬到膠囊上方,那行字看起來像浮在畫面中間)。
        仍然是垂直分離——膠囊置中、版權右對齊,窄寬(≤414)兩者水平必然重疊(實測 360/375/414 都疊),
        所以只能靠上下錯開,不能靠左右讓位。這裡刻意**不另寫規則**,直接讓上面那條 body.fs 的
-       tabbar-clear+6px 生效(與放空/直播態同高),順序改由膠囊上抬達成,見下方 .controls 那條。
+       tabbar-clear+6px 生效(與放空態同高),順序改由膠囊上抬達成,見下方 .controls 那條。
        🔴 不要再把版權往上抬:跟隨小卡的讓位(placeFsOverlays 的 lift)只認膠囊當下緣家具的最高點,
        版權不在那本帳裡,抬高它不會讓卡跟著讓,只會讓它自己漂到畫面中央。 */
     /* 展開態(cexp):完整帶佔滿下緣會壓住版權角→比照 sheet-open 淡出版權(短暫互動態,收合即回,不影響授權常態顯示) */
@@ -3916,10 +3874,10 @@
        淡出的提示不再算「下緣家具」,跟車卡才不會白白多讓 88px。 */
     body.cexp .iab-hint { opacity: 0; pointer-events: none; }
 
-    /* ── 手機速度控制膠囊(≤900 一律;非放空非直播;桌面完全不變) ──
+    /* ── 手機速度控制膠囊(≤900 一律;非放空;桌面完全不變) ──
        預設 slim:貼底置中細長膠囊,只露 ▶/⏸ + 倍速 + 模擬時刻。
        點膠囊本體 → body.cexp 展開成完整帶;5s 無互動自動收回;再閒置 5s → cfaint 半透明把手。 */
-    body:not(.ambient):not(.live):not(.cexp) .controls {
+    body:not(.ambient):not(.cexp) .controls {
       left: 50%; right: auto; transform: translateX(-50%);
       bottom: 10px; width: max-content; max-width: calc(100vw - 24px);
       flex-wrap: nowrap; align-items: center; gap: 7px;
@@ -3930,38 +3888,38 @@
     /* v0718i 觸控熱區:收合膠囊整體(實測約41高)命中框補到 ≥44,置中擴張;z-index:-2(比 #pp::after
        的 -1 更低一階)墊在 #pp/#todOut/#speedOut 等真子元素、以及 #pp 自己的熱區之下,不搶走任何人的點擊,
        只補滿膠囊邊緣的空白窄邊 */
-    body:not(.ambient):not(.live):not(.cexp) .controls::after {
+    body:not(.ambient):not(.cexp) .controls::after {
       content: ''; position: absolute; left: 50%; top: 50%;
       width: 100%; height: max(100%, 44px); transform: translate(-50%, -50%); z-index: -2;
     }
     /* +30 而不是原本的 +10:下面要讓出「版權字(高 14,底 tabbar-clear+6 ⇒ 頂 tabbar-clear+20)+ 約 10px 間距」。
        跟隨小卡不必跟著改——placeFsOverlays 是依膠囊實測 top 動態算 lift,膠囊上抬多少,卡就跟著抬多少。 */
-    body.fs:not(.ambient):not(.live):not(.cexp) .controls { bottom: calc(var(--tabbar-clear) + 30px); }
-    body:not(.ambient):not(.live):not(.cexp) .controls #ppTxt,
-    body:not(.ambient):not(.live):not(.cexp) .controls .speedrail,
-    body:not(.ambient):not(.live):not(.cexp) .controls .band-div,
-    body:not(.ambient):not(.live):not(.cexp) .controls .stage-tools,
-    body:not(.ambient):not(.live):not(.cexp) .controls #nowBtn,
-    body:not(.ambient):not(.live):not(.cexp) .controls #ambientBtn,
-    body:not(.ambient):not(.live):not(.cexp) .controls #ambientStyleBtn,
-    body:not(.ambient):not(.live):not(.cexp) .controls #musicCtl { display: none; }
+    body.fs:not(.ambient):not(.cexp) .controls { bottom: calc(var(--tabbar-clear) + 30px); }
+    body:not(.ambient):not(.cexp) .controls #ppTxt,
+    body:not(.ambient):not(.cexp) .controls .speedrail,
+    body:not(.ambient):not(.cexp) .controls .band-div,
+    body:not(.ambient):not(.cexp) .controls .stage-tools,
+    body:not(.ambient):not(.cexp) .controls #nowBtn,
+    body:not(.ambient):not(.cexp) .controls #ambientBtn,
+    body:not(.ambient):not(.cexp) .controls #ambientStyleBtn,
+    body:not(.ambient):not(.cexp) .controls #musicCtl { display: none; }
     /* 時鐘不在「現在」時才把「現在」鈕放回手機的站台帶——見 syncTimeUI 的 clock-off。
        選擇器刻意與上面那條隱藏規則同形只多一個類,確保在它匹配的每個情境都蓋得過它。 */
-    body:not(.ambient):not(.live):not(.cexp).clock-off .controls #nowBtn { display: flex; }
-    body:not(.ambient):not(.live):not(.cexp) .controls .ctl { flex: none; gap: 0; margin: 0; padding: 0; border: 0; min-width: 0; }
-    body:not(.ambient):not(.live):not(.cexp) .controls .tod-wrap { padding: 0; }
-    body:not(.ambient):not(.live):not(.cexp) .controls #pp { padding: 3px 6px; font-size: calc(15px * var(--ui)); background: none; border: 0; box-shadow: none; color: var(--ink-strong); min-height: 0; }
-    body:not(.ambient):not(.live):not(.cexp) .controls #speedOut { font-size: calc(14.5px * var(--ui)); font-weight: 800; color: var(--red); min-width: 0; }
-    body:not(.ambient):not(.live):not(.cexp) .controls #todOut { font-size: calc(14px * var(--ui)); font-weight: 700; color: var(--navy); min-width: 0; border: 0; padding: 0; }
+    body:not(.ambient):not(.cexp).clock-off .controls #nowBtn { display: flex; }
+    body:not(.ambient):not(.cexp) .controls .ctl { flex: none; gap: 0; margin: 0; padding: 0; border: 0; min-width: 0; }
+    body:not(.ambient):not(.cexp) .controls .tod-wrap { padding: 0; }
+    body:not(.ambient):not(.cexp) .controls #pp { padding: 3px 6px; font-size: calc(15px * var(--ui)); background: none; border: 0; box-shadow: none; color: var(--ink-strong); min-height: 0; }
+    body:not(.ambient):not(.cexp) .controls #speedOut { font-size: calc(14.5px * var(--ui)); font-weight: 800; color: var(--red); min-width: 0; }
+    body:not(.ambient):not(.cexp) .controls #todOut { font-size: calc(14px * var(--ui)); font-weight: 700; color: var(--navy); min-width: 0; border: 0; padding: 0; }
     /* 收合膠囊點到時間讀數要先「展開完整帶」,不能直接跳原生選時器——非展開態關掉透明 time input 的點擊,
        點擊落到膠囊本體走展開;展開(cexp)後規則失效,再點時間才開選時器 */
-    body:not(.ambient):not(.live):not(.cexp) .controls .tod-wrap input[type=time] { pointer-events: none; }
+    body:not(.ambient):not(.cexp) .controls .tod-wrap input[type=time] { pointer-events: none; }
     /* 閒置淡成半透明把手:整條變淡,倍速數字仍讀得到。
        :not(.sheet-open) 護欄:sheet 開啟時膠囊本應 opacity:0 讓位,但 cfaint 這條(特異度較高)會把它拉回 .5 而「仍可見」
        (Batch B 真機截圖病灶);排除 sheet-open 後,讓位規則 body.sheet-open .controls{opacity:0} 得以生效。 */
-    body:not(.ambient):not(.live):not(.cexp):not(.sheet-open).cfaint .controls { opacity: .5; padding: 4px 13px; }
-    body:not(.ambient):not(.live):not(.cexp).cfaint .controls #pp,
-    body:not(.ambient):not(.live):not(.cexp).cfaint .controls #todOut { display: none; }
+    body:not(.ambient):not(.cexp):not(.sheet-open).cfaint .controls { opacity: .5; padding: 4px 13px; }
+    body:not(.ambient):not(.cexp).cfaint .controls #pp,
+    body:not(.ambient):not(.cexp).cfaint .controls #todOut { display: none; }
     /* ── 展開態(cexp):完整帶貼底整寬,三列格線 ──
        ① 播放 ＋ 速度軌　② 時刻尺（整列可拖）＋「現在」　③ 音樂
        2026-07-25 裁決:原本第 2 列是「時刻讀數｜現在｜放空模式」,那個位置讓給時刻尺;
@@ -4213,8 +4171,6 @@
     body.fs.ambient .dwell-plate {
       opacity: 0; pointer-events: none; transition: opacity .18s ease;
     }
-    /* live(OBS 版面契約)維持 v2 行為:橫式不出跟車側欄,浮層版面一格不動 */
-    body.fs.live .follow-panel { display: none; }
     /* 🔴 出口保命:上面那條「sheet 開著就把速度膠囊淡掉讓位」(body.sheet-open .controls,特定度 0-2-1)
        在放空模式下會把唯一的出口一起淡成 opacity 0——實測進放空時 setAmbient() 只收亮點面板,
        車站看板是留著的,於是 .controls 整條 opacity:0 而「離開放空」鈕就在裡面(V3 判準抓到)。
@@ -4322,7 +4278,7 @@
        🔴 縮窄之後不能還放左上角:矮視窗把跟隨小卡頂到 y127(placeFsOverlays 的讓位),
           原本 836px 寬的整寬版是「兩側都露出來」才看得到,縮到 129px 就整個躲進小卡後面
           (小卡不透明、且淡出契約只在另有面板開著時生效)——縮小反而變成看不見。
-          改成在「露出的地圖」裡水平置中:沿用 body.live 那套 translateX(-50%) 的既有慣例,
+          改成在「露出的地圖」裡水平置中:沿用既有的 translateX(-50%) 置中慣例,
           左邊給小卡、右邊給動作列與側欄,三者結構上互不重疊。 */
     /* §04c 契約8:中線=[左界, 側欄左緣−8] 的中點。
        🔴 v2(2026-08-26):跟隨欄廢除 ⇒ 左界**恆為安全區**,原本讀 body.follow-on 讓 238px
@@ -4339,7 +4295,7 @@
     body.fs .dwell-plate.show { transform: translateX(-50%); }
     /* 契約8 後半:速度膠囊(收合的 .controls)共用同一條中線。cexp 展開是操作暫態、cfaint 只是變淡,
        都不改水平錨。直式那條基底規則(body:not×3 .controls)特定度 0-4-1,這裡加 .fs 一級蓋過。 */
-    body.fs:not(.ambient):not(.live):not(.cexp) .controls {
+    body.fs:not(.ambient):not(.cexp) .controls {
       left: calc(var(--land-lb) + (100% - var(--land-lb) - var(--rail-occupy)) / 2); right: auto;
     }
     body.fs .dwell-plate b { font-size: calc(18px * var(--ui)); letter-spacing: 6px; text-indent: 6px; padding: 6px 14px 5px; }
