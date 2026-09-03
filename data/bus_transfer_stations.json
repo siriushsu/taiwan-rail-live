@@ -1,0 +1,3809 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-03T07:25:05.359Z",
+  "coverage": "all_active_rail_stations",
+  "trigger": "user_open_only",
+  "polling": false,
+  "stationCount": 541,
+  "systemCounts": {
+    "afr_sched": 21,
+    "krtc": 75,
+    "mrt": 119,
+    "ntalrt": 9,
+    "ntdlrt": 14,
+    "sanying": 12,
+    "thsr_sched": 12,
+    "tmrt": 18,
+    "tra_sched": 239,
+    "tymc": 22
+  },
+  "stations": {
+    "AFR:360": {
+      "id": "AFR:360",
+      "name": "嘉義",
+      "appSystem": "afr_sched",
+      "systemLabel": "阿里山林鐵",
+      "asset": "/data/bus-transfer/AFR-360.json"
+    },
+    "AFR:361": {
+      "id": "AFR:361",
+      "name": "北門",
+      "appSystem": "afr_sched",
+      "systemLabel": "阿里山林鐵",
+      "asset": "/data/bus-transfer/AFR-361.json"
+    },
+    "AFR:362": {
+      "id": "AFR:362",
+      "name": "鹿麻產",
+      "appSystem": "afr_sched",
+      "systemLabel": "阿里山林鐵",
+      "asset": "/data/bus-transfer/AFR-362.json"
+    },
+    "AFR:363": {
+      "id": "AFR:363",
+      "name": "竹崎",
+      "appSystem": "afr_sched",
+      "systemLabel": "阿里山林鐵",
+      "asset": "/data/bus-transfer/AFR-363.json"
+    },
+    "AFR:365": {
+      "id": "AFR:365",
+      "name": "樟腦寮",
+      "appSystem": "afr_sched",
+      "systemLabel": "阿里山林鐵",
+      "asset": "/data/bus-transfer/AFR-365.json"
+    },
+    "AFR:366": {
+      "id": "AFR:366",
+      "name": "獨立山",
+      "appSystem": "afr_sched",
+      "systemLabel": "阿里山林鐵",
+      "asset": "/data/bus-transfer/AFR-366.json"
+    },
+    "AFR:367": {
+      "id": "AFR:367",
+      "name": "梨園寮",
+      "appSystem": "afr_sched",
+      "systemLabel": "阿里山林鐵",
+      "asset": "/data/bus-transfer/AFR-367.json"
+    },
+    "AFR:368": {
+      "id": "AFR:368",
+      "name": "交力坪",
+      "appSystem": "afr_sched",
+      "systemLabel": "阿里山林鐵",
+      "asset": "/data/bus-transfer/AFR-368.json"
+    },
+    "AFR:369": {
+      "id": "AFR:369",
+      "name": "水社寮",
+      "appSystem": "afr_sched",
+      "systemLabel": "阿里山林鐵",
+      "asset": "/data/bus-transfer/AFR-369.json"
+    },
+    "AFR:370": {
+      "id": "AFR:370",
+      "name": "奮起湖",
+      "appSystem": "afr_sched",
+      "systemLabel": "阿里山林鐵",
+      "asset": "/data/bus-transfer/AFR-370.json"
+    },
+    "AFR:371": {
+      "id": "AFR:371",
+      "name": "多林",
+      "appSystem": "afr_sched",
+      "systemLabel": "阿里山林鐵",
+      "asset": "/data/bus-transfer/AFR-371.json"
+    },
+    "AFR:372": {
+      "id": "AFR:372",
+      "name": "十字路",
+      "appSystem": "afr_sched",
+      "systemLabel": "阿里山林鐵",
+      "asset": "/data/bus-transfer/AFR-372.json"
+    },
+    "AFR:373": {
+      "id": "AFR:373",
+      "name": "屏遮那",
+      "appSystem": "afr_sched",
+      "systemLabel": "阿里山林鐵",
+      "asset": "/data/bus-transfer/AFR-373.json"
+    },
+    "AFR:374": {
+      "id": "AFR:374",
+      "name": "第一分道",
+      "appSystem": "afr_sched",
+      "systemLabel": "阿里山林鐵",
+      "asset": "/data/bus-transfer/AFR-374.json"
+    },
+    "AFR:375": {
+      "id": "AFR:375",
+      "name": "第二分道",
+      "appSystem": "afr_sched",
+      "systemLabel": "阿里山林鐵",
+      "asset": "/data/bus-transfer/AFR-375.json"
+    },
+    "AFR:376": {
+      "id": "AFR:376",
+      "name": "二萬平",
+      "appSystem": "afr_sched",
+      "systemLabel": "阿里山林鐵",
+      "asset": "/data/bus-transfer/AFR-376.json"
+    },
+    "AFR:377": {
+      "id": "AFR:377",
+      "name": "神木",
+      "appSystem": "afr_sched",
+      "systemLabel": "阿里山林鐵",
+      "asset": "/data/bus-transfer/AFR-377.json"
+    },
+    "AFR:378": {
+      "id": "AFR:378",
+      "name": "阿里山",
+      "appSystem": "afr_sched",
+      "systemLabel": "阿里山林鐵",
+      "asset": "/data/bus-transfer/AFR-378.json"
+    },
+    "AFR:379": {
+      "id": "AFR:379",
+      "name": "沼平",
+      "appSystem": "afr_sched",
+      "systemLabel": "阿里山林鐵",
+      "asset": "/data/bus-transfer/AFR-379.json"
+    },
+    "AFR:380": {
+      "id": "AFR:380",
+      "name": "對高岳",
+      "appSystem": "afr_sched",
+      "systemLabel": "阿里山林鐵",
+      "asset": "/data/bus-transfer/AFR-380.json"
+    },
+    "AFR:381": {
+      "id": "AFR:381",
+      "name": "祝山",
+      "appSystem": "afr_sched",
+      "systemLabel": "阿里山林鐵",
+      "asset": "/data/bus-transfer/AFR-381.json"
+    },
+    "KLRT:C1": {
+      "id": "KLRT:C1",
+      "name": "籬仔內",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C1.json"
+    },
+    "KLRT:C10": {
+      "id": "KLRT:C10",
+      "name": "光榮碼頭",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C10.json"
+    },
+    "KLRT:C11": {
+      "id": "KLRT:C11",
+      "name": "真愛碼頭",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C11.json"
+    },
+    "KLRT:C12": {
+      "id": "KLRT:C12",
+      "name": "駁二大義",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C12.json"
+    },
+    "KLRT:C13": {
+      "id": "KLRT:C13",
+      "name": "駁二蓬萊",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C13.json"
+    },
+    "KLRT:C15": {
+      "id": "KLRT:C15",
+      "name": "壽山公園站",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C15.json"
+    },
+    "KLRT:C16": {
+      "id": "KLRT:C16",
+      "name": "文武聖殿站",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C16.json"
+    },
+    "KLRT:C17": {
+      "id": "KLRT:C17",
+      "name": "鼓山區公所站",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C17.json"
+    },
+    "KLRT:C18": {
+      "id": "KLRT:C18",
+      "name": "鼓山",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C18.json"
+    },
+    "KLRT:C19": {
+      "id": "KLRT:C19",
+      "name": "馬卡道",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C19.json"
+    },
+    "KLRT:C2": {
+      "id": "KLRT:C2",
+      "name": "凱旋瑞田",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C2.json"
+    },
+    "KLRT:C20": {
+      "id": "KLRT:C20",
+      "name": "臺鐵美術館",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C20.json"
+    },
+    "KLRT:C21": {
+      "id": "KLRT:C21",
+      "name": "美術館",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C21.json"
+    },
+    "KLRT:C21A": {
+      "id": "KLRT:C21A",
+      "name": "內惟藝術中心",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C21A.json"
+    },
+    "KLRT:C22": {
+      "id": "KLRT:C22",
+      "name": "聯合醫院",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C22.json"
+    },
+    "KLRT:C23": {
+      "id": "KLRT:C23",
+      "name": "龍華國小",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C23.json"
+    },
+    "KLRT:C24": {
+      "id": "KLRT:C24",
+      "name": "愛河之心",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C24.json"
+    },
+    "KLRT:C25": {
+      "id": "KLRT:C25",
+      "name": "新上國小",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C25.json"
+    },
+    "KLRT:C26": {
+      "id": "KLRT:C26",
+      "name": "大順民族",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C26.json"
+    },
+    "KLRT:C28": {
+      "id": "KLRT:C28",
+      "name": "高雄高工",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C28.json"
+    },
+    "KLRT:C29": {
+      "id": "KLRT:C29",
+      "name": "樹德家商",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C29.json"
+    },
+    "KLRT:C3": {
+      "id": "KLRT:C3",
+      "name": "前鎮之星",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C3.json"
+    },
+    "KLRT:C30": {
+      "id": "KLRT:C30",
+      "name": "科工館",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C30.json"
+    },
+    "KLRT:C31": {
+      "id": "KLRT:C31",
+      "name": "聖功醫院",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C31.json"
+    },
+    "KLRT:C32": {
+      "id": "KLRT:C32",
+      "name": "凱旋公園站",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C32.json"
+    },
+    "KLRT:C33": {
+      "id": "KLRT:C33",
+      "name": "衛生局站",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C33.json"
+    },
+    "KLRT:C34": {
+      "id": "KLRT:C34",
+      "name": "五權國小站",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C34.json"
+    },
+    "KLRT:C35": {
+      "id": "KLRT:C35",
+      "name": "凱旋武昌站",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C35.json"
+    },
+    "KLRT:C36": {
+      "id": "KLRT:C36",
+      "name": "凱旋二聖站",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C36.json"
+    },
+    "KLRT:C37": {
+      "id": "KLRT:C37",
+      "name": "輕軌機廠站",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C37.json"
+    },
+    "KLRT:C4": {
+      "id": "KLRT:C4",
+      "name": "凱旋中華",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C4.json"
+    },
+    "KLRT:C5": {
+      "id": "KLRT:C5",
+      "name": "夢時代",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C5.json"
+    },
+    "KLRT:C6": {
+      "id": "KLRT:C6",
+      "name": "經貿園區",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C6.json"
+    },
+    "KLRT:C7": {
+      "id": "KLRT:C7",
+      "name": "軟體園區",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C7.json"
+    },
+    "KLRT:C8": {
+      "id": "KLRT:C8",
+      "name": "高雄展覽館",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C8.json"
+    },
+    "KLRT:C9": {
+      "id": "KLRT:C9",
+      "name": "旅運中心",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KLRT-C9.json"
+    },
+    "KRTC:O1": {
+      "id": "KRTC:O1",
+      "name": "哈瑪星",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-O1.json"
+    },
+    "KRTC:O10": {
+      "id": "KRTC:O10",
+      "name": "衛武營",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-O10.json"
+    },
+    "KRTC:O11": {
+      "id": "KRTC:O11",
+      "name": "鳳山西站",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-O11.json"
+    },
+    "KRTC:O12": {
+      "id": "KRTC:O12",
+      "name": "鳳山",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-O12.json"
+    },
+    "KRTC:O13": {
+      "id": "KRTC:O13",
+      "name": "大東",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-O13.json"
+    },
+    "KRTC:O14": {
+      "id": "KRTC:O14",
+      "name": "鳳山國中",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-O14.json"
+    },
+    "KRTC:O2": {
+      "id": "KRTC:O2",
+      "name": "鹽埕埔",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-O2.json"
+    },
+    "KRTC:O4": {
+      "id": "KRTC:O4",
+      "name": "前金",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-O4.json"
+    },
+    "KRTC:O6": {
+      "id": "KRTC:O6",
+      "name": "信義國小",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-O6.json"
+    },
+    "KRTC:O7": {
+      "id": "KRTC:O7",
+      "name": "文化中心",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-O7.json"
+    },
+    "KRTC:O8": {
+      "id": "KRTC:O8",
+      "name": "五塊厝",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-O8.json"
+    },
+    "KRTC:O9": {
+      "id": "KRTC:O9",
+      "name": "苓雅運動園區",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-O9.json"
+    },
+    "KRTC:OT1": {
+      "id": "KRTC:OT1",
+      "name": "大寮",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-OT1.json"
+    },
+    "KRTC:R10": {
+      "id": "KRTC:R10",
+      "name": "美麗島",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-R10.json"
+    },
+    "KRTC:R11": {
+      "id": "KRTC:R11",
+      "name": "高雄車站",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-R11.json"
+    },
+    "KRTC:R12": {
+      "id": "KRTC:R12",
+      "name": "後驛",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-R12.json"
+    },
+    "KRTC:R13": {
+      "id": "KRTC:R13",
+      "name": "凹子底",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-R13.json"
+    },
+    "KRTC:R14": {
+      "id": "KRTC:R14",
+      "name": "巨蛋",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-R14.json"
+    },
+    "KRTC:R15": {
+      "id": "KRTC:R15",
+      "name": "生態園區",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-R15.json"
+    },
+    "KRTC:R16": {
+      "id": "KRTC:R16",
+      "name": "左營",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-R16.json"
+    },
+    "KRTC:R17": {
+      "id": "KRTC:R17",
+      "name": "世運",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-R17.json"
+    },
+    "KRTC:R18": {
+      "id": "KRTC:R18",
+      "name": "油廠國小",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-R18.json"
+    },
+    "KRTC:R19": {
+      "id": "KRTC:R19",
+      "name": "楠梓科技園區",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-R19.json"
+    },
+    "KRTC:R20": {
+      "id": "KRTC:R20",
+      "name": "後勁",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-R20.json"
+    },
+    "KRTC:R21": {
+      "id": "KRTC:R21",
+      "name": "都會公園",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-R21.json"
+    },
+    "KRTC:R22": {
+      "id": "KRTC:R22",
+      "name": "青埔",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-R22.json"
+    },
+    "KRTC:R22A": {
+      "id": "KRTC:R22A",
+      "name": "橋頭糖廠",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-R22A.json"
+    },
+    "KRTC:R23": {
+      "id": "KRTC:R23",
+      "name": "橋頭火車站",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-R23.json"
+    },
+    "KRTC:R24": {
+      "id": "KRTC:R24",
+      "name": "岡山高醫",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-R24.json"
+    },
+    "KRTC:R3": {
+      "id": "KRTC:R3",
+      "name": "小港",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-R3.json"
+    },
+    "KRTC:R4": {
+      "id": "KRTC:R4",
+      "name": "高雄國際機場",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-R4.json"
+    },
+    "KRTC:R4A": {
+      "id": "KRTC:R4A",
+      "name": "草衙",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-R4A.json"
+    },
+    "KRTC:R5": {
+      "id": "KRTC:R5",
+      "name": "前鎮高中",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-R5.json"
+    },
+    "KRTC:R6": {
+      "id": "KRTC:R6",
+      "name": "凱旋",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-R6.json"
+    },
+    "KRTC:R7": {
+      "id": "KRTC:R7",
+      "name": "獅甲",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-R7.json"
+    },
+    "KRTC:R8": {
+      "id": "KRTC:R8",
+      "name": "三多商圈",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-R8.json"
+    },
+    "KRTC:R9": {
+      "id": "KRTC:R9",
+      "name": "中央公園",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-R9.json"
+    },
+    "KRTC:RK1": {
+      "id": "KRTC:RK1",
+      "name": "岡山車站",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/KRTC-RK1.json"
+    },
+    "NTALRT:K01": {
+      "id": "NTALRT:K01",
+      "name": "雙城",
+      "appSystem": "ntalrt",
+      "systemLabel": "安坑輕軌",
+      "asset": "/data/bus-transfer/NTALRT-K01.json"
+    },
+    "NTALRT:K02": {
+      "id": "NTALRT:K02",
+      "name": "玫瑰中國城",
+      "appSystem": "ntalrt",
+      "systemLabel": "安坑輕軌",
+      "asset": "/data/bus-transfer/NTALRT-K02.json"
+    },
+    "NTALRT:K04": {
+      "id": "NTALRT:K04",
+      "name": "耕莘安康院區",
+      "appSystem": "ntalrt",
+      "systemLabel": "安坑輕軌",
+      "asset": "/data/bus-transfer/NTALRT-K04.json"
+    },
+    "NTALRT:K05": {
+      "id": "NTALRT:K05",
+      "name": "景文科大",
+      "appSystem": "ntalrt",
+      "systemLabel": "安坑輕軌",
+      "asset": "/data/bus-transfer/NTALRT-K05.json"
+    },
+    "NTALRT:K06": {
+      "id": "NTALRT:K06",
+      "name": "安康",
+      "appSystem": "ntalrt",
+      "systemLabel": "安坑輕軌",
+      "asset": "/data/bus-transfer/NTALRT-K06.json"
+    },
+    "NTALRT:K07": {
+      "id": "NTALRT:K07",
+      "name": "陽光運動公園",
+      "appSystem": "ntalrt",
+      "systemLabel": "安坑輕軌",
+      "asset": "/data/bus-transfer/NTALRT-K07.json"
+    },
+    "NTALRT:K08": {
+      "id": "NTALRT:K08",
+      "name": "新和國小",
+      "appSystem": "ntalrt",
+      "systemLabel": "安坑輕軌",
+      "asset": "/data/bus-transfer/NTALRT-K08.json"
+    },
+    "NTALRT:K09": {
+      "id": "NTALRT:K09",
+      "name": "十四張",
+      "appSystem": "ntalrt",
+      "systemLabel": "安坑輕軌",
+      "asset": "/data/bus-transfer/NTALRT-K09.json"
+    },
+    "NTDLRT:V01": {
+      "id": "NTDLRT:V01",
+      "name": "紅樹林",
+      "appSystem": "ntdlrt",
+      "systemLabel": "淡海輕軌",
+      "asset": "/data/bus-transfer/NTDLRT-V01.json"
+    },
+    "NTDLRT:V02": {
+      "id": "NTDLRT:V02",
+      "name": "竿蓁林",
+      "appSystem": "ntdlrt",
+      "systemLabel": "淡海輕軌",
+      "asset": "/data/bus-transfer/NTDLRT-V02.json"
+    },
+    "NTDLRT:V03": {
+      "id": "NTDLRT:V03",
+      "name": "淡金鄧公",
+      "appSystem": "ntdlrt",
+      "systemLabel": "淡海輕軌",
+      "asset": "/data/bus-transfer/NTDLRT-V03.json"
+    },
+    "NTDLRT:V04": {
+      "id": "NTDLRT:V04",
+      "name": "淡江大學",
+      "appSystem": "ntdlrt",
+      "systemLabel": "淡海輕軌",
+      "asset": "/data/bus-transfer/NTDLRT-V04.json"
+    },
+    "NTDLRT:V05": {
+      "id": "NTDLRT:V05",
+      "name": "淡金北新",
+      "appSystem": "ntdlrt",
+      "systemLabel": "淡海輕軌",
+      "asset": "/data/bus-transfer/NTDLRT-V05.json"
+    },
+    "NTDLRT:V06": {
+      "id": "NTDLRT:V06",
+      "name": "新市一路",
+      "appSystem": "ntdlrt",
+      "systemLabel": "淡海輕軌",
+      "asset": "/data/bus-transfer/NTDLRT-V06.json"
+    },
+    "NTDLRT:V07": {
+      "id": "NTDLRT:V07",
+      "name": "淡水行政中心",
+      "appSystem": "ntdlrt",
+      "systemLabel": "淡海輕軌",
+      "asset": "/data/bus-transfer/NTDLRT-V07.json"
+    },
+    "NTDLRT:V08": {
+      "id": "NTDLRT:V08",
+      "name": "濱海義山",
+      "appSystem": "ntdlrt",
+      "systemLabel": "淡海輕軌",
+      "asset": "/data/bus-transfer/NTDLRT-V08.json"
+    },
+    "NTDLRT:V09": {
+      "id": "NTDLRT:V09",
+      "name": "濱海沙崙",
+      "appSystem": "ntdlrt",
+      "systemLabel": "淡海輕軌",
+      "asset": "/data/bus-transfer/NTDLRT-V09.json"
+    },
+    "NTDLRT:V10": {
+      "id": "NTDLRT:V10",
+      "name": "淡海新市鎮",
+      "appSystem": "ntdlrt",
+      "systemLabel": "淡海輕軌",
+      "asset": "/data/bus-transfer/NTDLRT-V10.json"
+    },
+    "NTDLRT:V11": {
+      "id": "NTDLRT:V11",
+      "name": "崁頂",
+      "appSystem": "ntdlrt",
+      "systemLabel": "淡海輕軌",
+      "asset": "/data/bus-transfer/NTDLRT-V11.json"
+    },
+    "NTDLRT:V26": {
+      "id": "NTDLRT:V26",
+      "name": "淡水漁人碼頭",
+      "appSystem": "ntdlrt",
+      "systemLabel": "淡海輕軌",
+      "asset": "/data/bus-transfer/NTDLRT-V26.json"
+    },
+    "NTDLRT:V27": {
+      "id": "NTDLRT:V27",
+      "name": "沙崙",
+      "appSystem": "ntdlrt",
+      "systemLabel": "淡海輕軌",
+      "asset": "/data/bus-transfer/NTDLRT-V27.json"
+    },
+    "NTDLRT:V28": {
+      "id": "NTDLRT:V28",
+      "name": "台北海洋大學",
+      "appSystem": "ntdlrt",
+      "systemLabel": "淡海輕軌",
+      "asset": "/data/bus-transfer/NTDLRT-V28.json"
+    },
+    "NTMC:Y07": {
+      "id": "NTMC:Y07",
+      "name": "大坪林",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/NTMC-Y07.json"
+    },
+    "NTMC:Y08": {
+      "id": "NTMC:Y08",
+      "name": "十四張",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/NTMC-Y08.json"
+    },
+    "NTMC:Y09": {
+      "id": "NTMC:Y09",
+      "name": "秀朗橋",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/NTMC-Y09.json"
+    },
+    "NTMC:Y10": {
+      "id": "NTMC:Y10",
+      "name": "景平",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/NTMC-Y10.json"
+    },
+    "NTMC:Y11": {
+      "id": "NTMC:Y11",
+      "name": "景安",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/NTMC-Y11.json"
+    },
+    "NTMC:Y12": {
+      "id": "NTMC:Y12",
+      "name": "中和",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/NTMC-Y12.json"
+    },
+    "NTMC:Y13": {
+      "id": "NTMC:Y13",
+      "name": "橋和",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/NTMC-Y13.json"
+    },
+    "NTMC:Y14": {
+      "id": "NTMC:Y14",
+      "name": "中原",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/NTMC-Y14.json"
+    },
+    "NTMC:Y15": {
+      "id": "NTMC:Y15",
+      "name": "板新",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/NTMC-Y15.json"
+    },
+    "NTMC:Y17": {
+      "id": "NTMC:Y17",
+      "name": "新埔民生",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/NTMC-Y17.json"
+    },
+    "NTMC:Y18": {
+      "id": "NTMC:Y18",
+      "name": "頭前庄",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/NTMC-Y18.json"
+    },
+    "NTMC:Y19": {
+      "id": "NTMC:Y19",
+      "name": "幸福",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/NTMC-Y19.json"
+    },
+    "NTMC:Y20": {
+      "id": "NTMC:Y20",
+      "name": "新北產業園區",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/NTMC-Y20.json"
+    },
+    "RI:KRTC_68BD5679": {
+      "id": "RI:KRTC_68BD5679",
+      "name": "灣仔內(大順鼎山)",
+      "appSystem": "krtc",
+      "systemLabel": "高雄捷運與輕軌",
+      "asset": "/data/bus-transfer/RI-KRTC_68BD5679.json"
+    },
+    "RI:MRT_94D3C0FE": {
+      "id": "RI:MRT_94D3C0FE",
+      "name": "廣慈/奉天宮",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/RI-MRT_94D3C0FE.json"
+    },
+    "RI:NTALRT_B5287A80": {
+      "id": "RI:NTALRT_B5287A80",
+      "name": "台北小城",
+      "appSystem": "ntalrt",
+      "systemLabel": "安坑輕軌",
+      "asset": "/data/bus-transfer/RI-NTALRT_B5287A80.json"
+    },
+    "SANYING:LB01": {
+      "id": "SANYING:LB01",
+      "name": "頂埔",
+      "appSystem": "sanying",
+      "systemLabel": "三鶯線",
+      "asset": "/data/bus-transfer/SANYING-LB01.json"
+    },
+    "SANYING:LB02": {
+      "id": "SANYING:LB02",
+      "name": "媽祖田",
+      "appSystem": "sanying",
+      "systemLabel": "三鶯線",
+      "asset": "/data/bus-transfer/SANYING-LB02.json"
+    },
+    "SANYING:LB03": {
+      "id": "SANYING:LB03",
+      "name": "長壽山",
+      "appSystem": "sanying",
+      "systemLabel": "三鶯線",
+      "asset": "/data/bus-transfer/SANYING-LB03.json"
+    },
+    "SANYING:LB04": {
+      "id": "SANYING:LB04",
+      "name": "橫溪",
+      "appSystem": "sanying",
+      "systemLabel": "三鶯線",
+      "asset": "/data/bus-transfer/SANYING-LB04.json"
+    },
+    "SANYING:LB05": {
+      "id": "SANYING:LB05",
+      "name": "龍埔",
+      "appSystem": "sanying",
+      "systemLabel": "三鶯線",
+      "asset": "/data/bus-transfer/SANYING-LB05.json"
+    },
+    "SANYING:LB06": {
+      "id": "SANYING:LB06",
+      "name": "三峽",
+      "appSystem": "sanying",
+      "systemLabel": "三鶯線",
+      "asset": "/data/bus-transfer/SANYING-LB06.json"
+    },
+    "SANYING:LB07": {
+      "id": "SANYING:LB07",
+      "name": "臺北大學",
+      "appSystem": "sanying",
+      "systemLabel": "三鶯線",
+      "asset": "/data/bus-transfer/SANYING-LB07.json"
+    },
+    "SANYING:LB08": {
+      "id": "SANYING:LB08",
+      "name": "鶯歌車站",
+      "appSystem": "sanying",
+      "systemLabel": "三鶯線",
+      "asset": "/data/bus-transfer/SANYING-LB08.json"
+    },
+    "SANYING:LB09": {
+      "id": "SANYING:LB09",
+      "name": "陶瓷老街",
+      "appSystem": "sanying",
+      "systemLabel": "三鶯線",
+      "asset": "/data/bus-transfer/SANYING-LB09.json"
+    },
+    "SANYING:LB10": {
+      "id": "SANYING:LB10",
+      "name": "國華",
+      "appSystem": "sanying",
+      "systemLabel": "三鶯線",
+      "asset": "/data/bus-transfer/SANYING-LB10.json"
+    },
+    "SANYING:LB11": {
+      "id": "SANYING:LB11",
+      "name": "永吉公園",
+      "appSystem": "sanying",
+      "systemLabel": "三鶯線",
+      "asset": "/data/bus-transfer/SANYING-LB11.json"
+    },
+    "SANYING:LB12": {
+      "id": "SANYING:LB12",
+      "name": "鶯桃福德",
+      "appSystem": "sanying",
+      "systemLabel": "三鶯線",
+      "asset": "/data/bus-transfer/SANYING-LB12.json"
+    },
+    "THSR:0990": {
+      "id": "THSR:0990",
+      "name": "南港",
+      "appSystem": "thsr_sched",
+      "systemLabel": "高鐵",
+      "asset": "/data/bus-transfer/THSR-0990.json"
+    },
+    "THSR:1000": {
+      "id": "THSR:1000",
+      "name": "台北",
+      "appSystem": "thsr_sched",
+      "systemLabel": "高鐵",
+      "asset": "/data/bus-transfer/THSR-1000.json"
+    },
+    "THSR:1010": {
+      "id": "THSR:1010",
+      "name": "板橋",
+      "appSystem": "thsr_sched",
+      "systemLabel": "高鐵",
+      "asset": "/data/bus-transfer/THSR-1010.json"
+    },
+    "THSR:1020": {
+      "id": "THSR:1020",
+      "name": "桃園",
+      "appSystem": "thsr_sched",
+      "systemLabel": "高鐵",
+      "asset": "/data/bus-transfer/THSR-1020.json"
+    },
+    "THSR:1030": {
+      "id": "THSR:1030",
+      "name": "新竹",
+      "appSystem": "thsr_sched",
+      "systemLabel": "高鐵",
+      "asset": "/data/bus-transfer/THSR-1030.json"
+    },
+    "THSR:1035": {
+      "id": "THSR:1035",
+      "name": "苗栗",
+      "appSystem": "thsr_sched",
+      "systemLabel": "高鐵",
+      "asset": "/data/bus-transfer/THSR-1035.json"
+    },
+    "THSR:1040": {
+      "id": "THSR:1040",
+      "name": "台中",
+      "appSystem": "thsr_sched",
+      "systemLabel": "高鐵",
+      "asset": "/data/bus-transfer/THSR-1040.json"
+    },
+    "THSR:1043": {
+      "id": "THSR:1043",
+      "name": "彰化",
+      "appSystem": "thsr_sched",
+      "systemLabel": "高鐵",
+      "asset": "/data/bus-transfer/THSR-1043.json"
+    },
+    "THSR:1047": {
+      "id": "THSR:1047",
+      "name": "雲林",
+      "appSystem": "thsr_sched",
+      "systemLabel": "高鐵",
+      "asset": "/data/bus-transfer/THSR-1047.json"
+    },
+    "THSR:1050": {
+      "id": "THSR:1050",
+      "name": "嘉義",
+      "appSystem": "thsr_sched",
+      "systemLabel": "高鐵",
+      "asset": "/data/bus-transfer/THSR-1050.json"
+    },
+    "THSR:1060": {
+      "id": "THSR:1060",
+      "name": "台南",
+      "appSystem": "thsr_sched",
+      "systemLabel": "高鐵",
+      "asset": "/data/bus-transfer/THSR-1060.json"
+    },
+    "THSR:1070": {
+      "id": "THSR:1070",
+      "name": "左營",
+      "appSystem": "thsr_sched",
+      "systemLabel": "高鐵",
+      "asset": "/data/bus-transfer/THSR-1070.json"
+    },
+    "TMRT:G0": {
+      "id": "TMRT:G0",
+      "name": "北屯總站",
+      "appSystem": "tmrt",
+      "systemLabel": "台中捷運",
+      "asset": "/data/bus-transfer/TMRT-G0.json"
+    },
+    "TMRT:G10": {
+      "id": "TMRT:G10",
+      "name": "水安宮",
+      "appSystem": "tmrt",
+      "systemLabel": "台中捷運",
+      "asset": "/data/bus-transfer/TMRT-G10.json"
+    },
+    "TMRT:G10a": {
+      "id": "TMRT:G10a",
+      "name": "文心森林公園",
+      "appSystem": "tmrt",
+      "systemLabel": "台中捷運",
+      "asset": "/data/bus-transfer/TMRT-G10a.json"
+    },
+    "TMRT:G11": {
+      "id": "TMRT:G11",
+      "name": "南屯",
+      "appSystem": "tmrt",
+      "systemLabel": "台中捷運",
+      "asset": "/data/bus-transfer/TMRT-G11.json"
+    },
+    "TMRT:G12": {
+      "id": "TMRT:G12",
+      "name": "豐樂公園",
+      "appSystem": "tmrt",
+      "systemLabel": "台中捷運",
+      "asset": "/data/bus-transfer/TMRT-G12.json"
+    },
+    "TMRT:G13": {
+      "id": "TMRT:G13",
+      "name": "大慶",
+      "appSystem": "tmrt",
+      "systemLabel": "台中捷運",
+      "asset": "/data/bus-transfer/TMRT-G13.json"
+    },
+    "TMRT:G14": {
+      "id": "TMRT:G14",
+      "name": "九張犁",
+      "appSystem": "tmrt",
+      "systemLabel": "台中捷運",
+      "asset": "/data/bus-transfer/TMRT-G14.json"
+    },
+    "TMRT:G15": {
+      "id": "TMRT:G15",
+      "name": "九德",
+      "appSystem": "tmrt",
+      "systemLabel": "台中捷運",
+      "asset": "/data/bus-transfer/TMRT-G15.json"
+    },
+    "TMRT:G16": {
+      "id": "TMRT:G16",
+      "name": "烏日",
+      "appSystem": "tmrt",
+      "systemLabel": "台中捷運",
+      "asset": "/data/bus-transfer/TMRT-G16.json"
+    },
+    "TMRT:G17": {
+      "id": "TMRT:G17",
+      "name": "高鐵臺中站",
+      "appSystem": "tmrt",
+      "systemLabel": "台中捷運",
+      "asset": "/data/bus-transfer/TMRT-G17.json"
+    },
+    "TMRT:G3": {
+      "id": "TMRT:G3",
+      "name": "舊社",
+      "appSystem": "tmrt",
+      "systemLabel": "台中捷運",
+      "asset": "/data/bus-transfer/TMRT-G3.json"
+    },
+    "TMRT:G4": {
+      "id": "TMRT:G4",
+      "name": "松竹",
+      "appSystem": "tmrt",
+      "systemLabel": "台中捷運",
+      "asset": "/data/bus-transfer/TMRT-G4.json"
+    },
+    "TMRT:G5": {
+      "id": "TMRT:G5",
+      "name": "四維國小",
+      "appSystem": "tmrt",
+      "systemLabel": "台中捷運",
+      "asset": "/data/bus-transfer/TMRT-G5.json"
+    },
+    "TMRT:G6": {
+      "id": "TMRT:G6",
+      "name": "文心崇德",
+      "appSystem": "tmrt",
+      "systemLabel": "台中捷運",
+      "asset": "/data/bus-transfer/TMRT-G6.json"
+    },
+    "TMRT:G7": {
+      "id": "TMRT:G7",
+      "name": "文心中清",
+      "appSystem": "tmrt",
+      "systemLabel": "台中捷運",
+      "asset": "/data/bus-transfer/TMRT-G7.json"
+    },
+    "TMRT:G8": {
+      "id": "TMRT:G8",
+      "name": "文華高中",
+      "appSystem": "tmrt",
+      "systemLabel": "台中捷運",
+      "asset": "/data/bus-transfer/TMRT-G8.json"
+    },
+    "TMRT:G8a": {
+      "id": "TMRT:G8a",
+      "name": "文心櫻花",
+      "appSystem": "tmrt",
+      "systemLabel": "台中捷運",
+      "asset": "/data/bus-transfer/TMRT-G8a.json"
+    },
+    "TMRT:G9": {
+      "id": "TMRT:G9",
+      "name": "市政府",
+      "appSystem": "tmrt",
+      "systemLabel": "台中捷運",
+      "asset": "/data/bus-transfer/TMRT-G9.json"
+    },
+    "TRA:0900": {
+      "id": "TRA:0900",
+      "name": "基隆車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-0900.json"
+    },
+    "TRA:0910": {
+      "id": "TRA:0910",
+      "name": "三坑車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-0910.json"
+    },
+    "TRA:0920": {
+      "id": "TRA:0920",
+      "name": "八堵車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-0920.json"
+    },
+    "TRA:0930": {
+      "id": "TRA:0930",
+      "name": "七堵車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-0930.json"
+    },
+    "TRA:0940": {
+      "id": "TRA:0940",
+      "name": "百福車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-0940.json"
+    },
+    "TRA:0950": {
+      "id": "TRA:0950",
+      "name": "五堵車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-0950.json"
+    },
+    "TRA:0960": {
+      "id": "TRA:0960",
+      "name": "汐止車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-0960.json"
+    },
+    "TRA:0970": {
+      "id": "TRA:0970",
+      "name": "汐科車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-0970.json"
+    },
+    "TRA:0980": {
+      "id": "TRA:0980",
+      "name": "南港車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-0980.json"
+    },
+    "TRA:0990": {
+      "id": "TRA:0990",
+      "name": "松山車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-0990.json"
+    },
+    "TRA:1000": {
+      "id": "TRA:1000",
+      "name": "臺北車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1000.json"
+    },
+    "TRA:1010": {
+      "id": "TRA:1010",
+      "name": "萬華車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1010.json"
+    },
+    "TRA:1020": {
+      "id": "TRA:1020",
+      "name": "板橋車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1020.json"
+    },
+    "TRA:1030": {
+      "id": "TRA:1030",
+      "name": "浮洲車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1030.json"
+    },
+    "TRA:1040": {
+      "id": "TRA:1040",
+      "name": "樹林車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1040.json"
+    },
+    "TRA:1050": {
+      "id": "TRA:1050",
+      "name": "南樹林車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1050.json"
+    },
+    "TRA:1060": {
+      "id": "TRA:1060",
+      "name": "山佳車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1060.json"
+    },
+    "TRA:1070": {
+      "id": "TRA:1070",
+      "name": "鶯歌車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1070.json"
+    },
+    "TRA:1075": {
+      "id": "TRA:1075",
+      "name": "鳳鳴車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1075.json"
+    },
+    "TRA:1080": {
+      "id": "TRA:1080",
+      "name": "桃園車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1080.json"
+    },
+    "TRA:1090": {
+      "id": "TRA:1090",
+      "name": "內壢車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1090.json"
+    },
+    "TRA:1100": {
+      "id": "TRA:1100",
+      "name": "中壢車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1100.json"
+    },
+    "TRA:1110": {
+      "id": "TRA:1110",
+      "name": "埔心車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1110.json"
+    },
+    "TRA:1120": {
+      "id": "TRA:1120",
+      "name": "楊梅車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1120.json"
+    },
+    "TRA:1130": {
+      "id": "TRA:1130",
+      "name": "富岡車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1130.json"
+    },
+    "TRA:1140": {
+      "id": "TRA:1140",
+      "name": "新富車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1140.json"
+    },
+    "TRA:1150": {
+      "id": "TRA:1150",
+      "name": "北湖車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1150.json"
+    },
+    "TRA:1160": {
+      "id": "TRA:1160",
+      "name": "湖口車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1160.json"
+    },
+    "TRA:1170": {
+      "id": "TRA:1170",
+      "name": "新豐車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1170.json"
+    },
+    "TRA:1180": {
+      "id": "TRA:1180",
+      "name": "竹北車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1180.json"
+    },
+    "TRA:1190": {
+      "id": "TRA:1190",
+      "name": "北新竹車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1190.json"
+    },
+    "TRA:1191": {
+      "id": "TRA:1191",
+      "name": "千甲車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1191.json"
+    },
+    "TRA:1192": {
+      "id": "TRA:1192",
+      "name": "新莊車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1192.json"
+    },
+    "TRA:1193": {
+      "id": "TRA:1193",
+      "name": "竹中車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1193.json"
+    },
+    "TRA:1194": {
+      "id": "TRA:1194",
+      "name": "六家車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1194.json"
+    },
+    "TRA:1201": {
+      "id": "TRA:1201",
+      "name": "上員車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1201.json"
+    },
+    "TRA:1202": {
+      "id": "TRA:1202",
+      "name": "榮華車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1202.json"
+    },
+    "TRA:1203": {
+      "id": "TRA:1203",
+      "name": "竹東車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1203.json"
+    },
+    "TRA:1204": {
+      "id": "TRA:1204",
+      "name": "橫山車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1204.json"
+    },
+    "TRA:1205": {
+      "id": "TRA:1205",
+      "name": "九讚頭車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1205.json"
+    },
+    "TRA:1206": {
+      "id": "TRA:1206",
+      "name": "合興車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1206.json"
+    },
+    "TRA:1207": {
+      "id": "TRA:1207",
+      "name": "富貴車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1207.json"
+    },
+    "TRA:1208": {
+      "id": "TRA:1208",
+      "name": "內灣車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1208.json"
+    },
+    "TRA:1210": {
+      "id": "TRA:1210",
+      "name": "新竹車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1210.json"
+    },
+    "TRA:1220": {
+      "id": "TRA:1220",
+      "name": "三姓橋車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1220.json"
+    },
+    "TRA:1230": {
+      "id": "TRA:1230",
+      "name": "香山車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1230.json"
+    },
+    "TRA:1240": {
+      "id": "TRA:1240",
+      "name": "崎頂車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1240.json"
+    },
+    "TRA:1250": {
+      "id": "TRA:1250",
+      "name": "竹南車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1250.json"
+    },
+    "TRA:2110": {
+      "id": "TRA:2110",
+      "name": "談文車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-2110.json"
+    },
+    "TRA:2120": {
+      "id": "TRA:2120",
+      "name": "大山車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-2120.json"
+    },
+    "TRA:2130": {
+      "id": "TRA:2130",
+      "name": "後龍車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-2130.json"
+    },
+    "TRA:2140": {
+      "id": "TRA:2140",
+      "name": "龍港車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-2140.json"
+    },
+    "TRA:2150": {
+      "id": "TRA:2150",
+      "name": "白沙屯車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-2150.json"
+    },
+    "TRA:2160": {
+      "id": "TRA:2160",
+      "name": "新埔車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-2160.json"
+    },
+    "TRA:2170": {
+      "id": "TRA:2170",
+      "name": "通霄車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-2170.json"
+    },
+    "TRA:2180": {
+      "id": "TRA:2180",
+      "name": "苑裡車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-2180.json"
+    },
+    "TRA:2190": {
+      "id": "TRA:2190",
+      "name": "日南車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-2190.json"
+    },
+    "TRA:2200": {
+      "id": "TRA:2200",
+      "name": "大甲車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-2200.json"
+    },
+    "TRA:2210": {
+      "id": "TRA:2210",
+      "name": "臺中港車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-2210.json"
+    },
+    "TRA:2220": {
+      "id": "TRA:2220",
+      "name": "清水車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-2220.json"
+    },
+    "TRA:2230": {
+      "id": "TRA:2230",
+      "name": "沙鹿車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-2230.json"
+    },
+    "TRA:2240": {
+      "id": "TRA:2240",
+      "name": "龍井車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-2240.json"
+    },
+    "TRA:2250": {
+      "id": "TRA:2250",
+      "name": "大肚車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-2250.json"
+    },
+    "TRA:2260": {
+      "id": "TRA:2260",
+      "name": "追分車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-2260.json"
+    },
+    "TRA:3140": {
+      "id": "TRA:3140",
+      "name": "造橋車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3140.json"
+    },
+    "TRA:3150": {
+      "id": "TRA:3150",
+      "name": "豐富車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3150.json"
+    },
+    "TRA:3160": {
+      "id": "TRA:3160",
+      "name": "苗栗車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3160.json"
+    },
+    "TRA:3170": {
+      "id": "TRA:3170",
+      "name": "南勢車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3170.json"
+    },
+    "TRA:3180": {
+      "id": "TRA:3180",
+      "name": "銅鑼車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3180.json"
+    },
+    "TRA:3190": {
+      "id": "TRA:3190",
+      "name": "三義車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3190.json"
+    },
+    "TRA:3210": {
+      "id": "TRA:3210",
+      "name": "泰安車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3210.json"
+    },
+    "TRA:3220": {
+      "id": "TRA:3220",
+      "name": "后里車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3220.json"
+    },
+    "TRA:3230": {
+      "id": "TRA:3230",
+      "name": "豐原車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3230.json"
+    },
+    "TRA:3240": {
+      "id": "TRA:3240",
+      "name": "栗林車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3240.json"
+    },
+    "TRA:3250": {
+      "id": "TRA:3250",
+      "name": "潭子車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3250.json"
+    },
+    "TRA:3260": {
+      "id": "TRA:3260",
+      "name": "頭家厝車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3260.json"
+    },
+    "TRA:3270": {
+      "id": "TRA:3270",
+      "name": "松竹車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3270.json"
+    },
+    "TRA:3280": {
+      "id": "TRA:3280",
+      "name": "太原車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3280.json"
+    },
+    "TRA:3290": {
+      "id": "TRA:3290",
+      "name": "精武車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3290.json"
+    },
+    "TRA:3300": {
+      "id": "TRA:3300",
+      "name": "臺中車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3300.json"
+    },
+    "TRA:3310": {
+      "id": "TRA:3310",
+      "name": "五權車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3310.json"
+    },
+    "TRA:3320": {
+      "id": "TRA:3320",
+      "name": "大慶車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3320.json"
+    },
+    "TRA:3330": {
+      "id": "TRA:3330",
+      "name": "烏日車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3330.json"
+    },
+    "TRA:3340": {
+      "id": "TRA:3340",
+      "name": "新烏日車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3340.json"
+    },
+    "TRA:3350": {
+      "id": "TRA:3350",
+      "name": "成功車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3350.json"
+    },
+    "TRA:3360": {
+      "id": "TRA:3360",
+      "name": "彰化車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3360.json"
+    },
+    "TRA:3370": {
+      "id": "TRA:3370",
+      "name": "花壇車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3370.json"
+    },
+    "TRA:3380": {
+      "id": "TRA:3380",
+      "name": "大村車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3380.json"
+    },
+    "TRA:3390": {
+      "id": "TRA:3390",
+      "name": "員林車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3390.json"
+    },
+    "TRA:3400": {
+      "id": "TRA:3400",
+      "name": "永靖車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3400.json"
+    },
+    "TRA:3410": {
+      "id": "TRA:3410",
+      "name": "社頭車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3410.json"
+    },
+    "TRA:3420": {
+      "id": "TRA:3420",
+      "name": "田中車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3420.json"
+    },
+    "TRA:3430": {
+      "id": "TRA:3430",
+      "name": "二水車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3430.json"
+    },
+    "TRA:3431": {
+      "id": "TRA:3431",
+      "name": "源泉車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3431.json"
+    },
+    "TRA:3432": {
+      "id": "TRA:3432",
+      "name": "濁水車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3432.json"
+    },
+    "TRA:3433": {
+      "id": "TRA:3433",
+      "name": "龍泉車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3433.json"
+    },
+    "TRA:3434": {
+      "id": "TRA:3434",
+      "name": "集集車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3434.json"
+    },
+    "TRA:3435": {
+      "id": "TRA:3435",
+      "name": "水里車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3435.json"
+    },
+    "TRA:3436": {
+      "id": "TRA:3436",
+      "name": "車埕車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3436.json"
+    },
+    "TRA:3450": {
+      "id": "TRA:3450",
+      "name": "林內車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3450.json"
+    },
+    "TRA:3460": {
+      "id": "TRA:3460",
+      "name": "石榴車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3460.json"
+    },
+    "TRA:3470": {
+      "id": "TRA:3470",
+      "name": "斗六車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3470.json"
+    },
+    "TRA:3480": {
+      "id": "TRA:3480",
+      "name": "斗南車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3480.json"
+    },
+    "TRA:3490": {
+      "id": "TRA:3490",
+      "name": "石龜車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-3490.json"
+    },
+    "TRA:4050": {
+      "id": "TRA:4050",
+      "name": "大林車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4050.json"
+    },
+    "TRA:4060": {
+      "id": "TRA:4060",
+      "name": "民雄車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4060.json"
+    },
+    "TRA:4070": {
+      "id": "TRA:4070",
+      "name": "嘉北車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4070.json"
+    },
+    "TRA:4080": {
+      "id": "TRA:4080",
+      "name": "嘉義車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4080.json"
+    },
+    "TRA:4090": {
+      "id": "TRA:4090",
+      "name": "水上車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4090.json"
+    },
+    "TRA:4100": {
+      "id": "TRA:4100",
+      "name": "南靖車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4100.json"
+    },
+    "TRA:4110": {
+      "id": "TRA:4110",
+      "name": "後壁車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4110.json"
+    },
+    "TRA:4120": {
+      "id": "TRA:4120",
+      "name": "新營車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4120.json"
+    },
+    "TRA:4130": {
+      "id": "TRA:4130",
+      "name": "柳營車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4130.json"
+    },
+    "TRA:4140": {
+      "id": "TRA:4140",
+      "name": "林鳳營車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4140.json"
+    },
+    "TRA:4150": {
+      "id": "TRA:4150",
+      "name": "隆田車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4150.json"
+    },
+    "TRA:4160": {
+      "id": "TRA:4160",
+      "name": "拔林車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4160.json"
+    },
+    "TRA:4170": {
+      "id": "TRA:4170",
+      "name": "善化車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4170.json"
+    },
+    "TRA:4180": {
+      "id": "TRA:4180",
+      "name": "南科車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4180.json"
+    },
+    "TRA:4190": {
+      "id": "TRA:4190",
+      "name": "新市車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4190.json"
+    },
+    "TRA:4200": {
+      "id": "TRA:4200",
+      "name": "永康車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4200.json"
+    },
+    "TRA:4210": {
+      "id": "TRA:4210",
+      "name": "大橋車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4210.json"
+    },
+    "TRA:4220": {
+      "id": "TRA:4220",
+      "name": "臺南車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4220.json"
+    },
+    "TRA:4250": {
+      "id": "TRA:4250",
+      "name": "保安車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4250.json"
+    },
+    "TRA:4260": {
+      "id": "TRA:4260",
+      "name": "仁德車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4260.json"
+    },
+    "TRA:4270": {
+      "id": "TRA:4270",
+      "name": "中洲車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4270.json"
+    },
+    "TRA:4271": {
+      "id": "TRA:4271",
+      "name": "長榮大學車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4271.json"
+    },
+    "TRA:4272": {
+      "id": "TRA:4272",
+      "name": "沙崙車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4272.json"
+    },
+    "TRA:4290": {
+      "id": "TRA:4290",
+      "name": "大湖車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4290.json"
+    },
+    "TRA:4300": {
+      "id": "TRA:4300",
+      "name": "路竹車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4300.json"
+    },
+    "TRA:4310": {
+      "id": "TRA:4310",
+      "name": "岡山車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4310.json"
+    },
+    "TRA:4320": {
+      "id": "TRA:4320",
+      "name": "橋頭車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4320.json"
+    },
+    "TRA:4330": {
+      "id": "TRA:4330",
+      "name": "楠梓車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4330.json"
+    },
+    "TRA:4340": {
+      "id": "TRA:4340",
+      "name": "新左營車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4340.json"
+    },
+    "TRA:4350": {
+      "id": "TRA:4350",
+      "name": "左營車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4350.json"
+    },
+    "TRA:4360": {
+      "id": "TRA:4360",
+      "name": "內惟車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4360.json"
+    },
+    "TRA:4370": {
+      "id": "TRA:4370",
+      "name": "美術館車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4370.json"
+    },
+    "TRA:4380": {
+      "id": "TRA:4380",
+      "name": "鼓山車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4380.json"
+    },
+    "TRA:4390": {
+      "id": "TRA:4390",
+      "name": "三塊厝車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4390.json"
+    },
+    "TRA:4400": {
+      "id": "TRA:4400",
+      "name": "高雄車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4400.json"
+    },
+    "TRA:4410": {
+      "id": "TRA:4410",
+      "name": "民族車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4410.json"
+    },
+    "TRA:4420": {
+      "id": "TRA:4420",
+      "name": "科工館車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4420.json"
+    },
+    "TRA:4430": {
+      "id": "TRA:4430",
+      "name": "正義車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4430.json"
+    },
+    "TRA:4440": {
+      "id": "TRA:4440",
+      "name": "鳳山車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4440.json"
+    },
+    "TRA:4450": {
+      "id": "TRA:4450",
+      "name": "後庄車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4450.json"
+    },
+    "TRA:4460": {
+      "id": "TRA:4460",
+      "name": "九曲堂車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4460.json"
+    },
+    "TRA:4470": {
+      "id": "TRA:4470",
+      "name": "六塊厝車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-4470.json"
+    },
+    "TRA:5000": {
+      "id": "TRA:5000",
+      "name": "屏東車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-5000.json"
+    },
+    "TRA:5010": {
+      "id": "TRA:5010",
+      "name": "歸來車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-5010.json"
+    },
+    "TRA:5020": {
+      "id": "TRA:5020",
+      "name": "麟洛車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-5020.json"
+    },
+    "TRA:5030": {
+      "id": "TRA:5030",
+      "name": "西勢車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-5030.json"
+    },
+    "TRA:5040": {
+      "id": "TRA:5040",
+      "name": "竹田車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-5040.json"
+    },
+    "TRA:5050": {
+      "id": "TRA:5050",
+      "name": "潮州車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-5050.json"
+    },
+    "TRA:5060": {
+      "id": "TRA:5060",
+      "name": "崁頂車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-5060.json"
+    },
+    "TRA:5070": {
+      "id": "TRA:5070",
+      "name": "南州車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-5070.json"
+    },
+    "TRA:5080": {
+      "id": "TRA:5080",
+      "name": "鎮安車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-5080.json"
+    },
+    "TRA:5090": {
+      "id": "TRA:5090",
+      "name": "林邊車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-5090.json"
+    },
+    "TRA:5100": {
+      "id": "TRA:5100",
+      "name": "佳冬車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-5100.json"
+    },
+    "TRA:5110": {
+      "id": "TRA:5110",
+      "name": "東海車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-5110.json"
+    },
+    "TRA:5120": {
+      "id": "TRA:5120",
+      "name": "枋寮車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-5120.json"
+    },
+    "TRA:5130": {
+      "id": "TRA:5130",
+      "name": "加祿車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-5130.json"
+    },
+    "TRA:5140": {
+      "id": "TRA:5140",
+      "name": "內獅車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-5140.json"
+    },
+    "TRA:5160": {
+      "id": "TRA:5160",
+      "name": "枋山車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-5160.json"
+    },
+    "TRA:5190": {
+      "id": "TRA:5190",
+      "name": "大武車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-5190.json"
+    },
+    "TRA:5200": {
+      "id": "TRA:5200",
+      "name": "瀧溪車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-5200.json"
+    },
+    "TRA:5210": {
+      "id": "TRA:5210",
+      "name": "金崙車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-5210.json"
+    },
+    "TRA:5220": {
+      "id": "TRA:5220",
+      "name": "太麻里車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-5220.json"
+    },
+    "TRA:5230": {
+      "id": "TRA:5230",
+      "name": "知本車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-5230.json"
+    },
+    "TRA:5240": {
+      "id": "TRA:5240",
+      "name": "康樂車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-5240.json"
+    },
+    "TRA:6000": {
+      "id": "TRA:6000",
+      "name": "臺東車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-6000.json"
+    },
+    "TRA:6010": {
+      "id": "TRA:6010",
+      "name": "山里車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-6010.json"
+    },
+    "TRA:6020": {
+      "id": "TRA:6020",
+      "name": "鹿野車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-6020.json"
+    },
+    "TRA:6030": {
+      "id": "TRA:6030",
+      "name": "瑞源車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-6030.json"
+    },
+    "TRA:6040": {
+      "id": "TRA:6040",
+      "name": "瑞和車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-6040.json"
+    },
+    "TRA:6050": {
+      "id": "TRA:6050",
+      "name": "關山車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-6050.json"
+    },
+    "TRA:6060": {
+      "id": "TRA:6060",
+      "name": "海端車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-6060.json"
+    },
+    "TRA:6070": {
+      "id": "TRA:6070",
+      "name": "池上車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-6070.json"
+    },
+    "TRA:6080": {
+      "id": "TRA:6080",
+      "name": "富里車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-6080.json"
+    },
+    "TRA:6090": {
+      "id": "TRA:6090",
+      "name": "東竹車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-6090.json"
+    },
+    "TRA:6100": {
+      "id": "TRA:6100",
+      "name": "東里車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-6100.json"
+    },
+    "TRA:6110": {
+      "id": "TRA:6110",
+      "name": "玉里車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-6110.json"
+    },
+    "TRA:6120": {
+      "id": "TRA:6120",
+      "name": "三民車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-6120.json"
+    },
+    "TRA:6130": {
+      "id": "TRA:6130",
+      "name": "瑞穗車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-6130.json"
+    },
+    "TRA:6140": {
+      "id": "TRA:6140",
+      "name": "富源車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-6140.json"
+    },
+    "TRA:6150": {
+      "id": "TRA:6150",
+      "name": "大富車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-6150.json"
+    },
+    "TRA:6160": {
+      "id": "TRA:6160",
+      "name": "光復車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-6160.json"
+    },
+    "TRA:6170": {
+      "id": "TRA:6170",
+      "name": "萬榮車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-6170.json"
+    },
+    "TRA:6180": {
+      "id": "TRA:6180",
+      "name": "鳳林車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-6180.json"
+    },
+    "TRA:6190": {
+      "id": "TRA:6190",
+      "name": "南平車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-6190.json"
+    },
+    "TRA:6200": {
+      "id": "TRA:6200",
+      "name": "林榮新光車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-6200.json"
+    },
+    "TRA:6210": {
+      "id": "TRA:6210",
+      "name": "豐田車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-6210.json"
+    },
+    "TRA:6220": {
+      "id": "TRA:6220",
+      "name": "壽豐車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-6220.json"
+    },
+    "TRA:6230": {
+      "id": "TRA:6230",
+      "name": "平和車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-6230.json"
+    },
+    "TRA:6240": {
+      "id": "TRA:6240",
+      "name": "志學車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-6240.json"
+    },
+    "TRA:6250": {
+      "id": "TRA:6250",
+      "name": "吉安車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-6250.json"
+    },
+    "TRA:7000": {
+      "id": "TRA:7000",
+      "name": "花蓮車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7000.json"
+    },
+    "TRA:7010": {
+      "id": "TRA:7010",
+      "name": "北埔車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7010.json"
+    },
+    "TRA:7020": {
+      "id": "TRA:7020",
+      "name": "景美車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7020.json"
+    },
+    "TRA:7030": {
+      "id": "TRA:7030",
+      "name": "新城車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7030.json"
+    },
+    "TRA:7040": {
+      "id": "TRA:7040",
+      "name": "崇德車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7040.json"
+    },
+    "TRA:7050": {
+      "id": "TRA:7050",
+      "name": "和仁車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7050.json"
+    },
+    "TRA:7060": {
+      "id": "TRA:7060",
+      "name": "和平車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7060.json"
+    },
+    "TRA:7070": {
+      "id": "TRA:7070",
+      "name": "漢本車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7070.json"
+    },
+    "TRA:7080": {
+      "id": "TRA:7080",
+      "name": "武塔車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7080.json"
+    },
+    "TRA:7090": {
+      "id": "TRA:7090",
+      "name": "南澳車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7090.json"
+    },
+    "TRA:7100": {
+      "id": "TRA:7100",
+      "name": "東澳車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7100.json"
+    },
+    "TRA:7110": {
+      "id": "TRA:7110",
+      "name": "永樂車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7110.json"
+    },
+    "TRA:7120": {
+      "id": "TRA:7120",
+      "name": "蘇澳車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7120.json"
+    },
+    "TRA:7130": {
+      "id": "TRA:7130",
+      "name": "蘇澳新車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7130.json"
+    },
+    "TRA:7150": {
+      "id": "TRA:7150",
+      "name": "冬山車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7150.json"
+    },
+    "TRA:7160": {
+      "id": "TRA:7160",
+      "name": "羅東車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7160.json"
+    },
+    "TRA:7170": {
+      "id": "TRA:7170",
+      "name": "中里車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7170.json"
+    },
+    "TRA:7180": {
+      "id": "TRA:7180",
+      "name": "二結車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7180.json"
+    },
+    "TRA:7190": {
+      "id": "TRA:7190",
+      "name": "宜蘭車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7190.json"
+    },
+    "TRA:7200": {
+      "id": "TRA:7200",
+      "name": "四城車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7200.json"
+    },
+    "TRA:7210": {
+      "id": "TRA:7210",
+      "name": "礁溪車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7210.json"
+    },
+    "TRA:7220": {
+      "id": "TRA:7220",
+      "name": "頂埔車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7220.json"
+    },
+    "TRA:7230": {
+      "id": "TRA:7230",
+      "name": "頭城車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7230.json"
+    },
+    "TRA:7240": {
+      "id": "TRA:7240",
+      "name": "外澳車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7240.json"
+    },
+    "TRA:7250": {
+      "id": "TRA:7250",
+      "name": "龜山車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7250.json"
+    },
+    "TRA:7260": {
+      "id": "TRA:7260",
+      "name": "大溪車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7260.json"
+    },
+    "TRA:7270": {
+      "id": "TRA:7270",
+      "name": "大里車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7270.json"
+    },
+    "TRA:7280": {
+      "id": "TRA:7280",
+      "name": "石城車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7280.json"
+    },
+    "TRA:7290": {
+      "id": "TRA:7290",
+      "name": "福隆車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7290.json"
+    },
+    "TRA:7300": {
+      "id": "TRA:7300",
+      "name": "貢寮車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7300.json"
+    },
+    "TRA:7310": {
+      "id": "TRA:7310",
+      "name": "雙溪車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7310.json"
+    },
+    "TRA:7320": {
+      "id": "TRA:7320",
+      "name": "牡丹車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7320.json"
+    },
+    "TRA:7330": {
+      "id": "TRA:7330",
+      "name": "三貂嶺車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7330.json"
+    },
+    "TRA:7331": {
+      "id": "TRA:7331",
+      "name": "大華車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7331.json"
+    },
+    "TRA:7332": {
+      "id": "TRA:7332",
+      "name": "十分車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7332.json"
+    },
+    "TRA:7333": {
+      "id": "TRA:7333",
+      "name": "望古車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7333.json"
+    },
+    "TRA:7334": {
+      "id": "TRA:7334",
+      "name": "嶺腳車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7334.json"
+    },
+    "TRA:7335": {
+      "id": "TRA:7335",
+      "name": "平溪車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7335.json"
+    },
+    "TRA:7336": {
+      "id": "TRA:7336",
+      "name": "菁桐車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7336.json"
+    },
+    "TRA:7350": {
+      "id": "TRA:7350",
+      "name": "猴硐車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7350.json"
+    },
+    "TRA:7360": {
+      "id": "TRA:7360",
+      "name": "瑞芳車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7360.json"
+    },
+    "TRA:7361": {
+      "id": "TRA:7361",
+      "name": "海科館車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7361.json"
+    },
+    "TRA:7362": {
+      "id": "TRA:7362",
+      "name": "八斗子車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7362.json"
+    },
+    "TRA:7380": {
+      "id": "TRA:7380",
+      "name": "四腳亭車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7380.json"
+    },
+    "TRA:7390": {
+      "id": "TRA:7390",
+      "name": "暖暖車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-7390.json"
+    },
+    "TRTC:BL01": {
+      "id": "TRTC:BL01",
+      "name": "頂埔",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BL01.json"
+    },
+    "TRTC:BL02": {
+      "id": "TRTC:BL02",
+      "name": "永寧",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BL02.json"
+    },
+    "TRTC:BL03": {
+      "id": "TRTC:BL03",
+      "name": "土城",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BL03.json"
+    },
+    "TRTC:BL04": {
+      "id": "TRTC:BL04",
+      "name": "海山",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BL04.json"
+    },
+    "TRTC:BL05": {
+      "id": "TRTC:BL05",
+      "name": "亞東醫院",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BL05.json"
+    },
+    "TRTC:BL06": {
+      "id": "TRTC:BL06",
+      "name": "府中",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BL06.json"
+    },
+    "TRTC:BL07": {
+      "id": "TRTC:BL07",
+      "name": "板橋",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BL07.json"
+    },
+    "TRTC:BL08": {
+      "id": "TRTC:BL08",
+      "name": "新埔",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BL08.json"
+    },
+    "TRTC:BL09": {
+      "id": "TRTC:BL09",
+      "name": "江子翠",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BL09.json"
+    },
+    "TRTC:BL10": {
+      "id": "TRTC:BL10",
+      "name": "龍山寺",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BL10.json"
+    },
+    "TRTC:BL11": {
+      "id": "TRTC:BL11",
+      "name": "西門",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BL11.json"
+    },
+    "TRTC:BL12": {
+      "id": "TRTC:BL12",
+      "name": "台北車站",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BL12.json"
+    },
+    "TRTC:BL13": {
+      "id": "TRTC:BL13",
+      "name": "善導寺",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BL13.json"
+    },
+    "TRTC:BL16": {
+      "id": "TRTC:BL16",
+      "name": "忠孝敦化",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BL16.json"
+    },
+    "TRTC:BL17": {
+      "id": "TRTC:BL17",
+      "name": "國父紀念館",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BL17.json"
+    },
+    "TRTC:BL18": {
+      "id": "TRTC:BL18",
+      "name": "市政府",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BL18.json"
+    },
+    "TRTC:BL19": {
+      "id": "TRTC:BL19",
+      "name": "永春",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BL19.json"
+    },
+    "TRTC:BL20": {
+      "id": "TRTC:BL20",
+      "name": "後山埤",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BL20.json"
+    },
+    "TRTC:BL21": {
+      "id": "TRTC:BL21",
+      "name": "昆陽",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BL21.json"
+    },
+    "TRTC:BL22": {
+      "id": "TRTC:BL22",
+      "name": "南港",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BL22.json"
+    },
+    "TRTC:BL23": {
+      "id": "TRTC:BL23",
+      "name": "南港展覽館",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BL23.json"
+    },
+    "TRTC:BR01": {
+      "id": "TRTC:BR01",
+      "name": "動物園",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BR01.json"
+    },
+    "TRTC:BR02": {
+      "id": "TRTC:BR02",
+      "name": "木柵",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BR02.json"
+    },
+    "TRTC:BR03": {
+      "id": "TRTC:BR03",
+      "name": "萬芳社區",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BR03.json"
+    },
+    "TRTC:BR04": {
+      "id": "TRTC:BR04",
+      "name": "萬芳醫院",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BR04.json"
+    },
+    "TRTC:BR05": {
+      "id": "TRTC:BR05",
+      "name": "辛亥",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BR05.json"
+    },
+    "TRTC:BR06": {
+      "id": "TRTC:BR06",
+      "name": "麟光",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BR06.json"
+    },
+    "TRTC:BR07": {
+      "id": "TRTC:BR07",
+      "name": "六張犁",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BR07.json"
+    },
+    "TRTC:BR08": {
+      "id": "TRTC:BR08",
+      "name": "科技大樓",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BR08.json"
+    },
+    "TRTC:BR09": {
+      "id": "TRTC:BR09",
+      "name": "大安",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BR09.json"
+    },
+    "TRTC:BR10": {
+      "id": "TRTC:BR10",
+      "name": "忠孝復興",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BR10.json"
+    },
+    "TRTC:BR11": {
+      "id": "TRTC:BR11",
+      "name": "南京復興",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BR11.json"
+    },
+    "TRTC:BR12": {
+      "id": "TRTC:BR12",
+      "name": "中山國中",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BR12.json"
+    },
+    "TRTC:BR13": {
+      "id": "TRTC:BR13",
+      "name": "松山機場",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BR13.json"
+    },
+    "TRTC:BR14": {
+      "id": "TRTC:BR14",
+      "name": "大直",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BR14.json"
+    },
+    "TRTC:BR15": {
+      "id": "TRTC:BR15",
+      "name": "劍南路",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BR15.json"
+    },
+    "TRTC:BR16": {
+      "id": "TRTC:BR16",
+      "name": "西湖",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BR16.json"
+    },
+    "TRTC:BR17": {
+      "id": "TRTC:BR17",
+      "name": "港墘",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BR17.json"
+    },
+    "TRTC:BR18": {
+      "id": "TRTC:BR18",
+      "name": "文德",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BR18.json"
+    },
+    "TRTC:BR19": {
+      "id": "TRTC:BR19",
+      "name": "內湖",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BR19.json"
+    },
+    "TRTC:BR20": {
+      "id": "TRTC:BR20",
+      "name": "大湖公園",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BR20.json"
+    },
+    "TRTC:BR21": {
+      "id": "TRTC:BR21",
+      "name": "葫洲",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BR21.json"
+    },
+    "TRTC:BR22": {
+      "id": "TRTC:BR22",
+      "name": "東湖",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BR22.json"
+    },
+    "TRTC:BR23": {
+      "id": "TRTC:BR23",
+      "name": "南港軟體園區",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BR23.json"
+    },
+    "TRTC:G01": {
+      "id": "TRTC:G01",
+      "name": "新店",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-G01.json"
+    },
+    "TRTC:G02": {
+      "id": "TRTC:G02",
+      "name": "新店區公所",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-G02.json"
+    },
+    "TRTC:G03": {
+      "id": "TRTC:G03",
+      "name": "七張",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-G03.json"
+    },
+    "TRTC:G03A": {
+      "id": "TRTC:G03A",
+      "name": "小碧潭",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-G03A.json"
+    },
+    "TRTC:G05": {
+      "id": "TRTC:G05",
+      "name": "景美",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-G05.json"
+    },
+    "TRTC:G06": {
+      "id": "TRTC:G06",
+      "name": "萬隆",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-G06.json"
+    },
+    "TRTC:G07": {
+      "id": "TRTC:G07",
+      "name": "公館",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-G07.json"
+    },
+    "TRTC:G08": {
+      "id": "TRTC:G08",
+      "name": "台電大樓",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-G08.json"
+    },
+    "TRTC:G09": {
+      "id": "TRTC:G09",
+      "name": "古亭",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-G09.json"
+    },
+    "TRTC:G10": {
+      "id": "TRTC:G10",
+      "name": "中正紀念堂",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-G10.json"
+    },
+    "TRTC:G11": {
+      "id": "TRTC:G11",
+      "name": "小南門",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-G11.json"
+    },
+    "TRTC:G13": {
+      "id": "TRTC:G13",
+      "name": "北門",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-G13.json"
+    },
+    "TRTC:G14": {
+      "id": "TRTC:G14",
+      "name": "中山",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-G14.json"
+    },
+    "TRTC:G15": {
+      "id": "TRTC:G15",
+      "name": "松江南京",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-G15.json"
+    },
+    "TRTC:G17": {
+      "id": "TRTC:G17",
+      "name": "台北小巨蛋",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-G17.json"
+    },
+    "TRTC:G18": {
+      "id": "TRTC:G18",
+      "name": "南京三民",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-G18.json"
+    },
+    "TRTC:G19": {
+      "id": "TRTC:G19",
+      "name": "松山",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-G19.json"
+    },
+    "TRTC:O01": {
+      "id": "TRTC:O01",
+      "name": "南勢角",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-O01.json"
+    },
+    "TRTC:O03": {
+      "id": "TRTC:O03",
+      "name": "永安市場",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-O03.json"
+    },
+    "TRTC:O04": {
+      "id": "TRTC:O04",
+      "name": "頂溪",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-O04.json"
+    },
+    "TRTC:O06": {
+      "id": "TRTC:O06",
+      "name": "東門",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-O06.json"
+    },
+    "TRTC:O07": {
+      "id": "TRTC:O07",
+      "name": "忠孝新生",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-O07.json"
+    },
+    "TRTC:O09": {
+      "id": "TRTC:O09",
+      "name": "行天宮",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-O09.json"
+    },
+    "TRTC:O10": {
+      "id": "TRTC:O10",
+      "name": "中山國小",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-O10.json"
+    },
+    "TRTC:O11": {
+      "id": "TRTC:O11",
+      "name": "民權西路",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-O11.json"
+    },
+    "TRTC:O12": {
+      "id": "TRTC:O12",
+      "name": "大橋頭",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-O12.json"
+    },
+    "TRTC:O13": {
+      "id": "TRTC:O13",
+      "name": "台北橋",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-O13.json"
+    },
+    "TRTC:O14": {
+      "id": "TRTC:O14",
+      "name": "菜寮",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-O14.json"
+    },
+    "TRTC:O15": {
+      "id": "TRTC:O15",
+      "name": "三重",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-O15.json"
+    },
+    "TRTC:O16": {
+      "id": "TRTC:O16",
+      "name": "先嗇宮",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-O16.json"
+    },
+    "TRTC:O18": {
+      "id": "TRTC:O18",
+      "name": "新莊",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-O18.json"
+    },
+    "TRTC:O19": {
+      "id": "TRTC:O19",
+      "name": "輔大",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-O19.json"
+    },
+    "TRTC:O20": {
+      "id": "TRTC:O20",
+      "name": "丹鳳",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-O20.json"
+    },
+    "TRTC:O21": {
+      "id": "TRTC:O21",
+      "name": "迴龍",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-O21.json"
+    },
+    "TRTC:O50": {
+      "id": "TRTC:O50",
+      "name": "三重國小",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-O50.json"
+    },
+    "TRTC:O51": {
+      "id": "TRTC:O51",
+      "name": "三和國中",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-O51.json"
+    },
+    "TRTC:O52": {
+      "id": "TRTC:O52",
+      "name": "徐匯中學",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-O52.json"
+    },
+    "TRTC:O53": {
+      "id": "TRTC:O53",
+      "name": "三民高中",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-O53.json"
+    },
+    "TRTC:O54": {
+      "id": "TRTC:O54",
+      "name": "蘆洲",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-O54.json"
+    },
+    "TRTC:R02": {
+      "id": "TRTC:R02",
+      "name": "象山",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-R02.json"
+    },
+    "TRTC:R03": {
+      "id": "TRTC:R03",
+      "name": "台北101/世貿",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-R03.json"
+    },
+    "TRTC:R04": {
+      "id": "TRTC:R04",
+      "name": "信義安和",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-R04.json"
+    },
+    "TRTC:R06": {
+      "id": "TRTC:R06",
+      "name": "大安森林公園",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-R06.json"
+    },
+    "TRTC:R09": {
+      "id": "TRTC:R09",
+      "name": "台大醫院",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-R09.json"
+    },
+    "TRTC:R12": {
+      "id": "TRTC:R12",
+      "name": "雙連",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-R12.json"
+    },
+    "TRTC:R14": {
+      "id": "TRTC:R14",
+      "name": "圓山",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-R14.json"
+    },
+    "TRTC:R15": {
+      "id": "TRTC:R15",
+      "name": "劍潭",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-R15.json"
+    },
+    "TRTC:R16": {
+      "id": "TRTC:R16",
+      "name": "士林",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-R16.json"
+    },
+    "TRTC:R17": {
+      "id": "TRTC:R17",
+      "name": "芝山",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-R17.json"
+    },
+    "TRTC:R18": {
+      "id": "TRTC:R18",
+      "name": "明德",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-R18.json"
+    },
+    "TRTC:R19": {
+      "id": "TRTC:R19",
+      "name": "石牌",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-R19.json"
+    },
+    "TRTC:R20": {
+      "id": "TRTC:R20",
+      "name": "唭哩岸",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-R20.json"
+    },
+    "TRTC:R21": {
+      "id": "TRTC:R21",
+      "name": "奇岩",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-R21.json"
+    },
+    "TRTC:R22": {
+      "id": "TRTC:R22",
+      "name": "北投",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-R22.json"
+    },
+    "TRTC:R22A": {
+      "id": "TRTC:R22A",
+      "name": "新北投",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-R22A.json"
+    },
+    "TRTC:R23": {
+      "id": "TRTC:R23",
+      "name": "復興崗",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-R23.json"
+    },
+    "TRTC:R24": {
+      "id": "TRTC:R24",
+      "name": "忠義",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-R24.json"
+    },
+    "TRTC:R25": {
+      "id": "TRTC:R25",
+      "name": "關渡",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-R25.json"
+    },
+    "TRTC:R26": {
+      "id": "TRTC:R26",
+      "name": "竹圍",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-R26.json"
+    },
+    "TRTC:R27": {
+      "id": "TRTC:R27",
+      "name": "紅樹林",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-R27.json"
+    },
+    "TRTC:R28": {
+      "id": "TRTC:R28",
+      "name": "淡水",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-R28.json"
+    },
+    "TYMC:A1": {
+      "id": "TYMC:A1",
+      "name": "台北車站",
+      "appSystem": "tymc",
+      "systemLabel": "桃園機場捷運",
+      "asset": "/data/bus-transfer/TYMC-A1.json"
+    },
+    "TYMC:A10": {
+      "id": "TYMC:A10",
+      "name": "山鼻站",
+      "appSystem": "tymc",
+      "systemLabel": "桃園機場捷運",
+      "asset": "/data/bus-transfer/TYMC-A10.json"
+    },
+    "TYMC:A11": {
+      "id": "TYMC:A11",
+      "name": "坑口站",
+      "appSystem": "tymc",
+      "systemLabel": "桃園機場捷運",
+      "asset": "/data/bus-transfer/TYMC-A11.json"
+    },
+    "TYMC:A12": {
+      "id": "TYMC:A12",
+      "name": "機場第一航廈站",
+      "appSystem": "tymc",
+      "systemLabel": "桃園機場捷運",
+      "asset": "/data/bus-transfer/TYMC-A12.json"
+    },
+    "TYMC:A13": {
+      "id": "TYMC:A13",
+      "name": "機場第二航廈站",
+      "appSystem": "tymc",
+      "systemLabel": "桃園機場捷運",
+      "asset": "/data/bus-transfer/TYMC-A13.json"
+    },
+    "TYMC:A14a": {
+      "id": "TYMC:A14a",
+      "name": "機場旅館站",
+      "appSystem": "tymc",
+      "systemLabel": "桃園機場捷運",
+      "asset": "/data/bus-transfer/TYMC-A14a.json"
+    },
+    "TYMC:A15": {
+      "id": "TYMC:A15",
+      "name": "大園站",
+      "appSystem": "tymc",
+      "systemLabel": "桃園機場捷運",
+      "asset": "/data/bus-transfer/TYMC-A15.json"
+    },
+    "TYMC:A16": {
+      "id": "TYMC:A16",
+      "name": "橫山站",
+      "appSystem": "tymc",
+      "systemLabel": "桃園機場捷運",
+      "asset": "/data/bus-transfer/TYMC-A16.json"
+    },
+    "TYMC:A17": {
+      "id": "TYMC:A17",
+      "name": "領航站",
+      "appSystem": "tymc",
+      "systemLabel": "桃園機場捷運",
+      "asset": "/data/bus-transfer/TYMC-A17.json"
+    },
+    "TYMC:A18": {
+      "id": "TYMC:A18",
+      "name": "高鐵桃園站",
+      "appSystem": "tymc",
+      "systemLabel": "桃園機場捷運",
+      "asset": "/data/bus-transfer/TYMC-A18.json"
+    },
+    "TYMC:A19": {
+      "id": "TYMC:A19",
+      "name": "桃園體育園區站",
+      "appSystem": "tymc",
+      "systemLabel": "桃園機場捷運",
+      "asset": "/data/bus-transfer/TYMC-A19.json"
+    },
+    "TYMC:A2": {
+      "id": "TYMC:A2",
+      "name": "三重站",
+      "appSystem": "tymc",
+      "systemLabel": "桃園機場捷運",
+      "asset": "/data/bus-transfer/TYMC-A2.json"
+    },
+    "TYMC:A20": {
+      "id": "TYMC:A20",
+      "name": "興南站",
+      "appSystem": "tymc",
+      "systemLabel": "桃園機場捷運",
+      "asset": "/data/bus-transfer/TYMC-A20.json"
+    },
+    "TYMC:A21": {
+      "id": "TYMC:A21",
+      "name": "環北站",
+      "appSystem": "tymc",
+      "systemLabel": "桃園機場捷運",
+      "asset": "/data/bus-transfer/TYMC-A21.json"
+    },
+    "TYMC:A22": {
+      "id": "TYMC:A22",
+      "name": "老街溪站",
+      "appSystem": "tymc",
+      "systemLabel": "桃園機場捷運",
+      "asset": "/data/bus-transfer/TYMC-A22.json"
+    },
+    "TYMC:A3": {
+      "id": "TYMC:A3",
+      "name": "新北產業園區站",
+      "appSystem": "tymc",
+      "systemLabel": "桃園機場捷運",
+      "asset": "/data/bus-transfer/TYMC-A3.json"
+    },
+    "TYMC:A4": {
+      "id": "TYMC:A4",
+      "name": "新莊副都心站",
+      "appSystem": "tymc",
+      "systemLabel": "桃園機場捷運",
+      "asset": "/data/bus-transfer/TYMC-A4.json"
+    },
+    "TYMC:A5": {
+      "id": "TYMC:A5",
+      "name": "泰山站",
+      "appSystem": "tymc",
+      "systemLabel": "桃園機場捷運",
+      "asset": "/data/bus-transfer/TYMC-A5.json"
+    },
+    "TYMC:A6": {
+      "id": "TYMC:A6",
+      "name": "泰山貴和站",
+      "appSystem": "tymc",
+      "systemLabel": "桃園機場捷運",
+      "asset": "/data/bus-transfer/TYMC-A6.json"
+    },
+    "TYMC:A7": {
+      "id": "TYMC:A7",
+      "name": "體育大學站",
+      "appSystem": "tymc",
+      "systemLabel": "桃園機場捷運",
+      "asset": "/data/bus-transfer/TYMC-A7.json"
+    },
+    "TYMC:A8": {
+      "id": "TYMC:A8",
+      "name": "長庚醫院站",
+      "appSystem": "tymc",
+      "systemLabel": "桃園機場捷運",
+      "asset": "/data/bus-transfer/TYMC-A8.json"
+    },
+    "TYMC:A9": {
+      "id": "TYMC:A9",
+      "name": "林口站",
+      "appSystem": "tymc",
+      "systemLabel": "桃園機場捷運",
+      "asset": "/data/bus-transfer/TYMC-A9.json"
+    }
+  }
+}

@@ -1,0 +1,1 @@
+{"schemaVersion":1,"generatedAt":"2026-09-03T07:25:05.359Z","coverage":"all_active_rail_stations","trigger":"user_open_only","polling":false,"station":{"id":"AFR:365","name":"樟腦寮","appSystem":"afr_sched","systemLabel":"阿里山林鐵","position":{"lat":23.5329,"lon":120.6025},"radiusM":600,"nearbyStopCount":0,"coverageState":"no_nearby_stops","scopes":[]}}
