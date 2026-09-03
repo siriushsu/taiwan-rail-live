@@ -34,23 +34,6 @@ check(sandbox.sample(decreasing, 110).progress === 4.5, '里程遞減方向補�
 check(sandbox.sample(increasing, 90).progress === 2, '發車前應鉗在第一個軌跡點');
 check(sandbox.sample(decreasing, 130).progress === 4, '退場前應鉗在最後一個軌跡點');
 
-const smoothSandbox = { METRO_CORE_CATCHUP_FACTOR: 2, runBetween: () => 100 };
-vm.runInNewContext(`${extractFunction('metroCoreForwardLimit')};${extractFunction('metroCoreDisplayProgress')};
-  this.limit = metroCoreForwardLimit; this.display = metroCoreDisplayProgress;`, smoothSandbox);
-const smoothLine = { stations: Array.from({ length: 10 }, () => ({})) };
-check(smoothSandbox.limit(smoothLine, { direction: 2 }, 2, 10) === 2.2,
-  '里程遞增方向的追趕上限應為兩倍站間速度');
-check(smoothSandbox.limit(smoothLine, { direction: 1 }, 5, 10) === 4.8,
-  '里程遞減方向的追趕上限應為兩倍站間速度');
-check(smoothSandbox.display(smoothLine, { direction: 2 }, 2, 1.5, 10) === 2,
-  '里程遞增方向遇到回跳應停等、不倒退');
-check(smoothSandbox.display(smoothLine, { direction: 1 }, 5, 5.5, 10) === 5,
-  '里程遞減方向遇到回跳應停等、不倒退');
-check(smoothSandbox.display(smoothLine, { direction: 2 }, 2, 3, 10) === 2.2,
-  '里程遞增方向遇到前跳應受追趕上限約束');
-check(smoothSandbox.display(smoothLine, { direction: 1 }, 5, 4, 10) === 4.8,
-  '里程遞減方向遇到前跳應受追趕上限約束');
-
 const graceSandbox = {
   METRO_CORE_FOLLOW_GRACE_SEC: 30,
   metroCoreFollowRecord: () => graceSandbox.current,
@@ -79,8 +62,8 @@ const contracts = [
   ['防止舊 snapshot 倒灌', /snapshot rollback/],
   ['一般捷運層讀取 Core', /function drawFreq[\s\S]*?metroCoreItemsForLine\(ln, officialNow\)/],
   ['全台裝飾層讀取 Core', /function drawDecoTrains[\s\S]*?metroCoreItemsForLine\(ln, officialNow\)/],
-  ['Core 地圖與跟隨共用不倒退、限速追趕的顯示位置',
-    /function metroCoreItemsForLine[\s\S]*?metroCoreDisplayPosition\(ln, systemId, train, nowEpoch\)[\s\S]*?function metroCoreFollowRecord[\s\S]*?metroCoreDisplayPosition\(ln, systemId, train, nowEpoch\)/],
+  ['Core 地圖與跟隨逐字採用 canonical 軌跡，不在顯示層遮掩跳動',
+    /function metroCoreItemsForLine[\s\S]*?metroCorePositionAt\(ln, train, nowEpoch\)[\s\S]*?function metroCoreFollowRecord[\s\S]*?metroCorePositionAt\(ln, train, nowEpoch\)/],
   ['站牌共用 vehicle ID', /data-core-vehicle/],
   ['Core 看板缺單一方向時只補該方向班表',
     /const officialDirections = new Set[\s\S]*?metroCoreLegacyGroupsForEntry\(entry, officialDirections\)/],
@@ -136,4 +119,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log(`Metro Core bridge 靜態契約通過：${contracts.length + appContracts.length} 項，雙方向補間 4 項、刷新平滑 6 項、跟隨寬限 3 項`);
+console.log(`Metro Core bridge 靜態契約通過：${contracts.length + appContracts.length} 項，雙方向補間 4 項、跟隨寬限 3 項`);

@@ -5072,7 +5072,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
-        <li data-cl-of="metropeak0903"><span class="d">9/3</span><span>晚尖峰即時資料恢復時，捷運列車不再整批跳位；轉乘站偶爾缺一個方向時，來車看板會先補上該方向的班表</span></li>
+        <li data-cl-of="metropeak0903"><span class="d">9/3</span><span>轉乘站的官方來車資料換班時，偶爾會短暫缺一個方向；現在看板會先補上該方向的班表</span></li>
         <li data-cl-of="tabletshell"><span class="d">9/3</span><span>iPad 與 Android 平板改用完整觸控版面；橫放時資訊停在右側，地圖保留主要空間</span></li>
         <li data-cl-of="copyaudit"><span class="d">9/3</span><span>更新紀錄改得更精簡好讀，資料來源、專案授權與隱私說明也同步校正</span></li>
         <li data-cl-of="aeo"><span class="d">9/3</span><span>新增關於、準確度、資料來源、車站索引與 20 個常查車站頁，方便搜尋與引用</span></li>
@@ -5104,7 +5104,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
-        <li data-cl="metropeak0903"><span class="d">9/3</span><span>捷運即時資料隔了一段時間才恢復更新時，列車會依站間行車時間平滑追上或停等，不再瞬間往前跳、往後退；轉乘站若有單一方向暫時缺列，來車看板只替該方向補上班表，其他方向維持官方即時資訊。</span></li>
+        <li data-cl="metropeak0903"><span class="d">9/3</span><span>官方來車資料在舊車離站、下一班尚未接上的換班空窗，偶爾會讓轉乘站的單一方向短暫空白；現在看板只替缺少的方向補上班表，其他方向維持官方即時資訊。</span></li>
         <li data-cl="crowdfallback"><span class="d">9/3</span><span>官方擁擠度短暫抓不到時沿用上一份資料，最多兩分鐘，超過就留白，不再整批閃失（謝謝網友回報）</span></li>
         <li data-cl="branchdepart"><span class="d">8/31</span><span>新北投與小碧潭支線補上兩站間的行車時間，列車發車後不再從地圖消失。</span></li>
         <li data-cl="crowd-outage"><span class="d">8/29</span><span>北捷車廂擁擠度改以車號逐車對照，各種看板資料源都能顯示；即時資料不足時會退回官方倒數或班表，斷線提示也會區分官方與本站連線異常。</span></li>
@@ -5885,8 +5885,9 @@
 // v0903h：新增 AEO 靜態內容層、robots/sitemap、首頁結構化資料與 20 個常查車站頁；地圖行為零變更。
 // v0903i：更新紀錄瘦身；校正 source-available、網站底圖供應商與 Android 帳號刪除等公開宣告。地圖行為零變更。
 // v0903k：iPad／Android 平板啟用觸控殼與橫式右側欄，補極簡沉浸入口；j 已被並行公車轉乘線使用。
-// v0903l：北捷 Core 批次恢復時平滑追上且不倒退；站牌只替暫缺方向補時刻表。
-const BUILD = 'v0903l';
+// v0903l：晚尖峰觀測加入 Core 顯示層平滑與站牌缺方向補表（前者在查明來源端原因後撤回）。
+// v0903m：站牌只替官方換班空窗暫缺的方向補時刻表；列車位置仍逐字採用 canonical。
+const BUILD = 'v0903m';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -22839,13 +22840,6 @@ const METRO_CORE_SCHEMA = 'metro-snapshot/v1';
 const METRO_CORE_ENDPOINT = APP_CFG.metroCoreUrl ||
   'https://railisland-metro-core.sirius1984.workers.dev/v1/metro/snapshot';
 const METRO_CORE_POLL_MS = 15e3;
-// Core 正常每 15 秒換一次 snapshot，canonical producer 會讓同一 vehicleId 在刷新點連續；
-// 但晚尖峰實測（2026-09-03 18:53）遇到一段 75 秒沒有新批次，恢復那輪 186 台共同列車裡
-// 有 45 台的新軌跡落在舊畫面後方，最大差 0.56 個站間。直接換 snapshot 就會整批跳。
-// 顯示層沿用本站既有的裁示：落後官方的最多兩倍速追，跑在官方前面的停著等，絕不倒退。
-const METRO_CORE_CATCHUP_FACTOR = 2;
-const METRO_CORE_DISPLAY_MAX_DT_SEC = 1; // 主線程卡住／背景回來時，一格也不能取得整段時間當瞬移額度
-const _metroCoreDisplay = new Map();
 // 🔴 P0-3 命名契約:Core 的 train.lineId／board.lineId 必須逐字是這 11 個之一。
 //    真值來源已逐字比對過:data/trtc.json 的九條線 id ＝ TRTC_BOARD_LINES;
 //    data/krtc.json 的 KR/KO(C 線是輕軌,不歸 Core 管)。命名一改而前端不知道,
@@ -23029,71 +23023,6 @@ function metroCorePositionAt(ln, train, epoch) {
   const pos = posBetweenStations(ln, from, to, progress - from);
   return pos ? { ...sampled, ...pos, progress, atStation: false, motionFrom: from, motionTo: to } : null;
 }
-function metroCorePositionAtProgress(ln, train, progress, raw) {
-  const value = Number(progress), count = ln && Array.isArray(ln.stations) ? ln.stations.length : 0;
-  if (!Number.isFinite(value) || !count) return raw;
-  const physical = Math.max(0, Math.min(count - 1, value)), stationIndex = Math.round(physical);
-  if (Math.abs(physical - stationIndex) < 1e-9 && ln.stations[stationIndex]) {
-    const station = ln.stations[stationIndex];
-    return { ...raw, progress: physical, lat: station.lat, lon: station.lon, atStation: true,
-      motionFrom: stationIndex, motionTo: stationIndex };
-  }
-  const from = Math.floor(physical), to = Math.ceil(physical);
-  if (!ln.stations[from] || !ln.stations[to] || from === to) return raw;
-  const pos = posBetweenStations(ln, from, to, physical - from);
-  return pos ? { ...raw, ...pos, progress: physical, atStation: false, motionFrom: from, motionTo: to } : raw;
-}
-// 從「已畫位置」出發，elapsed 秒內按該線真正站間秒數最多能走到哪。方向 1／2 都用同一條
-// physical progress 軸算；factor 只放寬追趕速度，不可能越過 raw 官方目標。
-function metroCoreForwardLimit(ln, train, startProgress, elapsedSeconds,
-  factor = METRO_CORE_CATCHUP_FACTOR) {
-  const step = Number(train && train.direction) === 2 ? 1 : -1, count = ln && ln.stations ? ln.stations.length : 0;
-  let physical = Number(startProgress), remaining = Math.max(0, Number(elapsedSeconds)) * Math.max(0, Number(factor));
-  if (!Number.isFinite(physical) || !Number.isFinite(remaining)) return physical;
-  for (let guard = 0; guard <= count && remaining > 1e-9; guard++) {
-    const rounded = Math.round(physical);
-    const from = Math.abs(physical - rounded) < 1e-9 ? rounded : step > 0 ? Math.floor(physical) : Math.ceil(physical);
-    const to = from + step;
-    if (!ln.stations[from] || !ln.stations[to]) break;
-    const seconds = Number(runBetween(ln, from, to));
-    if (!(seconds > 0)) break;
-    const completed = Math.max(0, Math.min(1, (physical - from) * step));
-    const advance = Math.min(1 - completed, remaining / seconds);
-    if (!(advance > 0)) break;
-    physical += step * advance;
-    remaining -= advance * seconds;
-  }
-  return physical;
-}
-function metroCoreDisplayProgress(ln, train, priorProgress, rawProgress, elapsedSeconds) {
-  const step = Number(train && train.direction) === 2 ? 1 : -1;
-  const prior = Number(priorProgress), raw = Number(rawProgress);
-  if (!Number.isFinite(prior) || !Number.isFinite(raw)) return raw;
-  if ((raw - prior) * step <= 0) return prior; // 新資料落在車後方：停著等它追上，不讓車倒退
-  const limit = metroCoreForwardLimit(ln, train, prior, elapsedSeconds);
-  return step > 0 ? Math.min(raw, limit) : Math.max(raw, limit);
-}
-function metroCoreDisplayPosition(ln, systemId, train, nowEpoch) {
-  const now = Number(nowEpoch), raw = metroCorePositionAt(ln, train, now);
-  if (!raw) return null;
-  const key = String(systemId) + '|' + String(train.vehicleId), prior = _metroCoreDisplay.get(key);
-  const compatible = prior && prior.lineId === String(train.lineId) && prior.direction === Number(train.direction) &&
-    Number.isFinite(Number(prior.progress)) && Number.isFinite(Number(prior.epoch)) && now >= Number(prior.epoch);
-  let shown = Number(raw.progress);
-  if (compatible) {
-    const dt = Math.min(METRO_CORE_DISPLAY_MAX_DT_SEC, Math.max(0, now - Number(prior.epoch)));
-    shown = metroCoreDisplayProgress(ln, train, Number(prior.progress), Number(raw.progress), dt);
-  }
-  const pos = Math.abs(shown - Number(raw.progress)) < 1e-9
-    ? raw : metroCorePositionAtProgress(ln, train, shown, raw);
-  _metroCoreDisplay.set(key, { epoch: now, progress: shown, lineId: String(train.lineId),
-    direction: Number(train.direction), pos });
-  return pos;
-}
-document.addEventListener('visibilitychange', () => {
-  // 分頁在背景時使用者看不到位移；回前景直接接受新鮮位置，不把背景時間拿來慢慢追。
-  if (document.hidden) _metroCoreDisplay.clear();
-});
 // 🔴 P0-1/P0-2/P0-3/P2-9 的統一出口:這條線這一刻能不能用 Core?回原因字串或 null。
 // 只有這一支說「可以」時,消費端才准跳過 legacy 與班表。
 function metroCoreLineBlocked(systemId, lineId) {
@@ -23126,7 +23055,7 @@ function metroCoreItemsForLine(ln, nowEpoch = Date.now() / 1000) {
   const out = [];
   for (const train of system.trains) {
     if (String(train.lineId) !== String(ln.id)) continue;
-    const pos = metroCoreDisplayPosition(ln, systemId, train, nowEpoch);
+    const pos = metroCorePositionAt(ln, train, nowEpoch);
     if (pos) out.push({ systemId, vehicleId: String(train.vehicleId), publicLabel: String(train.publicLabel || ''), train, pos });
   }
   // 🔴 P0-1:空陣列【不得】短路 legacy。[] 是 truthy 的非 null 值,四個消費端都寫
@@ -23141,7 +23070,7 @@ function metroCoreFollowRecord(follow, nowEpoch = Date.now() / 1000) {
   const train = system && system.trains.find(item => String(item.vehicleId) === String(follow.vehicleId) &&
     String(item.lineId) === String(follow.lineId));
   const ln = train && metroCoreLineForId(systemId, follow.lineId);
-  const pos = ln && train ? metroCoreDisplayPosition(ln, systemId, train, nowEpoch) : null;
+  const pos = ln && train ? metroCorePositionAt(ln, train, nowEpoch) : null;
   return pos ? { systemId, train, ln, pos } : null;
 }
 // 🔴 P0-4 跟隨寬限(移植 9bc4348)。updateFreqFollowCamera 是【每幀】跑的,零寬限的版本
@@ -26942,8 +26871,7 @@ function metroCoreArrivalState(rec, nowEpoch = Date.now() / 1000) {
   const system = metroCoreSystem(rec.systemId);
   const train = system && system.trains.find(item => String(item.vehicleId) === String(rec.vehicleId));
   const station = rec.ln && rec.ln.stations && rec.ln.stations[rec.stationIndex];
-  // 進站／離站判定要讀地圖正在畫的平滑位置；若仍讀 raw，畫面上的車還在追趕，站牌卻會先把它刪掉。
-  const pos = train && station ? metroCoreDisplayPosition(rec.ln, rec.systemId, train, nowEpoch) : null;
+  const pos = train && station ? metroCorePositionAt(rec.ln, train, nowEpoch) : null;
   if (!pos) return { near: false, departed: true, matched: false, distanceM: null };
   const distanceM = haversineKm(station, pos) * 1000;
   const step = Number(train.direction) === 2 ? 1 : -1;
