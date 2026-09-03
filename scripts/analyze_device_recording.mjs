@@ -3,7 +3,7 @@
 // 量每一幀「底圖引擎畫的洋紅點」與「overlay 畫的青點」質心距離,全部影格 ≤ threshold×dpr 影片像素才 PASS。
 // --selftest:用 ffmpeg lavfi 合成兩支影片(同心=應 PASS、青點偏 27px=應 FAIL)跑一遍,證明管線與判準有牙。
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, readdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdirSync, readdirSync, writeFileSync, rmSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
@@ -66,6 +66,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   else {
     const video = args.find(a => !a.startsWith('--') && /\.(mp4|mov|m4v|webm)$/i.test(a));
     if (!video) { console.error('用法:node scripts/analyze_device_recording.mjs <影片.mp4> [--fps 10] [--dpr 3] [--threshold 2] [--out 目錄]\n      node scripts/analyze_device_recording.mjs --selftest'); process.exit(2); }
+    // iPhone 螢幕錄影預設檔名有空格(ScreenRecording_09-03-2026 16-43-18_1.MP4),沒加引號會被 shell 切成兩段;先驗檔案在不在,不要留 ffprobe 的堆疊給使用者猜。
+    if (!existsSync(video)) { console.error(`找不到影片:${path.resolve(video)}\n  收到的參數:${JSON.stringify(args)}\n  檔名有空格要整段加引號(或把檔案拖進終端機讓它自動跳脫)`); process.exit(2); }
     const out = opt('--out', path.join(path.dirname(path.resolve(video)), path.basename(video).replace(/\.[^.]+$/, '') + '-align'));
     mkdirSync(out, { recursive: true });
     const r = await analyze(path.resolve(video), out);
