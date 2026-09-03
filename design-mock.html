@@ -4433,7 +4433,7 @@
 
 <nav class="mock-nav">
   <b>軌島 design-mock</b>
-  <a href="#s-tokens">Tokens</a><a href="#s-desktop">桌面</a><a href="#s-controls-overflow">議題1溢出</a><a href="#s-follow">跟隨</a><a href="#s-mobile">手機</a><a href="#s-mobile-fs">手機改版</a><a href="#s-panels">面板</a><a href="#s-passport">護照</a><a href="#s-new">新表面</a><a href="#s-music">配樂情境</a><a href="#s-ambient">放空/直播</a><a href="#s-specimen">Specimen</a><a href="#s-accept">驗收</a>
+  <a href="#s-tokens">Tokens</a><a href="#s-desktop">桌面</a><a href="#s-controls-overflow">議題1溢出</a><a href="#s-follow">跟隨</a><a href="#s-mobile">手機</a><a href="#s-mobile-fs">手機改版</a><a href="#s-panels">面板</a><a href="#s-passport">護照</a><a href="#s-new">新表面</a><a href="#s-music">配樂情境</a><a href="#s-specimen">Specimen</a><a href="#s-accept">驗收</a>
   <button id="mockTheme" onclick="var h=document.documentElement;h.dataset.theme=h.dataset.theme==='dark'?'light':'dark';this.textContent=h.dataset.theme==='dark'?'☀ 亮':'☾ 暗'">☾ 暗</button>
 </nav>
 
@@ -5127,11 +5127,11 @@
       <div class="spm">
         <h4>合併契約與鐵則自查</h4>
         <div class="spm-row" style="display:block;line-height:1.95">
-          ① <b>觸發</b>：boot 於 ≤MOBILE_MQ(900) 加 <span class="val">body.fs</span>，resize 跨界同步；fs 不寫入 URL——boot／<span class="val">?live</span>／分享連結契約零改動（share-link-url-contract）。<br>
+          ① <b>觸發</b>：boot 於 ≤MOBILE_MQ(900) 加 <span class="val">body.fs</span>，resize 跨界同步；fs 不寫入 URL——boot／分享連結契約零改動（share-link-url-contract）。<br>
           ② <b>隱藏機制</b>：長頁區塊沿用既有 <span class="val">body.fs</span> 的 display:none 規則＝新增規則趨零；<span class="val">.wrap</span> 手機停捲，捲動全部發生在 sheet 內。<br>
           ③ <b>sheet 雙段高</b>：46% peek ⇄ 88% 展開（拖抓把／點標題列）；展開態加 <span class="val">body.sheet-full</span>，跟隨小卡＋膠囊 opacity 0（46% 讓位規則保留）。<span class="val">soloPanel()</span> 名單＋「列車」；<span class="val">updateSheetOpenClass()</span> 契約不變。<br>
           ④ <b>手勢根治</b>：sheet 內容 <span class="val">overflow:auto</span>＋<span class="val">overscroll-behavior:contain</span>——內容捲動只在 sheet、地圖手勢只在 sheet 外，「下滑被地圖吃掉」不再發生。<br>
-          ⑤ <b>鐵則</b>：看板／列車／護照 ✕與☆ 皆在 sticky 標題列（metro-arrival-board）；mapPane transform 零觸碰（mobile-powersave-freeze）；<span class="val">#systems</span> 靜態預置塊隨遷頂浮動列、boot 前同位（cls-static-placeholder，CLS 重驗）；公告橫幅位移鏈（alert-banner→dwell-plate／xing-help／#randBtn）基準隨頂列下移重調；桌面 ≥901 與直播 <span class="val">?live</span> 全部不動。<br>
+          ⑤ <b>鐵則</b>：看板／列車／護照 ✕與☆ 皆在 sticky 標題列（metro-arrival-board）；mapPane transform 零觸碰（mobile-powersave-freeze）；<span class="val">#systems</span> 靜態預置塊隨遷頂浮動列、boot 前同位（cls-static-placeholder，CLS 重驗）；公告橫幅位移鏈（alert-banner→dwell-plate／xing-help／#randBtn）基準隨頂列下移重調；桌面 ≥901 全部不動。<br>
           ⑥ <b>狀態列／動態島</b>：viewport-fit=cover 下地圖直抵螢幕頂，島旁顏色＝<span class="val">--map-bg</span> 隨亮暗主題連動——<span class="val">&lt;meta name="theme-color"&gt;</span> 由 JS 隨主題改寫（亮 <span class="val">#F2EDE2</span>／暗 <span class="val">#10141c</span>），iOS 殼 statusBarStyle 亮＝darkContent／暗＝lightContent，PWA standalone 同步。
         </div>
       </div>
@@ -5405,62 +5405,6 @@
   </div>
 </section>
 
-<!-- ═══════ 08 · 放空模式 × 直播 HUD ═══════ -->
-<section class="mock-sec" id="s-ambient">
-  <div class="mock-h"><span class="mock-no">08</span>放空模式（日夜天色）× 直播 HUD（?live=1 · 1080p）</div>
-  <div class="mock-row">
-    <div>
-      <div class="mock-note" style="margin:0 0 8px">放空 · 黃昏 18:48（#skyTint 暮色紫 rgba(84,58,110,.22)；body.idle 控件淡出）</div>
-      <div style="position:relative;width:700px;height:340px;border-radius:14px;overflow:hidden;border:1.5px solid var(--line);background:#0B1120">
-        <div style="position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 89px,rgba(140,170,230,.07) 89px 90px),repeating-linear-gradient(0deg,transparent 0 77px,rgba(140,170,230,.06) 77px 78px)"></div>
-        <svg width="700" height="340" viewBox="0 0 700 340" style="position:absolute;inset:0" aria-hidden="true">
-          <path d="M-20 270 L340 180 L720 100" fill="none" stroke="#0B1120" stroke-width="8.5" stroke-linecap="round"></path>
-          <path d="M-20 270 L340 180 L720 100" fill="none" stroke="#E0604E" stroke-width="4.4" stroke-linecap="round"></path>
-        </svg>
-        <div style="position:absolute;left:196px;top:212px;width:120px;height:8px;transform:rotate(-14deg);background:linear-gradient(90deg,rgba(192,57,43,0),rgba(192,57,43,.65));border-radius:4px"></div>
-        <div style="position:absolute;left:305px;top:212px;transform:rotate(-14deg);background:#C0392B;border:1.5px solid rgba(16,20,28,.9);border-radius:7.5px;height:15px;display:flex;align-items:center;padding:0 5px;font-size:10px;font-weight:700;color:#fff;box-shadow:0 0 12px rgba(192,57,43,.55)">431</div>
-        <div id="skyTint" style="position:absolute;inset:0;background:rgba(84,58,110,.22);z-index:550;pointer-events:none"></div>
-        <div style="position:absolute;top:12px;left:12px;z-index:600;display:flex;align-items:baseline;gap:8px;background:rgba(20,29,49,.9);border:1px solid #2A3B5C;border-radius:8px;padding:6px 13px">
-          <b class="num" style="font-size:20px;font-weight:900;color:#ECF0F8">18:48</b><span style="font-size:10px;font-weight:800;color:#3DBF77">● LIVE</span>
-        </div>
-        <div style="position:absolute;left:12px;bottom:12px;z-index:650;background:rgba(20,29,49,.9);border:1px solid #2A3B5C;border-radius:10px;padding:9px 13px;display:flex;align-items:center;gap:9px">
-          <span style="width:8px;height:8px;border-radius:50%;background:#C0392B;box-shadow:0 0 8px rgba(192,57,43,.8)"></span><b style="font-size:13px;color:#ECF0F8">431</b>
-          <b class="num" style="font-size:18px;font-weight:900;color:#F0564A">98<small style="font-size:8px;color:#93A3C0"> km/h</small></b>
-          <span style="font-size:11px;color:#93A3C0">下一站 枋寮</span>
-        </div>
-        <button style="position:absolute;right:12px;bottom:12px;z-index:650;background:rgba(20,29,49,.9);border:1px solid #2A3B5C;border-radius:999px;color:#93A3C0;font-size:11.5px;font-weight:700;padding:7px 14px;opacity:.6">離開放空</button>
-      </div>
-      <div style="display:flex;align-items:center;gap:10px;margin-top:10px">
-        <span style="flex:1;height:14px;border-radius:7px;background:linear-gradient(90deg,#0E1830 0%,#0E1830 20%,#FFB06E 27%,#F7F0DD 33%,#F7F0DD 66%,#FFAA5A 73%,#543A6E 78%,#0E1830 86%,#0E1830 100%)"></span>
-      </div>
-      <div class="mock-note" style="margin-top:4px">skyTint 9 停靠點連續內插：深夜藍 .34 → 黎明橘 .12（6.5 時）→ 白晝透明（8–16）→ 黃昏橘 .13（17.5）→ 暮色紫 .22（18.8）→ 夜藍。放空手機版：控制列只留「離開放空」、跟隨卡精簡（隱藏進度/終點/車種）。</div>
-    </div>
-    <div>
-      <div class="mock-note" style="margin:0 0 8px">?live=1 · 1920×1080 @ 50%（標注值＝1080p 實尺；互動 UI 全隱）</div>
-      <div style="position:relative;width:700px;height:394px;border-radius:14px;overflow:hidden;border:1.5px solid var(--line);background:#F4F5F1">
-        <div style="position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 60px,rgba(21,25,30,.06) 60px 61px),repeating-linear-gradient(0deg,transparent 0 52px,rgba(21,25,30,.05) 52px 53px)"></div>
-        <svg width="700" height="394" viewBox="0 0 700 394" style="position:absolute;inset:0" aria-hidden="true">
-          <path d="M-20 300 L340 210 L720 130" fill="none" stroke="#F4F5F1" stroke-width="5.6"></path>
-          <path d="M-20 300 L340 210 L720 130" fill="none" stroke="#5F6B7A" stroke-width="3"></path>
-          <path d="M-20 350 L360 270 L720 200" fill="none" stroke="#F4F5F1" stroke-width="5.6"></path>
-          <path d="M-20 350 L360 270 L720 200" fill="none" stroke="#E3002C" stroke-width="3" opacity=".9"></path>
-        </svg>
-        <div style="position:absolute;left:300px;top:242px;background:#C0392B;border:1.5px solid #FFFDF6;border-radius:7.5px;height:15px;display:flex;align-items:center;padding:0 5px;font-size:10px;font-weight:700;color:#fff;transform:rotate(-13deg)">431</div>
-        <div style="position:absolute;left:430px;top:280px;background:#E3002C;border:1.5px solid #FFFDF6;border-radius:7.5px;height:15px;display:flex;align-items:center;padding:0 5px;font-size:10px;font-weight:700;color:#fff;transform:rotate(-12deg)">R28</div>
-        <div style="position:absolute;top:16px;left:16px;display:flex;align-items:baseline;gap:12px;background:#FFFDF6;border:2px solid #C9B98F;border-radius:12px;box-shadow:0 3px 0 #C9B98F;padding:10px 20px">
-          <b class="num" style="font-size:23px;font-weight:900;color:#1E2C40">13:22</b>
-          <span style="font-size:11px;font-weight:800;color:#1B8F4D">● LIVE</span>
-          <span style="font-size:10px;font-weight:900;color:#FFFDF6;background:#D23C2A;border-radius:3px;padding:0 6px">REPLAY</span>
-          <span class="num" style="font-size:10.5px;color:#8A7C62">138 班奔跑中</span>
-        </div>
-        <div style="position:absolute;left:16px;top:74px;font-size:12px;font-weight:800;letter-spacing:1px;color:rgba(30,44,64,.75)">railisland.tw</div>
-        <div style="position:absolute;right:10px;bottom:8px;background:rgba(247,240,221,.92);border-radius:4px;padding:2px 8px;font-size:8px;color:#7A6C50">Leaflet | © OpenStreetMap © CARTO, 資料: 交通部TDX</div>
-      </div>
-      <div class="mock-note" style="margin-top:8px">1080p 實尺：時鐘 <span class="mock-kbd">46px/900</span>、LIVE <span class="mock-kbd">22px</span>、REPLAY 紅標 <span class="mock-kbd">20px</span>、浮水印 <span class="mock-kbd">24px/800</span>、attribution <span class="mock-kbd">16px</span>（圖示比例=50% 縮放）。深夜 00:45–05:15 自動 REPLAY（貼 08:00 尖峰）。導播模式（?live=2&amp;k=）另開列車卡與站介紹。三元素（時鐘徽章／浮水印／attribution）為直播契約，不可移除。</div>
-    </div>
-  </div>
-</section>
-
 <!-- ═══════ 09 · 合規頁樣式 ═══════ -->
 <section class="mock-sec" id="s-legal">
   <div class="mock-h"><span class="mock-no">09</span>合規頁（app-support / account-deletion）— 同 token 的單欄文件版式</div>
@@ -5651,7 +5595,7 @@
         <b style="color:var(--ink-strong)">提案規格：</b>　新增 class <span class="val">.peak.sim</span>（掛在既有 <span class="val">.peak</span> 上，只給「模擬／深夜重播」用）。亮：<span class="val">background #E4E9F2</span>／<span class="val">color #3A5680</span>／<span class="val">border 1px #B9C6DC</span>；暗：<span class="val">background rgba(127,166,224,.16)</span>／<span class="val">color #B9CEF0</span>／<span class="val">border 1px rgba(127,166,224,.42)</span>（CSS 已寫入 §01 區）。
       </div>
       <div class="spm-row" style="margin-top:6px">
-        合併作法：<span class="val">hot()</span> 遇「模擬／深夜重播」分支時<b>不要</b>寫 inline <span class="val">background/color</span>（否則會蓋過 class），改為 <span class="val">el.classList.add('sim')</span>；捷運「尖峰」分支維持原 hot() 紅底不動。若不便改結構，也可直接把該分支的 inline 值換成上列亮／暗色值（依 <span class="val">html[data-theme]</span> 二選一）。<br>註：<span class="val">?live=1</span> 的 <span class="val">.badge .replay</span> 紅標屬直播殼（本輪不動），與此 <span class="val">.peak</span> 為不同元件。
+        合併作法：<span class="val">hot()</span> 遇「模擬／深夜重播」分支時<b>不要</b>寫 inline <span class="val">background/color</span>（否則會蓋過 class），改為 <span class="val">el.classList.add('sim')</span>；捷運「尖峰」分支維持原 hot() 紅底不動。若不便改結構，也可直接把該分支的 inline 值換成上列亮／暗色值（依 <span class="val">html[data-theme]</span> 二選一）。
       </div>
     </div>
 
@@ -5666,7 +5610,6 @@
     ☑ 元素 id 與 §6A 狀態 class 原封（active／off／on／fp-min／unlocked／sheet-open…；dark/sat 掛 .stage 不掛 body）<br>
     ☑ 自包含：無 CDN、無外部字體、無網路請求；系統字棧不變<br>
     ☑ 資料驅動色未寫死進 CSS——車種/路線色僅 inline 示意並註記；車牌文字黑白公式保留<br>
-    ☑ ?live=1 HUD 三元素俱在且 1080p 實尺標注（時鐘 46／浮水印 24／attribution 16）<br>
     ☑ 跟隨面板型測試：最長車種名（E500 新編組）折行不省略、4 位車次＋3 位時速卡寬恆定（240/300/176）<br>
     ☑ #systems 頁籤與 #lead 靜態預置維持（預設群組文案未改動——若改需同步兩處，CLS 約束）<br>
     ☑ iOS safe area：頂 44／底 home indicator 讓位；觸控目標 ≥44px；省電模式手機預設開<br>

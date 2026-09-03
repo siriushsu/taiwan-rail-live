@@ -34,7 +34,7 @@
 5. **捲軸鐵則**：工具帶的 6px 常駐細捲軸是自訂 `::-webkit-scrollbar`；
    **不可新增標準 `scrollbar-width` / `scrollbar-color`**（Blink 一設標準屬性，
    自訂捲軸整條隱形，這是踩過的坑）。
-6. `?live=1` 是 OBS 訊號源契約：live 殼的版面不在本輪範圍，別動。
+6. OBS 直播殼（`?live=1`）已於 2026-09-03 刪除；`body.live`、`.live-hud` 不再存在，設計稿不必再為它留版面。
 
 ## 設計語彙（第四輪定調，可微調不可翻盤）
 

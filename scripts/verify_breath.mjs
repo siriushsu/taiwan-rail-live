@@ -166,25 +166,7 @@ async function tileState(page) {
     await b.page.context().close();
   }
 
-  // ── T4 不越界:?live=1 永不進呼吸;enterTheater 時呼吸讓位(transform 已清、_theater=true) ──
-  {
-    const c2 = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2 });
-    await c2.addInitScript(() => { localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-ambient-style', 'hotspot'); });
-    const lp = await c2.newPage();
-    await lp.goto(`http://localhost:${PORT}/?live=1&breath=1`, { waitUntil: 'domcontentloaded' });
-    await lp.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready && map; } catch (e) { return false; } }, null, { timeout: 30000 });
-    const liveRes = await lp.evaluate(() => new Promise(resolve => {
-      state.ambient = true; state.ambientStyle = 'hotspot'; state.playing = true; state.followTrain = null; state.freqFollow = null;
-      state._hotFresh = true; state._hotScene = null; state._hotNext = 0;
-      let bad = false, ticks = 0;
-      const iv = setInterval(() => {
-        if (state._breathStage || (state._hotScene && state._hotScene.breath)) bad = true;
-        if (++ticks >= 30) { clearInterval(iv); resolve({ live: state.liveMode, bad }); }
-      }, 100);
-    }));
-    ok('chromium T4a ?live=1 永不進呼吸幕', liveRes.live === true && liveRes.bad === false, JSON.stringify(liveRes));
-    await c2.close();
-  }
+  // ── T4 不越界:enterTheater 時呼吸讓位(transform 已清、_theater=true) ──
   {
     const b = await bootBreath(browser, { width: 1280, height: 800, forceCity: 'taipei', bt: 37.5 });
     const th = await b.page.evaluate(() => {
