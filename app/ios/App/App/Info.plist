@@ -52,6 +52,8 @@
 	<!-- 所有定位仍只在前景。一般藍點不離開裝置；整段旅程的手機位置必須在分享面板另行勾選。 -->
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>軌島會在你使用 App 時更新地圖藍點、所在地鏡頭與附近車站。只有你另行開啟旅程的即時位置分享時，最新位置才會傳給持有短效連結的人；進入背景或鎖屏即停止。</string>
+	<!-- Capacitor Geolocation binary 會引用 Always API，Apple 上傳驗證因此要求這個用途鍵；
+	     產品程式仍只請求 When In Use，UIBackgroundModes 也沒有 location。 -->
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>軌島不會要求「永遠允許」或在背景持續定位。一般藍點只留在裝置內；只有你另行開啟旅程的即時位置分享時，才會在 App 前景傳送最新位置。</string>
 	<!-- 背景音訊：使用者開著背景音樂把 App 收起或鎖定螢幕時繼續播放（比照一般音樂 App）。

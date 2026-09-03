@@ -7,6 +7,9 @@ const packageJson = JSON.parse(fs.readFileSync(new URL('../package.json', import
 const ship = fs.readFileSync(new URL('./ship_web.mjs', import.meta.url), 'utf8');
 const all = fs.readFileSync(new URL('./verify_bus_transfer_all.mjs', import.meta.url), 'utf8');
 const index = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+const nativeBridge = fs.readFileSync(new URL('../app/src/native-bridge.mjs', import.meta.url), 'utf8');
+const androidManifest = fs.readFileSync(new URL('../app/android/app/src/main/AndroidManifest.xml', import.meta.url), 'utf8');
+const iosInfo = fs.readFileSync(new URL('../app/ios/App/App/Info.plist', import.meta.url), 'utf8');
 
 assert.equal(packageJson.scripts?.['check-bus-transfer'], 'node scripts/verify_bus_transfer_all.mjs',
   'package.json 必須保留公車轉乘總驗收入口');
@@ -61,5 +64,34 @@ assert.doesNotMatch(index, /RAIL_NATIVE_JOURNEY_SHARE/,
   '目前只允許前景定位；不得留下未實作或會暗示鎖屏背景定位的原生分享橋接');
 assert.match(index, /id="journeyShareLocation" type="checkbox"/,
   '手機位置必須是獨立、預設未勾選的 checkbox，不能跟建立分享連結綁成預設同意');
+
+// 旅程分享不只要在 Web 成立：兩個原生殼都必須實際掛上定位與系統分享，
+// 而且權限只能到使用期間。iOS 的 Always 用途鍵是 Apple 掃 binary 引用所要求，
+// 不代表 App 可以請求 Always；真正的不變條件是 bridge 不呼叫 requestAlways，且
+// UIBackgroundModes 不含 location。少任一邊，網頁測試仍會全綠，實體 App 卻會失效或過度要求權限。
+assert.match(nativeBridge, /window\.RAIL_NATIVE_GEOLOCATION\s*=\s*\{/,
+  'App 原生 bridge 必須對 iOS／Android 掛出 RAIL_NATIVE_GEOLOCATION');
+assert.match(nativeBridge, /window\.RAIL_NATIVE_SHARE\s*=\s*\{/,
+  'App 原生 bridge 必須對 iOS／Android 掛出系統分享');
+assert.doesNotMatch(nativeBridge, /requestAlways(?:Authorization|Permission)?/i,
+  '旅程位置只允許前景使用，原生 bridge 不得請求 Always 定位');
+assert.match(androidManifest, /android\.permission\.ACCESS_COARSE_LOCATION/,
+  'Android 必須宣告使用期間的大致定位權限');
+assert.match(androidManifest, /android\.permission\.ACCESS_FINE_LOCATION/,
+  'Android 必須宣告使用期間的精確定位權限');
+assert.doesNotMatch(androidManifest, /ACCESS_BACKGROUND_LOCATION|FOREGROUND_SERVICE_LOCATION/,
+  'Android 不得宣告背景定位或定位前景服務');
+assert.match(iosInfo, /<key>NSLocationWhenInUseUsageDescription<\/key>/,
+  'iOS 必須宣告 When In Use 定位用途');
+assert.match(iosInfo, /<key>NSLocationAlwaysAndWhenInUseUsageDescription<\/key>/,
+  'Capacitor Geolocation binary 會引用 Always API，iOS 上傳驗證要求保留對應用途鍵');
+assert.doesNotMatch(iosInfo, /<string>location<\/string>/,
+  'iOS UIBackgroundModes 不得加入 location；手機位置只能在 App 前景更新');
+
+// 車站名來自資料源，t() 只做翻譯插值，不會逃脫 HTML；showToast 會進 innerHTML。
+// App 發行閤門曾實際擋下這個漏洞，這裡再綁定轉乘功能本身，避免只跑 Web 出貨鏈時沒看到。
+assert.match(index,
+  /showToast\(t\('已設定在 \{station\} 接公車', \{ station: escHtml\(target\.stationName\) \}\)\)/,
+  '設定轉乘站的 toast 必須先 escHtml 站名，不得把資料值直接送進 innerHTML');
 
 console.log('公車轉乘出貨鏈掛載守門通過。');

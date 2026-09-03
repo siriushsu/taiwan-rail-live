@@ -26249,7 +26249,7 @@ function busTransferStartJourney(tr, stopIndex) {
   document.getElementById('fpBusBox').hidden = true;
   busTransferUpdateControl(tr);
   syncBusTransferJourney(tr, true);
-  showToast(t('已設定在 {station} 接公車', { station: target.stationName }));
+  showToast(t('已設定在 {station} 接公車', { station: escHtml(target.stationName) }));
   return true;
 }
 function busTransferTrainEta(tr, target, remainSec) {
