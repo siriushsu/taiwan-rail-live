@@ -6381,7 +6381,7 @@ function setSpeed(v) {
 // 降回 <30× 即解除上限,並還原到加速前的縮放。用 _zoomCapped 只在跨越門檻時動作。
 const HISPEED_ZOOM_CAP = 16;
 function applySpeedZoomCap() {
-  if (!map) return;
+  if (!M) return;
   const fast = state.speedMult >= 30;
   if (fast === !!state._zoomCapped) return;
   state._zoomCapped = fast;
@@ -6465,7 +6465,7 @@ function textColorFor(hex) {
 }
 
 function reproject() {
-  if (!map || !state.data) return;
+  if (!M || !state.data) return;
   if (state._zoomAnim && !state._zaDrive) return; // 縮放動畫進行中:重投影只准由 zoomAnimFrame 驅動(仿射已掛進投影);其他來源(move/resize)此時進來會用凍結中的起始視圖算出未同步座標
   const size = M.getSize();
   state.dpr = Math.min(window.devicePixelRatio || 1, 2); // 主畫布 dpr 上限 2x
@@ -6520,10 +6520,10 @@ function zaParseMat(el) { // computed transform → {k(等比縮放),ux,uy(平�
 // 量 rect 則把整條祖先鏈的變換一次算進來,而且判準來源是「實際佈局」不是任何投影公式(刻意不同源)。
 // 目前掛在地圖上的 OSM 向量底圖畫布(沒走向量就回 null)。縮放同步標定要認得動的是哪個元素。
 function ofmActiveCanvas() {
-  if (!map) return null;
+  if (!M || !M.leaflet) return null;
   for (const k of ['light', 'dark']) {
     const l = baseLayers[k];
-    if (l && l._glMap && map.hasLayer(l)) return l._glMap._actualCanvas || (l._glMap.getCanvas && l._glMap.getCanvas()) || null;
+    if (l && l._glMap && M.leaflet.hasLayer(l)) return l._glMap._actualCanvas || (l._glMap.getCanvas && l._glMap.getCanvas()) || null;
   }
   return null;
 }
@@ -6562,7 +6562,7 @@ function zoomAnimFrame() {
     d1x = g.x + k0 * Z.q1x; d1y = g.y + k0 * Z.q1y;
     d2x = g.x + k0 * Z.q2x; d2y = g.y + k0 * Z.q2y;
   } else {
-    const m = zaParseMat(Z.el), pp = map._getMapPanePos();
+    const m = zaParseMat(Z.el), pp = M.leaflet._getMapPanePos();
     d1x = m.k * Z.q1x + m.ux + pp.x; d1y = m.k * Z.q1y + m.uy + pp.y;
     d2x = m.k * Z.q2x + m.ux + pp.x; d2y = m.k * Z.q2y + m.uy + pp.y;
   }
@@ -10315,7 +10315,7 @@ function clearFreqFollow() {
   state.freqFollow = null;
   syncPanFence(); // 捷運停跟:恢復台灣平移硬牆(若非台鐵/高鐵跟隨中)
   const c = document.getElementById('freqCard'); if (c) c.hidden = true;
-  const cnt = map && M.getContainer(); if (cnt && cnt.style.cursor) cnt.style.cursor = '';
+  const cnt = M && M.getContainer(); if (cnt && cnt.style.cursor) cnt.style.cursor = '';
   updateFollowLockUI();
 }
 // 捷運跟車卡的車廂擁擠度。與車站看板吃【同一份】state.trtcOfficialBoard.crowdByNo(逐車 join),
@@ -11759,7 +11759,7 @@ function geoPermissionDenied(err) {
   return !!err && (err.code === 1 || /permission|denied|拒絕|權限/i.test(String(err.message || err)));
 }
 function geoCameraCanFollow() {
-  return !!(state.geoFollow && state.ready && map && !document.hidden && !state.followTrain && !state.freqFollow &&
+  return !!(state.geoFollow && state.ready && M && !document.hidden && !state.followTrain && !state.freqFollow &&
     !state.autoTour && !state.ambient && !state._transition);
 }
 function updateGeoCamera(loc) {
@@ -14062,17 +14062,18 @@ const setupNativePlacesSync = (() => {
 })();
 function pinSavedIdx(lat, lon) { return loadPins().findIndex(p => Math.abs(p.lat - lat) < 1e-6 && Math.abs(p.lon - lon) < 1e-6); }
 function openPinAt(lat, lon) { // 落/移釘 → 開卡(右上欄諸卡擇一)
+  if (!M.leaflet) return; // 釘圖 marker 是 Leaflet 專屬(M1 marker 批次改引擎中立)
   soloPanel('pin');
   closeBoard(); closeCrossingCard(); closeNearbyStations(); closeSugarCard();
-  if (pinDraft && pinDraft.marker) map.removeLayer(pinDraft.marker);
-  const mk = L.marker([lat, lon], { icon: pinIcon(false), draggable: true, zIndexOffset: 1000 }).addTo(map);
+  if (pinDraft && pinDraft.marker) M.leaflet.removeLayer(pinDraft.marker);
+  const mk = L.marker([lat, lon], { icon: pinIcon(false), draggable: true, zIndexOffset: 1000 }).addTo(M.leaflet);
   pinDraft = { lat, lon, marker: mk };
   mk.on('dragend', () => { const ll = mk.getLatLng(); pinDraft.lat = ll.lat; pinDraft.lon = ll.lon; renderPinCard(); });
   renderPinCard();
   syncPinHint();   // 卡開起來了 ⇒ 提示條讓位(同一個槽位)
 }
 function closePinCard() {
-  if (pinDraft && pinDraft.marker) map.removeLayer(pinDraft.marker);
+  if (pinDraft && pinDraft.marker && M.leaflet) M.leaflet.removeLayer(pinDraft.marker);
   pinDraft = null;
   const el = document.getElementById('pinCard'); if (el) { el.hidden = true; el.innerHTML = ''; }
   syncPinHint();
@@ -14199,10 +14200,10 @@ function gotoSavedPin(key) {
   openPinAt(p.lat, p.lon);
 }
 function renderSavedPins() { // 已存地點:恆掛地圖的釘,點了重開卡;預測只在 sched,捷運頁不掛
-  pinSaved.forEach(m => map.removeLayer(m)); pinSaved = [];
+  if (!M.leaflet) return; pinSaved.forEach(m => M.leaflet.removeLayer(m)); pinSaved = [];
   if (state.mode !== 'sched') return;
   for (const p of loadPins()) {
-    const mk = L.marker([p.lat, p.lon], { icon: pinIcon(true), zIndexOffset: 900 }).addTo(map);
+    const mk = L.marker([p.lat, p.lon], { icon: pinIcon(true), zIndexOffset: 900 }).addTo(M.leaflet);
     if (p.label) mk.bindTooltip(escHtml(String(p.label)), { direction: 'top', offset: [0, -12] });
     mk.on('click', () => { M.panTo([p.lat, p.lon]); openPinAt(p.lat, p.lon); });
     pinSaved.push(mk);
@@ -14326,9 +14327,9 @@ function tickCore(now) {
   }
   if (state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain && !state.freqFollow &&
       state.mode === 'sched' && state.playing) { hotspotTick(now); hotCruise(dt, now); }
-  else if (map && state._breathStage) breathStageRestore(); // 離開群車放空時,呼吸幕殘留的 CSS scale/舞台旗標兜底還原(安全網:漏掉任一離場點也不會把縮放或旗標交到使用者手上)
+  else if (M && state._breathStage) breathStageRestore(); // 離開群車放空時,呼吸幕殘留的 CSS scale/舞台旗標兜底還原(安全網:漏掉任一離場點也不會把縮放或旗標交到使用者手上)
   // 同一種安全網,給手勢鎖:放空已關但手勢還鎖著(漏掉離場點/setAmbient 中途拋例外)⇒ 地圖會變成永久動不了,立刻交還
-  if (!state.ambient && map && map.dragging && !map.dragging.enabled()) setMapGestures(true);
+  if (!state.ambient && M.leaflet && M.leaflet.dragging && !M.leaflet.dragging.enabled()) setMapGestures(true);
   // 省電模式:把「相機每幀 setView 置中(觸發 reflow,手機跟隨時的主要卡點)＋繪製」統一節流到 ~30fps。
   // 放空不套(放空游標以 dt 積分,節流會變慢);時間積分與各資訊卡時鐘照每幀跑,不受影響。
   const psActive = state.powerSave && !state.ambient;
@@ -14644,7 +14645,7 @@ const CITY_LIST = [
   ['taitung','台東'],
 ];
 function flyToCity(id) {
-  if (!map || !id) return;
+  if (!M || !id) return;
   const b = CITY_BBOX[id]; if (!b) return;
   if (state.autoTour) setAutoTour(false); // 手動書籤即接手,退出隨機/放空巡航(比照換系統)
   M.flyToBounds(M.latLngBounds([[b[0], b[1]], [b[2], b[3]]]), { padding: [30, 30], duration: 0.8, maxZoom: 13 });
@@ -14893,7 +14894,7 @@ function renderTopTabs(cur) {
 // 用軌道形狀點(shape)而非只用車站:停在高鐵雲林－嘉義那種長站距的線上時,仍算「看得見」。
 // 幾何一點都取不到(理論上不會,boot 已載齊 _track)就回 true:寧可保留視野,不要無謂跳動。
 function groupInView(g) {
-  if (!map) return false;
+  if (!M) return false;
   const ids = g.members.length ? g.members : state.systems.map(s => s.id); // all 群 members 為空 = 全部系統
   const b = M.getBounds(), s = b.getSouth(), n = b.getNorth(), w = b.getWest(), e = b.getEast();
   let pts = 0;
@@ -15582,7 +15583,7 @@ function breathScale(s) { // 對 #map+#overlay 同幀施加等值 CSS scale(s=1 
   m.style.transform = v; o.style.transform = v;
 }
 function breathStage() {
-  if (!map || state._theater) return; // 劇場擁有舞台時不搶
+  if (!M || state._theater) return; // 劇場擁有舞台時不搶
   const first = !state._breathStage;
   state._breathStage = true; // 供互動第一擊座標歸位監聽 + latLngToContainerPoint 浮點包裝辨識
   if (first) { // transformOrigin 進場設一次(兩元素同 box、inset:0)→ 繞 stage 中心等值縮放,跨層鎖定
@@ -15591,7 +15592,7 @@ function breathStage() {
   }
 }
 function breathStageRestore() {
-  if (!map || !state._breathStage) return; // 冪等:沒上過台就不動
+  if (!M || !state._breathStage) return; // 冪等:沒上過台就不動
   state._breathStage = false;
   breathScale(1); // 清 CSS scale,地圖回 z13 原尺寸
   state._bpZ = null; // 清投影中心快取,下次呼吸重算
@@ -15806,7 +15807,7 @@ function camBlocked() { return !!state._theater || document.hidden; }
 // 車輛照常在上面跑。省磚原理從「卸掉圖磚層」換成「相機不動就不會有新圖磚」:全島視角是最低 zoom 的固定一屏
 // (數十張),且 Stadia 回 max-age=21600(6 小時),第二次進場之後幾乎全走瀏覽器快取。
 function enterTheater() {
-  if (!state.ambient || state._theater || !map) return; // 非放空一律不進
+  if (!state.ambient || state._theater || !M) return; // 非放空一律不進
   state._theater = true;
   breathStageRestore();    // 呼吸舞台交棒給劇場:清 CSS scale + 旗標(_theater 已真→內部跳過 setBasemap)
   document.body.classList.add('theater');
@@ -15862,9 +15863,9 @@ function ambientIdleReset() {
 // 但兩個視角行為不一致本身就是坑,一併鎖。
 const MAP_GESTURES = ['dragging', 'touchZoom', 'doubleClickZoom', 'scrollWheelZoom', 'boxZoom', 'keyboard'];
 function setMapGestures(on) {
-  if (!map) return;
+  if (!M || !M.leaflet) return; // Leaflet handler 物件(dragging/touchZoom…);MapLibre 在 M0b 的 createMaplibreEngine 內另設
   for (const k of MAP_GESTURES) {
-    const h = map[k];
+    const h = M.leaflet[k];
     if (h && typeof h.enable === 'function') on ? h.enable() : h.disable();
   }
 }
@@ -17510,14 +17511,14 @@ function favStationHere(f) { // 解析目前檢視能開板的站物件;開不�
   return state.schedStations.find(s => s.name === f.name && s.sys === f.sys) || null;
 }
 function renderFavStationMarkers() {
-  favStMarks.forEach(m => map.removeLayer(m)); favStMarks = [];
+  if (!M.leaflet) return; favStMarks.forEach(m => M.leaflet.removeLayer(m)); favStMarks = [];
   for (const f of loadFavStations()) {
     const st = favStationHere(f);
     if (!st) continue;
     const mk = L.marker([f.lat, f.lon], {
       icon: L.divIcon({ className: 'favst-ico', html: railIcon('ui-favorite', 'ri-icon--fill'), iconSize: [16, 16], iconAnchor: [8, 19] }), // 錨在站點上方一點,不壓站上的列車
       zIndexOffset: 880, keyboard: false,
-    }).addTo(map);
+    }).addTo(M.leaflet);
     mk.on('click', () => openBoard(favStationHere(f) || st)); // 點 ★=明確要看板,不經車/站歧義判定
     favStMarks.push(mk);
   }
@@ -21504,7 +21505,7 @@ const MIN_MAP_STRIP = 64;
 // 對策沿用自癒的哲學——量結果不猜時序:每 200ms 比對 Leaflet 尺寸與容器實測尺寸,不一致就重量。
 // invalidateSize 會發 move/resize,既有接線(M.on('move zoom resize', reproject))自動重投影配畫布。
 function syncMapSizeIfStale() {
-  if (!map) return false;
+  if (!M) return false;
   const el = M.getContainer(), cw = el.clientWidth, ch = el.clientHeight;
   if (!cw || !ch) return false; // 容器暫時沒有版面(隱藏/未掛載):不是過期,不要動
   const sz = M.getSize();
@@ -21642,10 +21643,11 @@ function focusShiftHave() { return state._focusShift || { x: 0, y: 0 }; }
 //    對策:算完就問 Leaflet 夾不夾,夾了就把「實際做得到的位移」回寫成事實來源,帳面永遠等於實況。
 function focusApplyLimit(target, zz, want) {
   let got = want;
+  if (!M.leaflet) { state._focusShift = got; return target; } // _limitCenter 是 Leaflet 私有 API;MapLibre 版在 M1 改用 padding
   try {
-    const mb = map.options.maxBounds;
+    const mb = M.leaflet.options.maxBounds;
     if (mb) {
-      const lim = map._limitCenter(target, zz, L.latLngBounds(mb));
+      const lim = M.leaflet._limitCenter(target, zz, L.latLngBounds(mb));
       if (lim && (Math.abs(lim.lat - target.lat) > 1e-9 || Math.abs(lim.lng - target.lng) > 1e-9)) {
         // 夾住了:用夾完的中心反推「真正生效的位移」,而不是硬記想要的那個
         const pw = M.worldPx(target, zz), pg = M.worldPx(lim, zz);
@@ -21716,10 +21718,12 @@ const _warmedTiles = new Set(); // 已預熱的圖磚 URL(去重)
 let _warmZoom = null;           // 目前預熱集合對應的縮放;縮放一變即清空重來
 window.__warmedTiles = _warmedTiles; // 驗證腳本用的把手(閉包 const,外部拿不到),比照 __map/__state
 function activeBaseLayer() {
-  for (const k in baseLayers) if (map.hasLayer(baseLayers[k])) return baseLayers[k];
+  if (!M.leaflet) return null;
+  for (const k in baseLayers) if (M.leaflet.hasLayer(baseLayers[k])) return baseLayers[k];
   return null;
 }
 function warmTileWindow(minX, minY, maxX, maxY, z, layer, onLoaded) {
+  if (!M.leaflet || !layer) return; // 圖磚預熱靠 Leaflet tileLayer 的 getTileUrl;MapLibre 由 GL 自己排程(M1)
   const ts = layer.getTileSize();
   const tx0 = Math.floor(minX / ts.x), tx1 = Math.floor(maxX / ts.x);
   const ty0 = Math.floor(minY / ts.y), ty1 = Math.floor(maxY / ts.y);
@@ -22651,7 +22655,7 @@ async function pollLive() {
   if (document.hidden || state.mode !== 'sched' || !url) return;
   // cam/z:用量觀測埋點(前端半邊)——標記當前鏡頭型態與縮放,Worker 端據此讀取。僅台鐵 tra-live 帶;metro/ntm/alert 不加。
   const cam = state._theater ? 'theater' : (state.followTrain || state.freqFollow) ? 'follow' : state.ambient ? 'amb' : 'idle';
-  const reqUrl = url + (url.includes('?') ? '&' : '?') + 'cam=' + cam + '&z=' + (map ? Math.round(M.getZoom()) : 0);
+  const reqUrl = url + (url.includes('?') ? '&' : '?') + 'cam=' + cam + '&z=' + (M ? Math.round(M.getZoom()) : 0);
   try {
     const r = await fetch(reqUrl, { cache: 'no-store' });
     if (!r.ok) throw new Error(r.status);
@@ -28474,13 +28478,13 @@ function offlineLandStyle() {
   return { fillColor: '#f1f3f1', color: '#d3d9d7', fillOpacity: 1, opacity: .7, weight: 1 };
 }
 async function setupOfflineLand() {
-  const land = await fetchJSON('./data/taiwan_land.json'); if (!land || !map) return;
-  map.createPane('fallbackPane');
-  const pane = map.getPane('fallbackPane'); pane.style.zIndex = '150'; pane.style.pointerEvents = 'none';
+  const land = await fetchJSON('./data/taiwan_land.json'); if (!land || !M.leaflet) return;
+  M.leaflet.createPane('fallbackPane');
+  const pane = M.leaflet.getPane('fallbackPane'); pane.style.zIndex = '150'; pane.style.pointerEvents = 'none';
   const renderer = L.canvas({ pane: 'fallbackPane', padding: .35 });
-  state.offlineLand = L.geoJSON(land, { pane: 'fallbackPane', renderer, interactive: false, style: offlineLandStyle, smoothFactor: .5 }).addTo(map);
-  map.attributionControl.addAttribution('臺灣輪廓：內政部');  // 政府資料開放授權條款：須標示資料提供機關
-  i18nTranslateTree(map.attributionControl.getContainer());
+  state.offlineLand = L.geoJSON(land, { pane: 'fallbackPane', renderer, interactive: false, style: offlineLandStyle, smoothFactor: .5 }).addTo(M.leaflet);
+  M.leaflet.attributionControl.addAttribution('臺灣輪廓：內政部');  // 政府資料開放授權條款：須標示資料提供機關
+  i18nTranslateTree(M.leaflet.attributionControl.getContainer());
   document.querySelector('.stage').classList.add('offline-land');
 }
 
@@ -28583,8 +28587,8 @@ function satTileLoaded() {
 let satUnderlayWarmed = false;
 function warmSatUnderlay() {
   const base = satUnderlays[0];                     // 只預抓最糊的那一級(保底層),清的那級跟著瀏覽自然載入
-  if (satUnderlayWarmed || !base || !map || !map.hasLayer(base)) return;
-  const b = map.options.maxBounds;
+  if (satUnderlayWarmed || !base || !M.leaflet || !M.leaflet.hasLayer(base)) return;
+  const b = M.leaflet.options.maxBounds;
   if (!b) return;                                   // 硬牆還沒設好(boot 中途),下一次切換再說
   const z = SAT_UNDERLAY_ZS[0];
   const a = M.worldPx(b.getNorthWest(), z), c = M.worldPx(b.getSouthEast(), z);
@@ -28651,14 +28655,14 @@ function ofmFallToRaster(why) {
   for (const k of ['light', 'dark']) {
     if (!built[k]) continue;
     const old = baseLayers[k];
-    if (old && map && map.hasLayer(old)) map.removeLayer(old);
+    if (old && M.leaflet && M.leaflet.hasLayer(old)) M.leaflet.removeLayer(old);
     baseLayers[k] = built[k]();
   }
   try { console.warn('[basemap] OpenFreeMap 退場改用 raster:' + why); } catch (e) {}
   setBasemap(); // 把該顯示的那層重新掛上去(署名也會跟著換成 raster 那份)
 }
 function setBasemap() {
-  if (!map) return;
+  if (!M || !M.leaflet) return; // MapLibre 引擎的底圖切換在 M0b 於此分流
   const stage = document.querySelector('.stage');
   const online = onlineBasemapsAvailable();
   if (!online) state.basemap = 'map';
@@ -28669,15 +28673,15 @@ function setBasemap() {
   const wantLQ = !!baseLayers.satLQ && (state.followTrain || !satRetinaAllowed());
   const want = sat ? (wantLQ ? 'satLQ' : 'sat') : (state.mapDark ? 'dark' : 'light');
   for (const k in baseLayers) {
-    if (k === want) { if (!map.hasLayer(baseLayers[k])) baseLayers[k].addTo(map); }
-    else if (map.hasLayer(baseLayers[k])) map.removeLayer(baseLayers[k]);
+    if (k === want) { if (!M.leaflet.hasLayer(baseLayers[k])) baseLayers[k].addTo(M.leaflet); }
+    else if (M.leaflet.hasLayer(baseLayers[k])) M.leaflet.removeLayer(baseLayers[k]);
   }
   if (baseLayers[want] && baseLayers[want].bringToBack) baseLayers[want].bringToBack(); // MapLibre 圖層沒有 bringToBack(它本來就在 tilePane 最底)
   // 衛星縮放墊底層:只在衛星模式掛。刻意不放進 baseLayers——上面那個迴圈是「只留 want 一層」,
   // 放進去會被當成競爭者移掉,而它本來就該與主層並存(它在自己的 pane,不參與 want 的二選一)。
   for (const layer of satUnderlays) {
-    if (sat) { if (!map.hasLayer(layer)) layer.addTo(map); }
-    else if (map.hasLayer(layer)) map.removeLayer(layer);
+    if (sat) { if (!M.leaflet.hasLayer(layer)) layer.addTo(M.leaflet); }
+    else if (M.leaflet.hasLayer(layer)) M.leaflet.removeLayer(layer);
   }
   if (sat) warmSatUnderlay();
   if (state.offlineLand) state.offlineLand.setStyle(offlineLandStyle());
@@ -28687,7 +28691,7 @@ function setBasemap() {
     satBtn.querySelector('.tl').textContent = t(sat ? '地圖' : '衛星');
     satBtn.title = t(sat ? '切回一般地圖' : '切換衛星影像');
   }
-  i18nTranslateTree(map.attributionControl && map.attributionControl.getContainer());
+  i18nTranslateTree(M.leaflet.attributionControl && M.leaflet.attributionControl.getContainer());
 }
 // ── Batch B:長頁內容遷入 sheet 的搬移/建置 helpers(單一 DOM 實例;跨 900 斷界由 resize 同步) ──
 // 搜尋列 .search 手機搬進「搜尋」sheet #searchSlot(v0726a 起;原本搬進亮點 sheet),桌面搬回 header 原位(錨點註記記住老家)
@@ -29233,7 +29237,7 @@ const HELP_TRY = {
 };
 // 離畫面中心最近的車站(「試一次」開看板用):複用附近車站那套候選(當前檢視看得到的站,共構站各留一筆)
 function helpNearestStation() {
-  if (typeof nearbyStationCandidates !== 'function' || typeof map === 'undefined' || !map) return null;
+  if (typeof nearbyStationCandidates !== 'function' || typeof M === 'undefined' || !M) return null;
   const cs = nearbyStationCandidates(); if (!cs.length) return null;
   const c = M.getCenter(), me = { lat: c.lat, lon: c.lng };
   return cs.map(o => ({ st: o.st, km: haversineKm(me, { lat: o.st.lat, lon: o.st.lon }) }))
@@ -30643,9 +30647,9 @@ async function boot() {
   map = M.leaflet; // M0a 過渡別名:Task 3–6 逐群把 map.* 換成 M.* / M.leaflet.*,Task 7 移除這一行
   // Leaflet 每次增減圖層都會把署名 DOM 重新建立；只在 addAttribution/setBasemap 後翻一次，
   // 下一次內部 _update 就會退回中文。包住唯一的重繪入口，確保切底圖與晚到資料都維持目前語言。
-  if (map.attributionControl) {
-    const attributionUpdate = map.attributionControl._update;
-    map.attributionControl._update = function () {
+  if (M.leaflet && M.leaflet.attributionControl) {
+    const attributionUpdate = M.leaflet.attributionControl._update;
+    M.leaflet.attributionControl._update = function () {
       attributionUpdate.call(this);
       i18nTranslateTree(this.getContainer());
     };
@@ -30654,8 +30658,9 @@ async function boot() {
   // 取整後的 pixelOrigin,分數 zoom 逐幀推進時整幅畫面(路網+海陸輪廓)會 ±1~2.5px shimmer 抖動。
   // 呼吸中(_breathStage)改走「相對地圖中心的浮點投影」(零取整)→ 每幀平滑縮放;所有繪製消費者
   // (reproject/列車/站名/海陸輪廓)都經此函數,一處包好全體受惠。平時原樣(呼叫原生實作),只動呼吸幕路徑。
-  const _origL2C = map.latLngToContainerPoint;
-  map.latLngToContainerPoint = function (latlng) {
+  if (M.leaflet) { // 呼吸幕浮點投影 patch 是 Leaflet 專屬(MapLibre 投影本來就是浮點)
+  const _origL2C = M.leaflet.latLngToContainerPoint;
+  M.leaflet.latLngToContainerPoint = function (latlng) {
     if (state._breathStage) {
       const ll = L.latLng(latlng), z = this._zoom, c = this.getCenter(), size = this.getSize();
       if (state._bpZ !== z || state._bpCLat !== c.lat || state._bpCLng !== c.lng) { // 每幀中心/縮放固定,投影中心快取一次
@@ -30671,8 +30676,9 @@ async function boot() {
     const A = state._zaAff;
     return A ? new L.Point(A.k * p.x + A.tx, A.k * p.y + A.ty) : p;
   };
+  }
   await setupOfflineLand();
-  window.__map = map; // 驗證腳本用的把手(map 為閉包變數,外部拿不到)
+  window.__map = M.raw; // 驗證腳本用的把手(Leaflet 時就是 Leaflet map;MapLibre 時是 maplibregl.Map)
   window.__M = M; // 適配層把手(verify_engine_adapter.mjs);Task 6 會把上一行改成 window.__map = M.raw
   // 跨層對齊探針(只在 ?aligndot=lat,lng 時存在):同一個經緯度,底圖引擎畫一顆、overlay 畫一顆。
   // 兩顆在最終畫面上的像素距離＝底圖與列車圖層錯開多少。overlay 這顆刻意走 latLngToContainerPoint
@@ -30688,7 +30694,7 @@ async function boot() {
     window.__alignDot = ALIGN_DOT;
   }
   window.__state = state; // 同上:唯讀給驗證腳本讀命中快取/模擬時鐘(平交道等)
-  map.zoomControl.setPosition('bottomright'); // 右上讓給車站時刻板
+  if (M.leaflet) M.leaflet.zoomControl.setPosition('bottomright'); // 右上讓給車站時刻板
   // 這是台灣鐵道圖:把可視範圍鎖在台灣周遭,不讓人縮到看見全世界、也不讓人平移把台灣拖出畫面去看
   // 日本/中國/菲律賓——避免無謂載入海外圖磚浪費用量。兩道防線都以「台灣框」TW_BOUNDS 為基準,但各算各的:
   //  (1) 縮放地板:從開場全台同框視野最多再往外縮 ZOOM_OUT_LEVELS 級就停(能看台灣周邊、但縮不到東亞/全世界)。
@@ -30727,8 +30733,9 @@ async function boot() {
   //    使用者 2026-08-11 親自指出:橫放開著面板時台灣整個偏右貼著側欄;375 寬直向也是同一個根。
   //    修法＝把夾限用的可視框換成「露出來的那塊」,Leaflet 自己的 _rebound 在框比可視區大時會取中點,
   //    於是台灣自動置中於露出區。無面板時(insets 全 0)原封走原生路徑,桌面與乾淨態逐值不變。
-  const _limitCenterOrig = map._limitCenter;
-  map._limitCenter = function (center, zoom, bounds) {
+  if (M.leaflet) { // _limitCenter/maxBoundsViscosity 是 Leaflet 專屬;MapLibre 的面板讓位夾限改用 setPadding(M1)
+  const _limitCenterOrig = M.leaflet._limitCenter;
+  M.leaflet._limitCenter = function (center, zoom, bounds) {
     if (!bounds) return center;
     // Leaflet 升級若拿掉這兩個私有 API,不要靜默退化——留下旗標讓驗收抓得到(見 verify_landscape L12)
     if (typeof this._getBoundsOffset !== 'function') { state._limitCenterDegraded = true; return _limitCenterOrig.call(this, center, zoom, bounds); }
@@ -30740,7 +30747,8 @@ async function boot() {
     if (Math.abs(off.x) <= 1 && Math.abs(off.y) <= 1) return center;
     return this.unproject(c.add(off), zoom);
   };
-  map.options.maxBoundsViscosity = 1.0;  // 硬牆:拖不出活動範圍邊界(但範圍已放大,日常平移不會頂到)
+  M.leaflet.options.maxBoundsViscosity = 1.0;  // 硬牆:拖不出活動範圍邊界(但範圍已放大,日常平移不會頂到)
+  }
   state._fenceOn = true;
   applyTaiwanFloor();                     // 一次算好 minZoom 地板＋平移硬牆(活動範圍)
   M.on('resize', applyTaiwanFloor);     // 旋轉/改視窗大小時重算地板
@@ -30991,6 +30999,7 @@ async function boot() {
     c.style.cursor = (trainAt(e.containerPoint) || (state.deco && freqTrainAt(e.containerPoint))) ? 'pointer' : '';
   });
   // 跟隨鎖鈕:掛在縮放鈕上方(同角落自動堆疊,免手算碰撞);跟隨中才顯示
+  if (M.leaflet) {
   const lockCtl = L.control({ position: 'bottomright' });
   lockCtl.onAdd = () => {
     const el = L.DomUtil.create('div', 'leaflet-control follow-lock-ctl');
@@ -30998,10 +31007,11 @@ async function boot() {
     L.DomEvent.disableClickPropagation(el);
     return el;
   };
-  lockCtl.addTo(map);
-  const zc = map.zoomControl.getContainer();
+  lockCtl.addTo(M.leaflet);
+  const zc = M.leaflet.zoomControl.getContainer();
   zc.parentNode.insertBefore(lockCtl.getContainer(), zc);
-  document.getElementById('followLockBtn').onclick = () => setFollowLock(!state.followLock);
+  }
+  const _flb = document.getElementById('followLockBtn'); if (_flb) _flb.onclick = () => setFollowLock(!state.followLock);
   placeControlRail(); // §04c:手機把鎖鈕搬進 #mapActions 工具欄(鈕剛建好,這是最早能搬的時點)
   updateFollowLockUI(); // 初始未跟隨 → 收起
   // 拖曳地圖=解鎖(Google 導航式);縮放不解鎖
@@ -31042,7 +31052,7 @@ async function boot() {
     sat: { url: 'https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', needsToken: 'esri', maxZoom: 19, attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics' }
   };
   // APP_STRIP_END web-tiles
-  if (onlineBasemapsAvailable() && TILES) for (const k of ['light', 'dark', 'sat']) {
+  if (M.leaflet && onlineBasemapsAvailable() && TILES) for (const k of ['light', 'dark', 'sat']) { // 底圖圖層(L.tileLayer/L.maplibreGL)只給 Leaflet 引擎建;MapLibre 引擎的底圖是 style 本身(M0b)
     const t = TILES[k]; if (!t || !t.url) continue;
     const opt = { maxZoom: t.maxZoom, crossOrigin: true, keepBuffer: kb, attribution: t.attribution };
     if (t.subdomains) opt.subdomains = t.subdomains;
@@ -31107,8 +31117,8 @@ async function boot() {
     // 用量:z11 一張約 20km 見方,在台灣框裡任一視窗 1~4 張;縮到 z8 以下時退成 z8,全島共 8 張
     // (照經緯度實算,不是用面積比推)。都會進瀏覽器快取,實質是一次性的。
     if (k === 'sat') {
-      if (!map.getPane('satBasePane')) {
-        const bp = map.createPane('satBasePane');
+      if (!M.leaflet.getPane('satBasePane')) {
+        const bp = M.leaflet.createPane('satBasePane');
         bp.style.zIndex = '160';        // fallbackPane(150) 之上、tilePane(200) 之下
         bp.style.pointerEvents = 'none';
       }
@@ -31157,7 +31167,7 @@ async function boot() {
         const row = document.querySelector('.ms-row[data-proxy="satBtn"]'); if (row) row.remove(); // 抽屜那列的 display:flex 蓋得過 [hidden],得移除
         if (state.basemap === 'sat') { state.basemap = 'map'; try { localStorage.setItem('trainmap-basemap', 'map'); } catch (e) {} }
       })
-      .then(() => { if (map) setBasemap(); }); // 成功/失敗都要重跑一次:成功=把衛星切回來,失敗=確保停在一般地圖
+      .then(() => { if (M) setBasemap(); }); // 成功/失敗都要重跑一次:成功=把衛星切回來,失敗=確保停在一般地圖
   }
   // L1 遠端來源開關:只更新快取給**下一次**開機用,本次一律照 APP_STREET_SRC 走。
   // 問不到、逾時、回了認不得的值 —— 全部沿用現有快取,這條永遠不影響開機。
@@ -31234,6 +31244,7 @@ async function boot() {
   // ⚠ 容器必須挑「有圖磚的」層,不能拿第一個:多次縮放後 tilePane 累積多個舊 zoom 層,DOM 最前常是
   //   空的舊層,Leaflet 動畫中會剪掉空層,脫離 DOM 後 computed transform 全失真。
   M.on('zoomstart', () => {
+    if (!M.leaflet) return; // 縮放動畫仿射是 Leaflet 專屬(MapLibre 每幀真實更新相機)
     if (state._zoomAnim) return; // 連續縮放 retarget:沿用原標定(q 是容器局部常數,仍有效)
     if (state._breathStage) { state._zaCalPend = null; return; } // 呼吸幕投影非 raw 不可標定(正常已被更早的 zoomstart listener 交還,此為防禦)
     const size = M.getSize();
@@ -31244,11 +31255,11 @@ async function boot() {
     const glCal = zaCalGl(w1, w2);
     if (glCal) { state._zaCalPend = glCal; return; }
     let el = null, best = -1;
-    for (const c of map.getPane('tilePane').querySelectorAll('.leaflet-tile-container')) {
+    for (const c of M.leaflet.getPane('tilePane').querySelectorAll('.leaflet-tile-container')) {
       if (c.childElementCount > best) { best = c.childElementCount; el = c; }
     }
     if (!el || !best) { state._zaCalPend = null; return; } // 無圖磚:本輪放棄同步(overlay 靜止 ~250ms,zoomend 重繪仍對齊)
-    const m = zaParseMat(el), pp = map._getMapPanePos();
+    const m = zaParseMat(el), pp = M.leaflet._getMapPanePos();
     const p1 = M.toScreen(w1), p2 = M.toScreen(w2); // 此刻 _zaAff=null,讀到的就是 raw
     state._zaCalPend = { el, w1, w2,
       q1x: (p1.x - pp.x - m.ux) / m.k, q1y: (p1.y - pp.y - m.uy) / m.k,
@@ -31261,7 +31272,7 @@ async function boot() {
       // Leaflet 自己的 zoomanim listener(排在我們前面)遇到「目標視圖＝起始視圖」(例:在畫面正中央捏一點點又彈回原級)
       // 會因 proxy transform 不變而同步呼叫 _onZoomTransitionEnd——動畫沒開始就結束、zoomend 也已發過。
       // 此時沒有動畫可同步,不能進 _zoomAnim(否則要靠保險 timer 才退出,期間 'move' 同步重繪被閘住)
-      if (!map._animatingZoom) { state._zaCalPend = null; return; }
+      if (!M.leaflet._animatingZoom) { state._zaCalPend = null; return; }
       // GL 畫布:放手那一拍重標定。此刻 Leaflet 還沒 _move 到目標(zoomanim 先於 _move 發)、raw 投影=
       // 畫布內容當下的 zoom,而 CSS transition 才剛掛上(rect 仍是 identity)——正是「投影與畫布內容對齊」的時刻。
       if (state._zaCalPend.gl) { const c = zaCalGl(state._zaCalPend.w1, state._zaCalPend.w2); if (c) state._zaCalPend = c; }
