@@ -199,6 +199,24 @@ try {
     ck(Math.abs(r.bz - base.bz) <= 1, 'G6e getBoundsZoom 與 Leaflet 差 ≤1 級', `ml=${r.bz} lf=${base.bz}`);
     ck(r.inBounds && r.rt, 'G6f getBounds 含中心;bearing/pitch 為 0(M0 不開旋轉)');
     ck(errs.length === 0, 'G6g MapLibre 開機零 pageerror', errs.join(' | ').slice(0, 300));
+    const ad = await page.evaluate(async () => {
+      const M = window.__M, raw = M.raw; const calls = [];
+      M.onStyleLoad(() => calls.push((raw.getStyle().name || '') + '|' + raw.getStyle().layers.filter(l => !/^(offline-land|track-)/.test(l.id)).length)); // 量 style 身分(名稱+OFM 層數),不量 background:陸地層會把它重上色
+      const immediate = calls.length;
+      M.setStyleKind('dark');
+      await new Promise(r => raw.once('style.load', r));
+      await new Promise(r => setTimeout(r, 50));
+      M.setStyleKind('foo'); const kindNoop = M.getStyleKind();
+      M.setAttribution(['甲署名', '', '乙署名']);
+      const box = document.querySelector('.maplibregl-ctrl-bottom-right');
+      const kids = [...box.children].map(el => el.className);
+      const text = (box.querySelector('.maplibregl-ctrl-attrib-inner') || {}).textContent || '';
+      const hooks = []; M.setTileRequestHook(u => hooks.push(u)); M.setTileRequestHook(null);
+      return { immediate, calls, kindNoop, kids, text, hookOk: hooks.length === 0 };
+    });
+    ck(ad.immediate === 1 && ad.calls.length === 2 && ad.calls[1] !== ad.calls[0], 'G6h onStyleLoad:註冊當下呼叫一次、setStyleKind(dark) 後再一次且 style 身分變了', JSON.stringify(ad.calls));
+    ck(ad.kindNoop === 'dark', 'G6i setStyleKind 未知 kind 且無 style 物件=no-op', ad.kindNoop);
+    ck(ad.text.includes('甲署名') && ad.text.includes('乙署名') && ad.kids.length === 2 && /group/.test(ad.kids[0]) && /attrib/.test(ad.kids[1]) && ad.hookOk, 'G6j setAttribution 整份替換、空字串濾掉、DOM 仍是縮放鈕在前署名貼底(bottom 位置 addControl 是 prepend)', JSON.stringify(ad.kids) + ' ' + ad.text.slice(0, 40));
     // ── G7 對齊探針:洋紅(引擎)與青(overlay)圓心距離 ≤ 2px(桌面 dpr 1) ──
     // 探針座標刻意選在海上(25.20,121.80,基隆外海,無鐵路)而非 G6 用的台北車站:台北車站在 z13 會被 overlay 的
     // 路網/站名/車站牌壓在洋紅點上;圓擬合(probe_centroids.mjs)雖能容忍部分遮擋,判準的乾淨基準仍該是

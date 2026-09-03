@@ -6556,11 +6556,23 @@ function createMaplibreEngine(containerId, view) {
     latLngBounds: (a, b) => new MBounds(a, b),
     latLng: (lat, lng) => ({ lat, lng }),
     point: (x, y) => ({ x, y }),
-    // MapLibre 專屬(Leaflet 實作沒有這兩個;呼叫端一律 `M.setStyleKind && M.setStyleKind(...)`)
-    setStyleKind: kind => { // 'light' | 'dark';{diff:false} 是 spike 實測必要選項(diff 路徑不觸發 style.load)
-      if (kind !== 'light' && kind !== 'dark') return E;
+    // MapLibre 專屬(Leaflet 實作沒有;呼叫端一律 `M.xxx && M.xxx(...)` 或先判 M.engine)
+    setStyleKind: (kind, style) => { // 'light'|'dark' 用內建 OFM;其他 kind(M1a:'sat-hi'/'sat-lq')必須自帶 style 物件。{diff:false} 是 spike 實測必要選項(diff 路徑不觸發 style.load)
+      const s = (kind === 'light' || kind === 'dark') ? OFM_STYLE[kind] : style;
+      if (!s) return E;
       if (kind === styleKind) return E;
-      styleKind = kind; raw.setStyle(OFM_STYLE[kind], { diff: false }); return E;
+      styleKind = kind; styleLoaded = false; raw.setStyle(s, { diff: false }); return E;
+    },
+    getStyleKind: () => styleKind,
+    isStyleReady: () => styleLoaded, // 目前 style 的 JSON 已載好、可以 addSource/addLayer(不等圖磚)
+    onStyleLoad: fn => { raw.on('style.load', fn); if (styleLoaded) fn(); return E; }, // setStyle({diff:false}) 會清空所有自訂 source/layer,自訂層一律經此冪等重掛
+    setSourceTiles: (id, tiles) => { const s = raw.getSource(id); if (s && s.setTiles) s.setTiles(tiles); return E; }, // 換 token 不重載整份 style
+    setTileRequestHook: fn => { tileHook = fn; return E; },
+    setAttribution: list => {
+      raw.removeControl(attrib); raw.removeControl(nav);
+      attrib = new maplibregl.AttributionControl({ compact: false, customAttribution: (list || []).filter(Boolean) });
+      raw.addControl(attrib, 'bottom-right'); raw.addControl(nav, 'bottom-right');
+      return E;
     },
     setGestures: on => { // 對應 Leaflet 的 dragging/touchZoom/scrollWheelZoom/doubleClickZoom/boxZoom/keyboard 整組開關(放空模式用)
       for (const h of [raw.dragPan, raw.scrollZoom, raw.boxZoom, raw.doubleClickZoom, raw.touchZoomRotate, raw.keyboard]) { if (h) on ? h.enable() : h.disable(); }
