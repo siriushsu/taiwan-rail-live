@@ -6387,14 +6387,14 @@ function applySpeedZoomCap() {
   state._zoomCapped = fast;
   if (fast) {
     // 只有真的把他從高處壓下來才記(≤CAP 就沒動他,也無從還原)
-    state._preCapZoom = map.getZoom() > HISPEED_ZOOM_CAP ? map.getZoom() : null;
-    if (map.getZoom() > HISPEED_ZOOM_CAP) map.setView(map.getCenter(), HISPEED_ZOOM_CAP, { animate: false });
+    state._preCapZoom = M.getZoom() > HISPEED_ZOOM_CAP ? M.getZoom() : null;
+    if (M.getZoom() > HISPEED_ZOOM_CAP) map.setView(M.getCenter(), HISPEED_ZOOM_CAP, { animate: false });
     map.setMaxZoom(HISPEED_ZOOM_CAP);
   } else {
     map.setMaxZoom(state.basemap === 'sat' ? 19 : 20); // 還原各底圖層原本的上限
     // 只有他還停在 CAP(高速時沒自己再改縮放)才還原,免得蓋掉他刻意選的全景視角
-    if (state._preCapZoom != null && Math.abs(map.getZoom() - HISPEED_ZOOM_CAP) < 0.01)
-      map.setView(map.getCenter(), state._preCapZoom, { animate: false });
+    if (state._preCapZoom != null && Math.abs(M.getZoom() - HISPEED_ZOOM_CAP) < 0.01)
+      map.setView(M.getCenter(), state._preCapZoom, { animate: false });
     state._preCapZoom = null;
   }
 }
@@ -6467,7 +6467,7 @@ function textColorFor(hex) {
 function reproject() {
   if (!map || !state.data) return;
   if (state._zoomAnim && !state._zaDrive) return; // 縮放動畫進行中:重投影只准由 zoomAnimFrame 驅動(仿射已掛進投影);其他來源(move/resize)此時進來會用凍結中的起始視圖算出未同步座標
-  const size = map.getSize();
+  const size = M.getSize();
   state.dpr = Math.min(window.devicePixelRatio || 1, 2); // 主畫布 dpr 上限 2x
   // 尺寸沒變不重設緩衝區:設 cv.width 會清空 canvas,若發生在本幀 draw 之後(如 panTo/flyTo
   // 動畫的 move 事件),畫好的列車會整幀被抹掉;順帶省去每次 move 的 buffer 重配
@@ -6484,7 +6484,7 @@ function reproject() {
   };
   const projShape = ln => {
     if (ln.shape) ln.shapePts = ln.shape.map(c => {
-      const p = map.latLngToContainerPoint([c[0], c[1]]);
+      const p = M.toScreen([c[0], c[1]]);
       return { x: p.x, y: p.y };
     });
     const line = ln.shapePts || ln.pts;
@@ -6492,14 +6492,14 @@ function reproject() {
   };
   state.lines.forEach(ln => {
     ln.pts = ln.stations.map(s => {
-      const p = map.latLngToContainerPoint([s.lat, s.lon]);
+      const p = M.toScreen([s.lat, s.lon]);
       return { x: p.x, y: p.y };
     });
     projShape(ln);
   });
   if (state.trackLines) state.trackLines.forEach(projShape);
   if (state.decoLines) state.decoLines.forEach(ln => { // 全台同框:裝飾捷運/輕軌層的線與站投影
-    ln.pts = ln.stations.map(s => { const p = map.latLngToContainerPoint([s.lat, s.lon]); return { x: p.x, y: p.y }; });
+    ln.pts = ln.stations.map(s => { const p = M.toScreen([s.lat, s.lon]); return { x: p.x, y: p.y }; });
     projShape(ln);
   });
 }
@@ -6528,7 +6528,7 @@ function ofmActiveCanvas() {
   return null;
 }
 function zaRectBox(el) {
-  const r = el.getBoundingClientRect(), c = map.getContainer().getBoundingClientRect();
+  const r = el.getBoundingClientRect(), c = M.getContainer().getBoundingClientRect();
   return { w: r.width, x: r.left - c.left, y: r.top - c.top };
 }
 // GL 畫布版的探針標定:兩個探針世界點「此刻」在畫布矩形內的局部座標(=畫布內容此刻把它們畫在哪)。
@@ -6541,7 +6541,7 @@ function zaRectBox(el) {
 function zaCalGl(w1, w2) {
   const glCanvas = ofmActiveCanvas();
   if (!glCanvas) return null;
-  const p1 = map.latLngToContainerPoint(w1), p2 = map.latLngToContainerPoint(w2); // 呼叫者保證 _zaAff=null ⇒ raw
+  const p1 = M.toScreen(w1), p2 = M.toScreen(w2); // 呼叫者保證 _zaAff=null ⇒ raw
   const g0 = zaRectBox(glCanvas);
   return { el: glCanvas, gl: true, w1, w2, g0w: g0.w,
     q1x: p1.x - g0.x, q1y: p1.y - g0.y,
@@ -6567,7 +6567,7 @@ function zoomAnimFrame() {
     d2x = m.k * Z.q2x + m.ux + pp.x; d2y = m.k * Z.q2y + m.uy + pp.y;
   }
   const A0 = state._zaAff; state._zaAff = null; // 讀 raw 投影(wrapper 依 _zaAff 疊仿射,取樣時要關)
-  const s1 = map.latLngToContainerPoint(Z.w1), s2 = map.latLngToContainerPoint(Z.w2);
+  const s1 = M.toScreen(Z.w1), s2 = M.toScreen(Z.w2);
   state._zaAff = A0;
   const den = Math.hypot(s2.x - s1.x, s2.y - s1.y);
   if (den < 1) { if (state.ready) draw(); return; } // 探針退化(不會發生的防禦):凍住上一幀
@@ -8460,9 +8460,9 @@ function trtcOfficialDirectionPrevious(ln, vehicle, pos) {
 // 向量常小於 dirAngOf 的 1.6px 防抖門檻，箭頭就卡在上一段，直到使用者放大才「自癒」。
 // 固定用 zoom 18 的投影只取方向，再正規化成 8px 螢幕向量：倍率怎麼變都能立刻更新。
 function trtcOfficialDirectionAnchor(mapRef, cp, current, previous) {
-  if (!mapRef || typeof mapRef.project !== 'function' || !cp || !current || !previous) return null;
-  const now = mapRef.project([Number(current.lat), Number(current.lon)], 18);
-  const before = mapRef.project([Number(previous.lat), Number(previous.lon)], 18);
+  if (!mapRef || typeof mapRef.worldPx !== 'function' || !cp || !current || !previous) return null;
+  const now = mapRef.worldPx([Number(current.lat), Number(current.lon)], 18);
+  const before = mapRef.worldPx([Number(previous.lat), Number(previous.lon)], 18);
   const dx = Number(now && now.x) - Number(before && before.x);
   const dy = Number(now && now.y) - Number(before && before.y);
   const distance = Math.hypot(dx, dy);
@@ -9980,13 +9980,13 @@ function flushTrainPaint() {
   // 視野內的交叉口通常 0–3 個;一個都沒有就完全不排序,平時零成本
   if (crossLevels.length && q.length > 1) {
     const w = cv.width / state.dpr, h = cv.height / state.dpr;
-    const cen = map.getCenter();
-    const a = map.latLngToContainerPoint(cen), b = map.latLngToContainerPoint([cen.lat + 0.001, cen.lng]);
+    const cen = M.getCenter();
+    const a = M.toScreen(cen), b = M.toScreen([cen.lat + 0.001, cen.lng]);
     const pxPerM = Math.abs(b.y - a.y) / 111.32;          // 0.001 度緯度 ≈ 111.32 公尺
     const rPx = CROSS_NEAR_M * pxPerM;
     const near = [];
     for (const c of crossLevels) {
-      const p = map.latLngToContainerPoint([c.lat, c.lon]);
+      const p = M.toScreen([c.lat, c.lon]);
       if (p.x < -rPx || p.y < -rPx || p.x > w + rPx || p.y > h + rPx) continue;
       near.push({ c, p });
     }
@@ -10057,7 +10057,7 @@ function trtcOfficialTagHalfWidth(label) {
   return (ctx.measureText(label).width + 10) / 2;
 }
 function drawTrtcOfficialVehicle(ln, item, showTrain, inView, collectHit, nowEpoch) {
-  const cp = map.latLngToContainerPoint([item.pos.lat, item.pos.lon]);
+  const cp = M.toScreen([item.pos.lat, item.pos.lon]);
   // officialNo 是北捷 TrackInfo.TrainNumber；文湖線該欄恆空，沿用舊版 ln.abbr 橢圓牌（BR），
   // 不把內部 vehicleId 畫給使用者，也不拿無法可靠對站牌的 CarWeight 編號冒充車次。
   const glyph = trtcOfficialVehicleGlyph(item.officialNo, ln.abbr), label = glyph.label;
@@ -10067,7 +10067,7 @@ function drawTrtcOfficialVehicle(ln, item, showTrain, inView, collectHit, nowEpo
   const halfW = showTrain && label ? trtcOfficialTagHalfWidth(label) : 6;
   if (state.dirArrow && showTrain && inView(cp)) {
     const previous = trtcOfficialDirectionPrevious(ln, item.vehicle, item.pos);
-    const cpB = trtcOfficialDirectionAnchor(map, cp, item.pos, previous);
+    const cpB = trtcOfficialDirectionAnchor(M, cp, item.pos, previous);
     // 此切線已由同一顯示位置、同一段路徑算出，不再套跨畫格 EMA；EMA 若保留上一段角度，
     // 就會發生錄影中「車已往北，箭頭仍指向南」的情況。
     const angle = cpB ? Math.atan2(cp.y - cpB.y, cp.x - cpB.x) : undefined;
@@ -10110,7 +10110,7 @@ function updateCount() {
 
 function drawFreq(w, h) {
   const P = pal();
-  const z = map.getZoom();
+  const z = M.getZoom();
   const showStation = z >= 13, showTrain = z >= 12;
   const inView = p => p.x >= -40 && p.x <= w + 40 && p.y >= -20 && p.y <= h + 20;
   const drawnNames = new Set();
@@ -10150,7 +10150,7 @@ function drawFreq(w, h) {
     const core = metroCoreItemsForLine(ln, officialNow);
     if (core !== null) {
       for (const item of core) {
-        const cp = map.latLngToContainerPoint([item.pos.lat, item.pos.lon]);
+        const cp = M.toScreen([item.pos.lat, item.pos.lon]);
         paintTrain(cp.x, cp.y, null, ln.id, () => drawMetroCoreVehicle(ln, item, showTrain, inView, true, officialNow));
       }
       return;
@@ -10158,7 +10158,7 @@ function drawFreq(w, h) {
     const official = trtcOfficialItemsForLine(ln, officialNow);
     if (official !== null) {
       for (const item of official) {
-        const cp = map.latLngToContainerPoint([item.pos.lat, item.pos.lon]); // 只為排序取位置,實際還是由該函式自己算
+        const cp = M.toScreen([item.pos.lat, item.pos.lon]); // 只為排序取位置,實際還是由該函式自己算
         paintTrain(cp.x, cp.y, null, ln.id, () => drawTrtcOfficialVehicle(ln, item, showTrain, inView, true, officialNow));
       }
       return;
@@ -10167,7 +10167,7 @@ function drawFreq(w, h) {
       for (const tr of ln._tt) {
         const pos = freqTrainPosAt(ln, tr, state.simSec);
         if (!pos) continue; // 未發車/已到終點
-        const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
+        const cp = M.toScreen([pos.lat, pos.lon]);
         paintTrain(cp.x, cp.y, null, ln.id, () => {
           if (ff && ff.ln === ln && ff.tr === tr) drawFreqRing(cp, ln.color);
           if (showTrain && inView(cp)) {
@@ -10182,7 +10182,7 @@ function drawFreq(w, h) {
     if (!ln.sched) return; // 無時刻檔的線退回班距均勻撒車
     for (let k = 0; k < ln.n; k++) {
       const pos = posPeriodic(ln, tau + k * ln.period / ln.n);
-      const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
+      const cp = M.toScreen([pos.lat, pos.lon]);
       paintTrain(cp.x, cp.y, null, ln.id, () => {
         if (ff && ff.ln === ln && ff.k === k) drawFreqRing(cp, ln.color); // 跟隨中的幽靈車:高亮環(畫在牌下)
         if (showTrain && inView(cp)) {
@@ -10315,7 +10315,7 @@ function clearFreqFollow() {
   state.freqFollow = null;
   syncPanFence(); // 捷運停跟:恢復台灣平移硬牆(若非台鐵/高鐵跟隨中)
   const c = document.getElementById('freqCard'); if (c) c.hidden = true;
-  const cnt = map && map.getContainer(); if (cnt && cnt.style.cursor) cnt.style.cursor = '';
+  const cnt = map && M.getContainer(); if (cnt && cnt.style.cursor) cnt.style.cursor = '';
   updateFollowLockUI();
 }
 // 捷運跟車卡的車廂擁擠度。與車站看板吃【同一份】state.trtcOfficialBoard.crowdByNo(逐車 join),
@@ -10472,7 +10472,7 @@ let decoLabels = [];
 function drawDecoBase(w, h) {
   if (!state.decoLines) return;
   const P = pal();
-  const z = map.getZoom();
+  const z = M.getZoom();
   const showStation = z >= 13, showStop = z >= 11; // 遠景不畫站點:短線會糊成串珠(showTrain 移到 drawDecoTrains)
   const inView = p => p.x >= -40 && p.x <= w + 40 && p.y >= -20 && p.y <= h + 20;
   const offLine = ln => ln._bbox && (ln._bbox[2] < -40 || ln._bbox[0] > w + 40 || ln._bbox[3] < -40 || ln._bbox[1] > h + 40); // 整條離屏
@@ -10507,7 +10507,7 @@ function drawDecoBase(w, h) {
 // 裝飾層(捷運)列車：等所有軌道(裝飾層＋台鐵/高鐵)都描完才呼叫，見 drawDecoBase 檔頭鐵則
 function drawDecoTrains(w, h) {
   if (!state.decoLines) return;
-  const z = map.getZoom();
+  const z = M.getZoom();
   const showTrain = z >= 12;
   const inView = p => p.x >= -40 && p.x <= w + 40 && p.y >= -20 && p.y <= h + 20;
   const offLine = ln => ln._bbox && (ln._bbox[2] < -40 || ln._bbox[0] > w + 40 || ln._bbox[3] < -40 || ln._bbox[1] > h + 40); // 整條離屏
@@ -10520,7 +10520,7 @@ function drawDecoTrains(w, h) {
     const core = metroCoreItemsForLine(ln, officialNow);
     if (core !== null) {
       for (const item of core) {
-        const cp = map.latLngToContainerPoint([item.pos.lat, item.pos.lon]);
+        const cp = M.toScreen([item.pos.lat, item.pos.lon]);
         if (!inView(cp)) continue;
         paintTrain(cp.x, cp.y, null, ln.id, () => drawMetroCoreVehicle(ln, item, showTrain, inView, showTrain, officialNow));
       }
@@ -10529,7 +10529,7 @@ function drawDecoTrains(w, h) {
     const official = trtcOfficialItemsForLine(ln, officialNow);
     if (official !== null) {
       for (const item of official) {
-        const cp = map.latLngToContainerPoint([item.pos.lat, item.pos.lon]); // 只為排序取位置
+        const cp = M.toScreen([item.pos.lat, item.pos.lon]); // 只為排序取位置
         paintTrain(cp.x, cp.y, null, ln.id, () => drawTrtcOfficialVehicle(ln, item, showTrain, inView, showTrain, officialNow));
       }
       continue;
@@ -10538,7 +10538,7 @@ function drawDecoTrains(w, h) {
       for (const tr of ln._tt) {
         const pos = freqTrainPosAt(ln, tr, state.simSec);
         if (!pos) continue;
-        const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
+        const cp = M.toScreen([pos.lat, pos.lon]);
         if (!inView(cp)) continue;
         if (showTrain) state._freqHits.push({ x: cp.x, y: cp.y, ln, tr }); // 命中測試與畫的順序無關,照舊即時收
         paintTrain(cp.x, cp.y, null, ln.id, () => {
@@ -10554,7 +10554,7 @@ function drawDecoTrains(w, h) {
     if (!ln.sched) continue;
     for (let k = 0; k < ln.n; k++) {
       const pos = posPeriodic(ln, tau + k * ln.period / ln.n);
-      const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
+      const cp = M.toScreen([pos.lat, pos.lon]);
       if (!inView(cp)) continue;
       // 全台同框的捷運也可點擊跟隨;只在畫車號牌的縮放才收命中(遠景是密集小點,誤點率太高)
       if (showTrain) state._freqHits.push({ x: cp.x, y: cp.y, ln, k });
@@ -10628,7 +10628,7 @@ function drawSegOnShape(ln, s, color, lineWidth, w, h) {
   let any = false;
   ctx.beginPath();
   for (let i = 0; i < pts.length; i++) {
-    const p = map.latLngToContainerPoint([pts[i].lat, pts[i].lon]);
+    const p = M.toScreen([pts[i].lat, pts[i].lon]);
     if (inPad(p)) any = true;
     i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y);
   }
@@ -10663,7 +10663,7 @@ function drawCollectSegs(w, h) {
 
 function drawSched(w, h, paintDecoTrains) {
   const P = pal();
-  const z = map.getZoom();
+  const z = M.getZoom();
   const showTrain = z >= 11;
   if (!state._featured) buildFeatured(); // 每日之最快取:換系統/時刻表被 applySchedSystems 作廢後,這裡補建一次
   if (!state._punctual) buildPunctual(); // 準點排行快取:同上,換系統/資料到貨後補建一次
@@ -10678,7 +10678,7 @@ function drawSched(w, h, paintDecoTrains) {
         ln.shapePts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
       } else {
         ln.stations.forEach((s, i) => {
-          const cp = map.latLngToContainerPoint([s.lat, s.lon]);
+          const cp = M.toScreen([s.lat, s.lon]);
           i ? ctx.lineTo(cp.x, cp.y) : ctx.moveTo(cp.x, cp.y);
         });
       }
@@ -10693,7 +10693,7 @@ function drawSched(w, h, paintDecoTrains) {
   if (state.followTrain && state.trackStyle !== 'hidden' && state._routePts && state._routePts.length > 1) {
     ctx.beginPath();
     for (let i = 0; i < state._routePts.length; i++) {
-      const p = map.latLngToContainerPoint([state._routePts[i].lat, state._routePts[i].lon]);
+      const p = M.toScreen([state._routePts[i].lat, state._routePts[i].lon]);
       i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y);
     }
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
@@ -10706,7 +10706,7 @@ function drawSched(w, h, paintDecoTrains) {
     for (const cr of state.crossings) {
       if (state.trackVisible && !cr.noSched && !state.trackVisible.has(cr.lnId)) continue; // 只顯示屬於當前已載入線形的平交道(noSched 筆無 lnId,一律放行)
       if (!cb.contains([cr.lat, cr.lon])) continue;                          // 僅視口內才計算/繪製
-      const cp = map.latLngToContainerPoint([cr.lat, cr.lon]);
+      const cp = M.toScreen([cr.lat, cr.lon]);
       drawCrossing(cp, cr, z);
       state._crossHits.push({ x: cp.x, y: cp.y, cr }); // 供點擊命中(每幀重建)
     }
@@ -10717,7 +10717,7 @@ function drawSched(w, h, paintDecoTrains) {
     const sb = map.getBounds().pad(0.06);
     for (const pk of SUGAR_PARKS) {
       if (!sb.contains([pk.lat, pk.lon])) continue;
-      const cp = map.latLngToContainerPoint([pk.lat, pk.lon]);
+      const cp = M.toScreen([pk.lat, pk.lon]);
       drawSugarMark(cp);
       state._sugarHits.push({ x: cp.x, y: cp.y, pk }); // 供點擊命中(每幀重建)
       if (z >= 11) sugarLbls.push({ cp, pk });
@@ -10726,7 +10726,7 @@ function drawSched(w, h, paintDecoTrains) {
   // 車站圖示(依站等分級):圖示墊在列車下、站名最後畫在最上層,遠景時小站不畫
   const labelCands = [];
   for (const st of state.schedStations) {
-    const cp = map.latLngToContainerPoint([st.lat, st.lon]);
+    const cp = M.toScreen([st.lat, st.lon]);
     if (!inView(cp)) continue;
     const tier = st.tier == null ? 4 : st.tier;
     if (z >= 10 || tier <= 2) drawStationIcon(cp, tier);
@@ -10743,7 +10743,7 @@ function drawSched(w, h, paintDecoTrains) {
     if (!isFollow && !state.visible.has(tr.typeName)) continue;
     const pos = trainPos(tr, state.simSec); if (!pos) continue;
     if (state.visible.has(tr.typeName)) n++;
-    const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
+    const cp = M.toScreen([pos.lat, pos.lon]);
     const sh = blockSideShift(tr, pos, cp, showTrain); // 同線同向貼太近 → 兩顆標記各往軌道法線偏一半
     // 跟隨中的那台一律畫牌(drawFollowMarker 內不看 showTrain),所以框也一律取牌的尺寸
     if (isFollow) { state._trainHits.push({ x: cp.x, y: cp.y, tr, ...trainMarkBox(tr, true) }); paintTrain(cp.x, cp.y, tr.sys, null, () => drawFollowMarker(cp, tr)); continue; }
@@ -10818,7 +10818,7 @@ function drawFollowMarker(p, tr) {
   ctx.strokeStyle = tr.color; ctx.globalAlpha = 0.9; ctx.lineWidth = 2.5; ctx.stroke();
   ctx.globalAlpha = 1;
   isHSR(tr) ? drawHSRTag(p, tr.train) : drawTag(p, tr.train, tr.color, textColorFor(tr.color));
-  if (state.dirArrow && map.getZoom() >= 11) drawDirArrow(p, tr, glowC); // 跟隨主角同樣加方向箭頭(牌模式才畫)
+  if (state.dirArrow && M.getZoom() >= 11) drawDirArrow(p, tr, glowC); // 跟隨主角同樣加方向箭頭(牌模式才畫)
 }
 
 let labelBoxes = [];
@@ -10847,7 +10847,7 @@ function sideLabelAnchor(cp, pa, pb, d) {
 // 站→軌道最近點索引只算一次(點列順序不隨 zoom 變);shapePts 每次 reproject 重建,每幀讀新座標
 function stationTrackRef(st) {
   if (st._trkRef !== undefined) return st._trkRef;
-  const cp = map.latLngToContainerPoint([st.lat, st.lon]);
+  const cp = M.toScreen([st.lat, st.lon]);
   let best = null, bd = Infinity;
   for (const ln of (state.trackLines || [])) {
     if (st.sys && ln.sys && ln.sys !== st.sys) continue; // 高鐵站對高鐵軌,不吸到 6~30m 外的台鐵軌
@@ -11071,7 +11071,7 @@ function blockSideShift(tr, pos, cp, big) {
   if (!info) _blockSideLatch.delete(key);              // 不配對了就放掉閂,不留陳舊狀態
   const op = info && trainPos(info.other, state.simSec);
   if (op) {
-    const ocp = map.latLngToContainerPoint([op.lat, op.lon]);
+    const ocp = M.toScreen([op.lat, op.lon]);
     // 兩顆牌會疊到的距離,由「實際量到的牌寬」推得而不是手打的常數;且必須是一對車共用的值——
     // 各用各的牌寬,「270」(窄)會比「2138」(寬)早歸零,同一對就變成一台偏一台不偏(實測 8/17 對)
     const near = (tagW(tr) + tagW(info.other)) / 2;
@@ -11105,7 +11105,7 @@ function blockSideShift(tr, pos, cp, big) {
 }
 function drawDirArrow(cp, tr, color, sh) { // 台鐵/高鐵:牌=車次號(數字窄字),半寬 6+3/字
   const pB = trainPos(tr, state.simSec - DIR_DT_SEC);
-  const cpB = pB ? map.latLngToContainerPoint([pB.lat, pB.lon]) : null;
+  const cpB = pB ? M.toScreen([pB.lat, pB.lon]) : null;
   // 並排偏移時,回看點要套同一個位移:方向是「現在減八秒前」,只偏其中一頭等於把橫向位移
   // 當成前進量算進去(偏移十幾 px、八秒前進才幾 px ⇒ 箭頭會轉去指偏移的方向)。
   // 兩頭一起偏＝剛體平移,差向量不變,箭頭照樣是鐵軌的方向。
@@ -11115,7 +11115,7 @@ function drawDirArrow(cp, tr, color, sh) { // 台鐵/高鐵:牌=車次號(數字
   drawArrowAt(cp, ang, color, 6 + String(tr.train).length * 3, 8);
 }
 function drawFreqDirArrow(cp, ln, carrier, pB) { // 捷運/輕軌:牌=線路縮寫(CJK 全形 10px/字),半寬 5/字+6
-  const ang = dirAngOf(carrier, cp, pB ? map.latLngToContainerPoint([pB.lat, pB.lon]) : null);
+  const ang = dirAngOf(carrier, cp, pB ? M.toScreen([pB.lat, pB.lon]) : null);
   if (ang === undefined) return;
   drawArrowAt(cp, ang, ln.color, String(ln.abbr).length * 5 + 6, 8);
 }
@@ -11174,7 +11174,7 @@ function drawTrail(getPos, head, color, sh) {
   for (let k = 1; k <= TRAIL_STEPS; k++) {
     const pos = getPos(k * step);
     if (!pos) break; // 早於發車 / 環島與跨午夜回繞 → 沒有更早的位置,尾巴到此為止
-    const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
+    const cp = M.toScreen([pos.lat, pos.lon]);
     if (sh) { cp.x += sh.x; cp.y += sh.y; } // 整條尾巴跟著偏(頭已經偏了):只偏頭會在車底折一個角
     const prev = _trailPts[_trailPts.length - 1];
     const d = Math.hypot(cp.x - prev.x, cp.y - prev.y);
@@ -11531,7 +11531,7 @@ function maybeSatPlusNotice() {
   } catch (e) {}
   showToast('衛星影像免費看。想看更清楚的高解析版本，可以在「軌島通行證」裡開通（手機從「更多」進去）；跟車移動時一律用標準解析度，讓圖磚跟得上。', { wrap: true });
 }
-function followEntryZoom() { return Math.min(Math.max(map.getZoom(), 13), FOLLOW_ZOOM_CAP); } // 跟車進場:至少拉近到 13,App 再套上限
+function followEntryZoom() { return Math.min(Math.max(M.getZoom(), 13), FOLLOW_ZOOM_CAP); } // 跟車進場:至少拉近到 13,App 再套上限
 const LOCATE_ENABLED = !!window.RAIL_NATIVE_GEOLOCATION;
 const NOTIFY_LOCAL_ENABLED = !!window.RAIL_NATIVE_LOCALNOTIFY;
 // 實體收集(單站打卡、搭乘模式、GPS 校正旅程)限原生 App——這是既有「虛實雙軌」延伸成平台分界:
@@ -11729,8 +11729,8 @@ const GPS_RGB = (() => { // 精度圈要半透明,把 hex 拆成 r,g,b 備用
 // (2.1 秒一輪、scale .55→2.7、opacity .5→0),換成畫布後外觀一致。
 function drawMe() {
   if (!mePos) return;
-  const p = map.latLngToContainerPoint([mePos.lat, mePos.lon]);
-  const mPerPx = 40075016.686 * Math.cos(mePos.lat * Math.PI / 180) / (256 * Math.pow(2, map.getZoom()));
+  const p = M.toScreen([mePos.lat, mePos.lon]);
+  const mPerPx = 40075016.686 * Math.cos(mePos.lat * Math.PI / 180) / (256 * Math.pow(2, M.getZoom()));
   const rPx = mePos.acc / mPerPx; // 精度圈用真實公尺換算,跟著縮放變大變小(與原本 L.circle 語意相同)
   ctx.save();
   if (rPx > 12) { // 精度圈比藍點還小就不必畫,只會糊成一團
@@ -11767,7 +11767,7 @@ function updateGeoCamera(loc) {
   const now = performance.now(), prev = state._geoCameraLoc;
   if (prev && now - (state._geoCameraAt || 0) < 1000 && haversineKm(prev, loc) < .003) return;
   state._geoCameraAt = now; state._geoCameraLoc = loc;
-  const z = map.getZoom();
+  const z = M.getZoom();
   map.setView(focusCenter(loc.lat, loc.lon, z), z, { animate: false });
 }
 function acceptGeoFix(coords) {
@@ -11897,7 +11897,7 @@ async function showNearby() {
   openNearbyStations(loc.lat, loc.lon, loc.acc);
   showMeMarker(loc.lat, loc.lon, loc.acc || 0);
   // 先開卡再算鏡頭:卡開了才知道地圖被遮掉多少,藍點才落在「露出來的那塊」中央而不是被卡片吃掉
-  const nz = Math.max(map.getZoom(), GEO_BOOT_ZOOM);
+  const nz = Math.max(M.getZoom(), GEO_BOOT_ZOOM);
   map.flyTo(focusCenter(loc.lat, loc.lon, nz), nz, { duration: .6 });
   // 快取可先顯示，但一定接回前景 watch；新 fix 到了會自動更新藍點、鏡頭與清單。
   void startForegroundGeoWatch({ force: true });
@@ -14195,7 +14195,7 @@ function removePinByKey(key) { // key = lat,lon(各 6 位小數),同 userDataIte
 function gotoSavedPin(key) {
   const p = loadPins().find(p => (Number(p.lat).toFixed(6) + ',' + Number(p.lon).toFixed(6)) === key);
   if (!p) return;
-  map.setView([p.lat, p.lon], Math.max(map.getZoom(), 14));
+  map.setView([p.lat, p.lon], Math.max(M.getZoom(), 14));
   openPinAt(p.lat, p.lon);
 }
 function renderSavedPins() { // 已存地點:恆掛地圖的釘,點了重開卡;預測只在 sched,捷運頁不掛
@@ -14482,8 +14482,8 @@ function fitData(latlngs, padRatio, keepView) {
   if (keepView) return;
   let tries = 0;
   const doFit = () => {
-    map.invalidateSize();
-    const sz = map.getSize();
+    M.resize();
+    const sz = M.getSize();
     if ((sz.x < 20 || sz.y < 20) && tries++ < 60) { requestAnimationFrame(doFit); return; }
     map.fitBounds(b, { padding: [30, 30], animate: false });
   };
@@ -15075,10 +15075,10 @@ function loadAllGroup(g, keepView) {
   fitData(pts, railWantsTaiwanMargin() ? TW_MOBILE_MARGIN : 0, keepView); // 手機/App:全台框上下左右各留約一個台灣的空間(桌機貼合)
   // 記住全台同框的「真實開場 zoom」(依站點實際範圍算,比台灣框近似更準),供縮放地板往外算 ZOOM_OUT_LEVELS 級。
   // boot 首算地板時本值還沒有(用保守近似),進到全台同框後在此校正並回呼重算(_applyTaiwanFloor 是 boot 閉包函式)。
-  // 保留視野時地圖沒動,map.getZoom() 是使用者當下的縮放不是開場視野 → 改用 getBoundsZoom 直接推算(與 fitBounds 同 padding)。
+  // 保留視野時地圖沒動,M.getZoom() 是使用者當下的縮放不是開場視野 → 改用 getBoundsZoom 直接推算(與 fitBounds 同 padding)。
   state._twOpenZoom = keepView && state._fitBounds
     ? map.getBoundsZoom(state._fitBounds, false, L.point(30, 30))
-    : map.getZoom();
+    : M.getZoom();
   if (state._applyTaiwanFloor) state._applyTaiwanFloor();
   reproject();
   document.getElementById('note').innerHTML = escHtml(
@@ -15669,12 +15669,12 @@ function hotCruise(dt, now) {
   }
   // 浮點像素游標:latLngToContainerPoint 會整數化,0.1px 級步進會被吃成不動點,
   // 必須用不取整的 project 自己累積;使用者調了縮放就在新 zoom 重建游標接著巡
-  const zNow = map.getZoom();
-  if (!sc.px || sc.pxZ !== zNow) { sc.px = map.project(map.getCenter(), zNow); sc.pxZ = zNow; sc.anchorAt = 0; }
+  const zNow = M.getZoom();
+  if (!sc.px || sc.pxZ !== zNow) { sc.px = M.worldPx(M.getCenter(), zNow); sc.pxZ = zNow; sc.anchorAt = 0; }
   // 錨點:每 2 秒重算視野(外擴 20%)內運行列車的重心,視野內沒車就取全圖最近的一台
   if (!sc.anchorAt || now - sc.anchorAt > 2000) {
     sc.anchorAt = now;
-    const box = map.getBounds().pad(0.2), c = map.getCenter();
+    const box = map.getBounds().pad(0.2), c = M.getCenter();
     let lat = 0, lon = 0, n = 0, near = null, nd = Infinity;
     for (const t of state.trains) {
       if (!state.visible.has(t.typeName)) continue;
@@ -15686,10 +15686,10 @@ function hotCruise(dt, now) {
     }
     sc.anchor = n ? { lat: lat / n, lon: lon / n } : near;
   }
-  const size = map.getSize();
+  const size = M.getSize();
   let turn = (Math.random() - 0.5) * 0.6 * dt; // 隨機遊走轉向(rad/s)
   if (sc.anchor) {
-    const ap = map.project([sc.anchor.lat, sc.anchor.lon], zNow);
+    const ap = M.worldPx([sc.anchor.lat, sc.anchor.lon], zNow);
     const dx = ap.x - sc.px.x, dy = ap.y - sc.px.y, dist = Math.hypot(dx, dy);
     if (dist > size.y * 0.3) {
       // 比例轉向:超出舒適圈越遠,往列車重心彎越快(永不急轉、永不停)
@@ -15702,7 +15702,7 @@ function hotCruise(dt, now) {
   sc.dir += turn;
   const step = HOT_SPEED * dt;
   sc.px = L.point(sc.px.x + Math.cos(sc.dir) * step, sc.px.y + Math.sin(sc.dir) * step);
-  const dst = map.unproject(sc.px, zNow);
+  const dst = M.worldUnpx(sc.px, zNow);
   map.setView(dst, zNow, { animate: false });
 }
 function hotspotStop() {
@@ -16136,7 +16136,7 @@ function musicContextNow() {
       if (p && p.lat != null) return { zone: musicZoneOf(p.lat, p.lon, tr.sys), hour };
     } catch (e) {}
   }
-  try { const c = map.getCenter(); return { zone: musicZoneOf(c.lat, c.lng, null), hour }; } catch (e) {}
+  try { const c = M.getCenter(); return { zone: musicZoneOf(c.lat, c.lng, null), hour }; } catch (e) {}
   return { zone: null, hour };
 }
 function musicAutoPool() {
@@ -17487,7 +17487,7 @@ function gotoFavStationKey(key) {
     || GROUPS[0];
   selectGroup(g); // 已在該群組時內部直接 return,不重載
   closeFavPanel();
-  map.setView([f.lat, f.lon], Math.max(map.getZoom(), 13), { animate: false });
+  map.setView([f.lat, f.lon], Math.max(M.getZoom(), 13), { animate: false });
   let st = null;
   if (state.mode !== 'sched') st = { name: f.name, lat: f.lat, lon: f.lon, sys: 'freq', metroSysId: f.metroSysId };
   else if (f.sys === 'metro') st = state.deco ? { name: f.name, lat: f.lat, lon: f.lon, sys: 'deco', metroSysId: f.metroSysId } : null;
@@ -21505,12 +21505,12 @@ const MIN_MAP_STRIP = 64;
 // invalidateSize 會發 move/resize,既有接線(map.on('move zoom resize', reproject))自動重投影配畫布。
 function syncMapSizeIfStale() {
   if (!map) return false;
-  const el = map.getContainer(), cw = el.clientWidth, ch = el.clientHeight;
+  const el = M.getContainer(), cw = el.clientWidth, ch = el.clientHeight;
   if (!cw || !ch) return false; // 容器暫時沒有版面(隱藏/未掛載):不是過期,不要動
-  const sz = map.getSize();
+  const sz = M.getSize();
   if (sz.x === cw && sz.y === ch) return false;
   state._sizeHeals = (state._sizeHeals || 0) + 1; // 診斷條 sh 欄
-  map.invalidateSize({ debounceMoveend: true });  // 與 Leaflet trackResize 同式
+  M.resize({ debounceMoveend: true });  // 與 Leaflet trackResize 同式
   invalidateMapInsets();                          // 容器變了=露出矩形也變,量測快取同步失效
   return true;
 }
@@ -21550,7 +21550,7 @@ function computeMapInsets() {
   const body = document.body;
   // 直播/放空是乾淨 HUD(頂列/工具欄全藏),沿用整容器置中
   if (body.classList.contains('ambient')) return NONE;
-  const mc = map.getContainer().getBoundingClientRect();
+  const mc = M.getContainer().getBoundingClientRect();
   if (!mc.width || !mc.height) return NONE;
   // 🔴 不用 offsetParent 判可見:.tabbar 是 position:fixed,offsetParent 恆 null 會被誤判成不在
   const vis = (el) => {
@@ -21648,7 +21648,7 @@ function focusApplyLimit(target, zz, want) {
       const lim = map._limitCenter(target, zz, L.latLngBounds(mb));
       if (lim && (Math.abs(lim.lat - target.lat) > 1e-9 || Math.abs(lim.lng - target.lng) > 1e-9)) {
         // 夾住了:用夾完的中心反推「真正生效的位移」,而不是硬記想要的那個
-        const pw = map.project(target, zz), pg = map.project(lim, zz);
+        const pw = M.worldPx(target, zz), pg = M.worldPx(lim, zz);
         got = { x: want.x - (pw.x - pg.x), y: want.y - (pw.y - pg.y) };
         target = lim;
       }
@@ -21662,10 +21662,10 @@ function focusCenter(lat, lon, z, extra) {
   // extra=§04c 前瞻偏移(跟車專用):一樣進 _focusShift 記帳——解除跟隨後 reframeFocus 的
   // want(只含讓位)對上 have(讓位+前瞻),差量自動把前瞻退掉,不需要任何專屬清理碼
   const want = { x: s.x + (extra ? extra.x : 0), y: s.y + (extra ? extra.y : 0) };
-  const zz = (z == null ? map.getZoom() : z);
+  const zz = (z == null ? M.getZoom() : z);
   if (!want.x && !want.y) { state._focusShift = { x: 0, y: 0 }; return L.latLng(lat, lon); }
-  const p = map.project([lat, lon], zz);
-  const t = map.unproject(L.point(p.x + want.x, p.y + want.y), zz);
+  const p = M.worldPx([lat, lon], zz);
+  const t = M.worldUnpx(L.point(p.x + want.x, p.y + want.y), zz);
   return focusApplyLimit(t, zz, want);
 }
 // 面板開/關/換段高:只補「位移量的差」,不去猜使用者在看誰。
@@ -21684,11 +21684,11 @@ function reframeFocus() {
   const dx = Math.round(want.x - (have.x || 0)), dy = Math.round(want.y - (have.y || 0));
   if (!dx && !dy) return; // 桌面恆走這條(面板是右上浮動卡、insets 恆 0),行為與改動前逐像素相同
   // 記帳前先問「這段位移做得到嗎」:maxBounds 會夾(見 focusCenter 的說明),夾了還記成做到就會帳實不符
-  const before = map.getCenter();
+  const before = M.getCenter();
   state._autoPan = true;
   map.panBy([dx, dy], { animate: false }); // 刻意不補間:圖磚層與列車 canvas 是兩層,動畫期間會脫鉤(v0713u 的教訓)
   state._autoPan = false;
-  const z = map.getZoom(), pb = map.project(before, z), pa = map.project(map.getCenter(), z);
+  const z = M.getZoom(), pb = M.worldPx(before, z), pa = M.worldPx(M.getCenter(), z);
   state._focusShift = { x: (have.x || 0) + (pa.x - pb.x), y: (have.y || 0) + (pa.y - pb.y) };
 }
 
@@ -21700,10 +21700,10 @@ function recenterTo(lat, lon, extra) {
   // 消階梯鋸齒),但 mapPane(圖磚)與獨立的列車/軌道 canvas 圖層在真機幀率下會脫鉤→整條路線跟著車移動/抖動
   // (v0713r 引入),已移除,回歸穩定整數像素置中。
   const t = focusCenter(lat, lon, null, extra);
-  const c = map.getCenter();
+  const c = M.getCenter();
   if (Math.abs(c.lat - t.lat) < 1e-6 && Math.abs(c.lng - t.lng) < 1e-6) return; // 中心已到位(停站/暫停)免重複 setView
   state._autoPan = true; // 標記「這是跟隨鏡頭不是使用者拖曳」——tap-pick 選單靠它分辨,別誤收(見 closeTapPickOnUserMove)
-  map.setView(t, map.getZoom(), { animate: false });
+  map.setView(t, M.getZoom(), { animate: false });
   state._autoPan = false;
 }
 
@@ -21755,18 +21755,18 @@ function prefetchFollowAhead(dt) {
     state._pfLast = null; state._pfClock = 0; return;
   }
   const layer = activeBaseLayer(); if (!layer) return;
-  const z = map.getZoom();
+  const z = M.getZoom();
   if (z !== _warmZoom) { _warmedTiles.clear(); _warmZoom = z; state._pfLast = null; }
   state._pfClock = (state._pfClock || 0) + dt;
   if (state._pfClock < 0.12) return; // 節流:約每 120ms 外推一次(取樣窗夠長,速度估計較穩)
   const acc = state._pfClock; state._pfClock = 0;
-  const curPx = map.project(map.getCenter(), z);
+  const curPx = M.worldPx(M.getCenter(), z);
   const last = state._pfLast; state._pfLast = curPx;
   if (!last) return; // 需前一取樣點才能算速度(跟隨剛起步/剛跳時間時自動略過一次)
   const velX = (curPx.x - last.x) / acc, velY = (curPx.y - last.y) / acc; // px / real-sec
   const LOOK = 2; // 前瞻秒數(適中:約 2 real-sec 視窗)
   const aheadX = curPx.x + velX * LOOK, aheadY = curPx.y + velY * LOOK;
-  const sz = map.getSize(), padX = sz.x / 2 + 64, padY = sz.y / 2 + 64; // 走廊:現在中心→前瞻點,各邊補半個螢幕
+  const sz = M.getSize(), padX = sz.x / 2 + 64, padY = sz.y / 2 + 64; // 走廊:現在中心→前瞻點,各邊補半個螢幕
   warmTileWindow(
     Math.min(curPx.x, aheadX) - padX, Math.min(curPx.y, aheadY) - padY,
     Math.max(curPx.x, aheadX) + padX, Math.max(curPx.y, aheadY) + padY, z, layer);
@@ -21782,10 +21782,10 @@ function setFollowStatus(s, msg) {
 function followAheadPx(tr, pos) {
   if (!window.matchMedia(MOBILE_MQ).matches) return null;
   const nxt = trainPos(tr, state.simSec + 45);
-  const z = map.getZoom();
+  const z = M.getZoom();
   let dx = 0, dy = 0;
   if (nxt) {
-    const a = map.project([pos.lat, pos.lon], z), b = map.project([nxt.lat, nxt.lon], z);
+    const a = M.worldPx([pos.lat, pos.lon], z), b = M.worldPx([nxt.lat, nxt.lon], z);
     dx = b.x - a.x; dy = b.y - a.y;
   }
   const len = Math.hypot(dx, dy);
@@ -21794,7 +21794,7 @@ function followAheadPx(tr, pos) {
     const last = state._aheadLast;
     return last && last.tr === tr ? { x: last.x, y: last.y } : null;
   }
-  const i = mapInsets(), sz = map.getSize();
+  const i = mapInsets(), sz = M.getSize();
   const m = 0.15 * Math.max(0, Math.min(sz.x - i.left - i.right, sz.y - i.top - i.bottom));
   const out = { tr, x: dx / len * m, y: dy / len * m };
   state._aheadLast = out;
@@ -21848,8 +21848,8 @@ function updateFollowCamera() {
     const nowMs = performance.now();
     const zaStuck = state._zoomAnim && nowMs - (state._zaAt || 0) > 5000;
     const animBusy = state._zoomAnim && !zaStuck;
-    const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
-    const sz = map.getSize(), ins = mapInsets();
+    const cp = M.toScreen([pos.lat, pos.lon]);
+    const sz = M.getSize(), ins = mapInsets();
     const m = 16;
     const off = cp.x < ins.left - m || cp.x > sz.x - ins.right + m || cp.y < ins.top - m || cp.y > sz.y - ins.bottom + m;
     if (!off) state._camOffAt = 0;
@@ -22651,7 +22651,7 @@ async function pollLive() {
   if (document.hidden || state.mode !== 'sched' || !url) return;
   // cam/z:用量觀測埋點(前端半邊)——標記當前鏡頭型態與縮放,Worker 端據此讀取。僅台鐵 tra-live 帶;metro/ntm/alert 不加。
   const cam = state._theater ? 'theater' : (state.followTrain || state.freqFollow) ? 'follow' : state.ambient ? 'amb' : 'idle';
-  const reqUrl = url + (url.includes('?') ? '&' : '?') + 'cam=' + cam + '&z=' + (map ? Math.round(map.getZoom()) : 0);
+  const reqUrl = url + (url.includes('?') ? '&' : '?') + 'cam=' + cam + '&z=' + (map ? Math.round(M.getZoom()) : 0);
   try {
     const r = await fetch(reqUrl, { cache: 'no-store' });
     if (!r.ok) throw new Error(r.status);
@@ -23001,7 +23001,7 @@ function metroCoreVehicleInfo(rec) {
       ? metroCoreEpochSecOfDay(train.nextCall.arrivalEpoch) : null };
 }
 function drawMetroCoreVehicle(ln, item, showTrain, inView, collectHit, nowEpoch) {
-  const cp = map.latLngToContainerPoint([item.pos.lat, item.pos.lon]);
+  const cp = M.toScreen([item.pos.lat, item.pos.lon]);
   const label = item.publicLabel || ln.abbr;
   if (trtcOfficialSameTarget(state.freqFollow, { ln, vehicleId: item.vehicleId })) drawFreqRing(cp, ln.color);
   if (showTrain && inView(cp)) drawTag(cp, label, ln.color, textColorFor(ln.color));
@@ -25959,7 +25959,7 @@ function gotoStn(e) {
   const r = stnNavResolve(e);
   if (r.group) selectGroup(r.group); // 已在該群組時內部直接 return,不重載
   closeSearchDrop();
-  map.setView([e.lat, e.lon], Math.max(map.getZoom(), 13), { animate: false });
+  map.setView([e.lat, e.lon], Math.max(M.getZoom(), 13), { animate: false });
   openBoard(r.st);
 }
 
@@ -28587,7 +28587,7 @@ function warmSatUnderlay() {
   const b = map.options.maxBounds;
   if (!b) return;                                   // 硬牆還沒設好(boot 中途),下一次切換再說
   const z = SAT_UNDERLAY_ZS[0];
-  const a = map.project(b.getNorthWest(), z), c = map.project(b.getSouthEast(), z);
+  const a = M.worldPx(b.getNorthWest(), z), c = M.worldPx(b.getSouthEast(), z);
   satUnderlayWarmed = true;
   warmTileWindow(Math.min(a.x, c.x), Math.min(a.y, c.y), Math.max(a.x, c.x), Math.max(a.y, c.y), z, base, satTileLoaded);
 }
@@ -29235,7 +29235,7 @@ const HELP_TRY = {
 function helpNearestStation() {
   if (typeof nearbyStationCandidates !== 'function' || typeof map === 'undefined' || !map) return null;
   const cs = nearbyStationCandidates(); if (!cs.length) return null;
-  const c = map.getCenter(), me = { lat: c.lat, lon: c.lng };
+  const c = M.getCenter(), me = { lat: c.lat, lon: c.lng };
   return cs.map(o => ({ st: o.st, km: haversineKm(me, { lat: o.st.lat, lon: o.st.lon }) }))
     .sort((a, b) => a.km - b.km)[0].st;
 }
@@ -29333,7 +29333,7 @@ function reportDiagRows() {
   rows.push(['畫面', [(g && (g.label || g.name)) || String(state.group || ''),
     fmtHM(state.simSec % 86400) + (state.clockAtNow ? '（現在）' : '（模擬時刻）'),
     state.speed + '×'].join(' · ')]);
-  try { const c = map.getCenter(); rows.push(['視角', c.lat.toFixed(4) + ', ' + c.lng.toFixed(4) + ' · z' + map.getZoom()]); } catch (e) {}
+  try { const c = M.getCenter(); rows.push(['視角', c.lat.toFixed(4) + ', ' + c.lng.toFixed(4) + ' · z' + M.getZoom()]); } catch (e) {}
   rows.push(['跟隨中', reportFollowText()]);
   rows.push(['瀏覽器', navigator.userAgent]);
   return rows;
@@ -29599,8 +29599,8 @@ function setupMapTools() {
         if (tr) {
           const p = trainPos(tr, state.simSec);
           if (p) {
-            const cp = map.latLngToContainerPoint([p.lat, p.lon]);
-            const sz = map.getSize(), ins = mapInsets();
+            const cp = M.toScreen([p.lat, p.lon]);
+            const sz = M.getSize(), ins = mapInsets();
             const cx = (ins.left + sz.x - ins.right) / 2, cy = (ins.top + sz.y - ins.bottom) / 2;
             off = Math.round(Math.hypot(cp.x - cx, cp.y - cy));
           }
@@ -29613,7 +29613,7 @@ function setupMapTools() {
           + ' wd' + (state._wdN || 0)
           + ' dD' + Math.round(now - (state._drawDoneAt || 0))
           + ' st' + (state._stg || '-')
-          + ' z' + map.getZoom().toFixed(1)
+          + ' z' + M.getZoom().toFixed(1)
           + ' L' + (state.followLock ? 1 : 0) + ' T' + (state._transition ? 1 : 0)
           + ' Z' + (state._zoomAnim ? 1 : 0) + ' of' + off
           + ' rs' + (state._camRescues || 0) + ' sh' + (state._sizeHeals || 0)
@@ -29913,7 +29913,7 @@ function setupMapTools() {
     placeTrainCard(); // 進出全畫面:資訊卡在「併入跟隨面板」與「地圖下方」之間搬移
     placeFsOverlays(on); // 同步執行:class 已套用,量得到 fs 版控制列高度
     if (state._fsCapsuleSync) state._fsCapsuleSync(true); // 手機全畫面速度控制膠囊:進 fs 起手 slim、出 fs 清狀態
-    requestAnimationFrame(() => { map.invalidateSize(); reproject(); });
+    requestAnimationFrame(() => { M.resize(); reproject(); });
     if (!on && state.ambient) setAmbient(false); // 退出全畫面=退出放空
   }
   state._setFs = setFs;
@@ -30021,7 +30021,7 @@ function setupMapTools() {
       if (state._fsOwnExit || Date.now() - (state._fsReqT || 0) >= 5000) setFs(false);
     }
     if (!document.fullscreenElement) state._fsOwnExit = false;
-    requestAnimationFrame(() => { map.invalidateSize(); reproject(); });
+    requestAnimationFrame(() => { M.resize(); reproject(); });
   });
   fsFab.onclick = () => setFs(!document.body.classList.contains('fs'));
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.body.classList.contains('fs')) setFs(false); });
@@ -30123,7 +30123,7 @@ function setupMapTools() {
     const eff = FS_SCALE[sysTier] > FS_SCALE[user] ? sysTier : user;
     if (eff === 'std') document.documentElement.removeAttribute('data-fs');
     else document.documentElement.setAttribute('data-fs', eff);
-    if (state.ready) { try { map.invalidateSize({ pan: false }); } catch (e) {} } // 字級改變會動到面板高度,地圖尺寸快取要重量
+    if (state.ready) { try { M.resize({ pan: false }); } catch (e) {} } // 字級改變會動到面板高度,地圖尺寸快取要重量
     try { syncFontPanel(); } catch (e) {} // 面板與抽屜列的選中態/目前值一律跟著實際生效的階走
     try { fitBadgeDetail(true); } catch (e) {} // 換字級=整排尺寸全變,強制重量
   }
@@ -30224,7 +30224,7 @@ function setupMapTools() {
     pinBtn.classList.toggle('active', on);
     pinBtn.querySelector('.tl').textContent = t(on ? '點地圖存點' : '儲存');
     pinBtn.title = t(on ? '儲存地點模式：點地圖標記位置、看附近火車（再按一次關閉）' : '儲存地點，看附近經過的火車');
-    const cnt = map.getContainer(); if (cnt) cnt.style.cursor = on ? 'crosshair' : '';
+    const cnt = M.getContainer(); if (cnt) cnt.style.cursor = on ? 'crosshair' : '';
     if (on && !silent) showToast(t('儲存地點：點地圖標記你要記住的位置、看附近火車，按「存」收藏；再按一次關閉'));
     syncPinHint();   // 設計 14g:toast 會消失,常駐提示條才是這個模式在畫面上的持續標示
   }
@@ -30247,7 +30247,7 @@ function setupMapTools() {
     else { nearBtn.remove(); const row = document.querySelector('.ms-row[data-proxy="nearBtn"]'); if (row) row.remove(); }
   }
   // 地圖縮小(z<12)時給地點釘加光環放大,避免與背景車站點混淆(使用者要求)
-  function applyZfar() { const c = map.getContainer(); if (c) c.classList.toggle('zfar', map.getZoom() < 12); }
+  function applyZfar() { const c = M.getContainer(); if (c) c.classList.toggle('zfar', M.getZoom() < 12); }
   map.on('zoomend', applyZfar); applyZfar();
 }
 
@@ -30516,7 +30516,7 @@ function webMcpStationBoard(args) {
 }
 function webMcpCurrentView() {
   let center = null, zoom = null, running = null;
-  try { const c = map.getCenter(); center = { latitude: +c.lat.toFixed(6), longitude: +c.lng.toFixed(6) }; zoom = map.getZoom(); } catch (e) {}
+  try { const c = M.getCenter(); center = { latitude: +c.lat.toFixed(6), longitude: +c.lng.toFixed(6) }; zoom = M.getZoom(); } catch (e) {}
   try { running = runningCount(); } catch (e) {}
   const group = GROUPS.find(item => item.id === state.group);
   const ids = state.mode === 'sched'
@@ -30559,7 +30559,7 @@ function webMcpOpenStation(args) {
   if (!st) return { ok: false, error: 'station_open_failed', message: '切換路網後仍無法開啟這座站。', ...webMcpBase() };
   if (state.autoTour) setAutoTour(false);
   openBoard(st);
-  try { map.setView(focusCenter(st.lat, st.lon), Math.max(map.getZoom(), 13), { animate: false }); } catch (e) {}
+  try { map.setView(focusCenter(st.lat, st.lon), Math.max(M.getZoom(), 13), { animate: false }); } catch (e) {}
   return { ok: true, action: 'station_board_opened', station: webMcpPublicStation(resolved.rec),
     switched_to_all_view: switched, board_is_open: state.boardStation === st, ...webMcpBase() };
 }
@@ -30681,7 +30681,7 @@ async function boot() {
     const _drawOrig = draw;
     draw = function () {
       _drawOrig.apply(this, arguments);
-      const p = map.latLngToContainerPoint([ALIGN_DOT.lat, ALIGN_DOT.lng]);
+      const p = M.toScreen([ALIGN_DOT.lat, ALIGN_DOT.lng]);
       ctx.save(); ctx.fillStyle = '#00ffff';
       ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI * 2); ctx.fill(); ctx.restore();
     };
@@ -30838,10 +30838,10 @@ async function boot() {
     if (bd && !bd.hidden) closeBoard();
   }
   map.on('click', e => {
-    const cp = e.containerPoint || map.latLngToContainerPoint(e.latlng);
+    const cp = e.containerPoint || M.toScreen(e.latlng);
     closeTapPick(); // 點地圖任何地方先收掉歧義選單(選單列自身的點擊不會冒泡到 map)
     if (state.takeoutPick && state.takeoutResult) {
-      const pick = state.takeoutPick, ll = e.latlng || map.containerPointToLatLng(cp);
+      const pick = state.takeoutPick, ll = e.latlng || M.fromScreen(cp);
       const item = pick.item; item.coord = { lat: ll.lat, lon: ll.lng }; item.selected = true;
       const idx = state.takeoutResult.incomplete.indexOf(item);
       if (idx >= 0) state.takeoutResult.incomplete.splice(idx, 1);
@@ -30882,7 +30882,7 @@ async function boot() {
       return;
     }
     if (state.dropMode) { // 落釘模式(開關式):點地圖任一處落釘查看附近火車,落完「維持」模式可連續落釘/存點(可拖曳微調)
-      const ll = e.latlng || map.containerPointToLatLng(cp); // Leaflet LatLng 用 .lng(非本專案的 .lon)
+      const ll = e.latlng || M.fromScreen(cp); // Leaflet LatLng 用 .lng(非本專案的 .lon)
       openPinAt(ll.lat, ll.lng); return; // 不再自動退出——開著就能一直新增要存的點,再按一次「釘」才關(使用者要求)
     }
     closePinCard();      // 一般點擊(選車/站/平交道)先收掉可能開著的落釘卡
@@ -30891,7 +30891,7 @@ async function boot() {
     let best = null, bd = 1e9;
     const stCands = []; // ≤16px 的候選站全收:共構站(台北/板橋/南港…台鐵與高鐵)座標幾乎重疊,只留最近一顆會讓另一顆永遠點不到
     for (const st of state.schedStations) {
-      const p = map.latLngToContainerPoint([st.lat, st.lon]);
+      const p = M.toScreen([st.lat, st.lon]);
       const d = Math.hypot(p.x - cp.x, p.y - cp.y);
       if (d < bd) { bd = d; best = st; }
       if (d <= 16) stCands.push({ st, d });
@@ -30974,19 +30974,19 @@ async function boot() {
   // 卡片下沒壓到可點目標就不轉發:點卡片內文不該把卡關掉;按鈕(關閉鈕)照舊不轉發。
   document.getElementById('xingCard').addEventListener('click', ev => {
     if (ev.target.closest('button')) return;
-    const r = map.getContainer().getBoundingClientRect();
+    const r = M.getContainer().getBoundingClientRect();
     const cp = L.point(ev.clientX - r.left, ev.clientY - r.top);
     let stD = 1e9;
     for (const st of (state.schedStations || [])) {
-      const p = map.latLngToContainerPoint([st.lat, st.lon]);
+      const p = M.toScreen([st.lat, st.lon]);
       stD = Math.min(stD, Math.hypot(p.x - cp.x, p.y - cp.y));
     }
     if (!trainAt(cp) && !crossingAt(cp) && stD > 16 && !(state.deco && freqTrainAt(cp))) return;
-    map.fire('click', { containerPoint: cp, latlng: map.containerPointToLatLng(cp) });
+    map.fire('click', { containerPoint: cp, latlng: M.fromScreen(cp) });
   });
   map.on('mousemove', e => {
     // 滑過列車 → 手指游標(sched 真實班表 + freq 幽靈車一致)
-    const c = map.getContainer();
+    const c = M.getContainer();
     if (state.mode !== 'sched') { c.style.cursor = freqTrainAt(e.containerPoint) ? 'pointer' : ''; return; }
     c.style.cursor = (trainAt(e.containerPoint) || (state.deco && freqTrainAt(e.containerPoint))) ? 'pointer' : '';
   });
@@ -31212,7 +31212,7 @@ async function boot() {
     if (!state.ready || state._inTick || state._zoomAnim || document.hidden) return;
     // 同一個視圖連發的 move(零位移 move、_onZoomTransitionEnd 的補發)不重畫;判「同視圖」用投影狀態本身,
     // 不用時間窗——高更新率(120Hz／headless rAF 不鎖 vsync)下相鄰兩幀可能只差 3–5ms,時間窗會把真的位移漏掉
-    const c = map.getCenter(), key = c.lat + ',' + c.lng + ',' + map.getZoom();
+    const c = M.getCenter(), key = c.lat + ',' + c.lng + ',' + M.getZoom();
     if (key === state._syncDrawKey) return;
     state._syncDrawKey = key; state._syncDrawAt = state._drawAt = performance.now(); state._syncDrew = true;
     draw();
@@ -31236,9 +31236,9 @@ async function boot() {
   map.on('zoomstart', () => {
     if (state._zoomAnim) return; // 連續縮放 retarget:沿用原標定(q 是容器局部常數,仍有效)
     if (state._breathStage) { state._zaCalPend = null; return; } // 呼吸幕投影非 raw 不可標定(正常已被更早的 zoomstart listener 交還,此為防禦)
-    const size = map.getSize();
-    const w1 = map.containerPointToLatLng([size.x * 0.25, size.y * 0.25]);
-    const w2 = map.containerPointToLatLng([size.x * 0.75, size.y * 0.75]);
+    const size = M.getSize();
+    const w1 = M.fromScreen([size.x * 0.25, size.y * 0.25]);
+    const w2 = M.fromScreen([size.x * 0.75, size.y * 0.75]);
     // 街道底圖走 MapLibre 時,被動畫的是 GL 畫布(class leaflet-gl-layer 內的 canvas),不是圖磚容器
     // (此刻 _zaAff=null ⇒ raw 投影;捏合放手時 onZoomAnim 會再重標一次,原因見 zaCalGl)
     const glCal = zaCalGl(w1, w2);
@@ -31249,7 +31249,7 @@ async function boot() {
     }
     if (!el || !best) { state._zaCalPend = null; return; } // 無圖磚:本輪放棄同步(overlay 靜止 ~250ms,zoomend 重繪仍對齊)
     const m = zaParseMat(el), pp = map._getMapPanePos();
-    const p1 = map.latLngToContainerPoint(w1), p2 = map.latLngToContainerPoint(w2); // 此刻 _zaAff=null,讀到的就是 raw
+    const p1 = M.toScreen(w1), p2 = M.toScreen(w2); // 此刻 _zaAff=null,讀到的就是 raw
     state._zaCalPend = { el, w1, w2,
       q1x: (p1.x - pp.x - m.ux) / m.k, q1y: (p1.y - pp.y - m.uy) / m.k,
       q2x: (p2.x - pp.x - m.ux) / m.k, q2y: (p2.y - pp.y - m.uy) / m.k };
@@ -31472,7 +31472,7 @@ async function boot() {
       const tr0 = findTrain(deepTrain);
       if (tr0) { document.getElementById('trainSearch').value = tr0.train; setFollow(tr0); }
     } else if (deepAt) {
-      map.setView(deepAt, deepZ != null ? deepZ : map.getZoom(), { animate: false });
+      map.setView(deepAt, deepZ != null ? deepZ : M.getZoom(), { animate: false });
     } else if (defPlace) {
       map.setView([defPlace.lat, defPlace.lon], defPlace.z, { animate: false }); // 預設啟動地點:置中到儲存地點(全台同框群組已載入)
     } else if (geoCache) {
@@ -31521,9 +31521,9 @@ function saveLastView() {
   if (!g) return;
   const sel = g.mode === 'freq' ? state.freqSel : g.mode === 'sched' ? state.schedSel : null;
   try {
-    const c = map.getCenter();
+    const c = M.getCenter();
     localStorage.setItem(LAST_VIEW_KEY, JSON.stringify({
-      g: g.id, lat: +c.lat.toFixed(5), lon: +c.lng.toFixed(5), z: Math.round(map.getZoom()),
+      g: g.id, lat: +c.lat.toFixed(5), lon: +c.lng.toFixed(5), z: Math.round(M.getZoom()),
       sel: sel ? [...sel] : null,
     }));
   } catch (e) {}
@@ -31574,10 +31574,10 @@ function buildShareUrl() {
   const base = PUBLIC_SHARE_BASE;
   const t = fmtHM(state.simSec);
   if (state.followTrain && state.followId) return base + '?train=' + encodeURIComponent(state.followId) + '&t=' + t;
-  const c = map.getCenter();
+  const c = M.getCenter();
   return base + '?g=' + encodeURIComponent(state.group || 'nat') +
     '&at=' + c.lat.toFixed(5) + ',' + c.lng.toFixed(5) +
-    '&z=' + Math.round(map.getZoom()) + '&t=' + t;
+    '&z=' + Math.round(M.getZoom()) + '&t=' + t;
 }
 async function shareView() {
   const url = buildShareUrl();
