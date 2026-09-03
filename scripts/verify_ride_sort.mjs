@@ -326,9 +326,13 @@ for (const [engName, engine] of [['chromium', chromium], ['webkit', webkit]]) {
       `segRight=${m.segRight} panelRight=${m.panelRight} scrollW=${m.scrollW} vw=${m.vw}`);
     ok(`${engName} D6-${width} 預設高亮仍是 date(既有使用者的選擇不被改掉)`, m.onMode === 'date', `onMode=${m.onMode}`);
 
-    // D7 真的點一次「順序」:狀態要變、列表順序要跟著變成完乘先後(不是只把按鈕塗黑)
-    await page.locator('#ridePanel .ph-sort button[data-v="seq"]').tap();
-    await page.waitForTimeout(120);
+    // D7 真的點一次「順序」:狀態要變、列表順序要跟著變成完乘先後(不是只把按鈕塗黑)。
+    // 鈕不存在時 tap() 會逾時拋錯、整支腳本當場死掉——那會讓後面的寬度與另一個引擎全部不再回報,
+    // 讀到的人只看得到一段 stack trace。先問存不存在,不存在就讓 D7/D8 正常轉紅、矩陣照跑完。
+    const seqBtn = page.locator('#ridePanel .ph-sort button[data-v="seq"]');
+    const seqBtnCount = await seqBtn.count();
+    ok(`${engName} D7a-${width} 「順序」這顆鈕在 sheet 裡找得到`, seqBtnCount === 1, `count=${seqBtnCount}`);
+    if (seqBtnCount === 1) { await seqBtn.tap(); await page.waitForTimeout(120); }
     const after = await page.evaluate(() => {
       const rp = document.getElementById('ridePanel');
       return {
