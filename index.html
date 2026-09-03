@@ -3315,7 +3315,7 @@
     /* 列車數留在「資料狀態」卡裡,不進膠囊 */
     body.fs .topbar .badge .count { display: none; }
     /* 排不下時的退路:**逐顆**降級成 7px 脈動色點(08-22 那版的樣子),不是整排一起變——
-       放得下幾顆字就留幾顆,由 fitBadgeDetail() 依優先序(即時 > 重播 > 尖峰 > 看板校正)決定。
+       放得下幾顆字就留幾顆,由 fitBadgeDetail() 依優先序(即時 > 尖峰 > 看板校正)決定。
        時間本身永遠是字,任何情況都不降級。
        🔴 這四條刻意不宣告 display——[hidden] 的 UA display:none 才蓋得住(同 .ms-row 的既有教訓);
        #peak 不是用 hidden 而是用空字串控制,所以另外用 :empty 收掉。 */
@@ -4327,7 +4327,7 @@
     }
     body.fs .dwell-plate.show { transform: translateX(-50%); }
     /* 契約8 後半:速度膠囊(收合的 .controls)共用同一條中線。cexp 展開是操作暫態、cfaint 只是變淡,
-       都不改水平錨。直式那條基底規則(body:not×3 .controls)特定度 0-4-1,這裡加 .fs 一級蓋過。 */
+       都不改水平錨。直式那條基底規則(body:not×2 .controls)特定度 0-3-1,這裡加 .fs 一級蓋過。 */
     body.fs:not(.ambient):not(.cexp) .controls {
       left: calc(var(--land-lb) + (100% - var(--land-lb) - var(--rail-occupy)) / 2); right: auto;
     }
@@ -28772,7 +28772,7 @@ function fitBadgeDetail(force) {
   _fitSig = sig;
   const plate = bar.querySelector('.tb-plate');
   // 優先序:先讓最不急的那顆變回色點。即時資料(LIVE／非即時)最後才降級——
-  // 它是「畫面現在可不可信」的唯一指標,其餘三顆在資料狀態卡裡都寫得更清楚。
+  // 它是「畫面現在可不可信」的唯一指標,其餘兩顆在資料狀態卡裡都寫得更清楚。
   const DEGRADE = ['metroBadge', 'peak', 'liveBadge'];
   const els = DEGRADE.map(id => document.getElementById(id)).filter(Boolean);
   els.forEach(e => e.classList.remove('as-dot'));      // 量之前先全部回到「寫字」那一態
