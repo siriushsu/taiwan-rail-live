@@ -1,10 +1,8 @@
 #!/usr/bin/env node
 // privacy.html 的「三、服務供應商」與**實際會收到使用者請求的第三方**之間的對稱性守門人。
 //
-// 為什麼要有這支:2026-08-18 網站街道底圖從 CARTO 換成 OpenFreeMap,程式碼那一面掃得很乾淨
-// (旗標、App strip、verify-release 硬擋),但 privacy.html 的供應商清單**整整八天沒人動**
-// ——它列著一個我們沒在用的 CARTO,而實際在用的 OpenFreeMap 一次都沒被列過,Stadia 從
-// App 1.4.x 起也從來沒有。程式碼那面有 verify 腳本擋,對外文字那面**一條自動判準都沒有**。
+// 為什麼要有這支:底圖供應商改動後,privacy.html 曾經沒有同步更新。程式碼那面有 verify
+// 腳本擋,對外文字那面也需要同樣的自動判準。
 //
 // 判準的兩個方向(缺一都會留下破口):
 //   A 正向  每一個「實際會收到使用者請求」的第三方主機,都要對應到清單裡的一個供應商名字
@@ -36,13 +34,12 @@ const HOSTS = {
   'api.revenuecat.com': 'RevenueCat',
   'cdn.jsdelivr.net': 'jsDelivr',
   'tiles.openfreemap.org': 'OpenFreeMap',
-  'basemaps.cartocdn.com': 'CARTO',
   'tiles.stadiamaps.com': 'Stadia Maps',
   'ibasemaps-api.arcgis.com': 'Esri',
 };
 // 沒有網路主機、但確實在處理使用者資料的供應商(原生管道:登入、商店交易)。
 // 它們掃不到,所以反向判準要放行——但要在這裡具名,不能靠「掃不到就算了」。
-const NATIVE_ONLY = ['Apple'];
+const NATIVE_ONLY = ['Apple', 'Google'];
 
 // ── 掃描一:CSP 的 script-src / connect-src ⇒ 瀏覽器會對它發請求的第三方 ────────
 const headers = read('_headers');
@@ -66,10 +63,14 @@ ok('S1 CSP 掃得到第三方主機', cspHosts.size >= 5, `${cspHosts.size} 個:
 const tileHosts = new Set();
 for (const f of ['index.html', 'app/scripts/prepare-web.mjs']) {
   for (const m of read(f).matchAll(/https:\/\/([a-z0-9.{}-]+)\/[^\s'"`]*\{z\}[^\s'"`]*/gi)) {
-    tileHosts.add(m[1].replace(/^\{s\}\./, ''));
+    const host = m[1].replace(/^\{s\}\./, '');
+    // 網站原始碼仍保留 CARTO entry 當共用 App 設定的結構閘門；網站不會建立這兩層，
+    // prepare-web 也會在 App 出貨時整段替換，不能把靜態字串誤算成實際供應商。
+    if (f === 'index.html' && host === 'basemaps.cartocdn.com') continue;
+    tileHosts.add(host);
   }
 }
-ok('S2 掃得到圖磚主機', tileHosts.size >= 3, `${tileHosts.size} 個:${[...tileHosts].join(' ')}`);
+ok('S2 掃得到圖磚主機', tileHosts.size >= 2, `${tileHosts.size} 個:${[...tileHosts].join(' ')}`);
 
 // ── privacy.html 的「三、服務供應商」清單 ────────────────────────────────────
 const priv = read('privacy.html');
@@ -108,7 +109,7 @@ ok('B1 清單裡沒有已經不用的供應商', stale.length === 0,
   stale.length ? stale.map(t => t.slice(0, 34)).join(' / ') : `${items.length} 項全部對得上`);
 
 // ── C:退路型供應商要標明「只在什麼時候用」——它決定使用者的 IP 什麼時候會送過去 ──
-for (const p of ['CARTO', 'Stadia Maps']) {
+for (const p of ['Stadia Maps']) {
   const li = items.find(t => t.includes(p)) || '';
   ok(`C/${p} 標明是退路(僅在 OpenFreeMap 無法載入時使用)`, /僅在[\s\S]*無法載入時使用/.test(li),
     li.slice(0, 60) || '(清單裡沒有這一項)');

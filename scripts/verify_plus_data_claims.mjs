@@ -160,7 +160,7 @@ const scopes = {
 };
 // 批二-D(I-5):未登入畫面對「訪客資料會不會併入帳號」的說明,只會在 accountRender() 那個分支
 // 出現一次(用「登入後會同步」當錨點,已排除掉本檔自己的程式碼註解——見下方 stripComments)。
-const guestMergeIntroMatch = stripComments(src.index).match(/<p class="account-intro">(登入後會同步[^]*?)<\/p>/);
+const guestMergeIntroMatch = stripComments(src.index).match(/t\('(登入後會同步[^']*)'\)/);
 if (!guestMergeIntroMatch) throw new Error('找不到未登入畫面的 account-intro 文案(I-5)');
 const guestMergeIntro = htmlText(guestMergeIntroMatch[1]);
 const docConcepts = {
@@ -251,7 +251,7 @@ check('D6-ACCOUNT-DELETION', '文案', '三份文件都提供刪除帳號與同�
 check('D7-ENTITLEMENT-DELETION', '文案', '刪除帳號涵蓋通行證資格紀錄，並準確揭露訂閱不會因此被取消', () => {
   const ENTITLEMENT = /通行證資格紀錄/;
   const NO_CANCEL = /刪除軌島帳號不會自動取消進行中的訂閱/;
-  const CANCEL_WHERE = /App Store 的訂閱設定取消訂閱/;
+  const CANCEL_WHERE = /(?:App Store 或 Google Play\s*|該商店)的訂閱設定取消訂閱/;
   const found = {
     privacyDeletionListMentionsEntitlement: ENTITLEMENT.test(elementWith(src.privacy, '刪除帳號會刪除')),
     accountDeletionListMentionsEntitlement: ENTITLEMENT.test(docs.accountDeletion),

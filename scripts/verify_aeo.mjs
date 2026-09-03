@@ -98,7 +98,7 @@ const rootTypes = new Set(rootLd.flatMap(item => item['@graph'] || [item]).map(i
 if (!rootTypes.has('WebSite') || !rootTypes.has('SoftwareApplication')) fail('首頁 JSON-LD 缺少 WebSite 或 SoftwareApplication');
 for (const href of ['about/', 'accuracy/', 'stations/']) if (!index.includes(`href="${href}"`)) fail(`首頁未提供可見入口：${href}`);
 if (!index.includes('data-cl-of="aeo"') || !index.includes('data-cl="aeo"')) fail('公開更新紀錄未加入 AEO 最近項目與正本');
-if (!index.includes("const BUILD = 'v0903h'")) fail('BUILD 尚未更新為 v0903h');
+if (!index.includes("const BUILD = 'v0903i'")) fail('BUILD 尚未更新為 v0903i');
 
 const before = new Map([...pages, path.join(root, 'robots.txt'), path.join(root, 'sitemap.xml')].map(file => [file, fs.readFileSync(file)]));
 execFileSync(process.execPath, [path.join(root, 'scripts/build_aeo_pages.mjs')], { cwd: root, stdio: 'ignore' });

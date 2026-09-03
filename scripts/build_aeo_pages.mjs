@@ -234,7 +234,7 @@ function breadcrumbs(items) {
 function footer() {
   return `<footer class="site-footer">
     <div class="site-footer-inner">
-      <div>軌島是獨立開源的台灣鐵道即時動畫地圖，與各營運機構無關。</div>
+      <div>軌島是獨立維護、原始碼公開可查的台灣鐵道即時動畫地圖，與各營運機構無關。</div>
       <div class="footer-links"><a href="/accuracy/">準確度與限制</a><a href="/data-sources/">資料來源</a><a href="https://github.com/siriushsu/taiwan-rail-live">GitHub 原始碼</a></div>
     </div>
   </footer>
@@ -285,7 +285,7 @@ write('about/index.html', renderPage({
   content: `<section class="content-section"><h2>它怎麼運作</h2><div class="card-grid">
     <article class="card"><h3>收進同一張地圖</h3><p>台鐵、高鐵、各地捷運與輕軌、阿里山林鐵使用不同資料格式；軌島先整理路線、車站與班表，再放到同一時間軸。</p><a class="card-link" href="/data-sources/">看資料來源 →</a></article>
     <article class="card"><h3>依證據區分即時與推估</h3><p>有官方即時訊號的系統會用來校正；沒有逐車 GPS 的系統，列車位置是依班表、站間時間或官方到站倒數推演。</p><a class="card-link" href="/accuracy/">看準確度說明 →</a></article>
-    <article class="card"><h3>免費、開源、獨立維護</h3><p>這是個人興趣專案，不是營運機構的官方服務。原始碼公開，網站上的基本地圖與列車資訊免費使用。</p><a class="card-link" href="https://github.com/siriushsu/taiwan-rail-live">查看原始碼 →</a></article>
+    <article class="card"><h3>免費、原始碼公開、獨立維護</h3><p>這是個人興趣專案，不是營運機構的官方服務。原始碼依 source-available 授權公開，可供檢視與個人研究；網站基本地圖與列車資訊免費使用。</p><a class="card-link" href="https://github.com/siriushsu/taiwan-rail-live">查看原始碼與授權 →</a></article>
   </div></section>
   <section class="content-section"><h2>軌島適合回答什麼</h2><div class="answer-box"><ul class="answer-list">
     <li>現在地圖上有哪些台鐵、高鐵、捷運與輕軌列車？</li>
@@ -330,10 +330,10 @@ write('data-sources/index.html', renderPage({
   schema: pageSchema({ title: '軌島資料來源：台鐵、TDX、捷運與 OpenStreetMap', description: sourcesDescription, pathname: '/data-sources/' }),
   content: `<section class="content-section"><h2>主要來源與用途</h2><div class="fact-table">
     <div class="fact-row"><div class="fact-label">台鐵 OpenData</div><div class="fact-value">每日時刻表、車站基本資料與車種代碼等穩定資料。</div></div>
-    <div class="fact-row"><div class="fact-label">交通部 TDX</div><div class="fact-value">台鐵即時誤點與車站資訊，以及高鐵、捷運、輕軌等系統的路線、站序、時刻表或班距資料。</div></div>
+    <div class="fact-row"><div class="fact-label">交通部 TDX</div><div class="fact-value">台鐵即時誤點與車站資訊，以及高鐵、捷運、輕軌等系統的路線、站序、時刻表或班距資料，依政府資料開放授權條款第1版使用。<a href="https://motc-ptx.gitbook.io/tdx-xin-shou-zhi-yin/api-shi-yong-shuo-ming/zi-liao-shi-yong-chang-jian-wen-ti"><img src="/assets/tdx-logo.svg" alt="TDX 運輸資料流通服務標章 / Transport Data eXchange" width="184" height="34" style="display:block;max-width:100%;height:auto;margin-top:8px"></a></div></div>
     <div class="fact-row"><div class="fact-label">營運機構資料</div><div class="fact-value">在授權與技術條件允許時，使用各營運機構的到站倒數、列車動態或營運公告校正畫面。</div></div>
     <div class="fact-row"><div class="fact-label">OpenStreetMap</div><div class="fact-value">補足部分軌道幾何；資料來自 OpenStreetMap 貢獻者並依 ODbL 使用。</div></div>
-    <div class="fact-row"><div class="fact-label">地圖圖磚</div><div class="fact-value">網站依情境使用 OpenFreeMap、CARTO 與 Esri World Imagery，實際授權標示會顯示在地圖上。</div></div>
+    <div class="fact-row"><div class="fact-label">地圖圖磚</div><div class="fact-value">網站街道圖使用 OpenFreeMap，衛星影像使用 Esri World Imagery；App 的 OpenFreeMap 載入失敗時改用 Stadia Maps。實際授權標示會顯示在地圖上。</div></div>
   </div></section>
   <section class="content-section"><h2>為什麼不只用一個 API</h2><div class="answer-box"><p>班表、站點、路線幾何、逐車狀態與營運公告通常分散在不同來源，而且每個鐵道系統公開的欄位不同。軌島保留來源差異：有即時訊號就校正，只有班表就明確當作推演，不用一種資料精度冒充所有系統。</p></div></section>
   <section class="content-section"><h2>更新與可追溯性</h2><div class="card-grid">
