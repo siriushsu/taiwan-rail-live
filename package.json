@@ -47,6 +47,7 @@
     "check-android-direction": "node app/scripts/verify_android_widget_direction.mjs",
     "check-android-regions": "node app/scripts/verify_android_widget_regions.mjs",
     "check-tracked-ignored": "node scripts/check_tracked_ignored.mjs",
+    "check-crossing-paint": "node scripts/verify_crossing_paint.mjs",
     "check-crowd-board": "node scripts/verify_crowd_and_board_width.mjs"
   },
   "dependencies": {
