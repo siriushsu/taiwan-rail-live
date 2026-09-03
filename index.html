@@ -11552,7 +11552,7 @@ const TRIP_SHARE_ENABLED = (() => { try { return new URLSearchParams(location.se
 // 'carto' = 現況。⚠️ 合規破口:CARTO 2025-10 起把 hosted 圖磚限定給 enterprise 客戶與非營利 grants
 //           (LICENSE.md 逐字 "not available for free public use"),而我們在賣通行證 ⇒ 落在 commercial。
 // 'ofm'   = OpenFreeMap 向量(OSM 資料,免金鑰、無用量上限、明文可商用)。經 maplibre-gl-leaflet
-//           當成一個 Leaflet 圖層掛進來,Leaflet 與既有的 155 處綁定、投影包裝層都不動。
+//           當成一個 Leaflet 圖層掛進來,Leaflet 與既有的地圖綁定、投影包裝層都不動。
 // ?basemap=ofm 供驗證用(僅該次頁面生效,不改預設)。
 // 'carto' 這個值 2026-08-31 移除:網站已經沒有可用的 raster 街道來源,留著它等於提供一個
 // 「看蓋章地圖」的開關,而且會讓人誤以為那條路還是活的。
@@ -30985,7 +30985,7 @@ async function boot() {
     // 只開 sat——light/dark(Stadia,付費)刻意不開,同 @2x 全流量曝險教訓(見 monetization-cost-decisions)
     if (k === 'sat') opt.detectRetina = SAT_RETINA;
     // 街道底圖(亮/暗)走 OSM 向量:MapLibre 只當成一個 Leaflet 圖層,Leaflet 仍是地圖引擎,
-    // 155 處 map.* 綁定與投影包裝層一行都不用動。衛星維持 raster 不受影響。
+    // 既有的地圖綁定與投影包裝層一行都不用動。衛星維持 raster 不受影響。
     if (useOfmStreet && (k === 'light' || k === 'dark')) {
       // L2 退路先備好:用「raster 路徑原本就會建的那份設定」包成 thunk,退場時直接叫它,
       // 不重抄一次 maxZoom/keepBuffer/attribution(抄一次就多一個會走樣的地方)。
