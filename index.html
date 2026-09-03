@@ -6190,6 +6190,16 @@ function railIcon(name, className) {
   return '<svg class="' + cls + '" aria-hidden="true" focusable="false"><use href="#ri-' + name + '"></use></svg>';
 }
 const TRACK_AUDIT = new URLSearchParams(location.search).get('audit') === 'tracks';
+// ── 地圖引擎旗標(Leaflet→MapLibre 換引擎 M0):?engine=maplibre|leaflet > localStorage 'trainmap-engine' > 'leaflet'。
+// 一定在開機第一行讀成 const:後面 replaceState 會抹掉 query(分享連結契約同一個理由)。URL 值不寫回 localStorage。
+const ENGINE = (() => {
+  const ok = v => (v === 'maplibre' || v === 'leaflet') ? v : null;
+  let q = null, s = null;
+  try { q = ok(new URLSearchParams(location.search).get('engine')); } catch (e) {}
+  try { s = ok(localStorage.getItem('trainmap-engine')); } catch (e) {}
+  return q || s || 'leaflet';
+})();
+window.__ENGINE = ENGINE; // 驗證腳本用的把手
 // 手機/平板直式「殼」斷點(議題1:640→900,iPad 直式改拿 tabbar＋更多抽屜):與 CSS @media 同步,版面類判斷一律用此常數。
 // 注意:裝置等級判斷(keepBuffer/powerSave 預設)刻意不用此常數、維持 640——iPad 不該因為改拿 tabbar 就被當低階裝置。
 // 2026-08-11 加上 (max-height: 500px):矮視窗(iPhone Pro Max 橫放 932×430/956×440)寬度超過 900,
@@ -6263,7 +6273,61 @@ const state = {
                      //    JS 這半由 waitCardsDropOther() 保持同步,否則看板鈕會停在「結束追蹤」而卡早就沒了
   _metroLiveRaw: {}, // pollMetroLive 最近一次原始回應快取:sys → {at,rows,receivedAt},供等車卡取官方分鐘(不另發 fetch)
 };
-let map, cv, ctx;
+let M = null, map, cv, ctx; // M=地圖引擎適配層(見下);map=M0a 過渡別名(=M.leaflet),Task 7 移除
+// ==== ENGINE ADAPTER START ====
+// 地圖引擎適配層 M(Leaflet→MapLibre 換引擎 M0)。非引擎專屬程式碼只准經 M 碰地圖——守門人
+// scripts/verify_engine_adapter.mjs G1 用 regex 證明本區段外沒有任何 `map.xxx(`。座標慣例沿用專案
+// ([lat, lon] / {lat, lng}),zoom 一律 Leaflet 尺度(z0 世界=256px);方法簽章與 Leaflet 同名同序,只有
+// latLngToContainerPoint→toScreen、containerPointToLatLng→fromScreen、project→worldPx、unproject→worldUnpx、
+// invalidateSize→resize 五個改名(語意在兩引擎間有差的才改名,其餘照抄)。
+// Leaflet 專屬區段(底圖圖層/marker/pane/縮放動畫仿射/_limitCenter patch)拿 M.leaflet(非 Leaflet 引擎時為 null)
+// 並在函式入口 guard;那些是 M1 各批次要逐一改成引擎中立的地方。
+function createLeafletEngine(containerId, view) {
+  const Lmap = L.map(containerId, { zoomControl: true, attributionControl: true, preferCanvas: true, zoomAnimation: false })
+    .setView(view.center, view.zoom);
+  const E = {
+    engine: 'leaflet', raw: Lmap, leaflet: Lmap,
+    // 投影:每次呼叫都經 Lmap「當下」的方法,不快取函式參考——boot 內的呼吸幕 patch 會換掉 latLngToContainerPoint
+    toScreen: ll => Lmap.latLngToContainerPoint(ll),
+    fromScreen: p => Lmap.containerPointToLatLng(p),
+    worldPx: (ll, z) => Lmap.project(ll, z),
+    worldUnpx: (p, z) => Lmap.unproject(p, z),
+    // 相機
+    getZoom: () => Lmap.getZoom(),
+    getCenter: () => Lmap.getCenter(),
+    getBounds: () => Lmap.getBounds(),
+    getBoundsZoom: (b, inside, pad) => Lmap.getBoundsZoom(b, inside, pad),
+    setView: (c, z, o) => { Lmap.setView(c, z, o); return E; },
+    panTo: (c, o) => { Lmap.panTo(c, o); return E; },
+    panBy: (d, o) => { Lmap.panBy(d, o); return E; },
+    flyTo: (c, z, o) => { Lmap.flyTo(c, z, o); return E; },
+    fitBounds: (b, o) => { Lmap.fitBounds(b, o); return E; },
+    flyToBounds: (b, o) => { Lmap.flyToBounds(b, o); return E; },
+    stop: () => { Lmap.stop(); return E; },
+    setMinZoom: z => { Lmap.setMinZoom(z); return E; },
+    setMaxZoom: z => { Lmap.setMaxZoom(z); return E; },
+    setMaxBounds: b => { Lmap.setMaxBounds(b); return E; },
+    distance: (a, b) => Lmap.distance(a, b),
+    // 容器
+    getSize: () => Lmap.getSize(),
+    getContainer: () => Lmap.getContainer(),
+    resize: () => { Lmap.invalidateSize(); return E; },
+    // 事件(名稱沿用 Leaflet:move zoom resize moveend zoomend zoomstart movestart dragstart click mousemove zoomanim)
+    on: (ev, fn) => { Lmap.on(ev, fn); return E; },
+    off: (ev, fn) => { Lmap.off(ev, fn); return E; },
+    fire: (ev, data) => { Lmap.fire(ev, data); return E; },
+    // 幾何工廠
+    latLngBounds: (a, b) => L.latLngBounds(a, b),
+    latLng: (lat, lng) => L.latLng(lat, lng),
+    point: (x, y) => L.point(x, y),
+  };
+  return E;
+}
+function createEngine(containerId, view) {
+  if (ENGINE === 'maplibre' && typeof createMaplibreEngine === 'function') return createMaplibreEngine(containerId, view);
+  return createLeafletEngine(containerId, view); // MapLibre 實作尚未落地(M0b)時,旗標指到 maplibre 也退回 Leaflet
+}
+// ==== ENGINE ADAPTER END ====
 let baseLayers = {}; // light / dark / sat Leaflet 圖層
 let ofmRasterFallback = null; // L2 退場用:把 Stadia raster 該怎麼建記在這裡(見 boot 內建層處)
 // 網站版衛星圖磚的 Esri token 改由 Worker 的 /api/basemap-token 下發(不寫進這個公開 repo,見 boot 內註解)。
@@ -30575,8 +30639,8 @@ async function boot() {
   // 補間、overlay 同時依目標 zoom 重投影，Android WebView 真機會短暫分開。先前的仿射補償在桌面測試
   // 可對齊，真機仍會失步，因此回到已驗證的穩定方案：縮放同一拍直接落定。代價是縮放不再有平滑收尾，
   // 但路線、列車與底圖不會分家；flyTo、平移與跟車仍走各自原本的平滑路徑。
-  map = L.map('map', { zoomControl: true, attributionControl: true, preferCanvas: true, zoomAnimation: false })
-    .setView([24.5, 121], 8);
+  M = createEngine('map', { center: [24.5, 121], zoom: 8 });
+  map = M.leaflet; // M0a 過渡別名:Task 3–6 逐群把 map.* 換成 M.* / M.leaflet.*,Task 7 移除這一行
   // Leaflet 每次增減圖層都會把署名 DOM 重新建立；只在 addAttribution/setBasemap 後翻一次，
   // 下一次內部 _update 就會退回中文。包住唯一的重繪入口，確保切底圖與晚到資料都維持目前語言。
   if (map.attributionControl) {
@@ -30609,6 +30673,7 @@ async function boot() {
   };
   await setupOfflineLand();
   window.__map = map; // 驗證腳本用的把手(map 為閉包變數,外部拿不到)
+  window.__M = M; // 適配層把手(verify_engine_adapter.mjs);Task 6 會把上一行改成 window.__map = M.raw
   // 跨層對齊探針(只在 ?aligndot=lat,lng 時存在):同一個經緯度,底圖引擎畫一顆、overlay 畫一顆。
   // 兩顆在最終畫面上的像素距離＝底圖與列車圖層錯開多少。overlay 這顆刻意走 latLngToContainerPoint
   // (＝列車用的同一條路徑),底圖那顆交給底圖引擎自己算,兩邊沒有共用的投影假設。
