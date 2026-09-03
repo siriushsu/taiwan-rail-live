@@ -389,6 +389,42 @@ ok('集中輪詢下：CarWeight 仍依 60 秒節流', counts.hw === expHw, `hw=$
 ok('集中輪詢下：節流有作用（CarWeight 確實比 TrackInfo 少）', counts.hw < counts.tk,
   `hw=${counts.hw} < tk=${counts.tk}`);
 
+// ── 第 11 節：集中路徑不得在 DO 邊界上弄丟欄位 ─────────────────────────────────
+// 🔴 這一節是 M9 突變存活後補的。M9＝DO 的 frame 不帶 hwThisRound,邊緣 `f.hwThisRound || []`
+//    會把它默默補成空陣列 ⇒ 集中路徑上「本輪真的拿到什麼」永遠是空的,origin/main 5b4dd812
+//    刻意分出來的 hwRaw／hwThisRound 兩個語意在集中路徑整個消失。當時 48 條判準轉紅 0 條:
+//    第 3.5 節那兩條全滅判準跑在【直打】路徑,第 6–10 節只驗次數與 fail-open,中間沒有人在看
+//    「DO 送過來的那包東西完不完整」。
+// 判準寫成【跨路徑等價】而不是「hwThisRound 要在」:等價才擋得住以後掉任何一個欄位,
+// 而且比對的兩端是兩條不同的程式路徑(直打 vs DO 往返＋JSON 序列化),不是同源自比。
+const HW_DISTINCTION = async (usePoller) => {
+  trtcForgetMemoForTest();
+  const e = { ...env };
+  if (usePoller) e.TRTC_POLLER = makePollerBinding(e);
+  const one = async () => (await trtcLive(new Request('https://railisland.tw/api/trtc-live'), e)).json();
+  advance(16e3);
+  const healthy = await one();                 // 建立「上一份可用看板」＋新鮮的 CarWeight 記憶體
+  // 🔴 必須落在節流已到期的那一輪:這樣 CarWeight 本輪【真的打且成功】⇒ hwThisRound 非空,
+  //    而 TrackInfo／CarWeightBR 同時掛 ⇒ 這正是 hwThisRound 唯一能改變結果的窗。
+  advance(THROTTLE_MS + 15e3);
+  tkShouldFail = true; brShouldFail = true; hwShouldFail = false;
+  const probed = await one();
+  tkShouldFail = false; brShouldFail = false;
+  return { healthy: JSON.stringify(healthy.board || []), probed: JSON.stringify(probed.board || []) };
+};
+const viaDirect = await HW_DISTINCTION(false);
+const viaPoller = await HW_DISTINCTION(true);
+// 反向對照(judgment 第七節第 5 條):先證明這個情境分得開。兩種結果分別是
+// 「hwThisRound 非空 ⇒ 照常發佈」與「被當成三支全滅 ⇒ 沿用上一份看板」,
+// 兩者若剛好一樣,下面那條等價判準就是恆真。
+ok('第 11 節的情境確實分得開（正確結果 ≠ 沿用上一份看板）',
+  viaDirect.healthy !== '[]' && viaDirect.probed !== viaDirect.healthy,
+  `直打:上一份=${JSON.parse(viaDirect.healthy).length} 列／本輪=${JSON.parse(viaDirect.probed).length} 列`);
+ok('集中路徑與直打路徑在 hwThisRound 那個窗裡輸出一致（DO 邊界沒弄丟欄位）',
+  viaPoller.probed === viaDirect.probed,
+  `直打=${JSON.parse(viaDirect.probed).length} 列／集中=${JSON.parse(viaPoller.probed).length} 列`);
+
+
 Date.now = realNow;
 console.log(failures ? `\n❌ ${failures} 條未通過` : '\n✅ 全部通過');
 process.exit(failures ? 1 : 0);
