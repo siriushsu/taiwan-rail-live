@@ -1,0 +1,36 @@
+{
+  "generatedAt": "2026-09-03T11:10:07.605Z",
+  "app": {
+    "version": "1.5.4",
+    "build": 92,
+    "webBuild": "v0903k"
+  },
+  "device": {
+    "name": "iPad Pro 13-inch (M5)",
+    "runtime": "iOS 26.5",
+    "orientation": "landscape"
+  },
+  "dimensions": [
+    2752,
+    2064
+  ],
+  "files": [
+    "01_全台列車_此刻一起前進.png",
+    "02_點一座站_接下來的車都在這裡.png",
+    "03_跟一班車_看它現在走到哪.png",
+    "04_今天看什麼_軌島幫你挑.png",
+    "05_把每一趟旅程_收進護照.png",
+    "06_iPad橫著放_資訊就在手邊.png"
+  ],
+  "sourceFiles": [
+    "01_全台同框_原始.png",
+    "02_台北站看板_原始.png",
+    "03_149次跟車_原始.png",
+    "04_今日亮點_原始.png",
+    "05_旅程護照_原始.png",
+    "06_更多與平板工具_原始.png"
+  ],
+  "sourcePolicy": "全部 App UI 像素由 iPad Pro 13-inch Simulator 安裝並操作實際 Universal App 後，以 simctl framebuffer 擷取；沒有重建、生成或改寫介面。只加品牌標題、說明、背景、等比例縮放與圓角遮罩。",
+  "privacy": "畫面不含姓名、email、精確位置、帳號或其他個人資料。定位權限於擷取前拒絕。",
+  "attribution": "所有地圖 attribution 均保留在原始 App 畫面內。"
+}
