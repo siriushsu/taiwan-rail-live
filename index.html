@@ -6437,6 +6437,18 @@ function createMaplibreEngine(containerId, view) {
     });
     return wrapped.get(k);
   };
+  // 跨層對齊探針(?aligndot=lat,lng):底圖引擎自己依經緯度畫一顆洋紅點,不經過我們任何投影程式碼;
+  // overlay 那顆青點在 boot 的 draw 包裝裡畫(引擎中立)。setStyle({diff:false}) 會清掉所有自訂層,故掛在 style.load 每次重放。
+  if (ALIGN_DOT) {
+    const putProbe = () => {
+      if (raw.getLayer('aligndot')) return;
+      raw.addSource('aligndot', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [ALIGN_DOT.lng, ALIGN_DOT.lat] } } });
+      raw.addLayer({ id: 'aligndot', type: 'circle', source: 'aligndot', paint: { 'circle-radius': 18, 'circle-color': '#ff00ff' } });
+    };
+    raw.on('style.load', putProbe);
+    if (raw.isStyleLoaded()) putProbe();
+  }
+  window.__ofmGl = raw; // 驗證腳本的 GL 把手(Leaflet 路徑由 OFM 圖層的 'add' 事件設同名把手)
   const E = {
     engine: 'maplibre', raw, leaflet: null,
     // 投影(全程浮點;MapLibre project 回的是 Point{x,y})
