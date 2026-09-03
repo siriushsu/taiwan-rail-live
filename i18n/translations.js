@@ -142,7 +142,7 @@
       '從發車一路跟到終點就蓋一枚完乘章（調速可以・跳時間不算）· 灰色的章點了帶你從發車搭一趟': 'Follow a train from departure to its terminus to earn a stamp (speed changes are OK; time jumps do not count). Tap a gray stamp to join from departure.',
       '還沒有完乘記錄——從地圖角落「探」挑一班有趣的車，陪它跑完全程吧。': 'No completed trips yet. Use Pick below the map to find a train and follow it for the full trip.',
       '趟 · 總里程': 'trips · total', '最長一趟': 'longest trip', '座': 'stations',
-      '日期': 'Date', '距離': 'Distance', '車種': 'Type',
+      '順序': 'Order', '日期': 'Date', '距離': 'Distance', '車種': 'Type',
       '到站提醒': 'Arrival alert', '車次': 'Train', '提醒站點': 'Alert station', '提醒基準': 'Alert timing',
       '開車前': 'Before departure', '到達前': 'Before arrival', '提前': 'Lead time', '步行到車站': 'Walking time to station',
       '分鐘': 'min', '通知權限已關閉，請到 設定 > 軌島 開啟': 'Notifications are off. Enable them in Settings > Rail Island.',
@@ -184,6 +184,8 @@
         "Ambient mode is now sit-back-and-watch: the map can no longer be dragged or pinched off course, and leaving then re-entering no longer shrinks the Exit ambient mode button into an empty stub you cannot tap.",
       '跟捷運列車時，卡片上會顯示這一台車每一節車廂的擁擠度':
         'While following a Taipei Metro train, the card shows how crowded each carriage of that train is.',
+      '完乘記錄多了「順序」排法，照你實際跟完的先後排、最早那趟在最上面；手機的旅程護照也補上排序鈕（謝謝網友回報）':
+        'Completed trips can now be sorted in the order you actually finished them, oldest first — and the Journey Passport on phones finally has the sort buttons too.',
       '桌面的車站看板加寬，車種與「往哪」不會再被截掉':
         'The desktop station board is wider, so the train type and destination are no longer cut off.',
       '快到轉乘站時，直接列出對向系統最近兩班和「你到站時還剩幾分」，可以釘住你要搭的那班':
@@ -524,7 +526,7 @@
       '從發車一路跟到終點就蓋一枚完乘章（調速可以・跳時間不算）· 灰色的章點了帶你從發車搭一趟': '始発から終点まで追跡すると完乗スタンプを獲得できます（速度変更は可、時刻変更は不可）。灰色のスタンプをタップすると始発から追跡します。',
       '還沒有完乘記錄——從地圖角落「探」挑一班有趣的車，陪它跑完全程吧。': '完乗記録はまだありません。地図の下にある「選」から列車を選び、終点まで追跡してみましょう。',
       '趟 · 總里程': '回・総距離', '最長一趟': '最長記録', '座': '駅',
-      '日期': '日付', '距離': '距離', '車種': '列車種別',
+      '順序': '完乗順', '日期': '日付', '距離': '距離', '車種': '列車種別',
       '到站提醒': '到着通知', '車次': '列車', '提醒站點': '通知する駅', '提醒基準': '通知基準', '開車前': '発車前', '到達前': '到着前',
       '提前': '通知時刻', '步行到車站': '駅までの徒歩時間', '分鐘': '分', '通知權限已關閉，請到 設定 > 軌島 開啟': '通知がオフです。「設定」>「軌島」で許可してください。',
       '開啟設定': '設定を開く', '設定提醒': '通知を設定', '更新提醒': '通知を更新', '開車前叫你': '発車前にお知らせ', '好，提醒我': '通知を許可', '先不要': '後で',
@@ -555,6 +557,8 @@
         '鑑賞モードは「眺めるだけ」に：地図が指で動かされたりズームがずれたりせず、いったん終了してもう一度入っても「鑑賞モードを終了」ボタンが押せない小さなボタンに縮まなくなりました。',
       '跟捷運列車時，卡片上會顯示這一台車每一節車廂的擁擠度':
         '台北メトロの列車を追跡中、その列車の車両ごとの混雑度をカードに表示します。',
+      '完乘記錄多了「順序」排法，照你實際跟完的先後排、最早那趟在最上面；手機的旅程護照也補上排序鈕（謝謝網友回報）':
+        '完乗記録に「完乗順」を追加。実際に乗り終えた順に、いちばん古い1本が先頭に並びます。スマホの旅のパスポートにも並べ替えボタンを用意しました。',
       '桌面的車站看板加寬，車種與「往哪」不會再被截掉':
         'デスクトップの駅発車案内を広げ、列車種別と行き先が途中で切れなくなりました。',
       '快到轉乘站時，直接列出對向系統最近兩班和「你到站時還剩幾分」，可以釘住你要搭的那班':

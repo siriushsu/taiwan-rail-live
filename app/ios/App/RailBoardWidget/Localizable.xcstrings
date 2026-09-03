@@ -14519,6 +14519,23 @@
         }
       }
     },
+    "完乘記錄多了「順序」排法，照你實際跟完的先後排、最早那趟在最上面；手機的旅程護照也補上排序鈕（謝謝網友回報）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Completed trips can now be sorted in the order you actually finished them, oldest first — and the Journey Passport on phones finally has the sort buttons too."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完乗記録に「完乗順」を追加。実際に乗り終えた順に、いちばん古い1本が先頭に並びます。スマホの旅のパスポートにも並べ替えボタンを用意しました。"
+          }
+        }
+      }
+    },
     "完乘達成　<b>{train} 次</b> 抵達終點": {
       "extractionState": "manual",
       "localizations": {
@@ -25331,6 +25348,23 @@
         }
       }
     },
+    "捷運列車的車廂擁擠度不會再整批消失一輪：官方擁擠度偶爾抓不到時改用剛才那一份，最多兩分鐘，超過就留白（謝謝網友回報）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Car-by-car crowding on metro trains no longer disappears for a whole refresh: when the official crowding feed is briefly unavailable, the reading from moments earlier is reused for up to two minutes, and after that the space is left blank. Thanks to the reader who reported it."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "地下鉄の車両ごとの混雑度が、更新のたびにまとめて消えることがなくなりました。公式の混雑度データが一時的に取得できないときは直前の値を最大 2 分まで使い、それを過ぎた場合は表示しません(ご報告ありがとうございます)。"
+          }
+        }
+      }
+    },
     "捷運即時 · 台鐵誤點 · 高鐵表定": {
       "extractionState": "manual",
       "localizations": {
@@ -30104,6 +30138,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "雲林県"
+          }
+        }
+      }
+    },
+    "順序": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Order"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完乗順"
           }
         }
       }

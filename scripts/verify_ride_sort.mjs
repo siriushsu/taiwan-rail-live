@@ -53,6 +53,23 @@ const RIDES = [
   { train: '加開1', sys: 'tra_sched',  kind: '區間車',   from: '高雄', to: '台南', km: 45,  date: '2026-07-11', dep: 40000, stops: 5 },
 ];
 
+// 「順序」模式(issue#43)的 fixture:完乘時刻住在 envelope 每筆的 updatedAt,不在 ride 物件裡。
+// LEGACY_AT 那四筆刻意共用同一個時戳,模擬 userDataMigrateLegacy 把舊格式整批蓋成遷移當下的情形
+// (它們彼此分不出先後,要退回日期＋發車時刻);其餘五筆給遞增的獨立時戳,而且**刻意與日期序不同**,
+// 否則「照 date 反過來排」這種假實作也會綠。
+const LEGACY_AT = 1_750_000_000_000;
+const RIDE_AT = {
+  '99': LEGACY_AT, '400': LEGACY_AT, '1200': LEGACY_AT, '1201': LEGACY_AT, // 遷移批(同時戳)
+  '2100': LEGACY_AT + 1000,   // 日期最新,卻是遷移批之後第一個完成的
+  '加開1': LEGACY_AT + 2000,
+  '8888': LEGACY_AT + 3000,
+  '605': LEGACY_AT + 4000,
+  '100': LEGACY_AT + 5000,    // 日期第四新,卻是最後完成的
+};
+// 遷移批內照 date asc、同日 dep asc:99(07-05) → 400(07-08) → 1200(07-10 dep21600) → 1201(07-10 dep72000);
+// 之後照 updatedAt 由小到大。整串就是「最早完乘的在最上面」。
+const EXPECT_SEQ = ['99', '400', '1200', '1201', '2100', '加開1', '8888', '605', '100'];
+
 // 手算期望序(train 欄位序列),date/train/km 三模式完全不依賴引擎特性。
 const EXPECT_DATE  = ['2100', '8888', '605', '100', '加開1', '1201', '1200', '400', '99'];
 const EXPECT_TRAIN = ['99', '100', '400', '605', '1200', '1201', '2100', '8888', '加開1'];
@@ -69,7 +86,10 @@ const KIND_GROUPS = {
 
 function buildEnvelope(rides) {
   const at = Date.now();
-  const items = rides.map(r => ({ id: (r.sys || 'tra_sched') + '|' + r.train + '|' + r.date, value: r, updatedAt: at }));
+  const items = rides.map(r => ({
+    id: (r.sys || 'tra_sched') + '|' + r.train + '|' + r.date, value: r,
+    updatedAt: RIDE_AT[r.train], // 完乘時刻(見 RIDE_AT);缺一筆就是 undefined,下面 B0 會擋
+  }));
   return {
     version: 1, deviceId: 'verify-ride-sort', revision: 1, updatedAt: at,
     collections: {
@@ -81,6 +101,13 @@ function buildEnvelope(rides) {
   };
 }
 const ENVELOPE = buildEnvelope(RIDES);
+// 覆蓋率具名斷言:RIDE_AT 漏掉任何一筆 ⇒ 那筆 updatedAt=undefined ⇒ 頁面端 key() 退成 0 ⇒ 它會
+// 悄悄跑到最前面,而 EXPECT_SEQ 是手打的、不會自己跟著變。分母縮水要在這裡就炸,不要留到期望序去猜。
+{
+  const missing = RIDES.filter(r => !Number.isFinite(RIDE_AT[r.train])).map(r => r.train);
+  if (missing.length) { console.log(`FAIL fixture RIDE_AT 缺少完乘時刻 — ${missing.join(',')}`); process.exit(1); }
+  if (EXPECT_SEQ.length !== RIDES.length) { console.log('FAIL fixture EXPECT_SEQ 筆數與 RIDES 不符'); process.exit(1); }
+}
 
 async function bootPage(browser, { width = 1280, height = 800, touch = false } = {}) {
   const ctx = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch });
@@ -161,6 +188,19 @@ const boxOverlap = (a, b) => a && b && a.vis !== false && b.vis !== false &&
     `瀏覽器分組序=${JSON.stringify(kindOrder)} 實際=${JSON.stringify(rowsKind)} 期望=${JSON.stringify(expectKind)}`);
   ok('A4 kind 按鈕高亮(.on)', onKind === true);
 
+  // A5 seq 模式(issue#43):最早完乘的在最上面。期望序與 date 反過來排**不同**(見 RIDE_AT),
+  // 所以這條同時擋掉「把 date 模式倒過來就當完乘順序」的假實作。
+  await page.click('#phSortSeg button[data-v="seq"]');
+  await page.waitForTimeout(80);
+  const rowsSeq = await rideRowTrains(page);
+  const onSeq = await page.evaluate(() => document.querySelector('#phSortSeg button[data-v="seq"]').classList.contains('on'));
+  ok('A5 seq 模式順序正確(完乘先後;遷移批同時戳退回日期＋發車時刻)',
+    JSON.stringify(rowsSeq) === JSON.stringify(EXPECT_SEQ), `實際=${JSON.stringify(rowsSeq)} 期望=${JSON.stringify(EXPECT_SEQ)}`);
+  ok('A5 seq 按鈕高亮(.on)', onSeq === true);
+  const seqReversedDate = [...EXPECT_DATE].reverse();
+  ok('A5 對照:seq 期望序確實不等於 date 倒序(這條 fixture 有牙)',
+    JSON.stringify(EXPECT_SEQ) !== JSON.stringify(seqReversedDate), `date 倒序=${JSON.stringify(seqReversedDate)}`);
+
   await ctx.close();
   await browser.close();
 }
@@ -192,12 +232,12 @@ const boxOverlap = (a, b) => a && b && a.vis !== false && b.vis !== false &&
 // ══════════════ C. 窄視窗掃描:901/1024/1280 × chromium+webkit,不溢出+觸控 tap ══════════════
 // 本段原本掃 360/375/414/768,但那四個寬度全都 ≤900 ⇒ body 掛上 fs 手機殼,而 fs 把桌面護照整個關掉
 // (index.html:1365 `body.fs .passport { display: none }`),排序控制就住在 #passport 裡面。
-// 更根本的是:手機護照走的是另一條渲染路徑 #ridePanel,它自 2026-07-21(25b646c 手機改版 Batch B)起
-// 就刻意不出排序鈕(index.html:10820「手機不做排序鈕,固定日期最新在前」)。所以原本那四個寬度量到的
-// 一律是 0×0——「存在且可見」結構上不可能綠,而「未超出/不相交」這類否定式斷言反而因為兩個框都是
-// 0×0 而全部假綠(這正是它們沒能早點抓到問題的原因)。
-// 改法:(1) 掃描移到控制真的存在的區間,最窄取剛脫離手機殼的 901,那才是它會被擠爆的臨界寬度;
-//       (2) 手機那側改驗「依設計就不該有排序鈕」,並附正向對照免得零又是假綠(見 D 段)。
+// 更根本的是:手機護照走的是另一條渲染路徑 #ridePanel,它自 2026-07-21(25b646c 手機改版 Batch B)到
+// 2026-09-02 為止都刻意不出排序鈕。所以原本那四個寬度量到的一律是 0×0——「存在且可見」結構上不可能綠,
+// 而「未超出/不相交」這類否定式斷言反而因為兩個框都是 0×0 而全部假綠(這正是它們沒能早點抓到問題的原因)。
+// 改法:(1) 掃描移到控制真的存在的區間,最窄取剛脫離手機殼的 901,那才是**桌面那顆**會被擠爆的臨界寬度;
+//       (2) 手機那側自己一段(D),2026-09-03 起改驗「有、點得動、順序真的變」。
+// C 段量的是 #phSortSeg(只有桌面護照掛這個 id),與 D 段的 #ridePanel .ph-sort 是兩顆不同的控制。
 const WIDTHS = [901, 1024, 1280];
 for (const [engName, engine] of [['chromium', chromium], ['webkit', webkit]]) {
   const browser = await engine.launch();
@@ -243,15 +283,16 @@ for (const [engName, engine] of [['chromium', chromium], ['webkit', webkit]]) {
   await browser.close();
 }
 
-// ══════════════ D. 手機側:依設計就沒有排序鈕(360/375/414/768 × chromium+webkit) ══════════════
-// 這是 C 段搬家後留下的另一半:≤900 走 fs 手機殼,護照改由 #ridePanel 渲染,固定「日期最新在前」、
-// 刻意不出排序鈕(index.html:10820)。把它寫成正式判準,以後有人把排序鈕加進手機版、或反過來把
-// 桌面那顆誤刪,都會在這裡轉紅,而不是像先前那樣以 0×0 全綠收場。
-// D2/D3 是 D1 那個「零」的正向對照:sheet 真的開了、完乘列表真的有列——否則「找不到排序鈕」
-// 只是因為面板根本沒開(同一支收集器要能同時證明「該有的有」與「不該有的沒有」)。
+// ══════════════ D. 手機側:護照 sheet 也有排序鈕且真的能用(360/375/414/768 × chromium+webkit) ═════
+// ≤900 走 fs 手機殼,桌面 #passport 整個關掉(index.html `body.fs .passport { display: none }`),
+// 護照改由 #ridePanel 渲染。這一段原本的判準是「依設計就沒有排序鈕」——那是 2026-07-21 手機改版
+// 當時的實況,而 issue#43 的回報者正是被它擋在外面(他用 Android App,看不到任何排法)。2026-09-03
+// 起兩邊共用同一個模式,判準因此整段翻面:不是「數到零」,而是「找得到、點得動、順序真的變」。
+// D1/D2 是正向對照(殼生效、sheet 真的開了),D3 起才是排序鈕本身——沒有前兩條,後面每一條
+// 都可能因為面板根本沒開而以 0×0 假綠收場。
 for (const [engName, engine] of [['chromium', chromium], ['webkit', webkit]]) {
   const browser = await engine.launch();
-  console.log(`\n═══ D. ${engName} 手機側:護照 sheet 無排序鈕(360/375/414/768) ═══`);
+  console.log(`\n═══ D. ${engName} 手機護照 sheet 排序鈕(360/375/414/768) ═══`);
   for (const width of [360, 375, 414, 768]) {
     const { ctx, page } = await bootPage(browser, { width, height: 800, touch: true });
     // 走使用者真正的入口:底部分頁「護照」(內部轉呼叫 rideBtn.click() → openRidePanel(),
@@ -261,18 +302,49 @@ for (const [engName, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     const m = await page.evaluate(() => {
       const rp = document.getElementById('ridePanel');
       const vis = el => { if (!el || el.hidden) return false; const b = el.getBoundingClientRect(); return b.width > 0 && b.height > 0; };
+      const seg = rp && rp.querySelector('.ph-sort');
+      const r = seg && seg.getBoundingClientRect();
       return {
         fsShell: document.body.classList.contains('fs'),
         panelOpen: vis(rp),
         rows: rp ? rp.querySelectorAll('.ph-row').length : -1,
-        sortInSheet: rp ? rp.querySelectorAll('.ph-sort, [data-v]').length : -1,
+        segVis: vis(seg),
+        segBtns: seg ? seg.querySelectorAll('button').length : -1,
+        segRight: r ? r.right : null,
+        panelRight: rp ? rp.getBoundingClientRect().right : null,
+        onMode: rp ? ((rp.querySelector('.ph-sort button.on') || {}).dataset || {}).v || null : null,
         desktopPassportShown: vis(document.getElementById('passport')),
+        scrollW: document.documentElement.scrollWidth, vw: window.innerWidth,
       };
     });
-    ok(`${engName} D-${width} 手機殼生效(body.fs)且桌面 #passport 不顯示`, m.fsShell === true && m.desktopPassportShown === false, JSON.stringify(m));
-    ok(`${engName} D-${width} 正向對照:點護照分頁後 sheet 真的開了`, m.panelOpen === true, `panelOpen=${m.panelOpen}`);
-    ok(`${engName} D-${width} 正向對照:sheet 內完乘列表有列(${RIDES.length} 筆)`, m.rows === RIDES.length, `rows=${m.rows}`);
-    ok(`${engName} D-${width} 手機護照 sheet 依設計無排序鈕`, m.sortInSheet === 0, `sortInSheet=${m.sortInSheet}`);
+    ok(`${engName} D1-${width} 正向對照:手機殼生效(body.fs)且桌面 #passport 不顯示`, m.fsShell === true && m.desktopPassportShown === false, JSON.stringify(m));
+    ok(`${engName} D2-${width} 正向對照:點護照分頁後 sheet 真的開了、完乘列表有 ${RIDES.length} 列`, m.panelOpen === true && m.rows === RIDES.length, `panelOpen=${m.panelOpen} rows=${m.rows}`);
+    ok(`${engName} D3-${width} sheet 內排序鈕存在且可見`, m.segVis === true, JSON.stringify({ segVis: m.segVis, segBtns: m.segBtns }));
+    ok(`${engName} D4-${width} 五個排法都在(順序/日期/車次/距離/車種)`, m.segBtns === Object.keys({ seq: 1, date: 1, train: 1, km: 1, kind: 1 }).length, `segBtns=${m.segBtns}`);
+    ok(`${engName} D5-${width} 排序鈕右緣未超出面板、頁面無橫向捲動`,
+      m.segVis && m.segRight <= m.panelRight + 1 && m.scrollW - m.vw <= 1,
+      `segRight=${m.segRight} panelRight=${m.panelRight} scrollW=${m.scrollW} vw=${m.vw}`);
+    ok(`${engName} D6-${width} 預設高亮仍是 date(既有使用者的選擇不被改掉)`, m.onMode === 'date', `onMode=${m.onMode}`);
+
+    // D7 真的點一次「順序」:狀態要變、列表順序要跟著變成完乘先後(不是只把按鈕塗黑)。
+    // 鈕不存在時 tap() 會逾時拋錯、整支腳本當場死掉——那會讓後面的寬度與另一個引擎全部不再回報,
+    // 讀到的人只看得到一段 stack trace。先問存不存在,不存在就讓 D7/D8 正常轉紅、矩陣照跑完。
+    const seqBtn = page.locator('#ridePanel .ph-sort button[data-v="seq"]');
+    const seqBtnCount = await seqBtn.count();
+    ok(`${engName} D7a-${width} 「順序」這顆鈕在 sheet 裡找得到`, seqBtnCount === 1, `count=${seqBtnCount}`);
+    if (seqBtnCount === 1) { await seqBtn.tap(); await page.waitForTimeout(120); }
+    const after = await page.evaluate(() => {
+      const rp = document.getElementById('ridePanel');
+      return {
+        on: ((rp.querySelector('.ph-sort button.on') || {}).dataset || {}).v || null,
+        rows: Array.from(rp.querySelectorAll('.ph-list .ph-row b')).map(b => b.textContent),
+        saved: localStorage.getItem('trainmap-ride-sort'),
+        stillOpen: !rp.hidden && rp.getBoundingClientRect().height > 0,
+      };
+    });
+    ok(`${engName} D7-${width} 點「順序」後按鈕高亮切過去、選擇寫進 localStorage`, after.on === 'seq' && after.saved === 'seq', JSON.stringify({ on: after.on, saved: after.saved }));
+    ok(`${engName} D8-${width} 點「順序」後 sheet 列表真的重排成完乘先後`, JSON.stringify(after.rows) === JSON.stringify(EXPECT_SEQ), `實際=${JSON.stringify(after.rows)}`);
+    ok(`${engName} D9-${width} 重繪後 sheet 沒有被關掉`, after.stillOpen === true, `stillOpen=${after.stillOpen}`);
     await ctx.close();
   }
   await browser.close();
