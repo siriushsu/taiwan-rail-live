@@ -144,6 +144,12 @@ try {
   process.stdout.write(eng.stdout || ''); process.stderr.write(eng.stderr || '');
   if (eng.status !== 0) fail('地圖引擎適配層閘門未過——有程式碼繞過 M 直接呼叫 Leaflet map.*（單獨重跑：npm run check-engine）');
 
+  // ── 2.12 軌道 GeoJSON 守門人(換引擎 M1a,2026-09-03):磁碟上的 geojson 必須等於重建結果(G0),
+  //    否則 MapLibre 的 GL 軌道會畫到手改過／忘了重產的資料;G1–G10 順便一起過 ────────────────
+  const trk = spawnSync('node', [path.join(wt, 'scripts', 'verify_track_geojson.mjs')], { encoding: 'utf8' });
+  process.stdout.write(trk.stdout || ''); if (trk.stderr) process.stderr.write(trk.stderr);
+  if (trk.status !== 0) fail('軌道 GeoJSON 守門人未過(npm run check-track-geojson)');
+
   // ── 3. strip（腳本內建 esbuild AST 重印等價證明，任何不等價都非零退出）────
   const rawBytes = fs.readFileSync(path.join(wt, 'index.html'));
   execFileSync('node', [path.join(wt, 'scripts', 'strip_ship_comments.mjs'), wt], { stdio: 'inherit' });

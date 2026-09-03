@@ -17,6 +17,8 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DATA_DIR = path.join(ROOT, 'data');
 const SOURCE_DATA_DIR = DATA_DIR;
+// provenance 閘門(scripts/verify_data_provenance.mjs)要求每個開機會載入的資料檔內嵌來源;這段是逐字前綴的正本
+const TRACK_SOURCE = '由 data/{tra,thsr_track,afr,trtc,tymc,ntdlrt,ntalrt,sanying,krtc,tmrt}.json 的 lines[].shape 與 lines[].stations 轉成 GeoJSON([lon,lat],小數 6 位),scripts/build_track_geojson.mjs 可重建;sortKey 依 data/rail_crossing_levels.json 的 31 筆立體交叉做拓撲排序;六個狀態色由 index.html 的 railMix 常數預先混色。';
 const RAIL_DIM = 0.40;
 const FOLLOW_DIM = 0.62;
 const FAINT_GLOW = 0.22;
@@ -327,12 +329,14 @@ function build() {
 
   fs.writeFileSync(path.join(DATA_DIR, 'track_lines.geojson'), `${JSON.stringify({
     type: 'FeatureCollection',
+    source: TRACK_SOURCE,
     features: lineFeatures,
-  }, null, 2)}\n`);
+  })}\n`);
   fs.writeFileSync(path.join(DATA_DIR, 'track_stations.geojson'), `${JSON.stringify({
     type: 'FeatureCollection',
+    source: TRACK_SOURCE,
     features: stationFeatures,
-  }, null, 2)}\n`);
+  })}\n`);
 
   const sourceVertices = records.reduce((sum, record) => sum + record.line.shape.length, 0);
   console.log(`完成：來源線數 ${records.length}／頂點 ${sourceVertices}／站點 ${stationFeatures.length}`);
