@@ -38,13 +38,20 @@ if (rawHits.length) console.log('  ' + rawHits.slice(0, 15).join('\n  ') + (rawH
 if (STRICT) ck(rawHits.length === 0, 'G1b(嚴格) 標記外無 raw map.xxx( 呼叫', `${rawHits.length} 處`);
 else console.log('  (非嚴格模式:G1b 只報數不判紅;ENGINE_GATE_STRICT=1 才判)');
 ck(src.includes('toScreen: ll => Lmap.latLngToContainerPoint(ll)'), 'G1c toScreen 每次呼叫走 Lmap 當下的方法(不快取函式參考)');
-const BARE = /\blet map\b|\bmap = L\.map\(|window\.__map = map\b|addTo\(map\)|\(map,|!map\b|\bmap &&/g;
+const BARE = /\blet map\b|\bmap = L\.map\(|window\.__map = map\b|addTo\(map\)|\(map,|!map\b|(?<![.\w$])map &&/g;
 const bareHits = (src.match(BARE) || []).length;
 console.log(`  裸 map 識別字(let map / addTo(map) / !map / map && …)命中數:${bareHits}`);
 if (STRICT) ck(bareHits === 0, 'G1d(嚴格) 無裸 map 識別字殘留', `${bareHits} 處`);
 // G5 正向對照:計數器要抓得到塞進去的一行
 const mutated = src.replace('<script>', '<script>\nconst __x = map.getZoom();');
 ck(countRawMapOutside(mutated).length === rawHits.length + 1, 'G5 正向對照:塞一行 map.getZoom( 計數 +1');
+const mutatedBare = src.replace('<script>', '<script>\nconst __y = map && 1;');
+ck((mutatedBare.match(BARE) || []).length === bareHits + 1, 'G5b 正向對照:塞一行 `map && 1` 裸 map 計數 +1');
+
+if (process.env.ENGINE_GATE_STATIC_ONLY === '1') {
+  console.log(fails.length ? `\n${fails.length} 項未過:${fails.join(', ')}` : '\n靜態閘門全部通過');
+  process.exit(fails.length ? 1 : 0);
+}
 
 // ── 靜態伺服器(離線;/api/* 回 {} 但高鐵班表吐打包那份,理由見 verify_last_view.mjs) ─────
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.webp': 'image/webp', '.mp3': 'audio/mpeg', '.woff2': 'font/woff2' };

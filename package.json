@@ -30,6 +30,7 @@
     "check-native-localizations": "node app/scripts/verify_native_localizations.mjs",
     "check-i18n": "node scripts/check_i18n.mjs",
     "check-voice": "node scripts/check_voice.mjs",
+    "check-engine": "ENGINE_GATE_STRICT=1 node scripts/verify_engine_adapter.mjs",
     "strip-ship-comments": "node scripts/strip_ship_comments.mjs",
     "ship-web": "node scripts/ship_web.mjs",
     "build-music": "node scripts/build_music_data.mjs && npm run build-manifest",

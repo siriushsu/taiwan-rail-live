@@ -6273,7 +6273,7 @@ const state = {
                      //    JS 這半由 waitCardsDropOther() 保持同步,否則看板鈕會停在「結束追蹤」而卡早就沒了
   _metroLiveRaw: {}, // pollMetroLive 最近一次原始回應快取:sys → {at,rows,receivedAt},供等車卡取官方分鐘(不另發 fetch)
 };
-let M = null, map, cv, ctx; // M=地圖引擎適配層(見下);map=M0a 過渡別名(=M.leaflet),Task 7 移除
+let M = null, cv, ctx; // M=地圖引擎適配層(見下)
 // ==== ENGINE ADAPTER START ====
 // 地圖引擎適配層 M(Leaflet→MapLibre 換引擎 M0)。非引擎專屬程式碼只准經 M 碰地圖——守門人
 // scripts/verify_engine_adapter.mjs G1 用 regex 證明本區段外沒有任何 `map.xxx(`。座標慣例沿用專案
@@ -20750,16 +20750,16 @@ function traStnKey(name) {
 // 這班車的「經過站碼 → 下一個停靠站索引」。涵蓋通過站,所以車經過任何小站都對得上。
 // 語意:staMap[X] =「車已離開 X 之後,下一個要停的站」;X 自己是停靠站時,值指向它的【後一個】。
 function buildStaMap(stops, stnInfoMap) {
-  const map = {}, idxOfStop = [];
+  const idxMap = {}, idxOfStop = [];
   let k = 0;
   for (let i = 0; i < stops.length; i++) if (stops[i].stop !== false) idxOfStop[i] = k++;
   let nextStopIdx = null;
   for (let i = stops.length - 1; i >= 0; i--) {          // 由後往前掃,一路記住最近的停靠站
     const info = stnInfoMap[traStnKey(stops[i].name)];
-    if (info && info.id && nextStopIdx !== null) map[info.id] = nextStopIdx;
+    if (info && info.id && nextStopIdx !== null) idxMap[info.id] = nextStopIdx;
     if (stops[i].stop !== false) nextStopIdx = idxOfStop[i];
   }
-  return map;
+  return idxMap;
 }
 // 停靠站的站碼,與 stops 過濾後同序。後端用它解 status=0(車還沒到 X)⇒ 下一站是 X 自己。
 function buildStopCodes(stops, stnInfoMap) {
@@ -30644,7 +30644,6 @@ async function boot() {
   // 可對齊，真機仍會失步，因此回到已驗證的穩定方案：縮放同一拍直接落定。代價是縮放不再有平滑收尾，
   // 但路線、列車與底圖不會分家；flyTo、平移與跟車仍走各自原本的平滑路徑。
   M = createEngine('map', { center: [24.5, 121], zoom: 8 });
-  map = M.leaflet; // M0a 過渡別名:Task 3–6 逐群把 map.* 換成 M.* / M.leaflet.*,Task 7 移除這一行
   // Leaflet 每次增減圖層都會把署名 DOM 重新建立；只在 addAttribution/setBasemap 後翻一次，
   // 下一次內部 _update 就會退回中文。包住唯一的重繪入口，確保切底圖與晚到資料都維持目前語言。
   if (M.leaflet && M.leaflet.attributionControl) {
@@ -30679,7 +30678,7 @@ async function boot() {
   }
   await setupOfflineLand();
   window.__map = M.raw; // 驗證腳本用的把手(Leaflet 時就是 Leaflet map;MapLibre 時是 maplibregl.Map)
-  window.__M = M; // 適配層把手(verify_engine_adapter.mjs);Task 6 會把上一行改成 window.__map = M.raw
+  window.__M = M; // 適配層把手(verify_engine_adapter.mjs)
   // 跨層對齊探針(只在 ?aligndot=lat,lng 時存在):同一個經緯度,底圖引擎畫一顆、overlay 畫一顆。
   // 兩顆在最終畫面上的像素距離＝底圖與列車圖層錯開多少。overlay 這顆刻意走 latLngToContainerPoint
   // (＝列車用的同一條路徑),底圖那顆交給底圖引擎自己算,兩邊沒有共用的投影假設。
@@ -31060,7 +31059,7 @@ async function boot() {
     // 只開 sat——light/dark(Stadia,付費)刻意不開,同 @2x 全流量曝險教訓(見 monetization-cost-decisions)
     if (k === 'sat') opt.detectRetina = SAT_RETINA;
     // 街道底圖(亮/暗)走 OSM 向量:MapLibre 只當成一個 Leaflet 圖層,Leaflet 仍是地圖引擎,
-    // 155 處 map.* 綁定與投影包裝層一行都不用動。衛星維持 raster 不受影響。
+    // map.* 呼叫已全部經適配層 M,投影包裝層一行都不用動。衛星維持 raster 不受影響。
     if (useOfmStreet && (k === 'light' || k === 'dark')) {
       // L2 退路先備好:用「raster 路徑原本就會建的那份設定」包成 thunk,退場時直接叫它,
       // 不重抄一次 maxZoom/keepBuffer/attribution(抄一次就多一個會走樣的地方)。

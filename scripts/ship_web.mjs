@@ -137,6 +137,13 @@ try {
   if (obs.status !== 0) fail('OBS 直播／導播守門人未過——被刪掉的 ?live 機制回來了，或 LIVE 徽章家族被誤刪'
     + '（單獨重跑：npm run check-obs-removed）');
 
+  // ── 2.11 地圖引擎適配層閘門(換引擎 M0,2026-09-03)——純靜態、毫秒級:index.html 裡任何繞過適配層 M 直接
+  // 呼叫 Leaflet `map.xxx(` 的程式碼都會在這裡擋下(否則 MapLibre 引擎一開就炸,而 Leaflet 路徑全綠照不到)。
+  // 只跑靜態半段:動態半段(Playwright 開機比對)留給 npm run check-engine。
+  const eng = spawnSync('node', [path.join(wt, 'scripts', 'verify_engine_adapter.mjs')], { encoding: 'utf8', env: { ...process.env, ENGINE_GATE_STRICT: '1', ENGINE_GATE_STATIC_ONLY: '1' } });
+  process.stdout.write(eng.stdout || ''); process.stderr.write(eng.stderr || '');
+  if (eng.status !== 0) fail('地圖引擎適配層閘門未過——有程式碼繞過 M 直接呼叫 Leaflet map.*（單獨重跑：npm run check-engine）');
+
   // ── 3. strip（腳本內建 esbuild AST 重印等價證明，任何不等價都非零退出）────
   const rawBytes = fs.readFileSync(path.join(wt, 'index.html'));
   execFileSync('node', [path.join(wt, 'scripts', 'strip_ship_comments.mjs'), wt], { stdio: 'inherit' });
