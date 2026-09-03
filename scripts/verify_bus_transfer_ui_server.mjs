@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = +(process.env.PORT || 8793);
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf' };
-const calls = { station: 0, leg: 0, lastStation: null };
+const calls = { station: 0, leg: 0, route: 0, lastStation: null };
 
 const arrival = (key, routeName, state, etaSec, occupancy = 'not_provided') => ({
   key, scope: 'City/Tainan', routeUid: `TNN-${routeName}`, routeName, subRouteUid: '', subRouteName: '',
@@ -61,6 +61,17 @@ const legBody = key => ({
   totals: { candidates: 1, freshInService: 1, stale: 0 },
 });
 
+const routeBody = key => ({
+  state: 'ready', generatedAt: new Date().toISOString(), trigger: 'user_route_select_only', polling: false,
+  arrivalKey: key, routeName: '3', headsign: '安平／億載金城', boardStopUid: 'TNN33884',
+  boardStopName: '臺南火車站（北站）', routeUid: 'TNN-3', subRouteUid: '', direction: 0, variants: 1,
+  stops: [
+    { stopUid: 'TNN-A', stopName: '小西門', stopSequence: 13, position: { lat: 22.991, lon: 120.197 } },
+    { stopUid: 'TNN-B', stopName: '億載金城', stopSequence: 18, position: { lat: 22.989, lon: 120.159 } },
+  ],
+  source: { kind: 'S2', fetchedAt: new Date().toISOString(), cache: 'miss' },
+});
+
 function sendJson(res, body, status = 200) {
   res.statusCode = status;
   res.setHeader('content-type', 'application/json; charset=utf-8');
@@ -81,6 +92,11 @@ const server = createServer((req, res) => {
     calls.leg += 1;
     console.log(`BUS_LEG station=${calls.station} leg=${calls.leg}`);
     return sendJson(res, legBody(url.searchParams.get('arrival') || 'fixture-3'));
+  }
+  if (url.pathname === '/api/bus-route-stops') {
+    calls.route += 1;
+    console.log(`BUS_ROUTE station=${calls.station} leg=${calls.leg} route=${calls.route}`);
+    return sendJson(res, routeBody(url.searchParams.get('arrival') || 'fixture-3'));
   }
   if (url.pathname.startsWith('/api/')) return sendJson(res, { error: 'fixture endpoint not implemented' }, 503);
 

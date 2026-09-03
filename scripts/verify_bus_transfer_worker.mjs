@@ -30,6 +30,7 @@ const assetPaths = [];
 let authCalls = 0;
 const n1Calls = [];
 const dynamicCalls = [];
+const routeCalls = [];
 const usageRows = [];
 let selectedTargetSequence = 20;
 let failA2 = false;
@@ -66,6 +67,21 @@ globalThis.fetch = async requestLike => {
       ]);
       }
       if (url.pathname.endsWith('/InterCity')) return Response.json([]);
+    }
+    if (url.pathname.includes('/StopOfRoute/')) {
+      routeCalls.push(url);
+      assert(filter.includes("RouteUID eq 'TNN2102'"));
+      assert(filter.includes("SubRouteUID eq 'TNN210201'"));
+      assert(filter.includes('Direction eq 0'));
+      return Response.json([{
+        RouteUID: 'TNN2102', RouteName: { Zh_tw: '102' }, SubRouteUID: 'TNN210201', Direction: 0,
+        Stops: [
+          { StopUID: 'TNN-BEFORE', StopName: { Zh_tw: '前站' }, StopSequence: selectedTargetSequence - 1 },
+          { StopUID: 'TNN33884', StopName: { Zh_tw: '臺南火車站(中山路D)' }, StopSequence: selectedTargetSequence },
+          { StopUID: 'TNN-AFTER1', StopName: { Zh_tw: '小西門' }, StopSequence: selectedTargetSequence + 1 },
+          { StopUID: 'TNN-AFTER2', StopName: { Zh_tw: '億載金城' }, StopSequence: selectedTargetSequence + 2 },
+        ],
+      }]);
     }
     if (url.pathname.startsWith('/live/')) {
       dynamicCalls.push(url);
@@ -237,6 +253,36 @@ await check('點一路公車才查 A1＋A2；N1 車牌經同路線重新驗證�
   assert.equal(dynamicCalls.length, 2, 'leg raw cache 命中仍重打 A1/A2');
 });
 
+await check('只有選定接續路線才查 S2 完整站序，且只回上車站之後的下車站', async () => {
+  routeCalls.length = 0;
+  const stationResponse = await worker.fetch(new Request('https://railisland.tw/api/bus-transfer?station=TRA%3A4220'), env, {});
+  const stationBody = await stationResponse.json();
+  const selected = stationBody.arrivals.find(row => row.routeName === '102');
+  assert(selected);
+  selectedTargetSequence = selected.stopSequence;
+  const url = new URL('https://railisland.tw/api/bus-route-stops');
+  url.searchParams.set('station', 'TRA:4220');
+  url.searchParams.set('arrival', selected.key);
+  const usageBefore = usageRows.length;
+  const response = await worker.fetch(new Request(url), env, {});
+  const body = await response.json();
+  assert.equal(response.status, 200, JSON.stringify(body));
+  assert.equal(body.trigger, 'user_route_select_only');
+  assert.equal(body.polling, false);
+  assert.equal(body.state, 'ready');
+  assert.deepEqual(body.stops.map(stop => stop.stopName), ['小西門', '億載金城']);
+  assert(body.stops.every(stop => stop.stopSequence > selected.stopSequence));
+  assert.equal(routeCalls.length, 1);
+  assert.equal(routeCalls[0].searchParams.get('$select'), 'RouteUID,RouteID,SubRouteUID,SubRouteID,Direction,Stops');
+  assert.equal(usageRows.length, usageBefore + 1);
+  assert.equal(usageRows.at(-1).blobs[0], 'S2');
+
+  const again = await worker.fetch(new Request(url), env, {});
+  const againBody = await again.json();
+  assert.equal(againBody.source.cache, 'hit');
+  assert.equal(routeCalls.length, 1, '六小時 route cache 命中不得再打 S2');
+});
+
 await check('A2 暫時失敗時仍回 A1 公車位置，進度與整體狀態如實降級', async () => {
   edge.clear();
   _busTransfer.resetBusTransferCaches();
@@ -267,9 +313,10 @@ await check('A2 暫時失敗時仍回 A1 公車位置，進度與整體狀態如
 await check('scheduled 與核心都沒有接入 bus transfer 輪詢／timer', () => {
   const scheduled = /async scheduled\([\s\S]*?\n  async fetch\(/.exec(workerSource)?.[0] || '';
   assert(scheduled, '找不到 scheduled handler');
-  assert.doesNotMatch(scheduled, /busTransfer|fetchBusN1|busLegLive|fetchBusDynamic|bus-transfer|bus-leg-live/);
+  assert.doesNotMatch(scheduled, /busTransfer|fetchBusN1|busLegLive|fetchBusDynamic|busRouteStops|bus-transfer|bus-leg-live|bus-route-stops/);
   assert.doesNotMatch(coreSource, /setInterval\s*\(|setTimeout\s*\(/);
   assert.match(workerSource, /else if \(url\.pathname === '\/api\/bus-transfer'\) res = await busTransfer\(request, env\);/);
+  assert.match(workerSource, /else if \(url\.pathname === '\/api\/bus-route-stops'\) res = await busRouteStops\(request, env\);/);
 });
 
 assert(assetCalls >= 1, 'fixture asset 從未讀取');

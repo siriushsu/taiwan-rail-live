@@ -26,7 +26,7 @@
 (function (global) {
   'use strict';
 
-  const VERSION = '0.6.0';
+  const VERSION = '0.7.0';
   const COVERAGE = 'all_active_rail_stations';
   const API_BASE = '';
   const STALE_LABEL_SEC = 180;
@@ -34,6 +34,8 @@
   // 才重新查；看板自己每 20 模擬秒重繪不會觸發請求。
   const QUERY_REFRESH_AFTER_SEC = 20;
   const MAPS_DIR = 'https://www.google.com/maps/dir/?api=1';
+  const JOURNEY_STORAGE_KEY = 'rail-island-bus-journey-v1';
+  const JOURNEY_MAX_AGE_MS = 12 * 3600 * 1000;
 
   // 宿主傳入既有的 t()。整個 App 同一時間只會使用一種介面語言；重新 mount
   // （例如切換語言後重繪看板）會更新這個函式。未提供時安全退回繁中。
@@ -63,10 +65,45 @@
     DATA: new Map(),
     VIEW: new Map(),
     INSTANCES: new Set(),
+    JOURNEY: undefined,
   });
   const DATA = store.DATA;
   const VIEW = store.VIEW;
   const INSTANCES = store.INSTANCES;
+
+  function readJourney() {
+    try {
+      const value = JSON.parse(global.localStorage && global.localStorage.getItem(JOURNEY_STORAGE_KEY) || 'null');
+      if (!value || value.version !== 1 || !value.stationId || !value.arrivalKey ||
+          !['waiting', 'aboard'].includes(value.phase) || Date.now() - Number(value.updatedAt || 0) > JOURNEY_MAX_AGE_MS) {
+        if (value && global.localStorage) global.localStorage.removeItem(JOURNEY_STORAGE_KEY);
+        return null;
+      }
+      return value;
+    } catch (error) { return null; }
+  }
+  if (store.JOURNEY === undefined) store.JOURNEY = readJourney();
+
+  function journeyValue() { return store.JOURNEY || null; }
+  function emitJourney(reason) {
+    const detail = { journey: journeyValue(), reason: String(reason || 'updated') };
+    for (const instance of [...INSTANCES]) {
+      if (typeof instance.onJourneyChange === 'function') {
+        try { instance.onJourneyChange(detail); } catch (error) { /* 宿主 callback 不得打斷卡片 */ }
+      }
+    }
+    try { global.dispatchEvent(new CustomEvent('rail-bus-journey-change', { detail })); } catch (error) {}
+  }
+  function writeJourney(next, reason) {
+    store.JOURNEY = next ? { ...next, version: 1, updatedAt: Date.now() } : null;
+    try {
+      if (store.JOURNEY) global.localStorage.setItem(JOURNEY_STORAGE_KEY, JSON.stringify(store.JOURNEY));
+      else global.localStorage.removeItem(JOURNEY_STORAGE_KEY);
+    } catch (error) { /* 私密模式仍可在本次頁面使用 */ }
+    renderAll();
+    emitJourney(reason);
+    return store.JOURNEY;
+  }
 
   const stationData = stationId => {
     if (!DATA.has(stationId)) DATA.set(stationId, {
@@ -79,6 +116,7 @@
     const legs = stationData(stationId).legs;
     if (!legs.has(arrivalKey)) legs.set(arrivalKey, {
       status: 'idle', data: null, error: null, fetchedAt: 0, inflight: null, controller: null,
+      routeStatus: 'idle', routeData: null, routeError: null, routeInflight: null, routeController: null,
     });
     return legs.get(arrivalKey);
   };
@@ -89,6 +127,7 @@
       planOpen: false,    // 降級後的規劃摘要是否展開
       slackOpen: false,   // 降級後的裕度摘要是否展開
       openLegs: new Set(),
+      pickArrivalKey: null,
     });
     return VIEW.get(viewKey);
   };
@@ -278,6 +317,19 @@
 .btu-nav-go:hover{background:var(--bg-stage,#F7F0DD);color:var(--navy,#2A4A73)}
 .btu-leg{padding:10px 12px 12px;background:var(--bg-stage,#F7F0DD);border-top:1px dashed var(--line-dash,#D8CBA9)}
 .btu-leg .btu-legbasis{font-size:calc(11px * var(--uis,1));line-height:1.5;color:var(--muted,#6B5F4A);margin:0 0 8px;text-wrap:pretty}
+.btu-journey{padding:10px 12px;background:var(--bg-stage,#F7F0DD);border-bottom:1.5px dashed var(--line-dash,#D8CBA9)}
+.btu-journeytop{display:flex;align-items:baseline;gap:6px 10px;flex-wrap:wrap}
+.btu-journeytop b{font-size:calc(14px * var(--ui,1));color:var(--ink-strong,#1E2C40)}
+.btu-journeyphase{font-size:calc(10.5px * var(--uis,1));font-weight:800;color:var(--on-navy,#FFFDF6);background:var(--navy,#2A4A73);border-radius:var(--r-pill,999px);padding:2px 8px}
+.btu-journeyline{display:block;margin-top:4px;font-size:calc(11.5px * var(--uis,1));line-height:1.45;color:var(--muted,#6B5F4A)}
+.btu-journeyactions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:7px;margin-top:9px}
+.btu-jbtn{min-height:calc(44px * var(--uit,1));padding:7px 10px;font:inherit;font-size:calc(12px * var(--ui,1));font-weight:800;color:var(--navy,#2A4A73);background:var(--paper,#FFFDF6);border:1.5px solid var(--navy,#2A4A73);border-radius:var(--r-m,8px);cursor:pointer}
+.btu-jbtn.primary{color:var(--on-navy,#FFFDF6);background:var(--navy,#2A4A73)}
+.btu-jbtn.danger{color:var(--red,#D23C2A);border-color:var(--red,#D23C2A)}
+.btu-picker{display:flex;flex-direction:column;gap:7px;margin-top:9px;padding-top:9px;border-top:1px dashed var(--line-dash,#D8CBA9)}
+.btu-picker label{font-size:calc(11.5px * var(--uis,1));font-weight:800;color:var(--muted,#6B5F4A)}
+.btu-picker select{width:100%;min-height:calc(44px * var(--uit,1));padding:7px 9px;font:inherit;font-size:calc(13px * var(--ui,1));color:var(--ink,#3A3226);background:var(--paper,#FFFDF6);border:1.5px solid var(--line,#C9B98F);border-radius:var(--r-m,8px)}
+.btu-pickeractions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:7px}
 .btu-veh{display:flex;flex-direction:column;gap:3px;padding:8px 10px;background:var(--paper,#FFFDF6);border:1px solid var(--line-faint,#ECE2C8);border-radius:var(--r-s,4px)}
 .btu-veh+.btu-veh{margin-top:6px}
 .btu-veh .btu-plate{font-family:var(--mono,ui-monospace,Menlo,monospace);font-size:calc(13px * var(--ui,1));font-weight:800;color:var(--ink-strong,#1E2C40);letter-spacing:.5px}
@@ -527,6 +579,7 @@ ${renderWalkNote()}`;
     const { name, sub } = routeLabel(arrival);
     const age = liveAge(live.ageSec, fetchedAt);
     const open = openLegs.has(arrival.key);
+    const selected = !!(journeyValue() && journeyValue().stationId === station.id && journeyValue().arrivalKey === arrival.key);
 
     const lines = [];
     if (live.state === 'stale') {
@@ -559,6 +612,7 @@ ${renderWalkNote()}`;
     if (arrival.routeMatch && arrival.routeMatch !== 'exact') {
       tags.push(`<span class="btu-tag btu-opt">${esc(tr('路線比對非精確'))}</span>`);
     }
+    if (selected) tags.unshift(`<span class="btu-tag btu-navy">${esc(tr('接續旅程'))}</span>`);
 
     return `<div class="btu-row">
 <button type="button" class="btu-rowbtn" data-btu-act="leg" data-btu-arrival="${esc(arrival.key)}" aria-expanded="${open ? 'true' : 'false'}">
@@ -570,7 +624,7 @@ ${lines.map(line => `<span class="btu-sec${line.cls ? ` ${line.cls}` : ''}">${li
 <span class="btu-age">${esc(ageText(age))}</span>
 ${tags.length ? `<span class="btu-tags">${tags.join('')}</span>` : ''}
 </span>
-<span class="btu-rowcaret" aria-hidden="true">${esc(tr(open ? '收合' : '跟車'))}</span>
+<span class="btu-rowcaret" aria-hidden="true">${esc(tr(selected ? '已選' : (open ? '收合' : '跟車')))}</span>
 </button>
 ${open ? renderLeg(station.id, arrival) : ''}
 </div>`;
@@ -614,6 +668,84 @@ ${lines.map(line => `<span class="btu-sec">${line}</span>`).join('')}
 </div>`;
   }
 
+  function renderJourney(instance) {
+    const journey = journeyValue();
+    if (!journey || journey.stationId !== instance.stationId) return '';
+    const station = stationData(journey.stationId);
+    const arrival = station.data && Array.isArray(station.data.arrivals)
+      ? station.data.arrivals.find(row => row.key === journey.arrivalKey) : null;
+    const leg = legData(journey.stationId, journey.arrivalKey);
+    const vehicles = leg.data && Array.isArray(leg.data.vehicles) ? leg.data.vehicles : [];
+    // 沒有官方車牌綁定時不得拿同路線候選的第一台冒充使用者搭的車；寧可不算剩餘站數。
+    const vehicle = journey.plate
+      ? vehicles.find(item => String(item.plate || '') === String(journey.plate)) || null
+      : (vehicles.find(item => item.binding === 'n1_plate_verified') || null);
+    const route = journey.routeName || (arrival && arrival.routeName) || tr('公車');
+    const alight = journey.alightStop && journey.alightStop.stopName;
+    const board = journey.boardStop && journey.boardStop.stopName;
+    const lines = [];
+    if (journey.phase === 'waiting') {
+      let eta = arrival ? renderEta(arrival).text : null;
+      if (!arrival && journey.expectedAt) {
+        const remainSec = Math.round((Date.parse(journey.expectedAt) - Date.now()) / 1000);
+        eta = Number.isFinite(remainSec) && remainSec >= -120
+          ? etaText(remainSec)
+          : tr('原預估已過，請重新查詢');
+      }
+      lines.push(tr('在 {stop} 等車{eta}', { stop: board || tr('上車站'), eta: eta ? `・${eta}` : '' }));
+      lines.push(tr('下車：{stop}', { stop: alight || tr('尚未設定') }));
+      if (journey.plate) lines.push(tr('已對上車牌 {plate}', { plate: journey.plate }));
+      else lines.push(tr('尚未確認車牌，上車前請再核對路線與方向'));
+    } else {
+      const current = vehicle && vehicle.progress && vehicle.progress.currentStopSequence;
+      const target = journey.alightStop && journey.alightStop.stopSequence;
+      const remaining = Number.isFinite(current) && Number.isFinite(target) ? target - current : null;
+      if (remaining != null && remaining > 0) lines.push(tr('距 {stop} 還有 {n} 站', { stop: alight, n: remaining }, remaining));
+      else if (remaining === 0) lines.push(tr('已到 {stop}，請準備下車', { stop: alight }));
+      else if (remaining != null && remaining < 0) lines.push(tr('車輛回報已駛過 {stop}', { stop: alight }));
+      else lines.push(tr('往 {stop} 行駛中；目前無法算剩餘站數', { stop: alight || tr('下車站') }));
+      if (vehicle && vehicle.progress && vehicle.progress.currentStopName) {
+        lines.push(tr('最近回報位置：{stop}', { stop: vehicle.progress.currentStopName }));
+      }
+    }
+    const buttons = journey.phase === 'waiting'
+      ? `<button type="button" class="btu-jbtn primary" data-btu-act="journey-board">${esc(tr('我上車了'))}</button>
+<button type="button" class="btu-jbtn" data-btu-act="journey-refresh">${esc(tr('重新查詢'))}</button>
+<button type="button" class="btu-jbtn danger" data-btu-act="journey-cancel">${esc(tr('取消接續'))}</button>`
+      : `<button type="button" class="btu-jbtn primary" data-btu-act="journey-complete">${esc(tr('我下車了'))}</button>
+<button type="button" class="btu-jbtn" data-btu-act="journey-update">${esc(tr('更新車況'))}</button>`;
+    return `<section class="btu-journey" aria-label="${esc(tr('接續旅程'))}">
+<div class="btu-journeytop"><span class="btu-journeyphase">${esc(tr(journey.phase === 'waiting' ? '等公車' : '公車行駛中'))}</span><b>${esc(route)}${journey.headsign ? `・${esc(tr('往 {destination}', { destination: journey.headsign }))}` : ''}</b></div>
+${lines.map(line => `<span class="btu-journeyline">${esc(line)}</span>`).join('')}
+<div class="btu-journeyactions">${buttons}</div>
+</section>`;
+  }
+
+  function renderJourneyPicker(stationId, arrival, leg) {
+    const active = journeyValue();
+    if (active && active.stationId === stationId && active.arrivalKey === arrival.key) return '';
+    if (leg.routeStatus === 'loading') return `<div class="btu-picker"><div class="btu-skel">${esc(tr('正在載入這一路的下車站…'))}</div></div>`;
+    if (leg.routeStatus === 'error') return `<div class="btu-picker"><div class="btu-msg btu-err">${esc(tr('暫時無法取得這一路的完整站序，請稍後重試。'))}</div>
+<button type="button" class="btu-jbtn" data-btu-act="journey-pick" data-btu-arrival="${esc(arrival.key)}">${esc(tr('重試'))}</button></div>`;
+    if (leg.routeStatus !== 'ready' || !leg.routeData) {
+      return `<div class="btu-picker"><button type="button" class="btu-jbtn primary" data-btu-act="journey-pick" data-btu-arrival="${esc(arrival.key)}">${esc(tr('接續這班'))}</button></div>`;
+    }
+    const route = leg.routeData;
+    if (route.state !== 'ready' || !Array.isArray(route.stops) || !route.stops.length) {
+      const message = route.state === 'ambiguous'
+        ? tr('這一路有多種不同站序，目前無法安全判定下車站。')
+        : tr('這一路目前沒有可選的後續下車站。');
+      return `<div class="btu-picker"><div class="btu-msg">${esc(message)}</div></div>`;
+    }
+    return `<div class="btu-picker">
+<label>${esc(tr('選擇下車站'))}</label>
+<select data-btu-role="alight" aria-label="${esc(tr('選擇下車站'))}">${route.stops.map(stop =>
+      `<option value="${esc(stop.stopUid)}">${esc(stop.stopName)}</option>`).join('')}</select>
+<div class="btu-pickeractions"><button type="button" class="btu-jbtn primary" data-btu-act="journey-start" data-btu-arrival="${esc(arrival.key)}">${esc(tr('開始接續旅程'))}</button>
+<button type="button" class="btu-jbtn" data-btu-act="journey-pick-cancel">${esc(tr('取消'))}</button></div>
+</div>`;
+  }
+
   function renderLeg(stationId, arrival) {
     const leg = legData(stationId, arrival.key);
     if (leg.status === 'loading') return `<div class="btu-leg"><div class="btu-skel">${esc(tr('正在查這一路的車輛位置…'))}</div></div>`;
@@ -640,6 +772,7 @@ ${body}
 ${degraded.length ? `<p class="btu-legbasis">${esc(tr('來源降級：{sources}。以上進度可能不完整。', { sources: degraded.map(source => `${source.kind} ${source.state}`).join('、') }))}</p>` : ''}
 <p class="btu-legbasis btu-opt">${esc(tr('此區塊只在你點開時查一次，不會自動更新。'))}</p>
 ${navLink(arrival.stopPosition, true, null, arrival.stopName)}
+${renderJourneyPicker(stationId, arrival, leg)}
 </div>`;
   }
 
@@ -709,6 +842,7 @@ ${view.planOpen ? `<div class="btu-list">${routes.map(route => renderPlanRoute(r
     instance.root.innerHTML = `<div class="btu-card">
 ${renderPhaseBar(instance.phase)}
 ${renderHead(instance.phase, instance.stationName)}
+${renderJourney(instance)}
 ${body}
 </div>`;
   }
@@ -822,6 +956,49 @@ ${body}
     return leg.inflight;
   }
 
+  function loadRouteStops(instance, arrivalKey) {
+    const leg = legData(instance.stationId, arrivalKey);
+    if (leg.routeStatus === 'ready' && leg.routeData) return Promise.resolve(leg.routeData);
+    if (leg.routeInflight) return leg.routeInflight;
+    leg.routeStatus = 'loading';
+    leg.routeError = null;
+    const controller = new AbortController();
+    leg.routeController = controller;
+    const url = `${instance.apiBase}/api/bus-route-stops?station=${encodeURIComponent(instance.stationId)}&arrival=${encodeURIComponent(arrivalKey)}`;
+    leg.routeInflight = request(instance, url, controller.signal).then(data => {
+      leg.routeStatus = 'ready';
+      leg.routeData = data;
+      return data;
+    }).catch(error => {
+      if (error && error.name === 'AbortError') { leg.routeStatus = 'idle'; return null; }
+      leg.routeStatus = 'error';
+      rememberRequestError(leg, 'route', error);
+      leg.routeError = leg.error;
+      return null;
+    }).finally(() => {
+      if (leg.routeController === controller) {
+        leg.routeInflight = null;
+        leg.routeController = null;
+      }
+      renderAll();
+    });
+    renderAll();
+    return leg.routeInflight;
+  }
+
+  function refreshJourney(instance) {
+    const journey = journeyValue();
+    if (!journey || journey.stationId !== instance.stationId) return;
+    const state = stationData(instance.stationId);
+    const leg = legData(instance.stationId, journey.arrivalKey);
+    state.fetchedAt = 0;
+    leg.fetchedAt = 0;
+    loadStation(instance).then(data => {
+      if (!data || !Array.isArray(data.arrivals) || !data.arrivals.some(row => row.key === journey.arrivalKey)) return;
+      loadLeg(instance, journey.arrivalKey);
+    });
+  }
+
   // ── 事件（單一 delegated listener，只綁在 root 上）────────────────
   function onClick(instance, event) {
     const target = event.target && event.target.closest ? event.target.closest('[data-btu-act]') : null;
@@ -860,6 +1037,70 @@ ${body}
       const leg = legData(instance.stationId, arrivalKey);
       leg.status = 'idle'; leg.data = null; leg.error = null;
       loadLeg(instance, arrivalKey);
+      return;
+    }
+    if (act === 'journey-pick' && arrivalKey) {
+      loadRouteStops(instance, arrivalKey);
+      return;
+    }
+    if (act === 'journey-pick-cancel') {
+      if (arrivalKey) {
+        const leg = legData(instance.stationId, arrivalKey);
+        leg.routeStatus = 'idle'; leg.routeData = null; leg.routeError = null;
+      } else {
+        for (const leg of stationData(instance.stationId).legs.values()) {
+          if (leg.routeStatus === 'ready') { leg.routeStatus = 'idle'; leg.routeData = null; }
+        }
+      }
+      render(instance);
+      return;
+    }
+    if (act === 'journey-start' && arrivalKey) {
+      const state = stationData(instance.stationId);
+      const arrival = state.data && Array.isArray(state.data.arrivals)
+        ? state.data.arrivals.find(row => row.key === arrivalKey) : null;
+      const leg = legData(instance.stationId, arrivalKey);
+      const select = target.closest('.btu-picker') && target.closest('.btu-picker').querySelector('[data-btu-role="alight"]');
+      const alight = leg.routeData && Array.isArray(leg.routeData.stops)
+        ? leg.routeData.stops.find(stop => stop.stopUid === (select && select.value)) : null;
+      if (!arrival || !alight) return;
+      const exactPlate = leg.data && leg.data.binding && leg.data.binding.state === 'exact_n1_plate'
+        ? leg.data.binding.plate : null;
+      const etaSec = arrival.live && Number.isFinite(arrival.live.etaSec) ? arrival.live.etaSec : null;
+      const expectedAt = etaSec != null && state.fetchedAt
+        ? new Date(state.fetchedAt + etaSec * 1000).toISOString() : null;
+      writeJourney({
+        id: `${instance.stationId}|${arrivalKey}|${Date.now()}`,
+        stationId: instance.stationId,
+        stationName: instance.stationName,
+        arrivalKey,
+        routeName: arrival.routeName || '',
+        subRouteName: arrival.subRouteName || '',
+        headsign: arrival.headsign || '',
+        boardStop: { stopUid: arrival.stopUid, stopName: arrival.stopName, stopSequence: arrival.stopSequence,
+          position: arrival.stopPosition || null },
+        alightStop: alight,
+        phase: 'waiting',
+        plate: exactPlate || null,
+        expectedAt,
+        originTrainKey: instance.journeyContext && instance.journeyContext.trainKey || null,
+        createdAt: Date.now(),
+      }, 'started');
+      return;
+    }
+    if (act === 'journey-board') {
+      const journey = journeyValue();
+      if (!journey || journey.stationId !== instance.stationId) return;
+      const leg = legData(journey.stationId, journey.arrivalKey);
+      const exactPlate = leg.data && leg.data.binding && leg.data.binding.state === 'exact_n1_plate'
+        ? leg.data.binding.plate : journey.plate;
+      writeJourney({ ...journey, phase: 'aboard', plate: exactPlate || null, boardedAt: Date.now() }, 'boarded');
+      return;
+    }
+    if (act === 'journey-refresh' || act === 'journey-update') { refreshJourney(instance); return; }
+    if (act === 'journey-cancel') { writeJourney(null, 'cancelled'); return; }
+    if (act === 'journey-complete') {
+      writeJourney(null, 'completed');
     }
   }
 
@@ -886,6 +1127,8 @@ ${body}
       if (opts.plan !== undefined) existing.plan = opts.plan;
       if (opts.trainEta !== undefined) existing.trainEta = opts.trainEta;
       if (opts.assistant !== undefined) existing.assistant = !!opts.assistant;
+      if (opts.journeyContext !== undefined) existing.journeyContext = opts.journeyContext;
+      if (opts.onJourneyChange !== undefined) existing.onJourneyChange = opts.onJourneyChange;
       if (opts.stationName) existing.stationName = opts.stationName;
       render(existing);
       return existing;
@@ -903,6 +1146,8 @@ ${body}
       plan: opts.plan || null,
       trainEta: opts.trainEta || null,
       assistant: !!opts.assistant,
+      journeyContext: opts.journeyContext || null,
+      onJourneyChange: typeof opts.onJourneyChange === 'function' ? opts.onJourneyChange : null,
       requestKeys: new Set(),
       viewKey,
       apiBase: opts.apiBase != null ? String(opts.apiBase).replace(/\/$/, '') : API_BASE,
@@ -970,6 +1215,7 @@ ${body}
       arrivals: state && state.data && Array.isArray(state.data.arrivals) ? state.data.arrivals.length : 0,
       openLegs: [...new Set(views.flatMap(([, view]) => [...view.openLegs]))],
       legStatuses: state ? [...state.legs.entries()].map(([key, leg]) => ({ key, status: leg.status })) : [],
+      journey: journeyValue(),
     };
   }
 
@@ -978,6 +1224,7 @@ ${body}
     try { if (state.controller) state.controller.abort(); } catch (error) { /* 已中止 */ }
     for (const leg of state.legs ? state.legs.values() : []) {
       try { if (leg.controller) leg.controller.abort(); } catch (error) { /* 已中止 */ }
+      try { if (leg.routeController) leg.routeController.abort(); } catch (error) { /* 已中止 */ }
     }
   }
 
@@ -1019,6 +1266,8 @@ ${body}
       return loadStation(instance);
     },
     getState,
+    getJourney() { return journeyValue(); },
+    clearJourney() { return writeJourney(null, 'cleared'); },
     reset,
     walkUrl,
     // 測試用：不透過點擊也能驅動同一條路徑（仍然只在被呼叫時發請求）。

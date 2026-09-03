@@ -6,6 +6,7 @@ import {
   normalizeN1State,
   outdoorWalkEstimate,
   resolveBusLegVehicles,
+  resolveBusRouteStops,
   resolveStationN1,
 } from './bus_transfer_core.mjs';
 
@@ -198,6 +199,43 @@ check('兩個方向的站序都用各方向自己的遞增序列；過期 GPS �
   assert.equal(dir0.vehicles[0].fresh, false);
   const dir1 = resolveBusLegVehicles({ arrival, a1Rows: [vehicleRow()], a2Rows: [a2Row()], nowMs: NOW });
   assert.equal(dir1.vehicles[0].progress.stopsBefore, 2);
+});
+
+check('下車站只取上車站之後，兩個方向各自保留自己的站序', () => {
+  const rows = [
+    { RouteUID: 'R1', SubRouteUID: 'R1-0', Direction: 0, Stops: [
+      { StopUID: 'A', StopName: { Zh_tw: '甲' }, StopSequence: 1 },
+      { StopUID: 'B', StopName: { Zh_tw: '乙' }, StopSequence: 2 },
+      { StopUID: 'C', StopName: { Zh_tw: '丙' }, StopSequence: 3 },
+    ] },
+    { RouteUID: 'R1', SubRouteUID: 'R1-1', Direction: 1, Stops: [
+      { StopUID: 'C', StopName: { Zh_tw: '丙' }, StopSequence: 1 },
+      { StopUID: 'B', StopName: { Zh_tw: '乙' }, StopSequence: 2 },
+      { StopUID: 'A', StopName: { Zh_tw: '甲' }, StopSequence: 3 },
+    ] },
+  ];
+  const dir0 = resolveBusRouteStops({ arrival: { routeUid: 'R1', subRouteUid: 'R1-0', direction: 0, stopUid: 'B', stopName: '乙' }, stopOfRouteRows: rows });
+  const dir1 = resolveBusRouteStops({ arrival: { routeUid: 'R1', subRouteUid: 'R1-1', direction: 1, stopUid: 'B', stopName: '乙' }, stopOfRouteRows: rows });
+  assert.equal(dir0.state, 'ready');
+  assert.deepEqual(dir0.stops.map(stop => stop.stopName), ['丙']);
+  assert.deepEqual(dir1.stops.map(stop => stop.stopName), ['甲']);
+  assert.equal(dir0.stops[0].stopSequence, 3);
+  assert.equal(dir1.stops[0].stopSequence, 3);
+});
+
+check('同 RouteUID 無法唯一判定支線時拒絕混站序', () => {
+  const rows = [
+    { RouteUID: 'R2', Direction: 0, Stops: [
+      { StopUID: 'B', StopName: { Zh_tw: '乙' } }, { StopUID: 'C', StopName: { Zh_tw: '丙' } },
+    ] },
+    { RouteUID: 'R2', Direction: 0, Stops: [
+      { StopUID: 'B', StopName: { Zh_tw: '乙' } }, { StopUID: 'D', StopName: { Zh_tw: '丁' } },
+    ] },
+  ];
+  const result = resolveBusRouteStops({ arrival: { routeUid: 'R2', direction: 0, stopUid: 'B' }, stopOfRouteRows: rows });
+  assert.equal(result.state, 'ambiguous');
+  assert.deepEqual(result.stops, []);
+  assert.equal(result.variants, 2);
 });
 
 console.log(`RESULT failures=${failures} status=${failures ? 'RED' : 'GREEN'}`);

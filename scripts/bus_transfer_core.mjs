@@ -413,3 +413,66 @@ export function resolveBusLegVehicles({ arrival, a1Rows, a2Rows, occupancyRows =
     },
   };
 }
+
+// 使用者明確選定一路公車後才載入 StopOfRoute，供接續旅程選擇下車站。
+// 這裡不把同 RouteUID 的多個支線揉成一條：SubRouteUID／Direction 對不上時寧可回 ambiguous，
+// 否則畫面會讓人選到實際那班車不會經過的下車站。
+export function resolveBusRouteStops({ arrival, stopOfRouteRows }) {
+  if (!arrival || !arrival.routeUid || !arrival.stopUid) throw new Error('resolveBusRouteStops 缺 routeUid／stopUid');
+  const rows = (stopOfRouteRows || []).filter(row => {
+    const routeUid = String(valueOf(row, 'RouteUID', 'RouteID') || '');
+    if (routeUid !== String(arrival.routeUid)) return false;
+    const subRouteUid = String(valueOf(row, 'SubRouteUID', 'SubRouteID') || '');
+    if (arrival.subRouteUid && subRouteUid && subRouteUid !== String(arrival.subRouteUid)) return false;
+    const direction = finiteNumber(valueOf(row, 'Direction'));
+    if ((arrival.direction === 0 || arrival.direction === 1) &&
+        (direction === 0 || direction === 1) && direction !== arrival.direction) return false;
+    return true;
+  }).map(row => {
+    const stops = Array.isArray(valueOf(row, 'Stops')) ? valueOf(row, 'Stops') : [];
+    const normalized = stops.map((stop, index) => {
+      const sequence = finiteNumber(valueOf(stop, 'StopSequence'));
+      const p = valueOf(stop, 'StopPosition', 'Position');
+      const lat = finiteNumber(p && valueOf(p, 'PositionLat', 'Lat', 'Latitude'));
+      const lon = finiteNumber(p && valueOf(p, 'PositionLon', 'Lon', 'Longitude'));
+      return {
+        stopUid: String(valueOf(stop, 'StopUID', 'StopID') || ''),
+        stopName: zhName(valueOf(stop, 'StopName')) || '',
+        stopSequence: Number.isFinite(sequence) ? sequence : index + 1,
+        position: Number.isFinite(lat) && Number.isFinite(lon) ? { lat, lon } : null,
+      };
+    }).filter(stop => stop.stopUid && stop.stopName);
+    const boardIndex = normalized.findIndex(stop => stop.stopUid === String(arrival.stopUid));
+    return {
+      subRouteUid: String(valueOf(row, 'SubRouteUID', 'SubRouteID') || ''),
+      direction: finiteNumber(valueOf(row, 'Direction')),
+      boardIndex,
+      stops: normalized,
+    };
+  }).filter(row => row.boardIndex >= 0);
+
+  if (!rows.length) {
+    return { state: 'unavailable', boardStopUid: String(arrival.stopUid), stops: [], variants: 0 };
+  }
+  // 完整站序完全相同的重複列不算歧義（TDX 偶爾會為相同營運型態重複列出）。
+  const signatures = new Map();
+  for (const row of rows) {
+    const downstream = row.stops.slice(row.boardIndex + 1);
+    const signature = downstream.map(stop => `${stop.stopUid}@${stop.stopSequence}`).join('|');
+    if (!signatures.has(signature)) signatures.set(signature, { row, downstream });
+  }
+  if (signatures.size !== 1) {
+    return { state: 'ambiguous', boardStopUid: String(arrival.stopUid), stops: [], variants: signatures.size };
+  }
+  const selected = [...signatures.values()][0];
+  return {
+    state: selected.downstream.length ? 'ready' : 'no_downstream',
+    boardStopUid: String(arrival.stopUid),
+    boardStopName: arrival.stopName || selected.row.stops[selected.row.boardIndex]?.stopName || '',
+    routeUid: String(arrival.routeUid),
+    subRouteUid: selected.row.subRouteUid || String(arrival.subRouteUid || ''),
+    direction: selected.row.direction,
+    variants: 1,
+    stops: selected.downstream,
+  };
+}

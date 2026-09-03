@@ -71,6 +71,24 @@ async function touchAndLayout(browserType, engine, width) {
     assert.equal(await page.getByText('車上普通', { exact: true }).isVisible(), true);
     assert.equal(await page.getByText(/來源降級/).count(), 0, 'live 來源不得誤標降級');
 
+    const routeResponse = page.waitForResponse(response => response.url().includes('/api/bus-route-stops'));
+    await page.getByRole('button', { name: '接續這班' }).tap();
+    await routeResponse;
+    const alight = page.getByRole('combobox', { name: '選擇下車站' });
+    await alight.waitFor({ state: 'visible' });
+    await alight.selectOption('TNN-B');
+    await page.getByRole('button', { name: '開始接續旅程' }).tap();
+    await page.getByText('等公車', { exact: true }).waitFor({ state: 'visible' });
+    assert.match(await page.locator('.btu-journey').innerText(), /億載金城/);
+    const afterRoute = await stats();
+    assert.equal(afterRoute.route, afterLeg.route + 1, '只有明確選接續路線才多查一次完整站序');
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('rail-island-bus-journey-v1')).phase), 'waiting');
+
+    await page.getByRole('button', { name: '我上車了' }).tap();
+    await page.getByText('公車行駛中', { exact: true }).waitFor({ state: 'visible' });
+    assert.match(await page.locator('.btu-journey').innerText(), /距億載金城還有8站|距 億載金城 還有 8 站/);
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('rail-island-bus-journey-v1')).phase), 'aboard');
+
     const nav = page.getByRole('link', { name: /步行導航到站牌/ });
     const href = await nav.getAttribute('href');
     assert.match(href, /^https:\/\/www\.google\.com\/maps\/dir\/\?api=1/);
@@ -124,6 +142,8 @@ async function touchAndLayout(browserType, engine, width) {
     assert.equal(fullscreen.reachable, true);
     assert.ok(fullscreen.overflow <= 1);
     assert.deepEqual(errors, []);
+    await page.getByRole('button', { name: '我下車了' }).tap();
+    assert.equal(await page.evaluate(() => localStorage.getItem('rail-island-bus-journey-v1')), null);
     pass(`${engine} ${width}px：觸控、按需查詢、DOM 重繪續接、可達性與溢出`);
   } finally {
     await browser.close();
@@ -264,7 +284,48 @@ async function allStationCoverage() {
   }
 }
 
-const RAW_ERROR_TEXT = /bus transfer live unavailable|bus transfer index unavailable|bus leg live unavailable|HTTP 50[23]|Failed to fetch/i;
+async function journeySurvivesReload() {
+  const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext({ viewport: { width: 393, height: 860 }, isMobile: true, hasTouch: true });
+  await context.addInitScript(() => localStorage.setItem('trainmap-howto-seen', '1'));
+  const page = await context.newPage();
+  try {
+    await page.goto(`${BASE}/?lang=zh-TW`, { waitUntil: 'domcontentloaded' });
+    await openTainan(page);
+    await page.getByRole('button', { name: '查看現在可搭公車' }).tap();
+    await page.locator('.btu-rowbtn').first().waitFor({ state: 'visible' });
+    await page.locator('.btu-rowbtn').first().tap();
+    await page.getByRole('button', { name: '接續這班' }).waitFor({ state: 'visible' });
+    await page.getByRole('button', { name: '接續這班' }).tap();
+    const alight = page.getByRole('combobox', { name: '選擇下車站' });
+    await alight.waitFor({ state: 'visible' });
+    await alight.selectOption('TNN-B');
+    await page.getByRole('button', { name: '開始接續旅程' }).tap();
+    await page.getByText('等公車', { exact: true }).waitFor({ state: 'visible' });
+
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    const dock = page.locator('#busJourneyPanel');
+    await dock.waitFor({ state: 'visible' });
+    assert.match(await dock.innerText(), /等公車|Waiting for bus/);
+    assert.match(await dock.innerText(), /億載金城/);
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('rail-island-bus-journey-v1')).phase), 'waiting');
+    await dock.locator('[data-btu-act="journey-board"]').tap();
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('rail-island-bus-journey-v1')).phase), 'aboard');
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await dock.waitFor({ state: 'visible' });
+    assert.match(await dock.innerText(), /公車行駛中|On the bus/);
+    assert.match(await dock.innerText(), /億載金城/);
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('rail-island-bus-journey-v1')).phase), 'aboard');
+    await dock.locator('[data-btu-act="journey-complete"]').tap();
+    await dock.waitFor({ state: 'hidden' });
+    assert.equal(await page.evaluate(() => localStorage.getItem('rail-island-bus-journey-v1')), null);
+    pass('公車接續旅程在等車與搭車階段重開 App 都能恢復，且可明確完成');
+  } finally {
+    await browser.close();
+  }
+}
+
+const RAW_ERROR_TEXT = /bus transfer live unavailable|bus transfer index unavailable|bus leg live unavailable|bus route stops unavailable|HTTP 50[23]|Failed to fetch/i;
 const FAULTS = [
   { name: '502 JSON', fulfill: { status: 502, contentType: 'application/json', body: JSON.stringify({ error: 'bus transfer live unavailable' }) } },
   { name: '502 非 JSON', fulfill: { status: 502, contentType: 'text/plain', body: 'upstream exploded' } },
@@ -279,7 +340,9 @@ async function faultMessagesStayPrivate(target) {
     await context.addInitScript(() => localStorage.setItem('trainmap-howto-seen', '1'));
     const page = await context.newPage();
     try {
-      const endpoint = target === 'station' ? '/api/bus-transfer' : '/api/bus-leg-live';
+      const endpoint = target === 'station'
+        ? '/api/bus-transfer'
+        : target === 'leg' ? '/api/bus-leg-live' : '/api/bus-route-stops';
       await page.route(url => new URL(url).pathname === endpoint, route => {
         if (fault.abort) return route.abort(fault.abort);
         return route.fulfill(fault.fulfill);
@@ -287,13 +350,19 @@ async function faultMessagesStayPrivate(target) {
       await page.goto(`${BASE}/?lang=zh-TW`, { waitUntil: 'domcontentloaded' });
       await openTainan(page);
       await page.getByRole('button', { name: '查看現在可搭公車' }).tap();
-      if (target === 'leg') {
+      if (target === 'leg' || target === 'route') {
         await page.locator('.btu-rowbtn').first().waitFor({ state: 'visible' });
         await page.locator('.btu-rowbtn').first().tap();
       }
+      if (target === 'route') {
+        await page.getByRole('button', { name: '接續這班' }).waitFor({ state: 'visible' });
+        await page.getByRole('button', { name: '接續這班' }).tap();
+      }
       const friendly = target === 'station'
         ? '暫時無法取得附近公車資訊，請稍後重試。'
-        : '暫時無法取得這一路的車輛位置，請稍後重試。';
+        : target === 'leg'
+          ? '暫時無法取得這一路的車輛位置，請稍後重試。'
+          : '暫時無法取得這一路的完整站序，請稍後重試。';
       const errorBox = page.locator('.btu-err');
       await errorBox.waitFor({ state: 'visible' });
       assert.match(await errorBox.innerText(), new RegExp(friendly.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
@@ -304,15 +373,18 @@ async function faultMessagesStayPrivate(target) {
       await browser.close();
     }
   }
-  pass(`${target === 'station' ? '附近公車' : '路線車況'}：502 JSON／非 JSON、503 與斷網都只顯示固定文案`);
+  const label = target === 'station' ? '附近公車' : target === 'leg' ? '路線車況' : '完整站序';
+  pass(`${label}：502 JSON／非 JSON、503 與斷網都只顯示固定文案`);
 }
 
 for (const width of [360, 375, 414, 768]) await touchAndLayout(chromium, 'Chromium', width);
 await touchAndLayout(webkit, 'WebKit', 375);
 await allStationCoverage();
 await assistantMilestoneDedupe();
+await journeySurvivesReload();
 await faultMessagesStayPrivate('station');
 await faultMessagesStayPrivate('leg');
+await faultMessagesStayPrivate('route');
 await translated(chromium, 'en', 'See buses you can catch now', 'Occupancy not provided in this area');
 await translated(webkit, 'ja', '今乗れるバスを見る', 'この地域は混雑度を提供していません');
 

@@ -1037,6 +1037,15 @@
     box-shadow: var(--shadow-navy);
     scrollbar-width: thin; scrollbar-color: var(--line) transparent;
   }
+  /* 公車接續旅程脫離列車跟隨後的功能容器。內容與互動全部仍由 BusTransferUI 負責；
+     這裡只給它一個不依賴 followPanel 生命週期的落點，視覺後續可由設計稿統一收斂。 */
+  .bus-journey-panel {
+    position: absolute; left: 12px; bottom: 86px; z-index: 651;
+    width: 260px; max-height: calc(100% - 98px); overflow-y: auto;
+    scrollbar-width: thin; scrollbar-color: var(--line) transparent;
+  }
+  .bus-journey-panel[hidden] { display: none !important; }
+  body.fs .bus-journey-panel { width: calc(300px * var(--ui)); max-height: calc(100dvh - 160px); }
   .follow-panel .fp-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .follow-panel .fp-head .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
   .follow-panel .fp-head b { font-size: calc(15px * var(--ui)); color: var(--ink-strong); }
@@ -3819,6 +3828,7 @@
     /* 卡寬跟著字級走(設計檔小卡家族:x1.25 是 250、x1.5 是 300,基準 200 ⇒ 寬度本來就吃倍率)。
        不跟著放大的話,字變大而框不變,長車種名會被擠成一條又高又窄的柱子。 */
     .follow-panel { left: 8px; bottom: calc(var(--tabbar-clear) + 2px); width: calc(176px * var(--ui)); padding: 8px 10px 9px; }
+    .bus-journey-panel { left: 8px; bottom: calc(var(--tabbar-clear) + 2px); width: calc(176px * var(--ui)); max-height: calc(100dvh - var(--tabbar-clear) - 84px); }
     .freq-card { left: 8px; bottom: calc(var(--tabbar-clear) + 2px); width: calc(176px * var(--ui)); padding: 8px 10px 9px; }
     .follow-panel .fp-head { gap: 6px; }
     .follow-panel .fp-head .dot { width: 7px; height: 7px; }
@@ -4803,6 +4813,9 @@
       </div>
       <button class="fp-tripshare" id="fpTripShare" hidden>↗ 行程分享</button>
     </div>
+    <section class="bus-journey-panel" id="busJourneyPanel" aria-label="公車接續旅程" hidden>
+      <div id="busJourneyRoot"></div>
+    </section>
     <div class="freq-card" id="freqCard" hidden>
       <div class="fc-head">
         <span class="dot" id="fcDot"></span>
@@ -5042,6 +5055,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="busjourney"><span class="d">9/3</span><span>軌道轉公車現在能接成一段不會消失的旅程：選定公車後再選下車站；列車抵達後保留等車資訊，按「我上車了」會切到公車行程並顯示剩餘站數，重開 App 也能接著看。</span></li>
         <li data-cl-of="busallrail"><span class="d">9/3</span><span>公車轉乘入口擴到軌島地圖上的全部 541 座客運鐵路、捷運與輕軌站；高鐵、林鐵跟車也能先指定下車站接公車。仍只在使用者打開或接近轉乘站時查即時，不會全臺背景輪詢。</span></li>
         <li data-cl-of="busassistant"><span class="d">9/3</span><span>跟台鐵列車時可以先指定在哪一站接公車；抵達前 15 分、5 分與實際到站才查一次動態，並把列車抵達、站外步行和公車到站合成保守的轉乘裕度。時光機與加速重播不查即時資料。</span></li>
         <li data-cl-of="railsound"><span class="d">9/3</span><span>App 版配樂情境多了「車聲」開關：跟車時車一動就有鐵軌聲，停站淡出；放空模式一直放。</span></li>
@@ -5049,7 +5063,6 @@
         <li data-cl-of="crowdfallback"><span class="d">9/3</span><span>捷運列車的車廂擁擠度不會再整批消失一輪：官方擁擠度偶爾抓不到時改用剛才那一份，最多兩分鐘，超過就留白（謝謝網友回報）</span></li>
         <li data-cl-of="widgetsizes"><span class="d">9/2</span><span>桌面小工具：方向與目的站多了「不指定」，選過也能改回來；捷運看板的方向只列所選車站開得到的終點。Android 補齊到七種尺寸，捷運與火車都有大張卡片，5 欄手機會佔滿五格（謝謝網友回報）</span></li>
         <li data-cl-of="webmcp"><span class="d">9/2</span><span>ChatGPT 在內建瀏覽器打開軌島時，現在能直接查目前畫面、搜尋車站、讀車站看板與營運公告，也能替你開啟車站看板或跟隨指定火車；一般瀏覽器不受影響</span></li>
-        <li data-cl-of="crowdcard"><span class="d">9/2</span><span>跟捷運列車時，卡片上會顯示這一台車每一節車廂的擁擠度</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5127,6 +5140,7 @@
         <li data-cl="latetagbig"><span class="d">9/1</span><span>車站看板的誤點標示放大加粗，一眼就看得出這班晚了幾分（謝謝網友回報）。</span></li>
         <li data-cl="boardwide"><span class="d">9/2</span><span>桌面的車站看板由 280 加寬到 360 像素。原本一列要放線色、車號、往哪、擁擠度、時刻與倒數，「往 松山（經南京復興）」這種長方向會被截成「往 松山（經…」；新竹站實測原本有三到四列被截，加寬後一列都不截。手機版本來就是整寬的抽屜，不受影響。</span></li>
         <li data-cl="xferconn"><span class="d">9/1</span><span>跟台鐵、高鐵，或搭捷運快到台北、南港、板橋、新竹、苗栗、台中、台南、左營、嘉義這些轉乘站時，卡片會直接列出對向系統最近兩班的車次、時刻，以及「你到站時還剩幾分」——這個分鐘數含你這班車當下的誤點。點一列可以把你要搭的那班釘住，之後畫面只留它。高鐵沒有即時誤點，它的時刻是表定；站內步行時間各站差異大，我不替你判斷來不來得及，只告訴你到站那一刻還剩多久</span></li>
+        <li data-cl="busjourney"><span class="d">9/3</span><span>軌道轉公車現在可以真的接成一段旅程：選定公車後可再選下車站，列車抵達後保留等車資訊；按「我上車了」會把主行程切到公車，並依官方車輛站序顯示距離下車還有幾站。這段旅程重開 App 後仍會恢復，也可以重新查詢、取消或完成下車。完整站序只在你選定一班公車時查一次，同一路線快取六小時，不會背景輪詢；若同一路線有多條支線卻無法唯一判定，會請你改選而不把不同支線揉成假的站序。沒有官方車牌能安全對上時，搭車中也不會拿同路線另一台車的位置冒充。</span></li>
         <li data-cl="busassistant"><span class="d">9/3</span><span>公車轉乘從「到站後自己打開車站看板查」接進跟車流程：跟台鐵列車時先按「接公車」、指定要下車的轉乘站，App 才會追這一站。距離抵達 15 分鐘時查第一輪、5 分鐘時重查、實際到站再查一次；同一里程碑不會因地圖每幀更新而重複發送，也不會沿途每站查。畫面把列車預估抵達、車站到路邊站牌的戶外步行時間、公車到站倒數與兩分鐘安全緩衝合成保守裕度，分成預估可轉乘、時間偏緊與可能接不上；仍明示不含月台、閘門、地下街等站內步行。使用時光機、加速播放、暫停或分頁在背景時不查即時資料；選定路線後仍可查看車牌、位置、擁擠度與開 Google 地圖步行到正確方向站牌。</span></li>
         <li data-cl="busallrail"><span class="d">9/3</span><span>公車轉乘不再只掛台鐵站：索引依軌島目前地圖實際可點的車站，完整納入台鐵 239、高鐵 12、阿里山林鐵 21，以及台北捷運、機場捷運、台中捷運、高雄捷運與輕軌、安坑輕軌、淡海輕軌、三鶯線共 269 站，合計 541 座。這一輪在 513 站的 600 公尺內找到公車站牌；其餘 28 站是 17 座台鐵小站與 11 座林鐵山區站，仍保留入口並誠實說明附近沒有可用站牌，不發空查詢。所有高鐵與捷運輕軌站目前都找到附近站牌。共站可共用同一份附近公車資料，官方新站名冊還沒跟上時則用穩定站碼補位，不讓剛通車的站消失。高鐵與林鐵的跟車卡也能設定下車接公車；即時查詢規則不變，只有使用者打開車站卡，或已設定的列車在抵達前 15 分、5 分與到站時才查，不做全臺背景輪詢。</span></li>
         <li data-cl="bustransferall"><span class="d">9/1</span><span>公車轉乘由臺北、臺南、花蓮三站擴到目前班表中的 239 座實體台鐵客運站（官方另列的「臺北-環島」站碼已併回臺北，不重複計算）。打開車站看板不會立刻查資料，只有按「查看現在可搭公車」才查該站 600 公尺內的到站倒數；再點某一路線，才查那一路的車牌、位置、還差幾站與擁擠度。沒有車牌、預估或擁擠度時會照實標示，不自行猜值；每筆也顯示資料年齡。選定路線後可直接開 Google 地圖步行到該方向的路邊站牌，步行估算明示不含月台、閘門、地下街等站內距離。索引目前在 221 站找到附近站牌，其餘 18 站會直接說明 600 公尺內沒有可用站牌，不發出空的即時查詢。查詢失敗時只顯示可重試的友善說明，不把伺服器狀態碼或瀏覽器錯誤直接放到畫面上。全程維持使用者點開才查，不在背景輪詢全臺公車</span></li>
@@ -5846,7 +5860,8 @@
 //         非即時、加速、暫停與背景頁不查。列車 ETA＋戶外步行＋公車 ETA 以向下取整與 2 分緩衝算保守裕度。
 // v0903i：公車站牌靜態索引擴到地圖全部 541 座客運鐵路／捷運／輕軌站；高鐵與林鐵跟車同步開放接公車。
 //         即時仍只由主動開站或 15 分／5 分／到站里程碑觸發，不新增背景輪詢。
-const BUILD = 'v0903i';
+// v0903j：軌道轉公車接成可恢復旅程；選定公車後才查完整下車站序，並承接等車／搭車／完成狀態。
+const BUILD = 'v0903j';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -26059,6 +26074,51 @@ let busTransferBoardStationId = null;
 // 避免下次開 App 把舊行程誤當成今天的轉乘。
 let busTransferJourney = null;
 let busTransferJourneyRenderKey = '';
+let busJourneyDockKey = '';
+
+function busJourneyInlineVisible(dock) {
+  return [...document.querySelectorAll('.btu-root')].some(root => root !== dock && root.querySelector('.btu-journey') &&
+    root.getClientRects().length > 0 && getComputedStyle(root).visibility !== 'hidden');
+}
+function syncBusJourneyDock() {
+  const panel = document.getElementById('busJourneyPanel'), root = document.getElementById('busJourneyRoot');
+  if (!panel || !root || !window.BusTransferUI) return;
+  const journey = window.BusTransferUI.getJourney && window.BusTransferUI.getJourney();
+  if (!journey) {
+    if (root.__btuInstance) window.BusTransferUI.unmount(root);
+    panel.hidden = true;
+    busJourneyDockKey = '';
+    return;
+  }
+  if (busJourneyInlineVisible(root)) { panel.hidden = true; return; }
+  const key = `${journey.id}|${journey.phase}|${I18N_LANG}`;
+  panel.hidden = false;
+  if (key === busJourneyDockKey && root.__btuInstance) return;
+  busJourneyDockKey = key;
+  window.BusTransferUI.mount({
+    root,
+    stationId: journey.stationId,
+    stationName: journey.stationName || journey.stationId,
+    phase: 'arrived',
+    viewKey: `${journey.stationId}|active-bus-journey`,
+    translate: t,
+    apiBase: API_BASE,
+  });
+}
+
+window.addEventListener('rail-bus-journey-change', event => {
+  const detail = event.detail || {}, journey = detail.journey;
+  if (detail.reason === 'boarded' && journey && state.followTrain &&
+      (!journey.originTrainKey || journey.originTrainKey === busTransferTrainKey(state.followTrain))) {
+    // 使用者明確按「我上車了」才把主旅程從軌道交給公車；這不是 GPS 猜測。
+    clearFollow();
+  }
+  syncBusJourneyDock();
+  if (detail.reason === 'started') showToast(t('已建立公車接續旅程'));
+  else if (detail.reason === 'boarded') showToast(t('已切換為公車行程'));
+  else if (detail.reason === 'completed') showToast(t('這段接續旅程已完成'));
+});
+Promise.resolve().then(syncBusJourneyDock);
 
 function busTransferTrainKey(tr) {
   return tr ? `${tr.sys || ''}|${tr.train || ''}` : '';
@@ -26117,6 +26177,7 @@ function busTransferCancelJourney(keepPicker) {
   const box = document.getElementById('fpBusBox');
   if (box && !keepPicker) box.hidden = true;
   busTransferUpdateControl(state.followTrain);
+  syncBusJourneyDock();
 }
 function busTransferStartJourney(tr, stopIndex) {
   const target = busTransferStopTarget(tr, stopIndex);
@@ -26169,6 +26230,7 @@ function syncBusTransferJourney(tr, force) {
     window.BusTransferUI.mount({
       root, stationId: journey.stationId, stationName: journey.stationName, phase,
       viewKey: `${journey.stationId}|journey|${journey.trainKey}`, assistant: true,
+      journeyContext: { trainKey: journey.trainKey, stopIndex: journey.stopIndex },
       trainEta: eta, plan: { stationPosition: { lat: target.stop.lat, lon: target.stop.lon }, routes: [] },
       translate: t, apiBase: API_BASE,
     });
@@ -26246,6 +26308,7 @@ function closeBoard() {
   const el = document.getElementById('board');
   el.hidden = true; el.innerHTML = '';
   updateSheetOpenClass();
+  syncBusJourneyDock();
 }
 
 // ── 整合卡(設計 D1–D3):跟車中開車站看板 ⇒ 同一張卡兩個分頁「這班車 / 這一站」 ──────────

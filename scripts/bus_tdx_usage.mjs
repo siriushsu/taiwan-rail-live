@@ -88,4 +88,5 @@ for (const row of rows) {
 }
 console.log(`\n  合計 ${number(total.calls)} 次，${points(total.bytes / 1_000_000)} MB`);
 console.log(`  計次 ${points(pointCalls)} 點＋計量 ${points(pointBytes)} 點＝估計 ${points(pointCalls + pointBytes)} 點`);
+console.log('  呼叫語意：N1＝打開一站的到站預估；A1＋A2＝展開一路的車輛位置／站序；S2＝明確選定接續公車後取得一次完整下車站序（同一路線快取 6 小時）。');
 console.log('  註：這是功能自己記錄的增量估算；當月實際扣點仍以 TDX 會員中心為準。\n');

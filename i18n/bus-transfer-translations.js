@@ -65,7 +65,26 @@
     '已設定在 {station} 接公車': 'Bus transfer set at {station}',
     '台鐵即時誤點': 'TRA live delay', '台鐵時刻表推估': 'TRA timetable estimate',
     '高鐵時刻表推估': 'HSR timetable estimate', '林鐵時刻表推估': 'Forest Railway timetable estimate',
-    '轉乘站': 'Transfer stop', '選擇公車轉乘站': 'Choose a bus transfer stop'
+    '轉乘站': 'Transfer stop', '選擇公車轉乘站': 'Choose a bus transfer stop',
+    '接續旅程': 'Continuing journey', '已選': 'Selected', '公車': 'Bus',
+    '在 {stop} 等車{eta}': 'Waiting at {stop}{eta}', '上車站': 'boarding stop', '下車：{stop}': 'Get off: {stop}',
+    '尚未設定': 'Not set', '已對上車牌 {plate}': 'Matched plate {plate}',
+    '尚未確認車牌，上車前請再核對路線與方向': 'Plate not confirmed. Check the route and direction before boarding.',
+    '距 {stop} 還有 {n} 站': { one: '{n} stop to {stop}', other: '{n} stops to {stop}' },
+    '已到 {stop}，請準備下車': 'Arriving at {stop}. Prepare to get off.',
+    '車輛回報已駛過 {stop}': 'The vehicle report shows that it has passed {stop}',
+    '往 {stop} 行駛中；目前無法算剩餘站數': 'Heading to {stop}; remaining stops are currently unavailable',
+    '下車站': 'alighting stop', '我上車了': 'I’m on the bus', '原預估已過，請重新查詢': 'The earlier estimate has passed. Refresh for the latest bus.',
+    '取消接續': 'Cancel journey', '我下車了': 'I got off', '更新車況': 'Refresh bus status',
+    '等公車': 'Waiting for bus', '公車行駛中': 'On the bus',
+    '正在載入這一路的下車站…': 'Loading stops for this route…',
+    '暫時無法取得這一路的完整站序，請稍後重試。': 'The full stop sequence is temporarily unavailable. Please try again later.',
+    '接續這班': 'Continue with this bus',
+    '這一路有多種不同站序，目前無法安全判定下車站。': 'This route has multiple stop sequences, so an alighting stop cannot be selected safely right now.',
+    '這一路目前沒有可選的後續下車站。': 'This route currently has no downstream stop available to select.',
+    '選擇下車站': 'Choose an alighting stop', '開始接續旅程': 'Start continuing journey', '取消': 'Cancel',
+    '已建立公車接續旅程': 'Bus journey created', '已切換為公車行程': 'Switched to the bus journey',
+    '這段接續旅程已完成': 'This continuing journey is complete'
   });
   messages.ja = Object.assign(messages.ja || {}, {
     '規劃': '計画', '接近': '接近', '已抵達': '到着',
@@ -124,6 +143,24 @@
     '已設定在 {station} 接公車': '{station}でのバス乗換を設定しました',
     '台鐵即時誤點': '台鉄リアルタイム遅延', '台鐵時刻表推估': '台鉄時刻表推定',
     '高鐵時刻表推估': '高速鉄道時刻表推定', '林鐵時刻表推估': '森林鉄道時刻表推定',
-    '轉乘站': '乗換駅', '選擇公車轉乘站': 'バス乗換駅を選択'
+    '轉乘站': '乗換駅', '選擇公車轉乘站': 'バス乗換駅を選択',
+    '接續旅程': '乗換後の旅程', '已選': '選択済み', '公車': 'バス',
+    '在 {stop} 等車{eta}': '{stop}で待機{eta}', '上車站': '乗車停留所', '下車：{stop}': '降車：{stop}',
+    '尚未設定': '未設定', '已對上車牌 {plate}': '車両番号 {plate} と照合済み',
+    '尚未確認車牌，上車前請再核對路線與方向': '車両番号は未確認です。乗車前に路線と方向を確認してください。',
+    '距 {stop} 還有 {n} 站': '{stop}まであと{n}停留所', '已到 {stop}，請準備下車': '{stop}に到着します。降車の準備をしてください。',
+    '車輛回報已駛過 {stop}': '車両情報では{stop}を通過済みです',
+    '往 {stop} 行駛中；目前無法算剩餘站數': '{stop}へ走行中・残り停留所数は現在不明です',
+    '下車站': '降車停留所', '我上車了': '乗車しました', '原預估已過，請重新查詢': '前の予測時刻を過ぎました。最新情報を再照会してください。',
+    '取消接續': '旅程を取消', '我下車了': '降車しました', '更新車況': '車両情報を更新',
+    '等公車': 'バス待ち', '公車行駛中': 'バス乗車中',
+    '正在載入這一路的下車站…': 'この路線の降車停留所を読込中…',
+    '暫時無法取得這一路的完整站序，請稍後重試。': 'この路線の全停留所順を一時的に取得できません。しばらくしてから再試行してください。',
+    '接續這班': 'この便に乗り継ぐ',
+    '這一路有多種不同站序，目前無法安全判定下車站。': 'この路線には複数の停留所順があり、現在は安全に降車停留所を選べません。',
+    '這一路目前沒有可選的後續下車站。': 'この路線には現在選択できる後続停留所がありません。',
+    '選擇下車站': '降車停留所を選択', '開始接續旅程': '乗換後の旅程を開始', '取消': '取消',
+    '已建立公車接續旅程': 'バスの乗換旅程を作成しました', '已切換為公車行程': 'バス旅程に切り替えました',
+    '這段接續旅程已完成': 'この乗換旅程は完了しました'
   });
 })(window);

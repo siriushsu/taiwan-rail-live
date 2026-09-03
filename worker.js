@@ -15,7 +15,7 @@ import {
   twDelayFor, twEtaSec, twContentState, twShouldPush, twShouldEnd, twNextEndAt,
   TW_MAX_TRACK_SEC,
 } from './scripts/tra_wait_core.mjs';
-import { BUS_TRANSFER_SCHEMA, resolveBusLegVehicles, resolveStationN1 } from './scripts/bus_transfer_core.mjs';
+import { BUS_TRANSFER_SCHEMA, resolveBusLegVehicles, resolveBusRouteStops, resolveStationN1 } from './scripts/bus_transfer_core.mjs';
 
 // Cloudflare Worker 入口:靜態資產(assets binding)+ /api/tra-live 台鐵即時動態代理
 // + /api/tra-alert 台鐵營運通阻公告 + /api/thsr-alert 高鐵營運狀態公告(颱風停駛等)
@@ -4232,12 +4232,15 @@ const BUS_SEAT_URL = 'https://tcgbusfs.blob.core.windows.net/blobbus/BusSeatEven
 const BUS_N1_SELECT = 'RouteUID,RouteID,RouteName,SubRouteUID,SubRouteID,SubRouteName,Direction,StopUID,StopID,EstimateTime,NextBusTime,StopStatus,SrcUpdateTime,UpdateTime';
 const BUS_A1_SELECT = 'PlateNumb,RouteUID,RouteID,SubRouteUID,SubRouteID,SubRouteName,Direction,BusPosition,DutyStatus,BusStatus,GPSTime,SrcUpdateTime,UpdateTime';
 const BUS_A2_SELECT = 'PlateNumb,RouteUID,RouteID,SubRouteUID,SubRouteID,SubRouteName,Direction,StopUID,StopID,StopName,StopSequence,DutyStatus,BusStatus,A2EventType,GPSTime,TripStartTime,TripStartTimeType,SrcUpdateTime,UpdateTime';
+const BUS_S2_SELECT = 'RouteUID,RouteID,SubRouteUID,SubRouteID,Direction,Stops';
 const BUS_TRANSFER_RAW_TTL_SEC = 20;
 const BUS_TRANSFER_LAST_GOOD_SEC = 3600;
+const BUS_ROUTE_STOPS_TTL_SEC = 21600;
 let busTransferManifestMem = null;
 const busTransferStationMem = new Map();
 const busTransferInflight = new Map();
 const busLegInflight = new Map();
+const busRouteStopsInflight = new Map();
 
 // 只記「真的打到 TDX 一次」：20 秒快取命中不會進這裡，所以能直接換算點數。
 // doubles = [calls, wire/content-length bytes, decoded JSON bytes]；失敗回應也記一次，
@@ -4258,6 +4261,7 @@ function resetBusTransferCaches() {
   busTransferStationMem.clear();
   busTransferInflight.clear();
   busLegInflight.clear();
+  busRouteStopsInflight.clear();
 }
 
 async function busTransferManifestData(request, env) {
@@ -4469,6 +4473,71 @@ async function fetchBusDynamic(env, kind, arrival, token) {
   return { rows: Array.isArray(rows) ? rows : [], bytes, decodedBytes };
 }
 
+function busRouteStopsUrl(env, arrival) {
+  const base = String(env.BUS_STOP_ROUTE_BASE_URL_OVERRIDE || env.BUS_API_BASE_URL_OVERRIDE || BUS_API_BASE).replace(/\/$/, '');
+  if (!/^(?:InterCity|City\/[A-Za-z]+)$/.test(String(arrival.scope || ''))) throw new Error('bus route stops invalid scope');
+  const routeUid = String(arrival.routeUid || '');
+  const subRouteUid = String(arrival.subRouteUid || '');
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(routeUid) || (subRouteUid && !/^[A-Za-z0-9_-]{1,64}$/.test(subRouteUid))) {
+    throw new Error('bus route stops invalid route uid');
+  }
+  const url = new URL(`${base}/StopOfRoute/${arrival.scope}`);
+  const filters = [`RouteUID eq '${routeUid}'`];
+  if (subRouteUid) filters.push(`SubRouteUID eq '${subRouteUid}'`);
+  if (arrival.direction === 0 || arrival.direction === 1) filters.push(`Direction eq ${arrival.direction}`);
+  url.searchParams.set('$filter', filters.join(' and '));
+  url.searchParams.set('$select', BUS_S2_SELECT);
+  url.searchParams.set('$top', '100');
+  url.searchParams.set('$format', 'JSON');
+  return url;
+}
+
+async function fetchBusRouteStops(env, arrival, token) {
+  const response = await fetch(busRouteStopsUrl(env, arrival), {
+    headers: { authorization: 'Bearer ' + token, accept: 'application/json' },
+    redirect: 'manual',
+  });
+  if (!response.ok) {
+    const contentLength = Number(response.headers.get('content-length'));
+    recordBusTdxUsage(env, 'S2', arrival.scope, response.status, Number.isFinite(contentLength) ? contentLength : 0, 0);
+    if (response.status === 401) tok = null;
+    throw new Error(`tdx bus StopOfRoute ${response.status} ${arrival.scope}`);
+  }
+  const text = await response.text();
+  let body;
+  try { body = JSON.parse(text); }
+  catch (e) { throw new Error(`tdx bus StopOfRoute invalid json ${arrival.scope}`); }
+  const rows = Array.isArray(body) ? body : (body && Array.isArray(body.StopOfRoutes) ? body.StopOfRoutes : []);
+  const decodedBytes = new TextEncoder().encode(text).byteLength;
+  const contentLength = Number(response.headers.get('content-length'));
+  const bytes = Number.isFinite(contentLength) && contentLength >= 0 ? contentLength : decodedBytes;
+  recordBusTdxUsage(env, 'S2', arrival.scope, response.status, bytes, decodedBytes);
+  return { rows, bytes, decodedBytes };
+}
+
+async function cachedBusRouteStopsRaw(request, env, arrival) {
+  const edge = caches.default;
+  const cacheKey = busTransferCacheKey(request, arrival.key, 'route-stops');
+  try {
+    const hit = await edge.match(cacheKey);
+    if (hit) return { ...(await hit.json()), cacheState: 'hit' };
+  } catch (e) {}
+  if (busRouteStopsInflight.has(arrival.key)) return await busRouteStopsInflight.get(arrival.key);
+  const task = (async () => {
+    const token = await getToken(env);
+    const fetched = await fetchBusRouteStops(env, arrival, token);
+    const raw = { fetchedAt: new Date().toISOString(), rows: fetched.rows };
+    try {
+      await edge.put(cacheKey, new Response(JSON.stringify(raw), {
+        headers: { 'content-type': 'application/json', 'cache-control': `public, s-maxage=${BUS_ROUTE_STOPS_TTL_SEC}` },
+      }));
+    } catch (e) {}
+    return { ...raw, cacheState: 'miss' };
+  })().finally(() => busRouteStopsInflight.delete(arrival.key));
+  busRouteStopsInflight.set(arrival.key, task);
+  return await task;
+}
+
 async function ungzipJsonResponse(response) {
   const compressed = new Uint8Array(await response.arrayBuffer());
   let text;
@@ -4584,6 +4653,41 @@ async function busLegLive(request, env) {
   }
 }
 
+async function busRouteStops(request, env) {
+  const url = new URL(request.url);
+  const stationId = url.searchParams.get('station') || '';
+  const arrivalKey = url.searchParams.get('arrival') || '';
+  if (!arrivalKey || arrivalKey.length > 240) return jsonRes({ error: 'bad arrival key' }, 400, 'no-store');
+  let product;
+  try { product = await busTransferStationData(request, env, stationId); }
+  catch (e) { return jsonRes({ error: 'bus transfer index unavailable' }, 503, 'no-store'); }
+  const { manifest, station } = product;
+  if (!station) return jsonRes({ error: 'unsupported station', coverage: manifest.coverage, stationCount: manifest.stationCount }, 400, 'no-store');
+  try {
+    // route-stops 只能接在一筆真的出現在本站 N1 結果裡的 arrival 後面；不接受客端自填 RouteUID。
+    // 通常命中前一步查附近公車留下的 20 秒 cache，因此不會額外打 N1。
+    const stationRaw = await cachedBusTransferRaw(request, env, station);
+    const stationLive = resolveStationN1({ pilotStation: station, rowsByScope: stationRaw.rowsByScope, nowMs: Date.now() });
+    const arrival = stationLive.arrivals.find(row => row.key === arrivalKey);
+    if (!arrival) return jsonRes({ error: 'arrival not in current station result' }, 404, 'no-store');
+    const raw = await cachedBusRouteStopsRaw(request, env, arrival);
+    const result = resolveBusRouteStops({ arrival, stopOfRouteRows: raw.rows });
+    return jsonRes({
+      ...result,
+      generatedAt: new Date().toISOString(),
+      trigger: 'user_route_select_only',
+      polling: false,
+      arrivalKey: arrival.key,
+      routeName: arrival.routeName,
+      headsign: arrival.headsign,
+      source: { kind: 'S2', fetchedAt: raw.fetchedAt, cache: raw.cacheState },
+    }, 200, 'no-store');
+  } catch (e) {
+    return jsonRes({ error: 'bus route stops unavailable', coverage: manifest.coverage,
+      ...(env.BUS_TRANSFER_DEBUG ? { detail: String(e && e.message || e) } : {}) }, 502, 'no-store');
+  }
+}
+
 // 安全標頭在 Worker 出口補（只涵蓋 /api/* 與非資產路徑;靜態資產直出不經 Worker,標頭見根目錄 _headers）
 const SEC_HEADERS = {
   'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
@@ -4601,7 +4705,7 @@ const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/
 // 'other',否則隨便打 /api/<亂數> 就能把 blob 基數炸開。新增端點時要一起加進來。
 const API_ENDPOINTS = new Set([
   'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'hazard-alert', 'metro-live', 'ntmetro-live', 'trtc-live',
-  'klrt-position', 'bus-transfer', 'bus-leg-live',
+  'klrt-position', 'bus-transfer', 'bus-leg-live', 'bus-route-stops',
   'delay-stats', 'delay-history', 'thsr-schedule', 'thsr-freeseat', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'basemap-src', 'basemap-fallback', 'account-delete',
   'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge', 'plus-status', 'revenuecat-webhook',
   'la/bind', 'la/unbind', 'metro-wait/bind', 'metro-wait/unbind', 'tra-wait/bind', 'tra-wait/unbind', 'pass-claim', 'pass-admin',
@@ -6501,6 +6605,7 @@ export default {
     else if (url.pathname === '/api/klrt-position') { res = await klrtPosition(request, env); }
     else if (url.pathname === '/api/bus-transfer') res = await busTransfer(request, env);
     else if (url.pathname === '/api/bus-leg-live') res = await busLegLive(request, env);
+    else if (url.pathname === '/api/bus-route-stops') res = await busRouteStops(request, env);
     else if (url.pathname === '/api/delay-stats') res = await delayStats(request, env);
     else if (url.pathname === '/api/thsr-schedule') res = await thsrSchedule(request, env);
     else if (url.pathname === '/api/tra-daily-trains') res = await traDailyTrains(request, env);
@@ -6550,8 +6655,9 @@ export const _stationEvents = { diffTrains, twDayFromMemAt };
 // 公車轉乘全臺台鐵站：核心 resolver 在 scripts/bus_transfer_core.mjs，這裡導出 IO 編排供 fixture 測試。
 // resetBusTransferCaches 只清本 isolate 記憶體；正式路由不會呼叫。
 export const _busTransfer = {
-  busTransfer, busLegLive, busTransferManifestData, busTransferStationData, busN1Url, busN1Rows, fetchBusN1, cachedBusTransferRaw,
-  busDynamicUrl, fetchBusDynamic, fetchTaipeiBusSeat, cachedBusLegRaw, resetBusTransferCaches,
+  busTransfer, busLegLive, busRouteStops, busTransferManifestData, busTransferStationData, busN1Url, busN1Rows, fetchBusN1, cachedBusTransferRaw,
+  busDynamicUrl, fetchBusDynamic, fetchBusRouteStops, busRouteStopsUrl, fetchTaipeiBusSeat, cachedBusLegRaw, cachedBusRouteStopsRaw,
+  resetBusTransferCaches,
 };
 // 純函式導出,供離線回歸測試 import:誤點履歷視窗計算、車次驗證與回應組裝。
 export const _delayHistory = { delayHistoryWindow, buildDelayHistoryBody, isValidTrainNo };
