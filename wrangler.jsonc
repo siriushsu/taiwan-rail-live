@@ -39,7 +39,9 @@
     { "binding": "TRTC_LEDGER", "database_name": "railisland-trtc-ledger", "database_id": "d9f5267d-f670-4657-b261-5bff39c51ebc" }
   ],
   // Analytics Engine 綁定:
-  // USAGE  :/api/tra-live 每筆請求埋點(cam/z/裝置),用來回答放空/跟車/靜止各佔多少前景分鐘
+  // USAGE  :/api/tra-live 每筆請求埋點(cam/z/裝置),用來回答放空/跟車/靜止各佔多少前景分鐘;
+  //         另有 /api/basemap-fallback 的街道底圖退場事件列(blob1='ofmfail',算前景分鐘時用 blob1 排除),
+  //         用來回答「OpenFreeMap 載不出來、App 退回 Stadia」多常發生。查法:node scripts/usage_ofm_fallback.mjs
   // TRAFFIC:每筆 /api/* 按來源分流(App 殼 vs 網頁),用來回答「Worker 請求數裡 App 佔多少」——
   //         兩邊打的是同一顆 Worker 同一個網域,CF 自己的請求計數把它們混成一個數字。
   //         查法:node scripts/usage_split.mjs

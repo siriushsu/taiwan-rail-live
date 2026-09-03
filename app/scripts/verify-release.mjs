@@ -743,10 +743,18 @@ export async function verifyRelease({
       `有 ${noLicence.length} 首會播但不在授權核對表裡:${noLicence.slice(0, 3).join('、')}`);
     assert(orphan.length === 0,
       `授權核對表有 ${orphan.length} 首已不在曲目清單裡(核對表沒跟上換庫):${orphan.slice(0, 3).join('、')}`);
+
+    // 🔴 車聲圖層(2026-09-03):Envato 授權的鐵軌環境音 loop,只在含音樂 build 內建、不進 repo 不上網站。
+    //    缺檔或旗標沒帶的症狀只有「車聲開關不見了」,沒有別的訊號;授權條目綁在同一份核對表上。
+    assert(relativeFiles.includes('audio/train-ride-loop.mp3'), '含音樂 build 必須內建車聲 loop(audio/train-ride-loop.mp3)');
+    assert(html.includes('window.RAIL_AMBIENCE_AVAILABLE=true'), '含音樂 build 的 index.html 必須宣告 RAIL_AMBIENCE_AVAILABLE=true');
+    assert(chk.includes('train-ride-loop') && /Envato/.test(chk), '音樂授權核對表缺車聲 loop 的 Envato 授權條目');
   }
   else {
     assert(musicFiles.length === 0, '安全 build 不可含 suno musics/');
     assert(html.includes('window.RAIL_MUSIC_AVAILABLE=false'), '安全 build 必須明確關閉音樂');
+    assert(!relativeFiles.includes('audio/train-ride-loop.mp3'), '安全 build 不得內建車聲 loop');
+    assert(html.includes('window.RAIL_AMBIENCE_AVAILABLE=false'), '安全 build 必須明確關閉車聲圖層');
   }
 
   if (basemapsEnabled) {
@@ -779,8 +787,7 @@ export async function verifyRelease({
     // 衛星 Retina 止血開關:只驗機制還活著(值可為 true/false,由 Esri 額度狀況決定)
     assert(/"satRetina":(true|false)/.test(html), 'RAIL_APP_CONFIG 未載明 satRetina(衛星高解析止血開關)');
     assert(html.includes('APP_CFG.satRetina'), 'index.html 的 SAT_RETINA 消費機制消失——App 端衛星解析度開關失效');
-    assert(html.includes('Math.min(18, FOLLOW_ZOOM_CAP)'),
-      'DIRECTOR_FOLLOW_Z 未由 FOLLOW_ZOOM_CAP 收斂——App 導播跟車 z16 上限失效');
+    // （DIRECTOR_FOLLOW_Z 那條斷言已隨 2026-09-03 刪除 OBS 導播模式一起拿掉；一般跟車的 z16 上限仍由上一條與下一條守著）
     assert((html.match(/followEntryZoom\(\), \{ animate: false \}/g) || []).length >= 3,
       '跟車進場 followEntryZoom 呼叫點少於 3 處——台鐵／高鐵／捷運跟車 zoom 上限未完整覆蓋');
     assert(html.includes(JSON.stringify(STADIA_ATTRIBUTION)),

@@ -63,6 +63,8 @@ Android source manifest 同時請求 coarse／fine 前景定位：`app/android/a
 
 App interactions 的實際 payload 是相機模式與 zoom：`index.html:14458-14466`；Worker 另由 user-agent 歸類 mobile／desktop 並寫 Cloudflare Analytics Engine：`worker.js:92-102`。它不是廣告追蹤，但仍是使用量 analytics。
 
+2026-09-03 起另有一筆**事件型** payload：街道底圖（OpenFreeMap）8 秒內載不出來或連續出錯、App 退回 Stadia 時，打一次 `/api/basemap-fallback`，內容是失敗原因（slow／error）與當時 zoom；Worker 端再由 Origin 歸類 app／web、由 user-agent 歸類 mobile／desktop，寫進同一個 Analytics Engine dataset（`index.html` 的 `ofmFailBeacon`、`worker.js` 的 `basemapFallback`）。每個 session 最多一兩發、不含識別資訊，用途仍是使用量 analytics（估 Stadia 成本），所以本表暫歸在 App interactions；若審核方認定「底圖載入逾時」屬 Diagnostics（loading time），要改勾 Diagnostics 並重做本表——待使用者裁示。
+
 Other user-generated content 是最愛地點、最愛列車、最愛車站與完乘紀錄；資料類型及欄位白名單：`index.html:6492-6559`，Firestore transaction：`index.html:7268-7285`。versionCode 16 開啟 Android 通行證後，這條同步路徑會由使用者登入與有效資格觸發，因此維持保守申報。
 
 ### 4. Financial info
