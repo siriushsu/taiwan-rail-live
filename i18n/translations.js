@@ -186,6 +186,8 @@
         'While following a Taipei Metro train, the card shows how crowded each carriage of that train is.',
       '完乘記錄多了「順序」排法，照你實際跟完的先後排、最早那趟在最上面；手機的旅程護照也補上排序鈕（謝謝網友回報）':
         'Completed trips can now be sorted in the order you actually finished them, oldest first — and the Journey Passport on phones finally has the sort buttons too.',
+      'iPad 與 Android 平板改用完整觸控版面；橫放時資訊停在右側，地圖保留主要空間':
+        'iPad and Android tablets now use the full touch layout; in landscape, information stays in a right rail so the map remains the focus.',
       '桌面的車站看板加寬，車種與「往哪」不會再被截掉':
         'The desktop station board is wider, so the train type and destination are no longer cut off.',
       '快到轉乘站時，直接列出對向系統最近兩班和「你到站時還剩幾分」，可以釘住你要搭的那班':
@@ -560,6 +562,8 @@
         '台北メトロの列車を追跡中、その列車の車両ごとの混雑度をカードに表示します。',
       '完乘記錄多了「順序」排法，照你實際跟完的先後排、最早那趟在最上面；手機的旅程護照也補上排序鈕（謝謝網友回報）':
         '完乗記録に「完乗順」を追加。実際に乗り終えた順に、いちばん古い1本が先頭に並びます。スマホの旅のパスポートにも並べ替えボタンを用意しました。',
+      'iPad 與 Android 平板改用完整觸控版面；橫放時資訊停在右側，地圖保留主要空間':
+        'iPadとAndroidタブレットでタッチ向けレイアウトを完全に利用できるようにし、横向きでは情報を右レールにまとめて地図を広く保ちます。',
       '桌面的車站看板加寬，車種與「往哪」不會再被截掉':
         'デスクトップの駅発車案内を広げ、列車種別と行き先が途中で切れなくなりました。',
       '快到轉乘站時，直接列出對向系統最近兩班和「你到站時還剩幾分」，可以釘住你要搭的那班':
