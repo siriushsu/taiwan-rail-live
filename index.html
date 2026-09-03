@@ -6769,7 +6769,7 @@ function textColorFor(hex) {
 
 function reproject() {
   if (!M || !state.data) return;
-  if (state._zoomAnim && !state._zaDrive) return; // 縮放動畫進行中:重投影只准由 zoomAnimFrame 驅動(仿射已掛進投影);其他來源(move/resize)此時進來會用凍結中的起始視圖算出未同步座標
+  if (M.engine === 'leaflet' && state._zoomAnim && !state._zaDrive) return; // 縮放動畫進行中:重投影只准由 zoomAnimFrame 驅動(仿射已掛進投影);其他來源(move/resize)此時進來會用凍結中的起始視圖算出未同步座標
   const size = M.getSize();
   state.dpr = Math.min(window.devicePixelRatio || 1, 2); // 主畫布 dpr 上限 2x
   // 尺寸沒變不重設緩衝區:設 cv.width 會清空 canvas,若發生在本幀 draw 之後(如 panTo/flyTo
@@ -12041,8 +12041,11 @@ const APP_STREET_SRC = (() => {
 // 判準刻意不共用任何投影假設——量的是最終合成畫面上的兩個亮點(見 verify_basemap_align.mjs)。
 const ALIGN_DOT = (() => {
   try {
-    const v = new URLSearchParams(location.search).get('aligndot'); if (!v) return null;
-    const [a, b] = v.split(',').map(Number); return isFinite(a) && isFinite(b) ? { lat: a, lng: b } : null;
+    const q = new URLSearchParams(location.search), v = q.get('aligndot');
+    if (!v && q.get('probe') === '1') return { lat: 25.20, lng: 121.80 };
+    if (!v) return null;
+    const [lat, lng] = v.split(',').map(Number);
+    return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
   } catch (e) { return null; }
 })();
 // 行程分享發起端＝Plus。這支只管「鈕要不要出現」,不等於放行——
@@ -31838,7 +31841,9 @@ async function boot() {
     state._syncDrawKey = key; state._syncDrawAt = state._drawAt = performance.now(); state._syncDrew = true;
     draw();
   };
-  M.on('move', syncDraw);
+  const syncDrawMaplibre = () => { reproject(); syncDraw(); };
+  if (M.engine === 'maplibre') M.on('render', syncDrawMaplibre);
+  else M.on('move', syncDraw);
   // ── 縮放動畫(zoomAnimation:true)期間:overlay 逐幀重畫——幾何跟圖磚同縮、字級線寬不變 ──────────────
   // Leaflet 對圖磚施加 250ms CSS transform 平滑縮放,期間投影基準(pixelOrigin/中心)凍結在起始視圖
   // (實測 getZoom() 會提前回報目標值,但 latLngToContainerPoint 回傳的是「起始基準+當下 panePos」座標),
@@ -31854,6 +31859,7 @@ async function boot() {
   // 圖磚容器局部座標;之後 zoomAnimFrame 每幀用它們解仿射(見 reproject 下方,為何非自校準不可也寫在那)。
   // ⚠ 容器必須挑「有圖磚的」層,不能拿第一個:多次縮放後 tilePane 累積多個舊 zoom 層,DOM 最前常是
   //   空的舊層,Leaflet 動畫中會剪掉空層,脫離 DOM 後 computed transform 全失真。
+  if (M.engine === 'leaflet') {
   M.on('zoomstart', () => {
     if (!M.leaflet) return; // 縮放動畫仿射是 Leaflet 專屬(MapLibre 每幀真實更新相機)
     if (state._zoomAnim) return; // 連續縮放 retarget:沿用原標定(q 是容器局部常數,仍有效)
@@ -31901,6 +31907,7 @@ async function boot() {
   M.on('zoomanim', onZoomAnim);
   M.on('zoomend', endZoomAnim);
   state._endZoomAnim = endZoomAnim; // 相機自癒清卡死縮放旗標用(閉包內函式,經 state 外借)
+  }
   // 省電:互動時標記時戳,tick 據此維持全速 1.5s(見 tick 節流)。map 'move'/'zoom' 覆蓋整段拖曳/縮放
   // (滑鼠拖曳中只有 pointermove 不重發,靠 map move 續命);pointerdown/wheel/touch 覆蓋點擊與觸控起手
   const markInteract = () => { state._interactAt = performance.now(); };

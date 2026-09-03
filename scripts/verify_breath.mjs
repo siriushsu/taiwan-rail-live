@@ -11,6 +11,7 @@ import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { runEngineMatrix } from './lib/engine_matrix.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = 5191;
@@ -37,7 +38,9 @@ const server = createServer((req, res) => {
 await new Promise(r => server.listen(PORT, r));
 
 const results = [];
-const ok = (name, pass, detail = '') => { results.push({ name, pass, detail }); console.log(`${pass ? 'PASS' : 'FAIL'} ${name}${detail ? ' — ' + detail : ''}`); };
+let activeCheck = null;
+let activeEngineUrl = null;
+const ok = (name, pass, detail = '') => { results.push({ name, pass, detail }); activeCheck(pass, name, detail); };
 const r3 = x => Math.round(x * 1000) / 1000;
 // 一維序列的二階差(平滑度):|a[i]-2a[i-1]+a[i-2]|
 const sd = a => { const v = []; for (let i = 2; i < a.length; i++) v.push(Math.abs(a[i] - 2 * a[i - 1] + a[i - 2])); return v; };
@@ -52,7 +55,7 @@ async function bootBreath(browser, { width = 1280, height = 800, touch = false, 
   const errors = [];
   page.on('pageerror', e => errors.push(String(e)));
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
-  await page.goto(`http://localhost:${PORT}/?breath=1`, { waitUntil: 'domcontentloaded' });
+  await page.goto(activeEngineUrl(`http://localhost:${PORT}/`, { breath: 1 }), { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready && window.__map && state.mode === 'sched'; } catch (e) { return false; } }, null, { timeout: 30000 });
   await page.waitForTimeout(400);
   await page.evaluate(({ forceCity, bt, basemap }) => {
@@ -65,13 +68,13 @@ async function bootBreath(browser, { width = 1280, height = 800, touch = false, 
     }
     // 進場:比照 hotspotTick 換幕(設旗標→scale 歸 1→setView 一次到 z13 錨點),之後 app 的 tick 迴圈由 hotCruise 逐幀縮放
     state._hotScene = sc; state._hotFresh = false; state._hotNext = performance.now() + 9e8;
-    state._hotCam = true; breathStage(); breathScale(1); window.__map.setView([sc.lat, sc.lon], sc.z, { animate: false }); state._hotCam = false;
+    state._hotCam = true; breathStage(); breathScale(1); window.__M.setView([sc.lat, sc.lon], sc.z, { animate: false }); state._hotCam = false;
     sc.bt = bt;
   }, { forceCity, bt, basemap });
   // 等進場穩定:_breathStage、固定整數 z13、CSS scale 已被 hotCruise 施加(computed transform 非 none)
   await page.waitForFunction(() => {
     try {
-      if (!(state._breathStage && window.__map.getZoom() === 13)) return false;
+      if (!(state._breathStage && window.__M.getZoom() === 13)) return false;
       const t = getComputedStyle(document.getElementById('map')).transform;
       return t && t !== 'none';
     } catch (e) { return false; }
@@ -87,21 +90,21 @@ async function bootBreath(browser, { width = 1280, height = 800, touch = false, 
 // 呼吸只動 CSS scale ⇒ GL move 該恆 0(render 只印不判:圖磚補載完成也會重繪一次,不是回歸)。
 async function sampleScales(page, N = 90) {
   return page.evaluate((N) => new Promise(resolve => {
-    const map = window.__map;
+    const M = window.__M, raw = M.raw;
     const mEl = document.getElementById('map'), oEl = document.getElementById('overlay');
     const parse = s => { if (!s || s === 'none') return 1; const m = s.match(/matrix\(([^,]+),/); return m ? parseFloat(m[1]) : 1; };
     let moveEnds = 0, zoomEnds = 0, glMoves = 0, glRenders = 0;
     const onMove = () => moveEnds++, onZoom = () => zoomEnds++, onGlMove = () => glMoves++, onGlRender = () => glRenders++;
-    map.on('moveend', onMove); map.on('zoomend', onZoom);
-    const glLayer = ['light', 'dark'].map(k => baseLayers[k]).find(l => l && l._glMap && map.hasLayer(l));
-    const gl = glLayer ? glLayer._glMap : null;
+    M.on('moveend', onMove); M.on('zoomend', onZoom);
+    const glLayer = M.engine === 'leaflet' ? ['light', 'dark'].map(k => baseLayers[k]).find(l => l && l._glMap && raw.hasLayer(l)) : null;
+    const gl = M.engine === 'maplibre' ? raw : (glLayer ? glLayer._glMap : null);
     if (gl) { gl.on('move', onGlMove); gl.on('render', onGlRender); }
     const out = []; let n = 0;
     (function tick() {
       const ms = getComputedStyle(mEl).transform, os = getComputedStyle(oEl).transform;
-      out.push({ t: performance.now(), ms, os, m: parse(ms), o: parse(os), z: map.getZoom() });
+      out.push({ t: performance.now(), ms, os, m: parse(ms), o: parse(os), z: M.getZoom() });
       if (++n >= N) {
-        map.off('moveend', onMove); map.off('zoomend', onZoom);
+        M.off('moveend', onMove); M.off('zoomend', onZoom);
         if (gl) { gl.off('move', onGlMove); gl.off('render', onGlRender); }
         return resolve({ frames: out, moveEnds, zoomEnds, glMoves: gl ? glMoves : null, glRenders: gl ? glRenders : null });
       }
@@ -134,7 +137,25 @@ function installBasemapProbe(page) {
   return page.evaluate(() => {
     window.__basemapProbe = function () {
       const want = state.mapDark ? 'dark' : (state.basemap === 'sat' ? 'sat' : 'light');
-      const layer = baseLayers[want], wantMounted = !!(layer && window.__map.hasLayer(layer));
+      const M = window.__M;
+      if (M.engine === 'maplibre') {
+        const gl = M.raw, canvas = gl.getCanvas(), r = canvas.getBoundingClientRect();
+        const seq = () => (window.__bmSeq = (window.__bmSeq || 0) + 1);
+        if (!gl.__bmId) gl.__bmId = seq();
+        if (canvas && !canvas.__bmId) canvas.__bmId = seq();
+        const c = gl.getCenter(), styleLoaded = gl.isStyleLoaded(), styleKind = M.getStyleKind();
+        const satReady = want !== 'sat' || !!gl.getSource('sat');
+        const wantMounted = want === 'sat' ? /^sat-(?:hi|lq)$/.test(styleKind) && satReady : styleKind === want;
+        return {
+          want, wantMounted, z: M.getZoom(), mountedKeys: wantMounted ? [want] : [], satMounted: want === 'sat' && wantMounted,
+          count: want === 'sat' && gl.getSource('sat') ? 1 : 0, srcs: want === 'sat' && gl.getSource('sat') ? ['maplibre://sat'] : [],
+          kind: 'vector', styleKind, present: wantMounted && styleLoaded && r.width > 0 && r.height > 0,
+          gl: { styleLoaded, inMap: document.getElementById('map').contains(canvas), w: Math.round(r.width), h: Math.round(r.height), cw: canvas.width, ch: canvas.height, features: -1, zoom: gl.getZoom(), center: [+c.lng.toFixed(6), +c.lat.toFixed(6)], glId: gl.__bmId, canvasId: canvas.__bmId }
+        };
+      }
+      const wantKeys = want === 'sat' ? ['sat', 'satLQ'] : [want];
+      const mountedKeys = wantKeys.filter(k => baseLayers[k] && window.__map.hasLayer(baseLayers[k]));
+      const layer = baseLayers[mountedKeys[0] || want], wantMounted = mountedKeys.length === 1;
       const tiles = [...document.querySelectorAll('#map .leaflet-tile')];
       const out = {
         want, wantMounted, z: window.__map.getZoom(),
@@ -188,6 +209,11 @@ function reloadFree(t0, t1, anim) {
   };
 }
 
+const matrix = await runEngineMatrix(async ({ engineUrl, check }) => {
+  activeEngineUrl = engineUrl;
+  activeCheck = check;
+  results.length = 0;
+
 // ══════════════ Chromium 桌面全項 ══════════════
 {
   const browser = await chromium.launch();
@@ -228,7 +254,7 @@ function reloadFree(t0, t1, anim) {
     await b.page.evaluate(() => setAmbient(false));
     await b.page.waitForTimeout(400);
     const off = await b.page.evaluate(() => {
-      const mt = getComputedStyle(document.getElementById('map')).transform, z = window.__map.getZoom();
+      const mt = getComputedStyle(document.getElementById('map')).transform, z = window.__M.getZoom();
       return { bs: state._breathStage, mtNone: mt === 'none' || mt === '', zInt: z === Math.round(z), bm: window.__basemapProbe() };
     });
     ok('chromium T3d 離開放空→transform 歸空、z 整數、底圖在場、_breathStage=false', off.bs === false && off.mtNone && off.zInt && off.bm.present, `bs=${off.bs} transform空=${off.mtNone} z整數=${off.zInt} ${bmDetail(off.bm)}`);
@@ -285,8 +311,8 @@ function reloadFree(t0, t1, anim) {
   {
     const b = await bootBreath(browser, { width: 1280, height: 800, forceCity: 'taipei', basemap: 'sat', bt: 37.5 });
     const st = await tileState(b.page);
-    const satSrc = st.srcs.some(s => /arcgisonline|World_Imagery/i.test(s));
-    ok('chromium T6a 衛星模式呼吸中圖磚在場', st.count > 0, `tiles=${st.count}, z=${st.z}`);
+    const satSrc = st.kind === 'vector' ? st.want === 'sat' : st.srcs.some(s => /arcgisonline|World_Imagery/i.test(s));
+    ok('chromium T6a 衛星模式呼吸中圖磚在場', st.present, `tiles=${st.count}, z=${st.z}`);
     // 原判準寫死「掛的必須是 baseLayers.sat」,但 retina 衛星後來變成 Plus 限定
     // (satRetinaAllowed() = SAT_RETINA && plusIsActive(),index.html:6175),而本 fixture 不注入 Plus
     // ⇒ 一律掛非 retina 的 baseLayers.satLQ,那一顆結構上永遠不可能掛上,判準過期而非產品回歸
@@ -328,8 +354,8 @@ try {
   await browser.close();
 } catch (e) { ok('webkit 全項', false, 'webkit 啟動失敗:' + String(e).slice(0, 160)); }
 
+});
+
 server.close();
-const fail = results.filter(r => !r.pass);
-console.log(`\n──────── ${results.length - fail.length}/${results.length} PASS ────────`);
-if (fail.length) { console.log('FAIL:', fail.map(f => f.name).join(' ; ')); process.exit(1); }
-process.exit(0);
+console.log(matrix.passed ? '\n全部通過' : `\n${matrix.failures.length} 項未過`);
+process.exit(matrix.passed ? 0 : 1);
