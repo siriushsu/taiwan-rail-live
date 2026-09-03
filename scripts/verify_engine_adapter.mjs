@@ -77,6 +77,7 @@ async function boot(browser, query, initLs) {
   const page = await ctx.newPage();
   const errs = [];
   page.on('pageerror', e => errs.push(String(e && e.message || e)));
+  page.on('console', m => { if (m.type() === 'error' && (u => u === '' || /index\.html/.test(u))(((m.location && m.location()) || {}).url || '')) errs.push('console.error: ' + m.text().slice(0, 200)); });
   await page.addInitScript(ls => { localStorage.setItem('trainmap-howto-seen', '1'); for (const k in ls) localStorage.setItem(k, ls[k]); }, initLs || {});
   await page.goto(`http://127.0.0.1:${PORT}/index.html?lang=zh-TW${query ? '&' + query : ''}`, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => window.__state && window.__state.ready, null, { timeout: 60000 });
@@ -125,9 +126,23 @@ try {
       return { after1, after2: n, zoom: M.getZoom() };
     });
     ck(ev.after1 >= 1 && ev.after2 === ev.after1 && ev.zoom === 12, 'G3 on/setView 觸發 moveend;off 後不再觸發', JSON.stringify(ev));
+    const fw = await page.evaluate(() => {
+      const M = window.__M, map = window.__map; const got = {};
+      const oInv = map.invalidateSize, oSV = map.setView;
+      map.invalidateSize = function (o) { got.resize = o; return oInv.call(this, o); };
+      map.setView = function (c, z, o) { got.setView = o; return oSV.call(this, c, z, o); };
+      M.resize({ animate: false, pan: false });
+      M.setView([25.0, 121.5], 11, { animate: false });
+      map.invalidateSize = oInv; map.setView = oSV;
+      return got;
+    });
+    ck(!!fw.resize && fw.resize.animate === false && fw.resize.pan === false, 'G2g resize 的 options 逐字轉發到 invalidateSize', JSON.stringify(fw.resize));
+    ck(!!fw.setView && fw.setView.animate === false, 'G2h setView 的 options 轉發到 Lmap.setView', JSON.stringify(fw.setView));
     ck(errs.length === 0, 'G2f 開機零 pageerror', errs.join(' | ').slice(0, 200));
     await ctx.close();
   }
+  const probe = await (async () => { const b = await boot(browser, ''); await b.page.evaluate(() => { const s = document.createElement('script'); s.textContent = "console.error('G2i 探針')"; document.body.appendChild(s); }); await b.page.waitForTimeout(100); const n = b.errs.filter(e => e.includes('G2i 探針')).length; await b.ctx.close(); return n; })();
+  ck(probe === 1, 'G2i 正向對照:頁面 console.error 會被 errs 收到', `n=${probe}`);
   // ── G4 旗標 ──
   {
     const hasML = await (async () => { const { ctx, page } = await boot(browser, ''); const v = await page.evaluate(() => typeof createMaplibreEngine === 'function'); await ctx.close(); return v; })();
