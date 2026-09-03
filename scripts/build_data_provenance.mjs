@@ -35,6 +35,7 @@ export const GEOMETRY_SOURCE = {
   'data/krtc.json': 'TDX',
   'data/krtc_times.json': null,
   'data/music.json': null,                     // 配樂曲庫,不含座標
+  'data/offline_land_style.json': null,        // 只有顏色與層序,座標在 data/taiwan_land.json
   'data/ntalrt.json': 'TDX',
   'data/ntalrt_times.json': null,
   'data/ntdlrt.json': 'TDX',
@@ -86,6 +87,8 @@ export const HAND = {
   // 檔內的 note 講的是「這份規則怎麼被兩端共讀」,不是來源;照抄會讓人以為它有上游。
   'data/bounty_rules.json':
     '本站自訂的懸賞門檻與文案定義,無外部資料源;客端即時提示與伺服器端隔日驗證共讀同一份(見檔內 note)',
+  'data/offline_land_style.json':
+    '離線陸地的 MapLibre style 片段(fill/line 兩層、light/dark/sat 三主題),值抄自 index.html 的 offlineLandStyle();scripts/verify_track_geojson.mjs G9 對 index.html 逐值驗算',
   'data/station_transfers.json':
     '由 data/tdx/*_Station.json 與 *_StationOfLine.json 逐系統彙整(檔內 sourceSystems 列出 12 個系統的實際輸入檔);轉乘判定為站名正規化後 haversine < 450 公尺(檔內 criteria)',
   'data/tra_station_class.json':

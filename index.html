@@ -386,15 +386,15 @@
   }
   #map { position: absolute; inset: 0; background: var(--map-bg); }
   /* 圖磚還沒到／離線時先顯示內建的台灣海陸輪廓，不讓放空畫面只剩一塊米色。 */
-  .stage.offline-land #map, .stage.offline-land .leaflet-container { background: #d4dadc; } /* 貼齊 CARTO Positron 海面色 */
+  .stage.offline-land #map, .stage.offline-land .leaflet-container, .stage.offline-land .maplibregl-map { background: #d4dadc; } /* 貼齊 CARTO Positron 海面色 */
 
   /* 地圖暗色模式(隨「外觀」一起換;canvas railCase=#10141c 同步) */
   .stage.dark, .stage.dark #map { background: #10141c; }
-  .stage.offline-land.dark #map, .stage.offline-land.dark .leaflet-container { background: #262626; } /* 貼齊 CARTO Dark Matter 海面色(較陸地淺) */
+  .stage.offline-land.dark #map, .stage.offline-land.dark .leaflet-container, .stage.offline-land.dark .maplibregl-map { background: #262626; } /* 貼齊 CARTO Dark Matter 海面色(較陸地淺) */
 
   /* 衛星影像底圖 */
   .stage.sat, .stage.sat #map { background: #132a35; }
-  .stage.offline-land.sat #map, .stage.offline-land.sat .leaflet-container { background: #132a35; }
+  .stage.offline-land.sat #map, .stage.offline-land.sat .leaflet-container, .stage.offline-land.sat .maplibregl-map { background: #132a35; }
 
   .leaflet-container { background: var(--map-bg); }
   .stage.dark .leaflet-container { background: #10141c; }
@@ -403,6 +403,7 @@
   /* Leaflet 原生控制項換紙牌皮膚:縮放鈕與版權字不再是白塑膠件。
      底部整欄(縮放/跟隨鎖/版權字)抬到站台帶上方。 */
   .leaflet-bottom.leaflet-right { bottom: 78px; }
+  .maplibregl-ctrl-bottom-right { bottom: 78px; }
   .leaflet-control-zoom.leaflet-bar { border: 1.5px solid var(--line); border-radius: 8px; box-shadow: var(--shadow-1); overflow: hidden; }
   .leaflet-control-zoom a { background: var(--paper); color: var(--navy); border-bottom: 1px solid var(--line-faint); }
   .leaflet-control-zoom a:last-child { border-bottom: 0; }
@@ -3611,6 +3612,7 @@
     /* 手機改用雙指縮放,隱藏 Leaflet +/- 鈕 */
     .leaflet-control-zoom { display: none; }
     .leaflet-bottom.leaflet-right { bottom: 58px; }
+    .maplibregl-ctrl-bottom-right { bottom: 58px; }
     /* 公告橫幅在手機整個退場(2026-07-30):入口改成頂列的 .alert-chip(見上面那條規則)。
        橫幅原本是 top:100 的整寬橫條,常駐時會蓋住搜尋面板的輸入框、也會撞上被底部 sheet 推高的
        跟隨小卡(使用者實機回報,兩張截圖各一);更貴的是它拖著一整條讓位鏈——站名牌、平交道提示、
@@ -3945,6 +3947,7 @@
     body.dwell-show.sheet-open .follow-panel { opacity: 0; pointer-events: none; }
     /* 全畫面:tab bar 疊在地圖上,底欄元素上移讓開 */
     body.fs .leaflet-bottom.leaflet-right { bottom: calc(var(--tabbar-clear) + 6px); } /* =原 64+env */
+    body.fs .maplibregl-ctrl-bottom-right { bottom: calc(var(--tabbar-clear) + 6px); } /* =原 64+env */
     body.fs .follow-panel, body.fs .freq-card { width: calc(176px * var(--ui)); }
     /* 版權字放**最下角**、膠囊疊在它上方(v0819a 使用者裁決:原本把版權抬到膠囊上方,那行字看起來像浮在畫面中間)。
        仍然是垂直分離——膠囊置中、版權右對齊,窄寬(≤414)兩者水平必然重疊(實測 360/375/414 都疊),
@@ -6140,6 +6143,7 @@ function setLanguage(lang) {
   } catch (e) {}
   i18nRefreshDynamic();
   i18nSyncNativeLanguage(lang);
+  glAttributionSync();
 }
 function i18nSyncNativeLanguage(lang = I18N_LANG) {
   try {
@@ -28883,6 +28887,48 @@ async function refreshStaleSchedule(def, day) {
 // 有 1–3km 位移，強迫顯示時看得出輪廓歪掉；用 1269 個已對過正射影像的車站座標當獨立真值量，
 // 舊檔有 24 站（東澳、南澳、崇德、和仁…全在東部海岸線）落在「海裡」，新檔 0 站。
 // 用獨立 pane 壓在 tilePane 下方：正常時被圖磚完整蓋住，斷網／圖磚缺口才露出，不影響列車 overlay。
+// ==== GL BASEMAP (M1a) ====
+// MapLibre 引擎的離線陸地:同一份 data/taiwan_land.json 進 fill+line 兩層,插在 style 第一層(background)之後、其餘所有層之前
+// ⇒ 圖磚正常時被 OFM/衛星蓋住,圖磚缺口或斷網才露出(與 Leaflet fallbackPane z150 同義,計畫 D7)。
+// 海面色由 background 層扮演(Leaflet 是 #map 的 CSS 背景):與 .stage.offline-land 三條 CSS 同值。
+let glLand = null;   // { land, style } 載入後才有
+let satAttribution = null; // TILES.sat.attribution(boot 內指定;TILES 是 boot 區域變數,頂層函式不能直接讀)
+const GL_SEA = { light: '#d4dadc', dark: '#262626', sat: '#132a35' };
+function glLandTheme() { return state.basemap === 'sat' ? 'sat' : (state.mapDark ? 'dark' : 'light'); }
+async function glLandLoad() {
+  if (!M || M.engine !== 'maplibre' || !M.onStyleLoad) return;
+  const [land, style] = await Promise.all([fetchJSON('./data/taiwan_land.json'), fetchJSON('./data/offline_land_style.json')]);
+  if (!land || !style) return;
+  glLand = { land, style };
+  document.querySelector('.stage').classList.add('offline-land');
+  M.onStyleLoad(glLandInstall);
+  glAttributionSync();
+}
+function glLandInstall() {
+  if (!glLand || !M || M.engine !== 'maplibre') return;
+  const raw = M.raw; if (!M.isStyleReady()) return; // style 換到一半:style.load 會再叫一次(不用 raw.isStyleLoaded():它要等圖磚全到)
+  const theme = glLandTheme();
+  if (!raw.getSource('offline-land')) raw.addSource('offline-land', { type: 'geojson', data: glLand.land });
+  const order = raw.getLayersOrder();
+  const before = order.find((id, i) => i > 0 && id !== 'offline-land-fill' && id !== 'offline-land-line'); // 緊貼 background 之上
+  for (const l of glLand.style.layers) {
+    const paint = glLand.style.themes[theme][l.id].paint;
+    if (raw.getLayer(l.id)) { for (const [p, v] of Object.entries(paint)) raw.setPaintProperty(l.id, p, v); continue; }
+    raw.addLayer({ ...l, paint }, before);
+  }
+  const first = raw.getStyle().layers[0];
+  if (first && first.type === 'background') raw.setPaintProperty(first.id, 'background-color', GL_SEA[theme]);
+}
+// 署名:一般地圖=OFM(MapLibre 從 OFM 的 TileJSON 自動帶出「OpenFreeMap © OpenMapTiles Data from OpenStreetMap」,再推一份 OFM_ATTRIBUTION 會變兩行重複)、
+// 衛星=Esri(自訂 style 沒有來源署名,要自己給);離線陸地載入後永遠加內政部(法定要件,既有署名字串不變)。字串先過 t() 再交給控件,
+// 因為 MapLibre 的 AttributionControl 會在 sourcedata 時重寫 innerHTML,事後翻譯會被蓋回去。
+function glAttributionSync() {
+  if (!M || M.engine !== 'maplibre' || !M.setAttribution) return;
+  const list = [];
+  if (state.basemap === 'sat' && satTokenState === 'ready' && satAttribution) list.push(satAttribution);
+  if (glLand) list.push(t('臺灣輪廓：內政部'));
+  M.setAttribution(list);
+}
 function offlineLandStyle() {
   // 衛星陸地色貼齊 Esri World Imagery 在台灣上空的實際色:2026-08-30 抓 7 個地點 × z10/12/14/16
   // 共 28 張圖磚量平均色,在 RGB 立方體上取 minimax(最壞 ΔE 最小)得 #606050,最壞 ΔE 32.2→21.3、
@@ -31122,6 +31168,7 @@ async function boot() {
   };
   }
   await setupOfflineLand();
+  if (M.engine === 'maplibre') await glLandLoad(); // 離線陸地(M1a):Leaflet 走 setupOfflineLand,MapLibre 走 GL 層
   window.__map = M.raw; // 驗證腳本用的把手(Leaflet 時就是 Leaflet map;MapLibre 時是 maplibregl.Map)
   window.__M = M; // 適配層把手(verify_engine_adapter.mjs)
   if (M.engine === 'maplibre') glTracksLoad(); // GL 軌道(M1a):抓 geojson/style,style.load 時冪等裝層;抓失敗就維持 canvas 畫法

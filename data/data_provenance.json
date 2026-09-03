@@ -100,6 +100,15 @@
    "coordinateBasis": null,
    "checksum": "2e4da0cbeb30271340c7467c6d62f38f"
   },
+  "data/offline_land_style.json": {
+   "sourceDescription": "離線陸地的 MapLibre style 片段(fill/line 兩層、light/dark/sat 三主題),值抄自 index.html 的 offlineLandStyle();scripts/verify_track_geojson.mjs G9 對 index.html 逐值驗算",
+   "sourceField": null,
+   "effectiveDate": null,
+   "effectiveDateField": null,
+   "geometrySource": null,
+   "coordinateBasis": null,
+   "checksum": "8453348ce71974f86219b33c273d1ac0"
+  },
   "data/rail_crossing_levels.json": {
    "sourceDescription": "OpenStreetMap (layer / bridge / tunnel) via Overpass API",
    "sourceField": "source",

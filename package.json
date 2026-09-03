@@ -50,7 +50,8 @@
     "check-crowd-board": "node scripts/verify_crowd_and_board_width.mjs",
     "build-track-geojson": "node scripts/build_track_geojson.mjs",
     "check-track-geojson": "node scripts/verify_track_geojson.mjs",
-    "check-gl-tracks": "node scripts/verify_gl_tracks.mjs"
+    "check-gl-tracks": "node scripts/verify_gl_tracks.mjs",
+    "check-gl-basemap": "node scripts/verify_gl_basemap.mjs"
   },
   "dependencies": {
     "playwright": "^1.61.1",
