@@ -6324,7 +6324,7 @@ function createLeafletEngine(containerId, view) {
     // 容器
     getSize: () => Lmap.getSize(),
     getContainer: () => Lmap.getContainer(),
-    resize: () => { Lmap.invalidateSize(); return E; },
+    resize: o => { Lmap.invalidateSize(o); return E; }, // options({pan,debounceMoveend})要轉發,呼叫端 M.resize({pan:false}) 靠它
     // 事件(名稱沿用 Leaflet:move zoom resize moveend zoomend zoomstart movestart dragstart click mousemove zoomanim)
     on: (ev, fn) => { Lmap.on(ev, fn); return E; },
     off: (ev, fn) => { Lmap.off(ev, fn); return E; },
