@@ -21502,7 +21502,7 @@ const MIN_MAP_STRIP = 64;
 //   (2) 相機自癒的「車在不在露出矩形內」用同一個舊尺寸 ⇒ 判定為在場 ⇒ 永不開火(診斷條 rs 恆 0);
 //   (3) reproject 用它配畫布緩衝區 ⇒ 軌道與車牌畫進已經不覆蓋螢幕的那塊(使用者:軌道也看不到)。
 // 對策沿用自癒的哲學——量結果不猜時序:每 200ms 比對 Leaflet 尺寸與容器實測尺寸,不一致就重量。
-// invalidateSize 會發 move/resize,既有接線(map.on('move zoom resize', reproject))自動重投影配畫布。
+// invalidateSize 會發 move/resize,既有接線(M.on('move zoom resize', reproject))自動重投影配畫布。
 function syncMapSizeIfStale() {
   if (!map) return false;
   const el = M.getContainer(), cw = el.clientWidth, ch = el.clientHeight;
@@ -30248,7 +30248,7 @@ function setupMapTools() {
   }
   // 地圖縮小(z<12)時給地點釘加光環放大,避免與背景車站點混淆(使用者要求)
   function applyZfar() { const c = M.getContainer(); if (c) c.classList.toggle('zfar', M.getZoom() < 12); }
-  map.on('zoomend', applyZfar); applyZfar();
+  M.on('zoomend', applyZfar); applyZfar();
 }
 
 // ══════════ WebMCP 網站工具(v0902a) ══════════════════════════════════════════
@@ -30743,7 +30743,7 @@ async function boot() {
   map.options.maxBoundsViscosity = 1.0;  // 硬牆:拖不出活動範圍邊界(但範圍已放大,日常平移不會頂到)
   state._fenceOn = true;
   applyTaiwanFloor();                     // 一次算好 minZoom 地板＋平移硬牆(活動範圍)
-  map.on('resize', applyTaiwanFloor);     // 旋轉/改視窗大小時重算地板
+  M.on('resize', applyTaiwanFloor);     // 旋轉/改視窗大小時重算地板
   // ── 點擊歧義小選單:列車停靠中壓住車站時,點下去彈兩列(跟隨列車/車站看板)讓使用者選。
   // 只在「車與站到點擊處的距離差 <TAP_AMBIG_PX」的分不出來場景出現;點得明顯偏向一方維持直接執行,平常手感不變。
   const TAP_AMBIG_PX = 8;
@@ -30751,7 +30751,7 @@ async function boot() {
     const el = document.getElementById('tapPick');
     if (el.hidden) return;
     el.hidden = true; el.innerHTML = '';
-    map.off('movestart', closeTapPickOnUserMove); map.off('zoomstart', closeTapPickOnUserMove);
+    M.off('movestart', closeTapPickOnUserMove); M.off('zoomstart', closeTapPickOnUserMove);
   }
   // 只有「使用者自己移動地圖」才收選單。跟隨中 recenterTo 每幀把車釘回中心(setView)也發 movestart,
   // 那是自家鏡頭不是使用者意圖——照收的話選單開瞬間就被自己關掉,根本來不及點(v0717i 使用者回報)。
@@ -30772,7 +30772,7 @@ async function boot() {
       const it = items[Number(b.dataset.i)];
       closeTapPick(); it.run();
     });
-    map.on('movestart', closeTapPickOnUserMove); map.on('zoomstart', closeTapPickOnUserMove);
+    M.on('movestart', closeTapPickOnUserMove); M.on('zoomstart', closeTapPickOnUserMove);
   }
   function tapPickStation(st) {
     // 共構疊站(台鐵/高鐵/捷運的「台北」們)靠系統名分清楚選的是哪張板;捷運分頁內(freq)無跨系統疊站,不標
@@ -30837,7 +30837,7 @@ async function boot() {
     const bd = document.getElementById('board');
     if (bd && !bd.hidden) closeBoard();
   }
-  map.on('click', e => {
+  M.on('click', e => {
     const cp = e.containerPoint || M.toScreen(e.latlng);
     closeTapPick(); // 點地圖任何地方先收掉歧義選單(選單列自身的點擊不會冒泡到 map)
     if (state.takeoutPick && state.takeoutResult) {
@@ -30982,9 +30982,9 @@ async function boot() {
       stD = Math.min(stD, Math.hypot(p.x - cp.x, p.y - cp.y));
     }
     if (!trainAt(cp) && !crossingAt(cp) && stD > 16 && !(state.deco && freqTrainAt(cp))) return;
-    map.fire('click', { containerPoint: cp, latlng: M.fromScreen(cp) });
+    M.fire('click', { containerPoint: cp, latlng: M.fromScreen(cp) });
   });
-  map.on('mousemove', e => {
+  M.on('mousemove', e => {
     // 滑過列車 → 手指游標(sched 真實班表 + freq 幽靈車一致)
     const c = M.getContainer();
     if (state.mode !== 'sched') { c.style.cursor = freqTrainAt(e.containerPoint) ? 'pointer' : ''; return; }
@@ -31006,7 +31006,7 @@ async function boot() {
   updateFollowLockUI(); // 初始未跟隨 → 收起
   // 拖曳地圖=解鎖(Google 導航式);縮放不解鎖
   // 放空模式不解鎖:鈕是藏的,解了鎖沒辦法鎖回,鏡頭會永久漂走;隨機跟隨鈕有顯示,可解鎖也可點回置中
-  map.on('dragstart', () => {
+  M.on('dragstart', () => {
     if (state.geoFollow) state.geoFollow = false; // Google Maps 式：手動拖圖只解所在地鏡頭，不關前景 GPS／藍點
     if ((state.followTrain || state.freqFollow) && state.followLock && !document.body.classList.contains('ambient')) setFollowLock(false);
     if (state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain) {
@@ -31016,7 +31016,7 @@ async function boot() {
     }
   });
   // 群車巡航中使用者縮放(滾輪/捏合)同樣讓位;巡航會在新 zoom 重建游標接著巡
-  map.on('zoomstart', () => {
+  M.on('zoomstart', () => {
     if (state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain && !state._hotCam) {
       state._hotYield = performance.now() + 8000;
       if (!state._theater && state._hotScene && state._hotScene.breath) breathStageRestore(); // 使用者自己縮放才交還(清 CSS scale + 底圖回場);劇場入場的 flyToBounds(_theater 已真)不算
@@ -31203,7 +31203,7 @@ async function boot() {
   // 錄製還原刻意不放這裡：Task 4 的還原會一併啟動取樣，而取樣要投影到線形，
   // 必須等線網載完才有意義。實際呼叫點在下方 boot 尾段（線網就緒後）。
   await setupLocalNotifications();
-  map.on('move zoom resize', reproject); // 縮放「動畫」與捏合手勢(_zoomAnim 凍結中)不在此重投影(會造成 issue #4 殘影);改由下方 onZoomAnim/捏合 zoom handler 專責同步
+  M.on('move zoom resize', reproject); // 縮放「動畫」與捏合手勢(_zoomAnim 凍結中)不在此重投影(會造成 issue #4 殘影);改由下方 onZoomAnim/捏合 zoom handler 專責同步
   // 拖曳/捏合/慣性平移的每一幀,Leaflet 是在自己的 rAF callback 裡挪 pane 再發 'move';overlay 若只靠 tick
   // 重繪,tick 的 rAF 排在它前面(WebKit 實測整段拖曳青探針落後洋紅 2–5px=「軌道慢一拍才跟上」),排在後面
   // 才剛好同幀——順序不歸我們管。改成在 'move' 裡同步重繪(與 pane 位移同一個 callback、同一幀落地),
@@ -31217,7 +31217,7 @@ async function boot() {
     state._syncDrawKey = key; state._syncDrawAt = state._drawAt = performance.now(); state._syncDrew = true;
     draw();
   };
-  map.on('move', syncDraw);
+  M.on('move', syncDraw);
   // ── 縮放動畫(zoomAnimation:true)期間:overlay 逐幀重畫——幾何跟圖磚同縮、字級線寬不變 ──────────────
   // Leaflet 對圖磚施加 250ms CSS transform 平滑縮放,期間投影基準(pixelOrigin/中心)凍結在起始視圖
   // (實測 getZoom() 會提前回報目標值,但 latLngToContainerPoint 回傳的是「起始基準+當下 panePos」座標),
@@ -31233,7 +31233,7 @@ async function boot() {
   // 圖磚容器局部座標;之後 zoomAnimFrame 每幀用它們解仿射(見 reproject 下方,為何非自校準不可也寫在那)。
   // ⚠ 容器必須挑「有圖磚的」層,不能拿第一個:多次縮放後 tilePane 累積多個舊 zoom 層,DOM 最前常是
   //   空的舊層,Leaflet 動畫中會剪掉空層,脫離 DOM 後 computed transform 全失真。
-  map.on('zoomstart', () => {
+  M.on('zoomstart', () => {
     if (state._zoomAnim) return; // 連續縮放 retarget:沿用原標定(q 是容器局部常數,仍有效)
     if (state._breathStage) { state._zaCalPend = null; return; } // 呼吸幕投影非 raw 不可標定(正常已被更早的 zoomstart listener 交還,此為防禦)
     const size = M.getSize();
@@ -31276,13 +31276,13 @@ async function boot() {
     state._zoomAnim = false; state._zaAff = null; state._zaCal = null; state._zaCalPend = null;
     reproject(); if (state.ready) draw(); // 落定視圖重繪;最後一動畫幀仿射已收斂到 identity,與此幀重合=零跳動
   }
-  map.on('zoomanim', onZoomAnim);
-  map.on('zoomend', endZoomAnim);
+  M.on('zoomanim', onZoomAnim);
+  M.on('zoomend', endZoomAnim);
   state._endZoomAnim = endZoomAnim; // 相機自癒清卡死縮放旗標用(閉包內函式,經 state 外借)
   // 省電:互動時標記時戳,tick 據此維持全速 1.5s(見 tick 節流)。map 'move'/'zoom' 覆蓋整段拖曳/縮放
   // (滑鼠拖曳中只有 pointermove 不重發,靠 map move 續命);pointerdown/wheel/touch 覆蓋點擊與觸控起手
   const markInteract = () => { state._interactAt = performance.now(); };
-  map.on('movestart move zoomstart zoom dragstart', markInteract);
+  M.on('movestart move zoomstart zoom dragstart', markInteract);
   ['pointerdown', 'wheel', 'touchstart', 'touchmove'].forEach(ev =>
     document.addEventListener(ev, markInteract, { passive: true }));
   // 相機自癒的手勢時戳:只掛 document 端輸入事件(程式 setView 不會觸發這些)。map 的
@@ -31291,10 +31291,10 @@ async function boot() {
   const markGesture = () => { state._gestureAt = performance.now(); };
   ['pointerdown', 'wheel', 'touchstart', 'touchmove'].forEach(ev =>
     document.addEventListener(ev, markGesture, { passive: true }));
-  map.on('dragstart', markGesture);
+  M.on('dragstart', markGesture);
   // 呼吸幕被使用者縮放(滾輪/捏合/雙擊)接管的兜底:zoomstart 已交還,zoomend 再確保一次(冪等)。
   // 自家逐幀呼吸只施加 CSS scale、不動 Leaflet zoom,故此 handler 不會被自家觸發(且有 _hotCam 保險)。
-  map.on('zoomend', () => {
+  M.on('zoomend', () => {
     if (state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain && !state._hotCam &&
         state._hotScene && state._hotScene.breath) breathStageRestore();
   });
@@ -31484,9 +31484,9 @@ async function boot() {
       M.setView([lastView.lat, lastView.lon], lastView.z, { animate: false }); // 回到上次離開的位置(群組已於上面一併還原)
     }
   }
-  map.on('moveend', saveLastView); // 記住使用者最後看的畫面;守門條件都在 saveLastView 內(巡航/跟車皆不寫)
+  M.on('moveend', saveLastView); // 記住使用者最後看的畫面;守門條件都在 saveLastView 內(巡航/跟車皆不寫)
   // 使用者一開始自己拖地圖,開機定位就別再搶鏡頭(dragstart 只有真的手動拖曳才發,程式化的 setView/flyTo 不會)
-  map.on('dragstart', () => { state._userMoved = true; state.geoFollow = false; });
+  M.on('dragstart', () => { state._userMoved = true; state.geoFollow = false; });
   if (geoBoot) state._bootGeo.then(applyBootGeo);
   state.ready = true;
   void setupWebMcp(); // 支援的 ChatGPT 內建瀏覽器才註冊；一般瀏覽器立即 no-op
