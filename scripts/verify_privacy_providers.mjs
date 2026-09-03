@@ -42,7 +42,7 @@ const HOSTS = {
 };
 // 沒有網路主機、但確實在處理使用者資料的供應商(原生管道:登入、商店交易)。
 // 它們掃不到,所以反向判準要放行——但要在這裡具名,不能靠「掃不到就算了」。
-const NATIVE_ONLY = ['Apple'];
+const NATIVE_ONLY = ['Apple', 'Google']; // Google Play 交易走原生商店，不會出現在網站 CSP 主機掃描
 
 // ── 掃描一:CSP 的 script-src / connect-src ⇒ 瀏覽器會對它發請求的第三方 ────────
 const headers = read('_headers');

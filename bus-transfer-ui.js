@@ -1,4 +1,4 @@
-/* 軌島 公車轉乘 UI 模組（全臺目前有客運班表的台鐵站）
+/* 軌島 公車轉乘 UI 模組（全臺客運鐵路、捷運與輕軌站）
  *
  * 定位：三階段轉乘流程的同一張卡，phase 由呼叫者傳入（模組不猜行程狀態）。
  *
@@ -26,7 +26,7 @@
 (function (global) {
   'use strict';
 
-  const VERSION = '0.7.0';
+  const VERSION = '0.8.0';
   const COVERAGE = 'all_active_rail_stations';
   const API_BASE = '';
   const STALE_LABEL_SEC = 180;
@@ -85,8 +85,8 @@
   if (store.JOURNEY === undefined) store.JOURNEY = readJourney();
 
   function journeyValue() { return store.JOURNEY || null; }
-  function emitJourney(reason) {
-    const detail = { journey: journeyValue(), reason: String(reason || 'updated') };
+  function emitJourney(reason, previous = null) {
+    const detail = { journey: journeyValue(), previous, reason: String(reason || 'updated') };
     for (const instance of [...INSTANCES]) {
       if (typeof instance.onJourneyChange === 'function') {
         try { instance.onJourneyChange(detail); } catch (error) { /* 宿主 callback 不得打斷卡片 */ }
@@ -95,13 +95,14 @@
     try { global.dispatchEvent(new CustomEvent('rail-bus-journey-change', { detail })); } catch (error) {}
   }
   function writeJourney(next, reason) {
+    const previous = store.JOURNEY || null;
     store.JOURNEY = next ? { ...next, version: 1, updatedAt: Date.now() } : null;
     try {
       if (store.JOURNEY) global.localStorage.setItem(JOURNEY_STORAGE_KEY, JSON.stringify(store.JOURNEY));
       else global.localStorage.removeItem(JOURNEY_STORAGE_KEY);
     } catch (error) { /* 私密模式仍可在本次頁面使用 */ }
     renderAll();
-    emitJourney(reason);
+    emitJourney(reason, previous);
     return store.JOURNEY;
   }
 
@@ -400,6 +401,12 @@
     return `<p class="btu-note btu-opt">${esc(tr(WALK_NOTE_FULL))}</p><p class="btu-note btu-tight">${esc(tr(WALK_NOTE_TIGHT))}</p>`;
   }
 
+  function renderAssistantShare(instance) {
+    if (!instance.assistant || !instance.journeyContext || !instance.journeyContext.rail || journeyValue()) return '';
+    const label = global.__railJourneyShareActive ? tr('分享中・管理') : tr('分享這段旅程');
+    return `<div class="btu-pickeractions"><button type="button" class="btu-jbtn" data-btu-act="journey-share">${esc(label)}</button></div>`;
+  }
+
   // ── 規劃中 ───────────────────────────────────────────────────────
   function serviceText(service) {
     if (!service) return { line: '營運時間與班距未提供', headway: null };
@@ -434,7 +441,7 @@ ${navLink(route.boardStopPosition, arrived, stationPosition, route.boardStopName
     if (instance.assistant) {
       return `${renderTrainEta(instance.trainEta)}
 <div class="btu-msg">${esc(tr('轉乘站已設定。抵達前 15 分鐘會開始比對公車動態；在那之前不發出即時查詢。'))}</div>
-${renderWalkNote()}`;
+${renderAssistantShare(instance)}${renderWalkNote()}`;
     }
     const plan = instance.plan;
     const routes = plan && Array.isArray(plan.routes) ? plan.routes : [];
@@ -544,7 +551,7 @@ ${navLink(route.boardStopPosition, false, stationPosition, route.boardStopName)}
         return `${lead}<div class="btu-msg">${esc(tr('已設定本站轉乘；抵達前 15 分鐘才開始查公車動態。'))}</div>${renderWalkNote()}`;
       }
       return `${lead}<div class="btu-meta"><span>${esc(tr('依列車抵達、站外步行與公車到站時間保守估算'))}</span></div>
-${renderLivePanel(instance, view)}${renderWalkNote()}`;
+${renderLivePanel(instance, view)}${renderAssistantShare(instance)}${renderWalkNote()}`;
     }
     const plan = instance.plan;
     const routes = plan && Array.isArray(plan.routes) ? plan.routes : [];
@@ -708,12 +715,15 @@ ${lines.map(line => `<span class="btu-sec">${line}</span>`).join('')}
         lines.push(tr('最近回報位置：{stop}', { stop: vehicle.progress.currentStopName }));
       }
     }
+    const shareLabel = global.__railJourneyShareActive ? tr('分享中・管理') : tr('分享這段旅程');
     const buttons = journey.phase === 'waiting'
       ? `<button type="button" class="btu-jbtn primary" data-btu-act="journey-board">${esc(tr('我上車了'))}</button>
 <button type="button" class="btu-jbtn" data-btu-act="journey-refresh">${esc(tr('重新查詢'))}</button>
+<button type="button" class="btu-jbtn" data-btu-act="journey-share">${esc(shareLabel)}</button>
 <button type="button" class="btu-jbtn danger" data-btu-act="journey-cancel">${esc(tr('取消接續'))}</button>`
       : `<button type="button" class="btu-jbtn primary" data-btu-act="journey-complete">${esc(tr('我下車了'))}</button>
-<button type="button" class="btu-jbtn" data-btu-act="journey-update">${esc(tr('更新車況'))}</button>`;
+<button type="button" class="btu-jbtn" data-btu-act="journey-update">${esc(tr('更新車況'))}</button>
+<button type="button" class="btu-jbtn" data-btu-act="journey-share">${esc(shareLabel)}</button>`;
     return `<section class="btu-journey" aria-label="${esc(tr('接續旅程'))}">
 <div class="btu-journeytop"><span class="btu-journeyphase">${esc(tr(journey.phase === 'waiting' ? '等公車' : '公車行駛中'))}</span><b>${esc(route)}${journey.headsign ? `・${esc(tr('往 {destination}', { destination: journey.headsign }))}` : ''}</b></div>
 ${lines.map(line => `<span class="btu-journeyline">${esc(line)}</span>`).join('')}
@@ -939,6 +949,13 @@ ${body}
       leg.status = 'ready';
       leg.data = data;
       leg.fetchedAt = Date.now();
+      const journey = journeyValue();
+      if (journey && journey.stationId === instance.stationId && journey.arrivalKey === arrivalKey) {
+        const snapshot = exactJourneyVehicle(journey, data);
+        if (snapshot && JSON.stringify(snapshot) !== JSON.stringify(journey.vehicle || null)) {
+          writeJourney({ ...journey, vehicle: snapshot }, 'vehicle-updated');
+        }
+      }
       return data;
     }).catch(error => {
       if (error && error.name === 'AbortError') { leg.status = 'idle'; return null; }
@@ -997,6 +1014,17 @@ ${body}
       if (!data || !Array.isArray(data.arrivals) || !data.arrivals.some(row => row.key === journey.arrivalKey)) return;
       loadLeg(instance, journey.arrivalKey);
     });
+  }
+
+  function exactJourneyVehicle(journey, data) {
+    if (!journey || !data || !Array.isArray(data.vehicles)) return null;
+    const plate = String(journey.plate || (data.binding && data.binding.state === 'exact_n1_plate' && data.binding.plate) || '');
+    if (!plate) return null;
+    const vehicle = data.vehicles.find(item => item && item.binding === 'n1_plate_verified' && String(item.plate || '') === plate);
+    if (!vehicle || !vehicle.position || !Number.isFinite(vehicle.position.lat) || !Number.isFinite(vehicle.position.lon)) return null;
+    const at = Date.parse(vehicle.gpsAt || '');
+    if (!Number.isFinite(at)) return null;
+    return { lat: vehicle.position.lat, lon: vehicle.position.lon, at, label: plate };
   }
 
   // ── 事件（單一 delegated listener，只綁在 root 上）────────────────
@@ -1082,8 +1110,10 @@ ${body}
         alightStop: alight,
         phase: 'waiting',
         plate: exactPlate || null,
+        vehicle: exactJourneyVehicle({ plate: exactPlate }, leg.data),
         expectedAt,
         originTrainKey: instance.journeyContext && instance.journeyContext.trainKey || null,
+        originRail: instance.journeyContext && instance.journeyContext.rail || null,
         createdAt: Date.now(),
       }, 'started');
       return;
@@ -1094,7 +1124,15 @@ ${body}
       const leg = legData(journey.stationId, journey.arrivalKey);
       const exactPlate = leg.data && leg.data.binding && leg.data.binding.state === 'exact_n1_plate'
         ? leg.data.binding.plate : journey.plate;
-      writeJourney({ ...journey, phase: 'aboard', plate: exactPlate || null, boardedAt: Date.now() }, 'boarded');
+      writeJourney({ ...journey, phase: 'aboard', plate: exactPlate || null,
+        vehicle: exactJourneyVehicle({ ...journey, plate: exactPlate }, leg.data) || journey.vehicle || null,
+        boardedAt: Date.now() }, 'boarded');
+      return;
+    }
+    if (act === 'journey-share') {
+      try { global.dispatchEvent(new CustomEvent('rail-bus-journey-share-request', {
+        detail: { journey: journeyValue(), context: instance.journeyContext || null },
+      })); } catch (error) {}
       return;
     }
     if (act === 'journey-refresh' || act === 'journey-update') { refreshJourney(instance); return; }
@@ -1304,4 +1342,5 @@ ${body}
       return true;
     },
   };
+  global.addEventListener('rail-journey-share-state', () => renderAll());
 })(typeof window !== 'undefined' ? window : globalThis);

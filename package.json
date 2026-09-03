@@ -36,6 +36,7 @@
     "check-bus-transfer-ui": "node scripts/verify_bus_transfer_ui.mjs",
     "check-bus-transfer-worker": "node scripts/verify_bus_transfer_worker.mjs",
     "check-bus-transfer-gate": "node scripts/verify_bus_transfer_gate.mjs",
+    "check-journey-share-worker": "node scripts/verify_journey_share_worker.mjs",
     "check-bus-transfer": "node scripts/verify_bus_transfer_all.mjs",
     "strip-ship-comments": "node scripts/strip_ship_comments.mjs",
     "ship-web": "node scripts/ship_web.mjs",

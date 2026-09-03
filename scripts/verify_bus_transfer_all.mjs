@@ -11,6 +11,7 @@ const scripts = [
   'verify_bus_transfer_index.mjs',
   'verify_bus_transfer_ui.mjs',
   'verify_bus_transfer_worker.mjs',
+  'verify_journey_share_worker.mjs',
   'verify_bus_transfer_gate.mjs',
 ];
 

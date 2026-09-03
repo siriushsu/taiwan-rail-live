@@ -1673,6 +1673,19 @@
   .trip-banner:not([hidden]) ~ .dwell-plate { top: 160px; }
   .trip-panel .row { cursor: pointer; }
   .trip-panel .row:hover { background: var(--bg-stage); }
+  .journey-share-dialog { width: min(480px, 100%); }
+  .journey-share-body { display: grid; gap: 12px; }
+  .journey-share-summary { margin: 0; font-size: calc(13px * var(--ui)); line-height: 1.65; color: var(--ink); }
+  .journey-share-field { display: grid; gap: 6px; font-size: calc(12.5px * var(--ui)); font-weight: 800; color: var(--muted); }
+  .journey-share-field select { height: 44px; min-height: 44px; padding: 8px 10px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); font: inherit; }
+  .journey-share-check { display: grid; grid-template-columns: 22px 1fr; gap: 4px 9px; align-items: start; padding: 10px 11px; border: 1.5px solid var(--line); border-radius: 9px; background: var(--bg-stage); cursor: pointer; }
+  .journey-share-check input { width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--navy); }
+  .journey-share-check b { color: var(--ink-strong); font-size: calc(13px * var(--ui)); }
+  .journey-share-check small { grid-column: 2; color: var(--muted); font-size: calc(11.5px * var(--uis)); line-height: 1.55; font-weight: 500; }
+  .journey-share-status { min-height: 20px; font-size: calc(12px * var(--uis)); line-height: 1.55; color: var(--muted); }
+  .journey-share-status.err { color: var(--red); font-weight: 800; }
+  .journey-share-active { padding: 10px 11px; border: 1.5px solid var(--ok); border-radius: 9px; background: color-mix(in srgb, var(--ok) 8%, var(--paper)); }
+  .journey-share-active b { display: block; color: var(--ok); margin-bottom: 4px; }
 
   /* ── App 內建瀏覽器逃生提示:Threads/IG/LINE 等 in-app webview 沒有「加入主畫面」,
        偵測到才顯示(一般瀏覽器/主畫面 App 永不出現);× 關閉後記 localStorage 不再打擾 ── */
@@ -5055,6 +5068,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="journeysharelive"><span class="d">9/3</span><span>整段列車轉公車旅程現在可以用短效連結分享：對方會看到正在搭列車、走去站牌、等車或搭公車；手機位置預設不分享，只有你另行勾選才會在 App／網頁留在前景時更新，停止分享會連同位置立即刪除。</span></li>
         <li data-cl-of="busjourney"><span class="d">9/3</span><span>軌道轉公車現在能接成一段不會消失的旅程：選定公車後再選下車站；列車抵達後保留等車資訊，按「我上車了」會切到公車行程並顯示剩餘站數，重開 App 也能接著看。</span></li>
         <li data-cl-of="busallrail"><span class="d">9/3</span><span>公車轉乘入口擴到軌島地圖上的全部 541 座客運鐵路、捷運與輕軌站；高鐵、林鐵跟車也能先指定下車站接公車。仍只在使用者打開或接近轉乘站時查即時，不會全臺背景輪詢。</span></li>
         <li data-cl-of="busassistant"><span class="d">9/3</span><span>跟台鐵列車時可以先指定在哪一站接公車；抵達前 15 分、5 分與實際到站才查一次動態，並把列車抵達、站外步行和公車到站合成保守的轉乘裕度。時光機與加速重播不查即時資料。</span></li>
@@ -5062,7 +5076,6 @@
         <li data-cl-of="rideseq"><span class="d">9/3</span><span>完乘記錄多了「順序」排法，照你實際跟完的先後排、最早那趟在最上面；手機的旅程護照也補上排序鈕（謝謝網友回報）</span></li>
         <li data-cl-of="crowdfallback"><span class="d">9/3</span><span>捷運列車的車廂擁擠度不會再整批消失一輪：官方擁擠度偶爾抓不到時改用剛才那一份，最多兩分鐘，超過就留白（謝謝網友回報）</span></li>
         <li data-cl-of="widgetsizes"><span class="d">9/2</span><span>桌面小工具：方向與目的站多了「不指定」，選過也能改回來；捷運看板的方向只列所選車站開得到的終點。Android 補齊到七種尺寸，捷運與火車都有大張卡片，5 欄手機會佔滿五格（謝謝網友回報）</span></li>
-        <li data-cl-of="webmcp"><span class="d">9/2</span><span>ChatGPT 在內建瀏覽器打開軌島時，現在能直接查目前畫面、搜尋車站、讀車站看板與營運公告，也能替你開啟車站看板或跟隨指定火車；一般瀏覽器不受影響</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5293,6 +5306,7 @@
         <li><span class="d">7/10</span><span>夜間與衛星模式視覺升級；「軌」軌道顯示三段切換：自動／淡化／隱藏</span></li>
         <li><span class="d">7/9</span><span>站名移到軌道側邊不再互相壓住；雙欄版面：搜尋／最愛／旅程收集移到右側欄</span></li>
         <li class="grp">分享與個人化</li>
+        <li data-cl="journeysharelive"><span class="d">9/3</span><span>整段列車轉公車旅程現在可以用短效連結分享：對方會看到正在搭列車、走去站牌、等車或搭公車。分享連結最長十二小時，知道連結的人都能查看；手機位置預設不分享，只有你另行勾選才會上傳最新一筆，而且只在 App／網頁留在前景時更新。停止分享會刪除整段分享與位置，連結到期也會自動失效。</span></li>
         <li data-cl="signinfallback"><span class="d">9/1</span><span>登入失敗時，紅色的錯誤訊息原本會重複顯示兩行，現在只顯示一行。另外，Android 版用 Google 登入時，有些手機會直接跳出「不支援」的錯誤、或是點下去等不到任何結果；現在遇到這兩種情況都會自動改試另一種 Google 登入方式，兩種都走不通時才會建議改用「使用 Apple 登入」（它不需要 Google 服務）——Android 這部分隨下一版 App 生效（謝謝網友回報）</span></li>
         <li data-cl="androidplus"><span class="d">8/26</span><span>Android 版的軌島通行證購買流程補齊：月票與年票會使用 Google Play 顯示的當地價格，支援購買與恢復購買；方案內容、管理與取消訂閱說明也會依 Android 顯示 Google Play，不再混入 iPhone 的 App Store 與動態島功能。這一版也強制使用與網站相同的捷運即時動畫核心，不會因出包漏帶設定而退回舊模型；封測使用同一顆準備上架的 App，但只有列入測試名單的軌島帳號能取得測試資格，正式訂閱與測試訂閱仍分開核對</span></li>
         <li data-cl="release140"><span class="d">8/6</span><span>iPhone／iPad 版升級至 1.4.0：加入軌島帳號、通行證月票與年票、收藏與完乘紀錄跨裝置同步、跟車鎖定畫面與動態島即時動態，以及可自訂起訖站的發車看板小工具；也一併修好 App 分享連結、行程追蹤橫幅蓋住時鐘與小工具設定穩定性</span></li>
@@ -5403,6 +5417,20 @@
   <section class="takeout-dialog help-dialog" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
     <div class="takeout-head"><h2 id="helpTitle">使用說明</h2><button id="helpX" type="button" aria-label="關閉">×</button></div>
     <div class="takeout-body help-body" id="helpBody"></div>
+  </section>
+</div>
+<div class="takeout-modal journey-share-modal" id="journeyShareModal" hidden>
+  <section class="takeout-dialog journey-share-dialog" role="dialog" aria-modal="true" aria-labelledby="journeyShareTitle">
+    <div class="takeout-head"><h2 id="journeyShareTitle">分享整段旅程</h2><button id="journeyShareX" type="button" aria-label="關閉">×</button></div>
+    <div class="takeout-body journey-share-body">
+      <p class="journey-share-summary" id="journeyShareSummary"></p>
+      <label class="journey-share-field">分享多久
+        <select id="journeyShareDuration"><option value="1800">30 分鐘</option><option value="3600" selected>1 小時</option><option value="10800">3 小時</option><option value="43200">12 小時</option></select>
+      </label>
+      <label class="journey-share-check"><input id="journeyShareLocation" type="checkbox"><b>連同我的即時位置</b><small id="journeyShareLocationHint"></small></label>
+      <div class="journey-share-status" id="journeyShareStatus" role="status" aria-live="polite"></div>
+    </div>
+    <div class="takeout-actions"><button class="cancel" id="journeyShareStop" type="button" hidden>停止分享並刪除</button><button class="cancel" id="journeyShareCancel" type="button">取消</button><button class="confirm" id="journeyShareCreate" type="button">建立分享連結</button></div>
   </section>
 </div>
 <!-- Takeout 匯入／帳號／Plus／到站提醒／命名地點 五顆對話框:**刻意放 body 層、不放 .stage 裡**。
@@ -5861,7 +5889,8 @@
 // v0903i：公車站牌靜態索引擴到地圖全部 541 座客運鐵路／捷運／輕軌站；高鐵與林鐵跟車同步開放接公車。
 //         即時仍只由主動開站或 15 分／5 分／到站里程碑觸發，不新增背景輪詢。
 // v0903j：軌道轉公車接成可恢復旅程；選定公車後才查完整下車站序，並承接等車／搭車／完成狀態。
-const BUILD = 'v0903j';
+// v0903n：整段列車轉公車可用短效連結分享；可另行同意前景即時位置，停止分享即刪除。
+const BUILD = 'v0903n';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -11796,6 +11825,9 @@ function acceptGeoFix(coords) {
     }
   }
   updateGeoCamera(loc);
+  // 一般藍點只留在本機；只有使用者另行開啟「分享我的即時位置」時，這裡才會把
+  // 同一筆前景定位送進短效分享。journeyShareSendPosition 內仍有 15 秒／50 公尺節流。
+  void journeyShareSendPosition(loc);
   return coords;
 }
 function stopForegroundGeoWatch() {
@@ -11868,7 +11900,7 @@ function startBootGeo() {
   if (!LOCATE_ENABLED) return;
   try {
     const qs = new URLSearchParams(location.search);
-    if (qs.get('train') || qs.get('at') || qs.get('g') || qs.get('trip')) return;
+    if (qs.get('train') || qs.get('at') || qs.get('g') || qs.get('trip') || qs.get('journey')) return;
   } catch (e) {}
   if (loadDefaultPlace()) return;
   state._geoTrackingWanted = true;
@@ -14261,6 +14293,7 @@ function draw() {
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   if (state.mode === 'sched') { if (state.deco) drawDecoBase(w, h); drawSched(w, h, state.deco ? () => drawDecoTrains(w, h) : null); if (state.deco) drawDecoLabels(); } else drawFreq(w, h);
   drawMe(); // 「我的位置」畫最後=在所有軌道與列車之上,不會被蓋掉
+  drawJourneyShareMarker(); // 收件端的分享位置同樣是移動元素：永遠畫在真實座標，不做碰撞位移
   ctx.globalAlpha = 1; ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
 }
 
@@ -14355,7 +14388,10 @@ function tickCore(now) {
     if (state.boardStation && Math.abs(state.simSec - (state.boardRenderedAt || 0)) >= 20) renderBoard();
     if (state.crossingSel && Math.abs(state.simSec - (state._xingRenderedAt || 0)) >= 1) renderCrossingCard(); // 倒數每秒刷新+已通過班次退出
     if (pinDraft && Math.abs(state.simSec - (state._pinRenderedAt || 0)) >= 1) renderPinCard(); // 釘卡倒數同樣每秒刷新(已通過班次自動退出)
-    if (state._trip && !state._tripClosed) { state._tripClock = (state._tripClock || 0) + dt; if (state._tripClock >= 1) { state._tripClock = 0; renderTripBanner(); } } // 行程分享橫幅:ETA/倒數每秒刷新
+    if ((state._trip && !state._tripClosed) || (journeyShareRemote && !journeyShareRemote.closed)) {
+      state._tripClock = (state._tripClock || 0) + dt;
+      if (state._tripClock >= 1) { state._tripClock = 0; renderTripBanner(); }
+    } // 行程分享橫幅:ETA／資料齡每秒刷新
     drawFlow();
   }
   state._skyClock = (state._skyClock || 0) + dt;
@@ -15773,6 +15809,10 @@ function releaseWakeLock() {
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     stopForegroundGeoWatch(); // When-in-use：退背景／鎖屏立刻停 GPS，回前景再接回
+    if (journeyShareBrowserWatch != null && navigator.geolocation) navigator.geolocation.clearWatch(journeyShareBrowserWatch);
+    journeyShareBrowserWatch = null; // 網頁版退背景也切斷 watch；回前景且連結未到期才重開
+    if (journeySharePollTimer) clearTimeout(journeySharePollTimer);
+    journeySharePollTimer = null; // 收件端隱藏時不輪詢；發起端同樣只在前景更新手機位置
     // 進背景前記下「當下是否正貼著真實時刻」,回前景才知道該不該重錨(見下)。
     // 判斷改看 clockAtNow 旗標,不看「與現在的差距 ≤120 秒」:那個寫法是單向陷阱——
     // 時鐘一旦因故漂超過 120 秒(裝置休眠、rAF 長期凍結),就被判定「不是即時」而永遠不再重錨,
@@ -15781,7 +15821,16 @@ document.addEventListener('visibilitychange', () => {
       state.clockAtNow;
     return;
   }
+  if (journeyShareActive && journeyShareActive.expiresAt <= Date.now()) {
+    void stopJourneyShareLocation(); saveActiveJourneyShare(null);
+  }
   if (state._geoTrackingWanted) void startForegroundGeoWatch();
+  if (journeyShareActive && journeyShareActive.locationEnabled && !window.RAIL_NATIVE_GEOLOCATION && journeyShareBrowserWatch == null) {
+    void startJourneyShareLocation(journeyShareActive).catch(() => {});
+  }
+  if (journeyShareRemote && !journeyShareRemote.closed && journeyShareRemote.error !== 'ended') {
+    void fetchJourneyShareRemote(journeyShareRemote.id);
+  }
   // 錄製模式也要重取:iOS 切走再切回來 wakeLock 會被釋放且**不會自動恢復**,
   // 漏掉的話一小時的錄製會在使用者接一通電話之後螢幕就開始自己暗掉(規格 §10)。
   if (state.ambient || state.recording) acquireWakeLock();
@@ -26186,6 +26235,12 @@ function busTransferStartJourney(tr, stopIndex) {
   busTransferJourney = {
     trainKey: busTransferTrainKey(tr), stationId: target.stationId, stationName: target.stationName,
     stopIndex: target.index, stop: target.stop,
+    rail: {
+      sys: String(TRANSFER_SCHED_SYSTEM[tr.sys] || '').toLowerCase(), trainNo: String(tr.train || ''),
+      kind: trainTypeName(tr.typeName), from: stationName(tripFromStation(tr) || '', tr.sys),
+      destination: target.stationName, transferStation: target.stationName, date: tripOpsDate(),
+      color: /^#[0-9a-f]{6}$/i.test(String(tr.color || '')) ? tr.color : '#2A4A73',
+    },
   };
   // 換站時舊 instance 必須卸載；共用資料快取不 reset，避免同站車站看板正在使用時被一起清掉。
   const root = document.getElementById('fpBusTransfer');
@@ -26230,7 +26285,7 @@ function syncBusTransferJourney(tr, force) {
     window.BusTransferUI.mount({
       root, stationId: journey.stationId, stationName: journey.stationName, phase,
       viewKey: `${journey.stationId}|journey|${journey.trainKey}`, assistant: true,
-      journeyContext: { trainKey: journey.trainKey, stopIndex: journey.stopIndex },
+      journeyContext: { trainKey: journey.trainKey, stopIndex: journey.stopIndex, rail: journey.rail },
       trainEta: eta, plan: { stationPosition: { lat: target.stop.lat, lon: target.stop.lon }, routes: [] },
       translate: t, apiBase: API_BASE,
     });
@@ -31767,7 +31822,7 @@ async function boot() {
   renderSystemsBar();
   // 深連結:?train=5899&t=11:00 跟該車次;或 ?g=north&at=25.05,121.5&z=14&t=11:00 分享地點+時間。要在 loadSystem 前讀,clearFollow 會清掉 query
   // 行程分享:?trip=<sys>.<車次>.<目的站>.<yyyymmdd>[.<起站>](接收端,不受 TRIP_SHARE_ENABLED 影響——payload 公開恆解碼)
-  let deepTrain = null, deepT = null, deepG = null, deepAt = null, deepZ = null, deepTrip = null;
+  let deepTrain = null, deepT = null, deepG = null, deepAt = null, deepZ = null, deepTrip = null, deepJourney = null;
   try {
     const qs = new URLSearchParams(location.search);
     deepTrain = qs.get('train');
@@ -31779,16 +31834,18 @@ async function boot() {
     const mz = parseInt(qs.get('z') || '', 10);
     if (!isNaN(mz)) deepZ = Math.min(18, Math.max(7, mz));
     deepTrip = parseTripParam(qs.get('trip'));
+    const rawJourney = qs.get('journey') || '';
+    if (/^[A-Za-z0-9_-]{22}$/.test(rawJourney)) deepJourney = rawJourney;
   } catch (e) {}
   // 開站落點優先序：深連結 > 預設啟動地點(儲存地點設的) > 上次視野 > 首屏全台同框。
   // 分享連結進來的訪客絕不能被本機記憶/預設蓋掉；設了預設地點就蓋過「上次視野」。預設地點一律開在全台同框並置中。
-  const defPlace = (deepG || deepAt || deepTrain || deepTrip) ? null : loadDefaultPlace();
+  const defPlace = (deepG || deepAt || deepTrain || deepTrip || deepJourney) ? null : loadDefaultPlace();
   // 開機自動定位(App):geoBoot 由 startBootGeo 自己的守門決定(深連結/預設地點/非原生一律不發起),這裡直接沿用,
   // 不重寫一份條件免得兩處漂移。定位有兩個時態——快取座標 0 秒可用,先落點蓋過「上次視野」;
   // 真定位晚幾秒到再校正(applyBootGeo)。首開沒有快取時不空等,照舊落上次視野/全台同框,定位到了再飛過去。
   const geoBoot = !!state._bootGeo;
   const geoCache = geoBoot ? loadGeoCache() : null;
-  const lastView = (deepG || deepAt || deepTrain || deepTrip || defPlace || geoCache) ? null : loadLastView();
+  const lastView = (deepG || deepAt || deepTrain || deepTrip || deepJourney || defPlace || geoCache) ? null : loadLastView();
   // 開場群組:分享連結帶 g 就開該群組;預設地點沿用全台同框(all,已是預設值);其次上次待的群組
   let bootGroup = GROUPS.find(g => g.id === 'all');
   if (deepG) { const gg = GROUPS.find(g => g.id === deepG); if (gg) bootGroup = gg; }
@@ -31800,7 +31857,11 @@ async function boot() {
     else loadFreqGroup(bootGroup, lastSel);
   } else loadSystem(state.systems.find(s => s.id === 'tra_sched') || state.systems[0]);
   // 套用分享時刻,再套用「跟車」或「地點視野」;行程分享連結一律強制 live,故獨佔一路(忽略 t/at)
-  if (deepTrip) {
+  if (deepJourney) {
+    // 短效旅程一律在「現在」觀看；收件者自己的上次時間軸／位置不可蓋過分享內容。
+    setSimSec(nowSecOfDay(activeTz())); setSpeed(1); if (!state.playing) togglePlay();
+    loadJourneyShareRemote(deepJourney);
+  } else if (deepTrip) {
     applyTripLink(deepTrip);
   } else {
     if (deepT != null) setSimSec(deepT);
@@ -31930,6 +31991,376 @@ async function shareView() {
 }
 document.getElementById('shareBtn').onclick = shareView;
 
+// ══════════ 整段旅程短效分享：同一條連結承接列車→等公車→搭公車→完成 ══════════
+// 預設只分享公開運具位置／班表推算；「我的即時位置」是另一個明示開關。編輯 token 只存發起者
+// localStorage，公開 URL 只有 public id。收件端讀的是自己的 D1，不會因此查 TDX。
+const JOURNEY_SHARE_STORAGE_KEY = 'rail-island-journey-share-v1';
+const JOURNEY_SHARE_POLL_MS = 30000;
+let journeyShareDraft = null;
+let journeyShareRemote = null;
+let journeySharePollTimer = null;
+let journeyShareBrowserWatch = null;
+let journeyShareOwnsNativeWatch = false;
+let journeySharePositionAt = 0;
+let journeySharePositionLoc = null;
+let journeyShareExpiryTimer = null;
+function loadActiveJourneyShare() {
+  try {
+    const value = JSON.parse(localStorage.getItem(JOURNEY_SHARE_STORAGE_KEY) || 'null');
+    if (!value || !/^[A-Za-z0-9_-]{22}$/.test(value.id || '') || !/^[A-Za-z0-9_-]{43}$/.test(value.editToken || '') ||
+        !(value.expiresAt > Date.now())) {
+      localStorage.removeItem(JOURNEY_SHARE_STORAGE_KEY); return null;
+    }
+    return value;
+  } catch (e) { return null; }
+}
+let journeyShareActive = loadActiveJourneyShare();
+window.__railJourneyShareActive = !!journeyShareActive;
+function saveActiveJourneyShare(value) {
+  journeyShareActive = value;
+  window.__railJourneyShareActive = !!value;
+  try {
+    if (value) localStorage.setItem(JOURNEY_SHARE_STORAGE_KEY, JSON.stringify(value));
+    else localStorage.removeItem(JOURNEY_SHARE_STORAGE_KEY);
+  } catch (e) {}
+  if (journeyShareExpiryTimer) clearTimeout(journeyShareExpiryTimer);
+  journeyShareExpiryTimer = null;
+  if (value && value.expiresAt > Date.now()) {
+    journeyShareExpiryTimer = setTimeout(() => {
+      void stopJourneyShareLocation();
+      saveActiveJourneyShare(null);
+    }, Math.min(2147483647, value.expiresAt - Date.now() + 1000));
+  }
+  renderJourneyShareGlobalEntry();
+  window.dispatchEvent(new CustomEvent('rail-journey-share-state', { detail: { active: !!value } }));
+}
+function renderJourneyShareGlobalEntry() {
+  const button = document.getElementById('shareBtn');
+  if (!button) return;
+  const active = !!(journeyShareActive && journeyShareActive.expiresAt > Date.now());
+  const label = button.querySelector('.tl');
+  if (label) label.textContent = t(active ? '分享中' : '分享');
+  button.classList.toggle('journey-sharing', active);
+  button.title = t(active ? '管理正在分享的旅程' : '分享目前畫面（地點＋時間，或正在跟的車）');
+}
+async function journeyShareRequest(method, data) {
+  const apiRoot = String(API_BASE || '').replace(/\/$/, '');
+  const url = `${apiRoot}/api/journey-share${method === 'GET' ? `?id=${encodeURIComponent(data.id)}` : ''}`;
+  const response = await fetch(url, method === 'GET' ? { headers: { accept: 'application/json' }, cache: 'no-store' } : {
+    method: 'POST', headers: { accept: 'application/json', 'content-type': 'application/json' }, body: JSON.stringify(data),
+  });
+  const body = await response.json().catch(() => null);
+  if (!response.ok) { const error = new Error('journey_share_unavailable'); error.status = response.status; throw error; }
+  return body;
+}
+function journeyShareContextRail(detail) {
+  const journey = detail && (detail.journey || detail.previous);
+  return (journey && journey.originRail) || (detail && detail.context && detail.context.rail) ||
+    (journeyShareActive && journeyShareActive.payload && journeyShareActive.payload.rail) || null;
+}
+function journeySharePayload(detail, forcedState) {
+  const journey = detail && (detail.journey || detail.previous);
+  const rail = journeyShareContextRail(detail);
+  if (!rail && !journey) return null;
+  const payload = { state: forcedState || (journey ? journey.phase : 'rail'), updatedAt: Date.now() };
+  if (rail) payload.rail = rail;
+  if (journey) {
+    payload.bus = {
+      routeName: journey.routeName || '', headsign: journey.headsign || '', plate: journey.plate || '',
+      stationName: journey.stationName || '',
+      boardStop: journey.boardStop && journey.boardStop.stopName ? { name: journey.boardStop.stopName } : undefined,
+      alightStop: journey.alightStop && journey.alightStop.stopName ? { name: journey.alightStop.stopName } : undefined,
+    };
+    if (journey.vehicle && Number.isFinite(journey.vehicle.lat) && Number.isFinite(journey.vehicle.lon) && Number.isFinite(journey.vehicle.at)) {
+      payload.vehicle = { ...journey.vehicle };
+    }
+  }
+  return payload;
+}
+function journeyShareSummary(payload) {
+  if (!payload || (!payload.rail && !payload.bus)) return t('目前沒有可分享的接續旅程');
+  const rail = payload.rail, bus = payload.bus;
+  const first = rail ? (rail.from ? t('{from} → {to}', { from: rail.from, to: rail.transferStation || rail.destination })
+    : t('{train} 次 → {station}', { train: rail.trainNo, station: rail.transferStation || rail.destination })) : '';
+  const second = bus && bus.routeName ? t('，再接 {route} 到 {station}', {
+    route: bus.routeName, station: bus.alightStop && bus.alightStop.name || bus.headsign || t('下車站'),
+  }) : '';
+  if (!first && bus) return t('{route}・{from} → {to}', {
+    route: bus.routeName || t('公車'), from: bus.boardStop && bus.boardStop.name || bus.stationName || t('上車站'),
+    to: bus.alightStop && bus.alightStop.name || bus.headsign || t('下車站'),
+  });
+  return first + second;
+}
+function journeyShareLocationHint() {
+  if (window.RAIL_APP) return t('只有開啟這個選項才會上傳最新一筆座標；App 留在前景時更新，收起或鎖屏後立即暫停。');
+  return t('只有開啟這個選項才會上傳最新一筆座標；頁面留在前景時更新，切到背景後暫停傳送。');
+}
+function renderJourneyShareModal() {
+  if (journeyShareActive && journeyShareActive.expiresAt <= Date.now()) {
+    void stopJourneyShareLocation();
+    saveActiveJourneyShare(null);
+  }
+  const active = journeyShareActive && journeyShareActive.expiresAt > Date.now() ? journeyShareActive : null;
+  const payload = active ? active.payload : journeySharePayload(journeyShareDraft || {});
+  const summary = document.getElementById('journeyShareSummary');
+  const duration = document.getElementById('journeyShareDuration');
+  const location = document.getElementById('journeyShareLocation');
+  const hint = document.getElementById('journeyShareLocationHint');
+  const status = document.getElementById('journeyShareStatus');
+  const create = document.getElementById('journeyShareCreate');
+  const stop = document.getElementById('journeyShareStop');
+  hint.textContent = journeyShareLocationHint();
+  status.className = 'journey-share-status';
+  if (active) {
+    summary.className = 'journey-share-summary journey-share-active';
+    summary.innerHTML = `<b>${escHtml(t('正在分享'))}</b>${escHtml(journeyShareSummary(payload))}`;
+    duration.closest('label').hidden = true;
+    location.closest('label').hidden = true;
+    if (active.stopFailed) {
+      status.className = 'journey-share-status err';
+      status.textContent = t('手機定位已停止，但伺服器尚未確認刪除；請再按一次「停止分享並刪除」。');
+    } else {
+      status.textContent = t('連結會在 {time} 自動失效{location}', {
+        time: new Date(active.expiresAt).toLocaleTimeString(I18N_LANG, { hour: '2-digit', minute: '2-digit' }),
+        location: active.locationEnabled ? t('；即時位置已開啟') : '',
+      });
+    }
+    stop.hidden = false; create.textContent = t('再次分享連結');
+  } else {
+    summary.className = 'journey-share-summary'; summary.textContent = journeyShareSummary(payload);
+    duration.closest('label').hidden = false;
+    location.closest('label').hidden = false; location.checked = false;
+    status.textContent = t('分享預設只含列車／已確認公車的公開位置，不會包含你的手機位置。');
+    stop.hidden = true; create.textContent = t('建立分享連結');
+  }
+}
+function openJourneyShare(detail) {
+  journeyShareDraft = detail || {};
+  const modal = document.getElementById('journeyShareModal');
+  renderJourneyShareModal(); modal.hidden = false;
+}
+function closeJourneyShare() { document.getElementById('journeyShareModal').hidden = true; journeyShareDraft = null; }
+async function shareJourneyShareLink(active = journeyShareActive) {
+  if (!active || !active.url) return;
+  const text = t('用軌島看這段列車轉公車旅程的最新進度');
+  if (window.RAIL_NATIVE_SHARE) {
+    try { await window.RAIL_NATIVE_SHARE.share({ title: t('軌島旅程分享'), text, url: active.url, dialogTitle: t('分享旅程') }); return; }
+    catch (e) { if (e && /cancel/i.test(e.message || '')) return; }
+  }
+  if (navigator.share) {
+    try { await navigator.share({ title: t('軌島旅程分享'), text, url: active.url }); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  try { await navigator.clipboard.writeText(active.url); showToast(t('已複製行程連結')); }
+  catch (e) { prompt(t('複製這個行程連結：'), active.url); }
+}
+async function journeyShareSendPosition(loc, force = false) {
+  const active = journeyShareActive;
+  if (document.hidden || !active || !active.locationEnabled || !loc || !inTaiwan(loc.lat, loc.lon)) return;
+  const now = Date.now();
+  if (!force && now - journeySharePositionAt < 15000 && journeySharePositionLoc && haversineKm(journeySharePositionLoc, loc) < .05) return;
+  journeySharePositionAt = now; journeySharePositionLoc = loc;
+  try {
+    await journeyShareRequest('POST', { action: 'position', id: active.id, editToken: active.editToken,
+      lat: loc.lat, lon: loc.lon, accuracy: Math.max(0, Number(loc.acc) || 0) });
+  } catch (e) {
+    if (e.status === 404) { await stopJourneyShareLocation(); saveActiveJourneyShare(null); }
+  }
+}
+async function startJourneyShareLocation(active) {
+  if (!active || !active.locationEnabled) return;
+  // 沿用既有的前景藍點；目前原生殼不要求背景定位，退背景會由既有守門停掉。
+  if (window.RAIL_NATIVE_GEOLOCATION) {
+    journeyShareOwnsNativeWatch = !state._geoTrackingWanted;
+    state._geoTrackingWanted = true;
+    const coords = await startForegroundGeoWatch({ force: true });
+    if (!coords) { await stopJourneyShareLocation(); throw new Error('location_unavailable'); }
+    await journeyShareSendPosition({ lat: coords.latitude, lon: coords.longitude, acc: coords.accuracy }, true);
+  } else if ('geolocation' in navigator) {
+    journeyShareBrowserWatch = navigator.geolocation.watchPosition(pos => {
+      const c = pos.coords; journeyShareSendPosition({ lat: c.latitude, lon: c.longitude, acc: c.accuracy });
+    }, () => {
+      const current = journeyShareActive;
+      if (!current || current.id !== active.id || !current.locationEnabled) return;
+      if (journeyShareBrowserWatch != null) navigator.geolocation.clearWatch(journeyShareBrowserWatch);
+      journeyShareBrowserWatch = null;
+      saveActiveJourneyShare({ ...current, locationEnabled: false });
+      void journeyShareRequest('POST', { action: 'update', id: current.id, editToken: current.editToken,
+        payload: current.payload, locationEnabled: false }).catch(() => {});
+      showToast(t('沒有取得定位權限，連結仍會分享運具進度'));
+    }, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
+  } else throw new Error('location_unavailable');
+}
+async function stopJourneyShareLocation() {
+  if (journeyShareOwnsNativeWatch) {
+    state._geoTrackingWanted = false;
+    stopForegroundGeoWatch();
+  }
+  journeyShareOwnsNativeWatch = false;
+  if (journeyShareBrowserWatch != null && navigator.geolocation) navigator.geolocation.clearWatch(journeyShareBrowserWatch);
+  journeyShareBrowserWatch = null; journeySharePositionAt = 0; journeySharePositionLoc = null;
+}
+async function createJourneyShare() {
+  if (journeyShareActive && journeyShareActive.expiresAt > Date.now()) return shareJourneyShareLink();
+  if (journeyShareActive) saveActiveJourneyShare(null);
+  const status = document.getElementById('journeyShareStatus'), button = document.getElementById('journeyShareCreate');
+  const payload = journeySharePayload(journeyShareDraft || {});
+  if (!payload) { status.className = 'journey-share-status err'; status.textContent = t('目前沒有可分享的接續旅程'); return; }
+  status.className = 'journey-share-status'; status.textContent = t('正在建立短效連結…'); button.disabled = true;
+  const locationEnabled = document.getElementById('journeyShareLocation').checked;
+  try {
+    const result = await journeyShareRequest('POST', { action: 'create', payload, locationEnabled,
+      durationSec: Number(document.getElementById('journeyShareDuration').value) });
+    const active = { ...result, locationEnabled, payload };
+    saveActiveJourneyShare(active);
+    if (locationEnabled) {
+      try { await startJourneyShareLocation(active); }
+      catch (e) {
+        active.locationEnabled = false; saveActiveJourneyShare(active);
+        await journeyShareRequest('POST', { action: 'update', id: active.id, editToken: active.editToken,
+          payload, locationEnabled: false }).catch(() => {});
+        showToast(t('沒有取得定位權限，連結仍會分享運具進度'));
+      }
+    }
+    renderJourneyShareModal(); await shareJourneyShareLink(active);
+  } catch (e) {
+    status.className = 'journey-share-status err'; status.textContent = t('暫時無法建立分享連結，請稍後重試。');
+  } finally { button.disabled = false; }
+}
+async function stopJourneyShare() {
+  const active = journeyShareActive, status = document.getElementById('journeyShareStatus');
+  if (!active) return;
+  status.className = 'journey-share-status'; status.textContent = t('正在停止分享並刪除位置…');
+  // 先切斷手機定位，再刪除伺服器單筆：即使網路暫時失敗，也不會繼續產生新座標。
+  await stopJourneyShareLocation();
+  try {
+    await journeyShareRequest('POST', { action: 'end', id: active.id, editToken: active.editToken });
+    saveActiveJourneyShare(null); closeJourneyShare(); showToast(t('已停止分享並刪除即時位置'));
+  } catch (e) {
+    saveActiveJourneyShare({ ...active, locationEnabled: false, stopFailed: true });
+    status.className = 'journey-share-status err'; status.textContent = t('尚未能從伺服器刪除，已停止手機定位；請保留這個畫面並重試。');
+  }
+}
+async function updateActiveJourneyShare(detail, forcedState, locationEnabled = journeyShareActive && journeyShareActive.locationEnabled) {
+  const active = journeyShareActive;
+  if (!active) return;
+  const payload = journeySharePayload(detail, forcedState);
+  if (!payload) return;
+  try {
+    await journeyShareRequest('POST', { action: 'update', id: active.id, editToken: active.editToken, payload, locationEnabled: !!locationEnabled });
+    saveActiveJourneyShare({ ...active, payload, locationEnabled: !!locationEnabled });
+  } catch (e) { if (e.status === 404) { await stopJourneyShareLocation(); saveActiveJourneyShare(null); } }
+}
+window.addEventListener('rail-bus-journey-share-request', e => openJourneyShare(e.detail || {}));
+window.addEventListener('rail-bus-journey-change', e => {
+  if (!journeyShareActive) return;
+  const detail = e.detail || {};
+  if (detail.reason === 'cancelled' || detail.reason === 'cleared') { void stopJourneyShare(); return; }
+  if (detail.reason === 'completed') {
+    void stopJourneyShareLocation();
+    void updateActiveJourneyShare({ previous: detail.previous }, 'complete', false);
+    return;
+  }
+  if (detail.journey) void updateActiveJourneyShare(detail);
+});
+document.getElementById('journeyShareX').onclick = closeJourneyShare;
+document.getElementById('journeyShareCancel').onclick = closeJourneyShare;
+document.getElementById('journeyShareCreate').onclick = createJourneyShare;
+document.getElementById('journeyShareStop').onclick = stopJourneyShare;
+document.getElementById('journeyShareModal').addEventListener('click', e => { if (e.target.id === 'journeyShareModal') closeJourneyShare(); });
+document.getElementById('shareBtn').onclick = () => journeyShareActive ? openJourneyShare({}) : shareView();
+saveActiveJourneyShare(journeyShareActive);
+// App／頁面重開後只在回到前景時接回定位；背景與鎖屏期間不會補送軌跡。
+if (journeyShareActive && journeyShareActive.locationEnabled) {
+  Promise.resolve().then(() => startJourneyShareLocation(journeyShareActive)).catch(() => {});
+}
+
+function journeyShareRailTrain(rail) {
+  const sys = rail && ({ tra: 'tra_sched', thsr: 'thsr_sched', afr: 'afr_sched' }[rail.sys]);
+  return sys ? state.trains.find(train => train.sys === sys && String(train.train) === String(rail.trainNo)) || null : null;
+}
+function journeyShareRemotePosition(remote = journeyShareRemote) {
+  if (!remote || remote.error || !remote.payload) return null;
+  const phone = remote.devicePosition;
+  if (phone && Number.isFinite(phone.lat) && Number.isFinite(phone.lon)) return { lat: phone.lat, lon: phone.lon, stale: !!phone.stale, source: 'phone', at: phone.at };
+  const vehicle = remote.payload.vehicle;
+  if (vehicle && Number.isFinite(vehicle.lat) && Number.isFinite(vehicle.lon)) return { lat: vehicle.lat, lon: vehicle.lon, stale: Date.now() - vehicle.at > 180000, source: 'vehicle', at: vehicle.at };
+  const train = journeyShareRailTrain(remote.payload.rail);
+  const position = train && trainPos(train, state.simSec);
+  return position ? { lat: position.lat, lon: position.lon, stale: false, source: 'rail', at: Date.now() } : null;
+}
+function drawJourneyShareMarker() {
+  const position = journeyShareRemotePosition();
+  if (!position) return;
+  const p = map.latLngToContainerPoint([position.lat, position.lon]);
+  ctx.save(); ctx.globalAlpha = position.stale ? .58 : 1;
+  ctx.beginPath(); ctx.arc(p.x, p.y, 10, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill();
+  ctx.beginPath(); ctx.arc(p.x, p.y, 7, 0, Math.PI * 2); ctx.fillStyle = '#D23C2A'; ctx.fill();
+  ctx.beginPath(); ctx.arc(p.x, p.y, 13, 0, Math.PI * 2); ctx.strokeStyle = '#D23C2A'; ctx.lineWidth = 2;
+  if (position.stale) ctx.setLineDash([3, 3]); ctx.stroke(); ctx.setLineDash([]);
+  const scale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ui')) || 1;
+  ctx.font = `800 ${Math.max(11, 11 * scale)}px ${getComputedStyle(document.body).fontFamily}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillStyle = '#D23C2A';
+  ctx.fillText(t(position.source === 'phone' ? '分享的位置' : '分享的旅程'), p.x, p.y - 14);
+  ctx.restore();
+}
+async function fetchJourneyShareRemote(id, first = false) {
+  try {
+    journeyShareRemote = await journeyShareRequest('GET', { id });
+    journeyShareRemote.closed = false;
+    if (first) {
+      const p = journeyShareRemotePosition(journeyShareRemote);
+      if (p) map.setView([p.lat, p.lon], Math.max(13, map.getZoom()), { animate: false });
+    }
+  } catch (e) {
+    journeyShareRemote = { id, error: e.status === 404 ? 'ended' : 'unavailable', closed: false };
+  }
+  renderTripBanner(); scheduleJourneySharePoll();
+}
+function scheduleJourneySharePoll() {
+  if (journeySharePollTimer) clearTimeout(journeySharePollTimer);
+  journeySharePollTimer = null;
+  if (!journeyShareRemote || journeyShareRemote.closed || journeyShareRemote.error === 'ended' || document.hidden) return;
+  journeySharePollTimer = setTimeout(() => fetchJourneyShareRemote(journeyShareRemote.id), JOURNEY_SHARE_POLL_MS);
+}
+function loadJourneyShareRemote(id) {
+  if (!/^[A-Za-z0-9_-]{22}$/.test(String(id || ''))) return;
+  journeyShareRemote = { id, loading: true, closed: false };
+  renderTripBanner(); void fetchJourneyShareRemote(id, true);
+}
+function ageTextShort(sec) {
+  const n = Math.max(0, Number(sec) || 0);
+  return n < 60 ? t('{n} 秒前', { n: Math.round(n) }, Math.round(n)) : t('{n} 分前', { n: Math.floor(n / 60) }, Math.floor(n / 60));
+}
+function renderJourneyShareBanner() {
+  const remote = journeyShareRemote, el = document.getElementById('tripBanner');
+  if (!remote || remote.closed) return false;
+  el.hidden = false; document.body.classList.add('trip-open');
+  const st = document.getElementById('tripState'), route = document.getElementById('tripRoute');
+  const eta = document.getElementById('tripEta'), source = el.querySelector('.tb-cta');
+  if (remote.loading) {
+    st.className = 'tb-state'; st.textContent = t('讀取中'); route.textContent = t('正在取得分享旅程…'); eta.textContent = ''; source.textContent = t('短效旅程分享'); return true;
+  }
+  if (remote.error) {
+    st.className = 'tb-state ended'; st.textContent = t(remote.error === 'ended' ? '分享已結束' : '暫時無法讀取');
+    route.textContent = t('這個旅程連結目前沒有可顯示的資料'); eta.textContent = t(remote.error === 'ended' ? '發起者已停止分享，或連結已到期。' : '請稍後再試。'); source.textContent = t('不會顯示伺服器錯誤細節'); return true;
+  }
+  const payload = remote.payload || {}, labels = { rail: '搭乘列車中', walking: '前往公車站', waiting: '等公車', aboard: '搭乘公車中', complete: '已完成' };
+  st.className = `tb-state${payload.state === 'complete' ? ' arrived' : ''}`; st.textContent = t(labels[payload.state] || '旅程進行中');
+  route.textContent = journeyShareSummary(payload);
+  const position = journeyShareRemotePosition(remote);
+  const ageSec = position && Math.max(0, Math.round((Date.now() - position.at) / 1000));
+  if (position && position.source === 'phone') eta.textContent = t(position.stale ? '手機位置已一段時間未更新（{age}）' : '手機即時位置・{age}', { age: ageTextShort(ageSec) });
+  else if (position && position.source === 'vehicle') eta.textContent = t(position.stale ? '公車公開位置已過期（{age}）' : '公車公開位置・{age}', { age: ageTextShort(ageSec) });
+  else if (position) eta.textContent = t('依列車時刻表與即時誤點推算位置');
+  else eta.textContent = t('目前沒有可用的位置，仍可查看旅程階段');
+  source.textContent = t('最後更新 {age}・連結於 {time} 失效', {
+    age: ageTextShort(Math.max(0, Math.round((Date.now() - remote.updatedAt) / 1000))),
+    time: new Date(remote.expiresAt).toLocaleTimeString(I18N_LANG, { hour: '2-digit', minute: '2-digit' }),
+  });
+  return true;
+}
+
 // ══════════ 行程分享(2026-07-18)：分享「班次＋目的站」，不分享 GPS。接收端拿到活的位置與 ETA ══════════
 // 連結格式：?trip=<sys>.<車次>.<目的站>.<yyyymmdd>[.<起站>]，sys ∈ tra|thsr。站名以 encodeURIComponent 編碼(不含「.」故切段安全)。
 const TRIP_SYS_CODE = { tra_sched: 'tra', thsr_sched: 'thsr' };
@@ -32041,6 +32472,7 @@ function applyTripLink(tp) {
 }
 function renderTripBanner() {
   const el = document.getElementById('tripBanner'); if (!el) return;
+  if (renderJourneyShareBanner()) return;
   const trip = state._trip;
   const open = !!(trip && !state._tripClosed);
   el.hidden = !open;
@@ -32080,7 +32512,15 @@ function renderTripBanner() {
       + (dlMin > 0 ? ` <span class="lateTag">${escHtml(t('誤點 {n} 分', { n: i18nNumber(dlMin) }, dlMin))}</span>` : '');
   }
 }
-function closeTripBanner() { state._tripClosed = true; renderTripBanner(); } // 關橫幅不退跟車；同時還原手機上方動作列
+function closeTripBanner() {
+  if (journeyShareRemote && !journeyShareRemote.closed) {
+    journeyShareRemote.closed = true;
+    if (journeySharePollTimer) clearTimeout(journeySharePollTimer);
+    journeySharePollTimer = null;
+  }
+  state._tripClosed = true;
+  renderTripBanner();
+} // 關橫幅不退跟車；同時還原手機上方動作列
 document.getElementById('fpTripShare').onclick = (e) => {
   e.stopPropagation();
   plusGateOpen('trip-share', () => openTripSharePanel()); // 非 Plus→導去訂閱;已訂閱→直接開面板

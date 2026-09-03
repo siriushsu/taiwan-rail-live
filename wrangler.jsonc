@@ -101,7 +101,10 @@
       // PASS_LIMITER:/api/pass-claim。真人一輩子只按一次(領到就存起來),5 次/分鐘已經是
       // 打錯密語重試的十倍餘裕;對猜密語的人則把「每分鐘能試幾次」壓到毫無用處的程度——
       // 密語是同仁之間口耳相傳的短字串,擋不住暴力猜的唯一辦法就是讓每次猜都很貴。
-      { "name": "PASS_LIMITER", "type": "ratelimit", "namespace_id": "1007", "simple": { "limit": 5, "period": 60 } }
+      { "name": "PASS_LIMITER", "type": "ratelimit", "namespace_id": "1007", "simple": { "limit": 5, "period": 60 } },
+      // 旅程分享寫入：前景位置正常每 15 秒至多一發（4/分鐘），30/分鐘保留網路重送餘裕；
+      // 所有寫入共用同一桶且 fail-closed，擋在 D1 前。公開讀取不走這桶。
+      { "name": "JOURNEY_SHARE_LIMITER", "type": "ratelimit", "namespace_id": "1008", "simple": { "limit": 30, "period": 60 } }
     ]
   },
   "assets": {

@@ -4688,6 +4688,187 @@ async function busRouteStops(request, env) {
   }
 }
 
+// ── 短效整段旅程分享 ────────────────────────────────────────────────
+// 公開 id 與編輯 token 是兩把獨立的隨機值：收件人連結只含 public id，不能據此更新、續期或刪除。
+// D1 只留 edit token 的 SHA-256；分享手機位置時也只覆寫「最新一筆」，沒有任何歷史表。
+const JOURNEY_SHARE_ID_RE = /^[A-Za-z0-9_-]{22}$/;
+const JOURNEY_SHARE_EDIT_RE = /^[A-Za-z0-9_-]{43}$/;
+const JOURNEY_SHARE_MIN_SEC = 15 * 60;
+const JOURNEY_SHARE_MAX_SEC = 12 * 3600;
+const JOURNEY_SHARE_POSITION_MAX_AGE_SEC = 180;
+const JOURNEY_SHARE_STATES = new Set(['rail', 'walking', 'waiting', 'aboard', 'complete']);
+
+function journeyShareText(value, max) {
+  if (value == null) return null;
+  const text = String(value).trim();
+  return text && text.length <= max ? text : null;
+}
+
+function journeyShareStop(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const name = journeyShareText(value.name, 48);
+  if (!name) return null;
+  return { name };
+}
+
+function sanitizeJourneySharePayload(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value) || !JOURNEY_SHARE_STATES.has(value.state)) return null;
+  const payload = { state: value.state };
+  const updatedAt = Math.round(Number(value.updatedAt));
+  payload.updatedAt = Number.isFinite(updatedAt) ? updatedAt : Date.now();
+  if (value.rail != null) {
+    if (!value.rail || typeof value.rail !== 'object' || Array.isArray(value.rail)) return null;
+    const sys = String(value.rail.sys || '');
+    const trainNo = journeyShareText(value.rail.trainNo, 12);
+    if (!['tra', 'thsr', 'afr'].includes(sys) || !trainNo || !/^[0-9A-Za-z-]+$/.test(trainNo)) return null;
+    const rail = { sys, trainNo };
+    for (const [key, max] of [['kind', 32], ['from', 48], ['destination', 48], ['transferStation', 48]]) {
+      const text = journeyShareText(value.rail[key], max); if (text) rail[key] = text;
+    }
+    if (value.rail.date != null) {
+      const date = String(value.rail.date); if (!/^\d{8}$/.test(date)) return null; rail.date = date;
+    }
+    if (value.rail.color != null) {
+      const color = String(value.rail.color); if (!/^#[0-9A-Fa-f]{6}$/.test(color)) return null; rail.color = color;
+    }
+    payload.rail = rail;
+  }
+  if (value.bus != null) {
+    if (!value.bus || typeof value.bus !== 'object' || Array.isArray(value.bus)) return null;
+    const bus = {};
+    for (const [key, max] of [['routeName', 32], ['headsign', 48], ['plate', 24], ['stationName', 48]]) {
+      const text = journeyShareText(value.bus[key], max); if (text) bus[key] = text;
+    }
+    const board = journeyShareStop(value.bus.boardStop), alight = journeyShareStop(value.bus.alightStop);
+    if (board) bus.boardStop = board;
+    if (alight) bus.alightStop = alight;
+    if (!bus.routeName && !bus.boardStop && !bus.alightStop) return null;
+    payload.bus = bus;
+  }
+  if (!payload.rail && !payload.bus) return null;
+  if (value.vehicle != null) {
+    const vehicle = value.vehicle;
+    const lat = Number(vehicle && vehicle.lat), lon = Number(vehicle && vehicle.lon), at = Math.round(Number(vehicle && vehicle.at));
+    if (!vehicle || !Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(at) || Math.abs(at - Date.now()) > 86400e3 ||
+        lat < 20 || lat > 27 || lon < 118 || lon > 123) return null;
+    payload.vehicle = { lat: Number(lat.toFixed(5)), lon: Number(lon.toFixed(5)), at };
+    const label = journeyShareText(vehicle.label, 48); if (label) payload.vehicle.label = label;
+  }
+  // 硬上限避免靠大量合法短欄位以外的新 key 撐大單列；sanitize 後也不保留未知欄位。
+  return JSON.stringify(payload).length <= 1800 ? payload : null;
+}
+
+function journeyShareRandom(bytes) {
+  const data = new Uint8Array(bytes); crypto.getRandomValues(data); return base64UrlBytes(data);
+}
+async function journeyShareHash(token) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
+  return base64UrlBytes(new Uint8Array(digest));
+}
+async function journeyShareCanEdit(row, token) {
+  if (!row || !JOURNEY_SHARE_EDIT_RE.test(String(token || ''))) return false;
+  return constantTimeHeaderEqual(await journeyShareHash(String(token)), String(row.edit_hash || ''));
+}
+
+function journeySharePublic(row, nowSec) {
+  let payload;
+  try { payload = JSON.parse(row.payload); } catch (e) { return null; }
+  const body = {
+    id: row.public_id,
+    payload,
+    updatedAt: Number(row.updated_at) * 1000,
+    expiresAt: Number(row.expires_at) * 1000,
+    locationEnabled: Number(row.location_enabled) === 1,
+  };
+  if (body.locationEnabled && Number.isFinite(Number(row.position_lat)) && Number.isFinite(Number(row.position_lon)) && Number.isFinite(Number(row.position_at))) {
+    const ageSec = Math.max(0, nowSec - Number(row.position_at));
+    body.devicePosition = {
+      lat: Number(row.position_lat), lon: Number(row.position_lon), accuracy: Number(row.position_accuracy) || null,
+      at: Number(row.position_at) * 1000, ageSec, stale: ageSec > JOURNEY_SHARE_POSITION_MAX_AGE_SEC,
+    };
+  }
+  return body;
+}
+
+async function journeyShare(request, env) {
+  if (!env || !env.DELAY_DB) return jsonRes({ error: 'not_configured' }, 503, 'no-store');
+  const nowSec = Math.floor(Date.now() / 1000);
+  if (request.method === 'GET' || request.method === 'HEAD') {
+    const id = new URL(request.url).searchParams.get('id') || '';
+    if (!JOURNEY_SHARE_ID_RE.test(id)) return jsonRes({ error: 'bad_id' }, 400, 'no-store');
+    try {
+      const row = await env.DELAY_DB.prepare('SELECT * FROM journey_shares WHERE public_id=? AND expires_at>?').bind(id, nowSec).first();
+      if (!row) return jsonRes({ error: 'not_found' }, 404, 'no-store');
+      const body = journeySharePublic(row, nowSec);
+      return body ? jsonRes(body, 200, 'no-store') : jsonRes({ error: 'unavailable' }, 503, 'no-store');
+    } catch (e) { return jsonRes({ error: 'unavailable' }, 503, 'no-store'); }
+  }
+  if (request.method !== 'POST') return jsonRes({ error: 'method_not_allowed' }, 405, 'no-store');
+  if (await rateLimited(env.JOURNEY_SHARE_LIMITER || env.LA_LIMITER, request, true)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
+  let body;
+  try { body = await request.json(); } catch (e) { return jsonRes({ error: 'bad_json' }, 400, 'no-store'); }
+  const action = String(body && body.action || '');
+  if (action === 'create') {
+    const payload = sanitizeJourneySharePayload(body.payload);
+    const durationSec = Math.round(Number(body.durationSec));
+    if (!payload) return jsonRes({ error: 'bad_payload' }, 400, 'no-store');
+    if (!Number.isFinite(durationSec) || durationSec < JOURNEY_SHARE_MIN_SEC || durationSec > JOURNEY_SHARE_MAX_SEC) return jsonRes({ error: 'bad_duration' }, 400, 'no-store');
+    payload.updatedAt = nowSec * 1000;
+    const id = journeyShareRandom(16), editToken = journeyShareRandom(32), editHash = await journeyShareHash(editToken);
+    const expiresAt = nowSec + durationSec;
+    try {
+      await env.DELAY_DB.prepare(
+        'INSERT INTO journey_shares (public_id,edit_hash,payload,location_enabled,created_at,updated_at,expires_at) VALUES (?,?,?,?,?,?,?)'
+      ).bind(id, editHash, JSON.stringify(payload), body.locationEnabled === true ? 1 : 0, nowSec, nowSec, expiresAt).run();
+      return jsonRes({ id, editToken, expiresAt: expiresAt * 1000, url: `https://railisland.tw/?journey=${id}` }, 201, 'no-store');
+    } catch (e) { return jsonRes({ error: 'create_failed' }, 503, 'no-store'); }
+  }
+  const id = String(body && body.id || ''), editToken = String(body && body.editToken || '');
+  if (!JOURNEY_SHARE_ID_RE.test(id) || !JOURNEY_SHARE_EDIT_RE.test(editToken)) return jsonRes({ error: 'bad_credentials' }, 400, 'no-store');
+  let row;
+  try { row = await env.DELAY_DB.prepare('SELECT edit_hash,location_enabled,expires_at,created_at FROM journey_shares WHERE public_id=?').bind(id).first(); }
+  catch (e) { return jsonRes({ error: 'unavailable' }, 503, 'no-store'); }
+  if (!row || Number(row.expires_at) <= nowSec) return jsonRes({ error: 'not_found' }, 404, 'no-store');
+  if (!await journeyShareCanEdit(row, editToken)) return jsonRes({ error: 'forbidden' }, 403, 'no-store');
+  try {
+    if (action === 'end') {
+      // 立即刪除整列：停止分享後，位置與旅程內容都不能再由舊連結讀到。
+      await env.DELAY_DB.prepare('DELETE FROM journey_shares WHERE public_id=? AND edit_hash=?').bind(id, row.edit_hash).run();
+      return jsonRes({ ok: true }, 200, 'no-store');
+    }
+    if (action === 'update') {
+      const payload = sanitizeJourneySharePayload(body.payload);
+      if (!payload) return jsonRes({ error: 'bad_payload' }, 400, 'no-store');
+      payload.updatedAt = nowSec * 1000;
+      const enabled = body.locationEnabled === true ? 1 : 0;
+      await env.DELAY_DB.prepare(
+        'UPDATE journey_shares SET payload=?,location_enabled=?,position_lat=CASE WHEN ?=1 THEN position_lat ELSE NULL END,position_lon=CASE WHEN ?=1 THEN position_lon ELSE NULL END,position_accuracy=CASE WHEN ?=1 THEN position_accuracy ELSE NULL END,position_at=CASE WHEN ?=1 THEN position_at ELSE NULL END,updated_at=? WHERE public_id=? AND edit_hash=?'
+      ).bind(JSON.stringify(payload), enabled, enabled, enabled, enabled, enabled, nowSec, id, row.edit_hash).run();
+      return jsonRes({ ok: true, expiresAt: Number(row.expires_at) * 1000 }, 200, 'no-store');
+    }
+    if (action === 'position') {
+      if (Number(row.location_enabled) !== 1) return jsonRes({ error: 'location_disabled' }, 409, 'no-store');
+      const lat = Number(body.lat), lon = Number(body.lon), accuracy = Number(body.accuracy);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < 20 || lat > 27 || lon < 118 || lon > 123 ||
+          !Number.isFinite(accuracy) || accuracy < 0 || accuracy > 5000) return jsonRes({ error: 'bad_position' }, 400, 'no-store');
+      await env.DELAY_DB.prepare(
+        'UPDATE journey_shares SET position_lat=?,position_lon=?,position_accuracy=?,position_at=?,updated_at=? WHERE public_id=? AND edit_hash=? AND location_enabled=1'
+      ).bind(Number(lat.toFixed(5)), Number(lon.toFixed(5)), Number(accuracy.toFixed(1)), nowSec, nowSec, id, row.edit_hash).run();
+      return jsonRes({ ok: true, at: nowSec * 1000 }, 200, 'no-store');
+    }
+  } catch (e) { return jsonRes({ error: 'write_failed' }, 503, 'no-store'); }
+  return jsonRes({ error: 'bad_action' }, 400, 'no-store');
+}
+
+async function pruneJourneyShares(event, env) {
+  if (!env || !env.DELAY_DB) return { skipped: 'not_configured' };
+  const at = new Date((event && event.scheduledTime) || Date.now());
+  if (at.getUTCMinutes() % 15 !== 0) return { skipped: 'cadence' };
+  const nowSec = Math.floor(at.getTime() / 1000);
+  await env.DELAY_DB.prepare('DELETE FROM journey_shares WHERE expires_at<=?').bind(nowSec).run();
+  return { ok: true };
+}
+
 // 安全標頭在 Worker 出口補（只涵蓋 /api/* 與非資產路徑;靜態資產直出不經 Worker,標頭見根目錄 _headers）
 const SEC_HEADERS = {
   'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
@@ -4700,12 +4881,12 @@ const APP_ORIGINS = new Set(['capacitor://localhost', 'https://localhost']);
 // 不可以改成「全部放行」——擋掉的是「隨手對唯讀端點打 POST」這類探測,而那正是最便宜的防線。
 // ⚠️ 這道門的粒度是「路徑」不是「方法」：列進來等於該路徑的所有非 GET 方法都到得了處理函式。
 // /api/pass-admin 正是需要這樣（POST 匯入、DELETE 清批），它自己在函式內分派方法、未知的回 405。
-const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/api/bounty-submit', '/api/bounty-merge', '/api/revenuecat-webhook', '/api/la/bind', '/api/la/unbind', '/api/metro-wait/bind', '/api/metro-wait/unbind', '/api/tra-wait/bind', '/api/tra-wait/unbind', '/api/pass-claim', '/api/pass-admin']);
+const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/api/bounty-submit', '/api/bounty-merge', '/api/revenuecat-webhook', '/api/la/bind', '/api/la/unbind', '/api/metro-wait/bind', '/api/metro-wait/unbind', '/api/tra-wait/bind', '/api/tra-wait/unbind', '/api/pass-claim', '/api/pass-admin', '/api/journey-share']);
 // /api 端點白名單——只給流量埋點的 blob 用(不是路由閘門,路由在 fetch 裡)。不在名單內一律記成
 // 'other',否則隨便打 /api/<亂數> 就能把 blob 基數炸開。新增端點時要一起加進來。
 const API_ENDPOINTS = new Set([
   'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'hazard-alert', 'metro-live', 'ntmetro-live', 'trtc-live',
-  'klrt-position', 'bus-transfer', 'bus-leg-live', 'bus-route-stops',
+  'klrt-position', 'bus-transfer', 'bus-leg-live', 'bus-route-stops', 'journey-share',
   'delay-stats', 'delay-history', 'thsr-schedule', 'thsr-freeseat', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'basemap-src', 'basemap-fallback', 'account-delete',
   'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge', 'plus-status', 'revenuecat-webhook',
   'la/bind', 'la/unbind', 'metro-wait/bind', 'metro-wait/unbind', 'tra-wait/bind', 'tra-wait/unbind', 'pass-claim', 'pass-admin',
@@ -6489,6 +6670,13 @@ export default {
         return { error: String((e && e.message) || e) };
       });
       if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(thsrHealTask);
+      // 短效旅程分享每 15 分鐘清掉已到期列。GET 會先以 expires_at 擋住，因此清理失敗也不會
+      // 讓過期連結重新可讀；這一段只負責把已不可見的座標從實體儲存中刪掉。
+      const journeySharePruneTask = pruneJourneyShares(event, env).catch(e => {
+        console.error('[cron journey-share] 清理失敗:', (e && e.stack) || String(e));
+        return { error: String((e && e.message) || e) };
+      });
+      if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(journeySharePruneTask);
       try {
         const ledger = await trtcLedgerScheduled(event, env);
         // 🔴 最終複審 A-I7:laPushAll 的存活時間本來只靠 ctx.waitUntil 撐著,而
@@ -6504,6 +6692,7 @@ export default {
         await laTask;
         await mwTask;
         await twTask;
+        await journeySharePruneTask;
         // 同理 await:北捷營運窗外(約 01:00–06:00)trtcLedgerScheduled 會立刻早退,handler 一 return
         // 就可能把 waitUntil 截斷——而 05:00–06:00 正是自癒該把今天班表準備好的時段。
         await thsrHealTask;
@@ -6606,6 +6795,7 @@ export default {
     else if (url.pathname === '/api/bus-transfer') res = await busTransfer(request, env);
     else if (url.pathname === '/api/bus-leg-live') res = await busLegLive(request, env);
     else if (url.pathname === '/api/bus-route-stops') res = await busRouteStops(request, env);
+    else if (url.pathname === '/api/journey-share') res = await journeyShare(request, env);
     else if (url.pathname === '/api/delay-stats') res = await delayStats(request, env);
     else if (url.pathname === '/api/thsr-schedule') res = await thsrSchedule(request, env);
     else if (url.pathname === '/api/tra-daily-trains') res = await traDailyTrains(request, env);
@@ -6658,6 +6848,11 @@ export const _busTransfer = {
   busTransfer, busLegLive, busRouteStops, busTransferManifestData, busTransferStationData, busN1Url, busN1Rows, fetchBusN1, cachedBusTransferRaw,
   busDynamicUrl, fetchBusDynamic, fetchBusRouteStops, busRouteStopsUrl, fetchTaipeiBusSeat, cachedBusLegRaw, cachedBusRouteStopsRaw,
   resetBusTransferCaches,
+};
+// 短效旅程分享：導出驗證與端點編排，fixture 測試可證明憑證分離、只留最新位置與立即刪除。
+export const _journeyShare = {
+  sanitizeJourneySharePayload, journeySharePublic, journeyShareHash, journeyShareCanEdit, journeyShare,
+  pruneJourneyShares, JOURNEY_SHARE_MIN_SEC, JOURNEY_SHARE_MAX_SEC,
 };
 // 純函式導出,供離線回歸測試 import:誤點履歷視窗計算、車次驗證與回應組裝。
 export const _delayHistory = { delayHistoryWindow, buildDelayHistoryBody, isValidTrainNo };

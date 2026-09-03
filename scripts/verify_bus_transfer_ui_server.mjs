@@ -8,7 +8,9 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = +(process.env.PORT || 8793);
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf' };
-const calls = { station: 0, leg: 0, route: 0, lastStation: null };
+const calls = { station: 0, leg: 0, route: 0, lastStation: null, journeyCreate: 0, journeyUpdate: 0, journeyPosition: 0, journeyEnd: 0, journeyGet: 0 };
+const journeyShares = new Map();
+let journeyCounter = 0;
 
 const arrival = (key, routeName, state, etaSec, occupancy = 'not_provided') => ({
   key, scope: 'City/Tainan', routeUid: `TNN-${routeName}`, routeName, subRouteUid: '', subRouteName: '',
@@ -78,6 +80,22 @@ function sendJson(res, body, status = 200) {
   res.end(JSON.stringify(body));
 }
 
+function receiveJson(req, res, handler) {
+  let raw = '';
+  req.setEncoding('utf8');
+  req.on('data', chunk => { raw += chunk; if (raw.length > 10000) req.destroy(); });
+  req.on('end', () => {
+    try { handler(JSON.parse(raw || '{}')); }
+    catch { sendJson(res, { error: 'bad_json' }, 400); }
+  });
+}
+
+function journeyPublic(row) {
+  const out = { id: row.id, payload: row.payload, updatedAt: row.updatedAt, expiresAt: row.expiresAt, locationEnabled: row.locationEnabled };
+  if (row.locationEnabled && row.devicePosition) out.devicePosition = row.devicePosition;
+  return out;
+}
+
 const server = createServer((req, res) => {
   const url = new URL(req.url, 'http://localhost');
   if (url.pathname === '/__bus-test-stats') return sendJson(res, calls);
@@ -98,6 +116,41 @@ const server = createServer((req, res) => {
     console.log(`BUS_ROUTE station=${calls.station} leg=${calls.leg} route=${calls.route}`);
     return sendJson(res, routeBody(url.searchParams.get('arrival') || 'fixture-3'));
   }
+  if (url.pathname === '/api/journey-share' && req.method === 'GET') {
+    calls.journeyGet += 1;
+    const row = journeyShares.get(url.searchParams.get('id') || '');
+    return row ? sendJson(res, journeyPublic(row)) : sendJson(res, { error: 'not_found' }, 404);
+  }
+  if (url.pathname === '/api/journey-share' && req.method === 'POST') return receiveJson(req, res, body => {
+    if (body.action === 'create') {
+      calls.journeyCreate += 1;
+      const id = `J${String(++journeyCounter).padStart(21, '0')}`;
+      const editToken = `E${String(journeyCounter).padStart(42, '0')}`;
+      const row = { id, editToken, payload: body.payload, locationEnabled: body.locationEnabled === true,
+        updatedAt: Date.now(), expiresAt: Date.now() + Number(body.durationSec || 3600) * 1000, devicePosition: null };
+      journeyShares.set(id, row);
+      return sendJson(res, { id, editToken, expiresAt: row.expiresAt, url: `https://railisland.tw/?journey=${id}` }, 201);
+    }
+    const row = journeyShares.get(String(body.id || ''));
+    if (!row) return sendJson(res, { error: 'not_found' }, 404);
+    if (body.editToken !== row.editToken) return sendJson(res, { error: 'forbidden' }, 403);
+    if (body.action === 'update') {
+      calls.journeyUpdate += 1; row.payload = body.payload; row.locationEnabled = body.locationEnabled === true;
+      row.updatedAt = Date.now(); if (!row.locationEnabled) row.devicePosition = null;
+      return sendJson(res, { ok: true, expiresAt: row.expiresAt });
+    }
+    if (body.action === 'position') {
+      calls.journeyPosition += 1;
+      if (!row.locationEnabled) return sendJson(res, { error: 'location_disabled' }, 409);
+      row.updatedAt = Date.now(); row.devicePosition = { lat: Number(body.lat.toFixed(5)), lon: Number(body.lon.toFixed(5)),
+        accuracy: Number(body.accuracy), at: Date.now(), ageSec: 0, stale: false };
+      return sendJson(res, { ok: true, at: row.devicePosition.at });
+    }
+    if (body.action === 'end') {
+      calls.journeyEnd += 1; journeyShares.delete(row.id); return sendJson(res, { ok: true });
+    }
+    return sendJson(res, { error: 'bad_action' }, 400);
+  });
   if (url.pathname.startsWith('/api/')) return sendJson(res, { error: 'fixture endpoint not implemented' }, 503);
 
   let pathname;

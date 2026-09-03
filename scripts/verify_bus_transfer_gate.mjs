@@ -25,6 +25,7 @@ for (const script of [
   'verify_bus_transfer_index.mjs',
   'verify_bus_transfer_ui.mjs',
   'verify_bus_transfer_worker.mjs',
+  'verify_journey_share_worker.mjs',
   'verify_bus_transfer_ui_browser.mjs',
 ]) {
   assert(all.includes(script), `總驗收漏掉 ${script}`);
@@ -36,6 +37,7 @@ for (const [name, script] of [
   ['check-bus-transfer-index', 'verify_bus_transfer_index.mjs'],
   ['check-bus-transfer-ui', 'verify_bus_transfer_ui.mjs'],
   ['check-bus-transfer-worker', 'verify_bus_transfer_worker.mjs'],
+  ['check-journey-share-worker', 'verify_journey_share_worker.mjs'],
   ['check-bus-transfer-gate', 'verify_bus_transfer_gate.mjs'],
 ]) {
   assert.equal(packageJson.scripts?.[name], `node scripts/${script}`,
@@ -51,5 +53,13 @@ assert.match(mountCall[0], /apiBase:\s*API_BASE\b/,
   'BusTransferUI.mount 必須傳 apiBase: API_BASE——App 裡相對路徑打不到 Worker,卡片會全程失敗');
 assert.match(index, /const\s+API_BASE\s*=\s*window\.RAIL_API_BASE/,
   'index.html 的 API_BASE 必須來自 window.RAIL_API_BASE(原生殼注入正式網域),寫死網域會讓預覽站打到正式站');
+
+// 整段旅程分享沿用同一個原生 API base；App 注入值含尾斜線，POST 不得因此變成 //api。
+assert.match(index, /const apiRoot = String\(API_BASE \|\| ''\)\.replace\(\/\\\/\$\/, ''\);[\s\S]{0,180}`\$\{apiRoot\}\/api\/journey-share/,
+  '整段旅程分享必須先正規化 API_BASE 尾斜線，再組 /api/journey-share');
+assert.doesNotMatch(index, /RAIL_NATIVE_JOURNEY_SHARE/,
+  '目前只允許前景定位；不得留下未實作或會暗示鎖屏背景定位的原生分享橋接');
+assert.match(index, /id="journeyShareLocation" type="checkbox"/,
+  '手機位置必須是獨立、預設未勾選的 checkbox，不能跟建立分享連結綁成預設同意');
 
 console.log('公車轉乘出貨鏈掛載守門通過。');

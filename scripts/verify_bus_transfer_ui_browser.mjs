@@ -84,6 +84,32 @@ async function touchAndLayout(browserType, engine, width) {
     assert.equal(afterRoute.route, afterLeg.route + 1, '只有明確選接續路線才多查一次完整站序');
     assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('rail-island-bus-journey-v1')).phase), 'waiting');
 
+    await page.locator('.btu-journey [data-btu-act="journey-share"]').tap();
+    const shareModal = page.locator('#journeyShareModal');
+    await shareModal.waitFor({ state: 'visible' });
+    const shareLayout = await page.evaluate(() => {
+      const modal = document.getElementById('journeyShareModal');
+      const dialog = modal.querySelector('.journey-share-dialog');
+      const controls = [...modal.querySelectorAll('button,input,select')].filter(el => {
+        const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0;
+      });
+      const blocked = [], short = [];
+      for (const el of controls) {
+        el.scrollIntoView({ block: 'center' });
+        const r = el.getBoundingClientRect(), hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        if (!(hit === el || el.contains(hit))) blocked.push(el.id || el.tagName);
+        if (el.tagName !== 'INPUT' && r.height < 43.5) short.push({ id: el.id, height: r.height });
+      }
+      const d = dialog.getBoundingClientRect();
+      return { blocked, short, inside: d.left >= -1 && d.right <= innerWidth + 1 && d.top >= -1 && d.bottom <= innerHeight + 1,
+        overflow: document.documentElement.scrollWidth - innerWidth };
+    });
+    assert.deepEqual(shareLayout.blocked, []);
+    assert.deepEqual(shareLayout.short, []);
+    assert.equal(shareLayout.inside, true);
+    assert.ok(shareLayout.overflow <= 1);
+    await page.locator('#journeyShareCancel').tap();
+
     await page.getByRole('button', { name: '我上車了' }).tap();
     await page.getByText('公車行駛中', { exact: true }).waitFor({ state: 'visible' });
     assert.match(await page.locator('.btu-journey').innerText(), /距億載金城還有8站|距 億載金城 還有 8 站/);
@@ -325,6 +351,111 @@ async function journeySurvivesReload() {
   }
 }
 
+async function wholeJourneyShareRoundTrip() {
+  const browser = await chromium.launch({ headless: true });
+  const senderContext = await browser.newContext({ viewport: { width: 393, height: 860 }, isMobile: true, hasTouch: true });
+  await senderContext.grantPermissions(['geolocation'], { origin: BASE });
+  await senderContext.setGeolocation({ latitude: 22.99822, longitude: 120.21322, accuracy: 18 });
+  await senderContext.addInitScript(() => {
+    localStorage.setItem('trainmap-howto-seen', '1');
+    Object.defineProperty(navigator, 'share', { configurable: true, value: async value => { window.__journeySharedValue = value; } });
+  });
+  const sender = await senderContext.newPage();
+  const receiverContext = await browser.newContext({ viewport: { width: 393, height: 860 }, isMobile: true, hasTouch: true });
+  await receiverContext.addInitScript(() => localStorage.setItem('trainmap-howto-seen', '1'));
+  const receiver = await receiverContext.newPage();
+  try {
+    await sender.goto(`${BASE}/?lang=zh-TW`, { waitUntil: 'domcontentloaded' });
+    await openTainan(sender);
+    await sender.getByRole('button', { name: '查看現在可搭公車' }).tap();
+    await sender.locator('.btu-rowbtn').first().waitFor({ state: 'visible' });
+    await sender.locator('.btu-rowbtn').first().tap();
+    await sender.getByRole('button', { name: '接續這班' }).tap();
+    const alight = sender.getByRole('combobox', { name: '選擇下車站' });
+    await alight.waitFor({ state: 'visible' });
+    await alight.selectOption('TNN-B');
+    await sender.getByRole('button', { name: '開始接續旅程' }).tap();
+    await sender.locator('.btu-journey [data-btu-act="journey-share"]').tap();
+    const locationToggle = sender.locator('#journeyShareLocation');
+    assert.equal(await locationToggle.isChecked(), false, '手機位置必須預設關閉');
+    await locationToggle.check();
+    const createResponse = sender.waitForResponse(response => response.url().includes('/api/journey-share') &&
+      response.request().method() === 'POST' && response.request().postDataJSON()?.action === 'create');
+    await sender.locator('#journeyShareCreate').tap();
+    await createResponse;
+    await sender.waitForFunction(() => {
+      const value = JSON.parse(localStorage.getItem('rail-island-journey-share-v1') || 'null');
+      return value && value.id && window.__journeySharedValue && window.__journeySharedValue.url;
+    });
+    const active = await sender.evaluate(() => JSON.parse(localStorage.getItem('rail-island-journey-share-v1')));
+    assert.match(active.id, /^[A-Za-z0-9_-]{22}$/);
+    assert.match(active.editToken, /^[A-Za-z0-9_-]{43}$/);
+    assert.equal(new URL(active.url).searchParams.get('journey'), active.id);
+    assert.equal(active.url.includes(active.editToken), false, '公開 URL 不得含編輯憑證');
+    await sender.waitForFunction(async () => (await (await fetch('/__bus-test-stats')).json()).journeyPosition >= 1);
+    const afterCreate = await stats();
+    assert.equal(afterCreate.journeyCreate >= 1, true);
+    assert.equal(afterCreate.journeyPosition >= 1, true, '明示勾選後才送第一筆手機位置');
+    await sender.locator('#journeyShareCancel').tap();
+
+    await receiver.goto(`${BASE}/?journey=${active.id}&lang=zh-TW`, { waitUntil: 'domcontentloaded' });
+    const banner = receiver.locator('#tripBanner');
+    await banner.waitFor({ state: 'visible' });
+    await receiver.getByText(/手機即時位置/).waitFor({ state: 'visible' });
+    assert.match(await banner.innerText(), /3.*臺南火車站.*億載金城/s);
+    const remote = await receiver.evaluate(() => ({
+      id: journeyShareRemote && journeyShareRemote.id,
+      token: journeyShareRemote && journeyShareRemote.editToken,
+      position: journeyShareRemotePosition(),
+    }));
+    assert.equal(remote.id, active.id);
+    assert.equal(remote.token, undefined, '收件端不得拿到編輯憑證');
+    assert.equal(remote.position.source, 'phone');
+    assert.equal(remote.position.lat, 22.99822);
+
+    // headless 多分頁不一定會真的切 visibility；直接派送瀏覽器同一個事件，驗證產品守門本身。
+    await sender.evaluate(() => {
+      Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await sender.waitForFunction(() => document.hidden && journeyShareBrowserWatch == null);
+    const beforeBackgroundMove = await stats();
+    await senderContext.setGeolocation({ latitude: 22.99901, longitude: 120.21401, accuracy: 16 });
+    await sender.waitForTimeout(350);
+    assert.equal((await stats()).journeyPosition, beforeBackgroundMove.journeyPosition,
+      '發起頁在背景時不得繼續傳送手機位置');
+    await sender.evaluate(() => {
+      Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await sender.waitForFunction(() => !document.hidden && journeyShareBrowserWatch != null);
+    await senderContext.setGeolocation({ latitude: 22.99902, longitude: 120.21402, accuracy: 16 });
+    await sender.waitForFunction(async before => (await (await fetch('/__bus-test-stats')).json()).journeyPosition > before,
+      beforeBackgroundMove.journeyPosition);
+    await sender.locator('.btu-journey [data-btu-act="journey-board"]').tap();
+    await sender.waitForFunction(async () => (await (await fetch('/__bus-test-stats')).json()).journeyUpdate >= 1);
+    await receiver.evaluate(() => fetchJourneyShareRemote(journeyShareRemote.id));
+    await receiver.getByText('搭乘公車中', { exact: true }).waitFor({ state: 'visible' });
+
+    await sender.locator('.btu-journey [data-btu-act="journey-share"]').tap();
+    const endResponse = sender.waitForResponse(response => response.url().includes('/api/journey-share') &&
+      response.request().method() === 'POST' && response.request().postDataJSON()?.action === 'end');
+    await sender.locator('#journeyShareStop').tap();
+    await endResponse;
+    assert.equal(await sender.evaluate(() => localStorage.getItem('rail-island-journey-share-v1')), null);
+    await receiver.evaluate(() => fetchJourneyShareRemote(journeyShareRemote.id));
+    await receiver.getByText('分享已結束', { exact: true }).waitFor({ state: 'visible' });
+    assert.doesNotMatch(await receiver.locator('body').innerText(), /HTTP 404|not_found|journey_share_unavailable|Failed to fetch/i);
+    const afterStop = await stats();
+    assert.equal(afterStop.journeyEnd >= 1, true);
+    pass('整段旅程分享：位置預設關閉、背景停傳、回前景續傳、收件端跟上公車階段、停止即刪且不外露錯誤');
+  } finally {
+    await senderContext.close();
+    await receiverContext.close();
+    await browser.close();
+  }
+}
+
 const RAW_ERROR_TEXT = /bus transfer live unavailable|bus transfer index unavailable|bus leg live unavailable|bus route stops unavailable|HTTP 50[23]|Failed to fetch/i;
 const FAULTS = [
   { name: '502 JSON', fulfill: { status: 502, contentType: 'application/json', body: JSON.stringify({ error: 'bus transfer live unavailable' }) } },
@@ -382,6 +513,7 @@ await touchAndLayout(webkit, 'WebKit', 375);
 await allStationCoverage();
 await assistantMilestoneDedupe();
 await journeySurvivesReload();
+await wholeJourneyShareRoundTrip();
 await faultMessagesStayPrivate('station');
 await faultMessagesStayPrivate('leg');
 await faultMessagesStayPrivate('route');
