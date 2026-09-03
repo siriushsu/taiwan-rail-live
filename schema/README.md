@@ -14,6 +14,7 @@
 | `0008_la_apns_env.sql` | ✅ **權威** | 補 `apns_env` 欄位（記住這顆 token 打得通的 APNs 環境）。**所有環境都要跑**，新環境＝`0003` + `0007` + `0008`。 |
 | `0009_metro_wait.sql` | ✅ **權威** | 捷運等車卡的推播交班表 `metro_wait_bindings`（**與跟車的 `la_bindings` 是兩張獨立的表**，那張的 `train_no`／`stops`／`sta_map` 都是 NOT NULL 且綁單一車次，等車卡沒有車次可填）。**所有環境都要跑，與 0003 系列彼此無關**。 |
 | `0010_tra_wait.sql` | ✅ **權威** | 台鐵等站卡的推播交班表 `tra_wait_bindings`（**與 `metro_wait_bindings` 也是兩張獨立的表**：那張每分鐘要重新挑「這一站的下一班是誰」，這張追的是**一班指定的車**、表訂時刻在開卡當下就固定）。**所有環境都要跑，與 0003／0009 彼此無關**。 |
+| `0011_journey_share.sql` | ✅ **權威** | 短效整段旅程分享 `journey_shares`。只保存最新狀態與（使用者另行同意時）最新一筆手機座標，不保存位置歷史；公開讀取 id 與編輯憑證分離，最長 12 小時失效。**所有環境都要跑。** |
 
 ## 套用到正式庫
 
@@ -22,6 +23,7 @@ arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --r
 arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0003_live_activity.sql
 arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0009_metro_wait.sql
 arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0010_tra_wait.sql
+arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0011_journey_share.sql
 ```
 
 （`npx wrangler` 在這台機器是壞的，一律用上面的完整寫法。）

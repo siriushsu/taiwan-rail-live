@@ -1,0 +1,1 @@
+{"schemaVersion":1,"generatedAt":"2026-09-03T07:25:05.359Z","coverage":"all_active_rail_stations","trigger":"user_open_only","polling":false,"station":{"id":"TRA:7070","name":"漢本車站","appSystem":"tra_sched","systemLabel":"台鐵","position":{"lat":24.33543,"lon":121.76838},"radiusM":600,"nearbyStopCount":0,"coverageState":"no_nearby_stops","scopes":[]}}

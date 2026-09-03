@@ -49,12 +49,13 @@
 			</array>
 		</dict>
 	</array>
-	<!-- 只宣告目前實際開放的前景定位用途。校正旅程尚未開放，不寫進系統權限提示；
-	     若日後重新開放，必須同輪更新這裡、privacy.html 第 3 節與 App Review Notes。 -->
+	<!-- 所有定位仍只在前景。一般藍點不離開裝置；整段旅程的手機位置必須在分享面板另行勾選。 -->
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>軌島會在你使用 App 時持續更新地圖上的藍點與所在地鏡頭，並列出附近車站與列車。App 進入背景或鎖屏就停止定位；原始座標只在裝置內使用，不會上傳，拒絕授權仍可手動探索地圖。</string>
+	<string>軌島會在你使用 App 時更新地圖藍點、所在地鏡頭與附近車站。只有你另行開啟旅程的即時位置分享時，最新位置才會傳給持有短效連結的人；進入背景或鎖屏即停止。</string>
+	<!-- Capacitor Geolocation binary 會引用 Always API，Apple 上傳驗證因此要求這個用途鍵；
+	     產品程式仍只請求 When In Use，UIBackgroundModes 也沒有 location。 -->
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>軌島只在你使用 App 時持續更新藍點、所在地鏡頭與附近車站。App 進入背景或鎖屏就停止定位，也不會要求「永遠允許」；原始座標只在裝置內使用，不會上傳，拒絕授權仍可手動探索地圖。</string>
+	<string>軌島不會要求「永遠允許」或在背景持續定位。一般藍點只留在裝置內；只有你另行開啟旅程的即時位置分享時，才會在 App 前景傳送最新位置。</string>
 	<!-- 背景音訊：使用者開著背景音樂把 App 收起或鎖定螢幕時繼續播放（比照一般音樂 App）。
 	     只有 <audio> 實際在播時系統才保持 App 活躍，沒開音樂時不影響正常休眠。 -->
 	<key>UIBackgroundModes</key>
