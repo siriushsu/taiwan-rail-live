@@ -10039,6 +10039,74 @@ function flushTrainPaint() {
   for (const it of q) it.fn();
 }
 
+// ── 立體交叉補描:軌道疊層照現實,不照陣列順序 ─────────────────────────────
+// 軌道本來是逐條線依陣列順序描,交叉口誰蓋誰是隨機的——flushTrainPaint 檔頭那句「先前看的是
+// 陣列順序,那是隨機的,不是事實」當時只修了列車,軌道沒跟著修。這裡在軌道全部描完之後,對
+// crossLevels 收錄的每個立體交叉,在交點上開一個小圓盤,圓盤內把兩條線「先下後上」重描一次,
+// 上下關係就回到現實。只處理視野內的交叉口(通常 0–3 個),平時近乎零成本。
+//
+// 為什麼要 clip 成圓盤而不是直接把上面那條重描一段:外框有 5.6px 寬,直接重描會把交叉口附近
+// 「剛好平行走在旁邊」的第三條線一起吃掉(中山站的松山新店線與淡水信義線就是這樣,實測會咬掉
+// 紅線 8px)。圓盤把影響鎖在交點周圍,圓外一個像素都不碰;圓內因為兩條都照順序重描,外框該有的
+// 白邊也還在。
+const XING_PATCH_PX = 14; // 圓盤半徑(螢幕像素):蓋得住兩條線的外框寬 5.6,又不至於波及鄰近平行線
+function xingSegHit(a, b, c, d) { // 兩線段交點,沒有就 null
+  const rx = b.x - a.x, ry = b.y - a.y, sx = d.x - c.x, sy = d.y - c.y;
+  const den = rx * sy - ry * sx;
+  if (!den) return null;
+  const t = ((c.x - a.x) * sy - (c.y - a.y) * sx) / den;
+  const u = ((c.x - a.x) * ry - (c.y - a.y) * rx) / den;
+  return t >= 0 && t <= 1 && u >= 0 && u <= 1 ? { x: a.x + t * rx, y: a.y + t * ry } : null;
+}
+function xingNear(pts, p, R) { // 折線落在 p 周邊 R 內的索引區間;頂點稀疏時(高鐵長直線)各補一個鄰點
+  let j = 0, bd = Infinity;
+  for (let i = 0; i < pts.length; i++) { const d = Math.hypot(pts[i].x - p.x, pts[i].y - p.y); if (d < bd) { bd = d; j = i; } }
+  let a = j, b = j;
+  while (a > 0 && Math.hypot(pts[a].x - p.x, pts[a].y - p.y) < R) a--;
+  while (b < pts.length - 1 && Math.hypot(pts[b].x - p.x, pts[b].y - p.y) < R) b++;
+  if (a === j && a > 0) a--;
+  if (b === j && b < pts.length - 1) b++;
+  return b - a >= 1 ? [a, b] : null;
+}
+function repaintOverpasses(w, h, P, groups) {
+  if (!crossLevels.length) return;
+  const find = id => {
+    for (const g of groups) for (const ln of g.lines || []) {
+      if (ln.id !== id || (g.visible && !g.visible(ln))) continue;
+      const pts = ln.shapePts || ln.pts;
+      if (pts && pts.length >= 2) return { pts, color: g.color(ln.color) };
+    }
+    return null;
+  };
+  const stroke = (pts, a, b, col) => {
+    ctx.beginPath();
+    for (let i = a; i <= b; i++) i === a ? ctx.moveTo(pts[i].x, pts[i].y) : ctx.lineTo(pts[i].x, pts[i].y);
+    ctx.strokeStyle = P.railCase; ctx.lineWidth = 5.6; ctx.stroke();
+    ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.stroke();
+  };
+  for (const c of crossLevels) {
+    const p0 = map.latLngToContainerPoint([c.lat, c.lon]);
+    if (p0.x < -XING_PATCH_PX || p0.y < -XING_PATCH_PX || p0.x > w + XING_PATCH_PX || p0.y > h + XING_PATCH_PX) continue;
+    const hi = find(c.above.id), lo = find(c.below.id);
+    if (!hi || !lo) continue;                       // 有一條沒畫就沒有上下關係可言
+    const hw = xingNear(hi.pts, p0, 40), lw = xingNear(lo.pts, p0, 40);
+    if (!hw || !lw) continue;
+    let p = null;                                   // 表上的座標與線形可能差幾個像素,先找兩條線真正的交點
+    for (let i = hw[0]; i < hw[1] && !p; i++) for (let k = lw[0]; k < lw[1]; k++) {
+      const q = xingSegHit(hi.pts[i], hi.pts[i + 1], lo.pts[k], lo.pts[k + 1]);
+      if (q) { p = q; break; }
+    }
+    if (!p) p = p0;                                 // 找不到就退回表上的座標(線形略有出入時仍能校正)
+    const hs = xingNear(hi.pts, p, XING_PATCH_PX), ls = xingNear(lo.pts, p, XING_PATCH_PX);
+    if (!hs) continue;
+    ctx.save();
+    ctx.beginPath(); ctx.arc(p.x, p.y, XING_PATCH_PX, 0, 7); ctx.clip();
+    if (ls) stroke(lo.pts, ls[0], ls[1], lo.color);  // 圓盤內照現實順序:先下後上
+    stroke(hi.pts, hs[0], hs[1], hi.color);
+    ctx.restore();
+  }
+}
+
 // 台鐵平交道資料:首次進入含台鐵的 sched 模式時抓一次,之後常駐快取
 async function ensureCrossings() {
   if (state.crossings || state._crossPending) return;
@@ -10156,6 +10224,7 @@ function drawFreq(w, h) {
     ctx.strokeStyle = metroLineColor(ln.color);
     ctx.lineWidth = 3; ctx.stroke();
   });
+  repaintOverpasses(w, h, P, [{ lines: state.lines, color: metroLineColor, visible: ln => state.visible.has(ln.id) && ln.pts }]);
   const freqLabels = [];
   state.lines.forEach(ln => {
     if (!state.visible.has(ln.id) || !ln.pts) return;
@@ -10720,6 +10789,12 @@ function drawSched(w, h, paintDecoTrains) {
       ctx.strokeStyle = P.railCase; ctx.lineWidth = 5.6; ctx.stroke();
       ctx.strokeStyle = trackLineColor(ln.color); ctx.lineWidth = 3; ctx.stroke();
     }
+    // 裝飾層(捷運)在 drawDecoBase 已描完、班表軌道剛描完,兩批都在了才校正交叉口疊層;
+    // 排在 drawCollectSegs 之前,收集地圖的亮段才不會被補描蓋掉。
+    repaintOverpasses(w, h, P, [
+      { lines: state.trackLines, color: trackLineColor, visible: ln => !state.trackVisible || state.trackVisible.has(ln.id) },
+      { lines: state.deco ? state.decoLines : null, color: metroLineColor },
+    ]);
     if (state.collectMap) drawCollectSegs(w, h); // 灰底線鋪完才描亮段,順序反了會被灰線蓋掉
   }
   // 跟隨路線高亮:奶白外描+加粗實線(取代模糊光暈),描在軌道上、車站與列車下
