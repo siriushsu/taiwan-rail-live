@@ -410,7 +410,8 @@ const HW_DISTINCTION = async (usePoller) => {
   tkShouldFail = true; brShouldFail = true; hwShouldFail = false;
   const probed = await one();
   tkShouldFail = false; brShouldFail = false;
-  return { healthy: JSON.stringify(healthy.board || []), probed: JSON.stringify(probed.board || []) };
+  return { healthy: JSON.stringify(healthy.board || []), probed: JSON.stringify(probed.board || []),
+    cars: carsOfRound(healthy) };
 };
 const viaDirect = await HW_DISTINCTION(false);
 const viaPoller = await HW_DISTINCTION(true);
@@ -423,6 +424,15 @@ ok('第 11 節的情境確實分得開（正確結果 ≠ 沿用上一份看板�
 ok('集中路徑與直打路徑在 hwThisRound 那個窗裡輸出一致（DO 邊界沒弄丟欄位）',
   viaPoller.probed === viaDirect.probed,
   `直打=${JSON.parse(viaDirect.probed).length} 列／集中=${JSON.parse(viaPoller.probed).length} 列`);
+
+// 🔴 光比 board 不夠:M12 突變(DO frame 的 hw 送空)照樣全綠——board 只由 TrackInfo 決定,
+//    對「擁擠度整批不見」結構上失明,而那正是使用者 2026-09-03 回報的症狀,只是換到集中路徑
+//    上重現。所以健康輪的擁擠度也要跨路徑比一次。
+ok('第 11 節的擁擠度確實量得到（不是拿兩個空值互相比對）',
+  /\[1,1,2,2,1,1\]/.test(viaDirect.cars), `直打健康輪 cars=${viaDirect.cars}`);
+ok('集中路徑與直打路徑的擁擠度一致（DO 邊界沒弄丟 CarWeight）',
+  viaPoller.cars === viaDirect.cars,
+  `直打=${viaDirect.cars}／集中=${viaPoller.cars}`);
 
 
 Date.now = realNow;
