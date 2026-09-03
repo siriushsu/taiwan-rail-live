@@ -550,6 +550,13 @@ enum RailCountdown: Equatable {
     case noData
     /// 官方視野外，退回班表。照抄官方原字串（如「11:38」）並另標「表定」。
     case scheduled(String)
+    /// 使用者在小工具設定裡選了「主要顯示發車時刻」⇒ 時刻【就是】主角數字。
+    /// 🔴 必須與 `.scheduled` 分開，即使兩者畫的都是「19:39」五個字：
+    ///    `.scheduled` 是「這班太遠了，倒數沒有意義」——次要灰、小字、旁邊標「表定」；
+    ///    `.clock` 是「這是你要我優先給你看的答案」——主色、大字、旁邊放倒數。
+    ///    共用一個 case 就等於讓偏好設定去偷用降級狀態的樣式，兩邊之後只要各自演化一次
+    ///    就會互相扯壞（同 `.minutes` 與 `.approxMinutes` 分開的理由）。
+    case clock(String)
     /// 🔴 Live Activity 專用：**自走**的分鐘倒數，錨定絕對到站時刻。
     ///
     /// 為什麼非有這個 case 不可：Live Activity 的視圖只在收到新 ContentState 時才重繪一次。
@@ -587,6 +594,7 @@ enum RailCountdown: Equatable {
         case .arriving:             return RailNativeL10n.text("進站")
         case .noData:               return RailNativeL10n.text("暫無資料")
         case .scheduled(let t):     return t
+        case .clock(let t):         return t
         // 🔴 靜態快照，只給不自走的第三層文字用。主角倒數走 RailCountdownText 的自走路徑，
         //    落到這裡就等於把 .until 退化回 .minutes（也就是這次要修的那個 bug）。
         case .until(let d):
@@ -760,6 +768,21 @@ struct RailCountdownText: View {
                               design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
+                .lineLimit(1).fixedSize()
+        case .clock(let t):
+            // 使用者指定的主角時刻：主色、比 .scheduled 大一階，但仍受欄寬節制
+            // ——「19:39」是五個字元，照倒數的 40pt 畫一定被固定寬的數字欄裁掉。
+            // 🔴 好讀版 hero 是 29 不是照倒數比例的 34：34 在 Small 好讀版會讓
+            //    「20:01」＋狀態標超出內容框右緣 3.3pt（render_board_widget.mjs 的破版
+            //    偵測實測到，board-small-clockfirst-readable）。時刻是五個字元，
+            //    不能照兩位數倒數的字級比例外推。
+            // 🔴 要改這兩個數字就重跑 render_board_widget.mjs 看破版有沒有轉紅，不要手感調。
+            Text(t)
+                .font(.system(size: min(scale.pt(size.isHero ? 28 : 17,
+                                                 readable: size.isHero ? 29 : 24),
+                                        numberSize),
+                              weight: .semibold, design: .rounded))
+                .monospacedDigit()
                 .lineLimit(1).fixedSize()
         case .arriving: arriving
         case .until(let d): liveMinutes(d)

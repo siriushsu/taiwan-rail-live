@@ -21,7 +21,8 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public final class MetroWidgetProvider extends AppWidgetProvider {
+// 不是 final:小／大兩個尺寸是空殼子類(MetroWidgetSmallProvider／MetroWidgetLargeProvider),見 WidgetFamily。
+public class MetroWidgetProvider extends AppWidgetProvider {
     static final String PREFS = "metro_widget";
     static final String ACTION_REFRESH = "tw.railisland.app.REFRESH_METRO_WIDGET";
     static final String AUTO = MetroWidgetData.AUTO;
@@ -63,7 +64,7 @@ public final class MetroWidgetProvider extends AppWidgetProvider {
         SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         if (prefs.getBoolean("plus_active", false)) return;
         AppWidgetManager manager = AppWidgetManager.getInstance(context);
-        int[] ids = manager.getAppWidgetIds(new ComponentName(context, MetroWidgetProvider.class));
+        int[] ids = WidgetFamily.ids(context, manager, WidgetFamily.METRO);
         java.util.LinkedHashSet<String> active = new java.util.LinkedHashSet<>();
         for (int id : ids) {
             String sys = prefs.getString("sys_" + id, null);
@@ -87,7 +88,7 @@ public final class MetroWidgetProvider extends AppWidgetProvider {
 
     static void updateAll(Context context) {
         AppWidgetManager manager = AppWidgetManager.getInstance(context);
-        int[] ids = manager.getAppWidgetIds(new ComponentName(context, MetroWidgetProvider.class));
+        int[] ids = WidgetFamily.ids(context, manager, WidgetFamily.METRO);
         for (int id : ids) updateOneAsync(context, manager, id);
     }
 
@@ -170,6 +171,13 @@ public final class MetroWidgetProvider extends AppWidgetProvider {
         scheduleNext(context, id, snapshot, first);
 
         if (Build.VERSION.SDK_INT < 31) {
+            // 沒有 setSizeSpecificViewLayouts 的機器:照這一格屬於哪個尺寸的 provider 挑一張。
+            String family = WidgetFamily.of(context, id);
+            if (WidgetFamily.SMALL.equals(family)) {
+                return tap(board ? board(context, R.layout.widget_board_2x2, plates, 2, snapshot)
+                    : MetroWidgetPlateRender.plate(context, R.layout.widget_plate_2x2, first, true), tap);
+            }
+            if (WidgetFamily.LARGE.equals(family)) return tap(large(context, plates, snapshot), tap);
             return tap(board ? board(context, R.layout.widget_board_4x2, plates, 2, snapshot)
                 : MetroWidgetPlateRender.plate(context, R.layout.widget_plate_4x2, first), tap);
         }
@@ -187,7 +195,50 @@ public final class MetroWidgetProvider extends AppWidgetProvider {
             sizes.put(new SizeF(200f, 100f), tap(MetroWidgetPlateRender.plate(context, R.layout.widget_plate_4x2, first), tap));
             sizes.put(new SizeF(200f, 170f), tap(MetroWidgetPlateRender.plate(context, R.layout.widget_plate_4x3, first), tap));
         }
+        // 4×4 大張卡片,兩種版型共用(見 widget_board_4x4.xml)。寬度桶仍是 200dp:5 欄手機拉到滿版
+        // (約 360dp 以上)落在同一桶,版面 match_parent 自己撐滿,不必再開一個寬度桶。
+        // 🔴 只有「大」那一族才開這個桶:4×4 格線的兩列就有 276dp 高,中卡不擋會整張變成大卡版面。
+        if (WidgetFamily.LARGE.equals(WidgetFamily.of(context, id))) {
+            sizes.put(new SizeF(200f, LARGE_MIN_HEIGHT_DP), tap(large(context, plates, snapshot), tap));
+        }
         return new RemoteViews(sizes);
+    }
+
+    /** 大張卡片的高度門檻(dp)。與發車看板的 4×4 桶同值;比 4×3 桶(170)高、比 3 列格子矮。 */
+    static final float LARGE_MIN_HEIGHT_DP = 250f;
+
+    /**
+     * 4×4 大張卡片:主角＝第一個方向的下一班(與夜行看板第一列同一個 binder),下面接「接下來」逐班清單
+     * (跨方向依到站時間排、最多七班),對應 iOS systemLarge 的 lead＋follows。
+     * 這裡只算值(哪幾班、幾分鐘的文字),綁定仍在 MetroWidgetPlateRender.large。
+     */
+    private static RemoteViews large(Context context, List<MetroWidgetPlate> plates, MetroWidgetData.Snapshot snapshot) {
+        MetroWidgetPlate first = plates.get(0);
+        String head = first.station.isEmpty() ? snapshot.station : first.station;
+        if (first.badge != null && !first.badge.isEmpty()) head = first.badge + " " + head;
+        double now = System.currentTimeMillis() / 1000.0;
+        List<MetroWidgetData.Row> rows = new ArrayList<>(snapshot.rows);
+        // 秒級系統排 eta、整數分鐘系統排 minutes;兩者都沒有的排最後。Collections.sort 是穩定排序,
+        // 同鍵維持官方順序。
+        java.util.Collections.sort(rows, (a, b) -> Double.compare(sortKey(a, now), sortKey(b, now)));
+        List<String[]> follows = new ArrayList<>();
+        for (int i = 1; i < rows.size() && follows.size() < 7; i++) {
+            Integer minutes = minutesOf(rows, i, now);
+            if (minutes == null) continue;                              // eta2 推導列過期 ⇒ 整列不畫
+            MetroWidgetData.Row row = rows.get(i);
+            String value = minutes <= 0 && !row.approx ? RailNativeL10n.text(context, "進站")
+                : MetroWidgetPlate.boardMinuteText(minutes, row.approx, RailNativeL10n.plateTexts(context));
+            follows.add(new String[] { row.dest == null ? "" : row.dest,
+                row.lineLabel == null ? "" : row.lineLabel, value == null ? "" : value, row.color });
+        }
+        return MetroWidgetPlateRender.large(context, R.layout.widget_board_4x4, plates.toArray(new MetroWidgetPlate[0]),
+            head, RailNativeL10n.text(context, "單位分鐘"), first.footRight, first.band, first.bandBad, follows);
+    }
+
+    private static double sortKey(MetroWidgetData.Row row, double now) {
+        if (row.eta != null) return row.eta;
+        if (row.minutes != null) return now + row.minutes * 60.0;
+        return Double.MAX_VALUE;
     }
 
     private static RemoteViews board(Context context, int layoutRes, List<MetroWidgetPlate> plates, int maxRows,

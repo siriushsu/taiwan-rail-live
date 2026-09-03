@@ -394,6 +394,7 @@ struct RailIslandMinimal: View {
         case .arriving:  return nil
         case .noData:    return "—"
         case .scheduled: return nil
+        case .clock:     return nil   // 捷運等車卡沒有「主要顯示發車時刻」設定，走不到
         case .until:     return nil   // 走下面的自走 Text，不進這個靜態字串路徑
         }
     }

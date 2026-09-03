@@ -36,6 +36,22 @@ for (const key of new Set(literalKeys)) {
   for (const lang of languages) if (!keySets[lang]?.has(key)) fail(`${lang} 缺少 runtime key：${key}`);
 }
 
+// data/music.json 的家族/池名稱與說明會經 musicPlRow() 的 t() 顯示,但它們是【資料】不是
+// index.html 的字面 t('…'),上面那條 runtime key 掃描完全看不到 ⇒ 兩種語言【同時】漏掉時
+// 整份稽核照樣全綠(突變測試證實)。這裡把資料檔的顯示字串補成第一級來源。
+const musicData = JSON.parse(fs.readFileSync(path.join(root, 'data/music.json'), 'utf8'));
+const musicDisplayKeys = [
+  ...musicData.families.flatMap(family => [family.zh, family.desc]),
+  ...musicData.pools.flatMap(pool => [pool.zh, pool.desc]),
+].filter(Boolean);
+// 分母自己也要有斷言:欄位改名或曲庫清空時,這條檢查會靜默縮成 0 個而不是報錯。
+if (musicDisplayKeys.length < 2 * (musicData.families.length + musicData.pools.length)) {
+  fail(`配樂曲庫顯示字串取到 ${musicDisplayKeys.length} 個,少於家族+池數 x 2,欄位名可能改了`);
+}
+for (const key of new Set(musicDisplayKeys)) {
+  for (const lang of languages) if (!keySets[lang]?.has(key)) fail(`${lang} 缺少配樂曲庫字串：${key}`);
+}
+
 const coreStaticKeys = [
   '歡迎搭乘', '軌島怎麼玩', '上面', '全／台／高／捷', '選要看哪個系統',
   '點', '列車', '＝鏡頭跟著它跑，陪到終點蓋完乘章', '車站', '＝看接下來的班次與倒數',

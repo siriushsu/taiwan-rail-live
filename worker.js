@@ -853,9 +853,22 @@ function trtcMemoStale(stale, now) { return !stale || now - stale.at > 15e3; }
 // 🔴 CarWeightBR 刻意【不】節流:它的 TrainNumber 要與倒數切段的車逐台【順序配對】(:983),
 // 用舊列會把車號標到別台車上,那是「標錯」不是「留白」,違反裁示。
 let trtcHwMem = null; // { rows, at } —— 只快取 CarWeight,與 trtcMem 分開
+const TRTC_HW_THROTTLE_MS = 60e3;
 // 門檻同樣抽成可測函式(比照 trtcMemoStale 的 task-11 理由):驗收要量 59999/60001ms 的邊界,
 // 不靠讀常數字面值反推,也不真的等 60 秒。
-function trtcHwStale(mem, now) { return !mem || now - mem.at > 60e3; }
+function trtcHwStale(mem, now) { return !mem || now - mem.at > TRTC_HW_THROTTLE_MS; }
+// 這一輪真的打了 CarWeight 卻失敗時,可不可以拿記憶體那份頂上?
+// 🔴 為什麼要有這條(2026-09-03):節流命中時本來就會送出最多 60 秒舊的那份,所以「舊 60 秒」
+// 是這支資料【已經被接受】的新鮮度;但失敗那一輪舊碼直接落到 [],於是整批高運量擁擠度
+// 一起消失一輪——上游抖一下的代價從「晚 60 秒看到新的抵站事件」變成「畫面上每一台車都
+// 沒有擁擠度」,而手上明明有一份合格的資料沒用。使用者 09-03 回報「高運量的擁擠度有時候
+// 也會不見」。
+// 上限取節流窗的兩倍:再撐不到就寧可留白,不拿真的過期的擁擠度騙人(裁示「有資訊就一定要對」)。
+// 寫成從 TRTC_HW_THROTTLE_MS 推導,不手打第二個常數(judgment 第七節第 3 條)。
+function trtcHwFallbackUsable(mem, now) {
+  return !!mem && Array.isArray(mem.rows) && now - mem.at <= TRTC_HW_THROTTLE_MS * 2;
+}
+
 
 // ─── 集中輪詢（2026-09-02，北捷來函後的第四項）────────────────────────────────
 // 為什麼要有這個：Cloudflare 的 `caches.default` 與 isolate 記憶體都是【每個資料中心各一份】，
@@ -890,7 +903,7 @@ async function trtcFetchUpstream(env, now, hwMem) {
   const inService = trtcOperatingState(trtcLedgerNowEpoch(null, env)).open;
   // 窗外（01:20–05:40）三支一律不打。回「成功的空列」而不是 outage：官方窗外本來就整批
   // 回「營運時間已過」而被 fail-closed 丟掉，輸出等價，差別只有少了三發請求。
-  if (!inService) return { tk: { ok: true, rows: [] }, hw: [], br: [], hwMem, inService: false };
+  if (!inService) return { tk: { ok: true, rows: [] }, hw: [], hwThisRound: [], br: [], hwMem, inService: false };
   const hwFresh = !trtcHwStale(hwMem, now);
   const [hwFetched, brRaw, tkResult] = await Promise.all([
     // 失敗回 null（不是 []）才分得開「這輪沒打」「打了但失敗」「打了是空的」——
@@ -905,9 +918,16 @@ async function trtcFetchUpstream(env, now, hwMem) {
       .catch(error => ({ ok: false, rows: [], error: (error && error.message) || String(error) })),
   ]);
   const nextHwMem = hwFetched ? { rows: hwFetched, at: now } : hwMem;
+  // 本輪 CarWeight 到底拿到什麼（節流命中 → 記憶體那份；真的打了 → 新的；打了但失敗 → 空）。
+  // 🔴 這個值是「三支全滅」判斷的輸入，不可以被下面的 fallback 灌成非空——否則 TrackInfo
+  //    掛掉時會被一份舊的 CarWeight 偽裝成「還有官方存在性資料」（09-03 5b4dd812 的重點）。
+  const hwThisRound = hwFresh && nextHwMem ? nextHwMem.rows : (hwFetched || []);
   return {
     tk: tkResult,
-    hw: hwFresh && nextHwMem ? nextHwMem.rows : (hwFetched || []),
+    // 供擁擠度／車號裝飾用的那一份：本輪打了但失敗就退回記憶體那份（上限兩倍節流窗，
+    // 見 trtcHwFallbackUsable）。這是唯一與 hwThisRound 不同的地方。
+    hw: hwThisRound.length || !trtcHwFallbackUsable(nextHwMem, now) ? hwThisRound : nextHwMem.rows,
+    hwThisRound,
     br: brRaw,
     hwMem: nextHwMem,
     inService: true,
@@ -951,7 +971,7 @@ export class TrtcPoller {
       if (this.noCreds) return;
       const r = await trtcFetchUpstream(this.env, now, this.hwMem);
       this.hwMem = r.hwMem;
-      this.frame = { at: now, body: JSON.stringify({ tk: r.tk, hw: r.hw, br: r.br, inService: r.inService }) };
+      this.frame = { at: now, body: JSON.stringify({ tk: r.tk, hw: r.hw, hwThisRound: r.hwThisRound, br: r.br, inService: r.inService }) };
     })();
     // 🔴 不可寫成 `this.inflight = run.finally(...)`：finally 回傳的是【另一顆】promise，
     //    於是回呼裡的 `this.inflight === run` 永遠不成立、inflight 永遠不清空 ⇒ 這顆 DO
@@ -999,7 +1019,7 @@ async function trtcPollerFrame(env) {
   if (!f || !f.tk) return null;
   // 第二道:萬一哪天 DO 那道被改壞,邊緣仍然不吃禁區來的資料。
   if (f.colo && TRTC_POLLER_DENY_COLO.has(f.colo)) return { denied: f.colo };
-  return { tk: f.tk, hw: f.hw || [], br: f.br || [], poller: f.colo || '?', ageMs: f.ageMs || 0 };
+  return { tk: f.tk, hw: f.hw || [], hwThisRound: f.hwThisRound || [], br: f.br || [], poller: f.colo || '?', ageMs: f.ageMs || 0 };
 }
 async function trtcRawFrame(env, now) {
   let denied = null;
@@ -1012,7 +1032,7 @@ async function trtcRawFrame(env, now) {
   trtcHwMem = direct.hwMem;
   // poller 欄位讓「這一輪是誰打的上游」在回傳裡看得見：'NRT' 等於集中輪詢生效中，
   // 'direct' 等於退路（量會回到 41 個 colo 各打），'denied:HKG' 等於落點違規被擋下。
-  return { tk: direct.tk, hw: direct.hw, br: direct.br, poller: denied ? 'denied:' + denied : 'direct', ageMs: 0 };
+  return { tk: direct.tk, hw: direct.hw, hwThisRound: direct.hwThisRound, br: direct.br, poller: denied ? 'denied:' + denied : 'direct', ageMs: 0 };
 }
 async function trtcLive(request, env) {
   const cacheKey = new Request(new URL('/api/trtc-live', request.url), { method: 'GET' });
@@ -1034,13 +1054,14 @@ async function trtcLive(request, env) {
       // frame 可能已經有最多 15 秒的年紀，加上邊緣自己的 15 秒 ⇒ 最壞 30 秒。這在既有容忍度
       //    之內：這條回應本來就帶 stale-while-revalidate=120，冷門 colo 早就在供更舊的資料。
       const frame = await trtcRawFrame(env, officialRequestStartedAt);
-      const hwRaw = frame.hw;
+      const hwRaw = frame.hw;              // 裝飾用（本輪失敗可退回記憶體那份）
+      const hwThisRound = frame.hwThisRound; // 「三支全滅」判斷的輸入，不吃 fallback
       const brRaw = frame.br;
       const tkResult = frame.tk;
       const tk = tkResult.rows;
       // official-first：TrackInfo 成功（包含合法空列）就是可發布的權威名冊；CarWeight
       // 只供 legacy trains／擁擠度裝飾，兩支同時空也不可把官方名冊拖成 outage。
-      if (!tkResult.ok && hwRaw.length === 0 && brRaw.length === 0) {
+      if (!tkResult.ok && hwThisRound.length === 0 && brRaw.length === 0) {
         throw new Error('trtc TrackInfo/hw/br 全部失敗');
       }
       const hw = dedupeLatest(hwRaw, 'utime');
@@ -2044,7 +2065,7 @@ async function trtcLedgerScheduled(event, env) {
     trtcLedgerModel(env),
     trtcRawFrame(env, Date.now()).catch(e => {
       console.warn('[cron trtc-ledger] 第一次取樣失敗:', (e && e.message) || String(e));
-      return { tk: { ok: false, rows: [] }, hw: [], br: [], poller: 'error' };
+      return { tk: { ok: false, rows: [] }, hw: [], hwThisRound: [], br: [], poller: 'error' };
     }),
   ]);
   const board1 = first.tk.rows, hwRaw = first.hw, brRaw = first.br;
@@ -2052,7 +2073,7 @@ async function trtcLedgerScheduled(event, env) {
   if (delayMs) await new Promise(resolve => setTimeout(resolve, delayMs));
   const second = await trtcRawFrame(env, Date.now()).catch(e => {
     console.warn('[cron trtc-ledger] 第二次取樣失敗:', (e && e.message) || String(e));
-    return { tk: { ok: false, rows: [] }, hw: [], br: [], poller: 'error' };
+    return { tk: { ok: false, rows: [] }, hw: [], hwThisRound: [], br: [], poller: 'error' };
   });
   if (!second.tk.ok) console.warn('[cron trtc-ledger] TrackInfo 第二次取樣失敗:', second.tk.error || '(無訊息)');
   const board2 = second.tk.rows;
@@ -4168,6 +4189,39 @@ async function basemapSrc(request, env) {
   return jsonRes({ street, minAppVersion }, 200, 'public, max-age=300, s-maxage=300');
 }
 
+// ── 街道底圖退場埋點(L2 的觀測半邊,2026-09-03)────────────────────────────────
+// 為什麼要有這條:L2(index.html 的 ofmWatch)判定 OpenFreeMap 載不出來時,App 會當場退回
+// Stadia raster、整個 session 都留在計費底圖上;網站則跳「街道底圖載入異常」提示。在此之前
+// 這件事只在使用者的 console 留一行 warn——全體使用者裡有多少人正在燒 Stadia,一個數字都沒有
+// (2026-09-03 使用者自己的手機在 WiFi 上就中過一次,重開才回到 OFM)。前端在 fail 那一刻
+// 打一發到這裡(index.html 的 ofmFailBeacon),這裡只做一件事:寫一筆 Analytics Engine 資料點。
+//
+// 寫進 USAGE(railisland_usage)而不是 TRAFFIC:TRAFFIC 本來就會按端點記到 basemap-fallback 的
+// 請求數(免費的分子),但「為什麼退」(逾時或錯誤)、退場當下的 zoom 只有這條知道。
+// 欄位形狀刻意與 tra-live 那筆對齊:blob1 是列的種類('ofmfail',與 cam 的四個值互斥,算前景分鐘
+// 的查詢用 blob1 排除即可)、blob2 仍是裝置(m|d)、blob3 來源(app|web,依 Origin 判,與 TRAFFIC
+// 同一把尺)、blob4 原因(slow|error|na)、double1 zoom。
+// 分母:App 每次開機都打一次 /api/basemap-src(L1),兩者相除就是「每次開機的退場率」
+// ——查法:node scripts/usage_ofm_fallback.mjs。
+//
+// 🔴 觀測絕不可影響服務:寫入失敗整段吞掉,回應永遠是同一個 200;前端那半也是 fire-and-forget。
+// 限流借 BASEMAP_LIMITER(60/分鐘/IP,fail-open):真人一個 session 最多一兩發,這道只是別讓人拿它灌假資料。
+async function basemapFallback(request, env) {
+  if (await rateLimited(env.BASEMAP_LIMITER, request)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
+  if (env.USAGE) {
+    try {
+      const u = new URL(request.url);
+      const whyRaw = u.searchParams.get('why');
+      const why = whyRaw === 'slow' || whyRaw === 'error' ? whyRaw : 'na';
+      const z = parseInt(u.searchParams.get('z'), 10);
+      const dev = /Mobile/.test(request.headers.get('user-agent') || '') ? 'm' : 'd';
+      const plat = APP_ORIGINS.has(request.headers.get('Origin') || '') ? 'app' : 'web';
+      env.USAGE.writeDataPoint({ blobs: ['ofmfail', dev, plat, why], doubles: [isNaN(z) ? 0 : z], indexes: ['ofmfail'] });
+    } catch (e) {}
+  }
+  return jsonRes({ ok: true }, 200, 'no-store');
+}
+
 // ── 衛星底圖的第二種計費方式：basemap session ────────────────────────────────
 // Esri 兩種計價擇一：按張數，或按 session（一顆管 12 小時、期間圖磚無限）。
 // 兩者有個損益兩平點：一顆 session 要涵蓋夠多張圖磚才划算——所以前端刻意
@@ -4332,7 +4386,7 @@ const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/
 const API_ENDPOINTS = new Set([
   'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'hazard-alert', 'metro-live', 'ntmetro-live', 'trtc-live',
   'klrt-position',
-  'delay-stats', 'delay-history', 'thsr-schedule', 'thsr-freeseat', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'basemap-src', 'account-delete',
+  'delay-stats', 'delay-history', 'thsr-schedule', 'thsr-freeseat', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'basemap-src', 'basemap-fallback', 'account-delete',
   'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge', 'plus-status', 'revenuecat-webhook',
   'la/bind', 'la/unbind', 'metro-wait/bind', 'metro-wait/unbind', 'tra-wait/bind', 'tra-wait/unbind', 'pass-claim', 'pass-admin',
 ]);
@@ -6238,6 +6292,7 @@ export default {
     else if (url.pathname === '/api/today-board') res = await todayBoard(request, env);
     else if (url.pathname === '/api/basemap-token') res = await basemapToken(request, env);
     else if (url.pathname === '/api/basemap-src') res = await basemapSrc(request, env);
+    else if (url.pathname === '/api/basemap-fallback') res = await basemapFallback(request, env);
     else if (url.pathname === '/api/basemap-session') res = await basemapSession(request, env);
     else if (url.pathname === '/api/account-delete') res = await deleteAccountData(request, env);
     else if (url.pathname === '/api/plus-status') res = await plusStatus(request, env);
@@ -6294,6 +6349,8 @@ export const _plus = {
 // 供離線回歸測試 import:驗「節流擋在 outbound fetch 之前」。這兩個不是純函式,測試得自備
 // env 替身與 fetch 替身;導出的目的就是讓測試能數「被擋掉時到底有沒有打上游」。
 export const _rateLimit = { rateLimited, delayHistory, deleteAccountData, basemapSession };
+// 街道底圖來源開關(L1)與退場埋點(L2 的觀測半邊),供離線回歸測試 import(scripts/verify_ofm_fallback_beacon.mjs)。
+export const _basemap = { basemapSrc, basemapFallback };
 // 供離線回歸測試 import（scripts/verify_plus_firestore_gate.mjs 第 11 節、
 // scripts/verify_plus_data_claims.mjs B7）：刪帳號一併刪除資格文件。與上面的 _rateLimit 分開
 // 導出——那組服務的是「節流擋在 fetch 前」這個窄用途，這裡要驗的是刪除本身的語意（真的送出
@@ -6327,7 +6384,7 @@ export const _bounty = { bountyCardId, bountySegLine, groupBoardRows, bountyBoar
 function trtcForgetMemoForTest() { trtcMem = null; trtcHwMem = null; }
 export const _trtc = { trtcParse, trtcEpoch, dedupeLatest, trtcCall, trtcApiUrl, trtcMemoStale, carsOf,
   trtcFetchUpstream, trtcRawFrame, TrtcPoller, TRTC_POLLER_DENY_COLO, TRTC_POLLER_HINT, trtcForgetMemoForTest,
-  trtcHwStale, trtcLive };
+  trtcHwStale, trtcHwFallbackUsable, trtcLive };
 // B1 驗收用：導出編排層供本機 D1/fixture 測試，正式 router 不因此增加任何路徑。
 export const _trtcLedger = {
   trtcBoardEpoch, trtcLedgerContext, persistTrtcLedger, trtcLedgerPreview,

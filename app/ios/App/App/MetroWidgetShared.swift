@@ -32,6 +32,9 @@ struct MetroWidgetCatalog {
     let lineIDs: [String: [String]]
     /// "<sys>|<站名>" → 站座標(自動選站的最近站計算用)。同站多線座標相同,取第一筆。
     let coords: [String: Coord]
+    /// 每一站開得到的方向(目錄裡該站的 `dests`;轉乘站跨線合併、去重、保留線序),鍵 "sys|站名"。
+    /// 方向格的選單只列這一份,不再把全系統的終點攤平(使用者 2026-09-02 回報選得到跨系統／跨線的方向)。
+    let destsByStation: [String: [String]]
     /// "<sys>|<線 id>" → 該線色票。官方 `trains[].stn` 的字母前綴就是線 id(BL13 → BL),
     /// 用來把看板每一列對回它真正的路線色(見 MetroPalette.rowLine)。
     let lineColorByID: [String: String]
@@ -50,12 +53,14 @@ struct MetroWidgetCatalog {
             // 🔴 讀不到就回空目錄,讓 provider 走「照樣給選項」那條(空 systems 時 use 也是空,
             //    ItemCollection 會是空的——這是唯一真的沒東西可列的情況,與 .empty 的語意不同)。
             return MetroWidgetCatalog(systems: [], alias: [:], lastTrain: [:], lineColors: [:],
-                                      lineIDs: [:], coords: [:], lineColorByID: [:], lineNameByID: [:])
+                                      lineIDs: [:], coords: [:], destsByStation: [:],
+                                      lineColorByID: [:], lineNameByID: [:])
         }
         var out: [System] = []
         var colors: [String: [String]] = [:]
         var ids: [String: [String]] = [:]
         var coords: [String: Coord] = [:]
+        var destsByStation: [String: [String]] = [:]
         var byLineID: [String: String] = [:]
         var nameByLineID: [String: String] = [:]
         for s in (obj["systems"] as? [[String: Any]] ?? []) {
@@ -64,15 +69,20 @@ struct MetroWidgetCatalog {
             let stations = lines.flatMap { $0["stations"] as? [[String: Any]] ?? [] }
             var names: [String] = [], dests: Set<String> = []
             for st in stations {
+                let stationDests = st["dests"] as? [String] ?? []
                 if let n = st["name"] as? String {
                     if !names.contains(n) { names.append(n) }
+                    let key = "\(sysID)|\(n)"
                     // 容錯讀:缺座標的站只是進不了最近站計算,不讓整個目錄載入失敗。
                     if let la = st["lat"] as? Double, let lo = st["lon"] as? Double {
-                        let key = "\(sysID)|\(n)"
                         if coords[key] == nil { coords[key] = Coord(lat: la, lon: lo) }
                     }
+                    // 轉乘站在目錄裡每條線各一筆:方向跨線合併(去重、保留線序)。
+                    for d in stationDests where !(destsByStation[key] ?? []).contains(d) {
+                        destsByStation[key, default: []].append(d)
+                    }
                 }
-                for d in (st["dests"] as? [String] ?? []) { dests.insert(d) }
+                for d in stationDests { dests.insert(d) }
             }
             out.append(System(id: sysID, label: s["label"] as? String ?? "",
                               precision: s["precision"] as? String ?? "min",
@@ -105,11 +115,15 @@ struct MetroWidgetCatalog {
                                   alias: obj["alias"] as? [String: [String: String]] ?? [:],
                                   lastTrain: obj["lastTrain"] as? [String: String] ?? [:],
                                   lineColors: colors, lineIDs: ids, coords: coords,
+                                  destsByStation: destsByStation,
                                   lineColorByID: byLineID, lineNameByID: nameByLineID)
     }
 }
 
 extension MetroWidgetCatalog {
+    /// 該站開得到的方向;查不到(自動選站哨兵、舊鍵)回空陣列,退路由呼叫端決定。
+    func destinations(sys: String, station: String) -> [String] { destsByStation["\(sys)|\(station)"] ?? [] }
+
     func lineColorHexes(sys: String, station: String) -> [String] { lineColors["\(sys)|\(station)"] ?? [] }
     func lineIDsAt(sys: String, station: String) -> [String] { lineIDs["\(sys)|\(station)"] ?? [] }
 

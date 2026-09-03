@@ -1,0 +1,608 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 捷運看板 · 4×4（大張卡片，344×344dp 起）。使用者 2026-09-02 要求「捷運跟鐵路都要有大張卡片」。
+     內容比照 iOS systemLarge（MetroBoardWidget.swift 的 followLimit：主班一列＋從班最多 8 列）：
+     上半是主角（第一個方向的下一班，與夜行看板第一列同一組 id、同一個 binder），
+     下半是「接下來」逐班清單（wl_r1 至 wl_r7，一列一班車，跨方向依到站時間排）。
+     🔴 這張版面【兩種版型共用】：琺瑯站牌／夜行看板的切換只影響 2×2／4×2／4×3；
+        大張卡片的價值就在列得下八班，一站一班的琺瑯站牌撐不滿這個面積。
+     🔴 header／主角／註腳／警示帶沿用 wb_* 的 id ⇒ 直接走 MetroWidgetPlateRender.board(maxRows=1)
+        綁定；wb_r2／wb_r3 刻意不放（binder 對找不到的 id 靜默略過）。從班列由 large() 另外綁。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/wb_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/wg_card"
+    android:orientation="vertical"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp"
+    android:paddingTop="13dp"
+    android:paddingBottom="11dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:baselineAligned="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/wb_head"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="R10 台北車站"
+            android:textColor="@color/wg_ink"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <ImageView
+            android:id="@+id/wb_chip_dot"
+            android:layout_width="6dp"
+            android:layout_height="6dp"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_dot" />
+
+        <TextView
+            android:id="@+id/wb_chip"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:maxLines="1"
+            android:text="LIVE"
+            android:textColor="@color/wg_ok"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/wb_stamp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:maxLines="1"
+            android:text="09:41"
+            android:textColor="@color/wg_ink_faint"
+            android:textSize="10sp" />
+    </LinearLayout>
+
+    <!-- 主角列的標題與副標各給兩行：英文終點站（To Taipei Nangang Exhibition Center）與
+         「Following train in about 10 min」在 5 欄寬度下一行放不完，中文一行就夠、不會多佔高度。 -->
+    <LinearLayout
+        android:id="@+id/wb_r1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:baselineAligned="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:id="@+id/wb_r1_bar"
+            android:layout_width="4dp"
+            android:layout_height="match_parent"
+            android:layout_marginTop="3dp"
+            android:layout_marginBottom="3dp"
+            android:contentDescription="@null"
+            android:scaleType="fitXY"
+            android:src="@drawable/wg_meter_block" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/wb_r1_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:text="往淡水"
+                android:textColor="@color/wg_ink"
+                android:textSize="19sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/wb_r1_sub"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:text="列車在台大醫院"
+                android:textColor="@color/wg_ink_faint"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/wb_r1_a"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:text="2"
+            android:textColor="@color/wg_ink"
+            android:textSize="44sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/wb_r1_b"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:maxLines="1"
+            android:text="7"
+            android:textColor="@color/wg_ink_soft"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/wb_r1_c"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="5dp"
+            android:maxLines="1"
+            android:text="14"
+            android:textColor="@color/wg_ink_faint"
+            android:textSize="16sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/wl_caption"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:maxLines="1"
+        android:text="接下來"
+        android:textColor="@color/wg_ink_faint"
+        android:textSize="10sp"
+        android:textStyle="bold" />
+
+    <LinearLayout
+        android:id="@+id/wl_rows"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="2dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:id="@+id/wl_r1"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:baselineAligned="false"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/wl_r1_bar"
+                android:layout_width="3dp"
+                android:layout_height="match_parent"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="4dp"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/wg_meter_block" />
+
+            <TextView
+                android:id="@+id/wl_r1_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="淡水"
+                android:textColor="@color/wg_ink"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/wl_r1_sub"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:maxLines="1"
+                android:text="淡水信義線"
+                android:textColor="@color/wg_ink_faint"
+                android:textSize="10sp" />
+
+            <TextView
+                android:id="@+id/wl_r1_a"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:gravity="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:minWidth="40dp"
+                android:text="6"
+                android:textColor="@color/wg_ink"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/wl_r2"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:baselineAligned="false"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/wl_r2_bar"
+                android:layout_width="3dp"
+                android:layout_height="match_parent"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="4dp"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/wg_meter_block" />
+
+            <TextView
+                android:id="@+id/wl_r2_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="淡水"
+                android:textColor="@color/wg_ink"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/wl_r2_sub"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:maxLines="1"
+                android:text="淡水信義線"
+                android:textColor="@color/wg_ink_faint"
+                android:textSize="10sp" />
+
+            <TextView
+                android:id="@+id/wl_r2_a"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:gravity="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:minWidth="40dp"
+                android:text="7"
+                android:textColor="@color/wg_ink"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/wl_r3"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:baselineAligned="false"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/wl_r3_bar"
+                android:layout_width="3dp"
+                android:layout_height="match_parent"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="4dp"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/wg_meter_block" />
+
+            <TextView
+                android:id="@+id/wl_r3_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="淡水"
+                android:textColor="@color/wg_ink"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/wl_r3_sub"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:maxLines="1"
+                android:text="淡水信義線"
+                android:textColor="@color/wg_ink_faint"
+                android:textSize="10sp" />
+
+            <TextView
+                android:id="@+id/wl_r3_a"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:gravity="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:minWidth="40dp"
+                android:text="8"
+                android:textColor="@color/wg_ink"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/wl_r4"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:baselineAligned="false"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/wl_r4_bar"
+                android:layout_width="3dp"
+                android:layout_height="match_parent"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="4dp"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/wg_meter_block" />
+
+            <TextView
+                android:id="@+id/wl_r4_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="淡水"
+                android:textColor="@color/wg_ink"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/wl_r4_sub"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:maxLines="1"
+                android:text="淡水信義線"
+                android:textColor="@color/wg_ink_faint"
+                android:textSize="10sp" />
+
+            <TextView
+                android:id="@+id/wl_r4_a"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:gravity="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:minWidth="40dp"
+                android:text="9"
+                android:textColor="@color/wg_ink"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/wl_r5"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:baselineAligned="false"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/wl_r5_bar"
+                android:layout_width="3dp"
+                android:layout_height="match_parent"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="4dp"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/wg_meter_block" />
+
+            <TextView
+                android:id="@+id/wl_r5_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="淡水"
+                android:textColor="@color/wg_ink"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/wl_r5_sub"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:maxLines="1"
+                android:text="淡水信義線"
+                android:textColor="@color/wg_ink_faint"
+                android:textSize="10sp" />
+
+            <TextView
+                android:id="@+id/wl_r5_a"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:gravity="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:minWidth="40dp"
+                android:text="10"
+                android:textColor="@color/wg_ink"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/wl_r6"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:baselineAligned="false"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/wl_r6_bar"
+                android:layout_width="3dp"
+                android:layout_height="match_parent"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="4dp"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/wg_meter_block" />
+
+            <TextView
+                android:id="@+id/wl_r6_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="淡水"
+                android:textColor="@color/wg_ink"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/wl_r6_sub"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:maxLines="1"
+                android:text="淡水信義線"
+                android:textColor="@color/wg_ink_faint"
+                android:textSize="10sp" />
+
+            <TextView
+                android:id="@+id/wl_r6_a"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:gravity="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:minWidth="40dp"
+                android:text="11"
+                android:textColor="@color/wg_ink"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/wl_r7"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:baselineAligned="false"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/wl_r7_bar"
+                android:layout_width="3dp"
+                android:layout_height="match_parent"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="4dp"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/wg_meter_block" />
+
+            <TextView
+                android:id="@+id/wl_r7_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="淡水"
+                android:textColor="@color/wg_ink"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/wl_r7_sub"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:maxLines="1"
+                android:text="淡水信義線"
+                android:textColor="@color/wg_ink_faint"
+                android:textSize="10sp" />
+
+            <TextView
+                android:id="@+id/wl_r7_a"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:gravity="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:minWidth="40dp"
+                android:text="12"
+                android:textColor="@color/wg_ink"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/wb_band"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:background="@drawable/wg_band_bad"
+        android:ellipsize="end"
+        android:maxLines="2"
+        android:paddingStart="9dp"
+        android:paddingEnd="8dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
+        android:text="中山—淡水 區間電力事故"
+        android:textColor="@color/wg_bad"
+        android:textSize="10sp"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:baselineAligned="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/wb_foot_left"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="09:41 更新 · 單位分鐘"
+            android:textColor="@color/wg_ink_faint"
+            android:textSize="10sp" />
+
+        <TextView
+            android:id="@+id/wb_foot_right"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:maxLines="1"
+            android:text="2 站 · 已釘選"
+            android:textColor="@color/wg_ink_faint"
+            android:textSize="10sp" />
+    </LinearLayout>
+</LinearLayout>

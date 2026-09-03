@@ -172,18 +172,25 @@ struct DestinationOptionsProvider: DynamicOptionsProvider {
         }
         guard !destinations.isEmpty else { return .empty }
 
+        // 「不指定」永遠排第一:單選 picker 選過就沒有清除手勢(使用者 2026-09-02 回報「選了
+        // 方向就取消不了,只能刪掉小工具重來」)。值是 ASCII 哨兵,timeline 讀 destinationKey 時收成 nil。
+        let anySection = IntentItemSection<String>(
+            LocalizedStringResource(stringLiteral: RailNativeL10n.text("不限")),
+            items: [IntentItem<String>(ConfigurationAppIntent.anyDestination,
+                                       title: LocalizedStringResource(stringLiteral: RailNativeL10n.text("不指定目的站（看全部）")))]
+        )
         let places = placeSection(destinations)
         guard let sections = stationRegionSections(destinations) else {
             var fallbackSections = [IntentItemSection(items: destinations.map(\.intentItem))]
             if let places { fallbackSections.insert(places, at: 0) }
             return IntentItemCollection(
                 promptLabel: promptLabel,
-                sections: fallbackSections
+                sections: [anySection] + fallbackSections
             )
         }
         return IntentItemCollection(
             promptLabel: promptLabel,
-            sections: places.map { [$0] + sections } ?? sections
+            sections: [anySection] + (places.map { [$0] + sections } ?? sections)
         )
     }
 }
@@ -331,10 +338,31 @@ struct ConfigurationAppIntent: WidgetConfigurationIntent {
     // 的人（設計檔明列的需求）。兩者是 OR ⇒ 打開之後不受系統字級影響。
     @Parameter(title: "大字好讀版", default: false)
     var readable: Bool
+
+    // 主要數字要倒數還是時刻。起因是網友反應：「希望火車的小工具顯示的是到站／出發時間
+    // 而不是還有幾分鐘到」，使用者裁示做成讓人自己選（2026-09-01）。
+    // 🔴 兩種模式是【同一份資料的兩種畫法】，不是兩種資料：兩邊都用 effectiveTime／
+    //    effectiveDate（誤點後的實際時刻），所以切換不會改變「這班車幾點走」的答案。
+    // 🔴 有副標的列，倒數退到副標那一行（「2 分後 · 準點」），兩件事都還在；
+    //    但【沒有副標的列會真的只剩時刻】——Small 的主角、Medium 的主角都是這樣，
+    //    那些位置本來就只放得下一個數字。這不是缺陷，正是網友要的「不要看幾分鐘」；
+    //    寫在這裡是因為「打開之後兩者都在」是錯的，不要照那句去寫驗收判準。
+    // 🔴 誤點與末班車排在倒數【前面】（見 BoardRowView.followStatus）：那兩個是狀態，
+    //    倒數只是換了位置的常態資訊，搶在狀態前面會把「這班誤點了」擠掉。
+    @Parameter(title: "主要顯示發車時刻", default: false)
+    var clockFirst: Bool
 }
 
 @available(iOS 17.0, *)
 extension ConfigurationAppIntent {
+    /// 目的站格的「不指定」哨兵(見 DestinationOptionsProvider 的 anySection)。
+    static let anyDestination = "any"
+    /// timeline 讀這個,不直接讀 destination——哨兵在這裡收成 nil,引擎與畫面完全不認得那個字串。
+    var destinationKey: String? {
+        guard let destination, !destination.isEmpty, destination != Self.anyDestination else { return nil }
+        return destination
+    }
+
     static var previewCommute: ConfigurationAppIntent {
         let intent = ConfigurationAppIntent()
         intent.origin = StationOption.makeKey(systemID: "tra", name: "竹北")

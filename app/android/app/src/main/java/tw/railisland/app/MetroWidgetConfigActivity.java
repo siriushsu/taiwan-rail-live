@@ -33,6 +33,9 @@ public final class MetroWidgetConfigActivity extends AppCompatActivity {
     private FrameLayout preview;
     private TextView passNote;
     private final List<MetroWidgetData.StationInfo> visibleStations = new ArrayList<>();
+    /** 方向 spinner 每一列對應的終點值(第 0 列是「全部方向」＝空字串)。選擇一律查這張表,
+     *  不再拿 spinner 的索引去對「當下車站」的 destinations——車站剛換時那兩者不是同一份。 */
+    private final List<String> directionValues = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle state) {
@@ -139,12 +142,20 @@ public final class MetroWidgetConfigActivity extends AppCompatActivity {
         systemSpinner.setSelection(sysIndex);
         updateStations(sysIndex);
         String station = prefs.getString("station_" + widgetId, null);
+        int stationAt = 0;
         if (station != null) {
             if (MetroWidgetData.AUTO.equals(station)) stationSpinner.setSelection(0);
             else for (int i = 0; i < visibleStations.size(); i++) {
-                if (visibleStations.get(i).name.equals(station)) stationSpinner.setSelection(i + 1);
+                if (visibleStations.get(i).name.equals(station)) { stationAt = i + 1; stationSpinner.setSelection(i + 1); }
             }
         }
+        // 方向:先同步重建清單再選回存過的值。使用者 2026-09-02 回報「選了方向就取消不了」——
+        // 舊版 restore() 根本沒讀回方向,重開設定頁永遠顯示「全部方向」,存檔卻還是舊方向。
+        // 🔴 車站 spinner 的 listener 會在下一個 layout 再呼叫一次 updateDirections(),
+        //    那一次靠「重建時保留已選」把這裡選好的值留住(見 updateDirections)。
+        updateDirections(stationAt);
+        int directionAt = directionValues.indexOf(prefs.getString("direction_" + widgetId, ""));
+        directionSpinner.setSelection(Math.max(0, directionAt));
         layoutSpinner.setSelection(MetroWidgetProvider.LAYOUT_BOARD
             .equals(prefs.getString("layout_" + widgetId, MetroWidgetProvider.LAYOUT_PLATE)) ? 1 : 0);
         String freq = prefs.getString("freq_" + widgetId, "std");
@@ -174,12 +185,22 @@ public final class MetroWidgetConfigActivity extends AppCompatActivity {
     }
 
     private void updateDirections(int position) {
+        // 重建前記住現在選的終點;新清單裡還有它就選回去(換到同一條線的另一站,方向不該被打掉;
+        // 換到別條線它自然不在清單裡,回到「全部方向」)。restore() 選好的值也是靠這條留住的。
+        String keep = selectedDirection();
         List<String> directions = new ArrayList<>();
+        directionValues.clear();
         directions.add("全部方向");
+        directionValues.add("");
         if (position > 0 && position - 1 < visibleStations.size()) {
-            for (String dest : visibleStations.get(position - 1).destinations) directions.add("往 " + dest);
+            for (String dest : visibleStations.get(position - 1).destinations) {
+                directions.add("往 " + dest);
+                directionValues.add(dest);
+            }
         }
         directionSpinner.setAdapter(adapter(directions));
+        int at = keep.isEmpty() ? -1 : directionValues.indexOf(keep);
+        if (at > 0) directionSpinner.setSelection(at);
     }
 
     /** 預覽用的示範值：站名／站號／英文名／路線色都是真的，只有「還有幾分鐘」是示範用的 4 分。 */
@@ -241,10 +262,7 @@ public final class MetroWidgetConfigActivity extends AppCompatActivity {
 
     private String selectedDirection() {
         int index = directionSpinner == null ? 0 : directionSpinner.getSelectedItemPosition();
-        int stationIndex = stationSpinner == null ? 0 : stationSpinner.getSelectedItemPosition();
-        if (index <= 0 || stationIndex <= 0 || stationIndex - 1 >= visibleStations.size()) return "";
-        List<String> destinations = visibleStations.get(stationIndex - 1).destinations;
-        return index - 1 < destinations.size() ? destinations.get(index - 1) : "";
+        return index > 0 && index < directionValues.size() ? directionValues.get(index) : "";
     }
 
     private void save() {

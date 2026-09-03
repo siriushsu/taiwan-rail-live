@@ -251,10 +251,40 @@ const MODES = {
     // CLI 一顆），我 patch 的是 CLI 那顆、使用者上傳的是另一顆 ⇒ ASC 回 ITMS-90111。
     // 規則四：作廢的號不重用。兩顆都已搬到 ~/Library/Developer/Xcode/_已作廢的archive/1.5.3-86/，
     // 而 ios-release.mjs 的第 3 步連那一區一起掃，所以 86 再也不會被放行。
-    marketing: '1.5.3', build: '87', music: true, metroCore: true,
-    why: '軌島 1.5.3\n\n放空模式的出口\n放空模式離開之後再進去一次，整條控制列會縮成右下角一顆空白的小鈕，找不到「離開放空」也點不出去。現在每次進放空，出口都在（謝謝網友回報）。\n\n隨機跟隨\n按「隨機跟隨」時，同一班車被抽中的機率設了上限，也會記住剛跟過的五班不重複挑，比較不會一直遇到同一批車。\n\n桌面小工具的起站選單\nAndroid 新增車站時，起站選單改成依縣市分段，不必再從一整條長清單裡找。\n\n街道底圖\n街道底圖載入不順時，原本會退回另一家的圖磚，而那家改成需要金鑰之後，退過去看到的是一張蓋著浮水印的地圖，而且它回的是正常的 200，這端偵測不到。現在載不動就直說。',
-    whyEn: 'Rail Island 1.5.3\n\nThe way out of ambient mode\nLeaving ambient mode and going back in could shrink the whole control bar into a blank little pill in the corner, with no Exit ambient mode button to tap. Now the way out is there every time. Thanks to the reader who reported it.\n\nFollow random train\nFollow random train now caps how likely any one train is to be picked, and remembers the last five it followed, so you meet a wider spread of trains.\n\nThe origin picker in home screen widgets\nOn Android, adding a station to a widget now groups the origin picker by city and county instead of one long list.\n\nThe street basemap\nWhen the street basemap was slow to load it used to fall back to another provider, and since that provider started requiring a key the fallback showed a map stamped with a watermark, served as a normal 200 that this end could not detect. Now it says so instead.',
-    whyJa: '軌島 1.5.3\n\n鑑賞モードの出口\n鑑賞モードをいったん終了してもう一度入ると、操作バー全体が隅の小さな空白のボタンに縮み、「鑑賞モードを終了」が押せなくなることがありました。今は毎回そこに出口があります（ご報告ありがとうございました）。\n\nランダム追跡\n「ランダム追跡」では、同じ列車が選ばれる確率に上限を設け、直前に追跡した五本を覚えて重複を避けるようにしました。より幅広い列車に出会えます。\n\nホーム画面ウィジェットの出発駅選択\nAndroid では、ウィジェットに駅を追加するとき、出発駅を県・市別に整理しました。長い一覧から探す必要がありません。\n\n街路地図\n街路地図の読み込みが遅いとき、以前は別の提供元の地図タイルに切り替えていました。その提供元がキーを必須にしてからは、切り替え先が透かし入りの地図になり、しかも通常の 200 で返るためこちら側では検知できませんでした。今は読み込めないことをそのまま表示します。',
+    // 2026-09-01：87 → 88。87 那顆 archive 已搬進 ~/Library/Developer/Xcode/_已作廢的archive/1.5.3-87/
+    //   ⇒ 規則四不重用號。88 的載貨＝87 ＋ 桌面小工具 4x4 版面重整（分北上南下、五筆、每列
+    //   都有開車時刻與準點誤點、依卡片高度分配列高；鎖定畫面與各尺寸最小字級提高到 11pt）。
+    //   why 三語同時換成「只寫做了什麼」的短版體例（memory/release-notes-filter-by-user-value.md，
+    //   09-01 使用者裁示：「不用解釋由來，只需要敘述做了什麼更新」「不要一堆內心話」）。
+    //   逐項對「線上 1.5.2 (85) 的 index.html」核過才留：新增的 data-cl 是 guestmerge／
+    //   signinfallback／tourpickcap／cartoretreat，另加 ambientlock 條目的 9/1 追加段。
+    //   🔴 cartoretreat 刻意不寫進 why：那條退路是**網站限定**（index.html 的
+    //   `if (APP_CFG.tiles)` 只給 App 建 Stadia 退路），App 使用者根本遇不到這個變化。
+    // 2026-09-01：88 → 89。88 的 archive 出得出來、六道閘門也全綠,但使用者當場裁示
+    //   再補兩件小工具的事再出 ⇒ 那顆載貨作廢,規則四不重用號。
+    //   89 的載貨＝88 ＋ (a) 好讀版(×1.5 字級)的三列也畫開車時刻——原本只有第一列有,
+    //   做得到是因為 stacked 版面把時刻疊到列底下自成一行,不跟終點站搶同一排欄位;
+    //   (b) 小工具設定新增「主要顯示發車時刻」(ConfigurationAppIntent.clockFirst),
+    //   起因是網友反應「希望火車的小工具顯示的是到站／出發時間而不是還有幾分鐘到」。
+    //   🔴 (b) 畫的是 effectiveTime(誤點修正後的實際時刻)而不是表定時刻,而且【不】標
+    //      「表定」——那個標記只屬於 >90 分鐘自動退化的 .scheduled。兩者共用一個
+    //      RailCountdown case 會讓偏好設定去偷用降級狀態的樣式,所以另開了 .clock。
+    // 90（2026-09-02）：89 的載貨停在 v0901h，已被 origin/main 追過（轉乘接續／擁擠度／看板加寬
+    //   都在正式站 v0902a 上了），89 依規則四作廢不重用號。90 的載貨＝v0902b。
+    //   marketing 從 1.5.3 進到 1.5.4：Android 31 已經帶著 1.5.3 上 Play，1.5.3→1.5.3 不會跳
+    //   App 內「更新了什麼」（appUpdateState 比的是行銷版號），兩台要一起進位才不會有人看不到。
+    // 91（2026-09-03）：iOS 1.5.3 (89) 已於 09-02 07:20Z 上架 ⇒ why 只寫 89 之後的事；90 從未上傳、
+//   載貨已被 main e0f99b41 追過（小工具七尺寸／方向可取消／配樂選單／誤點標放大），規則四不重用號。
+//   Android 同輪 32→33（31 已在 Play，why 多列小工具七尺寸那一條）。
+    // 92（2026-09-03）：91 從未上傳。91 的配樂情境池「點了沒反應」——正式站當時還停在 v0902c
+    //   （_pass/ 曲目與 data/music.json 都 404），而原生 AVPlayer 對串流載入失敗零回報，JS 那套
+    //   「跳下一首、連錯三次退回內建曲」從沒被觸發。92 的載貨＝v0903a：原生回報 readyToPlay/failed、
+    //   曲庫改走資料新鮮度機制（新歌池不必再送審）、三個新歌池（山霧支線／午夜城市／晨曦初班）。
+    //   why 沿用 91 的 1.5.4 文案（情境選單那條已涵蓋）。規則四不重用號。
+    marketing: '1.5.4', build: '92', music: true, metroCore: true,
+    why: '軌島 1.5.4\n\n・快到轉乘站時，卡片會列出對向系統最近兩班與你到站時還剩幾分，可以釘住其中一班\n・跟台北捷運的車時，卡片會顯示這一台車每一節車廂的擁擠度\n・音樂鈕旁多了「情境」選單，配樂會跟著你在看的那班車與當下時段換，也可以自己挑\n・桌面小工具的方向與目的站多了「不指定」，選過也能改回來；捷運看板的方向只列所選車站開得到的終點\n・車站看板的誤點標示放大加粗',
+    whyEn: 'Rail Island 1.5.4\n\n• Near a transfer station, see the next two connecting departures and your minutes to spare; tap to pin one\n• Following a Taipei Metro train shows how crowded each carriage is\n• Scene menu by the music button: music follows the train you watch and the time of day, or pick a scene\n• Widget direction and destination offer "Any" so a choice can be undone; the metro board lists only directions from the chosen station\n• Bigger delay tags on station boards',
+    whyJa: '軌島 1.5.4\n\n・乗り換え駅に近づくと、対向システムの直近 2 本と、到着時点で残り何分かを表示。1 本を固定できます\n・台北メトロの列車を追跡中、車両ごとの混雑度を表示\n・音楽ボタンの横に「シーン」メニューを追加。見ている列車と時間帯に合わせて曲が変わり、自分で選ぶこともできます\n・ウィジェットの方向と目的地に「指定なし」を追加、選んだ後でも戻せます。メトロ発車標の方向は選んだ駅から行ける方面だけを表示\n・駅の発車標の遅延表示を大きく太くしました',
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
   // 軌島通行證客端功能、雲端同步與伺服器付費牆。這顆不可選去正式送審；正式版必須另推 build 號，

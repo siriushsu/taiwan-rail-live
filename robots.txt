@@ -1,0 +1,7 @@
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: *
+Allow: /
+
+Sitemap: https://railisland.tw/sitemap.xml

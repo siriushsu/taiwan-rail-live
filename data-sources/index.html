@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>軌島資料來源：台鐵、TDX、捷運與 OpenStreetMap</title>
+  <meta name="description" content="軌島整合台鐵 OpenData、交通部 TDX、各捷運營運機構公開資料與 OpenStreetMap；不同資料分別負責班表、即時校正、車站與軌道幾何。">
+  <meta name="robots" content="index,follow,max-image-preview:large">
+  <link rel="canonical" href="https://railisland.tw/data-sources/">
+  <meta property="og:locale" content="zh_TW">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="軌島 Rail Island">
+  <meta property="og:title" content="軌島資料來源：台鐵、TDX、捷運與 OpenStreetMap">
+  <meta property="og:description" content="軌島整合台鐵 OpenData、交通部 TDX、各捷運營運機構公開資料與 OpenStreetMap；不同資料分別負責班表、即時校正、車站與軌道幾何。">
+  <meta property="og:url" content="https://railisland.tw/data-sources/">
+  <meta property="og:image" content="https://railisland.tw/og-1200x630.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-180.png">
+  <meta name="theme-color" content="#F2EDE2">
+  <link rel="stylesheet" href="/assets/aeo.css">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"軌島資料來源：台鐵、TDX、捷運與 OpenStreetMap","description":"軌島整合台鐵 OpenData、交通部 TDX、各捷運營運機構公開資料與 OpenStreetMap；不同資料分別負責班表、即時校正、車站與軌道幾何。","url":"https://railisland.tw/data-sources/","inLanguage":"zh-Hant","dateModified":"2026-09-03","isPartOf":{"@type":"WebSite","name":"軌島 Rail Island","url":"https://railisland.tw/"}}</script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到主要內容</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="/" aria-label="軌島首頁"><span class="brand-mark" aria-hidden="true">軌</span><span>軌島 Rail Island</span></a>
+      <nav class="site-nav" aria-label="主要導覽">
+        <a href="/about/">關於</a>
+        <a href="/accuracy/">準確度</a>
+        <a href="/data-sources/">資料來源</a>
+        <a href="/stations/">車站索引</a>
+        <a class="nav-live" href="/">打開即時地圖</a>
+      </nav>
+    </div>
+  </header>
+  <main class="page-shell" id="main">
+    <nav class="breadcrumbs" aria-label="麵包屑"><ol><li><a href="/">首頁</a></li><li>軌島的資料從哪裡來？</li></ol></nav>
+    <section class="hero">
+      <p class="eyebrow">DATA PROVENANCE</p>
+      <h1>軌島的資料從哪裡來？</h1>
+      <p class="lede">軌島整合台鐵 OpenData、交通部 TDX、各捷運營運機構公開資料與 OpenStreetMap；不同資料分別負責班表、即時校正、車站與軌道幾何。</p>
+      <div class="hero-actions"><a class="button" href="/">打開即時地圖</a><a class="button secondary" href="/stations/">查車站資料</a></div>
+    </section>
+    <section class="content-section"><h2>主要來源與用途</h2><div class="fact-table">
+    <div class="fact-row"><div class="fact-label">台鐵 OpenData</div><div class="fact-value">每日時刻表、車站基本資料與車種代碼等穩定資料。</div></div>
+    <div class="fact-row"><div class="fact-label">交通部 TDX</div><div class="fact-value">台鐵即時誤點與車站資訊，以及高鐵、捷運、輕軌等系統的路線、站序、時刻表或班距資料，依政府資料開放授權條款第1版使用。<a href="https://motc-ptx.gitbook.io/tdx-xin-shou-zhi-yin/api-shi-yong-shuo-ming/zi-liao-shi-yong-chang-jian-wen-ti"><img src="/assets/tdx-logo.svg" alt="TDX 運輸資料流通服務標章 / Transport Data eXchange" width="184" height="34" style="display:block;max-width:100%;height:auto;margin-top:8px"></a></div></div>
+    <div class="fact-row"><div class="fact-label">營運機構資料</div><div class="fact-value">在授權與技術條件允許時，使用各營運機構的到站倒數、列車動態或營運公告校正畫面。</div></div>
+    <div class="fact-row"><div class="fact-label">OpenStreetMap</div><div class="fact-value">補足部分軌道幾何；資料來自 OpenStreetMap 貢獻者並依 ODbL 使用。</div></div>
+    <div class="fact-row"><div class="fact-label">地圖圖磚</div><div class="fact-value">網站街道圖使用 OpenFreeMap，衛星影像使用 Esri World Imagery；App 的 OpenFreeMap 載入失敗時改用 Stadia Maps。實際授權標示會顯示在地圖上。</div></div>
+  </div></section>
+  <section class="content-section"><h2>為什麼不只用一個 API</h2><div class="answer-box"><p>班表、站點、路線幾何、逐車狀態與營運公告通常分散在不同來源，而且每個鐵道系統公開的欄位不同。軌島保留來源差異：有即時訊號就校正，只有班表就明確當作推演，不用一種資料精度冒充所有系統。</p></div></section>
+  <section class="content-section"><h2>更新與可追溯性</h2><div class="card-grid">
+    <article class="card"><h3>資料狀態</h3><p>查看網站目前能否連上各項上游資料。</p><a class="card-link" href="/status.html">開啟狀態頁 →</a></article>
+    <article class="card"><h3>公開原始碼</h3><p>資料管線與前端呈現方式都能在 GitHub 查閱。</p><a class="card-link" href="https://github.com/siriushsu/taiwan-rail-live">查看 GitHub →</a></article>
+    <article class="card"><h3>解讀限制</h3><p>了解「即時」、「官方到站校正」與「班表推演」之間的差異。</p><a class="card-link" href="/accuracy/">準確度說明 →</a></article>
+  </div></section>
+  </main>
+<footer class="site-footer">
+    <div class="site-footer-inner">
+      <div>軌島是獨立維護、原始碼公開可查的台灣鐵道即時動畫地圖，與各營運機構無關。</div>
+      <div class="footer-links"><a href="/accuracy/">準確度與限制</a><a href="/data-sources/">資料來源</a><a href="https://github.com/siriushsu/taiwan-rail-live">GitHub 原始碼</a></div>
+    </div>
+  </footer>
+</body>
+</html>

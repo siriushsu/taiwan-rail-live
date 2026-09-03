@@ -34,6 +34,7 @@ export const GEOMETRY_SOURCE = {
   'data/crossings.json': 'TRA-ODS',
   'data/krtc.json': 'TDX',
   'data/krtc_times.json': null,
+  'data/music.json': null,                     // 配樂曲庫,不含座標
   'data/ntalrt.json': 'TDX',
   'data/ntalrt_times.json': null,
   'data/ntdlrt.json': 'TDX',

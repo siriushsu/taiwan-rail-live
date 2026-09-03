@@ -2,6 +2,9 @@ package tw.railisland.app;
 
 import android.content.Intent;
 import android.net.Uri;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.SystemClock;
 
 import androidx.annotation.Nullable;
 import androidx.media3.common.MediaItem;
@@ -25,9 +28,17 @@ public final class RailAudioService extends MediaSessionService {
     static final String ACTION_RESUME = "tw.railisland.app.audio.RESUME";
     static final String ACTION_PAUSE = "tw.railisland.app.audio.PAUSE";
     static final String ACTION_VOLUME = "tw.railisland.app.audio.VOLUME";
+    static final String ACTION_AMBIENCE = "tw.railisland.app.audio.AMBIENCE";
     static final String EVENT = "tw.railisland.app.audio.EVENT";
     private ExoPlayer player;
     private MediaSession mediaSession;
+    // 車聲圖層(2026-09-03):第二個 ExoPlayer 單檔循環,不掛進 MediaSession(通知與鎖屏仍只顯示配樂),
+    // 不搶 audio focus(Builder 預設不處理 focus,與主播放器同)。淡入淡出用 Handler 每 50ms 走一步。
+    private ExoPlayer amb;
+    private String ambSrc = "";
+    private boolean ambOn;
+    private int ambGen;
+    private final Handler ambHandler = new Handler(Looper.getMainLooper());
 
     @Override public void onCreate() {
         super.onCreate();
@@ -90,6 +101,48 @@ public final class RailAudioService extends MediaSessionService {
         } else if (ACTION_PAUSE.equals(action)) player.pause();
         else if (ACTION_VOLUME.equals(action)) player.setVolume(
             Math.max(0f, Math.min(1f, intent.getFloatExtra("volume", 0.5f))));
+        else if (ACTION_AMBIENCE.equals(action)) ambience(intent.getBooleanExtra("on", false),
+            intent.getStringExtra("src"), intent.getFloatExtra("gain", 0.5f));
+    }
+
+    private void ambience(boolean on, String src, float gain) {
+        if (on) {
+            if (src == null || src.isEmpty()) return;
+            if (amb == null) {
+                amb = new ExoPlayer.Builder(this).build();
+                amb.setRepeatMode(Player.REPEAT_MODE_ONE);
+            }
+            if (!src.equals(ambSrc)) {
+                ambSrc = src;
+                amb.setMediaItem(MediaItem.fromUri(Uri.parse("asset:///public/" + Uri.encode(src, "/"))));
+                amb.setVolume(0f);
+                amb.prepare();
+            }
+            ambOn = true;
+            if (!amb.isPlaying()) amb.play();
+            ambFadeTo(Math.max(0f, Math.min(1f, gain)), false);
+        } else {
+            ambOn = false;
+            if (amb == null || !amb.isPlaying()) return;
+            ambFadeTo(0f, true);
+        }
+    }
+
+    private void ambFadeTo(final float target, final boolean pauseAtEnd) {
+        final int gen = ++ambGen;
+        final float from = amb.getVolume();
+        final long t0 = SystemClock.uptimeMillis();
+        final long dur = 1200;
+        ambHandler.removeCallbacksAndMessages(null);
+        ambHandler.post(new Runnable() {
+            @Override public void run() {
+                if (gen != ambGen || amb == null) return;
+                float k = Math.min(1f, (SystemClock.uptimeMillis() - t0) / (float) dur);
+                amb.setVolume(from + (target - from) * k);
+                if (k < 1f) ambHandler.postDelayed(this, 50);
+                else if (pauseAtEnd && !ambOn) amb.pause();
+            }
+        });
     }
 
     private void event(String type, boolean playing, int index) {
@@ -100,6 +153,8 @@ public final class RailAudioService extends MediaSessionService {
     @Override public void onDestroy() {
         if (mediaSession != null) mediaSession.release();
         if (player != null) player.release();
+        ambHandler.removeCallbacksAndMessages(null);
+        if (amb != null) amb.release();
         super.onDestroy();
     }
 }

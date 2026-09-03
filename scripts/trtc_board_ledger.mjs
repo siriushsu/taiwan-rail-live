@@ -29,6 +29,16 @@ export const TRTC_LEDGER_SCHEMA = [
   )`,
   `CREATE INDEX IF NOT EXISTS trtc_events_day_track_epoch
      ON trtc_events(day, train_key, epoch)`,
+  // 2026-09-03 帳單止血(memory: cloudflare-d1-ledger-rows-read-cost):trtcLedgerContext 的歷史查詢
+  // (day=? AND kind='arr' AND state<>'forecast' ORDER BY epoch DESC LIMIT 4000)原本只吃得到 day 前綴,
+  // 每次讀整天 ~39k 列再 temp b-tree 排序,一天跑 ~28k 次(cron＋每個 colo 每 15 秒的 trtc-live miss)
+  // ＝ 帳本 D1 讀量的 78%;(day,kind,epoch) 讓它倒著走索引、LIMIT 一到就停 ⇒ 每次 4,000 列。
+  `CREATE INDEX IF NOT EXISTS trtc_events_day_kind_epoch
+     ON trtc_events(day, kind, epoch)`,
+  // persistTrtcLedger 每分鐘的 UPDATE … WHERE state='forecast' AND epoch<=? 沒有 day 條件,原本全表掃
+  // ~310k 列(19%);同時存在的 forecast 列只有二十幾列,partial index 讓它只碰那幾列。
+  `CREATE INDEX IF NOT EXISTS trtc_events_forecast_epoch
+     ON trtc_events(epoch) WHERE state='forecast'`,
   `CREATE TABLE IF NOT EXISTS trtc_tracks (
     day TEXT NOT NULL, track_id TEXT NOT NULL,
     line TEXT NOT NULL, dir INTEGER NOT NULL,
@@ -40,6 +50,10 @@ export const TRTC_LEDGER_SCHEMA = [
   )`,
   `CREATE INDEX IF NOT EXISTS trtc_tracks_day_line_dir
      ON trtc_tracks(day, line, dir, last_seen_epoch)`,
+  // trtcLedgerContext／trtcLedgerMaterialized 的 day=? AND last_seen_epoch>=? 原本也只吃到 day 前綴
+  // (整天 ~3k 列),這條讓它只讀最近 15–30 分鐘還活著的 tracks。
+  `CREATE INDEX IF NOT EXISTS trtc_tracks_day_seen
+     ON trtc_tracks(day, last_seen_epoch)`,
   `CREATE TABLE IF NOT EXISTS trtc_track_aliases (
     day TEXT NOT NULL, alias_type TEXT NOT NULL CHECK(alias_type IN ('hw_no','br_cn1')),
     alias TEXT NOT NULL, track_id TEXT NOT NULL,

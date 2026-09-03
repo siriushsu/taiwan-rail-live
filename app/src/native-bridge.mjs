@@ -66,6 +66,7 @@ if (native) {
       resume: () => RailAudio.resume(),
       pause: () => RailAudio.pause(),
       setVolume: v => RailAudio.setVolume({ v }),
+      setAmbience: p => RailAudio.setAmbience(p),   // 車聲圖層:{ on, src, gain }
       addListener: (ev, cb) => RailAudio.addListener(ev, cb),
     };
   }

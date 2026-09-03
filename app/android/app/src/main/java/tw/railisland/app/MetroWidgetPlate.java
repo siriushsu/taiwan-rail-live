@@ -298,7 +298,8 @@ final class MetroWidgetPlate {
         return boardMinuteText(minutes, approx, ZH);
     }
 
-    private static String boardMinuteText(Integer minutes, boolean approx, Texts tx) {
+    /** 夜行看板與 4×4 清單共用的分鐘文字(整數;eta2 推導列帶「約」)。provider 的 4×4 從班列也用這一支。 */
+    static String boardMinuteText(Integer minutes, boolean approx, Texts tx) {
         return minutes == null ? null : minuteText(minutes, approx, tx);
     }
 

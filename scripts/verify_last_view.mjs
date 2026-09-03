@@ -2,14 +2,14 @@
 // 本腳本未參與實作,以下是我從 index.html 原始碼讀出的關鍵事實(供本腳本判準依據,寫在這裡以免只留在回報裡):
 //
 //   · localStorage key = 'trainmap-last-view' (index.html:9547 `const LAST_VIEW_KEY`)。
-//   · saveLastView()(9548-9563)守門序:!state.ready→不存;liveMode||director→不存(?live= 契約);
+//   · saveLastView()(9548-9563)守門序:!state.ready→不存;
 //     autoTour||_hotScene→不存(放空巡航/群車俯瞰);followTrain||freqFollow→不存(跟車)。
 //     全部通過才 GROUPS.find(state.group) 存在才寫 {g,lat,lon,z,sel},sel 依 g.mode 取 freqSel/schedSel/null。
 //     全檔僅 3 處呼叫點:toggleFreqMember/toggleSchedMember 顯式呼叫(勾選不移動地圖不發 moveend)+
 //     map.on('moveend', saveLastView) 註冊(9537,在開機還原用的 setView 之後才掛,故開機自身的還原動作不會誤存)。
 //   · loadLastView()(9565-9577)還原防呆:JSON.parse 例外→null;lat/lon 非 finite→null;
 //     群組 id 找不到→null;sel 只留在 g.members 內的項目。全包在 try/catch。
-//   · boot() 優先序(9497-9536):deepG/deepAt/deepTrain/deepTrip 任一有值,或 state.liveMode 為真
+//   · boot() 優先序(9497-9536):deepG/deepAt/deepTrain/deepTrip 任一有值
 //     →lastView 強制 null(9512),分享連結/跟車連結/行程連結/直播一律蓋過本機記憶。
 //     沒有深連結時才 loadLastView();bootGroup 預設 'all'(全台同框)。
 //   · GROUPS(4964-4977):all(全台同框,mode:all)/nat(國家鐵路,sched)/north(北北桃,freq,
@@ -294,27 +294,7 @@ if (FIX_TRIP) {
   await ctx.close();
 } else skip('C3 ?trip= 行程分享連結', '抓不到可用的行程分享車次(無剩餘停站的數字車次)');
 
-// ══════════════ D. 直播豁免(?live=1) ══════════════
-{
-  const seedStr = JSON.stringify({ g: 'north', lat: 24.99, lon: 121.30, z: 11, sel: ['mrt', 'tymc'] });
-  const { ctx, page } = await newPage(chromiumB, { seed: seedStr });
-  attach(page, 'D');
-  await gotoReady(page, '?live=1');
-  await page.waitForFunction(() => state.autoTour === true || state.ambient === true, null, { timeout: 15000 }).catch(() => {});
-  const group = await page.evaluate(() => state.group);
-  const raw1 = await rawLV(page);
-  const cz1 = await centerOf(page);
-  await page.waitForTimeout(4000);
-  const cz2 = await centerOf(page);
-  const raw2 = await rawLV(page);
-  ok('D1 live=1 不讀記憶,開場仍為 all(全台同框)', group === 'all', `實際=${group}`);
-  ok('D2 live=1 開場後 last-view 仍是原封不動的種子值', raw1 === seedStr, `實際=${raw1}`);
-  ok('D3 直播鏡頭確實自動移動了(巡航中)', moved(cz1, cz2), `移動前=${JSON.stringify(cz1)} 移動後=${JSON.stringify(cz2)}`);
-  ok('D4 巡航移動後 last-view 仍與種子值逐字相同(未被改寫)', raw2 === seedStr, `巡航前=${raw1} 巡航後=${raw2}`);
-  await ctx.close();
-}
-
-// ══════════════ E. 巡航豁免(非直播,放空模式) ══════════════
+// ══════════════ E. 巡航豁免(放空模式) ══════════════
 {
   const { ctx, page } = await newPage(chromiumB);
   attach(page, 'E');

@@ -126,6 +126,17 @@ try {
   if (budget.status !== 0) fail('北捷呼叫量閘門未過——營運窗閘門或 CarWeight 節流被改掉了'
     + '（單獨重跑：node scripts/verify_trtc_call_budget.mjs）');
 
+  // ── 2.10 OBS 直播／導播模式守門人 ───────────────────────────────────────────
+  // 2026-09-03 刪掉 ?live=1／?live=2 之後補的。守的是「刪掉的東西不會被某條舊分支的合併
+  // 靜默帶回來」——這個 repo 的合併吃掉／帶回東西從來不會讓 build 紅（見 app/scripts/
+  // verify_no_ship_regression.mjs 檔頭那次事故）。G1 靜態 grep 兩個 HTML、G2 帶 ?live=1 開機
+  // 不得有 OBS 痕跡且零 pageerror、G3 正向對照（同名的 LIVE 徽章家族必須還在，否則把整包
+  // 叫 live 的東西砍掉也會全綠）。/api 走正式站，約 1 分鐘。
+  const obs = spawnSync('node', [path.join(wt, 'scripts', 'verify_obs_removed.mjs')], { encoding: 'utf8' });
+  process.stdout.write(obs.stdout || ''); process.stderr.write(obs.stderr || '');
+  if (obs.status !== 0) fail('OBS 直播／導播守門人未過——被刪掉的 ?live 機制回來了，或 LIVE 徽章家族被誤刪'
+    + '（單獨重跑：npm run check-obs-removed）');
+
   // ── 3. strip（腳本內建 esbuild AST 重印等價證明，任何不等價都非零退出）────
   const rawBytes = fs.readFileSync(path.join(wt, 'index.html'));
   execFileSync('node', [path.join(wt, 'scripts', 'strip_ship_comments.mjs'), wt], { stdio: 'inherit' });

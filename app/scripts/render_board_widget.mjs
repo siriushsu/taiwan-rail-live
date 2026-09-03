@@ -105,6 +105,8 @@ const pieces = [
   extractDeclaration(widgetSource, 'struct SmallSecondRow'),
   extractDeclaration(widgetSource, 'struct MediumBoardView'),
   extractDeclaration(widgetSource, 'struct LargeBoardView'),
+  // 4x4 的方向區段標頭（2026-09-01 設計稿）。抽不到就會編不起來，那正是我們要的訊號。
+  extractDeclaration(widgetSource, 'struct BoardDirectionHeader'),
   extractDeclaration(widgetSource, 'struct BoardRowView'),
   extractDeclaration(widgetSource, 'struct RectangularBoardView'),
   extractDeclaration(widgetSource, 'struct SmallPlaceBoardView'),
@@ -757,6 +759,29 @@ struct Harness {
                family: .systemLarge, width: 364, height: 382, to: out + "/board-large-far.png")
         render(LargeBoardView(snapshot: emptyBoard, entryDate: clockNow),
                family: .systemLarge, width: 364, height: 382, to: out + "/board-large-empty.png")
+
+        // 「主要顯示發車時刻」（2026-09-01 使用者裁示：讓使用者自己選倒數還是時刻）。
+        // 同一組樣本、同一組 View,只換 clockFirst ⇒ 兩張圖的差異就是這個設定的全部效果。
+        render(LargeBoardView(snapshot: fullBoard, entryDate: clockNow, clockFirst: true),
+               family: .systemLarge, width: 364, height: 382,
+               to: out + "/board-large-clockfirst.png")
+        render(LargeBoardView(snapshot: fullBoard, entryDate: clockNow, clockFirst: true),
+               family: .systemLarge, width: 364, height: 382, readable: true,
+               to: out + "/board-large-clockfirst-readable.png")
+        render(MediumBoardView(snapshot: fullBoard, entryDate: clockNow, clockFirst: true),
+               family: .systemMedium, width: 364, height: 170,
+               to: out + "/board-medium-clockfirst.png")
+        render(SmallBoardView(snapshot: taipeiWatch, entryDate: clockNow, clockFirst: true),
+               family: .systemSmall, width: 170, height: 170,
+               to: out + "/board-small-clockfirst.png")
+        // 最窄欄 × 最大字：時刻五個字元＋好讀版 24pt 放進 72pt 的次列欄，是 .clock 的最壞情形。
+        // 🔴 .clock 用 fixedSize()，SwiftUI 不會截字而是直接畫到隔壁欄上面 ⇒ 溢出看得見。
+        render(SmallBoardView(snapshot: taipeiWatch, entryDate: clockNow, clockFirst: true),
+               family: .systemSmall, width: 170, height: 170, readable: true,
+               to: out + "/board-small-clockfirst-readable.png")
+        render(MediumBoardView(snapshot: fullBoard, entryDate: clockNow, clockFirst: true),
+               family: .systemMedium, width: 338, height: 158, readable: true,
+               to: out + "/board-medium-clockfirst-readable-worst.png")
 
         // 鎖屏：家族自己就是單色，且沒有內容邊距。
         render(RectangularBoardView(snapshot: taipeiWatch, entryDate: clockNow),

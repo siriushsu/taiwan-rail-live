@@ -65,5 +65,16 @@ public final class RailAudioPlugin extends Plugin {
             .putExtra("volume", call.getDouble("v", 0.5).floatValue())); ok(call);
     }
 
+    /** 車聲圖層:{ on, src, gain }。背景中(App 不在前景且 service 沒升前景)startService 會丟
+     *  IllegalStateException——車聲不值得為此崩潰,吞掉即可,回前景 JS 會重送現況。 */
+    @PluginMethod public void setAmbience(PluginCall call) {
+        Intent intent = new Intent(getContext(), RailAudioService.class).setAction(RailAudioService.ACTION_AMBIENCE)
+            .putExtra("on", Boolean.TRUE.equals(call.getBoolean("on", false)))
+            .putExtra("src", call.getString("src", ""))
+            .putExtra("gain", call.getDouble("gain", 0.5).floatValue());
+        try { getContext().startService(intent); } catch (Exception ignored) {}
+        ok(call);
+    }
+
     private static void ok(PluginCall call) { JSObject out = new JSObject(); out.put("ok", true); call.resolve(out); }
 }

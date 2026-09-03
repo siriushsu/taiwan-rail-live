@@ -33,10 +33,18 @@ for (const [i, m] of depDecls.entries()) {
   const n = (m[1].match(/\\\.\$/g) || []).length;
   ok(`L2a-${i} 依賴只綁一個 keypath`, n === 1, `綁了 ${n} 個: ${m[1]}`);
 }
-// 2b. 本檔的設計約定:唯一的依賴在車站 provider 上、綁 \.$sys。方向 provider 不帶依賴是
-//     刻意保守(單一依賴的形狀在發車看板驗證過可行,但用在方向格需真機驗過才開,見下方註解)。
-ok('L2b 全檔恰一個依賴且綁 sys', depDecls.length === 1 && /\\\.\$sys\b/.test(depDecls[0]?.[1] ?? ''),
-   `找到 ${depDecls.length} 個: ${depDecls.map(m => m[1]).join(' | ')}`);
+// 2b. 本檔的設計約定(2026-09-02 起):恰兩個依賴——車站 provider 綁 \.$sys、方向 provider 綁
+//     \.$station(方向只列該站開得到的;原本「方向不帶依賴、列全系統終點」讓使用者選得到
+//     跨系統／跨線的方向,選完看板永遠空白——使用者回報後改掉)。
+const depKeys = depDecls.map(m => m[1].trim());
+ok('L2b 全檔恰兩個依賴:sys 與 station', depDecls.length === 2
+   && depKeys.some(k => /\\\.\$sys\b/.test(k)) && depKeys.some(k => /\\\.\$station\b/.test(k)),
+   `找到 ${depDecls.length} 個: ${depKeys.join(' | ')}`);
+// 2c. 方向格要有「不指定」哨兵,而且真的放進清單(單選 picker 選過就清不掉,這是唯一的出路)。
+ok('L2c 方向格有「不指定」哨兵常數', /static let anyDirection\s*=\s*"any"/.test(code));
+ok('L2d 方向清單把哨兵放進 IntentItem', /IntentItem<String>\(MetroBoardIntent\.anyDirection/.test(code));
+ok('L2e 哨兵由 direction(_:) 收成 nil', /static func direction\(_ raw: String\?\) -> String\?/.test(code)
+   && /raw != anyDirection else \{ return nil \}/.test(code));
 
 // 3. 沒宣告在依賴裡的參數不准讀(讀了當場 fatalError,出貨檔 AppIntent.swift:196-198 實測)
 //    抽出每個 OptionsProvider 的大括號區塊,比對它宣告的依賴 keyPath 與它讀到的 intent 欄位。

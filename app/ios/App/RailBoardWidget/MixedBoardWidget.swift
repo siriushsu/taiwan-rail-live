@@ -15,8 +15,19 @@ struct MixedBoardIntent: AppIntent, WidgetConfigurationIntent {
     @Parameter(title: "捷運站", optionsProvider: MixedMetroStationOptionsProvider())
     var metroStation: String?
 
-    @Parameter(title: "捷運方向（可留空）", optionsProvider: MetroDirectionOptionsProvider())
+    @Parameter(title: "捷運方向（可留空）", optionsProvider: MixedMetroDirectionOptionsProvider())
     var metroDirection: String?
+}
+
+/// 與捷運看板的 MetroDirectionOptionsProvider 同一份清單,只是依賴綁在這個 Intent 的 metroStation。
+/// 不能直接沿用那一個:它的依賴宣告在 MetroBoardIntent 上,放進這裡永遠拿到 nil ⇒ 永遠列全部。
+struct MixedMetroDirectionOptionsProvider: DynamicOptionsProvider {
+    @IntentParameterDependency<MixedBoardIntent>(\.$metroStation)
+    var intent
+
+    func results() async throws -> ItemCollection<String> {
+        MetroDirectionOptions.collection(stationKey: intent?.metroStation)
+    }
 }
 
 /// 混合卡把系統 id 收在車站值裡（sys|station），所以不需要另一格系統參數或依賴。
