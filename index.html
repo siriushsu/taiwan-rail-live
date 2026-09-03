@@ -21,6 +21,39 @@
 <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png" />
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-180.png" />
 <link rel="manifest" href="/manifest.webmanifest" />
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://railisland.tw/#website",
+      "url": "https://railisland.tw/",
+      "name": "軌島 Rail Island",
+      "alternateName": "軌島",
+      "description": "看台鐵此刻準點嗎、捷運怎麼穿梭全台，一張會動的台灣鐵道地圖。",
+      "inLanguage": "zh-Hant"
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://railisland.tw/#app",
+      "name": "軌島 Rail Island",
+      "url": "https://railisland.tw/",
+      "description": "依官方時刻表與可用即時資料，呈現台灣台鐵、高鐵、捷運、輕軌與阿里山林鐵列車的動畫地圖。",
+      "applicationCategory": "TravelApplication",
+      "operatingSystem": "Web",
+      "isAccessibleForFree": true,
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "TWD"
+      },
+      "isPartOf": { "@id": "https://railisland.tw/#website" },
+      "sameAs": "https://github.com/siriushsu/taiwan-rail-live"
+    }
+  ]
+}
+</script>
 <meta name="theme-color" content="#F2EDE2" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -3241,6 +3274,15 @@
     /* 更新紀錄第一層只有八條,不該再套 44vh 內捲(那上限是給舊版 166 條清單的);
        長清單已經住進 .foot-more,那層仍受上面的 44vh 節制。 */
     #msAbout .foot-recent { max-height: none; overflow: visible; }
+    .ms-aeo-links {
+      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;
+      padding: 10px 14px 4px;
+    }
+    .ms-aeo-links a {
+      min-height: 44px; display: flex; align-items: center; justify-content: center;
+      border: 1px solid var(--line); border-radius: 8px; color: var(--navy); background: var(--paper);
+      font-size: calc(12.5px * var(--ui)); font-weight: 700; line-height: 1.25; text-align: center; text-decoration: none;
+    }
     .ms-about-links { display: flex; align-items: center; gap: 14px; padding: 8px 14px 4px; font-size: calc(13px * var(--ui)); }
     .ms-about-links a { color: var(--navy); text-decoration: none; }
     .ms-about-links .ver { margin-left: auto; font-size: calc(11px * var(--uis)); color: var(--faint); font-weight: 600; letter-spacing: .5px; }
@@ -4441,7 +4483,7 @@
     /* 桌面已有本體的列不重複也不搶:全日走勢(點列會把 #flowWrap 搬進抽屜、頁面上那張就不見了)、
        縣市下拉(header 常駐)、關於段(placeFootBoxes 桌面把四個盒子搬回頁尾,這裡是空的) */
     .ms-row[data-act="flow"], .ms-row[data-act="cities"], #msCities,
-    #msAboutSec, #msAbout, .ms-about-links { display: none !important; }
+    #msAboutSec, #msAbout, .ms-aeo-links, .ms-about-links { display: none !important; }
     .alert-banner, .alert-detail, .upd-banner, .xing-card, .board { right: 64px; }
     /* 音樂控制收合:帶內常駐只留 #musicBtn(♪ 音樂),#musicNextBtn＋#musicVol 移進 hover/focus 彈出面板 */
     #musicCtl { position: relative; }
@@ -5013,6 +5055,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="aeo"><span class="d">9/3</span><span>軌島新增可被搜尋與 AI 引用的網站說明：準確度、資料來源、車站轉乘與 20 個常查車站都有獨立頁面</span></li>
         <li data-cl-of="railsound"><span class="d">9/3</span><span>App 版配樂情境多了「車聲」開關：跟車時車一動就有鐵軌聲，停站淡出；放空模式一直放。</span></li>
         <li data-cl-of="rideseq"><span class="d">9/3</span><span>完乘記錄多了「順序」排法，照你實際跟完的先後排、最早那趟在最上面；手機的旅程護照也補上排序鈕（謝謝網友回報）</span></li>
         <li data-cl-of="crowdfallback"><span class="d">9/3</span><span>捷運列車的車廂擁擠度不會再整批消失一輪：官方擁擠度偶爾抓不到時改用剛才那一份，最多兩分鐘，超過就留白（謝謝網友回報）</span></li>
@@ -5020,7 +5063,6 @@
         <li data-cl-of="webmcp"><span class="d">9/2</span><span>ChatGPT 在內建瀏覽器打開軌島時，現在能直接查目前畫面、搜尋車站、讀車站看板與營運公告，也能替你開啟車站看板或跟隨指定火車；一般瀏覽器不受影響</span></li>
         <li data-cl-of="crowdcard"><span class="d">9/2</span><span>跟捷運列車時，卡片上會顯示這一台車每一節車廂的擁擠度</span></li>
         <li data-cl-of="boardwide"><span class="d">9/2</span><span>桌面的車站看板加寬，車種與「往哪」不會再被截掉</span></li>
-        <li data-cl-of="latetagbig"><span class="d">9/1</span><span>車站看板的誤點標示放大加粗，一眼就看得出這班晚了幾分（謝謝網友回報）</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5028,6 +5070,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="aeo"><span class="d">9/3</span><span>軌島補上完整的 AEO／搜尋內容層：新增 robots.txt 與 sitemap，明確開放搜尋引擎與 OAI-SearchBot；首頁加入網站與應用程式結構化資料；另做成不靠 JavaScript 也能讀取的關於、準確度、資料來源、車站索引，以及 20 個常查車站資料頁。車站頁會分清台鐵與高鐵的同名異站、列出實際收錄系統與路線，並說明即時與推估的界線；當下班次仍回即時地圖查，避免搜尋結果引用過期發車時間。</span></li>
         <li data-cl="attrib-oneline"><span class="d">8/30</span><span>手機地圖右下角的版權資訊不會再折成一大塊蓋住速度調整鈕：改成貼著底緣一整條、放不下的部分橫向可捲，授權連結一個都沒少，仍然看得到也點得到。切到衛星影像時字串較長（Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics），系統字級放大後原本會折成四行，是最嚴重的一種；左下角有跟車卡或捷運小卡時，版權列會讓出左側，讓位量從卡片自己的寬度推導（謝謝網友回報）</span></li>
         <li data-cl="whatsnew-lang"><span class="d">8/30</span><span>更新完跳出的「更新了什麼」現在會用你正在使用的語言：英文與日文各有整段自己的文案，不會再看到標著「中文原文」的中文說明。那個「中文原文」標籤是給只有中文的營運單位公告用的，App 自己的更新說明本來就翻得了</span></li>
         <li data-cl="metrosamename"><span class="d">8/21</span><span>捷運站看板原本只用站名找路線，沒有同時確認所屬系統，因此台北捷運與台中捷運都有的「市政府」會被誤認成同一站，混入另一座城市的路線與班次。現在從搜尋、地圖點擊、活動與最愛開站都會保留車站所屬系統；舊收藏若沒有這項資料，也會依車站座標找到正確系統。所有跨系統同名站都套用同一項修正</span></li>
@@ -5306,6 +5349,9 @@
     </details>
     <div class="foot-links">
       <a class="help-open" href="#" role="button">使用說明</a>
+      <a href="about/">關於軌島</a>
+      <a href="accuracy/">準確度說明</a>
+      <a href="stations/">車站索引</a>
       <a class="report-open" href="https://github.com/siriushsu/taiwan-rail-live/issues/new" target="_blank" rel="noopener noreferrer">回報問題或建議</a>
       <a href="https://github.com/siriushsu/taiwan-rail-live" target="_blank" rel="noopener noreferrer">原始碼公開，歡迎貢獻</a>
       <span class="ver" id="buildVer"></span>
@@ -5636,6 +5682,11 @@
     <button class="ms-row" data-act="rate" data-close="1" style="display:none"><span class="rate-cta">給軌島評分</span><span class="chev">›</span></button>
     <div class="ms-sec" id="msAboutSec">關於</div>
     <div class="ms-about" id="msAbout"></div>
+    <nav class="ms-aeo-links" aria-label="網站說明">
+      <a href="about/">關於軌島</a>
+      <a href="accuracy/">準確度說明</a>
+      <a href="stations/">車站索引</a>
+    </nav>
     <div class="ms-about-links">
       <a class="help-open" href="#" role="button">使用說明</a>
       <a class="report-open" href="https://github.com/siriushsu/taiwan-rail-live/issues/new" target="_blank" rel="noopener noreferrer">回報問題或建議</a>
@@ -5808,7 +5859,8 @@
 //         USAGE(blob1='ofmfail')。使用者 09-03 裁示「先量頻率」。地圖行為零變更;守門人:scripts/verify_ofm_fallback_beacon.mjs。
 // v0903g：把 claude/map-stadia-revert-xvjirk(上面 v0903e 那段的退場埋點＋check-basemap 守門人重寫:網站 OFM 失效只提示不掛 raster)
 //         併回 main。e 與 f 都撞號(e 另有 5122754e、f 是 371e4105 車聲圖層),改取 g(逐 ref＋逐樹掃過無人佔用)。地圖行為零變更。
-const BUILD = 'v0903g';
+// v0903h：新增 AEO 靜態內容層、robots/sitemap、首頁結構化資料與 20 個常查車站頁；地圖行為零變更。
+const BUILD = 'v0903h';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';

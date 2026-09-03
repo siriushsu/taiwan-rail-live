@@ -3,6 +3,9 @@
   window.RAIL_I18N_MESSAGES = {
     en: {
       '軌島': 'Rail Island',
+      '關於軌島': 'About Rail Island',
+      '準確度說明': 'Accuracy & limitations',
+      '車站索引': 'Station index',
       '軌島 railisland.tw。看台鐵此刻準點嗎、捷運怎麼穿梭全台，一張會動的台灣鐵道地圖。': 'Rail Island is a live animated map of Taiwan’s railways, from TRA and high-speed rail to metro and light rail.',
       '台灣鐵道即時軌跡': 'Taiwan Rail Live',
       '台灣高鐵即時軌跡': 'Taiwan High Speed Rail Live',
@@ -188,6 +191,8 @@
         'Completed trips can now be sorted in the order you actually finished them, oldest first — and the Journey Passport on phones finally has the sort buttons too.',
       '桌面的車站看板加寬，車種與「往哪」不會再被截掉':
         'The desktop station board is wider, so the train type and destination are no longer cut off.',
+      '軌島新增可被搜尋與 AI 引用的網站說明：準確度、資料來源、車站轉乘與 20 個常查車站都有獨立頁面':
+        'Rail Island now has search- and AI-readable guides to accuracy, data sources, transfers and 20 commonly searched stations.',
       '快到轉乘站時，直接列出對向系統最近兩班和「你到站時還剩幾分」，可以釘住你要搭的那班':
         "Near a transfer station, the card lists the next two departures on the connecting system and how many minutes you'll have left when you arrive — tap one to pin it.",
       'ChatGPT 在內建瀏覽器打開軌島時，現在能直接查目前畫面、搜尋車站、讀車站看板與營運公告，也能替你開啟車站看板或跟隨指定火車；一般瀏覽器不受影響':
@@ -424,6 +429,7 @@
     },
     ja: {
       '軌島': '軌島', '軌島 railisland.tw。看台鐵此刻準點嗎、捷運怎麼穿梭全台，一張會動的台灣鐵道地圖。': '軌島は、台湾鉄路・高速鉄道・各都市のメトロとライトレールを一枚の地図で表示する鉄道アニメーションです。', '台灣鐵道即時軌跡': '台湾鉄道ライブ', '台灣高鐵即時軌跡': '台湾高速鉄道ライブ',
+      '關於軌島': '軌島について', '準確度說明': '精度と制約', '車站索引': '駅索引',
       '全台同框': '台湾全体', '台鐵': '台湾鉄路', '高鐵': '台湾高速鉄道', '阿里山林鐵': '阿里山森林鉄道',
       '捷運與輕軌': 'メトロ・ライトレール', '台北捷運': '台北メトロ', '桃園機捷': '桃園空港MRT',
       '淡海輕軌': '淡海ライトレール', '安坑輕軌': '安坑ライトレール', '三鶯線': '三鶯線',
@@ -562,6 +568,8 @@
         '完乗記録に「完乗順」を追加。実際に乗り終えた順に、いちばん古い1本が先頭に並びます。スマホの旅のパスポートにも並べ替えボタンを用意しました。',
       '桌面的車站看板加寬，車種與「往哪」不會再被截掉':
         'デスクトップの駅発車案内を広げ、列車種別と行き先が途中で切れなくなりました。',
+      '軌島新增可被搜尋與 AI 引用的網站說明：準確度、資料來源、車站轉乘與 20 個常查車站都有獨立頁面':
+        '検索やAIから参照できる案内ページを追加しました。精度、データ出典、乗り換え、よく検索される20駅を個別に確認できます。',
       '快到轉乘站時，直接列出對向系統最近兩班和「你到站時還剩幾分」，可以釘住你要搭的那班':
         '乗り換え駅に近づくと、対向システムの直近2本の発車時刻と「到着時点で残り何分か」をカードに表示。1本をタップすると、その列車に固定できます。',
       'ChatGPT 在內建瀏覽器打開軌島時，現在能直接查目前畫面、搜尋車站、讀車站看板與營運公告，也能替你開啟車站看板或跟隨指定火車；一般瀏覽器不受影響':
