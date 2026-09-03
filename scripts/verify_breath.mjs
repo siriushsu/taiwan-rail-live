@@ -53,7 +53,7 @@ async function bootBreath(browser, { width = 1280, height = 800, touch = false, 
   page.on('pageerror', e => errors.push(String(e)));
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   await page.goto(`http://localhost:${PORT}/?breath=1`, { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready && map && state.mode === 'sched'; } catch (e) { return false; } }, null, { timeout: 30000 });
+  await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready && window.__map && state.mode === 'sched'; } catch (e) { return false; } }, null, { timeout: 30000 });
   await page.waitForTimeout(400);
   await page.evaluate(({ forceCity, bt, basemap }) => {
     state.ambientStyle = 'hotspot'; state.ambient = true; state.playing = true;
@@ -65,13 +65,13 @@ async function bootBreath(browser, { width = 1280, height = 800, touch = false, 
     }
     // 進場:比照 hotspotTick 換幕(設旗標→scale 歸 1→setView 一次到 z13 錨點),之後 app 的 tick 迴圈由 hotCruise 逐幀縮放
     state._hotScene = sc; state._hotFresh = false; state._hotNext = performance.now() + 9e8;
-    state._hotCam = true; breathStage(); breathScale(1); map.setView([sc.lat, sc.lon], sc.z, { animate: false }); state._hotCam = false;
+    state._hotCam = true; breathStage(); breathScale(1); window.__map.setView([sc.lat, sc.lon], sc.z, { animate: false }); state._hotCam = false;
     sc.bt = bt;
   }, { forceCity, bt, basemap });
   // 等進場穩定:_breathStage、固定整數 z13、CSS scale 已被 hotCruise 施加(computed transform 非 none)
   await page.waitForFunction(() => {
     try {
-      if (!(state._breathStage && map.getZoom() === 13)) return false;
+      if (!(state._breathStage && window.__map.getZoom() === 13)) return false;
       const t = getComputedStyle(document.getElementById('map')).transform;
       return t && t !== 'none';
     } catch (e) { return false; }
@@ -87,6 +87,7 @@ async function bootBreath(browser, { width = 1280, height = 800, touch = false, 
 // 呼吸只動 CSS scale ⇒ GL move 該恆 0(render 只印不判:圖磚補載完成也會重繪一次,不是回歸)。
 async function sampleScales(page, N = 90) {
   return page.evaluate((N) => new Promise(resolve => {
+    const map = window.__map;
     const mEl = document.getElementById('map'), oEl = document.getElementById('overlay');
     const parse = s => { if (!s || s === 'none') return 1; const m = s.match(/matrix\(([^,]+),/); return m ? parseFloat(m[1]) : 1; };
     let moveEnds = 0, zoomEnds = 0, glMoves = 0, glRenders = 0;
@@ -133,13 +134,13 @@ function installBasemapProbe(page) {
   return page.evaluate(() => {
     window.__basemapProbe = function () {
       const want = state.mapDark ? 'dark' : (state.basemap === 'sat' ? 'sat' : 'light');
-      const layer = baseLayers[want], wantMounted = !!(layer && map.hasLayer(layer));
+      const layer = baseLayers[want], wantMounted = !!(layer && window.__map.hasLayer(layer));
       const tiles = [...document.querySelectorAll('#map .leaflet-tile')];
       const out = {
-        want, wantMounted, z: map.getZoom(),
+        want, wantMounted, z: window.__map.getZoom(),
         // 掛著哪幾層要具名回報:衛星有 sat(retina)/satLQ 兩顆,只認其中一顆的判準會在門檻改變時假紅(見 T6b)。
-        mountedKeys: Object.keys(baseLayers).filter(k => map.hasLayer(baseLayers[k])),
-        satMounted: !!(baseLayers.sat && map.hasLayer(baseLayers.sat)),
+        mountedKeys: Object.keys(baseLayers).filter(k => window.__map.hasLayer(baseLayers[k])),
+        satMounted: !!(baseLayers.sat && window.__map.hasLayer(baseLayers.sat)),
         count: tiles.length, srcs: tiles.map(t => t.src).filter(Boolean).sort()
       };
       const gl = layer && layer._glMap;
@@ -227,7 +228,7 @@ function reloadFree(t0, t1, anim) {
     await b.page.evaluate(() => setAmbient(false));
     await b.page.waitForTimeout(400);
     const off = await b.page.evaluate(() => {
-      const mt = getComputedStyle(document.getElementById('map')).transform, z = map.getZoom();
+      const mt = getComputedStyle(document.getElementById('map')).transform, z = window.__map.getZoom();
       return { bs: state._breathStage, mtNone: mt === 'none' || mt === '', zInt: z === Math.round(z), bm: window.__basemapProbe() };
     });
     ok('chromium T3d 離開放空→transform 歸空、z 整數、底圖在場、_breathStage=false', off.bs === false && off.mtNone && off.zInt && off.bm.present, `bs=${off.bs} transform空=${off.mtNone} z整數=${off.zInt} ${bmDetail(off.bm)}`);

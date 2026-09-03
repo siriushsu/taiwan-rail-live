@@ -159,8 +159,8 @@ async function run(browser, { ofm, appShell = false, sat = true, mobile = false,
   const got = await page.evaluate(() => {
     const bl = (typeof baseLayers !== 'undefined' && baseLayers) ? baseLayers : {};
     const l = bl.light, onMap = [bl.light, bl.dark].find(x => x && x._glMap), gl = onMap && onMap._glMap;
-    const tileLayersOnMap = (typeof map !== 'undefined' && map && map._layers)
-      ? Object.values(map._layers).filter(x => x instanceof L.TileLayer && typeof x._url === 'string').map(x => x._url) : [];
+    const tileLayersOnMap = (typeof window.__map !== 'undefined' && window.__map && window.__map._layers)
+      ? Object.values(window.__map._layers).filter(x => x instanceof L.TileLayer && typeof x._url === 'string').map(x => x._url) : [];
     return {
       // 量使用者**看得到過**的東西:曾經進到 DOM 的每一則 toast。不是量 ofmNoticeShown 這種內部旗標——
       // 那是實作的下游,會跟著實作一起錯。
