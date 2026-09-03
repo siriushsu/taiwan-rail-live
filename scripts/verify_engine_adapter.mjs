@@ -146,6 +146,44 @@ try {
     ck((await d.page.evaluate(() => window.__ENGINE)) === 'leaflet', 'G4f 非法值退回 leaflet');
     await d.ctx.close();
   }
+  // ── G6 MapLibre 引擎開機 ──
+  if (await (async () => { const { ctx, page } = await boot(browser, ''); const v = await page.evaluate(() => typeof createMaplibreEngine === 'function'); await ctx.close(); return v; })()) {
+    // 先量 Leaflet 引擎在 z12 下兩點的螢幕距離,當 zoom 尺度基準
+    const lf = await boot(browser, '');
+    const base = await lf.page.evaluate(() => {
+      const M = window.__M; M.setView([25.0478, 121.517], 12, { animate: false });
+      const a = M.toScreen([25.0478, 121.517]), b = M.toScreen([25.0578, 121.527]);
+      return { d: Math.hypot(a.x - b.x, a.y - b.y), bz: M.getBoundsZoom(M.latLngBounds([24.9, 121.4], [25.2, 121.7]), false) };
+    });
+    await lf.ctx.close();
+    const { ctx, page, errs } = await boot(browser, 'engine=maplibre');
+    await page.waitForFunction(() => window.__M && window.__M.raw && window.__M.raw.isStyleLoaded && window.__M.raw.isStyleLoaded(), null, { timeout: 30000 }).catch(() => {});
+    const r = await page.evaluate(() => {
+      const M = window.__M, ov = document.getElementById('overlay'), mp = document.getElementById('map');
+      M.setView([25.0478, 121.517], 12, { animate: false });
+      const a = M.toScreen([25.0478, 121.517]), b = M.toScreen([25.0578, 121.527]);
+      const c = M.getCenter();
+      return {
+        engine: M.engine, isML: M.raw instanceof maplibregl.Map, leafletNull: M.leaflet === null,
+        styleLoaded: M.raw.isStyleLoaded(), ready: !!window.__state.ready,
+        ovW: ov.clientWidth, mpW: mp.clientWidth, ovH: ov.clientHeight, mpH: mp.clientHeight,
+        d: Math.hypot(a.x - b.x, a.y - b.y), zoom: M.getZoom(),
+        centerOk: Math.abs(c.lat - 25.0478) < 1e-6 && Math.abs(c.lng - 121.517) < 1e-6,
+        bz: M.getBoundsZoom(M.latLngBounds([24.9, 121.4], [25.2, 121.7]), false),
+        inBounds: M.getBounds().contains([25.0478, 121.517]),
+        rt: M.raw.getBearing() === 0 && M.raw.getPitch() === 0,
+        __map: window.__map === M.raw,
+      };
+    });
+    ck(r.engine === 'maplibre' && r.isML && r.leafletNull && r.__map, 'G6a MapLibre 引擎生效(M.raw 是 maplibregl.Map、M.leaflet=null、__map=M.raw)', JSON.stringify(r).slice(0, 160));
+    ck(r.styleLoaded && r.ready, 'G6b style 載入且 state.ready', `styleLoaded=${r.styleLoaded} ready=${r.ready}`);
+    ck(r.ovW === r.mpW && r.ovH === r.mpH && r.ovW > 100, 'G6c #overlay 與 #map 同尺寸', `${r.ovW}x${r.ovH} vs ${r.mpW}x${r.mpH}`);
+    ck(Math.abs(r.d - base.d) <= 1.5 && r.zoom === 12 && r.centerOk, 'G6d zoom 尺度與 Leaflet 一致(z12 兩點距離差 ≤1.5px)', `ml=${r.d.toFixed(2)} lf=${base.d.toFixed(2)} zoom=${r.zoom}`);
+    ck(Math.abs(r.bz - base.bz) <= 1, 'G6e getBoundsZoom 與 Leaflet 差 ≤1 級', `ml=${r.bz} lf=${base.bz}`);
+    ck(r.inBounds && r.rt, 'G6f getBounds 含中心;bearing/pitch 為 0(M0 不開旋轉)');
+    ck(errs.length === 0, 'G6g MapLibre 開機零 pageerror', errs.join(' | ').slice(0, 300));
+    await ctx.close();
+  } else console.log('  (尚無 createMaplibreEngine:G6 跳過)');
 } finally {
   await browser.close(); server.close();
 }

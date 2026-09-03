@@ -6495,7 +6495,7 @@ function createMaplibreEngine(containerId, view) {
     // MapLibre 專屬(Leaflet 實作沒有這兩個;呼叫端一律 `M.setStyleKind && M.setStyleKind(...)`)
     setStyleKind: kind => { // 'light' | 'dark';{diff:false} 是 spike 實測必要選項(diff 路徑不觸發 style.load)
       if (kind !== 'light' && kind !== 'dark') return E;
-      if (kind === styleKind && raw.isStyleLoaded()) return E;
+      if (kind === styleKind) return E;
       styleKind = kind; raw.setStyle(OFM_STYLE[kind], { diff: false }); return E;
     },
     setGestures: on => { // 對應 Leaflet 的 dragging/touchZoom/scrollWheelZoom/doubleClickZoom/boxZoom/keyboard 整組開關(放空模式用)
