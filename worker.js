@@ -853,9 +853,21 @@ function trtcMemoStale(stale, now) { return !stale || now - stale.at > 15e3; }
 // 🔴 CarWeightBR 刻意【不】節流:它的 TrainNumber 要與倒數切段的車逐台【順序配對】(:983),
 // 用舊列會把車號標到別台車上,那是「標錯」不是「留白」,違反裁示。
 let trtcHwMem = null; // { rows, at } —— 只快取 CarWeight,與 trtcMem 分開
+const TRTC_HW_THROTTLE_MS = 60e3;
 // 門檻同樣抽成可測函式(比照 trtcMemoStale 的 task-11 理由):驗收要量 59999/60001ms 的邊界,
 // 不靠讀常數字面值反推,也不真的等 60 秒。
-function trtcHwStale(mem, now) { return !mem || now - mem.at > 60e3; }
+function trtcHwStale(mem, now) { return !mem || now - mem.at > TRTC_HW_THROTTLE_MS; }
+// 這一輪真的打了 CarWeight 卻失敗時,可不可以拿記憶體那份頂上?
+// 🔴 為什麼要有這條(2026-09-03):節流命中時本來就會送出最多 60 秒舊的那份,所以「舊 60 秒」
+// 是這支資料【已經被接受】的新鮮度;但失敗那一輪舊碼直接落到 [],於是整批高運量擁擠度
+// 一起消失一輪——上游抖一下的代價從「晚 60 秒看到新的抵站事件」變成「畫面上每一台車都
+// 沒有擁擠度」,而手上明明有一份合格的資料沒用。使用者 09-03 回報「高運量的擁擠度有時候
+// 也會不見」。
+// 上限取節流窗的兩倍:再撐不到就寧可留白,不拿真的過期的擁擠度騙人(裁示「有資訊就一定要對」)。
+// 寫成從 TRTC_HW_THROTTLE_MS 推導,不手打第二個常數(judgment 第七節第 3 條)。
+function trtcHwFallbackUsable(mem, now) {
+  return !!mem && Array.isArray(mem.rows) && now - mem.at <= TRTC_HW_THROTTLE_MS * 2;
+}
 async function trtcLive(request, env) {
   const cacheKey = new Request(new URL('/api/trtc-live', request.url), { method: 'GET' });
   const edge = caches.default;
@@ -894,12 +906,19 @@ async function trtcLive(request, env) {
           .catch(error => ({ ok: false, rows: [], error: (error && error.message) || String(error) })),
       ]) : [null, [], { ok: true, rows: [] }];
       if (hwFetched) trtcHwMem = { rows: hwFetched, at: officialRequestStartedAt };
-      // 節流命中 → 用記憶體那份；這一輪真的打了 → 用新的；打了但失敗 → [](與節流前同行為)。
-      const hwRaw = hwFresh && trtcHwMem ? trtcHwMem.rows : (hwFetched || []);
+      // 節流命中 → 用記憶體那份；這一輪真的打了 → 用新的；打了但失敗 → 空。
+      // 🔴 這個值只回答「本輪 CarWeight 拿到什麼」,是下面「三支全滅」判斷的輸入,
+      //    不可以被下面的 fallback 灌成非空——否則 TrackInfo 掛掉時會被一份舊的
+      //    CarWeight 偽裝成「還有官方存在性資料」,那正是 :882 註解明文禁止的事。
+      const hwThisRound = hwFresh && trtcHwMem ? trtcHwMem.rows : (hwFetched || []);
+      // 供擁擠度／車號裝飾用的那一份:本輪拿到就用本輪的,本輪打了但失敗就退回記憶體那份
+      // (見 trtcHwFallbackUsable)。這是唯一與 hwThisRound 不同的地方。
+      const hwRaw = hwThisRound.length || !trtcHwFallbackUsable(trtcHwMem, officialRequestStartedAt)
+        ? hwThisRound : trtcHwMem.rows;
       const tk = tkResult.rows;
       // official-first：TrackInfo 成功（包含合法空列）就是可發布的權威名冊；CarWeight
       // 只供 legacy trains／擁擠度裝飾，兩支同時空也不可把官方名冊拖成 outage。
-      if (!tkResult.ok && hwRaw.length === 0 && brRaw.length === 0) {
+      if (!tkResult.ok && hwThisRound.length === 0 && brRaw.length === 0) {
         throw new Error('trtc TrackInfo/hw/br 全部失敗');
       }
       const hw = dedupeLatest(hwRaw, 'utime');
@@ -6170,7 +6189,7 @@ export const _bounty = { bountyCardId, bountySegLine, groupBoardRows, bountyBoar
 // fetch 替身，導出的目的就是讓判準能【數上游被打了幾次】而不是只看回應長得對不對。
 // 見 scripts/verify_trtc_call_budget.mjs。
 export const _trtc = { trtcParse, trtcEpoch, dedupeLatest, trtcCall, trtcApiUrl, trtcMemoStale, carsOf,
-  trtcHwStale, trtcLive };
+  trtcHwStale, trtcHwFallbackUsable, trtcLive };
 // B1 驗收用：導出編排層供本機 D1/fixture 測試，正式 router 不因此增加任何路徑。
 export const _trtcLedger = {
   trtcBoardEpoch, trtcLedgerContext, persistTrtcLedger, trtcLedgerPreview,

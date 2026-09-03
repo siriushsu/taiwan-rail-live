@@ -42,8 +42,11 @@ const SOAP = rows => new Response(
   { status: 200, headers: { 'content-type': 'text/xml; charset=utf-8' } });
 
 const counts = { tk: 0, hw: 0, br: 0 };
-let hwShouldFail = false;
+let hwShouldFail = false, tkShouldFail = false, brShouldFail = false;
 const resetCounts = () => { counts.tk = 0; counts.hw = 0; counts.br = 0; };
+// 失敗退路的上限＝節流窗的兩倍。這裡刻意也用推導的寫法，與 worker.js 同一個來源，
+// 免得改了節流窗之後這支腳本還在量舊數字（judgment 第七節第 3 條）。
+const THROTTLE_MS = 60e3, TWO_WINDOWS_MS = THROTTLE_MS * 2 + 1e3;
 
 // 上游三支的最小可用列。欄位取自 memory/trtc-member-api.md 記錄的真實形狀。
 const nowStr = () => new Date(NOW).toISOString().slice(0, 19).replace('T', ' ');
@@ -59,8 +62,16 @@ const brRows = () => [{ TrainNumber: '119,180', CID: '1', DU: '下行', StationI
 globalThis.fetch = async (input, init) => {
   const url = String(input && input.url ? input.url : input);
   const body = String((init && init.body) || '');
-  if (/getTrackInfo/.test(body)) { counts.tk++; return SOAP(tkRows()); }
-  if (/getCarWeightBRInfo/.test(body)) { counts.br++; return SOAP(brRows()); }
+  if (/getTrackInfo/.test(body)) {
+    counts.tk++;
+    if (tkShouldFail) return new Response('upstream boom', { status: 503 });
+    return SOAP(tkRows());
+  }
+  if (/getCarWeightBRInfo/.test(body)) {
+    counts.br++;
+    if (brShouldFail) return new Response('upstream boom', { status: 503 });
+    return SOAP(brRows());
+  }
   if (/getCarWeightByInfoEx/.test(body)) {
     counts.hw++;
     if (hwShouldFail) return new Response('upstream boom', { status: 503 });
@@ -77,7 +88,7 @@ Date.now = () => NOW;
 const advance = ms => { NOW += ms; };
 
 const { _trtc } = await import('../worker.js');
-const { trtcHwStale, trtcLive } = _trtc;
+const { trtcHwStale, trtcHwFallbackUsable, trtcLive } = _trtc;
 const { trtcOperatingState } = await import('./trtc_board_ledger.mjs');
 
 // env 替身：ASSETS 直接讀磁碟；刻意不給 TRTC_LEDGER（D1），
@@ -102,6 +113,14 @@ ok('trtcHwStale：60,001ms 已過期', trtcHwStale({ at: 0 }, 60001) === true);
 // 反向對照（judgment 第七節第 5 條）：門檻若被改成恆真/恆假，上面兩條必有一條會紅。
 ok('trtcHwStale：兩側判定相反（門檻不是恆真也不是恆假）',
   trtcHwStale({ at: 0 }, 59999) !== trtcHwStale({ at: 0 }, 60001));
+
+// 失敗退路的門檻（2026-09-03）：上限是節流窗的兩倍，過了就寧可留白不給過期擁擠度。
+ok('trtcHwFallbackUsable：沒有記憶體時不可用', trtcHwFallbackUsable(null, 1e6) === false);
+ok('trtcHwFallbackUsable：120,000ms 仍可用', trtcHwFallbackUsable({ rows: [], at: 0 }, 120000) === true);
+ok('trtcHwFallbackUsable：120,001ms 已不可用', trtcHwFallbackUsable({ rows: [], at: 0 }, 120001) === false,
+  '過了兩倍節流窗就不准再頂上');
+ok('trtcHwFallbackUsable：兩側判定相反（不是恆真也不是恆假）',
+  trtcHwFallbackUsable({ rows: [], at: 0 }, 120000) !== trtcHwFallbackUsable({ rows: [], at: 0 }, 120001));
 
 const tpe = (h, m) => Date.UTC(2026, 8, 2, h - 8, m, 0) / 1000; // 台北時 → epoch 秒
 ok('營運窗：01:19 仍在窗內', trtcOperatingState(tpe(1, 19)).open === true);
@@ -137,13 +156,46 @@ ok('節流命中的那一輪，擁擠度仍在且與上一輪相同（省的是�
 advance(60e3);                       // 讓節流到期
 resetCounts();
 hwShouldFail = true;
-await call();                        // 這輪打了但失敗
+const failBody = await call();       // 這輪打了但失敗
 const afterFail = counts.hw;
 advance(16e3);
 hwShouldFail = false;
 await call();                        // 下一輪必須重試，而不是等滿 60 秒
 ok('CarWeight 失敗後下一輪立刻重試（沒有把失敗寫進記憶體）', counts.hw === afterFail + 1,
   `失敗輪後 hw=${afterFail}，再一輪後 hw=${counts.hw}`);
+
+// ── 第 3.5 節：CarWeight 失敗那一輪，擁擠度不得整批消失（2026-09-03，使用者回報）─────
+// 舊行為：打了但失敗 ⇒ hwRaw=[] ⇒ 那一輪每一台車都沒有 cars。手上明明有一份 ≤60 秒的
+// 記憶體副本沒用。這一條就是在守「失敗的代價是資料晚一點，不是資料不見」。
+ok('CarWeight 失敗那一輪仍有擁擠度（退回記憶體那份，不是整批空白）',
+  /\[1,1,2,2,1,1\]/.test(carsOfRound(failBody)),
+  `失敗輪 cars=${carsOfRound(failBody)}`);
+
+// 🔴 反向對照：退路有上限，不是無限拿舊資料頂。讓記憶體超過兩倍節流窗再失敗一次，
+//    這時必須留白——沒有這一條，上面那條就分不出「退路有效」與「退路根本沒有上限」。
+advance(TWO_WINDOWS_MS);             // 距上次成功取得 > 120 秒
+resetCounts();
+hwShouldFail = true;
+const staleBody = await call();
+hwShouldFail = false;
+ok('退路有上限：記憶體超過兩倍節流窗就留白（不給過期擁擠度）',
+  !/\[1,1,2,2,1,1\]/.test(carsOfRound(staleBody)),
+  `過期輪 cars=${carsOfRound(staleBody)}`);
+
+// 🔴 退路不得把「三支全滅」偽裝成還有官方資料（worker.js :882 明文禁止：TrackInfo 失敗
+//    不能被 CarWeight 的位置列蓋過去）。三支同時掛時必須走降級路徑，而不是因為記憶體裡
+//    有一份舊 CarWeight 就照常發佈。判準看 boardPos.feedMode——降級時它是 held/outage。
+advance(16e3);
+hwShouldFail = false;
+await call();                        // 先讓 CarWeight 記憶體重新變新鮮
+const healthyFeedMode = (await call()).boardPos?.feedMode ?? null;
+advance(16e3);
+hwShouldFail = true; tkShouldFail = true; brShouldFail = true;
+const allDownBody = await call();
+hwShouldFail = false; tkShouldFail = false; brShouldFail = false;
+ok('三支全滅時仍走降級路徑（記憶體裡的舊 CarWeight 不得偽裝成官方還在）',
+  (allDownBody.boardPos?.feedMode ?? null) !== healthyFeedMode,
+  `健康輪 feedMode=${healthyFeedMode}／全滅輪 feedMode=${allDownBody.boardPos?.feedMode ?? null}`);
 
 // ── 第 4 節：營運窗外——三支都是 0，而且回應仍是可用的空看板 ─────────────────
 // 🔴 先讓 60 秒節流到期再進窗外，否則「CarWeight 0 次」會是被【節流】擋住而不是被【閘門】擋住
