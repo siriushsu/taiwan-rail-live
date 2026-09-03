@@ -3,8 +3,8 @@
  * 定位：三階段轉乘流程的同一張卡，phase 由呼叫者傳入（模組不猜行程狀態）。
  *
  *   planning    規劃中    建議路線、營運時間／班距、上下車站、步行資訊。不顯示現在的倒數，不打任何 API。
- *   approaching 接近轉乘站 列車預估抵達、候選公車、預估銜接裕度。裕度來自班距，不是現在的公車倒數；
- *                          不承諾接得上，明寫未計站內步行。仍不打任何 API。
+ *   approaching 接近轉乘站 列車預估抵達、候選公車、預估銜接裕度。一般規劃卡不查即時；
+ *                          轉乘助手則只在宿主送進 15 分／5 分／到站里程碑時各查一次。
  *   arrived     已抵達      提供「查看現在可搭公車」主操作；使用者按下才打 /api/bus-transfer，
  *                          再點某一路線才打 /api/bus-leg-live。
  *
@@ -14,7 +14,8 @@
  * - 本檔不碰 index.html 既有的任何 DOM、class、事件。所有 selector 一律 .btu- 前綴，
  *   所有事件都綁在呼叫者交進來的 root 上（delegated，單一 listener）。
  * - 沒有 setInterval、沒有 setTimeout、沒有背景輪詢、沒有 visibilitychange 重取。
- * - mount() 本身不發任何 API 請求，任何 phase 都是。
+ * - mount() 本身不發任何 API 請求，任何 phase 都是。轉乘助手的查詢只由 refresh() 的明確
+ *   里程碑事件觸發；模組自己沒有 timer，也不會沿途每站自動查。
  * - 已載入資料與展開狀態存在模組層 Map（DOM 之外），依 stationId／viewKey 保存；
  *   renderBoardBody 反覆重建 innerHTML 之後重新 mount，狀態與資料都會恢復且不會重打 API。
  * - 語意如實呈現：N1 空白區分四種以上成因、資料年齡外顯、stale 不得偽裝成正常即時、
@@ -25,7 +26,7 @@
 (function (global) {
   'use strict';
 
-  const VERSION = '0.4.1';
+  const VERSION = '0.5.0';
   const COVERAGE = 'all_active_tra_stations';
   const API_BASE = '';
   const STALE_LABEL_SEC = 180;
@@ -376,6 +377,11 @@ ${navLink(route.boardStopPosition, arrived, stationPosition, route.boardStopName
   }
 
   function renderPlanBody(instance, view) {
+    if (instance.assistant) {
+      return `${renderTrainEta(instance.trainEta)}
+<div class="btu-msg">${esc(tr('轉乘站已設定。抵達前 15 分鐘會開始比對公車動態；在那之前不發出即時查詢。'))}</div>
+${renderWalkNote()}`;
+    }
     const plan = instance.plan;
     const routes = plan && Array.isArray(plan.routes) ? plan.routes : [];
     if (!routes.length) {
@@ -410,6 +416,24 @@ ${renderWalkNote()}`;
   // 裕度判語。有呼叫者提供的公車到站預估（busEtaAt）時才能算真裕度；
   // 沒有就說「尚未提供」，不拿現在的倒數充当未來的承諾。不寫保證性文案。
   const SAFETY_BUFFER_MIN = 2;
+
+  // 動態轉乘助手的可行性判斷。公車 etaSec 是「Worker 回應產生時到站還有幾秒」，前端收到後
+  // 以 fetchedAt 當基準換成絕對時刻；列車 arrivalAt 則由跟車狀態提供。兩者都存在且資料未過期
+  // 才能比較。Math.floor 刻意向下取整，避免在不足整分鐘時高估轉乘餘裕。
+  function liveConnectionVerdict(arrival, trainEta, fetchedAt) {
+    const live = arrival && arrival.live || {};
+    const trainMs = Date.parse(trainEta && trainEta.arrivalAt || '');
+    const walkMin = arrival && arrival.access && Number.isFinite(arrival.access.estimatedWalkMin)
+      ? arrival.access.estimatedWalkMin : null;
+    const usable = ['countdown', 'arriving', 'scheduled'].includes(live.state)
+      && Number.isFinite(live.etaSec) && Number.isFinite(trainMs) && Number.isFinite(fetchedAt) && walkMin != null;
+    if (!usable) return { tone: 'unknown', text: tr('目前無法判斷能否接上') };
+    const busMs = fetchedAt + live.etaSec * 1000;
+    const slack = Math.floor((busMs - trainMs) / 60000) - walkMin - SAFETY_BUFFER_MIN;
+    if (slack >= 4) return { tone: 'ok', text: tr('預估可轉乘・保守裕度 {n} 分', { n: slack }, slack), slack };
+    if (slack >= 0) return { tone: 'tight', text: tr('轉乘時間偏緊・保守裕度 {n} 分', { n: slack }, slack), slack };
+    return { tone: 'miss', text: tr('這一班目前可能接不上'), slack };
+  }
   function slackVerdict(route, trainEta) {
     const walkMin = route.access && Number.isFinite(route.access.estimatedWalkMin) ? route.access.estimatedWalkMin : null;
     const busMs = Date.parse(route.busEtaAt || '');
@@ -459,6 +483,15 @@ ${navLink(route.boardStopPosition, false, stationPosition, route.boardStopName)}
   }
 
   function renderApproachingBody(instance, view) {
+    if (instance.assistant) {
+      const dataState = stationData(instance.stationId);
+      const lead = renderTrainEta(instance.trainEta);
+      if (dataState.status === 'idle') {
+        return `${lead}<div class="btu-msg">${esc(tr('已設定本站轉乘；抵達前 15 分鐘才開始查公車動態。'))}</div>${renderWalkNote()}`;
+      }
+      return `${lead}<div class="btu-meta"><span>${esc(tr('依列車抵達、站外步行與公車到站時間保守估算'))}</span></div>
+${renderLivePanel(instance, view)}${renderWalkNote()}`;
+    }
     const plan = instance.plan;
     const routes = plan && Array.isArray(plan.routes) ? plan.routes : [];
     const position = plan && plan.stationPosition || null;
@@ -485,7 +518,7 @@ ${renderWalkNote()}`;
     return { tone: spec.tone, text: spec.label ? tr(spec.label) : '—' };
   }
 
-  function renderArrivalRow(arrival, station, fetchedAt, openLegs) {
+  function renderArrivalRow(arrival, station, fetchedAt, openLegs, trainEta) {
     const live = arrival.live || {};
     const spec = N1_STATE[live.state] || N1_STATE.unknown;
     const eta = renderEta(arrival);
@@ -511,6 +544,8 @@ ${renderWalkNote()}`;
     lines.push({ cls: 'btu-tight', text: `${stopName}・${walk.tight}` });
     if (arrival.headsign) lines.push({ cls: '', text: tr('往 {destination}', { destination: esc(arrival.headsign) }) });
 
+    const connection = trainEta ? liveConnectionVerdict(arrival, trainEta, fetchedAt) : null;
+
     const tags = [];
     if (live.state === 'stale') tags.push(`<span class="btu-tag btu-warn">${esc(tr('過期'))}</span>`);
     if (arrival.occupancy && arrival.occupancy.state === 'not_loaded') {
@@ -528,6 +563,7 @@ ${renderWalkNote()}`;
 <span class="btu-eta btu-t-${eta.tone}">${esc(eta.text)}</span>
 <span class="btu-main">
 <span class="btu-route">${esc(name)}${sub ? `<span class="btu-sub">${esc(sub)}</span>` : ''}</span>
+${connection ? `<span class="btu-verdict btu-v-${connection.tone}">${esc(connection.text)}</span>` : ''}
 ${lines.map(line => `<span class="btu-sec${line.cls ? ` ${line.cls}` : ''}">${line.text}</span>`).join('')}
 <span class="btu-age">${esc(ageText(age))}</span>
 ${tags.length ? `<span class="btu-tags">${tags.join('')}</span>` : ''}
@@ -630,7 +666,8 @@ ${navLink(arrival.stopPosition, true, null, arrival.stopName)}
 
     const noNearbyStops = data.live && data.live.state === 'no_nearby_stops';
     const rows = arrivals.length
-      ? shown.map(arrival => renderArrivalRow(arrival, data.station || { id: instance.stationId }, state.fetchedAt, view.openLegs)).join('')
+      ? shown.map(arrival => renderArrivalRow(arrival, data.station || { id: instance.stationId }, state.fetchedAt, view.openLegs,
+          instance.assistant ? instance.trainEta : null)).join('')
       : noNearbyStops
         ? `<div class="btu-msg">${esc(tr('目前靜態索引在本站 600 公尺內沒有找到可用公車站牌，因此這次沒有發出即時查詢。你仍可改用地圖查看更遠的站牌。'))}</div>`
       : `<div class="btu-msg">${esc(tr('這一刻來源沒有回報任何本站附近的公車班次。這不代表沒有公車路線經過，只代表現在沒有可呈現的預估。'))}</div>`;
@@ -647,7 +684,8 @@ ${view.showAll && arrivals.length > 3 ? `<button type="button" class="btu-more" 
     const routes = plan && Array.isArray(plan.routes) ? plan.routes : [];
     const position = plan && plan.stationPosition || null;
     // 主操作在最前面：先看即時公車。導航只在使用者點開某一路線之後才出現（見 renderLeg）。
-    const primary = `<button type="button" class="btu-primary" data-btu-act="toggle" aria-expanded="${view.expanded ? 'true' : 'false'}">${esc(tr(view.expanded ? '收合即時公車' : '查看現在可搭公車'))}</button>`;
+    const primary = instance.assistant ? ''
+      : `<button type="button" class="btu-primary" data-btu-act="toggle" aria-expanded="${view.expanded ? 'true' : 'false'}">${esc(tr(view.expanded ? '收合即時公車' : '查看現在可搭公車'))}</button>`;
     const live = view.expanded ? renderLivePanel(instance, view) : '';
     // 前兩階降級成摘要，不消失也不搶版面。
     const summary = routes.length ? `<button type="button" class="btu-summary" data-btu-act="plan">轉乘規劃：${routes.length} 條候選路線與班表<span class="btu-caret" aria-hidden="true">${view.planOpen ? '收合' : '展開'}</span></button>
@@ -845,6 +883,7 @@ ${body}
       existing.phase = phase;
       if (opts.plan !== undefined) existing.plan = opts.plan;
       if (opts.trainEta !== undefined) existing.trainEta = opts.trainEta;
+      if (opts.assistant !== undefined) existing.assistant = !!opts.assistant;
       if (opts.stationName) existing.stationName = opts.stationName;
       render(existing);
       return existing;
@@ -861,6 +900,8 @@ ${body}
       phase,
       plan: opts.plan || null,
       trainEta: opts.trainEta || null,
+      assistant: !!opts.assistant,
+      requestKeys: new Set(),
       viewKey,
       apiBase: opts.apiBase != null ? String(opts.apiBase).replace(/\/$/, '') : API_BASE,
       fetchImpl: opts.fetchImpl || ((...args) => global.fetch(...args)),
@@ -962,6 +1003,18 @@ ${body}
     // 已展開或已有資料時回 null，不重打。
     openStation(root) {
       return this._expand(root);
+    },
+    // 轉乘助手的事件驅動刷新。requestKey 由宿主傳入 near-15／near-5／arrived；同一個里程碑
+    // 無論 updateFollowPanel 跑多少幀都只會觸發一次。這不是背景輪詢，也不接受空 key。
+    refresh(root, requestKey) {
+      const instance = root && root.__btuInstance;
+      const key = String(requestKey || '');
+      if (!instance || !instance.assistant || !key || instance.requestKeys.has(key)) return null;
+      instance.requestKeys.add(key);
+      const view = viewState(instance.viewKey);
+      view.expanded = true;
+      render(instance);
+      return loadStation(instance);
     },
     getState,
     reset,

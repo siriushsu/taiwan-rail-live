@@ -154,6 +154,72 @@ async function translated(browserType, lang, primary, occupancy) {
   }
 }
 
+async function assistantMilestoneDedupe() {
+  const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
+  await context.addInitScript(() => localStorage.setItem('trainmap-howto-seen', '1'));
+  const page = await context.newPage();
+  try {
+    await page.goto(`${BASE}/?lang=zh-TW`, { waitUntil: 'domcontentloaded' });
+    const before = await stats();
+    await page.evaluate(() => {
+      const root = document.createElement('div');
+      root.id = 'assistant-fixture';
+      root.style.cssText = 'position:fixed;left:8px;top:8px;width:176px;max-height:780px;overflow:auto;z-index:99999';
+      document.body.appendChild(root);
+      window.BusTransferUI.mount({
+        root, stationId: 'TRA:4220', stationName: '臺南', phase: 'approaching', assistant: true,
+        viewKey: 'TRA:4220|assistant-fixture',
+        trainEta: { arrivalAt: new Date(Date.now() + 60_000).toISOString(), ageSec: 4, source: '台鐵時刻表推估' },
+      });
+    });
+    assert.deepEqual(await stats(), before, 'mount 助手不得自行查詢');
+
+    const response = page.waitForResponse(item => item.url().includes('/api/bus-transfer'));
+    await page.evaluate(() => window.BusTransferUI.refresh(document.getElementById('assistant-fixture'), 'near-15'));
+    await response;
+    await page.getByText('這一班目前可能接不上', { exact: true }).first().waitFor({ state: 'visible' });
+    const afterFirst = await stats();
+    assert.equal(afterFirst.station, before.station + 1, '第一個明確里程碑只查一站');
+
+    // 真實 App 的 updateFollowPanel 每幀執行。重複 mount 與重複送同一個里程碑，都不能再發請求。
+    await page.evaluate(() => {
+      const root = document.getElementById('assistant-fixture');
+      for (let i = 0; i < 30; i++) {
+        window.BusTransferUI.mount({
+          root, stationId: 'TRA:4220', stationName: '臺南', phase: 'approaching', assistant: true,
+          viewKey: 'TRA:4220|assistant-fixture',
+          trainEta: { arrivalAt: new Date(Date.now() + 60_000).toISOString(), ageSec: 4, source: '台鐵時刻表推估' },
+        });
+        window.BusTransferUI.refresh(root, 'near-15');
+      }
+    });
+    await page.waitForTimeout(200);
+    assert.deepEqual(await stats(), afterFirst, '同一里程碑經過 30 幀仍不得重打');
+
+    const layout = await page.evaluate(() => {
+      const root = document.getElementById('assistant-fixture');
+      const controls = [...root.querySelectorAll('button,a')].filter(el => {
+        const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0;
+      });
+      const blocked = [], short = [];
+      for (const el of controls) {
+        el.scrollIntoView({ block: 'center' });
+        const r = el.getBoundingClientRect(), hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        if (!(hit === el || el.contains(hit))) blocked.push(el.textContent.trim().slice(0, 24));
+        if (r.height < 43.5) short.push({ text: el.textContent.trim().slice(0, 24), height: r.height });
+      }
+      return { blocked, short, overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+    });
+    assert.deepEqual(layout.blocked, []);
+    assert.deepEqual(layout.short, []);
+    assert.ok(layout.overflow <= 1);
+    pass('動態轉乘助手：mount 零查詢、里程碑單發、30 幀去重與 176px 觸控可達');
+  } finally {
+    await browser.close();
+  }
+}
+
 async function allStationCoverage() {
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: 393, height: 860 }, isMobile: true, hasTouch: true });
@@ -229,6 +295,7 @@ async function faultMessagesStayPrivate(target) {
 for (const width of [360, 375, 414, 768]) await touchAndLayout(chromium, 'Chromium', width);
 await touchAndLayout(webkit, 'WebKit', 375);
 await allStationCoverage();
+await assistantMilestoneDedupe();
 await faultMessagesStayPrivate('station');
 await faultMessagesStayPrivate('leg');
 await translated(chromium, 'en', 'See buses you can catch now', 'Occupancy not provided in this area');

@@ -1592,6 +1592,29 @@
   .follow-panel .fp-notify .ri-icon { width: 14px; height: 14px; margin-right: 3px; vertical-align: -.2em; }
   .follow-panel .fp-notify:hover { background: var(--bg-stage); }
   .follow-panel.fp-min .fp-notify { display: none !important; }
+  /* 公車轉乘助手：沿用跟車卡既有的膠囊／選站語彙，不另起一套視覺。只有使用者選定轉乘站後，
+     才在 15 分／5 分／到站三個里程碑查詢；下方 .fp-bus-slot 只承接 BusTransferUI。 */
+  .follow-panel .fp-bus {
+    margin-top: 8px; width: 100%; min-height: calc(44px * var(--uit)); text-align: center;
+    background: var(--paper); color: var(--navy); border: 1.5px solid var(--navy); border-radius: var(--r-pill);
+    font: inherit; font-size: calc(12px * var(--uis)); font-weight: 800; letter-spacing: 1px; cursor: pointer;
+  }
+  .follow-panel .fp-bus.on { background: var(--navy); color: var(--on-navy); }
+  .follow-panel .fp-bus[hidden], .follow-panel .fp-busbox[hidden], .follow-panel .fp-bus-slot[hidden] { display: none !important; }
+  .follow-panel .fp-busbox { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .follow-panel .fp-busbox-r { display: flex; align-items: center; gap: 6px; }
+  .follow-panel .fp-busbox-r > span { flex: none; font-size: calc(11.5px * var(--uis)); font-weight: 800; color: var(--muted); }
+  .follow-panel .fp-busbox select {
+    flex: 1; min-width: 0; min-height: 40px; font: inherit; font-size: calc(12px * var(--uis)); font-weight: 700;
+    color: var(--ink-strong); background: var(--paper); border: 1.5px solid var(--line); border-radius: var(--r-pill); padding: 4px 8px;
+  }
+  .follow-panel .fp-busbox button {
+    flex: 1; min-height: 40px; font: inherit; font-size: calc(12px * var(--uis)); font-weight: 800; letter-spacing: 1px;
+    border-radius: var(--r-pill); cursor: pointer; border: 1.5px solid var(--navy); background: var(--navy); color: var(--on-navy);
+  }
+  .follow-panel .fp-busbox button#fpBusCancel { background: var(--paper); color: var(--muted); border-color: var(--line); }
+  .follow-panel .fp-bus-slot { margin-top: 8px; }
+  .follow-panel.fp-min .fp-bus, .follow-panel.fp-min .fp-busbox, .follow-panel.fp-min .fp-bus-slot { display: none !important; }
   /* 搭乘模式:未上車=空心票券鈕;搭乘中=實心紅,一眼看得出「正在收集」 */
   .follow-panel .fp-ride {
     margin-top: 8px; width: 100%; min-height: calc(44px * var(--uit)); text-align: center;
@@ -4754,6 +4777,12 @@
         <span class="eta" id="fpEta"></span>
       </div>
       <div class="xfer-conn" id="fpConn" hidden></div>
+      <button class="fp-bus" id="fpBus" hidden type="button">接公車</button>
+      <div class="fp-busbox" id="fpBusBox" hidden>
+        <div class="fp-busbox-r"><span>轉乘站</span><select id="fpBusTo" aria-label="選擇公車轉乘站"></select></div>
+        <div class="fp-busbox-r"><button id="fpBusGo" type="button">開始轉乘助手</button><button id="fpBusCancel" type="button">取消</button></div>
+      </div>
+      <div class="fp-bus-slot" id="fpBusTransfer" hidden></div>
       <div class="fp-prog">
         <div class="bar"><i id="fpProgFill"></i></div>
         <span class="txt" id="fpProgTxt"></span>
@@ -5013,6 +5042,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="busassistant"><span class="d">9/3</span><span>跟台鐵列車時可以先指定在哪一站接公車；抵達前 15 分、5 分與實際到站才查一次動態，並把列車抵達、站外步行和公車到站合成保守的轉乘裕度。時光機與加速重播不查即時資料。</span></li>
         <li data-cl-of="railsound"><span class="d">9/3</span><span>App 版配樂情境多了「車聲」開關：跟車時車一動就有鐵軌聲，停站淡出；放空模式一直放。</span></li>
         <li data-cl-of="rideseq"><span class="d">9/3</span><span>完乘記錄多了「順序」排法，照你實際跟完的先後排、最早那趟在最上面；手機的旅程護照也補上排序鈕（謝謝網友回報）</span></li>
         <li data-cl-of="crowdfallback"><span class="d">9/3</span><span>捷運列車的車廂擁擠度不會再整批消失一輪：官方擁擠度偶爾抓不到時改用剛才那一份，最多兩分鐘，超過就留白（謝謝網友回報）</span></li>
@@ -5020,7 +5050,6 @@
         <li data-cl-of="webmcp"><span class="d">9/2</span><span>ChatGPT 在內建瀏覽器打開軌島時，現在能直接查目前畫面、搜尋車站、讀車站看板與營運公告，也能替你開啟車站看板或跟隨指定火車；一般瀏覽器不受影響</span></li>
         <li data-cl-of="crowdcard"><span class="d">9/2</span><span>跟捷運列車時，卡片上會顯示這一台車每一節車廂的擁擠度</span></li>
         <li data-cl-of="boardwide"><span class="d">9/2</span><span>桌面的車站看板加寬，車種與「往哪」不會再被截掉</span></li>
-        <li data-cl-of="latetagbig"><span class="d">9/1</span><span>車站看板的誤點標示放大加粗，一眼就看得出這班晚了幾分（謝謝網友回報）</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5098,6 +5127,7 @@
         <li data-cl="latetagbig"><span class="d">9/1</span><span>車站看板的誤點標示放大加粗，一眼就看得出這班晚了幾分（謝謝網友回報）。</span></li>
         <li data-cl="boardwide"><span class="d">9/2</span><span>桌面的車站看板由 280 加寬到 360 像素。原本一列要放線色、車號、往哪、擁擠度、時刻與倒數，「往 松山（經南京復興）」這種長方向會被截成「往 松山（經…」；新竹站實測原本有三到四列被截，加寬後一列都不截。手機版本來就是整寬的抽屜，不受影響。</span></li>
         <li data-cl="xferconn"><span class="d">9/1</span><span>跟台鐵、高鐵，或搭捷運快到台北、南港、板橋、新竹、苗栗、台中、台南、左營、嘉義這些轉乘站時，卡片會直接列出對向系統最近兩班的車次、時刻，以及「你到站時還剩幾分」——這個分鐘數含你這班車當下的誤點。點一列可以把你要搭的那班釘住，之後畫面只留它。高鐵沒有即時誤點，它的時刻是表定；站內步行時間各站差異大，我不替你判斷來不來得及，只告訴你到站那一刻還剩多久</span></li>
+        <li data-cl="busassistant"><span class="d">9/3</span><span>公車轉乘從「到站後自己打開車站看板查」接進跟車流程：跟台鐵列車時先按「接公車」、指定要下車的轉乘站，App 才會追這一站。距離抵達 15 分鐘時查第一輪、5 分鐘時重查、實際到站再查一次；同一里程碑不會因地圖每幀更新而重複發送，也不會沿途每站查。畫面把列車預估抵達、車站到路邊站牌的戶外步行時間、公車到站倒數與兩分鐘安全緩衝合成保守裕度，分成預估可轉乘、時間偏緊與可能接不上；仍明示不含月台、閘門、地下街等站內步行。使用時光機、加速播放、暫停或分頁在背景時不查即時資料；選定路線後仍可查看車牌、位置、擁擠度與開 Google 地圖步行到正確方向站牌。</span></li>
         <li data-cl="bustransferall"><span class="d">9/1</span><span>公車轉乘由臺北、臺南、花蓮三站擴到目前班表中的 239 座實體台鐵客運站（官方另列的「臺北-環島」站碼已併回臺北，不重複計算）。打開車站看板不會立刻查資料，只有按「查看現在可搭公車」才查該站 600 公尺內的到站倒數；再點某一路線，才查那一路的車牌、位置、還差幾站與擁擠度。沒有車牌、預估或擁擠度時會照實標示，不自行猜值；每筆也顯示資料年齡。選定路線後可直接開 Google 地圖步行到該方向的路邊站牌，步行估算明示不含月台、閘門、地下街等站內距離。索引目前在 221 站找到附近站牌，其餘 18 站會直接說明 600 公尺內沒有可用站牌，不發出空的即時查詢。查詢失敗時只顯示可重試的友善說明，不把伺服器狀態碼或瀏覽器錯誤直接放到畫面上。全程維持使用者點開才查，不在背景輪詢全臺公車</span></li>
         <li data-cl="tourpickcap"><span class="d">8/31</span><span>「隨機跟隨」按了老是跳到同幾班車：稀有度原本被算了兩次——車種等級已經加過權，接著車型稀有再乘四倍，而莒光號、太魯閣號、DR3100 柴聯是整個車型都標稀有，於是一班莒光等於四十班區間車、藍皮解憂號等於九十六班。在跑的車越少壓得越兇：實測晚上十一點只剩兩班莒光在跑時，554 次一班就吃掉 17% 的抽籤機會（當時有 102 班車在跑，平均應該是 1%），中午的藍皮解憂號是 16.8%。現在任何一班都不得超過當下總權重的 3%，上限跟著各時段在跑的車數自動縮放；另外會記住剛跟過的五班，連按「換一班」不會再在同幾班之間繞。稀有車與觀光列車仍然比一般車更常遇到，只是不再獨佔</span></li>
         <li data-cl="boardalign"><span class="d">8/31</span><span>車站看板的欄位對齊。使用者回報「擁擠度跟時間，會因為最後面倒數那邊時間會變成『即將進站』而擠壓到，變成歪掉」。兩個成因：一是倒數欄原本只設了最小寬度，「即將進站」比「3 分」寬，那幾列就把時刻欄往左推；二是時刻的等寬數字設定要字型真的支援才生效，Chrome 上「12:31」比「12:26」窄兩個多像素，擁擠度欄跟著逐列左右跳。現在倒數與時刻兩欄都改成「量出這張板最寬的一列、全板同寬」，英日文與放大字級都自動吃到，不必為每種組合寫死一個數字</span></li>
@@ -5811,7 +5841,9 @@
 //         USAGE(blob1='ofmfail')。使用者 09-03 裁示「先量頻率」。地圖行為零變更;守門人:scripts/verify_ofm_fallback_beacon.mjs。
 // v0903g：把 claude/map-stadia-revert-xvjirk(上面 v0903e 那段的退場埋點＋check-basemap 守門人重寫:網站 OFM 失效只提示不掛 raster)
 //         併回 main。e 與 f 都撞號(e 另有 5122754e、f 是 371e4105 車聲圖層),改取 g(逐 ref＋逐樹掃過無人佔用)。地圖行為零變更。
-const BUILD = 'v0903g';
+// v0903h：公車動態接進台鐵跟車流程。使用者指定轉乘站後，僅在 15 分／5 分／到站三個事件查詢；
+//         非即時、加速、暫停與背景頁不查。列車 ETA＋戶外步行＋公車 ETA 以向下取整與 2 分緩衝算保守裕度。
+const BUILD = 'v0903h';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -15112,6 +15144,8 @@ function setFollow(tr, isAuto, noJump, opts) {
   // 收掉等於把設計的兩分頁砍成一頁(狀態機 tapTrain 只切 tab,不關卡)。桌面維持原本的「一律收掉」。
   if (!uniMobile()) closeBoard();
   state.followTrain = tr; state.followId = tr.train;
+  // 轉乘站是「這一班車」的行程意圖；換車不能把上一班的站悄悄沿用到新車。
+  if (busTransferJourney && busTransferJourney.trainKey !== busTransferTrainKey(tr)) busTransferCancelJourney(false);
   state._camOffAt = 0; // 換車歸零離屏累計,免得舊車的離屏時間觸發對新車的誤救
   setBasemap(); // 衛星模式下跟車鏡頭連續平移改用低解析度圖磚(見 setBasemap 內 satLQ 註解)
   syncPanFence(); // 台鐵/高鐵起跟:確保平移硬牆維持開啟(跟車不再解牆,見 syncPanFence 註解;冪等)
@@ -15192,6 +15226,7 @@ function clearFollow() {
   unmountUniCard(); // 整合卡:跟車結束 ⇒ 分頁列消失、跟車卡搬回原位(設計 D3)
   clearFreqFollow(); // 換系統/群組/進放空都經過這裡 → 一併清掉捷運幽靈車跟隨
   restoreFollowSpeed(); // 中途取消跟隨也要還原 fromStart 重播強制的速度
+  busTransferCancelJourney(false);
   state.followTrain = null; state.followId = null; state.followStatus = null;
   state.followWrapStops = null;
   if (state.amb) state.amb.at = 0; // 車聲圖層:停跟即淡出(下一拍 ambTick 判無新位置)
@@ -21315,6 +21350,7 @@ function showFollowPanel(tr) {
   if (notifyBtn) notifyBtn.style.display = NOTIFY_LOCAL_ENABLED && !!reminderSysOf(tr) ? '' : 'none';
   if (state._followTrainPrev !== tr) { state._followTrainPrev = tr; closeRideBox(); } // 換一班車就收起選單,不要沿用上一班的站
   updateRideBtn(tr);
+  busTransferUpdateControl(tr);
   updateFollowAlert(); // 行經通阻公告路線的車,跟隨當下就掛警示
   updateFollowPanel(tr);
 }
@@ -21364,6 +21400,7 @@ function updateFollowPanel(tr) {
     : (xdwell && xdwell.st.stop !== false) ? effTLive(tr)
     : xstop.arrSec + liveDelaySec(tr);
   setTransferConn('fpConn', xgid, xat, xsys);
+  syncBusTransferJourney(tr);
   if (info) {
     nx.textContent = stationName(info.name, tr.sys);
     // 轉乘標:這是唯一會改變行動的時刻——要不要在這站下車換車。用 transferRoutesForStop 而非
@@ -26014,6 +26051,128 @@ function soloPanel(keep) {
 }
 // 整合卡(設計狀態機 tapStation):點站＝切到「這一站」,跟車不中斷。
 let busTransferBoardStationId = null;
+// 動態轉乘助手：使用者先選「在哪一站接公車」，才開始追這一個站。沒有這顆意圖就絕不沿途
+// 每站查；查詢只發生在 15 分、5 分、到站三個里程碑。狀態只活在本次跟車，不寫 localStorage，
+// 避免下次開 App 把舊行程誤當成今天的轉乘。
+let busTransferJourney = null;
+let busTransferJourneyRenderKey = '';
+
+function busTransferTrainKey(tr) {
+  return tr ? `${tr.sys || ''}|${tr.train || ''}` : '';
+}
+function busTransferStopTarget(tr, index) {
+  const stop = tr && tr.stops && tr.stops[index];
+  if (!stop || stop.stop === false) return null;
+  const info = stnInfo(stop.name), code = String(info && info.id || '');
+  const stationId = /^\d{4}$/.test(code) ? `TRA:${code}` : '';
+  if (!stationId || !window.BusTransferUI || !window.BusTransferUI.isSupported(stationId)) return null;
+  return { index, stop, stationId, stationName: stationName(stop.name, tr.sys) };
+}
+function busTransferRemainingTargets(tr) {
+  if (!tr || tr.sys !== 'tra_sched' || tr.loop) return [];
+  const now = effTLive(tr), out = [];
+  for (let i = 0; i < tr.stops.length; i++) {
+    const stop = tr.stops[i];
+    // 已開車的站不再列；正在停靠的這一站仍可選，讓臨時決定下車的人能直接啟動。
+    if (!stop || stop.stop === false || stop.depSec < now - 3) continue;
+    const target = busTransferStopTarget(tr, i);
+    if (target) out.push(target);
+  }
+  return out;
+}
+function busTransferUpdateControl(tr) {
+  const btn = document.getElementById('fpBus'), box = document.getElementById('fpBusBox');
+  if (!btn || !box) return;
+  const eligible = !!(tr && tr.sys === 'tra_sched' && !tr.loop && busTransferRemainingTargets(tr).length);
+  btn.hidden = !eligible;
+  if (!eligible) { box.hidden = true; return; }
+  const active = busTransferJourney && busTransferJourney.trainKey === busTransferTrainKey(tr);
+  btn.classList.toggle('on', !!active);
+  btn.textContent = active ? t('轉乘助手 · {station}', { station: busTransferJourney.stationName }) : t('接公車');
+}
+function busTransferOpenPicker(tr) {
+  const box = document.getElementById('fpBusBox'), select = document.getElementById('fpBusTo');
+  const go = document.getElementById('fpBusGo'), cancel = document.getElementById('fpBusCancel');
+  if (!box || !select || !go || !cancel || !tr) return;
+  const targets = busTransferRemainingTargets(tr);
+  if (!targets.length) { showToast(t('這班車已沒有可設定的公車轉乘站')); return; }
+  const label = box.querySelector('.fp-busbox-r > span');
+  if (label) label.textContent = t('轉乘站');
+  select.setAttribute('aria-label', t('選擇公車轉乘站'));
+  select.innerHTML = targets.map(target => `<option value="${target.index}">${escHtml(target.stationName)}</option>`).join('');
+  const active = busTransferJourney && busTransferJourney.trainKey === busTransferTrainKey(tr);
+  select.value = String(active ? busTransferJourney.stopIndex : targets[0].index);
+  go.textContent = t(active ? '更改轉乘站' : '開始轉乘助手');
+  cancel.textContent = t(active ? '結束助手' : '取消');
+  box.hidden = false;
+}
+function busTransferCancelJourney(keepPicker) {
+  const root = document.getElementById('fpBusTransfer');
+  if (root && window.BusTransferUI) window.BusTransferUI.unmount(root);
+  if (root) { root.hidden = true; root.innerHTML = ''; }
+  busTransferJourney = null;
+  busTransferJourneyRenderKey = '';
+  const box = document.getElementById('fpBusBox');
+  if (box && !keepPicker) box.hidden = true;
+  busTransferUpdateControl(state.followTrain);
+}
+function busTransferStartJourney(tr, stopIndex) {
+  const target = busTransferStopTarget(tr, stopIndex);
+  if (!target) { showToast(t('這一站目前沒有可用的公車轉乘資料')); return false; }
+  const oldId = busTransferJourney && busTransferJourney.stationId;
+  busTransferJourney = {
+    trainKey: busTransferTrainKey(tr), stationId: target.stationId, stationName: target.stationName,
+    stopIndex: target.index, stop: target.stop,
+  };
+  // 換站時舊 instance 必須卸載；共用資料快取不 reset，避免同站車站看板正在使用時被一起清掉。
+  const root = document.getElementById('fpBusTransfer');
+  if (oldId && oldId !== target.stationId && root && window.BusTransferUI) window.BusTransferUI.unmount(root);
+  busTransferJourneyRenderKey = '';
+  document.getElementById('fpBusBox').hidden = true;
+  busTransferUpdateControl(tr);
+  syncBusTransferJourney(tr, true);
+  showToast(t('已設定在 {station} 接公車', { station: target.stationName }));
+  return true;
+}
+function busTransferTrainEta(tr, target, remainSec) {
+  const liveAge = state.live && state.live.at ? Math.max(0, Math.round((Date.now() - state.live.at) / 1000)) : null;
+  return {
+    arrivalAt: new Date(Date.now() + Math.max(0, remainSec) * 1000).toISOString(),
+    ageSec: liveAge,
+    source: liveFresh() ? t('台鐵即時誤點') : t('台鐵時刻表推估'),
+  };
+}
+function syncBusTransferJourney(tr, force) {
+  const root = document.getElementById('fpBusTransfer'), journey = busTransferJourney;
+  if (!root || !window.BusTransferUI || !journey || !tr || journey.trainKey !== busTransferTrainKey(tr)) {
+    if (root) root.hidden = true;
+    busTransferUpdateControl(tr);
+    return;
+  }
+  const target = busTransferStopTarget(tr, journey.stopIndex);
+  if (!target || target.stationId !== journey.stationId) { busTransferCancelJourney(false); return; }
+  const remainSec = target.stop.arrSec - effTLive(tr);
+  const phase = remainSec <= 0 ? 'arrived' : remainSec <= 15 * 60 ? 'approaching' : 'planning';
+  // 只在真實現在、1× 播放、前景頁面查即時。時光機／加速重播仍可看設定與 ETA，但不打 TDX。
+  const liveClock = state.clockAtNow && state.playing && state.speedMult === 1 && !state._scrubTime && !document.hidden;
+  const eta = busTransferTrainEta(tr, target, remainSec);
+  const minuteBucket = Math.max(0, Math.ceil(remainSec / 60));
+  const renderKey = [journey.trainKey, journey.stationId, phase, minuteBucket, liveClock ? 'live' : 'sim', eta.source].join('|');
+  if (force || renderKey !== busTransferJourneyRenderKey) {
+    busTransferJourneyRenderKey = renderKey;
+    root.hidden = false;
+    window.BusTransferUI.mount({
+      root, stationId: journey.stationId, stationName: journey.stationName, phase,
+      viewKey: `${journey.stationId}|journey|${journey.trainKey}`, assistant: true,
+      trainEta: eta, plan: { stationPosition: { lat: target.stop.lat, lon: target.stop.lon }, routes: [] },
+      translate: t, apiBase: API_BASE,
+    });
+  }
+  if (liveClock && remainSec <= 15 * 60) {
+    const milestone = remainSec <= 0 ? 'arrived' : remainSec <= 5 * 60 ? 'near-5' : 'near-15';
+    window.BusTransferUI.refresh(root, milestone);
+  }
+}
 function busTransferStationId(st) {
   if (!st || st.sys !== 'tra_sched') return null;
   const info = stnInfo(st.name);
@@ -31833,6 +31992,21 @@ document.getElementById('fpTripShare').onclick = (e) => {
   e.stopPropagation();
   plusGateOpen('trip-share', () => openTripSharePanel()); // 非 Plus→導去訂閱;已訂閱→直接開面板
 };
+document.getElementById('fpBus').onclick = (e) => {
+  e.stopPropagation();
+  if (state.followTrain) busTransferOpenPicker(state.followTrain);
+};
+document.getElementById('fpBusBox').onclick = (e) => {
+  e.stopPropagation();
+  if (e.target.closest('#fpBusCancel')) {
+    if (busTransferJourney) busTransferCancelJourney(false);
+    else document.getElementById('fpBusBox').hidden = true;
+    return;
+  }
+  if (!e.target.closest('#fpBusGo')) return;
+  const tr = state.followTrain, index = parseInt(document.getElementById('fpBusTo').value, 10);
+  if (tr && index >= 0) busTransferStartJourney(tr, index);
+};
 // #fpRide 網頁端開機會被 updateRideBtn 整顆 remove()(平台分界,見該函式開頭的
 // PHYSICAL_COLLECT_ENABLED 分支);這裡是 top-level 綁定,若執行當下它已經不在,原本會直接
 // 拋錯讓這行之後所有 top-level 綁定全滅。目前所有 updateRideBtn 呼叫點都在非同步路徑,不會
@@ -31970,7 +32144,7 @@ document.getElementById('followPanel').addEventListener('click', (e) => {
       // 🔴 .xfc-row/.xfc-unpin(轉乘接續)也要排除:#fpConn 就住在這張卡裡,不排除的話手機上點
       //    一列接續會「順便」把整張列車 sheet 滑上來——使用者只想釘一班車,結果被導去另一個介面
       //    (2026-09-01 廣審實測 375×812 真觸控:xferPin 有值,body.train-open 同時 false→true)。
-      && !e.target.closest('.fp-end, .fp-close, .fp-tripshare, .fp-notify, .xfc-row, .xfc-unpin')) { openTrainSheet(); return; }
+      && !e.target.closest('.fp-end, .fp-close, .fp-tripshare, .fp-notify, .fp-bus, .fp-busbox, .fp-bus-slot, .xfc-row, .xfc-unpin')) { openTrainSheet(); return; }
   if (fp.classList.contains('fp-min') && !e.target.closest('.fp-end')) {
     fp.classList.remove('fp-min');
     try { localStorage.setItem('trainmap-fprail-min', '0'); } catch (err) {}

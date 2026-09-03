@@ -50,7 +50,21 @@
     '目前靜態索引在本站 600 公尺內沒有找到可用公車站牌，因此這次沒有發出即時查詢。你仍可改用地圖查看更遠的站牌。': 'The static index found no usable bus stops within 600 m of this station, so no live request was made. You can still use the map to look for stops farther away.',
     '這一刻來源沒有回報任何本站附近的公車班次。這不代表沒有公車路線經過，只代表現在沒有可呈現的預估。': 'The source has no bus arrivals to show near this station right now. Routes may still serve the area; there is simply no current estimate.',
     '再顯示其餘 {n} 筆': 'Show {n} more', '只顯示最近三筆': 'Show the nearest three only', '重新查詢': 'Refresh on demand',
-    '收合即時公車': 'Collapse live buses', '查看現在可搭公車': 'See buses you can catch now'
+    '收合即時公車': 'Collapse live buses', '查看現在可搭公車': 'See buses you can catch now',
+    '目前無法判斷能否接上': 'Connection cannot be determined right now',
+    '預估可轉乘・保守裕度 {n} 分': 'Likely connection · {n} min conservative buffer',
+    '轉乘時間偏緊・保守裕度 {n} 分': 'Tight connection · {n} min conservative buffer',
+    '這一班目前可能接不上': 'You may miss this bus',
+    '已設定本站轉乘；抵達前 15 分鐘才開始查公車動態。': 'Transfer stop set. Live bus data starts 15 minutes before arrival.',
+    '依列車抵達、站外步行與公車到站時間保守估算': 'Conservative estimate using train arrival, outdoor walk and bus arrival',
+    '轉乘站已設定。抵達前 15 分鐘會開始比對公車動態；在那之前不發出即時查詢。': 'Transfer stop set. Live bus comparison starts 15 minutes before arrival; no live request is sent before then.',
+    '轉乘助手 · {station}': 'Transfer assistant · {station}', '接公車': 'Connect to a bus',
+    '這班車已沒有可設定的公車轉乘站': 'No remaining bus transfer stop can be set on this train',
+    '更改轉乘站': 'Change transfer stop', '開始轉乘助手': 'Start transfer assistant', '結束助手': 'End assistant',
+    '這一站目前沒有可用的公車轉乘資料': 'Bus transfer data is not available at this station',
+    '已設定在 {station} 接公車': 'Bus transfer set at {station}',
+    '台鐵即時誤點': 'TRA live delay', '台鐵時刻表推估': 'TRA timetable estimate',
+    '轉乘站': 'Transfer stop', '選擇公車轉乘站': 'Choose a bus transfer stop'
   });
   messages.ja = Object.assign(messages.ja || {}, {
     '規劃': '計画', '接近': '接近', '已抵達': '到着',
@@ -94,6 +108,20 @@
     '目前靜態索引在本站 600 公尺內沒有找到可用公車站牌，因此這次沒有發出即時查詢。你仍可改用地圖查看更遠的站牌。': '現在の静的索引では駅から600m以内に利用可能なバス停が見つからないため、リアルタイム照会は行いませんでした。地図でより遠いバス停を確認できます。',
     '這一刻來源沒有回報任何本站附近的公車班次。這不代表沒有公車路線經過，只代表現在沒有可呈現的預估。': '現在、この駅付近で表示できる到着情報がありません。路線がないとは限らず、現在の予測がない状態です。',
     '再顯示其餘 {n} 筆': '残り{n}件を表示', '只顯示最近三筆': '直近3件のみ表示', '重新查詢': '手動で再照会',
-    '收合即時公車': 'リアルタイムバスを閉じる', '查看現在可搭公車': '今乗れるバスを見る'
+    '收合即時公車': 'リアルタイムバスを閉じる', '查看現在可搭公車': '今乗れるバスを見る',
+    '目前無法判斷能否接上': '現在は乗換可否を判断できません',
+    '預估可轉乘・保守裕度 {n} 分': '乗換可能見込み・保守的余裕 {n}分',
+    '轉乘時間偏緊・保守裕度 {n} 分': '乗換時間が短め・保守的余裕 {n}分',
+    '這一班目前可能接不上': '現在この便には間に合わない可能性があります',
+    '已設定本站轉乘；抵達前 15 分鐘才開始查公車動態。': '乗換駅を設定しました。到着15分前からバスのリアルタイム情報を確認します。',
+    '依列車抵達、站外步行與公車到站時間保守估算': '列車到着・駅外徒歩・バス到着から保守的に推定',
+    '轉乘站已設定。抵達前 15 分鐘會開始比對公車動態；在那之前不發出即時查詢。': '乗換駅を設定しました。到着15分前からバス情報を比較し、それ以前はリアルタイム照会を行いません。',
+    '轉乘助手 · {station}': '乗換アシスタント・{station}', '接公車': 'バスに乗り換える',
+    '這班車已沒有可設定的公車轉乘站': 'この列車には設定できる乗換駅が残っていません',
+    '更改轉乘站': '乗換駅を変更', '開始轉乘助手': '乗換アシスタントを開始', '結束助手': 'アシスタントを終了',
+    '這一站目前沒有可用的公車轉乘資料': 'この駅では現在バス乗換データを利用できません',
+    '已設定在 {station} 接公車': '{station}でのバス乗換を設定しました',
+    '台鐵即時誤點': '台鉄リアルタイム遅延', '台鐵時刻表推估': '台鉄時刻表推定',
+    '轉乘站': '乗換駅', '選擇公車轉乘站': 'バス乗換駅を選択'
   });
 })(window);

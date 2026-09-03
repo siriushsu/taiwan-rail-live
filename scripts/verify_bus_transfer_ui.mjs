@@ -20,6 +20,19 @@ check(/st\.sys !== 'tra_sched'/.test(index), '入口只出現在台鐵站看板'
 check(/COVERAGE = 'all_active_tra_stations'/.test(ui) && /\^TRA:\\d\{4\}\$/.test(ui),
   'UI 接受全臺四碼台鐵站碼，Worker manifest 再做實站 gate');
 check(/phase:\s*'arrived'/.test(index), '第一階段只掛載已抵達查詢，不推算未來接車');
+check(/id="fpBus"[\s\S]*id="fpBusTo"[\s\S]*id="fpBusTransfer"/.test(index),
+  '跟車卡提供先選轉乘站、再承接動態助手的完整入口');
+check(/function busTransferStartJourney\(tr, stopIndex\)/.test(index)
+  && /busTransferStopTarget\(tr, stopIndex\)/.test(index),
+  '公車動態綁定使用者選定的單一轉乘站，不沿途逐站查');
+check(/remainSec <= 0 \? 'arrived' : remainSec <= 5 \* 60 \? 'near-5' : 'near-15'/.test(index),
+  '自動查詢只有抵達前 15 分、5 分與到站三個里程碑');
+check(/state\.clockAtNow && state\.playing && state\.speedMult === 1[\s\S]{0,100}!document\.hidden/.test(index),
+  '時光機、暫停、加速與背景頁不查公車即時');
+check(/requestKeys:\s*new Set\(\)/.test(ui) && /instance\.requestKeys\.has\(key\)/.test(ui),
+  '同一個轉乘里程碑只查一次，不受每幀重繪影響');
+check(/Math\.floor\(\(busMs - trainMs\) \/ 60000\) - walkMin - SAFETY_BUFFER_MIN/.test(ui),
+  '轉乘裕度向下取整並扣站外步行與安全緩衝，不高估時間');
 check(/translate:\s*t/.test(index), '公車卡沿用 App 既有多語系函式');
 check(/busTransferCloseBoard\(\);[\s\S]{0,160}state\.boardStation = null/.test(index),
   '關閉車站看板會清除該站公車查詢狀態');
@@ -46,7 +59,7 @@ check(!/查不到附近公車：\{error\}|查不到這一路的車輛位置：\{
 check(/rememberRequestError\(state, 'station', error\)/.test(ui) && /rememberRequestError\(leg, 'leg', error\)/.test(ui),
   '原始錯誤只保留供 console 診斷');
 
-for (const key of ['查看現在可搭公車', '步行導航到站牌', '此縣市未提供擁擠度', '資料已過期', '暫時無法取得附近公車資訊，請稍後重試。', '暫時無法取得這一路的車輛位置，請稍後重試。', '目前靜態索引在本站 600 公尺內沒有找到可用公車站牌，因此這次沒有發出即時查詢。你仍可改用地圖查看更遠的站牌。']) {
+for (const key of ['查看現在可搭公車', '步行導航到站牌', '此縣市未提供擁擠度', '資料已過期', '暫時無法取得附近公車資訊，請稍後重試。', '暫時無法取得這一路的車輛位置，請稍後重試。', '目前靜態索引在本站 600 公尺內沒有找到可用公車站牌，因此這次沒有發出即時查詢。你仍可改用地圖查看更遠的站牌。', '預估可轉乘・保守裕度 {n} 分', '轉乘時間偏緊・保守裕度 {n} 分', '這一班目前可能接不上', '轉乘助手 · {station}']) {
   check(translations.includes(`'${key}'`), `英日翻譯表包含「${key}」`);
 }
 
