@@ -787,8 +787,7 @@ export async function verifyRelease({
     // 衛星 Retina 止血開關:只驗機制還活著(值可為 true/false,由 Esri 額度狀況決定)
     assert(/"satRetina":(true|false)/.test(html), 'RAIL_APP_CONFIG 未載明 satRetina(衛星高解析止血開關)');
     assert(html.includes('APP_CFG.satRetina'), 'index.html 的 SAT_RETINA 消費機制消失——App 端衛星解析度開關失效');
-    assert(html.includes('Math.min(18, FOLLOW_ZOOM_CAP)'),
-      'DIRECTOR_FOLLOW_Z 未由 FOLLOW_ZOOM_CAP 收斂——App 導播跟車 z16 上限失效');
+    // （DIRECTOR_FOLLOW_Z 那條斷言已隨 2026-09-03 刪除 OBS 導播模式一起拿掉；一般跟車的 z16 上限仍由上一條與下一條守著）
     assert((html.match(/followEntryZoom\(\), \{ animate: false \}/g) || []).length >= 3,
       '跟車進場 followEntryZoom 呼叫點少於 3 處——台鐵／高鐵／捷運跟車 zoom 上限未完整覆蓋');
     assert(html.includes(JSON.stringify(STADIA_ATTRIBUTION)),
