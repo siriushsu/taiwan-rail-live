@@ -563,8 +563,8 @@ async function browserMatrix(baseUrl) {
                 vehicleId:directionVehicle.vehicleId, vehicle:directionVehicle },
               true, () => true, false, Date.now() / 1000);
               const directionPrevious = trtcOfficialDirectionPrevious(brLine, directionVehicle, directionPos);
-              const projectedNow = window.__map.project([directionPos.lat, directionPos.lon], 18);
-              const projectedBefore = window.__map.project([directionPrevious.lat, directionPrevious.lon], 18);
+              const projectedNow = window.__M.worldPx([directionPos.lat, directionPos.lon], 18);
+              const projectedBefore = window.__M.worldPx([directionPrevious.lat, directionPrevious.lon], 18);
               const expected = Math.atan2(projectedNow.y - projectedBefore.y,
                 projectedNow.x - projectedBefore.x);
               const directionAngle = directionAngles[directionAngles.length - 1];

@@ -123,6 +123,21 @@ async function preparePage(page, url) {
 
 async function replay(root, label, engineName, port, htmlOverride = null, captureSpec = null) {
   const { server, indexHtml } = await serve(root, port, htmlOverride);
+  // 這支腳本同時重播三份 index.html:當前版與兩份早於 M0 的歷史版。歷史頁沒有 window.__M,
+  // 而 Task 1 已把驗收投影全面改走 M ⇒ 只替缺 M 的歷史頁補最小 Leaflet shim(寫法同
+  // verify_landscape.mjs 的舊基準 shim:native 方法用 bracket 取,不觸 G1e 的原名禁令)。
+  const INSTALL_LEGACY_M = () => {
+    if (window.__M || !window.__map) return;
+    const raw = window.__map;
+    window.__M = {
+      engine: 'leaflet', raw,
+      toScreen: ll => raw['latLngToContainerPoint'](ll),
+      fromScreen: px => raw['containerPointToLatLng'](px),
+      getCenter: () => raw.getCenter(), getContainer: () => raw.getContainer(),
+      getSize: () => raw.getSize(), getZoom: () => raw.getZoom(),
+      setView: (center, zoom, options) => raw.setView(center, zoom, options),
+    };
+  };
   const url = `http://127.0.0.1:${port}/index.html`;
   const launcher = engineName === 'webkit' ? webkit : chromium;
   const browser = await launcher.launch({ headless: true });
@@ -131,6 +146,7 @@ async function replay(root, label, engineName, port, htmlOverride = null, captur
   const pageErrors = []; page.on('pageerror', e => pageErrors.push(String(e)));
   try {
     await preparePage(page, url);
+    await page.evaluate(INSTALL_LEGACY_M); // 歷史頁沒有 M,補 shim(當前版永遠早退)
     const result = await page.evaluate(({ payloads, selectedKeys, floor, ceil, satEps, correctingEpsSec, captureSpec }) => {
       const round = (v, n = 4) => Number.isFinite(v) ? +v.toFixed(n) : null;
       const percentile = (values, p) => {
@@ -347,10 +363,10 @@ async function replay(root, label, engineName, port, htmlOverride = null, captur
           const cv = document.getElementById('overlay');
           const out = document.createElement('canvas'); out.width = 560; out.height = 300;
           const oc = out.getContext('2d'); oc.fillStyle = '#f3f0e8'; oc.fillRect(0, 0, out.width, out.height);
-          const centerPx = window.__map.latLngToContainerPoint(captureSpec.center);
+          const centerPx = window.__M.toScreen(captureSpec.center);
           oc.drawImage(cv, centerPx.x - out.width / 2, centerPx.y - out.height / 2, out.width, out.height, 0, 0, out.width, out.height);
           if (marked) {
-            const p = window.__map.latLngToContainerPoint(marked.pos), x = p.x - centerPx.x + out.width / 2, y = p.y - centerPx.y + out.height / 2;
+            const p = window.__M.toScreen(marked.pos), x = p.x - centerPx.x + out.width / 2, y = p.y - centerPx.y + out.height / 2;
             oc.save(); oc.strokeStyle = '#ff2d7a'; oc.lineWidth = 4; oc.beginPath(); oc.arc(x, y, 14, 0, Math.PI * 2); oc.stroke();
             oc.fillStyle = '#ff2d7a'; oc.font = '700 14px system-ui'; oc.textAlign = 'left'; oc.fillText('比較車', x + 19, y + 5); oc.restore();
           }

@@ -115,7 +115,7 @@ const originOf = page => page.evaluate(() => {
 // 場地沒選乾淨的話點下去彈的是車站選單,量到的根本不是車與車的勝負(第一版就踩到)。
 const findEmptySpot = page => page.evaluate(() => {
   const pts = [];
-  for (const st of (state.schedStations || [])) pts.push(window.__map.latLngToContainerPoint([st.lat, st.lon]));
+  for (const st of (state.schedStations || [])) pts.push(window.__M.toScreen([st.lat, st.lon]));
   if (state.deco) for (const ln of (state.decoLines || [])) for (const p of (ln.pts || [])) pts.push(p);
   for (const ln of (state.lines || [])) for (const p of (ln.pts || [])) pts.push(p);
   const r = document.getElementById('map').getBoundingClientRect();
@@ -307,7 +307,7 @@ async function run(browser, tag, vp = { width: 1280, height: 800 }, coreOnly = f
       // ——而選單自己的定位本來就會夾在畫面內(openTapPick 有 clamp),那個邊界是多餘的自殘。
       let best = null, bd = 1e9, onScreen = 0, clickable = 0;
       for (const st of (state.schedStations || [])) {
-        const p = window.__map.latLngToContainerPoint([st.lat, st.lon]);
+        const p = window.__M.toScreen([st.lat, st.lon]);
         if (p.x < 8 || p.y < 8 || p.x > r.width - 8 || p.y > r.height - 8) continue;
         onScreen++;
         const el = document.elementFromPoint(r.left + p.x, r.top + p.y);
@@ -319,7 +319,7 @@ async function run(browser, tag, vp = { width: 1280, height: 800 }, coreOnly = f
       if (!best) return { skip: `畫面上沒有可點的車站(在畫面內 ${onScreen} 個、沒被蓋住 ${clickable} 個)`,
         diag: { n: (state.schedStations || []).length, mode: state.mode, z: window.__map.getZoom(),
           rect: [Math.round(r.width), Math.round(r.height)],
-          sample: (state.schedStations || []).slice(0, 3).map(st => { const p = window.__map.latLngToContainerPoint([st.lat, st.lon]); return `${st.name}@${Math.round(p.x)},${Math.round(p.y)}`; }) } };
+          sample: (state.schedStations || []).slice(0, 3).map(st => { const p = window.__M.toScreen([st.lat, st.lon]); return `${st.name}@${Math.round(p.x)},${Math.round(p.y)}`; }) } };
       // 同一拍把車放到站的位置上,兩者之間不給地圖任何移動的機會
       if (!window.__origDraw) { window.__origDraw = window.draw; }
       window.draw = () => {};
@@ -333,7 +333,7 @@ async function run(browser, tag, vp = { width: 1280, height: 800 }, coreOnly = f
       // 回報這一拍的實際站距:>16 就是場地沒站穩,後面那條不判分
       let sd = 1e9;
       for (const st of (state.schedStations || [])) {
-        const p = window.__map.latLngToContainerPoint([st.lat, st.lon]);
+        const p = window.__M.toScreen([st.lat, st.lon]);
         const d = Math.hypot(p.x - best.x, p.y - best.y); if (d < sd) sd = d;
       }
       return { ...best, stDist: +sd.toFixed(1), label: String(trs[0].train) };
@@ -349,7 +349,7 @@ async function run(browser, tag, vp = { width: 1280, height: 800 }, coreOnly = f
       const after = await page.evaluate(({ x, y }) => {
         let d = 1e9;
         for (const st of (state.schedStations || [])) {
-          const p = window.__map.latLngToContainerPoint([st.lat, st.lon]);
+          const p = window.__M.toScreen([st.lat, st.lon]);
           const k = Math.hypot(p.x - x, p.y - y); if (k < d) d = k;
         }
         return +d.toFixed(1);

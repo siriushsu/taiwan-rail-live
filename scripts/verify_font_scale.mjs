@@ -611,7 +611,7 @@ async function sectionH(browser, engine) {
       if (!state.visible.has(t.typeName)) continue;
       const pos = trainPos(t, state.simSec);
       if (!pos) continue;
-      const pt = window.__map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
+      const pt = window.__M.toScreen(L.latLng(pos.lat, pos.lon));
       if (pt.x > 60 && pt.x < mc.width - 60 && pt.y > 180 && pt.y < 600) {
         setFollow(t, false);
         return String(t.no || t.trainNo || t.typeName || '?');
@@ -627,7 +627,7 @@ async function sectionH(browser, engine) {
     const pos = trainPos(t, state.simSec);
     if (!pos) return { ...r, ok: false, why: '跟到的車算不出位置' };
     const mc = window.__map.getContainer().getBoundingClientRect();
-    const pt = window.__map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
+    const pt = window.__M.toScreen(L.latLng(pos.lat, pos.lon));
     const hit = document.elementFromPoint(mc.left + pt.x, mc.top + pt.y);
     const chrome = hit && hit.closest('.topbar,.badge,.tabbar,.controls,#followPanel,#freqCard,.sheet,#mapActions');
     const fp = document.getElementById('followPanel');
@@ -670,7 +670,7 @@ async function sectionH(browser, engine) {
       if (!state.visible.has(t.typeName)) continue;
       const pos = trainPos(t, state.simSec);
       if (!pos) continue;
-      const pt = window.__map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
+      const pt = window.__M.toScreen(L.latLng(pos.lat, pos.lon));
       if (pt.x > 60 && pt.x < mc.width - 60 && pt.y > 180 && pt.y < 600) { setFollow(t, false); return true; }
     }
     return false;
@@ -690,7 +690,7 @@ async function sectionH(browser, engine) {
     const pos = trainPos(t, state.simSec);
     if (!pos) return { ...r, ok: false, why: '算不出位置' };
     const mc = window.__map.getContainer().getBoundingClientRect();
-    const pt = window.__map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
+    const pt = window.__M.toScreen(L.latLng(pos.lat, pos.lon));
     const hit = document.elementFromPoint(mc.left + pt.x, mc.top + pt.y);
     const chrome = hit && hit.closest('.topbar,.badge,.tabbar,.controls,#followPanel,#freqCard,.sheet,#mapActions');
     // 🔴 看板是「內容撐高、上限 46%」不是固定 46%:深夜班次少的時候整張只有 187px(實測 00:35 的
@@ -900,7 +900,7 @@ async function followSomeTrain(page) {
       if (!state.visible.has(t.typeName)) continue;
       const pos = trainPos(t, state.simSec);
       if (!pos) continue;
-      const pt = window.__map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
+      const pt = window.__M.toScreen(L.latLng(pos.lat, pos.lon));
       if (pt.x > 60 && pt.x < mc.width - 60 && pt.y > 180 && pt.y < 600) { setFollow(t, false); return true; }
     }
     return false;
@@ -969,7 +969,7 @@ async function sectionJ(browser, engine) {
     const t = state.followTrain; if (!t) return { ...r, ok: false };
     const pos = trainPos(t, state.simSec); if (!pos) return { ...r, ok: false };
     const mc = window.__map.getContainer().getBoundingClientRect();
-    const pt = window.__map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
+    const pt = window.__M.toScreen(L.latLng(pos.lat, pos.lon));
     const hit = document.elementFromPoint(mc.left + pt.x, mc.top + pt.y);
     const chrome = hit && hit.closest('.topbar,.badge,.tabbar,.controls,#followPanel,#freqCard,.sheet,.board,#mapActions');
     return { ...r, ok: true, py: +pt.y.toFixed(1), inBand: pt.y >= r.bandTop && pt.y <= r.bandBot,
@@ -1038,7 +1038,7 @@ const K_BLANK = () => {
   const nearestStn = cp => {
     let bd = 1e9;
     for (const st of (state.schedStations || [])) {
-      const q = window.__map.latLngToContainerPoint([st.lat, st.lon]);
+      const q = window.__M.toScreen([st.lat, st.lon]);
       bd = Math.min(bd, Math.hypot(q.x - cp.x, q.y - cp.y));
     }
     if (state.deco) (state.decoLines || []).forEach(ln => { if (!ln.pts) return;
@@ -1212,7 +1212,7 @@ async function sectionK(browser, engine) {
     const t = state.followTrain; if (!t) return null;
     const pos = trainPos(t, state.simSec); if (!pos) return null;
     const mc = window.__map.getContainer().getBoundingClientRect();
-    const q = window.__map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
+    const q = window.__M.toScreen(L.latLng(pos.lat, pos.lon));
     return { x: q.x, y: q.y, ml: mc.left, mt: mc.top };
   });
   if (tp) {
@@ -2664,7 +2664,7 @@ async function sectionY(browser, engine) {
         const c = await page.evaluate(nm => {
           const rect = window.__map.getContainer().getBoundingClientRect();
           const pts = [];
-          if (state.mode === 'sched') (state.schedStations || []).forEach(s => { const p = window.__map.latLngToContainerPoint([s.lat, s.lon]); pts.push({ x: p.x, y: p.y, name: s.name }); });
+          if (state.mode === 'sched') (state.schedStations || []).forEach(s => { const p = window.__M.toScreen([s.lat, s.lon]); pts.push({ x: p.x, y: p.y, name: s.name }); });
           else state.lines.forEach(ln => { if (state.visible.has(ln.id) && ln.pts) ln.pts.forEach((p, i) => { if (ln.stations[i]) pts.push({ x: p.x, y: p.y, name: ln.stations[i].name }); }); });
           const me = pts.find(p => p.name === nm && Math.hypot(p.x - rect.width / 2, p.y - rect.height / 2) < 40);
           if (!me) return { ok: false, why: '不在畫面中央' };
@@ -2691,7 +2691,7 @@ async function sectionY(browser, engine) {
       const g2 = await page.evaluate(() => {
         const rect = window.__map.getContainer().getBoundingClientRect();
         const pts = [];
-        if (state.mode === 'sched') (state.schedStations || []).forEach(s => { const p = window.__map.latLngToContainerPoint([s.lat, s.lon]); pts.push({ x: p.x, y: p.y }); });
+        if (state.mode === 'sched') (state.schedStations || []).forEach(s => { const p = window.__M.toScreen([s.lat, s.lon]); pts.push({ x: p.x, y: p.y }); });
         else state.lines.forEach(ln => { if (state.visible.has(ln.id) && ln.pts) ln.pts.forEach(p => pts.push({ x: p.x, y: p.y })); });
         const nTr = (x, y) => (state.mode === 'sched' ? trainsAt : freqTrainsAt)(L.point(x, y)).length;
         for (let y = 180; y < rect.height - 300; y += 11) {

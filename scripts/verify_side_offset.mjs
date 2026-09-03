@@ -107,7 +107,7 @@ const A = await open(PORT);
 const M = await A.page.evaluate(() => {
   const keyOf = tr => (tr.sys || '') + ':' + tr.train;
   const settle = (n = 40) => { for (let k = 0; k < n; k++) draw(); };   // 漸變收斂到穩態
-  const rawCp = tr => { const p = trainPos(tr, state.simSec); return p ? window.__map.latLngToContainerPoint([p.lat, p.lon]) : null; };
+  const rawCp = tr => { const p = trainPos(tr, state.simSec); return p ? window.__M.toScreen([p.lat, p.lon]) : null; };
   const drawnCp = tr => { for (const h of state._trainHits) if (h.tr === tr) return h; return null; };
   const offOf = tr => { const a = rawCp(tr), b = drawnCp(tr); return (a && b) ? { x: b.x - a.x, y: b.y - a.y } : null; };
   const mag = v => v ? Math.hypot(v.x, v.y) : 0;
@@ -536,7 +536,7 @@ await A.page.evaluate(() => {
       const k = (h.tr.sys || '') + ':' + h.tr.train;
       if (!_blockSide.has(k)) continue;
       const p = trainPos(h.tr, state.simSec); if (!p) continue;
-      const c = window.__map.latLngToContainerPoint([p.lat, p.lon]);
+      const c = window.__M.toScreen([p.lat, p.lon]);
       f[k] = [h.x - c.x, h.y - c.y];
     }
     window.__rec.push(f);
@@ -629,7 +629,7 @@ const OV = await A.page.evaluate(() => {
       if (!gPartner || gPartner.dwell) continue;                  // 現在的鄰居也在停＝不是待避，規則不適用
       const gm = segOf(me), go = segOf(other), tg = tangent(me);
       const p = trainPos(me, state.simSec); if (!gm || !go || !tg || !p) continue;
-      const c = window.__map.latLngToContainerPoint([p.lat, p.lon]);
+      const c = window.__M.toScreen([p.lat, p.lon]);
       const h = state._trainHits.find(x => x.tr === me); if (!h) continue;
       const ox = h.x - c.x, oy = h.y - c.y, m = Math.hypot(ox, oy);
       rows.push({ dt, dwell: !!gm.dwell, m: +m.toFixed(2),
@@ -780,7 +780,7 @@ check('B18 讓完之後（讓的那班開走、沒有人在讓了）也不得換
 const RB = await A.page.evaluate(() => {
   const keyOf = tr => (tr.sys || '') + ':' + tr.train;
   const segOf = tr => trainSeg(tr, state.simSec - liveDelaySec(tr) - blockHoldSec(tr));
-  const rawCp = tr => { const q = trainPos(tr, state.simSec); return q ? window.__map.latLngToContainerPoint([q.lat, q.lon]) : null; };
+  const rawCp = tr => { const q = trainPos(tr, state.simSec); return q ? window.__M.toScreen([q.lat, q.lon]) : null; };
   const drawnCp = tr => { for (const h of state._trainHits) if (h.tr === tr) return h; return null; };
   const magOf = tr => { const a = rawCp(tr), c = drawnCp(tr); return (a && c) ? Math.hypot(c.x - a.x, c.y - a.y) : null; };
   const tw = tr => { ctx.font = '700 10px ' + FONT; return ctx.measureText(String(tr.train)).width + 10; };
@@ -956,7 +956,7 @@ for (const [name, eng] of (process.env.SKIP_MOBILE ? [] : [['chromium', chromium
           window.__map.setView([(p.lat + qq.lat) / 2, (p.lon + qq.lon) / 2], 14, { animate: false });
           settle();
           const h = state._trainHits.find(x => x.tr === me); if (!h) continue;
-          const raw = window.__map.latLngToContainerPoint([p.lat, p.lon]);
+          const raw = window.__M.toScreen([p.lat, p.lon]);
           const off = Math.hypot(h.x - raw.x, h.y - raw.y);
           if (off < 1) continue;                              // 這一對在這個縮放沒疊到，換下一個場景
           const box = window.__map.getContainer().getBoundingClientRect();
