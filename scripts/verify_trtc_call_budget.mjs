@@ -184,18 +184,29 @@ ok('退路有上限：記憶體超過兩倍節流窗就留白（不給過期擁�
 
 // 🔴 退路不得把「三支全滅」偽裝成還有官方資料（worker.js :882 明文禁止：TrackInfo 失敗
 //    不能被 CarWeight 的位置列蓋過去）。三支同時掛時必須走降級路徑，而不是因為記憶體裡
-//    有一份舊 CarWeight 就照常發佈。判準看 boardPos.feedMode——降級時它是 held/outage。
+//    有一份舊 CarWeight 就照常發佈。
 advance(16e3);
 hwShouldFail = false;
 await call();                        // 先讓 CarWeight 記憶體重新變新鮮
-const healthyFeedMode = (await call()).boardPos?.feedMode ?? null;
-advance(16e3);
+const healthyBody = await call();
+const healthyFeedMode = healthyBody.boardPos?.feedMode ?? null;
+const healthyBoard = JSON.stringify(healthyBody.board || []);
+// 🔴 全滅那一輪必須落在「節流已到期、記憶體還在兩倍窗內」——那是 hwRaw 與 hwThisRound
+//    唯一會不同的窗。不落在窗裡這一條就退化成恆真：把守衛拿掉（全滅判斷改吃 hwRaw）
+//    照樣全綠，等於沒有這條判準（突變測試實測過，見 judgment 第七節第 5、7 條）。
+advance(THROTTLE_MS + 15e3);
 hwShouldFail = true; tkShouldFail = true; brShouldFail = true;
 const allDownBody = await call();
 hwShouldFail = false; tkShouldFail = false; brShouldFail = false;
-ok('三支全滅時仍走降級路徑（記憶體裡的舊 CarWeight 不得偽裝成官方還在）',
+ok('三支全滅時仍標記為降級（前端中斷徽章要亮）',
   (allDownBody.boardPos?.feedMode ?? null) !== healthyFeedMode,
   `健康輪 feedMode=${healthyFeedMode}／全滅輪 feedMode=${allDownBody.boardPos?.feedMode ?? null}`);
+// 🔴 上面那條測不出這件事：TrackInfo 一掛 feedMode 本來就會變 outage，把守衛拿掉照樣綠
+//    （突變實測）。真正分得開的是【內容】——全滅時走 throw ⇒ 沿用上一份可用看板；
+//    若讓退路把全滅判斷灌成非空，就會改成發佈一份用空 TrackInfo 現做的空看板（車全消失）。
+ok('三支全滅時沿用上一份看板（不因為記憶體裡有舊 CarWeight 就送出空看板）',
+  healthyBoard !== '[]' && JSON.stringify(allDownBody.board || []) === healthyBoard,
+  `健康輪 board=${(healthyBody.board || []).length} 列／全滅輪 board=${(allDownBody.board || []).length} 列`);
 
 // ── 第 4 節：營運窗外——三支都是 0，而且回應仍是可用的空看板 ─────────────────
 // 🔴 先讓 60 秒節流到期再進窗外，否則「CarWeight 0 次」會是被【節流】擋住而不是被【閘門】擋住
