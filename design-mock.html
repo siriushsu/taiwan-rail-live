@@ -1279,8 +1279,11 @@
   .passport .ph-sec b, #ridePanel .ph-sec b { color: var(--navy); letter-spacing: 0; }
   /* 排序控制擠不下就整組換行,不擠壓按鈕本身。原本用 justify-content:space-between,
      但加了前置收合箭頭之後變成三個子項平分,把「完乘記錄」推到正中間——改成只讓排序組自己靠右。 */
-  .passport .ph-sec.ph-sec-rides { flex-wrap: wrap; }
-  .passport .ph-sec.ph-sec-rides .ph-sort { margin-left: auto; }
+  .passport .ph-sec.ph-sec-rides, #ridePanel .ph-sec.ph-sec-rides { flex-wrap: wrap; }
+  .passport .ph-sec.ph-sec-rides .ph-sort, #ridePanel .ph-sec.ph-sec-rides .ph-sort { margin-left: auto; }
+  /* 手機 sheet(2026-09-03,issue#43):寬度只有一支手機,五顆鈕靠右擠會被標題擠成兩行還放不下——
+     這裡讓整組排序自己佔滿一列、靠左從標題下方開始,margin-left:auto 在換行後不再有意義故歸零。 */
+  #ridePanel .ph-sec.ph-sec-rides .ph-sort { flex: 1 1 100%; margin-left: 0; margin-top: 6px; }
   .passport .ph-sec .seg { letter-spacing: normal; } /* .ph-sec 的 3px letter-spacing 不inherit 進排序鈕文字 */
   /* 分節收合(2026-07-26):標題列整條可點,箭頭放在**最前面**——「路線完乘」那節的收集地圖鈕
      已經吃掉 margin-left:auto,箭頭再搶一次靠右會讓兩者平分剩餘空間、把鈕推到中間。 */
