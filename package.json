@@ -1,5 +1,10 @@
 {
   "scripts": {
+    "build-aeo": "node scripts/build_aeo_pages.mjs",
+    "check-aeo": "node scripts/verify_aeo.mjs",
+    "check-aeo-browser": "node scripts/verify_aeo_browser.mjs",
+    "check-copy": "node scripts/verify_changelog_copy.mjs",
+    "check-copy-browser": "node scripts/verify_changelog_browser.mjs",
     "fetch-schedule": "python3 scripts/fetch_tra_schedule.py && python3 scripts/densify_schedule.py && node scripts/build_pass_obs.mjs && node scripts/build_run_profiles.mjs && node scripts/build_tra_widget_schedule.mjs && node scripts/build_transfer_departures.mjs && node scripts/build_data_manifest.mjs && node scripts/build_data_provenance.mjs",
     "check-transfer-departures": "node scripts/verify_transfer_departures.mjs",
     "check-transfer-connections": "node scripts/verify_transfer_connections.mjs",
@@ -19,6 +24,7 @@
     "check-privacy": "node scripts/verify_privacy_providers.mjs",
     "check-ops": "node scripts/verify_stadia_projection.mjs",
     "check-basemap": "node scripts/verify_web_basemap_notice.mjs",
+    "check-ofm-beacon": "node scripts/verify_ofm_fallback_beacon.mjs",
     "check-trainpick": "node scripts/verify_train_overlap_pick.mjs",
     "check-board-align": "node scripts/verify_board_align.mjs",
     "check-xbt-shuttle": "node scripts/verify_xbt_shuttle_motion.mjs",

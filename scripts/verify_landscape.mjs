@@ -177,7 +177,7 @@ const PICK_FOLLOW = async () => {
         // 分布判準(看得見=6/夾死=0)就掛在牆鐘上(0812 21:52 webkit 抽到 2 台邊界車假紅)。
         // 0.12° ≈ z13 半視窗的三倍餘裕;嚴格輪抽不到才退回,寧可夾限也不能沒車可跟。
         const p = (typeof trainPos === 'function') ? trainPos(tr, state.simSec) : null;
-        const mb = map.options.maxBounds ? L.latLngBounds(map.options.maxBounds) : null;
+        const mb = window.__map.options.maxBounds ? L.latLngBounds(window.__map.options.maxBounds) : null;
         if (p && mb && (p.lat - mb.getSouth() < 0.12 || mb.getNorth() - p.lat < 0.12
           || p.lon - mb.getWest() < 0.12 || mb.getEast() - p.lon < 0.12)) continue;
       }
@@ -220,13 +220,13 @@ async function boot(browser, { w, h, tag }, { url = BASE, follow = true, sheetSi
 const TRAIN_PROBE = () => {
   const tr = state.followTrain; if (!tr) return { err: 'no-follow' };
   const p = trainPos(tr, state.simSec); if (!p) return { err: 'no-pos' };
-  const cp = map.latLngToContainerPoint([p.lat, p.lon]);
-  const mc = map.getContainer().getBoundingClientRect();
+  const cp = window.__map.latLngToContainerPoint([p.lat, p.lon]);
+  const mc = window.__map.getContainer().getBoundingClientRect();
   const cx = mc.left + cp.x, cy = mc.top + cp.y;
   const inVP = cx >= 0 && cx <= innerWidth && cy >= 0 && cy <= innerHeight;
   const hit = inVP ? document.elementFromPoint(cx, cy) : null;
   let onMap = false;
-  for (let e = hit; e; e = e.parentElement) if (e === map.getContainer()) { onMap = true; break; }
+  for (let e = hit; e; e = e.parentElement) if (e === window.__map.getContainer()) { onMap = true; break; }
   return {
     cx: +cx.toFixed(0), cy: +cy.toFixed(0), inVP, onMap,
     hit: hit ? (hit.id ? '#' + hit.id : (hit.className?.toString?.().slice(0, 28) || hit.tagName)) : null,
@@ -237,7 +237,7 @@ const TRAIN_PROBE = () => {
 // 公式改了判準才不會跟著一起瞎（心得 29/35）。
 const SIDE_RAIL_PROBE = () => {
   const el = activeSheetEl(); if (!el || el.hidden) return { err: 'no-sheet' };
-  const r = el.getBoundingClientRect(), mc = map.getContainer().getBoundingClientRect();
+  const r = el.getBoundingClientRect(), mc = window.__map.getContainer().getBoundingClientRect();
   return {
     id: el.id,
     leftFreeRatio: +((r.left - mc.left) / mc.width).toFixed(3), // 左邊留給地圖的比例
@@ -261,7 +261,7 @@ const INSTALL_EXPOSED = () => {
     return cs.display !== 'none' && cs.visibility !== 'hidden' && eff(el) >= 0.5;
   };
   window.__exposed = () => {
-    const mc = map.getContainer().getBoundingClientRect();
+    const mc = window.__map.getContainer().getBoundingClientRect();
     let top = 0, bottom = 0, left = 0, right = 0;
     for (const el of [document.getElementById('topbar'), document.querySelector('.badge')])
       if (vis(el)) top = Math.max(top, el.getBoundingClientRect().bottom - mc.top + 8);
@@ -314,12 +314,12 @@ const INSTALL_EXPOSED = () => {
     const ex = window.__exposed();
     const tr = state.followTrain; if (!tr) return { err: 'no-follow' };
     const p0 = trainPos(tr, state.simSec); if (!p0) return { err: 'no-pos' };
-    const a = map.latLngToContainerPoint([p0.lat, p0.lon]);
+    const a = window.__map.latLngToContainerPoint([p0.lat, p0.lon]);
     const m = 0.15 * Math.min(ex.w, ex.h);
     const dirTo = dt => {
       const p1 = trainPos(tr, state.simSec + dt);
       if (!p1) return null;
-      const b = map.latLngToContainerPoint([p1.lat, p1.lon]);
+      const b = window.__map.latLngToContainerPoint([p1.lat, p1.lon]);
       const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy);
       return len > 0.5 ? { x: dx / len, y: dy / len } : null;
     };
@@ -761,8 +761,8 @@ async function landscapeSuite(browser, eng) {
         // 相機暫停的差分:把車撥快 120 秒(未暫停的話跟車鏡頭必動),量固定地理錨點的螢幕位置。
         // 心得:寫 simSec 必同時 clockAtNow=false;量完交還牆鐘,下一幀自動回到現在。
         const pause = await page.evaluate(async () => {
-          const anchor = map.getCenter();
-          const at = () => map.latLngToContainerPoint(anchor);
+          const anchor = window.__map.getCenter();
+          const at = () => window.__map.latLngToContainerPoint(anchor);
           const a0 = at();
           state.clockAtNow = false; state.simSec += 120;
           await new Promise(r => setTimeout(r, 900));
@@ -809,7 +809,7 @@ async function landscapeSuite(browser, eng) {
       //    那個縮放下視窗經度跨幅 18.7° 比整個 maxBounds(10.75°) 還寬 ⇒ Leaflet 把中心完全釘死、
       //    地圖一格都不能平移，讓位在物理上不可能發生。使用者跟車時本來就會放大，
       //    這裡就照那個真實狀態驗（心得 28：只驗初始乾淨狀態＝沒驗）。
-      await page.evaluate(() => { state._autoPan = true; map.setZoom(11, { animate: false }); state._autoPan = false; });
+      await page.evaluate(() => { state._autoPan = true; window.__map.setZoom(11, { animate: false }); state._autoPan = false; });
       await page.waitForTimeout(700);
       const cam = await page.evaluate(() => window.__aheadExpect());
       aheadCount(cam);
@@ -977,11 +977,11 @@ async function landscapeSuite(browser, eng) {
     await page.waitForTimeout(600);
     const tap = await page.evaluate(() => {
       const el = activeSheetEl(); const r = el.getBoundingClientRect();
-      const mc = map.getContainer().getBoundingClientRect();
+      const mc = window.__map.getContainer().getBoundingClientRect();
       const x = mc.left + (r.left - mc.left) / 2, y = mc.top + mc.height / 2; // 露出區的正中
       const hit = document.elementFromPoint(x, y);
       let onMap = false;
-      for (let e = hit; e; e = e.parentElement) if (e === map.getContainer()) { onMap = true; break; }
+      for (let e = hit; e; e = e.parentElement) if (e === window.__map.getContainer()) { onMap = true; break; }
       return { x: Math.round(x), y: Math.round(y), onMap, hit: hit ? (hit.id || hit.tagName) : null };
     });
     ok(`L8 ${eng}/${S.tag} 側欄開著時仍點得到露出的地圖`, tap.onMap === true, JSON.stringify(tap));
@@ -1037,7 +1037,7 @@ async function fix0812Suite(browser, eng) {
     recenterTo = () => {}; // 癱瘓主置中路徑:能救回來的只剩自癒
     const p = trainPos(tr, state.simSec);
     const rs0 = state._camRescues || 0;
-    map.setView([p.lat + 0.4, p.lon - 0.4], 11, { animate: false });
+    window.__map.setView([p.lat + 0.4, p.lon - 0.4], 11, { animate: false });
     const iv = setInterval(() => { state._gestureAt = performance.now(); }, 400); // 模擬使用者持續操作
     await new Promise(r => setTimeout(r, 4300));
     clearInterval(iv);
@@ -1046,10 +1046,10 @@ async function fix0812Suite(browser, eng) {
     await new Promise(r => setTimeout(r, 1600));
     const fired = (state._camRescues || 0) - rs0;
     const p2 = trainPos(tr, state.simSec) || p;
-    const cp = map.latLngToContainerPoint([p2.lat, p2.lon]);
-    const sz = map.getSize();
+    const cp = window.__map.latLngToContainerPoint([p2.lat, p2.lon]);
+    const sz = window.__map.getSize();
     recenterTo = window.__origRecenter;
-    return { held, fired, z: +map.getZoom().toFixed(1),
+    return { held, fired, z: +window.__map.getZoom().toFixed(1),
       inView: cp.x >= 0 && cp.x <= sz.x && cp.y >= 0 && cp.y <= sz.y };
   });
   ok(`F3a ${eng}/16橫 自癒:手勢持續中按兵不動(0 次),手勢停止即開火貼車 z≥13`,
@@ -1062,14 +1062,14 @@ async function fix0812Suite(browser, eng) {
     // ——相機段(9039)在 draw 分支(9064)之前,自癒仍會跑到;這正是實機凍結的擬真形態。
     // 🔴 注旗標必須在 setView 之後:setView 改 zoom 會發 zoomend→endZoomAnim 把假旗標清掉
     // (首輪突變在 v1 上量到 za:false 才揭穿——先 setView 的版本連 v2 都會假紅)
-    map.setView([p.lat + 0.4, p.lon - 0.4], 11, { animate: false });
+    window.__map.setView([p.lat + 0.4, p.lon - 0.4], 11, { animate: false });
     state._zoomAnim = true; state._zaAt = performance.now() - 6000; state._zaCal = null; state._zaCalPend = null;
     state._gestureAt = 0;
     await new Promise(r => setTimeout(r, 4300));
     const p2 = trainPos(tr, state.simSec) || p;
-    const cp = map.latLngToContainerPoint([p2.lat, p2.lon]);
-    const sz = map.getSize();
-    return { d: (state._camRescues || 0) - rs0, za: !!state._zoomAnim, z: +map.getZoom().toFixed(1),
+    const cp = window.__map.latLngToContainerPoint([p2.lat, p2.lon]);
+    const sz = window.__map.getSize();
+    return { d: (state._camRescues || 0) - rs0, za: !!state._zoomAnim, z: +window.__map.getZoom().toFixed(1),
       inView: cp.x >= 0 && cp.x <= sz.x && cp.y >= 0 && cp.y <= sz.y };
   });
   ok(`F3b ${eng}/16橫 自癒:_zoomAnim 卡死(>5s)不再否決——開火貼車+旗標清除`,
@@ -1079,12 +1079,12 @@ async function fix0812Suite(browser, eng) {
     const p = trainPos(tr, state.simSec);
     state._transition = true; state._traAt = performance.now() - 6000;
     document.getElementById('veil').style.opacity = 1;
-    map.setView([p.lat + 0.4, p.lon - 0.4], 11, { animate: false });
+    window.__map.setView([p.lat + 0.4, p.lon - 0.4], 11, { animate: false });
     state._gestureAt = 0;
     await new Promise(r => setTimeout(r, 1600)); // veil 過渡 .7s+首拍 triage,留一倍餘裕
     const p2 = trainPos(tr, state.simSec) || p;
-    const cp = map.latLngToContainerPoint([p2.lat, p2.lon]);
-    const sz = map.getSize();
+    const cp = window.__map.latLngToContainerPoint([p2.lat, p2.lon]);
+    const sz = window.__map.getSize();
     return { tra: !!state._transition, veil: getComputedStyle(document.getElementById('veil')).opacity,
       inView: cp.x >= 0 && cp.x <= sz.x && cp.y >= 0 && cp.y <= sz.y };
   });
@@ -1138,10 +1138,10 @@ async function sizeGuardSuite(browser, eng) {
   const f5pick = f5btn || await pg3.evaluate(PICK_FOLLOW);
   await pg3.waitForTimeout(1200);
   const SIZE_PROBE = () => {
-    const el = map.getContainer(), sz = map.getSize(), cv = document.getElementById('overlay');
+    const el = window.__map.getContainer(), sz = window.__map.getSize(), cv = document.getElementById('overlay');
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const tr = state.followTrain, p = tr ? trainPos(tr, state.simSec) : null;
-    const cp = p ? map.latLngToContainerPoint([p.lat, p.lon]) : null;
+    const cp = p ? window.__map.latLngToContainerPoint([p.lat, p.lon]) : null;
     return {
       cw: el.clientWidth, ch: el.clientHeight, szx: sz.x, szy: sz.y, cvw: cv.width, cvh: cv.height,
       wantW: Math.round(el.clientWidth * dpr), wantH: Math.round(el.clientHeight * dpr),
@@ -1219,7 +1219,7 @@ async function portraitSuite(browser, eng) {
       branchCount[canPan ? 'visible' : 'clamped']++;
       // 直向的面板必須維持底部 sheet（不可被橫式規則波及）
       const bottomSheet = await page.evaluate(() => {
-        const el = activeSheetEl(); const r = el.getBoundingClientRect(), mc = map.getContainer().getBoundingClientRect();
+        const el = activeSheetEl(); const r = el.getBoundingClientRect(), mc = window.__map.getContainer().getBoundingClientRect();
         return { fullWidth: (r.width / mc.width) > 0.85, bottomAnchored: Math.abs(mc.bottom - r.bottom) < 120 };
       });
       ok(`L5 ${eng}/${S.tag} ${P.label}·仍是底部 sheet`, bottomSheet.fullWidth && bottomSheet.bottomAnchored, JSON.stringify(bottomSheet));
@@ -1350,7 +1350,7 @@ async function rotationSuite(browser, eng) {
     await page.waitForTimeout(900);
     const back = await page.evaluate(() => {
       const el = activeSheetEl(); if (!el || el.hidden) return { err: 'no-sheet' };
-      const r = el.getBoundingClientRect(), mc = map.getContainer().getBoundingClientRect();
+      const r = el.getBoundingClientRect(), mc = window.__map.getContainer().getBoundingClientRect();
       return { id: el.id, wRatio: +(r.width / mc.width).toFixed(2), bottomAnchored: Math.abs(mc.bottom - r.bottom) < 120,
         size: el.classList.contains('sheet-small') ? 'small' : 'medium' };
     });
@@ -1403,16 +1403,16 @@ async function rotationSuite(browser, eng) {
   const b2 = await boot(browser, { w: 393, h: 852, tag: '轉向讓位對帳' }, { follow: false });
   const { ctx: c2, page: p2 } = b2;
   const ANCHOR = [24.5, 121.0]; // 台灣中部：zoom 9 下四周都還有平移餘裕，不會被 maxBounds 夾住干擾
-  await p2.evaluate(a => { state._autoPan = true; map.setView(a, 9, { animate: false }); state._autoPan = false; }, ANCHOR);
+  await p2.evaluate(a => { state._autoPan = true; window.__map.setView(a, 9, { animate: false }); state._autoPan = false; }, ANCHOR);
   await p2.waitForTimeout(400);
   const PIN = () => {
     const ex = window.__exposed();
-    const ll = map.containerPointToLatLng(L.point(ex.cx, ex.cy));
+    const ll = window.__map.containerPointToLatLng(L.point(ex.cx, ex.cy));
     return { lat: ll.lat, lng: ll.lng, ex };
   };
   const AT = pin => {
     const ex = window.__exposed();
-    const cp = map.latLngToContainerPoint([pin.lat, pin.lng]);
+    const cp = window.__map.latLngToContainerPoint([pin.lat, pin.lng]);
     return { dx: +(cp.x - ex.cx).toFixed(1), dy: +(cp.y - ex.cy).toFixed(1), ex };
   };
   const pin = await p2.evaluate(PIN);
@@ -1451,6 +1451,7 @@ async function rotationSuite(browser, eng) {
 //    (b) `getCenter()` 取的是經緯度中點，而 Mercator 下緯度中點不等於像素中點（實測 zoom6→7
 //    偏差 5→10px 剛好倍增＝固定的世界像素量，正是這個效應）。前後同一種量法，誤差自動抵銷。
 const CENTER_PROBE = () => {
+  const map = window.__map;
   const mb = map.options.maxBounds; if (!mb) return { err: 'no-maxbounds' };
   const b = L.latLngBounds(mb), z = map.getZoom();
   const p1 = map.project(b.getNorthWest(), z), p2 = map.project(b.getSouthEast(), z);
@@ -2045,7 +2046,7 @@ async function portraitCameraSuite(browser, eng) {
     const b = await boot(browser, S, sz ? { sheetSize: sz } : {});
     if (!b) { ok(`P4 ${eng}/${sz || 'medium'} 取得行駛中列車`, false, '深夜無台鐵車＝環境條件'); continue; }
     const { ctx, page } = b;
-    await page.evaluate(() => { state._autoPan = true; map.setZoom(11, { animate: false }); state._autoPan = false; });
+    await page.evaluate(() => { state._autoPan = true; window.__map.setZoom(11, { animate: false }); state._autoPan = false; });
     await page.waitForTimeout(800);
     for (const st of states) {
       if (st !== 'card') {

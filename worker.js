@@ -4036,6 +4036,39 @@ async function basemapSrc(request, env) {
   return jsonRes({ street, minAppVersion }, 200, 'public, max-age=300, s-maxage=300');
 }
 
+// ── 街道底圖退場埋點(L2 的觀測半邊,2026-09-03)────────────────────────────────
+// 為什麼要有這條:L2(index.html 的 ofmWatch)判定 OpenFreeMap 載不出來時,App 會當場退回
+// Stadia raster、整個 session 都留在計費底圖上;網站則跳「街道底圖載入異常」提示。在此之前
+// 這件事只在使用者的 console 留一行 warn——全體使用者裡有多少人正在燒 Stadia,一個數字都沒有
+// (2026-09-03 使用者自己的手機在 WiFi 上就中過一次,重開才回到 OFM)。前端在 fail 那一刻
+// 打一發到這裡(index.html 的 ofmFailBeacon),這裡只做一件事:寫一筆 Analytics Engine 資料點。
+//
+// 寫進 USAGE(railisland_usage)而不是 TRAFFIC:TRAFFIC 本來就會按端點記到 basemap-fallback 的
+// 請求數(免費的分子),但「為什麼退」(逾時或錯誤)、退場當下的 zoom 只有這條知道。
+// 欄位形狀刻意與 tra-live 那筆對齊:blob1 是列的種類('ofmfail',與 cam 的四個值互斥,算前景分鐘
+// 的查詢用 blob1 排除即可)、blob2 仍是裝置(m|d)、blob3 來源(app|web,依 Origin 判,與 TRAFFIC
+// 同一把尺)、blob4 原因(slow|error|na)、double1 zoom。
+// 分母:App 每次開機都打一次 /api/basemap-src(L1),兩者相除就是「每次開機的退場率」
+// ——查法:node scripts/usage_ofm_fallback.mjs。
+//
+// 🔴 觀測絕不可影響服務:寫入失敗整段吞掉,回應永遠是同一個 200;前端那半也是 fire-and-forget。
+// 限流借 BASEMAP_LIMITER(60/分鐘/IP,fail-open):真人一個 session 最多一兩發,這道只是別讓人拿它灌假資料。
+async function basemapFallback(request, env) {
+  if (await rateLimited(env.BASEMAP_LIMITER, request)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
+  if (env.USAGE) {
+    try {
+      const u = new URL(request.url);
+      const whyRaw = u.searchParams.get('why');
+      const why = whyRaw === 'slow' || whyRaw === 'error' ? whyRaw : 'na';
+      const z = parseInt(u.searchParams.get('z'), 10);
+      const dev = /Mobile/.test(request.headers.get('user-agent') || '') ? 'm' : 'd';
+      const plat = APP_ORIGINS.has(request.headers.get('Origin') || '') ? 'app' : 'web';
+      env.USAGE.writeDataPoint({ blobs: ['ofmfail', dev, plat, why], doubles: [isNaN(z) ? 0 : z], indexes: ['ofmfail'] });
+    } catch (e) {}
+  }
+  return jsonRes({ ok: true }, 200, 'no-store');
+}
+
 // ── 衛星底圖的第二種計費方式：basemap session ────────────────────────────────
 // Esri 兩種計價擇一：按張數，或按 session（一顆管 12 小時、期間圖磚無限）。
 // 兩者有個損益兩平點：一顆 session 要涵蓋夠多張圖磚才划算——所以前端刻意
@@ -4200,7 +4233,7 @@ const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/
 const API_ENDPOINTS = new Set([
   'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'hazard-alert', 'metro-live', 'ntmetro-live', 'trtc-live',
   'klrt-position',
-  'delay-stats', 'delay-history', 'thsr-schedule', 'thsr-freeseat', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'basemap-src', 'account-delete',
+  'delay-stats', 'delay-history', 'thsr-schedule', 'thsr-freeseat', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'basemap-src', 'basemap-fallback', 'account-delete',
   'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge', 'plus-status', 'revenuecat-webhook',
   'la/bind', 'la/unbind', 'metro-wait/bind', 'metro-wait/unbind', 'tra-wait/bind', 'tra-wait/unbind', 'pass-claim', 'pass-admin',
 ]);
@@ -6106,6 +6139,7 @@ export default {
     else if (url.pathname === '/api/today-board') res = await todayBoard(request, env);
     else if (url.pathname === '/api/basemap-token') res = await basemapToken(request, env);
     else if (url.pathname === '/api/basemap-src') res = await basemapSrc(request, env);
+    else if (url.pathname === '/api/basemap-fallback') res = await basemapFallback(request, env);
     else if (url.pathname === '/api/basemap-session') res = await basemapSession(request, env);
     else if (url.pathname === '/api/account-delete') res = await deleteAccountData(request, env);
     else if (url.pathname === '/api/plus-status') res = await plusStatus(request, env);
@@ -6162,6 +6196,8 @@ export const _plus = {
 // 供離線回歸測試 import:驗「節流擋在 outbound fetch 之前」。這兩個不是純函式,測試得自備
 // env 替身與 fetch 替身;導出的目的就是讓測試能數「被擋掉時到底有沒有打上游」。
 export const _rateLimit = { rateLimited, delayHistory, deleteAccountData, basemapSession };
+// 街道底圖來源開關(L1)與退場埋點(L2 的觀測半邊),供離線回歸測試 import(scripts/verify_ofm_fallback_beacon.mjs)。
+export const _basemap = { basemapSrc, basemapFallback };
 // 供離線回歸測試 import（scripts/verify_plus_firestore_gate.mjs 第 11 節、
 // scripts/verify_plus_data_claims.mjs B7）：刪帳號一併刪除資格文件。與上面的 _rateLimit 分開
 // 導出——那組服務的是「節流擋在 fetch 前」這個窄用途，這裡要驗的是刪除本身的語意（真的送出

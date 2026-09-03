@@ -56,7 +56,7 @@ async function cell(engine, browser, scale, w, withCard) {
   }
   // 造出衛星底圖那條長字串（與 index.html 的 sat.attribution 逐字相同）。用 Leaflet 自己的
   // API 加，不是塞 innerHTML —— 走的是真正的那條路徑。
-  await page.evaluate(a => { map.attributionControl.addAttribution(a); }, SAT_ATTR);
+  await page.evaluate(a => { window.__map.attributionControl.addAttribution(a); }, SAT_ATTR);
   if (withCard) await page.evaluate(() => { const c = document.getElementById('freqCard'); if (c) c.hidden = false; });
   await page.waitForTimeout(250);
 

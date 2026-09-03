@@ -571,7 +571,7 @@ async function sectionG(browser, engine) {
 //    目標落點則用 Leaflet 自己的 latLngToContainerPoint(外部真值)。兩邊不同源(心得 29)。
 // 🔴 「車在可視窗內」與「車沒被卡片蓋住」是兩件事:前者是幾何、後者要 elementFromPoint 才答得出來(心得 24)。
 const H_CENSUS = () => {
-  const mc = map.getContainer().getBoundingClientRect();
+  const mc = window.__map.getContainer().getBoundingClientRect();
   const vis = el => {
     if (!el || el.hidden || !el.getClientRects().length) return false;
     const cs = getComputedStyle(el);
@@ -606,12 +606,12 @@ async function sectionH(browser, engine) {
   const { page, errs, close } = await boot(browser, { width: 393 });
   // 挑一台「畫在畫面中段、圖例沒關掉」的車來跟——太靠邊的車會被 maxBounds 夾住,夾住後的位移是另一條路徑
   const picked = await page.evaluate(() => {
-    const mc = map.getContainer().getBoundingClientRect();
+    const mc = window.__map.getContainer().getBoundingClientRect();
     for (const t of (state.trains || [])) {
       if (!state.visible.has(t.typeName)) continue;
       const pos = trainPos(t, state.simSec);
       if (!pos) continue;
-      const pt = map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
+      const pt = window.__map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
       if (pt.x > 60 && pt.x < mc.width - 60 && pt.y > 180 && pt.y < 600) {
         setFollow(t, false);
         return String(t.no || t.trainNo || t.typeName || '?');
@@ -626,8 +626,8 @@ async function sectionH(browser, engine) {
     if (!t) return { ...r, ok: false, why: '沒跟到車' };
     const pos = trainPos(t, state.simSec);
     if (!pos) return { ...r, ok: false, why: '跟到的車算不出位置' };
-    const mc = map.getContainer().getBoundingClientRect();
-    const pt = map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
+    const mc = window.__map.getContainer().getBoundingClientRect();
+    const pt = window.__map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
     const hit = document.elementFromPoint(mc.left + pt.x, mc.top + pt.y);
     const chrome = hit && hit.closest('.topbar,.badge,.tabbar,.controls,#followPanel,#freqCard,.sheet,#mapActions');
     const fp = document.getElementById('followPanel');
@@ -665,12 +665,12 @@ async function sectionH(browser, engine) {
   //    「記帳有沒有算對」則由 H5 負責——不要把 H8/H9 當成機制的證明。
   const s2 = await boot(browser, { width: 393 });
   const started = await s2.page.evaluate(() => {
-    const mc = map.getContainer().getBoundingClientRect();
+    const mc = window.__map.getContainer().getBoundingClientRect();
     for (const t of (state.trains || [])) {
       if (!state.visible.has(t.typeName)) continue;
       const pos = trainPos(t, state.simSec);
       if (!pos) continue;
-      const pt = map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
+      const pt = window.__map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
       if (pt.x > 60 && pt.x < mc.width - 60 && pt.y > 180 && pt.y < 600) { setFollow(t, false); return true; }
     }
     return false;
@@ -689,8 +689,8 @@ async function sectionH(browser, engine) {
     if (!t) return { ...r, ok: false, why: '開看板之後不再跟車' };
     const pos = trainPos(t, state.simSec);
     if (!pos) return { ...r, ok: false, why: '算不出位置' };
-    const mc = map.getContainer().getBoundingClientRect();
-    const pt = map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
+    const mc = window.__map.getContainer().getBoundingClientRect();
+    const pt = window.__map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
     const hit = document.elementFromPoint(mc.left + pt.x, mc.top + pt.y);
     const chrome = hit && hit.closest('.topbar,.badge,.tabbar,.controls,#followPanel,#freqCard,.sheet,#mapActions');
     // 🔴 看板是「內容撐高、上限 46%」不是固定 46%:深夜班次少的時候整張只有 187px(實測 00:35 的
@@ -895,12 +895,12 @@ async function sectionI(browser, engine) {
 //    搬進去的 #followPanel 會跟著被銷毀(實作第一版就是這樣炸的)。J5/J7 專門守這件事。
 async function followSomeTrain(page) {
   return page.evaluate(() => {
-    const mc = map.getContainer().getBoundingClientRect();
+    const mc = window.__map.getContainer().getBoundingClientRect();
     for (const t of (state.trains || [])) {
       if (!state.visible.has(t.typeName)) continue;
       const pos = trainPos(t, state.simSec);
       if (!pos) continue;
-      const pt = map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
+      const pt = window.__map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
       if (pt.x > 60 && pt.x < mc.width - 60 && pt.y > 180 && pt.y < 600) { setFollow(t, false); return true; }
     }
     return false;
@@ -968,8 +968,8 @@ async function sectionJ(browser, engine) {
     const r = eval('(' + c + ')')();
     const t = state.followTrain; if (!t) return { ...r, ok: false };
     const pos = trainPos(t, state.simSec); if (!pos) return { ...r, ok: false };
-    const mc = map.getContainer().getBoundingClientRect();
-    const pt = map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
+    const mc = window.__map.getContainer().getBoundingClientRect();
+    const pt = window.__map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
     const hit = document.elementFromPoint(mc.left + pt.x, mc.top + pt.y);
     const chrome = hit && hit.closest('.topbar,.badge,.tabbar,.controls,#followPanel,#freqCard,.sheet,.board,#mapActions');
     return { ...r, ok: true, py: +pt.y.toFixed(1), inBand: pt.y >= r.bandTop && pt.y <= r.bandBot,
@@ -1034,11 +1034,11 @@ async function sectionJ(browser, engine) {
 // 🔴 這裡用頁面自己的命中函式,但只當**setup**(「這一點是空白的」);判準看的是點下去之後的狀態,
 //    與這些函式無關——K2 也順便反驗這一點確實沒開看板、沒彈歧義選單。
 const K_BLANK = () => {
-  const mc = map.getContainer().getBoundingClientRect();
+  const mc = window.__map.getContainer().getBoundingClientRect();
   const nearestStn = cp => {
     let bd = 1e9;
     for (const st of (state.schedStations || [])) {
-      const q = map.latLngToContainerPoint([st.lat, st.lon]);
+      const q = window.__map.latLngToContainerPoint([st.lat, st.lon]);
       bd = Math.min(bd, Math.hypot(q.x - cp.x, q.y - cp.y));
     }
     if (state.deco) (state.decoLines || []).forEach(ln => { if (!ln.pts) return;
@@ -1211,8 +1211,8 @@ async function sectionK(browser, engine) {
   const tp = await page.evaluate(() => {
     const t = state.followTrain; if (!t) return null;
     const pos = trainPos(t, state.simSec); if (!pos) return null;
-    const mc = map.getContainer().getBoundingClientRect();
-    const q = map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
+    const mc = window.__map.getContainer().getBoundingClientRect();
+    const q = window.__map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
     return { x: q.x, y: q.y, ml: mc.left, mt: mc.top };
   });
   if (tp) {
@@ -2118,7 +2118,7 @@ async function sectionS(browser, engine) {
     await page.waitForTimeout(350);
     const after = await page.evaluate(() => ({
       drop: !!state.dropMode, hidden: document.getElementById('pinHint').hidden,
-      cursor: map.getContainer().style.cursor,
+      cursor: window.__map.getContainer().style.cursor,
       btn: document.querySelector('#pinBtn .tl').textContent }));
     ok(`S8 ${tag} 點「結束」真的退出落釘模式(旗標、地圖游標、鈕的標籤全部跟著回去)`,
       after.drop === false && after.hidden && after.cursor !== 'crosshair' && after.btn === '儲存',
@@ -2659,12 +2659,12 @@ async function sectionY(browser, engine) {
 
       let chosen = null;
       for (const st of cands) {
-        await page.evaluate(s => map.setView([s.lat, s.lon], 15, { animate: false }), st);
+        await page.evaluate(s => window.__map.setView([s.lat, s.lon], 15, { animate: false }), st);
         await page.waitForTimeout(1300);
         const c = await page.evaluate(nm => {
-          const rect = map.getContainer().getBoundingClientRect();
+          const rect = window.__map.getContainer().getBoundingClientRect();
           const pts = [];
-          if (state.mode === 'sched') (state.schedStations || []).forEach(s => { const p = map.latLngToContainerPoint([s.lat, s.lon]); pts.push({ x: p.x, y: p.y, name: s.name }); });
+          if (state.mode === 'sched') (state.schedStations || []).forEach(s => { const p = window.__map.latLngToContainerPoint([s.lat, s.lon]); pts.push({ x: p.x, y: p.y, name: s.name }); });
           else state.lines.forEach(ln => { if (state.visible.has(ln.id) && ln.pts) ln.pts.forEach((p, i) => { if (ln.stations[i]) pts.push({ x: p.x, y: p.y, name: ln.stations[i].name }); }); });
           const me = pts.find(p => p.name === nm && Math.hypot(p.x - rect.width / 2, p.y - rect.height / 2) < 40);
           if (!me) return { ok: false, why: '不在畫面中央' };
@@ -2689,9 +2689,9 @@ async function sectionY(browser, engine) {
       // Y2 結構前提:待會要點的那一點,真的是空白(離最近站 >60px、沒有車牌罩住、最上層是地圖層)。
       // 🔴 必須在看板開起來之後才算:看板一開,讓位/置中機制會把地圖推走,開板前算的座標已經不是空白。
       const g2 = await page.evaluate(() => {
-        const rect = map.getContainer().getBoundingClientRect();
+        const rect = window.__map.getContainer().getBoundingClientRect();
         const pts = [];
-        if (state.mode === 'sched') (state.schedStations || []).forEach(s => { const p = map.latLngToContainerPoint([s.lat, s.lon]); pts.push({ x: p.x, y: p.y }); });
+        if (state.mode === 'sched') (state.schedStations || []).forEach(s => { const p = window.__map.latLngToContainerPoint([s.lat, s.lon]); pts.push({ x: p.x, y: p.y }); });
         else state.lines.forEach(ln => { if (state.visible.has(ln.id) && ln.pts) ln.pts.forEach(p => pts.push({ x: p.x, y: p.y })); });
         const nTr = (x, y) => (state.mode === 'sched' ? trainsAt : freqTrainsAt)(L.point(x, y)).length;
         for (let y = 180; y < rect.height - 300; y += 11) {

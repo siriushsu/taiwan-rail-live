@@ -414,7 +414,7 @@ async function main() {
       check('A2 北捷九線全部由 Core 驅動', coreLines.length === 9 && trtcLines.length === 9,
         `core 驅動 ${coreLines.length}/${trtcLines.length} 條：${coreLines.map(([k, v]) => k.slice(5) + '=' + v.core).join(' ')}`);
       check('A3 Core 畫得出足夠台數（分母正向對照）', coreTrains >= 40, `${coreTrains} 台`);
-      await page.evaluate(() => map.setView([25.048, 121.545], 12, { animate: false })); // 把台北放進視窗，_freqHits 只收在畫面內的
+      await page.evaluate(() => window.__map.setView([25.048, 121.545], 12, { animate: false })); // 把台北放進視窗，_freqHits 只收在畫面內的
       await page.waitForTimeout(1200);
       const hits = await page.evaluate(() => (state._freqHits || []).filter(h => h.core).length);
       check('A4 畫面命中清單裡真的有 Core 車（不是只在資料層）', hits > 0, `_freqHits core=${hits}`);
@@ -645,7 +645,7 @@ async function main() {
     const clickFollow = async () => {
       const { page, errors } = await newPage(browser);
       await pollOnce(page);
-      await page.evaluate(() => map.setView([25.048, 121.545], 12, { animate: false }));
+      await page.evaluate(() => window.__map.setView([25.048, 121.545], 12, { animate: false }));
       await page.waitForTimeout(1200);
       const out = await page.evaluate(() => {
         const hit = (state._freqHits || []).find(h => h.core && h.vehicleId != null);

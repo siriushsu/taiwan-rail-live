@@ -318,7 +318,7 @@ for (const [engine, name] of [[chromium, 'chromium'], [webkit, 'webkit']]) {
     }
     // 橋頭園區:飛到 z13、手動補一幀,驗記號畫素(非透明暖色)+命中表+點擊開卡(像素級雙證據,心得24)
     const qt = SUGAR_PARKS.find(x => x.name === '橋頭糖廠');
-    map.setView([qt.lat, qt.lon], 13, { animate: false });
+    window.__map.setView([qt.lat, qt.lon], 13, { animate: false });
     draw();
     const h = (state._sugarHits || []).find(x => x.pk === qt);
     let px = null, hitOk = false, cardShown = false, cardTitle = '', cardHitOk = false;

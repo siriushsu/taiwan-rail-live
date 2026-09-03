@@ -151,7 +151,7 @@ try {
         // 站物件一律取 app 自己的索引（helpNearestStation），不自組。轉乘查找的真正過濾器是
         // criteria.maxDistanceM 的座標閘門，餵一顆只有站名沒有座標的假物件，會結構性地永遠查無而假紅。
         const board = await page.evaluate(() => {
-          map.setView([25.0478, 121.5170], 15); // 台北車站
+          window.__map.setView([25.0478, 121.5170], 15); // 台北車站
           const st = helpNearestStation();
           if (!st) return { found: false, why: 'helpNearestStation 在台北車站視野回空' };
           openBoard(st);
@@ -379,7 +379,7 @@ try {
         const wide = await page.evaluate(() => {
           const out = {};
           // 落點 A
-          map.setView([25.0478, 121.5170], 15);
+          window.__map.setView([25.0478, 121.5170], 15);
           const st = helpNearestStation();
           out.station = st && st.name;
           if (st) openBoard(st);

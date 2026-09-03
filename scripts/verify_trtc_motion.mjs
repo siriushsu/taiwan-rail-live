@@ -174,7 +174,7 @@ async function runEngine(name) {
     };
 
     state.playing = false; state.ready = false; _trtcPolling = true;
-    map.setView([25.0478, 121.5170], 16, { animate: false });
+    window.__map.setView([25.0478, 121.5170], 16, { animate: false });
     // 預掃：找跨槽最穩定、且橫跨多線的逐秒時間序列見證車。
     const appearances = new Map();
     _trtcNoTrip.clear(); _easedShift.clear(); _metroGateEp.on = false; _metroGateEp.at = 0;

@@ -11,6 +11,8 @@ import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import sharp from 'sharp';
+import { probeCentroids } from './probe_centroids.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = 43537;
@@ -146,6 +148,68 @@ try {
     ck((await d.page.evaluate(() => window.__ENGINE)) === 'leaflet', 'G4f 非法值退回 leaflet');
     await d.ctx.close();
   }
+  // ── G6 MapLibre 引擎開機 ──
+  if (await (async () => { const { ctx, page } = await boot(browser, ''); const v = await page.evaluate(() => typeof createMaplibreEngine === 'function'); await ctx.close(); return v; })()) {
+    // 先量 Leaflet 引擎在 z12 下兩點的螢幕距離,當 zoom 尺度基準
+    const lf = await boot(browser, '');
+    const base = await lf.page.evaluate(() => {
+      const M = window.__M; M.setView([25.0478, 121.517], 12, { animate: false });
+      const a = M.toScreen([25.0478, 121.517]), b = M.toScreen([25.0578, 121.527]);
+      return { d: Math.hypot(a.x - b.x, a.y - b.y), bz: M.getBoundsZoom(M.latLngBounds([24.9, 121.4], [25.2, 121.7]), false) };
+    });
+    await lf.ctx.close();
+    const { ctx, page, errs } = await boot(browser, 'engine=maplibre');
+    await page.waitForFunction(() => window.__M && window.__M.raw && window.__M.raw.isStyleLoaded && window.__M.raw.isStyleLoaded(), null, { timeout: 30000 }).catch(() => {});
+    const r = await page.evaluate(() => {
+      const M = window.__M, ov = document.getElementById('overlay'), mp = document.getElementById('map');
+      M.setView([25.0478, 121.517], 12, { animate: false });
+      const a = M.toScreen([25.0478, 121.517]), b = M.toScreen([25.0578, 121.527]);
+      const c = M.getCenter();
+      return {
+        engine: M.engine, isML: M.raw instanceof maplibregl.Map, leafletNull: M.leaflet === null,
+        styleLoaded: M.raw.isStyleLoaded(), ready: !!window.__state.ready,
+        ovW: ov.clientWidth, mpW: mp.clientWidth, ovH: ov.clientHeight, mpH: mp.clientHeight,
+        d: Math.hypot(a.x - b.x, a.y - b.y), zoom: M.getZoom(),
+        centerOk: Math.abs(c.lat - 25.0478) < 1e-6 && Math.abs(c.lng - 121.517) < 1e-6,
+        bz: M.getBoundsZoom(M.latLngBounds([24.9, 121.4], [25.2, 121.7]), false),
+        inBounds: M.getBounds().contains([25.0478, 121.517]),
+        rt: M.raw.getBearing() === 0 && M.raw.getPitch() === 0,
+        __map: window.__map === M.raw,
+      };
+    });
+    ck(r.engine === 'maplibre' && r.isML && r.leafletNull && r.__map, 'G6a MapLibre 引擎生效(M.raw 是 maplibregl.Map、M.leaflet=null、__map=M.raw)', JSON.stringify(r).slice(0, 160));
+    ck(r.styleLoaded && r.ready, 'G6b style 載入且 state.ready', `styleLoaded=${r.styleLoaded} ready=${r.ready}`);
+    ck(r.ovW === r.mpW && r.ovH === r.mpH && r.ovW > 100, 'G6c #overlay 與 #map 同尺寸', `${r.ovW}x${r.ovH} vs ${r.mpW}x${r.mpH}`);
+    ck(Math.abs(r.d - base.d) <= 1.5 && r.zoom === 12 && r.centerOk, 'G6d zoom 尺度與 Leaflet 一致(z12 兩點距離差 ≤1.5px)', `ml=${r.d.toFixed(2)} lf=${base.d.toFixed(2)} zoom=${r.zoom}`);
+    ck(Math.abs(r.bz - base.bz) <= 1, 'G6e getBoundsZoom 與 Leaflet 差 ≤1 級', `ml=${r.bz} lf=${base.bz}`);
+    ck(r.inBounds && r.rt, 'G6f getBounds 含中心;bearing/pitch 為 0(M0 不開旋轉)');
+    ck(errs.length === 0, 'G6g MapLibre 開機零 pageerror', errs.join(' | ').slice(0, 300));
+    // ── G7 對齊探針:洋紅(引擎)與青(overlay)圓心距離 ≤ 2px(桌面 dpr 1) ──
+    // 探針座標刻意選在海上(25.20,121.80,基隆外海,無鐵路)而非 G6 用的台北車站:台北車站在 z13 會被 overlay 的
+    // 路網/站名/車站牌壓在洋紅點上;圓擬合(probe_centroids.mjs)雖能容忍部分遮擋,判準的乾淨基準仍該是
+    // 「兩顆探針完整可見」——與 verify_basemap_align.mjs 選中央山脈當探針點同一個理由。半徑明示為桌面 dpr 1 的值
+    // (circle-radius 18css、ctx.arc 5css);真機錄影走 analyze_device_recording.mjs 以 --dpr 換算。
+    const pr = await boot(browser, 'engine=maplibre&aligndot=25.20,121.80');
+    await pr.page.waitForFunction(() => window.__ofmGl && window.__ofmGl.getLayer && window.__ofmGl.getLayer('aligndot'), null, { timeout: 30000 });
+    await pr.page.evaluate(() => window.__M.setView([25.20, 121.80], 13, { animate: false }));
+    await pr.page.waitForTimeout(1500);
+    const png = await pr.page.screenshot({ type: 'png' });
+    const { data, info } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    const RADII = { magR: 18, cynR: 5 }; // 桌面 dpr 1
+    const cen = probeCentroids(data, info.width, info.height, RADII);
+    const dist = cen.mag && cen.cyn ? Math.hypot(cen.mag.x - cen.cyn.x, cen.mag.y - cen.cyn.y) : NaN;
+    ck(cen.mag && cen.cyn && dist <= 2, 'G7 對齊探針洋紅/青圓心距離 ≤2px', `mag=${JSON.stringify(cen.mag)} cyn=${JSON.stringify(cen.cyn)} d=${dist.toFixed(2)}`);
+    // 正向對照:把青點往右挪 30px 重畫一次,距離必須 ≥ 25(證明量得到錯位)
+    await pr.page.evaluate(() => { const M = window.__M; const o = M.toScreen; M.toScreen = ll => { const p = o(ll); return { x: p.x + 30, y: p.y }; }; if (window.__state.ready) draw(); });
+    await pr.page.waitForTimeout(300);
+    const png2 = await pr.page.screenshot({ type: 'png' });
+    const r2 = await sharp(png2).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    const cen2 = probeCentroids(r2.data, r2.info.width, r2.info.height, RADII);
+    const dist2 = cen2.mag && cen2.cyn ? Math.hypot(cen2.mag.x - cen2.cyn.x, cen2.mag.y - cen2.cyn.y) : NaN;
+    ck(dist2 >= 25, 'G7 正向對照:overlay 投影挪 30px 後量到 ≥25px', `d=${dist2.toFixed(2)}`);
+    await pr.ctx.close();
+    await ctx.close();
+  } else console.log('  (尚無 createMaplibreEngine:G6 跳過)');
 } finally {
   await browser.close(); server.close();
 }

@@ -3,6 +3,9 @@
   window.RAIL_I18N_MESSAGES = {
     en: {
       '軌島': 'Rail Island',
+      '關於軌島': 'About Rail Island',
+      '準確度說明': 'Accuracy & limitations',
+      '車站索引': 'Station index',
       '軌島 railisland.tw。看台鐵此刻準點嗎、捷運怎麼穿梭全台，一張會動的台灣鐵道地圖。': 'Rail Island is a live animated map of Taiwan’s railways, from TRA and high-speed rail to metro and light rail.',
       '台灣鐵道即時軌跡': 'Taiwan Rail Live',
       '台灣高鐵即時軌跡': 'Taiwan High Speed Rail Live',
@@ -184,14 +187,24 @@
         "Ambient mode is now sit-back-and-watch: the map can no longer be dragged or pinched off course, and leaving then re-entering no longer shrinks the Exit ambient mode button into an empty stub you cannot tap.",
       '跟捷運列車時，卡片上會顯示這一台車每一節車廂的擁擠度':
         'While following a Taipei Metro train, the card shows how crowded each carriage of that train is.',
-      '完乘記錄多了「順序」排法，照你實際跟完的先後排、最早那趟在最上面；手機的旅程護照也補上排序鈕（謝謝網友回報）':
-        'Completed trips can now be sorted in the order you actually finished them, oldest first — and the Journey Passport on phones finally has the sort buttons too.',
+      '更新紀錄改得更精簡好讀，資料來源、專案授權與隱私說明也同步校正':
+        'The update history is now shorter and easier to scan, with source, licensing and privacy notices brought up to date.',
+      'App 配樂新增「車聲」：跟車時隨行駛播放，停站淡出；放空模式持續播放':
+        'The app adds Rail sound: it plays while a followed train is moving, fades at stops, and stays on in ambient mode.',
+      '完乘記錄新增「順序」排序，手機旅程護照也能切換排序方式（謝謝網友回報）':
+        'Completed trips can now be sorted by completion order, and the Journey Passport on phones can switch sorting methods too.',
+      '捷運列車的車廂擁擠度不會再整批消失一輪：官方擁擠度偶爾抓不到時改用剛才那一份，最多兩分鐘，超過就留白（謝謝網友回報）':
+        'Carriage crowding no longer disappears for a whole refresh: a recent official reading may be reused for up to two minutes, then left blank.',
+      '桌面小工具的方向與目的站可改回「不指定」；Android 另補齊七種尺寸（謝謝網友回報）':
+        'Home-screen widget direction and destination can be reset to Any; Android now has all seven sizes.',
       '桌面的車站看板加寬，車種與「往哪」不會再被截掉':
         'The desktop station board is wider, so the train type and destination are no longer cut off.',
+      '新增關於、準確度、資料來源、車站索引與 20 個常查車站頁，方便搜尋與引用':
+        'New pages cover Rail Island, accuracy, data sources, the station index and 20 commonly searched stations.',
       '快到轉乘站時，直接列出對向系統最近兩班和「你到站時還剩幾分」，可以釘住你要搭的那班':
         "Near a transfer station, the card lists the next two departures on the connecting system and how many minutes you'll have left when you arrive — tap one to pin it.",
-      'ChatGPT 在內建瀏覽器打開軌島時，現在能直接查目前畫面、搜尋車站、讀車站看板與營運公告，也能替你開啟車站看板或跟隨指定火車；一般瀏覽器不受影響':
-        'When Rail Island is open in ChatGPT’s built-in browser, ChatGPT can now inspect the current view, search stations, read departure boards and service alerts, open a station board, or follow a specified train. Regular browsers are unaffected.',
+      'ChatGPT／Codex 內建瀏覽器可查軌島資料、開啟車站看板或跟隨火車；一般瀏覽器不受影響':
+        'The ChatGPT/Codex built-in browser can inspect Rail Island data, open station boards and follow trains; regular browsers are unaffected.',
       '火車站看板改成分方向顯示：南下、北上分開，山線海線與支線各自成區，冷門方向不再被擠掉；顏色比照台鐵新版車站標示的北上藍、南下綠':
         "Station boards now group trains by direction—southbound, northbound and each branch line get their own section, so quieter directions no longer get squeezed out; colour-coded blue for northbound and green for southbound, matching TRA's new station signage.",
       '山線': 'Mountain Line', '海線': 'Coast Line', '縱貫線北段': 'Western Line (North)',
@@ -255,7 +268,7 @@
       '目前誤點 {n} 分': '{n} min late now',
       '📊 資料來源與授權': '📊 Data sources & licenses', '🔒 隱私與服務條款': '🔒 Privacy & terms',
       '台鐵官方 OpenData（ods.railway.gov.tw）——每日時刻表、車站基本資料、車種代碼表，依「政府資料開放授權條款」使用': 'TRA official OpenData (ods.railway.gov.tw): daily timetables, station data and train-type codes, used under Taiwan’s Open Government Data License.',
-      '交通部 TDX 運輸資料流通服務——北捷／機捷／新北捷（淡海・安坑・三鶯）／中捷／高捷（含輕軌）的路線幾何、站序、逐班時刻表與班距資料': 'Ministry of Transportation TDX: route geometry, station order, per-train timetables and headways for Taipei, Taoyuan, New Taipei, Taichung and Kaohsiung metro and light rail.',
+      '交通部 TDX 運輸資料流通服務——北捷／機捷／新北捷（淡海・安坑・三鶯）／中捷／高捷（含輕軌）的路線幾何、站序、逐班時刻表與班距資料，依政府資料開放授權條款第1版使用': 'Ministry of Transportation TDX: route geometry, station order, per-train timetables and headways for Taipei, Taoyuan, New Taipei, Taichung and Kaohsiung metro and light rail, used under Taiwan’s Open Government Data License 1.0.',
       '台鐵即時誤點與車站地址介接交通部 TDX 平臺（TrainLiveBoard／Station，每分鐘更新）': 'TRA live delays and station addresses from the TDX TrainLiveBoard and Station APIs, updated every minute.',
       '台鐵軌道及阿里山林鐵的 TDX 缺口補線取自 © OpenStreetMap 貢獻者（ODbL），經 Overpass／OSM API': 'Missing TRA and Alishan track geometry is supplemented from © OpenStreetMap contributors under ODbL via Overpass / OSM APIs.',
       'CARTO basemaps（© OpenStreetMap）、Esri World Imagery（衛星影像）與 Natural Earth（離線海陸輪廓）': 'CARTO basemaps (© OpenStreetMap), Esri World Imagery and Natural Earth offline land outlines.',
@@ -371,6 +384,7 @@
       '要換回自動，再點一次「跟著列車」': 'Tap “Follow the train” again to go back to automatic',
       '換情境只發生在一首播完之後，不會把正在聽的曲子切掉；短暫經過一個地區也不會馬上換。通行證到期會自動退回免費的隨機播放，你選過的情境會留著。': 'The setting only changes once a track finishes, so nothing is cut off mid-song, and passing briefly through an area will not switch it. When your pass expires the soundtrack returns to free shuffle, and the setting you chose is kept.',
       '配樂情境': 'Soundtrack', '跟著列車': 'Follow the train',
+      '車聲': 'Rail sound', '跟車時車一動就有鐵軌聲，停站淡出；放空模式一直放': 'Track noise while the train you follow is moving, fading out at stops; always on in ambient mode',
       '車開到哪、現在幾點就換到對應的配樂': 'The music changes with where the train is and what time it is',
       '隨機': 'Shuffle', '不分情境,整座曲庫隨機播': 'Shuffles the whole library, whatever the setting',
       '通行證': 'Pass', '尚未上架': 'Coming soon',
@@ -423,6 +437,7 @@
     },
     ja: {
       '軌島': '軌島', '軌島 railisland.tw。看台鐵此刻準點嗎、捷運怎麼穿梭全台，一張會動的台灣鐵道地圖。': '軌島は、台湾鉄路・高速鉄道・各都市のメトロとライトレールを一枚の地図で表示する鉄道アニメーションです。', '台灣鐵道即時軌跡': '台湾鉄道ライブ', '台灣高鐵即時軌跡': '台湾高速鉄道ライブ',
+      '關於軌島': '軌島について', '準確度說明': '精度と制約', '車站索引': '駅索引',
       '全台同框': '台湾全体', '台鐵': '台湾鉄路', '高鐵': '台湾高速鉄道', '阿里山林鐵': '阿里山森林鉄道',
       '捷運與輕軌': 'メトロ・ライトレール', '台北捷運': '台北メトロ', '桃園機捷': '桃園空港MRT',
       '淡海輕軌': '淡海ライトレール', '安坑輕軌': '安坑ライトレール', '三鶯線': '三鶯線',
@@ -557,14 +572,24 @@
         '鑑賞モードは「眺めるだけ」に：地図が指で動かされたりズームがずれたりせず、いったん終了してもう一度入っても「鑑賞モードを終了」ボタンが押せない小さなボタンに縮まなくなりました。',
       '跟捷運列車時，卡片上會顯示這一台車每一節車廂的擁擠度':
         '台北メトロの列車を追跡中、その列車の車両ごとの混雑度をカードに表示します。',
-      '完乘記錄多了「順序」排法，照你實際跟完的先後排、最早那趟在最上面；手機的旅程護照也補上排序鈕（謝謝網友回報）':
-        '完乗記録に「完乗順」を追加。実際に乗り終えた順に、いちばん古い1本が先頭に並びます。スマホの旅のパスポートにも並べ替えボタンを用意しました。',
+      '更新紀錄改得更精簡好讀，資料來源、專案授權與隱私說明也同步校正':
+        '更新履歴を短く読みやすく整理し、データ出典・ライセンス・プライバシーの案内も現状に合わせました。',
+      'App 配樂新增「車聲」：跟車時隨行駛播放，停站淡出；放空模式持續播放':
+        'アプリのBGMに「走行音」を追加。追跡中は走行に合わせて再生し、停車時はフェードアウト、鑑賞モードでは流れ続けます。',
+      '完乘記錄新增「順序」排序，手機旅程護照也能切換排序方式（謝謝網友回報）':
+        '完乗記録を完乗順に並べ替えられるようになり、スマホの旅のパスポートでも並べ替え方法を切り替えられます。',
+      '捷運列車的車廂擁擠度不會再整批消失一輪：官方擁擠度偶爾抓不到時改用剛才那一份，最多兩分鐘，超過就留白（謝謝網友回報）':
+        '車両別混雑度が更新のたびに一斉に消えないよう、公式値を取得できない場合は直前の値を最長2分だけ使用し、その後は空欄にします。',
+      '桌面小工具的方向與目的站可改回「不指定」；Android 另補齊七種尺寸（謝謝網友回報）':
+        'ホーム画面ウィジェットの方向と行き先を「指定なし」に戻せるようになり、Androidでは7種類のサイズが揃いました。',
       '桌面的車站看板加寬，車種與「往哪」不會再被截掉':
         'デスクトップの駅発車案内を広げ、列車種別と行き先が途中で切れなくなりました。',
+      '新增關於、準確度、資料來源、車站索引與 20 個常查車站頁，方便搜尋與引用':
+        '軌島について、精度、データ出典、駅索引、よく検索される20駅のページを追加し、検索・参照しやすくしました。',
       '快到轉乘站時，直接列出對向系統最近兩班和「你到站時還剩幾分」，可以釘住你要搭的那班':
         '乗り換え駅に近づくと、対向システムの直近2本の発車時刻と「到着時点で残り何分か」をカードに表示。1本をタップすると、その列車に固定できます。',
-      'ChatGPT 在內建瀏覽器打開軌島時，現在能直接查目前畫面、搜尋車站、讀車站看板與營運公告，也能替你開啟車站看板或跟隨指定火車；一般瀏覽器不受影響':
-        'ChatGPTの内蔵ブラウザで軌島を開くと、現在の表示内容の確認、駅検索、発車案内・運行情報の取得、駅案内の表示、指定列車の追跡をChatGPTから行えるようになりました。通常のブラウザには影響しません。',
+      'ChatGPT／Codex 內建瀏覽器可查軌島資料、開啟車站看板或跟隨火車；一般瀏覽器不受影響':
+        'ChatGPT／Codexの内蔵ブラウザから軌島の情報確認、駅案内の表示、列車追跡ができます。通常のブラウザには影響しません。',
       '火車站看板改成分方向顯示：南下、北上分開，山線海線與支線各自成區，冷門方向不再被擠掉；顏色比照台鐵新版車站標示的北上藍、南下綠':
         '駅の発車案内を方面別に分割：南行き・北行き・支線がそれぞれ独立し、本数の少ない方面も押し出されません。色分けは台鉄の新しい案内サインに合わせ、北行きは青、南行きは緑。',
       '山線': '山線', '海線': '海線', '縱貫線北段': '縦貫線北段', '縱貫線南段': '縦貫線南段',
@@ -620,7 +645,7 @@
       '目前誤點 {n} 分': '現在{n}分遅れ',
       '📊 資料來源與授權': '📊 データ出典・ライセンス', '🔒 隱私與服務條款': '🔒 プライバシー・利用規約',
       '台鐵官方 OpenData（ods.railway.gov.tw）——每日時刻表、車站基本資料、車種代碼表，依「政府資料開放授權條款」使用': '台湾鉄路公式OpenData（ods.railway.gov.tw）：日別時刻表、駅基本情報、列車種別コード。台湾の政府資料開放授権条項に基づき利用しています。',
-      '交通部 TDX 運輸資料流通服務——北捷／機捷／新北捷（淡海・安坑・三鶯）／中捷／高捷（含輕軌）的路線幾何、站序、逐班時刻表與班距資料': '交通部TDX：台北・桃園・新北・台中・高雄のメトロ／ライトレールの路線形状、駅順、列車別時刻表、運転間隔。',
+      '交通部 TDX 運輸資料流通服務——北捷／機捷／新北捷（淡海・安坑・三鶯）／中捷／高捷（含輕軌）的路線幾何、站序、逐班時刻表與班距資料，依政府資料開放授權條款第1版使用': '交通部TDX：台北・桃園・新北・台中・高雄のメトロ／ライトレールの路線形状、駅順、列車別時刻表、運転間隔を台湾政府資料開放ライセンス第1版に基づき利用しています。',
       '台鐵即時誤點與車站地址介接交通部 TDX 平臺（TrainLiveBoard／Station，每分鐘更新）': '台湾鉄路の遅延と駅住所は交通部TDXのTrainLiveBoard／Station APIから取得し、毎分更新します。',
       '台鐵軌道及阿里山林鐵的 TDX 缺口補線取自 © OpenStreetMap 貢獻者（ODbL），經 Overpass／OSM API': '台湾鉄路・阿里山森林鉄道の不足する線路形状は、Overpass／OSM API経由で© OpenStreetMap contributors（ODbL）から補完しています。',
       'CARTO basemaps（© OpenStreetMap）、Esri World Imagery（衛星影像）與 Natural Earth（離線海陸輪廓）': 'CARTOベースマップ（© OpenStreetMap）、Esri World Imagery、Natural Earthのオフライン陸地輪郭。',
@@ -736,6 +761,7 @@
       '要換回自動，再點一次「跟著列車」': '自動に戻すには「列車に合わせる」をもう一度タップ',
       '換情境只發生在一首播完之後，不會把正在聽的曲子切掉；短暫經過一個地區也不會馬上換。通行證到期會自動退回免費的隨機播放，你選過的情境會留著。': '場面が変わるのは 1 曲が終わったあとだけで、再生中の曲が途中で切れることはありません。ある地域を短時間通過しただけでは切り替わりません。パスの有効期限が切れると無料のシャッフル再生に戻り、選んでいた場面は保持されます。',
       '配樂情境': 'サウンドトラック', '跟著列車': '列車に合わせる',
+      '車聲': '走行音', '跟車時車一動就有鐵軌聲，停站淡出；放空模式一直放': '追跡中の列車が動いている間は走行音が流れ、停車中はフェードアウト。鑑賞モードでは常時再生',
       '車開到哪、現在幾點就換到對應的配樂': '列車のいる場所と時刻に合わせて曲が切り替わります',
       '隨機': 'シャッフル', '不分情境,整座曲庫隨機播': '場面を問わず、ライブラリ全体からランダムに再生',
       '通行證': 'パス', '尚未上架': '準備中',

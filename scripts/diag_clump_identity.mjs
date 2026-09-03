@@ -24,11 +24,12 @@ await p.evaluate(() => {
 await p.waitForTimeout(2500);
 // 🔴 必須逐字抄 scan_map_health.mjs:157 的視野。不設視野的話 zoom 7／每像素 1121 公尺，
 // 文湖線整條壓成 7×9 像素 ⇒ 量出 38–51 對「相距 0m」的假疊車（實際踩過）。
-await p.evaluate(() => map.fitBounds([[24.90, 121.30], [25.25, 121.75]], { animate: false }));
+await p.evaluate(() => window.__map.fitBounds([[24.90, 121.30], [25.25, 121.75]], { animate: false }));
 await p.waitForTimeout(3000);
 
 for (let r = 1; r <= ROUNDS; r++) {
   const snap = await p.evaluate(({ BAD_M, AT_STATION_M }) => {
+    const map = window.__map;
     const R = state.trtcOfficialRoster || {};
     const byId = new Map((R.vehicles || []).map(v => [`${v.line}|${v.vehicleId}`, v]));
     const hits = [];

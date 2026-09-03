@@ -208,7 +208,7 @@ async function replay(root, label, engineName, port, htmlOverride = null, captur
       };
 
       state.playing = false; state.ready = false; _trtcPolling = true;
-      map.setView([25.0478, 121.5170], 16, { animate: false });
+      window.__map.setView([25.0478, 121.5170], 16, { animate: false });
       _trtcNoTrip.clear(); _easedShift.clear(); _metroGateEp.on = false; _metroGateEp.ep = 0; _metroGateEp.at = 0;
       const previous = new Map(), previousTarget = new Map(), lastJump = new Map(), truths = new Map();
       const accuracy = { steady: [], correcting: [], all: [] }, accuracyLinear = { steady: [], correcting: [], all: [] }, sampleIds = [];
@@ -337,7 +337,7 @@ async function replay(root, label, engineName, port, htmlOverride = null, captur
         }
         for (const key of [...openEpisodes.keys()]) if (!seen.has(key)) closeEpisode(key);
         if (captureSpec && captureSpec.epochs.includes(epoch)) {
-          map.setView(captureSpec.center, captureSpec.zoom, { animate: false }); draw();
+          window.__map.setView(captureSpec.center, captureSpec.zoom, { animate: false }); draw();
           let marked = null;
           for (const ln of pool()) for (const tr of ln._tt) if (keyOf(ln, tr) === captureSpec.key) {
             const roster = freqTrainTime(tr, state.simSec); if (roster == null) continue;
@@ -347,10 +347,10 @@ async function replay(root, label, engineName, port, htmlOverride = null, captur
           const cv = document.getElementById('overlay');
           const out = document.createElement('canvas'); out.width = 560; out.height = 300;
           const oc = out.getContext('2d'); oc.fillStyle = '#f3f0e8'; oc.fillRect(0, 0, out.width, out.height);
-          const centerPx = map.latLngToContainerPoint(captureSpec.center);
+          const centerPx = window.__map.latLngToContainerPoint(captureSpec.center);
           oc.drawImage(cv, centerPx.x - out.width / 2, centerPx.y - out.height / 2, out.width, out.height, 0, 0, out.width, out.height);
           if (marked) {
-            const p = map.latLngToContainerPoint(marked.pos), x = p.x - centerPx.x + out.width / 2, y = p.y - centerPx.y + out.height / 2;
+            const p = window.__map.latLngToContainerPoint(marked.pos), x = p.x - centerPx.x + out.width / 2, y = p.y - centerPx.y + out.height / 2;
             oc.save(); oc.strokeStyle = '#ff2d7a'; oc.lineWidth = 4; oc.beginPath(); oc.arc(x, y, 14, 0, Math.PI * 2); oc.stroke();
             oc.fillStyle = '#ff2d7a'; oc.font = '700 14px system-ui'; oc.textAlign = 'left'; oc.fillText('比較車', x + 19, y + 5); oc.restore();
           }

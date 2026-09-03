@@ -67,9 +67,9 @@ const SCAN = `([ll, aKey, bKey, step]) => {
       if (Math.min(da, db) > 90) continue;   // 字與描邊那些像素兩邊都不像,不計票
       da < db ? na++ : nb++; }
     return na === nb ? null : (na > nb ? 'A' : 'B'); };
-  const cen = map.latLngToContainerPoint(ll);
+  const cen = window.__map.latLngToContainerPoint(ll);
   // 搜尋半徑由 CROSS_NEAR_M 推導(留 10% 邊際),不手打像素:掃到的每一格都保證在機制射程內
-  const _a = map.latLngToContainerPoint(ll), _b = map.latLngToContainerPoint([ll[0] + 0.001, ll[1]]);
+  const _a = window.__map.latLngToContainerPoint(ll), _b = window.__map.latLngToContainerPoint([ll[0] + 0.001, ll[1]]);
   const rPx = CROSS_NEAR_M * (Math.abs(_b.y - _a.y) / 111.32) * 0.9;
   const saved = crossLevels.slice();
   const setReal = () => { crossLevels.length = 0; crossLevels.push(...saved); };
@@ -113,7 +113,7 @@ for (const cs of CASES) {
   const c = TBL[cs.i];
   console.log(`\n【${cs.t}】  表:${c.above.id} 蓋 ${c.below.id}`);
   const page = await mk(cs.g);
-  await page.evaluate(([ll]) => map.setView(ll, 16, { animate: false }), [[c.lat, c.lon]]);
+  await page.evaluate(([ll]) => window.__map.setView(ll, 16, { animate: false }), [[c.lat, c.lon]]);
   await page.waitForTimeout(900);
   const r = await page.evaluate(([S, a]) => eval('(' + S + ')')(a),
     [SCAN, [[c.lat, c.lon], keyFor(c.above), keyFor(c.below), cs.s || 30]]);
@@ -145,7 +145,7 @@ console.log('\n【零副作用】沒有交叉口的畫面,有表 vs 無表');
     { g: 'metro', n: '淡水一帶 北捷紅線',   ll: [25.1620, 121.4460], z: 13 },
   ]) {
     const page = await mk(sp.g);
-    await page.evaluate(([ll, z]) => map.setView(ll, z, { animate: false }), [sp.ll, sp.z]);
+    await page.evaluate(([ll, z]) => window.__map.setView(ll, z, { animate: false }), [sp.ll, sp.z]);
     await page.waitForTimeout(900);
     const run = () => page.evaluate(([H]) => eval('(' + H + ')')(8*3600 + 1234), [HASH]);
     const a1 = await run(), a2 = await run();
@@ -153,7 +153,7 @@ console.log('\n【零副作用】沒有交叉口的畫面,有表 vs 無表');
     ok('  控制組:連畫兩次結果相同(這個畫面可重現,下面的比較才有意義)', a1.hash === a2.hash);
     ok('  正向對照:畫面上真的有車', a1.trains > 0, `${a1.trains} 台`);
     const near = await page.evaluate(() => { const w = cv.width/state.dpr, h = cv.height/state.dpr;
-      return crossLevels.filter(c => { const p = map.latLngToContainerPoint([c.lat, c.lon]);
+      return crossLevels.filter(c => { const p = window.__map.latLngToContainerPoint([c.lat, c.lon]);
         return p.x > -200 && p.y > -200 && p.x < w+200 && p.y < h+200; }).length; });
     ok('  這個視野裡確實沒有交叉口', near === 0, `${near} 處`);
     await page.evaluate(() => { crossLevels.length = 0; });
