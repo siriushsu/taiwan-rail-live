@@ -1,20 +1,46 @@
-// 對齊探針圓心(純函式,無 I/O):輸入 RGBA buffer,輸出洋紅(#ff00ff,底圖引擎畫)與青色(#00ffff,overlay 畫)兩顆探針的圓心。
+// 對齊探針圓心(純函式,無 I/O):輸入 RGBA buffer,輸出洋紅環(#ff00ff,底圖引擎畫)與青點(#00ffff,overlay 畫)的圓心。
 // 不用「看得見的像素質心」——真機錄影裡探針常被壓掉一塊(列車卡片邊緣、路線帶、站名、HUD),質心會被推離圓心;
 // 09-03 第一支真機錄影就這樣假紅(x 對到 0.4px、y 卻差 29px,全是遮擋)。改成「已知半徑的圓擬合」:
-// 取色塊的邊緣像素,RANSAC 找出最多邊緣點落在半徑 r 圓周上的圓心,再用內點做定半徑最小平方精修;
+// 取色塊的邊緣像素,RANSAC 找出圓周角度覆蓋最廣的圓心,再用內點做定半徑最小平方精修;
 // 被遮住那一段的邊緣不在圓周上,自然是離群點。圓周至少要看得見 MIN_ARC 才算量到(否則回 null＝這一幀沒有可用探針)。
-// 半徑由呼叫端依 dpr 給:洋紅 circle-radius 18css → 18·dpr;青色 ctx.arc 半徑 5css → 5·dpr
+//
+// 洋紅畫成環(12–18css)不畫實心圓(09-04):真機的遮擋物是半透明的車號卡與站名,邊是直的——直邊會在錯的圓心附近
+// 排出一串剛好落在圓周容差內的邊緣像素(直邊與錯圓相切),真圓弧只剩 0.3 左右時錯圓心會贏、量出 10 幾 px 的假失步。
+// 環有外圈(r)與內圈(rIn)兩條邊,同一個遮擋直邊對兩個半徑的「相切錯圓心」位置不同,兩圈擬合不同心就整顆作廢;
+// 兩圈同心才是「確定」的圓心。只擬合得出一圈時,圓弧 ≥ SURE_ARC 才算確定,否則標 sure:false 給分析器降級處理。
+// 半徑由呼叫端依 dpr 給:洋紅環 circle-radius 12css＋stroke 6css → 外 18·dpr、內 12·dpr;青色 ctx.arc 半徑 5css → 5·dpr
 // (主畫布 dpr 上限 2,但 CSS 會把畫布放大回裝置像素,所以最終畫面上仍是 5·dpr)。
-// 顏色門檻放寬到影片壓縮(yuv420p 色度次取樣)後仍抓得到。
-export const MIN_ARC = 0.35, RIM_TOL = 2.5, MIN_PIX = 12;
-export const isMag = (r, g, b) => r >= 150 && b >= 150 && g <= 110;
-export const isCyn = (r, g, b) => g >= 150 && b >= 150 && r <= 110;
+export const MIN_ARC = 0.35, RIM_TOL = 2.5, MIN_PIX = 12, SURE_ARC = 0.5;
+// 顏色門檻:以 09-03 真機錄影量到的探針像素為準(洋紅 r p2=208／g p50=0／b p50=253;青 r p98=4／g p2=251／b p2=250),
+// 留壓縮抖動的餘裕,同時把正式線色擋在外面:沙崙線 #B565A7 壓縮後 (176–184, 98–103, 160–170) 靠 b≥180 擋掉;
+// 內灣線 #00A0B0 壓縮後 g 可到 208、b 到 218,門檻擋不完——靠下面的連通元件尺寸篩掉(線是長條,探針外框永遠 ≤ 2r)。
+export const isMag = (r, g, b) => r >= 180 && b >= 180 && g <= 110;
+export const isCyn = (r, g, b) => g >= 200 && b >= 200 && r <= 110;
 
 // 色塊的邊緣像素(4 鄰域有一個不是同色,或貼著畫面邊界)。
-function rim(rgba, w, h, test) {
+// 先做連通元件、丟掉外框任一邊超過 2.4r 的元件:同色的軌道線／路線帶／UI 區塊都是長條或大塊,而探針(環或點)
+// 不管被遮成什麼樣,外框都不會超過 2r。09-04 自測實例:內灣線畫在探針旁,青點的圓擬合被線的邊緣釣走 360px。
+export function rim(rgba, w, h, test, r) {
   const mask = new Uint8Array(w * h);
   let n = 0;
   for (let i = 0, p = 0; i < w * h; i++, p += 4) if (test(rgba[p], rgba[p + 1], rgba[p + 2])) { mask[i] = 1; n++; }
+  if (n < MIN_PIX) return null;
+  const maxSide = 2.4 * r + 2, seen = new Uint8Array(w * h), stack = new Int32Array(n);
+  for (let s = 0; s < w * h; s++) {
+    if (!mask[s] || seen[s]) continue;
+    let sp = 0, x0 = w, x1 = 0, y0 = h, y1 = 0; const comp = [];
+    stack[sp++] = s; seen[s] = 1;
+    while (sp) {
+      const j = stack[--sp]; comp.push(j);
+      const x = j % w, y = (j - x) / w;
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+      if (x > 0 && mask[j - 1] && !seen[j - 1]) { seen[j - 1] = 1; stack[sp++] = j - 1; }
+      if (x < w - 1 && mask[j + 1] && !seen[j + 1]) { seen[j + 1] = 1; stack[sp++] = j + 1; }
+      if (y > 0 && mask[j - w] && !seen[j - w]) { seen[j - w] = 1; stack[sp++] = j - w; }
+      if (y < h - 1 && mask[j + w] && !seen[j + w]) { seen[j + w] = 1; stack[sp++] = j + w; }
+    }
+    if (x1 - x0 + 1 > maxSide || y1 - y0 + 1 > maxSide) { for (const j of comp) mask[j] = 0; n -= comp.length; }
+  }
   if (n < MIN_PIX) return null;
   const pts = [];
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
@@ -29,6 +55,7 @@ function rim(rgba, w, h, test) {
 // 為什麼用角度格不用內點數:遮擋物的直邊(列車卡片、HUD 邊緣)會在錯的圓心附近排出一整串「剛好落在圓周容差內」的
 // 邊緣像素,內點數會被灌水——09-04 自測實例:洋紅只剩 22% 真弧,錯圓心 (+13px) 卻收到 47 個內點(0.42 圓周)而勝出,
 // 那些內點只占 12/36 個角度格;真圓心 30 個內點散在 10 格。角度格量的是「圓周有多少方向看得見」,直邊灌不了水。
+// (角度格擋得住「灌水」,擋不住「相切」——直邊與錯圓相切時那串內點本身就散在 6–8 格;那一層交給環的兩圈同心檢查。)
 const NB = 36;
 export function fitCircle(pts, r) {
   if (!pts || pts.length < 3) return null;
@@ -82,6 +109,26 @@ export function colorMassNear(rgba, w, h, test, cx, cy, R) {
   return n;
 }
 
-export function probeCentroids(rgba, w, h, { magR = 18, cynR = 5 } = {}) {
-  return { mag: fitCircle(rim(rgba, w, h, isMag), magR), cyn: fitCircle(rim(rgba, w, h, isCyn), cynR) };
+// magInR 給了就當環量:外圈與內圈各擬合一次、必須同心才是確定的圓心。同心容差 max(3px, 10% 外半徑):影片壓縮讓遮罩
+// 兩側各縮 1px 左右,只看得見半圈時定半徑擬合會把圓心往可見側拉 ~0.6–0.8px、內外圈方向相反(所以取兩圈平均正好抵銷),
+// 兩圈可差到 1.5–2px;直邊相切釣出的假圓心差的是 r/3 量級,容差 10% 仍分得開。
+// 只擬合得出一圈時,可見弧 ≥ SURE_ARC 才 sure。不給 magInR(check-engine 的 G7 只量外圈)就照舊單圈。
+// 青點只有一圈,sure ＝ 可見弧 ≥ SURE_ARC。
+export function probeCentroids(rgba, w, h, { magR = 18, magInR = null, cynR = 5 } = {}) {
+  const magPts = rim(rgba, w, h, isMag, magR), cynPts = rim(rgba, w, h, isCyn, cynR);
+  const out = fitCircle(magPts, magR);
+  // 內圈只准用「不是外圈內點」的邊緣像素:只剩半圈時,一個往可見側偏 6px 的 r12 圓會貼著外圈(內切)收一整段內點,
+  // 角度格比真內圈還多(09-04 自測 occluded:假內圈 0.67 vs 真 0.56)。外圈先擬合、把它的內點拿掉,內圈就沒東西可貼。
+  const rest = out && magPts ? magPts.filter(p => Math.abs(Math.hypot(p[0] - out.x, p[1] - out.y) - magR) > RIM_TOL) : magPts;
+  const inn = magInR ? fitCircle(rest, magInR) : null;
+  let mag = null;
+  if (out && inn) {
+    const agree = Math.hypot(out.x - inn.x, out.y - inn.y), tol = Math.max(3, 0.1 * magR);
+    if (agree <= tol) mag = { x: (out.x + inn.x) / 2, y: (out.y + inn.y) / 2, n: out.n + inn.n, arc: out.arc, arcIn: inn.arc, agree, sure: true };
+    // 不同心:至少一圈是被直邊釣走的假圓心,整顆作廢(分析器會把這一幀當「只找到青」處理)
+  } else if (out || inn) {
+    const f = out || inn; mag = { ...f, sure: f.arc >= SURE_ARC, rim: out ? 'outer' : 'inner' };
+  }
+  const c = fitCircle(cynPts, cynR);
+  return { mag, cyn: c ? { ...c, sure: c.arc >= SURE_ARC } : null };
 }

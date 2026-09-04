@@ -6005,7 +6005,7 @@
 // v0904h：MapLibre 彩色路線改到道路與 3D 建築之上，不再被底圖切成碎段；文字標籤仍在最上。
 // v0904i：修正暗色 OpenFreeMap 的早期水域標籤誤導軌道插層，確保後段道路全在軌道下方。
 // v0904k：MapLibre 跟隨高亮使用完整點列，長途路線在深縮放彎道不再因抽稀而偏離原軌。
-const BUILD = 'v0904k';
+const BUILD = 'v0904l';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -6669,11 +6669,12 @@ function createMaplibreEngine(containerId, view) {
   };
   // 跨層對齊探針(?aligndot=lat,lng):底圖引擎自己依經緯度畫一顆洋紅點,不經過我們任何投影程式碼;
   // overlay 那顆青點在 boot 的 draw 包裝裡畫(引擎中立)。setStyle({diff:false}) 會清掉所有自訂層,故掛在 style.load 每次重放。
-  if (ALIGN_DOT) {
+  // follow 模式的兩個輪替 source 不在這裡建,在 boot 的 setupFollowProbe(要用到 mapInsets/state.followTrain)。
+  if (ALIGN_DOT && !ALIGN_DOT.follow) {
     const putProbe = () => {
       if (raw.getLayer('aligndot')) return;
       raw.addSource('aligndot', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [ALIGN_DOT.lng, ALIGN_DOT.lat] } } });
-      raw.addLayer({ id: 'aligndot', type: 'circle', source: 'aligndot', paint: { 'circle-radius': 18, 'circle-color': '#ff00ff' } });
+      raw.addLayer({ id: 'aligndot', type: 'circle', source: 'aligndot', paint: { ...ALIGN_RING_PAINT } });
     };
     raw.on('style.load', putProbe);
     if (raw.isStyleLoaded()) putProbe();
@@ -11341,11 +11342,11 @@ function glTracksInstall() {
   // 前面，照那個位置插會變成軌道先畫、後面的二十多層道路再把它切碎。應找最後一個非 symbol
   // 底圖層，插在其後方的標籤群之前；夾在底圖中段的早期 symbol 也移到軌道之後，維持文字在上。
   const styleLayers = ((raw.getStyle() && raw.getStyle().layers) || [])
-    .filter(layer => !layer.id.startsWith('track-') && layer.id !== 'aligndot');
+    .filter(layer => !layer.id.startsWith('track-') && !layer.id.startsWith('aligndot'));
   let lastBase = -1;
   styleLayers.forEach((layer, i) => { if (layer.type !== 'symbol') lastBase = i; });
   const labelAnchor = styleLayers.slice(lastBase + 1).find(layer => layer.type === 'symbol');
-  const before = labelAnchor ? labelAnchor.id : (raw.getLayer('aligndot') ? 'aligndot' : undefined);
+  const before = labelAnchor ? labelAnchor.id : ['aligndot', 'aligndot-a', 'aligndot-b'].find(id => raw.getLayer(id));
   const earlySymbols = labelAnchor ? styleLayers.slice(0, lastBase + 1).filter(layer => layer.type === 'symbol').map(layer => layer.id) : [];
   const base = Object.fromEntries(glTracks.style.layers.map(l => [l.id, l]));
   const none = ['in', ['get', 'lineKey'], ['literal', []]];
@@ -12508,10 +12509,16 @@ const ALIGN_DOT = (() => {
     const q = new URLSearchParams(location.search), v = q.get('aligndot');
     if (!v && q.get('probe') === '1') return { lat: 25.20, lng: 121.80 };
     if (!v) return null;
+    if (v === 'follow') return { follow: true }; // 探針跟著可視窗走(設計書 3.2.2),只在 MapLibre 引擎有作用
     const [lat, lng] = v.split(',').map(Number);
     return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
   } catch (e) { return null; }
 })();
+// 洋紅探針畫成環(12–18css)不畫實心圓:錄影分析器用已知半徑的圓擬合找圓心,真機的遮擋物(半透明車號卡、站名)邊是直的,
+// 直邊與錯的圓相切時會釣出假圓心;環有內外兩圈可互相驗證(兩圈不同心＝假圓心,整顆作廢)。中間透空也讓青點落在底圖上。
+// circle-pitch-scale 預設 map:傾斜時環會隨透視縮放、半徑就不是 18css,分析器的已知半徑擬合會失敗(09-04 合成錄影傾斜那 2.5 秒全變 orphanNear);
+// 探針要的是「螢幕上永遠 12–18css」,兩個 pitch 屬性都釘 viewport。
+const ALIGN_RING_PAINT = { 'circle-radius': 12, 'circle-color': '#ff00ff', 'circle-opacity': 0, 'circle-stroke-width': 6, 'circle-stroke-color': '#ff00ff', 'circle-pitch-scale': 'viewport', 'circle-pitch-alignment': 'viewport' };
 // 行程分享發起端＝Plus。這支只管「鈕要不要出現」,不等於放行——
 // ?tripshare=1 是開發測試通道,它點亮入口讓版面看得到,但按下去仍會被 plusGateOpen 攔去訂閱。
 // 兩段式(顯示 vs 放行)是刻意的:URL 參數可以被轉貼,不能讓它變成公開後門。
@@ -32281,15 +32288,83 @@ async function boot() {
   // 跨層對齊探針(只在 ?aligndot=lat,lng 時存在):同一個經緯度,底圖引擎畫一顆、overlay 畫一顆。
   // 兩顆在最終畫面上的像素距離＝底圖與列車圖層錯開多少。overlay 這顆刻意走 latLngToContainerPoint
   // (＝列車用的同一條路徑),底圖那顆交給底圖引擎自己算,兩邊沒有共用的投影假設。
+  // ?aligndot=follow(設計書 3.2.2):探針不釘死在一個經緯度,而是跟著可視窗走——快出畫面就重錨到可視窗中心往
+  // 「螢幕上的列車前進方向」偏 28% 的位置(沒跟車就往上),讓跟車 30 秒那段也量得到。GL 側用兩個 source 輪替:
+  // 先把新錨點寫進暗的那個、等它的圖磚真的載完(sourcedata content + isSourceLoaded)才用 circle-stroke-opacity(轉場 0ms)
+  // 一次翻面;overlay 要到「翻面後第一次 render」才改畫新錨點——render 在 GL 畫完後才發,所以翻面那一幀兩層
+  // 永遠畫同一顆。刻意用 opacity 不用 visibility/filter/setData 當開關:那三個都要 worker 重算圖磚、慢好幾格,
+  // 翻面當下會出現「GL 舊點、overlay 新點」的假失步;也不每幀 setData 跟著列車走:zoom 18.9 時列車一幀走
+  // 約 4.8 裝置像素,慢一格就吃掉 2pt×dpr3=6px 的預算。
+  function setupFollowProbe() {
+    if (M.engine !== 'maplibre' || !M.raw) return null; // Leaflet 路徑沒有可翻面的 GL 層,follow 模式只在 MapLibre 有意義
+    const raw = M.raw, ids = ['aligndot-a', 'aligndot-b'];
+    const P = { live: null, next: null, active: 0, pending: null, lastSwapAt: 0, swaps: 0 };
+    const feat = ll => ({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [ll.lng, ll.lat] } });
+    const paintOn = on => ({ ...ALIGN_RING_PAINT, 'circle-stroke-opacity': on ? 1 : 0, 'circle-stroke-opacity-transition': { duration: 0, delay: 0 } });
+    const ensure = () => { // setStyle({diff:false}) 會清掉所有自訂層,冪等重掛;活的那顆帶 P.live
+      ids.forEach((id, i) => {
+        if (!raw.getSource(id)) raw.addSource(id, { type: 'geojson', data: feat(P.live || M.getCenter()) });
+        if (!raw.getLayer(id)) raw.addLayer({ id, type: 'circle', source: id, paint: paintOn(i === P.active && !!P.live) });
+      });
+    };
+    raw.on('style.load', () => { P.pending = null; P.next = null; ensure(); });
+    try { ensure(); } catch (e) { /* style 還沒載完(addSource 會丟);style.load 或 request() 會再掛 */ }
+    raw.on('sourcedata', e => { if (P.pending && e.sourceId === ids[P.pending.idx] && e.sourceDataType === 'content') P.pending.armed = true; });
+    M.on('render', () => { if (P.next) { P.live = P.next; P.next = null; } }); // 翻面後第一次 render(GL 已畫新點)才換 overlay 目標;必須排在 syncDrawMaplibre 之前註冊
+    const insetRect = () => { const i = mapInsets(), sz = M.getSize(); return { x0: i.left, y0: i.top, x1: sz.x - i.right, y1: sz.y - i.bottom }; };
+    const pick = () => { // 可視窗中心往「螢幕上的列車前進方向」偏 28%;沒跟車就往上
+      const r = insetRect(), cx = (r.x0 + r.x1) / 2, cy = (r.y0 + r.y1) / 2, span = Math.min(r.x1 - r.x0, r.y1 - r.y0);
+      const following = !!(state.followTrain || state.freqFollow);
+      const h = following && state._followHeading ? state._followHeading.value : null;
+      const ang = ((Number.isFinite(h) ? h - M.getBearing() : 0) - 90) * Math.PI / 180;
+      const ll = M.fromScreen({ x: cx + 0.28 * span * Math.cos(ang), y: cy + 0.28 * span * Math.sin(ang) });
+      return { lat: ll.lat, lng: ll.lng };
+    };
+    const request = ll => {
+      if (P.pending || P.next) return false;
+      // isStyleLoaded() 要等所有圖磚都載完,開機時常常 false 而 style.load 又早就發過 → 沒人掛層;缺層就在這裡補掛(冪等)
+      if (!raw.getSource(ids[0]) || !raw.getSource(ids[1])) { try { ensure(); } catch (e) {} return false; }
+      const idx = 1 - P.active;
+      P.pending = { idx, ll, armed: false, at: performance.now() };
+      raw.getSource(ids[idx]).setData(feat(ll));
+      return true;
+    };
+    const offscreen = () => {
+      if (!P.live) return true;
+      const r = insetRect(), m = 70, p = M.toScreen([P.live.lat, P.live.lng]);
+      return p.x < r.x0 + m || p.y < r.y0 + m || p.x > r.x1 - m || p.y > r.y1 - m;
+    };
+    const afterDraw = () => {
+      const now = performance.now();
+      if (P.pending) {
+        if (P.pending.armed && raw.isSourceLoaded(ids[P.pending.idx])) { // 新錨點的圖磚真的在了,才翻面
+          const { idx, ll } = P.pending;
+          raw.setPaintProperty(ids[idx], 'circle-stroke-opacity', 1);
+          raw.setPaintProperty(ids[P.active], 'circle-stroke-opacity', 0);
+          P.active = idx; P.next = ll; P.pending = null; P.lastSwapAt = now; P.swaps++;
+        } else if (now - P.pending.at > 3000) P.pending = null; // 載入卡住就放棄這次,下一幀重來
+        return;
+      }
+      if (P.next || now - P.lastSwapAt < 800) return; // 翻面後等 overlay 接手;換錨最快 0.8 秒一次,甩動時別狂換
+      if (offscreen()) request(pick());
+    };
+    return { get live() { return P.live; }, afterDraw, request, pick, ids, state: () => ({ live: P.live, next: P.next, active: P.active, pending: !!P.pending, pendingArmed: !!(P.pending && P.pending.armed), pendingAge: P.pending ? Math.round(performance.now() - P.pending.at) : null, swaps: P.swaps, offscreen: offscreen(), srcLoaded: ids.map(id => raw.getSource(id) ? raw.isSourceLoaded(id) : null) }) };
+  }
   if (ALIGN_DOT) {
+    const probe = ALIGN_DOT.follow ? setupFollowProbe() : null;
     const _drawOrig = draw;
     draw = function () {
       _drawOrig.apply(this, arguments);
-      const p = M.toScreen([ALIGN_DOT.lat, ALIGN_DOT.lng]);
-      ctx.save(); ctx.fillStyle = '#00ffff';
-      ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+      const at = probe ? probe.live : (ALIGN_DOT.follow ? null : ALIGN_DOT); // Leaflet 下的 follow 模式沒有探針可畫(不是 {lat,lng})
+      if (at) {
+        const p = M.toScreen([at.lat, at.lng]);
+        ctx.save(); ctx.fillStyle = '#00ffff';
+        ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+      }
+      if (probe) probe.afterDraw(); // 換錨與翻面放在畫完之後:這一幀 overlay 畫的必是 GL 這一幀畫的那顆
     };
     window.__alignDot = ALIGN_DOT;
+    window.__alignProbe = probe; // 守門人把手(verify_align_follow.mjs);固定模式與 Leaflet 為 null
   }
   window.__state = state; // 同上:唯讀給驗證腳本讀命中快取/模擬時鐘(平交道等)
   if (M.leaflet) M.leaflet.zoomControl.setPosition('bottomright'); // 右上讓給車站時刻板
@@ -32684,7 +32759,7 @@ async function boot() {
       }
       baseLayers[k] = L.maplibreGL({ style: OFM_STYLE[k], attribution: OFM_ATTRIBUTION, interactive: false });
       ofmWatch(baseLayers[k]);
-      if (ALIGN_DOT) { // 底圖那半的對齊探針:交給底圖引擎自己依經緯度畫,不經過我們任何投影程式碼
+      if (ALIGN_DOT && !ALIGN_DOT.follow) { // 底圖那半的對齊探針:交給底圖引擎自己依經緯度畫,不經過我們任何投影程式碼(follow 模式只在 MapLibre 引擎有)
         // _glMap 要等圖層真的被加進地圖(onAdd→_initGL)才存在,所以掛在 'add' 事件上
         baseLayers[k].on('add', function () {
           const gl = this._glMap; if (!gl) return;
@@ -32692,7 +32767,7 @@ async function boot() {
           const put = () => {
             if (gl.getLayer && gl.getLayer('aligndot')) return;
             gl.addSource('aligndot', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [ALIGN_DOT.lng, ALIGN_DOT.lat] } } });
-            gl.addLayer({ id: 'aligndot', type: 'circle', source: 'aligndot', paint: { 'circle-radius': 18, 'circle-color': '#ff00ff' } });
+            gl.addLayer({ id: 'aligndot', type: 'circle', source: 'aligndot', paint: { ...ALIGN_RING_PAINT } });
           };
           gl.isStyleLoaded && gl.isStyleLoaded() ? put() : gl.once('load', put);
         });
