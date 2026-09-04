@@ -402,8 +402,14 @@
     min-width: 44px; min-height: 44px; /* 觸控目標下限;解鎖後的「回到列車」膠囊本來就更寬,不受影響 */
   }
   .follow-lock-ctl button.unlocked { background: var(--red); color: #fff8ec; border-color: var(--red-deep); box-shadow: var(--shadow-red); border-radius: var(--r-pill); }
-  .maplibregl-ctrl-attrib { background: rgba(247,240,221,.9); color: var(--faint); }
+  /* 特異度要 (0,2,0):vendor 的 .maplibregl-ctrl.maplibregl-ctrl-attrib 也是 (0,2,0),同分後載入者勝;
+     只寫 .maplibregl-ctrl-attrib (0,1,0) 會輸給 vendor 的半透明白(M4-A 起亮色一直顯示 vendor 色)。 */
+  .maplibregl-ctrl.maplibregl-ctrl-attrib { background: rgba(247,240,221,.9); color: var(--faint); }
   html[data-theme=dark] .maplibregl-ctrl-attrib { background: rgba(14,21,38,.85); }
+  /* 右側安全區(iPhone 橫放瀏海):Leaflet 時代「右側控制項 margin-right: 10px + 安全區」那條的對等版。
+     --sa-r=0 時與 vendor 預設(控制組 10px、版權列 0)逐 px 相同。 */
+  .maplibregl-ctrl-bottom-right .maplibregl-ctrl:not(.maplibregl-ctrl-attrib) { margin-right: calc(10px + var(--sa-r)); }
+  .maplibregl-ctrl-bottom-right .maplibregl-ctrl-attrib { margin-right: var(--sa-r); }
   .maplibregl-ctrl-attrib a { color: var(--muted); }
   /* MapLibre 已經在正北且無俯角時不需要占一格；一旋轉或傾斜就立即現形成為回北出口。 */
   .maplibregl-map:not(.map-orient-active) .maplibregl-ctrl-compass { display: none; }
@@ -1831,6 +1837,9 @@
   body.fs #immBtn { display: flex; }
   #ambientStyleBtn { display: none; }
   body.ambient #ambientStyleBtn { display: inline-flex; }
+  /* 放空=相機交給程式(見 setMapGestures):桌面的 +/- 鈕一併收,免得留一條繞過手勢鎖的路。
+     手機在 max-width:900 那條規則裡本來就是 display:none;羅盤不收(旋轉後的回北出口)。 */
+  body.ambient .maplibregl-ctrl-zoom-in, body.ambient .maplibregl-ctrl-zoom-out { display: none; }
   /* 地圖動作列容器:桌面 display:contents ＝盒子不生成,兩顆鈕照舊各自對 #stage 絕對定位(零變化);
      手機(≤900)才變成真正的並排 flex 列,見手機區塊。 */
   .map-actions { display: contents; }
