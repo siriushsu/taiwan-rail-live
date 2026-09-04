@@ -62,6 +62,7 @@
     "check-weekend-core": "node scripts/verify_weekend_core.mjs",
     "check-weekend-api": "node scripts/verify_weekend_api.mjs",
     "check-weekend-page": "node scripts/verify_weekend_page.mjs",
+    "check-weekend-entry": "node scripts/verify_weekend_entry.mjs",
     "check-daytype-sync": "node scripts/check_daytype_sync.mjs"
   },
   "dependencies": {

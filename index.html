@@ -5750,6 +5750,8 @@
     <div class="ms-sec">資訊</div>
     <!-- 已排提醒總覽:NOTIFY_LOCAL_ENABLED 才留(旗標關時 setupLocalNotifications 移除,比照 locateBtn) -->
     <button class="ms-row" data-act="notify" data-close="1"><span>已排提醒</span><span class="chev">›</span></button>
+    <!-- 週末鐵道活動:內容在 weekend.html(正式網站獨立頁,App 內開系統瀏覽器) -->
+    <button class="ms-row" data-act="weekend" data-close="1"><span>週末鐵道活動</span><span class="chev">›</span></button>
     <button class="ms-row" data-proxy="todayBtn" data-close="1"><span>今日台鐵動態</span><span class="chev">›</span></button>
     <!-- 全日班次走勢(Batch B):.flow 全日走勢圖的手機新家;點列把 #flowWrap 搬進下方 slot 並重繪,收合搬回原位 -->
     <button class="ms-row" data-act="flow"><span>全日班次走勢</span><span class="chev">›</span></button>
@@ -21181,6 +21183,7 @@ function renderExplorePanel() {
   if (el.hidden) return;
   ensurePunctualData(); // 保險再觸發一次(已載入/載入中會早退),比照 openDelayHist 同款寫法
   ensureEvents();       // 同款:載到之後會自己再叫一次 renderExplorePanel
+  ensureWeekendCount();  // 同款:載到之後會自己再叫一次 renderExplorePanel
   const hl = computeHighlights();
   const guides = exploreGuideTrains();
   const punctual = punctualTrainList();
@@ -21189,6 +21192,7 @@ function renderExplorePanel() {
     `<div class="sub">${escHtml(t('從 {n} 班車裡挑出來的 · 點列車跟隨、點活動飛到那一站', { n: i18nNumber(state.trains.length) }, state.trains.length))}</div>` +
     (hl.best.length ? `<div class="sec">${escHtml(t('今日之最'))}</div><div class="hl-grid">` + hl.best.map(hlCard).join('') + `</div>` : '') +
     (hl.special.length ? `<div class="sec">${escHtml(t('特別列車出沒中'))}</div>` + hl.special.map(hlRow).join('') : '') +
+    weekendRowHtml() +
     eventSecHtml() +
     (hl.branches.length ? `<div class="sec">${escHtml(t('支線小火車'))}</div>` + hl.branches.map(hlRow).join('') : '') +
     (punctual.length ? `<div class="sec">${escHtml(t('準點排行'))}</div>` + punctual.map(punctualRow).join('') +
@@ -21201,6 +21205,7 @@ function renderExplorePanel() {
   el.querySelector('#exploreClose').onclick = closeExplorePanel;
   el.onclick = e => {
     if (e.target.closest('.close')) return;
+    if (e.target.closest('.row[data-weekend]')) { openWeekendPage(); return; }
     const ev0 = e.target.closest('.row[data-ev]');
     if (ev0) {
       const ev = activeEvents().find(x => x.id === ev0.dataset.ev);
@@ -27120,6 +27125,36 @@ function eventRowsHtml(st) {
       : `<div class="ev-row"${sourceAttr}>${inner}</div>`;
   }).join('') + `</div>`;
 }
+// 週末活動頁在正式網站上(weekend.html),App 這邊只是一條連結——內容與網站共用一份,
+// 改一次兩邊都變。開法比照活動原文連結:window.open 交給系統瀏覽器
+// (App 內建瀏覽器要等推播那一批裝 @capacitor/browser,屆時只換這一個函式)。
+// 帶上當下語言,讓從日文/英文介面點過去的人看到對應的骨架文字。
+const WEEKEND_PAGE_URL = 'https://railisland.tw/weekend.html';
+function weekendPageUrl() {
+  return WEEKEND_PAGE_URL + (I18N_LANG && I18N_LANG !== 'zh-TW' ? '?lang=' + encodeURIComponent(I18N_LANG) : '');
+}
+function openWeekendPage() { window.open(weekendPageUrl(), '_blank', 'noopener'); }
+
+// 探索面板的入口列。數字取自 /api/weekend,還沒回來就先不顯示數字(不擋渲染)。
+let _weekendCount = null;
+function ensureWeekendCount() {
+  if (_weekendCount !== null) return;
+  _weekendCount = 'loading';
+  fetchJSONAt(apiUrl('api/weekend')).then(j => {
+    _weekendCount = (j && typeof j.count === 'number') ? { n: j.count, label: (j.span && j.span.label) || '' } : 'none';
+    const ep = document.getElementById('explorePanel');
+    if (ep && !ep.hidden) renderExplorePanel();
+  });
+}
+function weekendRowHtml() {
+  const c = _weekendCount;
+  const label = (c && c.label) || t('本週末');
+  const tail = (c && typeof c.n === 'number' && c.n > 0) ? t('{n} 場', { n: i18nNumber(c.n) }, c.n) : '';
+  return `<div class="row" data-weekend="1" title="${escHtml(label)}">` +
+    `<b>${escHtml(label)}${escHtml(t('鐵道活動'))}</b>` +
+    `<span class="min">${escHtml(tail)} ›</span></div>`;
+}
+
 // 今日亮點用:一節,沒有活動回空字串。
 // 點得動的才給 data-ev(CSS 的 cursor:pointer 與 click 路徑都認這個屬性):解析不到站、
 // 又沒有官方原文的那一筆點下去無事可做,就不要裝成可以點(與看板那側同一條線)。
@@ -30520,6 +30555,7 @@ function setupMapTools() {
     if (row.dataset.act === 'track') { setMore(false); openTrackPanel(); return; }
     if (row.dataset.act === 'fontscale') { setMore(false); openFontPanel(); return; } // 設計 6c:字級是 `›` 子頁
     if (row.dataset.act === 'notify') { setMore(false); openLocalReminderOverview(); return; } // 已排提醒總覽
+    if (row.dataset.act === 'weekend') { setMore(false); openWeekendPage(); return; }  // 週末活動:外開網站頁
     if (row.dataset.act === 'panelOpacity') { setPanelTranslucent(!state.panelTranslucent); syncMoreSheet(); return; }
     if (row.dataset.act === 'diagStrip') { setDiagStrip(!state.diagStrip); syncMoreSheet(); return; }
     if (row.dataset.act === 'exportTrtcDiag') { exportTrtcEntityDiagnostics(); return; }
