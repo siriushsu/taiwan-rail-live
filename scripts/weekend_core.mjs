@@ -129,3 +129,22 @@ export function spanLabel(span, holidayNames) {
   if (hit) return hit;
   return span.days.every(d => weekday(d) === 0 || weekday(d) === 6) ? '本週末' : '假日';
 }
+
+// /api/weekend 端點回傳形狀的組裝。🔴 這是【唯一】一份——worker.js 的 weekendBoard 與
+// scripts/verify_weekend_api.mjs 都呼叫這一支,不各自重算組裝邏輯(檔頭那句話對這支
+// 複合函式同樣成立:兩份實作會慢慢長歪,而「兩邊一致」拿自己驗自己是零資訊)。
+// span 為 null 的處理刻意不在這裡:那是「日曆表用完了」時的 HTTP 層決策(503),
+// 屬於呼叫端的職責,不是這裡該管的純邏輯——呼叫端要自己先確認 span 非 null 才呼叫這裡。
+export function weekendBody(today, span, eventsDoc, holidayNames) {
+  const all = (eventsDoc && Array.isArray(eventsDoc.events)) ? eventsDoc.events : [];
+  const { onlyThis, alsoOpen } = splitEvents(all, span);
+  const body = {
+    today,
+    span: { from: span.from, to: span.to, days: span.days.length, label: spanLabel(span, holidayNames) },
+    events: dedupeEvents(onlyThis, span),
+    alsoOpen: dedupeEvents(alsoOpen, span),
+    updated: (eventsDoc && eventsDoc.updated) || null,
+  };
+  body.count = body.events.length;
+  return body;
+}

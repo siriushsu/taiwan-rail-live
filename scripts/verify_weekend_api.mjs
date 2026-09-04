@@ -1,22 +1,27 @@
 // /api/weekend 的形狀檢查。刻意不起 wrangler dev:
 //   (1) .wrangler 的本機快取跨重啟存活,突變測試會假綠
 //   (2) 這支端點沒有 D1、沒有上游、沒有 KV,邏輯全在 weekend_core.mjs,起 runtime 買不到東西
-// 所以這裡驗兩件 runtime 之外的事:worker.js 的接線在不在(含「有沒有被拿掉/對調」)、
+// 所以這裡驗兩件 runtime 之外的事:worker.js 的接線在不在(含「有沒有被拿掉/對調/註解掉」)、
 // 回傳物件的形狀對不對。
 //
-// 🔴 Section S(真實資料)原本有 S5/S6/S7/S9 四條 `.every()`/`.some()`/計數比較判準,
-// 跑在【當下】的 data/events.json 上——今天有活動所以會過,但空窗週(多數週末的常態)
-// 是 body.events=[] 時這幾條恆真,判準會無聲空過。拆成三段:
-//   【F】固定樣本段:內嵌一組已知內容的 events,原本那四條搬來這裡跑,並加具名筆數斷言
-//       (恰 N/M 場),分母不會無聲縮水。
-//   【E】空陣列段:拿真實 span 配上手造的空 events,直接證明【S】留下的斷言在空資料下
-//       撐得住,而不是只用嘴巴論證。
-//   【S】真實資料段:只留在空資料下仍然成立的斷言(span 形狀/count===events.length/
-//       兩層不重疊/可序列化)。
+// 🔴 修復輪 1(2026-09-04):原本【F】【E】【S】三段各自把「組 body」那段邏輯抄了一次,
+// 測試驗的是【測試自己組的那份】,不是 handler 組的那份——這正是這支端點自己要防的錯
+// (見 weekend_core.mjs 的 weekendBody 註解:「不各自重算,兩份實作會慢慢長歪」)。現在
+// 三段一律呼叫 weekendBody(today, span, eventsDoc, holidayNames)(worker.js 的 weekendBoard
+// 也呼叫同一支),組裝邏輯只剩一份,「拿掉 dedupeEvents」「兩層對調」「days 打成陣列」這類
+// 只存在於 weekendBody 內部的突變,現在【F】【E】【S】三段都會直接觀察到。
+//
+// 🔴 修復輪 1 同時修正 W1-W4:原本的正則沒有錨定行首,一個 `// ` 前綴的註解(文字仍在檔案裡)
+// 照樣會命中,等於「路由被停用了但判準還是綠的」。全部改成 `^...$` + `m` flag,要求整行文字
+// 完全吻合,前面不能多出任何字元(含註解符號)。
+//
+// 【W】只驗 worker.js 的接線字面(import / 函式存在且只有一份 / 路由分派 / handler 呼叫
+// weekendBody 的方式),不驗邏輯——邏輯的正確性交給下面三段,因為它們現在跟 handler
+// 呼叫同一支純函式,不是各自重算。
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { twDayStr, nextHolidaySpan, splitEvents, dedupeEvents, spanLabel } from './weekend_core.mjs';
+import { twDayStr, nextHolidaySpan, weekendBody } from './weekend_core.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 let pass = 0, fail = 0;
@@ -26,26 +31,24 @@ function chk(name, cond, extra) {
   else { fail++; bad.push(name); console.log(`  ❌ ${name}${extra ? '　' + extra : ''}`); }
 }
 
-console.log('\n【W】worker.js 接線');
+console.log('\n【W】worker.js 接線(字面比對,全部錨定行首/行尾,不怕「註解掉但文字還在」)');
 const w = fs.readFileSync(path.join(ROOT, 'worker.js'), 'utf8');
-chk('W1 有 import weekend_core', /from '\.\/scripts\/weekend_core\.mjs'/.test(w));
-chk('W2 有 weekendBoard 函式', /async function weekendBoard\(/.test(w));
-chk('W3 路由分派有一行 /api/weekend',
-  /else if \(url\.pathname === '\/api\/weekend'\) res = await weekendBoard\(request, env\);/.test(w));
-chk('W4 只接一次(沒有合併時留下兩份)',
-  (w.match(/async function weekendBoard\(/g) || []).length === 1,
-  `實得 ${(w.match(/async function weekendBoard\(/g) || []).length} 份`);
-// W5/W6 刻意扣著「欄位: dedupeEvents(哪個變數, span)」的字面文字,不是只查函式存不存在。
-// 「拿掉 dedupeEvents 呼叫」與「限定層/長期層對調」這兩種突變只改函式【內部】、
-// 不改函式簽章與路由,W1-W4 對這兩種突變完全瞎——沒有這兩條,Step 6 後兩發突變測試
-// 找不到任何會變紅的判準(【F】段是拿 weekend_core.mjs 重跑一次自己的樣本,不讀 worker.js,
-// 對 worker.js 內部寫錯同樣是瞎的)。
-chk('W5 events 欄位呼叫 dedupeEvents(onlyThis, span)(未被拿掉或跟長期層對調)',
-  /events:\s*dedupeEvents\(onlyThis,\s*span\)/.test(w));
-chk('W6 alsoOpen 欄位呼叫 dedupeEvents(alsoOpen, span)(未被拿掉或跟限定層對調)',
-  /alsoOpen:\s*dedupeEvents\(alsoOpen,\s*span\)/.test(w));
+chk('W1 有一行真的在生效的 import,且含 weekendBody',
+  /^import \{[^}]*\bweekendBody\b[^}]*\} from '\.\/scripts\/weekend_core\.mjs';$/m.test(w));
+chk('W2 有一行真的在生效的 async function weekendBoard(request, env) {',
+  /^async function weekendBoard\(request, env\) \{$/m.test(w));
+chk('W3 有一行真的在生效的路由分派 /api/weekend',
+  /^\s*else if \(url\.pathname === '\/api\/weekend'\) res = await weekendBoard\(request, env\);$/m.test(w));
+chk('W4 只接一次(沒有合併時留下兩份或殘留一份被註解掉的舊碼)',
+  (w.match(/^async function weekendBoard\(/gm) || []).length === 1,
+  `實得 ${(w.match(/^async function weekendBoard\(/gm) || []).length} 份`);
+// W5 只驗「handler 有沒有呼叫共用的 weekendBody,而且參數順序對不對」這條接線——
+// 邏輯本身(拿掉 dedupeEvents、兩層對調、days 打成陣列…)全部發生在 weekendBody 內部,
+// 屬於 weekend_core.mjs 的事,W 段管不到也不該管,下面【F】【E】【S】三段才是真正驗這些的地方。
+chk('W5 weekendBoard 內確實呼叫 weekendBody(today, span, eventsDoc, names)',
+  /^\s*const body = weekendBody\(today, span, eventsDoc, names\);$/m.test(w));
 
-console.log('\n【F】固定樣本回傳形狀(內容已知,不受空窗週影響)');
+console.log('\n【F】固定樣本回傳形狀(內容已知,不受空窗週影響;呼叫與 handler 相同的 weekendBody)');
 // 用自己的小日曆表鎖出一個跟「今天」無關、確定是 3 天連假的區間:10-09(五,表定放假)
 // 往後併入自然週末 10-10(六)、10-11(日)——算法與 weekend_core 自己的 D2/D3 測試相同,
 // 只是換一組不查真表的輸入,不受日曆表逐年更新影響。
@@ -74,41 +77,36 @@ const SAMPLE_EVENTS = [
   { id: 's9', title: '太晚開始', url: 'https://sample.invalid/7', start: '2026-11-01', end: '2026-11-02',
     anchor: { kind: 'station', sys: 'mrt', name: '測試站H' } },
 ];
-// 與 weekendBoard 完全相同的管線:nextHolidaySpan → splitEvents → dedupeEvents → 組 body。
-const { onlyThis: sOnly, alsoOpen: sAlso } = splitEvents(SAMPLE_EVENTS, SAMPLE_SPAN);
-const sampleBody = {
-  today: '2026-10-08',
-  span: { from: SAMPLE_SPAN.from, to: SAMPLE_SPAN.to, days: SAMPLE_SPAN.days.length, label: spanLabel(SAMPLE_SPAN, {}) },
-  events: dedupeEvents(sOnly, SAMPLE_SPAN),
-  alsoOpen: dedupeEvents(sAlso, SAMPLE_SPAN),
-  updated: 'sample',
-};
-sampleBody.count = sampleBody.events.length;
+// 跟 worker.js 的 weekendBoard 呼叫同一支函式,不是自己重組——這是修復輪 1 的重點。
+const sampleBody = weekendBody('2026-10-08', SAMPLE_SPAN, { events: SAMPLE_EVENTS, updated: 'sample' }, {});
 
 chk('F1 樣本區間確實是 10/09–10/11 三天(鎖住下面斷言的前提)',
   SAMPLE_SPAN.from === '2026-10-09' && SAMPLE_SPAN.to === '2026-10-11' && SAMPLE_SPAN.days.length === 3);
-chk('F2 限定層恰 3 場(去重後:花燈市集併 2 筆、跨橋展覽尾聲、河岸音樂會)',
+// F2 專門考「days: span.days.length 被誤寫成 days: span.days」這類 bug:字串比對抓不到
+// (worker.js 呼叫端的文字完全沒變),但抽出共用函式後,只要 weekendBody 內部寫錯,
+// 這裡量到的就會是陣列而不是數字——用 typeof 明確判型別,不依賴「陣列跟數字比較會怎麼轉型」
+// 這種容易被誤會成巧合的行為。
+chk('F2 span.days 是數字且等於 3(不是天數陣列)',
+  typeof sampleBody.span.days === 'number' && sampleBody.span.days === 3,
+  `實得 ${JSON.stringify(sampleBody.span.days)}(${typeof sampleBody.span.days})`);
+chk('F3 限定層恰 3 場(去重後:花燈市集併 2 筆、跨橋展覽尾聲、河岸音樂會)',
   sampleBody.events.length === 3, `實得 ${sampleBody.events.length}`);
-chk('F3 長期層恰 2 則(去重後:兩站巡迴展併 2 筆、常態展覽)',
+chk('F4 長期層恰 2 則(去重後:兩站巡迴展併 2 筆、常態展覽)',
   sampleBody.alsoOpen.length === 2, `實得 ${sampleBody.alsoOpen.length}`);
-chk('F4 每則都有 title 與至少一天',
+chk('F5 每則都有 title 與至少一天',
   sampleBody.events.every(e => e.title && Array.isArray(e.days) && e.days.length >= 1));
-chk('F5 每則的日子都落在區間內',
+chk('F6 每則的日子都落在區間內',
   sampleBody.events.every(e => e.days.every(d => d >= sampleBody.span.from && d <= sampleBody.span.to)));
-chk('F6 去重真的有作用(原始 4 筆嚴格併成 3 場)',
-  sOnly.length === 4 && sOnly.length > sampleBody.events.length,
-  `原始 ${sOnly.length} vs 去重後 ${sampleBody.events.length}`);
 chk('F7 url 全是 http(s) 或空', [...sampleBody.events, ...sampleBody.alsoOpen]
   .every(e => !e.url || /^https?:\/\//i.test(e.url)));
-// F8/F9 是「層歸屬」判準,考的是 weekend_core.mjs 的 splitEvents 有沒有把兩層分對——
-// 若把 worker.js 的 onlyThis/alsoOpen 對調,真正抓到那發突變的是上面的 W6(檢查 worker.js
-// 的字面接線);這兩條額外守住「就算接線字面沒錯,樣本本身分層分對了嗎」這一半。
+// F8/F9 是「層歸屬」判準:weekendBody 內部把 onlyThis/alsoOpen 對調時,F3/F4 的筆數會先
+// 變紅(3↔2 剛好不同才看得出來),這兩條再從「哪個標題出現在哪一層」直接確認,兩個角度互補。
 chk('F8 花燈市集歸在限定層、不在長期層',
   sampleBody.events.some(e => e.title === '花燈市集') && !sampleBody.alsoOpen.some(e => e.title === '花燈市集'));
 chk('F9 常態展覽歸在長期層、不在限定層',
   sampleBody.alsoOpen.some(e => e.title === '常態展覽') && !sampleBody.events.some(e => e.title === '常態展覽'));
 
-// 真實三份資產只讀一次,【E】【S】兩段共用同一個 span/today/names。
+// 真實三份資產只讀一次,【E】【S】兩段共用同一個 span/today/names,一律呼叫 weekendBody。
 const dayTypes = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/tw_daytype.json'), 'utf8'));
 const eventsDoc = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/events.json'), 'utf8'));
 const names = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/holiday_names.json'), 'utf8'));
@@ -118,16 +116,10 @@ const span = nextHolidaySpan(today, dayTypes);
 console.log('\n【E】空事件陣列時真實 span 的形狀仍完整(模擬空窗週的 events.json)');
 {
   const emptySpan = span || { from: today, to: today, days: [today] };
-  const emptyBody = {
-    today,
-    span: { from: emptySpan.from, to: emptySpan.to, days: emptySpan.days.length, label: spanLabel(emptySpan, names) },
-    events: dedupeEvents([], emptySpan),
-    alsoOpen: dedupeEvents([], emptySpan),
-    updated: null,
-  };
-  emptyBody.count = emptyBody.events.length;
+  const emptyBody = weekendBody(today, emptySpan, { events: [] }, names);
   chk('E1 span 仍非 null(日曆表還沒用完)', !!span);
-  chk('E2 空陣列時 span 三個欄位仍齊全', !!(emptyBody.span.from && emptyBody.span.to && emptyBody.span.days >= 1));
+  chk('E2 空陣列時 span 三個欄位仍齊全,days 是數字',
+    !!(emptyBody.span.from && emptyBody.span.to) && typeof emptyBody.span.days === 'number' && emptyBody.span.days >= 1);
   chk('E3 空陣列時 count 正確為 0 且 events/alsoOpen 是空陣列而非 undefined',
     emptyBody.count === 0 && Array.isArray(emptyBody.events) && emptyBody.events.length === 0
     && Array.isArray(emptyBody.alsoOpen) && emptyBody.alsoOpen.length === 0);
@@ -135,22 +127,14 @@ console.log('\n【E】空事件陣列時真實 span 的形狀仍完整(模擬空
     (() => { try { JSON.parse(JSON.stringify(emptyBody)); return true; } catch (e) { return false; } })());
 }
 
-console.log('\n【S】真實資料回傳形狀(讀真實三份資產;只留空資料下也成立的斷言)');
-// 🔴 原本這裡還有 S5/S6/S7/S9 四條 `.every()`/`.some()`/計數比較判準,全部搬去上面的
-// 【F】段——它們在 body.events=[] 時恆真(空窗週=多數週末的常態),留在這裡是無聲空過。
+console.log('\n【S】真實資料回傳形狀(讀真實三份資產;只留空資料下也成立的斷言;呼叫同一支 weekendBody)');
+// 🔴 這裡原本還有 S5/S6/S7/S9 四條 `.every()`/`.some()`/計數比較判準,已搬去上面的【F】段
+// ——它們在 body.events=[] 時恆真(空窗週=多數週末的常態),留在這裡是無聲空過。
 // 「兩層不重疊」保留在這裡:只要任一層有內容,判準就是在比對真實資料,不是純結構性恆真;
 // 就算哪天兩層剛好都空,也不會給出錯的答案,只是零資訊(跟【E】段互補,不衝突)。
-const { onlyThis, alsoOpen } = splitEvents(eventsDoc.events, span);
-const body = {
-  today,
-  span: { from: span.from, to: span.to, days: span.days.length, label: spanLabel(span, names) },
-  events: dedupeEvents(onlyThis, span),
-  alsoOpen: dedupeEvents(alsoOpen, span),
-  updated: eventsDoc.updated || null,
-};
-body.count = body.events.length;
+const body = weekendBody(today, span, eventsDoc, names);
 
-chk('S1 span 三個欄位齊全', !!(body.span.from && body.span.to && body.span.days >= 1));
+chk('S1 span 三個欄位齊全,days 是數字', !!(body.span.from && body.span.to) && typeof body.span.days === 'number' && body.span.days >= 1);
 chk('S2 span.from 不早於今天', body.span.from >= body.today);
 chk('S3 label 是非空字串', typeof body.span.label === 'string' && body.span.label.length > 0);
 chk('S4 count 等於 events 長度', body.count === body.events.length);

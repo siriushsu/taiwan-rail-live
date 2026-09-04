@@ -16,7 +16,7 @@ import {
   TW_MAX_TRACK_SEC,
 } from './scripts/tra_wait_core.mjs';
 import { BUS_TRANSFER_SCHEMA, resolveBusLegVehicles, resolveBusRouteStops, resolveStationN1 } from './scripts/bus_transfer_core.mjs';
-import { twDayStr, nextHolidaySpan, splitEvents, dedupeEvents, spanLabel } from './scripts/weekend_core.mjs';
+import { twDayStr, nextHolidaySpan, weekendBody } from './scripts/weekend_core.mjs';
 
 // Cloudflare Worker 入口:靜態資產(assets binding)+ /api/tra-live 台鐵即時動態代理
 // + /api/tra-alert 台鐵營運通阻公告 + /api/thsr-alert 高鐵營運狀態公告(颱風停駛等)
@@ -4108,16 +4108,7 @@ async function weekendBoard(request, env) {
     const today = twDayStr(Date.now());
     const span = nextHolidaySpan(today, dayTypes);
     if (!span) return jsonRes({ error: 'no_span' }, 503, 'public, s-maxage=300');
-    const all = (eventsDoc && Array.isArray(eventsDoc.events)) ? eventsDoc.events : [];
-    const { onlyThis, alsoOpen } = splitEvents(all, span);
-    const body = {
-      today,
-      span: { from: span.from, to: span.to, days: span.days.length, label: spanLabel(span, names) },
-      events: dedupeEvents(onlyThis, span),
-      alsoOpen: dedupeEvents(alsoOpen, span),
-      updated: (eventsDoc && eventsDoc.updated) || null,
-    };
-    body.count = body.events.length;
+    const body = weekendBody(today, span, eventsDoc, names);
     return await jsonResCached(edge, cacheKey, body, 200,
       'public, s-maxage=1800, stale-while-revalidate=3600');
   } catch (e) {
