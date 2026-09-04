@@ -112,8 +112,8 @@ async function desktopMarkers(browser, url, engine, check) {
     const draft = await page.evaluate(expected => ({
       exists: !!document.querySelector('.pin-ico'),
       visible: !!pinDraft && !!pinDraft.marker,
-      native: expected === 'maplibre' ? pinDraft?.marker instanceof maplibregl.Marker : pinDraft?.marker instanceof L.Marker,
-      draggable: expected === 'maplibre' ? !!pinDraft?.marker?.isDraggable?.() : !!pinDraft?.marker?.dragging?.enabled?.(),
+      native: pinDraft?.marker instanceof maplibregl.Marker,
+      draggable: !!pinDraft?.marker?.isDraggable?.(),
     }), engine);
     check(draft.exists && draft.visible && draft.native && draft.draggable, 'M17 草稿釘是該引擎原生可拖 Marker', draft);
 

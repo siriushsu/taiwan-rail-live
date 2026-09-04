@@ -99,13 +99,7 @@ async function bootPage(browser, { width, height, seedHowto = true, url = active
 }
 
 async function waitBasemapStyle(page) {
-  await page.waitForFunction(() => {
-    if (!window.__M) return false;
-    if (window.__M.engine === 'maplibre') return window.__M.isStyleReady();
-    const layer = ['light', 'dark'].map(key => baseLayers[key])
-      .find(item => item && item._glMap && window.__M.raw.hasLayer(item));
-    return !layer || layer._glMap.isStyleLoaded();
-  }, null, { timeout: 15000 });
+  await page.waitForFunction(() => !!window.__M && window.__M.isStyleReady(), null, { timeout: 15000 });
 }
 
 const rect = (page, sel) => page.evaluate(s => {

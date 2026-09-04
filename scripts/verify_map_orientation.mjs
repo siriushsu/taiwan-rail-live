@@ -26,9 +26,10 @@ const predicates = {
     && src.includes('getPitch: () => raw.getPitch()')
     && src.includes('setBearing: bearing =>')
     && src.includes('setPitch: pitch =>')
-    && src.includes('resetNorth: o =>')
-    && src.includes('getBearing: () => 0')
-    && src.includes('getPitch: () => 0'),
+    && src.includes('resetNorth: o =>'),
+  // M4-B：原本還要求 `getBearing: () => 0`／`getPitch: () => 0`——那是 Leaflet 適配層的空實作，
+  // 隨 createLeafletEngine 一起拔掉了。MUT=adapter 仍把 raw.getBearing() 換成 () => 0，
+  // 第一句就會轉紅，判準沒有因為少這兩句而失去牙齒。
   gestures: src => src.includes('dragRotate: true')
     && src.includes('pitchWithRotate: true')
     && src.includes('touchPitch: true')

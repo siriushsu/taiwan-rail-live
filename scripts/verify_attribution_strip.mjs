@@ -57,7 +57,7 @@ async function cell(engine, browser, scale, w, withCard) {
   // 造出衛星底圖那條長字串（與 index.html 的 sat.attribution 逐字相同）。用 Leaflet 自己的
   // API 加，不是塞 innerHTML —— 走的是真正的那條路徑。
   // M4-A 起預設 MapLibre:署名走適配層 setAttribution(整份替換;OFM 來源署名由樣式自帶,連結仍在),Leaflet 照舊 addAttribution。
-  await page.evaluate(a => { const M = window.__M; if (M && M.engine === 'maplibre') M.setAttribution([a, '臺灣輪廓：內政部']); else window.__map.attributionControl.addAttribution(a); }, SAT_ATTR);
+  await page.evaluate(a => window.__M.setAttribution([a, '臺灣輪廓：內政部']), SAT_ATTR);
   if (withCard) await page.evaluate(() => { const c = document.getElementById('freqCard'); if (c) c.hidden = false; });
   await page.waitForTimeout(250);
 

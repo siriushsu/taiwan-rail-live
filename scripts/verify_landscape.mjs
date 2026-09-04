@@ -1072,10 +1072,13 @@ async function fix0812Suite(browser, eng) {
   }
   // 桌面 WebKit 不支援 iOS 專屬的 text autosizing 屬性(computed 讀空),chromium 讀得到 100%
   ok(`F2 ${eng} text-size-adjust=100%(治實機橫放字級膨脹)`, adjVal === '100%' || (eng === 'webkit' && adjVal === ''), `adj=${adjVal || '(空)'}`);
-  // F3 相機自癒 v2 三情境(Codex 複審:v1 讀累計值+只測健康路徑=假綠入口;改記前後差 delta):
+  // F3 相機自癒 v2 情境(Codex 複審:v1 讀累計值+只測健康路徑=假綠入口;改記前後差 delta):
   // (a) 手勢持續中按兵不動(負對照),手勢一停立即開火——驗 _gestureAt 禁救閘的兩側;
-  // (b) _zoomAnim 卡死(>5s):v1 把它抄成前置閘=永不開火(實機正是這型),v2 須開火+清旗標;
   // (c) _transition 卡死:updateFollowCamera 開頭 triage 清旗標+撤遮幕,recenterTo 同幀接手。
+  // (b)「_zoomAnim 卡死(>5s)不再否決」已於 M4-B(2026-09-05)退役:_zoomAnim/_zaAt/_zaCal 那一整組
+  //     是 Leaflet 縮放動畫仿射的旗標,隨引擎一起拔掉(index.html 現在只留一行說明註解)。retire 而不是
+  //     改寫,因為它守的那個否決根本不存在了——MapLibre 每幀真實更新相機,recenterTo 沒有這個前置閘。
+  //     留著只會量到「注一個沒人讀的旗標、沒人清它」而永遠紅(實測 d=0／za=true),那是判準過期不是回歸。
   const f3a = await page.evaluate(async () => {
     const tr = state.followTrain; if (!tr) return { err: 'no-follow' };
     window.__origRecenter = recenterTo;
@@ -1099,26 +1102,6 @@ async function fix0812Suite(browser, eng) {
   });
   ok(`F3a ${eng}/16橫 自癒:手勢持續中按兵不動(0 次),手勢停止即開火貼車 z≥13`,
     !f3a.err && f3a.held === 0 && f3a.fired >= 1 && f3a.inView && f3a.z >= 13, JSON.stringify(f3a));
-  const f3b = await page.evaluate(async () => {
-    const tr = state.followTrain; if (!tr) return { err: 'no-follow' };
-    const p = trainPos(tr, state.simSec);
-    const rs0 = state._camRescues || 0;
-    // 模擬縮放旗標卡死:recenterTo 被它天然否決(函式開頭 return),zoomAnimFrame 可能逐幀丟例外
-    // ——相機段(9039)在 draw 分支(9064)之前,自癒仍會跑到;這正是實機凍結的擬真形態。
-    // 🔴 注旗標必須在 setView 之後:setView 改 zoom 會發 zoomend→endZoomAnim 把假旗標清掉
-    // (首輪突變在 v1 上量到 za:false 才揭穿——先 setView 的版本連 v2 都會假紅)
-    window.__M.setView([p.lat + 0.4, p.lon - 0.4], 11, { animate: false });
-    state._zoomAnim = true; state._zaAt = performance.now() - 6000; state._zaCal = null; state._zaCalPend = null;
-    state._gestureAt = 0;
-    await new Promise(r => setTimeout(r, 4300));
-    const p2 = trainPos(tr, state.simSec) || p;
-    const cp = window.__M.toScreen([p2.lat, p2.lon]);
-    const sz = window.__M.getSize();
-    return { d: (state._camRescues || 0) - rs0, za: !!state._zoomAnim, z: +window.__M.getZoom().toFixed(1),
-      inView: cp.x >= 0 && cp.x <= sz.x && cp.y >= 0 && cp.y <= sz.y };
-  });
-  ok(`F3b ${eng}/16橫 自癒:_zoomAnim 卡死(>5s)不再否決——開火貼車+旗標清除`,
-    !f3b.err && f3b.d >= 1 && !f3b.za && f3b.inView && f3b.z >= 13, JSON.stringify(f3b));
   const f3c = await page.evaluate(async () => {
     const tr = state.followTrain; if (!tr) return { err: 'no-follow' };
     const p = trainPos(tr, state.simSec);
@@ -1448,7 +1431,7 @@ async function rotationSuite(browser, eng) {
   // L10b：讓位軸向的對帳。跟車／放空每幀都會重新取景所以會自癒，**沒在跟車**時才看得到——
   // 轉向後讓位軸從垂直換成水平，若沒有重跑一次差量記帳，鏡頭會停在舊的垂直位移上。
   // 🔴 §04c 判準寫成不變量：「露出中心當下釘著的地理點」在面板開關／轉向之後**仍在新露出中心**。
-  //    真值＝渲染 rect 推的露出區（__exposed）＋ Leaflet 公開投影，不讀 state._focusShift（心得 29）。
+  //    真值＝渲染 rect 推的露出區（__exposed）＋ 引擎公開投影（M.fromScreen／M.toScreen），不讀 state._focusShift（心得 29）。
   //    舊寫法拿 (i.bottom-i.top)/2 對「容器中心」記帳——§04c 後乾淨態就有頂列/tabbar/膠囊/工具堆
   //    的常駐讓位，那套兩邊制的絕對量對不上了；不變量式把基準內生化，每一步只問「跟上了沒」。
   const b2 = await boot(browser, { w: 393, h: 852, tag: '轉向讓位對帳' }, { follow: false });
@@ -1458,7 +1441,7 @@ async function rotationSuite(browser, eng) {
   await p2.waitForTimeout(400);
   const PIN = () => {
     const ex = window.__exposed();
-    const ll = window.__M.fromScreen(L.point(ex.cx, ex.cy));
+    const ll = window.__M.fromScreen({ x: ex.cx, y: ex.cy });
     return { lat: ll.lat, lng: ll.lng, ex };
   };
   const AT = pin => {

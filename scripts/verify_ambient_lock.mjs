@@ -165,7 +165,7 @@ ok('A7b 放空(群車) 真拖曳/縮放都動不了', gHot.dragstart === 0 && !g
 await leaveAmbient();
 
 // A9 安全網:ambient 已關但手勢被留在鎖住 ⇒ 下一幀必須自動交還
-await page.evaluate(() => { const gl = !!(window.__M && window.__M.engine === 'maplibre'); (gl ? window.__map.dragPan : window.__map.dragging).disable(); (gl ? window.__map.touchZoomRotate : window.__map.touchZoom).disable(); });
+await page.evaluate(() => { window.__map.dragPan.disable(); window.__map.touchZoomRotate.disable(); });
 await page.waitForTimeout(400);
 ok('A9 安全網:非放空卻手勢鎖著 ⇒ tick 自動交還', (await handlers()).length === 6, `開著: ${(await handlers()).length}/6`);
 

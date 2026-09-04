@@ -27,7 +27,8 @@ const src = readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 console.log(`受測檔:${path.join(ROOT, 'index.html')}`);
 ck(src.includes("if (v === 'follow') return { follow: true };"), 'F0a ?aligndot=follow 會被解析成 follow 模式');
 ck(src.split("'circle-stroke-opacity-transition': { duration: 0, delay: 0 }").length - 1 === 1, 'F0b 翻面用 circle-stroke-opacity 且轉場 0ms');
-ck((src.match(/paint: \{ \.\.\.ALIGN_RING_PAINT \}/g) || []).length === 2 && src.includes('...ALIGN_RING_PAINT, \'circle-stroke-opacity\''), 'F0h 三處探針層都用同一份環 paint(12–18css 環,分析器的已知半徑靠這個)');
+// M4-B：原本是三處(MapLibre 工廠、Leaflet 底下掛的 GL、翻面用的 paintOn)。Leaflet 那處已拔,剩兩處。
+ck((src.match(/paint: \{ \.\.\.ALIGN_RING_PAINT \}/g) || []).length === 1 && src.includes('...ALIGN_RING_PAINT, \'circle-stroke-opacity\''), 'F0h 兩處探針層都用同一份環 paint(12–18css 環,分析器的已知半徑靠這個)');
 ck(src.includes("!layer.id.startsWith('aligndot')") && src.includes("['aligndot', 'aligndot-a', 'aligndot-b'].find(id => raw.getLayer(id))"), 'F0c GL 軌道層插入時排除 aligndot-*、並可拿它當 before 錨點');
 ck(src.includes('if (probe) probe.afterDraw();'), 'F0d 換錨與翻面在 overlay 畫完之後');
 const ctlStart = src.indexOf('function setupFollowProbe()');

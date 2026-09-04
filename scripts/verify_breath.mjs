@@ -251,13 +251,13 @@ const matrix = await runEngineMatrix(async ({ engineUrl, check }) => {
       for (const id of ['taipei', 'taichung', 'kaohsiung']) {
         const a = breathAnchorFor(id);
         const bb = CITY_BBOX[id];
-        const c = L.latLngBounds([[bb[0], bb[1]], [bb[2], bb[3]]]).getCenter();
+        const c = { lat: (bb[0] + bb[2]) / 2, lng: (bb[1] + bb[3]) / 2 }; // M4-B:原本 L.latLngBounds(...).getCenter(),bbox 中點的定義一樣
         let near = 0;
         const scan = s => { if (a && s && Math.abs(s.lat - a.lat) < 0.008 && Math.abs(s.lon - a.lon) < 0.008) near++; };
         (state.schedStations || []).forEach(scan);
         (state.lines || []).forEach(ln => (ln.stations || []).forEach(scan));
         (state.decoLines || []).forEach(ln => (ln.stations || []).forEach(scan));
-        const kmOff = a ? Math.round(L.latLng(a.lat, a.lon).distanceTo(c) / 100) / 10 : null;
+        const kmOff = a ? Math.round(window.__M.distance([a.lat, a.lon], [c.lat, c.lng]) / 100) / 10 : null; // M4-B:改走適配層(同樣是 R=6371000 haversine)
         out.cities[id] = { ok: !!a, near, kmOff };
       }
       // 站點<8(單一小系統)→ 組不出內容 → pickBreathScene 取消(null)

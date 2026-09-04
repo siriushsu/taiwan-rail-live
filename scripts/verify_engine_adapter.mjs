@@ -48,30 +48,61 @@ const mutatedBare = src.replace('<script>', '<script>\nconst __y = map && 1;');
 ck((mutatedBare.match(BARE) || []).length === bareHits + 1, 'G5b 正向對照:塞一行 `map && 1` 裸 map 計數 +1');
 
 const FORBIDDEN_VERIFY_MAP = /window\.__map\.(?:latLngToContainerPoint|containerPointToLatLng|project\s*\(|unproject\s*\(|invalidateSize)/;
+// 🔴 M4-B 補的第二種形態。原本只擋 `window.__map.<Leaflet 投影原名>`,擋不到驗收腳本裡的**全域 L.<工廠>**;
+//    拔掉 <script src=leaflet> 之後,4 支腳本共 14 處 L.latLng／L.point／L.latLngBounds 一夕變成
+//    ReferenceError,而 G1e 一聲不吭(它們不是 window.__map 開頭)。判準要跟著形態走,不是跟著當初那一種寫法。
+//    只認 Leaflet 的工廠/類別名,所以腳本裡拿 L 當區域變數(L.rows、L.bar、L.sets…)不會誤判。
+const FORBIDDEN_VERIFY_L = /(?<![.\w$])L\.(?:latLngBounds|latLng|tileLayer|geoJSON|circleMarker|circle|polyline|polygon|rectangle|divIcon|layerGroup|featureGroup|marker|point|bounds|canvas|svg|icon|control|map|Marker|Point|LatLngBounds|LatLng|Icon|DomUtil|DomEvent|Util|Browser|CRS)\b/;
 function verifyFilesAt(dir) {
   if (!existsSync(dir)) return [];
   return readdirSync(dir).filter(name => /^verify_.*\.mjs$/.test(name)).map(name => path.join(dir, name));
 }
+// 本檔自己【必須】拿 Leaflet 的名字當資料(G9 的八種形態與 G9b 的探針),所以 L 形態不掃自己;
+// window.__map 形態照掃。這是唯一的例外,寫在這裡而不是靜靜跳過。
+const SELF = path.join(ROOT, 'scripts', 'verify_engine_adapter.mjs');
+// 只看**程式碼**:把行尾註解與整行註解剝掉再比對。歷史註解裡寫 L.latLng(...) 是刻意留的說明
+// (M4-B 的每一處移除都要留得下「原本是什麼」),不該被當成活著的呼叫。剝法很土但夠用:
+// 逐字元走、認得三種引號,遇到不在引號裡的 // 就切掉。
+const codeOf = line => {
+  const t = line.trim();
+  if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return '';
+  let q = null;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (q) { if (c === '\\') i++; else if (c === q) q = null; continue; }
+    if (c === '"' || c === "'" || c === '`') { q = c; continue; }
+    if (c === '/' && line[i + 1] === '/') return line.slice(0, i);
+  }
+  return line;
+};
 function forbiddenVerifyCalls(files, extraLines = []) {
   const hits = [];
-  for (const file of files) readFileSync(file, 'utf8').split('\n').forEach((line, i) => {
-    const count = (line.match(new RegExp(FORBIDDEN_VERIFY_MAP.source, 'g')) || []).length;
-    for (let n = 0; n < count; n++) hits.push(`${path.relative(ROOT, file)}:${i + 1}:${line.trim().slice(0, 120)}`);
+  const scan = (pats, text, label) => text.split('\n').forEach((line, i) => {
+    const code = codeOf(line);
+    for (const pat of pats) {
+      const count = (code.match(new RegExp(pat.source, 'g')) || []).length;
+      for (let n = 0; n < count; n++) hits.push(`${label}:${i + 1}:${line.trim().slice(0, 120)}`);
+    }
   });
-  extraLines.forEach((line, i) => {
-    const count = (line.match(new RegExp(FORBIDDEN_VERIFY_MAP.source, 'g')) || []).length;
-    for (let n = 0; n < count; n++) hits.push(`<memory>:${i + 1}:${line}`);
-  });
+  for (const file of files) {
+    const pats = file === SELF ? [FORBIDDEN_VERIFY_MAP] : [FORBIDDEN_VERIFY_MAP, FORBIDDEN_VERIFY_L];
+    scan(pats, readFileSync(file, 'utf8'), path.relative(ROOT, file));
+  }
+  scan([FORBIDDEN_VERIFY_MAP, FORBIDDEN_VERIFY_L], extraLines.join('\n'), '<memory>');
   return hits;
 }
 const verifyFiles = [...verifyFilesAt(path.join(ROOT, 'scripts')), ...verifyFilesAt(path.join(ROOT, 'app', 'scripts'))];
 const forbiddenVerifyHits = forbiddenVerifyCalls(verifyFiles);
-console.log(`  驗收腳本 Leaflet 投影原名命中數:${forbiddenVerifyHits.length}`);
+console.log(`  驗收腳本 Leaflet 原名命中數(投影原名＋全域 L.工廠,不含註解):${forbiddenVerifyHits.length}`);
 if (forbiddenVerifyHits.length) console.log('  ' + forbiddenVerifyHits.join('\n  '));
-ck(forbiddenVerifyHits.length === 0, 'G1e 驗收腳本不直呼 Leaflet 投影原名', `${forbiddenVerifyHits.length} 處`);
-const forbiddenMutation = ['window.__', 'map.latLngToContainerPoint([0,0])'].join('');
-ck(forbiddenVerifyCalls(verifyFiles, [forbiddenMutation]).length === forbiddenVerifyHits.length + 1,
-  'G1f 正向對照:記憶體塞一行 Leaflet 投影原名後命中數 +1');
+ck(forbiddenVerifyHits.length === 0, 'G1e 驗收腳本不直呼 Leaflet(投影原名與全域 L.工廠)', `${forbiddenVerifyHits.length} 處`);
+// 兩種形態各塞一行**程式碼**,兩發都要被抓到;再塞一行只有註解的,必須抓不到——否則剝註解那段
+// 一旦把整份檔案都吃掉,上面那條否定式判準會永遠是綠的而沒有人發現。
+const forbiddenMutation = [['window.__', 'map.latLngToContainerPoint([0,0])'].join(''), ['const q = ', 'L', '.point(1, 2);'].join('')];
+const forbiddenComment = ['// 說明用:', 'L', '.point(1, 2) 當年長這樣'].join('');
+ck(forbiddenVerifyCalls(verifyFiles, forbiddenMutation).length === forbiddenVerifyHits.length + 2
+  && forbiddenVerifyCalls(verifyFiles, [forbiddenComment]).length === forbiddenVerifyHits.length,
+  'G1f 正向對照:程式碼各塞一行(投影原名／全域 L.工廠)+2、註解那行 +0');
 
 function overlayRuntimeContract(text) {
   const reprojectStart = text.indexOf('function reproject() {');
@@ -218,7 +249,9 @@ try {
         const a = M.toScreen([25.0478, 121.517]), d = M.toScreen([25.0578, 121.527]);
         const c = M.getCenter();
         return {
-          raw: raw instanceof maplibregl.Map, leafletNull: M.leaflet == null, // 適配層自 M4-B 起連這個欄位都不宣告了,所以 undefined 也算過 style: raw.isStyleLoaded(), ready: !!window.__state.ready,
+          // leafletNull 用 == null:適配層自 M4-B 起連這個欄位都不宣告了,所以 undefined 也算過。
+          raw: raw instanceof maplibregl.Map, leafletNull: M.leaflet == null,
+          style: raw.isStyleLoaded(), ready: !!window.__state.ready,
           flat: raw.getBearing() === 0 && raw.getPitch() === 0,
           sameSize: ov.clientWidth === mapEl.clientWidth && ov.clientHeight === mapEl.clientHeight && ov.clientWidth > 100,
           center: Math.abs(c.lat - 25.0478) < 1e-6 && Math.abs(c.lng - 121.517) < 1e-6,
