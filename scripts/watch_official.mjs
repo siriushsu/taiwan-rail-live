@@ -34,9 +34,13 @@ const SOURCES = [
   { id: 'krtc', name: '高雄捷運(含輕軌)', url: 'https://www.krtc.com.tw/', render: 'browser' },
   { id: 'tymc', name: '桃園機捷', url: 'https://www.tymetro.com.tw/tymetro-new/tw/index.php', render: 'browser' },
   { id: 'tmrt', name: '台中捷運', url: 'https://www.tmrt.com.tw/announcement/latest-news', render: 'fetch' },
+  // 同時涵蓋企劃處活動公告(單日郵輪式列車行程/國際鐵道觀光交流/觀光列車皆出現在這份列表裡,
+  // 2026-09-04 實測確認,不必另立一列)。
   { id: 'tra', name: '台鐵', url: 'https://www.railway.gov.tw/tra-tip-web/tip/tip009/tip911/newsList', render: 'fetch' },
   { id: 'thsr', name: '台灣高鐵', url: 'https://www.thsrc.com.tw/ArticleContent/6f0648a4-2e78-4a57-b669-44acd8e2daea', render: 'browser' },
   { id: 'afr', name: '阿里山林鐵', url: 'https://afrch.forest.gov.tw/AllNews', render: 'fetch' },
+  { id: 'nrm', name: '國家鐵道博物館', url: 'https://www.nrm.gov.tw/News.aspx?n=3307&sms=12883', render: 'fetch' },
+  { id: 'tsc', name: '台糖(糖鐵觀光小火車)', url: 'https://www.taisugar.com.tw/chinese/News_Index.aspx?p=71&n=10052', render: 'fetch' },
 ];
 
 // ── TDX 監看集 ────────────────────────────────────────────────────────────
