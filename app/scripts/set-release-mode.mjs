@@ -33,7 +33,7 @@ const pbxproj = join(appRoot, 'ios/App/App.xcodeproj/project.pbxproj');
 const MODES = {
   hotfix: {
     marketing: '1.0.1', build: '12', music: false, metroCore: false,
-    why: '軌島 1.5.7\n\n・地圖改用向量地圖引擎：可兩指旋轉與傾斜、新增指北針與 3D 建築；跟車時地圖朝行進方向、結束跟車轉回正北，縮放更流暢\n・修正跟隨長途列車放大看彎道時行程線切過彎心、傾斜地圖時遠端路線跳動，以及暗色地圖上路線被道路切碎',
+    why: '隱私＋安全修正版：與線上 build 8 相同的功能範圍（本來就沒有音樂），只多修正。差異最小＝審查風險最小。',
   },
   // 2026-07-30 更新：使用者裁示這一輪走 1.3.0 (15)。
   //
@@ -298,7 +298,7 @@ const MODES = {
     //   why 三語只寫 95 之後 main 才有的五條更新紀錄（maplibredefault／maporientation／followpitch／
     //   followrouteexact／tracksovermap 0904），機捷車種等 1.5.6 已講過的不重述。
     marketing: '1.5.7', build: '96', music: true, metroCore: true,
-    why: '軌島 1.5.6\n\n・地圖改用向量地圖引擎：可兩指旋轉與傾斜、新增指北針，跟車時地圖朝行進方向，縮放更流暢\n・桃園機場捷運在地圖車牌、跟車卡與車站看板分出直達車／普通車；車牌也放大，並以尖頭實心／圓角白底區分\n・修正選好接續班次後，抵達轉乘站時動態島與鎖定畫面仍留在上一班車；現在會切到下一班並顯示發車倒數\n・iPad 正式支援完整觸控版面：直式使用底部分頁，橫式把資訊放在右側，並支援分割畫面\n・列車轉公車接成可恢復的完整旅程：全台 541 座軌道車站都可接續查詢；有附近公車時提供步行導航、到站倒數與剩餘站數\n・旅程可用 12 小時短效連結分享；位置預設關閉，另行同意後只在 App 前景更新\n・跟車時可開啟車聲；完乘護照新增「順序」排序\n・北捷擁擠度短暫中斷時沿用最近資料最多兩分鐘，避免整批閃失',
+    why: '軌島 1.5.7\n\n・地圖改用向量地圖引擎：可兩指旋轉與傾斜、新增指北針與 3D 建築；跟車時地圖朝行進方向、結束跟車轉回正北，縮放更流暢\n・修正跟隨長途列車放大看彎道時行程線切過彎心、傾斜地圖時遠端路線跳動，以及暗色地圖上路線被道路切碎',
     whyEn: 'Rail Island 1.5.7\n\n• New vector map engine: rotate and tilt with two fingers, a compass control and 3D buildings; the map turns heading-up while following a train and back to north when you stop, with smoother zooming\n• Fixed the route line cutting corners when zoomed in on long journeys, distant routes jumping while the map is tilted, and roads breaking up coloured routes on the dark map',
     whyJa: '軌島 1.5.7\n\n・地図をベクター地図エンジンに刷新：2 本指で回転・傾斜でき、コンパスと 3D 建物を追加。列車追跡中は進行方向が上になり、追跡を終えると北向きに戻ります。ズームもより滑らかに\n・長距離列車を拡大表示した際に経路線がカーブを横切る問題、地図を傾けた際に遠方の経路が跳ぶ問題、ダーク地図で経路が道路に分断される問題を修正',
   },
