@@ -42,8 +42,9 @@
 // 都沒有。切不出來(函式被改名/改形狀)不可以靜靜放行,新增的 W5 就是這道自保。
 import fs from 'node:fs';
 import path from 'node:path';
+import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
-import { twDayStr, nextHolidaySpan, weekendBody } from './weekend_core.mjs';
+import { addDays, twDayStr, nextHolidaySpan, weekendBody } from './weekend_core.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 let pass = 0, fail = 0;
@@ -241,6 +242,207 @@ chk('S5 兩層不重疊',
   !body.events.some(a => body.alsoOpen.some(b => a.title === b.title && a.url === b.url)));
 chk('S6 序列化得出來(沒有循環參照、沒有 undefined 破壞 JSON)',
   (() => { try { JSON.parse(JSON.stringify(body)); return true; } catch (e) { return false; } })());
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 【R】handler 真的被執行一次(整枝複審 I2／延後 Minor #11／I5)
+// ══════════════════════════════════════════════════════════════════════════════
+// 🔴 為什麼非做不可:整枝複審把 weekendBoard() 裡 Promise.all 的【兩個資產路徑對調】
+//    (tw_daytype.json ↔ events.json),五支腳本 120/120 全綠——而正式站會回 200 且
+//    【永遠 0 場】。上面【W】段是對 worker.js 做字面比對,字面比對答不出「哪一個資產
+//    進了哪一個參數」;【F】【E】【S】三段直接呼叫 weekendBody,整個繞過 handler 本體。
+//    所以這一段不再看原始碼,而是【真的把 handler 跑一次】,用回應內容反推接線對不對。
+//
+// 做法:worker.js 只需要兩個 Cloudflare 專屬的東西——全域 caches 與 env.ASSETS.fetch。
+//    兩個都給替身(scripts/dev_server.mjs 從 2024 年就是這樣直接載入 worker.js 的,
+//    連「用 https://localhost 繞過 worker 對 http 的 301」也照它的做法),就能在純 node
+//    裡跑完整條 handler。刻意【不】起 wrangler dev:.wrangler 的本機快取跨重啟存活,
+//    突變測試會假綠(這是本檔開頭就寫下的裁定,這一段沒有推翻它)。
+//
+// 🔴 判準與真實資料無關:資產全部餵 fixture、時鐘也釘死(暫時換掉 Date.now)。真實資料
+//    當下剛好是不是週末、events.json 當下有幾場,都不可以影響這一段的紅綠——不然這些
+//    判準會隨資料漂移(而漂移的方向恰好是「無聲變成恆真」)。
+const R_DAY1 = '2026-10-08';   // 假期第一天(fixture 自己指定,不看真實日曆)
+const R_DAY2 = '2026-10-09';   // 同一段假期的第二天,用來考跨日快取
+const R_MS = day => Date.parse(day + 'T04:00:00Z');   // 台北中午 12:00,離換日最遠
+// 10-08 至 10-11 四天都標 1(放假)、10-12 標 2(補行上班)⇒ 區間必定是 4 天,與這四天
+// 實際是星期幾無關。這一點很關鍵:對調突變後 dayTypes 會變成 events.json(查不到任何
+// 日期)⇒ 退回只看週幾 ⇒ 最多 2 天的週末,與 4 天結構性對不上。
+const R_DAYTYPE = { '2026-10-08': 1, '2026-10-09': 1, '2026-10-10': 1, '2026-10-11': 1, '2026-10-12': 2 };
+const R_NAMES = { '2026-10-09': '測試節' };
+const R_EVENTS = {
+  updated: '2026-10-01',
+  events: [
+    { id: 'r1', title: '連假市集', note: '接縫測試用', url: 'https://sample.invalid/r1',
+      start: '2026-10-08', end: '2026-10-09', anchor: { kind: 'station', sys: 'mrt', name: '接縫測試' } },
+    { id: 'r2', title: '車庫開放日', url: 'https://sample.invalid/r2',
+      start: '2026-10-10', end: '2026-10-10', anchor: { kind: 'station', sys: 'tra', name: '車庫測試' } },
+    { id: 'r3', title: '林鐵小旅行', url: 'https://sample.invalid/r3',
+      start: '2026-10-11', end: '2026-10-13', anchor: { kind: 'station', sys: 'afr', name: '林鐵測試' } },
+    { id: 'r4', title: '常設特展', url: 'https://sample.invalid/r4',
+      start: '2026-09-01', end: '2026-12-31', anchor: { kind: 'station', sys: 'mrt', name: '常設測試' } },
+  ],
+};
+// 邊緣快取替身:真的存 body、真的按金鑰命中,所以「金鑰帶不帶日期」是【可觀測的行為】,
+// 不是又一條文字比對。🔴 match 一律回一個【新的】Response——重複使用同一條 body 串流
+// 會讀到空字串(worker.js:129 那條註解記的正是這個事故)。
+const edgeStore = new Map();
+let edgePuts = [];
+globalThis.caches = {
+  default: {
+    async match(req) {
+      const rec = edgeStore.get(req.url);
+      return rec ? new Response(rec.body, { status: rec.status, headers: rec.headers }) : undefined;
+    },
+    async put(req, res) {
+      edgePuts.push(req.url);
+      edgeStore.set(req.url, { body: await res.text(), status: res.status, headers: [...res.headers] });
+    },
+  },
+};
+function resetEdge() { edgeStore.clear(); edgePuts = []; }
+// 資產替身。🔴 只回檔案表裡有的路徑,其餘一律 404——worker.js 的 trtcLedgerAssetJson
+// 在 !r.ok 時是【丟例外】不是回 null,少一個資產會被 handler 外層 catch 接成 503 not_ready,
+// 這正是下面 R10 要考的那條路。
+const assetsEnv = files => ({
+  ASSETS: {
+    fetch: async req => {
+      const p = new URL(req.url).pathname.replace(/^\//, '');
+      return Object.prototype.hasOwnProperty.call(files, p)
+        ? new Response(JSON.stringify(files[p]), { status: 200, headers: { 'content-type': 'application/json' } })
+        : new Response('not found', { status: 404 });
+    },
+  },
+});
+const R_ASSETS = {
+  'data/tw_daytype.json': R_DAYTYPE,
+  'data/events.json': R_EVENTS,
+  'data/holiday_names.json': R_NAMES,
+};
+console.log('\n【R】把 handler 真的執行一次（資產與時鐘都是 fixture，與真實資料無關）');
+try {
+  // 🔴 caches 替身必須在載入 worker.js【之前】就位,所以這裡用動態 import
+  //    (檔頭那些靜態 import 會被提升到最前面執行)。
+  const worker = (await import('../worker.js')).default;
+  const call = async (env, simDay) => {
+    const realNow = Date.now;
+    Date.now = () => R_MS(simDay);
+    try { return await worker.fetch(new Request('https://localhost/api/weekend'), env); }
+    finally { Date.now = realNow; }
+  };
+
+  resetEdge();
+  const res = await call(assetsEnv(R_ASSETS), R_DAY1);
+  const got = res.status === 200 ? await res.json() : null;
+  chk('R1 handler 回 200 且是 JSON', res.status === 200 && !!got, `status ${res.status}`);
+  // R2/R3/R4 各自盯一個資產:哪一個進錯參數,對應那一條就會紅。
+  // (對調 tw_daytype.json ↔ events.json 時 R2 與 R4 同時紅。)
+  chk('R2 tw_daytype.json 真的進了 nextHolidaySpan(區間是 fixture 指定的 10/08 起 4 天)',
+    !!got && got.span.from === R_DAY1 && got.span.to === '2026-10-11' && got.span.days === 4,
+    got ? JSON.stringify(got.span) : '');
+  chk('R3 holiday_names.json 真的進了 spanLabel(label 是 fixture 指定的節日名)',
+    !!got && got.span.label === '測試節連假', got ? JSON.stringify(got.span.label) : '');
+  chk('R4 events.json 真的進了 splitEvents(限定層 3 場、長期層 1 則)',
+    !!got && got.count === 3 && got.events.length === 3 && got.alsoOpen.length === 1,
+    got ? `count=${got.count} events=${got.events.length} alsoOpen=${got.alsoOpen.length}` : '');
+  chk('R5 200 的 cache-control 是約定的那一組',
+    res.headers.get('cache-control') === 'public, s-maxage=1800, stale-while-revalidate=3600',
+    String(res.headers.get('cache-control')));
+  chk('R6 邊緣快取金鑰帶台北營運日',
+    edgePuts.length === 1 && edgePuts[0].includes('d=' + R_DAY1), JSON.stringify(edgePuts));
+  // R7 是 I5 的行為判準;R8 是它的正向對照——快取若整個沒在運作,R7 會恆真。
+  const again = await call(assetsEnv(R_ASSETS), R_DAY1);
+  chk('R8 同一天內第二發真的走快取(命中、沒有再寫一次)',
+    edgePuts.length === 1 && (await again.json()).today === R_DAY1, JSON.stringify(edgePuts));
+  const nextDay = await call(assetsEnv(R_ASSETS), R_DAY2);
+  const nextBody = await nextDay.json();
+  chk('R7 跨日之後不會再送出昨天算的那一份(金鑰不含日期時這裡會拿到前一天的 today)',
+    nextBody.today === R_DAY2, `today=${nextBody.today}`);
+
+  // #11:兩種 503 各自的分流與快取秒數。原判「順序對調只影響 503 秒數」——現在兩條都有斷言,
+  // 而且它們共用的那塊未覆蓋區域已經被 R1–R8 蓋住了。
+  resetEdge();
+  const allWork = {};
+  for (let i = 0; i < 420; i++) allWork[addDays(R_DAY1, i)] = 2;   // 每一天都補行上班 ⇒ 找不到假期
+  const noSpan = await call(assetsEnv({ ...R_ASSETS, 'data/tw_daytype.json': allWork }), R_DAY1);
+  const noSpanBody = await noSpan.json();
+  chk('R9 日曆表裡找不到任何假期 → 503 no_span,快取 300 秒',
+    noSpan.status === 503 && noSpanBody.error === 'no_span'
+    && noSpan.headers.get('cache-control') === 'public, s-maxage=300',
+    `${noSpan.status} ${JSON.stringify(noSpanBody)} ${noSpan.headers.get('cache-control')}`);
+
+  const missing = { ...R_ASSETS };
+  delete missing['data/events.json'];
+  const notReady = await call(assetsEnv(missing), R_DAY1);
+  const notReadyBody = await notReady.json();
+  chk('R10 資產讀不到 → 503 not_ready,快取 30 秒(trtcLedgerAssetJson 是丟例外不是回 null)',
+    notReady.status === 503 && notReadyBody.error === 'not_ready'
+    && notReady.headers.get('cache-control') === 'public, s-maxage=30',
+    `${notReady.status} ${JSON.stringify(notReadyBody)} ${notReady.headers.get('cache-control')}`);
+  chk('R11 兩種 503 都沒有被寫進邊緣快取(錯誤不該被快取 30 分鐘)',
+    edgePuts.length === 0, JSON.stringify(edgePuts));
+} catch (e) {
+  chk('R! 這一節整節跑完不拋例外', false, String((e && e.stack) || e).split('\n').slice(0, 2).join(' / '));
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 【P】跨層接縫:核心層的輸出 → weekend.html 真正用的算繪函式(整枝複審 I3)
+// ══════════════════════════════════════════════════════════════════════════════
+// 🔴 為什麼非做不可:整枝複審把 dedupeEvents 產出的 places[].station 一致改名成 name,
+//    五支腳本 120/120 全綠——而真實頁面上 .ev-go 從 7 個掉到 0、8 個站名全部消失。
+//    原因是核心層驗自己的輸出、頁面用【自己手寫的 stub payload】驗自己的渲染,
+//    兩邊各自綠,中間那條接縫沒有人負責。
+// 做法:把 weekend.html 的 inline script 抽出來,在 vm 裡跑成真的函式,然後餵
+//    【weekendBody 真的產出的】那一則活動進去。這樣兩邊的欄位名只要對不上就會紅,
+//    而且是「站名沒出現在卡片上」這種看得懂的紅,不是又一條文字比對。
+// 🔴 語系釘 zh-TW(location.search 給空字串):文案判準隨機器語系會假紅,與真回歸不可分辨。
+console.log('\n【P】核心層輸出餵進 weekend.html 真正的算繪函式（跨層欄位契約）');
+try {
+  const pageSrc = fs.readFileSync(path.join(ROOT, 'weekend.html'), 'utf8');
+  const blocks = [...pageSrc.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
+  const script = blocks.find(s => /function\s+card\s*\(/.test(s));
+  // 抽不到不可以靜靜跳過——跳過等於下面每一條都變成恆真(同【W】段 W5 那道自保)。
+  chk('P1 抽得到 weekend.html 的 inline script(抽不到,下面每一條都會失去作用)', !!script,
+    `找到 ${blocks.length} 個 script 區塊`);
+  const sandbox = {
+    console, URLSearchParams,
+    location: { search: '' },                      // ⇒ LANG = 'zh-TW'
+    document: { documentElement: {}, getElementById: () => ({}) },
+    fetch: () => new Promise(() => {}),            // 頁面開頭那條 fetch 鏈永遠不落地
+  };
+  vm.createContext(sandbox);
+  if (script) vm.runInContext(script, sandbox, { filename: 'weekend.html <script>' });
+  chk('P2 頁面的三個算繪函式都在(card／placeText／whenText)',
+    typeof sandbox.card === 'function' && typeof sandbox.placeText === 'function'
+    && typeof sandbox.whenText === 'function');
+
+  // 用與【R】段同一組 fixture 走一次核心層,拿【它真的產出的】那一則活動。
+  const pSpan = nextHolidaySpan(R_DAY1, R_DAYTYPE);
+  const pBody = weekendBody(R_DAY1, pSpan, R_EVENTS, R_NAMES);
+  const pEv = pBody.events.find(e => e.title === '連假市集');
+  // P3 是核心層那一側的契約(欄位叫 station、值是站名),P4–P6 是頁面那一側真的用到它。
+  // 兩側都在,才叫「接縫有人負責」;只有其中一側時,另一側改名仍然全綠。
+  chk('P3 核心層產出的 places[] 用的欄位名是 station,值是站名',
+    !!pEv && Array.isArray(pEv.places) && pEv.places.length === 1
+    && pEv.places[0].station === '接縫測試',
+    pEv ? JSON.stringify(pEv.places) : '(核心層沒有產出這一則)');
+  const html = (script && pEv) ? sandbox.card(pEv) : '';
+  chk('P4 卡片真的畫得出站名(頁面讀 p.station;欄位改名時這裡會少掉整段 .ev-go)',
+    html.includes('接縫測試站') && html.includes('ev-go'), html.slice(0, 200));
+  chk('P5 卡片真的畫得出日期(頁面讀 ev.days)', html.includes('10/08') && html.includes('10/09'),
+    html.slice(0, 200));
+  chk('P6 卡片真的畫得出標題、說明與原文連結(頁面讀 ev.title／ev.note／ev.url)',
+    html.includes('連假市集') && html.includes('接縫測試用')
+    && html.includes('href="https://sample.invalid/r1"'), html.slice(0, 240));
+  // 另一個消費者:index.html 的入口列。它只讀 count 與 span.label 兩個欄位,
+  // 這裡兩側各驗一次(核心層有沒有產出、入口列是不是讀這兩個名字)。
+  const idxSrc = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  chk('P7 核心層產出 count(數字)與 span.label(非空字串)',
+    typeof pBody.count === 'number' && typeof pBody.span.label === 'string' && pBody.span.label.length > 0);
+  chk('P8 index.html 的入口列讀的正是 j.count 與 j.span.label',
+    /typeof j\.count === 'number'/.test(idxSrc) && /j\.span && j\.span\.label/.test(idxSrc));
+} catch (e) {
+  chk('P! 這一節整節跑完不拋例外', false, String((e && e.stack) || e).split('\n').slice(0, 2).join(' / '));
+}
 
 console.log(`\n實際內容(今天 ${today})：`);
 console.log(`  ${body.span.label} ${body.span.from}–${body.span.to}（${body.span.days} 天）· ${body.count} 場 · 另有 ${body.alsoOpen.length} 則長期檔`);

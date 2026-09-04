@@ -4095,7 +4095,13 @@ async function todayBoard(request, env) {
 // 推播文案都吃它,不各自重算——兩份實作會慢慢長歪,而「兩邊一致」拿自己驗自己是零資訊。
 // 快取 30 分鐘:活動資料一天最多被策展改幾次,而連假當天的頁面不需要更即時。
 async function weekendBoard(request, env) {
-  const cacheKey = new Request(new URL('/api/weekend', request.url), { method: 'GET' });
+  // 🔴 快取金鑰必須帶台北營運日:回應的內容【整個都是「今天」的函數】(span 是從今天往後找的
+  // 第一段假期,活動也是照那個區間篩的)。金鑰只有路徑時,跨日之後邊緣仍可能送出昨天算的區間
+  // ——週日 23:50 存進去的 body 說 span 是 09/05–09/06,週一 00:10 還在送同一份。
+  // 核心層特地把「今天」錨定在台北時間就是為了避開這件事,金鑰不帶日期等於把它繞掉。
+  // 帶了日期之後,跨日的第一發必然 miss、重算,而同一天內仍然共用同一份(s-maxage 照舊)。
+  const today = twDayStr(Date.now());
+  const cacheKey = new Request(new URL('/api/weekend?d=' + today, request.url), { method: 'GET' });
   const edge = caches.default;
   const hit = await edge.match(cacheKey);
   if (hit) return hit;
@@ -4105,7 +4111,6 @@ async function weekendBoard(request, env) {
       trtcLedgerAssetJson(env, 'data/events.json'),
       trtcLedgerAssetJson(env, 'data/holiday_names.json').catch(() => ({})),
     ]);
-    const today = twDayStr(Date.now());
     const span = nextHolidaySpan(today, dayTypes);
     if (!span) return jsonRes({ error: 'no_span' }, 503, 'public, s-maxage=300');
     const body = weekendBody(today, span, eventsDoc, names);
