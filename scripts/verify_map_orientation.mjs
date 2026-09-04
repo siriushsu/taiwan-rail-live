@@ -230,14 +230,14 @@ async function desktopM2(browser, url, engine, browserName, check, onlyFor) {
         const b = layers.findIndex(x => x.id === 'building-3d');
         const s = layers.findIndex(x => x.type === 'symbol');
         const tracks = layers.map((x, i) => x.id.startsWith('track-') ? i : -1).filter(i => i >= 0);
-        return { building: b, symbol: s, lastTrack: Math.max(...tracks) };
+        return { building: b, symbol: s, firstTrack: Math.min(...tracks), lastTrack: Math.max(...tracks) };
       })(),
       pitch: __M.getPitch(),
     }));
     check(on3d.on && on3d.visibility === 'visible' && on3d.stored === '1' && on3d.before.building >= 0
-      && on3d.before.lastTrack >= 0 && on3d.before.lastTrack < on3d.before.building
-      && (on3d.before.symbol < 0 || on3d.before.building < on3d.before.symbol) && Math.abs(on3d.pitch) < 0.1,
-      `${browserName} 3D 建築可切、記憶、遮住 GL 軌道、置於 symbol 下且不自動傾斜`, on3d);
+      && on3d.before.firstTrack >= 0 && on3d.before.building < on3d.before.firstTrack
+      && (on3d.before.symbol < 0 || on3d.before.lastTrack < on3d.before.symbol) && Math.abs(on3d.pitch) < 0.1,
+      `${browserName} 3D 建築可切、記憶、位於 GL 軌道下且軌道仍在 symbol 下，不自動傾斜`, on3d);
     const styleReload = await page.evaluate(async () => {
       const loaded = new Promise(resolve => __M.raw.once('style.load', resolve));
       __M.setStyleKind('dark'); await loaded;

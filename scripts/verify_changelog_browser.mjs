@@ -19,7 +19,7 @@ await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const base = `http://127.0.0.1:${server.address().port}`;
 const failures = [];
 const widths = [360, 375, 414, 768];
-const expectedHistoryCount = 258;
+const expectedHistoryCount = 259;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

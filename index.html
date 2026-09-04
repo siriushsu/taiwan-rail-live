@@ -5144,6 +5144,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="tracksovermap0904"><span class="d">9/4</span><span>修正 MapLibre 地圖的彩色路線被道路與 3D 建築遮住、看起來斷斷續續；路線現在會完整畫在底圖上方，地名仍清楚可讀。</span></li>
         <li data-cl-of="maporientation0904"><span class="d">9/4</span><span>MapLibre 地圖現在可旋轉、傾斜並切換 3D 建築；跟隨列車時會自動讓行進方向朝上，結束跟隨後回到正北。</span></li>
         <li data-cl-of="tymckind"><span class="d">9/4</span><span>桃園機場捷運的列車標得出車種：地圖上直達車是尖頭紫牌、普通車是白底圓牌，車牌也放大了，跟車卡與車站看板寫全名</span></li>
         <li data-cl-of="xferlivehandoff"><span class="d">9/4</span><span>選好接續班次後，抵達轉乘站時動態島與鎖定畫面會自動切到下一班車</span></li>
@@ -5151,7 +5152,6 @@
         <li data-cl-of="tabletshell"><span class="d">9/4</span><span>iPad 與 Android 平板改用完整觸控版面；橫放時資訊停在右側，地圖保留主要空間</span></li>
         <li data-cl-of="journeysharelive"><span class="d">9/3</span><span>整段列車轉公車旅程可用短效連結分享；手機位置預設不分享，只有另行勾選並停留前景才更新，停止分享即刪除。</span></li>
         <li data-cl-of="busjourney"><span class="d">9/3</span><span>軌道轉公車現在能接成一段不會消失的旅程：選定公車後再選下車站；列車抵達後保留等車資訊，按「我上車了」會切到公車行程並顯示剩餘站數，重開 App 也能接著看。</span></li>
-        <li data-cl-of="busallrail"><span class="d">9/3</span><span>公車轉乘入口擴到軌島地圖上的全部 541 座客運鐵路、捷運與輕軌站；高鐵、林鐵跟車也能先指定下車站接公車。仍只在使用者打開或接近轉乘站時查即時，不會全臺背景輪詢。</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5365,6 +5365,7 @@
         <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，面板都住進底部；新增「捷」分頁，北中高捷運一張圖同框</span></li>
         <li><span class="d">7/13</span><span>新增「省電」模式（手機預設開啟）：降到 30fps；手機一次只開一個面板</span></li>
         <li class="grp">外觀與品牌</li>
+        <li data-cl="tracksovermap0904"><span class="d">9/4</span><span>修正 MapLibre 地圖的彩色路線被道路與 3D 建築遮住、看起來斷斷續續；路線現在會完整畫在底圖上方，地名仍清楚可讀。</span></li>
         <li data-cl="copyaudit"><span class="d">9/3</span><span>更新紀錄改得更精簡好讀；資料來源、source-available 授權、地圖供應商與 Android 帳號刪除說明也同步更新。</span></li>
         <li data-cl="cartoretreat"><span class="d">8/31</span><span>網站的 OpenFreeMap 載入異常時不再退回帶浮水印的 CARTO，改為明示錯誤並建議切換衛星或重新整理；App 仍使用自有備援底圖。</span></li>
         <li data-cl="satunderlay"><span class="d">8/31</span><span>衛星模式加入兩層固定影像墊底，手機一次跨多級縮放時也不再露出純色背景；Chromium 與 WebKit 各種縮放路徑皆保持影像覆蓋。</span></li>
@@ -5999,7 +6000,8 @@
 // v0904e：機捷列車標出直達車／普通車（車牌、跟車卡、車站看板三處）。
 // v0904f：機捷車牌放大一級；直達車改為尖頭實心牌，普通車改為圓角白底牌。
 // v0904g：MapLibre 預覽完成原生標記與控制項、3D／跟車朝向，並修正手機面板讓位與拖曳解鎖；預設 Leaflet 不變。
-const BUILD = 'v0904g';
+// v0904h：MapLibre 彩色路線改到道路與 3D 建築之上，不再被底圖切成碎段；文字標籤仍在最上。
+const BUILD = 'v0904h';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -6787,6 +6789,7 @@ const MAP3D_PREF_KEY = 'trainmap-map-3d';
 function installBuilding3d() {
   if (!M || M.engine !== 'maplibre' || !M.isStyleReady() || !M.raw.getSource('openmaptiles') || M.raw.getLayer('building-3d')) return;
   const layers = (M.raw.getStyle() && M.raw.getStyle().layers) || [];
+  const firstTrack = layers.find(layer => layer.id.startsWith('track-'));
   const firstSymbol = layers.find(layer => layer.type === 'symbol');
   M.raw.addLayer({
     id: 'building-3d', type: 'fill-extrusion', source: 'openmaptiles', 'source-layer': 'building', minzoom: 13,
@@ -6798,7 +6801,7 @@ function installBuilding3d() {
       'fill-extrusion-base': ['to-number', ['coalesce', ['get', 'render_min_height'], ['get', 'min_height']], 0],
       'fill-extrusion-opacity': 0.72,
     },
-  }, firstSymbol && firstSymbol.id);
+  }, (firstTrack || firstSymbol) && (firstTrack || firstSymbol).id);
 }
 function syncMap3dUi() {
   const btn = document.getElementById('map3dBtn');
@@ -11326,9 +11329,10 @@ function glTracksInstall() {
   if (raw.getLayer('track-line-' + glTracks.ranks[0])) return; // 冪等:同一份 style 只裝一次
   if (!raw.getSource('track-lines')) raw.addSource('track-lines', { type: 'geojson', data: glTracks.lines });
   if (!raw.getSource('track-stations')) raw.addSource('track-stations', { type: 'geojson', data: glTracks.stations });
-  // 3D 建築要遮住貼地軌道；列車／標籤仍在最上層 overlay。M2 的 building-3d 若已先裝好，
-  // 所有 GL 軌道都插在它下面；沒有建築層的舊路徑仍維持對齊探針在最上。
-  const before = raw.getLayer('building-3d') ? 'building-3d' : (raw.getLayer('aligndot') ? 'aligndot' : undefined);
+  // 彩色軌道必須完整壓在底圖道路與 3D 建築上，否則密集市區會被切成碎段；地名等 symbol
+  // 仍留在軌道上方保持可讀。沒有 symbol 的衛星／raster style，則只讓對齊探針留在最上。
+  const firstSymbol = ((raw.getStyle() && raw.getStyle().layers) || []).find(layer => layer.type === 'symbol');
+  const before = firstSymbol ? firstSymbol.id : (raw.getLayer('aligndot') ? 'aligndot' : undefined);
   const base = Object.fromEntries(glTracks.style.layers.map(l => [l.id, l]));
   const none = ['in', ['get', 'lineKey'], ['literal', []]];
   for (const k of glTracks.ranks) { // 依 sortKey 階級交錯:上層線的 casing 才會挖掉下層線的色線(canvas 逐線 knockout 的近似,計畫 D4)
