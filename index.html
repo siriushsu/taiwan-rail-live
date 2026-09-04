@@ -2230,8 +2230,11 @@
   /* 🔴 插入 .bgrp 之後上面那條 `.row:first-of-type` 就再也不匹配了(父層第一個 div 變成 .bgrp),
      每組第一列會多一條上框線、與組標題的底線疊成雙線。這條把它補回去。 */
   .board .bgrp + .row { border-top: 0; }
-  .board .row[data-no], .board .row[data-rand], .board .row[data-li], .board .row[data-guide], .board .row[data-ev] { cursor: pointer; }
-  .board .row[data-no]:hover, .board .row[data-rand]:hover, .board .row[data-li]:hover, .board .row[data-guide]:hover, .board .row[data-ev]:hover { background: var(--bg-stage); }
+  /* 🔴 這兩條是白名單:點得動的列才給 cursor/hover。新增可點的列一定要同輪加進來——
+     週末活動入口列(data-weekend)漏了,結果它畫了 `›`、點下去也真的會開頁,滑鼠移上去卻是
+     游標不變、底色不動,同一框裡其他每一列都有回饋,唯獨它沒有。 */
+  .board .row[data-no], .board .row[data-rand], .board .row[data-li], .board .row[data-guide], .board .row[data-ev], .board .row[data-weekend] { cursor: pointer; }
+  .board .row[data-no]:hover, .board .row[data-rand]:hover, .board .row[data-li]:hover, .board .row[data-guide]:hover, .board .row[data-ev]:hover, .board .row[data-weekend]:hover { background: var(--bg-stage); }
   /* 停駛列(台鐵):官方今日名冊裡沒有這班(見 applyTraDailyDelta)。車已從地圖名冊移除,看板仍列出來——
      整班消失跟「這時段本來就沒車」長得一樣,使用者分不出「我要搭那班停駛了」。刻意不掛 data-no,
      上面兩條規則因此自動不給 cursor:pointer 與 hover 底色,不必另寫關閉規則。 */
@@ -5750,6 +5753,8 @@
     <div class="ms-sec">資訊</div>
     <!-- 已排提醒總覽:NOTIFY_LOCAL_ENABLED 才留(旗標關時 setupLocalNotifications 移除,比照 locateBtn) -->
     <button class="ms-row" data-act="notify" data-close="1"><span>已排提醒</span><span class="chev">›</span></button>
+    <!-- 週末鐵道活動:內容在 weekend.html(正式網站獨立頁,App 內開系統瀏覽器) -->
+    <button class="ms-row" data-act="weekend" data-close="1"><span>週末鐵道活動</span><span class="chev">›</span></button>
     <button class="ms-row" data-proxy="todayBtn" data-close="1"><span>今日台鐵動態</span><span class="chev">›</span></button>
     <!-- 全日班次走勢(Batch B):.flow 全日走勢圖的手機新家;點列把 #flowWrap 搬進下方 slot 並重繪,收合搬回原位 -->
     <button class="ms-row" data-act="flow"><span>全日班次走勢</span><span class="chev">›</span></button>
@@ -21182,6 +21187,7 @@ function renderExplorePanel() {
   if (el.hidden) return;
   ensurePunctualData(); // 保險再觸發一次(已載入/載入中會早退),比照 openDelayHist 同款寫法
   ensureEvents();       // 同款:載到之後會自己再叫一次 renderExplorePanel
+  ensureWeekendCount();  // 同款:載到之後會自己再叫一次 renderExplorePanel
   const hl = computeHighlights();
   const guides = exploreGuideTrains();
   const punctual = punctualTrainList();
@@ -21190,6 +21196,7 @@ function renderExplorePanel() {
     `<div class="sub">${escHtml(t('從 {n} 班車裡挑出來的 · 點列車跟隨、點活動飛到那一站', { n: i18nNumber(state.trains.length) }, state.trains.length))}</div>` +
     (hl.best.length ? `<div class="sec">${escHtml(t('今日之最'))}</div><div class="hl-grid">` + hl.best.map(hlCard).join('') + `</div>` : '') +
     (hl.special.length ? `<div class="sec">${escHtml(t('特別列車出沒中'))}</div>` + hl.special.map(hlRow).join('') : '') +
+    weekendRowHtml() +
     eventSecHtml() +
     (hl.branches.length ? `<div class="sec">${escHtml(t('支線小火車'))}</div>` + hl.branches.map(hlRow).join('') : '') +
     (punctual.length ? `<div class="sec">${escHtml(t('準點排行'))}</div>` + punctual.map(punctualRow).join('') +
@@ -21202,6 +21209,7 @@ function renderExplorePanel() {
   el.querySelector('#exploreClose').onclick = closeExplorePanel;
   el.onclick = e => {
     if (e.target.closest('.close')) return;
+    if (e.target.closest('.row[data-weekend]')) { openWeekendPage(); return; }
     const ev0 = e.target.closest('.row[data-ev]');
     if (ev0) {
       const ev = activeEvents().find(x => x.id === ev0.dataset.ev);
@@ -27121,6 +27129,54 @@ function eventRowsHtml(st) {
       : `<div class="ev-row"${sourceAttr}>${inner}</div>`;
   }).join('') + `</div>`;
 }
+// 週末活動頁在正式網站上(weekend.html),App 這邊只是一條連結——內容與網站共用一份,
+// 改一次兩邊都變。開法比照活動原文連結:window.open 交給系統瀏覽器
+// (App 內建瀏覽器要等推播那一批裝 @capacitor/browser,屆時只換這一個函式)。
+// 帶上當下語言,讓從日文/英文介面點過去的人看到對應的骨架文字。
+// 🔴 網域寫死是刻意的(網站與 App 共用同一份 weekend.html;railisland.tw 在全檔多處寫死:
+// og:url／canonical／MUSIC_ORIGIN／PUBLIC_SHARE_BASE)。代價寫清楚:【在預覽站點按這兩個
+// 入口會導去正式站】——所以親試預覽版時,這兩個入口只驗得到「有沒有接上、會不會導覽」,
+// 驗不到這條分支的 weekend.html 長什麼樣,那要直接開預覽站的 /weekend.html。
+// 之後若改成同源相對路徑(讓預覽站留在預覽站),記得 verify_weekend_entry 的 X6 是釘住
+// 「出站 origin 恰為 railisland.tw」的那一條,要同輪改成「等於當前 origin」。
+const WEEKEND_PAGE_URL = 'https://railisland.tw/weekend.html';
+function weekendPageUrl() {
+  return WEEKEND_PAGE_URL + (I18N_LANG && I18N_LANG !== 'zh-TW' ? '?lang=' + encodeURIComponent(I18N_LANG) : '');
+}
+function openWeekendPage() { window.open(weekendPageUrl(), '_blank', 'noopener'); }
+
+// 探索面板的入口列。數字取自 /api/weekend,還沒回來就先不顯示數字(不擋渲染)。
+let _weekendCount = null;
+function ensureWeekendCount() {
+  if (_weekendCount !== null) return;
+  _weekendCount = 'loading';
+  fetchJSONAt(apiUrl('api/weekend')).then(j => {
+    _weekendCount = (j && typeof j.count === 'number') ? { n: j.count, label: (j.span && j.span.label) || '' } : 'none';
+    const ep = document.getElementById('explorePanel');
+    if (ep && !ep.hidden) renderExplorePanel();
+  });
+}
+// 🔴 這一列的文字由兩截組成,而兩截的語言不一樣:
+//   (1) label 來自 /api/weekend 的 span.label,是核心層產出的【中文】期間名(本週末／春節連假／
+//       假日／光復節連假…),它不會因為 ?lang=en 就變成英文;
+//   (2)「鐵道活動」是介面字串,會跟著介面語言翻譯。
+// 兩截直接串接在非中文介面會黏成「本週末Rail events」這種壞字串,所以非中文介面用
+// 「中文 label · 譯名」的形狀——與 weekend.html 的 h1 完全同一種做法,不自創第三種。
+// 🔴 label 還沒拿到(首開面板的載入窗)或 API 掛掉時【不要編一個期間出來】:核心層把期間文案
+// 分成「本週末／這個連假／假日／<名稱>連假／<名稱>」是使用者親自裁示的分類,而實測未來 730 天
+// 有 133 天(18.2%)真值不是「本週末」(這個連假 41、假日 17、兒童節與清明連假 12、光復節連假 12、
+// 春節連假 11…)。未知就只說「鐵道活動」,不去斷言是哪一種期間——API 掛掉時那個斷言是永久錯的。
+function weekendRowHtml() {
+  const c = _weekendCount;
+  const kind = t('鐵道活動');
+  const label = (c && c.label) || '';
+  const text = !label ? kind : (I18N_LANG === 'zh-TW' ? label + kind : label + ' · ' + kind);
+  const tail = (c && typeof c.n === 'number' && c.n > 0) ? t('{n} 場', { n: i18nNumber(c.n) }, c.n) : '';
+  return `<div class="row" data-weekend="1" title="${escHtml(text)}">` +
+    `<b>${escHtml(text)}</b>` +
+    `<span class="min">${escHtml(tail)} ›</span></div>`;
+}
+
 // 今日亮點用:一節,沒有活動回空字串。
 // 點得動的才給 data-ev(CSS 的 cursor:pointer 與 click 路徑都認這個屬性):解析不到站、
 // 又沒有官方原文的那一筆點下去無事可做,就不要裝成可以點(與看板那側同一條線)。
@@ -30521,6 +30577,7 @@ function setupMapTools() {
     if (row.dataset.act === 'track') { setMore(false); openTrackPanel(); return; }
     if (row.dataset.act === 'fontscale') { setMore(false); openFontPanel(); return; } // 設計 6c:字級是 `›` 子頁
     if (row.dataset.act === 'notify') { setMore(false); openLocalReminderOverview(); return; } // 已排提醒總覽
+    if (row.dataset.act === 'weekend') { setMore(false); openWeekendPage(); return; }  // 週末活動:外開網站頁
     if (row.dataset.act === 'panelOpacity') { setPanelTranslucent(!state.panelTranslucent); syncMoreSheet(); return; }
     if (row.dataset.act === 'diagStrip') { setDiagStrip(!state.diagStrip); syncMoreSheet(); return; }
     if (row.dataset.act === 'exportTrtcDiag') { exportTrtcEntityDiagnostics(); return; }

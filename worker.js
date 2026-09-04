@@ -16,6 +16,7 @@ import {
   TW_MAX_TRACK_SEC,
 } from './scripts/tra_wait_core.mjs';
 import { BUS_TRANSFER_SCHEMA, resolveBusLegVehicles, resolveBusRouteStops, resolveStationN1 } from './scripts/bus_transfer_core.mjs';
+import { twDayStr, nextHolidaySpan, weekendBody } from './scripts/weekend_core.mjs';
 
 // Cloudflare Worker 入口:靜態資產(assets binding)+ /api/tra-live 台鐵即時動態代理
 // + /api/tra-alert 台鐵營運通阻公告 + /api/thsr-alert 高鐵營運狀態公告(颱風停駛等)
@@ -4089,6 +4090,37 @@ async function todayBoard(request, env) {
   }
 }
 
+// 週末／連假活動(唯讀,只讀靜態資產,不碰 D1 也不打上游)。
+// 這一支是【唯一】一份假期與活動的判斷:weekend.html、index.html 的入口列與(批次 3 的)
+// 推播文案都吃它,不各自重算——兩份實作會慢慢長歪,而「兩邊一致」拿自己驗自己是零資訊。
+// 快取 30 分鐘:活動資料一天最多被策展改幾次,而連假當天的頁面不需要更即時。
+async function weekendBoard(request, env) {
+  // 🔴 快取金鑰必須帶台北營運日:回應的內容【整個都是「今天」的函數】(span 是從今天往後找的
+  // 第一段假期,活動也是照那個區間篩的)。金鑰只有路徑時,跨日之後邊緣仍可能送出昨天算的區間
+  // ——週日 23:50 存進去的 body 說 span 是 09/05–09/06,週一 00:10 還在送同一份。
+  // 核心層特地把「今天」錨定在台北時間就是為了避開這件事,金鑰不帶日期等於把它繞掉。
+  // 帶了日期之後,跨日的第一發必然 miss、重算,而同一天內仍然共用同一份(s-maxage 照舊)。
+  const today = twDayStr(Date.now());
+  const cacheKey = new Request(new URL('/api/weekend?d=' + today, request.url), { method: 'GET' });
+  const edge = caches.default;
+  const hit = await edge.match(cacheKey);
+  if (hit) return hit;
+  try {
+    const [dayTypes, eventsDoc, names] = await Promise.all([
+      trtcLedgerAssetJson(env, 'data/tw_daytype.json'),
+      trtcLedgerAssetJson(env, 'data/events.json'),
+      trtcLedgerAssetJson(env, 'data/holiday_names.json').catch(() => ({})),
+    ]);
+    const span = nextHolidaySpan(today, dayTypes);
+    if (!span) return jsonRes({ error: 'no_span' }, 503, 'public, s-maxage=300');
+    const body = weekendBody(today, span, eventsDoc, names);
+    return await jsonResCached(edge, cacheKey, body, 200,
+      'public, s-maxage=1800, stale-while-revalidate=3600');
+  } catch (e) {
+    return jsonRes({ error: 'not_ready' }, 503, 'public, s-maxage=30');
+  }
+}
+
 // ── 網站衛星底圖的 Esri token 下發 ────────────────────────────────────────────
 // 為什麼要有這條：token 一定得送到瀏覽器才用得了，所以這裡**不是在保密**。它解決的是另外兩件事：
 //   (1) 不寫進 index.html——這個 repo 是公開的，寫死等於連同 git 歷史一起推上 GitHub 給爬蟲撿
@@ -6901,6 +6933,7 @@ export default {
     else if (url.pathname === '/api/delay-history') res = await delayHistory(request, env);
     else if (url.pathname === '/api/station-events') res = await stationEvents(request, env);
     else if (url.pathname === '/api/today-board') res = await todayBoard(request, env);
+    else if (url.pathname === '/api/weekend') res = await weekendBoard(request, env);
     else if (url.pathname === '/api/basemap-token') res = await basemapToken(request, env);
     else if (url.pathname === '/api/basemap-src') res = await basemapSrc(request, env);
     else if (url.pathname === '/api/basemap-fallback') res = await basemapFallback(request, env);

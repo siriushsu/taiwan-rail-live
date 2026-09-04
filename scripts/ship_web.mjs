@@ -75,6 +75,42 @@ try {
   if (cfg.status !== 0) fail('部署設定檢查未過——cron 或資產排除少了東西,出貨會靜默關掉功能'
     + '（單獨重跑：npm run check-deploy-config）');
 
+  // ── 2.65 辦公日曆表兩份副本的同步 ──────────────────────────────────────────
+  // index.html 的 TW_DAYTYPE(前端選捷運班表)與 data/tw_daytype.json(worker 做北捷逐班綁定)
+  // 是同一份資料的兩個副本,補新年度時「補一邊忘另一邊」不會有任何錯誤訊息——
+  // 只有某個假日的班表與綁定會靜靜出錯。同上:驗的是【這棵乾淨出貨樹】那一份。
+  const daytype = spawnSync('node', [path.join(wt, 'scripts', 'check_daytype_sync.mjs')], { encoding: 'utf8' });
+  process.stdout.write(daytype.stdout || ''); process.stderr.write(daytype.stderr || '');
+  if (daytype.status !== 0) fail('辦公日曆表同步檢查未過——兩份副本分岔了'
+    + '（單獨重跑：npm run check-daytype-sync）');
+
+  // ── 2.66 週末／連假活動（純 node 兩支，合計不到 0.1 秒）────────────────────────
+  // 同 2.8 的判例：這兩支不吃瀏覽器，沒有理由不掛（「不在出貨鏈上的驗收腳本等於不存在」）。
+  // core 驗純函式層的判定（假期區間、兩層分流、去重、標題文案）；api 除了回傳形狀之外，
+  // 還【真的把 weekendBoard() 執行一次】驗資產接線，以及把 weekend.html 的算繪函式抽出來
+  // 餵核心層真的產出的資料，守住「核心層改欄位名 → 頁面站名整批消失」那條接縫。
+  // 🔴 這兩件事都是【別人改東西時會靜默壞掉】的類型：改 worker.js 的資產順序、改
+  // weekend_core 的欄位名，畫面照樣有東西、HTTP 照樣 200，只是永遠 0 場或站名全空。
+  //
+  // 另外兩支（verify_weekend_page／verify_weekend_entry）刻意【不】掛進來，理由用 2.8 同一把尺：
+  //   (a) 它們要 Playwright ＋一個服著整棵樹的靜態站（現在吃 VURL），而本鏈的乾淨 worktree
+  //       沒有人在服它——要掛就得先把兩支改成自己起 server（follow_pin／boot_partial_sched
+  //       的做法），那是在併入前一輪動兩支已經全綠的腳本，風險大於收益；
+  //   (b) 它們獨有的涵蓋範圍是「瀏覽器裡的渲染、點擊、注入防護」，而那些只在有人動
+  //       weekend.html 或探索面板那一列時才會回歸——那時人就在跑它們。會被【別人】無聲弄壞的
+  //       那一半（接線與跨層欄位契約）已經由上面的 api 這支接住了。
+  //   單獨重跑（要自己起靜態站）：
+  //       python3 -m http.server 5187 &  然後 npm run check-weekend-page / check-weekend-entry
+  const wkCore = spawnSync('node', [path.join(wt, 'scripts', 'verify_weekend_core.mjs')], { encoding: 'utf8' });
+  process.stdout.write(wkCore.stdout || ''); process.stderr.write(wkCore.stderr || '');
+  if (wkCore.status !== 0) fail('週末活動純函式層未過——假期區間／分流／去重／標題文案壞了'
+    + '（單獨重跑：npm run check-weekend-core）');
+
+  const wkApi = spawnSync('node', [path.join(wt, 'scripts', 'verify_weekend_api.mjs')], { encoding: 'utf8' });
+  process.stdout.write(wkApi.stdout || ''); process.stderr.write(wkApi.stderr || '');
+  if (wkApi.status !== 0) fail('週末活動 API 未過——handler 的資產接線、快取金鑰或跨層欄位契約壞了'
+    + '（單獨重跑：npm run check-weekend-api）');
+
   // ── 2.7 對外用語閘門（更名後的舊名不准出貨）────────────────────────────────
   // 🔴 位置與 2.5 同一個理由,不可移到 strip 之後:check_voice 的 constBlock surface
   //    content-station／content-sys 用的 end 標記就是【註解】（'// 有精選特色'、
