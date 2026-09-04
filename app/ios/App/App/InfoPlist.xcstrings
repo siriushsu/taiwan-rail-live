@@ -22,13 +22,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Rail Island uses location while the app is open for the blue dot, location camera and nearby stations. Your latest position is sent to people with your short-lived journey link only when you separately enable live location sharing. Location stops in the background or on the Lock Screen."
+            "value": "Rail Island uses your location while the app is open to move the map near you and show nearby stations and trains. Raw coordinates stay on your device and are not uploaded. You can still explore the map manually if you decline."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "軌島はAppの使用中、青い点、現在地カメラ、近くの駅のために位置情報を使います。旅程の現在地共有を別途オンにした場合だけ、短時間リンクを持つ人へ最新位置を送信します。バックグラウンドまたはロック画面では停止します。"
+            "value": "軌島はAppの使用中、現在地付近へ地図を移動し、周辺の駅と列車を表示するために位置情報を使います。取得した座標は端末内だけで使用し、アップロードしません。許可しなくても地図を手動で利用できます。"
           }
         }
       }
@@ -38,13 +38,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Rail Island does not request Always access or continue location in the background. The regular blue dot stays on-device; only separately enabled live journey sharing sends the latest position while the app is in the foreground."
+            "value": "Rail Island accesses location only while you use the app, to move the map near you and show nearby stations and trains. It does not track you continuously in the background or request Always access. Raw coordinates stay on your device and are not uploaded; you can still explore manually if you decline."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "軌島は「常に許可」を求めず、バックグラウンドで位置取得を続けません。通常の青い点は端末内だけで使用し、旅程の現在地共有を別途オンにした場合だけ、Appが前面にある間に最新位置を送信します。"
+            "value": "軌島はAppの使用中だけ位置情報を取得し、現在地付近へ地図を移動して周辺の駅と列車を表示します。バックグラウンドで継続的に追跡せず、「常に許可」も要求しません。座標は端末内だけで使用し、アップロードしません。許可しなくても手動で利用できます。"
           }
         }
       }

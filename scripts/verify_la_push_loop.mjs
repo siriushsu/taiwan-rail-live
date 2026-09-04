@@ -146,10 +146,11 @@ async function insRow(row) {
     // last_obs_idx(工項 B)預設 -1＝「還沒有任何觀測」,last_notice(複審 C-1)預設 0＝
     // 「上一次送出去的卡沒有掛告知」,兩者都與 laBind 新綁的列一致;
     // 要造「表定已經推過頭」「上一輪掛過告知」的情境就顯式傳值。
-    'INSERT INTO la_bindings (token,uid,sys,train_no,stops,sta_map,stop_codes,last_idx,last_obs_idx,last_delay,last_notice,last_stopping,apns_env,bound_at,expire_at)' +
-    ' VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+    'INSERT INTO la_bindings (token,uid,sys,train_no,stops,sta_map,stop_codes,journey_state,last_idx,last_obs_idx,last_delay,last_notice,last_stopping,apns_env,bound_at,expire_at)' +
+    ' VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
   ).bind(row.token, row.uid || 'u1', row.sys, row.train_no, JSON.stringify(row.stops),
     JSON.stringify(row.staMap || {}), JSON.stringify(row.stopCodes || []),
+    row.journey_state == null ? null : (typeof row.journey_state === 'string' ? row.journey_state : JSON.stringify(row.journey_state)),
     row.last_idx, row.last_obs_idx == null ? -1 : row.last_obs_idx,
     row.last_delay, row.last_notice == null ? 0 : row.last_notice,
     row.last_stopping == null ? 0 : row.last_stopping,
@@ -201,8 +202,8 @@ async function insBatch(tokens, base) {
   const rs = await env.DELAY_DB.prepare("SELECT name FROM pragma_table_info('la_bindings')").all();
   const cols = (rs.results || []).map(r => r.name).sort();
   const WANT = ['token', 'uid', 'sys', 'train_no', 'stops', 'sta_map', 'stop_codes',
-    'last_idx', 'last_obs_idx', 'last_delay', 'last_notice', 'last_stopping', 'apns_env', 'fail_streak', 'bound_at', 'expire_at'].sort();
-  ok('SCHEMA 本機 D1 的 la_bindings 欄位集合與 schema/0003＋0004/0005/0006/0007/0008 一致(套漏補丁會讓整批斷言以「沒推」假綠)',
+    'journey_state', 'last_idx', 'last_obs_idx', 'last_delay', 'last_notice', 'last_stopping', 'apns_env', 'fail_streak', 'bound_at', 'expire_at'].sort();
+  ok('SCHEMA 本機 D1 的 la_bindings 欄位集合與 schema/0003＋0004/0005/0006/0007/0008/0012 一致(套漏補丁會讓整批斷言以「沒推」假綠)',
     JSON.stringify(cols) === JSON.stringify(WANT),
     `實際=${JSON.stringify(cols)}${JSON.stringify(cols) === JSON.stringify(WANT) ? '' : ` 期望=${JSON.stringify(WANT)}`}`);
 
@@ -216,7 +217,7 @@ async function insBatch(tokens, base) {
   // 這條因此要重建【文件宣告的建庫程序】本身(0003 建表 ＋ 所有「全環境都要跑」的補丁),
   // 而不是只讀 0003——只讀 0003 會讓這條在規矩改變的當下變成必然紅,然後被人改成寫死實測值
   // (心得34:把環境條件寫成產品規格)。ALL_ENV_PATCHES 是唯一要維護的清單,漏登記就會紅。
-  const ALL_ENV_PATCHES = ['0007_la_last_stopping.sql', '0008_la_apns_env.sql'];
+  const ALL_ENV_PATCHES = ['0007_la_last_stopping.sql', '0008_la_apns_env.sql', '0012_la_journey_handoff.sql'];
   let sqlCols = [];
   try {
     const sql = readFileSync(`${WT}/schema/0003_live_activity.sql`, 'utf8');
@@ -257,7 +258,7 @@ ok(`PSWIFT 前置(分母閘門):從 ${SWIFT_ATTRS_PATH.split('/').slice(-1)[0]} 
 // 期望值獨立寫死一份(心得29:判準不可與被測物同源)——Swift 側與 worker.js 側都要對上它,
 // 三方任何一方漂移都會現形,而不是「兩邊一起改壞、對照組跟著錯」。
 const CONTRACT_KEYS_EXPECT = ['arrivalDate', 'delaySec', 'departedDate', 'nextStop', 'terminus', 'notice',
-  'stopping', 'prevStop'];
+  'stopping', 'prevStop', 'trainNoOverride', 'kindOverride', 'sysOverride', 'colorOverride', 'transferWaiting'];
 const CONTRACT_KEYS_SORTED = CONTRACT_KEYS_EXPECT.slice().sort();
 ok('PSWIFT(跨行程契約)Swift ContentState 的屬性集合 === 後端 content-state 的契約欄位集合',
   JSON.stringify(swiftProps.slice().sort()) === JSON.stringify(CONTRACT_KEYS_SORTED),
@@ -2407,12 +2408,69 @@ const csOfTok = (tk) => {
   await resetTable();
 }
 
+// PJOURNEY：使用者回報的實際失效路徑——App 已縮到背景，區間車抵達板橋後，同一張
+// Live Activity 必須改成「等候已選高鐵」，高鐵開車後再繼續顯示它的下一站。這一組直接跑
+// laPushAll＋真 D1 寫回＋APNs body，不以「有 journey_state 欄位」代替最終行為。
+{
+  const T = tok('pjrn');
+  await resetTable();
+  mockNowSec = H_BASE + useSlot(24000, 'PJOURNEY');
+  const base = mockNowSec;
+  const target = {
+    sys: 'thsr_sched', trainNo: '0841', kind: '高鐵', color: '#f05a28', terminus: '左營',
+    transferStop: '板橋', waitUntil: base + 300,
+    stops: [{ name: '板橋', at: base + 300 }, { name: '台北', at: base + 1000 }],
+    staMap: {}, stopCodes: ['', ''],
+  };
+  await insRow({
+    token: T, sys: 'tra_sched', train_no: '9909',
+    stops: [{ name: '樹林', at: base - 600 }, { name: '板橋', at: base }, { name: '台北', at: base + 500 }],
+    staMap: { '1040': 0, '1020': 1, '1000': 2 }, stopCodes: ['1040', '1020', '1000'],
+    journey_state: { phase: 'planned', sourceIndex: 1, sourceAt: base, sourceCode: '1020', target },
+    last_idx: 0, last_obs_idx: 0, last_delay: 0, apns_env: 'prod',
+    bound_at: base - 1800, expire_at: base + 7200,
+  });
+  // 觀測優先：表定時鐘恰好到板橋，同時 TDX 也明確回報「在板橋站上」。
+  tdxBoard = [{ TrainNo: '9909', DelayTime: 0, StationID: '1020', TrainStationStatus: 1 }];
+  calls.length = 0; apnsNextStatus = 200; apnsNextReason = ''; apnsPerToken = {}; apnsTokenEnv = {};
+  const first = await laPushAll(env, fakeCtx, BASE_URL);
+  const cs1 = csOfTok(T);
+  ok('PJOURNEY 前置:來源區間車抵達板橋時，後端真的送出一發 APNs 交棒',
+    first.sent === 1 && !!cs1, `sent=${first.sent} APNs=${!!cs1}`);
+  ok('PJOURNEY(關鍵)同一張卡的身分已覆寫成高鐵 0841，不再繼續顯示區間車 9909',
+    !!cs1 && cs1.trainNoOverride === '0841' && cs1.sysOverride === 'thsr_sched'
+      && cs1.kindOverride === '高鐵' && cs1.colorOverride === '#f05a28', JSON.stringify(cs1));
+  ok('PJOURNEY(關鍵)板橋轉乘窗顯示「等候轉乘」且倒數到高鐵發車，不把它誤寫成下一站到站',
+    !!cs1 && cs1.transferWaiting === true && cs1.nextStop === '板橋'
+      && cs1.arrivalDate === base + 300 && cs1.terminus === '左營', JSON.stringify(cs1));
+  const row1 = await getRow(T);
+  let phase1 = null;
+  try { phase1 = row1 && JSON.parse(row1.journey_state || 'null').phase; } catch (e) {}
+  ok('PJOURNEY 交棒推播成功後 D1 原子切到高鐵並記成 active（下一分鐘不會跳回來源車）',
+    !!row1 && row1.sys === 'thsr_sched' && row1.train_no === '0841' && row1.last_idx === 0 && phase1 === 'active',
+    row1 ? `sys=${row1.sys} train=${row1.train_no} idx=${row1.last_idx} phase=${phase1}` : '(查無列)');
+
+  // 高鐵發車後：第一格「板橋發車」已過，表定序列自然推到下一站台北；身分 override 仍保留。
+  mockNowSec = base + 400;
+  calls.length = 0;
+  const second = await laPushAll(env, fakeCtx, BASE_URL);
+  const cs2 = csOfTok(T);
+  ok('PJOURNEY(關鍵)高鐵開車後同一張卡接著顯示高鐵下一站台北，不停在轉乘倒數',
+    second.sent === 1 && !!cs2 && cs2.trainNoOverride === '0841' && cs2.nextStop === '台北'
+      && cs2.transferWaiting === false && cs2.arrivalDate === base + 1000, JSON.stringify(cs2));
+  const row2 = await getRow(T);
+  ok('PJOURNEY 高鐵發車後 D1 站序前進到 1，接續追蹤狀態仍為高鐵 0841',
+    !!row2 && row2.sys === 'thsr_sched' && row2.train_no === '0841' && row2.last_idx === 1,
+    row2 ? `sys=${row2.sys} train=${row2.train_no} idx=${row2.last_idx}` : '(查無列)');
+  await resetTable();
+}
+
 // 🔴 覆蓋率 gate(最終複審 C1-Minor-5,心得 37(d)):總斷言數本來只印在總計行、從無斷言。
 // 條件式區塊被跳過(例如「APNs 呼叫數不是 1」而該區塊沒寫 else 回填)會讓分母【無聲縮水】:
 // 實測某一發突變讓總計從 139 掉到 128,11 條斷言消失而沒有任何人報警。
 // 這條把「每一格都真的跑到了」變成具名斷言。改動本檔的斷言數時要一併更新這個常數。
 {
-  const EXPECT_TOTAL = 253;   // 不含本條;本條自己會讓總計 +1(2026-08-08 工項 A/B:181 → 199;複審修復輪次1:→ 218;輪次2(N-1/N-2＋三個把關):→ 231;PTOK token 長度三條:→ 234;PSTOP 停靠中五條:→ 239;PENV 雙環境退路六條:→ 245;2026-08-19 stale-date：PSTALECONST 跨語言常數三條＋P1 一條＋PSTALE 兩格四條:→ 253)
+  const EXPECT_TOTAL = 259;   // 不含本條;本條自己會讓總計 +1(2026-08-08 工項 A/B:181 → 199;複審修復輪次1:→ 218;輪次2(N-1/N-2＋三個把關):→ 231;PTOK token 長度三條:→ 234;PSTOP 停靠中五條:→ 239;PENV 雙環境退路六條:→ 245;2026-08-19 stale-date：PSTALECONST 跨語言常數三條＋P1 一條＋PSTALE 兩格四條:→ 253;2026-09-04 跨車交棒六條:→ 259)
   ok(`COV 覆蓋率 gate:本輪斷言總數必須恰好等於預期 ${EXPECT_TOTAL}(區塊被跳過或條件式吞掉會讓分母無聲縮水)`,
     results.length === EXPECT_TOTAL, `actual=${results.length}`);
 }

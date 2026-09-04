@@ -114,6 +114,13 @@ try {
   if (xferFollow.status !== 0) fail('跟車中的接續釘選未過——面板算繪把點擊吃掉,或窄卡版面溢出'
     + '（單獨重跑：npm run check-transfer-follow-pin）');
 
+  // 釘選成功不代表背景中的旅程會交棒。這支用真 D1＋laPushAll＋APNs body 驗證來源列車
+  // 抵達轉乘站後，卡片身分、發車倒數與後續站序確實切到已選班次。
+  const xferHandoff = spawnSync('node', [path.join(wt, 'scripts', 'verify_transfer_live_handoff.mjs')], { encoding: 'utf8' });
+  process.stdout.write(xferHandoff.stdout || ''); process.stderr.write(xferHandoff.stderr || '');
+  if (xferHandoff.status !== 0) fail('跨車轉乘接棒未過——鎖屏卡會在轉乘站繼續跟來源列車'
+    + '（單獨重跑：npm run check-transfer-live-handoff）');
+
   // ── 2.9 北捷上游呼叫量閘門 ────────────────────────────────────────────────
   // 2026-09-02 北捷來函「8 月三支 API 各逾 60 萬次、不似正常使用方式」之後補的。
   // 這裡守的是兩件會【靜默】退回去的事：營運窗外的閘門、CarWeight 的 60 秒節流。

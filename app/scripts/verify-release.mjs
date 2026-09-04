@@ -25,6 +25,29 @@ export function assertAndroidMainActivityDoesNotPreInitWindow(mainActivity) {
     'Android MainActivity 不可手動呼叫 EdgeToEdge.enable()——會在 Capacitor 套用 NoActionBar 前初始化 launch theme，讓上下白帶回歸');
 }
 
+// 跨車轉乘不能只存在 index.html：背景後 iOS 由 Worker/APNs 更新同一張 Activity，Android
+// 由原生 Alarm 接手。少任何一側都會出現「App 裡已選好，但縮小後仍跟上一班車」且 build 全綠。
+export function assertTransferHandoffNativeContract({ html, iosAttributes, iosWidget, androidPlugin, androidNotification }) {
+  assert(html.includes('function xferHandoffPlan(') && html.includes('function maybeXferAutoFollow(')
+      && /keepNow:\s*true/.test(html),
+    '網頁端缺跨車交棒計畫／前景自動接續／維持真實時鐘其中之一');
+  for (const key of ['trainNoOverride', 'kindOverride', 'sysOverride', 'colorOverride', 'transferWaiting']) {
+    assert(new RegExp(`var\\s+${key}\\s*:`).test(iosAttributes),
+      `iOS ContentState 缺 ${key}——ActivityAttributes 不可變，卡片會永遠顯示第一段列車`);
+  }
+  assert(/ctx\.state\.trainNoOverride\s*\?\?\s*ctx\.attributes\.trainNo/.test(iosWidget)
+      && /transferWaiting:\s*ctx\.state\.transferWaiting/.test(iosWidget),
+    'iOS Widget 沒有消費交棒後的車次身分／等候轉乘狀態');
+  assert(/getObject\("handoff"\)/.test(androidPlugin) && /JSONObject\.NULL/.test(androidPlugin),
+    'Android plugin 沒有轉送 handoff 或無法在取消釘選時清掉舊計畫');
+  assert(/applyHandoffIfDue\(/.test(androidNotification)
+      && /state\.put\("trainNo",\s*handoff\.optString/.test(androidNotification)
+      && /state\.remove\("handoff"\)/.test(androidNotification),
+    'Android 背景通知缺到站交棒、車次切換或一次性清理');
+  assert(/boolean\s+sourceStillActive\s*=\s*applyOfficial\([\s\S]*boolean\s+handedOff\s*=\s*applyHandoffIfDue\([\s\S]*!sourceStillActive\s*&&\s*!handedOff/.test(androidNotification),
+    'Android 來源車終到轉乘站時必須先嘗試交棒再收卡，否則只收到「已離站」的一輪會把接續計畫刪掉');
+}
+
 // Android 前景定位契約：同時宣告 coarse/fine，並明確請求 location alias，讓系統提供「精確位置」
 // 選項。一次性與連續定位都必須保留呼叫端的 enableHighAccuracy，不可在 bridge 偷壓回 false。
 export function assertAndroidPreciseLocationContract({ nativeBridgeSource, packagedBridge, androidManifest }) {
@@ -856,6 +879,13 @@ export async function verifyRelease({
   const repoBuild = extractBuild(repoIndex);
   assert(repoBuild, '根目錄 index.html 找不到 BUILD 版本戳記');
   assertAndroidSafeAreaCssContract(repoIndex);
+  assertTransferHandoffNativeContract({
+    html: repoIndex,
+    iosAttributes: await readFile(join(appRoot, 'ios/App/App/RailFollowAttributes.swift'), 'utf8'),
+    iosWidget: await readFile(join(appRoot, 'ios/App/RailBoardWidget/RailFollowActivity.swift'), 'utf8'),
+    androidPlugin: await readFile(join(appRoot, 'android/app/src/main/java/tw/railisland/app/RailFollowLivePlugin.java'), 'utf8'),
+    androidNotification: await readFile(join(appRoot, 'android/app/src/main/java/tw/railisland/app/RailFollowNotification.java'), 'utf8'),
+  });
 
   // 金鑰不得寫死進公開 repo（稽核 2026-07-26）：2026-07-25 的 commit 5aab5c4 把網站用的 Esri
   // token 直接寫進 index.html，於是隨 public repo 推上 GitHub、也印在 railisland.tw 的網頁原始碼裡。

@@ -45,7 +45,8 @@ struct RailFollowDisplay {
         kind: String, trainNo: String, colorHex: String?, terminus: String,
         nextStop: String, prevStop: String?,
         arrivalDate: Double?, departedDate: Double?,
-        delaySec: Int, stopping: Bool, notice: String?, isStale: Bool, now: Date
+        delaySec: Int, stopping: Bool, transferWaiting: Bool = false,
+        notice: String?, isStale: Bool, now: Date
     ) -> RailFollowDisplay {
         let nowSec = now.timeIntervalSince1970
         let left = arrivalDate.map { $0 - nowSec }
@@ -111,7 +112,9 @@ struct RailFollowDisplay {
         var targetLabel = localizedNextStop
         if let a = arrivalDate {
             let t = RailBoardClock.updateTimeString(Date(timeIntervalSince1970: a))
-            targetLabel = stopping
+            targetLabel = transferWaiting
+                ? RailNativeL10n.text("{station} {time} 發車", ["station": localizedNextStop, "time": t])
+                : stopping
                 ? RailNativeL10n.text("{station} {time} 到", ["station": localizedNextStop, "time": t])
                 : "\(localizedNextStop) \(t)"
         }
@@ -120,6 +123,8 @@ struct RailFollowDisplay {
         if stale {
             // 不寫「行駛中」——那是在宣稱一件我們已經不知道的事。
             word = RailNativeL10n.text("資料未更新")
+        } else if transferWaiting {
+            word = RailNativeL10n.text("等候轉乘")
         } else {
             switch phase {
             case .stopping: word = RailNativeL10n.text("停靠中")
@@ -132,7 +137,7 @@ struct RailFollowDisplay {
             kind: RailNativeL10n.name(kind), trainNo: trainNo,
             color: RailHex.color(colorHex), inkColor: RailHex.ink(colorHex),
             terminus: RailNativeL10n.name(terminus),
-            stopLabel: RailNativeL10n.text(stopping ? "目前" : "下一站"),
+            stopLabel: RailNativeL10n.text(transferWaiting ? "轉乘" : stopping ? "目前" : "下一站"),
             stopName: localizedNextStop,
             countdown: countdown, delayMinutes: delaySec / 60,
             track: track, progress: progress, phase: phase,
@@ -281,11 +286,13 @@ struct RailFollowIslandBottom: View {
 struct RailFollowActivityWidget: Widget {
     private func display(_ ctx: ActivityViewContext<RailFollowAttributes>) -> RailFollowDisplay {
         RailFollowDisplay.make(
-            kind: ctx.attributes.kind, trainNo: ctx.attributes.trainNo,
-            colorHex: ctx.attributes.color, terminus: ctx.state.terminus,
+            kind: ctx.state.kindOverride ?? ctx.attributes.kind,
+            trainNo: ctx.state.trainNoOverride ?? ctx.attributes.trainNo,
+            colorHex: ctx.state.colorOverride ?? ctx.attributes.color, terminus: ctx.state.terminus,
             nextStop: ctx.state.nextStop, prevStop: ctx.state.prevStop,
             arrivalDate: ctx.state.arrivalDate, departedDate: ctx.state.departedDate,
             delaySec: ctx.state.delaySec, stopping: ctx.state.stopping ?? false,
+            transferWaiting: ctx.state.transferWaiting ?? false,
             notice: ctx.state.notice,
             // 🔴 這張卡的 staleDate 是「預計到站＋寬限」（RailLiveActivityPlugin／worker 兩側
             //    都送同一個值）⇒ isStale 的語意就是「資料過期」。候車卡的 staleDate 是
