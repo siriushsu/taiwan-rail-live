@@ -6574,6 +6574,28 @@ function abbrOf(ln) {
   if (/^[A-Za-z]/.test(ln.id)) return ln.id.split('_')[0];
   return TRA_ABBR[ln.id] || ln.name.replace(/（.*$/, '');
 }
+// 機捷車種:班表沒有 pattern 欄位(build 端只拿 StoppingPatternID 分桶串接,不寫進輸出),
+// 但直達車跳站、普通車站站停 ⇒ 停靠樣態就是車種本身。全線唯一一條 A 線,牌上不必再寫線代號。
+//
+// 官方只有兩種直達樣態(timetable.php 逐字實查:「直達車(停靠A1、A3、A8、A12、A13)」與
+// 「尖峰增停直達車(…A18、A21)」),對應 index [0,2,7,11,12] 與 [0,2,7,11,12,17,20]。
+// 🔴 首末班另有每天約 17 班「跳法跟兩者都不一樣」的特殊班次(如 23:08 台北車站→老街溪:
+// 前段跳站、後段站站停;23:23 台北車站→機場第二航廈跳過 A2–A9)。官方怎麼歸類它們我們沒有
+// 依據 ⇒ **留白顯示線代號,不猜**。標錯車種比不標更糟:使用者會照著它決定要不要上車。
+const TYMC_EXPRESS_SOUTH = [0, 2, 7, 11, 12, 17, 20];
+const TYMC_KIND_TAG = { exp: '直', com: '普' };          // 車牌:單字,牌寬與原本的「A」相當
+const TYMC_KIND_NAME = { exp: '直達車', com: '普通車' }; // 跟隨卡/看板:全稱
+function tymcKindOf(ln, tr) {
+  if (!ln || freqSysIdOf(ln) !== 'tymc' || !tr || tr.length < 4) return null;
+  const stops = []; for (let i = 0; i < tr.length; i += 2) stops.push(tr[i]);
+  // 站站停(索引連號,南下遞增北上遞減)＝普通車;短程區間車一樣認得出來
+  if (stops.every((v, i) => i === 0 || Math.abs(v - stops[i - 1]) === 1)) return 'com';
+  // 跳站:只有恰好落在官方樣態上(基本直達車＝完整樣態的前綴/後綴)才敢標直達
+  const full = stops[0] < stops[stops.length - 1] ? TYMC_EXPRESS_SOUTH : [...TYMC_EXPRESS_SOUTH].reverse();
+  const seg = stops[0] < stops[stops.length - 1] ? full.slice(0, stops.length) : full.slice(full.length - stops.length);
+  return stops.length === seg.length && stops.every((v, i) => v === seg[i]) ? 'exp' : null;
+}
+function tymcTagLabel(ln, tr) { const k = tymcKindOf(ln, tr); return k ? t(TYMC_KIND_TAG[k]) : ln.abbr; }
 function textColorFor(hex) {
   const m = hex.replace('#', '');
   const r = parseInt(m.slice(0, 2), 16), g = parseInt(m.slice(2, 4), 16), b = parseInt(m.slice(4, 6), 16);
@@ -10356,7 +10378,7 @@ function drawFreq(w, h) {
         paintTrain(cp.x, cp.y, null, ln.id, () => {
           if (ff && ff.ln === ln && ff.tr === tr) drawFreqRing(cp, ln.color);
           if (showTrain && inView(cp)) {
-            drawTag(cp, ln.abbr, ln.color, tc);
+            drawTag(cp, tymcTagLabel(ln, tr), ln.color, tc);
             if (state.dirArrow) drawFreqDirArrow(cp, ln, tr, freqTrainPosAt(ln, tr, state.simSec - DIR_DT_SEC));
           } else drawDot(cp, ln.color);
         });
@@ -10531,7 +10553,11 @@ function updateFreqCard(info) {
   document.getElementById('fcDot').style.background = ln.color;
   // 冠系統名:全台同框/多系統群組裡光「綠線」分不清台中高雄
   document.getElementById('fcLine').textContent = (ln._sysLabel ? t(ln._sysLabel) + ' ' : '') + routeName(ln.name || ln.abbr || '', ln._sys);
-  document.getElementById('fcDir').textContent = info.loop ? t('環狀線循環') : (info.termName ? t('往 {station}', { station: stationName(info.termName, ln._sys) }) : '');
+  // 機捷兩種車跑同一條線、同一個顏色,不寫車種就分不出這班是站站停還是跳站(issue #44/#45)
+  const fcKind = f.tr ? tymcKindOf(ln, f.tr) : null;
+  const fcDirTxt = info.loop ? t('環狀線循環') : (info.termName ? t('往 {station}', { station: stationName(info.termName, ln._sys) }) : '');
+  document.getElementById('fcDir').textContent = fcKind
+    ? t(TYMC_KIND_NAME[fcKind]) + (fcDirTxt ? '・' + fcDirTxt : '') : fcDirTxt;
   // 實際時刻班次附下一站發車時刻(HH:MM);班距幽靈車只有站名
   document.getElementById('fcNext').textContent = (stationName(info.nextName, ln._sys) || '—') +
     (info.nextSec != null ? '(' + fmtHM(info.nextSec % 86400) + ')' : '');
@@ -10733,7 +10759,7 @@ function drawDecoTrains(w, h) {
         paintTrain(cp.x, cp.y, null, ln.id, () => {
           if (ff && ff.ln === ln && ff.tr === tr) drawFreqRing(cp, ln.color);
           if (showTrain) {
-            drawTag(cp, ln.abbr, ln.color, tc);
+            drawTag(cp, tymcTagLabel(ln, tr), ln.color, tc);
             if (state.dirArrow) drawFreqDirArrow(cp, ln, tr, freqTrainPosAt(ln, tr, state.simSec - DIR_DT_SEC));
           } else drawDot(cp, ln.color);
         });
@@ -27615,7 +27641,8 @@ function trtcOfficialLegacyGroups(st, lines, isDeco, includeTrtc = false, offici
         if (dtm > (shortTurn ? 1 : 3) * hw) return;
       }
       if (!byDir.has(destName)) byDir.set(destName, []);
-      byDir.get(destName).push({ t, dtm, ci });
+      // 機捷補列進北捷官方板時同樣要帶車種(台北車站等機捷走的是這條路徑)
+      byDir.get(destName).push({ t, dtm, ci, tymcKind: tymcKindOf(ln, trip) });
     });
     byDir.forEach((rows, destName) => {
       rows.sort((a, b) => a.dtm - b.dtm);
@@ -27726,7 +27753,7 @@ function renderTrtcOfficialFreqBoard(el, st, lines, isDeco, view) {
       const minutes = Math.round(row.dtm / 60);
       const min = row.dtm < 60 ? t('即將進站') : t('{n} 分', { n: i18nNumber(minutes) }, minutes);
       return `<div class="row" data-li="${group.li}" data-ci="${row.ci}" title="${escHtml(t('跟隨往 {station} 的班次', { station: destination }))}"><span class="dot" style="background:${group.ln.color}"></span>` +
-        `<b>${escHtml(t('往 {station}', { station: destination }))}</b><span class="dest">${escHtml(lineLabel)}</span>` +
+        `<b>${escHtml((row.tymcKind ? t(TYMC_KIND_NAME[row.tymcKind]) + '・' : '') + t('往 {station}', { station: destination }))}</b><span class="dest">${escHtml(lineLabel)}</span>` +
         `<span class="t">${fmtHM(row.t % 86400)}</span><span class="min">${escHtml(min)}</span></div>`;
     }).join('');
   }).join('');
@@ -27842,7 +27869,8 @@ function renderFreqBoard(el, st, lines, isDeco) {
       if (dtm < -30 || dtm > 7200) return; // 未來 2 小時內
       const destName = ln.stations[trip[trip.length - 2]].name;
       if (!byDir.has(destName)) byDir.set(destName, []);
-      byDir.get(destName).push({ t, dtm, ci });
+      // 機捷「往台北車站」同時有直達與普通,同一組裡混排 ⇒ 車種要逐列標,光看目的地分不出來
+      byDir.get(destName).push({ t, dtm, ci, tymcKind: tymcKindOf(ln, trip) });
     });
     byDir.forEach((rows, destName) => {
       rows.sort((a, b) => a.dtm - b.dtm);
@@ -27860,7 +27888,7 @@ function renderFreqBoard(el, st, lines, isDeco) {
     return metroBoardHeadHtml(heads, gi, g.ln) + g.rows.map(r => {
       const minutes = Math.round(r.dtm / 60);
       const min = r.dtm < 60 ? t('即將進站') : t('{n} 分', { n: i18nNumber(minutes) }, minutes);
-      const direction = t('往 {station}', { station: destination });
+      const direction = (r.tymcKind ? t(TYMC_KIND_NAME[r.tymcKind]) + '・' : '') + t('往 {station}', { station: destination });
       return `<div class="row" data-li="${g.li}" data-ci="${r.ci}" title="${escHtml(t('跟隨往 {station} 的班次', { station: destination }))}"><span class="dot" style="background:${g.ln.color}"></span>` +
         `<b>${escHtml(direction)}</b><span class="dest">${escHtml(lineLabel)}</span>` +
         `<span class="t">${fmtHM(r.t % 86400)}</span><span class="min">${escHtml(min)}</span></div>`;
