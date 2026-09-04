@@ -121,6 +121,19 @@ try {
   if (xferHandoff.status !== 0) fail('跨車轉乘接棒未過——鎖屏卡會在轉乘站繼續跟來源列車'
     + '（單獨重跑：npm run check-transfer-live-handoff）');
 
+  // 機捷車種不能只驗「程式裡有直／普兩個字」：真正的驗收是畫面同時能看出兩種車，且
+  // 跟車卡、車站看板與首末班特殊班次都不硬猜。瀏覽器 gate 另鎖住放大、尖頭／圓角與
+  // 實心／白底；資料 gate 確認官方直達車端點與兩方向樣態沒有在班表更新後走樣。
+  const tymcKind = spawnSync('node', [path.join(wt, 'scripts', 'verify_tymc_train_kind.mjs')], { encoding: 'utf8' });
+  process.stdout.write(tymcKind.stdout || ''); process.stderr.write(tymcKind.stderr || '');
+  if (tymcKind.status !== 0) fail('桃園機捷車種顯示未過——直達／普通車的文字、大小、形狀或反白有回歸'
+    + '（單獨重跑：npm run check-tymc-kind）');
+
+  const tymcEndpoints = spawnSync('node', [path.join(wt, 'scripts', 'verify_tymc_express_endpoints.mjs')], { encoding: 'utf8' });
+  process.stdout.write(tymcEndpoints.stdout || ''); process.stderr.write(tymcEndpoints.stderr || '');
+  if (tymcEndpoints.status !== 0) fail('桃園機捷直達車資料未過——端點、方向或官方樣態有回歸'
+    + '（單獨重跑：npm run check-tymc-kind）');
+
   // ── 2.9 北捷上游呼叫量閘門 ────────────────────────────────────────────────
   // 2026-09-02 北捷來函「8 月三支 API 各逾 60 萬次、不似正常使用方式」之後補的。
   // 這裡守的是兩件會【靜默】退回去的事：營運窗外的閘門、CarWeight 的 60 秒節流。

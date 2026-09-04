@@ -60,6 +60,7 @@ sh('npm', ['run', 'check-tablet'], { cwd: repoRoot });
 sh('npm', ['run', 'check-bus-transfer'], { cwd: repoRoot });
 sh('npm', ['run', 'check-transfer-live-handoff'], { cwd: repoRoot });
 sh('npm', ['run', 'check-live-activity'], { cwd: repoRoot });
+sh('npm', ['run', 'check-tymc-kind'], { cwd: repoRoot });
 
 // ── 2／6　版號、更新了什麼、www、cap sync、發行閘門 ────────────────────────────
 // set-release-mode 自己會做：version train 實查、出貨基線涵蓋檢查、pbxproj 寫入＋回讀、
