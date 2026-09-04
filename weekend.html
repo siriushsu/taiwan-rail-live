@@ -122,7 +122,12 @@ function placeText(places) {
   if (!names.length) return '';
   return names.map(function (n) { return esc(n) + T.station; }).join('、');
 }
-// 與 index.html:27068 的 eventHasChineseSource() 同一個範圍。用跳脫寫法不寫字面 CJK 字元。
+// 字元範圍與 index.html 的 eventHasChineseSource() 相同。用跳脫寫法不寫字面 CJK 字元。
+// 🔴 但【看的欄位刻意不同】,不要照著 index.html 那邊補:那邊測的是原始 events.json 記錄的
+// [title, evWhere(ev), evWhen(ev), note],而這一頁拿到的是 API 形狀(days／places),
+// 根本沒有 evWhere／evWhen 這兩個欄位——照著找會找到不存在的欄位。這裡真正對應得上的是
+// placeText(ev.places) 的站名,而站名幾乎必然是中文,納進來等於每張卡都被標「中文原文」,
+// 比現在更糟。所以只看 title 與 note(那兩個才是「翻沒翻譯」有意義的欄位),這是刻意的取捨。
 function hasChinese(s) { return /[\u3400-\u9fff]/.test(String(s || '')); }
 
 function card(ev) {

@@ -27132,6 +27132,12 @@ function eventRowsHtml(st) {
 // 改一次兩邊都變。開法比照活動原文連結:window.open 交給系統瀏覽器
 // (App 內建瀏覽器要等推播那一批裝 @capacitor/browser,屆時只換這一個函式)。
 // 帶上當下語言,讓從日文/英文介面點過去的人看到對應的骨架文字。
+// 🔴 網域寫死是刻意的(網站與 App 共用同一份 weekend.html;railisland.tw 在全檔多處寫死:
+// og:url／canonical／MUSIC_ORIGIN／PUBLIC_SHARE_BASE)。代價寫清楚:【在預覽站點按這兩個
+// 入口會導去正式站】——所以親試預覽版時,這兩個入口只驗得到「有沒有接上、會不會導覽」,
+// 驗不到這條分支的 weekend.html 長什麼樣,那要直接開預覽站的 /weekend.html。
+// 之後若改成同源相對路徑(讓預覽站留在預覽站),記得 verify_weekend_entry 的 X6 是釘住
+// 「出站 origin 恰為 railisland.tw」的那一條,要同輪改成「等於當前 origin」。
 const WEEKEND_PAGE_URL = 'https://railisland.tw/weekend.html';
 function weekendPageUrl() {
   return WEEKEND_PAGE_URL + (I18N_LANG && I18N_LANG !== 'zh-TW' ? '?lang=' + encodeURIComponent(I18N_LANG) : '');
