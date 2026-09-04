@@ -189,8 +189,8 @@
         "Ambient mode is now sit-back-and-watch: the map can no longer be dragged or pinched off course, and leaving then re-entering no longer shrinks the Exit ambient mode button into an empty stub you cannot tap.",
       '跟捷運列車時，卡片上會顯示這一台車每一節車廂的擁擠度':
         'While following a Taipei Metro train, the card shows how crowded each carriage of that train is.',
-      '桃園機場捷運的列車標得出車種：地圖車牌寫「直」或「普」，跟車卡與車站看板寫全名，同一個「往台北車站」也分得出下一班是直達車還是普通車':
-        'Taoyuan Airport MRT trains now show their service type: map tags read E or C, while the follow card and station boards spell it out — so two trains both bound for Taipei Main Station are no longer indistinguishable.',
+      '桃園機場捷運的列車標得出車種：地圖上直達車是尖頭紫牌、普通車是白底圓牌，車牌也放大了，跟車卡與車站看板寫全名':
+        'Taoyuan Airport MRT trains now show their service type: Express trains get a pointed purple tag, Commuter trains a white rounded one, and both tags are larger than before. The follow card and station boards spell the type out.',
       '選好接續班次後，抵達轉乘站時動態島與鎖定畫面會自動切到下一班車':
         'After you choose a connection, the Dynamic Island and Lock Screen automatically switch to the next train at the transfer station.',
       '兩條路線立體交叉的地方，改成依實際的高架與地下關係決定哪一條畫在上面':
@@ -584,8 +584,8 @@
         '鑑賞モードは「眺めるだけ」に：地図が指で動かされたりズームがずれたりせず、いったん終了してもう一度入っても「鑑賞モードを終了」ボタンが押せない小さなボタンに縮まなくなりました。',
       '跟捷運列車時，卡片上會顯示這一台車每一節車廂的擁擠度':
         '台北メトロの列車を追跡中、その列車の車両ごとの混雑度をカードに表示します。',
-      '桃園機場捷運的列車標得出車種：地圖車牌寫「直」或「普」，跟車卡與車站看板寫全名，同一個「往台北車站」也分得出下一班是直達車還是普通車':
-        '桃園空港MRTの列車に種別を表示するようになりました。地図上のタグは「直」「普」、追跡カードと駅の発車案内には正式名称を表示します。同じ「台北駅ゆき」でも直達列車か普通列車か見分けられます。',
+      '桃園機場捷運的列車標得出車種：地圖上直達車是尖頭紫牌、普通車是白底圓牌，車牌也放大了，跟車卡與車站看板寫全名':
+        '桃園空港MRTの列車に種別を表示するようになりました。直達列車は先の尖った紫のタグ、普通列車は白い丸みのあるタグで、タグ自体も従来より大きくなりました。追跡カードと駅の発車案内には正式名称を表示します。',
       '選好接續班次後，抵達轉乘站時動態島與鎖定畫面會自動切到下一班車':
         '乗り継ぐ列車を選ぶと、乗換駅への到着時にDynamic Islandとロック画面が次の列車へ自動で切り替わります。',
       '兩條路線立體交叉的地方，改成依實際的高架與地下關係決定哪一條畫在上面':

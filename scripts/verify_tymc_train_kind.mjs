@@ -66,16 +66,27 @@ const probe = () => {
   for (const tr of ln._tt || []) { if (!freqTrainPosAt(ln, tr, sec)) continue; truth(tr) === 'exp' ? expLive++ : comLive++; }
 
   // 畫面：spy canvas fillText，收集這一幀真的寫出去的字
+  // 只記字串的話,把「直」「普」畫回原本 15px 的小牌、或把形狀/反白拿掉,這支 gate 仍會全綠——
+  // 而使用者反映的正是「看不出來」。所以連**字級、字色、牌身填色、牌身路徑形狀**一起記:
+  // 尖頭牌是純多邊形(lineTo,無 arcTo),圓角牌是四個 arcTo(無 lineTo)。
   const drawn = [];
-  const orig = ctx.fillText;
-  ctx.fillText = function (txt, x, y, ...rest) { drawn.push({ s: String(txt), x, y }); return orig.call(this, txt, x, y, ...rest); };
+  const orig = ctx.fillText, oBegin = ctx.beginPath, oLineTo = ctx.lineTo, oArcTo = ctx.arcTo, oFill = ctx.fill;
+  let seg = { lineTo: 0, arcTo: 0 }, lastFill = null;
+  ctx.beginPath = function (...a) { seg = { lineTo: 0, arcTo: 0 }; return oBegin.apply(this, a); };
+  ctx.lineTo = function (...a) { seg.lineTo++; return oLineTo.apply(this, a); };
+  ctx.arcTo = function (...a) { seg.arcTo++; return oArcTo.apply(this, a); };
+  ctx.fill = function (...a) { lastFill = { bg: String(this.fillStyle).toLowerCase(), lineTo: seg.lineTo, arcTo: seg.arcTo }; return oFill.apply(this, a); };
+  ctx.fillText = function (txt, x, y, ...rest) {
+    drawn.push({ s: String(txt), x, y, font: String(this.font), fg: String(this.fillStyle).toLowerCase(), body: lastFill });
+    return orig.call(this, txt, x, y, ...rest);
+  };
   draw();
-  ctx.fillText = orig;
+  ctx.fillText = orig; ctx.beginPath = oBegin; ctx.lineTo = oLineTo; ctx.arcTo = oArcTo; ctx.fill = oFill;
 
   // 逐台比對：每台在畫面內的機捷車，牌面上那個字必須等於真值判定的結果
   // （真值＝官方樣態，這裡自己算一遍，不呼叫 tymcKindOf）
   const EXPECT = { exp: '直', com: '普', null: 'A' };
-  const mismatches = [];
+  const mismatches = [], tymcHits = [];
   let matched = 0, blanks = 0;
   for (const tr of ln._tt || []) {
     const pos = freqTrainPosAt(ln, tr, sec); if (!pos) continue;
@@ -87,6 +98,8 @@ const probe = () => {
     matched++;
     if (String(truthStrict(tr)) === 'null') blanks++;
     if (hit.s !== want) mismatches.push({ stops: tr.filter((_, i) => i % 2 === 0).join(','), want, got: hit.s });
+    tymcHits.push({ kind: String(truthStrict(tr)), s: hit.s, font: hit.font, fg: hit.fg,
+      bg: hit.body ? hit.body.bg : '', lineTo: hit.body ? hit.body.lineTo : -1, arcTo: hit.body ? hit.body.arcTo : -1 });
   }
 
   const tags = drawn.map(d => d.s).filter(s => s.length <= 2);
@@ -94,7 +107,9 @@ const probe = () => {
   // 拿它當對照等於恆真、零訊號。所以只認其他捷運線自己的 abbr。
   const otherAbbrs = [...new Set(state.lines.filter(l => l._sys !== 'tymc').map(l => l.abbr))];
   const otherLineTags = otherAbbrs.filter(ab => tags.includes(ab));
+  const otherFonts = [...new Set(drawn.filter(d => otherAbbrs.includes(d.s)).map(d => d.font))];
   return { tripCount: (ln._tt || []).length, expLive, comLive, matched, blanks, mismatches,
+    tymcHits, otherFonts, tymcColor: String(ln.color || '').toLowerCase(),
     clock: new Date(sec * 1000).toISOString().slice(11, 16),
     drawnKinds: { 直: tags.filter(s => s === '直').length, 普: tags.filter(s => s === '普').length, A: tags.filter(s => s === 'A').length },
     otherAbbrs, otherLineTags };
@@ -114,6 +129,25 @@ check('B1 逐台比對：畫面內每一台機捷車的牌面字都等於獨立�
 check('C 控制組：其他捷運線的車牌仍是它自己的線代號（沒有把別的系統一起改掉）',
   out.otherLineTags.length > 0,
   `同幀畫出的他線車牌：${out.otherLineTags.join('、') || '(無)'}（候選 abbr：${out.otherAbbrs.join('、')}）`);
+
+// ── 看得出來嗎：字對了不代表使用者分得出來（2026-09-04 使用者回報「圖示太小、放字也沒用」）──
+// 下面三條各鎖一個辨識管道，任一個被改回去都要紅。
+const expHits = out.tymcHits.filter(h => h.kind === 'exp');
+const comHits = out.tymcHits.filter(h => h.kind === 'com');
+const big = h => /\b12px\b/.test(h.font);
+check('G4 分母閘門：畫面內同時抓到直達與普通各至少一面牌（否則 F 系列是空集合恆真）',
+  expHits.length > 0 && comHits.length > 0, `直達 ${expHits.length} 面、普通 ${comHits.length} 面`);
+check('F1 放大：機捷兩種車牌都用 12px，且沒有把其他捷運線一起放大（他線仍 10px）',
+  expHits.every(big) && comHits.every(big) && out.otherFonts.length > 0 && out.otherFonts.every(f => /\b10px\b/.test(f)),
+  `機捷字級 ${[...new Set([...expHits, ...comHits].map(h => h.font.match(/\d+px/)?.[0]))].join('/')}；他線 ${out.otherFonts.map(f => f.match(/\d+px/)?.[0]).join('/') || '(無)'}`);
+check('F2 形狀：直達＝尖頭多邊形（只有 lineTo）、普通＝圓角（只有 arcTo）',
+  expHits.every(h => h.lineTo >= 4 && h.arcTo === 0) && comHits.every(h => h.arcTo === 4 && h.lineTo === 0),
+  `直達 lineTo/arcTo=${expHits.map(h => h.lineTo + '/' + h.arcTo).join(' ')}；普通 ${comHits.map(h => h.lineTo + '/' + h.arcTo).join(' ')}`);
+check('F3 反白：直達＝線色底白字、普通＝白底線色字（兩者填色相反，不是同一塊紫）',
+  expHits.every(h => h.bg === out.tymcColor && /^#f|^rgb\(2[45]/.test(h.fg)) &&
+  comHits.every(h => h.fg === out.tymcColor && h.bg !== out.tymcColor),
+  `直達 底${expHits[0]?.bg}/字${expHits[0]?.fg}；普通 底${comHits[0]?.bg}/字${comHits[0]?.fg}（線色 ${out.tymcColor}）`);
+
 // 第二格狀態：撥到末班時段。保守判定唯一看得見的地方就是這裡——首末班特殊班次要留白顯示
 // 線代號，而不是被硬標成「直」。只驗現在這一刻等於只驗了狀態空間的一格。
 const night = await page.evaluate(probeAt => {
