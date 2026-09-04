@@ -94,11 +94,16 @@ const EVENTS = [
     anchor: { kind: 'station', sys: 'mrt', name: '中山' } },
   { id: 'h1', title: '週末開跑', start: '2026-09-06', end: '2026-09-20', url: 'https://x.invalid/8',
     anchor: { kind: 'system', sys: 'tymc' } },
+  // 🔴 這一筆是【只靠 endsIn 入選】的唯一一筆:它在區間之前就開始,在區間內結束。
+  // 沒有它的話 `startsIn || endsIn` 的第二個運算元零覆蓋——把 endsIn 整個拿掉測試照樣全綠。
+  // 產品上這也是最該進限定層的一類:「這是最後一個週末」正是使用者最需要知道的事。
+  { id: 'j1', title: '最後一個週末', start: '2026-08-20', end: '2026-09-05', url: 'https://x.invalid/10',
+    anchor: { kind: 'station', sys: 'mrt', name: '淡水' } },
   { id: 'i1', title: '市集', start: '2026-09-05', end: '2026-09-05', url: 'https://x.invalid/9',
     anchor: { kind: 'station', sys: 'tmrt', name: '市政府' } },
 ];
 const split = splitEvents(EVENTS, SPAN);
-chk('F1 限定層 5 筆', split.onlyThis.length === 5, `實得 ${split.onlyThis.length}`);
+chk('F1 限定層 6 筆', split.onlyThis.length === 6, `實得 ${split.onlyThis.length}`);
 chk('F2 限定層含週末開跑那筆', split.onlyThis.some(e => e.id === 'h1'));
 chk('F3 長期檔進 alsoOpen', split.alsoOpen.some(e => e.id === 'c1'));
 chk('F4 兩站聯名兩筆都進 alsoOpen', split.alsoOpen.filter(e => e.title === '兩站聯名').length === 2);
@@ -106,10 +111,11 @@ chk('F5 已結束不入選', ![...split.onlyThis, ...split.alsoOpen].some(e => e
 chk('F6 還沒開始不入選', ![...split.onlyThis, ...split.alsoOpen].some(e => e.id === 'f1'));
 // 壞日期那筆必須整筆被丟掉,而且不得把其他筆一起拖垮(它會讓 addDays 拋 RangeError)
 chk('F7 壞日期整筆被濾掉', ![...split.onlyThis, ...split.alsoOpen].some(e => e.id === 'g1'));
+chk('F8 這個週末結束的長期檔也進限定層', split.onlyThis.some(e => e.id === 'j1'));
 
 console.log('\n【G】去重');
 const merged = dedupeEvents(split.onlyThis, SPAN);
-chk('G1 5 筆併成 4 場', merged.length === 4, `實得 ${merged.length}`);
+chk('G1 6 筆併成 5 場', merged.length === 5, `實得 ${merged.length}`);
 const mkt = merged.find(m => m.title === '市集');
 chk('G2 市集併出兩天', mkt && mkt.days.join(',') === '2026-09-05,2026-09-06');
 chk('G3 市集只保留一個地點', mkt && mkt.places.length === 1);
