@@ -106,9 +106,12 @@ try {
       await page.evaluate(() => selectGroup(GROUPS.find(x => x.id === 'all'))); await settle(page, true);
       o.t8 = await page.evaluate(() => {
         const g = window.__ofmGl, st = window.__state;
-        const tr = (st.trains || []).find(x => x.stops?.length > 3 && !x.loop);
-        if (!tr) return { err: 'no train' };
-        st.followTrain = tr; st._routePts = buildFollowRoute(tr); st.trackStyle = 'auto';
+        const tr = (st.trains || []).find(x => x.sys === 'tra_sched' && String(x.train) === '2');
+        if (!tr) return { err: 'no train 2' };
+        st.followTrain = tr;
+        st._routePts = buildFollowRoute(tr);
+        st._routeGlPts = buildFollowRoute(tr, Infinity);
+        st.trackStyle = 'auto';
         window.__M.setPitch(60); window.__M.setBearing(35);
         const canvasFollowStrokes = [], stroke = ctx.stroke;
         ctx.stroke = function (...args) {
@@ -131,11 +134,12 @@ try {
         const hiddenCount = g.getFilter('track-follow-line')[2][1].length;
         const result = {
           routePoints: st._routePts.length,
+          exactRoutePoints: st._routeGlPts.length,
           sourcePoints: feature?.geometry?.coordinates?.length || 0,
           casing: !!g.getLayer('track-follow-casing'), line: !!g.getLayer('track-follow-line'),
           canvasFollowStrokes, themePaint, hiddenCount,
         };
-        st.followTrain = null; st._routePts = null; st.trackStyle = 'auto'; st.mapDark = false; glFollowRouteSync(g, 'light'); draw();
+        st.followTrain = null; st._routePts = null; st._routeGlPts = null; st.trackStyle = 'auto'; st.mapDark = false; glFollowRouteSync(g, 'light'); draw();
         window.__M.setPitch(0); window.__M.setBearing(0);
         return result;
       });
@@ -175,7 +179,7 @@ try {
     onlyFor('maplibre', GL_TRACKS_REASON, 'T5 站點圓各模式 filter/minzoom 正確', maplibre ? a.n === 0 && b.min === 10 && b.n === b.deco && b.deco > 0 && c.min === 0 && c.mode === 'freq' && c.n === c.vis && c.n > 0 : undefined, { a, b, c });
     onlyFor('maplibre', GL_TRACKS_REASON, 'T6 交叉口 layer 順序與中心像素=above 線色', maplibre ? o.t6ok : undefined, o.t6detail);
     onlyFor('maplibre', GL_TRACKS_REASON, 'T8 跟隨路線高亮由 GL 接手，3D 傾斜不留 canvas 透視投影長直線', maplibre
-      ? !o.t8.err && o.t8.casing && o.t8.line && o.t8.routePoints > 1 && o.t8.sourcePoints === o.t8.routePoints && o.t8.canvasFollowStrokes.length === 0 &&
+      ? !o.t8.err && o.t8.casing && o.t8.line && o.t8.routePoints > 1 && o.t8.exactRoutePoints > o.t8.routePoints && o.t8.sourcePoints === o.t8.exactRoutePoints && o.t8.canvasFollowStrokes.length === 0 &&
         JSON.stringify(o.t8.themePaint) === JSON.stringify({ light: ['#fffdf6', ['get', 'color']], dark: ['#10141c', ['get', 'colorFollowDark']], sat: ['#24382c', ['get', 'color']] }) && o.t8.hiddenCount === 0
       : undefined, o.t8);
     if (!maplibre) {
