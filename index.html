@@ -15287,8 +15287,12 @@ function tickCore(now) {
     // MapLibre:相機這一拍才動過(跟車 setView/jumpTo、手勢)而 GL 還沒 render 到它 ⇒ 本幀不畫,等它的 'render'
     // (syncDrawMaplibre)用同一個相機畫——兩層永遠同一幀落地。09-04 真機(A54/iPhone)60× 跟車實測:相機每跳一步,
     // GL 與 overlay 互有 2–4 幀落差(33–67ms、兩個方向都有);tick 先用新相機畫、GL 下一幀才畫是其中一種。
-    // GL 逾 250ms 沒 render(分頁隱藏/引擎凍結)就照畫,不讓 overlay 跟著凍住。
-    const glPending = M.engine === 'maplibre' && state._glKey !== undefined && now - (state._glAt || 0) < 250 && camKey() !== state._glKey;
+    // 第二版(09-04 iPhone v0904m 錄影 f_01264):相機靜止 >250ms 後才跳一步(60× 跟車在站內停車再開)時,舊判斷「GL 250ms 內
+    // 沒 render 就照畫」讓 tick 先用新相機畫、GL 下一幀才跟上 ⇒ 17px 一幀失步。改成:相機一變就等 GL 的 render,
+    // 但最多等 300ms(引擎凍結/分頁隱藏才會到),期限從「相機變動那一刻」起算,不看 GL 上次 render 多久以前。
+    const camNow = M.engine === 'maplibre' ? camKey() : null;
+    if (camNow !== null && camNow !== state._tickCamKey) { state._tickCamKey = camNow; state._camChangedAt = now; }
+    const glPending = camNow !== null && state._glKey !== undefined && camNow !== state._glKey && now - (state._camChangedAt || 0) < 300;
     if (synced || glPending) { state._drawDoneAt = now; state._stg = 'i'; }
     else if (psActive) {
       if (renderNow) { state._drawAt = now; state._stg = 'd'; draw(); state._drawDoneAt = now; state._stg = 'i'; } // 省電:跟隨也降到 ~30fps;相機與繪製同一個 renderNow 閘,列車不會與底圖錯位
