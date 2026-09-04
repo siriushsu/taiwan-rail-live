@@ -140,3 +140,6 @@ android-native-design-mock.html
 suno musics/_masters/
 # 車聲圖層:Envato 授權的鐵軌環境音(授權不允許公開散布原檔),只在 App build 時從這裡烤進 bundle。
 suno musics/_licensed
+
+# 內部宣傳縮時成品：由 npm run render-timelapse 批次產生，可隨時重建；影片不進公開 repo。
+輸出/縮時_*/
