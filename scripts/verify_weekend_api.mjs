@@ -29,6 +29,17 @@
 // 【W】只驗 worker.js 的接線字面(import / 函式存在且只有一份 / 路由分派恰一份 / handler
 // 呼叫 weekendBody 的方式 / body 有沒有真的被送進回應),不驗內部邏輯——邏輯的正確性交給
 // 下面三段,因為它們現在跟 handler 呼叫同一支純函式,不是各自重算。
+//
+// 🔴 修復輪 3(2026-09-04,協調者驗收修復輪 2 時自己撞出來,非複審提出):原本 W5/W6 是在
+// 【整份 worker.js】上找字面,沒有指名是在量哪一個函式——`jsonResCached(edge, cacheKey,
+// body, 200,` 這串字同時出現在 delayHistory(:2663)與 weekendBoard(:4112),兩邊都用
+// 「body」這個菜市場變數名。W6(舊編號)分辨得出來純屬巧合:delayHistory 那行接在同一行
+// 尾巴、weekendBoard 那行剛好斷行,正則的行尾 `$` 才對不上前者——協調者用受控實驗證明,只要
+// 把 delayHistory 那行【純格式】改成斷行寫法,即使 weekendBoard 自己的 body 被改成 {},
+// W6 依然全綠。這是判準盲點形態 0(沒有證明「我在量的是誰」)。
+// 修法:把 weekendBoard 的函式本體用大括號深度計數精確切出來(見下面 extractFunctionBody),
+// W5/W6(舊編號,現改稱 W6/W7)只在這一段字串裡比對——其他函式的同款字面從此連候選資格
+// 都沒有。切不出來(函式被改名/改形狀)不可以靜靜放行,新增的 W5 就是這道自保。
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -40,6 +51,34 @@ const bad = [];
 function chk(name, cond, extra) {
   if (cond) { pass++; console.log(`  ✅ ${name}`); }
   else { fail++; bad.push(name); console.log(`  ❌ ${name}${extra ? '　' + extra : ''}`); }
+}
+
+// 從整份原始碼裡精確切出某個函式的本體(用大括號深度計數,不是「找第一個貌似結尾的行」——
+// 後者在函式內有 try/catch、巢狀物件字面量時,很容易切到內部某個 `}` 就提前收尾,而且切錯了
+// 不會有任何跡象,比「直接在整份檔案裸比對」的原始盲點還難察覺)。
+// 🔴 自保比照 scripts/check_daytype_sync.mjs 的既有寫法:找不到簽章、或抽出來的本體短得
+// 不合理,一律丟例外,不可以靜靜跳過——跳過等於呼叫端的判準從此恆真,跟原本要修的盲點同類。
+// sigRegex 依慣例要以函式本體開頭的 ` {` 結尾(如 `/^async function foo\(\) \{$/m`),
+// 這樣 m[0] 的最後一個字元就是那個 `{`,可以直接從它的下一個字元開始算深度。
+function extractFunctionBody(source, sigRegex, label) {
+  const m = sigRegex.exec(source);
+  if (!m) {
+    throw new Error(`找不到函式簽章 ${sigRegex} —— ${label} 被改名或改了簽章形狀,`
+      + `以它為範圍的判準已經失去作用,請先確認函式還在,再更新這裡的抽取方式`);
+  }
+  let depth = 1, i = m.index + m[0].length;
+  const start = i;
+  for (; i < source.length && depth > 0; i++) {
+    if (source[i] === '{') depth++;
+    else if (source[i] === '}') depth--;
+  }
+  if (depth !== 0) throw new Error(`${label}:大括號配對到檔案結尾都沒有閉合,抽取失敗`);
+  const body = source.slice(start, i - 1);
+  if (body.trim().length < 30) {
+    throw new Error(`${label}:抽出的函式本體只有 ${body.trim().length} 字元,短得不合理,`
+      + `抽取用的邊界很可能切錯了`);
+  }
+  return body;
 }
 
 console.log('\n【W】worker.js 接線(字面比對,全部錨定行首/行尾,不怕「註解掉但文字還在」)');
@@ -58,21 +97,39 @@ chk('W3 路由分派恰有一份(不是「存在」而是「唯一」;若合併�
 chk('W4 只接一次(沒有合併時留下兩份或殘留一份被註解掉的舊碼)',
   (w.match(/^async function weekendBoard\(/gm) || []).length === 1,
   `實得 ${(w.match(/^async function weekendBoard\(/gm) || []).length} 份`);
-// W5 只驗「handler 有沒有呼叫共用的 weekendBody,而且參數順序對不對」這條接線——
+// 先把 weekendBoard 的函式本體切出來,下面 W6/W7 只在這一段裡比對(見上面 extractFunctionBody
+// 的說明與修復輪 3 的動機)。切不到就讓這裡先紅,W6/W7 對空字串比對也會自然一起紅——
+// 不是「跳過」,是「看得到的紅」,不會讓後面的判準靜靜變成恆真。
+let weekendBoardBody = '';
+let extractErr = null;
+try {
+  weekendBoardBody = extractFunctionBody(w, /^async function weekendBoard\(request, env\) \{$/m, 'weekendBoard');
+} catch (e) { extractErr = e.message; }
+chk('W5 抓得到 weekendBoard 的函式本體(抓不到,下面 W6/W7 兩條會失去作用,必須在這裡先紅)',
+  !extractErr, extractErr || '');
+
+// W6 只驗「handler 有沒有呼叫共用的 weekendBody,而且參數順序對不對」這條接線——
 // 邏輯本身(拿掉 dedupeEvents、兩層對調、days 打成陣列…)全部發生在 weekendBody 內部,
 // 屬於 weekend_core.mjs 的事,W 段管不到也不該管,下面【F】【E】【S】三段才是真正驗這些的地方。
-chk('W5 weekendBoard 內確實呼叫 weekendBody(today, span, eventsDoc, names)',
-  /^\s*const body = weekendBody\(today, span, eventsDoc, names\);$/m.test(w));
-// 🔴 修復輪 2 新增:W5 只驗到「body 有沒有被算出來」,沒有驗到「算出來的 body 有沒有真的
-// 被送進 HTTP 回應」——把 return 那行的 body 手誤寫成 {} 或別的變數,W1-W5、【F】【E】【S】
-// 全部不會紅,因為【F】【E】【S】三段是直接呼叫 weekendBody、完全繞過 weekendBoard() 這個
-// handler 本體的,body 算對了與 body 真的被回傳出去是斷開的兩件事。
+// 比對範圍是 weekendBoardBody,不是整份 w——雖然「weekendBody」這個匯入符號目前在全檔案
+// 唯一沒有真的撞名,但既然本體已經切出來了,同一個範圍一起用,不要一半量整份檔案、一半量
+// 本體,徒增「這條到底在量誰」的認知負擔。
+chk('W6 weekendBoard 內確實呼叫 weekendBody(today, span, eventsDoc, names)',
+  /^\s*const body = weekendBody\(today, span, eventsDoc, names\);$/m.test(weekendBoardBody));
+// 🔴 修復輪 2 新增、修復輪 3 訂正比對範圍(原編號 W5→W6、W6→W7,見檔頭修復輪 3 說明):
+// 這條只驗到「body 有沒有被算出來」,沒有驗到「算出來的 body 有沒有真的被送進 HTTP 回應」——
+// 把 return 那行的 body 手誤寫成 {} 或別的變數,原本除了這一條之外全部不會紅,因為
+// 【F】【E】【S】三段是直接呼叫 weekendBody、完全繞過 weekendBoard() 這個 handler 本體的,
+// body 算對了與 body 真的被回傳出去是斷開的兩件事。
 // 這裡只能做到字面比對:worker.js 帶滿 Cloudflare 專屬全域(caches.default 等),node 直接
 // import 會整支炸掉;任務書也已裁定不起 wrangler dev(.wrangler 本機快取跨重啟存活,突變
 // 測試會假綠)。字串比對的代價是只要那行文字沒變就測不出「邏輯上是否真的送對」,但至少接得住
 // 「回應引數被改成別的變數/字面值」這種最粗暴的手誤——這是已知取捨,不是懶得驗到底。
-chk('W6 handler 真的把 weekendBody 算出來的 body 送進 HTTP 回應(不是手誤寫成 {} 或別的變數)',
-  /^\s*return await jsonResCached\(edge, cacheKey, body, 200,$/m.test(w));
+// 比對範圍限定在 weekendBoardBody:就算 worker.js 裡其他函式(例如 delayHistory)有一模一樣的
+// `jsonResCached(edge, cacheKey, body, 200,` 字面、甚至被重排成同樣的斷行寫法,也不會被算進來
+// 滿足這一條——這正是修復輪 3 要補的洞。
+chk('W7 handler 真的把 weekendBody 算出來的 body 送進 HTTP 回應(不是手誤寫成 {} 或別的變數)',
+  /^\s*return await jsonResCached\(edge, cacheKey, body, 200,$/m.test(weekendBoardBody));
 
 console.log('\n【F】固定樣本回傳形狀(內容已知,不受空窗週影響;呼叫與 handler 相同的 weekendBody)');
 // 用自己的小日曆表鎖出一個跟「今天」無關、確定是 3 天連假的區間:10-09(五,表定放假)
