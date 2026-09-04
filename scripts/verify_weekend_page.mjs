@@ -21,7 +21,11 @@ const PAYLOAD = {
       days: ['2026-09-05', '2026-09-06'], places: [{ sys: 'mrt', station: '廣慈/奉天宮' }], ids: ['a', 'b'] },
     { title: '沒有連結的活動', note: '', url: '',
       days: ['2026-09-05'], places: [{ sys: 'mrt', station: '中山' }], ids: ['c'] },
-    { title: '惡意連結活動', note: '', url: 'javascript:window.__pwned=1',
+    // 這一則常設帶兩種互相獨立的攻擊向量:url(javascript:)與 title(HTML 注入)。
+    // safeUrl() 擋前者、esc() 擋後者,B4 驗前者、B5/B6 驗後者。
+    // 🔴 title 故意不還原成安全字串(修復輪 1 之前的版本會還原,結果 card() 拿掉
+    // esc(ev.title) 之後 B5 量不到任何差異——常設留著攻擊字串,判準才有牙。
+    { title: '<img src=x onerror="window.__xss=1">', note: '', url: 'javascript:window.__pwned=1',
       days: ['2026-09-06'], places: [{ sys: 'mrt', station: '中山' }], ids: ['d'] },
   ],
   alsoOpen: [
@@ -73,7 +77,13 @@ try {
     chk('B3 外連都有 rel=noopener',
       (await pg.locator('#body a.ev').evaluateAll(a => a.every(x => (x.getAttribute('rel') || '').includes('noopener')))));
     chk('B4 惡意連結沒有被執行', (await pg.evaluate(() => window.__pwned)) === undefined);
-    chk('B5 標題有跳脫', (await pg.evaluate(() => window.__xss)) === undefined);
+    // B5 是反向判準(注入的 script 沒有被執行),B6 是正向對照(標題確實被當純文字渲染)。
+    // 只有反向判準會恆真無牙——B6 逐位元組核對 textContent,esc() 被拿掉時 <img> 會被
+    // 瀏覽器解析成元素、.ev-title 的 textContent 變空字串,兩條各自獨立驗到不同的失效模式。
+    // events[2](第 3 張卡、DOM 序 nth(2))是唯一帶 HTML 注入字元的標題,選取器指名到它。
+    chk('B5 標題沒有被當成 script 執行', (await pg.evaluate(() => window.__xss)) === undefined);
+    chk('B6 標題文字內容等於原字串（渲染成文字，不是被解析成 HTML）',
+      (await pg.locator('#body .ev').nth(2).locator('.ev-title').textContent()) === PAYLOAD.events[2].title);
     await ctx.close();
   }
 
