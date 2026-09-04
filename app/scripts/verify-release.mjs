@@ -587,8 +587,15 @@ export async function verifyRelease({
   }
   assert(html.includes("typeof window.RAIL_METRO_CORE_ENABLED === 'boolean'"),
     'App 內的 index.html 沒有把 Metro Core 發版旗標當成顯式布林覆寫');
-  assert(/L\.map\('map',\s*\{[^}]*zoomAnimation:\s*false\s*\}/.test(html),
-    'App 地圖必須在 L.map 建構時設定 zoomAnimation:false；圖磚 CSS 補間會與獨立 overlay canvas 失步');
+  // 2026-09-05（M4-A 之後）：預設引擎是 MapLibre，Leaflet 建圖搬進適配層（L.map(containerId, …)），
+  // 原本釘 L.map('map', …) 字面的斷言結構上永遠紅。改成兩條：(1) 裸開機預設 maplibre 的字面還在；
+  // (2) Leaflet 適配層還在的期間，它建圖仍帶 zoomAnimation:false（圖磚 CSS 補間會與獨立 overlay canvas 失步）。
+  // M4-B 拔掉 Leaflet 時把 (2) 一起拔。
+  assert(/return q \|\| s \|\| 'maplibre';/.test(html), 'App 開機預設引擎必須是 maplibre（M4-A）');
+  if (/\bL\.map\(/.test(html)) {
+    assert(/L\.map\(\w+,\s*\{[^}]*zoomAnimation:\s*false\b/.test(html),
+      'App 的 Leaflet 適配層建圖必須設定 zoomAnimation:false；圖磚 CSS 補間會與獨立 overlay canvas 失步');
+  }
 
   // 版本號對**所有** build 模式都必須注入(不是只有授權底圖 build)——App 內的更新提示與評分
   // 全靠它判斷「手上這顆是哪一版」。刻意寫在模式分支之外:放進安全 build 的條件裡就漏掉另一半。
