@@ -2230,8 +2230,11 @@
   /* 🔴 插入 .bgrp 之後上面那條 `.row:first-of-type` 就再也不匹配了(父層第一個 div 變成 .bgrp),
      每組第一列會多一條上框線、與組標題的底線疊成雙線。這條把它補回去。 */
   .board .bgrp + .row { border-top: 0; }
-  .board .row[data-no], .board .row[data-rand], .board .row[data-li], .board .row[data-guide], .board .row[data-ev] { cursor: pointer; }
-  .board .row[data-no]:hover, .board .row[data-rand]:hover, .board .row[data-li]:hover, .board .row[data-guide]:hover, .board .row[data-ev]:hover { background: var(--bg-stage); }
+  /* 🔴 這兩條是白名單:點得動的列才給 cursor/hover。新增可點的列一定要同輪加進來——
+     週末活動入口列(data-weekend)漏了,結果它畫了 `›`、點下去也真的會開頁,滑鼠移上去卻是
+     游標不變、底色不動,同一框裡其他每一列都有回饋,唯獨它沒有。 */
+  .board .row[data-no], .board .row[data-rand], .board .row[data-li], .board .row[data-guide], .board .row[data-ev], .board .row[data-weekend] { cursor: pointer; }
+  .board .row[data-no]:hover, .board .row[data-rand]:hover, .board .row[data-li]:hover, .board .row[data-guide]:hover, .board .row[data-ev]:hover, .board .row[data-weekend]:hover { background: var(--bg-stage); }
   /* 停駛列(台鐵):官方今日名冊裡沒有這班(見 applyTraDailyDelta)。車已從地圖名冊移除,看板仍列出來——
      整班消失跟「這時段本來就沒車」長得一樣,使用者分不出「我要搭那班停駛了」。刻意不掛 data-no,
      上面兩條規則因此自動不給 cursor:pointer 與 hover 底色,不必另寫關閉規則。 */

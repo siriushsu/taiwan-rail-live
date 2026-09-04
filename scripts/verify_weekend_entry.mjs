@@ -174,6 +174,28 @@ try {
     await ctx.close();
   } catch (e) { chk(`U! ${lang || 'zh-TW'} 這一節整節跑完不拋例外`, false, errMsg(e)); }
 
+  // 🔴 I6:cursor／hover 是【白名單】(index.html:2233-2237 那兩條列了 data-no/rand/li/guide/ev),
+  // 入口列漏掉之後,它畫了 `›`、點下去也真的會開頁,滑鼠移上去卻是游標不變、底色不動——
+  // 同一框裡其他每一列都有回饋,唯獨它沒有。這一節量的是【真的渲染出來的樣子】,不是 CSS 檔裡
+  // 有沒有那串字;V2 是反向對照(同框的非可點元素不可以是 pointer),證明量到的不是「什麼都回
+  // pointer」;V3 真的把滑鼠移上去一次再量狀態改變,不是只看規則存在。
+  console.log('\n【V】入口列看起來就是可以點的（cursor／hover）');
+  try {
+    const { ctx, pg } = await open(browser);
+    await pg.click('#exploreBtn');
+    const row = pg.locator('#expBody .row[data-weekend]');
+    await row.waitFor({ timeout: 10000 });
+    const cur = await row.evaluate(el => getComputedStyle(el).cursor);
+    chk('V1 入口列 cursor 是 pointer', cur === 'pointer', String(cur));
+    const subCur = await pg.locator('#expBody .sub').first().evaluate(el => getComputedStyle(el).cursor);
+    chk('V2 同框的非可點元素不是 pointer(證明不是「什麼都回 pointer」)', subCur !== 'pointer', String(subCur));
+    const before = await row.evaluate(el => getComputedStyle(el).backgroundColor);
+    await row.hover();
+    const after = await row.evaluate(el => getComputedStyle(el).backgroundColor);
+    chk('V3 滑鼠移上去底色真的會變', before !== after, `${before} → ${after}`);
+    await ctx.close();
+  } catch (e) { chk('V! 這一節整節跑完不拋例外', false, errMsg(e)); }
+
   console.log('\n【L】語言帶過去');
   try {
     const { ctx, pg } = await open(browser, { lang: 'ja' });
