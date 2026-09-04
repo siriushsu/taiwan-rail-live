@@ -144,6 +144,19 @@ try {
   if (busTransfer.status !== 0) fail('公車轉乘驗收未過——修正資料索引、Worker、UI、手機互動或錯誤降級後再出貨'
     + '（單獨重跑：npm run check-bus-transfer）');
 
+  // ── 2.12 開機期班表殘缺守門人 ─────────────────────────────────────────────
+  // 2026-09-04 check-obs-removed 偶發紅一次（`sys.data.trains is not iterable` ＋ 60 秒沒
+  // state.ready ＝ 使用者看到空白 App）之後補的。走得到的路徑是「上游回 HTTP 200，body 是
+  // 合法 JSON 但沒有 trains 陣列」——resolveScheduleDay 把它原樣放行，系統就這樣帶著
+  // data.trains=undefined 進了 state.systems。（回 500／空 body 反而安全：整個系統會被丟掉。）
+  // 三個 sched 系統各注入一次，因為各自的第一個炸點不同：台鐵 buildLoopTrains、
+  // 高鐵 applySchedSystems 的 for、林鐵 addSunriseTrains。每組都驗「其餘兩個系統仍畫得出車」，
+  // 擋掉「乾脆整包不畫就不會拋錯」那種假修法。全程離線（/api 一律 404），約 1 分鐘。
+  const bootSched = spawnSync('node', [path.join(wt, 'scripts', 'verify_boot_partial_schedule.mjs'), wt], { encoding: 'utf8' });
+  process.stdout.write(bootSched.stdout || ''); process.stderr.write(bootSched.stderr || '');
+  if (bootSched.status !== 0) fail('開機期班表殘缺守門人未過——某個系統班表殘缺會讓整頁開不起來'
+    + '（單獨重跑：npm run check-boot-partial-sched）');
+
   // ── 3. strip（腳本內建 esbuild AST 重印等價證明，任何不等價都非零退出）────
   const rawBytes = fs.readFileSync(path.join(wt, 'index.html'));
   execFileSync('node', [path.join(wt, 'scripts', 'strip_ship_comments.mjs'), wt], { stdio: 'inherit' });

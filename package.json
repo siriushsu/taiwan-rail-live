@@ -33,6 +33,7 @@
     "check-plus": "node scripts/verify_plus_features.mjs",
     "check-widget-plus-sync": "node scripts/verify_metro_widget_plus_sync.mjs",
     "check-obs-removed": "node scripts/verify_obs_removed.mjs",
+    "check-boot-partial-sched": "node scripts/verify_boot_partial_schedule.mjs",
     "build-native-localizations": "node app/scripts/build_native_localizations.mjs",
     "check-native-localizations": "node app/scripts/verify_native_localizations.mjs",
     "check-i18n": "node scripts/check_i18n.mjs",

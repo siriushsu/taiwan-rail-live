@@ -9977,7 +9977,7 @@ function canonicalizeAliasTrains(trains) {
   return canon;
 }
 function canonicalizeAliasStops(sysList) {
-  for (const sys of sysList) canonicalizeAliasTrains(sys.data.trains);
+  for (const sys of sysList) canonicalizeAliasTrains(sys.data.trains || []);
 }
 function applySchedSystems(sysList) {
   state.schedSystems = sysList;
@@ -9999,7 +9999,7 @@ function applySchedSystems(sysList) {
   // 一到就換值而名冊還是昨天那份 ⇒ 正在跨夜行駛的車會在午夜當下掉條目、誤點瞬間歸零再爬回來。
   // 名冊日只在真的換名冊時才變,正是我們要的那條線。
   state.trains = [];
-  for (const sys of sysList) for (const tr of sys.data.trains) {
+  for (const sys of sysList) for (const tr of (sys.data.trains || [])) {
     tr.sys = sys.id; tr._rday = sys.data._schedDay || ''; state.trains.push(tr);
   }
   // 軌道底圖:每條標來源系統 ln.sys
@@ -10010,7 +10010,7 @@ function applySchedSystems(sysList) {
   canonicalizeAliasStops(sysList);   // 官方別名站(臺北-環島→臺北)先併,再去重
   // 車站:(系統|站名) 去重——台鐵/高鐵同名站多為相距數公里的不同實體站,不可混
   const seen = new Map();
-  for (const sys of sysList) for (const tr of sys.data.trains) for (const st of tr.stops) {
+  for (const sys of sysList) for (const tr of (sys.data.trains || [])) for (const st of tr.stops) {
     const k = sys.id + '|' + st.name;
     if (!seen.has(k)) seen.set(k, { name: st.name, lat: st.lat, lon: st.lon, sys: sys.id });
   }
@@ -14702,7 +14702,9 @@ const LOOP_ACH_SEC = LOOP_SEC / 2; // 山海/平原完乘門檻:連續跟滿半�
 const LOOP_EAST = ['臺北', '八堵*', '宜蘭', '蘇澳新*', '花蓮', '臺東', '枋寮'];               // 山海號:一側太平洋一側山
 const LOOP_WEST = ['臺北', '桃園', '新竹', '竹南*', '臺中', '彰化', '嘉義', '臺南', '高雄', '枋寮']; // 平原號:嘉南平原稻浪
 function buildLoopTrains(data) {
-  if (data._loopAdded) return;
+  // 班表殘缺(上游回 200 卻沒有 trains)就整組不出車:這一支結尾要 push 進 data.trains,
+  // 用 (data.trains || []) 只會把崩潰往後推一行。與下面「站名對不上就整組不出車」同一種安全退場。
+  if (data._loopAdded || !Array.isArray(data.trains)) return;
   data._loopAdded = true;
   if (data.trains.some(t => String(t.train) === '8888' || String(t.train) === '8889')) return; // 車次號撞真車就不出
   const coord = new Map();
@@ -31896,7 +31898,8 @@ async function boot() {
   function addSunriseTrains() {
     const sys = state.systems.find(s => s.id === 'afr_sched');
     const zs = sys && sys._track && sys._track.lines.find(l => l.name === '祝山線');
-    if (!sys || !zs || sys.data.trains.some(t => String(t.train) === '97')) return; // 冪等
+    // 同 buildLoopTrains:結尾要 push 進 sys.data.trains,班表殘缺就整組不出車
+    if (!sys || !zs || !Array.isArray(sys.data.trains) || sys.data.trains.some(t => String(t.train) === '97')) return; // 冪等
     const [, m, d] = todayStr().split('-').map(Number); // 台北日(時區錨定契約),海外裝置勿用當地日期
     const [hh, mm] = AFR_SUNRISE[Math.min(5, Math.floor((d - 1) / 5))][m - 1].split(':').map(Number);
     const S = hh * 3600 + mm * 60;
