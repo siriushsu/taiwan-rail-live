@@ -8,16 +8,27 @@
 // 測試驗的是【測試自己組的那份】,不是 handler 組的那份——這正是這支端點自己要防的錯
 // (見 weekend_core.mjs 的 weekendBody 註解:「不各自重算,兩份實作會慢慢長歪」)。現在
 // 三段一律呼叫 weekendBody(today, span, eventsDoc, holidayNames)(worker.js 的 weekendBoard
-// 也呼叫同一支),組裝邏輯只剩一份,「拿掉 dedupeEvents」「兩層對調」「days 打成陣列」這類
-// 只存在於 weekendBody 內部的突變,現在【F】【E】【S】三段都會直接觀察到。
+// 也呼叫同一支),組裝邏輯只剩一份——但這句話本身在修復輪 1 當下有點過度宣稱,見下方
+// 修復輪 2 的更正:「呼叫同一支函式」保證的是不會兩份實作各自長歪,不保證樣本資料真的
+// 餵過每一條內部分支,分支有沒有被走到要看樣本,不能只看「呼叫的是同一支函式」。
 //
 // 🔴 修復輪 1 同時修正 W1-W4:原本的正則沒有錨定行首,一個 `// ` 前綴的註解(文字仍在檔案裡)
 // 照樣會命中,等於「路由被停用了但判準還是綠的」。全部改成 `^...$` + `m` flag,要求整行文字
 // 完全吻合,前面不能多出任何字元(含註解符號)。
 //
-// 【W】只驗 worker.js 的接線字面(import / 函式存在且只有一份 / 路由分派 / handler 呼叫
-// weekendBody 的方式),不驗邏輯——邏輯的正確性交給下面三段,因為它們現在跟 handler
-// 呼叫同一支純函式,不是各自重算。
+// 🔴 修復輪 2(2026-09-04,複審發現,三條 Important):
+//   (1) 上一段「【F】【E】【S】三段都會直接觀察到」宣稱過頭了——splitEvents 的
+//       `startsIn || endsIn` 誤植成 `endsIn` 時,原本 9 筆樣本裡沒有任何一筆靠 startsIn
+//       單獨入選,F 段照樣全綠。修法是補樣本(見下面 SAMPLE_EVENTS 的 s10 與真值表註解),
+//       不是改程式碼——splitEvents 本身沒有錯,錯在測試沒餵到那個分支。
+//   (2) W3 只用 .test() 判「存在」,判不出「唯一」;比照 W4 改成計數恰為 1。
+//   (3) 新增 W6:【F】【E】【S】是直接呼叫 weekendBody、繞過 weekendBoard() 本體,
+//       W5 也只驗到 body 有沒有被算出來,沒有任何判準看得到 body 有沒有真的被送進
+//       HTTP 回應——手誤把 return 那行的 body 換成 {} 全部判準都不會紅。
+//
+// 【W】只驗 worker.js 的接線字面(import / 函式存在且只有一份 / 路由分派恰一份 / handler
+// 呼叫 weekendBody 的方式 / body 有沒有真的被送進回應),不驗內部邏輯——邏輯的正確性交給
+// 下面三段,因為它們現在跟 handler 呼叫同一支純函式,不是各自重算。
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -37,8 +48,13 @@ chk('W1 有一行真的在生效的 import,且含 weekendBody',
   /^import \{[^}]*\bweekendBody\b[^}]*\} from '\.\/scripts\/weekend_core\.mjs';$/m.test(w));
 chk('W2 有一行真的在生效的 async function weekendBoard(request, env) {',
   /^async function weekendBoard\(request, env\) \{$/m.test(w));
-chk('W3 有一行真的在生效的路由分派 /api/weekend',
-  /^\s*else if \(url\.pathname === '\/api\/weekend'\) res = await weekendBoard\(request, env\);$/m.test(w));
+// 🔴 修復輪 2:W3 原本用 .test() 只判「存在」,不判「唯一」——這個 repo 有「合併之後
+// 兩代防線都留下來」的復發紀錄,if-else-if 鏈裡若留下兩份 /api/weekend 分派,只有【先出現
+// 的那份】會真的執行,若先出現的是壞的(指到舊函式、回舊形狀),.test() 照樣是綠的,因為它
+// 只回答「檔案裡有沒有這串文字」,答不出「只有一份還是被合併成兩份」。改成比照 W4 計數。
+chk('W3 路由分派恰有一份(不是「存在」而是「唯一」;若合併後留下兩份,只有先出現的那份會真的執行)',
+  (w.match(/^\s*else if \(url\.pathname === '\/api\/weekend'\) res = await weekendBoard\(request, env\);$/gm) || []).length === 1,
+  `實得 ${(w.match(/^\s*else if \(url\.pathname === '\/api\/weekend'\) res = await weekendBoard\(request, env\);$/gm) || []).length} 份`);
 chk('W4 只接一次(沒有合併時留下兩份或殘留一份被註解掉的舊碼)',
   (w.match(/^async function weekendBoard\(/gm) || []).length === 1,
   `實得 ${(w.match(/^async function weekendBoard\(/gm) || []).length} 份`);
@@ -47,6 +63,16 @@ chk('W4 只接一次(沒有合併時留下兩份或殘留一份被註解掉的�
 // 屬於 weekend_core.mjs 的事,W 段管不到也不該管,下面【F】【E】【S】三段才是真正驗這些的地方。
 chk('W5 weekendBoard 內確實呼叫 weekendBody(today, span, eventsDoc, names)',
   /^\s*const body = weekendBody\(today, span, eventsDoc, names\);$/m.test(w));
+// 🔴 修復輪 2 新增:W5 只驗到「body 有沒有被算出來」,沒有驗到「算出來的 body 有沒有真的
+// 被送進 HTTP 回應」——把 return 那行的 body 手誤寫成 {} 或別的變數,W1-W5、【F】【E】【S】
+// 全部不會紅,因為【F】【E】【S】三段是直接呼叫 weekendBody、完全繞過 weekendBoard() 這個
+// handler 本體的,body 算對了與 body 真的被回傳出去是斷開的兩件事。
+// 這裡只能做到字面比對:worker.js 帶滿 Cloudflare 專屬全域(caches.default 等),node 直接
+// import 會整支炸掉;任務書也已裁定不起 wrangler dev(.wrangler 本機快取跨重啟存活,突變
+// 測試會假綠)。字串比對的代價是只要那行文字沒變就測不出「邏輯上是否真的送對」,但至少接得住
+// 「回應引數被改成別的變數/字面值」這種最粗暴的手誤——這是已知取捨,不是懶得驗到底。
+chk('W6 handler 真的把 weekendBody 算出來的 body 送進 HTTP 回應(不是手誤寫成 {} 或別的變數)',
+  /^\s*return await jsonResCached\(edge, cacheKey, body, 200,$/m.test(w));
 
 console.log('\n【F】固定樣本回傳形狀(內容已知,不受空窗週影響;呼叫與 handler 相同的 weekendBody)');
 // 用自己的小日曆表鎖出一個跟「今天」無關、確定是 3 天連假的區間:10-09(五,表定放假)
@@ -54,9 +80,17 @@ console.log('\n【F】固定樣本回傳形狀(內容已知,不受空窗週影�
 // 只是換一組不查真表的輸入,不受日曆表逐年更新影響。
 const SAMPLE_DAYTYPE = { '2026-10-09': 1 };
 const SAMPLE_SPAN = nextHolidaySpan('2026-10-08', SAMPLE_DAYTYPE);
-// 9 筆手寫樣本,涵蓋:限定層兩筆會併成一場(s1+s2)、限定層僅靠 endsIn 入選的一筆(s7,
-// 對照 verify_weekend_core.mjs 的 j1)、限定層獨立一筆(s3)、長期層兩筆會併成一則(s5+s6)、
-// 長期層獨立一則(s4)、以及跟區間完全不相交而必須被濾掉的兩筆(s8 已結束、s9 太晚開始)。
+// 🔴 修復輪 2(2026-09-04):原本這裡宣稱的涵蓋範圍比實際多——splitEvents 的判準是
+// `startsIn || endsIn`,兩個運算元各自成立的樣本都要有一筆,原本 9 筆漏了其中一種。
+// 用 (startsIn, endsIn) 真值表逐筆對照,10 筆樣本現在四種「會入選」的路都至少走過一次:
+//   (真,真) s1/s2/s3(單日事件,兩個旗標恆同值,不特別區分)
+//   (假,真) s7 僅靠 endsIn 入選(對照 verify_weekend_core.mjs 的 j1;把 endsIn 那側拿掉,
+//           s7 會從限定層漏到長期層——這條原本就測得到)
+//   (真,假) s10 僅靠 startsIn 入選(對照 verify_weekend_core.mjs 的 h1;把 startsIn 那側拿掉,
+//           s10 會從限定層漏到長期層——這是修復輪 2 補上的那一半,原本 9 筆完全零覆蓋,
+//           `startsIn || endsIn` 誤植成 `endsIn` 時 F3/F4 仍然全綠)
+//   (假,假) 但與區間相交 → 長期層 s4 獨立一則、s5+s6 會併成一則
+// 另外 s1+s2 示範限定層兩筆會併成一場,s8/s9 示範跟區間完全不相交而必須被整筆濾掉。
 const SAMPLE_EVENTS = [
   { id: 's1', title: '花燈市集', url: 'https://sample.invalid/1', start: '2026-10-09', end: '2026-10-09',
     anchor: { kind: 'station', sys: 'mrt', name: '測試站A' } },
@@ -76,6 +110,8 @@ const SAMPLE_EVENTS = [
     anchor: { kind: 'station', sys: 'mrt', name: '測試站G' } },
   { id: 's9', title: '太晚開始', url: 'https://sample.invalid/7', start: '2026-11-01', end: '2026-11-02',
     anchor: { kind: 'station', sys: 'mrt', name: '測試站H' } },
+  { id: 's10', title: '跨月燈會', url: 'https://sample.invalid/8', start: '2026-10-11', end: '2026-10-20',
+    anchor: { kind: 'station', sys: 'mrt', name: '測試站I' } },
 ];
 // 跟 worker.js 的 weekendBoard 呼叫同一支函式,不是自己重組——這是修復輪 1 的重點。
 const sampleBody = weekendBody('2026-10-08', SAMPLE_SPAN, { events: SAMPLE_EVENTS, updated: 'sample' }, {});
@@ -89,8 +125,11 @@ chk('F1 樣本區間確實是 10/09–10/11 三天(鎖住下面斷言的前提)'
 chk('F2 span.days 是數字且等於 3(不是天數陣列)',
   typeof sampleBody.span.days === 'number' && sampleBody.span.days === 3,
   `實得 ${JSON.stringify(sampleBody.span.days)}(${typeof sampleBody.span.days})`);
-chk('F3 限定層恰 3 場(去重後:花燈市集併 2 筆、跨橋展覽尾聲、河岸音樂會)',
-  sampleBody.events.length === 3, `實得 ${sampleBody.events.length}`);
+// 🔴 4 場(不是修復輪 1 的 3 場):新增的 s10(僅靠 startsIn 入選)也在限定層裡,數法見上面
+// SAMPLE_EVENTS 的真值表註解。這一條連同 F4 是 startsIn/endsIn 兩側各拿掉一側時都會紅的
+// 主要判準——s7 撐 endsIn 那側、s10 撐 startsIn 那側,任一側被誤刪都會讓這裡的計數對不上。
+chk('F3 限定層恰 4 場(去重後:花燈市集併 2 筆、跨橋展覽尾聲、河岸音樂會、跨月燈會)',
+  sampleBody.events.length === 4, `實得 ${sampleBody.events.length}`);
 chk('F4 長期層恰 2 則(去重後:兩站巡迴展併 2 筆、常態展覽)',
   sampleBody.alsoOpen.length === 2, `實得 ${sampleBody.alsoOpen.length}`);
 chk('F5 每則都有 title 與至少一天',
