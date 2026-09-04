@@ -78,7 +78,8 @@ function overlayRuntimeContract(text) {
     reprojectPure: body.includes('M.getSize()') && body.includes('M.toScreen(')
       && !/M\.(?:leaflet|raw|_[A-Za-z])\b|window\.__map/.test(body),
     renderWires,
-    renderBody: text.includes('const syncDrawMaplibre = () => { reproject(); syncDraw(); };'),
+    // 09-04 起 render 接線多記 GL 剛畫的相機簽名(state._glKey/_glAt),tick 用它決定「GL 還沒畫到這個相機就不畫」(兩層同幀落地)
+    renderBody: text.includes("const syncDrawMaplibre = () => { state._glKey = camKey(); state._glAt = performance.now(); reproject(); syncDraw(); };"),
     leafletZoomOnly: /if \(M\.engine === 'leaflet'\) \{[\s\S]*?M\.on\('zoomanim', onZoomAnim\);[\s\S]*?state\._endZoomAnim = endZoomAnim;[\s\S]*?\n  \}/.test(text),
   };
 }

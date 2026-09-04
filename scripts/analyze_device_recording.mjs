@@ -89,9 +89,26 @@ export async function analyze(video, out, o = {}) {
     { name: 'blind-share', label: '盲區占比 ≤', value: frames ? +(kinds.orphanBlind / frames).toFixed(3) : 0, limit: maxBlindShare, pass: !frames || kinds.orphanBlind / frames <= maxBlindShare },
     { name: 'unsure-share', label: '判不準占比(orphanNear+orphanBlind+weakOver) ≤', value: frames ? +((kinds.orphanNear + kinds.orphanBlind + kinds.weakOver) / frames).toFixed(3) : 0, limit: maxUnsureShare, pass: !frames || (kinds.orphanNear + kinds.orphanBlind + kinds.weakOver) / frames <= maxUnsureShare },
   ];
+  const pt = p => p ? { x: +p.x.toFixed(1), y: +p.y.toFixed(1), arc: +(p.arc ?? 0).toFixed(2), sure: !!p.sure } : null;
+  const near = (a, b, tol) => !!(a && b) && Math.hypot(a.x - b.x, a.y - b.y) <= tol;
+  // 超標幀逐一列出,並標「兩層不同幀更新」的簽名:一顆跟上一幀同位、另一顆跳走,且 8 幀內兩顆在跳走處會合
+  // (換錨翻面、跟車相機跳步都長這樣;純投影錯不會是一顆不動一顆跳)。只是診斷標籤,仍算 over。
+  const overFrames = rows.map((r, i) => ({ r, i })).filter(({ r }) => r.kind === 'over' || r.kind === 'weakOver').map(({ r, i }) => {
+    const prev = rows[i - 1];
+    const magStay = !!prev && near(prev.mag, r.mag, limitPx), cynStay = !!prev && near(prev.cyn, r.cyn, limitPx);
+    let lag = null;
+    if (magStay !== cynStay) for (let j = i + 1; j <= Math.min(rows.length - 1, i + 8); j++) {
+      const n = rows[j]; if (n.dist == null || n.dist > limitPx) continue;
+      if (near(magStay ? r.cyn : r.mag, magStay ? n.cyn : n.mag, limitPx)) lag = { lead: magStay ? 'overlay' : 'gl', frames: j - i };
+      break;
+    }
+    return { frame: r.frame, kind: r.kind, dist: +r.dist.toFixed(2), mag: pt(r.mag), cyn: pt(r.cyn), lag };
+  });
+  const gaps = []; // 連續量不到 ≥1 秒的空窗:前後幀位置與空窗內的分類,好判斷是被 UI 蓋住、拖出畫面還是換底圖
+  { let run = 0, start = -1; for (let i = 0; i <= rows.length; i++) { const un = i < rows.length && rows[i].dist == null; if (un) { if (!run) start = i; run++; } else { if (run >= fps) { const kk = {}; for (const r of rows.slice(start, i)) kk[r.kind] = (kk[r.kind] || 0) + 1; gaps.push({ from: rows[start].frame, to: rows[i - 1].frame, frames: run, sec: +(run / fps).toFixed(2), kinds: kk, before: rows[start - 1] ? { mag: pt(rows[start - 1].mag), cyn: pt(rows[start - 1].cyn) } : null, after: rows[i] ? { mag: pt(rows[i].mag), cyn: pt(rows[i].cyn) } : null }); } run = 0; } } }
   const pass = frames > 0 && gates.every(g => g.pass);
   const report = { video, width: meta.width, height: meta.height, fps, dpr, probe, thresholdPt: threshold, limitPx, radii, edgeMargin, nearR,
-    frames, measured: measured.length, unmeasured: frames - measured.length, kinds, longestUnmeasuredRun, longestBlindRun, arcMin, max, mean, over: kinds.over, gates, pass,
+    frames, measured: measured.length, unmeasured: frames - measured.length, kinds, longestUnmeasuredRun, longestBlindRun, arcMin, max, mean, over: kinds.over, gates, pass, overFrames, gaps,
     worst: measured.slice().sort((a, b) => b.dist - a.dist).slice(0, 5).map(r => ({ frame: r.frame, dist: +r.dist.toFixed(2) })) };
   writeFileSync(path.join(out, 'report.json'), JSON.stringify(report, null, 2));
   const fx = (v, k) => v ? v[k].toFixed(k === 'arc' ? 2 : 1) : '';
@@ -108,6 +125,12 @@ function printReport(r) {
   for (const g of r.gates) console.log(`  ${g.pass ? '✓' : '✗'} ${g.name.padEnd(14)} ${g.label} ${g.value} / ${g.limit}`);
   if (r.measured < 10) console.log('  ⚠ 量到的影格不足 10:錄影裡看不到兩顆探針(探針不在畫面上、被 UI 蓋掉超過六成、或沒帶 ?aligndot=)');
   if (r.worst.length) console.log('  最差五幀:' + r.worst.map(w => `${w.frame}=${w.dist}`).join(' '));
+  if (r.overFrames && r.overFrames.length) {
+    const fmt = p => p ? `(${p.x},${p.y})` : '-';
+    for (const f of r.overFrames.slice(0, 12)) console.log(`  ${f.kind === 'over' ? '✗' : '~'} ${f.frame} ${f.kind} d=${f.dist} 洋紅${fmt(f.mag)} 青${fmt(f.cyn)}${f.lag ? ` ← ${f.lag.lead === 'gl' ? 'GL 先動、overlay' : 'overlay 先動、GL'}慢 ${f.lag.frames} 幀(兩層不同幀更新,非投影錯)` : ''}`);
+    if (r.overFrames.length > 12) console.log(`  …另 ${r.overFrames.length - 12} 幀見 report.json overFrames`);
+  }
+  if (r.gaps && r.gaps.length) for (const g of r.gaps) console.log(`  空窗 ${g.from}..${g.to} ${g.sec}s ${JSON.stringify(g.kinds)} 前=${g.before ? JSON.stringify(g.before.mag || g.before.cyn) : '-'} 後=${g.after ? JSON.stringify(g.after.mag || g.after.cyn) : '-'}`);
 }
 
 // 合成測試影片:390x844(iPhone 直向 CSS 尺寸,dpr 當 1 算)、10fps;每一幀各自指定——

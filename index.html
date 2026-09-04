@@ -6005,7 +6005,7 @@
 // v0904h：MapLibre 彩色路線改到道路與 3D 建築之上，不再被底圖切成碎段；文字標籤仍在最上。
 // v0904i：修正暗色 OpenFreeMap 的早期水域標籤誤導軌道插層，確保後段道路全在軌道下方。
 // v0904k：MapLibre 跟隨高亮使用完整點列，長途路線在深縮放彎道不再因抽稀而偏離原軌。
-const BUILD = 'v0904l';
+const BUILD = 'v0904m';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -15166,6 +15166,9 @@ function armTick() {
   // 補幀把心跳「救活」會讓看門狗降回 ~4s 一幀;不蓋章=凍結期間穩定每 2s 一幀
   requestAnimationFrame(ts => { state._rafPending = false; state._rafAlive = performance.now(); tick(ts); });
 }
+// 相機簽名(中心+zoom+bearing+pitch):syncDraw 的「同視圖不重畫」與 tick 的「GL 還沒 render 到這個相機就不畫」都用它。
+// 只比中心與 zoom 會把 MapLibre 的純旋轉/傾斜當成同視圖而跳過重繪(09-04 真機錄影對照組抓到的坑)。
+function camKey() { const c = M.getCenter(); return c.lat + ',' + c.lng + ',' + M.getZoom() + ',' + M.getBearing() + ',' + (M.raw && typeof M.raw.getPitch === 'function' ? M.raw.getPitch() : 0); } // Leaflet 的 M.raw 沒有 getPitch
 function tick(now) {
   state._inTick = true; // tick 內部發的 map move(跟車鏡頭 setView)不走 'move' 同步重繪,由本幀尾端統一畫
   try { tickCore(now); } catch (e) {
@@ -15281,7 +15284,12 @@ function tickCore(now) {
     // 拖曳/捏合/平移動畫的這一幀,map 'move' 已在 Leaflet 挪 pane 的同一個 callback 裡同步重繪(syncDraw,見 boot):
     // 本幀不再畫第二次(≤2 幀內才算同幀,過期旗標不得壓掉正常重繪)
     const synced = state._syncDrew && now - (state._syncDrawAt || 0) < 34; state._syncDrew = false;
-    if (synced) { state._drawDoneAt = now; state._stg = 'i'; }
+    // MapLibre:相機這一拍才動過(跟車 setView/jumpTo、手勢)而 GL 還沒 render 到它 ⇒ 本幀不畫,等它的 'render'
+    // (syncDrawMaplibre)用同一個相機畫——兩層永遠同一幀落地。09-04 真機(A54/iPhone)60× 跟車實測:相機每跳一步,
+    // GL 與 overlay 互有 2–4 幀落差(33–67ms、兩個方向都有);tick 先用新相機畫、GL 下一幀才畫是其中一種。
+    // GL 逾 250ms 沒 render(分頁隱藏/引擎凍結)就照畫,不讓 overlay 跟著凍住。
+    const glPending = M.engine === 'maplibre' && state._glKey !== undefined && now - (state._glAt || 0) < 250 && camKey() !== state._glKey;
+    if (synced || glPending) { state._drawDoneAt = now; state._stg = 'i'; }
     else if (psActive) {
       if (renderNow) { state._drawAt = now; state._stg = 'd'; draw(); state._drawDoneAt = now; state._stg = 'i'; } // 省電:跟隨也降到 ~30fps;相機與繪製同一個 renderNow 閘,列車不會與底圖錯位
     } else {
@@ -32310,8 +32318,17 @@ async function boot() {
     raw.on('style.load', () => { P.pending = null; P.next = null; ensure(); });
     try { ensure(); } catch (e) { /* style 還沒載完(addSource 會丟);style.load 或 request() 會再掛 */ }
     raw.on('sourcedata', e => { if (P.pending && e.sourceId === ids[P.pending.idx] && e.sourceDataType === 'content') P.pending.armed = true; });
-    M.on('render', () => { if (P.next) { P.live = P.next; P.next = null; } }); // 翻面後第一次 render(GL 已畫新點)才換 overlay 目標;必須排在 syncDrawMaplibre 之前註冊
-    const insetRect = () => { const i = mapInsets(), sz = M.getSize(); return { x0: i.left, y0: i.top, x1: sz.x - i.right, y1: sz.y - i.bottom }; };
+    // 翻面後第一次 render(GL 已畫新環)才換 overlay 目標;必須排在 syncDrawMaplibre 之前註冊。翻面那一幀相機通常沒動,
+    // syncDraw 會以「同視圖」跳過重繪、青點要等下一次 tick 才移過去(09-04 真機實測 GL 環先跳、青點慢 2–3 幀)⇒ 清掉快取逼它本幀重畫
+    M.on('render', () => { if (P.next) { P.live = P.next; P.next = null; state._syncDrawKey = null; } });
+    const insetRect = () => {
+      const i = mapInsets(), sz = M.getSize();
+      let bottom = i.bottom;
+      // 「更多」抽屜(切亮/暗/衛星時會開)不在 mapInsets 的讓位清單裡,探針被它蓋住就量不到(iPhone 09-04 實測 3.3 秒空窗)
+      const ms = document.getElementById('moreSheet');
+      if (ms && document.body.classList.contains('tools-open')) { const r = ms.getBoundingClientRect(), mc = M.getContainer().getBoundingClientRect(); if (r.height > 0.5) bottom = Math.max(bottom, mc.bottom - r.top + 8); }
+      return { x0: i.left, y0: i.top, x1: sz.x - i.right, y1: sz.y - bottom };
+    };
     const pick = () => { // 可視窗中心往「螢幕上的列車前進方向」偏 28%;沒跟車就往上
       const r = insetRect(), cx = (r.x0 + r.x1) / 2, cy = (r.y0 + r.y1) / 2, span = Math.min(r.x1 - r.x0, r.y1 - r.y0);
       const following = !!(state.followTrain || state.freqFollow);
@@ -32927,12 +32944,12 @@ async function boot() {
     if (!state.ready || state._inTick || state._zoomAnim || document.hidden) return;
     // 同一個視圖連發的 move(零位移 move、_onZoomTransitionEnd 的補發)不重畫;判「同視圖」用投影狀態本身,
     // 不用時間窗——高更新率(120Hz／headless rAF 不鎖 vsync)下相鄰兩幀可能只差 3–5ms,時間窗會把真的位移漏掉
-    const c = M.getCenter(), key = c.lat + ',' + c.lng + ',' + M.getZoom();
+    const key = camKey();
     if (key === state._syncDrawKey) return;
     state._syncDrawKey = key; state._syncDrawAt = state._drawAt = performance.now(); state._syncDrew = true;
     draw();
   };
-  const syncDrawMaplibre = () => { reproject(); syncDraw(); };
+  const syncDrawMaplibre = () => { state._glKey = camKey(); state._glAt = performance.now(); reproject(); syncDraw(); }; // 'render' 在 GL 畫完這一幀之後發:此刻的相機就是 GL 剛畫的那個(tick 的 glPending 靠它判斷)
   if (M.engine === 'maplibre') M.on('render', syncDrawMaplibre);
   else M.on('move', syncDraw);
   // ── 縮放動畫(zoomAnimation:true)期間:overlay 逐幀重畫——幾何跟圖磚同縮、字級線寬不變 ──────────────
