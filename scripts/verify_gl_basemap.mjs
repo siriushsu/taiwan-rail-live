@@ -49,13 +49,24 @@ async function boot(browser, url, setup) {
 const idle = page => page.evaluate(() => new Promise(r => { const g = window.__ofmGl; if (g.loaded() && !g.isMoving()) r(); else { g.once('idle', r); setTimeout(r, 8000); } }));
 const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
 const near = (px, h, tol = 4) => Math.max(...px.map((v, i) => Math.abs(v - hex(h)[i]))) <= tol;
+// L2/L2b/L3/S5 量的是「底圖」的陸地與海面色,但截圖拿到的是整頁合成:#overlay(列車)與 #skyTint(放空日夜天色)
+// 是 pointer-events:none 疊在地圖之上的 app 畫布(z-index 500/550),會把列車顏色摻進取樣像素——
+// document.elementsFromPoint 看不到它們(pointer-events:none),所以肉眼與 DOM 檢查都照不出來。
+// 海面取樣點(基隆外海)正在北部班次的畫面路徑上:實測撥模擬時鐘掃 05:00–23:00,該點 531 個時刻被 overlay 畫到,
+// 其中 54 個時刻單靠 overlay 就超過 ±4 容差(最壞 overlay RGBA=214,159,28,37 ⇒ 合成 64,56,37,偏差 26);
+// 列車位置逐輪不同 ⇒ 不遮就是在量一個會漂的合成色,綠或紅都與底圖對不對無關。遮掉後 24 個時刻都恰好讀到宣告值。
+const BASEMAP_MASK = ['overlay', 'skyTint']; // 疊在地圖之上、畫 app 內容(非底圖)的層;期望值與容差不變,只把非底圖的貢獻拿掉
+const maskBasemap = (page, on) => page.evaluate(([ids, hide]) => ids.forEach(id => { const el = document.getElementById(id); if (el) el.style.visibility = hide ? 'hidden' : ''; }), [BASEMAP_MASK, on]);
 async function pixelAt(page, lat, lon) { // 目標點先移到畫面中央(邊緣有浮動 UI);toScreen 是容器座標,截圖是整頁座標,要加容器位移
   const p = await page.evaluate(([la, lo]) => { const M = window.__M; M.setView([la, lo], M.getZoom(), { animate: false }); const r = document.getElementById('map').getBoundingClientRect(); const q = M.toScreen([la, lo]); return { x: q.x + r.left, y: q.y + r.top }; }, [lat, lon]);
   await page.waitForTimeout(450);
-  const png = await page.screenshot({ type: 'png' });
-  const { data, info } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-  const i = (Math.round(p.y) * info.width + Math.round(p.x)) * 4;
-  return [data[i], data[i + 1], data[i + 2]];
+  await maskBasemap(page, true);
+  try {
+    const png = await page.screenshot({ type: 'png' });
+    const { data, info } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    const i = (Math.round(p.y) * info.width + Math.round(p.x)) * 4;
+    return [data[i], data[i + 1], data[i + 2]];
+  } finally { await maskBasemap(page, false); }
 }
 const LAND = [23.70, 120.90], SEA = [25.20, 121.80]; // 中央山脈 / 基隆外海
 
