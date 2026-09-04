@@ -6005,7 +6005,7 @@
 // v0904h：MapLibre 彩色路線改到道路與 3D 建築之上，不再被底圖切成碎段；文字標籤仍在最上。
 // v0904i：修正暗色 OpenFreeMap 的早期水域標籤誤導軌道插層，確保後段道路全在軌道下方。
 // v0904k：MapLibre 跟隨高亮使用完整點列，長途路線在深縮放彎道不再因抽稀而偏離原軌。
-const BUILD = 'v0904n';
+const BUILD = 'v0904o';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -6879,8 +6879,22 @@ function applyFollowHeading(heading, options) {
 function resetFollowHeading(options) {
   state._followHeading = null;
   if (!M || M.engine !== 'maplibre') return;
-  if (options && options.immediate) M.setBearing(0);
-  else M.easeTo({ bearing: 0, duration: 0.24 }); // M adapter 沿用 Leaflet duration 單位：秒
+  if (options && options.immediate) { state._headingReset = null; M.setBearing(0); return; }
+  // 不用 MapLibre 的 easeTo:離開跟車的同一輪裡,跟車面板收起 → mapInsets 變 → syncMapLibrePadding 的 setPadding
+  // 走 jumpTo,jumpTo 先 stop() 把進行中的轉正動畫砍掉,地圖停在半途的角度(09-04 A54 事件追蹤:69.4°→39.8° 就停、
+  // 另一次 −152.8°→−84.7° 就停;桌面沒有底部面板所以閘門看不到)。改成 tick 驅動的時間插值,每幀重下 setBearing,
+  // 中途被任何 jumpTo 打斷下一幀照樣接著轉,240 ms 內回正北;使用者手勢一來就放棄(同 applyFollowHeading)。
+  const from = M.getBearing(), delta = ((0 - from + 540) % 360) - 180;
+  if (Math.abs(delta) < 0.05) { state._headingReset = null; M.setBearing(0); return; }
+  state._headingReset = { from, delta, at: performance.now(), ms: 240 };
+}
+function stepHeadingReset(now) {
+  const r = state._headingReset;
+  if (!r) return;
+  if (!M || M.engine !== 'maplibre' || state.followTrain || state.freqFollow || mapGestureActive()) { state._headingReset = null; return; }
+  const t = Math.min(1, (now - r.at) / r.ms), e = 1 - (1 - t) * (1 - t); // ease-out,與 MapLibre 預設曲線同向
+  M.setBearing(t >= 1 ? 0 : r.from + r.delta * e);
+  if (t >= 1) state._headingReset = null;
 }
 function applyFreqFollowHeading(info, ln, immediate) {
   if (!state.freqFollow || !info) return;
@@ -15208,6 +15222,7 @@ function tickCore(now) {
     }
   }
   updateBlockHolds(); // 後車不穿越前車:算完 simSec 之後、任何人問位置之前先更新阻擋回撥(相機與繪製都吃 trainPos)
+  stepHeadingReset(now); // 離開跟車的轉正北:tick 驅動(見 resetFollowHeading),排在相機邏輯之前
   // 版面尺寸守衛(見 syncMapSizeIfStale):必須在相機與繪製之前,否則本幀仍以過期尺寸算座標
   if (now - (state._szChkAt || 0) >= 200) { state._szChkAt = now; syncMapSizeIfStale(); }
   if (state.autoTour && state.mode === 'sched' && state.playing) {
