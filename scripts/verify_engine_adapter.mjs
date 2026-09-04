@@ -33,7 +33,11 @@ console.log(`  標記外 raw map.xxx( 命中數:${rawHits.length}`);
 if (rawHits.length) console.log('  ' + rawHits.slice(0, 15).join('\n  ') + (rawHits.length > 15 ? `\n  …共 ${rawHits.length} 處` : ''));
 if (STRICT) ck(rawHits.length === 0, 'G1b(嚴格) 標記外無 raw map.xxx( 呼叫', `${rawHits.length} 處`);
 else console.log('  (非嚴格模式:G1b 只報數不判紅;ENGINE_GATE_STRICT=1 才判)');
-ck(src.includes('toScreen: ll => Lmap.latLngToContainerPoint(ll)'), 'G1c toScreen 每次呼叫走 Lmap 當下的方法(不快取函式參考)');
+// M4-B:原本釘的是 Leaflet 版 `toScreen: ll => Lmap.latLngToContainerPoint(ll)`(要防 boot 的呼吸幕 patch
+// 換掉方法之後 toScreen 還指著舊的)。Leaflet 拔掉後那個 patch 也不存在了,契約改釘 MapLibre 版:
+// 每次呼叫都問 raw.project(),不快取 Point 或函式參考。
+ck(/toScreen: ll => \{ const p = mlToLL\(ll\); const q = raw\.project\(\[p\.lng, p\.lat\]\); return \{ x: q\.x, y: q\.y \}; \}/.test(src),
+  'G1c toScreen 每次呼叫走 raw.project(不快取函式參考)');
 const BARE = /\blet map\b|\bmap = L\.map\(|window\.__map = map\b|addTo\(map\)|\(map,|!map\b|(?<![.\w$])map &&/g;
 const bareHits = (src.match(BARE) || []).length;
 console.log(`  裸 map 識別字(let map / addTo(map) / !map / map && …)命中數:${bareHits}`);
@@ -80,15 +84,43 @@ function overlayRuntimeContract(text) {
     renderWires,
     // 09-04 起 render 接線多記 GL 剛畫的相機簽名(state._glKey/_glAt),tick 用它決定「GL 還沒畫到這個相機就不畫」(兩層同幀落地)
     renderBody: text.includes("const syncDrawMaplibre = () => { state._glKey = camKey(); state._glAt = performance.now(); reproject(); syncDraw(); };"),
-    leafletZoomOnly: /if \(M\.engine === 'leaflet'\) \{[\s\S]*?M\.on\('zoomanim', onZoomAnim\);[\s\S]*?state\._endZoomAnim = endZoomAnim;[\s\S]*?\n  \}/.test(text),
+    // M4-B:原本是【正向】釘住 Leaflet-only 的 zoomanim 區塊必須存在。Leaflet 拔掉後改成【反向】——
+    // 縮放動畫仿射整套(zoomanim 事件、_endZoomAnim)是 Leaflet 專屬,MapLibre 每幀真實更新相機,
+    // 這些東西再冒出來就是有人把舊路徑併回來了。
+    noZoomAnim: !/M\.on\('zoomanim'|_endZoomAnim|_animatingZoom/.test(text),
   };
 }
 const overlayContract = overlayRuntimeContract(src);
-ck(overlayContract.reprojectPure && overlayContract.renderWires === 1 && overlayContract.renderBody && overlayContract.leafletZoomOnly,
-  'G8 overlay runtime：reproject 引擎中立、MapLibre render 接線唯一、Leaflet zoomanim 已隔離', JSON.stringify(overlayContract));
+ck(overlayContract.reprojectPure && overlayContract.renderWires === 1 && overlayContract.renderBody && overlayContract.noZoomAnim,
+  'G8 overlay runtime：reproject 引擎中立、MapLibre render 接線唯一、Leaflet zoomanim 整套已不存在', JSON.stringify(overlayContract));
 const overlayMutated = overlayRuntimeContract(src.replace("M.on('render', syncDrawMaplibre);", ''));
 ck(overlayMutated.renderWires === overlayContract.renderWires - 1 && overlayMutated.renderWires === 0,
   'G8b 正向對照:移除 MapLibre render 接線後契約必少 1');
+
+// ── G9 靜態:index.html 零 Leaflet 殘留(M4-B)────────────────────────────────
+// 這條刻意放在【靜態】半段:ship_web 的 preflight 只跑 ENGINE_GATE_STATIC_ONLY=1,動態的 G4h/G4i
+// 在出貨鏈上碰不到。合併一條舊分支就把 Leaflet 帶回來、而 build 與其餘閘門全綠,是這個 repo 出過的事故。
+const LEAFLET_CODE = [
+  ['L.map( 建構', /\bL\.map\s*\(/],
+  ['L.* 呼叫', /(?<![.\w$])L\.[A-Za-z_$][\w$]*\s*[({]/],
+  ['createLeafletEngine', /createLeafletEngine/],
+  ['M.leaflet', /M\.leaflet\b/],
+  ['engine === \'leaflet\'', /engine\s*===\s*['"]leaflet['"]/],
+  ['.leaflet- CSS/選取器', /\.leaflet-/],
+  ['cdnjs leaflet', /cdnjs\.cloudflare\.com\/ajax\/libs\/leaflet/],
+  ['vendor/leaflet', /vendor\/leaflet/],
+];
+const leafletResidue = LEAFLET_CODE
+  .map(([name, re]) => [name, (src.match(new RegExp(re.source, 'g' + (re.flags.includes('i') ? 'i' : ''))) || []).length])
+  .filter(([, n]) => n > 0);
+ck(leafletResidue.length === 0, 'G9 index.html 零 Leaflet 殘留',
+  leafletResidue.length ? leafletResidue.map(([name, n]) => `${name}=${n}`).join(', ') : '八種形態各 0');
+// 正向對照:這條是否定式判準,沒有對照就永遠是綠的。每一種形態各塞一個假樣本,必須全被抓到。
+const RESIDUE_PROBES = ["L.map('x')", 'L.marker(1)', 'createLeafletEngine(1)', 'M.leaflet.foo',
+  "engine === 'leaflet'", '.leaflet-pane{}', 'cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/x.js', 'vendor/leaflet/leaflet.js'];
+const probed = RESIDUE_PROBES.map((probe, i) => new RegExp(LEAFLET_CODE[i][1].source).test(src + '\n' + probe));
+ck(probed.every(Boolean), 'G9b 正向對照:八種 Leaflet 形態各塞一個樣本都要被抓到',
+  probed.map((hit, i) => `${LEAFLET_CODE[i][0]}=${hit ? 'caught' : 'MISSED'}`).join(', '));
 
 if (process.env.ENGINE_GATE_STATIC_ONLY === '1') {
   console.log(fails.length ? `\n${fails.length} 項未過:${fails.join(', ')}` : '\n靜態閘門全部通過');
@@ -117,20 +149,40 @@ await new Promise(resolve => server.listen(PORT, '127.0.0.1', resolve));
 
 async function boot(browser, url, initLs = {}) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'zh-TW' });
-  const page = await ctx.newPage(), errs = [];
+  const page = await ctx.newPage(), errs = [], reqs = [];
   page.on('pageerror', e => errs.push(String(e && e.message || e)));
   page.on('console', m => { if (m.type() === 'error' && (u => u === '' || /index\.html/.test(u))(((m.location && m.location()) || {}).url || '')) errs.push('console.error: ' + m.text().slice(0, 200)); });
+  page.on('request', r => reqs.push(r.url()));
   await page.addInitScript(ls => { localStorage.setItem('trainmap-howto-seen', '1'); for (const [k, v] of Object.entries(ls)) localStorage.setItem(k, v); }, initLs);
   await page.goto(url, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => window.__state?.ready, null, { timeout: 60000 });
-  return { ctx, page, errs };
+  return { ctx, page, errs, reqs };
 }
 
-const LEAFLET_REASON = '此斷言逐值比較 Leaflet native map，MapLibre 沒有同型 Leaflet 物件';
-const MAPLIBRE_REASON = '此斷言直接讀 MapLibre style、canvas 或 raw map，Leaflet 沒有同型物件';
-const FLAG_REASON = '此斷言驗預設引擎（非法值／裸網址都要落到 maplibre），只在 maplibre pass 執行一次';
+// 期望的 Web Mercator 螢幕距離:z12 下 (25.0478,121.517)→(25.0578,121.527) 的像素距離。
+// 這是【獨立真值來源】——用 Web Mercator 定義自己算,不拿另一個引擎的讀數當基準
+// (M4-B 之前這條是拿 Leaflet 的量測值當 baseline;Leaflet 拔掉後那個基準就不存在了,而
+//  「拿被驗實作自己的讀數當期望值」是零資訊的判準)。z0 世界=256px 的專案慣例。
+function mercatorScreenDistance(a, b, zoom) {
+  const S = 256 * 2 ** zoom;
+  const x = lng => (lng + 180) / 360 * S;
+  const y = lat => { const phi = lat * Math.PI / 180; return (1 - Math.asinh(Math.tan(phi)) / Math.PI) / 2 * S; };
+  return Math.hypot(x(a[1]) - x(b[1]), y(a[0]) - y(b[0]));
+}
+const EXPECTED_D = mercatorScreenDistance([25.0478, 121.517], [25.0578, 121.527], 12);
+// 期望的 getBoundsZoom:同樣自己從 Web Mercator 與【當下量到的容器尺寸】推導,不寫死像素常數。
+function expectedBoundsZoom(sw, ne, size) {
+  const dxNorm = Math.abs(ne[1] - sw[1]) / 360;
+  const yNorm = lat => { const phi = lat * Math.PI / 180; return (1 - Math.asinh(Math.tan(phi)) / Math.PI) / 2; };
+  const dyNorm = Math.abs(yNorm(ne[0]) - yNorm(sw[0]));
+  return Math.floor(Math.log2(Math.min(size.x / dxNorm, size.y / dyNorm) / 256));
+}
+
+const MAPLIBRE_REASON = '此斷言直接讀 MapLibre style、canvas 或 raw map，是引擎專屬的內部契約';
+const FLAG_REASON = '此斷言驗引擎旗標已退場（?engine=／localStorage 舊值都要被忽略），只在 maplibre pass 執行一次';
+const NOLEAFLET_REASON = '此斷言證明頁面上完全沒有 Leaflet（M4-B 拔引擎的驗收），只在 maplibre pass 執行一次';
 const browser = await chromium.launch();
-let matrix, leafletBaseline;
+let matrix;
 try {
   matrix = await runEngineMatrix(async ({ engine, engineUrl, check, onlyFor }) => {
     const b = await boot(browser, engineUrl(BASE));
@@ -155,44 +207,6 @@ try {
     check(common.after >= 1 && common.final === common.after, 'G3 on/setView 觸發 moveend；off 後不再觸發', common);
     check(b.errs.length === 0, 'G2f 開機零 pageerror/console.error', b.errs.join(' | ').slice(0, 300));
 
-    let leaf;
-    if (engine === 'leaflet') {
-      leaf = await b.page.evaluate(() => {
-        const M = window.__M, raw = M.raw, pts = [[25.0478, 121.517], [22.6394, 120.3022], [24.1367, 120.6858]];
-        const same = (a, c) => a && c && Math.abs(a.x - c.x) < 1e-9 && Math.abs(a.y - c.y) < 1e-9;
-        const sameLL = (a, c) => a && c && Math.abs(a.lat - c.lat) < 1e-9 && Math.abs(a.lng - c.lng) < 1e-9;
-        M.setView([25.0478, 121.517], 12, { animate: false });
-        const a = M.toScreen([25.0478, 121.517]), c = M.toScreen([25.0578, 121.527]);
-        const got = {}, originalResize = raw.invalidateSize, originalSetView = raw.setView;
-        raw.invalidateSize = function (options) { got.resize = options; return originalResize.call(this, options); };
-        raw.setView = function (center, zoom, options) { got.setView = options; return originalSetView.call(this, center, zoom, options); };
-        M.resize({ animate: false, pan: false });
-        M.setView([25.0, 121.5], 11, { animate: false });
-        raw.invalidateSize = originalResize; raw.setView = originalSetView;
-        return {
-          engine: M.engine,
-          identity: raw === window.__map && M.leaflet === raw,
-          projection: pts.every(p => same(M.toScreen(p), raw.latLngToContainerPoint(p)))
-            && [[10, 10], [300, 200]].every(p => sameLL(M.fromScreen(p), raw.containerPointToLatLng(p)))
-            && pts.every(p => same(M.worldPx(p, 12), raw.project(p, 12)))
-            && sameLL(M.worldUnpx({ x: 500000, y: 400000 }, 12), raw.unproject({ x: 500000, y: 400000 }, 12)),
-          values: same(M.getSize(), raw.getSize()) && M.getZoom() === raw.getZoom()
-            && sameLL(M.getCenter(), raw.getCenter()) && M.getBounds().equals(raw.getBounds()) && M.getContainer() === raw.getContainer(),
-          forwardedResize: !!got.resize && got.resize.animate === false && got.resize.pan === false,
-          forwardedSetView: !!got.setView && got.setView.animate === false,
-          resizeOptions: got.resize, setViewOptions: got.setView,
-          baseline: { d: Math.hypot(a.x - c.x, a.y - c.y), bz: M.getBoundsZoom(M.latLngBounds([24.9, 121.4], [25.2, 121.7]), false) },
-        };
-      });
-      leafletBaseline = leaf.baseline;
-    }
-    onlyFor('leaflet', LEAFLET_REASON, 'G2a Leaflet 引擎且 window.__M 存在', engine === 'leaflet' ? leaf.engine === 'leaflet' : undefined, leaf);
-    onlyFor('leaflet', LEAFLET_REASON, 'G2b M.raw 與 M.leaflet 都是 window.__map', engine === 'leaflet' ? leaf.identity : undefined, leaf);
-    onlyFor('leaflet', LEAFLET_REASON, 'G2c Leaflet 投影四原語逐值相等', engine === 'leaflet' ? leaf.projection : undefined, leaf);
-    onlyFor('leaflet', LEAFLET_REASON, 'G2d Leaflet identity／相機／容器逐值相等', engine === 'leaflet' ? leaf.identity && leaf.values : undefined, leaf);
-    onlyFor('leaflet', LEAFLET_REASON, 'G2g resize options 逐字轉發到 invalidateSize', engine === 'leaflet' ? leaf.forwardedResize : undefined, leaf?.resizeOptions);
-    onlyFor('leaflet', LEAFLET_REASON, 'G2h setView options 逐字轉發到 Lmap.setView', engine === 'leaflet' ? leaf.forwardedSetView : undefined, leaf?.setViewOptions);
-
     let ml, adapter, hookProbe;
     if (engine === 'maplibre') {
       await b.page.waitForFunction(() => window.__M.raw.isStyleLoaded(), null, { timeout: 30000 }).catch(() => {});
@@ -207,6 +221,7 @@ try {
           sameSize: ov.clientWidth === mapEl.clientWidth && ov.clientHeight === mapEl.clientHeight && ov.clientWidth > 100,
           center: Math.abs(c.lat - 25.0478) < 1e-6 && Math.abs(c.lng - 121.517) < 1e-6,
           exposed: window.__map === raw, zoom: M.getZoom(), d: Math.hypot(a.x - d.x, a.y - d.y),
+          size: M.getSize(),
           bz: M.getBoundsZoom(M.latLngBounds([24.9, 121.4], [25.2, 121.7]), false),
           inBounds: M.getBounds().contains([25.0478, 121.517]),
         };
@@ -263,8 +278,8 @@ try {
     onlyFor('maplibre', MAPLIBRE_REASON, 'G4c ?engine=maplibre 開機零 pageerror', engine === 'maplibre' ? b.errs.length === 0 : undefined, b.errs);
     onlyFor('maplibre', MAPLIBRE_REASON, 'G6b style 載入且 state.ready', engine === 'maplibre' ? ml.style && ml.ready : undefined, ml);
     onlyFor('maplibre', MAPLIBRE_REASON, 'G6c #overlay 與 #map 同尺寸', engine === 'maplibre' ? ml.sameSize : undefined, ml);
-    onlyFor('maplibre', MAPLIBRE_REASON, 'G6d zoom 尺度與 Leaflet 一致', engine === 'maplibre' ? !!leafletBaseline && Math.abs(ml.d - leafletBaseline.d) <= 1.5 && ml.zoom === 12 && ml.center : undefined, { ml, leafletBaseline });
-    onlyFor('maplibre', MAPLIBRE_REASON, 'G6e getBoundsZoom 與 Leaflet 差 ≤1 級', engine === 'maplibre' ? !!leafletBaseline && Math.abs(ml.bz - leafletBaseline.bz) <= 1 : undefined, { ml: ml?.bz, leaflet: leafletBaseline?.bz });
+    onlyFor('maplibre', MAPLIBRE_REASON, 'G6d zoom 尺度＝Web Mercator 解析值', engine === 'maplibre' ? Math.abs(ml.d - EXPECTED_D) <= 1.5 && ml.zoom === 12 && ml.center : undefined, { d: ml?.d, expected: EXPECTED_D, zoom: ml?.zoom });
+    onlyFor('maplibre', MAPLIBRE_REASON, 'G6e getBoundsZoom 與容器尺寸推導值差 ≤1 級', engine === 'maplibre' ? Math.abs(ml.bz - expectedBoundsZoom([24.9, 121.4], [25.2, 121.7], ml.size)) <= 1 : undefined, { bz: ml?.bz, expected: ml && expectedBoundsZoom([24.9, 121.4], [25.2, 121.7], ml.size), size: ml?.size });
     onlyFor('maplibre', MAPLIBRE_REASON, 'G6f getBounds 含中心；bearing/pitch 為 0', engine === 'maplibre' ? ml.inBounds && ml.flat : undefined, ml);
     onlyFor('maplibre', MAPLIBRE_REASON, 'G6g MapLibre 開機零 pageerror/console.error', engine === 'maplibre' ? b.errs.length === 0 : undefined, b.errs.join(' | ').slice(0, 300));
     onlyFor('maplibre', MAPLIBRE_REASON, 'G6h onStyleLoad 立即一次、換 style 後再一次且身分改變', engine === 'maplibre' ? adapter.immediate === 1 && adapter.calls.length === 2 && adapter.calls[1] !== adapter.calls[0] : undefined, adapter?.calls);
@@ -282,28 +297,47 @@ try {
     check(errorProbe.errs.filter(error => error.includes('G2i 探針')).length === 1, 'G2i 正向對照：頁面 console.error 會被 errs 收到', errorProbe.errs);
     await errorProbe.ctx.close();
 
-    const override = await boot(browser, engineUrl(BASE), { 'trainmap-engine': engine === 'leaflet' ? 'maplibre' : 'leaflet' });
-    check((await override.page.evaluate(() => window.__ENGINE)) === engine, 'G4e URL engine 蓋過相反的 localStorage', engine);
-    await override.ctx.close();
-
-    const localStorageOnly = await boot(browser, BASE, { 'trainmap-engine': engine });
-    check((await localStorageOnly.page.evaluate(() => window.__ENGINE)) === engine, 'G4d localStorage trainmap-engine 生效', engine);
-    await localStorageOnly.ctx.close();
-
-    // M4-A(2026-09-04)起預設引擎是 maplibre:G4f 非法值、G4g 裸網址(無 ?engine、localStorage 空)都要落到 maplibre,
-    // 只在 maplibre pass 跑一次。?engine=leaflet 逃生口由 leaflet pass 的 G2a／G4a 與 G4e 守,不在這裡重複。
-    let invalidFlag, bareFlag;
+    // M4-B(2026-09-05)起引擎旗標退場:?engine= 與 localStorage 'trainmap-engine' 都不再被讀。
+    // 這幾條守的是「觀察期用過逃生口的人不會壞掉」——他們的瀏覽器裡還留著 trainmap-engine='leaflet',
+    // 也可能有人把 ?engine=leaflet 的網址存成書籤。舊值一律忽略、落到 maplibre、且不得有 pageerror。
+    let stale, staleUrl, invalidFlag, bareFlag, noLeaflet, cdnjsReqs;
     if (engine === 'maplibre') {
+      // G4d 舊 localStorage 值
+      const legacyLs = await boot(browser, BASE, { 'trainmap-engine': 'leaflet' });
+      stale = { flag: await legacyLs.page.evaluate(() => window.__ENGINE), errs: legacyLs.errs };
+      await legacyLs.ctx.close();
+      // G4e 舊書籤網址 ?engine=leaflet（＋同時留著舊 localStorage）
+      const legacyUrl = new URL(BASE); legacyUrl.searchParams.set('engine', 'leaflet');
+      const legacy = await boot(browser, legacyUrl.href, { 'trainmap-engine': 'leaflet' });
+      staleUrl = { flag: await legacy.page.evaluate(() => window.__ENGINE), errs: legacy.errs };
+      await legacy.ctx.close();
+      // G4f 非法值
       const invalidUrl = new URL(BASE); invalidUrl.searchParams.set('engine', 'foo');
       const invalid = await boot(browser, invalidUrl.href);
       invalidFlag = await invalid.page.evaluate(() => window.__ENGINE);
       await invalid.ctx.close();
+      // G4g 裸網址 ＋ G4h 頁面零 Leaflet ＋ G4i 零 cdnjs leaflet 請求
       const bare = await boot(browser, BASE);
       bareFlag = await bare.page.evaluate(() => window.__ENGINE);
+      noLeaflet = await bare.page.evaluate(() => ({
+        noGlobalL: typeof L === 'undefined',
+        noPane: document.querySelector('.leaflet-pane') === null,
+        noContainer: document.querySelector('.leaflet-container') === null,
+        leafletNull: !window.__M.leaflet,
+        // 正向對照:同一把尺量得到真的存在的 MapLibre DOM,證明選取器本身不是恆 null
+        seesMaplibrePane: document.querySelector('.maplibregl-canvas') !== null,
+      }));
+      cdnjsReqs = bare.reqs.filter(u => /cdnjs\.cloudflare\.com\/ajax\/libs\/leaflet|\bleaflet(\.min)?\.(js|css)\b/i.test(u));
       await bare.ctx.close();
     }
+    onlyFor('maplibre', FLAG_REASON, 'G4d 舊 localStorage trainmap-engine=leaflet 被忽略且零 pageerror', engine === 'maplibre' ? stale.flag === 'maplibre' && stale.errs.length === 0 : undefined, stale);
+    onlyFor('maplibre', FLAG_REASON, 'G4e 舊書籤 ?engine=leaflet 被忽略且零 pageerror', engine === 'maplibre' ? staleUrl.flag === 'maplibre' && staleUrl.errs.length === 0 : undefined, staleUrl);
     onlyFor('maplibre', FLAG_REASON, 'G4f 非法 engine 值退回預設 maplibre', engine === 'maplibre' ? invalidFlag === 'maplibre' : undefined, invalidFlag);
     onlyFor('maplibre', FLAG_REASON, 'G4g 裸網址（無 ?engine、localStorage 空）⇒ 預設 maplibre', engine === 'maplibre' ? bareFlag === 'maplibre' : undefined, bareFlag);
+    onlyFor('maplibre', NOLEAFLET_REASON, 'G4h 頁面沒有 Leaflet：全域 L 未定義、無 .leaflet-pane/.leaflet-container、M.leaflet 為 falsy（正向對照:同一把尺看得到 .maplibregl-canvas）',
+      engine === 'maplibre' ? noLeaflet.noGlobalL && noLeaflet.noPane && noLeaflet.noContainer && noLeaflet.leafletNull && noLeaflet.seesMaplibrePane : undefined, noLeaflet);
+    onlyFor('maplibre', NOLEAFLET_REASON, 'G4i 開機零筆 Leaflet 資源請求（cdnjs 或任何 leaflet.js/css）',
+      engine === 'maplibre' ? cdnjsReqs.length === 0 : undefined, cdnjsReqs);
 
     let probePass, probeDetail, probeMutationPass, probeMutationDetail;
     if (engine === 'maplibre') {

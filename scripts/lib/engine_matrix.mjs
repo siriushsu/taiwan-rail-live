@@ -1,4 +1,9 @@
-export const ENGINES = Object.freeze(['leaflet', 'maplibre']);
+// M4-B(2026-09-05)起只剩 MapLibre 一個引擎:Leaflet 已從 index.html／vendor／App 殼整個拔除。
+// 這個清單刻意保留成陣列(而不是把 runEngineMatrix 拆掉):矩陣的「引擎專屬斷言必須至少執行一次」
+// 死斷言機制仍在守 onlyFor('maplibre', …),而且哪天再加第二個引擎時只要改這一行。
+// assertEngine 會對 'leaflet' 直接 throw ⇒ 任何殘留的 onlyFor('leaflet', …) 是大聲的 TypeError,
+// 不是安靜的 skip(這正是拔引擎期間要的:漏改的地方要炸,不要靜靜地少驗一半)。
+export const ENGINES = Object.freeze(['maplibre']);
 
 export const ENGINE_MATRIX_ASSERTION_PREFIX = 'ENGINE_MATRIX_ASSERTION ';
 
@@ -28,8 +33,12 @@ function appendExtraQuery(params, extraQuery) {
 }
 
 /**
- * 將 engine 與額外 query 合併進網址；原有 fragment 永遠留在 query 後方。
- * extraQuery 若帶同名 key 會覆蓋 base，engine 則永遠以引數為準。
+ * 將額外 query 合併進網址；原有 fragment 永遠留在 query 後方。
+ * extraQuery 若帶同名 key 會覆蓋 base。
+ *
+ * M4-B 起【不再附加 `engine=`】——頁面只有 MapLibre 一個引擎,那個參數已經沒有作用。
+ * 反而要主動把 base 裡殘留的 `engine=` 拿掉:留著會讓人以為某支閘門還釘著某個引擎,
+ * 而它其實什麼都沒釘(「?engine=leaflet 被忽略」由 verify_engine_adapter 的 G4f 專責驗)。
  */
 export function engineUrl(base, engine, extraQuery = '') {
   assertEngine(engine);
@@ -42,8 +51,9 @@ export function engineUrl(base, engine, extraQuery = '') {
   const pathname = queryAt < 0 ? beforeHash : beforeHash.slice(0, queryAt);
   const params = new URLSearchParams(queryAt < 0 ? '' : beforeHash.slice(queryAt + 1));
   appendExtraQuery(params, extraQuery);
-  params.set('engine', engine);
-  return `${pathname}?${params.toString()}${fragment}`;
+  params.delete('engine');
+  const query = params.toString();
+  return `${pathname}${query ? `?${query}` : ''}${fragment}`;
 }
 
 function printableDetail(detail) {
@@ -52,7 +62,7 @@ function printableDetail(detail) {
 }
 
 /**
- * 固定跑完整 Leaflet／MapLibre 矩陣。刻意不提供環境變數或參數縮小範圍，
+ * 固定跑完 ENGINES 裡的每一個引擎（M4-B 起只有 MapLibre）。刻意不提供環境變數或參數縮小範圍，
  * 避免 CI gate 在少驗一半時仍回綠。
  */
 export async function runEngineMatrix(scenario, options = {}) {
@@ -132,7 +142,7 @@ export async function runEngineMatrix(scenario, options = {}) {
       declaration.engine,
       'failed',
       declaration.label,
-      `死斷言：兩個引擎都未執行；宣告理由：${declaration.reason}`,
+      `死斷言：宣告了引擎專屬斷言但沒有任何一輪執行到；宣告理由：${declaration.reason}`,
       { engine: declaration.engine, reason: declaration.reason, dead: true },
     );
   }
