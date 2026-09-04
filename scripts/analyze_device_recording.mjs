@@ -23,7 +23,7 @@ import { mkdirSync, readdirSync, writeFileSync, rmSync, existsSync } from 'node:
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
-import { probeCentroids, colorMassNear, isMag, isCyn, MIN_PIX } from './probe_centroids.mjs';
+import { probeCentroids, colorMassNear, cropRgba, isMag, isCyn, isMagDim, isCynDim, MIN_PIX } from './probe_centroids.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -59,6 +59,17 @@ export async function analyze(video, out, o = {}) {
   for (const f of files) {
     const { data, info } = await sharp(path.join(framesDir, f)).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
     const c = probeCentroids(data, info.width, info.height, radii);
+    // dim retry:只找到一顆時,在它附近(3 倍洋紅半徑)用遮罩下的寬鬆門檻再找另一顆——更多抽屜的暗色遮罩會把青點壓到
+    // 全域門檻之下(iPhone v0904m 錄影 3 秒 orphanBlind);限定鄰近才不會把地圖上同色系的線釣成假探針。
+    if (!!c.mag !== !!c.cyn) {
+      const f = c.mag || c.cyn, crop = cropRgba(data, info.width, info.height, f.x, f.y, 3 * radii.magR);
+      if (crop) {
+        const r2 = probeCentroids(crop.rgba, crop.w, crop.h, { ...radii, magTest: isMagDim, cynTest: isCynDim });
+        const shift = p => p ? { ...p, x: p.x + crop.x0, y: p.y + crop.y0, dim: true } : null;
+        if (c.mag && r2.cyn) c.cyn = shift(r2.cyn);
+        if (c.cyn && r2.mag) c.mag = shift(r2.mag);
+      }
+    }
     let kind, d = null;
     if (c.mag && c.cyn) { d = Math.hypot(c.mag.x - c.cyn.x, c.mag.y - c.cyn.y); kind = d <= limitPx ? 'ok' : (c.mag.sure && c.cyn.sure ? 'over' : 'weakOver'); }
     else if (!c.mag && !c.cyn) kind = 'absent';

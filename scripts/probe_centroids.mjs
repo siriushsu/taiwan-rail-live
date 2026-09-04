@@ -14,11 +14,14 @@ export const MIN_ARC = 0.35, RIM_TOL = 2.5, MIN_PIX = 12, SURE_ARC = 0.5;
 // 顏色門檻:以 09-03 真機錄影量到的探針像素為準(洋紅 r p2=208／g p50=0／b p50=253;青 r p98=4／g p2=251／b p2=250),
 // 留壓縮抖動的餘裕,同時把正式線色擋在外面:沙崙線 #B565A7 壓縮後 (176–184, 98–103, 160–170) 靠 b≥180 擋掉;
 // 內灣線 #00A0B0 壓縮後 g 可到 208、b 到 218,門檻擋不完——靠下面的連通元件尺寸篩掉(線是長條,探針外框永遠 ≤ 2r)。
-// 門檻第二版(09-04 iPhone v0904m 錄影):更多抽屜開著時整張地圖蓋一層暗色遮罩,青點實測 (10,191,198)、洋紅環 (188,13,197)
-// ——青的 200 門檻直接看不見(3 秒全判成 orphanBlind、max-gap 假紅),洋紅 180 只差 8。兩色都降到 165,並加「彩色兩通道
-// 要比第三通道高 ≥80」的相對條件擋灰階與淡色;真機正常亮度是 (0,253,253)/(254,0,255),餘裕還很大。
-export const isMag = (r, g, b) => r >= 165 && b >= 165 && g <= 110 && r - g >= 80 && b - g >= 80;
-export const isCyn = (r, g, b) => g >= 165 && b >= 165 && r <= 110 && g - r >= 80 && b - r >= 80;
+export const isMag = (r, g, b) => r >= 180 && b >= 180 && g <= 110;
+export const isCyn = (r, g, b) => g >= 200 && b >= 200 && r <= 110;
+// 遮罩下的寬鬆門檻(09-04 iPhone v0904m 錄影):更多抽屜開著時整張地圖蓋一層暗色遮罩,青點實測 (10,191,198)、洋紅環
+// (188,13,197)——青的 200 門檻直接看不見(3 秒全判成 orphanBlind、max-gap 假紅),洋紅 180 只差 8。寬鬆版降到 165 並加
+// 「彩色兩通道比第三通道高 ≥80」擋灰階;但**只准在已找到的另一顆探針附近用**(analyze 的 dim retry):全域放寬過一次,
+// 內灣線的青綠在 f_00558 被擬合成一顆 1007px 外的假青點(weakOver)。真機正常亮度 (0,253,253)/(254,0,255)。
+export const isMagDim = (r, g, b) => r >= 165 && b >= 165 && g <= 110 && r - g >= 80 && b - g >= 80;
+export const isCynDim = (r, g, b) => g >= 165 && b >= 165 && r <= 110 && g - r >= 80 && b - r >= 80;
 
 // 色塊的邊緣像素(4 鄰域有一個不是同色,或貼著畫面邊界)。
 // 先做連通元件、丟掉外框任一邊超過 2.4r 的元件:同色的軌道線／路線帶／UI 區塊都是長條或大塊,而探針(環或點)
@@ -99,6 +102,16 @@ export function fitCircle(pts, r) {
 // 某顏色在圓心 (cx,cy) 半徑 R 內有幾個像素。給「只找到一顆探針」的影格分辨用:另一顆的圓擬合失敗,
 // 但它的顏色若仍在找到那顆附近有色塊,代表兩層畫在同一處、只是被遮到量不出圓心(不是失步)。
 // 刻意只數附近、不數整張畫面:顏色門檻放寬過,畫面別處的 UI 色會誤觸,數整張會把「遮擋」判成「失步」。
+// 只裁一塊 RGBA 出來(給 dim retry 用:寬鬆門檻只准看已找到那顆探針的鄰近)。回 { rgba, w, h, x0, y0 }。
+export function cropRgba(rgba, w, h, cx, cy, R) {
+  const x0 = Math.max(0, Math.floor(cx - R)), y0 = Math.max(0, Math.floor(cy - R));
+  const x1 = Math.min(w, Math.ceil(cx + R)), y1 = Math.min(h, Math.ceil(cy + R));
+  const cw = x1 - x0, ch = y1 - y0; if (cw <= 0 || ch <= 0) return null;
+  const out = new Uint8Array(cw * ch * 4);
+  for (let y = 0; y < ch; y++) out.set(rgba.subarray(((y0 + y) * w + x0) * 4, ((y0 + y) * w + x1) * 4), y * cw * 4);
+  return { rgba: out, w: cw, h: ch, x0, y0 };
+}
+
 export function colorMassNear(rgba, w, h, test, cx, cy, R) {
   const x0 = Math.max(0, Math.floor(cx - R)), x1 = Math.min(w - 1, Math.ceil(cx + R));
   const y0 = Math.max(0, Math.floor(cy - R)), y1 = Math.min(h - 1, Math.ceil(cy + R));
@@ -117,8 +130,8 @@ export function colorMassNear(rgba, w, h, test, cx, cy, R) {
 // 兩圈可差到 1.5–2px;直邊相切釣出的假圓心差的是 r/3 量級,容差 10% 仍分得開。
 // 只擬合得出一圈時,可見弧 ≥ SURE_ARC 才 sure。不給 magInR(check-engine 的 G7 只量外圈)就照舊單圈。
 // 青點只有一圈,sure ＝ 可見弧 ≥ SURE_ARC。
-export function probeCentroids(rgba, w, h, { magR = 18, magInR = null, cynR = 5 } = {}) {
-  const magPts = rim(rgba, w, h, isMag, magR), cynPts = rim(rgba, w, h, isCyn, cynR);
+export function probeCentroids(rgba, w, h, { magR = 18, magInR = null, cynR = 5, magTest = isMag, cynTest = isCyn } = {}) {
+  const magPts = rim(rgba, w, h, magTest, magR), cynPts = rim(rgba, w, h, cynTest, cynR);
   const out = fitCircle(magPts, magR);
   // 內圈只准用「不是外圈內點」的邊緣像素:只剩半圈時,一個往可見側偏 6px 的 r12 圓會貼著外圈(內切)收一整段內點,
   // 角度格比真內圈還多(09-04 自測 occluded:假內圈 0.67 vs 真 0.56)。外圈先擬合、把它的內點拿掉,內圈就沒東西可貼。
