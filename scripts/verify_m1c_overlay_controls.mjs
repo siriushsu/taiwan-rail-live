@@ -172,7 +172,19 @@ async function desktopMarkers(browser, url, engine, check) {
       card.innerHTML = '<div id="m1cForwardTarget" style="width:100%;height:100%"></div>';
       Object.assign(card.style, { position: 'absolute', left: `${p.x - 24}px`, top: `${p.y - 24}px`, right: 'auto', width: '48px', height: '48px', padding: '0', zIndex: '2000' });
     });
-    await page.locator('#m1cForwardTarget').click({ position: { x: 24, y: 24 } });
+    await page.evaluate(() => {
+      // 這格驗的是 xingCard 是否直接轉交同一個 handleMapClick，不是列車／平交道的
+      // 命中優先序。即時畫面可能剛好有車壓在測試站上；而 draw() 每幀會重建 hit cache，
+      // 所以清空與 DOM click 必須在同一個 event loop，否則 Playwright click 前又會被補回。
+      state._trainHits = [];
+      state._crossHits = [];
+      state._sugarHits = [];
+      state.deco = false;
+      const target = document.getElementById('m1cForwardTarget'), b = target.getBoundingClientRect();
+      target.dispatchEvent(new MouseEvent('click', {
+        bubbles: true, cancelable: true, clientX: b.left + b.width / 2, clientY: b.top + b.height / 2,
+      }));
+    });
     check(await page.evaluate(() => !!state.boardStation), 'M29 平交道卡穿透直接走共用命中函式');
     check(errors.length === 0, '桌面 Marker／穿透情境零 pageerror', errors.slice(0, 5));
   } catch (error) {

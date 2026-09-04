@@ -1741,6 +1741,40 @@ async function stickySuite(browser, eng) {
   await ctx.close();
 }
 
+// 這支 gate 的 context 是 hasTouch+isMobile；Playwright 的 page.mouse 在 Chromium 此時不會送出
+// canvas 可收到的 mouse/pointer 事件，拿它驗「使用者拖地圖」會把真綠判成紅。Chromium 走 CDP
+// 送可信的 touch sequence。Playwright WebKit 只公開 touchscreen.tap、沒有 drag；該分支保留原生
+// mouse sequence 驗同一套 MapLibre dragPan/dragstart 語意，真觸控由 Chromium 與最後的實機錄影守住。
+async function touchDrag(page, eng, x0, y0, x1, y1) {
+  const steps = 14;
+  if (eng === 'chromium') {
+    const cdp = await page.context().newCDPSession(page);
+    try {
+      // browser.newContext({ hasTouch:true }) 只影響頁面能力偵測；直接走 CDP 時仍須明示開啟
+      // touch emulation，否則 dispatchTouchEvent 會成功回傳卻完全不產生 DOM 事件。
+      await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+      await cdp.send('Input.dispatchTouchEvent', {
+        type: 'touchStart', touchPoints: [{ x: x0, y: y0, id: 1, radiusX: 1, radiusY: 1, force: 1 }],
+      });
+      for (let i = 1; i <= steps; i++) {
+        const x = x0 + (x1 - x0) * i / steps, y = y0 + (y1 - y0) * i / steps;
+        await cdp.send('Input.dispatchTouchEvent', {
+          type: 'touchMove', touchPoints: [{ x, y, id: 1, radiusX: 1, radiusY: 1, force: 1 }],
+        });
+        await page.waitForTimeout(16);
+      }
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    } finally {
+      await cdp.detach();
+    }
+    return;
+  }
+  await page.mouse.move(x0, y0);
+  await page.mouse.down();
+  await page.mouse.move(x1, y1, { steps });
+  await page.mouse.up();
+}
+
 async function deviceSuite(browser, eng) {
   const seenAll = new Set();
   for (const S of LANDSCAPE) {
@@ -1764,11 +1798,7 @@ async function deviceSuite(browser, eng) {
     const sx = fpIsRightRail
       ? Math.max(100, Math.round(fpBox.left / 2))
       : Math.max(Math.round(S.w * 0.3), Math.round((fpBox ? fpBox.right : 0) + 40));
-    await page.mouse.move(sx, Math.round(S.h * 0.5));
-    await page.mouse.down();
-    await page.mouse.move(sx - 55, Math.round(S.h * 0.62), { steps: 8 });
-    await page.mouse.move(sx - 80, Math.round(S.h * 0.66), { steps: 6 });
-    await page.mouse.up();
+    await touchDrag(page, eng, sx, Math.round(S.h * 0.5), sx - 80, Math.round(S.h * 0.66));
     await page.waitForTimeout(700);
     // v3(2026-08-27 裁示):解鎖後跟隨欄(右側欄)蓋著工具堆——「可以擋住右上角那些按鈕沒關係」。
     // 使用者要按「回到列車/隨機跟隨」的實際操作序=先點 ×(fpClose)把欄收合成膠囊(跟隨不中斷、
@@ -2037,10 +2067,15 @@ const FREEZE = () => {
   // 讀到不同瞬間=假紅(0827 兩輪紅的視口/引擎都不同、且互不重疊)。兩頁對稱釘同一字串後才可比。
   const at = document.querySelector('.leaflet-control-attribution'); if (at) at.textContent = 'ATTR';
 };
-const GEOM = () => {
+const GEOM = eng => {
   const out = {};
-  for (const sel of ['header', '.stage', '.controls', '.tabbar', '#followPanel', '#trainCard',
-    '.plate', '#lead', '.grouptabs', '#explorePanel', '#board', '.leaflet-bottom.leaflet-right']) {
+  const sels = ['header', '.stage', '.controls', '.tabbar', '#followPanel', '#trainCard',
+    '.plate', '#lead', '.grouptabs', '#explorePanel', '#board'];
+  // 對照 commit 早於 MapLibre、即使 query 帶 engine=maplibre 仍只會建立 Leaflet 家具。
+  // L6/L7 要守的是共用 HUD 零回歸；Leaflet 自己仍額外逐值守右下 attribution 容器，
+  // MapLibre 不拿「舊頁有 Leaflet 容器、新頁沒有」這個預期引擎差異冒充產品回歸。
+  if (eng === 'leaflet') sels.push('.leaflet-bottom.leaflet-right');
+  for (const sel of sels) {
     const el = document.querySelector(sel);
     if (!el) { out[sel] = null; continue; }
     const cs = getComputedStyle(el), r = el.getBoundingClientRect();
@@ -2059,11 +2094,11 @@ async function zeroRegressionSuite(browser, eng) {
   for (const S of [{ w: 1024, h: 768, tag: 'iPad橫' }, { w: 1280, h: 800, tag: '桌面1280' }, { w: 768, h: 1024, tag: 'iPad直' }]) {
     const cur = await boot(browser, S, { follow: false });
     await cur.page.evaluate(FREEZE);
-    const a = await cur.page.evaluate(GEOM);
+    const a = await cur.page.evaluate(GEOM, eng);
     await cur.ctx.close();
     const bas = await boot(browser, S, { url: BASE + 'baseline.html', follow: false });
     await bas.page.evaluate(FREEZE);
-    const c = await bas.page.evaluate(GEOM);
+    const c = await bas.page.evaluate(GEOM, eng);
     await bas.ctx.close();
     const diff = [];
     for (const k of Object.keys(c)) if (JSON.stringify(a[k]) !== JSON.stringify(c[k])) diff.push(`${k}: ${JSON.stringify(c[k])} → ${JSON.stringify(a[k])}`);

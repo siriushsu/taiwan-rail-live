@@ -6504,6 +6504,8 @@ function createLeafletEngine(containerId, view) {
     getPitch: () => 0,
     setBearing: bearing => { void bearing; return E; },
     setPitch: pitch => { void pitch; return E; },
+    getPadding: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+    setPadding: padding => { void padding; return E; },
     resetNorth: o => { void o; return E; },
     easeTo: o => {
       if (o && o.center) Lmap.setView(o.center, Number.isFinite(o.zoom) ? o.zoom : Lmap.getZoom(), o);
@@ -6582,6 +6584,10 @@ function mlToLngLatBounds(b) {
 function mlPadding(p) {
   if (p == null) return 0;
   if (typeof p === 'number') return p;
+  if (!Array.isArray(p) && ('top' in p || 'bottom' in p || 'left' in p || 'right' in p)) return {
+    top: Number(p.top) || 0, bottom: Number(p.bottom) || 0,
+    left: Number(p.left) || 0, right: Number(p.right) || 0,
+  };
   const x = Array.isArray(p) ? p[0] : p.x, y = Array.isArray(p) ? p[1] : p.y;
   return { top: y || 0, bottom: y || 0, left: x || 0, right: x || 0 };
 }
@@ -6674,6 +6680,8 @@ function createMaplibreEngine(containerId, view) {
     getBounds: () => { const b = raw.getBounds(); return new MBounds([b.getSouth(), b.getWest()], [b.getNorth(), b.getEast()]); },
     getBearing: () => raw.getBearing(),
     getPitch: () => raw.getPitch(),
+    getPadding: () => raw.getPadding(),
+    setPadding: padding => { raw.setPadding(mlPadding(padding)); return E; },
     setBearing: bearing => { raw.setBearing(bearing); return E; },
     setPitch: pitch => { raw.setPitch(pitch); return E; },
     resetNorth: o => {
@@ -6699,7 +6707,9 @@ function createMaplibreEngine(containerId, view) {
       const opts = { center: [p.lng, p.lat], zoom: (z == null ? raw.getZoom() : z - ML_Z) };
       if (o && Number.isFinite(o.bearing)) opts.bearing = o.bearing;
       if (o && Number.isFinite(o.pitch)) opts.pitch = o.pitch;
-      if (d === 0 || (d === undefined && (!o || o.animate === undefined))) raw.jumpTo(opts); // 專案裡 24 處 setView 全是 animate:false
+      if (o && o.offset) opts.offset = [Number(o.offset[0] ?? o.offset.x) || 0, Number(o.offset[1] ?? o.offset.y) || 0];
+      if (opts.offset) raw.easeTo({ ...opts, duration: d == null ? 0 : d }); // jumpTo 沒有 offset；duration:0 仍是同步相機更新
+      else if (d === 0 || (d === undefined && (!o || o.animate === undefined))) raw.jumpTo(opts); // 專案裡 24 處 setView 全是 animate:false
       else raw.easeTo({ ...opts, duration: d == null ? 250 : d });
       return E;
     },
@@ -6833,6 +6843,14 @@ function followHeadingFor(key, a, b) {
   }
   return state._followHeading && state._followHeading.key === key ? state._followHeading.value : null;
 }
+// MapLibre 的 touchPan 在 touchstart 就進 active，dragstart 則要等位移超過門檻才發。
+// 跟車相機若在這段間隙繼續 setView/setBearing，handler 會被重設，使用者永遠拖不開鎖。
+// 旋轉／傾斜手勢同理：手指在圖上時相機完全讓位，dragstart 之後 followLock 會接手解鎖。
+function mapGestureActive() {
+  if (!M || M.engine !== 'maplibre' || !M.raw) return false;
+  return [M.raw.dragPan, M.raw.dragRotate, M.raw.touchZoomRotate]
+    .some(h => h && typeof h.isActive === 'function' && h.isActive());
+}
 function applyFollowHeading(heading, options) {
   if (!M || M.engine !== 'maplibre') return;
   const target = state.ambient ? 0 : heading;
@@ -6841,6 +6859,7 @@ function applyFollowHeading(heading, options) {
   const delta = ((target - current + 540) % 360) - 180;
   if (Math.abs(delta) < 0.05) return;
   const immediate = !!(options && options.immediate);
+  if (!immediate && mapGestureActive()) return;
   M.setBearing(immediate ? target : current + delta * 0.18);
 }
 function resetFollowHeading(options) {
@@ -10599,7 +10618,7 @@ function repaintOverpasses(w, h, P, groups) {
     ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.stroke();
   };
   for (const c of crossLevels) {
-    const p0 = map.latLngToContainerPoint([c.lat, c.lon]);
+    const p0 = M.toScreen([c.lat, c.lon]);
     if (p0.x < -XING_PATCH_PX || p0.y < -XING_PATCH_PX || p0.x > w + XING_PATCH_PX || p0.y > h + XING_PATCH_PX) continue;
     const hi = find(c.above.id), lo = find(c.below.id);
     if (!hi || !lo) continue;                       // 有一條沒畫就沒有上下關係可言
@@ -10738,7 +10757,7 @@ function drawFreq(w, h) {
     ctx.strokeStyle = metroLineColor(ln.color);
     ctx.lineWidth = 3; ctx.stroke();
   });
-  repaintOverpasses(w, h, P, [{ lines: state.lines, color: metroLineColor, visible: ln => state.visible.has(ln.id) && ln.pts }]);
+  if (!glTracksActive()) repaintOverpasses(w, h, P, [{ lines: state.lines, color: metroLineColor, visible: ln => state.visible.has(ln.id) && ln.pts }]);
   const freqLabels = [];
   state.lines.forEach(ln => {
     if (!state.visible.has(ln.id) || !ln.pts) return;
@@ -11058,7 +11077,7 @@ function updateFreqFollowCamera(immediate) {
       : trtcOfficialVehicleInfo(rec.ln, rec.vehicle, Date.now() / 1000);
     if (!info.pos) { clearFreqFollow(); return; }
     ambNotePos(info.pos.lat, info.pos.lon);
-    applyFreqFollowHeading(info, info.ln || f.ln, immediate);
+    if (state.followLock) applyFreqFollowHeading(info, info.ln || f.ln, immediate);
     if (immediate) M.setView([info.pos.lat, info.pos.lon], followEntryZoom(), { animate: false });
     else if (state.followLock) recenterTo(info.pos.lat, info.pos.lon);
     updateFreqCard(info);
@@ -11069,7 +11088,7 @@ function updateFreqFollowCamera(immediate) {
     const info = freqTrainInfoAt(ln, f.tr, state.simSec);
     if (!info.pos) { clearFreqFollow(); showToast(t(info.done ? '列車已抵達終點' : '已離開此班次的行駛時段')); return; }
     ambNotePos(info.pos.lat, info.pos.lon);
-    applyFreqFollowHeading(info, ln, immediate);
+    if (state.followLock) applyFreqFollowHeading(info, ln, immediate);
     if (immediate) M.setView([info.pos.lat, info.pos.lon], followEntryZoom(), { animate: false });
     else if (state.followLock) recenterTo(info.pos.lat, info.pos.lon);
     updateFreqCard(info);
@@ -11080,7 +11099,7 @@ function updateFreqFollowCamera(immediate) {
   const base = state.mode === 'sched' ? (state.decoElapsed || 0) : state.elapsed;
   const info = freqTrainInfo(ln, base * state.speedMult + f.k * ln.period / ln.n);
   ambNotePos(info.lat, info.lon);
-  applyFreqFollowHeading(info, ln, immediate);
+  if (state.followLock) applyFreqFollowHeading(info, ln, immediate);
   if (immediate) M.setView([info.lat, info.lon], followEntryZoom(), { animate: false });
   else if (state.followLock) recenterTo(info.lat, info.lon);
   updateFreqCard(info);
@@ -11392,7 +11411,7 @@ function drawSched(w, h, paintDecoTrains) {
     }
     // 裝飾層(捷運)在 drawDecoBase 已描完、班表軌道剛描完,兩批都在了才校正交叉口疊層;
     // 排在 drawCollectSegs 之前,收集地圖的亮段才不會被補描蓋掉。
-    repaintOverpasses(w, h, P, [
+    if (!glTracksActive()) repaintOverpasses(w, h, P, [
       { lines: state.trackLines, color: trackLineColor, visible: ln => !state.trackVisible || state.trackVisible.has(ln.id) },
       { lines: state.deco ? state.decoLines : null, color: metroLineColor },
     ]);
@@ -22480,6 +22499,17 @@ function focusShift() {
   return { x: (i.right - i.left) / 2, y: (i.bottom - i.top) / 2 };
 }
 function focusShiftHave() { return state._focusShift || { x: 0, y: 0 }; }
+// MapLibre 原生 padding 會在 bearing／pitch 任意值下，把 camera center 放在「露出地圖」正中央；
+// 不可沿用 Leaflet 的世界像素平移，否則旋轉後螢幕 x/y 軸已不等於經緯度 x/y 軸。只有值真的改變才
+// setPadding，避免跟車每幀重送相機事件。_autoPan 讓既有 movestart 監聽器知道這不是使用者手勢。
+function syncMapLibrePadding(i) {
+  if (!M || M.engine !== 'maplibre' || !M.setPadding || !M.getPadding) return false;
+  const want = i || { top: 0, bottom: 0, left: 0, right: 0 }, have = M.getPadding();
+  if (['top', 'bottom', 'left', 'right'].every(k => Math.abs((have[k] || 0) - (want[k] || 0)) < 0.25)) return false;
+  state._autoPan = true;
+  try { M.setPadding(want); } finally { state._autoPan = false; }
+  return true;
+}
 // 把「想看的點」換算成「要下給 setView/flyTo 的中心」。z 省略=用當下縮放。
 // 🔴 位移後的中心若超出 maxBounds,Leaflet 的 _limitCenter 會把它夾回來——夾回來就等於沒讓位,
 //    而 state._focusShift 卻已經記成「讓了」,帳面與實況脫節,之後的差量記帳全部歪掉。
@@ -22505,10 +22535,15 @@ function focusApplyLimit(target, zz, want) {
   return target;
 }
 function focusCenter(lat, lon, z, extra) {
-  const s = focusShift();
+  const i = mapInsets(), s = { x: (i.right - i.left) / 2, y: (i.bottom - i.top) / 2 };
   // extra=§04c 前瞻偏移(跟車專用):一樣進 _focusShift 記帳——解除跟隨後 reframeFocus 的
   // want(只含讓位)對上 have(讓位+前瞻),差量自動把前瞻退掉,不需要任何專屬清理碼
   const want = { x: s.x + (extra ? extra.x : 0), y: s.y + (extra ? extra.y : 0) };
+  if (M.engine === 'maplibre') {
+    syncMapLibrePadding(i);
+    state._focusShift = want;
+    return M.latLng(lat, lon); // 前瞻由 setView 的螢幕 offset 承接；padding 負責四邊 HUD 讓位
+  }
   const zz = (z == null ? M.getZoom() : z);
   if (!want.x && !want.y) { state._focusShift = { x: 0, y: 0 }; return M.latLng(lat, lon); }
   const p = M.worldPx([lat, lon], zz);
@@ -22520,7 +22555,7 @@ function focusCenter(lat, lon, z, extra) {
 // 只平移 mapPane 而不更新 _lastCenter;之後任何 _resetView(例如版面變動觸發的 invalidateSize)會把那段
 // 位移折進中心變成永久,於是「用絕對座標還原」永遠對不回去(實測:關掉面板後鏡頭回不到原位)。
 function reframeFocus() {
-  if (camBlocked() || state._zoomAnim) return;
+  if (camBlocked() || (M.engine === 'leaflet' && state._zoomAnim)) return;
   if (state.followTrain || state.freqFollow || state.ambient) return; // 那些模式每幀自己走 recenterTo,會自動套上新位移
   // 🔴 每次 reframe 都重量,不吃 80ms 快取:面板開啟是「先 hidden=false 讓位一次(此刻 sheet 還在
   //    滑入,只量到一小截)、渲染完 opener 再叫一次補齊」的兩段式(見 updateSheetOpenClass 尾註),
@@ -22528,6 +22563,11 @@ function reframeFocus() {
   //    只讓到 35)。reframe 是事件驅動,不差這一次 layout;快取是給每幀 recenterTo 的。
   invalidateMapInsets();
   const want = focusShift(), have = focusShiftHave();
+  if (M.engine === 'maplibre') {
+    syncMapLibrePadding(mapInsets());
+    state._focusShift = want;
+    return;
+  }
   const dx = Math.round(want.x - (have.x || 0)), dy = Math.round(want.y - (have.y || 0));
   if (!dx && !dy) return; // 桌面恆走這條(面板是右上浮動卡、insets 恆 0),行為與改動前逐像素相同
   // 記帳前先問「這段位移做得到嗎」:maxBounds 會夾(見 focusCenter 的說明),夾了還記成做到就會帳實不符
@@ -22541,16 +22581,26 @@ function reframeFocus() {
 
 function recenterTo(lat, lon, extra) {
   if (camBlocked()) return; // 劇場/背景分頁:跟隨鏡頭不置中(成本防線,勿移除)
-  if (state._zoomAnim) return; // 縮放動畫視窗內不搶相機:setView(animate:false) 會中斷 Leaflet 的縮放補間;動畫一結束(≤250ms)下一幀自然補回置中
+  if (mapGestureActive()) return; // MapLibre 手指／滑鼠已接管相機；先讓 dragstart 有機會成立並解鎖
+  if (state._zoomAnim) return; // 縮放補間中不搶相機；逾時旗標由下方相機自癒器清除後再貼回列車
   if (document.body.classList.contains('search-open')) return; // §04c 契約9:搜尋打字中不搶相機(關閉面板即恢復)
   // 每幀把列車釘在畫面「可視窗」中心(面板遮住的部分不算,見 focusCenter)。曾用「次像素平移」(移動 mapPane
   // 消階梯鋸齒),但 mapPane(圖磚)與獨立的列車/軌道 canvas 圖層在真機幀率下會脫鉤→整條路線跟著車移動/抖動
   // (v0713r 引入),已移除,回歸穩定整數像素置中。
   const t = focusCenter(lat, lon, null, extra);
-  const c = M.getCenter();
-  if (Math.abs(c.lat - t.lat) < 1e-6 && Math.abs(c.lng - t.lng) < 1e-6) return; // 中心已到位(停站/暫停)免重複 setView
+  if (M.engine === 'maplibre') {
+    const i = mapInsets(), sz = M.getSize(), p = M.toScreen([lat, lon]);
+    const tx = i.left + (sz.x - i.left - i.right) / 2 - (extra ? extra.x : 0);
+    const ty = i.top + (sz.y - i.top - i.bottom) / 2 - (extra ? extra.y : 0);
+    if (Math.abs(p.x - tx) < 0.25 && Math.abs(p.y - ty) < 0.25) return;
+  } else {
+    const c = M.getCenter();
+    if (Math.abs(c.lat - t.lat) < 1e-6 && Math.abs(c.lng - t.lng) < 1e-6) return; // 中心已到位(停站/暫停)免重複 setView
+  }
   state._autoPan = true; // 標記「這是跟隨鏡頭不是使用者拖曳」——tap-pick 選單靠它分辨,別誤收(見 closeTapPickOnUserMove)
-  M.setView(t, M.getZoom(), { animate: false });
+  M.setView(t, M.getZoom(), M.engine === 'maplibre' && extra
+    ? { animate: false, offset: [-extra.x, -extra.y] }
+    : { animate: false });
   state._autoPan = false;
 }
 
@@ -22631,10 +22681,11 @@ function setFollowStatus(s, msg) {
 function followAheadPx(tr, pos) {
   if (!window.matchMedia(MOBILE_MQ).matches) return null;
   const nxt = trainPos(tr, state.simSec + 45);
-  const z = M.getZoom();
   let dx = 0, dy = 0;
   if (nxt) {
-    const a = M.worldPx([pos.lat, pos.lon], z), b = M.worldPx([nxt.lat, nxt.lon], z);
+    // 前瞻是螢幕方向，不是北朝上世界方向；MapLibre bearing／pitch 開啟後必須經當下相機投影。
+    // Leaflet 的 bearing/pitch 恆 0，這個寫法與原本 worldPx 的方向逐值等價。
+    const a = M.toScreen([pos.lat, pos.lon]), b = M.toScreen([nxt.lat, nxt.lon]);
     dx = b.x - a.x; dy = b.y - a.y;
   }
   const len = Math.hypot(dx, dy);
@@ -22685,7 +22736,7 @@ function updateFollowCamera() {
   const pos = trainPos(tr, state.simSec);
   if (!pos) {
     const f = tr.stops[0], n = tr.stops[1];
-    applyFollowHeading(followHeadingFor(tr, f, n));
+    if (state.followLock) applyFollowHeading(followHeadingFor(tr, f, n));
     if (state.followLock) recenterTo(f.lat, f.lon);
     setFollowStatus('pre', '尚未發車'); return;
   }
@@ -22693,7 +22744,7 @@ function updateFollowCamera() {
   setFollowStatus('run', '');
   const headingBefore = trainPos(tr, state.simSec - 5) || pos;
   const headingAfter = trainPos(tr, state.simSec + 5) || pos;
-  applyFollowHeading(followHeadingFor(tr, headingBefore, headingAfter));
+  if (state.followLock) applyFollowHeading(followHeadingFor(tr, headingBefore, headingAfter));
   if (state.followLock) recenterTo(pos.lat, pos.lon, followAheadPx(tr, pos));
   // 相機自癒 v2(2026-08-12 Codex 複審修訂):量結果不猜原因——鎖定跟隨中,車的容器點連續
   // 3.5s 落在露出矩形外(16px 容差;v1 的 25% 邊距會把被側欄蓋住的車誤判成「在場」)→ 強制
@@ -22714,10 +22765,16 @@ function updateFollowCamera() {
     else if (!state._camOffAt) state._camOffAt = nowMs;
     else if (!animBusy && nowMs - state._camOffAt > 3500 && nowMs - (state._gestureAt || 0) > 2000) {
       state._camOffAt = 0; state._camRescues = (state._camRescues || 0) + 1;
-      if (zaStuck) { try { M.stop(); } catch (e) {} if (state._endZoomAnim) state._endZoomAnim(); }
+      if (zaStuck) {
+        try { M.stop(); } catch (e) {}
+        if (state._endZoomAnim) state._endZoomAnim();
+        else { state._zoomAnim = false; state._zaAff = null; state._zaCal = null; state._zaCalPend = null; }
+      }
       state._autoPan = true;
       try {
-        M.setView(focusCenter(pos.lat, pos.lon, followEntryZoom(), followAheadPx(tr, pos)), followEntryZoom(), { animate: false });
+        const ahead = followAheadPx(tr, pos);
+        M.setView(focusCenter(pos.lat, pos.lon, followEntryZoom(), ahead), followEntryZoom(),
+          M.engine === 'maplibre' && ahead ? { animate: false, offset: [-ahead.x, -ahead.y] } : { animate: false });
       } finally { state._autoPan = false; }
     }
   }
@@ -33230,7 +33287,7 @@ function journeyShareRemotePosition(remote = journeyShareRemote) {
 function drawJourneyShareMarker() {
   const position = journeyShareRemotePosition();
   if (!position) return;
-  const p = map.latLngToContainerPoint([position.lat, position.lon]);
+  const p = M.toScreen([position.lat, position.lon]);
   ctx.save(); ctx.globalAlpha = position.stale ? .58 : 1;
   ctx.beginPath(); ctx.arc(p.x, p.y, 10, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill();
   ctx.beginPath(); ctx.arc(p.x, p.y, 7, 0, Math.PI * 2); ctx.fillStyle = '#D23C2A'; ctx.fill();
@@ -33248,7 +33305,7 @@ async function fetchJourneyShareRemote(id, first = false) {
     journeyShareRemote.closed = false;
     if (first) {
       const p = journeyShareRemotePosition(journeyShareRemote);
-      if (p) map.setView([p.lat, p.lon], Math.max(13, map.getZoom()), { animate: false });
+      if (p) M.setView([p.lat, p.lon], Math.max(13, M.getZoom()), { animate: false });
     }
   } catch (e) {
     journeyShareRemote = { id, error: e.status === 404 ? 'ended' : 'unavailable', closed: false };
