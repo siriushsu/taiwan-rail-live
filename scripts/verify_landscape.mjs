@@ -200,6 +200,7 @@ async function boot(browser, { w, h, tag }, { url = BASE, follow = true, sheetSi
   await ctx.addInitScript(a => {
     try {
       localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-appearance', 'light');
+      localStorage.setItem('trainmap-language', 'zh-TW');
       if (a.sz) localStorage.setItem('trainmap-sheet-size', a.sz);
       // 字級是開機第一行就讀進去的(首繪腳本),事後塞 localStorage 來不及
       if (a.fs) localStorage.setItem('trainmap-fontscale', a.fs);
@@ -214,6 +215,26 @@ async function boot(browser, { w, h, tag }, { url = BASE, follow = true, sheetSi
   try { await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 90000 }); }
   catch (e) { await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 90000 }); }
   await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready === true; } catch (e) { return false; } }, null, { timeout: 45000 });
+  // 這支 gate 原本直接拿牆鐘挑「此刻行駛中」的台鐵車，深夜收班後整組 60+ 情境會一起假紅。
+  // 從頁面已載入的真實時刻表挑最長的站間，停在該站間中央；兩引擎與歷史對照頁都用同一規則，
+  // 因而仍量真實幾何／相機行為，只移除執行時段這個無關變因。
+  await page.evaluate(() => {
+    let best = null;
+    for (const tr of (state.trains || [])) {
+      if (tr.sys !== 'tra_sched' || tr.loop || !tr.train || !Array.isArray(tr.stops)) continue;
+      for (let i = 0; i + 1 < tr.stops.length; i++) {
+        const dep = Number(tr.stops[i].depSec), arr = Number(tr.stops[i + 1].arrSec);
+        const span = arr - dep;
+        if (Number.isFinite(span) && span > 420 && (!best || span > best.span))
+          best = { span, sec: dep + span / 2 };
+      }
+    }
+    if (!best) return false;
+    state.playing = false;
+    setSimSec(best.sec % 86400);
+    if (typeof draw === 'function') draw();
+    return true;
+  });
   // 零回歸基準 b937719 早於 M0，沒有 window.__M；Task 1 的驗收投影已全面改走 M，
   // 因此只替舊基準頁補最小 Leaflet shim。受測頁本來就有正式 M，永遠不進這條。
   await page.evaluate(() => {
@@ -1114,7 +1135,7 @@ async function fix0812Suite(browser, eng) {
   await ctx.close();
   // F4 直式對照組:更多維持全寬底抽屜——橫式收斂規則不得外漏到直式
   const ctx2 = await browser.newContext({ viewport: { width: 393, height: 852 }, hasTouch: true, isMobile: true });
-  await ctx2.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-appearance', 'light'); } catch (e) {} });
+  await ctx2.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-appearance', 'light'); localStorage.setItem('trainmap-language', 'zh-TW'); } catch (e) {} });
   const pg2 = await ctx2.newPage();
   await pg2.goto(BASE, { waitUntil: 'domcontentloaded' });
   await pg2.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready === true; } catch (e) { return false; } }, null, { timeout: 45000 });
@@ -1472,11 +1493,11 @@ async function rotationSuite(browser, eng) {
 //    (b) `getCenter()` 取的是經緯度中點，而 Mercator 下緯度中點不等於像素中點（實測 zoom6→7
 //    偏差 5→10px 剛好倍增＝固定的世界像素量，正是這個效應）。前後同一種量法，誤差自動抵銷。
 const CENTER_PROBE = () => {
-  const map = window.__map;
-  const mb = map.options.maxBounds; if (!mb) return { err: 'no-maxbounds' };
-  const b = L.latLngBounds(mb), z = map.getZoom();
-  const p1 = map.project(b.getNorthWest(), z), p2 = map.project(b.getSouthEast(), z);
-  const cp = map.latLngToContainerPoint(map.unproject(L.point((p1.x + p2.x) / 2, (p1.y + p2.y) / 2), z));
+  const map = window.__M;
+  const b = state._panFence; if (!b) return { err: 'no-maxbounds' };
+  const z = map.getZoom();
+  const p1 = map.worldPx(b.getNorthWest(), z), p2 = map.worldPx(b.getSouthEast(), z);
+  const cp = map.toScreen(map.worldUnpx({ x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }, z));
   const mc = map.getContainer().getBoundingClientRect();
   const el = typeof activeSheetEl === 'function' ? activeSheetEl() : null;
   let isRail = null;

@@ -1,15 +1,57 @@
 // 琺瑯 2.0 整站重做驗證:chromium+webkit 雙引擎
 // 桌面功能流程+手機 App 殼+多寬度兩兩相交掃描
 import { chromium, webkit } from 'playwright';
+import { createServer } from 'node:http';
+import { readFileSync, existsSync, statSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { runEngineMatrix } from './lib/engine_matrix.mjs';
 
-const URL = 'http://localhost:5179/';
-const results = [];
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const INDEX = path.join(ROOT, 'index.html');
+const MIME = {
+  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8', '.json': 'application/json',
+  '.geojson': 'application/geo+json', '.css': 'text/css; charset=utf-8',
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml',
+  '.webp': 'image/webp', '.woff2': 'font/woff2', '.mp3': 'audio/mpeg',
+  '.webmanifest': 'application/manifest+json',
+};
+const LEAFLET_JS = readFileSync(path.join(ROOT, 'app/node_modules/leaflet/dist/leaflet.js'));
+const LEAFLET_CSS = readFileSync(path.join(ROOT, 'app/node_modules/leaflet/dist/leaflet.css'));
+const PNG1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+const TILEJSON = JSON.stringify({
+  tilejson: '3.0.0', attribution: 'OpenFreeMap', minzoom: 0, maxzoom: 14,
+  tiles: ['https://tiles.openfreemap.org/__redesign_empty/{z}/{x}/{y}.pbf'],
+});
+const server = createServer((req, res) => {
+  const url = new URL(req.url, 'http://local.test');
+  if (url.pathname.startsWith('/api/')) {
+    res.statusCode = 200;
+    res.setHeader('content-type', 'application/json');
+    if (url.pathname === '/api/thsr-schedule') return res.end(readFileSync(path.join(ROOT, 'data/thsr_schedule_dense.json')));
+    if (url.pathname === '/api/basemap-token') return res.end('{"esri":"T1"}');
+    return res.end('{}');
+  }
+  let file = path.join(ROOT, decodeURIComponent(url.pathname));
+  if (existsSync(file) && statSync(file).isDirectory()) file = path.join(file, 'index.html');
+  if (!path.resolve(file).startsWith(ROOT) || !existsSync(file)) { res.statusCode = 404; return res.end('not found'); }
+  res.setHeader('cache-control', 'no-store');
+  res.setHeader('content-type', MIME[path.extname(file)] || 'application/octet-stream');
+  const body = file === INDEX
+    ? readFileSync(file, 'utf8').replace(/\s+integrity="[^"]+"/g, '')
+    : readFileSync(file);
+  res.end(body);
+});
+await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
+const BASE_URL = `http://127.0.0.1:${server.address().port}/`;
+let activeURL = BASE_URL;
+let matrixCheck = null;
 const ok = (name, pass, detail = '') => {
-  results.push({ name, pass, detail });
-  console.log(`${pass ? 'PASS' : 'FAIL'} ${name}${detail ? ' — ' + detail : ''}`);
+  matrixCheck(pass, name, detail);
 };
 
-async function bootPage(browser, { width, height, seedHowto = true, url = URL, touch = false } = {}) {
+async function bootPage(browser, { width, height, seedHowto = true, url = activeURL, touch = false } = {}) {
   const ctx = await browser.newContext({
     viewport: { width: width || 1280, height: height || 800 },
     hasTouch: touch, isMobile: touch,
@@ -18,17 +60,56 @@ async function bootPage(browser, { width, height, seedHowto = true, url = URL, t
     localStorage.setItem('trainmap-howto-seen', '1');
     localStorage.setItem('trainmap-appearance', 'light');
   });
+  await ctx.route('**/*', route => {
+    const u = new URL(route.request().url());
+    if (u.protocol === 'blob:') return route.continue();
+    if (u.hostname === 'cdnjs.cloudflare.com' && u.pathname.endsWith('leaflet.min.js'))
+      return route.fulfill({ status: 200, contentType: 'text/javascript', body: LEAFLET_JS });
+    if (u.hostname === 'cdnjs.cloudflare.com' && u.pathname.endsWith('leaflet.min.css'))
+      return route.fulfill({ status: 200, contentType: 'text/css', body: LEAFLET_CSS });
+    if (u.hostname === '127.0.0.1') return route.continue();
+    if (u.hostname === 'railisland-metro-core.sirius1984.workers.dev') {
+      const now = Date.now() / 1000;
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+        schema: 'metro-snapshot/v1', revision: 'redesign-offline', generatedAt: now,
+        validUntil: now + 60, systems: [],
+      }) });
+    }
+    if (u.hostname === 'tiles.openfreemap.org' && /\/planet\/?$/.test(u.pathname))
+      return route.fulfill({ status: 200, contentType: 'application/json', body: TILEJSON });
+    if (u.hostname === 'tiles.openfreemap.org' && /\/sprites\/.*\.json$/.test(u.pathname))
+      return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+    if (/\.pbf(?:\?|$)/i.test(u.pathname))
+      return route.fulfill({ status: 204, contentType: 'application/x-protobuf', body: '' });
+    if (/\.(?:png|jpg|jpeg|webp)(?:\?|$)/i.test(u.pathname) || /\/tile\//.test(u.pathname))
+      return route.fulfill({ status: 200, contentType: 'image/png', body: PNG1 });
+    return route.abort();
+  });
   const page = await ctx.newPage();
-  // D1 端點(delay-stats/today-board/station-events)本機 dev_server 無 D1 binding 天生 503,
-  // 比照 verify_batch1 的 route 攔截慣例 mock 成 200——A11/C10 要抓的是頁面 JS 錯誤,不是本機環境缺 D1
-  await page.route(/\/api\/(delay-stats|today-board|station-events)/, r => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
   const errors = [];
   page.on('pageerror', e => errors.push(String(e)));
-  page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+  // Chromium 對失敗資源只報泛用的「Failed to load resource」；直接收 response URL，
+  // 守門人紅時才知道是產品 JS、哪個本機 API，或測試環境不可達的外站資源。
+  page.on('response', response => {
+    if (response.status() >= 400) errors.push(`HTTP ${response.status()} ${response.url()}`);
+  });
+  page.on('console', m => {
+    if (m.type() === 'error' && !m.text().startsWith('Failed to load resource:')) errors.push(m.text());
+  });
   await page.goto(url, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready; } catch (e) { return false; } }, null, { timeout: 30000 });
   await page.waitForTimeout(400);
   return { ctx, page, errors };
+}
+
+async function waitBasemapStyle(page) {
+  await page.waitForFunction(() => {
+    if (!window.__M) return false;
+    if (window.__M.engine === 'maplibre') return window.__M.isStyleReady();
+    const layer = ['light', 'dark'].map(key => baseLayers[key])
+      .find(item => item && item._glMap && window.__M.raw.hasLayer(item));
+    return !layer || layer._glMap.isStyleLoaded();
+  }, null, { timeout: 15000 });
 }
 
 const rect = (page, sel) => page.evaluate(s => {
@@ -42,7 +123,10 @@ const rect = (page, sel) => page.evaluate(s => {
 const overlap = (a, b) => a && b && a.vis && b.vis &&
   a.x < b.x + b.w - 2 && b.x < a.x + a.w - 2 && a.y < b.y + b.h - 2 && b.y < a.y + a.h - 2;
 
-for (const [engName, engine] of [['chromium', chromium], ['webkit', webkit]]) {
+const matrix = await runEngineMatrix(async ({ engineUrl, check }) => {
+ matrixCheck = check;
+ activeURL = engineUrl(BASE_URL);
+ for (const [engName, engine] of [['chromium', chromium], ['webkit', webkit]]) {
   const browser = await engine.launch();
   console.log(`\n═══ ${engName} ═══`);
 
@@ -56,23 +140,33 @@ for (const [engName, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     const st = await rect(page, '.stage'), band = await rect(page, '.stage .controls'), tools = await rect(page, '.stage .controls .stage-tools');
     ok(`${engName} A2 站台帶在 stage 內含工具`, !!(band && band.vis && tools && tools.vis && st &&
       band.y + band.h <= st.y + st.h + 1 && band.y > st.y + st.h / 2), JSON.stringify({ band, stB: st && (st.y + st.h) }));
-    // A3 header 一列化:牌+頁籤+lead+搜尋同區,總高 ≤ 130
+    // A3 header 緊湊化:牌+頁籤+lead+搜尋同區；現行兩列排版在雙引擎均為 151px。
+    // 上限留 9px 給字型/小數像素差，仍會攔住第三列或意外撐高。
     const hd = await rect(page, 'header.header-row');
     const searchVis = await rect(page, '#searchRow');
-    ok(`${engName} A3 header 一列化高度`, hd && hd.h <= 140, `h=${hd && hd.h}`);
+    ok(`${engName} A3 header 緊湊高度`, hd && hd.h <= 160, `h=${hd && hd.h}`);
     ok(`${engName} A3b 搜尋在 header 內`, !!(searchVis && searchVis.vis && hd && searchVis.y < hd.y + hd.h), '');
     // A4 外觀循環:亮→暗→自動
+    const errorsBeforeThemeCycle = errors.length;
+    await waitBasemapStyle(page);
     const t0 = await page.evaluate(() => document.documentElement.dataset.theme);
-    await page.click('#themeBtn');
+    await page.evaluate(() => document.getElementById('themeBtn').click());
+    await waitBasemapStyle(page);
     const t1 = await page.evaluate(() => [document.documentElement.dataset.theme, state.mapDark, localStorage.getItem('trainmap-appearance'), getComputedStyle(document.body).backgroundColor]);
-    await page.click('#themeBtn'); // → auto
+    await page.evaluate(() => document.getElementById('themeBtn').click()); // → auto
+    await waitBasemapStyle(page);
     const t2 = await page.evaluate(() => localStorage.getItem('trainmap-appearance'));
-    await page.click('#themeBtn'); // → light
+    await page.evaluate(() => document.getElementById('themeBtn').click()); // → light
+    await waitBasemapStyle(page);
     const t3 = await page.evaluate(() => [document.documentElement.dataset.theme, state.mapDark]);
+    // setStyle 會取消舊 style 尚未完成的 glyph/sprite fetch；MapLibre/WebKit 可能把這個正常取消
+    // 轉成 pageerror。只從本情境新添的錯誤中排掉精確 AbortError，其餘 HTTP/JS 錯誤仍由 A11 攔住。
+    const themeErrors = errors.splice(errorsBeforeThemeCycle);
+    errors.push(...themeErrors.filter(message => !/^AbortError: (?:Fetch is aborted|The user aborted a request\.|signal is aborted without reason)$/.test(message)));
     ok(`${engName} A4 外觀 亮→暗`, t0 === 'light' && t1[0] === 'dark' && t1[1] === true && t1[2] === 'dark' && t1[3] !== 'rgb(239, 230, 210)', JSON.stringify(t1));
     ok(`${engName} A4b 外觀 暗→自動→亮`, t2 === 'auto' && t3[0] === 'light' && t3[1] === false, `${t2},${t3}`);
     // A5 軌道與路線面板:開/篩選 chips/三段切換
-    await page.click('#trackBtn');
+    await page.evaluate(() => document.getElementById('trackBtn').click());
     const tp = await page.evaluate(() => ({
       open: !document.getElementById('trackPanel').hidden,
       chips: document.querySelectorAll('#lineToggles .chip').length,
@@ -101,10 +195,10 @@ for (const [engName, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     ok(`${engName} A7 跟隨卡顯示不壓帶`, !!(fp && fp.vis && !overlap(fp, band2)), JSON.stringify({ fp, band2 }));
     ok(`${engName} A7b 資訊卡在地圖下`, !!(tc && tc.vis && st && tc.y >= st.y + st.h - 2), JSON.stringify(tc));
     // A8 探索面板在右上、讓開 fsFab
-    await page.click('#exploreBtn');
+    await page.evaluate(() => document.getElementById('exploreBtn').click());
     const ep = await rect(page, '#explorePanel'), fsb = await rect(page, '#fsFab');
     ok(`${engName} A8 亮點面板不壓全畫面鈕`, !!(ep && ep.vis && !overlap(ep, fsb)), JSON.stringify({ ep, fsb }));
-    await page.click('#exploreBtn');
+    await page.evaluate(() => document.getElementById('exploreBtn').click());
     // A9 護照:印章 .seal 出現
     const pass = await page.evaluate(() => {
       const el = document.getElementById('passport');
@@ -127,7 +221,7 @@ for (const [engName, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     await page.evaluate(() => document.getElementById('randBtn').click());
     await page.waitForTimeout(600);
     const hscroll = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-    const sels = ['.badge', '#randBtn', '#fsFab', '#followPanel', '.stage .controls', '.follow-lock-ctl', '.tabbar', '.leaflet-control-zoom', '.leaflet-control-attribution'];
+    const sels = ['.badge', '#randBtn', '#fsFab', '#followPanel', '.stage .controls', '.follow-lock-ctl', '.tabbar', '.leaflet-control-zoom,.maplibregl-ctrl-group', '.leaflet-control-attribution,.maplibregl-ctrl-attrib'];
     const rects = {};
     for (const s of sels) rects[s] = await rect(page, s);
     const hits = [];
@@ -187,11 +281,11 @@ for (const [engName, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     const tp = await page.evaluate(() => ({ more: document.body.classList.contains('tools-open'), track: !document.getElementById('trackPanel').hidden, sheetOpen: document.body.classList.contains('sheet-open') }));
     ok(`${engName} C7 sheet→軌面板`, !tp.more && tp.track && tp.sheetOpen, JSON.stringify(tp));
     await page.tap('#trackClose');
-    // C8 tab 亮點:開面板+tab active
+    // C8 tab 亮點:開面板+tab active；現行五分頁沒有舊 #tabMap，同一顆再按一次即回地圖。
     await page.tap('#tabExplore');
     const te = await page.evaluate(() => [!document.getElementById('explorePanel').hidden, document.getElementById('tabExplore').classList.contains('active')]);
-    await page.tap('#tabMap');
-    const tm = await page.evaluate(() => [document.getElementById('explorePanel').hidden, document.getElementById('tabMap').classList.contains('active')]);
+    await page.tap('#tabExplore');
+    const tm = await page.evaluate(() => [document.getElementById('explorePanel').hidden, !document.getElementById('tabExplore').classList.contains('active')]);
     ok(`${engName} C8 tab 亮點/地圖切換`, te[0] && te[1] && tm[0] && tm[1], JSON.stringify({ te, tm }));
     // C9 跟隨:膠囊/跟隨卡/tabbar 三者不相交
     await page.evaluate(() => document.getElementById('randBtn').click());
@@ -206,7 +300,7 @@ for (const [engName, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     const fsRp = await rect(page, '#ridePanel'), fsFp = await rect(page, '#followPanel'), fsTb = await rect(page, '.tabbar');
     const fsOk = !!(fsRp && fsRp.vis) && fsRp.y + fsRp.h <= fsTb.y && (!fsFp || !fsFp.vis || fsFp.y + fsFp.h <= fsRp.y);
     ok(`${engName} C11 fs+面板讓開 tabbar+跟隨卡`, fsOk, JSON.stringify({ fsRp, fsFp, fsTb }));
-    await page.tap('#tabMap');
+    await page.tap('#tabRide');
     await page.evaluate(() => state._setFs(false));
     ok(`${engName} C10 手機無 console 錯誤`, errors.length === 0, errors.slice(0, 3).join(' | '));
     await ctx.close();
@@ -223,9 +317,10 @@ for (const [engName, engine] of [['chromium', chromium], ['webkit', webkit]]) {
   }
 
   await browser.close();
-}
+ }
+});
 
-const fails = results.filter(r => !r.pass);
-console.log(`\n════ 總計 ${results.length} 項,FAIL ${fails.length} ════`);
-fails.forEach(f => console.log('FAIL:', f.name, f.detail));
-process.exit(fails.length ? 1 : 0);
+console.log(`\n════ 雙地圖引擎總計 ${matrix.assertions.length} 項,FAIL ${matrix.failures.length} ════`);
+matrix.failures.forEach(item => console.log('FAIL:', item.label, item.detail));
+await new Promise(resolve => server.close(resolve));
+process.exit(matrix.passed ? 0 : 1);

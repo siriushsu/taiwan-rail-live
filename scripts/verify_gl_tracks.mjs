@@ -73,7 +73,10 @@ try {
       o.t1 = await page.evaluate(() => {
         const g = window.__ofmGl, T = window.__glTracks, order = g.getLayersOrder();
         const want = T.ranks.flatMap(k => ['track-casing-' + k, 'track-line-' + k]).concat(['track-stations']);
-        return { ranks: T.ranks, idx: want.map(id => order.indexOf(id)), tailOk: JSON.stringify(order.slice(-want.length)) === JSON.stringify(want), n: g.querySourceFeatures('track-lines').length, src: !!g.getSource('track-stations') };
+        const idx = want.map(id => order.indexOf(id)), building = order.indexOf('building-3d');
+        return { ranks: T.ranks, idx, familyOk: idx[0] >= 0 && JSON.stringify(order.slice(idx[0], idx[0] + want.length)) === JSON.stringify(want),
+          building, buildingAbove: building < 0 || idx[idx.length - 1] < building,
+          n: g.querySourceFeatures('track-lines').length, src: !!g.getSource('track-stations') };
       });
       o.s2 = await page.evaluate(SAMPLE);
       o.t3a = await page.evaluate(() => window.__ofmGl.getFilter('track-line-' + window.__glTracks.ranks[0])[2][2][1].length);
@@ -120,7 +123,7 @@ try {
       }
     }
     const t1 = o.t1 || {}, t3b = o.t3b || {}, a = o.t5a || {}, b = o.t5b || {}, c = o.t5c || {};
-    onlyFor('maplibre', GL_TRACKS_REASON, 'T1 GL 層順序=casing/line 依 sortKey 交錯、站點層最上', maplibre ? t1.ranks?.length >= 2 && t1.idx.every((v, i) => v >= 0 && (i === 0 || v > t1.idx[i - 1])) && t1.tailOk : undefined, t1);
+    onlyFor('maplibre', GL_TRACKS_REASON, 'T1 GL 層順序=casing/line 依 sortKey 交錯、站點為軌道家族最上且 3D 建築在其上', maplibre ? t1.ranks?.length >= 2 && t1.idx.every((v, i) => v >= 0 && (i === 0 || v > t1.idx[i - 1])) && t1.familyOk && t1.buildingAbove : undefined, t1);
     onlyFor('maplibre', GL_TRACKS_REASON, 'T1b source 有 feature', maplibre ? t1.n > 0 && t1.src : undefined, `n=${t1.n}`);
     onlyFor('maplibre', GL_TRACKS_REASON, 'T2 MapLibre:canvas 不再描軌道(三個中段點 alpha=0)', maplibre ? !o.s2.err && o.s2.alphas.every(x => x === 0) : undefined, o.s2);
     onlyFor('maplibre', GL_TRACKS_REASON, 'T3 可見集合與突變正確', maplibre ? o.t3a === t3b.total && t3b.n === o.t3a - 1 : undefined, { t3a: o.t3a, ...t3b });

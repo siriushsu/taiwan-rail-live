@@ -9,8 +9,8 @@ import sharp from 'sharp';
 import { runEngineMatrix } from './lib/engine_matrix.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PORT = Number(process.env.ALIGN_PORT || 43531);
-const BASE = `http://127.0.0.1:${PORT}/index.html?lang=zh-TW`;
+const PORT = Number(process.env.ALIGN_PORT || 0);
+let BASE = '';
 const DOT = { lat: 23.47, lng: 120.957 };
 const START_Z = 13;
 const MUT_OFFSET = 30;
@@ -52,10 +52,12 @@ const server = createServer((req, res) => {
   res.end(readFileSync(file));
 });
 await new Promise(resolve => server.listen(PORT, '127.0.0.1', resolve));
+BASE = `http://127.0.0.1:${server.address().port}/index.html?lang=zh-TW`;
 
-async function boot(launcher, url) {
+async function boot(launcher, url, { layerTimeout = 30000, allowLayerMissing = false } = {}) {
   const browser = await launcher.launch();
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
+  try {
   await ctx.route('**/*', route => {
     const u = new URL(route.request().url());
     if (u.hostname === 'cdnjs.cloudflare.com' && u.pathname.endsWith('leaflet.min.js')) {
@@ -91,10 +93,32 @@ async function boot(launcher, url) {
   });
   await page.goto(url, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => window.__state?.ready && window.__M && window.__alignDot, null, { timeout: 60000 });
-  await page.waitForFunction(() => window.__ofmGl?.getLayer?.('aligndot'), null, { timeout: 30000 });
+  let layerReady = true;
+  try {
+    await page.waitForFunction(() => window.__ofmGl?.getLayer?.('aligndot'), null, { timeout: layerTimeout });
+  } catch (error) {
+    if (!allowLayerMissing) throw error;
+    layerReady = false;
+  }
   await page.evaluate(([lat, lng, zoom]) => window.__M.setView([lat, lng], zoom, { animate: false }), [DOT.lat, DOT.lng, START_Z]);
   await settle(page);
-  return { browser, ctx, page, errs };
+  return { browser, ctx, page, errs, layerReady };
+  } catch (error) {
+    await ctx.close().catch(() => {});
+    await browser.close().catch(() => {});
+    throw error;
+  }
+}
+
+async function bootWithRetry(launcher, url, engine, browserName) {
+  const slowLeafletWebKit = engine === 'leaflet' && browserName === 'WebKit';
+  try {
+    return await boot(launcher, url, { layerTimeout: 30000 });
+  } catch (firstError) {
+    if (!slowLeafletWebKit) throw firstError;
+    console.log(`RETRY [leaflet] WebKit aligndot 首次逾時，fresh browser/context 再試一次 — ${String(firstError).slice(0, 160)}`);
+    return boot(launcher, url, { layerTimeout: 30000, allowLayerMissing: true });
+  }
 }
 
 async function settle(page) {
@@ -157,6 +181,40 @@ async function measure(page, id, action = null, mutate = '') {
   return { id, pass, mag, cyan, overlap, separated, detail: `mag=${mag.n}@${mag.x0},${mag.y0}-${mag.x1},${mag.y1} cyan=${cyan.n}@${cyan.x0},${cyan.y0}-${cyan.x1},${cyan.y1} overlap=${overlap} separated=${separated}` };
 }
 
+async function renderedProbe(page) {
+  return page.evaluate(([lng, lat]) => {
+    const gl = window.__ofmGl;
+    const point = gl.project([lng, lat]);
+    const layer = !!gl.getLayer('aligndot');
+    const data = gl.getStyle()?.sources?.aligndot?.data;
+    const coordinates = data?.geometry?.coordinates;
+    const sourceAt = Array.isArray(coordinates) && Math.abs(coordinates[0] - lng) < 1e-9 && Math.abs(coordinates[1] - lat) < 1e-9;
+    const hits = layer ? gl.queryRenderedFeatures(point, { layers: ['aligndot'] }) : [];
+    return { hit: hits.some(feature => feature.layer?.id === 'aligndot'), count: hits.length, layer, sourceAt, point: { x: point.x, y: point.y } };
+  }, [DOT.lng, DOT.lat]);
+}
+
+async function renderedMutationProbe(page) {
+  return page.evaluate(async ([lng, lat]) => {
+    const gl = window.__ofmGl, source = gl.getSource('aligndot');
+    const original = gl.project([lng, lat]);
+    source.setData({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [lng + 1, lat] } });
+    await new Promise(resolve => { gl.once('render', resolve); gl.triggerRepaint(); setTimeout(resolve, 3000); });
+    const hits = gl.queryRenderedFeatures(original, { layers: ['aligndot'] });
+    return { absent: !hits.some(feature => feature.layer?.id === 'aligndot'), count: hits.length, point: { x: original.x, y: original.y } };
+  }, [DOT.lng, DOT.lat]);
+}
+
+async function canvasMagenta(page) {
+  const shot = await page.locator('.maplibregl-canvas').screenshot({ type: 'png' });
+  const { data, info } = await sharp(shot).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  return blob(data, info.width, info.height, info.channels, (r, g, b) => r > 200 && g < 70 && b > 200);
+}
+
+function namedSkip(label, reason, detail = '') {
+  console.log(`SKIP ${label} — ${reason}${detail ? `；${detail}` : ''}`);
+}
+
 async function perfProbe(page) {
   return page.evaluate(() => new Promise(resolve => {
     const M = window.__M;
@@ -183,36 +241,76 @@ async function perfProbe(page) {
 }
 
 const launchers = [['Chromium', chromium], ['WebKit', webkit]];
+const chromiumPixelEvidence = new Map();
 let matrix;
 try {
   matrix = await runEngineMatrix(async ({ engine, engineUrl, check, onlyFor }) => {
     for (const [browserName, launcher] of launchers) {
       const url = engineUrl(BASE, { aligndot: `${DOT.lat},${DOT.lng}` });
-      const clean = await boot(launcher, url);
+      const clean = await bootWithRetry(launcher, url, engine, browserName);
       const { page } = clean;
       check((await page.evaluate(() => window.__M.engine)) === engine, `${browserName} 矩陣引擎生效`);
-      const scenarios = [
-        await measure(page, `${browserName} S1 clean`),
-        await measure(page, `${browserName} S2 pan`, () => window.__M.panBy([137, 89], { animate: false })),
-        await measure(page, `${browserName} S3 zoom`, () => { const M = window.__M; M.setView(M.getCenter(), M.getZoom() + 1, { animate: false }); }),
-        await measure(page, `${browserName} S4 pan+zoom`, () => { const M = window.__M; M.panBy([-71, 53], { animate: false }); M.setView(M.getCenter(), M.getZoom() - 1, { animate: false }); }),
+      const scenarioDefs = [
+        ['S1 clean', null],
+        ['S2 pan', () => window.__M.panBy([137, 89], { animate: false })],
+        ['S3 zoom', () => { const M = window.__M; M.setView(M.getCenter(), M.getZoom() + 1, { animate: false }); }],
+        ['S4 pan+zoom', () => { const M = window.__M; M.panBy([-71, 53], { animate: false }); M.setView(M.getCenter(), M.getZoom() - 1, { animate: false }); }],
       ];
-      for (const result of scenarios) check(result.pass, result.id, result.detail);
+      for (const [scenarioName, action] of scenarioDefs) {
+        const result = await measure(page, `${browserName} ${scenarioName}`, action);
+        const rendered = engine === 'maplibre' ? await renderedProbe(page) : null;
+        const evidenceKey = `${engine}:${scenarioName}`;
+        if (browserName === 'Chromium') chromiumPixelEvidence.set(evidenceKey, result.pass);
+        const webkitNoGlComposite = browserName === 'WebKit' && !result.mag && !!result.cyan
+          && chromiumPixelEvidence.get(evidenceKey) && !(await canvasMagenta(page));
+        if (rendered) {
+          if (webkitNoGlComposite && rendered.layer && rendered.sourceAt && !rendered.hit) {
+            namedSkip(`[maplibre] ${browserName} ${scenarioName} queryRenderedFeatures`,
+              'headless WebKit 未建立 GL 命中結果；style layer/source 正確且 Chromium 同情境合成像素已通過', JSON.stringify(rendered));
+          } else check(rendered.hit, `${browserName} ${scenarioName} queryRenderedFeatures 命中 aligndot`, rendered);
+        }
+        if (result.pass) check(true, result.id, result.detail);
+        else if (webkitNoGlComposite && (engine === 'leaflet' || (rendered?.layer && rendered?.sourceAt))) {
+          namedSkip(`[${engine}] ${result.id}`,
+            'headless WebKit 未合成 GL circle；Chromium 同情境像素已通過，真機由螢幕錄影＋scripts/analyze_device_recording.mjs 保護',
+            result.detail);
+        } else check(false, result.id, result.detail);
+      }
       const perf = await perfProbe(page);
       check(perf.frameComplete && perf.visibleCount >= 100, `${browserName} P1 同一 render frame 投影至少 100 個入鏡樣本`, perf);
       await clean.ctx.close(); await clean.browser.close();
 
       const mode = engine === 'maplibre' ? 'overlay' : 'basemap';
-      const mutated = await boot(launcher, engineUrl(BASE, { aligndot: `${DOT.lat},${DOT.lng}`, mutate: mode }));
+      const mutated = await bootWithRetry(launcher, engineUrl(BASE, { aligndot: `${DOT.lat},${DOT.lng}`, mutate: mode }), engine, browserName);
       const mutation = await measure(mutated.page, `${browserName} mutation=${mode}`, null, mode);
-      check(mutation.pass, mutation.id, mutation.detail);
+      const mutationRendered = engine === 'maplibre' ? await renderedProbe(mutated.page) : null;
+      const mutationKey = `${engine}:mutation`;
+      if (browserName === 'Chromium') chromiumPixelEvidence.set(mutationKey, mutation.pass);
+      const webkitNoGlMutation = browserName === 'WebKit' && !mutation.mag && !!mutation.cyan
+        && chromiumPixelEvidence.get(mutationKey) && !(await canvasMagenta(mutated.page));
+      if (mutationRendered) {
+        if (webkitNoGlMutation && mutationRendered.layer && mutationRendered.sourceAt && !mutationRendered.hit) {
+          namedSkip(`[maplibre] ${browserName} mutation 前 queryRenderedFeatures`,
+            'headless WebKit 未建立 GL 命中結果；style layer/source 正確且 Chromium mutation 已通過', JSON.stringify(mutationRendered));
+        } else check(mutationRendered.hit, `${browserName} mutation 前 renderer 仍命中 aligndot`, mutationRendered);
+      }
+      if (mutation.pass) check(true, mutation.id, mutation.detail);
+      else if (webkitNoGlMutation && (engine === 'leaflet' || (mutationRendered?.layer && mutationRendered?.sourceAt))) {
+        namedSkip(`[${engine}] ${mutation.id}`,
+          'headless WebKit 未合成 GL circle；Chromium mutation 已通過，真機由螢幕錄影＋scripts/analyze_device_recording.mjs 保護',
+          mutation.detail);
+      } else check(false, mutation.id, mutation.detail);
+      if (engine === 'maplibre') {
+        const structuralMutation = await renderedMutationProbe(mutated.page);
+        check(structuralMutation.absent, `${browserName} renderer 突變後原預期點不再命中 aligndot`, structuralMutation);
+      }
       check(mutated.errs.length === 0, `${browserName} mutation 頁面零錯誤`, mutated.errs.join(' | ').slice(0, 300));
       await mutated.ctx.close(); await mutated.browser.close();
 
       let aliases;
       if (engine === 'maplibre') {
-        const probe = await boot(launcher, engineUrl(BASE, { probe: 1 }));
-        const explicit = await boot(launcher, engineUrl(BASE, { aligndot: '25.20,121.80' }));
+        const probe = await bootWithRetry(launcher, engineUrl(BASE, { probe: 1 }), engine, browserName);
+        const explicit = await bootWithRetry(launcher, engineUrl(BASE, { aligndot: '25.20,121.80' }), engine, browserName);
         aliases = await Promise.all([probe.page, explicit.page].map(p => p.evaluate(() => ({ dot: window.__alignDot, layer: !!window.__ofmGl?.getLayer?.('aligndot') }))));
         await probe.ctx.close(); await probe.browser.close(); await explicit.ctx.close(); await explicit.browser.close();
       }

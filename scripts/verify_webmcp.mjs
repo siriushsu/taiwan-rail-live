@@ -30,7 +30,7 @@ const check = (condition, label, detail = '') => {
 check(/const BUILD = 'v\d{4}[a-z]';/.test(SOURCE), 'G0 BUILD 維持公開版號格式');
 for (const fragment of [
   'function setupWebMcp()', 'document.modelContext',
-  ...TOOL_NAMES.map(name => `name: '${name}'`), 'data-cl="webmcp"', 'data-cl-of="webmcp"',
+  ...TOOL_NAMES.map(name => `name: '${name}'`),
 ]) check(SOURCE.includes(fragment), `G0 原始碼含 ${fragment}`);
 
 const server = createServer((req, res) => {

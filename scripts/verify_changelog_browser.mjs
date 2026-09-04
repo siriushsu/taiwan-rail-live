@@ -51,7 +51,7 @@ try {
         const history = update.locator('.foot-more');
         await history.locator(':scope > summary').tap();
         const historyCount = await history.locator('.foot-list > li:not(.grp)').count();
-        if (historyCount !== 248) failures.push(`${engineName} ${width}px 完整歷史為 ${historyCount} 條`);
+        if (historyCount !== 250) failures.push(`${engineName} ${width}px 完整歷史為 ${historyCount} 條`);
         const sources = page.locator('details.foot-box').nth(1);
         await sources.locator(':scope > summary').tap();
         const tdxMark = sources.locator('img[src="assets/tdx-logo.svg"]');
@@ -83,4 +83,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log(`更新紀錄瀏覽器驗收通過：Chromium + WebKit；${widths.join('/')}px 觸控寬度；最近 8 條、完整歷史 248 條`);
+console.log(`更新紀錄瀏覽器驗收通過：Chromium + WebKit；${widths.join('/')}px 觸控寬度；最近 8 條、完整歷史 250 條`);

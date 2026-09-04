@@ -220,8 +220,10 @@ try {
         M.setAttribution(['甲署名', '', '乙署名']);
         const box = document.querySelector('.maplibregl-ctrl-bottom-right');
         const kids = [...box.children].map(el => el.className);
+        const coreKids = kids.filter(className => !/follow-lock-ctl/.test(className));
+        const followLocks = kids.filter(className => /follow-lock-ctl/.test(className)).length;
         const text = (box.querySelector('.maplibregl-ctrl-attrib-inner') || {}).textContent || '';
-        return { immediate, calls, kindNoop, kids, text };
+        return { immediate, calls, kindNoop, kids, coreKids, followLocks, text };
       });
 
       hookProbe = await b.page.evaluate(async () => {
@@ -267,8 +269,8 @@ try {
     onlyFor('maplibre', MAPLIBRE_REASON, 'G6h onStyleLoad 立即一次、換 style 後再一次且身分改變', engine === 'maplibre' ? adapter.immediate === 1 && adapter.calls.length === 2 && adapter.calls[1] !== adapter.calls[0] : undefined, adapter?.calls);
     onlyFor('maplibre', MAPLIBRE_REASON, 'G6i setStyleKind 未知 kind 且無 style 物件為 no-op', engine === 'maplibre' ? adapter.kindNoop === 'dark' : undefined, adapter?.kindNoop);
     onlyFor('maplibre', MAPLIBRE_REASON, 'G6j setAttribution 整份替換、DOM 順序不變，tile hook 清除前後正向對照成立', engine === 'maplibre'
-      ? adapter.text.includes('甲署名') && adapter.text.includes('乙署名') && adapter.kids.length === 2
-        && /group/.test(adapter.kids[0]) && /attrib/.test(adapter.kids[1])
+      ? adapter.text.includes('甲署名') && adapter.text.includes('乙署名') && adapter.coreKids.length === 2
+        && /group/.test(adapter.coreKids[0]) && /attrib/.test(adapter.coreKids[1]) && adapter.followLocks === 1
         && hookProbe.aHits > 0 && hookProbe.beforeClear === hookProbe.afterClear && hookProbe.bHits === 0
       : undefined, { adapter, hookProbe });
     await b.ctx.close();

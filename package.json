@@ -53,7 +53,8 @@
     "build-track-geojson": "node scripts/build_track_geojson.mjs",
     "check-track-geojson": "node scripts/verify_track_geojson.mjs",
     "check-gl-tracks": "node scripts/verify_gl_tracks.mjs",
-    "check-gl-basemap": "node scripts/verify_gl_basemap.mjs"
+    "check-gl-basemap": "node scripts/verify_gl_basemap.mjs",
+    "check-map-orientation": "node scripts/verify_map_orientation.mjs"
   },
   "dependencies": {
     "playwright": "^1.61.1",

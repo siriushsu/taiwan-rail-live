@@ -416,9 +416,14 @@
     min-width: 44px; min-height: 44px; /* 觸控目標下限;解鎖後的「回到列車」膠囊本來就更寬,不受影響 */
   }
   .follow-lock-ctl button.unlocked { background: var(--red); color: #fff8ec; border-color: var(--red-deep); box-shadow: var(--shadow-red); border-radius: var(--r-pill); }
-  .leaflet-control-attribution { background: rgba(247,240,221,.9); color: var(--faint); }
-  html[data-theme=dark] .leaflet-control-attribution { background: rgba(14,21,38,.85); }
-  .leaflet-control-attribution a { color: var(--muted); }
+  .leaflet-control-attribution,
+  .maplibregl-ctrl-attrib { background: rgba(247,240,221,.9); color: var(--faint); }
+  html[data-theme=dark] .leaflet-control-attribution,
+  html[data-theme=dark] .maplibregl-ctrl-attrib { background: rgba(14,21,38,.85); }
+  .leaflet-control-attribution a,
+  .maplibregl-ctrl-attrib a { color: var(--muted); }
+  /* MapLibre 已經在正北且無俯角時不需要占一格；一旋轉或傾斜就立即現形成為回北出口。 */
+  .maplibregl-map:not(.map-orient-active) .maplibregl-ctrl-compass { display: none; }
 
   /* ── 站台帶(工具＋播放合體,貼 stage 下緣;金色月台警戒線收邊) ── */
   .controls {
@@ -3214,7 +3219,8 @@
 
   /* ── 中窄寬度(平板/窄視窗):版權字截短讓開置中隨機鈕 ── */
   @media (max-width: 1024px) {
-    .leaflet-control-attribution {
+    .leaflet-control-attribution,
+    .maplibregl-ctrl-attrib {
       max-width: 38vw; white-space: nowrap;
       overflow: hidden; text-overflow: ellipsis;
     }
@@ -3595,28 +3601,35 @@
        改法:不換行、讓它用滿整條底緣,裝不下的部分改成**橫向可捲**——授權連結一個都沒少、
        仍然看得到也點得到,沒有回頭用 ellipsis 把它們裁掉(那條紅線維持)。
        高度回到單行 ⇒ 不再進到跟車卡與速度膠囊的高度帶,所以左側不用再預留 216px。 */
-    .leaflet-control-attribution {
+    .leaflet-control-attribution,
+    .maplibregl-ctrl-attrib {
       max-width: calc(100vw - 20px); white-space: nowrap;
       overflow-x: auto; overflow-y: hidden; text-overflow: clip;
       text-align: right; line-height: 1.25;
       font-size: calc(10px * var(--uis));
       -webkit-overflow-scrolling: touch; scrollbar-width: none;
     }
-    .leaflet-control-attribution::-webkit-scrollbar { width: 0; height: 0; }
+    .leaflet-control-attribution::-webkit-scrollbar,
+    .maplibregl-ctrl-attrib::-webkit-scrollbar { width: 0; height: 0; }
     /* 左下的跟車卡(#followPanel)與捷運跟隨小卡(#freqCard)底緣落在這條的同一高度帶
        (兩者都是 left:8 / bottom:tabbar-clear+2 / 寬 176),所以它們在場時把左側 216px 讓回去。
        用 :has() 只在真的有卡時才縮——沒卡就整條用滿,那才是「一條平的貼齊下方」。
        舊瀏覽器不支援 :has() 的話退回整條:結果是重疊,不是壞掉。 */
     body:has(#followPanel:not([hidden])) .leaflet-control-attribution,
-    body:has(#freqCard:not([hidden])) .leaflet-control-attribution {
+    body:has(#followPanel:not([hidden])) .maplibregl-ctrl-attrib,
+    body:has(#freqCard:not([hidden])) .leaflet-control-attribution,
+    body:has(#freqCard:not([hidden])) .maplibregl-ctrl-attrib {
       /* 預留量從卡片自己的式子推導,不要手打常數:卡是 left:8 + width:calc(176px*var(--ui)),
          右邊再留 8 的間距與 Leaflet 自己的 10 邊距。手打 216 在標準字級剛好夠,
          放大字級下卡片跟著 --ui 變寬、預留沒跟著長 ⇒ 又壓回去(驗收 G5 實測 171/903 px²)。 */
       max-width: calc(100vw - 176px * var(--ui) - 26px);
     }
-    .leaflet-control-attribution a { display: inline-block; }
-    /* 手機改用雙指縮放,隱藏 Leaflet +/- 鈕 */
-    .leaflet-control-zoom { display: none; }
+    .leaflet-control-attribution a,
+    .maplibregl-ctrl-attrib a { display: inline-block; }
+    /* 手機改用雙指縮放,只隱藏 +/- 鈕；MapLibre compass 是旋轉後的回北出口，必須保留。 */
+    .leaflet-control-zoom,
+    .maplibregl-ctrl-group .maplibregl-ctrl-zoom-in,
+    .maplibregl-ctrl-group .maplibregl-ctrl-zoom-out { display: none; }
     .leaflet-bottom.leaflet-right { bottom: 58px; }
     .maplibregl-ctrl-bottom-right { bottom: 58px; }
     /* 公告橫幅在手機整個退場(2026-07-30):入口改成頂列的 .alert-chip(見上面那條規則)。
@@ -3868,7 +3881,7 @@
     /* sheet 開啟時速度膠囊/版權條/跟隨鎖淡出讓位,不壓面板文字(見 updateSheetOpenClass)。
        跟隨鎖(z800)併入通案:實測 .board 家族全部 sheet 手機寬都會頂進鎖鈕座位(鎖鈕離 sheet 下錨僅約 120px),
        原 dh-open 個案已拆除。 */
-    body.sheet-open .controls, body.sheet-open .leaflet-control-attribution, body.sheet-open .follow-lock-ctl { opacity: 0; pointer-events: none; }
+    body.sheet-open .controls, body.sheet-open .leaflet-control-attribution, body.sheet-open .maplibregl-ctrl-attrib, body.sheet-open .follow-lock-ctl { opacity: 0; pointer-events: none; }
     /* 選下車站時同樣讓站台帶退場:跟隨小卡是 z650、站台帶 z700,不讓開的話「取消」鈕會被播放鈕
        蓋住點不到(實測 elementFromPoint 命中 #pp)。挑站當下也用不到時刻尺,讓位無損。 */
     body.ride-picking .controls { opacity: 0; pointer-events: none; }
@@ -3962,7 +3975,7 @@
        🔴 不要再把版權往上抬:跟隨小卡的讓位(placeFsOverlays 的 lift)只認膠囊當下緣家具的最高點,
        版權不在那本帳裡,抬高它不會讓卡跟著讓,只會讓它自己漂到畫面中央。 */
     /* 展開態(cexp):完整帶佔滿下緣會壓住版權角→比照 sheet-open 淡出版權(短暫互動態,收合即回,不影響授權常態顯示) */
-    body.cexp .leaflet-control-attribution { opacity: 0; pointer-events: none; }
+    body.cexp .leaflet-control-attribution, body.cexp .maplibregl-ctrl-attrib { opacity: 0; pointer-events: none; }
     /* 同理:App 內建瀏覽器逃生提示(bottom:74px、z713)整片壓在展開帶上。cexp 是使用者主動點出、
        5 秒無互動自動收回的短暫態,收回提示就回來;反過來收掉膠囊則會讓 in-app 瀏覽器的訪客
        整場拿不到播放/速度控制。這條同時是 placeFsOverlays 那道 opacity 門檻的前提——
@@ -4981,6 +4994,7 @@
         <button id="introBtn" title="經過特殊車站時顯示介紹"><span class="ti">介</span><span class="tl">站介紹</span></button>
         <button id="dirBtn" title="列車行進方向箭頭"><span class="ti">→</span><span class="tl">方向</span></button>
         <button id="satBtn" title="切換衛星影像"><span class="ti">衛</span><span class="tl">衛星</span></button>
+        <button id="map3dBtn" style="display:none" title="切換 3D 建築"><span class="ti">3D</span><span class="tl">建築</span></button>
         <button id="themeBtn" title="外觀切換：亮／暗／自動"><span class="ti">◐</span><span class="tl">外觀</span></button>
         <button id="trackBtn" title="軌道與路線：顯示方式與車種/路線篩選"><span class="ti">軌</span><span class="tl">軌道:自動</span></button>
         <button id="xingBtn" title="顯示平交道位置"><span class="ti">平</span><span class="tl">平交道</span></button>
@@ -5067,7 +5081,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/9/3</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/9/4</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -5075,6 +5089,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="maporientation0904"><span class="d">9/4</span><span>MapLibre 地圖現在可旋轉、傾斜並切換 3D 建築；跟隨列車時會自動讓行進方向朝上，結束跟隨後回到正北。</span></li>
         <li data-cl-of="metropeak0903"><span class="d">9/3</span><span>轉乘站的官方來車資料換班時，偶爾會短暫缺一個方向；現在看板會先補上該方向的班表</span></li>
         <li data-cl-of="tabletshell"><span class="d">9/3</span><span>iPad 與 Android 平板改用完整觸控版面；橫放時資訊停在右側，地圖保留主要空間</span></li>
         <li data-cl-of="copyaudit"><span class="d">9/3</span><span>更新紀錄改得更精簡好讀，資料來源、專案授權與隱私說明也同步校正</span></li>
@@ -5082,7 +5097,6 @@
         <li data-cl-of="railsound"><span class="d">9/3</span><span>App 配樂新增「車聲」：跟車時隨行駛播放，停站淡出；放空模式持續播放</span></li>
         <li data-cl-of="rideseq"><span class="d">9/3</span><span>完乘記錄新增「順序」排序，手機旅程護照也能切換排序方式（謝謝網友回報）</span></li>
         <li data-cl-of="crowdfallback"><span class="d">9/3</span><span>捷運列車的車廂擁擠度不會再整批消失一輪：官方擁擠度偶爾抓不到時改用剛才那一份，最多兩分鐘，超過就留白（謝謝網友回報）</span></li>
-        <li data-cl-of="widgetsizes"><span class="d">9/2</span><span>桌面小工具的方向與目的站可改回「不指定」；Android 另補齊七種尺寸（謝謝網友回報）</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5235,6 +5249,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="maporientation0904"><span class="d">9/4</span><span>MapLibre 地圖現在可旋轉、傾斜並切換 3D 建築；跟隨列車時會自動讓行進方向朝上，結束跟隨後回到正北。手動設定的傾斜角度會保留。</span></li>
         <li data-cl="tabletshell"><span class="d">9/3</span><span>iPad 與 Android 平板改用完整觸控版面：直式提供底部分頁與「更多」，橫式把看板、搜尋和列車資訊放進右側欄，保留主要地圖空間；分割畫面會自動改用直式配置。「更多」也補上極簡沉浸開關，避免跨裝置同步設定後找不到關閉入口。</span></li>
         <li data-cl="bootfast"><span class="d">8/29</span><span>開啟網站變快了：三十幾份路網與班表資料原本要一份載完才載下一份，現在改成同時下載；重新造訪時沒變動的檔案也不再重抓。實測到列車出現的時間少了約三分之二</span></li>
         <li data-cl="android150i18n"><span class="d">8/28</span><span>Android 1.5.0 加入繁中、English、日本語；App、小工具、鎖定畫面與 Now Bar 會同步切換，更新時保留既有設定與本機資料。</span></li>
@@ -5652,6 +5667,7 @@
     <button class="ms-row" data-act="diagStrip"><span>診斷資訊</span><span class="toggle" data-tg="diagStrip"></span></button>
     <button class="ms-row" id="trtcDiagExportRow" data-act="exportTrtcDiag" hidden><span>匯出捷運診斷</span><span class="chev">↓</span></button>
     <button class="ms-row" data-proxy="satBtn"><span>衛星影像</span><span class="toggle" data-tg="satBtn"></span></button>
+    <button class="ms-row" id="map3dRow" data-proxy="map3dBtn" style="display:none"><span>3D 建築</span><span class="toggle" data-tg="map3dBtn"></span></button>
     <button class="ms-row" data-act="track"><span>軌道與路線</span><span class="chev">›</span></button>
     <button class="ms-row" data-proxy="xingBtn"><span>平交道記號</span><span class="toggle" data-tg="xingBtn"></span></button>
     <button class="ms-row" data-proxy="introBtn"><span>特殊站介紹</span><span class="toggle" data-tg="introBtn"></span></button>
@@ -6343,7 +6359,7 @@ const state = {
   geoLoc: null, meLoc: null, geoFollow: false, // 前景 GPS 最新點／附近卡使用點／是否讓所在地鏡頭持續置中
   _geoTrackingWanted: false, _geoWatchId: null, _geoWatchStarting: false, _geoWatchBlocked: false,
   _geoWatchToken: 0, _geoWatchFirst: null, _geoWatchResolve: null, _geoWatchTimer: null,
-  mapDark: false, basemap: 'map', trackData: null, offlineLand: null,
+  mapDark: false, basemap: 'map', map3d: false, mapPitch: 0, trackData: null, offlineLand: null,
   trackStyle: 'auto', // 軌道顯示:auto(亮色原色/夜間衛星自動淡化)、faint(一律更淡)、hidden(只留列車與車站)
   live: null, // 台鐵即時誤點 {map: 車次→誤點分, at: 抓取時刻, delayed, srcAt}
   trtcOfficialBoard: null, // 北捷官方逐列到站時間；只供車站看板，不得寫入動畫校正／班表名冊
@@ -6398,6 +6414,15 @@ function createLeafletEngine(containerId, view) {
     getCenter: () => Lmap.getCenter(),
     getBounds: () => Lmap.getBounds(),
     getBoundsZoom: (b, inside, pad) => Lmap.getBoundsZoom(b, inside, pad),
+    getBearing: () => 0,
+    getPitch: () => 0,
+    setBearing: bearing => { void bearing; return E; },
+    setPitch: pitch => { void pitch; return E; },
+    resetNorth: o => { void o; return E; },
+    easeTo: o => {
+      if (o && o.center) Lmap.setView(o.center, Number.isFinite(o.zoom) ? o.zoom : Lmap.getZoom(), o);
+      return E;
+    },
     setView: (c, z, o) => { Lmap.setView(c, z, o); return E; },
     panTo: (c, o) => { Lmap.panTo(c, o); return E; },
     panBy: (d, o) => { Lmap.panBy(d, o); return E; },
@@ -6507,16 +6532,21 @@ function createMaplibreEngine(containerId, view) {
     container: containerId, style: OFM_STYLE[styleKind],
     center: [c0.lng, c0.lat], zoom: view.zoom - ML_Z,
     attributionControl: false, renderWorldCopies: false, fadeDuration: 0,
-    dragRotate: false, pitchWithRotate: false, touchPitch: false, maxPitch: 0, // M0:旋轉/傾斜一律關,M2 才開
+    dragRotate: true, pitchWithRotate: true, touchPitch: true, maxPitch: 60,
     transformRequest: (url, type) => { if (type === 'Tile' && tileHook) tileHook(url); return { url }; },
   });
-  raw.touchZoomRotate.disableRotation();
+  raw.touchZoomRotate.enableRotation();
   raw.on('style.load', () => { styleLoaded = true; }); // 比所有 onStyleLoad 回呼先註冊,旗標永遠先翻
   // 署名控件自己建(不用 Map 內建那顆):setAttribution 要整份替換,替換時連縮放鈕一起重掛,DOM 順序才不會翻(bottom 位置的 addControl 是 prepend:後加的縮放鈕在上、署名貼底,與 M0 相同)
   let attrib = new maplibregl.AttributionControl({ compact: false, customAttribution: [] });
-  const nav = new maplibregl.NavigationControl({ showCompass: false, showZoom: true });
+  const nav = new maplibregl.NavigationControl({ showCompass: true, showZoom: true, visualizePitch: true });
   raw.addControl(attrib, 'bottom-right');
   raw.addControl(nav, 'bottom-right');
+  const syncOrientationClass = () => raw.getContainer().classList.toggle('map-orient-active',
+    Math.abs(raw.getBearing()) > 0.05 || Math.abs(raw.getPitch()) > 0.05);
+  raw.on('rotate', syncOrientationClass);
+  raw.on('pitch', syncOrientationClass);
+  syncOrientationClass();
   // 事件:名稱沿用 Leaflet。click/mousemove/contextmenu 的 handler 收到的 e 補 containerPoint/latlng(Leaflet 形),
   // 其餘事件原樣轉發。off 要對得回同一個包裝函式,所以每個 (event, fn) 記一份。
   const wrapped = new Map(); // key = ev + ' ' + fn 的序號 → wrapper
@@ -6556,6 +6586,22 @@ function createMaplibreEngine(containerId, view) {
     getZoom: () => raw.getZoom() + ML_Z,
     getCenter: () => { const c = raw.getCenter(); return { lat: c.lat, lng: c.lng }; },
     getBounds: () => { const b = raw.getBounds(); return new MBounds([b.getSouth(), b.getWest()], [b.getNorth(), b.getEast()]); },
+    getBearing: () => raw.getBearing(),
+    getPitch: () => raw.getPitch(),
+    setBearing: bearing => { raw.setBearing(bearing); return E; },
+    setPitch: pitch => { raw.setPitch(pitch); return E; },
+    resetNorth: o => {
+      const d = mlDuration(o), opts = { bearing: 0, pitch: 0, duration: d == null ? 250 : d };
+      if (opts.duration === 0) raw.jumpTo(opts); else raw.easeTo(opts);
+      return E;
+    },
+    easeTo: o => {
+      const opts = { ...(o || {}) };
+      if (opts.center) { const p = mlToLL(opts.center); opts.center = [p.lng, p.lat]; }
+      if (Number.isFinite(opts.zoom)) opts.zoom -= ML_Z;
+      const d = mlDuration(o); if (d != null) opts.duration = d;
+      raw.easeTo(opts); return E;
+    },
     getBoundsZoom: (b, inside, pad) => {
       const cam = raw.cameraForBounds(mlToLngLatBounds(b), { padding: mlPadding(pad) });
       if (!cam) return raw.getZoom() + ML_Z;
@@ -6565,16 +6611,20 @@ function createMaplibreEngine(containerId, view) {
     setView: (c, z, o) => {
       const p = mlToLL(c), d = mlDuration(o);
       const opts = { center: [p.lng, p.lat], zoom: (z == null ? raw.getZoom() : z - ML_Z) };
+      if (o && Number.isFinite(o.bearing)) opts.bearing = o.bearing;
+      if (o && Number.isFinite(o.pitch)) opts.pitch = o.pitch;
       if (d === 0 || (d === undefined && (!o || o.animate === undefined))) raw.jumpTo(opts); // 專案裡 24 處 setView 全是 animate:false
       else raw.easeTo({ ...opts, duration: d == null ? 250 : d });
       return E;
     },
     panTo: (c, o) => { const p = mlToLL(c), d = mlDuration(o); raw.panTo([p.lng, p.lat], d == null ? {} : { duration: d }); return E; },
     panBy: (dlt, o) => { const x = Array.isArray(dlt) ? dlt[0] : dlt.x, y = Array.isArray(dlt) ? dlt[1] : dlt.y; const d = mlDuration(o); raw.panBy([x, y], d == null ? {} : { duration: d }); return E; },
-    flyTo: (c, z, o) => { const p = mlToLL(c); const opts = { center: [p.lng, p.lat] }; if (z != null) opts.zoom = z - ML_Z; const d = mlDuration(o); if (d != null) opts.duration = d; raw.flyTo(opts); return E; },
+    flyTo: (c, z, o) => { const p = mlToLL(c); const opts = { center: [p.lng, p.lat] }; if (z != null) opts.zoom = z - ML_Z; const d = mlDuration(o); if (d != null) opts.duration = d; if (o && Number.isFinite(o.bearing)) opts.bearing = o.bearing; if (o && Number.isFinite(o.pitch)) opts.pitch = o.pitch; raw.flyTo(opts); return E; },
     fitBounds: (b, o) => {
       const opts = { padding: mlPadding(o && o.padding) }; const d = mlDuration(o); if (d != null) opts.duration = d;
       if (o && Number.isFinite(o.maxZoom)) opts.maxZoom = o.maxZoom - ML_Z;
+      if (o && Number.isFinite(o.bearing)) opts.bearing = o.bearing;
+      if (o && Number.isFinite(o.pitch)) opts.pitch = o.pitch;
       raw.fitBounds(mlToLngLatBounds(b), opts); return E;
     },
     flyToBounds: (b, o) => E.fitBounds(b, o), // MapLibre 的 fitBounds 本來就會動畫;duration 由 o 決定
@@ -6619,8 +6669,8 @@ function createMaplibreEngine(containerId, view) {
       return E;
     },
     setGestures: on => { // 對應 Leaflet 的 dragging/touchZoom/scrollWheelZoom/doubleClickZoom/boxZoom/keyboard 整組開關(放空模式用)
-      for (const h of [raw.dragPan, raw.scrollZoom, raw.boxZoom, raw.doubleClickZoom, raw.touchZoomRotate, raw.keyboard]) { if (h) on ? h.enable() : h.disable(); }
-      if (on) raw.touchZoomRotate.disableRotation(); // enable() 會把旋轉一起打開,M0 要維持關閉
+      for (const h of [raw.dragPan, raw.dragRotate, raw.scrollZoom, raw.boxZoom, raw.doubleClickZoom, raw.touchZoomRotate, raw.keyboard]) { if (h) on ? h.enable() : h.disable(); }
+      if (on) raw.touchZoomRotate.enableRotation();
       return E;
     },
   };
@@ -6631,8 +6681,113 @@ function createEngine(containerId, view) {
   return createLeafletEngine(containerId, view); // MapLibre 實作尚未落地(M0b)時,旗標指到 maplibre 也退回 Leaflet
 }
 // ==== ENGINE ADAPTER END ====
+const MAP3D_PREF_KEY = 'trainmap-map-3d';
+function installBuilding3d() {
+  if (!M || M.engine !== 'maplibre' || !M.isStyleReady() || !M.raw.getSource('openmaptiles') || M.raw.getLayer('building-3d')) return;
+  const layers = (M.raw.getStyle() && M.raw.getStyle().layers) || [];
+  const firstSymbol = layers.find(layer => layer.type === 'symbol');
+  M.raw.addLayer({
+    id: 'building-3d', type: 'fill-extrusion', source: 'openmaptiles', 'source-layer': 'building', minzoom: 13,
+    layout: { visibility: state.map3d ? 'visible' : 'none' },
+    paint: {
+      'fill-extrusion-color': state.mapDark ? '#343944' : '#d4d0c5',
+      'fill-extrusion-height': ['interpolate', ['linear'], ['zoom'], 13, 0, 14,
+        ['to-number', ['coalesce', ['get', 'render_height'], ['get', 'height']], 8]],
+      'fill-extrusion-base': ['to-number', ['coalesce', ['get', 'render_min_height'], ['get', 'min_height']], 0],
+      'fill-extrusion-opacity': 0.72,
+    },
+  }, firstSymbol && firstSymbol.id);
+}
+function syncMap3dUi() {
+  const btn = document.getElementById('map3dBtn');
+  if (btn) btn.setAttribute('aria-pressed', String(!!state.map3d));
+  if (state._syncMoreSheet) state._syncMoreSheet();
+}
+function setMap3d(on) {
+  if (!M || M.engine !== 'maplibre') return;
+  state.map3d = !!on;
+  try { localStorage.setItem(MAP3D_PREF_KEY, state.map3d ? '1' : '0'); } catch (e) {}
+  installBuilding3d();
+  if (M.raw.getLayer('building-3d')) M.raw.setLayoutProperty('building-3d', 'visibility', state.map3d ? 'visible' : 'none');
+  syncMap3dUi();
+}
+function setupMapOrientation() {
+  const btn = document.getElementById('map3dBtn'), row = document.getElementById('map3dRow');
+  if (!btn || !row || !M || M.engine !== 'maplibre') { if (row) row.style.display = 'none'; return; }
+  btn.style.display = ''; row.style.display = '';
+  try { state.map3d = localStorage.getItem(MAP3D_PREF_KEY) === '1'; } catch (e) { state.map3d = false; }
+  try {
+    const savedPitch = Number(localStorage.getItem('trainmap-map-pitch'));
+    state.mapPitch = Number.isFinite(savedPitch) ? Math.max(0, Math.min(60, savedPitch)) : 0;
+  } catch (e) { state.mapPitch = 0; }
+  if (state.mapPitch) M.setPitch(state.mapPitch);
+  M.raw.on('pitchend', () => {
+    state.mapPitch = M.getPitch();
+    try { localStorage.setItem('trainmap-map-pitch', String(state.mapPitch)); } catch (e) {}
+  });
+  btn.onclick = () => setMap3d(!state.map3d);
+  M.onStyleLoad(installBuilding3d);
+  syncMap3dUi();
+}
+// 兩點初始方位角：0=北、90=東、-90=西，範圍 [-180,180]。只吃經緯度，不依賴任一地圖引擎。
+function initialBearing(a, b) {
+  const p = mlToLL(a), q = mlToLL(b);
+  if (!p || !q) return null;
+  const rad = Math.PI / 180, p1 = p.lat * rad, p2 = q.lat * rad, dl = (q.lng - p.lng) * rad;
+  const y = Math.sin(dl) * Math.cos(p2);
+  const x = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl);
+  if (Math.abs(x) + Math.abs(y) < 1e-12) return null;
+  return Math.atan2(y, x) / rad;
+}
+function followHeadingFor(key, a, b) {
+  const p = mlToLL(a), q = mlToLL(b);
+  if (p && q && (Math.abs(p.lat - q.lat) > 1e-8 || Math.abs(p.lng - q.lng) > 1e-8)) {
+    const value = initialBearing(p, q);
+    if (Number.isFinite(value)) state._followHeading = { key, value };
+  }
+  return state._followHeading && state._followHeading.key === key ? state._followHeading.value : null;
+}
+function applyFollowHeading(heading, options) {
+  if (!M || M.engine !== 'maplibre') return;
+  const target = state.ambient ? 0 : heading;
+  if (!Number.isFinite(target)) return;
+  const current = M.getBearing();
+  const delta = ((target - current + 540) % 360) - 180;
+  if (Math.abs(delta) < 0.05) return;
+  const immediate = !!(options && options.immediate);
+  M.setBearing(immediate ? target : current + delta * 0.18);
+}
+function resetFollowHeading(options) {
+  state._followHeading = null;
+  if (!M || M.engine !== 'maplibre') return;
+  if (options && options.immediate) M.setBearing(0);
+  else M.easeTo({ bearing: 0, duration: 0.24 }); // M adapter 沿用 Leaflet duration 單位：秒
+}
+function applyFreqFollowHeading(info, ln, immediate) {
+  if (!state.freqFollow || !info) return;
+  const pos = info.pos || (Number.isFinite(info.lat) && Number.isFinite(info.lon) ? info : null);
+  const line = info.ln || ln;
+  if (!pos || !line) { applyFollowHeading(null, { immediate }); return; }
+  const follow = state.freqFollow;
+  let before = null, after = null;
+  if (follow.tr) { // 實際班次沿同一條運動曲線取前後點，不拿「目前位置→下一站」直線猜彎道切線
+    const a = freqTrainInfoAt(line, follow.tr, state.simSec - 5);
+    const b = freqTrainInfoAt(line, follow.tr, state.simSec + 5);
+    before = a && a.pos; after = b && b.pos;
+  } else if (follow.k != null && line.sched && line.n) { // 班距示意車同樣取局部前後點
+    const base = state.mode === 'sched' ? (state.decoElapsed || 0) : state.elapsed;
+    const at = base * state.speedMult + follow.k * line.period / line.n;
+    before = freqTrainInfo(line, at - 5); after = freqTrainInfo(line, at + 5);
+  }
+  let heading = followHeadingFor(follow, before || pos, after || pos);
+  const nk = String(info.nextName || '').replace(/臺/g, '台');
+  const next = nk && (line.stations || []).find(st => String(st.name || '').replace(/臺/g, '台') === nk);
+  if (!Number.isFinite(heading)) heading = followHeadingFor(follow, pos, next); // 官方即時車沒有可重算時間軸時的保守退路
+  applyFollowHeading(heading, { immediate });
+}
 let baseLayers = {}; // light / dark / sat Leaflet 圖層
 let ofmRasterFallback = null; // L2 退場用:把 Stadia raster 該怎麼建記在這裡(見 boot 內建層處)
+let glStreetFallback = null; // MapLibre App 殼的同義 runtime 退路；網站永遠不建立
 // 網站版衛星圖磚的 Esri token 改由 Worker 的 /api/basemap-token 下發(不寫進這個公開 repo,見 boot 內註解)。
 // 'ready'=可切衛星(App 殼與離線版恆 ready,金鑰由 build 直接注入);'pending'=還在要 token,先不切過去
 // 免得送出無 token 的圖磚請求吃 401;'failed'=要不到,衛星鈕整顆藏掉。
@@ -10617,12 +10772,14 @@ function setFreqFollow(hit) { // hit = 實際時刻班次／班距幽靈車／�
 }
 function clearFreqFollow() {
   if (!state.freqFollow) return;
+  const returnNorth = !state.followTrain;
   state.freqFollow = null;
   if (state.amb) state.amb.at = 0; // 車聲圖層:停跟即淡出
   syncPanFence(); // 捷運停跟:恢復台灣平移硬牆(若非台鐵/高鐵跟隨中)
   const c = document.getElementById('freqCard'); if (c) c.hidden = true;
   const cnt = M && M.getContainer(); if (cnt && cnt.style.cursor) cnt.style.cursor = '';
   updateFollowLockUI();
+  if (returnNorth) resetFollowHeading();
 }
 // 捷運跟車卡的車廂擁擠度。與車站看板吃【同一份】state.trtcOfficialBoard.crowdByNo(逐車 join),
 // 不另開一條資料路徑——兩個介面顯示同一台車時必須給出同一個值。
@@ -10746,6 +10903,7 @@ function updateFreqFollowCamera(immediate) {
       : trtcOfficialVehicleInfo(rec.ln, rec.vehicle, Date.now() / 1000);
     if (!info.pos) { clearFreqFollow(); return; }
     ambNotePos(info.pos.lat, info.pos.lon);
+    applyFreqFollowHeading(info, info.ln || f.ln, immediate);
     if (immediate) M.setView([info.pos.lat, info.pos.lon], followEntryZoom(), { animate: false });
     else if (state.followLock) recenterTo(info.pos.lat, info.pos.lon);
     updateFreqCard(info);
@@ -10756,6 +10914,7 @@ function updateFreqFollowCamera(immediate) {
     const info = freqTrainInfoAt(ln, f.tr, state.simSec);
     if (!info.pos) { clearFreqFollow(); showToast(t(info.done ? '列車已抵達終點' : '已離開此班次的行駛時段')); return; }
     ambNotePos(info.pos.lat, info.pos.lon);
+    applyFreqFollowHeading(info, ln, immediate);
     if (immediate) M.setView([info.pos.lat, info.pos.lon], followEntryZoom(), { animate: false });
     else if (state.followLock) recenterTo(info.pos.lat, info.pos.lon);
     updateFreqCard(info);
@@ -10766,6 +10925,7 @@ function updateFreqFollowCamera(immediate) {
   const base = state.mode === 'sched' ? (state.decoElapsed || 0) : state.elapsed;
   const info = freqTrainInfo(ln, base * state.speedMult + f.k * ln.period / ln.n);
   ambNotePos(info.lat, info.lon);
+  applyFreqFollowHeading(info, ln, immediate);
   if (immediate) M.setView([info.lat, info.lon], followEntryZoom(), { animate: false });
   else if (state.followLock) recenterTo(info.lat, info.lon);
   updateFreqCard(info);
@@ -10954,7 +11114,9 @@ function glTracksInstall() {
   if (raw.getLayer('track-line-' + glTracks.ranks[0])) return; // 冪等:同一份 style 只裝一次
   if (!raw.getSource('track-lines')) raw.addSource('track-lines', { type: 'geojson', data: glTracks.lines });
   if (!raw.getSource('track-stations')) raw.addSource('track-stations', { type: 'geojson', data: glTracks.stations });
-  const before = raw.getLayer('aligndot') ? 'aligndot' : undefined; // 對齊探針永遠在最上
+  // 3D 建築要遮住貼地軌道；列車／標籤仍在最上層 overlay。M2 的 building-3d 若已先裝好，
+  // 所有 GL 軌道都插在它下面；沒有建築層的舊路徑仍維持對齊探針在最上。
+  const before = raw.getLayer('building-3d') ? 'building-3d' : (raw.getLayer('aligndot') ? 'aligndot' : undefined);
   const base = Object.fromEntries(glTracks.style.layers.map(l => [l.id, l]));
   const none = ['in', ['get', 'lineKey'], ['literal', []]];
   for (const k of glTracks.ranks) { // 依 sortKey 階級交錯:上層線的 casing 才會挖掉下層線的色線(canvas 逐線 knockout 的近似,計畫 D4)
@@ -14418,10 +14580,27 @@ function pinLnName(ln) { // 線名去括號區段(「縱貫線北段（基隆–
 function pinIcon(saved) { // Google Maps 風格圓點:草稿=藏青、已存最愛=琥珀+白星;.ph 為縮小地圖時浮現的光環
   const c = saved ? '#e08a1e' : '#2f5c96';
   const star = saved ? '<path transform="translate(15 15) scale(.15)" d="M0 -22 6.5 -6.8 22 -6.8 9.4 3 14 18 0 9 -14 18 -9.4 3 -22 -6.8 -6.5 -6.8Z" fill="#fff"/>' : '';
-  return L.divIcon({ className: 'pin-ico' + (saved ? ' pin-saved' : ''), iconSize: [30, 30], iconAnchor: [15, 15],
-    html: '<svg viewBox="0 0 30 30" width="30" height="30" aria-hidden="true">' +
+  const className = 'pin-ico' + (saved ? ' pin-saved' : '');
+  const html = '<svg viewBox="0 0 30 30" width="30" height="30" aria-hidden="true">' +
       '<circle class="ph" cx="15" cy="15" r="12.5" fill="' + c + '"/>' +
-      '<circle cx="15" cy="15" r="7.6" fill="#fff"/><circle cx="15" cy="15" r="5.4" fill="' + c + '"/>' + star + '</svg>' });
+      '<circle cx="15" cy="15" r="7.6" fill="#fff"/><circle cx="15" cy="15" r="5.4" fill="' + c + '"/>' + star + '</svg>';
+  if (M.engine === 'maplibre') return maplibreMarkerElement(className, html, saved ? 900 : 1000);
+  return L.divIcon({ className, iconSize: [30, 30], iconAnchor: [15, 15], html });
+}
+function maplibreMarkerElement(className, html, zIndex) {
+  const el = document.createElement('div');
+  el.className = className;
+  el.innerHTML = html;
+  el.style.zIndex = String(zIndex);
+  return el;
+}
+function markerLatLng(marker) {
+  if (M.engine === 'maplibre') {
+    const p = marker.getLngLat();
+    return { lat: p.lat, lon: p.lng };
+  }
+  const p = marker.getLatLng();
+  return { lat: p.lat, lon: p.lng };
 }
 function loadPins() { return userDataLoadCollection('pins'); }
 function savePins(a) { return userDataSaveCollection('pins', a); }
@@ -14452,18 +14631,19 @@ const setupNativePlacesSync = (() => {
 })();
 function pinSavedIdx(lat, lon) { return loadPins().findIndex(p => Math.abs(p.lat - lat) < 1e-6 && Math.abs(p.lon - lon) < 1e-6); }
 function openPinAt(lat, lon) { // 落/移釘 → 開卡(右上欄諸卡擇一)
-  if (!M.leaflet) return; // 釘圖 marker 是 Leaflet 專屬(M1 marker 批次改引擎中立)
   soloPanel('pin');
   closeBoard(); closeCrossingCard(); closeNearbyStations(); closeSugarCard();
-  if (pinDraft && pinDraft.marker) M.leaflet.removeLayer(pinDraft.marker);
-  const mk = L.marker([lat, lon], { icon: pinIcon(false), draggable: true, zIndexOffset: 1000 }).addTo(M.leaflet);
+  if (pinDraft && pinDraft.marker) pinDraft.marker.remove();
+  const mk = M.engine === 'maplibre'
+    ? new maplibregl.Marker({ element: pinIcon(false), anchor: 'center', draggable: true }).setLngLat([lon, lat]).addTo(M.raw)
+    : L.marker([lat, lon], { icon: pinIcon(false), draggable: true, zIndexOffset: 1000 }).addTo(M.leaflet);
   pinDraft = { lat, lon, marker: mk };
-  mk.on('dragend', () => { const ll = mk.getLatLng(); pinDraft.lat = ll.lat; pinDraft.lon = ll.lon; renderPinCard(); });
+  mk.on('dragend', () => { const ll = markerLatLng(mk); pinDraft.lat = ll.lat; pinDraft.lon = ll.lon; renderPinCard(); });
   renderPinCard();
   syncPinHint();   // 卡開起來了 ⇒ 提示條讓位(同一個槽位)
 }
 function closePinCard() {
-  if (pinDraft && pinDraft.marker && M.leaflet) M.leaflet.removeLayer(pinDraft.marker);
+  if (pinDraft && pinDraft.marker) pinDraft.marker.remove();
   pinDraft = null;
   const el = document.getElementById('pinCard'); if (el) { el.hidden = true; el.innerHTML = ''; }
   syncPinHint();
@@ -14590,12 +14770,21 @@ function gotoSavedPin(key) {
   openPinAt(p.lat, p.lon);
 }
 function renderSavedPins() { // 已存地點:恆掛地圖的釘,點了重開卡;預測只在 sched,捷運頁不掛
-  if (!M.leaflet) return; pinSaved.forEach(m => M.leaflet.removeLayer(m)); pinSaved = [];
+  pinSaved.forEach(m => m.remove()); pinSaved = [];
   if (state.mode !== 'sched') return;
   for (const p of loadPins()) {
-    const mk = L.marker([p.lat, p.lon], { icon: pinIcon(true), zIndexOffset: 900 }).addTo(M.leaflet);
-    if (p.label) mk.bindTooltip(escHtml(String(p.label)), { direction: 'top', offset: [0, -12] });
-    mk.on('click', () => { M.panTo([p.lat, p.lon]); openPinAt(p.lat, p.lon); });
+    const mk = M.engine === 'maplibre'
+      ? new maplibregl.Marker({ element: pinIcon(true), anchor: 'center' }).setLngLat([p.lon, p.lat]).addTo(M.raw)
+      : L.marker([p.lat, p.lon], { icon: pinIcon(true), zIndexOffset: 900 }).addTo(M.leaflet);
+    const open = () => { M.panTo([p.lat, p.lon]); openPinAt(p.lat, p.lon); };
+    if (M.engine === 'maplibre') {
+      const el = mk.getElement();
+      if (p.label) { el.title = String(p.label); el.setAttribute('aria-label', String(p.label)); }
+      el.addEventListener('click', event => { event.stopPropagation(); open(); });
+    } else {
+      if (p.label) mk.bindTooltip(escHtml(String(p.label)), { direction: 'top', offset: [0, -12] });
+      mk.on('click', open);
+    }
     pinSaved.push(mk);
   }
 }
@@ -15629,6 +15818,7 @@ function clearFollow() {
   clearFreqFollow(); // 換系統/群組/進放空都經過這裡 → 一併清掉捷運幽靈車跟隨
   restoreFollowSpeed(); // 中途取消跟隨也要還原 fromStart 重播強制的速度
   state.followTrain = null; state.followId = null; state.followStatus = null;
+  resetFollowHeading(); // M3：離開跟車回正北；pitch 是使用者偏好，不在此改動
   state.followWrapStops = null;
   if (state.amb) state.amb.at = 0; // 車聲圖層:停跟即淡出(下一拍 ambTick 判無新位置)
   setBasemap(); // 停跟:衛星模式換回高解析度圖磚
@@ -16267,6 +16457,7 @@ function setAmbient(on) {
   if (on === !!state.ambient) return;
   if (on) state.geoFollow = false;
   state.ambient = on;
+  if (on) applyFollowHeading(0, { immediate: true }); // 放空導演恒正北，不帶跟車 heading-up
   document.body.classList.toggle('ambient', on); // 供 CSS 做放空專屬版面(手機迷你化)
   // 出口保命:膠囊的 cexp/cfaint 若被帶進放空,body.cexp 那條會把「離開放空」與「視角」兩顆
   // 一起 display:none,而放空版 .controls 是 width:max-content ⇒ 收成一顆點不到的空膠囊。
@@ -17973,15 +18164,20 @@ function favStationHere(f) { // 解析目前檢視能開板的站物件;開不�
   return state.schedStations.find(s => s.name === f.name && s.sys === f.sys) || null;
 }
 function renderFavStationMarkers() {
-  if (!M.leaflet) return; favStMarks.forEach(m => M.leaflet.removeLayer(m)); favStMarks = [];
+  favStMarks.forEach(m => m.remove()); favStMarks = [];
   for (const f of loadFavStations()) {
     const st = favStationHere(f);
     if (!st) continue;
-    const mk = L.marker([f.lat, f.lon], {
-      icon: L.divIcon({ className: 'favst-ico', html: railIcon('ui-favorite', 'ri-icon--fill'), iconSize: [16, 16], iconAnchor: [8, 19] }), // 錨在站點上方一點,不壓站上的列車
-      zIndexOffset: 880, keyboard: false,
-    }).addTo(M.leaflet);
-    mk.on('click', () => openBoard(favStationHere(f) || st)); // 點 ★=明確要看板,不經車/站歧義判定
+    const html = railIcon('ui-favorite', 'ri-icon--fill');
+    const mk = M.engine === 'maplibre'
+      ? new maplibregl.Marker({ element: maplibreMarkerElement('favst-ico', html, 880), anchor: 'bottom', offset: [0, -3] }).setLngLat([f.lon, f.lat]).addTo(M.raw)
+      : L.marker([f.lat, f.lon], {
+        icon: L.divIcon({ className: 'favst-ico', html, iconSize: [16, 16], iconAnchor: [8, 19] }), // 錨在站點上方一點,不壓站上的列車
+        zIndexOffset: 880, keyboard: false,
+      }).addTo(M.leaflet);
+    const open = () => openBoard(favStationHere(f) || st); // 點 ★=明確要看板,不經車/站歧義判定
+    if (M.engine === 'maplibre') mk.getElement().addEventListener('click', event => { event.stopPropagation(); open(); });
+    else mk.on('click', open);
     favStMarks.push(mk);
   }
 }
@@ -22301,9 +22497,17 @@ function updateFollowCamera() {
     return;
   }
   const pos = trainPos(tr, state.simSec);
-  if (!pos) { const f = tr.stops[0]; if (state.followLock) recenterTo(f.lat, f.lon); setFollowStatus('pre', '尚未發車'); return; }
+  if (!pos) {
+    const f = tr.stops[0], n = tr.stops[1];
+    applyFollowHeading(followHeadingFor(tr, f, n));
+    if (state.followLock) recenterTo(f.lat, f.lon);
+    setFollowStatus('pre', '尚未發車'); return;
+  }
   ambNotePos(pos.lat, pos.lon); // 車聲圖層:1Hz 的 ambTick 由位移推「車在動嗎」
   setFollowStatus('run', '');
+  const headingBefore = trainPos(tr, state.simSec - 5) || pos;
+  const headingAfter = trainPos(tr, state.simSec + 5) || pos;
+  applyFollowHeading(followHeadingFor(tr, headingBefore, headingAfter));
   if (state.followLock) recenterTo(pos.lat, pos.lon, followAheadPx(tr, pos));
   // 相機自癒 v2(2026-08-12 Codex 複審修訂):量結果不猜原因——鎖定跟隨中,車的容器點連續
   // 3.5s 落在露出矩形外(16px 容差;v1 的 25% 邊距會把被側欄蓋住的車誤判成「在場」)→ 強制
@@ -28989,6 +29193,16 @@ function glAttributionSync() {
 // 主 raster 的 tileSize 決定要哪一級圖磚:256 ⇒ 圖磚 z=Leaflet 尺 z(同 satLQ);128 ⇒ z+1(同 detectRetina,4 倍張數,Plus 且非跟車才用)。
 // z6 保底層固定 minzoom=maxzoom=6:任何 zoom 都 overzoom 那十幾張,與 Leaflet 的 minNativeZoom=maxNativeZoom 同義(計畫 D8)。
 let satGlUrl = null; // 已套 token 的圖磚網址(boot 給初值;applySatToken 換)
+function glStreetRasterStyle(tile, dark) {
+  return {
+    version: 8,
+    sources: { street: { type: 'raster', tiles: [tile.url], tileSize: 256, maxzoom: tile.maxZoom, attribution: tile.attribution } },
+    layers: [
+      { id: 'background', type: 'background', paint: { 'background-color': dark ? '#10141c' : '#d4dadc' } },
+      { id: 'street', type: 'raster', source: 'street', paint: { 'raster-fade-duration': 0 } },
+    ],
+  };
+}
 function satGlStyle(hi) {
   const tiles = [satGlUrl];
   return {
@@ -29197,6 +29411,12 @@ function ofmWatch(layer) {
   // 「退路也掛了」的提示都叫不到,整條路徑零訊號。退到一個壞掉又測不出壞掉的地方比不退更糟,
   // 所以網站改成直接把話講出來。App 不受影響:它退到自家付費的 Stadia,那是真的能用的。
   const fail = why => { stop(); ofmFailBeacon(why); if (APP_CFG.tiles) ofmFallToRaster(why); else ofmNoticeWeb(why); };
+  if (M && M.engine === 'maplibre') {
+    timer = setTimeout(() => { if (!settled) fail('slow'); }, OFM_HEALTH_MS);
+    layer.on('error', () => { if (!settled && ++errors >= OFM_ERROR_LIMIT) fail('error'); });
+    if (layer.loaded && layer.loaded()) stop(); else layer.once('load', stop);
+    return;
+  }
   // 逾時**只在圖層真的上場後**起算:亮/暗兩層只有一層會被加進地圖,
   // 若一建好就起算,沒上場的那層必然逾時 ⇒ 每次開機都假退場。
   layer.on('add', function () {
@@ -29231,6 +29451,13 @@ function ofmNoticeWeb(why) {
 function ofmFallToRaster(why) {
   if (!ofmRasterFallback) return; // 已經退過(或沒備退路)就不再退:只退一次,不來回跳
   const built = ofmRasterFallback; ofmRasterFallback = null;
+  if (M && M.engine === 'maplibre') {
+    glStreetFallback = {};
+    for (const k of ['light', 'dark']) if (built[k]) glStreetFallback[k] = built[k]();
+    try { console.warn('[basemap] OpenFreeMap 退場改用 raster:' + why); } catch (e) {}
+    setBasemap();
+    return;
+  }
   for (const k of ['light', 'dark']) {
     if (!built[k]) continue;
     const old = baseLayers[k];
@@ -29251,7 +29478,12 @@ function setBasemap() {
     stage0.classList.toggle('dark', !!state.mapDark && !sat0);
     const hi0 = sat0 && !state.followTrain && satRetinaAllowed(); // 跟車中或非 Plus 一律標準解析(與 Leaflet 的 wantLQ 同義)
     if (sat0) M.setStyleKind(hi0 ? 'sat-hi' : 'sat-lq', satGlStyle(hi0));
-    else M.setStyleKind(state.mapDark ? 'dark' : 'light');
+    else {
+      const streetKind = state.mapDark ? 'dark' : 'light';
+      const fallback = glStreetFallback && glStreetFallback[streetKind];
+      if (fallback) M.setStyleKind('street-raster-' + streetKind, fallback);
+      else M.setStyleKind(streetKind);
+    }
     if (sat0) warmSatUnderlayGl();
     glLandInstall();      // 同 kind 早退時 style 沒換,層都在只重套主題;換了 style 則 style.load 會再呼叫一次(冪等)
     glAttributionSync();
@@ -29769,6 +30001,10 @@ const HELP_GROUPS = [
       tip: '換情境只發生在一首播完之後，不會把正在聽的曲子切掉；短暫經過一個地區也不會馬上換。通行證到期會自動退回免費的隨機播放，你選過的情境會留著。' },
     { key: 'sat', ic: '衛', nm: '衛星影像', tg: 'satBtn', needs: 'satBtn', one: '把底圖換成衛星照片，看得到實際的軌道與站場。',
       steps: ['「更多」→ 衛星影像'], tip: '拉太近時衛星影像可能還沒有那麼清晰的圖資。', try: 'sat' },
+    { key: 'orientation', avail: () => M && M.engine === 'maplibre', ic: '3D', nm: '旋轉、傾斜與 3D 建築', tg: 'map3dBtn',
+      one: 'MapLibre 地圖可以轉向與傾斜，拉近時也能開啟立體建築。',
+      steps: ['手機用兩指旋轉或上下傾斜；桌面按住右鍵拖曳', '點指南針回到正北與平視', '「更多」→ 打開「3D 建築」；縮放到街區附近就看得到'],
+      tip: '跟隨列車時，行進方向會自動朝上；結束跟隨後回到正北。你手動調的傾斜角度會保留，放空模式固定正北。' },
     { key: 'theme', ic: '◐', nm: '外觀：亮／暗／自動', one: '自動＝跟著系統的深色模式走。', seg: true },
     { key: 'fontscale', ic: '字', nm: '字級', one: '三階字級與跟隨系統字級。',
       steps: ['「更多」→ 字級，開啟「顯示與字級」', '選標準／大／特大，面板下方會即時預覽', '「跟隨系統字級」可以關掉——手機字調大、但這一頁想維持資訊密度時用'],
@@ -30242,6 +30478,7 @@ function setupMapTools() {
     panelOpacity: () => !!state.panelTranslucent,
     diagStrip: () => !!state.diagStrip,
     satBtn: () => state.basemap === 'sat',
+    map3dBtn: () => !!state.map3d,
     xingBtn: () => !!state.xingOn,
     introBtn: () => !!state.stnIntro,
     dirBtn: () => !!state.dirArrow,
@@ -31284,6 +31521,7 @@ async function boot() {
   if (M.engine === 'maplibre') await glLandLoad(); // 離線陸地(M1a):Leaflet 走 setupOfflineLand,MapLibre 走 GL 層
   window.__map = M.raw; // 驗證腳本用的把手(Leaflet 時就是 Leaflet map;MapLibre 時是 maplibregl.Map)
   window.__M = M; // 適配層把手(verify_engine_adapter.mjs)
+  setupMapOrientation(); // M2：MapLibre compass／3D 建築；Leaflet 路徑只保持入口隱藏
   if (M.engine === 'maplibre') glTracksLoad(); // GL 軌道(M1a):抓 geojson/style,style.load 時冪等裝層;抓失敗就維持 canvas 畫法
   // 跨層對齊探針(只在 ?aligndot=lat,lng 時存在):同一個經緯度,底圖引擎畫一顆、overlay 畫一顆。
   // 兩顆在最終畫面上的像素距離＝底圖與列車圖層錯開多少。overlay 這顆刻意走 latLngToContainerPoint
@@ -31450,7 +31688,7 @@ async function boot() {
     const bd = document.getElementById('board');
     if (bd && !bd.hidden) closeBoard();
   }
-  M.on('click', e => {
+  function handleMapClick(e) {
     const cp = e.containerPoint || M.toScreen(e.latlng);
     closeTapPick(); // 點地圖任何地方先收掉歧義選單(選單列自身的點擊不會冒泡到 map)
     if (state.takeoutPick && state.takeoutResult) {
@@ -31581,7 +31819,8 @@ async function boot() {
     // 設計 1a:點到真的空白處 ⇒ 跟車中收成膠囊(跟車不斷),否則收掉開著的車站看板。
     // 🔴 取消跟隨的入口仍是「再點一次跟隨中的那台車」(上面 hit.tr === state.followTrain),沒有被動到。
     tapBlank();
-  });
+  }
+  M.on('click', handleMapClick);
   // 平交道卡穿透轉發:卡片(含空白列/邊距)壓住的列車/平交道/車站,點卡片即視同點地圖,
   // 走上方同一套命中優先序直接切換——手機 375px 卡片蓋掉右半地圖,實測得先關卡才點得到下一個(v0712o)。
   // 卡片下沒壓到可點目標就不轉發:點卡片內文不該把卡關掉;按鈕(關閉鈕)照舊不轉發。
@@ -31595,7 +31834,7 @@ async function boot() {
       stD = Math.min(stD, Math.hypot(p.x - cp.x, p.y - cp.y));
     }
     if (!trainAt(cp) && !crossingAt(cp) && stD > 16 && !(state.deco && freqTrainAt(cp))) return;
-    M.fire('click', { containerPoint: cp, latlng: M.fromScreen(cp) });
+    handleMapClick({ containerPoint: cp, latlng: M.fromScreen(cp) });
   });
   M.on('mousemove', e => {
     // 滑過列車 → 手指游標(sched 真實班表 + freq 幽靈車一致)
@@ -31604,7 +31843,19 @@ async function boot() {
     c.style.cursor = (trainAt(e.containerPoint) || (state.deco && freqTrainAt(e.containerPoint))) ? 'pointer' : '';
   });
   // 跟隨鎖鈕:掛在縮放鈕上方(同角落自動堆疊,免手算碰撞);跟隨中才顯示
-  if (M.leaflet) {
+  if (M.engine === 'maplibre') {
+    const el = document.createElement('div');
+    el.className = 'maplibregl-ctrl follow-lock-ctl';
+    el.innerHTML = '<button id="followLockBtn" type="button" aria-label="' + escHtml(t('解除跟隨鎖定')) + '">' + railIcon('ui-follow-lock') + '</button>';
+    for (const type of ['click', 'dblclick', 'mousedown', 'touchstart']) el.addEventListener(type, event => event.stopPropagation());
+    const lockCtl = {
+      onAdd() { return el; },
+      onRemove() { el.remove(); },
+    };
+    M.raw.addControl(lockCtl, 'bottom-right');
+    const zoomCtl = M.getContainer().querySelector('.maplibregl-ctrl-bottom-right .maplibregl-ctrl-group');
+    if (zoomCtl && zoomCtl.parentNode) zoomCtl.parentNode.insertBefore(el, zoomCtl);
+  } else if (M.leaflet) {
   const lockCtl = L.control({ position: 'bottomright' });
   lockCtl.onAdd = () => {
     const el = L.DomUtil.create('div', 'leaflet-control follow-lock-ctl');
@@ -31739,6 +31990,16 @@ async function boot() {
         className: 'sat-underlay',   // 配 CSS 取消淡入:見 .sat-underlay img.leaflet-tile
       }));
     }
+  }
+  if (M.engine === 'maplibre' && onlineBasemapsAvailable() && TILES) {
+    if (APP_CFG.tiles) {
+      ofmRasterFallback = {};
+      for (const k of ['light', 'dark']) {
+        const t = TILES[k];
+        if (t && t.url) ofmRasterFallback[k] = () => glStreetRasterStyle(t, k === 'dark');
+      }
+    }
+    ofmWatch(M.raw);
   }
   // 衛星計費模式的掛勾:數圖磚、跨門檻換 session、效期快到續一顆(見 satTileLoaded 上方長註解)
   const satGl = M.engine === 'maplibre' && TILES && TILES.sat && TILES.sat.url && onlineBasemapsAvailable();

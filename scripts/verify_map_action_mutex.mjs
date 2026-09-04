@@ -14,6 +14,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { runEngineMatrix } from './lib/engine_matrix.mjs';
 
 const require = createRequire(import.meta.url);
 const { chromium, webkit } = require('playwright');
@@ -134,9 +135,11 @@ const BASE = ROUTE_FALLBACK
   ? `http://railisland-verify-${expectedWireMd5.slice(0, 12)}.test/`
   : `http://127.0.0.1:${server.address().port}/`;
 
-const results = [];
+const preflight = [];
+let matrixCheck = null;
 function check(name, pass, detail = '') {
-  results.push({ name, pass, detail });
+  if (matrixCheck) return matrixCheck(pass, name, detail);
+  preflight.push({ name, pass, detail });
   console.log(`${pass ? 'PASS' : 'FAIL'} ${name}${detail ? ` — ${detail}` : ''}`);
 }
 
@@ -241,34 +244,34 @@ async function auditHotzones(page, tag) {
   const nearCenter = await snapshot(page);
   check(`${tag} [熱區] #nearBtn 中心真 tap 只觸發附近車站`, actionOf(nearCenter) === 'near', JSON.stringify(nearCenter));
 
-  // 橫掃整條 action row 的每個 CSS pixel column。每點都先清狀態、真 tap、再依狀態分類。
-  // 這會在 position:static 突變時直接看到 rand 區域觸發 near，不依賴 elementFromPoint 或純幾何。
-  const y = (Math.max(geometry.rand.top, geometry.near.top) + Math.min(geometry.rand.bottom, geometry.near.bottom)) / 2;
-  const start = Math.ceil(geometry.actions.left);
-  const end = Math.floor(geometry.actions.right);
+  // 縱掃整條 action column 的每個 CSS pixel row。兩顆鈕現場是上下排列，舊 gate 橫掃兩鈕
+  // 交集不存在的 y，會把空隙誤報成產品紅；這裡改量真實排列軸，仍以真 touch 狀態分類。
+  const x = (Math.max(geometry.rand.left, geometry.near.left) + Math.min(geometry.rand.right, geometry.near.right)) / 2;
+  const start = Math.ceil(geometry.actions.top);
+  const end = Math.floor(geometry.actions.bottom);
   const counts = { rand: 0, near: 0, none: 0, both: 0 };
   const hits = [];
-  for (let x = start; x < end; x++) {
+  for (let y = start; y < end; y++) {
     await resetModes(page);
-    await page.touchscreen.tap(x + 0.5, y);
+    await page.touchscreen.tap(x, y + 0.5);
     const actual = actionOf(await snapshot(page));
     counts[actual]++;
-    hits.push({ x: x + 0.5, actual });
+    hits.push({ y: y + 0.5, actual });
   }
   await resetModes(page);
   // 真實 touch engine 會對按鈕邊界與 gap 做 touch adjustment，不能拿 rect 邊界當成逐 pixel 的唯一真值。
   // 獨立性的可觀察判準是：兩種動作都有非空且各自連續的命中帶，左 rand 帶完全結束後才能進右 near 帶，
   // 不得有 both，也不得在進 near 後又回頭觸發 rand。position:static 前科會讓 near 蓋滿整列，rand 帶變成 0。
-  const randHits = hits.filter(hit => hit.actual === 'rand').map(hit => hit.x);
-  const nearHits = hits.filter(hit => hit.actual === 'near').map(hit => hit.x);
+  const randHits = hits.filter(hit => hit.actual === 'rand').map(hit => hit.y);
+  const nearHits = hits.filter(hit => hit.actual === 'near').map(hit => hit.y);
   const randSpan = randHits.length ? [Math.min(...randHits), Math.max(...randHits)] : null;
   const nearSpan = nearHits.length ? [Math.min(...nearHits), Math.max(...nearHits)] : null;
   const activeOrder = hits.filter(hit => hit.actual === 'rand' || hit.actual === 'near').map(hit => hit.actual);
   const orderOk = activeOrder.every((action, index) => action === 'rand' || !activeOrder.slice(index + 1).includes('rand'));
   const separated = !!randSpan && !!nearSpan && randSpan[1] < nearSpan[0];
-  check(`${tag} [熱區] 橫掃 .map-actions 每個 pixel，兩鈕可點區各自獨立`,
+  check(`${tag} [熱區] 縱掃 .map-actions 每個 pixel，兩鈕可點區各自獨立`,
     counts.both === 0 && separated && orderOk,
-    `range=${start}..${end - 1} y=${y.toFixed(1)} counts=${JSON.stringify(counts)} randSpan=${JSON.stringify(randSpan)} nearSpan=${JSON.stringify(nearSpan)} orderOk=${orderOk}`);
+    `range=${start}..${end - 1} x=${x.toFixed(1)} counts=${JSON.stringify(counts)} randSpan=${JSON.stringify(randSpan)} nearSpan=${JSON.stringify(nearSpan)} orderOk=${orderOk}`);
 }
 
 async function verifyMutex(page, tag) {
@@ -333,8 +336,11 @@ async function launchForVerification(engineName, engine) {
   }
 }
 
-const browsers = [];
-try {
+const matrix = await runEngineMatrix(async ({ engineUrl, check: engineCheck }) => {
+  matrixCheck = engineCheck;
+  for (const item of preflight) check(item.name, item.pass, item.detail);
+  const browsers = [];
+  try {
   for (const [engineName, engine] of ENGINES) {
     let browser, launchMode;
     try {
@@ -381,7 +387,7 @@ try {
             });
           });
         }
-        const navigation = await page.goto(BASE + GEOMOCK, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        const navigation = await page.goto(engineUrl(BASE + GEOMOCK), { waitUntil: 'domcontentloaded', timeout: 30000 });
         const navigationMd5 = navigation ? md5(Buffer.from(await navigation.body())) : null;
         check(`${tag} [G0] navigation response md5 與預期受測 index.html 相同`,
           navigationMd5 === expectedNavigationMd5,
@@ -410,17 +416,15 @@ try {
       }
     }
   }
-} finally {
-  for (const browser of browsers) await browser.close().catch(() => {});
-  if (server.listening) await new Promise(resolve => server.close(resolve));
-}
+  } finally {
+    for (const browser of browsers) await browser.close().catch(() => {});
+  }
+});
+if (server.listening) await new Promise(resolve => server.close(resolve));
 
-const failures = results.filter(result => !result.pass);
-console.log(`\n──────── ${results.length - failures.length}/${results.length} PASS ────────`);
-if (failures.length) {
-  console.log(`變紅項：${failures.map(result => result.name).join(' ； ')}`);
+console.log(`\n──────── ${matrix.assertions.length - matrix.failures.length}/${matrix.assertions.length} PASS ────────`);
+if (matrix.failures.length) {
+  console.log(`變紅項：${matrix.failures.map(result => result.label).join(' ； ')}`);
   if (typeof process !== 'undefined') process.exitCode = 1;
-  else throw new Error(`驗收失敗 ${failures.length} 項`);
-} else {
-  console.log('全部 PASS');
-}
+  else throw new Error(`驗收失敗 ${matrix.failures.length} 項`);
+} else console.log('全部 PASS');
