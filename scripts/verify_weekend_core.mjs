@@ -116,14 +116,19 @@ chk('F8 這個週末結束的長期檔也進限定層', split.onlyThis.some(e =>
 console.log('\n【G】去重');
 const merged = dedupeEvents(split.onlyThis, SPAN);
 chk('G1 6 筆併成 5 場', merged.length === 5, `實得 ${merged.length}`);
-const mkt = merged.find(m => m.title === '市集');
+// 🔴 選取器必須指名它在量誰：Step 6 加了 `i1` 之後有【兩組】title 都叫「市集」
+// （URL 不同、刻意不併）。只用 title 找會靠 Array.sort 的穩定性碰巧選對 a1+a2 那組——
+// EVENTS 陣列順序一改就整組指向另一筆。這是判準盲點形態 0：沒證明「我在量的是誰」。
+const mkt = merged.find(m => m.title === '市集' && m.url === 'https://x.invalid/1');
 chk('G2 市集併出兩天', mkt && mkt.days.join(',') === '2026-09-05,2026-09-06');
 chk('G3 市集只保留一個地點', mkt && mkt.places.length === 1);
 chk('G4 note 取有填的那份', mkt && mkt.note === '輕食與文創');
 chk('G5 保留兩個原始 id', mkt && mkt.ids.length === 2);
 const two = dedupeEvents(split.alsoOpen, SPAN).find(m => m.title === '兩站聯名');
 chk('G6 兩站聯名併成一則、兩個地點', two && two.places.length === 2);
-chk('G7 依首日排序', merged[0].days[0] <= merged[merged.length - 1].days[0]);
+// 🔴 只比頭尾是【空判準】：把 dedupeEvents 的 .sort() 整段拿掉，頭尾的 days[0] 仍然都是
+// 09-05（真正錯位的「週末開跑」夾在中間），判準照樣綠。實測驗過。要比相鄰全序才有牙。
+chk('G7 依首日排序(相鄰全序)', merged.every((m, i) => i === 0 || merged[i - 1].days[0] <= m.days[0]));
 
 console.log(`\n${fail ? '❌' : '✅'} weekend-core：${pass} 過 / ${fail} 失敗`);
 if (fail) { console.error('失敗項目：\n  - ' + bad.join('\n  - ')); process.exit(1); }
