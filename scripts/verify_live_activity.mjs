@@ -448,13 +448,21 @@ const cr = await chromium.launch();
     state.clockAtNow = true;
     const info = nextStopInfo(tr, effTLive(tr));
     laSync(tr, false);                                // ← 真實產品函式
-    return { infoNull: info === null, gateOpen: state.clockAtNow && state.playing && state.speedMult === 1 };
+    // laSync() 的原生橋呼叫是同步留下紀錄；就在同一個 event loop 取樣，避免 evaluate 返回後
+    // 真實 rAF 時鐘立刻把 simSec 校回現在，又替仍在行駛的同車送出一發 start，讓終點案例
+    // 隨機把「下一幀的正確行為」誤算成這一次 laSync 的輸出。
+    return {
+      infoNull: info === null,
+      gateOpen: state.clockAtNow && state.playing && state.speedMult === 1,
+      calls: (window.__laCalls || []).map(c => c.m),
+    };
   });
   ok('T7 前置:時鐘撥到終點後 nextStopInfo 真的回 null(且時光機閘門是開的)',
     !!moved && moved.infoNull === true && moved.gateOpen === true, JSON.stringify(moved));
-  ok('T7 算不出下一站 ⇒ end 被呼叫', (await calls(page, 'end')).length >= 1, `end=${(await calls(page, 'end')).length}`);
-  ok('T7 算不出下一站時不會送出 start/update', (await calls(page, 'start')).length === 0 && (await calls(page, 'update')).length === 0,
-    `start=${(await calls(page, 'start')).length} update=${(await calls(page, 'update')).length}`);
+  ok('T7 算不出下一站 ⇒ end 被呼叫', moved && moved.calls.filter(m => m === 'end').length >= 1,
+    `序列=${JSON.stringify(moved && moved.calls)}`);
+  ok('T7 算不出下一站時不會送出 start/update', moved && !moved.calls.some(m => m === 'start' || m === 'update'),
+    `序列=${JSON.stringify(moved && moved.calls)}`);
   ok('T7 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
 }

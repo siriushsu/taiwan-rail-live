@@ -383,6 +383,8 @@ const TOAST_REVIEWED = new Map([
   [`t(action.toast)`, '使用說明「試一次」:action 是 HELP_TRY 固定成員,toast 為固定翻譯 key'],
   [`t(on?'':'')`, '省電模式提示:on 只選兩個固定翻譯 key'],
   [`p.label?t('',{label:escHtml(p.label)}):t('')`, '預設啟動地點提示:使用者地點名已 escHtml'],
+  [`t('',{system:escHtml(t(plan.targetSys===''?'':plan.targetSys===''?'':'')),train:escHtml(String(plan.targetTr.train||'')),})`,
+    '轉乘交棒提示:系統名只選固定翻譯 key，車次即使來自班表也先轉字串並 escHtml；兩個插值皆已逸出'],
 ]);
 
 // 掃出每一個 showToast( 呼叫的完整參數（括號配對，不是 regex 抓一行）。

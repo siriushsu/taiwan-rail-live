@@ -17,6 +17,7 @@
 //   node app/scripts/verify_no_ship_regression.mjs              # 對 app/www/index.html 驗（出貨產物）
 //   node app/scripts/verify_no_ship_regression.mjs --cand <檔>   # 指定候選 index.html
 //   node app/scripts/verify_no_ship_regression.mjs --update --from <index.html> --marketing X --build N
+//        [--carry <舊基線.json>]
 //        ↑ **只有在那一顆真的上傳成功之後**才可以跑，把基線推進到那一顆。
 //
 // 退出碼：0＝沒有東西變少；1＝有東西不見了（訊息會逐項列出）；2＝基線讀不到／參數錯。
@@ -89,13 +90,24 @@ function main() {
     const froms = (arg('--from') || join(APP_ROOT, 'www', 'index.html')).split(',').map(s => resolve(s.trim()));
     const marketing = arg('--marketing'), build = arg('--build');
     if (!marketing || !build) { console.error('✋ --update 必須同時給 --marketing 與 --build（那一顆真的上傳成功的版號）'); process.exit(2); }
+    // 新版上架後是把它【加入】仍在使用者手上的聯集，不是拿新檔覆蓋歷史。
+    // 也必須保留 allowRemoved：那是使用者已裁示下架的功能帳本；洗掉它會把刻意刪除誤報成回歸。
+    // --carry 只供基線已被舊版更新器覆寫時，從已知正本救回歷史聯集；平常直接沿用 BASELINE。
+    const carryPath = arg('--carry');
+    const carried = carryPath
+      ? JSON.parse(readFileSync(resolve(carryPath), 'utf8'))
+      : (existsSync(BASELINE) ? JSON.parse(readFileSync(BASELINE, 'utf8')) : null);
     const invs = froms.map(f => inventory(readFileSync(f, 'utf8')));
     const inv = {};
-    for (const k of Object.keys(invs[0])) inv[k] = [...new Set(invs.flatMap(x => x[k]))].sort();
+    for (const k of Object.keys(invs[0])) {
+      inv[k] = [...new Set([...(carried?.inventory?.[k] || []), ...invs.flatMap(x => x[k])])].sort();
+    }
     writeFileSync(BASELINE, JSON.stringify({
       _why: '這是【所有還在使用者手上的 build】的可見面聯集。verify_no_ship_regression 用它擋「新 build 悄悄變少」。只有在新的一顆上傳成功之後才准推進。',
-      marketing, build, from: froms.map(f => f.replace(REPO_ROOT, '<repo>')),
+      marketing, build,
+      from: [...new Set([...(carried?.from || []), ...froms.map(f => f.replace(REPO_ROOT, '<repo>'))])],
       updatedAt: new Date().toISOString(), inventory: inv,
+      ...(carried?.allowRemoved ? { allowRemoved: carried.allowRemoved } : {}),
     }, null, 2) + '\n');
     console.log(`✅ 出貨基線推進到 ${marketing} (${build})：` +
       Object.entries(inv).map(([k, v]) => `${LABEL[k]} ${v.length}`).join('、'));

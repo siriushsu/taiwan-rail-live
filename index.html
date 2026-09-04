@@ -17550,8 +17550,8 @@ function maybeXferAutoFollow(tr) {
   followTrainNo(String(plan.targetTr.train), { sys: plan.targetSys, keepNow: true });
   if (state.followTrain === plan.targetTr) {
     showToast(t('已接續追蹤 {system} {train} 次', {
-      system: t(plan.targetSys === 'thsr_sched' ? '高鐵' : plan.targetSys === 'tra_sched' ? '台鐵' : '林鐵'),
-      train: plan.targetTr.train,
+      system: escHtml(t(plan.targetSys === 'thsr_sched' ? '高鐵' : plan.targetSys === 'tra_sched' ? '台鐵' : '林鐵')),
+      train: escHtml(String(plan.targetTr.train || '')),
     }));
     return true;
   }
