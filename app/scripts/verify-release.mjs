@@ -740,7 +740,7 @@ export async function verifyRelease({
   // 'Noto Emoji'：唯一一條不是 npm 依賴的授權（換圖批次內嵌的字型子集）。列進來是因為
   // third-party-notices.txt 是每次 build 重新生成的——條目從 prepare-web 的陣列裡消失時，
   // 產物看起來一樣正常，沒有人會發現我們在沒有附授權的情況下散布一份 OFL 字型。
-  for (const name of ['Capacitor', 'Firebase', 'RevenueCat', 'fflate', 'Noto Emoji']) {
+  for (const name of ['Capacitor', 'Firebase', 'RevenueCat', 'fflate', 'Noto Emoji', 'MapLibre']) {
     assert(notices.includes(name), `第三方軟體授權聲明缺少 ${name}`);
   }
 

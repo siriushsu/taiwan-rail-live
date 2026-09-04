@@ -195,6 +195,9 @@ const noticeEntries = [
   ['Firebase JavaScript SDK 12.16.0（Apache License 2.0）', 'node_modules/@capacitor-firebase/authentication/LICENSE'],
   ['RevenueCat Purchases Capacitor 13.2.2', 'node_modules/@revenuecat/purchases-capacitor/LICENSE'],
   ['fflate 0.8.3', 'node_modules/fflate/LICENSE'],
+  // 地圖引擎不是 npm 依賴(釘版 vendor/ 進版控),授權全文另存 vendor/maplibre-gl-LICENSE.txt。
+  // M1a 內建 MapLibre 時漏列,M4-B(2026-09-05)拔掉 Leaflet 後它是唯一的地圖函式庫,BSD-3 要求隨附條款與免責聲明。
+  ['MapLibre GL JS 4.7.1（BSD 3-Clause）——App 內建的 vendor/maplibre-gl.js／.css', '../vendor/maplibre-gl-LICENSE.txt'],
   // 唯一不是 npm 依賴的一條,所以路徑指回 repo 根的 assets/。2026-07-28 的換圖批次把成就徽章與
   // 車廂標記換成 Noto Emoji 單色版的 26 字形子集(assets/fonts/rail-emoji.woff2),字型檔隨 assets/
   // 整包進 www ⇒ App 有散布這份字型,OFL 要求隨附授權全文。子集已改名 RailEmoji(Noto 的著作權行

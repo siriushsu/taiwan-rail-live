@@ -16345,7 +16345,7 @@ function breathScale(s) { // 對 #map+#overlay 同幀施加等值 CSS scale(s=1 
 function breathStage() {
   if (!M || state._theater) return; // 劇場擁有舞台時不搶
   const first = !state._breathStage;
-  state._breathStage = true; // 供互動第一擊座標歸位監聽 + latLngToContainerPoint 浮點包裝辨識
+  state._breathStage = true; // 供互動第一擊座標歸位監聽
   if (first) { // transformOrigin 進場設一次(兩元素同 box、inset:0)→ 繞 stage 中心等值縮放,跨層鎖定
     const m = document.getElementById('map'), o = document.getElementById('overlay');
     m.style.transformOrigin = o.style.transformOrigin = '50% 50%';
@@ -16355,7 +16355,6 @@ function breathStageRestore() {
   if (!M || !state._breathStage) return; // 冪等:沒上過台就不動
   state._breathStage = false;
   breathScale(1); // 清 CSS scale,地圖回 z13 原尺寸
-  state._bpZ = null; // 清投影中心快取,下次呼吸重算
   if (!state._theater) setBasemap(); // 劇場為真時不還原——劇場擁有舞台,exitTheater 自己會 setBasemap(含衛星偏好)
 }
 function hotspotTick(now) {
@@ -16422,7 +16421,7 @@ function hotCruise(dt, now) {
   if (sc.breath) {
     // 都會呼吸:地圖固定 z13(圖磚在場),放大縮小改由 CSS transform 合成(見 breathStage/breathScale)。setView 只在進場做一次
     // (換幕邏輯),此處不碰地圖 zoom。上方 camBlocked/讓位 guard 已提早 return→bt 不累積→呼吸凍結,回來接著呼吸。
-    breathStage(); // 冪等:設 _breathStage(供互動歸位+浮點投影)+transformOrigin;讓位後回場在此重新上台
+    breathStage(); // 冪等:設 _breathStage(供互動歸位)+transformOrigin;讓位後回場在此重新上台
     sc.bt = (sc.bt || 0) + dt;
     const frac = (1 - Math.cos(2 * Math.PI * sc.bt / BREATH_PERIOD_SEC)) / 2; // 0→1→0 一個 T 完成放大再縮回
     breathScale(1 + (BREATH_SCALE - 1) * frac); // 對 #map+#overlay 同幀等值縮放;錨點固定零平移
@@ -29776,6 +29775,7 @@ let satTileUrlBase = null;
 function applySatToken(tok) {
   if (!satTileUrlBase) return;
   const url = satTileUrlBase + '?token=' + encodeURIComponent(tok);
+  if (!M) return; // 地圖還沒建就不記:與拔 Leaflet 前 `if (M && …)` 的守門同義
   // 主層與 z6 保底層共用同一個網址;正在衛星模式就地換 tiles(不重載整份 style)
   satGlUrl = url; satUnderlayWarmed = false;         // 換 token=網址全變,預抓的那批快取要重熱
   if (state.basemap === 'sat' && M.setSourceTiles) { M.setSourceTiles('sat', [url]); M.setSourceTiles('sat6', [url]); warmSatUnderlayGl(); }
