@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <!-- 鎖頁面級縮放:手機誤觸 pinch 把頁面放大後,地圖佔滿全屏就再也捏不回來(地圖自己吃掉觸控)。
-     地圖內縮放由 Leaflet 自理不受影響。iOS Safari 會無視 user-scalable,另以 gesturestart 補擋(見檔尾) -->
+     地圖內縮放由地圖引擎自理不受影響。iOS Safari 會無視 user-scalable,另以 gesturestart 補擋(見檔尾) -->
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <title>軌島</title>
 <meta name="description" content="軌島 railisland.tw。看台鐵此刻準點嗎、捷運怎麼穿梭全台，一張會動的台灣鐵道地圖。" />
@@ -218,7 +218,7 @@
     font-family: var(--font);
     background: var(--bg-page);
     color: var(--ink);
-    touch-action: pan-x pan-y; /* 禁頁面級 pinch/double-tap 縮放(誤觸放大後地圖佔滿屏就捏不回來);地圖內縮放 Leaflet 自設 touch-action 不受繼承影響 */
+    touch-action: pan-x pan-y; /* 禁頁面級 pinch/double-tap 縮放(誤觸放大後地圖佔滿屏就捏不回來);地圖內縮放由地圖引擎自設 touch-action,不受繼承影響 */
   }
   a { color: var(--navy); }
   a:hover { color: var(--red); }
@@ -386,28 +386,18 @@
   }
   #map { position: absolute; inset: 0; background: var(--map-bg); }
   /* 圖磚還沒到／離線時先顯示內建的台灣海陸輪廓，不讓放空畫面只剩一塊米色。 */
-  .stage.offline-land #map, .stage.offline-land .leaflet-container, .stage.offline-land .maplibregl-map { background: #d4dadc; } /* 貼齊 CARTO Positron 海面色 */
+  .stage.offline-land #map, .stage.offline-land .maplibregl-map { background: #d4dadc; } /* 貼齊 CARTO Positron 海面色 */
 
   /* 地圖暗色模式(隨「外觀」一起換;canvas railCase=#10141c 同步) */
   .stage.dark, .stage.dark #map { background: #10141c; }
-  .stage.offline-land.dark #map, .stage.offline-land.dark .leaflet-container, .stage.offline-land.dark .maplibregl-map { background: #262626; } /* 貼齊 CARTO Dark Matter 海面色(較陸地淺) */
+  .stage.offline-land.dark #map, .stage.offline-land.dark .maplibregl-map { background: #262626; } /* 貼齊 CARTO Dark Matter 海面色(較陸地淺) */
 
   /* 衛星影像底圖 */
   .stage.sat, .stage.sat #map { background: #132a35; }
-  .stage.offline-land.sat #map, .stage.offline-land.sat .leaflet-container, .stage.offline-land.sat .maplibregl-map { background: #132a35; }
+  .stage.offline-land.sat #map, .stage.offline-land.sat .maplibregl-map { background: #132a35; }
 
-  .leaflet-container { background: var(--map-bg); }
-  .stage.dark .leaflet-container { background: #10141c; }
-  .stage.sat .leaflet-container { background: #132a35; }
-
-  /* Leaflet 原生控制項換紙牌皮膚:縮放鈕與版權字不再是白塑膠件。
-     底部整欄(縮放/跟隨鎖/版權字)抬到站台帶上方。 */
-  .leaflet-bottom.leaflet-right { bottom: 78px; }
+  /* 底部整欄(縮放/跟隨鎖/版權字)抬到站台帶上方。 */
   .maplibregl-ctrl-bottom-right { bottom: 78px; }
-  .leaflet-control-zoom.leaflet-bar { border: 1.5px solid var(--line); border-radius: 8px; box-shadow: var(--shadow-1); overflow: hidden; }
-  .leaflet-control-zoom a { background: var(--paper); color: var(--navy); border-bottom: 1px solid var(--line-faint); }
-  .leaflet-control-zoom a:last-child { border-bottom: 0; }
-  .leaflet-control-zoom a:hover { background: var(--bg-stage); color: var(--navy); }
   /* 跟隨鎖鈕(縮放鈕上方):鎖定=小方鈕;解鎖後變品牌紅「回到列車」膠囊 */
   .follow-lock-ctl button {
     display: block; cursor: pointer; font: 700 13px/1.2 var(--font); font-size: calc(13px * var(--ui));
@@ -416,11 +406,8 @@
     min-width: 44px; min-height: 44px; /* 觸控目標下限;解鎖後的「回到列車」膠囊本來就更寬,不受影響 */
   }
   .follow-lock-ctl button.unlocked { background: var(--red); color: #fff8ec; border-color: var(--red-deep); box-shadow: var(--shadow-red); border-radius: var(--r-pill); }
-  .leaflet-control-attribution,
   .maplibregl-ctrl-attrib { background: rgba(247,240,221,.9); color: var(--faint); }
-  html[data-theme=dark] .leaflet-control-attribution,
   html[data-theme=dark] .maplibregl-ctrl-attrib { background: rgba(14,21,38,.85); }
-  .leaflet-control-attribution a,
   .maplibregl-ctrl-attrib a { color: var(--muted); }
   /* MapLibre 已經在正北且無俯角時不需要占一格；一旋轉或傾斜就立即現形成為回北出口。 */
   .maplibregl-map:not(.map-orient-active) .maplibregl-ctrl-compass { display: none; }
@@ -1014,7 +1001,7 @@
   #map.zfar .pin-ico svg { transform: scale(1.32); }
   #map.zfar .pin-ico .ph { opacity: .22; }
   /* GPS「我的位置」藍點+外擴脈動 */
-  /* 「我的位置」藍點已改由列車 overlay 畫布繪製(見 drawMe):Leaflet pane 被 map-pane 的堆疊脈絡封頂,
+  /* 「我的位置」藍點已改由列車 overlay 畫布繪製(見 drawMe):地圖自己的 marker 層被地圖容器的堆疊脈絡封頂,
      畫布恆蓋在其上,藍點會被軌道與列車整片蓋掉。原本的 .geo-ico/.geo-pulse 規則隨之退場。 */
   /* 附近平交道清單卡的列(名稱+距離+下一班通過列車) */
   .xing-card .nx-row { display: block; padding: 7px 12px; border-top: 1px dashed var(--line-faint); cursor: pointer; }
@@ -1824,8 +1811,8 @@
   body.fs .follow-panel .tc-events #tcEvents { flex: none; height: 88px; overflow-y: auto; overflow-x: hidden; }
   body.fs .kbd-hint, body.fs .flow, body.fs .search, body.fs .note, body.fs .passport, body.fs .site-foot { display: none; }
   /* 放空模式:閒置 5 秒淡出控制,滑鼠動了淡回(時鐘與跟隨面板留著) */
-  .controls, .leaflet-control-container, .maplibregl-control-container, #randBtn, #nearBtn, #fsFab, .tabbar { transition: opacity .7s; }
-  body.idle .controls, body.idle .leaflet-control-container, body.idle .maplibregl-control-container, body.idle #randBtn, body.idle #nearBtn, body.idle #fsFab, body.idle .tabbar { opacity: 0; pointer-events: none; }
+  .controls, .maplibregl-control-container, #randBtn, #nearBtn, #fsFab, .tabbar { transition: opacity .7s; }
+  body.idle .controls, body.idle .maplibregl-control-container, body.idle #randBtn, body.idle #nearBtn, body.idle #fsFab, body.idle .tabbar { opacity: 0; pointer-events: none; }
   /* 唯一的出口不跟著淡光:放空時控制列只剩「離開放空」＋「視角」兩顆,idle 只降到看得見、且保持可按。
      原本跟其他家具一起 opacity:0 + pointer-events:none ⇒ 第一下觸控只是喚回控制列、按不到鈕,要按兩下
      (使用者回報「安卓有時候進放空後連退出的按鈕都會不見按不到」,2026-08-31)。 */
@@ -1848,10 +1835,6 @@
   body.fs #immBtn { display: flex; }
   #ambientStyleBtn { display: none; }
   body.ambient #ambientStyleBtn { display: inline-flex; }
-  /* 放空=相機交給程式(見 setMapGestures):桌面的 Leaflet +/- 鈕一併收,免得留一條繞過手勢鎖的路。
-     手機在 max-width:900 那條規則裡本來就是 display:none。 */
-  body.ambient .leaflet-control-zoom { display: none; }
-
   /* 地圖動作列容器:桌面 display:contents ＝盒子不生成,兩顆鈕照舊各自對 #stage 絕對定位(零變化);
      手機(≤900)才變成真正的並排 flex 列,見手機區塊。 */
   .map-actions { display: contents; }
@@ -2294,9 +2277,6 @@
   @media (max-width: 900px), (max-height: 500px), (any-pointer: coarse) and (max-width: 1400px) {
     .board[data-trtc-official="1"] .row .linknote { display: none; }
   }
-  /* 衛星墊底層不淡入。Leaflet 的圖磚是 opacity 0→1 淡進來的,而這一層的用途正是「上面那層還沒
-     到位時把破口補起來」——淡入等於破口期間它自己也是半透明的,使用者看到的就是那一下閃。 */
-  .sat-underlay img.leaflet-tile { opacity: 1 !important; }
   /* 倒數欄【逐板等寬】:--min-col 由 boardAlignColumns 在每次重繪後量最寬那一列寫進來。
      為什麼不沿用舊官方板的寫死 4em——「即將進站」在英日是 Arriving／まもなく到着,長度差一倍;
      App 的字級三階又把整列等比放大。任何寫死的 em 都會在某個語系×字級組合下爆版或留白。
@@ -2404,7 +2384,7 @@
   #favPanel .row.fvst:hover { background: var(--bg-stage); }
   #favPanel .row.fvst .ico { flex: none; font-size: calc(13px * var(--ui)); line-height: 1; }
   /* ── 常駐搜尋框的下拉結果(#searchDrop):站名+車次共用一框,錨在輸入框正下方;跳出 header 蓋地圖
-       (z-index 720:>controls 700、蓋所有 leaflet pane/overlay/board,<tap-pick 730<toasts 1200)。
+       (z-index 720:>controls 700、蓋地圖控制項/overlay/board,<tap-pick 730<toasts 1200)。
        sys-chip 是淺底版,與看板標題深底版(.board h3 .sys-chip)分開。 ── */
   #searchDrop {
     position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 720;
@@ -3264,7 +3244,6 @@
 
   /* ── 中窄寬度(平板/窄視窗):版權字截短讓開置中隨機鈕 ── */
   @media (max-width: 1024px) {
-    .leaflet-control-attribution,
     .maplibregl-ctrl-attrib {
       max-width: 38vw; white-space: nowrap;
       overflow: hidden; text-overflow: ellipsis;
@@ -3640,13 +3619,12 @@
     .tabbar { display: flex; }
     /* 版權列:一條單行貼齊底緣(2026-08-29 使用者實機回報)。
        原本是「右下角換行、每個來源都留可見命中框」,在 CARTO 底圖(字串短)看起來沒事;
-       換衛星底圖後字串變成 'Leaflet | 臺灣輪廓：內政部, Tiles © Esri — Source: Esri, Maxar,
+       換衛星底圖後字串變成 '臺灣輪廓：內政部, Tiles © Esri — Source: Esri, Maxar,
        Earthstar Geographics',在 360–414dp 折成三行(系統字級放大是四行)、高 37.5px,直接壓住
        速度膠囊(實測兩引擎四寬全部相交 338–787 px²)。
        改法:不換行、讓它用滿整條底緣,裝不下的部分改成**橫向可捲**——授權連結一個都沒少、
        仍然看得到也點得到,沒有回頭用 ellipsis 把它們裁掉(那條紅線維持)。
        高度回到單行 ⇒ 不再進到跟車卡與速度膠囊的高度帶,所以左側不用再預留 216px。 */
-    .leaflet-control-attribution,
     .maplibregl-ctrl-attrib {
       max-width: calc(100vw - 20px); white-space: nowrap;
       overflow-x: auto; overflow-y: hidden; text-overflow: clip;
@@ -3654,28 +3632,22 @@
       font-size: calc(10px * var(--uis));
       -webkit-overflow-scrolling: touch; scrollbar-width: none;
     }
-    .leaflet-control-attribution::-webkit-scrollbar,
     .maplibregl-ctrl-attrib::-webkit-scrollbar { width: 0; height: 0; }
     /* 左下的跟車卡(#followPanel)與捷運跟隨小卡(#freqCard)底緣落在這條的同一高度帶
        (兩者都是 left:8 / bottom:tabbar-clear+2 / 寬 176),所以它們在場時把左側 216px 讓回去。
        用 :has() 只在真的有卡時才縮——沒卡就整條用滿,那才是「一條平的貼齊下方」。
        舊瀏覽器不支援 :has() 的話退回整條:結果是重疊,不是壞掉。 */
-    body:has(#followPanel:not([hidden])) .leaflet-control-attribution,
     body:has(#followPanel:not([hidden])) .maplibregl-ctrl-attrib,
-    body:has(#freqCard:not([hidden])) .leaflet-control-attribution,
     body:has(#freqCard:not([hidden])) .maplibregl-ctrl-attrib {
       /* 預留量從卡片自己的式子推導,不要手打常數:卡是 left:8 + width:calc(176px*var(--ui)),
-         右邊再留 8 的間距與 Leaflet 自己的 10 邊距。手打 216 在標準字級剛好夠,
+         右邊再留 8 的間距與控制項自己的 10 邊距。手打 216 在標準字級剛好夠,
          放大字級下卡片跟著 --ui 變寬、預留沒跟著長 ⇒ 又壓回去(驗收 G5 實測 171/903 px²)。 */
       max-width: calc(100vw - 176px * var(--ui) - 26px);
     }
-    .leaflet-control-attribution a,
     .maplibregl-ctrl-attrib a { display: inline-block; }
     /* 手機改用雙指縮放,只隱藏 +/- 鈕；MapLibre compass 是旋轉後的回北出口，必須保留。 */
-    .leaflet-control-zoom,
     .maplibregl-ctrl-group .maplibregl-ctrl-zoom-in,
     .maplibregl-ctrl-group .maplibregl-ctrl-zoom-out { display: none; }
-    .leaflet-bottom.leaflet-right { bottom: 58px; }
     .maplibregl-ctrl-bottom-right { bottom: 58px; }
     /* 公告橫幅在手機整個退場(2026-07-30):入口改成頂列的 .alert-chip(見上面那條規則)。
        橫幅原本是 top:100 的整寬橫條,常駐時會蓋住搜尋面板的輸入框、也會撞上被底部 sheet 推高的
@@ -3927,7 +3899,7 @@
     /* sheet 開啟時速度膠囊/版權條/跟隨鎖淡出讓位,不壓面板文字(見 updateSheetOpenClass)。
        跟隨鎖(z800)併入通案:實測 .board 家族全部 sheet 手機寬都會頂進鎖鈕座位(鎖鈕離 sheet 下錨僅約 120px),
        原 dh-open 個案已拆除。 */
-    body.sheet-open .controls, body.sheet-open .leaflet-control-attribution, body.sheet-open .maplibregl-ctrl-attrib, body.sheet-open .follow-lock-ctl { opacity: 0; pointer-events: none; }
+    body.sheet-open .controls, body.sheet-open .maplibregl-ctrl-attrib, body.sheet-open .follow-lock-ctl { opacity: 0; pointer-events: none; }
     /* 選下車站時同樣讓站台帶退場:跟隨小卡是 z650、站台帶 z700,不讓開的話「取消」鈕會被播放鈕
        蓋住點不到(實測 elementFromPoint 命中 #pp)。挑站當下也用不到時刻尺,讓位無損。 */
     body.ride-picking .controls { opacity: 0; pointer-events: none; }
@@ -4011,7 +3983,6 @@
        切換,停站結束或取消跟隨即還原小卡。 */
     body.dwell-show.sheet-open .follow-panel { opacity: 0; pointer-events: none; }
     /* 全畫面:tab bar 疊在地圖上,底欄元素上移讓開 */
-    body.fs .leaflet-bottom.leaflet-right { bottom: calc(var(--tabbar-clear) + 6px); } /* =原 64+env */
     body.fs .maplibregl-ctrl-bottom-right { bottom: calc(var(--tabbar-clear) + 6px); } /* =原 64+env */
     body.fs .follow-panel, body.fs .freq-card { width: calc(176px * var(--ui)); }
     /* 版權字放**最下角**、膠囊疊在它上方(v0819a 使用者裁決:原本把版權抬到膠囊上方,那行字看起來像浮在畫面中間)。
@@ -4021,7 +3992,7 @@
        🔴 不要再把版權往上抬:跟隨小卡的讓位(placeFsOverlays 的 lift)只認膠囊當下緣家具的最高點,
        版權不在那本帳裡,抬高它不會讓卡跟著讓,只會讓它自己漂到畫面中央。 */
     /* 展開態(cexp):完整帶佔滿下緣會壓住版權角→比照 sheet-open 淡出版權(短暫互動態,收合即回,不影響授權常態顯示) */
-    body.cexp .leaflet-control-attribution, body.cexp .maplibregl-ctrl-attrib { opacity: 0; pointer-events: none; }
+    body.cexp .maplibregl-ctrl-attrib { opacity: 0; pointer-events: none; }
     /* 同理:App 內建瀏覽器逃生提示(bottom:74px、z713)整片壓在展開帶上。cexp 是使用者主動點出、
        5 秒無互動自動收回的短暫態,收回提示就回來;反過來收掉膠囊則會讓 in-app 瀏覽器的訪客
        整場拿不到播放/速度控制。這條同時是 placeFsOverlays 那道 opacity 門檻的前提——
@@ -4132,7 +4103,7 @@
     /* ── 右緣工具欄(§04c-P 裁決,直式與橫式共用同一個元件):⇄ 換一班/隨機跟隨 → ◎ 附近車站 →
        🔒跟隨鎖,44×44 垂直一疊、icon-only、右錨。原本兩顆帶字膠囊橫躺地圖中上方＋鎖鈕孤懸右緣
        中段=「四個東西三種尺寸三條基準線」(§04c D2/D3);收成一欄後只剩一條右緣基準線,寬度不再
-       跟著字數浮動。跟隨鎖由 placeControlRail() 從 Leaflet 控制角搬進來(桌面搬回去)。
+       跟著字數浮動。跟隨鎖由 placeControlRail() 從地圖控制角搬進來(桌面搬回去)。
        首次進場 2 秒與長按的標籤 chip 由 setupToolRail() 生成。 ── */
     .map-actions {
       display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
@@ -4425,7 +4396,6 @@
     html[data-fs=xlarge] body.fs .topbar .alert-chip { margin-left: auto; }
     .tabbar { padding-left: calc(4px + var(--sa-l)); padding-right: calc(4px + var(--sa-r)); }
     body.fs .freq-card { left: calc(8px + var(--sa-l)); }
-    .leaflet-right .leaflet-control { margin-right: calc(10px + var(--sa-r)); }
     body.fs .controls { left: calc(12px + var(--sa-l)); right: calc(12px + var(--sa-r)); }
 
     /* ── 停靠站名牌:直向那套「左右各 8px 整寬」在矮視窗吃掉 98% 寬(使用者回報「站牌太大」)──
@@ -4565,7 +4535,7 @@
     body:not(.mobile-shell) #musicCtl { position: relative; }
     /* v0718m 修:原設計「帶上方 8px」absolute 上彈被 .controls 的 overflow-y:hidden 滾動盒裁掉(結構性不可見,雙引擎皆然);
        fixed 逃逸裁切也不行——.controls 自身 z-index:700 建立 stacking context,fixed 子孫對外仍以 700 參戰,
-       蓋不過 leaflet corner 控件(z1000,版權列恰橫過帶上方位置)。改帶內「向左彈出」:面板(高~40)在帶盒(高60)
+       蓋不過地圖控制角(z1000,版權列恰橫過帶上方位置)。改帶內「向左彈出」:面板(高~40)在帶盒(高60)
        垂直置中不觸 overflow-y,musicCtl 在帶內容最右端故左側必在可視捲動區內;同 context 內 z5 蓋過鄰近工具鈕,
        hover 暫態覆蓋可接受。純 CSS 零 JS。 */
     body:not(.mobile-shell) #musicCtl .music-pop {
@@ -22843,7 +22813,7 @@ function updateFollowLockUI() {
   // 放空模式藏 UI(鈕藏了解鎖鎖不回,鏡頭會漂走);隨機跟隨仍跟單車,保留鎖頭讓使用者能解鎖瀏覽/點回置中
   const show = (!!state.followTrain || !!state.freqFollow) && !document.body.classList.contains('ambient');
   // 鈕的家隨斷點搬(placeControlRail):手機在 #mapActions 工具欄——藏整個 parentNode 會把
-  // 換一班/附近車站一起藏掉,只能藏鈕自己;桌面仍在 Leaflet 控制角,照舊藏容器(免留空槽佔版位)。
+  // 換一班/附近車站一起藏掉,只能藏鈕自己;桌面仍在地圖控制角,照舊藏容器(免留空槽佔版位)。
   if (b.parentNode && b.parentNode.id === 'mapActions') { b.style.display = show ? '' : 'none'; }
   else if (b.parentNode) { b.parentNode.style.display = show ? '' : 'none'; b.style.display = ''; }
   b.classList.toggle('unlocked', !state.followLock);
@@ -29987,7 +29957,7 @@ function placeControlRail() {
   const rail = document.getElementById('mapActions');
   if (window.matchMedia(MOBILE_MQ).matches) {
     if (b.parentNode !== rail) {
-      // 老家容器要一併藏:空的 leaflet-control 仍佔 10px margin,會把版權列/縮放鈕整組往上推
+      // 老家容器要一併藏:空的控制項容器仍佔 10px margin,會把版權列/縮放鈕整組往上推
       // (iPad 直向零回歸對照抓到 corner 高 14→24 就是這個)
       _lockHomeAnchor.parentNode.style.display = 'none';
       rail.appendChild(b); updateFollowLockUI();
@@ -31120,7 +31090,7 @@ function setupMapTools() {
       fp.style.bottom = ''; if (fc) fc.style.bottom = '';
       setCap(fp, ''); if (fc) setCap(fc, '');
     }
-    // 跟隨鎖 §04c 起手機住進 #mapActions 工具欄(placeControlRail),Leaflet 右下控制角只剩桌面在用;
+    // 跟隨鎖 §04c 起手機住進 #mapActions 工具欄(placeControlRail),地圖右下控制角只剩桌面在用;
     // 桌面 lift 恆 null,原本的 marginBottom 抬升與 --lockctl-clear 量測整組退役(消費它的 CSS 已移除)。
     if (lc) lc.style.marginBottom = '';
     invalidateMapInsets(); // 家具重排完=露出地圖可能變了(工具欄位移/小卡抬升),快取失效
