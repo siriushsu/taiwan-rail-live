@@ -129,7 +129,11 @@ try {
     const { ctx, pg } = await open(browser);
     await openMoreDrawer(pg);
     const u = await urlOpenedBy(ctx, pg.locator('.ms-row[data-act="weekend"]'));
-    chk('L2 中文介面不帶 lang 參數', !/[?&]lang=/.test(u || ''), String(u));
+    // 🔴 純反向判準(!/lang=/)沒有正向對照:點擊完全失效時 u 是 null,「不含 lang=」對空字串
+    // 也恆真,會把「沒有 lang 參數」跟「根本沒有點開任何東西」混為一談(突變測試撞到過:
+    // 拿掉點擊處理器之後這條原本會意外通過)。前半 /weekend\.html/ 先確定真的有導覽發生,
+    // 是它的正向對照;L1 用的是同一招(正確 lang=ja 本身就蘊含「有導覽」,不需要另外拆)。
+    chk('L2 中文介面不帶 lang 參數', /weekend\.html/.test(u || '') && !/[?&]lang=/.test(u || ''), String(u));
     await ctx.close();
   } catch (e) { chk('L2! 這一節整節跑完不拋例外', false, errMsg(e)); }
 } finally {
