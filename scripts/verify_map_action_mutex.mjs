@@ -63,12 +63,8 @@ const MIME = {
   '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon',
   '.woff2': 'font/woff2', '.webmanifest': 'application/manifest+json',
 };
-const LEAFLET_DIR_CANDIDATES = [
-  path.join(ROOT, 'app/node_modules/leaflet/dist'),
-  path.resolve(ROOT, '../../..', 'app/node_modules/leaflet/dist'), // shared worktree 的主 checkout node_modules
-];
-const LEAFLET_DIR = LEAFLET_DIR_CANDIDATES.find(candidate => existsSync(path.join(candidate, 'leaflet.js')));
-if (!LEAFLET_DIR) throw new Error(`找不到 Leaflet 測試依賴：${LEAFLET_DIR_CANDIDATES.join(', ')}`);
+// M4-B(2026-09-05)：index.html 不再載 Leaflet，地圖引擎 maplibre-gl 本來就在 vendor/ 裡由
+// localAsset 直接供應 ⇒ 原本「從 app/node_modules 找 leaflet dist，找不到就 throw」整段移除。
 
 function localAsset(requestUrl) {
   try {
@@ -76,12 +72,6 @@ function localAsset(requestUrl) {
     if (url.pathname.startsWith('/api/')) {
       // 404 才會讓前端走既有 fallback；200 {} 會把 boot 困在半途。
       return { status: 404, contentType: 'application/json; charset=utf-8', body: '{"error":"local verification: api unavailable"}' };
-    }
-    if (url.pathname === '/__verify_leaflet/leaflet.js') {
-      return { status: 200, contentType: 'text/javascript; charset=utf-8', body: readFileSync(path.join(LEAFLET_DIR, 'leaflet.js')) };
-    }
-    if (url.pathname === '/__verify_leaflet/leaflet.css') {
-      return { status: 200, contentType: 'text/css; charset=utf-8', body: readFileSync(path.join(LEAFLET_DIR, 'leaflet.css')) };
     }
     let filePath = path.join(ROOT, decodeURIComponent(url.pathname));
     if (existsSync(filePath) && statSync(filePath).isDirectory()) filePath = path.join(filePath, 'index.html');
@@ -119,17 +109,9 @@ try {
 }
 // 受限 sandbox 可能禁止本機 listen；此時以唯一 host + Playwright route 原樣 fulfill 同一個 localAsset。
 // 一般 CLI 環境仍必定走 listen(0)。兩路都會從真實 navigation response 再做一次 md5 gate。
+// M4-B：受限環境原本要把 index.html 的 leaflet-cdn 區塊換成本機同版資產;那個區塊已不存在,
+// 而 maplibre-gl 本來就走 vendor/ 的本機檔 ⇒ 受測 HTML 現在兩條路都原封不動(md5 gate 也更嚴)。
 const ROUTE_FALLBACK = !server.listening;
-if (ROUTE_FALLBACK) {
-  const start = '<!-- APP_REPLACE_START leaflet-cdn';
-  const end = '<!-- APP_REPLACE_END leaflet-cdn -->';
-  const startAt = navigationIndex.indexOf(start);
-  const endAt = navigationIndex.indexOf(end, startAt + start.length);
-  if (startAt < 0 || endAt < 0) throw new Error('受限環境無法將 Leaflet CDN 錨點換成本機同版資產');
-  navigationIndex = navigationIndex.slice(0, startAt)
-    + '<link rel="stylesheet" href="/__verify_leaflet/leaflet.css">\n<script src="/__verify_leaflet/leaflet.js"></script>\n'
-    + navigationIndex.slice(endAt + end.length);
-}
 const expectedNavigationMd5 = md5(navigationIndex);
 const BASE = ROUTE_FALLBACK
   ? `http://railisland-verify-${expectedWireMd5.slice(0, 12)}.test/`
@@ -146,8 +128,8 @@ function check(name, pass, detail = '') {
 if (ROUTE_FALLBACK) {
   check('[G0] listen(0) 被執行環境禁止，改用隔離的 Playwright route origin',
     !!listenError, `code=${listenError && listenError.code} ROOT=${ROOT} BUILD=${build} disk=${diskMd5} BASE=${BASE} MUT=${MUT || 'none'}`);
-  check('[G0] 受限環境只把 Leaflet CDN 錨點機械換成同版本機資產',
-    navigationIndex.includes('/__verify_leaflet/leaflet.js') && navigationIndex.includes('/__verify_leaflet/leaflet.css'),
+  check('[G0] 受限環境供應的 HTML 與磁碟那份逐 byte 相同(M4-B 起不再改寫任何 CDN 錨點)',
+    expectedNavigationMd5 === expectedWireMd5,
     `source=${expectedWireMd5} navigation=${expectedNavigationMd5}`);
 } else {
   const wire = Buffer.from(await (await fetch(BASE)).arrayBuffer());

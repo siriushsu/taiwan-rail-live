@@ -96,8 +96,7 @@ async function sampleScales(page, N = 90) {
     let moveEnds = 0, zoomEnds = 0, glMoves = 0, glRenders = 0;
     const onMove = () => moveEnds++, onZoom = () => zoomEnds++, onGlMove = () => glMoves++, onGlRender = () => glRenders++;
     M.on('moveend', onMove); M.on('zoomend', onZoom);
-    const glLayer = M.engine === 'leaflet' ? ['light', 'dark'].map(k => baseLayers[k]).find(l => l && l._glMap && raw.hasLayer(l)) : null;
-    const gl = M.engine === 'maplibre' ? raw : (glLayer ? glLayer._glMap : null);
+    const gl = raw; // M4-B：只剩 MapLibre，GL 端就是 raw 本身
     if (gl) { gl.on('move', onGlMove); gl.on('render', onGlRender); }
     const out = []; let n = 0;
     (function tick() {
@@ -126,10 +125,8 @@ function analyzeScales(res) {
 }
 
 // 底圖「在場」探針:注入頁面一次,waitBasemap 與 tileState 共用同一份判準(兩處各寫一套會走樣)。
-// raster(衛星 L.tileLayer):Leaflet 在 setView 當下就建好 .leaflet-tile img,數節點即可——不等圖真的載回來
-//   (T6 用假 token,圖磚本來就載不回來,判的是「掛了、建了」)。
-// vector(亮/暗 OpenFreeMap,經 leaflet-maplibre-gl 掛成一個 Leaflet 圖層):整層畫在一張 GL <canvas>,
-//   結構上永遠沒有 .leaflet-tile ⇒ 數 img 恆 0(換 OFM 後這五條就一直假紅,2026-09-03 改)。「在場」改看:
+// M4-B 起只有 MapLibre 一種形態:亮/暗(OpenFreeMap 向量)與衛星(raster source)都畫在同一張 GL <canvas>,
+//   結構上永遠沒有 .leaflet-tile ⇒ 數 img 恆 0(這是 2026-09-03 換 OFM 後五條假紅的原因)。「在場」看:
 //   該層掛在地圖上、_glMap 實例在、樣式已載入(isStyleLoaded:本機 JSON＋OFM sprite/glyph,進場後 1–2s 才到位)、
 //   畫布真的排在 #map 裡且有尺寸。另回報 GL 身分(實例/畫布各貼一個流水號)、GL 視角(zoom/center)、畫布後備尺寸,
 //   供「零重載」比對前後。features=queryRenderedFeatures 數量只印不判——它取決於 OpenFreeMap 圖磚有沒有載回來,是環境條件。
@@ -153,35 +150,8 @@ function installBasemapProbe(page) {
           gl: { styleLoaded, inMap: document.getElementById('map').contains(canvas), w: Math.round(r.width), h: Math.round(r.height), cw: canvas.width, ch: canvas.height, features: -1, zoom: gl.getZoom(), center: [+c.lng.toFixed(6), +c.lat.toFixed(6)], glId: gl.__bmId, canvasId: canvas.__bmId }
         };
       }
-      const wantKeys = want === 'sat' ? ['sat', 'satLQ'] : [want];
-      const mountedKeys = wantKeys.filter(k => baseLayers[k] && window.__map.hasLayer(baseLayers[k]));
-      const layer = baseLayers[mountedKeys[0] || want], wantMounted = mountedKeys.length === 1;
-      const tiles = [...document.querySelectorAll('#map .leaflet-tile')];
-      const out = {
-        want, wantMounted, z: window.__map.getZoom(),
-        // 掛著哪幾層要具名回報:衛星有 sat(retina)/satLQ 兩顆,只認其中一顆的判準會在門檻改變時假紅(見 T6b)。
-        mountedKeys: Object.keys(baseLayers).filter(k => window.__map.hasLayer(baseLayers[k])),
-        satMounted: !!(baseLayers.sat && window.__map.hasLayer(baseLayers.sat)),
-        count: tiles.length, srcs: tiles.map(t => t.src).filter(Boolean).sort()
-      };
-      const gl = layer && layer._glMap;
-      if (!gl) { out.kind = 'raster'; out.present = wantMounted && tiles.length > 0; return out; }
-      const seq = () => (window.__bmSeq = (window.__bmSeq || 0) + 1);
-      if (!gl.__bmId) gl.__bmId = seq();
-      const canvas = gl.getCanvas();
-      if (canvas && !canvas.__bmId) canvas.__bmId = seq();
-      const r = canvas ? canvas.getBoundingClientRect() : { width: 0, height: 0 };
-      const styleLoaded = !!(gl.isStyleLoaded && gl.isStyleLoaded());
-      let features = -1; try { if (styleLoaded) features = gl.queryRenderedFeatures().length; } catch (e) {}
-      const c = gl.getCenter();
-      out.kind = 'vector';
-      out.gl = {
-        styleLoaded, inMap: !!canvas && document.getElementById('map').contains(canvas),
-        w: Math.round(r.width), h: Math.round(r.height), cw: canvas ? canvas.width : 0, ch: canvas ? canvas.height : 0,
-        features, zoom: gl.getZoom(), center: [+c.lng.toFixed(6), +c.lat.toFixed(6)], glId: gl.__bmId, canvasId: canvas ? canvas.__bmId : 0
-      };
-      out.present = wantMounted && styleLoaded && out.gl.inMap && out.gl.w > 0 && out.gl.h > 0;
-      return out;
+      // M4-B：這裡原本接著 Leaflet 版探針(數 baseLayers 掛了幾層＋#map .leaflet-tile 節點)。
+      // 引擎拔掉後 baseLayers／window.__map.hasLayer 都不存在，那半邊也不再可能執行，整段移除。
     };
   });
 }
@@ -222,7 +192,7 @@ const matrix = await runEngineMatrix(async ({ engineUrl, check }) => {
 
   // ── T1 底圖在場(新制核心):呼吸中真實底圖在場、動畫 4s 中零重載、z 恆 13、moveend/zoomend 零觸發 ──
   const t0 = await tileState(page);
-  ok('chromium T1a 呼吸中真實底圖在場(向量:GL 樣式載入＋畫布掛在 #map;raster:.leaflet-tile>0)', t0.present, `${bmDetail(t0)}, z=${t0.z}`);
+  ok('chromium T1a 呼吸中真實底圖在場(GL 樣式載入＋畫布掛在 #map 且有尺寸)', t0.present, `${bmDetail(t0)}, z=${t0.z}`);
   const anim = analyzeScales(await sampleScales(page, 240)); // ~4s
   const t1 = await tileState(page);
   const rf = reloadFree(t0, t1, anim);

@@ -369,17 +369,13 @@ async function measurePass(page, sc, label, pass, no) {
     await page.waitForTimeout(400);
   }
   await page.waitForTimeout(1200); // 等圖磚
-  // 底圖在場:Leaflet raster 數 .leaflet-tile img;MapLibre 引擎(M4-A 起預設)整層畫在一張 GL canvas、結構上沒有 img,
-  // 改看樣式已載入(圖層清單非空;isStyleLoaded 要等圖磚全到,在飛時恆 false)且畫布有尺寸——同 verify_breath 的 __basemapProbe。
+  // 底圖在場:整層畫在一張 GL canvas、結構上沒有 <img>,所以改看樣式已載入(圖層清單非空;isStyleLoaded
+  // 要等圖磚全到,在飛時恆 false)且畫布有尺寸——同 verify_breath 的 __basemapProbe。
+  // (M4-B：原本後面還有一條數 img.leaflet-tile 的 raster 退路,Leaflet 拔掉後永遠到不了,已移除。)
   const bg = await page.evaluate(() => {
-    const M = window.__M;
-    if (M && M.engine === 'maplibre') {
-      const gl = M.raw, c = gl.getCanvas(), r = c.getBoundingClientRect(), st = gl.getStyle();
-      const loaded = gl.isStyleLoaded() || !!(st && st.layers && st.layers.length);
-      return { ok: loaded && r.width > 0 && r.height > 0, detail: `GL 樣式${loaded ? '已載' : '未載'} 畫布 ${Math.round(r.width)}×${Math.round(r.height)}` };
-    }
-    const n = [...document.querySelectorAll('img.leaflet-tile')].filter(i => i.naturalWidth > 0).length;
-    return { ok: n >= 8, detail: `圖磚 ${n} 張` };
+    const gl = window.__M.raw, c = gl.getCanvas(), r = c.getBoundingClientRect(), st = gl.getStyle();
+    const loaded = gl.isStyleLoaded() || !!(st && st.layers && st.layers.length);
+    return { ok: loaded && r.width > 0 && r.height > 0, detail: `GL 樣式${loaded ? '已載' : '未載'} 畫布 ${Math.round(r.width)}×${Math.round(r.height)}` };
   });
   const itemsT = await page.evaluate(COLLECT);
   const sparkT = await page.evaluate(COLLECT_SPARK);

@@ -3,7 +3,8 @@
 // 可視窗中心往「螢幕上的列車前進方向」偏 28% 的位置。GL 側兩個 source 輪替、opacity(轉場 0ms)翻面,
 // overlay 在翻面後第一次 render 才換目標,所以翻面那一幀兩層畫同一顆。本守門人驗:
 //   F0 靜態契約(解析、opacity 轉場 0、軌道層排除 aligndot-*、換錨在畫完之後、不用 visibility/filter 當開關)
-//   F1 Leaflet 下為 no-op 不噴錯;F2 兩層恰一亮一暗且轉場 0;F3 開機自動完成第一次錨定;F4 距離 ≤2px
+//   F2 兩層恰一亮一暗且轉場 0;F3 開機自動完成第一次錨定;F4 距離 ≤2px
+//   (F1「Leaflet 下 follow 為 no-op」在 M4-B 拔引擎時退役——沒有第二個引擎可以當控制組了。)
 //   F5 沒跟車時錨點在可視窗內、中心上方;F6/F7 縮放與平移把錨點推出畫面後會重錨且仍 ≤2px、在可視窗內
 //   F8 跟車時錨點放在列車前進方向且 ≤2px;F9 style 重載後探針重掛且 ≤2px;F10 正向對照(overlay 挪 30px 量到 ≥25px)
 // 翻面那一幀的兩層同步在 Playwright 截圖裡量不到(截圖強制合成),那是真機錄影(analyze_device_recording.mjs)的事。
@@ -33,7 +34,8 @@ const ctlStart = src.indexOf('function setupFollowProbe()');
 const ctl = ctlStart >= 0 ? src.slice(ctlStart, src.indexOf('  if (ALIGN_DOT) {', ctlStart)) : '';
 ck(ctl.length > 200 && !/setLayoutProperty|setFilter|visibility/.test(ctl), 'F0e 控制器不用 visibility／filter 當開關(那些要 worker 重算圖磚、翻面會慢好幾格)', `控制器 ${ctl.length} 字`);
 ck(/P\.next = ll/.test(ctl) && /M\.on\('render'/.test(ctl), 'F0f overlay 目標在翻面後第一次 render 才切換(P.next → P.live)');
-ck((src.match(/if \(ALIGN_DOT && !ALIGN_DOT\.follow\)/g) || []).length === 2, 'F0g 兩條固定探針路徑(MapLibre 工廠、Leaflet 底下的 GL)都不在 follow 模式建 aligndot 層');
+// M4-B：原本有兩條路徑(MapLibre 工廠、Leaflet 底下掛的 GL 層),Leaflet 拔掉後只剩工廠那一條。
+ck((src.match(/if \(ALIGN_DOT && !ALIGN_DOT\.follow\)/g) || []).length === 1, 'F0g 唯一的固定探針路徑(MapLibre 工廠)不在 follow 模式建 aligndot 層');
 
 // ── 本機 server(照 verify_engine_adapter 的做法;/api/* 回空物件) ──────────
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.geojson': 'application/geo+json', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.webp': 'image/webp', '.mp3': 'audio/mpeg', '.woff2': 'font/woff2' };
@@ -83,14 +85,8 @@ const placement = page => page.evaluate(() => {
 
 const browser = await chromium.launch();
 try {
-  // F1 Leaflet 控制組:follow 在 Leaflet 沒有可翻面的 GL 層 → 控制器為 null、不噴錯、固定探針層也不建
-  const lf = await boot(browser, url({ engine: 'leaflet', aligndot: 'follow' }));
-  await lf.page.waitForTimeout(1000);
-  const lfState = await lf.page.evaluate(() => ({ probe: window.__alignProbe, dot: window.__alignDot, glLayer: !!(window.__ofmGl && window.__ofmGl.getLayer && window.__ofmGl.getLayer('aligndot')) }));
-  ck(lfState.probe === null && lfState.dot && lfState.dot.follow === true && !lfState.glLayer, 'F1 Leaflet 下 follow 模式為 no-op(控制器 null、不建固定探針層)', lfState);
-  ck(lf.errs.length === 0, 'F1b Leaflet 零 pageerror／console.error', lf.errs);
-  await lf.ctx.close();
-
+  // F1／F1b(Leaflet 控制組:follow 在 Leaflet 是 no-op)已於 M4-B 退役——Leaflet 不存在了,
+  // 那一輪 boot 會落回 MapLibre、量到的是受測組自己,判準必然假紅。
   const b = await boot(browser, url({ engine: 'maplibre', aligndot: 'follow' }));
   await b.page.waitForFunction(() => window.__alignProbe && window.__alignProbe.state().live && !window.__alignProbe.state().next, null, { timeout: 30000 });
   await b.page.waitForTimeout(600);

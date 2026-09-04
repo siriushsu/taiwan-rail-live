@@ -72,7 +72,7 @@ async function cell(engine, browser, scale, w, withCard) {
     const cards = ['#freqCard', '#followPanel'].map(s => ({ sel: s, r: pick(s) })).filter(x => x.r);
     return {
       fs: document.documentElement.getAttribute('data-fs') || 'std',
-      engine: window.__ENGINE || 'leaflet',
+      engine: window.__ENGINE,
       text: a.textContent.replace(/\s+/g, ' ').trim(),
       attr: ar, lines: a.getClientRects().length,
       lineHeight: parseFloat(cs.lineHeight), maxWidth: cs.maxWidth, whiteSpace: cs.whiteSpace, overflowX: cs.overflowX,
@@ -138,7 +138,7 @@ async function cell(engine, browser, scale, w, withCard) {
 
   // G8 來源完整。來源清單依實際引擎:Leaflet 路徑的版權列有「Leaflet」;MapLibre 路徑沒有這個來源,
   // 街道底圖那一段是「OpenFreeMap」(M4-A 起裸網址預設 MapLibre,再拿「Leaflet」當必含字串就是判準過期)。
-  const SOURCES = m.engine === 'maplibre' ? ['OpenFreeMap', '內政部', 'Esri'] : ['Leaflet', '內政部', 'Esri'];
+  const SOURCES = ['OpenFreeMap', '內政部', 'Esri']; // M4-B：只剩 MapLibre，街道底圖來源固定是 OpenFreeMap
   for (const src of SOURCES) {
     check(m.text.includes(src), `G8 ${tag} 來源「${src}」沒被裁掉`, `文字＝${JSON.stringify(m.text.slice(0, 90))}`);
   }

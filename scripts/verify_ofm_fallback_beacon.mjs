@@ -17,7 +17,7 @@
 //
 // 網路:一律不打真端點。Stadia/Esri 回假 PNG;OFM 依情境擋掉或用本機 stub(TileJSON＋空圖磚＋空 sprite);
 //      /api/* 全攔(basemap-fallback 計數並回 200,basemap-token 給假 token,其餘 404 讓前端走本機資料)。
-//      Leaflet 來自 cdnjs;離線環境可設 LEAFLET_DIR=<含 leaflet.js／leaflet.css 的目錄> 讓腳本就地供應。
+//      地圖引擎 maplibre-gl 走 vendor/ 的本機檔(M4-B 拔掉 Leaflet 之後不再有任何 CDN 依賴)。
 //      Playwright 找不到自己的 Chromium 時,可設 PW_CHROMIUM_PATH 指定執行檔。
 //
 // 用法:node scripts/verify_ofm_fallback_beacon.mjs
@@ -124,13 +124,10 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 // ── B:瀏覽器 ──────────────────────────────────────────────────────────────────
 const PORT = Number(process.env.OFMBEACON_PORT || 43993);
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
-const LEAFLET_DIR = process.env.LEAFLET_DIR || '';
 let servedHtml = null; // null＝供 G0 讀進來的那份(已證明是這棵樹的);突變時換成改過的字串
-// 離線環境:cdnjs 的 Leaflet 兩個 tag 帶 SRI(integrity),而 npm 那份的位元組跟 cdnjs 的不同 ⇒ 用本機替身
-// 供應時瀏覽器會因 SRI 拒載(症狀:L 未定義、pageerror "reading 'extend'")。SRI 不是這支要驗的東西,
-// 所以**只在**設了 LEAFLET_DIR 時把那兩個 tag 的 integrity 拿掉;沒設就原樣供應(有網路的機器走真 cdnjs,SRI 照驗)。
-const LEAFLET_SRI_RE = /(<(?:link|script)[^>]*cdnjs\.cloudflare\.com\/ajax\/libs\/leaflet\/[^>]*?)\s+integrity="[^"]*"/g;
-const forBrowser = html => LEAFLET_DIR ? html.replace(LEAFLET_SRI_RE, '$1') : html;
+// M4-B：原本這裡有一段「離線時用本機 leaflet 替身、順手剝掉 cdnjs 那兩個 tag 的 SRI」的機制。
+// Leaflet 拔掉後 index.html 沒有任何帶 integrity 的外部 tag，受測 HTML 一律原樣供應。
+const forBrowser = html => html;
 const server = createServer(async (req, res) => {
   try {
     const p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
@@ -159,10 +156,6 @@ async function run({ appShell, ofm, waitMs = 11000 }) {
   const ctx = await browser.newContext({ locale: 'zh-TW', viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const errs = [], beacons = [];
   let stadiaHits = 0, ofmHits = 0;
-  if (LEAFLET_DIR) await ctx.route('**://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/**', async r => {
-    const css = r.request().url().endsWith('.css');
-    r.fulfill({ status: 200, contentType: css ? 'text/css' : 'text/javascript', body: await readFile(join(LEAFLET_DIR, css ? 'leaflet.css' : 'leaflet.js')) });
-  });
   await ctx.route('**://tiles.openfreemap.org/**', r => {
     ofmHits++;
     if (ofm === 'block') return r.abort('failed');

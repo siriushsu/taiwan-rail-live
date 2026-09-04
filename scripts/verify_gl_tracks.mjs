@@ -1,4 +1,5 @@
-// GL 軌道/站點層守門人(換引擎 M1a/M1b)。Leaflet 是 canvas 控制組；MapLibre 是 GL 受測組。
+// GL 軌道/站點層守門人(換引擎 M1a/M1b)。M4-B 起只剩 MapLibre：原本的 Leaflet canvas 控制組(T2)
+// 已退役，「關掉 GL 軌道層就退回 canvas」改由下方 ?gltracks=0 的同引擎控制組守。
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
@@ -182,11 +183,6 @@ try {
       ? !o.t8.err && o.t8.casing && o.t8.line && o.t8.routePoints > 1 && o.t8.exactRoutePoints > o.t8.routePoints && o.t8.sourcePoints === o.t8.exactRoutePoints && o.t8.canvasFollowStrokes.length === 0 &&
         JSON.stringify(o.t8.themePaint) === JSON.stringify({ light: ['#fffdf6', ['get', 'color']], dark: ['#10141c', ['get', 'colorFollowDark']], sat: ['#24382c', ['get', 'color']] }) && o.t8.hiddenCount === 0
       : undefined, o.t8);
-    if (!maplibre) {
-      const sample = await page.evaluate(SAMPLE);
-      const glOff = await page.evaluate(() => !(window.__glTracks?.ready) || !window.__ofmGl?.getLayer || !window.__ofmGl.getLayer('track-line-0'));
-      check(!sample.err && sample.alphas.every(x => x > 0) && glOff, 'T2 Leaflet 控制組:canvas 仍描軌道且無 GL 軌道層', { sample, glOff });
-    }
     check(errs.length === 0, 'T7 主情境零 pageerror/console.error', errs.join(' | ').slice(0, 300));
     await ctx.close();
     if (maplibre) {

@@ -80,8 +80,8 @@ const MIME = {
   '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml',
   '.webp': 'image/webp', '.woff2': 'font/woff2', '.mp3': 'audio/mpeg',
 };
-const LEAFLET_JS = readFileSync(path.join(ROOT, 'app/node_modules/leaflet/dist/leaflet.js'));
-const LEAFLET_CSS = readFileSync(path.join(ROOT, 'app/node_modules/leaflet/dist/leaflet.css'));
+// M4-B(2026-09-05)：index.html 不再載 Leaflet，原本供本機 leaflet.js/css 給 cdnjs 網址的
+// 讀檔與路由已移除（那份 readFileSync 在 app/node_modules 重裝後會讓腳本在載入時就爆）。
 const PNG1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
 const TILEJSON = JSON.stringify({
   tilejson: '3.0.0', attribution: 'OpenFreeMap', minzoom: 0, maxzoom: 14,
@@ -128,10 +128,6 @@ async function prepareContext(browser, width = 1280, touch = false) {
   });
   await context.route('**/*', route => {
     const u = new URL(route.request().url());
-    if (u.hostname === 'cdnjs.cloudflare.com' && u.pathname.endsWith('leaflet.min.js'))
-      return route.fulfill({ status: 200, contentType: 'text/javascript', body: LEAFLET_JS });
-    if (u.hostname === 'cdnjs.cloudflare.com' && u.pathname.endsWith('leaflet.min.css'))
-      return route.fulfill({ status: 200, contentType: 'text/css', body: LEAFLET_CSS });
     if (u.hostname === '127.0.0.1') return route.continue();
     if (u.hostname === 'tiles.openfreemap.org' && /\/planet\/?$/.test(u.pathname))
       return route.fulfill({ status: 200, contentType: 'application/json', body: TILEJSON });
@@ -188,16 +184,6 @@ async function desktopM2(browser, url, engine, browserName, check, onlyFor) {
   try {
     const initial = await page.evaluate(() => ({ bearing: __M.getBearing(), pitch: __M.getPitch() }));
     check(Math.abs(initial.bearing) < 0.01 && Math.abs(initial.pitch) < 0.01, `${browserName} 初始北向且無俯角`, initial);
-    if (engine === 'leaflet') {
-      const leaf = await page.evaluate(() => {
-        __M.setBearing(37).setPitch(25).resetNorth({ duration: 0 });
-        return { bearing: __M.getBearing(), pitch: __M.getPitch(), compass: !!document.querySelector('.maplibregl-ctrl-compass'), map3d: !!document.getElementById('map3dBtn') && getComputedStyle(document.getElementById('map3dBtn')).display !== 'none' };
-      });
-      check(leaf.bearing === 0 && leaf.pitch === 0 && !leaf.compass && !leaf.map3d, `${browserName} Leaflet 維持北向、無 M2 UI`, leaf);
-      check(errors.length === 0, `${browserName} Leaflet 零 pageerror`, errors.slice(0, 5));
-      return;
-    }
-
     const moved = await page.evaluate(() => {
       __M.setBearing(37).setPitch(25);
       const raw = __M.raw;
@@ -277,10 +263,6 @@ async function mobileM2(browser, url, engine, browserName, width, check) {
   const context = await prepareContext(browser, width, true);
   const { page, errors } = await load(context, url);
   try {
-    if (engine === 'leaflet') {
-      check(!await page.locator('#map3dRow').isVisible().catch(() => false), `${browserName}/${width} Leaflet 不顯示 3D 列`);
-      return;
-    }
     await page.evaluate(() => __M.setBearing(29).setPitch(18));
     const compass = page.locator('.maplibregl-ctrl-compass');
     check(await compass.isVisible(), `${browserName}/${width} 旋轉後指南針可見`);
@@ -339,7 +321,7 @@ async function m3Scenario(browser, url, engine, browserName, check) {
       check(Math.abs(result.during.bearing - 73) < 0.1 && Math.abs(result.during.pitch - result.p0) < 0.1
         && Math.abs(result.after.bearing) < 0.1 && Math.abs(result.after.pitch - result.p0) < 0.1,
         `${browserName} heading-up 只改 bearing，退出回北且不改 pitch`, result);
-    } else check(result.during.bearing === 0 && result.after.bearing === 0, `${browserName} Leaflet heading-up 為安全 no-op`, result);
+    }
     const actual = await page.evaluate(() => {
       const candidate = (state.trains || []).map(tr => {
         const a = trainPos(tr, state.simSec - 5), b = trainPos(tr, state.simSec + 5);
@@ -358,8 +340,7 @@ async function m3Scenario(browser, url, engine, browserName, check) {
       const delta = Math.abs(((actual.following.bearing - actual.following.expected + 540) % 360) - 180);
       check(delta < 1 && Math.abs(actual.following.pitch - 23) < 0.1 && Math.abs(actual.after.bearing) < 0.1 && Math.abs(actual.after.pitch - 23) < 0.1,
         `${browserName} 實際 sched 跟車 heading-up，退出回北且 pitch 不變`, { ...actual, delta });
-    } else if (actual) check(actual.following.bearing === 0 && actual.after.bearing === 0,
-      `${browserName} Leaflet 實際 sched 跟車仍正北`, actual);
+    }
     const metro = await page.evaluate(() => {
       let candidate = null;
       for (const ln of [...(state.lines || []), ...(state.decoLines || [])]) {
@@ -394,8 +375,7 @@ async function m3Scenario(browser, url, engine, browserName, check) {
       const delta = Math.abs(((metro.following.bearing - metro.following.expected + 540) % 360) - 180);
       check(delta < 1 && Math.abs(metro.following.pitch - 19) < 0.1 && Math.abs(metro.after.bearing) < 0.1 && Math.abs(metro.after.pitch - 19) < 0.1,
         `${browserName} 實際捷運／輕軌跟車 heading-up，退出回北且 pitch 不變`, { ...metro, delta });
-    } else if (metro) check(metro.following.bearing === 0 && metro.after.bearing === 0,
-      `${browserName} Leaflet 實際捷運／輕軌跟車仍正北`, metro);
+    }
     const ambient = await page.evaluate(() => {
       __M.setPitch(17); __M.setBearing(55);
       state.ambient = true;
