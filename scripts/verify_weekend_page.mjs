@@ -22,7 +22,7 @@ const PAYLOAD = {
     { title: '沒有連結的活動', note: '', url: '',
       days: ['2026-09-05'], places: [{ sys: 'mrt', station: '中山' }], ids: ['c'] },
     // 這一則常設帶兩種互相獨立的攻擊向量:url(javascript:)與 title(HTML 注入)。
-    // safeUrl() 擋前者、esc() 擋後者,B4 驗前者、B5/B6 驗後者。
+    // safeUrl() 擋前者、esc() 擋後者,B1/B2 驗前者、B5/B6 驗後者。
     // 🔴 title 故意不還原成安全字串(修復輪 1 之前的版本會還原,結果 card() 拿掉
     // esc(ev.title) 之後 B5 量不到任何差異——常設留著攻擊字串,判準才有牙。
     { title: '<img src=x onerror="window.__xss=1">', note: '', url: 'javascript:window.__pwned=1',
