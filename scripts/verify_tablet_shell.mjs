@@ -29,7 +29,10 @@ const ok = (name, pass, detail = '') => {
 };
 const escRe = value => value.replace(/[.*+?^{}$()|[\]\\]/g, '\\$&');
 
-ok('T0 BUILD 已推進到 v0904b', SOURCE.includes("const BUILD = 'v0904b';"));
+const build = (SOURCE.match(/const BUILD = 'v(\d{4})([a-z])';/) || []).slice(1);
+const tabletBuildReached = build.length === 2
+  && (Number(build[0]) > 904 || (Number(build[0]) === 904 && build[1] >= 'b'));
+ok('T0 BUILD 不早於平板版 v0904b', tabletBuildReached, build.length ? `v${build.join('')}` : '找不到 BUILD');
 ok('T0 MOBILE_MQ 五處同式', (SOURCE.match(new RegExp(escRe(MOBILE_MQ), 'g')) || []).length === 5,
   'matches=' + (SOURCE.match(new RegExp(escRe(MOBILE_MQ), 'g')) || []).length);
 ok('T0 RAIL_MQ CSS／JS 同式', (SOURCE.match(new RegExp(escRe(RAIL_MQ), 'g')) || []).length === 2,
