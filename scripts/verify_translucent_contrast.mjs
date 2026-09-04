@@ -369,7 +369,18 @@ async function measurePass(page, sc, label, pass, no) {
     await page.waitForTimeout(400);
   }
   await page.waitForTimeout(1200); // 等圖磚
-  const tiles = await page.evaluate(() => [...document.querySelectorAll('img.leaflet-tile')].filter(i => i.naturalWidth > 0).length);
+  // 底圖在場:Leaflet raster 數 .leaflet-tile img;MapLibre 引擎(M4-A 起預設)整層畫在一張 GL canvas、結構上沒有 img,
+  // 改看樣式已載入(圖層清單非空;isStyleLoaded 要等圖磚全到,在飛時恆 false)且畫布有尺寸——同 verify_breath 的 __basemapProbe。
+  const bg = await page.evaluate(() => {
+    const M = window.__M;
+    if (M && M.engine === 'maplibre') {
+      const gl = M.raw, c = gl.getCanvas(), r = c.getBoundingClientRect(), st = gl.getStyle();
+      const loaded = gl.isStyleLoaded() || !!(st && st.layers && st.layers.length);
+      return { ok: loaded && r.width > 0 && r.height > 0, detail: `GL 樣式${loaded ? '已載' : '未載'} 畫布 ${Math.round(r.width)}×${Math.round(r.height)}` };
+    }
+    const n = [...document.querySelectorAll('img.leaflet-tile')].filter(i => i.naturalWidth > 0).length;
+    return { ok: n >= 8, detail: `圖磚 ${n} 張` };
+  });
   const itemsT = await page.evaluate(COLLECT);
   const sparkT = await page.evaluate(COLLECT_SPARK);
   await page.screenshot({ path: `${OUT}/_glass_${label.replace(/\//g, '_')}_${pass.name}.png` });
@@ -397,7 +408,7 @@ async function measurePass(page, sc, label, pass, no) {
   // 圖磚真的載到才有背景真值可談;變異度只當資訊列出來——暗色底圖本來就是接近純黑的平面,
   // sd 低是事實不是缺陷(全域另有一條 G1z 確認這套量測抓得到變異)。
   sdSeen.push(mT.bg.sd);
-  ok(`G1 ${tag} 背景有實際內容可量(圖磚 ${tiles} 張)`, tiles >= 8,
+  ok(`G1 ${tag} 背景有實際內容可量(${bg.detail})`, bg.ok,
     `亮度 sd=${mT.bg.sd.toFixed(4)} mean=${mT.bg.mean.toFixed(3)} 取樣 ${mT.bg.n}`);
   ok(`G1b ${tag} 該開的面板都開了`, missing.length === 0, missing.length ? `開不起來:${missing.join('/')}` : opened.join('/'));
 

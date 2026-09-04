@@ -1824,8 +1824,8 @@
   body.fs .follow-panel .tc-events #tcEvents { flex: none; height: 88px; overflow-y: auto; overflow-x: hidden; }
   body.fs .kbd-hint, body.fs .flow, body.fs .search, body.fs .note, body.fs .passport, body.fs .site-foot { display: none; }
   /* 放空模式:閒置 5 秒淡出控制,滑鼠動了淡回(時鐘與跟隨面板留著) */
-  .controls, .leaflet-control-container, #randBtn, #nearBtn, #fsFab, .tabbar { transition: opacity .7s; }
-  body.idle .controls, body.idle .leaflet-control-container, body.idle #randBtn, body.idle #nearBtn, body.idle #fsFab, body.idle .tabbar { opacity: 0; pointer-events: none; }
+  .controls, .leaflet-control-container, .maplibregl-control-container, #randBtn, #nearBtn, #fsFab, .tabbar { transition: opacity .7s; }
+  body.idle .controls, body.idle .leaflet-control-container, body.idle .maplibregl-control-container, body.idle #randBtn, body.idle #nearBtn, body.idle #fsFab, body.idle .tabbar { opacity: 0; pointer-events: none; }
   /* 唯一的出口不跟著淡光:放空時控制列只剩「離開放空」＋「視角」兩顆,idle 只降到看得見、且保持可按。
      原本跟其他家具一起 opacity:0 + pointer-events:none ⇒ 第一下觸控只是喚回控制列、按不到鈕,要按兩下
      (使用者回報「安卓有時候進放空後連退出的按鈕都會不見按不到」,2026-08-31)。 */
@@ -5144,10 +5144,10 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="maplibredefault0904"><span class="d">9/4</span><span>地圖引擎預設改為 MapLibre：所有人打開都是可旋轉、傾斜、開 3D 建築的向量地圖，跟隨列車時行進方向朝上；想回舊版地圖，在網址加上 ?engine=leaflet 即可。</span></li>
         <li data-cl-of="followrouteexact0904"><span class="d">9/4</span><span>修正跟隨長途列車放大看彎道時，紅色行程線會離開實際軌道、旁邊露出另一條原色線；現在放大也會完整貼合。</span></li>
         <li data-cl-of="followpitch0904"><span class="d">9/4</span><span>修正跟隨火車並傾斜地圖時，遠端路線會變成跨畫面跳動直線；亮色、暗色與衛星底圖都已修正。</span></li>
         <li data-cl-of="tracksovermap0904"><span class="d">9/4</span><span>修正暗色 MapLibre 地圖的彩色路線仍被道路切碎；所有道路與 3D 建築現在都在路線下方，地名維持在上方。</span></li>
-        <li data-cl-of="maporientation0904"><span class="d">9/4</span><span>MapLibre 地圖現在可旋轉、傾斜並切換 3D 建築；跟隨列車時會自動讓行進方向朝上，結束跟隨後回到正北。</span></li>
         <li data-cl-of="tymckind"><span class="d">9/4</span><span>桃園機場捷運的列車標得出車種：地圖上直達車是尖頭紫牌、普通車是白底圓牌，車牌也放大了，跟車卡與車站看板寫全名</span></li>
         <li data-cl-of="xferlivehandoff"><span class="d">9/4</span><span>選好接續班次後，抵達轉乘站時動態島與鎖定畫面會自動切到下一班車</span></li>
         <li data-cl-of="xingorder"><span class="d">9/4</span><span>兩條路線立體交叉的地方，改成依實際的高架與地下關係決定哪一條畫在上面</span></li>
@@ -5311,6 +5311,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="maplibredefault0904"><span class="d">9/4</span><span>地圖引擎預設改為 MapLibre：所有人打開都是可旋轉、傾斜、開 3D 建築的向量地圖，跟隨列車時行進方向朝上；想回舊版地圖，在網址加上 ?engine=leaflet 即可。</span></li>
         <li data-cl="followrouteexact0904"><span class="d">9/4</span><span>修正跟隨環島等長途列車並放大看彎道時，紅色行程線會因點位抽稀而切過彎心，離開實際軌道、旁邊露出另一條原色線；MapLibre 現在用完整軌道點繪製跟隨行程，放大也會貼合。</span></li>
         <li data-cl="followpitch0904"><span class="d">9/4</span><span>修正跟隨火車並傾斜地圖時，遠端路線會變成跨畫面跳動直線；亮色、暗色與衛星底圖都已修正。</span></li>
         <li data-cl="maporientation0904"><span class="d">9/4</span><span>MapLibre 地圖現在可旋轉、傾斜並切換 3D 建築；跟隨列車時會自動讓行進方向朝上，結束跟隨後回到正北。手動設定的傾斜角度會保留。</span></li>
@@ -6005,7 +6006,7 @@
 // v0904h：MapLibre 彩色路線改到道路與 3D 建築之上，不再被底圖切成碎段；文字標籤仍在最上。
 // v0904i：修正暗色 OpenFreeMap 的早期水域標籤誤導軌道插層，確保後段道路全在軌道下方。
 // v0904k：MapLibre 跟隨高亮使用完整點列，長途路線在深縮放彎道不再因抽稀而偏離原軌。
-const BUILD = 'v0904o';
+const BUILD = 'v0904p';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -6401,14 +6402,14 @@ function railIcon(name, className) {
   return '<svg class="' + cls + '" aria-hidden="true" focusable="false"><use href="#ri-' + name + '"></use></svg>';
 }
 const TRACK_AUDIT = new URLSearchParams(location.search).get('audit') === 'tracks';
-// ── 地圖引擎旗標(Leaflet→MapLibre 換引擎 M0):?engine=maplibre|leaflet > localStorage 'trainmap-engine' > 'leaflet'。
+// ── 地圖引擎旗標(Leaflet→MapLibre 換引擎 M0):?engine=maplibre|leaflet > localStorage 'trainmap-engine' > 'maplibre'（M4-A 2026-09-04 起預設；?engine=leaflet 是觀察期的逃生口）。
 // 一定在開機第一行讀成 const:後面 replaceState 會抹掉 query(分享連結契約同一個理由)。URL 值不寫回 localStorage。
 const ENGINE = (() => {
   const ok = v => (v === 'maplibre' || v === 'leaflet') ? v : null;
   let q = null, s = null;
   try { q = ok(new URLSearchParams(location.search).get('engine')); } catch (e) {}
   try { s = ok(localStorage.getItem('trainmap-engine')); } catch (e) {}
-  return q || s || 'leaflet';
+  return q || s || 'maplibre';
 })();
 // MapLibre 引擎下軌道/站點圓改由 GL 層畫(M1a)。?gltracks=0 關掉=canvas 照舊畫,給真機 A/B 與守門人正向對照;Leaflet 引擎無作用。
 const GL_TRACKS = (() => { try { return new URLSearchParams(location.search).get('gltracks') !== '0'; } catch (e) { return true; } })();
@@ -6629,7 +6630,10 @@ function mlWorldUnpx(pt, z) {
 const ML_Z = 1;
 function createMaplibreEngine(containerId, view) {
   const c0 = mlToLL(view.center);
-  let styleKind = state.mapDark ? 'dark' : 'light';
+  // 開機順序是先 createEngine、後 setupMapTools→applyAppearance 才把 state.mapDark 從偏好對齊;引擎若先用亮色開、
+  // 幾毫秒後再 setStyle 成暗色,飛行中的亮色樣式請求會被中止,MapLibre 對那份已卸下的 Style 印 AbortError(沒有監聽者接得到)。
+  // FOUC 腳本在 <head> 就已把偏好套成 html[data-theme],開機時拿它當初值,暗色偏好從第一份樣式就是暗色。
+  let styleKind = (state.mapDark || document.documentElement.getAttribute('data-theme') === 'dark') ? 'dark' : 'light';
   let tileHook = null; // M1a:每個 raster tile 請求(含重試)呼叫一次,由 setTileRequestHook 裝上(Esri 記帳)
   let styleLoaded = false; // M1a:style JSON 載好就 true(自己記;raw.isStyleLoaded() 要等圖磚與 sprite 全到,圖磚在飛時恆 false,拿它當「可以加層了」會漏裝)
   const raw = new maplibregl.Map({
@@ -6640,6 +6644,9 @@ function createMaplibreEngine(containerId, view) {
     transformRequest: (url, type) => { if (type === 'Tile' && tileHook) tileHook(url); return { url }; },
   });
   raw.touchZoomRotate.enableRotation();
+  // 這裡刻意不掛 raw.on('error'):OFM 街道底圖的退路(glStreetFallback)自己監聽 error 算次數、靜默切換,
+  // 適配層若再把每個 error 印成 console.error,會把退路刻意吞掉的圖磚 500 又吐回主控台(check-gl-basemap L4b 就是這樣紅的)。
+  // 暗色開機的 AbortError 已由「第一份樣式直接依 html[data-theme] 決定」根絕,不需要在這裡吞。
   raw.on('style.load', () => { styleLoaded = true; }); // 比所有 onStyleLoad 回呼先註冊,旗標永遠先翻
   // 署名控件自己建(不用 Map 內建那顆):setAttribution 要整份替換,替換時連縮放鈕一起重掛,DOM 順序才不會翻(bottom 位置的 addControl 是 prepend:後加的縮放鈕在上、署名貼底,與 M0 相同)
   let attrib = new maplibregl.AttributionControl({ compact: false, customAttribution: [] });
@@ -6777,6 +6784,7 @@ function createMaplibreEngine(containerId, view) {
       raw.addControl(attrib, 'bottom-right'); raw.addControl(nav, 'bottom-right');
       return E;
     },
+    gesturesEnabled: () => !!(raw.dragPan && raw.dragPan.isEnabled()), // 放空手勢鎖的安全網要問「現在鎖著嗎」;整組一起開關,看 dragPan 一顆就夠
     setGestures: on => { // 對應 Leaflet 的 dragging/touchZoom/scrollWheelZoom/doubleClickZoom/boxZoom/keyboard 整組開關(放空模式用)
       for (const h of [raw.dragPan, raw.dragRotate, raw.scrollZoom, raw.boxZoom, raw.doubleClickZoom, raw.touchZoomRotate, raw.keyboard]) { if (h) on ? h.enable() : h.disable(); }
       if (on) raw.touchZoomRotate.enableRotation();
@@ -6865,6 +6873,9 @@ function mapGestureActive() {
   return [M.raw.dragPan, M.raw.dragRotate, M.raw.touchZoomRotate]
     .some(h => h && typeof h.isActive === 'function' && h.isActive());
 }
+// 自家鏡頭轉向一律走這裡:MapLibre 的 setBearing 每呼叫一次就發 movestart,不標 _autoPan 的話
+// closeTapPickOnUserMove 會把剛開的疊車選單當成使用者拖曳收掉(跟車中每幀插值、離開跟車 240 ms 轉正北都會發)。
+function selfBearing(b) { state._autoPan = true; try { M.setBearing(b); } finally { state._autoPan = false; } }
 function applyFollowHeading(heading, options) {
   if (!M || M.engine !== 'maplibre') return;
   const target = state.ambient ? 0 : heading;
@@ -6874,18 +6885,18 @@ function applyFollowHeading(heading, options) {
   if (Math.abs(delta) < 0.05) return;
   const immediate = !!(options && options.immediate);
   if (!immediate && mapGestureActive()) return;
-  M.setBearing(immediate ? target : current + delta * 0.18);
+  selfBearing(immediate ? target : current + delta * 0.18);
 }
 function resetFollowHeading(options) {
   state._followHeading = null;
   if (!M || M.engine !== 'maplibre') return;
-  if (options && options.immediate) { state._headingReset = null; M.setBearing(0); return; }
+  if (options && options.immediate) { state._headingReset = null; selfBearing(0); return; }
   // 不用 MapLibre 的 easeTo:離開跟車的同一輪裡,跟車面板收起 → mapInsets 變 → syncMapLibrePadding 的 setPadding
   // 走 jumpTo,jumpTo 先 stop() 把進行中的轉正動畫砍掉,地圖停在半途的角度(09-04 A54 事件追蹤:69.4°→39.8° 就停、
   // 另一次 −152.8°→−84.7° 就停;桌面沒有底部面板所以閘門看不到)。改成 tick 驅動的時間插值,每幀重下 setBearing,
   // 中途被任何 jumpTo 打斷下一幀照樣接著轉,240 ms 內回正北;使用者手勢一來就放棄(同 applyFollowHeading)。
   const from = M.getBearing(), delta = ((0 - from + 540) % 360) - 180;
-  if (Math.abs(delta) < 0.05) { state._headingReset = null; M.setBearing(0); return; }
+  if (Math.abs(delta) < 0.05) { state._headingReset = null; selfBearing(0); return; }
   state._headingReset = { from, delta, at: performance.now(), ms: 240 };
 }
 function stepHeadingReset(now) {
@@ -6893,7 +6904,7 @@ function stepHeadingReset(now) {
   if (!r) return;
   if (!M || M.engine !== 'maplibre' || state.followTrain || state.freqFollow || mapGestureActive()) { state._headingReset = null; return; }
   const t = Math.min(1, (now - r.at) / r.ms), e = 1 - (1 - t) * (1 - t); // ease-out,與 MapLibre 預設曲線同向
-  M.setBearing(t >= 1 ? 0 : r.from + r.delta * e);
+  selfBearing(t >= 1 ? 0 : r.from + r.delta * e);
   if (t >= 1) state._headingReset = null;
 }
 function applyFreqFollowHeading(info, ln, immediate) {
@@ -15240,7 +15251,8 @@ function tickCore(now) {
       state.mode === 'sched' && state.playing) { hotspotTick(now); hotCruise(dt, now); }
   else if (M && state._breathStage) breathStageRestore(); // 離開群車放空時,呼吸幕殘留的 CSS scale/舞台旗標兜底還原(安全網:漏掉任一離場點也不會把縮放或旗標交到使用者手上)
   // 同一種安全網,給手勢鎖:放空已關但手勢還鎖著(漏掉離場點/setAmbient 中途拋例外)⇒ 地圖會變成永久動不了,立刻交還
-  if (!state.ambient && M.leaflet && M.leaflet.dragging && !M.leaflet.dragging.enabled()) setMapGestures(true);
+  // MapLibre 沒有 Leaflet 的 handler 物件,問引擎適配層的 gesturesEnabled(M4-A 之前這條安全網在 MapLibre 上是空的)
+  if (!state.ambient && (M.leaflet ? (M.leaflet.dragging && !M.leaflet.dragging.enabled()) : (M.gesturesEnabled && !M.gesturesEnabled()))) setMapGestures(true);
   // 省電模式:把「相機每幀 setView 置中(觸發 reflow,手機跟隨時的主要卡點)＋繪製」統一節流到 ~30fps。
   // 放空不套(放空游標以 dt 積分,節流會變慢);時間積分與各資訊卡時鐘照每幀跑,不受影響。
   const psActive = state.powerSave && !state.ambient;

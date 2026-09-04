@@ -22,7 +22,7 @@ const worker = (await import(path.join(ROOT, 'worker.js'))).default;
 
 // 副檔名不在表裡=一律 404(見下方 !type)。字型漏了會讓 assets/fonts/rail-emoji.woff2 在本機
 // 靜默 404、圖示掉回系統 emoji,本機看到的畫面與正式站不一樣(2026-07-29 由 verify_redesign 抓到)。
-const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf' };
+const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.geojson': 'application/geo+json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf' };
 
 createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');

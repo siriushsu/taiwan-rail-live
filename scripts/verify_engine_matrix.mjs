@@ -102,7 +102,10 @@ const PILOTS = [
   //                             靜默回 false),負載一重就踩到。
   // M4 的前提是「同一支跑兩次結果可重現」,所以試點必須挑跨執行穩定的。
   // Codex 的沙箱起不了 listener 與 Chromium,這兩個前提它結構上都驗不到,已誠實回報。
-  { path: 'scripts/verify_webmcp.mjs', parser: 'words' },
+  //   verify_webmcp             原版(BASELINE_COMMIT)的 G0 釘「最近更新」第一層 data-cl-of="webmcp",
+  //                             那一格 8 條輪替、09-04 前就被擠出(對照樹 95f8f07b 與 origin/main 都 0 條),
+  //                             原版連引擎都沒碰到就在 G0 throw ⇒ 這個試點沒有可跑的原版了(G0 改讀第二層正本
+  //                             是 6475f9ea、在基線之後)。M4-A 拿掉;它本身的雙引擎跑法仍在常規閘門清單裡。
   { path: 'scripts/verify_web_basemap_notice.mjs' },   // 輸出是 ✅／❌ ⇒ 用預設的符號 parser
 ];
 
@@ -156,6 +159,18 @@ function resultMultimap(records) {
   return map;
 }
 
+// M4-A(2026-09-04)起預設引擎是 maplibre:原版腳本(BASELINE_COMMIT 的舊檔)開的是裸網址,不釘就會跑成 MapLibre,
+// 「Leaflet 原版逐項對等」的前提整個失效。把原版裡的本機網址字面釘上 ?engine=leaflet(有 query 的接在最前面),
+// 釘到幾處要回報;0 處＝這支原版沒有可辨識的本機網址,視為不符,不能靜默放行。
+export function pinBaselineToLeaflet(source) {
+  let count = 0;
+  const pinned = source.replace(/(https?:\/\/(?:localhost|127\.0\.0\.1):\$\{[^}]+\}\/(?:index\.html)?)(\?|`)/g, (m, base, tail) => {
+    count++;
+    return tail === '?' ? `${base}?engine=leaflet&` : `${base}?engine=leaflet${tail}`;
+  });
+  return { source: pinned, count };
+}
+
 function compareRecords(baseline, convertedLeaflet) {
   const before = resultMultimap(baseline);
   const after = resultMultimap(convertedLeaflet.map(item => ({ label: item.baseLabel, status: item.status })));
@@ -189,7 +204,8 @@ async function runM4Pilot(pilot) {
   }
 
   const tempPath = path.join(ROOT, 'scripts', `.engine-matrix-baseline-${process.pid}-${path.basename(pilot.path)}`);
-  await writeFile(tempPath, shown.stdout, { flag: 'wx' });
+  const pinned = pinBaselineToLeaflet(shown.stdout);
+  await writeFile(tempPath, pinned.source, { flag: 'wx' });
   try {
     const args = pilot.args || [];
     const baselineRun = childRun(tempPath, args, pilot.env || {});
@@ -213,6 +229,7 @@ async function runM4Pilot(pilot) {
     // 改成下面的 maplibreFailures 情報行,由各批自己的驗收去要求它變綠(設計總綱 §3.3 第 1 條)。
     // 轉換後若整支炸掉,仍會被「實跑引擎不是 leaflet,maplibre」與 compareRecords 抓到,不會漏。
     const maplibreFailures = converted.filter(item => item.engine === 'maplibre' && item.status === 'failed');
+    if (!pinned.count) mismatches.push('原版找不到可釘 ?engine=leaflet 的本機網址（M4-A 起預設 MapLibre，未釘的原版跑的不是 Leaflet）');
     if (!baseline.length) mismatches.push('原版沒有解析到任何斷言');
     if (ranEngines.join(',') !== 'leaflet,maplibre') mismatches.push(`轉換後實跑引擎=${ranEngines.join(',') || '(無)'}`);
     if (!(convertedRun.stdout || '').includes('本次跑了哪些引擎：leaflet、maplibre')) {
@@ -255,6 +272,15 @@ if (UNIT_ONLY) {
   gate('M4-UNIT', sameMismatches.length === 0 && mutationMismatches.length === 2,
     '逐項比較器保留重複標籤，且抓得到結果翻轉與缺項',
     `same=${sameMismatches.length} mutated=${mutationMismatches.length}`);
+  const pinCases = [
+    [`page.goto(\`http://localhost:\${PORT}/\`)`, `page.goto(\`http://localhost:\${PORT}/?engine=leaflet\`)`],
+    [`\`http://127.0.0.1:\${server.address().port}/?lang=zh-TW&webmcptest=1\``, `\`http://127.0.0.1:\${server.address().port}/?engine=leaflet&lang=zh-TW&webmcptest=1\``],
+    [`\`http://127.0.0.1:\${PORT}/index.html?lang=\${PAGE_LOCALE}\``, `\`http://127.0.0.1:\${PORT}/index.html?engine=leaflet&lang=\${PAGE_LOCALE}\``],
+  ].map(([input, want]) => { const r = pinBaselineToLeaflet(input); return r.count === 1 && r.source === want; });
+  const pinNone = pinBaselineToLeaflet('const x = 1;').count === 0;
+  gate('M4-UNIT-PIN', pinCases.every(Boolean) && pinNone,
+    '原版釘 Leaflet：三種本機網址寫法各釘一處、有 query 的接最前面、沒網址時計 0',
+    `cases=${pinCases.join(',')} none=${pinNone}`);
   console.log('M4 統計：未執行（--unit；瀏覽器能力 gate 留給完整指令）');
 } else {
   let assertionCount = 0;

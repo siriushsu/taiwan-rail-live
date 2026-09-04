@@ -19,7 +19,7 @@ await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const base = `http://127.0.0.1:${server.address().port}`;
 const failures = [];
 const widths = [360, 375, 414, 768];
-const expectedHistoryCount = 261;
+const expectedHistoryCount = 262; // 完整更新歷史的正本條數(li 不含 .grp);每加一條正本就 +1(09-04 M4-A 加 maplibredefault0904 → 262)
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

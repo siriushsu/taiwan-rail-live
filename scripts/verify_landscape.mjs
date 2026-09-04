@@ -1181,11 +1181,14 @@ async function sizeGuardSuite(browser, eng) {
   await pg3.waitForTimeout(1200);
   const SIZE_PROBE = () => {
     const el = window.__M.getContainer(), sz = window.__M.getSize(), cv = document.getElementById('overlay');
+    // MapLibre 的適配層 getSize 回容器實測,與 cw 同源、恆相等=零資訊;引擎自己的尺寸住在 transform,改讀它。
+    const raw = window.__M.raw, ml = window.__ENGINE === 'maplibre' && raw && raw.transform;
+    const szx = ml ? raw.transform.width : sz.x, szy = ml ? raw.transform.height : sz.y;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const tr = state.followTrain, p = tr ? trainPos(tr, state.simSec) : null;
     const cp = p ? window.__M.toScreen([p.lat, p.lon]) : null;
     return {
-      cw: el.clientWidth, ch: el.clientHeight, szx: sz.x, szy: sz.y, cvw: cv.width, cvh: cv.height,
+      engine: window.__ENGINE || 'leaflet', cw: el.clientWidth, ch: el.clientHeight, szx, szy, cvw: cv.width, cvh: cv.height,
       wantW: Math.round(el.clientWidth * dpr), wantH: Math.round(el.clientHeight * dpr),
       inPhys: cp ? (cp.x >= 0 && cp.x <= el.clientWidth && cp.y >= 0 && cp.y <= el.clientHeight) : null,
       heals: state._sizeHeals || 0,
@@ -1203,9 +1206,13 @@ async function sizeGuardSuite(browser, eng) {
   await pg3.evaluate(() => { const s = document.getElementById('__lag'); if (s) s.remove(); });
   await pg3.waitForTimeout(1500); // 守衛每 200ms 量一次，留七倍餘裕
   const f5 = await pg3.evaluate(SIZE_PROBE);
+  // 「守衛開過火」只對 Leaflet 有意義:MapLibre 用自己的 ResizeObserver 追容器(無聲放開版面也會 resize),
+  // 適配層 getSize 又是容器實測 ⇒ syncMapSizeIfStale 結構上量不到過期、_sizeHeals 恆 0(M4-A 切預設後
+  // 每個訪客都走這條路,不能拿 Leaflet 專屬的計數當紅)。MapLibre 那條路由 transform 尺寸＋畫布＋車點三項守。
+  const f5healed = f5.engine === 'maplibre' ? true : f5.heals > f5base.heals;
   ok(`F5 ${eng}/旋轉版面延遲 尺寸自癒：Leaflet 尺寸=容器＋畫布重配＋車落在實體畫面內`,
     !!f5pick && f5.szx === f5.cw && f5.szy === f5.ch && f5.cvw === f5.wantW && f5.cvh === f5.wantH
-    && f5.inPhys === true && f5.heals > f5base.heals,
+    && f5.inPhys === true && f5healed,
     JSON.stringify({ pick: f5pick, viaRandBtn: !!f5btn, base: f5base, after: f5 }));
   // F5b 負面側：守衛不得空轉。尺寸本來就同步時每 200ms 都 invalidateSize＋reproject＝把整張圖
   // 每秒重投影五次（效能災難，且 reproject 會重配畫布清空當幀）。量「穩定後計數不再增加」。
@@ -1877,10 +1884,21 @@ async function landV2Suite(browser, eng) {
       const { ctx, page } = b;
       await page.evaluate(() => openBoard(state.schedStations[0]));
       await page.waitForTimeout(600);
-      const before = await page.evaluate(AMBIENT_PROBE);
+      // 進場前／進場後／離場後三個「樣子」都要等家具的 opacity transition(.7s)走完再量:固定 600／700／800 ms
+      // 正好卡在轉場中途(V3 膠囊量到 0.47 vs 門檻 0.5、V3d 的 before 量到 0.65 而 out 是 0),機器安靜時險過、
+      // 有負載時轉場起步晚一點就假紅。穩態＝連兩拍(150 ms)四項都沒動,上限 3 s。
+      const settled = async () => {
+        for (let last = null, same = 0, t0 = Date.now(); same < 2 && Date.now() - t0 < 3000;) {
+          const now = await page.evaluate(AMBIENT_PROBE);
+          same = last && ['topbar', 'tools', 'card', 'capsule'].every(k => Math.abs(now[k] - last[k]) < 0.01) ? same + 1 : 0;
+          last = now; await page.waitForTimeout(150);
+        }
+        return page.evaluate(AMBIENT_PROBE);
+      };
+      const before = await settled();
       await page.evaluate(() => setAmbient(true));
       await page.waitForTimeout(700);
-      const after = await page.evaluate(AMBIENT_PROBE);
+      const after = await settled();
       // 正向對照先確認「進模式前這些東西本來看得見」——少了這半，元件本來就不在也會全綠
       ok(`V1 ${eng} 前置·進觀察模式前頂列與 HUD 都看得見`,
         before.topbar > 0.9 && before.tools > 0.9 && before.card > 0.9, JSON.stringify(before));
@@ -1906,7 +1924,7 @@ async function landV2Suite(browser, eng) {
       });
       await page.mouse.click(exitBox.x, exitBox.y);
       await page.waitForTimeout(800);
-      const out = await page.evaluate(AMBIENT_PROBE);
+      const out = await settled();
       const outState = await page.evaluate(() => ({
         cls: document.body.classList.contains('ambient'),
         st: !!state.ambient,

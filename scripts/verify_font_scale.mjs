@@ -2659,14 +2659,18 @@ async function sectionY(browser, engine) {
 
       let chosen = null;
       for (const st of cands) {
-        await page.evaluate(s => window.__map.setView([s.lat, s.lon], 15, { animate: false }), st);
+        await page.evaluate(s => window.__M.setView([s.lat, s.lon], 15, { animate: false }), st); // 走適配層:M4-A 起預設 MapLibre,raw 沒有 setView
         await page.waitForTimeout(1300);
         const c = await page.evaluate(nm => {
           const rect = window.__map.getContainer().getBoundingClientRect();
           const pts = [];
           if (state.mode === 'sched') (state.schedStations || []).forEach(s => { const p = window.__M.toScreen([s.lat, s.lon]); pts.push({ x: p.x, y: p.y, name: s.name }); });
           else state.lines.forEach(ln => { if (state.visible.has(ln.id) && ln.pts) ln.pts.forEach((p, i) => { if (ln.stations[i]) pts.push({ x: p.x, y: p.y, name: ln.stations[i].name }); }); });
-          const me = pts.find(p => p.name === nm && Math.hypot(p.x - rect.width / 2, p.y - rect.height / 2) < 40);
+          // 「畫面中央」＝地圖中心的投影點,不是容器幾何中心:MapLibre 的 setView 會把中心放在扣掉 padding
+          // (頂列 58／底部 120／sched 右側 62)之後的可視區中央,離容器中心 44px;Leaflet 沒有 padding 兩者重合。
+          // 拿容器中心當基準,sched 八顆候選全被判「不在畫面中央」、Y1–Y4 整段架空(M4-A 切預設後才現形)。
+          const cc = window.__M.getCenter(), ccp = window.__M.toScreen([cc.lat ?? cc[0], cc.lng ?? cc.lon ?? cc[1]]);
+          const me = pts.find(p => p.name === nm && Math.hypot(p.x - ccp.x, p.y - ccp.y) < 40);
           if (!me) return { ok: false, why: '不在畫面中央' };
           const el = document.elementFromPoint(rect.left + me.x, rect.top + me.y);
           if (!el || !el.closest('#map,#overlay')) return { ok: false, why: '被 UI 蓋住:' + (el ? (el.id || el.className) : 'null') };

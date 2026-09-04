@@ -56,12 +56,13 @@ async function cell(engine, browser, scale, w, withCard) {
   }
   // 造出衛星底圖那條長字串（與 index.html 的 sat.attribution 逐字相同）。用 Leaflet 自己的
   // API 加，不是塞 innerHTML —— 走的是真正的那條路徑。
-  await page.evaluate(a => { window.__map.attributionControl.addAttribution(a); }, SAT_ATTR);
+  // M4-A 起預設 MapLibre:署名走適配層 setAttribution(整份替換;OFM 來源署名由樣式自帶,連結仍在),Leaflet 照舊 addAttribution。
+  await page.evaluate(a => { const M = window.__M; if (M && M.engine === 'maplibre') M.setAttribution([a, '臺灣輪廓：內政部']); else window.__map.attributionControl.addAttribution(a); }, SAT_ATTR);
   if (withCard) await page.evaluate(() => { const c = document.getElementById('freqCard'); if (c) c.hidden = false; });
   await page.waitForTimeout(250);
 
   const m = await page.evaluate(() => {
-    const a = document.querySelector('.leaflet-control-attribution');
+    const a = document.querySelector('.leaflet-control-attribution, .maplibregl-ctrl-attrib');
     if (!a || !a.getClientRects().length) return null;
     const R = e => { const b = e.getBoundingClientRect(); return { l: b.left, t: b.top, r: b.right, b: b.bottom, w: b.width, h: b.height }; };
     const inter = (p, q) => Math.max(0, Math.min(p.r, q.r) - Math.max(p.l, q.l)) * Math.max(0, Math.min(p.b, q.b) - Math.max(p.t, q.t));
@@ -71,6 +72,7 @@ async function cell(engine, browser, scale, w, withCard) {
     const cards = ['#freqCard', '#followPanel'].map(s => ({ sel: s, r: pick(s) })).filter(x => x.r);
     return {
       fs: document.documentElement.getAttribute('data-fs') || 'std',
+      engine: window.__ENGINE || 'leaflet',
       text: a.textContent.replace(/\s+/g, ' ').trim(),
       attr: ar, lines: a.getClientRects().length,
       lineHeight: parseFloat(cs.lineHeight), maxWidth: cs.maxWidth, whiteSpace: cs.whiteSpace, overflowX: cs.overflowX,
@@ -120,7 +122,7 @@ async function cell(engine, browser, scale, w, withCard) {
 
   // G7 每個連結真的構得到：捲進視野後 elementFromPoint 命中它自己
   const reach = await page.evaluate(() => {
-    const a = document.querySelector('.leaflet-control-attribution');
+    const a = document.querySelector('.leaflet-control-attribution, .maplibregl-ctrl-attrib');
     const out = [];
     for (const link of a.querySelectorAll('a')) {
       link.scrollIntoView({ block: 'nearest', inline: 'center' });
@@ -134,8 +136,10 @@ async function cell(engine, browser, scale, w, withCard) {
   for (const r of reach) check(r.ok, `G7 ${tag} 連結「${r.txt}」點得到`, `命中的是 ${r.hit}`);
   check(reach.length > 0, `G7 ${tag} 至少有一個授權連結`, '一個都沒有');
 
-  // G8 來源完整
-  for (const src of ['Leaflet', '內政部', 'Esri']) {
+  // G8 來源完整。來源清單依實際引擎:Leaflet 路徑的版權列有「Leaflet」;MapLibre 路徑沒有這個來源,
+  // 街道底圖那一段是「OpenFreeMap」(M4-A 起裸網址預設 MapLibre,再拿「Leaflet」當必含字串就是判準過期)。
+  const SOURCES = m.engine === 'maplibre' ? ['OpenFreeMap', '內政部', 'Esri'] : ['Leaflet', '內政部', 'Esri'];
+  for (const src of SOURCES) {
     check(m.text.includes(src), `G8 ${tag} 來源「${src}」沒被裁掉`, `文字＝${JSON.stringify(m.text.slice(0, 90))}`);
   }
   await ctx.close();

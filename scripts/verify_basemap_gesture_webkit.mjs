@@ -39,7 +39,9 @@ async function openPage(mobile) {
   await ctx.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-appearance', 'light'); localStorage.setItem('trainmap-powersave', '0'); } catch (e) {} });
   const page = await ctx.newPage();
   const errs = []; page.on('pageerror', e => errs.push(String(e).slice(0, 160)));
-  await page.goto(`http://127.0.0.1:${PORT}/index.html?aligndot=${DOT.lat},${DOT.lng}`, { waitUntil: 'domcontentloaded' });
+  // M4-A(2026-09-04)起預設引擎是 MapLibre;這支量的是 Leaflet TouchZoom 內部呼叫與 Leaflet 的 aligndot 路徑,釘 ?engine=leaflet 守逃生口那條路。
+  // MapLibre 的 WebKit 手勢與探針對齊由 verify_map_orientation.mjs／verify_align_follow.mjs 守。
+  await page.goto(`http://127.0.0.1:${PORT}/index.html?engine=leaflet&aligndot=${DOT.lat},${DOT.lng}`, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => window.__map && window.__ofmGl, null, { timeout: 45000 });
   await page.waitForFunction(() => window.__state && window.__state.ready, null, { timeout: 60000 }).catch(() => {});
   await page.waitForTimeout(2500);

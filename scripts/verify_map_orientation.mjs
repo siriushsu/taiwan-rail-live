@@ -249,7 +249,7 @@ async function desktopM2(browser, url, engine, browserName, check, onlyFor) {
       `${browserName} 3D 建築可關閉且寫回偏好`);
     await page.evaluate(() => __M.setPitch(21));
     await page.waitForFunction(() => Math.abs(Number(localStorage.getItem('trainmap-map-pitch')) - 21) < 0.1);
-    // boot 的 clearFollow 會清掉 query string；reload 會回到預設 Leaflet，所以必須重走原 MapLibre URL。
+    // boot 的 clearFollow 會清掉 query string；不帶 query 的 reload 只會吃預設引擎（M4-A 起是 maplibre），要驗哪個引擎就必須重走明示 ?engine= 的原 URL。
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60_000 });
     await page.waitForFunction(() => window.__state?.ready && window.__M && Math.abs(window.__M.getPitch() - 21) < 0.1, null, { timeout: 90_000 });
     check(await page.evaluate(() => Math.abs(__M.getPitch() - 21) < 0.1 && !__state.map3d),

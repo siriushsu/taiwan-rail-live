@@ -173,7 +173,7 @@ async function freezeAndInject(page, { pair }) {
 async function waitMapStill(page, ms = 4000) {
   const t0 = Date.now(); let prev = null;
   while (Date.now() - t0 < ms) {
-    const now = await page.evaluate(() => { const c = window.__map.getCenter(); return `${c.lat.toFixed(7)},${c.lng.toFixed(7)},${window.__map.getZoom()}`; });
+    const now = await page.evaluate(() => { const c = window.__M.getCenter(); return `${c.lat.toFixed(7)},${c.lng.toFixed(7)},${window.__M.getZoom()}`; });
     if (prev === now) return true;
     prev = now;
     await page.waitForTimeout(150);
@@ -222,9 +222,17 @@ async function run(browser, tag, vp = { width: 1280, height: 800 }, coreOnly = f
 
   const org = await originOf(page);
   // 手機用真觸控(tap)不用滑鼠:這個 bug 在手指誤差下更兇,而 Leaflet 對 touch 走另一條事件路徑
+  // 觸控:兩次 tap 之間至少隔 520 ms。MapLibre 的雙擊縮放辨識器把「500 ms 內、30 px 內」的第二下當成
+  // double-tap(preventDefault 掉 touchend ⇒ 瀏覽器不再合成 click ⇒ 地圖收不到 click),B 段 78 個取樣點
+  // 每 ~100 ms 點一下、彼此相距幾 px,WebKit 下每格掉 10–18 點、全回 null;Leaflet 兩下都會發 click 所以
+  // 從沒踩到。實測(m4a_tap_skew_probe):間隔 150 ms 五下掉一下,600 ms 五下全到。使用者的單次點擊
+  // 本來就不會落在前一下的 500 ms 內——判準量的是命中,不是連點。
+  let lastTap = 0;
   const click = async (x, y) => {
-    if (vp.touch) await page.touchscreen.tap(org.left + x, org.top + y);
-    else await page.mouse.click(org.left + x, org.top + y);
+    if (vp.touch) {
+      const wait = 520 - (Date.now() - lastTap); if (wait > 0) await page.waitForTimeout(wait);
+      await page.touchscreen.tap(org.left + x, org.top + y); lastTap = Date.now();
+    } else await page.mouse.click(org.left + x, org.top + y);
     await page.waitForTimeout(90);
   };
 
@@ -236,13 +244,13 @@ async function run(browser, tag, vp = { width: 1280, height: 800 }, coreOnly = f
       const FONT = getComputedStyle(document.body).fontFamily;
       const cx = document.getElementById('overlay').getContext('2d');
       cx.font = '700 10px ' + FONT;
-      const tagMode = window.__map.getZoom() >= 11;           // drawSched 的 showTrain
+      const tagMode = window.__M.getZoom() >= 11;           // drawSched 的 showTrain
       const hits = (state._trainHits || []);
       const withBox = hits.filter(h => h.w > 0 && h.h > 0);
       // 期望值從繪製公式推導,不用寬鬆容差:drawTag 是 measureText+10、drawHSRTag 是 +13 再加兩端尖頭 2×5
       const want = h => cx.measureText(String(h.tr.train)).width + (isHSR(h.tr) ? 23 : 10);
       const mism = withBox.filter(h => tagMode ? (h.h !== 15 || Math.abs(h.w - want(h)) > 1) : (h.w !== 12 || h.h !== 12));
-      return { z: window.__map.getZoom(), tagMode, n: hits.length, boxed: withBox.length, mism: mism.length,
+      return { z: window.__M.getZoom(), tagMode, n: hits.length, boxed: withBox.length, mism: mism.length,
         bad: mism.slice(0, 3).map(h => ({ t: h.tr.train, hsr: isHSR(h.tr), w: +h.w.toFixed(1), h: h.h, want: +want(h).toFixed(1) })),
         sample: hits.slice(0, 3).map(h => ({ t: h.tr.train, w: Math.round(h.w), h: h.h })) };
     });
@@ -253,15 +261,16 @@ async function run(browser, tag, vp = { width: 1280, height: 800 }, coreOnly = f
   if (!coreOnly) {
   await measureA('遠景圓點', false);
   // 放大到「某一台車所在的位置」再量,單純 setZoom 會落在沒有車的地方(量到 hits=0 的空綠)
+  // 走引擎適配層 window.__M(M4-A 起預設 MapLibre,raw map 沒有 Leaflet 的 setView/containerPointToLatLng,且 raw getZoom 差 ML_Z)
   await page.evaluate(() => {
-    const map = window.__map;
-    window.__save = { c: map.getCenter(), z: map.getZoom() };
+    const M = window.__M;
+    window.__save = { c: M.getCenter(), z: M.getZoom() };
     const h = (state._trainHits || [])[0];
-    if (h) map.setView(map.containerPointToLatLng([h.x, h.y]), 12); else map.setZoom(12);
+    M.setView(h ? M.fromScreen([h.x, h.y]) : M.getCenter(), 12);
   });
   await page.waitForTimeout(1500);
   await measureA('近景車號牌', true);
-  await page.evaluate(() => window.__map.setView(window.__save.c, window.__save.z));  // 還原,否則後面的實驗場會被挪到面板底下
+  await page.evaluate(() => window.__M.setView(window.__save.c, window.__save.z));  // 還原,否則後面的實驗場會被挪到面板底下
   await page.waitForTimeout(1200);
   }
 
@@ -294,8 +303,9 @@ async function run(browser, tag, vp = { width: 1280, height: 800 }, coreOnly = f
       //    容器座標 2×10^12,整個投影已經沒有意義,所以「在畫面內 0 個站」)。
       //    解凍→擺好→下面的 evaluate 會再凍回去,注入的命中點才落在有意義的座標系上。
       if (window.__origDraw) { window.draw = window.__origDraw; }
+      window.__d3save = { c: window.__M.getCenter(), z: window.__M.getZoom() }; // D3 完要還原(見下方)
       const st = (state.schedStations || [])[0];
-      if (st) window.__map.setView([st.lat, st.lon], 12);
+      if (st) window.__M.setView([st.lat, st.lon], 12);
     });
     await page.waitForTimeout(400);
     const still = await waitMapStill(page);
@@ -317,7 +327,7 @@ async function run(browser, tag, vp = { width: 1280, height: 800 }, coreOnly = f
         if (d < bd) { bd = d; best = { x: p.x, y: p.y, name: st.name }; }
       }
       if (!best) return { skip: `畫面上沒有可點的車站(在畫面內 ${onScreen} 個、沒被蓋住 ${clickable} 個)`,
-        diag: { n: (state.schedStations || []).length, mode: state.mode, z: window.__map.getZoom(),
+        diag: { n: (state.schedStations || []).length, mode: state.mode, z: window.__M.getZoom(),
           rect: [Math.round(r.width), Math.round(r.height)],
           sample: (state.schedStations || []).slice(0, 3).map(st => { const p = window.__M.toScreen([st.lat, st.lon]); return `${st.name}@${Math.round(p.x)},${Math.round(p.y)}`; }) } };
       // 同一拍把車放到站的位置上,兩者之間不給地圖任何移動的機會
@@ -362,6 +372,21 @@ async function run(browser, tag, vp = { width: 1280, height: 800 }, coreOnly = f
       }
     }
   }
+  // D3 把鏡頭擺到了某座車站上(z12),而 B/C/D 的場地 (CX,CY) 是在**開場視野**選的:不還原就等於在
+  // 「離最近車站 >60px」的前提之外做實驗。MapLibre 預設下實測:D3 對準台鐵新竹時,高鐵新竹／六家那對站
+  // 恰好落在場地上——B 點下去彈的是車站選單、D 段跟到停靠中的真車,整段紅得與產品無關(Leaflet 的縮放
+  // 與投影不同,同一個坑剛好沒踩到)。解凍 → 還原開場視野 → 等鏡頭停 → 場地淨空再量一次並具名斷言:
+  // 前提要被驗,不是被假設(判準盲點形態 0／4)。
+  await page.evaluate(() => { if (window.__origDraw) window.draw = window.__origDraw; if (window.__d3save) window.__M.setView(window.__d3save.c, window.__d3save.z); });
+  await page.waitForTimeout(400); await waitMapStill(page);
+  const clr2 = await page.evaluate(({ x, y }) => {
+    let d = 1e9; const near = p => { d = Math.min(d, Math.hypot(p.x - x, p.y - y)); };
+    for (const st of (state.schedStations || [])) near(window.__M.toScreen([st.lat, st.lon]));
+    if (state.deco) for (const ln of (state.decoLines || [])) for (const p of (ln.pts || [])) near(p);
+    for (const ln of (state.lines || [])) for (const p of (ln.pts || [])) near(p);
+    return +d.toFixed(1);
+  }, { x: CX, y: CY });
+  ok(`[${tag}] 場地在 D3 還原視野後仍淨空(離最近車站 >60px)`, clr2 > 60, `(${CX},${CY}) 淨空 ${clr2}px`);
 
   // ── B 命中端:點在「看得見的那張牌」上,就必須選到那台車 ────────────────────
   // 使用者的心智是「我點的是我看到的那張牌」,不是「我點的是離某個看不見的中心 16px 以內」。

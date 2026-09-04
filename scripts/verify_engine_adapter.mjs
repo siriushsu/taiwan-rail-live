@@ -128,7 +128,7 @@ async function boot(browser, url, initLs = {}) {
 
 const LEAFLET_REASON = '此斷言逐值比較 Leaflet native map，MapLibre 沒有同型 Leaflet 物件';
 const MAPLIBRE_REASON = '此斷言直接讀 MapLibre style、canvas 或 raw map，Leaflet 沒有同型物件';
-const FLAG_REASON = '此斷言刻意驗非法 engine 值退回 Leaflet，只在 Leaflet pass 執行一次';
+const FLAG_REASON = '此斷言驗預設引擎（非法值／裸網址都要落到 maplibre），只在 maplibre pass 執行一次';
 const browser = await chromium.launch();
 let matrix, leafletBaseline;
 try {
@@ -290,14 +290,20 @@ try {
     check((await localStorageOnly.page.evaluate(() => window.__ENGINE)) === engine, 'G4d localStorage trainmap-engine 生效', engine);
     await localStorageOnly.ctx.close();
 
-    let invalidFlag;
-    if (engine === 'leaflet') {
+    // M4-A(2026-09-04)起預設引擎是 maplibre:G4f 非法值、G4g 裸網址(無 ?engine、localStorage 空)都要落到 maplibre,
+    // 只在 maplibre pass 跑一次。?engine=leaflet 逃生口由 leaflet pass 的 G2a／G4a 與 G4e 守,不在這裡重複。
+    let invalidFlag, bareFlag;
+    if (engine === 'maplibre') {
       const invalidUrl = new URL(BASE); invalidUrl.searchParams.set('engine', 'foo');
       const invalid = await boot(browser, invalidUrl.href);
       invalidFlag = await invalid.page.evaluate(() => window.__ENGINE);
       await invalid.ctx.close();
+      const bare = await boot(browser, BASE);
+      bareFlag = await bare.page.evaluate(() => window.__ENGINE);
+      await bare.ctx.close();
     }
-    onlyFor('leaflet', FLAG_REASON, 'G4f 非法 engine 值退回 leaflet', engine === 'leaflet' ? invalidFlag === 'leaflet' : undefined, invalidFlag);
+    onlyFor('maplibre', FLAG_REASON, 'G4f 非法 engine 值退回預設 maplibre', engine === 'maplibre' ? invalidFlag === 'maplibre' : undefined, invalidFlag);
+    onlyFor('maplibre', FLAG_REASON, 'G4g 裸網址（無 ?engine、localStorage 空）⇒ 預設 maplibre', engine === 'maplibre' ? bareFlag === 'maplibre' : undefined, bareFlag);
 
     let probePass, probeDetail, probeMutationPass, probeMutationDetail;
     if (engine === 'maplibre') {
