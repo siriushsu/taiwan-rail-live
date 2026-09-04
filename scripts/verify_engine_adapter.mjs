@@ -75,7 +75,9 @@ ck(forbiddenVerifyCalls(verifyFiles, [forbiddenMutation]).length === forbiddenVe
 
 function overlayRuntimeContract(text) {
   const reprojectStart = text.indexOf('function reproject() {');
-  const reprojectEnd = text.indexOf('// 縮放動畫逐幀驅動', reprojectStart);
+  // M4-B:原本拿「// 縮放動畫逐幀驅動」這條註解當結束邊界,那段隨 Leaflet 一起拔掉了。
+  // 改用一個刻意放在那裡的具名標記,不會再因為刪改鄰近註解而靜默失效(indexOf 回 -1 ⇒ body='' ⇒ 恆綠)。
+  const reprojectEnd = text.indexOf('// ==== REPROJECT END ====', reprojectStart);
   const body = reprojectStart >= 0 && reprojectEnd > reprojectStart ? text.slice(reprojectStart, reprojectEnd) : '';
   const renderWires = (text.match(/M\.on\('render', syncDrawMaplibre\)/g) || []).length;
   return {
