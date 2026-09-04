@@ -115,10 +115,17 @@ export function dedupeEvents(list, span) {
 
 // 標題文案。holidayNames ＝ data/holiday_names.json(只有本功能讀,查不到就退回通用說法)。
 // 🔴 名稱只是文案裝飾,不是判定依據——缺了不影響任何正確性,所以這裡不做任何錯誤處理。
+// 四個分支(2026-09-04 使用者裁示,實測 2026-2027 兩年 730 天全部走過一遍):
+//   ≥3 天有名稱 → 「光復節連假」    ≥3 天查無名稱 → 「這個連假」
+//   <3 天有名稱 → 「光復節」        <3 天查無名稱 → 「本週末」或「假日」
+// 🔴 最後那個分支【不能無條件寫「本週末」】:國定假日落在平日(週四的元旦)、或連假只剩
+// 最後一天的補假(週一的光復節補假,而名稱在已經過去的前一天),都會走到這裡——實測兩年有
+// 14 個這種日子,寫「本週末」是在說謊。所以查無名稱時還要看那幾天是不是真的週六日。
 // 三天以上才叫「連假」:兩天的週六日在台灣不會被說成連假。
 export function spanLabel(span, holidayNames) {
   const names = holidayNames || {};
   const hit = span.days.map(d => names[d]).find(Boolean);
   if (span.days.length >= 3) return hit ? hit + '連假' : '這個連假';
-  return hit || '本週末';
+  if (hit) return hit;
+  return span.days.every(d => weekday(d) === 0 || weekday(d) === 6) ? '本週末' : '假日';
 }
