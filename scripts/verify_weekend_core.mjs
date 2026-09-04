@@ -2,7 +2,7 @@
 // 用法:node scripts/verify_weekend_core.mjs   /   npm run check-weekend-core
 // 這支刻意不讀 data/tw_daytype.json 當唯一輸入:真實日曆會逐年變,把它當測試輸入等於
 // 判準跟著資料漂移。真實日曆另有一條專屬檢查(見 Section R),其餘全用手寫小表。
-import { twDayStr, addDays, isWorkday, nextHolidaySpan } from './weekend_core.mjs';
+import { twDayStr, addDays, isWorkday, nextHolidaySpan, weekday, evValidDay, splitEvents, dedupeEvents } from './weekend_core.mjs';
 
 let pass = 0, fail = 0;
 const bad = [];
@@ -32,6 +32,7 @@ console.log('\n【B】日期加減');
 chk('B1 跨月', addDays('2026-09-30', 1) === '2026-10-01');
 chk('B2 跨年', addDays('2026-12-31', 1) === '2027-01-01');
 chk('B3 倒退', addDays('2026-03-01', -1) === '2026-02-28');
+chk('B4 星期幾', weekday('2026-09-04') === 5 && weekday('2026-09-06') === 0);  // 五、日
 
 console.log('\n【C】上班日判定');
 chk('C1 一般週三是上班日', isWorkday('2026-09-02', T) === true);
@@ -58,6 +59,65 @@ chk('D7 站在週日 → 只回週日', eq(nextHolidaySpan('2026-09-06', T), '20
 chk('D8 站在假期第一天 → 回整段', eq(nextHolidaySpan('2026-09-25', T), '2026-09-25', '2026-09-27', 3));
 // 日曆表用完:退回只看週幾,仍找得到週末
 chk('D9 表外日期退回週幾', eq(nextHolidaySpan('2030-01-01', {}), '2030-01-05', '2030-01-06', 2));
+
+console.log('\n【E】日期欄位守門');
+chk('E1 正常日期', evValidDay('2026-09-05') === true);
+chk('E2 少補零', evValidDay('2026-9-5') === false);
+chk('E3 斜線', evValidDay('2026/09/05') === false);
+chk('E4 月份超界', evValidDay('2026-13-01') === false);
+chk('E5 日子超界', evValidDay('2026-08-32') === false);
+// 2026-02-29 不存在,但 Date 會靜靜滾成 03-01 ⇒ 要靠回寫比對擋掉
+chk('E6 不存在的閏日', evValidDay('2026-02-29') === false);
+chk('E7 中文', evValidDay('即日起') === false);
+chk('E8 非字串', evValidDay(null) === false);
+
+console.log('\n【F】兩層分流');
+const SPAN = { from: '2026-09-05', to: '2026-09-06', days: ['2026-09-05', '2026-09-06'] };
+const EVENTS = [
+  { id: 'a1', title: '市集', start: '2026-09-05', end: '2026-09-05', url: 'https://x.invalid/1',
+    anchor: { kind: 'station', sys: 'mrt', name: '廣慈/奉天宮' } },
+  { id: 'a2', title: '市集', start: '2026-09-06', end: '2026-09-06', url: 'https://x.invalid/1',
+    note: '輕食與文創', anchor: { kind: 'station', sys: 'mrt', name: '廣慈/奉天宮' } },
+  { id: 'b1', title: '音樂會', start: '2026-09-05', end: '2026-09-05', url: 'https://x.invalid/2',
+    anchor: { kind: 'station', sys: 'mrt', name: '廣慈/奉天宮' } },
+  { id: 'c1', title: '長期特展', start: '2026-08-15', end: '2026-09-13', url: 'https://x.invalid/3',
+    anchor: { kind: 'station', sys: 'mrt', name: '大安森林公園' } },
+  { id: 'd1', title: '兩站聯名', start: '2026-09-01', end: '2026-12-31', url: 'https://x.invalid/4',
+    anchor: { kind: 'station', sys: 'afr_sched', name: '北門' } },
+  { id: 'd2', title: '兩站聯名', start: '2026-09-01', end: '2026-12-31', url: 'https://x.invalid/4',
+    anchor: { kind: 'station', sys: 'afr_sched', name: '阿里山' } },
+  { id: 'e1', title: '已結束', start: '2026-08-01', end: '2026-08-31', url: 'https://x.invalid/5',
+    anchor: { kind: 'station', sys: 'mrt', name: '中山' } },
+  { id: 'f1', title: '還沒開始', start: '2026-10-01', end: '2026-10-02', url: 'https://x.invalid/6',
+    anchor: { kind: 'station', sys: 'mrt', name: '中山' } },
+  { id: 'g1', title: '壞日期', start: '2026-9-5', end: '2026-09-06', url: 'https://x.invalid/7',
+    anchor: { kind: 'station', sys: 'mrt', name: '中山' } },
+  { id: 'h1', title: '週末開跑', start: '2026-09-06', end: '2026-09-20', url: 'https://x.invalid/8',
+    anchor: { kind: 'system', sys: 'tymc' } },
+  { id: 'i1', title: '市集', start: '2026-09-05', end: '2026-09-05', url: 'https://x.invalid/9',
+    anchor: { kind: 'station', sys: 'tmrt', name: '市政府' } },
+];
+const split = splitEvents(EVENTS, SPAN);
+chk('F1 限定層 5 筆', split.onlyThis.length === 5, `實得 ${split.onlyThis.length}`);
+chk('F2 限定層含週末開跑那筆', split.onlyThis.some(e => e.id === 'h1'));
+chk('F3 長期檔進 alsoOpen', split.alsoOpen.some(e => e.id === 'c1'));
+chk('F4 兩站聯名兩筆都進 alsoOpen', split.alsoOpen.filter(e => e.title === '兩站聯名').length === 2);
+chk('F5 已結束不入選', ![...split.onlyThis, ...split.alsoOpen].some(e => e.id === 'e1'));
+chk('F6 還沒開始不入選', ![...split.onlyThis, ...split.alsoOpen].some(e => e.id === 'f1'));
+// 壞日期那筆必須整筆被丟掉,而且不得把其他筆一起拖垮(它會讓 addDays 拋 RangeError)
+chk('F7 壞日期整筆被濾掉', ![...split.onlyThis, ...split.alsoOpen].some(e => e.id === 'g1'));
+
+console.log('\n【G】去重');
+const merged = dedupeEvents(split.onlyThis, SPAN);
+chk('G1 5 筆併成 4 場', merged.length === 4, `實得 ${merged.length}`);
+const mkt = merged.find(m => m.title === '市集');
+chk('G2 市集併出兩天', mkt && mkt.days.join(',') === '2026-09-05,2026-09-06');
+chk('G3 市集只保留一個地點', mkt && mkt.places.length === 1);
+chk('G4 note 取有填的那份', mkt && mkt.note === '輕食與文創');
+chk('G5 保留兩個原始 id', mkt && mkt.ids.length === 2);
+const two = dedupeEvents(split.alsoOpen, SPAN).find(m => m.title === '兩站聯名');
+chk('G6 兩站聯名併成一則、兩個地點', two && two.places.length === 2);
+chk('G7 依首日排序', merged[0].days[0] <= merged[merged.length - 1].days[0]);
 
 console.log(`\n${fail ? '❌' : '✅'} weekend-core：${pass} 過 / ${fail} 失敗`);
 if (fail) { console.error('失敗項目：\n  - ' + bad.join('\n  - ')); process.exit(1); }

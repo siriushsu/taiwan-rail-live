@@ -51,3 +51,64 @@ export function nextHolidaySpan(fromDay, dayTypeTable, maxScan = 400) {
   }
   return null;
 }
+
+// 日期欄位守門。活動資料是每日半自動策展的,少補一個零(2026-9-5)、寫成「即日起」都是自然手滑,
+// 而 addDays() 對這些輸入會拋 RangeError——在 filter 裡拋等於整份清單跟著一起空掉,
+// 所以壞的那一筆要在進 addDays 之前就被濾掉。
+// 正則擋非 ISO 寫法,Date.parse 再擋月/日超界,回寫比對擋「格式對但日子不存在」
+// ——2026-02-29 不會被 Date 判為無效,會被靜靜滾成 03-01。
+// (與 index.html 的 evValidDay 同一套判準;那邊管畫面,這邊管 API。)
+export function evValidDay(s) {
+  if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const t = Date.parse(s + 'T00:00:00Z');
+  return !Number.isNaN(t) && new Date(t).toISOString().slice(0, 10) === s;
+}
+
+// 兩層分流:
+//   onlyThis ＝「這段假期限定」——活動的 start 或 end 落在區間內(這個週末開始或結束的)
+//   alsoOpen ＝「假期也開」——與區間相交,但頭尾都在區間外的長期檔
+// 判準刻意不含任何天數門檻,不會隨資料漂移。
+export function splitEvents(events, span) {
+  const onlyThis = [], alsoOpen = [];
+  for (const ev of (events || [])) {
+    if (!ev || !evValidDay(ev.start) || !evValidDay(ev.end)) continue;
+    if (ev.end < span.from || ev.start > span.to) continue;   // 與區間不相交
+    const startsIn = ev.start >= span.from && ev.start <= span.to;
+    const endsIn = ev.end >= span.from && ev.end <= span.to;
+    (startsIn || endsIn ? onlyThis : alsoOpen).push(ev);
+  }
+  return { onlyThis, alsoOpen };
+}
+
+// 去重。同一活動連續多天、或同一活動掛在多個車站,在 events.json 都是【多筆】
+// (實測:廣慈市集 09-05 一筆、09-06 一筆;林鐵×乖乖 北門一筆、阿里山一筆)。
+// 按 title＋url 併成一則:日期取「該區間內真的有開的日子」聯集、地點取所有 anchor 聯集。
+// 只按 title 併會把兩個剛好同名的不同活動誤併,所以 url 也進簽章。
+export function dedupeEvents(list, span) {
+  const bySig = new Map();
+  for (const ev of (list || [])) {
+    const sig = String(ev.title) + ' ' + String(ev.url || '');
+    let g = bySig.get(sig);
+    if (!g) {
+      g = { title: ev.title, note: '', url: ev.url || '', days: [], places: [], ids: [] };
+      bySig.set(sig, g);
+    }
+    g.ids.push(ev.id);
+    if (!g.note && ev.note) g.note = ev.note;      // 多筆之中取第一個有填的
+    for (const d of span.days) {
+      if (d >= ev.start && d <= ev.end && !g.days.includes(d)) g.days.push(d);
+    }
+    const a = ev.anchor || {};
+    const key = String(a.sys || '') + '|' + String(a.name || '');
+    if (!g.places.some(p => String(p.sys || '') + '|' + String(p.station || '') === key)) {
+      g.places.push({ sys: a.sys || null, station: a.name || null });
+    }
+  }
+  return [...bySig.values()]
+    .map(g => ({ ...g, days: g.days.slice().sort() }))
+    .sort((a, b) => {
+      const x = a.days[0] || '', y = b.days[0] || '';
+      if (x !== y) return x < y ? -1 : 1;
+      return a.title < b.title ? -1 : a.title > b.title ? 1 : 0;
+    });
+}
