@@ -59,15 +59,11 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="軌島" />
-<!-- APP_REPLACE_START leaflet-cdn（App 打包本地 vendor/leaflet，prepare-web.mjs 整段替換；升級 Leaflet 版本不影響 App build） -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" integrity="sha512-h9FcoyWjHcOcmEVkxOfTLnmZFWIH0iZhZT1H2TbOq55xssQGEJHEaIm+PgoUaZbRvQTNTluNOEfb1ZRy6D3BOw==" crossorigin="anonymous" />
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" integrity="sha512-puJW3E/qXDqYp9IfhAI54BJEaWIfloJ7JWs7OeD5i6ruC9JZL1gERT1wjtwXFlh7CjE7ZJ+/vcRZRkIYIb6p4g==" crossorigin="anonymous"></script>
-<!-- APP_REPLACE_END leaflet-cdn -->
-<!-- OSM 向量底圖(OpenFreeMap)用:MapLibre GL 當成一個 Leaflet 圖層,Leaflet 仍是地圖引擎。
-     自架不吃 CDN——底圖是首屏必需品,不想再多一個第三方單點。只在 ?basemap=ofm 時才會被用到。 -->
+<!-- 地圖引擎:MapLibre GL(M4-B 起唯一引擎)。自架不吃 CDN——地圖是首屏必需品,不想再多一個第三方單點;
+     網站與 App 共用同這兩個標籤(App build 由 prepare-web.mjs 把整個 vendor/ 複製進去),
+     所以這裡不再需要 APP_REPLACE 錨點。 -->
 <link rel="stylesheet" href="vendor/maplibre-gl.css" />
 <script src="vendor/maplibre-gl.js"></script>
-<script src="vendor/leaflet-maplibre-gl.js"></script>
 <script src="firebase-config.js"></script>
 <script src="revenuecat-config.js"></script>
 <style>
@@ -15122,7 +15118,7 @@ function tickCore(now) {
   // (1) 分頁隱藏停繪——時間照積分,只是不畫
   // (2) 待機時 draw 節流到 ~30fps;跟隨/幽靈車跟隨/放空/剛互動(1.5s 內)維持顯示器全速,體驗優先
   if (!document.hidden) {
-    // 拖曳/捏合/平移動畫的這一幀,map 'move' 已在 Leaflet 挪 pane 的同一個 callback 裡同步重繪(syncDraw,見 boot):
+    // 拖曳/捏合/平移動畫的這一幀,overlay 已在 GL 畫完該幀的 'render' 裡同步重繪(syncDrawMaplibre,見 boot):
     // 本幀不再畫第二次(≤2 幀內才算同幀,過期旗標不得壓掉正常重繪)
     const synced = state._syncDrew && now - (state._syncDrawAt || 0) < 34; state._syncDrew = false;
     // MapLibre:相機這一拍才動過(跟車 setView/jumpTo、手勢)而 GL 還沒 render 到它 ⇒ 本幀不畫,等它的 'render'
@@ -22677,6 +22673,14 @@ function recenterTo(lat, lon, extra) {
 // 它靠的是 Leaflet tileLayer 的 getTileUrl／getTileSize／options.crossOrigin，用 new Image() 把前方走廊的
 // 圖磚先熱進瀏覽器 HTTP 快取；MapLibre 的 raster/vector source 由 GL 自己排程與預取（M1 起就是這樣），
 // 沒有同型 API 可掛，這條路徑自 M4-A 預設換成 MapLibre 之後就再也沒被執行過。
+
+function setFollowStatus(s, msg) {
+  if (state.followStatus === s) return;
+  state.followStatus = s; state.followStatusMsg = msg; renderFollowBar(t(msg));
+}
+// §04c 前瞻偏移:置中點沿**行進方向**再偏「露出矩形短邊的 15%」,前方路線多露一段。
+// 方向跟著車走(北上=偏上、南下=偏下),用「45 模擬秒後的位置」估計,不寫死。
+// 手機殼限定:桌面露出矩形=整容器,前瞻會讓列車肉眼可見地偏離既有置中(桌面零回歸原則)。
 function followAheadPx(tr, pos) {
   if (!window.matchMedia(MOBILE_MQ).matches) return null;
   const nxt = trainPos(tr, state.simSec + 45);
