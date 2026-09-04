@@ -218,7 +218,7 @@ try {
         const a = M.toScreen([25.0478, 121.517]), d = M.toScreen([25.0578, 121.527]);
         const c = M.getCenter();
         return {
-          raw: raw instanceof maplibregl.Map, leafletNull: M.leaflet === null, style: raw.isStyleLoaded(), ready: !!window.__state.ready,
+          raw: raw instanceof maplibregl.Map, leafletNull: M.leaflet == null, // 適配層自 M4-B 起連這個欄位都不宣告了,所以 undefined 也算過 style: raw.isStyleLoaded(), ready: !!window.__state.ready,
           flat: raw.getBearing() === 0 && raw.getPitch() === 0,
           sameSize: ov.clientWidth === mapEl.clientWidth && ov.clientHeight === mapEl.clientHeight && ov.clientWidth > 100,
           center: Math.abs(c.lat - 25.0478) < 1e-6 && Math.abs(c.lng - 121.517) < 1e-6,

@@ -6499,12 +6499,12 @@ function mlToLL(p) {
   const lat = p.lat, lng = (p.lng != null ? p.lng : p.lon);
   return (Number.isFinite(lat) && Number.isFinite(lng)) ? { lat: +lat, lng: +lng } : null;
 }
-// 任何框(MBounds / Leaflet 形 / [[lat,lon],[lat,lon]])→ MapLibre 的 [[w,s],[e,n]]
+// 任何框(MBounds / 有 getSouthWest/getNorthEast 的物件 / [[lat,lon],[lat,lon]])→ MapLibre 的 [[w,s],[e,n]]
 function mlToLngLatBounds(b) {
   const mb = (b instanceof MBounds) ? b : (b && typeof b.getSouthWest === 'function') ? new MBounds(b.getSouthWest(), b.getNorthEast()) : new MBounds(b);
   return [[mb.getWest(), mb.getSouth()], [mb.getEast(), mb.getNorth()]];
 }
-// Leaflet 的 padding 形式([x, y] 或 {x, y} 或數字)→ MapLibre 的 {top,bottom,left,right}
+// 舊式 padding 形式([x, y] 或 {x, y} 或數字)→ MapLibre 的 {top,bottom,left,right}
 function mlPadding(p) {
   if (p == null) return 0;
   if (typeof p === 'number') return p;
@@ -6515,7 +6515,7 @@ function mlPadding(p) {
   const x = Array.isArray(p) ? p[0] : p.x, y = Array.isArray(p) ? p[1] : p.y;
   return { top: y || 0, bottom: y || 0, left: x || 0, right: x || 0 };
 }
-// Leaflet 動畫選項 → MapLibre duration(ms):animate:false → 0;duration 秒 → ms;都沒給 → undefined(MapLibre 預設)
+// 舊式動畫選項 → MapLibre duration(ms):animate:false → 0;duration 秒 → ms;都沒給 → undefined(MapLibre 預設)
 function mlDuration(o) {
   if (!o) return undefined;
   if (o.animate === false) return 0;
@@ -6535,9 +6535,10 @@ function mlWorldUnpx(pt, z) {
   const lat = (2 * Math.atan(Math.exp((0.5 - pt.y / s) * 2 * Math.PI)) - Math.PI / 2) * 180 / Math.PI;
   return { lat, lng };
 }
-// 🔴 zoom 尺度:MapLibre 用 512px 圖磚,同一個畫面比例的 zoom 比 Leaflet(256px)少 1。
-//    M 對外一律 Leaflet 尺度;進出 MapLibre 時加減 ML_Z。verify_engine_adapter G6 用「兩引擎同 zoom 下
-//    兩點的螢幕距離相等」實測這個常數——若差兩倍就是這裡錯了,不是別處。
+// 🔴 zoom 尺度:MapLibre 用 512px 圖磚,同一個畫面比例的 zoom 比 256px 圖磚的尺度少 1。
+//    M 對外一律 **256px 圖磚尺度**(全站每一處 z 常數、CSS 斷點、驗收判準都是這個尺度);
+//    進出 MapLibre 時加減 ML_Z。verify_engine_adapter 的 G6d 用「兩點在 z12 的螢幕距離＝解析式
+//    Web Mercator 值」實測這個常數——若差兩倍就是這裡錯了,不是別處。
 const ML_Z = 1;
 function createMaplibreEngine(containerId, view) {
   const c0 = mlToLL(view.center);
@@ -6569,7 +6570,8 @@ function createMaplibreEngine(containerId, view) {
   raw.on('rotate', syncOrientationClass);
   raw.on('pitch', syncOrientationClass);
   syncOrientationClass();
-  // 事件:名稱沿用 Leaflet。click/mousemove/contextmenu 的 handler 收到的 e 補 containerPoint/latlng(Leaflet 形),
+  // 事件:名稱沿用舊引擎那一套(move/zoom/resize/dragstart…)。click/mousemove/contextmenu 的 handler
+  // 收到的 e 補 containerPoint/latlng(舊形狀,消費端沒改),
   // 其餘事件原樣轉發。off 要對得回同一個包裝函式,所以每個 (event, fn) 記一份。
   const wrapped = new Map(); // key = ev + ' ' + fn 的序號 → wrapper
   const fnIds = new WeakMap(); let fnSeq = 0;
@@ -6599,7 +6601,7 @@ function createMaplibreEngine(containerId, view) {
   }
   window.__ofmGl = raw; // 驗證腳本的 GL 把手
   const E = {
-    engine: 'maplibre', raw, leaflet: null,
+    engine: 'maplibre', raw,
     // 投影(全程浮點;MapLibre project 回的是 Point{x,y})
     toScreen: ll => { const p = mlToLL(ll); const q = raw.project([p.lng, p.lat]); return { x: q.x, y: q.y }; },
     fromScreen: pt => { const q = raw.unproject([Array.isArray(pt) ? pt[0] : pt.x, Array.isArray(pt) ? pt[1] : pt.y]); return { lat: q.lat, lng: q.lng }; },
@@ -6630,7 +6632,7 @@ function createMaplibreEngine(containerId, view) {
     getBoundsZoom: (b, inside, pad) => {
       const cam = raw.cameraForBounds(mlToLngLatBounds(b), { padding: mlPadding(pad) });
       if (!cam) return raw.getZoom() + ML_Z;
-      const z = cam.zoom + ML_Z; // Leaflet 預設 zoomSnap=1:inside 取 ceil,否則 floor
+      const z = cam.zoom + ML_Z; // 整數級對齊(等同舊引擎 zoomSnap=1):inside 取 ceil,否則 floor
       return inside ? Math.ceil(z) : Math.floor(z);
     },
     setView: (c, z, o) => {
@@ -6696,7 +6698,7 @@ function createMaplibreEngine(containerId, view) {
       return E;
     },
     gesturesEnabled: () => !!(raw.dragPan && raw.dragPan.isEnabled()), // 放空手勢鎖的安全網要問「現在鎖著嗎」;整組一起開關,看 dragPan 一顆就夠
-    setGestures: on => { // 對應 Leaflet 的 dragging/touchZoom/scrollWheelZoom/doubleClickZoom/boxZoom/keyboard 整組開關(放空模式用)
+    setGestures: on => { // 拖曳/捏合/滾輪/雙擊/框選/旋轉/鍵盤整組開關(放空模式用)
       for (const h of [raw.dragPan, raw.dragRotate, raw.scrollZoom, raw.boxZoom, raw.doubleClickZoom, raw.touchZoomRotate, raw.keyboard]) { if (h) on ? h.enable() : h.disable(); }
       if (on) raw.touchZoomRotate.enableRotation();
       return E;
@@ -8923,8 +8925,9 @@ function trtcOfficialDirectionPrevious(ln, vehicle, pos) {
   }
   return null;
 }
-// Leaflet 的 container point 在低倍率會取整；若直接拿目前倍率下相距 0.02 站的兩點算方向，
-// 向量常小於 dirAngOf 的 1.6px 防抖門檻，箭頭就卡在上一段，直到使用者放大才「自癒」。
+// 低倍率下相距 0.02 站的兩點,在螢幕上的向量常小於 dirAngOf 的 1.6px 防抖門檻，箭頭會卡在上一段，
+// 直到使用者放大才「自癒」。（Leaflet 時代還多一個原因:它的 container point 會取整,已拔;
+// MapLibre 的投影是浮點,但「低倍率下向量本來就小於門檻」這個原因仍然成立。）
 // 固定用 zoom 18 的投影只取方向，再正規化成 8px 螢幕向量：倍率怎麼變都能立刻更新。
 function trtcOfficialDirectionAnchor(mapRef, cp, current, previous) {
   if (!mapRef || typeof mapRef.worldPx !== 'function' || !cp || !current || !previous) return null;
@@ -10303,7 +10306,7 @@ function assignSchedShapePathsFor(trains, lines) {
 // 併完環島之星會在台北看板出現兩次(出發一次、繞回來到站一次),那是對的。
 // 同一班車出現兩次同名站程式本來就吃得下——buildLoopTrains 造的 8888/8889 末站
 // 用的就是起點那個站物件。
-// 🔴 距離用 haversineKm 不用 map.distance:這一支要能在【沒有 Leaflet 的地方】跑——
+// 🔴 距離用 haversineKm 不用 map.distance:這一支要能在【沒有地圖引擎的地方】跑——
 // scripts/build_run_profiles.mjs 把 index.html 的頂層宣告原封切進 vm 沙箱離線預算跑段剖面,
 // 而併站會動到最後一段的貼軌結果(環島之星 1/2 次的末站正是臺北-環島)。用 map.distance
 // 的話沙箱裡會 ReferenceError;不在沙箱裡跑則離線值與前端現算差 0.36 公尺 ⇒
@@ -11267,7 +11270,7 @@ function glTracksSync() {
   const st = state.collectMap ? 'collect' : state.trackStyle;           // 與 trackLineColor 的優先序相同:collectMap > hidden/faint > auto
   const theme = state.basemap === 'sat' ? 'sat' : (state.mapDark ? 'dark' : 'light'); // 同 pal()
   glFollowRouteSync(raw, theme);
-  const stnMin = state.mode === 'sched' ? 11 - ML_Z : 0;                 // drawDecoBase 的 showStop = z>=11(Leaflet 尺);drawFreq 無 zoom 閘
+  const stnMin = state.mode === 'sched' ? 11 - ML_Z : 0;                 // drawDecoBase 的 showStop = z>=11(256px 尺度);drawFreq 無 zoom 閘
   const sig = [st, theme, stnMin, K.lineKeys.join(','), K.stnKeys.join(','), K.schedKeys.join(',')].join('#');
   if (sig === glTracks.sig) return;
   glTracks.sig = sig;
@@ -12328,8 +12331,9 @@ const TRIP_SHARE_ENABLED = (() => { try { return new URLSearchParams(location.se
 // ── 網站街道底圖來源(亮/暗一般地圖;衛星不受此影響) ─────────────────────────────
 // 'carto' = 現況。⚠️ 合規破口:CARTO 2025-10 起把 hosted 圖磚限定給 enterprise 客戶與非營利 grants
 //           (LICENSE.md 逐字 "not available for free public use"),而我們在賣通行證 ⇒ 落在 commercial。
-// 'ofm'   = OpenFreeMap 向量(OSM 資料,免金鑰、無用量上限、明文可商用)。經 maplibre-gl-leaflet
-//           當成一個 Leaflet 圖層掛進來,Leaflet 與既有的地圖綁定、投影包裝層都不動。
+// 'ofm'   = OpenFreeMap 向量(OSM 資料,免金鑰、無用量上限、明文可商用)。M4-B 起它就是地圖的 style 本身
+//           (M.setStyleKind('light'|'dark') 直接載 OFM_STYLE);Leaflet 時代是經 maplibre-gl-leaflet
+//           當成一個圖層掛進來,那條橋已拔。
 // ?basemap=ofm 供驗證用(僅該次頁面生效,不改預設)。
 // 'carto' 這個值 2026-08-31 移除:網站已經沒有可用的 raster 街道來源,留著它等於提供一個
 // 「看蓋章地圖」的開關,而且會讓人誤以為那條路還是活的。
@@ -12387,8 +12391,8 @@ function tripShareVisible() {
 // boot 途中 clearFollow() 會 `history.replaceState(null,'',location.pathname)` 把 query string 抹掉,
 // 等到 setupCollectDemo 才讀就已經是空的(實測線上站正是如此,本機因載入快剛好躲過)。
 const DEMO_MODE = (() => { try { return new URLSearchParams(location.search).get('demo') || ''; } catch (e) { return ''; } })();
-// 「我的位置」藍點:畫在列車 overlay 畫布上,不用 Leaflet marker。
-// 原本用 Leaflet 的 marker/circle,但它們住在 Leaflet 的 pane 裡,而 pane 全被 map-pane(z-index:400)
+// 「我的位置」藍點:畫在列車 overlay 畫布上,不用地圖引擎的 marker。
+// （Leaflet 時代,已拔）原本用它的 marker/circle,但它們住在地圖的 pane 裡,而 pane 全被 map-pane(z-index:400)
 // 圈成一個堆疊脈絡;列車畫布 #overlay(z-index:500)是 #stage 層級的兄弟節點,恆蓋在整張地圖之上——
 // 於是藍點在軌道密集處(例如台北車站)會被畫布整片蓋掉。實測:藏起 #overlay 後藍色像素 17→506。
 // pane 內再怎麼調 z-index 都逃不出封頂,所以改畫在畫布本身,天然在最上層。見 drawMe()。
@@ -15072,7 +15076,7 @@ function tickCore(now) {
   const psActive = state.powerSave && !state.ambient;
   let renderNow = true;
   // 省電節流「只管待機」:剛互動(1.5s 內——拖曳/縮放/捏合會持續刷新 _interactAt)一律維持顯示器全速。
-  // 否則拖曳平移時 Leaflet 圖磚 pane 每幀跟手指(60–120Hz)、軌道 canvas 卻只 30fps 重畫→軌道落後圖磚(實測落後 ~5–11px)。
+  // 否則拖曳平移時底圖每幀跟手指(60–120Hz)、軌道 canvas 卻只 30fps 重畫→軌道落後底圖(實測落後 ~5–11px)。
   // renderNow 同時閘住相機置中(updateFollowCamera/updateFreqFollowCamera)與 draw,故全速豁免會一起放行兩者,
   // 維持「相機與繪製同閘、列車不與底圖錯位」的既有約束(見下方 draw 節流)。與非省電路徑 fullRate 的 1.5s 窗一致。
   if (psActive) { renderNow = (now - (state._interactAt || 0) < 1500) || (now - (state._psAt || 0) >= 33); if (renderNow) state._psAt = now; }
@@ -16277,7 +16281,7 @@ const CITY_OVERVIEWS = ['taipei', 'taichung', 'kaohsiung']; // 沿用既有 CITY
 // 放大縮小改由 CSS transform 對 #map+#overlay 同幀施加(見 breathStage/hotCruise)——真實底圖(街道或衛星,跟 basemap 設定走)全程在場、圖磚零重載。
 const BREATH_CHANCE = 0.5;      // 抽到城市幕後,一半機率改走呼吸(淨機率約 15% = CITY_OVERVIEW_CHANCE × 此值)
 const BREATH_PERIOD_SEC = 150;  // 一個完整呼吸(放大到頂再縮回)= 150 秒
-const BREATH_BASE_Z = 13;       // 地圖固定在整數 z13(圖磚正常載入、零重載);呼吸縮放改由 CSS transform 合成,不動 Leaflet zoom
+const BREATH_BASE_Z = 13;       // 地圖固定在整數 z13(圖磚正常載入、零重載);呼吸縮放改由 CSS transform 合成,不動地圖 zoom
 const BREATH_SCALE = 1.6;       // 呼吸放大頂點:對 #map+#overlay 同幀 CSS scale(1→1.6→1),底圖(街道或衛星,跟 basemap 設定走)全程在場
 const BREATH_SCENE_MIN = 150000, BREATH_SCENE_MAX = 300000; // 幕長 150–300 秒(1–2 個完整循環)
 function pickBreathCity() {
@@ -16327,10 +16331,11 @@ function pickBreathScene() {
   return { lat: a.lat, lon: a.lon, anchor: { lat: a.lat, lon: a.lon }, z: BREATH_BASE_Z, breath: true, bt: 0 };
 }
 // 呼吸幕合成器:地圖固定整數 z13(真實圖磚在場),放大縮小改由 CSS transform 對 #map+#overlay 兩個 .stage 平級兄弟
-// 同幀施加(.stage overflow:hidden 天然裁切)。分數 zoom 圖磚物理上載不進來(Leaflet 只載整數 zoom 圖磚,與縮放動畫
-// 開關無關),故呼吸走合成器路徑——底圖(街道或衛星,跟 basemap 設定走)全程可見。breathStage 只設旗標+transformOrigin,不動底圖。
-// 註:此 CSS-scale 合成與縮放動畫(zoomAnimation:true)的 overlay 同步(onZoomAnim)是兩套獨立路徑——使用者一縮放即
-// 觸發 zoomstart→breathStageRestore 交還舞台(清 scale),兩者時間上互斥,不會同時對 #overlay 施加 transform。
+// 同幀施加(.stage overflow:hidden 天然裁切)。走合成器而不是真的分數 zoom,是 Leaflet 時代的限制
+// (它只載整數 zoom 圖磚,分數 zoom 的圖磚物理上進不來);MapLibre 本身吃得下分數 zoom,但呼吸幕維持
+// 合成器路徑不改——這批(M4-B)只拔引擎、不動已驗證的視覺行為。底圖(街道或衛星,跟 basemap 設定走)全程可見;
+// breathStage 只設旗標+transformOrigin,不動底圖。使用者一縮放即觸發 zoomstart→breathStageRestore
+// 交還舞台(清 scale),自家合成與使用者縮放時間上互斥,不會同時對 #overlay 施加 transform。
 function breathScale(s) { // 對 #map+#overlay 同幀施加等值 CSS scale(s=1 清為 identity);錨點固定,零平移
   const m = document.getElementById('map'), o = document.getElementById('overlay');
   const v = s === 1 ? '' : 'scale(' + s + ')';
@@ -16415,7 +16420,7 @@ function hotCruise(dt, now) {
   dt = Math.min(dt, 0.1); // 分頁背景回前景的巨幅 dt 不能變成鏡頭瞬移
   if (sc.breath) {
     // 都會呼吸:地圖固定 z13(圖磚在場),放大縮小改由 CSS transform 合成(見 breathStage/breathScale)。setView 只在進場做一次
-    // (換幕邏輯),此處不碰 Leaflet zoom。上方 camBlocked/讓位 guard 已提早 return→bt 不累積→呼吸凍結,回來接著呼吸。
+    // (換幕邏輯),此處不碰地圖 zoom。上方 camBlocked/讓位 guard 已提早 return→bt 不累積→呼吸凍結,回來接著呼吸。
     breathStage(); // 冪等:設 _breathStage(供互動歸位+浮點投影)+transformOrigin;讓位後回場在此重新上台
     sc.bt = (sc.bt || 0) + dt;
     const frac = (1 - Math.cos(2 * Math.PI * sc.bt / BREATH_PERIOD_SEC)) / 2; // 0→1→0 一個 T 完成放大再縮回
@@ -16560,7 +16565,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // 鎖頁面級縮放的 iOS 補擋:Safari 無視 viewport 的 user-scalable=no,要 preventDefault 它專有的
-// gesture 事件才真的擋住頁面 pinch。Leaflet 地圖縮放走 touch 事件自行處理,不經 gesture,不受影響。
+// gesture 事件才真的擋住頁面 pinch。地圖自己的縮放走 touch 事件處理,不經 gesture,不受影響。
 document.addEventListener('gesturestart', e => e.preventDefault());
 document.addEventListener('gesturechange', e => e.preventDefault());
 
@@ -22468,14 +22473,14 @@ function showSearchMiss(q) {
 // 露出來的地圖某一軸低於這個尺寸就放棄那一軸的讓位(沒地圖可看時硬移只是亂跳)。
 // §04c 起降到 64:設計明定 88% 大段只剩 ~100px 露出時「仍以該區中心為準」,原 160 會把它整個關掉。
 const MIN_MAP_STRIP = 64;
-// ── 版面尺寸守衛:Leaflet 的尺寸快取會過期(2026-08-13 使用者實機旋轉回報,已重現) ─────────────
-// iOS 轉向是**動畫**的:resize 事件送達時容器往往還是舊尺寸,Leaflet 在那一幀把舊值寫進 _size
-// 後就再也不重讀(getSize 只在 _sizeChanged 為真時重量,而只有 invalidateSize 會把它設真)。
+// ── 版面尺寸守衛:地圖引擎的尺寸快取會過期(2026-08-13 使用者實機旋轉回報,已重現) ─────────────
+// iOS 轉向是**動畫**的:resize 事件送達時容器往往還是舊尺寸,引擎在那一幀把舊值記下來
+// 後就不會自己重讀(要外部呼叫 resize 才重量)。
 // 於是整個系統活在過期座標系裡,而且三個症狀同一個根:
 //   (1) setView 用**舊的半尺寸**算像素原點 ⇒ 相機把車瞄到實體螢幕外(使用者:按了隨機跟車看不到車);
 //   (2) 相機自癒的「車在不在露出矩形內」用同一個舊尺寸 ⇒ 判定為在場 ⇒ 永不開火(診斷條 rs 恆 0);
 //   (3) reproject 用它配畫布緩衝區 ⇒ 軌道與車牌畫進已經不覆蓋螢幕的那塊(使用者:軌道也看不到)。
-// 對策沿用自癒的哲學——量結果不猜時序:每 200ms 比對 Leaflet 尺寸與容器實測尺寸,不一致就重量。
+// 對策沿用自癒的哲學——量結果不猜時序:每 200ms 比對引擎回報的尺寸與容器實測尺寸,不一致就重量。
 // invalidateSize 會發 move/resize,既有接線(M.on('move zoom resize', reproject))自動重投影配畫布。
 function syncMapSizeIfStale() {
   if (!M) return false;
@@ -22484,7 +22489,7 @@ function syncMapSizeIfStale() {
   const sz = M.getSize();
   if (sz.x === cw && sz.y === ch) return false;
   state._sizeHeals = (state._sizeHeals || 0) + 1; // 診斷條 sh 欄
-  M.resize({ debounceMoveend: true });  // 與 Leaflet trackResize 同式
+  M.resize({ debounceMoveend: true });  // 與引擎自己的 trackResize 同式
   invalidateMapInsets();                          // 容器變了=露出矩形也變,量測快取同步失效
   return true;
 }
@@ -29950,7 +29955,7 @@ function placeFootBoxes() {
   if (window.matchMedia(MOBILE_MQ).matches) { for (const { box } of _footHomes) if (box.parentNode !== about) about.appendChild(box); }
   else for (const { box, anchor } of _footHomes) if (box.parentNode !== anchor.parentNode || box.previousSibling !== anchor) anchor.parentNode.insertBefore(box, anchor.nextSibling);
 }
-// §04c:跟隨鎖手機搬進右緣工具欄(#mapActions,與換一班/附近車站同一疊),桌面搬回 Leaflet
+// §04c:跟隨鎖手機搬進右緣工具欄(#mapActions,與換一班/附近車站同一疊),桌面搬回地圖的
 // 右下控制角(錨點註記記住老家,比照 placeSearch)。搬完要重跑 updateFollowLockUI:顯示/隱藏的
 // 載體跟著家換(欄內藏鈕自己、控制角藏容器),不重算會出現「鈕搬走了、老家容器還開著空槽」。
 let _lockHomeAnchor = null;
@@ -32163,7 +32168,7 @@ async function boot() {
       return;
     }
     if (state.dropMode) { // 落釘模式(開關式):點地圖任一處落釘查看附近火車,落完「維持」模式可連續落釘/存點(可拖曳微調)
-      const ll = e.latlng || M.fromScreen(cp); // Leaflet LatLng 用 .lng(非本專案的 .lon)
+      const ll = e.latlng || M.fromScreen(cp); // 引擎的 LatLng 用 .lng(非本專案的 .lon)
       openPinAt(ll.lat, ll.lng); return; // 不再自動退出——開著就能一直新增要存的點,再按一次「釘」才關(使用者要求)
     }
     closePinCard();      // 一般點擊(選車/站/平交道)先收掉可能開著的落釘卡
@@ -32449,13 +32454,13 @@ async function boot() {
     document.addEventListener(ev, markGesture, { passive: true }));
   M.on('dragstart', markGesture);
   // 呼吸幕被使用者縮放(滾輪/捏合/雙擊)接管的兜底:zoomstart 已交還,zoomend 再確保一次(冪等)。
-  // 自家逐幀呼吸只施加 CSS scale、不動 Leaflet zoom,故此 handler 不會被自家觸發(且有 _hotCam 保險)。
+  // 自家逐幀呼吸只施加 CSS scale、不動地圖 zoom,故此 handler 不會被自家觸發(且有 _hotCam 保險)。
   M.on('zoomend', () => {
     if (state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain && !state._hotCam &&
         state._hotScene && state._hotScene.breath) breathStageRestore();
   });
-  // 互動第一擊座標歸位(呼吸幕 CSS scale 合成專用):scale 下 Leaflet 的拖曳位移不吃 transform、會 1.6× 滑走。
-  // 在 .stage capture 階段(搶在 Leaflet 之前)同步清 scale→地圖回 z13 原尺寸,之後 Leaflet 以 getBoundingClientRect
+  // 互動第一擊座標歸位(呼吸幕 CSS scale 合成專用):scale 下地圖的拖曳位移不吃 transform、會 1.6× 滑走。
+  // 在 .stage capture 階段(搶在地圖之前)同步清 scale→地圖回 z13 原尺寸,之後引擎以 getBoundingClientRect
   // 算座標即正確;同時設 _hotYield 讓 hotCruise 暫停重新縮放(觸即定,任使用者看/操作),既有 dragstart/zoomstart 讓位隨後完成完整退場。
   {
     const stage = document.querySelector('.stage');
