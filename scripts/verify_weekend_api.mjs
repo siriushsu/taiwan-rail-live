@@ -96,7 +96,10 @@ chk('F4 長期層恰 2 則(去重後:兩站巡迴展併 2 筆、常態展覽)',
 chk('F5 每則都有 title 與至少一天',
   sampleBody.events.every(e => e.title && Array.isArray(e.days) && e.days.length >= 1));
 chk('F6 每則的日子都落在區間內',
-  sampleBody.events.every(e => e.days.every(d => d >= sampleBody.span.from && d <= sampleBody.span.to)));
+  // 🔴 加 Array.isArray 防線:少了它,「拿掉 dedupeEvents」這種讓 e.days 變成 undefined 的
+  // 突變會讓這行拋 TypeError 炸掉整支腳本(F7 以後全部沒機會跑),而不是乾淨地讓這條變紅
+  // ——F3/F5 已經先抓到那發突變,但腳本本身不該因為一條判準寫錯就讓後面的判準集體失蹤。
+  sampleBody.events.every(e => Array.isArray(e.days) && e.days.every(d => d >= sampleBody.span.from && d <= sampleBody.span.to)));
 chk('F7 url 全是 http(s) 或空', [...sampleBody.events, ...sampleBody.alsoOpen]
   .every(e => !e.url || /^https?:\/\//i.test(e.url)));
 // F8/F9 是「層歸屬」判準:weekendBody 內部把 onlyThis/alsoOpen 對調時,F3/F4 的筆數會先
