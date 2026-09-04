@@ -60,7 +60,7 @@ const probe = () => {
     const seg = south ? full.slice(0, st.length) : full.slice(full.length - st.length);
     return st.length === seg.length && st.every((v, i) => v === seg[i]) ? 'exp' : null;
   };
-  const map = window.__map;
+  const map = window.__M; // 走引擎適配層:M4-A 起預設 MapLibre,raw 地圖沒有 latLngToContainerPoint(出貨 preflight 就在這裡紅過)
   const sec = state.simSec;
   let expLive = 0, comLive = 0;
   for (const tr of ln._tt || []) { if (!freqTrainPosAt(ln, tr, sec)) continue; truth(tr) === 'exp' ? expLive++ : comLive++; }
@@ -90,7 +90,7 @@ const probe = () => {
   let matched = 0, blanks = 0;
   for (const tr of ln._tt || []) {
     const pos = freqTrainPosAt(ln, tr, sec); if (!pos) continue;
-    const cp = map.latLngToContainerPoint([pos.lat, pos.lon]);
+    const cp = map.toScreen([pos.lat, pos.lon]);
     if (cp.x < 0 || cp.y < 0 || cp.x > map.getSize().x || cp.y > map.getSize().y) continue;
     const hit = drawn.find(d => Math.abs(d.x - cp.x) < 1.5 && Math.abs(d.y - (cp.y + 0.5)) < 1.5);
     if (!hit) continue;                       // 這台被別的東西蓋掉/沒畫牌，不列入
@@ -114,7 +114,14 @@ const probe = () => {
     drawnKinds: { 直: tags.filter(s => s === '直').length, 普: tags.filter(s => s === '普').length, A: tags.filter(s => s === 'A').length },
     otherAbbrs, otherLineTags };
 };
-const out = await page.evaluate(probe);
+// 第一格狀態釘在平日早上 09:00,不掛牆鐘:深夜只剩首末班特殊班次(嚴格真值一律留白「A」),
+// A1/A2/G4 在 01:00 跑出貨 preflight 就紅——同一支腳本白天全綠,紅的是時段不是產品。
+// 末班那格(23:20)照舊另量,兩格合起來才覆蓋「有牌」與「留白」兩種狀態。
+const out = await page.evaluate(probeAt => {
+  state.simSec = 9 * 3600;
+  state.clockAtNow = false;   // 直接寫 simSec 必須同時關掉「跟現在走」,否則下一幀被拉回
+  return eval("(" + probeAt + ")")();
+}, probe.toString());
 
 check('G1 分母閘門：機捷班表真的解析出班次（這條紅，下面每一條的「找到了」都不算數）',
   out.tripCount > 50, `解析出 ${out.tripCount} 班`);
