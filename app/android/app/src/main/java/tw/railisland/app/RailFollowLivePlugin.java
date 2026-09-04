@@ -101,6 +101,10 @@ public final class RailFollowLivePlugin extends Plugin {
         if (stops != null) out.put("remainingStops", new JSONArray(stops.toString()));
         JSObject staMap = call.getObject("staMap");
         if (staMap != null) out.put("staMap", new JSONObject(staMap.toString()));
+        JSObject handoff = call.getObject("handoff");
+        // 每發都寫：JS 取消釘選時會傳 null；若在 merge update 中省略這個 key，上一份交棒
+        // 計畫仍會留在 SharedPreferences，列車到站後照樣誤切到已取消的班次。
+        out.put("handoff", handoff == null ? JSONObject.NULL : new JSONObject(handoff.toString()));
         return out;
     }
 

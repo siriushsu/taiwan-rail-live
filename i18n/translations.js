@@ -191,6 +191,8 @@
         'While following a Taipei Metro train, the card shows how crowded each carriage of that train is.',
       '桃園機場捷運的列車標得出車種：地圖車牌寫「直」或「普」，跟車卡與車站看板寫全名，同一個「往台北車站」也分得出下一班是直達車還是普通車':
         'Taoyuan Airport MRT trains now show their service type: map tags read E or C, while the follow card and station boards spell it out — so two trains both bound for Taipei Main Station are no longer indistinguishable.',
+      '選好接續班次後，抵達轉乘站時動態島與鎖定畫面會自動切到下一班車':
+        'After you choose a connection, the Dynamic Island and Lock Screen automatically switch to the next train at the transfer station.',
       '兩條路線立體交叉的地方，改成依實際的高架與地下關係決定哪一條畫在上面':
         'Where two lines cross on different levels, the one that is actually elevated or on top is now drawn over the other, instead of whichever happened to be drawn last.',
       'iPad 與 Android 平板改用完整觸控版面；橫放時資訊停在右側，地圖保留主要空間':
@@ -442,6 +444,7 @@
       '轉{system} · 你到站時': 'Transfer to {system} · when you arrive', '剩 {n} 分': '{n} min left',
       '你到站時': 'When you arrive',
       '你的接續班次': 'Your connection', '取消釘選': 'Unpin', '表定時刻 · 未計站內步行': 'Scheduled time · excludes walking inside the station',
+      '已接續追蹤 {system} {train} 次': 'Now following {system} train {train}',
     },
     ja: {
       '軌島': '軌島', '軌島 railisland.tw。看台鐵此刻準點嗎、捷運怎麼穿梭全台，一張會動的台灣鐵道地圖。': '軌島は、台湾鉄路・高速鉄道・各都市のメトロとライトレールを一枚の地図で表示する鉄道アニメーションです。', '台灣鐵道即時軌跡': '台湾鉄道ライブ', '台灣高鐵即時軌跡': '台湾高速鉄道ライブ',
@@ -583,6 +586,8 @@
         '台北メトロの列車を追跡中、その列車の車両ごとの混雑度をカードに表示します。',
       '桃園機場捷運的列車標得出車種：地圖車牌寫「直」或「普」，跟車卡與車站看板寫全名，同一個「往台北車站」也分得出下一班是直達車還是普通車':
         '桃園空港MRTの列車に種別を表示するようになりました。地図上のタグは「直」「普」、追跡カードと駅の発車案内には正式名称を表示します。同じ「台北駅ゆき」でも直達列車か普通列車か見分けられます。',
+      '選好接續班次後，抵達轉乘站時動態島與鎖定畫面會自動切到下一班車':
+        '乗り継ぐ列車を選ぶと、乗換駅への到着時にDynamic Islandとロック画面が次の列車へ自動で切り替わります。',
       '兩條路線立體交叉的地方，改成依實際的高架與地下關係決定哪一條畫在上面':
         '2つの路線が立体交差する場所で、実際に高架・上側を通る路線が上に描かれるようになりました。描画順ではなく実際の高低に従います。',
       'iPad 與 Android 平板改用完整觸控版面；橫放時資訊停在右側，地圖保留主要空間':
@@ -826,6 +831,7 @@
       '轉{system} · 你到站時': '{system}へ乗換・到着時点', '剩 {n} 分': 'あと{n}分',
       '你到站時': '到着時点',
       '你的接續班次': 'あなたの乗継便', '取消釘選': '固定を解除', '表定時刻 · 未計站內步行': '所定時刻・駅構内の徒歩時間は含みません',
+      '已接續追蹤 {system} {train} 次': '{system} {train}列車の追跡に切り替えました',
     },
   };
 

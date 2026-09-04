@@ -5128,13 +5128,13 @@
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
         <li data-cl-of="tymckind"><span class="d">9/4</span><span>桃園機場捷運的列車標得出車種：地圖車牌寫「直」或「普」，跟車卡與車站看板寫全名，同一個「往台北車站」也分得出下一班是直達車還是普通車</span></li>
+        <li data-cl-of="xferlivehandoff"><span class="d">9/4</span><span>選好接續班次後，抵達轉乘站時動態島與鎖定畫面會自動切到下一班車</span></li>
         <li data-cl-of="xingorder"><span class="d">9/4</span><span>兩條路線立體交叉的地方，改成依實際的高架與地下關係決定哪一條畫在上面</span></li>
         <li data-cl-of="tabletshell"><span class="d">9/4</span><span>iPad 與 Android 平板改用完整觸控版面；橫放時資訊停在右側，地圖保留主要空間</span></li>
         <li data-cl-of="journeysharelive"><span class="d">9/3</span><span>整段列車轉公車旅程可用短效連結分享；手機位置預設不分享，只有另行勾選並停留前景才更新，停止分享即刪除。</span></li>
         <li data-cl-of="busjourney"><span class="d">9/3</span><span>軌道轉公車現在能接成一段不會消失的旅程：選定公車後再選下車站；列車抵達後保留等車資訊，按「我上車了」會切到公車行程並顯示剩餘站數，重開 App 也能接著看。</span></li>
         <li data-cl-of="busallrail"><span class="d">9/3</span><span>公車轉乘入口擴到軌島地圖上的全部 541 座客運鐵路、捷運與輕軌站；高鐵、林鐵跟車也能先指定下車站接公車。仍只在使用者打開或接近轉乘站時查即時，不會全臺背景輪詢。</span></li>
         <li data-cl-of="busassistant"><span class="d">9/3</span><span>跟台鐵列車時可以先指定在哪一站接公車；抵達前 15 分、5 分與實際到站才查一次動態，並把列車抵達、站外步行和公車到站合成保守的轉乘裕度。時光機與加速重播不查即時資料。</span></li>
-        <li data-cl-of="metropeak0903"><span class="d">9/3</span><span>轉乘站的官方來車資料換班時，偶爾會短暫缺一個方向；現在看板會先補上該方向的班表</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5211,6 +5211,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="xferlivehandoff"><span class="d">9/4</span><span>跟車時選好下一班台鐵或高鐵後，列車抵達轉乘站，鎖定畫面與動態島會接手顯示接續班次與發車倒數；開車後繼續顯示下一站，不再留在上一班車。</span></li>
         <li data-cl="webmcp"><span class="d">9/2</span><span>在 ChatGPT Work 或 Codex 的內建瀏覽器中，可查軌島畫面、車站看板、火車狀態與營運公告，也能開啟看板或跟隨指定火車；一般瀏覽器不受影響。</span></li>
         <li data-cl="crowdcard"><span class="d">9/2</span><span>跟隨台北捷運列車時，卡片會顯示逐節車廂擁擠度；無法確認車號或沒有官方資料時留白。</span></li>
         <li data-cl="latetagbig"><span class="d">9/1</span><span>車站看板的誤點標示放大加粗，一眼就看得出這班晚了幾分（謝謝網友回報）。</span></li>
@@ -5974,7 +5975,9 @@
 // v0904a：合併平板觸控殼：iPad／Android 平板直式用底部分頁，橫式用右側資訊欄；iOS target 改為 Universal。
 // v0904b：把公車轉乘／旅程分享與 main 的 AEO、平板觸控殼及捷運換班空窗修正整合成正式網站出貨樹。
 // v0904c：軌道立體交叉的疊層改依實際高架／地下關係決定，不再看繪製順序。
-const BUILD = 'v0904d';
+// v0904d：選定台鐵／高鐵接續班次後，前景跟車與雙平台鎖定畫面會在轉乘站自動接手下一班。
+// v0904e：機捷列車標出直達車／普通車（車牌、跟車卡、車站看板三處）。
+const BUILD = 'v0904e';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -6400,7 +6403,7 @@ const state = {
   lines: [], visible: new Set(), trains: [], schedStations: [], types: [],
   stationTransfers: null, stationTransferAnchors: [], stationTransferGroups: new Map(), stationTransferBySystemName: new Map(),
   transferDepartures: null, // 轉乘接續:轉乘群當日對向班次表(data/transfer_departures.json),缺檔或版本不符仍為 null,功能靜默消失
-  xferPin: null, // 轉乘接續:釘選中的那一班 { g, n, sys } | null(點一列只剩那一班,2026-09-01 裁示;
+  xferPin: null, // 轉乘接續:釘選中的那一班 { g, n, sys, sec, fromKey } | null(點一列只剩那一班,2026-09-01 裁示;
   // g=所屬轉乘群 groupId——3 小時視窗大於高鐵全線行駛時間,同一班車常同時是多個群的候選,
   // 不綁 g 會讓釘選跨群外溢,見 2026-09-01 修復輪1 Finding A)
   playing: true, speedMult: 1, hour: 8, simSec: 8 * 3600, // 開機即 1× 真實時刻(2026-07-11 使用者裁決,舊示意預設 50×)
@@ -10007,7 +10010,7 @@ function canonicalizeAliasTrains(trains) {
   return canon;
 }
 function canonicalizeAliasStops(sysList) {
-  for (const sys of sysList) canonicalizeAliasTrains(sys.data.trains);
+  for (const sys of sysList) canonicalizeAliasTrains(sys.data.trains || []);
 }
 function applySchedSystems(sysList) {
   state.schedSystems = sysList;
@@ -10029,7 +10032,7 @@ function applySchedSystems(sysList) {
   // 一到就換值而名冊還是昨天那份 ⇒ 正在跨夜行駛的車會在午夜當下掉條目、誤點瞬間歸零再爬回來。
   // 名冊日只在真的換名冊時才變,正是我們要的那條線。
   state.trains = [];
-  for (const sys of sysList) for (const tr of sys.data.trains) {
+  for (const sys of sysList) for (const tr of (sys.data.trains || [])) {
     tr.sys = sys.id; tr._rday = sys.data._schedDay || ''; state.trains.push(tr);
   }
   // 軌道底圖:每條標來源系統 ln.sys
@@ -10040,7 +10043,7 @@ function applySchedSystems(sysList) {
   canonicalizeAliasStops(sysList);   // 官方別名站(臺北-環島→臺北)先併,再去重
   // 車站:(系統|站名) 去重——台鐵/高鐵同名站多為相距數公里的不同實體站,不可混
   const seen = new Map();
-  for (const sys of sysList) for (const tr of sys.data.trains) for (const st of tr.stops) {
+  for (const sys of sysList) for (const tr of (sys.data.trains || [])) for (const st of tr.stops) {
     const k = sys.id + '|' + st.name;
     if (!seen.has(k)) seen.set(k, { name: st.name, lat: st.lat, lon: st.lon, sys: sys.id });
   }
@@ -14736,7 +14739,9 @@ const LOOP_ACH_SEC = LOOP_SEC / 2; // 山海/平原完乘門檻:連續跟滿半�
 const LOOP_EAST = ['臺北', '八堵*', '宜蘭', '蘇澳新*', '花蓮', '臺東', '枋寮'];               // 山海號:一側太平洋一側山
 const LOOP_WEST = ['臺北', '桃園', '新竹', '竹南*', '臺中', '彰化', '嘉義', '臺南', '高雄', '枋寮']; // 平原號:嘉南平原稻浪
 function buildLoopTrains(data) {
-  if (data._loopAdded) return;
+  // 班表殘缺(上游回 200 卻沒有 trains)就整組不出車:這一支結尾要 push 進 data.trains,
+  // 用 (data.trains || []) 只會把崩潰往後推一行。與下面「站名對不上就整組不出車」同一種安全退場。
+  if (data._loopAdded || !Array.isArray(data.trains)) return;
   data._loopAdded = true;
   if (data.trains.some(t => String(t.train) === '8888' || String(t.train) === '8889')) return; // 車次號撞真車就不出
   const coord = new Map();
@@ -15425,7 +15430,7 @@ function setFollow(tr, isAuto, noJump, opts) {
     if (!state._followSpeedSaved) { state._preFollowSpd = state.speedMult; state._followSpeedSaved = true; }
     setSpeed(30);
     if (!state.playing) togglePlay();
-  } else if (!running && !loadRiding()) {
+  } else if (!running && !loadRiding() && !opts.keepNow) {
     // 環島車永遠在跑,不需要把時間拉回發車(已併進 running)
     state.simSec = Math.max(0, first.depSec - 20) % 86400;
     state.clockAtNow = false;
@@ -17321,7 +17326,7 @@ function transferConnectionHtml(groupId, atSec, fromSys) {
   // 的系統去查別家的站,查不到就退回原字串、查得到更糟(撞名)。子集存的已經是可直接顯示的站名,
   // escHtml 即可。
   const body = show.map(r =>
-    `<button class="xfc-row" type="button" data-xn="${escHtml(r.n)}" data-xs="${escHtml(r.sys)}"${pinned ? ' aria-pressed="true"' : ''}>`
+    `<button class="xfc-row" type="button" data-xn="${escHtml(r.n)}" data-xs="${escHtml(r.sys)}" data-xd="${r.sec}"${pinned ? ' aria-pressed="true"' : ''}>`
     + (headSys ? '' : `<span class="xfc-sys">${escHtml(xfcSysName(r.sys))}</span>`)
     + `<span class="xfc-no">${escHtml(r.n)}</span>`
     + `<span class="xfc-d">${fmtHM(r.sec % 86400)} ${escHtml(t('往 {station}', { station: r.de }))}</span>`
@@ -17374,8 +17379,27 @@ function refreshXferConns() {
 // 知道的事實,其餘班次對他是雜訊,甚至會讓他以為趕得上一班他根本上不去的車。釘選後只剩那一班
 // (2026-09-01 裁示)。g 一定要傳:釘選只在它自己那一群裡有效(修復輪1 Finding A),
 // 刻意不在 setFollow/換車時清掉——同一個轉乘群可能在跟隨不同班車時再度出現,清掉反而更糟。
-function setXferPin(g, n, sys) { state.xferPin = { g, n, sys }; refreshXferConns(); }
-function clearXferPin() { state.xferPin = null; refreshXferConns(); }
+function xferFollowKey(tr) { return tr ? String(tr.sys || '') + '#' + String(tr.train || '') : ''; }
+function syncXferPinToLiveActivity() {
+  const tr = state.followTrain;
+  if (tr && typeof laSync === 'function') laSync(tr, true);
+}
+function setXferPin(g, n, sys, sec, sourceTr) {
+  state.xferPin = {
+    g, n, sys,
+    sec: Number.isFinite(Number(sec)) ? Number(sec) : null,
+    // 自動交棒只屬於「選取當下正在跟的這班車」。舊設計允許同一轉乘群在別張卡繼續顯示
+    // 釘選；那個顯示行為保留，但絕不能因此讓另一班剛好經過同站的車被自動換走。
+    fromKey: xferFollowKey(sourceTr),
+  };
+  refreshXferConns();
+  syncXferPinToLiveActivity();
+}
+function clearXferPin() {
+  state.xferPin = null;
+  refreshXferConns();
+  syncXferPinToLiveActivity();
+}
 // 事件委派掛在 document 上(三個實例會被 setTransferConn 整段 innerHTML 重畫,直接綁在
 // .xfc-row/.xfc-unpin 本身會被重畫洗掉)。兩個 closest 都限定 .xfer-conn 祖先,不可裸寫
 // .xfc-row/.xfc-unpin——.xc-row(平交道卡)是完全不同的 class,但比照它的教訓仍舊自己作用域化。
@@ -17389,7 +17413,11 @@ document.addEventListener('click', e => {
     // 那層巢狀已隨「雙框」修掉,這個 [id] 保留當防線:再有人包回去也不會靜默壞掉。
     const box = row.closest('.xfer-conn[id]');
     const args = box && xferConnArgs.get(box.id);
-    if (args) setXferPin(args[0], row.dataset.xn, row.dataset.xs);
+    if (args) {
+      const followsThisCard = box.id === 'fpConn' || box.id === 'tcConn';
+      setXferPin(args[0], row.dataset.xn, row.dataset.xs, row.dataset.xd,
+        followsThisCard ? state.followTrain : null);
+    }
     return;
   }
   if (e.target.closest && e.target.closest('.xfer-conn .xfc-unpin')) clearXferPin();
@@ -17460,6 +17488,110 @@ function toggleFav(tr) {
   }
   saveFavs(favs); renderFavs(); renderFavPanel(); updateStar();
 }
+
+// ── 已釘選接續班次的「交棒計畫」────────────────────────────────────────────
+// 轉乘清單用 TDX 系統碼，App 內列車用 *_sched id；只在這裡做一次明確轉接。
+const XFER_APP_SCHED_SYSTEM = { TRA: 'tra_sched', THSR: 'thsr_sched', AFR: 'afr_sched' };
+function xferStopAtGroup(tr, groupId, wantedDepSec) {
+  const extSys = TRANSFER_SCHED_SYSTEM[tr && tr.sys];
+  if (!extSys || !groupId) return null;
+  const found = [];
+  let stopIndex = -1;
+  for (const stop of tr.stops || []) {
+    if (stop.stop === false) continue;
+    stopIndex++;
+    const anchor = transferAnchorForStop(extSys, stop);
+    if (!anchor || !anchor.station || anchor.station.transferId !== groupId) continue;
+    found.push({ stop, stopIndex, allIndex: tr.stops.indexOf(stop) });
+  }
+  if (!found.length) return null;
+  if (!Number.isFinite(Number(wantedDepSec))) return found[0];
+  return found.sort((a, b) => Math.abs(Number(a.stop.depSec) - Number(wantedDepSec))
+    - Math.abs(Number(b.stop.depSec) - Number(wantedDepSec)))[0];
+}
+function xferTargetTrain(pin) {
+  const sysId = XFER_APP_SCHED_SYSTEM[pin && pin.sys];
+  const sys = sysId && state.systems.find(s => s.id === sysId);
+  const tr = sys && (sys.data.trains || []).find(t => String(t.train) === String(pin.n));
+  return tr ? { tr, sysId } : null;
+}
+// 同 laBind 的絕對軸換算：班表秒數 + originSec = epoch 秒。來源車用純表定軸，誤點由
+// 後端／Android 原生層另加；目標車沒有沿用來源車的誤點。
+function xferOriginSec(tr) { return Math.floor(Date.now() / 1000) - effT(tr); }
+function xferHandoffPlan(tr) {
+  const pin = state.xferPin;
+  if (!tr || !pin || !pin.fromKey || pin.fromKey !== xferFollowKey(tr)) return null;
+  const targetFound = xferTargetTrain(pin); if (!targetFound) return null;
+  const source = xferStopAtGroup(tr, pin.g, null);
+  const target = xferStopAtGroup(Object.assign({ sys: targetFound.sysId }, targetFound.tr), pin.g, pin.sec);
+  if (!source || !target || target.stop === targetFound.tr.stops[targetFound.tr.stops.length - 1]) return null;
+
+  const targetTr = targetFound.tr, targetSys = targetFound.sysId;
+  const sourceOrigin = xferOriginSec(tr), targetOrigin = xferOriginSec(targetTr);
+  const sourceAt = Math.round(sourceOrigin + source.stop.arrSec);
+  const sourceCode = buildStopCodes(tr.stops, state.stnInfoMap || {})[source.stopIndex] || null;
+  const waitUntil = Math.round(targetOrigin + target.stop.depSec);
+  const offset = targetFound.tr.stops.slice(0, target.allIndex).filter(s => s.stop !== false).length;
+  const fullStaMap = buildStaMap(targetTr.stops, state.stnInfoMap || {}), staMap = {};
+  for (const [code, value] of Object.entries(fullStaMap)) {
+    const local = Number(value) - offset;
+    if (local >= 0) staMap[code] = local;
+  }
+  const stopCodes = buildStopCodes(targetTr.stops, state.stnInfoMap || {}).slice(offset);
+  const remainingStops = [];
+  let prev = null;
+  for (let i = target.allIndex; i < targetTr.stops.length; i++) {
+    const stop = targetTr.stops[i]; if (stop.stop === false) continue;
+    // 第一格代表「在轉乘站等這班車發車」，所以錨在 depSec；後續各格恢復一般的 arrSec。
+    const at = Math.round(targetOrigin + (remainingStops.length ? stop.arrSec : stop.depSec));
+    remainingStops.push({
+      name: String(stop.name || ''), arrivalAt: at,
+      departedAt: prev ? Math.round(targetOrigin + (prev.depSec != null ? prev.depSec : prev.arrSec)) : 0,
+      advanceAt: at, prevStop: prev ? String(prev.name || '') : '',
+      code: ((state.stnInfoMap || {})[traStnKey(stop.name)] || {}).id || null,
+    });
+    prev = stop;
+  }
+  if (!remainingStops.length || stopCodes.length !== remainingStops.length) return null;
+  const last = targetTr.stops[targetTr.stops.length - 1];
+  const kind = String(targetTr.kind || targetTr.typeName || '');
+  const color = String(targetTr.color || '');
+  const terminus = String((last && last.name) || '');
+  const common = {
+    sourceIndex: source.stopIndex, sourceAt, sourceCode,
+    trainNo: String(targetTr.train || ''), sys: targetSys, kind, color, terminus,
+    transferStop: String(target.stop.name || ''), waitUntil,
+    staMap, stopCodes,
+  };
+  return {
+    sourceStop: source.stop, targetTr, targetSys,
+    native: Object.assign({}, common, { remainingStops }),
+    backend: Object.assign({}, common, {
+      stops: remainingStops.map(s => ({ name: s.name, at: s.advanceAt })),
+    }),
+  };
+}
+
+// App 在前景時地圖跟隨也要交棒；背景中的 iOS／Android 分別由 Worker／原生 Alarm 接手。
+// 只在真實 1× 時鐘生效，避免使用者拖曳時刻尺做研究時，畫面擅自跳到另一班車。
+function maybeXferAutoFollow(tr) {
+  if (!state.clockAtNow || !state.playing || state.speedMult !== 1 || state._scrubTime) return false;
+  const plan = xferHandoffPlan(tr);
+  if (!plan || effTLive(tr) + 1 < plan.sourceStop.arrSec) return false;
+  state.xferPin = null;
+  refreshXferConns();
+  // 接續車此刻通常「還沒發車」。一般搜尋這種車會把時刻尺撥到發車前 20 秒供研究；旅程
+  // 交棒不能這樣做，否則全域時鐘離開現在、背景卡與地圖從此走在兩條時間軸上。
+  followTrainNo(String(plan.targetTr.train), { sys: plan.targetSys, keepNow: true });
+  if (state.followTrain === plan.targetTr) {
+    showToast(t('已接續追蹤 {system} {train} 次', {
+      system: t(plan.targetSys === 'thsr_sched' ? '高鐵' : plan.targetSys === 'tra_sched' ? '台鐵' : '林鐵'),
+      train: plan.targetTr.train,
+    }));
+    return true;
+  }
+  return false;
+}
 // ── 跟車即時動態(Live Activity)＝Plus 且原生殼才有 ──
 // 純客端:App 在前景時推更新,進背景後倒數由系統自走、誤點數字停在最後一次的值(LA-0 的已知邊界)。
 const LIVE_ACTIVITY_ENABLED = !!window.RAIL_NATIVE_LIVEACTIVITY;
@@ -17517,6 +17649,7 @@ function laPayload(tr) {
     });
     sequencePrev = stop;
   }
+  const handoff = xferHandoffPlan(tr);
   return {
     // tr.kind 目前恆為 undefined(四份班表共 2206 筆車次沒有一筆有這欄),實際一律落到 typeName。
     // 保留第一順位是防禦性寫法:哪天班表補上這欄,卡片會自動跟著跑,不必再改這裡。
@@ -17535,6 +17668,9 @@ function laPayload(tr) {
     staMap: nativeStaMap,
     delaySec: Math.round(liveDelaySec(tr) || 0),
     terminus: String((last && last.name) || ''),
+    // 永遠帶這個 key：Android 的原生狀態是 merge update；取消釘選時必須用 null 明確清掉
+    // 上一份交棒計畫，省略欄位只會讓舊計畫繼續留著並在轉乘站誤切車。
+    handoff: handoff ? handoff.native : null,
   };
 }
 let _laLast = 0, _laKey = '', _laDead = false, _laListening = false, _laToken = '';
@@ -17582,12 +17718,14 @@ async function laBind(token, key, tr) {
   // 那條在下面的 myEpoch 比對;myEpoch 必須在【取 token 之後】才取樣,否則會把這一段也算進去。
   if (beforeEpoch !== _laEpoch) return;
   const myEpoch = _laEpoch;              // 修復輪次1 Important 5:記住送出當下的世代,回應回來時比對
+  const handoff = xferHandoffPlan(tr);
   fetch(apiUrl('api/la/bind'), {
     method: 'POST', headers,
     body: JSON.stringify({
       token, sys: String(tr.sys || ''), trainNo: String(tr.train || ''),
       stops, staMap: buildStaMap(tr.stops, state.stnInfoMap || {}),
       stopCodes: buildStopCodes(tr.stops, state.stnInfoMap || {}),
+      handoff: handoff ? handoff.backend : null,
     }),
   }).then(r => {
     if (!r.ok) return;                   // 修復輪次1 Important 3:後端拒絕(400/429/503…)不可標記已交班
@@ -17674,7 +17812,12 @@ function laSync(tr, force) {
   // 輸給慢一點但是觀測到的。
   // 恢復條件:_laBound 只在「bind 回 200」時被設成 key,而 laUnbind()(換車、停止跟車、
   // laStop)一律先把它清空 ⇒ 交班失敗、被取消、換車之後本機 update 會自動恢復,卡片不會死。
-  if (_laBound === key) return;
+  if (_laBound === key) {
+    // 釘選／取消接續班次時目前卡片本身沒有換車，但後端的交棒計畫已經改了；force 這一發
+    // 必須重綁同一顆 token。Android 沒有 push token，仍走下方本機 update 更新 Alarm 計畫。
+    if (force && _laToken) Promise.resolve(laBind(_laToken, key, tr)).catch(() => {});
+    return;
+  }
   if (force) { _laLast = now; Promise.resolve(api.update(p)).catch(() => {}); return; } // 同一台車:只推不重開
   if (now - _laLast < 10000) return;          // 節流:倒數由系統自走,逐秒推是浪費
   _laLast = now; Promise.resolve(api.update(p)).catch(() => {});
@@ -22079,7 +22222,10 @@ function prefetchFollowAhead(dt) {
   if (!dt || state.powerSave || state.ambient || !state.followLock || state.speedMult < 4 || !(state.followTrain || state.freqFollow)) {
     state._pfLast = null; state._pfClock = 0; return;
   }
-  const layer = activeBaseLayer(); if (!layer) return;
+  const layer = activeBaseLayer();
+  // MapLibre／其他非 GridLayer 底圖也會被 activeBaseLayer 找到，但沒有 Leaflet 圖磚 API。
+  // 高速跟車只略過預抓即可，不能讓每幀 tick 因 getTileSize 不存在而丟例外。
+  if (!layer || typeof layer.getTileSize !== 'function' || typeof layer.getTileUrl !== 'function') return;
   const z = map.getZoom();
   if (z !== _warmZoom) { _warmedTiles.clear(); _warmZoom = z; state._pfLast = null; }
   state._pfClock = (state._pfClock || 0) + dt;
@@ -22135,6 +22281,7 @@ function updateFollowCamera() {
     state._transition = false;
     try { const v = document.getElementById('veil'); if (v) v.style.opacity = 0; } catch (e) {}
   }
+  if (maybeXferAutoFollow(tr)) return;
   const first = tr.stops[0], last = tr.stops[tr.stops.length - 1];
   if (tr.loop) {
     // 山海/平原號永不到站:完乘改為「連續跟滿一整輪來回」(同規則:調速可以、跳時間歸零重計)
@@ -31932,7 +32079,8 @@ async function boot() {
   function addSunriseTrains() {
     const sys = state.systems.find(s => s.id === 'afr_sched');
     const zs = sys && sys._track && sys._track.lines.find(l => l.name === '祝山線');
-    if (!sys || !zs || sys.data.trains.some(t => String(t.train) === '97')) return; // 冪等
+    // 同 buildLoopTrains:結尾要 push 進 sys.data.trains,班表殘缺就整組不出車
+    if (!sys || !zs || !Array.isArray(sys.data.trains) || sys.data.trains.some(t => String(t.train) === '97')) return; // 冪等
     const [, m, d] = todayStr().split('-').map(Number); // 台北日(時區錨定契約),海外裝置勿用當地日期
     const [hh, mm] = AFR_SUNRISE[Math.min(5, Math.floor((d - 1) / 5))][m - 1].split(':').map(Number);
     const S = hh * 3600 + mm * 60;

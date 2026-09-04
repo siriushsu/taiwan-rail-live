@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-02",
+  "updated": "2026-09-04",
   "events": [
     {
       "id": "trtc-20260811-pokemon10",
@@ -213,6 +213,56 @@
       "endGuess": true,
       "anchor": { "kind": "station", "sys": "afr_sched", "name": "阿里山" },
       "url": "https://afrch.forest.gov.tw/AllNews/0079128"
+    },
+    {
+      "id": "trtc-20260902-cpr-0905",
+      "source": "official",
+      "title": "閃電CPR挑戰",
+      "note": "12 時至 18 時在站內充電區體驗 CPR 與 AED，完成任務可玩線上小遊戲",
+      "start": "2026-09-05",
+      "end": "2026-09-05",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "中山" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=C413B5C4CF0BBB21"
+    },
+    {
+      "id": "trtc-20260902-cpr-0912",
+      "source": "official",
+      "title": "閃電CPR挑戰",
+      "note": "12 時至 18 時在月臺體驗 CPR 與 AED，完成任務可玩線上小遊戲",
+      "start": "2026-09-12",
+      "end": "2026-09-12",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "忠孝新生" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=C413B5C4CF0BBB21"
+    },
+    {
+      "id": "trtc-20260902-cpr-0919",
+      "source": "official",
+      "title": "閃電CPR挑戰",
+      "note": "12 時至 18 時在月臺體驗 CPR 與 AED，完成任務可玩線上小遊戲",
+      "start": "2026-09-19",
+      "end": "2026-09-19",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "市政府" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=C413B5C4CF0BBB21"
+    },
+    {
+      "id": "trtc-20260902-guangci-firstmonth",
+      "source": "official",
+      "title": "廣慈／奉天宮站通車首月好康",
+      "note": "搭捷運到站可抽捷運年票或自行車，現場每日發限量霜淇淋禮物卡，另有首月乘車優惠",
+      "start": "2026-08-30",
+      "end": "2026-09-28",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "廣慈/奉天宮" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=F90C50DBBB49A03F"
+    },
+    {
+      "id": "tymc-20260902-jingjun93",
+      "source": "official",
+      "title": "敬軍93 感恩同行",
+      "note": "現役軍人、替代役、榮民、國防部職員及軍校教職員生持證免費搭；同行親友同起訖單程票 8 折",
+      "start": "2026-09-03",
+      "end": "2026-09-25",
+      "anchor": { "kind": "system", "sys": "tymc" },
+      "url": "https://www.tymetro.com.tw/tymetro-new/tw/_pages/news/show-2416-1.html"
     }
   ]
 }

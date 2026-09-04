@@ -114,6 +114,13 @@ try {
   if (xferFollow.status !== 0) fail('跟車中的接續釘選未過——面板算繪把點擊吃掉,或窄卡版面溢出'
     + '（單獨重跑：npm run check-transfer-follow-pin）');
 
+  // 釘選成功不代表背景中的旅程會交棒。這支用真 D1＋laPushAll＋APNs body 驗證來源列車
+  // 抵達轉乘站後，卡片身分、發車倒數與後續站序確實切到已選班次。
+  const xferHandoff = spawnSync('node', [path.join(wt, 'scripts', 'verify_transfer_live_handoff.mjs')], { encoding: 'utf8' });
+  process.stdout.write(xferHandoff.stdout || ''); process.stderr.write(xferHandoff.stderr || '');
+  if (xferHandoff.status !== 0) fail('跨車轉乘接棒未過——鎖屏卡會在轉乘站繼續跟來源列車'
+    + '（單獨重跑：npm run check-transfer-live-handoff）');
+
   // ── 2.9 北捷上游呼叫量閘門 ────────────────────────────────────────────────
   // 2026-09-02 北捷來函「8 月三支 API 各逾 60 萬次、不似正常使用方式」之後補的。
   // 這裡守的是兩件會【靜默】退回去的事：營運窗外的閘門、CarWeight 的 60 秒節流。
@@ -143,6 +150,19 @@ try {
   process.stdout.write(busTransfer.stdout || ''); process.stderr.write(busTransfer.stderr || '');
   if (busTransfer.status !== 0) fail('公車轉乘驗收未過——修正資料索引、Worker、UI、手機互動或錯誤降級後再出貨'
     + '（單獨重跑：npm run check-bus-transfer）');
+
+  // ── 2.12 開機期班表殘缺守門人 ─────────────────────────────────────────────
+  // 2026-09-04 check-obs-removed 偶發紅一次（`sys.data.trains is not iterable` ＋ 60 秒沒
+  // state.ready ＝ 使用者看到空白 App）之後補的。走得到的路徑是「上游回 HTTP 200，body 是
+  // 合法 JSON 但沒有 trains 陣列」——resolveScheduleDay 把它原樣放行，系統就這樣帶著
+  // data.trains=undefined 進了 state.systems。（回 500／空 body 反而安全：整個系統會被丟掉。）
+  // 三個 sched 系統各注入一次，因為各自的第一個炸點不同：台鐵 buildLoopTrains、
+  // 高鐵 applySchedSystems 的 for、林鐵 addSunriseTrains。每組都驗「其餘兩個系統仍畫得出車」，
+  // 擋掉「乾脆整包不畫就不會拋錯」那種假修法。全程離線（/api 一律 404），約 1 分鐘。
+  const bootSched = spawnSync('node', [path.join(wt, 'scripts', 'verify_boot_partial_schedule.mjs'), wt], { encoding: 'utf8' });
+  process.stdout.write(bootSched.stdout || ''); process.stderr.write(bootSched.stderr || '');
+  if (bootSched.status !== 0) fail('開機期班表殘缺守門人未過——某個系統班表殘缺會讓整頁開不起來'
+    + '（單獨重跑：npm run check-boot-partial-sched）');
 
   // ── 3. strip（腳本內建 esbuild AST 重印等價證明，任何不等價都非零退出）────
   const rawBytes = fs.readFileSync(path.join(wt, 'index.html'));
