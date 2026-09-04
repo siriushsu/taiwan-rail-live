@@ -64,6 +64,15 @@ struct RailFollowAttributes: ActivityAttributes {
         var stopping: Bool?
         // 進度條左端＝上一個停靠站站名。沒有(始發站)時是 nil,版面該處留白不畫。
         var prevStop: String?
+        // ActivityAttributes 建立後不可變；跨車轉乘若仍把車次／車種放在 attributes，鎖屏卡就只能
+        // 永遠顯示第一段。交棒後由後端把下列 override 寫進 ContentState，同一張卡才能換成接續車。
+        // 全部 Optional 且只加在尾端，讓更新前已開著的卡仍能解碼並自然退回 attributes。
+        var trainNoOverride: String?
+        var kindOverride: String?
+        var sysOverride: String?
+        var colorOverride: String?
+        // true＝人已到轉乘站、目前倒數的是接續班次發車，不是下一站到站。
+        var transferWaiting: Bool?
     }
     var trainNo: String           // 車次
     var kind: String              // 車種(自強/區間/…);建立後不變的放這裡

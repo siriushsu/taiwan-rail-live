@@ -19,6 +19,7 @@ await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const base = `http://127.0.0.1:${server.address().port}`;
 const failures = [];
 const widths = [360, 375, 414, 768];
+const expectedHistoryCount = 258;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
@@ -51,7 +52,7 @@ try {
         const history = update.locator('.foot-more');
         await history.locator(':scope > summary').tap();
         const historyCount = await history.locator('.foot-list > li:not(.grp)').count();
-        if (historyCount !== 250) failures.push(`${engineName} ${width}px 完整歷史為 ${historyCount} 條`);
+        if (historyCount !== expectedHistoryCount) failures.push(`${engineName} ${width}px 完整歷史為 ${historyCount} 條`);
         const sources = page.locator('details.foot-box').nth(1);
         await sources.locator(':scope > summary').tap();
         const tdxMark = sources.locator('img[src="assets/tdx-logo.svg"]');
@@ -83,4 +84,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log(`更新紀錄瀏覽器驗收通過：Chromium + WebKit；${widths.join('/')}px 觸控寬度；最近 8 條、完整歷史 250 條`);
+console.log(`更新紀錄瀏覽器驗收通過：Chromium + WebKit；${widths.join('/')}px 觸控寬度；最近 8 條、完整歷史 ${expectedHistoryCount} 條`);

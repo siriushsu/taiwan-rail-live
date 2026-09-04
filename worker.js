@@ -2875,6 +2875,48 @@ const LA_MAX_ROWS_PER_UID = 3;
 // Apple 未保證長度,故不改寫成另一個魔術數字,只鎖「偶數個小寫 hex、32–128 bytes」這個有界
 // 區間:下界保留原本的 32 bytes(舊 token 仍可用),上界 128 bytes 是 D1 單列的保護。
 const LA_TOKEN_RE = /^(?:[0-9a-f]{2}){32,128}$/;
+function laValidSchedule(stops, staMap, stopCodes, nowSec) {
+  if (!Array.isArray(stops) || !stops.length || stops.length > 200) return false;
+  if (JSON.stringify(stops).length > 12000) return false;
+  if (!stops.every((s, i) => s && typeof s.name === 'string' && s.name.length <= 40
+      && Number.isFinite(Number(s.at)) && Math.abs(Number(s.at) - nowSec) < 86400
+      && (i === 0 || Number(s.at) > Number(stops[i - 1].at)))) return false;
+  if (!Array.isArray(stopCodes) || stopCodes.length !== stops.length
+      || JSON.stringify(stopCodes).length > 4000) return false;
+  if (!staMap || typeof staMap !== 'object' || Array.isArray(staMap)
+      || Object.keys(staMap).length > 400 || JSON.stringify(staMap).length > 8000) return false;
+  return true;
+}
+function laJourneyFromBind(raw, nowSec, sourceStopCount) {
+  if (raw == null) return null;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const sys = String(raw.sys || ''), trainNo = String(raw.trainNo || '');
+  const sourceIndex = Number(raw.sourceIndex), sourceAt = Number(raw.sourceAt);
+  const waitUntil = Number(raw.waitUntil), sourceCode = raw.sourceCode == null ? null : String(raw.sourceCode);
+  if ((sys !== 'tra_sched' && sys !== 'thsr_sched') || !/^[0-9A-Za-z]{1,8}$/.test(trainNo)
+      || !Number.isInteger(sourceIndex) || sourceIndex < 0 || sourceIndex >= sourceStopCount
+      || !Number.isFinite(sourceAt) || Math.abs(sourceAt - nowSec) >= 86400
+      || !Number.isFinite(waitUntil) || Math.abs(waitUntil - nowSec) >= 86400
+      || (sourceCode != null && sourceCode.length > 16)
+      || !laValidSchedule(raw.stops, raw.staMap, raw.stopCodes, nowSec)) return undefined;
+  const kind = String(raw.kind || ''), color = String(raw.color || ''), terminus = String(raw.terminus || '');
+  const transferStop = String(raw.transferStop || '');
+  if (kind.length > 40 || terminus.length > 40 || transferStop.length > 40
+      || (color && !/^#[0-9a-fA-F]{6}$/.test(color))) return undefined;
+  const out = {
+    phase: 'planned', sourceIndex, sourceAt, sourceCode,
+    target: { sys, trainNo, kind, color, terminus, transferStop, waitUntil,
+      stops: raw.stops, staMap: raw.staMap, stopCodes: raw.stopCodes },
+  };
+  return JSON.stringify(out).length <= 26000 ? out : undefined;
+}
+function laJourneyRead(raw) {
+  if (!raw) return null;
+  try {
+    const value = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    return value && (value.phase === 'planned' || value.phase === 'active') && value.target ? value : null;
+  } catch (e) { return null; }
+}
 // 端點外部可打,限流擋在任何 D1 寫入之前(照本檔慣例,寫入型一律 failClosed=true)。
 async function laBind(request, env) {
   // 端點只收 POST(同 deleteAccountData 慣例)——API_POST_ALLOWED 只擋「非 GET/HEAD 且不在名單內」,
@@ -2903,6 +2945,8 @@ async function laBind(request, env) {
   if (!b.staMap || typeof b.staMap !== 'object' || Array.isArray(b.staMap)) return jsonRes({ error: 'bad_map' }, 400, 'no-store');
   // 含通過站的 staMap 約 100–150 筆,400 筆／8000 bytes 都留了 2–3 倍餘裕。
   if (Object.keys(b.staMap).length > 400 || JSON.stringify(b.staMap).length > 8000) return jsonRes({ error: 'bad_map' }, 400, 'no-store');
+  const journey = laJourneyFromBind(b.handoff, nowSec, b.stops.length);
+  if (journey === undefined) return jsonRes({ error: 'bad_handoff' }, 400, 'no-store');
 
   // 具名的本機測試閘門:設了才開,且只認那個確切的值。正式環境不設這顆 secret ⇒ 這條路徑不存在。
   const auth = (request.headers.get('Authorization') || '').match(/^Bearer\s+(.+)$/i);
@@ -2916,8 +2960,8 @@ async function laBind(request, env) {
   try {
     const now = Math.floor(Date.now() / 1000);
     await env.DELAY_DB.prepare(
-      'INSERT INTO la_bindings (token,uid,sys,train_no,stops,sta_map,stop_codes,last_idx,last_delay,bound_at,expire_at)' +
-      ' VALUES (?,?,?,?,?,?,?,-1,0,?,?) ON CONFLICT(token) DO UPDATE SET' +
+      'INSERT INTO la_bindings (token,uid,sys,train_no,stops,sta_map,stop_codes,journey_state,last_idx,last_delay,bound_at,expire_at)' +
+      ' VALUES (?,?,?,?,?,?,?,?,-1,0,?,?) ON CONFLICT(token) DO UPDATE SET' +
       ' uid=excluded.uid, sys=excluded.sys, train_no=excluded.train_no, stops=excluded.stops,' +
       // 🔴 last_obs_idx 必須與 last_idx 一起歸零:同一顆 device token 換綁另一台車時,
       // 沒歸零的話單調閘門的地板還停在【上一台車】的索引 ⇒ 新車的第一發觀測會被
@@ -2929,10 +2973,11 @@ async function laBind(request, env) {
       // 新車第一輪若剛好也不在站上(stoppingFlag=0)⇒ 判定式那一項就【不】相等 ⇒ 反而會多推
       // 一發(無害);真正的坑是反過來——新車一開卡就繼承舊車的停靠中標籤。規矩本身比個案重要
       // (釘死者 PBIND):重設點要重設全部狀態欄位,留一個例外就是留給下一個新欄位的坑。
-      ' sta_map=excluded.sta_map, stop_codes=excluded.stop_codes, last_idx=-1, last_obs_idx=-1, last_delay=0, last_notice=0, last_stopping=0,' +
+      ' sta_map=excluded.sta_map, stop_codes=excluded.stop_codes, journey_state=excluded.journey_state,' +
+      ' last_idx=-1, last_obs_idx=-1, last_delay=0, last_notice=0, last_stopping=0,' +
       ' bound_at=excluded.bound_at, expire_at=excluded.expire_at'
     ).bind(String(b.token), uid, String(b.sys), String(b.trainNo),
-      JSON.stringify(b.stops), JSON.stringify(b.staMap), JSON.stringify(b.stopCodes),
+      JSON.stringify(b.stops), JSON.stringify(b.staMap), JSON.stringify(b.stopCodes), journey ? JSON.stringify(journey) : null,
       now, now + 8 * 3600).run();
     // 🔴 最終複審 A-I5:token 只驗格式(64 碼 hex)不驗真偽,且原本沒有 per-uid 上限——
     // 一個有 Plus 資格的帳號用隨機 hex 反覆打這支端點就能灌滿 500 列的服務窗(限流是
@@ -3311,6 +3356,11 @@ async function laPushEnd(env, jwt, row, stops, delaySec, now) {
           // 同上:收卡沒有「停靠中」可言,但 key 必須在。
           stopping: false,
           prevStop: prev ? prev.name : null,
+          trainNoOverride: null,
+          kindOverride: null,
+          sysOverride: null,
+          colorOverride: null,
+          transferWaiting: false,
         },
       },
     }, row.apns_env);
@@ -3376,7 +3426,7 @@ async function laPushAll(env, ctx, baseUrl) {
   // 而所有台鐵列靜默改走表定推算。要先把「上游整批失效」與「這台車沒有觀測資料」分開,
   // 才有辦法談政策(見 LA_SCHED_FALLBACK_ON_UPSTREAM_DOWN)。
   let live = {}, liveDown = false, liveAgeSec = null;
-  if (rows.some(r => r.sys === 'tra_sched')) {
+  if (rows.some(r => r.sys === 'tra_sched' || laJourneyRead(r.journey_state)?.target?.sys === 'tra_sched')) {
     try {
       const r = await traLive(new Request(baseUrl + '/api/tra-live?_src=cron'), env, ctx);
       const j = await r.json();
@@ -3437,15 +3487,16 @@ async function laPushAll(env, ctx, baseUrl) {
       // "1800000000" + 數字會做字串串接(結果變成天文數字的年份),且 laSchedIdx 內部
       // stops[i].at+delaySec>nowSec 的比較恆真 ⇒ idx 卡死不動。在唯一的讀取點轉型一次,
       // 下游(laSchedIdx、內容組裝)全部拿到乾淨數字,不必逐處補 Number()。
-      const stops = JSON.parse(row.stops).map(s => ({ ...s, at: Number(s.at) }));
-      const staMap = JSON.parse(row.sta_map), stopCodes = JSON.parse(row.stop_codes);
-      const t = row.sys === 'tra_sched' ? live[String(row.train_no)] : null;
+      let stops = JSON.parse(row.stops).map(s => ({ ...s, at: Number(s.at) }));
+      let staMap = JSON.parse(row.sta_map), stopCodes = JSON.parse(row.stop_codes);
+      let activeSys = row.sys, activeTrainNo = row.train_no;
+      let t = activeSys === 'tra_sched' ? live[String(activeTrainNo)] : null;
       // 誤點:拿得到就用,拿不到沿用最後已知值(不歸零——歸零會讓卡片跳)
       // 🔴 最終複審 B-Minor:Math.round 不可省。delaySec 是 ContentState 裡【唯一的非 Optional
       // 數值欄】,Swift 的 Int 解不了小數 ⇒ 餵一個小數進去會讓【整包 content-state 解碼失敗】
       // (實測:`Number 180.5 is not representable in Swift`),不是那一欄變 nil,是整張卡不更新。
       // TDX 的 DelayTime 目前是整數分,但這條契約不該靠上游的型別自律。
-      const delaySec = t ? Math.round((Number(t.delay) || 0) * 60) : row.last_delay;
+      let delaySec = t ? Math.round((Number(t.delay) || 0) * 60) : row.last_delay;
       // 有觀測就用觀測(承重牆 1);沒有(支線 92 站缺口、高鐵)就走表定退路,卡片【仍然前進】。
       // 🔴 最終複審 A-I3:唯一的例外是「上游【整批】失效」——那不是「這台車沒有觀測資料」,
       // 政策旋鈕見 LA_SCHED_FALLBACK_ON_UPSTREAM_DOWN(這是它唯一的消費點)。
@@ -3456,9 +3507,9 @@ async function laPushAll(env, ctx, baseUrl) {
       // 而且 LA_SCHED_FALLBACK_ON_UPSTREAM_DOWN=true 這顆旋鈕在真實斷線形態下根本沒被走到。
       // (既有的 P34 照不到,是因為它的舊快取裡剛好沒有那台車 ⇒ t 為 undefined。)
       // useObs 就是「這一列這一輪到底能不能用觀測」的唯一判準,索引與 obs/sched 計數共用它。
-      const schedFallbackBlocked = liveDown && row.sys === 'tra_sched' && !LA_SCHED_FALLBACK_ON_UPSTREAM_DOWN;
-      const useObs = !!t && !liveDown;
-      const idx = useObs ? laNextIdx(String(t.sta), Number(t.status), staMap, stopCodes, row.last_idx, row.last_obs_idx)
+      let schedFallbackBlocked = liveDown && activeSys === 'tra_sched' && !LA_SCHED_FALLBACK_ON_UPSTREAM_DOWN;
+      let useObs = !!t && !liveDown;
+      let idx = useObs ? laNextIdx(String(t.sta), Number(t.status), staMap, stopCodes, row.last_idx, row.last_obs_idx)
                     : schedFallbackBlocked ? row.last_idx      // 凍住:與 last_idx 相同 ⇒ 走下面的「沒變就不推」
                     : laSchedIdx(stops, delaySec, now, row.last_idx);
       // 🔴 複審 I-1:「這一輪有新鮮的看板」(useObs)不等於「這一發真的解出索引」。
@@ -3467,18 +3518,49 @@ async function laPushAll(env, ctx, baseUrl) {
       // 地板被毒化 ⇒ 之後真觀測再也拉不回來 ⇒ 工項 B 對這一趟永久失效。
       // 地板只准由「真的解出來的觀測」推進;寫回的仍是 idx(＝max(觀測, 舊地板)),不是原始觀測值
       // ——地板本身必須單調不減,否則就等於把閘門拆了。
-      const obsResolved = useObs && laObsIdx(String(t.sta), Number(t.status), staMap, stopCodes) != null;
+      let obsResolved = useObs && laObsIdx(String(t.sta), Number(t.status), staMap, stopCodes) != null;
       // 這一輪的站名是不是【推算】出來的?只有「上游整批失效而政策要求繼續前進」才算——
       // 支線缺觀測、高鐵無即時資料同樣走表定,但那不是「即時資料中斷」,掛這句話是說謊。
       // 與 schedFallbackBlocked 綁在同一組運算式,政策旋鈕改成 false(凍住)時這句話會自動消失。
-      const notice = (liveDown && row.sys === 'tra_sched' && !schedFallbackBlocked) ? LA_NOTICE_UPSTREAM_DOWN : null;
+      let notice = (liveDown && activeSys === 'tra_sched' && !schedFallbackBlocked) ? LA_NOTICE_UPSTREAM_DOWN : null;
       // 🔴 停靠中:TDX 說車【在站上】(status 1),而且那一站就是卡片現在顯示的這一站。
       // 只認 1 不認 0:0 是「進站中」,車還在動,月台顯示器那時也還沒翻成停靠。
       // 必須比對 own === idx 而不是只看 status——單調閘門可能把 idx 抬到觀測站之後
       // (表定推過頭的回收窗),那時車雖然在某站上,卻不是卡片正在顯示的那一站,
       // 標成停靠中就是「顯示一件沒發生在這張卡上的事」。
       // 高鐵／支線 useObs 恆假 ⇒ 恆 false ⇒ 下面判定式那一項恆等,不會讓它們每分鐘重推。
-      const stopping = !!(useObs && Number(t.status) === 1 && stopCodes.indexOf(String(t.sta)) === idx);
+      let stopping = !!(useObs && Number(t.status) === 1 && stopCodes.indexOf(String(t.sta)) === idx);
+      const journey = laJourneyRead(row.journey_state);
+      let identity = journey && journey.phase === 'active' ? journey.target : null;
+      let handoffTransition = false;
+      if (journey && journey.phase === 'planned') {
+        const rawObs = useObs ? laObsIdx(String(t.sta), Number(t.status), staMap, stopCodes) : null;
+        const sourceCode = String(journey.sourceCode || '');
+        const atTransfer = useObs && sourceCode && String(t.sta) === sourceCode
+          && (Number(t.status) === 1 || Number(t.status) === 2);
+        const passedTransfer = useObs && rawObs != null && rawObs > Number(journey.sourceIndex);
+        // 台鐵優先等真實到站；即使這一輪剛好沒有該車觀測，也保留三分鐘讓下一輪追上。
+        // 高鐵沒有逐車觀測，才在表定＋目前誤點時刻直接接手。寬限過後仍切換，避免永久卡住。
+        const dueByClock = now >= Number(journey.sourceAt) + delaySec + (activeSys === 'tra_sched' ? 180 : 0);
+        if (atTransfer || passedTransfer || dueByClock) {
+          identity = journey.target;
+          handoffTransition = true;
+          activeSys = String(identity.sys || ''); activeTrainNo = String(identity.trainNo || '');
+          stops = (identity.stops || []).map(s => ({ ...s, at: Number(s.at) }));
+          staMap = identity.staMap || {}; stopCodes = identity.stopCodes || [];
+          t = activeSys === 'tra_sched' ? live[activeTrainNo] : null;
+          delaySec = t ? Math.round((Number(t.delay) || 0) * 60) : 0;
+          schedFallbackBlocked = liveDown && activeSys === 'tra_sched' && !LA_SCHED_FALLBACK_ON_UPSTREAM_DOWN;
+          useObs = !!t && !liveDown;
+          idx = useObs ? laNextIdx(String(t.sta), Number(t.status), staMap, stopCodes, -1, -1)
+            : schedFallbackBlocked ? -1 : laSchedIdx(stops, delaySec, now, -1);
+          obsResolved = useObs && laObsIdx(String(t.sta), Number(t.status), staMap, stopCodes) != null;
+          notice = (liveDown && activeSys === 'tra_sched' && !schedFallbackBlocked) ? LA_NOTICE_UPSTREAM_DOWN : null;
+          stopping = !!(useObs && Number(t.status) === 1 && stopCodes.indexOf(String(t.sta)) === idx);
+        }
+      }
+      const transferWaiting = !!(identity && idx === 0 && now < Number(identity.waitUntil));
+      if (transferWaiting) stopping = false;
       if (idx >= stops.length) {                            // 走完全程 → 收卡
         // 🔴 最終複審 B-I3:舊碼只 DELETE 不送 end ⇒ 鎖屏卡片會留到 RailLiveActivityPlugin
         // 設的 8 小時 staleDate,使用者得自己滑掉。「背景跑到終點」是主線情境不是邊角:
@@ -3507,7 +3589,7 @@ async function laPushAll(env, ctx, baseUrl) {
       // 車停進站、開走時 idx 完全沒動,準點車 delay 又恆 0 ⇒ 缺了這一項,三項全等 ⇒ 零推播
       // ⇒ 標籤永遠不會亮、亮了也永遠不會滅)。
       const stoppingFlag = stopping ? 1 : 0;
-      if (idx === row.last_idx && delaySec === row.last_delay
+      if (!handoffTransition && idx === row.last_idx && delaySec === row.last_delay
           && noticeFlag === (Number(row.last_notice) || 0)
           && stoppingFlag === (Number(row.last_stopping) || 0)) {
         // 🔴 複審 N-2:「卡片內容沒變」不等於「地板沒學到東西」。這一輪如果真的解出了觀測、
@@ -3554,6 +3636,13 @@ async function laPushAll(env, ctx, baseUrl) {
             // 但一律送(含 null)——欄位集合是跨行程契約的一部分,不可省略 key。
             stopping,
             prevStop: prev ? prev.name : null,
+            // ActivityAttributes 建立後不可變；跨車交棒後以 Optional ContentState 覆寫車次身分。
+            // 一般單段跟車一律送 null，新舊 App 都會自然沿用原 attributes。
+            trainNoOverride: identity ? String(identity.trainNo || '') : null,
+            kindOverride: identity ? String(identity.kind || '') : null,
+            sysOverride: identity ? String(identity.sys || '') : null,
+            colorOverride: identity ? String(identity.color || '') : null,
+            transferWaiting,
           },
         },
       };
@@ -3573,8 +3662,17 @@ async function laPushAll(env, ctx, baseUrl) {
         // 這顆 token 的環境答案。下一輪起直接先打對的那邊,不必再付退路那一次請求。
         // 值一律以「這次成功的環境」為準而不是「原本記的」——同一顆 token 的環境雖然不會變,
         // 但寫死成「只在 null 時才寫」會讓修錯的值永遠黏著,沒有自癒路徑。
-        await env.DELAY_DB.prepare('UPDATE la_bindings SET last_idx=?, last_delay=?, last_obs_idx=?, last_notice=?, last_stopping=?, apns_env=?, fail_streak=0 WHERE token=?')
-          .bind(idx, delaySec, obsResolved ? idx : row.last_obs_idx, noticeFlag, stoppingFlag, r.envName, row.token).run();
+        if (handoffTransition) {
+          const activeJourney = JSON.stringify({ phase: 'active', target: identity });
+          await env.DELAY_DB.prepare(
+            'UPDATE la_bindings SET sys=?, train_no=?, stops=?, sta_map=?, stop_codes=?, journey_state=?,' +
+            ' last_idx=?, last_delay=?, last_obs_idx=?, last_notice=?, last_stopping=?, apns_env=?, fail_streak=0 WHERE token=?'
+          ).bind(activeSys, activeTrainNo, JSON.stringify(stops), JSON.stringify(staMap), JSON.stringify(stopCodes), activeJourney,
+            idx, delaySec, obsResolved ? idx : -1, noticeFlag, stoppingFlag, r.envName, row.token).run();
+        } else {
+          await env.DELAY_DB.prepare('UPDATE la_bindings SET last_idx=?, last_delay=?, last_obs_idx=?, last_notice=?, last_stopping=?, apns_env=?, fail_streak=0 WHERE token=?')
+            .bind(idx, delaySec, obsResolved ? idx : row.last_obs_idx, noticeFlag, stoppingFlag, r.envName, row.token).run();
+        }
         sent++;
         if (useObs) sentObs++; else sentSched++;
         continue;

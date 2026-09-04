@@ -114,6 +114,26 @@ try {
   if (xferFollow.status !== 0) fail('跟車中的接續釘選未過——面板算繪把點擊吃掉,或窄卡版面溢出'
     + '（單獨重跑：npm run check-transfer-follow-pin）');
 
+  // 釘選成功不代表背景中的旅程會交棒。這支用真 D1＋laPushAll＋APNs body 驗證來源列車
+  // 抵達轉乘站後，卡片身分、發車倒數與後續站序確實切到已選班次。
+  const xferHandoff = spawnSync('node', [path.join(wt, 'scripts', 'verify_transfer_live_handoff.mjs')], { encoding: 'utf8' });
+  process.stdout.write(xferHandoff.stdout || ''); process.stderr.write(xferHandoff.stderr || '');
+  if (xferHandoff.status !== 0) fail('跨車轉乘接棒未過——鎖屏卡會在轉乘站繼續跟來源列車'
+    + '（單獨重跑：npm run check-transfer-live-handoff）');
+
+  // 機捷車種不能只驗「程式裡有直／普兩個字」：真正的驗收是畫面同時能看出兩種車，且
+  // 跟車卡、車站看板與首末班特殊班次都不硬猜。瀏覽器 gate 另鎖住放大、尖頭／圓角與
+  // 實心／白底；資料 gate 確認官方直達車端點與兩方向樣態沒有在班表更新後走樣。
+  const tymcKind = spawnSync('node', [path.join(wt, 'scripts', 'verify_tymc_train_kind.mjs')], { encoding: 'utf8' });
+  process.stdout.write(tymcKind.stdout || ''); process.stderr.write(tymcKind.stderr || '');
+  if (tymcKind.status !== 0) fail('桃園機捷車種顯示未過——直達／普通車的文字、大小、形狀或反白有回歸'
+    + '（單獨重跑：npm run check-tymc-kind）');
+
+  const tymcEndpoints = spawnSync('node', [path.join(wt, 'scripts', 'verify_tymc_express_endpoints.mjs')], { encoding: 'utf8' });
+  process.stdout.write(tymcEndpoints.stdout || ''); process.stderr.write(tymcEndpoints.stderr || '');
+  if (tymcEndpoints.status !== 0) fail('桃園機捷直達車資料未過——端點、方向或官方樣態有回歸'
+    + '（單獨重跑：npm run check-tymc-kind）');
+
   // ── 2.9 北捷上游呼叫量閘門 ────────────────────────────────────────────────
   // 2026-09-02 北捷來函「8 月三支 API 各逾 60 萬次、不似正常使用方式」之後補的。
   // 這裡守的是兩件會【靜默】退回去的事：營運窗外的閘門、CarWeight 的 60 秒節流。
@@ -144,18 +164,30 @@ try {
   if (busTransfer.status !== 0) fail('公車轉乘驗收未過——修正資料索引、Worker、UI、手機互動或錯誤降級後再出貨'
     + '（單獨重跑：npm run check-bus-transfer）');
 
-  // ── 2.11 地圖引擎適配層閘門(換引擎 M0,2026-09-03)——純靜態、毫秒級:index.html 裡任何繞過適配層 M 直接
+  // ── 2.12 地圖引擎適配層閘門(換引擎 M0,2026-09-03)——純靜態、毫秒級:index.html 裡任何繞過適配層 M 直接
   // 呼叫 Leaflet `map.xxx(` 的程式碼都會在這裡擋下(否則 MapLibre 引擎一開就炸,而 Leaflet 路徑全綠照不到)。
   // 只跑靜態半段:動態半段(Playwright 開機比對)留給 npm run check-engine。
   const eng = spawnSync('node', [path.join(wt, 'scripts', 'verify_engine_adapter.mjs')], { encoding: 'utf8', env: { ...process.env, ENGINE_GATE_STRICT: '1', ENGINE_GATE_STATIC_ONLY: '1' } });
   process.stdout.write(eng.stdout || ''); process.stderr.write(eng.stderr || '');
   if (eng.status !== 0) fail('地圖引擎適配層閘門未過——有程式碼繞過 M 直接呼叫 Leaflet map.*（單獨重跑：npm run check-engine）');
 
-  // ── 2.12 軌道 GeoJSON 守門人(換引擎 M1a,2026-09-03):磁碟上的 geojson 必須等於重建結果(G0),
+  // ── 2.13 軌道 GeoJSON 守門人(換引擎 M1a,2026-09-03):磁碟上的 geojson 必須等於重建結果(G0),
   //    否則 MapLibre 的 GL 軌道會畫到手改過／忘了重產的資料;G1–G10 順便一起過 ────────────────
   const trk = spawnSync('node', [path.join(wt, 'scripts', 'verify_track_geojson.mjs')], { encoding: 'utf8' });
   process.stdout.write(trk.stdout || ''); if (trk.stderr) process.stderr.write(trk.stderr);
   if (trk.status !== 0) fail('軌道 GeoJSON 守門人未過(npm run check-track-geojson)');
+  // ── 2.14 開機期班表殘缺守門人 ─────────────────────────────────────────────
+  // 2026-09-04 check-obs-removed 偶發紅一次（`sys.data.trains is not iterable` ＋ 60 秒沒
+  // state.ready ＝ 使用者看到空白 App）之後補的。走得到的路徑是「上游回 HTTP 200，body 是
+  // 合法 JSON 但沒有 trains 陣列」——resolveScheduleDay 把它原樣放行，系統就這樣帶著
+  // data.trains=undefined 進了 state.systems。（回 500／空 body 反而安全：整個系統會被丟掉。）
+  // 三個 sched 系統各注入一次，因為各自的第一個炸點不同：台鐵 buildLoopTrains、
+  // 高鐵 applySchedSystems 的 for、林鐵 addSunriseTrains。每組都驗「其餘兩個系統仍畫得出車」，
+  // 擋掉「乾脆整包不畫就不會拋錯」那種假修法。全程離線（/api 一律 404），約 1 分鐘。
+  const bootSched = spawnSync('node', [path.join(wt, 'scripts', 'verify_boot_partial_schedule.mjs'), wt], { encoding: 'utf8' });
+  process.stdout.write(bootSched.stdout || ''); process.stderr.write(bootSched.stderr || '');
+  if (bootSched.status !== 0) fail('開機期班表殘缺守門人未過——某個系統班表殘缺會讓整頁開不起來'
+    + '（單獨重跑：npm run check-boot-partial-sched）');
 
   // ── 3. strip（腳本內建 esbuild AST 重印等價證明，任何不等價都非零退出）────
   const rawBytes = fs.readFileSync(path.join(wt, 'index.html'));

@@ -16,6 +16,8 @@
       '捷運與輕軌': 'Metro & Light Rail',
       '台北捷運': 'Taipei Metro',
       '桃園機捷': 'Taoyuan Airport MRT',
+      // 機捷車種：車牌用單字（牌很小），跟隨卡與看板用全稱。官方英文 Express／Commuter
+      '直': 'E', '普': 'C', '直達車': 'Express', '普通車': 'Commuter',
       '淡海輕軌': 'Danhai Light Rail',
       '安坑輕軌': 'Ankeng Light Rail',
       '三鶯線': 'Sanying Line',
@@ -196,6 +198,10 @@
         "Ambient mode is now sit-back-and-watch: the map can no longer be dragged or pinched off course, and leaving then re-entering no longer shrinks the Exit ambient mode button into an empty stub you cannot tap.",
       '跟捷運列車時，卡片上會顯示這一台車每一節車廂的擁擠度':
         'While following a Taipei Metro train, the card shows how crowded each carriage of that train is.',
+      '桃園機場捷運的列車標得出車種：地圖上直達車是尖頭紫牌、普通車是白底圓牌，車牌也放大了，跟車卡與車站看板寫全名':
+        'Taoyuan Airport MRT trains now show their service type: Express trains get a pointed purple tag, Commuter trains a white rounded one, and both tags are larger than before. The follow card and station boards spell the type out.',
+      '選好接續班次後，抵達轉乘站時動態島與鎖定畫面會自動切到下一班車':
+        'After you choose a connection, the Dynamic Island and Lock Screen automatically switch to the next train at the transfer station.',
       '兩條路線立體交叉的地方，改成依實際的高架與地下關係決定哪一條畫在上面':
         'Where two lines cross on different levels, the one that is actually elevated or on top is now drawn over the other, instead of whichever happened to be drawn last.',
       'iPad 與 Android 平板改用完整觸控版面；橫放時資訊停在右側，地圖保留主要空間':
@@ -447,12 +453,14 @@
       '轉{system} · 你到站時': 'Transfer to {system} · when you arrive', '剩 {n} 分': '{n} min left',
       '你到站時': 'When you arrive',
       '你的接續班次': 'Your connection', '取消釘選': 'Unpin', '表定時刻 · 未計站內步行': 'Scheduled time · excludes walking inside the station',
+      '已接續追蹤 {system} {train} 次': 'Now following {system} train {train}',
     },
     ja: {
       '軌島': '軌島', '軌島 railisland.tw。看台鐵此刻準點嗎、捷運怎麼穿梭全台，一張會動的台灣鐵道地圖。': '軌島は、台湾鉄路・高速鉄道・各都市のメトロとライトレールを一枚の地図で表示する鉄道アニメーションです。', '台灣鐵道即時軌跡': '台湾鉄道ライブ', '台灣高鐵即時軌跡': '台湾高速鉄道ライブ',
       '關於軌島': '軌島について', '準確度說明': '精度と制約', '車站索引': '駅索引',
       '全台同框': '台湾全体', '台鐵': '台湾鉄路', '高鐵': '台湾高速鉄道', '阿里山林鐵': '阿里山森林鉄道',
       '捷運與輕軌': 'メトロ・ライトレール', '台北捷運': '台北メトロ', '桃園機捷': '桃園空港MRT',
+      '直': '直', '普': '普', '直達車': '直達列車', '普通車': '普通列車',
       '淡海輕軌': '淡海ライトレール', '安坑輕軌': '安坑ライトレール', '三鶯線': '三鶯線',
       '高雄捷運': '高雄メトロ', '台中捷運': '台中メトロ', '國家鐵路': '都市間鉄道', '北北桃': '台北・新北・桃園', '中南部': '中南部',
       '全': '全', '台': '台鉄', '高': '高鉄', '捷': 'メトロ', '縣市': '地域', '移動到縣市': '地域へ移動',
@@ -594,6 +602,10 @@
         '鑑賞モードは「眺めるだけ」に：地図が指で動かされたりズームがずれたりせず、いったん終了してもう一度入っても「鑑賞モードを終了」ボタンが押せない小さなボタンに縮まなくなりました。',
       '跟捷運列車時，卡片上會顯示這一台車每一節車廂的擁擠度':
         '台北メトロの列車を追跡中、その列車の車両ごとの混雑度をカードに表示します。',
+      '桃園機場捷運的列車標得出車種：地圖上直達車是尖頭紫牌、普通車是白底圓牌，車牌也放大了，跟車卡與車站看板寫全名':
+        '桃園空港MRTの列車に種別を表示するようになりました。直達列車は先の尖った紫のタグ、普通列車は白い丸みのあるタグで、タグ自体も従来より大きくなりました。追跡カードと駅の発車案内には正式名称を表示します。',
+      '選好接續班次後，抵達轉乘站時動態島與鎖定畫面會自動切到下一班車':
+        '乗り継ぐ列車を選ぶと、乗換駅への到着時にDynamic Islandとロック画面が次の列車へ自動で切り替わります。',
       '兩條路線立體交叉的地方，改成依實際的高架與地下關係決定哪一條畫在上面':
         '2つの路線が立体交差する場所で、実際に高架・上側を通る路線が上に描かれるようになりました。描画順ではなく実際の高低に従います。',
       'iPad 與 Android 平板改用完整觸控版面；橫放時資訊停在右側，地圖保留主要空間':
@@ -837,6 +849,7 @@
       '轉{system} · 你到站時': '{system}へ乗換・到着時点', '剩 {n} 分': 'あと{n}分',
       '你到站時': '到着時点',
       '你的接續班次': 'あなたの乗継便', '取消釘選': '固定を解除', '表定時刻 · 未計站內步行': '所定時刻・駅構内の徒歩時間は含みません',
+      '已接續追蹤 {system} {train} 次': '{system} {train}列車の追跡に切り替えました',
     },
   };
 
