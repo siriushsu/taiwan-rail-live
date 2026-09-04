@@ -70,18 +70,20 @@ try {
     await page.evaluate(GO_SCHED); await settle(page, maplibre);
     const o = {};
     if (maplibre) {
-      o.t1 = await page.evaluate(() => {
+      const layerOrder = () => page.evaluate(() => {
         const g = window.__ofmGl, T = window.__glTracks, layers = g.getStyle().layers, order = layers.map(layer => layer.id);
         const want = T.ranks.flatMap(k => ['track-casing-' + k, 'track-line-' + k]).concat(['track-stations']);
         const idx = want.map(id => order.indexOf(id)), building = order.indexOf('building-3d');
         const firstTrack = idx[0], lastTrack = idx[idx.length - 1];
+        const labelsBelow = layers.slice(0, firstTrack).filter(layer => layer.type === 'symbol').map(layer => layer.id);
         const nonLabelAbove = layers.slice(lastTrack + 1)
           .filter(layer => layer.type !== 'symbol' && layer.id !== 'aligndot')
           .map(layer => layer.id);
         return { ranks: T.ranks, idx, familyOk: idx[0] >= 0 && JSON.stringify(order.slice(idx[0], idx[0] + want.length)) === JSON.stringify(want),
-          building, buildingBelow: building < 0 || building < firstTrack, nonLabelAbove,
+          building, buildingBelow: building < 0 || building < firstTrack, labelsBelow, nonLabelAbove,
           n: g.querySourceFeatures('track-lines').length, src: !!g.getSource('track-stations') };
       });
+      o.t1 = await layerOrder();
       o.s2 = await page.evaluate(SAMPLE);
       o.t3a = await page.evaluate(() => window.__ofmGl.getFilter('track-line-' + window.__glTracks.ranks[0])[2][2][1].length);
       o.t3b = await page.evaluate(() => { const st = window.__state, id = st.trackLines[0].id; st.trackVisible.delete(id); draw(); return { n: window.__ofmGl.getFilter('track-line-' + window.__glTracks.ranks[0])[2][2][1].length, total: st.trackLines.length, id }; });
@@ -90,6 +92,7 @@ try {
       o.light = await paint();
       await page.evaluate(() => new Promise(resolve => { window.__ofmGl.once('style.load', resolve); window.__state.mapDark = true; setBasemap(); setTimeout(resolve, 10000); }));
       o.dark = await paint();
+      o.t1dark = await layerOrder();
       await page.evaluate(() => { window.__state.trackStyle = 'faint'; draw(); }); o.faint = await paint();
       await page.evaluate(() => new Promise(resolve => { window.__ofmGl.once('style.load', resolve); window.__state.trackStyle = 'hidden'; window.__state.mapDark = false; setBasemap(); setTimeout(resolve, 10000); }));
       o.hidden = await paint();
@@ -127,7 +130,8 @@ try {
       }
     }
     const t1 = o.t1 || {}, t3b = o.t3b || {}, a = o.t5a || {}, b = o.t5b || {}, c = o.t5c || {};
-    onlyFor('maplibre', GL_TRACKS_REASON, 'T1 GL 層順序=casing/line 依 sortKey 交錯，底圖道路與 3D 建築均在軌道下、文字標籤在上', maplibre ? t1.ranks?.length >= 2 && t1.idx.every((v, i) => v >= 0 && (i === 0 || v > t1.idx[i - 1])) && t1.familyOk && t1.buildingBelow && t1.nonLabelAbove?.length === 0 : undefined, t1);
+    onlyFor('maplibre', GL_TRACKS_REASON, 'T1 GL 層順序=casing/line 依 sortKey 交錯，底圖道路與 3D 建築均在軌道下、文字標籤在上', maplibre ? t1.ranks?.length >= 2 && t1.idx.every((v, i) => v >= 0 && (i === 0 || v > t1.idx[i - 1])) && t1.familyOk && t1.buildingBelow && t1.labelsBelow?.length === 0 && t1.nonLabelAbove?.length === 0 : undefined, t1);
+    onlyFor('maplibre', GL_TRACKS_REASON, 'T1d 暗色底圖同樣維持底圖 → 軌道 → 標籤', maplibre ? o.t1dark?.familyOk && o.t1dark?.buildingBelow && o.t1dark?.labelsBelow?.length === 0 && o.t1dark?.nonLabelAbove?.length === 0 : undefined, o.t1dark);
     onlyFor('maplibre', GL_TRACKS_REASON, 'T1b source 有 feature', maplibre ? t1.n > 0 && t1.src : undefined, `n=${t1.n}`);
     onlyFor('maplibre', GL_TRACKS_REASON, 'T2 MapLibre:canvas 不再描軌道(三個中段點 alpha=0)', maplibre ? !o.s2.err && o.s2.alphas.every(x => x === 0) : undefined, o.s2);
     onlyFor('maplibre', GL_TRACKS_REASON, 'T3 可見集合與突變正確', maplibre ? o.t3a === t3b.total && t3b.n === o.t3a - 1 : undefined, { t3a: o.t3a, ...t3b });
