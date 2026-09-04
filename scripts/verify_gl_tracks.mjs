@@ -72,7 +72,8 @@ try {
     if (maplibre) {
       const layerOrder = () => page.evaluate(() => {
         const g = window.__ofmGl, T = window.__glTracks, layers = g.getStyle().layers, order = layers.map(layer => layer.id);
-        const want = T.ranks.flatMap(k => ['track-casing-' + k, 'track-line-' + k]).concat(['track-stations']);
+        const want = T.ranks.flatMap(k => ['track-casing-' + k, 'track-line-' + k])
+          .concat(['track-follow-casing', 'track-follow-line', 'track-stations']);
         const idx = want.map(id => order.indexOf(id)), building = order.indexOf('building-3d');
         const firstTrack = idx[0], lastTrack = idx[idx.length - 1];
         const labelsBelow = layers.slice(0, firstTrack).filter(layer => layer.type === 'symbol').map(layer => layer.id);
@@ -103,6 +104,41 @@ try {
       await page.evaluate(() => loadSystem(window.__state.systems.find(s => s.id === 'mrt'))); await settle(page, true); await page.evaluate(() => draw());
       o.t5c = await page.evaluate(() => ({ min: window.__ofmGl.getLayer('track-stations').minzoom, n: window.__ofmGl.getFilter('track-stations')[2][1].length, vis: window.__state.visible.size, mode: window.__state.mode }));
       await page.evaluate(() => selectGroup(GROUPS.find(x => x.id === 'all'))); await settle(page, true);
+      o.t8 = await page.evaluate(() => {
+        const g = window.__ofmGl, st = window.__state;
+        const tr = (st.trains || []).find(x => x.stops?.length > 3 && !x.loop);
+        if (!tr) return { err: 'no train' };
+        st.followTrain = tr; st._routePts = buildFollowRoute(tr); st.trackStyle = 'auto';
+        window.__M.setPitch(60); window.__M.setBearing(35);
+        const canvasFollowStrokes = [], stroke = ctx.stroke;
+        ctx.stroke = function (...args) {
+          if (Math.abs(ctx.lineWidth - 8.5) < 0.01 || Math.abs(ctx.lineWidth - 4.4) < 0.01) canvasFollowStrokes.push(ctx.lineWidth);
+          return stroke.apply(this, args);
+        };
+        try { draw(); } finally { ctx.stroke = stroke; }
+        const src = g.getSource('track-follow-route');
+        const feature = src && src._data && src._data.features && src._data.features[0];
+        const themePaint = {};
+        for (const theme of ['light', 'dark', 'sat']) {
+          st.mapDark = theme === 'dark';
+          glFollowRouteSync(g, theme);
+          themePaint[theme] = [
+            g.getPaintProperty('track-follow-casing', 'line-color'),
+            g.getPaintProperty('track-follow-line', 'line-color'),
+          ];
+        }
+        st.trackStyle = 'hidden'; glFollowRouteSync(g, 'sat');
+        const hiddenCount = g.getFilter('track-follow-line')[2][1].length;
+        const result = {
+          routePoints: st._routePts.length,
+          sourcePoints: feature?.geometry?.coordinates?.length || 0,
+          casing: !!g.getLayer('track-follow-casing'), line: !!g.getLayer('track-follow-line'),
+          canvasFollowStrokes, themePaint, hiddenCount,
+        };
+        st.followTrain = null; st._routePts = null; st.trackStyle = 'auto'; st.mapDark = false; glFollowRouteSync(g, 'light'); draw();
+        window.__M.setPitch(0); window.__M.setBearing(0);
+        return result;
+      });
       o.t6 = await page.evaluate(async () => {
         const g = window.__ofmGl, st = window.__state, M = window.__M;
         const cl = await fetch('./data/rail_crossing_levels.json').then(r => r.json());
@@ -138,6 +174,10 @@ try {
     onlyFor('maplibre', GL_TRACKS_REASON, 'T4 主題/狀態 paint 正確', maplibre ? o.light === '["get","color"]' && /^\["case",\["in",\["get","lineKey"\]/.test(o.dark) && o.dark.includes('colorDark') && o.faint === '["get","colorFaintDark"]' && o.hidden === '["get","colorHiddenLight"]' : undefined, `${o.light} | ${o.dark || ''} | ${o.faint} | ${o.hidden}`);
     onlyFor('maplibre', GL_TRACKS_REASON, 'T5 站點圓各模式 filter/minzoom 正確', maplibre ? a.n === 0 && b.min === 10 && b.n === b.deco && b.deco > 0 && c.min === 0 && c.mode === 'freq' && c.n === c.vis && c.n > 0 : undefined, { a, b, c });
     onlyFor('maplibre', GL_TRACKS_REASON, 'T6 交叉口 layer 順序與中心像素=above 線色', maplibre ? o.t6ok : undefined, o.t6detail);
+    onlyFor('maplibre', GL_TRACKS_REASON, 'T8 跟隨路線高亮由 GL 接手，3D 傾斜不留 canvas 透視投影長直線', maplibre
+      ? !o.t8.err && o.t8.casing && o.t8.line && o.t8.routePoints > 1 && o.t8.sourcePoints === o.t8.routePoints && o.t8.canvasFollowStrokes.length === 0 &&
+        JSON.stringify(o.t8.themePaint) === JSON.stringify({ light: ['#fffdf6', ['get', 'color']], dark: ['#10141c', ['get', 'colorFollowDark']], sat: ['#24382c', ['get', 'color']] }) && o.t8.hiddenCount === 0
+      : undefined, o.t8);
     if (!maplibre) {
       const sample = await page.evaluate(SAMPLE);
       const glOff = await page.evaluate(() => !(window.__glTracks?.ready) || !window.__ofmGl?.getLayer || !window.__ofmGl.getLayer('track-line-0'));

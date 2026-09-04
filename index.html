@@ -5144,6 +5144,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="followpitch0904"><span class="d">9/4</span><span>修正跟隨火車並傾斜地圖時，遠端路線會變成跨畫面跳動直線；亮色、暗色與衛星底圖都已修正。</span></li>
         <li data-cl-of="tracksovermap0904"><span class="d">9/4</span><span>修正暗色 MapLibre 地圖的彩色路線仍被道路切碎；所有道路與 3D 建築現在都在路線下方，地名維持在上方。</span></li>
         <li data-cl-of="maporientation0904"><span class="d">9/4</span><span>MapLibre 地圖現在可旋轉、傾斜並切換 3D 建築；跟隨列車時會自動讓行進方向朝上，結束跟隨後回到正北。</span></li>
         <li data-cl-of="tymckind"><span class="d">9/4</span><span>桃園機場捷運的列車標得出車種：地圖上直達車是尖頭紫牌、普通車是白底圓牌，車牌也放大了，跟車卡與車站看板寫全名</span></li>
@@ -5151,7 +5152,6 @@
         <li data-cl-of="xingorder"><span class="d">9/4</span><span>兩條路線立體交叉的地方，改成依實際的高架與地下關係決定哪一條畫在上面</span></li>
         <li data-cl-of="tabletshell"><span class="d">9/4</span><span>iPad 與 Android 平板改用完整觸控版面；橫放時資訊停在右側，地圖保留主要空間</span></li>
         <li data-cl-of="journeysharelive"><span class="d">9/3</span><span>整段列車轉公車旅程可用短效連結分享；手機位置預設不分享，只有另行勾選並停留前景才更新，停止分享即刪除。</span></li>
-        <li data-cl-of="busjourney"><span class="d">9/3</span><span>軌道轉公車現在能接成一段不會消失的旅程：選定公車後再選下車站；列車抵達後保留等車資訊，按「我上車了」會切到公車行程並顯示剩餘站數，重開 App 也能接著看。</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5311,6 +5311,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="followpitch0904"><span class="d">9/4</span><span>修正跟隨火車並傾斜地圖時，遠端路線會變成跨畫面跳動直線；亮色、暗色與衛星底圖都已修正。</span></li>
         <li data-cl="maporientation0904"><span class="d">9/4</span><span>MapLibre 地圖現在可旋轉、傾斜並切換 3D 建築；跟隨列車時會自動讓行進方向朝上，結束跟隨後回到正北。手動設定的傾斜角度會保留。</span></li>
         <li data-cl="tabletshell"><span class="d">9/4</span><span>iPad 與 Android 平板改用完整觸控版面：直式提供底部分頁與「更多」，橫式把看板、搜尋和列車資訊放進右側欄，保留主要地圖空間；分割畫面會自動改用直式配置。「更多」也補上極簡沉浸開關，避免跨裝置同步設定後找不到關閉入口。</span></li>
         <li data-cl="bootfast"><span class="d">8/29</span><span>開啟網站變快了：三十幾份路網與班表資料原本要一份載完才載下一份，現在改成同時下載；重新造訪時沒變動的檔案也不再重抓。實測到列車出現的時間少了約三分之二</span></li>
@@ -6002,7 +6003,8 @@
 // v0904g：MapLibre 預覽完成原生標記與控制項、3D／跟車朝向，並修正手機面板讓位與拖曳解鎖；預設 Leaflet 不變。
 // v0904h：MapLibre 彩色路線改到道路與 3D 建築之上，不再被底圖切成碎段；文字標籤仍在最上。
 // v0904i：修正暗色 OpenFreeMap 的早期水域標籤誤導軌道插層，確保後段道路全在軌道下方。
-const BUILD = 'v0904i';
+// v0904j：MapLibre 跟隨路線高亮改由 GL 原生線層裁切，不再於 3D 傾斜的地平線後翻成長直線。
+const BUILD = 'v0904j';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -11309,11 +11311,12 @@ function metroLineColor(color) {
 // 路徑已建但不描,省下兩次 stroke。lineWidth 是「顏色線」寬度,外描(knockout case)固定比它寬 2.6px
 // ——原本「走過」寫死 6.4/3.8,兩者差正好 2.6,沿用同一個比例關係。
 // ==== GL TRACKS (M1a) ====
-// MapLibre 引擎下軌道線與捷運站點圓改由 GL 層畫;canvas 只留列車/站名/站等圖示/跟隨高亮/收集亮段/平交道(疊在 GL 之上,順序不變)。
+// MapLibre 引擎下軌道線、捷運站點圓與跟隨高亮改由 GL 層畫;canvas 只留列車/站名/站等圖示/收集亮段/平交道。
 // 資料 data/track_lines.geojson(71 個 LineString,property 見 build_track_geojson.mjs)與 data/track_stations.geojson(607 點);
 // 樣式 data/track_style_layers.json(states × themes)。四條裁示(計畫 D1–D4):auto+dark 只壓班表軌道、GL 站點圓只畫捷運/輕軌線、
-// 跟隨高亮留 canvas、casing/色線依 sortKey 階級交錯。每幀 glTracksSync 用簽名比對,狀態沒變就不碰 GL。
-const glTracks = { ready: false, style: null, lines: null, stations: null, ranks: [], sig: '' };
+// casing/色線依 sortKey 階級交錯。跟隨高亮若留在 canvas、pitch>0 時地平線後的投影會翻面、連成跨畫面長直線；
+// 改用獨立 GeoJSON source 給 MapLibre 原生裁切。每幀 glTracksSync 用簽名比對，狀態沒變就不碰 GL。
+const glTracks = { ready: false, style: null, lines: null, stations: null, ranks: [], sig: '', followPts: null, followColor: '', followSig: '' };
 function glTracksActive() { return GL_TRACKS && glTracks.ready && !!M && M.engine === 'maplibre'; }
 async function glTracksLoad() {
   if (!GL_TRACKS || !M || M.engine !== 'maplibre' || !M.onStyleLoad) return;
@@ -11330,6 +11333,7 @@ function glTracksInstall() {
   if (raw.getLayer('track-line-' + glTracks.ranks[0])) return; // 冪等:同一份 style 只裝一次
   if (!raw.getSource('track-lines')) raw.addSource('track-lines', { type: 'geojson', data: glTracks.lines });
   if (!raw.getSource('track-stations')) raw.addSource('track-stations', { type: 'geojson', data: glTracks.stations });
+  if (!raw.getSource('track-follow-route')) raw.addSource('track-follow-route', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
   // 彩色軌道必須完整壓在底圖道路與 3D 建築上，否則密集市區會被切成碎段；地名等 symbol
   // 仍留在軌道上方保持可讀。不能拿「第一個 symbol」當錨點：OFM dark 的 water_name 在道路群
   // 前面，照那個位置插會變成軌道先畫、後面的二十多層道路再把它切碎。應找最後一個非 symbol
@@ -11348,9 +11352,10 @@ function glTracksInstall() {
     raw.addLayer({ ...base['track-casing'], id: 'track-casing-' + k, filter: f }, before);
     raw.addLayer({ ...base['track-line'], id: 'track-line-' + k, filter: f }, before);
   }
+  for (const layer of glTracks.style.followLayers.layers) raw.addLayer({ ...layer, source: 'track-follow-route', filter: none }, before);
   raw.addLayer({ ...base['track-stations'], minzoom: 0, filter: none }, before); // zoom 閘由 glTracksSync 依模式 setLayerZoomRange
   for (const id of earlySymbols) raw.moveLayer(id, labelAnchor.id); // OFM dark:water_name 從道路群前搬回標籤群
-  glTracks.sig = ''; // 新 style 上的層是空 filter/預設 paint,強制下一幀重套
+  glTracks.sig = ''; glTracks.followPts = null; glTracks.followColor = ''; glTracks.followSig = ''; // 新 style 強制下一幀重套
 }
 // 可見集合與 canvas 三條路徑同源:drawFreq 看 state.visible、drawDecoBase 全部、drawSched 看 state.trackVisible。
 // 站點圓只給捷運/輕軌線(sched 車站是 canvas 站等圖示,計畫 D2)。
@@ -11365,6 +11370,30 @@ function glTracksKeys() {
   const schedKeys = (state.trackLines || []).map(ln => ln.sys + '|' + ln.id);
   return { lineKeys, stnKeys, schedKeys };
 }
+function glFollowRouteSync(raw, theme) {
+  if (!raw.getSource('track-follow-route') || !raw.getLayer('track-follow-line')) return;
+  const pts = state.followTrain && state._routePts && state._routePts.length > 1 ? state._routePts : null;
+  const color = pts ? state.followTrain.color : '';
+  // colorFollowDark 是「官方色 62% + 暗色底 38%」，與舊 canvas railDimColor(..., FOLLOW_DIM) 逐值相同。
+  const followColor = pts && theme === 'dark' ? railDimColor(color, FOLLOW_DIM) : color;
+  if (glTracks.followPts !== pts || glTracks.followColor !== followColor) {
+    raw.getSource('track-follow-route').setData({ type: 'FeatureCollection', features: pts ? [{
+      type: 'Feature', properties: { lineKey: 'follow', color, colorFollowDark: followColor },
+      geometry: { type: 'LineString', coordinates: pts.map(p => [p.lon, p.lat]) },
+    }] : [] });
+    glTracks.followPts = pts; glTracks.followColor = followColor;
+  }
+  const visible = !!pts && state.trackStyle !== 'hidden';
+  const sig = [theme, visible].join('#');
+  if (sig === glTracks.followSig) return;
+  glTracks.followSig = sig;
+  const selected = ['in', ['get', 'lineKey'], ['literal', visible ? ['follow'] : []]];
+  const styles = glTracks.style.followLayers.themes[theme];
+  for (const id of ['track-follow-casing', 'track-follow-line']) {
+    raw.setFilter(id, selected);
+    for (const [p, v] of Object.entries(styles[id].paint)) raw.setPaintProperty(id, p, v);
+  }
+}
 function glTracksSync() {
   if (!glTracksActive()) return;
   const raw = M.raw;
@@ -11372,6 +11401,7 @@ function glTracksSync() {
   const K = glTracksKeys();
   const st = state.collectMap ? 'collect' : state.trackStyle;           // 與 trackLineColor 的優先序相同:collectMap > hidden/faint > auto
   const theme = state.basemap === 'sat' ? 'sat' : (state.mapDark ? 'dark' : 'light'); // 同 pal()
+  glFollowRouteSync(raw, theme);
   const stnMin = state.mode === 'sched' ? 11 - ML_Z : 0;                 // drawDecoBase 的 showStop = z>=11(Leaflet 尺);drawFreq 無 zoom 閘
   const sig = [st, theme, stnMin, K.lineKeys.join(','), K.stnKeys.join(','), K.schedKeys.join(',')].join('#');
   if (sig === glTracks.sig) return;
@@ -11470,7 +11500,7 @@ function drawSched(w, h, paintDecoTrains) {
   }
   // 跟隨路線高亮:奶白外描+加粗實線(取代模糊光暈),描在軌道上、車站與列車下
   // 「隱藏」模式不畫——使用者要的是純流星畫面,跟隨路線也不留
-  if (state.followTrain && state.trackStyle !== 'hidden' && state._routePts && state._routePts.length > 1) {
+  if (!glTracksActive() && state.followTrain && state.trackStyle !== 'hidden' && state._routePts && state._routePts.length > 1) {
     ctx.beginPath();
     for (let i = 0; i < state._routePts.length; i++) {
       const p = M.toScreen([state._routePts[i].lat, state._routePts[i].lon]);
