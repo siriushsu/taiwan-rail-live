@@ -159,6 +159,12 @@
     '行駛中': 'Running', '重播': 'Replay', '{time} 發': 'Departs {time}', '跟隨 {train} 次': 'Follow train {train}', '{train}次': 'Train {train}',
     '從 {n} 班車裡挑出來的 · 點列車跟隨、點活動飛到那一站': 'Highlights selected from {n} trains · tap a train to follow or an event to visit its station',
     '特別列車出沒中': 'Special trains running now', '今日之最': 'Today’s highlights', '支線小火車': 'Branch-line trains', '準點排行': 'Punctuality ranking',
+    // 探索面板的週末活動入口列。🔴 這兩個鍵在 en 這一邊【只能各出現一次】——同鍵出現兩次時
+    // 後者會靜默蓋掉前者(本 repo 既有的坑),而把字典攤平成表格複核結構上照不到。
+    // 🔴「鐵道活動」刻意不含期間字樣:期間(本週末／春節連假／假日…)由 API 的 span.label 給,
+    // 而那是中文、不會因為 ?lang=en 就變英文,所以非中文介面用「label · 譯名」的形狀併起來
+    // (與 weekend.html 的 h1 同一種做法),不是把兩個詞直接黏成 "This weekendRail events"。
+    '鐵道活動': 'Rail events', '{n} 場': { one: '{n} event', other: '{n} events' },
     '近 30 天最準點的 10 班車，依單日最糟全程誤點排序（同分再比平均誤點、有紀錄天數、車次號）；至少 20 天有紀錄才列入計算，資料來源台鐵': 'The 10 most punctual trains over the past 30 days, ranked by their worst full-route delay day. Ties use average delay, days recorded and train number; at least 20 days of TRA records are required.',
     '觀光列車圖鑑（無固定車次）': 'Tourist-train gallery (no fixed service)'
   });
@@ -319,6 +325,8 @@
     '行駛中': '運行中', '重播': 'リプレイ', '{time} 發': '{time}発', '跟隨 {train} 次': '{train}列車を追跡', '{train}次': '{train}列車',
     '從 {n} 班車裡挑出來的 · 點列車跟隨、點活動飛到那一站': '{n}本から選んだ見どころ・列車をタップして追跡、イベントをタップして駅へ移動',
     '特別列車出沒中': '運行中の特別列車', '今日之最': '本日のトップ', '支線小火車': '支線列車', '準點排行': '定時運行ランキング',
+    // 對應 en 那邊同名的兩個鍵(說明見那裡);同樣【在 ja 這一邊只能各出現一次】。
+    '鐵道活動': '鉄道イベント', '{n} 場': '{n}件',
     '近 30 天最準點的 10 班車，依單日最糟全程誤點排序（同分再比平均誤點、有紀錄天數、車次號）；至少 20 天有紀錄才列入計算，資料來源台鐵': '過去30日で最も定時性の高い10列車。1日の全区間最大遅延で順位付けし、同点時は平均遅延・記録日数・列車番号を比較します。台湾鉄路の記録が20日以上ある列車が対象です。',
     '觀光列車圖鑑（無固定車次）': '観光列車図鑑（定期運行なし）'
   });

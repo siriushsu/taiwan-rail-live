@@ -49,11 +49,15 @@ const EVENTS_FIXTURE = {
   ],
 };
 
-async function open(browser, { lang = '', w = 1280, h = 900 } = {}) {
+async function open(browser, { lang = '', w = 1280, h = 900, apiStatus = 200 } = {}) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, locale: 'zh-TW' });
   await ctx.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} });
-  await ctx.route('**/api/weekend*', r =>
-    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(API) }));
+  // apiStatus 非 200 ⇒ 走「拿不到 label」那條路:fetchJSONAt 對非 ok 回 null ⇒ _weekendCount='none'
+  // ⇒ 再算繪一次 ⇒ 列上停在 fallback 文字。刻意用 503 而不是「乾脆不回應」——後者會停在
+  // 'loading',雖然文字一樣,但判準會跟 deferred #18 的競速糾纏,分不出量到的是哪一種狀態。
+  await ctx.route('**/api/weekend*', r => apiStatus === 200
+    ? r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(API) })
+    : r.fulfill({ status: apiStatus, body: 'err' }));
   await ctx.route('**/data/events.json*', r =>
     r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(EVENTS_FIXTURE) }));
   await ctx.route(/railisland\.tw\/weekend\.html/, r =>
@@ -113,9 +117,62 @@ try {
     });
     chk('X4a 近期活動區塊確實存在(逃生門沒有被觸發)', order.sec >= 0, JSON.stringify(order));
     chk('X4b 入口列排在近期活動之上', order.wk >= 0 && order.sec >= 0 && order.wk < order.sec, JSON.stringify(order));
-    chk('X5 點了會開週末頁', /weekend\.html/.test(await urlOpenedBy(ctx, row) || ''));
+    const xUrl = await urlOpenedBy(ctx, row) || '';
+    chk('X5 點了會開週末頁', /weekend\.html/.test(xUrl), xUrl);
+    // 🔴 M3/X5/L1/L2 全都只比對 `/weekend\.html/` 這個【路徑片段】,任何主機只要路徑對就過
+    // ——整枝複審用受控實驗證明過:把 WEEKEND_PAGE_URL 換成一個【解析得到】的錯誤來源
+    // (http://localhost:5205/weekend.html)時 14/14 全綠;換成解析不到的主機才會紅,而紅的
+    // 是 DNS 不是判準。這條把「出站到哪個主機」單獨拿出來斷言,補上那個盲點。
+    // 它同時是「之後若把它改成同源相對路徑」的訊號來源(現在改屬產品決定,本輪不改)。
+    chk('X6 出站 origin 恰為 https://railisland.tw(路徑片段比對分辨不出主機打錯)',
+      (() => { try { return new URL(xUrl).origin === 'https://railisland.tw'; } catch (e) { return false; } })(), xUrl);
     await ctx.close();
   } catch (e) { chk('X! 這一節整節跑完不拋例外', false, errMsg(e)); }
+
+  // 🔴 這一節守 C2／I1(整枝複審與控制者發現):入口列的文字由兩截語言不同的東西組成——
+  //   (1) span.label 是核心層產出的【中文】期間名,不會因為 ?lang=en 變成英文;
+  //   (2)「鐵道活動」是介面字串,會翻譯。
+  // 兩截直接串接在非中文介面會黏成「本週末Rail events」。判準用【逐字元相等】而不是 includes:
+  // includes('Rail events') 對黏在一起的壞字串照樣是綠的,分不出有沒有分隔符。
+  // U 段守的是另一半:label 還沒到手時不可以編一個期間出來(實測 730 天有 133 天真值不是本週末)。
+  console.log('\n【T】入口列文字組成(中文 label ＋ 介面語言譯名)');
+  for (const [lang, want, tail] of [
+    ['', '光復節連假鐵道活動', '2 場'],
+    ['en', '光復節連假 · Rail events', '2 events'],
+    ['ja', '光復節連假 · 鉄道イベント', '2件'],
+  ]) try {
+    const { ctx, pg } = await open(browser, { lang });
+    await pg.click('#exploreBtn');
+    const b = pg.locator('#expBody .row[data-weekend] b');
+    await b.waitFor({ timeout: 10000 });
+    // 等 API 回來落定(首次算繪一定是 fallback,ensureWeekendCount 收到回應才重畫)
+    await pg.waitForFunction(() => {
+      const el = document.querySelector('#expBody .row[data-weekend] b');
+      return !!el && el.textContent.includes('光復節連假');
+    }, null, { timeout: 10000 }).catch(() => {});
+    const got = await b.textContent();
+    console.log(`     實際文字（${lang || 'zh-TW'}）：${JSON.stringify(got)}`);
+    chk(`T1 ${lang || 'zh-TW'} 入口列文字恰為 ${JSON.stringify(want)}`, got === want, JSON.stringify(got));
+    // 反向判準(配上面的正向對照):中文字後面不可以緊接拉丁字母。譯名若哪天換成別的英文詞,
+    // T1 會紅但說不出「是黏在一起」,這條才說得出來。
+    chk(`T2 ${lang || 'zh-TW'} 沒有中文字直接黏著拉丁字母`, !/[㐀-鿿][A-Za-z]/.test(got), JSON.stringify(got));
+    const min = await pg.locator('#expBody .row[data-weekend] .min').textContent();
+    chk(`T3 ${lang || 'zh-TW'} 場次數也跟著介面語言(${tail})`, min.includes(tail), JSON.stringify(min));
+    await ctx.close();
+  } catch (e) { chk(`T! ${lang || 'zh-TW'} 這一節整節跑完不拋例外`, false, errMsg(e)); }
+
+  console.log('\n【U】拿不到 label 時不編一個期間出來');
+  for (const [lang, want] of [['', '鐵道活動'], ['en', 'Rail events']]) try {
+    const { ctx, pg } = await open(browser, { lang, apiStatus: 503 });
+    await pg.click('#exploreBtn');
+    const b = pg.locator('#expBody .row[data-weekend] b');
+    await b.waitFor({ timeout: 10000 });
+    const got = await b.textContent();
+    console.log(`     API 掛掉時（${lang || 'zh-TW'}）：${JSON.stringify(got)}`);
+    chk(`U1 ${lang || 'zh-TW'} 只說「鐵道活動」,不斷言是哪一種期間`, got === want, JSON.stringify(got));
+    chk(`U2 ${lang || 'zh-TW'} 沒有寫死的「本週末」(18.2% 的日子那是錯的)`, !got.includes('本週末'), JSON.stringify(got));
+    await ctx.close();
+  } catch (e) { chk(`U! ${lang || 'zh-TW'} 這一節整節跑完不拋例外`, false, errMsg(e)); }
 
   console.log('\n【L】語言帶過去');
   try {
