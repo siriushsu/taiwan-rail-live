@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0A0F1C" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#EFE6D2" media="(prefers-color-scheme: light)">
+<meta name="description" content="軌島 Rail Island：這個週末與連假期間，各家捷運、台鐵與林鐵沿線的活動整理。">
+<meta name="robots" content="index,follow">
+<title>週末鐵道活動｜軌島 Rail Island</title>
+<link rel="icon" href="/favicon-32.png" sizes="32x32">
+<link rel="icon" href="/favicon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="/apple-touch-180.png">
+<style>
+  :root{
+    color-scheme:dark;
+    --bg-page:#0A0F1C; --paper:#141D31; --paper-2:#0E1526;
+    --line:#2A3B5C; --line-faint:#22304C;
+    --ink:#ECF0F8; --muted:#93A3C0; --faint:#7286A8;
+    --navy:#7FA6E0; --red:#F0564A; --gold:#E8B84B; --ok:#3DBF77;
+    --font:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",sans-serif;
+    --r-l:14px; --r-m:8px; --r-pill:999px;
+  }
+  @media (prefers-color-scheme: light){
+    :root{
+      color-scheme:light;
+      --bg-page:#EFE6D2; --paper:#FFFDF6; --paper-2:#F7F0DD;
+      --line:#D8CBA9; --line-faint:#ECE2C8;
+      --ink:#3A3226; --muted:#6B5F4A; --faint:#8A7C62;
+      --navy:#2A4A73; --red:#B43B31; --gold:#9C7A1E; --ok:#1B8F4D;
+    }
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0; background:var(--bg-page); color:var(--ink); font-family:var(--font);
+       line-height:1.6; -webkit-font-smoothing:antialiased}
+  a{color:var(--navy)}
+  a:hover{color:var(--red)}
+  :focus-visible{outline:2px solid var(--red); outline-offset:2px}
+  .wrap{max-width:760px; margin:0 auto; padding:28px 16px 56px}
+  .brand{display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:800;
+         letter-spacing:.14em; color:var(--faint); text-decoration:none; margin-bottom:10px}
+  .brand:hover{color:var(--red)}
+  h1{margin:0 0 4px; font-size:clamp(22px,5vw,30px); font-weight:900; letter-spacing:.04em}
+  .range{color:var(--muted); font-size:14px; margin:0 0 22px}
+  h2{font-size:13px; font-weight:800; letter-spacing:.12em; color:var(--faint);
+     text-transform:uppercase; margin:28px 0 10px; padding-left:2px}
+  .ev{background:var(--paper); border:1px solid var(--line); border-radius:var(--r-l);
+      padding:14px 16px; margin-bottom:10px; display:block; text-decoration:none; color:inherit}
+  a.ev:hover{border-color:var(--navy)}
+  .ev-title{font-size:15.5px; font-weight:800; line-height:1.35; margin:0 0 6px}
+  .ev-when{display:inline-block; font-size:12px; font-weight:800; color:var(--gold);
+           border:1px solid var(--line); border-radius:var(--r-pill); padding:1px 9px; margin-bottom:7px}
+  .ev-note{margin:0 0 7px; font-size:13px; color:var(--muted); line-height:1.6}
+  .ev-go{margin:0; font-size:12.5px; color:var(--faint)}
+  .ev-go b{color:var(--ink); font-weight:700}
+  .empty{background:var(--paper-2); border:1px dashed var(--line); border-radius:var(--r-l);
+         padding:18px 16px; color:var(--muted); font-size:14px}
+  footer{margin-top:30px; padding-top:18px; border-top:1px solid var(--line);
+         color:var(--faint); font-size:12.5px; line-height:1.7}
+  .src-zh{font-size:11.5px; color:var(--faint); font-weight:700}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="brand" href="/">← 軌島 · RAIL ISLAND</a>
+  <h1 id="h1">週末鐵道活動</h1>
+  <p class="range" id="range">載入中…</p>
+  <div id="body"></div>
+  <footer id="foot"></footer>
+</div>
+<script>
+// 骨架文字的三語小字典。🔴 全站八個靜態頁都沒有 ?lang= 機制,這裡是第一個——
+// 刻意不引入 i18n/*.js:那份是給 index.html 那顆 SPA 用的,而且有「同鍵出現兩次、
+// 後者靜默蓋掉修好譯文」的已知坑。這頁只有下面這十幾條字,內嵌最單純。
+var STR = {
+  'zh-TW': { title:'週末鐵道活動', only:'這段期間限定', also:'期間也開放', days:'天',
+             go:'搭', to:'到', station:'站', empty:'這段期間目前沒有收錄到活動。',
+             err:'暫時讀不到活動資料，稍後再試。', updated:'活動資料更新於',
+             src:'活動資訊摘自各營運機構官方公告，實際場次與時間以官方為準。',
+             back:'回到地圖', zhSrc:'中文原文' },
+  'en':    { title:'Rail Events This Weekend', only:'Only during these days', also:'Also open',
+             days:'days', go:'Take', to:'to', station:' Station',
+             empty:'No events listed for these days yet.',
+             err:'Could not load events. Please try again later.', updated:'Events updated',
+             src:'Event details are quoted from operators’ official announcements.',
+             back:'Back to the map', zhSrc:'Chinese source' },
+  'ja':    { title:'週末の鉄道イベント', only:'この期間限定', also:'期間中も開催',
+             days:'日間', go:'', to:'', station:'駅',
+             empty:'この期間のイベントはまだありません。',
+             err:'イベント情報を読み込めませんでした。', updated:'イベント情報の更新日',
+             src:'イベント情報は各事業者の公式発表からの引用です。',
+             back:'地図に戻る', zhSrc:'中国語原文' },
+};
+var LANG = (function () {
+  try {
+    var q = new URLSearchParams(location.search).get('lang');
+    if (q && STR[q]) return q;
+  } catch (e) {}
+  return 'zh-TW';
+})();
+var T = STR[LANG];
+document.documentElement.lang = LANG === 'zh-TW' ? 'zh-Hant' : LANG;
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+// 原文連結白名單。escape 擋得住 HTML 注入但擋不住 javascript:,而活動資料是
+// 「讀官方公告產草稿 → 只看標題裁示」的管線,url 不會被逐條看過。
+function safeUrl(u) { return /^https?:\/\//i.test(String(u || '')) ? String(u) : ''; }
+function md(d) { return d.slice(5).replace('-', '/'); }
+function whenText(days) {
+  if (!days || !days.length) return '';
+  if (days.length === 1) return md(days[0]);
+  if (days.length === 2) return md(days[0]) + '、' + md(days[1]);
+  return md(days[0]) + '–' + md(days[days.length - 1]);
+}
+function placeText(places) {
+  var names = (places || []).map(function (p) { return p.station; }).filter(Boolean);
+  if (!names.length) return '';
+  return names.map(function (n) { return esc(n) + T.station; }).join('、');
+}
+// 與 index.html:27068 的 eventHasChineseSource() 同一個範圍。用跳脫寫法不寫字面 CJK 字元。
+function hasChinese(s) { return /[\u3400-\u9fff]/.test(String(s || '')); }
+
+function card(ev) {
+  var u = safeUrl(ev.url);
+  var place = placeText(ev.places);
+  var zh = LANG !== 'zh-TW' && (hasChinese(ev.title) || hasChinese(ev.note));
+  var inner =
+    '<p class="ev-title">' + esc(ev.title) + (zh ? ' <span class="src-zh">' + esc(T.zhSrc) + '</span>' : '') + '</p>' +
+    '<span class="ev-when">' + esc(whenText(ev.days)) + '</span>' +
+    (ev.note ? '<p class="ev-note">' + esc(ev.note) + '</p>' : '') +
+    (place ? '<p class="ev-go"><b>' + place + '</b></p>' : '');
+  return u ? '<a class="ev" href="' + esc(u) + '" target="_blank" rel="noopener">' + inner + '</a>'
+           : '<div class="ev">' + inner + '</div>';
+}
+
+fetch('/api/weekend', { cache: 'no-store' })
+  .then(function (r) { return r.ok ? r.json() : null; })
+  .then(function (j) {
+    if (!j || !j.span) throw new Error('bad payload');
+    document.getElementById('h1').textContent = j.span.label + (LANG === 'zh-TW' ? '' : ' · ' + T.title);
+    document.getElementById('range').textContent =
+      md(j.span.from) + (j.span.from === j.span.to ? '' : '–' + md(j.span.to)) + '（' + j.span.days + T.days + '）';
+    var html = '';
+    if (j.events && j.events.length) {
+      html += '<h2>' + esc(T.only) + '</h2>' + j.events.map(card).join('');
+    } else {
+      html += '<div class="empty">' + esc(T.empty) + '</div>';
+    }
+    if (j.alsoOpen && j.alsoOpen.length) {
+      html += '<h2>' + esc(T.also) + '</h2>' + j.alsoOpen.map(card).join('');
+    }
+    document.getElementById('body').innerHTML = html;
+    document.getElementById('foot').innerHTML =
+      esc(T.src) + '<br>' + (j.updated ? esc(T.updated) + ' ' + esc(j.updated) + '　·　' : '') +
+      '<a href="/">' + esc(T.back) + '</a>';
+    document.body.dataset.ready = '1';
+  })
+  .catch(function () {
+    document.getElementById('range').textContent = '';
+    document.getElementById('body').innerHTML = '<div class="empty">' + esc(T.err) + '</div>';
+    document.getElementById('foot').innerHTML = '<a href="/">' + esc(T.back) + '</a>';
+    document.body.dataset.ready = 'error';
+  });
+</script>
+</body>
+</html>
