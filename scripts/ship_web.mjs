@@ -136,6 +136,13 @@ try {
   process.stdout.write(obs.stdout || ''); process.stderr.write(obs.stderr || '');
   if (obs.status !== 0) fail('OBS 直播／導播守門人未過——被刪掉的 ?live 機制回來了，或 LIVE 徽章家族被誤刪'
     + '（單獨重跑：npm run check-obs-removed）');
+  // ── 2.11 公車轉乘完整守門 ───────────────────────────────────────────────
+  // 這裡刻意包含真實 Chromium＋WebKit 手機觸控與故障回應矩陣。公車卡是按需查詢，
+  // 靜態檢查只能證明「看起來有那段程式」，不能證明按鈕真的可點、原始狀態碼不會外露。
+  const busTransfer = spawnSync('node', [path.join(wt, 'scripts', 'verify_bus_transfer_all.mjs')], { encoding: 'utf8' });
+  process.stdout.write(busTransfer.stdout || ''); process.stderr.write(busTransfer.stderr || '');
+  if (busTransfer.status !== 0) fail('公車轉乘驗收未過——修正資料索引、Worker、UI、手機互動或錯誤降級後再出貨'
+    + '（單獨重跑：npm run check-bus-transfer）');
 
   // ── 2.11 地圖引擎適配層閘門(換引擎 M0,2026-09-03)——純靜態、毫秒級:index.html 裡任何繞過適配層 M 直接
   // 呼叫 Leaflet `map.xxx(` 的程式碼都會在這裡擋下(否則 MapLibre 引擎一開就炸,而 Leaflet 路徑全綠照不到)。

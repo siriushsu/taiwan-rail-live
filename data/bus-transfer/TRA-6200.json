@@ -1,0 +1,1 @@
+{"schemaVersion":1,"generatedAt":"2026-09-03T07:25:05.359Z","coverage":"all_active_rail_stations","trigger":"user_open_only","polling":false,"station":{"id":"TRA:6200","name":"林榮新光車站","appSystem":"tra_sched","systemLabel":"台鐵","position":{"lat":23.80176,"lon":121.46169},"radiusM":600,"nearbyStopCount":0,"coverageState":"no_nearby_stops","scopes":[]}}

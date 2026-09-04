@@ -52,6 +52,13 @@ console.log(`  落後    origin/main ${behind} 顆${behind !== '0' ? '  ⚠️ �
 const dirty = cap('git', ['status', '--porcelain'], { cwd: repoRoot }).split('\n').filter(Boolean);
 console.log(`  未提交  ${dirty.length} 個路徑${dirty.length ? `\n${dirty.slice(0, 12).map(l => `          ${l}`).join('\n')}` : ''}`);
 
+// iOS 現在同時承載 iPhone、iPad 與完整的軌道轉公車旅程。這兩支瀏覽器矩陣若只放在
+// package.json 等人手動想起來，正式 archive 仍可能在版面或原生橋接已壞時一路綠到底。
+// 固定放進唯一出檔指令，讓每顆 iOS build 都先驗真實觸控、WebKit 與旅程分享生命週期。
+console.log('\n  ▸ iPhone／iPad 與轉乘旅程驗收');
+sh('npm', ['run', 'check-tablet'], { cwd: repoRoot });
+sh('npm', ['run', 'check-bus-transfer'], { cwd: repoRoot });
+
 // ── 2／6　版號、更新了什麼、www、cap sync、發行閘門 ────────────────────────────
 // set-release-mode 自己會做：version train 實查、出貨基線涵蓋檢查、pbxproj 寫入＋回讀、
 // prepare-web、cap sync、npm run verify。這裡不重做它做過的事。

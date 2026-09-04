@@ -29,7 +29,7 @@ const ok = (name, pass, detail = '') => {
 };
 const escRe = value => value.replace(/[.*+?^{}$()|[\]\\]/g, '\\$&');
 
-ok('T0 BUILD 已推進到 v0903k', SOURCE.includes("const BUILD = 'v0903k';"));
+ok('T0 BUILD 已推進到 v0904b', SOURCE.includes("const BUILD = 'v0904b';"));
 ok('T0 MOBILE_MQ 五處同式', (SOURCE.match(new RegExp(escRe(MOBILE_MQ), 'g')) || []).length === 5,
   'matches=' + (SOURCE.match(new RegExp(escRe(MOBILE_MQ), 'g')) || []).length);
 ok('T0 RAIL_MQ CSS／JS 同式', (SOURCE.match(new RegExp(escRe(RAIL_MQ), 'g')) || []).length === 2,

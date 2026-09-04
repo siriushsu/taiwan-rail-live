@@ -196,6 +196,8 @@
         "Ambient mode is now sit-back-and-watch: the map can no longer be dragged or pinched off course, and leaving then re-entering no longer shrinks the Exit ambient mode button into an empty stub you cannot tap.",
       '跟捷運列車時，卡片上會顯示這一台車每一節車廂的擁擠度':
         'While following a Taipei Metro train, the card shows how crowded each carriage of that train is.',
+      '兩條路線立體交叉的地方，改成依實際的高架與地下關係決定哪一條畫在上面':
+        'Where two lines cross on different levels, the one that is actually elevated or on top is now drawn over the other, instead of whichever happened to be drawn last.',
       'iPad 與 Android 平板改用完整觸控版面；橫放時資訊停在右側，地圖保留主要空間':
         'iPad and Android tablets now use the full touch layout; in landscape, information stays in a right rail so the map remains the focus.',
       '更新紀錄改得更精簡好讀，資料來源、專案授權與隱私說明也同步校正':
@@ -592,6 +594,8 @@
         '鑑賞モードは「眺めるだけ」に：地図が指で動かされたりズームがずれたりせず、いったん終了してもう一度入っても「鑑賞モードを終了」ボタンが押せない小さなボタンに縮まなくなりました。',
       '跟捷運列車時，卡片上會顯示這一台車每一節車廂的擁擠度':
         '台北メトロの列車を追跡中、その列車の車両ごとの混雑度をカードに表示します。',
+      '兩條路線立體交叉的地方，改成依實際的高架與地下關係決定哪一條畫在上面':
+        '2つの路線が立体交差する場所で、実際に高架・上側を通る路線が上に描かれるようになりました。描画順ではなく実際の高低に従います。',
       'iPad 與 Android 平板改用完整觸控版面；橫放時資訊停在右側，地圖保留主要空間':
         'iPadとAndroidタブレットでタッチ向けレイアウトを完全に利用できるようにし、横向きでは情報を右レールにまとめて地図を広く保ちます。',
       '更新紀錄改得更精簡好讀，資料來源、專案授權與隱私說明也同步校正':
@@ -835,4 +839,65 @@
       '你的接續班次': 'あなたの乗継便', '取消釘選': '固定を解除', '表定時刻 · 未計站內步行': '所定時刻・駅構内の徒歩時間は含みません',
     },
   };
+
+  Object.assign(window.RAIL_I18N_MESSAGES.en, {
+    '分享整段旅程': 'Share the whole journey', '分享多久': 'Share for', '30 分鐘': '30 minutes', '1 小時': '1 hour',
+    '3 小時': '3 hours', '12 小時': '12 hours', '連同我的即時位置': 'Include my live location',
+    '停止分享並刪除': 'Stop sharing and delete', '建立分享連結': 'Create share link',
+    '目前沒有可分享的接續旅程': 'There is no connecting journey to share yet',
+    '{train} 次 → {station}': 'Train {train} → {station}', '，再接 {route} 到 {station}': ', then take {route} to {station}',
+    '只有開啟這個選項才會上傳最新一筆座標；App 留在前景時更新，收起或鎖屏後立即暫停。': 'Your latest coordinates are uploaded only when this is enabled. Updates run while the app is in the foreground and pause immediately in the background or on the Lock Screen.',
+    '只有開啟這個選項才會上傳最新一筆座標；頁面留在前景時更新，切到背景後暫停傳送。': 'Your latest coordinates are uploaded only when this is enabled. Updates run only while this page is in the foreground and pause when it moves to the background.',
+    '正在分享': 'Sharing now', '手機定位已停止，但伺服器尚未確認刪除；請再按一次「停止分享並刪除」。': 'Phone location has stopped, but server deletion is not confirmed. Select “Stop sharing and delete” again.',
+    '連結會在 {time} 自動失效{location}': 'The link expires automatically at {time}{location}', '；即時位置已開啟': '; live location is on',
+    '再次分享連結': 'Share link again', '分享預設只含列車／已確認公車的公開位置，不會包含你的手機位置。': 'By default, this shares only public train and verified bus positions, not your phone location.',
+    '用軌島看這段列車轉公車旅程的最新進度': 'See the latest progress of this rail-to-bus journey in Rail Island',
+    '軌島旅程分享': 'Rail Island journey', '分享旅程': 'Share journey', '正在建立短效連結…': 'Creating a short-lived link…',
+    '沒有取得定位權限，連結仍會分享運具進度': 'Location permission was not granted; the link will still share transit progress',
+    '暫時無法建立分享連結，請稍後重試。': 'The share link cannot be created right now. Try again later.',
+    '正在停止分享並刪除位置…': 'Stopping sharing and deleting the location…', '已停止分享並刪除即時位置': 'Sharing stopped and the live location was deleted',
+    '尚未能從伺服器刪除，已停止手機定位；請保留這個畫面並重試。': 'Server deletion is not confirmed yet. Phone location has stopped; keep this screen and try again.',
+    '{n} 秒前': '{n}s ago', '{n} 分前': '{n} min ago', '讀取中': 'Loading', '正在取得分享旅程…': 'Loading the shared journey…',
+    '短效旅程分享': 'Short-lived journey share', '分享已結束': 'Sharing ended', '暫時無法讀取': 'Temporarily unavailable',
+    '這個旅程連結目前沒有可顯示的資料': 'This journey link has no data to display right now',
+    '發起者已停止分享，或連結已到期。': 'The sender stopped sharing or the link expired.', '請稍後再試。': 'Try again later.',
+    '不會顯示伺服器錯誤細節': 'Server error details are hidden', '搭乘列車中': 'On the train', '前往公車站': 'Walking to the bus stop',
+    '等公車': 'Waiting for the bus', '搭乘公車中': 'On the bus', '已完成': 'Completed', '旅程進行中': 'Journey in progress',
+    '手機位置已一段時間未更新（{age}）': 'Phone location has not updated for a while ({age})', '手機即時位置・{age}': 'Phone live location · {age}',
+    '公車公開位置已過期（{age}）': 'Public bus location is stale ({age})', '公車公開位置・{age}': 'Public bus location · {age}',
+    '依列車時刻表與即時誤點推算位置': 'Position estimated from the train timetable and live delay',
+    '目前沒有可用的位置，仍可查看旅程階段': 'No position is available; journey progress is still visible',
+    '最後更新 {age}・連結於 {time} 失效': 'Updated {age} · link expires at {time}', '分享的位置': 'Shared location', '分享的旅程': 'Shared journey',
+    '分享中・管理': 'Sharing · Manage', '分享這段旅程': 'Share this journey', '分享中': 'Sharing', '管理正在分享的旅程': 'Manage the journey being shared',
+  });
+  Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+    '分享整段旅程': '旅程全体を共有', '分享多久': '共有時間', '30 分鐘': '30分', '1 小時': '1時間',
+    '3 小時': '3時間', '12 小時': '12時間', '連同我的即時位置': '現在地も共有',
+    '停止分享並刪除': '共有を停止して削除', '建立分享連結': '共有リンクを作成',
+    '目前沒有可分享的接續旅程': '共有できる乗継旅程はまだありません',
+    '{train} 次 → {station}': '{train}列車 → {station}', '，再接 {route} 到 {station}': '、続いて{route}で{station}へ',
+    '只有開啟這個選項才會上傳最新一筆座標；App 留在前景時更新，收起或鎖屏後立即暫停。': 'この項目をオンにした場合だけ最新座標を送信します。Appが前面にある間だけ更新し、バックグラウンドまたはロック画面では直ちに停止します。',
+    '只有開啟這個選項才會上傳最新一筆座標；頁面留在前景時更新，切到背景後暫停傳送。': 'この項目をオンにした場合だけ最新座標を送信します。ページが前面にある間だけ更新し、バックグラウンドでは送信を停止します。',
+    '正在分享': '共有中', '手機定位已停止，但伺服器尚未確認刪除；請再按一次「停止分享並刪除」。': '端末の位置取得は停止しましたが、サーバーでの削除を確認できません。「共有を停止して削除」をもう一度押してください。',
+    '連結會在 {time} 自動失效{location}': 'リンクは{time}に自動失効します{location}', '；即時位置已開啟': '・現在地共有はオンです',
+    '再次分享連結': 'リンクをもう一度共有', '分享預設只含列車／已確認公車的公開位置，不會包含你的手機位置。': '既定では列車と確認済みバスの公開位置だけを共有し、端末の位置は含みません。',
+    '用軌島看這段列車轉公車旅程的最新進度': '軌島で鉄道からバスへの旅程の最新状況を見る',
+    '軌島旅程分享': '軌島の旅程共有', '分享旅程': '旅程を共有', '正在建立短效連結…': '短時間リンクを作成中…',
+    '沒有取得定位權限，連結仍會分享運具進度': '位置情報の許可を取得できませんでした。リンクでは交通機関の進行状況だけを共有します',
+    '暫時無法建立分享連結，請稍後重試。': '現在は共有リンクを作成できません。しばらくしてからお試しください。',
+    '正在停止分享並刪除位置…': '共有を停止して位置情報を削除中…', '已停止分享並刪除即時位置': '共有を停止し、現在地を削除しました',
+    '尚未能從伺服器刪除，已停止手機定位；請保留這個畫面並重試。': 'サーバーでの削除をまだ確認できません。端末の位置取得は停止しました。この画面を残して再試行してください。',
+    '{n} 秒前': '{n}秒前', '{n} 分前': '{n}分前', '讀取中': '読込中', '正在取得分享旅程…': '共有旅程を取得中…',
+    '短效旅程分享': '短時間の旅程共有', '分享已結束': '共有終了', '暫時無法讀取': '一時的に読込不可',
+    '這個旅程連結目前沒有可顯示的資料': 'この旅程リンクには現在表示できるデータがありません',
+    '發起者已停止分享，或連結已到期。': '共有者が停止したか、リンクの期限が切れました。', '請稍後再試。': 'しばらくしてからお試しください。',
+    '不會顯示伺服器錯誤細節': 'サーバーエラーの詳細は表示しません', '搭乘列車中': '列車に乗車中', '前往公車站': 'バス停へ移動中',
+    '等公車': 'バス待ち', '搭乘公車中': 'バスに乗車中', '已完成': '完了', '旅程進行中': '旅程進行中',
+    '手機位置已一段時間未更新（{age}）': '端末の位置がしばらく更新されていません（{age}）', '手機即時位置・{age}': '端末の現在地・{age}',
+    '公車公開位置已過期（{age}）': 'バスの公開位置が古くなっています（{age}）', '公車公開位置・{age}': 'バスの公開位置・{age}',
+    '依列車時刻表與即時誤點推算位置': '列車時刻表とリアルタイム遅延から位置を推定',
+    '目前沒有可用的位置，仍可查看旅程階段': '利用できる位置はありませんが、旅程の進行状況は確認できます',
+    '最後更新 {age}・連結於 {time} 失效': '最終更新 {age}・リンクは{time}に失効', '分享的位置': '共有された位置', '分享的旅程': '共有旅程',
+    '分享中・管理': '共有中・管理', '分享這段旅程': 'この旅程を共有', '分享中': '共有中', '管理正在分享的旅程': '共有中の旅程を管理',
+  });
 })();
