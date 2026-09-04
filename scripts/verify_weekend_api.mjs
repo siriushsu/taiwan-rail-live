@@ -148,7 +148,12 @@ chk('S6 序列化得出來(沒有循環參照、沒有 undefined 破壞 JSON)',
 
 console.log(`\n實際內容(今天 ${today})：`);
 console.log(`  ${body.span.label} ${body.span.from}–${body.span.to}（${body.span.days} 天）· ${body.count} 場 · 另有 ${body.alsoOpen.length} 則長期檔`);
-for (const e of body.events) console.log(`    · ${e.title}（${e.days.join('、')}）`);
+// 這段是診斷用列印,不是判準——但一樣不該在資料形狀壞掉時直接拋例外,否則連
+// 上面「幾過幾失敗」那行都印不出來(突變測試時親眼撞見過:S4 等判準已經正確變紅,
+// 卻因為這裡沒防護而讓整支腳本以未捕捉例外收場,乍看像是腳本本身壞了)。
+for (const e of body.events) {
+  console.log(`    · ${e.title}（${Array.isArray(e.days) ? e.days.join('、') : '(days 格式異常:' + JSON.stringify(e.days) + ')'}）`);
+}
 
 console.log(`\n${fail ? '❌' : '✅'} weekend-api：${pass} 過 / ${fail} 失敗`);
 if (fail) { console.error('失敗項目：\n  - ' + bad.join('\n  - ')); process.exit(1); }
