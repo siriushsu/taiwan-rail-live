@@ -7,6 +7,10 @@
 // 🔴 locale 釘 zh-TW:文案判準隨機器語系會假紅,與真回歸不可分辨。
 // 🔴「點下去會怎樣」一律真的點一次並量新分頁的網址,不用 elementFromPoint
 //    ——那答的是「點到誰」不是「點了會怎樣」。
+// 🔴 每一節都包 try/catch(比照 verify_events.mjs 既有慣例):把入口列的處理器整個拿掉的
+//    突變會讓 #expBody 永遠等不到 .row[data-weekend],row.waitFor() 逾時拋出——沒接住的話
+//    整支腳本會在那裡當場中止,連 L 段與最後的總計行都不會印,看起來比「全部失敗」還糟
+//    (這個坑在寫測試當下就實測撞到過一次:突變 A 直接讓 process 帶著未捕捉例外死掉)。
 import { chromium } from 'playwright';
 
 const BASE = process.env.VURL || 'http://localhost:5187';
@@ -16,6 +20,7 @@ function chk(name, cond, extra) {
   if (cond) { pass++; console.log(`  ✅ ${name}`); }
   else { fail++; bad.push(name); console.log(`  ❌ ${name}${extra ? '　' + extra : ''}`); }
 }
+const errMsg = e => String((e && e.message) || e).split('\n')[0].slice(0, 160);
 
 // 🔴 span.label 刻意選一個「不等於 weekendRowHtml() 內建 fallback 文字(本週末)」的值——
 // 若兩者相同,X2(顯示 API 給的標題)不管 ensureWeekendCount() 到底有沒有真的接到 API,
@@ -77,7 +82,7 @@ async function urlOpenedBy(ctx, locator) {
 const browser = await chromium.launch();
 try {
   console.log('\n【M】更多抽屜（桌面殼與手機殼各一次）');
-  for (const [shell, w, h] of [['桌面', 1280, 900], ['手機', 390, 844]]) {
+  for (const [shell, w, h] of [['桌面', 1280, 900], ['手機', 390, 844]]) try {
     const { ctx, pg } = await open(browser, { w, h });
     await openMoreDrawer(pg);
     const row = pg.locator('.ms-row[data-act="weekend"]');
@@ -85,10 +90,10 @@ try {
     chk(`M2 ${shell} 列的文字`, (await row.textContent()).includes('週末鐵道活動'));
     chk(`M3 ${shell} 點了會開週末頁`, /weekend\.html/.test(await urlOpenedBy(ctx, row) || ''));
     await ctx.close();
-  }
+  } catch (e) { chk(`M! ${shell} 這一節整節跑完不拋例外`, false, errMsg(e)); }
 
   console.log('\n【X】探索面板入口列');
-  {
+  try {
     const { ctx, pg } = await open(browser);
     await pg.click('#exploreBtn');
     const row = pg.locator('#expBody .row[data-weekend]');
@@ -110,23 +115,23 @@ try {
     chk('X4b 入口列排在近期活動之上', order.wk >= 0 && order.sec >= 0 && order.wk < order.sec, JSON.stringify(order));
     chk('X5 點了會開週末頁', /weekend\.html/.test(await urlOpenedBy(ctx, row) || ''));
     await ctx.close();
-  }
+  } catch (e) { chk('X! 這一節整節跑完不拋例外', false, errMsg(e)); }
 
   console.log('\n【L】語言帶過去');
-  {
+  try {
     const { ctx, pg } = await open(browser, { lang: 'ja' });
     await openMoreDrawer(pg);
     const u = await urlOpenedBy(ctx, pg.locator('.ms-row[data-act="weekend"]'));
     chk('L1 日文介面帶 ?lang=ja', /[?&]lang=ja/.test(u || ''), String(u));
     await ctx.close();
-  }
-  {
+  } catch (e) { chk('L1! 這一節整節跑完不拋例外', false, errMsg(e)); }
+  try {
     const { ctx, pg } = await open(browser);
     await openMoreDrawer(pg);
     const u = await urlOpenedBy(ctx, pg.locator('.ms-row[data-act="weekend"]'));
     chk('L2 中文介面不帶 lang 參數', !/[?&]lang=/.test(u || ''), String(u));
     await ctx.close();
-  }
+  } catch (e) { chk('L2! 這一節整節跑完不拋例外', false, errMsg(e)); }
 } finally {
   await browser.close();
 }
