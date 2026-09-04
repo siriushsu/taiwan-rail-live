@@ -2384,12 +2384,17 @@
   "allowRemoved": {
     "_why": "2026-09-02 使用者裁示刪除站內錄影功能(REC 物件/recStart..setupRecorder/WM_LOGO 浮水印/RECORDING_ENABLED、REC_MUSIC_PROTOTYPE 旗標)與其專用混音圖(musicMixEntitled/musicEnsureMix/musicResumeMix/musicRecordingLicensed;唯一消費者是 recStart,音樂播放本身不經混音圖,不受影響)。這些符號刻意不再出現,不是被合併吃掉的回歸。",
     "functions": [
+      "activeBaseLayer",
       "advanceDirectorBasemap",
       "ambientJumpToMetro",
+      "createLeafletEngine",
       "directorClockTick",
       "directorTick",
       "drawWatermark",
+      "endZoomAnim",
       "fadeSwitchMetro",
+      "focusApplyLimit",
+      "focusShiftHave",
       "initDirector",
       "initLive",
       "liveClockTick",
@@ -2398,8 +2403,11 @@
       "musicMixEntitled",
       "musicRecordingLicensed",
       "musicResumeMix",
+      "ofmActiveCanvas",
+      "onZoomAnim",
       "pickCityOverview",
       "pickTourMetro",
+      "prefetchFollowAhead",
       "recCompose",
       "recDownload",
       "recFrame",
@@ -2407,7 +2415,14 @@
       "recSave",
       "recStart",
       "recStop",
-      "setupRecorder"
+      "setupOfflineLand",
+      "setupRecorder",
+      "warmSatUnderlay",
+      "warmTileWindow",
+      "zaCalGl",
+      "zaParseMat",
+      "zaRectBox",
+      "zoomAnimFrame"
     ],
     "elementIds": [
       "liveHud",
@@ -2430,15 +2445,18 @@
       "DIR_BASEMAPS",
       "DIR_FOLLOW_BLOCK",
       "LIVE_REPLAY_FROM",
+      "MAP_GESTURES",
       "METRO_TOUR_CHANCE",
       "RECORDING_ENABLED",
       "REC_MUSIC_PROTOTYPE",
-      "WM_LOGO"
+      "WM_LOGO",
+      "ZOOM_ANIM_MS"
     ],
     "urlParams": [
       "live"
     ],
     "_why_obs": "2026-09-03 使用者裁示刪除 OBS 直播殼(?live=1)與導播模式(?live=2&k=):initLive/initDirector 等函式、liveHud/replayBadge/msStatReplay* 元素、DIRECTOR_KEY 等常數、URL 參數 live,以及放空模式裡只服務導播的 pickTourMetro/pickCityOverview/metroCoverage/fadeSwitchMetro/ambientJumpToMetro。從未對外宣布,無更新紀錄條目;守門人 scripts/verify_obs_removed.mjs。main 5122754e、正式站 v0903e。",
-    "_why_phSortSeg": "與 OBS 無關:v0903c/d 完乘「順序」排法改由 buildRideSortSeg(rideSort, \"phSortSeg\") 動態組出 id,靜態 grep 看不到 id=\"phSortSeg\" 字面,元素在執行期仍存在(index.html 約 20472 行)。"
+    "_why_phSortSeg": "與 OBS 無關:v0903c/d 完乘「順序」排法改由 buildRideSortSeg(rideSort, \"phSortSeg\") 動態組出 id,靜態 grep 看不到 id=\"phSortSeg\" 字面,元素在執行期仍存在(index.html 約 20472 行)。",
+    "_why_m4b": "M4-B(2026-09-05)：地圖引擎收斂成 MapLibre 唯一，Leaflet 整個拔除。這 17 個符號全部是 Leaflet 專屬、在 MapLibre 路徑下沒有對應概念，逐一說明：createLeafletEngine=Leaflet 版引擎工廠；zoomAnimFrame/onZoomAnim/endZoomAnim/zaCalGl/zaParseMat/zaRectBox/ZOOM_ANIM_MS=縮放動畫仿射補償整套（治 Leaflet 圖磚 CSS 補間與 overlay canvas 失步；MapLibre 每幀真實更新相機、overlay 掛在 GL 的 render 幀，結構上不會失步）；setupOfflineLand=離線陸地的 Leaflet pane 版（MapLibre 版是 glLandLoad／glLandInstall，仍在）；warmSatUnderlay=衛星墊底層預抓的 Leaflet 版（MapLibre 版是 warmSatUnderlayGl，仍在）；activeBaseLayer/warmTileWindow/prefetchFollowAhead=高速跟車底圖預抓，靠 Leaflet tileLayer 的 getTileUrl／getTileSize，MapLibre 的 source 由 GL 自行排程與預取，沒有同型 API 可掛；ofmActiveCanvas=從 Leaflet 的 OFM 圖層取 _glMap 畫布（MapLibre 就是地圖本身，直接用 M.raw）；focusApplyLimit/focusShiftHave=面板讓位的世界像素記帳＋問 Leaflet 私有 _limitCenter 夾不夾（MapLibre 自 M1 起改走 setPadding／syncMapLibrePadding，引擎自己保證讓位與相機一致）；MAP_GESTURES=Leaflet 六個 handler 名字的清單（MapLibre 由 M.setGestures 一次開關）。這些符號刻意不再出現，不是被合併吃掉的回歸；守門人 scripts/verify_engine_adapter.mjs 的 G9／G4h／G4i。"
   }
 }

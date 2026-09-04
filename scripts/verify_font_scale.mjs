@@ -611,7 +611,7 @@ async function sectionH(browser, engine) {
       if (!state.visible.has(t.typeName)) continue;
       const pos = trainPos(t, state.simSec);
       if (!pos) continue;
-      const pt = window.__M.toScreen(L.latLng(pos.lat, pos.lon));
+      const pt = window.__M.toScreen([pos.lat, pos.lon]);
       if (pt.x > 60 && pt.x < mc.width - 60 && pt.y > 180 && pt.y < 600) {
         setFollow(t, false);
         return String(t.no || t.trainNo || t.typeName || '?');
@@ -627,7 +627,7 @@ async function sectionH(browser, engine) {
     const pos = trainPos(t, state.simSec);
     if (!pos) return { ...r, ok: false, why: '跟到的車算不出位置' };
     const mc = window.__map.getContainer().getBoundingClientRect();
-    const pt = window.__M.toScreen(L.latLng(pos.lat, pos.lon));
+    const pt = window.__M.toScreen([pos.lat, pos.lon]);
     const hit = document.elementFromPoint(mc.left + pt.x, mc.top + pt.y);
     const chrome = hit && hit.closest('.topbar,.badge,.tabbar,.controls,#followPanel,#freqCard,.sheet,#mapActions');
     const fp = document.getElementById('followPanel');
@@ -670,7 +670,7 @@ async function sectionH(browser, engine) {
       if (!state.visible.has(t.typeName)) continue;
       const pos = trainPos(t, state.simSec);
       if (!pos) continue;
-      const pt = window.__M.toScreen(L.latLng(pos.lat, pos.lon));
+      const pt = window.__M.toScreen([pos.lat, pos.lon]);
       if (pt.x > 60 && pt.x < mc.width - 60 && pt.y > 180 && pt.y < 600) { setFollow(t, false); return true; }
     }
     return false;
@@ -690,7 +690,7 @@ async function sectionH(browser, engine) {
     const pos = trainPos(t, state.simSec);
     if (!pos) return { ...r, ok: false, why: '算不出位置' };
     const mc = window.__map.getContainer().getBoundingClientRect();
-    const pt = window.__M.toScreen(L.latLng(pos.lat, pos.lon));
+    const pt = window.__M.toScreen([pos.lat, pos.lon]);
     const hit = document.elementFromPoint(mc.left + pt.x, mc.top + pt.y);
     const chrome = hit && hit.closest('.topbar,.badge,.tabbar,.controls,#followPanel,#freqCard,.sheet,#mapActions');
     // 🔴 看板是「內容撐高、上限 46%」不是固定 46%:深夜班次少的時候整張只有 187px(實測 00:35 的
@@ -900,7 +900,7 @@ async function followSomeTrain(page) {
       if (!state.visible.has(t.typeName)) continue;
       const pos = trainPos(t, state.simSec);
       if (!pos) continue;
-      const pt = window.__M.toScreen(L.latLng(pos.lat, pos.lon));
+      const pt = window.__M.toScreen([pos.lat, pos.lon]);
       if (pt.x > 60 && pt.x < mc.width - 60 && pt.y > 180 && pt.y < 600) { setFollow(t, false); return true; }
     }
     return false;
@@ -969,7 +969,7 @@ async function sectionJ(browser, engine) {
     const t = state.followTrain; if (!t) return { ...r, ok: false };
     const pos = trainPos(t, state.simSec); if (!pos) return { ...r, ok: false };
     const mc = window.__map.getContainer().getBoundingClientRect();
-    const pt = window.__M.toScreen(L.latLng(pos.lat, pos.lon));
+    const pt = window.__M.toScreen([pos.lat, pos.lon]);
     const hit = document.elementFromPoint(mc.left + pt.x, mc.top + pt.y);
     const chrome = hit && hit.closest('.topbar,.badge,.tabbar,.controls,#followPanel,#freqCard,.sheet,.board,#mapActions');
     return { ...r, ok: true, py: +pt.y.toFixed(1), inBand: pt.y >= r.bandTop && pt.y <= r.bandBot,
@@ -1046,7 +1046,7 @@ const K_BLANK = () => {
     return bd;
   };
   for (let y = 150; y < 620; y += 17) for (let x = 40; x < mc.width - 40; x += 17) {
-    const cp = L.point(x, y);
+    const cp = { x, y };
     if (trainAt(cp)) continue;
     if (typeof crossingAt === 'function' && crossingAt(cp)) continue;
     if (typeof sugarAt === 'function' && sugarAt(cp)) continue;
@@ -1212,7 +1212,7 @@ async function sectionK(browser, engine) {
     const t = state.followTrain; if (!t) return null;
     const pos = trainPos(t, state.simSec); if (!pos) return null;
     const mc = window.__map.getContainer().getBoundingClientRect();
-    const q = window.__M.toScreen(L.latLng(pos.lat, pos.lon));
+    const q = window.__M.toScreen([pos.lat, pos.lon]);
     return { x: q.x, y: q.y, ml: mc.left, mt: mc.top };
   });
   if (tp) {
@@ -2675,7 +2675,7 @@ async function sectionY(browser, engine) {
           const el = document.elementFromPoint(rect.left + me.x, rect.top + me.y);
           if (!el || !el.closest('#map,#overlay')) return { ok: false, why: '被 UI 蓋住:' + (el ? (el.id || el.className) : 'null') };
           if (pts.filter(q => Math.hypot(q.x - me.x, q.y - me.y) < 26).length !== 1) return { ok: false, why: '鄰站太近' };
-          if ((state.mode === 'sched' ? trainsAt : freqTrainsAt)(L.point(me.x, me.y)).length) return { ok: false, why: '站上停著車' };
+          if ((state.mode === 'sched' ? trainsAt : freqTrainsAt)({ x: me.x, y: me.y }).length) return { ok: false, why: '站上停著車' };
           return { ok: true, x: me.x, y: me.y, name: nm, rect: { l: rect.left, t: rect.top } };
         }, st.name);
         if (c.ok) { chosen = c; break; }
@@ -2697,7 +2697,7 @@ async function sectionY(browser, engine) {
         const pts = [];
         if (state.mode === 'sched') (state.schedStations || []).forEach(s => { const p = window.__M.toScreen([s.lat, s.lon]); pts.push({ x: p.x, y: p.y }); });
         else state.lines.forEach(ln => { if (state.visible.has(ln.id) && ln.pts) ln.pts.forEach(p => pts.push({ x: p.x, y: p.y })); });
-        const nTr = (x, y) => (state.mode === 'sched' ? trainsAt : freqTrainsAt)(L.point(x, y)).length;
+        const nTr = (x, y) => (state.mode === 'sched' ? trainsAt : freqTrainsAt)({ x, y }).length;
         for (let y = 180; y < rect.height - 300; y += 11) {
           for (let x = 26; x < rect.width - 26; x += 11) {
             let mn = 1e9; for (const p of pts) mn = Math.min(mn, Math.hypot(p.x - x, p.y - y));

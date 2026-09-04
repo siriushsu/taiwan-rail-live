@@ -17,8 +17,8 @@ const MIME = {
   '.webp': 'image/webp', '.woff2': 'font/woff2', '.mp3': 'audio/mpeg',
   '.webmanifest': 'application/manifest+json',
 };
-const LEAFLET_JS = readFileSync(path.join(ROOT, 'app/node_modules/leaflet/dist/leaflet.js'));
-const LEAFLET_CSS = readFileSync(path.join(ROOT, 'app/node_modules/leaflet/dist/leaflet.css'));
+// M4-B(2026-09-05)：index.html 不再載 Leaflet，原本供本機 leaflet.js/css 給 cdnjs 網址的
+// 讀檔與路由已移除（那份 readFileSync 在 app/node_modules 重裝後會讓腳本在載入時就爆）。
 const PNG1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
 const TILEJSON = JSON.stringify({
   tilejson: '3.0.0', attribution: 'OpenFreeMap', minzoom: 0, maxzoom: 14,
@@ -63,10 +63,6 @@ async function bootPage(browser, { width, height, seedHowto = true, url = active
   await ctx.route('**/*', route => {
     const u = new URL(route.request().url());
     if (u.protocol === 'blob:') return route.continue();
-    if (u.hostname === 'cdnjs.cloudflare.com' && u.pathname.endsWith('leaflet.min.js'))
-      return route.fulfill({ status: 200, contentType: 'text/javascript', body: LEAFLET_JS });
-    if (u.hostname === 'cdnjs.cloudflare.com' && u.pathname.endsWith('leaflet.min.css'))
-      return route.fulfill({ status: 200, contentType: 'text/css', body: LEAFLET_CSS });
     if (u.hostname === '127.0.0.1') return route.continue();
     if (u.hostname === 'railisland-metro-core.sirius1984.workers.dev') {
       const now = Date.now() / 1000;
@@ -103,13 +99,7 @@ async function bootPage(browser, { width, height, seedHowto = true, url = active
 }
 
 async function waitBasemapStyle(page) {
-  await page.waitForFunction(() => {
-    if (!window.__M) return false;
-    if (window.__M.engine === 'maplibre') return window.__M.isStyleReady();
-    const layer = ['light', 'dark'].map(key => baseLayers[key])
-      .find(item => item && item._glMap && window.__M.raw.hasLayer(item));
-    return !layer || layer._glMap.isStyleLoaded();
-  }, null, { timeout: 15000 });
+  await page.waitForFunction(() => !!window.__M && window.__M.isStyleReady(), null, { timeout: 15000 });
 }
 
 const rect = (page, sel) => page.evaluate(s => {

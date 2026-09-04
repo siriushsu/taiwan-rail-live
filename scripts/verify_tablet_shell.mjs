@@ -40,8 +40,13 @@ ok('T0 RAIL_MQ CSS／JS 同式', (SOURCE.match(new RegExp(escRe(RAIL_MQ), 'g')) 
 ok('T0 iOS App Debug／Release 皆為 Universal',
   (PBX.match(/TARGETED_DEVICE_FAMILY = "1,2";/g) || []).length === 4
   && !/TARGETED_DEVICE_FAMILY = 1;/.test(PBX));
-ok('T0 公開更新紀錄兩層都有平板條目',
-  SOURCE.includes('data-cl-of="tabletshell"') && SOURCE.includes('data-cl="tabletshell"'));
+// 2026-09-05(M4-B)：原本同時要求第一層的 data-cl-of。第一層「最近更新」是**上限 8 條的輪替檢視**,
+// 設計上每加一條新的就會擠掉最舊的一條（index.html foot-recent 註解與 check_i18n 的 CL2 都寫明）,
+// 所以把任何一個 id 釘死在第一層,等於保證第 9 條新功能上線那天這條判準會紅——今天就是那一天。
+// 永久紀錄在第二層,改只釘正本;兩層的對映完整性(CL1 每條第一層都指得到正本、CL1b 正本不重複、
+// CL2 第一層不超過 8 條)由 scripts/check_i18n.mjs 專責,不在這支重複一遍。
+ok('T0 公開更新紀錄的完整歷史有平板條目(正本)',
+  SOURCE.includes('data-cl="tabletshell"'));
 
 const server = createServer((req, res) => {
   const url = new URL(req.url, 'http://local.test');

@@ -73,9 +73,8 @@ const payloads = manifest.快照.filter(x => x.kind === 'tk').sort((a, b) => a.f
     dest: x.destIdx, run: x.run, arrEpoch: x.arrEpoch, no: x.no || '', terminal: !!x.terminal })) };
 });
 
-const leafletRoot = process.env.TRTC_LEAFLET_DIST || '/tmp/trtc-playwright-deps/node_modules/leaflet/dist';
-const leafletJs = fs.readFileSync(path.join(leafletRoot, 'leaflet.js'));
-const leafletCss = fs.readFileSync(path.join(leafletRoot, 'leaflet.css'));
+// M4-B(2026-09-05)：index.html 不再載 Leaflet，原本供本機 leaflet.js/css 給 cdnjs 網址的
+// 讀檔與路由已移除（那份 readFileSync 在 app/node_modules 重裝後會讓腳本在載入時就爆）。
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript', '.mjs': 'application/javascript',
   '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.webp': 'image/webp' };
 
@@ -108,10 +107,6 @@ async function preparePage(page, url) {
   await page.addInitScript(() => localStorage.setItem('trainmap-howto-seen', '1'));
   await page.route('**/*', async route => {
     const u = new URL(route.request().url());
-    if (u.hostname === 'cdnjs.cloudflare.com' && u.pathname.endsWith('leaflet.min.js'))
-      return route.fulfill({ status: 200, contentType: 'application/javascript', body: leafletJs });
-    if (u.hostname === 'cdnjs.cloudflare.com' && u.pathname.endsWith('leaflet.min.css'))
-      return route.fulfill({ status: 200, contentType: 'text/css', body: leafletCss });
     if (u.hostname === '127.0.0.1' || u.hostname === 'localhost') return route.continue();
     return route.abort('blockedbyclient');
   });

@@ -12,9 +12,8 @@ const OUTPUT = path.resolve(process.env.METRO_MOTION_OUTPUT || path.join(ROOT, '
 const PORT0 = Number(process.env.METRO_MOTION_PORT || 6460);
 const ENGINES = (process.env.ENGINES || 'chromium,webkit').split(',').filter(Boolean);
 const EXPECTED_SYSTEMS = ['mrt', 'tymc', 'ntdlrt', 'ntalrt', 'sanying', 'tmrt', 'krtc'];
-const leafletRoot = process.env.TRTC_LEAFLET_DIST || '/tmp/trtc-playwright-deps/node_modules/leaflet/dist';
-const leafletJs = fs.readFileSync(path.join(leafletRoot, 'leaflet.js'));
-const leafletCss = fs.readFileSync(path.join(leafletRoot, 'leaflet.css'));
+// M4-B(2026-09-05)：index.html 不再載 Leaflet，原本供本機 leaflet.js/css 給 cdnjs 網址的
+// 讀檔與路由已移除（那份 readFileSync 在 app/node_modules 重裝後會讓腳本在載入時就爆）。
 const MIME = { '.html': 'text/html; charset=utf-8', '.json': 'application/json', '.js': 'application/javascript',
   '.mjs': 'application/javascript', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.webp': 'image/webp' };
 
@@ -50,10 +49,6 @@ async function prepare(page, port) {
   await page.addInitScript(() => localStorage.setItem('trainmap-howto-seen', '1'));
   await page.route('**/*', route => {
     const u = new URL(route.request().url());
-    if (u.hostname === 'cdnjs.cloudflare.com' && u.pathname.endsWith('leaflet.min.js'))
-      return route.fulfill({ status: 200, contentType: 'application/javascript', body: leafletJs });
-    if (u.hostname === 'cdnjs.cloudflare.com' && u.pathname.endsWith('leaflet.min.css'))
-      return route.fulfill({ status: 200, contentType: 'text/css', body: leafletCss });
     if (u.hostname === '127.0.0.1' || u.hostname === 'localhost') return route.continue();
     return route.abort('blockedbyclient');
   });

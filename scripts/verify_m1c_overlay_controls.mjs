@@ -25,7 +25,8 @@ const forwardPredicate = src => src.includes("M.on('click', handleMapClick)")
   && src.includes('handleMapClick({ containerPoint: cp, latlng: M.fromScreen(cp) });')
   && !src.includes("M.fire('click', { containerPoint: cp, latlng: M.fromScreen(cp) });");
 const controlsPredicate = src => src.includes("el.className = 'maplibregl-ctrl follow-lock-ctl'")
-  && /\.leaflet-control-zoom\s*,\s*\n\s*\.maplibregl-ctrl-group \.maplibregl-ctrl-zoom-in\s*,\s*\n\s*\.maplibregl-ctrl-group \.maplibregl-ctrl-zoom-out\s*\{\s*display:\s*none;\s*\}/.test(src)
+  // M4-B：選取器清單原本第一條是 .leaflet-control-zoom，隨 Leaflet 樣式一起拔掉了。
+  && /\.maplibregl-ctrl-group \.maplibregl-ctrl-zoom-in\s*,\s*\n\s*\.maplibregl-ctrl-group \.maplibregl-ctrl-zoom-out\s*\{\s*display:\s*none;\s*\}/.test(src)
   && src.includes('body.cexp .maplibregl-ctrl-attrib');
 const PREDICATES = { marker: markerPredicate, forward: forwardPredicate, controls: controlsPredicate };
 
@@ -43,8 +44,6 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; cha
   '.mjs': 'text/javascript; charset=utf-8', '.json': 'application/json', '.geojson': 'application/geo+json',
   '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml',
   '.webp': 'image/webp', '.woff2': 'font/woff2', '.mp3': 'audio/mpeg', '.webmanifest': 'application/manifest+json' };
-const LEAFLET_JS = readFileSync(path.join(ROOT, 'app/node_modules/leaflet/dist/leaflet.js'));
-const LEAFLET_CSS = readFileSync(path.join(ROOT, 'app/node_modules/leaflet/dist/leaflet.css'));
 const PNG1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
 const TILEJSON = JSON.stringify({ tilejson: '3.0.0', attribution: 'OpenFreeMap', minzoom: 0, maxzoom: 14,
   tiles: ['https://tiles.openfreemap.org/__m1c_empty/{z}/{x}/{y}.pbf'] });
@@ -79,10 +78,6 @@ async function prepareContext(browser, width, touch) {
   });
   await context.route('**/*', route => {
     const u = new URL(route.request().url());
-    if (u.hostname === 'cdnjs.cloudflare.com' && u.pathname.endsWith('leaflet.min.js'))
-      return route.fulfill({ status: 200, contentType: 'text/javascript', body: LEAFLET_JS });
-    if (u.hostname === 'cdnjs.cloudflare.com' && u.pathname.endsWith('leaflet.min.css'))
-      return route.fulfill({ status: 200, contentType: 'text/css', body: LEAFLET_CSS });
     if (u.hostname === '127.0.0.1') return route.continue();
     if (u.hostname === 'tiles.openfreemap.org' && /\/planet\/?$/.test(u.pathname))
       return route.fulfill({ status: 200, contentType: 'application/json', body: TILEJSON });
@@ -117,8 +112,8 @@ async function desktopMarkers(browser, url, engine, check) {
     const draft = await page.evaluate(expected => ({
       exists: !!document.querySelector('.pin-ico'),
       visible: !!pinDraft && !!pinDraft.marker,
-      native: expected === 'maplibre' ? pinDraft?.marker instanceof maplibregl.Marker : pinDraft?.marker instanceof L.Marker,
-      draggable: expected === 'maplibre' ? !!pinDraft?.marker?.isDraggable?.() : !!pinDraft?.marker?.dragging?.enabled?.(),
+      native: pinDraft?.marker instanceof maplibregl.Marker,
+      draggable: !!pinDraft?.marker?.isDraggable?.(),
     }), engine);
     check(draft.exists && draft.visible && draft.native && draft.draggable, 'M17 草稿釘是該引擎原生可拖 Marker', draft);
 

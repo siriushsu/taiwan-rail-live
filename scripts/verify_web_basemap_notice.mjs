@@ -43,22 +43,20 @@ console.log(`[G0] 目標 ${join(ROOT, 'index.html')}  ${src.length} bytes`);
 // 下面四個片段同時是 G0 的釘子與突變的落點:index.html 這幾行一改,這裡先紅(驗錯目標或改動沒落地),
 // 不會靜默量到別的東西。
 const FAIL_LINE = '  const fail = why => { stop(); ofmFailBeacon(why); if (APP_CFG.tiles) ofmFallToRaster(why); else ofmNoticeWeb(why); };';
-const ARM_APP_ONLY = '      if (APP_CFG.tiles) {\n        if (!ofmRasterFallback) ofmRasterFallback = {};\n        ofmRasterFallback[k] = () => L.tileLayer(t.url, opt);';
-const SETTLE_ON_LOAD = "    if (gl.isStyleLoaded && gl.isStyleLoaded()) stop(); else gl.once('load', stop);";
+// M4-B:Leaflet 版的兩個錨點(L.tileLayer thunk、內嵌 GL 層的 gl.isStyleLoaded 出口)隨引擎一起移除;
+// ofmWatch 收到的 layer 現在就是地圖本身(M.raw),settle 那行也少了一層縮排。
 const ARM_GL_APP_ONLY = "    if (APP_CFG.tiles) {\n      ofmRasterFallback = {};";
-const SETTLE_GL_ON_LOAD = "    if (layer.loaded && layer.loaded()) stop(); else layer.once('load', stop);";
+const SETTLE_GL_ON_LOAD = "  if (layer.loaded && layer.loaded()) stop(); else layer.once('load', stop);";
 const NOTICE_HEAD = 'function ofmNoticeWeb(why) {\n  if (ofmNoticeShown) return;';
 for (const [frag, why] of [
   ['function ofmWatch(layer) {', 'L2 監看還在'],
   [FAIL_LINE, 'fail:先埋點,App 退 raster／網站只提示'],
-  [ARM_APP_ONLY, 'raster 退路 thunk 只有 App 會備'],
-  [SETTLE_ON_LOAD, '樣式載完就收手(偵測器的「正常」出口)'],
-  [ARM_GL_APP_ONLY, 'MapLibre raster 退路也只有 App 會備'],
-  [SETTLE_GL_ON_LOAD, 'MapLibre 樣式載完就收手'],
+  [ARM_GL_APP_ONLY, 'raster 退路只有 App 會備'],
+  [SETTLE_GL_ON_LOAD, '樣式載完就收手(偵測器的「正常」出口)'],
   ['function glStreetRasterStyle(tile, dark) {', 'MapLibre App raster style builder'],
   [NOTICE_HEAD, '網站提示函式(一個 session 只講一次)'],
 ]) if (!src.includes(frag)) { console.error(`❌ [G0] 這份 index.html 沒有「${why}」(${frag.trim().slice(0, 70)})——驗錯目標或改動沒落地`); process.exit(1); }
-console.log('[G0] 現行設計的四個關節都在這份檔裡');
+console.log('[G0] 現行設計的關節都在這份檔裡');
 
 // ── 突變(記憶體字串副本;每一發指名考哪一條判準)──────────────────────────
 const mutate = (name, pairs) => pairs.reduce((out, [from, to]) => {
@@ -68,7 +66,6 @@ const mutate = (name, pairs) => pairs.reduce((out, [from, to]) => {
 }, src);
 // P:08-26 的舊設計復活——網站也備 CARTO thunk、fail 時也退 raster(提示照跳,所以只有「零 raster」那條該紅)
 const MUT_WEB_RASTER = mutate('P web-raster-fallback', [
-  [ARM_APP_ONLY, ARM_APP_ONLY.replace('if (APP_CFG.tiles) {', 'if (true) { // MUTATION web-raster-fallback')],
   [ARM_GL_APP_ONLY, ARM_GL_APP_ONLY.replace('if (APP_CFG.tiles) {', 'if (true) { // MUTATION web-raster-fallback')],
   [FAIL_LINE, FAIL_LINE.replace('if (APP_CFG.tiles) ofmFallToRaster(why); else ofmNoticeWeb(why);',
     'ofmFallToRaster(why); if (!APP_CFG.tiles) ofmNoticeWeb(why); /* MUTATION web-raster-fallback */')],
@@ -77,8 +74,7 @@ const MUT_WEB_RASTER = mutate('P web-raster-fallback', [
 const MUT_NO_NOTICE = mutate('Q no-notice', [[NOTICE_HEAD, 'function ofmNoticeWeb(why) {\n  if (true) return; // MUTATION no-notice\n  if (ofmNoticeShown) return;']]);
 // S:偵測器壞掉——樣式載完也不收手,8 秒一到一律 fail('slow')。這就是「每次都處置」那個最貴假綠的具體形狀。
 const MUT_NEVER_SETTLE = mutate('S never-settle', [
-  [SETTLE_ON_LOAD, '    /* MUTATION never-settle */'],
-  [SETTLE_GL_ON_LOAD, '    /* MUTATION never-settle MapLibre */'],
+  [SETTLE_GL_ON_LOAD, '  /* MUTATION never-settle */'],
 ]);
 // T:App 不退 raster
 const MUT_APP_NO_FALLBACK = mutate('T app-no-fallback', [[FAIL_LINE, FAIL_LINE.replace(
@@ -105,9 +101,8 @@ const server = createServer(async (req, res) => {
 });
 await new Promise(r => server.listen(PORT, '127.0.0.1', r));
 
-// 雙引擎矩陣(換引擎 M1):同一支腳本對 Leaflet 與 MapLibre 各跑一次。
-// server 與 G0 靜態檢查共用放矩陣外;browser/context/page 與斷言累計每個地圖引擎各自新建。
-// 斷言語意一字未改,只把 page.goto 的網址換成帶 engine 參數的版本。
+// 引擎矩陣(M4-B 起只剩 MapLibre 一格)。server 與 G0 靜態檢查共用放矩陣外;
+// browser/context/page 與斷言累計每個引擎各自新建。
 const matrix = await runEngineMatrix(async ({ engineUrl, check }) => {
 
 // ── 一個情境 ─────────────────────────────────────────────────────────────────
@@ -169,16 +164,12 @@ async function run(browser, { ofm, appShell = false, sat = true, mobile = false,
   });
   await page.goto(engineUrl(`http://127.0.0.1:${PORT}/index.html?lang=${PAGE_LOCALE}`), { waitUntil: 'domcontentloaded' });
   const booted = await page.waitForFunction(() => typeof state !== 'undefined' && state.ready && typeof M !== 'undefined' && M
-    && (M.engine === 'maplibre' ? M.isStyleReady() : (typeof baseLayers !== 'undefined' && baseLayers && baseLayers.light)), null, { timeout: 30000 })
+    && M.isStyleReady(), null, { timeout: 30000 })
     .then(() => true).catch(() => false);
   await page.waitForTimeout(waitMs); // OFM_HEALTH_MS = 8000 自圖層上場起算,留足餘裕
   const got = await page.evaluate(() => {
-    const bl = (typeof baseLayers !== 'undefined' && baseLayers) ? baseLayers : {};
-    const l = bl.light, gl = l && l._glMap;
-    const kind = M.engine === 'maplibre'
-      ? M.getStyleKind()
-      : (!l ? 'none' : (typeof l.getTileUrl === 'function' ? 'raster' : 'ofm'));
-    const street = M.engine === 'maplibre' ? M.raw.getStyle()?.sources?.street : null;
+    const kind = M.getStyleKind();
+    const street = M.raw.getStyle()?.sources?.street;
     return {
       // 量使用者**看得到過**的東西:曾經進到 DOM 的每一則 toast。不是量 ofmNoticeShown 這種內部旗標——
       // 那是實作的下游,會跟著實作一起錯。
@@ -187,9 +178,9 @@ async function run(browser, { ofm, appShell = false, sat = true, mobile = false,
       langSample: window.__i18n ? window.__i18n.t('街道底圖載入異常，列車與路線不受影響。可切換到「衛星」底圖。') : null,
       satBtn: !!document.getElementById('satBtn'),
       layerKind: /^street-raster-/.test(kind) || kind === 'raster' ? 'raster' : (kind === 'none' ? 'none' : 'ofm'),
-      layerUrl: M.engine === 'maplibre' ? (street?.tiles?.[0] || '') : ((l && typeof l._url === 'string') ? l._url : ''),
+      layerUrl: street?.tiles?.[0] || '',
       streetRasterOnMap: [],
-      glLoaded: M.engine === 'maplibre' ? M.raw.loaded() : !!(gl && gl.isStyleLoaded && gl.isStyleLoaded()),
+      glLoaded: M.raw.loaded(),
       armed: typeof ofmRasterFallback !== 'undefined' && ofmRasterFallback !== null,
     };
   }).catch(e => ({ evalError: String(e).slice(0, 120), toasts: [], lang: null, langSample: null, satBtn: false,

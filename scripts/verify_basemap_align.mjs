@@ -15,8 +15,8 @@ const DOT = { lat: 23.47, lng: 120.957 };
 const START_Z = 13;
 const MUT_OFFSET = 30;
 const PNG1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
-const LEAFLET_JS = readFileSync(path.join(ROOT, 'app/node_modules/leaflet/dist/leaflet.js'));
-const LEAFLET_CSS = readFileSync(path.join(ROOT, 'app/node_modules/leaflet/dist/leaflet.css'));
+// M4-B(2026-09-05)：index.html 不再載 Leaflet，原本供本機 leaflet.js/css 給 cdnjs 網址的
+// 讀檔與路由已移除（那份 readFileSync 在 app/node_modules 重裝後會讓腳本在載入時就爆）。
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript',
   '.css': 'text/css', '.json': 'application/json', '.geojson': 'application/geo+json', '.png': 'image/png',
   '.jpg': 'image/jpeg', '.webp': 'image/webp', '.woff2': 'font/woff2', '.pbf': 'application/x-protobuf',
@@ -60,12 +60,6 @@ async function boot(launcher, url, { layerTimeout = 30000, allowLayerMissing = f
   try {
   await ctx.route('**/*', route => {
     const u = new URL(route.request().url());
-    if (u.hostname === 'cdnjs.cloudflare.com' && u.pathname.endsWith('leaflet.min.js')) {
-      return route.fulfill({ status: 200, contentType: 'text/javascript', body: LEAFLET_JS });
-    }
-    if (u.hostname === 'cdnjs.cloudflare.com' && u.pathname.endsWith('leaflet.min.css')) {
-      return route.fulfill({ status: 200, contentType: 'text/css', body: LEAFLET_CSS });
-    }
     if (u.hostname === '127.0.0.1') return route.continue();
     if (u.hostname === 'tiles.openfreemap.org' && /\/planet\/?$/.test(u.pathname)) {
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
@@ -110,15 +104,10 @@ async function boot(launcher, url, { layerTimeout = 30000, allowLayerMissing = f
   }
 }
 
+// M4-B：原本有一條「Leaflet×WebKit 首次逾時就換 fresh browser 再試一次」的重試路徑，
+// 那個組合已不存在（唯一引擎是 MapLibre，逾時就是逾時，不再吞第一次失敗）。
 async function bootWithRetry(launcher, url, engine, browserName) {
-  const slowLeafletWebKit = engine === 'leaflet' && browserName === 'WebKit';
-  try {
-    return await boot(launcher, url, { layerTimeout: 30000 });
-  } catch (firstError) {
-    if (!slowLeafletWebKit) throw firstError;
-    console.log(`RETRY [leaflet] WebKit aligndot 首次逾時，fresh browser/context 再試一次 — ${String(firstError).slice(0, 160)}`);
-    return boot(launcher, url, { layerTimeout: 30000, allowLayerMissing: true });
-  }
+  return boot(launcher, url, { layerTimeout: 30000 });
 }
 
 async function settle(page) {
@@ -270,7 +259,7 @@ try {
           } else check(rendered.hit, `${browserName} ${scenarioName} queryRenderedFeatures 命中 aligndot`, rendered);
         }
         if (result.pass) check(true, result.id, result.detail);
-        else if (webkitNoGlComposite && (engine === 'leaflet' || (rendered?.layer && rendered?.sourceAt))) {
+        else if (webkitNoGlComposite && rendered?.layer && rendered?.sourceAt) {
           namedSkip(`[${engine}] ${result.id}`,
             'headless WebKit 未合成 GL circle；Chromium 同情境像素已通過，真機由螢幕錄影＋scripts/analyze_device_recording.mjs 保護',
             result.detail);
@@ -295,7 +284,7 @@ try {
         } else check(mutationRendered.hit, `${browserName} mutation 前 renderer 仍命中 aligndot`, mutationRendered);
       }
       if (mutation.pass) check(true, mutation.id, mutation.detail);
-      else if (webkitNoGlMutation && (engine === 'leaflet' || (mutationRendered?.layer && mutationRendered?.sourceAt))) {
+      else if (webkitNoGlMutation && mutationRendered?.layer && mutationRendered?.sourceAt) {
         namedSkip(`[${engine}] ${mutation.id}`,
           'headless WebKit 未合成 GL circle；Chromium mutation 已通過，真機由螢幕錄影＋scripts/analyze_device_recording.mjs 保護',
           mutation.detail);

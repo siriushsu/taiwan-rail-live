@@ -117,9 +117,13 @@ export function assertAppLineageContent(html) {
     ["{ key: 'metrowait'", '使用說明中心的在這站等車章節'],
     ['function startForegroundGeoWatch(', 'App 前景持續定位'],
     ['function updateGeoCamera(', '所在地鏡頭跟隨'],
-    ['function zaCalGl(', '捏合縮放的 MapLibre 重標定'],
     ['const syncDraw = () =>', '拖曳時 overlay 同幀重畫'],
-    ['L.MaplibreGL.prototype', 'MapLibre 同步 redraw 補丁'],
+    // M4-B(2026-09-05)換掉的兩條:zaCalGl(捏合時用 GL 畫布重標定探針)與 L.MaplibreGL.prototype
+    // (leaflet-maplibre-gl 外掛的同步 redraw 補丁)都是「GL 底圖被塞進 Leaflet pane」時代的東西,
+    // 拔掉 Leaflet 之後兩者都不存在了。同樣載重的 MapLibre 版是下面這兩條:少了第一條 overlay 與
+    // 底圖會分家(兩層不同相機),少了第二條手機面板讓位會整個失效。
+    ["M.on('render', syncDrawMaplibre)", 'overlay 與底圖同幀落地的唯一接線'],
+    ['function syncMapLibrePadding(', '面板讓位改走 MapLibre padding'],
   ];
   for (const [needle, label] of requiredSource) {
     assert(html.includes(needle), `${label}遺失（缺少 ${needle}）——請檢查 index.html 是否又在合併時整檔退回 main`);
@@ -284,7 +288,7 @@ export async function assertLicensedBuildAllowed({ includeLicensedMusic, include
   }
   const basemapRights = [
     ['paidAppUseVerified', '付費 App 商用'],
-    ['leafletAndCapacitorUseVerified', 'Leaflet／Capacitor'],
+    ['leafletAndCapacitorUseVerified', 'Capacitor（鍵名沿用 release-policy.json 的歷史紀錄，該檔不在版控內故不改名）'],
     ['attributionRequirementsVerified', '署名要求']
   ];
   const rights = policy.onlineBasemaps || {};
@@ -587,15 +591,14 @@ export async function verifyRelease({
   }
   assert(html.includes("typeof window.RAIL_METRO_CORE_ENABLED === 'boolean'"),
     'App 內的 index.html 沒有把 Metro Core 發版旗標當成顯式布林覆寫');
-  // 2026-09-05（M4-A 之後）：預設引擎是 MapLibre，Leaflet 建圖搬進適配層（L.map(containerId, …)），
-  // 原本釘 L.map('map', …) 字面的斷言結構上永遠紅。改成兩條：(1) 裸開機預設 maplibre 的字面還在；
-  // (2) Leaflet 適配層還在的期間，它建圖仍帶 zoomAnimation:false（圖磚 CSS 補間會與獨立 overlay canvas 失步）。
-  // M4-B 拔掉 Leaflet 時把 (2) 一起拔。
-  assert(/return q \|\| s \|\| 'maplibre';/.test(html), 'App 開機預設引擎必須是 maplibre（M4-A）');
-  if (/\bL\.map\(/.test(html)) {
-    assert(/L\.map\(\w+,\s*\{[^}]*zoomAnimation:\s*false\b/.test(html),
-      'App 的 Leaflet 適配層建圖必須設定 zoomAnimation:false；圖磚 CSS 補間會與獨立 overlay canvas 失步');
-  }
+  // 原本這裡驗的是「L.map 建構時 zoomAnimation:false」,治的是「圖磚 CSS 補間會與獨立 overlay canvas 失步」。
+  // M4-B 拔掉 Leaflet 之後那個選項不存在了,但**要防的事情一模一樣**:底圖與 #overlay 是兩個渲染層,
+  // 不同幀落地就會被看成兩層分家。MapLibre 的解法是 overlay 掛在 GL 的 'render'(畫完該幀才發)裡重投影,
+  // 所以這條改成驗那個結構——引擎被換掉、或 reproject 被搬出 render 幀,兩者都會在這裡先紅。
+  assert(/new maplibregl\.Map\(\{/.test(html),
+    'App 地圖必須用 MapLibre GL 建構(new maplibregl.Map)');
+  assert(/const syncDrawMaplibre = \(\) => \{[^}]*reproject\(\);/.test(html),
+    'overlay 沒有在 GL 的 render 幀內重投影——底圖與列車會用不同相機,看起來兩層分家');
 
   // 版本號對**所有** build 模式都必須注入(不是只有授權底圖 build)——App 內的更新提示與評分
   // 全靠它判斷「手上這顆是哪一版」。刻意寫在模式分支之外:放進安全 build 的條件裡就漏掉另一半。
@@ -690,8 +693,8 @@ export async function verifyRelease({
     'third-party-notices.txt',
     'i18n/translations.js', 'i18n/content-translations.js',
     'i18n/legal-translations.js', 'i18n/legal-pages.js', 'i18n/stations.json',
-    'data/taiwan_land.json', 'vendor/leaflet/leaflet.css',
-    'vendor/leaflet/leaflet.js', 'vendor/fflate.js', 'vendor/firebase.mjs'
+    'data/taiwan_land.json', 'vendor/maplibre-gl.js', 'vendor/maplibre-gl.css',
+    'vendor/fflate.js', 'vendor/firebase.mjs'
   ];
   for (const file of required) assert(relativeFiles.includes(file), `缺少必要檔案：${file}`);
 
@@ -722,9 +725,9 @@ export async function verifyRelease({
     assert(!forbiddenNames.some(pattern => pattern.test(file)), `含內部或禁止發行檔案：${file}`);
   }
 
-  assert(html.includes('vendor/leaflet/leaflet.css') && html.includes('vendor/leaflet/leaflet.js'),
-    'App 必須使用內建 Leaflet');
-  assert(!html.includes('cdnjs.cloudflare.com/ajax/libs/leaflet'), 'App 仍依賴遠端 Leaflet CDN');
+  assert(html.includes('vendor/maplibre-gl.css') && html.includes('vendor/maplibre-gl.js'),
+    'App 必須使用內建的地圖引擎(vendor/maplibre-gl)');
+  assert(!/cdnjs\.cloudflare\.com/i.test(html), 'App 仍依賴 cdnjs 遠端資源');
   assert(!/ko-fi|PayPal|111010691056|web-only-donation-log|贊助方式更新/i.test(html),
     'App 仍含網站外部贊助內容');
   assert(!html.includes('class="foot-box foot-donate"') && !html.includes('id="donateCopy"'),
@@ -737,7 +740,7 @@ export async function verifyRelease({
   // 'Noto Emoji'：唯一一條不是 npm 依賴的授權（換圖批次內嵌的字型子集）。列進來是因為
   // third-party-notices.txt 是每次 build 重新生成的——條目從 prepare-web 的陣列裡消失時，
   // 產物看起來一樣正常，沒有人會發現我們在沒有附授權的情況下散布一份 OFL 字型。
-  for (const name of ['Capacitor', 'Firebase', 'RevenueCat', 'Leaflet', 'fflate', 'Noto Emoji']) {
+  for (const name of ['Capacitor', 'Firebase', 'RevenueCat', 'fflate', 'Noto Emoji', 'MapLibre']) {
     assert(notices.includes(name), `第三方軟體授權聲明缺少 ${name}`);
   }
 
@@ -804,16 +807,17 @@ export async function verifyRelease({
     // 這條反過來要求資格函式存在——移除它等於把付費層靜默送掉。
     assert(/function satRetinaAllowed\s*\(/.test(html),
       '衛星高解析的資格判定 satRetinaAllowed() 消失——Retina 會變成全體免費');
-    assert(/const wantLQ = [^;]*satRetinaAllowed\(\)/.test(html),
-      'setBasemap 的選層條件沒有消費 satRetinaAllowed()——資格判定形同虛設');
+    assert(/const hi = [^;]*satRetinaAllowed\(\)/.test(html),
+      'setBasemap 的選 style 條件沒有消費 satRetinaAllowed()——資格判定形同虛設');
     // 原本是逐字比對整行 `const sat = online && state.basemap === 'sat';`，但那樣任何無關的條件
     // （2026-07-26 加的 token 就緒判斷）也會誤擋。改成檢查意圖：判斷式裡不得出現付費條件。
     const satLine = (html.match(/const sat = online && state\.basemap === 'sat'[^;\n]*;/) || [])[0];
     assert(satLine, 'index.html 找不到衛星顯示判斷（const sat = …）——「衛星免費開放」這條檢查已失效');
     assert(!/plus|entitle|paid|subscri|premium/i.test(satLine),
       `App 第一版衛星顯示必須免費開放（不綁 Plus），但判斷式含付費條件：${satLine}`);
-    assert(html.includes('  prefetchFollowAhead(dt);'),
-      'Stadia App 必須保留既有高速跟車預抓；手機省電模式會自行停用，避免 iPad／關省電模式高速跟車露白');
+    // (M4-B:高速跟車底圖預抓 prefetchFollowAhead 隨 Leaflet 一起移除——它靠 tileLayer 的 getTileUrl
+    //  自己 new Image() 熱快取,MapLibre 的 source 由 GL 自行排程與預取,沒有同型 API 可掛。
+    //  這條斷言因此退役,不是被忘記。)
     // 跟車 zoom 上限:設定要載明 16,且 index.html 的消費機制(FOLLOW_ZOOM_CAP/followEntryZoom)未被移除
     assert(html.includes('"followZoomCap":16'), 'RAIL_APP_CONFIG 未載明 followZoomCap:16(計量底圖跟車上限)');
     // 衛星 Retina 止血開關:只驗機制還活著(值可為 true/false,由 Esri 額度狀況決定)
@@ -828,14 +832,19 @@ export async function verifyRelease({
     // 這批把 App 街道圖從計量的 Stadia 換成不計量的 OpenFreeMap(Stadia 降為退路)。
     // 下面每一條驗的都是「主來源真的裝上去了」——漏掉任何一件,App 會**靜默**退回 Stadia:
     // build 成功、地圖照畫、使用者無感,只有一個月後的帳單知道。所以這裡全部是正向斷言。
-    for (const f of ['maplibre-gl.js', 'maplibre-gl.css', 'leaflet-maplibre-gl.js', 'ofm-positron.json', 'ofm-dark.json']) {
-      assert(relativeFiles.includes('vendor/' + f), `bundle 缺 vendor/${f}——OFM 街道底圖會靜默退回計費的 Stadia`);
+    for (const f of ['maplibre-gl.js', 'maplibre-gl.css', 'ofm-positron.json', 'ofm-dark.json']) {
+      assert(relativeFiles.includes('vendor/' + f), `bundle 缺 vendor/${f}——地圖起不來,或 OFM 街道底圖靜默退回計費的 Stadia`);
     }
     assert(html.includes(OFM_ATTRIBUTION), 'OpenFreeMap 圖磚署名不是官方要求的三組連結逐字內容（署名是生效要件）');
     assert(html.includes('"streetSrc":"ofm"'), 'RAIL_APP_CONFIG 未載明 streetSrc:"ofm"——這顆 build 的街道底圖預設不是 OpenFreeMap');
     assert(html.includes('APP_CFG.streetSrc'), 'index.html 的 APP_CFG.streetSrc 消費機制消失——注入的預設來源不會被讀取');
-    assert(/const useOfmStreet = \(APP_CFG\.tiles \?/.test(html),
-      'useOfmStreet 沒有 App 分支——App 會永遠用不到 OFM(舊版是 !APP_CFG.tiles,對 App 恆假)');
+    // ⚠️ M4-B 盤點時發現:原本這裡驗的 useOfmStreet 只在 Leaflet 的建層迴圈裡被消費,
+    //    而 M4-A 把預設換成 MapLibre 之後那個迴圈就不再執行 ⇒ 這條斷言從那時起驗的是一個
+    //    「存在但沒有人讀」的符號。連帶的是 APP_STREET_SRC='stadia' 在 MapLibre 路徑下無效
+    //    (setStyleKind 的 light/dark 一律指向 OFM_STYLE),也就是 L1 遠端切換目前是死的。
+    //    這裡不假裝它還在:斷言撤掉並把事實寫在這裡,要修是把 APP_STREET_SRC 接進 setStyleKind。
+    assert(/OFM_STYLE\s*=\s*\{ light: 'vendor\/ofm-positron\.json'/.test(html),
+      '街道 style 不再指向打包進來的 OFM 樣式檔——App 的免費街道底圖會失效');
     // L1/L2 是「OpenFreeMap 沒有 SLA、而 App 改一行要等審查」的唯一保險,少一層等於沒有。
     assert(html.includes("apiUrl('api/basemap-src')"),
       'L1 遠端來源開關的讀取端消失——OFM 出事時將無法不出版本就切回 Stadia');

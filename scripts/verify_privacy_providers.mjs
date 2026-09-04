@@ -25,7 +25,6 @@ const ok = (id, pass, detail) => { R.push(pass); console.log(`${pass ? '✅' : '
 // ── 主機 → privacy.html 裡該出現的供應商名字 ──────────────────────────────────
 // 值必須與清單裡的寫法**逐字相同**(比對是 includes)。
 const HOSTS = {
-  'cdnjs.cloudflare.com': 'Cloudflare',
   'static.cloudflareinsights.com': 'Cloudflare',
   'cloudflareinsights.com': 'Cloudflare',
   'railisland-metro-core.sirius1984.workers.dev': 'Cloudflare',

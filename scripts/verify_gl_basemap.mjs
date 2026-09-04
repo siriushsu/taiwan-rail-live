@@ -93,7 +93,7 @@ try {
       'S2b 平移後仍逐張相等',
       'S2c 正向對照:多記一張就不等(比對有牙)',
       'S3 跨門檻後 session 恰好一次,之後圖磚帶 S1(之前帶 T1)',
-      'S4 圖磚 z=Leaflet 尺 z(另有 z6 保底);hi=128/lq=256',
+      'S4 圖磚 z=256 尺 z(另有 z6 保底);hi=128/lq=256',
       'S4b Plus+satRetina 完整流程實際選 sat-hi(tileSize 128)',
       'S5 z6 保底層蓋住未載入區;移除後露出離線陸地(sat 色)',
       'S7 衛星流程零 pageerror/console.error',
@@ -169,10 +169,10 @@ try {
     const lastUrl = reqs[reqs.length - 1] || '';
     const s3 = await page.evaluate(() => ({ session: window.__satStats().session, ls: !!localStorage.getItem('trainmap-esri-session') }));
     ck(sessionHits === 1 && s3.session && s3.ls && /token=S1/.test(lastUrl) && reqs.some(u => /token=T1/.test(u)), 'S3 跨門檻後 session 恰好一次,之後圖磚帶 S1(之前帶 T1)', `hits=${sessionHits} last=${lastUrl.slice(-30)} n=${reqs.length}`);
-    // S4 tileSize/圖磚 z:非 Plus 主層 z=Leaflet 尺 z;satGlStyle(true) 為 128
+    // S4 tileSize/圖磚 z:非 Plus 主層 z=適配層對外的 256px 圖磚尺度 z;satGlStyle(true) 為 128
     const zs = new Set(reqs.slice(-20).map(u => Number((u.match(/\/tile\/(\d+)\//) || [])[1])));
     const s4 = await page.evaluate(() => ({ z: Math.round(window.__M.getZoom()), hi: satGlStyle(true).sources.sat.tileSize, lq: satGlStyle(false).sources.sat.tileSize }));
-    ck([...zs].every(z => z === 6 || z === s4.z) && s4.hi === 128 && s4.lq === 256, 'S4 圖磚 z=Leaflet 尺 z(另有 z6 保底);hi=128/lq=256', `zs=${[...zs]} z=${s4.z}`);
+    ck([...zs].every(z => z === 6 || z === s4.z) && s4.hi === 128 && s4.lq === 256, 'S4 圖磚 z=256 尺 z(另有 z6 保底);hi=128/lq=256', `zs=${[...zs]} z=${s4.z}`);
     // S5 z6 保底:高階圖磚全掛住、跳到新地區,陸地像素=z6 圖磚色;移除 sat6 後=離線陸地 sat 色(正向對照)
     hangHi = true;
     await page.evaluate(() => window.__M.setView([23.0, 120.2], 12, { animate: false })); await page.waitForTimeout(1200);

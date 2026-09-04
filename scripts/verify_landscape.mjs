@@ -184,7 +184,10 @@ const PICK_FOLLOW = async () => {
         // 分布判準(看得見=6/夾死=0)就掛在牆鐘上(0812 21:52 webkit 抽到 2 台邊界車假紅)。
         // 0.12° ≈ z13 半視窗的三倍餘裕;嚴格輪抽不到才退回,寧可夾限也不能沒車可跟。
         const p = (typeof trainPos === 'function') ? trainPos(tr, state.simSec) : null;
-        const mb = window.__M.engine === 'leaflet' && window.__M.raw.options.maxBounds ? L.latLngBounds(window.__M.raw.options.maxBounds) : null;
+        // M4-B：這裡原本只在 Leaflet 下用 raw.options.maxBounds 排除貼牆的車;MapLibre 的硬牆走
+        // setMaxBounds/getMaxBounds,而 M4-A 起唯一引擎就是它 ⇒ 這個排除從那時起本來就沒在跑。
+        // 不在拔引擎這一輪替它補新實作(那是另一件事),原樣保留「不排除」的行為並具名說明。
+        const mb = null;
         if (p && mb && (p.lat - mb.getSouth() < 0.12 || mb.getNorth() - p.lat < 0.12
           || p.lon - mb.getWest() < 0.12 || mb.getEast() - p.lon < 0.12)) continue;
       }
@@ -1069,10 +1072,13 @@ async function fix0812Suite(browser, eng) {
   }
   // 桌面 WebKit 不支援 iOS 專屬的 text autosizing 屬性(computed 讀空),chromium 讀得到 100%
   ok(`F2 ${eng} text-size-adjust=100%(治實機橫放字級膨脹)`, adjVal === '100%' || (eng === 'webkit' && adjVal === ''), `adj=${adjVal || '(空)'}`);
-  // F3 相機自癒 v2 三情境(Codex 複審:v1 讀累計值+只測健康路徑=假綠入口;改記前後差 delta):
+  // F3 相機自癒 v2 情境(Codex 複審:v1 讀累計值+只測健康路徑=假綠入口;改記前後差 delta):
   // (a) 手勢持續中按兵不動(負對照),手勢一停立即開火——驗 _gestureAt 禁救閘的兩側;
-  // (b) _zoomAnim 卡死(>5s):v1 把它抄成前置閘=永不開火(實機正是這型),v2 須開火+清旗標;
   // (c) _transition 卡死:updateFollowCamera 開頭 triage 清旗標+撤遮幕,recenterTo 同幀接手。
+  // (b)「_zoomAnim 卡死(>5s)不再否決」已於 M4-B(2026-09-05)退役:_zoomAnim/_zaAt/_zaCal 那一整組
+  //     是 Leaflet 縮放動畫仿射的旗標,隨引擎一起拔掉(index.html 現在只留一行說明註解)。retire 而不是
+  //     改寫,因為它守的那個否決根本不存在了——MapLibre 每幀真實更新相機,recenterTo 沒有這個前置閘。
+  //     留著只會量到「注一個沒人讀的旗標、沒人清它」而永遠紅(實測 d=0／za=true),那是判準過期不是回歸。
   const f3a = await page.evaluate(async () => {
     const tr = state.followTrain; if (!tr) return { err: 'no-follow' };
     window.__origRecenter = recenterTo;
@@ -1096,26 +1102,6 @@ async function fix0812Suite(browser, eng) {
   });
   ok(`F3a ${eng}/16橫 自癒:手勢持續中按兵不動(0 次),手勢停止即開火貼車 z≥13`,
     !f3a.err && f3a.held === 0 && f3a.fired >= 1 && f3a.inView && f3a.z >= 13, JSON.stringify(f3a));
-  const f3b = await page.evaluate(async () => {
-    const tr = state.followTrain; if (!tr) return { err: 'no-follow' };
-    const p = trainPos(tr, state.simSec);
-    const rs0 = state._camRescues || 0;
-    // 模擬縮放旗標卡死:recenterTo 被它天然否決(函式開頭 return),zoomAnimFrame 可能逐幀丟例外
-    // ——相機段(9039)在 draw 分支(9064)之前,自癒仍會跑到;這正是實機凍結的擬真形態。
-    // 🔴 注旗標必須在 setView 之後:setView 改 zoom 會發 zoomend→endZoomAnim 把假旗標清掉
-    // (首輪突變在 v1 上量到 za:false 才揭穿——先 setView 的版本連 v2 都會假紅)
-    window.__M.setView([p.lat + 0.4, p.lon - 0.4], 11, { animate: false });
-    state._zoomAnim = true; state._zaAt = performance.now() - 6000; state._zaCal = null; state._zaCalPend = null;
-    state._gestureAt = 0;
-    await new Promise(r => setTimeout(r, 4300));
-    const p2 = trainPos(tr, state.simSec) || p;
-    const cp = window.__M.toScreen([p2.lat, p2.lon]);
-    const sz = window.__M.getSize();
-    return { d: (state._camRescues || 0) - rs0, za: !!state._zoomAnim, z: +window.__M.getZoom().toFixed(1),
-      inView: cp.x >= 0 && cp.x <= sz.x && cp.y >= 0 && cp.y <= sz.y };
-  });
-  ok(`F3b ${eng}/16橫 自癒:_zoomAnim 卡死(>5s)不再否決——開火貼車+旗標清除`,
-    !f3b.err && f3b.d >= 1 && !f3b.za && f3b.inView && f3b.z >= 13, JSON.stringify(f3b));
   const f3c = await page.evaluate(async () => {
     const tr = state.followTrain; if (!tr) return { err: 'no-follow' };
     const p = trainPos(tr, state.simSec);
@@ -1188,7 +1174,7 @@ async function sizeGuardSuite(browser, eng) {
     const tr = state.followTrain, p = tr ? trainPos(tr, state.simSec) : null;
     const cp = p ? window.__M.toScreen([p.lat, p.lon]) : null;
     return {
-      engine: window.__ENGINE || 'leaflet', cw: el.clientWidth, ch: el.clientHeight, szx, szy, cvw: cv.width, cvh: cv.height,
+      engine: window.__ENGINE, cw: el.clientWidth, ch: el.clientHeight, szx, szy, cvw: cv.width, cvh: cv.height,
       wantW: Math.round(el.clientWidth * dpr), wantH: Math.round(el.clientHeight * dpr),
       inPhys: cp ? (cp.x >= 0 && cp.x <= el.clientWidth && cp.y >= 0 && cp.y <= el.clientHeight) : null,
       heals: state._sizeHeals || 0,
@@ -1206,13 +1192,12 @@ async function sizeGuardSuite(browser, eng) {
   await pg3.evaluate(() => { const s = document.getElementById('__lag'); if (s) s.remove(); });
   await pg3.waitForTimeout(1500); // 守衛每 200ms 量一次，留七倍餘裕
   const f5 = await pg3.evaluate(SIZE_PROBE);
-  // 「守衛開過火」只對 Leaflet 有意義:MapLibre 用自己的 ResizeObserver 追容器(無聲放開版面也會 resize),
-  // 適配層 getSize 又是容器實測 ⇒ syncMapSizeIfStale 結構上量不到過期、_sizeHeals 恆 0(M4-A 切預設後
-  // 每個訪客都走這條路,不能拿 Leaflet 專屬的計數當紅)。MapLibre 那條路由 transform 尺寸＋畫布＋車點三項守。
-  const f5healed = f5.engine === 'maplibre' ? true : f5.heals > f5base.heals;
-  ok(`F5 ${eng}/旋轉版面延遲 尺寸自癒：Leaflet 尺寸=容器＋畫布重配＋車落在實體畫面內`,
+  // 「守衛開過火」的計數(_sizeHeals)是 Leaflet 專屬:MapLibre 用自己的 ResizeObserver 追容器,
+  // 適配層 getSize 又是容器實測 ⇒ syncMapSizeIfStale 結構上量不到過期、恆 0。M4-B 拔掉 Leaflet 後
+  // 那個分支永遠到不了,整條併掉;這一項改由 transform 尺寸＋畫布重配＋車點落在實體容器內三項守。
+  ok(`F5 ${eng}/旋轉版面延遲 尺寸自癒：適配層尺寸=容器＋畫布重配＋車落在實體畫面內`,
     !!f5pick && f5.szx === f5.cw && f5.szy === f5.ch && f5.cvw === f5.wantW && f5.cvh === f5.wantH
-    && f5.inPhys === true && f5healed,
+    && f5.inPhys === true,
     JSON.stringify({ pick: f5pick, viaRandBtn: !!f5btn, base: f5base, after: f5 }));
   // F5b 負面側：守衛不得空轉。尺寸本來就同步時每 200ms 都 invalidateSize＋reproject＝把整張圖
   // 每秒重投影五次（效能災難，且 reproject 會重配畫布清空當幀）。量「穩定後計數不再增加」。
@@ -1446,7 +1431,7 @@ async function rotationSuite(browser, eng) {
   // L10b：讓位軸向的對帳。跟車／放空每幀都會重新取景所以會自癒，**沒在跟車**時才看得到——
   // 轉向後讓位軸從垂直換成水平，若沒有重跑一次差量記帳，鏡頭會停在舊的垂直位移上。
   // 🔴 §04c 判準寫成不變量：「露出中心當下釘著的地理點」在面板開關／轉向之後**仍在新露出中心**。
-  //    真值＝渲染 rect 推的露出區（__exposed）＋ Leaflet 公開投影，不讀 state._focusShift（心得 29）。
+  //    真值＝渲染 rect 推的露出區（__exposed）＋ 引擎公開投影（M.fromScreen／M.toScreen），不讀 state._focusShift（心得 29）。
   //    舊寫法拿 (i.bottom-i.top)/2 對「容器中心」記帳——§04c 後乾淨態就有頂列/tabbar/膠囊/工具堆
   //    的常駐讓位，那套兩邊制的絕對量對不上了；不變量式把基準內生化，每一步只問「跟上了沒」。
   const b2 = await boot(browser, { w: 393, h: 852, tag: '轉向讓位對帳' }, { follow: false });
@@ -1456,7 +1441,7 @@ async function rotationSuite(browser, eng) {
   await p2.waitForTimeout(400);
   const PIN = () => {
     const ex = window.__exposed();
-    const ll = window.__M.fromScreen(L.point(ex.cx, ex.cy));
+    const ll = window.__M.fromScreen({ x: ex.cx, y: ex.cy });
     return { lat: ll.lat, lng: ll.lng, ex };
   };
   const AT = pin => {
@@ -1516,7 +1501,9 @@ const CENTER_PROBE = () => {
   // 可視中線=§04c 露出區中心(共用契約推導;第一版只扣側欄,漏了工具欄/頂列/tabbar/膠囊,
   // 於是側欄形態下永遠差「工具欄那份/2」——判準比實作少讓一塊,x 恆差 ~27px 的假紅)
   const ex = window.__exposed();
-  return { isRail, zoom: z, degraded: !!state._limitCenterDegraded,
+  // M4-B：degraded 原本回報 state._limitCenterDegraded(「Leaflet 升級把 _limitCenter 拿掉了」的旗標)。
+  // 那個 monkeypatch 隨 Leaflet 一起拔掉,旗標永遠是 undefined ⇒ 判準恆綠、零訊號,故退役不再回報。
+  return { isRail, zoom: z,
     dx: +(cp.x - ex.cx).toFixed(1), dy: +(cp.y - ex.cy).toFixed(1) };
 };
 async function centeringSuite(browser, eng) {
@@ -1531,11 +1518,12 @@ async function centeringSuite(browser, eng) {
     await page.tap('#tabExplore');
     await page.waitForTimeout(900);
     const r = await page.evaluate(CENTER_PROBE);
-    // degraded 是「Leaflet 升級把私有 API 拿掉了」的旗標：那會讓夾限靜默退回原生行為、
-    // 缺陷悄悄回來。把它併進同一條斷言，退化就是紅，不會只剩一個沒人看的 detail。
+    // M4-B：原本這條還併了 degraded（Leaflet 私有 _limitCenter 被拿掉的旗標）。Leaflet 拔掉後
+    // 那個旗標恆 undefined、`=== false` 恆假 ⇒ 併著只會讓整條假紅,而它守的東西(面板讓位被硬牆夾)
+    // 在 MapLibre 上改由 setPadding 保證,不需要事後對帳(見 focusApplyLimit 的 M4-B 註解)。
     const shiftX = r.dx - before.dx, shiftY = r.dy - before.dy;
     ok(`L12 ${eng}/${S.tag} 全島視角·開面板前後台灣在可視區的位置不變`,
-      !r.err && !before.err && r.degraded === false && Math.abs(shiftX) <= 4 && Math.abs(shiftY) <= 4,
+      !r.err && !before.err && Math.abs(shiftX) <= 4 && Math.abs(shiftY) <= 4,
       `位移 x${shiftX.toFixed(1)} y${shiftY.toFixed(1)}；無面板=${JSON.stringify(before)} 開面板=${JSON.stringify(r)}`);
     if (!r.err) (r.isRail ? rail++ : sheet++);
     await ctx.close();
@@ -2083,25 +2071,24 @@ const FREEZE = () => {
   const n = document.querySelector('.badge .n'); if (n) n.textContent = '000';
   // 版權列文字隨圖磚 attribution 載入時序變(內容變⇒寬變⇒右錨佈局 x 跟著變):兩頁各自載入
   // 讀到不同瞬間=假紅(0827 兩輪紅的視口/引擎都不同、且互不重疊)。兩頁對稱釘同一字串後才可比。
-  const at = document.querySelector('.leaflet-control-attribution'); if (at) at.textContent = 'ATTR';
+  // 兩頁的署名控件 class 不同:零回歸基準頁(早於 M0)是 Leaflet 的,受測頁是 MapLibre 的,兩個都要釘。
+  const at = document.querySelector('.leaflet-control-attribution, .maplibregl-ctrl-attrib'); if (at) at.textContent = 'ATTR';
 };
 const GEOM = eng => {
   const out = {};
   const sels = ['header', '.stage', '.controls', '.tabbar', '#followPanel', '#trainCard',
     '.plate', '#lead', '.grouptabs', '#explorePanel', '#board'];
-  // 對照 commit 早於 MapLibre、即使 query 帶 engine=maplibre 仍只會建立 Leaflet 家具。
-  // L6/L7 要守的是共用 HUD 零回歸；Leaflet 自己仍額外逐值守右下 attribution 容器，
-  // MapLibre 不拿「舊頁有 Leaflet 容器、新頁沒有」這個預期引擎差異冒充產品回歸。
-  if (eng === 'leaflet') sels.push('.leaflet-bottom.leaflet-right');
+  // 對照 commit 早於 MapLibre,即使 query 帶 engine=maplibre 仍只會建立 Leaflet 家具;受測頁則是
+  // MapLibre。L6/L7 要守的是共用 HUD 零回歸,所以兩頁一律只比上面那份共用清單——不拿
+  // 「舊頁有 .leaflet-bottom.leaflet-right、新頁沒有」這個預期中的引擎差異冒充產品回歸。
+  // (M4-B：原本這裡還會在 eng==='leaflet' 時額外加那個容器;唯一引擎變成 MapLibre 後永遠不會加。)
   for (const sel of sels) {
     const el = document.querySelector(sel);
     if (!el) { out[sel] = null; continue; }
     const cs = getComputedStyle(el), r = el.getBoundingClientRect();
-    // 版權列容器的 x/寬=attribution 動態文字寬(FREEZE 釘完 Leaflet 的 layer 事件仍會重寫,
-    // 兩頁時序不可控——0827 三輪紅的引擎×視口互不重疊、方向還互換)。右下錨的版面事實=
-    // y/高/position/display,只比這四樣;「推出視窗」類回歸由 L2 浮層不出視窗涵蓋。
-    if (sel === '.leaflet-bottom.leaflet-right') out[sel] = [0, Math.round(r.y), 0, Math.round(r.height), cs.position, cs.display];
-    else out[sel] = [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height), cs.position, cs.display];
+    // (M4-B：這裡原本對 '.leaflet-bottom.leaflet-right' 有個只比 y/高/position/display 的特例——
+    //  版權列的 x/寬=attribution 動態文字寬,兩頁時序不可控會假紅。那個選取器已不再進 sels,特例移除。)
+    out[sel] = [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height), cs.position, cs.display];
   }
   out['__fs'] = document.body.classList.contains('fs');
   out['__mq'] = matchMedia('(max-width: 900px)').matches;

@@ -56,7 +56,7 @@ Apple 不會替你確認轉移依賴的授權。之前的做法是在 `terms.htm
 
 | 元件 | 版本 | 授權 |
 |---|---|---|
-| Leaflet | 1.9.4 | BSD-2-Clause |
+| MapLibre GL JS（`vendor/maplibre-gl.js`／`.css`，授權全文 `vendor/maplibre-gl-LICENSE.txt`） | 4.7.1 | BSD-3-Clause |
 
 ## 資料與圖磚（非軟體授權，另有條款）
 

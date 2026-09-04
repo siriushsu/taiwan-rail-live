@@ -41,10 +41,8 @@ try {
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
 const pageErrors = [];
 page.on('pageerror', e => pageErrors.push(String(e)));
-await page.route('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js', r =>
-  r.fulfill({ path: path.join(ROOT, 'app/node_modules/leaflet/dist/leaflet.js'), contentType: 'text/javascript' }));
-await page.route('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css', r =>
-  r.fulfill({ path: path.join(ROOT, 'app/node_modules/leaflet/dist/leaflet.css'), contentType: 'text/css' }));
+// M4-B(2026-09-05)：index.html 不再載 Leaflet，原本供本機 leaflet.js/css 給 cdnjs 網址的
+// 讀檔與路由已移除（那份 readFileSync 在 app/node_modules 重裝後會讓腳本在載入時就爆）。
 await page.addInitScript(() => {
   localStorage.setItem('trainmap-howto-seen', '1');
   localStorage.setItem('trainmap-appearance', 'light');
