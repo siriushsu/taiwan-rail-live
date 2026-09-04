@@ -112,3 +112,13 @@ export function dedupeEvents(list, span) {
       return a.title < b.title ? -1 : a.title > b.title ? 1 : 0;
     });
 }
+
+// 標題文案。holidayNames ＝ data/holiday_names.json(只有本功能讀,查不到就退回通用說法)。
+// 🔴 名稱只是文案裝飾,不是判定依據——缺了不影響任何正確性,所以這裡不做任何錯誤處理。
+// 三天以上才叫「連假」:兩天的週六日在台灣不會被說成連假。
+export function spanLabel(span, holidayNames) {
+  const names = holidayNames || {};
+  const hit = span.days.map(d => names[d]).find(Boolean);
+  if (span.days.length >= 3) return hit ? hit + '連假' : '這個連假';
+  return hit || '本週末';
+}

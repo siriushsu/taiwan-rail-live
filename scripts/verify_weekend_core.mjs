@@ -2,7 +2,7 @@
 // 用法:node scripts/verify_weekend_core.mjs   /   npm run check-weekend-core
 // 這支刻意不讀 data/tw_daytype.json 當唯一輸入:真實日曆會逐年變,把它當測試輸入等於
 // 判準跟著資料漂移。真實日曆另有一條專屬檢查(見 Section R),其餘全用手寫小表。
-import { twDayStr, addDays, isWorkday, nextHolidaySpan, weekday, evValidDay, splitEvents, dedupeEvents } from './weekend_core.mjs';
+import { twDayStr, addDays, isWorkday, nextHolidaySpan, weekday, evValidDay, splitEvents, dedupeEvents, spanLabel } from './weekend_core.mjs';
 
 let pass = 0, fail = 0;
 const bad = [];
@@ -129,6 +129,32 @@ chk('G6 兩站聯名併成一則、兩個地點', two && two.places.length === 2
 // 🔴 只比頭尾是【空判準】：把 dedupeEvents 的 .sort() 整段拿掉，頭尾的 days[0] 仍然都是
 // 09-05（真正錯位的「週末開跑」夾在中間），判準照樣綠。實測驗過。要比相鄰全序才有牙。
 chk('G7 依首日排序(相鄰全序)', merged.every((m, i) => i === 0 || merged[i - 1].days[0] <= m.days[0]));
+
+console.log('\n【H】標題文案');
+const NAMES = { '2026-09-25': '中秋', '2026-10-09': '國慶' };
+chk('H1 一般週末', spanLabel({ from: '2026-09-05', to: '2026-09-06', days: ['2026-09-05', '2026-09-06'] }, NAMES) === '本週末');
+chk('H2 具名連假', spanLabel(nextHolidaySpan('2026-09-24', T), NAMES) === '中秋連假');
+chk('H3 名稱不在區間第一天也認得', spanLabel({ from: '2026-10-09', to: '2026-10-11', days: ['2026-10-09', '2026-10-10', '2026-10-11'] }, NAMES) === '國慶連假');
+chk('H4 無名連假', spanLabel({ from: '2026-11-01', to: '2026-11-03', days: ['2026-11-01', '2026-11-02', '2026-11-03'] }, NAMES) === '這個連假');
+chk('H5 名稱檔給空物件也不會壞', spanLabel({ from: '2026-09-05', to: '2026-09-06', days: ['2026-09-05', '2026-09-06'] }, {}) === '本週末');
+chk('H6 單日', spanLabel({ from: '2026-09-06', to: '2026-09-06', days: ['2026-09-06'] }, NAMES) === '本週末');
+
+console.log('\n【R】真實資料交叉檢查');
+{
+  const fs = await import('node:fs');
+  const url = await import('node:url');
+  const path = await import('node:path');
+  const ROOT = path.dirname(path.dirname(url.fileURLToPath(import.meta.url)));
+  const daytype = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/tw_daytype.json'), 'utf8'));
+  const names = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/holiday_names.json'), 'utf8'));
+  const dates = Object.keys(names).filter(k => !k.startsWith('_'));
+  const orphan = dates.filter(d => daytype[d] !== 1);
+  chk(`R1 節日名稱的 ${dates.length} 個日期在 tw_daytype 裡都標成放假`, orphan.length === 0, orphan.join(','));
+  // 日曆表會過期:只涵蓋兩年,用完之後連假判定會【靜默】退回只看週幾,畫面完全正常。
+  const last = Object.keys(daytype).sort().pop();
+  const daysLeft = Math.round((Date.parse(last + 'T00:00:00Z') - Date.now()) / 86400000);
+  chk(`R2 日曆表還涵蓋 ${daysLeft} 天（<90 天就該補下一年度）`, daysLeft >= 90, `最後一天 ${last}`);
+}
 
 console.log(`\n${fail ? '❌' : '✅'} weekend-core：${pass} 過 / ${fail} 失敗`);
 if (fail) { console.error('失敗項目：\n  - ' + bad.join('\n  - ')); process.exit(1); }
