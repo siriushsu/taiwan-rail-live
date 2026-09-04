@@ -143,3 +143,5 @@ suno musics/_licensed
 
 # 雙引擎矩陣 M4 取原版用的暫存檔(正常會在 finally 刪掉,行程被強制中斷時會殘留)
 scripts/.engine-matrix-baseline-*
+# 內部宣傳縮時成品：由 npm run render-timelapse 批次產生，可隨時重建；影片不進公開 repo。
+輸出/縮時_*/

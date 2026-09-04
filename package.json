@@ -69,7 +69,8 @@
     "check-align-follow": "node scripts/verify_align_follow.mjs",
     "check-device-recording": "node scripts/analyze_device_recording.mjs --selftest",
     "check-m1c-overlay": "node scripts/verify_m1c_overlay_controls.mjs",
-    "check-map-orientation": "node scripts/verify_map_orientation.mjs"
+    "check-map-orientation": "node scripts/verify_map_orientation.mjs",
+    "render-timelapse": "node scripts/render_timelapse.mjs"
   },
   "dependencies": {
     "playwright": "^1.61.1",

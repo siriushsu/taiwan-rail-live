@@ -117,3 +117,5 @@ suno musics/_masters
 # 車聲圖層的 Envato 授權音檔:不進網站、不進 repo,只進 App。
 suno musics/_licensed
 *.wav
+# 內部宣傳縮時成品：本機產片用，不隨裸跑 wrangler 變成正式站靜態資產。
+輸出/縮時_*/
