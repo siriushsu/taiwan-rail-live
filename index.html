@@ -5127,6 +5127,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="tymckind"><span class="d">9/4</span><span>桃園機場捷運的列車標得出車種：地圖車牌寫「直」或「普」，跟車卡與車站看板寫全名，同一個「往台北車站」也分得出下一班是直達車還是普通車</span></li>
         <li data-cl-of="xingorder"><span class="d">9/4</span><span>兩條路線立體交叉的地方，改成依實際的高架與地下關係決定哪一條畫在上面</span></li>
         <li data-cl-of="tabletshell"><span class="d">9/4</span><span>iPad 與 Android 平板改用完整觸控版面；橫放時資訊停在右側，地圖保留主要空間</span></li>
         <li data-cl-of="journeysharelive"><span class="d">9/3</span><span>整段列車轉公車旅程可用短效連結分享；手機位置預設不分享，只有另行勾選並停留前景才更新，停止分享即刪除。</span></li>
@@ -5134,7 +5135,6 @@
         <li data-cl-of="busallrail"><span class="d">9/3</span><span>公車轉乘入口擴到軌島地圖上的全部 541 座客運鐵路、捷運與輕軌站；高鐵、林鐵跟車也能先指定下車站接公車。仍只在使用者打開或接近轉乘站時查即時，不會全臺背景輪詢。</span></li>
         <li data-cl-of="busassistant"><span class="d">9/3</span><span>跟台鐵列車時可以先指定在哪一站接公車；抵達前 15 分、5 分與實際到站才查一次動態，並把列車抵達、站外步行和公車到站合成保守的轉乘裕度。時光機與加速重播不查即時資料。</span></li>
         <li data-cl-of="metropeak0903"><span class="d">9/3</span><span>轉乘站的官方來車資料換班時，偶爾會短暫缺一個方向；現在看板會先補上該方向的班表</span></li>
-        <li data-cl-of="copyaudit"><span class="d">9/3</span><span>更新紀錄改得更精簡好讀，資料來源、專案授權與隱私說明也同步校正</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5142,6 +5142,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="tymckind"><span class="d">9/4</span><span>桃園機場捷運的列車現在標得出車種：地圖上的車牌寫「直」或「普」，跟車卡與車站看板寫全名，同一個「往台北車站」也分得出下一班是直達車還是普通車。首末班有幾班官方沒有明確歸類，那幾班維持只標線號（謝謝網友回報）</span></li>
         <li data-cl="aeo"><span class="d">9/3</span><span>新增關於、準確度、資料來源、車站索引與 20 個常查車站頁，並補上 sitemap、robots.txt 與結構化資料；即時班次仍回地圖查詢。</span></li>
         <li data-cl="attrib-oneline"><span class="d">8/30</span><span>手機地圖的版權資訊改為底部單行橫向捲動，並依跟車卡與捷運小卡寬度讓位，不再折成多行遮住控制鈕（謝謝網友回報）</span></li>
         <li data-cl="whatsnew-lang"><span class="d">8/30</span><span>更新完跳出的「更新了什麼」現在會用你正在使用的語言：英文與日文各有整段自己的文案，不會再看到標著「中文原文」的中文說明。那個「中文原文」標籤是給只有中文的營運單位公告用的，App 自己的更新說明本來就翻得了</span></li>
@@ -5973,7 +5974,7 @@
 // v0904a：合併平板觸控殼：iPad／Android 平板直式用底部分頁，橫式用右側資訊欄；iOS target 改為 Universal。
 // v0904b：把公車轉乘／旅程分享與 main 的 AEO、平板觸控殼及捷運換班空窗修正整合成正式網站出貨樹。
 // v0904c：軌道立體交叉的疊層改依實際高架／地下關係決定，不再看繪製順序。
-const BUILD = 'v0904c';
+const BUILD = 'v0904d';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -6577,11 +6578,18 @@ function abbrOf(ln) {
 // 機捷車種:班表沒有 pattern 欄位(build 端只拿 StoppingPatternID 分桶串接,不寫進輸出),
 // 但直達車跳站、普通車站站停 ⇒ 停靠樣態就是車種本身。全線唯一一條 A 線,牌上不必再寫線代號。
 //
-// 官方只有兩種直達樣態(timetable.php 逐字實查:「直達車(停靠A1、A3、A8、A12、A13)」與
-// 「尖峰增停直達車(…A18、A21)」),對應 index [0,2,7,11,12] 與 [0,2,7,11,12,17,20]。
-// 🔴 首末班另有每天約 17 班「跳法跟兩者都不一樣」的特殊班次(如 23:08 台北車站→老街溪:
-// 前段跳站、後段站站停;23:23 台北車站→機場第二航廈跳過 A2–A9)。官方怎麼歸類它們我們沒有
-// 依據 ⇒ **留白顯示線代號,不猜**。標錯車種比不標更糟:使用者會照著它決定要不要上車。
+// 官方時刻表(timetable.php)的圖例逐字實查,一共五類:
+//   加底線＝直達車(停靠A1、A3、A8、A12、A13)          → index [0,2,7,11,12]
+//   加星號＝尖峰增停直達車(…再加A18、A21)             → index [0,2,7,11,12,17,20]
+//   加菱形＝**尖峰跳站普通車**(停靠A21、A18、A13、A12、A9→A1每站)
+//   一般  ＝普通車(每站停靠)
+//   加三角＝增開往機場服務班次(A1→A13;A22→A12,每站停靠之普通車)
+// 🔴 所以「跳站＝直達車」是錯的——官方有跳站的普通車。官方公告寫得更白:
+//   「114/10/16起,平日上午07:00自A21環北站發車北上直達車,改以普通車車型跳站運行」。
+// 因此只認前兩種樣態;首末班另有每天約 17 班跳法與兩者都不同的班次(23:08 台北車站→老街溪
+// 前段跳站後段站站停、23:23 跳過 A2–A9…),班表沒有帶車種欄位、逐班硬編又會隨改點失效
+// ⇒ **留白顯示線代號,不猜**。標錯車種比不標更糟:使用者會照著它決定要不要上車。
+// 根本解是讓 build_metro_times.mjs 把 TDX 的 TrainType 一起寫進 tymc_times.json(尚未做)。
 const TYMC_EXPRESS_SOUTH = [0, 2, 7, 11, 12, 17, 20];
 const TYMC_KIND_TAG = { exp: '直', com: '普' };          // 車牌:單字,牌寬與原本的「A」相當
 const TYMC_KIND_NAME = { exp: '直達車', com: '普通車' }; // 跟隨卡/看板:全稱
