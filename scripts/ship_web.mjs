@@ -75,6 +75,15 @@ try {
   if (cfg.status !== 0) fail('部署設定檢查未過——cron 或資產排除少了東西,出貨會靜默關掉功能'
     + '（單獨重跑：npm run check-deploy-config）');
 
+  // ── 2.65 辦公日曆表兩份副本的同步 ──────────────────────────────────────────
+  // index.html 的 TW_DAYTYPE(前端選捷運班表)與 data/tw_daytype.json(worker 做北捷逐班綁定)
+  // 是同一份資料的兩個副本,補新年度時「補一邊忘另一邊」不會有任何錯誤訊息——
+  // 只有某個假日的班表與綁定會靜靜出錯。同上:驗的是【這棵乾淨出貨樹】那一份。
+  const daytype = spawnSync('node', [path.join(wt, 'scripts', 'check_daytype_sync.mjs')], { encoding: 'utf8' });
+  process.stdout.write(daytype.stdout || ''); process.stderr.write(daytype.stderr || '');
+  if (daytype.status !== 0) fail('辦公日曆表同步檢查未過——兩份副本分岔了'
+    + '（單獨重跑：npm run check-daytype-sync）');
+
   // ── 2.7 對外用語閘門（更名後的舊名不准出貨）────────────────────────────────
   // 🔴 位置與 2.5 同一個理由,不可移到 strip 之後:check_voice 的 constBlock surface
   //    content-station／content-sys 用的 end 標記就是【註解】（'// 有精選特色'、

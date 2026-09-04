@@ -59,7 +59,8 @@
     "check-tracked-ignored": "node scripts/check_tracked_ignored.mjs",
     "check-crossing-paint": "node scripts/verify_crossing_paint.mjs",
     "check-crowd-board": "node scripts/verify_crowd_and_board_width.mjs",
-    "check-weekend-core": "node scripts/verify_weekend_core.mjs"
+    "check-weekend-core": "node scripts/verify_weekend_core.mjs",
+    "check-daytype-sync": "node scripts/check_daytype_sync.mjs"
   },
   "dependencies": {
     "playwright": "^1.61.1",
