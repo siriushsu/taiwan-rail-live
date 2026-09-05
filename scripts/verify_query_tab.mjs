@@ -105,6 +105,67 @@ const snap = page => page.evaluate(c => eval(c), SNAP);
 
 const sections = []; // 後續 task 各自 push({ name, run: async (browser, engineName) => {} })
 
+// G1 瀏覽態幾何（spec §7-3）：點 tab 開 sheet 後 tab bar 仍可見、沒有 search-open、面板是底部 sheet（不是上錨全高）。
+// 牙：開 sheet 就套 search-open ⇒ G1b 紅。
+sections.push({ name: 'G1 瀏覽態', run: async (browser, en) => {
+  for (const width of [360, 375, 414, 768]) {
+    const { ctx, page, errs } = await boot(browser, { width, height: width === 768 ? 1024 : 852 });
+    await tapTab(page);
+    const s = await snap(page);
+    ok(`[${en}/${width}] G1a 點 tab 後查詢 sheet 開著`, !s.hidden && s.sheetOpen, JSON.stringify({ hidden: s.hidden, sheetOpen: s.sheetOpen }));
+    ok(`[${en}/${width}] G1b 瀏覽態沒有 search-open、tab bar 可見`, !s.searchOpen && s.tabbarVisible, JSON.stringify({ searchOpen: s.searchOpen, tabbar: s.tabbarVisible }));
+    ok(`[${en}/${width}] G1c 面板是底部 sheet（高度 ≤ 視窗 60%，貼底）`, s.h <= s.vh * 0.6 && s.bottom >= s.vh - 120, JSON.stringify({ h: s.h, vh: s.vh, bottom: s.bottom }));
+    ok(`[${en}/${width}] G1d tab「查詢」文字`, (await page.evaluate(() => document.querySelector('#tabSearch .tl').textContent.trim())) === '查詢');
+    ok(`[${en}/${width}] G1e 無 pageerror`, errs.length === 0, errs.join(' | '));
+    await ctx.close();
+  }
+}});
+
+// G2 打字態（spec §7-4）：focus 輸入框 ⇒ search-open、tab bar 藏；blur 不離開；標題列輕點或關閉才離開。
+// 牙：blur 就離開 ⇒ G2c 紅；focus 不進打字態 ⇒ G2a 紅。
+sections.push({ name: 'G2 打字態', run: async (browser, en) => {
+  const { ctx, page } = await boot(browser, {});
+  await tapTab(page);
+  const inp = await page.evaluate(() => { const r = document.getElementById('trainSearch').getBoundingClientRect(); return { x: r.left + 20, y: r.top + r.height / 2 }; });
+  await page.touchscreen.tap(inp.x, inp.y);
+  await page.waitForTimeout(400);
+  let s = await snap(page);
+  // 直式的打字態 tab bar 仍在(只有橫放的 body.fs.search-open .tabbar 會藏,那是 4182 起的 landscape 區塊,不動);判打字態看「上錨」
+  ok(`[${en}] G2a 點輸入框 ⇒ 打字態（search-open、面板上錨到頂列之下）`, s.searchOpen && s.top <= 140, JSON.stringify({ searchOpen: s.searchOpen, top: s.top }));
+  await page.evaluate(() => document.getElementById('trainSearch').blur());
+  await page.waitForTimeout(300);
+  s = await snap(page);
+  ok(`[${en}] G2c blur 不離開打字態`, s.searchOpen, JSON.stringify({ searchOpen: s.searchOpen }));
+  // 標題列輕點（抓把手勢）⇒ 回瀏覽態
+  const head = await page.evaluate(() => { const r = document.querySelector('#searchPanel h3').getBoundingClientRect(); return { x: r.left + 30, y: r.top + 12 }; });
+  await page.mouse.move(head.x, head.y); await page.mouse.down(); await page.waitForTimeout(60); await page.mouse.up();
+  await page.waitForTimeout(500);
+  s = await snap(page);
+  ok(`[${en}] G2d 標題列輕點 ⇒ 回瀏覽態（sheet 仍開、search-open 消失、回到底部 sheet 幾何）`, !s.hidden && !s.searchOpen && s.h <= s.vh * 0.6, JSON.stringify({ hidden: s.hidden, searchOpen: s.searchOpen, h: s.h, vh: s.vh }));
+  // 再進打字態，用 × 關閉 ⇒ 兩者皆清
+  await page.touchscreen.tap(inp.x, inp.y); await page.waitForTimeout(300);
+  await page.evaluate(() => document.getElementById('searchPanelClose').click()); await page.waitForTimeout(300);
+  s = await snap(page);
+  ok(`[${en}] G2e × 關閉 ⇒ sheet 關、search-open 清`, s.hidden && !s.searchOpen && s.tabbarVisible);
+  await ctx.close();
+}});
+
+// G9 桌面零改動（spec §7-9）：面板永不開、搜尋框留在 header、tab bar 不顯示。牙：手機 CSS 漏進桌面 ⇒ 紅。
+sections.push({ name: 'G9 桌面不變量', run: async (browser, en) => {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'zh-TW' });
+  const page = await ctx.newPage();
+  await page.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-language', 'zh-TW'); } catch (e) {} });
+  await page.goto(BASE + '?lang=zh-TW', { waitUntil: 'domcontentloaded' });
+  await page.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 60000 });
+  const d = await page.evaluate(() => ({
+    panelHidden: document.getElementById('searchPanel').hidden,
+    searchInHeader: !document.getElementById('searchSlot').contains(document.getElementById('searchRow')),
+    tabbar: getComputedStyle(document.getElementById('tabbar')).display,
+  }));
+  ok(`[${en}] G9 桌面：面板關、搜尋框在 header、tab bar 不顯示`, d.panelHidden && d.searchInHeader && d.tabbar === 'none', JSON.stringify(d));
+  await ctx.close();
+}});
+
 // ── 執行 ──
 for (const engineName of ENGINES) {
   const engine = engineName === 'webkit' ? webkit : chromium;

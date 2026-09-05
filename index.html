@@ -3838,17 +3838,15 @@
     #nearCard::before { content: ""; display: block; width: 38px; height: 4px; border-radius: 3px; background: rgba(255,253,246,.55); position: absolute; top: 5px; left: 50%; transform: translateX(-50%); z-index: 3; }
     #nearCard .xc-head { padding-top: 13px; border-radius: 12px 12px 0 0; }
     body.fs #nearCard { --sheet-bottom-offset: calc(var(--tabbar-clear) + 8px); bottom: var(--sheet-bottom-offset); } /* =58+8+env,比照 body.fs .board */
-    /* ──「搜尋」sheet(v0726a):tab bar 的放大鏡開啟;原本搜尋藏在亮點 sheet 裡,第一次用的人找不到 ──
-       刻意不吃 .board 的底部 46% 幾何:輸入框一聚焦,iOS 鍵盤就佔掉下半螢幕,底部 sheet 的輸入框與
-       結果會被整片蓋住。改成上錨——頂緣接在頂浮動列之下、底緣抵 tab bar,高度由上下錨撐出
-       (max-height 解除);三段高與抓把不適用(高度固定、內容自己捲),故抓把隱藏且不進 initSheetHandle。 */
-    #searchPanel {
+    /* 打字態才上錨（鍵盤佔掉下半螢幕）；瀏覽態是一般底部 sheet。 */
+    /* 2026-09-06 兩態:上錨全高只在【打字態】(body.search-open,使用者點輸入框才進);瀏覽態吃 .board 的底部兩段幾何＋抓把 */
+    body.search-open #searchPanel {
       top: calc(56px + var(--sa-t));
       bottom: calc(var(--tabbar-clear) + 8px);
       max-height: none;
     }
-    html[data-fs] #searchPanel { top: calc(8px + var(--sa-t) + var(--tb-h, 42px) + 6px); }
-    #searchPanel::before { display: none; } /* 不可拖曳,不給抓把 */
+    html[data-fs] body.search-open #searchPanel { top: calc(8px + var(--sa-t) + var(--tb-h, 42px) + 6px); }
+    body.search-open #searchPanel::before { display: none; } /* 打字態不可拖曳,不給抓把 */
     /* 結果清單改「排進版面流」(原是浮在輸入框下方的絕對定位卡):專屬面板本身就是那張卡,
        再套一層邊框陰影會變盒中盒;且絕對定位在高面板裡只佔 40vh、下方空一大塊 */
     #searchPanel #searchDrop {
@@ -3856,6 +3854,9 @@
       border: 0; box-shadow: none; background: none; border-radius: 0; padding: 0 12px 10px;
     }
     #searchPanel .sp-hint { margin: 0; padding: 2px 14px 12px; font-size: calc(11.5px * var(--uis)); line-height: 1.7; color: var(--faint); }
+    /* 瀏覽態:提示句讓位給答案區;打字態:答案區與快捷列整個藏起來,搜尋結果接手(現況的打字體驗零改動) */
+    body:not(.search-open) #searchPanel .sp-hint { display: none; }
+    body.search-open #searchPanel .qa, body.search-open #searchPanel .ql { display: none; }
     /* 有結果就收起提示(提示是空狀態的引導,不該墊在結果下面);:has 不支援的舊瀏覽器只是提示留著,無害 */
     #searchSlot:has(#searchDrop:not([hidden])) + .sp-hint { display: none; }
     /* 🔴 padding 要讓開安全區(2026-07-28 首次 App build 實機看到):place-items 在手機是 stretch,
@@ -4941,12 +4942,16 @@
       <h3>今日亮點<button class="close" id="exploreClose">×</button></h3>
       <div id="expBody"></div>
     </div>
-    <!-- 搜尋面板(v0726a):tab bar 放大鏡的落點。手機 placeSearch() 把 header 的 .search 搬進 #searchSlot
-         (桌面搬回 header,本面板永不開啟——桌面搜尋框常駐 header)。上錨幾何見 ≤900 區塊的 #searchPanel。 -->
+    <!-- 查詢面板(v0726a 起是搜尋 sheet;2026-09-06 升級成查詢 sheet,spec docs/superpowers/specs/2026-09-06-查詢分頁-design.md):
+         tab bar 第一格的落點。手機 placeSearch() 把 header 的 .search 搬進 #searchSlot(桌面搬回 header,本面板永不開啟)。
+         兩態:瀏覽態=一般 .board 兩段高;打字態(body.search-open,使用者點輸入框才進)=上錨全高,見 ≤900 區塊。 -->
     <div class="board" id="searchPanel" hidden>
-      <h3>搜尋<button class="close" id="searchPanelClose" title="關閉">×</button></h3>
+      <h3>查詢<button class="close" id="searchPanelClose" title="關閉">×</button></h3>
       <div id="searchSlot"></div>
       <p class="sp-hint">輸入站名、車次或列車名稱——例如「台北」「152」「鳴日號」。點車站看接下來的班次，點車次直接跟著它跑。</p>
+      <!-- 答案區(最近站各方向下一班)與快捷列:內容由 renderQueryAnswer()/renderQueryLinks() 產生;打字態整個藏起來(搜尋結果接手) -->
+      <div class="qa" id="queryAnswer" hidden></div>
+      <div class="ql" id="queryLinks" hidden></div>
     </div>
     <div class="board" id="todayPanel" hidden></div>
     <!-- 誤點履歷卡(Plus 頭牌;跟隨台鐵時由準點列/車次卡入口開啟);×/☆ 家族鐵則——close 鈕放 sticky h3 內(v0717p) -->
@@ -5693,7 +5698,7 @@
 <!-- 手機 App 殼(≤640 顯示;桌面 CSS 藏):底部 tab bar＋「更多」sheet(原 ☰ 抽屜的繼承者) -->
 <nav class="tabbar" id="tabbar" aria-label="主要導覽">
   <!-- 搜尋(v0726a 取代原「◉ 地圖」):搜尋原本藏在亮點 sheet 裡,第一次用的人發現不了,升為一級入口 -->
-  <button id="tabSearch"><span class="ti" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10" cy="10" r="7"/><path d="M15.1 15.1 L22 22"/></svg></span><span class="tl">搜尋</span></button>
+  <button id="tabSearch"><span class="ti" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10" cy="10" r="7"/><path d="M15.1 15.1 L22 22"/></svg></span><span class="tl">查詢</span></button>
   <button id="tabExplore"><span class="ti">探</span><span class="tl">亮點</span></button>
   <button id="tabFav"><span class="ti"><svg class="ri-icon" aria-hidden="true" focusable="false"><use href="#ri-ui-favorite"></use></svg></span><span class="tl">最愛</span></button>
   <button id="tabRide"><span class="ti">旅</span><span class="tl">護照</span></button>
@@ -26545,10 +26550,14 @@ try {
   if (saved === 'large') sheetSizePref = 'medium';
   else if (SHEET_SIZES.includes(saved)) sheetSizePref = saved;
 } catch (e) {}
-// 三段高只在「底部 sheet」形態才有意義。兩個例外:
-//   #searchPanel 是上錨面板(高度由上下錨撐出,見其 CSS 註解);
-//   橫式側欄同理——高度撐滿、沒有段可換,留著只會變成「點標題只改 body class、看不出差別」的怪行為。
-function sheetHasSizeSteps(el) { return !!(el && el.id !== 'searchPanel') && !sheetIsSideRail(); }
+// 段高只在「底部 sheet」形態才有意義。兩個例外:
+//   #searchPanel 在【打字態】(body.search-open)是上錨面板(高度由上下錨撐出)——瀏覽態則是一般 sheet,有段高;
+//   橫式側欄同理——高度撐滿、沒有段可換。
+function sheetHasSizeSteps(el) {
+  if (!el) return false;
+  if (el.id === 'searchPanel' && document.body.classList.contains('search-open')) return false;
+  return !sheetIsSideRail();
+}
 function sheetSizeOf(el) {
   return el.classList.contains('sheet-small') ? 'small' : 'medium';
 }
@@ -26567,8 +26576,8 @@ function updateSheetOpenClass() {
     if (el && el !== sizedAct) el.classList.remove('sheet-small');
   }
   if (sizedAct) applySheetSize(sizedAct, sheetSizePref);
-  // §04c 契約9:搜尋面板開著=打字中,相機暫停搶置中(recenterTo 讀這顆 class);橫式另有 .search-land 版面
-  document.body.classList.toggle('search-open', !!(act && act.id === 'searchPanel'));
+  // §04c 契約9:打字態(search-open)只由 setSearchTyping 進入;面板不再是作用中 sheet 時一律清掉
+  if (!(act && act.id === 'searchPanel')) document.body.classList.remove('search-open');
   invalidateMapInsets(); // 面板開關/換段高=露出地圖變了,量測快取立即失效(下一行 reframeFocus 要拿新值)
   // 手機 tab bar 選中態跟著面板走:有開面板亮該 tab,全關(或「列車」sheet=看地圖)一顆都不亮
   const tabOf = { tabSearch: 'searchPanel', tabExplore: 'explorePanel', tabFav: 'favPanel', tabRide: 'ridePanel' };
@@ -26618,10 +26627,12 @@ function setSheetSize(el, size) {
   updateSheetOpenClass();
 }
 function cycleSheetSize(el) {
+  if (el.id === 'searchPanel' && document.body.classList.contains('search-open')) { setSearchTyping(false); setSheetSize(el, 'medium'); return; }
   const i = SHEET_SIZES.indexOf(sheetSizeOf(el));
   setSheetSize(el, SHEET_SIZES[(i + 1) % SHEET_SIZES.length]);
 }
 function stepSheetSize(el, direction) {
+  if (el.id === 'searchPanel' && document.body.classList.contains('search-open')) { if (direction < 0) { setSearchTyping(false); setSheetSize(el, 'medium'); } return; }
   const i = SHEET_SIZES.indexOf(sheetSizeOf(el));
   setSheetSize(el, SHEET_SIZES[Math.max(0, Math.min(SHEET_SIZES.length - 1, i + direction))]);
 }
@@ -26867,21 +26878,31 @@ function closeSearchDrop() { const d = document.getElementById('searchDrop'); if
 // ──「搜尋」面板(手機專屬;v0726a 起是 tab bar 放大鏡的落點)──
 // 面板本身不持有搜尋 DOM:.search 由 placeSearch() 搬進 #searchSlot,這裡只負責露出它與收鍵盤。
 // 桌面走不到(搜尋框常駐 header、tab bar 不顯示);跨回桌面時 placeSearch 會順手關掉。
-function openSearchPanel() {
+// 查詢 sheet(2026-09-06 兩態):瀏覽態開,不聚焦——使用者自己點輸入框才叫鍵盤(那才是 iOS 允許出鍵盤的手勢)。
+// user:true=使用者自己點 tab/×(Task 5 用它寫開關記憶);自動開、被 soloPanel 擠掉都是 user:false。
+function openSearchPanel({ user = false } = {}) {
   soloPanel('search');
   document.getElementById('searchPanel').hidden = false;
   updateSheetOpenClass();
   const inp = document.getElementById('trainSearch');
-  if (!inp) return;
-  inp.focus(); // iOS 只在使用者手勢的同一個事件裡 focus 才會叫出鍵盤,所以開面板就聚焦、不延後
-  if (inp.value.trim()) renderSearchDrop(); // 帶著上次的字回來:直接把結果攤開,不用再敲一次
+  if (inp && inp.value.trim()) renderSearchDrop(); // 帶著上次的字回來:直接把結果攤開,不用再敲一次
 }
-function closeSearchPanel() {
+function closeSearchPanel({ user = false } = {}) {
   const el = document.getElementById('searchPanel');
   if (!el || el.hidden) return;
   el.hidden = true;
   closeSearchDrop();
   const inp = document.getElementById('trainSearch'); if (inp) inp.blur(); // 面板收起鍵盤跟著收
+  updateSheetOpenClass(); // 作用中 sheet 不再是它 ⇒ search-open 一併清掉
+}
+// 打字態切換。只在使用者聚焦輸入框時進入;離開只有兩條路:關閉面板、或對標題列做抓把手勢(輕點/下拉)。
+// 🔴 不在 blur 離開:blur 先於下拉列的 click,若此時縮回半高,列會在手指底下移位。
+function setSearchTyping(on) {
+  const el = document.getElementById('searchPanel');
+  if (!el || el.hidden) on = false;
+  if (document.body.classList.contains('search-open') === !!on) return;
+  document.body.classList.toggle('search-open', !!on);
+  if (!on) { const inp = document.getElementById('trainSearch'); if (inp && document.activeElement === inp) inp.blur(); }
   updateSheetOpenClass();
 }
 // 導航:決定要不要切群組＋看板 st 形狀。sched→sys:系統id(nat/all 皆真實時刻板);freq 分頁→sys:'freq';
@@ -30862,9 +30883,13 @@ function setupMapTools() {
   window.addEventListener('resize', () => { if (document.body.classList.contains('tools-open')) positionMoreSheet(); });
   document.getElementById('moreClose').onclick = () => setMore(false);
   document.getElementById('moreScrim').onclick = () => setMore(false);
-  // 搜尋(v0726a 取代原「地圖」鈕):再按一次收起,與其他三顆 tab 同語意
-  document.getElementById('tabSearch').onclick = () => { setMore(false); document.getElementById('searchPanel').hidden ? openSearchPanel() : closeSearchPanel(); };
-  document.getElementById('searchPanelClose').onclick = () => closeSearchPanel();
+  // 查詢(2026-09-06;v0726a 起是搜尋):再按一次收起,與其他三顆 tab 同語意;user:true=使用者自己的動作(開關記憶)
+  document.getElementById('tabSearch').onclick = () => { setMore(false); document.getElementById('searchPanel').hidden ? openSearchPanel({ user: true }) : closeSearchPanel({ user: true }); };
+  document.getElementById('searchPanelClose').onclick = () => closeSearchPanel({ user: true });
+  // 打字態入口:使用者自己聚焦輸入框(手機且面板開著才算;桌面搜尋框常駐 header,永不進打字態)
+  document.getElementById('trainSearch').addEventListener('focus', () => {
+    if (window.matchMedia(MOBILE_MQ).matches && !document.getElementById('searchPanel').hidden) setSearchTyping(true);
+  });
   document.getElementById('tabExplore').onclick = () => { setMore(false); document.getElementById('exploreBtn').click(); };
   document.getElementById('tabFav').onclick = () => { setMore(false); document.getElementById('favBtn').click(); };
   document.getElementById('tabRide').onclick = () => { setMore(false); document.getElementById('rideBtn').click(); };
@@ -33544,7 +33569,7 @@ document.getElementById('followPanel').addEventListener('click', (e) => {
 document.getElementById('tcStar').onclick = (e) => { e.stopPropagation(); toggleFav(state.followTrain); }; // stopPropagation:sheet 態不觸發標題列 toggle
 document.getElementById('tcSheetClose').onclick = (e) => { e.stopPropagation(); closeTrainSheet(); }; // ✕ 收「列車」sheet(跟車不中斷,小卡回來)
 // 三段高抓把:.board 家族 + 「列車」sheet(#trainCard)綁點擊循環 / 拖曳相鄰 snap
-['board', 'favPanel', 'ridePanel', 'explorePanel', 'trackPanel', 'todayPanel', 'delayHistPanel', 'trainCard', 'nearCard'].forEach(id => { const el = document.getElementById(id); if (el) initSheetHandle(el); });
+['board', 'favPanel', 'ridePanel', 'explorePanel', 'trackPanel', 'todayPanel', 'delayHistPanel', 'trainCard', 'nearCard', 'searchPanel'].forEach(id => { const el = document.getElementById(id); if (el) initSheetHandle(el); });
 // 車次介紹卡的「誤點履歷 ›」次要入口(fs 模式卡會被搬進跟隨面板,stopPropagation 避免觸發膠囊展開)
 document.getElementById('tcDelayHist').onclick = (e) => { e.stopPropagation(); openDelayHist(state.followTrain); };
 // 每按一次跳一班隨機列車(已在隨機模式再按=立刻換車,不是關閉);結束靠小卡 ×/點跟隨中的列車/手動選車
