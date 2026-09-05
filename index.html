@@ -5982,7 +5982,7 @@
 // v0904h：MapLibre 彩色路線改到道路與 3D 建築之上，不再被底圖切成碎段；文字標籤仍在最上。
 // v0904i：修正暗色 OpenFreeMap 的早期水域標籤誤導軌道插層，確保後段道路全在軌道下方。
 // v0904k：MapLibre 跟隨高亮使用完整點列，長途路線在深縮放彎道不再因抽稀而偏離原軌。
-const BUILD = 'v0905a';
+const BUILD = 'v0905b';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -23424,17 +23424,24 @@ const TRTC_MOTION_PROFILE = { minRate: TRTC_MOTION_MIN_RATE, maxRate: TRTC_MOTIO
 // 時觸發,所以誤點加大的那一半不受影響;受影響的只有負偏移(早到車)滑回 0 的最後 0.25 秒,新行為
 // 是走到精確 0 才刪 entry,比舊的少一個 0.25 秒跳步。閘門在 verify_tra_motion 的 F(上升側恰 1×)。
 const TRA_MOTION_MAX_RATE = 2;   // 有效時間最多以 2× 前進 ⇒ 追回誤點時畫面最多跑標稱速度的 2 倍
-const TRA_MOTION_PROFILE = { minRate: 0, maxRate: TRA_MOTION_MAX_RATE };
+// snapRise:上升(誤點加大)一次 ≥ 這麼多秒就不凍結,一步跳回真實位置(2026-09-05 使用者裁示「5 分」)。
+// 凍結是給每 75 秒 +1 分那種抖動用的(看起來像臨停);但 TDX 只在過站時更新 delay,列車在區間被扣
+// 幾十分鐘要到下一站才一次 +N(09-05 屏東線實測 +53/+37/+35),首見就帶 70 分的車也是同一條路
+// (122/180 從潮州冒出來)——舊行為＝畫面在真實位置前方原地停 N 分鐘,跟隨卡的到站時刻一秒一秒往後滑。
+// 門檻以下維持凍結;沒設 snapRise 的 profile(捷運)完全不受影響。守門人:verify_tra_motion G1–G4。
+const TRA_SNAP_RISE_SEC = 300;
+const TRA_MOTION_PROFILE = { minRate: 0, maxRate: TRA_MOTION_MAX_RATE, snapRise: TRA_SNAP_RISE_SEC };
 // 各線實際吃的是 metroMotion(ln)：同樣的 min/max，但 max 已先除掉該線梯形的巡航／平均倍率。
 // TRTC_MOTION_PROFILE 本身在出貨路徑上已無呼叫端，但 verify_all_metro_motion 的控制組要靠它
 // 組出「退回舊預設」的突變版本 —— 看到沒人用就刪掉的話，那支的突變會直接 throw。
 function gateEpoch(g, on) { if (on !== g.on) { g.on = on; if (on) { g.ep++; g.at = performance.now(); } } return g; }
+function bigRise(motion, d) { return !!(motion && motion.snapRise > 0 && d >= motion.snapRise); } // 上升量 d 秒達門檻 ⇒ 一步到位
 function easedShift(key, target, g, motion) {
   let e = _easedShift.get(key);
   const n = performance.now();
   if (!e) {
     if (!target) return 0; // 無 entry 且目標 0=絕大多數無誤點車,走 fast path 不建 entry
-    const snap = !!(g && n - g.at < 5000); // 啟用瞬間首見=初次同步,直接對齊
+    const snap = !!(g && n - g.at < 5000) || bigRise(motion, target); // 啟用瞬間首見=初次同步,直接對齊;首見就帶大誤點也直接對齊
     _easedShift.set(key, e = { cur: snap ? target : 0, at: n, sim: state.simSec, ep: g ? g.ep : 0 });
     return e.cur;
   }
@@ -23446,7 +23453,7 @@ function easedShift(key, target, g, motion) {
   if (motion) {
     const rise = adv * Math.max(0, 1 - motion.minRate); // shift 增速≤(1-min)× ⇒ 有效時間仍以 min× 前進
     const fall = adv * Math.max(0, motion.maxRate - 1); // shift 減速≤(max-1)× ⇒ 有效時間最多 max× 前進
-    if (target > e.cur) e.cur = Math.min(target, e.cur + rise);
+    if (target > e.cur) e.cur = bigRise(motion, target - e.cur) ? target : Math.min(target, e.cur + rise); // 大跳變一步到位,不凍結
     else                e.cur = Math.max(target, e.cur - fall);
   } else if (target > e.cur) e.cur = Math.min(target, e.cur + adv); // 上升鉗制:位置恆不倒退
   else e.cur += (target - e.cur) * (1 - Math.exp(-dt)); // τ=1s,約 3 秒收斂
