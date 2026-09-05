@@ -186,6 +186,54 @@ sections.push({ name: 'G2 打字態', run: async (browser, en) => {
   await ctx.close();
 }});
 
+// G7 更多抽屜（spec §7-7）：手機三列 display:none、桌面「今日台鐵動態」仍在可點；全日班次走勢手機仍在。
+// 牙：拿掉媒體查詢 ⇒ G7a 紅；把 [data-home="query"] 隱藏規則放到 MOBILE_MQ 外面 ⇒ 桌面 todayBtn 也被關掉 ⇒ G7c 紅。
+// 訂正（task-2 決議）：brief 原稿的 G7c 連桌面「全日班次走勢」也一併斷言存在，但桌面本來就有既有規則
+// （4539 一帶 body:not(.mobile-shell) .ms-row[data-act="flow"]{display:none!important}）刻意把抽屜那列關掉——
+// 桌面版面上已經有本體，不重複。那條規則與本 task 無關，G7c 只驗「今日台鐵動態」。
+sections.push({ name: 'G7 更多抽屜', run: async (browser, en) => {
+  const { ctx, page } = await boot(browser, { query: 'notifymock=1&' + 'geomock=25.0478,121.5170' });
+  const m = await page.evaluate(() => {
+    const disp = sel => { const el = document.querySelector(sel); return el ? getComputedStyle(el).display : 'missing'; };
+    return { notify: disp('.ms-row[data-act="notify"]'), today: disp('.ms-row[data-proxy="todayBtn"]'), near: disp('.ms-row[data-proxy="nearBtn"]'), flow: disp('.ms-row[data-act="flow"]') };
+  });
+  ok(`[${en}] G7a 手機:已排提醒/今日動態/附近車站三列 display:none`, m.notify === 'none' && m.today === 'none' && m.near === 'none', JSON.stringify(m));
+  ok(`[${en}] G7b 手機:全日班次走勢仍在`, m.flow !== 'none' && m.flow !== 'missing', m.flow);
+  await ctx.close();
+  const d = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'zh-TW' });
+  const dp = await d.newPage();
+  await dp.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-language', 'zh-TW'); } catch (e) {} });
+  await dp.goto(BASE + '?lang=zh-TW', { waitUntil: 'domcontentloaded' });
+  await dp.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 60000 });
+  const dm = await dp.evaluate(() => {
+    document.getElementById('toolsFab') && document.getElementById('toolsFab').click();
+    const disp = sel => { const el = document.querySelector(sel); return el ? getComputedStyle(el).display : 'missing'; };
+    return { today: disp('.ms-row[data-proxy="todayBtn"]') };
+  });
+  // 網站桌面沒有本地提醒(NOTIFY_LOCAL_ENABLED 假 ⇒ 該列被 setupLocalNotifications 移除),故只驗今日動態列存在
+  ok(`[${en}] G7c 桌面:今日動態列存在且不是 display:none`, dm.today !== 'none' && dm.today !== 'missing', JSON.stringify(dm));
+  await d.close();
+}});
+
+// G8a 快捷列閘門（spec §7-8）：網站沒有提醒/附近/小工具三列；App 替身有。牙：拿掉任一閘門 ⇒ 網站那半紅。
+sections.push({ name: 'G8a 快捷列閘門', run: async (browser, en) => {
+  let { ctx, page } = await boot(browser, {});
+  await tapTab(page);
+  let s = await snap(page);
+  ok(`[${en}] G8a-web 網站只有「今日台鐵動態」`, JSON.stringify(s.links) === JSON.stringify(['today']), JSON.stringify(s.links));
+  await ctx.close();
+  ({ ctx, page } = await boot(browser, { app: true, notify: true, query: 'geomock=25.0478,121.5170', plugins: { RailMetroWait: {} } }));
+  await tapTab(page);
+  s = await snap(page);
+  ok(`[${en}] G8a-app App 替身四列齊（notify/today/near/widget）`, JSON.stringify(s.links) === JSON.stringify(['notify', 'today', 'near', 'widget']), JSON.stringify(s.links));
+  // 小工具列 ⇒ 說明中心開在 metrowidget 節（群組展開、節在可視區）
+  await page.evaluate(() => document.querySelector('#queryLinks .ql-row[data-act="widget"]').click());
+  await page.waitForTimeout(500);
+  const h = await page.evaluate(() => { const sec = document.querySelector('#helpBody .help-sec[data-sec="metrowidget"]'); const m = document.getElementById('helpModal'); const r = sec && sec.getBoundingClientRect(); return { open: !!m && !m.hidden, grpOpen: !!sec && sec.closest('.help-grp').classList.contains('open'), visible: !!r && r.top >= 0 && r.top < innerHeight }; });
+  ok(`[${en}] G8a-help 小工具列 ⇒ openHelp('metrowidget') 展開並捲到該節`, h.open && h.grpOpen && h.visible, JSON.stringify(h));
+  await ctx.close();
+}});
+
 // G9 桌面零改動（spec §7-9）：面板永不開、搜尋框留在 header、tab bar 不顯示。牙：手機 CSS 漏進桌面 ⇒ 紅。
 sections.push({ name: 'G9 桌面不變量', run: async (browser, en) => {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'zh-TW' });

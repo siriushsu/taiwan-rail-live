@@ -2934,6 +2934,8 @@
   .help-grp.open .help-grpb { display: block; }
   .help-sec { border-bottom: 1px dashed var(--line-dash); padding: 11px 1px 12px; }
   .help-sec:last-child { border-bottom: 0; }
+  /* 說明中心:openHelp(key) 捲到該節時短暫高亮 */
+  .help-sec.help-sec-hi { box-shadow: inset 0 0 0 2px var(--navy); border-radius: 8px; transition: box-shadow .4s; }
   .help-sech { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
   .help-ic { flex: none; width: 30px; display: flex; justify-content: center; font-size: calc(14px * var(--ui)); font-weight: 900; color: var(--navy); }
   .help-nm { flex: 1; font-size: calc(13px * var(--ui)); font-weight: 900; letter-spacing: .8px; color: var(--ink-strong, var(--ink)); }
@@ -3857,6 +3859,16 @@
     /* 瀏覽態:提示句讓位給答案區;打字態:答案區與快捷列整個藏起來,搜尋結果接手(現況的打字體驗零改動) */
     body:not(.search-open) #searchPanel .sp-hint { display: none; }
     body.search-open #searchPanel .qa, body.search-open #searchPanel .ql { display: none; }
+    /* 已搬進查詢 sheet 的三列(附近車站/已排提醒/今日台鐵動態)手機隱藏;桌面「更多」照舊(桌面沒有查詢 sheet) */
+    .more-sheet .ms-row[data-home="query"] { display: none; }
+    /* 查詢 sheet 快捷列:兩欄按鈕,樣式比照 .ms-aeo-links a(同一種邊框卡) */
+    #searchPanel .ql { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 8px 12px 14px; }
+    #searchPanel .ql-row {
+      min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 0 12px;
+      border: 1px solid var(--line); border-radius: 8px; color: var(--navy); background: var(--paper);
+      font-size: calc(12.5px * var(--ui)); font-weight: 700; line-height: 1.25; text-align: left; font-family: inherit;
+    }
+    #searchPanel .ql-row .chev { font-size: calc(12px * var(--uis)); color: var(--faint); font-weight: 600; }
     /* 有結果就收起提示(提示是空狀態的引導,不該墊在結果下面);:has 不支援的舊瀏覽器只是提示留著,無害 */
     #searchSlot:has(#searchDrop:not([hidden])) + .sp-hint { display: none; }
     /* 🔴 padding 要讓開安全區(2026-07-28 首次 App build 實機看到):place-items 在手機是 stretch,
@@ -5745,7 +5757,7 @@
     <!-- 定位是原生 App 限定(LOCATE_ENABLED),網站/PWA 沒有:比照 #nearBtn 的 hidden 先 inline 藏,
          不靠 setupMapTools 才移除——它前段一拋(2026-07-26 實測過),這列就會留成「點了沒反應」的死列。
          App 的還原點在 setupMapTools 的 LOCATE_ENABLED 分支 -->
-    <button class="ms-row" data-proxy="nearBtn" data-close="1" style="display:none"><span>附近車站</span><span class="chev">›</span></button>
+    <button class="ms-row" data-proxy="nearBtn" data-close="1" data-home="query" style="display:none"><span>附近車站</span><span class="chev">›</span></button>
     <!-- 縣市快速移動(Batch B):#citySel 縣市下拉的手機新家;點列展開 17 縣市 chip,點 chip 飛過去並關 sheet -->
     <button class="ms-row" data-act="cities"><span>縣市快速移動</span><span class="chev">›</span></button>
     <div class="ms-cities" id="msCities" hidden></div>
@@ -5760,10 +5772,10 @@
     <div class="ms-row ms-stat" id="msStatCount" hidden><span>目前車數</span><span class="ms-tail"><b id="msStatCountVal"></b></span></div>
     <div class="ms-sec">資訊</div>
     <!-- 已排提醒總覽:NOTIFY_LOCAL_ENABLED 才留(旗標關時 setupLocalNotifications 移除,比照 locateBtn) -->
-    <button class="ms-row" data-act="notify" data-close="1"><span>已排提醒</span><span class="chev">›</span></button>
+    <button class="ms-row" data-act="notify" data-close="1" data-home="query"><span>已排提醒</span><span class="chev">›</span></button>
     <!-- 週末鐵道活動:內容在 weekend.html(正式網站獨立頁,App 內開系統瀏覽器) -->
     <button class="ms-row" data-act="weekend" data-close="1"><span>週末鐵道活動</span><span class="chev">›</span></button>
-    <button class="ms-row" data-proxy="todayBtn" data-close="1"><span>今日台鐵動態</span><span class="chev">›</span></button>
+    <button class="ms-row" data-proxy="todayBtn" data-close="1" data-home="query"><span>今日台鐵動態</span><span class="chev">›</span></button>
     <!-- 全日班次走勢(Batch B):.flow 全日走勢圖的手機新家;點列把 #flowWrap 搬進下方 slot 並重繪,收合搬回原位 -->
     <button class="ms-row" data-act="flow"><span>全日班次走勢</span><span class="chev">›</span></button>
     <div class="ms-flowslot" id="msFlowSlot" hidden></div>
@@ -26888,6 +26900,7 @@ function closeSearchDrop() { const d = document.getElementById('searchDrop'); if
 // user:true=使用者自己點 tab/×(Task 5 用它寫開關記憶);自動開、被 soloPanel 擠掉都是 user:false。
 function openSearchPanel({ user = false } = {}) {
   soloPanel('search');
+  renderQueryLinks();
   document.getElementById('searchPanel').hidden = false;
   updateSheetOpenClass();
   const inp = document.getElementById('trainSearch');
@@ -26910,6 +26923,26 @@ function setSearchTyping(on) {
   document.body.classList.toggle('search-open', !!on);
   if (!on) { const inp = document.getElementById('trainSearch'); if (inp && document.activeElement === inp) inp.blur(); }
   updateSheetOpenClass();
+}
+// 快捷列(spec §4.5):每一列「不可用就整列不存在」,不留死鈕。閘門表見 spec §3.4。
+// 小工具列多掛 metroWaitEnabled():那正是說明中心 metrowidget 節的 avail,兩者同一把尺,列永遠不會指向沒被渲染的節。
+function queryLinkRows() {
+  const rows = [];
+  if (NOTIFY_LOCAL_ENABLED) rows.push({ act: 'notify', label: '已排提醒', run: () => openLocalReminderOverview() });
+  rows.push({ act: 'today', label: '今日台鐵動態', run: () => openTodayPanel() });
+  if (LOCATE_ENABLED) rows.push({ act: 'near', label: '附近其他站', run: () => showNearby() });
+  if (IS_NATIVE_APP && metroWaitEnabled()) rows.push({ act: 'widget', label: '小工具', run: () => openHelp('metrowidget') });
+  return rows;
+}
+function renderQueryLinks() {
+  const el = document.getElementById('queryLinks'); if (!el) return;
+  const rows = queryLinkRows();
+  el.innerHTML = rows.map(r => `<button class="ql-row" type="button" data-act="${r.act}"><span>${escHtml(t(r.label))}</span><span class="chev">›</span></button>`).join('');
+  el.hidden = !rows.length;
+  el.onclick = e => {
+    const b = e.target.closest('.ql-row'); if (!b) return;
+    const r = queryLinkRows().find(x => x.act === b.dataset.act); if (r) r.run();
+  };
 }
 // 導航:決定要不要切群組＋看板 st 形狀。sched→sys:系統id(nat/all 皆真實時刻板);freq 分頁→sys:'freq';
 // 全台同框(all)的捷運→sys:'deco'(裝飾層看板)。當前群組開得了就地開,否則切到該系統母群組再開。
@@ -30762,7 +30795,8 @@ function setupReport() {
     if (!w) showToast('瀏覽器擋下了新視窗，請允許彈出視窗後再按一次');   // 不改成整頁跳走:那會把畫面弄丟
   });
 }
-function openHelp() {
+// sectionKey(可選):有給就展開該節所屬群組、捲到該節並短暫高亮(查詢 sheet 的「小工具」列走這條)
+function openHelp(sectionKey) {
   const m = document.getElementById('helpModal'); if (!m) return;
   const hw = document.getElementById('howtoWrap'); // 兩張卡不疊:首訪卡開著就收掉並記已看過(否則關掉說明又跳回首訪卡)
   if (hw && !hw.hidden) { hw.hidden = true; try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} }
@@ -30770,6 +30804,13 @@ function openHelp() {
   renderHelp();
   m.hidden = false;
   const body = document.getElementById('helpBody'); if (body) body.scrollTop = 0;
+  // typeof 守門:萬一哪處不小心把 openHelp 直接當事件處理器掛(收到 Event 物件),不可讓既有無參數行為壞掉
+  const sec = typeof sectionKey === 'string' && body ? body.querySelector('.help-sec[data-sec="' + sectionKey + '"]') : null;
+  if (sec) {
+    const grp = sec.closest('.help-grp');
+    if (grp && !grp.classList.contains('open')) { grp.classList.add('open'); const gh = grp.querySelector('.help-grph'); if (gh) gh.setAttribute('aria-expanded', 'true'); }
+    requestAnimationFrame(() => { sec.scrollIntoView({ block: 'start' }); sec.classList.add('help-sec-hi'); setTimeout(() => sec.classList.remove('help-sec-hi'), 1600); });
+  }
   requestAnimationFrame(() => { const x = document.getElementById('helpX'); if (x) x.focus(); });
 }
 function closeHelp() {
