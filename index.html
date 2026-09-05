@@ -4468,10 +4468,13 @@
     .topbar .badge .clock { font-size: calc(17px * var(--ui)); }
     .topbar .badge .count { font-size: calc(12px * var(--uis)); }
 
-    /* ── §04c 契約9:搜尋橫放形態 .search-land——右半全高,輸入框釘頂,結果自捲。
-       橫放鍵盤 ~190–210px,440 高只剩 230–250 可用:側欄槽的 340px 寬塞不下有意義的結果列,
-       整組換右半版面。左半地圖留著只為方向感(相機已由 recenterTo 的 search-open 閘暫停)。 */
-    body.fs #searchPanel {
+    /* ── §04c 契約9:搜尋橫放【打字態】形態 .search-land(body.fs.search-open 才生效)——右半全高,
+       輸入框釘頂,結果自捲。橫放鍵盤 ~190–210px,440 高只剩 230–250 可用:側欄槽的 340px 寬
+       塞不下有意義的結果列,整組換右半版面。左半地圖留著只為方向感(相機已由 recenterTo 的
+       search-open 閘暫停)。瀏覽態(還沒點輸入框)不套這條,回落到上面 4190 那組通用側欄規則,
+       跟其他 sheet 一樣(2026-09-06 兩態:原本這條沒掛 search-open,瀏覽態面板就長到視窗底,
+       被 tab bar 蓋住下緣)。 */
+    body.fs.search-open #searchPanel {
       width: max(420px, 50vw); max-width: none;
       top: var(--sa-t);
       bottom: 0; right: var(--sa-r); border-radius: 12px 0 0 12px;
@@ -26627,12 +26630,15 @@ function setSheetSize(el, size) {
   updateSheetOpenClass();
 }
 function cycleSheetSize(el) {
-  if (el.id === 'searchPanel' && document.body.classList.contains('search-open')) { setSearchTyping(false); setSheetSize(el, 'medium'); return; }
+  // 打字態的標題列輕點/下滑:回瀏覽態並展開到中段(不寫入全站段高偏好)——
+  // setSheetSize 會把 'medium' 存進 sheetSizePref/localStorage,對其他 sheet 也生效,不是這裡要的。
+  if (el.id === 'searchPanel' && document.body.classList.contains('search-open')) { setSearchTyping(false); applySheetSize(el, 'medium'); return; }
   const i = SHEET_SIZES.indexOf(sheetSizeOf(el));
   setSheetSize(el, SHEET_SIZES[(i + 1) % SHEET_SIZES.length]);
 }
 function stepSheetSize(el, direction) {
-  if (el.id === 'searchPanel' && document.body.classList.contains('search-open')) { if (direction < 0) { setSearchTyping(false); setSheetSize(el, 'medium'); } return; }
+  // 同上:回瀏覽態並展開到中段(不寫入全站段高偏好)
+  if (el.id === 'searchPanel' && document.body.classList.contains('search-open')) { if (direction < 0) { setSearchTyping(false); applySheetSize(el, 'medium'); } return; }
   const i = SHEET_SIZES.indexOf(sheetSizeOf(el));
   setSheetSize(el, SHEET_SIZES[Math.max(0, Math.min(SHEET_SIZES.length - 1, i + direction))]);
 }
@@ -26875,8 +26881,8 @@ function renderSearchDrop() {
 }
 function openSearchDrop() { const d = document.getElementById('searchDrop'); if (d) d.hidden = false; }
 function closeSearchDrop() { const d = document.getElementById('searchDrop'); if (d) d.hidden = true; state._namedIntro = null; }
-// ──「搜尋」面板(手機專屬;v0726a 起是 tab bar 放大鏡的落點)──
-// 面板本身不持有搜尋 DOM:.search 由 placeSearch() 搬進 #searchSlot,這裡只負責露出它與收鍵盤。
+// ── 查詢面板(手機專屬;v0726a 起是 tab bar 放大鏡的落點)──
+// 面板本身不持有查詢 DOM:.search 由 placeSearch() 搬進 #searchSlot;瀏覽態只負責露出它、不叫鍵盤,收面板時鍵盤跟著收。
 // 桌面走不到(搜尋框常駐 header、tab bar 不顯示);跨回桌面時 placeSearch 會順手關掉。
 // 查詢 sheet(2026-09-06 兩態):瀏覽態開,不聚焦——使用者自己點輸入框才叫鍵盤(那才是 iOS 允許出鍵盤的手勢)。
 // user:true=使用者自己點 tab/×(Task 5 用它寫開關記憶);自動開、被 soloPanel 擠掉都是 user:false。

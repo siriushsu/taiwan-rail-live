@@ -263,13 +263,32 @@ async function runCase(browser, engine, testCase) {
       await page.waitForTimeout(200);
       const shape = await page.evaluate(() => {
         const rect = document.getElementById('searchPanel').getBoundingClientRect();
+        const tb = document.getElementById('tabbar');
         return { x: rect.x, y: rect.y, w: rect.width, h: rect.height,
-          gapRight: innerWidth - rect.right, vw: innerWidth, vh: innerHeight };
+          gapRight: innerWidth - rect.right, vw: innerWidth, vh: innerHeight,
+          tabbarTop: tb ? tb.getBoundingClientRect().top : null };
       });
+      // 查詢分頁兩態(2026-09-06 Fix round 1,F1):單點 tab 只到瀏覽態——rail 情境該長得跟其他
+      // 側欄 sheet 一樣寬(同一顆 --rail-w,見上面「側欄寬度」量到的 got.railW)、不蓋到 tab bar；
+      // 右半全高的「search-land」是打字態才有的版面,得再聚焦輸入框才看得到(見下面 typing 分支)。
       const shapeOk = wantRail
-        ? shape.gapRight < 3 && shape.h >= shape.vh * .9 && shape.w <= shape.vw * .8
+        ? Math.abs(shape.w - got.railW) < 2 && shape.tabbarTop != null && shape.y + shape.h <= shape.tabbarTop + 1
         : shape.w >= shape.vw * .88 && shape.y > 8;
-      ok(engine + ' ' + testCase.name + ' 搜尋面板形態', shapeOk, JSON.stringify(shape));
+      ok(engine + ' ' + testCase.name + ' 搜尋面板形態(瀏覽態)', shapeOk, JSON.stringify({ ...shape, railW: got.railW }));
+
+      if (wantRail) {
+        await page.tap('#trainSearch');
+        await page.waitForFunction(() => document.body.classList.contains('search-open'));
+        await page.waitForTimeout(200);
+        const typing = await page.evaluate(() => {
+          const rect = document.getElementById('searchPanel').getBoundingClientRect();
+          const tb = document.getElementById('tabbar');
+          return { w: rect.width, h: rect.height, gapRight: innerWidth - rect.right,
+            vw: innerWidth, vh: innerHeight, tabbarDisplay: tb ? getComputedStyle(tb).display : null };
+        });
+        const typingOk = typing.gapRight < 3 && typing.h >= typing.vh * .9 && typing.w <= typing.vw * .8 && typing.tabbarDisplay === 'none';
+        ok(engine + ' ' + testCase.name + ' 搜尋面板形態(打字態)', typingOk, JSON.stringify(typing));
+      }
     }
     ok(engine + ' ' + testCase.name + ' 零 pageerror', errors.length === 0, errors.join(' | '));
   } finally {

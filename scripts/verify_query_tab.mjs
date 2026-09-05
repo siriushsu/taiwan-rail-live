@@ -119,6 +119,39 @@ sections.push({ name: 'G1 瀏覽態', run: async (browser, en) => {
     ok(`[${en}/${width}] G1e 無 pageerror`, errs.length === 0, errs.join(' | '));
     await ctx.close();
   }
+  // 橫放(4183 起的 landscape 區塊;MOBILE_MQ 靠 max-height:500px 命中,開機自動套 body.fs)：
+  // 瀏覽態要退回通用側欄(4190 那組)、tab bar 不被蓋住；打字態才換右半全高(§04c 契約9,4474 起)。
+  // 牙：F1 修前 body.fs #searchPanel 的右半版面沒掛 search-open ⇒ 瀏覽態面板就貼到視窗底,蓋過 tab bar ⇒ G1f 紅。
+  {
+    const { ctx, page } = await boot(browser, { width: 852, height: 393 });
+    await tapTab(page);
+    let g = await page.evaluate(() => {
+      const p = document.getElementById('searchPanel').getBoundingClientRect();
+      const tb = document.getElementById('tabbar');
+      const tbr = tb.getBoundingClientRect();
+      return {
+        searchOpen: document.body.classList.contains('search-open'),
+        tabbarVisible: !!tb && getComputedStyle(tb).display !== 'none',
+        panelBottom: Math.round(p.bottom), tabbarTop: Math.round(tbr.top),
+        panelRight: Math.round(p.right), panelWidth: Math.round(p.width), vw: innerWidth,
+      };
+    });
+    ok(`[${en}/landscape] G1f 瀏覽態是右側欄、沒被 tab bar 蓋住`,
+      !g.searchOpen && g.tabbarVisible && g.panelBottom <= g.tabbarTop + 1 && g.panelRight >= g.vw - 40 && g.panelWidth < g.vw * 0.6,
+      JSON.stringify(g));
+    const inp = await page.evaluate(() => { const r = document.getElementById('trainSearch').getBoundingClientRect(); return { x: r.left + 20, y: r.top + r.height / 2 }; });
+    await page.touchscreen.tap(inp.x, inp.y);
+    await page.waitForTimeout(400);
+    g = await page.evaluate(() => ({
+      searchOpen: document.body.classList.contains('search-open'),
+      tabbarDisplay: getComputedStyle(document.getElementById('tabbar')).display,
+      panelBottom: Math.round(document.getElementById('searchPanel').getBoundingClientRect().bottom), vh: innerHeight,
+    }));
+    ok(`[${en}/landscape] G1g 打字態換右半全高、tab bar 藏`,
+      g.searchOpen && g.tabbarDisplay === 'none' && g.panelBottom >= g.vh - 2,
+      JSON.stringify(g));
+    await ctx.close();
+  }
 }});
 
 // G2 打字態（spec §7-4）：focus 輸入框 ⇒ search-open、tab bar 藏；blur 不離開；標題列輕點或關閉才離開。
@@ -142,6 +175,9 @@ sections.push({ name: 'G2 打字態', run: async (browser, en) => {
   await page.waitForTimeout(500);
   s = await snap(page);
   ok(`[${en}] G2d 標題列輕點 ⇒ 回瀏覽態（sheet 仍開、search-open 消失、回到底部 sheet 幾何）`, !s.hidden && !s.searchOpen && s.h <= s.vh * 0.6, JSON.stringify({ hidden: s.hidden, searchOpen: s.searchOpen, h: s.h, vh: s.vh }));
+  // 牙：F6 修前 cycleSheetSize 對 search-open 分支呼叫 setSheetSize(el,'medium') 會持久化全站偏好 ⇒ G2f 紅
+  const sheetSizeLS = await page.evaluate(() => { try { return localStorage.getItem('trainmap-sheet-size'); } catch (e) { return 'ERR'; } });
+  ok(`[${en}] G2f 離開打字態不寫入全站段高偏好`, sheetSizeLS === null, JSON.stringify({ sheetSizeLS }));
   // 再進打字態，用 × 關閉 ⇒ 兩者皆清
   await page.touchscreen.tap(inp.x, inp.y); await page.waitForTimeout(300);
   await page.evaluate(() => document.getElementById('searchPanelClose').click()); await page.waitForTimeout(300);
@@ -159,10 +195,20 @@ sections.push({ name: 'G9 桌面不變量', run: async (browser, en) => {
   await page.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 60000 });
   const d = await page.evaluate(() => ({
     panelHidden: document.getElementById('searchPanel').hidden,
+    searchRowExists: !!document.getElementById('searchRow'),
     searchInHeader: !document.getElementById('searchSlot').contains(document.getElementById('searchRow')),
     tabbar: getComputedStyle(document.getElementById('tabbar')).display,
   }));
-  ok(`[${en}] G9 桌面：面板關、搜尋框在 header、tab bar 不顯示`, d.panelHidden && d.searchInHeader && d.tabbar === 'none', JSON.stringify(d));
+  // 牙：searchInHeader 在 #searchRow 不存在時也會是 true(vacuous pass);多釘 searchRowExists 才堵得住
+  ok(`[${en}] G9 桌面：面板關、搜尋框在 header、tab bar 不顯示`, d.panelHidden && d.searchRowExists && d.searchInHeader && d.tabbar === 'none', JSON.stringify(d));
+  // G9b 牙：MOBILE_MQ 誤命中桌面尺寸 ⇒ focus 觸發 setSearchTyping(true),打字態洩漏到桌面
+  await page.focus('#trainSearch');
+  await page.waitForTimeout(200);
+  const d2 = await page.evaluate(() => ({
+    searchOpen: document.body.classList.contains('search-open'),
+    panelHidden: document.getElementById('searchPanel').hidden,
+  }));
+  ok(`[${en}] G9b 桌面聚焦搜尋框不洩漏打字態`, !d2.searchOpen && d2.panelHidden === true, JSON.stringify(d2));
   await ctx.close();
 }});
 
