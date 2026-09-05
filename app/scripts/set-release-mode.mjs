@@ -297,10 +297,15 @@ const MODES = {
     //   行銷版號進到 1.5.7（Android 37 同步 1.5.7）。基線已推進到 1.5.6 (95)＋Android 35 的聯集。
     //   why 三語只寫 95 之後 main 才有的五條更新紀錄（maplibredefault／maporientation／followpitch／
     //   followrouteexact／tracksovermap 0904），機捷車種等 1.5.6 已講過的不重述。
-    marketing: '1.5.7', build: '96', music: true, metroCore: true,
-    why: '軌島 1.5.7\n\n・地圖改用向量地圖引擎：可兩指旋轉與傾斜、新增指北針與 3D 建築；跟車時地圖朝行進方向、結束跟車轉回正北，縮放更流暢\n・修正跟隨長途列車放大看彎道時行程線切過彎心、傾斜地圖時遠端路線跳動，以及暗色地圖上路線被道路切碎',
-    whyEn: 'Rail Island 1.5.7\n\n• New vector map engine: rotate and tilt with two fingers, a compass control and 3D buildings; the map turns heading-up while following a train and back to north when you stop, with smoother zooming\n• Fixed the route line cutting corners when zoomed in on long journeys, distant routes jumping while the map is tilted, and roads breaking up coloured routes on the dark map',
-    whyJa: '軌島 1.5.7\n\n・地図をベクター地図エンジンに刷新：2 本指で回転・傾斜でき、コンパスと 3D 建物を追加。列車追跡中は進行方向が上になり、追跡を終えると北向きに戻ります。ズームもより滑らかに\n・長距離列車を拡大表示した際に経路線がカーブを横切る問題、地図を傾けた際に遠方の経路が跳ぶ問題、ダーク地図で経路が道路に分断される問題を修正',
+    // 97（2026-09-05 22:xx）：96 archive 與 Android 37 都出了但沒上傳就作廢——App bundle 漏打包
+    //   bus-transfer-ui.js（prepare-web 清單沒它，iOS 93 起、Android 35 起每顆都缺，1.5.5／1.5.6 上架版的
+    //   541 站公車轉乘在 App 裡整個看不到）。97／38 的載貨＝96＋main 70c1e3db（台鐵誤點跳回，正式站
+    //   v0905b 同一顆；不含其後只併 main 未部署的週末活動頁）＋清單修正＋verify-release 首頁本機資產守門。
+    //   why 三語各補一條台鐵誤點跳回；公車轉乘 1.5.5 已講過、這次只是把漏掉的檔補進去，不重述。
+    marketing: '1.5.7', build: '97', music: true, metroCore: true,
+    why: '軌島 1.5.7\n\n・地圖改用向量地圖引擎：可兩指旋轉與傾斜、新增指北針與 3D 建築；跟車時地圖朝行進方向、結束跟車轉回正北，縮放更流暢\n・修正跟隨長途列車放大看彎道時行程線切過彎心、傾斜地圖時遠端路線跳動，以及暗色地圖上路線被道路切碎\n・台鐵誤點一次跳增 5 分鐘以上時，列車直接跳回實際位置，不再原地停等到誤點追上',
+    whyEn: 'Rail Island 1.5.7\n\n• New vector map engine: rotate and tilt with two fingers, a compass control and 3D buildings; the map turns heading-up while following a train and back to north when you stop, with smoother zooming\n• Fixed the route line cutting corners when zoomed in on long journeys, distant routes jumping while the map is tilted, and roads breaking up coloured routes on the dark map\n• TRA trains snap back to their real position when a delay jumps by 5+ minutes, instead of waiting in place',
+    whyJa: '軌島 1.5.7\n\n・地図をベクター地図エンジンに刷新：2 本指で回転・傾斜でき、コンパスと 3D 建物を追加。列車追跡中は進行方向が上になり、追跡を終えると北向きに戻ります。ズームもより滑らかに\n・長距離列車を拡大表示した際に経路線がカーブを横切る問題、地図を傾けた際に遠方の経路が跳ぶ問題、ダーク地図で経路が道路に分断される問題を修正\n・台鉄の遅延が一度に 5 分以上増えた場合、列車はその場で待たずにすぐ実際の位置へ戻ります',
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
   // 軌島通行證客端功能、雲端同步與伺服器付費牆。這顆不可選去正式送審；正式版必須另推 build 號，

@@ -150,6 +150,11 @@ const copyTree = async relative => {
 
 for (const file of [
   'index.html', 'account-deletion.html', 'app-support.html', 'privacy.html', 'terms.html', 'firebase-config.js', 'revenuecat-config.js', 'manifest.webmanifest',
+  // bus-transfer-ui.js：541 站公車轉乘的 UI，index.html 直接 <script src> 載入、網站與 App 共用同一份。
+  // 2026-09-01 上線後這份清單沒補，iOS 93／95／96 與 Android 35／37 全部漏打包；index.html 的守衛遇到
+  // !window.BusTransferUI 只是靜默 return ⇒ build 全綠、App 照開，公車卡在 App 裡整個不存在（1.5.5／1.5.6
+  // 上架後才發現）。verify-release 現在另有「首頁引用的本機腳本／樣式都要在 bundle 裡」守門，再漏會當場紅。
+  'bus-transfer-ui.js',
   'favicon-16.png', 'favicon-32.png', 'favicon-48.png', 'favicon-192.png', 'favicon-512.png',
   'apple-touch-180.png', 'icon-maskable-512.png', 'og-1200x630.png'
 ]) await copyFile(file);
