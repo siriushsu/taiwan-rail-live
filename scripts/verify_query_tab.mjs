@@ -234,6 +234,33 @@ sections.push({ name: 'G8a 快捷列閘門', run: async (browser, en) => {
   await ctx.close();
 }});
 
+// G3a 答案站退路鏈（spec §4.4）：定位 ⇒ 最近站；沒定位 ⇒ 最愛第一站；沒最愛 ⇒ 上次看過；都沒有 ⇒ none。
+// 牙：拿掉任一層 ⇒ 對應那條紅。
+sections.push({ name: 'G3a 答案站退路鏈', run: async (browser, en) => {
+  let r = await boot(browser, {});
+  const taipei = await stationOf(r.page, '臺北', 'tra_sched');
+  ok(`[${en}] G3a-0 取得台鐵台北座標`, !!taipei, JSON.stringify(taipei));
+  let a = await r.page.evaluate(() => queryAnswerStations());
+  ok(`[${en}] G3a-1 網站無定位、無最愛、無上次 ⇒ src none`, a.src === 'none' && a.stations.length === 0, JSON.stringify(a));
+  await r.ctx.close();
+  r = await boot(browser, { storage: { 'trainmap-last-board-v1': JSON.stringify({ sys: 'tra_sched', name: '臺北' }) } });
+  a = await r.page.evaluate(() => queryAnswerStations());
+  ok(`[${en}] G3a-2 只有上次看過 ⇒ src last、站＝臺北`, a.src === 'last' && a.stations[0] && a.stations[0].st.name === '臺北', JSON.stringify(a));
+  // 最愛蓋過上次:用頁面自己的 toggleFavStation 存一站(松山),再重載
+  await r.page.evaluate(() => { const c = nearbyStationCandidates().find(x => x.st.name === '松山' && x.st.sys === 'tra_sched'); toggleFavStation(c.st); });
+  await r.page.reload({ waitUntil: 'domcontentloaded' });
+  await r.page.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 60000 });
+  a = await r.page.evaluate(() => queryAnswerStations());
+  ok(`[${en}] G3a-3 有最愛 ⇒ src fav、站＝松山`, a.src === 'fav' && a.stations[0] && a.stations[0].st.name === '松山', JSON.stringify(a));
+  await r.ctx.close();
+  r = await boot(browser, { query: geomock(offsetLatLon(taipei, 100)), storage: { 'trainmap-last-board-v1': JSON.stringify({ sys: 'tra_sched', name: '松山' }) } });
+  await r.page.waitForFunction(() => !!state.geoLoc, null, { timeout: 15000 });
+  a = await r.page.evaluate(() => queryAnswerStations());
+  ok(`[${en}] G3a-4 有定位 ⇒ src geo、最近站＝臺北、距離約 100 m`, a.src === 'geo' && a.stations[0].st.name === '臺北' && a.m > 60 && a.m < 140, JSON.stringify({ src: a.src, first: a.stations[0] && a.stations[0].st.name, m: a.m }));
+  ok(`[${en}] G3a-5 共構:台北另帶 200 m 內其他系統站(高鐵/捷運)`, a.stations.length >= 2 && new Set(a.stations.map(s => s.st.sys)).size === a.stations.length, JSON.stringify(a.stations.map(s => s.st.sys + '|' + s.st.name)));
+  await r.ctx.close();
+}});
+
 // G9 桌面零改動（spec §7-9）：面板永不開、搜尋框留在 header、tab bar 不顯示。牙：手機 CSS 漏進桌面 ⇒ 紅。
 sections.push({ name: 'G9 桌面不變量', run: async (browser, en) => {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'zh-TW' });

@@ -26550,6 +26550,14 @@ function activeSheetEl() {
   return null;
 }
 const SHEET_SIZE_KEY = 'trainmap-sheet-size';
+// 查詢 sheet(2026-09-06 spec 附錄 B)
+const QUERY_AUTO_OPEN_M = 300;     // 自動開的距離門檻(公尺)
+const QUERY_GEO_ACC_MAX_M = 300;   // 自動開接受的定位精度上限
+const QUERY_COMPLEX_M = 200;       // 共構站合併半徑
+const QUERY_ANSWER_ROWS_MAX = 4;   // 答案區每站可見列上限
+const QUERY_OPEN_KEY = 'trainmap-query-open';            // '1'/'0':使用者自己的開關記憶
+const QUERY_DISMISS_KEY = 'trainmap-query-dismissed-v1'; // 'sys|name':自動開之後被關掉的站
+const LAST_BOARD_KEY = 'trainmap-last-board-v1';         // {sys,name}:上次看過的站(退路用)
 // 2026-08-26 使用者裁示:三段改兩段。大段(88%)拿掉——實測安靜的站在大段是「750px 裝 2 筆」,
 // 其餘全是白紙,而且要多點一下才縮得回去。
 // 🔴 預設同時從「中」改成「小」,這兩件事必須一起做:小與中原本都只有 max-height(上限),
@@ -26944,6 +26952,28 @@ function renderQueryLinks() {
     const r = queryLinkRows().find(x => x.act === b.dataset.act); if (r) r.run();
   };
 }
+function queryStationKey(st) { return st ? (st.sys + '|' + st.name) : ''; }
+// 答案區的站(spec §4.4):定位最近站(＋200 m 內其他系統站=共構) → 最愛第一站 → 上次看過的站 → 沒有。
+// 候選集=目前分頁載入的站(同「附近車站」);最愛存的 sys 對捷運是 'metro',與候選的 freq/deco 互相對得上。
+function queryAnswerStations() {
+  const cands = nearbyStationCandidates();
+  if (!cands.length) return { stations: [], src: 'none' };
+  const loc = LOCATE_ENABLED ? state.geoLoc : null;
+  if (loc) {
+    const scored = cands.map(c => ({ st: c.st, label: c.label, m: haversineKm(loc, { lat: c.st.lat, lon: c.st.lon }) * 1000 })).sort((a, b) => a.m - b.m);
+    const near = scored[0];
+    const stations = scored.filter(s => s === near || (s.st.sys !== near.st.sys && haversineKm({ lat: near.st.lat, lon: near.st.lon }, { lat: s.st.lat, lon: s.st.lon }) * 1000 <= QUERY_COMPLEX_M));
+    return { stations, src: 'geo', m: near.m };
+  }
+  const isMetro = s => s === 'freq' || s === 'deco' || s === 'metro';
+  const same = (a, b) => a === b || (isMetro(a) && isMetro(b));
+  const pick = (name, sys) => cands.find(c => c.st.name === name && same(c.st.sys, sys));
+  const fav = loadFavStations()[0];
+  if (fav) { const c = pick(fav.name, fav.sys); if (c) return { stations: [{ st: c.st, label: c.label }], src: 'fav' }; }
+  let last = null; try { last = JSON.parse(localStorage.getItem(LAST_BOARD_KEY) || 'null'); } catch (e) {}
+  if (last && last.name) { const c = pick(last.name, last.sys); if (c) return { stations: [{ st: c.st, label: c.label }], src: 'last' }; }
+  return { stations: [], src: 'none' };
+}
 // 導航:決定要不要切群組＋看板 st 形狀。sched→sys:系統id(nat/all 皆真實時刻板);freq 分頁→sys:'freq';
 // 全台同框(all)的捷運→sys:'deco'(裝飾層看板)。當前群組開得了就地開,否則切到該系統母群組再開。
 function stnNavResolve(e) {
@@ -27225,7 +27255,12 @@ function appendBusTransferBoard(el, st, stationId) {
   }
   mountBusTransferBoard(el, st, stationId);
 }
-function openBoard(st) { soloPanel('board'); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel(); closeDelayHist(); closePinCard(); closeNearbyStations(); closeSugarCard(); boardRxOpen.clear(); state.boardStation = st; uniTab = 'station'; uniUncollapseForBoard(); renderBoard(); }
+// 上次看過的站:查詢 sheet 沒定位、沒最愛時的退路(spec §4.4)。只記有站名與系統的真站(sched/freq/deco)。
+function saveLastBoard(st) {
+  if (!st || !st.name || !st.sys) return;
+  try { localStorage.setItem(LAST_BOARD_KEY, JSON.stringify({ sys: st.sys, name: st.name })); } catch (e) {}
+}
+function openBoard(st) { soloPanel('board'); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel(); closeDelayHist(); closePinCard(); closeNearbyStations(); closeSugarCard(); boardRxOpen.clear(); state.boardStation = st; saveLastBoard(st); uniTab = 'station'; uniUncollapseForBoard(); renderBoard(); }
 function closeBoard() {
   unmountUniCard(); // 先把跟車卡搬回家,再清 innerHTML——否則它會跟著被清掉
   busTransferCloseBoard();
