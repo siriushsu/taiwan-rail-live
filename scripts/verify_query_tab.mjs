@@ -236,6 +236,8 @@ sections.push({ name: 'G8a 快捷列閘門', run: async (browser, en) => {
 
 // G3a 答案站退路鏈（spec §4.4）：定位 ⇒ 最近站；沒定位 ⇒ 最愛第一站；沒最愛 ⇒ 上次看過；都沒有 ⇒ none。
 // 牙：拿掉任一層 ⇒ 對應那條紅。
+// G3a-6/7 補的牙：G3a-2 是手寫好形狀的 storage 種子,測不到「開看板→saveLastBoard→寫入 localStorage」這段整合——
+// 拿掉 openBoard 裡的 saveLastBoard(st) 呼叫,G3a-0～G3a-5 仍全綠;要靠真的呼叫 openBoard() 才咬得到。
 sections.push({ name: 'G3a 答案站退路鏈', run: async (browser, en) => {
   let r = await boot(browser, {});
   const taipei = await stationOf(r.page, '臺北', 'tra_sched');
@@ -258,6 +260,17 @@ sections.push({ name: 'G3a 答案站退路鏈', run: async (browser, en) => {
   a = await r.page.evaluate(() => queryAnswerStations());
   ok(`[${en}] G3a-4 有定位 ⇒ src geo、最近站＝臺北、距離約 100 m`, a.src === 'geo' && a.stations[0].st.name === '臺北' && a.m > 60 && a.m < 140, JSON.stringify({ src: a.src, first: a.stations[0] && a.stations[0].st.name, m: a.m }));
   ok(`[${en}] G3a-5 共構:台北另帶 200 m 內其他系統站(高鐵/捷運)`, a.stations.length >= 2 && new Set(a.stations.map(s => s.st.sys)).size === a.stations.length, JSON.stringify(a.stations.map(s => s.st.sys + '|' + s.st.name)));
+  await r.ctx.close();
+  // 往返:網頁空白開機(無 storage 種子、無定位),用真的 openBoard() 開台鐵臺北站,驗證 saveLastBoard 真的把它寫進
+  // localStorage,且重載後 queryAnswerStations 的 last 退路真的讀得回來——這段整合 G3a-2 的手種 storage 測不到。
+  r = await boot(browser, {});
+  await r.page.evaluate(() => openBoard(nearbyStationCandidates().find(x => x.st.name === '臺北' && x.st.sys === 'tra_sched').st));
+  const saved = await r.page.evaluate(() => { try { return JSON.parse(localStorage.getItem('trainmap-last-board-v1')); } catch (e) { return null; } });
+  ok(`[${en}] G3a-6 openBoard 真的寫入 trainmap-last-board-v1（sys＝tra_sched、站＝臺北）`, !!saved && saved.sys === 'tra_sched' && saved.name === '臺北', JSON.stringify(saved));
+  await r.page.reload({ waitUntil: 'domcontentloaded' });
+  await r.page.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 60000 });
+  a = await r.page.evaluate(() => queryAnswerStations());
+  ok(`[${en}] G3a-7 重載後退路吃得到 openBoard 存的上次看過站 ⇒ src last、站＝臺北`, a.src === 'last' && a.stations[0] && a.stations[0].st.name === '臺北' && a.stations[0].st.sys === 'tra_sched', JSON.stringify(a));
   await r.ctx.close();
 }});
 
