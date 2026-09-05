@@ -709,6 +709,21 @@ export async function verifyRelease({
   for (const target of linkTargets) {
     assert(relativeSet.has(target), `首頁連結指向未打包檔案（會 404）：${target}`);
   }
+  // 首頁腳本／樣式完整性（2026-09-05）：<script src> 與 <link href> 指向的本機檔案都要真的在 bundle 裡。
+  // 上面那條只看 .html／.txt 連結，照不到腳本。起因：bus-transfer-ui.js 從 09-01 起被 index.html 載入，
+  // 但 prepare-web 的逐檔複製清單沒有它，iOS 93／95／96 與 Android 35／37 全部漏掉；index.html 端遇到
+  // !window.BusTransferUI 直接 return，於是 build 全綠、App 照開，只是 541 站公車轉乘在 App 裡整個不存在，
+  // 1.5.5／1.5.6 上架了才發現。漏一支腳本沒有任何 build 期訊號，只能在這裡用正向斷言擋。
+  const assetRefs = new Set();
+  for (const [, value] of html.matchAll(/<(?:script|link)\b[^>]*?\b(?:src|href)="([^"#?]+)/g)) {
+    if (/^[a-z][a-z0-9+.-]*:/i.test(value) || value.startsWith('//')) continue; // 外部資源（https:／data: 等）
+    assetRefs.add(value.replace(/^\.?\//, ''));
+  }
+  assert(assetRefs.has('bus-transfer-ui.js') && assetRefs.has('vendor/maplibre-gl.js'),
+    '首頁本機資產掃描沒掃到 bus-transfer-ui.js／vendor/maplibre-gl.js——這條守門人的 regex 跟 index.html 的寫法脫節了');
+  for (const target of assetRefs) {
+    assert(relativeSet.has(target), `首頁引用的本機資產沒進 bundle（腳本會靜默不載入，功能整組消失）：${target}`);
+  }
 
   const forbiddenNames = [
     /(^|\/)AGENTS\.md$/i,
