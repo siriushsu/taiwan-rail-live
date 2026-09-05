@@ -289,10 +289,18 @@ const MODES = {
     //   行銷版號進到 1.5.6。94 archive 尚未上傳，但少了使用者同日完成的機捷車種顯示，已移入
     //   「已作廢」保留；95 才是這次送審正本。另補台鐵／高鐵接續班次的背景接手：抵達轉乘站後，
     //   同一張動態島／鎖定畫面改顯示下一班與發車倒數，開車後繼續推進下一站。
-    marketing: '1.5.6', build: '95', music: true, metroCore: true,
-    why: '軌島 1.5.6\n\n・桃園機場捷運在地圖車牌、跟車卡與車站看板分出直達車／普通車；車牌也放大，並以尖頭實心／圓角白底區分\n・修正選好接續班次後，抵達轉乘站時動態島與鎖定畫面仍留在上一班車；現在會切到下一班並顯示發車倒數\n・iPad 正式支援完整觸控版面：直式使用底部分頁，橫式把資訊放在右側，並支援分割畫面\n・列車轉公車接成可恢復的完整旅程：全台 541 座軌道車站都可接續查詢；有附近公車時提供步行導航、到站倒數與剩餘站數\n・旅程可用 12 小時短效連結分享；位置預設關閉，另行同意後只在 App 前景更新\n・跟車時可開啟車聲；完乘護照新增「順序」排序\n・北捷擁擠度短暫中斷時沿用最近資料最多兩分鐘，避免整批閃失',
-    whyEn: 'Rail Island 1.5.6\n\n• Taoyuan Airport MRT now distinguishes Express and Commuter trains on map labels, follow cards and station boards; larger pointed/solid and rounded/light labels make them easier to tell apart\n• Fixed the Dynamic Island and Lock Screen remaining on the first train after arrival at a transfer station; they now switch to the chosen connection and show its departure countdown\n• Full iPad support: bottom tabs in portrait, a right-side information rail in landscape, and Split View support\n• Rail-to-bus journeys now persist across the app; all 541 rail stations can start a transfer search, with nearby buses, walking directions, arrival countdowns and stops remaining where available\n• Share a journey with a 12-hour link; location stays off by default and updates only in the foreground after separate consent\n• Optional rail sounds while following a train, plus completion-order sorting in Journey Passport\n• Taipei Metro crowding briefly reuses the latest reading for up to two minutes instead of disappearing all at once',
-    whyJa: '軌島 1.5.6\n\n・桃園空港MRTの地図上の車両ラベル、追跡カード、駅案内で直達車と普通車を区別。ラベルも拡大し、尖った塗りつぶし／丸い白地で見分けやすくしました\n・乗換駅に着いてもDynamic Islandとロック画面が最初の列車を表示し続ける問題を修正。選んだ次の列車へ切り替わり、発車までの時間を表示します\n・iPad に正式対応：縦向きは下部タブ、横向きは右側の情報レールを使い、Split View にも対応\n・鉄道からバスまでを復元可能な一つの旅程に統合。全 541 の鉄道駅から乗り換え検索を開始でき、周辺バスがある駅では徒歩案内、到着カウントダウン、残り停留所を確認できます\n・旅程を 12 時間有効のリンクで共有可能。位置情報は初期状態では共有せず、別途同意した場合のみアプリが前面にある間更新します\n・列車追跡中の走行音と、旅のパスポートの「完乗順」並べ替えを追加\n・台北メトロの混雑度が一時的に取得できない場合、直前の値を最長 2 分だけ使い、一斉に消えないようにしました',
+    // 96（2026-09-05）：95 archive 已存在（1.5.6 送審正本、載貨 v0904f）⇒ 規則四不重用號。96 的載貨＝
+    //   main 4905200e（v0904p）：地圖引擎預設切成 MapLibre（M4-A；?engine=leaflet 逃生口只在網站有意義，
+    //   App 沒有 query string 入口、localStorage 鍵仍在）＋ 95 之後 main 上的其餘修正。why 三語第一條加向量地圖。
+    //   Android 同輪 36→37（36 已釘在 build.gradle 上、與這顆載貨不同，比照不重用）。
+    //   01:1x 再查：Apple lookup 實查 1.5.6 已於 2026-09-04T16:59:18Z 上架 ⇒ 1.5.6 train 已關，
+    //   行銷版號進到 1.5.7（Android 37 同步 1.5.7）。基線已推進到 1.5.6 (95)＋Android 35 的聯集。
+    //   why 三語只寫 95 之後 main 才有的五條更新紀錄（maplibredefault／maporientation／followpitch／
+    //   followrouteexact／tracksovermap 0904），機捷車種等 1.5.6 已講過的不重述。
+    marketing: '1.5.7', build: '96', music: true, metroCore: true,
+    why: '軌島 1.5.7\n\n・地圖改用向量地圖引擎：可兩指旋轉與傾斜、新增指北針與 3D 建築；跟車時地圖朝行進方向、結束跟車轉回正北，縮放更流暢\n・修正跟隨長途列車放大看彎道時行程線切過彎心、傾斜地圖時遠端路線跳動，以及暗色地圖上路線被道路切碎',
+    whyEn: 'Rail Island 1.5.7\n\n• New vector map engine: rotate and tilt with two fingers, a compass control and 3D buildings; the map turns heading-up while following a train and back to north when you stop, with smoother zooming\n• Fixed the route line cutting corners when zoomed in on long journeys, distant routes jumping while the map is tilted, and roads breaking up coloured routes on the dark map',
+    whyJa: '軌島 1.5.7\n\n・地図をベクター地図エンジンに刷新：2 本指で回転・傾斜でき、コンパスと 3D 建物を追加。列車追跡中は進行方向が上になり、追跡を終えると北向きに戻ります。ズームもより滑らかに\n・長距離列車を拡大表示した際に経路線がカーブを横切る問題、地図を傾けた際に遠方の経路が跳ぶ問題、ダーク地図で経路が道路に分断される問題を修正',
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
   // 軌島通行證客端功能、雲端同步與伺服器付費牆。這顆不可選去正式送審；正式版必須另推 build 號，

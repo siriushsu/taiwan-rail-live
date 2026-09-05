@@ -95,7 +95,7 @@ async function gotoReady(page, qs = '') {
   await page.goto(BASE + qs, { waitUntil: 'domcontentloaded' });
   await waitReady(page);
 }
-const centerOf = (page) => page.evaluate(() => { const c = map.getCenter(); return { lat: c.lat, lng: c.lng, z: map.getZoom() }; });
+const centerOf = (page) => page.evaluate(() => { const c = window.__map.getCenter(); return { lat: c.lat, lng: c.lng, z: window.__map.getZoom() }; });
 const rawLV = (page) => page.evaluate(k => localStorage.getItem(k), LAST_VIEW_KEY);
 const near = (a, b, eps = 0.01) => Math.abs(a - b) < eps;
 const moved = (c1, c2) => Math.abs(c1.lat - c2.lat) > 1e-4 || Math.abs(c1.lng - c2.lng) > 1e-4 || Math.round(c1.z) !== Math.round(c2.z);
@@ -188,7 +188,7 @@ async function persistRestoreFlow(browser, label, { width = 1280, height = 800, 
     await page.waitForTimeout(150);
   }
   const target = { lat: 25.0330, lon: 121.5654, z: 14 };
-  await page.evaluate((t) => map.setView([t.lat, t.lon], t.z, { animate: false }), target);
+  await page.evaluate((t) => window.__map.setView([t.lat, t.lon], t.z, { animate: false }), target);
   await page.waitForTimeout(300);
 
   const savedRaw = await rawLV(page);
@@ -299,7 +299,7 @@ if (FIX_TRIP) {
   const { ctx, page } = await newPage(chromiumB);
   attach(page, 'E');
   await gotoReady(page);
-  await page.evaluate(() => map.setView([23.9, 120.9], 9, { animate: false }));
+  await page.evaluate(() => window.__map.setView([23.9, 120.9], 9, { animate: false }));
   await page.waitForTimeout(300);
   const baseline = await rawLV(page);
   ok('E0 進入放空前已有一筆使用者操作的記憶', !!baseline, `實際=${baseline}`);
@@ -323,7 +323,7 @@ if (FIX_TRAIN_ACTIVE) {
   const { ctx, page } = await newPage(chromiumB);
   attach(page, 'F');
   await gotoReady(page);
-  await page.evaluate(() => map.setView([23.5, 121.0], 8, { animate: false }));
+  await page.evaluate(() => window.__map.setView([23.5, 121.0], 8, { animate: false }));
   await page.waitForTimeout(300);
   const baseline = await rawLV(page);
 
@@ -376,7 +376,7 @@ for (const [label, seed] of G_CASES) {
     const real = nowSecOfDay(activeTz());
     const fake = (real + 12 * 3600) % 86400; // 刻意設一個保證遠離現在時刻(12小時外)的假時刻
     setSimSec(fake);
-    map.setView([24.0, 121.2], 10, { animate: false }); // 順便觸發一次寫入,檢驗payload不含時間欄位
+    window.__map.setView([24.0, 121.2], 10, { animate: false }); // 順便觸發一次寫入,檢驗payload不含時間欄位
     return { real, fake, applied: state.simSec };
   });
   await page.waitForTimeout(250);

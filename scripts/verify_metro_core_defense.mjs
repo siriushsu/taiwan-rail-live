@@ -100,10 +100,10 @@ const MUTATED_DIRECTION_FALLBACK_HTML = REAL_HTML
     '      /* MUTATION missing-direction fallback */');
 if (MUTATED_DIRECTION_FALLBACK_HTML === REAL_HTML) throw new Error('看板缺方向退路突變沒有命中');
 
-// 🔴 Leaflet 刻意【不】攔截，走真 CDN：index.html 對它掛了 SRI integrity，
-//    塞本機那份 leaflet.js 進去會因為雜湊不符被瀏覽器擋掉，`L` undefined ⇒ boot 拋錯 ⇒
-//    這支腳本從寫出來的那一刻就不可能綠（2026-08-10 已經踩過一次同款）。
-//    要塞就得先把 integrity 屬性拿掉，那又會讓「驗的是這棵樹的 index.html」這道 G0 失效。
+// M4-B(2026-09-05)：這裡原本有一條「Leaflet 刻意不攔截、走真 cdnjs」的鐵則——因為 index.html
+//    對那兩個 tag 掛了 SRI integrity，塞本機那份進去會雜湊不符被擋掉、`L` undefined ⇒ boot 拋錯
+//    （2026-08-10 的教訓）。Leaflet 拔掉後 index.html 已無任何外部 script／style，地圖引擎
+//    maplibre-gl 走 vendor/ 的本機檔由下面這台 server 直接供應，這條限制隨之消失。
 const MIME = { '.html': 'text/html; charset=utf-8', '.json': 'application/json', '.js': 'application/javascript',
   '.mjs': 'application/javascript', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml',
   '.webp': 'image/webp', '.woff2': 'font/woff2', '.webmanifest': 'application/manifest+json' };
@@ -435,7 +435,7 @@ async function main() {
       check('A2 北捷九線全部由 Core 驅動', coreLines.length === 9 && trtcLines.length === 9,
         `core 驅動 ${coreLines.length}/${trtcLines.length} 條：${coreLines.map(([k, v]) => k.slice(5) + '=' + v.core).join(' ')}`);
       check('A3 Core 畫得出足夠台數（分母正向對照）', coreTrains >= 40, `${coreTrains} 台`);
-      await page.evaluate(() => map.setView([25.048, 121.545], 12, { animate: false })); // 把台北放進視窗，_freqHits 只收在畫面內的
+      await page.evaluate(() => window.__map.setView([25.048, 121.545], 12, { animate: false })); // 把台北放進視窗，_freqHits 只收在畫面內的
       await page.waitForTimeout(1200);
       const hits = await page.evaluate(() => (state._freqHits || []).filter(h => h.core).length);
       check('A4 畫面命中清單裡真的有 Core 車（不是只在資料層）', hits > 0, `_freqHits core=${hits}`);
@@ -666,7 +666,7 @@ async function main() {
     const clickFollow = async () => {
       const { page, errors } = await newPage(browser);
       await pollOnce(page);
-      await page.evaluate(() => map.setView([25.048, 121.545], 12, { animate: false }));
+      await page.evaluate(() => window.__map.setView([25.048, 121.545], 12, { animate: false }));
       await page.waitForTimeout(1200);
       const out = await page.evaluate(() => {
         const hit = (state._freqHits || []).find(h => h.core && h.vehicleId != null);

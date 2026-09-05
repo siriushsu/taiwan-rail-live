@@ -217,19 +217,14 @@ try {
   });
   await new Promise((resolve, reject) => { server.once('error', reject); server.listen(PORT, '127.0.0.1', resolve); });
 
-  const leafletRoot = process.env.TRTC_LEAFLET_DIST || '/tmp/trtc-playwright-deps/node_modules/leaflet/dist';
-  const leafletJs = fs.readFileSync(path.join(leafletRoot, 'leaflet.js'));
-  const leafletCss = fs.readFileSync(path.join(leafletRoot, 'leaflet.css'));
+  // M4-B(2026-09-05)：index.html 不再載 Leaflet，原本供本機 leaflet.js/css 給 cdnjs 網址的
+  // 讀檔與路由已移除（那份 readFileSync 在 app/node_modules 重裝後會讓腳本在載入時就爆）。
   let browserHazard = { at: '', observedAt: '2026-08-04T04:00:00.000Z', source: 'NCDR', stale: false, hazards: [] };
   let browserHazardStatus = 200;
   const apiCalls = [];
 
   const installOfflineRoutes = (targetPage, callsSink = apiCalls) => targetPage.route('**/*', async route => {
     const url = new URL(route.request().url());
-    if (url.hostname === 'cdnjs.cloudflare.com' && url.pathname.endsWith('leaflet.min.js'))
-      return route.fulfill({ status: 200, contentType: 'application/javascript', body: leafletJs });
-    if (url.hostname === 'cdnjs.cloudflare.com' && url.pathname.endsWith('leaflet.min.css'))
-      return route.fulfill({ status: 200, contentType: 'text/css', body: leafletCss });
     if (url.hostname === '127.0.0.1' || url.hostname === 'localhost') {
       if (url.pathname === '/api/hazard-alert') {
         callsSink.push({ path: url.pathname, status: browserHazardStatus, at: Date.now() });

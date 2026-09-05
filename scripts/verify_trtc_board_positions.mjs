@@ -235,19 +235,12 @@ function injectBrDelay(raw, seconds) {
   });
 }
 
-const LEAFLET_DIST = process.env.TRTC_LEAFLET_DIST || '/tmp/trtc-playwright-deps/node_modules/leaflet/dist';
-const leafletJs = fs.readFileSync(path.join(LEAFLET_DIST, 'leaflet.js'));
-const leafletCss = fs.readFileSync(path.join(LEAFLET_DIST, 'leaflet.css'));
+// M4-B(2026-09-05)：index.html 不再載 Leaflet，原本供本機 leaflet.js/css 給 cdnjs 網址的
+// 讀檔與路由已移除（那份 readFileSync 在 app/node_modules 重裝後會讓腳本在載入時就爆）。
 async function preparePage(page, documentHtml = PAGE_HTML) {
   await page.addInitScript(() => localStorage.setItem('trainmap-howto-seen', '1'));
   await page.route('**/*', async route => {
     const url = new URL(route.request().url());
-    if (url.hostname === 'cdnjs.cloudflare.com' && url.pathname.endsWith('leaflet.min.js')) {
-      return route.fulfill({ status: 200, contentType: 'application/javascript', body: leafletJs });
-    }
-    if (url.hostname === 'cdnjs.cloudflare.com' && url.pathname.endsWith('leaflet.min.css')) {
-      return route.fulfill({ status: 200, contentType: 'text/css', body: leafletCss });
-    }
     if (url.hostname === '127.0.0.1' || url.hostname === 'localhost') {
       if (route.request().resourceType() === 'document') {
         if (documentHtml != null) return route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8',
@@ -351,7 +344,7 @@ async function run() {
         luzhou: payload.rows.filter(x => x.line === 'O_LUZHOU' && !x.terminal).length,
         xinzhuang: payload.rows.filter(x => x.line === 'O_XINZHUANG' && !x.terminal).length });
       const result = await page.evaluate(({ rows, at, atStation, horizonCap }) => {
-        map.setView([25.0478, 121.5170], 16, { animate: false });
+        window.__map.setView([25.0478, 121.5170], 16, { animate: false });
         state.simSec = trtcServiceSec(at); state.clockAtNow = true;
         _easedShift.clear(); _metroGateEp.on = false; _metroGateEp.at = 0;
         _mlGate = true; _mlGateAt = Date.now();
@@ -426,7 +419,7 @@ async function run() {
             expected = posBetweenStations(ln, a.from, a.to, progress);
           }
           if (actual && baseline && expected) positions.push({ line: a.line, dir: a.dir, no: a.no,
-            anchorResidualM: map.distance(actual, expected), baselineDistanceM: map.distance(baseline, expected), shift: a.shift });
+            anchorResidualM: window.__map.distance(actual, expected), baselineDistanceM: window.__map.distance(baseline, expected), shift: a.shift });
         }
         const truths = [];
         for (const truth of atStation || []) {
@@ -440,7 +433,7 @@ async function run() {
         }
         const anomalies = pool.filter(ln => anomalyOf(ln)).map(ln => ln.id + ':' + anomalyOf(ln).kind);
         return { audit, countRows, positions, predictions, truths, screenPositions, rangeFailures, simSec: state.simSec,
-          mutationHits, zoom: map.getZoom(), anomalies };
+          mutationHits, zoom: window.__map.getZoom(), anomalies };
       }, { ...payload, horizonCap: HOLDOUT_HORIZON_SEC });
       auditFrames.push({ slot, at: payload.at, issuedSec: result.simSec, predictions: result.predictions, truths: result.truths,
         positions: result.screenPositions, rangeFailures: result.rangeFailures });

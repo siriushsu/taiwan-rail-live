@@ -49,8 +49,11 @@ const build = (idxSrc.match(/const BUILD = '([^']*)'/) || [])[1] || '?';
 console.log(`\n目標: ${idxPath}\n      md5=${md5}  BUILD=${build}  ${idxSrc.split('\n').length} 行\n`);
 
 // 靜態斷言(computed style 照不到 env(),只能讀規則本身)
-ok('B4 靜態 放空控制列 bottom 含 env(safe-area-inset-bottom)',
-  /body\.ambient \.controls \{[^}]*bottom: calc\(8px \+ env\(safe-area-inset-bottom/.test(idxSrc),
+// index.html:99 定義 --sa-b: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)),規則本體寫的是別名 var(--sa-b);
+// 兩種寫法都算含 safe-area(原判準只認字面 env(),在別名落地後就一直假紅)。
+ok('B4 靜態 放空控制列 bottom 含 safe-area-inset-bottom(直寫 env() 或別名 var(--sa-b))',
+  /body\.ambient \.controls \{[^}]*bottom: calc\(8px \+ (?:env\(safe-area-inset-bottom|var\(--sa-b\))/.test(idxSrc)
+    && /--sa-b: var\(--safe-area-inset-bottom, env\(safe-area-inset-bottom/.test(idxSrc),
   '規則文字比對');
 
 const browser = await chromium.launch();
@@ -80,7 +83,7 @@ const errors = [];
 page.on('pageerror', e => errors.push(String(e)));          // waitReady 逾時=boot 靜默拋錯,先掛這個
 await page.goto(`http://localhost:${PORT}/?lang=zh-TW`, { waitUntil: 'domcontentloaded' });
 try {
-  await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready && map && state.mode === 'sched'; } catch (e) { return false; } }, null, { timeout: 30000 });
+  await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready && window.__map && state.mode === 'sched'; } catch (e) { return false; } }, null, { timeout: 30000 });
 } catch (e) {
   console.log('boot 失敗,pageerror:', errors.slice(0, 3));
   throw e;
@@ -91,16 +94,19 @@ const cdp = await ctx.newCDPSession(page);
 // 事件計數器:程式自己的 setView(animate:false) 不會發 dragstart;zoom 不變也不會發 zoomstart
 await page.evaluate(() => {
   window.__ev = { dragstart: 0, zoomstart: 0, click: 0 };
-  map.on('dragstart', () => window.__ev.dragstart++);
-  map.on('zoomstart', () => window.__ev.zoomstart++);
-  map.on('click', () => window.__ev.click++);
+  window.__map.on('dragstart', () => window.__ev.dragstart++);
+  window.__map.on('zoomstart', () => window.__ev.zoomstart++);
+  window.__map.on('click', () => window.__ev.click++);
 });
 const resetEv = () => page.evaluate(() => { window.__ev.dragstart = 0; window.__ev.zoomstart = 0; window.__ev.click = 0; });
 const ev = () => page.evaluate(() => ({ ...window.__ev }));
-const zoom = () => page.evaluate(() => map.getZoom());
-const handlers = () => page.evaluate(() =>
-  ['dragging', 'touchZoom', 'doubleClickZoom', 'scrollWheelZoom', 'boxZoom', 'keyboard']
-    .filter(k => map[k] && map[k].enabled()));
+const zoom = () => page.evaluate(() => window.__map.getZoom());
+// 引擎中立(M4-A 起預設 MapLibre):Leaflet handler 名 → MapLibre handler 名(setGestures 開關的同一組),API 分別是 enabled()／isEnabled()
+const handlers = () => page.evaluate(() => {
+  const L2GL = { dragging: 'dragPan', touchZoom: 'touchZoomRotate', doubleClickZoom: 'doubleClickZoom', scrollWheelZoom: 'scrollZoom', boxZoom: 'boxZoom', keyboard: 'keyboard' };
+  const gl = !!(window.__M && window.__M.engine === 'maplibre');
+  return Object.keys(L2GL).filter(k => { const h = window.__map[gl ? L2GL[k] : k]; return !!h && (gl ? h.isEnabled() : h.enabled()); });
+});
 
 // 真觸控拖曳(CDP;Playwright 的 touchscreen 只有 tap)
 async function touchDrag(x0, y0, dx, dy) {
@@ -159,18 +165,21 @@ ok('A7b 放空(群車) 真拖曳/縮放都動不了', gHot.dragstart === 0 && !g
 await leaveAmbient();
 
 // A9 安全網:ambient 已關但手勢被留在鎖住 ⇒ 下一幀必須自動交還
-await page.evaluate(() => { map.dragging.disable(); map.touchZoom.disable(); });
+await page.evaluate(() => { window.__map.dragPan.disable(); window.__map.touchZoomRotate.disable(); });
 await page.waitForTimeout(400);
 ok('A9 安全網:非放空卻手勢鎖著 ⇒ tick 自動交還', (await handlers()).length === 6, `開著: ${(await handlers()).length}/6`);
 
 // ── B 出口鈕 ──────────────────────────────────────────────────────────────────
 await enterAmbient('follow');
 await page.evaluate(() => { clearTimeout(state._idleT); clearTimeout(state._theaterT); document.body.classList.add('idle'); });
-await page.waitForTimeout(900); // 等 .7s 的 opacity 轉場走完
-const idleCss = await page.evaluate(() => {
+// 等 .7s 的 opacity 轉場真的走完(輪詢到「在場家具全部 opacity 0」或 3 s 到期),不等固定秒數:
+// 固定 900 ms 在機器有負載時會量到轉場中途(實測 0.027),B3 就假紅——量的是轉場終點,不是某個時刻。
+const readIdle = () => page.evaluate(() => {
   const g = s => { const el = document.querySelector(s); if (!el) return null; const c = getComputedStyle(el); return { op: +c.opacity, pe: c.pointerEvents }; };
-  return { controls: g('.controls'), rand: g('#randBtn'), near: g('#nearBtn'), tabbar: g('.tabbar'), lc: g('.leaflet-control-container') };
+  return { controls: g('.controls'), rand: g('#randBtn'), near: g('#nearBtn'), tabbar: g('.tabbar'), lc: g('.leaflet-control-container, .maplibregl-control-container') };
 });
+let idleCss = await readIdle();
+for (const t0 = Date.now(); Date.now() - t0 < 3000 && !['rand', 'near', 'tabbar', 'lc'].every(k => !idleCss[k] || idleCss[k].op === 0);) { await page.waitForTimeout(100); idleCss = await readIdle(); }
 ok('B1 idle 時「離開放空」仍看得見且可按',
   idleCss.controls && idleCss.controls.op > 0.2 && idleCss.controls.pe !== 'none',
   `opacity=${idleCss.controls?.op} pointer-events=${idleCss.controls?.pe}`);

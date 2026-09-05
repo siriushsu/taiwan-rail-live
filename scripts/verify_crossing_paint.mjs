@@ -81,7 +81,7 @@ const MEASURE = `([ll, aId, bId, SPAN]) => {
     const m = s.match(/[\d.]+/g); return m && m.length >= 3 ? [+m[0], +m[1], +m[2]] : null; };
   const ca = rgb(A.col), cb = rgb(B.col), cc = rgb(pal().railCase);
   if (!ca || !cb || !cc) return { skip: 'color-parse' };
-  const p = map.latLngToContainerPoint(ll);
+  const p = M.toScreen(ll);
   const x0 = Math.round(p.x) - SPAN, y0 = Math.round(p.y) - SPAN, N = SPAN * 2 + 1;
   if (x0 < 0 || y0 < 0 || (x0 + N) * state.dpr > cv.width || (y0 + N) * state.dpr > cv.height) return { skip: 'offscreen' };
   const STN_R = 8;   // 站點半徑 2.4 + 環 1.5,留到 8 才夠蓋住反鋸齒與環外緣
@@ -134,7 +134,7 @@ const run = async (g, label, pick) => {
     if (pick && !pick(c)) continue;
     let r = null;
     for (const z of ZOOMS) {
-      await page.evaluate(([ll, zz]) => map.setView(ll, zz, { animate: false }), [[c.lat, c.lon], z]);
+      await page.evaluate(([ll, zz]) => window.__M.setView(ll, zz, { animate: false }), [[c.lat, c.lon], z]);
       await page.waitForTimeout(120);
       const t = await page.evaluate(([S, a]) => eval('(' + S + ')')(a), [MEASURE, [[c.lat, c.lon], c.above.id, c.below.id, SPAN]]);
       if (!t.skip && t.real.a !== t.real.b) { r = t; break; }

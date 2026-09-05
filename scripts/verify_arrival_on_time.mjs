@@ -36,7 +36,7 @@ await p.evaluate(() => { const g = GROUPS.find(x => (x.members || []).includes('
 await p.waitForTimeout(2500);
 // 🔴 視野要框住整個北捷:_trtcOfficialDisplay 只留「這一格有畫出來」的車,
 // 預設視野若沒涵蓋路網,它會是空的 ⇒ 分母 0,長得跟「此刻沒車」一模一樣。
-await p.evaluate(() => map.fitBounds([[24.90, 121.30], [25.25, 121.75]], { animate: false }));
+await p.evaluate(() => window.__map.fitBounds([[24.90, 121.30], [25.25, 121.75]], { animate: false }));
 await p.waitForTimeout(3000);
 
 // 站牌倒數的唯一來源:名冊車的 timeline(產品就是拿它顯示站牌秒數的官方值)

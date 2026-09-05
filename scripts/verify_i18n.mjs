@@ -120,7 +120,7 @@ async function desktopCore(browser, engine) {
     assert(boardEn.includes('Taipei') && boardEn.includes('Arrivals in the next 3 hours'), `英文來車看板未即時翻譯：${boardEn.slice(0, 500)}`);
     assert(boardEn.includes('Taiwan High Speed Rail') && boardEn.includes('Bannan Line') && boardEn.includes('Airport MRT Line'), `英文轉乘路線未翻譯：${boardEn.slice(0, 500)}`);
     assert(!/undefined|\bi18n\./i.test(boardEn), `英文來車看板洩漏內部值：${boardEn}`);
-    const attributionEn = await bodyText(page, '.leaflet-control-attribution');
+    const attributionEn = await bodyText(page, '.leaflet-control-attribution, .maplibregl-ctrl-attrib'); // 署名控件依引擎不同(M4-A 起預設 MapLibre)
     assert(attributionEn.includes('Taiwan outline: Ministry of the Interior') && !/[臺台]灣輪廓/.test(attributionEn), `英文地圖署名在圖層重繪後退回中文：${attributionEn}`);
     record(engine, '英文車站來車看板、轉乘路線與地圖署名');
 
@@ -163,7 +163,7 @@ async function desktopCore(browser, engine) {
         state.mode = 'freq'; state.lines = [line]; state.visible = new Set([line.id]); state.freqFollow = null;
         state.trtcOfficialRoster = { vehicles: [{ vehicleId: 'i18n-picker', officialNo: '107', dest: destinationIndex }] };
         state._freqHits = [{ x: p.x, y: p.y, ln: line, vehicleId: 'i18n-picker', officialNo: '107', halfW: 24, halfH: 10 }];
-        map.fire('click', { containerPoint: L.point(p.x, p.y), latlng: L.latLng(st.lat, st.lon) });
+        window.__M.fire('click', { containerPoint: { x: p.x, y: p.y }, latlng: { lat: st.lat, lng: st.lon } }); // M4-B:改走適配層 fire,事件形狀就是 handleMapClick 讀的那兩個欄位
         return document.getElementById('tapPick').textContent.replace(/\s+/g, ' ').trim();
       } finally {
         state.mode = previous.mode; state.lines = previous.lines; state.visible = previous.visible;

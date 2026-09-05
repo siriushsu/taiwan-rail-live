@@ -91,17 +91,12 @@ function startServer() {
   });
 }
 
-const leafletRoot = process.env.TRTC_LEAFLET_DIST || '/tmp/trtc-playwright-deps/node_modules/leaflet/dist';
-const leafletJs = fs.readFileSync(path.join(leafletRoot, 'leaflet.js'));
-const leafletCss = fs.readFileSync(path.join(leafletRoot, 'leaflet.css'));
+// M4-B(2026-09-05)：index.html 不再載 Leaflet，原本供本機 leaflet.js/css 給 cdnjs 網址的
+// 讀檔與路由已移除（那份 readFileSync 在 app/node_modules 重裝後會讓腳本在載入時就爆）。
 async function preparePage(page) {
   await page.addInitScript(() => localStorage.setItem('trainmap-howto-seen', '1'));
   await page.route('**/*', async route => {
     const url = new URL(route.request().url());
-    if (url.hostname === 'cdnjs.cloudflare.com' && url.pathname.endsWith('leaflet.min.js'))
-      return route.fulfill({ status: 200, contentType: 'application/javascript', body: leafletJs });
-    if (url.hostname === 'cdnjs.cloudflare.com' && url.pathname.endsWith('leaflet.min.css'))
-      return route.fulfill({ status: 200, contentType: 'text/css', body: leafletCss });
     if (url.hostname === '127.0.0.1' || url.hostname === 'localhost') return route.continue();
     return route.abort('blockedbyclient');
   });
@@ -174,7 +169,7 @@ async function runEngine(name) {
     };
 
     state.playing = false; state.ready = false; _trtcPolling = true;
-    map.setView([25.0478, 121.5170], 16, { animate: false });
+    window.__map.setView([25.0478, 121.5170], 16, { animate: false });
     // 預掃：找跨槽最穩定、且橫跨多線的逐秒時間序列見證車。
     const appearances = new Map();
     _trtcNoTrip.clear(); _easedShift.clear(); _metroGateEp.on = false; _metroGateEp.at = 0;

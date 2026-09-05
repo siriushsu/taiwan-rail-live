@@ -200,7 +200,19 @@ try {
   if (busTransfer.status !== 0) fail('公車轉乘驗收未過——修正資料索引、Worker、UI、手機互動或錯誤降級後再出貨'
     + '（單獨重跑：npm run check-bus-transfer）');
 
-  // ── 2.12 開機期班表殘缺守門人 ─────────────────────────────────────────────
+  // ── 2.12 地圖引擎適配層閘門(換引擎 M0,2026-09-03)——純靜態、毫秒級:index.html 裡任何繞過適配層 M 直接
+  // 呼叫 Leaflet `map.xxx(` 的程式碼都會在這裡擋下(否則 MapLibre 引擎一開就炸,而 Leaflet 路徑全綠照不到)。
+  // 只跑靜態半段:動態半段(Playwright 開機比對)留給 npm run check-engine。
+  const eng = spawnSync('node', [path.join(wt, 'scripts', 'verify_engine_adapter.mjs')], { encoding: 'utf8', env: { ...process.env, ENGINE_GATE_STRICT: '1', ENGINE_GATE_STATIC_ONLY: '1' } });
+  process.stdout.write(eng.stdout || ''); process.stderr.write(eng.stderr || '');
+  if (eng.status !== 0) fail('地圖引擎適配層閘門未過——有程式碼繞過 M 直接呼叫 Leaflet map.*（單獨重跑：npm run check-engine）');
+
+  // ── 2.13 軌道 GeoJSON 守門人(換引擎 M1a,2026-09-03):磁碟上的 geojson 必須等於重建結果(G0),
+  //    否則 MapLibre 的 GL 軌道會畫到手改過／忘了重產的資料;G1–G10 順便一起過 ────────────────
+  const trk = spawnSync('node', [path.join(wt, 'scripts', 'verify_track_geojson.mjs')], { encoding: 'utf8' });
+  process.stdout.write(trk.stdout || ''); if (trk.stderr) process.stderr.write(trk.stderr);
+  if (trk.status !== 0) fail('軌道 GeoJSON 守門人未過(npm run check-track-geojson)');
+  // ── 2.14 開機期班表殘缺守門人 ─────────────────────────────────────────────
   // 2026-09-04 check-obs-removed 偶發紅一次（`sys.data.trains is not iterable` ＋ 60 秒沒
   // state.ready ＝ 使用者看到空白 App）之後補的。走得到的路徑是「上游回 HTTP 200，body 是
   // 合法 JSON 但沒有 trains 陣列」——resolveScheduleDay 把它原樣放行，系統就這樣帶著

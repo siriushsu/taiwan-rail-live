@@ -56,6 +56,7 @@ for (const eng of ENGINES) {
     // liveActive() 退場、或列車追回誤點），量偏移量怎麼下降、以及地圖上實際移動了多遠。
     const MAXRATE = 2;                    // 外部契約常數：有效時間最多以 2× 前進
     const DELAY_MIN = 10;                 // 注入 10 分鐘誤點
+    const HALF_MIN = 6;                   // 先建 6 分再拉到 10 分:+4 分 < 5 分門檻(SNAP_SEC),上升側才走 1× 凍結;+5 分會被 G 的一步到位吃掉,F 分母歸零
     const STEP = 2;                       // 每步 2 模擬秒（第〇段與第二段共用）
     const FULL = DELAY_MIN * 60;          // 600 秒＝滿載誤點
     const out = { rateBad: [], pausedBad: [], capBad: [], jumpBad: [], shiftJumpBad: [], heldJump: [],
@@ -70,7 +71,7 @@ for (const eng of ENGINES) {
 
     // 先用一半的誤點建 entry。easedShift 對「首見」會 snap 到 target（初次同步），所以「上升」
     // 這件事在建 entry 那一步結構上量不到；要量必須讓 entry 已存在、gate 一路不斷線，只把 target 拉高。
-    state.live = { map: new Map(use.map(t => [String(t.train), DELAY_MIN / 2])), at: Date.now(), delayed: use.length, srcAt: '' };
+    state.live = { map: new Map(use.map(t => [String(t.train), HALF_MIN])), at: Date.now(), delayed: use.length, srcAt: '' };
     state.playing = false;                // 由本腳本自己推進 simSec，不讓 tick 插手
     use.forEach(t => liveDelaySec(t));    // 建 entry
 
@@ -178,8 +179,38 @@ for (const eng of ENGINES) {
     out.riseN = out.riseBad.length; out.riseBad = out.riseBad.slice(0, 6);
     out.pausedBad = out.pausedBad.slice(0, 6);
 
+    // ── 第三段（G，2026-09-05 使用者裁示「5 分」）：上升 ≥ SNAP_SEC 一步到位（跳回真實位置），< SNAP_SEC 維持 1× 凍結。
+    //   09-05 屏東線事故：TDX 只在過站時更新 delay，區間被扣幾十分鐘 ⇒ 到站一次 +53；舊行為＝畫面原地停 53 分鐘
+    //   （首見就帶 70 分的車＝停 70 分鐘）。判準非同源：SNAP_SEC 是裁示值，不讀 TRA_MOTION_PROFILE。
+    //   G1/G4 要的是「首見」路徑，前面下降段只跑 200 步（600 秒誤點以 2 秒/步收回只收到 200），use 的
+    //   entry 都還在 ⇒ 首見一律用沒碰過的車；G2/G3 反過來刻意用還留著 entry 的 use。
+    const SNAP_SEC = 300;
+    const pool = (inRun.length ? inRun : cand).filter(t => !use.includes(t) && t !== onTime);
+    const freshA = pool.slice(0, 5), freshB = pool.slice(5, 10), g2 = use.slice(0, 10);
+    out.g = { sinceGateMs: performance.now() - _traGateEp.at, creationSnap: [], jumpSnap: [], smallRise: [], creationFreeze: [], moved: 0, nA: freshA.length, nB: freshB.length, n2: g2.length };
+    // G1 首見即 10 分：第一次查詢就等於 target（不從 0 開始凍結爬 10 分鐘）
+    freshA.forEach(t => state.live.map.set(String(t.train), DELAY_MIN));
+    freshA.forEach(t => { const v = liveDelaySec(t); if (Math.abs(v - DELAY_MIN * 60) > 1e-6) out.g.creationSnap.push({ train: String(t.train), v: +v.toFixed(3) }); });
+    // G2 既有 entry 一次拉到 20 分（增量 ≥ SNAP_SEC）：下一次查詢即等於新 target，且車在地圖上真的換了位置
+    const posPre = g2.map(t => trainPos(t, state.simSec));
+    g2.forEach(t => state.live.map.set(String(t.train), DELAY_MIN * 2));
+    g2.forEach((t, i) => {
+      const v = liveDelaySec(t); if (Math.abs(v - DELAY_MIN * 120) > 1e-6) out.g.jumpSnap.push({ train: String(t.train), v: +v.toFixed(3) });
+      const p = trainPos(t, state.simSec); if (posPre[i] && p && haversineKm(posPre[i], p) * 1000 > 1) out.g.moved++;
+    });
+    // G3 既有 entry 再 +4 分（< SNAP_SEC）：維持凍結——一步後只前進 adv（=STEP），不准跳到 target
+    g2.forEach(t => state.live.map.set(String(t.train), DELAY_MIN * 2 + 4));
+    const preSmall = g2.map(t => liveDelaySec(t));
+    state.simSec += STEP; await new Promise(r => requestAnimationFrame(r));
+    g2.forEach((t, i) => { const v = liveDelaySec(t); if (Math.abs(v - (preSmall[i] + STEP)) > 1e-6) out.g.smallRise.push({ train: String(t.train), from: +preSmall[i].toFixed(3), v: +v.toFixed(3) }); });
+    // G4 首見 4 分（< SNAP_SEC）：首次查詢是 0（原地凍結等追上），一步後只前進 adv——凍結行為保留
+    freshB.forEach(t => state.live.map.set(String(t.train), 4));
+    const firstB = freshB.map(t => liveDelaySec(t));
+    state.simSec += STEP; await new Promise(r => requestAnimationFrame(r));
+    freshB.forEach((t, i) => { const v = liveDelaySec(t); if (firstB[i] !== 0 || Math.abs(v - STEP) > 1e-6) out.g.creationFreeze.push({ train: String(t.train), first: +firstB[i].toFixed(3), v: +v.toFixed(3) }); });
+
     // ── 準點控制組：不得建立 entry、值恆為 0
-    if (onTime) { out.onTimeVal = liveDelaySec(onTime); out.onTimeEntry = _easedShift.has((onTime.sys || 'tra_sched') + ':' + onTime.train); }
+    if (onTime) { out.onTimeVal = liveDelaySec(onTime); out.onTimeEntry = _easedShift.has((onTime._rday || '') + '|' + (onTime.sys || 'tra_sched') + ':' + onTime.train); }
     return out;
   });
 
@@ -219,6 +250,21 @@ for (const eng of ENGINES) {
     r.riseSeen === 0 ? '分母為零：觀察窗內沒有任何一步是「還沒貼到 target 的上升」，F 無效'
       : r.riseN === 0 ? `${r.riseSeen} 個上升取樣全數恰為 ${2} 秒/步（＝adv，與改動前的無 motion 分支等價）`
         : `${r.riseN}/${r.riseSeen} 個上升取樣偏離 adv；例：${JSON.stringify(r.riseBad.slice(0, 3))}`);
+
+  check(`[${eng}] G0 前提：G 段跑的時候「首見 snap 5 秒窗」已關（否則 G1/G4 分不出是哪條規則）`,
+    r.g.sinceGateMs > 5000, `距 gate 啟用 ${Math.round(r.g.sinceGateMs)} ms`);
+  check(`[${eng}] G1 首見即帶 ≥5 分誤點：第一次查詢就等於 target（不從 0 凍結爬）`,
+    r.g.creationSnap.length === 0 && r.g.nA > 0,
+    r.g.creationSnap.length === 0 ? `${r.g.nA} 台首見 10 分全數一步到位` : `${r.g.creationSnap.length}/${r.g.nA} 台沒 snap：${JSON.stringify(r.g.creationSnap.slice(0, 3))}`);
+  check(`[${eng}] G2 既有條目一次 +≥5 分：下一次查詢即等於新 target，車在地圖上跳回真實位置`,
+    r.g.jumpSnap.length === 0 && r.g.n2 > 0 && r.g.moved > 0,
+    r.g.jumpSnap.length === 0 ? `${r.g.n2} 台全數一步到位，其中 ${r.g.moved} 台地圖位置改變` : `${r.g.jumpSnap.length}/${r.g.n2} 台沒 snap：${JSON.stringify(r.g.jumpSnap.slice(0, 3))}`);
+  check(`[${eng}] G3 既有條目 +4 分（<5 分）：維持 1× 凍結，不准 snap（正向對照）`,
+    r.g.smallRise.length === 0 && r.g.n2 > 0,
+    r.g.smallRise.length === 0 ? `${r.g.n2} 台一步後恰前進 ${2} 秒` : `${r.g.smallRise.length}/${r.g.n2} 台偏離：${JSON.stringify(r.g.smallRise.slice(0, 3))}`);
+  check(`[${eng}] G4 首見 4 分（<5 分）：首次為 0、之後 1× 爬升（凍結行為保留，正向對照）`,
+    r.g.creationFreeze.length === 0 && r.g.nB > 0,
+    r.g.creationFreeze.length === 0 ? `${r.g.nB} 台首次 0、一步後 ${2} 秒` : `${r.g.creationFreeze.length}/${r.g.nB} 台偏離：${JSON.stringify(r.g.creationFreeze.slice(0, 3))}`);
 
   check(`[${eng}] E 準點控制組：零誤點的車不得建立漸變條目，值恆為 0`,
     r.onTimeVal === 0 && r.onTimeEntry === false,

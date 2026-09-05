@@ -1,0 +1,76 @@
+{
+  "_readme": "MapLibre 離線陸地 style 片段，直接使用既有 data/taiwan_land.json 作為 offline-land GeoJSON source，不另產生幾何檔。兩層必須排在圖磚層之下，作為斷網或圖磚缺口時才露出的墊底層；再往上才是圖磚與軌道。layers 以 light 為預設，切換底圖時套用 themes[theme][layerId].paint。",
+  "source": {
+    "id": "offline-land",
+    "type": "geojson",
+    "data": "data/taiwan_land.json"
+  },
+  "layers": [
+    {
+      "id": "offline-land-fill",
+      "type": "fill",
+      "source": "offline-land",
+      "paint": {
+        "fill-color": "#f1f3f1",
+        "fill-opacity": 1
+      }
+    },
+    {
+      "id": "offline-land-line",
+      "type": "line",
+      "source": "offline-land",
+      "paint": {
+        "line-color": "#d3d9d7",
+        "line-opacity": 0.7,
+        "line-width": 1
+      }
+    }
+  ],
+  "themes": {
+    "light": {
+      "offline-land-fill": {
+        "paint": {
+          "fill-color": "#f1f3f1",
+          "fill-opacity": 1
+        }
+      },
+      "offline-land-line": {
+        "paint": {
+          "line-color": "#d3d9d7",
+          "line-opacity": 0.7,
+          "line-width": 1
+        }
+      }
+    },
+    "dark": {
+      "offline-land-fill": {
+        "paint": {
+          "fill-color": "#0e0e0e",
+          "fill-opacity": 1
+        }
+      },
+      "offline-land-line": {
+        "paint": {
+          "line-color": "#2c2c2c",
+          "line-opacity": 0.6,
+          "line-width": 1
+        }
+      }
+    },
+    "sat": {
+      "offline-land-fill": {
+        "paint": {
+          "fill-color": "#606050",
+          "fill-opacity": 1
+        }
+      },
+      "offline-land-line": {
+        "paint": {
+          "line-color": "#1c303b",
+          "line-opacity": 0.7,
+          "line-width": 1.2
+        }
+      }
+    }
+  }
+}

@@ -90,6 +90,7 @@ const noteLoud = (level, msg, detail) => {
 };
 
 const SAMPLE = () => {
+  const map = window.__map;
   const hits = state._freqHits || [];
   const out = [];
   // 🔴 2026-09-01：Metro Core（2026-08-26 上正式站）接手畫捷運之後，畫面上的車已經不是
@@ -280,7 +281,7 @@ const switched = await page.evaluate(() => {
   return g ? g.id : null;
 });
 await page.waitForTimeout(2500);
-await page.evaluate(() => map.fitBounds([[24.90, 121.30], [25.25, 121.75]], { animate: false }));
+await page.evaluate(() => window.__map.fitBounds([[24.90, 121.30], [25.25, 121.75]], { animate: false }));
 await page.waitForTimeout(3000);
 
 if (GAP_SEC < MIN_GAP_SEC)

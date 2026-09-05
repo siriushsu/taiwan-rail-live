@@ -73,9 +73,8 @@ const payloads = manifest.快照.filter(x => x.kind === 'tk').sort((a, b) => a.f
     dest: x.destIdx, run: x.run, arrEpoch: x.arrEpoch, no: x.no || '', terminal: !!x.terminal })) };
 });
 
-const leafletRoot = process.env.TRTC_LEAFLET_DIST || '/tmp/trtc-playwright-deps/node_modules/leaflet/dist';
-const leafletJs = fs.readFileSync(path.join(leafletRoot, 'leaflet.js'));
-const leafletCss = fs.readFileSync(path.join(leafletRoot, 'leaflet.css'));
+// M4-B(2026-09-05)：index.html 不再載 Leaflet，原本供本機 leaflet.js/css 給 cdnjs 網址的
+// 讀檔與路由已移除（那份 readFileSync 在 app/node_modules 重裝後會讓腳本在載入時就爆）。
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript', '.mjs': 'application/javascript',
   '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.webp': 'image/webp' };
 
@@ -108,10 +107,6 @@ async function preparePage(page, url) {
   await page.addInitScript(() => localStorage.setItem('trainmap-howto-seen', '1'));
   await page.route('**/*', async route => {
     const u = new URL(route.request().url());
-    if (u.hostname === 'cdnjs.cloudflare.com' && u.pathname.endsWith('leaflet.min.js'))
-      return route.fulfill({ status: 200, contentType: 'application/javascript', body: leafletJs });
-    if (u.hostname === 'cdnjs.cloudflare.com' && u.pathname.endsWith('leaflet.min.css'))
-      return route.fulfill({ status: 200, contentType: 'text/css', body: leafletCss });
     if (u.hostname === '127.0.0.1' || u.hostname === 'localhost') return route.continue();
     return route.abort('blockedbyclient');
   });
@@ -123,6 +118,21 @@ async function preparePage(page, url) {
 
 async function replay(root, label, engineName, port, htmlOverride = null, captureSpec = null) {
   const { server, indexHtml } = await serve(root, port, htmlOverride);
+  // 這支腳本同時重播三份 index.html:當前版與兩份早於 M0 的歷史版。歷史頁沒有 window.__M,
+  // 而 Task 1 已把驗收投影全面改走 M ⇒ 只替缺 M 的歷史頁補最小 Leaflet shim(寫法同
+  // verify_landscape.mjs 的舊基準 shim:native 方法用 bracket 取,不觸 G1e 的原名禁令)。
+  const INSTALL_LEGACY_M = () => {
+    if (window.__M || !window.__map) return;
+    const raw = window.__map;
+    window.__M = {
+      engine: 'leaflet', raw,
+      toScreen: ll => raw['latLngToContainerPoint'](ll),
+      fromScreen: px => raw['containerPointToLatLng'](px),
+      getCenter: () => raw.getCenter(), getContainer: () => raw.getContainer(),
+      getSize: () => raw.getSize(), getZoom: () => raw.getZoom(),
+      setView: (center, zoom, options) => raw.setView(center, zoom, options),
+    };
+  };
   const url = `http://127.0.0.1:${port}/index.html`;
   const launcher = engineName === 'webkit' ? webkit : chromium;
   const browser = await launcher.launch({ headless: true });
@@ -131,6 +141,7 @@ async function replay(root, label, engineName, port, htmlOverride = null, captur
   const pageErrors = []; page.on('pageerror', e => pageErrors.push(String(e)));
   try {
     await preparePage(page, url);
+    await page.evaluate(INSTALL_LEGACY_M); // 歷史頁沒有 M,補 shim(當前版永遠早退)
     const result = await page.evaluate(({ payloads, selectedKeys, floor, ceil, satEps, correctingEpsSec, captureSpec }) => {
       const round = (v, n = 4) => Number.isFinite(v) ? +v.toFixed(n) : null;
       const percentile = (values, p) => {
@@ -208,7 +219,7 @@ async function replay(root, label, engineName, port, htmlOverride = null, captur
       };
 
       state.playing = false; state.ready = false; _trtcPolling = true;
-      map.setView([25.0478, 121.5170], 16, { animate: false });
+      window.__map.setView([25.0478, 121.5170], 16, { animate: false });
       _trtcNoTrip.clear(); _easedShift.clear(); _metroGateEp.on = false; _metroGateEp.ep = 0; _metroGateEp.at = 0;
       const previous = new Map(), previousTarget = new Map(), lastJump = new Map(), truths = new Map();
       const accuracy = { steady: [], correcting: [], all: [] }, accuracyLinear = { steady: [], correcting: [], all: [] }, sampleIds = [];
@@ -337,7 +348,7 @@ async function replay(root, label, engineName, port, htmlOverride = null, captur
         }
         for (const key of [...openEpisodes.keys()]) if (!seen.has(key)) closeEpisode(key);
         if (captureSpec && captureSpec.epochs.includes(epoch)) {
-          map.setView(captureSpec.center, captureSpec.zoom, { animate: false }); draw();
+          window.__map.setView(captureSpec.center, captureSpec.zoom, { animate: false }); draw();
           let marked = null;
           for (const ln of pool()) for (const tr of ln._tt) if (keyOf(ln, tr) === captureSpec.key) {
             const roster = freqTrainTime(tr, state.simSec); if (roster == null) continue;
@@ -347,10 +358,10 @@ async function replay(root, label, engineName, port, htmlOverride = null, captur
           const cv = document.getElementById('overlay');
           const out = document.createElement('canvas'); out.width = 560; out.height = 300;
           const oc = out.getContext('2d'); oc.fillStyle = '#f3f0e8'; oc.fillRect(0, 0, out.width, out.height);
-          const centerPx = map.latLngToContainerPoint(captureSpec.center);
+          const centerPx = window.__M.toScreen(captureSpec.center);
           oc.drawImage(cv, centerPx.x - out.width / 2, centerPx.y - out.height / 2, out.width, out.height, 0, 0, out.width, out.height);
           if (marked) {
-            const p = map.latLngToContainerPoint(marked.pos), x = p.x - centerPx.x + out.width / 2, y = p.y - centerPx.y + out.height / 2;
+            const p = window.__M.toScreen(marked.pos), x = p.x - centerPx.x + out.width / 2, y = p.y - centerPx.y + out.height / 2;
             oc.save(); oc.strokeStyle = '#ff2d7a'; oc.lineWidth = 4; oc.beginPath(); oc.arc(x, y, 14, 0, Math.PI * 2); oc.stroke();
             oc.fillStyle = '#ff2d7a'; oc.font = '700 14px system-ui'; oc.textAlign = 'left'; oc.fillText('比較車', x + 19, y + 5); oc.restore();
           }

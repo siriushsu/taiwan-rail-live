@@ -21,7 +21,7 @@ const OUT = 'data/data_manifest.json';
 export function collectDataFiles(root = ROOT) {
   const html = readFileSync(path.join(root, 'index.html'), 'utf8');
   const found = new Set();
-  for (const m of html.matchAll(/'\.\/(data\/[a-z0-9_]+\.json)'/g)) found.add(m[1]);
+  for (const m of html.matchAll(/'\.\/(data\/[a-z0-9_]+\.(?:geo)?json)'/g)) found.add(m[1]);
   return [...found].sort();
 }
 

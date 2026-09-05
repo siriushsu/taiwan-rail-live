@@ -46,6 +46,7 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { runEngineMatrix } from './lib/engine_matrix.mjs';
 
 // ── 2026-08-12 §04c 改寫 ──
 // 版面照設計回包「§04c 橫式版面」重排(工具堆右欄/徽章併頂列/跟隨欄上下錨定/露出地圖相機+前瞻/
@@ -121,7 +122,13 @@ const SAME_SOURCE = createHash('md5').update(baselineHtml).digest('hex')
   === createHash('md5').update(readFileSync(path.join(ROOT, 'index.html'))).digest('hex');
 
 const results = [];
-const ok = (name, pass, detail = '') => { results.push({ name, pass, detail }); console.log(`${pass ? 'PASS' : 'FAIL'} ${name}${detail ? ' — ' + detail : ''}`); };
+const preflightFailures = [];
+let activeCheck = (pass, name, detail = '') => {
+  console.log(`${pass ? 'PASS' : 'FAIL'} [preflight] ${name}${detail ? ` — ${detail}` : ''}`);
+  if (!pass) preflightFailures.push({ name, detail });
+};
+let activeEngineUrl = null;
+const ok = (name, pass, detail = '') => { results.push({ name, pass, detail }); activeCheck(pass, name, detail); };
 const errors = [];
 
 // 橫式（矮視窗）：真實 iPhone 橫放的 logical point 尺寸
@@ -177,7 +184,10 @@ const PICK_FOLLOW = async () => {
         // 分布判準(看得見=6/夾死=0)就掛在牆鐘上(0812 21:52 webkit 抽到 2 台邊界車假紅)。
         // 0.12° ≈ z13 半視窗的三倍餘裕;嚴格輪抽不到才退回,寧可夾限也不能沒車可跟。
         const p = (typeof trainPos === 'function') ? trainPos(tr, state.simSec) : null;
-        const mb = map.options.maxBounds ? L.latLngBounds(map.options.maxBounds) : null;
+        // M4-B：這裡原本只在 Leaflet 下用 raw.options.maxBounds 排除貼牆的車;MapLibre 的硬牆走
+        // setMaxBounds/getMaxBounds,而 M4-A 起唯一引擎就是它 ⇒ 這個排除從那時起本來就沒在跑。
+        // 不在拔引擎這一輪替它補新實作(那是另一件事),原樣保留「不排除」的行為並具名說明。
+        const mb = null;
         if (p && mb && (p.lat - mb.getSouth() < 0.12 || mb.getNorth() - p.lat < 0.12
           || p.lon - mb.getWest() < 0.12 || mb.getEast() - p.lon < 0.12)) continue;
       }
@@ -193,6 +203,7 @@ async function boot(browser, { w, h, tag }, { url = BASE, follow = true, sheetSi
   await ctx.addInitScript(a => {
     try {
       localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-appearance', 'light');
+      localStorage.setItem('trainmap-language', 'zh-TW');
       if (a.sz) localStorage.setItem('trainmap-sheet-size', a.sz);
       // 字級是開機第一行就讀進去的(首繪腳本),事後塞 localStorage 來不及
       if (a.fs) localStorage.setItem('trainmap-fontscale', a.fs);
@@ -203,9 +214,43 @@ async function boot(browser, { w, h, tag }, { url = BASE, follow = true, sheetSi
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errors.push(`[${tag}] console.error: ${m.text()}`); });
   // goto 90s+一次重試:webkit 對 1.4MB 單檔頁的首次載入在機器有載時偶發 >30s(0812 兩輪
   // 各在不同 suite 撞到,零 FAIL 純 goto 逾時=環境不是產品;預設 30s 會讓整支腳本 uncaught 崩潰)
-  try { await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 }); }
-  catch (e) { await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 }); }
+  const targetUrl = activeEngineUrl(url);
+  try { await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 90000 }); }
+  catch (e) { await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 90000 }); }
   await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready === true; } catch (e) { return false; } }, null, { timeout: 45000 });
+  // 這支 gate 原本直接拿牆鐘挑「此刻行駛中」的台鐵車，深夜收班後整組 60+ 情境會一起假紅。
+  // 從頁面已載入的真實時刻表挑最長的站間，停在該站間中央；兩引擎與歷史對照頁都用同一規則，
+  // 因而仍量真實幾何／相機行為，只移除執行時段這個無關變因。
+  await page.evaluate(() => {
+    let best = null;
+    for (const tr of (state.trains || [])) {
+      if (tr.sys !== 'tra_sched' || tr.loop || !tr.train || !Array.isArray(tr.stops)) continue;
+      for (let i = 0; i + 1 < tr.stops.length; i++) {
+        const dep = Number(tr.stops[i].depSec), arr = Number(tr.stops[i + 1].arrSec);
+        const span = arr - dep;
+        if (Number.isFinite(span) && span > 420 && (!best || span > best.span))
+          best = { span, sec: dep + span / 2 };
+      }
+    }
+    if (!best) return false;
+    state.playing = false;
+    setSimSec(best.sec % 86400);
+    if (typeof draw === 'function') draw();
+    return true;
+  });
+  // 零回歸基準 b937719 早於 M0，沒有 window.__M；Task 1 的驗收投影已全面改走 M，
+  // 因此只替舊基準頁補最小 Leaflet shim。受測頁本來就有正式 M，永遠不進這條。
+  await page.evaluate(() => {
+    if (window.__M || !window.__map) return;
+    const raw = window.__map;
+    window.__M = {
+      engine: 'leaflet', raw,
+      toScreen: ll => raw['latLngToContainerPoint'](ll),
+      fromScreen: px => raw['containerPointToLatLng'](px),
+      getCenter: () => raw.getCenter(), getContainer: () => raw.getContainer(), getSize: () => raw.getSize(), getZoom: () => raw.getZoom(),
+      setView: (center, zoom, options) => raw.setView(center, zoom, options),
+    };
+  });
   await page.waitForTimeout(300);
   await page.evaluate(INSTALL_EXPOSED); // 判準側的露出地圖真值(對照組頁面也裝:同一把尺量兩邊)
   if (follow) {
@@ -220,13 +265,13 @@ async function boot(browser, { w, h, tag }, { url = BASE, follow = true, sheetSi
 const TRAIN_PROBE = () => {
   const tr = state.followTrain; if (!tr) return { err: 'no-follow' };
   const p = trainPos(tr, state.simSec); if (!p) return { err: 'no-pos' };
-  const cp = map.latLngToContainerPoint([p.lat, p.lon]);
-  const mc = map.getContainer().getBoundingClientRect();
+  const cp = window.__M.toScreen([p.lat, p.lon]);
+  const mc = window.__M.getContainer().getBoundingClientRect();
   const cx = mc.left + cp.x, cy = mc.top + cp.y;
   const inVP = cx >= 0 && cx <= innerWidth && cy >= 0 && cy <= innerHeight;
   const hit = inVP ? document.elementFromPoint(cx, cy) : null;
   let onMap = false;
-  for (let e = hit; e; e = e.parentElement) if (e === map.getContainer()) { onMap = true; break; }
+  for (let e = hit; e; e = e.parentElement) if (e === window.__M.getContainer()) { onMap = true; break; }
   return {
     cx: +cx.toFixed(0), cy: +cy.toFixed(0), inVP, onMap,
     hit: hit ? (hit.id ? '#' + hit.id : (hit.className?.toString?.().slice(0, 28) || hit.tagName)) : null,
@@ -237,7 +282,7 @@ const TRAIN_PROBE = () => {
 // 公式改了判準才不會跟著一起瞎（心得 29/35）。
 const SIDE_RAIL_PROBE = () => {
   const el = activeSheetEl(); if (!el || el.hidden) return { err: 'no-sheet' };
-  const r = el.getBoundingClientRect(), mc = map.getContainer().getBoundingClientRect();
+  const r = el.getBoundingClientRect(), mc = window.__M.getContainer().getBoundingClientRect();
   return {
     id: el.id,
     leftFreeRatio: +((r.left - mc.left) / mc.width).toFixed(3), // 左邊留給地圖的比例
@@ -261,7 +306,7 @@ const INSTALL_EXPOSED = () => {
     return cs.display !== 'none' && cs.visibility !== 'hidden' && eff(el) >= 0.5;
   };
   window.__exposed = () => {
-    const mc = map.getContainer().getBoundingClientRect();
+    const mc = window.__M.getContainer().getBoundingClientRect();
     let top = 0, bottom = 0, left = 0, right = 0;
     for (const el of [document.getElementById('topbar'), document.querySelector('.badge')])
       if (vis(el)) top = Math.max(top, el.getBoundingClientRect().bottom - mc.top + 8);
@@ -314,12 +359,12 @@ const INSTALL_EXPOSED = () => {
     const ex = window.__exposed();
     const tr = state.followTrain; if (!tr) return { err: 'no-follow' };
     const p0 = trainPos(tr, state.simSec); if (!p0) return { err: 'no-pos' };
-    const a = map.latLngToContainerPoint([p0.lat, p0.lon]);
+    const a = window.__M.toScreen([p0.lat, p0.lon]);
     const m = 0.15 * Math.min(ex.w, ex.h);
     const dirTo = dt => {
       const p1 = trainPos(tr, state.simSec + dt);
       if (!p1) return null;
-      const b = map.latLngToContainerPoint([p1.lat, p1.lon]);
+      const b = window.__M.toScreen([p1.lat, p1.lon]);
       const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy);
       return len > 0.5 ? { x: dx / len, y: dy / len } : null;
     };
@@ -761,8 +806,8 @@ async function landscapeSuite(browser, eng) {
         // 相機暫停的差分:把車撥快 120 秒(未暫停的話跟車鏡頭必動),量固定地理錨點的螢幕位置。
         // 心得:寫 simSec 必同時 clockAtNow=false;量完交還牆鐘,下一幀自動回到現在。
         const pause = await page.evaluate(async () => {
-          const anchor = map.getCenter();
-          const at = () => map.latLngToContainerPoint(anchor);
+          const anchor = window.__M.getCenter();
+          const at = () => window.__M.toScreen(anchor);
           const a0 = at();
           state.clockAtNow = false; state.simSec += 120;
           await new Promise(r => setTimeout(r, 900));
@@ -809,7 +854,7 @@ async function landscapeSuite(browser, eng) {
       //    那個縮放下視窗經度跨幅 18.7° 比整個 maxBounds(10.75°) 還寬 ⇒ Leaflet 把中心完全釘死、
       //    地圖一格都不能平移，讓位在物理上不可能發生。使用者跟車時本來就會放大，
       //    這裡就照那個真實狀態驗（心得 28：只驗初始乾淨狀態＝沒驗）。
-      await page.evaluate(() => { state._autoPan = true; map.setZoom(11, { animate: false }); state._autoPan = false; });
+      await page.evaluate(() => { state._autoPan = true; window.__M.setView(window.__M.getCenter(), 11, { animate: false }); state._autoPan = false; });
       await page.waitForTimeout(700);
       const cam = await page.evaluate(() => window.__aheadExpect());
       aheadCount(cam);
@@ -977,11 +1022,11 @@ async function landscapeSuite(browser, eng) {
     await page.waitForTimeout(600);
     const tap = await page.evaluate(() => {
       const el = activeSheetEl(); const r = el.getBoundingClientRect();
-      const mc = map.getContainer().getBoundingClientRect();
+      const mc = window.__M.getContainer().getBoundingClientRect();
       const x = mc.left + (r.left - mc.left) / 2, y = mc.top + mc.height / 2; // 露出區的正中
       const hit = document.elementFromPoint(x, y);
       let onMap = false;
-      for (let e = hit; e; e = e.parentElement) if (e === map.getContainer()) { onMap = true; break; }
+      for (let e = hit; e; e = e.parentElement) if (e === window.__M.getContainer()) { onMap = true; break; }
       return { x: Math.round(x), y: Math.round(y), onMap, hit: hit ? (hit.id || hit.tagName) : null };
     });
     ok(`L8 ${eng}/${S.tag} 側欄開著時仍點得到露出的地圖`, tap.onMap === true, JSON.stringify(tap));
@@ -1027,17 +1072,20 @@ async function fix0812Suite(browser, eng) {
   }
   // 桌面 WebKit 不支援 iOS 專屬的 text autosizing 屬性(computed 讀空),chromium 讀得到 100%
   ok(`F2 ${eng} text-size-adjust=100%(治實機橫放字級膨脹)`, adjVal === '100%' || (eng === 'webkit' && adjVal === ''), `adj=${adjVal || '(空)'}`);
-  // F3 相機自癒 v2 三情境(Codex 複審:v1 讀累計值+只測健康路徑=假綠入口;改記前後差 delta):
+  // F3 相機自癒 v2 情境(Codex 複審:v1 讀累計值+只測健康路徑=假綠入口;改記前後差 delta):
   // (a) 手勢持續中按兵不動(負對照),手勢一停立即開火——驗 _gestureAt 禁救閘的兩側;
-  // (b) _zoomAnim 卡死(>5s):v1 把它抄成前置閘=永不開火(實機正是這型),v2 須開火+清旗標;
   // (c) _transition 卡死:updateFollowCamera 開頭 triage 清旗標+撤遮幕,recenterTo 同幀接手。
+  // (b)「_zoomAnim 卡死(>5s)不再否決」已於 M4-B(2026-09-05)退役:_zoomAnim/_zaAt/_zaCal 那一整組
+  //     是 Leaflet 縮放動畫仿射的旗標,隨引擎一起拔掉(index.html 現在只留一行說明註解)。retire 而不是
+  //     改寫,因為它守的那個否決根本不存在了——MapLibre 每幀真實更新相機,recenterTo 沒有這個前置閘。
+  //     留著只會量到「注一個沒人讀的旗標、沒人清它」而永遠紅(實測 d=0／za=true),那是判準過期不是回歸。
   const f3a = await page.evaluate(async () => {
     const tr = state.followTrain; if (!tr) return { err: 'no-follow' };
     window.__origRecenter = recenterTo;
     recenterTo = () => {}; // 癱瘓主置中路徑:能救回來的只剩自癒
     const p = trainPos(tr, state.simSec);
     const rs0 = state._camRescues || 0;
-    map.setView([p.lat + 0.4, p.lon - 0.4], 11, { animate: false });
+    window.__M.setView([p.lat + 0.4, p.lon - 0.4], 11, { animate: false });
     const iv = setInterval(() => { state._gestureAt = performance.now(); }, 400); // 模擬使用者持續操作
     await new Promise(r => setTimeout(r, 4300));
     clearInterval(iv);
@@ -1046,45 +1094,25 @@ async function fix0812Suite(browser, eng) {
     await new Promise(r => setTimeout(r, 1600));
     const fired = (state._camRescues || 0) - rs0;
     const p2 = trainPos(tr, state.simSec) || p;
-    const cp = map.latLngToContainerPoint([p2.lat, p2.lon]);
-    const sz = map.getSize();
+    const cp = window.__M.toScreen([p2.lat, p2.lon]);
+    const sz = window.__M.getSize();
     recenterTo = window.__origRecenter;
-    return { held, fired, z: +map.getZoom().toFixed(1),
+    return { held, fired, z: +window.__M.getZoom().toFixed(1),
       inView: cp.x >= 0 && cp.x <= sz.x && cp.y >= 0 && cp.y <= sz.y };
   });
   ok(`F3a ${eng}/16橫 自癒:手勢持續中按兵不動(0 次),手勢停止即開火貼車 z≥13`,
     !f3a.err && f3a.held === 0 && f3a.fired >= 1 && f3a.inView && f3a.z >= 13, JSON.stringify(f3a));
-  const f3b = await page.evaluate(async () => {
-    const tr = state.followTrain; if (!tr) return { err: 'no-follow' };
-    const p = trainPos(tr, state.simSec);
-    const rs0 = state._camRescues || 0;
-    // 模擬縮放旗標卡死:recenterTo 被它天然否決(函式開頭 return),zoomAnimFrame 可能逐幀丟例外
-    // ——相機段(9039)在 draw 分支(9064)之前,自癒仍會跑到;這正是實機凍結的擬真形態。
-    // 🔴 注旗標必須在 setView 之後:setView 改 zoom 會發 zoomend→endZoomAnim 把假旗標清掉
-    // (首輪突變在 v1 上量到 za:false 才揭穿——先 setView 的版本連 v2 都會假紅)
-    map.setView([p.lat + 0.4, p.lon - 0.4], 11, { animate: false });
-    state._zoomAnim = true; state._zaAt = performance.now() - 6000; state._zaCal = null; state._zaCalPend = null;
-    state._gestureAt = 0;
-    await new Promise(r => setTimeout(r, 4300));
-    const p2 = trainPos(tr, state.simSec) || p;
-    const cp = map.latLngToContainerPoint([p2.lat, p2.lon]);
-    const sz = map.getSize();
-    return { d: (state._camRescues || 0) - rs0, za: !!state._zoomAnim, z: +map.getZoom().toFixed(1),
-      inView: cp.x >= 0 && cp.x <= sz.x && cp.y >= 0 && cp.y <= sz.y };
-  });
-  ok(`F3b ${eng}/16橫 自癒:_zoomAnim 卡死(>5s)不再否決——開火貼車+旗標清除`,
-    !f3b.err && f3b.d >= 1 && !f3b.za && f3b.inView && f3b.z >= 13, JSON.stringify(f3b));
   const f3c = await page.evaluate(async () => {
     const tr = state.followTrain; if (!tr) return { err: 'no-follow' };
     const p = trainPos(tr, state.simSec);
     state._transition = true; state._traAt = performance.now() - 6000;
     document.getElementById('veil').style.opacity = 1;
-    map.setView([p.lat + 0.4, p.lon - 0.4], 11, { animate: false });
+    window.__M.setView([p.lat + 0.4, p.lon - 0.4], 11, { animate: false });
     state._gestureAt = 0;
     await new Promise(r => setTimeout(r, 1600)); // veil 過渡 .7s+首拍 triage,留一倍餘裕
     const p2 = trainPos(tr, state.simSec) || p;
-    const cp = map.latLngToContainerPoint([p2.lat, p2.lon]);
-    const sz = map.getSize();
+    const cp = window.__M.toScreen([p2.lat, p2.lon]);
+    const sz = window.__M.getSize();
     return { tra: !!state._transition, veil: getComputedStyle(document.getElementById('veil')).opacity,
       inView: cp.x >= 0 && cp.x <= sz.x && cp.y >= 0 && cp.y <= sz.y };
   });
@@ -1093,7 +1121,7 @@ async function fix0812Suite(browser, eng) {
   await ctx.close();
   // F4 直式對照組:更多維持全寬底抽屜——橫式收斂規則不得外漏到直式
   const ctx2 = await browser.newContext({ viewport: { width: 393, height: 852 }, hasTouch: true, isMobile: true });
-  await ctx2.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-appearance', 'light'); } catch (e) {} });
+  await ctx2.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-appearance', 'light'); localStorage.setItem('trainmap-language', 'zh-TW'); } catch (e) {} });
   const pg2 = await ctx2.newPage();
   await pg2.goto(BASE, { waitUntil: 'domcontentloaded' });
   await pg2.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready === true; } catch (e) { return false; } }, null, { timeout: 45000 });
@@ -1138,12 +1166,15 @@ async function sizeGuardSuite(browser, eng) {
   const f5pick = f5btn || await pg3.evaluate(PICK_FOLLOW);
   await pg3.waitForTimeout(1200);
   const SIZE_PROBE = () => {
-    const el = map.getContainer(), sz = map.getSize(), cv = document.getElementById('overlay');
+    const el = window.__M.getContainer(), sz = window.__M.getSize(), cv = document.getElementById('overlay');
+    // MapLibre 的適配層 getSize 回容器實測,與 cw 同源、恆相等=零資訊;引擎自己的尺寸住在 transform,改讀它。
+    const raw = window.__M.raw, ml = window.__ENGINE === 'maplibre' && raw && raw.transform;
+    const szx = ml ? raw.transform.width : sz.x, szy = ml ? raw.transform.height : sz.y;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const tr = state.followTrain, p = tr ? trainPos(tr, state.simSec) : null;
-    const cp = p ? map.latLngToContainerPoint([p.lat, p.lon]) : null;
+    const cp = p ? window.__M.toScreen([p.lat, p.lon]) : null;
     return {
-      cw: el.clientWidth, ch: el.clientHeight, szx: sz.x, szy: sz.y, cvw: cv.width, cvh: cv.height,
+      engine: window.__ENGINE, cw: el.clientWidth, ch: el.clientHeight, szx, szy, cvw: cv.width, cvh: cv.height,
       wantW: Math.round(el.clientWidth * dpr), wantH: Math.round(el.clientHeight * dpr),
       inPhys: cp ? (cp.x >= 0 && cp.x <= el.clientWidth && cp.y >= 0 && cp.y <= el.clientHeight) : null,
       heals: state._sizeHeals || 0,
@@ -1161,9 +1192,12 @@ async function sizeGuardSuite(browser, eng) {
   await pg3.evaluate(() => { const s = document.getElementById('__lag'); if (s) s.remove(); });
   await pg3.waitForTimeout(1500); // 守衛每 200ms 量一次，留七倍餘裕
   const f5 = await pg3.evaluate(SIZE_PROBE);
-  ok(`F5 ${eng}/旋轉版面延遲 尺寸自癒：Leaflet 尺寸=容器＋畫布重配＋車落在實體畫面內`,
+  // 「守衛開過火」的計數(_sizeHeals)是 Leaflet 專屬:MapLibre 用自己的 ResizeObserver 追容器,
+  // 適配層 getSize 又是容器實測 ⇒ syncMapSizeIfStale 結構上量不到過期、恆 0。M4-B 拔掉 Leaflet 後
+  // 那個分支永遠到不了,整條併掉;這一項改由 transform 尺寸＋畫布重配＋車點落在實體容器內三項守。
+  ok(`F5 ${eng}/旋轉版面延遲 尺寸自癒：適配層尺寸=容器＋畫布重配＋車落在實體畫面內`,
     !!f5pick && f5.szx === f5.cw && f5.szy === f5.ch && f5.cvw === f5.wantW && f5.cvh === f5.wantH
-    && f5.inPhys === true && f5.heals > f5base.heals,
+    && f5.inPhys === true,
     JSON.stringify({ pick: f5pick, viaRandBtn: !!f5btn, base: f5base, after: f5 }));
   // F5b 負面側：守衛不得空轉。尺寸本來就同步時每 200ms 都 invalidateSize＋reproject＝把整張圖
   // 每秒重投影五次（效能災難，且 reproject 會重配畫布清空當幀）。量「穩定後計數不再增加」。
@@ -1219,7 +1253,7 @@ async function portraitSuite(browser, eng) {
       branchCount[canPan ? 'visible' : 'clamped']++;
       // 直向的面板必須維持底部 sheet（不可被橫式規則波及）
       const bottomSheet = await page.evaluate(() => {
-        const el = activeSheetEl(); const r = el.getBoundingClientRect(), mc = map.getContainer().getBoundingClientRect();
+        const el = activeSheetEl(); const r = el.getBoundingClientRect(), mc = window.__M.getContainer().getBoundingClientRect();
         return { fullWidth: (r.width / mc.width) > 0.85, bottomAnchored: Math.abs(mc.bottom - r.bottom) < 120 };
       });
       ok(`L5 ${eng}/${S.tag} ${P.label}·仍是底部 sheet`, bottomSheet.fullWidth && bottomSheet.bottomAnchored, JSON.stringify(bottomSheet));
@@ -1350,7 +1384,7 @@ async function rotationSuite(browser, eng) {
     await page.waitForTimeout(900);
     const back = await page.evaluate(() => {
       const el = activeSheetEl(); if (!el || el.hidden) return { err: 'no-sheet' };
-      const r = el.getBoundingClientRect(), mc = map.getContainer().getBoundingClientRect();
+      const r = el.getBoundingClientRect(), mc = window.__M.getContainer().getBoundingClientRect();
       return { id: el.id, wRatio: +(r.width / mc.width).toFixed(2), bottomAnchored: Math.abs(mc.bottom - r.bottom) < 120,
         size: el.classList.contains('sheet-small') ? 'small' : 'medium' };
     });
@@ -1397,22 +1431,22 @@ async function rotationSuite(browser, eng) {
   // L10b：讓位軸向的對帳。跟車／放空每幀都會重新取景所以會自癒，**沒在跟車**時才看得到——
   // 轉向後讓位軸從垂直換成水平，若沒有重跑一次差量記帳，鏡頭會停在舊的垂直位移上。
   // 🔴 §04c 判準寫成不變量：「露出中心當下釘著的地理點」在面板開關／轉向之後**仍在新露出中心**。
-  //    真值＝渲染 rect 推的露出區（__exposed）＋ Leaflet 公開投影，不讀 state._focusShift（心得 29）。
+  //    真值＝渲染 rect 推的露出區（__exposed）＋ 引擎公開投影（M.fromScreen／M.toScreen），不讀 state._focusShift（心得 29）。
   //    舊寫法拿 (i.bottom-i.top)/2 對「容器中心」記帳——§04c 後乾淨態就有頂列/tabbar/膠囊/工具堆
   //    的常駐讓位，那套兩邊制的絕對量對不上了；不變量式把基準內生化，每一步只問「跟上了沒」。
   const b2 = await boot(browser, { w: 393, h: 852, tag: '轉向讓位對帳' }, { follow: false });
   const { ctx: c2, page: p2 } = b2;
   const ANCHOR = [24.5, 121.0]; // 台灣中部：zoom 9 下四周都還有平移餘裕，不會被 maxBounds 夾住干擾
-  await p2.evaluate(a => { state._autoPan = true; map.setView(a, 9, { animate: false }); state._autoPan = false; }, ANCHOR);
+  await p2.evaluate(a => { state._autoPan = true; window.__M.setView(a, 9, { animate: false }); state._autoPan = false; }, ANCHOR);
   await p2.waitForTimeout(400);
   const PIN = () => {
     const ex = window.__exposed();
-    const ll = map.containerPointToLatLng(L.point(ex.cx, ex.cy));
+    const ll = window.__M.fromScreen({ x: ex.cx, y: ex.cy });
     return { lat: ll.lat, lng: ll.lng, ex };
   };
   const AT = pin => {
     const ex = window.__exposed();
-    const cp = map.latLngToContainerPoint([pin.lat, pin.lng]);
+    const cp = window.__M.toScreen([pin.lat, pin.lng]);
     return { dx: +(cp.x - ex.cx).toFixed(1), dy: +(cp.y - ex.cy).toFixed(1), ex };
   };
   const pin = await p2.evaluate(PIN);
@@ -1451,10 +1485,11 @@ async function rotationSuite(browser, eng) {
 //    (b) `getCenter()` 取的是經緯度中點，而 Mercator 下緯度中點不等於像素中點（實測 zoom6→7
 //    偏差 5→10px 剛好倍增＝固定的世界像素量，正是這個效應）。前後同一種量法，誤差自動抵銷。
 const CENTER_PROBE = () => {
-  const mb = map.options.maxBounds; if (!mb) return { err: 'no-maxbounds' };
-  const b = L.latLngBounds(mb), z = map.getZoom();
-  const p1 = map.project(b.getNorthWest(), z), p2 = map.project(b.getSouthEast(), z);
-  const cp = map.latLngToContainerPoint(map.unproject(L.point((p1.x + p2.x) / 2, (p1.y + p2.y) / 2), z));
+  const map = window.__M;
+  const b = state._panFence; if (!b) return { err: 'no-maxbounds' };
+  const z = map.getZoom();
+  const p1 = map.worldPx(b.getNorthWest(), z), p2 = map.worldPx(b.getSouthEast(), z);
+  const cp = map.toScreen(map.worldUnpx({ x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }, z));
   const mc = map.getContainer().getBoundingClientRect();
   const el = typeof activeSheetEl === 'function' ? activeSheetEl() : null;
   let isRail = null;
@@ -1466,7 +1501,9 @@ const CENTER_PROBE = () => {
   // 可視中線=§04c 露出區中心(共用契約推導;第一版只扣側欄,漏了工具欄/頂列/tabbar/膠囊,
   // 於是側欄形態下永遠差「工具欄那份/2」——判準比實作少讓一塊,x 恆差 ~27px 的假紅)
   const ex = window.__exposed();
-  return { isRail, zoom: z, degraded: !!state._limitCenterDegraded,
+  // M4-B：degraded 原本回報 state._limitCenterDegraded(「Leaflet 升級把 _limitCenter 拿掉了」的旗標)。
+  // 那個 monkeypatch 隨 Leaflet 一起拔掉,旗標永遠是 undefined ⇒ 判準恆綠、零訊號,故退役不再回報。
+  return { isRail, zoom: z,
     dx: +(cp.x - ex.cx).toFixed(1), dy: +(cp.y - ex.cy).toFixed(1) };
 };
 async function centeringSuite(browser, eng) {
@@ -1481,11 +1518,12 @@ async function centeringSuite(browser, eng) {
     await page.tap('#tabExplore');
     await page.waitForTimeout(900);
     const r = await page.evaluate(CENTER_PROBE);
-    // degraded 是「Leaflet 升級把私有 API 拿掉了」的旗標：那會讓夾限靜默退回原生行為、
-    // 缺陷悄悄回來。把它併進同一條斷言，退化就是紅，不會只剩一個沒人看的 detail。
+    // M4-B：原本這條還併了 degraded（Leaflet 私有 _limitCenter 被拿掉的旗標）。Leaflet 拔掉後
+    // 那個旗標恆 undefined、`=== false` 恆假 ⇒ 併著只會讓整條假紅,而它守的東西(面板讓位被硬牆夾)
+    // 在 MapLibre 上改由 setPadding 保證,不需要事後對帳(見 focusApplyLimit 的 M4-B 註解)。
     const shiftX = r.dx - before.dx, shiftY = r.dy - before.dy;
     ok(`L12 ${eng}/${S.tag} 全島視角·開面板前後台灣在可視區的位置不變`,
-      !r.err && !before.err && r.degraded === false && Math.abs(shiftX) <= 4 && Math.abs(shiftY) <= 4,
+      !r.err && !before.err && Math.abs(shiftX) <= 4 && Math.abs(shiftY) <= 4,
       `位移 x${shiftX.toFixed(1)} y${shiftY.toFixed(1)}；無面板=${JSON.stringify(before)} 開面板=${JSON.stringify(r)}`);
     if (!r.err) (r.isRail ? rail++ : sheet++);
     await ctx.close();
@@ -1698,6 +1736,40 @@ async function stickySuite(browser, eng) {
   await ctx.close();
 }
 
+// 這支 gate 的 context 是 hasTouch+isMobile；Playwright 的 page.mouse 在 Chromium 此時不會送出
+// canvas 可收到的 mouse/pointer 事件，拿它驗「使用者拖地圖」會把真綠判成紅。Chromium 走 CDP
+// 送可信的 touch sequence。Playwright WebKit 只公開 touchscreen.tap、沒有 drag；該分支保留原生
+// mouse sequence 驗同一套 MapLibre dragPan/dragstart 語意，真觸控由 Chromium 與最後的實機錄影守住。
+async function touchDrag(page, eng, x0, y0, x1, y1) {
+  const steps = 14;
+  if (eng === 'chromium') {
+    const cdp = await page.context().newCDPSession(page);
+    try {
+      // browser.newContext({ hasTouch:true }) 只影響頁面能力偵測；直接走 CDP 時仍須明示開啟
+      // touch emulation，否則 dispatchTouchEvent 會成功回傳卻完全不產生 DOM 事件。
+      await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+      await cdp.send('Input.dispatchTouchEvent', {
+        type: 'touchStart', touchPoints: [{ x: x0, y: y0, id: 1, radiusX: 1, radiusY: 1, force: 1 }],
+      });
+      for (let i = 1; i <= steps; i++) {
+        const x = x0 + (x1 - x0) * i / steps, y = y0 + (y1 - y0) * i / steps;
+        await cdp.send('Input.dispatchTouchEvent', {
+          type: 'touchMove', touchPoints: [{ x, y, id: 1, radiusX: 1, radiusY: 1, force: 1 }],
+        });
+        await page.waitForTimeout(16);
+      }
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    } finally {
+      await cdp.detach();
+    }
+    return;
+  }
+  await page.mouse.move(x0, y0);
+  await page.mouse.down();
+  await page.mouse.move(x1, y1, { steps });
+  await page.mouse.up();
+}
+
 async function deviceSuite(browser, eng) {
   const seenAll = new Set();
   for (const S of LANDSCAPE) {
@@ -1721,11 +1793,7 @@ async function deviceSuite(browser, eng) {
     const sx = fpIsRightRail
       ? Math.max(100, Math.round(fpBox.left / 2))
       : Math.max(Math.round(S.w * 0.3), Math.round((fpBox ? fpBox.right : 0) + 40));
-    await page.mouse.move(sx, Math.round(S.h * 0.5));
-    await page.mouse.down();
-    await page.mouse.move(sx - 55, Math.round(S.h * 0.62), { steps: 8 });
-    await page.mouse.move(sx - 80, Math.round(S.h * 0.66), { steps: 6 });
-    await page.mouse.up();
+    await touchDrag(page, eng, sx, Math.round(S.h * 0.5), sx - 80, Math.round(S.h * 0.66));
     await page.waitForTimeout(700);
     // v3(2026-08-27 裁示):解鎖後跟隨欄(右側欄)蓋著工具堆——「可以擋住右上角那些按鈕沒關係」。
     // 使用者要按「回到列車/隨機跟隨」的實際操作序=先點 ×(fpClose)把欄收合成膠囊(跟隨不中斷、
@@ -1804,10 +1872,21 @@ async function landV2Suite(browser, eng) {
       const { ctx, page } = b;
       await page.evaluate(() => openBoard(state.schedStations[0]));
       await page.waitForTimeout(600);
-      const before = await page.evaluate(AMBIENT_PROBE);
+      // 進場前／進場後／離場後三個「樣子」都要等家具的 opacity transition(.7s)走完再量:固定 600／700／800 ms
+      // 正好卡在轉場中途(V3 膠囊量到 0.47 vs 門檻 0.5、V3d 的 before 量到 0.65 而 out 是 0),機器安靜時險過、
+      // 有負載時轉場起步晚一點就假紅。穩態＝連兩拍(150 ms)四項都沒動,上限 3 s。
+      const settled = async () => {
+        for (let last = null, same = 0, t0 = Date.now(); same < 2 && Date.now() - t0 < 3000;) {
+          const now = await page.evaluate(AMBIENT_PROBE);
+          same = last && ['topbar', 'tools', 'card', 'capsule'].every(k => Math.abs(now[k] - last[k]) < 0.01) ? same + 1 : 0;
+          last = now; await page.waitForTimeout(150);
+        }
+        return page.evaluate(AMBIENT_PROBE);
+      };
+      const before = await settled();
       await page.evaluate(() => setAmbient(true));
       await page.waitForTimeout(700);
-      const after = await page.evaluate(AMBIENT_PROBE);
+      const after = await settled();
       // 正向對照先確認「進模式前這些東西本來看得見」——少了這半，元件本來就不在也會全綠
       ok(`V1 ${eng} 前置·進觀察模式前頂列與 HUD 都看得見`,
         before.topbar > 0.9 && before.tools > 0.9 && before.card > 0.9, JSON.stringify(before));
@@ -1833,7 +1912,7 @@ async function landV2Suite(browser, eng) {
       });
       await page.mouse.click(exitBox.x, exitBox.y);
       await page.waitForTimeout(800);
-      const out = await page.evaluate(AMBIENT_PROBE);
+      const out = await settled();
       const outState = await page.evaluate(() => ({
         cls: document.body.classList.contains('ambient'),
         st: !!state.ambient,
@@ -1992,20 +2071,24 @@ const FREEZE = () => {
   const n = document.querySelector('.badge .n'); if (n) n.textContent = '000';
   // 版權列文字隨圖磚 attribution 載入時序變(內容變⇒寬變⇒右錨佈局 x 跟著變):兩頁各自載入
   // 讀到不同瞬間=假紅(0827 兩輪紅的視口/引擎都不同、且互不重疊)。兩頁對稱釘同一字串後才可比。
-  const at = document.querySelector('.leaflet-control-attribution'); if (at) at.textContent = 'ATTR';
+  // 兩頁的署名控件 class 不同:零回歸基準頁(早於 M0)是 Leaflet 的,受測頁是 MapLibre 的,兩個都要釘。
+  const at = document.querySelector('.leaflet-control-attribution, .maplibregl-ctrl-attrib'); if (at) at.textContent = 'ATTR';
 };
-const GEOM = () => {
+const GEOM = eng => {
   const out = {};
-  for (const sel of ['header', '.stage', '.controls', '.tabbar', '#followPanel', '#trainCard',
-    '.plate', '#lead', '.grouptabs', '#explorePanel', '#board', '.leaflet-bottom.leaflet-right']) {
+  const sels = ['header', '.stage', '.controls', '.tabbar', '#followPanel', '#trainCard',
+    '.plate', '#lead', '.grouptabs', '#explorePanel', '#board'];
+  // 對照 commit 早於 MapLibre,即使 query 帶 engine=maplibre 仍只會建立 Leaflet 家具;受測頁則是
+  // MapLibre。L6/L7 要守的是共用 HUD 零回歸,所以兩頁一律只比上面那份共用清單——不拿
+  // 「舊頁有 .leaflet-bottom.leaflet-right、新頁沒有」這個預期中的引擎差異冒充產品回歸。
+  // (M4-B：原本這裡還會在 eng==='leaflet' 時額外加那個容器;唯一引擎變成 MapLibre 後永遠不會加。)
+  for (const sel of sels) {
     const el = document.querySelector(sel);
     if (!el) { out[sel] = null; continue; }
     const cs = getComputedStyle(el), r = el.getBoundingClientRect();
-    // 版權列容器的 x/寬=attribution 動態文字寬(FREEZE 釘完 Leaflet 的 layer 事件仍會重寫,
-    // 兩頁時序不可控——0827 三輪紅的引擎×視口互不重疊、方向還互換)。右下錨的版面事實=
-    // y/高/position/display,只比這四樣;「推出視窗」類回歸由 L2 浮層不出視窗涵蓋。
-    if (sel === '.leaflet-bottom.leaflet-right') out[sel] = [0, Math.round(r.y), 0, Math.round(r.height), cs.position, cs.display];
-    else out[sel] = [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height), cs.position, cs.display];
+    // (M4-B：這裡原本對 '.leaflet-bottom.leaflet-right' 有個只比 y/高/position/display 的特例——
+    //  版權列的 x/寬=attribution 動態文字寬,兩頁時序不可控會假紅。那個選取器已不再進 sels,特例移除。)
+    out[sel] = [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height), cs.position, cs.display];
   }
   out['__fs'] = document.body.classList.contains('fs');
   out['__mq'] = matchMedia('(max-width: 900px)').matches;
@@ -2016,11 +2099,11 @@ async function zeroRegressionSuite(browser, eng) {
   for (const S of [{ w: 1024, h: 768, tag: 'iPad橫' }, { w: 1280, h: 800, tag: '桌面1280' }, { w: 768, h: 1024, tag: 'iPad直' }]) {
     const cur = await boot(browser, S, { follow: false });
     await cur.page.evaluate(FREEZE);
-    const a = await cur.page.evaluate(GEOM);
+    const a = await cur.page.evaluate(GEOM, eng);
     await cur.ctx.close();
     const bas = await boot(browser, S, { url: BASE + 'baseline.html', follow: false });
     await bas.page.evaluate(FREEZE);
-    const c = await bas.page.evaluate(GEOM);
+    const c = await bas.page.evaluate(GEOM, eng);
     await bas.ctx.close();
     const diff = [];
     for (const k of Object.keys(c)) if (JSON.stringify(a[k]) !== JSON.stringify(c[k])) diff.push(`${k}: ${JSON.stringify(c[k])} → ${JSON.stringify(a[k])}`);
@@ -2045,7 +2128,7 @@ async function portraitCameraSuite(browser, eng) {
     const b = await boot(browser, S, sz ? { sheetSize: sz } : {});
     if (!b) { ok(`P4 ${eng}/${sz || 'medium'} 取得行駛中列車`, false, '深夜無台鐵車＝環境條件'); continue; }
     const { ctx, page } = b;
-    await page.evaluate(() => { state._autoPan = true; map.setZoom(11, { animate: false }); state._autoPan = false; });
+    await page.evaluate(() => { state._autoPan = true; window.__M.setView(window.__M.getCenter(), 11, { animate: false }); state._autoPan = false; });
     await page.waitForTimeout(800);
     for (const st of states) {
       if (st !== 'card') {
@@ -2083,6 +2166,13 @@ async function portraitCameraSuite(browser, eng) {
 // 全套一輪約五分鐘會讓人偷懶不做——但縮減版**不可**用來下「全綠」的結論。
 const QUICK = process.env.QUICK === '1';
 if (QUICK) { LANDSCAPE.splice(0, LANDSCAPE.length, { w: 852, h: 393, tag: '16橫' }, { w: 932, h: 430, tag: '16ProMax橫' }); }
+const matrix = await runEngineMatrix(async ({ engineUrl, check }) => {
+  activeEngineUrl = engineUrl;
+  activeCheck = check;
+  results.length = 0;
+  errors.length = 0;
+  aheadBranch.moving = 0;
+  aheadBranch.dwell = 0;
 for (const [eng, B] of (QUICK ? [['chromium', chromium]] : [['chromium', chromium], ['webkit', webkit]])) {
   const browser = await B.launch();
   await landscapeSuite(browser, eng);
@@ -2101,11 +2191,11 @@ for (const [eng, B] of (QUICK ? [['chromium', chromium]] : [['chromium', chromiu
 // 樣本若多數滑進弱判，「前瞻方向對不對」整個維度等於沒驗——具名把關，不能只印在 detail。
 ok('L9 相機判準分支分佈：行進中強判佔多數', aheadBranch.moving >= (aheadBranch.moving + aheadBranch.dwell) * 0.5,
   `moving=${aheadBranch.moving}／dwell=${aheadBranch.dwell}`);
+check(errors.length === 0, '全情境零 pageerror/console.error', errors.slice(0, 10).join(' | '));
+});
 server.close();
 
-const pass = results.filter(r => r.pass).length;
-console.log(`\n===== ${pass}/${results.length} =====`);
-if (errors.length) { console.log(`\n主控台錯誤 ${errors.length} 筆：`); errors.slice(0, 10).forEach(e => console.log('  ' + e)); }
-const failed = results.filter(r => !r.pass);
-if (failed.length) { console.log(`\n未過 ${failed.length} 項：`); failed.forEach(f => console.log(`  ${f.name} — ${f.detail}`)); }
-process.exit(failed.length || errors.length ? 1 : 0);
+const passed = matrix.passed && preflightFailures.length === 0;
+const failureCount = matrix.failures.length + preflightFailures.length;
+console.log(passed ? '\n全部通過' : `\n${failureCount} 項未過`);
+process.exit(passed ? 0 : 1);
