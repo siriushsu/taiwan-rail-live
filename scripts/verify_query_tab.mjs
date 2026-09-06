@@ -315,6 +315,19 @@ sections.push({ name: 'G4 四列上限', run: async (browser, en) => {
   await openQuery(page);
   const m = await page.evaluate(() => { const box = document.querySelector('#queryAnswer .qa-stn .qa-rows'); const rows = [...box.querySelectorAll('.row')]; const br = box.getBoundingClientRect(); const visible = rows.filter(r => { const q = r.getBoundingClientRect(); return q.top >= br.top - 1 && q.bottom <= br.bottom + 1; }).length; return { total: rows.length, visible, scrollable: box.scrollHeight > box.clientHeight + 1 }; });
   ok(`[${en}] G4 東門:總列 ${m.total}、可見 ${m.visible} ≤ 4、多的可捲`, m.total > 4 ? (m.visible <= 4 && m.scrollable) : m.visible === m.total, JSON.stringify(m));
+  // G4b(fix round 1、finding #3):重畫不能洗掉區內捲動位置——捲到底之後逼一次重畫(內容其實沒變,
+  // 比照 G12c 的手法:_html=null 再 renderQueryAnswer()),捲動位置要原地不動。牙:拿掉 save/restore ⇒
+  // 紅(新插入的 .qa-rows 天生 scrollTop=0)。
+  const s1 = await page.evaluate(() => {
+    const box = document.querySelector('#queryAnswer .qa-stn .qa-rows');
+    box.scrollTop = box.scrollHeight;
+    const before = box.scrollTop;
+    document.getElementById('queryAnswer')._html = null;
+    renderQueryAnswer();
+    const after = document.querySelector('#queryAnswer .qa-stn .qa-rows').scrollTop;
+    return { before, after };
+  });
+  ok(`[${en}] G4b 重畫不洗掉區內捲動(${s1.before} → ${s1.after})`, s1.before > 0 && s1.after === s1.before, JSON.stringify(s1));
   await ctx.close();
 }});
 
@@ -388,6 +401,78 @@ sections.push({ name: 'G12 重畫不吃點擊', run: async (browser, en) => {
   await page.touchscreen.tap(h.x, h.y); await page.waitForTimeout(500);
   ok(`[${en}] G12b 真觸控站名列 ⇒ 看板開`, await page.evaluate(() => !document.getElementById('board').hidden && !!state.boardStation));
   await ctx.close();
+}});
+
+// G12 續(fix round 1,審查者的兩個 Important):
+// G12d(finding #1、死的預先渲染):先正常開一次建立內容與 _queryRenderedAt,暫停播放(simSec 凍結)後
+//   關閉、換一個很遠的定位(模擬「看了別的看板、或 geo 移動」)、再重開——由於 simSec 沒變,主迴圈節拍
+//   (15142 行)的觸發條件 |simSec − _queryRenderedAt| ≥ 1 恆為假,不會補跑,唯一能換出新內容的只剩
+//   openSearchPanel 內那次 renderQueryAnswer()。
+//   （原稿曾直接測「開起來那一刻有沒有 .qa-stn」,但 _queryRenderedAt 初始是 undefined,第一次開面板時
+//   |simSec − 0| 幾乎必然 ≥ 1,主迴圈節拍下一幀就會補渲染,測不出這顆牙——牙只咬得住「重開後內容該換
+//   但沒換」這個真正會影響使用者的情境,已改用這個情境。）
+//   牙:renderQueryAnswer() 排回 hidden=false 之前 ⇒ 面板還沒露出,它自己的守門(panel.hidden)直接跳出,
+//   重開後答案區停留在關閉前的舊站,不會換成新定位 ⇒ 紅。
+// G12c(finding #2、按下到放開之間被重畫):click 目標會落到容器(wrap)上、.closest('.qa-stn') 落空,
+//   靠 pointerdown 先記行、click 撈不到列時用記的補(照看板 el.onpointerdown/onclick,index.html≈28124
+//   同一套)。牙:拿掉 pointerdown 補救 ⇒ 紅(鬆手時開不了看板,因為 click 目標是容器)。
+//   實測記錄(brief 建議的 page.mouse 手法在本機兩種真實輸入管道都測不出「同一條牙」):
+//   (a) page.mouse.down()＋逼重畫＋page.mouse.up():Chromium 對「mousedown 目標已從文件移除」乾脆不合成
+//       click(pointerup/mouseup 有觸發,click 完全不發生)——比「目標變容器」更嚴重,onclick 掛什麼補救都
+//       接不到,因為 handler 根本沒被呼叫。
+//   (b) 改用 CDP Input.dispatchTouchEvent 真觸控:內容不變的重畫下 Chromium 會在放開當下對(x,y)重新
+//       hit-test,直接命中「新長出來的」同位置 .qa-head,牙咬不到(直接路徑本來就會成功);把內容重畫成
+//       結構整個坍縮的空狀態,click 改落到 #queryAnswer 以外的兄弟元素(class="search"),wrap.onclick 連
+//       跑都不會跑,補救一樣派不上用場。
+//   兩者都無法在本機穩定重現「click 落在容器本身、但仍在 wrap 子樹內」這個看板註解描述的確切情境
+//   (研判是引擎特定的重新導向規則,例如行動 WebKit 的觸控→click 合成,在此驗收環境重現不了)。
+//   改用 dispatchEvent 直接構造這個條件:對 .qa-head 派發真的 pointerdown(走 wrap.onpointerdown 那條
+//   程式碼,不是直接呼叫函式)確認記下 qi,逼一次重畫,再直接對 wrap 本身派發 click(e.target===wrap,
+//   .closest('.qa-stn') 結構上必為 null——這就是註解描述的「目標變容器」的精確狀態),驗證 onclick 讀
+//   得到記下的資料並開對看板。這樣測的是「程式碼面對這個瀏覽器狀態時的反應」,不糾結能不能用某個引擎的
+//   真實輸入去複現這個狀態本身的時序。
+sections.push({ name: 'G12 續', run: async (browser, en) => {
+  const r0 = await boot(browser, {}); const taipei = await stationOf(r0.page, '臺北', 'tra_sched'); await r0.ctx.close();
+
+  {
+    const { ctx, page } = await boot(browser, { query: geomock(offsetLatLon(taipei, 50)) });
+    await page.waitForFunction(() => !!state.geoLoc, null, { timeout: 15000 });
+    await openQuery(page); // 先正常開一次,建立真實內容
+    const before = await page.evaluate(([n, s]) => !!document.querySelector('#queryAnswer .qa-stn[data-name="' + n + '"][data-sys="' + s + '"]'), [taipei.name, taipei.sys]);
+    const songshan = await stationOf(page, '松山', 'tra_sched');
+    // 凍結+落地渲染一次當穩定基準(比照 G12a2 的做法,避開 togglePlay 生效前殘餘一拍造成的 flaky)。
+    await page.evaluate(() => { if (state.playing) togglePlay(); renderQueryAnswer(); });
+    await page.evaluate(() => closeSearchPanel());
+    // 模擬「看了別的看板、或 geo 移動」:換一個遠站當定位,答案理應變成新站。
+    await page.evaluate((s) => { state.geoLoc = { lat: s.lat, lon: s.lon, acc: 10 }; }, songshan);
+    await tapTab(page); // 真正的 tab 點擊重開(面板此時已關,會走 openSearchPanel)
+    const after = await page.evaluate(([n, s]) => ({
+      hasOld: !!document.querySelector('#queryAnswer .qa-stn[data-name="' + n + '"][data-sys="' + s + '"]'),
+      hasNew: !!document.querySelector('#queryAnswer .qa-stn[data-name="松山"][data-sys="tra_sched"]'),
+    }), [taipei.name, taipei.sys]);
+    ok(`[${en}] G12d 暫停播放中重開查詢 ⇒ 立刻換成新定位的內容(不停留在關閉前的舊站)`, before === true && after.hasNew === true && after.hasOld === false, JSON.stringify({ before, after }));
+    await ctx.close();
+  }
+
+  {
+    const { ctx, page } = await boot(browser, { query: geomock(offsetLatLon(taipei, 50)) });
+    await page.waitForFunction(() => !!state.geoLoc, null, { timeout: 15000 });
+    await openQuery(page);
+    const r = await page.evaluate(([n, s]) => {
+      const blk = document.querySelector('#queryAnswer .qa-stn[data-name="' + n + '"][data-sys="' + s + '"]');
+      const head = blk.querySelector('.qa-head');
+      const wrap = document.getElementById('queryAnswer');
+      head.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true })); // 真事件,走 wrap.onpointerdown
+      const downAfterPress = wrap._down;
+      wrap._html = null; renderQueryAnswer(); // 按下到放開之間逼一次重畫(內容其實沒變)
+      wrap.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); // e.target===wrap,.closest('.qa-stn') 結構上必為 null
+      return { downAfterPress, downAfterClick: wrap._down };
+    }, [taipei.name, taipei.sys]);
+    await page.waitForTimeout(200);
+    const o = await page.evaluate(() => ({ boardOpen: !document.getElementById('board').hidden, name: state.boardStation && state.boardStation.name, sys: state.boardStation && state.boardStation.sys }));
+    ok(`[${en}] G12c 按下時記的 qi＝0、click 落在容器仍能靠記下的資料開對看板`, !!r.downAfterPress && r.downAfterPress.qi === '0' && r.downAfterClick === null && o.boardOpen === true && o.name === taipei.name && o.sys === taipei.sys, JSON.stringify({ r, o }));
+    await ctx.close();
+  }
 }});
 
 // G9 桌面零改動（spec §7-9）：面板永不開、搜尋框留在 header、tab bar 不顯示。牙：手機 CSS 漏進桌面 ⇒ 紅。

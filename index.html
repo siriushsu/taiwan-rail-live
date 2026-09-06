@@ -26926,9 +26926,11 @@ function closeSearchDrop() { const d = document.getElementById('searchDrop'); if
 // user:true=使用者自己點 tab/×(Task 5 用它寫開關記憶);自動開、被 soloPanel 擠掉都是 user:false。
 function openSearchPanel({ user = false } = {}) {
   soloPanel('search');
-  renderQueryAnswer();
   renderQueryLinks();
   document.getElementById('searchPanel').hidden = false;
+  // 必須排在 hidden=false 之後:renderQueryAnswer 自己有「面板關著就跳出」的守門(跟主迴圈節拍共用同一條),
+  // 排在露出之前只會空跑;且要排在 updateSheetOpenClass 之前,量高度/reframeFocus 時答案區內容已經在。
+  renderQueryAnswer();
   updateSheetOpenClass();
   const inp = document.getElementById('trainSearch');
   if (inp && inp.value.trim()) renderSearchDrop(); // 帶著上次的字回來:直接把結果攤開,不用再敲一次
@@ -27020,20 +27022,43 @@ function renderQueryAnswer() {
     ? ans.stations.map((c, i) => queryStationBlockHtml(c, i, ans)).join('')
     : `<div class="qa-empty">${escHtml(t(nearbyStationCandidates().length ? '搜尋你的站' : '載入中…'))}</div>`;
   if (wrap._html === html) return; // 🔴 只有內容變了才寫 DOM:區內有可點的列,每幀重寫會吃掉點擊
+  // 區內捲動不能被重畫洗掉(多方向站,例如東門,常 >4 列要捲):換新 HTML 前先按站記下每個 .qa-rows 的
+  // scrollTop,寫完 innerHTML 與量完 max-height 之後才還原。鍵用 sys|name 不用 data-qi——距離排序可能
+  // 换位,索引不保證還是同一站,但同一物理站的 sys|name 一定不變。
+  const scrollByKey = new Map();
+  for (const box of wrap.querySelectorAll('.qa-rows')) {
+    const blk = box.closest('.qa-stn');
+    if (blk) scrollByKey.set(blk.dataset.sys + '|' + blk.dataset.name, box.scrollTop);
+  }
   wrap._html = html;
   wrap._stations = ans.stations.map(c => c.st);
   wrap.innerHTML = html;
   wrap.hidden = false;
   // 可見上限:量第 5 列的頂到容器頂的距離當 max-height(從量到的推導,不寫死 px);不足 5 列就不限
+  // (量法用 box.scrollTop,這裡要用新節點天生的 0 去量,還原捲動要等這段量完才做)
   for (const box of wrap.querySelectorAll('.qa-rows')) {
     const rows = box.querySelectorAll('.row');
     box.style.maxHeight = rows.length > QUERY_ANSWER_ROWS_MAX ? (rows[QUERY_ANSWER_ROWS_MAX].getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop) + 'px' : '';
   }
+  for (const box of wrap.querySelectorAll('.qa-rows')) {
+    const blk = box.closest('.qa-stn');
+    const saved = blk && scrollByKey.get(blk.dataset.sys + '|' + blk.dataset.name);
+    if (saved) box.scrollTop = saved;
+  }
   boardAlignColumns(wrap);
+  // 區內約每模擬秒重畫一次(高倍速時更快),按下到放開之間列可能被換掉、click 目標變成容器(wrap 本身)、
+  // .closest('.qa-stn') 落空——比照看板 el.onpointerdown/onclick 的作法(≈28124):按下先記,click 撈不到列時用記的補。
+  wrap.onpointerdown = e => {
+    const blk = e.target.closest('.qa-stn');
+    wrap._down = blk ? { qi: blk.dataset.qi, bus: !!e.target.closest('.qa-bus') } : null;
+  };
   wrap.onclick = e => {
-    const blk = e.target.closest('.qa-stn'); if (!blk) return;
-    const st = wrap._stations && wrap._stations[+blk.dataset.qi]; if (!st) return;
-    const bus = !!e.target.closest('.qa-bus');
+    const blk = e.target.closest('.qa-stn');
+    const qi = blk ? blk.dataset.qi : wrap._down && wrap._down.qi;
+    const bus = blk ? !!e.target.closest('.qa-bus') : !!(wrap._down && wrap._down.bus);
+    wrap._down = null;
+    if (qi == null) return;
+    const st = wrap._stations && wrap._stations[+qi]; if (!st) return;
     openBoard(st); // soloPanel 會收掉查詢 sheet(既有互斥),不做「回到查詢」
     if (bus) requestAnimationFrame(() => { const slot = document.querySelector('#board [data-bus-transfer-slot]'); if (slot) slot.scrollIntoView({ block: 'start' }); });
   };
