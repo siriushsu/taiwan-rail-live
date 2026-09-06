@@ -273,6 +273,19 @@ html = replaceHtmlRegion(html, 'basemap-credit',
 // (4b) 狀態頁連結:App 包內沒有 status.html(其相對 /api 呼叫在 Capacitor 本機來源也不通),換成正式站絕對網址外開
 html = replaceHtmlRegion(html, 'status-link',
   '<li><span class="d">狀態</span><a href="https://railisland.tw/status.html" target="_blank" rel="noopener">資料源連線狀態頁</a></li>');
+
+// about/ accuracy/ stations/ 這三棵沒有打包進 bundle（上面那份逐檔清單裡沒有），而 Capacitor 的
+// router 對【無副檔名】的路徑一律回 index.html（ios 的 Router.swift「if pathUrl.pathExtension.isEmpty」、
+// android 的 WebViewLocalServer 同一條）——所以它不是 404，是把首頁再送一份、但 document URL 已經
+// 變成 /about/ ⇒ vendor/maplibre-gl.js、i18n/*.js、data/data_manifest.json 這些相對資源全部改以
+// /about/ 為基準解析而 404，boot 拋 maplibregl is not defined、地圖再也不出現，又沒有返回鍵 ⇒
+// 使用者只能強制關 App。網友回報 issue #47（iOS 95／96／97 與 Android 全中，網頁版不受影響）。
+// 🔴 兩處都要換：手機那排 .ms-aeo-links 與桌面／iPad 頁尾 .foot-links，只換一處會在平板留一顆。
+const aeoLinksHtml = [['about', '關於軌島'], ['accuracy', '準確度說明'], ['stations', '車站索引']]
+  .map(([slug, label]) => `<a href="https://railisland.tw/${slug}/" target="_blank" rel="noopener">${label}</a>`)
+  .join('\n      ');
+html = replaceHtmlRegion(html, 'aeo-links-foot', aeoLinksHtml);
+html = replaceHtmlRegion(html, 'aeo-links-ms', aeoLinksHtml);
 // (5) 注入:第三方授權入口＋功能旗標＋RAIL_APP_CONFIG(授權圖磚與計量底圖的跟車 zoom 上限)
 const appConfig = includeLicensedBasemaps ? {
   followZoomCap: 16, // 計量底圖止血:跟車進場/導播 zoom 上限(index.html 的 FOLLOW_ZOOM_CAP/DIRECTOR_FOLLOW_Z 消費)
