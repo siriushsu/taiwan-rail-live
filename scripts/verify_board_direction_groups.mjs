@@ -276,12 +276,28 @@ const d11 = await p.evaluate(() => {
       if (norm(g.endName) !== dest) labelBad.push(tr.no + ' 組名往' + norm(g.endName) + ' 實際終點' + dest);
     }
   }
+  // 🔴 正向對照（缺了它，判準只會單向收緊）：D11e/D11g 都只檢查「落進支線組的車」，
+  //    分母是實作自己給的。若哪天把規則收得太兇、支線車整批被推去幹線組，那些斷言的分母
+  //    只會變小、全部保持綠——M13 突變（一律不算支線車）就是這樣空過的。
+  //    所以反過來釘一條身分斷言：一段軌道的【兩端都是支線專屬站】時，那一列必定是支線組。
+  const shouldBeBranch = [];
+  for (const tr of state.trains) {
+    const st = tr.stops;
+    for (let i = 0; i + 1 < st.length; i++) {
+      if (st[i].stop === false) continue;
+      const a = norm(st[i].name), c = norm((st[i + 1] || {}).name);
+      if (!a || !c || trunkStations.has(a) || trunkStations.has(c)) continue;
+      const g = boardGroupOf(tr, i, false);
+      if (g.kind !== 'branch') shouldBeBranch.push(a + '→' + c + ' ' + tr.no + ' 竟然歸 ' + g.kind);
+    }
+  }
   return { hsinchu, beihsinchu, branchOf: branchOf(hsinchu), beiBranch: branchOf(beihsinchu),
     hsinchuAll: allBranchDests('新竹'), beiAll: allBranchDests('北新竹'),
     trunkOnly: [...trunkOnly], bad: bad.slice(0, 6), nBad: bad.length,
     nCovered: covered.size, noExclusive,
     noExclusiveRows: noExclusiveRows.slice(0, 6), nNoExclusiveRows: noExclusiveRows.length,
-    labelBad: labelBad.slice(0, 6), nLabelBad: labelBad.length };
+    labelBad: labelBad.slice(0, 6), nLabelBad: labelBad.length,
+    shouldBeBranch: shouldBeBranch.slice(0, 6), nShouldBeBranch: shouldBeBranch.length };
 });
 const trunkOnlySet = new Set(d11.trunkOnly);
 const strayOf = list => [...new Set((list || []).filter(d => trunkOnlySet.has(d)))];
@@ -317,6 +333,8 @@ ok('D11h 支線組的組名＝這一趟真正的終點站（不是支線的末�
 //    渲染路徑產生，兩者必須一致。修法前新竹的標題是「往 內灣」而列上寫「往 六家」⇒ 這條會紅。
 const labelVsRows = (d11.branchOf || []).flatMap(g =>
   g.dests.filter(d => g.label !== '往 ' + d).map(d => `${g.label} 裡有往 ${d}`));
+ok('D11j 反向：兩端都是支線專屬站的區間，必定歸支線組（防止規則收太兇把支線車推去幹線）',
+  d11.nShouldBeBranch === 0, `${d11.nShouldBeBranch} 列，例：` + JSON.stringify(d11.shouldBeBranch));
 ok('D11i 畫面對照：新竹每個支線組的標題，與組內每一列的終點站一致（獨立於 g.endName）',
   (d11.branchOf || []).length > 0 && (d11.branchOf || []).flatMap(g => g.dests).length > 0
     && labelVsRows.length === 0,

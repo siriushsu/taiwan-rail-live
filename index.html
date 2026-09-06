@@ -5122,6 +5122,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="branchdestgroup"><span class="d">9/6</span><span>車站看板：只借道成追線的縱貫線列車回到南下、北上組；支線組標題改成列車真正的終點站</span></li>
         <li data-cl-of="hsinchuboarddir"><span class="d">9/6</span><span>修正新竹、北新竹站看板把往基隆、七堵的縱貫線列車歸進「往內灣」（謝謝網友回報）</span></li>
         <li data-cl-of="trasnap0905"><span class="d">9/5</span><span>台鐵誤點一次跳增 5 分以上時，列車直接跳回實際位置，不再原地停等</span></li>
         <li data-cl-of="leafletremoved0905"><span class="d">9/5</span><span>地圖全面改用 MapLibre，不再保留舊版 Leaflet 地圖：?engine=leaflet 這個網址參數已失效，開啟網站也不會再多下載一份舊地圖函式庫。</span></li>
@@ -5129,7 +5130,6 @@
         <li data-cl-of="followrouteexact0904"><span class="d">9/4</span><span>修正跟隨長途列車放大看彎道時，紅色行程線會離開實際軌道、旁邊露出另一條原色線；現在放大也會完整貼合。</span></li>
         <li data-cl-of="followpitch0904"><span class="d">9/4</span><span>修正跟隨火車並傾斜地圖時，遠端路線會變成跨畫面跳動直線；亮色、暗色與衛星底圖都已修正。</span></li>
         <li data-cl-of="tracksovermap0904"><span class="d">9/4</span><span>修正暗色 MapLibre 地圖的彩色路線仍被道路切碎；所有道路與 3D 建築現在都在路線下方，地名維持在上方。</span></li>
-        <li data-cl-of="tymckind"><span class="d">9/4</span><span>桃園機場捷運的列車標得出車種：地圖上直達車是尖頭紫牌、普通車是白底圓牌，車牌也放大了，跟車卡與車站看板寫全名</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5137,6 +5137,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="branchdestgroup"><span class="d">9/6</span><span>車站看板的支線分組更貼近實際：只借道成追線直通的縱貫線列車，改回南下、北上那兩組，追分與成功站不再出現「往成功」「往追分」；支線那一組的標題也改成列車真正的終點站，新竹往六家的班次寫「往 六家」而不是「往 內灣」</span></li>
         <li data-cl="hsinchuboarddir"><span class="d">9/6</span><span>修正新竹、北新竹站看板的方向分組：往基隆、七堵等縱貫線列車會被歸進「往內灣」，從「北上」消失。新竹–北新竹是縱貫線與內灣線共用的同一段軌道，兩條線在這裡不再互相誤判；真正的內灣線、六家班次維持在支線那一組（謝謝網友回報）</span></li>
         <li data-cl="tymckind"><span class="d">9/4</span><span>桃園機場捷運的列車標得出車種：地圖上直達車是尖頭紫牌、普通車是白底圓牌，車牌也放大；跟車卡與車站看板寫全名，同一個「往台北車站」也分得出下一班是直達車還是普通車。首末班有幾班官方沒有明確歸類，那幾班只標線號（謝謝網友回報）</span></li>
         <li data-cl="aeo"><span class="d">9/3</span><span>新增關於、準確度、資料來源、車站索引與 20 個常查車站頁，並補上 sitemap、robots.txt 與結構化資料；即時班次仍回地圖查詢。</span></li>
@@ -6000,7 +6001,7 @@
 //         只有新竹↔北新竹這一組共構(兩向 308 段),影響僅該兩站(新竹 100 列／北新竹 62 列),
 //         全部是 B|NEIWAN → 縱貫線北段;真內灣線車(六家 82、內灣 8、竹東 2)一班都沒被搬走。
 //         網友回報 issue #46。守門人:scripts/verify_board_direction_groups.mjs 的 D11a–D11f。
-const BUILD = 'v0906f';
+const BUILD = 'v0906h';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
