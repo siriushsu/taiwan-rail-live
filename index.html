@@ -5228,6 +5228,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="nightglow0907"><span class="d">9/7</span><span>暗色地圖的路線自動帶上霓虹微光，保留各線原色；切回亮色地圖就恢復原樣</span></li>
         <li data-cl-of="discovery0907"><span class="d">9/7</span><span>新增路線導覽與精選取景：沿線找站、點站看班次；空白搜尋也有可點的範例</span></li>
         <li data-cl-of="ofmwatch0906"><span class="d">9/6</span><span>修正街道底圖被誤判成載入失敗：開圖後馬上縮放或網路較慢時，App 不再默默換成備用底圖、3D 建築也不會跟著消失，網站也不再誤跳「街道底圖載入異常」</span></li>
         <li data-cl-of="badgefallen"><span class="d">9/6</span><span>捷運頂列的「N 線改用備案」指得出是哪幾條線、為什麼：滑鼠移上去或點開資料狀態卡就看得到</span></li>
@@ -5235,7 +5236,6 @@
         <li data-cl-of="branchdestgroup"><span class="d">9/6</span><span>車站看板：只借道成追線的縱貫線列車回到南下、北上組；支線組標題改成列車真正的終點站</span></li>
         <li data-cl-of="hsinchuboarddir"><span class="d">9/6</span><span>修正新竹、北新竹站看板把往基隆、七堵的縱貫線列車歸進「往內灣」（謝謝網友回報）</span></li>
         <li data-cl-of="trasnap0905"><span class="d">9/5</span><span>台鐵誤點一次跳增 5 分以上時，列車直接跳回實際位置，不再原地停等</span></li>
-        <li data-cl-of="leafletremoved0905"><span class="d">9/5</span><span>地圖全面改用 MapLibre，不再保留舊版 Leaflet 地圖：?engine=leaflet 這個網址參數已失效，開啟網站也不會再多下載一份舊地圖函式庫。</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5243,6 +5243,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="nightglow0907"><span class="d">9/7</span><span>暗色地圖的路線自動帶上霓虹微光，沿用各線原色，列車與站名仍保持清楚；亮色、衛星、軌道淡化或隱藏、收集地圖維持原本顯示</span></li>
         <li data-cl="discovery0907"><span class="d">9/7</span><span>新增路線導覽：沿線找站、反轉站序、點站看班次，也能一鍵查看全線或選台北、文湖線、淡海、阿里山視角；搜尋框空白時會提供可點的查詢範例；到站看板的時刻與倒數也更醒目</span></li>
         <li data-cl="branchdestgroup"><span class="d">9/6</span><span>車站看板的支線分組更貼近實際：只借道成追線直通的縱貫線列車，改回南下、北上那兩組，追分與成功站不再出現「往成功」「往追分」；支線那一組的標題也改成列車真正的終點站，新竹往六家的班次寫「往 六家」而不是「往 內灣」</span></li>
         <li data-cl="hsinchuboarddir"><span class="d">9/6</span><span>修正新竹、北新竹站看板的方向分組：往基隆、七堵等縱貫線列車會被歸進「往內灣」，從「北上」消失。新竹–北新竹是縱貫線與內灣線共用的同一段軌道，兩條線在這裡不再互相誤判；真正的內灣線、六家班次維持在支線那一組（謝謝網友回報）</span></li>
@@ -6114,7 +6115,7 @@
 //         網友回報 issue #46。守門人:scripts/verify_board_direction_groups.mjs 的 D11a–D11f。
 // v0906g：手機底部「搜尋」改為「查詢」半高面板——答案區走看板同源、公車轉乘入口、靠近車站自動開;併入 origin/main 的 v0906f。
 // v0906i：v0906g(查詢分頁)再併入 origin/main 的 v0906h(看板支線分組)。
-const BUILD = 'v0907a';
+const BUILD = 'v0907b';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -11357,6 +11358,9 @@ function glTracksInstall() {
   const earlySymbols = labelAnchor ? styleLayers.slice(0, lastBase + 1).filter(layer => layer.type === 'symbol').map(layer => layer.id) : [];
   const base = Object.fromEntries(glTracks.style.layers.map(l => [l.id, l]));
   const none = ['in', ['get', 'lineKey'], ['literal', []]];
+  // 暗色微光共用同一份軌道幾何、位在實線與站名之下；只多一層靜態 GPU 描邊。
+  raw.addLayer({ ...base['track-line'], id: 'track-glow', filter: none,
+    paint: { 'line-color': ['get', 'color'], 'line-width': 9, 'line-blur': 5, 'line-opacity': 0 } }, before);
   for (const k of glTracks.ranks) { // 依 sortKey 階級交錯:上層線的 casing 才會挖掉下層線的色線(canvas 逐線 knockout 的近似,計畫 D4)
     const f = ['all', ['==', ['get', 'sortKey'], k], none];
     raw.addLayer({ ...base['track-casing'], id: 'track-casing-' + k, filter: f }, before);
@@ -11418,6 +11422,8 @@ function glTracksSync() {
   if (sig === glTracks.sig) return;
   glTracks.sig = sig;
   const S = (glTracks.style.states[st] && glTracks.style.states[st][theme]) || glTracks.style.themes[theme];
+  raw.setFilter('track-glow', ['in', ['get', 'lineKey'], ['literal', K.lineKeys]]);
+  raw.setPaintProperty('track-glow', 'line-opacity', theme === 'dark' && st === 'auto' ? .45 : 0);
   const casing = S['track-casing'].paint, line = { ...S['track-line'].paint }, stn = { ...S['track-stations'].paint };
   if (st === 'auto' && theme === 'dark') { // 計畫 D1:只有班表軌道(drawSched 那批)壓暗成 colorDark,捷運/裝飾層維持原色(metroLineColor 契約)
     line['line-color'] = ['case', ['in', ['get', 'lineKey'], ['literal', K.schedKeys]], ['get', 'colorDark'], ['get', 'color']];

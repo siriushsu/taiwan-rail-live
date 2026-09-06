@@ -1048,6 +1048,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
   "機場捷運": "Airport MRT",
   "綠山線": "Green Mountain Line",
   "藍海線": "Blue Seaside Line",
+  "暗色地圖的路線自動帶上霓虹微光，保留各線原色；切回亮色地圖就恢復原樣": "Routes glow softly in their own colors on dark maps. Light maps keep their original appearance.",
   "綠線": "Green Line",
   "廣慈/奉天宮": "Guangci/Fengtian Temple"
 });
@@ -1059,6 +1060,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   "機場捷運": "空港MRT",
   "綠山線": "緑山線",
   "藍海線": "藍海線",
+  "暗色地圖的路線自動帶上霓虹微光，保留各線原色；切回亮色地圖就恢復原樣": "ダークマップでは路線本来の色で柔らかく発光します。ライトマップに戻すと通常の表示になります。",
   "綠線": "緑線",
   "廣慈/奉天宮": "廣慈／奉天宮"
 });
