@@ -5435,12 +5435,7 @@
     </details>
     <div class="foot-links">
       <a class="help-open" href="#" role="button">使用說明</a>
-      <!-- APP_REPLACE_START aeo-links-foot:about/ accuracy/ stations/ 是【無副檔名】的目錄連結,而 Capacitor 的 router 對沒有
-           副檔名的路徑一律回 index.html(Router.swift 的 pathExtension.isEmpty)——不是 404,是把首頁再送
-           一份、但 document URL 已變成 /about/ ⇒ vendor/、i18n/、data/ 那些相對資源全部改以 /about/ 為
-           基準解析而 404,boot 拋 maplibregl is not defined、地圖再也不出現又沒有返回鍵,使用者只能強制
-           關 App(網友回報 issue #47)。App build 換成正式站絕對網址外開,比照上面 status-link。
-           🔴 桌面/iPad 頁尾這份與手機那排 ms-aeo-links【兩處都要換】,只換一處會在平板留一顆。 -->
+      <!-- APP_REPLACE_START aeo-links-foot:無副檔名的目錄連結在 Capacitor 會走 SPA fallback 把首頁重載在錯的 base 下(issue #47),App build 換成正式站絕對網址外開;理由全文在 prepare-web.mjs -->
       <a href="about/">關於軌島</a>
       <a href="accuracy/">準確度說明</a>
       <a href="stations/">車站索引</a>
@@ -5796,7 +5791,7 @@
     <div class="ms-sec" id="msAboutSec">關於</div>
     <div class="ms-about" id="msAbout"></div>
     <nav class="ms-aeo-links" aria-label="網站說明">
-      <!-- APP_REPLACE_START aeo-links-ms:同 aeo-links-foot——手機那一排(issue #47)。兩處的替換內容相同,由 prepare-web.mjs 共用同一份 -->
+      <!-- APP_REPLACE_START aeo-links-ms:同 aeo-links-foot,手機那一排(issue #47) -->
       <a href="about/">關於軌島</a>
       <a href="accuracy/">準確度說明</a>
       <a href="stations/">車站索引</a>
