@@ -165,6 +165,15 @@ sections.push({ name: 'G2 打字態', run: async (browser, en) => {
   let s = await snap(page);
   // 直式的打字態 tab bar 仍在(只有橫放的 body.fs.search-open .tabbar 會藏,那是 4182 起的 landscape 區塊,不動);判打字態看「上錨」
   ok(`[${en}] G2a 點輸入框 ⇒ 打字態（search-open、面板上錨到頂列之下）`, s.searchOpen && s.top <= 140, JSON.stringify({ searchOpen: s.searchOpen, top: s.top }));
+  // I-2(fix wave):打字態下答案區看不到(3861 行 display:none),背景節拍不該再補跑重算——
+  // 推進 simSec≥3 秒＋等 1.2 真實秒(遠超過 1 秒的舊節流與 1000ms 的新牆鐘節流),兩個戳記都不該動。
+  const beforeTyping = await page.evaluate(() => ({ sim: state._queryRenderedAt, wall: state._queryRenderedWallAt }));
+  await page.evaluate(() => { state.simSec = (state.simSec + 3) % 86400; });
+  await page.waitForTimeout(1200);
+  const afterTyping = await page.evaluate(() => ({ sim: state._queryRenderedAt, wall: state._queryRenderedWallAt }));
+  ok(`[${en}] G2g 打字態下 simSec 前進且等 1.2 秒 ⇒ 答案區節拍不補跑(戳記不動)`,
+    afterTyping.sim === beforeTyping.sim && afterTyping.wall === beforeTyping.wall,
+    JSON.stringify({ beforeTyping, afterTyping }));
   await page.evaluate(() => document.getElementById('trainSearch').blur());
   await page.waitForTimeout(300);
   s = await snap(page);
@@ -175,6 +184,29 @@ sections.push({ name: 'G2 打字態', run: async (browser, en) => {
   await page.waitForTimeout(500);
   s = await snap(page);
   ok(`[${en}] G2d 標題列輕點 ⇒ 回瀏覽態（sheet 仍開、search-open 消失、回到底部 sheet 幾何）`, !s.hidden && !s.searchOpen && s.h <= s.vh * 0.6, JSON.stringify({ hidden: s.hidden, searchOpen: s.searchOpen, h: s.h, vh: s.vh }));
+  // 正向對照(I-2):回瀏覽態後推進 simSec、等 1.2 秒 ⇒ 節拍要補跑——證明 G2g 的「不動」是打字態擋的,
+  // 不是牆鐘節流本身壞掉或別的守門在擋。
+  const beforeBrowse = await page.evaluate(() => state._queryRenderedWallAt);
+  await page.evaluate(() => { state.simSec = (state.simSec + 3) % 86400; });
+  await page.waitForTimeout(1200);
+  const afterBrowse = await page.evaluate(() => state._queryRenderedWallAt);
+  ok(`[${en}] G2h 正向對照:回瀏覽態後推進 simSec、等 1.2 秒 ⇒ 節拍補跑(戳記前進)`,
+    afterBrowse !== beforeBrowse, JSON.stringify({ beforeBrowse, afterBrowse }));
+  // 倍速對照(I-2):300ms 內把 simSec 推 3 次各 +1(模擬高倍速播放時每幀都跨過舊「前進 1 秒」門檻的情境)——
+  // 牆鐘節流應該把三次擠成最多一次重算,不是像修前那樣每次跨過門檻就補跑一次。用 4 個取樣點夾出 3 段區間,
+  // 每段區間只要有沒有前進看戳記變不變;由於戳記只增不減,相異值個數−1 就是「這幾段裡總共前進了幾次」。
+  const b0 = await page.evaluate(() => state._queryRenderedWallAt);
+  await page.evaluate(() => { state.simSec = (state.simSec + 1) % 86400; });
+  await page.waitForTimeout(100);
+  const b1 = await page.evaluate(() => state._queryRenderedWallAt);
+  await page.evaluate(() => { state.simSec = (state.simSec + 1) % 86400; });
+  await page.waitForTimeout(100);
+  const b2 = await page.evaluate(() => state._queryRenderedWallAt);
+  await page.evaluate(() => { state.simSec = (state.simSec + 1) % 86400; });
+  await page.waitForTimeout(100);
+  const b3 = await page.evaluate(() => state._queryRenderedWallAt);
+  const advances = new Set([b0, b1, b2, b3]).size - 1;
+  ok(`[${en}] G2i 倍速對照:300ms 內推 3 次 simSec ⇒ 牆鐘戳記最多前進 1 次`, advances <= 1, JSON.stringify({ b0, b1, b2, b3, advances }));
   // 牙：F6 修前 cycleSheetSize 對 search-open 分支呼叫 setSheetSize(el,'medium') 會持久化全站偏好 ⇒ G2f 紅
   const sheetSizeLS = await page.evaluate(() => { try { return localStorage.getItem('trainmap-sheet-size'); } catch (e) { return 'ERR'; } });
   ok(`[${en}] G2f 離開打字態不寫入全站段高偏好`, sheetSizeLS === null, JSON.stringify({ sheetSizeLS }));

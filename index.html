@@ -15179,8 +15179,12 @@ function tickCore(now) {
     if (state._evClock >= 0.5) { state._evClock = 0; scanFollowEvents(); }
   }
   if (renderNow && state.freqFollow) updateFreqFollowCamera(); // 捷運幽靈車跟隨(各捷運分頁+全台同框):每幀置中+更新卡
-  // 查詢答案區:跟看板同一個節拍源(simSec),每模擬秒重算最近站與各方向下一班;DOM 只在內容變時寫(renderQueryAnswer 內)
-  if (!document.getElementById('searchPanel').hidden && Math.abs(state.simSec - (state._queryRenderedAt || 0)) >= 1) renderQueryAnswer();
+  // 查詢答案區(I-2 修正輪):原本節拍跟 simSec 差值掛鉤,高倍速/時光機時 simSec 一幀跳超過 1 秒,
+  // 這條 >=1 幾乎每幀都成立 ⇒ 每幀重算整個候選陣列(全台同框時很貴)。改成牆鐘節流(真實時間 ≥1 秒
+  // 才重算一次,倍速不放大);simSec 沒動(暫停中)一律不跑,時間仍在走時內容照舊每真實秒最多更新一次。
+  // 打字態(search-open)看不到答案區,不必背景重算。
+  if (!document.getElementById('searchPanel').hidden && !document.body.classList.contains('search-open') &&
+      state.simSec !== state._queryRenderedAt && Date.now() - (state._queryRenderedWallAt || 0) >= 1000) renderQueryAnswer();
   if (state.mode === 'sched') {
     if (state.boardStation && Math.abs(state.simSec - (state.boardRenderedAt || 0)) >= 20) renderBoard();
     if (state.crossingSel && Math.abs(state.simSec - (state._xingRenderedAt || 0)) >= 1) renderCrossingCard(); // 倒數每秒刷新+已通過班次退出
@@ -27063,6 +27067,7 @@ function renderQueryAnswer() {
   const wrap = document.getElementById('queryAnswer'), panel = document.getElementById('searchPanel');
   if (!wrap || !panel || panel.hidden || !window.matchMedia(MOBILE_MQ).matches) return;
   state._queryRenderedAt = state.simSec;
+  state._queryRenderedWallAt = Date.now(); // I-2:主迴圈節拍讀這個做牆鐘節流,見 tickCore 呼叫處
   ensureEvents(); // 台鐵停駛/加班資料懶載入(renderBoardBody 同一行);載到後下一拍自然重畫
   const ans = queryAnswerStations();
   const html = ans.stations.length
