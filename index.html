@@ -26672,7 +26672,9 @@ function updateSheetOpenClass() {
     const el = document.getElementById(id);
     if (el && el !== sizedAct) el.classList.remove('sheet-small');
   }
-  if (sizedAct) applySheetSize(sizedAct, sheetSizePref);
+  // 查詢 sheet 的瀏覽態不吃全站段高偏好:它的價值在答案區,偏好「小」(30%)只露搜尋框＋第一列(整枝審查 I-5)。
+  // 一律以「中」(spec 的半高)打開:關掉時上面的迴圈已清掉 sheet-small ⇒ 每次打開都是中;本次打開中的抓把切換照常(sheetSizeOf 讀回目前段)。
+  if (sizedAct) applySheetSize(sizedAct, sizedAct.id === 'searchPanel' ? sheetSizeOf(sizedAct) : sheetSizePref);
   // §04c 契約9:打字態(search-open)只由 setSearchTyping 進入;面板不再是作用中 sheet 時一律清掉
   if (!(act && act.id === 'searchPanel')) document.body.classList.remove('search-open');
   invalidateMapInsets(); // 面板開關/換段高=露出地圖變了,量測快取立即失效(下一行 reframeFocus 要拿新值)
@@ -27113,15 +27115,15 @@ function renderQueryAnswer() {
   // .closest('.qa-stn') 落空——比照看板 el.onpointerdown/onclick 的作法(≈28124):按下先記,click 撈不到列時用記的補。
   wrap.onpointerdown = e => {
     const blk = e.target.closest('.qa-stn');
-    wrap._down = blk ? { qi: blk.dataset.qi, bus: !!e.target.closest('.qa-bus') } : null;
+    // 記站不記位置索引:按下到放開之間答案區可能依距離重排,同一個 qi 會變成別站(整枝審查 #29)
+    wrap._down = blk ? { st: wrap._stations && wrap._stations[+blk.dataset.qi], bus: !!e.target.closest('.qa-bus') } : null;
   };
   wrap.onclick = e => {
     const blk = e.target.closest('.qa-stn');
-    const qi = blk ? blk.dataset.qi : wrap._down && wrap._down.qi;
+    const st = blk ? wrap._stations && wrap._stations[+blk.dataset.qi] : wrap._down && wrap._down.st;
     const bus = blk ? !!e.target.closest('.qa-bus') : !!(wrap._down && wrap._down.bus);
     wrap._down = null;
-    if (qi == null) return;
-    const st = wrap._stations && wrap._stations[+qi]; if (!st) return;
+    if (!st) return;
     openBoard(st); // soloPanel 會收掉查詢 sheet(既有互斥),不做「回到查詢」
     if (bus) requestAnimationFrame(() => { const slot = document.querySelector('#board [data-bus-transfer-slot]'); if (slot) slot.scrollIntoView({ block: 'start' }); });
   };
@@ -29016,12 +29018,12 @@ function metroWaitEnabled() {
 function widgetPinEnabled() {
   try { return IS_NATIVE_APP && window.Capacitor.getPlatform() === 'android' && !!window.Capacitor.Plugins.RailWidget; } catch (e) { return false; }
 }
-// 首次渲染那一節時查一次並快取;查到之前回 null(鈕不長),查到之後重畫一次說明中心
+// 開機由 setupHelp 預熱,說明中心打開時通常已有答案;萬一還沒,只有「支援」才會改變渲染結果(長出鈕)才重畫——不支援時本來就沒鈕,重畫只會抹掉 openHelp 剛做完的展開/捲動/高亮(整枝審查 M-5)
 function widgetPinSupported() {
   if (!widgetPinEnabled()) return false;
   if (state._widgetPinSupported !== undefined) return state._widgetPinSupported;
   state._widgetPinSupported = null;
-  window.Capacitor.Plugins.RailWidget.pinSupported().then(r => { state._widgetPinSupported = !!(r && r.supported); const m = document.getElementById('helpModal'); if (m && !m.hidden) renderHelp(); })
+  window.Capacitor.Plugins.RailWidget.pinSupported().then(r => { state._widgetPinSupported = !!(r && r.supported); const m = document.getElementById('helpModal'); if (state._widgetPinSupported && m && !m.hidden) renderHelp(); })
     .catch(() => { state._widgetPinSupported = false; });
   return null;
 }
@@ -31195,6 +31197,7 @@ function helpAudit() {
 }
 function setupHelp() {
   const m = document.getElementById('helpModal'); if (!m) return;
+  widgetPinSupported(); // Android:開機就問 launcher 支不支援釘選並快取,免得第一次開說明中心時非同步回來重畫(整枝審查 M-5);非 Android/無 plugin 時內部早退
   document.getElementById('helpX').onclick = closeHelp;
   m.addEventListener('click', e => { if (e.target === m) closeHelp(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !m.hidden) { e.stopPropagation(); closeHelp(); } });
@@ -33167,11 +33170,12 @@ async function boot() {
   M.on('dragstart', () => { state._userMoved = true; state.geoFollow = false; });
   if (geoBoot) state._bootGeo.then(applyBootGeo);
   state.ready = true;
-  // 查詢 sheet 開關記憶(spec §6.2):沒有深連結、教學卡沒出現、本次沒自動開、沒別的 sheet ⇒ 上次自己開著就以瀏覽態開回來
+  // 查詢 sheet 開關記憶(spec §6.2):沒有深連結、教學卡沒出現、沒別的 sheet ⇒ 上次自己開著就以瀏覽態開回來。
+  // 自動開(queryMaybeAutoOpen)走 applyBootGeo 的非同步路徑、一定晚於這裡,它自己有「已有 sheet 不疊」的守門,故此處不判(整枝審查 #33)
   if (window.matchMedia(MOBILE_MQ).matches && !(deepG || deepAt || deepTrain || deepTrip || deepJourney)) {
     let want = null; try { want = localStorage.getItem(QUERY_OPEN_KEY); } catch (e) {}
     const hw = document.getElementById('howtoWrap');
-    if (want === '1' && !state._queryAutoOpened && !(hw && !hw.hidden) && !activeSheetEl()) openSearchPanel({ user: false });
+    if (want === '1' && !(hw && !hw.hidden) && !activeSheetEl()) openSearchPanel({ user: false });
   }
   void setupWebMcp(); // 支援的 ChatGPT 內建瀏覽器才註冊；一般瀏覽器立即 no-op
   i18nRefreshDynamic();
