@@ -3869,6 +3869,22 @@
       font-size: calc(12.5px * var(--ui)); font-weight: 700; line-height: 1.25; text-align: left; font-family: inherit;
     }
     #searchPanel .ql-row .chev { font-size: calc(12px * var(--uis)); color: var(--faint); font-weight: 600; }
+    /* 查詢答案區:站塊＝標題列＋看板列(沿用 .board .row/.bgrp/.grp 樣式,#searchPanel 本身就是 .board)＋公車列 */
+    #searchPanel .qa { padding: 0 0 4px; }
+    #searchPanel .qa-stn { border-top: 1px dashed var(--line-faint, var(--line)); }
+    #searchPanel .qa-head { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 14px 2px; cursor: pointer; }
+    #searchPanel .qa-head b { font-size: calc(15px * var(--ui)); font-weight: 800; color: var(--ink); }
+    #searchPanel .qa-head .qa-src { margin-left: auto; font-size: calc(11.5px * var(--uis)); color: var(--faint); font-weight: 600; white-space: nowrap; }
+    #searchPanel .qa-head .chev { font-size: calc(13px * var(--uis)); color: var(--faint); font-weight: 600; }
+    /* 系統徽章:淺底版,與 #searchDrop .sys-chip 同一套(那條被 #searchDrop 限定,這裡再寫一份) */
+    #searchPanel .qa-head .sys-chip {
+      padding: 0 7px 1px; font-size: calc(10.5px * var(--uis)); font-weight: 700; letter-spacing: 1px;
+      line-height: 1.5; color: var(--navy); border: 1px solid var(--line); border-radius: 999px; white-space: nowrap; flex: none;
+    }
+    #searchPanel .qa-rows { overflow-y: auto; overscroll-behavior: contain; }
+    #searchPanel .qa-bus { display: block; width: calc(100% - 28px); margin: 4px 14px 8px; min-height: 40px; padding: 0 12px; text-align: left;
+      border: 1px solid var(--line); border-radius: 8px; color: var(--navy); background: var(--paper); font-size: calc(12.5px * var(--ui)); font-weight: 700; font-family: inherit; }
+    #searchPanel .qa-empty { padding: 10px 14px 12px; font-size: calc(12.5px * var(--ui)); color: var(--faint); }
     /* 有結果就收起提示(提示是空狀態的引導,不該墊在結果下面);:has 不支援的舊瀏覽器只是提示留著,無害 */
     #searchSlot:has(#searchDrop:not([hidden])) + .sp-hint { display: none; }
     /* 🔴 padding 要讓開安全區(2026-07-28 首次 App build 實機看到):place-items 在手機是 stretch,
@@ -15122,6 +15138,8 @@ function tickCore(now) {
     if (state._evClock >= 0.5) { state._evClock = 0; scanFollowEvents(); }
   }
   if (renderNow && state.freqFollow) updateFreqFollowCamera(); // 捷運幽靈車跟隨(各捷運分頁+全台同框):每幀置中+更新卡
+  // 查詢答案區:跟看板同一個節拍源(simSec),每模擬秒重算最近站與各方向下一班;DOM 只在內容變時寫(renderQueryAnswer 內)
+  if (!document.getElementById('searchPanel').hidden && Math.abs(state.simSec - (state._queryRenderedAt || 0)) >= 1) renderQueryAnswer();
   if (state.mode === 'sched') {
     if (state.boardStation && Math.abs(state.simSec - (state.boardRenderedAt || 0)) >= 20) renderBoard();
     if (state.crossingSel && Math.abs(state.simSec - (state._xingRenderedAt || 0)) >= 1) renderCrossingCard(); // 倒數每秒刷新+已通過班次退出
@@ -26908,6 +26926,7 @@ function closeSearchDrop() { const d = document.getElementById('searchDrop'); if
 // user:true=使用者自己點 tab/×(Task 5 用它寫開關記憶);自動開、被 soloPanel 擠掉都是 user:false。
 function openSearchPanel({ user = false } = {}) {
   soloPanel('search');
+  renderQueryAnswer();
   renderQueryLinks();
   document.getElementById('searchPanel').hidden = false;
   updateSheetOpenClass();
@@ -26973,6 +26992,51 @@ function queryAnswerStations() {
   let last = null; try { last = JSON.parse(localStorage.getItem(LAST_BOARD_KEY) || 'null'); } catch (e) {}
   if (last && last.name) { const c = pick(last.name, last.sys); if (c) return { stations: [{ st: c.st, label: c.label }], src: 'last' }; }
   return { stations: [], src: 'none' };
+}
+// 答案區(spec §4.3):每站一塊——站名列(點整塊開看板)＋各方向下一班(看板同源、每組 1 列、可見 ≤4 列多的區內捲)
+// ＋「這站的公車轉乘」(站有站牌資料才有)。
+function queryStationBlockHtml(c, i, ans) {
+  const st = c.st;
+  const src = ans.src === 'geo' ? (i === 0 ? t('最近 · {m} 公尺', { m: i18nNumber(Math.round(ans.m)) }) : t('共構')) : ans.src === 'fav' ? t('最愛') : t('上次看過');
+  let rows;
+  if (st.sys === 'freq') rows = renderFreqBoard(null, st, metroBoardLines(st, state.lines), false, { compact: true });
+  else if (st.sys === 'deco') rows = renderFreqBoard(null, st, metroBoardLines(st, state.decoLines), true, { compact: true });
+  else rows = schedBoardListHtml(st, schedBoardRows(st), 1);
+  const busId = busTransferStationId(st);
+  const bus = !!(busId && window.BusTransferUI && window.BusTransferUI.isSupported(busId));
+  return `<div class="qa-stn" data-qi="${i}" data-name="${escHtml(st.name)}" data-sys="${escHtml(st.sys)}">` +
+    `<div class="qa-head"><b>${stationHeadingHtml(st.name, st._i18nSys || st.sys)}</b>${c.label ? `<span class="sys-chip">${escHtml(t(c.label))}</span>` : ''}<span class="qa-src">${escHtml(src)}</span><span class="chev">›</span></div>` +
+    `<div class="qa-rows">${rows || `<div class="empty">${escHtml(t('此時段無停靠班次'))}</div>`}</div>` +
+    (bus ? `<button class="qa-bus" type="button">${escHtml(t('這站的公車轉乘'))} ›</button>` : '') +
+    `</div>`;
+}
+function renderQueryAnswer() {
+  const wrap = document.getElementById('queryAnswer'), panel = document.getElementById('searchPanel');
+  if (!wrap || !panel || panel.hidden || !window.matchMedia(MOBILE_MQ).matches) return;
+  state._queryRenderedAt = state.simSec;
+  ensureEvents(); // 台鐵停駛/加班資料懶載入(renderBoardBody 同一行);載到後下一拍自然重畫
+  const ans = queryAnswerStations();
+  const html = ans.stations.length
+    ? ans.stations.map((c, i) => queryStationBlockHtml(c, i, ans)).join('')
+    : `<div class="qa-empty">${escHtml(t(nearbyStationCandidates().length ? '搜尋你的站' : '載入中…'))}</div>`;
+  if (wrap._html === html) return; // 🔴 只有內容變了才寫 DOM:區內有可點的列,每幀重寫會吃掉點擊
+  wrap._html = html;
+  wrap._stations = ans.stations.map(c => c.st);
+  wrap.innerHTML = html;
+  wrap.hidden = false;
+  // 可見上限:量第 5 列的頂到容器頂的距離當 max-height(從量到的推導,不寫死 px);不足 5 列就不限
+  for (const box of wrap.querySelectorAll('.qa-rows')) {
+    const rows = box.querySelectorAll('.row');
+    box.style.maxHeight = rows.length > QUERY_ANSWER_ROWS_MAX ? (rows[QUERY_ANSWER_ROWS_MAX].getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop) + 'px' : '';
+  }
+  boardAlignColumns(wrap);
+  wrap.onclick = e => {
+    const blk = e.target.closest('.qa-stn'); if (!blk) return;
+    const st = wrap._stations && wrap._stations[+blk.dataset.qi]; if (!st) return;
+    const bus = !!e.target.closest('.qa-bus');
+    openBoard(st); // soloPanel 會收掉查詢 sheet(既有互斥),不做「回到查詢」
+    if (bus) requestAnimationFrame(() => { const slot = document.querySelector('#board [data-bus-transfer-slot]'); if (slot) slot.scrollIntoView({ block: 'start' }); });
+  };
 }
 // 導航:決定要不要切群組＋看板 st 形狀。sched→sys:系統id(nat/all 皆真實時刻板);freq 分頁→sys:'freq';
 // 全台同框(all)的捷運→sys:'deco'(裝飾層看板)。當前群組開得了就地開,否則切到該系統母群組再開。
@@ -27959,25 +28023,10 @@ function renderBoard() {
   renderBoardBody();
   boardAlignColumns(document.getElementById('board'));
 }
-function renderBoardBody() {
-  const el = document.getElementById('board'), st = state.boardStation;
-  // 換站要把捲動歸零(下面 el.scrollTop 那段);同一站的重繪則什麼都不做——見該處說明。
-  const stnKey = st ? (st.name + '|' + st.sys) : '';
-  const sameStn = !!stnKey && el._stnKey === stnKey && !el.hidden;
-  // 🔴 整合卡:重繪會 `el.innerHTML = …` 把整個內容換掉——搬進去的 #followPanel 會**跟著被銷毀**
-  //    (實測:跟車卡整顆消失、showFollowPanel 之後對 null 取 .hidden 拋錯)。所以一律先搬回家,
-  //    render 完再由尾端的 syncUniCard() 搬進來。renderFreqBoard 由本函式委派,同樣被這行涵蓋。
-  unmountUniCard();
-  if (!st) { busTransferCloseBoard(); el.hidden = true; updateSheetOpenClass(); return; }
-  const busTransferId = busTransferSyncBoardStation(st);
-  state.boardRenderedAt = state.simSec;
-  ensureEvents(); // 首次載入時資料還在路上,ensureEvents 載到後會自己再叫一次 renderBoard
-  if (state.mode !== 'sched') { renderFreqBoard(el, st, metroBoardLines(st, state.lines), false); appendBusTransferBoard(el, st, busTransferId); return; } // 捷運/輕軌分頁走獨立邏輯,sched(台鐵/高鐵)以下維持原樣;同名站只讀自己所屬系統
-  if (st.sys === 'deco') { renderFreqBoard(el, st, metroBoardLines(st, state.decoLines), true); appendBusTransferBoard(el, st, busTransferId); return; } // 全台同框:點裝飾層捷運站,同款看板但讀 decoLines(無 state.visible 個別開關);同樣依系統分開,避免跨城市同名站合併
-  const rows = schedBoardRows(st);
-  // 分組前是全站合計 12 筆(大段 88%/24 筆 2026-08-26 退役);分組後改成【逐組】配額:
-  // 冷門方向不會被熱門方向整個擠掉。🔴 App 線沒有大段 ⇒ el.expand 恆假 ⇒ 實際恆為 3。
-  const perGroup = el.classList.contains('expand') ? 6 : 3;
+// 看板列 HTML(依方向分組、空組不畫、組內時間序、各取 perGroup 班)。
+// renderBoardBody(perGroup 3/6)與查詢答案區(perGroup 1)共用同一份——答案區的字面必須等於看板同組第一列,
+// 所以不准有第二份產生器(spec §4.3)。
+function schedBoardListHtml(st, rows, perGroup) {
   const rowHtml = r => {
     const minutes = Math.round(r.dtm / 60);
     const min = r.off ? t('停駛') : r.dtm < 60 ? t('即將') : t('{n} 分', { n: i18nNumber(minutes) }, minutes);
@@ -28005,9 +28054,30 @@ function renderBoardBody() {
     byKey.get(r.g.key).rows.push(r);
   }
   const groups = [...byKey.values()].sort((a, b) => a.order - b.order || a.key.localeCompare(b.key));
-  const list = groups.map(g =>
+  return groups.map(g =>
     `<div class="bgrp${g.kind === 'trunk' ? (g.nb ? ' dir-n' : ' dir-s') : ''}">${escHtml(boardGroupLabel(g, groups, st.sys))}</div>` +
     g.rows.slice(0, perGroup).map(rowHtml).join('')).join('');
+}
+function renderBoardBody() {
+  const el = document.getElementById('board'), st = state.boardStation;
+  // 換站要把捲動歸零(下面 el.scrollTop 那段);同一站的重繪則什麼都不做——見該處說明。
+  const stnKey = st ? (st.name + '|' + st.sys) : '';
+  const sameStn = !!stnKey && el._stnKey === stnKey && !el.hidden;
+  // 🔴 整合卡:重繪會 `el.innerHTML = …` 把整個內容換掉——搬進去的 #followPanel 會**跟著被銷毀**
+  //    (實測:跟車卡整顆消失、showFollowPanel 之後對 null 取 .hidden 拋錯)。所以一律先搬回家,
+  //    render 完再由尾端的 syncUniCard() 搬進來。renderFreqBoard 由本函式委派,同樣被這行涵蓋。
+  unmountUniCard();
+  if (!st) { busTransferCloseBoard(); el.hidden = true; updateSheetOpenClass(); return; }
+  const busTransferId = busTransferSyncBoardStation(st);
+  state.boardRenderedAt = state.simSec;
+  ensureEvents(); // 首次載入時資料還在路上,ensureEvents 載到後會自己再叫一次 renderBoard
+  if (state.mode !== 'sched') { renderFreqBoard(el, st, metroBoardLines(st, state.lines), false); appendBusTransferBoard(el, st, busTransferId); return; } // 捷運/輕軌分頁走獨立邏輯,sched(台鐵/高鐵)以下維持原樣;同名站只讀自己所屬系統
+  if (st.sys === 'deco') { renderFreqBoard(el, st, metroBoardLines(st, state.decoLines), true); appendBusTransferBoard(el, st, busTransferId); return; } // 全台同框:點裝飾層捷運站,同款看板但讀 decoLines(無 state.visible 個別開關);同樣依系統分開,避免跨城市同名站合併
+  const rows = schedBoardRows(st);
+  // 分組前是全站合計 12 筆(大段 88%/24 筆 2026-08-26 退役);分組後改成【逐組】配額:
+  // 冷門方向不會被熱門方向整個擠掉。🔴 App 線沒有大段 ⇒ el.expand 恆假 ⇒ 實際恆為 3。
+  const perGroup = el.classList.contains('expand') ? 6 : 3;
+  const list = schedBoardListHtml(st, rows, perGroup);
   const fav = isFavStation(st);
   // 共構站(台北/板橋/南港…)台鐵/高鐵各自成板,標題標系統才分得清這張是誰的
   const sysName = (state.systems.find(x => x.id === st.sys) || {}).label || '';
@@ -28195,7 +28265,7 @@ function metroCoreBoardView(st, lines, isDeco, nowEpoch = Date.now() / 1000) {
   }
   groups.sort((a, b) => a.li - b.li || ((a.rows[0] && a.rows[0].dtm) || 0) - ((b.rows[0] && b.rows[0].dtm) || 0));
   // 🔴 P0-1(看板側):空的 groups【不得】短路既有路徑。renderFreqBoard 寫的是
-  //    `if (core) { renderMetroCoreFreqBoard(…); return; }`,而 { groups: [] } 是 truthy 物件
+  //    `if (core) return renderMetroCoreFreqBoard(…);`,而 { groups: [] } 是 truthy 物件
   //    ⇒ 官方板與班表板兩條退路都被吃掉,畫面顯示「此時段無停靠班次」。與
   //    metroCoreItemsForLine 的 `return out.length ? out : null` 同一條規矩:「一列都排不出來」
   //    從來不是「這一站沒有班次」的證據,決定權交還給既有路徑。
@@ -28240,12 +28310,12 @@ function metroBoardHeadHtml(heads, gi, ln) {
   return `<div class="grp${gi ? '' : ' first'}"><span class="gdot" style="--c:${(ln && ln.color) || 'transparent'}"></span>` +
     `<b>${escHtml(heads[gi])}</b></div>`;
 }
-function renderMetroCoreFreqBoard(el, st, lines, isDeco, view) {
-  delete el.dataset.trtcOfficial;
-  el.dataset.metroCore = '1';
+function renderMetroCoreFreqBoard(el, st, lines, isDeco, view, opts) {
+  const compact = !!(opts && opts.compact);
+  if (!compact) { delete el.dataset.trtcOfficial; el.dataset.metroCore = '1'; }
   const records = [];
   const heads = metroBoardGroupHeads(view.groups);
-  const body = view.groups.map((group, gi) => metroBoardHeadHtml(heads, gi, group.ln) + group.rows.map(rec => {
+  const body = view.groups.map((group, gi) => metroBoardHeadHtml(heads, gi, group.ln) + (compact ? group.rows.slice(0, 1) : group.rows).map(rec => {
     const lineLabel = metroBoardRowLabel(heads, (group.ln._sysLabel ? t(group.ln._sysLabel) + ' ' : '') + routeName(group.ln.name || group.ln.abbr || '', group.ln._sys), group.ln, rec.destName);
     const destination = stationName(rec.destName, group.ln._sys);
     const direction = t('往 {station}', { station: destination });
@@ -28273,6 +28343,7 @@ function renderMetroCoreFreqBoard(el, st, lines, isDeco, view) {
       `<span class="dot" style="background:${group.ln.color}"></span><b>${escHtml(direction)}</b>` +
       `<span class="dest">${escHtml(lineLabel)}</span><span class="t">${fmtHM(rec.t % 86400)}</span><span class="min">${escHtml(min)}</span></div>`;
   }).join('')).join('');
+  if (compact) return body;
   const fav = isFavStation(st), sysNames = [];
   for (const entry of view.stationLines) if (entry.ln._sysLabel && !sysNames.includes(entry.ln._sysLabel)) sysNames.push(entry.ln._sysLabel);
   const waitSys = metroWaitSysForStation(st, lines, isDeco);
@@ -28481,12 +28552,15 @@ function trtcOfficialBoardView(st, lines, isDeco, nowMs = Date.now()) {
   groups.sort((a, b) => a.li - b.li || a.rows[0][a.kind === 'official' ? 'left' : 'dtm'] - b.rows[0][b.kind === 'official' ? 'left' : 'dtm']);
   return { groups, nowMs };
 }
-function renderTrtcOfficialFreqBoard(el, st, lines, isDeco, view) {
-  el.dataset.trtcOfficial = '1';
-  el._trtcOfficialGate = true;
-  el._trtcRenderGen = (el._trtcRenderGen || 0) + 1;
-  el._trtcDown = null;
-  el._downKey = null; // 不讓 legacy 看板先前的 pointerdown 穿越到官方列
+function renderTrtcOfficialFreqBoard(el, st, lines, isDeco, view, opts) {
+  const compact = !!(opts && opts.compact);
+  if (!compact) {
+    el.dataset.trtcOfficial = '1';
+    el._trtcOfficialGate = true;
+    el._trtcRenderGen = (el._trtcRenderGen || 0) + 1;
+    el._trtcDown = null;
+    el._downKey = null; // 不讓 legacy 看板先前的 pointerdown 穿越到官方列
+  }
   const hasFallback = view.groups.some(g => g.kind === 'legacy');
   const hasEstimated = view.groups.some(g => g.kind === 'legacy' && g.ln.times && g.ln.times.estimated);
   const officialRecords = [];
@@ -28497,7 +28571,7 @@ function renderTrtcOfficialFreqBoard(el, st, lines, isDeco, view) {
     // 線名本身已足夠辨識)——這裡是北捷官方板,線名(淡水信義線/安坑輕軌/機場捷運)不會歧義。
     const lineLabel = metroBoardRowLabel(heads, routeName(group.ln.name || group.ln.abbr || group.ln._sysLabel || '', group.ln._sys), group.ln, group.destName);
     const destination = stationName(group.destName, group.ln._sys);
-    if (group.kind === 'official') return head + group.rows.map(rec => {
+    if (group.kind === 'official') return head + (compact ? group.rows.slice(0, 1) : group.rows).map(rec => {
       officialRecords.push(rec);
       const join = rec.join;
       const followAttrs = join ? ` data-li="${join.li}" data-ci="${join.ci}" title="${escHtml(t('跟隨往 {station} 的班次', { station: destination }))}"`
@@ -28516,7 +28590,7 @@ function renderTrtcOfficialFreqBoard(el, st, lines, isDeco, view) {
         crowdHtml +
         `<span class="t">${trtcOfficialAbsoluteHM(rec.row.eta)}</span><span class="min">${escHtml(trtcOfficialCountdownText(rec.row.eta, view.nowMs / 1000, rec.arrival && rec.arrival.near))}</span></div>`;
     }).join('');
-    return head + group.rows.map(row => {
+    return head + (compact ? group.rows.slice(0, 1) : group.rows).map(row => {
       const minutes = Math.round(row.dtm / 60);
       const min = row.dtm < 60 ? t('即將進站') : t('{n} 分', { n: i18nNumber(minutes) }, minutes);
       return `<div class="row" data-li="${group.li}" data-ci="${row.ci}" title="${escHtml(t('跟隨往 {station} 的班次', { station: destination }))}"><span class="dot" style="background:${group.ln.color}"></span>` +
@@ -28524,6 +28598,7 @@ function renderTrtcOfficialFreqBoard(el, st, lines, isDeco, view) {
         `<span class="t">${fmtHM(row.t % 86400)}</span><span class="min">${escHtml(min)}</span></div>`;
     }).join('');
   }).join('');
+  if (compact) return body;
   const fav = isFavStation(st), sysNames = [];
   (lines || []).forEach(ln => {
     if ((!isDeco && !state.visible.has(ln.id)) || !ln.stations || !ln._sysLabel || sysNames.includes(ln._sysLabel)) return;
@@ -28611,14 +28686,15 @@ function refreshTrtcOfficialBoardCountdown(nowMs = Date.now()) {
   });
   if (rerender) renderBoard();
 }
-function renderFreqBoard(el, st, lines, isDeco) {
+// opts.compact(查詢答案區):不碰 el、只回傳 body 字串,每個目的地組只留第一列。三條路徑都要吃到(spec §4.3)。
+function renderFreqBoard(el, st, lines, isDeco, opts) {
+  const compact = !!(opts && opts.compact);
   const core = metroCoreBoardView(st, lines, isDeco);
-  if (core) { renderMetroCoreFreqBoard(el, st, lines, isDeco, core); return; }
-  delete el.dataset.metroCore;
+  if (core) return renderMetroCoreFreqBoard(el, st, lines, isDeco, core, opts);
+  if (!compact) delete el.dataset.metroCore;
   const official = trtcOfficialBoardView(st, lines, isDeco);
-  if (official) { renderTrtcOfficialFreqBoard(el, st, lines, isDeco, official); return; }
-  delete el.dataset.trtcOfficial;
-  el._trtcOfficialGate = trtcOfficialBoardRealNow();
+  if (official) return renderTrtcOfficialFreqBoard(el, st, lines, isDeco, official, opts);
+  if (!compact) { delete el.dataset.trtcOfficial; el._trtcOfficialGate = trtcOfficialBoardRealNow(); }
   const key = st.name.replace(/臺/g, '台');
   const groups = []; // { ln, li, destName, rows:[{t,dtm,ci}] }
   lines.forEach((ln, li) => {
@@ -28652,7 +28728,7 @@ function renderFreqBoard(el, st, lines, isDeco) {
   const body = groups.map((g, gi) => {
     const lineLabel = metroBoardRowLabel(heads, (g.ln._sysLabel ? t(g.ln._sysLabel) + ' ' : '') + routeName(g.ln.name || g.ln.abbr || '', g.ln._sys), g.ln, g.destName);
     const destination = stationName(g.destName, g.ln._sys);
-    return metroBoardHeadHtml(heads, gi, g.ln) + g.rows.map(r => {
+    return metroBoardHeadHtml(heads, gi, g.ln) + (compact ? g.rows.slice(0, 1) : g.rows).map(r => {
       const minutes = Math.round(r.dtm / 60);
       const min = r.dtm < 60 ? t('即將進站') : t('{n} 分', { n: i18nNumber(minutes) }, minutes);
       const direction = (r.tymcKind ? t(TYMC_KIND_NAME[r.tymcKind]) + '・' : '') + t('往 {station}', { station: destination });
@@ -28661,6 +28737,7 @@ function renderFreqBoard(el, st, lines, isDeco) {
         `<span class="t">${fmtHM(r.t % 86400)}</span><span class="min">${escHtml(min)}</span></div>`;
     }).join('');
   }).join('');
+  if (compact) return body;
   const fav = isFavStation(st);
   // 標題標「哪些系統經過本站」(北捷/機捷…):與台鐵/高鐵共構或捷運轉乘時,名字才分得清;篩選同上板邏輯
   const sysNames = [];

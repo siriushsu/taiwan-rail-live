@@ -274,6 +274,122 @@ sections.push({ name: 'G3a 答案站退路鏈', run: async (browser, en) => {
   await r.ctx.close();
 }});
 
+// 開查詢並等答案區有內容
+async function openQuery(page) { await tapTab(page); await page.waitForFunction(() => { const w = document.getElementById('queryAnswer'); return w && !w.hidden && w.querySelector('.qa-stn'); }, null, { timeout: 15000 }).catch(() => {}); await page.waitForTimeout(300); }
+// 看板某站的「每組第一列」文字:.bgrp/.grp 標題後第一個 .row
+const firstRowsExpr = `(sel) => { const out = []; let seen = null; for (const n of document.querySelectorAll(sel + ' .bgrp, ' + sel + ' .grp, ' + sel + ' .row')) { if (n.classList.contains('row')) { if (seen !== null) { out.push(n.textContent.trim()); seen = null; } } else seen = n.textContent.trim(); } return out; }`;
+
+// G3b 同源（spec §7-1）：同站同時刻(暫停播放),答案區每列文字＝看板同組第一列。sched(臺北)＋freq 班表路徑(東門,deco)。
+// 牙：答案區改走另一條取數(或 compact 少切一列) ⇒ 紅。官方/Core 兩條 freq 路徑離線拿不到資料,由 G3c 的靜態斷言與線上模式補。
+sections.push({ name: 'G3b 答案同源', run: async (browser, en) => {
+  const r0 = await boot(browser, {});
+  const taipei = await stationOf(r0.page, '臺北', 'tra_sched'); const dongmen = await stationOf(r0.page, '東門', 'deco');
+  await r0.ctx.close();
+  for (const [st, label] of [[taipei, 'sched 臺北'], [dongmen, 'freq 東門(班表路徑)']]) {
+    if (!st) { ok(`[${en}] G3b-${label} 座標`, false, '候選集找不到'); continue; }
+    const { ctx, page } = await boot(browser, { query: geomock(offsetLatLon(st, 50)) });
+    await page.evaluate(() => { if (state.playing) togglePlay(); }); // 凍結 simSec,兩邊算同一刻
+    await page.waitForFunction(() => !!state.geoLoc, null, { timeout: 15000 });
+    await openQuery(page);
+    await page.evaluate(() => renderQueryAnswer());
+    const ans = await page.evaluate(([f, n, s]) => { const blk = [...document.querySelectorAll('#queryAnswer .qa-stn')].find(b => b.dataset.name === n && b.dataset.sys === s); return blk ? eval('(' + f + ')')('#queryAnswer .qa-stn[data-name="' + n + '"][data-sys="' + s + '"] .qa-rows') : null; }, [firstRowsExpr, st.name, st.sys]);
+    await page.evaluate(([n, s]) => { const c = nearbyStationCandidates().find(x => x.st.name === n && x.st.sys === s); openBoard(c.st); }, [st.name, st.sys]);
+    await page.waitForTimeout(300);
+    const board = await page.evaluate(f => eval('(' + f + ')')('#board'), firstRowsExpr);
+    ok(`[${en}] G3b ${label}:答案區 ${ans ? ans.length : 'null'} 列＝看板每組第一列`, !!ans && ans.length > 0 && JSON.stringify(ans) === JSON.stringify(board.slice(0, ans.length)) && ans.length === board.length, JSON.stringify({ ans, board }).slice(0, 400));
+    await ctx.close();
+  }
+}});
+// G3c 三條 freq 路徑都吃到 compact 的結構斷言(離線替身):三個渲染器各有一個 compact 早退。
+sections.push({ name: 'G3c compact 三路徑', run: async () => {
+  const src = readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const n = (src.match(/if \(compact\) return body;/g) || []).length;
+  ok(`G3c 三個看板渲染器各一個 compact 早退（實際 ${n}）`, n === 3);
+}});
+
+// G4 上限（spec §7-2）：東門(多方向)可見 ≤4 列且可捲;牙:拿掉上限 ⇒ 紅。
+sections.push({ name: 'G4 四列上限', run: async (browser, en) => {
+  const r0 = await boot(browser, {}); const dongmen = await stationOf(r0.page, '東門', 'deco'); await r0.ctx.close();
+  const { ctx, page } = await boot(browser, { query: geomock(offsetLatLon(dongmen, 50)) });
+  await page.waitForFunction(() => !!state.geoLoc, null, { timeout: 15000 });
+  await openQuery(page);
+  const m = await page.evaluate(() => { const box = document.querySelector('#queryAnswer .qa-stn .qa-rows'); const rows = [...box.querySelectorAll('.row')]; const br = box.getBoundingClientRect(); const visible = rows.filter(r => { const q = r.getBoundingClientRect(); return q.top >= br.top - 1 && q.bottom <= br.bottom + 1; }).length; return { total: rows.length, visible, scrollable: box.scrollHeight > box.clientHeight + 1 }; });
+  ok(`[${en}] G4 東門:總列 ${m.total}、可見 ${m.visible} ≤ 4、多的可捲`, m.total > 4 ? (m.visible <= 4 && m.scrollable) : m.visible === m.total, JSON.stringify(m));
+  await ctx.close();
+}});
+
+// G8b 公車列只在 isSupported 站出現(spec §7-8)。正站由頁面自己的閘門挑(牙:拿掉閘門 ⇒ 紅)。
+// 訂正(task-4 決議):brief 原稿另挑一個「不支援」的台鐵站做負案例,但 busTransferStationId 對
+// 所有 tra_sched 站都有 fallback id(BUS_TRANSFER_APP_SYSTEMS 含 tra_sched),而 isSupported 只驗
+// id 格式(/^[A-Z]+:[A-Za-z0-9_]+$/)——兩者疊起來讓任何台鐵候選都判「支援」,結構上找不到負站,
+// `no = cs.find(c => !sup(c))` 恆為 undefined。改用頁內存根:正站驗完之後暫時把 isSupported 換成
+// 恆假,逼重畫,驗 .qa-bus 消失,再還原——牙一樣咬得住 queryStationBlockHtml 不再問 isSupported 的情況。
+sections.push({ name: 'G8b 公車列', run: async (browser, en) => {
+  const r0 = await boot(browser, {});
+  const pick = await r0.page.evaluate(() => { const cs = nearbyStationCandidates().filter(c => c.st.sys === 'tra_sched'); const sup = c => !!(window.BusTransferUI && window.BusTransferUI.isSupported(busTransferStationId(c.st))); const yes = cs.find(sup); return { yes: yes && { name: yes.st.name, sys: yes.st.sys, lat: yes.st.lat, lon: yes.st.lon } }; });
+  await r0.ctx.close();
+  const st = pick.yes;
+  if (!st) { ok(`[${en}] G8b 找得到支援公車的台鐵站`, false); }
+  else {
+    const { ctx, page } = await boot(browser, { query: geomock(offsetLatLon(st, 30)) });
+    await page.waitForFunction(() => !!state.geoLoc, null, { timeout: 15000 });
+    await openQuery(page);
+    const has = await page.evaluate(([n, s]) => !!document.querySelector('#queryAnswer .qa-stn[data-name="' + n + '"][data-sys="' + s + '"] .qa-bus'), [st.name, st.sys]);
+    ok(`[${en}] G8b ${st.name}(支援) 公車列存在`, has === true);
+    // 瀏覽態面板矮(兩段高的短版),公車列常落在摺線以下,真實使用者也要先捲——tap 前先把它捲進可視區(#searchPanel 本身 overflow-y:auto)。
+    const b = await page.evaluate(() => { const btn = document.querySelector('#queryAnswer .qa-bus'); btn.scrollIntoView({ block: 'center' }); const r = btn.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+    await page.touchscreen.tap(b.x, b.y); await page.waitForTimeout(600);
+    const o = await page.evaluate(() => ({ boardOpen: !document.getElementById('board').hidden, slot: !!document.querySelector('#board [data-bus-transfer-slot]'), queryClosed: document.getElementById('searchPanel').hidden }));
+    ok(`[${en}] G8b 點公車列 ⇒ 看板開、公車槽在、查詢收起`, o.boardOpen && o.slot && o.queryClosed, JSON.stringify(o));
+    // 負站(頁內存根):關掉 isSupported、逼重畫、驗 .qa-bus 消失,再還原。
+    await openQuery(page);
+    const stubbed = await page.evaluate(([n, s]) => {
+      window.__isSup = window.BusTransferUI.isSupported;
+      window.BusTransferUI.isSupported = () => false;
+      document.getElementById('queryAnswer')._html = null;
+      renderQueryAnswer();
+      return !document.querySelector('#queryAnswer .qa-stn[data-name="' + n + '"][data-sys="' + s + '"] .qa-bus');
+    }, [st.name, st.sys]);
+    ok(`[${en}] G8b 存根關閉 isSupported ⇒ 公車列消失`, stubbed === true);
+    await page.evaluate(() => { window.BusTransferUI.isSupported = window.__isSup; delete window.__isSup; document.getElementById('queryAnswer')._html = null; renderQueryAnswer(); });
+    await ctx.close();
+  }
+}});
+
+// G12 重畫不吃點擊(spec §7-12):開著 6 秒,DOM 寫入次數 ≤ 內容變化次數;之後真觸控站名列必開看板。牙:每幀重寫 ⇒ 紅。
+sections.push({ name: 'G12 重畫不吃點擊', run: async (browser, en) => {
+  const r0 = await boot(browser, {}); const taipei = await stationOf(r0.page, '臺北', 'tra_sched'); await r0.ctx.close();
+  const { ctx, page } = await boot(browser, { query: geomock(offsetLatLon(taipei, 50)) });
+  await page.waitForFunction(() => !!state.geoLoc, null, { timeout: 15000 });
+  await openQuery(page);
+  await page.evaluate(() => { window.__qaWrites = 0; window.__qaHtml = new Set(); const w = document.getElementById('queryAnswer'); new MutationObserver(() => { window.__qaWrites++; window.__qaHtml.add(w.innerHTML); }).observe(w, { childList: true }); });
+  await page.waitForTimeout(6000);
+  const m = await page.evaluate(() => ({ writes: window.__qaWrites, distinct: window.__qaHtml.size }));
+  ok(`[${en}] G12a 6 秒內 DOM 寫入 ${m.writes} 次 ≤ 內容變化 ${m.distinct} 種`, m.writes <= m.distinct, JSON.stringify(m));
+  // G12a2:天然 6 秒節拍裡倒數文字可能剛好每秒都在變(此站此刻零重複內容 ⇒ G12a 測不到牙),
+  // 改用凍結模擬時間後連續手動呼叫三次——內容真的沒變,DOM 應該 0 次寫入。牙:拿掉去重 ⇒ 紅。
+  const m2 = await page.evaluate(() => {
+    if (state.playing) togglePlay();
+    // togglePlay() 之前排進去的那一格 rAF 可能還會多跑一拍,讓 simSec 在暫停生效前多走一點點——
+    // 先落地渲染一次當「穩定基準」,之後才開始計次,免得那一拍的合理寫入被誤算成牙咬到的寫入。
+    renderQueryAnswer();
+    const w = document.getElementById('queryAnswer');
+    const mo = new MutationObserver(() => {});
+    mo.observe(w, { childList: true });
+    renderQueryAnswer(); renderQueryAnswer(); renderQueryAnswer();
+    // disconnect() 會把「已排進佇列但還沒送達 callback」的紀錄直接丟掉——三次呼叫都在同一段同步碼裡,
+    // callback 要等下一個 microtask 才會被叫到,所以必須用 takeRecords() 同步取出佇列,不能靠 callback 計數。
+    const records = mo.takeRecords();
+    mo.disconnect();
+    return { writes: records.length };
+  });
+  ok(`[${en}] G12a2 內容不變時連續呼叫 renderQueryAnswer 三次 ⇒ DOM 寫入 0 次`, m2.writes === 0, JSON.stringify(m2));
+  const h = await page.evaluate(() => { const r = document.querySelector('#queryAnswer .qa-stn .qa-head').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+  await page.touchscreen.tap(h.x, h.y); await page.waitForTimeout(500);
+  ok(`[${en}] G12b 真觸控站名列 ⇒ 看板開`, await page.evaluate(() => !document.getElementById('board').hidden && !!state.boardStation));
+  await ctx.close();
+}});
+
 // G9 桌面零改動（spec §7-9）：面板永不開、搜尋框留在 header、tab bar 不顯示。牙：手機 CSS 漏進桌面 ⇒ 紅。
 sections.push({ name: 'G9 桌面不變量', run: async (browser, en) => {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'zh-TW' });
