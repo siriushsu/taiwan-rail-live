@@ -114,7 +114,8 @@ sections.push({ name: 'G1 瀏覽態', run: async (browser, en) => {
     const s = await snap(page);
     ok(`[${en}/${width}] G1a 點 tab 後查詢 sheet 開著`, !s.hidden && s.sheetOpen, JSON.stringify({ hidden: s.hidden, sheetOpen: s.sheetOpen }));
     ok(`[${en}/${width}] G1b 瀏覽態沒有 search-open、tab bar 可見`, !s.searchOpen && s.tabbarVisible, JSON.stringify({ searchOpen: s.searchOpen, tabbar: s.tabbarVisible }));
-    ok(`[${en}/${width}] G1c 面板是底部 sheet（高度 ≤ 視窗 60%，貼底）`, s.h <= s.vh * 0.6 && s.bottom >= s.vh - 120, JSON.stringify({ h: s.h, vh: s.vh, bottom: s.bottom }));
+    // I-3:原本只有上界,面板塌成 0 高也會綠——下限用視窗高度的比例推導,不寫死 px。
+    ok(`[${en}/${width}] G1c 面板是底部 sheet（視窗 15%~60% 高，貼底）`, s.h <= s.vh * 0.6 && s.h >= s.vh * 0.15 && s.bottom >= s.vh - 120, JSON.stringify({ h: s.h, vh: s.vh, bottom: s.bottom }));
     ok(`[${en}/${width}] G1d tab「查詢」文字`, (await page.evaluate(() => document.querySelector('#tabSearch .tl').textContent.trim())) === '查詢');
     ok(`[${en}/${width}] G1e 無 pageerror`, errs.length === 0, errs.join(' | '));
     await ctx.close();
@@ -132,12 +133,15 @@ sections.push({ name: 'G1 瀏覽態', run: async (browser, en) => {
       return {
         searchOpen: document.body.classList.contains('search-open'),
         tabbarVisible: !!tb && getComputedStyle(tb).display !== 'none',
-        panelBottom: Math.round(p.bottom), tabbarTop: Math.round(tbr.top),
+        panelTop: Math.round(p.top), panelBottom: Math.round(p.bottom), panelHeight: Math.round(p.height), tabbarTop: Math.round(tbr.top),
         panelRight: Math.round(p.right), panelWidth: Math.round(p.width), vw: innerWidth,
       };
     });
+    // I-3:原判準沒有高度下限,面板塌成 0 高一樣算「沒被 tab bar 蓋住」——下限用可用直向空間
+    // (面板頂到 tab bar 頂)推導,不寫死 px。
     ok(`[${en}/landscape] G1f 瀏覽態是右側欄、沒被 tab bar 蓋住`,
-      !g.searchOpen && g.tabbarVisible && g.panelBottom <= g.tabbarTop + 1 && g.panelRight >= g.vw - 40 && g.panelWidth < g.vw * 0.6,
+      !g.searchOpen && g.tabbarVisible && g.panelBottom <= g.tabbarTop + 1 && g.panelRight >= g.vw - 40 && g.panelWidth < g.vw * 0.6 &&
+      g.panelHeight >= (g.tabbarTop - g.panelTop) * 0.5,
       JSON.stringify(g));
     const inp = await page.evaluate(() => { const r = document.getElementById('trainSearch').getBoundingClientRect(); return { x: r.left + 20, y: r.top + r.height / 2 }; });
     await page.touchscreen.tap(inp.x, inp.y);
@@ -353,14 +357,32 @@ sections.push({ name: 'G3c compact 三路徑', run: async () => {
   ok(`G3c 三個看板渲染器各一個 compact 早退（實際 ${n}）`, n === 3);
 }});
 
-// G4 上限（spec §7-2）：東門(多方向)可見 ≤4 列且可捲;牙:拿掉上限 ⇒ 紅。
+// G4 上限（spec §7-2）：多方向站可見 ≤4 列且可捲;牙:拿掉上限 ⇒ 紅。
+// I-4(fix wave):原本固定測東門,但 compact 列數(每組 perGroup=1)隨時段變動——離峰或某些方向
+// 沒班次時 byKey 那個 Map 少幾組,total 可能 ≤4,判準就整條退化成「可見數=總數」,
+// QUERY_ANSWER_ROWS_MAX 這件事一次都不會被驗到、也不會有任何訊號(判準盲點 6)。改成由頁面自己
+// 找站:直接呼叫 queryStationBlockHtml(答案區生產路徑本尊,不另寫一份取數邏輯——同源鐵則)算出
+// 每個候選站「此刻」真正會渲染幾列,挑第一個 > 4 的;找不到這種站本身也下一條具名斷言,
+// 不會無聲通過變成 vacuous pass。
 sections.push({ name: 'G4 四列上限', run: async (browser, en) => {
-  const r0 = await boot(browser, {}); const dongmen = await stationOf(r0.page, '東門', 'deco'); await r0.ctx.close();
-  const { ctx, page } = await boot(browser, { query: geomock(offsetLatLon(dongmen, 50)) });
+  const r0 = await boot(browser, {});
+  const pick = await r0.page.evaluate(() => {
+    for (const c of nearbyStationCandidates()) {
+      const html = queryStationBlockHtml(c, 0, { src: 'none' });
+      const div = document.createElement('div'); div.innerHTML = html;
+      const total = div.querySelectorAll('.qa-rows .row').length;
+      if (total > 4) return { name: c.st.name, sys: c.st.sys, lat: c.st.lat, lon: c.st.lon, total };
+    }
+    return null;
+  });
+  await r0.ctx.close();
+  ok(`[${en}] G4 前提:找得到 compact 列數 > 4 的站(此刻)`, !!pick, JSON.stringify(pick));
+  if (!pick) return;
+  const { ctx, page } = await boot(browser, { query: geomock(offsetLatLon(pick, 50)) });
   await page.waitForFunction(() => !!state.geoLoc, null, { timeout: 15000 });
   await openQuery(page);
   const m = await page.evaluate(() => { const box = document.querySelector('#queryAnswer .qa-stn .qa-rows'); const rows = [...box.querySelectorAll('.row')]; const br = box.getBoundingClientRect(); const visible = rows.filter(r => { const q = r.getBoundingClientRect(); return q.top >= br.top - 1 && q.bottom <= br.bottom + 1; }).length; return { total: rows.length, visible, scrollable: box.scrollHeight > box.clientHeight + 1 }; });
-  ok(`[${en}] G4 東門:總列 ${m.total}、可見 ${m.visible} ≤ 4、多的可捲`, m.total > 4 ? (m.visible <= 4 && m.scrollable) : m.visible === m.total, JSON.stringify(m));
+  ok(`[${en}] G4 ${pick.name}:總列 ${m.total}、可見 ${m.visible} ≤ 4、多的可捲`, m.total > 4 && m.visible <= 4 && m.scrollable, JSON.stringify(m));
   // G4b(fix round 1、finding #3):重畫不能洗掉區內捲動位置——捲到底之後逼一次重畫(內容其實沒變,
   // 比照 G12c 的手法:_html=null 再 renderQueryAnswer()),捲動位置要原地不動。牙:拿掉 save/restore ⇒
   // 紅(新插入的 .qa-rows 天生 scrollTop=0)。
@@ -415,9 +437,13 @@ sections.push({ name: 'G8b 公車列', run: async (browser, en) => {
       window.BusTransferUI.isSupported = () => false;
       document.getElementById('queryAnswer')._html = null;
       renderQueryAnswer();
-      return !document.querySelector('#queryAnswer .qa-stn[data-name="' + n + '"][data-sys="' + s + '"] .qa-bus');
+      const blk = document.querySelector('#queryAnswer .qa-stn[data-name="' + n + '"][data-sys="' + s + '"]');
+      return { noBus: !blk || !blk.querySelector('.qa-bus'), blockStillThere: !!blk };
     }, [st.name, st.sys]);
-    ok(`[${en}] G8b 存根關閉 isSupported ⇒ 公車列消失`, stubbed === true);
+    ok(`[${en}] G8b 存根關閉 isSupported ⇒ 公車列消失`, stubbed.noBus === true);
+    // #25:只有公車列該消失——關掉 isSupported 不該連整個站塊都清空(那會是另一種更嚴重的壞法,
+    // 例如把 bus 判斷寫進了 rows 的產生路徑而不是附加在後面)。
+    ok(`[${en}] G8b 存根只影響公車列,站塊本體(.qa-stn)還在`, stubbed.blockStillThere === true);
     await page.evaluate(() => { window.BusTransferUI.isSupported = window.__isSup; delete window.__isSup; document.getElementById('queryAnswer')._html = null; renderQueryAnswer(); });
     await ctx.close();
   }

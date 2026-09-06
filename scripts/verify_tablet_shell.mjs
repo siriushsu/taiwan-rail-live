@@ -271,8 +271,10 @@ async function runCase(browser, engine, testCase) {
       // 查詢分頁兩態(2026-09-06 Fix round 1,F1):單點 tab 只到瀏覽態——rail 情境該長得跟其他
       // 側欄 sheet 一樣寬(同一顆 --rail-w,見上面「側欄寬度」量到的 got.railW)、不蓋到 tab bar；
       // 右半全高的「search-land」是打字態才有的版面,得再聚焦輸入框才看得到(見下面 typing 分支)。
+      // I-3(fix wave):原判準沒有高度下限,面板塌成 0 高一樣算過——下限用可用直向空間
+      // (面板頂到 tab bar 頂)推導,不寫死 px。
       const shapeOk = wantRail
-        ? Math.abs(shape.w - got.railW) < 2 && shape.tabbarTop != null && shape.y + shape.h <= shape.tabbarTop + 1
+        ? Math.abs(shape.w - got.railW) < 2 && shape.tabbarTop != null && shape.y + shape.h <= shape.tabbarTop + 1 && shape.h >= (shape.tabbarTop - shape.y) * .5
         : shape.w >= shape.vw * .88 && shape.y > 8;
       ok(engine + ' ' + testCase.name + ' 搜尋面板形態(瀏覽態)', shapeOk, JSON.stringify({ ...shape, railW: got.railW }));
 
