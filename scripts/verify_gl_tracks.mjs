@@ -176,7 +176,7 @@ try {
     onlyFor('maplibre', GL_TRACKS_REASON, 'T1b source 有 feature', maplibre ? t1.n > 0 && t1.src : undefined, `n=${t1.n}`);
     onlyFor('maplibre', GL_TRACKS_REASON, 'T2 MapLibre:canvas 不再描軌道(三個中段點 alpha=0)', maplibre ? !o.s2.err && o.s2.alphas.every(x => x === 0) : undefined, o.s2);
     onlyFor('maplibre', GL_TRACKS_REASON, 'T3 可見集合與突變正確', maplibre ? o.t3a === t3b.total && t3b.n === o.t3a - 1 : undefined, { t3a: o.t3a, ...t3b });
-    onlyFor('maplibre', GL_TRACKS_REASON, 'T4 主題/狀態 paint 正確', maplibre ? o.light === '["get","color"]' && /^\["case",\["in",\["get","lineKey"\]/.test(o.dark) && o.dark.includes('colorDark') && o.faint === '["get","colorFaintDark"]' && o.hidden === '["get","colorHiddenLight"]' : undefined, `${o.light} | ${o.dark || ''} | ${o.faint} | ${o.hidden}`);
+    onlyFor('maplibre', GL_TRACKS_REASON, 'T4 主題/狀態 paint 正確', maplibre ? o.light === '["get","color"]' && o.dark === '["get","colorNeon"]' && o.faint === '["get","colorFaintDark"]' && o.hidden === '["get","colorHiddenLight"]' : undefined, `${o.light} | ${o.dark || ''} | ${o.faint} | ${o.hidden}`);
     onlyFor('maplibre', GL_TRACKS_REASON, 'T5 站點圓各模式 filter/minzoom 正確', maplibre ? a.n === 0 && b.min === 10 && b.n === b.deco && b.deco > 0 && c.min === 0 && c.mode === 'freq' && c.n === c.vis && c.n > 0 : undefined, { a, b, c });
     onlyFor('maplibre', GL_TRACKS_REASON, 'T6 交叉口 layer 順序與中心像素=above 線色', maplibre ? o.t6ok : undefined, o.t6detail);
     onlyFor('maplibre', GL_TRACKS_REASON, 'T8 跟隨路線高亮由 GL 接手，3D 傾斜不留 canvas 透視投影長直線', maplibre

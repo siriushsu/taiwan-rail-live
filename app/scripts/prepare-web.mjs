@@ -154,7 +154,7 @@ for (const file of [
   // 2026-09-01 上線後這份清單沒補，iOS 93／95／96 與 Android 35／37 全部漏打包；index.html 的守衛遇到
   // !window.BusTransferUI 只是靜默 return ⇒ build 全綠、App 照開，公車卡在 App 裡整個不存在（1.5.5／1.5.6
   // 上架後才發現）。verify-release 現在另有「首頁引用的本機腳本／樣式都要在 bundle 裡」守門，再漏會當場紅。
-  'bus-transfer-ui.js', 'rail-discovery.js',
+  'bus-transfer-ui.js', 'rail-discovery.js', 'night-theme.css', 'night-map.js', 'night-board.js',
   'favicon-16.png', 'favicon-32.png', 'favicon-48.png', 'favicon-192.png', 'favicon-512.png',
   'apple-touch-180.png', 'icon-maskable-512.png', 'og-1200x630.png'
 ]) await copyFile(file);

@@ -1064,3 +1064,6 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   "綠線": "緑線",
   "廣慈/奉天宮": "廣慈／奉天宮"
 });
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"下一班":"Next train", "暗色 2.0：霓虹路線、透明藍色建築與玻璃面板；車站看板新增方向切換和大字倒數，亮色維持琺瑯風格":"Dark 2.0 brings neon routes, transparent blue buildings and glass panels, with direction tabs and a large departure countdown. Light mode keeps its enamel style."});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"下一班":"次の列車", "暗色 2.0：霓虹路線、透明藍色建築與玻璃面板；車站看板新增方向切換和大字倒數，亮色維持琺瑯風格":"ダーク2.0：ネオンの路線、透明な青い建物とガラスパネル。駅の発着案内に方面切替と大きなカウントダウンを追加。ライトモードは琺瑯スタイルを維持します。"});

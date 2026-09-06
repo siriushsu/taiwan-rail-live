@@ -4653,6 +4653,7 @@
     body:not(.mobile-shell):not(.ambient) #ambientStyleBtn { display: none; }
   }
 </style>
+<link rel="stylesheet" href="./night-theme.css">
 <script>
 // 外觀 FOUC 防護:首繪前先套主題(亮/暗/自動),完整切換邏輯在檔尾 applyAppearance
 (function () { try {
@@ -5228,6 +5229,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="night200907"><span class="d">9/7</span><span>暗色 2.0：霓虹路線、透明藍色建築與玻璃面板；車站看板新增方向切換和大字倒數，亮色維持琺瑯風格</span></li>
         <li data-cl-of="nightglow0907"><span class="d">9/7</span><span>暗色地圖的路線自動帶上霓虹微光，保留各線原色；切回亮色地圖就恢復原樣</span></li>
         <li data-cl-of="discovery0907"><span class="d">9/7</span><span>新增路線導覽與精選取景：沿線找站、點站看班次；空白搜尋也有可點的範例</span></li>
         <li data-cl-of="ofmwatch0906"><span class="d">9/6</span><span>修正街道底圖被誤判成載入失敗：開圖後馬上縮放或網路較慢時，App 不再默默換成備用底圖、3D 建築也不會跟著消失，網站也不再誤跳「街道底圖載入異常」</span></li>
@@ -5235,7 +5237,6 @@
         <li data-cl-of="querytab0906"><span class="d">9/6</span><span>手機底部「搜尋」改為「查詢」：半高面板先給離你最近的站各方向下一班，再列提醒、今日動態、附近車站與小工具入口；在車站附近開 App 會自動出現</span></li>
         <li data-cl-of="branchdestgroup"><span class="d">9/6</span><span>車站看板：只借道成追線的縱貫線列車回到南下、北上組；支線組標題改成列車真正的終點站</span></li>
         <li data-cl-of="hsinchuboarddir"><span class="d">9/6</span><span>修正新竹、北新竹站看板把往基隆、七堵的縱貫線列車歸進「往內灣」（謝謝網友回報）</span></li>
-        <li data-cl-of="trasnap0905"><span class="d">9/5</span><span>台鐵誤點一次跳增 5 分以上時，列車直接跳回實際位置，不再原地停等</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5461,6 +5462,7 @@
         <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，面板都住進底部；新增「捷」分頁，北中高捷運一張圖同框</span></li>
         <li><span class="d">7/13</span><span>新增「省電」模式（手機預設開啟）：降到 30fps；手機一次只開一個面板</span></li>
         <li class="grp">外觀與品牌</li>
+        <li data-cl="night200907"><span class="d">9/7</span><span>暗色 2.0：霓虹路線、透明藍色建築與玻璃面板；車站看板新增方向切換和大字倒數，亮色維持琺瑯風格</span></li>
         <li data-cl="tracksovermap0904"><span class="d">9/4</span><span>修正暗色 MapLibre 地圖的彩色路線仍被道路切碎；所有道路與 3D 建築現在都在路線下方，地名維持在上方。</span></li>
         <li data-cl="copyaudit"><span class="d">9/3</span><span>更新紀錄改得更精簡好讀；資料來源、source-available 授權、地圖供應商與 Android 帳號刪除說明也同步更新。</span></li>
         <li data-cl="cartoretreat"><span class="d">8/31</span><span>網站的 OpenFreeMap 載入異常時不再退回帶浮水印的 CARTO，改為明示錯誤並建議切換衛星或重新整理；App 仍使用自有備援底圖。</span></li>
@@ -5923,6 +5925,8 @@
 <script src="./i18n/bus-transfer-translations.js"></script>
 <script src="./bus-transfer-ui.js"></script>
 <script src="./rail-discovery.js"></script>
+<script src="./night-map.js"></script>
+<script src="./night-board.js"></script>
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
@@ -6115,7 +6119,7 @@
 //         網友回報 issue #46。守門人:scripts/verify_board_direction_groups.mjs 的 D11a–D11f。
 // v0906g：手機底部「搜尋」改為「查詢」半高面板——答案區走看板同源、公車轉乘入口、靠近車站自動開;併入 origin/main 的 v0906f。
 // v0906i：v0906g(查詢分頁)再併入 origin/main 的 v0906h(看板支線分組)。
-const BUILD = 'v0907b';
+const BUILD = 'v0907c';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -6856,7 +6860,13 @@ function createEngine(containerId, view) { return createMaplibreEngine(container
 // ==== ENGINE ADAPTER END ====
 const MAP3D_PREF_KEY = 'trainmap-map-3d';
 function installBuilding3d() {
-  if (!M || !M.isStyleReady() || !M.raw.getSource('openmaptiles') || M.raw.getLayer('building-3d')) return;
+  if (!M || !M.isStyleReady() || !M.raw.getSource('openmaptiles')) return;
+  if (M.raw.getLayer('building-3d')) {
+    M.raw.setPaintProperty('building-3d', 'fill-extrusion-color', state.mapDark ? '#638BC5' : '#d4d0c5');
+    M.raw.setPaintProperty('building-3d', 'fill-extrusion-opacity', state.mapDark ? .30 : .72);
+    if (state.mapDark) window.RailNightMap?.installGlass(M.raw);
+    return;
+  }
   const layers = (M.raw.getStyle() && M.raw.getStyle().layers) || [];
   const firstTrack = layers.find(layer => layer.id.startsWith('track-'));
   const firstSymbol = layers.find(layer => layer.type === 'symbol');
@@ -6864,13 +6874,14 @@ function installBuilding3d() {
     id: 'building-3d', type: 'fill-extrusion', source: 'openmaptiles', 'source-layer': 'building', minzoom: 13,
     layout: { visibility: state.map3d ? 'visible' : 'none' },
     paint: {
-      'fill-extrusion-color': state.mapDark ? '#343944' : '#d4d0c5',
+      'fill-extrusion-color': state.mapDark ? '#638BC5' : '#d4d0c5',
       'fill-extrusion-height': ['interpolate', ['linear'], ['zoom'], 13, 0, 14,
         ['to-number', ['coalesce', ['get', 'render_height'], ['get', 'height']], 8]],
       'fill-extrusion-base': ['to-number', ['coalesce', ['get', 'render_min_height'], ['get', 'min_height']], 0],
-      'fill-extrusion-opacity': 0.72,
+      'fill-extrusion-opacity': state.mapDark ? 0.30 : 0.72,
     },
   }, (firstTrack || firstSymbol) && (firstTrack || firstSymbol).id);
+  if (state.mapDark) window.RailNightMap?.installGlass(M.raw);
 }
 function syncMap3dUi() {
   const btn = document.getElementById('map3dBtn');
@@ -11333,6 +11344,7 @@ async function glTracksLoad() {
   if (!GL_TRACKS || !M || !M.onStyleLoad) return;
   const [style, lines, stations] = await Promise.all([fetchJSON('./data/track_style_layers.json'), fetchJSON('./data/track_lines.geojson'), fetchJSON('./data/track_stations.geojson')]);
   if (!style || !lines || !stations) return; // 任一缺檔就整個不啟用:canvas 照舊畫,不會出現「有 GL 沒資料」的空軌道
+  for (const feature of lines.features) feature.properties.colorNeon = window.RailNightMap?.neon(feature.properties.color) || feature.properties.color;
   glTracks.style = style; glTracks.lines = lines; glTracks.stations = stations;
   glTracks.ranks = [...new Set(lines.features.map(f => f.properties.sortKey))].sort((a, b) => a - b);
   glTracks.ready = true;
@@ -11360,7 +11372,9 @@ function glTracksInstall() {
   const none = ['in', ['get', 'lineKey'], ['literal', []]];
   // 暗色微光共用同一份軌道幾何、位在實線與站名之下；只多一層靜態 GPU 描邊。
   raw.addLayer({ ...base['track-line'], id: 'track-glow', filter: none,
-    paint: { 'line-color': ['get', 'color'], 'line-width': 9, 'line-blur': 5, 'line-opacity': 0 } }, before);
+    paint: { 'line-color': ['get', 'color'], 'line-width': 10, 'line-blur': 4, 'line-opacity': 0 } }, before);
+  raw.addLayer({ ...base['track-line'], id: 'track-glow-inner', minzoom: 10, filter: none,
+    paint: { 'line-color': ['get', 'color'], 'line-width': 4.5, 'line-blur': 1.3, 'line-opacity': 0 } }, before);
   for (const k of glTracks.ranks) { // 依 sortKey 階級交錯:上層線的 casing 才會挖掉下層線的色線(canvas 逐線 knockout 的近似,計畫 D4)
     const f = ['all', ['==', ['get', 'sortKey'], k], none];
     raw.addLayer({ ...base['track-casing'], id: 'track-casing-' + k, filter: f }, before);
@@ -11422,12 +11436,20 @@ function glTracksSync() {
   if (sig === glTracks.sig) return;
   glTracks.sig = sig;
   const S = (glTracks.style.states[st] && glTracks.style.states[st][theme]) || glTracks.style.themes[theme];
-  raw.setFilter('track-glow', ['in', ['get', 'lineKey'], ['literal', K.lineKeys]]);
-  raw.setPaintProperty('track-glow', 'line-opacity', theme === 'dark' && st === 'auto' ? .45 : 0);
-  const casing = S['track-casing'].paint, line = { ...S['track-line'].paint }, stn = { ...S['track-stations'].paint };
-  if (st === 'auto' && theme === 'dark') { // 計畫 D1:只有班表軌道(drawSched 那批)壓暗成 colorDark,捷運/裝飾層維持原色(metroLineColor 契約)
-    line['line-color'] = ['case', ['in', ['get', 'lineKey'], ['literal', K.schedKeys]], ['get', 'colorDark'], ['get', 'color']];
-    stn['circle-stroke-color'] = ['get', 'color'];
+  for (const [id, alpha] of [['track-glow', .22], ['track-glow-inner', .55]]) {
+    raw.setFilter(id, ['in', ['get', 'lineKey'], ['literal', K.lineKeys]]);
+    raw.setPaintProperty(id, 'line-opacity', theme === 'dark' && st === 'auto' ? alpha : 0);
+  }
+  // 夜間會覆寫寬度與透明度，切回其他模式須一起恢復基礎 paint，不能留下上一次的值。
+  const basePaint = id => glTracks.style.layers.find(layer => layer.id === id).paint;
+  const casing = { 'line-opacity': 1, ...basePaint('track-casing'), ...S['track-casing'].paint };
+  const line = { 'line-opacity': 1, ...basePaint('track-line'), ...S['track-line'].paint };
+  const stn = { ...basePaint('track-stations'), ...S['track-stations'].paint };
+  if (st === 'auto' && theme === 'dark') { // 夜間霓虹:細亮芯、內光、外光共用真實幾何。
+    line['line-color'] = ['get', 'colorNeon'];
+    line['line-width'] = 2.2; line['line-opacity'] = 1;
+    casing['line-opacity'] = 0;
+    stn['circle-color'] = '#0C1322'; stn['circle-stroke-color'] = ['get', 'color'];
   }
   for (const k of glTracks.ranks) {
     const f = ['all', ['==', ['get', 'sortKey'], k], ['in', ['get', 'lineKey'], ['literal', K.lineKeys]]];
@@ -11856,6 +11878,13 @@ function drawFreqTag(p, ln, tr, fg) {
 }
 
 function drawDot(p, color) {
+  if (state.mapDark && state.basemap !== 'sat') {
+    ctx.save();
+    ctx.fillStyle = color; ctx.globalAlpha = .12; ctx.beginPath(); ctx.arc(p.x,p.y,11,0,7); ctx.fill();
+    ctx.globalAlpha = .50; ctx.beginPath(); ctx.arc(p.x,p.y,5.5,0,7); ctx.fill();
+    ctx.globalAlpha = 1; ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.arc(p.x,p.y,2.6,0,7); ctx.fill();
+    ctx.restore(); return;
+  }
   ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, 7);
   ctx.fillStyle = color; ctx.globalAlpha = 0.2; ctx.fill();
   ctx.beginPath(); ctx.arc(p.x, p.y, 3.2, 0, 7);
@@ -26724,7 +26753,8 @@ const LAST_BOARD_KEY = 'trainmap-last-board-v1';         // {sys,name}:上次看
 //    解法是給【中】下限(見 CSS)、預設退到【小】:打開時貼合內容不留白,按一下才展開到 46%。
 //    下限只給中不給小 ⇒ 不會出現「小比中高」的邏輯反轉(那正是當初不給小段下限的理由)。
 const SHEET_SIZES = ['small', 'medium'];
-let sheetSizePref = 'small';
+let sheetSizePref = 'small', nightSheetSizePref = 'medium';
+try { const value = localStorage.getItem('trainmap-night-sheet-size'); if (SHEET_SIZES.includes(value)) nightSheetSizePref = value; } catch (e) {}
 try {
   const saved = localStorage.getItem(SHEET_SIZE_KEY);
   // 存過 'large' 的人遷移到 'medium'(留在 large 會讓 sheetSizeOf 讀到不存在的段而卡住)
@@ -26756,7 +26786,7 @@ function updateSheetOpenClass() {
     const el = document.getElementById(id);
     if (el && el !== sizedAct) el.classList.remove('sheet-small');
   }
-  if (sizedAct) applySheetSize(sizedAct, sheetSizePref);
+  if (sizedAct) applySheetSize(sizedAct, state.mapDark && sizedAct.id !== 'searchPanel' ? nightSheetSizePref : sheetSizePref);
   // §04c 契約9:打字態(search-open)只由 setSearchTyping 進入;面板不再是作用中 sheet 時一律清掉
   if (!(act && act.id === 'searchPanel')) document.body.classList.remove('search-open');
   invalidateMapInsets(); // 面板開關/換段高=露出地圖變了,量測快取立即失效(下一行 reframeFocus 要拿新值)
@@ -26799,9 +26829,10 @@ function closeTrainSheet() {
 // 三段高:標題列循環小→中→大；拖抓把只往相鄰段移動，邊界不繞回。
 function setSheetSize(el, size) {
   if (!sheetHasSizeSteps(el) || !window.matchMedia(MOBILE_MQ).matches || !SHEET_SIZES.includes(size)) return;
-  sheetSizePref = size;
+  const night = state.mapDark && el.id !== 'searchPanel';
+  if (night) nightSheetSizePref = size; else sheetSizePref = size;
   applySheetSize(el, size);
-  try { localStorage.setItem(SHEET_SIZE_KEY, size); } catch (e) {}
+  try { localStorage.setItem(night ? 'trainmap-night-sheet-size' : SHEET_SIZE_KEY, size); } catch (e) {}
   // 兩段制之後筆數不再跟段高走(一律 12),但小段用 CSS 收內文、renderBoard 仍要跟上開合狀態;
   // renderBoard 自己會再叫一次 updateSheetOpenClass
   if (el.id === 'board' && state.boardStation && state.mode === 'sched') renderBoard();
@@ -28325,6 +28356,7 @@ function boardAlignColumns(el) {
 }
 function renderBoard() {
   renderBoardBody();
+  window.RailNightBoard?.decorate(document.getElementById('board'), () => state.simSec, t('下一班'));
   boardAlignColumns(document.getElementById('board'));
 }
 // 看板列 HTML(依方向分組、空組不畫、組內時間序、各取 perGroup 班)。
@@ -28341,7 +28373,7 @@ function schedBoardListHtml(st, rows, perGroup) {
     // I-1:答案區(perGroup=1)點列是開看板(見 renderQueryAnswer 的 wrap.onclick),不是跟車——
     // 「跟隨 N 次」的 tooltip 在那裡是假話,只在真正的看板(perGroup 3/6)才掛。
     const title = perGroup === 1 ? '' : ` title="${escHtml(t('跟隨 {train} 次', { train: r.tr.train }))}"`;
-    return `<div class="row${r.off ? ' off' : ''}${rx}"${r.off ? '' : ` data-no="${escHtml(r.tr.train)}" data-sys="${escHtml(r.tr.sys || '')}"${title}`}><span class="dot" style="background:${r.tr.color}"></span>` +
+    return `<div data-night-at="${state.simSec + r.dtm}" class="row${r.off ? ' off' : ''}${rx}"${r.off ? '' : ` data-no="${escHtml(r.tr.train)}" data-sys="${escHtml(r.tr.sys || '')}"${title}`}><span class="dot" style="background:${r.tr.color}"></span>` +
       // 「推算」標貼著時刻放(被推算的是時間不是路線),與 lateTag 同位、不會同時出現(est 車無誤點資料);
       // 放 dest 欄會把「（終點到達）」擠成「(…」(280px 看板實測;v0901 加寬到 360 後未重測,維持原做法)。
       // 設計 6b:大改兩行、特大把車種與方向收進列尾「›」——兩者都要能各自定位,故各包一層。
@@ -30219,6 +30251,8 @@ function glLandInstall() {
   }
   const first = raw.getStyle().layers[0];
   if (first && first.type === 'background') raw.setPaintProperty(first.id, 'background-color', GL_SEA[theme]);
+  window.RailNightMap?.styleMap(raw, theme === 'dark');
+  installBuilding3d();
 }
 // 署名:一般地圖=OFM(MapLibre 從 OFM 的 TileJSON 自動帶出「OpenFreeMap © OpenMapTiles Data from OpenStreetMap」,再推一份 OFM_ATTRIBUTION 會變兩行重複)、
 // 衛星=Esri(自訂 style 沒有來源署名,要自己給);離線陸地載入後永遠加內政部(法定要件,既有署名字串不變)。字串先過 t() 再交給控件,
@@ -31950,6 +31984,7 @@ function setupMapTools() {
     document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
     const mt = document.querySelector('meta[name=theme-color]'); if (mt) mt.content = dark ? '#10141c' : '#F2EDE2';
     state.mapDark = dark;
+    if (state.ready) { renderBoard(); updateSheetOpenClass(); }
     themeBtn.querySelector('.tl').textContent = t({ light: '外觀:亮', dark: '外觀:暗', auto: '外觀:自動' }[mode]);
     setBasemap();
     if (state.ready) draw(); // 調色盤變了立即補一幀(暫停中也要換色)
