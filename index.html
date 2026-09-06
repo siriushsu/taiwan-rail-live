@@ -30453,17 +30453,17 @@ function ofmWatch(layer) {
   if (ofmDelivered(layer)) stop(); else answered = ofmAnswered(layer);
 }
 // 掛 watcher 當下 openmaptiles 的圖磚是不是已經到手＝畫面上查得到它的 feature。
-// 不看 map.loaded()／isSourceLoaded():TileJSON 抓失敗時 SourceCache 把 errored 當 loaded(vendor 裡 `_sourceErrored)return !0`),
+// 不看 raw.loaded()／isSourceLoaded():TileJSON 抓失敗時 SourceCache 把 errored 當 loaded(vendor 裡 `_sourceErrored)return !0`),
 // 零張圖磚它們也會回 true,拿來當成功訊號會在「OFM 真的掛了」時反而不退場。
-function ofmDelivered(map) {
+function ofmDelivered(raw) {
   try {
-    if (!map.getSource(OFM_VECTOR_SOURCE)) return false;
-    return map.queryRenderedFeatures().some(f => f.source === OFM_VECTOR_SOURCE);
+    if (!raw.getSource(OFM_VECTOR_SOURCE)) return false;
+    return raw.queryRenderedFeatures().some(f => f.source === OFM_VECTOR_SOURCE);
   } catch (e) { return false; }
 }
 // TileJSON 已經套進 source 了嗎(掛 watcher 之前就回來的話,sourcedata metadata 事件已經錯過)。
-function ofmAnswered(map) {
-  try { const s = map.getSource(OFM_VECTOR_SOURCE); return !!(s && s.tiles && s.tiles.length); } catch (e) { return false; }
+function ofmAnswered(raw) {
+  try { const s = raw.getSource(OFM_VECTOR_SOURCE); return !!(s && s.tiles && s.tiles.length); } catch (e) { return false; }
 }
 // 街道底圖失效的處置(網站限定)。2026-08-31 起這是網站**唯一**的處置——CARTO 退路已拔除,
 // 所以場景回到「OFM 一掛就沒有街道底圖」:使用者會看到空白底圖上飄著列車,一定要把話講出來,
