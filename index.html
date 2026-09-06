@@ -30338,7 +30338,9 @@ function ofmWatch(layer) {
     fail('slow');
   };
   timer = setTimeout(deadline, OFM_HEALTH_MS);
-  layer.on('error', () => { if (!settled && ++errors >= OFM_ERROR_LIMIT) fail('error'); });
+  // error 只數 openmaptiles 自己的(TileJSON／圖磚 5xx 帶 sourceId):sprite、字形、natural_earth、衛星的錯不關 OFM 向量的事,
+  // 而 settled 現在最久 16 秒才翻,期間隨便 4 發別人的 error 就會走回同一種誤判(09-06 複審指出)。
+  layer.on('error', e => { if (!settled && e && e.sourceId === OFM_VECTOR_SOURCE && ++errors >= OFM_ERROR_LIMIT) fail('error'); });
   layer.on('sourcedata', onSource);
   if (ofmDelivered(layer)) stop(); else answered = ofmAnswered(layer);
 }
