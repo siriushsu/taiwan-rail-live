@@ -5161,7 +5161,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/9/5</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/9/6</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -5169,6 +5169,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="badgefallen"><span class="d">9/6</span><span>捷運頂列的「N 線改用備案」指得出是哪幾條線、為什麼：滑鼠移上去或點開資料狀態卡就看得到</span></li>
         <li data-cl-of="querytab0906"><span class="d">9/6</span><span>手機底部「搜尋」改為「查詢」：半高面板先給離你最近的站各方向下一班，再列提醒、今日動態、附近車站與小工具入口；在車站附近開 App 會自動出現</span></li>
         <li data-cl-of="branchdestgroup"><span class="d">9/6</span><span>車站看板：只借道成追線的縱貫線列車回到南下、北上組；支線組標題改成列車真正的終點站</span></li>
         <li data-cl-of="hsinchuboarddir"><span class="d">9/6</span><span>修正新竹、北新竹站看板把往基隆、七堵的縱貫線列車歸進「往內灣」（謝謝網友回報）</span></li>
@@ -5176,7 +5177,6 @@
         <li data-cl-of="leafletremoved0905"><span class="d">9/5</span><span>地圖全面改用 MapLibre，不再保留舊版 Leaflet 地圖：?engine=leaflet 這個網址參數已失效，開啟網站也不會再多下載一份舊地圖函式庫。</span></li>
         <li data-cl-of="maplibredefault0904"><span class="d">9/4</span><span>地圖引擎預設改為 MapLibre：所有人打開都是可旋轉、傾斜、開 3D 建築的向量地圖，跟隨列車時行進方向朝上。</span></li>
         <li data-cl-of="followrouteexact0904"><span class="d">9/4</span><span>修正跟隨長途列車放大看彎道時，紅色行程線會離開實際軌道、旁邊露出另一條原色線；現在放大也會完整貼合。</span></li>
-        <li data-cl-of="followpitch0904"><span class="d">9/4</span><span>修正跟隨火車並傾斜地圖時，遠端路線會變成跨畫面跳動直線；亮色、暗色與衛星底圖都已修正。</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5204,6 +5204,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="badgefallen"><span class="d">9/6</span><span>捷運頂列的「官方即時（N 線改用備案）」與「即時資料異常」徽章現在指得出是哪幾條線、為什麼：桌面滑鼠移上去、手機點時鐘徽章打開資料狀態卡，都會逐線列出原因（例如看板列對不到車、站列版本不一致、即時模型這一輪沒有這條線的車）</span></li>
         <li data-cl="trasnap0905"><span class="d">9/5</span><span>台鐵誤點一次跳增 5 分鐘以上（例如區間待避後到站才回報），列車立刻跳回實際位置，不再在原地停等到誤點追上；5 分鐘以內的小幅增加仍原地停等，像真實的臨時停車。</span></li>
         <li data-cl="xingorder"><span class="d">9/4</span><span>兩條路線立體交叉的地方，改成依實際的高架與地下關係決定哪一條畫在上面，不再看繪製順序。</span></li>
         <li data-cl="metropeak0903"><span class="d">9/3</span><span>官方來車資料在舊車離站、下一班尚未接上的換班空窗，偶爾會讓轉乘站的單一方向短暫空白；現在看板只替缺少的方向補上班表，其他方向維持官方即時資訊。</span></li>
@@ -6051,7 +6052,7 @@
 //         網友回報 issue #46。守門人:scripts/verify_board_direction_groups.mjs 的 D11a–D11f。
 // v0906g：手機底部「搜尋」改為「查詢」半高面板——答案區走看板同源、公車轉乘入口、靠近車站自動開;併入 origin/main 的 v0906f。
 // v0906i：v0906g(查詢分頁)再併入 origin/main 的 v0906h(看板支線分組)。
-const BUILD = 'v0906i';
+const BUILD = 'v0906l';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -25770,6 +25771,24 @@ function metroAlertFor(ln) {
   return list.some(a => (!a.sys || a.sys === sysId) &&
     (!a.lines || !a.lines.length || a.lines.some(n => (ln.name || '').includes(n) || String(n).includes(ln.name || ''))));
 }
+// 徽章寫「N 線改用備案」要指得出是哪幾條、為什麼（2026-09-06 使用者：每次只寫兩條線退回，看不出是哪些）。
+// 逐線問 metroCoreLineBlocked 拿原因；沒被擋卻退回＝Core 這一輪沒有這條線的車（metroCoreItemsForLine 的 P0-1 回 null）。
+// 桌面滑鼠移上去看 title；手機的 title 看不到，但點時鐘徽章開的「資料狀態」卡（statPopRender）就是照抄各徽章的
+// title 逐行顯示，所以只要把名單放進 title、一行一條線，兩種版面都看得到。
+function metroCoreFallenDetail(lines) {
+  return lines.map(ln => {
+    const sysId = metroCoreSystemIdForLine(ln);
+    const reason = metroCoreLineBlocked(sysId, ln.id);
+    const sys = state.metroCore && state.metroCore.blockedSystems && state.metroCore.blockedSystems[sysId];
+    let why;
+    if (reason === 'match') why = t('：看板列只有 {p} 對得到車，整個系統暫退回官方看板', { p: i18nNumber(Math.round(((sys && sys.ratio) || 0) * 100)) + '%' });
+    else if (reason === 'stations') why = t('：站列版本與即時模型不一致，改用官方倒數');
+    else if (reason === 'count') why = t('：車數相對近況異常減少，改用官方名冊或班表');
+    else if (reason) why = '：' + reason;
+    else why = t('：即時模型這一輪沒有這條線的車，改用官方名冊或班表');
+    return routeName(ln.name || ln.id, freqSysIdOf(ln)) + why;
+  }).join('\n');
+}
 function updateMetroBadge() {
   const el = document.getElementById('metroBadge');
   if (!el) return;
@@ -25780,14 +25799,17 @@ function updateMetroBadge() {
     const trains = serving.reduce((sum, list) => sum + list.length, 0);
     const warn = metroCoreDegradedSummary();
     if (trains > 0) {
-      const fallen = corePool.length - serving.length; // 已退回既有路徑的線數
+      const fallenLines = corePool.filter((ln, i) => lists[i] === null); // 已退回既有路徑的線
+      const fallen = fallenLines.length;
       el.classList.remove('est');
       el.classList.toggle('anom', fallen > 0 || !!(warn && warn.error)); // 部分退回不是正常狀態
       el.hidden = false;
       el.textContent = fallen > 0 ? t('官方即時（{n} 線改用備案）', { n: i18nNumber(fallen) }, fallen) : t('官方即時');
+      const detail = fallen > 0 ? metroCoreFallenDetail(fallenLines) : '';
       el.title = t('車站預告與地圖上的 {n} 台列車共用同一份即時身分與時間軸', { n: i18nNumber(trains) }, trains)
         + (fallen > 0 ? t('；另有 {n} 條線的即時資料異常，已改用官方名冊或班表', { n: i18nNumber(fallen) }, fallen) : '')
-        + (warn && warn.error ? t('；最近一次更新失敗：{error}', { error: warn.error }) : '');
+        + (warn && warn.error ? t('；最近一次更新失敗：{error}', { error: warn.error }) : '')
+        + (detail ? '\n' + detail : ''); // 逐線名單放最後、一行一條（桌面 title／手機資料狀態卡都逐行顯示）
       return;
     }
     // 🔴 P0-5：一台車都生不出來時【絕不】把徽章藏起來，也不准繼續寫「官方即時」。
@@ -25798,12 +25820,14 @@ function updateMetroBadge() {
     //    備案有車而 Core 沒有 ⇒ 這是故障，明講。
     const legacy = corePool.reduce((sum, ln) => sum + metroCoreLegacyCountForLine(ln), 0);
     if (legacy > 0) {
+      const detail = metroCoreFallenDetail(corePool); // 整個系統都退回時也要指名是哪幾條、為什麼（例：高捷 match 閘門）
       el.hidden = false;
       el.classList.add('anom');
       el.classList.remove('est');
       el.textContent = t('即時資料異常');
       el.title = t('即時模型這一輪一台列車都沒有回報，已改用官方名冊或班表繼續顯示')
-        + (warn && warn.error ? t('；最近一次更新失敗：{error}', { error: warn.error }) : '');
+        + (warn && warn.error ? t('；最近一次更新失敗：{error}', { error: warn.error }) : '')
+        + (detail ? '\n' + detail : '');
       return;
     }
     // 兩邊都沒車＝真的收班了，往下走既有徽章邏輯（它會顯示「班表備案」等既有狀態）。
@@ -30442,8 +30466,9 @@ function statPopRender() {
     (items.length
       ? items.map(it => `<div class="sp-row" data-k="${it.k}"><span class="lab">${esc(it.lab)}</span><span class="val">${esc(it.val)}</span></div>`).join('')
       : `<div class="sp-row" data-k="none"><span class="lab">${esc(t('目前沒有即時或重播狀態'))}</span></div>`)
+    // title 裡的換行是「逐線名單」（例：改用備案的路線各一行），一行一個 div 才不會糊成一段
     + (items.some(it => it.why)
-      ? `<div class="sp-why">${items.filter(it => it.why).map(it => `<div>${esc(it.lab)}:${esc(it.why)}</div>`).join('')}</div>`
+      ? `<div class="sp-why">${items.filter(it => it.why).map(it => it.why.split('\n').map((line, i) => `<div>${i ? '・' : esc(it.lab) + ':'}${esc(line)}</div>`).join('')).join('')}</div>`
       : '')
     // 時鐘被撥走時給一條回去的路。手機的站台帶(#nowBtn 的家)是 display:none,這張卡是點時鐘膠囊
     // 就打得開的,兩種版面都到得了;沒跟車時它是唯一的退路。

@@ -215,6 +215,8 @@
         'The bottom “Search” tab on phones is now “Lookup”: a half-height sheet shows the next train in each direction from your nearest station, then reminders, today’s TRA status, nearby stations and widgets; it opens by itself when you open the app near a station',
       '台鐵誤點一次跳增 5 分以上時，列車直接跳回實際位置，不再原地停等':
         'When a TRA train\'s reported delay jumps by 5 minutes or more at once, it now snaps straight back to its actual position instead of waiting in place until the timetable catches up.',
+      '捷運頂列的「N 線改用備案」指得出是哪幾條線、為什麼：滑鼠移上去或點開資料狀態卡就看得到': 'The metro header badge "N lines using fallback" now names the lines and why: hover, or open the data-status card, to see them',
+      '捷運頂列的「官方即時（N 線改用備案）」與「即時資料異常」徽章現在指得出是哪幾條線、為什麼：桌面滑鼠移上去、手機點時鐘徽章打開資料狀態卡，都會逐線列出原因（例如看板列對不到車、站列版本不一致、即時模型這一輪沒有這條線的車）': 'The metro header badges "Official live (N lines using fallback)" and "Live data issue" now name the lines and the reason: hover on desktop, or tap the clock badge on a phone to open the data-status card, and each line is listed with why it fell back (for example board rows not matching trains, a station-list mismatch, or the live model having no trains on that line this cycle)',
       '車站看板：只借道成追線的縱貫線列車回到南下、北上組；支線組標題改成列車真正的終點站':
         'Station boards: trains that only pass through the Chengzhui link go back to the southbound and northbound groups, and branch group titles now show the train\u2019s real destination',
       '車站看板的支線分組更貼近實際：只借道成追線直通的縱貫線列車，改回南下、北上那兩組，追分與成功站不再出現「往成功」「往追分」；支線那一組的標題也改成列車真正的終點站，新竹往六家的班次寫「往 六家」而不是「往 內灣」':
@@ -372,6 +374,10 @@
       '官方即時（{n} 線改用備案）': 'Official live ({n} lines using fallback)', '官方即時': 'Official live',
       '車站預告與地圖上的 {n} 台列車共用同一份即時身分與時間軸': 'Station arrivals and {n} trains on the map share one live identity and timeline',
       '；另有 {n} 條線的即時資料異常，已改用官方名冊或班表': '; {n} other lines have live-data issues and now use an official roster or timetable',
+      '：看板列只有 {p} 對得到車，整個系統暫退回官方看板': ': only {p} of board rows could be matched to a train, so the whole system is temporarily back on official boards',
+      '：站列版本與即時模型不一致，改用官方倒數': ': station list differs from the live model; using official countdowns',
+      '：車數相對近況異常減少，改用官方名冊或班表': ': train count dropped abnormally versus recent cycles; using the official roster or timetable',
+      '：即時模型這一輪沒有這條線的車，改用官方名冊或班表': ': the live model had no trains on this line this cycle; using the official roster or timetable',
       '；最近一次更新失敗：{error}': '; latest update failed: {error}', '即時資料異常': 'Live data issue',
       '即時模型這一輪一台列車都沒有回報，已改用官方名冊或班表繼續顯示': 'The live model reported no trains this cycle; an official roster or timetable is being used instead',
       '統一即時模型暫時無法使用，已改用官方名冊或班表：{error}': 'The unified live model is temporarily unavailable; using an official roster or timetable: {error}',
@@ -641,6 +647,8 @@
         'スマートフォン下部の「検索」が「調べる」になりました。半分の高さのパネルにまず最寄り駅の各方向の次の列車を表示し、続いて通知・本日の台湾鉄路・近くの駅・ウィジェットへの入口が並びます。駅の近くでアプリを開くと自動的に表示されます。',
       '台鐵誤點一次跳增 5 分以上時，列車直接跳回實際位置，不再原地停等':
         '台湾鉄路の遅延が一度に5分以上増えた場合、列車はその場で待たずにすぐ実際の位置へ戻るようになりました。',
+      '捷運頂列的「N 線改用備案」指得出是哪幾條線、為什麼：滑鼠移上去或點開資料狀態卡就看得到': 'メトロ上部の「N路線は代替データ」バッジで、どの路線がなぜ代替になったか分かります。マウスを重ねるか、データ状態カードを開くと確認できます',
+      '捷運頂列的「官方即時（N 線改用備案）」與「即時資料異常」徽章現在指得出是哪幾條線、為什麼：桌面滑鼠移上去、手機點時鐘徽章打開資料狀態卡，都會逐線列出原因（例如看板列對不到車、站列版本不一致、即時模型這一輪沒有這條線的車）': 'メトロ上部の「公式リアルタイム（N路線は代替データ）」と「リアルタイムデータ異常」バッジで、どの路線がなぜ代替になったかが分かるようになりました。パソコンではマウスを重ねる、スマートフォンでは時計バッジをタップしてデータ状態カードを開くと、路線ごとに理由（案内表示が列車と照合できない、駅リストの不一致、この更新でその路線の列車がない など）を一覧します',
       '車站看板：只借道成追線的縱貫線列車回到南下、北上組；支線組標題改成列車真正的終點站':
         '駅の発車案内：成追線を通り抜けるだけの縦貫線の列車は南行き・北行きのグループに戻り、支線グループの見出しは列車の実際の終着駅になります。',
       '車站看板的支線分組更貼近實際：只借道成追線直通的縱貫線列車，改回南下、北上那兩組，追分與成功站不再出現「往成功」「往追分」；支線那一組的標題也改成列車真正的終點站，新竹往六家的班次寫「往 六家」而不是「往 內灣」':
@@ -790,6 +798,10 @@
       '官方即時（{n} 線改用備案）': '公式リアルタイム（{n}路線は代替データ）', '官方即時': '公式リアルタイム',
       '車站預告與地圖上的 {n} 台列車共用同一份即時身分與時間軸': '駅の到着案内と地図上の{n}列車は同じリアルタイムの識別情報と時間軸を使用',
       '；另有 {n} 條線的即時資料異常，已改用官方名冊或班表': '；ほか{n}路線はリアルタイムデータ異常のため公式名簿または時刻表を使用',
+      '：看板列只有 {p} 對得到車，整個系統暫退回官方看板': '：案内表示のうち列車と照合できたのは{p}のみのため、システム全体を一時的に公式案内表示へ戻しています',
+      '：站列版本與即時模型不一致，改用官方倒數': '：駅リストがリアルタイムモデルと一致しないため、公式のカウントダウンを使用',
+      '：車數相對近況異常減少，改用官方名冊或班表': '：列車数が直近より異常に減ったため、公式名簿または時刻表を使用',
+      '：即時模型這一輪沒有這條線的車，改用官方名冊或班表': '：この更新ではリアルタイムモデルにこの路線の列車がないため、公式名簿または時刻表を使用',
       '；最近一次更新失敗：{error}': '；直近の更新失敗：{error}', '即時資料異常': 'リアルタイムデータ異常',
       '即時模型這一輪一台列車都沒有回報，已改用官方名冊或班表繼續顯示': 'この更新ではリアルタイムモデルから列車が一台も届かなかったため、公式名簿または時刻表で表示を継続します',
       '統一即時模型暫時無法使用，已改用官方名冊或班表：{error}': '統合リアルタイムモデルを一時利用できないため、公式名簿または時刻表を使用します：{error}',
