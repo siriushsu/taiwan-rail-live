@@ -30743,11 +30743,15 @@ const HELP_TRY = {
     run: () => { const i = document.getElementById('trainSearch'); if (!i) return;
       if (window.matchMedia(MOBILE_MQ).matches && document.getElementById('searchPanel').hidden) openSearchPanel({ user: true });
       i.focus(); i.value = stationName('台北', 'tra_sched'); i.dispatchEvent(new Event('input', { bubbles: true })); } },
-  // 桌面沒有查詢面板(tabSearch 藏在 display:none 的 .tabbar 裡,getClientRects().length===0);
+  // 判準用 MOBILE_MQ,不是 tabSearch 看不看得見——collect-map/rec-panel/ambient/fs.search-open
+  // 這幾種手機殼狀態下 .tabbar 本身也是 display:none,拿 getClientRects() 當手機/桌面判準會把這些
+  // 狀態誤判成桌面,告訴手機使用者「桌面版沒有查詢面板」。
   // 手機:openSearchPanel 重複呼叫無害(面板已開時只是重畫),故不用 tabSearch.click()——那是
   // 開關 toggle,面板已經開著(例如靠近車站自動開)時再點會把它關掉,吐司卻說「這就是查詢面板」。
+  // user:true 是刻意的——這顆等同使用者自己點 tab(見 #tabSearch onclick),開關記憶要一起記
+  // (寫 trainmap-query-open='1'、清掉 state._queryAutoStation)。
   query: { run: () => {
-      if (document.getElementById('tabSearch').getClientRects().length) { openSearchPanel({ user: true }); showToast(t('這就是查詢面板——上面搜尋、中間下一班、下面入口')); return; }
+      if (window.matchMedia(MOBILE_MQ).matches) { openSearchPanel({ user: true }); showToast(t('這就是查詢面板——上面搜尋、中間下一班、下面入口')); return; }
       showToast(t('桌面版沒有查詢面板，搜尋框在右上角'));
     } },
   follow: { id: 'randBtn', toast: '正在跟一班車——小卡的 × 可以結束' },

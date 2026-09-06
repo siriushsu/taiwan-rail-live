@@ -589,10 +589,12 @@ sections.push({ name: 'G9 桌面不變量', run: async (browser, en) => {
 }});
 
 // G16 說明中心(task-6)：「查詢」節存在、緊接搜尋節之後；搜尋節提到底部「查詢」；沒有死掉的
-// 「試一次」；HELP_TRY.query 的兩句吐司 en/ja 都在；helpRun('query') 開瀏覽態面板且面板已開時
-// 再試一次不會被當 toggle 關掉；helpRun('search') 在面板關著時會先開面板才進打字態；桌面
-// helpRun('query') 不開面板。
-// 牙：HELP_TRY.query.run 改回 tabSearch.click() ⇒ G16e2 紅；HELP_TRY.search.run 拿掉
+// 「試一次」；「查詢」節真的把試一次鈕渲染進 DOM(helpTryOk('query') 對這個只有 run 的鍵永遠
+// 回 true,dead 審計本身照不到,故另立 G16c2)；HELP_TRY.query 的兩句吐司 en/ja 都在；真點渲染
+// 出來的試一次鈕 ⇒ helpRun('query') 開瀏覽態面板、面板已開時再試一次不會被當 toggle 關掉；
+// helpRun('search') 在面板關著時會先開面板才進打字態；桌面 helpRun('query') 不開面板。
+// 牙：拿掉 query 節的 try:'query' ⇒ G16c2 紅(渲染清單缺 query)、G16e 也連帶紅(找不到按鈕);
+// HELP_TRY.query.run 改回 tabSearch.click() ⇒ G16e2 紅；HELP_TRY.search.run 拿掉
 // openSearchPanel 那行 ⇒ G16f 紅；content-translations.js 任一句吐司缺一種語言 ⇒ G16d 紅。
 sections.push({ name: 'G16 說明中心', run: async (browser, en) => {
   const { ctx, page } = await boot(browser, {});
@@ -602,11 +604,14 @@ sections.push({ name: 'G16 說明中心', run: async (browser, en) => {
     const q = document.querySelector('#helpBody .help-sec[data-sec="query"]');
     const s = document.querySelector('#helpBody .help-sec[data-sec="search"]');
     const a = helpAudit();
-    return { query: !!q, searchText: s ? s.textContent : '', dead: a.dead, secs: a.secs };
+    return { query: !!q, searchText: s ? s.textContent : '', dead: a.dead, secs: a.secs, rendered: a.rendered };
   });
   ok(`[${en}] G16a 「查詢」節存在且緊接搜尋節之後`, h.query && h.secs.indexOf('query') === h.secs.indexOf('search') + 1, JSON.stringify(h.secs));
   ok(`[${en}] G16b 搜尋節提到底部「查詢」`, /底部「查詢」/.test(h.searchText));
   ok(`[${en}] G16c 沒有死掉的「試一次」`, h.dead.length === 0, JSON.stringify(h.dead));
+  // helpTryOk('query') 對這個鍵無條件回 true(HELP_TRY.query 只有 run,沒有 id/ok)，G16c 對它零訊號；
+  // 另外斷言「查詢」節真的把那顆按鈕渲染進 DOM(rendered 是實際出現的 data-try 清單,不是能力判斷)。
+  ok(`[${en}] G16c2 「查詢」節渲染出「試一次」`, h.rendered.includes('query'), JSON.stringify(h.rendered));
 
   // check_i18n 的說明中心掃描只展開到 HELP_TRY 之前(見 check_i18n.mjs evaluateConstBlock)，
   // HELP_TRY.query 的 run() 內文字面呼叫的 t('...') 不在它的說明中心分母裡，這裡自己補一條牙。
@@ -617,17 +622,28 @@ sections.push({ name: 'G16 說明中心', run: async (browser, en) => {
   });
   ok(`[${en}] G16d 兩句「試一次」吐司的 en/ja 鍵都在`, i18nOk === true);
 
-  // 手機:openHelp('query') 展開該節後按試一次 ⇒ 說明卡關、查詢面板開(瀏覽態,不是打字態)
+  // 手機:openHelp('query') 展開該節後真點渲染出的「試一次」鈕(不是 evaluate 直接呼叫 helpRun)——
+  // section → 按鈕 → data-try → helpRun 一路端到端 ⇒ 說明卡關、查詢面板開(瀏覽態,不是打字態)。
+  // 說明卡本身可捲動,先 scrollIntoView 再量尺寸,量到 0 就不點(牙:拿掉 try:'query' 時按鈕根本
+  // 不存在,qBtn 為 null,底下的斷言連同這條一起紅,而不是對著不存在的元素硬點造成腳本本身出錯)。
   await page.evaluate(() => openHelp('query'));
   await page.waitForTimeout(300);
-  await page.evaluate(() => helpRun('query'));
+  const qBtn = await page.evaluate(() => {
+    const btn = document.querySelector('#helpBody .help-sec[data-sec="query"] .help-try');
+    if (!btn) return null;
+    btn.scrollIntoView({ block: 'center' });
+    const r = btn.getBoundingClientRect();
+    return { w: Math.round(r.width), h: Math.round(r.height), x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  });
+  if (qBtn && qBtn.w > 0 && qBtn.h > 0) await page.touchscreen.tap(qBtn.x, qBtn.y);
   await page.waitForTimeout(300);
   const s1 = await page.evaluate(() => ({
     panelHidden: document.getElementById('searchPanel').hidden,
     searchOpen: document.body.classList.contains('search-open'),
     helpHidden: document.getElementById('helpModal').hidden,
   }));
-  ok(`[${en}] G16e helpRun('query') ⇒ 查詢面板開(瀏覽態)、說明卡已關`, !s1.panelHidden && !s1.searchOpen && s1.helpHidden, JSON.stringify(s1));
+  ok(`[${en}] G16e 真點「查詢」節的試一次 ⇒ 查詢面板開(瀏覽態)、說明卡已關`,
+    !!qBtn && qBtn.w > 0 && qBtn.h > 0 && !s1.panelHidden && !s1.searchOpen && s1.helpHidden, JSON.stringify({ qBtn, s1 }));
   // 面板已開時再試一次(牙:run 改回 tabSearch.click() 會把已開的面板當 toggle 點成關掉)
   await page.evaluate(() => helpRun('query'));
   await page.waitForTimeout(300);
@@ -648,8 +664,8 @@ sections.push({ name: 'G16 說明中心', run: async (browser, en) => {
   ok(`[${en}] G16f 面板關著時試一次「搜尋」⇒ 開面板並進打字態、已帶字`, !s3.panelHidden && s3.searchOpen && !!s3.val, JSON.stringify(s3));
   await ctx.close();
 
-  // 桌面(比照 G9 的 context 慣例:不帶 hasTouch/isMobile):helpRun('query') 時 tabSearch 零尺寸
-  // (.tabbar 桌面 display:none) ⇒ 不開面板,只吐司指路。
+  // 桌面(比照 G9 的 context 慣例:不帶 hasTouch/isMobile):此寬度/指標下 MOBILE_MQ 不成立
+  // ⇒ helpRun('query') 判定為桌面,不開面板,只吐司指路。
   const dctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'zh-TW' });
   const dpage = await dctx.newPage();
   await dpage.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-language', 'zh-TW'); } catch (e) {} });
