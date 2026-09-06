@@ -5169,6 +5169,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="ofmwatch0906"><span class="d">9/6</span><span>修正街道底圖被誤判成載入失敗：開圖後馬上縮放或網路較慢時，App 不再默默換成備用底圖、3D 建築也不會跟著消失，網站也不再誤跳「街道底圖載入異常」</span></li>
         <li data-cl-of="querytab0906"><span class="d">9/6</span><span>手機底部「搜尋」改為「查詢」：半高面板先給離你最近的站各方向下一班，再列提醒、今日動態、附近車站與小工具入口；在車站附近開 App 會自動出現</span></li>
         <li data-cl-of="branchdestgroup"><span class="d">9/6</span><span>車站看板：只借道成追線的縱貫線列車回到南下、北上組；支線組標題改成列車真正的終點站</span></li>
         <li data-cl-of="hsinchuboarddir"><span class="d">9/6</span><span>修正新竹、北新竹站看板把往基隆、七堵的縱貫線列車歸進「往內灣」（謝謝網友回報）</span></li>
@@ -5176,7 +5177,6 @@
         <li data-cl-of="leafletremoved0905"><span class="d">9/5</span><span>地圖全面改用 MapLibre，不再保留舊版 Leaflet 地圖：?engine=leaflet 這個網址參數已失效，開啟網站也不會再多下載一份舊地圖函式庫。</span></li>
         <li data-cl-of="maplibredefault0904"><span class="d">9/4</span><span>地圖引擎預設改為 MapLibre：所有人打開都是可旋轉、傾斜、開 3D 建築的向量地圖，跟隨列車時行進方向朝上。</span></li>
         <li data-cl-of="followrouteexact0904"><span class="d">9/4</span><span>修正跟隨長途列車放大看彎道時，紅色行程線會離開實際軌道、旁邊露出另一條原色線；現在放大也會完整貼合。</span></li>
-        <li data-cl-of="followpitch0904"><span class="d">9/4</span><span>修正跟隨火車並傾斜地圖時，遠端路線會變成跨畫面跳動直線；亮色、暗色與衛星底圖都已修正。</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5340,6 +5340,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="ofmwatch0906"><span class="d">9/6</span><span>修正街道底圖被誤判成載入失敗：開圖後 8 秒內畫面還沒畫完（馬上放大看 3D 建築、行動網路較慢）就被當成失敗，App 默默換成備用底圖、3D 建築消失要重開才回來，網站則誤跳「街道底圖載入異常」。現在只看有沒有真的收到圖磚</span></li>
         <li data-cl="leafletremoved0905"><span class="d">9/5</span><span>地圖全面改用 MapLibre，不再保留舊版 Leaflet 地圖：?engine=leaflet 這個網址參數已失效，開啟網站也不會再多下載一份舊地圖函式庫。</span></li>
         <li data-cl="maplibredefault0904"><span class="d">9/4</span><span>地圖引擎預設改為 MapLibre：所有人打開都是可旋轉、傾斜、開 3D 建築的向量地圖，跟隨列車時行進方向朝上。</span></li>
         <li data-cl="followrouteexact0904"><span class="d">9/4</span><span>修正跟隨環島等長途列車並放大看彎道時，紅色行程線會因點位抽稀而切過彎心，離開實際軌道、旁邊露出另一條原色線；MapLibre 現在用完整軌道點繪製跟隨行程，放大也會貼合。</span></li>
@@ -6051,7 +6052,7 @@
 //         網友回報 issue #46。守門人:scripts/verify_board_direction_groups.mjs 的 D11a–D11f。
 // v0906g：手機底部「搜尋」改為「查詢」半高面板——答案區走看板同源、公車轉乘入口、靠近車站自動開;併入 origin/main 的 v0906f。
 // v0906i：v0906g(查詢分頁)再併入 origin/main 的 v0906h(看板支線分組)。
-const BUILD = 'v0906i';
+const BUILD = 'v0906m';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -30253,11 +30254,11 @@ let satUnderlayWarmed = false;
 function onlineBasemapsAvailable() { return window.RAIL_ONLINE_BASEMAPS_AVAILABLE !== false; }
 // ── L2:OpenFreeMap 本地自動退場 ────────────────────────────────────────────
 // 判準刻意**不是**「有沒有 error」:OFM 半死的時候是**慢**不是錯,錯誤事件一個都不會來,
-// 症狀只有「第一批圖磚遲遲載不完」。所以主訊號是「上場後 T 秒內有沒有 load」,error 只是副訊號。
+// 症狀只有「第一批圖磚遲遲載不完」。所以主訊號是「上場後 T 秒內有沒有交出第一張向量圖磚」(不是 map 的 load;TileJSON 已回來就再寬限一輪,見 ofmWatch 內註),error 只是副訊號。
 // 退場只在本次 session 生效、**不寫 localStorage**——一次網路抖動不該讓使用者永久留在計費底圖上
 // (那是每個月真金白銀的差別);下次開機自己重試 OFM。這條是「回得去」的唯一保證。
 // 每一次 fail 都先打一發 ofmFailBeacon(緊接在下面):在此之前 L2 有沒有觸發,只有使用者自己的 console 知道。
-const OFM_HEALTH_MS = 8000, OFM_ERROR_LIMIT = 4;
+const OFM_HEALTH_MS = 8000, OFM_ERROR_LIMIT = 4, OFM_VECTOR_SOURCE = 'openmaptiles'; // source id 與 installBuilding3d 用的同一個
 // ── L2 退場埋點(2026-09-03)────────────────────────────────────────────────────
 // 量「OpenFreeMap 的健康判定失敗」多常發生。App 那半每中一次＝整個 session 燒 Stadia(計費),
 // 網站那半＝使用者看到「街道底圖載入異常」。在此之前這件事只在 console 留一行 warn,
@@ -30280,8 +30281,8 @@ function ofmWatch(layer) {
   // 使用者看到一片空白底圖上飄著列車,分不清是自己的網路、我們掛了、還是功能壞了。
   // 2026-08-26 起網站也退得了(退到 CARTO raster);2026-08-31 那條退路拔除,網站改成「偵測到就說」,
   // App 仍是「偵測到就退」(退到 Stadia)。共通的是**兩邊都要偵測**,差別只在偵測到之後做什麼。
-  let settled = false, errors = 0, timer = null;
-  const stop = () => { settled = true; if (timer) clearTimeout(timer); };
+  let settled = false, errors = 0, timer = null, answered = false, extended = false;
+  const stop = () => { settled = true; if (timer) clearTimeout(timer); layer.off('sourcedata', onSource); };
   // 亮/暗各有一個 watcher,但只有第一個會真的換層(ofmFallToRaster 自己早退),所以這裡不必再擋一次。
   // 🔴 2026-08-31:**網站不再退到 raster**。CARTO 現在對無金鑰的請求回 **HTTP 200 + 一張壓著
   // 「API KEY REQUIRED」浮水印的真圖磚**(實測 light_all/7/106/55@2x = 200、image/png、28087 bytes),
@@ -30291,9 +30292,44 @@ function ofmWatch(layer) {
   const fail = why => { stop(); ofmFailBeacon(why); if (APP_CFG.tiles) ofmFallToRaster(why); else ofmNoticeWeb(why); };
   // layer 就是地圖本身(M.raw):街道 style 一載進來就開始算,不必再等「圖層上場」
   // (M4-B 之前 Leaflet 半邊要掛在 'add' 上,因為亮/暗兩層只有一層會被加進地圖。)
-  timer = setTimeout(() => { if (!settled) fail('slow'); }, OFM_HEALTH_MS);
+  // 🔴 2026-09-06:成功訊號＝OFM **真的交出第一張 openmaptiles 向量圖磚**(sourcedata 帶 tile),不再等 map 的 load。
+  // load 一生只 fire 一次、而且要等到「畫面完整畫完、沒有任何圖磚在等」——開機頭 8 秒使用者一縮放、App 一飛到定位、
+  // 或行動網路把圖磚拖過 8 秒,它就永遠不來,健康的 OFM 被當成掛了:App 每天約 2% 開機中招,之後整個 session
+  // 燒 Stadia、3D 建築跟著消失(埋點 /api/basemap-fallback 09-06 量到 2.17%,95/99 是 slow;驗收腳本 probe_ofm_fix.mjs)。
+  // 掛上去之前圖磚可能早就到了(load 已 fire 過、或正在畫),所以先同步查一次畫面上有沒有 openmaptiles 的 feature。
+  // 街道底圖不是 OFM 向量時(開機就是衛星 sat-*、已退到 raster、或 8 秒內切去衛星)沒東西好量:不掛、時間到也不判失敗。
+  // 8 秒到了還沒圖磚、但 TileJSON 已回來(sourcedata metadata)＝OFM 活著只是圖磚在路上(慢網路下字形／sprite 全串在圖磚後面、
+  // 或使用者一直在動地圖讓 MapLibre 不停 abort 圖磚)⇒ 再寬限一輪 8 秒才判 slow;連 TileJSON 都沒回來就照舊 8 秒退場。
+  const ofmStreet = () => { const k = M && M.getStyleKind ? M.getStyleKind() : 'light'; return k === 'light' || k === 'dark'; };
+  if (!ofmStreet()) return;
+  const onSource = e => {
+    if (settled || !e || e.sourceId !== OFM_VECTOR_SOURCE) return;
+    if (e.tile) stop(); // 第一張圖磚到手＝交貨
+    else if (e.sourceDataType === 'metadata') answered = true; // TileJSON 回來了＝OFM 活著
+  };
+  const deadline = () => {
+    if (settled) return;
+    if (!ofmStreet()) { stop(); return; }
+    if (answered && !extended) { extended = true; timer = setTimeout(deadline, OFM_HEALTH_MS); return; }
+    fail('slow');
+  };
+  timer = setTimeout(deadline, OFM_HEALTH_MS);
   layer.on('error', () => { if (!settled && ++errors >= OFM_ERROR_LIMIT) fail('error'); });
-  if (layer.loaded && layer.loaded()) stop(); else layer.once('load', stop);
+  layer.on('sourcedata', onSource);
+  if (ofmDelivered(layer)) stop(); else answered = ofmAnswered(layer);
+}
+// 掛 watcher 當下 openmaptiles 的圖磚是不是已經到手＝畫面上查得到它的 feature。
+// 不看 map.loaded()／isSourceLoaded():TileJSON 抓失敗時 SourceCache 把 errored 當 loaded(vendor 裡 `_sourceErrored)return !0`),
+// 零張圖磚它們也會回 true,拿來當成功訊號會在「OFM 真的掛了」時反而不退場。
+function ofmDelivered(map) {
+  try {
+    if (!map.getSource(OFM_VECTOR_SOURCE)) return false;
+    return map.queryRenderedFeatures().some(f => f.source === OFM_VECTOR_SOURCE);
+  } catch (e) { return false; }
+}
+// TileJSON 已經套進 source 了嗎(掛 watcher 之前就回來的話,sourcedata metadata 事件已經錯過)。
+function ofmAnswered(map) {
+  try { const s = map.getSource(OFM_VECTOR_SOURCE); return !!(s && s.tiles && s.tiles.length); } catch (e) { return false; }
 }
 // 街道底圖失效的處置(網站限定)。2026-08-31 起這是網站**唯一**的處置——CARTO 退路已拔除,
 // 所以場景回到「OFM 一掛就沒有街道底圖」:使用者會看到空白底圖上飄著列車,一定要把話講出來,

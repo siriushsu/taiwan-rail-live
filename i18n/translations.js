@@ -211,6 +211,10 @@
         'Taoyuan Airport MRT trains now show their service type: Express trains get a pointed purple tag, Commuter trains a white rounded one, and both tags are larger than before. The follow card and station boards spell the type out.',
       '選好接續班次後，抵達轉乘站時動態島與鎖定畫面會自動切到下一班車':
         'After you choose a connection, the Dynamic Island and Lock Screen automatically switch to the next train at the transfer station.',
+      '修正街道底圖被誤判成載入失敗：開圖後馬上縮放或網路較慢時，App 不再默默換成備用底圖、3D 建築也不會跟著消失，網站也不再誤跳「街道底圖載入異常」':
+        'Fixed the street basemap being wrongly judged as failed to load: zooming right after the map opens, or a slow connection, no longer makes the app silently switch to the backup basemap (taking the 3D buildings with it), and the website no longer shows a false \'street basemap failed to load\' notice.',
+      '修正街道底圖被誤判成載入失敗：開圖後 8 秒內畫面還沒畫完（馬上放大看 3D 建築、行動網路較慢）就被當成失敗，App 默默換成備用底圖、3D 建築消失要重開才回來，網站則誤跳「街道底圖載入異常」。現在只看有沒有真的收到圖磚':
+        'Fixed the street basemap being wrongly judged as failed to load: previously, if the map had not fully finished drawing within 8 seconds of opening (for example when you zoomed in right away to look at 3D buildings, or on a slow mobile connection), the app silently switched to the backup basemap, the 3D buildings vanished with it and only a restart brought them back, and the website showed a false \'street basemap failed to load\' notice. The check now only looks at whether the basemap actually delivered any tiles, and switches or warns only when it really cannot load.',
       '手機底部「搜尋」改為「查詢」：半高面板先給離你最近的站各方向下一班，再列提醒、今日動態、附近車站與小工具入口；在車站附近開 App 會自動出現':
         'The bottom “Search” tab on phones is now “Lookup”: a half-height sheet shows the next train in each direction from your nearest station, then reminders, today’s TRA status, nearby stations and widgets; it opens by itself when you open the app near a station',
       '台鐵誤點一次跳增 5 分以上時，列車直接跳回實際位置，不再原地停等':
@@ -637,6 +641,10 @@
         '桃園空港MRTの列車に種別を表示するようになりました。直達列車は先の尖った紫のタグ、普通列車は白い丸みのあるタグで、タグ自体も従来より大きくなりました。追跡カードと駅の発車案内には正式名称を表示します。',
       '選好接續班次後，抵達轉乘站時動態島與鎖定畫面會自動切到下一班車':
         '乗り継ぐ列車を選ぶと、乗換駅への到着時にDynamic Islandとロック画面が次の列車へ自動で切り替わります。',
+      '修正街道底圖被誤判成載入失敗：開圖後馬上縮放或網路較慢時，App 不再默默換成備用底圖、3D 建築也不會跟著消失，網站也不再誤跳「街道底圖載入異常」':
+        '街道ベースマップが読み込み失敗と誤判定される問題を修正しました。地図を開いてすぐ拡大したときや回線が遅いときに、アプリが黙って予備のベースマップに切り替わって 3D 建物が消えたり、ウェブサイトに「街道ベースマップの読み込み異常」の通知が誤って出たりしなくなります。',
+      '修正街道底圖被誤判成載入失敗：開圖後 8 秒內畫面還沒畫完（馬上放大看 3D 建築、行動網路較慢）就被當成失敗，App 默默換成備用底圖、3D 建築消失要重開才回來，網站則誤跳「街道底圖載入異常」。現在只看有沒有真的收到圖磚':
+        '街道ベースマップが読み込み失敗と誤判定される問題を修正しました。これまでは地図を開いてから 8 秒以内に描画が終わらないと（すぐ拡大して 3D 建物を見たとき、モバイル回線が遅いときなど）、アプリが黙って予備のベースマップに切り替わり、3D 建物も一緒に消えて再起動するまで戻りませんでした。ウェブサイトでは「街道ベースマップの読み込み異常」の通知が誤って表示されていました。今後はベースマップから実際にタイルが届いたかどうかだけで判定し、本当に読み込めないときだけ切り替えや通知を行います。',
       '手機底部「搜尋」改為「查詢」：半高面板先給離你最近的站各方向下一班，再列提醒、今日動態、附近車站與小工具入口；在車站附近開 App 會自動出現':
         'スマートフォン下部の「検索」が「調べる」になりました。半分の高さのパネルにまず最寄り駅の各方向の次の列車を表示し、続いて通知・本日の台湾鉄路・近くの駅・ウィジェットへの入口が並びます。駅の近くでアプリを開くと自動的に表示されます。',
       '台鐵誤點一次跳增 5 分以上時，列車直接跳回實際位置，不再原地停等':
