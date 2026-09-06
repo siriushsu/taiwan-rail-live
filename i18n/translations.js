@@ -211,6 +211,8 @@
         'Taoyuan Airport MRT trains now show their service type: Express trains get a pointed purple tag, Commuter trains a white rounded one, and both tags are larger than before. The follow card and station boards spell the type out.',
       '選好接續班次後，抵達轉乘站時動態島與鎖定畫面會自動切到下一班車':
         'After you choose a connection, the Dynamic Island and Lock Screen automatically switch to the next train at the transfer station.',
+      '手機底部「搜尋」改為「查詢」：半高面板先給離你最近的站各方向下一班，再列提醒、今日動態、附近車站與小工具入口；在車站附近開 App 會自動出現':
+        'The bottom “Search” tab on phones is now “Lookup”: a half-height sheet shows the next train in each direction from your nearest station, then reminders, today’s TRA status, nearby stations and widgets; it opens by itself when you open the app near a station',
       '台鐵誤點一次跳增 5 分以上時，列車直接跳回實際位置，不再原地停等':
         'When a TRA train\'s reported delay jumps by 5 minutes or more at once, it now snaps straight back to its actual position instead of waiting in place until the timetable catches up.',
       '兩條路線立體交叉的地方，改成依實際的高架與地下關係決定哪一條畫在上面':
@@ -627,6 +629,8 @@
         '桃園空港MRTの列車に種別を表示するようになりました。直達列車は先の尖った紫のタグ、普通列車は白い丸みのあるタグで、タグ自体も従来より大きくなりました。追跡カードと駅の発車案内には正式名称を表示します。',
       '選好接續班次後，抵達轉乘站時動態島與鎖定畫面會自動切到下一班車':
         '乗り継ぐ列車を選ぶと、乗換駅への到着時にDynamic Islandとロック画面が次の列車へ自動で切り替わります。',
+      '手機底部「搜尋」改為「查詢」：半高面板先給離你最近的站各方向下一班，再列提醒、今日動態、附近車站與小工具入口；在車站附近開 App 會自動出現':
+        'スマートフォン下部の「検索」が「調べる」になりました。半分の高さのパネルにまず最寄り駅の各方向の次の列車を表示し、続いて通知・本日の台湾鉄路・近くの駅・ウィジェットへの入口が並びます。駅の近くでアプリを開くと自動的に表示されます。',
       '台鐵誤點一次跳增 5 分以上時，列車直接跳回實際位置，不再原地停等':
         '台湾鉄路の遅延が一度に5分以上増えた場合、列車はその場で待たずにすぐ実際の位置へ戻るようになりました。',
       '兩條路線立體交叉的地方，改成依實際的高架與地下關係決定哪一條畫在上面':

@@ -224,6 +224,13 @@ try {
   process.stdout.write(bootSched.stdout || ''); process.stderr.write(bootSched.stderr || '');
   if (bootSched.status !== 0) fail('開機期班表殘缺守門人未過——某個系統班表殘缺會讓整頁開不起來'
     + '（單獨重跑：npm run check-boot-partial-sched）');
+  // ── 2.15 查詢分頁(2026-09-06)守門人 ──────────────────────────────────────
+  // 兩態 sheet、答案區與看板同源、自動開的正反對照、更多抽屜三列、重畫不吃點擊——全都是
+  // 「改到面板算繪或 sheet 家族就原地復發、其餘閘門照不到」的那種。兩引擎約 2–3 分鐘。
+  const queryTab = spawnSync('node', [path.join(wt, 'scripts', 'verify_query_tab.mjs'), wt], { encoding: 'utf8' });
+  process.stdout.write(queryTab.stdout || ''); process.stderr.write(queryTab.stderr || '');
+  if (queryTab.status !== 0) fail('查詢分頁守門人未過——兩態 sheet／答案同源／自動開／更多抽屜之一壞了'
+    + '（單獨重跑：npm run check-query-tab）');
 
   // ── 3. strip（腳本內建 esbuild AST 重印等價證明，任何不等價都非零退出）────
   const rawBytes = fs.readFileSync(path.join(wt, 'index.html'));

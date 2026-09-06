@@ -5158,6 +5158,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="querytab0906"><span class="d">9/6</span><span>手機底部「搜尋」改為「查詢」：半高面板先給離你最近的站各方向下一班，再列提醒、今日動態、附近車站與小工具入口；在車站附近開 App 會自動出現</span></li>
         <li data-cl-of="trasnap0905"><span class="d">9/5</span><span>台鐵誤點一次跳增 5 分以上時，列車直接跳回實際位置，不再原地停等</span></li>
         <li data-cl-of="leafletremoved0905"><span class="d">9/5</span><span>地圖全面改用 MapLibre，不再保留舊版 Leaflet 地圖：?engine=leaflet 這個網址參數已失效，開啟網站也不會再多下載一份舊地圖函式庫。</span></li>
         <li data-cl-of="maplibredefault0904"><span class="d">9/4</span><span>地圖引擎預設改為 MapLibre：所有人打開都是可旋轉、傾斜、開 3D 建築的向量地圖，跟隨列車時行進方向朝上。</span></li>
@@ -5165,7 +5166,6 @@
         <li data-cl-of="followpitch0904"><span class="d">9/4</span><span>修正跟隨火車並傾斜地圖時，遠端路線會變成跨畫面跳動直線；亮色、暗色與衛星底圖都已修正。</span></li>
         <li data-cl-of="tracksovermap0904"><span class="d">9/4</span><span>修正暗色 MapLibre 地圖的彩色路線仍被道路切碎；所有道路與 3D 建築現在都在路線下方，地名維持在上方。</span></li>
         <li data-cl-of="tymckind"><span class="d">9/4</span><span>桃園機場捷運的列車標得出車種：地圖上直達車是尖頭紫牌、普通車是白底圓牌，車牌也放大了，跟車卡與車站看板寫全名</span></li>
-        <li data-cl-of="xferlivehandoff"><span class="d">9/4</span><span>選好接續班次後，抵達轉乘站時動態島與鎖定畫面會自動切到下一班車</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5243,6 +5243,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="querytab0906"><span class="d">9/6</span><span>手機底部「搜尋」改為「查詢」：半高面板先給離你最近的站各方向下一班，再列提醒、今日動態、附近車站與小工具入口；在車站附近開 App 會自動出現</span></li>
         <li data-cl="xferlivehandoff"><span class="d">9/4</span><span>跟車時選好下一班台鐵或高鐵後，列車抵達轉乘站，鎖定畫面與動態島會接手顯示接續班次與發車倒數；開車後繼續顯示下一站，不再留在上一班車。</span></li>
         <li data-cl="webmcp"><span class="d">9/2</span><span>在 ChatGPT Work 或 Codex 的內建瀏覽器中，可查軌島畫面、車站看板、火車狀態與營運公告，也能開啟看板或跟隨指定火車；一般瀏覽器不受影響。</span></li>
         <li data-cl="crowdcard"><span class="d">9/2</span><span>跟隨台北捷運列車時，卡片會顯示逐節車廂擁擠度；無法確認車號或沒有官方資料時留白。</span></li>
@@ -6024,7 +6025,7 @@
 // v0904h：MapLibre 彩色路線改到道路與 3D 建築之上，不再被底圖切成碎段；文字標籤仍在最上。
 // v0904i：修正暗色 OpenFreeMap 的早期水域標籤誤導軌道插層，確保後段道路全在軌道下方。
 // v0904k：MapLibre 跟隨高亮使用完整點列，長途路線在深縮放彎道不再因抽稀而偏離原軌。
-const BUILD = 'v0905b';
+const BUILD = 'v0906a';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
