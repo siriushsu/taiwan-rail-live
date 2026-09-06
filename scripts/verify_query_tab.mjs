@@ -15,6 +15,11 @@
 // 且距上次渲染 ≥1000ms 牆鐘才重畫），而 G4／G17 從釘鐘到讀值只等約 800ms，追不上。所以 boot() 釘鐘後順手把
 // state._queryRenderedAt／_queryRenderedWallAt 歸零，讓產品自己的節拍立刻重畫；G4／G17 讀值前再逼一次
 // renderQueryAnswer() 當保險（比照 G3b 慣例），同樣不改期望值。
+// 釘鐘統一走 pinClock()：boot() 開機後呼叫一次；page.reload() 會整個重建 realm、自建的桌面 context 又不經 boot()，
+// 這兩種頁面到達 state.ready 後也各呼叫一次——整支沒有「沒釘到」的頁面，之後在 reload 後加讀列數的斷言也不會深夜假紅。
+// 釘常數（不釘成 () => state.simSec）的有效期是單一 context 內 120 秒：simSec 以 1×（SCHED_K＝1、speedMult＝1）繼續走、
+// nowSecOfDay 停在 09:41，超過 120 秒後 index.html 那幾條 Math.abs(state.simSec - nowSecOfDay()) <= 120 的即時閘門會翻面；
+// 本檔最長的單頁停留是 G12 的 6 秒觀察，離上限很遠。不釘成 () => state.simSec 是因為那會讓差值恆為 0（同源自洽），閘門永遠量不到東西。
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
@@ -81,7 +86,7 @@ async function boot(browser, { width = 393, height = 852, query = '', howto = fa
       localStorage.removeItem('trainmap-sheet-size');
       for (const k of Object.keys(a.storage)) localStorage.setItem(k, a.storage[k]);
     } catch (e) {}
-    // App 替身:IS_NATIVE_APP 只看這個 key 在不在(index.html 12284);值給 true 讓 onlineBasemapsAvailable() 維持正常路徑。
+    // App 替身:IS_NATIVE_APP 只看這個 key 在不在(index.html 的 IS_NATIVE_APP IIFE 第一個判斷);值給 true 讓 onlineBasemapsAvailable() 維持正常路徑。
     // 不裝 isNativePlatform——IS_NATIVE_APP 已經由 key 成立,多裝只會把 PLUS 等別的原生分支一起打開。
     if (a.app) window.RAIL_ONLINE_BASEMAPS_AVAILABLE = true;
     if (a.plugins) {
@@ -98,18 +103,26 @@ async function boot(browser, { width = 393, height = 852, query = '', howto = fa
   const q = ['lang=zh-TW', notify ? 'notifymock=1' : '', query.replace(/^[?&]/, '')].filter(Boolean).join('&');
   await page.goto(BASE + '?' + q, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready === true; } catch (e) { return false; } }, null, { timeout: 60000 });
-  // 釘死模擬時鐘 09:41（見檔頭說明）。只設一次 state.simSec 不夠——切系統/群組時 index.html
-  // 會自己用「以現在時刻起播」那段邏輯重設 state.simSec = nowSecOfDay(...); state.clockAtNow = true
-  // 把時鐘拉回「現在」，所以連 nowSecOfDay 本體一起重綁掉，後面不管誰再呼叫它都拿到同一個釘死值。
-  // 不用 Playwright 的 clock.setFixedTime：那會連 Date.now() 一起凍住，G2g/G2h 靠 1000ms
-  // 牆鐘節流的判準會壞（verify_font_scale.mjs 的收藏面板段落已有同一個慣例：直接寫 state.simSec
-  // 一定要同時關 clockAtNow）。
-  await page.evaluate(() => { nowSecOfDay = () => 9 * 3600 + 41 * 60; setSimSec(9 * 3600 + 41 * 60); state.clockAtNow = false; });
-  // 釘鐘後把答案區「上次渲染」戳記歸零：主迴圈的重畫條件是 simSec 變了且距上次渲染 ≥1000ms 牆鐘（index.html tickCore），
-  // 自動開門那次舊時刻渲染留下的戳記會讓釘好的時刻還要再等一秒才追上。
-  await page.evaluate(() => { state._queryRenderedAt = -1; state._queryRenderedWallAt = 0; });
+  await pinClock(page);
   await page.waitForTimeout(500);
   return { ctx, page, errs };
+}
+
+/**
+ * 釘死模擬時鐘 09:41（見檔頭說明）。boot() 開機後呼叫；page.reload() 之後（realm 重建，nowSecOfDay 與 simSec 都回真實牆鐘）
+ * 與不經 boot() 的桌面 context 到達 state.ready 後也要各呼叫一次。
+ * 只設一次 state.simSec 不夠——切系統/群組時 index.html 會自己用「以現在時刻起播」那段邏輯重設
+ * state.simSec = nowSecOfDay(...); state.clockAtNow = true 把時鐘拉回「現在」，所以連 nowSecOfDay 本體一起重綁掉，
+ * 後面不管誰再呼叫它都拿到同一個釘死值。不用 Playwright 的 clock.setFixedTime：那會連 Date.now() 一起凍住，
+ * G2g/G2h 靠 1000ms 牆鐘節流的判準會壞。setSimSec 第一件事就是清 state.clockAtNow（顯式跳時間＝離開「跟著現在」），
+ * 這裡再顯式寫一次只是防呆——防將來有人把它換成直接寫 state.simSec（verify_font_scale.mjs 收藏面板段落的慣例：
+ * 直接寫 simSec 一定要同時關 clockAtNow），不寫也不會壞。
+ */
+async function pinClock(page) {
+  await page.evaluate(() => { nowSecOfDay = () => 9 * 3600 + 41 * 60; setSimSec(9 * 3600 + 41 * 60); state.clockAtNow = false; });
+  // 釘鐘後把答案區「上次渲染」戳記歸零：tickCore 的重畫條件是 simSec 變了且距上次渲染 ≥1000ms 牆鐘，
+  // 自動開門那次舊時刻渲染留下的戳記會讓釘好的時刻還要再等一秒才追上。
+  await page.evaluate(() => { state._queryRenderedAt = -1; state._queryRenderedWallAt = 0; });
 }
 
 /** 由頁面本身取站座標——不手打常數（判準盲點 3）。sys：'tra_sched' | 'deco' | 'freq'。 */
@@ -153,8 +166,8 @@ sections.push({ name: 'G1 瀏覽態', run: async (browser, en) => {
     ok(`[${en}/${width}] G1e 無 pageerror`, errs.length === 0, errs.join(' | '));
     await ctx.close();
   }
-  // 橫放(4183 起的 landscape 區塊;MOBILE_MQ 靠 max-height:500px 命中,開機自動套 body.fs)：
-  // 瀏覽態要退回通用側欄(4190 那組)、tab bar 不被蓋住；打字態才換右半全高(§04c 契約9,4474 起)。
+  // 橫放(CSS 的 landscape 區塊;MOBILE_MQ 靠 max-height:500px 命中,開機自動套 body.fs)：
+  // 瀏覽態要退回通用側欄那組規則、tab bar 不被蓋住；打字態才換右半全高(§04c 契約9)。
   // 牙：F1 修前 body.fs #searchPanel 的右半版面沒掛 search-open ⇒ 瀏覽態面板就貼到視窗底,蓋過 tab bar ⇒ G1f 紅。
   {
     const { ctx, page } = await boot(browser, { width: 852, height: 393 });
@@ -200,9 +213,9 @@ sections.push({ name: 'G2 打字態', run: async (browser, en) => {
   await page.touchscreen.tap(inp.x, inp.y);
   await page.waitForTimeout(400);
   let s = await snap(page);
-  // 直式的打字態 tab bar 仍在(只有橫放的 body.fs.search-open .tabbar 會藏,那是 4182 起的 landscape 區塊,不動);判打字態看「上錨」
+  // 直式的打字態 tab bar 仍在(只有橫放的 body.fs.search-open .tabbar 會藏,那是 CSS 的 landscape 區塊,不動);判打字態看「上錨」
   ok(`[${en}] G2a 點輸入框 ⇒ 打字態（search-open、面板上錨到頂列之下）`, s.searchOpen && s.top <= 140, JSON.stringify({ searchOpen: s.searchOpen, top: s.top }));
-  // I-2(fix wave):打字態下答案區看不到(3861 行 display:none),背景節拍不該再補跑重算——
+  // I-2(fix wave):打字態下答案區看不到(CSS 的 body.search-open #searchPanel .qa 那條 display:none),背景節拍不該再補跑重算——
   // 推進 simSec≥3 秒＋等 1.2 真實秒(遠超過 1 秒的舊節流與 1000ms 的新牆鐘節流),兩個戳記都不該動。
   const beforeTyping = await page.evaluate(() => ({ sim: state._queryRenderedAt, wall: state._queryRenderedWallAt }));
   await page.evaluate(() => { state.simSec = (state.simSec + 3) % 86400; });
@@ -258,7 +271,7 @@ sections.push({ name: 'G2 打字態', run: async (browser, en) => {
 // G7 更多抽屜（spec §7-7）：手機三列 display:none、桌面「今日台鐵動態」仍在可點；全日班次走勢手機仍在。
 // 牙：拿掉媒體查詢 ⇒ G7a 紅；把 [data-home="query"] 隱藏規則放到 MOBILE_MQ 外面 ⇒ 桌面 todayBtn 也被關掉 ⇒ G7c 紅。
 // 訂正（task-2 決議）：brief 原稿的 G7c 連桌面「全日班次走勢」也一併斷言存在，但桌面本來就有既有規則
-// （4539 一帶 body:not(.mobile-shell) .ms-row[data-act="flow"]{display:none!important}）刻意把抽屜那列關掉——
+// （CSS 的 body:not(.mobile-shell) .ms-row[data-act="flow"]{display:none!important}）刻意把抽屜那列關掉——
 // 桌面版面上已經有本體，不重複。那條規則與本 task 無關，G7c 只驗「今日台鐵動態」。
 sections.push({ name: 'G7 更多抽屜', run: async (browser, en) => {
   const { ctx, page } = await boot(browser, { query: 'notifymock=1&' + 'geomock=25.0478,121.5170' });
@@ -274,6 +287,7 @@ sections.push({ name: 'G7 更多抽屜', run: async (browser, en) => {
   await dp.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-language', 'zh-TW'); } catch (e) {} });
   await dp.goto(BASE + '?lang=zh-TW', { waitUntil: 'domcontentloaded' });
   await dp.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 60000 });
+  await pinClock(dp);
   const dm = await dp.evaluate(() => {
     document.getElementById('toolsFab') && document.getElementById('toolsFab').click();
     const disp = sel => { const el = document.querySelector(sel); return el ? getComputedStyle(el).display : 'missing'; };
@@ -326,6 +340,7 @@ sections.push({ name: 'G3a 答案站退路鏈', run: async (browser, en) => {
   await r.page.evaluate(() => { const c = nearbyStationCandidates().find(x => x.st.name === '松山' && x.st.sys === 'tra_sched'); toggleFavStation(c.st); });
   await r.page.reload({ waitUntil: 'domcontentloaded' });
   await r.page.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 60000 });
+  await pinClock(r.page);
   a = await r.page.evaluate(() => queryAnswerStations());
   ok(`[${en}] G3a-3 有最愛 ⇒ src fav、站＝松山`, a.src === 'fav' && a.stations[0] && a.stations[0].st.name === '松山', JSON.stringify(a));
   await r.ctx.close();
@@ -343,6 +358,7 @@ sections.push({ name: 'G3a 答案站退路鏈', run: async (browser, en) => {
   ok(`[${en}] G3a-6 openBoard 真的寫入 trainmap-last-board-v1（sys＝tra_sched、站＝臺北）`, !!saved && saved.sys === 'tra_sched' && saved.name === '臺北', JSON.stringify(saved));
   await r.page.reload({ waitUntil: 'domcontentloaded' });
   await r.page.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 60000 });
+  await pinClock(r.page);
   a = await r.page.evaluate(() => queryAnswerStations());
   ok(`[${en}] G3a-7 重載後退路吃得到 openBoard 存的上次看過站 ⇒ src last、站＝臺北`, a.src === 'last' && a.stations[0] && a.stations[0].st.name === '臺北' && a.stations[0].st.sys === 'tra_sched', JSON.stringify(a));
   await r.ctx.close();
@@ -523,7 +539,7 @@ sections.push({ name: 'G12 重畫不吃點擊', run: async (browser, en) => {
 // G12 續(fix round 1,審查者的兩個 Important):
 // G12d(finding #1、死的預先渲染):先正常開一次建立內容與 _queryRenderedAt,暫停播放(simSec 凍結)後
 //   關閉、換一個很遠的定位(模擬「看了別的看板、或 geo 移動」)、再重開——由於 simSec 沒變,主迴圈節拍
-//   (15142 行)的觸發條件 |simSec − _queryRenderedAt| ≥ 1 恆為假,不會補跑,唯一能換出新內容的只剩
+//   (tickCore)的觸發條件 simSec !== _queryRenderedAt 恆為假,不會補跑,唯一能換出新內容的只剩
 //   openSearchPanel 內那次 renderQueryAnswer()。
 //   （原稿曾直接測「開起來那一刻有沒有 .qa-stn」,但 _queryRenderedAt 初始是 undefined,第一次開面板時
 //   |simSec − 0| 幾乎必然 ≥ 1,主迴圈節拍下一幀就會補渲染,測不出這顆牙——牙只咬得住「重開後內容該換
@@ -531,7 +547,7 @@ sections.push({ name: 'G12 重畫不吃點擊', run: async (browser, en) => {
 //   牙:renderQueryAnswer() 排回 hidden=false 之前 ⇒ 面板還沒露出,它自己的守門(panel.hidden)直接跳出,
 //   重開後答案區停留在關閉前的舊站,不會換成新定位 ⇒ 紅。
 // G12c(finding #2、按下到放開之間被重畫):click 目標會落到容器(wrap)上、.closest('.qa-stn') 落空,
-//   靠 pointerdown 先記行、click 撈不到列時用記的補(照看板 el.onpointerdown/onclick,index.html≈28124
+//   靠 pointerdown 先記行、click 撈不到列時用記的補(照 renderBoardBody 裡看板列 el.onpointerdown/onclick
 //   同一套)。牙:拿掉 pointerdown 補救 ⇒ 紅(鬆手時開不了看板,因為 click 目標是容器)。
 //   實測記錄(brief 建議的 page.mouse 手法在本機兩種真實輸入管道都測不出「同一條牙」):
 //   (a) page.mouse.down()＋逼重畫＋page.mouse.up():Chromium 對「mousedown 目標已從文件移除」乾脆不合成
@@ -626,7 +642,7 @@ sections.push({ name: 'G5 自動開', run: async (browser, en) => {
 }});
 
 // G5b 精度閘門下限(09-06 裁示「精度改成大於 0 才開」):Android 精度未知時回 accuracy 0.0,不准當成完美精度。
-// geomock 橋接把 geoacc 夾成 ≥1(index.html 12239),開機路徑餵不進 0 ⇒ 直接餵 queryMaybeAutoOpen;
+// geomock 橋接把 geoacc 夾成 ≥1(index.html 開機 inline 那段 ?geomock 解析的 Math.max(1, …)),開機路徑餵不進 0 ⇒ 直接餵 queryMaybeAutoOpen;
 // 開機的 geomock 放在 600 m 外(LOCATE_ENABLED 要成立、但開機不會自動開),再把 state.geoLoc 種到站旁。
 // 牙:閘門改回 c.accuracy <= 300 ⇒ G5b-0 紅;G5b-65 是正向對照(證明前面的「不開」不是別的守門在擋)。
 sections.push({ name: 'G5b 精度 0 不開', run: async (browser, en) => {
@@ -656,13 +672,13 @@ sections.push({ name: 'G6 開關記憶', run: async (browser, en) => {
   await tapTab(page);
   let k = await page.evaluate(() => localStorage.getItem('trainmap-query-open'));
   ok(`[${en}] G6a 使用者點 tab 開 ⇒ 鍵=1`, k === '1', String(k));
-  await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 60000 }); await page.waitForTimeout(500);
+  await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 60000 }); await pinClock(page); await page.waitForTimeout(500);
   let s = await snap(page);
   ok(`[${en}] G6a 重載後仍開(瀏覽態)`, !s.hidden && !s.searchOpen, JSON.stringify(s));
   await tapTab(page); // 再點=關
   k = await page.evaluate(() => localStorage.getItem('trainmap-query-open'));
   ok(`[${en}] G6b 使用者關 ⇒ 鍵=0`, k === '0', String(k));
-  await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 60000 }); await page.waitForTimeout(500);
+  await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 60000 }); await pinClock(page); await page.waitForTimeout(500);
   s = await snap(page);
   ok(`[${en}] G6b 重載後關`, s.hidden);
   await ctx.close();
@@ -685,6 +701,7 @@ sections.push({ name: 'G9 桌面不變量', run: async (browser, en) => {
   await page.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-language', 'zh-TW'); } catch (e) {} });
   await page.goto(BASE + '?lang=zh-TW', { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 60000 });
+  await pinClock(page);
   const d = await page.evaluate(() => ({
     panelHidden: document.getElementById('searchPanel').hidden,
     searchRowExists: !!document.getElementById('searchRow'),
@@ -703,7 +720,7 @@ sections.push({ name: 'G9 桌面不變量', run: async (browser, en) => {
   ok(`[${en}] G9b 桌面聚焦搜尋框不洩漏打字態`, !d2.searchOpen && d2.panelHidden === true, JSON.stringify(d2));
   await ctx.close();
   // G9c 桌面：帶開關記憶鍵＋靠近車站定位開機，面板仍關（spec §6 兩道 MOBILE_MQ 守門缺一不可）。
-  // 牙：12663（自動開）或 32967（開機還原記憶）任一道守門被拿掉 ⇒ 這條紅。刻意不用 boot()——
+  // 牙：queryMaybeAutoOpen（自動開）或開機 state.ready 之後那段讀 QUERY_OPEN_KEY 的還原（開機還原記憶）,兩處 MOBILE_MQ 守門任一道被拿掉 ⇒ 這條紅。刻意不用 boot()——
   // 它固定 hasTouch/isMobile,會讓 MOBILE_MQ 的 (any-pointer:coarse) and (max-width:1400px) 那支意外命中,
   // 蓋掉桌面本該測到的東西;沿用本節既有的純滑鼠 context 寫法。
   const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'zh-TW' });
@@ -711,6 +728,7 @@ sections.push({ name: 'G9 桌面不變量', run: async (browser, en) => {
   await page2.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-language', 'zh-TW'); localStorage.setItem('trainmap-query-open', '1'); } catch (e) {} });
   await page2.goto(BASE + '?lang=zh-TW&geomock=25.0478,121.5170', { waitUntil: 'domcontentloaded' });
   await page2.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 60000 });
+  await pinClock(page2);
   await page2.waitForFunction(() => state._geoLanded === true, null, { timeout: 8000 }).catch(() => {});
   await page2.evaluate(() => new Promise(r => requestAnimationFrame(() => r())));
   const hidden2 = await page2.evaluate(() => document.getElementById('searchPanel').hidden);
@@ -954,6 +972,7 @@ sections.push({ name: 'G16 說明中心', run: async (browser, en) => {
   await dpage.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-language', 'zh-TW'); } catch (e) {} });
   await dpage.goto(BASE + '?lang=zh-TW', { waitUntil: 'domcontentloaded' });
   await dpage.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 60000 });
+  await pinClock(dpage);
   await dpage.evaluate(() => helpRun('query'));
   // 正向對照:桌面分支會吐司指路——等那則吐司真的出現在 #toasts(證明 helpRun 的桌面分支跑過了)再斷言面板仍關;
   // 只斷言 hidden===true 的話,「60 ms 計時器餓死、什麼都沒發生」也會是綠的(假綠,判準盲點 5)。
