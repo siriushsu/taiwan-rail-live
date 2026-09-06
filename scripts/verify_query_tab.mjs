@@ -223,10 +223,15 @@ sections.push({ name: 'G8a 快捷列閘門', run: async (browser, en) => {
   ok(`[${en}] G8a-web 網站只有「今日台鐵動態」`, JSON.stringify(s.links) === JSON.stringify(['today']), JSON.stringify(s.links));
   await ctx.close();
   ({ ctx, page } = await boot(browser, { app: true, notify: true, query: 'geomock=25.0478,121.5170', plugins: { RailMetroWait: {} } }));
-  await tapTab(page);
+  // 這個 boot 的 geomock 落在 Task 5 自動開門檻內,boot() 回傳前面板可能已經自動開好;
+  // 裸 tapTab 會把它當「使用者要關」點掉(見 openQuery 定義處的說明),故改用 openQuery(page)。
+  await openQuery(page);
   s = await snap(page);
-  ok(`[${en}] G8a-app App 替身四列齊（notify/today/near/widget）`, JSON.stringify(s.links) === JSON.stringify(['notify', 'today', 'near', 'widget']), JSON.stringify(s.links));
-  // 小工具列 ⇒ 說明中心開在 metrowidget 節（群組展開、節在可視區）
+  ok(`[${en}] G8a-app App 替身四列齊（notify/today/near/widget）`, JSON.stringify(s.links) === JSON.stringify(['notify', 'today', 'near', 'widget']) && !s.hidden, JSON.stringify({ links: s.links, hidden: s.hidden }));
+  // 小工具列 ⇒ 說明中心開在 metrowidget 節（群組展開、節在可視區）；先量該列寬高 > 0——
+  // 面板若仍是塌陷的隱藏態,子孫 rect 會全零,對零尺寸元素做合成點擊會測不出使用者其實點不到。
+  const widgetRect = await page.evaluate(() => document.querySelector('#queryLinks .ql-row[data-act="widget"]').getBoundingClientRect());
+  ok(`[${en}] G8a-widget 小工具列可見（寬高 > 0）`, widgetRect.width > 0 && widgetRect.height > 0, JSON.stringify({ w: widgetRect.width, h: widgetRect.height }));
   await page.evaluate(() => document.querySelector('#queryLinks .ql-row[data-act="widget"]').click());
   await page.waitForTimeout(500);
   const h = await page.evaluate(() => { const sec = document.querySelector('#helpBody .help-sec[data-sec="metrowidget"]'); const m = document.getElementById('helpModal'); const r = sec && sec.getBoundingClientRect(); return { open: !!m && !m.hidden, grpOpen: !!sec && sec.closest('.help-grp').classList.contains('open'), visible: !!r && r.top >= 0 && r.top < innerHeight }; });
@@ -505,6 +510,12 @@ sections.push({ name: 'G5 自動開', run: async (browser, en) => {
     const s = await snap(page);
     ok(`[${en}] G5 ${name}`, !s.hidden === expect, JSON.stringify({ hidden: s.hidden, searchOpen: s.searchOpen }));
     if (expect) ok(`[${en}] G5 ${name}:自動開是瀏覽態`, !s.searchOpen);
+    // ?train= 那條的「不開」不能只看 hidden——面板關也可能是因為定位根本沒跑,不是深連結真的擋下了自動開;
+    // 直接量 _geoLanded,讓斷言說出它真正證明的事(它結構上永遠不會變 true,見 startBootGeo 的深連結守門)。
+    if (/[?&]train=/.test(opts.query || '')) {
+      const landed = await page.evaluate(() => state._geoLanded === true);
+      ok(`[${en}] G5 ${name}:applyBootGeo 真的沒跑(深連結擋下,不是巧合)`, landed === false, String(landed));
+    }
     await ctx.close();
   }
 }});
@@ -561,6 +572,20 @@ sections.push({ name: 'G9 桌面不變量', run: async (browser, en) => {
   }));
   ok(`[${en}] G9b 桌面聚焦搜尋框不洩漏打字態`, !d2.searchOpen && d2.panelHidden === true, JSON.stringify(d2));
   await ctx.close();
+  // G9c 桌面：帶開關記憶鍵＋靠近車站定位開機，面板仍關（spec §6 兩道 MOBILE_MQ 守門缺一不可）。
+  // 牙：12663（自動開）或 32967（開機還原記憶）任一道守門被拿掉 ⇒ 這條紅。刻意不用 boot()——
+  // 它固定 hasTouch/isMobile,會讓 MOBILE_MQ 的 (any-pointer:coarse) and (max-width:1400px) 那支意外命中,
+  // 蓋掉桌面本該測到的東西;沿用本節既有的純滑鼠 context 寫法。
+  const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'zh-TW' });
+  const page2 = await ctx2.newPage();
+  await page2.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-language', 'zh-TW'); localStorage.setItem('trainmap-query-open', '1'); } catch (e) {} });
+  await page2.goto(BASE + '?lang=zh-TW&geomock=25.0478,121.5170', { waitUntil: 'domcontentloaded' });
+  await page2.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 60000 });
+  await page2.waitForFunction(() => state._geoLanded === true, null, { timeout: 8000 }).catch(() => {});
+  await page2.evaluate(() => new Promise(r => requestAnimationFrame(() => r())));
+  const hidden2 = await page2.evaluate(() => document.getElementById('searchPanel').hidden);
+  ok(`[${en}] G9c 桌面：帶記憶鍵(trainmap-query-open=1)＋靠近車站定位開機，面板仍關`, hidden2 === true, String(hidden2));
+  await ctx2.close();
 }});
 
 // ── 執行 ──
