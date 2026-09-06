@@ -3,6 +3,15 @@
 // QT_ONLY='G11|G13' npm run check-query-tab 只跑段名命中這個正則的段落（省紅跑時間；G0 是量對樹的守門，不在 sections 陣列裡，永遠不被篩掉）。
 // 出貨鏈的 preflight（ship_web.mjs）主動把 QT_ONLY 洗成空字串，仍是全跑；QT_ONLY 有值時本檔結尾一律 exitCode 2，篩選跑不可能被任何鏈當成通過。
 // 每一段判準都寫「使用者看得到的行為」，並在 spec §7 對應一條「牙」（突變必紅）。
+// 修正波 C：boot() 把模擬時鐘釘死在 09:41——這支閘門掛在 ship_web.mjs 的出貨 preflight，
+// 若拿真實牆鐘當「現在」，過午夜後全線無班次會讓「找得到答案列/看板列」這類判準集體假紅
+// （反向證據：scratchpad/final-query-tab-6cfd7547.log，01:03 跑 225 PASS／14 FAIL，
+// chromium/webkit 各 7 條一模一樣：G3b 臺北／東門、G4、G17a/b/c、G17 執行例外；
+// 同一份 index.html／harness 在 23:5x 跑是 245/245，見 final-fix-w-report.md）——
+// 屬三種紅的原因裡的「環境條件」，修 harness 不修產品、不改期望值。09:41 只是任一個平日白天、
+// 有班次可看的時刻，數字本身沒有特殊意義。附帶修法：G4／G17 用 geomock 觸發自動開門，那次渲染可能
+// 搶在 boot() 釘鐘之前用舊時刻算過一次，答案區的牆鐘節流＋內容快取會讓它之後追不上釘好的 09:41——
+// 這兩段各自比照 G3b 已有的慣例，讀值前先逼一次 renderQueryAnswer()，同樣不改期望值。
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
@@ -86,6 +95,13 @@ async function boot(browser, { width = 393, height = 852, query = '', howto = fa
   const q = ['lang=zh-TW', notify ? 'notifymock=1' : '', query.replace(/^[?&]/, '')].filter(Boolean).join('&');
   await page.goto(BASE + '?' + q, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready === true; } catch (e) { return false; } }, null, { timeout: 60000 });
+  // 釘死模擬時鐘 09:41（見檔頭說明）。只設一次 state.simSec 不夠——切系統/群組時 index.html
+  // 會自己用「以現在時刻起播」那段邏輯重設 state.simSec = nowSecOfDay(...); state.clockAtNow = true
+  // 把時鐘拉回「現在」，所以連 nowSecOfDay 本體一起重綁掉，後面不管誰再呼叫它都拿到同一個釘死值。
+  // 不用 Playwright 的 clock.setFixedTime：那會連 Date.now() 一起凍住，G2g/G2h 靠 1000ms
+  // 牆鐘節流的判準會壞（verify_font_scale.mjs 的收藏面板段落已有同一個慣例：直接寫 state.simSec
+  // 一定要同時關 clockAtNow）。
+  await page.evaluate(() => { nowSecOfDay = () => 9 * 3600 + 41 * 60; setSimSec(9 * 3600 + 41 * 60); state.clockAtNow = false; });
   await page.waitForTimeout(500);
   return { ctx, page, errs };
 }
@@ -392,6 +408,10 @@ sections.push({ name: 'G4 四列上限', run: async (browser, en) => {
   const { ctx, page } = await boot(browser, { query: geomock(offsetLatLon(pick, 50)) });
   await page.waitForFunction(() => !!state.geoLoc, null, { timeout: 15000 });
   await openQuery(page);
+  // 修正波 C 附帶修法:geomock 一落地就可能自動開門並渲染過一次答案區——那次渲染搶在 boot() 釘鐘
+  // 之前用的是舊時刻,而 renderQueryAnswer 本身有牆鐘節流＋「內容沒變就不重寫 DOM」的快取,兩者疊加
+  // 會讓已經釘好的 09:41 永遠追不上那份舊渲染。比照 G3b 已有的慣例,讀值前先逼一次真的重畫。
+  await page.evaluate(() => renderQueryAnswer());
   const m = await page.evaluate(() => { const box = document.querySelector('#queryAnswer .qa-stn .qa-rows'); const rows = [...box.querySelectorAll('.row')]; const br = box.getBoundingClientRect(); const visible = rows.filter(r => { const q = r.getBoundingClientRect(); return q.top >= br.top - 1 && q.bottom <= br.bottom + 1; }).length; return { total: rows.length, visible, scrollable: box.scrollHeight > box.clientHeight + 1 }; });
   ok(`[${en}] G4 ${pick.name}:總列 ${m.total}、可見 ${m.visible} ≤ 4、多的可捲`, m.total > 4 && m.visible <= 4 && m.scrollable, JSON.stringify(m));
   // G4b(fix round 1、finding #3):重畫不能洗掉區內捲動位置——捲到底之後逼一次重畫(內容其實沒變,
@@ -946,6 +966,9 @@ sections.push({ name: 'G17 特大字級答案列', run: async (browser, en) => {
   const fs = await page.evaluate(() => document.documentElement.getAttribute('data-fs'));
   ok(`[${en}] G17 前提:xlarge 字級真的生效(data-fs)`, fs === 'xlarge', String(fs));
   await openQuery(page);
+  // 修正波 C 附帶修法:同 G4——geomock 自動開門可能搶在 boot() 釘鐘前就渲染過一次答案區,讀值前
+  // 先逼一次真的重畫,否則會讀到那份用舊時刻算出來的空列表。
+  await page.evaluate(() => renderQueryAnswer());
   const r = await page.evaluate(() => {
     const row = document.querySelector('#queryAnswer .qa-stn .qa-rows .row[data-no]');
     if (!row) return null;
