@@ -3882,6 +3882,17 @@
       line-height: 1.5; color: var(--navy); border: 1px solid var(--line); border-radius: 999px; white-space: nowrap; flex: none;
     }
     #searchPanel .qa-rows { overflow-y: auto; overscroll-behavior: contain; }
+    /* I-1(2026-09-06 修正輪):#searchPanel 掛 .board,特大字級的看板列規則(2132/2176 起)整套套用到
+       答案列——車種/終點與誤點分鐘被摺進「›」,但那顆鈕在答案區點下去是 wrap.onclick 開看板
+       (renderQueryAnswer 內),沒有看板 el.onclick 那條 .rx 展開路徑接住它。答案列本來就每組只取 1 班(perGroup=1),沒有
+       「收進 › 再展開」的必要,直接讓車種/終點/誤點常駐;.rmore 在任何字級都藏起來。 */
+    #searchPanel .qa-rows .row .rmore { display: none; }
+    html[data-fs=xlarge] #searchPanel .qa-rows .row[data-no] .dest { display: block; }
+    /* 還原成看板 .rx 展開時實際呈現的樣子:2189 那條已經把 .lateTag 的 padding/background/border 清空,
+       .rx 展開態(2196-2197)只補回 font-size 與拿掉 ::before 的圓點,沒有另外還原成一顆徽章——
+       這裡照抄那個結果,不是發明第三種樣式。 */
+    html[data-fs=xlarge] #searchPanel .qa-rows .row[data-no] .lateTag { font-size: calc(11px * var(--uis)); }
+    html[data-fs=xlarge] #searchPanel .qa-rows .row[data-no] .lateTag::before { content: none; }
     #searchPanel .qa-bus { display: block; width: calc(100% - 28px); margin: 4px 14px 8px; min-height: 40px; padding: 0 12px; text-align: left;
       border: 1px solid var(--line); border-radius: 8px; color: var(--navy); background: var(--paper); font-size: calc(12.5px * var(--ui)); font-weight: 700; font-family: inherit; }
     #searchPanel .qa-empty { padding: 10px 14px 12px; font-size: calc(12.5px * var(--ui)); color: var(--faint); }
@@ -28140,7 +28151,10 @@ function schedBoardListHtml(st, rows, perGroup) {
     // 停駛列不掛 data-no/title:點了不該去跟一台不存在的車(followTrainNo 也找不到它)
     // 重繪要把使用者展開中的那一列掛回去(見 boardRxOpen);停駛列沒有 data-no,CSS 也不吃 .rx
     const rx = !r.off && boardRxOpen.has(boardRxKey(r.tr.train, r.tr.sys)) ? ' rx' : '';
-    return `<div class="row${r.off ? ' off' : ''}${rx}"${r.off ? '' : ` data-no="${escHtml(r.tr.train)}" data-sys="${escHtml(r.tr.sys || '')}" title="${escHtml(t('跟隨 {train} 次', { train: r.tr.train }))}"`}><span class="dot" style="background:${r.tr.color}"></span>` +
+    // I-1:答案區(perGroup=1)點列是開看板(見 renderQueryAnswer 的 wrap.onclick),不是跟車——
+    // 「跟隨 N 次」的 tooltip 在那裡是假話,只在真正的看板(perGroup 3/6)才掛。
+    const title = perGroup === 1 ? '' : ` title="${escHtml(t('跟隨 {train} 次', { train: r.tr.train }))}"`;
+    return `<div class="row${r.off ? ' off' : ''}${rx}"${r.off ? '' : ` data-no="${escHtml(r.tr.train)}" data-sys="${escHtml(r.tr.sys || '')}"${title}`}><span class="dot" style="background:${r.tr.color}"></span>` +
       // 「推算」標貼著時刻放(被推算的是時間不是路線),與 lateTag 同位、不會同時出現(est 車無誤點資料);
       // 放 dest 欄會把「（終點到達）」擠成「(…」(280px 看板實測;v0901 加寬到 360 後未重測,維持原做法)。
       // 設計 6b:大改兩行、特大把車種與方向收進列尾「›」——兩者都要能各自定位,故各包一層。

@@ -716,6 +716,39 @@ sections.push({ name: 'G16 說明中心', run: async (browser, en) => {
   await dctx.close();
 }});
 
+// G17 特大字級答案列(I-1 fix wave)：#searchPanel 掛 .board,xlarge 收欄位/縮誤點那套看板規則
+// 整套會套到答案列——但答案區沒有 .rx 展開路徑接住 .rmore 的點擊(點下去是 wrap.onclick 開看板),
+// 拿掉三條 override CSS(或拿掉 title 的 perGroup===1 分支)都會讓這段紅。
+// 對照:同一頁看板本尊在 xlarge 的「›」不受影響,證明只改到答案區。
+sections.push({ name: 'G17 特大字級答案列', run: async (browser, en) => {
+  const r0 = await boot(browser, {}); const taipei = await stationOf(r0.page, '臺北', 'tra_sched'); await r0.ctx.close();
+  const { ctx, page } = await boot(browser, { query: geomock(offsetLatLon(taipei, 50)), storage: { 'trainmap-fontscale': 'xlarge' } });
+  await page.waitForFunction(() => !!state.geoLoc, null, { timeout: 15000 });
+  const fs = await page.evaluate(() => document.documentElement.getAttribute('data-fs'));
+  ok(`[${en}] G17 前提:xlarge 字級真的生效(data-fs)`, fs === 'xlarge', String(fs));
+  await openQuery(page);
+  const r = await page.evaluate(() => {
+    const row = document.querySelector('#queryAnswer .qa-stn .qa-rows .row[data-no]');
+    if (!row) return null;
+    const dest = row.querySelector('.dest'), more = row.querySelector('.rmore');
+    return {
+      destDisplay: dest && getComputedStyle(dest).display, destText: dest && dest.textContent.trim(),
+      moreDisplay: more && getComputedStyle(more).display, hasTitle: row.hasAttribute('title'),
+    };
+  });
+  ok(`[${en}] G17a 答案列車種／終點在 xlarge 常駐可見(不必展開)`, !!r && r.destDisplay !== 'none' && !!r.destText, JSON.stringify(r));
+  ok(`[${en}] G17b 答案列的「›」在 xlarge 仍然藏起來(沒有可展開的地方接它)`, !!r && r.moreDisplay === 'none', JSON.stringify(r));
+  ok(`[${en}] G17c 答案列沒有假的跟車 tooltip`, !!r && r.hasTitle === false, JSON.stringify(r));
+  const box = await page.evaluate(() => { const el = document.querySelector('#queryAnswer .qa-stn .qa-rows .row[data-no]'); const b = el.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; });
+  await page.touchscreen.tap(box.x, box.y); await page.waitForTimeout(500);
+  const o = await page.evaluate(() => ({ boardOpen: !document.getElementById('board').hidden, following: !!state.followTrain, queryClosed: document.getElementById('searchPanel').hidden }));
+  ok(`[${en}] G17d 真觸控點答案列 ⇒ 看板開、不是跟車(state.followTrain 仍空)`, o.boardOpen && !o.following, JSON.stringify(o));
+  // 對照:同一頁、同一站,看板本尊在 xlarge 的「›」還在(證明只改到答案區,沒把看板的展開能力一併拔掉)。
+  const board = await page.evaluate(() => { const row = document.querySelector('#board .row[data-no]'); const more = row && row.querySelector('.rmore'); return more ? getComputedStyle(more).display : 'missing'; });
+  ok(`[${en}] G17e 對照:看板本尊在 xlarge 仍看得到「›」`, board !== 'none' && board !== 'missing', board);
+  await ctx.close();
+}});
+
 // ── 執行 ──
 for (const engineName of ENGINES) {
   const engine = engineName === 'webkit' ? webkit : chromium;
