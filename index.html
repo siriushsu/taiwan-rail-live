@@ -6060,7 +6060,8 @@
 // v0906g：手機底部「搜尋」改為「查詢」半高面板——答案區走看板同源、公車轉乘入口、靠近車站自動開;併入 origin/main 的 v0906f。
 // v0906i：v0906g(查詢分頁)再併入 origin/main 的 v0906h(看板支線分組)。
 // v0906j：App 說明中心小工具頁改成介紹頁(iOS／Android 各尺寸預覽圖、Android「加到桌面」RailWidget plugin);網站端零可見改動。
-const BUILD = 'v0906j';
+// v0906k：查詢 sheet 一律以半高開(不吃全站段高偏好)、答案列按下記站不記索引;App 說明中心小工具尺寸英日文、鎖定畫面步驟限定「發車看板」、釘選能力開機預熱;預覽圖不再上網站。
+const BUILD = 'v0906k';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
