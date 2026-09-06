@@ -51,6 +51,9 @@ await new Promise(r => server.listen(PORT, r));
  *   width/height 視窗；query 網址參數（含 ?geomock=lat,lon&geoacc=…）；
  *   howto=true 讓首訪教學卡出現（預設已看過）；storage 預先塞 localStorage；
  *   app=true 假裝原生殼（IS_NATIVE_APP）；plugins 假裝 Capacitor plugins（{RailMetroWait:{}, RailWidget:{…}}）；
+ *   plugin 方法需要真的可呼叫時不能直接塞函式——addInitScript 的 arg 走序列化，函式值會被靜默丟掉
+ *   （實測：RailWidget:{pinSupported: async()=>{...}} 到瀏覽器端變成 {}）。改寫成 { pinSupported: { $result: {...} } }，
+ *   下面的 initScript 會把這種 { $result } 標記水合成真的回傳 Promise 的函式。
  *   notify=true 注入本地提醒 mock（走 ?notifymock=1）。
  */
 async function boot(browser, { width = 393, height = 852, query = '', howto = false, storage = {}, app = false, plugins = null, notify = false, platform = 'android' } = {}) {
@@ -67,7 +70,13 @@ async function boot(browser, { width = 393, height = 852, query = '', howto = fa
     // App 替身:IS_NATIVE_APP 只看這個 key 在不在(index.html 12284);值給 true 讓 onlineBasemapsAvailable() 維持正常路徑。
     // 不裝 isNativePlatform——IS_NATIVE_APP 已經由 key 成立,多裝只會把 PLUS 等別的原生分支一起打開。
     if (a.app) window.RAIL_ONLINE_BASEMAPS_AVAILABLE = true;
-    if (a.plugins) window.Capacitor = { Plugins: a.plugins, getPlatform: () => a.platform };
+    if (a.plugins) {
+      // 見上方 boot() 說明：{ $result } 標記水合成真的函式,補救 addInitScript 序列化吃掉函式值的限制。
+      const hydrate = plugins => Object.fromEntries(Object.entries(plugins).map(([name, methods]) =>
+        [name, Object.fromEntries(Object.entries(methods || {}).map(([m, v]) =>
+          [m, (v && typeof v === 'object' && '$result' in v) ? (() => Promise.resolve(v.$result)) : v]))]));
+      window.Capacitor = { Plugins: hydrate(a.plugins), getPlatform: () => a.platform };
+    }
   }, { howto, storage, app, plugins, platform });
   const page = await ctx.newPage();
   const errs = [];
@@ -677,6 +686,23 @@ sections.push({ name: 'G9 桌面不變量', run: async (browser, en) => {
   const hidden2 = await page2.evaluate(() => document.getElementById('searchPanel').hidden);
   ok(`[${en}] G9c 桌面：帶記憶鍵(trainmap-query-open=1)＋靠近車站定位開機，面板仍關`, hidden2 === true, String(hidden2));
   await ctx2.close();
+}});
+
+// G10 小工具節(spec §7-10/11 的瀏覽器可驗部分):網站走完查詢流程 assets/widgets 請求數 0;
+// Android 替身 pinSupported 真 ⇒ 7 顆鈕、假 ⇒ 0 顆;iOS 替身 0 顆但 8 張圖。牙:讓 pinSupported 回假鈕必消失。
+sections.push({ name: 'G10 小工具節', run: async (browser, en) => {
+  let { ctx, page } = await boot(browser, {});
+  const reqs = []; page.on('request', r => { if (r.url().includes('assets/widgets/')) reqs.push(r.url()); });
+  await tapTab(page); await page.evaluate(() => openHelp()); await page.waitForTimeout(500);
+  ok(`[${en}] G10a 網站零 assets/widgets 請求`, reqs.length === 0, reqs.join(','));
+  await ctx.close();
+  for (const [label, supported, platform, expectBtns, expectImgs] of [['android 支援釘選', true, 'android', 7, 7], ['android 不支援', false, 'android', 0, 7], ['ios', true, 'ios', 0, 8]]) {
+    ({ ctx, page } = await boot(browser, { app: true, platform, plugins: { RailMetroWait: {}, RailWidget: { pinSupported: { $result: { supported } }, pin: { $result: { requested: true } } } } }));
+    await page.evaluate(() => openHelp('metrowidget')); await page.waitForTimeout(800);
+    const m = await page.evaluate(() => ({ btns: document.querySelectorAll('#helpBody .help-sec[data-sec="metrowidget"] .help-wpin').length, imgs: document.querySelectorAll('#helpBody .help-sec[data-sec="metrowidget"] .help-widgets img').length }));
+    ok(`[${en}] G10 ${label}:鈕 ${m.btns}（應 ${expectBtns}）、圖 ${m.imgs}（應 ${expectImgs}）`, m.btns === expectBtns && m.imgs === expectImgs, JSON.stringify(m));
+    await ctx.close();
+  }
 }});
 
 // G16 說明中心(task-6)：「查詢」節存在、緊接搜尋節之後；搜尋節提到底部「查詢」；沒有死掉的

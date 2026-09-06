@@ -2947,6 +2947,13 @@
   .help-sec ol { margin: 0 0 7px; padding-left: 19px; font-size: calc(12px * var(--uis)); color: var(--muted); line-height: 1.75; }
   .help-sec .tip { font-size: calc(11.5px * var(--uis)); color: var(--faint); margin: 0 0 7px; line-height: 1.7; }
   .help-sec .tip b, .help-tail b { color: var(--muted); }
+  .help-widgets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 6px 0 4px; }
+  .help-w { margin: 0; }
+  .help-w img { width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--line); background: var(--paper); }
+  .help-w figcaption { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 4px; font-size: calc(12px * var(--uis)); }
+  .help-w figcaption b { font-weight: 800; color: var(--ink); }
+  .help-w figcaption span { color: var(--faint); }
+  .help-wpin { margin-left: auto; min-height: 32px; padding: 0 10px; border: 1px solid var(--navy); border-radius: 8px; background: var(--paper); color: var(--navy); font-weight: 700; font-size: calc(12px * var(--uis)); font-family: inherit; }
   .help-foot { display: flex; align-items: center; gap: 8px; }
   .help-foot .sp { flex: 1; }
   .help-try {
@@ -29003,6 +29010,19 @@ function metroWaitEnabled() {
   try { return !!(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.RailMetroWait); }
   catch (e) { return false; }
 }
+// Android「加到桌面」(spec §5.4):plugin 在不在＝能力(比照 metroWaitEnabled),不另加旗標;iPhone 沒有對應 API,不做。
+function widgetPinEnabled() {
+  try { return IS_NATIVE_APP && window.Capacitor.getPlatform() === 'android' && !!window.Capacitor.Plugins.RailWidget; } catch (e) { return false; }
+}
+// 首次渲染那一節時查一次並快取;查到之前回 null(鈕不長),查到之後重畫一次說明中心
+function widgetPinSupported() {
+  if (!widgetPinEnabled()) return false;
+  if (state._widgetPinSupported !== undefined) return state._widgetPinSupported;
+  state._widgetPinSupported = null;
+  window.Capacitor.Plugins.RailWidget.pinSupported().then(r => { state._widgetPinSupported = !!(r && r.supported); const m = document.getElementById('helpModal'); if (m && !m.hidden) renderHelp(); })
+    .catch(() => { state._widgetPinSupported = false; });
+  return null;
+}
 // 這一站落在哪個「有官方即時到站資訊」的系統上;trtc/krtc/tymc 一律用「本站名稱逐字相符
 // (僅 臺→台,不额外去尾站/車站)」比對 lines 裡的靜態站名——兩側都來自同一份 web 靜態資料,
 // 不需要、也不可以套用 trtcOfficialStationName() 那種為了比對「TDX 官方看板列」才要做的激進
@@ -30674,6 +30694,8 @@ const HELP_QUICK = [
   { ic: '<span class="hw-tag">431</span>', tx: '點畫面上任一<b>車號牌</b>，鏡頭就跟著那班車跑', try: 'follow' },
   { ic: '<span class="hw-stnbox"><i></i></span>', tx: '點任一<b>車站</b>，看接下來有哪些車要進站、還有幾分鐘', try: 'board' },
 ];
+// metrowidget 節要判平台四次(nm/one/steps/tip)、加 widgets 會變五次,抽成這裡的常數以免重複。
+const helpIsAndroid = IS_NATIVE_APP && window.Capacitor?.getPlatform?.() === 'android';
 const HELP_GROUPS = [
   { key: 'a', name: '看車', open: true, secs: [
     { key: 'search', ic: '', nm: '搜尋車站、車次、列車名',
@@ -30776,17 +30798,35 @@ const HELP_GROUPS = [
     // 刻意不寫「長按 → ＋ → …」的逐步:加入小工具的入口在 iOS 18 從左上角「＋」改成「編輯 ▸ 加入小工具」,
     // 寫死會對一半使用者是錯的(本 App 最低支援 iOS 15),故只講「加入小工具的入口」。
     { key: 'metrowidget', ic: '桌',
-      nm: IS_NATIVE_APP && window.Capacitor?.getPlatform?.() === 'android' ? '桌面小工具（捷運／鐵路／雙看板）' : '捷運小工具（主畫面／鎖定畫面）',
+      nm: helpIsAndroid ? '桌面小工具（捷運／鐵路／雙看板）' : '捷運小工具（主畫面／鎖定畫面）',
       badge: 'App', avail: () => metroWaitEnabled(),
-      one: IS_NATIVE_APP && window.Capacitor?.getPlatform?.() === 'android'
+      one: helpIsAndroid
         ? '不開 App 也能看捷運倒數、台鐵／高鐵發車，或把兩者放進同一張雙看板。'
         : '把捷運站放上主畫面或鎖定畫面，不開 App 就看得到下一班往哪裡、還有幾分鐘。',
-      steps: IS_NATIVE_APP && window.Capacitor?.getPlatform?.() === 'android'
+      steps: helpIsAndroid
         ? ['長按主畫面空白處進入編輯，從加入小工具的入口搜尋「軌島」', '選「捷運看板」、「發車看板」或「鐵路＋捷運雙看板」，再挑要看的車站', '發車看板的起站與目的站可以選你在軌島儲存的地點；「只看這些」可依方向、車種或車次篩選', '班次字太小時打開「大字好讀版」——主要文字會明顯放大，並減少列數避免擠在一起', '捷運免費可設定一站；想放多站或用「自動（最近的站）」需啟用軌島通行證']
-        : ['長按主畫面空白處進入編輯，從加入小工具的入口搜尋「軌島」', '選捷運小工具，再挑一個車站；鎖定畫面也放得下', '想放多站，或用「自動（最近的站）」讓它跟著你移動換站，需要軌島通行證（免費可設定一站）'],
-      tip: IS_NATIVE_APP && window.Capacitor?.getPlatform?.() === 'android'
+        : ['長按主畫面空白處進入編輯，從加入小工具的入口搜尋「軌島」', '選捷運小工具，再挑一個車站；鎖定畫面也放得下', '想放多站，或用「自動（最近的站）」讓它跟著你移動換站，需要軌島通行證（免費可設定一站）', '鎖定畫面：長按鎖定畫面 → 自訂 → 加入小工具'],
+      tip: helpIsAndroid
         ? '跟隨台鐵或高鐵列車時，通行證也能把下一站進度放上鎖定畫面；Android 16／Samsung 可顯示即時資訊與 Now Bar。App 收到背景或 WebView 關閉後，台鐵跟車卡仍會依官方誤點與停靠資料更新；省電模式可能延後輪詢。'
-        : '還有一張「鐵路＋捷運看板」大卡，把台鐵、高鐵與捷運的發車資訊列在同一張。點小工具會直接開啟軌島到那一站。' },
+        : '還有一張「鐵路＋捷運看板」大卡，把台鐵、高鐵與捷運的發車資訊列在同一張。點小工具會直接開啟軌島到那一站。',
+      widgets: helpIsAndroid ? [
+        { kind: 'metro-small', name: '捷運看板', sizes: '2×2', img: 'assets/widgets/android/metro-small.webp', pin: true },
+        { kind: 'metro-medium', name: '捷運看板', sizes: '5×2', img: 'assets/widgets/android/metro-medium.webp', pin: true },
+        { kind: 'metro-large', name: '捷運看板', sizes: '5×4', img: 'assets/widgets/android/metro-large.webp', pin: true },
+        { kind: 'rail-small', name: '發車看板（台鐵／高鐵）', sizes: '2×2', img: 'assets/widgets/android/rail-small.webp', pin: true },
+        { kind: 'rail-medium', name: '發車看板（台鐵／高鐵）', sizes: '5×2', img: 'assets/widgets/android/rail-medium.webp', pin: true },
+        { kind: 'rail-large', name: '發車看板（台鐵／高鐵）', sizes: '5×4', img: 'assets/widgets/android/rail-large.webp', pin: true },
+        { kind: 'mixed-large', name: '鐵路＋捷運看板', sizes: '5×4', img: 'assets/widgets/android/mixed-large.webp', pin: true },
+      ] : [
+        { kind: 'ios-metro-small', name: '捷運看板', sizes: '小', img: 'assets/widgets/ios/metro-small.webp' },
+        { kind: 'ios-metro-medium', name: '捷運看板', sizes: '中', img: 'assets/widgets/ios/metro-medium.webp' },
+        { kind: 'ios-metro-large', name: '捷運看板', sizes: '大', img: 'assets/widgets/ios/metro-large.webp' },
+        { kind: 'ios-rail-small', name: '發車看板（台鐵／高鐵）', sizes: '小', img: 'assets/widgets/ios/rail-small.webp' },
+        { kind: 'ios-rail-medium', name: '發車看板（台鐵／高鐵）', sizes: '中', img: 'assets/widgets/ios/rail-medium.webp' },
+        { kind: 'ios-rail-large', name: '發車看板（台鐵／高鐵）', sizes: '大', img: 'assets/widgets/ios/rail-large.webp' },
+        { kind: 'ios-rail-rect', name: '發車看板（鎖定畫面）', sizes: '矩形', img: 'assets/widgets/ios/rail-rect.webp' },
+        { kind: 'ios-mixed-large', name: '鐵路＋捷運看板', sizes: '大', img: 'assets/widgets/ios/mixed-large.webp' },
+      ] },
     { key: 'metrowait', ic: '候', nm: '在這站等車：鎖定畫面倒數', badge: 'App', avail: () => metroWaitEnabled(),
       one: IS_NATIVE_APP && window.Capacitor?.getPlatform?.() === 'android'
         ? '在月台上等車時，把下一班倒數放上鎖定畫面的即時資訊；Samsung Android 16 可顯示在 Now Bar。'
@@ -30968,6 +31008,14 @@ function helpSecHtml(s, mob) {
     + (tgOn === null ? '' : '<span class="toggle' + (tgOn ? ' on' : '') + '" aria-hidden="true"></span>')
     + '</div><p class="one">' + escHtml(t(s.one)) + '</p>';
   if (s.steps && s.steps.length) h += '<ol>' + s.steps.map(step => '<li>' + escHtml(t(step)) + '</li>').join('') + '</ol>';
+  if (s.widgets && s.widgets.length) {
+    const canPin = widgetPinEnabled() && widgetPinSupported() === true;
+    h += '<div class="help-widgets">' + s.widgets.map(w =>
+      '<figure class="help-w"><img src="' + escHtml(w.img) + '" alt="" loading="lazy" decoding="async">'
+      + '<figcaption><b>' + escHtml(t(w.name)) + '</b><span>' + escHtml(w.sizes) + '</span>'
+      + (w.pin && canPin ? '<button class="help-wpin" type="button" data-kind="' + escHtml(w.kind) + '">' + escHtml(t('加到桌面')) + '</button>' : '')
+      + '</figcaption></figure>').join('') + '</div>';
+  }
   if (s.tip) h += '<p class="tip">' + escHtml(t(s.tip)) + '</p>';
   if (s.tipDesktop && !mob) h += '<p class="tip help-kbd">' + helpRichText(s.tipDesktop) + '</p>'; // 手機沒有實體鍵盤,整段不出現
   const seg = s.seg ? '<span class="seg" id="helpThemeSeg">'
@@ -31149,6 +31197,13 @@ function setupHelp() {
   m.addEventListener('click', e => { if (e.target === m) closeHelp(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !m.hidden) { e.stopPropagation(); closeHelp(); } });
   document.getElementById('helpBody').addEventListener('click', e => {
+    const pin = e.target.closest('.help-wpin');
+    if (pin) {
+      window.Capacitor.Plugins.RailWidget.pin({ kind: pin.dataset.kind })
+        .then(r => { if (!(r && r.requested)) showToast(t('這支手機的桌面不支援直接加入，請長按主畫面 → 小工具 → 軌島')); })
+        .catch(() => showToast(t('這支手機的桌面不支援直接加入，請長按主畫面 → 小工具 → 軌島')));
+      return;
+    }
     const gh = e.target.closest('.help-grph');
     if (gh) { const on = gh.parentElement.classList.toggle('open'); gh.setAttribute('aria-expanded', String(on)); return; }
     const seg = e.target.closest('#helpThemeSeg button');
