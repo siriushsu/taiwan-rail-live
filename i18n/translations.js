@@ -977,3 +977,88 @@
     '分享中・管理': '共有中・管理', '分享這段旅程': 'この旅程を共有', '分享中': '共有中', '管理正在分享的旅程': '共有中の旅程を管理',
   });
 })();
+
+// 路線導覽與精選取景（與 rail-discovery.js 共用）
+(function () {
+  Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  "路網瀏覽方式": "Network browsing",
+  "路線導覽": "Browse routes",
+  "精選取景": "Scenic views",
+  "顯示設定": "Display settings",
+  "搜尋路線或車站": "Search routes or stations",
+  "篩選鐵路系統": "Filter rail systems",
+  "所有系統": "All systems",
+  "所有路線": "All routes",
+  "找不到符合的路線": "No matching routes",
+  "查看全線": "View entire route",
+  "反轉站序": "Reverse station order",
+  "點車站看班次；實際停靠以看板為準。": "Select a station for departures and actual stopping services.",
+  "選一個視角看車；跨路網會切到全台同框，時間維持不變。": "Choose a view. Another network opens All Taiwan; playback time stays the same.",
+  "台北車站群": "Taipei rail hubs",
+  "板橋、台北、南港的鐵道交會": "Rail connections at Banqiao, Taipei and Nangang",
+  "文湖線沿線": "Along the Wenhu Line",
+  "從動物園到南港展覽館": "From Taipei Zoo to Taipei Nangang Exhibition Center",
+  "綠山線與藍海線同框": "Green Mountain and Blue Seaside lines together",
+  "從嘉義向山裡延伸的路網": "The railway climbing from Chiayi into the mountains",
+  "前往取景": "Open view",
+  "路線導覽與取景": "Routes and scenic views",
+  "不知道查什麼？試試看": "Try a station, train or route",
+  "沿著路線找車站，也能挑一個視角看車。": "Find stations along a route or choose a scenic view.",
+  "「更多」→ 軌道與路線，或從「查詢」進入路線導覽": "Open More → Tracks & routes, or browse routes from Search.",
+  "選路線看站序，按方向鈕反轉，點車站開看板": "Select a route, reverse its station order with the direction button, and select a station for departures.",
+  "「精選取景」一鍵看路網；「顯示設定」保留車種與軌道開關": "Scenic views frame a network in one tap. Display settings contain train and track filters."
+});
+  Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  "路網瀏覽方式": "路線網の表示",
+  "路線導覽": "路線ガイド",
+  "精選取景": "おすすめの眺め",
+  "顯示設定": "表示設定",
+  "搜尋路線或車站": "路線・駅を検索",
+  "篩選鐵路系統": "鉄道システムで絞り込む",
+  "所有系統": "すべてのシステム",
+  "所有路線": "すべての路線",
+  "找不到符合的路線": "一致する路線がありません",
+  "查看全線": "路線全体を見る",
+  "反轉站序": "駅の順序を反転",
+  "點車站看班次；實際停靠以看板為準。": "駅を選ぶと発着情報を確認できます。実際の停車駅は案内板をご覧ください。",
+  "選一個視角看車；跨路網會切到全台同框，時間維持不變。": "眺めを選択します。別の路線網は台湾全体表示に切り替わります。再生時刻は変わりません。",
+  "台北車站群": "台北の鉄道拠点",
+  "板橋、台北、南港的鐵道交會": "板橋・台北・南港を結ぶ鉄道",
+  "文湖線沿線": "文湖線の沿線",
+  "從動物園到南港展覽館": "動物園から南港展覧館まで",
+  "綠山線與藍海線同框": "緑山線と藍海線を一緒に表示",
+  "從嘉義向山裡延伸的路網": "嘉義から山へと延びる鉄道",
+  "前往取景": "この眺めへ",
+  "路線導覽與取景": "路線ガイドと眺め",
+  "不知道查什麼？試試看": "駅・列車・路線を探してみましょう",
+  "沿著路線找車站，也能挑一個視角看車。": "路線に沿って駅を探したり、眺めを選んで列車を見たりできます。",
+  "「更多」→ 軌道與路線，或從「查詢」進入路線導覽": "「その他」→「軌道と路線」、または「検索」から路線ガイドを開きます。",
+  "選路線看站序，按方向鈕反轉，點車站開看板": "路線を選ぶと駅順を表示します。方向ボタンで反転し、駅を選ぶと発着案内を開きます。",
+  "「精選取景」一鍵看路網；「顯示設定」保留車種與軌道開關": "「おすすめの眺め」で路線網を表示。「表示設定」で車種と軌道の表示を切り替えます。"
+});
+})();
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"新增路線導覽與精選取景：沿線找站、點站看班次；空白搜尋也有可點的範例": "Browse route stations and open departure boards, choose a scenic view, or start with examples in the empty search box."});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"新增路線導覽與精選取景：沿線找站、點站看班次；空白搜尋也有可點的範例": "路線に沿って駅と発着情報を探し、おすすめの眺めへ移動できます。空の検索欄には検索例を表示します。"});
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  "本線": "Main Line",
+  "新北投支線": "Xinbeitou Branch Line",
+  "小碧潭支線": "Xiaobitan Branch Line",
+  "機場捷運": "Airport MRT",
+  "綠山線": "Green Mountain Line",
+  "藍海線": "Blue Seaside Line",
+  "綠線": "Green Line",
+  "廣慈/奉天宮": "Guangci/Fengtian Temple"
+});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  "本線": "本線",
+  "新北投支線": "新北投支線",
+  "小碧潭支線": "小碧潭支線",
+  "機場捷運": "空港MRT",
+  "綠山線": "緑山線",
+  "藍海線": "藍海線",
+  "綠線": "緑線",
+  "廣慈/奉天宮": "廣慈／奉天宮"
+});

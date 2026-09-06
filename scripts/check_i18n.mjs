@@ -34,8 +34,12 @@ for (const key of keySets.en || []) if (!keySets.ja.has(key)) fail(`ja 缺少 en
 for (const key of keySets.ja || []) if (!keySets.en.has(key)) fail(`en 缺少 ja 已有的 key：${key}`);
 
 // runtime 直接呼叫 t('繁中原文') 的 key 必須兩種外語都有；動態變數 key 另外由核心清單守門。
+const discoverySource = fs.readFileSync(path.join(root, 'rail-discovery.js'), 'utf8');
+const discoveryBox = { window: {} }; vm.runInNewContext(discoverySource, discoveryBox);
 const literalKeys = [...indexSource.matchAll(/\bt\(\s*(['"])((?:\\.|(?!\1).)*)\1/g)].map(match => match[2]);
 literalKeys.push(...[...busTransferSource.matchAll(/\btr\(\s*(['"])((?:\\.|(?!\1).)*)\1/g)].map(match => match[2]));
+literalKeys.push(...[...discoverySource.matchAll(/\b(?:t|tx)\(\s*(['"])((?:\\.|(?!\1).)*)\1/g)].map(m => m[2]));
+literalKeys.push(...discoveryBox.window.RailDiscovery.scenes.flatMap(s => [s.title, s.note]));
 for (const key of new Set(literalKeys)) {
   for (const lang of languages) if (!keySets[lang]?.has(key)) fail(`${lang} 缺少 runtime key：${key}`);
 }

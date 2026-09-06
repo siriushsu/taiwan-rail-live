@@ -244,6 +244,11 @@ try {
         ['S2 pan', () => window.__M.panBy([137, 89], { animate: false })],
         ['S3 zoom', () => { const M = window.__M; M.setView(M.getCenter(), M.getZoom() + 1, { animate: false }); }],
         ['S4 pan+zoom', () => { const M = window.__M; M.panBy([-71, 53], { animate: false }); M.setView(M.getCenter(), M.getZoom() - 1, { animate: false }); }],
+        ['S5 導覽傾斜取景', async () => {
+          const { lat, lng } = window.__alignDot;
+          discoveryView([[lat - .003, lng - .003], [lat + .003, lng + .003]], { system: 'tra_sched', pitch: 45, maxZoom: 13 });
+          if (window.__M.raw.isMoving()) await new Promise(resolve => window.__M.raw.once('moveend', resolve));
+        }],
       ];
       for (const [scenarioName, action] of scenarioDefs) {
         const result = await measure(page, `${browserName} ${scenarioName}`, action);

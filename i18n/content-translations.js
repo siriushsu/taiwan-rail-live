@@ -1144,6 +1144,7 @@
   window.RAIL_I18N_CHANGELOG = {
     en: [
       { name: 'Map and live data', items: [
+        { date: 'Sep 7, 2026', text: 'Added route browsing, reversible station lists, scenic views and search examples. Station arrival times and countdowns are easier to spot.' },
         { date: 'Aug 2026', text: 'Improved metro live-position matching, station boards, fallback notices and TRA pass-through movement.' },
         { date: 'Jul 2026', text: 'Added the nationwide view, Alishan Forest Railway, branch lines, station boards and live TRA delay correction.' }
       ]},
@@ -1158,6 +1159,7 @@
     ],
     ja: [
       { name: '地図とリアルタイム情報', items: [
+        { date: '2026年9月7日', text: '路線ガイド、駅順の反転、おすすめの眺め、検索例を追加しました。駅案内の時刻と到着までの時間も見やすくしました。' },
         { date: '2026年8月', text: 'メトロ列車位置の対応付け、駅案内、フォールバック表示、台湾鉄路の通過駅アニメーションを改善しました。' },
         { date: '2026年7月', text: '台湾全土表示、阿里山林業鉄路、支線、駅案内、台湾鉄路のリアルタイム遅延補正を追加しました。' }
       ]},

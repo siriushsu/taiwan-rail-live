@@ -75,6 +75,8 @@ async function boot(browser, { width = 393, height = 852, query = '', howto = fa
   const q = ['lang=zh-TW', notify ? 'notifymock=1' : '', query.replace(/^[?&]/, '')].filter(Boolean).join('&');
   await page.goto(BASE + '?' + q, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready === true; } catch (e) { return false; } }, null, { timeout: 60000 });
+  // 到站列的非空判準必須在營運時段驗；深夜跑測試不能把「沒有班次」誤當成 UI 回歸。
+  await page.evaluate(() => setSimSec(9 * 3600));
   await page.waitForTimeout(500);
   return { ctx, page, errs };
 }
@@ -256,14 +258,14 @@ sections.push({ name: 'G8a 快捷列閘門', run: async (browser, en) => {
   let { ctx, page } = await boot(browser, {});
   await tapTab(page);
   let s = await snap(page);
-  ok(`[${en}] G8a-web 網站只有「今日台鐵動態」`, JSON.stringify(s.links) === JSON.stringify(['today']), JSON.stringify(s.links));
+  ok(`[${en}] G8a-web 網站有導覽與今日動態，無原生專用入口`, JSON.stringify(s.links) === JSON.stringify(['routes', 'today']), JSON.stringify(s.links));
   await ctx.close();
   ({ ctx, page } = await boot(browser, { app: true, notify: true, query: 'geomock=25.0478,121.5170', plugins: { RailMetroWait: {} } }));
   // 這個 boot 的 geomock 落在 Task 5 自動開門檻內,boot() 回傳前面板可能已經自動開好;
   // 裸 tapTab 會把它當「使用者要關」點掉(見 openQuery 定義處的說明),故改用 openQuery(page)。
   await openQuery(page);
   s = await snap(page);
-  ok(`[${en}] G8a-app App 替身四列齊（notify/today/near/widget）`, JSON.stringify(s.links) === JSON.stringify(['notify', 'today', 'near', 'widget']) && !s.hidden, JSON.stringify({ links: s.links, hidden: s.hidden }));
+  ok(`[${en}] G8a-app App 導覽與原有四列齊`, JSON.stringify(s.links) === JSON.stringify(['notify', 'routes', 'today', 'near', 'widget']) && !s.hidden, JSON.stringify({ links: s.links, hidden: s.hidden }));
   // 小工具列 ⇒ 說明中心開在 metrowidget 節（群組展開、節在可視區）；先量該列寬高 > 0——
   // 面板若仍是塌陷的隱藏態,子孫 rect 會全零,對零尺寸元素做合成點擊會測不出使用者其實點不到。
   const widgetRect = await page.evaluate(() => document.querySelector('#queryLinks .ql-row[data-act="widget"]').getBoundingClientRect());
@@ -381,6 +383,8 @@ sections.push({ name: 'G4 四列上限', run: async (browser, en) => {
   const { ctx, page } = await boot(browser, { query: geomock(offsetLatLon(pick, 50)) });
   await page.waitForFunction(() => !!state.geoLoc, null, { timeout: 15000 });
   await openQuery(page);
+  // 定位落地可能切群組並還原即時時鐘；版面測試在取樣前固定同一營運時刻。
+  await page.evaluate(() => { setSimSec(9 * 3600); renderQueryAnswer(); });
   const m = await page.evaluate(() => { const box = document.querySelector('#queryAnswer .qa-stn .qa-rows'); const rows = [...box.querySelectorAll('.row')]; const br = box.getBoundingClientRect(); const visible = rows.filter(r => { const q = r.getBoundingClientRect(); return q.top >= br.top - 1 && q.bottom <= br.bottom + 1; }).length; return { total: rows.length, visible, scrollable: box.scrollHeight > box.clientHeight + 1 }; });
   ok(`[${en}] G4 ${pick.name}:總列 ${m.total}、可見 ${m.visible} ≤ 4、多的可捲`, m.total > 4 && m.visible <= 4 && m.scrollable, JSON.stringify(m));
   // G4b(fix round 1、finding #3):重畫不能洗掉區內捲動位置——捲到底之後逼一次重畫(內容其實沒變,
@@ -785,6 +789,7 @@ sections.push({ name: 'G17 特大字級答案列', run: async (browser, en) => {
   const fs = await page.evaluate(() => document.documentElement.getAttribute('data-fs'));
   ok(`[${en}] G17 前提:xlarge 字級真的生效(data-fs)`, fs === 'xlarge', String(fs));
   await openQuery(page);
+  await page.evaluate(() => { setSimSec(9 * 3600); renderQueryAnswer(); });
   const r = await page.evaluate(() => {
     const row = document.querySelector('#queryAnswer .qa-stn .qa-rows .row[data-no]');
     if (!row) return null;
@@ -811,7 +816,7 @@ sections.push({ name: 'G17 特大字級答案列', run: async (browser, en) => {
 for (const engineName of ENGINES) {
   const engine = engineName === 'webkit' ? webkit : chromium;
   const browser = await engine.launch();
-  for (const s of sections) {
+  for (const s of sections.filter(s => !process.env.QUERY_SECTION || s.name.startsWith(process.env.QUERY_SECTION))) {
     try { await s.run(browser, engineName); }
     catch (e) { ok(`[${engineName}] ${s.name} 執行例外`, false, String(e).slice(0, 200)); }
   }

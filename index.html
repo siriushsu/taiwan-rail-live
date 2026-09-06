@@ -2291,6 +2291,10 @@
      量出來之前是 auto(自然寬,下限 44px),量完全板同寬 ⇒ 時刻與擁擠度欄逐列對齊。 */
   .board .row .min { color: var(--navy); font-weight: 700; flex: none;
     width: var(--min-col, auto); min-width: 44px; text-align: right; white-space: nowrap; }
+  /* 到站資訊沿用原有欄位與字級：時刻提高對比，倒數用既有海軍藍淡底分出閱讀層級。 */
+  #board .row:not(.off) .t { color: var(--ink); font-weight: 600; }
+  #board .row:not(.off) .min { border-radius: 3px;
+    background: color-mix(in srgb, var(--navy) 8%, transparent); }
   /* 特大 ×1.5 的那一列只剩 車次·時刻·倒數 三格(設計 6b),而官方板在最後一分鐘會把「3 分」
      換成「即將進站／列車進站」——四個字擠掉同一列的車次與時刻。使用者裁示:「如果特大字的
      時候需要精簡,就精簡後面進站那邊」⇒ 特大時改用 data-soon 裡的短字。
@@ -2599,6 +2603,43 @@
   }
   .toggle.on { background: var(--navy); border-color: var(--navy); }
   .toggle.on::after { left: auto; right: 2px; border-color: transparent; background: #fffdf6; }
+
+  /* 導覽和顯示設定沿用同一張 sheet，避免新增浮動控件擋住地圖。 */
+  .rd-tabs { display:flex; gap:4px; margin:8px 0 12px; }
+  .rd-tabs button { flex:1; min-width:0; padding:8px 4px; }
+  #trackPanel button, .rd-suggestions button { touch-action:manipulation; }
+  .rd-tabs button, .rd-actions button, .rd-direction, .rd-route, .rd-stations button, .rd-scene, .rd-suggestions button {
+    min-height:44px; font:inherit; font-size:calc(13px * var(--ui)); color:var(--ink); background:var(--paper); border:1px solid var(--line); border-radius:7px; cursor:pointer;
+  }
+  .rd-tabs button[aria-pressed=true] { color:var(--on-navy); background:var(--navy); border-color:var(--navy); font-weight:800; }
+  #rdSearch, #rdSystem { display:block; box-sizing:border-box; width:100%; min-height:44px; margin:0 0 8px; padding:8px; font:inherit; font-size:max(16px, calc(13px * var(--ui))); color:var(--ink); background:var(--paper); border:1px solid var(--line); border-radius:6px; }
+  #rdSystem { appearance:none; padding-right:28px;
+    background-image:linear-gradient(45deg, transparent 50%, var(--ink) 50%),linear-gradient(135deg, var(--ink) 50%, transparent 50%);
+    background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%; background-size:5px 5px; background-repeat:no-repeat; }
+  .rd-route { display:flex; align-items:center; gap:10px; width:100%; text-align:left; margin:6px 0; padding:10px; }
+  .rd-color { flex:0 0 5px; align-self:stretch; background:var(--route-color); border-radius:4px; }
+  .rd-copy { flex:1; min-width:0; overflow-wrap:anywhere; }
+  .rd-copy small, .rd-scene small { display:block; margin-top:3px; font-size:calc(11.5px * var(--uis)); color:var(--muted); line-height:1.5; }
+  .rd-note { font-size:calc(12px * var(--uis)); color:var(--muted); line-height:1.6; margin:8px 0; }
+  #rdDetail h4 { margin:12px 0 4px; font-size:calc(17px * var(--ui)); color:var(--ink-strong); overflow-wrap:anywhere; }
+  .rd-actions { display:flex; gap:8px; }
+  .rd-actions button { flex:1; padding:8px; }
+  .rd-direction { display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; padding:8px 10px; text-align:left; }
+  .rd-direction span:first-child { min-width:0; overflow-wrap:anywhere; }
+  .rd-stations { list-style:none; margin:0; padding:0; }
+  .rd-stations li { position:relative; }
+  .rd-stations li:not(:last-child)::before { content:''; position:absolute; left:17px; top:24px; bottom:-24px; width:3px; background:var(--route-color); pointer-events:none; }
+  .rd-stations button { position:relative; display:flex; align-items:center; gap:12px; width:100%; border:0; border-radius:0; background:transparent; text-align:left; padding:10px 6px; }
+  .rd-dot { position:relative; width:12px; height:12px; flex:0 0 12px; border:3px solid var(--route-color); background:var(--paper); border-radius:50%; margin-left:4px; box-sizing:border-box; }
+  .rd-chevron { margin-left:auto; }
+  .rd-scene { display:block; width:100%; margin:8px 0; padding:12px; text-align:left; }
+  .rd-scene>span { display:block; margin-top:8px; color:var(--navy); font-size:calc(12px * var(--uis)); font-weight:800; }
+  .rd-route:hover, .rd-stations button:hover, .rd-scene:hover { background:var(--bg-stage); }
+  .rd-tabs button:focus-visible, .rd-route:focus-visible, .rd-stations button:focus-visible, .rd-scene:focus-visible, .rd-direction:focus-visible, .rd-actions button:focus-visible { outline:2px solid var(--navy); outline-offset:2px; }
+  .rd-sr { position:absolute; width:1px; height:1px; clip-path:inset(50%); overflow:hidden; }
+  .rd-suggestions { display:flex; flex-wrap:wrap; gap:8px; padding:8px 0; }
+  .rd-suggestions button { padding:8px 12px; }
+  #rdSettings .seg button { min-height:44px; }
 
   /* ── 顯示與字級面板(設計檔 6a) ──
      刻意全部用 calc(Npx * var(--ui)):這張面板本身就是字級的預覽場,它不跟著放大就等於在說謊。
@@ -5004,8 +5045,26 @@
     <div class="board track-panel" id="trackPanel" hidden>
       <!-- ×/☆ 一律放 sticky h3 內:面板本體是捲動容器,放外面會隨內容捲出裁切區消失(v0717p) -->
       <h3>軌道與路線<button class="close" id="trackClose" title="關閉">×</button></h3>
+      <div id="rdTabs" class="rd-tabs" aria-label="路網瀏覽方式">
+        <button type="button" data-rdtab="routes" aria-pressed="true">路線導覽</button>
+        <button type="button" data-rdtab="scenes" aria-pressed="false">精選取景</button>
+        <button type="button" data-rdtab="settings" aria-pressed="false">顯示設定</button>
+      </div>
+      <div id="rdRoutes">
+        <div id="rdBrowse">
+          <label class="rd-sr" for="rdSearch">搜尋路線或車站</label>
+          <input id="rdSearch" type="search" placeholder="搜尋路線或車站" autocomplete="off" />
+          <label class="rd-sr" for="rdSystem">篩選鐵路系統</label>
+          <select id="rdSystem"><option value="">所有系統</option></select>
+          <div id="rdList"></div>
+        </div>
+        <div id="rdDetail" hidden></div>
+      </div>
+      <div id="rdScenes" hidden></div>
+      <div id="rdSettings" hidden>
       <div class="seg-row"><span>軌道顯示</span><span class="seg" id="trackSeg"><button data-v="auto">自動</button><button data-v="faint">淡化</button><button data-v="hidden">隱藏</button></span></div>
       <div class="lines" id="lineToggles"></div>
+      </div>
     </div>
     <!-- 顯示與字級(設計檔 6a):三段字級 + 跟隨系統字級開關 + 即時預覽。
          走 .board 家族與軌道面板同一套殼(sticky h3、SHEET_PANEL_IDS 三段高、soloPanel 互斥),
@@ -5161,7 +5220,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/9/6</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/9/7</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -5169,6 +5228,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="discovery0907"><span class="d">9/7</span><span>新增路線導覽與精選取景：沿線找站、點站看班次；空白搜尋也有可點的範例</span></li>
         <li data-cl-of="ofmwatch0906"><span class="d">9/6</span><span>修正街道底圖被誤判成載入失敗：開圖後馬上縮放或網路較慢時，App 不再默默換成備用底圖、3D 建築也不會跟著消失，網站也不再誤跳「街道底圖載入異常」</span></li>
         <li data-cl-of="badgefallen"><span class="d">9/6</span><span>捷運頂列的「N 線改用備案」指得出是哪幾條線、為什麼：滑鼠移上去或點開資料狀態卡就看得到</span></li>
         <li data-cl-of="querytab0906"><span class="d">9/6</span><span>手機底部「搜尋」改為「查詢」：半高面板先給離你最近的站各方向下一班，再列提醒、今日動態、附近車站與小工具入口；在車站附近開 App 會自動出現</span></li>
@@ -5176,7 +5236,6 @@
         <li data-cl-of="hsinchuboarddir"><span class="d">9/6</span><span>修正新竹、北新竹站看板把往基隆、七堵的縱貫線列車歸進「往內灣」（謝謝網友回報）</span></li>
         <li data-cl-of="trasnap0905"><span class="d">9/5</span><span>台鐵誤點一次跳增 5 分以上時，列車直接跳回實際位置，不再原地停等</span></li>
         <li data-cl-of="leafletremoved0905"><span class="d">9/5</span><span>地圖全面改用 MapLibre，不再保留舊版 Leaflet 地圖：?engine=leaflet 這個網址參數已失效，開啟網站也不會再多下載一份舊地圖函式庫。</span></li>
-        <li data-cl-of="maplibredefault0904"><span class="d">9/4</span><span>地圖引擎預設改為 MapLibre：所有人打開都是可旋轉、傾斜、開 3D 建築的向量地圖，跟隨列車時行進方向朝上。</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5184,6 +5243,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="discovery0907"><span class="d">9/7</span><span>新增路線導覽：沿線找站、反轉站序、點站看班次，也能一鍵查看全線或選台北、文湖線、淡海、阿里山視角；搜尋框空白時會提供可點的查詢範例；到站看板的時刻與倒數也更醒目</span></li>
         <li data-cl="branchdestgroup"><span class="d">9/6</span><span>車站看板的支線分組更貼近實際：只借道成追線直通的縱貫線列車，改回南下、北上那兩組，追分與成功站不再出現「往成功」「往追分」；支線那一組的標題也改成列車真正的終點站，新竹往六家的班次寫「往 六家」而不是「往 內灣」</span></li>
         <li data-cl="hsinchuboarddir"><span class="d">9/6</span><span>修正新竹、北新竹站看板的方向分組：往基隆、七堵等縱貫線列車會被歸進「往內灣」，從「北上」消失。新竹–北新竹是縱貫線與內灣線共用的同一段軌道，兩條線在這裡不再互相誤判；真正的內灣線、六家班次維持在支線那一組（謝謝網友回報）</span></li>
         <li data-cl="tymckind"><span class="d">9/4</span><span>桃園機場捷運的列車標得出車種：地圖上直達車是尖頭紫牌、普通車是白底圓牌，車牌也放大；跟車卡與車站看板寫全名，同一個「往台北車站」也分得出下一班是直達車還是普通車。首末班有幾班官方沒有明確歸類，那幾班只標線號（謝謝網友回報）</span></li>
@@ -5861,6 +5921,7 @@
 <script src="./i18n/content-translations.js"></script>
 <script src="./i18n/bus-transfer-translations.js"></script>
 <script src="./bus-transfer-ui.js"></script>
+<script src="./rail-discovery.js"></script>
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
@@ -6053,7 +6114,7 @@
 //         網友回報 issue #46。守門人:scripts/verify_board_direction_groups.mjs 的 D11a–D11f。
 // v0906g：手機底部「搜尋」改為「查詢」半高面板——答案區走看板同源、公車轉乘入口、靠近車站自動開;併入 origin/main 的 v0906f。
 // v0906i：v0906g(查詢分頁)再併入 origin/main 的 v0906h(看板支線分組)。
-const BUILD = 'v0906m';
+const BUILD = 'v0907a';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -6266,6 +6327,7 @@ function i18nRenderChangelog() {
   details.appendChild(list);
 }
 function i18nRefreshDynamic() {
+  if (railDiscoveryUI && !document.getElementById('trackPanel').hidden) refreshRailDiscovery();
   try { if (typeof refreshBadge === 'function') refreshBadge(); } catch (e) {}
   // 捷運即時徽章的 title 含動態 error 插值，已展開的中文句子無法靠 DOM key 掃描反推；
   // 語言切換時必須從原始 key 重畫，否則剛好遇到 Core 503 會殘留中文。
@@ -26793,12 +26855,40 @@ function initSheetHandle(el) {
 }
 
 // ──「軌道與路線」告示卡:軌道顯示三段＋車種/路線篩選票根(「軌」鈕開關;與其他面板同槽互斥) ──
-function openTrackPanel() {
+let railDiscoveryUI = null;
+function refreshRailDiscovery(view) {
+  if (!window.RailDiscovery) return;
+  if (!railDiscoveryUI) railDiscoveryUI = window.RailDiscovery.create({
+    t, stationName, routeName, systems: () => state.systems, stations: buildStnIndex,
+    openStation: gotoStn, view: discoveryView,
+  });
+  railDiscoveryUI.refresh(typeof view === 'string' ? view : undefined);
+}
+function discoveryView(points, options) {
+  if (!M || points.length < 2) return;
+  // 「查看」是手動取景。用既有退出／相機 API，沒有另造 pane 或列車位移。
+  const clock = { sec: state.simSec, live: state.clockAtNow, speed: state.speedMult, playing: state.playing };
+  if (state.ambient) setAmbient(false);
+  if (state.autoTour) setAutoTour(false);
+  clearFollow(); closeBoard(); closeTrackPanel(); closeSearchPanel();
+  const activeLines = state.mode !== 'sched' ? state.lines : state.deco ? state.decoLines : [];
+  const present = (state.schedSystems || []).some(s => state.mode === 'sched' && s.id === options.system) ||
+    (activeLines || []).some(l => l._sys === options.system);
+  if (!present) selectGroup(GROUPS.find(g => g.id === 'all'), true);
+  setSimSec(clock.sec); setSpeed(clock.speed); state.playing = clock.playing; state.clockAtNow = clock.live;
+  syncTimeUI();
+  const inset = mapInsets();
+  M.flyToBounds(M.latLngBounds(points), { padding: Object.fromEntries(Object.entries(inset).map(([k, v]) => [k, v + 28])),
+    duration: matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : .8,
+    maxZoom: options.maxZoom || 14, bearing: 0, pitch: options.pitch == null ? M.getPitch() : options.pitch });
+}
+function openTrackPanel(view) {
   soloPanel('track');
   closeBoard(); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTodayPanel(); closeDelayHist();
   document.getElementById('trackPanel').hidden = false;
   document.getElementById('trackBtn').classList.add('active');
   syncTrackSeg();
+  refreshRailDiscovery(view);
   updateSheetOpenClass();
 }
 function closeTrackPanel() {
@@ -26949,7 +27039,18 @@ function renderSearchDrop() {
   if (!inp || !drop) return;
   state._namedIntro = null;
   const q = inp.value;
-  if (!q.trim()) { closeSearchDrop(); drop.innerHTML = ''; state._searchTrains = []; state._searchStns = []; state._searchNamed = []; return; }
+  if (!q.trim()) {
+    state._searchTrains = []; state._searchStns = []; state._searchNamed = [];
+    const suggestions = ['台北', '高雄'].filter(name => stnSearchMatch(name).length).map(name => ({ value: name, label: t(name) }));
+    const tr = (state.systems.find(s => s.id === 'tra_sched')?.data.trains || []).find(tr => !tr.loop && /^\d+$/.test(String(tr.train)));
+    if (tr) suggestions.push({ value: String(tr.train), label: t('{n} 次', { n: String(tr.train) }) });
+    const named = state.special?.namedTrains?.find(n => n.name === '鳴日號') || state.special?.namedTrains?.[0];
+    if (named) suggestions.push({ value: named.name, label: i18nContentData('namedTrains', named, 'name') });
+    drop.innerHTML = `<div class="sd-sec">${escHtml(t('不知道查什麼？試試看'))}</div><div class="rd-suggestions">` +
+      suggestions.map(s => `<button type="button" data-query="${escHtml(s.value)}">${escHtml(s.label)}</button>`).join('') +
+      `<button type="button" data-discovery="routes">${escHtml(t('路線導覽'))} ›</button></div>`;
+    openSearchDrop(); return;
+  }
   const named = searchNamedMatch(q);
   const trs = named.trs.concat(searchTrainMatch(q)); // 名稱命中的具名班次排最前(名稱查詢意圖明確)
   const stns = stnSearchMatch(q);          // stnSearchMatch 內部自行正規化(臺→台、去空白)
@@ -27036,6 +27137,7 @@ function setSearchTyping(on) {
 function queryLinkRows() {
   const rows = [];
   if (NOTIFY_LOCAL_ENABLED) rows.push({ act: 'notify', label: '已排提醒', run: () => openLocalReminderOverview() });
+  rows.push({ act: 'routes', label: '路線導覽與取景', run: () => openTrackPanel('routes') });
   rows.push({ act: 'today', label: '今日台鐵動態', run: () => openTodayPanel() });
   if (LOCATE_ENABLED) rows.push({ act: 'near', label: '附近其他站', run: () => showNearby() });
   if (IS_NATIVE_APP && metroWaitEnabled()) rows.push({ act: 'widget', label: '小工具', run: () => openHelp('metrowidget') });
@@ -30905,8 +31007,8 @@ const HELP_GROUPS = [
       one: '讓看板、列車卡與跟隨面板透出後方地圖，面板底下的路線、車站都看得到；面板最上方的標題列也一起透。',
       steps: ['「更多」→ 打開「面板半透明」', '再按一次就恢復原本的實色紙面'],
       tip: '預設關閉；這項設定只會記在目前這台裝置。半透明時字色會自動調整以維持可讀性（亮色加深、暗色提亮），不是靠在字外加光暈。' },
-    { key: 'track', ic: '軌', nm: '軌道與路線', one: '軌道要不要畫、要看哪些車種與路線，都在這裡。',
-      steps: ['「更多」→ 軌道與路線', '軌道顯示：自動／淡化／隱藏', '用票根勾選要看的車種與路線'], try: 'track' },
+    { key: 'track', ic: '軌', nm: '軌道與路線', one: '沿著路線找車站，也能挑一個視角看車。',
+      steps: ['「更多」→ 軌道與路線，或從「查詢」進入路線導覽', '選路線看站序，按方向鈕反轉，點車站開看板', '「精選取景」一鍵看路網；「顯示設定」保留車種與軌道開關'], try: 'track' },
     { key: 'extras', ic: '簡', nm: '看得更清楚',
       one: '極簡沉浸只留地圖與列車；省電模式降到約 30fps，手機掛著看更省電；還可以開列車方向箭頭、特殊站介紹、縣市快速移動。',
       steps: ['以上全在「更多」裡逐項開關'], tip: '手機長時間掛著看，建議打開省電模式。' },
@@ -34150,10 +34252,10 @@ try { initMusic(); } catch (e) { console.error('initMusic 失敗', e); }
   ts.addEventListener('input', renderSearchDrop);
   const clr = document.getElementById('searchClear');
   if (clr) clr.addEventListener('click', () => {
-    ts.value = ''; renderSearchDrop(); // 值一空,renderSearchDrop 自己會收下拉;鈕的顯示由 CSS 判斷
+    ts.value = ''; renderSearchDrop(); // 清空後顯示可點的查詢範例;鈕的顯示由 CSS 判斷
     ts.focus(); // 清完還在輸入狀態:手機上鍵盤不該因為按了清除就收起來
   });
-  ts.addEventListener('focus', () => { if (ts.value.trim()) renderSearchDrop(); });
+  ts.addEventListener('focus', renderSearchDrop);
   ts.addEventListener('keydown', e => {
     if (e.key === 'Escape') { closeSearchDrop(); return; }
     if (e.key !== 'Enter') return;
@@ -34176,6 +34278,9 @@ try { initMusic(); } catch (e) { console.error('initMusic 失敗', e); }
   ts.addEventListener('change', () => { if (!ts.value.trim()) clearFollow(); });
   // 下拉列點擊:觀光列車列看介紹、車次列跟隨、車站列飛站開板
   drop.addEventListener('click', e => {
+    const hint = e.target.closest('[data-query]');
+    if (hint) { ts.value = hint.dataset.query; renderSearchDrop(); return; }
+    if (e.target.closest('[data-discovery]')) { ts.blur(); closeSearchDrop(); closeSearchHost(); openTrackPanel('routes'); return; }
     const nmRow = e.target.closest('.row.named-row');
     if (nmRow) { const n = (state._searchNamed || [])[+nmRow.dataset.ni]; if (n) renderNamedIntro(n); return; }
     const trRow = e.target.closest('.row.tr-row');
