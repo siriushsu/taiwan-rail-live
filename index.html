@@ -12664,7 +12664,7 @@ function queryMaybeAutoOpen(c) {
   if (state._queryAutoOpened || !window.matchMedia(MOBILE_MQ).matches) return;
   if (state.ambient || activeSheetEl()) return;                       // 放空不打擾;已有 sheet 不疊
   const hw = document.getElementById('howtoWrap'); if (hw && !hw.hidden) return; // 第一次開 App 只給教學卡
-  if (!(c && c.accuracy <= QUERY_GEO_ACC_MAX_M)) return;              // 精度差的點可能在任何地方(沒有精度也不開)
+  if (!(c && c.accuracy > 0 && c.accuracy <= QUERY_GEO_ACC_MAX_M)) return; // 精度差的點可能在任何地方;沒有精度、或精度 0(Android 未知精度回 0.0)都不開(09-06 裁示)
   const ans = queryAnswerStations();
   if (ans.src !== 'geo' || !(ans.m <= QUERY_AUTO_OPEN_M)) return;     // 「在站附近」
   const key = queryStationKey(ans.stations[0].st);

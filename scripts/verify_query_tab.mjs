@@ -520,6 +520,31 @@ sections.push({ name: 'G5 自動開', run: async (browser, en) => {
   }
 }});
 
+// G5b 精度閘門下限(09-06 裁示「精度改成大於 0 才開」):Android 精度未知時回 accuracy 0.0,不准當成完美精度。
+// geomock 橋接把 geoacc 夾成 ≥1(index.html 12238),開機路徑餵不進 0 ⇒ 直接餵 queryMaybeAutoOpen;
+// 開機的 geomock 放在 600 m 外(LOCATE_ENABLED 要成立、但開機不會自動開),再把 state.geoLoc 種到站旁。
+// 牙:閘門改回 c.accuracy <= 300 ⇒ G5b-0 紅;G5b-65 是正向對照(證明前面的「不開」不是別的守門在擋)。
+sections.push({ name: 'G5b 精度 0 不開', run: async (browser, en) => {
+  const r0 = await boot(browser, {}); const taipei = await stationOf(r0.page, '臺北', 'tra_sched'); await r0.ctx.close();
+  const { ctx, page } = await boot(browser, { query: geomock(offsetLatLon(taipei, 600)) });
+  await page.waitForFunction(() => state._geoLanded === true, null, { timeout: 8000 });
+  const r = await page.evaluate(({ lat, lon }) => {
+    const out = {}; const panel = document.getElementById('searchPanel');
+    out.bootHidden = panel.hidden;
+    state.geoLoc = { lat, lon, acc: 65 };
+    const ans = queryAnswerStations(); out.src = ans.src; out.m = ans.m;
+    queryMaybeAutoOpen({ accuracy: 0 }); out.hidden0 = panel.hidden; out.opened0 = state._queryAutoOpened === true;
+    queryMaybeAutoOpen({}); out.hiddenNone = panel.hidden;
+    queryMaybeAutoOpen({ accuracy: 65 }); out.hidden65 = panel.hidden; out.station65 = state._queryAutoStation;
+    return out;
+  }, offsetLatLon(taipei, 100));
+  ok(`[${en}] G5b 前提:開機 600 m 外沒自動開、種到站旁後最近站是 geo 來源且 ≤300 m`, r.bootHidden && r.src === 'geo' && r.m <= 300, JSON.stringify(r));
+  ok(`[${en}] G5b-0 精度 0 ⇒ 不開(也不算已嘗試)`, r.hidden0 && !r.opened0, JSON.stringify({ hidden0: r.hidden0, opened0: r.opened0 }));
+  ok(`[${en}] G5b-none 沒有精度 ⇒ 不開`, r.hiddenNone, String(r.hiddenNone));
+  ok(`[${en}] G5b-65 正向對照:精度 65 ⇒ 開、記到臺北`, !r.hidden65 && r.station65 === 'tra_sched|臺北', JSON.stringify({ hidden65: r.hidden65, station65: r.station65 }));
+  await ctx.close();
+}});
+
 // G6 記憶鍵(spec §7-6):使用者開→重載後開;使用者關→重載後關;自動開不寫鍵(重載後關)。牙:自動開也寫鍵 ⇒ G6c 紅。
 sections.push({ name: 'G6 開關記憶', run: async (browser, en) => {
   let { ctx, page } = await boot(browser, {});
