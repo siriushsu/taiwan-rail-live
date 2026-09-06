@@ -229,7 +229,7 @@ try {
   // 「改到面板算繪或 sheet 家族就原地復發、其餘閘門照不到」的那種。兩引擎約 2–3 分鐘。
   // 🔴 preflight 主動洗掉繼承來的 QT_ONLY(空字串走 verify_query_tab.mjs 的 falsy 分支＝全跑)——
   // 「不設」不等於「不受影響」，出貨那個 shell 若曾 export QT_ONLY，spawnSync 預設會原樣繼承。
-  const queryTab = spawnSync('node', [path.join(wt, 'scripts', 'verify_query_tab.mjs'), wt], { encoding: 'utf8', env: { ...process.env, QT_ONLY: '' } });
+  const queryTab = spawnSync('node', [path.join(wt, 'scripts', 'verify_query_tab.mjs'), wt], { encoding: 'utf8', env: { ...process.env, QT_ONLY: '', QUERY_SECTION: '' } });
   process.stdout.write(queryTab.stdout || ''); process.stderr.write(queryTab.stderr || '');
   if (queryTab.status !== 0) fail('查詢分頁守門人未過——兩態 sheet／答案同源／自動開／更多抽屜之一壞了'
     + '（單獨重跑：npm run check-query-tab）');

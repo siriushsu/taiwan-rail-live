@@ -1,6 +1,7 @@
 // 查詢分頁（2026-09-06 spec §7）驗收：chromium＋webkit、手機視窗、真觸控。
 // 用法：node scripts/verify_query_tab.mjs [目標目錄]   ENGINES=chromium 只跑一個引擎
 // QT_ONLY='G11|G13' npm run check-query-tab 只跑段名命中這個正則的段落（省紅跑時間；G0 是量對樹的守門，不在 sections 陣列裡，永遠不被篩掉）。
+// QUERY_SECTION（origin/main 09-07 另外加的前綴篩選）併進來後視同 QT_ONLY：同一條路、同樣 exit 2。
 // 出貨鏈的 preflight（ship_web.mjs）主動把 QT_ONLY 洗成空字串，仍是全跑；QT_ONLY 有值時本檔結尾一律 exitCode 2，篩選跑不可能被任何鏈當成通過。
 // 每一段判準都寫「使用者看得到的行為」，並在 spec §7 對應一條「牙」（突變必紅）。
 // 修正波 C：boot() 把模擬時鐘釘死在 09:41——這支閘門掛在 ship_web.mjs 的出貨 preflight，
@@ -9,9 +10,11 @@
 // chromium/webkit 各 7 條一模一樣：G3b 臺北／東門、G4、G17a/b/c、G17 執行例外；
 // 同一份 index.html／harness 在前一晚 23:5x 跑是 245/245）——
 // 屬三種紅的原因裡的「環境條件」，修 harness 不修產品、不改期望值。09:41 只是任一個平日白天、
-// 有班次可看的時刻，數字本身沒有特殊意義。附帶修法：G4／G17 用 geomock 觸發自動開門，那次渲染可能
-// 搶在 boot() 釘鐘之前用舊時刻算過一次，答案區的牆鐘節流＋內容快取會讓它之後追不上釘好的 09:41——
-// 這兩段各自比照 G3b 已有的慣例，讀值前先逼一次 renderQueryAnswer()，同樣不改期望值。
+// 有班次可看的時刻，數字本身沒有特殊意義。附帶修法：geomock 觸發的自動開門會在 boot() 釘鐘之前就用舊時刻
+// 渲染過一次答案區；之後要不要重畫是主迴圈在管（index.html tickCore 呼叫 renderQueryAnswer 那行：simSec 變了
+// 且距上次渲染 ≥1000ms 牆鐘才重畫），而 G4／G17 從釘鐘到讀值只等約 800ms，追不上。所以 boot() 釘鐘後順手把
+// state._queryRenderedAt／_queryRenderedWallAt 歸零，讓產品自己的節拍立刻重畫；G4／G17 讀值前再逼一次
+// renderQueryAnswer() 當保險（比照 G3b 慣例），同樣不改期望值。
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
@@ -102,6 +105,9 @@ async function boot(browser, { width = 393, height = 852, query = '', howto = fa
   // 牆鐘節流的判準會壞（verify_font_scale.mjs 的收藏面板段落已有同一個慣例：直接寫 state.simSec
   // 一定要同時關 clockAtNow）。
   await page.evaluate(() => { nowSecOfDay = () => 9 * 3600 + 41 * 60; setSimSec(9 * 3600 + 41 * 60); state.clockAtNow = false; });
+  // 釘鐘後把答案區「上次渲染」戳記歸零：主迴圈的重畫條件是 simSec 變了且距上次渲染 ≥1000ms 牆鐘（index.html tickCore），
+  // 自動開門那次舊時刻渲染留下的戳記會讓釘好的時刻還要再等一秒才追上。
+  await page.evaluate(() => { state._queryRenderedAt = -1; state._queryRenderedWallAt = 0; });
   await page.waitForTimeout(500);
   return { ctx, page, errs };
 }
@@ -283,14 +289,14 @@ sections.push({ name: 'G8a 快捷列閘門', run: async (browser, en) => {
   let { ctx, page } = await boot(browser, {});
   await tapTab(page);
   let s = await snap(page);
-  ok(`[${en}] G8a-web 網站只有「今日台鐵動態」`, JSON.stringify(s.links) === JSON.stringify(['today']), JSON.stringify(s.links));
+  ok(`[${en}] G8a-web 網站有導覽與今日動態，無原生專用入口`, JSON.stringify(s.links) === JSON.stringify(['routes', 'today']), JSON.stringify(s.links));
   await ctx.close();
   ({ ctx, page } = await boot(browser, { app: true, notify: true, query: 'geomock=25.0478,121.5170', plugins: { RailMetroWait: {} } }));
   // 這個 boot 的 geomock 落在 Task 5 自動開門檻內,boot() 回傳前面板可能已經自動開好;
   // 裸 tapTab 會把它當「使用者要關」點掉(見 openQuery 定義處的說明),故改用 openQuery(page)。
   await openQuery(page);
   s = await snap(page);
-  ok(`[${en}] G8a-app App 替身四列齊（notify/today/near/widget）`, JSON.stringify(s.links) === JSON.stringify(['notify', 'today', 'near', 'widget']) && !s.hidden, JSON.stringify({ links: s.links, hidden: s.hidden }));
+  ok(`[${en}] G8a-app App 導覽與原有四列齊`, JSON.stringify(s.links) === JSON.stringify(['notify', 'routes', 'today', 'near', 'widget']) && !s.hidden, JSON.stringify({ links: s.links, hidden: s.hidden }));
   // 小工具列 ⇒ 說明中心開在 metrowidget 節（群組展開、節在可視區）；先量該列寬高 > 0——
   // 面板若仍是塌陷的隱藏態,子孫 rect 會全零,對零尺寸元素做合成點擊會測不出使用者其實點不到。
   const widgetRect = await page.evaluate(() => document.querySelector('#queryLinks .ql-row[data-act="widget"]').getBoundingClientRect());
@@ -408,9 +414,9 @@ sections.push({ name: 'G4 四列上限', run: async (browser, en) => {
   const { ctx, page } = await boot(browser, { query: geomock(offsetLatLon(pick, 50)) });
   await page.waitForFunction(() => !!state.geoLoc, null, { timeout: 15000 });
   await openQuery(page);
-  // 修正波 C 附帶修法:geomock 一落地就可能自動開門並渲染過一次答案區——那次渲染搶在 boot() 釘鐘
-  // 之前用的是舊時刻,而 renderQueryAnswer 本身有牆鐘節流＋「內容沒變就不重寫 DOM」的快取,兩者疊加
-  // 會讓已經釘好的 09:41 永遠追不上那份舊渲染。比照 G3b 已有的慣例,讀值前先逼一次真的重畫。
+  // 修正波 C 附帶修法:geomock 一落地就可能自動開門並用舊時刻渲染過一次答案區。重畫由主迴圈管
+  // (index.html tickCore:simSec 變了且距上次渲染 ≥1000ms 牆鐘才呼叫 renderQueryAnswer),本段從釘鐘
+  // 到讀值只等約 800ms;boot() 已把渲染戳記歸零,這裡再逼一次真的重畫當保險(比照 G3b 慣例)。
   await page.evaluate(() => renderQueryAnswer());
   const m = await page.evaluate(() => { const box = document.querySelector('#queryAnswer .qa-stn .qa-rows'); const rows = [...box.querySelectorAll('.row')]; const br = box.getBoundingClientRect(); const visible = rows.filter(r => { const q = r.getBoundingClientRect(); return q.top >= br.top - 1 && q.bottom <= br.bottom + 1; }).length; return { total: rows.length, visible, scrollable: box.scrollHeight > box.clientHeight + 1 }; });
   ok(`[${en}] G4 ${pick.name}:總列 ${m.total}、可見 ${m.visible} ≤ 4、多的可捲`, m.total > 4 && m.visible <= 4 && m.scrollable, JSON.stringify(m));
@@ -774,13 +780,15 @@ sections.push({ name: 'G13 查詢 sheet 以半高開', run: async (browser, en) 
   const s = await page.evaluate(() => {
     const p = document.getElementById('searchPanel'), pr = p.getBoundingClientRect();
     const blk = document.querySelector('#queryAnswer .qa-stn');
-    const parts = blk ? [...blk.querySelectorAll('.row'), ...blk.querySelectorAll('.qa-bus')] : [];
+    // 審查(修正波 C)盲點 6:.qa-bus 對任何 tra_sched 站恆存在,零列時 parts 仍非空——「整塊在框內」要以至少一列 .row 為前提才有鑑別力。
+    const rows = blk ? [...blk.querySelectorAll('.row')] : [];
+    const parts = blk ? [...rows, ...blk.querySelectorAll('.qa-bus')] : [];
     const rects = parts.map(n => n.getBoundingClientRect());
-    return { small: p.classList.contains('sheet-small'), pref: sheetSizePref, h: Math.round(pr.height), vh: innerHeight, parts: parts.length,
-      allIn: parts.length > 0 && rects.every(r => r.top >= pr.top - 1 && r.bottom <= pr.bottom + 1) };
+    return { small: p.classList.contains('sheet-small'), pref: sheetSizePref, h: Math.round(pr.height), vh: innerHeight, parts: parts.length, rows: rows.length,
+      allIn: rows.length > 0 && rects.every(r => r.top >= pr.top - 1 && r.bottom <= pr.bottom + 1) };
   });
   ok(`[${en}] G13a 偏好 small 時查詢 sheet 仍以中段開`, !s.small && s.pref === 'small', JSON.stringify(s));
-  ok(`[${en}] G13b 最近站整塊答案在面板可視框內`, s.allIn, JSON.stringify(s));
+  ok(`[${en}] G13b 最近站整塊答案(至少一列)在面板可視框內`, s.allIn, JSON.stringify(s));
   await page.evaluate(({ name, sys }) => { closeSearchPanel({ user: true }); const c = nearbyStationCandidates().find(x => x.st.name === name && x.st.sys === sys); openBoard(c.st); }, taipei); await page.waitForTimeout(600);
   const b = await page.evaluate(() => ({ small: document.getElementById('board').classList.contains('sheet-small'), hidden: document.getElementById('board').hidden }));
   ok(`[${en}] G13c 正向對照:看板照舊吃偏好 small`, !b.hidden && b.small, JSON.stringify(b));
@@ -966,8 +974,8 @@ sections.push({ name: 'G17 特大字級答案列', run: async (browser, en) => {
   const fs = await page.evaluate(() => document.documentElement.getAttribute('data-fs'));
   ok(`[${en}] G17 前提:xlarge 字級真的生效(data-fs)`, fs === 'xlarge', String(fs));
   await openQuery(page);
-  // 修正波 C 附帶修法:同 G4——geomock 自動開門可能搶在 boot() 釘鐘前就渲染過一次答案區,讀值前
-  // 先逼一次真的重畫,否則會讀到那份用舊時刻算出來的空列表。
+  // 修正波 C 附帶修法:同 G4——自動開門那次舊時刻渲染之後,主迴圈的 1000ms 牆鐘節流可能還沒放行,
+  // 讀值前再逼一次真的重畫當保險,否則會讀到那份用舊時刻算出來的空列表。
   await page.evaluate(() => renderQueryAnswer());
   const r = await page.evaluate(() => {
     const row = document.querySelector('#queryAnswer .qa-stn .qa-rows .row[data-no]');
@@ -993,9 +1001,11 @@ sections.push({ name: 'G17 特大字級答案列', run: async (browser, en) => {
 
 // ── 執行 ──
 // QT_ONLY 只篩 sections 陣列（G0 在陣列外，上面已經跑完，天然不受影響）。
-const qtOnly = process.env.QT_ONLY ? new RegExp(process.env.QT_ONLY) : null;
+// QUERY_SECTION 是 origin/main(09-07)另外加的前綴篩選,併進來後視同 QT_ONLY:同一個 exit 2 語意,篩選跑不可能被當成通過。
+const qtFilter = process.env.QT_ONLY || process.env.QUERY_SECTION || '';
+const qtOnly = qtFilter ? new RegExp(qtFilter) : null;
 const activeSections = qtOnly ? sections.filter(s => qtOnly.test(s.name)) : sections;
-if (qtOnly) console.log(`QT_ONLY=${process.env.QT_ONLY} ⇒ 只跑 ${activeSections.length}/${sections.length} 段：${activeSections.map(s => s.name).join('、')}`);
+if (qtOnly) console.log(`QT_ONLY/QUERY_SECTION=${qtFilter} ⇒ 只跑 ${activeSections.length}/${sections.length} 段：${activeSections.map(s => s.name).join('、')}`);
 for (const engineName of ENGINES) {
   const engine = engineName === 'webkit' ? webkit : chromium;
   const browser = await engine.launch();
