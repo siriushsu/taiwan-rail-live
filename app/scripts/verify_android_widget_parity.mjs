@@ -142,6 +142,9 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
         && /大字好讀版/.test(html)
         && /WebView 關閉後/.test(html)
         && /key: 'appinfo'/.test(html)],
+    ['Android 說明中心「加到桌面」橋接已接線（RailWidget plugin 註冊且真的呼叫 requestPinAppWidget）',
+      /registerPlugin\(RailWidgetPlugin\.class\)/.test(main)
+        && (() => { try { return /requestPinAppWidget\(/.test(read('app/android/app/src/main/java/tw/railisland/app/RailWidgetPlugin.java')); } catch (e) { return false; } })()],
   ];
   for (const [label, pass] of contentRules) results.push({ label, pass });
   if (log) {
