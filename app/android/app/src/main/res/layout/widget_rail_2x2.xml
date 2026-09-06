@@ -22,7 +22,9 @@
         android:ellipsize="end" android:maxLines="1" android:text="全部列車" android:textColor="@color/wg_ink_soft"
         android:textSize="9sp" />
     <LinearLayout android:id="@+id/wr_rows" android:layout_width="match_parent" android:layout_height="0dp"
-        android:layout_marginTop="4dp" android:layout_weight="1" android:orientation="vertical" />
+        android:layout_marginTop="4dp" android:layout_weight="1" android:orientation="vertical">
+        <include layout="@layout/widget_rail_rows_demo" />
+    </LinearLayout>
     <TextView android:id="@+id/wr_note" android:layout_width="match_parent" android:layout_height="wrap_content"
         android:ellipsize="end" android:maxLines="1" android:text="台鐵・高鐵發車看板"
         android:textColor="@color/wg_ink_faint" android:textSize="8sp" />

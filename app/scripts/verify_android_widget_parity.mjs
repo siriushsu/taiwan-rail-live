@@ -24,6 +24,11 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
   const railKit = read('app/ios/App/RailBoardWidget/RailWidgetKit.swift');
   const follow = read('app/android/app/src/main/java/tw/railisland/app/RailFollowNotification.java');
   const audio = read('app/android/app/src/main/java/tw/railisland/app/RailAudioService.java');
+  const mixedRender = read('app/android/app/src/main/java/tw/railisland/app/MixedWidgetRender.java');
+  const railSmall = read('app/android/app/src/main/res/layout/widget_rail_2x2.xml');
+  const railMedium = read('app/android/app/src/main/res/layout/widget_rail_4x2.xml');
+  const railLarge = read('app/android/app/src/main/res/layout/widget_rail_4x4.xml');
+  const mixedLarge = read('app/android/app/src/main/res/layout/widget_mixed_4x4.xml');
   const rules = new Map([
     ['RailBoardWidget()', [manifest, /android:name="\.RailBoardWidgetProvider"/]],
     ['MetroBoardWidget()', [manifest, /android:name="\.MetroWidgetProvider"/]],
@@ -145,6 +150,19 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
     ['Android 說明中心「加到桌面」橋接已接線（RailWidget plugin 註冊且真的呼叫 requestPinAppWidget）',
       /registerPlugin\(RailWidgetPlugin\.class\)/.test(main)
         && (() => { try { return /requestPinAppWidget\(/.test(read('app/android/app/src/main/java/tw/railisland/app/RailWidgetPlugin.java')); } catch (e) { return false; } })()],
+    // 小工具挑選器／釘選框的 previewLayout 是靜態 XML,執行期從不跑 binder——沒有示範列就是空殼
+    // （發車看板三尺寸）或只剩版面本身內建的單列預設文字（混合看板，容易被誤認成真資料）。
+    // 兩半都要驗:(a) 四個 layout 檔都 include 了示範列;(b) render 每次都在 addView 之前
+    // removeAllViews,證明真小工具運作時使用者絕不會看到示範列(不是把假資料留在正式看板上)。
+    ['發車／混合看板挑選器示範列只給 previewLayout 看（四個版面 include 示範列，且 render 每次先 removeAllViews 再填）',
+      /<include\s+layout="@layout\/widget_rail_rows_demo"\s*\/>/.test(railSmall)
+        && /<include\s+layout="@layout\/widget_rail_rows_demo"\s*\/>/.test(railMedium)
+        && /<include\s+layout="@layout\/widget_rail_rows_demo"\s*\/>/.test(railLarge)
+        && /<include\s+layout="@layout\/widget_mixed_metro_rows_demo"\s*\/>/.test(mixedLarge)
+        && /<include\s+layout="@layout\/widget_rail_rows_demo"\s*\/>/.test(mixedLarge)
+        && railRender.includes('removeAllViews(R.id.wr_rows)')
+        && mixedRender.includes('removeAllViews(R.id.wmx_metro_rows)')
+        && mixedRender.includes('removeAllViews(R.id.wmx_rail_rows)')],
   ];
   for (const [label, pass] of contentRules) results.push({ label, pass });
   if (log) {
