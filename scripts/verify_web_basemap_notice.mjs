@@ -46,13 +46,17 @@ const FAIL_LINE = '  const fail = why => { stop(); ofmFailBeacon(why); if (APP_C
 // M4-B:Leaflet 版的兩個錨點(L.tileLayer thunk、內嵌 GL 層的 gl.isStyleLoaded 出口)隨引擎一起移除;
 // ofmWatch 收到的 layer 現在就是地圖本身(M.raw),settle 那行也少了一層縮排。
 const ARM_GL_APP_ONLY = "    if (APP_CFG.tiles) {\n      ofmRasterFallback = {};";
-const SETTLE_GL_ON_LOAD = "  if (layer.loaded && layer.loaded()) stop(); else layer.once('load', stop);";
+// 09-06:成功出口改成「第一張 openmaptiles 圖磚到手」——事件那半(sourcedata 帶 tile)＋掛上去當下的同步判定(ofmDelivered)。
+// 突變 S 要把兩個出口連同 TileJSON 寬限一起拔掉,不然 stub 的 metadata 會把 slow 推到 16 秒、跑不進 12 秒的觀測窗。
+const SETTLE_GL_ON_TILE = "    if (e.tile) stop(); // 第一張圖磚到手＝交貨\n    else if (e.sourceDataType === 'metadata') answered = true; // TileJSON 回來了＝OFM 活著";
+const SETTLE_GL_SYNC = "  if (ofmDelivered(layer)) stop(); else answered = ofmAnswered(layer);";
 const NOTICE_HEAD = 'function ofmNoticeWeb(why) {\n  if (ofmNoticeShown) return;';
 for (const [frag, why] of [
   ['function ofmWatch(layer) {', 'L2 監看還在'],
   [FAIL_LINE, 'fail:先埋點,App 退 raster／網站只提示'],
   [ARM_GL_APP_ONLY, 'raster 退路只有 App 會備'],
-  [SETTLE_GL_ON_LOAD, '樣式載完就收手(偵測器的「正常」出口)'],
+  [SETTLE_GL_ON_TILE, '第一張圖磚到手就收手(偵測器的「正常」出口,事件那半)'],
+  [SETTLE_GL_SYNC, '掛上去當下圖磚已到就收手(同步那半)'],
   ['function glStreetRasterStyle(tile, dark) {', 'MapLibre App raster style builder'],
   [NOTICE_HEAD, '網站提示函式(一個 session 只講一次)'],
 ]) if (!src.includes(frag)) { console.error(`❌ [G0] 這份 index.html 沒有「${why}」(${frag.trim().slice(0, 70)})——驗錯目標或改動沒落地`); process.exit(1); }
@@ -72,9 +76,15 @@ const MUT_WEB_RASTER = mutate('P web-raster-fallback', [
 ]);
 // Q:提示整個不發
 const MUT_NO_NOTICE = mutate('Q no-notice', [[NOTICE_HEAD, 'function ofmNoticeWeb(why) {\n  if (true) return; // MUTATION no-notice\n  if (ofmNoticeShown) return;']]);
-// S:偵測器壞掉——樣式載完也不收手,8 秒一到一律 fail('slow')。這就是「每次都處置」那個最貴假綠的具體形狀。
+// S:偵測器壞掉——圖磚到了也不收手,8 秒一到一律 fail('slow')。這就是「每次都處置」那個最貴假綠的具體形狀。
 const MUT_NEVER_SETTLE = mutate('S never-settle', [
-  [SETTLE_GL_ON_LOAD, '  /* MUTATION never-settle */'],
+  [SETTLE_GL_ON_TILE, '    /* MUTATION never-settle */'],
+  [SETTLE_GL_SYNC, '  /* MUTATION never-settle */'],
+]);
+// S3:只拔「圖磚到手」兩個出口、留著 TileJSON 寬限——正是這次修的病灶形狀的單點回歸;搭配 STUB_WAIT_MS 才抓得到。
+const MUT_TILE_EXIT_ONLY = mutate('S3 tile-exit-only', [
+  [SETTLE_GL_ON_TILE, "    if (e.sourceDataType === 'metadata') answered = true; /* MUTATION tile-exit-only */"],
+  [SETTLE_GL_SYNC, '  answered = ofmAnswered(layer); /* MUTATION tile-exit-only */'],
 ]);
 // T:App 不退 raster
 const MUT_APP_NO_FALLBACK = mutate('T app-no-fallback', [[FAIL_LINE, FAIL_LINE.replace(
@@ -82,6 +92,8 @@ const MUT_APP_NO_FALLBACK = mutate('T app-no-fallback', [[FAIL_LINE, FAIL_LINE.r
 
 // ── 本機 server ──────────────────────────────────────────────────────────────
 const PAGE_LOCALE = 'zh-TW';
+// 09-06 複審量到:只壞「圖磚到手」出口、TileJSON 寬限還在時 fail 落在 ~16.3 秒,12 秒窗看不到 ⇒ stub 情境一律等 20 秒。
+const STUB_WAIT_MS = 20000;
 const PORT = Number(process.env.WEBNOTICE_PORT || 43977);
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
 const TILEJSON = JSON.stringify({ tilejson: '2.2.0', tiles: ['https://tiles.openfreemap.org/planet/{z}/{x}/{y}.pbf'], minzoom: 0, maxzoom: 14 });
@@ -227,7 +239,7 @@ for (const [name, engine] of ENGINES) {
     note(`W/${name} 埋點`, `basemap-fallback 發數=${w.hits.beacon}(判分在 verify_ofm_fallback_beacon.mjs)`);
 
     // 🔴🔴 負向對照:全檔最重要的兩條。N1 紅＝每個訪客都看到嚇人的提示;N2 紅＝網站有東西在偷偷退路。
-    const n = await run(browser, { ofm: 'stub' });
+    const n = await run(browser, { ofm: 'stub', waitMs: STUB_WAIT_MS });
     ok(`N1/${name} OFM 正常 ⇒ 不跳提示`, !crit.notice(n), detail(n));
     ok(`N2/${name} OFM 正常 ⇒ 零 CARTO、零 Stadia、仍在 OFM`, crit.webNoRaster(n), detail(n));
     ok(`N3/${name} 負向對照有牙:MapLibre 樣式真的載完(不是根本沒起來就算零)`, crit.ofmLive(n), detail(n));
@@ -251,7 +263,7 @@ for (const [name, engine] of ENGINES) {
     ok(`A2/${name} App 殼 ⇒ 一發 CARTO 都沒打`, a.hits.carto === 0, detail(a));
     ok(`A3/${name} App 殼 ⇒ 不跳網站的提示`, !crit.notice(a), detail(a));
 
-    const h = await run(browser, { ofm: 'stub', appShell: true });
+    const h = await run(browser, { ofm: 'stub', appShell: true, waitMs: STUB_WAIT_MS });
     ok(`H1/${name} App 殼 OFM 正常 ⇒ 零 Stadia、仍在 OFM、退路待命、不跳提示`, crit.appIdle(h), detail(h));
     ok(`H2/${name} 負向對照有牙:MapLibre 樣式真的載完`, crit.ofmLive(h), detail(h));
   } finally { await browser.close(); }
@@ -275,11 +287,14 @@ if (ENGINES.length) {
     ok(`Q/${mName} 突變:提示整個不發 ⇒ W1「提示要出現」必須轉紅`, !crit.notice(q), detail(q));
 
     servedHtml = MUT_NEVER_SETTLE;
-    const s1 = await run(browser, { ofm: 'stub' });
+    const s1 = await run(browser, { ofm: 'stub', waitMs: STUB_WAIT_MS });
     ok(`S1/${mName} 突變:偵測器永不收手(樣式載完也當失敗)⇒ N1「OFM 正常不跳提示」必須轉紅`, crit.notice(s1) && crit.ofmLive(s1), detail(s1));
-    const s2 = await run(browser, { ofm: 'stub', appShell: true });
+    const s2 = await run(browser, { ofm: 'stub', appShell: true, waitMs: STUB_WAIT_MS });
     ok(`S2/${mName} 同一發突變 ⇒ H1「OFM 正常 App 不動」必須轉紅(所有人被靜默送去 Stadia)`, !crit.appIdle(s2) && s2.hits.stadia > 0, detail(s2));
 
+    servedHtml = MUT_TILE_EXIT_ONLY;
+    const s3 = await run(browser, { ofm: 'stub', waitMs: STUB_WAIT_MS });
+    ok(`S3/${mName} 突變:只拔圖磚出口、留 TileJSON 寬限 ⇒ N1 仍要在 ${STUB_WAIT_MS / 1000} 秒窗內轉紅(寬限窗不能把回歸藏起來)`, crit.notice(s3) && crit.ofmLive(s3), detail(s3));
     servedHtml = MUT_APP_NO_FALLBACK;
     const t = await run(browser, { ofm: 'block', appShell: true });
     ok(`T/${mName} 突變:App 不退 raster ⇒ A1「退到 Stadia」必須轉紅`, !crit.appStadia(t), detail(t));

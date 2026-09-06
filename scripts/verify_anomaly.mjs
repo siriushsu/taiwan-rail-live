@@ -29,7 +29,8 @@ const results = [];
 const ok = (name, pass, detail = '') => { results.push({ name, pass }); console.log(`${pass ? 'PASS' : 'FAIL'} ${name}${detail ? ' — ' + detail : ''}`); };
 
 const browser = await chromium.launch();
-const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+// 🔴 釘死語系:徽章與橫幅文案判準是中文 regex,Playwright 預設 en-US 會拿到英譯而假紅(memory: verify-locale-must-be-pinned)
+const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'zh-TW' });
 await ctx.addInitScript(() => { localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-appearance', 'light'); });
 const page = await ctx.newPage();
 const pageErrors = [], consoleErrors = [];
@@ -40,7 +41,7 @@ page.on('pageerror', e => pageErrors.push(String(e)));
 await page.route('**/*tra-live*', r => r.abort());
 page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text()); });
 
-await page.goto(URLROOT, { waitUntil: 'domcontentloaded' });
+await page.goto(URLROOT + '?lang=zh-TW', { waitUntil: 'domcontentloaded' });
 await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready; } catch (e) { return false; } }, null, { timeout: 30000 });
 await page.waitForTimeout(500);
 const baseConsole = consoleErrors.length, basePageErr = pageErrors.length;
@@ -159,11 +160,14 @@ const OVER = [900, 900, 900, 900, 900, 900];                   // 全部 +15 分
     const enteredBanner = { hidden: ban.hidden, html: ban.innerHTML };
     evalTraAnomaly(80, 0, 3); evalTraAnomaly(80, 0, 3); // 連 2 次 clear(d10=0)
     renderAlertBanner();
-    return { after1, after2, enteredBanner, cleared: state.traAnomaly, clearedHidden: ban.hidden };
+    return { after1, after2, enteredBanner, cleared: state.traAnomaly, clearedHidden: ban.hidden, clearedHtml: ban.innerHTML };
   });
   ok('S5 台鐵:單次不觸發、連 2 次進', r.after1 === null && !!(r.after2 && r.after2.d10 === 12 && r.after2.maxDelay === 25), JSON.stringify({ a1: r.after1, a2: r.after2 }));
   ok('S5 橫幅顯示「台鐵大面積誤點…滿 10 分」', !r.enteredBanner.hidden && /台鐵大面積誤點.*滿 10 分/.test(r.enteredBanner.html), r.enteredBanner.html.slice(0, 90));
-  ok('S5 恢復連 2 次:清除、橫幅收起', r.cleared === null && r.clearedHidden, JSON.stringify({ c: r.cleared, h: r.clearedHidden }));
+  // 橫幅是聚合的(activeAlertList 還有災防監看、精選公告、北捷斷訊等來源),恢復後不能要求整條收起——
+  // 只驗「台鐵大面積誤點那一則不見了」;其他來源在不在是環境條件不是這個情境的判準。
+  ok('S5 恢復連 2 次:清除、橫幅不再顯示台鐵誤點', r.cleared === null && !/台鐵大面積誤點/.test(r.clearedHtml),
+     JSON.stringify({ c: r.cleared, h: r.clearedHidden, other: (r.clearedHtml.match(/ab-title">([^<]*)/) || [])[1] || null }));
 }
 
 // 情境 5b:回歸——判定只看誤點≥10 分。今早實測 151 車、0 車≥10 分、最高 9 分(舊「任何誤點≥20 班且≥25%」會誤報)→ 不觸發;

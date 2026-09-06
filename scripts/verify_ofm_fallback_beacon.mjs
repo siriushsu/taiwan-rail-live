@@ -13,7 +13,12 @@
 //  B  瀏覽器(Playwright):真的把 index.html 跑起來。OFM 擋掉 ⇒ 8 秒後 fail ⇒ 必須**恰好一發**;
 //     OFM 正常(本機 stub)⇒ **零發**。🔴 負向對照是本檔的重點:一個「出事就打一發」的埋點,最貴的
 //     假綠是它其實每次開機都打——那量到的不是退場率,是開機數。
-//  M  突變:把 fail 裡的 ofmFailBeacon 拔掉再跑 B1,「恰好一發」必須轉紅——證明判準有牙。
+//  M  突變:M1 把 fail 裡的 ofmFailBeacon 拔掉再跑 B1,「恰好一發」必須轉紅;M2 把看門狗弄成永不收手再跑 B3,
+//     OFM 正常也打一發 ⇒「零發」必須轉紅——兩條主判準各有一發指名考它,證明判準有牙。
+//
+// 量測讀的是 MapLibre 引擎把手(M=createEngine 回傳的適配層、M.raw=maplibregl.Map),與 verify_web_basemap_notice.mjs 同一套。
+// 🔴 2026-09-05 M4-B 拔掉 Leaflet 之前這裡讀 baseLayers.light._glMap／_url(maplibre-gl-leaflet 時代的全域);引擎換掉後那些
+//    名字不存在,五條瀏覽器判準以 layer=none boot=false 的形狀一起紅、跟「頁面根本沒開機」分不出來——別再把它們接回來。
 //
 // 網路:一律不打真端點。Stadia/Esri 回假 PNG;OFM 依情境擋掉或用本機 stub(TileJSON＋空圖磚＋空 sprite);
 //      /api/* 全攔(basemap-fallback 計數並回 200,basemap-token 給假 token,其餘 404 讓前端走本機資料)。
@@ -39,9 +44,14 @@ const note = (id, detail) => console.log(`ℹ️  ${id} — ${detail}`);
 const src = await readFile(join(ROOT, 'index.html'), 'utf8');
 const wsrc = await readFile(join(ROOT, 'worker.js'), 'utf8');
 const FAIL_LINE = '  const fail = why => { stop(); ofmFailBeacon(why); if (APP_CFG.tiles) ofmFallToRaster(why); else ofmNoticeWeb(why); };';
+// ofmWatch 的兩個「正常」出口(事件那半＋掛上去當下的同步判定),M2 突變的落點;與 verify_web_basemap_notice.mjs 的 S 突變同一對釘子。
+const SETTLE_GL_ON_TILE = "    if (e.tile) stop(); // 第一張圖磚到手＝交貨\n    else if (e.sourceDataType === 'metadata') answered = true; // TileJSON 回來了＝OFM 活著";
+const SETTLE_GL_SYNC = "  if (ofmDelivered(layer)) stop(); else answered = ofmAnswered(layer);";
 for (const [file, text, frag, why] of [
   ['index.html', src, 'function ofmFailBeacon(why)', 'beacon 函式'],
   ['index.html', src, FAIL_LINE, 'fail 先打 beacon 再分支(App 退場／網站提示)'],
+  ['index.html', src, SETTLE_GL_ON_TILE, '看門狗的「第一張圖磚到手」出口(事件那半)'],
+  ['index.html', src, SETTLE_GL_SYNC, '看門狗的「掛上去當下圖磚已到」出口(同步那半)'],
   ['index.html', src, "apiUrl('api/basemap-fallback?why='", 'beacon 打的是 basemap-fallback'],
   ['index.html', src, 'keepalive: true', 'beacon 帶 keepalive'],
   ['worker.js', wsrc, 'async function basemapFallback(request, env)', 'Worker 處理函式'],
@@ -185,16 +195,21 @@ async function run({ appShell, ofm, waitMs = 11000 }) {
     } };
   });
   await page.goto(`http://127.0.0.1:${PORT}/index.html?lang=zh-TW`, { waitUntil: 'domcontentloaded' });
-  const booted = await page.waitForFunction(() => typeof baseLayers !== 'undefined' && baseLayers && baseLayers.light, null, { timeout: 30000 })
+  // 開機＝boot 跑完(state.ready)且街道 style 的 JSON 已載好(M.isStyleReady;OFM_STYLE 是 vendor/ 本機檔,OFM 擋掉也載得到)。
+  const booted = await page.waitForFunction(() => typeof state !== 'undefined' && state.ready && typeof M !== 'undefined' && M
+    && M.isStyleReady(), null, { timeout: 30000 })
     .then(() => true).catch(() => false);
-  await page.waitForTimeout(waitMs); // OFM_HEALTH_MS = 8000,留足餘裕
+  // OFM_HEALTH_MS = 8000,留足餘裕。09-06 起 TileJSON 已回來會再寬限一輪 8 秒才判 slow:全擋情境連 TileJSON 都沒有 ⇒ 仍是 8 秒退場;
+  // stub 情境 204 空圖磚也算「第一張圖磚到手」⇒ 當場收手、永不 fail。兩種都在 11 秒窗內。
+  // 🔴 別把 stub 改成「TileJSON 回來、圖磚永遠不回」那種形態——那會落進 16 秒寬限窗,B3 會以「零發」的形狀空過。
+  await page.waitForTimeout(waitMs);
   const got = await page.evaluate(() => {
-    const bl = (typeof baseLayers !== 'undefined' && baseLayers) ? baseLayers : {};
-    const l = bl.light, onMap = [bl.light, bl.dark].find(x => x && x._glMap);
-    const gl = onMap && onMap._glMap;
+    // M.getStyleKind():'light'|'dark'＝OFM 向量;'street-raster-light|dark'＝已退到 App 殼的 raster(source 'street');'sat-*'＝衛星
+    const kind = M.getStyleKind();
+    const url = M.raw.getStyle()?.sources?.street?.tiles?.[0] || '';
     return {
-      layerKind: !l ? 'none' : (typeof l._url === 'string' ? (l._url.includes('stadiamaps') ? 'stadia' : 'raster-other') : 'ofm'),
-      glLoaded: !!(gl && gl.isStyleLoaded && gl.isStyleLoaded()),
+      layerKind: /^street-raster-/.test(kind) ? (url.includes('stadiamaps') ? 'stadia' : 'raster-other') : (kind === 'light' || kind === 'dark') ? 'ofm' : kind,
+      glLoaded: M.raw.isStyleLoaded(), // style＋每個 source＋sprite 都到了:stub 情境的負向對照要證明地圖真的起來了才算零發
       armed: typeof ofmRasterFallback !== 'undefined' && ofmRasterFallback !== null,
     };
   }).catch(e => ({ layerKind: 'evalfail:' + String(e).slice(0, 80), glLoaded: false, armed: false }));
@@ -223,6 +238,12 @@ servedHtml = src.replace(FAIL_LINE, FAIL_LINE.replace('ofmFailBeacon(why); ', ''
 if (servedHtml === src) { console.error('❌ 突變 M1 沒有命中'); process.exit(1); }
 const m = await run({ appShell: true, ofm: 'block' });
 ok('M1 突變(fail 拔掉 beacon)→ 退場照舊發生但零發 ⇒ B1 的「恰好一發」會轉紅(判準有牙)', m.layerKind === 'stadia' && m.beacons.length === 0, detail(m));
+// M2:看門狗壞掉——圖磚到了也不收手、TileJSON 寬限一起拔 ⇒ OFM 正常(stub)也在 8 秒 fail('slow') 打一發。
+//     這就是檔頭說的最貴假綠(每次開機都打)的具體形狀;寬限也要拔,否則 fail 落在 16 秒、跑不進 11 秒窗。
+servedHtml = src.replace(SETTLE_GL_ON_TILE, '    /* MUTATION never-settle */').replace(SETTLE_GL_SYNC, '  /* MUTATION never-settle */');
+if (servedHtml.split('MUTATION never-settle').length !== 3) { console.error('❌ 突變 M2 沒有命中'); process.exit(1); }
+const m2 = await run({ appShell: true, ofm: 'stub' });
+ok('M2 突變(看門狗永不收手)→ OFM 正常也退場並打一發 ⇒ B3 的「零發」會轉紅(判準有牙)', m2.layerKind === 'stadia' && m2.beacons.length === 1, detail(m2));
 servedHtml = null;
 
 await browser.close(); server.close();
