@@ -661,7 +661,9 @@ sections.push({ name: 'G16 說明中心', run: async (browser, en) => {
     return { w: Math.round(r.width), h: Math.round(r.height), x: r.left + r.width / 2, y: r.top + r.height / 2 };
   });
   if (qBtn && qBtn.w > 0 && qBtn.h > 0) await page.touchscreen.tap(qBtn.x, qBtn.y);
-  await page.waitForTimeout(300);
+  // 等「面板開＋說明卡關」這個條件,不等固定秒數:helpRun 把動作排在 60 ms 計時器後,機器忙時會晚到,
+  // 固定 300 ms 曾在同一支腳本裡假紅過一次;逾時 3 秒就讓底下的斷言照實紅(判斷力 rubric 第八節)。
+  await page.waitForFunction(() => !document.getElementById('searchPanel').hidden && document.getElementById('helpModal').hidden, null, { timeout: 3000 }).catch(() => {});
   const s1 = await page.evaluate(() => ({
     panelHidden: document.getElementById('searchPanel').hidden,
     searchOpen: document.body.classList.contains('search-open'),
@@ -680,7 +682,7 @@ sections.push({ name: 'G16 說明中心', run: async (browser, en) => {
   await page.evaluate(() => closeSearchPanel({ user: true }));
   await page.waitForTimeout(200);
   await page.evaluate(() => helpRun('search'));
-  await page.waitForTimeout(300);
+  await page.waitForFunction(() => document.body.classList.contains('search-open') && !!document.getElementById('trainSearch').value, null, { timeout: 3000 }).catch(() => {}); // 同上:等打字態條件
   const s3 = await page.evaluate(() => ({
     panelHidden: document.getElementById('searchPanel').hidden,
     searchOpen: document.body.classList.contains('search-open'),
