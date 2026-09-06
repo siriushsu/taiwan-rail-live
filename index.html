@@ -26674,8 +26674,9 @@ function updateSheetOpenClass() {
     if (el && el !== sizedAct) el.classList.remove('sheet-small');
   }
   // 查詢 sheet 的瀏覽態不吃全站段高偏好:它的價值在答案區,偏好「小」(30%)只露搜尋框＋第一列(整枝審查 I-5)。
-  // 一律以「中」(spec 的半高)打開:關掉時上面的迴圈已清掉 sheet-small ⇒ 每次打開都是中;本次打開中的抓把切換照常(sheetSizeOf 讀回目前段)。
-  if (sizedAct) applySheetSize(sizedAct, sizedAct.id === 'searchPanel' ? sheetSizeOf(sizedAct) : sheetSizePref);
+  // 一律以「中」(spec 的半高)打開:關掉時上面的迴圈已清掉 sheet-small ⇒ 每次打開都是中;本次打開中的抓把切換
+  // 由 setSheetSize 直接 applySheetSize(整枝審查必修 4——這裡不再對它自己讀回目前段重複套用,那是空轉)。
+  if (sizedAct && sizedAct.id !== 'searchPanel') applySheetSize(sizedAct, sheetSizePref);
   // §04c 契約9:打字態(search-open)只由 setSearchTyping 進入;面板不再是作用中 sheet 時一律清掉
   if (!(act && act.id === 'searchPanel')) document.body.classList.remove('search-open');
   invalidateMapInsets(); // 面板開關/換段高=露出地圖變了,量測快取立即失效(下一行 reframeFocus 要拿新值)
@@ -26718,9 +26719,13 @@ function closeTrainSheet() {
 // 三段高:標題列循環小→中→大；拖抓把只往相鄰段移動，邊界不繞回。
 function setSheetSize(el, size) {
   if (!sheetHasSizeSteps(el) || !window.matchMedia(MOBILE_MQ).matches || !SHEET_SIZES.includes(size)) return;
-  sheetSizePref = size;
+  // 查詢 sheet 不寫全站段高偏好(整枝審查必修 4):它的抓把切換只對「這次打開」生效(下面 applySheetSize
+  // 照跑),不污染 sheetSizePref/localStorage——不然拉小查詢 sheet 會靜靜把看板也變小(整枝審查 N-3)。
+  if (el.id !== 'searchPanel') {
+    sheetSizePref = size;
+    try { localStorage.setItem(SHEET_SIZE_KEY, size); } catch (e) {}
+  }
   applySheetSize(el, size);
-  try { localStorage.setItem(SHEET_SIZE_KEY, size); } catch (e) {}
   // 兩段制之後筆數不再跟段高走(一律 12),但小段用 CSS 收內文、renderBoard 仍要跟上開合狀態;
   // renderBoard 自己會再叫一次 updateSheetOpenClass
   if (el.id === 'board' && state.boardStation && state.mode === 'sched') renderBoard();
@@ -27119,6 +27124,8 @@ function renderQueryAnswer() {
     // 記站不記位置索引:按下到放開之間答案區可能依距離重排,同一個 qi 會變成別站(整枝審查 #29)
     wrap._down = blk ? { st: wrap._stations && wrap._stations[+blk.dataset.qi], bus: !!e.target.closest('.qa-bus') } : null;
   };
+  // 捲動取消一次按壓後殘留的 _down 是陳舊站物件,點 #queryAnswer 內任何非 .qa-stn 的空白處會開錯站(整枝審查必修 5)
+  wrap.onpointercancel = () => { wrap._down = null; };
   wrap.onclick = e => {
     const blk = e.target.closest('.qa-stn');
     const st = blk ? wrap._stations && wrap._stations[+blk.dataset.qi] : wrap._down && wrap._down.st;

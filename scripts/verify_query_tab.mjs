@@ -1,7 +1,7 @@
 // 查詢分頁（2026-09-06 spec §7）驗收：chromium＋webkit、手機視窗、真觸控。
 // 用法：node scripts/verify_query_tab.mjs [目標目錄]   ENGINES=chromium 只跑一個引擎
 // QT_ONLY='G11|G13' npm run check-query-tab 只跑段名命中這個正則的段落（省紅跑時間；G0 是量對樹的守門，不在 sections 陣列裡，永遠不被篩掉）。
-// 出貨鏈的 preflight（ship_web.mjs）不設 QT_ONLY，仍是全跑。
+// 出貨鏈的 preflight（ship_web.mjs）主動把 QT_ONLY 洗成空字串，仍是全跑；QT_ONLY 有值時本檔結尾一律 exitCode 2，篩選跑不可能被任何鏈當成通過。
 // 每一段判準都寫「使用者看得到的行為」，並在 spec §7 對應一條「牙」（突變必紅）。
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
@@ -744,6 +744,9 @@ sections.push({ name: 'G10 小工具節', run: async (browser, en) => {
 
 // G13 查詢 sheet 瀏覽態不吃全站段高偏好(整枝審查 I-5):偏好存 small 仍以中段開、最近站整塊答案(所有列＋公車連結)落在面板可視框內;
 // 看板 #board 照舊吃偏好(正向對照,證明改的只有查詢 sheet)。牙:updateSheetOpenClass 那行退回 sheetSizePref ⇒ G13a/G13b 紅、G13c 仍綠。
+// G13e-h(整枝審查必修 4,N-3):查詢 sheet 的抓把切小不得寫回全站偏好——把查詢 sheet 拉到小、關掉、開看板,
+// 看板不能被那次操作帶成 small,sheetSizePref/localStorage 也不能變;正向對照對 #board 呼叫 setSheetSize('small')
+// 偏好要真的變 small(證明牙量得到寫入,不是恆真判準)。牙:setSheetSize 那個 if 拿掉 ⇒ G13f/G13g 紅。
 sections.push({ name: 'G13 查詢 sheet 以半高開', run: async (browser, en) => {
   const r0 = await boot(browser, {}); const taipei = await stationOf(r0.page, '臺北', 'tra_sched'); await r0.ctx.close();
   const { ctx, page, errs } = await boot(browser, { query: geomock(offsetLatLon(taipei, 100)), storage: { 'trainmap-sheet-size': 'small' } });
@@ -762,12 +765,32 @@ sections.push({ name: 'G13 查詢 sheet 以半高開', run: async (browser, en) 
   const b = await page.evaluate(() => ({ small: document.getElementById('board').classList.contains('sheet-small'), hidden: document.getElementById('board').hidden }));
   ok(`[${en}] G13c 正向對照:看板照舊吃偏好 small`, !b.hidden && b.small, JSON.stringify(b));
   ok(`[${en}] G13d 零 pageerror`, errs.length === 0, errs.join(' | '));
+  // 查詢 sheet 拉到小(setSheetSize 直接呼叫,模擬拖抓把):先把偏好定在跟 small 不同的 medium,
+  // 這樣「有沒有被寫成 small」才有鑑別力(偏好本來就是 small 的話,寫不寫都看起來一樣)。
+  await page.evaluate(() => { openSearchPanel(); });
+  await page.waitForTimeout(400);
+  const w = await page.evaluate(() => {
+    sheetSizePref = 'medium'; try { localStorage.setItem('trainmap-sheet-size', 'medium'); } catch (e) {}
+    setSheetSize(document.getElementById('searchPanel'), 'small');
+    let ls = null; try { ls = localStorage.getItem('trainmap-sheet-size'); } catch (e) {}
+    return { searchSmall: document.getElementById('searchPanel').classList.contains('sheet-small'), pref: sheetSizePref, ls };
+  });
+  ok(`[${en}] G13e 查詢 sheet 抓把切小:面板本身變小(這次打開照常生效)`, w.searchSmall === true, JSON.stringify(w));
+  ok(`[${en}] G13f 查詢 sheet 抓把切小:不寫全站偏好(pref/localStorage 仍是 medium)`, w.pref === 'medium' && w.ls === 'medium', JSON.stringify(w));
+  await page.evaluate(({ name, sys }) => { closeSearchPanel({ user: true }); const c = nearbyStationCandidates().find(x => x.st.name === name && x.st.sys === sys); openBoard(c.st); }, taipei);
+  await page.waitForTimeout(600);
+  const b2 = await page.evaluate(() => ({ small: document.getElementById('board').classList.contains('sheet-small') }));
+  ok(`[${en}] G13g 查詢 sheet 拉小之後開看板:看板不是 sheet-small(沒被那次操作污染)`, b2.small === false, JSON.stringify(b2));
+  const ctrl = await page.evaluate(() => { setSheetSize(document.getElementById('board'), 'small'); return { pref: sheetSizePref }; });
+  ok(`[${en}] G13h 正向對照:對看板呼叫 setSheetSize 偏好真的變 small(證明牙量得到寫入,不是恆真)`, ctrl.pref === 'small', JSON.stringify(ctrl));
   await ctx.close();
 }});
 
 // G14 按下後重排仍開按到的站(整枝審查 #29):答案區約每模擬秒依距離重排,按下到放開之間同一位置索引
 // 可能變成別站——wrap.onpointerdown/onclick 改記站物件不記索引。牙:onclick 退回舊的「按位置索引」
 // 寫法 ⇒ 重排(倒序)後開到的是別站。
+// G14c-e(整枝審查必修 5):捲動取消一次按壓後 _down 是陳舊站物件,點空白處(.qa-stn 落空)會開錯站。
+// 牙:拿掉 wrap.onpointercancel 那行 ⇒ _down 沒被清掉,G14d/G14e 紅。
 sections.push({ name: 'G14 按下後重排仍開按到的站', run: async (browser, en) => {
   const r0 = await boot(browser, {}); const taipei = await stationOf(r0.page, '臺北', 'tra_sched'); await r0.ctx.close();
   const { ctx, page, errs } = await boot(browser, { query: geomock(offsetLatLon(taipei, 100)) });
@@ -793,6 +816,28 @@ sections.push({ name: 'G14 按下後重排仍開按到的站', run: async (brows
   ok(`[${en}] G14 按下後重排仍開按到的站(不是重排後同位置的別站)`, !!r.opened && r.opened.name === r.pressed.name && r.opened.sys === r.pressed.sys, JSON.stringify(r));
   ok(`[${en}] G14b 零 pageerror`, errs.length === 0, errs.join(' | '));
   await ctx.close();
+  // G14c-f:另開一輪乾淨的 session——上面那格已經把 wrap.innerHTML 清空模擬重排,而 renderQueryAnswer
+  // 有「內容沒變就不重寫 DOM」的節流(見 G12a2),沿用同一頁重繪不出新列,得換一頁才有乾淨的列可按。
+  const s2 = await boot(browser, { query: geomock(offsetLatLon(taipei, 100)) });
+  await s2.page.waitForFunction(() => !document.getElementById('searchPanel').hidden, null, { timeout: 8000 }); await s2.page.waitForTimeout(600);
+  const c14 = await s2.page.evaluate(() => {
+    const wrap = document.getElementById('queryAnswer');
+    const before = state.boardStation ? { name: state.boardStation.name, sys: state.boardStation.sys } : null;
+    const blk0 = wrap.querySelector('.qa-stn');
+    wrap.onpointerdown({ target: blk0 }); // 按下:記住站物件
+    if (typeof wrap.onpointercancel === 'function') wrap.onpointercancel(); // 模擬捲動取消這次按壓
+    const downAfterCancel = wrap._down;
+    wrap.onclick({ target: wrap }); // 在空白處放開(.qa-stn 落空,走 wrap._down 補的路徑)
+    return { before, downAfterCancel, hasBlk: !!blk0,
+      after: state.boardStation ? { name: state.boardStation.name, sys: state.boardStation.sys } : null,
+      boardHidden: document.getElementById('board').hidden };
+  });
+  ok(`[${en}] G14c 前提:答案區真的有列可按`, c14.hasBlk === true, JSON.stringify(c14));
+  ok(`[${en}] G14d 捲動取消按壓後清掉 _down(整枝審查必修 5)`, c14.downAfterCancel === null, JSON.stringify(c14));
+  ok(`[${en}] G14e 取消後點空白處不開錯站:boardStation 不變、看板沒開`,
+    c14.boardHidden === true && JSON.stringify(c14.before) === JSON.stringify(c14.after), JSON.stringify(c14));
+  ok(`[${en}] G14f 零 pageerror`, s2.errs.length === 0, s2.errs.join(' | '));
+  await s2.ctx.close();
 }});
 
 // G16 說明中心(task-6)：「查詢」節存在、緊接搜尋節之後；搜尋節提到底部「查詢」；沒有死掉的
@@ -940,4 +985,7 @@ for (const engineName of ENGINES) {
 server.close();
 const failed = results.filter(r => !r.pass);
 console.log(`\n${results.length - failed.length}/${results.length} 通過`);
-if (failed.length) { console.log('失敗：\n' + failed.map(f => ' - ' + f.name + (f.detail ? '（' + f.detail + '）' : '')).join('\n')); process.exit(1); }
+if (failed.length) console.log('失敗：\n' + failed.map(f => ' - ' + f.name + (f.detail ? '（' + f.detail + '）' : '')).join('\n'));
+// 🔴 篩選跑永遠不能被任何鏈當成通過（不管綠紅）：QT_ONLY 有值就一律 exit 2，與全跑的 0/1 語意分開。
+if (qtOnly) { console.log('QT_ONLY 篩選跑：exit 2，不可當通過'); process.exit(2); }
+if (failed.length) process.exit(1);
