@@ -30807,7 +30807,7 @@ const HELP_GROUPS = [
         : '把捷運站放上主畫面或鎖定畫面，不開 App 就看得到下一班往哪裡、還有幾分鐘。',
       steps: helpIsAndroid
         ? ['長按主畫面空白處進入編輯，從加入小工具的入口搜尋「軌島」', '選「捷運看板」、「發車看板」或「鐵路＋捷運雙看板」，再挑要看的車站', '發車看板的起站與目的站可以選你在軌島儲存的地點；「只看這些」可依方向、車種或車次篩選', '班次字太小時打開「大字好讀版」——主要文字會明顯放大，並減少列數避免擠在一起', '捷運免費可設定一站；想放多站或用「自動（最近的站）」需啟用軌島通行證']
-        : ['長按主畫面空白處進入編輯，從加入小工具的入口搜尋「軌島」', '選捷運小工具，再挑一個車站；鎖定畫面也放得下', '想放多站，或用「自動（最近的站）」讓它跟著你移動換站，需要軌島通行證（免費可設定一站）', '鎖定畫面：長按鎖定畫面 → 自訂 → 加入小工具'],
+        : ['長按主畫面空白處進入編輯，從加入小工具的入口搜尋「軌島」', '選捷運小工具，再挑一個車站；鎖定畫面也放得下', '想放多站，或用「自動（最近的站）」讓它跟著你移動換站，需要軌島通行證（免費可設定一站）', '鎖定畫面：長按鎖定畫面 → 自訂 → 加入小工具（鎖定畫面目前只有「發車看板」這一種）'],
       tip: helpIsAndroid
         ? '跟隨台鐵或高鐵列車時，通行證也能把下一站進度放上鎖定畫面；Android 16／Samsung 可顯示即時資訊與 Now Bar。App 收到背景或 WebView 關閉後，台鐵跟車卡仍會依官方誤點與停靠資料更新；省電模式可能延後輪詢。'
         : '還有一張「鐵路＋捷運看板」大卡，把台鐵、高鐵與捷運的發車資訊列在同一張。點小工具會直接開啟軌島到那一站。',
@@ -31014,7 +31014,7 @@ function helpSecHtml(s, mob) {
     const canPin = widgetPinEnabled() && widgetPinSupported() === true;
     h += '<div class="help-widgets">' + s.widgets.map(w =>
       '<figure class="help-w"><img src="' + escHtml(w.img) + '" alt="" loading="lazy" decoding="async">'
-      + '<figcaption><b>' + escHtml(t(w.name)) + '</b><span>' + escHtml(w.sizes) + '</span>'
+      + '<figcaption><b>' + escHtml(t(w.name)) + '</b><span>' + escHtml(t(w.sizes)) + '</span>'
       + (w.pin && canPin ? '<button class="help-wpin" type="button" data-kind="' + escHtml(w.kind) + '">' + escHtml(t('加到桌面')) + '</button>' : '')
       + '</figcaption></figure>').join('') + '</div>';
   }
