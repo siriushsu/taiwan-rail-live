@@ -703,6 +703,20 @@ sections.push({ name: 'G10 小工具節', run: async (browser, en) => {
     ok(`[${en}] G10 ${label}:鈕 ${m.btns}（應 ${expectBtns}）、圖 ${m.imgs}（應 ${expectImgs}）`, m.btns === expectBtns && m.imgs === expectImgs, JSON.stringify(m));
     await ctx.close();
   }
+  // G10b 真點「加到桌面」(整枝審查 I-1 的牙):pin 回 requested:false ⇒ 吐司出現且零 pageerror;回 true ⇒ 不吐司。
+  // 分派函式裡若有區域變數把全域 t() 遮蔽掉(TDZ),失敗路徑會丟 ReferenceError、吐司永遠不出——只驗鈕數量照不到。
+  for (const [label, requested, expectToast] of [['pin 失敗', false, true], ['pin 成功', true, false]]) {
+    ({ ctx, page } = await boot(browser, { app: true, platform: 'android', plugins: { RailMetroWait: {}, RailWidget: { pinSupported: { $result: { supported: true } }, pin: { $result: { requested } } } } }));
+    const errs = []; page.on('pageerror', e => errs.push(String(e).slice(0, 200)));
+    await page.evaluate(() => openHelp('metrowidget')); await page.waitForTimeout(800);
+    // 用 DOM click 走委派的分派函式(要驗的是分派程式碼,不是命中測試;鈕在說明中心捲動區內、Playwright 的可點性等待會逾時)
+    await page.evaluate(() => document.querySelector('#helpBody .help-sec[data-sec="metrowidget"] .help-wpin').click()); await page.waitForTimeout(500);
+    const expected = await page.evaluate(() => t('這支手機的桌面不支援直接加入，請長按主畫面 → 小工具 → 軌島'));
+    const toast = await page.evaluate(() => [...document.querySelectorAll('#toasts *')].map(n => n.textContent).join(' '));
+    const hasToast = toast.includes(expected);
+    ok(`[${en}] G10b 真點加到桌面（${label}）:吐司 ${hasToast}（應 ${expectToast}）、pageerror ${errs.length}（應 0）`, hasToast === expectToast && errs.length === 0, toast.slice(0, 80) + ' | ' + errs.join(' | '));
+    await ctx.close();
+  }
 }});
 
 // G16 說明中心(task-6)：「查詢」節存在、緊接搜尋節之後；搜尋節提到底部「查詢」；沒有死掉的

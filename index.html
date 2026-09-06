@@ -31215,8 +31215,9 @@ function setupHelp() {
       seg.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === seg));
       return;
     }
-    const t = e.target.closest('.help-try');
-    if (t) helpRun(t.dataset.try);
+    // 區域變數不可叫 t:同一個函式前面的「加到桌面」失敗路徑要呼叫全域 t()(翻譯),同名 const 會把它遮蔽成 TDZ(整枝審查 I-1、驗收 G10b)
+    const tryBtn = e.target.closest('.help-try');
+    if (tryBtn) helpRun(tryBtn.dataset.try);
   });
   document.querySelectorAll('.help-open').forEach(a => a.addEventListener('click', e => {
     e.preventDefault(); if (typeof setMore === 'function') setMore(false); openHelp();
