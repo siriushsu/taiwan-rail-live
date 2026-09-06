@@ -27801,6 +27801,44 @@ function boardSharedTrack(sys, a, b) {
   for (const id of A) if (B.has(id) && ++n > 1) return true;
   return false;
 }
+// 幹線站名索引:某站只要被任何一條幹線收錄,就是幹線站。「支線專屬站」＝不在這個集合裡的站。
+function boardTrunkStations() {
+  const lines = state.trackLines || [];
+  if (state._bdTrunkSrc === lines && state._bdTrunkSt) return state._bdTrunkSt;
+  const set = new Set();
+  for (const ln of lines) {
+    if (boardLineLatSpan(ln) < BOARD_TRUNK_LAT_SPAN) continue;
+    for (const x of (ln.stations || [])) if (x.name) set.add(ln.sys + '|' + String(x.name).replace(/臺/g, '台'));
+  }
+  if (!lines.length) return set;   // 路網還沒載好:不快取
+  state._bdTrunkSrc = lines;
+  return (state._bdTrunkSt = set);
+}
+// 🔴 2026-09-06 裁示:「不是支線的車就不要放在支線裡」。
+// 成追線只有追分(山線)與成功(海線)兩站,兩站都在幹線上 ⇒ 沒有任何一班車「終點在成追線上」,
+// 走它的全是縱貫線直通車。舊寫法只看貼軌那一段屬於哪條線,於是追分／成功兩站長出「往 成功」
+// 「往 追分」兩組,裡面裝的其實是南下北上的縱貫線車(實測 28 班,全部出自成追線)。
+// 判準寫成通用的身分條件而不是把成追線列黑名單:這一趟有沒有停靠「任何一條幹線都沒收錄的站」。
+//   ・平溪線直通八堵的車會停十分／大華 ⇒ 是支線車,維持支線分組(這正是早先量到的 190 班,不可誤傷)
+//   ・內灣線到六家的車會停竹中／六家 ⇒ 是支線車
+//   ・成追線直通車只停追分與成功 ⇒ 不是支線車,回幹線分組
+function boardBranchService(tr) {
+  const trunk = boardTrunkStations();
+  if (!trunk.size) return true;   // 路網沒載好:維持原行為,不硬判
+  for (const x of (tr.stops || [])) {
+    if (!x.name) continue;
+    if (!trunk.has(tr.sys + '|' + String(x.name).replace(/臺/g, '台'))) return true;
+  }
+  return false;
+}
+// 這一趟最近的一段「幹線」軌道(先往前找,再往後找)。找不到就回 null,由呼叫端沿用原樣不猜。
+function boardTrunkSeg(tr, i) {
+  const st = tr.stops || [];
+  const isTrunk = j => st[j] && st[j].segLn && boardLineLatSpan(st[j].segLn) >= BOARD_TRUNK_LAT_SPAN;
+  for (let j = i; j + 1 < st.length; j++) if (isTrunk(j)) return st[j];
+  for (let j = i - 1; j >= 0; j--) if (isTrunk(j)) return st[j];
+  return null;
+}
 // 這一列該用哪一段決定線別與方向。共構段不算數:先往前找最近的非共構段(車一離開共構段線就
 // 分岔了,那是最近的證據),前面沒有再往後找(在本站終到的車只剩來時路——北新竹往新竹的 64 班
 // 裡,46 班來自千甲=內灣線、18 班來自竹北=縱貫線,靠來時路才分得開)。同一條線上前後段的
@@ -27818,8 +27856,12 @@ function boardDecidingSeg(tr, i) {
 // 刻意不依「最近一班倒數」排序：位置每次打開都一樣，使用者不必重新找。
 function boardGroupOf(tr, i, isLast) {
   if (isLast) return { key: '~arrive', kind: 'arrive', order: 3 };
-  const s = boardDecidingSeg(tr, i);
+  let s = boardDecidingSeg(tr, i);
   if (!s || !s.segLn) return { key: '~other', kind: 'other', order: 4 };  // 貼不到軌道:不猜方向
+  // 貼到支線、但這一趟根本不是支線車(成追線直通車)⇒ 改用最近的幹線段決定方向。
+  if (boardLineLatSpan(s.segLn) < BOARD_TRUNK_LAT_SPAN && !boardBranchService(tr)) {
+    s = boardTrunkSeg(tr, i) || s;
+  }
   const ln = s.segLn, dir = Math.sign(s.dB - s.dA) || 1;
   const sts = (ln.stations || []).filter(x => x.d != null && x.name).slice().sort((a, b) => a.d - b.d);
   if (sts.length < 2) return { key: '~other', kind: 'other', order: 4 };
@@ -27829,8 +27871,13 @@ function boardGroupOf(tr, i, isLast) {
     return { key: (nb ? 'N' : 'S') + '|' + ln.id, kind: 'trunk', nb, lnId: ln.id, lnName: ln.name,
       order: nb ? 1 : 0 };
   }
-  return { key: 'B|' + ln.id + '|' + (dir > 0 ? '+' : '-'), kind: 'branch',
-    lnId: ln.id, endName: end.name, order: 2 };
+  // 🔴 2026-09-06 裁示:「既然終點是六家,為什麼還要放往內灣?」——組名取【這一趟的終點站】,
+  // 不是支線的末端站。新竹「往 內灣」46 班裡有 41 班終點其實是六家,舊寫法一律標成內灣。
+  // 這也是 2026-08-31「支線就寫終點站方向,跟著官方的說法」那條裁示原本的意思;
+  // 舊實作取 ln.stations 的末端站,是實作偏離,不是另一個設計。
+  const dest = (tr.stops[tr.stops.length - 1] || {}).name || end.name;
+  return { key: 'B|' + dest, kind: 'branch',
+    lnId: ln.id, endName: dest, order: 2 };
 }
 // 組標題。幹線預設只寫「南下」／「北上」;同一個方向同時有多條幹線（竹南南下＝山線＋海線、
 // 彰化北上＝山線＋海線）時才補線名,否則兩組長得一模一樣分不出來。

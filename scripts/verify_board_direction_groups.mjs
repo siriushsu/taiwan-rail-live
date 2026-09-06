@@ -254,27 +254,34 @@ const d11 = await p.evaluate(() => {
     own.set(ln.id, set);
     if (boardLineLatSpan(ln) < BOARD_TRUNK_LAT_SPAN) branchIds.push(ln.id);
   }
-  // 兩站都在幹線上的短連絡線（成追線）結構上沒有專屬區間，這條判準對它驗不到——列成豁免，
-  // 並在 D11f 斷言豁免清單恰好是誰，免得清單無聲長大把整條判準吃掉。
-  // 🔴 只在【支線】裡挑：幹線的站當然全在 trunkStations 裡，把它們算進來會讓豁免清單失去意義。
+  // 「沒有專屬區間」的支線＝兩站都在幹線上的短連絡線（成追線）。2026-09-06 裁示
+  // 「不是支線的車就不要放在支線裡」之後，這種線【根本不該生出支線組】，所以 D11e 不再給豁免；
+  // 清單改由 D11f 用來反查「這些線真的一班都沒有落進支線組」。豁免消失＝判準嚴格變強。
   const noExclusive = branchIds.filter(id => [...own.get(id)].every(n => trunkStations.has(n)));
-  const bad = [], covered = new Set();
+  const bad = [], covered = new Set(), noExclusiveRows = [];
+  // 組名必須＝這一趟真正的終點站（2026-09-06 裁示：「既然終點是六家，為什麼還要放往內灣？」）
+  const labelBad = [];
   for (const tr of state.trains) {
     const st = tr.stops;
+    const dest = norm((st[st.length - 1] || {}).name);
     for (let i = 0; i + 1 < st.length; i++) {
       if (st[i].stop === false) continue;
       const g = boardGroupOf(tr, i, false);
-      if (g.kind !== 'branch' || noExclusive.includes(g.lnId)) continue;
+      if (g.kind !== 'branch') continue;
+      if (noExclusive.includes(g.lnId)) noExclusiveRows.push(st[i].name + ' ' + tr.no + ' → ' + g.lnId);
       covered.add(g.lnId);
       const set = own.get(g.lnId) || new Set();
       if (!st.some(x => set.has(norm(x.name)) && !trunkStations.has(norm(x.name))))
-        bad.push(st[i].name + ' ' + tr.no + ' 往' + norm(st[st.length - 1].name) + ' → ' + g.lnId);
+        bad.push(st[i].name + ' ' + tr.no + ' 往' + dest + ' → ' + g.lnId);
+      if (norm(g.endName) !== dest) labelBad.push(tr.no + ' 組名往' + norm(g.endName) + ' 實際終點' + dest);
     }
   }
   return { hsinchu, beihsinchu, branchOf: branchOf(hsinchu), beiBranch: branchOf(beihsinchu),
     hsinchuAll: allBranchDests('新竹'), beiAll: allBranchDests('北新竹'),
     trunkOnly: [...trunkOnly], bad: bad.slice(0, 6), nBad: bad.length,
-    nCovered: covered.size, noExclusive };
+    nCovered: covered.size, noExclusive,
+    noExclusiveRows: noExclusiveRows.slice(0, 6), nNoExclusiveRows: noExclusiveRows.length,
+    labelBad: labelBad.slice(0, 6), nLabelBad: labelBad.length };
 });
 const trunkOnlySet = new Set(d11.trunkOnly);
 const strayOf = list => [...new Set((list || []).filter(d => trunkOnlySet.has(d)))];
@@ -291,11 +298,29 @@ ok('D11c 反向對照：新竹「北上」組確實收得到縱貫線終點（�
 ok('D11d 北新竹（共構段另一頭）的支線組同樣不得混進縱貫線的車（掃整組不套配額）',
   (d11.beiAll || []).length > 0 && strayOf(d11.beiAll).length === 0,
   `${(d11.beiAll || []).length} 列，混進來的終點：` + JSON.stringify(strayOf(d11.beiAll)));
-ok('D11e 全網：支線組的每一班都必須真的走進該支線的專屬區間',
+ok('D11e 全網：支線組的每一班都必須真的走進該支線的專屬區間（已不給任何豁免）',
   d11.nBad === 0, `${d11.nBad} 列，例：` + JSON.stringify(d11.bad));
-ok('D11f 覆蓋率具名斷言：D11e 真的驗到多條支線，且豁免清單恰為成追線（兩站都在幹線上，結構上驗不到）',
+ok('D11f 覆蓋率具名斷言：D11e 真的驗到多條支線，且「沒有專屬區間的線」恰為成追線',
   d11.nCovered >= 5 && d11.noExclusive.length === 1 && d11.noExclusive[0] === 'chengzhui',
-  `covered=${d11.nCovered} 豁免=${JSON.stringify(d11.noExclusive)}`);
+  `covered=${d11.nCovered} 無專屬區間=${JSON.stringify(d11.noExclusive)}`);
+// 🔴 2026-09-06 裁示：「不是支線的車就不要放在支線裡」。成追線只有追分（山線）與成功（海線）
+//    兩站，沒有任何一班車終點在它身上，走它的全是縱貫線直通車 ⇒ 它一班都不該落進支線組。
+//    修法前這裡是 28 列（追分／成功兩站的「往 成功」「往 追分」兩組）。
+ok('D11g 沒有專屬區間的連絡線（成追線）一班都不該落進支線組——不是支線的車不放支線裡',
+  d11.nNoExclusiveRows === 0, `${d11.nNoExclusiveRows} 列，例：` + JSON.stringify(d11.noExclusiveRows));
+// 🔴 2026-09-06 裁示：「既然終點是六家，為什麼還要放往內灣？」組名取這一趟真正的終點站。
+//    修法前組名取的是支線的末端站，新竹「往 內灣」裡 41/46 班其實終到六家。
+ok('D11h 支線組的組名＝這一趟真正的終點站（不是支線的末端站）',
+  d11.nLabelBad === 0, `${d11.nLabelBad} 列，例：` + JSON.stringify(d11.labelBad));
+// 🔴 D11h 的真值來源（g.endName）就是被驗的實作本身，同源比對是零資訊（判準盲點形態 1）。
+//    D11i 改走【畫面】：組標題由 boardGroupLabel＋stationName＋i18n 產生，列的終點由另一條
+//    渲染路徑產生，兩者必須一致。修法前新竹的標題是「往 內灣」而列上寫「往 六家」⇒ 這條會紅。
+const labelVsRows = (d11.branchOf || []).flatMap(g =>
+  g.dests.filter(d => g.label !== '往 ' + d).map(d => `${g.label} 裡有往 ${d}`));
+ok('D11i 畫面對照：新竹每個支線組的標題，與組內每一列的終點站一致（獨立於 g.endName）',
+  (d11.branchOf || []).length > 0 && (d11.branchOf || []).flatMap(g => g.dests).length > 0
+    && labelVsRows.length === 0,
+  `組=${JSON.stringify((d11.branchOf || []).map(g => g.label))} 不一致：` + JSON.stringify(labelVsRows));
 
 // ── D7 捷運看板零回歸：它走 renderFreqBoard，不該長出方向組 ─────────
 const metro = await p.evaluate(() => {
