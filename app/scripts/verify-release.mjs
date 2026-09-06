@@ -698,16 +698,32 @@ export async function verifyRelease({
   ];
   for (const file of required) assert(relativeFiles.includes(file), `缺少必要檔案：${file}`);
 
-  // 首頁相對連結完整性：頁面內每個指向本機 .html／.txt 的連結都要有對應檔案,
+  // 首頁相對連結完整性：頁面內每個指向本機檔案的連結都要有對應檔案,
   // 否則像 privacy.html／terms.html 那樣在 Capacitor 本機來源回 404（QA 2026-07-21）。
+  // 🔴 2026-09-06 放寬涵蓋面：原本的 regex 是 /href="([^"#]+\.(?:html|txt))"/,【只認 .html／.txt 結尾】,
+  //    於是 href="about/" 這種【無副檔名的目錄連結】結構上照不到——而那恰恰是更危險的一種:
+  //    Capacitor 的 router 對沒有副檔名的路徑一律回 index.html（iOS Router.swift 的
+  //    pathExtension.isEmpty、Android WebViewLocalServer 同一條），所以它【不會 404】,而是把首頁
+  //    在錯的 base（/about/）下重載一次 ⇒ vendor/、i18n/、data/ 那些相對資源全 404、boot 拋
+  //    maplibregl is not defined、地圖不出現又沒有返回鍵,使用者只能強制關 App。網友回報 issue #47,
+  //    iOS 95／96／97 與 Android 全部帶著這顆上架,六道發行閘門一路全綠。
+  //    目錄型 target 一律驗它的 index.html——SPA fallback 之所以無害的前提就是那個檔真的在。
   const relativeSet = new Set(relativeFiles);
   const linkTargets = new Set();
-  for (const [, value] of html.matchAll(/href="([^"#]+\.(?:html|txt))"/g)) {
-    if (/^[a-z][a-z0-9+.-]*:/i.test(value)) continue; // 略過 http(s):／mailto: 等外部連結
-    linkTargets.add(value.replace(/^\.?\//, ''));
+  for (const [, value] of html.matchAll(/href="([^"]+)"/g)) {
+    if (/^[a-z][a-z0-9+.-]*:/i.test(value) || value.startsWith('//')) continue; // http(s):／mailto: 等外部
+    if (value.includes('${') || value.includes('{{')) continue;  // 內嵌腳本裡的樣板字串,不是真連結
+    const clean = value.split('#')[0].split('?')[0].replace(/^\.?\//, '');
+    if (!clean) continue;                                        // href="#" 與純錨點
+    linkTargets.add(/\.[a-z0-9]+$/i.test(clean) ? clean : clean.replace(/\/+$/, '') + '/index.html');
   }
+  // 正向對照：收集器自己要有具名斷言,否則 regex 一與 index.html 的寫法脫節,下面的全稱斷言就整條
+  // 空過報綠（這正是 bus-transfer-ui.js 那一條學到的教訓,同一段下面就有一個同形的）。
+  assert(linkTargets.has('privacy.html') && linkTargets.has('terms.html'),
+    '首頁連結掃描沒掃到 privacy.html／terms.html——這條守門人的 regex 跟 index.html 的寫法脫節了');
   for (const target of linkTargets) {
-    assert(relativeSet.has(target), `首頁連結指向未打包檔案（會 404）：${target}`);
+    assert(relativeSet.has(target),
+      `首頁連結指向未打包檔案：${target}（有副檔名＝404；無副檔名更糟，Capacitor 會回首頁但 base 跑掉，整個 App 死在半路）`);
   }
   // 首頁腳本／樣式完整性（2026-09-05）：<script src> 與 <link href> 指向的本機檔案都要真的在 bundle 裡。
   // 上面那條只看 .html／.txt 連結，照不到腳本。起因：bus-transfer-ui.js 從 09-01 起被 index.html 載入，
