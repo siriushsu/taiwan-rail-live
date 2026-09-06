@@ -588,6 +588,80 @@ sections.push({ name: 'G9 桌面不變量', run: async (browser, en) => {
   await ctx2.close();
 }});
 
+// G16 說明中心(task-6)：「查詢」節存在、緊接搜尋節之後；搜尋節提到底部「查詢」；沒有死掉的
+// 「試一次」；HELP_TRY.query 的兩句吐司 en/ja 都在；helpRun('query') 開瀏覽態面板且面板已開時
+// 再試一次不會被當 toggle 關掉；helpRun('search') 在面板關著時會先開面板才進打字態；桌面
+// helpRun('query') 不開面板。
+// 牙：HELP_TRY.query.run 改回 tabSearch.click() ⇒ G16e2 紅；HELP_TRY.search.run 拿掉
+// openSearchPanel 那行 ⇒ G16f 紅；content-translations.js 任一句吐司缺一種語言 ⇒ G16d 紅。
+sections.push({ name: 'G16 說明中心', run: async (browser, en) => {
+  const { ctx, page } = await boot(browser, {});
+  await page.evaluate(() => openHelp());
+  await page.waitForTimeout(300);
+  const h = await page.evaluate(() => {
+    const q = document.querySelector('#helpBody .help-sec[data-sec="query"]');
+    const s = document.querySelector('#helpBody .help-sec[data-sec="search"]');
+    const a = helpAudit();
+    return { query: !!q, searchText: s ? s.textContent : '', dead: a.dead, secs: a.secs };
+  });
+  ok(`[${en}] G16a 「查詢」節存在且緊接搜尋節之後`, h.query && h.secs.indexOf('query') === h.secs.indexOf('search') + 1, JSON.stringify(h.secs));
+  ok(`[${en}] G16b 搜尋節提到底部「查詢」`, /底部「查詢」/.test(h.searchText));
+  ok(`[${en}] G16c 沒有死掉的「試一次」`, h.dead.length === 0, JSON.stringify(h.dead));
+
+  // check_i18n 的說明中心掃描只展開到 HELP_TRY 之前(見 check_i18n.mjs evaluateConstBlock)，
+  // HELP_TRY.query 的 run() 內文字面呼叫的 t('...') 不在它的說明中心分母裡，這裡自己補一條牙。
+  const i18nOk = await page.evaluate(() => {
+    const keys = ['這就是查詢面板——上面搜尋、中間下一班、下面入口', '桌面版沒有查詢面板，搜尋框在右上角'];
+    const m = window.RAIL_I18N_MESSAGES;
+    return !!m && keys.every(k => typeof m.en?.[k] === 'string' && !!m.en[k] && typeof m.ja?.[k] === 'string' && !!m.ja[k]);
+  });
+  ok(`[${en}] G16d 兩句「試一次」吐司的 en/ja 鍵都在`, i18nOk === true);
+
+  // 手機:openHelp('query') 展開該節後按試一次 ⇒ 說明卡關、查詢面板開(瀏覽態,不是打字態)
+  await page.evaluate(() => openHelp('query'));
+  await page.waitForTimeout(300);
+  await page.evaluate(() => helpRun('query'));
+  await page.waitForTimeout(300);
+  const s1 = await page.evaluate(() => ({
+    panelHidden: document.getElementById('searchPanel').hidden,
+    searchOpen: document.body.classList.contains('search-open'),
+    helpHidden: document.getElementById('helpModal').hidden,
+  }));
+  ok(`[${en}] G16e helpRun('query') ⇒ 查詢面板開(瀏覽態)、說明卡已關`, !s1.panelHidden && !s1.searchOpen && s1.helpHidden, JSON.stringify(s1));
+  // 面板已開時再試一次(牙:run 改回 tabSearch.click() 會把已開的面板當 toggle 點成關掉)
+  await page.evaluate(() => helpRun('query'));
+  await page.waitForTimeout(300);
+  const panelHidden2 = await page.evaluate(() => document.getElementById('searchPanel').hidden);
+  ok(`[${en}] G16e2 面板已開時再試一次「查詢」⇒ 仍開著(不是被當 toggle 關掉)`, panelHidden2 === false, String(panelHidden2));
+
+  // 手機:面板關著時試一次「搜尋」⇒ 先開面板才 focus(牙:拿掉 openSearchPanel 那行,面板關著
+  // 時 #trainSearch 不可 focus,原本的 i.focus() 是空操作,進不了打字態)
+  await page.evaluate(() => closeSearchPanel({ user: true }));
+  await page.waitForTimeout(200);
+  await page.evaluate(() => helpRun('search'));
+  await page.waitForTimeout(300);
+  const s3 = await page.evaluate(() => ({
+    panelHidden: document.getElementById('searchPanel').hidden,
+    searchOpen: document.body.classList.contains('search-open'),
+    val: document.getElementById('trainSearch').value,
+  }));
+  ok(`[${en}] G16f 面板關著時試一次「搜尋」⇒ 開面板並進打字態、已帶字`, !s3.panelHidden && s3.searchOpen && !!s3.val, JSON.stringify(s3));
+  await ctx.close();
+
+  // 桌面(比照 G9 的 context 慣例:不帶 hasTouch/isMobile):helpRun('query') 時 tabSearch 零尺寸
+  // (.tabbar 桌面 display:none) ⇒ 不開面板,只吐司指路。
+  const dctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'zh-TW' });
+  const dpage = await dctx.newPage();
+  await dpage.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-language', 'zh-TW'); } catch (e) {} });
+  await dpage.goto(BASE + '?lang=zh-TW', { waitUntil: 'domcontentloaded' });
+  await dpage.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 60000 });
+  await dpage.evaluate(() => helpRun('query'));
+  await dpage.waitForTimeout(300);
+  const dHidden = await dpage.evaluate(() => document.getElementById('searchPanel').hidden);
+  ok(`[${en}] G16g 桌面 helpRun('query') ⇒ 查詢面板仍關(hidden)`, dHidden === true, String(dHidden));
+  await dctx.close();
+}});
+
 // ── 執行 ──
 for (const engineName of ENGINES) {
   const engine = engineName === 'webkit' ? webkit : chromium;

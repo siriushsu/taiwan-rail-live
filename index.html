@@ -30551,8 +30551,12 @@ const HELP_GROUPS = [
   { key: 'a', name: '看車', open: true, secs: [
     { key: 'search', ic: '', nm: '搜尋車站、車次、列車名',
       one: '一個框三種用法：站名、車次號碼、觀光列車名稱都查得到。',
-      steps: ['手機按底部「搜尋」、桌面點右上的搜尋框', '輸入「台北」找車站、輸入「431」找那班車、輸入「鳴日」找列車介紹', '從下拉選一項——選車次會直接開始跟車'],
+      steps: ['手機按底部「查詢」再點輸入框、桌面點右上的搜尋框', '輸入「台北」找車站、輸入「431」找那班車、輸入「鳴日」找列車介紹', '從下拉選一項——選車次會直接開始跟車'],
       tip: '同名站或共構站（例如板橋的台鐵與捷運）會先讓你選是哪一個。', try: 'search' },
+    { key: 'query', ic: '查', nm: '查詢：離你最近的站與下一班',
+      one: '手機底部的「查詢」是查資訊的家：最上面是搜尋框，接著是離你最近的站各方向下一班幾分，再下面是提醒、今日動態、附近車站與小工具的入口。',
+      steps: ['按底部「查詢」打開半高面板，地圖上的車照樣在動', '在車站附近打開 App 會自動出現；關掉一次，同一站就不再自動開', '點站名整塊進看板看更多班次；點輸入框才會叫出鍵盤'],
+      tip: '沒有定位時改顯示最愛的第一站或上次看過的站；桌面版沒有這個面板，搜尋框在右上角。', try: 'query' },
     { key: 'groupswitch', ic: '全', nm: '切換：全台／台鐵／高鐵／捷運',
       one: '決定地圖上要出現哪些系統的車。手機收在頂端那顆圓鈕裡，點一下展開四個選項。',
       steps: ['手機：點頂端右邊那顆圓鈕（上面寫著目前在哪一群）', '從選單挑全台同框／台鐵／高鐵／捷運與輕軌', '桌面：頂端資訊列上的四顆分頁直接點'],
@@ -30734,7 +30738,18 @@ const HELP_GROUPS = [
 // 手勢型功能(點列車、點車站)沒有鈕可代,改代「等價動作」——跟車＝隨機跟一班、看板＝開離畫面中心最近的站。
 const HELP_TRY = {
   search: { id: 'trainSearch', toast: '搜尋框已填「台北」，從下拉挑一項',
-    run: () => { const i = document.getElementById('trainSearch'); if (!i) return; i.focus(); i.value = stationName('台北', 'tra_sched'); i.dispatchEvent(new Event('input', { bubbles: true })); } },
+    // 手機上 #trainSearch 住在 #searchPanel 裡:面板關著時 i.focus() 是空操作(隱藏祖先底下的
+    // 元素不可 focus),下拉列也渲染在看不見的面板裡——先確保面板開著,聚焦才會真的生效。
+    run: () => { const i = document.getElementById('trainSearch'); if (!i) return;
+      if (window.matchMedia(MOBILE_MQ).matches && document.getElementById('searchPanel').hidden) openSearchPanel({ user: true });
+      i.focus(); i.value = stationName('台北', 'tra_sched'); i.dispatchEvent(new Event('input', { bubbles: true })); } },
+  // 桌面沒有查詢面板(tabSearch 藏在 display:none 的 .tabbar 裡,getClientRects().length===0);
+  // 手機:openSearchPanel 重複呼叫無害(面板已開時只是重畫),故不用 tabSearch.click()——那是
+  // 開關 toggle,面板已經開著(例如靠近車站自動開)時再點會把它關掉,吐司卻說「這就是查詢面板」。
+  query: { run: () => {
+      if (document.getElementById('tabSearch').getClientRects().length) { openSearchPanel({ user: true }); showToast(t('這就是查詢面板——上面搜尋、中間下一班、下面入口')); return; }
+      showToast(t('桌面版沒有查詢面板，搜尋框在右上角'));
+    } },
   follow: { id: 'randBtn', toast: '正在跟一班車——小卡的 × 可以結束' },
   board: { ok: () => !!helpNearestStation(),
     run: () => { const st = helpNearestStation(); if (!st) return showToast(t('這個檢視附近沒有車站，換個系統頁籤再試')); openBoard(st); M.panTo(focusCenter(st.lat, st.lon)); } },
