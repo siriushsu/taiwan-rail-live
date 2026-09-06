@@ -368,6 +368,14 @@ sections.push({ name: 'G8b 公車列', run: async (browser, en) => {
     await page.touchscreen.tap(b.x, b.y); await page.waitForTimeout(600);
     const o = await page.evaluate(() => ({ boardOpen: !document.getElementById('board').hidden, slot: !!document.querySelector('#board [data-bus-transfer-slot]'), queryClosed: document.getElementById('searchPanel').hidden }));
     ok(`[${en}] G8b 點公車列 ⇒ 看板開、公車槽在、查詢收起`, o.boardOpen && o.slot && o.queryClosed, JSON.stringify(o));
+    // 牙(公車裁示 C 後半句「捲到公車槽」):看板已捲動(捲得動的話)、公車槽整塊在看板可視區內——底不超出看板底、
+    // 且「槽頂露出在黏頂 h3 之下」或「看板已捲到底」二者取一:槽在 DOM 最後一格,槽比「看板高−標題」矮時捲到底也只能貼齊底部,
+    // 這時槽頂會藏在 h3 下幾到十幾 px(chromium 量到 9–15px),那是內容高度的物理限制不是沒捲(iOS 17 Pro 模擬器實測 scrollTop 0→284、槽頂在 h3 下 61px)。
+    // 拿掉 wrap.onclick 裡那個 rAF scrollIntoView ⇒ scrollTop 留 0、槽在摺線下 ⇒ 紅。
+    const sv = await page.evaluate(() => { const bd = document.getElementById('board'); const h3 = bd.querySelector('h3'); const sl = bd.querySelector('[data-bus-transfer-slot]'); if (!sl || !h3) return null;
+      const rb = bd.getBoundingClientRect(), rh = h3.getBoundingClientRect(), rs = sl.getBoundingClientRect();
+      return { canScroll: bd.scrollHeight > bd.clientHeight + 1, atEnd: bd.scrollTop + bd.clientHeight >= bd.scrollHeight - 1, scrollTop: Math.round(bd.scrollTop), slotTop: Math.round(rs.top), slotBottom: Math.round(rs.bottom), h3Bottom: Math.round(rh.bottom), boardBottom: Math.round(rb.bottom) }; });
+    ok(`[${en}] G8b 公車槽捲進看板可視區(槽頂露出、或已捲到底)`, !!sv && (!sv.canScroll || sv.scrollTop > 0) && sv.slotBottom <= sv.boardBottom + 1 && (sv.slotTop >= sv.h3Bottom - 1 || sv.atEnd), JSON.stringify(sv));
     // 負站(頁內存根):關掉 isSupported、逼重畫、驗 .qa-bus 消失,再還原。
     await openQuery(page);
     const stubbed = await page.evaluate(([n, s]) => {
@@ -521,7 +529,7 @@ sections.push({ name: 'G5 自動開', run: async (browser, en) => {
 }});
 
 // G5b 精度閘門下限(09-06 裁示「精度改成大於 0 才開」):Android 精度未知時回 accuracy 0.0,不准當成完美精度。
-// geomock 橋接把 geoacc 夾成 ≥1(index.html 12238),開機路徑餵不進 0 ⇒ 直接餵 queryMaybeAutoOpen;
+// geomock 橋接把 geoacc 夾成 ≥1(index.html 12239),開機路徑餵不進 0 ⇒ 直接餵 queryMaybeAutoOpen;
 // 開機的 geomock 放在 600 m 外(LOCATE_ENABLED 要成立、但開機不會自動開),再把 state.geoLoc 種到站旁。
 // 牙:閘門改回 c.accuracy <= 300 ⇒ G5b-0 紅;G5b-65 是正向對照(證明前面的「不開」不是別的守門在擋)。
 sections.push({ name: 'G5b 精度 0 不開', run: async (browser, en) => {
@@ -662,8 +670,9 @@ sections.push({ name: 'G16 說明中心', run: async (browser, en) => {
   });
   if (qBtn && qBtn.w > 0 && qBtn.h > 0) await page.touchscreen.tap(qBtn.x, qBtn.y);
   // 等「面板開＋說明卡關」這個條件,不等固定秒數:helpRun 把動作排在 60 ms 計時器後,機器忙時會晚到,
-  // 固定 300 ms 曾在同一支腳本裡假紅過一次;逾時 3 秒就讓底下的斷言照實紅(判斷力 rubric 第八節)。
-  await page.waitForFunction(() => !document.getElementById('searchPanel').hidden && document.getElementById('helpModal').hidden, null, { timeout: 3000 }).catch(() => {});
+  // 固定 300 ms 曾在同一支腳本裡假紅過一次;逾時 1 秒(健康路徑 tap→開面板約 80 ms,仍有十倍餘裕)就讓底下的斷言照實紅(判斷力 rubric 第八節)。
+  // 等待條件與斷言相同(含「不是打字態」):等的條件若是斷言的真子集,斷言可能取樣到舊值。
+  await page.waitForFunction(() => !document.getElementById('searchPanel').hidden && document.getElementById('helpModal').hidden && !document.body.classList.contains('search-open'), null, { timeout: 1000 }).catch(() => {});
   const s1 = await page.evaluate(() => ({
     panelHidden: document.getElementById('searchPanel').hidden,
     searchOpen: document.body.classList.contains('search-open'),
@@ -682,7 +691,7 @@ sections.push({ name: 'G16 說明中心', run: async (browser, en) => {
   await page.evaluate(() => closeSearchPanel({ user: true }));
   await page.waitForTimeout(200);
   await page.evaluate(() => helpRun('search'));
-  await page.waitForFunction(() => document.body.classList.contains('search-open') && !!document.getElementById('trainSearch').value, null, { timeout: 3000 }).catch(() => {}); // 同上:等打字態條件
+  await page.waitForFunction(() => document.body.classList.contains('search-open') && !!document.getElementById('trainSearch').value, null, { timeout: 1000 }).catch(() => {}); // 同上:等打字態條件
   const s3 = await page.evaluate(() => ({
     panelHidden: document.getElementById('searchPanel').hidden,
     searchOpen: document.body.classList.contains('search-open'),
@@ -699,9 +708,11 @@ sections.push({ name: 'G16 說明中心', run: async (browser, en) => {
   await dpage.goto(BASE + '?lang=zh-TW', { waitUntil: 'domcontentloaded' });
   await dpage.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 60000 });
   await dpage.evaluate(() => helpRun('query'));
-  await dpage.waitForTimeout(300);
+  // 正向對照:桌面分支會吐司指路——等那則吐司真的出現在 #toasts(證明 helpRun 的桌面分支跑過了)再斷言面板仍關;
+  // 只斷言 hidden===true 的話,「60 ms 計時器餓死、什麼都沒發生」也會是綠的(假綠,判準盲點 5)。
+  const dToast = await dpage.waitForFunction(() => ((document.getElementById('toasts') || {}).textContent || '').includes('桌面版沒有查詢面板'), null, { timeout: 1000 }).then(() => true).catch(() => false);
   const dHidden = await dpage.evaluate(() => document.getElementById('searchPanel').hidden);
-  ok(`[${en}] G16g 桌面 helpRun('query') ⇒ 查詢面板仍關(hidden)`, dHidden === true, String(dHidden));
+  ok(`[${en}] G16g 桌面 helpRun('query') ⇒ 吐司指路、查詢面板仍關(hidden)`, dToast && dHidden === true, JSON.stringify({ dToast, dHidden }));
   await dctx.close();
 }});
 
