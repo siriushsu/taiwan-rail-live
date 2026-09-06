@@ -12655,6 +12655,22 @@ function applyBootGeo(c) {
   else M.flyTo(t, GEO_BOOT_ZOOM, { duration: .8 });
   state._geoCameraAt = performance.now(); state._geoCameraLoc = { lat: c.latitude, lon: c.longitude };
   state._geoLanded = true;
+  queryMaybeAutoOpen(c);
+}
+// 開機自動開查詢 sheet(spec §6.1)。只掛在 applyBootGeo 的成功路徑:它的參數是真定位(不是 loadGeoCache),
+// 且它已守「使用者拖過地圖/跟車中/導播中不搶」;深連結與預設地點由 startBootGeo 不發起定位而自然不開。
+function queryMaybeAutoOpen(c) {
+  if (state._queryAutoOpened || !window.matchMedia(MOBILE_MQ).matches) return;
+  if (state.ambient || activeSheetEl()) return;                       // 放空不打擾;已有 sheet 不疊
+  const hw = document.getElementById('howtoWrap'); if (hw && !hw.hidden) return; // 第一次開 App 只給教學卡
+  if (!(c && c.accuracy <= QUERY_GEO_ACC_MAX_M)) return;              // 精度差的點可能在任何地方(沒有精度也不開)
+  const ans = queryAnswerStations();
+  if (ans.src !== 'geo' || !(ans.m <= QUERY_AUTO_OPEN_M)) return;     // 「在站附近」
+  const key = queryStationKey(ans.stations[0].st);
+  let dismissed = null; try { dismissed = localStorage.getItem(QUERY_DISMISS_KEY); } catch (e) {}
+  if (dismissed === key) return;                                       // 關掉一次同站不再開
+  state._queryAutoOpened = true; state._queryAutoStation = key;
+  openSearchPanel({ user: false });
 }
 async function locateMe() {
   showToast(t('正在定位你的位置…'));
@@ -26926,6 +26942,7 @@ function closeSearchDrop() { const d = document.getElementById('searchDrop'); if
 // user:true=使用者自己點 tab/×(Task 5 用它寫開關記憶);自動開、被 soloPanel 擠掉都是 user:false。
 function openSearchPanel({ user = false } = {}) {
   soloPanel('search');
+  if (user) { try { localStorage.setItem(QUERY_OPEN_KEY, '1'); } catch (e) {} state._queryAutoStation = null; }
   renderQueryLinks();
   document.getElementById('searchPanel').hidden = false;
   // 必須排在 hidden=false 之後:renderQueryAnswer 自己有「面板關著就跳出」的守門(跟主迴圈節拍共用同一條),
@@ -26938,6 +26955,11 @@ function openSearchPanel({ user = false } = {}) {
 function closeSearchPanel({ user = false } = {}) {
   const el = document.getElementById('searchPanel');
   if (!el || el.hidden) return;
+  if (user) {
+    try { localStorage.setItem(QUERY_OPEN_KEY, '0'); } catch (e) {}
+    if (state._queryAutoStation) { try { localStorage.setItem(QUERY_DISMISS_KEY, state._queryAutoStation); } catch (e) {} } // 自動開之後直接關掉:同站不再自動開
+  }
+  state._queryAutoStation = null; // 點答案進看板(soloPanel 擠掉)也算離開自動開狀態,之後的手動關不記
   el.hidden = true;
   closeSearchDrop();
   const inp = document.getElementById('trainSearch'); if (inp) inp.blur(); // 面板收起鍵盤跟著收
@@ -32941,6 +32963,12 @@ async function boot() {
   M.on('dragstart', () => { state._userMoved = true; state.geoFollow = false; });
   if (geoBoot) state._bootGeo.then(applyBootGeo);
   state.ready = true;
+  // 查詢 sheet 開關記憶(spec §6.2):沒有深連結、教學卡沒出現、本次沒自動開、沒別的 sheet ⇒ 上次自己開著就以瀏覽態開回來
+  if (window.matchMedia(MOBILE_MQ).matches && !(deepG || deepAt || deepTrain || deepTrip || deepJourney)) {
+    let want = null; try { want = localStorage.getItem(QUERY_OPEN_KEY); } catch (e) {}
+    const hw = document.getElementById('howtoWrap');
+    if (want === '1' && !state._queryAutoOpened && !(hw && !hw.hidden) && !activeSheetEl()) openSearchPanel({ user: false });
+  }
   void setupWebMcp(); // 支援的 ChatGPT 內建瀏覽器才註冊；一般瀏覽器立即 no-op
   i18nRefreshDynamic();
   setupNativePlacesSync();

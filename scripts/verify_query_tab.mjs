@@ -274,8 +274,17 @@ sections.push({ name: 'G3a 答案站退路鏈', run: async (browser, en) => {
   await r.ctx.close();
 }});
 
-// 開查詢並等答案區有內容
-async function openQuery(page) { await tapTab(page); await page.waitForFunction(() => { const w = document.getElementById('queryAnswer'); return w && !w.hidden && w.querySelector('.qa-stn'); }, null, { timeout: 15000 }).catch(() => {}); await page.waitForTimeout(300); }
+// 開查詢並等答案區有內容。Task 5 之後,geomock 定位落在自動開門檻內時 boot() 回傳前就已經自動開好了
+// (queryMaybeAutoOpen 掛在 applyBootGeo 尾端,boot() 的 500ms 收尾等待遠比它落地所需時間長)——
+// 這裡先看現況再決定要不要點,tapTab 是真正的「切換」(給 G6 驗開關記憶用),不能在這裡盲點一次,
+// 否則會把自動開好的面板點成關掉(#queryAnswer 自己的 hidden 屬性不隨祖先 [hidden] 變,
+// 底下 waitForFunction 仍會在舊內容上假通過)。
+async function openQuery(page) {
+  const already = await page.evaluate(() => !document.getElementById('searchPanel').hidden);
+  if (!already) await tapTab(page);
+  await page.waitForFunction(() => { const w = document.getElementById('queryAnswer'); return w && !w.hidden && w.querySelector('.qa-stn'); }, null, { timeout: 15000 }).catch(() => {});
+  await page.waitForTimeout(300);
+}
 // 看板某站的「每組第一列」文字:.bgrp/.grp 標題後第一個 .row
 const firstRowsExpr = `(sel) => { const out = []; let seen = null; for (const n of document.querySelectorAll(sel + ' .bgrp, ' + sel + ' .grp, ' + sel + ' .row')) { if (n.classList.contains('row')) { if (seen !== null) { out.push(n.textContent.trim()); seen = null; } } else seen = n.textContent.trim(); } return out; }`;
 
@@ -473,6 +482,59 @@ sections.push({ name: 'G12 續', run: async (browser, en) => {
     ok(`[${en}] G12c 按下時記的 qi＝0、click 落在容器仍能靠記下的資料開對看板`, !!r.downAfterPress && r.downAfterPress.qi === '0' && r.downAfterClick === null && o.boardOpen === true && o.name === taipei.name && o.sys === taipei.sys, JSON.stringify({ r, o }));
     await ctx.close();
   }
+}});
+
+// G5 自動開正反對照(spec §7-5)。牙:每項各去掉一個條件 ⇒ 對應那條紅。
+sections.push({ name: 'G5 自動開', run: async (browser, en) => {
+  const r0 = await boot(browser, {}); const taipei = await stationOf(r0.page, '臺北', 'tra_sched'); const songshan = await stationOf(r0.page, '松山', 'tra_sched'); await r0.ctx.close();
+  const cases = [
+    ['100 m 內 ⇒ 開', { query: geomock(offsetLatLon(taipei, 100)) }, true],
+    ['600 m 外 ⇒ 不開', { query: geomock(offsetLatLon(taipei, 600)) }, false],
+    ['精度 900 m ⇒ 不開', { query: geomock(offsetLatLon(taipei, 100), 900) }, false],
+    ['教學卡開著 ⇒ 不開', { query: geomock(offsetLatLon(taipei, 100)), howto: true }, false],
+    ['帶 ?train= ⇒ 不開', { query: geomock(offsetLatLon(taipei, 100)) + '&train=152' }, false],
+    ['同站曾被關掉 ⇒ 不開', { query: geomock(offsetLatLon(taipei, 100)), storage: { 'trainmap-query-dismissed-v1': 'tra_sched|臺北' } }, false],
+    ['換站(松山)曾關的是臺北 ⇒ 開', { query: geomock(offsetLatLon(songshan, 100)), storage: { 'trainmap-query-dismissed-v1': 'tra_sched|臺北' } }, true],
+  ];
+  for (const [name, opts, expect] of cases) {
+    const { ctx, page } = await boot(browser, opts);
+    // 等 applyBootGeo 落地(_geoLanded 是它最後一行);?train= 那條 applyBootGeo 永不會跑(startBootGeo 自己的深連結守門),
+    // 8 秒逾時後 catch 吞掉,讓否定判準照樣往下走——不用固定 sleep(判斷力 rubric 第八節)。
+    await page.waitForFunction(() => state._geoLanded === true, null, { timeout: 8000 }).catch(() => {});
+    await page.evaluate(() => new Promise(r => requestAnimationFrame(() => r()))); // 讓 queryMaybeAutoOpen 觸發的 DOM 動作完全落地
+    const s = await snap(page);
+    ok(`[${en}] G5 ${name}`, !s.hidden === expect, JSON.stringify({ hidden: s.hidden, searchOpen: s.searchOpen }));
+    if (expect) ok(`[${en}] G5 ${name}:自動開是瀏覽態`, !s.searchOpen);
+    await ctx.close();
+  }
+}});
+
+// G6 記憶鍵(spec §7-6):使用者開→重載後開;使用者關→重載後關;自動開不寫鍵(重載後關)。牙:自動開也寫鍵 ⇒ G6c 紅。
+sections.push({ name: 'G6 開關記憶', run: async (browser, en) => {
+  let { ctx, page } = await boot(browser, {});
+  await tapTab(page);
+  let k = await page.evaluate(() => localStorage.getItem('trainmap-query-open'));
+  ok(`[${en}] G6a 使用者點 tab 開 ⇒ 鍵=1`, k === '1', String(k));
+  await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 60000 }); await page.waitForTimeout(500);
+  let s = await snap(page);
+  ok(`[${en}] G6a 重載後仍開(瀏覽態)`, !s.hidden && !s.searchOpen, JSON.stringify(s));
+  await tapTab(page); // 再點=關
+  k = await page.evaluate(() => localStorage.getItem('trainmap-query-open'));
+  ok(`[${en}] G6b 使用者關 ⇒ 鍵=0`, k === '0', String(k));
+  await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 60000 }); await page.waitForTimeout(500);
+  s = await snap(page);
+  ok(`[${en}] G6b 重載後關`, s.hidden);
+  await ctx.close();
+  const r0 = await boot(browser, {}); const taipei = await stationOf(r0.page, '臺北', 'tra_sched'); await r0.ctx.close();
+  ({ ctx, page } = await boot(browser, { query: geomock(offsetLatLon(taipei, 100)) }));
+  await page.waitForFunction(() => state._geoLanded === true, null, { timeout: 8000 }).catch(() => {});
+  await page.evaluate(() => new Promise(r => requestAnimationFrame(() => r())));
+  s = await snap(page); k = await page.evaluate(() => localStorage.getItem('trainmap-query-open'));
+  ok(`[${en}] G6c 自動開 ⇒ 開著但不寫鍵`, !s.hidden && k === null, JSON.stringify({ hidden: s.hidden, k }));
+  await page.evaluate(() => document.getElementById('searchPanelClose').click()); await page.waitForTimeout(200);
+  const d = await page.evaluate(() => localStorage.getItem('trainmap-query-dismissed-v1'));
+  ok(`[${en}] G6d 自動開後 × ⇒ 記下站鍵 tra_sched|臺北`, d === 'tra_sched|臺北', String(d));
+  await ctx.close();
 }});
 
 // G9 桌面零改動（spec §7-9）：面板永不開、搜尋框留在 header、tab bar 不顯示。牙：手機 CSS 漏進桌面 ⇒ 紅。
