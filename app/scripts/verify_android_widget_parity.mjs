@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // 平台能力 gate：iOS WidgetBundle 的出貨集合有對應 Android provider／Live Update 才算過。
 // 這支故意驗「功能集合」，不是驗某個 provider 自己編得過；過去正是後者全綠卻漏了三項。
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -124,6 +124,40 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
   function sumDemoRows(names) {
     return names.reduce((sum, name) => sum + demoRowTagCount(name), 0);
   }
+  // initialLayout／previewLayout 分家（整枝複審必修 7，final-review-fixbatch.md §2.3）：示範列
+  // 只准活在 previewLayout，initialLayout 永遠是中性卡 widget_loading——沒有 BOOT_COMPLETED
+  // receiver、updatePeriodMillis=1800000，重開機或 App 更新後收到第一次官方資料前，桌面顯示的
+  // 正是 initialLayout。分母用實際掃到的檔案數，不是寫死清單的長度和自己比——清單本身若漏了
+  // 新增的第八個 provider，「分母對分母」永遠相等、零資訊（judgment.md 判準盲點第 0／1 條）。
+  function widgetInfoFiles() {
+    const dir = 'app/android/app/src/main/res/xml';
+    return readdirSync(join(ROOT, dir))
+      .filter(name => name.endsWith('_info.xml'))
+      .filter(name => /<appwidget-provider/.test(read(`${dir}/${name}`)))
+      .sort();
+  }
+  // removeAllViews 是否搶在 addView 前面，必須在「同一個函式」裡驗，否則兩個字串各自散落在檔案
+  // 任何地方都會被 .includes() 誤判成過（task-15-fix1-review.md 必修 6 殘留）。先用大括號配對切出
+  // 函式本體，再把 // 行註解剝掉──否則「把那行註解掉」這個突變會被純字串搜尋照樣命中，測不出來。
+  function extractFunctionBody(src, functionName, label) {
+    const signature = new RegExp(`static\\s+RemoteViews\\s+${functionName}\\s*\\([\\s\\S]*?\\)\\s*\\{`);
+    const match = signature.exec(src);
+    if (!match) throw new Error(`${label} 抓不到 ${functionName}() 函式定義，removeAllViews／addView 順序期望值無法推導`);
+    const braceStart = match.index + match[0].length - 1;
+    let depth = 0;
+    let i = braceStart;
+    for (; i < src.length; i++) {
+      if (src[i] === '{') depth++;
+      else if (src[i] === '}') { depth--; if (depth === 0) { i++; break; } }
+    }
+    if (depth !== 0) throw new Error(`${label} 的 ${functionName}() 大括號不成對，removeAllViews／addView 順序期望值無法推導`);
+    return src.slice(braceStart, i).replace(/\/\/[^\n]*/g, '');
+  }
+  function removeBeforeFirstAdd(body, containerId) {
+    const removeIdx = body.indexOf(`removeAllViews(R.id.${containerId})`);
+    const addIdx = body.indexOf(`addView(R.id.${containerId}`);
+    return removeIdx !== -1 && addIdx !== -1 && removeIdx < addIdx;
+  }
 
   const railMaxRows = railBoardMaxRows(railProvider);
   const exp2x2 = railMaxRows.get('widget_rail_2x2');
@@ -153,6 +187,12 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
     ...railSmallIncludes, ...railMediumIncludes, ...railLargeIncludes,
     ...mixedMetroIncludes, ...mixedRailIncludes,
   ])];
+
+  const infoFileNames = widgetInfoFiles();
+  const infoFileXml = new Map(infoFileNames.map(name => [name, read(`app/android/app/src/main/res/xml/${name}`)]));
+  const railBoardBody = extractFunctionBody(railRender, 'board', 'RailWidgetRender.java');
+  const mixedBoardBody = extractFunctionBody(mixedRender, 'board', 'MixedWidgetRender.java');
+
   const contentRules = [
     // 🔴 判準寫「意圖」不寫「當下的函式名」：2026-08-29 把 trtcOfficialCrowdHtmlByNo 併回
     //    trtcOfficialCrowdHtml(no)，舊寫法的名字比對當場轉紅，但行為完全沒退步——那種紅
@@ -238,10 +278,37 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
       [...railMediumIncludes, ...railLargeIncludes, ...mixedMetroIncludes, ...mixedRailIncludes].every(name => !name.includes('_compact'))],
     [`示範列檔全部不綁 android:id：${allDemoFiles.join('、')}`,
       allDemoFiles.length > 0 && allDemoFiles.every(name => !/android:id\s*=/.test(read(`app/android/app/src/main/res/layout/${name}.xml`)))],
-    ['發車／混合看板 render 每次都在 addView 之前 removeAllViews（真小工具運作時使用者絕不會看到示範列）',
-      railRender.includes('removeAllViews(R.id.wr_rows)')
-        && mixedRender.includes('removeAllViews(R.id.wmx_metro_rows)')
-        && mixedRender.includes('removeAllViews(R.id.wmx_rail_rows)')],
+    // task-15-fix1-review.md 必修 6 殘留：舊版把三個容器塞進同一顆 ok、標籤又宣稱「絕不會看到」
+    // ——removeAllViews 只保證「收到 onUpdate 之後」不會看到，保證不了「收到第一次 onUpdate 之前」
+    // （那個窗口的中性卡改由 initialLayout 那三條規則負責）。這裡拆成三顆，標籤只說它驗到的事。
+    ['RailWidgetRender.board 對 R.id.wr_rows 在 addView 前先 removeAllViews',
+      removeBeforeFirstAdd(railBoardBody, 'wr_rows')],
+    ['MixedWidgetRender.board 對 R.id.wmx_metro_rows 在 addView 前先 removeAllViews',
+      removeBeforeFirstAdd(mixedBoardBody, 'wmx_metro_rows')],
+    ['MixedWidgetRender.board 對 R.id.wmx_rail_rows 在 addView 前先 removeAllViews',
+      removeBeforeFirstAdd(mixedBoardBody, 'wmx_rail_rows')],
+    // initialLayout／previewLayout 分家四條（必修 7）：分母用實際掃到的檔案數（見 widgetInfoFiles）
+    // 而不是寫死清單長度，新增或刪掉一個 provider 不改這支腳本就會被 (d) 抓到。
+    [`res/xml/*_info.xml 掃到的 appwidget-provider 檔數＝${infoFileNames.length}（期望＝7）：${infoFileNames.join('、') || '(無)'}`,
+      infoFileNames.length === 7],
+    [`七個 info 檔的 initialLayout 全部指向中性卡 @layout/widget_loading：${infoFileNames.join('、') || '(無)'}`,
+      infoFileNames.length > 0 && infoFileNames.every(name => /android:initialLayout="@layout\/widget_loading"/.test(infoFileXml.get(name)))],
+    [`七個 info 檔的 previewLayout 存在、≠ widget_loading、且所指 layout 檔存在：${infoFileNames.join('、') || '(無)'}`,
+      infoFileNames.length > 0 && infoFileNames.every(name => {
+        const m = infoFileXml.get(name).match(/android:previewLayout="@layout\/(\w+)"/);
+        if (!m || m[1] === 'widget_loading') return false;
+        try { read(`app/android/app/src/main/res/layout/${m[1]}.xml`); return true; }
+        catch { return false; }
+      })],
+    ['widget_loading.xml 是中性卡：無 android:id、無 <include、無 demo-row、無時刻樣式（\\d{1,2}:\\d{2}）、無「往 」',
+      (() => {
+        const xml = read('app/android/app/src/main/res/layout/widget_loading.xml');
+        return !/android:id\s*=/.test(xml)
+          && !/<include/.test(xml)
+          && !/demo-row/.test(xml)
+          && !/\d{1,2}:\d{2}/.test(xml)
+          && !/往 /.test(xml);
+      })()],
   ];
   for (const [label, pass] of contentRules) results.push({ label, pass });
   if (log) {
