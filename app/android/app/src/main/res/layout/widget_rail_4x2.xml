@@ -23,6 +23,7 @@
     <LinearLayout android:id="@+id/wr_rows" android:layout_width="match_parent" android:layout_height="0dp"
         android:layout_marginTop="4dp" android:layout_weight="1" android:orientation="vertical">
         <include layout="@layout/widget_rail_rows_demo" />
+        <include layout="@layout/widget_rail_row_demo4" />
     </LinearLayout>
     <TextView android:id="@+id/wr_note" android:layout_width="match_parent" android:layout_height="wrap_content"
         android:ellipsize="end" android:maxLines="1" android:text="台鐵即時誤點 · 高鐵表定時刻"

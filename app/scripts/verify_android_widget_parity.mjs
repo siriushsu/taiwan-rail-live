@@ -87,6 +87,72 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
   //   一個字都沒動。判準盲點第 0 條：沒有指名「我在量的是誰」。改成蒐集【全部】候選，
   //   只要有任何一個真的被 crowdHtml 呼叫點用到就算過——功能被刪掉時仍然沒有候選成立 ⇒ 照樣紅。
   const crowdHelpers = [...html.matchAll(/function\s+(\w+)\s*\([^)]*\)\s*\{(?:(?!function\s)[^]){0,400}?trtcOfficialBoard\.crowdByNo/g)].map(m => m[1]);
+  // previewLayout 示範列數的期望值全部從原始碼算出來，算不出來就直接炸掉整支腳本——這跟「這條
+  // 規則沒過」是兩回事：後者是產品出問題，前者是判準本身瞎了（來源行被砍掉／改名時，判準絕不能
+  // 安靜地一路綠燈，見 task-15-review.md I4）。
+  function railBoardMaxRows(src) {
+    const re = /board\(context, R\.layout\.(widget_rail_\w+), snapshot, (\d+), readable, (true|false)\)/g;
+    const found = new Map();
+    let match;
+    while ((match = re.exec(src))) {
+      const [, layoutName, rowsStr, compactStr] = match;
+      const value = { rows: Number(rowsStr), compact: compactStr === 'true' };
+      const prior = found.get(layoutName);
+      if (prior && (prior.rows !== value.rows || prior.compact !== value.compact)) {
+        throw new Error(`RailBoardWidgetProvider.java 對 ${layoutName} 的 board() 呼叫彼此不一致（${JSON.stringify(prior)} vs ${JSON.stringify(value)}），示範列期望值無法推導`);
+      }
+      found.set(layoutName, value);
+    }
+    for (const name of ['widget_rail_2x2', 'widget_rail_4x2', 'widget_rail_4x4']) {
+      if (!found.has(name)) throw new Error(`RailBoardWidgetProvider.java 抓不到 board(context, R.layout.${name}, snapshot, N, readable, compact) 呼叫，示範列期望值無法推導`);
+    }
+    return found;
+  }
+  function mixedBoardLimits(src) {
+    const metro = src.match(/Math\.min\((\d+),\s*plates\.size\(\)\)/);
+    const rail = src.match(/Math\.min\((\d+),\s*rail\.rows\.size\(\)\)/);
+    if (!metro) throw new Error('MixedWidgetRender.java 抓不到 Math.min(N, plates.size())，混合看板捷運段示範列期望值無法推導');
+    if (!rail) throw new Error('MixedWidgetRender.java 抓不到 Math.min(N, rail.rows.size())，混合看板鐵路段示範列期望值無法推導');
+    return { metroRows: Number(metro[1]), railRows: Number(rail[1]) };
+  }
+  function includesOf(section) {
+    return [...section.matchAll(/<include\s+layout="@layout\/(\w+)"/g)].map(m => m[1]);
+  }
+  function demoRowTagCount(layoutName) {
+    return (read(`app/android/app/src/main/res/layout/${layoutName}.xml`).match(/android:tag="demo-row"/g) || []).length;
+  }
+  function sumDemoRows(names) {
+    return names.reduce((sum, name) => sum + demoRowTagCount(name), 0);
+  }
+
+  const railMaxRows = railBoardMaxRows(railProvider);
+  const exp2x2 = railMaxRows.get('widget_rail_2x2');
+  const exp4x2 = railMaxRows.get('widget_rail_4x2');
+  const exp4x4 = railMaxRows.get('widget_rail_4x4');
+  const mixedLimits = mixedBoardLimits(mixedRender);
+
+  const railSmallIncludes = includesOf(railSmall);
+  const railMediumIncludes = includesOf(railMedium);
+  const railLargeIncludes = includesOf(railLarge);
+  // 混合看板一個檔案裡有兩個示範列容器,用容器起訖的字串區間切開各自算(brief 指定做法)。
+  const mixedMetroStart = mixedLarge.indexOf('id="@+id/wmx_metro_rows"');
+  const mixedRailStart = mixedLarge.indexOf('id="@+id/wmx_rail_rows"');
+  if (mixedMetroStart === -1 || mixedRailStart === -1 || mixedRailStart <= mixedMetroStart) {
+    throw new Error('widget_mixed_4x4.xml 找不到 wmx_metro_rows／wmx_rail_rows 兩個容器的邊界，無法切分示範列區間');
+  }
+  const mixedMetroIncludes = includesOf(mixedLarge.slice(mixedMetroStart, mixedRailStart));
+  const mixedRailIncludes = includesOf(mixedLarge.slice(mixedRailStart));
+
+  const railSmallRows = sumDemoRows(railSmallIncludes);
+  const railMediumRows = sumDemoRows(railMediumIncludes);
+  const railLargeRows = sumDemoRows(railLargeIncludes);
+  const mixedMetroRows = sumDemoRows(mixedMetroIncludes);
+  const mixedRailRows = sumDemoRows(mixedRailIncludes);
+
+  const allDemoFiles = [...new Set([
+    ...railSmallIncludes, ...railMediumIncludes, ...railLargeIncludes,
+    ...mixedMetroIncludes, ...mixedRailIncludes,
+  ])];
   const contentRules = [
     // 🔴 判準寫「意圖」不寫「當下的函式名」：2026-08-29 把 trtcOfficialCrowdHtmlByNo 併回
     //    trtcOfficialCrowdHtml(no)，舊寫法的名字比對當場轉紅，但行為完全沒退步——那種紅
@@ -152,15 +218,28 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
         && (() => { try { return /requestPinAppWidget\(/.test(read('app/android/app/src/main/java/tw/railisland/app/RailWidgetPlugin.java')); } catch (e) { return false; } })()],
     // 小工具挑選器／釘選框的 previewLayout 是靜態 XML,執行期從不跑 binder——沒有示範列就是空殼
     // （發車看板三尺寸）或只剩版面本身內建的單列預設文字（混合看板，容易被誤認成真資料）。
-    // 兩半都要驗:(a) 四個 layout 檔都 include 了示範列;(b) render 每次都在 addView 之前
-    // removeAllViews,證明真小工具運作時使用者絕不會看到示範列(不是把假資料留在正式看板上)。
-    ['發車／混合看板挑選器示範列只給 previewLayout 看（四個版面 include 示範列，且 render 每次先 removeAllViews 再填）',
-      /<include\s+layout="@layout\/widget_rail_rows_demo"\s*\/>/.test(railSmall)
-        && /<include\s+layout="@layout\/widget_rail_rows_demo"\s*\/>/.test(railMedium)
-        && /<include\s+layout="@layout\/widget_rail_rows_demo"\s*\/>/.test(railLarge)
-        && /<include\s+layout="@layout\/widget_mixed_metro_rows_demo"\s*\/>/.test(mixedLarge)
-        && /<include\s+layout="@layout\/widget_rail_rows_demo"\s*\/>/.test(mixedLarge)
-        && railRender.includes('removeAllViews(R.id.wr_rows)')
+    // 上一輪只驗「有 include 就好」，結果 2×2 塞了 3 列非 compact 外觀，比真實情況（2 列、
+    // 無狀態欄）還失真，且已經造成截斷（task-15-review.md C1）。這裡改成有牙的版本：
+    // 示範列數／compact 外觀都要跟原始碼推導出的真實上限逐一比對，數字對不上就在標籤裡同時
+    // 印出「實際 vs 期望」兩個數字，不必另外猜錯在哪裡；removeAllViews 條件原樣保留。
+    [`widget_rail_2x2 示範列數＝${railSmallRows}（真實上限＝${exp2x2.rows}，RailBoardWidgetProvider.java board() maxRows）`,
+      railSmallRows === exp2x2.rows],
+    [`widget_rail_4x2 示範列數＝${railMediumRows}（真實上限＝${exp4x2.rows}，RailBoardWidgetProvider.java board() maxRows）`,
+      railMediumRows === exp4x2.rows],
+    [`widget_rail_4x4 示範列數＝${railLargeRows}（真實上限＝${exp4x4.rows}，RailBoardWidgetProvider.java board() maxRows）`,
+      railLargeRows === exp4x4.rows],
+    [`widget_mixed_4x4 捷運段(wmx_metro_rows)示範列數＝${mixedMetroRows}（真實上限＝${mixedLimits.metroRows}，MixedWidgetRender.java Math.min(N, plates.size())）`,
+      mixedMetroRows === mixedLimits.metroRows],
+    [`widget_mixed_4x4 鐵路段(wmx_rail_rows)示範列數＝${mixedRailRows}（真實上限＝${mixedLimits.railRows}，MixedWidgetRender.java Math.min(N, rail.rows.size())）`,
+      mixedRailRows === mixedLimits.railRows],
+    [`widget_rail_2x2 只准 include compact 示範檔（compact=${exp2x2.compact}）：${railSmallIncludes.join('、') || '(無 include)'}`,
+      railSmallIncludes.length > 0 && railSmallIncludes.every(name => name.includes('_compact'))],
+    [`widget_rail_4x2／4x4／widget_mixed_4x4 的 include 都不是 compact 示範檔：${[...railMediumIncludes, ...railLargeIncludes, ...mixedMetroIncludes, ...mixedRailIncludes].join('、')}`,
+      [...railMediumIncludes, ...railLargeIncludes, ...mixedMetroIncludes, ...mixedRailIncludes].every(name => !name.includes('_compact'))],
+    [`示範列檔全部不綁 android:id：${allDemoFiles.join('、')}`,
+      allDemoFiles.length > 0 && allDemoFiles.every(name => !/android:id\s*=/.test(read(`app/android/app/src/main/res/layout/${name}.xml`)))],
+    ['發車／混合看板 render 每次都在 addView 之前 removeAllViews（真小工具運作時使用者絕不會看到示範列）',
+      railRender.includes('removeAllViews(R.id.wr_rows)')
         && mixedRender.includes('removeAllViews(R.id.wmx_metro_rows)')
         && mixedRender.includes('removeAllViews(R.id.wmx_rail_rows)')],
   ];

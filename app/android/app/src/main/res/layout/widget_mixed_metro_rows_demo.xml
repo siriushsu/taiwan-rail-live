@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 只給小工具挑選器／釘選框的 previewLayout 看；真小工具每次更新都 removeAllViews 後才填列，
-     所以永遠看不到這兩列。逐項複製 widget_mixed_metro_row.xml 的結構與尺寸，但不綁 android:id
-     （示範列不綁 binder）。此列版面的主角（wmxr_value／wmxr_unit）只有純文字＋單位兩種欄位，
-     沒有獨立的「進站」實心 pill 形態（MixedWidgetRender.metroRow 只切換文字與單位可見度），
-     所以第二列用數字＋分表示，不硬套「進站」字樣。 -->
+     所以永遠看不到這三列。真實列數上限是 3（MixedWidgetRender.java:34
+     Math.min(3, plates.size())）。逐項複製 widget_mixed_metro_row.xml 的結構與尺寸，但不綁
+     android:id（示範列不綁 binder）。此列版面的主角（wmxr_value／wmxr_unit）只有純文字＋單位
+     兩種欄位，沒有獨立的「進站」實心 pill 形態（MixedWidgetRender.metroRow 只切換文字與單位
+     可見度），所以每列都用數字＋分表示，不硬套「進站」字樣。 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -14,7 +15,8 @@
         android:layout_height="30dp"
         android:baselineAligned="false"
         android:gravity="center_vertical"
-        android:orientation="horizontal">
+        android:orientation="horizontal"
+        android:tag="demo-row">
         <ImageView
             android:layout_width="3dp"
             android:layout_height="22dp"
@@ -72,7 +74,8 @@
         android:layout_height="30dp"
         android:baselineAligned="false"
         android:gravity="center_vertical"
-        android:orientation="horizontal">
+        android:orientation="horizontal"
+        android:tag="demo-row">
         <ImageView
             android:layout_width="3dp"
             android:layout_height="22dp"
@@ -112,6 +115,65 @@
             android:includeFontPadding="false"
             android:maxLines="1"
             android:text="1"
+            android:textColor="@color/wg_ink"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="2dp"
+            android:maxLines="1"
+            android:text="分"
+            android:textColor="@color/wg_ink_faint"
+            android:textSize="9sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="30dp"
+        android:baselineAligned="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:tag="demo-row">
+        <ImageView
+            android:layout_width="3dp"
+            android:layout_height="22dp"
+            android:contentDescription="@null"
+            android:scaleType="fitXY"
+            android:src="@drawable/wg_meter_block"
+            android:tint="@color/wg_navy" />
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="7dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="往 南港展覽館"
+                android:textColor="@color/wg_ink"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="再下班 4 · 9 分"
+                android:textColor="@color/wg_ink_faint"
+                android:textSize="9sp" />
+        </LinearLayout>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:text="3"
             android:textColor="@color/wg_ink"
             android:textSize="20sp"
             android:textStyle="bold" />

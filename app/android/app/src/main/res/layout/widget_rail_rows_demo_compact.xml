@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 只給小工具挑選器／釘選框的 previewLayout 看；真小工具每次更新都 removeAllViews 後才填列，
-     所以永遠看不到這三列。三列，非 compact 外觀，逐項複製 widget_rail_row.xml 的結構與尺寸，
-     但不綁 android:id（示範列不綁 binder）。單獨用於 4x4／混合看板鐵路段（真實列數上限見
-     MixedWidgetRender.java:39 Math.min(3,...)）；與 widget_rail_row_demo4.xml（1 列）、
-     widget_rail_rows_demo_b.xml（4 列）併用湊出 4x2＝4（RailBoardWidgetProvider.java:138/144
-     maxRows=4）、4x4＝8（:136/148 maxRows=8）；換算公式見 RailWidgetRender.java:51。
-     文字各不相同、看起來像真看板：北上／自強／準點，南下／區間／誤點，北上／高鐵／準點。 -->
+     所以永遠看不到這兩列。2x2 真實列數上限是 2（compact=true）——
+     RailBoardWidgetProvider.java:133/142 board(..., maxRows=2, readable, compact=true)，
+     換算公式見 RailWidgetRender.java:51。外觀比照 RailWidgetRender.java:115 的 compact 分支：
+     狀態 TextView 直接不放（真小工具是 GONE，示範列乾脆不放同一件事的靜態版本）、
+     車次 11sp、時刻 15sp，其餘與 widget_rail_row.xml 相同。不綁 android:id
+     （示範列不綁 binder）：北上／自強 123／花蓮／09:41，南下／區間 1234／基隆／09:52。 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -50,7 +50,7 @@
                 android:maxLines="1"
                 android:text="自強 123"
                 android:textColor="@color/wg_ink"
-                android:textSize="12sp"
+                android:textSize="11sp"
                 android:textStyle="bold" />
 
             <TextView
@@ -67,21 +67,11 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="7dp"
-            android:maxLines="1"
-            android:text="準點"
-            android:textColor="@color/wg_ok"
-            android:textSize="9sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
             android:includeFontPadding="false"
             android:maxLines="1"
             android:text="09:41"
             android:textColor="@color/wg_ink"
-            android:textSize="16sp"
+            android:textSize="15sp"
             android:textStyle="bold" />
     </LinearLayout>
 
@@ -124,7 +114,7 @@
                 android:maxLines="1"
                 android:text="區間 1234"
                 android:textColor="@color/wg_ink"
-                android:textSize="12sp"
+                android:textSize="11sp"
                 android:textStyle="bold" />
 
             <TextView
@@ -141,95 +131,11 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="7dp"
-            android:maxLines="1"
-            android:text="晚 3 分"
-            android:textColor="@color/wg_warn"
-            android:textSize="9sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
             android:includeFontPadding="false"
             android:maxLines="1"
             android:text="09:52"
             android:textColor="@color/wg_ink"
-            android:textSize="16sp"
-            android:textStyle="bold" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="30dp"
-        android:baselineAligned="false"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:tag="demo-row">
-
-        <ImageView
-            android:layout_width="3dp"
-            android:layout_height="22dp"
-            android:contentDescription="@null"
-            android:scaleType="fitXY"
-            android:src="@drawable/wg_meter_block"
-            android:tint="@color/wg_navy" />
-
-        <ImageView
-            android:layout_width="10dp"
-            android:layout_height="8dp"
-            android:layout_marginStart="6dp"
-            android:contentDescription="@null"
-            android:scaleType="fitCenter"
-            android:src="@drawable/wg_heading_north" />
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="7dp"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:includeFontPadding="false"
-                android:maxLines="1"
-                android:text="高鐵 0813"
-                android:textColor="@color/wg_ink"
-                android:textSize="12sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:includeFontPadding="false"
-                android:maxLines="1"
-                android:text="往 左營"
-                android:textColor="@color/wg_ink_faint"
-                android:textSize="9sp" />
-        </LinearLayout>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginEnd="7dp"
-            android:maxLines="1"
-            android:text="準點"
-            android:textColor="@color/wg_ok"
-            android:textSize="9sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:includeFontPadding="false"
-            android:maxLines="1"
-            android:text="10:06"
-            android:textColor="@color/wg_ink"
-            android:textSize="16sp"
+            android:textSize="15sp"
             android:textStyle="bold" />
     </LinearLayout>
 </LinearLayout>

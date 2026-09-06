@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 只給小工具挑選器／釘選框的 previewLayout 看；真小工具每次更新都 removeAllViews 後才填列，
-     所以永遠看不到這三列。三列，非 compact 外觀，逐項複製 widget_rail_row.xml 的結構與尺寸，
-     但不綁 android:id（示範列不綁 binder）。單獨用於 4x4／混合看板鐵路段（真實列數上限見
-     MixedWidgetRender.java:39 Math.min(3,...)）；與 widget_rail_row_demo4.xml（1 列）、
-     widget_rail_rows_demo_b.xml（4 列）併用湊出 4x2＝4（RailBoardWidgetProvider.java:138/144
-     maxRows=4）、4x4＝8（:136/148 maxRows=8）；換算公式見 RailWidgetRender.java:51。
-     文字各不相同、看起來像真看板：北上／自強／準點，南下／區間／誤點，北上／高鐵／準點。 -->
+     所以永遠看不到這四列。與 widget_rail_rows_demo.xml（3 列）＋widget_rail_row_demo4.xml（1 列）
+     併用湊出 4x4 的真實列數上限 8（RailBoardWidgetProvider.java:136/148 maxRows=8，換算公式見
+     RailWidgetRender.java:51）。四列逐項複製 widget_rail_row.xml 的結構與尺寸，非 compact 外觀，
+     不綁 android:id（示範列不綁 binder）：北上／普悠瑪／準點，南下／區間快／晚 1 分，
+     南下／自強／準點，北上／高鐵／準點。 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -48,7 +47,7 @@
                 android:ellipsize="end"
                 android:includeFontPadding="false"
                 android:maxLines="1"
-                android:text="自強 123"
+                android:text="普悠瑪 272"
                 android:textColor="@color/wg_ink"
                 android:textSize="12sp"
                 android:textStyle="bold" />
@@ -59,7 +58,7 @@
                 android:ellipsize="end"
                 android:includeFontPadding="false"
                 android:maxLines="1"
-                android:text="往 花蓮"
+                android:text="往 樹林"
                 android:textColor="@color/wg_ink_faint"
                 android:textSize="9sp" />
         </LinearLayout>
@@ -79,7 +78,7 @@
             android:layout_height="wrap_content"
             android:includeFontPadding="false"
             android:maxLines="1"
-            android:text="09:41"
+            android:text="10:21"
             android:textColor="@color/wg_ink"
             android:textSize="16sp"
             android:textStyle="bold" />
@@ -122,7 +121,7 @@
                 android:ellipsize="end"
                 android:includeFontPadding="false"
                 android:maxLines="1"
-                android:text="區間 1234"
+                android:text="區間快 3012"
                 android:textColor="@color/wg_ink"
                 android:textSize="12sp"
                 android:textStyle="bold" />
@@ -133,7 +132,7 @@
                 android:ellipsize="end"
                 android:includeFontPadding="false"
                 android:maxLines="1"
-                android:text="往 基隆"
+                android:text="往 新竹"
                 android:textColor="@color/wg_ink_faint"
                 android:textSize="9sp" />
         </LinearLayout>
@@ -143,7 +142,7 @@
             android:layout_height="wrap_content"
             android:layout_marginEnd="7dp"
             android:maxLines="1"
-            android:text="晚 3 分"
+            android:text="晚 1 分"
             android:textColor="@color/wg_warn"
             android:textSize="9sp"
             android:textStyle="bold" />
@@ -153,7 +152,81 @@
             android:layout_height="wrap_content"
             android:includeFontPadding="false"
             android:maxLines="1"
-            android:text="09:52"
+            android:text="10:28"
+            android:textColor="@color/wg_ink"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="30dp"
+        android:baselineAligned="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:tag="demo-row">
+
+        <ImageView
+            android:layout_width="3dp"
+            android:layout_height="22dp"
+            android:contentDescription="@null"
+            android:scaleType="fitXY"
+            android:src="@drawable/wg_meter_block"
+            android:tint="@color/wg_navy" />
+
+        <ImageView
+            android:layout_width="10dp"
+            android:layout_height="8dp"
+            android:layout_marginStart="6dp"
+            android:contentDescription="@null"
+            android:scaleType="fitCenter"
+            android:src="@drawable/wg_heading_south" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="7dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="自強 175"
+                android:textColor="@color/wg_ink"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="往 潮州"
+                android:textColor="@color/wg_ink_faint"
+                android:textSize="9sp" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="7dp"
+            android:maxLines="1"
+            android:text="準點"
+            android:textColor="@color/wg_ok"
+            android:textSize="9sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:text="10:34"
             android:textColor="@color/wg_ink"
             android:textSize="16sp"
             android:textStyle="bold" />
@@ -196,7 +269,7 @@
                 android:ellipsize="end"
                 android:includeFontPadding="false"
                 android:maxLines="1"
-                android:text="高鐵 0813"
+                android:text="高鐵 0821"
                 android:textColor="@color/wg_ink"
                 android:textSize="12sp"
                 android:textStyle="bold" />
@@ -207,7 +280,7 @@
                 android:ellipsize="end"
                 android:includeFontPadding="false"
                 android:maxLines="1"
-                android:text="往 左營"
+                android:text="往 南港"
                 android:textColor="@color/wg_ink_faint"
                 android:textSize="9sp" />
         </LinearLayout>
@@ -227,7 +300,7 @@
             android:layout_height="wrap_content"
             android:includeFontPadding="false"
             android:maxLines="1"
-            android:text="10:06"
+            android:text="10:46"
             android:textColor="@color/wg_ink"
             android:textSize="16sp"
             android:textStyle="bold" />
