@@ -210,6 +210,10 @@
         'After you choose a connection, the Dynamic Island and Lock Screen automatically switch to the next train at the transfer station.',
       '台鐵誤點一次跳增 5 分以上時，列車直接跳回實際位置，不再原地停等':
         'When a TRA train\'s reported delay jumps by 5 minutes or more at once, it now snaps straight back to its actual position instead of waiting in place until the timetable catches up.',
+      '修正新竹、北新竹站看板把往基隆、七堵的縱貫線列車歸進「往內灣」（謝謝網友回報）':
+        'Fixed the Hsinchu and North Hsinchu station boards putting Western Line trains bound for Keelung and Qidu under \'To Neiwan\' (thanks to the reader who reported it).',
+      '修正新竹、北新竹站看板的方向分組：往基隆、七堵等縱貫線列車會被歸進「往內灣」，從「北上」消失。新竹–北新竹是縱貫線與內灣線共用的同一段軌道，兩條線在這裡不再互相誤判；真正的內灣線、六家班次維持在支線那一組（謝謝網友回報）':
+        'Fixed direction grouping on the Hsinchu and North Hsinchu station boards: Western Line trains bound for Keelung or Qidu were grouped under \'To Neiwan\' and vanished from \'Northbound\'. Hsinchu–North Hsinchu is one stretch of track shared by the Western Line and the Neiwan Line, and the two are no longer mistaken for each other there; genuine Neiwan and Liujia services stay in the branch group (thanks to the reader who reported it).',
       '兩條路線立體交叉的地方，改成依實際的高架與地下關係決定哪一條畫在上面':
         'Where two lines cross on different levels, the one that is actually elevated or on top is now drawn over the other, instead of whichever happened to be drawn last.',
       'iPad 與 Android 平板改用完整觸控版面；橫放時資訊停在右側，地圖保留主要空間':
@@ -622,6 +626,10 @@
         '乗り継ぐ列車を選ぶと、乗換駅への到着時にDynamic Islandとロック画面が次の列車へ自動で切り替わります。',
       '台鐵誤點一次跳增 5 分以上時，列車直接跳回實際位置，不再原地停等':
         '台湾鉄路の遅延が一度に5分以上増えた場合、列車はその場で待たずにすぐ実際の位置へ戻るようになりました。',
+      '修正新竹、北新竹站看板把往基隆、七堵的縱貫線列車歸進「往內灣」（謝謝網友回報）':
+        '新竹駅・北新竹駅の発車案内で、基隆・七堵方面の縦貫線の列車が「内湾方面」に振り分けられていた問題を修正しました（ご報告ありがとうございます）。',
+      '修正新竹、北新竹站看板的方向分組：往基隆、七堵等縱貫線列車會被歸進「往內灣」，從「北上」消失。新竹–北新竹是縱貫線與內灣線共用的同一段軌道，兩條線在這裡不再互相誤判；真正的內灣線、六家班次維持在支線那一組（謝謝網友回報）':
+        '新竹駅・北新竹駅の発車案内の方面分けを修正しました。基隆・七堵方面などの縦貫線の列車が「内湾方面」に入り、「北上」から消えていました。新竹〜北新竹は縦貫線と内湾線が同じ線路を共用する区間で、ここで両線を取り違えなくなりました。本来の内湾線・六家行きは支線のグループに残ります（ご報告ありがとうございます）。',
       '兩條路線立體交叉的地方，改成依實際的高架與地下關係決定哪一條畫在上面':
         '2つの路線が立体交差する場所で、実際に高架・上側を通る路線が上に描かれるようになりました。描画順ではなく実際の高低に従います。',
       'iPad 與 Android 平板改用完整觸控版面；橫放時資訊停在右側，地圖保留主要空間':
