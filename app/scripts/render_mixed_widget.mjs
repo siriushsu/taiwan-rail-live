@@ -74,8 +74,12 @@ function extractDeclaration(source, header, { occurrence = 1 } = {}) {
 
 // 共用元件層與捷運模型層直接交給 swiftc（不抽宣告）：抽取有「抽到舊版」的風險，
 // 而這兩層是所有畫面的地基。
+// 🔴 多語落地後（09d3e7f1）抽出來的宣告會呼叫 RailNativeL10n.text(...)；它只 import
+// Foundation，跟 kitPath／modelPath 一樣直接交給 swiftc（見 render_board_widget.mjs
+// 同一份修法，缺它的症狀是「cannot find 'RailNativeL10n' in scope」整批編譯失敗）。
 const kitPath = join(widgetDir, 'RailWidgetKit.swift');
 const modelPath = join(widgetDir, 'MetroBoardModel.swift');
+const l10nPath = join(widgetDir, 'RailNativeL10n.swift');
 const dataPath = join(widgetDir, 'MetroWidgetData.json');
 const boardSource = readFileSync(join(widgetDir, 'RailBoardWidget.swift'), 'utf8');
 const dataSource = readFileSync(join(widgetDir, 'RailBoardData.swift'), 'utf8');
@@ -528,7 +532,7 @@ copyFileSync(dataPath, join(outDir, 'MetroWidgetData.json'));
 
 execFileSync(
   'swiftc',
-  ['-O', '-parse-as-library', swiftPath, modelPath, kitPath, '-o', binPath],
+  ['-O', '-parse-as-library', swiftPath, modelPath, kitPath, l10nPath, '-o', binPath],
   { stdio: 'inherit' }
 );
 execFileSync(binPath, [outDir], { stdio: 'inherit' });
