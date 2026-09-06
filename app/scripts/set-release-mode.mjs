@@ -302,10 +302,21 @@ const MODES = {
     //   541 站公車轉乘在 App 裡整個看不到）。97／38 的載貨＝96＋main 70c1e3db（台鐵誤點跳回，正式站
     //   v0905b 同一顆；不含其後只併 main 未部署的週末活動頁）＋清單修正＋verify-release 首頁本機資產守門。
     //   why 三語各補一條台鐵誤點跳回；公車轉乘 1.5.5 已講過、這次只是把漏掉的檔補進去，不重述。
-    marketing: '1.5.7', build: '97', music: true, metroCore: true,
-    why: '軌島 1.5.7\n\n・地圖改用向量地圖引擎：可兩指旋轉與傾斜、新增指北針與 3D 建築；跟車時地圖朝行進方向、結束跟車轉回正北，縮放更流暢\n・修正跟隨長途列車放大看彎道時行程線切過彎心、傾斜地圖時遠端路線跳動，以及暗色地圖上路線被道路切碎\n・台鐵誤點一次跳增 5 分鐘以上時，列車直接跳回實際位置，不再原地停等到誤點追上',
-    whyEn: 'Rail Island 1.5.7\n\n• New vector map engine: rotate and tilt with two fingers, a compass control and 3D buildings; the map turns heading-up while following a train and back to north when you stop, with smoother zooming\n• Fixed the route line cutting corners when zoomed in on long journeys, distant routes jumping while the map is tilted, and roads breaking up coloured routes on the dark map\n• TRA trains snap back to their real position when a delay jumps by 5+ minutes, instead of waiting in place',
-    whyJa: '軌島 1.5.7\n\n・地図をベクター地図エンジンに刷新：2 本指で回転・傾斜でき、コンパスと 3D 建物を追加。列車追跡中は進行方向が上になり、追跡を終えると北向きに戻ります。ズームもより滑らかに\n・長距離列車を拡大表示した際に経路線がカーブを横切る問題、地図を傾けた際に遠方の経路が跳ぶ問題、ダーク地図で経路が道路に分断される問題を修正\n・台鉄の遅延が一度に 5 分以上増えた場合、列車はその場で待たずにすぐ実際の位置へ戻ります',
+    // 98（2026-09-06）：**1.5.7 已於 2026-09-05T23:51:18Z 上架**（Apple lookup 帶 no-cache 實查；
+    //   Play 商店頁同日顯示 1.5.7）⇒ 1.5.7 train 已關，行銷版號進到 1.5.8，Android 38→39。
+    //   97 archive 已存在（不論它是不是上架的那一顆，規則四：一個 build 號只對應一份載貨）⇒ 進 98。
+    //   基線已推進到 1.5.7 (97)：--from 取 iOS 96／97 兩顆 archive ＋ Android 37／38 兩顆 AAB 的
+    //   index.html 聯集（96/37 與 97/38 哪一組上架無法從本機判定,取聯集是嚴格較安全的一側）。
+    //   98／39 的載貨＝origin/main 110f0e93，相對 1.5.7 載貨基底 70c1e3db 多四件（實查 is-ancestor）：
+    //   ① issue #47「關於軌島／準確度說明／車站索引」三顆無副檔名連結在 Capacitor 走 SPA fallback
+    //      把首頁重載在錯的 base 下 ⇒ 資源全 404、App 等同當掉；② 週末鐵道活動頁（/api/weekend 與
+    //      weekend.html 09-06 實查正式站各回 200，97 當初排除的理由已消失；App 端是絕對網址外開）；
+    //      ③ issue #46 新竹站看板共構段不再決定線別；④ bus-transfer-ui.js 打包修法（若上架的是 96 則為新增）。
+    //   why 三語寫 ①②③；公車轉乘沿用 97 的裁定不重述（1.5.5／1.5.6 商店文案已宣告過）。
+    marketing: '1.5.8', build: '98', music: true, metroCore: true,
+    why: '軌島 1.5.8\n\n・修正在 App 裡點「關於軌島」「準確度說明」「車站索引」之後畫面卡住、要重開 App 才能繼續用的問題\n・新增「週末鐵道活動」：一頁看完這個週末各地的鐵道市集、特別列車與展覽，從更多選單進入\n・新竹站看板「往 內灣」不再混進縱貫線的列車',
+    whyEn: 'Rail Island 1.5.8\n\n• Fixed the app freezing after tapping About, Accuracy or Station index, which needed a restart\n• New Weekend Rail Events page: this weekend\u2019s rail markets, special trains and exhibitions in one place, from the More menu\n• The Hsinchu departure board no longer mixes West Coast line trains into the To Neiwan group',
+    whyJa: '軌島 1.5.8\n\n・App 内で「軌島について」「精度について」「駅索引」を開くと画面が固まり、再起動が必要になる問題を修正しました\n・「週末の鉄道イベント」を追加：今週末の鉄道マルシェ、臨時列車、展示を 1 ページにまとめました。その他メニューから開けます\n・新竹駅の発車案内で「内湾方面」に縦貫線の列車が混ざらないようにしました',
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
   // 軌島通行證客端功能、雲端同步與伺服器付費牆。這顆不可選去正式送審；正式版必須另推 build 號，

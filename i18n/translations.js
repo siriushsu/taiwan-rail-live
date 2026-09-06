@@ -215,6 +215,10 @@
         'The bottom “Search” tab on phones is now “Lookup”: a half-height sheet shows the next train in each direction from your nearest station, then reminders, today’s TRA status, nearby stations and widgets; it opens by itself when you open the app near a station',
       '台鐵誤點一次跳增 5 分以上時，列車直接跳回實際位置，不再原地停等':
         'When a TRA train\'s reported delay jumps by 5 minutes or more at once, it now snaps straight back to its actual position instead of waiting in place until the timetable catches up.',
+      '車站看板：只借道成追線的縱貫線列車回到南下、北上組；支線組標題改成列車真正的終點站':
+        'Station boards: trains that only pass through the Chengzhui link go back to the southbound and northbound groups, and branch group titles now show the train\u2019s real destination',
+      '車站看板的支線分組更貼近實際：只借道成追線直通的縱貫線列車，改回南下、北上那兩組，追分與成功站不再出現「往成功」「往追分」；支線那一組的標題也改成列車真正的終點站，新竹往六家的班次寫「往 六家」而不是「往 內灣」':
+        'Branch grouping on station boards now matches reality: Western Line trains that merely run through the Chengzhui link go back to the southbound and northbound groups, so Zhuifen and Chenggong no longer show a \u201cTo Chenggong\u201d or \u201cTo Zhuifen\u201d group. Branch group titles now name the train\u2019s real destination, so Hsinchu services to Liujia read \u201cTo Liujia\u201d instead of \u201cTo Neiwan\u201d.',
       '修正新竹、北新竹站看板把往基隆、七堵的縱貫線列車歸進「往內灣」（謝謝網友回報）':
         'Fixed the Hsinchu and North Hsinchu station boards putting Western Line trains bound for Keelung and Qidu under \'To Neiwan\' (thanks to the reader who reported it).',
       '修正新竹、北新竹站看板的方向分組：往基隆、七堵等縱貫線列車會被歸進「往內灣」，從「北上」消失。新竹–北新竹是縱貫線與內灣線共用的同一段軌道，兩條線在這裡不再互相誤判；真正的內灣線、六家班次維持在支線那一組（謝謝網友回報）':
@@ -637,6 +641,10 @@
         'スマートフォン下部の「検索」が「調べる」になりました。半分の高さのパネルにまず最寄り駅の各方向の次の列車を表示し、続いて通知・本日の台湾鉄路・近くの駅・ウィジェットへの入口が並びます。駅の近くでアプリを開くと自動的に表示されます。',
       '台鐵誤點一次跳增 5 分以上時，列車直接跳回實際位置，不再原地停等':
         '台湾鉄路の遅延が一度に5分以上増えた場合、列車はその場で待たずにすぐ実際の位置へ戻るようになりました。',
+      '車站看板：只借道成追線的縱貫線列車回到南下、北上組；支線組標題改成列車真正的終點站':
+        '駅の発車案内：成追線を通り抜けるだけの縦貫線の列車は南行き・北行きのグループに戻り、支線グループの見出しは列車の実際の終着駅になります。',
+      '車站看板的支線分組更貼近實際：只借道成追線直通的縱貫線列車，改回南下、北上那兩組，追分與成功站不再出現「往成功」「往追分」；支線那一組的標題也改成列車真正的終點站，新竹往六家的班次寫「往 六家」而不是「往 內灣」':
+        '駅の発車案内の支線グループを実態に合わせました。成追線を通り抜けるだけの縦貫線の列車は南行き・北行きのグループに戻り、追分駅と成功駅に「成功方面」「追分方面」は出なくなります。支線グループの見出しも列車の実際の終着駅になり、新竹から六家へ向かう列車は「内湾方面」ではなく「六家方面」と表示されます。',
       '修正新竹、北新竹站看板把往基隆、七堵的縱貫線列車歸進「往內灣」（謝謝網友回報）':
         '新竹駅・北新竹駅の発車案内で、基隆・七堵方面の縦貫線の列車が「内湾方面」に振り分けられていた問題を修正しました（ご報告ありがとうございます）。',
       '修正新竹、北新竹站看板的方向分組：往基隆、七堵等縱貫線列車會被歸進「往內灣」，從「北上」消失。新竹–北新竹是縱貫線與內灣線共用的同一段軌道，兩條線在這裡不再互相誤判；真正的內灣線、六家班次維持在支線那一組（謝謝網友回報）':
