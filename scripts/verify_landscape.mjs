@@ -795,7 +795,7 @@ async function landscapeSuite(browser, eng) {
         // 🔴 判準過期(2026-09-06 查詢分頁批次 271ca8a2):.search-land 從「橫放一律套用」改成
         //    「只在【打字態】body.fs.search-open 才生效」(index.html:4517-4535 契約9:瀏覽態
         //    回落到通用側欄規則)。openPanel() 只呼叫 openSearchPanel(),從不 focus 輸入框,
-        //    量測前先 focus 進打字態(index.html:31304-31306 的 focus 監聽器)。
+        //    量測前先 focus 進打字態(index.html 裡 trainSearch 的 focus 監聽器 → setSearchTyping)。
         await page.evaluate(() => { const inp = document.getElementById('trainSearch'); if (inp) inp.focus(); });
         await page.waitForTimeout(650);
         const s = await page.evaluate(() => {
