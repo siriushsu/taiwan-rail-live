@@ -216,6 +216,7 @@
         'After you choose a connection, the Dynamic Island and Lock Screen automatically switch to the next train at the transfer station.',
       '手機底部「搜尋」改為「查詢」：半高面板先給離你最近的站各方向下一班，再列提醒、今日動態、附近車站與小工具入口；在車站附近開 App 會自動出現':
         'The bottom “Search” tab on phones is now “Lookup”: a half-height sheet shows the next train in each direction from your nearest station, then reminders, today’s TRA status, nearby stations and widgets; it opens by itself when you open the app near a station',
+      'App 說明中心的小工具頁改成介紹頁：每種小工具都有實際畫面預覽與尺寸；Android 可以直接按「加到桌面」把小工具釘到主畫面': 'The app’s Help Center widget page is now a showcase: every widget comes with a real preview and its size, and on Android you can tap “Add to Home Screen” to pin it right away',
       '台鐵誤點一次跳增 5 分以上時，列車直接跳回實際位置，不再原地停等':
         'When a TRA train\'s reported delay jumps by 5 minutes or more at once, it now snaps straight back to its actual position instead of waiting in place until the timetable catches up.',
       '車站看板：只借道成追線的縱貫線列車回到南下、北上組；支線組標題改成列車真正的終點站':
@@ -645,6 +646,7 @@
         '乗り継ぐ列車を選ぶと、乗換駅への到着時にDynamic Islandとロック画面が次の列車へ自動で切り替わります。',
       '手機底部「搜尋」改為「查詢」：半高面板先給離你最近的站各方向下一班，再列提醒、今日動態、附近車站與小工具入口；在車站附近開 App 會自動出現':
         'スマートフォン下部の「検索」が「調べる」になりました。半分の高さのパネルにまず最寄り駅の各方向の次の列車を表示し、続いて通知・本日の台湾鉄路・近くの駅・ウィジェットへの入口が並びます。駅の近くでアプリを開くと自動的に表示されます。',
+      'App 說明中心的小工具頁改成介紹頁：每種小工具都有實際畫面預覽與尺寸；Android 可以直接按「加到桌面」把小工具釘到主畫面': 'アプリの使い方にあるウィジェットのページを紹介ページにしました：各ウィジェットの実際の画面プレビューとサイズを掲載し、Android では「ホーム画面に追加」を押すだけでホーム画面にピン留めできます',
       '台鐵誤點一次跳增 5 分以上時，列車直接跳回實際位置，不再原地停等':
         '台湾鉄路の遅延が一度に5分以上増えた場合、列車はその場で待たずにすぐ実際の位置へ戻るようになりました。',
       '車站看板：只借道成追線的縱貫線列車回到南下、北上組；支線組標題改成列車真正的終點站':

@@ -5176,6 +5176,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="widgethelp0906"><span class="d">9/6</span><span>App 說明中心的小工具頁改成介紹頁：每種小工具都有實際畫面預覽與尺寸；Android 可以直接按「加到桌面」把小工具釘到主畫面</span></li>
         <li data-cl-of="querytab0906"><span class="d">9/6</span><span>手機底部「搜尋」改為「查詢」：半高面板先給離你最近的站各方向下一班，再列提醒、今日動態、附近車站與小工具入口；在車站附近開 App 會自動出現</span></li>
         <li data-cl-of="branchdestgroup"><span class="d">9/6</span><span>車站看板：只借道成追線的縱貫線列車回到南下、北上組；支線組標題改成列車真正的終點站</span></li>
         <li data-cl-of="hsinchuboarddir"><span class="d">9/6</span><span>修正新竹、北新竹站看板把往基隆、七堵的縱貫線列車歸進「往內灣」（謝謝網友回報）</span></li>
@@ -5183,7 +5184,6 @@
         <li data-cl-of="leafletremoved0905"><span class="d">9/5</span><span>地圖全面改用 MapLibre，不再保留舊版 Leaflet 地圖：?engine=leaflet 這個網址參數已失效，開啟網站也不會再多下載一份舊地圖函式庫。</span></li>
         <li data-cl-of="maplibredefault0904"><span class="d">9/4</span><span>地圖引擎預設改為 MapLibre：所有人打開都是可旋轉、傾斜、開 3D 建築的向量地圖，跟隨列車時行進方向朝上。</span></li>
         <li data-cl-of="followrouteexact0904"><span class="d">9/4</span><span>修正跟隨長途列車放大看彎道時，紅色行程線會離開實際軌道、旁邊露出另一條原色線；現在放大也會完整貼合。</span></li>
-        <li data-cl-of="followpitch0904"><span class="d">9/4</span><span>修正跟隨火車並傾斜地圖時，遠端路線會變成跨畫面跳動直線；亮色、暗色與衛星底圖都已修正。</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5263,6 +5263,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="widgethelp0906"><span class="d">9/6</span><span>App 說明中心的小工具頁改成介紹頁：每種小工具都有實際畫面預覽與尺寸；Android 可以直接按「加到桌面」把小工具釘到主畫面</span></li>
         <li data-cl="querytab0906"><span class="d">9/6</span><span>手機底部「搜尋」改為「查詢」：半高面板先給離你最近的站各方向下一班，再列提醒、今日動態、附近車站與小工具入口；在車站附近開 App 會自動出現</span></li>
         <li data-cl="xferlivehandoff"><span class="d">9/4</span><span>跟車時選好下一班台鐵或高鐵後，列車抵達轉乘站，鎖定畫面與動態島會接手顯示接續班次與發車倒數；開車後繼續顯示下一站，不再留在上一班車。</span></li>
         <li data-cl="webmcp"><span class="d">9/2</span><span>在 ChatGPT Work 或 Codex 的內建瀏覽器中，可查軌島畫面、車站看板、火車狀態與營運公告，也能開啟看板或跟隨指定火車；一般瀏覽器不受影響。</span></li>
@@ -6058,7 +6059,8 @@
 //         網友回報 issue #46。守門人:scripts/verify_board_direction_groups.mjs 的 D11a–D11f。
 // v0906g：手機底部「搜尋」改為「查詢」半高面板——答案區走看板同源、公車轉乘入口、靠近車站自動開;併入 origin/main 的 v0906f。
 // v0906i：v0906g(查詢分頁)再併入 origin/main 的 v0906h(看板支線分組)。
-const BUILD = 'v0906i';
+// v0906j：App 說明中心小工具頁改成介紹頁(iOS／Android 各尺寸預覽圖、Android「加到桌面」RailWidget plugin);網站端零可見改動。
+const BUILD = 'v0906j';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
