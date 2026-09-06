@@ -12685,7 +12685,7 @@ function applyBootGeo(c) {
   queryMaybeAutoOpen(c);
 }
 // 開機自動開查詢 sheet(spec §6.1)。只掛在 applyBootGeo 的成功路徑:它的參數是真定位(不是 loadGeoCache),
-// 且它已守「使用者拖過地圖/跟車中/導播中不搶」;深連結與預設地點由 startBootGeo 不發起定位而自然不開。
+// 且它已守「使用者拖過地圖/跟車或班距跟隨中/自動巡覽中不搶」;深連結與預設地點由 startBootGeo 不發起定位而自然不開。
 function queryMaybeAutoOpen(c) {
   if (state._queryAutoOpened || !window.matchMedia(MOBILE_MQ).matches) return;
   if (state.ambient || activeSheetEl()) return;                       // 放空不打擾;已有 sheet 不疊
