@@ -31,15 +31,18 @@ for(const [name,engine]of Object.entries({chromium,webkit})){
   check(name+' default physical routes and models',initial.physical>initial.vehicles*.95&&initial.models>0&&!initial.errors.length&&!initial.fallbacks.length,initial);
   // 近景(raw zoom>=14)會把班表線的示意線形整批抽掉、換成實體股道,並把被抽掉的 lineKey 交給
   // profileKeys() 讓 2D GL 軌道層別再畫。宣告換圖卻換不出東西來的系統,兩邊都不畫＝**線直接消失**。
-  // 這是白名單分兩份時的必然結果(rail-3d.js 曾自己寫死一份 ['tra_sched','thsr_sched','afr_sched']),
-  // 且畫面上只是「少一條線」,不會有錯誤訊息,任何既有斷言都照不到。
+  // 這是白名單分兩份時的必然結果(rail-3d.js 曾自己寫死一份 ['tra_sched','thsr_sched','afr_sched'])。
+  // 這條**不是**在驗「換出來的股道在視野裡」——visibleRoutes() 有視野過濾,那樣寫會假紅。
+  // 它驗的是抽換端與白名單的一致性:被抽掉的 _sched 系統有沒有全部出自 physical.systems。
+  // 「線消失」這個症狀本身由 check-afr 的 H 段守(量 GL 圖層 filter,且它在 ship_web preflight 裡);
+  // 這條守的是根因——名單只准有一份。
   const swap=await page.evaluate(()=>{const c=railIslandIntegration.capture();
    const sys=[...new Set((c.replacedLineKeys||[]).map(k=>k.split('|')[0]))],sched=sys.filter(s=>s.endsWith('_sched'));
    return {zoom:M.raw.getZoom(),systems:sys,sched,physical:railIslandPhysical.systems||null,
     orphan:sched.filter(s=>!(railIslandPhysical.systems||[]).includes(s))};});
   // 修好之後 orphan 恆為 0 是**結構性**的(抽換名單就是 physical.systems 本身),所以這條只擋一件事:
   // 有人再寫第二份名單。也因此分母要具名 gate——sched 一旦是空的,它就退化成零量測的假綠。
-  check(name+' 近景抽掉示意線形的班表系統（'+(swap.sched.join('／')||'無')+'）都換得出實體股道（孤兒：'+(swap.orphan.join(',')||'無')+'）',
+  check(name+' 近景抽換的班表系統都出自 physical.systems 這份唯一白名單（抽換 '+swap.sched.length+' 個：'+(swap.sched.join('／')||'無')+'；名單外：'+(swap.orphan.join(',')||'無')+'）',
    swap.zoom>=14&&Array.isArray(swap.physical)&&swap.sched.length>0&&swap.orphan.length===0,swap);
   await page.screenshot({path:`output/physical-browser/${name}-taipei.png`});
   await page.evaluate(()=>{
