@@ -52,6 +52,11 @@
 #trainGarage .g-car{position:relative;text-align:left;min-width:0;border:1px solid var(--g-line);border-radius:14px;background:var(--g-card);padding:12px;display:flex;flex-direction:column;align-items:stretch}
 #trainGarage .g-car[aria-pressed=true]{border:2px solid var(--g-accent);padding:11px;background:var(--g-stage)}
 #trainGarage .g-car canvas{display:block;width:100%;height:110px;pointer-events:none}
+/* 未收集:只留灰色的車體形狀,不給塗裝——不能沒收集到就看起來已經在車庫裡。
+   用去色+壓對比而不是門檻剪影:白色車系(700T/EMU3000/EMU800)的車身亮度貼近背景,
+   門檻法會把它們切成空心輪廓(2026-09-07 四款實測)。*/
+#trainGarage .g-car.g-locked img{filter:grayscale(1) brightness(.95) contrast(.45)}
+#trainGarage .g-car.g-locked .g-check{color:var(--g-muted)}
 #trainGarage .g-car b{font-size:13px;line-height:1.5}
 #trainGarage .g-car small{font-size:11px;color:var(--g-muted);margin-top:4px;line-height:1.5}
 #trainGarage .g-car .g-check{position:absolute;top:10px;right:12px;font-size:12px;color:var(--g-accent)}

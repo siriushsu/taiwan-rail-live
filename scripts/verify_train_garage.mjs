@@ -24,6 +24,11 @@ const ready=p=>p.waitForFunction(()=>document.querySelector('.g-view')?.dataset.
 const settle=p=>p.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
 const pix=p=>p.evaluate(()=>{const c=document.querySelector('.g-view'),d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let count=0,left=c.width,right=-1,top=c.height,bottom=-1,hash=0;for(let y=0;y<c.height;y++)for(let x=0;x<c.width;x++){const i=(y*c.width+x)*4;if(d[i+3]){count++;left=Math.min(left,x);right=Math.max(right,x);top=Math.min(top,y);bottom=Math.max(bottom,y);hash=(hash*31+d[i]+d[i+1]*3+d[i+2]*7)>>>0;}}return{count,left,right,top,bottom,w:c.width,h:c.height,hash};});
 const storage=p=>p.evaluate(()=>JSON.stringify({rides:loadRides(),checkins:loadCheckins()}));
+// 展示台的平均彩度(max-min of RGB)。量真的畫出來的像素,不量 CSS 宣告——灰車體是渲染結果不是樣式。
+const chroma=p=>p.evaluate(()=>{const c=document.querySelector('.g-view'),d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;
+  let sum=0,n=0;for(let i=0;i<d.length;i+=4){if(!d[i+3])continue;sum+=Math.max(d[i],d[i+1],d[i+2])-Math.min(d[i],d[i+1],d[i+2]);n++;}return n?sum/n:-1;});
+const lockOf=p=>p.evaluate(()=>document.querySelector('.g-view').dataset.lock);
+
 const select=async(p,id)=>{await p.locator('.g-car[data-model="'+id+'"]').evaluate(e=>e.click());await p.waitForFunction(id=>document.querySelector('.g-view')?.dataset.rendered===id,id);};
 async function auditControls(page){
  return page.evaluate(()=>{
@@ -68,6 +73,23 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
   check(engine+' 舊章／舊分類／最早日期帶入',await page.evaluate(()=>{const rows=garageCollection();return rows.find(r=>r.id==='temu1000').date==='2026-08-02'&&rows.find(r=>r.id==='emu3000').earned&&rows.find(r=>r.id==='700t').earned&&rows.find(r=>r.id==='emu800').owned;}));
   await page.evaluate(()=>{saveCheckins({v:2,st:{'metro|台北車站':{name:'台北車站',sys:'metro',s:'visit',d:'2026-09-07',n:1,u:Date.now()},'metro|中山':{name:'中山',sys:'metro',s:'pass',d:'2026-09-07',n:1,u:Date.now()}},sg:{}});renderPassport();});
   check(engine+' 車站進度即時解鎖',await page.evaluate(()=>garageCollection().find(r=>r.id==='c301').owned));
+
+  // 未收集的車＝灰車體(使用者 2026-09-07:「車庫裡沒有收集到的車,應該是灰色輪廓才對,
+  // 不能沒收集到就在車庫裡呀」)。款式不寫死,從當下的護照推導出一款已入庫、一款未收集,
+  // 種子改了也不會假綠;並配正向對照——已入庫那款必須量到真實塗裝彩度,否則「彩度低」恆真。
+  await page.click('[data-filter="all"]');
+  const pair=await page.evaluate(()=>{const rows=garageCollection();
+    return {owned:rows.find(r=>r.owned)?.id||'',locked:rows.find(r=>!r.owned)?.id||''};});
+  await select(page,pair.owned);const ownedLook={id:pair.owned,lock:await lockOf(page),chroma:await chroma(page)};
+  await select(page,pair.locked);const lockedLook={id:pair.locked,lock:await lockOf(page),chroma:await chroma(page)};
+  check(engine+' 未收集的車在展示台是灰車體',lockedLook.lock==='grey'&&lockedLook.chroma<4,lockedLook);
+  check(engine+' 控制組 已入庫的車保有塗裝彩度',ownedLook.lock==='off'&&ownedLook.chroma>10,ownedLook);
+  check(engine+' 未收集的格子縮圖去色(類別已套上且樣式表真的有這條規則)',await page.evaluate(([o,l])=>{
+    const has=id=>document.querySelector('.g-car[data-model="'+id+'"]')?.classList.contains('g-locked');
+    const rule=[...document.styleSheets].flatMap(sh=>{try{return [...sh.cssRules];}catch{return [];}})
+      .find(r=>r.selectorText==='#trainGarage .g-car.g-locked img');
+    return has(l)===true&&has(o)===false&&!!rule&&rule.style.filter.includes('grayscale');
+  },[pair.owned,pair.locked]),pair);
   const count=await page.locator('.g-count').textContent();await page.reload();await page.waitForFunction(()=>state.ready);await page.evaluate(()=>openTrainGarage());await ready(page);
   check(engine+' 重開保留護照推導進度',await page.locator('.g-count').textContent()===count);
   await page.evaluate(()=>{saveRides([]);saveCheckins({v:2,st:{},sg:{}});renderPassport();});
