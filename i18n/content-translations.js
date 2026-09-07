@@ -4,6 +4,8 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "修正起伏地圖中軌道被丘陵切斷、列車鑽入地底的問題，山區行駛保持連續可見": "Fixed tracks being cut off by hills and trains sinking below terrain, keeping mountain journeys continuously visible.",
+    "修正列車透過建築物顯示時，被道路蓋住的問題，穿越路口時車身保持連續可見": "Fixed roads covering trains seen through transparent buildings, keeping the train visible as it crosses roads.",
     "月台資料未提供時，列車資訊、查詢摘要與車站看板都不顯示月台欄位，也不留下提示文字": "When platform information is unavailable, train details, search summaries and station boards omit both the field and placeholder text.",
     "台鐵列車資訊與車站看板支援官方月台號碼；沒有資料、尚未確定、過期或回放時自動收起，不留空欄": "TRA train details and station boards now support official platform numbers. The field stays hidden when unavailable, unassigned, expired or in replay.",
     "開啟": "On",
@@ -203,6 +205,8 @@
   });
 
   Object.assign(messages.ja, {
+    "修正起伏地圖中軌道被丘陵切斷、列車鑽入地底的問題，山區行駛保持連續可見": "起伏地図で線路が丘に途切れたり、列車が地中に沈んだりする問題を修正し、山間部でも連続して見えるようになりました。",
+    "修正列車透過建築物顯示時，被道路蓋住的問題，穿越路口時車身保持連續可見": "透明な建物越しの列車が道路に隠れる問題を修正し、交差点を通過する車体が途切れず見えるようになりました。",
     "月台資料未提供時，列車資訊、查詢摘要與車站看板都不顯示月台欄位，也不留下提示文字": "番線情報が未提供の場合、列車情報・検索結果・駅の発車案内では欄と代替テキストを表示しません。",
     "台鐵列車資訊與車站看板支援官方月台號碼；沒有資料、尚未確定、過期或回放時自動收起，不留空欄": "台鉄の列車情報と駅の発車案内が公式の番線情報に対応。未提供・未定・期限切れ・再生中は空欄を残さず非表示にします。",
     "開啟": "オン",

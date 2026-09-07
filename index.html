@@ -5233,14 +5233,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="terrainclear0907"><span class="d">9/7</span><span>修正起伏地圖中軌道被丘陵切斷、列車鑽入地底的問題，山區行駛保持連續可見</span></li>
+        <li data-cl-of="roadglass0907"><span class="d">9/7</span><span>修正列車透過建築物顯示時，被道路蓋住的問題，穿越路口時車身保持連續可見</span></li>
         <li data-cl-of="platformempty0907"><span class="d">9/7</span><span>月台資料未提供時，列車資訊、查詢摘要與車站看板都不顯示月台欄位，也不留下提示文字</span></li>
         <li data-cl-of="platform0907"><span class="d">9/7</span><span>台鐵列車資訊與車站看板支援官方月台號碼；沒有資料、尚未確定、過期或回放時自動收起，不留空欄</span></li>
         <li data-cl-of="followdirection0907"><span class="d">9/7</span><span>跟車新增「車頭朝上」開關，預設關閉；想讓車頭方向朝向畫面上方時可自行開啟，指北仍隨時有效</span></li>
         <li data-cl-of="integrated3d0907"><span class="d">9/7</span><span>近景自動顯示沿軌行駛的立體列車，可切換完整編組、地形起伏與建築透視；保留亮色琺瑯、暗色霓虹，以及車站看板與指北操作</span></li>
         <li data-cl-of="stationtarget0907"><span class="d">9/7</span><span>放大地圖時，車站標記與點擊範圍一起加大；點開車站或跟隨列車時，指北按鈕也能正常回正</span></li>
         <li data-cl-of="night200907"><span class="d">9/7</span><span>暗色 2.0：霓虹路線、透明藍色建築與玻璃面板；車站看板新增方向切換和大字倒數，亮色維持琺瑯風格</span></li>
-        <li data-cl-of="nightglow0907"><span class="d">9/7</span><span>暗色地圖的路線自動帶上霓虹微光，保留各線原色；切回亮色地圖就恢復原樣</span></li>
-        <li data-cl-of="discovery0907"><span class="d">9/7</span><span>新增路線導覽與精選取景：沿線找站、點站看班次；空白搜尋也有可點的範例</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5248,6 +5248,8 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="terrainclear0907"><span class="d">9/7</span><span>修正起伏地圖中軌道被丘陵切斷、列車鑽入地底的問題，山區行駛保持連續可見</span></li>
+        <li data-cl="roadglass0907"><span class="d">9/7</span><span>修正列車透過建築物顯示時，被道路蓋住的問題，穿越路口時車身保持連續可見</span></li>
         <li data-cl="platformempty0907"><span class="d">9/7</span><span>月台資料未提供時，列車資訊、查詢摘要與車站看板都不顯示月台欄位，也不留下提示文字</span></li>
         <li data-cl="platform0907"><span class="d">9/7</span><span>台鐵列車資訊與車站看板支援官方月台號碼；沒有資料、尚未確定、過期或回放時自動收起，不留空欄</span></li>
         <li data-cl="followdirection0907"><span class="d">9/7</span><span>跟車新增「車頭朝上」開關，預設關閉；想讓車頭方向朝向畫面上方時可自行開啟，指北仍隨時有效</span></li>
@@ -6129,7 +6131,7 @@
 //         網友回報 issue #46。守門人:scripts/verify_board_direction_groups.mjs 的 D11a–D11f。
 // v0906g：手機底部「搜尋」改為「查詢」半高面板——答案區走看板同源、公車轉乘入口、靠近車站自動開;併入 origin/main 的 v0906f。
 // v0906i：v0906g(查詢分頁)再併入 origin/main 的 v0906h(看板支線分組)。
-const BUILD = 'v0907g';
+const BUILD = 'v0907h';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';

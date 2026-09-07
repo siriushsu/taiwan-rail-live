@@ -1,0 +1,25 @@
+import {chromium,webkit} from 'playwright';import sharp from 'sharp';import fs from 'node:fs';
+const base=process.env.BASE_URL||'http://127.0.0.1:5208/',out='output/terrain-clearance';fs.mkdirSync(out,{recursive:true});const results=[];
+const check=(name,pass,detail)=>{results.push({name,pass,detail});console.log((pass?'PASS ':'FAIL ')+name,JSON.stringify(detail));};
+for(const [engineName,engine]of Object.entries(process.env.ENGINE==='chromium'?{chromium}:{chromium,webkit})){
+ const browser=await engine.launch();
+ for(const width of process.env.WIDTHS?process.env.WIDTHS.split(',').map(Number):[375,1280]){
+ const mobile=width<900,context=await browser.newContext({viewport:{width,height:900},isMobile:mobile,hasTouch:mobile,locale:'zh-TW'});await context.addInitScript(()=>{localStorage.setItem('trainmap-howto-seen','1');localStorage.setItem('trainmap-appearance','light');});const page=await context.newPage();
+ try{
+ await page.goto(base+'?scene=3d&ground=terrain&g=all&lang=zh-TW');await page.waitForFunction(()=>state.ready&&window.railIslandIntegration?.renderer,null,{timeout:60000});
+ for(const [train,time,pitch]of [['1',37285,0],['1',37420,45],['2',55830,55]]){
+ await page.evaluate(({train,time,pitch})=>{state.playing=false;const tr=state.trains.find(t=>t.sys==='afr_sched'&&t.train===train);setFollow(tr,false,true);setSimSec(time);M.raw.setZoom(17.5);M.raw.setPitch(pitch);M.raw.setBearing(0);document.getElementById('overlay').style.visibility='hidden';}, {train,time,pitch});
+ await page.waitForFunction(()=>M.raw.isSourceLoaded('terrain')&&railIslandIntegration.renderer.stats.models>0);await page.waitForTimeout(600);await page.evaluate(()=>setFollowLock(false));
+ const info=await page.evaluate(()=>{const r=railIslandIntegration.renderer,rect=M.getContainer().getBoundingClientRect(),pose=r.stats.poseSamples.find(p=>p.id.includes('afr_sched')),bounds=r.projectedCars().filter(c=>c.id===pose.id).map(c=>c.bounds);return {rail:r.projectedRailSamples().filter(p=>document.elementFromPoint(rect.x+p.x,rect.y+p.y)===M.raw.getCanvas()),rect:{x:rect.x,y:rect.y,width:rect.width,height:rect.height},bounds,stations:railIslandIntegration.capture().stations.map(s=>M.raw.project([s.longitude,s.latitude])),terrain:M.raw.isSourceLoaded('terrain'),coordinate:pose.coordinate,carCount:pose.carCount,camera:[M.raw.getCenter().lng,M.raw.getCenter().lat,M.raw.getZoom(),M.raw.getPitch(),M.raw.getBearing()],align:r.alignment()?.heightDelta,carClearance:Math.min(...pose.cars.map(c=>c.height-M.raw.queryTerrainElevation(c.coordinate)))};});
+ const png=await page.screenshot({path:out+'/'+engineName+'-'+width+'-'+train+'-'+pitch+'.png'}),pix=await sharp(png).removeAlpha().raw().toBuffer({resolveWithObject:true});
+ let n=0,visible=0;for(const p of info.rail){const x=Math.round(info.rect.x+p.x),y=Math.round(info.rect.y+p.y);if(info.bounds.some(b=>p.x>=b.left-3&&p.x<=b.right+3&&p.y>=b.top-3&&p.y<=b.bottom+3)||info.stations.some(s=>Math.hypot(p.x-s.x,p.y-s.y)<16))continue;if(p.z< -1||p.z>1||x<Math.max(info.rect.x+8,mobile?8:310)||x>info.rect.x+info.rect.width-75||y<info.rect.y+85||y>info.rect.y+info.rect.height-180)continue;n++;let colored=false;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const i=((y+dy)*pix.info.width+x+dx)*3;if(pix.data[i]>80&&pix.data[i]>pix.data[i+1]*1.4&&pix.data[i]>pix.data[i+2]*1.4)colored=true;}if(colored)visible++;}
+ check(engineName+' '+width+' '+train+' pitch '+pitch+' 軌道連續像素',n>20&&visible/n>.96,{n,visible,ratio:visible/n});
+ check(engineName+' '+width+' '+train+' 車體與地表及軌道',info.carClearance>0&&Math.abs(info.align)<.03,{clearance:info.carClearance,align:info.align,cars:info.carCount});
+ await page.evaluate(()=>railIslandIntegration.setMode(false));await page.waitForFunction(()=>railIslandIntegration.renderer.stats.models===0);await page.waitForTimeout(150);const camera=await page.evaluate(()=>[M.raw.getCenter().lng,M.raw.getCenter().lat,M.raw.getZoom(),M.raw.getPitch(),M.raw.getBearing()]);check(engineName+' '+width+' '+train+' 像素對照相機固定',camera.every((v,i)=>Math.abs(v-info.camera[i])<1e-8),camera);const hidden=await sharp(await page.screenshot()).removeAlpha().raw().toBuffer();let changed=0,area=0;
+ for(const b of info.bounds){for(let y=Math.max(0,Math.ceil(info.rect.y+b.top));y<Math.min(pix.info.height,Math.floor(info.rect.y+b.bottom));y++)for(let x=Math.max(0,Math.ceil(info.rect.x+b.left));x<Math.min(pix.info.width,Math.floor(info.rect.x+b.right));x++){const i=(y*pix.info.width+x)*3;if(Math.abs(pix.data[i]-hidden[i])+Math.abs(pix.data[i+1]-hidden[i+1])+Math.abs(pix.data[i+2]-hidden[i+2])>45)changed++;area++;}}
+ check(engineName+' '+width+' '+train+' 真實列車像素可見',changed>10&&changed/area>.02,{changed,area,ratio:changed/area});await page.evaluate(()=>railIslandIntegration.setMode(true));
+ }
+ }catch(e){check(engineName+' '+width+' 完成',false,String(e));}await context.close();}
+ await browser.close();
+}
+fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));if(results.some(r=>!r.pass))process.exitCode=1;

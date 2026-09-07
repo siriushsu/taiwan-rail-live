@@ -85,7 +85,11 @@
     "check-follow-heading": "node scripts/verify_follow_heading_toggle.mjs",
     "check-platforms": "node scripts/verify_platforms.mjs",
     "check-platforms-browser": "node scripts/verify_platforms_browser.mjs",
-    "check-platforms-swift": "node scripts/verify_platforms_swift.mjs"
+    "check-platforms-swift": "node scripts/verify_platforms_swift.mjs",
+    "check-3d-road-occlusion": "node scripts/verify_3d_road_occlusion.mjs",
+    "build-3d-display-profiles": "node scripts/build_3d_display_profiles.mjs",
+    "check-3d-terrain-clearance": "node scripts/verify_3d_terrain_clearance.mjs",
+    "check-3d-terrain-browser": "node scripts/verify_3d_terrain_browser.mjs"
   },
   "dependencies": {
     "playwright": "^1.61.1",

@@ -127,7 +127,7 @@
     keepBearing(){return enabled&&M?.raw?.getZoom()>=14&&(sameTarget(manualTarget,currentTarget())||state.ambient&&state.ambientStyle==='follow');},
     hasModel(target){const id=idFor(target);return enabled&&id&&!!M.raw.getLayer('live-vehicles-3d')&&renderer?.hasModel(id);},
     hits(point,freq){if(!enabled||!M.raw.getLayer('live-vehicles-3d'))return [];return renderer?.hitTest(point).map(hit=>({...targets.get(hit.id),dist:hit.dist,boxed:true})).filter(hit=>!!hit.ln===freq)||[];},
-    profileKeys(){return renderer?.profileKeys()||[];},setMode:value=>setOption('enabled',value?'on':'off'),setGroundMode:value=>setOption('ground',value),setFormationMode:value=>setOption('formation',value),setTrainSize:value=>setOption('size',value),setModelMode:value=>setOption('models',value),setAmbientCamera:value=>setOption('camera',value),setInspection:value=>setOption('inspection',value?'on':'off'),syncAppearance,
+    profileKeys(){return renderer?.profileKeys()||[];},syncLayerOrder(){renderer?.syncLayerOrder();},setMode:value=>setOption('enabled',value?'on':'off'),setGroundMode:value=>setOption('ground',value),setFormationMode:value=>setOption('formation',value),setTrainSize:value=>setOption('size',value),setModelMode:value=>setOption('models',value),setAmbientCamera:value=>setOption('camera',value),setInspection:value=>setOption('inspection',value?'on':'off'),syncAppearance,
     shareParams(url){if(!enabled)url.searchParams.set('scene','2d');if(groundMode==='terrain')url.searchParams.set('ground','terrain');if(formationMode==='three')url.searchParams.set('formation','three');return url;}};
   if(state.ready)setup();else{const timer=setInterval(()=>{if(state.ready){clearInterval(timer);setup();}},100);}
 })().catch(error=>console.error('3D 接點',error));
