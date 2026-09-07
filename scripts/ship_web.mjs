@@ -243,6 +243,21 @@ try {
   if (queryTab.status !== 0) fail('查詢分頁守門人未過——兩態 sheet／答案同源／自動開／更多抽屜之一壞了'
     + '（單獨重跑：npm run check-query-tab）');
 
+  // ── 2.16 阿里山林鐵守門人(2026-09-08) ─────────────────────────────────────
+  // 為什麼值得進出貨鏈:v0907n 分軌(實體股道定位)上線當天,就讓林鐵停在站裡的車被畫到軌道外
+  // 94m／164m,而當時**沒有任何一支既有閘門紅**——「所有奔跑中列車都在軌道上」這條只有這裡有。
+  // (根因是 OSM 股道與 data/afr.json 對神木差 163m、兩份各自自洽;修法是把林鐵排除在
+  // rail-3d/physical/client.js 的 PHYSICAL_SYSTEMS 之外,見該檔註解。)
+  // 順帶守 A–G:路網拼接與獨立山螺旋累積轉向、合成班次座標與軌道同源、看板文案、四種手機寬度
+  // 的真點擊(#gtabOne → #gtabPop)。兩引擎約 3–4 分鐘。
+  // 🔴 洗掉繼承來的 PORT:這支平常自己起 dev server 並用 md5 斷言「量到的是這棵樹」,但 PORT
+  //    有值時它改連既有 server——出貨那個 shell 若 export 過 PORT(本機同時 30+ 個 worktree
+  //    各有自己的 dev server),就會一聲不響地去驗別人的樹。空字串走 falsy 分支＝照常自起。
+  const afr = spawnSync('node', [path.join(wt, 'scripts', 'verify_afr.mjs')], { encoding: 'utf8', env: { ...process.env, PORT: '' } });
+  process.stdout.write(afr.stdout || ''); process.stderr.write(afr.stderr || '');
+  if (afr.status !== 0) fail('阿里山林鐵守門人未過——路網／班次／看板／手機版,或「奔跑中列車都在軌道上」壞了'
+    + '（單獨重跑：npm run check-afr）');
+
   // ── 3. strip（腳本內建 esbuild AST 重印等價證明，任何不等價都非零退出）────
   const rawBytes = fs.readFileSync(path.join(wt, 'index.html'));
   execFileSync('node', [path.join(wt, 'scripts', 'strip_ship_comments.mjs'), wt], { stdio: 'inherit' });
