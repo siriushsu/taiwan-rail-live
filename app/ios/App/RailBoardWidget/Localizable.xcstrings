@@ -8178,6 +8178,23 @@
         }
       }
     },
+    "月台資料未提供時，列車資訊、查詢摘要與車站看板都不顯示月台欄位，也不留下提示文字": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When platform information is unavailable, train details, search summaries and station boards omit both the field and placeholder text."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "番線情報が未提供の場合、列車情報・検索結果・駅の発車案内では欄と代替テキストを表示しません。"
+          }
+        }
+      }
+    },
     "月訂閱": {
       "extractionState": "manual",
       "localizations": {

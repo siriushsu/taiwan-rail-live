@@ -1,7 +1,6 @@
 (async()=>{
   const {resolvePlatform}=await import('./rail-platform.js');
   let snapshot=null, requestedAt=0, pending=false;
-  const labels={unavailable:'月台尚未提供',undecided:'月台未定',stale:'月台資料已過期',replay:'回放不提供即時月台',cancelled:'列車停駛'};
   const liveClock=()=>state.clockAtNow&&state.playing&&state.speedMult===1&&!state._scrubTime&&!clockSkewBad()&&Math.abs(state.simSec-nowSecOfDay())<=120;
   function eventAt(tr,second){
     const rosterDay=/^\d{4}-\d\d-\d\d$/.test(tr._rday||'');
@@ -16,12 +15,13 @@
   }
   function target(el){return {sys:'tra',trainNo:el.dataset.no,stationName:el.dataset.station,scheduledAt:Number(el.dataset.event),kind:el.dataset.kind,live:liveClock()};}
   function write(el,value,full=false,station=''){
-    const phrase=value.state==='known'?t('月台 {platform}',{platform:value.platform}):t(labels[value.state]||'月台尚未提供');
+    el.dataset.platformState=value.state;
     el.hidden=value.state!=='known';
+    if(el.hidden){el.textContent='';el.removeAttribute('title');return;}
+    const phrase=t('月台 {platform}',{platform:value.platform});
     const text=full&&station?`${stationName(station,'tra_sched')} · ${phrase}`:phrase;
     if(el.textContent!==text)el.textContent=text;
-    el.dataset.platformState=value.state;
-    el.title=value.state==='known'?t('官方月台資訊 · {time} 更新',{time:new Date(snapshot.at).toLocaleTimeString('zh-TW',{timeZone:'Asia/Taipei',hour:'2-digit',minute:'2-digit',hour12:false})}):phrase;
+    el.title=t('官方月台資訊 · {time} 更新',{time:new Date(snapshot.at).toLocaleTimeString('zh-TW',{timeZone:'Asia/Taipei',hour:'2-digit',minute:'2-digit',hour12:false})});
   }
   function paint(){if(!state.ready||document.hidden)return;
     const tr=state.followTrain;
@@ -30,7 +30,7 @@
     for(const id of ['fpPlatform','tcPlatform']){
       const el=document.getElementById(id);if(!el)continue;
       const eligible=tr?.sys==='tra_sched'&&!!stop&&stop.stop!==false;
-      if(!eligible)el.hidden=true;
+      if(!eligible)write(el,{state:'inapplicable'});
       if(eligible){const last=stop===tr.stops.at(-1),value=resolvePlatform(snapshot,{sys:'tra',stationName:stop.name,trainNo:tr.train,scheduledAt:eventAt(tr,last?stop.arrSec:stop.depSec),kind:last?'arrival':'departure',live:liveClock()});write(el,value,true,stop.name);}
     }
     let visible=false;

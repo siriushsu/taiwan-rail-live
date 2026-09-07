@@ -56,6 +56,7 @@ public class RailPlatformInstrumentedTest {
             r.platform=null;
             View empty=RailWidgetRender.row(context,r,readable,false).apply(context,new FrameLayout(context));
             assertEquals(View.GONE,empty.findViewById(R.id.wrr_platform).getVisibility());
+            assertEquals("",((TextView)empty.findViewById(R.id.wrr_platform)).getText().toString());
         }
     }
 }

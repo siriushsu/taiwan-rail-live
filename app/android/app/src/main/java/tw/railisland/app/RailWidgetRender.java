@@ -100,9 +100,9 @@ final class RailWidgetRender {
         out.setTextViewText(R.id.wrr_time, clock(row.scheduledAt));
         String platform = row.platformAt(System.currentTimeMillis());
         out.setViewVisibility(R.id.wrr_platform, platform == null ? View.GONE : View.VISIBLE);
-        out.setTextViewText(R.id.wrr_platform, platform == null ? RailNativeL10n.text(context, "月台 —")
+        out.setTextViewText(R.id.wrr_platform, platform == null ? ""
             : RailNativeL10n.text(context, "月台 {platform}", "platform", platform));
-        out.setContentDescription(R.id.wrr_platform, platform == null ? RailNativeL10n.text(context, "月台尚未提供")
+        out.setContentDescription(R.id.wrr_platform, platform == null ? ""
             : RailNativeL10n.text(context, "月台 {platform}", "platform", platform));
         if (row.delayMinutes == null) {
             out.setTextViewText(R.id.wrr_status, RailNativeL10n.text(context, row.sys.equals("thsr") ? "表定" : "尚無讀數"));

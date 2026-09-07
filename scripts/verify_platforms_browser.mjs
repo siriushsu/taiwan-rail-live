@@ -52,7 +52,7 @@ for(const [engineName,engine]of Object.entries({chromium,webkit})){
     check(`${engineName} 官方撤回號碼不留空欄`,await p.locator('#fpPlatform').isHidden()&&await p.locator('#fpPlatform').evaluate(e=>e.getBoundingClientRect().height===0));
     await p.evaluate(()=>{const tr=state.followTrain;openBoard({...tr.stops.find(s=>s.name==='花壇'),sys:'tra_sched'});});
     await p.waitForTimeout(1200);
-    check(`${engineName} 看板沒有月台資料時不留空行`,await p.locator('#board .row[data-no="3177"] .rail-platform-label').evaluate(e=>e.hidden&&e.getBoundingClientRect().height===0));
+    check(`${engineName} 看板沒有月台資料時不留空行`,await p.locator('#board .row[data-no="3177"] .rail-platform-label').evaluate(e=>e.hidden&&e.textContent===''&&e.getBoundingClientRect().height===0));
     await p.evaluate(()=>closeBoard());
     stamp=epoch;await p.clock.setFixedTime(new Date(epoch+250000));await p.waitForTimeout(1600);
     check(`${engineName} 過期撤回月台號碼`,await p.locator('#fpPlatform').isHidden());

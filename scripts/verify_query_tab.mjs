@@ -422,8 +422,11 @@ sections.push({ name: 'G8b 公車列', run: async (browser, en) => {
     const has = await page.evaluate(([n, s]) => !!document.querySelector('#queryAnswer .qa-stn[data-name="' + n + '"][data-sys="' + s + '"] .qa-bus'), [st.name, st.sys]);
     ok(`[${en}] G8b ${st.name}(支援) 公車列存在`, has === true);
     // 瀏覽態面板矮(兩段高的短版),公車列常落在摺線以下,真實使用者也要先捲——tap 前先把它捲進可視區(#searchPanel 本身 overflow-y:auto)。
-    const b = await page.evaluate(() => { const btn = document.querySelector('#queryAnswer .qa-bus'); btn.scrollIntoView({ block: 'center' }); const r = btn.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
-    await page.touchscreen.tap(b.x, b.y); await page.waitForTimeout(600);
+    // 捲動後到送出觸控間，答案重畫曾讓按鈕上移 31px（完整流程可重現）。
+    // 用真實觸控的 actionability 檢查等待位置穩定，不拿捲動當下的舊座標點空白處。
+    const busButton = page.locator('#queryAnswer .qa-bus').first();
+    await busButton.scrollIntoViewIfNeeded();
+    await busButton.tap(); await page.waitForTimeout(600);
     const o = await page.evaluate(() => ({ boardOpen: !document.getElementById('board').hidden, slot: !!document.querySelector('#board [data-bus-transfer-slot]'), queryClosed: document.getElementById('searchPanel').hidden }));
     ok(`[${en}] G8b 點公車列 ⇒ 看板開、公車槽在、查詢收起`, o.boardOpen && o.slot && o.queryClosed, JSON.stringify(o));
     // 牙(公車裁示 C 後半句「捲到公車槽」):看板已捲動(捲得動的話)、公車槽整塊在看板可視區內——底不超出看板底、

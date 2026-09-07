@@ -4,6 +4,7 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "月台資料未提供時，列車資訊、查詢摘要與車站看板都不顯示月台欄位，也不留下提示文字": "When platform information is unavailable, train details, search summaries and station boards omit both the field and placeholder text.",
     "台鐵列車資訊與車站看板支援官方月台號碼；沒有資料、尚未確定、過期或回放時自動收起，不留空欄": "TRA train details and station boards now support official platform numbers. The field stays hidden when unavailable, unassigned, expired or in replay.",
     "開啟": "On",
     "跟車新增「車頭朝上」開關，預設關閉；想讓車頭方向朝向畫面上方時可自行開啟，指北仍隨時有效": "Head-up following is now optional and off by default. Turn it on to keep the front of the train at the top of the view; north reset remains available.",
@@ -202,6 +203,7 @@
   });
 
   Object.assign(messages.ja, {
+    "月台資料未提供時，列車資訊、查詢摘要與車站看板都不顯示月台欄位，也不留下提示文字": "番線情報が未提供の場合、列車情報・検索結果・駅の発車案内では欄と代替テキストを表示しません。",
     "台鐵列車資訊與車站看板支援官方月台號碼；沒有資料、尚未確定、過期或回放時自動收起，不留空欄": "台鉄の列車情報と駅の発車案内が公式の番線情報に対応。未提供・未定・期限切れ・再生中は空欄を残さず非表示にします。",
     "開啟": "オン",
     "跟車新增「車頭朝上」開關，預設關閉；想讓車頭方向朝向畫面上方時可自行開啟，指北仍隨時有效": "追従時に進行方向を上にする設定を追加しました。初期設定はオフです。必要に応じてオンにでき、北向きに戻す操作もいつでも使えます。",
