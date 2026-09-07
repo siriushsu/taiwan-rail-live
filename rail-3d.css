@@ -1,0 +1,10 @@
+/* 沿用主站兩套材質與設定列，只增加相同風格的選項。 */
+.ri-3d-settings{border-top:1px solid var(--line);padding:4px 0 10px}
+.ri-3d-row{gap:8px;flex-wrap:wrap;cursor:default}
+.ri-3d-row .nm{flex:1;min-width:80px}
+.ri-3d-row .seg{display:flex;flex-wrap:wrap;gap:2px}
+.ri-3d-row button{min-height:44px;padding:5px 10px;white-space:normal}
+.ri-3d-help{margin:8px 14px 0;color:var(--muted);font-size:12px;line-height:1.65}
+.ri-formation-caption{padding:8px 12px 6px;border-top:1px solid var(--line);color:var(--muted);font-size:11px;line-height:1.5}
+.ri-formation-caption[hidden]{display:none}
+body.ambient .ri-formation-caption{display:none}

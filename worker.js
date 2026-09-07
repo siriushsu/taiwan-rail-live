@@ -1,3 +1,4 @@
+import {createPlatformProxy} from './scripts/tra_platform_proxy.mjs';
 import {
   TRTC_LEDGER_SCHEMA, buildTrtcModel, buildLedgerFromRaw,
   trtcOperatingState, trtcServiceDay, resolveBoardRows, claimBoardRows, collapseClaims,
@@ -111,6 +112,8 @@ async function getToken(env) {
   tokExp = Date.now() + (d.expires_in || 86400) * 1000;
   return tok;
 }
+
+const traPlatforms = createPlatformProxy({getToken,invalidateToken:()=>{tok=null;tokExp=0;}});
 
 let mem = null, memAt = 0;
 // 🔴 上游刷新的 in-flight 去重。加這一條的直接原因是 cron:laPushAll(跟車卡)與
@@ -5015,7 +5018,7 @@ const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/
 // /api 端點白名單——只給流量埋點的 blob 用(不是路由閘門,路由在 fetch 裡)。不在名單內一律記成
 // 'other',否則隨便打 /api/<亂數> 就能把 blob 基數炸開。新增端點時要一起加進來。
 const API_ENDPOINTS = new Set([
-  'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'hazard-alert', 'metro-live', 'ntmetro-live', 'trtc-live',
+  'tra-platforms', 'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'hazard-alert', 'metro-live', 'ntmetro-live', 'trtc-live',
   'klrt-position', 'bus-transfer', 'bus-leg-live', 'bus-route-stops', 'journey-share',
   'delay-stats', 'delay-history', 'thsr-schedule', 'thsr-freeseat', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'basemap-src', 'basemap-fallback', 'account-delete',
   'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge', 'plus-status', 'revenuecat-webhook',
@@ -6906,6 +6909,7 @@ export default {
       res = jsonRes({ error: 'method not allowed' }, 405, 'no-store');
       res.headers.set('Allow', 'GET, HEAD, OPTIONS');
     }
+    else if (url.pathname === '/api/tra-platforms') res = await traPlatforms(request, env, ctx);
     else if (url.pathname === '/api/tra-live') res = await traLive(request, env, ctx);
     else if (url.pathname === '/api/tra-alert') res = await traAlert(request, env);
     else if (url.pathname === '/api/thsr-alert') res = await thsrAlert(request, env);

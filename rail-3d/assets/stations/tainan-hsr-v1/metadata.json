@@ -1,0 +1,141 @@
+{
+  "id": "tainan-hsr-v1",
+  "name": "高鐵臺南・沙崙",
+  "version": 1,
+  "status": "simplified-exterior",
+  "anchor": [
+    120.28626105,
+    22.92464555
+  ],
+  "stationPoint": [
+    120.28622,
+    22.92407
+  ],
+  "displayHeightM": 27,
+  "realBuildingHeightM": null,
+  "railElevationM": null,
+  "heightQuality": "illustrative",
+  "footprintQuality": "OSM polygon",
+  "components": [
+    {
+      "id": "r9351022:1",
+      "name": "高鐵臺南",
+      "type": "slope",
+      "anchor": [
+        120.28570848,
+        22.92463874
+      ],
+      "rotationDeg": -66.5323,
+      "widthM": 114.299,
+      "depthM": 56.615,
+      "displayHeightM": 27,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": true,
+      "clock": false
+    },
+    {
+      "id": "r9351022:0",
+      "name": "高鐵月台棚",
+      "type": "canopy",
+      "anchor": [
+        120.28621664,
+        22.924863
+      ],
+      "rotationDeg": -65.0575,
+      "widthM": 335.978,
+      "depthM": 13.981,
+      "displayHeightM": 24,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": false,
+      "clock": false
+    },
+    {
+      "id": "266850895",
+      "name": "高鐵月台棚",
+      "type": "canopy",
+      "anchor": [
+        120.28651256,
+        22.92491781
+      ],
+      "rotationDeg": -65.4683,
+      "widthM": 331.538,
+      "depthM": 10.946,
+      "displayHeightM": 24,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": false,
+      "clock": false
+    },
+    {
+      "id": "316034163",
+      "name": "沙崙",
+      "type": "flat",
+      "anchor": [
+        120.28644839,
+        22.92361794
+      ],
+      "rotationDeg": -65.6331,
+      "widthM": 149.056,
+      "depthM": 26.88,
+      "displayHeightM": 17,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": true,
+      "clock": false
+    }
+  ],
+  "modelScope": [
+    "高鐵臺南",
+    "高鐵月台棚",
+    "高鐵月台棚",
+    "沙崙"
+  ],
+  "excluded": [
+    "真實軌道高程",
+    "列車與月台對齊",
+    "地下站體",
+    "精確室內配置",
+    "未有輪廓的出入口及連接設施"
+  ],
+  "sources": [
+    {
+      "url": "https://www.thsrc.com.tw/ArticleContent/9c5ac6ca-ec89-48f8-aab0-41b738cb1814",
+      "use": "站區配置或造型參考；不作比例測量"
+    },
+    {
+      "url": "https://www.openstreetmap.org/relation/9351022",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/relation/9351022",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/266850895",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/316034163",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    }
+  ],
+  "notes": [
+    "輪廓使用免費 OSM；曲面、窗帶、柱列、展示底高及高度由軌島簡化設計，不是工程模型。",
+    "各系統保留獨立輪廓與座標；轉乘示意圖僅核對關係，不當成比例尺。",
+    "照片與官方資料只供外觀參考，未作模型貼圖。"
+  ]
+}

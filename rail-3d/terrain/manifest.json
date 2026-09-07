@@ -1,0 +1,77 @@
+{
+  "chunkSize": 8388608,
+  "byteLength": 115975855,
+  "sha256": "396d73d26c38763fd8162e2e794adaa499d4987d6d337b356a6829864816d8cf",
+  "chunks": [
+    {
+      "file": "00.bin",
+      "bytes": 8388608,
+      "sha256": "c3b2bb986c0a0cf49db7f6a77090da24ba9ac8444f7d35b68af74818f15191e3"
+    },
+    {
+      "file": "01.bin",
+      "bytes": 8388608,
+      "sha256": "0ad332f3204ef9006bd985eb3030e490657197b3df24440630e722b0a53b5b6d"
+    },
+    {
+      "file": "02.bin",
+      "bytes": 8388608,
+      "sha256": "80c54e658f30f7791b187bac028bce17ac0b909341ed1e52ccb52c934bb46f12"
+    },
+    {
+      "file": "03.bin",
+      "bytes": 8388608,
+      "sha256": "05b70b7608af6df381339bf475ea80fe5d3f382d30ad9cd2d14a482c30814e04"
+    },
+    {
+      "file": "04.bin",
+      "bytes": 8388608,
+      "sha256": "6f5eb07e45f2c67f896cc84eb360948ce44d53b6153f046954638e9699baf367"
+    },
+    {
+      "file": "05.bin",
+      "bytes": 8388608,
+      "sha256": "18c4670a38b99ea525a4855670d5351f350771bca70e49a5002c66b77127a8db"
+    },
+    {
+      "file": "06.bin",
+      "bytes": 8388608,
+      "sha256": "174a831b620b29534e84fb349520846d2ca1630c73e011fa7fdbc53dbb2069e8"
+    },
+    {
+      "file": "07.bin",
+      "bytes": 8388608,
+      "sha256": "11f50ff61267d2c8d05ecfe7dc26f540e9da36257fc9416be9b27bbdab1bb027"
+    },
+    {
+      "file": "08.bin",
+      "bytes": 8388608,
+      "sha256": "6d06c3b515e2cd55989a8dde5ff0196c593a3e33c133a1af19df94eaf9ef0947"
+    },
+    {
+      "file": "09.bin",
+      "bytes": 8388608,
+      "sha256": "937c5a42f4f16c915c7ff37a35e536e2bc5bb037792aeaea1b3d941c211e2773"
+    },
+    {
+      "file": "10.bin",
+      "bytes": 8388608,
+      "sha256": "d83a660ed658ab8062b3d1c7b3474c12b46412b05ee4adba0a91399f03225f24"
+    },
+    {
+      "file": "11.bin",
+      "bytes": 8388608,
+      "sha256": "f23ce942bb875c39a886084bc9800dee55473878489baa86f452c570c54bb0a4"
+    },
+    {
+      "file": "12.bin",
+      "bytes": 8388608,
+      "sha256": "7a7f35b09a4cb413c26466b0c14c83d8b71ae26759cf0f1270bc358903ee0a94"
+    },
+    {
+      "file": "13.bin",
+      "bytes": 6923951,
+      "sha256": "f78496650d25857fc4b5a63356cdd2ee1882c9d5ab7ed5efb6d6022f22c8046c"
+    }
+  ]
+}

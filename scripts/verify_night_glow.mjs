@@ -42,7 +42,7 @@ try {
   });
   ok(en+' 微光與軌道共用幾何、位在實線之下',layers.sameSource&&layers.glowIndex<layers.lineIndex&&layers.opacity>0,layers);
   ok(en+' 微光沿用路線顯示篩選',JSON.stringify(layers.filter[2][1])===JSON.stringify(layers.expected));
-  for(const [theme,style,collect,expected] of [['dark','auto',false,.45],['light','auto',false,0],['sat','auto',false,0],['dark','faint',false,0],['dark','hidden',false,0],['dark','auto',true,0]]) {
+  for(const [theme,style,collect,expected] of [['dark','auto',false,.22],['light','auto',false,0],['sat','auto',false,0],['dark','faint',false,0],['dark','hidden',false,0],['dark','auto',true,0]]) {
     const alpha=await page.evaluate(([theme,style,collect])=>{state.mapDark=theme==='dark';state.basemap=theme==='sat'?'sat':'street';state.trackStyle=style;state.collectMap=collect;glTracksSync();return M.raw.getPaintProperty('track-glow','line-opacity');},[theme,style,collect]);
     ok(en+` ${theme}/${style}/collect=${collect}`,alpha===expected,alpha);
   }
@@ -59,7 +59,7 @@ try {
     document.getElementById('overlay').style.visibility='hidden';
     M.raw.setStyle({version:8,sources:{},layers:[{id:'test-bg',type:'background',paint:{'background-color':'#10141c'}}]});
   });
-  await page.waitForFunction(()=>M.raw.getLayer('track-glow')&&M.raw.getPaintProperty('track-glow','line-opacity')===.45);
+  await page.waitForFunction(()=>M.raw.getLayer('track-glow')&&M.raw.getPaintProperty('track-glow','line-opacity')===.22);
   const restored=await page.evaluate(()=>M.raw.getStyle().layers.filter(l=>l.id==='track-glow').length);
   ok(en+' 換底圖後微光恰好重建一次',restored===1,restored);
   await page.evaluate(()=>M.raw.setPaintProperty('track-glow','line-opacity-transition',{duration:0}));
@@ -68,7 +68,7 @@ try {
     await page.waitForTimeout(200);
     return sharp(await page.screenshot({clip:{x:390,y:100,width:420,height:500}})).ensureAlpha().raw().toBuffer();
   }
-  const on=await pixels(.45),off=await pixels(0);let brighter=0,delta=0;
+  const on=await pixels(.22),off=await pixels(0);let brighter=0,delta=0;
   for(let i=0;i<on.length;i+=4){const d=on[i]+on[i+1]+on[i+2]-off[i]-off[i+1]-off[i+2];if(d>6){brighter++;delta+=d;}}
   if(en==='webkit'&&brighter===0) console.log('SKIP WebKit 合成像素：此環境沒有 GL 畫面，style/篩選/重建已驗；真機仍需複驗。');
   else ok(en+' 微光確實讓軌道周圍亮起',brighter>200&&delta>2000,{brighter,delta});

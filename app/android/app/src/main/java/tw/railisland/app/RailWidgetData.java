@@ -222,6 +222,13 @@ final class RailWidgetData {
         long scheduledAt;
         Long destinationAt;
         Integer delayMinutes;
+        String platformOrigin;
+        String platform;
+        long platformExpiresAt;
+
+        String platformAt(long now) {
+            return "tra".equals(sys) && relation != Relation.PASS && now < platformExpiresAt ? platform : null;
+        }
 
         long expectedAt() {
             return scheduledAt + Math.max(0, delayMinutes == null ? 0 : delayMinutes) * 60_000L;
@@ -234,6 +241,9 @@ final class RailWidgetData {
             if (heading != null) out.put("heading", heading.name());
             if (destinationAt != null) out.put("destinationAt", destinationAt);
             if (delayMinutes != null) out.put("delayMinutes", delayMinutes);
+            if (platformOrigin != null) out.put("platformOrigin", platformOrigin);
+            if (platform != null) out.put("platform", platform);
+            out.put("platformExpiresAt", platformExpiresAt);
             return out;
         }
 
@@ -256,6 +266,9 @@ final class RailWidgetData {
             row.scheduledAt = raw.optLong("scheduledAt", 0);
             if (raw.has("destinationAt")) row.destinationAt = raw.optLong("destinationAt");
             if (raw.has("delayMinutes")) row.delayMinutes = raw.optInt("delayMinutes");
+            row.platformOrigin = raw.optString("platformOrigin", "");
+            row.platform = raw.isNull("platform") ? null : raw.optString("platform", null);
+            row.platformExpiresAt = raw.optLong("platformExpiresAt", 0);
             return row;
         }
     }
@@ -551,6 +564,7 @@ final class RailWidgetData {
         for (Row row : out.rows) if ("tra".equals(row.sys) && delays.containsKey(row.no)) {
             row.delayMinutes = delays.get(row.no);
         }
+        if (containsTra(out.rows)) attachPlatforms(out.rows, fetchPlatforms(), now);
         out.rows.sort(Comparator.comparingLong(Row::expectedAt).thenComparing(row -> row.no));
         if (out.rows.size() > 12) out.rows.subList(12, out.rows.size()).clear();
         return out;
@@ -671,6 +685,7 @@ final class RailWidgetData {
         }
         Stop originStop = train.stops.get(at);
         Row row = new Row();
+        row.platformOrigin = originStop.name;
         row.sys = system.id;
         row.no = train.no;
         row.type = train.type;
@@ -769,6 +784,45 @@ final class RailWidgetData {
     private static boolean containsTra(List<Row> rows) {
         for (Row row : rows) if ("tra".equals(row.sys)) return true;
         return false;
+    }
+
+    static void attachPlatforms(List<Row> rows, JSONObject snapshot, long now) {
+        for (Row row : rows) { row.platform = null; row.platformExpiresAt = 0; }
+        if (snapshot == null || snapshot.optInt("schema") != 1 || now >= snapshot.optLong("expiresAt", 0)) return;
+        JSONArray records = snapshot.optJSONArray("records");
+        if (records == null) return;
+        for (Row row : rows) {
+            if (!"tra".equals(row.sys) || row.relation == Relation.PASS || row.platformOrigin == null) continue;
+            JSONObject best = null;
+            boolean conflict = false;
+            for (int i = 0; i < records.length(); i++) {
+                JSONObject one = records.optJSONObject(i);
+                if (one == null || !row.no.equals(one.optString("trainNo"))
+                    || !row.platformOrigin.replace('臺', '台').equals(one.optString("stationName").replace('臺', '台'))) continue;
+                String eventKey = row.relation == Relation.ARRIVAL ? "arrivalAt" : "departureAt";
+                if (one.isNull(eventKey) || Math.abs(one.optLong(eventKey, 0) - row.scheduledAt) >= 1000) continue;
+                if (best == null || one.optLong("updatedAt") > best.optLong("updatedAt")) { best = one; conflict = false; }
+                else if (one.optLong("updatedAt") == best.optLong("updatedAt")
+                    && (!one.optString("platform").equals(best.optString("platform"))
+                        || !one.optString("state").equals(best.optString("state")))) conflict = true;
+            }
+            if (best != null && !conflict && "known".equals(best.optString("state")) && !best.isNull("platform")) {
+                row.platformExpiresAt = Math.min(snapshot.optLong("expiresAt"), best.optLong("expiresAt"));
+                if (now < row.platformExpiresAt) row.platform = best.optString("platform");
+            }
+        }
+    }
+
+    private static JSONObject fetchPlatforms() {
+        HttpURLConnection connection = null;
+        try {
+            connection = (HttpURLConnection) new URL("https://railisland.tw/api/tra-platforms").openConnection();
+            connection.setConnectTimeout(8000); connection.setReadTimeout(8000);
+            connection.setRequestProperty("User-Agent", "RailIsland-Android-RailWidget");
+            if (connection.getResponseCode() != 200) return null;
+            return new JSONObject(readAll(connection.getInputStream()));
+        } catch (Exception ignored) { return null; }
+        finally { if (connection != null) connection.disconnect(); }
     }
 
     private static Map<String, Integer> fetchDelays() {

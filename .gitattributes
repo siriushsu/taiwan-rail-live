@@ -1,0 +1,3 @@
+
+# 浮點模型與 PMTiles 分片必須維持原始位元組。
+rail-3d/**/*.bin binary

@@ -22,6 +22,7 @@ struct BoardRow: Identifiable {
     let isLastOfDay: Bool
     /// 離站往北還是往南。nil ＝算不出來（終到列車、舊 payload 沒座標、兩站同緯度）⇒ 不畫三角。
     var heading: RailHeading? = nil
+    var platformText: String? = nil
 
     var id: String {
         "\(scheduledDate.timeIntervalSince1970)-\(relation.rawValue)-\(trainNumber)"
@@ -329,12 +330,14 @@ struct Provider: AppIntentTimelineProvider {
                 && nextJourney.map {
                     $0.scheduledDate.timeIntervalSince(now) <= RailBoardConstants.liveWindow
                 } == true
-            let delays = shouldFetchLive ? await liveClient.fetchDelays() : [:]
+            async let delayResult = shouldFetchLive ? liveClient.fetchDelays() : [:]
+            async let platformResult = shouldFetchLive ? liveClient.fetchPlatforms() : nil
+            let (delays, platforms) = await (delayResult, platformResult)
             let entries = makeEntries(
                 prepared: prepared,
                 configuration: configuration,
                 generatedAt: now,
-                delays: delays
+                delays: delays, platforms: platforms
             )
 
             return Timeline(
@@ -425,13 +428,15 @@ struct Provider: AppIntentTimelineProvider {
                 && prepared.journeys.first.map {
                     $0.scheduledDate.timeIntervalSince(now) <= RailBoardConstants.liveWindow
                 } == true
-            let delays = shouldFetchLive ? await liveClient.fetchDelays() : [:]
+            async let delayResult = shouldFetchLive ? liveClient.fetchDelays() : [:]
+            async let platformResult = shouldFetchLive ? liveClient.fetchPlatforms() : nil
+            let (delays, platforms) = await (delayResult, platformResult)
             return entry(
                 prepared: prepared,
                 configuration: configuration,
                 at: now,
                 generatedAt: now,
-                delays: delays
+                delays: delays, platforms: platforms
             )
         } catch {
             return RailBoardEntry(
@@ -446,7 +451,8 @@ struct Provider: AppIntentTimelineProvider {
         prepared: PreparedBoard,
         configuration: ConfigurationAppIntent,
         generatedAt: Date,
-        delays: [String: Int]
+        delays: [String: Int],
+        platforms: RailPlatformSnapshot? = nil
     ) -> [RailBoardEntry] {
         let horizon = generatedAt.addingTimeInterval(RailBoardConstants.timelineWindow)
         // 🔴 倒數改成靜態文字之後，光排「發車那一刻」不夠：畫面上的「5 分」會從現在一路凍到
@@ -463,7 +469,9 @@ struct Provider: AppIntentTimelineProvider {
             .minuteBoundaries(of: Array(anchors), after: generatedAt, until: horizon)
             .prefix(RailBoardConstants.maximumEntries - 1)
 
-        let dates = [generatedAt] + transitionDates
+        let expiryDates = (platforms?.records.map { Date(timeIntervalSince1970: $0.expiresAt / 1000) } ?? [])
+            .filter { $0 > generatedAt && $0 <= horizon }
+        let dates = Array(Set([generatedAt] + Array(transitionDates) + expiryDates)).sorted().prefix(RailBoardConstants.maximumEntries)
         return dates.map { entryDate in
             let delaySnapshot = entryDate.timeIntervalSince(generatedAt) <= RailBoardConstants.liveWindow
                 ? delays
@@ -473,7 +481,7 @@ struct Provider: AppIntentTimelineProvider {
                 configuration: configuration,
                 at: entryDate,
                 generatedAt: generatedAt,
-                delays: delaySnapshot
+                delays: delaySnapshot, platforms: platforms
             )
         }
     }
@@ -665,7 +673,8 @@ struct Provider: AppIntentTimelineProvider {
         configuration: ConfigurationAppIntent,
         at entryDate: Date,
         generatedAt: Date,
-        delays: [String: Int]
+        delays: [String: Int],
+        platforms: RailPlatformSnapshot? = nil
     ) -> RailBoardEntry {
         // 🔴 5 而不是 3。Provider 拿不到 `widgetFamily`（那是 View 層的 Environment），
         //    所以這一個上限同時服務 small／medium／large ⇒ 必須取【最大家族的需求】。
@@ -691,7 +700,12 @@ struct Provider: AppIntentTimelineProvider {
                 delay: prepared.isLive(systemID: journey.systemID)
                     ? delays[journey.trainNumber] : nil,
                 isLastOfDay: journey.isLastOfDay,
-                heading: journey.heading
+                heading: journey.heading,
+                platformText: journey.systemID == "tra" && journey.relation != .pass
+                    ? platforms?.platform(train: journey.trainNumber, station: prepared.originName,
+                        scheduled: journey.scheduledDate, arrival: journey.relation == .arrival, at: entryDate)
+                        .map { RailNativeL10n.text("月台 {platform}", ["platform": $0]) }
+                        : nil
             )
         }
 
@@ -900,8 +914,7 @@ struct SmallBoardView: View {
                     if let heading = row.heading {
                         RailHeadingMark(heading: heading, scale: scale)
                     }
-                    // 🔴 好讀版不畫車次號（設計檔規則四「車次號與月台在 small／medium
-                    //    直接不顯示」）。Small 的識別列本來就只有 20pt 高，車次讓位給站名。
+                    // 好讀版的車次讓位給站名；有官方月台時依 2026-09-07 裁示另列在目的地旁。
                     RailTrainMark(kind: row.trainType,
                                   number: scale.readable ? nil : row.trainNumber,
                                   color: trainColor(row.trainType), fontSize: 12,
@@ -930,6 +943,10 @@ struct SmallBoardView: View {
                     Text(row.watchingDestinationText)
                         .font(.system(size: scale.pt(26, readable: 30), weight: .semibold))
                         .lineLimit(1).minimumScaleFactor(0.7)
+                    if let platform = row.platformText {
+                        Text(platform).font(.system(size: scale.pt(11, readable: 13), weight: .medium))
+                            .foregroundStyle(.secondary).fixedSize()
+                    }
                     if row.isPassing { PassBadge(scale: scale) }
                     Spacer(minLength: 0)
                 }
@@ -1299,6 +1316,7 @@ struct SmallSecondRow: View {
                           color: BoardPalette.trainColor(row.trainType, in: snapshot.typeColors),
                           fontSize: 11, scale: scale)
             Text(row.watchingDestinationText)
+                .accessibilityLabel(row.watchingDestinationText + " · " + (row.platformText ?? ""))
                 .font(.system(size: scale.pt(13)))
                 .foregroundStyle(.secondary)
                 .lineLimit(1).minimumScaleFactor(0.8)
@@ -1391,7 +1409,7 @@ struct BoardRowView: View {
     let snapshot: BoardSnapshot
     var entryDate: Date = Date()
     var role: Role = .follow
-    /// 主角列的「11:35 開 · 準點 · 第 4 月台」那一行要不要畫。
+    /// 主角列的「11:35 開 · 準點」那一行要不要畫；月台在目的地旁獨立顯示。
     /// v2 設計稿把它**只留給 large**：「發車時刻與月台那一行讓給 large——這個尺寸先回答
     /// 『接下來有哪幾班』」。Medium 拿那一行的高度換第四班車（138pt 預算只夠選一個）。
     var showsDepartureLine: Bool = true
@@ -1414,7 +1432,7 @@ struct BoardRowView: View {
 
     /// 好讀版：車次號只留在 large 的主角列。
     /// 設計檔規則四「砍欄不砍字」有兩句話，各管一半：
-    /// 「車次號與月台在 small／medium 直接不顯示」⇒ 按尺寸砍；
+    /// 車次依原設計按尺寸省略；月台依 2026-09-07 裁示，有官方值才顯示。
     /// 而它的好讀版 mock 連 large 的從班也沒有車次（只有主角那列印「371」）⇒ 按角色砍。
     /// 兩句合起來就是「只有 large 的主角留車次」。`showsDepartureLine` 只有 large 的主角
     /// 是 true（發車時刻副標是 large 獨有），所以拿它當「我是不是 large 的主角」。
@@ -1477,6 +1495,10 @@ struct BoardRowView: View {
                     Text(row.watchingDestinationText)
                         .font(.system(size: scale.pt(26, readable: 30), weight: .semibold))
                         .lineLimit(1).minimumScaleFactor(0.7)
+                    if let platform = row.platformText {
+                        Text(platform).font(.system(size: scale.pt(11, readable: 13), weight: .medium))
+                            .foregroundStyle(.secondary).fixedSize()
+                    }
                     if row.isPassing { PassBadge(scale: scale) }
                 }
                 .widgetAccentable()
@@ -1501,6 +1523,10 @@ struct BoardRowView: View {
                         //    終點站等於這一列沒用（同 Small 站名那條）。設計檔說終點站是唯一
                         //    可截的欄,但「可截」的前提是截完還讀得出來。
                         .lineLimit(1).minimumScaleFactor(0.7)
+                    if let platform = row.platformText {
+                        Text(platform).font(.system(size: scale.pt(11, readable: 13), weight: .medium))
+                            .foregroundStyle(.secondary).fixedSize()
+                    }
                     if row.isPassing { PassBadge(scale: scale) }
                     Spacer(minLength: scale.pt(4))
                     // 🔴 分組版（stacked）的狀態與時刻都搬到底下那一行了 ⇒ 列內不再畫，
@@ -1651,6 +1677,9 @@ struct RectangularBoardView: View {
                     Text(row.watchingDestinationText)
                         .font(.system(size: 13, weight: .semibold))
                         .lineLimit(1).minimumScaleFactor(0.7)
+                    if let platform = row.platformText {
+                        Text(platform).font(.system(size: 11, weight: .medium)).fixedSize()
+                    }
                     if row.isPassing { PassBadge() }
                 }
                 .widgetAccentable()

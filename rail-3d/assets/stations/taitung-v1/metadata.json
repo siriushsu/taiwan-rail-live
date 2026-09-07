@@ -1,0 +1,166 @@
+{
+  "id": "taitung-v1",
+  "name": "臺東車站",
+  "version": 1,
+  "status": "simplified-exterior",
+  "anchor": [
+    121.12276045,
+    22.79349185
+  ],
+  "stationPoint": [
+    121.1231,
+    22.79372
+  ],
+  "displayHeightM": 14,
+  "realBuildingHeightM": null,
+  "railElevationM": null,
+  "heightQuality": "illustrative",
+  "footprintQuality": "OSM polygon",
+  "components": [
+    {
+      "id": "386900387",
+      "name": "臺東車站",
+      "type": "slope",
+      "anchor": [
+        121.12301268,
+        22.79378195
+      ],
+      "rotationDeg": 83.2552,
+      "widthM": 87.521,
+      "depthM": 24.017,
+      "displayHeightM": 14,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": true,
+      "clock": false
+    },
+    {
+      "id": "724860888",
+      "name": "前廊雨棚",
+      "type": "canopy",
+      "anchor": [
+        121.12327849,
+        22.79373347
+      ],
+      "rotationDeg": 83.1805,
+      "widthM": 89.527,
+      "depthM": 24.091,
+      "displayHeightM": 10,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": false,
+      "clock": false
+    },
+    {
+      "id": "386900423",
+      "name": "月台棚",
+      "type": "canopy",
+      "anchor": [
+        121.12258555,
+        22.7934268
+      ],
+      "rotationDeg": 83.1893,
+      "widthM": 226.128,
+      "depthM": 9.757,
+      "displayHeightM": 6,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": false,
+      "clock": false
+    },
+    {
+      "id": "386900424",
+      "name": "月台棚",
+      "type": "canopy",
+      "anchor": [
+        121.1224324,
+        22.79350065
+      ],
+      "rotationDeg": 83.1841,
+      "widthM": 238.757,
+      "depthM": 9.684,
+      "displayHeightM": 6,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": false,
+      "clock": false
+    },
+    {
+      "id": "386900425",
+      "name": "月台棚",
+      "type": "canopy",
+      "anchor": [
+        121.12225675,
+        22.79347016
+      ],
+      "rotationDeg": 83.1808,
+      "widthM": 227.231,
+      "depthM": 10.604,
+      "displayHeightM": 6,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": false,
+      "clock": false
+    }
+  ],
+  "modelScope": [
+    "臺東車站",
+    "前廊雨棚",
+    "月台棚",
+    "月台棚",
+    "月台棚"
+  ],
+  "excluded": [
+    "真實軌道高程",
+    "列車與月台對齊",
+    "地下站體",
+    "精確室內配置",
+    "未有輪廓的出入口及連接設施"
+  ],
+  "sources": [
+    {
+      "url": "https://www.rb.gov.tw/zh-TW/main/main_28/20250505_152320/20251104_134001/20250505_155239/",
+      "use": "站區配置或造型參考；不作比例測量"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/386900387",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/724860888",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/386900423",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/386900424",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/386900425",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    }
+  ],
+  "notes": [
+    "輪廓使用免費 OSM；曲面、窗帶、柱列、展示底高及高度由軌島簡化設計，不是工程模型。",
+    "各系統保留獨立輪廓與座標；轉乘示意圖僅核對關係，不當成比例尺。",
+    "照片與官方資料只供外觀參考，未作模型貼圖。"
+  ]
+}

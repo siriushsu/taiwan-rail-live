@@ -1,0 +1,91 @@
+{
+  "id": "zuoying-complex-v1",
+  "name": "左營・新左營",
+  "version": 1,
+  "status": "simplified-exterior",
+  "anchor": [
+    120.3074864,
+    22.68726485
+  ],
+  "stationPoint": [
+    120.30678,
+    22.68754
+  ],
+  "displayHeightM": 32,
+  "realBuildingHeightM": null,
+  "railElevationM": null,
+  "heightQuality": "illustrative",
+  "footprintQuality": "OSM polygon",
+  "components": [
+    {
+      "id": "111991261",
+      "name": "高鐵左營",
+      "type": "vault",
+      "anchor": [
+        120.30762376,
+        22.68708537
+      ],
+      "rotationDeg": 42.4015,
+      "widthM": 185.853,
+      "depthM": 78.235,
+      "displayHeightM": 32,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": true,
+      "clock": false
+    },
+    {
+      "id": "303296097",
+      "name": "臺鐵新左營",
+      "type": "flat",
+      "anchor": [
+        120.30718679,
+        22.68759789
+      ],
+      "rotationDeg": 42.2875,
+      "widthM": 168.193,
+      "depthM": 66.87,
+      "displayHeightM": 26,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": true,
+      "clock": false
+    }
+  ],
+  "modelScope": [
+    "高鐵左營",
+    "臺鐵新左營"
+  ],
+  "excluded": [
+    "真實軌道高程",
+    "列車與月台對齊",
+    "地下站體",
+    "精確室內配置",
+    "未有輪廓的出入口及連接設施"
+  ],
+  "sources": [
+    {
+      "url": "https://www.thsrc.com.tw/ArticleContent/f2519629-5973-4d08-913b-479cce78a356",
+      "use": "站區配置或造型參考；不作比例測量"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/111991261",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/303296097",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    }
+  ],
+  "notes": [
+    "輪廓使用免費 OSM；曲面、窗帶、柱列、展示底高及高度由軌島簡化設計，不是工程模型。",
+    "各系統保留獨立輪廓與座標；轉乘示意圖僅核對關係，不當成比例尺。",
+    "照片與官方資料只供外觀參考，未作模型貼圖。"
+  ]
+}

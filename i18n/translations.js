@@ -2,6 +2,14 @@
   'use strict';
   window.RAIL_I18N_MESSAGES = {
     en: {
+      '列車停駛': 'Service cancelled',
+      "月台 {platform}": "Platform {platform}",
+      "月台 —": "Platform —",
+      "月台尚未提供": "Platform unavailable",
+      "月台未定": "Platform not assigned",
+      "月台資料已過期": "Platform information expired",
+      "回放不提供即時月台": "Live platform unavailable in replay",
+      "官方月台資訊 · {time} 更新": "Official platform · updated {time}",
       '軌島': 'Rail Island',
       '關於軌島': 'About Rail Island',
       '準確度說明': 'Accuracy & limitations',
@@ -491,6 +499,14 @@
       '已接續追蹤 {system} {train} 次': 'Now following {system} train {train}',
     },
     ja: {
+      '列車停駛': '運休',
+      "月台 {platform}": "{platform}番線",
+      "月台 —": "番線 —",
+      "月台尚未提供": "番線情報なし",
+      "月台未定": "番線未定",
+      "月台資料已過期": "番線情報の有効期限切れ",
+      "回放不提供即時月台": "再生中は現在の番線を表示しません",
+      "官方月台資訊 · {time} 更新": "公式番線情報 · {time}更新",
       '軌島': '軌島', '軌島 railisland.tw。看台鐵此刻準點嗎、捷運怎麼穿梭全台，一張會動的台灣鐵道地圖。': '軌島は、台湾鉄路・高速鉄道・各都市のメトロとライトレールを一枚の地図で表示する鉄道アニメーションです。', '台灣鐵道即時軌跡': '台湾鉄道ライブ', '台灣高鐵即時軌跡': '台湾高速鉄道ライブ',
       '關於軌島': '軌島について', '準確度說明': '精度と制約', '車站索引': '駅索引',
       '全台同框': '台湾全体', '台鐵': '台湾鉄路', '高鐵': '台湾高速鉄道', '阿里山林鐵': '阿里山森林鉄道',
@@ -1072,3 +1088,9 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   "綠線": "緑線",
   "廣慈/奉天宮": "廣慈／奉天宮"
 });
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"下一班":"Next train", "暗色 2.0：霓虹路線、透明藍色建築與玻璃面板；車站看板新增方向切換和大字倒數，亮色維持琺瑯風格":"Dark 2.0 brings neon routes, transparent blue buildings and glass panels, with direction tabs and a large departure countdown. Light mode keeps its enamel style."});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"下一班":"次の列車", "暗色 2.0：霓虹路線、透明藍色建築與玻璃面板；車站看板新增方向切換和大字倒數，亮色維持琺瑯風格":"ダーク2.0：ネオンの路線、透明な青い建物とガラスパネル。駅の発着案内に方面切替と大きなカウントダウンを追加。ライトモードは琺瑯スタイルを維持します。"});
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"放大地圖時，車站標記與點擊範圍一起加大；點開車站或跟隨列車時，指北按鈕也能正常回正":"Station markers and tap areas grow as you zoom in. The compass also works while viewing a station or following a train."});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"放大地圖時，車站標記與點擊範圍一起加大；點開車站或跟隨列車時，指北按鈕也能正常回正":"地図を拡大すると駅マークとタップ範囲も大きくなります。駅の案内や列車の追跡中も、方位ボタンで北向きに戻せます。"});

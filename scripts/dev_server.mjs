@@ -22,7 +22,7 @@ const worker = (await import(path.join(ROOT, 'worker.js'))).default;
 
 // 副檔名不在表裡=一律 404(見下方 !type)。字型漏了會讓 assets/fonts/rail-emoji.woff2 在本機
 // 靜默 404、圖示掉回系統 emoji,本機看到的畫面與正式站不一樣(2026-07-29 由 verify_redesign 抓到)。
-const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.geojson': 'application/geo+json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf' };
+const MIME = { '.bin':'application/octet-stream', '.webp':'image/webp', '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.geojson': 'application/geo+json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf' };
 
 createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
@@ -59,5 +59,8 @@ createServer(async (req, res) => {
   const type = MIME[path.extname(fp)];
   if (outsideRoot() || !type || !existsSync(fp)) { res.statusCode = 404; return res.end('not found'); }
   res.setHeader('content-type', type);
-  res.end(readFileSync(fp));
+  const data = readFileSync(fp), range = /^bytes=(\d+)-(\d*)$/.exec(req.headers.range || '');
+  res.setHeader('Accept-Ranges','bytes');
+  if(range){const start=Number(range[1]),end=Math.min(data.length-1,range[2]?Number(range[2]):data.length-1);if(start>end||start>=data.length){res.statusCode=416;return res.end();}res.statusCode=206;res.setHeader('Content-Range',`bytes ${start}-${end}/${data.length}`);res.setHeader('Content-Length',end-start+1);return res.end(data.subarray(start,end+1));}
+  res.end(data);
 }).listen(PORT, '127.0.0.1', () => console.log(`dev server http://127.0.0.1:${PORT}`));
