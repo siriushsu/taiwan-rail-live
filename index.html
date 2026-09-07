@@ -4667,6 +4667,7 @@
 </script>
 <link rel="stylesheet" href="./rail-3d.css">
 <link rel="stylesheet" href="./rail-platform.css">
+<link rel="stylesheet" href="./train-garage.css">
 </head>
 <body>
 <!-- 自製圖示母片:只存路徑、不存顏色；各處以 <use> 繼承 currentColor。 -->
@@ -5228,6 +5229,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="garage0907"><span class="d">9/7</span><span>新增收藏車庫，62 款精修小車可旋轉欣賞；舊護照自動帶入，累積旅程進度即可解鎖收藏</span></li>
         <li data-cl-of="busboardscroll0907"><span class="d">9/7</span><span>修正車站看板更新時，已捲到公車資訊的位置被往回拉的問題</span></li>
         <li data-cl-of="physicaltracks0907"><span class="d">9/7</span><span>近景列車依推估股道分流，少量交疊會暫時靠旁避讓；捷運到站時保留立體車身，不再瞬間變回號碼</span></li>
         <li data-cl-of="satellitemodel0907"><span class="d">9/7</span><span>衛星地圖上的地標與車站改用模型原色，建築透視可依需要切換</span></li>
@@ -5235,7 +5237,6 @@
         <li data-cl-of="blenderbuildings0907"><span class="d">9/7</span><span>加入 22 款精修立體車站與地標，放大可看細節、縮小自動簡化，並保留建築透視</span></li>
         <li data-cl-of="terrainclear0907"><span class="d">9/7</span><span>修正起伏地圖中軌道被丘陵切斷、列車鑽入地底的問題，山區行駛保持連續可見</span></li>
         <li data-cl-of="roadglass0907"><span class="d">9/7</span><span>修正列車透過建築物顯示時，被道路蓋住的問題，穿越路口時車身保持連續可見</span></li>
-        <li data-cl-of="platformempty0907"><span class="d">9/7</span><span>月台資料未提供時，列車資訊、查詢摘要與車站看板都不顯示月台欄位，也不留下提示文字</span></li>
 
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
@@ -5244,6 +5245,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="garage0907"><span class="d">9/7</span><span>新增收藏車庫，62 款精修小車可旋轉欣賞；舊護照自動帶入，累積旅程進度即可解鎖收藏</span></li>
         <li data-cl="busboardscroll0907"><span class="d">9/7</span><span>修正車站看板更新時，已捲到公車資訊的位置被往回拉的問題</span></li>
         <li data-cl="physicaltracks0907"><span class="d">9/7</span><span>近景列車依推估股道分流，少量交疊會暫時靠旁避讓；捷運到站時保留立體車身，不再瞬間變回號碼</span></li>
         <li data-cl="satellitemodel0907"><span class="d">9/7</span><span>衛星地圖上的地標與車站改用模型原色，建築透視可依需要切換</span></li>
@@ -5848,6 +5850,7 @@
     <button class="ms-row" id="trtcDiagExportRow" data-act="exportTrtcDiag" hidden><span>匯出捷運診斷</span><span class="chev">↓</span></button>
     <button class="ms-row" data-proxy="satBtn"><span>衛星影像</span><span class="toggle" data-tg="satBtn"></span></button>
     <button class="ms-row" id="map3dRow" data-proxy="map3dBtn" style="display:none"><span>3D 建築</span><span class="toggle" data-tg="map3dBtn"></span></button>
+    <button class="ms-row" data-act="garage" data-close="1"><span>我的車庫</span><span class="chev">›</span></button>
     <button class="ms-row" data-act="track"><span>軌道與路線</span><span class="chev">›</span></button>
     <button class="ms-row" data-proxy="xingBtn"><span>平交道記號</span><span class="toggle" data-tg="xingBtn"></span></button>
     <button class="ms-row" data-proxy="introBtn"><span>特殊站介紹</span><span class="toggle" data-tg="introBtn"></span></button>
@@ -5927,6 +5930,8 @@
 <script src="./i18n/content-translations.js"></script>
 <script src="./i18n/bus-transfer-translations.js"></script>
 <script src="./bus-transfer-ui.js"></script>
+<script src="./train-garage-catalog.js"></script>
+<script src="./train-garage.js"></script>
 <script src="./rail-discovery.js"></script>
 <script src="./night-map.js"></script>
 <script src="./night-board.js"></script>
@@ -6129,7 +6134,8 @@
 // v0907h：併入 origin/main(33cc762d：夜間霓虹玻璃建築與看板、車站標記放大與指北修正、近景列車地形透視與跟車方向開關、官方月台串接與無資料隱藏)＋查詢分頁修正批(查詢 sheet 半高且不寫全站段高偏好、答案區手勢取消清紀錄、Android 挑選器示範列依真實列數、initialLayout 改中性卡、出貨鏈與閘門補牙)。
 // v0907m：頁尾贊助區拿掉銀行轉帳帳號（Ko-fi 保留）。
 // v0907n：更新紀錄拿掉 7/13 那條贊助方式（站上最後一處金流資訊）。
-const BUILD = 'v0907p';
+const BUILD = 'v0907q-garage';
+const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -6342,6 +6348,7 @@ function i18nRenderChangelog() {
   details.appendChild(list);
 }
 function i18nRefreshDynamic() {
+  window.TrainGarage?.refresh();
   if (railDiscoveryUI && !document.getElementById('trackPanel').hidden) refreshRailDiscovery();
   try { if (typeof refreshBadge === 'function') refreshBadge(); } catch (e) {}
   // 捷運即時徽章的 title 含動態 error 插值，已展開的中文句子無法靠 DOM key 掃描反推；
@@ -18929,7 +18936,7 @@ function recordRide(tr) {
   const it = trainIntro(tr), s = tr.stops;
   journeyProgress(tr, 0); // 確保 _totalKm 已算
   const spd = specialOf(tr) || {}; // 圖鑑收集用的比對 id(undefined 會被 JSON 丟掉,舊記錄以名稱字串補配)
-  const prevColl = collectionOf(rides), prevAch = unlockedAchievements(rides); // push 前快照,差分找新蓋的章
+  const prevColl = collectionOf(rides), prevAch = unlockedAchievements(rides), prevGarage = new Set(garageCollection(rides).filter(r => r.owned).map(r => r.id)); // push 前快照,差分找新蓋的章
   rides.push({
     train: tr.train,
     sys: tr.sys, // 系統維度:去重/跨系統統計用(舊紀錄無此欄,讀取時視為 'tra_sched')
@@ -18949,7 +18956,7 @@ function recordRide(tr) {
   pushFollowEvent('ride:' + tr.train, '完乘達成！已記入旅程收集', true);
   renderRidePanel();
   renderPassport();
-  announceCollections(tr, rides, prevColl, prevAch);
+  announceCollections(tr, rides, prevColl, prevAch, prevGarage);
 }
 // 護照 sheet(Batch B):與桌面 #passport 合併=同一份 builder;收集章→成就(chips)→完乘記錄(全量,最新在前)
 function renderRidePanel() {
@@ -18976,7 +18983,7 @@ function renderRidePanel() {
       stat(t('總里程'), i18nNumber(totalKm) + ' km') +
       stat(t('收集章'), collAll ? i18nNumber(collGot) + ' / ' + i18nNumber(collAll) : i18nNumber(collGot)) + `</div>` +
     `<div class="sub">${escHtml(t('從發車一路跟到終點就蓋一枚完乘章（調速可以・跳時間不算）· 灰色的章點了帶你搭一趟'))}</div>` +
-    buildFoundingSeal() +
+    buildGarageEntry(rides) + buildFoundingSeal() +
     buildStamps(rides, { date: true }) +
     buildStationStamps(rides) +
     buildLineBars() +
@@ -18992,6 +18999,7 @@ function renderRidePanel() {
     if (ppSecClick(e)) { renderRidePanel(); return; }
     const sortBtn = e.target.closest('.ph-sort button'); // 完乘記錄排序(issue#43,與桌面同一把設定)
     if (sortBtn) { setRideSortMode(sortBtn.dataset.v); return; }
+    if (e.target.closest('[data-act="garage"]')) { openTrainGarage(); return; }
     if (e.target.closest('[data-act="collectmap"]')) { setCollectMap(true); return; } // setCollectMap 自己會收面板
     if (e.target.closest('[data-act="bountyboard"]')) { openBountyBoard(); return; }
     const st = e.target.closest('.seal[data-cat]');
@@ -19012,6 +19020,46 @@ function closeRidePanel() {
   el.hidden = true; el.innerHTML = ''; el.onclick = null;
   updateSheetOpenClass();
   document.getElementById('rideBtn').classList.remove('active');
+}
+
+// 車庫只讀護照的既有收藏事實；在地圖上顯示哪款模型並不是收集條件。
+function garageSnapshot(rides = loadRides()) {
+  const sd = state.special;
+  const special = sd && Object.fromEntries(['rollingStock', 'namedTrains'].map(cat => [cat, sd[cat].map(item => ({...item, name:i18nContentData(cat, item, 'name')}))]));
+  return { rides, coll: collectionOf(rides), special, stationCount: stationCollection(rides).size };
+}
+function garageCollection(rides = loadRides()) { return window.TrainGarage?.collection(garageSnapshot(rides), window.RailGarageCatalog || {}) || []; }
+function buildGarageEntry(rides) {
+  const items = garageCollection(rides), count = items.filter(r => r.owned).length;
+  return `<button type="button" class="garage-entry" data-act="garage"><span>${escHtml(t('我的車庫'))}<br><small>${escHtml(t('打開收藏，看看車車'))}</small></span><span>${escHtml(t('已入庫 {count} 款', {count}))} ›</span></button>`;
+}
+let garageReturnFocus = null;
+function openTrainGarage(options = {}) {
+  if (!window.TrainGarage) { showToast(t('車庫暫時無法載入，請稍後重試。')); return; }
+  if (!state.ready) { showToast(t('收藏資料載入中，請稍後再試。')); return; }
+  garageReturnFocus = document.activeElement;
+  window.TrainGarage.open({
+    snapshot: garageSnapshot, t, lang: () => I18N_LANG, dark: () => !!state.mapDark,
+    onClose: () => {
+      const url = new URL(location.href); url.searchParams.delete('garage');
+      history.replaceState(history.state, '', url);
+      if (garageReturnFocus?.isConnected && garageReturnFocus.getClientRects().length) garageReturnFocus.focus({preventScroll:true});
+    },
+    launch: async rule => {
+      closeRidePanel();
+      if (rule.category === 'progress') { openRidePanel(); return; }
+      if (rule.category !== 'system') {
+        if (!state.trains.some(tr => tr.sys === 'tra_sched') || state.mode !== 'sched') {
+          const sys = state.systems.find(s => s.id === 'tra_sched'); if (sys) await loadSystem(sys);
+        }
+        if (!dexCandidates(rule.category, rule.id).length) { openRidePanel(); showToast(t('也可以累積護照進度，解鎖這款紀念模型。')); return; }
+        followDexStamp(rule.category, rule.id); return;
+      }
+      const candidates = (state.systems.find(s => s.id === rule.id)?.data.trains || []).filter(tr => !tr.loop);
+      if (!candidates.length) { showToast(t('今天沒有這一類的班次可搭')); return; }
+      followTrainNo(String(candidates[0].train), {fromStart:true,sys:rule.id});
+    },
+  }, options);
 }
 
 // ── 旅程護照(首頁完乘記錄+圖鑑收集):搭過蓋章,沒搭過的灰章點了直接去搭一班 ──
@@ -19543,7 +19591,7 @@ function showToast(msg, { wrap = false, corner = false } = {}) {
   requestAnimationFrame(() => el.classList.add('show'));
   setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 450); }, 5000);
 }
-function announceCollections(tr, rides, prevColl, prevAch) {
+function announceCollections(tr, rides, prevColl, prevAch, prevGarage = new Set()) {
   const msgs = [t('完乘達成　<b>{train} 次</b> 抵達終點', { train: escHtml(tr.train) })];
   const coll = collectionOf(rides), sd = state.special;
   if (sd) {
@@ -19553,6 +19601,7 @@ function announceCollections(tr, rides, prevColl, prevAch) {
   }
   const ach = unlockedAchievements(rides);
   ACHIEVEMENTS.forEach(a => { if (ach.has(a.id) && !prevAch.has(a.id)) msgs.push(t('成就解鎖　<b>{achievement}</b>', { achievement: `${railIcon(a.icon, 'ri-toast-ic')} ${escHtml(t(a.name))}` })); });
+  for (const r of garageCollection(rides)) if (r.owned && !prevGarage.has(r.id)) msgs.push(t('車庫入庫　<b>{name}</b>', { name: escHtml(r.model.name) }));
   msgs.forEach((m, i) => setTimeout(() => showToast(m), i * 700));
   // 等自己的「完乘達成 / 蓋章 / 成就解鎖」通知全部跑完再問,不跟它們搶畫面。
   maybeAskReview(msgs.length * 700 + 2000, rides.length);
@@ -21749,6 +21798,7 @@ function buildFoundingSeal() {
     `<span class="pf-txt"><b>${escHtml(t('創始島民'))}</b><i>${escHtml(t('謝謝你在最早的時候就決定支持軌島'))}</i></span></div>`;
 }
 function renderPassport() {
+  window.TrainGarage?.refresh();
   const el = document.getElementById('passport');
   if (state.mode !== 'sched') { el.hidden = true; el.innerHTML = ''; return; }
   const rides = loadRides();
@@ -21772,7 +21822,7 @@ function renderPassport() {
     (longest ? ` · ${escHtml(t('最長一趟'))} <b>${i18nNumber(longest)}</b> km` : '') +
     // 護照預設收合,收合時只看得到這行——車站收集要在這裡露出,否則使用者不會知道它存在
     (stnCount ? ` · ${escHtml(t('車站'))} <b>${i18nNumber(stnCount)}</b> ${escHtml(t('座'))}` : '') + `</span></div>` +
-    `<div class="ph-body">` + stamps +
+    buildGarageEntry(rides) + `<div class="ph-body">` + stamps +
     phSec('rides', rides.length, 12, `${escHtml(t('完乘記錄'))}${sortSeg}`, 'ph-sec-rides') +
     (list ? `<div class="ph-list">${list}</div>`
       : `<div class="ph-empty">${escHtml(t('還沒有完乘記錄——從地圖角落「探」挑一班有趣的車，陪它跑完全程吧。'))}</div>`) + `</div>`;
@@ -21787,6 +21837,7 @@ function renderPassport() {
     if (ppSecClick(e)) { renderPassport(); return; } // 分節收合／車站牆展開(自己會讓開節內按鈕)
     const sortBtn = e.target.closest('.ph-sort button');
     if (sortBtn) { setRideSortMode(sortBtn.dataset.v); return; } // 完乘記錄排序切換(純顯示層,見 sortRides)
+    if (e.target.closest('[data-act="garage"]')) { openTrainGarage(); return; }
     if (e.target.closest('[data-act="collectmap"]')) { setCollectMap(true); return; }
     if (e.target.closest('[data-act="bountyboard"]')) { openBountyBoard(); return; }
     const st = e.target.closest('.seal[data-cat]');
@@ -31198,6 +31249,10 @@ const HELP_GROUPS = [
       steps: ['「更多」→ 配樂情境', '選「跟著列車」就交給它自動換',
         '想固定聽某一種就直接點家族或情境，會一直停在那裡', '要換回自動，再點一次「跟著列車」'],
       tip: '換情境只發生在一首播完之後，不會把正在聽的曲子切掉；短暫經過一個地區也不會馬上換。通行證到期會自動退回免費的隨機播放，你選過的情境會留著。' },
+    { key: 'garage', ic: '庫', nm: '我的車庫',
+      one: '把旅程護照裡的收集章，變成可以旋轉欣賞的小車。',
+      steps: ['「更多」或「旅程護照」→「我的車庫」', '選一款車，左右拖曳查看外觀與來源', '累積完乘、里程、車站與支線章，解鎖 62 款紀念模型'],
+      tip: '既有車種章自動帶入，每款車也能透過護照里程碑收集。', try: 'garage' },
     { key: 'sat', ic: '衛', nm: '衛星影像', tg: 'satBtn', needs: 'satBtn', one: '把底圖換成衛星照片，看得到實際的軌道與站場。',
       steps: ['「更多」→ 衛星影像'], tip: '拉太近時衛星影像可能還沒有那麼清晰的圖資。', try: 'sat' },
     { key: 'orientation', avail: () => !!M, ic: '3D', nm: '旋轉、傾斜與 3D 建築', tg: 'map3dBtn',
@@ -31268,6 +31323,7 @@ const HELP_TRY = {
   today: { id: 'todayBtn' },
   fav: { id: 'favBtn' },
   ride: { id: 'rideBtn' },
+  garage: { run: () => openTrainGarage() },
   near: { id: 'nearBtn' },
   pin: { id: 'pinBtn', toast: '落釘模式已開——點地圖任一處，看有哪些火車經過那裡' },
   notify: { ok: () => NOTIFY_LOCAL_ENABLED, run: () => openLocalReminderOverview() },
@@ -31813,6 +31869,7 @@ function setupMapTools() {
       window.open(reviewWriteUrl(), '_blank', 'noopener');
       return;
     }
+    if (row.dataset.act === 'garage') { setMore(false); openTrainGarage(); return; }
     if (row.dataset.act === 'help') { setMore(false); openHelp(); return; }
     if (row.dataset.act === 'musicpl') { setMore(false); musicPlOpen(); return; }
     if (row.dataset.act === 'track') { setMore(false); openTrackPanel(); return; }
@@ -33530,6 +33587,7 @@ async function boot() {
       .flatMap(s => s.data.trains || []).find(tr => tr.stops && tr.stops.some(st => st.arrSec > 86400 || st.depSec > 86400));
     if (cross) document.documentElement.dataset.notifyMockCrossDay = JSON.stringify({ train: String(cross.train), sys: reminderSysOf(cross) });
   }
+  if (GARAGE_QUERY === '1' || GARAGE_QUERY === 'demo') openTrainGarage({demo:GARAGE_QUERY === 'demo'});
   requestAnimationFrame(tick);
 }
 

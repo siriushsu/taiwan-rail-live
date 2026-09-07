@@ -197,6 +197,18 @@
       },
       "minCount": 10,
       "why": "路線導覽與取景模組的提示、按鈕與空狀態。"
+    },
+    {
+      "id": "garage-ui",
+      "file": "train-garage.js",
+      "kind": "content",
+      "extract": {
+        "type": "regex",
+        "pattern": "\\btr\\('([^']+)'",
+        "group": 1
+      },
+      "minCount": 40,
+      "why": "收藏車庫的載入、進度、空狀態、來源與操作文案。"
     }
   ],
   "contentExemptBaseline": [

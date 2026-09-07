@@ -36,11 +36,14 @@ for (const key of keySets.ja || []) if (!keySets.en.has(key)) fail(`en 缺少 ja
 // runtime 直接呼叫 t('繁中原文') 的 key 必須兩種外語都有；動態變數 key 另外由核心清單守門。
 const discoverySource = fs.readFileSync(path.join(root, 'rail-discovery.js'), 'utf8');
 const discoveryBox = { window: {} }; vm.runInNewContext(discoverySource, discoveryBox);
+const garageSource = fs.readFileSync(path.join(root, 'train-garage.js'), 'utf8');
 const literalKeys = [...indexSource.matchAll(/\bt\(\s*(['"])((?:\\.|(?!\1).)*)\1/g)].map(match => match[2]);
 literalKeys.push(...[...busTransferSource.matchAll(/\btr\(\s*(['"])((?:\\.|(?!\1).)*)\1/g)].map(match => match[2]));
 literalKeys.push(...[...discoverySource.matchAll(/\b(?:t|tx)\(\s*(['"])((?:\\.|(?!\1).)*)\1/g)].map(m => m[2]));
 literalKeys.push(...discoveryBox.window.RailDiscovery.scenes.flatMap(s => [s.title, s.note]));
 // 立體設定與編組說明同樣是首頁文案，不能因為移到獨立模組而漏查。
+literalKeys.push(...[...garageSource.matchAll(/\btr\(\s*(['"])((?:\\.|(?!\1).)*)\1/g)].map(m => m[2]));
+literalKeys.push('完乘 {count} 趟','累積旅程 {count} 公里','收集 {count} 座車站','取得 {count} 枚支線章');
 const rail3dSource = fs.readFileSync(path.join(root, 'rail-3d.js'), 'utf8');
 literalKeys.push(...[...rail3dSource.matchAll(/\bt\(\s*(['"])((?:\\.|(?!\1).)*)\1/g)].map(m => m[2]));
 const rail3dLabels = rail3dSource.match(/const labels=(\{[^;]+\});/);

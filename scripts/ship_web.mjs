@@ -115,6 +115,11 @@ try {
   if (wkApi.status !== 0) fail('週末活動 API 未過——handler 的資產接線、快取金鑰或跨層欄位契約壞了'
     + '（單獨重跑：npm run check-weekend-api）');
 
+  // 收藏車庫：出貨樹必須包含完整模型、縮圖、雜湊与 62 款可達成規則。
+  const garage = spawnSync('node', [path.join(wt, 'scripts', 'verify_garage_assets.mjs')], { encoding: 'utf8' });
+  process.stdout.write(garage.stdout || ''); process.stderr.write(garage.stderr || '');
+  if (garage.status !== 0) fail('收藏車庫模型或收集規則檢查未通過');
+
   // ── 2.7 對外用語閘門（更名後的舊名不准出貨）────────────────────────────────
   // 🔴 位置與 2.5 同一個理由,不可移到 strip 之後:check_voice 的 constBlock surface
   //    content-station／content-sys 用的 end 標記就是【註解】（'// 有精選特色'、
