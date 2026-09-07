@@ -5228,6 +5228,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="busboardscroll0907"><span class="d">9/7</span><span>修正車站看板更新時，已捲到公車資訊的位置被往回拉的問題</span></li>
         <li data-cl-of="physicaltracks0907"><span class="d">9/7</span><span>近景列車依推估股道分流，少量交疊會暫時靠旁避讓；捷運到站時保留立體車身，不再瞬間變回號碼</span></li>
         <li data-cl-of="satellitemodel0907"><span class="d">9/7</span><span>衛星地圖上的地標與車站改用模型原色，建築透視可依需要切換</span></li>
         <li data-cl-of="compactfollow0907"><span class="d">9/7</span><span>跟車卡收起後保持單行，編組說明留在展開資訊中；暗色改用精簡玻璃卡，結束按鈕更容易點擊</span></li>
@@ -5235,7 +5236,6 @@
         <li data-cl-of="terrainclear0907"><span class="d">9/7</span><span>修正起伏地圖中軌道被丘陵切斷、列車鑽入地底的問題，山區行駛保持連續可見</span></li>
         <li data-cl-of="roadglass0907"><span class="d">9/7</span><span>修正列車透過建築物顯示時，被道路蓋住的問題，穿越路口時車身保持連續可見</span></li>
         <li data-cl-of="platformempty0907"><span class="d">9/7</span><span>月台資料未提供時，列車資訊、查詢摘要與車站看板都不顯示月台欄位，也不留下提示文字</span></li>
-        <li data-cl-of="platform0907"><span class="d">9/7</span><span>台鐵列車資訊與車站看板支援官方月台號碼；沒有資料、尚未確定、過期或回放時自動收起，不留空欄</span></li>
 
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
@@ -5244,6 +5244,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="busboardscroll0907"><span class="d">9/7</span><span>修正車站看板更新時，已捲到公車資訊的位置被往回拉的問題</span></li>
         <li data-cl="physicaltracks0907"><span class="d">9/7</span><span>近景列車依推估股道分流，少量交疊會暫時靠旁避讓；捷運到站時保留立體車身，不再瞬間變回號碼</span></li>
         <li data-cl="satellitemodel0907"><span class="d">9/7</span><span>衛星地圖上的地標與車站改用模型原色，建築透視可依需要切換</span></li>
         <li data-cl="compactfollow0907"><span class="d">9/7</span><span>跟車卡收起後保持單行，編組說明留在展開資訊中；暗色改用精簡玻璃卡，結束按鈕更容易點擊</span></li>
@@ -6128,7 +6129,7 @@
 // v0907h：併入 origin/main(33cc762d：夜間霓虹玻璃建築與看板、車站標記放大與指北修正、近景列車地形透視與跟車方向開關、官方月台串接與無資料隱藏)＋查詢分頁修正批(查詢 sheet 半高且不寫全站段高偏好、答案區手勢取消清紀錄、Android 挑選器示範列依真實列數、initialLayout 改中性卡、出貨鏈與閘門補牙)。
 // v0907m：頁尾贊助區拿掉銀行轉帳帳號（Ko-fi 保留）。
 // v0907n：更新紀錄拿掉 7/13 那條贊助方式（站上最後一處金流資訊）。
-const BUILD = 'v0907o';
+const BUILD = 'v0907p';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -28484,9 +28485,15 @@ function boardAlignColumns(el) {
   }
 }
 function renderBoard() {
+  const el = document.getElementById('board'), st = state.boardStation;
+  const preserveScroll = !el.hidden && st && el._stnKey === st.name + '|' + st.sys;
+  const scrollTop = el.scrollTop;
   renderBoardBody();
-  window.RailNightBoard?.decorate(document.getElementById('board'), () => state.simSec, t('下一班'));
-  boardAlignColumns(document.getElementById('board'));
+  window.RailNightBoard?.decorate(el, () => state.simSec, t('下一班'));
+  boardAlignColumns(el);
+  // 公車區 mount 前短暫變空，重繪會把 scrollTop 夾到較短的高度。
+  // 內容與夜間看板都恢復後才還原；換站仍由 renderBoardBody 歸零。
+  if (preserveScroll && !el.hidden) el.scrollTop = scrollTop;
 }
 // 看板列 HTML(依方向分組、空組不畫、組內時間序、各取 perGroup 班)。
 // renderBoardBody(perGroup 3/6)與查詢答案區(perGroup 1)共用同一份——答案區的字面必須等於看板同組第一列,
@@ -28576,11 +28583,7 @@ function renderBoardBody() {
   mountBusTransferBoard(el, st, busTransferId);
   syncUniCard();
   el._stnKey = stnKey;
-  // 🔴 換站才歸零。`el.innerHTML = …` **不會**把 scrollTop 歸零(瀏覽器只是夾到新的可捲範圍),
-  //    所以換一站之後會留在上一站捲到的位置——實測 171px,看起來像「新看板一打開就已經捲到一半」。
-  //    反過來,同一站重繪不必自己「保留」:兩個引擎都自然留著(拿掉這整段的突變測試 L8 依舊綠),
-  //    寫一行沒有作用的還原只是把「內容變短之後的舊位置」硬塞回去。L8 守著「保留」這個行為本身,
-  //    真有哪個引擎/改動開始彈回頂端就會紅。要在 syncUniCard 之後做:卡搬回槽裡高度才確定。
+  // 換站歸零；同站重繪由 renderBoard 在公車區與夜間內容完成後恢復位置。
   if (!sameStn) el.scrollTop = 0;
   el.querySelector('#boardClose').onclick = closeBoard;
   el.querySelector('#boardStar').onclick = () => toggleFavStation(st);

@@ -4,6 +4,7 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "修正車站看板更新時，已捲到公車資訊的位置被往回拉的問題": "Station board refreshes now preserve your scroll position in the bus information section.",
     "近景列車依推估股道分流，少量交疊會暫時靠旁避讓；捷運到站時保留立體車身，不再瞬間變回號碼": "Close-up trains use inferred tracks, with temporary visual yielding for remaining overlaps. Metro trains keep their 3D bodies when stopping at stations.",
     "推估股道": "Inferred track",
     "暫時避讓（示意）": "Temporary visual yielding",
@@ -218,6 +219,7 @@
   });
 
   Object.assign(messages.ja, {
+    "修正車站看板更新時，已捲到公車資訊的位置被往回拉的問題": "駅の案内板が更新されても、バス情報までスクロールした位置を保つように修正しました。",
     "近景列車依推估股道分流，少量交疊會暫時靠旁避讓；捷運到站時保留立體車身，不再瞬間變回號碼": "近景の列車を推定した線路に振り分け、残る重なりは一時的な表示上の退避で対応します。地下鉄の停車中も3D車体を保ちます。",
     "推估股道": "推定線路",
     "暫時避讓（示意）": "一時退避（イメージ）",
