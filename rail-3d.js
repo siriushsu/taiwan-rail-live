@@ -55,7 +55,7 @@
         for(const item of core??official){const kind=core!==null?'core':'official',f=state.freqFollow;
           const followed=!!f&&!!f.core===(kind==='core')&&String(f.lineId)===String(ln.id)&&String(f.vehicleId)===String(item.vehicleId)&&(!f.core||String(f.systemId)===String(item.systemId));
           const id=[sys,ln.id,kind,item.vehicleId].join(':');motionItems.set(id,item);
-          add(id,item.pos,{...common,sourceKind:kind,publicLabel:item.publicLabel||item.officialNo||ln.abbr,direction:item.train?.direction??item.vehicle?.direction??null,railDirection:coreRouteDirection(item.train,ln),followed},
+          add(id,item.pos,{...common,sourceKind:kind,publicLabel:item.publicLabel||item.officialNo||ln.abbr,direction:item.train?.direction??item.vehicle?.direction??null,railDirection:kind==='official'?trtcOfficialMotionStep(item.vehicle,item.pos):coreRouteDirection(item.train,ln),followed},
             {ln,vehicleId:item.vehicleId,core:kind==='core',systemId:item.systemId});
         }continue;
       }
