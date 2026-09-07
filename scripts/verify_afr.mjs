@@ -62,7 +62,8 @@ function distToSeg(p, a, b) {
   const t = L2 ? Math.max(0, Math.min(1, (px * bx + py * by) / L2)) : 0;
   return Math.hypot(px - t * bx, py - t * by);
 }
-const distToLine = (p, shape) => {
+const distToLine = (p, shape) => {                      // shape 可以是一條線，也可以是一疊線
+  if (Array.isArray(shape[0]?.[0])) return Math.min(...shape.map(s => distToLine(p, s)));
   let m = Infinity;
   for (let i = 1; i < shape.length; i++) { const d = distToSeg(p, shape[i - 1], shape[i]); if (d < m) m = d; }
   return m;
@@ -83,8 +84,10 @@ ok(servedMd5 === localMd5, `伺服器服務的是本樹（${BASE}）`);
 
 console.log('\n═══ A. 軌道路網 data/afr.json ═══');
 const track = JSON.parse(readFileSync('data/afr.json', 'utf8'));
-ok(track.lines?.length === 4, `4 條線（實得 ${track.lines?.length}）`);
-for (const ln of track.lines) {
+// aux=true 是站內股道(之字形折返股),不是營業線:官方站序/里程/長度那幾條只對營業線成立。
+const revenue = track.lines?.filter(l => !l.aux) || [], yards = track.lines?.filter(l => l.aux) || [];
+ok(revenue.length === 4, `4 條營業線（實得 ${revenue.length}）`);
+for (const ln of revenue) {
   const nm = ln.name || ln.id;
   const ds = ln.stations.map(s => s.d);
   ok(ds.every((d, i) => i === 0 || d > ds[i - 1]), `${nm}：里程 d 嚴格遞增（${ln.stations.length} 站）`);
@@ -101,8 +104,67 @@ for (const ln of track.lines) {
     ok(Math.abs(L - SHAPE_KM[key]) / SHAPE_KM[key] <= 0.05, `${nm}：長度 ${L.toFixed(2)}km（基準 ${SHAPE_KM[key]}km）`);
   }
 }
-ok(track.lines.find(l => l.name.includes('本線')).stations.map(s => s.name).join() === MAIN_ORDER.join(),
+ok(revenue.find(l => l.name.includes('本線')).stations.map(s => s.name).join() === MAIN_ORDER.join(),
   '本線站序＝嘉義…二萬平→神木（末站依幾何現實為神木，非官方的阿里山）');
+{
+  // ── 站內股道：畫出來的線要蓋到「列車真的停在哪」──────────────────────────────
+  // 2026-09-07 裁示「軌道都要跟新的、正確的資訊」。列車位置自 0f5bb774 起改吃實體股道
+  // (rail-3d/physical，index.html trainPosAt 第一行，沒有 zoom 閘門)，而 TDX 的 Shape 只給營業
+  // 線、不含之字形折返股 ⇒ 停靠中的車會畫在官方線形之外(阿里山 94m、神木 164m)。
+  // 判準刻意不寫「有幾條股道」(那會跟著資料漂)，而是量真正的不變量：**林鐵每一個實體停靠點
+  // 都要有軌道畫得出來**。這條在資料層就成立，涵蓋全天所有班次，不只 E 段抽樣的 11:00。
+  const sidecar = JSON.parse(readFileSync('data/afr_station_tracks.json', 'utf8'));
+  ok(yards.length > 0 && JSON.stringify(yards) === JSON.stringify(sidecar.lines),
+    `站內股道與 data/afr_station_tracks.json 逐欄一致（${yards.length} 條）`);
+  ok(yards.every(l => l.shape.length >= 2 && l.shape.every(p => p.length === 2 && p.every(Number.isFinite))),
+    '站內股道 shape 無 NaN/null');
+  // 股道是站內的短股，不該長成一條新路線；而且必須接得回營業線，不能是浮空的碎片。
+  const longest = Math.max(...yards.map(l => l.shapeLen));
+  ok(longest <= 0.5, `每條站內股道都短於 0.5km（最長 ${(longest * 1000).toFixed(0)}m）`);
+  const detached = yards.filter(l =>
+    Math.min(...l.shape.map(p => Math.min(...revenue.map(r => distToLine(p, r.shape))))) > 20);
+  ok(detached.length === 0, `站內股道都接得回營業線（浮空的：${detached.map(l => l.id).join(',') || '無'}）`);
+
+  const net = JSON.parse(readFileSync('rail-3d/physical/network.json', 'utf8'));
+  const dispatch = JSON.parse(readFileSync('rail-3d/physical/dispatch.json', 'utf8'));
+  const at = new Map();
+  for (const w of net.ways) w.nodes.forEach((n, i) => at.set(String(n), [w.coordinates[i][1], w.coordinates[i][0]]));
+  const stops = new Set();   // 派軌路徑的起訖節點＝motion.js 停靠(dwell)時吐出來的座標
+  for (const [key, plan] of Object.entries(dispatch.plans)) if (key.startsWith('afr_sched:'))
+    for (const id of plan.pathIds) { stops.add(String(net.paths[id].from)); stops.add(String(net.paths[id].to)); }
+  // 🔴 判準量的是 data/track_lines.geojson，不是 data/afr.json：**畫出來的是前者**（index.html
+  // glTracksLoad() 讀它餵 GL 的 track-lines source），而它是 build_track_geojson.mjs 從後者產的
+  // 衍生檔。拿 afr.json 當判準會踩「改了來源卻忘了重產衍生檔」——我這一輪就踩到：afr.json 有
+  // 12 條、state.trackLines 也有 12 條，而 GL 實際只拿到 4 條，畫面上一條股道都沒有卻全綠。
+  const drawn = JSON.parse(readFileSync('data/track_lines.geojson', 'utf8')).features
+    .filter(f => f.properties.sys === 'afr_sched');
+  const shapeOf = f => f.geometry.coordinates.map(c => [c[1], c[0]]);
+  const shapes = drawn.map(shapeOf);
+  ok(shapes.length > 0 && yards.every(l => drawn.some(f => f.properties.id === l.id)),
+    `${yards.length} 條站內股道都進了畫出來的 track_lines.geojson（實得 ${drawn.length} 條林鐵線形）`);
+  const far = [...stops].map(n => ({ n, name: net.nodeTags[n]?.name || n, d: distToLine(at.get(n), shapes) }))
+    .filter(x => x.d > 50).sort((a, b) => b.d - a.d);
+  ok(far.length === 0, `${stops.size} 個實體停靠點都在畫得出來的軌道上（>50m 者：`
+    + `${far.map(x => `${x.name}:${x.d.toFixed(0)}m`).join(',') || '無'}）`);
+  // 反向對照(判準恆真的話上面那條就毫無訊號):拿掉站內股道，阿里山與神木必須立刻紅回來。
+  const yardIds = new Set(yards.map(l => l.id));
+  const withoutYards = drawn.filter(f => !yardIds.has(f.properties.id)).map(shapeOf);
+  const regress = [...stops].filter(n => distToLine(at.get(n), withoutYards) > 50).length;
+  ok(regress > 0, `控制組：只用營業線時有 ${regress} 個停靠點離線 >50m（證明上一條會紅）`);
+
+  // 同一件事的另一個面向，而且**不依賴實體股道模型**：官方站點自己也要落在畫出來的線上。
+  // 上面兩條量的是 rail-3d/physical 的停靠點，一旦 afr_sched 不在 PHYSICAL_SYSTEMS 名單裡
+  // 就沒有東西在消費它們；這一條量的是「站牌畫在哪」對「軌道畫在哪」，兩者永遠都會畫出來。
+  // 仲裁來源也不同源：站座標與 Shape 是 TDX 的兩份獨立資料，用它自己的站去驗它自己的線形。
+  // 修前阿里山 114.9m、祝山 77.3m（四條線形都停在站外的道岔口）；補上股道後 21.9m／16.2m。
+  const dots = new Map();
+  for (const ln of track.lines) for (const s of ln.stations || []) if (!dots.has(s.name)) dots.set(s.name, [s.lat, s.lon]);
+  const offDot = [...dots].map(([n, p]) => ({ n, d: distToLine(p, shapes) })).filter(x => x.d > 50).sort((a, b) => b.d - a.d);
+  ok(offDot.length === 0, `${dots.size} 個官方站點都在畫得出來的軌道上（>50m 者：`
+    + `${offDot.map(x => `${x.n}:${x.d.toFixed(0)}m`).join(',') || '無'}；餘裕最小的是北門 44m、嘉義 43m）`);
+  const dotRegress = [...dots].filter(([, p]) => distToLine(p, withoutYards) > 50).map(([n]) => n);
+  ok(dotRegress.length > 0, `控制組：只用營業線時有 ${dotRegress.join('、')} 離線 >50m（證明上一條會紅）`);
+}
 {
   const fills = JSON.parse(readFileSync('data/afr_osm_gap_fills.json', 'utf8'));
   ok(fills.fills?.length === 5 && /OpenStreetMap/.test(fills.source), '5處 TDX 缺口均有 OSM ODbL 補線來源');

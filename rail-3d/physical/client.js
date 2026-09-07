@@ -10,9 +10,6 @@ import {createMetroPhysicalMotion} from './metro-motion.js';
 // 而 2D 地圖畫的一律是 state.trackLines(示意線形,index.html 從不讀股道幾何),於是林鐵會出現
 // 「車不在自己那條線上」。單線 762mm 登山鐵道本來也沒有股道可分流,套了沒有收益卻有這個代價。
 // 兩邊幾何對齊之後把 afr_sched 從這裡拿掉即可恢復,不必動 motion.js。
-// 🔴 這是**唯一**一份名單:rail-3d.js 近景抽換示意線形時讀 physical.systems。2026-09-08 踩過——
-//    那邊曾另外寫死一份含 afr_sched,只改這裡的話近景會把林鐵的示意線形抽掉而股道又沒有它,
-//    畫面上整條軌道消失,而且零 pageerror、零錯誤訊息。名單再也不要出現第二份。
 const PHYSICAL_SYSTEMS=['tra_sched','thsr_sched'];
 export async function loadPhysicalMotion(){
  const json=async file=>{const r=await fetch(new URL(file,import.meta.url));if(!r.ok)throw Error('股道資料載入失敗');return r.json();};
@@ -28,6 +25,8 @@ export async function loadPhysicalMotion(){
  // 未涵蓋的系統:sample 回 undefined(呼叫端既有的「沒有股道資料」訊號,會落回 posAlongShape)、
  // has 回 false(讓 blockHoldSec 等既有行為照舊)。motion 本身不動,離線驗證腳本語意不變。
  const covered=tr=>PHYSICAL_SYSTEMS.includes(tr.sys||tr.system);
+ // systems 是這份白名單的**唯一**出處:rail-3d.js 決定「哪些線要把示意線形換成實體股道」時要讀它。
+ // 兩邊各留一份的話,名單一改就會出現「宣告換圖、卻沒有東西可換」的空窗——線直接消失。
  return {...motion,metro,dispatch,visibleRoutes,systems:PHYSICAL_SYSTEMS,
   sample:(tr,...rest)=>covered(tr)?motion.sample(tr,...rest):undefined,
   has:tr=>covered(tr)&&motion.has(tr)};

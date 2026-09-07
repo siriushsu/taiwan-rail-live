@@ -65,9 +65,8 @@
         add([sys,ln.id,day,'frequency',k].join(':'),posPeriodic(ln,tau),{...common,sourceKind:'frequency',direction:null,followed:!!f&&f.ln===ln&&f.k===k},{ln,k});}
     }
     const physical=window.railIslandPhysical,near=M.raw.getZoom()>=14,replacedLineKeys=[];
-    // 名單只讀 client.js 的 PHYSICAL_SYSTEMS(physical.systems);這裡曾另外寫死一份,
-    // 09-08 把林鐵移出白名單時只改了一邊 ⇒ 近景抽掉它的示意線形、實體股道又沒有它 ⇒ 軌道整條不見。
-    // 舊快取的 client.js 沒有 systems 時退成空陣列＝不抽換,畫回示意線形(安全的退化方向)。
+    // 名單只讀 client.js 的 physical.systems——這裡曾另外寫死一份,09-08 只改了一邊就讓林鐵
+    // 近景「示意線形被抽掉、股道又沒有它」整條消失。舊快取沒有 systems 時退成空陣列＝不抽換。
     if(physical&&near){const originals=routes.filter(r=>(physical.systems||[]).includes(r.systemId));replacedLineKeys.push(...originals.map(r=>r.lineKey));const mapped=physical.visibleRoutes(originals,M.raw.getBounds());for(let i=routes.length-1;i>=0;i--)if(originals.includes(routes[i]))routes.splice(i,1);routes.push(...mapped);}
     if(physical?.metro&&near){for(const ln of pools){const pair=[physical.metro.routeFor(ln,1),physical.metro.routeFor(ln,-1)].filter(Boolean);if(pair.length===2){const key=(ln._sys||ln.sys)+'|'+ln.id;replacedLineKeys.push(key);for(let i=routes.length-1;i>=0;i--)if(routes[i].lineKey===key)routes.splice(i,1);for(const p of pair)routes.push(p.route);}}}
     for(const id of headings.keys())if(!targets.has(id))headings.delete(id);
