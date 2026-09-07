@@ -20,9 +20,9 @@ export function createRenderer(onLost = () => {}) {
   }
   const pmrem=new THREE.PMREMGenerator(renderer), environment=pmrem.fromScene(studio,.07,.1,60);
   scene.environment=environment.texture;cards.forEach(c=>{c.geometry.dispose();c.material.dispose();});pmrem.dispose();
-  let car=null, geometry=null, materials=[], abort, revision=0, disposed=false, lost=false, id='';
+  let car=null, geometry=null, materials=[], lockedMaterials=[], abort, revision=0, disposed=false, lost=false, id='';
   let center=new THREE.Vector3(), size=new THREE.Vector3();
-  const clear=()=>{if(car)scene.remove(car);geometry?.dispose();materials.forEach(m=>m.dispose());car=null;geometry=null;materials=[];id='';};
+  const clear=()=>{if(car)scene.remove(car);geometry?.dispose();new Set([...materials,...lockedMaterials]).forEach(m=>m.dispose());car=null;geometry=null;materials=[];lockedMaterials=[];id='';};
   renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();if(!disposed){lost=true;onLost();}});
   return {
     async load(nextId) {
@@ -57,11 +57,22 @@ export function createRenderer(onLost = () => {}) {
         geometry.addGroup(g.start,g.count,i);
         return new THREE.MeshPhysicalMaterial({name:g.name,color:new THREE.Color(...g.color),metalness:g.metalness,roughness:g.roughness,clearcoat:g.clearcoat,side:THREE.DoubleSide});
       });
+      // 未收集的車不給塗裝,但要看得出是哪一款 ⇒ 逐 drawGroup 把原色轉成同亮度的灰,
+      // 車窗仍比車身暗、轉向架仍比車體深,形狀讀得出來。
+      // 🔴 不要改成「所有群組共用一顆灰」:實測(2026-09-07)車身/車窗/轉向架全同色之後,
+      //    在展示台的兩盞燈下會糊成一塊白色方塊,分不出車款——那不是灰車,是壞掉。
+      // 係數與格子縮圖的 CSS filter 對齊(grayscale(1) brightness(.95) contrast(.45)),兩邊看起來是同一種處理。
+      const flat=v=>Math.min(1,Math.max(0,(v*.95-.5)*.45+.5));
+      lockedMaterials=meta.mesh.drawGroups.map(g=>{
+        const l=flat(.2126*g.color[0]+.7152*g.color[1]+.0722*g.color[2]);
+        return new THREE.MeshPhysicalMaterial({name:g.name+':locked',color:new THREE.Color(l,l,l),metalness:0,roughness:.9,clearcoat:0,side:THREE.DoubleSide});
+      });
       geometry.computeBoundingBox();geometry.boundingBox.getCenter(center);geometry.boundingBox.getSize(size);
       car=new THREE.Mesh(geometry,materials);scene.add(car);id=nextId;
     },
     draw(target,row,angle) {
       if(disposed||lost||row.id!==id||!car)return false;
+      car.material=row.owned?materials:lockedMaterials;
       const rect=target.getBoundingClientRect(), dpr=Math.min(devicePixelRatio||1,1.5);
       const w=Math.max(1,Math.round(rect.width*dpr)),h=Math.max(1,Math.round(rect.height*dpr));
       if(target.width!==w||target.height!==h){target.width=w;target.height=h;}
@@ -73,7 +84,7 @@ export function createRenderer(onLost = () => {}) {
       camera.position.set(center.x+50*Math.cos(elevation)*Math.cos(yaw),center.y+50*Math.cos(elevation)*Math.sin(yaw),center.z+50*Math.sin(elevation));
       camera.lookAt(center);renderer.render(scene,camera);
       const ctx=target.getContext('2d');ctx.clearRect(0,0,w,h);ctx.drawImage(renderer.domElement,0,0);
-      target.dataset.rendered=id;target.dataset.appearance='blender-original';target.dataset.vertices=String(geometry.attributes.position.count);
+      target.dataset.rendered=id;target.dataset.appearance='blender-original';target.dataset.lock=row.owned?'off':'grey';target.dataset.vertices=String(geometry.attributes.position.count);
       return true;
     },
     dispose() {

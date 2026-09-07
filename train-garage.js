@@ -119,7 +119,7 @@
     $('.g-result').textContent=tr('{count} 款車車',{count:list.length});
     $('.g-grid').replaceChildren();
     for(const row of list) {
-      const b=document.createElement('button');b.type='button';b.className='g-car';b.dataset.model=row.id;b.setAttribute('aria-pressed',String(selected===row.id));
+      const b=document.createElement('button');b.type='button';b.className=row.owned?'g-car':'g-car g-locked';b.dataset.model=row.id;b.setAttribute('aria-pressed',String(selected===row.id));
       b.setAttribute('aria-label',row.model.name+' · '+status(row));
       b.innerHTML=`<span class="g-check" aria-hidden="true">${row.owned?'✓':'○'}</span><img src="${esc(row.model.thumbnail)}" alt="" loading="lazy" width="320" height="200"><b>${esc(row.model.name)}</b><small>${esc(status(row))}</small>`;
       b.onclick=()=>{selected=row.id;yaw=-.55;dialog.querySelectorAll('.g-car').forEach(el=>el.setAttribute('aria-pressed',String(el===b)));showDetail();$('.g-showcase').scrollIntoView({block:'start',behavior:'instant'});$('.g-view').focus({preventScroll:true});};
