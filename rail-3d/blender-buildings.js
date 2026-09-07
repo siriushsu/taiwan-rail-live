@@ -11,4 +11,4 @@ export async function buildBlenderBuilding(record,lod){
   const material=new THREE.MeshStandardMaterial({color:new THREE.Color(...part.color),metalness:part.metalness,roughness:part.roughness,side:THREE.DoubleSide});const mesh=new THREE.Mesh(geometry,material);mesh.userData.part='shell';mesh.userData.component=String(part.component);mesh.frustumCulled=false;group.add(mesh);
  }return group;
 }
-export function inspectBlenderBuilding(root,inspection,clearance=[]){const affected=new Set(clearance.map(String));root.traverse(mesh=>{if(!mesh.isMesh)return;const active=inspection||affected.has(mesh.userData.component),m=mesh.material;m.transparent=active;m.opacity=active?.24:1;m.depthWrite=!active;m.needsUpdate=true;});}
+export function inspectBlenderBuilding(root,inspection,clearance=[],solidAppearance=false){const affected=new Set(clearance.map(String));root.traverse(mesh=>{if(!mesh.isMesh)return;const active=inspection||!solidAppearance&&affected.has(mesh.userData.component),m=mesh.material;m.transparent=active;m.opacity=active?.24:1;m.depthWrite=!active;m.needsUpdate=true;});}

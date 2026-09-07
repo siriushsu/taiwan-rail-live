@@ -4,6 +4,7 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "衛星地圖上的地標與車站改用模型原色，建築透視可依需要切換": "Landmarks and stations on the satellite map now use their original model colors. Building transparency can be switched on when needed.",
     "跟車卡收起後保持單行，編組說明留在展開資訊中；暗色改用精簡玻璃卡，結束按鈕更容易點擊": "Collapsed train cards now stay on one row, with formation details in the expanded view. Dark mode uses a compact glass card with an easier-to-tap End button.",
     "加入 22 款精修立體車站與地標，放大可看細節、縮小自動簡化，並保留建築透視": "Added 22 detailed 3D stations and landmarks, with close-up details, lighter distant models, and transparent building views.",
     "修正起伏地圖中軌道被丘陵切斷、列車鑽入地底的問題，山區行駛保持連續可見": "Fixed tracks being cut off by hills and trains sinking below terrain, keeping mountain journeys continuously visible.",
@@ -214,6 +215,7 @@
   });
 
   Object.assign(messages.ja, {
+    "衛星地圖上的地標與車站改用模型原色，建築透視可依需要切換": "衛星地図のランドマークと駅舎をモデル本来の配色で表示します。建物の透視は必要に応じて切り替えられます。",
     "跟車卡收起後保持單行，編組說明留在展開資訊中；暗色改用精簡玻璃卡，結束按鈕更容易點擊": "追従カードを折りたたむと一列に収まり、編成の説明は展開時に表示します。ダークモードはコンパクトなガラス調カードになり、終了ボタンも押しやすくなりました。",
     "加入 22 款精修立體車站與地標，放大可看細節、縮小自動簡化，並保留建築透視": "22 種類の精密な立体駅舎とランドマークを追加しました。拡大時は詳細に、縮小時は軽量に表示し、建物の透視も利用できます。",
     "修正起伏地圖中軌道被丘陵切斷、列車鑽入地底的問題，山區行駛保持連續可見": "起伏地図で線路が丘に途切れたり、列車が地中に沈んだりする問題を修正し、山間部でも連続して見えるようになりました。",

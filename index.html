@@ -5240,6 +5240,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="satellitemodel0907"><span class="d">9/7</span><span>衛星地圖上的地標與車站改用模型原色，建築透視可依需要切換</span></li>
         <li data-cl-of="compactfollow0907"><span class="d">9/7</span><span>跟車卡收起後保持單行，編組說明留在展開資訊中；暗色改用精簡玻璃卡，結束按鈕更容易點擊</span></li>
         <li data-cl-of="blenderbuildings0907"><span class="d">9/7</span><span>加入 22 款精修立體車站與地標，放大可看細節、縮小自動簡化，並保留建築透視</span></li>
         <li data-cl-of="terrainclear0907"><span class="d">9/7</span><span>修正起伏地圖中軌道被丘陵切斷、列車鑽入地底的問題，山區行駛保持連續可見</span></li>
@@ -5247,7 +5248,6 @@
         <li data-cl-of="platformempty0907"><span class="d">9/7</span><span>月台資料未提供時，列車資訊、查詢摘要與車站看板都不顯示月台欄位，也不留下提示文字</span></li>
         <li data-cl-of="platform0907"><span class="d">9/7</span><span>台鐵列車資訊與車站看板支援官方月台號碼；沒有資料、尚未確定、過期或回放時自動收起，不留空欄</span></li>
         <li data-cl-of="followdirection0907"><span class="d">9/7</span><span>跟車新增「車頭朝上」開關，預設關閉；想讓車頭方向朝向畫面上方時可自行開啟，指北仍隨時有效</span></li>
-        <li data-cl-of="integrated3d0907"><span class="d">9/7</span><span>近景自動顯示沿軌行駛的立體列車，可切換完整編組、地形起伏與建築透視；保留亮色琺瑯、暗色霓虹，以及車站看板與指北操作</span></li>
 
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
@@ -5256,6 +5256,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="satellitemodel0907"><span class="d">9/7</span><span>衛星地圖上的地標與車站改用模型原色，建築透視可依需要切換</span></li>
         <li data-cl="compactfollow0907"><span class="d">9/7</span><span>跟車卡收起後保持單行，編組說明留在展開資訊中；暗色改用精簡玻璃卡，結束按鈕更容易點擊</span></li>
         <li data-cl="blenderbuildings0907"><span class="d">9/7</span><span>加入 22 款精修立體車站與地標，放大可看細節、縮小自動簡化，並保留建築透視</span></li>
         <li data-cl="terrainclear0907"><span class="d">9/7</span><span>修正起伏地圖中軌道被丘陵切斷、列車鑽入地底的問題，山區行駛保持連續可見</span></li>
@@ -6147,7 +6148,7 @@
 // v0906n：併入 origin/main(9cb8ce8d：OFM 看門狗修正、捷運頂列徽章逐線指名)＋查詢分頁修正批(查詢 sheet 半高且不寫全站段高偏好、答案區手勢取消清紀錄、Android 挑選器示範列依真實列數、initialLayout 改中性卡、出貨鏈與閘門補牙)。
 // v0907c(撞號：上游同日另出了 v0907c 夜間玻璃建築，本分支這顆從未上線)：併入 origin/main(fc3ca03c：統一底圖監測把手命名、暗色路線霓虹微光、導覽路線站序與精選取景)＋查詢分頁修正批(查詢 sheet 半高且不寫全站段高偏好、答案區手勢取消清紀錄、Android 挑選器示範列依真實列數、initialLayout 改中性卡、出貨鏈與閘門補牙)。
 // v0907h：併入 origin/main(33cc762d：夜間霓虹玻璃建築與看板、車站標記放大與指北修正、近景列車地形透視與跟車方向開關、官方月台串接與無資料隱藏)＋查詢分頁修正批(查詢 sheet 半高且不寫全站段高偏好、答案區手勢取消清紀錄、Android 挑選器示範列依真實列數、initialLayout 改中性卡、出貨鏈與閘門補牙)。
-const BUILD = 'v0907j';
+const BUILD = 'v0907k';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';

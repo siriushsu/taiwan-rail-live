@@ -178,7 +178,8 @@ export async function createLiveMap({map,isCurrent=()=>true,onGesture,onInteract
       if(!terrainState.stationInspection)return;camera.projectionMatrix.copy(projection.fromArray(args.defaultProjectionData.mainMatrix).multiply(transform));updateModelScales();
       rails.render(el.clientWidth,el.clientHeight,0,false);webgl.resetState();webgl.render(scene,camera);
     }},'building-3d');underlayLayer=map.getLayer('live-vehicles-underlay');
-    if(map.getSource('openmaptiles')&&map.getLayer('building-3d')){stationLayer=await createStationLayer(map,()=>terrainState,()=>{}, {maplibre:ml,clearance});assertCurrent();map.addLayer(stationLayer);for(const e of stationLayer.failures)report(e.message);}
+    // 衛星底圖沒有 openmaptiles / building-3d，獨立 Blender 模型仍需建立。
+    {stationLayer=await createStationLayer(map,()=>terrainState,()=>{}, {maplibre:ml,clearance});assertCurrent();map.addLayer(stationLayer);for(const e of stationLayer.failures)report(e.message);}
     orderBuildingPasses(map);
     function startGesture(e){if(!e.originalEvent)return;onInteract?.();if(!gesture){gesturePanned=false;gestureOrbited=false;followReturn=null;stats.followReturning=false;}gesture=true;clearTimeout(gestureTimer);}
     // 在引擎下一個 rAF 處理手勢前就保留操作權，避免跟車 jumpTo 先中止輸入。
@@ -239,7 +240,7 @@ export async function createLiveMap({map,isCurrent=()=>true,onGesture,onInteract
       },
       togglePitch(){const flat=map.getPitch()>0;map.jumpTo({pitch:flat?0:55});return flat;},
       syncLayerOrder(){orderBuildingPasses(map);},
-      setAppearance({buildings,dark,transparent}){terrainState.buildings=buildings;terrainState.stationInspection=dark||transparent;inspection=transparent;for(const id of ['building-3d','station-building-context'])if(map.getLayer(id)){map.setPaintProperty(id,'fill-extrusion-color',dark?'#638BC5':'#d4d0c5');map.setPaintProperty(id,'fill-extrusion-opacity',transparent?.24:dark?.30:.72);map.setLayoutProperty(id,'visibility',buildings?'visible':'none');}stationLayer?.refresh();},
+      setAppearance({buildings,dark,transparent,satellite=false}){terrainState.buildings=buildings;terrainState.stationSolidAppearance=satellite&&!transparent;terrainState.stationInspection=transparent||dark&&!satellite;inspection=transparent;for(const id of ['building-3d','station-building-context'])if(map.getLayer(id)){map.setPaintProperty(id,'fill-extrusion-color',dark&&!satellite?'#638BC5':'#d4d0c5');map.setPaintProperty(id,'fill-extrusion-opacity',transparent?.24:satellite?1:dark?.30:.72);map.setLayoutProperty(id,'visibility',buildings?'visible':'none');}stationLayer?.refresh();},
       alignment(){const h=hits.find(h=>h.v.followed);if(!h)return null;let closest=null;for(const a of profileVertices){for(let i=0;i<a.length;i+=6){const dx=a[i+3]-a[i],dy=a[i+4]-a[i+1],d=dx*dx+dy*dy,t=Math.max(0,Math.min(1,((h.p[0]-a[i])*dx+(h.p[1]-a[i+1])*dy)/(d||1))),p=[a[i]+dx*t,a[i+1]+dy*t,a[i+2]+(a[i+5]-a[i+2])*t],horizontal=Math.hypot(p[0]-h.p[0],p[1]-h.p[1]);if(!closest||horizontal<closest.horizontal)closest={horizontal,heightDelta:p[2]-h.p[2],vehicle:project(h.p),rail:project(p),p,train:h.p};}}return closest;},
       projectedRailSamples(){return profileVertices.flatMap(a=>{const out=[];for(let i=0;i<a.length;i+=6)out.push(project([(a[i]+a[i+3])/2,(a[i+1]+a[i+4])/2,(a[i+2]+a[i+5])/2]));return out;});},
       projectedModels(){return [...models].flatMap(([id,m])=>{if(!m.group?.visible)return [];const box=new THREE.Box3().setFromObject(m.group),points=[];for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z])points.push(project([x,y,z]));return [{id,width:Math.max(...points.map(p=>p.x))-Math.min(...points.map(p=>p.x)),height:Math.max(...points.map(p=>p.y))-Math.min(...points.map(p=>p.y))}];});},

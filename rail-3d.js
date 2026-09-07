@@ -7,7 +7,7 @@
   const params=new URLSearchParams(location.search),read=(key,fallback)=>{try{return sessionStorage.getItem(key)||fallback;}catch{return fallback;}};
   let enabled=params.get('scene')!=='2d'&&read('ri-trains-enabled','1')!=='0',formationMode=params.get('formation')||read('ri-formation-mode','actual'),
     groundMode=params.get('ground')||read('ri-ground-mode','flat'),trainSizeMode=params.get('trainSize')||read('ri-train-size-v21','readable'),
-    modelMode=read('ri-model-mode','all'),ambientCamera=read('ri-ambient-camera','side'),transparent=read('ri-transparent','1')==='1';
+    modelMode=read('ri-model-mode','all'),ambientCamera=read('ri-ambient-camera','side'),transparent=read('ri-transparent','1')==='1',satelliteTransparent=read('ri-satellite-transparent','0')==='1';
   formationMode=formationMode==='three'?'three':'actual';groundMode=groundMode==='terrain'?'terrain':'flat';trainSizeMode=trainSizeMode==='scale'?'scale':'readable';
   let renderer=null,lastFrame=null,loading=false,loadSerial=Promise.resolve(),epoch=0,manualTarget=null,appearanceKey='',noteAt=0;
   const shapeCache=new WeakMap(),tripKeys=new WeakMap(),targets=new Map(),stationTargets=new Map(),motionItems=new Map(),headings=new Map(),errors=[];
@@ -85,7 +85,9 @@
   function updateNote(){if(performance.now()-noteAt<300)return;noteAt=performance.now();const v=lastFrame?.vehicles.find(v=>v.followed),spec=v&&formationFor(v,formationMode);
     for(const panel of [document.getElementById('followPanel'),document.getElementById('freqCard')]){if(!panel)continue;panel.style.setProperty('--follow-color',v?.color||'var(--red)');let el=panel.querySelector('.ri-formation-caption');if(!el){el=document.createElement('div');el.className='ri-formation-caption';panel.append(el);}const text=spec?(spec.mode==='three'?t('3 節示意'):spec.countBasis==='unknown'?t('3 節示意 · 當班編組待確認'):t(spec.articulated?'{n} 分節 · 標準編組':'{n} 節 · 標準編組',{n:spec.actualCarCount})):'';el.hidden=!enabled||!spec;el.textContent=text?text+(groundMode==='terrain'?' · '+t('地表起伏示意'):''):'';}
   }
-  function syncAppearance(){if(!renderer)return;const key=[state.map3d,state.mapDark,transparent].join(':');if(key===appearanceKey)return;appearanceKey=key;renderer.setAppearance({buildings:state.map3d,dark:state.mapDark,transparent});}
+  // 衛星原貌與街圖透視各自記住選擇，避免沿用舊街圖的預設透明。
+  function inspectionEnabled(){return state.basemap==='sat'?satelliteTransparent:transparent;}
+  function syncAppearance(){if(!renderer)return;const satellite=state.basemap==='sat',inspection=inspectionEnabled(),key=[state.map3d,state.mapDark,satellite,inspection].join(':');if(key===appearanceKey)return;appearanceKey=key;renderer.setAppearance({buildings:state.map3d,dark:state.mapDark,transparent:inspection,satellite});syncUI();}
   function render(){if(!renderer||!M.raw.getLayer('live-vehicles-3d')||!state.ready||document.hidden)return;try{
     if(M.raw.getZoom()<13.8){if(lastFrame?.vehicles.length){lastFrame={...lastFrame,vehicles:[],selectedVehicleId:null};renderer.update(lastFrame);}return;}
     lastFrame=capture();renderer.update(lastFrame);syncAppearance();updateNote();
@@ -101,13 +103,13 @@
       if(ticket!==epoch){next.destroy();return;}renderer=next;syncAppearance();render();
     }catch(e){if(e.name!=='AbortError'){errors.push(String(e.stack||e));showToast(t('立體顯示載入失敗，請重試'));}}finally{loading=false;syncUI();}});}
   const labels={enabled:['立體列車','開啟','關閉'],formation:['列車編組','完整編組','三節示意'],ground:['地形','平坦','起伏試驗'],size:['列車大小','容易辨認','原始比例'],models:['顯示列車','全部近景','只看選取'],inspection:['建築透視','透明','一般'],camera:['賞車視角','側拍','環繞']};
-  function syncUI(){for(const row of document.querySelectorAll('[data-rail3d]')){const key=row.dataset.rail3d,value={enabled:enabled?'on':'off',formation:formationMode,ground:groundMode,size:trainSizeMode,models:modelMode,inspection:transparent?'on':'off',camera:ambientCamera}[key];for(const b of row.querySelectorAll('button')){b.setAttribute('aria-pressed',String(b.dataset.value===value));b.classList.toggle('on',b.dataset.value===value);b.disabled=loading;}}}
+  function syncUI(){for(const row of document.querySelectorAll('[data-rail3d]')){const key=row.dataset.rail3d,value={enabled:enabled?'on':'off',formation:formationMode,ground:groundMode,size:trainSizeMode,models:modelMode,inspection:inspectionEnabled()?'on':'off',camera:ambientCamera}[key];for(const b of row.querySelectorAll('button')){b.setAttribute('aria-pressed',String(b.dataset.value===value));b.classList.toggle('on',b.dataset.value===value);b.disabled=loading;}}}
   function setOption(key,value){switch(key){case 'enabled':enabled=value==='on';save('ri-trains-enabled',enabled?'1':'0');break;
     case 'formation':formationMode=value==='three'?'three':'actual';save('ri-formation-mode',formationMode);renderer?.setFormationMode(formationMode);break;
     case 'ground':groundMode=value==='terrain'?'terrain':'flat';save('ri-ground-mode',groundMode);renderer?.setGroundMode(groundMode);glTracks.sig='';M.raw.getLayer('building-glass-edges')?.implementation?.schedule();break;
     case 'size':trainSizeMode=value==='scale'?'scale':'readable';save('ri-train-size-v21',trainSizeMode);renderer?.setTrainSizeMode(trainSizeMode);break;
     case 'models':modelMode=value==='selected'?'selected':'all';save('ri-model-mode',modelMode);break;
-    case 'inspection':transparent=value==='on';save('ri-transparent',transparent?'1':'0');break;
+    case 'inspection':if(state.basemap==='sat'){satelliteTransparent=value==='on';save('ri-satellite-transparent',satelliteTransparent?'1':'0');}else{transparent=value==='on';save('ri-transparent',transparent?'1':'0');}break;
     case 'camera':ambientCamera=value==='orbit'?'orbit':'side';save('ri-ambient-camera',ambientCamera);break;}
     if(enabled&&!renderer&&!loading&&M.isStyleReady())attach();
     syncAppearance();syncUI();render();M.raw.triggerRepaint();}

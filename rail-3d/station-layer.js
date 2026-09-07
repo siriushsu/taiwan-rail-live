@@ -31,7 +31,7 @@ export async function createStationLayer(map,getState,onUpdate=()=>{}, {assetsBa
     // 凹輪廓不能用中心放大當緩衝（凹角會把自己的頂點排除）。只容許 1.5m
     // 邊界量化差，並先以 bbox 淘汰遠處建物。
     const owner=p=>active.find(r=>p[0].every(q=>r.masks.some((mask,i)=>{const [w,s,e,n]=r.maskBounds[i];return q[0]>=w&&q[0]<=e&&q[1]>=s&&q[1]<=n&&(inPolygon(q[0],q[1],mask)||mask.some(ring=>ring.slice(1).some((b,k)=>distanceToSegment(q[0],q[1],ring[k],b)<1.5/111320)));})));
-    const features=active.length||clearance?map.querySourceFeatures('openmaptiles',{sourceLayer:'building'}):[];
+    const features=map.getSource('openmaptiles')&&(active.length||clearance)?map.querySourceFeatures('openmaptiles',{sourceLayer:'building'}):[];
     // 圖磚會把站房和遠處建物合併成同一 MultiPolygon；拆出站房後，把其餘
     // 分件原位重畫，不能讓背景建物消失，也不能保留一個方塊蓋住新屋頂。
     for(const f of features)if(f.id!==undefined)for(const p of polygons(f)){const r=owner(p),blocked=clearance?.blocked(p);if(r||blocked){ids.add(f.id);if(r&&!r.stats.excludedFeatureIds.includes(f.id))r.stats.excludedFeatureIds.push(f.id);}}
@@ -67,7 +67,8 @@ export async function createStationLayer(map,getState,onUpdate=()=>{}, {assetsBa
       const resolved=clearance?.model(r.meta,r.footprint),key=JSON.stringify(resolved?.excluded||[]);
       if(r.clearanceKey!==key){r.clearanceKey=key;r.appearanceKey=null;r.stats.excludedComponents=resolved?.excluded||[];r.stats.clearanceHidden=false;maskEpoch=-1;changed=true;}
       const inRange=state.buildings&&map.getZoom()>=14&&near;
-      const ground=inRange?(state.terrain?(map.isSourceLoaded('terrain')?map.queryTerrainElevation(r.meta.anchor):null):0):null;
+      // 只等建物所在位置的地形；遠處圖磚未完成不應隱藏已可定位的模型。
+      const ground=inRange?(state.terrain?map.queryTerrainElevation(r.meta.anchor):0):null;
       const canShow=inRange&&Number.isFinite(ground),lod=map.getZoom()>=16?'near':'far';
       if(canShow&&r.model?.userData.lod!==lod&&r.loading?.lod!==lod&&performance.now()>=(r.retryAt.get(lod)||0)){
         const ticket={lod};r.loading=ticket;
@@ -79,8 +80,8 @@ export async function createStationLayer(map,getState,onUpdate=()=>{}, {assetsBa
       }
       const visible=canShow&&!!r.model;r.maskActive=visible;let revision=r.stats.visible!==visible;
       if(r.model){r.model.visible=visible;if(visible){r.lastUsed=++clock;if(r.stats.groundM!==ground){r.model.position.z=ground;r.stats.groundM=ground;revision=true;}
-        const inspect=!!state.stationInspection&&(state.stationInspectionAll||r.entry.key===state.place),appearance=JSON.stringify([inspect,r.stats.excludedComponents]);
-        if(r.appearanceKey!==appearance){inspectBlenderBuilding(r.model,inspect,r.stats.excludedComponents);r.appearanceKey=appearance;r.stats.inspection=inspect;revision=true;}
+        const inspect=!!state.stationInspection&&(state.stationInspectionAll||r.entry.key===state.place),appearance=JSON.stringify([inspect,r.stats.excludedComponents,!!state.stationSolidAppearance]);
+        if(r.appearanceKey!==appearance){inspectBlenderBuilding(r.model,inspect,r.stats.excludedComponents,!!state.stationSolidAppearance);r.appearanceKey=appearance;r.stats.inspection=inspect;revision=true;}
       }}
       r.stats.visible=visible;if(revision){r.stats.revision++;changed=true;}
     }
@@ -92,7 +93,7 @@ export async function createStationLayer(map,getState,onUpdate=()=>{}, {assetsBa
   // 切換鏡頭可重用快取圖磚，不一定再發 content 事件；idle 時仍需重新辨識。
   // 實際 setFilter / setData 都有內容比對，不會因這次辨識啟動無限重繪。
   function schedule(){clearTimeout(timer);timer=setTimeout(()=>{maskEpoch=-1;labelKey='';refresh();},100);}
-  function sourceChanged(e){if(e.sourceId==='openmaptiles'&&e.sourceDataType==='content'){sourceEpoch++;schedule();}}
+  function sourceChanged(e){if(e.sourceDataType!=='content')return;if(e.sourceId==='openmaptiles'){sourceEpoch++;schedule();}else if(e.sourceId==='terrain')schedule();}
   return {
     id:'island-stations',type:'custom',renderingMode:'3d',failures,refresh,
     setEngineeringMasks(collection){
@@ -102,6 +103,7 @@ export async function createStationLayer(map,getState,onUpdate=()=>{}, {assetsBa
     },
     get engineeringMasks(){return engineeringMasks.map(r=>r.stats);},get labelBounds(){return labelBounds;},
     get stats(){return primary()?.stats;},get model(){return primary()?.model;},get meta(){return primary()?.meta;},get footprint(){return primary()?.footprint;},
+    getModel(id){return records.find(r=>r.meta.id===id)?.model||null;},
     get entries(){return records.map(r=>({key:r.entry.key,...r.stats}));},
     contains:(lng,lat)=>[...records,...engineeringMasks].some(r=>r.masks.some((mask,i)=>{const [w,s,e,n]=r.maskBounds[i];return lng>=w&&lng<=e&&lat>=s&&lat<=n&&inPolygon(lng,lat,mask);})),
     onAdd(_,gl){
@@ -109,7 +111,7 @@ export async function createStationLayer(map,getState,onUpdate=()=>{}, {assetsBa
       map.addSource('station-building-remainders',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
       ownedSource=map.getSource('station-building-remainders');
       const building=map.getStyle().layers.find(l=>l.id==='building-3d');
-      map.addLayer({id:'station-building-context',type:'fill-extrusion',source:'station-building-remainders',minzoom:13,paint:building.paint},'building-3d');
+      if(building)map.addLayer({id:'station-building-context',type:'fill-extrusion',source:'station-building-remainders',minzoom:13,paint:building.paint},'building-3d');
       renderer=new THREE.WebGLRenderer({canvas:map.getCanvas(),context:gl});renderer.autoClear=false;
       map.on('idle',schedule);map.on('moveend',schedule);map.on('sourcedata',sourceChanged);refresh();
     },
