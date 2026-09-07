@@ -25,7 +25,9 @@ export async function loadPhysicalMotion(){
  // 未涵蓋的系統:sample 回 undefined(呼叫端既有的「沒有股道資料」訊號,會落回 posAlongShape)、
  // has 回 false(讓 blockHoldSec 等既有行為照舊)。motion 本身不動,離線驗證腳本語意不變。
  const covered=tr=>PHYSICAL_SYSTEMS.includes(tr.sys||tr.system);
- return {...motion,metro,dispatch,visibleRoutes,
+ // systems 是這份白名單的**唯一**出處:rail-3d.js 決定「哪些線要把示意線形換成實體股道」時要讀它。
+ // 兩邊各留一份的話,名單一改就會出現「宣告換圖、卻沒有東西可換」的空窗——線直接消失。
+ return {...motion,metro,dispatch,visibleRoutes,systems:PHYSICAL_SYSTEMS,
   sample:(tr,...rest)=>covered(tr)?motion.sample(tr,...rest):undefined,
   has:tr=>covered(tr)&&motion.has(tr)};
 }

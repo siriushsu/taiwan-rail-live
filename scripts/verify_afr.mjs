@@ -132,15 +132,38 @@ ok(revenue.find(l => l.name.includes('本線')).stations.map(s => s.name).join()
   const stops = new Set();   // 派軌路徑的起訖節點＝motion.js 停靠(dwell)時吐出來的座標
   for (const [key, plan] of Object.entries(dispatch.plans)) if (key.startsWith('afr_sched:'))
     for (const id of plan.pathIds) { stops.add(String(net.paths[id].from)); stops.add(String(net.paths[id].to)); }
-  const shapes = track.lines.map(l => l.shape);
+  // 🔴 判準量的是 data/track_lines.geojson，不是 data/afr.json：**畫出來的是前者**（index.html
+  // glTracksLoad() 讀它餵 GL 的 track-lines source），而它是 build_track_geojson.mjs 從後者產的
+  // 衍生檔。拿 afr.json 當判準會踩「改了來源卻忘了重產衍生檔」——我這一輪就踩到：afr.json 有
+  // 12 條、state.trackLines 也有 12 條，而 GL 實際只拿到 4 條，畫面上一條股道都沒有卻全綠。
+  const drawn = JSON.parse(readFileSync('data/track_lines.geojson', 'utf8')).features
+    .filter(f => f.properties.sys === 'afr_sched');
+  const shapeOf = f => f.geometry.coordinates.map(c => [c[1], c[0]]);
+  const shapes = drawn.map(shapeOf);
+  ok(shapes.length > 0 && yards.every(l => drawn.some(f => f.properties.id === l.id)),
+    `${yards.length} 條站內股道都進了畫出來的 track_lines.geojson（實得 ${drawn.length} 條林鐵線形）`);
   const far = [...stops].map(n => ({ n, name: net.nodeTags[n]?.name || n, d: distToLine(at.get(n), shapes) }))
     .filter(x => x.d > 50).sort((a, b) => b.d - a.d);
   ok(far.length === 0, `${stops.size} 個實體停靠點都在畫得出來的軌道上（>50m 者：`
     + `${far.map(x => `${x.name}:${x.d.toFixed(0)}m`).join(',') || '無'}）`);
   // 反向對照(判準恆真的話上面那條就毫無訊號):拿掉站內股道，阿里山與神木必須立刻紅回來。
-  const withoutYards = revenue.map(l => l.shape);
+  const yardIds = new Set(yards.map(l => l.id));
+  const withoutYards = drawn.filter(f => !yardIds.has(f.properties.id)).map(shapeOf);
   const regress = [...stops].filter(n => distToLine(at.get(n), withoutYards) > 50).length;
   ok(regress > 0, `控制組：只用營業線時有 ${regress} 個停靠點離線 >50m（證明上一條會紅）`);
+
+  // 同一件事的另一個面向，而且**不依賴實體股道模型**：官方站點自己也要落在畫出來的線上。
+  // 上面兩條量的是 rail-3d/physical 的停靠點，一旦 afr_sched 不在 PHYSICAL_SYSTEMS 名單裡
+  // 就沒有東西在消費它們；這一條量的是「站牌畫在哪」對「軌道畫在哪」，兩者永遠都會畫出來。
+  // 仲裁來源也不同源：站座標與 Shape 是 TDX 的兩份獨立資料，用它自己的站去驗它自己的線形。
+  // 修前阿里山 114.9m、祝山 77.3m（四條線形都停在站外的道岔口）；補上股道後 21.9m／16.2m。
+  const dots = new Map();
+  for (const ln of track.lines) for (const s of ln.stations || []) if (!dots.has(s.name)) dots.set(s.name, [s.lat, s.lon]);
+  const offDot = [...dots].map(([n, p]) => ({ n, d: distToLine(p, shapes) })).filter(x => x.d > 50).sort((a, b) => b.d - a.d);
+  ok(offDot.length === 0, `${dots.size} 個官方站點都在畫得出來的軌道上（>50m 者：`
+    + `${offDot.map(x => `${x.n}:${x.d.toFixed(0)}m`).join(',') || '無'}；餘裕最小的是北門 44m、嘉義 43m）`);
+  const dotRegress = [...dots].filter(([, p]) => distToLine(p, withoutYards) > 50).map(([n]) => n);
+  ok(dotRegress.length > 0, `控制組：只用營業線時有 ${dotRegress.join('、')} 離線 >50m（證明上一條會紅）`);
 }
 {
   const fills = JSON.parse(readFileSync('data/afr_osm_gap_fills.json', 'utf8'));

@@ -29,6 +29,16 @@ for(const [name,engine]of Object.entries({chromium,webkit})){
   await page.waitForFunction(()=>state.ready&&window.railIslandPhysical&&railIslandIntegration.renderer?.stats.models>0,null,{timeout:90000});
   const initial=await page.evaluate(()=>{state.playing=false;const f=railIslandIntegration.capture();return {build:BUILD,coverage:railIslandPhysical.dispatch.coverage,physical:f.vehicles.filter(v=>v.route?.physical).length,vehicles:f.vehicles.length,models:railIslandIntegration.renderer.stats.models,fallbacks:railIslandIntegration.renderer.stats.modelFallbacks,errors:railIslandIntegration.errors};});
   check(name+' default physical routes and models',initial.physical>initial.vehicles*.95&&initial.models>0&&!initial.errors.length&&!initial.fallbacks.length,initial);
+  // 近景(raw zoom>=14)會把班表線的示意線形整批抽掉、換成實體股道,並把被抽掉的 lineKey 交給
+  // profileKeys() 讓 2D GL 軌道層別再畫。宣告換圖卻換不出東西來的系統,兩邊都不畫＝**線直接消失**。
+  // 這是白名單分兩份時的必然結果(rail-3d.js 曾自己寫死一份 ['tra_sched','thsr_sched','afr_sched']),
+  // 且畫面上只是「少一條線」,不會有錯誤訊息,任何既有斷言都照不到。
+  const swap=await page.evaluate(()=>{const c=railIslandIntegration.capture();
+   const sys=[...new Set((c.replacedLineKeys||[]).map(k=>k.split('|')[0]))];
+   return {zoom:M.raw.getZoom(),systems:sys,physical:railIslandPhysical.systems||null,
+    orphan:sys.filter(s=>s.endsWith('_sched')&&!(railIslandPhysical.systems||[]).includes(s))};});
+  check(name+' 近景抽掉示意線形的班表系統都換得出實體股道（孤兒：'+(swap.orphan.join(',')||'無')+'）',
+   swap.zoom>=14&&Array.isArray(swap.physical)&&swap.orphan.length===0,swap);
   await page.screenshot({path:`output/physical-browser/${name}-taipei.png`});
   await page.evaluate(()=>{
    state.playing=false;clearFollow();clearFreqFollow();railIslandIntegration.render=()=>{};
@@ -88,20 +98,27 @@ for(const [name,engine]of Object.entries({chromium,webkit})){
     const seg=(pt,a,b)=>{const k=Math.cos(pt[0]*Math.PI/180),R=111320,px=(pt[1]-a[1])*k*R,py=(pt[0]-a[0])*R,bx=(b[1]-a[1])*k*R,by=(b[0]-a[0])*R,L2=bx*bx+by*by,t=L2?Math.max(0,Math.min(1,(px*bx+py*by)/L2)):0;return Math.hypot(px-t*bx,py-t*by);};
     const toLine=(pt,sh)=>{let m=Infinity;for(let i=1;i<sh.length;i++){const d=seg(pt,sh[i-1],sh[i]);if(d<m)m=d;}return m;};
     const shapes={};for(const ln of state.trackLines)(shapes[ln.sys]||=[]).push(ln.shape);
-    const stat={};
+    const stat={},seen=new Set(),phys=new Set();
     for(const hour of [6,8,11,14,17,20])for(const tr of state.trains){
      const p=window.railIslandPhysical.sample(tr,hour*3600,{wrap:typeof schedWrapT!=='undefined'?schedWrapT:undefined});
+     seen.add(tr.sys);if(p?.physical)phys.add(tr.sys);   // 有一班取到實體樣本就算這個系統有涵蓋
      if(!p?.physical||!shapes[tr.sys])continue;
      const d=Math.min(...shapes[tr.sys].map(s=>toLine([p.lat,p.lon],s))),s=stat[tr.sys]||={n:0,dwell:0,off:0,offDwell:0,worst:0,at:null};
      s.n++;if(p.dwell)s.dwell++;
      if(d>50){s.off++;if(p.dwell)s.offDwell++;}
      if(d>s.worst){s.worst=+d.toFixed(0);s.at=`${tr.train}@${hour}時${p.dwell?'停靠':'行駛'} ${p.lat.toFixed(4)},${p.lon.toFixed(4)}`;}
     }
-    return {zoom:M.getZoom(),scene:state.scene||'2d',stat};
+    return {zoom:M.getZoom(),scene:state.scene||'2d',stat,
+     seen:[...seen].sort(),covered:[...phys].sort()};
    });
    await page2.close();return out;
   })();
   check(name+' low zoom survey',survey.zoom<14,survey);   // 低於實體股道換圖的 z=14 才算數
+  // 覆蓋率要具名,否則分母會無聲縮水:下面那圈是 for(stat 裡有的系統),某個系統一旦退出
+  // client.js 的 PHYSICAL_SYSTEMS 白名單就整個不見,而「少驗一個系統」與「全部通過」長得一模一樣。
+  // 🔴 改動 PHYSICAL_SYSTEMS 必須同輪改這一行——把 afr_sched 加回去時,林鐵那條斷言才會跟著活過來。
+  check(`${name} 吃實體股道的系統恰為 tra_sched／thsr_sched（實得 ${survey.covered.join('／')||'無'}，班表載到 ${survey.seen.join('／')}）`,
+   survey.covered.join()==='thsr_sched,tra_sched',{covered:survey.covered,seen:survey.seen});
   for(const [sys,s] of Object.entries(survey.stat)){
    // 林鐵/高鐵的線形已經跟實體股道對齊過,一處都不准離線;台鐵還有 09-07 那批未修的路廊
    // (東澳雙坑、五堵、南港、山線),用比例當閘門而不是釘死顆數——台鐵班表每週重抓,

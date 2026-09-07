@@ -269,7 +269,7 @@
    "effectiveDateField": null,
    "geometrySource": "TDX+OSM",
    "coordinateBasis": "WGS84(OSM 段);TDX 段未載明(payload 無 CRS 欄位)——兩者實測同框,build_tdx.mjs 對 K03 的座標修正即以 OSM 座標落在 TDX 軌道幾何上離軌 0m 為據",
-   "checksum": "e62b919d240181a7a1a89b5a1058e5ee"
+   "checksum": "86571822bf881d285ab8700a2c8dba8b"
   },
   "data/track_stations.geojson": {
    "sourceDescription": "由 data/{tra,thsr_track,afr,trtc,tymc,ntdlrt,ntalrt,sanying,krtc,tmrt}.json 的 lines[].shape 與 lines[].stations 轉成 GeoJSON([lon,lat],小數 6 位),scripts/build_track_g",

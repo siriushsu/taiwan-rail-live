@@ -65,7 +65,7 @@
         add([sys,ln.id,day,'frequency',k].join(':'),posPeriodic(ln,tau),{...common,sourceKind:'frequency',direction:null,followed:!!f&&f.ln===ln&&f.k===k},{ln,k});}
     }
     const physical=window.railIslandPhysical,near=M.raw.getZoom()>=14,replacedLineKeys=[];
-    if(physical&&near){const originals=routes.filter(r=>['tra_sched','thsr_sched','afr_sched'].includes(r.systemId));replacedLineKeys.push(...originals.map(r=>r.lineKey));const mapped=physical.visibleRoutes(originals,M.raw.getBounds());for(let i=routes.length-1;i>=0;i--)if(originals.includes(routes[i]))routes.splice(i,1);routes.push(...mapped);}
+    if(physical&&near){const originals=routes.filter(r=>(physical.systems||[]).includes(r.systemId));replacedLineKeys.push(...originals.map(r=>r.lineKey));const mapped=physical.visibleRoutes(originals,M.raw.getBounds());for(let i=routes.length-1;i>=0;i--)if(originals.includes(routes[i]))routes.splice(i,1);routes.push(...mapped);}
     if(physical?.metro&&near){for(const ln of pools){const pair=[physical.metro.routeFor(ln,1),physical.metro.routeFor(ln,-1)].filter(Boolean);if(pair.length===2){const key=(ln._sys||ln.sys)+'|'+ln.id;replacedLineKeys.push(key);for(let i=routes.length-1;i>=0;i--)if(routes[i].lineKey===key)routes.splice(i,1);for(const p of pair)routes.push(p.route);}}}
     for(const id of headings.keys())if(!targets.has(id))headings.delete(id);
     return {clock:{serviceDay:day,simSec:state.simSec,wallEpochSec:epoch,playing:state.playing,speed:state.speedMult},geometryVersion:'original-'+BUILD,
