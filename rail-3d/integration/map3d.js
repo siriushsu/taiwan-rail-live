@@ -143,8 +143,11 @@ export async function createLiveMap({map,isCurrent=()=>true,onGesture,onInteract
     if(!follows){followReturn=null;stats.followReturning=false;}
     if(gesture||ambientWas||zoomFollows===follows)return;
     // enable 本身不會更新已啟用的滾輪選項；僅在跟車鎖改變、沒有手勢時重設。
+    // 只換選項、不換開關：ambientWas 是在同一次 render 的最後才更新，放空跟車第一次咬到車的那一幀
+    // 這裡的 ambientWas 還是 false ⇒ 無條件 enable 會把主站放空鎖起來的滾輪／捏合偷偷解鎖
+    //（放空的相機主權見 index.html setMapGestures；只有這兩顆會被解鎖，dragPan 仍鎖著 ⇒ 安全網看不見）。
     const options=follows?{around:'center'}:undefined;
-    for(const handler of [map.scrollZoom,map.touchZoomRotate]){handler.disable();handler.enable(options);}
+    for(const handler of [map.scrollZoom,map.touchZoomRotate]){const was=handler.isEnabled();handler.disable();if(was)handler.enable(options);}
     zoomFollows=follows;
   }
   function updateModelScales(){

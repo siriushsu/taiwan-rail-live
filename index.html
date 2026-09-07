@@ -5228,14 +5228,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="tracreep0907"><span class="d">9/7</span><span>台鐵誤點加大時，列車改成慢速前進，不再停在原地等誤點追上</span></li>
+        <li data-cl-of="ambientfollow3d0907"><span class="d">9/7</span><span>放空的跟車視角改成貼著車身的立體視角，看得到列車在軌道上跑，速度也放回實際車速；放空時的配樂改播完整曲庫</span></li>
         <li data-cl-of="busboardscroll0907"><span class="d">9/7</span><span>修正車站看板更新時，已捲到公車資訊的位置被往回拉的問題</span></li>
         <li data-cl-of="physicaltracks0907"><span class="d">9/7</span><span>近景列車依推估股道分流，少量交疊會暫時靠旁避讓；捷運到站時保留立體車身，不再瞬間變回號碼</span></li>
         <li data-cl-of="satellitemodel0907"><span class="d">9/7</span><span>衛星地圖上的地標與車站改用模型原色，建築透視可依需要切換</span></li>
         <li data-cl-of="compactfollow0907"><span class="d">9/7</span><span>跟車卡收起後保持單行，編組說明留在展開資訊中；暗色改用精簡玻璃卡，結束按鈕更容易點擊</span></li>
         <li data-cl-of="blenderbuildings0907"><span class="d">9/7</span><span>加入 22 款精修立體車站與地標，放大可看細節、縮小自動簡化，並保留建築透視</span></li>
         <li data-cl-of="terrainclear0907"><span class="d">9/7</span><span>修正起伏地圖中軌道被丘陵切斷、列車鑽入地底的問題，山區行駛保持連續可見</span></li>
-        <li data-cl-of="roadglass0907"><span class="d">9/7</span><span>修正列車透過建築物顯示時，被道路蓋住的問題，穿越路口時車身保持連續可見</span></li>
-        <li data-cl-of="platformempty0907"><span class="d">9/7</span><span>月台資料未提供時，列車資訊、查詢摘要與車站看板都不顯示月台欄位，也不留下提示文字</span></li>
 
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
@@ -5244,6 +5244,8 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="tracreep0907"><span class="d">9/7</span><span>台鐵誤點加大時，列車改成慢速前進，不再停在原地等誤點追上</span></li>
+        <li data-cl="ambientfollow3d0907"><span class="d">9/7</span><span>放空的跟車視角改成貼著車身的立體視角，看得到列車在軌道上跑，速度也放回實際車速；放空時的配樂改播完整曲庫</span></li>
         <li data-cl="busboardscroll0907"><span class="d">9/7</span><span>修正車站看板更新時，已捲到公車資訊的位置被往回拉的問題</span></li>
         <li data-cl="physicaltracks0907"><span class="d">9/7</span><span>近景列車依推估股道分流，少量交疊會暫時靠旁避讓；捷運到站時保留立體車身，不再瞬間變回號碼</span></li>
         <li data-cl="satellitemodel0907"><span class="d">9/7</span><span>衛星地圖上的地標與車站改用模型原色，建築透視可依需要切換</span></li>
@@ -6129,7 +6131,7 @@
 // v0907h：併入 origin/main(33cc762d：夜間霓虹玻璃建築與看板、車站標記放大與指北修正、近景列車地形透視與跟車方向開關、官方月台串接與無資料隱藏)＋查詢分頁修正批(查詢 sheet 半高且不寫全站段高偏好、答案區手勢取消清紀錄、Android 挑選器示範列依真實列數、initialLayout 改中性卡、出貨鏈與閘門補牙)。
 // v0907m：頁尾贊助區拿掉銀行轉帳帳號（Ko-fi 保留）。
 // v0907n：更新紀錄拿掉 7/13 那條贊助方式（站上最後一處金流資訊）。
-const BUILD = 'v0907p';
+const BUILD = 'v0907t';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -15372,6 +15374,7 @@ function tickCore(now) {
     if ((!ftr && !state.freqFollow) ||
         (rotate && ((ftr && effTLive(ftr) > ftr.stops[ftr.stops.length - 1].arrSec) || now >= (state._tourNext || 0))))
       nextTourTrain(now);
+    if (rotate) ambientFollowSync(); // 立體列車備妥/被切換之後,鏡頭高度與節奏自己收斂到位
   }
   if (state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain && !state.freqFollow &&
       state.mode === 'sched' && state.playing) { hotspotTick(now); hotCruise(dt, now); }
@@ -16485,10 +16488,48 @@ function nextTourTrain(now) {
 }
 // 放空模式鏡頭直接貼車(進場與換車落點共用)
 const AMBIENT_Z = 14;
+// 放空「跟車」要看得見立體列車在跑,就得先過 rail-3d 的三道門檻——它們一律用 MapLibre 原生縮放,
+// 也就是【介面縮放 − ML_Z】:render() 低於 13.8 直接把車輛清空(連 frame 都不 capture)、
+// recenter() 低於 14 不接手相機、map3d 的放空運鏡 cinematicPose 再把縮放頂到 15.6(只抬不壓)。
+// 原本的 14 在原生刻度只有 13,三道門檻一道都沒過 ⇒ 放空跟車從來看不到車體,只有平面俯瞰
+// (2026-09-07 實測:frame 連 capture 都沒發生、pitch 恆 0)。
+//
+// 高度不寫死:列車長度差一個數量級(輕軌單節 34 m ↔ 高鐵 12 節 304 m),而可視窗在手機與桌機
+// 又差三倍寬。實測綁死一個值,桌機剛好時手機已經是貼著車身的特寫。改成綁「可視窗較短邊
+// 大約看得到 150 公尺」:桌機落在 ~19.5、手機 ~18.6,兩邊都停在看得出是哪一款車的距離。
+// 立體列車關掉(?scene=2d 或設定關)時維持 14 的俯瞰,不平白把平面模式拉近。
+const AMBIENT_FOLLOW_SPAN_M = 150;
+function ambientFollowZoom() {
+  if (!window.railIslandIntegration?.active) return AMBIENT_Z;
+  const i = mapInsets(), s = M.getSize();
+  // 較短邊:列車是細長物,斜著擺時長邊有餘裕;拿短邊當基準才不會在窄螢幕上爆框。
+  const side = Math.max(240, Math.min(s.x - i.left - i.right, s.y - i.top - i.bottom));
+  const lat = (M.getCenter() || {}).lat || 23.7;
+  const z = Math.log2(156543.03392 * Math.cos(lat * Math.PI / 180) * side / AMBIENT_FOLLOW_SPAN_M);
+  return Math.max(AMBIENT_Z, Math.min(20, z));
+}
+// 放空的節奏跟著鏡頭高度走。平面俯瞰時 5× 才有東西在動(z14 下 100 km/h 只有 ~24 px/s);
+// 貼到車身之後同樣的 5× 是每秒 1,680 px——整個畫面不到一秒掃過去,只剩糊掉的地面
+// (2026-09-07 桌機實測:5×=1680、3×=759、2×=454、1×=201 px/s)。近景就用列車的真實速度。
+function ambientSpeed() {
+  return state.ambientStyle === 'follow' && window.railIslandIntegration?.active ? 1 : 5;
+}
+// 立體列車是非同步備妥的(style.load → import map3d.js → 載網格),一進頁面就按放空的人,
+// 進場當下 active 還是 false ⇒ 鏡頭與節奏都會停在平面的那一組,直到 60–120 秒後換車才更新。
+// 這裡把「該有的高度與節奏」當成放空跟車的常設收斂目標,每幀補一次。
+// 縮放只抬不壓(3D 事後被關掉也不會把鏡頭甩開);速度只在「還是放空自己設的那個值」時才動,
+// 不覆寫使用者自己調過的速度。
+function ambientFollowSync() {
+  if (!state.ambient || state.ambientStyle !== 'follow' || state._transition || camBlocked()) return;
+  const z = ambientFollowZoom();
+  if (M.getZoom() < z - 0.05) M.setView(M.getCenter(), z, { animate: false });
+  const sp = ambientSpeed();
+  if (state.speedMult !== sp && state.speedMult === (state._ambSpd || 5)) { setSpeed(sp); state._ambSpd = sp; }
+}
 function ambientJumpTo(tr) {
   setFollow(tr, true, true);
   const p = trainPos(tr, state.simSec) || tr.stops[0];
-  M.setView([p.lat, p.lon], AMBIENT_Z, { animate: false });
+  M.setView([p.lat, p.lon], ambientFollowZoom(), { animate: false });
 }
 // 放空模式換車:淡出 → 直接切到下一班 → 淡入(不拉高俯瞰)
 function fadeSwitch(tr) {
@@ -16796,6 +16837,7 @@ function setAmbientStyle(style) {
     state._ambientFresh = true; // 回跟車視角:第一班直接跳過去,不走淡出淡入
     setAutoTour(true);
   }
+  if (state.speedMult === (state._ambSpd || 5)) { setSpeed(ambientSpeed()); state._ambSpd = state.speedMult; } // 群車 5× / 跟車近景 1×
 }
 
 // 放空模式日夜天色:模擬時刻在天色停靠點間內插(深夜藍→黎明橘→白晝透明→黃昏金→暮色紫→夜)
@@ -16978,7 +17020,7 @@ function setAmbient(on) {
     if (!document.body.classList.contains('fs')) (state._setFs || (() => {}))(true);
     if (!state.playing) togglePlay();
     state._preAmbSpd = state.speedMult;
-    setSpeed(5); // 放空模式看單車,5× 節奏剛好
+    setSpeed(ambientSpeed()); state._ambSpd = state.speedMult; // 節奏跟著鏡頭高度走,見 ambientSpeed
     if (state.ambientStyle === 'hotspot') {
       clearFollow(); // 群車視角不跟車,清掉進場前的殘留跟隨
       state._hotFresh = true; state._hotScene = null; state._hotNext = 0;
@@ -16991,6 +17033,7 @@ function setAmbient(on) {
     (state._setStnIntro || (() => {}))(true); // 放空自動開特殊站介紹
     acquireWakeLock();
     ambientIdleReset();
+    musicSyncAmbient(); // 網站放空:曲庫混進情境池的新曲目(不影響正在播的那一首)
     if (state.music && state.music.enabled && state.music.audio.paused) musicPlay(); // 已在放就別重來
   } else {
     setMapGestures(true); // 交還地圖:排在離場的最前面,後面任何一行拋例外都不會把使用者留在「地圖動不了」
@@ -17004,9 +17047,10 @@ function setAmbient(on) {
     state._transition = false;
     document.getElementById('veil').style.opacity = 0;
     updateSkyTint(); // ambient 已關,立即清天色
-    if (state.speedMult === 5 && state._preAmbSpd) setSpeed(state._preAmbSpd);
+    if (state._preAmbSpd && state.speedMult === (state._ambSpd || 5)) setSpeed(state._preAmbSpd); // 比對放空自己設的那個值(近景是 1×,寫死 5 會還原不回去)
     if (state.nightReplay) { state.nightReplay = false; refreshBadge(); }
     if (state.autoTour) setAutoTour(false);
+    musicSyncAmbient(); // 離開放空:曲庫退回原本的模式
     hotspotStop();
     (state._setStnIntro || (() => {}))(false); // 離開放空自動關特殊站介紹
     setSparkOpen(true); // 回一般模式:曲線預設展開(時刻表維持收起)
@@ -17104,6 +17148,33 @@ async function musicLoadData() {
 }
 function musicPoolById(id) { return (window.MUSIC_DATA.pools || []).find(p => p.id === id) || null; }
 function musicShippedPools() { return (window.MUSIC_DATA.pools || []).filter(p => p.tracks && p.tracks.length); }
+
+// ── 網站放空模式的曲庫:免費 57 首 + 已上架的情境池,全部混在一起隨機 ──────────────
+// 使用者裁示(2026-09-07):「之前新增的曲目都加入網站放空模式的輪播,但是不用讓他可以選擇」。
+// 只在【網站】生效:App 的情境池是通行證的內容,資格由 musicEffectiveMode 管,這裡不繞過它
+// (網站本來就沒有購買通道——正式站 revenuecat-config 沒有 webApiKey,選單入口 setupMusicPlUi
+//  也早就整個移除,所以網站不存在「可以選」這件事,不必也不該加 UI)。
+// 只換【接下來】要播的清單,不動正在播的那一首(沿用「絕不打斷正在播的曲子」那條政策)。
+function musicAmbientList() {
+  const D = window.MUSIC_DATA;
+  return [...new Set([
+    ...(D.free.tracks || []).map(t => t.src),
+    ...musicShippedPools().flatMap(p => p.tracks.map(t => t.src)),
+  ])];
+}
+function musicSyncAmbient() {
+  const m = state.music; if (!m || musicIsApp() || !musicAvailable()) return;
+  // 使用者自己選過情境池(網站要 ?plus=1 才可能)就以他的選擇為準,放空不覆寫。
+  const want = !!state.ambient && musicEffectiveMode().kind === 'free';
+  if (want === !!m._ambientMix) return;
+  if (want) {
+    const list = musicAmbientList();
+    if (list.length <= (window.MUSIC_DATA.free.tracks || []).length) return; // 池都還沒上架:維持原樣
+    m._ambientMix = true; m.list = musicShuffle(list); m.idx = 0; m._fails = 0;
+  } else {
+    m._ambientMix = false; musicApplyMode(null, { noLoad: true }); // 退回原本的模式(免費 57 首)
+  }
+}
 
 // ── 跟車配樂:情境判定(地點 + 時間)。三支都是純函式,可表格驅動驗收。 ────────────────
 // 分區 = 把 CITY_BBOX 的 17 個縣市歸成 8 個地理分區,外加一個系統訊號分區 metro。
@@ -17674,6 +17745,9 @@ function initMusic() {
     if (!D.free.tracks.length) D.free.tracks = MUSIC_FILES.map(src => ({ src, dur: 0, bytes: 0 }));
     if (!D.free.bundled.length) D.free.bundled = [...MUSIC_BUNDLED];
     musicApplyMode(null, { noLoad: true });
+    // 曲庫比放空晚到:進放空的當下 music.json 可能還沒回來(那時池是空的、混音會被跳過)。
+    // musicApplyMode 剛把清單洗回免費那份,所以旗標要一起歸零,否則 musicSyncAmbient 會誤判成已套用。
+    state.music._ambientMix = false; musicSyncAmbient();
   });
   audio.addEventListener('ended', musicNext);
   audio.addEventListener('playing', () => { state.music._fails = 0; state.music._fellBack = false; }); // 有一首放起來就歸零
@@ -23727,13 +23801,20 @@ const _traGateEp = { on: false, ep: 0, at: 0 }, _metroGateEp = { on: false, ep: 
 const TRTC_MOTION_MIN_RATE = .25;
 const TRTC_MOTION_MAX_RATE = 2;
 const TRTC_MOTION_PROFILE = { minRate: TRTC_MOTION_MIN_RATE, maxRate: TRTC_MOTION_MAX_RATE };
-// 台鐵側:只鉗下降(追回誤點),不鉗上升。minRate=0 讓 rise=adv*(1-0)=adv,與改動前的無 motion
-// 上升分支逐字等價 ⇒ 準點的車與「誤點正在加大」的車行為零變化;真正被約束的只有「誤點被釋放」
-// 這一段——改動前它走 τ=1s 的指數收斂,而且吃的是真實時間 dt 不是模擬時間 adv,於是連暫停
-// (adv=0)都照樣移動,600 秒的誤點會在 3 秒多內畫完,換算數萬 km/h。
-// 「逐字等價」有一個例外:下面死區的判別式由 |cur|<.25 改成 cur===0(見該行註解)。只在 target===0
-// 時觸發,所以誤點加大的那一半不受影響;受影響的只有負偏移(早到車)滑回 0 的最後 0.25 秒,新行為
-// 是走到精確 0 才刪 entry,比舊的少一個 0.25 秒跳步。閘門在 verify_tra_motion 的 F(上升側恰 1×)。
+// 台鐵側:兩個方向都鉗。
+// 🔴 2026-09-07 使用者裁示:「還是有很多火車誤點就停在原地等嗎?這樣不對啦,我們至少要讓他
+//    慢速前進再抓下一站的到站時間。」⇒ minRate 由 0 改成 .25(與捷運同值)。
+//    minRate=0 的意思是 rise=adv*(1-0)=adv ⇒ 誤點每加大一秒就把有效時間往回推一秒,
+//    列車在畫面上【完全靜止】直到誤點追上(TDX 只在過站時更新 delay,一次 +2 分就站著不動兩分鐘)。
+//    改成 .25 之後 rise=adv*.75,有效時間仍以 .25× 前進 ⇒ 誤點加大期間列車以標稱速度的四分之一
+//    往前爬,而不是定格;下一站到站時刻本來就是「表定＋誤點」逐幀重算(nextStopInfo(tr, effTLive(tr))),
+//    所以爬行期間它會自己跟著新的誤點更新。位置恆不倒退這條不變(rise≥0 且 cur 只往 target 走)。
+//    ≥5 分的大跳增仍然一步到位(snapRise,09-05 裁示),那條沒動。
+// 下降側(誤點被釋放)維持 maxRate=2:改動前它走 τ=1s 的指數收斂,而且吃的是真實時間 dt 不是
+// 模擬時間 adv,於是連暫停(adv=0)都照樣移動,600 秒的誤點會在 3 秒多內畫完,換算數萬 km/h。
+// 死區的判別式用 cur===0(見下方該行註解):只在 target===0 時觸發,走到精確 0 才刪 entry。
+// 閘門在 verify_tra_motion 的 F(上升側恰 .75×adv)與 G3／G4。
+const TRA_MOTION_MIN_RATE = .25; // 誤點加大時,有效時間仍以 .25× 前進 ⇒ 畫面上是慢速前進不是定格
 const TRA_MOTION_MAX_RATE = 2;   // 有效時間最多以 2× 前進 ⇒ 追回誤點時畫面最多跑標稱速度的 2 倍
 // snapRise:上升(誤點加大)一次 ≥ 這麼多秒就不凍結,一步跳回真實位置(2026-09-05 使用者裁示「5 分」)。
 // 凍結是給每 75 秒 +1 分那種抖動用的(看起來像臨停);但 TDX 只在過站時更新 delay,列車在區間被扣
@@ -23741,7 +23822,7 @@ const TRA_MOTION_MAX_RATE = 2;   // 有效時間最多以 2× 前進 ⇒ 追回�
 // (122/180 從潮州冒出來)——舊行為＝畫面在真實位置前方原地停 N 分鐘,跟隨卡的到站時刻一秒一秒往後滑。
 // 門檻以下維持凍結;沒設 snapRise 的 profile(捷運)完全不受影響。守門人:verify_tra_motion G1–G4。
 const TRA_SNAP_RISE_SEC = 300;
-const TRA_MOTION_PROFILE = { minRate: 0, maxRate: TRA_MOTION_MAX_RATE, snapRise: TRA_SNAP_RISE_SEC };
+const TRA_MOTION_PROFILE = { minRate: TRA_MOTION_MIN_RATE, maxRate: TRA_MOTION_MAX_RATE, snapRise: TRA_SNAP_RISE_SEC };
 // 各線實際吃的是 metroMotion(ln)：同樣的 min/max，但 max 已先除掉該線梯形的巡航／平均倍率。
 // TRTC_MOTION_PROFILE 本身在出貨路徑上已無呼叫端，但 verify_all_metro_motion 的控制組要靠它
 // 組出「退回舊預設」的突變版本 —— 看到沒人用就刪掉的話，那支的突變會直接 throw。
