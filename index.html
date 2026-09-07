@@ -5507,9 +5507,6 @@
         <li><span class="d">7/18</span><span>下次打開就回到上次看的地方：位置、縮放與路網頁籤都會記住，不需註冊登入</span></li>
         <li><span class="d">7/13</span><span>新增「分享畫面」：把地圖位置、時間與路網打包成一條連結</span></li>
         <li><span class="d">7/11</span><span>可以安裝到主畫面（PWA），像 App 一樣全螢幕開啟</span></li>
-        <!-- APP_STRIP_START donation-log（App Store 禁外部贊助內容，prepare-web.mjs 整段移除） -->
-          <li class="web-only-donation-log"><span class="d">7/13</span><span>贊助方式更新：「請開發者喝咖啡」的銀行轉帳帳戶改用 LINE Bank（連線商業銀行 824）——謝謝每一位抖內支持軌島的朋友</span></li>
-        <!-- APP_STRIP_END donation-log -->
         <li class="grp">資料校正</li>
         <li data-cl="trapassjump"><span class="d">8/21</span><span>台鐵列車通過不停靠小站時改為連續移動，不再短暫停住後跳位；跨午夜切換系統也不會沿用前一天同號車的誤點。</span></li>
         <li data-cl="hsrcoast"><span class="d">8/18</span><span>高鐵站間動畫加入巡航、滑行與煞車階段，並依實車觀測校正速度；發車時間改取官方分鐘中點，到站時刻不變。</span></li>
@@ -6123,7 +6120,8 @@
 // v0907c(撞號：上游同日另出了 v0907c 夜間玻璃建築，本分支這顆從未上線)：併入 origin/main(fc3ca03c：統一底圖監測把手命名、暗色路線霓虹微光、導覽路線站序與精選取景)＋查詢分頁修正批(查詢 sheet 半高且不寫全站段高偏好、答案區手勢取消清紀錄、Android 挑選器示範列依真實列數、initialLayout 改中性卡、出貨鏈與閘門補牙)。
 // v0907h：併入 origin/main(33cc762d：夜間霓虹玻璃建築與看板、車站標記放大與指北修正、近景列車地形透視與跟車方向開關、官方月台串接與無資料隱藏)＋查詢分頁修正批(查詢 sheet 半高且不寫全站段高偏好、答案區手勢取消清紀錄、Android 挑選器示範列依真實列數、initialLayout 改中性卡、出貨鏈與閘門補牙)。
 // v0907m：頁尾贊助區拿掉銀行轉帳帳號（Ko-fi 保留）。
-const BUILD = 'v0907m';
+// v0907n：更新紀錄拿掉 7/13 那條贊助方式（站上最後一處金流資訊）。
+const BUILD = 'v0907n';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';

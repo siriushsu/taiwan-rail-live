@@ -259,7 +259,6 @@ const replaceHtmlRegion = (source, name, replacement) => cutRegion(source, name,
 //     不再需要「CDN 版換打包版」的整段替換(原 leaflet-cdn 錨點已隨 Leaflet 一起移除)。
 // (2) 原生 App 的數位功能只走 StoreKit／Google Play Billing;網站的 Ko-fi／銀行贊助區不帶進 App
 html = stripHtmlRegion(html, 'donate-box');
-html = stripHtmlRegion(html, 'donation-log');
 // (3) 網站免費層底圖預設(CARTO/舊 Esri)整段拔除——App 包內不得殘留其網址(CARTO 條款不允許包進上架 App)
 html = stripJsRegion(html, 'web-tiles');
 // (4) 頁尾底圖來源文字換成本 build 的實況
