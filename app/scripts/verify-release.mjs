@@ -3,6 +3,7 @@ import { lstat, readFile, readdir } from 'node:fs/promises';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { verifyAndroidWidgetParity } from './verify_android_widget_parity.mjs';
+import { verifyWidgetPreviews } from '../../scripts/verify_widget_previews.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '..');
@@ -513,6 +514,9 @@ export async function verifyRelease({
   const packagedBridge = await readFile(join(output, 'native-bridge.js'), 'utf8');
   const androidManifest = await readFile(join(appRoot, 'android/app/src/main/AndroidManifest.xml'), 'utf8');
   verifyAndroidWidgetParity();
+  // 小工具預覽圖:repo 側守門(index.html 引用＝git 追蹤、預算)＋bundle 側實查(prepare-web 只收追蹤檔;這些是執行期組出來的 <img src>,
+  // 上面那段掃 <script src>/<link href> 的資產完整性閘門照不到它們——整枝審查 M-1)
+  for (const f of verifyWidgetPreviews({ log: false }).files) if (!relativeFiles.includes(f)) fail(`小工具預覽圖沒進 bundle：${f}`);
   assertAndroidPreciseLocationContract({ nativeBridgeSource, packagedBridge, androidManifest });
   assertAndroidBackButtonContract({ nativeBridgeSource, packagedBridge, html });
   assertAppLineageContent(html);

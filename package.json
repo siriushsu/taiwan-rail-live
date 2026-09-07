@@ -34,6 +34,7 @@
     "check-crowd-outage": "node scripts/verify_crowd_and_outage.mjs",
     "check-plus": "node scripts/verify_plus_features.mjs",
     "check-widget-plus-sync": "node scripts/verify_metro_widget_plus_sync.mjs",
+    "check-widget-previews": "node scripts/verify_widget_previews.mjs",
     "check-obs-removed": "node scripts/verify_obs_removed.mjs",
     "check-boot-partial-sched": "node scripts/verify_boot_partial_schedule.mjs",
     "check-query-tab": "node scripts/verify_query_tab.mjs",

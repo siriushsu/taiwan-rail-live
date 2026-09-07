@@ -16,4 +16,5 @@
     <string name="rail_widget_large_description">The next eight trains, a full departure board</string>
     <string name="mixed_widget_name">Rail + metro board</string>
     <string name="mixed_widget_description">TRA or HSR departures and metro countdowns on one card</string>
+    <string name="widget_loading">Updating…</string>
 </resources>

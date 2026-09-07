@@ -16,7 +16,8 @@
 //    寫死實作值的判準跟實作同源，改一次公式就一起瞎（心得 29）。
 //
 // 🔴 零回歸基準取「改動前的 commit」另起同一支 server 的 /baseline.html（心得 23：
-//    不可拿改後狀態自比）。BASE_REF 預設 ad63246，可用環境變數覆寫。
+//    不可拿改後狀態自比）。BASE_REF 預設 110f0e93（平板整併 cbf28133/d597616f 之後、本批查詢分頁之前
+//    的一顆 commit，L6/L7 桌面/平板零回歸的正確對照基準——見下方 zeroRegressionSuite），可用環境變數覆寫。
 //
 // ── 這些判準是怎麼被證明「有牙」的（下次改側欄相關程式碼前先看這段） ──
 // 做法：把改壞的 index.html 放進一個獨立目錄（其餘資源 symlink 借用），用同一支腳本 QUICK 跑。
@@ -74,7 +75,7 @@ import { runEngineMatrix } from './lib/engine_matrix.mjs';
 //   契約8中線 --land-lb 238→150       → L14e/L14f 四筆(站名牌+速度膠囊雙雙偏離)
 //   工具欄常數44(行為上不可觀測:膠囊只在相機關閉時存在) → L13d 原始碼斷言把關
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const BASE_REF = process.env.BASE_REF || 'b937719';
+const BASE_REF = process.env.BASE_REF || '110f0e93';
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
 
 const baselineHtml = execFileSync('git', ['show', `${BASE_REF}:index.html`], { cwd: ROOT, maxBuffer: 64 * 1024 * 1024 });
@@ -198,8 +199,8 @@ const PICK_FOLLOW = async () => {
   return cand(true) || cand(false);
 };
 
-async function boot(browser, { w, h, tag }, { url = BASE, follow = true, sheetSize = null, fontScale = null } = {}) {
-  const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true });
+async function boot(browser, { w, h, tag }, { url = BASE, follow = true, sheetSize = null, fontScale = null, hasTouch = true } = {}) {
+  const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch, isMobile: true });
   await ctx.addInitScript(a => {
     try {
       localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-appearance', 'light');
@@ -776,6 +777,27 @@ async function landscapeSuite(browser, eng) {
       //    底下),「浮層不相交」也要豁免頂列(它退為 .35 的背景層,被面板壓住是設計)。
       //    換上的判準:形態、讓位淡出、以及「相機真的暫停」的差分實驗。
       if (P.key === 'search') {
+        // L4s0b:瀏覽態(openPanel 剛呼叫完 openSearchPanel(),還沒 focus 輸入框)依設計(index.html:
+        // 4517-4535 契約9:瀏覽態回落到通用側欄規則)應該還是側欄形態,不是打字態的右半全高。
+        const s0 = await page.evaluate(() => {
+          const el = activeSheetEl(); if (!el || el.hidden || el.id !== 'searchPanel') return { err: 'not-search:' + (el && el.id) };
+          const r = el.getBoundingClientRect(), W = innerWidth;
+          const tb = document.querySelector('.tabbar');
+          return {
+            searchOpen: document.body.classList.contains('search-open'),
+            tbVisible: !!tb && !!tb.getClientRects().length && getComputedStyle(tb).display !== 'none',
+            w: Math.round(r.width), wantW: Math.round(Math.max(420, W / 2)),
+          };
+        });
+        ok(`L4s0b ${eng}/${S.tag} 搜尋·橫放瀏覽態＝側欄、tab bar 仍在`,
+          !s0.err && s0.searchOpen === false && s0.tbVisible === true && s0.w < s0.wantW, JSON.stringify(s0));
+
+        // 🔴 判準過期(2026-09-06 查詢分頁批次 271ca8a2):.search-land 從「橫放一律套用」改成
+        //    「只在【打字態】body.fs.search-open 才生效」(index.html:4517-4535 契約9:瀏覽態
+        //    回落到通用側欄規則)。openPanel() 只呼叫 openSearchPanel(),從不 focus 輸入框,
+        //    量測前先 focus 進打字態(index.html 裡 trainSearch 的 focus 監聽器 → setSearchTyping)。
+        await page.evaluate(() => { const inp = document.getElementById('trainSearch'); if (inp) inp.focus(); });
+        await page.waitForTimeout(650);
         const s = await page.evaluate(() => {
           const el = activeSheetEl(); if (!el || el.hidden || el.id !== 'searchPanel') return { err: 'not-search:' + (el && el.id) };
           const r = el.getBoundingClientRect(), W = innerWidth, H = innerHeight;
@@ -822,7 +844,7 @@ async function landscapeSuite(browser, eng) {
         const realS = oS.inter.filter(pair => !(/#searchPanel/.test(pair) && /#topbar/.test(pair)));
         ok(`L2 ${eng}/${S.tag} 搜尋·浮層不相交(頂列=設計上的背景層,豁免)`, realS.length === 0, realS.join(' | '));
         ok(`L2 ${eng}/${S.tag} 搜尋·浮層不出視窗`, oS.off.length === 0, oS.off.join(' '));
-        await page.evaluate(() => { soloPanel(null); updateSheetOpenClass(); });
+        await page.evaluate(() => { const inp = document.getElementById('trainSearch'); if (inp) inp.blur(); soloPanel(null); updateSheetOpenClass(); });
         await page.waitForTimeout(300);
         continue;
       }
@@ -2096,12 +2118,15 @@ const GEOM = eng => {
 };
 async function zeroRegressionSuite(browser, eng) {
   if (SAME_SOURCE) { console.log(`SKIP L6/L7 ${eng} 零回歸（同源模式，這組現在毫無資訊量）`); return; }
-  for (const S of [{ w: 1024, h: 768, tag: 'iPad橫' }, { w: 1280, h: 800, tag: '桌面1280' }, { w: 768, h: 1024, tag: 'iPad直' }]) {
-    const cur = await boot(browser, S, { follow: false });
+  // 🔴 桌面情境用 hasTouch:false——桌面沒有觸控,而 index.html:6475 的 MOBILE_MQ 自 09-03/09-04
+  // 平板整併起多了 (any-pointer:coarse) and (max-width:1400px),hasTouch:true 會讓 1280 寬的
+  // 「桌面」誤觸這條掉進手機殼,量到的是量錯的東西。iPad 兩個 tag 依設計就是觸控版面,維持 true。
+  for (const S of [{ w: 1024, h: 768, tag: 'iPad橫', hasTouch: true }, { w: 1280, h: 800, tag: '桌面1280', hasTouch: false }, { w: 768, h: 1024, tag: 'iPad直', hasTouch: true }]) {
+    const cur = await boot(browser, S, { follow: false, hasTouch: S.hasTouch });
     await cur.page.evaluate(FREEZE);
     const a = await cur.page.evaluate(GEOM, eng);
     await cur.ctx.close();
-    const bas = await boot(browser, S, { url: BASE + 'baseline.html', follow: false });
+    const bas = await boot(browser, S, { url: BASE + 'baseline.html', follow: false, hasTouch: S.hasTouch });
     await bas.page.evaluate(FREEZE);
     const c = await bas.page.evaluate(GEOM, eng);
     await bas.ctx.close();

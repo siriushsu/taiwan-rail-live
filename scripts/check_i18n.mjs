@@ -163,7 +163,7 @@ for (const group of helpBlocks.HELP_GROUPS || []) {
   helpSources.push(group.name);
   for (const section of group.secs || []) {
     if (hiddenHelpKeys.has(section.key)) continue; // 尚未上線的 GPS 校正實驗功能，不屬公開說明。
-    helpSources.push(section.nm, section.one, ...(section.steps || []), section.tip);
+    helpSources.push(section.nm, section.one, ...(section.steps || []), section.tip, ...(section.widgets || []).flatMap(w => [w.name, w.sizes]));
     // 說明卡圖示也是真正顯示的文字；HTML 圖示只取出其中的可見中文字。
     if (section.ic) helpSources.push(...String(section.ic).replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean));
     if (section.tipDesktop) helpSources.push(...String(section.tipDesktop).split(/<\/?b>/).filter(Boolean));

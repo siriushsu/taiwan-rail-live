@@ -82,6 +82,8 @@ Plus訂閱*
 # App icon 概念稿(未追蹤,零引用,9.4MB)。2026-07-26 實測在預覽站全部回 200。
 # 已追蹤的 icon 都不叫 app-icon-*,加這條不誤殺。
 assets/app-icon-*
+# 小工具預覽圖(說明中心 App 專用):網站永不請求(verify_query_tab G10a 斷言為 0 請求),只進 App bundle(prepare-web 收 git 追蹤檔,不看本檔)。
+assets/widgets
 # 技術原型(3D 文湖線等):只在本機跑,不是產品的一部分,禁上正式站。
 prototypes
 # 各 session 的暫存工作區:中間產物、驗證輸出、交接草稿,內容不受控且多是未定案判斷。

@@ -132,6 +132,9 @@
       '列車方向箭頭': 'Train direction arrows',
       '縣 縣市快速移動': 'Area shortcuts', '資訊': 'Information', '已排提醒': 'Scheduled alerts',
       '今日台鐵動態': 'TRA today', '附近其他站': 'Other nearby stations', '小工具': 'Widgets',
+      '加到桌面': 'Add to Home Screen',
+      '鎖定畫面：長按鎖定畫面 → 自訂 → 加入小工具（鎖定畫面目前只有「發車看板」這一種）': 'Lock Screen: touch and hold the Lock Screen → Customize → Add Widgets (for now only the Departure board comes in a Lock Screen size)',
+      '這支手機的桌面不支援直接加入，請長按主畫面 → 小工具 → 軌島': 'This phone doesn’t support adding widgets directly. Touch and hold the Home Screen → Widgets → Rail Island.',
       '最近 · {m} 公尺': 'Nearest · {m} m', '共構': 'Same complex', '上次看過': 'Last viewed',
       '搜尋你的站': 'Search for your station', '這站的公車轉乘': 'Bus connections at this station',
       '全日班次走勢': 'All-day train volume', '觀看模式': 'Viewing mode',
@@ -225,6 +228,7 @@
         'Fixed the street basemap being wrongly judged as failed to load: previously, if the map had not fully finished drawing within 8 seconds of opening (for example when you zoomed in right away to look at 3D buildings, or on a slow mobile connection), the app silently switched to the backup basemap, the 3D buildings vanished with it and only a restart brought them back, and the website showed a false \'street basemap failed to load\' notice. The check now only looks at whether the basemap actually delivered any tiles, and switches or warns only when it really cannot load.',
       '手機底部「搜尋」改為「查詢」：半高面板先給離你最近的站各方向下一班，再列提醒、今日動態、附近車站與小工具入口；在車站附近開 App 會自動出現':
         'The bottom “Search” tab on phones is now “Lookup”: a half-height sheet shows the next train in each direction from your nearest station, then reminders, today’s TRA status, nearby stations and widgets; it opens by itself when you open the app near a station',
+      'App 說明中心的小工具頁改成介紹頁：每種小工具都有實際畫面預覽與尺寸；Android 可以直接按「加到桌面」把小工具釘到主畫面': 'The app’s Help Center widget page is now a showcase: every widget comes with a real preview and its size, and on Android you can tap “Add to Home Screen” to pin it right away',
       '台鐵誤點一次跳增 5 分以上時，列車直接跳回實際位置，不再原地停等':
         'When a TRA train\'s reported delay jumps by 5 minutes or more at once, it now snaps straight back to its actual position instead of waiting in place until the timetable catches up.',
       '捷運頂列的「N 線改用備案」指得出是哪幾條線、為什麼：滑鼠移上去或點開資料狀態卡就看得到': 'The metro header badge "N lines using fallback" now names the lines and why: hover, or open the data-status card, to see them',
@@ -588,6 +592,9 @@
       '修正跟隨環島等長途列車並放大看彎道時，紅色行程線會因點位抽稀而切過彎心，離開實際軌道、旁邊露出另一條原色線；MapLibre 現在用完整軌道點繪製跟隨行程，放大也會貼合。': '環島列車などの長距離列車を追跡してカーブを拡大した際、点の間引きで赤い行程線がカーブの内側を横切り、実際の線路からずれる問題を修正しました。MapLibre は追跡行程を完全な線路形状で描画し、拡大しても正確に重なります。',
       '縣 縣市快速移動': '地域へ移動', '資訊': '情報', '已排提醒': '設定済み通知', '今日台鐵動態': '本日の台湾鉄路',
       '附近其他站': '近くの他の駅', '小工具': 'ウィジェット',
+      '加到桌面': 'ホーム画面に追加',
+      '鎖定畫面：長按鎖定畫面 → 自訂 → 加入小工具（鎖定畫面目前只有「發車看板」這一種）': 'ロック画面：ロック画面を長押し →「カスタマイズ」→ ウィジェットを追加（ロック画面に置けるのは今のところ「発車案内」だけです）',
+      '這支手機的桌面不支援直接加入，請長按主畫面 → 小工具 → 軌島': 'この端末はホーム画面への直接追加に対応していません。ホーム画面を長押しして「ウィジェット」→「軌島」から追加してください。',
       '最近 · {m} 公尺': '最寄り · {m} m', '共構': '同一駅舎', '上次看過': '前回見た駅',
       '搜尋你的站': '駅を検索', '這站的公車轉乘': 'この駅のバス乗り換え',
       '全日班次走勢': '一日の運行本数',
@@ -669,6 +676,7 @@
         '街道ベースマップが読み込み失敗と誤判定される問題を修正しました。これまでは地図を開いてから 8 秒以内に描画が終わらないと（すぐ拡大して 3D 建物を見たとき、モバイル回線が遅いときなど）、アプリが黙って予備のベースマップに切り替わり、3D 建物も一緒に消えて再起動するまで戻りませんでした。ウェブサイトでは「街道ベースマップの読み込み異常」の通知が誤って表示されていました。今後はベースマップから実際にタイルが届いたかどうかだけで判定し、本当に読み込めないときだけ切り替えや通知を行います。',
       '手機底部「搜尋」改為「查詢」：半高面板先給離你最近的站各方向下一班，再列提醒、今日動態、附近車站與小工具入口；在車站附近開 App 會自動出現':
         'スマートフォン下部の「検索」が「調べる」になりました。半分の高さのパネルにまず最寄り駅の各方向の次の列車を表示し、続いて通知・本日の台湾鉄路・近くの駅・ウィジェットへの入口が並びます。駅の近くでアプリを開くと自動的に表示されます。',
+      'App 說明中心的小工具頁改成介紹頁：每種小工具都有實際畫面預覽與尺寸；Android 可以直接按「加到桌面」把小工具釘到主畫面': 'アプリの使い方にあるウィジェットのページを紹介ページにしました：各ウィジェットの実際の画面プレビューとサイズを掲載し、Android では「ホーム画面に追加」を押すだけでホーム画面にピン留めできます',
       '台鐵誤點一次跳增 5 分以上時，列車直接跳回實際位置，不再原地停等':
         '台湾鉄路の遅延が一度に5分以上増えた場合、列車はその場で待たずにすぐ実際の位置へ戻るようになりました。',
       '捷運頂列的「N 線改用備案」指得出是哪幾條線、為什麼：滑鼠移上去或點開資料狀態卡就看得到': 'メトロ上部の「N路線は代替データ」バッジで、どの路線がなぜ代替になったか分かります。マウスを重ねるか、データ状態カードを開くと確認できます',
