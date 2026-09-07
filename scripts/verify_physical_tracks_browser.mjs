@@ -1,6 +1,23 @@
 import {chromium,webkit} from 'playwright';
 import fs from 'node:fs';
-const base=process.env.BASE_URL||'http://127.0.0.1:5208/',rows=[];
+import {spawn} from 'node:child_process';
+import {createServer} from 'node:net';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+// 伺服器自己起、連接埠由 OS 指派:本機同時開著 30+ 個 worktree,寫死 5208 會安靜地去驗別人那棵樹
+// ——全綠也毫無意義。ROOT 由本檔路徑推導,結構上只可能服務自己這棵樹;BASE_URL 仍可覆寫,
+// 但那條路要自己負責樹對不對(沿用原本手動起 server 的用法)。
+const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+process.chdir(ROOT);
+const freePort=()=>new Promise(r=>{const s=createServer();s.listen(0,'127.0.0.1',()=>{const{port}=s.address();s.close(()=>r(port));});});
+let child=null,base=process.env.BASE_URL;
+if(!base){const port=await freePort();base=`http://localhost:${port}/`;
+ child=spawn(process.execPath,[path.join(ROOT,'scripts/dev_server.mjs')],{cwd:ROOT,env:{...process.env,PORT:String(port)},stdio:['ignore','ignore','inherit']});
+ process.on('exit',()=>child?.kill());
+ for(const sig of ['SIGINT','SIGTERM'])process.on(sig,()=>{child?.kill();process.exit(1);});
+ for(let i=0;;i++){try{if((await fetch(base+'index.html')).ok)break;}catch{} if(i>100){console.error('✗ dev server 起不來 '+base);child.kill();process.exit(1);} await new Promise(r=>setTimeout(r,100));}
+}
+const rows=[];
 fs.mkdirSync('output/physical-browser',{recursive:true});
 const check=(test,pass,details={})=>{rows.push({test,pass,...details});console.log(JSON.stringify(rows.at(-1)));if(!pass)throw Error(test);};
 for(const [name,engine]of Object.entries({chromium,webkit})){
@@ -56,6 +73,44 @@ for(const [name,engine]of Object.entries({chromium,webkit})){
    const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1);check(name+' mobile '+width+' no horizontal overflow',!overflow);
   }
   check(name+' no script errors',errors.length===0,{errors});
+
+  // ── 低倍率(2D、z=11)＋停靠中：畫出來的軌道要蓋住列車真正的所在 ──────────────────
+  // 上面那些全部是 scene=3d、z=18、只有捷運;而列車位置吃實體股道是**沒有 zoom 閘門**的
+  // (index.html trainPosAt 第一行)，畫出來的線卻是 state.trackLines。2026-09-07 林鐵那個
+  // 回歸(阿里山 94m、神木 164m,停靠中)就正好落在這支腳本結構上照不到的角落:非捷運、
+  // 低倍率、停靠中。判準量的是「列車位置 vs 畫出來的線」，不是同一層自己跟自己比。
+  const survey=await (async()=>{
+   const page2=await context.newPage();
+   await page2.goto(base+'?g=all&z=11&at=23.7,120.9&lang=zh-TW');
+   await page2.waitForFunction(()=>typeof state!=='undefined'&&state.ready===true,null,{timeout:90000});
+   await page2.waitForFunction(()=>!!window.railIslandPhysical,null,{timeout:90000});
+   const out=await page2.evaluate(()=>{
+    const seg=(pt,a,b)=>{const k=Math.cos(pt[0]*Math.PI/180),R=111320,px=(pt[1]-a[1])*k*R,py=(pt[0]-a[0])*R,bx=(b[1]-a[1])*k*R,by=(b[0]-a[0])*R,L2=bx*bx+by*by,t=L2?Math.max(0,Math.min(1,(px*bx+py*by)/L2)):0;return Math.hypot(px-t*bx,py-t*by);};
+    const toLine=(pt,sh)=>{let m=Infinity;for(let i=1;i<sh.length;i++){const d=seg(pt,sh[i-1],sh[i]);if(d<m)m=d;}return m;};
+    const shapes={};for(const ln of state.trackLines)(shapes[ln.sys]||=[]).push(ln.shape);
+    const stat={};
+    for(const hour of [6,8,11,14,17,20])for(const tr of state.trains){
+     const p=window.railIslandPhysical.sample(tr,hour*3600,{wrap:typeof schedWrapT!=='undefined'?schedWrapT:undefined});
+     if(!p?.physical||!shapes[tr.sys])continue;
+     const d=Math.min(...shapes[tr.sys].map(s=>toLine([p.lat,p.lon],s))),s=stat[tr.sys]||={n:0,dwell:0,off:0,offDwell:0,worst:0,at:null};
+     s.n++;if(p.dwell)s.dwell++;
+     if(d>50){s.off++;if(p.dwell)s.offDwell++;}
+     if(d>s.worst){s.worst=+d.toFixed(0);s.at=`${tr.train}@${hour}時${p.dwell?'停靠':'行駛'} ${p.lat.toFixed(4)},${p.lon.toFixed(4)}`;}
+    }
+    return {zoom:M.getZoom(),scene:state.scene||'2d',stat};
+   });
+   await page2.close();return out;
+  })();
+  check(name+' low zoom survey',survey.zoom<14,survey);   // 低於實體股道換圖的 z=14 才算數
+  for(const [sys,s] of Object.entries(survey.stat)){
+   // 林鐵/高鐵的線形已經跟實體股道對齊過,一處都不准離線;台鐵還有 09-07 那批未修的路廊
+   // (東澳雙坑、五堵、南港、山線),用比例當閘門而不是釘死顆數——台鐵班表每週重抓,
+   // 顆數本來就會漂,比例才擋得住「整條線走鐘」這種真回歸。
+   const ratio=s.off/s.n;
+   check(`${name} ${sys} 實體位置落在畫出來的軌道上 (${s.n}樣本/${s.dwell}停靠, 離線${s.off}, 最遠${s.worst}m)`,
+    sys==='tra_sched'?ratio<0.02:s.off===0,{...s,ratio:+ratio.toFixed(4)});
+  }
  }finally{await browser.close();fs.writeFileSync('output/physical-browser/results.json',JSON.stringify(rows,null,2));}
 }
 console.log(`${rows.filter(r=>r.pass).length}/${rows.length}`);
+child?.kill();

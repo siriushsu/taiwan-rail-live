@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TDX_DIR = path.join(ROOT, 'data/tdx');
 const osmGapData = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/afr_osm_gap_fills.json'), 'utf8'));
+import { buildAfrStationTracks } from './build_afr_station_tracks.mjs';
 
 // ─────────────── TDX fetch(auth + retry + 本地快取) ───────────────
 const envFile = path.join(ROOT, '.env');
@@ -459,6 +460,14 @@ async function main() {
       + (overThreshold.length ? ' 離軌超過150m的站點:' + overThreshold.join('；') : ' 全部站點離軌距離均在150m內。'),
     lines: lines,
   };
+  // 之字形折返股與站內股道:TDX Shape 只給營業線，不含列車實際停靠的折返股;不補的話停靠中的
+  // 車會畫在線外(阿里山 94m、神木 164m)。判準與產生方式見 build_afr_station_tracks.mjs。
+  const stationTracks = buildAfrStationTracks({
+    network: JSON.parse(fs.readFileSync(path.join(ROOT, 'rail-3d/physical/network.json'), 'utf8')),
+    dispatch: JSON.parse(fs.readFileSync(path.join(ROOT, 'rail-3d/physical/dispatch.json'), 'utf8')),
+    track: afrOut,
+  });
+  afrOut.lines = lines.concat(stationTracks);   // 來源與歸屬寫在 data/afr_station_tracks.json
   fs.writeFileSync(path.join(ROOT, 'data/afr.json'), JSON.stringify(afrOut));
   console.log('\n  wrote data/afr.json');
 

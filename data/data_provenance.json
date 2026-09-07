@@ -8,7 +8,7 @@
    "effectiveDateField": null,
    "geometrySource": "TDX+OSM",
    "coordinateBasis": "WGS84(OSM 段);TDX 段未載明(payload 無 CRS 欄位)——兩者實測同框,build_tdx.mjs 對 K03 的座標修正即以 OSM 座標落在 TDX 軌道幾何上離軌 0m 為據",
-   "checksum": "aac1048570e4bc6ff8cb90cb5b2c19b7"
+   "checksum": "602ed4cda45166b7c481b935bea650bf"
   },
   "data/afr_schedule_dense.json": {
    "sourceDescription": "時刻表來源:交通部 TDX v3/Rail/AFR/GeneralTrainTimetable(EffectiveDate=2024-02-15T00:00:00+08:00),2026-07 抓取,原始10車次、收錄50車次。",
