@@ -498,6 +498,53 @@ for (const [engine, name] of [[chromium, 'chromium'], [webkit, 'webkit']]) {
   await b.close();
 }
 
+console.log('\n═══ H. 近景不可把軌道畫沒了（實體股道白名單只准有一份）═══');
+// 2026-09-08 踩過:bf454d16 把林鐵移出 client.js 的 PHYSICAL_SYSTEMS,但 rail-3d.js 另有一份
+// 寫死的名單,近景(raw zoom>=14)照樣把林鐵的示意線形整批 splice 掉並推進 replacedLineKeys
+// ⇒ index.html 的 glTracksSync 用 profileKeys() 把它們濾掉、而實體股道又沒有它 ⇒ 兩邊都不畫,
+// 阿里山林鐵放大後整條軌道消失。畫面上只是「少一條線」:零 pageerror、零錯誤訊息,
+// E 段的「列車都在軌道上」也照不到(那量的是車對 state.trackLines 幾何的距離,線沒畫時照樣落在上面)。
+//
+// 判準取兩個地點各量一次,兩邊都是正向斷言(「抽掉的系統都有替代」寫成通則會假紅——
+// visibleRoutes 只回視野內的股道,站在阿里山時台鐵本來就沒有替代幾何,那不是缺陷):
+//   · 阿里山近景:林鐵**不該**被抽換,四條示意線形要還在圖層 filter 裡。
+//   · 台北近景:台鐵**該**被抽換,而且要換得出 physical 路線回來。
+// 只跑 chromium:量的是 frame payload 與圖層 filter(純 JS 判斷),不是各引擎的算繪差異。
+// ?scene=3d 是必要的——不強制 3D 場景時 renderer 不產生幀、capture() 的 replacedLineKeys 恆空,
+// 整段會全綠而完全沒量到東西,所以下面保留一條「近景真的有在抽換」的分母閘門。
+{
+  const b = await chromium.launch();
+  const ctx = await b.newContext({ viewport: { width: 1280, height: 900 }, locale: 'zh-TW' });
+  await ctx.addInitScript(() => localStorage.setItem('trainmap-howto-seen', '1'));
+  const p = await ctx.newPage();
+  const read = async (z, at, tag) => {
+    await p.goto(BASE + `/?g=all&scene=3d&lang=zh-TW&at=${at}&z=${z}&_cb=h${tag}`, { waitUntil: 'domcontentloaded' });
+    await p.waitForFunction(() => typeof state !== 'undefined' && state.ready && window.railIslandPhysical, { timeout: 120000 });
+    await p.waitForTimeout(3000);
+    return p.evaluate(() => {
+      const I = window.railIslandIntegration, raw = window.__M.raw;
+      const f = I.capture(), rep = f.replacedLineKeys || [], routes = f.routes || [];
+      const lit = id => { try { const m = JSON.stringify(raw.getFilter(id)).match(/"literal",(\[[^\]]*\])\]/); return m ? JSON.parse(m[1]) : []; } catch { return []; } };
+      const drawn = [...new Set(raw.getStyle().layers.map(l => l.id).filter(id => /^track-(line|casing)-/.test(id)).flatMap(lit))];
+      return {
+        raw: +raw.getZoom().toFixed(2), replaced: rep.length,
+        replacedAfr: rep.filter(k => /^afr_sched\|/.test(k)).length,
+        afrDrawn: drawn.filter(k => /^afr_sched\|/.test(k)).length,
+        traPhysical: routes.filter(r => r.physical && r.systemId === 'tra_sched').length,
+      };
+    });
+  };
+  const ALISHAN = '23.5100,120.8036', TAIPEI = '25.0477,121.5171';
+  const far = await read(13, ALISHAN, 'far'), near = await read(15, ALISHAN, 'near'), tpe = await read(15, TAIPEI, 'tpe');
+  ok(far.afrDrawn >= 4, `[chromium] 遠景(raw ${far.raw})林鐵有 ${far.afrDrawn} 條軌道在畫（正向對照:判準量得到東西）`);
+  ok(near.replaced > 0, `[chromium] 近景(raw ${near.raw})確實有在抽換示意線形（${near.replaced} 個 lineKey；為 0 表示下面兩條恆真）`);
+  ok(near.afrDrawn >= 4 && near.replacedAfr === 0,
+    `[chromium] 近景林鐵仍有 ${near.afrDrawn} 條軌道在畫、且沒被列為已抽換（被抽換 ${near.replacedAfr} 條；0 條在畫就是「放大後林鐵消失」那個回歸）`);
+  ok(tpe.traPhysical > 0, `[chromium] 近景台北的台鐵換得出 ${tpe.traPhysical} 條實體股道（抽掉了卻換不出來就是同一個病）`);
+  await ctx.close();
+  await b.close();
+}
+
 console.log(`\n${fail === 0 ? '✅' : '❌'} ${pass} 過 / ${fail} 敗\n`);
 child?.kill();
 process.exit(fail ? 1 : 0);
