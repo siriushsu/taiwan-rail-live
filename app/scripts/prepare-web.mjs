@@ -154,14 +154,14 @@ for (const file of [
   // 2026-09-01 上線後這份清單沒補，iOS 93／95／96 與 Android 35／37 全部漏打包；index.html 的守衛遇到
   // !window.BusTransferUI 只是靜默 return ⇒ build 全綠、App 照開，公車卡在 App 裡整個不存在（1.5.5／1.5.6
   // 上架後才發現）。verify-release 現在另有「首頁引用的本機腳本／樣式都要在 bundle 裡」守門，再漏會當場紅。
-  'bus-transfer-ui.js', 'rail-discovery.js', 'night-theme.css', 'night-map.js', 'night-board.js',
+  'bus-transfer-ui.js', 'rail-discovery.js', 'night-theme.css', 'night-map.js', 'night-board.js', 'rail-3d.js', 'rail-3d.css',
   'favicon-16.png', 'favicon-32.png', 'favicon-48.png', 'favicon-192.png', 'favicon-512.png',
   'apple-touch-180.png', 'icon-maskable-512.png', 'og-1200x630.png'
 ]) await copyFile(file);
 // i18n 是首頁 runtime 的必要靜態資產，不是只供網站維護的資料。漏掉時 App 仍能啟動，
 // 語言按鈕也會改變 html lang，但英／日字典 404 後所有文字都安全 fallback 回繁中，
 // 真機看起來就像按鈕完全失效。與 assets/data 一樣只複製 git 已追蹤檔案。
-for (const dir of ['assets', 'data', 'i18n']) await copyTree(dir);
+for (const dir of ['assets', 'data', 'i18n', 'rail-3d']) await copyTree(dir);
 // place_index.json 是本次 build 現場產物，尚未 git add 時不會通過 copyTree 的「只收 tracked」
 // 閘門；明確單檔複製，不放寬其他未追蹤資料進 bundle。
 await copyFile('data/place_index.json');
@@ -202,7 +202,7 @@ const noticeEntries = [
   ['fflate 0.8.3', 'node_modules/fflate/LICENSE'],
   // 地圖引擎不是 npm 依賴(釘版 vendor/ 進版控),授權全文另存 vendor/maplibre-gl-LICENSE.txt。
   // M1a 內建 MapLibre 時漏列,M4-B(2026-09-05)拔掉 Leaflet 後它是唯一的地圖函式庫,BSD-3 要求隨附條款與免責聲明。
-  ['MapLibre GL JS 4.7.1（BSD 3-Clause）——App 內建的 vendor/maplibre-gl.js／.css', '../vendor/maplibre-gl-LICENSE.txt'],
+  ['MapLibre GL JS 5.9.0（BSD 3-Clause）——App 內建的 vendor/maplibre-gl.js／.css', '../vendor/maplibre-gl-LICENSE.txt'],
   // 唯一不是 npm 依賴的一條,所以路徑指回 repo 根的 assets/。2026-07-28 的換圖批次把成就徽章與
   // 車廂標記換成 Noto Emoji 單色版的 26 字形子集(assets/fonts/rail-emoji.woff2),字型檔隨 assets/
   // 整包進 www ⇒ App 有散布這份字型,OFL 要求隨附授權全文。子集已改名 RailEmoji(Noto 的著作權行

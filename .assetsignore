@@ -1,6 +1,7 @@
 # 不上傳為靜態資產的路徑(wrangler assets 用,語法同 gitignore)
 .git
 .gitignore
+.gitattributes
 .claude
 .assetsignore
 .env

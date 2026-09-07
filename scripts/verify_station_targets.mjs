@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'),out=path.join(root,'output/station-targets');fs.mkdirSync(out,{recursive:true});
-const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.geojson':'application/json','.png':'image/png','.woff2':'font/woff2','.svg':'image/svg+xml'};
+const mime={'.mjs':'text/javascript','.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.geojson':'application/json','.png':'image/png','.woff2':'font/woff2','.svg':'image/svg+xml'};
 const server=createServer((req,res)=>{const u=new URL(req.url,'http://x');if(u.pathname.startsWith('/api/')){if(u.pathname==='/api/thsr-schedule'){res.setHeader('content-type','application/json');return fs.createReadStream(path.join(root,'data/thsr_schedule_dense.json')).pipe(res);}return res.writeHead(503).end('{}');}let p=path.resolve(root,'.'+decodeURI(u.pathname));if(!p.startsWith(root+path.sep)&&p!==root)return res.writeHead(404).end();if(fs.existsSync(p)&&fs.statSync(p).isDirectory())p=path.join(p,'index.html');if(!fs.existsSync(p))return res.writeHead(404).end();res.setHeader('content-type',mime[path.extname(p)]||'application/octet-stream');fs.createReadStream(p).pipe(res);});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));const base=`http://127.0.0.1:${server.address().port}/`;
 const results=[];function ok(name,pass,detail=''){results.push({name,pass,detail});console.log(`${pass?'PASS':'FAIL'} ${name} ${JSON.stringify(detail)}`);}

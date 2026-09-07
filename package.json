@@ -76,7 +76,13 @@
     "check-weekend-api": "node scripts/verify_weekend_api.mjs",
     "check-weekend-page": "node scripts/verify_weekend_page.mjs",
     "check-weekend-entry": "node scripts/verify_weekend_entry.mjs",
-    "check-daytype-sync": "node scripts/check_daytype_sync.mjs"
+    "check-daytype-sync": "node scripts/check_daytype_sync.mjs",
+    "check-3d-integration": "node scripts/verify_3d_integration.mjs",
+    "check-3d-assets": "node scripts/verify_3d_assets.mjs",
+    "check-3d-lifecycle": "node scripts/verify_3d_lifecycle.mjs",
+    "check-3d-framing": "node scripts/verify_3d_framing.mjs",
+    "check-3d-occlusion": "node scripts/verify_3d_occlusion.mjs",
+    "check-follow-heading": "node scripts/verify_follow_heading_toggle.mjs"
   },
   "dependencies": {
     "playwright": "^1.61.1",

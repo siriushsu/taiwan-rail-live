@@ -312,6 +312,7 @@ async function m3Scenario(browser, url, engine, browserName, check) {
       && Math.abs(math.north) < 0.1 && Math.abs(Math.abs(math.south) - 180) < 0.1,
       `${browserName} heading 純函式四向正確`, math);
     const result = await page.evaluate(async expected => {
+      setFollowHeadingUp(true);
       const p0 = __M.getPitch();
       applyFollowHeading(73, { immediate: true });
       const during = { bearing: __M.getBearing(), pitch: __M.getPitch() };

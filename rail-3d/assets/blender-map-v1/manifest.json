@@ -1,0 +1,4553 @@
+{
+  "schema": "railisland.blender-map-fleet/1",
+  "source": {
+    "file": "prototypes/tiny-trains/blender/fleet-v1/release.json",
+    "sha256": "0852b88e3ef03ffdf4a2108bbd57f9368fb64449031a696be162c2d735cc3bd8"
+  },
+  "axes": {
+    "front": "+X",
+    "left": "+Y",
+    "up": "+Z",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "illustrative": true,
+  "note": "Blender 精修車庫的地圖衍生 LOD。編組／真實長度由行車端管理；中間車沿用後半車體鏡射，分節不是完整剛性列車。",
+  "models": {
+    "c301": {
+      "id": "c301",
+      "name": "C301・北捷初代",
+      "family": "metro",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "c301",
+          "flip": false
+        },
+        {
+          "mesh": "c301-mid",
+          "flip": false
+        },
+        {
+          "mesh": "c301",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/c301/c301.model.json",
+        "rawSha256": "da154560ed14ac29c4ee5433bde118748308a7663952ff90022e8595bfe03bbe",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-bus.blogspot.com/2011/04/301.html"
+        },
+        {
+          "label": "官方設計與車輛資料",
+          "url": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html"
+        }
+      ]
+    },
+    "c321": {
+      "id": "c321",
+      "name": "C321・板南線",
+      "family": "metro",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "c321",
+          "flip": false
+        },
+        {
+          "mesh": "c321-mid",
+          "flip": false
+        },
+        {
+          "mesh": "c321",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/c321/c321.model.json",
+        "rawSha256": "6dfb8b52c9b738b6c3867837f95c59cc99e2e917e57b5e5551a1d2e6ac6e49e1",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-bus.blogspot.com/2010/03/321.html"
+        },
+        {
+          "label": "官方設計與車輛資料",
+          "url": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html"
+        }
+      ]
+    },
+    "c341": {
+      "id": "c341",
+      "name": "C341・板南線",
+      "family": "metro",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "c341",
+          "flip": false
+        },
+        {
+          "mesh": "c341-mid",
+          "flip": false
+        },
+        {
+          "mesh": "c341",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/c341/c341.model.json",
+        "rawSha256": "6dfb8b52c9b738b6c3867837f95c59cc99e2e917e57b5e5551a1d2e6ac6e49e1",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-bus.blogspot.com/2011/03/341.html"
+        },
+        {
+          "label": "官方設計與車輛資料",
+          "url": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html"
+        }
+      ]
+    },
+    "c371": {
+      "id": "c371",
+      "name": "C371・北捷主力",
+      "family": "metro",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "c371",
+          "flip": false
+        },
+        {
+          "mesh": "c371-mid",
+          "flip": false
+        },
+        {
+          "mesh": "c371",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/c371/c371.model.json",
+        "rawSha256": "f1da7aa0b3ca8dd65d3b87d48dea1987d11f44a7ebb5969d911e384d9b159e4e",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-bus.blogspot.com/2010/03/301.html"
+        },
+        {
+          "label": "官方設計與車輛資料",
+          "url": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html"
+        }
+      ]
+    },
+    "c381": {
+      "id": "c381",
+      "name": "C381・圓弧車頭",
+      "family": "metro",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "c381",
+          "flip": false
+        },
+        {
+          "mesh": "c381-mid",
+          "flip": false
+        },
+        {
+          "mesh": "c381",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/c381/c381.model.json",
+        "rawSha256": "8b6ed9a8337f3e821fcdf5e8bb25553b68b9222a9ccbe7ac5cb2493cd2f9828b",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-bus.blogspot.com/2011/11/381.html"
+        },
+        {
+          "label": "官方設計與車輛資料",
+          "url": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html"
+        }
+      ]
+    },
+    "wenhu": {
+      "id": "wenhu",
+      "name": "文湖線 APM 256",
+      "family": "metro",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "wenhu",
+          "flip": false
+        },
+        {
+          "mesh": "wenhu-mid",
+          "flip": false
+        },
+        {
+          "mesh": "wenhu",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/wenhu-apm256-v1/wenhu.model.json",
+        "rawSha256": "c075b689caa0da4995013c0548622d45790b666ba754ee937ff956172e825662",
+        "engineeringDimensionsM": [
+          13.78,
+          2.54,
+          3.53
+        ]
+      },
+      "sources": [
+        {
+          "label": "文湖線製作與來源紀錄",
+          "url": "../wenhu-apm256-v1/README.md"
+        }
+      ]
+    },
+    "val256": {
+      "id": "val256",
+      "name": "VAL256・文湖馬特拉",
+      "family": "metro",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "val256",
+          "flip": false
+        },
+        {
+          "mesh": "val256-mid",
+          "flip": false
+        },
+        {
+          "mesh": "val256",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/val256/val256.model.json",
+        "rawSha256": "f78bbed6f6da78d39860731d43153700cbe01fc632519da4122e166f875eef08",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-bus.blogspot.com/2011/03/val256.html"
+        }
+      ]
+    },
+    "airportlocal": {
+      "id": "airportlocal",
+      "name": "機捷普通車・1000型",
+      "family": "metro",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "airportlocal",
+          "flip": false
+        },
+        {
+          "mesh": "airportlocal-mid",
+          "flip": false
+        },
+        {
+          "mesh": "airportlocal",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/airportlocal/airportlocal.model.json",
+        "rawSha256": "643536d0eb93f068e61a1a4e5fffff35e0bba4aa5558ca65d5ee87ea67a96887",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-bus.blogspot.com/2011/10/blog-post_08.html"
+        }
+      ]
+    },
+    "airportexpress": {
+      "id": "airportexpress",
+      "name": "機捷直達車・2000型",
+      "family": "metro",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "airportexpress",
+          "flip": false
+        },
+        {
+          "mesh": "airportexpress-mid",
+          "flip": false
+        },
+        {
+          "mesh": "airportexpress",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/airportexpress/airportexpress.model.json",
+        "rawSha256": "74091d547363c95641a4dc40b58f1972973c18574008b67afed8a5d2602eef91",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-bus.blogspot.com/2011/10/blog-post.html"
+        }
+      ]
+    },
+    "y100": {
+      "id": "y100",
+      "name": "環狀線・日立電聯車",
+      "family": "metro",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "y100",
+          "flip": false
+        },
+        {
+          "mesh": "y100-mid",
+          "flip": false
+        },
+        {
+          "mesh": "y100",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/y100/y100.model.json",
+        "rawSha256": "62e42ee3d0f77ad266b6b9078952b92488a008afcdd2da0a0b39b779464bd984",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "原始照片與車型介紹",
+          "url": "https://milkyrailway.blogspot.com/2020/03/blog-post.html"
+        }
+      ]
+    },
+    "sanying": {
+      "id": "sanying",
+      "name": "三鶯線・日立電聯車",
+      "family": "metro",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "sanying",
+          "flip": false
+        },
+        {
+          "mesh": "sanying-mid",
+          "flip": false
+        },
+        {
+          "mesh": "sanying",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/sanying/sanying.model.json",
+        "rawSha256": "70fdde412fd37f65fddfe84753ba01572b0ab72fb9df2da90285aa9ed5d56c04",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "原始照片與車型介紹",
+          "url": "https://www.dorts.ntpc.gov.tw/news/indexInfo/W0OdPjwWmnbJ?page=1"
+        }
+      ]
+    },
+    "taichung": {
+      "id": "taichung",
+      "name": "台中捷運・綠線",
+      "family": "metro",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "taichung",
+          "flip": false
+        },
+        {
+          "mesh": "taichung-mid",
+          "flip": false
+        },
+        {
+          "mesh": "taichung",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/taichung/taichung.model.json",
+        "rawSha256": "8df5160517c74f8e83ac70d26ee99c15ebcccd63ff1d9464c189fb2a458bd0a2",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-bus.blogspot.com/2023/08/blog-post_20.html"
+        },
+        {
+          "label": "官方設計與車輛資料",
+          "url": "https://www.tmrt.com.tw/metro-status/train-info"
+        }
+      ]
+    },
+    "kaohsiung": {
+      "id": "kaohsiung",
+      "name": "高雄捷運・西門子",
+      "family": "metro",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "kaohsiung",
+          "flip": false
+        },
+        {
+          "mesh": "kaohsiung-mid",
+          "flip": false
+        },
+        {
+          "mesh": "kaohsiung",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/kaohsiung/kaohsiung.model.json",
+        "rawSha256": "8013334dadc6103be1fd6f986695e65a830b6310d0341c4f412e7d0186c22022",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-bus.blogspot.com/2011/01/blog-post.html"
+        }
+      ]
+    },
+    "haifeng": {
+      "id": "haifeng",
+      "name": "海風號",
+      "family": "railcar",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "haifeng",
+          "flip": false
+        },
+        {
+          "mesh": "haifeng-mid",
+          "flip": false
+        },
+        {
+          "mesh": "haifeng",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/haifeng/haifeng.model.json",
+        "rawSha256": "6588e3dc8568c21731509879eae7d61d79403b430209ab28a7c0cbb132176595",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2024/08/blog-post.html"
+        }
+      ]
+    },
+    "shanlan": {
+      "id": "shanlan",
+      "name": "山嵐號",
+      "family": "railcar",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "shanlan",
+          "flip": false
+        },
+        {
+          "mesh": "shanlan-mid",
+          "flip": false
+        },
+        {
+          "mesh": "shanlan",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/shanlan/shanlan.model.json",
+        "rawSha256": "6588e3dc8568c21731509879eae7d61d79403b430209ab28a7c0cbb132176595",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2024/08/emu583.html"
+        }
+      ]
+    },
+    "emu500": {
+      "id": "emu500",
+      "name": "EMU500 通勤電車",
+      "family": "railcar",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "emu500",
+          "flip": false
+        },
+        {
+          "mesh": "emu500-mid",
+          "flip": false
+        },
+        {
+          "mesh": "emu500",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/emu500/emu500.model.json",
+        "rawSha256": "068a7972d53c7ec0314231b0bcbedea62ae8f0fb9e7c9fcd27833a31c6f96135",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2010/02/emu500.html"
+        }
+      ]
+    },
+    "emu600": {
+      "id": "emu600",
+      "name": "EMU600・通勤電車",
+      "family": "railcar",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "emu600",
+          "flip": false
+        },
+        {
+          "mesh": "emu600-mid",
+          "flip": false
+        },
+        {
+          "mesh": "emu600",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/emu600/emu600.model.json",
+        "rawSha256": "068a7972d53c7ec0314231b0bcbedea62ae8f0fb9e7c9fcd27833a31c6f96135",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2010/03/emu600.html"
+        }
+      ]
+    },
+    "dr2700": {
+      "id": "dr2700",
+      "name": "DR2700 白鐵仔",
+      "family": "railcar",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "dr2700",
+          "flip": false
+        },
+        {
+          "mesh": "dr2700",
+          "flip": false
+        },
+        {
+          "mesh": "dr2700",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/dr2700/dr2700.model.json",
+        "rawSha256": "69810c9b5f49ee57a44aaa643ad42b9b240bf9a9170997d8e228c336770857ce",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2011/09/dr2700.html"
+        }
+      ]
+    },
+    "dr1000": {
+      "id": "dr1000",
+      "name": "DR1000 支線小車",
+      "family": "railcar",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "dr1000",
+          "flip": false
+        },
+        {
+          "mesh": "dr1000",
+          "flip": false
+        },
+        {
+          "mesh": "dr1000",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/dr1000/dr1000.model.json",
+        "rawSha256": "9e2f46100ae6d5aaaa10a4cbc788a6f20854e52a22ab35893d9d3d419fa3f572",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2010/02/dr1000.html"
+        }
+      ]
+    },
+    "dr3100": {
+      "id": "dr3100",
+      "name": "DR3100・柴聯自強",
+      "family": "railcar",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "dr3100",
+          "flip": false
+        },
+        {
+          "mesh": "dr3100-mid",
+          "flip": false
+        },
+        {
+          "mesh": "dr3100",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/dr3100/dr3100.model.json",
+        "rawSha256": "b54dfd50c2d01ebd870b44949558175dcad7de70aa59057438125a9b06b020ad",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2011/09/dr3100.html"
+        }
+      ]
+    },
+    "emu100": {
+      "id": "emu100",
+      "name": "EMU100 英國婆",
+      "family": "railcar",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "emu100",
+          "flip": false
+        },
+        {
+          "mesh": "emu100-mid",
+          "flip": false
+        },
+        {
+          "mesh": "emu100",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/emu100/emu100.model.json",
+        "rawSha256": "6ede6404e1e0420dac497a56c6269f84fcd736c44fa61ea694c473da0373f9db",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2010/02/emu100.html"
+        },
+        {
+          "label": "官方設計與車輛資料",
+          "url": "https://www.nrm.gov.tw/News_Content2.aspx?n=3338&s=135580"
+        }
+      ]
+    },
+    "emu1200": {
+      "id": "emu1200",
+      "name": "EMU1200 紅斑馬",
+      "family": "railcar",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "emu1200",
+          "flip": false
+        },
+        {
+          "mesh": "emu1200-mid",
+          "flip": false
+        },
+        {
+          "mesh": "emu1200",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/emu1200/emu1200.model.json",
+        "rawSha256": "f4b77e54b68c16655f61c21fd5698f375d467292a84ff9237f511a421a82dba5",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2010/09/emu1200.html"
+        }
+      ]
+    },
+    "emu700": {
+      "id": "emu700",
+      "name": "EMU700・阿福號",
+      "family": "railcar",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "emu700",
+          "flip": false
+        },
+        {
+          "mesh": "emu700-mid",
+          "flip": false
+        },
+        {
+          "mesh": "emu700",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/emu700/emu700.model.json",
+        "rawSha256": "0c982b002485a3d99ea1eeda4c6c8fa6e9f2f7afaed805d6a5c03aec82ac5a63",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2011/09/emu740.html"
+        },
+        {
+          "label": "官方設計與車輛資料",
+          "url": "https://www.trsc.com.tw/train/tran-58acf525031f4"
+        }
+      ]
+    },
+    "emu800": {
+      "id": "emu800",
+      "name": "EMU800 微笑號",
+      "family": "railcar",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "emu800",
+          "flip": false
+        },
+        {
+          "mesh": "emu800-mid",
+          "flip": false
+        },
+        {
+          "mesh": "emu800",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/emu800/emu800.model.json",
+        "rawSha256": "5d137e52db0e4191867def74267cf93140cdf9794b8ee400c262cde52b7db89d",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2012/06/emu800-tra-emu800-type-electric.html"
+        }
+      ]
+    },
+    "emu800r": {
+      "id": "emu800r",
+      "name": "EMU800・增備反色版",
+      "family": "railcar",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "emu800r",
+          "flip": false
+        },
+        {
+          "mesh": "emu800r-mid",
+          "flip": false
+        },
+        {
+          "mesh": "emu800r",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/emu800r/emu800r.model.json",
+        "rawSha256": "63298bd7cd53006902f39a6dbbc179d01335b4b5dc9a239948730b26ea010ce4",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2012/06/emu800-tra-emu800-type-electric.html"
+        }
+      ]
+    },
+    "emu900": {
+      "id": "emu900",
+      "name": "EMU900 區間車",
+      "family": "railcar",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "emu900",
+          "flip": false
+        },
+        {
+          "mesh": "emu900-mid",
+          "flip": false
+        },
+        {
+          "mesh": "emu900",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/emu900/emu900.model.json",
+        "rawSha256": "1d9c344c6d5720875b022f538105760e3033c17e384bb09641b912995005d1ca",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2019/12/emu900-tra-emu900-type-electric.html"
+        }
+      ]
+    },
+    "temu1000": {
+      "id": "temu1000",
+      "name": "TEMU1000 太魯閣",
+      "family": "express",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "temu1000",
+          "flip": false
+        },
+        {
+          "mesh": "temu1000-mid",
+          "flip": false
+        },
+        {
+          "mesh": "temu1000",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/temu1000/temu1000.model.json",
+        "rawSha256": "a7128eacb0732ddb3c4827e06ab1c90872ab477d5a45273ea50892361954c175",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2010/02/temu1000.html"
+        }
+      ]
+    },
+    "temu2000": {
+      "id": "temu2000",
+      "name": "TEMU2000 普悠瑪",
+      "family": "express",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "temu2000",
+          "flip": false
+        },
+        {
+          "mesh": "temu2000-mid",
+          "flip": false
+        },
+        {
+          "mesh": "temu2000",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/temu2000/temu2000.model.json",
+        "rawSha256": "1f73a5131da95a7442dcfde82b6acdfc404d7a5ee86f6440abe90ce46c3f8c27",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2012/06/temu2000.html"
+        }
+      ]
+    },
+    "emu3000": {
+      "id": "emu3000",
+      "name": "EMU3000 新自強",
+      "family": "express",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "emu3000",
+          "flip": false
+        },
+        {
+          "mesh": "emu3000-mid",
+          "flip": false
+        },
+        {
+          "mesh": "emu3000",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/emu3000/emu3000.model.json",
+        "rawSha256": "f42a4d2d2a78eb8f9d600333e9eabeb84dca1e9512580afabcb2ddb7d778e700",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2019/12/emu3000-tra-emu3000-type-electric.html"
+        },
+        {
+          "label": "官方設計與車輛資料",
+          "url": "https://www.hitachi.com/rd/research/design/product/taiwan_tra/index.html"
+        }
+      ]
+    },
+    "700t": {
+      "id": "700t",
+      "name": "700T 高鐵",
+      "family": "express",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "700t",
+          "flip": false
+        },
+        {
+          "mesh": "700t-mid",
+          "flip": false
+        },
+        {
+          "mesh": "700t",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/700t/700t.model.json",
+        "rawSha256": "9f2b2756c7ee3448ab4fec937cc755c5f7cc4a1159c46fddb126246636bb7c58",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2010/02/700t.html"
+        }
+      ]
+    },
+    "e200": {
+      "id": "e200",
+      "name": "E200 電力機車",
+      "family": "electric",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "e200",
+          "flip": false
+        },
+        {
+          "mesh": "juguang",
+          "flip": false
+        },
+        {
+          "mesh": "juguang",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/e200/e200.model.json",
+        "rawSha256": "88eeac8da6bf56b62e964815367cab0a9ba14bceccb0a4594224ca2b097b1c93",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2010/02/e200.html"
+        }
+      ]
+    },
+    "e300": {
+      "id": "e300",
+      "name": "E300・電力機車",
+      "family": "electric",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "e300",
+          "flip": false
+        },
+        {
+          "mesh": "juguang",
+          "flip": false
+        },
+        {
+          "mesh": "juguang",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/e300/e300.model.json",
+        "rawSha256": "6309c775d9f29d66d21381dba6626ef518bb974ecfd6390af0d1736338b68e4c",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2010/02/e300.html"
+        }
+      ]
+    },
+    "e400": {
+      "id": "e400",
+      "name": "E400・電力機車",
+      "family": "electric",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "e400",
+          "flip": false
+        },
+        {
+          "mesh": "juguang",
+          "flip": false
+        },
+        {
+          "mesh": "juguang",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/e400/e400.model.json",
+        "rawSha256": "f5fa83f89513a3e1c0a7e8c8d9dacec476b76d45542953c3af5dc8e797c75ad1",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2010/02/e400.html"
+        }
+      ]
+    },
+    "mingri": {
+      "id": "mingri",
+      "name": "鳴日號・經典車頭",
+      "family": "electric",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "mingri",
+          "flip": false
+        },
+        {
+          "mesh": "mingricoach",
+          "flip": false
+        },
+        {
+          "mesh": "mingricoach",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/mingri/mingri.model.json",
+        "rawSha256": "54dab7b15136188e3bc4a67f235fff20f47a846e0fad17ca381ed32a69db716e",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2019/12/blog-post.html"
+        }
+      ]
+    },
+    "e500": {
+      "id": "e500",
+      "name": "E500・新電力機車",
+      "family": "electric",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "e500",
+          "flip": false
+        },
+        {
+          "mesh": "juguang",
+          "flip": false
+        },
+        {
+          "mesh": "juguang",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/e500/e500.model.json",
+        "rawSha256": "7f4eb0b94d3718503d19c6d354a6cc8e3900f7228ee5e8b253cc8cad9f58e2f0",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2019/12/e500-tra-e500-type-electric-locomotive.html"
+        }
+      ]
+    },
+    "e1000": {
+      "id": "e1000",
+      "name": "E1000・推拉自強",
+      "family": "electric",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "e1000",
+          "flip": false
+        },
+        {
+          "mesh": "ppcoach",
+          "flip": false
+        },
+        {
+          "mesh": "e1000",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/e1000/e1000.model.json",
+        "rawSha256": "9e63a02b43a1ea32824ef82fb00de014ace2036707f57636de81c9ac2b5af8e5",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2010/02/e1000.html"
+        }
+      ]
+    },
+    "r200": {
+      "id": "r200",
+      "name": "R200・新柴電機車",
+      "family": "electric",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "r200",
+          "flip": false
+        },
+        {
+          "mesh": "juguang",
+          "flip": false
+        },
+        {
+          "mesh": "juguang",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/r200/r200.model.json",
+        "rawSha256": "f9e6f26720e71b6e090ef8e5ec477d3a510e7ece218ba810e095370a7fb42e17",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2019/12/r200-tra-r200-type-diesel-electric.html"
+        }
+      ]
+    },
+    "r20": {
+      "id": "r20",
+      "name": "R20 柴電機車",
+      "family": "hood",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "r20",
+          "flip": false
+        },
+        {
+          "mesh": "juguang",
+          "flip": false
+        },
+        {
+          "mesh": "juguang",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/r20/r20.model.json",
+        "rawSha256": "fd395df87609d969cc7fb1b0f8d849b238874397a6c7faaee9f5a7e7678fe646",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2010/02/r20r50.html"
+        }
+      ]
+    },
+    "r100": {
+      "id": "r100",
+      "name": "R100・柴電機車",
+      "family": "hood",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "r100",
+          "flip": false
+        },
+        {
+          "mesh": "juguang",
+          "flip": false
+        },
+        {
+          "mesh": "juguang",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/r100/r100.model.json",
+        "rawSha256": "f0c078bc93ccd51b3144a7dfb25b81813702bf0172d1a09fbc851d09ce84da4a",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2010/02/r100.html"
+        }
+      ]
+    },
+    "r150": {
+      "id": "r150",
+      "name": "R150・柴電機車",
+      "family": "hood",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "r150",
+          "flip": false
+        },
+        {
+          "mesh": "juguang",
+          "flip": false
+        },
+        {
+          "mesh": "juguang",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/r150/r150.model.json",
+        "rawSha256": "707d03fbb794da1166b7adca0fbd0a543b6cf5e2497df01d69eef67aa6e7ad6e",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2010/02/r150.html"
+        }
+      ]
+    },
+    "r180": {
+      "id": "r180",
+      "name": "R180／R190・柴電機車",
+      "family": "hood",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "r180",
+          "flip": false
+        },
+        {
+          "mesh": "juguang",
+          "flip": false
+        },
+        {
+          "mesh": "juguang",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/r180/r180.model.json",
+        "rawSha256": "f60cb0aee90ef56f91dd717f20427013eb90cb0206b01759fdb55ff4b8e2859f",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2010/02/r180r190.html"
+        }
+      ]
+    },
+    "blue": {
+      "id": "blue",
+      "name": "藍皮解憂・R123",
+      "family": "hood",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "blue",
+          "flip": false
+        },
+        {
+          "mesh": "bluecoach",
+          "flip": false
+        },
+        {
+          "mesh": "bluecoach",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/blue/blue.model.json",
+        "rawSha256": "ceb203773946f4622cbd3a97f31399ee8aecd17a570c4921112fc6a694d9e57e",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2015/08/r123-tra-r123-diesel-electric-locomotive.html"
+        }
+      ]
+    },
+    "dhl100": {
+      "id": "dhl100",
+      "name": "DHL100・調車機車",
+      "family": "hood",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "dhl100",
+          "flip": false
+        },
+        {
+          "mesh": "juguang",
+          "flip": false
+        },
+        {
+          "mesh": "juguang",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/dhl100/dhl100.model.json",
+        "rawSha256": "35492d0637c259f301a1573102fc1774e3be3d258ba134634134c1a15315cc2e",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2013/07/dhl100.html"
+        }
+      ]
+    },
+    "dl25": {
+      "id": "dl25",
+      "name": "DL25～34・三菱車系",
+      "family": "forestloco",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "dl25",
+          "flip": false
+        },
+        {
+          "mesh": "alicoach",
+          "flip": false
+        },
+        {
+          "mesh": "alicoach",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/dl25/dl25.model.json",
+        "rawSha256": "b40f461069c803b7dc1e8cc5bf0f902c49a6b76a620d0010de58ebcf19ddd310",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2010/02/blog-post_2428.html"
+        }
+      ]
+    },
+    "dl38": {
+      "id": "dl38",
+      "name": "DL38・日車試作型",
+      "family": "forestloco",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "dl38",
+          "flip": false
+        },
+        {
+          "mesh": "alicoach",
+          "flip": false
+        },
+        {
+          "mesh": "alicoach",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/dl38/dl38.model.json",
+        "rawSha256": "401caa47aec1f4365bf80b9885e31e923264eac36329b80a59f8a0a0a9cc4094",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2010/02/blog-post_5539.html"
+        }
+      ]
+    },
+    "dl39": {
+      "id": "dl39",
+      "name": "DL39～43・阿里山號",
+      "family": "forestloco",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "dl39",
+          "flip": false
+        },
+        {
+          "mesh": "alicoach",
+          "flip": false
+        },
+        {
+          "mesh": "alicoach",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/dl39/dl39.model.json",
+        "rawSha256": "9d067560d20318b062109c90fdea6b117272d9e5606a9b5143990c0ef35dab7e",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2010/02/blog-post_5539.html"
+        }
+      ]
+    },
+    "dl45": {
+      "id": "dl45",
+      "name": "DL45～51・林鐵新主力",
+      "family": "forestloco",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "dl45",
+          "flip": false
+        },
+        {
+          "mesh": "alicoach",
+          "flip": false
+        },
+        {
+          "mesh": "alicoach",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/dl45/dl45.model.json",
+        "rawSha256": "3424f65efff7052c46022d4fa6eb475bab7a891838f427c78312340a01d6216f",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2010/02/blog-post_1163.html"
+        }
+      ]
+    },
+    "juguang": {
+      "id": "juguang",
+      "name": "莒光號・客車",
+      "family": "coach",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "juguang",
+          "flip": false
+        },
+        {
+          "mesh": "juguang",
+          "flip": false
+        },
+        {
+          "mesh": "juguang",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/juguang/juguang.model.json",
+        "rawSha256": "3e2c94660ef2208ae477b2de6be3a54b9840a3d4c1c2e0b6c7a39275306e558d",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2010/02/blog-post_8855.html"
+        }
+      ]
+    },
+    "ppcoach": {
+      "id": "ppcoach",
+      "name": "推拉自強・40PPD2500 客貨車",
+      "family": "coach",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "ppcoach",
+          "flip": false
+        },
+        {
+          "mesh": "ppcoach",
+          "flip": false
+        },
+        {
+          "mesh": "ppcoach",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/ppcoach/ppcoach.model.json",
+        "rawSha256": "7afa625ddf07302652c1c7cab312a5a238c8bbc3f6dae2041979eb2cc0160ccf",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2011/04/40ppd2500.html"
+        }
+      ]
+    },
+    "bluecoach": {
+      "id": "bluecoach",
+      "name": "藍皮解憂・客車",
+      "family": "coach",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "bluecoach",
+          "flip": false
+        },
+        {
+          "mesh": "bluecoach",
+          "flip": false
+        },
+        {
+          "mesh": "bluecoach",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/bluecoach/bluecoach.model.json",
+        "rawSha256": "b2a25b470fcd7011141d8104270c5d043aba56a9d09dbd7e8bceab484c5d27b3",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2015/08/r123-tra-r123-diesel-electric-locomotive.html"
+        }
+      ]
+    },
+    "mingricoach": {
+      "id": "mingricoach",
+      "name": "鳴日號・客車",
+      "family": "coach",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "mingricoach",
+          "flip": false
+        },
+        {
+          "mesh": "mingricoach",
+          "flip": false
+        },
+        {
+          "mesh": "mingricoach",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/mingricoach/mingricoach.model.json",
+        "rawSha256": "d323af308bd3537dc34a766a10abd17ebd153269552e14f7ac426a8e5f8d59b8",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2019/12/blog-post.html"
+        }
+      ]
+    },
+    "alicoach": {
+      "id": "alicoach",
+      "name": "阿里山號・紅白客車",
+      "family": "forestcoach",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "alicoach",
+          "flip": false
+        },
+        {
+          "mesh": "alicoach",
+          "flip": false
+        },
+        {
+          "mesh": "alicoach",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/alicoach/alicoach.model.json",
+        "rawSha256": "000789958a70b00356155a01846eed3481ab29364927ad10069982ac8aae0b20",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2012/01/1.html"
+        }
+      ]
+    },
+    "hinoki": {
+      "id": "hinoki",
+      "name": "檜木列車・木造客車",
+      "family": "forestcoach",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "hinoki",
+          "flip": false
+        },
+        {
+          "mesh": "hinoki",
+          "flip": false
+        },
+        {
+          "mesh": "hinoki",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/hinoki/hinoki.model.json",
+        "rawSha256": "589f65c5009ec8574995cb3117477f594a9035aed77ed65e6b9e174d3d331604",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2013/06/blog-post_9.html"
+        }
+      ]
+    },
+    "fushen": {
+      "id": "fushen",
+      "name": "福森號・檜木客車",
+      "family": "forestcoach",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "fushen",
+          "flip": false
+        },
+        {
+          "mesh": "fushen",
+          "flip": false
+        },
+        {
+          "mesh": "fushen",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/fushen/fushen.model.json",
+        "rawSha256": "0aafbd2008e3eabde31fa36db79647a66aefaeee837f69a3705db560d67656e5",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "原始照片與車型介紹",
+          "url": "https://www.forest.gov.tw/news/0072298"
+        },
+        {
+          "label": "官方設計與車輛資料",
+          "url": "https://www.forest.gov.tw/hualien_intro/news/0070949"
+        }
+      ]
+    },
+    "xuyue": {
+      "id": "xuyue",
+      "name": "栩悅號・觀景客車",
+      "family": "forestcoach",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "xuyue",
+          "flip": false
+        },
+        {
+          "mesh": "xuyue",
+          "flip": false
+        },
+        {
+          "mesh": "xuyue",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/xuyue/xuyue.model.json",
+        "rawSha256": "85ab3e3181118e964153e90d1e715bac81d3c16cfc5b0c6f5624864fc56c4896",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "原始照片與車型介紹",
+          "url": "https://www.forest.gov.tw/park/news/0072890"
+        }
+      ]
+    },
+    "ck124": {
+      "id": "ck124",
+      "name": "CK124 蒸汽機車",
+      "family": "steam",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "ck124",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/ck124/ck124.model.json",
+        "rawSha256": "8605b4e3e0bf764dee32f6cd7bd8e987f49d2a8a9b50d3a48a9e369d1c49b09d",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2010/04/ck124.html"
+        }
+      ]
+    },
+    "dt668": {
+      "id": "dt668",
+      "name": "DT668 蒸汽機車",
+      "family": "steam",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "dt668",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/dt668/dt668.model.json",
+        "rawSha256": "24e4f0674fec3637fd5cece98b08a84f8bc595565144b8873c845ba25584c4ec",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2010/04/dt668.html"
+        }
+      ]
+    },
+    "ct273": {
+      "id": "ct273",
+      "name": "CT273・蒸汽女王",
+      "family": "steam",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "ct273",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/ct273/ct273.model.json",
+        "rawSha256": "755105b231a892499461e3d41c7c5a1a6257a3c7adcc35ab36135b8db11ff5d3",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-train.blogspot.com/2010/04/ct273.html"
+        }
+      ]
+    },
+    "danhai": {
+      "id": "danhai",
+      "name": "淡海輕軌・行武者",
+      "family": "tram",
+      "articulated": true,
+      "parts": [
+        {
+          "mesh": "danhai-section-0",
+          "flip": false
+        },
+        {
+          "mesh": "danhai-section-1",
+          "flip": false
+        },
+        {
+          "mesh": "danhai-section-2",
+          "flip": false
+        },
+        {
+          "mesh": "danhai-section-3",
+          "flip": false
+        },
+        {
+          "mesh": "danhai-section-4",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/danhai/danhai.model.json",
+        "rawSha256": "7fcc136b8d5c319416865bb87a122dab4377f3d3ca3a153208f875f303483306",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-bus.blogspot.com/2020/06/blog-post.html"
+        }
+      ]
+    },
+    "ankeng": {
+      "id": "ankeng",
+      "name": "安坑輕軌・光耀金",
+      "family": "tram",
+      "articulated": true,
+      "parts": [
+        {
+          "mesh": "ankeng-section-0",
+          "flip": false
+        },
+        {
+          "mesh": "ankeng-section-1",
+          "flip": false
+        },
+        {
+          "mesh": "ankeng-section-2",
+          "flip": false
+        },
+        {
+          "mesh": "ankeng-section-3",
+          "flip": false
+        },
+        {
+          "mesh": "ankeng-section-4",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/ankeng/ankeng.model.json",
+        "rawSha256": "7fcc136b8d5c319416865bb87a122dab4377f3d3ca3a153208f875f303483306",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "原始照片與車型介紹",
+          "url": "https://newtaipei.travel/zh-tw/tour/729"
+        }
+      ]
+    },
+    "caf": {
+      "id": "caf",
+      "name": "高雄輕軌・CAF",
+      "family": "tram",
+      "articulated": true,
+      "parts": [
+        {
+          "mesh": "caf-section-0",
+          "flip": false
+        },
+        {
+          "mesh": "caf-section-1",
+          "flip": false
+        },
+        {
+          "mesh": "caf-section-2",
+          "flip": false
+        },
+        {
+          "mesh": "caf-section-3",
+          "flip": false
+        },
+        {
+          "mesh": "caf-section-4",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/caf/caf.model.json",
+        "rawSha256": "d26f506ad07b4ca550f8bc21fd5e6ad06e3bf537b84e9201dc91cc4cdee21c1b",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-bus.blogspot.com/2015/01/blog-post.html"
+        }
+      ]
+    },
+    "citadis": {
+      "id": "citadis",
+      "name": "高雄輕軌・Citadis",
+      "family": "tram",
+      "articulated": true,
+      "parts": [
+        {
+          "mesh": "citadis-section-0",
+          "flip": false
+        },
+        {
+          "mesh": "citadis-section-1",
+          "flip": false
+        },
+        {
+          "mesh": "citadis-section-2",
+          "flip": false
+        },
+        {
+          "mesh": "citadis-section-3",
+          "flip": false
+        },
+        {
+          "mesh": "citadis-section-4",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/citadis/citadis.model.json",
+        "rawSha256": "0eb7fa77f38996928711ecedd94562d61522a03f132736b59dc7c3a36a048a38",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Blair Yu／原始攝影文章",
+          "url": "https://blair-bus.blogspot.com/2022/02/citadis-x-05-305.html"
+        },
+        {
+          "label": "官方設計與車輛資料",
+          "url": "https://www.alstom.com/press-releases-news/2021/1/alstom-introduces-citadis-x05-trams-kaohsiung"
+        }
+      ]
+    }
+  },
+  "meshes": {
+    "c301": {
+      "file": "c301.bin",
+      "sha256": "45a9ecfb931a843d8d950d52826583dc6f09362f21bfa9601089ae6320555e9a",
+      "byteLength": 959880,
+      "vertexCount": 23997,
+      "min": [
+        -5.098999977111816,
+        -1.5395033359527588,
+        0.0010585790732875466
+      ],
+      "max": [
+        5.109000205993652,
+        1.539546012878418,
+        3.600001573562622
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/c301/c301.model.json",
+        "rawSha256": "da154560ed14ac29c4ee5433bde118748308a7663952ff90022e8595bfe03bbe",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "c301-mid": {
+      "file": "c301-mid.bin",
+      "sha256": "65fd70eda64f79990b3cf0b82dd2ad6dcfa625edf2f7229737bc04cfaa9ad19d",
+      "byteLength": 912720,
+      "vertexCount": 22818,
+      "min": [
+        -5.098999977111816,
+        -1.5395033359527588,
+        0.0010586060816422105
+      ],
+      "max": [
+        5.098999977111816,
+        1.539546012878418,
+        3.350000268872612
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/c301/c301.model.json",
+        "rawSha256": "da154560ed14ac29c4ee5433bde118748308a7663952ff90022e8595bfe03bbe",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "c321": {
+      "file": "c321.bin",
+      "sha256": "739fe03fd8cc378f21df4b148294d6a1c657e95bdd04a36620c0bee64246748c",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -5.098999977111816,
+        -1.5395493507385254,
+        0.0010585790732875466
+      ],
+      "max": [
+        5.109000205993652,
+        1.5395493507385254,
+        3.5999999046325684
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/c321/c321.model.json",
+        "rawSha256": "6dfb8b52c9b738b6c3867837f95c59cc99e2e917e57b5e5551a1d2e6ac6e49e1",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "c321-mid": {
+      "file": "c321-mid.bin",
+      "sha256": "69cf722fe0875f1e1163be41f0a1e8e1645c91710dbf52155512b3c1a2cb9bfd",
+      "byteLength": 919200,
+      "vertexCount": 22980,
+      "min": [
+        -5.098999977111816,
+        -1.5395493507385254,
+        0.0010586060816422105
+      ],
+      "max": [
+        5.098999977111816,
+        1.5395493507385254,
+        3.582465171813965
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/c321/c321.model.json",
+        "rawSha256": "6dfb8b52c9b738b6c3867837f95c59cc99e2e917e57b5e5551a1d2e6ac6e49e1",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "c341": {
+      "file": "c341.bin",
+      "sha256": "739fe03fd8cc378f21df4b148294d6a1c657e95bdd04a36620c0bee64246748c",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -5.098999977111816,
+        -1.5395493507385254,
+        0.0010585790732875466
+      ],
+      "max": [
+        5.109000205993652,
+        1.5395493507385254,
+        3.5999999046325684
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/c341/c341.model.json",
+        "rawSha256": "6dfb8b52c9b738b6c3867837f95c59cc99e2e917e57b5e5551a1d2e6ac6e49e1",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "c341-mid": {
+      "file": "c341-mid.bin",
+      "sha256": "69cf722fe0875f1e1163be41f0a1e8e1645c91710dbf52155512b3c1a2cb9bfd",
+      "byteLength": 919200,
+      "vertexCount": 22980,
+      "min": [
+        -5.098999977111816,
+        -1.5395493507385254,
+        0.0010586060816422105
+      ],
+      "max": [
+        5.098999977111816,
+        1.5395493507385254,
+        3.582465171813965
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/c341/c341.model.json",
+        "rawSha256": "6dfb8b52c9b738b6c3867837f95c59cc99e2e917e57b5e5551a1d2e6ac6e49e1",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "c371": {
+      "file": "c371.bin",
+      "sha256": "893e0f9fffc99dff5edfe9fd3e37e460f9afa279d4da432d7255542096166769",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -5.098999977111816,
+        -1.5395493507385254,
+        0.0010585790732875466
+      ],
+      "max": [
+        5.109000205993652,
+        1.5395493507385254,
+        3.5999999046325684
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/c371/c371.model.json",
+        "rawSha256": "f1da7aa0b3ca8dd65d3b87d48dea1987d11f44a7ebb5969d911e384d9b159e4e",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "c371-mid": {
+      "file": "c371-mid.bin",
+      "sha256": "42cf7a698340de77416b93b43db574ff9af2a94ada95148a894a6a452aab0df9",
+      "byteLength": 919200,
+      "vertexCount": 22980,
+      "min": [
+        -5.098999977111816,
+        -1.5395493507385254,
+        0.0010586060816422105
+      ],
+      "max": [
+        5.098999977111816,
+        1.5395493507385254,
+        3.582465171813965
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/c371/c371.model.json",
+        "rawSha256": "f1da7aa0b3ca8dd65d3b87d48dea1987d11f44a7ebb5969d911e384d9b159e4e",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "c381": {
+      "file": "c381.bin",
+      "sha256": "44316b23e40818e8bbd87b5558e806e7d87667d1cef1f19b8bca15814c9b8061",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -5.098999977111816,
+        -1.5395493507385254,
+        0.0010585790732875466
+      ],
+      "max": [
+        5.109000205993652,
+        1.5395493507385254,
+        3.5999999046325684
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/c381/c381.model.json",
+        "rawSha256": "8b6ed9a8337f3e821fcdf5e8bb25553b68b9222a9ccbe7ac5cb2493cd2f9828b",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "c381-mid": {
+      "file": "c381-mid.bin",
+      "sha256": "404f08c1381f636dcd59388fa8bffcc64f984404b1adbcf9325fee4e220b3cf1",
+      "byteLength": 917760,
+      "vertexCount": 22944,
+      "min": [
+        -5.098999977111816,
+        -1.5395493507385254,
+        0.0010586060816422105
+      ],
+      "max": [
+        5.098999977111816,
+        1.5395493507385254,
+        3.582465171813965
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/c381/c381.model.json",
+        "rawSha256": "8b6ed9a8337f3e821fcdf5e8bb25553b68b9222a9ccbe7ac5cb2493cd2f9828b",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "wenhu": {
+      "file": "wenhu.bin",
+      "sha256": "f0eb26d03fb9eb63c79e2e6dfc84683d0e498fa689b1341d29ae2121fc707c66",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -3.713954210281372,
+        -1.3152177333831787,
+        0
+      ],
+      "max": [
+        3.85467791557312,
+        1.3152176141738892,
+        3.27256441116333
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/wenhu-apm256-v1/wenhu.model.json",
+        "rawSha256": "c075b689caa0da4995013c0548622d45790b666ba754ee937ff956172e825662",
+        "engineeringDimensionsM": [
+          13.78,
+          2.54,
+          3.53
+        ]
+      },
+      "appearance": "blender-map-lod"
+    },
+    "wenhu-mid": {
+      "file": "wenhu-mid.bin",
+      "sha256": "1194e856a354fe02071550fb6e438db3f4d2cdf78d41c4e37f60748f5e1be3d0",
+      "byteLength": 832800,
+      "vertexCount": 20820,
+      "min": [
+        -3.713954210281372,
+        -1.3152177333831787,
+        0
+      ],
+      "max": [
+        3.713954210281372,
+        1.3152176141738892,
+        3.27256441116333
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/wenhu-apm256-v1/wenhu.model.json",
+        "rawSha256": "c075b689caa0da4995013c0548622d45790b666ba754ee937ff956172e825662",
+        "engineeringDimensionsM": [
+          13.78,
+          2.54,
+          3.53
+        ]
+      },
+      "appearance": "blender-map-lod"
+    },
+    "val256": {
+      "file": "val256.bin",
+      "sha256": "82761ea0e7e5dada97c76bbfe1293f6019334925fcfeea1e3966c83c6ba43371",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -3.7990002632141113,
+        -1.3395495414733887,
+        0.0011029912857338786
+      ],
+      "max": [
+        3.809000015258789,
+        1.3395495414733887,
+        3.299999952316284
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/val256/val256.model.json",
+        "rawSha256": "f78bbed6f6da78d39860731d43153700cbe01fc632519da4122e166f875eef08",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "val256-mid": {
+      "file": "val256-mid.bin",
+      "sha256": "cda144ad3c784c5e4c540bce8cb1162f218ef5958a5f1d123fe32fce91b6ae35",
+      "byteLength": 904080,
+      "vertexCount": 22602,
+      "min": [
+        -3.7990002632141113,
+        -1.3395495414733887,
+        0.0011029912857338786
+      ],
+      "max": [
+        3.7990002632141113,
+        1.3395495414733887,
+        3.282465696334839
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/val256/val256.model.json",
+        "rawSha256": "f78bbed6f6da78d39860731d43153700cbe01fc632519da4122e166f875eef08",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "airportlocal": {
+      "file": "airportlocal.bin",
+      "sha256": "b0758a573f873e502c9d6d077ce7cf700720fa54d7d93e3cc6f93165e29e584d",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -5.098999977111816,
+        -1.5145493745803833,
+        0.00105858885217458
+      ],
+      "max": [
+        5.109000205993652,
+        1.5145492553710938,
+        3.75
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/airportlocal/airportlocal.model.json",
+        "rawSha256": "643536d0eb93f068e61a1a4e5fffff35e0bba4aa5558ca65d5ee87ea67a96887",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "airportlocal-mid": {
+      "file": "airportlocal-mid.bin",
+      "sha256": "a53593e57c1556937b5fadf4ebb830c11e48efc8984893708d0aed828e96e14c",
+      "byteLength": 950160,
+      "vertexCount": 23754,
+      "min": [
+        -5.098999977111816,
+        -1.5145492553710938,
+        0.001058622496202588
+      ],
+      "max": [
+        5.098999977111816,
+        1.5145492553710938,
+        3.7324655055999756
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/airportlocal/airportlocal.model.json",
+        "rawSha256": "643536d0eb93f068e61a1a4e5fffff35e0bba4aa5558ca65d5ee87ea67a96887",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "airportexpress": {
+      "file": "airportexpress.bin",
+      "sha256": "6caea4ddd664e8e9b9c89c285f323ef3ad334d37208d61a3fb4a3f6f24b49742",
+      "byteLength": 959880,
+      "vertexCount": 23997,
+      "min": [
+        -5.098999977111816,
+        -1.5145493745803833,
+        0.00105858885217458
+      ],
+      "max": [
+        5.109000205993652,
+        1.5145493745803833,
+        3.75
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/airportexpress/airportexpress.model.json",
+        "rawSha256": "74091d547363c95641a4dc40b58f1972973c18574008b67afed8a5d2602eef91",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "airportexpress-mid": {
+      "file": "airportexpress-mid.bin",
+      "sha256": "178395b34c453881a0f9c2a47b3b1e677687b30cf73060ca13bcb9c94df7370a",
+      "byteLength": 914400,
+      "vertexCount": 22860,
+      "min": [
+        -5.098999977111816,
+        -1.5145493745803833,
+        0.0011030357563868165
+      ],
+      "max": [
+        5.098999977111816,
+        1.5145492553710938,
+        3.7324655055999756
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/airportexpress/airportexpress.model.json",
+        "rawSha256": "74091d547363c95641a4dc40b58f1972973c18574008b67afed8a5d2602eef91",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "y100": {
+      "file": "y100.bin",
+      "sha256": "51be84baa1d92e336b1156a8714a674062670b526b6f51a3cb5a0726d0b4f7ee",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -4.598999977111816,
+        -1.4395495653152466,
+        0.0010586049174889922
+      ],
+      "max": [
+        4.609000205993652,
+        1.4395495653152466,
+        3.5999999046325684
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/y100/y100.model.json",
+        "rawSha256": "62e42ee3d0f77ad266b6b9078952b92488a008afcdd2da0a0b39b779464bd984",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "y100-mid": {
+      "file": "y100-mid.bin",
+      "sha256": "495af9ac965207b95a3bc7a649401e9c879bbcb787383530e87a41de6f942cde",
+      "byteLength": 966960,
+      "vertexCount": 24174,
+      "min": [
+        -4.598999977111816,
+        -1.4395495653152466,
+        0.0010586371645331383
+      ],
+      "max": [
+        4.598999977111816,
+        1.4395495653152466,
+        3.582465171813965
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/y100/y100.model.json",
+        "rawSha256": "62e42ee3d0f77ad266b6b9078952b92488a008afcdd2da0a0b39b779464bd984",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "sanying": {
+      "file": "sanying.bin",
+      "sha256": "ad9d9b80a193c8902611bfbb9db898c28a667071c79d68bd0e17c63122347752",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -4.598999977111816,
+        -1.4395496845245361,
+        0.0010586049174889922
+      ],
+      "max": [
+        4.609000205993652,
+        1.4395495653152466,
+        3.5999999046325684
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/sanying/sanying.model.json",
+        "rawSha256": "70fdde412fd37f65fddfe84753ba01572b0ab72fb9df2da90285aa9ed5d56c04",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "sanying-mid": {
+      "file": "sanying-mid.bin",
+      "sha256": "e1256777389c0f15f89c477828a42b4c19130522b03a946a8b3480af23ff2692",
+      "byteLength": 963120,
+      "vertexCount": 24078,
+      "min": [
+        -4.598999977111816,
+        -1.4395495653152466,
+        0.0010586371645331383
+      ],
+      "max": [
+        4.598999977111816,
+        1.4395495653152466,
+        3.582465171813965
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/sanying/sanying.model.json",
+        "rawSha256": "70fdde412fd37f65fddfe84753ba01572b0ab72fb9df2da90285aa9ed5d56c04",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "taichung": {
+      "file": "taichung.bin",
+      "sha256": "425f7141609419a67532c20b748e42109a71972649324365dc66d5b797eb1203",
+      "byteLength": 959880,
+      "vertexCount": 23997,
+      "min": [
+        -5.349000453948975,
+        -1.5145492553710938,
+        0.001058595604263246
+      ],
+      "max": [
+        5.359000205993652,
+        1.5145493745803833,
+        3.6500003337860107
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/taichung/taichung.model.json",
+        "rawSha256": "8df5160517c74f8e83ac70d26ee99c15ebcccd63ff1d9464c189fb2a458bd0a2",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "taichung-mid": {
+      "file": "taichung-mid.bin",
+      "sha256": "baf741c3eb6eb506c5bfb04ce517ad22e57e228c42542a30cc8957a75dd44e2a",
+      "byteLength": 967920,
+      "vertexCount": 24198,
+      "min": [
+        -5.349000453948975,
+        -1.5145492553710938,
+        0.0010585961863398552
+      ],
+      "max": [
+        5.349000453948975,
+        1.5145492553710938,
+        3.63246488571167
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/taichung/taichung.model.json",
+        "rawSha256": "8df5160517c74f8e83ac70d26ee99c15ebcccd63ff1d9464c189fb2a458bd0a2",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "kaohsiung": {
+      "file": "kaohsiung.bin",
+      "sha256": "4caf4b6fdc8dbd3a58bf72423ff2e998105807e5f92bd0f9958ab6228358d986",
+      "byteLength": 959760,
+      "vertexCount": 23994,
+      "min": [
+        -5.249000072479248,
+        -1.5395493507385254,
+        0.001058584894053638
+      ],
+      "max": [
+        5.258999824523926,
+        1.5395493507385254,
+        3.6500003337860107
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/kaohsiung/kaohsiung.model.json",
+        "rawSha256": "8013334dadc6103be1fd6f986695e65a830b6310d0341c4f412e7d0186c22022",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "kaohsiung-mid": {
+      "file": "kaohsiung-mid.bin",
+      "sha256": "82258d59ac21b980e4bcb0b59b811907bf27f0fca1c18ac736283c2cc02654e5",
+      "byteLength": 945120,
+      "vertexCount": 23628,
+      "min": [
+        -5.249000072479248,
+        -1.5395493507385254,
+        0.001058584894053638
+      ],
+      "max": [
+        5.249000072479248,
+        1.5395493507385254,
+        3.63246488571167
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/kaohsiung/kaohsiung.model.json",
+        "rawSha256": "8013334dadc6103be1fd6f986695e65a830b6310d0341c4f412e7d0186c22022",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "haifeng": {
+      "file": "haifeng.bin",
+      "sha256": "917cbe9bdbfce65387349d5b93d2260179ec1be615b928fbc0fb0cef27309a1c",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -4.64900016784668,
+        -1.4895493984222412,
+        0.0010585818672552705
+      ],
+      "max": [
+        4.658999919891357,
+        1.4895493984222412,
+        3.668865919113159
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/haifeng/haifeng.model.json",
+        "rawSha256": "6588e3dc8568c21731509879eae7d61d79403b430209ab28a7c0cbb132176595",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "haifeng-mid": {
+      "file": "haifeng-mid.bin",
+      "sha256": "26545cb6fb976ac89767c098dc3240140a8ca7a8a57d0a6b0397759971213a9c",
+      "byteLength": 922320,
+      "vertexCount": 23058,
+      "min": [
+        -4.64900016784668,
+        -1.4895493984222412,
+        0.0010585818672552705
+      ],
+      "max": [
+        4.64900016784668,
+        1.4895493984222412,
+        3.668865919113159
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/haifeng/haifeng.model.json",
+        "rawSha256": "6588e3dc8568c21731509879eae7d61d79403b430209ab28a7c0cbb132176595",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "shanlan": {
+      "file": "shanlan.bin",
+      "sha256": "73c8e8c09e1cc0d709eb0f50dce8c56c32652b747543fa7f861e0f859ded349e",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -4.64900016784668,
+        -1.4895493984222412,
+        0.0010585818672552705
+      ],
+      "max": [
+        4.658999919891357,
+        1.4895493984222412,
+        3.668865919113159
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/shanlan/shanlan.model.json",
+        "rawSha256": "6588e3dc8568c21731509879eae7d61d79403b430209ab28a7c0cbb132176595",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "shanlan-mid": {
+      "file": "shanlan-mid.bin",
+      "sha256": "1bb686fd04829ede473b1beba9faf91cae75aabdfe0971e6fbae4ab2e48f5d7d",
+      "byteLength": 922320,
+      "vertexCount": 23058,
+      "min": [
+        -4.64900016784668,
+        -1.4895493984222412,
+        0.0010585818672552705
+      ],
+      "max": [
+        4.64900016784668,
+        1.4895493984222412,
+        3.668865919113159
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/shanlan/shanlan.model.json",
+        "rawSha256": "6588e3dc8568c21731509879eae7d61d79403b430209ab28a7c0cbb132176595",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "emu500": {
+      "file": "emu500.bin",
+      "sha256": "daeeddd7d9ae6abf6bca13f3ad45abec92471b55f45f8e19475d423d2eca4b44",
+      "byteLength": 959880,
+      "vertexCount": 23997,
+      "min": [
+        -4.64900016784668,
+        -1.4895493984222412,
+        0.0010585818672552705
+      ],
+      "max": [
+        4.658999919891357,
+        1.4895493984222412,
+        3.668865919113159
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/emu500/emu500.model.json",
+        "rawSha256": "068a7972d53c7ec0314231b0bcbedea62ae8f0fb9e7c9fcd27833a31c6f96135",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "emu500-mid": {
+      "file": "emu500-mid.bin",
+      "sha256": "4bd5833ec8da8c7f5714ced365ebd2ff43d1867b7a8613df408dccd0003fab5f",
+      "byteLength": 943680,
+      "vertexCount": 23592,
+      "min": [
+        -4.64900016784668,
+        -1.489506721496582,
+        0.0010585818672552705
+      ],
+      "max": [
+        4.64900016784668,
+        1.4895493984222412,
+        3.668865919113159
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/emu500/emu500.model.json",
+        "rawSha256": "068a7972d53c7ec0314231b0bcbedea62ae8f0fb9e7c9fcd27833a31c6f96135",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "emu600": {
+      "file": "emu600.bin",
+      "sha256": "f3ffccba50d03670dbaa12506497c272d1c60ad0bd0aa8125aeff3bab1aab848",
+      "byteLength": 959880,
+      "vertexCount": 23997,
+      "min": [
+        -4.64900016784668,
+        -1.4895493984222412,
+        0.0010585818672552705
+      ],
+      "max": [
+        4.658999919891357,
+        1.4895493984222412,
+        3.668865919113159
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/emu600/emu600.model.json",
+        "rawSha256": "068a7972d53c7ec0314231b0bcbedea62ae8f0fb9e7c9fcd27833a31c6f96135",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "emu600-mid": {
+      "file": "emu600-mid.bin",
+      "sha256": "331eb0db2801261caee9a60400ec82325a7eb4470ca2e11284aa62cadcf3fca7",
+      "byteLength": 943680,
+      "vertexCount": 23592,
+      "min": [
+        -4.64900016784668,
+        -1.489506721496582,
+        0.0010585818672552705
+      ],
+      "max": [
+        4.64900016784668,
+        1.4895493984222412,
+        3.668865919113159
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/emu600/emu600.model.json",
+        "rawSha256": "068a7972d53c7ec0314231b0bcbedea62ae8f0fb9e7c9fcd27833a31c6f96135",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "dr2700": {
+      "file": "dr2700.bin",
+      "sha256": "3450d6e9695d85b936407158971f52d7ec9bfea941d53adf75259421786b2a73",
+      "byteLength": 959880,
+      "vertexCount": 23997,
+      "min": [
+        -4.449000358581543,
+        -1.4645495414733887,
+        0.0011030409950762987
+      ],
+      "max": [
+        4.459000587463379,
+        1.4645495414733887,
+        3.5999999046325684
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/dr2700/dr2700.model.json",
+        "rawSha256": "69810c9b5f49ee57a44aaa643ad42b9b240bf9a9170997d8e228c336770857ce",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "dr1000": {
+      "file": "dr1000.bin",
+      "sha256": "fbc6cc2b773e042269b0c1e41e45c32588dca248adc2fd4c1a6c17801d51e11b",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -4.199000358581543,
+        -1.4895493984222412,
+        0.0010585946729406714
+      ],
+      "max": [
+        4.209000587463379,
+        1.489506721496582,
+        3.668865919113159
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/dr1000/dr1000.model.json",
+        "rawSha256": "9e2f46100ae6d5aaaa10a4cbc788a6f20854e52a22ab35893d9d3d419fa3f572",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "dr3100": {
+      "file": "dr3100.bin",
+      "sha256": "800c718f259e7e3a8410bcd78dc2a6dfdff94f13f696054cf28919e80780fd7e",
+      "byteLength": 959880,
+      "vertexCount": 23997,
+      "min": [
+        -4.548999786376953,
+        -1.4895493984222412,
+        0.0010585807031020522
+      ],
+      "max": [
+        4.559000015258789,
+        1.4895493984222412,
+        3.668865919113159
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/dr3100/dr3100.model.json",
+        "rawSha256": "b54dfd50c2d01ebd870b44949558175dcad7de70aa59057438125a9b06b020ad",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "dr3100-mid": {
+      "file": "dr3100-mid.bin",
+      "sha256": "2852d66d06f362a379262bb77a3a19db81845ae49875b4ff9a23cff9904ba23b",
+      "byteLength": 918960,
+      "vertexCount": 22974,
+      "min": [
+        -4.548999786376953,
+        -1.4895493984222412,
+        0.0010585807031020522
+      ],
+      "max": [
+        4.548999786376953,
+        1.4895493984222412,
+        3.668865919113159
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/dr3100/dr3100.model.json",
+        "rawSha256": "b54dfd50c2d01ebd870b44949558175dcad7de70aa59057438125a9b06b020ad",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "emu100": {
+      "file": "emu100.bin",
+      "sha256": "2e00510d5f1c5eea675d174d0bdd1a11f6836d1f4c34edc149d897c9bf7fc0e9",
+      "byteLength": 959880,
+      "vertexCount": 23997,
+      "min": [
+        -4.848999977111816,
+        -1.4895493984222412,
+        0.0011029946617782116
+      ],
+      "max": [
+        4.859000205993652,
+        1.4895493984222412,
+        3.75
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/emu100/emu100.model.json",
+        "rawSha256": "6ede6404e1e0420dac497a56c6269f84fcd736c44fa61ea694c473da0373f9db",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "emu100-mid": {
+      "file": "emu100-mid.bin",
+      "sha256": "eb5f827dccad1c25f02b7743f7af508267e0c5013b7ba2a14a91203cb8e021f8",
+      "byteLength": 896400,
+      "vertexCount": 22410,
+      "min": [
+        -4.848999977111816,
+        -1.4895493984222412,
+        0.0011029960587620735
+      ],
+      "max": [
+        4.848999977111816,
+        1.4895493984222412,
+        3.630322217941284
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/emu100/emu100.model.json",
+        "rawSha256": "6ede6404e1e0420dac497a56c6269f84fcd736c44fa61ea694c473da0373f9db",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "emu1200": {
+      "file": "emu1200.bin",
+      "sha256": "f5d4b3a774d2815459fcd9e8224a0175c6aca6d21471f99cf7aa1ee28afc8868",
+      "byteLength": 959880,
+      "vertexCount": 23997,
+      "min": [
+        -4.749000072479248,
+        -1.4895495176315308,
+        0.0010585760464891791
+      ],
+      "max": [
+        4.758999824523926,
+        1.4895493984222412,
+        3.7688663005828857
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/emu1200/emu1200.model.json",
+        "rawSha256": "f4b77e54b68c16655f61c21fd5698f375d467292a84ff9237f511a421a82dba5",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "emu1200-mid": {
+      "file": "emu1200-mid.bin",
+      "sha256": "b014f42051601ff5f86fe7982f1365f992d9e408c5f0c2e8604006e67b474655",
+      "byteLength": 909600,
+      "vertexCount": 22740,
+      "min": [
+        -4.749000072479248,
+        -1.4895493984222412,
+        0.0011030139867216349
+      ],
+      "max": [
+        4.749000072479248,
+        1.4895493984222412,
+        3.7688663005828857
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/emu1200/emu1200.model.json",
+        "rawSha256": "f4b77e54b68c16655f61c21fd5698f375d467292a84ff9237f511a421a82dba5",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "emu700": {
+      "file": "emu700.bin",
+      "sha256": "3e99dce995a273d80f6f9828656d58528d6a33f4d1f2b445683e4886c182b02c",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -4.89900016784668,
+        -1.4895495176315308,
+        0.001058580121025443
+      ],
+      "max": [
+        4.646268367767334,
+        1.4895493984222412,
+        3.7188665866851807
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/emu700/emu700.model.json",
+        "rawSha256": "0c982b002485a3d99ea1eeda4c6c8fa6e9f2f7afaed805d6a5c03aec82ac5a63",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "emu700-mid": {
+      "file": "emu700-mid.bin",
+      "sha256": "b60b8f1a697841f1d1d2c3f6335842fe80dac7c4c59a776b5b34da9183e02dff",
+      "byteLength": 940320,
+      "vertexCount": 23508,
+      "min": [
+        -4.89900016784668,
+        -1.4895493984222412,
+        0.001058580121025443
+      ],
+      "max": [
+        4.89900016784668,
+        1.4895493984222412,
+        3.7188665866851807
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/emu700/emu700.model.json",
+        "rawSha256": "0c982b002485a3d99ea1eeda4c6c8fa6e9f2f7afaed805d6a5c03aec82ac5a63",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "emu800": {
+      "file": "emu800.bin",
+      "sha256": "fb1df11a7c64d7dd5731283de2a805438857437a0f6caf8b7d107a46058ee558",
+      "byteLength": 959760,
+      "vertexCount": 23994,
+      "min": [
+        -4.89900016784668,
+        -1.4895493984222412,
+        0.001058580121025443
+      ],
+      "max": [
+        4.908999919891357,
+        1.4895493984222412,
+        3.7188665866851807
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/emu800/emu800.model.json",
+        "rawSha256": "5d137e52db0e4191867def74267cf93140cdf9794b8ee400c262cde52b7db89d",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "emu800-mid": {
+      "file": "emu800-mid.bin",
+      "sha256": "8aed244389748813feb6db6626c6b5cf1f355d22aaa28071675c159b38d0d841",
+      "byteLength": 925680,
+      "vertexCount": 23142,
+      "min": [
+        -4.89900016784668,
+        -1.4895493984222412,
+        0.001058580121025443
+      ],
+      "max": [
+        4.89900016784668,
+        1.4895493984222412,
+        3.7188665866851807
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/emu800/emu800.model.json",
+        "rawSha256": "5d137e52db0e4191867def74267cf93140cdf9794b8ee400c262cde52b7db89d",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "emu800r": {
+      "file": "emu800r.bin",
+      "sha256": "3fa4faea1954bbc275cf4b27c44012424b287f39fb4c90b1a2316cb9e8b9c241",
+      "byteLength": 959760,
+      "vertexCount": 23994,
+      "min": [
+        -4.89900016784668,
+        -1.4895493984222412,
+        0.001058580121025443
+      ],
+      "max": [
+        4.908999919891357,
+        1.4895493984222412,
+        3.7188665866851807
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/emu800r/emu800r.model.json",
+        "rawSha256": "63298bd7cd53006902f39a6dbbc179d01335b4b5dc9a239948730b26ea010ce4",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "emu800r-mid": {
+      "file": "emu800r-mid.bin",
+      "sha256": "0a9944a04838a0689eb89b7c545c2e9228107bbaa3dbd2618a0d3a524f47fa11",
+      "byteLength": 926400,
+      "vertexCount": 23160,
+      "min": [
+        -4.89900016784668,
+        -1.4895493984222412,
+        0.001058580121025443
+      ],
+      "max": [
+        4.89900016784668,
+        1.4895493984222412,
+        3.7188665866851807
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/emu800r/emu800r.model.json",
+        "rawSha256": "63298bd7cd53006902f39a6dbbc179d01335b4b5dc9a239948730b26ea010ce4",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "emu900": {
+      "file": "emu900.bin",
+      "sha256": "72148f922de8a77c4c4264104f53eccb8f9ed4ab87a68d54692a7063b3762a42",
+      "byteLength": 959760,
+      "vertexCount": 23994,
+      "min": [
+        -4.89900016784668,
+        -1.4895493984222412,
+        0.001058580121025443
+      ],
+      "max": [
+        4.908999919891357,
+        1.4895493984222412,
+        3.7188665866851807
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/emu900/emu900.model.json",
+        "rawSha256": "1d9c344c6d5720875b022f538105760e3033c17e384bb09641b912995005d1ca",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "emu900-mid": {
+      "file": "emu900-mid.bin",
+      "sha256": "1f3943ebafb909d3df778e4af2aab03f1071c2f230a506df22a49b55b60782cc",
+      "byteLength": 992640,
+      "vertexCount": 24816,
+      "min": [
+        -4.89900016784668,
+        -1.4895493984222412,
+        0.001058580121025443
+      ],
+      "max": [
+        4.89900016784668,
+        1.4895493984222412,
+        3.7188665866851807
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/emu900/emu900.model.json",
+        "rawSha256": "1d9c344c6d5720875b022f538105760e3033c17e384bb09641b912995005d1ca",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "temu1000": {
+      "file": "temu1000.bin",
+      "sha256": "87cf51a284b4438a00e842195dc9745046b479e58a4866120e3e0f5930c7be9f",
+      "byteLength": 959880,
+      "vertexCount": 23997,
+      "min": [
+        -5.298999786376953,
+        -1.5145492553710938,
+        0.0011030479799956083
+      ],
+      "max": [
+        4.981489181518555,
+        1.5145492553710938,
+        3.6500003337860107
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/temu1000/temu1000.model.json",
+        "rawSha256": "a7128eacb0732ddb3c4827e06ab1c90872ab477d5a45273ea50892361954c175",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "temu1000-mid": {
+      "file": "temu1000-mid.bin",
+      "sha256": "43ace35068bd71944a386297c7a8004df245decd400318267693bbe9a715e743",
+      "byteLength": 942480,
+      "vertexCount": 23562,
+      "min": [
+        -5.298999786376953,
+        -1.5145492553710938,
+        0.0011030479799956083
+      ],
+      "max": [
+        5.298999786376953,
+        1.5145492553710938,
+        3.63246488571167
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/temu1000/temu1000.model.json",
+        "rawSha256": "a7128eacb0732ddb3c4827e06ab1c90872ab477d5a45273ea50892361954c175",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "temu2000": {
+      "file": "temu2000.bin",
+      "sha256": "5b3b9db90d34b1efe49446eb0b9b01321601afeeeb1b5444cedce3a270c5045d",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -5.098999977111816,
+        -1.5145492553710938,
+        0.0011030357563868165
+      ],
+      "max": [
+        4.726222515106201,
+        1.5145492553710938,
+        3.6500003337860107
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/temu2000/temu2000.model.json",
+        "rawSha256": "1f73a5131da95a7442dcfde82b6acdfc404d7a5ee86f6440abe90ce46c3f8c27",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "temu2000-mid": {
+      "file": "temu2000-mid.bin",
+      "sha256": "d68b09cfea133607a31f5d1eab3109b88bce5aa5a12dc864cf7f92886a2c1202",
+      "byteLength": 977280,
+      "vertexCount": 24432,
+      "min": [
+        -5.098999977111816,
+        -1.5145492553710938,
+        0.0011030357563868165
+      ],
+      "max": [
+        5.098999977111816,
+        1.5145492553710938,
+        3.63246488571167
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/temu2000/temu2000.model.json",
+        "rawSha256": "1f73a5131da95a7442dcfde82b6acdfc404d7a5ee86f6440abe90ce46c3f8c27",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "emu3000": {
+      "file": "emu3000.bin",
+      "sha256": "f4a5ca66cf118162dab12c2ebfe87f59dd5f04f4f2d2c0b0ae488ab7256ecc86",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -5.199000358581543,
+        -1.5145492553710938,
+        0.001103037502616644
+      ],
+      "max": [
+        4.8514862060546875,
+        1.5145492553710938,
+        3.6500003337860107
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/emu3000/emu3000.model.json",
+        "rawSha256": "f42a4d2d2a78eb8f9d600333e9eabeb84dca1e9512580afabcb2ddb7d778e700",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "emu3000-mid": {
+      "file": "emu3000-mid.bin",
+      "sha256": "31075611389b15595ac243b3784310b1d7037dd4df9e3ec4997660b83e6854a7",
+      "byteLength": 1008720,
+      "vertexCount": 25218,
+      "min": [
+        -5.199000358581543,
+        -1.5145492553710938,
+        0.001103037502616644
+      ],
+      "max": [
+        5.199000358581543,
+        1.5145492553710938,
+        3.63246488571167
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/emu3000/emu3000.model.json",
+        "rawSha256": "f42a4d2d2a78eb8f9d600333e9eabeb84dca1e9512580afabcb2ddb7d778e700",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "700t": {
+      "file": "700t.bin",
+      "sha256": "bc35a003cb8f1f1dcbb022e3cd246154f7b34c3af6f271e7fb1e7698f5b7c850",
+      "byteLength": 959880,
+      "vertexCount": 23997,
+      "min": [
+        -4.798999786376953,
+        -1.5145492553710938,
+        0.0011030352907255292
+      ],
+      "max": [
+        4.280534744262695,
+        1.5145492553710938,
+        3.2490334510803223
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/700t/700t.model.json",
+        "rawSha256": "9f2b2756c7ee3448ab4fec937cc755c5f7cc4a1159c46fddb126246636bb7c58",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "700t-mid": {
+      "file": "700t-mid.bin",
+      "sha256": "cdb1ce5482d0b91d6b994fd95c114aaa10c700d0d25227ccbd1ecd45176e9ef7",
+      "byteLength": 1262880,
+      "vertexCount": 31572,
+      "min": [
+        -4.798999786376953,
+        -1.5145492553710938,
+        0.0011030377354472876
+      ],
+      "max": [
+        4.798999786376953,
+        1.5145492553710938,
+        3.248923062833319
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/700t/700t.model.json",
+        "rawSha256": "9f2b2756c7ee3448ab4fec937cc755c5f7cc4a1159c46fddb126246636bb7c58",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "e200": {
+      "file": "e200.bin",
+      "sha256": "ff831fc43a53f2816d737b4fee93ac447d696d19bb1ab4f6f8cea5622e74b7da",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -4.709000587463379,
+        -1.5115001201629639,
+        0.0010515376925468445
+      ],
+      "max": [
+        4.709000587463379,
+        1.5115001201629639,
+        4.687880992889404
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/e200/e200.model.json",
+        "rawSha256": "88eeac8da6bf56b62e964815367cab0a9ba14bceccb0a4594224ca2b097b1c93",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "e300": {
+      "file": "e300.bin",
+      "sha256": "387b4a8acf2e63e604c8c1dbbf33c453aa4820a4e119277dc72be784918978c8",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -4.709000587463379,
+        -1.5115001201629639,
+        0.0010515376925468445
+      ],
+      "max": [
+        4.709000587463379,
+        1.5115001201629639,
+        4.687880992889404
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/e300/e300.model.json",
+        "rawSha256": "6309c775d9f29d66d21381dba6626ef518bb974ecfd6390af0d1736338b68e4c",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "e400": {
+      "file": "e400.bin",
+      "sha256": "e2adaafaf072aff3eec28a52dc4c9f8c5ffb410d6a723fe349b06a3635ccbdfb",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -4.709000587463379,
+        -1.5115001201629639,
+        0.0010515376925468445
+      ],
+      "max": [
+        4.709000587463379,
+        1.509136438369751,
+        4.687880992889404
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/e400/e400.model.json",
+        "rawSha256": "f5fa83f89513a3e1c0a7e8c8d9dacec476b76d45542953c3af5dc8e797c75ad1",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "mingri": {
+      "file": "mingri.bin",
+      "sha256": "87c046e950cb8096d733ea19a68f2184c9335b0dfe9ce673d766ae8d5ef59c16",
+      "byteLength": 959880,
+      "vertexCount": 23997,
+      "min": [
+        -4.709000587463379,
+        -1.5115001201629639,
+        0.0010515376925468445
+      ],
+      "max": [
+        4.709000587463379,
+        1.509136438369751,
+        4.687880992889404
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/mingri/mingri.model.json",
+        "rawSha256": "54dab7b15136188e3bc4a67f235fff20f47a846e0fad17ca381ed32a69db716e",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "e500": {
+      "file": "e500.bin",
+      "sha256": "24f94047c134844a4e9d8e2db4e0928a10f90c80cbcf8987f6878aaacbc7d7a7",
+      "byteLength": 959760,
+      "vertexCount": 23994,
+      "min": [
+        -4.908999919891357,
+        -1.5115001201629639,
+        0.0010515543399378657
+      ],
+      "max": [
+        4.908999919891357,
+        1.5115001201629639,
+        4.7878804206848145
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/e500/e500.model.json",
+        "rawSha256": "7f4eb0b94d3718503d19c6d354a6cc8e3900f7228ee5e8b253cc8cad9f58e2f0",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "e1000": {
+      "file": "e1000.bin",
+      "sha256": "7eb1cdc395925611696d8970feed80883b35ff07c909be147438c014586aed56",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -4.908999919891357,
+        -1.5115001201629639,
+        0.0011030382011085749
+      ],
+      "max": [
+        4.908999919891357,
+        1.5115001201629639,
+        4.737881183624268
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/e1000/e1000.model.json",
+        "rawSha256": "9e63a02b43a1ea32824ef82fb00de014ace2036707f57636de81c9ac2b5af8e5",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "r200": {
+      "file": "r200.bin",
+      "sha256": "43db65c41ba5a83494d9e03e17652eb5edb2c7377bb6a429184923799a945791",
+      "byteLength": 955440,
+      "vertexCount": 23886,
+      "min": [
+        -5.109000205993652,
+        -1.5364999771118164,
+        0.0010515309404581785
+      ],
+      "max": [
+        5.109000205993652,
+        1.5364999771118164,
+        3.9792826175689697
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/r200/r200.model.json",
+        "rawSha256": "f9e6f26720e71b6e090ef8e5ec477d3a510e7ece218ba810e095370a7fb42e17",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "r20": {
+      "file": "r20.bin",
+      "sha256": "db76eaabb02dfdaddf363f7e10ca13d914904401d8d98ba637cee0885c88b984",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -4.839000225067139,
+        -1.394802451133728,
+        0.0010562449460849166
+      ],
+      "max": [
+        4.839000225067139,
+        1.394802451133728,
+        3.602376937866211
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/r20/r20.model.json",
+        "rawSha256": "fd395df87609d969cc7fb1b0f8d849b238874397a6c7faaee9f5a7e7678fe646",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "r100": {
+      "file": "r100.bin",
+      "sha256": "098d3d028e9d2954b41297e21e11bc835e2b528eaac2c15e220fefd64fe679ec",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -4.689000129699707,
+        -1.394802451133728,
+        0.0010562441311776638
+      ],
+      "max": [
+        4.689000129699707,
+        1.394802451133728,
+        3.602376937866211
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/r100/r100.model.json",
+        "rawSha256": "f0c078bc93ccd51b3144a7dfb25b81813702bf0172d1a09fbc851d09ce84da4a",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "r150": {
+      "file": "r150.bin",
+      "sha256": "835c1ad19a2649d41196d96d8f195a469c12f6c73ba0d2948025d1d93406a650",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -4.939000129699707,
+        -1.394802451133728,
+        0.001056223758496344
+      ],
+      "max": [
+        4.939000129699707,
+        1.394802451133728,
+        3.602376937866211
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/r150/r150.model.json",
+        "rawSha256": "707d03fbb794da1166b7adca0fbd0a543b6cf5e2497df01d69eef67aa6e7ad6e",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "r180": {
+      "file": "r180.bin",
+      "sha256": "02cbe5a37b489dea1b9c3a9f1e6f3023b241255ca78355ac0821985e2f824f1e",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -4.988999843597412,
+        -1.394802451133728,
+        0.001056227250955999
+      ],
+      "max": [
+        4.988999843597412,
+        1.394802451133728,
+        3.7023768424987793
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/r180/r180.model.json",
+        "rawSha256": "f60cb0aee90ef56f91dd717f20427013eb90cb0206b01759fdb55ff4b8e2859f",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "blue": {
+      "file": "blue.bin",
+      "sha256": "335fe7e68777b6210a2080a76acd18ac858a30dc5faa94ac827680065feb0fab",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -4.689000129699707,
+        -1.394802451133728,
+        0.0010562441311776638
+      ],
+      "max": [
+        4.689000129699707,
+        1.394802451133728,
+        3.602376937866211
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/blue/blue.model.json",
+        "rawSha256": "ceb203773946f4622cbd3a97f31399ee8aecd17a570c4921112fc6a694d9e57e",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "dhl100": {
+      "file": "dhl100.bin",
+      "sha256": "955d9c99b9b2f7e818e55481abe3879e41f8fab722d9e0405a138400b875f41a",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -4.289000511169434,
+        -1.34716796875,
+        0.00110301049426198
+      ],
+      "max": [
+        4.289000511169434,
+        1.34716796875,
+        3.65584659576416
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/dhl100/dhl100.model.json",
+        "rawSha256": "35492d0637c259f301a1573102fc1774e3be3d258ba134634134c1a15315cc2e",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "dl25": {
+      "file": "dl25.bin",
+      "sha256": "06b23ec6e598b634c8b480569d161bb38695e5e934470069d9b2d19dcdbbe6c5",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -3.6089999675750732,
+        -1.0969791412353516,
+        0.0011030310997739434
+      ],
+      "max": [
+        3.6089999675750732,
+        1.0969791412353516,
+        3.1119792461395264
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/dl25/dl25.model.json",
+        "rawSha256": "b40f461069c803b7dc1e8cc5bf0f902c49a6b76a620d0010de58ebcf19ddd310",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "dl38": {
+      "file": "dl38.bin",
+      "sha256": "011482b276e4f6cf7246bf883f3515dc8734d3548268cd8b329d095393767dd5",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -3.6589999198913574,
+        -1.0969791412353516,
+        0.0011030343594029546
+      ],
+      "max": [
+        3.6589999198913574,
+        1.0969791412353516,
+        3.1119792461395264
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/dl38/dl38.model.json",
+        "rawSha256": "401caa47aec1f4365bf80b9885e31e923264eac36329b80a59f8a0a0a9cc4094",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "dl39": {
+      "file": "dl39.bin",
+      "sha256": "89f11831c77729f294cf37dffa28299f9b579a93aa875db3863270fb68e9aed3",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -3.809000015258789,
+        -1.0969791412353516,
+        0.0011030349414795637
+      ],
+      "max": [
+        3.809000015258789,
+        1.0969791412353516,
+        3.1119792461395264
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/dl39/dl39.model.json",
+        "rawSha256": "9d067560d20318b062109c90fdea6b117272d9e5606a9b5143990c0ef35dab7e",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "dl45": {
+      "file": "dl45.bin",
+      "sha256": "9b016b6b3d5228148984ead7de63fa1e0ff1e56c77f2e218ce16db72be0f4cef",
+      "byteLength": 959760,
+      "vertexCount": 23994,
+      "min": [
+        -3.9089999198913574,
+        -1.0969791412353516,
+        0.0011030345922335982
+      ],
+      "max": [
+        3.9089999198913574,
+        1.0969791412353516,
+        3.261979103088379
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/dl45/dl45.model.json",
+        "rawSha256": "3424f65efff7052c46022d4fa6eb475bab7a891838f427c78312340a01d6216f",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "juguang": {
+      "file": "juguang.bin",
+      "sha256": "a9c5f0eaa0b24f7055b5ac74195d9160deef130d385d932f2cc01c01c626cbe3",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -4.894000053405762,
+        -1.4895493984222412,
+        0.0011029987363144755
+      ],
+      "max": [
+        4.894000053405762,
+        1.4895493984222412,
+        3.63246488571167
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/juguang/juguang.model.json",
+        "rawSha256": "3e2c94660ef2208ae477b2de6be3a54b9840a3d4c1c2e0b6c7a39275306e558d",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "ppcoach": {
+      "file": "ppcoach.bin",
+      "sha256": "81005e4a0a1884ae0c6c0be2568566b6bf6fe4310ec52048f6ddb651d5a57f38",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -4.894000053405762,
+        -1.4895493984222412,
+        0.0011029987363144755
+      ],
+      "max": [
+        4.894000053405762,
+        1.4895493984222412,
+        3.63246488571167
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/ppcoach/ppcoach.model.json",
+        "rawSha256": "7afa625ddf07302652c1c7cab312a5a238c8bbc3f6dae2041979eb2cc0160ccf",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "bluecoach": {
+      "file": "bluecoach.bin",
+      "sha256": "2c634bee529576588ae2272f1bdc5a2e7d010a6412eb46721869329343d50a50",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -4.894000053405762,
+        -1.4895493984222412,
+        0.0011029987363144755
+      ],
+      "max": [
+        4.894000053405762,
+        1.4895493984222412,
+        3.530322551727295
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/bluecoach/bluecoach.model.json",
+        "rawSha256": "b2a25b470fcd7011141d8104270c5d043aba56a9d09dbd7e8bceab484c5d27b3",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "mingricoach": {
+      "file": "mingricoach.bin",
+      "sha256": "55f7c2f0c94b332f7724f92262c56c5990abdcb204e3fdd17db743a4a1b65d00",
+      "byteLength": 959760,
+      "vertexCount": 23994,
+      "min": [
+        -4.894000053405762,
+        -1.4895493984222412,
+        0.0011029987363144755
+      ],
+      "max": [
+        4.894000053405762,
+        1.4895493984222412,
+        3.63246488571167
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/mingricoach/mingricoach.model.json",
+        "rawSha256": "d323af308bd3537dc34a766a10abd17ebd153269552e14f7ac426a8e5f8d59b8",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "alicoach": {
+      "file": "alicoach.bin",
+      "sha256": "40abd880c5a81587668594cd0361e81dbe57a80989d76d41f1bdb19ce3e9cc58",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -4.044000148773193,
+        -1.189549446105957,
+        0.0011030068853870034
+      ],
+      "max": [
+        4.044000148773193,
+        1.189549446105957,
+        3.0000691413879395
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/alicoach/alicoach.model.json",
+        "rawSha256": "000789958a70b00356155a01846eed3481ab29364927ad10069982ac8aae0b20",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "hinoki": {
+      "file": "hinoki.bin",
+      "sha256": "596355def3eb5799a1d089290a521779a488c651092e6f78877f1addb9dc97d7",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -4.044000148773193,
+        -1.189549446105957,
+        0.0011030068853870034
+      ],
+      "max": [
+        4.044000148773193,
+        1.189549446105957,
+        3.0001168251037598
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/hinoki/hinoki.model.json",
+        "rawSha256": "589f65c5009ec8574995cb3117477f594a9035aed77ed65e6b9e174d3d331604",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "fushen": {
+      "file": "fushen.bin",
+      "sha256": "a644aef5a93c820a3ca877a10aeb3f522d15fb2d259a6f9ff0a9f2756370b320",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -4.044000148773193,
+        -1.189549446105957,
+        0.0011030068853870034
+      ],
+      "max": [
+        4.068999767303467,
+        1.189549446105957,
+        3.0000691413879395
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/fushen/fushen.model.json",
+        "rawSha256": "0aafbd2008e3eabde31fa36db79647a66aefaeee837f69a3705db560d67656e5",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "xuyue": {
+      "file": "xuyue.bin",
+      "sha256": "0fcae188b1535d832b322581b0b5364f4196cc02a361cf0c8cef471a0a301020",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -4.044000148773193,
+        -1.189549446105957,
+        0.0011030068853870034
+      ],
+      "max": [
+        4.068999767303467,
+        1.189549446105957,
+        3.0000691413879395
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/xuyue/xuyue.model.json",
+        "rawSha256": "85ab3e3181118e964153e90d1e715bac81d3c16cfc5b0c6f5624864fc56c4896",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "ck124": {
+      "file": "ck124.bin",
+      "sha256": "998c269e4167630c24b5e52edcf2d79abf963b0dfadc01a7a3d47448bf0bb2a2",
+      "byteLength": 959760,
+      "vertexCount": 23994,
+      "min": [
+        -3.6589999198913574,
+        -1.4030699729919434,
+        0
+      ],
+      "max": [
+        3.634333372116089,
+        1.4030698537826538,
+        3.4530699253082275
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/ck124/ck124.model.json",
+        "rawSha256": "8605b4e3e0bf764dee32f6cd7bd8e987f49d2a8a9b50d3a48a9e369d1c49b09d",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "dt668": {
+      "file": "dt668.bin",
+      "sha256": "992add129cc366a5ce4869a99d9007f7729187d74f64b8f830453e2cdfdfa679",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -6.213545322418213,
+        -1.388875961303711,
+        0
+      ],
+      "max": [
+        5.993857383728027,
+        1.3888760805130005,
+        3.8491077423095703
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/dt668/dt668.model.json",
+        "rawSha256": "24e4f0674fec3637fd5cece98b08a84f8bc595565144b8873c845ba25584c4ec",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "ct273": {
+      "file": "ct273.bin",
+      "sha256": "c5464405101d189973eeb1de34bc65d9230df2fa8877bcfafd83605cf4574eeb",
+      "byteLength": 960000,
+      "vertexCount": 24000,
+      "min": [
+        -6.1135454177856445,
+        -1.388875961303711,
+        0
+      ],
+      "max": [
+        5.993857383728027,
+        1.3888760805130005,
+        3.8491077423095703
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/ct273/ct273.model.json",
+        "rawSha256": "755105b231a892499461e3d41c7c5a1a6257a3c7adcc35ab36135b8db11ff5d3",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "danhai": {
+      "file": "danhai.bin",
+      "sha256": "9b3bfa4a12fa9607707f4415d0e652f671e7c5d5da0e981f8662726b537722f7",
+      "byteLength": 959880,
+      "vertexCount": 23997,
+      "min": [
+        -7.8112945556640625,
+        -1.3793660402297974,
+        0
+      ],
+      "max": [
+        7.8112945556640625,
+        1.379366159439087,
+        4.437880992889404
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/danhai/danhai.model.json",
+        "rawSha256": "7fcc136b8d5c319416865bb87a122dab4377f3d3ca3a153208f875f303483306",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "danhai-section-0": {
+      "file": "danhai-section-0.bin",
+      "sha256": "18db42958b4b80c6b3b4ac359d174dc857866dc105a9237964710728f948158c",
+      "byteLength": 262080,
+      "vertexCount": 6552,
+      "min": [
+        -1.9014803123474122,
+        -1.371000051498413,
+        0
+      ],
+      "max": [
+        1.9106472778320311,
+        1.371000051498413,
+        3.4946188926696777
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/danhai/danhai.model.json",
+        "rawSha256": "7fcc136b8d5c319416865bb87a122dab4377f3d3ca3a153208f875f303483306",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "danhai-section-1": {
+      "file": "danhai-section-1.bin",
+      "sha256": "5ab0143737ad236cedd72a3f946d02a303dcc81de9987bcda6ae39234c5d0bfb",
+      "byteLength": 93120,
+      "vertexCount": 2328,
+      "min": [
+        -1.1608333063125613,
+        -1.3793377876281738,
+        0.3699764609336853
+      ],
+      "max": [
+        1.160833530426025,
+        1.379366159439087,
+        3.4946188926696777
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/danhai/danhai.model.json",
+        "rawSha256": "7fcc136b8d5c319416865bb87a122dab4377f3d3ca3a153208f875f303483306",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "danhai-section-2": {
+      "file": "danhai-section-2.bin",
+      "sha256": "3da960654d338e55542ae7170d910bad40a83504bd1142d53d29ee737a47f30b",
+      "byteLength": 249120,
+      "vertexCount": 6228,
+      "min": [
+        -1.640833377838135,
+        -1.3634999990463257,
+        0.0010832997504621744
+      ],
+      "max": [
+        1.6408333778381345,
+        1.3634999990463257,
+        4.437880992889404
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/danhai/danhai.model.json",
+        "rawSha256": "7fcc136b8d5c319416865bb87a122dab4377f3d3ca3a153208f875f303483306",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "danhai-section-3": {
+      "file": "danhai-section-3.bin",
+      "sha256": "17309ed454009dadb5aa013ea3cb732a890c82b0a9ec191c5f9dbe4efd67fead",
+      "byteLength": 93120,
+      "vertexCount": 2328,
+      "min": [
+        -1.160833530426025,
+        -1.3793660402297974,
+        0.36997079849243164
+      ],
+      "max": [
+        1.1608333063125613,
+        1.3793660402297974,
+        3.4946188926696777
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/danhai/danhai.model.json",
+        "rawSha256": "7fcc136b8d5c319416865bb87a122dab4377f3d3ca3a153208f875f303483306",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "danhai-section-4": {
+      "file": "danhai-section-4.bin",
+      "sha256": "69160773da78d5fae5f2afa405befd4c34f99606df1c1af97f76bc0e5907c5ef",
+      "byteLength": 262440,
+      "vertexCount": 6561,
+      "min": [
+        -1.9106472778320311,
+        -1.3710002899169922,
+        0
+      ],
+      "max": [
+        1.9014803123474122,
+        1.371000051498413,
+        3.4946188926696777
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/danhai/danhai.model.json",
+        "rawSha256": "7fcc136b8d5c319416865bb87a122dab4377f3d3ca3a153208f875f303483306",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "ankeng": {
+      "file": "ankeng.bin",
+      "sha256": "25f437ec85d133393fc1f9478a48ff497c36a90d64243581154dd53488a20e93",
+      "byteLength": 959880,
+      "vertexCount": 23997,
+      "min": [
+        -7.8112945556640625,
+        -1.3793660402297974,
+        0
+      ],
+      "max": [
+        7.8112945556640625,
+        1.379366159439087,
+        4.437880992889404
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/ankeng/ankeng.model.json",
+        "rawSha256": "7fcc136b8d5c319416865bb87a122dab4377f3d3ca3a153208f875f303483306",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "ankeng-section-0": {
+      "file": "ankeng-section-0.bin",
+      "sha256": "bdb94686e580649c55d4b99ef373975f6e949269e7fba7812138a996d5253c7e",
+      "byteLength": 262080,
+      "vertexCount": 6552,
+      "min": [
+        -1.9014803123474122,
+        -1.371000051498413,
+        0
+      ],
+      "max": [
+        1.9106472778320311,
+        1.371000051498413,
+        3.4946188926696777
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/ankeng/ankeng.model.json",
+        "rawSha256": "7fcc136b8d5c319416865bb87a122dab4377f3d3ca3a153208f875f303483306",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "ankeng-section-1": {
+      "file": "ankeng-section-1.bin",
+      "sha256": "f135e79d61cad1647a57f4960e924023e12adfd4f3ff603bec73c158884d6e16",
+      "byteLength": 93120,
+      "vertexCount": 2328,
+      "min": [
+        -1.1608333063125613,
+        -1.3793377876281738,
+        0.3699764609336853
+      ],
+      "max": [
+        1.160833530426025,
+        1.379366159439087,
+        3.4946188926696777
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/ankeng/ankeng.model.json",
+        "rawSha256": "7fcc136b8d5c319416865bb87a122dab4377f3d3ca3a153208f875f303483306",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "ankeng-section-2": {
+      "file": "ankeng-section-2.bin",
+      "sha256": "44564511982ca7330ef4f5a3d8b7277539a7c27610197e6aaf7af66f485e3a54",
+      "byteLength": 249120,
+      "vertexCount": 6228,
+      "min": [
+        -1.640833377838135,
+        -1.3634999990463257,
+        0.0010832997504621744
+      ],
+      "max": [
+        1.6408333778381345,
+        1.3634999990463257,
+        4.437880992889404
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/ankeng/ankeng.model.json",
+        "rawSha256": "7fcc136b8d5c319416865bb87a122dab4377f3d3ca3a153208f875f303483306",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "ankeng-section-3": {
+      "file": "ankeng-section-3.bin",
+      "sha256": "9e1932b73d58002c0c6878cbc00a67d2600912016563de262c2031d53a351075",
+      "byteLength": 93120,
+      "vertexCount": 2328,
+      "min": [
+        -1.160833530426025,
+        -1.3793660402297974,
+        0.36997079849243164
+      ],
+      "max": [
+        1.1608333063125613,
+        1.3793660402297974,
+        3.4946188926696777
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/ankeng/ankeng.model.json",
+        "rawSha256": "7fcc136b8d5c319416865bb87a122dab4377f3d3ca3a153208f875f303483306",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "ankeng-section-4": {
+      "file": "ankeng-section-4.bin",
+      "sha256": "d422ed44415a50e65ec7cfd619349084a6e556931d350cd7220fe808d73eec29",
+      "byteLength": 262440,
+      "vertexCount": 6561,
+      "min": [
+        -1.9106472778320311,
+        -1.3710002899169922,
+        0
+      ],
+      "max": [
+        1.9014803123474122,
+        1.371000051498413,
+        3.4946188926696777
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/ankeng/ankeng.model.json",
+        "rawSha256": "7fcc136b8d5c319416865bb87a122dab4377f3d3ca3a153208f875f303483306",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "caf": {
+      "file": "caf.bin",
+      "sha256": "c6d50009803d3f41a7b7681589166b24b2bff794f06acf6df797d779fbff24b6",
+      "byteLength": 959880,
+      "vertexCount": 23997,
+      "min": [
+        -7.889164447784424,
+        -1.3793660402297974,
+        0
+      ],
+      "max": [
+        7.8888421058654785,
+        1.379366159439087,
+        3.506924629211426
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/caf/caf.model.json",
+        "rawSha256": "d26f506ad07b4ca550f8bc21fd5e6ad06e3bf537b84e9201dc91cc4cdee21c1b",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "caf-section-0": {
+      "file": "caf-section-0.bin",
+      "sha256": "65c3799f5d5bb4ab655fe51e50f5b1891b0d2744f54bd29841310fe8c1300d46",
+      "byteLength": 300240,
+      "vertexCount": 7506,
+      "min": [
+        -1.9352539730072023,
+        -1.371000051498413,
+        0
+      ],
+      "max": [
+        1.9494210529327392,
+        1.371000051498413,
+        3.490124464035034
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/caf/caf.model.json",
+        "rawSha256": "d26f506ad07b4ca550f8bc21fd5e6ad06e3bf537b84e9201dc91cc4cdee21c1b",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "caf-section-1": {
+      "file": "caf-section-1.bin",
+      "sha256": "fc7c6408138e27091648eb346b6cf066be8d4674698632b20609907ce5dacd8f",
+      "byteLength": 78720,
+      "vertexCount": 1968,
+      "min": [
+        -1.155833311080933,
+        -1.3793377876281738,
+        0.36971181631088257
+      ],
+      "max": [
+        1.1558334159851071,
+        1.379366159439087,
+        3.490124464035034
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/caf/caf.model.json",
+        "rawSha256": "d26f506ad07b4ca550f8bc21fd5e6ad06e3bf537b84e9201dc91cc4cdee21c1b",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "caf-section-2": {
+      "file": "caf-section-2.bin",
+      "sha256": "8786d0ae9b634a48e9779d69030e8306fd5f4d0fe4ad43eb330a8920c225ba38",
+      "byteLength": 183840,
+      "vertexCount": 4596,
+      "min": [
+        -1.6358333826065066,
+        -1.3634999990463257,
+        0
+      ],
+      "max": [
+        1.6358333826065061,
+        1.3634999990463257,
+        3.490124464035034
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/caf/caf.model.json",
+        "rawSha256": "d26f506ad07b4ca550f8bc21fd5e6ad06e3bf537b84e9201dc91cc4cdee21c1b",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "caf-section-3": {
+      "file": "caf-section-3.bin",
+      "sha256": "866a65f95d3b217578439314cf1e98d98dda0a055415e32123ae1dfaf397ac2a",
+      "byteLength": 96240,
+      "vertexCount": 2406,
+      "min": [
+        -1.1558334159851071,
+        -1.3793660402297974,
+        0.36971184611320496
+      ],
+      "max": [
+        1.155833311080933,
+        1.3793660402297974,
+        3.506924629211426
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/caf/caf.model.json",
+        "rawSha256": "d26f506ad07b4ca550f8bc21fd5e6ad06e3bf537b84e9201dc91cc4cdee21c1b",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "caf-section-4": {
+      "file": "caf-section-4.bin",
+      "sha256": "fa6704aaa0589e6de3ce23587fbca2935fd4bbfdcdb2d8c3b8b31da689ac26bc",
+      "byteLength": 300840,
+      "vertexCount": 7521,
+      "min": [
+        -1.9495822238922118,
+        -1.3710002899169922,
+        0
+      ],
+      "max": [
+        1.935415143966675,
+        1.371000051498413,
+        3.490124464035034
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/caf/caf.model.json",
+        "rawSha256": "d26f506ad07b4ca550f8bc21fd5e6ad06e3bf537b84e9201dc91cc4cdee21c1b",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "citadis": {
+      "file": "citadis.bin",
+      "sha256": "25ce61932b6188f903b77a806722923e12f3201488f6badd794a409f677d084b",
+      "byteLength": 959760,
+      "vertexCount": 23994,
+      "min": [
+        -7.847769737243652,
+        -1.3793660402297974,
+        0.0010832997504621744
+      ],
+      "max": [
+        7.847622871398926,
+        1.379366159439087,
+        3.494619131088257
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/citadis/citadis.model.json",
+        "rawSha256": "0eb7fa77f38996928711ecedd94562d61522a03f132736b59dc7c3a36a048a38",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "citadis-section-0": {
+      "file": "citadis-section-0.bin",
+      "sha256": "69391f8dfc68e8bd92b21925e651e169d3bffab79f4296545aaf89211af1c48f",
+      "byteLength": 256800,
+      "vertexCount": 6420,
+      "min": [
+        -1.9196444702148439,
+        -1.371000051498413,
+        0.001102993730455637
+      ],
+      "max": [
+        1.9288114356994628,
+        1.371000051498413,
+        3.494619131088257
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/citadis/citadis.model.json",
+        "rawSha256": "0eb7fa77f38996928711ecedd94562d61522a03f132736b59dc7c3a36a048a38",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "citadis-section-1": {
+      "file": "citadis-section-1.bin",
+      "sha256": "58f4fb33b8de435a4e3f4b6bd1fb4051e164c44ee8dd02340b6c02c2661313f4",
+      "byteLength": 101760,
+      "vertexCount": 2544,
+      "min": [
+        -1.1608333063125613,
+        -1.3793377876281738,
+        0.3699563145637512
+      ],
+      "max": [
+        1.160833530426025,
+        1.379366159439087,
+        3.4946188926696777
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/citadis/citadis.model.json",
+        "rawSha256": "0eb7fa77f38996928711ecedd94562d61522a03f132736b59dc7c3a36a048a38",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "citadis-section-2": {
+      "file": "citadis-section-2.bin",
+      "sha256": "fc3b43965c6d0e7e3878dea7e2618363ec7eac5baa1b451dbb523fbb40e1a0cf",
+      "byteLength": 241920,
+      "vertexCount": 6048,
+      "min": [
+        -1.640833377838135,
+        -1.3634999990463257,
+        0.0010832997504621744
+      ],
+      "max": [
+        1.6408333778381345,
+        1.3634999990463257,
+        3.4946188926696777
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/citadis/citadis.model.json",
+        "rawSha256": "0eb7fa77f38996928711ecedd94562d61522a03f132736b59dc7c3a36a048a38",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "citadis-section-3": {
+      "file": "citadis-section-3.bin",
+      "sha256": "2d7d4d3c0f33f6f795aebd74a25a5e64ed83a62c379079dd4330889b2cb5b17f",
+      "byteLength": 101760,
+      "vertexCount": 2544,
+      "min": [
+        -1.160833530426025,
+        -1.3793660402297974,
+        0.36997681856155396
+      ],
+      "max": [
+        1.1608333063125613,
+        1.3793660402297974,
+        3.4946188926696777
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/citadis/citadis.model.json",
+        "rawSha256": "0eb7fa77f38996928711ecedd94562d61522a03f132736b59dc7c3a36a048a38",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "citadis-section-4": {
+      "file": "citadis-section-4.bin",
+      "sha256": "9ca166063f14d40c53df33ace6833858e99189f1a05983d085227b26940908d8",
+      "byteLength": 257520,
+      "vertexCount": 6438,
+      "min": [
+        -1.928884868621826,
+        -1.3710002899169922,
+        0.001083318144083023
+      ],
+      "max": [
+        1.9197179031372071,
+        1.371000051498413,
+        3.4946188926696777
+      ],
+      "source": {
+        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/citadis/citadis.model.json",
+        "rawSha256": "0eb7fa77f38996928711ecedd94562d61522a03f132736b59dc7c3a36a048a38",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    }
+  }
+}

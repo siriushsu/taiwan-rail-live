@@ -40,6 +40,12 @@ const literalKeys = [...indexSource.matchAll(/\bt\(\s*(['"])((?:\\.|(?!\1).)*)\1
 literalKeys.push(...[...busTransferSource.matchAll(/\btr\(\s*(['"])((?:\\.|(?!\1).)*)\1/g)].map(match => match[2]));
 literalKeys.push(...[...discoverySource.matchAll(/\b(?:t|tx)\(\s*(['"])((?:\\.|(?!\1).)*)\1/g)].map(m => m[2]));
 literalKeys.push(...discoveryBox.window.RailDiscovery.scenes.flatMap(s => [s.title, s.note]));
+// 立體設定與編組說明同樣是首頁文案，不能因為移到獨立模組而漏查。
+const rail3dSource = fs.readFileSync(path.join(root, 'rail-3d.js'), 'utf8');
+literalKeys.push(...[...rail3dSource.matchAll(/\bt\(\s*(['"])((?:\\.|(?!\1).)*)\1/g)].map(m => m[2]));
+const rail3dLabels = rail3dSource.match(/const labels=(\{[^;]+\});/);
+if (rail3dLabels) literalKeys.push(...Object.values(vm.runInNewContext('(' + rail3dLabels[1] + ')')).flat());
+literalKeys.push('{n} 分節 · 標準編組', '{n} 節 · 標準編組');
 for (const key of new Set(literalKeys)) {
   for (const lang of languages) if (!keySets[lang]?.has(key)) fail(`${lang} 缺少 runtime key：${key}`);
 }

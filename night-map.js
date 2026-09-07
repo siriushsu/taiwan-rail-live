@@ -46,7 +46,7 @@
         if(!gl.getProgramParameter(this.program,gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(this.program));
         this.attribute=gl.getAttribLocation(this.program,'position'); this.matrix=gl.getUniformLocation(this.program,'matrix');
         this.buffer=gl.createBuffer(); this.vao=gl.createVertexArray?.();
-        this.schedule=e=>{if(e?.sourceId && e.sourceId!=='openmaptiles')return; if(this.timer||this.disposed)return; this.timer=setTimeout(()=>{this.timer=null;this.rebuild();},240);};
+        this.schedule=e=>{if(e?.sourceId && e.sourceId!=='openmaptiles'&&e.sourceId!=='terrain')return; if(this.timer||this.disposed)return; this.timer=setTimeout(()=>{this.timer=null;this.rebuild();},240);};
         raw.on('moveend',this.schedule);raw.on('sourcedata',this.schedule);this.schedule();
         this.restore=()=>{this.onRemove(raw,gl);this.onAdd(raw,gl);};
         raw.on('webglcontextrestored',this.restore);
@@ -60,8 +60,8 @@
         const bounds=raw.getBounds(), seen=new Set(), vertices=[];
         const cap=matchMedia('(any-pointer:coarse)').matches?700:1600;
         let buildings=0;
-        const point=(xy,height,alpha)=>{const p=maplibregl.MercatorCoordinate.fromLngLat(xy,height);vertices.push(p.x-origin.x,p.y-origin.y,p.z,alpha);};
-        const edge=(a,b,ha,hb,alpha)=>{point(a,ha,alpha);point(b,hb,alpha);};
+        const point=(xy,height,alpha)=>{const ground=raw.getTerrain()?raw.queryTerrainElevation(xy):0;if(ground==null)return null;const p=maplibregl.MercatorCoordinate.fromLngLat(xy,height+ground);return [p.x-origin.x,p.y-origin.y,p.z,alpha];};
+        const edge=(a,b,ha,hb,alpha)=>{const p=point(a,ha,alpha),q=point(b,hb,alpha);if(p&&q)vertices.push(...p,...q);};
         for(const feature of raw.querySourceFeatures('openmaptiles',{sourceLayer:'building'})) {
           const p=feature.properties||{}, height=Number(p.render_height??p.height??8), base=Number(p.render_min_height??p.min_height??0);
           if(!Number.isFinite(height)||height<=base||height>1000)continue;

@@ -1,0 +1,58 @@
+{
+  "id": "taipei-main-v1",
+  "stationId": "TRA-1000",
+  "name": "臺北車站",
+  "version": 1,
+  "status": "simplified-exterior",
+  "anchor": [
+    121.51711425,
+    25.0477174
+  ],
+  "stationPoint": [
+    121.51711,
+    25.04775
+  ],
+  "rotationDeg": -10.691624471177597,
+  "footprintWidthM": 157.4488,
+  "footprintDepthM": 127.4466,
+  "displayHeightM": 48,
+  "realBuildingHeightM": null,
+  "railElevationM": null,
+  "heightQuality": "illustrative",
+  "footprintQuality": "OSM rectangle fit",
+  "modelScope": [
+    "站房外殼",
+    "紅色大屋頂",
+    "柱列",
+    "中央採光區",
+    "簡化大廳"
+  ],
+  "excluded": [
+    "地下月台",
+    "真實地下軌道",
+    "地下街",
+    "機捷 A1",
+    "北捷地下站體"
+  ],
+  "sources": [
+    {
+      "url": "https://www.openstreetmap.org/way/23641610",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.railway.gov.tw/tra-tip-web/tip/tip005/tip511/detail/0999020200159",
+      "use": "官方站房屋頂與中央天井特徵"
+    },
+    {
+      "url": "https://www.nownews.com/news/2291980",
+      "use": "2016 年外觀照片僅供造型參考，不作貼圖或現況設施證據"
+    }
+  ],
+  "notes": [
+    "外觀自製簡化，非工程或測繪模型。",
+    "展示高度 48m 為造型參數；與 OSM 標註存在差異，真實高度保持 null。",
+    "參考照片較舊，因此未複製站前舊景觀與施工設施。",
+    "內部只為透視展示；不宣稱是真實大廳室內配置。"
+  ]
+}

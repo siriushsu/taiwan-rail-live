@@ -1,0 +1,166 @@
+{
+  "id": "nangang-v1",
+  "name": "南港車站",
+  "version": 1,
+  "status": "simplified-exterior",
+  "anchor": [
+    121.60664345,
+    25.0528905
+  ],
+  "stationPoint": [
+    121.60706,
+    25.05348
+  ],
+  "displayHeightM": 139,
+  "realBuildingHeightM": null,
+  "railElevationM": null,
+  "heightQuality": "illustrative",
+  "footprintQuality": "OSM polygon",
+  "components": [
+    {
+      "id": "233331393",
+      "name": "南港車站",
+      "type": "flat",
+      "anchor": [
+        121.60658635,
+        25.0528933
+      ],
+      "rotationDeg": 10.1304,
+      "widthM": 213.365,
+      "depthM": 133.741,
+      "displayHeightM": 28,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": true,
+      "clock": false
+    },
+    {
+      "id": "908843920",
+      "name": "南港 A 棟",
+      "type": "tower",
+      "anchor": [
+        121.6071205,
+        25.05290479
+      ],
+      "rotationDeg": 10.1912,
+      "widthM": 60.828,
+      "depthM": 35.075,
+      "displayHeightM": 139,
+      "baseM": 28,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": false,
+      "clock": false
+    },
+    {
+      "id": "411044008",
+      "name": "南港 B 棟",
+      "type": "tower",
+      "anchor": [
+        121.60598069,
+        25.05271108
+      ],
+      "rotationDeg": 9.9422,
+      "widthM": 84.334,
+      "depthM": 39.439,
+      "displayHeightM": 139,
+      "baseM": 28,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": false,
+      "clock": false
+    },
+    {
+      "id": "410390808",
+      "name": "南港 C 棟",
+      "type": "tower",
+      "anchor": [
+        121.60501825,
+        25.05256878
+      ],
+      "rotationDeg": 8.3804,
+      "widthM": 112.123,
+      "depthM": 41.657,
+      "displayHeightM": 70,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": false,
+      "clock": false
+    },
+    {
+      "id": "556511660",
+      "name": "南港東側站房",
+      "type": "flat",
+      "anchor": [
+        121.60838075,
+        25.0530793
+      ],
+      "rotationDeg": 9.951,
+      "widthM": 83.08,
+      "depthM": 42.289,
+      "displayHeightM": 24,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": true,
+      "clock": false
+    }
+  ],
+  "modelScope": [
+    "南港車站",
+    "南港 A 棟",
+    "南港 B 棟",
+    "南港 C 棟",
+    "南港東側站房"
+  ],
+  "excluded": [
+    "真實軌道高程",
+    "列車與月台對齊",
+    "地下站體",
+    "精確室內配置",
+    "未有輪廓的出入口及連接設施"
+  ],
+  "sources": [
+    {
+      "url": "https://www.railway.gov.tw/tra-tip-web/tip/tip00J/tipJ11/roomCode?RoomNo=0980",
+      "use": "站區配置或造型參考；不作比例測量"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/233331393",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/908843920",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/411044008",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/410390808",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/556511660",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    }
+  ],
+  "notes": [
+    "輪廓使用免費 OSM；曲面、窗帶、柱列、展示底高及高度由軌島簡化設計，不是工程模型。",
+    "各系統保留獨立輪廓與座標；轉乘示意圖僅核對關係，不當成比例尺。",
+    "照片與官方資料只供外觀參考，未作模型貼圖。"
+  ]
+}

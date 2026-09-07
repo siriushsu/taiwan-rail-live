@@ -4670,6 +4670,7 @@
   if (fsz === 'large' || fsz === 'xlarge') document.documentElement.setAttribute('data-fs', fsz);
 } catch (e) {} })();
 </script>
+<link rel="stylesheet" href="./rail-3d.css">
 </head>
 <body>
 <!-- 自製圖示母片:只存路徑、不存顏色；各處以 <use> 繼承 currentColor。 -->
@@ -5229,14 +5230,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="followdirection0907"><span class="d">9/7</span><span>跟車新增「車頭朝上」開關，預設關閉；想讓車頭方向朝向畫面上方時可自行開啟，指北仍隨時有效</span></li>
+        <li data-cl-of="integrated3d0907"><span class="d">9/7</span><span>近景自動顯示沿軌行駛的立體列車，可切換完整編組、地形起伏與建築透視；保留亮色琺瑯、暗色霓虹，以及車站看板與指北操作</span></li>
         <li data-cl-of="stationtarget0907"><span class="d">9/7</span><span>放大地圖時，車站標記與點擊範圍一起加大；點開車站或跟隨列車時，指北按鈕也能正常回正</span></li>
         <li data-cl-of="night200907"><span class="d">9/7</span><span>暗色 2.0：霓虹路線、透明藍色建築與玻璃面板；車站看板新增方向切換和大字倒數，亮色維持琺瑯風格</span></li>
         <li data-cl-of="nightglow0907"><span class="d">9/7</span><span>暗色地圖的路線自動帶上霓虹微光，保留各線原色；切回亮色地圖就恢復原樣</span></li>
         <li data-cl-of="discovery0907"><span class="d">9/7</span><span>新增路線導覽與精選取景：沿線找站、點站看班次；空白搜尋也有可點的範例</span></li>
         <li data-cl-of="ofmwatch0906"><span class="d">9/6</span><span>修正街道底圖被誤判成載入失敗：開圖後馬上縮放或網路較慢時，App 不再默默換成備用底圖、3D 建築也不會跟著消失，網站也不再誤跳「街道底圖載入異常」</span></li>
         <li data-cl-of="badgefallen"><span class="d">9/6</span><span>捷運頂列的「N 線改用備案」指得出是哪幾條線、為什麼：滑鼠移上去或點開資料狀態卡就看得到</span></li>
-        <li data-cl-of="querytab0906"><span class="d">9/6</span><span>手機底部「搜尋」改為「查詢」：半高面板先給離你最近的站各方向下一班，再列提醒、今日動態、附近車站與小工具入口；在車站附近開 App 會自動出現</span></li>
-        <li data-cl-of="branchdestgroup"><span class="d">9/6</span><span>車站看板：只借道成追線的縱貫線列車回到南下、北上組；支線組標題改成列車真正的終點站</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5244,6 +5245,8 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="followdirection0907"><span class="d">9/7</span><span>跟車新增「車頭朝上」開關，預設關閉；想讓車頭方向朝向畫面上方時可自行開啟，指北仍隨時有效</span></li>
+        <li data-cl="integrated3d0907"><span class="d">9/7</span><span>近景自動顯示沿軌行駛的立體列車，可切換完整編組、地形起伏與建築透視；保留亮色琺瑯、暗色霓虹，以及車站看板與指北操作</span></li>
         <li data-cl="stationtarget0907"><span class="d">9/7</span><span>放大地圖時，車站標記與點擊範圍一起加大；點開車站或跟隨列車時，指北按鈕也能正常回正</span></li>
         <li data-cl="nightglow0907"><span class="d">9/7</span><span>暗色地圖的路線自動帶上霓虹微光，沿用各線原色，列車與站名仍保持清楚；亮色、衛星、軌道淡化或隱藏、收集地圖維持原本顯示</span></li>
         <li data-cl="discovery0907"><span class="d">9/7</span><span>新增路線導覽：沿線找站、反轉站序、點站看班次，也能一鍵查看全線或選台北、文湖線、淡海、阿里山視角；搜尋框空白時會提供可點的查詢範例；到站看板的時刻與倒數也更醒目</span></li>
@@ -5850,6 +5853,7 @@
     <button class="ms-row" data-act="track"><span>軌道與路線</span><span class="chev">›</span></button>
     <button class="ms-row" data-proxy="xingBtn"><span>平交道記號</span><span class="toggle" data-tg="xingBtn"></span></button>
     <button class="ms-row" data-proxy="introBtn"><span>特殊站介紹</span><span class="toggle" data-tg="introBtn"></span></button>
+    <button class="ms-row" id="followHeadingRow" type="button" aria-pressed="false"><span>跟車時車頭朝上</span><span class="toggle"></span></button>
     <button class="ms-row" data-proxy="dirBtn"><span>列車方向箭頭</span><span class="toggle" data-tg="dirBtn"></span></button>
     <button class="ms-row" data-proxy="pinBtn"><span>儲存地點</span><span class="toggle" data-tg="pinBtn"></span></button>
     <!-- 定位是原生 App 限定(LOCATE_ENABLED),網站/PWA 沒有:比照 #nearBtn 的 hidden 先 inline 藏,
@@ -6120,7 +6124,7 @@
 //         網友回報 issue #46。守門人:scripts/verify_board_direction_groups.mjs 的 D11a–D11f。
 // v0906g：手機底部「搜尋」改為「查詢」半高面板——答案區走看板同源、公車轉乘入口、靠近車站自動開;併入 origin/main 的 v0906f。
 // v0906i：v0906g(查詢分頁)再併入 origin/main 的 v0906h(看板支線分組)。
-const BUILD = 'v0907d';
+const BUILD = 'v0907e';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -6833,6 +6837,7 @@ function createMaplibreEngine(containerId, view) {
       const s = (kind === 'light' || kind === 'dark') ? OFM_STYLE[kind] : style;
       if (!s) return E;
       if (kind === styleKind) return E;
+      window.railIslandIntegration?.beforeStyleChange();
       styleKind = kind; styleLoaded = false; raw.setStyle(s, { diff: false }); return E;
     },
     getStyleKind: () => styleKind,
@@ -6860,6 +6865,16 @@ function createMaplibreEngine(containerId, view) {
 function createEngine(containerId, view) { return createMaplibreEngine(containerId, view); }
 // ==== ENGINE ADAPTER END ====
 const MAP3D_PREF_KEY = 'trainmap-map-3d';
+function setFollowHeadingUp(on) {
+  state.followHeadingUp = !!on;
+  try { localStorage.setItem('trainmap-follow-heading-up', on ? '1' : '0'); } catch (e) {}
+  state._northReset = null; state._northUpTarget = null;
+  window.railIslandIntegration?.resetManualHeading();
+  if (!on && M) selfBearing(0);
+  const row = document.getElementById('followHeadingRow');
+  if (row) { row.setAttribute('aria-pressed', String(!!on)); row.querySelector('.toggle').classList.toggle('on', !!on); }
+}
+
 function installBuilding3d() {
   if (!M || !M.isStyleReady() || !M.raw.getSource('openmaptiles')) return;
   if (M.raw.getLayer('building-3d')) {
@@ -6896,6 +6911,7 @@ function setMap3d(on) {
   installBuilding3d();
   if (M.raw.getLayer('building-3d')) M.raw.setLayoutProperty('building-3d', 'visibility', state.map3d ? 'visible' : 'none');
   syncMap3dUi();
+  window.railIslandIntegration?.syncAppearance();
 }
 function setupMapOrientation() {
   const btn = document.getElementById('map3dBtn'), row = document.getElementById('map3dRow');
@@ -6912,6 +6928,10 @@ function setupMapOrientation() {
     try { localStorage.setItem('trainmap-map-pitch', String(state.mapPitch)); } catch (e) {}
   });
   btn.onclick = () => setMap3d(!state.map3d);
+  let headingUp = false;
+  try { headingUp = localStorage.getItem('trainmap-follow-heading-up') === '1'; } catch (e) {}
+  setFollowHeadingUp(headingUp);
+  document.getElementById('followHeadingRow').onclick = () => setFollowHeadingUp(!state.followHeadingUp);
   // 原生 compass 的 easeTo 會被跟車 setView／面板 padding 打斷；改由同一個 tick 完成回正。
   M.getContainer().addEventListener('click', event => {
     if (!event.target.closest('.maplibregl-ctrl-compass')) return;
@@ -6949,6 +6969,7 @@ function followHeadingFor(key, a, b) {
 // 旋轉／傾斜手勢同理：手指在圖上時相機完全讓位，dragstart 之後 followLock 會接手解鎖。
 function mapGestureActive() {
   if (!M || !M.raw) return false;
+  if (window.railIslandIntegration?.interacting) return true;
   return [M.raw.dragPan, M.raw.dragRotate, M.raw.touchZoomRotate]
     .some(h => h && typeof h.isActive === 'function' && h.isActive());
 }
@@ -6956,8 +6977,9 @@ function mapGestureActive() {
 // closeTapPickOnUserMove 會把剛開的疊車選單當成使用者拖曳收掉(跟車中每幀插值、離開跟車 240 ms 轉正北都會發)。
 function selfBearing(b) { state._autoPan = true; try { M.setBearing(b); } finally { state._autoPan = false; } }
 function applyFollowHeading(heading, options) {
-  if (!M) return;
+  if (!M || !state.followHeadingUp) return;
   if (state._northReset) return;
+  if (state._northUpTarget !== (state.followTrain || state.freqFollow) && window.railIslandIntegration?.keepBearing()) return;
   let target = state.ambient ? 0 : heading;
   if (state._northUpTarget && state._northUpTarget === (state.followTrain || state.freqFollow)) target = 0;
   if (!Number.isFinite(target)) return;
@@ -10808,6 +10830,7 @@ function trtcOfficialTagHalfWidth(label) {
 }
 function drawTrtcOfficialVehicle(ln, item, showTrain, inView, collectHit, nowEpoch) {
   const cp = M.toScreen([item.pos.lat, item.pos.lon]);
+  if (window.railIslandIntegration?.hasModel({ln,vehicleId:item.vehicleId,core:false})) return;
   // officialNo 是北捷 TrackInfo.TrainNumber；文湖線該欄恆空，沿用舊版 ln.abbr 橢圓牌（BR），
   // 不把內部 vehicleId 畫給使用者，也不拿無法可靠對站牌的 CarWeight 編號冒充車次。
   const glyph = trtcOfficialVehicleGlyph(item.officialNo, ln.abbr), label = glyph.label;
@@ -10922,6 +10945,7 @@ function drawFreq(w, h) {
         if (!pos) continue; // 未發車/已到終點
         const cp = M.toScreen([pos.lat, pos.lon]);
         paintTrain(cp.x, cp.y, null, ln.id, () => {
+          if (window.railIslandIntegration?.hasModel({ln,tr})) return;
           if (ff && ff.ln === ln && ff.tr === tr) drawFreqRing(cp, ln.color);
           if (showTrain && inView(cp)) {
             drawFreqTag(cp, ln, tr, tc);
@@ -10937,6 +10961,7 @@ function drawFreq(w, h) {
       const pos = posPeriodic(ln, tau + k * ln.period / ln.n);
       const cp = M.toScreen([pos.lat, pos.lon]);
       paintTrain(cp.x, cp.y, null, ln.id, () => {
+        if (window.railIslandIntegration?.hasModel({ln,k})) return;
         if (ff && ff.ln === ln && ff.k === k) drawFreqRing(cp, ln.color); // 跟隨中的幽靈車:高亮環(畫在牌下)
         if (showTrain && inView(cp)) {
           drawTag(cp, ln.abbr, ln.color, tc);
@@ -11311,6 +11336,7 @@ function drawDecoTrains(w, h) {
         if (!inView(cp)) continue;
         if (showTrain) state._freqHits.push({ x: cp.x, y: cp.y, ln, tr }); // 命中測試與畫的順序無關,照舊即時收
         paintTrain(cp.x, cp.y, null, ln.id, () => {
+          if (window.railIslandIntegration?.hasModel({ln,tr})) return;
           if (ff && ff.ln === ln && ff.tr === tr) drawFreqRing(cp, ln.color);
           if (showTrain) {
             drawFreqTag(cp, ln, tr, tc);
@@ -11328,6 +11354,7 @@ function drawDecoTrains(w, h) {
       // 全台同框的捷運也可點擊跟隨;只在畫車號牌的縮放才收命中(遠景是密集小點,誤點率太高)
       if (showTrain) state._freqHits.push({ x: cp.x, y: cp.y, ln, k });
       paintTrain(cp.x, cp.y, null, ln.id, () => {
+        if (window.railIslandIntegration?.hasModel({ln,k})) return;
         if (ff && ff.ln === ln && ff.k === k) drawFreqRing(cp, ln.color); // 跟隨中的示意車:高亮環(畫在牌下)
         if (showTrain) {
           drawTag(cp, ln.abbr, ln.color, tc);
@@ -11470,7 +11497,7 @@ function glFollowRouteSync(raw, theme) {
     }] : [] });
     glTracks.followPts = pts; glTracks.followColor = followColor;
   }
-  const visible = !!pts && state.trackStyle !== 'hidden';
+  const visible = !!pts && state.trackStyle !== 'hidden' && !(window.railIslandIntegration?.profileKeys().length);
   const sig = [theme, visible].join('#');
   if (sig === glTracks.followSig) return;
   glTracks.followSig = sig;
@@ -11486,6 +11513,8 @@ function glTracksSync() {
   const raw = M.raw;
   if (!raw.getLayer('track-line-' + glTracks.ranks[0])) { if (M.isStyleReady()) glTracksInstall(); if (!raw.getLayer('track-line-' + glTracks.ranks[0])) return; }
   const K = glTracksKeys();
+  const profileKeys = window.railIslandIntegration?.profileKeys() || [];
+  K.lineKeys = K.lineKeys.filter(key => !profileKeys.includes(key));
   const st = state.collectMap ? 'collect' : state.trackStyle;           // 與 trackLineColor 的優先序相同:collectMap > hidden/faint > auto
   const theme = state.basemap === 'sat' ? 'sat' : (state.mapDark ? 'dark' : 'light'); // 同 pal()
   glFollowRouteSync(raw, theme);
@@ -11655,6 +11684,7 @@ function drawSched(w, h, paintDecoTrains) {
     const pos = trainPos(tr, state.simSec); if (!pos) continue;
     if (state.visible.has(tr.typeName)) n++;
     const cp = M.toScreen([pos.lat, pos.lon]);
+    if (window.railIslandIntegration?.hasModel({tr})) continue;
     const sh = blockSideShift(tr, pos, cp, showTrain); // 同線同向貼太近 → 兩顆標記各往軌道法線偏一半
     // 跟隨中的那台一律畫牌(drawFollowMarker 內不看 showTrain),所以框也一律取牌的尺寸
     if (isFollow) { state._trainHits.push({ x: cp.x, y: cp.y, tr, ...trainMarkBox(tr, true) }); paintTrain(cp.x, cp.y, tr.sys, null, () => drawFollowMarker(cp, tr)); continue; }
@@ -12187,6 +12217,8 @@ function isHSR(tr) { return tr && tr.sys === 'thsr_sched'; }
 // (捷運示意層的 freqTrainsAt 早就是這個形狀,這裡是把台鐵/高鐵補齊到同一套。)
 const TRAIN_HIT_R = 16; // px:框都沒中時的容錯半徑(維持舊語意)
 function trainsAt(cp) {
+  const models = window.railIslandIntegration?.hits(cp, false);
+  if (models?.length) return models;
   const boxed = [], near = [];
   for (const h of (state._trainHits || [])) {
     const dx = h.x - cp.x, dy = h.y - cp.y, d = Math.hypot(dx, dy);
@@ -15209,6 +15241,8 @@ function renderSavedPins() { // 已存地點:恆掛地圖的釘,點了重開卡;
 }
 // 捷運列車命中：官方車用實際牌寬，同點多車全數保留給歧義選單；牌本身永不位移避讓。
 function freqTrainsAt(cp) {
+  const models = window.railIslandIntegration?.hits(cp, true);
+  if (models?.length) return models;
   const source = state._freqHits || [];
   const contains = h => {
     const dx = h.x - cp.x, dy = h.y - cp.y, d = Math.hypot(dx, dy);
@@ -15344,6 +15378,7 @@ function tickCore(now) {
   // renderNow 同時閘住相機置中(updateFollowCamera/updateFreqFollowCamera)與 draw,故全速豁免會一起放行兩者,
   // 維持「相機與繪製同閘、列車不與底圖錯位」的既有約束(見下方 draw 節流)。與非省電路徑 fullRate 的 1.5s 窗一致。
   if (psActive) { renderNow = (now - (state._interactAt || 0) < 1500) || (now - (state._psAt || 0) >= 33); if (renderNow) state._psAt = now; }
+  if (renderNow && !document.hidden) window.railIslandIntegration?.render();
   if (state.mode === 'sched' && state.followTrain) {
     if (renderNow) updateFollowCamera(); // 省電時降 30fps 置中(讀絕對位置,不積分,半速置中仍平順)
     state._evClock = (state._evClock || 0) + dt;
@@ -22932,6 +22967,7 @@ function recenterTo(lat, lon, extra) {
   // 每幀把列車釘在畫面「可視窗」中心(面板遮住的部分不算,見 focusCenter)。曾用「次像素平移」(移動 mapPane
   // 消階梯鋸齒),但 mapPane(圖磚)與獨立的列車/軌道 canvas 圖層在真機幀率下會脫鉤→整條路線跟著車移動/抖動
   // (v0713r 引入),已移除,回歸穩定整數像素置中。
+  if (window.railIslandIntegration?.recenter(lat, lon, extra)) return;
   const t = focusCenter(lat, lon, null, extra);
   {
     // 中心已到位(停站/暫停)免重複 setView。量的是螢幕像素而不是經緯度:padding 讓「可視窗中心」
@@ -23038,8 +23074,9 @@ function updateFollowCamera() {
   // 條件=跟車平移永遠壓著自癒)。計數器 _camRescues 供診斷條 rs 欄。
   if (state.followLock && !camBlocked() && !document.body.classList.contains('search-open')) {
     const nowMs = performance.now();
-    const cp = M.toScreen([pos.lat, pos.lon]);
-    const sz = M.getSize(), ins = mapInsets();
+    const front = window.railIslandIntegration?.frontScreen();
+    const cp = front || M.toScreen([pos.lat, pos.lon]);
+    const sz = M.getSize(), ins = front ? {left:0,right:0,top:0,bottom:0} : mapInsets();
     const m = 16;
     const off = cp.x < ins.left - m || cp.x > sz.x - ins.right + m || cp.y < ins.top - m || cp.y > sz.y - ins.bottom + m;
     if (!off) state._camOffAt = 0;
@@ -24200,6 +24237,7 @@ function metroCoreVehicleInfo(rec) {
 }
 function drawMetroCoreVehicle(ln, item, showTrain, inView, collectHit, nowEpoch) {
   const cp = M.toScreen([item.pos.lat, item.pos.lon]);
+  if (window.railIslandIntegration?.hasModel({ln,vehicleId:item.vehicleId,core:true})) return;
   const label = item.publicLabel || ln.abbr;
   if (trtcOfficialSameTarget(state.freqFollow, { ln, vehicleId: item.vehicleId })) drawFreqRing(cp, ln.color);
   if (showTrain && inView(cp)) drawTag(cp, label, ln.color, textColorFor(ln.color));
@@ -31110,7 +31148,7 @@ const HELP_GROUPS = [
     { key: 'orientation', avail: () => !!M, ic: '3D', nm: '旋轉、傾斜與 3D 建築', tg: 'map3dBtn',
       one: 'MapLibre 地圖可以轉向與傾斜，拉近時也能開啟立體建築。',
       steps: ['手機用兩指旋轉或上下傾斜；桌面按住右鍵拖曳', '點指南針回到正北與平視', '「更多」→ 打開「3D 建築」；縮放到街區附近就看得到'],
-      tip: '跟隨列車時，行進方向會自動朝上；結束跟隨後回到正北。你手動調的傾斜角度會保留，放空模式固定正北。' },
+      tip: '跟車時預設不自動旋轉地圖；可在「更多」開啟「跟車時車頭朝上」。近景可手動側看完整編組，指北隨時回正。' },
     { key: 'theme', ic: '◐', nm: '外觀：亮／暗／自動', one: '自動＝跟著系統的深色模式走。', seg: true },
     { key: 'fontscale', ic: '字', nm: '字級', one: '三階字級與跟隨系統字級。',
       steps: ['「更多」→ 字級，開啟「顯示與字級」', '選標準／大／特大，面板下方會即時預覽', '「跟隨系統字級」可以關掉——手機字調大、但這一頁想維持資訊密度時用'],
@@ -33485,12 +33523,13 @@ const PUBLIC_SHARE_BASE = 'https://railisland.tw/';
 // 分享目前畫面:正在跟車→沿用 ?train= 深連結;否則打包 地點+縮放+路網+時間。手機叫原生分享面板,桌面複製連結。
 function buildShareUrl() {
   const base = PUBLIC_SHARE_BASE;
+  const finish = value => window.railIslandIntegration?.shareParams(new URL(value)).href || value;
   const t = fmtHM(state.simSec);
-  if (state.followTrain && state.followId) return base + '?train=' + encodeURIComponent(state.followId) + '&t=' + t;
+  if (state.followTrain && state.followId) return finish(base + '?train=' + encodeURIComponent(state.followId) + '&t=' + t);
   const c = M.getCenter();
-  return base + '?g=' + encodeURIComponent(state.group || 'nat') +
+  return finish(base + '?g=' + encodeURIComponent(state.group || 'nat') +
     '&at=' + c.lat.toFixed(5) + ',' + c.lng.toFixed(5) +
-    '&z=' + Math.round(M.getZoom()) + '&t=' + t;
+    '&z=' + Math.round(M.getZoom()) + '&t=' + t);
 }
 async function shareView() {
   const url = buildShareUrl();
@@ -34473,5 +34512,6 @@ window.addEventListener('load', boot);
   } catch (e) {}
 })();
 </script>
+<script src="./rail-3d.js"></script>
 </body>
 </html>

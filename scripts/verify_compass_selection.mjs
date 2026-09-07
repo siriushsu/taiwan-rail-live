@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'),out=path.join(root,'output/compass-selection'+(process.env.COMPASS_WIDTHS?'-'+process.env.COMPASS_WIDTHS.replace(/,/g,'-'):''));fs.mkdirSync(out,{recursive:true});
-const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.geojson':'application/json','.png':'image/png','.woff2':'font/woff2','.svg':'image/svg+xml'};
+const mime={'.mjs':'text/javascript','.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.geojson':'application/json','.png':'image/png','.woff2':'font/woff2','.svg':'image/svg+xml'};
 const server=createServer((req,res)=>{const u=new URL(req.url,'http://x');if(u.pathname.startsWith('/api/')){if(u.pathname==='/api/thsr-schedule'){res.setHeader('content-type','application/json');return fs.createReadStream(path.join(root,'data/thsr_schedule_dense.json')).pipe(res);}return res.writeHead(503).end('{}');}let p=path.resolve(root,'.'+decodeURI(u.pathname));if(!p.startsWith(root+path.sep)&&p!==root)return res.writeHead(404).end();if(fs.existsSync(p)&&fs.statSync(p).isDirectory())p=path.join(p,'index.html');if(!fs.existsSync(p))return res.writeHead(404).end();res.setHeader('content-type',mime[path.extname(p)]||'application/octet-stream');fs.createReadStream(p).pipe(res);});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));const base=`http://127.0.0.1:${server.address().port}/`;
 const results=[];function ok(name,pass,detail=''){results.push({name,pass,detail});console.log(`${pass?'PASS':'FAIL'} ${name} ${JSON.stringify(detail)}`);}
@@ -31,10 +31,10 @@ const prepare=kind=>{
 let browser;
 try{
  for(const[en,engine]of Object.entries({chromium,webkit})){
-  browser=await engine.launch();let context,page,errors;
+  browser=await engine.launch();let context,page,errors,contextMobile;
   for(const [width,height] of [[1280,900],[360,900],[375,900],[390,900],[414,900],[540,900],[768,900],[900,414]].filter(([w])=>!process.env.COMPASS_WIDTHS||process.env.COMPASS_WIDTHS.split(',').includes(String(w)))){
    const mobile=width<1000;
-   if(!context||width===360){if(context)await context.close();context=await browser.newContext({viewport:{width,height},isMobile:mobile,hasTouch:mobile,locale:'zh-TW'});await context.addInitScript(()=>{localStorage.setItem('trainmap-howto-seen','1');localStorage.setItem('trainmap-appearance','dark');});page=await context.newPage();errors=[];page.on('pageerror',e=>errors.push(e.message));await boot(page);}else await page.setViewportSize({width,height});
+   if(!context||contextMobile!==mobile){contextMobile=mobile;if(context)await context.close();context=await browser.newContext({viewport:{width,height},isMobile:mobile,hasTouch:mobile,locale:'zh-TW'});await context.addInitScript(()=>{localStorage.setItem('trainmap-howto-seen','1');localStorage.setItem('trainmap-appearance','dark');});page=await context.newPage();errors=[];page.on('pageerror',e=>errors.push(e.stack));await boot(page);}else await page.setViewportSize({width,height});
    for(const kind of ['board','metro-board','sched-n','sched-s','freq','deco','combined','train-sheet','board-small','board-light'].filter(k=>!process.env.COMPASS_KINDS||process.env.COMPASS_KINDS.split(',').includes(k))){
     const selected=await page.evaluate(prepare,kind);await page.waitForTimeout(450);
     const compass=page.locator('.maplibregl-ctrl-compass');
@@ -44,10 +44,13 @@ try{
     if(!reachable){await page.screenshot({path:path.join(out,`${en}-${width}-${kind}-blocked.png`)});continue;}
     const collisions=await page.evaluate(r=>[...document.querySelectorAll('button,input,select,[role=button]')].filter(el=>!el.closest('.maplibregl-ctrl-compass')&&el.getClientRects().length&&getComputedStyle(el).visibility!=='hidden'&&!el.closest('[hidden]')).filter(el=>{if(getComputedStyle(el).pointerEvents==='none')return false;for(let p=el;p;p=p.parentElement)if(+getComputedStyle(p).opacity<.5)return false;const b=el.getBoundingClientRect();return b.width&&b.height&&Math.min(b.right,r.x+r.width)-Math.max(b.left,r.x)>1&&Math.min(b.bottom,r.y+r.height)-Math.max(b.top,r.y)>1;}).map(el=>el.id||el.className),area);ok(`${en} ${width} ${kind} 指北與既有操作控件不重疊`,!collisions.length,collisions);
     if(mobile)await compass.tap();else await compass.click();
-    const result=await page.evaluate(()=>new Promise(resolve=>{const start=performance.now(),frames=[];function sample(now){frames.push({b:M.getBearing(),p:M.getPitch()});if(now-start<650)return requestAnimationFrame(sample);const ref=window.__compassSelection;resolve({frames:frames.length,late:frames.slice(-8),selection:state.boardStation===ref.board&&state.followTrain===ref.train&&state.freqFollow===ref.freq,locked:!(ref.train||ref.freq)||state.followLock});}requestAnimationFrame(sample);}));
-    ok(`${en} ${width} ${kind} 回北回水平且保持選取與跟隨`,result.frames>=4&&result.late.every(v=>Math.abs(v.b)<.1&&Math.abs(v.p)<.1)&&result.selection&&result.locked,result);
+    const result=await page.evaluate(()=>new Promise(resolve=>{const start=performance.now(),frames=[];function sample(now){frames.push({t:now-start,b:M.getBearing(),p:M.getPitch()});if(now-start<650)return requestAnimationFrame(sample);const ref=window.__compassSelection;resolve({frames:frames.length,late:frames.filter(f=>f.t>=400),selection:state.boardStation===ref.board&&state.followTrain===ref.train&&state.freqFollow===ref.freq,locked:!(ref.train||ref.freq)||state.followLock});}requestAnimationFrame(sample);}));
+    ok(`${en} ${width} ${kind} 回北回水平且保持選取與跟隨`,result.frames>=4&&result.late.length>0&&result.late.every(v=>Math.abs(v.b)<.1&&Math.abs(v.p)<.1)&&result.selection&&result.locked,result);
     if(width===1280&&(kind==='sched-n'||kind==='sched-s')){
-     await page.waitForFunction(()=>{const p=window.__alignProbe?.state();return p?.live&&!p.offscreen&&!p.pending&&!p.next;},null,{timeout:15000});await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+     await page.waitForFunction(()=>{const p=window.__alignProbe?.state();return p?.live&&!p.offscreen&&!p.pending&&!p.next;},null,{timeout:15000});
+     // 車頭朝上現在預設關閉，南下的診斷探針可能落到隨機鈕下。先把兩層探針一同換到可見空白，再驗真實像素。
+     await page.evaluate(()=>{const sz=M.getSize(),r=M.getContainer().getBoundingClientRect();for(const [fx,fy]of [[.7,.4],[.6,.4],[.7,.55]]){const p={x:sz.x*fx,y:sz.y*fy};if(![-20,0,20].every(dx=>[-20,0,20].every(dy=>document.elementFromPoint(r.x+p.x+dx,r.y+p.y+dy)===M.raw.getCanvas())))continue;const ll=M.fromScreen(p);if(window.__alignProbe.request(ll)){window.__probeAnchor=ll;return;}}throw Error('沒有未遮蔽的像素探針取樣區');});
+     await page.waitForFunction(()=>{const p=window.__alignProbe.state(),a=window.__probeAnchor;return !p.pending&&!p.next&&Math.abs(p.live.lat-a.lat)+Math.abs(p.live.lng-a.lng)<1e-8;},null,{timeout:15000});await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
      const png=await page.screenshot();fs.writeFileSync(path.join(out,`${en}-${kind}.png`),png);const{data,info}=await sharp(png).ensureAlpha().raw().toBuffer({resolveWithObject:true});const c=probeCentroids(data,info.width,info.height,{magR:18,magInR:12,cynR:5});const distance=c.mag&&c.cyn?Math.hypot(c.mag.x-c.cyn.x,c.mag.y-c.cyn.y):null;ok(`${en} ${kind} 指北後 GL 與 Canvas 真實像素對齊`,distance!==null&&distance<=2,{distance});
     }
    }

@@ -1,0 +1,88 @@
+{
+  "id": "taoyuan-hsr-v1",
+  "name": "高鐵桃園・A18",
+  "version": 1,
+  "status": "simplified-exterior",
+  "anchor": [
+    121.214539,
+    25.01347985
+  ],
+  "stationPoint": null,
+  "displayHeightM": 22,
+  "realBuildingHeightM": null,
+  "railElevationM": null,
+  "heightQuality": "illustrative",
+  "footprintQuality": "OSM polygon",
+  "components": [
+    {
+      "id": "23547222",
+      "name": "高鐵桃園",
+      "type": "flat",
+      "anchor": [
+        121.21486949,
+        25.01302597
+      ],
+      "rotationDeg": 47.1966,
+      "widthM": 121.821,
+      "depthM": 73.541,
+      "displayHeightM": 20,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": true,
+      "clock": false
+    },
+    {
+      "id": "560119012",
+      "name": "機捷 A18",
+      "type": "vault",
+      "anchor": [
+        121.21438623,
+        25.01378505
+      ],
+      "rotationDeg": 47.7138,
+      "widthM": 153.716,
+      "depthM": 52.474,
+      "displayHeightM": 22,
+      "baseM": 8,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": true,
+      "clock": false
+    }
+  ],
+  "modelScope": [
+    "高鐵桃園",
+    "機捷 A18"
+  ],
+  "excluded": [
+    "真實軌道高程",
+    "列車與月台對齊",
+    "地下站體",
+    "精確室內配置",
+    "未有輪廓的出入口及連接設施"
+  ],
+  "sources": [
+    {
+      "url": "https://www.tymetro.com.tw/tymetro-new/tw/_pages/travel-guide/A18",
+      "use": "站區配置或造型參考；不作比例測量"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/23547222",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/560119012",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    }
+  ],
+  "notes": [
+    "輪廓使用免費 OSM；曲面、窗帶、柱列、展示底高及高度由軌島簡化設計，不是工程模型。",
+    "各系統保留獨立輪廓與座標；轉乘示意圖僅核對關係，不當成比例尺。",
+    "照片與官方資料只供外觀參考，未作模型貼圖。"
+  ]
+}
