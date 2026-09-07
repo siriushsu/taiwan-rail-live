@@ -290,6 +290,57 @@
         }
       }
     },
+    "：即時模型這一輪沒有這條線的車，改用官方名冊或班表": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ": the live model had no trains on this line this cycle; using the official roster or timetable"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "：この更新ではリアルタイムモデルにこの路線の列車がないため、公式名簿または時刻表を使用"
+          }
+        }
+      }
+    },
+    "：車數相對近況異常減少，改用官方名冊或班表": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ": train count dropped abnormally versus recent cycles; using the official roster or timetable"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "：列車数が直近より異常に減ったため、公式名簿または時刻表を使用"
+          }
+        }
+      }
+    },
+    "：看板列只有 {p} 對得到車，整個系統暫退回官方看板": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ": only {p} of board rows could be matched to a train, so the whole system is temporarily back on official boards"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "：案内表示のうち列車と照合できたのは{p}のみのため、システム全体を一時的に公式案内表示へ戻しています"
+          }
+        }
+      }
+    },
     "：看板與時刻表明顯不符，位置僅供參考": {
       "extractionState": "manual",
       "localizations": {
@@ -303,6 +354,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "：案内表示と時刻表が大きく異なるため、位置は参考表示です"
+          }
+        }
+      }
+    },
+    "：站列版本與即時模型不一致，改用官方倒數": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ": station list differs from the live model; using official countdowns"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "：駅リストがリアルタイムモデルと一致しないため、公式のカウントダウンを使用"
           }
         }
       }
@@ -953,6 +1021,23 @@
         }
       }
     },
+    "{n} 分節 · 標準編組": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{n} sections · standard formation"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{n} 車体 · 標準編成"
+          }
+        }
+      }
+    },
     "{n} 分鐘": {
       "extractionState": "manual",
       "localizations": {
@@ -1157,6 +1242,23 @@
         }
       }
     },
+    "{n} 場": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{n} events"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{n}件"
+          }
+        }
+      }
+    },
     "{n} 項": {
       "extractionState": "manual",
       "localizations": {
@@ -1170,6 +1272,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "{n}項目"
+          }
+        }
+      }
+    },
+    "{n} 節 · 標準編組": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{n} cars · standard formation"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{n} 両 · 標準編成"
           }
         }
       }
@@ -1854,6 +1973,23 @@
         }
       }
     },
+    "「更多」→ 打開「3D 建築」；縮放到街區附近就看得到": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“More” → turn on “3D buildings”; zoom to neighborhood level to see them"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「その他」→「3D 建物」をオンにし、街区まで拡大すると表示されます"
+          }
+        }
+      }
+    },
     "「更多」→ 打開「平交道記號」": {
       "extractionState": "manual",
       "localizations": {
@@ -1952,6 +2088,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "「その他」→「線路と路線」"
+          }
+        }
+      }
+    },
+    "「更多」→ 軌道與路線，或從「查詢」進入路線導覽": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open More → Tracks & routes, or browse routes from Search."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「その他」→「軌道と路線」、または「検索」から路線ガイドを開きます。"
           }
         }
       }
@@ -2088,6 +2241,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "端末の文字が大きくてもこの画面の情報量を保ちたい場合は「システム文字サイズに合わせる」をオフにできます"
+          }
+        }
+      }
+    },
+    "「精選取景」一鍵看路網；「顯示設定」保留車種與軌道開關": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scenic views frame a network in one tap. Display settings contain train and track filters."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「おすすめの眺め」で路線網を表示。「表示設定」で車種と軌道の表示を切り替えます。"
           }
         }
       }
@@ -2789,6 +2959,40 @@
         }
       }
     },
+    "3 節示意": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3-car illustration"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3 両イメージ"
+          }
+        }
+      }
+    },
+    "3 節示意 · 當班編組待確認": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3-car illustration · actual formation unconfirmed"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3 両イメージ · 当該便の編成は未確認"
+          }
+        }
+      }
+    },
     "30 分鐘": {
       "extractionState": "manual",
       "localizations": {
@@ -2802,6 +3006,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "30分"
+          }
+        }
+      }
+    },
+    "3D 建築": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3D buildings"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3D 建物"
           }
         }
       }
@@ -2921,6 +3142,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "一気に完走"
+          }
+        }
+      }
+    },
+    "一般": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Normal"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通常"
           }
         }
       }
@@ -3469,6 +3707,23 @@
         }
       }
     },
+    "三節示意": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3-car illustration"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3 両イメージ"
+          }
+        }
+      }
+    },
     "三義": {
       "extractionState": "manual",
       "localizations": {
@@ -3567,6 +3822,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "最終更新成功 {time}"
+          }
+        }
+      }
+    },
+    "上次看過": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last viewed"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "前回見た駅"
           }
         }
       }
@@ -4353,6 +4625,23 @@
         }
       }
     },
+    "小工具": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Widgets"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ウィジェット"
+          }
+        }
+      }
+    },
     "小卡的 × 結束": {
       "extractionState": "manual",
       "localizations": {
@@ -4434,6 +4723,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "小碧潭"
+          }
+        }
+      }
+    },
+    "小碧潭支線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xiaobitan Branch Line"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小碧潭支線"
           }
         }
       }
@@ -5369,6 +5675,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "遅延は未反映 · {time} 更新"
+          }
+        }
+      }
+    },
+    "不知道查什麼？試試看": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try a station, train or route"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅・列車・路線を探してみましょう"
           }
         }
       }
@@ -6937,6 +7260,23 @@
         }
       }
     },
+    "切換 3D 建築": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toggle 3D buildings"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3D 建物を切り替え"
+          }
+        }
+      }
+    },
     "切換：全台／台鐵／高鐵／捷運": {
       "extractionState": "manual",
       "localizations": {
@@ -7018,6 +7358,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "真夜中の街"
+          }
+        }
+      }
+    },
+    "反轉站序": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reverse station order"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅の順序を反転"
           }
         }
       }
@@ -7158,6 +7515,23 @@
         }
       }
     },
+    "手機用兩指旋轉或上下傾斜；桌面按住右鍵拖曳": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On a phone, use two fingers to rotate or tilt; on desktop, drag with the right mouse button"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スマートフォンは2本指で回転・傾き、デスクトップは右ボタンを押しながらドラッグします"
+          }
+        }
+      }
+    },
     "手機地圖右下角的版權資訊不會再折成一大塊蓋住速度調整鈕：改成貼著底緣一整條、放不下的部分橫向可捲，授權連結一個都沒少，仍然看得到也點得到。切到衛星影像時字串較長，原本折成四行最嚴重，現在一樣是一條（謝謝網友回報）": {
       "extractionState": "manual",
       "localizations": {
@@ -7226,6 +7600,40 @@
         }
       }
     },
+    "手機底部「搜尋」改為「查詢」：半高面板先給離你最近的站各方向下一班，再列提醒、今日動態、附近車站與小工具入口；在車站附近開 App 會自動出現": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The bottom “Search” tab on phones is now “Lookup”: a half-height sheet shows the next train in each direction from your nearest station, then reminders, today’s TRA status, nearby stations and widgets; it opens by itself when you open the app near a station"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スマートフォン下部の「検索」が「調べる」になりました。半分の高さのパネルにまず最寄り駅の各方向の次の列車を表示し、続いて通知・本日の台湾鉄路・近くの駅・ウィジェットへの入口が並びます。駅の近くでアプリを開くと自動的に表示されます。"
+          }
+        }
+      }
+    },
+    "手機底部的「查詢」是查資訊的家：最上面是搜尋框，接著是離你最近的站各方向下一班幾分，再下面是提醒、今日動態、附近車站與小工具的入口。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lookup at the bottom of the phone is where you check things: a search box on top, then how many minutes until the next train in each direction from your nearest station, and below that, links to reminders, today’s TRA activity, nearby stations and the widget."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スマートフォン下部の「調べる」は情報をまとめて確認する入口です。一番上に検索欄、続いて最寄り駅の各方向の次の列車まで何分かを表示し、その下に通知・本日の台湾鉄路・近くの駅・ウィジェットへの入口が並びます。"
+          }
+        }
+      }
+    },
     "手機拖時刻尺、桌面按 ← → 各移動 10 分鐘": {
       "extractionState": "manual",
       "localizations": {
@@ -7260,19 +7668,19 @@
         }
       }
     },
-    "手機按底部「搜尋」、桌面點右上的搜尋框": {
+    "手機按底部「查詢」再點輸入框、桌面點右上的搜尋框": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "On a phone tap Search at the bottom; on desktop use the box at top right."
+            "value": "On a phone tap Lookup at the bottom, then tap the search box; on desktop use the box at top right."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "スマートフォンは下部の「検索」、デスクトップは右上の検索欄を使います。"
+            "value": "スマートフォンは下部の「調べる」をタップしてから検索欄をタップ、デスクトップは右上の検索欄を使います。"
           }
         }
       }
@@ -7464,6 +7872,23 @@
         }
       }
     },
+    "文湖線沿線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Along the Wenhu Line"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文湖線の沿線"
+          }
+        }
+      }
+    },
     "文華高中": {
       "extractionState": "manual",
       "localizations": {
@@ -7651,6 +8076,74 @@
         }
       }
     },
+    "月台 —": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Platform —"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "番線 —"
+          }
+        }
+      }
+    },
+    "月台 {platform}": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Platform {platform}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{platform}番線"
+          }
+        }
+      }
+    },
+    "月台未定": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Platform not assigned"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "番線未定"
+          }
+        }
+      }
+    },
+    "月台尚未提供": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Platform unavailable"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "番線情報なし"
+          }
+        }
+      }
+    },
     "月台常客": {
       "extractionState": "manual",
       "localizations": {
@@ -7664,6 +8157,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "ホームの常連"
+          }
+        }
+      }
+    },
+    "月台資料已過期": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Platform information expired"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "番線情報の有効期限切れ"
           }
         }
       }
@@ -8586,6 +9096,23 @@
         }
       }
     },
+    "只看選取": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selected only"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選択した列車"
+          }
+        }
+      }
+    },
     "只顯示有直達列車的車站": {
       "extractionState": "manual",
       "localizations": {
@@ -8943,6 +9470,23 @@
         }
       }
     },
+    "台北車站群": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taipei rail hubs"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台北の鉄道拠点"
+          }
+        }
+      }
+    },
     "台北海洋大學": {
       "extractionState": "manual",
       "localizations": {
@@ -9283,6 +9827,23 @@
         }
       }
     },
+    "台鐵列車資訊與車站看板支援官方月台號碼；沒有資料、尚未確定、過期或回放時自動收起，不留空欄": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TRA train details and station boards now support official platform numbers. The field stays hidden when unavailable, unassigned, expired or in replay."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台鉄の列車情報と駅の発車案内が公式の番線情報に対応。未提供・未定・期限切れ・再生中は空欄を残さず非表示にします。"
+          }
+        }
+      }
+    },
     "台鐵即時資料中斷{stopped}，暫時無法從這裡跟車": {
       "extractionState": "manual",
       "localizations": {
@@ -9500,6 +10061,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "台湾鉄路の駅待ち"
+          }
+        }
+      }
+    },
+    "台鐵誤點一次跳增 5 分以上時，列車直接跳回實際位置，不再原地停等": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When a TRA train's reported delay jumps by 5 minutes or more at once, it now snaps straight back to its actual position instead of waiting in place until the timetable catches up."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台湾鉄路の遅延が一度に5分以上増えた場合、列車はその場で待たずにすぐ実際の位置へ戻るようになりました。"
           }
         }
       }
@@ -9997,6 +10575,23 @@
         }
       }
     },
+    "平坦": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Flat"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "平坦"
+          }
+        }
+      }
+    },
     "平原號": {
       "extractionState": "manual",
       "localizations": {
@@ -10486,6 +11081,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "この路線に影響する{system}の運行情報があります。運休の可能性があるため公式情報をご確認ください"
+          }
+        }
+      }
+    },
+    "本線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Main Line"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本線"
           }
         }
       }
@@ -11510,6 +12122,40 @@
         }
       }
     },
+    "立體列車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3D trains"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3D 列車"
+          }
+        }
+      }
+    },
+    "立體顯示載入失敗，請重試": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3D view could not load. Please try again."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3D 表示を読み込めませんでした。再度お試しください。"
+          }
+        }
+      }
+    },
     "交力坪": {
       "extractionState": "manual",
       "localizations": {
@@ -11867,6 +12513,23 @@
         }
       }
     },
+    "全部近景": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All nearby"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "近景の全列車"
+          }
+        }
+      }
+    },
     "全畫面": {
       "extractionState": "manual",
       "localizations": {
@@ -12071,6 +12734,23 @@
         }
       }
     },
+    "共構": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Same complex"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同一駅舎"
+          }
+        }
+      }
+    },
     "再下一班": {
       "extractionState": "manual",
       "localizations": {
@@ -12241,6 +12921,23 @@
         }
       }
     },
+    "列車大小": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Train size"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "列車の大きさ"
+          }
+        }
+      }
+    },
     "列車已依北捷官方秒級到站倒數逐班校正：": {
       "extractionState": "manual",
       "localizations": {
@@ -12377,6 +13074,23 @@
         }
       }
     },
+    "列車停駛": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Service cancelled"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "運休"
+          }
+        }
+      }
+    },
     "列車動態": {
       "extractionState": "manual",
       "localizations": {
@@ -12424,6 +13138,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "列車が到着"
+          }
+        }
+      }
+    },
+    "列車編組": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Train formation"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "列車編成"
           }
         }
       }
@@ -12717,6 +13448,23 @@
         }
       }
     },
+    "回放不提供即時月台": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live platform unavailable in replay"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再生中は現在の番線を表示しません"
+          }
+        }
+      }
+    },
     "回報問題或建議": {
       "extractionState": "manual",
       "localizations": {
@@ -12887,6 +13635,23 @@
         }
       }
     },
+    "在車站附近打開 App 會自動出現；關掉一次，同一站就不再自動開": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It appears automatically when you open the app near a station; close it once and it won’t auto-open there again."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅の近くでアプリを開くと自動的に表示されます。一度閉じると、同じ駅では次から自動的に開きません。"
+          }
+        }
+      }
+    },
     "在這站等車：鎖定畫面倒數": {
       "extractionState": "manual",
       "localizations": {
@@ -12955,6 +13720,40 @@
         }
       }
     },
+    "地形": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terrain"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "地形"
+          }
+        }
+      }
+    },
+    "地表起伏示意": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Illustrated surface relief"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "地表の起伏イメージ"
+          }
+        }
+      }
+    },
     "地圖": {
       "extractionState": "manual",
       "localizations": {
@@ -12968,6 +13767,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "地図"
+          }
+        }
+      }
+    },
+    "地圖引擎預設改為 MapLibre：所有人打開都是可旋轉、傾斜、開 3D 建築的向量地圖，跟隨列車時行進方向朝上。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MapLibre is now the default map engine: everyone gets the vector map that can rotate, tilt, and show 3D buildings, with the direction of travel kept up while following a train."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "地図エンジンの既定を MapLibre に変更：回転・傾き・3D 建物に対応したベクター地図が最初から表示され、列車追跡中は進行方向が上になります。"
+          }
+        }
+      }
+    },
+    "地圖全面改用 MapLibre，不再保留舊版 Leaflet 地圖：?engine=leaflet 這個網址參數已失效，開啟網站也不會再多下載一份舊地圖函式庫。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The map is now MapLibre only; the previous Leaflet map has been removed. The ?engine=leaflet URL parameter no longer does anything, and the site no longer downloads that extra map library."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "地図は MapLibre のみになりました。従来の Leaflet 地図は削除され、URL パラメータ ?engine=leaflet は効かなくなり、旧地図ライブラリの追加ダウンロードもなくなりました。"
           }
         }
       }
@@ -15267,6 +16100,23 @@
         }
       }
     },
+    "完整編組": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Full formation"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全編成"
+          }
+        }
+      }
+    },
     "志學": {
       "extractionState": "manual",
       "localizations": {
@@ -15535,6 +16385,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "線路が見つかりません"
+          }
+        }
+      }
+    },
+    "找不到符合的路線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No matching routes"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一致する路線がありません"
           }
         }
       }
@@ -15964,6 +16831,23 @@
         }
       }
     },
+    "沒有定位時改顯示最愛的第一站或上次看過的站；桌面版沒有這個面板，搜尋框在右上角。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Without location, it shows your first favorite station or the last one you viewed instead; the desktop version has no such panel—the search box is at the top right."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "位置情報がない場合はお気に入りの最初の駅か前回見た駅を表示します。デスクトップにはこのパネルがなく、検索欄は右上にあります。"
+          }
+        }
+      }
+    },
     "沒有資料": {
       "extractionState": "manual",
       "localizations": {
@@ -16334,6 +17218,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "駅めぐり"
+          }
+        }
+      }
+    },
+    "車站看板：只借道成追線的縱貫線列車回到南下、北上組；支線組標題改成列車真正的終點站": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Station boards: trains that only pass through the Chengzhui link go back to the southbound and northbound groups, and branch group titles now show the train’s real destination"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅の発車案内：成追線を通り抜けるだけの縦貫線の列車は南行き・北行きのグループに戻り、支線グループの見出しは列車の実際の終着駅になります。"
+          }
+        }
+      }
+    },
+    "車站看板的支線分組更貼近實際：只借道成追線直通的縱貫線列車，改回南下、北上那兩組，追分與成功站不再出現「往成功」「往追分」；支線那一組的標題也改成列車真正的終點站，新竹往六家的班次寫「往 六家」而不是「往 內灣」": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Branch grouping on station boards now matches reality: Western Line trains that merely run through the Chengzhui link go back to the southbound and northbound groups, so Zhuifen and Chenggong no longer show a “To Chenggong” or “To Zhuifen” group. Branch group titles now name the train’s real destination, so Hsinchu services to Liujia read “To Liujia” instead of “To Neiwan”."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅の発車案内の支線グループを実態に合わせました。成追線を通り抜けるだけの縦貫線の列車は南行き・北行きのグループに戻り、追分駅と成功駅に「成功方面」「追分方面」は出なくなります。支線グループの見出しも列車の実際の終着駅になり、新竹から六家へ向かう列車は「内湾方面」ではなく「六家方面」と表示されます。"
           }
         }
       }
@@ -17528,6 +18446,23 @@
         }
       }
     },
+    "官方月台資訊 · {time} 更新": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Official platform · updated {time}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "公式番線情報 · {time}更新"
+          }
+        }
+      }
+    },
     "官方目前沒有這一站的班次資訊": {
       "extractionState": "manual",
       "localizations": {
@@ -18191,6 +19126,40 @@
         }
       }
     },
+    "所有系統": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All systems"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すべてのシステム"
+          }
+        }
+      }
+    },
+    "所有路線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All routes"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すべての路線"
+          }
+        }
+      }
+    },
     "所選班次近期沒有行駛": {
       "extractionState": "manual",
       "localizations": {
@@ -18340,6 +19309,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "速度スライダーを1×〜60×で調整"
+          }
+        }
+      }
+    },
+    "放大地圖即可看見立體列車。完整編組依車型或路線標準；缺少當班資料時顯示三節示意。起伏為地表顯示，非實測軌道高程。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zoom in to see 3D trains. Full formations use vehicle or route standards; unknown formations use a 3-car illustration. Terrain represents the ground surface, not surveyed track elevation."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "地図を拡大すると 3D 列車が表示されます。全編成は車種・路線の標準に基づき、不明な便は 3 両イメージで表示します。起伏は地表の表現であり、実測の線路標高ではありません。"
+          }
+        }
+      }
+    },
+    "放大地圖時，車站標記與點擊範圍一起加大；點開車站或跟隨列車時，指北按鈕也能正常回正": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Station markers and tap areas grow as you zoom in. The compass also works while viewing a station or following a train."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "地図を拡大すると駅マークとタップ範囲も大きくなります。駅の案内や列車の追跡中も、方位ボタンで北向きに戻せます。"
           }
         }
       }
@@ -18837,6 +19840,23 @@
         }
       }
     },
+    "板橋、台北、南港的鐵道交會": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rail connections at Banqiao, Taipei and Nangang"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "板橋・台北・南港を結ぶ鉄道"
+          }
+        }
+      }
+    },
     "枋山": {
       "extractionState": "manual",
       "localizations": {
@@ -19024,6 +20044,23 @@
         }
       }
     },
+    "沿著路線找車站，也能挑一個視角看車。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Find stations along a route or choose a scenic view."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "路線に沿って駅を探したり、眺めを選んで列車を見たりできます。"
+          }
+        }
+      }
+    },
     "版": {
       "extractionState": "manual",
       "localizations": {
@@ -19109,6 +20146,23 @@
         }
       }
     },
+    "直": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "E"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "直"
+          }
+        }
+      }
+    },
     "直接指定時刻": {
       "extractionState": "manual",
       "localizations": {
@@ -19122,6 +20176,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "時刻を入力"
+          }
+        }
+      }
+    },
+    "直達車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Express"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "直達列車"
           }
         }
       }
@@ -19466,6 +20537,23 @@
         }
       }
     },
+    "近景自動顯示沿軌行駛的立體列車，可切換完整編組、地形起伏與建築透視；保留亮色琺瑯、暗色霓虹，以及車站看板與指北操作": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zoom in to see 3D trains running along the tracks, with full formations, terrain relief and transparent buildings. Light enamel and dark neon designs, station boards and north reset remain available."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "近景では線路に沿って走る 3D 列車を表示。全編成、地形の起伏、建物の透視を切り替えられます。明色のホーロー風・暗色のネオン、駅の発車案内、北向きに戻す操作も引き継ぎます。"
+          }
+        }
+      }
+    },
     "近期活動": {
       "extractionState": "manual",
       "localizations": {
@@ -19806,6 +20894,23 @@
         }
       }
     },
+    "附近其他站": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Other nearby stations"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "近くの他の駅"
+          }
+        }
+      }
+    },
     "附掛郵政／行包車廂": {
       "extractionState": "manual",
       "localizations": {
@@ -19972,6 +21077,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "更新する"
+          }
+        }
+      }
+    },
+    "前往取景": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open view"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この眺めへ"
           }
         }
       }
@@ -20588,6 +21710,40 @@
         }
       }
     },
+    "建築": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buildings"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "建物"
+          }
+        }
+      }
+    },
+    "建築透視": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Building view"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "建物の透視"
+          }
+        }
+      }
+    },
     "後山埤": {
       "extractionState": "manual",
       "localizations": {
@@ -20911,6 +22067,23 @@
         }
       }
     },
+    "按底部「查詢」打開半高面板，地圖上的車照樣在動": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap Lookup at the bottom to open the half-height panel—trains on the map keep moving."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下部の「調べる」をタップすると半分の高さのパネルが開きます。地図上の列車はそのまま動き続けます。"
+          }
+        }
+      }
+    },
     "按頁尾（手機在「更多」的關於段）的「回報問題或建議」": {
       "extractionState": "manual",
       "localizations": {
@@ -20979,6 +22152,23 @@
         }
       }
     },
+    "查": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Look"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "調"
+          }
+        }
+      }
+    },
     "查看": {
       "extractionState": "manual",
       "localizations": {
@@ -21026,6 +22216,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "台湾鉄路・高鉄の直通・停車・終着列車を表示します。通過（停車しない）列車も表示するには「表示条件」で「通過列車も表示」をオンにしてください。"
+          }
+        }
+      }
+    },
+    "查看全線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View entire route"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "路線全体を見る"
           }
         }
       }
@@ -21128,6 +22335,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "列車が見つかりません"
+          }
+        }
+      }
+    },
+    "查詢": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lookup"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "調べる"
+          }
+        }
+      }
+    },
+    "查詢：離你最近的站與下一班": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lookup: your nearest station and next departure"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "調べる：最寄り駅と次の列車"
           }
         }
       }
@@ -22985,6 +24226,142 @@
         }
       }
     },
+    "修正街道底圖被誤判成載入失敗：開圖後 8 秒內畫面還沒畫完（馬上放大看 3D 建築、行動網路較慢）就被當成失敗，App 默默換成備用底圖、3D 建築消失要重開才回來，網站則誤跳「街道底圖載入異常」。現在只看有沒有真的收到圖磚": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fixed the street basemap being wrongly judged as failed to load: previously, if the map had not fully finished drawing within 8 seconds of opening (for example when you zoomed in right away to look at 3D buildings, or on a slow mobile connection), the app silently switched to the backup basemap, the 3D buildings vanished with it and only a restart brought them back, and the website showed a false 'street basemap failed to load' notice. The check now only looks at whether the basemap actually delivered any tiles, and switches or warns only when it really cannot load."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "街道ベースマップが読み込み失敗と誤判定される問題を修正しました。これまでは地図を開いてから 8 秒以内に描画が終わらないと（すぐ拡大して 3D 建物を見たとき、モバイル回線が遅いときなど）、アプリが黙って予備のベースマップに切り替わり、3D 建物も一緒に消えて再起動するまで戻りませんでした。ウェブサイトでは「街道ベースマップの読み込み異常」の通知が誤って表示されていました。今後はベースマップから実際にタイルが届いたかどうかだけで判定し、本当に読み込めないときだけ切り替えや通知を行います。"
+          }
+        }
+      }
+    },
+    "修正街道底圖被誤判成載入失敗：開圖後馬上縮放或網路較慢時，App 不再默默換成備用底圖、3D 建築也不會跟著消失，網站也不再誤跳「街道底圖載入異常」": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fixed the street basemap being wrongly judged as failed to load: zooming right after the map opens, or a slow connection, no longer makes the app silently switch to the backup basemap (taking the 3D buildings with it), and the website no longer shows a false 'street basemap failed to load' notice."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "街道ベースマップが読み込み失敗と誤判定される問題を修正しました。地図を開いてすぐ拡大したときや回線が遅いときに、アプリが黙って予備のベースマップに切り替わって 3D 建物が消えたり、ウェブサイトに「街道ベースマップの読み込み異常」の通知が誤って出たりしなくなります。"
+          }
+        }
+      }
+    },
+    "修正新竹、北新竹站看板把往基隆、七堵的縱貫線列車歸進「往內灣」（謝謝網友回報）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fixed the Hsinchu and North Hsinchu station boards putting Western Line trains bound for Keelung and Qidu under 'To Neiwan' (thanks to the reader who reported it)."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新竹駅・北新竹駅の発車案内で、基隆・七堵方面の縦貫線の列車が「内湾方面」に振り分けられていた問題を修正しました（ご報告ありがとうございます）。"
+          }
+        }
+      }
+    },
+    "修正新竹、北新竹站看板的方向分組：往基隆、七堵等縱貫線列車會被歸進「往內灣」，從「北上」消失。新竹–北新竹是縱貫線與內灣線共用的同一段軌道，兩條線在這裡不再互相誤判；真正的內灣線、六家班次維持在支線那一組（謝謝網友回報）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fixed direction grouping on the Hsinchu and North Hsinchu station boards: Western Line trains bound for Keelung or Qidu were grouped under 'To Neiwan' and vanished from 'Northbound'. Hsinchu–North Hsinchu is one stretch of track shared by the Western Line and the Neiwan Line, and the two are no longer mistaken for each other there; genuine Neiwan and Liujia services stay in the branch group (thanks to the reader who reported it)."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新竹駅・北新竹駅の発車案内の方面分けを修正しました。基隆・七堵方面などの縦貫線の列車が「内湾方面」に入り、「北上」から消えていました。新竹〜北新竹は縦貫線と内湾線が同じ線路を共用する区間で、ここで両線を取り違えなくなりました。本来の内湾線・六家行きは支線のグループに残ります（ご報告ありがとうございます）。"
+          }
+        }
+      }
+    },
+    "修正暗色 MapLibre 地圖的彩色路線仍被道路切碎；所有道路與 3D 建築現在都在路線下方，地名維持在上方。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fixed colored routes still being broken up by roads on dark MapLibre maps. All roads and 3D buildings now stay below routes, while place labels remain above them."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暗色 MapLibre 地図で色付き路線が道路に分断されていた問題を修正しました。道路と 3D 建物はすべて路線の下、地名ラベルは路線の上に表示されます。"
+          }
+        }
+      }
+    },
+    "修正跟隨火車並傾斜地圖時，遠端路線會變成跨畫面跳動直線；亮色、暗色與衛星底圖都已修正。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fixed distant route highlights turning into jumping lines across the screen while following a train on a tilted map. The fix covers light, dark, and satellite maps."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "傾けた地図で列車を追跡すると、遠方の路線強調が画面を横切る飛び跳びの直線になる問題を修正しました。ライト、ダーク、衛星地図のすべてに対応しています。"
+          }
+        }
+      }
+    },
+    "修正跟隨長途列車放大看彎道時，紅色行程線會離開實際軌道、旁邊露出另一條原色線；現在放大也會完整貼合。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fixed the red trip highlight drifting off the actual track around curves when zooming in on a long-distance train. It now stays precisely aligned at close zoom."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "長距離列車を追跡してカーブを拡大した際、赤い行程線が実際の線路からずれて元の路線色が隣に見える問題を修正しました。拡大しても正確に重なります。"
+          }
+        }
+      }
+    },
+    "修正跟隨環島等長途列車並放大看彎道時，紅色行程線會因點位抽稀而切過彎心，離開實際軌道、旁邊露出另一條原色線；MapLibre 現在用完整軌道點繪製跟隨行程，放大也會貼合。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fixed route-point thinning cutting the red trip highlight across curves when following long-distance trains such as the round-island service. MapLibre now draws the follow route from the complete track geometry so it stays aligned at close zoom."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "環島列車などの長距離列車を追跡してカーブを拡大した際、点の間引きで赤い行程線がカーブの内側を横切り、実際の線路からずれる問題を修正しました。MapLibre は追跡行程を完全な線路形状で描画し、拡大しても正確に重なります。"
+          }
+        }
+      }
+    },
     "修好 iPhone App 的語言按鈕：上一個測試版漏帶英、日文字典，按了仍全顯示繁中；現在 App 會完整帶入三語資源。英文與日文文案也完成第二輪複核，統一日文的「鑑賞模式」、車次與乘車按鈕用語，並修順英文災害監看句子": {
       "extractionState": "manual",
       "localizations": {
@@ -23138,6 +24515,23 @@
         }
       }
     },
+    "原始比例": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "True scale"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "元の縮尺"
+          }
+        }
+      }
+    },
     "原始碼公開，歡迎貢獻": {
       "extractionState": "manual",
       "localizations": {
@@ -23185,6 +24579,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "埔心"
+          }
+        }
+      }
+    },
+    "容易辨認": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Readable"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "見やすく"
           }
         }
       }
@@ -23767,6 +25178,23 @@
         }
       }
     },
+    "桃園機場捷運的列車標得出車種：地圖上直達車是尖頭紫牌、普通車是白底圓牌，車牌也放大了，跟車卡與車站看板寫全名": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taoyuan Airport MRT trains now show their service type: Express trains get a pointed purple tag, Commuter trains a white rounded one, and both tags are larger than before. The follow card and station boards spell the type out."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "桃園空港MRTの列車に種別を表示するようになりました。直達列車は先の尖った紫のタグ、普通列車は白い丸みのあるタグで、タグ自体も従来より大きくなりました。追跡カードと駅の発車案内には正式名称を表示します。"
+          }
+        }
+      }
+    },
     "桃園機場捷運線": {
       "extractionState": "manual",
       "localizations": {
@@ -23933,6 +25361,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "ホーム画面ウィジェットに駅を追加するとき、出発駅を県・市別に整理しています。"
+          }
+        }
+      }
+    },
+    "桌面版沒有查詢面板，搜尋框在右上角": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The desktop version has no Lookup panel; the search box is at the top right."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "デスクトップ版に調べるパネルはありません。検索欄は右上にあります。"
           }
         }
       }
@@ -24804,6 +26249,23 @@
         }
       }
     },
+    "起伏試驗": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terrain trial"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "起伏（試験）"
+          }
+        }
+      }
+    },
     "起站": {
       "extractionState": "manual",
       "localizations": {
@@ -25501,6 +26963,23 @@
         }
       }
     },
+    "側拍": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Side view"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "側面"
+          }
+        }
+      }
+    },
     "偵測到營運異常跡象（本站推定），位置僅供參考": {
       "extractionState": "manual",
       "localizations": {
@@ -26079,6 +27558,23 @@
         }
       }
     },
+    "從動物園到南港展覽館": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "From Taipei Zoo to Taipei Nangang Exhibition Center"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "動物園から南港展覧館まで"
+          }
+        }
+      }
+    },
     "從發車一路跟到終點就蓋一枚完乘章（調速可以・跳時間不算）· 灰色的章點了帶你從發車搭一趟": {
       "extractionState": "manual",
       "localizations": {
@@ -26126,6 +27622,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "始発から終点まで追跡"
+          }
+        }
+      }
+    },
+    "從嘉義向山裡延伸的路網": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The railway climbing from Chiayi into the mountains"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "嘉義から山へと延びる鉄道"
           }
         }
       }
@@ -26419,6 +27932,40 @@
         }
       }
     },
+    "捷運頂列的「官方即時（N 線改用備案）」與「即時資料異常」徽章現在指得出是哪幾條線、為什麼：桌面滑鼠移上去、手機點時鐘徽章打開資料狀態卡，都會逐線列出原因（例如看板列對不到車、站列版本不一致、即時模型這一輪沒有這條線的車）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The metro header badges \"Official live (N lines using fallback)\" and \"Live data issue\" now name the lines and the reason: hover on desktop, or tap the clock badge on a phone to open the data-status card, and each line is listed with why it fell back (for example board rows not matching trains, a station-list mismatch, or the live model having no trains on that line this cycle)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メトロ上部の「公式リアルタイム（N路線は代替データ）」と「リアルタイムデータ異常」バッジで、どの路線がなぜ代替になったかが分かるようになりました。パソコンではマウスを重ねる、スマートフォンでは時計バッジをタップしてデータ状態カードを開くと、路線ごとに理由（案内表示が列車と照合できない、駅リストの不一致、この更新でその路線の列車がない など）を一覧します"
+          }
+        }
+      }
+    },
+    "捷運頂列的「N 線改用備案」指得出是哪幾條線、為什麼：滑鼠移上去或點開資料狀態卡就看得到": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The metro header badge \"N lines using fallback\" now names the lines and why: hover, or open the data-status card, to see them"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メトロ上部の「N路線は代替データ」バッジで、どの路線がなぜ代替になったか分かります。マウスを重ねるか、データ状態カードを開くと確認できます"
+          }
+        }
+      }
+    },
     "捷運等車": {
       "extractionState": "manual",
       "localizations": {
@@ -26585,6 +28132,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "斜めに差す光と、一日の終わり"
+          }
+        }
+      }
+    },
+    "旋轉、傾斜與 3D 建築": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rotate, tilt & 3D buildings"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "回転・傾き・3D 建物"
           }
         }
       }
@@ -27592,6 +29156,23 @@
         }
       }
     },
+    "透明": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transparent"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "透過"
+          }
+        }
+      }
+    },
     "逐列看：台鐵即時誤點是 LIVE 還是「非即時」、捷運看板校正到哪、是不是在重播、目前時段與車數": {
       "extractionState": "manual",
       "localizations": {
@@ -28030,6 +29611,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "この列車の残りの停車駅には通知が間に合いません。"
+          }
+        }
+      }
+    },
+    "這站的公車轉乘": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bus connections at this station"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この駅のバス乗り換え"
+          }
+        }
+      }
+    },
+    "這就是查詢面板——上面搜尋、中間下一班、下面入口": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This is the Lookup panel—search on top, next departures in the middle, links below"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "これが調べるパネルです。上に検索、中央に次の列車、下に各種の入口があります。"
           }
         }
       }
@@ -28710,6 +30325,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "最も早い列車（全方向）"
+          }
+        }
+      }
+    },
+    "最近 · {m} 公尺": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nearest · {m} m"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最寄り · {m} m"
           }
         }
       }
@@ -29496,6 +31128,23 @@
         }
       }
     },
+    "普": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "C"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "普"
+          }
+        }
+      }
+    },
     "普悠瑪自強號": {
       "extractionState": "manual",
       "localizations": {
@@ -29526,6 +31175,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "普通"
+          }
+        }
+      }
+    },
+    "普通車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Commuter"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "普通列車"
           }
         }
       }
@@ -30890,6 +32556,23 @@
         }
       }
     },
+    "開啟": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "オン"
+          }
+        }
+      }
+    },
     "開啟 App 一次，或到「設定 › 軌島」允許取用位置": {
       "extractionState": "manual",
       "localizations": {
@@ -31536,6 +33219,23 @@
         }
       }
     },
+    "搜尋你的站": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search for your station"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅を検索"
+          }
+        }
+      }
+    },
     "搜尋車站、車次、列車名": {
       "extractionState": "manual",
       "localizations": {
@@ -31600,6 +33300,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "検索欄に「台北」を入力しました。候補を選んでください。"
+          }
+        }
+      }
+    },
+    "搜尋路線或車站": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search routes or stations"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "路線・駅を検索"
           }
         }
       }
@@ -31770,6 +33487,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "新北投"
+          }
+        }
+      }
+    },
+    "新北投支線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xinbeitou Branch Line"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新北投支線"
           }
         }
       }
@@ -32131,6 +33865,23 @@
         }
       }
     },
+    "新增路線導覽與精選取景：沿線找站、點站看班次；空白搜尋也有可點的範例": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Browse route stations and open departure boards, choose a scenic view, or start with examples in the empty search box."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "路線に沿って駅と発着情報を探し、おすすめの眺めへ移動できます。空の検索欄には検索例を表示します。"
+          }
+        }
+      }
+    },
     "新增繁中、English、日本語切換：車站與路線名稱、列車跟隨、來車看板、設定、營運提醒、通行證，以及隱私權政策與服務條款會一起切換；選過的語言也會記住": {
       "extractionState": "manual",
       "localizations": {
@@ -32229,6 +33980,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "ダーク"
+          }
+        }
+      }
+    },
+    "暗色 2.0：霓虹路線、透明藍色建築與玻璃面板；車站看板新增方向切換和大字倒數，亮色維持琺瑯風格": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dark 2.0 brings neon routes, transparent blue buildings and glass panels, with direction tabs and a large departure countdown. Light mode keeps its enamel style."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ダーク2.0：ネオンの路線、透明な青い建物とガラスパネル。駅の発着案内に方面切替と大きなカウントダウンを追加。ライトモードは琺瑯スタイルを維持します。"
+          }
+        }
+      }
+    },
+    "暗色地圖的路線自動帶上霓虹微光，保留各線原色；切回亮色地圖就恢復原樣": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Routes glow softly in their own colors on dark maps. Light maps keep their original appearance."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ダークマップでは路線本来の色で柔らかく発光します。ライトマップに戻すと通常の表示になります。"
           }
         }
       }
@@ -33355,6 +35140,40 @@
         }
       }
     },
+    "跟車時車頭朝上": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Head-up train following"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "列車の進行方向を上にする"
+          }
+        }
+      }
+    },
+    "跟車時預設不自動旋轉地圖；可在「更多」開啟「跟車時車頭朝上」。近景可手動側看完整編組，指北隨時回正。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Following does not rotate the map by default. Enable head-up following in More if you prefer. At close range, rotate to see the full formation from the side; north reset remains available."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "追従中は初期設定では地図を自動回転しません。「その他」で進行方向を上にする設定をオンにできます。近景では全編成を側面から眺められ、方位ボタンでいつでも北向きに戻せます。"
+          }
+        }
+      }
+    },
     "跟車配樂": {
       "extractionState": "manual",
       "localizations": {
@@ -33368,6 +35187,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "追跡サウンドトラック"
+          }
+        }
+      }
+    },
+    "跟車新增「車頭朝上」開關，預設關閉；想讓車頭方向朝向畫面上方時可自行開啟，指北仍隨時有效": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Head-up following is now optional and off by default. Turn it on to keep the front of the train at the top of the view; north reset remains available."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "追従時に進行方向を上にする設定を追加しました。初期設定はオフです。必要に応じてオンにでき、北向きに戻す操作もいつでも使えます。"
           }
         }
       }
@@ -33593,6 +35429,23 @@
         }
       }
     },
+    "跟隨列車時，行進方向會自動朝上；結束跟隨後回到正北。你手動調的傾斜角度會保留，放空模式固定正北。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "While following a train, its direction of travel stays up; ending follow mode returns north-up. Your chosen tilt is preserved, while ambient mode stays north-up."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "列車追跡中は進行方向が上になり、追跡終了後は北向きに戻ります。手動で設定した傾きは保持され、鑑賞モードは北向き固定です。"
+          }
+        }
+      }
+    },
     "跟隨系統字級": {
       "extractionState": "manual",
       "localizations": {
@@ -33712,6 +35565,23 @@
         }
       }
     },
+    "路網瀏覽方式": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Network browsing"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "路線網の表示"
+          }
+        }
+      }
+    },
     "路線完乘": {
       "extractionState": "manual",
       "localizations": {
@@ -33725,6 +35595,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "路線完乗"
+          }
+        }
+      }
+    },
+    "路線導覽": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Browse routes"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "路線ガイド"
+          }
+        }
+      }
+    },
+    "路線導覽與取景": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Routes and scenic views"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "路線ガイドと眺め"
           }
         }
       }
@@ -34388,6 +36292,74 @@
           "stringUnit": {
             "state": "translated",
             "value": "精武"
+          }
+        }
+      }
+    },
+    "精選取景": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scenic views"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "おすすめの眺め"
+          }
+        }
+      }
+    },
+    "綠山線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Green Mountain Line"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "緑山線"
+          }
+        }
+      }
+    },
+    "綠山線與藍海線同框": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Green Mountain and Blue Seaside lines together"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "緑山線と藍海線を一緒に表示"
+          }
+        }
+      }
+    },
+    "綠線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Green Line"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "緑線"
           }
         }
       }
@@ -35395,6 +37367,23 @@
         }
       }
     },
+    "廣慈/奉天宮": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guangci/Fengtian Temple"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "廣慈／奉天宮"
+          }
+        }
+      }
+    },
     "影響路線：": {
       "extractionState": "manual",
       "localizations": {
@@ -36279,6 +38268,23 @@
         }
       }
     },
+    "賞車視角": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Train camera"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "列車鑑賞の視点"
+          }
+        }
+      }
+    },
     "趟": {
       "extractionState": "manual",
       "localizations": {
@@ -36585,6 +38591,23 @@
         }
       }
     },
+    "機場捷運": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Airport MRT"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "空港MRT"
+          }
+        }
+      }
+    },
     "機場捷運直達車與普通車依當日實際時刻表連結雙北與桃園機場，營運時段依官方到站看板即時校正 — 拖曳、縮放看看。": {
       "extractionState": "manual",
       "localizations": {
@@ -36734,6 +38757,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "高頻度（30秒）"
+          }
+        }
+      }
+    },
+    "篩選鐵路系統": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filter rail systems"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "鉄道システムで絞り込む"
           }
         }
       }
@@ -36908,6 +38948,23 @@
         }
       }
     },
+    "選一個視角看車；跨路網會切到全台同框，時間維持不變。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a view. Another network opens All Taiwan; playback time stays the same."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "眺めを選択します。別の路線網は台湾全体表示に切り替わります。再生時刻は変わりません。"
+          }
+        }
+      }
+    },
     "選一個類型、寫一句說明": {
       "extractionState": "manual",
       "localizations": {
@@ -37010,6 +39067,23 @@
         }
       }
     },
+    "選好接續班次後，抵達轉乘站時動態島與鎖定畫面會自動切到下一班車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "After you choose a connection, the Dynamic Island and Lock Screen automatically switch to the next train at the transfer station."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "乗り継ぐ列車を選ぶと、乗換駅への到着時にDynamic Islandとロック画面が次の列車へ自動で切り替わります。"
+          }
+        }
+      }
+    },
     "選你的目的站，產生一個「活的」行程連結——對方看得到列車位置與到站時刻，你不用一直回傳定位。": {
       "extractionState": "manual",
       "localizations": {
@@ -37057,6 +39131,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "メトロウィジェットを選び、駅を指定します。ロック画面にも追加できます"
+          }
+        }
+      }
+    },
+    "選路線看站序，按方向鈕反轉，點車站開看板": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a route, reverse its station order with the direction button, and select a station for departures."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "路線を選ぶと駅順を表示します。方向ボタンで反転し、駅を選ぶと発着案内を開きます。"
           }
         }
       }
@@ -37754,6 +39845,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "台湾鉄道 完乗率 {n}%"
+          }
+        }
+      }
+    },
+    "環繞": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Orbit"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "周回"
           }
         }
       }
@@ -38489,6 +40597,23 @@
         }
       }
     },
+    "點車站看班次；實際停靠以看板為準。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a station for departures and actual stopping services."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅を選ぶと発着情報を確認できます。実際の停車駅は案内板をご覧ください。"
+          }
+        }
+      }
+    },
     "點車站開看板 · 點列車跟隨 · 點地點看附近火車 · × 移除": {
       "extractionState": "manual",
       "localizations": {
@@ -38519,6 +40644,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "列車をタップして追跡、タイトル横の星で駅をお気に入りに追加"
+          }
+        }
+      }
+    },
+    "點指南針回到正北與平視": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap the compass to return to north-up and a level view"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コンパスをタップすると北向き・傾きなしに戻ります"
           }
         }
       }
@@ -38570,6 +40712,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "列車をタップして追跡"
+          }
+        }
+      }
+    },
+    "點站名整塊進看板看更多班次；點輸入框才會叫出鍵盤": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap the whole station block to open its board for more services; only tapping the input box brings up the keyboard."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅名のブロック全体をタップすると駅案内でさらに多くの便を確認できます。キーボードは検索欄をタップした時だけ表示されます。"
           }
         }
       }
@@ -38791,6 +40950,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "藍皮解憂号"
+          }
+        }
+      }
+    },
+    "藍海線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blue Seaside Line"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "藍海線"
           }
         }
       }
@@ -39492,6 +41668,23 @@
         }
       }
     },
+    "鐵道活動": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rail events"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "鉄道イベント"
+          }
+        }
+      }
+    },
     "鐵道路線（顯示／隱藏軌道）": {
       "extractionState": "manual",
       "localizations": {
@@ -39679,6 +41872,23 @@
         }
       }
     },
+    "顯示列車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trains shown"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "列車表示"
+          }
+        }
+      }
+    },
     "顯示列車行進方向箭頭": {
       "extractionState": "manual",
       "localizations": {
@@ -39709,6 +41919,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "列車種別と方向を表示"
+          }
+        }
+      }
+    },
+    "顯示設定": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Display settings"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "表示設定"
           }
         }
       }
@@ -40440,6 +42667,57 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ko-fi（クレジットカード／PayPal）"
+          }
+        }
+      }
+    },
+    "MapLibre 地圖可以轉向與傾斜，拉近時也能開啟立體建築。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MapLibre maps support rotation and tilt, plus 3D buildings when you zoom in."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MapLibre 地図は回転・傾きに対応し、拡大すると 3D 建物も表示できます。"
+          }
+        }
+      }
+    },
+    "MapLibre 地圖現在可旋轉、傾斜並切換 3D 建築；跟隨列車時會自動讓行進方向朝上，結束跟隨後回到正北。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MapLibre maps can now rotate, tilt, and show 3D buildings. While following a train, its direction of travel stays up; ending follow mode returns north-up."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MapLibre 地図で回転・傾き・3D 建物表示ができるようになりました。列車追跡中は進行方向が上になり、追跡終了後は北向きに戻ります。"
+          }
+        }
+      }
+    },
+    "MapLibre 地圖現在可旋轉、傾斜並切換 3D 建築；跟隨列車時會自動讓行進方向朝上，結束跟隨後回到正北。手動設定的傾斜角度會保留。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MapLibre maps can now rotate, tilt, and show 3D buildings. While following a train, its direction of travel stays up; ending follow mode returns north-up. Your chosen tilt is preserved."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MapLibre 地図で回転・傾き・3D 建物表示ができるようになりました。列車追跡中は進行方向が上になり、追跡終了後は北向きに戻ります。手動で設定した傾きも保持されます。"
           }
         }
       }

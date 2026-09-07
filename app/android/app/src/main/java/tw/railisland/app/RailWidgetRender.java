@@ -98,6 +98,12 @@ final class RailWidgetRender {
         if (row.destinationAt != null) relation += " · " + RailNativeL10n.text(context, "{time} 抵達", "time", clock(row.destinationAt));
         out.setTextViewText(R.id.wrr_dest, relation);
         out.setTextViewText(R.id.wrr_time, clock(row.scheduledAt));
+        String platform = row.platformAt(System.currentTimeMillis());
+        out.setViewVisibility(R.id.wrr_platform, platform == null ? View.GONE : View.VISIBLE);
+        out.setTextViewText(R.id.wrr_platform, platform == null ? RailNativeL10n.text(context, "月台 —")
+            : RailNativeL10n.text(context, "月台 {platform}", "platform", platform));
+        out.setContentDescription(R.id.wrr_platform, platform == null ? RailNativeL10n.text(context, "月台尚未提供")
+            : RailNativeL10n.text(context, "月台 {platform}", "platform", platform));
         if (row.delayMinutes == null) {
             out.setTextViewText(R.id.wrr_status, RailNativeL10n.text(context, row.sys.equals("thsr") ? "表定" : "尚無讀數"));
             out.setTextColor(R.id.wrr_status, context.getColor(R.color.wg_ink_faint));

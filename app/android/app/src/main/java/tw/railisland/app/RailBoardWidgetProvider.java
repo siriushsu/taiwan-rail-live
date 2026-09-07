@@ -110,6 +110,9 @@ public class RailBoardWidgetProvider extends AppWidgetProvider {
                 long boundary = snapshot.rows.get(0).expectedAt();
                 if (boundary > System.currentTimeMillis()) next = Math.min(next, boundary);
             }
+            for (RailWidgetData.Row row : snapshot.rows) {
+                if (row.platformExpiresAt > System.currentTimeMillis()) next = Math.min(next, row.platformExpiresAt);
+            }
             schedule(context, id, Math.max(System.currentTimeMillis() + 30_000L, next));
         } catch (Exception error) {
             RailWidgetData.Snapshot fallback = RailWidgetData.cached(context, PREFS, id);

@@ -101,6 +101,10 @@ try {
   //       那一半（接線與跨層欄位契約）已經由上面的 api 這支接住了。
   //   單獨重跑（要自己起靜態站）：
   //       python3 -m http.server 5187 &  然後 npm run check-weekend-page / check-weekend-entry
+  const platforms = spawnSync('node', [path.join(wt, 'scripts', 'verify_platforms.mjs')], { encoding: 'utf8' });
+  process.stdout.write(platforms.stdout || ''); process.stderr.write(platforms.stderr || '');
+  if (platforms.status !== 0) fail('月台日期、有效期限或代理快取檢查未通過');
+
   const wkCore = spawnSync('node', [path.join(wt, 'scripts', 'verify_weekend_core.mjs')], { encoding: 'utf8' });
   process.stdout.write(wkCore.stdout || ''); process.stderr.write(wkCore.stderr || '');
   if (wkCore.status !== 0) fail('週末活動純函式層未過——假期區間／分流／去重／標題文案壞了'

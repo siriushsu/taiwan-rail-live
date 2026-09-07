@@ -4671,6 +4671,7 @@
 } catch (e) {} })();
 </script>
 <link rel="stylesheet" href="./rail-3d.css">
+<link rel="stylesheet" href="./rail-platform.css">
 </head>
 <body>
 <!-- 自製圖示母片:只存路徑、不存顏色；各處以 <use> 繼承 currentColor。 -->
@@ -4938,6 +4939,7 @@
         <span class="xfer-tag" id="fpXfer" hidden></span>
         <span class="eta" id="fpEta"></span>
       </div>
+      <div class="rail-platform-info" id="fpPlatform" hidden></div>
       <div class="xfer-conn" id="fpConn" hidden></div>
       <button class="fp-bus" id="fpBus" hidden type="button">接公車</button>
       <div class="fp-busbox" id="fpBusBox" hidden>
@@ -5183,6 +5185,7 @@
       </div>
       <div class="xfer-conn" id="tcConn" hidden></div>
     </div>
+    <div class="rail-platform-info" id="tcPlatform" hidden></div>
     <!-- 高鐵自由座車廂(免費功能;只有高鐵才有,renderFreeSeat 依 isHSR 把關):一排小方塊代表車廂,
          自由座 highlight+一行文字複述,「看一眼就懂」放在頭列正下方,不必展開才看得到 -->
     <div class="tc-freeseat" id="tcFreeseat" hidden>
@@ -5230,6 +5233,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="platform0907"><span class="d">9/7</span><span>台鐵列車資訊與車站看板支援官方月台號碼；沒有資料、尚未確定、過期或回放時自動收起，不留空欄</span></li>
         <li data-cl-of="followdirection0907"><span class="d">9/7</span><span>跟車新增「車頭朝上」開關，預設關閉；想讓車頭方向朝向畫面上方時可自行開啟，指北仍隨時有效</span></li>
         <li data-cl-of="integrated3d0907"><span class="d">9/7</span><span>近景自動顯示沿軌行駛的立體列車，可切換完整編組、地形起伏與建築透視；保留亮色琺瑯、暗色霓虹，以及車站看板與指北操作</span></li>
         <li data-cl-of="stationtarget0907"><span class="d">9/7</span><span>放大地圖時，車站標記與點擊範圍一起加大；點開車站或跟隨列車時，指北按鈕也能正常回正</span></li>
@@ -5237,7 +5241,6 @@
         <li data-cl-of="nightglow0907"><span class="d">9/7</span><span>暗色地圖的路線自動帶上霓虹微光，保留各線原色；切回亮色地圖就恢復原樣</span></li>
         <li data-cl-of="discovery0907"><span class="d">9/7</span><span>新增路線導覽與精選取景：沿線找站、點站看班次；空白搜尋也有可點的範例</span></li>
         <li data-cl-of="ofmwatch0906"><span class="d">9/6</span><span>修正街道底圖被誤判成載入失敗：開圖後馬上縮放或網路較慢時，App 不再默默換成備用底圖、3D 建築也不會跟著消失，網站也不再誤跳「街道底圖載入異常」</span></li>
-        <li data-cl-of="badgefallen"><span class="d">9/6</span><span>捷運頂列的「N 線改用備案」指得出是哪幾條線、為什麼：滑鼠移上去或點開資料狀態卡就看得到</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5245,6 +5248,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="platform0907"><span class="d">9/7</span><span>台鐵列車資訊與車站看板支援官方月台號碼；沒有資料、尚未確定、過期或回放時自動收起，不留空欄</span></li>
         <li data-cl="followdirection0907"><span class="d">9/7</span><span>跟車新增「車頭朝上」開關，預設關閉；想讓車頭方向朝向畫面上方時可自行開啟，指北仍隨時有效</span></li>
         <li data-cl="integrated3d0907"><span class="d">9/7</span><span>近景自動顯示沿軌行駛的立體列車，可切換完整編組、地形起伏與建築透視；保留亮色琺瑯、暗色霓虹，以及車站看板與指北操作</span></li>
         <li data-cl="stationtarget0907"><span class="d">9/7</span><span>放大地圖時，車站標記與點擊範圍一起加大；點開車站或跟隨列車時，指北按鈕也能正常回正</span></li>
@@ -6124,7 +6128,7 @@
 //         網友回報 issue #46。守門人:scripts/verify_board_direction_groups.mjs 的 D11a–D11f。
 // v0906g：手機底部「搜尋」改為「查詢」半高面板——答案區走看板同源、公車轉乘入口、靠近車站自動開;併入 origin/main 的 v0906f。
 // v0906i：v0906g(查詢分頁)再併入 origin/main 的 v0906h(看板支線分組)。
-const BUILD = 'v0907e';
+const BUILD = 'v0907f';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -18263,7 +18267,7 @@ function renderTrainCard(tr) {
   document.getElementById('tcStops').innerHTML =
     `<div class="tc-st hd"><span class="n">${escHtml(t('停靠站'))}</span><span>${escHtml(t('到站'))}</span><span>${escHtml(t('開車'))}</span></div>` +
     tr.stops.map((s, i) => ({ s, i })).filter(x => x.s.stop !== false).map(x =>
-      `<div class="tc-st" data-i="${x.i}"><span class="n">${escHtml(stationName(x.s.name, tr.sys))}</span>` +
+      `<div class="tc-st" data-i="${x.i}"><span class="n">${escHtml(stationName(x.s.name, tr.sys))}${window.RailPlatforms?.slot(tr,x.s,x.i===tr.stops.length-1?'arrival':'departure',x.i===tr.stops.length-1?x.s.arrSec:x.s.depSec)||''}</span>` +
       `<span>${fmtHM(x.s.arrSec % 86400)}</span><span>${fmtHM(x.s.depSec % 86400)}</span></div>`).join('');
   state._tcCurIdx = null;
   updateStar();
@@ -28419,7 +28423,7 @@ function schedBoardRows(st) {
         let dtm = t + dl * 60 - state.simSec; // 誤點車以估計實際時刻排序/倒數
         if (dtm > 43200) dtm -= 86400; else if (dtm < -43200) dtm += 86400; // 跨午夜換日對齊
         if (dtm < -30 || dtm > 3 * 3600) continue; // 未來 3 小時內
-        rows.push({ tr, t, dtm, dl, isLast, off, dest: stops[stops.length - 1].name,
+        rows.push({ tr, stop: s, t, dtm, dl, isLast, off, dest: stops[stops.length - 1].name,
           g: boardGroupOf(tr, i, isLast),
           loopDest: tr.loop ? (i < tr.loopApexIdx ? stops[tr.loopApexIdx].name : stops[0].name) : null });
       }
@@ -28488,7 +28492,7 @@ function schedBoardListHtml(st, rows, perGroup) {
       // 放 dest 欄會把「（終點到達）」擠成「(…」(280px 看板實測;v0901 加寬到 360 後未重測,維持原做法)。
       // 設計 6b:大改兩行、特大把車種與方向收進列尾「›」——兩者都要能各自定位,故各包一層。
       // 標準檔的字元(含中間那個全形空格)與包之前逐字相同,幾何零變化。
-      `<b>${escHtml(r.tr.train)}</b><span class="dest"><span class="ty">${escHtml(r.tr.loop ? t(r.tr.loopName) : trainTypeName(r.tr.typeName))}</span>　<span class="to">${escHtml(dest)}</span></span>` +
+      `<b>${escHtml(r.tr.train)}</b><span class="dest"><span class="ty">${escHtml(r.tr.loop ? t(r.tr.loopName) : trainTypeName(r.tr.typeName))}</span>　<span class="to">${escHtml(dest)}</span>${!r.off ? (window.RailPlatforms?.slot(r.tr,r.stop,r.isLast?'arrival':'departure',r.t)||'') : ''}</span>` +
       // 時刻本身另包一層 .hm:大檔要把「誤點/推算」標排到第二行的方向後面(設計 6b),
       // 那需要 .t 交出排版權(display:contents),交出去之後裸文字節點就抓不到了。標準檔字元不變。
       `<span class="t"><span class="hm">${fmtHM(r.t % 86400)}</span>${r.off ? '' : r.tr.est ? `<span class="estTag">${escHtml(t('推算'))}</span>` : r.dl > 0 ? `<span class="lateTag" data-min="${r.dl}">+${i18nNumber(r.dl)}</span>` : ''}</span><span class="min">${escHtml(min)}</span>` +
@@ -34513,5 +34517,6 @@ window.addEventListener('load', boot);
 })();
 </script>
 <script src="./rail-3d.js"></script>
+<script src="./rail-platform-ui.js"></script>
 </body>
 </html>

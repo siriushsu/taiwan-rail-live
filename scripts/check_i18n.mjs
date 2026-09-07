@@ -46,6 +46,10 @@ literalKeys.push(...[...rail3dSource.matchAll(/\bt\(\s*(['"])((?:\\.|(?!\1).)*)\
 const rail3dLabels = rail3dSource.match(/const labels=(\{[^;]+\});/);
 if (rail3dLabels) literalKeys.push(...Object.values(vm.runInNewContext('(' + rail3dLabels[1] + ')')).flat());
 literalKeys.push('{n} 分節 · 標準編組', '{n} 節 · 標準編組');
+const platformSource = fs.readFileSync(path.join(root, 'rail-platform-ui.js'), 'utf8');
+literalKeys.push(...[...platformSource.matchAll(/\bt\(\s*(['"])((?:\\.|(?!\1).)*)\1/g)].map(m => m[2]));
+const platformLabels = platformSource.match(/const labels=(\{[^;]+\});/);
+if (platformLabels) literalKeys.push(...Object.values(vm.runInNewContext('(' + platformLabels[1] + ')')));
 for (const key of new Set(literalKeys)) {
   for (const lang of languages) if (!keySets[lang]?.has(key)) fail(`${lang} 缺少 runtime key：${key}`);
 }

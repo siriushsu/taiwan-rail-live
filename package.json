@@ -82,7 +82,10 @@
     "check-3d-lifecycle": "node scripts/verify_3d_lifecycle.mjs",
     "check-3d-framing": "node scripts/verify_3d_framing.mjs",
     "check-3d-occlusion": "node scripts/verify_3d_occlusion.mjs",
-    "check-follow-heading": "node scripts/verify_follow_heading_toggle.mjs"
+    "check-follow-heading": "node scripts/verify_follow_heading_toggle.mjs",
+    "check-platforms": "node scripts/verify_platforms.mjs",
+    "check-platforms-browser": "node scripts/verify_platforms_browser.mjs",
+    "check-platforms-swift": "node scripts/verify_platforms_swift.mjs"
   },
   "dependencies": {
     "playwright": "^1.61.1",

@@ -4,6 +4,7 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "台鐵列車資訊與車站看板支援官方月台號碼；沒有資料、尚未確定、過期或回放時自動收起，不留空欄": "TRA train details and station boards now support official platform numbers. The field stays hidden when unavailable, unassigned, expired or in replay.",
     "開啟": "On",
     "跟車新增「車頭朝上」開關，預設關閉；想讓車頭方向朝向畫面上方時可自行開啟，指北仍隨時有效": "Head-up following is now optional and off by default. Turn it on to keep the front of the train at the top of the view; north reset remains available.",
     "跟車時預設不自動旋轉地圖；可在「更多」開啟「跟車時車頭朝上」。近景可手動側看完整編組，指北隨時回正。": "Following does not rotate the map by default. Enable head-up following in More if you prefer. At close range, rotate to see the full formation from the side; north reset remains available.",
@@ -201,6 +202,7 @@
   });
 
   Object.assign(messages.ja, {
+    "台鐵列車資訊與車站看板支援官方月台號碼；沒有資料、尚未確定、過期或回放時自動收起，不留空欄": "台鉄の列車情報と駅の発車案内が公式の番線情報に対応。未提供・未定・期限切れ・再生中は空欄を残さず非表示にします。",
     "開啟": "オン",
     "跟車新增「車頭朝上」開關，預設關閉；想讓車頭方向朝向畫面上方時可自行開啟，指北仍隨時有效": "追従時に進行方向を上にする設定を追加しました。初期設定はオフです。必要に応じてオンにでき、北向きに戻す操作もいつでも使えます。",
     "跟車時預設不自動旋轉地圖；可在「更多」開啟「跟車時車頭朝上」。近景可手動側看完整編組，指北隨時回正。": "追従中は初期設定では地図を自動回転しません。「その他」で進行方向を上にする設定をオンにできます。近景では全編成を側面から眺められ、方位ボタンでいつでも北向きに戻せます。",
