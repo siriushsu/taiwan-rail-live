@@ -93,3 +93,10 @@ html[data-theme=dark] :is(.night-directions button,.night-next):focus-visible { 
 @media (prefers-reduced-transparency:reduce) {
   html[data-theme=dark] body :is(.board,.traincard,#nearCard,#xingCard,.follow-panel,.freq-card) { background:#0C1221; backdrop-filter:none; -webkit-backdrop-filter:none; }
 }
+/* 設計稿的精簡跟車卡：玻璃材質、橫向排列與路線色頂緣。 */
+html[data-theme=dark] body #followPanel.fp-min{min-height:64px;padding:8px 14px;border-radius:14px;border-top:3px solid var(--follow-color,var(--red))}
+html[data-theme=dark] body #followPanel.fp-min .fp-head{min-height:42px}
+html[data-theme=dark] body #followPanel.fp-min .fp-end{min-height:44px}
+
+html[data-theme=dark] body #followPanel.fp-min .fp-head > b{font-size:calc(17px * var(--ui));line-height:1.2}
+html[data-theme=dark] body #followPanel.fp-min .fp-head .spd b{font-size:calc(18px * var(--ui));line-height:1.2}

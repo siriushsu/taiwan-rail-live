@@ -1,0 +1,165 @@
+{
+  "id": "tower85-landmark-v1",
+  "name": "高雄85大樓",
+  "version": 1,
+  "landmarkType": "tower85",
+  "anchor": [
+    120.3001601108381,
+    22.611616109117193
+  ],
+  "displayHeightM": 378,
+  "realBuildingHeightM": null,
+  "railElevationM": null,
+  "heightQuality": "示意總高，尚非測量驗收",
+  "footprintQuality": "OSM polygon",
+  "footprintWidthM": 142.7237180592633,
+  "footprintDepthM": 67.699350330997,
+  "rotationDeg": -71.53440177154948,
+  "sources": [
+    {
+      "url": "https://www.tad.gov.tw/m1.aspx?id=9328&sNo=0001016",
+      "use": "建築高度／主要外觀參考；不拷貝照片為材質"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/34170948",
+      "use": "平面輪廓與方向",
+      "license": "ODbL-1.0",
+      "snapshot": "2026-06-01T08:52:28Z"
+    }
+  ],
+  "notes": [
+    "可辨識輪廓的簡化外觀版本；立面、室內及結構並非測繪成果。",
+    "總高不等於絕對海拔。地表底座另由地形取樣；未改動任何軌道高程。"
+  ],
+  "sourceSnapshot": {
+    "path": "source-layouts/tower85-landmark-v1/metadata.json",
+    "sha256": "e03c94633d84fa5f923971dfe5f2522e3fe4fca11373c2339f46c91f818ee213"
+  },
+  "category": "landmark",
+  "kind": "tower85",
+  "placementStatus": "existing-layout-unverified-facade",
+  "features": [
+    "雙翼、中央跨接量體與鏤空",
+    "高雄 85 大樓塔冠與天線"
+  ],
+  "application": "5.2.1 LTS",
+  "axes": {
+    "up": "+Z",
+    "right": "+X",
+    "front": "-Y",
+    "units": "meters",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "gltfAxes": {
+    "up": "+Y",
+    "toZUp": "rotateX(+PI/2)"
+  },
+  "orientationMode": "local-facade",
+  "facadeBearingDeg": null,
+  "absoluteGroundAltitudeM": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -71.65185546875,
+      -34.13967514038086,
+      0.0
+    ],
+    "max": [
+      71.65185546875,
+      34.13967514038086,
+      378.0
+    ]
+  },
+  "sizeM": [
+    143.3037109375,
+    68.27935028076172,
+    378.0
+  ],
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "glb": "near.glb",
+      "sha256": "4fc1c699828213cd1da1f2dfcb9b6ee9535494fdcd00f6a87d4fc6090ffd0e74",
+      "glbSha256": "68cc3992331b4e5de87486adf68cf7330f0ed2267363a457ebdfedae2e8c7f27",
+      "strideBytes": 24,
+      "vertexCount": 7728,
+      "triangleCount": 2576,
+      "drawGroups": [
+        {
+          "component": "main",
+          "name": "green",
+          "start": 0,
+          "count": 216,
+          "color": [
+            0.05612849071621895,
+            0.25015828013420105,
+            0.2345505803823471
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "main",
+          "name": "metal",
+          "start": 216,
+          "count": 7512,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 185472
+    },
+    "far": {
+      "file": "far.mesh.bin",
+      "glb": "far.glb",
+      "sha256": "1cd33149d5c9e1e99888ea1a5707933ef96ad3b6da2bf2f228a7b6e64031f787",
+      "glbSha256": "facbb2d12f972ea099470673f502b04905b0b11f2b59f45f83e085d46ff7e98f",
+      "strideBytes": 24,
+      "vertexCount": 3552,
+      "triangleCount": 1184,
+      "drawGroups": [
+        {
+          "component": "main",
+          "name": "green",
+          "start": 0,
+          "count": 216,
+          "color": [
+            0.05612849071621895,
+            0.25015828013420105,
+            0.2345505803823471
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "main",
+          "name": "metal",
+          "start": 216,
+          "count": 3336,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 85248
+    }
+  },
+  "nativeObjectCount": 214,
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "modelUse": "map-exterior",
+  "components": []
+}

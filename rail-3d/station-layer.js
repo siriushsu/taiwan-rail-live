@@ -1,27 +1,22 @@
+import {buildingCatalog,buildBlenderBuilding,inspectBlenderBuilding} from './blender-buildings.js';
 import * as THREE from './vendor/three.module.js';
-import {buildTaipeiMain,buildStation,setStationInspection,disposeStation} from './station-models.js';
-import {buildLandmark} from './landmark-models.js';
+import {disposeStation} from './station-models.js';
 import {landmarkCatalog} from './landmark-catalog.js';
 import {stationCatalog} from './station-catalog.js';
 import {inPolygon,distanceToSegment} from './geo.js';
 
 export async function createStationLayer(map,getState,onUpdate=()=>{}, {assetsBase=new URL('./assets/stations/',import.meta.url),maplibre=globalThis.maplibregl,clearance=null}={}){
   const failures=[],records=[],catalog=[...stationCatalog,...landmarkCatalog];
-  await Promise.all(catalog.map(async entry=>{
-    try{
-      const read=async name=>{const r=await fetch(new URL(`${entry.id}/${name}`,assetsBase));if(!r.ok)throw Error(`${entry.name}模型資料載入失敗`);return r.json();};
-      const [meta,footprint]=await Promise.all([read('metadata.json'),read('footprint.geojson')]);
-      const features=footprint.type==='FeatureCollection'?footprint.features:[footprint];
-      if(meta.id!==entry.id||meta.railElevationM!==null||!features.length)throw Error(`${entry.name}模型資料格式不符`);
-      const masks=features.map(f=>f.geometry.coordinates);
-      const maskBounds=masks.map(r=>{const xs=r[0].map(p=>p[0]),ys=r[0].map(p=>p[1]);return [Math.min(...xs)-.00002,Math.min(...ys)-.00002,Math.max(...xs)+.00002,Math.max(...ys)+.00002];});
-      const anchor=maplibre.MercatorCoordinate.fromLngLat(meta.anchor,0),s=anchor.meterInMercatorCoordinateUnits();
-      const transform=new THREE.Matrix4().makeTranslation(anchor.x,anchor.y,0).scale(new THREE.Vector3(s,-s,s));
-      const scene=new THREE.Scene();scene.add(new THREE.AmbientLight(0xffffff,1.65));const sun=new THREE.DirectionalLight(0xfff3db,1.8);sun.position.set(-160,-260,500);scene.add(sun);
-      records.push({entry,meta,footprint,masks,maskBounds,scene,transform,model:null,lastUsed:0,
-        stats:{id:meta.id,ready:false,visible:false,inspection:false,groundM:null,displayHeightM:meta.displayHeightM,railElevationM:null,realBuildingHeightM:meta.realBuildingHeightM||null,meshes:0,triangles:0,masked:false,excludedFeatureIds:[],revision:0}});
-    }catch(error){failures.push({key:entry.key,message:error.message});}
-  }));
+  const imports=await buildingCatalog();
+  for(const imported of imports){
+    const {meta,footprint}=imported,entry=catalog.find(e=>e.id===meta.id)||{id:meta.id,key:meta.id,name:meta.name};
+    const features=footprint.type==='FeatureCollection'?footprint.features:[footprint],masks=features.map(f=>f.geometry.coordinates);
+    const maskBounds=masks.map(r=>{const xs=r[0].map(p=>p[0]),ys=r[0].map(p=>p[1]);return [Math.min(...xs)-.00002,Math.min(...ys)-.00002,Math.max(...xs)+.00002,Math.max(...ys)+.00002];});
+    const anchor=maplibre.MercatorCoordinate.fromLngLat(meta.anchor,0),s=anchor.meterInMercatorCoordinateUnits(),transform=new THREE.Matrix4().makeTranslation(anchor.x,anchor.y,0).scale(new THREE.Vector3(s,-s,s));
+    const scene=new THREE.Scene();scene.add(new THREE.AmbientLight(0xffffff,1.65));const sun=new THREE.DirectionalLight(0xfff3db,1.8);sun.position.set(-160,-260,500);scene.add(sun);
+    records.push({entry,meta,footprint,masks,maskBounds,scene,transform,imported,model:null,lastUsed:0,loading:null,retryAt:new Map(),
+      stats:{id:meta.id,blender:true,ready:false,visible:false,inspection:false,groundM:null,displayHeightM:meta.displayHeightM,railElevationM:null,realBuildingHeightM:meta.realBuildingHeightM||null,meshes:0,triangles:0,masked:false,excludedFeatureIds:[],revision:0}});
+  }
   records.sort((a,b)=>catalog.findIndex(e=>e.id===a.meta.id)-catalog.findIndex(e=>e.id===b.meta.id));
   const camera=new THREE.Camera(),projection=new THREE.Matrix4(),filters=new Map(),symbolFilters=new Map(),appliedSymbols=new Map();
   let renderer,ownedSource,disposed=false,timer=0,sourceEpoch=0,maskEpoch=-1,maskKey='',contextKey='',labelKey='',lastVisible='',clock=0,engineeringMasks=[],engineeringMaskKey='',labelBounds=[];
@@ -70,14 +65,23 @@ export async function createStationLayer(map,getState,onUpdate=()=>{}, {assetsBa
     for(const r of records){
       const near=Math.hypot((c.lng-r.meta.anchor[0])*101000,(c.lat-r.meta.anchor[1])*111320)<3500;
       const resolved=clearance?.model(r.meta,r.footprint),key=JSON.stringify(resolved?.excluded||[]);
-      if(r.clearanceKey!==key){r.clearanceKey=key;if(r.model){r.scene.remove(r.model);disposeStation(r.model);r.model=null;r.stats.ready=false;r.stats.inspection=false;}r.stats.excludedComponents=resolved?.excluded||[];r.stats.clearanceHidden=!!resolved?.hidden;maskEpoch=-1;changed=true;}
-      const visibleMeta=resolved?.meta||r.meta;
-      r.maskActive=state.buildings&&map.getZoom()>=14&&near;
-      const canShow=r.maskActive&&!resolved?.hidden;
-      const ground=canShow?(state.terrain?(map.isSourceLoaded('terrain')?map.queryTerrainElevation(r.meta.anchor):null):0):null;
-      const visible=canShow&&Number.isFinite(ground);let revision=r.stats.visible!==visible;
-      if(visible&&!r.model){r.model=r.meta.landmarkType?buildLandmark(visibleMeta):r.meta.id==='taipei-main-v1'?buildTaipeiMain(visibleMeta):buildStation(visibleMeta,r.footprint);r.stats.groundM=null;r.stats.inspection=false;r.scene.add(r.model);r.labelBox=new THREE.Box3().setFromObject(r.model);r.stats.meshes=0;r.stats.triangles=0;r.model.traverse(o=>{if(o.isMesh){r.stats.meshes++;r.stats.triangles+=(o.geometry.index?.count||o.geometry.attributes.position.count)/3;}});r.stats.ready=true;revision=true;}
-      if(r.model){r.model.visible=visible;if(visible){r.lastUsed=++clock;if(r.stats.groundM!==ground){r.model.position.z=ground;r.stats.groundM=ground;revision=true;}const inspect=!!state.stationInspection&&(state.stationInspectionAll||r.entry.key===state.place);if(r.stats.inspection!==inspect){setStationInspection(r.model,inspect);r.stats.inspection=inspect;revision=true;}}}
+      if(r.clearanceKey!==key){r.clearanceKey=key;r.appearanceKey=null;r.stats.excludedComponents=resolved?.excluded||[];r.stats.clearanceHidden=false;maskEpoch=-1;changed=true;}
+      const inRange=state.buildings&&map.getZoom()>=14&&near;
+      const ground=inRange?(state.terrain?(map.isSourceLoaded('terrain')?map.queryTerrainElevation(r.meta.anchor):null):0):null;
+      const canShow=inRange&&Number.isFinite(ground),lod=map.getZoom()>=16?'near':'far';
+      if(canShow&&r.model?.userData.lod!==lod&&r.loading?.lod!==lod&&performance.now()>=(r.retryAt.get(lod)||0)){
+        const ticket={lod};r.loading=ticket;
+        buildBlenderBuilding(r.imported,lod).then(model=>{
+          if(disposed||r.loading!==ticket){disposeStation(model);return;}
+          if(r.model){r.scene.remove(r.model);disposeStation(r.model);}r.model=model;r.scene.add(model);r.loading=null;r.appearanceKey=null;r.stats.groundM=null;
+          r.labelBox=new THREE.Box3().setFromObject(model);r.stats.meshes=0;r.stats.triangles=0;model.traverse(o=>{if(o.isMesh){r.stats.meshes++;r.stats.triangles+=o.geometry.drawRange.count/3;}});r.stats.ready=true;r.stats.lod=lod;delete r.stats.loadError;r.retryAt.delete(lod);for(let i=failures.length-1;i>=0;i--)if(failures[i].key===r.entry.key)failures.splice(i,1);maskEpoch=-1;refresh();
+        }).catch(error=>{if(disposed||r.loading!==ticket)return;r.loading=null;r.retryAt.set(lod,performance.now()+30000);r.stats.loadError=error.message;if(!failures.some(f=>f.key===r.entry.key))failures.push({key:r.entry.key,message:error.message});onUpdate(r.stats);});
+      }
+      const visible=canShow&&!!r.model;r.maskActive=visible;let revision=r.stats.visible!==visible;
+      if(r.model){r.model.visible=visible;if(visible){r.lastUsed=++clock;if(r.stats.groundM!==ground){r.model.position.z=ground;r.stats.groundM=ground;revision=true;}
+        const inspect=!!state.stationInspection&&(state.stationInspectionAll||r.entry.key===state.place),appearance=JSON.stringify([inspect,r.stats.excludedComponents]);
+        if(r.appearanceKey!==appearance){inspectBlenderBuilding(r.model,inspect,r.stats.excludedComponents);r.appearanceKey=appearance;r.stats.inspection=inspect;revision=true;}
+      }}
       r.stats.visible=visible;if(revision){r.stats.revision++;changed=true;}
     }
     // 環島巡覽只保留最近三座的 GPU 幾何。

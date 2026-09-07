@@ -1,0 +1,226 @@
+{
+  "id": "national-concert-hall",
+  "name": "國家音樂廳",
+  "kind": "concert",
+  "category": "landmark",
+  "anchor": null,
+  "displayHeightM": 35,
+  "realBuildingHeightM": null,
+  "footprintWidthM": 115,
+  "footprintDepthM": 80,
+  "rotationDeg": 0,
+  "placementStatus": "pending-georeference",
+  "sources": [
+    {
+      "url": "https://event.npac-ntch.org/25th/history_1987.htm",
+      "use": "外觀與建築形式參考；照片不重製為貼圖"
+    }
+  ],
+  "features": [
+    "重簷歇山頂與山牆",
+    "黃瓦紅柱與白石基座"
+  ],
+  "notes": [
+    "尺寸與分件比例為地圖展示估算，非施工或測繪模型。",
+    "新增模型未提供核對過的地理錨點，須先定位後才能接入真實地圖。"
+  ],
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "axes": {
+    "up": "+Z",
+    "right": "+X",
+    "front": "-Y",
+    "units": "meters",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "gltfAxes": {
+    "up": "+Y",
+    "toZUp": "rotateX(+PI/2)"
+  },
+  "orientationMode": "local-facade",
+  "facadeBearingDeg": null,
+  "absoluteGroundAltitudeM": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -57.849998474121094,
+      -49.599998474121094,
+      0.0
+    ],
+    "max": [
+      57.849998474121094,
+      40.349998474121094,
+      35.476314544677734
+    ]
+  },
+  "sizeM": [
+    115.69999694824219,
+    89.94999694824219,
+    35.476314544677734
+  ],
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "glb": "near.glb",
+      "sha256": "35677638aef713c013970418b24bd5235d67e686987d7648776cb5753d7c9da2",
+      "glbSha256": "d460441fdc5f0dda989536eda1941e513f1ac7f81ce9493684a017ac781c67e6",
+      "strideBytes": 24,
+      "vertexCount": 30462,
+      "triangleCount": 10154,
+      "drawGroups": [
+        {
+          "component": "main",
+          "name": "stone",
+          "start": 0,
+          "count": 36,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "red",
+          "start": 36,
+          "count": 4398,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "green",
+          "start": 4434,
+          "count": 792,
+          "color": [
+            0.05612849071621895,
+            0.25015828013420105,
+            0.2345505803823471
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "main",
+          "name": "gold",
+          "start": 5226,
+          "count": 23508,
+          "color": [
+            0.5840784311294556,
+            0.2961382567882538,
+            0.039546236395835876
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "white",
+          "start": 28734,
+          "count": 1728,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 731088
+    },
+    "far": {
+      "file": "far.mesh.bin",
+      "glb": "far.glb",
+      "sha256": "42d160b31a2d55a2a5cb1aa6ef3901d96e4327292864de46f414d430f53bfe11",
+      "glbSha256": "03f0a7ac7970387fe0a5517726cf6f349db7e06490862dbd4aceb8231fa9549a",
+      "strideBytes": 24,
+      "vertexCount": 24222,
+      "triangleCount": 8074,
+      "drawGroups": [
+        {
+          "component": "main",
+          "name": "stone",
+          "start": 0,
+          "count": 36,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "red",
+          "start": 36,
+          "count": 4398,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "green",
+          "start": 4434,
+          "count": 792,
+          "color": [
+            0.05612849071621895,
+            0.25015828013420105,
+            0.2345505803823471
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "main",
+          "name": "gold",
+          "start": 5226,
+          "count": 17268,
+          "color": [
+            0.5840784311294556,
+            0.2961382567882538,
+            0.039546236395835876
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "white",
+          "start": 22494,
+          "count": 1728,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 581328
+    }
+  },
+  "nativeObjectCount": 423,
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "modelUse": "map-exterior",
+  "components": []
+}

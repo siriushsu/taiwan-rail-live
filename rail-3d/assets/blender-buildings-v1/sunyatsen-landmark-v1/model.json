@@ -1,0 +1,242 @@
+{
+  "id": "sunyatsen-landmark-v1",
+  "name": "國父紀念館",
+  "version": 1,
+  "landmarkType": "sunyatsen",
+  "anchor": [
+    121.56029177639518,
+    25.040003828251123
+  ],
+  "displayHeightM": 30.4,
+  "realBuildingHeightM": 30.4,
+  "railElevationM": null,
+  "heightQuality": "官方總高，分件比例示意",
+  "footprintQuality": "OSM polygon",
+  "footprintWidthM": 112.37752366356055,
+  "footprintDepthM": 108.57825851157736,
+  "rotationDeg": -91.65935661637162,
+  "sources": [
+    {
+      "url": "https://www.yatsen.gov.tw/cp.aspx?n=6503",
+      "use": "建築高度／主要外觀參考；不拷貝照片為材質"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/189788192",
+      "use": "平面輪廓與方向",
+      "license": "ODbL-1.0",
+      "snapshot": "2026-06-01T08:52:28Z"
+    }
+  ],
+  "notes": [
+    "可辨識輪廓的簡化外觀版本；立面、室內及結構並非測繪成果。",
+    "總高不等於絕對海拔。地表底座另由地形取樣；未改動任何軌道高程。"
+  ],
+  "sourceSnapshot": {
+    "path": "source-layouts/sunyatsen-landmark-v1/metadata.json",
+    "sha256": "bc49f924940899a4e923596f6da025d7436697f5672ad91e13e24f75901564b7"
+  },
+  "category": "landmark",
+  "kind": "sunyatsen",
+  "placementStatus": "existing-layout-unverified-facade",
+  "features": [
+    "黃瓦飛簷、紅色館身與灰色柱廊"
+  ],
+  "application": "5.2.1 LTS",
+  "axes": {
+    "up": "+Z",
+    "right": "+X",
+    "front": "-Y",
+    "units": "meters",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "gltfAxes": {
+    "up": "+Y",
+    "toZUp": "rotateX(+PI/2)"
+  },
+  "orientationMode": "local-facade",
+  "facadeBearingDeg": null,
+  "absoluteGroundAltitudeM": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -55.349998474121094,
+      -62.0,
+      0.0
+    ],
+    "max": [
+      55.349998474121094,
+      54.349998474121094,
+      30.876314163208008
+    ]
+  },
+  "sizeM": [
+    110.69999694824219,
+    116.3499984741211,
+    30.876314163208008
+  ],
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "glb": "near.glb",
+      "sha256": "3aa818d893324f0f0f6df2229eb0101cc9c35c5905100f83d16c8125dee425fd",
+      "glbSha256": "6219527f01cea9aaca8898e0f257b65a61cf308f2f7c9d491d7df5e5a679fd4a",
+      "strideBytes": 24,
+      "vertexCount": 18408,
+      "triangleCount": 6136,
+      "drawGroups": [
+        {
+          "component": "main",
+          "name": "stone",
+          "start": 0,
+          "count": 5436,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "red",
+          "start": 5436,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "green",
+          "start": 5472,
+          "count": 1008,
+          "color": [
+            0.05612849071621895,
+            0.25015828013420105,
+            0.2345505803823471
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "main",
+          "name": "gold",
+          "start": 6480,
+          "count": 11748,
+          "color": [
+            0.5840784311294556,
+            0.2961382567882538,
+            0.039546236395835876
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "white",
+          "start": 18228,
+          "count": 180,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 441792
+    },
+    "far": {
+      "file": "far.mesh.bin",
+      "glb": "far.glb",
+      "sha256": "27aa175fd83aea7526a473f4b8c68544980316ed90b579f91b90b2244936ecbf",
+      "glbSha256": "b992adb6a79274551ae75806d52988d654087b93b2d1ca84a018a73579b31b5e",
+      "strideBytes": 24,
+      "vertexCount": 15288,
+      "triangleCount": 5096,
+      "drawGroups": [
+        {
+          "component": "main",
+          "name": "stone",
+          "start": 0,
+          "count": 5436,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "red",
+          "start": 5436,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "green",
+          "start": 5472,
+          "count": 1008,
+          "color": [
+            0.05612849071621895,
+            0.25015828013420105,
+            0.2345505803823471
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "main",
+          "name": "gold",
+          "start": 6480,
+          "count": 8628,
+          "color": [
+            0.5840784311294556,
+            0.2961382567882538,
+            0.039546236395835876
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "white",
+          "start": 15108,
+          "count": 180,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 366912
+    }
+  },
+  "nativeObjectCount": 238,
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "modelUse": "map-exterior",
+  "components": []
+}

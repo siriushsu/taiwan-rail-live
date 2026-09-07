@@ -1,0 +1,992 @@
+{
+  "id": "hualien-v1",
+  "name": "花蓮車站",
+  "version": 1,
+  "status": "simplified-exterior",
+  "anchor": [
+    121.60093265,
+    23.992764
+  ],
+  "stationPoint": [
+    121.60131,
+    23.99265
+  ],
+  "displayHeightM": 17,
+  "realBuildingHeightM": null,
+  "railElevationM": null,
+  "heightQuality": "illustrative",
+  "footprintQuality": "OSM polygon",
+  "modelScope": [
+    "花蓮跨站大廳",
+    "花蓮售票大廳",
+    "迎客大傘",
+    "花蓮前站",
+    "花蓮後站",
+    "月台棚",
+    "月台棚",
+    "月台棚"
+  ],
+  "excluded": [
+    "真實軌道高程",
+    "列車與月台對齊",
+    "地下站體",
+    "精確室內配置",
+    "未有輪廓的出入口及連接設施"
+  ],
+  "sources": [
+    {
+      "url": "https://www.rb.gov.tw/public/upimgs/B05/1071002.pdf",
+      "use": "站區配置或造型參考；不作比例測量"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/554768918",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/554768913",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/718223887",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/132937553",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/132937567",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/1342634750",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/1342634751",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/1352337182",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    }
+  ],
+  "notes": [
+    "輪廓使用免費 OSM；曲面、窗帶、柱列、展示底高及高度由軌島簡化設計，不是工程模型。",
+    "各系統保留獨立輪廓與座標；轉乘示意圖僅核對關係，不當成比例尺。",
+    "照片與官方資料只供外觀參考，未作模型貼圖。"
+  ],
+  "sourceSnapshot": {
+    "path": "source-layouts/hualien-v1/metadata.json",
+    "sha256": "2975cd0d0b64f29b4e1544a27ced3b56a11cce59d106a75a04d37a6443edf7fb"
+  },
+  "category": "station",
+  "kind": "station",
+  "placementStatus": "existing-ENU-component-layout",
+  "features": [
+    "保留既有 OSM 站區輪廓與各棟相對位置",
+    "依元件分開製作玻璃、屋頂、柱列與雨棚"
+  ],
+  "application": "5.2.1 LTS",
+  "axes": {
+    "up": "+Z",
+    "east": "+X",
+    "north": "+Y",
+    "front": null,
+    "units": "meters",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "gltfAxes": {
+    "up": "+Y",
+    "toZUp": "rotateX(+PI/2)"
+  },
+  "orientationMode": "ENU-baked",
+  "facadeBearingDeg": null,
+  "absoluteGroundAltitudeM": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -110.38294219970703,
+      -152.8646240234375,
+      0.0
+    ],
+    "max": [
+      110.38299560546875,
+      153.2295379638672,
+      23.0
+    ]
+  },
+  "sizeM": [
+    220.76593780517578,
+    306.0941619873047,
+    23.0
+  ],
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "glb": "near.glb",
+      "sha256": "dd7d4c4faec2fff6cbf7c98966f361a267c1376a10b6625745b4b1e7b4f02295",
+      "glbSha256": "6731db4f22efe186173a9d84e28ec06a8faac5a589b92d156afc733ee256a921",
+      "strideBytes": 24,
+      "vertexCount": 35373,
+      "triangleCount": 11791,
+      "drawGroups": [
+        {
+          "component": "554768918",
+          "name": "roof",
+          "start": 0,
+          "count": 84,
+          "color": [
+            0.3915724754333496,
+            0.4677838087081909,
+            0.46207699179649353
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "554768918",
+          "name": "stone",
+          "start": 84,
+          "count": 2280,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "554768918",
+          "name": "metal",
+          "start": 2364,
+          "count": 4140,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "554768918",
+          "name": "glass",
+          "start": 6504,
+          "count": 180,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "554768913",
+          "name": "roof",
+          "start": 6684,
+          "count": 75,
+          "color": [
+            0.3915724754333496,
+            0.4677838087081909,
+            0.46207699179649353
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "554768913",
+          "name": "stone",
+          "start": 6759,
+          "count": 1260,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "554768913",
+          "name": "metal",
+          "start": 8019,
+          "count": 2040,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "554768913",
+          "name": "glass",
+          "start": 10059,
+          "count": 162,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "718223887",
+          "name": "roof",
+          "start": 10221,
+          "count": 570,
+          "color": [
+            0.3915724754333496,
+            0.4677838087081909,
+            0.46207699179649353
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "718223887",
+          "name": "white",
+          "start": 10791,
+          "count": 588,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "718223887",
+          "name": "metal",
+          "start": 11379,
+          "count": 1800,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "132937553",
+          "name": "roof",
+          "start": 13179,
+          "count": 78,
+          "color": [
+            0.3915724754333496,
+            0.4677838087081909,
+            0.46207699179649353
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "132937553",
+          "name": "stone",
+          "start": 13257,
+          "count": 1380,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "132937553",
+          "name": "metal",
+          "start": 14637,
+          "count": 960,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "132937553",
+          "name": "glass",
+          "start": 15597,
+          "count": 168,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "132937567",
+          "name": "roof",
+          "start": 15765,
+          "count": 57,
+          "color": [
+            0.3915724754333496,
+            0.4677838087081909,
+            0.46207699179649353
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "132937567",
+          "name": "stone",
+          "start": 15822,
+          "count": 840,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "132937567",
+          "name": "metal",
+          "start": 16662,
+          "count": 780,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "132937567",
+          "name": "glass",
+          "start": 17442,
+          "count": 126,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "1342634750",
+          "name": "roof",
+          "start": 17568,
+          "count": 1029,
+          "color": [
+            0.3915724754333496,
+            0.4677838087081909,
+            0.46207699179649353
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "1342634750",
+          "name": "white",
+          "start": 18597,
+          "count": 702,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "1342634750",
+          "name": "metal",
+          "start": 19299,
+          "count": 4296,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "1342634751",
+          "name": "roof",
+          "start": 23595,
+          "count": 1050,
+          "color": [
+            0.3915724754333496,
+            0.4677838087081909,
+            0.46207699179649353
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "1342634751",
+          "name": "white",
+          "start": 24645,
+          "count": 702,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "1342634751",
+          "name": "metal",
+          "start": 25347,
+          "count": 4020,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "1352337182",
+          "name": "roof",
+          "start": 29367,
+          "count": 720,
+          "color": [
+            0.3915724754333496,
+            0.4677838087081909,
+            0.46207699179649353
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "1352337182",
+          "name": "white",
+          "start": 30087,
+          "count": 726,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "1352337182",
+          "name": "metal",
+          "start": 30813,
+          "count": 4560,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 848952
+    },
+    "far": {
+      "file": "far.mesh.bin",
+      "glb": "far.glb",
+      "sha256": "125ca8aa266eca6d2ac87d0840dff89d2c6d82b6888fae5c8f55b2f673f0a6ad",
+      "glbSha256": "05e8321dc675ea9b752c73d35e0aafb4c12a3771477a0aa7b290a79d5c7ef900",
+      "strideBytes": 24,
+      "vertexCount": 12777,
+      "triangleCount": 4259,
+      "drawGroups": [
+        {
+          "component": "554768918",
+          "name": "roof",
+          "start": 0,
+          "count": 84,
+          "color": [
+            0.3915724754333496,
+            0.4677838087081909,
+            0.46207699179649353
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "554768918",
+          "name": "stone",
+          "start": 84,
+          "count": 2280,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "554768918",
+          "name": "glass",
+          "start": 2364,
+          "count": 180,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "554768913",
+          "name": "roof",
+          "start": 2544,
+          "count": 75,
+          "color": [
+            0.3915724754333496,
+            0.4677838087081909,
+            0.46207699179649353
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "554768913",
+          "name": "stone",
+          "start": 2619,
+          "count": 1260,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "554768913",
+          "name": "glass",
+          "start": 3879,
+          "count": 162,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "718223887",
+          "name": "roof",
+          "start": 4041,
+          "count": 570,
+          "color": [
+            0.3915724754333496,
+            0.4677838087081909,
+            0.46207699179649353
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "718223887",
+          "name": "white",
+          "start": 4611,
+          "count": 588,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "132937553",
+          "name": "roof",
+          "start": 5199,
+          "count": 78,
+          "color": [
+            0.3915724754333496,
+            0.4677838087081909,
+            0.46207699179649353
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "132937553",
+          "name": "stone",
+          "start": 5277,
+          "count": 1380,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "132937553",
+          "name": "glass",
+          "start": 6657,
+          "count": 168,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "132937567",
+          "name": "roof",
+          "start": 6825,
+          "count": 57,
+          "color": [
+            0.3915724754333496,
+            0.4677838087081909,
+            0.46207699179649353
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "132937567",
+          "name": "stone",
+          "start": 6882,
+          "count": 840,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "132937567",
+          "name": "glass",
+          "start": 7722,
+          "count": 126,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "1342634750",
+          "name": "roof",
+          "start": 7848,
+          "count": 1029,
+          "color": [
+            0.3915724754333496,
+            0.4677838087081909,
+            0.46207699179649353
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "1342634750",
+          "name": "white",
+          "start": 8877,
+          "count": 702,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "1342634751",
+          "name": "roof",
+          "start": 9579,
+          "count": 1050,
+          "color": [
+            0.3915724754333496,
+            0.4677838087081909,
+            0.46207699179649353
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "1342634751",
+          "name": "white",
+          "start": 10629,
+          "count": 702,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "1352337182",
+          "name": "roof",
+          "start": 11331,
+          "count": 720,
+          "color": [
+            0.3915724754333496,
+            0.4677838087081909,
+            0.46207699179649353
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "1352337182",
+          "name": "white",
+          "start": 12051,
+          "count": 726,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 306648
+    }
+  },
+  "nativeObjectCount": 342,
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "modelUse": "map-exterior",
+  "components": [
+    {
+      "id": "554768918",
+      "name": "花蓮跨站大廳",
+      "type": "flat",
+      "anchor": [
+        121.60082612,
+        23.99344802
+      ],
+      "rotationDeg": -23.8166,
+      "widthM": 152.754,
+      "depthM": 45.547,
+      "displayHeightM": 17,
+      "baseM": 6,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": true,
+      "clock": false,
+      "offsetENU": [
+        -10.834271211988662,
+        76.14510639975364,
+        0
+      ],
+      "footprintAreaM2": 3880.91003497365
+    },
+    {
+      "id": "554768913",
+      "name": "花蓮售票大廳",
+      "type": "flat",
+      "anchor": [
+        121.60176275,
+        23.99336329
+      ],
+      "rotationDeg": 65.8392,
+      "widthM": 54.908,
+      "depthM": 50.028,
+      "displayHeightM": 12,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": true,
+      "clock": false,
+      "offsetENU": [
+        84.42249631264906,
+        66.71296280002807,
+        0
+      ],
+      "footprintAreaM2": 1569.7831658225998
+    },
+    {
+      "id": "718223887",
+      "name": "迎客大傘",
+      "type": "umbrella",
+      "anchor": [
+        121.60168097,
+        23.99288786
+      ],
+      "rotationDeg": 65.8235,
+      "widthM": 73.741,
+      "depthM": 30.409,
+      "displayHeightM": 13,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": false,
+      "clock": false,
+      "offsetENU": [
+        76.10533964644638,
+        13.788095199848982,
+        0
+      ],
+      "footprintAreaM2": 2201.4673665334003
+    },
+    {
+      "id": "132937553",
+      "name": "花蓮前站",
+      "type": "flat",
+      "anchor": [
+        121.60125861,
+        23.99245123
+      ],
+      "rotationDeg": 65.8284,
+      "widthM": 88.067,
+      "depthM": 18.506,
+      "displayHeightM": 9,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": true,
+      "clock": false,
+      "offsetENU": [
+        33.15065281030291,
+        -34.81755640008231,
+        0
+      ],
+      "footprintAreaM2": 1451.1292636541998
+    },
+    {
+      "id": "132937567",
+      "name": "花蓮後站",
+      "type": "flat",
+      "anchor": [
+        121.60007109,
+        23.99384268
+      ],
+      "rotationDeg": 65.8233,
+      "widthM": 62.454,
+      "depthM": 23.299,
+      "displayHeightM": 9,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": true,
+      "clock": false,
+      "offsetENU": [
+        -87.62202857887628,
+        120.07865759990096,
+        0
+      ],
+      "footprintAreaM2": 1405.5920127375998
+    },
+    {
+      "id": "1342634750",
+      "name": "月台棚",
+      "type": "canopy",
+      "anchor": [
+        121.60074671,
+        23.99230496
+      ],
+      "rotationDeg": 65.8318,
+      "widthM": 194.747,
+      "depthM": 10.278,
+      "displayHeightM": 6,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": false,
+      "clock": false,
+      "offsetENU": [
+        -18.910395091034133,
+        -51.10033280029285,
+        0
+      ],
+      "footprintAreaM2": 1885.6769364909997
+    },
+    {
+      "id": "1342634751",
+      "name": "月台棚",
+      "type": "canopy",
+      "anchor": [
+        121.60059131,
+        23.99236872
+      ],
+      "rotationDeg": 65.8247,
+      "widthM": 194.747,
+      "depthM": 10.723,
+      "displayHeightM": 6,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": false,
+      "clock": false,
+      "offsetENU": [
+        -34.71482338486348,
+        -44.00256959992561,
+        0
+      ],
+      "footprintAreaM2": 1857.85301157485
+    },
+    {
+      "id": "1352337182",
+      "name": "月台棚",
+      "type": "canopy",
+      "anchor": [
+        121.60097829,
+        23.99220999
+      ],
+      "rotationDeg": 65.8247,
+      "widthM": 194.751,
+      "depthM": 11.527,
+      "displayHeightM": 6,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": false,
+      "clock": false,
+      "offsetENU": [
+        4.6416609220323926,
+        -61.6723932002094,
+        0
+      ],
+      "footprintAreaM2": 2243.9584211314
+    }
+  ]
+}

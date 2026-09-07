@@ -1,0 +1,247 @@
+{
+  "id": "taipei101-landmark-v1",
+  "name": "台北101",
+  "version": 1,
+  "landmarkType": "taipei101",
+  "anchor": [
+    121.56455513294843,
+    25.033946307135494
+  ],
+  "displayHeightM": 508,
+  "realBuildingHeightM": 508,
+  "railElevationM": null,
+  "heightQuality": "官方總高，分件比例示意",
+  "footprintQuality": "OSM polygon",
+  "footprintWidthM": 146.21840838439167,
+  "footprintDepthM": 138.3828788680668,
+  "rotationDeg": 89.03489627577518,
+  "sources": [
+    {
+      "url": "https://www.onenessarchitects.com/project/Taipei-101?lang=cn",
+      "use": "建築師公布之 508m 總高與分節設計"
+    },
+    {
+      "url": "https://www.taipei-101.com.tw/tw/corporate/about",
+      "use": "建築高度／主要外觀參考；不拷貝照片為材質"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/1159328965",
+      "use": "平面輪廓與方向",
+      "license": "ODbL-1.0",
+      "snapshot": "2026-06-01T08:52:28Z"
+    }
+  ],
+  "notes": [
+    "可辨識輪廓的簡化外觀版本；立面、室內及結構並非測繪成果。",
+    "總高不等於絕對海拔。地表底座另由地形取樣；未改動任何軌道高程。"
+  ],
+  "sourceSnapshot": {
+    "path": "source-layouts/taipei101-landmark-v1/metadata.json",
+    "sha256": "ea9b560345865371148dbda6f37a2eae4cf0616ac53894dfc444f07c59d393a0"
+  },
+  "category": "landmark",
+  "kind": "taipei101",
+  "placementStatus": "existing-layout-unverified-facade",
+  "features": [
+    "八組向上外張的塔身分節",
+    "青綠玻璃、層間框與尖塔"
+  ],
+  "application": "5.2.1 LTS",
+  "axes": {
+    "up": "+Z",
+    "right": "+X",
+    "front": "-Y",
+    "units": "meters",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "gltfAxes": {
+    "up": "+Y",
+    "toZUp": "rotateX(+PI/2)"
+  },
+  "orientationMode": "local-facade",
+  "facadeBearingDeg": null,
+  "absoluteGroundAltitudeM": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -68.29000091552734,
+      -61.790000915527344,
+      0.0
+    ],
+    "max": [
+      68.29000091552734,
+      61.790000915527344,
+      508.0
+    ]
+  },
+  "sizeM": [
+    136.5800018310547,
+    123.58000183105469,
+    508.0
+  ],
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "glb": "near.glb",
+      "sha256": "2bc200558b782076a000e61e0da80efd5380e1c513b3ecbb1a4b67ee00e23c1d",
+      "glbSha256": "5a0eba5a1f531dc9cdaeda9cc07b4114f3c7320b7d6ba3db6e60a1ca667bb10f",
+      "strideBytes": 24,
+      "vertexCount": 16524,
+      "triangleCount": 5508,
+      "drawGroups": [
+        {
+          "component": "main",
+          "name": "stone",
+          "start": 0,
+          "count": 36,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "cream",
+          "start": 36,
+          "count": 1476,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "green",
+          "start": 1512,
+          "count": 684,
+          "color": [
+            0.05612849071621895,
+            0.25015828013420105,
+            0.2345505803823471
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "main",
+          "name": "metal",
+          "start": 2196,
+          "count": 13872,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "gold",
+          "start": 16068,
+          "count": 456,
+          "color": [
+            0.5840784311294556,
+            0.2961382567882538,
+            0.039546236395835876
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 396576
+    },
+    "far": {
+      "file": "far.mesh.bin",
+      "glb": "far.glb",
+      "sha256": "7d1b6a9d6c07aa79750f679874248ad86e7d7bd294570da71055febfe7f5993f",
+      "glbSha256": "16586cc808b5ea05418e5259636f8d6626e93d2f9c0bd598d2fe88c784d22362",
+      "strideBytes": 24,
+      "vertexCount": 13716,
+      "triangleCount": 4572,
+      "drawGroups": [
+        {
+          "component": "main",
+          "name": "stone",
+          "start": 0,
+          "count": 36,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "cream",
+          "start": 36,
+          "count": 108,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "green",
+          "start": 144,
+          "count": 684,
+          "color": [
+            0.05612849071621895,
+            0.25015828013420105,
+            0.2345505803823471
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "main",
+          "name": "metal",
+          "start": 828,
+          "count": 12432,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "gold",
+          "start": 13260,
+          "count": 456,
+          "color": [
+            0.5840784311294556,
+            0.2961382567882538,
+            0.039546236395835876
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 329184
+    }
+  },
+  "nativeObjectCount": 339,
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "modelUse": "map-exterior",
+  "components": []
+}

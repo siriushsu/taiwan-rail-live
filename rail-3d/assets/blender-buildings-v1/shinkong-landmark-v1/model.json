@@ -1,0 +1,221 @@
+{
+  "id": "shinkong-landmark-v1",
+  "name": "新光摩天大樓",
+  "version": 1,
+  "landmarkType": "shinkong",
+  "anchor": [
+    121.51531117744537,
+    25.04598631427511
+  ],
+  "displayHeightM": 244.15,
+  "realBuildingHeightM": null,
+  "railElevationM": null,
+  "heightQuality": "示意總高，尚非測量驗收",
+  "footprintQuality": "OSM polygon",
+  "footprintWidthM": 84.84382727439635,
+  "footprintDepthM": 40.22211114309814,
+  "rotationDeg": -89.25534319962138,
+  "sources": [
+    {
+      "url": "https://www.skhb.com.tw/web/webc/html/case/show.aspx?kind=25&num=28&page=1",
+      "use": "管理公司之建築高度與用途資料"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/204711206",
+      "use": "建築高度／主要外觀參考；不拷貝照片為材質"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/204711206",
+      "use": "平面輪廓與方向",
+      "license": "ODbL-1.0",
+      "snapshot": "2026-06-01T08:52:28Z"
+    }
+  ],
+  "notes": [
+    "可辨識輪廓的簡化外觀版本；立面、室內及結構並非測繪成果。",
+    "總高不等於絕對海拔。地表底座另由地形取樣；未改動任何軌道高程。"
+  ],
+  "sourceSnapshot": {
+    "path": "source-layouts/shinkong-landmark-v1/metadata.json",
+    "sha256": "d1c2814d0a4adef9ab12e3dc4efc47103d241656b79d9ab8ae77a8ef35229a4e"
+  },
+  "category": "landmark",
+  "kind": "shinkong",
+  "placementStatus": "existing-layout-unverified-facade",
+  "features": [
+    "站前新光三越所在的新光摩天大樓",
+    "褐色立面、退縮塔冠與尖頂"
+  ],
+  "application": "5.2.1 LTS",
+  "axes": {
+    "up": "+Z",
+    "right": "+X",
+    "front": "-Y",
+    "units": "meters",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "gltfAxes": {
+    "up": "+Y",
+    "toZUp": "rotateX(+PI/2)"
+  },
+  "orientationMode": "local-facade",
+  "facadeBearingDeg": null,
+  "absoluteGroundAltitudeM": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -42.7119140625,
+      -20.40105628967285,
+      0.0
+    ],
+    "max": [
+      42.7119140625,
+      20.40105628967285,
+      244.14999389648438
+    ]
+  },
+  "sizeM": [
+    85.423828125,
+    40.8021125793457,
+    244.14999389648438
+  ],
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "glb": "near.glb",
+      "sha256": "1e29628cca96eb6d0e825992fed2568f98414d75326cf26eb21bdfba000dcd5a",
+      "glbSha256": "15a015bc6f52b56bc2eceb17d6fcf100636bcd52f18e27a3b7bd714418da4c53",
+      "strideBytes": 24,
+      "vertexCount": 4956,
+      "triangleCount": 1652,
+      "drawGroups": [
+        {
+          "component": "main",
+          "name": "brown",
+          "start": 0,
+          "count": 1980,
+          "color": [
+            0.31398871541023254,
+            0.23074005544185638,
+            0.177888423204422
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "stone",
+          "start": 1980,
+          "count": 2880,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "smoke",
+          "start": 4860,
+          "count": 36,
+          "color": [
+            0.18447498977184296,
+            0.21223075687885284,
+            0.22696587443351746
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "metal",
+          "start": 4896,
+          "count": 60,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 118944
+    },
+    "far": {
+      "file": "far.mesh.bin",
+      "glb": "far.glb",
+      "sha256": "db292dd06dde02e74fb08124bbe20f3a7fcbfe7a03e7b26a7cf97a0bc4b00899",
+      "glbSha256": "f3858ca3cc6168071418fee1effd5b19d29d7e73e1fbfc2c51730d7a1eb7f5b3",
+      "strideBytes": 24,
+      "vertexCount": 1788,
+      "triangleCount": 596,
+      "drawGroups": [
+        {
+          "component": "main",
+          "name": "brown",
+          "start": 0,
+          "count": 1116,
+          "color": [
+            0.31398871541023254,
+            0.23074005544185638,
+            0.177888423204422
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "stone",
+          "start": 1116,
+          "count": 576,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "smoke",
+          "start": 1692,
+          "count": 36,
+          "color": [
+            0.18447498977184296,
+            0.21223075687885284,
+            0.22696587443351746
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "metal",
+          "start": 1728,
+          "count": 60,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 42912
+    }
+  },
+  "nativeObjectCount": 137,
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "modelUse": "map-exterior",
+  "components": []
+}

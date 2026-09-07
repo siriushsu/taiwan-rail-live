@@ -8,3 +8,8 @@
 .ri-formation-caption{padding:8px 12px 6px;border-top:1px solid var(--line);color:var(--muted);font-size:11px;line-height:1.5}
 .ri-formation-caption[hidden]{display:none}
 body.ambient .ri-formation-caption{display:none}
+/* 收合卡只保留操作與行車資訊，編組說明放在展開資訊中。 */
+.follow-panel.fp-min .ri-formation-caption{display:none}
+.follow-panel.fp-min{max-width:calc(100% - 24px);min-height:44px;box-sizing:border-box}
+.follow-panel.fp-min .fp-head{flex-wrap:nowrap;gap:8px}
+.follow-panel.fp-min .fp-end{min-width:44px;min-height:44px;margin-left:0}
