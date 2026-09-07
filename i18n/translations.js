@@ -1067,3 +1067,6 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
 
 Object.assign(window.RAIL_I18N_MESSAGES.en, {"下一班":"Next train", "暗色 2.0：霓虹路線、透明藍色建築與玻璃面板；車站看板新增方向切換和大字倒數，亮色維持琺瑯風格":"Dark 2.0 brings neon routes, transparent blue buildings and glass panels, with direction tabs and a large departure countdown. Light mode keeps its enamel style."});
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"下一班":"次の列車", "暗色 2.0：霓虹路線、透明藍色建築與玻璃面板；車站看板新增方向切換和大字倒數，亮色維持琺瑯風格":"ダーク2.0：ネオンの路線、透明な青い建物とガラスパネル。駅の発着案内に方面切替と大きなカウントダウンを追加。ライトモードは琺瑯スタイルを維持します。"});
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"放大地圖時，車站標記與點擊範圍一起加大；點開車站或跟隨列車時，指北按鈕也能正常回正":"Station markers and tap areas grow as you zoom in. The compass also works while viewing a station or following a train."});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"放大地圖時，車站標記與點擊範圍一起加大；點開車站或跟隨列車時，指北按鈕也能正常回正":"地図を拡大すると駅マークとタップ範囲も大きくなります。駅の案内や列車の追跡中も、方位ボタンで北向きに戻せます。"});

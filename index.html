@@ -5229,6 +5229,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="stationtarget0907"><span class="d">9/7</span><span>放大地圖時，車站標記與點擊範圍一起加大；點開車站或跟隨列車時，指北按鈕也能正常回正</span></li>
         <li data-cl-of="night200907"><span class="d">9/7</span><span>暗色 2.0：霓虹路線、透明藍色建築與玻璃面板；車站看板新增方向切換和大字倒數，亮色維持琺瑯風格</span></li>
         <li data-cl-of="nightglow0907"><span class="d">9/7</span><span>暗色地圖的路線自動帶上霓虹微光，保留各線原色；切回亮色地圖就恢復原樣</span></li>
         <li data-cl-of="discovery0907"><span class="d">9/7</span><span>新增路線導覽與精選取景：沿線找站、點站看班次；空白搜尋也有可點的範例</span></li>
@@ -5236,7 +5237,6 @@
         <li data-cl-of="badgefallen"><span class="d">9/6</span><span>捷運頂列的「N 線改用備案」指得出是哪幾條線、為什麼：滑鼠移上去或點開資料狀態卡就看得到</span></li>
         <li data-cl-of="querytab0906"><span class="d">9/6</span><span>手機底部「搜尋」改為「查詢」：半高面板先給離你最近的站各方向下一班，再列提醒、今日動態、附近車站與小工具入口；在車站附近開 App 會自動出現</span></li>
         <li data-cl-of="branchdestgroup"><span class="d">9/6</span><span>車站看板：只借道成追線的縱貫線列車回到南下、北上組；支線組標題改成列車真正的終點站</span></li>
-        <li data-cl-of="hsinchuboarddir"><span class="d">9/6</span><span>修正新竹、北新竹站看板把往基隆、七堵的縱貫線列車歸進「往內灣」（謝謝網友回報）</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5244,6 +5244,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="stationtarget0907"><span class="d">9/7</span><span>放大地圖時，車站標記與點擊範圍一起加大；點開車站或跟隨列車時，指北按鈕也能正常回正</span></li>
         <li data-cl="nightglow0907"><span class="d">9/7</span><span>暗色地圖的路線自動帶上霓虹微光，沿用各線原色，列車與站名仍保持清楚；亮色、衛星、軌道淡化或隱藏、收集地圖維持原本顯示</span></li>
         <li data-cl="discovery0907"><span class="d">9/7</span><span>新增路線導覽：沿線找站、反轉站序、點站看班次，也能一鍵查看全線或選台北、文湖線、淡海、阿里山視角；搜尋框空白時會提供可點的查詢範例；到站看板的時刻與倒數也更醒目</span></li>
         <li data-cl="branchdestgroup"><span class="d">9/6</span><span>車站看板的支線分組更貼近實際：只借道成追線直通的縱貫線列車，改回南下、北上那兩組，追分與成功站不再出現「往成功」「往追分」；支線那一組的標題也改成列車真正的終點站，新竹往六家的班次寫「往 六家」而不是「往 內灣」</span></li>
@@ -6119,7 +6120,7 @@
 //         網友回報 issue #46。守門人:scripts/verify_board_direction_groups.mjs 的 D11a–D11f。
 // v0906g：手機底部「搜尋」改為「查詢」半高面板——答案區走看板同源、公車轉乘入口、靠近車站自動開;併入 origin/main 的 v0906f。
 // v0906i：v0906g(查詢分頁)再併入 origin/main 的 v0906h(看板支線分組)。
-const BUILD = 'v0907c';
+const BUILD = 'v0907d';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -6911,6 +6912,17 @@ function setupMapOrientation() {
     try { localStorage.setItem('trainmap-map-pitch', String(state.mapPitch)); } catch (e) {}
   });
   btn.onclick = () => setMap3d(!state.map3d);
+  // 原生 compass 的 easeTo 會被跟車 setView／面板 padding 打斷；改由同一個 tick 完成回正。
+  M.getContainer().addEventListener('click', event => {
+    if (!event.target.closest('.maplibregl-ctrl-compass')) return;
+    event.preventDefault(); event.stopImmediatePropagation();
+    resetMapNorth();
+  }, true);
+  if (window.ResizeObserver) {
+    const observer = new ResizeObserver(() => requestAnimationFrame(placeMapNavigation));
+    for (const panel of document.querySelectorAll('.board,.traincard,#nearCard,#followPanel')) observer.observe(panel);
+  }
+  window.addEventListener('resize', placeMapNavigation);
   M.onStyleLoad(installBuilding3d);
   syncMap3dUi();
 }
@@ -6945,7 +6957,9 @@ function mapGestureActive() {
 function selfBearing(b) { state._autoPan = true; try { M.setBearing(b); } finally { state._autoPan = false; } }
 function applyFollowHeading(heading, options) {
   if (!M) return;
-  const target = state.ambient ? 0 : heading;
+  if (state._northReset) return;
+  let target = state.ambient ? 0 : heading;
+  if (state._northUpTarget && state._northUpTarget === (state.followTrain || state.freqFollow)) target = 0;
   if (!Number.isFinite(target)) return;
   const current = M.getBearing();
   const delta = ((target - current + 540) % 360) - 180;
@@ -6973,6 +6987,49 @@ function stepHeadingReset(now) {
   const t = Math.min(1, (now - r.at) / r.ms), e = 1 - (1 - t) * (1 - t); // ease-out,與 MapLibre 預設曲線同向
   selfBearing(t >= 1 ? 0 : r.from + r.delta * e);
   if (t >= 1) state._headingReset = null;
+}
+function resetMapNorth() {
+  state._headingReset = null;
+  // 只記住目前這班車；換車時回到原有的行進方向跟隨。
+  state._northUpTarget = state.followTrain || state.freqFollow || null;
+  const from = M.getBearing(), delta = ((-from + 540) % 360) - 180;
+  state._northReset = { from, delta, pitch: M.getPitch(), at: performance.now() };
+}
+function stepMapNorth(now) {
+  const r = state._northReset;
+  if (!r) return;
+  if (mapGestureActive()) { state._northReset = null; return; }
+  const t = Math.min(1, (now - r.at) / 240), e = 1 - (1 - t) * (1 - t);
+  state._autoPan = true;
+  try {
+    M.setView(M.getCenter(), M.getZoom(), { animate: false,
+      bearing: t >= 1 ? 0 : r.from + r.delta * e, pitch: t >= 1 ? 0 : r.pitch * (1 - e) });
+  } finally { state._autoPan = false; }
+  if (t >= 1) state._northReset = null;
+}
+function placeMapNavigation() {
+  if (!M) return;
+  const corner = M.getContainer().querySelector('.maplibregl-ctrl-bottom-right');
+  if (!corner) return;
+  let bottom = '', right = '';
+  if (window.matchMedia(MOBILE_MQ).matches && !state.ambient) {
+    const side = sheetIsSideRail(), mr = M.getContainer().getBoundingClientRect();
+    const panels = [activeSheetEl(), side && document.getElementById('followPanel')];
+    let lift = 0, shift = 0;
+    for (const panel of panels) {
+      if (!panel || panel.hidden || +getComputedStyle(panel).opacity < .5) continue;
+      const r = panel.getBoundingClientRect();
+      if (!r.width || !r.height) continue;
+      if (side) {
+        if (r.right > mr.right - 54) shift = Math.max(shift, mr.right - r.left + 8);
+      } else lift = Math.max(lift, mr.bottom - r.top + 8);
+    }
+    if (lift) bottom = lift + 'px';
+    if (shift) right = shift + 'px';
+  }
+  // 只移動控制角；地圖投影不受影響。手機看板的高度與橫向側欄都取實際位置。
+  if (corner.style.bottom !== bottom) corner.style.bottom = bottom;
+  if (corner.style.right !== right) corner.style.right = right;
 }
 function applyFreqFollowHeading(info, ln, immediate) {
   if (!state.freqFollow || !info) return;
@@ -10825,9 +10882,9 @@ function drawFreq(w, h) {
     if (!state.visible.has(ln.id) || !ln.pts) return;
     ln.pts.forEach((p, idx) => {
       if (!glTracksActive()) {
-        ctx.beginPath(); ctx.arc(p.x, p.y, 2.4, 0, 7);
+        ctx.beginPath(); ctx.arc(p.x, p.y, 2.4 + stationZoomBoost(z) * 4, 0, 7);
         ctx.fillStyle = P.stnFill; ctx.fill();
-        ctx.lineWidth = 1.5; ctx.strokeStyle = metroLineColor(ln.color); ctx.globalAlpha = 0.9; ctx.stroke();
+        ctx.lineWidth = 1.5 + stationZoomBoost(z) * .7; ctx.strokeStyle = metroLineColor(ln.color); ctx.globalAlpha = 0.9; ctx.stroke();
         ctx.globalAlpha = 1;
       }
       if (showStation && inView(p)) freqLabels.push({
@@ -10994,6 +11051,7 @@ function applyFreqFollow(hit) { // hit = {ln,tr}／{ln,k}／{ln,vehicleId};不�
       ? { core: true, systemId: String(target.systemId), lineId: String(target.ln.id), vehicleId: String(target.vehicleId) }
       : { official: true, lineId: String(target.ln.id), vehicleId: String(target.vehicleId) })
     : target.tr ? { ln: target.ln, tr: target.tr } : { ln: target.ln, k: target.k };
+  state._northReset = null; state._northUpTarget = null;
   state.followLock = true;
   syncPanFence(); // 捷運起跟:確保平移硬牆維持開啟(跟車不再解牆,見 syncPanFence 註解;冪等)
   document.getElementById('freqCard').hidden = false;
@@ -11203,9 +11261,9 @@ function drawDecoBase(w, h) {
     ln.pts.forEach((p, idx) => {
       if (!inView(p)) return;
       if (!glTracksActive()) {
-        ctx.beginPath(); ctx.arc(p.x, p.y, 2.4, 0, 7);
+        ctx.beginPath(); ctx.arc(p.x, p.y, 2.4 + stationZoomBoost(z) * 4, 0, 7);
         ctx.fillStyle = P.stnFill; ctx.fill();
-        ctx.lineWidth = 1.5; ctx.strokeStyle = metroLineColor(ln.color); ctx.globalAlpha = 0.9; ctx.stroke();
+        ctx.lineWidth = 1.5 + stationZoomBoost(z) * .7; ctx.strokeStyle = metroLineColor(ln.color); ctx.globalAlpha = 0.9; ctx.stroke();
         ctx.globalAlpha = 1;
       }
       if (showStation) decoLabels.push({
@@ -11444,7 +11502,11 @@ function glTracksSync() {
   const basePaint = id => glTracks.style.layers.find(layer => layer.id === id).paint;
   const casing = { 'line-opacity': 1, ...basePaint('track-casing'), ...S['track-casing'].paint };
   const line = { 'line-opacity': 1, ...basePaint('track-line'), ...S['track-line'].paint };
-  const stn = { ...basePaint('track-stations'), ...S['track-stations'].paint };
+  const stn = { ...basePaint('track-stations'), ...S['track-stations'].paint,
+    'circle-radius': ['interpolate', ['linear'], ['zoom'], STATION_NEAR_ZOOM - ML_Z, 2.4, STATION_CLOSE_ZOOM - ML_Z, 6.4],
+    'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], STATION_NEAR_ZOOM - ML_Z, 1.5, STATION_CLOSE_ZOOM - ML_Z, 2.2],
+    'circle-pitch-scale': 'viewport',
+  };
   if (st === 'auto' && theme === 'dark') { // 夜間霓虹:細亮芯、內光、外光共用真實幾何。
     line['line-color'] = ['get', 'colorNeon'];
     line['line-width'] = 2.2; line['line-opacity'] = 1;
@@ -11712,10 +11774,10 @@ function stationLabelAnchor(cp, st, t) {
   const ref = stationTrackRef(st);
   if (ref && ref.ln.shapePts && ref.ln.shapePts.length > 1) {
     const sp = ref.ln.shapePts;
-    const a = sideLabelAnchor(cp, sp[Math.max(0, ref.i - 2)], sp[Math.min(sp.length - 1, ref.i + 2)], t.r + 16);
+    const a = sideLabelAnchor(cp, sp[Math.max(0, ref.i - 2)], sp[Math.min(sp.length - 1, ref.i + 2)], t.r + stationZoomBoost() * 4 + 16);
     if (a) return a;
   }
-  return { x: cp.x, y: cp.y - Math.max(0, t.r - 2) }; // 找不到軌道走向:回原本的圖示上方
+  return { x: cp.x, y: cp.y - Math.max(0, t.r + stationZoomBoost() * 4 - 2) }; // 找不到軌道走向:回原本的圖示上方
 }
 
 // ── 車站分級圖示(站等:特等/一等/二等/三等/簡易招呼) ──
@@ -11727,10 +11789,17 @@ const TIER_STYLE = [
   { r: 2.7, w: 1.4, ring: '#5b78a0', f: '500 11px ',   lz: 12 },
   { r: 2,   w: 1.2, ring: '#8aa0c0', f: '500 10.5px ', lz: 13 },
 ];
+// 車站近景放大：12 級以下維持遠景密度，16 級起增加 4px 半徑；命中直徑同步 32→48px。
+const STATION_NEAR_ZOOM = 12, STATION_CLOSE_ZOOM = 16;
+function stationZoomBoost(z = M.getZoom()) {
+  return Math.max(0, Math.min(1, (z - STATION_NEAR_ZOOM) / (STATION_CLOSE_ZOOM - STATION_NEAR_ZOOM)));
+}
+function stationHitRadius() { return 16 + stationZoomBoost() * 8; }
 function drawStationIcon(cp, tier) {
-  const t = TIER_STYLE[tier];
+  const t = TIER_STYLE[tier], boost = stationZoomBoost();
+  const radius = t.r + boost * 4, stroke = t.w + boost * .7;
   if (t.sq) { // 特等站:白底圓角方牌+紅框+中心點,像站名牌
-    const s = t.r, r0 = 2.5, x0 = cp.x - s, y0 = cp.y - s, ww = s * 2;
+    const s = radius, r0 = 2.5, x0 = cp.x - s, y0 = cp.y - s, ww = s * 2;
     ctx.beginPath();
     ctx.moveTo(x0 + r0, y0);
     ctx.arcTo(x0 + ww, y0, x0 + ww, y0 + ww, r0);
@@ -11739,14 +11808,14 @@ function drawStationIcon(cp, tier) {
     ctx.arcTo(x0, y0, x0 + ww, y0, r0);
     ctx.closePath();
     ctx.fillStyle = '#fffdf6'; ctx.fill();
-    ctx.lineWidth = t.w; ctx.strokeStyle = t.ring; ctx.stroke();
+    ctx.lineWidth = stroke; ctx.strokeStyle = t.ring; ctx.stroke();
     ctx.beginPath(); ctx.arc(cp.x, cp.y, 1.8, 0, 7);
     ctx.fillStyle = t.ring; ctx.fill();
     return;
   }
-  ctx.beginPath(); ctx.arc(cp.x, cp.y, t.r, 0, 7);
+  ctx.beginPath(); ctx.arc(cp.x, cp.y, radius, 0, 7);
   ctx.fillStyle = tier <= 1 ? '#fffdf6' : pal().stnFill; ctx.fill();
-  ctx.lineWidth = t.w; ctx.strokeStyle = t.ring;
+  ctx.lineWidth = stroke; ctx.strokeStyle = t.ring;
   ctx.globalAlpha = tier >= 3 ? 0.8 : 1; ctx.stroke();
   ctx.globalAlpha = 1;
 }
@@ -15247,6 +15316,7 @@ function tickCore(now) {
   }
   updateBlockHolds(); // 後車不穿越前車:算完 simSec 之後、任何人問位置之前先更新阻擋回撥(相機與繪製都吃 trainPos)
   stepHeadingReset(now); // 離開跟車的轉正北:tick 驅動(見 resetFollowHeading),排在相機邏輯之前
+  stepMapNorth(now); // 使用者按指北：面板讓位、跟車置中仍可持續，朝向由此完成。
   // 版面尺寸守衛(見 syncMapSizeIfStale):必須在相機與繪製之前,否則本幀仍以過期尺寸算座標
   if (now - (state._szChkAt || 0) >= 200) { state._szChkAt = now; syncMapSizeIfStale(); }
   if (state.autoTour && state.mode === 'sched' && state.playing) {
@@ -16108,6 +16178,7 @@ function setFollow(tr, isAuto, noJump, opts) {
   // 收掉等於把設計的兩分頁砍成一頁(狀態機 tapTrain 只切 tab,不關卡)。桌面維持原本的「一律收掉」。
   if (!uniMobile()) closeBoard();
   state.followTrain = tr; state.followId = tr.train;
+  state._northReset = null; state._northUpTarget = null;
   // 轉乘站是「這一班車」的行程意圖；換車不能把上一班的站悄悄沿用到新車。
   if (busTransferJourney && busTransferJourney.trainKey !== busTransferTrainKey(tr)) busTransferCancelJourney(false);
   state._camOffAt = 0; // 換車歸零離屏累計,免得舊車的離屏時間觸發對新車的誤救
@@ -22842,6 +22913,7 @@ function focusCenter(lat, lon, z, extra) {
 // 面板開/關/換段高:把新的讓位量交給 padding,不去猜使用者在看誰。
 // (M4-B 之前 Leaflet 半邊是「只補位移量的差」的相對 panBy 記帳,連同它的 _rawPanBy 陷阱說明一起拔。)
 function reframeFocus() {
+  placeMapNavigation();
   if (camBlocked()) return;
   if (state.followTrain || state.freqFollow || state.ambient) return; // 那些模式每幀自己走 recenterTo,會自動套上新位移
   // 🔴 每次 reframe 都重量,不吃 80ms 快取:面板開啟是「先 hidden=false 讓位一次(此刻 sheet 還在
@@ -31759,6 +31831,7 @@ function setupMapTools() {
     // 跟隨鎖 §04c 起手機住進 #mapActions 工具欄(placeControlRail),地圖右下控制角只剩桌面在用;
     // 桌面 lift 恆 null,原本的 marginBottom 抬升與 --lockctl-clear 量測整組退役(消費它的 CSS 已移除)。
     if (lc) lc.style.marginBottom = '';
+    placeMapNavigation();
     invalidateMapInsets(); // 家具重排完=露出地圖可能變了(工具欄位移/小卡抬升),快取失效
   }
   // 跟隨開始/結束時由 setFollow/clearFollow 經 state._placeFsOverlays 明確重排
@@ -32783,6 +32856,7 @@ async function boot() {
   }
   function handleMapClick(e) {
     const cp = e.containerPoint || M.toScreen(e.latlng);
+    const stationRadius = stationHitRadius();
     closeTapPick(); // 點地圖任何地方先收掉歧義選單(選單列自身的點擊不會冒泡到 map)
     if (state.takeoutPick && state.takeoutResult) {
       const pick = state.takeoutPick, ll = e.latlng || M.fromScreen(cp);
@@ -32808,7 +32882,7 @@ async function boot() {
           if (d < bdSt) { bdSt = d; bestSt = ln.stations[idx]; bestStLine = ln; }
         });
       });
-      const stHit = bestSt && bdSt <= 16 ? { name: bestSt.name, lat: bestSt.lat, lon: bestSt.lon, sys: 'freq', metroSysId: freqSysIdOf(bestStLine) } : null;
+      const stHit = bestSt && bdSt <= stationRadius ? { name: bestSt.name, lat: bestSt.lat, lon: bestSt.lon, sys: 'freq', metroSysId: freqSysIdOf(bestStLine) } : null;
       if (fhs.length > 1) {
         const items = fhs.map(tapPickFreqTrain);
         if (stHit && Math.abs(fh.dist - bdSt) < TAP_AMBIG_PX) items.push(tapPickStation(stHit));
@@ -32833,12 +32907,12 @@ async function boot() {
     closeCrossingCard(); // 點任何地方先收平交道卡;下面命中平交道會重開
     closeSugarCard();    // 台糖園區卡同理:點空地即收,命中記號會重開
     let best = null, bd = 1e9;
-    const stCands = []; // ≤16px 的候選站全收:共構站(台北/板橋/南港…台鐵與高鐵)座標幾乎重疊,只留最近一顆會讓另一顆永遠點不到
+    const stCands = []; // 命中半徑內的候選站全收:共構站(台北/板橋/南港…台鐵與高鐵)座標幾乎重疊,只留最近一顆會讓另一顆永遠點不到
     for (const st of state.schedStations) {
       const p = M.toScreen([st.lat, st.lon]);
       const d = Math.hypot(p.x - cp.x, p.y - cp.y);
       if (d < bd) { bd = d; best = st; }
-      if (d <= 16) stCands.push({ st, d });
+      if (d <= stationRadius) stCands.push({ st, d });
     }
     // 全台同框:裝飾層(捷運示意層)最近站先併入候選——共構點(台鐵/高鐵/捷運的「台北」)的疊站選單要一次列齊,
     // 不能等真車歧義判定之後才補(真車停靠共構站時會走上面那條路,捷運顆漏列)。同距時 sched 顆排前(排序穩定)。
@@ -32851,7 +32925,7 @@ async function boot() {
           if (d < bdDeco) { bdDeco = d; bestDeco = ln.stations[idx]; bestDecoLine = ln; }
         });
       });
-      if (bestDeco && bdDeco <= 16) stCands.push({ st: { name: bestDeco.name, lat: bestDeco.lat, lon: bestDeco.lon, sys: 'deco', metroSysId: freqSysIdOf(bestDecoLine) }, d: bdDeco });
+      if (bestDeco && bdDeco <= stationRadius) stCands.push({ st: { name: bestDeco.name, lat: bestDeco.lat, lon: bestDeco.lon, sys: 'deco', metroSysId: freqSysIdOf(bestDecoLine) }, d: bdDeco });
     }
     stCands.sort((a, b) => a.d - b.d);
     // 與最近顆距離差 <TAP_AMBIG_PX 的視為疊站,選單一次列出(含系統名)讓使用者分開開板
@@ -32865,11 +32939,11 @@ async function boot() {
     // 站也黏在一起時把疊站列一併併進同一張選單(與下面單台那條、以及捷運那條的處理一致)。
     if (hits.length > 1) {
       const items = hits.map(tapPickSchedTrain);
-      if (best && bd <= 16 && Math.abs(hit.dist - bd) < TAP_AMBIG_PX) items.push(...stAmb());
+      if (best && bd <= stationRadius && Math.abs(hit.dist - bd) < TAP_AMBIG_PX) items.push(...stAmb());
       openTapPick(cp, items); return;
     }
-    if (hit && best && bd <= 16 && Math.abs(hit.dist - bd) < TAP_AMBIG_PX) { openTapPick(cp, [tapPickSchedTrain(hit), ...stAmb()]); return; }
-    if (hit && (bd > 16 || hit.dist <= bd)) {
+    if (hit && best && bd <= stationRadius && Math.abs(hit.dist - bd) < TAP_AMBIG_PX) { openTapPick(cp, [tapPickSchedTrain(hit), ...stAmb()]); return; }
+    if (hit && (bd > stationRadius || hit.dist <= bd)) {
       if (hit.tr === state.followTrain) { setAutoTour(false); clearFollow(); return; }
       const ts = document.getElementById('trainSearch');
       if (ts) ts.value = hit.tr.train;
@@ -32878,10 +32952,10 @@ async function boot() {
     }
     // 命中優先序 列車 > 平交道 > 車站:平交道記號比最近車站近就開通過預測卡
     const xh = crossingAt(cp);
-    if (xh && (bd > 16 || xh.dist <= bd)) { openCrossingCard(xh.cr); return; }
+    if (xh && (bd > stationRadius || xh.dist <= bd)) { openCrossingCard(xh.cr); return; }
     // 台糖園區記號:優先序排平交道之後、車站之前(記號比最近車站近才開卡)
     const sg = sugarAt(cp);
-    if (sg && (bd > 16 || sg.dist <= bd)) { openSugarCard(sg.pk); return; }
+    if (sg && (bd > stationRadius || sg.dist <= bd)) { openSugarCard(sg.pk); return; }
     if (state.deco) {
       // 全台同框:台鐵/高鐵沒點中時,捷運示意車也可點擊跟隨(優先序:真車>示意車>車站);
       // 示意車與站(候選已含裝飾層顆)黏在一起分不出 → 彈小選單。歧義判定同樣要在勝負判定之前
@@ -32896,7 +32970,7 @@ async function boot() {
         openTapPick(cp, [tapPickFreqTrain(fh), ...stAmb()]);
         return;
       }
-      if (fh && (bd > 16 || fh.dist <= bd)) {
+      if (fh && (bd > stationRadius || fh.dist <= bd)) {
         const f = state.freqFollow;
         if (trtcOfficialSameTarget(f, fh)) clearFreqFollow();
         else setFreqFollow(fh);
@@ -32926,14 +33000,21 @@ async function boot() {
       const p = M.toScreen([st.lat, st.lon]);
       stD = Math.min(stD, Math.hypot(p.x - cp.x, p.y - cp.y));
     }
-    if (!trainAt(cp) && !crossingAt(cp) && stD > 16 && !(state.deco && freqTrainAt(cp))) return;
+    if (!trainAt(cp) && !crossingAt(cp) && stD > stationHitRadius() && !(state.deco && freqTrainAt(cp))) return;
     handleMapClick({ containerPoint: cp, latlng: M.fromScreen(cp) });
   });
+  function overStation(cp) {
+    const radius = stationHitRadius();
+    const near = p => Math.hypot(p.x - cp.x, p.y - cp.y) <= radius;
+    if (state.mode === 'sched' && state.schedStations.some(st => near(M.toScreen([st.lat, st.lon])))) return true;
+    const lines = state.mode !== 'sched' ? state.lines : state.deco ? state.decoLines : [];
+    return (lines || []).some(ln => (state.mode === 'sched' || state.visible.has(ln.id)) && (ln.pts || []).some(near));
+  }
   M.on('mousemove', e => {
-    // 滑過列車 → 手指游標(sched 真實班表 + freq 幽靈車一致)
+    // 車站與列車都可點；游標使用與點擊相同的車站命中半徑。
     const c = M.getContainer();
-    if (state.mode !== 'sched') { c.style.cursor = freqTrainAt(e.containerPoint) ? 'pointer' : ''; return; }
-    c.style.cursor = (trainAt(e.containerPoint) || (state.deco && freqTrainAt(e.containerPoint))) ? 'pointer' : '';
+    if (state.mode !== 'sched') { c.style.cursor = (freqTrainAt(e.containerPoint) || overStation(e.containerPoint)) ? 'pointer' : ''; return; }
+    c.style.cursor = (trainAt(e.containerPoint) || (state.deco && freqTrainAt(e.containerPoint)) || overStation(e.containerPoint)) ? 'pointer' : '';
   });
   // 跟隨鎖鈕:掛在縮放鈕上方(同角落自動堆疊,免手算碰撞);跟隨中才顯示
   {
