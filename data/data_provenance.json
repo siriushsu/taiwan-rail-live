@@ -35,7 +35,7 @@
    "effectiveDateField": "fetchedAt",
    "geometrySource": "TRA-ODS",
    "coordinateBasis": "WGS84(台鐵平交道公開資料的 POS 欄位標示 WGS84,見 scripts/build_crossings.mjs:6)",
-   "checksum": "49f18c904479b6f09605fe310e5898ee"
+   "checksum": "4a71bc892be82ec660975fd1ceeb352d"
   },
   "data/krtc.json": {
    "sourceDescription": "交通部 TDX 運輸資料流通服務(高雄捷運紅/橘線與高雄輕軌:路線幾何/站序/站間行駛時間,2026-07 抓取);輕軌班距為官方公告估算(尖峰約10分/離峰約15分)",
@@ -197,7 +197,7 @@
    "effectiveDateField": null,
    "geometrySource": "TDX+OSM",
    "coordinateBasis": "WGS84(OSM 段);TDX 段未載明(payload 無 CRS 欄位)——兩者實測同框,build_tdx.mjs 對 K03 的座標修正即以 OSM 座標落在 TDX 軌道幾何上離軌 0m 為據",
-   "checksum": "a6611b805d8393b9f372d5fc6d7a6644"
+   "checksum": "0e9776cd17c524c4af9862aabdfdc221"
   },
   "data/tra_pass_obs.json": {
    "sourceDescription": "TDX api/historical/v2 Historical/Rail/TRA/LiveTrainDelay",
@@ -224,7 +224,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "c476952ea758b637697e3eab3bde7aa9"
+   "checksum": "3bd75e060e87cda0b81f68dde3bde93d"
   },
   "data/tra_schedule_dense.json": {
    "sourceDescription": "時刻表來源：https://ods.railway.gov.tw/tra-ods-web/ods/download/dataResource/railway_schedule/JSON/list 清單頁，抓取今天(2026-09-01)起連續 14 天中實際發佈得到的 14 天（2026-09-01…2026-09-1",
@@ -269,7 +269,7 @@
    "effectiveDateField": null,
    "geometrySource": "TDX+OSM",
    "coordinateBasis": "WGS84(OSM 段);TDX 段未載明(payload 無 CRS 欄位)——兩者實測同框,build_tdx.mjs 對 K03 的座標修正即以 OSM 座標落在 TDX 軌道幾何上離軌 0m 為據",
-   "checksum": "0e1d1f600c26f794420aefe289e06afc"
+   "checksum": "e62b919d240181a7a1a89b5a1058e5ee"
   },
   "data/track_stations.geojson": {
    "sourceDescription": "由 data/{tra,thsr_track,afr,trtc,tymc,ntdlrt,ntalrt,sanying,krtc,tmrt}.json 的 lines[].shape 與 lines[].stations 轉成 GeoJSON([lon,lat],小數 6 位),scripts/build_track_g",
