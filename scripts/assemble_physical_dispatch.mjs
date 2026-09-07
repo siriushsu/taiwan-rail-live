@@ -1,0 +1,5 @@
+import fs from 'node:fs';import {physicalStopSignature} from '../rail-3d/physical/motion.js';
+const allowYield=process.argv.includes('--allow-visual-yield'),inputs=process.argv.slice(2).filter(s=>s!=='--allow-visual-yield');if(!inputs.length)throw Error('必須指定驗證通過的派車結果');const plans={},handoffs=[],sources=[],trains=JSON.parse(fs.readFileSync('.cache/physical-tracks/timetable.json'));
+for(const file of inputs){const d=JSON.parse(fs.readFileSync(file));if((d.conflicts!==0||(d.failures||[]).length)&&!allowYield)throw Error('派車尚未驗證 '+file);if(!d.plans)throw Error('缺少派軌 '+file);Object.assign(plans,d.plans);handoffs.push(...d.handoffs||[]);sources.push(d.source);}
+for(const tr of trains){const p=plans[tr.id];if(p){p.stopSignature=physicalStopSignature(tr);p.lengthM=tr.lengthM;}}
+fs.writeFileSync('rail-3d/physical/dispatch.json',JSON.stringify({version:2,assignmentBasis:'inferred',conflictPolicy:allowYield?'temporary-visual-yield':'scheduled-hold',plans,handoffs,source:sources[0],coverage:{trains:Object.keys(plans).length,total:trains.length}}));console.log({trains:Object.keys(plans).length,total:trains.length});

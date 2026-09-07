@@ -13,7 +13,7 @@ TAGS = ['railway', 'name', 'name:zh', 'ref', 'operator', 'network', 'gauge', 'us
         'bridge', 'tunnel', 'layer', 'level', 'oneway', 'railway:preferred_direction',
         'railway:bidirectional', 'railway:track_ref', 'railway:traffic_mode', 'electrified', 'voltage']
 
-def build(raw_bytes):
+def build(raw_bytes, node_bytes=None):
     raw = json.loads(raw_bytes)
     if raw.get('remark') or not raw.get('osm3s', {}).get('timestamp_osm_base'):
         raise ValueError('來源未完成或缺少資料時間')
@@ -57,24 +57,46 @@ def build(raw_bytes):
                'explicitOneway':sum(w['tags'].get('oneway') in ['yes', '1', '-1'] for w in ways),
                'preferredDirection':sum('railway:preferred_direction' in w['tags'] for w in ways),
                'trackReference':sum('railway:track_ref' in w['tags'] for w in ways)}
-    return {'schema':1, 'source':{'name':'OpenStreetMap contributors', 'url':'https://www.openstreetmap.org/copyright',
+    node_tags, node_source = {}, None
+    if node_bytes:
+        metadata = json.loads(node_bytes)
+        if metadata.get('remark') or not metadata.get('osm3s', {}).get('timestamp_osm_base'):
+            raise ValueError('道岔來源未完成或缺少資料時間')
+        for node in metadata.get('elements', []):
+            if node.get('type') != 'node' or node['id'] not in nodes:
+                continue
+            if nodes[node['id']] != [node.get('lon'), node.get('lat')]:
+                raise ValueError(f"節點 {node['id']} 在兩份快照位置不同，必須重新抓取同版資料")
+            keep = ['railway', 'public_transport', 'name', 'ref', 'local_ref',
+                    'railway:track_ref', 'railway:switch', 'railway:switch:configuration',
+                    'railway:signal:direction', 'layer', 'level']
+            node_tags[str(node['id'])] = {k:v for k,v in node.get('tags', {}).items() if k in keep}
+        node_source = {'at':metadata['osm3s']['timestamp_osm_base'],
+                       'sha256':hashlib.sha256(node_bytes).hexdigest()}
+        summary['junctionKinds'] = dict(collections.Counter(
+            node_tags.get(str(k), {}).get('railway', 'unclassified')
+            for k,neighbors in degree.items() if len(neighbors)>2))
+        summary['stopPositions'] = sum(t.get('railway') == 'stop' for t in node_tags.values())
+    return {'schema':2 if node_bytes else 1, 'source':{'name':'OpenStreetMap contributors', 'url':'https://www.openstreetmap.org/copyright',
             'license':'ODbL-1.0', 'at':raw['osm3s']['timestamp_osm_base'],
             'sha256':hashlib.sha256(raw_bytes).hexdigest(), 'query':QUERY},
             'scope':'physical-topology-candidate', 'railElevationM':None, 'dispatchAssignments':None,
-            'summary':summary, 'nodes':{str(k):nodes[k] for k in sorted(nodes)}, 'ways':sorted(ways,key=lambda w:w['id'])}
+            'summary':summary, 'nodeSource':node_source, 'nodeTags':node_tags,
+            'nodes':{str(k):nodes[k] for k in sorted(nodes)}, 'ways':sorted(ways,key=lambda w:w['id'])}
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--summary', type=Path)
+    parser.add_argument('--node-source', type=Path, help='道岔、平面交叉與停車點的 OSM 節點資料')
     args = parser.parse_args()
-    graph = build(args.source.read_bytes())
+    graph = build(args.source.read_bytes(), args.node_source.read_bytes() if args.node_source else None)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     temp = args.output.with_suffix('.tmp')
     temp.write_text(json.dumps(graph, ensure_ascii=False, separators=(',', ':'))+'\n')
     temp.replace(args.output)
-    report = {k:v for k,v in graph.items() if k not in ['nodes', 'ways']}
+    report = {k:v for k,v in graph.items() if k not in ['nodes', 'ways', 'nodeTags']}
     if args.summary:
         args.summary.parent.mkdir(parents=True, exist_ok=True)
         args.summary.write_text(json.dumps(report, ensure_ascii=False, indent=2)+'\n')

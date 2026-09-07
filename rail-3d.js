@@ -4,7 +4,9 @@
   const {formationFor,airportServiceForTrip,tripDirection,stationDirection}=await import(base+'formations.js');
   const directionCache=new WeakMap();function timetableDirection(tr,ln){if(!directionCache.has(tr))directionCache.set(tr,tripDirection(tr,ln.stations.length,!!ln.loop));return directionCache.get(tr);}
   const serviceCache=new WeakMap();function airportService(tr){if(!serviceCache.has(tr))serviceCache.set(tr,airportServiceForTrip(tr));return serviceCache.get(tr);}
-  const params=new URLSearchParams(location.search),read=(key,fallback)=>{try{return sessionStorage.getItem(key)||fallback;}catch{return fallback;}};
+  const params=new URLSearchParams(location.search);
+  if(params.get('tracks')!=='legacy')import('./rail-3d/physical/client.js').then(m=>m.loadPhysicalMotion()).then(m=>{window.railIslandPhysical=m;glTracks.sig='';}).catch(e=>console.error('實體股道',e));
+  const read=(key,fallback)=>{try{return sessionStorage.getItem(key)||fallback;}catch{return fallback;}};
   let enabled=params.get('scene')!=='2d'&&read('ri-trains-enabled','1')!=='0',formationMode=params.get('formation')||read('ri-formation-mode','actual'),
     groundMode=params.get('ground')||read('ri-ground-mode','flat'),trainSizeMode=params.get('trainSize')||read('ri-train-size-v21','readable'),
     modelMode=read('ri-model-mode','all'),ambientCamera=read('ri-ambient-camera','side'),transparent=read('ri-transparent','1')==='1',satelliteTransparent=read('ri-satellite-transparent','0')==='1';
@@ -25,7 +27,7 @@
   function capture(){
     const epoch=Date.now()/1000,day=taipeiServiceDayStr(),vehicles=[],routes=[],stations=[];
     targets.clear();stationTargets.clear();motionItems.clear();
-    function add(id,pos,meta,target){if(!pos||!Number.isFinite(pos.lat)||!Number.isFinite(pos.lon))return;
+    function add(id,pos,meta,target){if(target.ln&&window.railIslandPhysical?.metro){const dir=meta.railDirection||Math.sign(meta.direction||0);pos=railIslandPhysical.metro.sample(target.ln,pos,dir);if(pos?.physical)meta={...meta,route:pos.route,chainageM:pos.chainageM,railDirection:pos.railDirection};}if(!pos||!Number.isFinite(pos.lat)||!Number.isFinite(pos.lon))return;
       targets.set(id,target);vehicles.push({id,longitude:pos.lon,latitude:pos.lat,railElevationM:null,...meta});}
     function station(st,sys,ln){const board=ln?{name:st.name,lat:st.lat,lon:st.lon,sys:state.mode==='sched'?'deco':'freq',metroSysId:sys}:st;
       const id=[sys,st.id||st.name,st.lat,st.lon].join(':');if(stationTargets.has(id))return;stationTargets.set(id,board);stations.push({id,name:st.name,systemId:sys,longitude:st.lon,latitude:st.lat});}
@@ -37,9 +39,9 @@
         if(tr!==state.followTrain&&!state.visible.has(tr.typeName))continue;
         const pos=trainPos(tr,state.simSec);if(!pos)continue;
         const g=trainSeg(tr,state.simSec-liveDelaySec(tr)-blockHoldSec(tr));
-        const route=g?.ln?lineRecord(g.ln,tr.sys):null;
+        const route=pos.physical?pos.route:g?.ln?lineRecord(g.ln,tr.sys):null;
         const id=[tr.sys,day,tr.train,tr.stops[0]?.depSec,tr.stops.at(-1)?.arrSec].join(':');
-        add(id,pos,{systemId:tr.sys,routeId:route?.routeId||null,route,color:tr.color||'#438477',publicLabel:String(tr.train),typeName:tr.typeName,carName:tr.carName,stockId:specialOf(tr)?.stock?.id||null,branchId:specialOf(tr)?.branch?.id||null,namedId:specialOf(tr)?.named?.id||null,chainageM:Number.isFinite(g?.d)?g.d*1000:null,
+        add(id,pos,{systemId:tr.sys,routeId:route?.routeId||null,route,color:tr.color||'#438477',publicLabel:String(tr.train),typeName:tr.typeName,carName:tr.carName,stockId:specialOf(tr)?.stock?.id||null,branchId:specialOf(tr)?.branch?.id||null,namedId:specialOf(tr)?.named?.id||null,chainageM:pos.physical?pos.chainageM:Number.isFinite(g?.d)?g.d*1000:null,railDirection:pos.physical?pos.railDirection:null,formationFacing:pos.formationFacing||1,
           sourceKind:'timetable',direction:g?.dir??null,followed:state.followTrain===tr},{tr});
       }
     }
@@ -62,10 +64,13 @@
       }else if(ln.sched)for(let k=0;k<ln.n;k++){const tau=(state.mode==='sched'?state.decoElapsed:state.elapsed)*state.speedMult+k*ln.period/ln.n,f=state.freqFollow;
         add([sys,ln.id,day,'frequency',k].join(':'),posPeriodic(ln,tau),{...common,sourceKind:'frequency',direction:null,followed:!!f&&f.ln===ln&&f.k===k},{ln,k});}
     }
+    const physical=window.railIslandPhysical,near=M.raw.getZoom()>=14,replacedLineKeys=[];
+    if(physical&&near){const originals=routes.filter(r=>['tra_sched','thsr_sched','afr_sched'].includes(r.systemId));replacedLineKeys.push(...originals.map(r=>r.lineKey));const mapped=physical.visibleRoutes(originals,M.raw.getBounds());for(let i=routes.length-1;i>=0;i--)if(originals.includes(routes[i]))routes.splice(i,1);routes.push(...mapped);}
+    if(physical?.metro&&near){for(const ln of pools){const pair=[physical.metro.routeFor(ln,1),physical.metro.routeFor(ln,-1)].filter(Boolean);if(pair.length===2){const key=(ln._sys||ln.sys)+'|'+ln.id;replacedLineKeys.push(key);for(let i=routes.length-1;i>=0;i--)if(routes[i].lineKey===key)routes.splice(i,1);for(const p of pair)routes.push(p.route);}}}
     for(const id of headings.keys())if(!targets.has(id))headings.delete(id);
     return {clock:{serviceDay:day,simSec:state.simSec,wallEpochSec:epoch,playing:state.playing,speed:state.speedMult},geometryVersion:'original-'+BUILD,
-      clearanceRoutes:[...new Set([...(state.trackLines||[]),...(state.lines||[]),...(state.decoLines||[])])].map(ln=>lineRecord(ln,ln.sys||ln._sys||'rail')),
-      visible:[...state.visible],vehicles,routes:(state.collectMap||state.trackStyle==='hidden'?[]:routes).map(r=>({...r,displayColor:r.systemId.endsWith('_sched')||r.systemId==='rail'?trackLineColor(r.color):metroLineColor(r.color)})),stations,
+      clearanceRoutes:[...routes.filter(r=>r.physical),...[...new Set([...(state.trackLines||[]),...(state.lines||[]),...(state.decoLines||[])])].map(ln=>lineRecord(ln,ln.sys||ln._sys||'rail'))],
+      replacedLineKeys,visible:[...state.visible],vehicles,routes:(state.collectMap||state.trackStyle==='hidden'?[]:routes).map(r=>({...r,displayColor:r.systemId.endsWith('_sched')||r.systemId==='rail'?trackLineColor(r.color):metroLineColor(r.color)})),stations,
       display:{enabled,modelMode,formationMode,ambient:!!state.ambient,ambientStyle:state.ambientStyle,ambientCamera,northUp:!!state._northReset||state._northUpTarget===(state.followTrain||state.freqFollow),dark:state.mapDark,dirArrow:!!state.dirArrow,fontScale:Number(getComputedStyle(document.body).getPropertyValue('--ui'))||1},
       followLock:state.followLock,selectedVehicleId:vehicles.find(v=>v.followed)?.id||null};
   }
@@ -83,7 +88,7 @@
   function idFor(target){for(const [id,hit]of targets)if(sameTarget(target,hit))return id;return null;}
   function select(id){const hit=targets.get(id);if(!hit)return false;manualTarget=null;if(hit.ln)setFreqFollow(hit);else setFollow(hit.tr,false,true);return true;}
   function updateNote(){if(performance.now()-noteAt<300)return;noteAt=performance.now();const v=lastFrame?.vehicles.find(v=>v.followed),spec=v&&formationFor(v,formationMode);
-    for(const panel of [document.getElementById('followPanel'),document.getElementById('freqCard')]){if(!panel)continue;panel.style.setProperty('--follow-color',v?.color||'var(--red)');let el=panel.querySelector('.ri-formation-caption');if(!el){el=document.createElement('div');el.className='ri-formation-caption';panel.append(el);}const text=spec?(spec.mode==='three'?t('3 節示意'):spec.countBasis==='unknown'?t('3 節示意 · 當班編組待確認'):t(spec.articulated?'{n} 分節 · 標準編組':'{n} 節 · 標準編組',{n:spec.actualCarCount})):'';el.hidden=!enabled||!spec;el.textContent=text?text+(groundMode==='terrain'?' · '+t('地表起伏示意'):''):'';}
+    for(const panel of [document.getElementById('followPanel'),document.getElementById('freqCard')]){if(!panel)continue;panel.style.setProperty('--follow-color',v?.color||'var(--red)');let el=panel.querySelector('.ri-formation-caption');if(!el){el=document.createElement('div');el.className='ri-formation-caption';panel.append(el);}let text=spec?(spec.mode==='three'?t('3 節示意'):spec.countBasis==='unknown'?t('3 節示意 · 當班編組待確認'):t(spec.articulated?'{n} 分節 · 標準編組':'{n} 節 · 標準編組',{n:spec.actualCarCount})):'';if(v?.route?.physical){const avoiding=Math.abs(renderer?.stats.poseSamples.find(p=>p.id===v.id)?.avoidanceOffsetM||0)>.2;text+=' · '+t(avoiding?'暫時避讓（示意）':'推估股道');}el.hidden=!enabled||!spec;el.textContent=text?text+(groundMode==='terrain'?' · '+t('地表起伏示意'):''):'';}
   }
   // 衛星原貌與街圖透視各自記住選擇，避免沿用舊街圖的預設透明。
   function inspectionEnabled(){return state.basemap==='sat'?satelliteTransparent:transparent;}
@@ -95,7 +100,7 @@
   function recenter(lat,lon,extra){if(!renderer||!M.raw.getLayer('live-vehicles-3d')||!enabled||M.raw.getZoom()<14||!lastFrame?.selectedVehicleId||renderer.interacting)return false;
     // 完整編組自己沿軌預留車頭空間，不再疊加平面模式的像素前瞻。
     const padding={...mapInsets()};for(const key of ['top','bottom','left','right'])padding[key]=Math.max(0,Number(padding[key])||0);
-    state._autoPan=true;try{renderer.followCoordinate([lon,lat],padding);}finally{state._autoPan=false;}return true;
+    state._autoPan=true;try{const v=lastFrame?.vehicles.find(v=>v.id===lastFrame.selectedVehicleId);renderer.followCoordinate(v?.route?.physical?[v.longitude,v.latitude]:[lon,lat],padding);}finally{state._autoPan=false;}return true;
   }
   function attach(){const ticket=++epoch;loadSerial=loadSerial.catch(()=>{}).then(async()=>{if(ticket!==epoch)return;loading=true;syncUI();renderer?.destroy();renderer=null;appearanceKey='';
     try{const {createLiveMap}=await import(base+'map3d.js');if(ticket!==epoch)return;
