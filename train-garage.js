@@ -1,0 +1,230 @@
+// 收藏由護照推導；這裡不另存進度，也不把地圖的推定派車當成實際車型紀錄。
+(() => {
+  'use strict';
+  const RULES = [
+    ['emu3000','stock','emu3000'], ['temu1000','stock','taroko'], ['temu2000','stock','puyuma'],
+    ['e1000','stock','pp'], ['dr3100','stock','dr3100'], ['e200','stock','chukuang'],
+    ['emu500','stock','local'], ['emu900','stock','fast-local'],
+    ['blue','named','blue-train'], ['haifeng','named','haifeng'],
+    ['700t','system','thsr_sched'], ['dl38','system','afr_sched'],
+  ].map(([model,category,id]) => ({model,category,id}));
+  const ruleByModel = new Map(RULES.map(r => [r.model,r]));
+  // 穩定的產品里程碑；不是實際搭過該車型的推定。既有章仍以 OR 條件帶入。
+  const GOALS = {"c301":{"metric":"stations","need":2},"c321":{"metric":"stations","need":4},"c341":{"metric":"stations","need":6},"c371":{"metric":"stations","need":8},"c381":{"metric":"stations","need":12},"val256":{"metric":"stations","need":16},"wenhu":{"metric":"stations","need":20},"airportlocal":{"metric":"stations","need":24},"airportexpress":{"metric":"stations","need":28},"y100":{"metric":"stations","need":32},"sanying":{"metric":"stations","need":36},"taichung":{"metric":"stations","need":40},"kaohsiung":{"metric":"stations","need":45},"danhai":{"metric":"stations","need":50},"ankeng":{"metric":"stations","need":60},"caf":{"metric":"stations","need":70},"citadis":{"metric":"stations","need":80},"emu500":{"metric":"rides","need":1},"emu600":{"metric":"rides","need":2},"emu700":{"metric":"rides","need":3},"emu800":{"metric":"rides","need":4},"emu800r":{"metric":"rides","need":5},"emu900":{"metric":"rides","need":6},"dr1000":{"metric":"rides","need":8},"dr3100":{"metric":"rides","need":10},"temu1000":{"metric":"rides","need":12},"temu2000":{"metric":"rides","need":15},"emu3000":{"metric":"rides","need":18},"e1000":{"metric":"rides","need":20},"e500":{"metric":"rides","need":25},"emu100":{"metric":"rides","need":30},"emu1200":{"metric":"rides","need":35},"dr2700":{"metric":"rides","need":40},"ck124":{"metric":"rides","need":50},"dt668":{"metric":"rides","need":75},"ct273":{"metric":"rides","need":100},"e200":{"metric":"km","need":50},"e300":{"metric":"km","need":100},"e400":{"metric":"km","need":150},"r20":{"metric":"km","need":200},"r100":{"metric":"km","need":250},"r150":{"metric":"km","need":300},"r180":{"metric":"km","need":400},"r200":{"metric":"km","need":500},"dhl100":{"metric":"km","need":600},"juguang":{"metric":"km","need":700},"ppcoach":{"metric":"km","need":800},"bluecoach":{"metric":"km","need":900},"mingricoach":{"metric":"km","need":1000},"blue":{"metric":"km","need":1200},"haifeng":{"metric":"km","need":1500},"shanlan":{"metric":"km","need":1800},"mingri":{"metric":"km","need":2000},"700t":{"metric":"km","need":2500},"dl25":{"metric":"branches","need":1},"dl38":{"metric":"branches","need":2},"dl39":{"metric":"branches","need":3},"dl45":{"metric":"branches","need":4},"alicoach":{"metric":"branches","need":1},"hinoki":{"metric":"branches","need":2},"fushen":{"metric":"branches","need":3},"xuyue":{"metric":"branches","need":4}};
+  function collection(snapshot, models) {
+    const {coll, rides = [], special, stationCount = 0} = snapshot;
+    const progress = {rides:rides.length, km:rides.reduce((n,r)=>n+Math.max(0,Number(r.km)||0),0), stations:stationCount, branches:coll?.branch?.size||0};
+    return Object.entries(models).map(([id,model]) => {
+      const legacy = ruleByModel.get(id), goal = GOALS[id];
+      let earned = false, date = '', label = '';
+      if (legacy?.category === 'system') {
+        const matches = rides.filter(r => r.sys === legacy.id);
+        earned = matches.length > 0;
+        date = matches.map(r => r.date || '').filter(Boolean).sort()[0] || '';
+        label = model.system;
+      } else if (legacy) {
+        earned = !!coll?.[legacy.category]?.has(legacy.id);
+        date = coll?.at?.[legacy.category + '|' + legacy.id] || '';
+        const list = legacy.category === 'stock' ? special?.rollingStock : special?.namedTrains;
+        label = list?.find(x => x.id === legacy.id)?.name || model.name;
+      }
+      const now = progress[goal.metric], owned = earned || now >= goal.need;
+      return {id, model, rule:legacy || {category:'progress',id:goal.metric}, goal, now, owned, earned, date:earned?date:'', label};
+    });
+  }
+  function goalText(row) {
+    const keys={rides:'完乘 {count} 趟',km:'累積旅程 {count} 公里',stations:'收集 {count} 座車站',branches:'取得 {count} 枚支線章'};
+    return tr(keys[row.goal.metric],{count:row.goal.need});
+  }
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  let host, dialog, rows = [], selected, filter = 'all', system = '', search = '', demo = false;
+  let active = false, renderer, raf = 0, auto = false, yaw = -.55, last = 0, drag = null, resize;
+  const tr = (key, values) => host.t(key, values);
+  const $ = sel => dialog.querySelector(sel);
+  const status = row => row.owned ? tr('已入庫') : tr('待收集');
+  function data() {
+    rows = collection(host.snapshot(), globalThis.RailGarageCatalog || {});
+    if (demo) for (const row of rows) if (['emu3000','e200','e1000','700t','blue','temu2000'].includes(row.id)) {
+      row.owned = true; row.date = ''; // 展示只改此輪檢視物件，不寫入護照。
+    }
+  }
+  let renderSession = 0, modelTicket = 0, loadedId = '', rendererPromise;
+  async function startRenderer() {
+    const session=++renderSession;
+    try {
+      const module=await import('./rail-3d/garage-renderer.js');
+      if(!active||session!==renderSession)return;
+      renderer=module.createRenderer(()=>{auto=false;modelTicket++;renderer?.dispose();renderer=null;loadedId='';if(dialog?.open){$('.g-fallback').textContent=tr('這個裝置暫時無法顯示 3D，收藏紀錄與來源仍可查看。');$('.g-fallback').hidden=false;$('.g-retry').hidden=false;$('.g-auto').setAttribute('aria-pressed','false');$('.g-auto').textContent='▷';}});
+    } catch { renderer=null; }
+  }
+  async function loadSelected() {
+    const ticket=++modelTicket, id=selected;
+    loadedId='';delete $('.g-view').dataset.rendered;
+    $('.g-view').getContext('2d').clearRect(0,0,$('.g-view').width,$('.g-view').height);
+    $('.g-fallback').textContent=tr('小車載入中…');$('.g-fallback').hidden=false;$('.g-retry').hidden=true;
+    try {
+      await rendererPromise;
+      if(ticket!==modelTicket||!active)return;
+      if(!renderer)throw Error('renderer unavailable');
+      await renderer.load(id);
+      if(ticket!==modelTicket||!active)return;
+      loadedId=id;$('.g-fallback').hidden=true;requestDraw();
+    } catch(e) {
+      if(ticket!==modelTicket||!active||e.name==='AbortError')return;
+      $('.g-fallback').textContent=tr('小車載入失敗，請重試；收藏進度不受影響。');$('.g-fallback').hidden=false;$('.g-retry').hidden=false;
+    }
+  }
+  function requestDraw() { if (!raf && dialog?.open && !document.hidden) raf=requestAnimationFrame(frame); }
+  function frame(at) {
+    raf=0;if(!dialog.open||document.hidden)return;
+    const dt=Math.min((at-last)/1000,.05);last=at;
+    if(auto&&!drag)yaw+=dt*.35;
+    const row=rows.find(r=>r.id===selected);
+    if(row&&loadedId===row.id) { renderer?.draw($('.g-view'),row,yaw); }
+
+    if(auto&&loadedId)requestDraw();
+  }
+  function showDetail() {
+    const row=rows.find(r=>r.id===selected);
+    $('.g-showcase').hidden=!row;
+    if(!row)return;
+    $('.g-view').setAttribute('aria-label',row.model.name+' · '+status(row));
+    const badge=$('.g-status');badge.textContent=status(row);badge.classList.toggle('owned',row.owned);
+    $('.g-name').textContent=row.model.name;
+    $('.g-system').textContent=tr(row.model.system)+' · '+tr('Q 版收藏模型');
+    $('.g-reason').textContent=demo ? tr('展示模式・不計入收藏') : row.earned ? tr('完成「{name}」收藏，代表車型已入庫。',{name:row.label}) :
+      row.owned ? tr('已達成「{goal}」，紀念模型已入庫。',{goal:goalText(row)}) :
+      row.rule.category==='progress' ? goalText(row) : tr('取得「{name}」收集章，或達成「{goal}」。',{name:tr(row.label),goal:goalText(row)});
+    $('.g-goal').textContent=goalText(row)+' · '+Math.min(Math.floor(row.now),row.goal.need)+' / '+row.goal.need;
+    $('.g-goal').hidden=demo||row.earned;
+    $('.g-date').textContent=demo?tr('展示模式・不計入收藏'):row.date?tr('首次入庫：{date}',{date:row.date}):'';
+    const action=$('.g-cta');action.hidden=!row.rule||demo;action.textContent=row.rule.category==='progress'?tr('查看旅程護照'):tr(row.owned?'再陪它跑一趟':'開始收集');
+    action.onclick=()=>{const rule=row.rule;close();host.launch(rule);};
+    $('.g-source-body').replaceChildren();
+    for(const text of [tr('模型製作：軌島（Q 版示意）'),tr('收藏的是紀念模型，不代表曾搭乘這個實際車型或車號。'),tr('外觀依公開照片參考繪製；照片僅連結，未作為模型貼圖。')]) {
+      const p=document.createElement('p');p.textContent=text;$('.g-source-body').append(p);
+    }
+    for(const source of row.model.sources||[]) {
+      let url;try{url=new URL(source.url);}catch{continue;}if(!['https:','http:'].includes(url.protocol))continue;
+      const p=document.createElement('p'),a=document.createElement('a');
+      a.href=url.href;a.target='_blank';a.rel='noopener noreferrer';a.textContent=tr('外觀參考')+' · '+source.label+' ↗';p.append(a);$('.g-source-body').append(p);
+    }
+    if(loadedId!==row.id)loadSelected();
+    requestDraw();
+  }
+  function showGrid() {
+    const needle=search.trim().toLocaleLowerCase();
+    const list=rows.filter(r=>(filter==='all'||(filter==='owned'?r.owned:r.rule&&!r.owned))&&(!system||r.model.system===system)&&(!needle||(r.id+' '+r.model.name+' '+r.model.system).toLocaleLowerCase().includes(needle)))
+      .sort((a,b)=>Number(b.owned)-Number(a.owned)||Number(!!b.rule)-Number(!!a.rule));
+    $('.g-result').textContent=tr('{count} 款車車',{count:list.length});
+    $('.g-grid').replaceChildren();
+    for(const row of list) {
+      const b=document.createElement('button');b.type='button';b.className='g-car';b.dataset.model=row.id;b.setAttribute('aria-pressed',String(selected===row.id));
+      b.setAttribute('aria-label',row.model.name+' · '+status(row));
+      b.innerHTML=`<span class="g-check" aria-hidden="true">${row.owned?'✓':'○'}</span><img src="${esc(row.model.thumbnail)}" alt="" loading="lazy" width="320" height="200"><b>${esc(row.model.name)}</b><small>${esc(status(row))}</small>`;
+      b.onclick=()=>{selected=row.id;yaw=-.55;dialog.querySelectorAll('.g-car').forEach(el=>el.setAttribute('aria-pressed',String(el===b)));showDetail();$('.g-showcase').scrollIntoView({block:'start',behavior:'instant'});$('.g-view').focus({preventScroll:true});};
+      $('.g-grid').append(b);
+    }
+    $('.g-empty').hidden=!!list.length;
+    $('.g-empty-text').textContent=!rows.length?tr('車庫暫時無法載入，請稍後重試。'):filter==='owned'?tr('第一格車位，留給下一段旅程。'):tr('沒有符合條件的車款。');
+    $('.g-demo-start').hidden=demo||filter!=='owned';
+    for(const b of dialog.querySelectorAll('[data-filter]'))b.setAttribute('aria-pressed',String(b.dataset.filter===filter));
+    showDetail();
+  }
+  function refresh() {
+    if(!dialog?.open)return;
+    const langChanged=dialog.lang!==host.lang();
+    if(langChanged){build();return;}
+    data();const owned=rows.filter(r=>r.owned).length,total=rows.filter(r=>r.rule).length;
+    $('.g-count').textContent=rows.length?owned:'—';$('.g-total').textContent=rows.length?' / '+total:'';
+    const p=$('progress');p.max=Math.max(1,total);p.value=owned;p.setAttribute('aria-label',tr('已入庫 {count} 款，共可收集 {total} 款',{count:owned,total}));
+    $('.g-demo').hidden=!demo;
+    $('.g-demo-off').textContent=tr('回到我的車庫');
+    $('.g-catalog').textContent=tr('館藏模型 {count} 款',{count:rows.length});
+    if(!rows.some(r=>r.id===selected))selected=rows.find(r=>r.owned)?.id||rows.find(r=>r.rule)?.id;
+    showGrid();
+  }
+  function build() {
+    data();resize?.disconnect();
+    dialog.lang=host.lang();
+    dialog.classList.toggle('dark',host.dark());
+    dialog.innerHTML=`<header class="g-top"><span class="g-brand">RAIL ISLAND / COLLECTION</span><button class="g-close" autofocus>${esc(tr('回到地圖'))} ↗</button></header>
+      <main class="g-main"><div class="g-heading"><div><p class="g-kicker">YOUR LITTLE RAILWAY</p><h1 id="garageTitle">${esc(tr('我的車庫'))}</h1><p class="g-intro">${esc(tr('累積旅程，收藏小車。既有車種章與護照進度會自動帶入。'))}</p></div>
+      <div class="g-progress"><strong class="g-count">0</strong><span class="g-total"></span><progress max="1" value="0"></progress><span>${esc(tr('可收集車款'))}</span></div></div>
+      <div class="g-demo" hidden><span>${esc(tr('展示模式・不計入收藏'))}</span><button class="g-demo-off"></button></div>
+      <section class="g-showcase" aria-label="${esc(tr('車型展示'))}"><div class="g-stage"><canvas class="g-view" tabindex="0" role="img"></canvas><div class="g-fallback" hidden>${esc(tr('這個裝置暫時無法顯示 3D，收藏紀錄與來源仍可查看。'))}</div>
+      <div class="g-stage-foot"><span>${esc(tr('左右拖曳，看看每一面'))}</span><div class="g-controls"><button class="g-left" aria-label="${esc(tr('向左旋轉'))}">↶</button><button class="g-auto" aria-label="${esc(tr('自動旋轉'))}" aria-pressed="false">▷</button><button class="g-retry" hidden aria-label="${esc(tr('重新載入小車'))}">↻</button><button class="g-right" aria-label="${esc(tr('向右旋轉'))}">↷</button></div></div></div>
+      <div class="g-detail"><span class="g-status"></span><h2 class="g-name"></h2><p class="g-system"></p><p class="g-reason"></p><p class="g-goal"></p><p class="g-date"></p><button class="g-cta"></button><details class="g-sources"><summary>${esc(tr('車型與來源'))} ↗</summary><div class="g-source-body"></div></details></div></section>
+      <div class="g-filters"><div class="g-tabs">${[['all','全部車款'],['owned','已入庫'],['pending','待收集']].map(([id,text])=>`<button data-filter="${id}" aria-pressed="${filter===id}">${esc(tr(text))}</button>`).join('')}</div>
+      <div class="g-fields"><select aria-label="${esc(tr('篩選鐵道系統'))}"><option value="">${esc(tr('所有系統'))}</option>${[...new Set(rows.map(r=>r.model.system))].map(s=>`<option value="${esc(s)}">${esc(tr(s))}</option>`).join('')}</select><input type="search" aria-label="${esc(tr('搜尋車型'))}" placeholder="${esc(tr('搜尋車型'))}"></div></div>
+      <p class="g-result" role="status" aria-live="polite"></p><div class="g-grid"></div><div class="g-empty" hidden><p class="g-empty-text"></p><button class="g-reset">${esc(tr('查看所有車款'))}</button><button class="g-demo-start">${esc(tr('看看展示車庫'))}</button></div>
+      <footer class="g-footer"><span class="g-catalog"></span> · ${esc(tr('模型製作：軌島（Q 版示意）'))}<br>${esc(tr('進度沿用旅程護照；62 款小車都有收集條件，既有車種章自動帶入。'))}<br>${esc(tr('收藏的是紀念模型，不代表曾搭乘這個實際車型或車號。'))}</footer></main>`;
+
+    resize=new ResizeObserver(()=>requestDraw());resize.observe($('.g-view'));
+    $('.g-close').onclick=close;
+    $('.g-retry').onclick=()=>{if(!renderer)rendererPromise=startRenderer();loadSelected();};
+    $('.g-demo-off').onclick=()=>{demo=false;filter='owned';refresh();};
+    $('.g-demo-start').onclick=()=>{demo=true;selected='e200';yaw=-.55;filter='owned';refresh();dialog.scrollTop=0;};
+    $('.g-reset').onclick=()=>{filter='all';system=search='';$('select').value='';$('input').value='';showGrid();};
+    for(const b of dialog.querySelectorAll('[data-filter]'))b.onclick=()=>{filter=b.dataset.filter;showGrid();};
+    $('select').value=system;$('select').onchange=e=>{system=e.target.value;showGrid();};
+    $('input').value=search;$('input').oninput=e=>{search=e.target.value;showGrid();};
+    const turn=step=>{yaw+=step;requestDraw();};
+    $('.g-left').onclick=()=>turn(-Math.PI/6);$('.g-right').onclick=()=>turn(Math.PI/6);
+    $('.g-auto').onclick=()=>{auto=!auto;$('.g-auto').setAttribute('aria-pressed',String(auto));$('.g-auto').textContent=auto?'Ⅱ':'▷';requestDraw();};
+    const canvas=$('.g-view');
+    canvas.onkeydown=e=>{if(['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();turn(e.key==='ArrowLeft'?-.15:.15);}};
+    canvas.onpointerdown=e=>{drag={id:e.pointerId,x:e.clientX};canvas.setPointerCapture(e.pointerId);};
+    canvas.onpointermove=e=>{if(drag?.id===e.pointerId){yaw+=(e.clientX-drag.x)*.012;drag.x=e.clientX;requestDraw();}};
+    canvas.onpointerup=canvas.onpointercancel=canvas.onlostpointercapture=()=>{drag=null;};
+    refresh();
+  }
+  function cleanup() {
+    if (!active) return;
+    active = false;renderSession++;modelTicket++;loadedId='';
+    cancelAnimationFrame(raf);raf=0;auto=false;drag=null;resize?.disconnect();
+    renderer?.dispose();renderer=null;
+    host?.onClose();
+  }
+  // iOS 15.0–15.3 沒有原生 dialog；整頁遮罩、焦點圈與 aria-hidden 提供同樣的返回流程。
+  let legacyBackground=[], legacyOverflow='';
+  function showDialog() {
+    if(typeof dialog.showModal==='function'){dialog.showModal();return;}
+    dialog.classList.add('g-legacy');dialog.setAttribute('role','dialog');dialog.setAttribute('aria-modal','true');
+    if(!('open' in dialog))Object.defineProperty(dialog,'open',{get:()=>dialog.hasAttribute('open')});
+    legacyBackground=[...document.body.children].filter(el=>el!==dialog).map(el=>[el,el.getAttribute('aria-hidden')]);
+    for(const [el] of legacyBackground)el.setAttribute('aria-hidden','true');
+    legacyOverflow=document.body.style.overflow;document.body.style.overflow='hidden';dialog.setAttribute('open','');
+  }
+  function close() {
+    if(!dialog?.open)return;
+    if(dialog.classList.contains('g-legacy')){
+      dialog.removeAttribute('open');dialog.classList.remove('g-legacy');
+      for(const [el,value] of legacyBackground)value===null?el.removeAttribute('aria-hidden'):el.setAttribute('aria-hidden',value);
+      legacyBackground=[];document.body.style.overflow=legacyOverflow;
+    }else dialog.close();
+    cleanup();
+  }
+  document.addEventListener('focusin',e=>{if(dialog?.open&&dialog.classList.contains('g-legacy')&&!dialog.contains(e.target))$('.g-close').focus({preventScroll:true});});
+  document.addEventListener('keydown',e=>{
+    if(!dialog?.open||!dialog.classList.contains('g-legacy'))return;
+    if(e.key==='Escape'){e.preventDefault();close();return;}
+    if(e.key!=='Tab')return;
+    const els=[...dialog.querySelectorAll('button,a,input,select,summary,[tabindex]')].filter(el=>!el.disabled&&el.getClientRects().length&&(!el.closest('details:not([open])')||el.tagName==='SUMMARY'));
+    const at=els.indexOf(document.activeElement),next=els[(at+(e.shiftKey?-1:1)+els.length)%els.length];
+    if(next){e.preventDefault();next.focus();}
+  },true);
+  function open(adapter, options={}) {
+    if(dialog?.open){host=adapter;refresh();return;}
+    if(active)cleanup();
+    host=adapter;active=true;
+    if(!dialog){dialog=document.createElement('dialog');dialog.id='trainGarage';dialog.setAttribute('aria-labelledby','garageTitle');document.body.append(dialog);dialog.addEventListener('cancel',e=>{e.preventDefault();close();});dialog.addEventListener('close',()=>{if(!dialog.open)cleanup();});}
+    demo=!!options.demo;data();selected=demo?'e200':rows.find(r=>r.owned)?.id||'emu3000';
+    filter=demo||rows.some(r=>r.owned)?'owned':'all';system=search='';auto=false;yaw=-.55;
+    rendererPromise=startRenderer();
+    showDialog();build();dialog.scrollTop=0;$('.g-close').focus({preventScroll:true});requestDraw();
+  }
+  window.addEventListener('rail:native-back', e => {if(dialog?.open){e.preventDefault();e.stopImmediatePropagation();close();}}, {capture:true});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelAnimationFrame(raf);raf=0;}else requestDraw();});
+  globalThis.TrainGarage={open,close,refresh,collection,rules:RULES,goals:GOALS,get isOpen(){return !!dialog?.open;}};
+})();
