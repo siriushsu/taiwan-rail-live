@@ -14,10 +14,36 @@
 //   · TDX 班次的 TrainTypeID/TrainTypeName 十班全 null,車種是本專案依起訖路線歸類的四類;
 //     前端用 typeName 做繪製 gate(state.visible.has),故 key 不可與台鐵車種相撞。
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { spawn } from 'node:child_process';
+import { createServer } from 'node:net';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { chromium, webkit } from 'playwright';
 
-const PORT = process.env.PORT || 5179;
+// 伺服器自己起,連接埠由 OS 指派(PORT=0 那顆先探再交棒),不再預設連 5179。
+// 原因是實測踩到的:5179 當下是另一個 worktree 的 dev server,腳本會一聲不響地去驗**別人的樹**
+// ——全綠也毫無意義(全域規則:前端驗證會驗到別人的樹;本機同時有 30+ 個並行 worktree)。
+// ROOT 由本檔自身路徑推導,不吃 --root/env,結構上只可能服務自己這棵樹;開跑前再用 md5
+// 斷言「伺服器吐回來的 index.html === ROOT/index.html」,把「我在量誰」這件事變成具名閘門。
+// PORT 仍可覆寫(指向已在跑的 server),但那條路要自己負責樹對不對,故 md5 閘門一樣會跑。
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+process.chdir(ROOT);                                   // 資料層一律讀 ROOT 底下,不吃呼叫端 cwd
+const freePort = () => new Promise(res => { const s = createServer(); s.listen(0, '127.0.0.1', () => { const { port } = s.address(); s.close(() => res(port)); }); });
+let child = null;
+const PORT = process.env.PORT || await freePort();
 const BASE = `http://localhost:${PORT}`;
+if (!process.env.PORT) {
+  child = spawn(process.execPath, [path.join(ROOT, 'scripts/dev_server.mjs')], {
+    cwd: ROOT, env: { ...process.env, PORT: String(PORT) }, stdio: ['ignore', 'ignore', 'inherit'] });
+  process.on('exit', () => child?.kill());
+  for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { child?.kill(); process.exit(1); });
+}
+for (let i = 0; ; i++) {                               // 等它真的聽得到,不用固定秒數
+  try { const r = await fetch(BASE + '/index.html'); if (r.ok) break; } catch {}
+  if (i > 100) { console.error(`✗ dev server 起不來（${BASE}）`); child?.kill(); process.exit(1); }
+  await new Promise(r => setTimeout(r, 100));
+}
 let pass = 0, fail = 0;
 const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? '  ✓ ' : '  ✗ ') + m); };
 const hav = (a, b) => {
@@ -47,6 +73,13 @@ const MAIN_ORDER = ['嘉義', '北門', '鹿麻產', '竹崎', '樟腦寮', '獨
 const T5_EXPECT = [...MAIN_ORDER, '阿里山'];
 const T5_SCHEDULED = ['嘉義', '北門', '竹崎', '交力坪', '奮起湖', '二萬平', '阿里山'];
 const SHAPE_KM = { '本線': 69.47, '祝山線': 5.81, '神木線': 1.29, '沼平線': 1.07 };
+
+// G0 我在量的是誰:伺服器吐回來的 index.html 必須逐 byte 等於這棵樹的那份。
+// 這條紅掉代表 PORT 指到了別的樹(或別的 session 的 server),下面 120 條全部不算數。
+const servedMd5 = createHash('md5').update(Buffer.from(await (await fetch(BASE + '/index.html')).arrayBuffer())).digest('hex');
+const localMd5 = createHash('md5').update(readFileSync(path.join(ROOT, 'index.html'))).digest('hex');
+console.log(`\n═══ G0. 驗證目標 ═══\n  ROOT=${ROOT}\n  index.html md5=${localMd5}（server :${PORT} 吐回 ${servedMd5}）`);
+ok(servedMd5 === localMd5, `伺服器服務的是本樹（${BASE}）`);
 
 console.log('\n═══ A. 軌道路網 data/afr.json ═══');
 const track = JSON.parse(readFileSync('data/afr.json', 'utf8'));
@@ -210,10 +243,19 @@ const SUGAR_INDEP = {
 };
 
 console.log('\n═══ E. 端到端（Playwright 真引擎）═══');
-for (const [engine, name] of [[chromium, 'chromium'], [webkit, 'webkit']]) {
-  const b = await engine.launch();
-  const p = await b.newPage({ viewport: { width: 1280, height: 900 } });
-  await p.goto(BASE + '/?_cb=' + name, { waitUntil: 'domcontentloaded' });
+// 視窗尺寸一律在 newContext 就釘死,不用 setViewportSize:headless chromium 的視窗是
+// maximized,事後改尺寸會被 CDP 擋下(Browser.setWindowBounds「To resize minimized/maximized/
+// fullscreen window, restore it to normal state first.」),整支腳本在手機寬度迴圈第一圈就崩。
+// 每個寬度開自己的 context 還有一個好處:版面是「以該寬度載入」的,與真實手機一致,
+// 不會驗到「桌面版面被縮窄」這種現實不存在的中間態。
+//
+// locale 一律釘 zh-TW(context locale ＋ ?lang=zh-TW 兩道):本頁多語化之後,成員鈕文字與
+// 看板文案都會跟著瀏覽器語系走,而本腳本的判準是中文字串;Playwright chromium 預設 en-US,
+// 不釘的話「阿里山」永遠找不到、看板 sub 也對不上——那是判準在量語系,不是在量功能。
+const openPage = async (b, name, width, height) => {
+  const ctx = await b.newContext({ viewport: { width, height }, locale: 'zh-TW' });
+  const p = await ctx.newPage();
+  await p.goto(BASE + `/?_cb=${name}${width}&lang=zh-TW`, { waitUntil: 'domcontentloaded' });
   await p.waitForFunction(() => typeof state !== 'undefined' && state.systems
     && state.systems.some(s => s.id === 'afr_sched') && state.systems.find(s => s.id === 'afr_sched')._track, { timeout: 30000 });
   await p.waitForFunction(() => state.ready === true, { timeout: 30000 }).catch(() => {});
@@ -222,6 +264,16 @@ for (const [engine, name] of [[chromium, 'chromium'], [webkit, 'webkit']]) {
   // 等同真實首訪者的第一個動作;不用 localStorage 預塞,讓教學卡照常出現過一次。
   await p.evaluate(() => { const w = document.getElementById('howtoWrap'); if (w && !w.hidden) document.getElementById('howtoGo').click(); });
   await p.waitForTimeout(200);
+  return { ctx, p };
+};
+
+for (const [engine, name] of [[chromium, 'chromium'], [webkit, 'webkit']]) {
+  const b = await engine.launch();
+  const { ctx: deskCtx, p } = await openPage(b, name, 1280, 900);
+  // 語系具名閘門:下面所有中文判準都預設頁面是 zh-TW。語系若沒生效要在這裡紅,
+  // 而不是讓它散成一堆「找不到某某字串」的假回歸(全域規則:驗收腳本必須釘死語系與時鐘)。
+  const lang = await p.evaluate(() => document.documentElement.lang);
+  ok(/^zh/.test(lang), `[${name}] 頁面語系釘在中文（實得 ${lang || '(空)'}）`);
 
   const r = await p.evaluate(() => {
     loadSystem(state.systems.find(s => s.id === 'afr_sched'));
@@ -237,9 +289,15 @@ for (const [engine, name] of [[chromium, 'chromium'], [webkit, 'webkit']]) {
       if (d > 50) offTrack.push(`${tr.train}:${d.toFixed(0)}m`);
     }
     return { group: state.group, sysId: state.sysId, trains: state.trains.length,
+      groupMembers: (GROUPS.find(g => g.id === state.group) || {}).members || [],
       seg: state._segStats, types: state.types.map(t => t.key), running, offTrack };
   });
-  ok(r.sysId === 'afr_sched' && r.group === 'nat', `[${name}] 林鐵掛在國家鐵路群組`);
+  // 判準原本釘死 state.group === 'nat'。'nat'(國家鐵路)還在,但林鐵之後也被收進 'tra'(台鐵)這個
+  // **有分頁**的群組(members: tra_sched + afr_sched),loadSystem 落點自然是分頁那一個 ⇒ 判準過期。
+  // 要驗的本意是「林鐵跟台鐵同群、不是自己一群也不是被丟到捷運」,所以改驗成員關係而不是群組 id
+  // ——id 會再改,成員關係才是這條判準真正在乎的事。
+  ok(r.sysId === 'afr_sched' && r.groupMembers.includes('afr_sched') && r.groupMembers.includes('tra_sched'),
+    `[${name}] 林鐵與台鐵同群（載入群組 ${r.group}：${r.groupMembers.join('/') || '無成員'}）`);
   ok(r.trains === 52, `[${name}] 52 車次載入（靜態 50＋前端合成觀日 97/98）`);
   ok(r.seg.straight === 0 && r.seg.onShape > 0, `[${name}] 貼軌 ${r.seg.onShape} 段全部貼上軌道、0 段退回直線`);
   ok(r.running > 0, `[${name}] 11:00 有 ${r.running} 班在跑`);
@@ -248,14 +306,20 @@ for (const [engine, name] of [[chromium, 'chromium'], [webkit, 'webkit']]) {
   // ── 祝山線觀日列車（前端依官方日出表推算合成）──
   // 期望值由本腳本自帶的日出表獨立算出:表值抄自使用者提供的官方訂票系統截圖(與 afrch 0000300 同表),
   // 是對實作內嵌表的獨立轉錄——兩邊若有一邊抄錯,此處對不上。
-  const zr = await p.evaluate(([expDep, expRet]) => {
+  // 祝山線站座標取自 data/afr.json 本身(下方 ZS_FILE),不取執行期的 _track.stations:
+  // 08-19 173bcf40「停靠中的列車不再被畫到自己那條線的外面」之後,前端會把離線形 20–300m 的站
+  // 就地校正到線上(index.html 的 posAlongShape 貼軌),阿里山正是這種站(原始點離自己的線 115m)。
+  // 於是「合成班次的停靠站座標 === 執行期站座標」永遠不可能成立——那是在驗貼軌有沒有跑,
+  // 不是在驗同源。改對檔案逐 byte 比,反而比原判準更嚴:抄錯一個座標仍然當場現形。
+  const ZS_FILE = Object.fromEntries(track.lines.find(l => l.name === '祝山線').stations.map(s => [s.name, [s.lat, s.lon]]));
+  const zr = await p.evaluate(([expDep, expRet, ZSF]) => {
     const t97 = state.trains.find(t => String(t.train) === '97');
     const t98 = state.trains.find(t => String(t.train) === '98');
     if (!t97 || !t98) return { missing: true };
     const zs = state.systems.find(s => s.id === 'afr_sched')._track.lines.find(l => l.name === '祝山線');
     const sameSrc = [...t97.stops, ...t98.stops].every(s => {
-      const st = zs.stations.find(x => x.name === s.name);
-      return st && st.lat === s.lat && st.lon === s.lon;
+      const ref = ZSF[s.name];
+      return !!ref && ref[0] === s.lat && ref[1] === s.lon;
     });
     // 動畫在軌:發車後 15 分應有位置,且貼祝山線
     const H = (a, b) => { const R = 6371000, q = Math.PI / 180; return 2 * R * Math.asin(Math.sqrt(Math.sin((b[0] - a[0]) * q / 2) ** 2 + Math.cos(a[0] * q) * Math.cos(b[0] * q) * Math.sin((b[1] - a[1]) * q / 2) ** 2)); };
@@ -274,7 +338,7 @@ for (const [engine, name] of [[chromium, 'chromium'], [webkit, 'webkit']]) {
       est: !!(t97.est && t98.est), car: t97.carName, sys97: t97.sys, sameSrc,
       pos: !!pos, onZs, hasRow: !!row97, rowEst: !!row97?.querySelector('.estTag'), sub,
     };
-  }, [expDep, expRet]);
+  }, [expDep, expRet, ZS_FILE]);
   if (zr.missing) ok(false, `[${name}] 觀日列車 97/98 未被合成`);
   else {
     const hm = s => `${String(Math.floor(s / 3600)).padStart(2, '0')}:${String(Math.floor(s % 3600 / 60)).padStart(2, '0')}`;
@@ -318,7 +382,8 @@ for (const [engine, name] of [[chromium, 'chromium'], [webkit, 'webkit']]) {
     }
     // 橋頭園區:飛到 z13、手動補一幀,驗記號畫素(非透明暖色)+命中表+點擊開卡(像素級雙證據,心得24)
     const qt = SUGAR_PARKS.find(x => x.name === '橋頭糖廠');
-    window.__map.setView([qt.lat, qt.lon], 13, { animate: false });
+    // 相機走 M 適配層:M4-B 拔 Leaflet 後 window.__map 是 raw maplibregl.Map,沒有 setView。
+    window.__M.setView([qt.lat, qt.lon], 13, { animate: false });
     draw();
     const h = (state._sugarHits || []).find(x => x.pk === qt);
     let px = null, hitOk = false, cardShown = false, cardTitle = '', cardHitOk = false;
@@ -347,30 +412,75 @@ for (const [engine, name] of [[chromium, 'chromium'], [webkit, 'webkit']]) {
   ok(gr.hitOk && gr.cardShown && /橋頭/.test(gr.cardTitle), `[${name}] 點擊命中開卡（標題：${gr.cardTitle}）`);
   ok(gr.cardHitOk, `[${name}] 卡片中心 elementFromPoint 命中（像素級證據）`);
 
-  // 手機寬度：國家鐵路三個成員鈕都要能被摸到（沿可捲祖先捲動後做命中測試，見全域規則心得19）
+  // 成員鈕（台鐵／阿里山林鐵）——這條列住在桌面 header 裡，故在桌面寬度量（沿可捲祖先捲動後
+  // 做命中測試，見全域規則心得19）。手機殼沒有這條列，改驗它自己的路徑，見下方迴圈。
+  const dm = await p.evaluate(() => {
+    const btns = [...document.querySelectorAll('#systems .mem')];
+    const out = [];
+    for (const b of btns) {
+      const sc = (() => { let e = b.parentElement; while (e) { const s = getComputedStyle(e); if (/auto|scroll/.test(s.overflowX + s.overflowY)) return e; e = e.parentElement; } return null; })();
+      if (sc) sc.scrollLeft = b.offsetLeft - 10;
+      const r = b.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      out.push({ t: b.textContent.trim(), h: r.height, ok: !!hit && (hit === b || b.contains(hit)) });
+    }
+    return out;
+  });
+  const afrMem = dm.find(x => x.t.includes('阿里山'));
+  // 找不到就把實得清單寫進訊息:原本的 fallback 是「?」,紅起來只看得到一個問號,
+  // 完全分不出「按鈕被蓋住」與「根本沒有這顆按鈕」——那是兩種修法完全不同的紅。
+  const afrMemLabel = afrMem ? afrMem.t : `阿里山（找不到，實得 ${dm.map(x => x.t).join('/') || '零顆成員鈕'}）`;
+  ok(!!afrMem && afrMem.ok, `[${name}] 1280px：成員鈕「${afrMemLabel}」可點擊命中`);
+  // 高度絕對值不比(chromium 29px / webkit 27px 是引擎字體度量差,且是既有設計);
+  // 要驗的是「多一個成員沒有把成員列弄壞」——每顆高度一致即可。至少要有兩顆,
+  // 否則空陣列的 Set.size 是 0、單顆是 1,判準會在「成員列整個不見」時默默放行。
+  ok(dm.length >= 2 && new Set(dm.map(x => Math.round(x.h))).size === 1,
+    `[${name}] 1280px：${dm.length} 顆成員鈕高度一致（${dm.map(x => x.h.toFixed(0)).join('/') || '無'}px）`);
+
+  // 手機寬度：走手機殼自己的群組路徑。
+  // 判準原本在這裡量 #systems .mem 的命中,但手機殼(body.mobile-shell.fs)把整條桌面 header
+  // (header.header-row)設成 display:none ⇒ 成員鈕連同整條列收成 0×0。那不是「被誰蓋住」,
+  // 是設計上整條列不在版面裡(四顆群組頁籤也一樣,收成頂列右上那顆 #gtabOne「台▾」)。
+  // 對著一條設計上不存在的列做命中測試永遠是紅的,而且紅得沒有資訊 ⇒ 判準過期。
+  // 改驗使用者在手機上真正走的那條路:群組鈕摸得到 → 點開 → 「台鐵」那列摸得到
+  // (林鐵就掛在這一群;選單只列群組不列成員)。整段是真的點一次、量它造成的狀態改變,
+  // 不是只問 elementFromPoint 命中誰(全域規則:互動能力要真做一次那個互動)。
   for (const w of [360, 375, 414, 768]) {
-    await p.setViewportSize({ width: w, height: 780 });
-    await p.waitForTimeout(400);
-    const m = await p.evaluate(() => {
-      const btns = [...document.querySelectorAll('#systems .mem')];
-      const out = [];
-      for (const b of btns) {
-        const sc = (() => { let e = b.parentElement; while (e) { const s = getComputedStyle(e); if (/auto|scroll/.test(s.overflowX + s.overflowY)) return e; e = e.parentElement; } return null; })();
-        if (sc) sc.scrollLeft = b.offsetLeft - 10;
-        const r = b.getBoundingClientRect();
-        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-        out.push({ t: b.textContent.trim(), h: r.height, ok: !!hit && (hit === b || b.contains(hit)) });
-      }
-      return out;
+    const { ctx: mCtx, p: mp } = await openPage(b, name, w, 780);
+    const m = await mp.evaluate(() => {
+      const hit = el => {
+        const r = el.getBoundingClientRect();
+        if (!r.width || !r.height) return { ok: false, w: 0, h: 0 };
+        const at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return { ok: !!at && (at === el || el.contains(at)), w: Math.round(r.width), h: Math.round(r.height) };
+      };
+      loadSystem(state.systems.find(s => s.id === 'afr_sched'));
+      const hdr = document.querySelector('header.header-row');
+      const one = document.getElementById('gtabOne');
+      const oneHit = one ? hit(one) : { ok: false, w: 0, h: 0 };
+      const oneLabel = one ? one.textContent.trim() : '(無 #gtabOne)';
+      if (one) one.click();                       // 真的點一次,不是直接呼叫 gtabPopSet
+      const pop = document.getElementById('gtabPop');
+      const rows = [...document.querySelectorAll('#gtabPop .gp-row')]
+        .map(r => ({ t: r.textContent.trim(), cur: r.getAttribute('aria-current') === 'true', ...hit(r) }));
+      const cur = rows.find(r => r.cur);
+      // 「哪一列該是林鐵那群」由 GROUPS 的成員關係決定,不寫死群組名——群組會改名、會多一個。
+      const afrLabels = GROUPS.filter(g => (g.members || []).includes('afr_sched')).map(g => g.label);
+      const popOpen = !!pop && !pop.hidden;
+      // 量完就把選單收掉:它掛在頂列右上,會蓋住台糖卡的關閉鈕,讓下一項檢查紅得莫名其妙
+      // (本輪實測:不收的話 360/375/414/768 四個寬度的台糖卡關閉鈕命中全部假紅)。
+      if (one && popOpen) one.click();
+      return { headerHidden: !hdr || getComputedStyle(hdr).display === 'none',
+        oneLabel, oneHit, popOpen, popClosedAfter: !!pop && pop.hidden, rows,
+        curOk: !!cur && cur.ok && afrLabels.some(lb => cur.t.includes(lb)),
+        curText: cur ? cur.t : '(沒有標記 aria-current 的群組列)' };
     });
-    const afr = m.find(x => x.t.includes('阿里山'));
-    ok(!!afr && afr.ok, `[${name}] ${w}px：「${afr?.t || '?'}」按鈕可點擊命中`);
-    // 高度絕對值不比(chromium 29px / webkit 27px 是引擎字體度量差,且是既有設計);
-    // 要驗的是「新增第三個成員沒有把成員列弄壞」——三顆高度一致即可。
-    ok(new Set(m.map(x => Math.round(x.h))).size === 1,
-      `[${name}] ${w}px：三個成員鈕高度一致（${m.map(x => x.h.toFixed(0)).join('/')}px）`);
+    ok(m.headerHidden && m.oneHit.ok,
+      `[${name}] ${w}px：頂列群組鈕「${m.oneLabel}」可點擊命中（${m.oneHit.w}×${m.oneHit.h}px）`);
+    ok(m.popOpen && m.rows.length > 0 && m.curOk && m.popClosedAfter,
+      `[${name}] ${w}px：點開群組選單後，林鐵所屬的「${m.curText}」列可點擊命中（共 ${m.rows.length} 列，再點一次收得掉）`);
     // 台糖園區卡:每個寬度都要不出界、關閉鈕可實點(新功能必驗手機版)
-    const gm = await p.evaluate(() => {
+    const gm = await mp.evaluate(() => {
       openSugarCard(SUGAR_PARKS[0]);
       const el = document.getElementById('sugarCard');
       const r = el.getBoundingClientRect();
@@ -382,9 +492,12 @@ for (const [engine, name] of [[chromium, 'chromium'], [webkit, 'webkit']]) {
       return { fits, w: r.width, closeOk: !!at && (at === btn || btn.contains(at)) };
     });
     ok(gm.fits && gm.closeOk, `[${name}] ${w}px：台糖卡不出界（寬 ${gm.w.toFixed(0)}px）且關閉鈕可點`);
+    await mCtx.close();
   }
+  await deskCtx.close();
   await b.close();
 }
 
 console.log(`\n${fail === 0 ? '✅' : '❌'} ${pass} 過 / ${fail} 敗\n`);
+child?.kill();
 process.exit(fail ? 1 : 0);

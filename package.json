@@ -2,6 +2,7 @@
   "scripts": {
     "build-aeo": "node scripts/build_aeo_pages.mjs",
     "check-aeo": "node scripts/verify_aeo.mjs",
+    "check-afr": "node scripts/verify_afr.mjs",
     "check-aeo-browser": "node scripts/verify_aeo_browser.mjs",
     "check-copy": "node scripts/verify_changelog_copy.mjs",
     "check-copy-browser": "node scripts/verify_changelog_browser.mjs",
