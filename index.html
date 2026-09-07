@@ -2777,18 +2777,6 @@
     border-radius: 8px; text-decoration: none; box-shadow: var(--shadow-red);
   }
   .donate-kofi:hover { opacity: .92; }
-  .donate-bank p { margin: 0 0 6px; font-size: calc(12px * var(--uis)); color: var(--faint); }
-  .acct {
-    display: inline-flex; align-items: center; gap: 10px;
-    background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px;
-    font-size: calc(13px * var(--ui)); color: var(--muted);
-  }
-  .acct b { font-family: var(--mono); letter-spacing: .5px; color: var(--ink); }
-  .acct button {
-    font: inherit; font-size: calc(12px * var(--uis)); cursor: pointer; color: var(--muted);
-    background: var(--bg-stage); border: 1px solid var(--line); border-radius: 5px; padding: 2px 9px;
-  }
-  .acct button:hover { background: var(--line-faint); }
 
   /* ── Modal 家族(Takeout 匯入/帳號/Plus 共用殼;唯一允許 blur 陰影的懸浮層) ── */
   .takeout-modal {
@@ -5581,14 +5569,6 @@
       <div class="donate-body">
         <p class="donate-thanks">感謝你的支持！</p>
         <a class="donate-kofi" href="https://ko-fi.com/siriushsu" target="_blank" rel="noopener noreferrer">Ko-fi（信用卡 / PayPal）</a>
-        <div class="donate-bank">
-          <p>或銀行轉帳</p>
-          <div class="acct">
-            <span>LINE Bank (824)</span>
-            <b>111010691056</b>
-            <button id="donateCopy">複製</button>
-          </div>
-        </div>
         <p class="foot-note">本專案為免費工具、原始碼公開可查，您的支持幫助我們維護伺服器與持續改善內容</p>
       </div>
     </details>
@@ -6142,7 +6122,8 @@
 // v0906n：併入 origin/main(9cb8ce8d：OFM 看門狗修正、捷運頂列徽章逐線指名)＋查詢分頁修正批(查詢 sheet 半高且不寫全站段高偏好、答案區手勢取消清紀錄、Android 挑選器示範列依真實列數、initialLayout 改中性卡、出貨鏈與閘門補牙)。
 // v0907c(撞號：上游同日另出了 v0907c 夜間玻璃建築，本分支這顆從未上線)：併入 origin/main(fc3ca03c：統一底圖監測把手命名、暗色路線霓虹微光、導覽路線站序與精選取景)＋查詢分頁修正批(查詢 sheet 半高且不寫全站段高偏好、答案區手勢取消清紀錄、Android 挑選器示範列依真實列數、initialLayout 改中性卡、出貨鏈與閘門補牙)。
 // v0907h：併入 origin/main(33cc762d：夜間霓虹玻璃建築與看板、車站標記放大與指北修正、近景列車地形透視與跟車方向開關、官方月台串接與無資料隱藏)＋查詢分頁修正批(查詢 sheet 半高且不寫全站段高偏好、答案區手勢取消清紀錄、Android 挑選器示範列依真實列數、initialLayout 改中性卡、出貨鏈與閘門補牙)。
-const BUILD = 'v0907h';
+// v0907m：頁尾贊助區拿掉銀行轉帳帳號（Ko-fi 保留）。
+const BUILD = 'v0907m';
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
 const I18N_STORAGE_KEY = 'trainmap-language';
@@ -34277,18 +34258,6 @@ document.getElementById('nowBtn').onclick = jumpToNow;
     setSimSec(state.simSec + d);
   });
 })();
-// APP_STRIP_START donation-handler
-const donateCopyBtn = document.getElementById('donateCopy');
-if (donateCopyBtn) donateCopyBtn.onclick = () =>
-  navigator.clipboard.writeText('111010691056')
-    .then(() => showToast(t('已複製帳號')))
-    .catch(() => { // clipboard 被擋(非 HTTPS/權限)時退而選取帳號文字,使用者可直接 ⌘C
-      const r = document.createRange();
-      r.selectNodeContents(document.querySelector('.acct b'));
-      const s = getSelection(); s.removeAllRanges(); s.addRange(r);
-      showToast(t('已選取帳號，請按 ⌘C／Ctrl+C 複製'));
-    });
-// APP_STRIP_END donation-handler
 // ×＝收起資訊卡(跟隨不中斷);膠囊本體展開;「結束」才真的取消跟隨
 // 收合狀態跨 session 記憶(§04c 契約4):收合寫 1、展開清掉;開站時還原(見下方 boot 還原行)
 document.getElementById('fpClose').onclick = (e) => {

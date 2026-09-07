@@ -260,7 +260,6 @@ const replaceHtmlRegion = (source, name, replacement) => cutRegion(source, name,
 // (2) 原生 App 的數位功能只走 StoreKit／Google Play Billing;網站的 Ko-fi／銀行贊助區不帶進 App
 html = stripHtmlRegion(html, 'donate-box');
 html = stripHtmlRegion(html, 'donation-log');
-html = stripJsRegion(html, 'donation-handler');
 // (3) 網站免費層底圖預設(CARTO/舊 Esri)整段拔除——App 包內不得殘留其網址(CARTO 條款不允許包進上架 App)
 html = stripJsRegion(html, 'web-tiles');
 // (4) 頁尾底圖來源文字換成本 build 的實況
