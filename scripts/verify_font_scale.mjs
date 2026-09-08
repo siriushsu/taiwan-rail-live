@@ -3172,7 +3172,11 @@ async function sectionTB(browser, engine) {
   // ── 桌面反向對照:寬螢幕不是手機殼,四顆分頁要在、收合鈕不能出現。
   //    少了這一半,「乾脆全平台都收成一顆」也會全綠。
   {
-    const { page, errs, close } = await boot(browser, { width: 1280, tier: 'std' });
+    // 🔴 desktop:true 與 U 段同一個根因(見 boot()):isMobile/hasTouch ⇒ any-pointer:coarse ⇒
+    //    MOBILE_MQ 在 1400px 以下恆成立,所以原本這裡的 width:1280 拿到的是【觸控平板】的手機殼,
+    //    量到 kind:"one"/tabsN:0 而判紅。產品兩邊都是對的:觸控平板寬度大於 900 仍屬 mobile-shell
+    //    是刻意的(index.html:4581 的註解),而這條反向對照要問的是「非觸控的桌面」那一半。
+    const { page, errs, close } = await boot(browser, { width: 1280, tier: 'std', desktop: true });
     const r = await page.evaluate(GS_RESOLVE);
     // 桌面殼根本不渲染 .topbar,四顆分頁住在桌面 header 裡——所以這裡連「在哪一組」一起驗
     ok(`TB0 ${engine} 反向對照·桌面 1280 維持四顆分頁(在桌面 header)、收合鈕不出現`,
