@@ -27362,12 +27362,11 @@ function searchTypeMatch(q) {
     if (!tr.stops || !tr.stops.length) continue;
     const sp = specialOf(tr);
     const stock = sp && sp.stock;
-    const byStock = !!(stock && stockIds.has(stock.id));
-    if (!byStock && !searchTypeNorm(tr.typeName).includes(nq)) continue;
+    if (!(stock && stockIds.has(stock.id)) && !searchTypeNorm(tr.typeName).includes(nq)) continue;
     const dep = tr.stops[0].depSec, arr = tr.stops[tr.stops.length - 1].arrSec;
     // 0=在途 1=待發 2=今天已抵達;同組內在途／待發依發車時刻由早到晚,已抵達的反過來(剛跑完的先)
     const rank = (dep <= now && now <= arr) ? 0 : (dep > now ? 1 : 2);
-    hits.push({ tr, sys, stockHint: byStock, _r: rank, _d: dep });
+    hits.push({ tr, sys, _r: rank, _d: dep });
   }
   hits.sort((a, b) => (a._r - b._r) || (a._r === 2 ? b._d - a._d : a._d - b._d));
   out.stocks = stocks; out.total = hits.length; out.trs = hits.slice(0, SEARCH_TYPE_ROWS);
@@ -27437,7 +27436,7 @@ function renderSearchDrop() {
       const spd = specialOf(tr), sp = (spd && spd.named) || SPECIAL_TRAINS[String(tr.train)];
       return `<div class="row tr-row" data-ti="${i}"><span class="nm">${escHtml(String(tr.train))}</span>`
         + `<span class="sys-chip">${escHtml(t(o.sys.label))}</span>`
-        + `<span class="tr-meta">${sp ? escHtml(spd?.named ? i18nContentData('namedTrains', spd.named, 'name') : t(sp.name)) + '・' : ''}${escHtml(trainTypeName(tr.typeName))}${o.stockHint && spd && spd.stock ? '・' + escHtml(i18nContentData('rollingStock', spd.stock, 'name')) : ''}　${escHtml(stationName(a, tr.sys))}→${escHtml(stationName(b, tr.sys))}</span></div>`;
+        + `<span class="tr-meta">${sp ? escHtml(spd?.named ? i18nContentData('namedTrains', spd.named, 'name') : t(sp.name)) + '・' : ''}${escHtml(trainTypeName(tr.typeName))}　${escHtml(stationName(a, tr.sys))}→${escHtml(stationName(b, tr.sys))}</span></div>`;
     }).join('');
   }
   if (typed.total > typed.trs.length)

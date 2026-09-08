@@ -161,8 +161,28 @@ for (const engine of ENGINES) {
     ok(E('G2a 「EMU3000」出現車型區'), r.secs.includes('車型') && r.stockRows.length > 0, `車型列 ${JSON.stringify(r.stockRows)}`);
     ok(E(`G2b 車型列的名稱＝資料檔的 ${want}`), r.stockRows.includes(want), `實得 ${JSON.stringify(r.stockRows)}`);
     ok(E(`G2c 「EMU3000」列出班次（期望命中 ${exp.trains.length} 班）`), r.trRows.length > 0, `列出 ${r.trRows.length} 列`);
-    ok(E('G2d 車型查詢的班次列有標出車型'), r.trRows.length > 0 && r.trRows.every(x => x.meta.includes(want)),
-      r.trRows.slice(0, 2).map(x => x.meta.slice(0, 26)).join(' / '));
+    // 驗車次號集合而不是顯示文字：文字會隨版面調整改寫，集合才是「有沒有挑對車」的真判準
+    const wantNos = new Set(exp.trains.map(t => String(t.train)));
+    ok(E('G2d 「EMU3000」列出的每一班都真的是 EMU3000'), r.trRows.length > 0 && r.trRows.every(x => wantNos.has(x.no)),
+      `列出 ${r.trRows.map(x => x.no).join(',')}／期望集合 ${wantNos.size} 班`);
+    // G2e 版面：車型名曾經被塞進車次列，把起訖站整段擠掉（實測 tr-meta 247px 塞進 190px，
+    // 而純車次查詢是 117/117 不溢出）。判準對「有沒有溢出」而不是對某個字串，改法換了也還守得住。
+    const over = await page.evaluate(() => [...document.querySelectorAll('#searchDrop .row.tr-row .tr-meta')]
+      .map(e => ({ t: e.textContent.trim(), sw: e.scrollWidth, cw: e.clientWidth }))
+      .filter(x => x.sw > x.cw + 1));
+    ok(E('G2e 車次列不溢出（起訖站看得到）'), over.length === 0,
+      over.length ? `${over.length} 列溢出，例：${over[0].sw}/${over[0].cw} ${over[0].t}` : '零溢出');
+  }
+
+  // G2f 對照組：純車次查詢（本來就不含車型名）也必須不溢出——沒有這一條，
+  // 上面的 G2e 在「選擇器抓到 0 個元素」時會空過（判準盲點 5：反向判準要有正向對照）。
+  {
+    const r = await search(page, '411');
+    const m = await page.evaluate(() => [...document.querySelectorAll('#searchDrop .row.tr-row .tr-meta')]
+      .map(e => ({ sw: e.scrollWidth, cw: e.clientWidth })));
+    ok(E('G2f 對照：純車次查詢有列可量且不溢出'), m.length > 0 && m.every(x => x.sw <= x.cw + 1),
+      `量到 ${m.length} 列，第一列 ${m[0] ? m[0].sw + '/' + m[0].cw : '無'}`);
+    void r;
   }
 
   // G3 排序：正在跑的排前面（期望值由本檔自己從 stops 算）
