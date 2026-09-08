@@ -284,9 +284,8 @@ const aeoLinksHtml = [['about', '關於軌島'], ['accuracy', '準確度說明']
   .join('\n      ');
 html = replaceHtmlRegion(html, 'aeo-links-foot', aeoLinksHtml);
 html = replaceHtmlRegion(html, 'aeo-links-ms', aeoLinksHtml);
-// (5) 注入:第三方授權入口＋功能旗標＋RAIL_APP_CONFIG(授權圖磚與計量底圖的跟車 zoom 上限)
+// (5) 注入:第三方授權入口＋功能旗標＋RAIL_APP_CONFIG(授權圖磚與衛星高解析開關)
 const appConfig = includeLicensedBasemaps ? {
-  followZoomCap: 16, // 計量底圖止血:跟車進場/導播 zoom 上限(index.html 的 FOLLOW_ZOOM_CAP/DIRECTOR_FOLLOW_Z 消費)
   // 2026-07-29 曾因圖磚配額吃緊整個關掉;2026-08-02 改成收斂給 Plus 訂閱者
   // (index.html 的 satRetinaAllowed())——這裡只決定「這個平台建不建得出高解析層」，
   // 不等於全體使用者都拿得到:非 Plus 一律降回標準解析，所以額度風險已由訂閱資格擋住。

@@ -766,6 +766,23 @@
         }
       }
     },
+    "{count} 款車車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{count} trains"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{count} 種の車両"
+          }
+        }
+      }
+    },
     "{date}｜誤點 {n} 分": {
       "extractionState": "manual",
       "localizations": {
@@ -2156,6 +2173,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "「その他」→「設定済み通知」で確認・取消"
+          }
+        }
+      }
+    },
+    "「更多」或「旅程護照」→「我的車庫」": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "More or Journey passport → My garage"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「もっと」または「旅程パスポート」→「マイ車庫」"
           }
         }
       }
@@ -4064,6 +4098,23 @@
         }
       }
     },
+    "也可以累積護照進度，解鎖這款紀念模型。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can also unlock this keepsake through passport milestones."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "パスポートの達成目標でも、この記念モデルを収集できます。"
+          }
+        }
+      }
+    },
     "也匯入其餘 {n} 個未預覽地點": {
       "extractionState": "manual",
       "localizations": {
@@ -4625,6 +4676,23 @@
         }
       }
     },
+    "小": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Small"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小"
+          }
+        }
+      }
+    },
     "小工具": {
       "extractionState": "manual",
       "localizations": {
@@ -4655,6 +4723,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "カードの×で終了"
+          }
+        }
+      }
+    },
+    "小車載入中…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading your train…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "車両を読み込み中…"
+          }
+        }
+      }
+    },
+    "小車載入失敗，請重試；收藏進度不受影響。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The train could not load. Please retry; your collection is safe."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "車両を読み込めませんでした。再試行してください。収集記録は保持されています。"
           }
         }
       }
@@ -4897,6 +4999,23 @@
         }
       }
     },
+    "山線三義隧道段的軌道改用實際路線重畫，列車經過時不再偏離軌道": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Mountain Line's Sanyi tunnel section is redrawn along its real route, so trains no longer appear to drift off the track there."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "山線・三義トンネル区間の線路を実際の経路で描き直し、列車がその区間で線路から外れて見えることがなくなりました。"
+          }
+        }
+      }
+    },
     "山霧支線": {
       "extractionState": "manual",
       "localizations": {
@@ -4910,6 +5029,57 @@
           "stringUnit": {
             "state": "translated",
             "value": "霧の支線"
+          }
+        }
+      }
+    },
+    "已入庫": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collected"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "収集済み"
+          }
+        }
+      }
+    },
+    "已入庫 {count} 款": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{count} collected"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{count} 種を収集済み"
+          }
+        }
+      }
+    },
+    "已入庫 {count} 款，共可收集 {total} 款": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{count} collected out of {total} available"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "収集可能な {total} 種のうち {count} 種を収集済み"
           }
         }
       }
@@ -5390,6 +5560,23 @@
         }
       }
     },
+    "已達成「{goal}」，紀念模型已入庫。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“{goal}” achieved. This keepsake is in your garage."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「{goal}」を達成し、記念モデルが車庫に入りました。"
+          }
+        }
+      }
+    },
     "已暫停——按站台帶最左邊那顆就繼續": {
       "extractionState": "manual",
       "localizations": {
@@ -5828,6 +6015,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "どのファミリーにも属さず、自動選択の対象外"
+          }
+        }
+      }
+    },
+    "中": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Medium"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "中"
           }
         }
       }
@@ -8518,6 +8722,23 @@
         }
       }
     },
+    "加入 22 款精修立體車站與地標，放大可看細節、縮小自動簡化，並保留建築透視": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Added 22 detailed 3D stations and landmarks, with close-up details, lighter distant models, and transparent building views."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "22 種類の精密な立体駅舎とランドマークを追加しました。拡大時は詳細に、縮小時は軽量に表示し、建物の透視も利用できます。"
+          }
+        }
+      }
+    },
     "加入最愛": {
       "extractionState": "manual",
       "localizations": {
@@ -9177,6 +9398,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "アドレスバーの鍵アイコン→位置情報を許可してください"
+          }
+        }
+      }
+    },
+    "可收集車款": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Available to collect"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "収集可能な車両"
           }
         }
       }
@@ -10099,6 +10337,23 @@
         }
       }
     },
+    "台鐵誤點加大時，列車改成慢速前進，不再停在原地等誤點追上": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When a TRA train's delay grows, it now keeps creeping forward instead of freezing in place, then picks up the next station's arrival time."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台鉄の遅れが大きくなったとき、列車はその場で止まらずゆっくり前進し、次の駅の到着時刻に追従します。"
+          }
+        }
+      }
+    },
     "台鐵誤點目前非即時：依 {time} 的即時資料投射 · {n} 班誤點中": {
       "extractionState": "manual",
       "localizations": {
@@ -10367,6 +10622,57 @@
           "stringUnit": {
             "state": "translated",
             "value": "表示：ライト／ダーク／自動"
+          }
+        }
+      }
+    },
+    "外觀依公開照片參考繪製；照片僅連結，未作為模型貼圖。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Models reference public photographs. Photos are linked only and are not used as textures."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "公開写真を参考に制作しています。写真は出典リンクのみで、テクスチャには使用していません。"
+          }
+        }
+      }
+    },
+    "外觀參考": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appearance references"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "外観の参考資料"
+          }
+        }
+      }
+    },
+    "左右拖曳，看看每一面": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drag left or right to explore"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "左右にドラッグして眺める"
           }
         }
       }
@@ -10741,6 +11047,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "「パスポート」を開く"
+          }
+        }
+      }
+    },
+    "打開收藏，看看車車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open your train collection"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "集めた車両を見に行く"
           }
         }
       }
@@ -12530,6 +12853,23 @@
         }
       }
     },
+    "全部車款": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All trains"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すべての車両"
+          }
+        }
+      }
+    },
     "全部近景": {
       "extractionState": "manual",
       "localizations": {
@@ -12679,6 +13019,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "全線完乗 {n}"
+          }
+        }
+      }
+    },
+    "共 {n} 班符合，正在跑的排前面": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{n} services found, currently running first"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{n}本が該当（走行中を先頭に表示）"
           }
         }
       }
@@ -12900,6 +13257,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "オフにすると不透明へ戻る"
+          }
+        }
+      }
+    },
+    "再陪它跑一趟": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Follow it again"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "もう一度追いかける"
           }
         }
       }
@@ -13414,6 +13788,40 @@
         }
       }
     },
+    "向右旋轉": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rotate right"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "右に回す"
+          }
+        }
+      }
+    },
+    "向左旋轉": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rotate left"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "左に回す"
+          }
+        }
+      }
+    },
     "回": {
       "extractionState": "manual",
       "localizations": {
@@ -13444,6 +13852,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "列車へ戻る"
+          }
+        }
+      }
+    },
+    "回到地圖": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back to map"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "地図に戻る"
+          }
+        }
+      }
+    },
+    "回到我的車庫": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back to my garage"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "マイ車庫に戻る"
           }
         }
       }
@@ -14230,6 +14672,23 @@
         }
       }
     },
+    "收集 {count} 座車站": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collect {count} stations"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{count} 駅を収集する"
+          }
+        }
+      }
+    },
     "收集太魯閣號與普悠瑪號兩枚傾斜式車種章": {
       "extractionState": "manual",
       "localizations": {
@@ -14379,6 +14838,57 @@
           "stringUnit": {
             "state": "translated",
             "value": "お気に入りの台湾鉄路列車の過去30日定時性・行をタップして90日履歴"
+          }
+        }
+      }
+    },
+    "收藏的是紀念模型，不代表曾搭乘這個實際車型或車號。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "These are keepsake models, not proof of riding a specific real vehicle or fleet number."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "記念モデルの収集であり、実際の車種や車両番号への乗車証明ではありません。"
+          }
+        }
+      }
+    },
+    "收藏條件準備中": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collection rules coming later"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "収集条件を準備中"
+          }
+        }
+      }
+    },
+    "收藏資料載入中，請稍後再試。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your collection is loading. Please try again shortly."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コレクションを読み込み中です。少しお待ちください。"
           }
         }
       }
@@ -15025,6 +15535,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "自動は端末のダークモードに従います。"
+          }
+        }
+      }
+    },
+    "自動旋轉": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto-rotate"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動回転"
           }
         }
       }
@@ -15913,6 +16440,23 @@
         }
       }
     },
+    "完成「{name}」收藏，代表車型已入庫。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collected “{name}”. Its representative model is in your garage."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「{name}」を収集しました。代表モデルが車庫に入りました。"
+          }
+        }
+      }
+    },
     "完成至少兩趟旅程後，App 才可能在適合的時機邀請一次評分；同一版不重複問，是否真的顯示評分視窗仍由 App Store／Google Play 決定。": {
       "extractionState": "manual",
       "localizations": {
@@ -15960,6 +16504,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "完乗"
+          }
+        }
+      }
+    },
+    "完乘 {count} 趟": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Complete {count} journeys"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{count} 回完乗する"
           }
         }
       }
@@ -16304,6 +16865,23 @@
         }
       }
     },
+    "我的車庫": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "My garage"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "マイ車庫"
+          }
+        }
+      }
+    },
     "我的最愛": {
       "extractionState": "manual",
       "localizations": {
@@ -16559,6 +17137,23 @@
         }
       }
     },
+    "把旅程護照裡的收集章，變成可以旋轉欣賞的小車。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn your passport stamps into little trains you can rotate and admire."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "旅程パスポートのスタンプが、回して眺められる小さな車両になります。"
+          }
+        }
+      }
+    },
     "把捷運站放上主畫面或鎖定畫面，不開 App 就看得到下一班往哪裡、還有幾分鐘。": {
       "extractionState": "manual",
       "localizations": {
@@ -16606,6 +17201,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "別の方法でログイン"
+          }
+        }
+      }
+    },
+    "改善立體地圖拖曳與旋轉的流暢度，保留完整列車與建築細節；切換地形後，建築輪廓也會回到正確高度": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Improved dragging and rotating the 3D map while keeping complete trains and building detail. Building outlines now return to the correct height when terrain is switched."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "列車の全編成と建物の細部を保ちながら、3D地図のドラッグと回転を改善しました。地形を切り替えた後も、建物の輪郭が正しい高さに戻ります。"
           }
         }
       }
@@ -16780,6 +17392,23 @@
         }
       }
     },
+    "每一趟陪伴，都有一台車車留下來。已取得的車種章會自動收入車庫。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep a little train from your journeys. Existing train-type stamps carry over automatically."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "旅の思い出を小さな車両に。取得済みの車種スタンプを自動で車庫に反映します。"
+          }
+        }
+      }
+    },
     "每班車的誤點履歷與統計圖表": {
       "extractionState": "manual",
       "localizations": {
@@ -16861,6 +17490,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "位置情報がない場合はお気に入りの最初の駅か前回見た駅を表示します。デスクトップにはこのパネルがなく、検索欄は右上にあります。"
+          }
+        }
+      }
+    },
+    "沒有符合條件的車款。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No trains match these filters."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "条件に合う車両がありません。"
           }
         }
       }
@@ -17120,6 +17766,74 @@
         }
       }
     },
+    "車型": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Train model"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "車両形式"
+          }
+        }
+      }
+    },
+    "車型依台鐵公告的車種代碼比對，實際配車以當日營運為準": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Models are matched from the car-class codes TRA publishes; the actual consist depends on that day's operations."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "車両形式は台鉄が公表する車種コードで照合しています。実際の編成は当日の運用によります。"
+          }
+        }
+      }
+    },
+    "車型展示": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Train display"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "車両展示"
+          }
+        }
+      }
+    },
+    "車型與來源": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Model and references"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "車両モデルと出典"
+          }
+        }
+      }
+    },
     "車埕": {
       "extractionState": "manual",
       "localizations": {
@@ -17133,6 +17847,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "車埕"
+          }
+        }
+      }
+    },
+    "車庫入庫　<b>{name}</b>": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Added to your garage: <b>{name}</b>"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "車庫に入庫：<b>{name}</b>"
+          }
+        }
+      }
+    },
+    "車庫暫時無法載入，請稍後重試。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The garage could not load. Please try again later."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "車庫を読み込めませんでした。しばらくしてからお試しください。"
           }
         }
       }
@@ -18327,6 +19075,57 @@
         }
       }
     },
+    "取得 {count} 枚支線章": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Earn {count} branch-line stamps"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "支線スタンプを {count} 個集める"
+          }
+        }
+      }
+    },
+    "取得「{name}」收集章，收入代表車型。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Earn the “{name}” stamp to collect its representative model."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「{name}」のスタンプで代表モデルを収集できます。"
+          }
+        }
+      }
+    },
+    "取得「{name}」收集章，或達成「{goal}」。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Earn the “{name}” stamp, or achieve “{goal}”."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「{name}」のスタンプ、または「{goal}」で収集できます。"
+          }
+        }
+      }
+    },
     "命名地點": {
       "extractionState": "manual",
       "localizations": {
@@ -19360,6 +20159,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "地図を拡大すると駅マークとタップ範囲も大きくなります。駅の案内や列車の追跡中も、方位ボタンで北向きに戻せます。"
+          }
+        }
+      }
+    },
+    "放空的跟車視角改成貼著車身的立體視角，看得到列車在軌道上跑，速度也放回實際車速；放空時的配樂改播完整曲庫": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ambient mode's follow view now sits right beside the train in 3D, so you can watch it run along the track at its real speed. Ambient music now draws on the full library too."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "鑑賞モードの追跡ビューが車両のすぐそばに寄った立体視点になり、実際の速度で線路を走る列車を見られます。鑑賞中の音楽も全曲から流れます。"
           }
         }
       }
@@ -20550,6 +21366,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "過去90日の日別遅延グラフ"
+          }
+        }
+      }
+    },
+    "近景列車依推估股道分流，少量交疊會暫時靠旁避讓；捷運到站時保留立體車身。阿里山林鐵暫不套股道，停站的車不再畫到軌道外；阿里山、祝山、神木一帶補畫站內與之字形折返股道": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close-up trains use inferred tracks, with temporary visual yielding for remaining overlaps. Metro trains keep their 3D bodies when stopping at stations. The Alishan Forest Railway skips inferred tracks for now, so trains waiting at its stations no longer appear off the rails, and its drawn track now reaches into Alishan, Zhushan and the switchback spurs around Shenmu."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "近景の列車を推定した線路に振り分け、残る重なりは一時的な表示上の退避で対応します。地下鉄の停車中も3D車体を保ちます。阿里山森林鉄道は当面この推定を使わず、駅に停車中の列車が線路の外に描かれることがなくなりました。線路の描画も阿里山・祝山の駅構内と神木周辺のスイッチバック側線まで広がります。"
           }
         }
       }
@@ -21761,6 +22594,23 @@
         }
       }
     },
+    "待收集": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To collect"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未収集"
+          }
+        }
+      }
+    },
     "後山埤": {
       "extractionState": "manual",
       "localizations": {
@@ -22169,6 +23019,23 @@
         }
       }
     },
+    "既有車種章自動帶入，每款車也能透過護照里程碑收集。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Existing train-type stamps carry over. Every model can also be collected through passport milestones."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "既存の車種スタンプを引き継ぎます。全車両はパスポートの達成目標でも収集できます。"
+          }
+        }
+      }
+    },
     "查": {
       "extractionState": "manual",
       "localizations": {
@@ -22250,6 +23117,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "路線全体を見る"
+          }
+        }
+      }
+    },
+    "查看所有車款": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View all trains"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すべての車両を見る"
+          }
+        }
+      }
+    },
+    "查看旅程護照": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View journey passport"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "旅程パスポートを見る"
           }
         }
       }
@@ -22760,6 +23661,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "案内表示から推定"
+          }
+        }
+      }
+    },
+    "看看展示車庫": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try the demo garage"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "展示車庫を見る"
           }
         }
       }
@@ -24022,6 +24940,23 @@
         }
       }
     },
+    "重新載入小車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reload train"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "車両を再読み込み"
+          }
+        }
+      }
+    },
     "重新整理": {
       "extractionState": "manual",
       "localizations": {
@@ -24175,6 +25110,23 @@
         }
       }
     },
+    "首次入庫：{date}": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "First collected: {date}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "初入庫：{date}"
+          }
+        }
+      }
+    },
     "首次會問一次定位權限": {
       "extractionState": "manual",
       "localizations": {
@@ -24239,6 +25191,91 @@
           "stringUnit": {
             "state": "translated",
             "value": "香山"
+          }
+        }
+      }
+    },
+    "修正列車在車站與彎道附近整列飄到軌道旁的問題，車廂沿指派股道逐節轉彎，不再因鄰車靠近而橫移": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fixed whole trains drifting beside the rails near stations and curves. Each carriage follows its assigned track through bends without shifting sideways when another train approaches."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅やカーブ付近で列車全体が線路脇へずれる問題を修正しました。各車両は割り当てられた線路に沿って順に曲がり、他の列車が近づいても横移動しません。"
+          }
+        }
+      }
+    },
+    "修正列車透過建築物顯示時，被道路蓋住的問題，穿越路口時車身保持連續可見": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fixed roads covering trains seen through transparent buildings, keeping the train visible as it crosses roads."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "透明な建物越しの列車が道路に隠れる問題を修正し、交差点を通過する車体が途切れず見えるようになりました。"
+          }
+        }
+      }
+    },
+    "修正車站看板更新時，已捲到公車資訊的位置被往回拉的問題": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Station board refreshes now preserve your scroll position in the bus information section."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅の案内板が更新されても、バス情報までスクロールした位置を保つように修正しました。"
+          }
+        }
+      }
+    },
+    "修正車站看板與跟車卡三處顯示問題：只有一條線經過的站不再多出線名標題、車號前不再多一個空格、跟車時拖地圖不會再把列車卡壓扁": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fixed three display issues on the station board and the follow card: stations served by a single line no longer show a redundant line heading, train numbers no longer carry a stray leading space, and dragging the map while following a train no longer squashes the train card."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅の発車案内とフォローカードの表示を3点修正しました。1路線のみの駅で余分な路線見出しが出ない、列車番号の前に余分な空白が入らない、追跡中に地図をドラッグしても列車カードがつぶれない。"
+          }
+        }
+      }
+    },
+    "修正起伏地圖中軌道被丘陵切斷、列車鑽入地底的問題，山區行駛保持連續可見": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fixed tracks being cut off by hills and trains sinking below terrain, keeping mountain journeys continuously visible."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "起伏地図で線路が丘に途切れたり、列車が地中に沈んだりする問題を修正し、山間部でも連続して見えるようになりました。"
           }
         }
       }
@@ -24617,6 +25654,23 @@
         }
       }
     },
+    "展示模式・不計入收藏": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Demo collection · no progress saved"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "展示モード・収集記録には反映されません"
+          }
+        }
+      }
+    },
     "展開": {
       "extractionState": "manual",
       "localizations": {
@@ -24698,6 +25752,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "駅"
+          }
+        }
+      }
+    },
+    "庫": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Garage"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "庫"
           }
         }
       }
@@ -26011,6 +27082,23 @@
         }
       }
     },
+    "矩形": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rectangular"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "長方形"
+          }
+        }
+      }
+    },
     "祝山": {
       "extractionState": "manual",
       "localizations": {
@@ -26721,6 +27809,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "高雄メトロ"
+          }
+        }
+      }
+    },
+    "高雄輕軌": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kaohsiung Light Rail"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高雄ライトレール"
           }
         }
       }
@@ -28119,6 +29224,23 @@
         }
       }
     },
+    "推估股道": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inferred track"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "推定線路"
+          }
+        }
+      }
+    },
     "推算": {
       "extractionState": "manual",
       "localizations": {
@@ -28901,6 +30023,23 @@
         }
       }
     },
+    "第一格車位，留給下一段旅程。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your first space is waiting for your next journey."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最初の車両スペースは、次の旅のために。"
+          }
+        }
+      }
+    },
     "第一班車與還沒醒的月台": {
       "extractionState": "manual",
       "localizations": {
@@ -29016,6 +30155,57 @@
           "stringUnit": {
             "state": "translated",
             "value": "完乗距離500 km"
+          }
+        }
+      }
+    },
+    "累積完乘、里程、車站與支線章，解鎖 62 款紀念模型": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Complete journeys, cover distance, collect stations and branch-line stamps to unlock 62 keepsakes"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完乗・距離・駅・支線スタンプを積み重ね、62種類の記念モデルを収集"
+          }
+        }
+      }
+    },
+    "累積旅程 {count} 公里": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Travel {count} km in your passport"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "旅程を {count} km 達成する"
+          }
+        }
+      }
+    },
+    "累積旅程，收藏小車。既有車種章與護照進度會自動帶入。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn journeys into little trains. Your existing stamps and passport progress carry over."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "旅を重ねて小さな車両を集めましょう。取得済みスタンプとパスポートの進捗を引き継ぎます。"
           }
         }
       }
@@ -29254,6 +30444,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "列車の運休を意味するものではありません。駅の案内表示をご確認ください。"
+          }
+        }
+      }
+    },
+    "這支手機的桌面不支援直接加入，請長按主畫面 → 小工具 → 軌島": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This phone doesn’t support adding widgets directly. Touch and hold the Home Screen → Widgets → Rail Island."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この端末はホーム画面への直接追加に対応していません。ホーム画面を長押しして「ウィジェット」→「軌島」から追加してください。"
           }
         }
       }
@@ -29530,6 +30737,23 @@
         }
       }
     },
+    "這個裝置暫時無法顯示 3D，收藏紀錄與來源仍可查看。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3D is unavailable on this device. Your collection and references are still accessible."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この端末では現在 3D を表示できません。収集記録と出典は引き続き確認できます。"
+          }
+        }
+      }
+    },
     "這個檢視沒有車站": {
       "extractionState": "manual",
       "localizations": {
@@ -29662,6 +30886,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "これが調べるパネルです。上に検索、中央に次の列車、下に各種の入口があります。"
+          }
+        }
+      }
+    },
+    "這款車的收藏方式仍在準備中。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The way to collect this train is still being prepared."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この車両の収集方法は準備中です。"
           }
         }
       }
@@ -31774,6 +33015,40 @@
         }
       }
     },
+    "發車看板（台鐵／高鐵）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Departure boards (TRA / High Speed Rail)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "発車案内（台湾鉄路／台湾高速鉄道）"
+          }
+        }
+      }
+    },
+    "發車看板（鎖定畫面）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Departure boards (Lock Screen)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "発車案内（ロック画面）"
+          }
+        }
+      }
+    },
     "發車看板小工具": {
       "extractionState": "manual",
       "localizations": {
@@ -32348,6 +33623,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "木"
+          }
+        }
+      }
+    },
+    "進度沿用旅程護照；62 款小車都有收集條件，既有車種章自動帶入。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All 62 trains have collection goals. Progress comes from your journey passport, including existing train-type stamps."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "62種類すべてに収集条件があります。既存の車種スタンプを含む旅程パスポートの進捗を反映します。"
+          }
+        }
+      }
+    },
+    "進度沿用旅程護照；收藏條件準備中的車款不計入完成比例。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Progress comes from your journey passport. Models with pending collection rules do not count toward completion."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "旅程パスポートの進捗を反映します。収集条件が準備中の車両は達成率に含みません。"
           }
         }
       }
@@ -33253,6 +34562,23 @@
         }
       }
     },
+    "搜尋車型": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search models"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "車両を検索"
+          }
+        }
+      }
+    },
     "搜尋車站、車次、列車名": {
       "extractionState": "manual",
       "localizations": {
@@ -33317,6 +34643,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "検索欄に「台北」を入力しました。候補を選んでください。"
+          }
+        }
+      }
+    },
+    "搜尋框可以打車種與車型了：輸入「自強號」「EMU3000」「太魯閣」會列出符合的班次，正在跑的排前面，也能點車型看介紹（謝謝網友回報）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can now search by train class and model. Type “Tze-Chiang”, “EMU3000” or “Taroko” to list matching services, with the ones currently running first; tap a model to read about it. (Thanks to the readers who wrote in.)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "検索欄で列車種別と車両形式を検索できるようになりました。「自強号」「EMU3000」「タロコ」などを入力すると該当する列車が一覧表示され、走行中の列車が先頭に並びます。車両形式をタップすると解説が読めます。（ご報告ありがとうございます）"
           }
         }
       }
@@ -33878,6 +35221,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "新富"
+          }
+        }
+      }
+    },
+    "新增收藏車庫，62 款精修小車可旋轉欣賞；還沒收集到的是灰色車體，累積旅程進度解鎖後才有塗裝，舊護照自動帶入": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New collection garage with 62 detailed trains to rotate and admire. Trains you haven't collected yet appear as plain grey models — their livery arrives once your journey progress unlocks them. Existing passport progress carries over."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "62種類の精密なミニ車両を回して楽しめる車庫を追加。まだ集めていない車両はグレーの車体で並び、旅の記録が条件を満たすと塗装が現れます。既存のパスポートの記録はそのまま引き継がれます。"
+          }
+        }
+      }
+    },
+    "新增收藏車庫，可旋轉欣賞已入庫的小車、查看來源與收集條件；既有車種章會自動帶入。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Added a collection garage to rotate your little trains and view their references and collection requirements. Existing train-type stamps count automatically."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コレクション車庫を追加しました。集めた小さな車両を回して眺め、出典と収集条件を確認できます。取得済みの車種スタンプも自動で反映されます。"
           }
         }
       }
@@ -35072,6 +36449,23 @@
         }
       }
     },
+    "跟完一趟「{name}」，收入代表車型。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Follow a complete “{name}” journey to collect its representative model."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「{name}」を始発から終点まで追いかけると、代表モデルを収集できます。"
+          }
+        }
+      }
+    },
     "跟完一趟車，起訖站自動成章": {
       "extractionState": "manual",
       "localizations": {
@@ -35102,6 +36496,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "全区間を追跡してスタンプを集め、自分の旅程記録を作ります。"
+          }
+        }
+      }
+    },
+    "跟車卡收起後保持單行，編組說明留在展開資訊中；暗色改用精簡玻璃卡，結束按鈕更容易點擊": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collapsed train cards now stay on one row, with formation details in the expanded view. Dark mode uses a compact glass card with an easier-to-tap End button."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "追従カードを折りたたむと一列に収まり、編成の説明は展開時に表示します。ダークモードはコンパクトなガラス調カードになり、終了ボタンも押しやすくなりました。"
           }
         }
       }
@@ -35221,6 +36632,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "追従時に進行方向を上にする設定を追加しました。初期設定はオフです。必要に応じてオンにでき、北向きに戻す操作もいつでも使えます。"
+          }
+        }
+      }
+    },
+    "跟車鏡頭保留目前的近景，點列車或隨機跟隨不再拉遠；再次點到正在跟隨的列車會回到車旁，不會結束跟隨": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Following keeps your current close-up zoom. Selecting a train or random follow no longer zooms out; tapping the train you are following recenters the camera without ending follow."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "追従時は現在の拡大率を維持し、列車の選択やランダム追従で引きの画面になりません。追従中の列車をもう一度タップすると、追従を終了せずに列車へ戻ります。"
           }
         }
       }
@@ -37724,6 +39152,23 @@
         }
       }
     },
+    "模型製作：軌島（Q 版示意）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Models by Rail Island (stylized miniatures)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "モデル制作：軌島（デフォルメ模型）"
+          }
+        }
+      }
+    },
     "模擬時刻：左右拖曳調整，方向鍵每次 1 分鐘": {
       "extractionState": "manual",
       "localizations": {
@@ -37873,6 +39318,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "衛星"
+          }
+        }
+      }
+    },
+    "衛星地圖上的地標與車站改用模型原色，建築透視可依需要切換": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Landmarks and stations on the satellite map now use their original model colors. Building transparency can be switched on when needed."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "衛星地図のランドマークと駅舎をモデル本来の配色で表示します。建物の透視は必要に応じて切り替えられます。"
           }
         }
       }
@@ -38043,6 +39505,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "URLをコピー"
+          }
+        }
+      }
+    },
+    "調大字級時，轉乘接續裡的車次與「剩 N 分」會跟著一起放大，不再只長一點點": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "At larger text sizes the train number and \"N min left\" in transfer connections now scale with the main text instead of barely growing."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文字を大きくしたとき、乗り換え接続の列車番号と「あと N 分」も本文と同じ倍率で大きくなるようになりました。"
           }
         }
       }
@@ -38795,6 +40274,23 @@
         }
       }
     },
+    "篩選鐵道系統": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filter rail systems"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "鉄道システムで絞り込み"
+          }
+        }
+      }
+    },
     "縣 縣市快速移動": {
       "extractionState": "manual",
       "localizations": {
@@ -39029,6 +40525,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "自分に合うパスを選び、高度な機能を利用しながら軌島の運営を応援できます。"
+          }
+        }
+      }
+    },
+    "選一款車，左右拖曳查看外觀與來源": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a train, drag to rotate it, and check its references"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "車両を選んで左右にドラッグし、外観と出典を確認します"
           }
         }
       }
@@ -39386,6 +40899,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "頭家厝"
+          }
+        }
+      }
+    },
+    "館藏模型 {count} 款": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{count} models in the catalog"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "収録モデル {count} 種"
           }
         }
       }
@@ -40376,6 +41906,23 @@
         }
       }
     },
+    "點「開始收集」，從發車一路陪它到終點": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose Start collecting and follow from departure to the terminus"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「収集を始める」を押し、始発から終点まで追いかけます"
+          }
+        }
+      }
+    },
     "點北捷、高捷或機捷的車站打開看板": {
       "extractionState": "manual",
       "localizations": {
@@ -40903,6 +42450,23 @@
         }
       }
     },
+    "舊有車種章自動帶入；收藏條件準備中的款式不計入完成比例。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Existing train-type stamps count automatically. Models without collection rules are excluded from your completion total."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取得済みの車種スタンプを自動で反映します。収集条件を準備中の車両は達成率に含みません。"
+          }
+        }
+      }
+    },
     "舊社": {
       "extractionState": "manual",
       "localizations": {
@@ -41137,6 +42701,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "公式の到着情報が次の列車へ切り替わる際、乗換駅で一方向だけ一時的に欠けることがあります。その方向は時刻表で補うようにしました。"
+          }
+        }
+      }
+    },
+    "鎖定畫面：長按鎖定畫面 → 自訂 → 加入小工具（鎖定畫面目前只有「發車看板」這一種）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lock Screen: touch and hold the Lock Screen → Customize → Add Widgets (for now only the Departure board comes in a Lock Screen size)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ロック画面：ロック画面を長押し →「カスタマイズ」→ ウィジェットを追加（ロック画面に置けるのは今のところ「発車案内」だけです）"
           }
         }
       }
@@ -42433,6 +44014,23 @@
         }
       }
     },
+    "App 說明中心的小工具頁改成介紹頁：每種小工具都有實際畫面預覽與尺寸；Android 可以直接按「加到桌面」把小工具釘到主畫面": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The app’s Help Center widget page is now a showcase: every widget comes with a real preview and its size, and on Android you can tap “Add to Home Screen” to pin it right away"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アプリの使い方にあるウィジェットのページを紹介ページにしました：各ウィジェットの実際の画面プレビューとサイズを掲載し、Android では「ホーム画面に追加」を押すだけでホーム画面にピン留めできます"
+          }
+        }
+      }
+    },
     "Apple 重新登入沒有回傳可撤銷的授權憑證": {
       "extractionState": "manual",
       "localizations": {
@@ -42786,6 +44384,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "PP自強号"
+          }
+        }
+      }
+    },
+    "Q 版收藏模型": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Miniature keepsake"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ミニチュア記念モデル"
           }
         }
       }

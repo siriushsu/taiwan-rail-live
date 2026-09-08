@@ -16,8 +16,8 @@ android {
         if (project.hasProperty("railApplicationId")) applicationId project.property("railApplicationId")
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 39
-        versionName "1.5.8"
+        versionCode 45
+        versionName "1.6.0"
         if (project.hasProperty("railVersionName")) versionName project.property("railVersionName")
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
@@ -110,4 +110,39 @@ try {
     }
 } catch(Exception e) {
     logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}
+
+// AGP 的資產合併會自動解開 *.gz 並去掉副檔名；車庫的 JSON 仍請求 *.bin.gz，
+// 因而只有 APK/AAB 缺檔，cap sync 與 www 檢查卻全綠。合併完成後保留來源的壓縮位元組
+// 與路徑，再交給後續簽署封裝。只清掉本次合併產生、來源中不存在的解壓副本。
+tasks.withType(com.android.build.gradle.tasks.MergeSourceSetFolders).configureEach {
+    if (name.endsWith('Assets')) {
+        doLast {
+            def sourceRoot = file('src/main/assets')
+            def mergedRoot = outputDir.get().asFile
+            fileTree(sourceRoot).matching { include '**/*.gz' }.files.each { compressed ->
+                def relative = sourceRoot.toPath().relativize(compressed.toPath()).toString()
+                def target = new File(mergedRoot, relative)
+                target.parentFile.mkdirs()
+                java.nio.file.Files.copy(compressed.toPath(), target.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+                def expandedRelative = relative.substring(0, relative.length() - 3)
+                if (!new File(sourceRoot, expandedRelative).exists()) {
+                    delete(new File(mergedRoot, expandedRelative))
+                }
+            }
+        }
+    }
+}
+
+// 發行指令結尾核對成品。只驗 cap sync 目錄，無法抓到 AGP 在封裝途中改名的問題。
+tasks.configureEach {
+    if (name == 'assembleRelease' || name == 'bundleRelease') {
+        def artifactPath = name == 'assembleRelease' ? 'outputs/apk/release/app-release.apk' : 'outputs/bundle/release/app-release.aab'
+        doLast {
+            project.exec {
+                workingDir rootProject.projectDir.parentFile
+                commandLine 'node', 'scripts/verify_android_package.mjs', layout.buildDirectory.file(artifactPath).get().asFile.absolutePath
+            }
+        }
+    }
 }

@@ -1,26 +1,27 @@
 {
   "_why": "這是【所有還在使用者手上的 build】的可見面聯集。verify_no_ship_regression 用它擋「新 build 悄悄變少」。只有在新的一顆上傳成功之後才准推進。",
-  "marketing": "1.5.7",
-  "build": "97",
+  "marketing": "1.5.8",
+  "build": "39",
   "from": [
     "/Users/xuxiang/Library/Developer/Xcode/Archives/2026-08-27/軌島-1.5.0-80.xcarchive/Products/Applications/App.app/public/index.html",
     "/Users/xuxiang/Library/Developer/Xcode/Archives/2026-08-30/軌島-1.5.1-82.xcarchive/Products/Applications/App.app/public/index.html",
     "/Users/xuxiang/Library/Developer/Xcode/Archives/2026-08-31/軌島-1.5.2-85-v0831q.xcarchive/Products/Applications/App.app/public/index.html",
     "/Users/xuxiang/Library/Developer/Xcode/Archives/2026-09-01/軌島-1.5.3-89-v0901h.xcarchive/Products/Applications/App.app/public/index.html",
-    "/private/tmp/claude-501/-Users-xuxiang-Code--------claude-worktrees-ship-main/a0db16f2-80fe-46d8-abec-c1d29fecbe7a/scratchpad/aab19/base/assets/public/index.html",
-    "/private/tmp/claude-501/-Users-xuxiang-Code--------claude-worktrees-ship-main/a0db16f2-80fe-46d8-abec-c1d29fecbe7a/scratchpad/b28/assets/public/index.html",
-    "/private/tmp/claude-501/-Users-xuxiang-Code--------claude-worktrees-ship-main/02d4ddc5-18ae-437c-8308-e4e73c137944/scratchpad/aab31_index.html",
     "/Users/xuxiang/Library/Developer/Xcode/Archives/2026-09-03/軌島-1.5.4-92-v0903a.xcarchive/Products/Applications/App.app/public/index.html",
-    "/private/tmp/claude-501/-Users-xuxiang-Code--------claude-worktrees-ship-main/5d62c5bf-3a03-47f4-9da2-0dba13f12562/scratchpad/aab34/base/assets/public/index.html",
     "/Users/xuxiang/Library/Developer/Xcode/Archives/2026-09-04/軌島-1.5.5-93-v0904a.xcarchive/Products/Applications/App.app/public/index.html",
     "/Users/xuxiang/Library/Developer/Xcode/Archives/2026-09-04/軌島-1.5.6-95-v0904f.xcarchive/Products/Applications/App.app/public/index.html",
     "/Users/xuxiang/Library/Developer/Xcode/Archives/_android-payloads/aab35-1.5.5/index.html",
     "/Users/xuxiang/Library/Developer/Xcode/Archives/2026-09-05/軌島-1.5.7-97-v0905b.xcarchive/Products/Applications/App.app/public/index.html",
     "/Users/xuxiang/Library/Developer/Xcode/_已作廢的archive/1.5.7-96/軌島-1.5.7-96-v0905a-漏打包bus-transfer-ui.js公車轉乘UI.xcarchive/Products/Applications/App.app/public/index.html",
     "/Users/xuxiang/Library/Developer/Xcode/Archives/_android-payloads/aab38-1.5.7/index.html",
-    "/Users/xuxiang/Library/Developer/Xcode/Archives/_android-payloads/aab37-1.5.7/index.html"
+    "/Users/xuxiang/Library/Developer/Xcode/Archives/_android-payloads/aab37-1.5.7/index.html",
+    "/Users/xuxiang/Library/Developer/Xcode/Archives/_android-payloads/aab19-1.5.0/index.html",
+    "/Users/xuxiang/Library/Developer/Xcode/Archives/_android-payloads/aab28-1.5.2/index.html",
+    "/Users/xuxiang/Library/Developer/Xcode/Archives/_android-payloads/aab31-1.5.3/index.html",
+    "/Users/xuxiang/Library/Developer/Xcode/Archives/_android-payloads/aab34-1.5.4/index.html",
+    "/Users/xuxiang/Library/Developer/Xcode/Archives/_android-payloads/aab39-1.5.8/index.html"
   ],
-  "updatedAt": "2026-09-06T07:03:14.090Z",
+  "updatedAt": "2026-09-07T13:06:00.907Z",
   "inventory": {
     "functions": [
       "_trtcBrAlong",
@@ -137,9 +138,12 @@
       "blockKeyOf",
       "blockSideShift",
       "boardAlignColumns",
+      "boardDecidingSeg",
       "boardGroupLabel",
       "boardGroupOf",
+      "boardLineIdsByStation",
       "boardLineLatSpan",
+      "boardSharedTrack",
       "boot",
       "bountyActor",
       "bountyBatchMeta",
@@ -353,6 +357,7 @@
       "ensurePunctualData",
       "ensureStationEvents",
       "ensureTraWaitListener",
+      "ensureWeekendCount",
       "enterTheater",
       "evDayShift",
       "evStationSysIds",
@@ -771,6 +776,7 @@
       "openTrackPanel",
       "openTrainSheet",
       "openTripSharePanel",
+      "openWeekendPage",
       "paintFreeSeat",
       "paintTimeRail",
       "paintTrain",
@@ -1429,6 +1435,8 @@
       "webMcpTrainCandidates",
       "webMcpTrainStatus",
       "webMcpTrainSummary",
+      "weekendPageUrl",
+      "weekendRowHtml",
       "writeCheckin",
       "writeSegments",
       "xfcSysName",
@@ -1917,6 +1925,7 @@
       "geofollow",
       "guestmerge",
       "hazardwatch",
+      "hsinchuboarddir",
       "hsrcoast",
       "i18n-content",
       "i18n-dynamic",
@@ -2422,6 +2431,7 @@
       "USER_DATA_VERSION",
       "VS_MID",
       "WEB_STREET_SRC",
+      "WEEKEND_PAGE_URL",
       "WM_LOGO",
       "XFER_APP_SCHED_SYSTEM",
       "XFER_WINDOW_SEC",
@@ -2512,13 +2522,15 @@
       "RECORDING_ENABLED",
       "REC_MUSIC_PROTOTYPE",
       "WM_LOGO",
-      "ZOOM_ANIM_MS"
+      "ZOOM_ANIM_MS",
+      "FOLLOW_ZOOM_CAP"
     ],
     "urlParams": [
       "live"
     ],
     "_why_obs": "2026-09-03 使用者裁示刪除 OBS 直播殼(?live=1)與導播模式(?live=2&k=):initLive/initDirector 等函式、liveHud/replayBadge/msStatReplay* 元素、DIRECTOR_KEY 等常數、URL 參數 live,以及放空模式裡只服務導播的 pickTourMetro/pickCityOverview/metroCoverage/fadeSwitchMetro/ambientJumpToMetro。從未對外宣布,無更新紀錄條目;守門人 scripts/verify_obs_removed.mjs。main 5122754e、正式站 v0903e。",
     "_why_phSortSeg": "與 OBS 無關:v0903c/d 完乘「順序」排法改由 buildRideSortSeg(rideSort, \"phSortSeg\") 動態組出 id,靜態 grep 看不到 id=\"phSortSeg\" 字面,元素在執行期仍存在(index.html 約 20472 行)。",
-    "_why_m4b": "M4-B(2026-09-05)：地圖引擎收斂成 MapLibre 唯一，Leaflet 整個拔除。這 17 個符號全部是 Leaflet 專屬、在 MapLibre 路徑下沒有對應概念，逐一說明：createLeafletEngine=Leaflet 版引擎工廠；zoomAnimFrame/onZoomAnim/endZoomAnim/zaCalGl/zaParseMat/zaRectBox/ZOOM_ANIM_MS=縮放動畫仿射補償整套（治 Leaflet 圖磚 CSS 補間與 overlay canvas 失步；MapLibre 每幀真實更新相機、overlay 掛在 GL 的 render 幀，結構上不會失步）；setupOfflineLand=離線陸地的 Leaflet pane 版（MapLibre 版是 glLandLoad／glLandInstall，仍在）；warmSatUnderlay=衛星墊底層預抓的 Leaflet 版（MapLibre 版是 warmSatUnderlayGl，仍在）；activeBaseLayer/warmTileWindow/prefetchFollowAhead=高速跟車底圖預抓，靠 Leaflet tileLayer 的 getTileUrl／getTileSize，MapLibre 的 source 由 GL 自行排程與預取，沒有同型 API 可掛；ofmActiveCanvas=從 Leaflet 的 OFM 圖層取 _glMap 畫布（MapLibre 就是地圖本身，直接用 M.raw）；focusApplyLimit/focusShiftHave=面板讓位的世界像素記帳＋問 Leaflet 私有 _limitCenter 夾不夾（MapLibre 自 M1 起改走 setPadding／syncMapLibrePadding，引擎自己保證讓位與相機一致）；MAP_GESTURES=Leaflet 六個 handler 名字的清單（MapLibre 由 M.setGestures 一次開關）。這些符號刻意不再出現，不是被合併吃掉的回歸；守門人 scripts/verify_engine_adapter.mjs 的 G9／G4h／G4i。"
+    "_why_m4b": "M4-B(2026-09-05)：地圖引擎收斂成 MapLibre 唯一，Leaflet 整個拔除。這 17 個符號全部是 Leaflet 專屬、在 MapLibre 路徑下沒有對應概念，逐一說明：createLeafletEngine=Leaflet 版引擎工廠；zoomAnimFrame/onZoomAnim/endZoomAnim/zaCalGl/zaParseMat/zaRectBox/ZOOM_ANIM_MS=縮放動畫仿射補償整套（治 Leaflet 圖磚 CSS 補間與 overlay canvas 失步；MapLibre 每幀真實更新相機、overlay 掛在 GL 的 render 幀，結構上不會失步）；setupOfflineLand=離線陸地的 Leaflet pane 版（MapLibre 版是 glLandLoad／glLandInstall，仍在）；warmSatUnderlay=衛星墊底層預抓的 Leaflet 版（MapLibre 版是 warmSatUnderlayGl，仍在）；activeBaseLayer/warmTileWindow/prefetchFollowAhead=高速跟車底圖預抓，靠 Leaflet tileLayer 的 getTileUrl／getTileSize，MapLibre 的 source 由 GL 自行排程與預取，沒有同型 API 可掛；ofmActiveCanvas=從 Leaflet 的 OFM 圖層取 _glMap 畫布（MapLibre 就是地圖本身，直接用 M.raw）；focusApplyLimit/focusShiftHave=面板讓位的世界像素記帳＋問 Leaflet 私有 _limitCenter 夾不夾（MapLibre 自 M1 起改走 setPadding／syncMapLibrePadding，引擎自己保證讓位與相機一致）；MAP_GESTURES=Leaflet 六個 handler 名字的清單（MapLibre 由 M.setGestures 一次開關）。這些符號刻意不再出現，不是被合併吃掉的回歸；守門人 scripts/verify_engine_adapter.mjs 的 G9／G4h／G4i。",
+    "_why_followzoomcap": "2026-09-07 使用者裁示「直接把 follow zoom cap 刪掉」:App 殼原本注入 followZoomCap=16,index.html 的 FOLLOW_ZOOM_CAP 把跟車進場 zoom 封頂。該上限 2026-08-05 立起時的理由是「App 兩種底圖都計量」,但 App 的街道底圖之後改成不計量的 OpenFreeMap(Stadia 只剩退路、Esri 只用於衛星),前提已不成立;實害是反向的——從近景(z17+)點列車或按隨機跟隨會被拉遠到 16,1.6.0 的立體列車剛好看不到,且相機自癒每次貼車都重跑 followEntryZoom(),手動拉近後 3.5 秒又被扯回 16。符號刻意不再出現,不是被合併吃掉的回歸;反向守門人 app/scripts/verify-release.mjs「不得再出現 followZoomCap」。"
   }
 }
