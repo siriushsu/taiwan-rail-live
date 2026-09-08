@@ -3909,7 +3909,7 @@
       border: 1px solid var(--line); border-radius: 8px; color: var(--navy); background: var(--paper);
       font-size: calc(12.5px * var(--ui)); font-weight: 700; line-height: 1.25; text-align: left; font-family: inherit;
     }
-    #searchPanel .ql-row .chev { font-size: calc(12px * var(--uis)); color: var(--faint); font-weight: 600; }
+    #searchPanel .ql-row .chev { font-size: calc(13px * var(--ui)); color: var(--faint); font-weight: 600; }
     /* 查詢答案區:站塊＝標題列＋看板列(沿用 .board .row/.bgrp/.grp 樣式,#searchPanel 本身就是 .board)＋公車列 */
     #searchPanel .qa { padding: 0 0 4px; }
     #searchPanel .qa-stn { border-top: 1px dashed var(--line-faint, var(--line)); }
@@ -28513,6 +28513,30 @@ const BOARD_TRUNK_LAT_SPAN = 0.15;
 // 不會浮上來;改成逐組配額之後,竹南這種站會冒出 106 分／151 分後才終到的車。終到車對站上
 // 等車的人沒有搭乘價值(它到了就不走了),只有來接人才看,一小時外的沒有意義。
 const BOARD_ARRIVE_MAX_SEC = 3600;
+// 例外:終點站不套上面那條(使用者裁示 2026-09-08「終點站其實會有去接人的人看時間,所以
+// 時間本來就應該要在」)。上面那句「只有來接人才看」在終點站正是常態——整站的意義就是接人,
+// 而且終到車在那裡本來就是主角不是雜訊。大站(樹林/花蓮/竹南)維持 8/31 的上限不變。
+// 判定取**全量班表**而不是看板的 3 小時窗:窗內取樣會隨時刻漂移(判準盲點 3)。
+// 定義:該系統中沒有任何一班車「通過」這站——每次停靠不是首站就是末站。實測判出
+// 內灣/八斗子/六家/基隆/沙崙/菁桐/蘇澳/車埕 八站,樹林/花蓮/新竹/嘉義/臺東/潮州/瑞芳皆不入列。
+let _termSet = null, _termFor = null;
+function isTerminusStation(name, sys) {
+  if (_termFor !== state.trains) {
+    const through = new Set(), endpoint = new Set();
+    for (const tr of state.trains) {
+      if (tr.loop) continue;                 // 環島車末站=起點,不定義終點站
+      const n = tr.stops.length;
+      for (let i = 0; i < n; i++) {
+        const st = tr.stops[i];
+        if (st.stop === false) continue;
+        (i === 0 || i === n - 1 ? endpoint : through).add(st.name + '|' + tr.sys);
+      }
+    }
+    _termSet = new Set([...endpoint].filter(k => !through.has(k)));
+    _termFor = state.trains;
+  }
+  return _termSet.has(name + '|' + sys);
+}
 function boardLineLatSpan(ln) {
   let lo = Infinity, hi = -Infinity;
   for (const s of (ln.stations || [])) if (s.lat != null) { if (s.lat < lo) lo = s.lat; if (s.lat > hi) hi = s.lat; }
@@ -28753,7 +28777,7 @@ function schedBoardListHtml(st, rows, perGroup) {
   // 依方向分組。空組不畫;組內維持時間序,各取 perGroup 班。
   const byKey = new Map();
   for (const r of rows) {
-    if (r.g.kind === 'arrive' && r.dtm > BOARD_ARRIVE_MAX_SEC) continue; // 濾在建組之前:全部超時就連組標題都不畫
+    if (r.g.kind === 'arrive' && r.dtm > BOARD_ARRIVE_MAX_SEC && !isTerminusStation(st.name, st.sys)) continue; // 濾在建組之前:全部超時就連組標題都不畫。終點站豁免(見 BOARD_ARRIVE_MAX_SEC 旁註)
     if (!byKey.has(r.g.key)) byKey.set(r.g.key, Object.assign({}, r.g, { rows: [] }));
     byKey.get(r.g.key).rows.push(r);
   }

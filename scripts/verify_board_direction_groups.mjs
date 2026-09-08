@@ -120,11 +120,12 @@ ok('D5b 展開段每組至多 6 班', znx.groups.every(g => g.rows <= 6), JSON.s
 ok('D5c 展開後總列數確實變多（配額真的有作用）', znx.rows > zn.rows, `${zn.rows} → ${znx.rows}`);
 ok('D5d 每一組都至少有一班（空組不畫）', znx.groups.every(g => g.rows >= 1), JSON.stringify(znx.groups.map(g => g.rows)));
 
-// ── D10 「抵達本站」只列 60 分鐘內（使用者 2026-08-31 裁示 b）──────────
+// ── D10 「抵達本站」只列 60 分鐘內，終點站除外（2026-08-31 裁示 b＋2026-09-08 裁示）──
 // 判準刻意不寫死「應該有幾班」——班數是會漂移的量（心得 35）。改成：在同一個 tick 裡從
 // tr.stops 獨立重算「這站 60 分內／60~180 分的終到車數」，再要求看板恰好等於 min(前者, 配額)。
 // 那份重算不經過 boardGroupOf／配額／上限任何一行（受測的是分組與上限，不是 dtm 算術）。
-const ARR_STN = ['樹林', '潮州', '花蓮', '基隆', '新竹', '七堵', '彰化', '嘉義', '臺東', '竹南'];
+const ARR_STN = ['樹林', '潮州', '花蓮', '基隆', '新竹', '七堵', '彰化', '嘉義', '臺東', '竹南',
+  '八斗子', '蘇澳'];  // 後兩個是終點站：豁免那半邊要有料才驗得到
 const arrScan = await p.evaluate((STN) => {
   const res = [];
   for (const ex of [false, true]) for (const name of STN) {
@@ -152,24 +153,38 @@ const arrScan = await p.evaluate((STN) => {
       if (d < -30) continue;
       if (d <= 3600) within++; else if (d <= 10800) beyond++;
     }
-    res.push({ name, ex, within, beyond, gs });
+    res.push({ name, ex, within, beyond, gs, term: isTerminusStation(name, 'tra_sched') });
   }
   return res;
 }, ARR_STN);
 const arrOf = r => r.gs.find(g => g.label === '抵達本站');
-const bad10a = arrScan.filter(r => !r.err).filter(r => (arrOf(r)?.mins || []).some(v => v != null && v > 60));
-ok('D10a 「抵達本站」組不得出現 60 分以上的班次',
+const bad10a = arrScan.filter(r => !r.err && !r.term).filter(r => (arrOf(r)?.mins || []).some(v => v != null && v > 60));
+ok('D10a 非終點站的「抵達本站」組不得出現 60 分以上的班次（8/31 裁示 b 仍生效）',
   bad10a.length === 0, JSON.stringify(bad10a.map(r => [r.ex ? '展開' : '一般', r.name, arrOf(r).mins])));
 ok('D10b 正向對照：至少一站真的畫出「抵達本站」組（否則 D10a 是空過）',
   arrScan.some(r => !r.err && (arrOf(r)?.mins.length || 0) > 0),
   JSON.stringify(arrScan.map(r => r.name + ':' + (arrOf(r)?.mins.length ?? '無'))));
-ok('D10c 反向對照：確實有 60~180 分的終到車被擋掉（否則這輪沒有鑑別力）',
-  arrScan.some(r => !r.err && r.beyond > 0), JSON.stringify(arrScan.map(r => `${r.name}:${r.beyond}`)));
+ok('D10c 反向對照：確實有非終點站的 60~180 分終到車被擋掉（否則 D10a 沒有鑑別力）',
+  arrScan.some(r => !r.err && !r.term && r.beyond > 0),
+  JSON.stringify(arrScan.map(r => `${r.name}${r.term ? '(終)' : ''}:${r.beyond}`)));
+const listable = r => r.term ? r.within + r.beyond : r.within;   // 終點站豁免上限 ⇒ 分母含 60~180 分那些
 const bad10d = arrScan.filter(r => !r.err)
-  .filter(r => (arrOf(r)?.mins.filter(v => v != null).length || 0) !== Math.min(r.within, r.ex ? 6 : 3));
-ok('D10d 抵達組班次數＝min(獨立量到的 60 分內終到車, 每組配額)——是濾掉超時，不是整組砍半',
+  .filter(r => (arrOf(r)?.mins.filter(v => v != null).length || 0) !== Math.min(listable(r), r.ex ? 6 : 3));
+ok('D10d 抵達組班次數＝min(該站可列的終到車數, 每組配額)——是濾掉超時，不是整組砍半',
   bad10d.length === 0,
-  JSON.stringify(bad10d.map(r => [r.ex ? '展開' : '一般', r.name, arrOf(r)?.mins ?? null, r.within])));
+  JSON.stringify(bad10d.map(r => [r.ex ? '展開' : '一般', r.name + (r.term ? '(終)' : ''), arrOf(r)?.mins ?? null, listable(r)])));
+// 終點站豁免（2026-09-08 裁示）的正向對照。只有「60 分內的班數還沒把配額吃滿、且真的有
+// 60~180 分的終到車」時，豁免才看得見——先具名把這種站篩出來（配額吃滿時畫出來的必然都在
+// 60 分內，那不是回歸）。分母用獨立重算的 within/beyond，不取畫面上的數字。
+const quotaOf = r => (r.ex ? 6 : 3);
+const exempt = arrScan.filter(r => !r.err && r.term && r.beyond > 0 && r.within < quotaOf(r));
+ok('D10f 覆蓋率：掃描裡至少有一個終點站，其 60 分外的終到車在配額內看得見（否則 D10g 空過）',
+  exempt.length > 0,
+  JSON.stringify(arrScan.filter(r => !r.err && r.term).map(r => `${r.name}: 內${r.within}/外${r.beyond}/配額${quotaOf(r)}`)));
+const bad10g = exempt.filter(r => !(arrOf(r)?.mins || []).some(v => v != null && v > 60));
+ok('D10g 終點站的「抵達本站」組確實列出 60 分以上的班次（去接人的人要看得到時間）',
+  bad10g.length === 0,
+  JSON.stringify(bad10g.map(r => [r.ex ? '展開' : '一般', r.name, arrOf(r)?.mins ?? null, `內${r.within}/外${r.beyond}`])));
 ok('D10e 誤傷對照：其他組仍看得到 60 分以上的班次（上限只套抵達組）',
   arrScan.some(r => !r.err && r.gs.filter(g => g.label !== '抵達本站').some(g => g.mins.some(v => v != null && v > 60))),
   JSON.stringify(arrScan.map(r => r.name + ':' + Math.max(0, ...r.gs.filter(g => g.label !== '抵達本站').flatMap(g => g.mins).filter(v => v != null)))));
