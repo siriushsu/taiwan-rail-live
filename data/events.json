@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-04",
+  "updated": "2026-09-08",
   "events": [
     {
       "id": "trtc-20260811-pokemon10",
@@ -263,6 +263,36 @@
       "end": "2026-09-25",
       "anchor": { "kind": "system", "sys": "tymc" },
       "url": "https://www.tymetro.com.tw/tymetro-new/tw/_pages/news/show-2416-1.html"
+    },
+    {
+      "id": "tymc-20260907-designexpo-qingpu",
+      "source": "official",
+      "title": "2026 台灣設計展",
+      "note": "青埔主展區，桃園體育園區站下車",
+      "start": "2026-09-24",
+      "end": "2026-10-11",
+      "anchor": { "kind": "station", "sys": "tymc", "name": "桃園體育園區站" },
+      "url": "https://www.tymetro.com.tw/tymetro-new/tw/_pages/news/show-2419-1.html"
+    },
+    {
+      "id": "tymc-20260907-designexpo-zhongli",
+      "source": "official",
+      "title": "2026 台灣設計展（中壢展區）",
+      "note": "環北站轉乘免費接駁車可到",
+      "start": "2026-09-24",
+      "end": "2026-10-11",
+      "anchor": { "kind": "station", "sys": "tymc", "name": "環北站" },
+      "url": "https://www.tymetro.com.tw/tymetro-new/tw/_pages/news/show-2419-1.html"
+    },
+    {
+      "id": "tymc-20260907-designexpo-train",
+      "source": "official",
+      "title": "2026 台灣設計展彩繪列車",
+      "note": "全線隨機運行，官方 App 可查它現在在哪",
+      "start": "2026-09-07",
+      "end": "2026-10-11",
+      "anchor": { "kind": "system", "sys": "tymc" },
+      "url": "https://www.tymetro.com.tw/tymetro-new/tw/_pages/news/show-2419-1.html"
     }
   ]
 }
