@@ -4,6 +4,7 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "修正列車在車站與彎道附近整列飄到軌道旁的問題，車廂沿指派股道逐節轉彎，不再因鄰車靠近而橫移": "Fixed whole trains drifting beside the rails near stations and curves. Each carriage follows its assigned track through bends without shifting sideways when another train approaches.",
     "改善立體地圖拖曳與旋轉的流暢度，保留完整列車與建築細節；切換地形後，建築輪廓也會回到正確高度": "Improved dragging and rotating the 3D map while keeping complete trains and building detail. Building outlines now return to the correct height when terrain is switched.",
     "山線三義隧道段的軌道改用實際路線重畫，列車經過時不再偏離軌道": "The Mountain Line's Sanyi tunnel section is redrawn along its real route, so trains no longer appear to drift off the track there.",
     "台鐵誤點加大時，列車改成慢速前進，不再停在原地等誤點追上": "When a TRA train's delay grows, it now keeps creeping forward instead of freezing in place, then picks up the next station's arrival time.",
@@ -11,7 +12,6 @@
     "修正車站看板更新時，已捲到公車資訊的位置被往回拉的問題": "Station board refreshes now preserve your scroll position in the bus information section.",
     "近景列車依推估股道分流，少量交疊會暫時靠旁避讓；捷運到站時保留立體車身。阿里山林鐵暫不套股道，停站的車不再畫到軌道外；阿里山、祝山、神木一帶補畫站內與之字形折返股道": "Close-up trains use inferred tracks, with temporary visual yielding for remaining overlaps. Metro trains keep their 3D bodies when stopping at stations. The Alishan Forest Railway skips inferred tracks for now, so trains waiting at its stations no longer appear off the rails, and its drawn track now reaches into Alishan, Zhushan and the switchback spurs around Shenmu.",
     "推估股道": "Inferred track",
-    "暫時避讓（示意）": "Temporary visual yielding",
     "衛星地圖上的地標與車站改用模型原色，建築透視可依需要切換": "Landmarks and stations on the satellite map now use their original model colors. Building transparency can be switched on when needed.",
     "跟車卡收起後保持單行，編組說明留在展開資訊中；暗色改用精簡玻璃卡，結束按鈕更容易點擊": "Collapsed train cards now stay on one row, with formation details in the expanded view. Dark mode uses a compact glass card with an easier-to-tap End button.",
     "加入 22 款精修立體車站與地標，放大可看細節、縮小自動簡化，並保留建築透視": "Added 22 detailed 3D stations and landmarks, with close-up details, lighter distant models, and transparent building views.",
@@ -223,6 +223,7 @@
   });
 
   Object.assign(messages.ja, {
+    "修正列車在車站與彎道附近整列飄到軌道旁的問題，車廂沿指派股道逐節轉彎，不再因鄰車靠近而橫移": "駅やカーブ付近で列車全体が線路脇へずれる問題を修正しました。各車両は割り当てられた線路に沿って順に曲がり、他の列車が近づいても横移動しません。",
     "改善立體地圖拖曳與旋轉的流暢度，保留完整列車與建築細節；切換地形後，建築輪廓也會回到正確高度": "列車の全編成と建物の細部を保ちながら、3D地図のドラッグと回転を改善しました。地形を切り替えた後も、建物の輪郭が正しい高さに戻ります。",
     "山線三義隧道段的軌道改用實際路線重畫，列車經過時不再偏離軌道": "山線・三義トンネル区間の線路を実際の経路で描き直し、列車がその区間で線路から外れて見えることがなくなりました。",
     "台鐵誤點加大時，列車改成慢速前進，不再停在原地等誤點追上": "台鉄の遅れが大きくなったとき、列車はその場で止まらずゆっくり前進し、次の駅の到着時刻に追従します。",
@@ -230,7 +231,6 @@
     "修正車站看板更新時，已捲到公車資訊的位置被往回拉的問題": "駅の案内板が更新されても、バス情報までスクロールした位置を保つように修正しました。",
     "近景列車依推估股道分流，少量交疊會暫時靠旁避讓；捷運到站時保留立體車身。阿里山林鐵暫不套股道，停站的車不再畫到軌道外；阿里山、祝山、神木一帶補畫站內與之字形折返股道": "近景の列車を推定した線路に振り分け、残る重なりは一時的な表示上の退避で対応します。地下鉄の停車中も3D車体を保ちます。阿里山森林鉄道は当面この推定を使わず、駅に停車中の列車が線路の外に描かれることがなくなりました。線路の描画も阿里山・祝山の駅構内と神木周辺のスイッチバック側線まで広がります。",
     "推估股道": "推定線路",
-    "暫時避讓（示意）": "一時退避（イメージ）",
     "衛星地圖上的地標與車站改用模型原色，建築透視可依需要切換": "衛星地図のランドマークと駅舎をモデル本来の配色で表示します。建物の透視は必要に応じて切り替えられます。",
     "跟車卡收起後保持單行，編組說明留在展開資訊中；暗色改用精簡玻璃卡，結束按鈕更容易點擊": "追従カードを折りたたむと一列に収まり、編成の説明は展開時に表示します。ダークモードはコンパクトなガラス調カードになり、終了ボタンも押しやすくなりました。",
     "加入 22 款精修立體車站與地標，放大可看細節、縮小自動簡化，並保留建築透視": "22 種類の精密な立体駅舎とランドマークを追加しました。拡大時は詳細に、縮小時は軽量に表示し、建物の透視も利用できます。",

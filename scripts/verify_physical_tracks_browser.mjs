@@ -45,6 +45,37 @@ for(const [name,engine]of Object.entries({chromium,webkit})){
   check(name+' 近景抽換的班表系統都出自 physical.systems 這份唯一白名單（抽換 '+swap.sched.length+' 個：'+(swap.sched.join('／')||'無')+'；名單外：'+(swap.orphan.join(',')||'無')+'）',
    swap.zoom>=14&&Array.isArray(swap.physical)&&swap.sched.length>0&&swap.orphan.length===0,swap);
   await page.screenshot({path:`output/physical-browser/${name}-taipei.png`});
+  // A54 已捕獲的六組車：在同一時間與股道上重放，直接量實際模型矩陣與地圖投影。
+  const fixture=JSON.parse(fs.readFileSync('scripts/fixtures/physical-taipei-0908.json'));
+  await page.evaluate(fixture=>{
+   state.playing=false;clearFollow();clearFreqFollow();railIslandIntegration.render=()=>{};
+   const vehicles=fixture.vehicles.map(v=>{const g=v.systemId.endsWith('_sched')?railIslandPhysical.geometry:railIslandPhysical.metro.geometry;
+    return {...v,route:g.route(v.pathIds,v.systemId,v.color,v.extension),followed:false};});
+   const frame=railIslandIntegration.capture();
+   window.__ontrackVehicles=vehicles;
+   window.__ontrackUpdate=()=>{railIslandIntegration.renderer.update({...frame,clock:{...frame.clock,simSec:fixture.simSec},vehicles,routes:vehicles.map(v=>v.route),followLock:false,selectedVehicleId:null,display:{...frame.display,enabled:true,modelMode:'all'}});return railIslandIntegration.renderer.stats.models;};
+   M.raw.jumpTo({center:fixture.center,zoom:16.5,pitch:60,bearing:0});__ontrackUpdate();
+  },fixture);
+  await page.waitForFunction(()=>__ontrackUpdate()===6,null,{timeout:30000});
+  for(const view of [{bearing:0,pitch:60},{bearing:35,pitch:45},{bearing:-35,pitch:60}]){
+   await page.evaluate(view=>{M.raw.jumpTo(view);__ontrackUpdate();},view);await page.waitForTimeout(100);
+   const alignment=await page.evaluate(()=>{
+    const r=railIslandIntegration.renderer,projected=r.projectedCars();let maxSourceM=0,maxScreenPx=0,count=0;
+    const distance=(p,a,b)=>{const mx=111320*Math.cos(p[1]*Math.PI/180),x=(p[0]-a[0])*mx,y=(p[1]-a[1])*111320,dx=(b[0]-a[0])*mx,dy=(b[1]-a[1])*111320,t=Math.max(0,Math.min(1,(x*dx+y*dy)/(dx*dx+dy*dy||1)));return Math.hypot(x-t*dx,y-t*dy);};
+    for(const pose of r.stats.poseSamples){const v=__ontrackVehicles.find(v=>v.id===pose.id),g=v.systemId.endsWith('_sched')?railIslandPhysical.geometry:railIslandPhysical.metro.geometry;
+     for(let i=0;i<pose.cars.length;i++){const p=pose.cars[i],point=v.route.path.at(p.s),edge=v.route.edges[point.index],w=g.wayById.get(edge.wayId),j=Number(edge.edgeId.slice(edge.edgeId.lastIndexOf(':')+1));
+      maxSourceM=Math.max(maxSourceM,distance(p.coordinate,w.coordinates[j],w.coordinates[j+1]));
+      const actual=projected.find(c=>c.id===v.id&&c.index===i).center,expected=M.raw.project(point.coordinate);
+      maxScreenPx=Math.max(maxScreenPx,Math.hypot(actual.x-expected.x,actual.y-expected.y));count++;
+     }
+    }
+    return {count,maxSourceM,maxScreenPx,models:r.stats.models};
+   });
+   // .65m 的車底高度在此倍率投影小於 1px；5–15m 的錯誤橫移會明顯超過。
+   check(name+' A54 Taipei cars align with source rails '+view.bearing,alignment.count===45&&alignment.maxSourceM<.00001&&alignment.maxScreenPx<1,alignment);
+  }
+  await page.screenshot({path:`output/physical-browser/${name}-taipei-ontrack.png`});
+
   await page.evaluate(()=>{
    state.playing=false;clearFollow();clearFreqFollow();railIslandIntegration.render=()=>{};
    window.__frame=railIslandIntegration.capture();window.__clock=100000;
@@ -75,13 +106,13 @@ for(const [name,engine]of Object.entries({chromium,webkit})){
   await page.evaluate(()=>__clock+=100);
   await page.waitForFunction(()=>__passing().models===2,null,{timeout:30000});
   const meeting=await page.evaluate(()=>__passing());
-  check(name+' overlapping formations temporarily separate',meeting.avoiding===1&&Math.abs(meeting.poses[0].avoidanceOffsetM-meeting.poses[1].avoidanceOffsetM)>=4.2,{offsets:meeting.poses.map(p=>p.avoidanceOffsetM)});
+  check(name+' overlapping formations stay on assigned track',meeting.poses.length===2&&meeting.poses.every(p=>!p.avoidanceOffsetM),{offsets:meeting.poses.map(p=>p.avoidanceOffsetM||0)});
   await page.waitForTimeout(150);
   const hits=await page.evaluate(()=>{const r=railIslandIntegration.renderer;return r.projectedCars().filter(c=>c.index===0).map(c=>({id:c.id,hit:r.hitTest(c.roof).some(h=>h.id===c.id)}));});
-  check(name+' shifted model hit testing',hits.length===2&&hits.every(h=>h.hit),{hits});
+  check(name+' on-track model hit testing',hits.length===2&&hits.every(h=>h.hit),{hits});
   await page.screenshot({path:`output/physical-browser/${name}-passing.png`});
-  for(let i=0;i<75;i++){await page.evaluate(()=>__passing(true));await page.waitForTimeout(20);}
-  const returned=await page.evaluate(()=>__passing(true));check(name+' returns to track after passing',returned.avoiding===0,{offsets:returned.poses.map(p=>p.avoidanceOffsetM)});
+  await page.evaluate(()=>__passing(true));
+  const returned=await page.evaluate(()=>__passing(true));check(name+' no lateral return after passing',returned.poses.every(p=>!p.avoidanceOffsetM),{offsets:returned.poses.map(p=>p.avoidanceOffsetM||0)});
   for(const width of [360,375,414,768]){
    await page.setViewportSize({width,height:900});
    for(const dir of [1,-1]){await page.waitForFunction(args=>__case(...args).visible,['G',dir,8],{timeout:30000});check(name+' mobile '+width+' direction '+dir,true);}

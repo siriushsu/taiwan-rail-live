@@ -9,7 +9,6 @@ import {formationFor,assembleFormation} from './formations.js';
 import {makePath,shapeKey,makeHeightProfile,formationPoses} from './train-path.js';
 import {profileLines} from './profile-lines.js';
 import {headFramingDistance} from './follow-framing.js';
-import {createPassingAvoidance,offsetPose} from './passing-avoidance.js';
 import {orderBuildingPasses} from './layer-order.js';
 
 const asset=p=>new URL('../'+p,import.meta.url).href;
@@ -31,7 +30,7 @@ export async function createLiveMap({map,isCurrent=()=>true,onGesture,onInteract
   assertCurrent();
   const el=map.getContainer(),landscapeTheme='original';
   let disposed=false,ready=false,stationLayer=null,stationLabels=null,markers=null,inspection=false,frame=null,routeKey='',routeRefs=[],lastBuild=0,dirty=true,buildCenter=null,buildView=null,lastNear=null,popup=null;
-  const clearance=createRailClearance(),passing=createPassingAvoidance();
+  const clearance=createRailClearance();
   const terrainState={terrain:groundMode==='terrain',buildings:true,labels:true,stationInspection:false,stationInspectionAll:true,exaggeration:1};
   const scene=new THREE.Scene(),camera=new THREE.Camera(),projection=new THREE.Matrix4(),anchor=ml.MercatorCoordinate.fromLngLat([121,24]),unit=anchor.meterInMercatorCoordinateUnits();
   const transform=new THREE.Matrix4().makeTranslation(anchor.x,anchor.y,0).scale(new THREE.Vector3(unit,-unit,unit));
@@ -126,10 +125,8 @@ export async function createLiveMap({map,isCurrent=()=>true,onGesture,onInteract
       if(heading!==null&&heading!==undefined){const angle=heading,dx=Math.cos(angle),dy=Math.sin(angle),a=screen,b=project([p[0]+dx*ratio,p[1]+dy*ratio,p[2]]),s=ratio/Math.max(.015,Math.hypot(b.x-a.x,b.y-a.y));
         for(const [x,y]of [[12,0],[5,3],[5,-3]]){arrowP.push(p[0]+(dx*x-dy*y)*s,p[1]+(dy*x+dx*y)*s,p[2]+.1);arrowC.push(color.r,color.g,color.b);}}
     });
-    const passingCars=stats.poseSamples.filter(s=>models.get(s.id)?.screenPose.physical).map(s=>{const m=models.get(s.id);return {...s,widthM:m.model.widthM,lengths:m.model.parts.map(p=>p.lengthM)};}),offsets=passing.update(passingCars,next.clock.simSec);stats.avoiding=0;
-    for(const sample of passingCars){const offset=offsets.get(sample.id)||0,m=models.get(sample.id),shown=stats.poseSamples.find(s=>s.id===sample.id);shown.avoidanceOffsetM=offset;if(Math.abs(offset)<.001)continue;stats.avoiding++;
-      shown.cars=shown.cars.map((p,i)=>{const shifted=offsetPose(p,offset);if(terrainState.terrain){const ground=map.queryTerrainElevation(shifted.coordinate);if(Number.isFinite(ground))shifted.height=Math.max(shifted.height,ground+1);}m.cars[i].position.set(...world(shifted.coordinate,shifted.height));return shifted;});
-    }
+    // 每節車廂的位置直接取自指派股道的里程；過岔道時自然逐節轉向。
+    // 近距離或地表投影交疊不等於共用股道，不能再整列橫移來掩蓋派軌衝突。
     if(!arrowGeometry.attributes.position||arrowPositions.length!==arrowP.length){arrowPositions=new Float32Array(arrowP.length);arrowColors=new Float32Array(arrowP.length);arrowGeometry.setAttribute('position',new THREE.BufferAttribute(arrowPositions,3));arrowGeometry.setAttribute('color',new THREE.BufferAttribute(arrowColors,3));}
     arrowPositions.set(arrowP);arrowColors.set(arrowC);arrowGeometry.attributes.position.needsUpdate=true;arrowGeometry.attributes.color.needsUpdate=true;arrowGeometry.setDrawRange(0,arrowP.length/3);stats.directionArrows=arrowP.length/9;
     pointGeometry.attributes.position.needsUpdate=true;pointGeometry.attributes.color.needsUpdate=true;pointGeometry.computeBoundingSphere();
