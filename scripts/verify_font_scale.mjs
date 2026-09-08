@@ -71,8 +71,14 @@ async function assertLocale(browser, engine) {
     followParen: window.__i18n ? window.__i18n.t('（跟隨系統）') : null,
     station: window.__i18n ? window.__i18n.stationName('松山') : null,
   }));
-  ok(`T0L ${engine} 語系釘死在 zh-TW(全檔中文文案判準的前提)`,
-    st.i18n === 'zh-TW' && st.doc === 'zh-TW' &&
+  // 🔴 nav 這一條是【第二道釘子】自己的守門人,不是裝飾:兩道釘子(網址 ?lang、context locale)
+  //    只有第一道被上面三個文案樣本蓋到——2026-09-08 突變實測 M2(context locale 改 en-US、
+  //    網址 ?lang 留 zh-TW)整條 T0L 照樣 PASS,而 detail 那行就明明白白印著 "nav":"en-US"。
+  //    那正是「覆蓋率印在 detail 裡卻沒有判準在看」的形態:context locale 管的是
+  //    navigator.language 與【沒帶 locale 參數】的 Intl/toLocaleString(時刻、數字格式),
+  //    它靜靜漂成跑測試那台機器的語系時,前面三個樣本一個都不會倒。
+  ok(`T0L ${engine} 語系釘死在 zh-TW(全檔中文文案判準的前提;兩道釘子各有一條判準)`,
+    st.i18n === PAGE_LOCALE && st.doc === PAGE_LOCALE && st.nav === PAGE_LOCALE &&
     st.followParen === '（跟隨系統）' && st.station === '松山', JSON.stringify(st));
   await close();
 }
@@ -489,59 +495,67 @@ async function sectionE(browser, engine) {
 const F_ROWH = { std: 48, large: 68, xlarge: 80 };   // 設計對照表「列高」那一列
 const F_SECPX = { std: 11, large: 12.5, xlarge: 14 }; // 設計對照表「小標籤」那一列
 
+// F0 結構性:掃原始碼,確認兩條倍率沒有互相跑錯邊(數值判準抓不到「某一處忘了改」)。
+// 🔴 抽成獨立函式是為了讓它能【不開瀏覽器】單獨跑(FS_STATIC_ONLY=1),好掛進 ship_web 的
+//    前置閘門——整支腳本兩引擎要 10 分鐘,放進出貨鏈不可行,而這三條只花 30 毫秒,
+//    偏偏又是本輪唯一抓到真回歸的判準(2026-09-08 一次抓出六處違規,各有具名的破壞 commit)。
+//    只有一份正則:sectionF 與 static-only 兩條路都呼叫這裡,不會長出兩代同一道防線。
+//    ✱ ship_web §2.12 的 verify_engine_adapter 已經是同一個慣例(ENGINE_GATE_STATIC_ONLY)。
+function staticRamps() {
+  const src = readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  // 🔴 一份字面掃到底,再按倍率分類——不是兩條各自的正則。理由有三:
+  //    (1) 三條倍率各有分工(見 sectionF 上面那張對照表):--ui 主文 1／1.25／1.5、
+  //        --uis 小標籤與次要說明 1／1.14／1.29、--uit 觸控格 1／1.18／1.36。
+  //        舊寫法只認前兩條,掛在 --uit 上的字級整條逃出盤點(當時全檔剛好有一處)。
+  //    (2) 字面要容得下 max()／clamp() 包一層(index.html 已有一處 max(16px, calc(…))),
+  //        否則以後有人換個寫法就靜靜逃掉——逃了幾條由 F0f 具名守著,不靠人去數。
+  //    (3) 例外要能指名到「哪一行、哪個選擇器」,FAIL 訊息才有辦法直接動手。
+  const FS_RAMP = /font-size:[^;{}]*?calc\(\s*([\d.]+)px\s*\*\s*var\((--ui|--uis|--uit)\)\s*\)/g;
+  // 規則的選擇器:從宣告往回找最近的 `{`,再往回找上一個 `}`／`{`／`*/`／`;` 當左界。
+  // 解析不出來就是空字串——F0f 把「每一條都解析得出選擇器」算進判準,壞掉會轉紅而不是靜靜放行。
+  const selAt = i => { const o = src.lastIndexOf('{', i); if (o < 0) return '';
+    let p = 0; for (const ch of ['}', '{', '*/', ';']) { const k = src.lastIndexOf(ch, o - 1); if (k + ch.length > p) p = k + ch.length; }
+    return src.slice(p, o).replace(/\s+/g, ' ').trim(); };
+  const bodyAt = i => { const o = src.lastIndexOf('{', i), c = src.indexOf('}', i); return o < 0 || c < 0 ? '' : src.slice(o, c); };
+  const decls = [...src.matchAll(FS_RAMP)].map(m => ({ px: +m[1], ramp: m[2], at: m.index,
+    line: src.slice(0, m.index).split('\n').length, sel: selAt(m.index) }));
+  // 例外一律印全部,不印前三個:只印一部分,分母會無聲縮水(F0b 曾經 5 條例外只看得到 3 條)。
+  const list = xs => `${xs.length} 條` + (xs.length ? ':' + xs.map(d => `${d.line}:${d.px}px×${d.ramp} ${d.sel}`).join(' ／ ') : '');
+  const strayMain = decls.filter(d => d.ramp === '--ui' && d.px < 12.5);
+  const straySmall = decls.filter(d => d.ramp === '--uis' && d.px >= 12.5);
+  ok('F0a 12px 以下的字級沒有一處還留在主倍率 --ui 上', strayMain.length === 0, list(strayMain));
+  ok('F0b 12.5px 以上的字級沒有一處跑到小倍率 --uis 上', straySmall.length === 0, list(straySmall));
+  ok('F0c 兩條倍率三檔都宣告齊全',
+    /--uis:\s*1;/.test(src) && /html\[data-fs=large\][^}]*--uis:\s*1\.14/.test(src)
+    && /html\[data-fs=xlarge\][^}]*--uis:\s*1\.29/.test(src));
+  // 🔴 正向對照:上面三條都是「恰為 0」型的反向判準,正則寫壞(或 index.html 換了寫法)時
+  //    掃到零個目標也是零違規,一樣全綠。所以另外斷言「這兩條倍率確實有人在用」——
+  //    數得到夠多的 calc(...*var(--ui)) 與 var(--uis),才證明剛才那兩趟掃描真的掃到東西。
+  const useMain = (src.match(/calc\([\d.]+px\s*\*\s*var\(--ui\)\)/g) || []).length;
+  const useSmall = (src.match(/calc\([\d.]+px\s*\*\s*var\(--uis\)\)/g) || []).length;
+  ok('F0d 正向對照:兩條倍率都真的有人在用(否則上面三條「零違規」是零訊號)',
+    useMain >= 100 && useSmall >= 20, `--ui=${useMain} --uis=${useSmall}`);
+  // --uit 是觸控格的倍率,不是字級的。字掛上去只有一種正當理由:它被裝在同一顆 --uit 撐大的
+  // 圈／格子裡,兩者不同倍率就會在特大檔溢出圈外(index.html 那一處的註解逐字寫的就是這件事)。
+  // 所以判「有沒有成對」,不是判「准不准用」——F0a/F0b 對第三條倍率完全沒有意見,這條才有。
+  const touch = decls.filter(d => d.ramp === '--uit');
+  const touchBad = touch.filter(d => !/(?:width|height|min-width|min-height|--[-\w]+):[^;]*var\(--uit\)/
+    .test(bodyAt(d.at).replace(/font-size:[^;]*;/g, '')));
+  ok('F0e 掛在觸控倍率 --uit 上的字級,同一顆規則裡都有一個同樣吃 --uit 的盒子(圈與字同倍率才不會溢出)',
+    touch.length > 0 && touchBad.length === 0, `${list(touch)};不成對 ${list(touchBad)}`);
+  // 🔴 覆蓋率自己要有具名斷言:寬鬆掃描當分母、嚴格字面當分子,不等就是有寫法逃掉了。
+  //    與 F0d 是兩件不同的事:F0d 守「正則沒掃到空氣」,這條守「沒有宣告從正則底下溜走」。
+  //    順帶把「每一條都解析得出選擇器」一起釘死,免得 selAt 壞掉之後上面幾條全部變成恆真。
+  const loose = [...src.matchAll(/font-size:[^;{}]*var\(--ui[st]?\)/g)];
+  const noSel = decls.filter(d => !d.sel);
+  ok('F0f 盤點沒有漏網:寬鬆掃到的每一條字級,嚴格字面也都認得,而且都解析得出選擇器',
+    loose.length === decls.length && noSel.length === 0,
+    `寬鬆 ${loose.length} / 嚴格 ${decls.length}(--ui ${decls.filter(d => d.ramp === '--ui').length}` +
+    `/--uis ${decls.filter(d => d.ramp === '--uis').length}/--uit ${touch.length});無選擇器 ${list(noSel)}`);
+}
+
 async function sectionF(browser, engine) {
-  // F0 結構性:掃原始碼,確認三條倍率沒有互相跑錯邊(數值判準抓不到「某一處忘了改」)
-  if (engine === 'chromium') {
-    const src = readFileSync(path.join(ROOT, 'index.html'), 'utf8');
-    // 🔴 這一段判的是「掛哪一顆倍率」,不是「幾 px」。三條倍率各有分工(見上面那張對照表):
-    //    --ui 主文 1／1.25／1.5、--uis 小標籤與次要說明 1／1.14／1.29、--uit 觸控格 1／1.18／1.36。
-    //    字面要容得下 max()／clamp() 包一層(index.html 已有一處 max(16px, calc(…))),否則寫法一變
-    //    就靜靜逃出盤點;逃了幾條由 F0e 具名守著,不靠人去數(第三條倍率以前根本不在掃描範圍內)。
-    const FS_RAMP = /font-size:[^;{}]*?calc\(\s*([\d.]+)px\s*\*\s*var\((--ui|--uis|--uit)\)\s*\)/g;
-    // 規則的選擇器:從宣告往回找最近的 `{`,再往回找上一個 `}`／`{`／`*/`／`;` 當左界。
-    // 解析不出來就是空字串——下面每一條都把「解析得出選擇器」算進判準,壞掉會轉紅而不是靜靜放行。
-    const selAt = i => { const o = src.lastIndexOf('{', i); if (o < 0) return '';
-      let p = 0; for (const ch of ['}', '{', '*/', ';']) { const k = src.lastIndexOf(ch, o - 1); if (k + ch.length > p) p = k + ch.length; }
-      return src.slice(p, o).replace(/\s+/g, ' ').trim(); };
-    const bodyAt = i => { const o = src.lastIndexOf('{', i), c = src.indexOf('}', i); return o < 0 || c < 0 ? '' : src.slice(o, c); };
-    const decls = [...src.matchAll(FS_RAMP)].map(m => ({ px: +m[1], ramp: m[2], at: m.index,
-      line: src.slice(0, m.index).split('\n').length, sel: selAt(m.index) }));
-    // 例外一律印全部,不印前三個:只印一部分,分母會無聲縮水(F0b 曾經 5 條例外只看得到 3 條)。
-    const list = xs => `${xs.length} 條` + (xs.length ? ':' + xs.map(d => `${d.line}:${d.px}px×${d.ramp} ${d.sel}`).join(' ／ ') : '');
-    // 同一顆元件用「選擇器最後一個 class」認:緊湊態覆寫與它的基底規則一定共用那個 class。
-    const cls = s => { const m = [...String(s).matchAll(/\.[-\w]+/g)]; return m.length ? m[m.length - 1][0] : ''; };
-    const baseOf = d => decls.filter(o => o !== d && o.ramp === '--ui' && o.px >= 12.5 && cls(o.sel) && cls(o.sel) === cls(d.sel));
-    // 🔴 F0a 判的是**語意層級**,不是 px 值。基底 ≥12.5px×--ui 的元件在緊湊態被收窄(例:App 把滿寬
-    //    金底 CTA 收成 44px 藥丸,字 12.5→11.5)並沒有被重新歸類成小標籤;把它改掛 --uis 會讓它在
-    //    特大檔只剩 14.8px,而網站上同一顆是 18.75px——那是把可及性做壞。新寫的小標籤誤用 --ui
-    //    因為沒有合規基底,照樣紅(這是判準升級,不是白名單:豁免條件在檔案裡可查證,不是一份清單)。
-    const small = decls.filter(d => d.ramp === '--ui' && d.px < 12.5);
-    const strayMain = small.filter(d => !baseOf(d).length);
-    ok('F0a 12px 以下的字級沒有一處還留在主倍率 --ui 上(同 class 另有 ≥12.5px×--ui 基底的緊湊態覆寫除外)',
-      strayMain.length === 0,
-      `${list(strayMain)};另有豁免 ${small.length - strayMain.length} 條` +
-      small.filter(d => baseOf(d).length).map(d => `(${d.line}:${d.px}px ${cls(d.sel)} ← 基底 ${baseOf(d)[0].line}:${baseOf(d)[0].px}px)`).join(''));
-    const straySmall = decls.filter(d => d.ramp === '--uis' && d.px >= 12.5);
-    ok('F0b 12.5px 以上的字級沒有一處跑到小倍率 --uis 上', straySmall.length === 0, list(straySmall));
-    ok('F0c 兩條倍率三檔都宣告齊全',
-      /--uis:\s*1;/.test(src) && /html\[data-fs=large\][^}]*--uis:\s*1\.14/.test(src)
-      && /html\[data-fs=xlarge\][^}]*--uis:\s*1\.29/.test(src));
-    // --uit 是觸控格的倍率,不是字級的。字掛上去只有一種正當理由:它被裝在同一顆 --uit 撐大的
-    // 圈／格子裡,兩者不同倍率就會在特大檔溢出。所以判「有沒有成對」,不是判「准不准用」。
-    const touch = decls.filter(d => d.ramp === '--uit');
-    const touchBad = touch.filter(d => !/(?:width|height|min-width|min-height|--[-\w]+):[^;]*var\(--uit\)/
-      .test(bodyAt(d.at).replace(/font-size:[^;]*;/g, '')));
-    ok('F0d 掛在觸控倍率 --uit 上的字級,同一顆規則裡都有一個同樣吃 --uit 的盒子(圈與字同倍率才不會溢出)',
-      touch.length > 0 && touchBad.length === 0, `${list(touch)};不成對 ${list(touchBad)}`);
-    // 🔴 覆蓋率自己要有具名斷言:寬鬆掃描當分母、嚴格字面當分子,不等就是有寫法逃掉了。
-    //    順帶把「每一條都解析得出選擇器」一起釘死,免得 selAt 壞掉之後上面三條全部變成恆真。
-    const loose = [...src.matchAll(/font-size:[^;{}]*var\(--ui[st]?\)/g)];
-    const noSel = decls.filter(d => !d.sel);
-    ok('F0e 盤點沒有漏網:寬鬆掃到的每一條字級,嚴格字面也都認得,而且都解析得出選擇器',
-      loose.length === decls.length && noSel.length === 0,
-      `寬鬆 ${loose.length} / 嚴格 ${decls.length}(--ui ${decls.filter(d => d.ramp === '--ui').length}` +
-      `/--uis ${decls.filter(d => d.ramp === '--uis').length}/--uit ${touch.length});無選擇器 ${list(noSel)}`);
-  }
+  if (engine === 'chromium') staticRamps();
 
   for (const tier of ['std', 'large', 'xlarge']) {
     for (const width of [360, 393]) {
@@ -1728,7 +1742,11 @@ async function sectionN(browser, engine, tier = 'std') {
   ok(`N4 ${tag} 打字後清除鈕出現:熱區 ≥44、命中自己、貼在框內、文字讓開`,
     B.clrW >= 44 && B.clrH >= 44 && B.clrHit && B.clrInside && B.padR >= 44,
     JSON.stringify({ 寬: B.clrW, 高: B.clrH, 命中: B.clrHit, 在框內: B.clrInside, 右內距: B.padR }));
-  // 🔴 驗按鈕是驗「點它會發生什麼」:值要清掉、下拉要收、焦點要留著(手機鍵盤不能因為按清除就收)
+  // 🔴 驗按鈕是驗「點它會發生什麼」:值要清掉、焦點要留著(手機鍵盤不能因為按清除就收)。
+  //    下拉那一項 2026-09-07(d8fc2fc7 v0907a 路線導覽)起【刻意】不再收起:renderSearchDrop 的
+  //    空值分支改成組「不知道查什麼?試試看」的可點範例並 openSearchDrop(),同一顆 commit 也把
+  //    scripts/verify_query_tab.mjs 一起改了、只有這支沒跟上。判準照新設計改成「下拉開著且
+  //    真的有可按的範例」——不是放寬:原本只要求 hidden 一個布林,現在還多要求列得出東西。
   await page.locator('#searchClear').click();
   await page.waitForTimeout(400);
   const C = await snap();
@@ -2781,6 +2799,21 @@ async function sectionW(browser, engine) {
     ok(`W13 ${tag} 零 pageerror`, errs.length === 0, errs[0] || '');
     await close();
   }
+}
+
+// 🔴 FS_STATIC_ONLY=1:只跑 F0 那組純靜態的倍率契約掃描,不開瀏覽器、也不需要 dev server
+//    (實測含 node 啟動 0.27 秒)。給 ship_web 前置閘門用——完整兩引擎要 10 分 04 秒,
+//    放進出貨鏈不可行,但整支腳本裡唯一抓到真回歸的就是這一組(2026-09-08 一次抓出六處違規,
+//    每一處都有具名的破壞 commit),不掛等於沒人守。走的是同一份 staticRamps(),不是副本。
+//    ✱ 必須排在 assertTarget() 【前面】:那道 gate 要 fetch dev server,而這條路徑根本不起
+//      server。「驗的是哪棵樹」在這裡是結構性成立的——staticRamps() 直接讀 ROOT/index.html,
+//      ROOT 由 import.meta.url 推出,讀的必然是腳本自己這棵樹,比 md5 對照更強。
+//    ✱ ship_web §2.12 的 verify_engine_adapter 已經是同一個慣例(ENGINE_GATE_STATIC_ONLY)。
+if (process.env.FS_STATIC_ONLY === '1') {
+  staticRamps();   // 每一條的 PASS/FAIL 與實得值 ok() 自己就印了,這裡只補總計
+  const bad0 = results.filter(r => !r.pass).length;
+  console.log(`=== 字級雙倍率靜態契約 ${results.length - bad0}/${results.length} 通過 ===`);
+  process.exit(bad0 ? 1 : 0);
 }
 
 await assertTarget();

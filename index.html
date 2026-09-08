@@ -2369,7 +2369,7 @@
       display: flex; align-items: center; justify-content: center;
       width: var(--board-wait-w); height: 44px; margin: 0; padding: 0 6px;
       background: none; border: 0; border-radius: 0; box-shadow: none;
-      font-size: calc(11.5px * var(--ui)); letter-spacing: 0; white-space: nowrap;
+      font-size: calc(11.5px * var(--uis)); letter-spacing: 0; white-space: nowrap;
       isolation: isolate;
     }
     html[data-app-platform] .board h3.has-wait .board-wait::before {
@@ -3916,8 +3916,7 @@
     #searchPanel .qa-head { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 14px 2px; cursor: pointer; }
     #searchPanel .qa-head b { font-size: calc(15px * var(--ui)); font-weight: 800; color: var(--ink); }
     #searchPanel .qa-head .qa-src { margin-left: auto; font-size: calc(11.5px * var(--uis)); color: var(--faint); font-weight: 600; white-space: nowrap; }
-    /* 與上面 .ql-row .chev 同一顆符號,字級要一致(原本 13px 是手滑;裝飾符號吃小倍率是對的) */
-    #searchPanel .qa-head .chev { font-size: calc(12px * var(--uis)); color: var(--faint); font-weight: 600; }
+    #searchPanel .qa-head .chev { font-size: calc(13px * var(--ui)); color: var(--faint); font-weight: 600; }
     /* 系統徽章:淺底版,與 #searchDrop .sys-chip 同一套(那條被 #searchDrop 限定,這裡再寫一份) */
     #searchPanel .qa-head .sys-chip {
       padding: 0 7px 1px; font-size: calc(10.5px * var(--uis)); font-weight: 700; letter-spacing: 1px;
@@ -5429,7 +5428,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
-        <li data-cl="xferfontscale0908"><span class="d">9/8</span><span>調大字級時，轉乘接續裡的車次與「剩 N 分」會跟著一起放大：這兩個數字之前掛在小標籤那條倍率上，特大檔只長 1.29 倍而不是 1.5 倍；查詢答案區的展開箭頭也改成與上方查詢列同一個大小</span></li>
+        <li data-cl="xferfontscale0908"><span class="d">9/8</span><span>調大字級時，轉乘接續裡的車次與「剩 N 分」會跟著一起放大：這兩個數字之前掛在小標籤那條倍率上，特大檔只長 1.29 倍而不是 1.5 倍，字級調到最大時特別明顯</span></li>
         <li data-cl="ofmwatch0906"><span class="d">9/6</span><span>修正街道底圖被誤判成載入失敗：開圖後 8 秒內畫面還沒畫完（馬上放大看 3D 建築、行動網路較慢）就被當成失敗，App 默默換成備用底圖、3D 建築消失要重開才回來，網站則誤跳「街道底圖載入異常」。現在只看有沒有真的收到圖磚</span></li>
         <li data-cl="leafletremoved0905"><span class="d">9/5</span><span>地圖全面改用 MapLibre，不再保留舊版 Leaflet 地圖：?engine=leaflet 這個網址參數已失效，開啟網站也不會再多下載一份舊地圖函式庫。</span></li>
         <li data-cl="maplibredefault0904"><span class="d">9/4</span><span>地圖引擎預設改為 MapLibre：所有人打開都是可旋轉、傾斜、開 3D 建築的向量地圖，跟隨列車時行進方向朝上。</span></li>
@@ -28964,9 +28963,12 @@ function metroBoardGroupLabel(ln) {
   return String((ln && (ln.name || ln.abbr || ln._sysLabel)) || '').replace(/（[^（）]*）\s*$/, '');
 }
 // 回傳每組的標題字;整張板只有一種線名時回 null(＝不加標題)。
-// 🔴 門檻是「群組數」不是「不同線名數」:大橋頭同時服務中和新蘆線的迴龍與蘆洲兩支,去掉括號後
-//    兩組線名相同——用「不同線名 ≥2」判會退回無標題,列上就得帶回完整線名,而那正是分支資訊
-//    最重要的一站。有標題時連續同名只印一次,所以大橋頭得到的是「一個中和新蘆線標題＋迴龍/蘆洲兩種列」。
+// 🔴 門檻數的是「相異線名數」不是「群組數」:同一條線在同一站可以合法地切成多組——象山自
+//    8/30 信義東延段通車後固定有 北投／廣慈-奉天宮／淡水 三組,全都是淡水信義線,用群組數判
+//    會長出一排寫著同一條線名的標題,違反上面那行的契約(芝山、石牌等中途站同理,不是象山獨有)。
+//    大橋頭那個「去掉括號後兩組同名、但正是分支資訊最重要的一站」改由下面的 branchy 承擔:
+//    它不必等到兩組都有車,所以拿掉群組數門檻不會讓大橋頭掉標題。有標題時連續同名只印一次,
+//    大橋頭得到的仍是「一個中和新蘆線標題＋迴龍/蘆洲兩種列」。
 function metroBoardGroupHeads(groups) {
   const labels = (groups || []).map(g => metroBoardGroupLabel(g.ln));
   // 🔴 帶分支括號的線(中和新蘆線（迴龍）/（蘆洲）)只要出現就給標題,不必等到兩組都有車:
@@ -32149,10 +32151,12 @@ function setupMapTools() {
       //    下緣不隨高度變,先寫後量安全;bottom 只改位置不改尺寸,不會驚動 ResizeObserver。
       fp.style.bottom = followVisible ? lift + 'px' : '';
       if (fc) fc.style.bottom = freqVisible ? lift + 'px' : '';
-      for (const el of [followVisible && fp, freqVisible && fc]) {
+      // 🔴 兩張卡都要走一遍:只迭代「有參與的那張」會讓另一張留著上一輪的 inline max-height
+      //    (例:捷運跟車開著、台鐵跟隨欄剛併進整合卡 ⇒ fp 不參與,舊的夾高卻還在身上)。
+      for (const [vis, el] of [[followVisible, fp], [freqVisible, fc]]) {
         if (!el) continue;
         // 96px 下限:視窗矮到連這都放不下時,寧可少讓一點也要讓卡自己還有頭部可讀可關。
-        setCap(el, Math.max(96, Math.round(el.getBoundingClientRect().bottom - (ceil + 8))) + 'px');
+        setCap(el, vis ? Math.max(96, Math.round(el.getBoundingClientRect().bottom - (ceil + 8))) + 'px' : '');
       }
       capped = true;
     }
