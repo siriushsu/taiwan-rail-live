@@ -1259,11 +1259,14 @@
   /* 混系統/釘選時每列前面的系統小標(同系統時標題已指名,不重複顯示,見 xfcSysName 呼叫端)。 */
   .xfer-conn .xfc-sys { grid-area: sys; font-size: calc(11px * var(--uis));
     font-weight: 800; color: var(--faint); white-space: nowrap; }
-  .xfer-conn .xfc-no { grid-area: no; font-size: calc(15px * var(--uis)); font-weight: 800;
+  /* 車次與「剩 N 分」是上面那段寫的「使用者要的兩個數字」＝主文,掛 --ui(1／1.25／1.5);
+     同一塊裡的系統小標、時刻＋往哪、註腳仍是次要說明,留在 --uis。實測 176／240 兩種窄卡
+     換倍率後零溢出,只有 300 寬支特大檔的 .xfc-d 多吃一點省略號——那一欄本來就被指定吃 ellipsis。 */
+  .xfer-conn .xfc-no { grid-area: no; font-size: calc(15px * var(--ui)); font-weight: 800;
     color: var(--ink-strong); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .xfer-conn .xfc-d { grid-area: d; font-size: calc(11.5px * var(--uis)); min-width: 0;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .xfer-conn .xfc-left { grid-area: left; justify-self: end; font-size: calc(13px * var(--uis));
+  .xfer-conn .xfc-left { grid-area: left; justify-self: end; font-size: calc(13px * var(--ui));
     font-weight: 800; color: var(--ink-strong); font-variant-numeric: tabular-nums; white-space: nowrap; }
   /* 寬支:收成一行。container-type 掛在 .xfer-conn 身上,所以斷點量的是「區塊自己的內容寬」
      而不是卡片寬——桌面 240 卡＝194px、全畫面 300 卡＝254px。
@@ -1271,7 +1274,7 @@
   @container (min-width: 250px) {
     .xfer-conn .xfc-row { grid-template-columns: auto auto 1fr auto;
       grid-template-areas: "sys no d left"; min-height: 38px; padding: 5px 0; }
-    .xfer-conn .xfc-no { font-size: calc(14px * var(--uis)); }
+    .xfer-conn .xfc-no { font-size: calc(14px * var(--ui)); }
   }
   /* 釘選態的視覺標記:左緣 2px 主色軌＋紙面加深＋車次轉主色。不加圖示、不加額外文字。 */
   .xfer-conn .xfc-row[aria-pressed=true] { box-shadow: inset 2px 0 0 var(--navy); padding-left: 8px;
@@ -2141,7 +2144,9 @@
      🔴 選擇器帶 html:not([data-fs]) ⇒ 只進標準檔(沒有 data-fs 就是標準)。大/特大是全站最會撞版的
      一列(見下面那段),padding 與 margin 若漏進去會動到它們的幾何——那兩塊要維持零變化對照。 */
   html:not([data-fs]) .board .row[data-no] .lateTag {
-    font-size: calc(12.5px * var(--uis)); font-weight: 900; padding: 1px 5px 2px; margin-left: 5px;
+    /* 12.5px 是主文級距 ⇒ 掛 --ui。選擇器已把自己鎖在標準檔(--ui 與 --uis 在那一檔都是 1),
+       所以這是純字面對齊、畫面零變化;寫 --uis 會讓盤點以為又有一個小標籤跑錯邊。 */
+    font-size: calc(12.5px * var(--ui)); font-weight: 900; padding: 1px 5px 2px; margin-left: 5px;
   }
 
   /* ── 設計 6b 車站看板列 · 三階實際塞法 ──────────────────────────────────────
@@ -2364,7 +2369,7 @@
       display: flex; align-items: center; justify-content: center;
       width: var(--board-wait-w); height: 44px; margin: 0; padding: 0 6px;
       background: none; border: 0; border-radius: 0; box-shadow: none;
-      font-size: calc(11.5px * var(--ui)); letter-spacing: 0; white-space: nowrap;
+      font-size: calc(11.5px * var(--uis)); letter-spacing: 0; white-space: nowrap;
       isolation: isolate;
     }
     html[data-app-platform] .board h3.has-wait .board-wait::before {
@@ -3911,7 +3916,7 @@
     #searchPanel .qa-head { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 14px 2px; cursor: pointer; }
     #searchPanel .qa-head b { font-size: calc(15px * var(--ui)); font-weight: 800; color: var(--ink); }
     #searchPanel .qa-head .qa-src { margin-left: auto; font-size: calc(11.5px * var(--uis)); color: var(--faint); font-weight: 600; white-space: nowrap; }
-    #searchPanel .qa-head .chev { font-size: calc(13px * var(--uis)); color: var(--faint); font-weight: 600; }
+    #searchPanel .qa-head .chev { font-size: calc(13px * var(--ui)); color: var(--faint); font-weight: 600; }
     /* 系統徽章:淺底版,與 #searchDrop .sys-chip 同一套(那條被 #searchDrop 限定,這裡再寫一份) */
     #searchPanel .qa-head .sys-chip {
       padding: 0 7px 1px; font-size: calc(10.5px * var(--uis)); font-weight: 700; letter-spacing: 1px;
@@ -5231,12 +5236,12 @@
         <li class="grp">最近更新</li>
         <li data-cl-of="ontrack0908"><span class="d">9/8</span><span>修正列車在車站與彎道附近整列飄到軌道旁的問題，車廂沿指派股道逐節轉彎，不再因鄰車靠近而橫移</span></li>
         <li data-cl-of="perf3d0908"><span class="d">9/8</span><span>改善立體地圖拖曳與旋轉的流暢度，保留完整列車與建築細節；切換地形後，建築輪廓也會回到正確高度</span></li>
+        <li data-cl-of="xferfontscale0908"><span class="d">9/8</span><span>調大字級時，轉乘接續裡的車次與「剩 N 分」會跟著一起放大，不再只長一點點</span></li>
         <li data-cl-of="boardcardfix0908"><span class="d">9/8</span><span>修正車站看板與跟車卡三處顯示問題：只有一條線經過的站不再多出線名標題、車號前不再多一個空格、跟車時拖地圖不會再把列車卡壓扁</span></li>
         <li data-cl-of="searchtraintype0908"><span class="d">9/8</span><span>搜尋框可以打車種與車型了：輸入「自強號」「EMU3000」「太魯閣」會列出符合的班次，正在跑的排前面，也能點車型看介紹（謝謝網友回報）</span></li>
         <li data-cl-of="mountaintrack0907"><span class="d">9/7</span><span>山線三義隧道段的軌道改用實際路線重畫，列車經過時不再偏離軌道</span></li>
         <li data-cl-of="tracreep0907"><span class="d">9/7</span><span>台鐵誤點加大時，列車改成慢速前進，不再停在原地等誤點追上</span></li>
         <li data-cl-of="ambientfollow3d0907"><span class="d">9/7</span><span>放空的跟車視角改成貼著車身的立體視角，看得到列車在軌道上跑，速度也放回實際車速；放空時的配樂改播完整曲庫</span></li>
-        <li data-cl-of="garage0907"><span class="d">9/7</span><span>新增收藏車庫，62 款精修小車可旋轉欣賞；還沒收集到的是灰色車體，累積旅程進度解鎖後才有塗裝，舊護照自動帶入</span></li>
 
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
@@ -5425,6 +5430,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="xferfontscale0908"><span class="d">9/8</span><span>調大字級時，轉乘接續裡的車次與「剩 N 分」會跟著一起放大：這兩個數字之前掛在小標籤那條倍率上，特大檔只長 1.29 倍而不是 1.5 倍，字級調到最大時特別明顯</span></li>
         <li data-cl="ofmwatch0906"><span class="d">9/6</span><span>修正街道底圖被誤判成載入失敗：開圖後 8 秒內畫面還沒畫完（馬上放大看 3D 建築、行動網路較慢）就被當成失敗，App 默默換成備用底圖、3D 建築消失要重開才回來，網站則誤跳「街道底圖載入異常」。現在只看有沒有真的收到圖磚</span></li>
         <li data-cl="leafletremoved0905"><span class="d">9/5</span><span>地圖全面改用 MapLibre，不再保留舊版 Leaflet 地圖：?engine=leaflet 這個網址參數已失效，開啟網站也不會再多下載一份舊地圖函式庫。</span></li>
         <li data-cl="maplibredefault0904"><span class="d">9/4</span><span>地圖引擎預設改為 MapLibre：所有人打開都是可旋轉、傾斜、開 3D 建築的向量地圖，跟隨列車時行進方向朝上。</span></li>
@@ -6143,7 +6149,7 @@
 // v0907n：更新紀錄拿掉 7/13 那條贊助方式（站上最後一處金流資訊）。
 // v0908b：阿里山林鐵補上站內股道與之字形折返股(阿里山、祝山的軌道畫進站裡);近景實體股道白名單
 //         改為單一來源(rail-3d.js 不再自帶第二份),沒被涵蓋的系統保留原本的示意線形。
-const BUILD = 'v0908f';
+const BUILD = 'v0908g';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
@@ -28975,9 +28981,12 @@ function metroBoardGroupLabel(ln) {
   return String((ln && (ln.name || ln.abbr || ln._sysLabel)) || '').replace(/（[^（）]*）\s*$/, '');
 }
 // 回傳每組的標題字;整張板只有一種線名時回 null(＝不加標題)。
-// 🔴 門檻是「群組數」不是「不同線名數」:大橋頭同時服務中和新蘆線的迴龍與蘆洲兩支,去掉括號後
-//    兩組線名相同——用「不同線名 ≥2」判會退回無標題,列上就得帶回完整線名,而那正是分支資訊
-//    最重要的一站。有標題時連續同名只印一次,所以大橋頭得到的是「一個中和新蘆線標題＋迴龍/蘆洲兩種列」。
+// 🔴 門檻數的是「相異線名數」不是「群組數」:同一條線在同一站可以合法地切成多組——象山自
+//    8/30 信義東延段通車後固定有 北投／廣慈-奉天宮／淡水 三組,全都是淡水信義線,用群組數判
+//    會長出一排寫著同一條線名的標題,違反上面那行的契約(芝山、石牌等中途站同理,不是象山獨有)。
+//    大橋頭那個「去掉括號後兩組同名、但正是分支資訊最重要的一站」改由下面的 branchy 承擔:
+//    它不必等到兩組都有車,所以拿掉群組數門檻不會讓大橋頭掉標題。有標題時連續同名只印一次,
+//    大橋頭得到的仍是「一個中和新蘆線標題＋迴龍/蘆洲兩種列」。
 function metroBoardGroupHeads(groups) {
   const labels = (groups || []).map(g => metroBoardGroupLabel(g.ln));
   // 🔴 帶分支括號的線(中和新蘆線（迴龍）/（蘆洲）)只要出現就給標題,不必等到兩組都有車:
@@ -32160,10 +32169,12 @@ function setupMapTools() {
       //    下緣不隨高度變,先寫後量安全;bottom 只改位置不改尺寸,不會驚動 ResizeObserver。
       fp.style.bottom = followVisible ? lift + 'px' : '';
       if (fc) fc.style.bottom = freqVisible ? lift + 'px' : '';
-      for (const el of [followVisible && fp, freqVisible && fc]) {
+      // 🔴 兩張卡都要走一遍:只迭代「有參與的那張」會讓另一張留著上一輪的 inline max-height
+      //    (例:捷運跟車開著、台鐵跟隨欄剛併進整合卡 ⇒ fp 不參與,舊的夾高卻還在身上)。
+      for (const [vis, el] of [[followVisible, fp], [freqVisible, fc]]) {
         if (!el) continue;
         // 96px 下限:視窗矮到連這都放不下時,寧可少讓一點也要讓卡自己還有頭部可讀可關。
-        setCap(el, Math.max(96, Math.round(el.getBoundingClientRect().bottom - (ceil + 8))) + 'px');
+        setCap(el, vis ? Math.max(96, Math.round(el.getBoundingClientRect().bottom - (ceil + 8))) + 'px' : '');
       }
       capped = true;
     }

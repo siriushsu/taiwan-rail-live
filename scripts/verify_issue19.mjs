@@ -5,8 +5,8 @@
 // 量它與繪製點的實地距離；另一路用幾何投影把繪製點反算成里程，兩路互相對帳。
 // 時間軸是唯一的自變數，里程/軌道幾何兩邊共用（那是量尺，不是待驗的假設）。
 //
-// 用法：PORT=<自選> node scripts/dev_server.mjs & 然後
-//       VURL=http://localhost:<PORT>/index.html node scripts/verify_issue19.mjs
+// 用法：node scripts/verify_issue19.mjs   ← 伺服器自己起，不必先開 dev_server
+//       VURL=http://localhost:<PORT>/index.html node scripts/verify_issue19.mjs   ← 指向已在跑的 server
 // 環境變數：DELAY_MIN 注入誤點（預設 7，對齊使用者影片的台鐵 2619）、OUT 落檔路徑、ENGINES 引擎清單
 //
 // 🔴 語系必須釘死 zh-TW（2026-09-08）。B1／B2／C* 讀的是「使用者眼睛看到的那行字」，
@@ -22,10 +22,34 @@
 import { chromium, webkit } from 'playwright';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { spawn } from 'node:child_process';
+import { createServer } from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const URL = process.env.VURL || 'http://localhost:5288/index.html';
+// ── 伺服器自己起（照 verify_afr.mjs 的做法），埠由 OS 指派。
+// 舊版預設連 5288，而這台機器同時有 30+ 個並行 worktree 在跑 dev server——連到別人的埠就是
+// 一聲不響地驗**別棵樹**（下面 G0 的 md5 閘門會擋下來，但那是「炸掉」不是「不會發生」）。
+// ROOT 由本檔自身路徑推導，不吃呼叫端 cwd，結構上只可能服務自己這棵樹。
+// VURL 仍可覆寫（指向已在跑的 server），但那條路要自己負責樹對不對，G0 一樣會跑。
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const freePort = () => new Promise(res => {
+  const s = createServer(); s.listen(0, '127.0.0.1', () => { const { port } = s.address(); s.close(() => res(port)); });
+});
+let child = null;
+const URL = process.env.VURL || `http://localhost:${await freePort()}/index.html`;
+if (!process.env.VURL) {
+  const port = new global.URL(URL).port;
+  child = spawn(process.execPath, [path.join(ROOT, 'scripts/dev_server.mjs')], {
+    cwd: ROOT, env: { ...process.env, PORT: port }, stdio: ['ignore', 'ignore', 'inherit'] });
+  process.on('exit', () => child?.kill());
+  for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { child?.kill(); process.exit(1); });
+  for (let i = 0; ; i++) {                       // 等它真的聽得到，不用固定秒數
+    try { if ((await fetch(URL)).ok) break; } catch (e) {}
+    if (i > 100) { console.error(`✗ dev server 起不來（${URL}）`); child?.kill(); process.exit(1); }
+    await new Promise(r => setTimeout(r, 100));
+  }
+}
 const PAGE_LOCALE = 'zh-TW';
 // G0 的 md5 自檢仍打裸網址（dev_server 對靜態檔忽略 query，兩者同一份 bytes）；瀏覽器一律走這個。
 const NAV_URL = (() => { const u = new global.URL(URL); u.searchParams.set('lang', PAGE_LOCALE); return u.toString(); })();
@@ -37,12 +61,12 @@ const ck = (ok, msg) => { console.log((ok ? '  ✓ ' : '  ✗ ') + msg); if (!ok
 
 // ── G0 自檢：確認 server 端的就是「當前工作區」那份 index.html。
 // 這台機器同時有 20+ 個 worktree 在跑 server，驗到別人的檔案而全綠是真的發生過的事（心得 32）。
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+// 自起 server 的路徑結構上不可能錯，但 VURL 那條路會，所以這道閘門兩條路都跑。
 const md5 = b => createHash('md5').update(b).digest('hex');
 const diskHash = md5(readFileSync(path.join(ROOT, 'index.html')));
 const servedHash = md5(Buffer.from(await (await fetch(URL)).arrayBuffer()));
 console.log(`G0 目標自檢：${URL}\n   工作區 ${ROOT}\n   disk=${diskHash} served=${servedHash}`);
-if (diskHash !== servedHash) { console.log('  ✗ G0 服務中的檔案不是當前工作區——換一個 port 再跑'); process.exit(1); }
+if (diskHash !== servedHash) { console.log('  ✗ G0 服務中的檔案不是當前工作區——VURL 指到別棵樹了，拿掉它讓腳本自己起'); process.exit(1); }
 console.log('  ✓ G0 驗的就是當前工作區');
 
 // 在頁面內注入的量測工具：全部只依賴軌道幾何與繪製函式，不碰面板的時間軸。
@@ -165,7 +189,12 @@ for (const eng of ENGINES) {
     station: window.__i18n ? window.__i18n.stationName('松山') : null,
     arriving: window.__i18n ? window.__i18n.t('即將進站') : null,
   }));
-  ck(langState.i18n === 'zh-TW' && langState.doc === 'zh-TW' &&
+  //    🔴 nav 這一條守的是【第二道釘子】(context locale)。上面四項全部由第一道釘子(網址 ?lang)
+  //    決定——姊妹腳本 verify_font_scale 的 T0L 少了這一條,2026-09-08 突變實測「只把 context
+  //    locale 改成 en-US、網址 ?lang 留 zh-TW」整條閘門照樣 PASS,而 detail 就印著 "nav":"en-US"。
+  //    context locale 管的是 navigator.language 與沒帶 locale 參數的 Intl/toLocaleString(時刻、
+  //    數字格式),它漂成跑測試那台機器的語系時,前四項一個都不會倒,閘門卻宣稱兩道釘子都在。
+  ck(langState.i18n === PAGE_LOCALE && langState.doc === PAGE_LOCALE && langState.nav === PAGE_LOCALE &&
      langState.station === '松山' && langState.arriving === '即將進站',
     `G1 語系釘死在 zh-TW（B1／B2／C* 的文案判準前提）：${JSON.stringify(langState)}`);
 
