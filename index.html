@@ -5234,6 +5234,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="landscape0908"><span class="d">9/8</span><span>新增「地景」地圖風格：河流、林地、公園與街廓換上自然色，近看可見立體樹冠與建築，搭配列車沿線探索台灣</span></li>
         <li data-cl-of="terminusarr0908"><span class="d">9/8</span><span>終點站的車站看板現在會列出一小時以後才到站的班次——去接人的人看得到時間；其他車站維持只列一小時內的到站車。</span></li>
         <li data-cl-of="followkeep0908"><span class="d">9/8</span><span>跟車鏡頭保留目前的近景，點列車或隨機跟隨不再拉遠；再次點到正在跟隨的列車會回到車旁，不會結束跟隨</span></li>
         <li data-cl-of="ontrack0908"><span class="d">9/8</span><span>修正列車在車站與彎道附近整列飄到軌道旁的問題，車廂沿指派股道逐節轉彎，不再因鄰車靠近而橫移</span></li>
@@ -5241,7 +5242,6 @@
         <li data-cl-of="xferfontscale0908"><span class="d">9/8</span><span>調大字級時，轉乘接續裡的車次與「剩 N 分」會跟著一起放大，不再只長一點點</span></li>
         <li data-cl-of="boardcardfix0908"><span class="d">9/8</span><span>修正車站看板與跟車卡三處顯示問題：只有一條線經過的站不再多出線名標題、車號前不再多一個空格、跟車時拖地圖不會再把列車卡壓扁</span></li>
         <li data-cl-of="searchtraintype0908"><span class="d">9/8</span><span>搜尋框可以打車種與車型了：輸入「自強號」「EMU3000」「太魯閣」會列出符合的班次，正在跑的排前面，也能點車型看介紹（謝謝網友回報）</span></li>
-        <li data-cl-of="mountaintrack0907"><span class="d">9/7</span><span>山線三義隧道段的軌道改用實際路線重畫，列車經過時不再偏離軌道</span></li>
 
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
@@ -5250,6 +5250,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="landscape0908"><span class="d">9/8</span><span>新增「地景」地圖風格：河流、林地、公園與街廓換上自然色，近看可見立體樹冠與建築，搭配列車沿線探索台灣</span></li>
         <li data-cl="terminusarr0908"><span class="d">9/8</span><span>終點站的車站看板現在會列出一小時以後才到站的班次——去接人的人看得到時間；其他車站維持只列一小時內的到站車。</span></li>
         <li data-cl="followkeep0908"><span class="d">9/8</span><span>跟車鏡頭保留目前的近景，點列車或隨機跟隨不再拉遠；再次點到正在跟隨的列車會回到車旁，不會結束跟隨</span></li>
         <li data-cl="ontrack0908"><span class="d">9/8</span><span>修正列車在車站與彎道附近整列飄到軌道旁的問題，車廂沿指派股道逐節轉彎，不再因鄰車靠近而橫移</span></li>
@@ -5863,7 +5864,7 @@
     <!-- 實機取證(TestFlight 試用期):左下角小字條顯示 rAF/相機/旗標即時狀態,截圖即可回報;正式上架前評估拔除 -->
     <button class="ms-row" data-act="diagStrip"><span>診斷資訊</span><span class="toggle" data-tg="diagStrip"></span></button>
     <button class="ms-row" id="trtcDiagExportRow" data-act="exportTrtcDiag" hidden><span>匯出捷運診斷</span><span class="chev">↓</span></button>
-    <button class="ms-row" data-proxy="satBtn"><span>衛星影像</span><span class="toggle" data-tg="satBtn"></span></button>
+    <div class="ms-row ri-basemap-row"><span>地圖風格</span><div class="seg" id="msBasemapSeg" role="group" aria-label="地圖風格"><button type="button" data-map="light">明</button><button type="button" data-map="dark">暗</button><button type="button" data-map="sat">衛星</button><button type="button" data-map="landscape">地景</button></div></div>
     <button class="ms-row" id="map3dRow" data-proxy="map3dBtn" style="display:none"><span>3D 建築</span><span class="toggle" data-tg="map3dBtn"></span></button>
     <button class="ms-row" data-act="garage" data-close="1"><span>我的車庫</span><span class="chev">›</span></button>
     <button class="ms-row" data-act="track"><span>軌道與路線</span><span class="chev">›</span></button>
@@ -6151,7 +6152,8 @@
 // v0907n：更新紀錄拿掉 7/13 那條贊助方式（站上最後一處金流資訊）。
 // v0908b：阿里山林鐵補上站內股道與之字形折返股(阿里山、祝山的軌道畫進站裡);近景實體股道白名單
 //         改為單一來源(rail-3d.js 不再自帶第二份),沒被涵蓋的系統保留原本的示意線形。
-const BUILD = 'v0908i';
+const BUILD = 'v0908j';
+const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
@@ -6728,6 +6730,7 @@ function createMaplibreEngine(containerId, view) {
   // 幾毫秒後再 setStyle 成暗色,飛行中的亮色樣式請求會被中止,MapLibre 對那份已卸下的 Style 印 AbortError(沒有監聽者接得到)。
   // FOUC 腳本在 <head> 就已把偏好套成 html[data-theme],開機時拿它當初值,暗色偏好從第一份樣式就是暗色。
   let styleKind = (state.mapDark || document.documentElement.getAttribute('data-theme') === 'dark') ? 'dark' : 'light';
+  try { if (LANDSCAPE_REQUESTED || localStorage.getItem('trainmap-basemap') === 'landscape') { state.basemap = styleKind = 'landscape'; } } catch (e) {}
   let tileHook = null; // M1a:每個 raster tile 請求(含重試)呼叫一次,由 setTileRequestHook 裝上(Esri 記帳)
   let styleLoaded = false; // M1a:style JSON 載好就 true(自己記;raw.isStyleLoaded() 要等圖磚與 sprite 全到,圖磚在飛時恆 false,拿它當「可以加層了」會漏裝)
   const raw = new maplibregl.Map({
@@ -6863,7 +6866,7 @@ function createMaplibreEngine(containerId, view) {
     point: (x, y) => ({ x, y }),
     // 可選能力(呼叫端一律 `M.xxx && M.xxx(...)`,不要假設一定在)
     setStyleKind: (kind, style) => { // 'light'|'dark' 用內建 OFM;其他 kind(M1a:'sat-hi'/'sat-lq')必須自帶 style 物件。{diff:false} 是 spike 實測必要選項(diff 路徑不觸發 style.load)
-      const s = (kind === 'light' || kind === 'dark') ? OFM_STYLE[kind] : style;
+      const s = OFM_STYLE[kind] || style;
       if (!s) return E;
       if (kind === styleKind) return E;
       window.railIslandIntegration?.beforeStyleChange();
@@ -6904,12 +6907,13 @@ function setFollowHeadingUp(on) {
   if (row) { row.setAttribute('aria-pressed', String(!!on)); row.querySelector('.toggle').classList.toggle('on', !!on); }
 }
 
+const LANDSCAPE_BUILDING_COLOR = ['interpolate', ['linear'], ['to-number', ['get', 'render_height'], 8], 0, '#d3bda0', 12, '#e5d7bc', 35, '#cad4c9', 90, '#b3c9c7'];
 function installBuilding3d() {
   if (!M || !M.isStyleReady() || !M.raw.getSource('openmaptiles')) return;
   if (M.raw.getLayer('building-3d')) {
-    M.raw.setPaintProperty('building-3d', 'fill-extrusion-color', state.mapDark ? '#638BC5' : '#d4d0c5');
-    M.raw.setPaintProperty('building-3d', 'fill-extrusion-opacity', state.mapDark ? .30 : .72);
-    if (state.mapDark) window.RailNightMap?.installGlass(M.raw);
+    M.raw.setPaintProperty('building-3d', 'fill-extrusion-color', state.basemap === 'landscape' ? LANDSCAPE_BUILDING_COLOR : state.mapDark ? '#638BC5' : '#d4d0c5');
+    M.raw.setPaintProperty('building-3d', 'fill-extrusion-opacity', state.basemap === 'landscape' ? 1 : state.mapDark ? .30 : .72);
+    if (state.mapDark && state.basemap !== 'landscape') window.RailNightMap?.installGlass(M.raw);
     return;
   }
   const layers = (M.raw.getStyle() && M.raw.getStyle().layers) || [];
@@ -6919,14 +6923,14 @@ function installBuilding3d() {
     id: 'building-3d', type: 'fill-extrusion', source: 'openmaptiles', 'source-layer': 'building', minzoom: 13,
     layout: { visibility: state.map3d ? 'visible' : 'none' },
     paint: {
-      'fill-extrusion-color': state.mapDark ? '#638BC5' : '#d4d0c5',
+      'fill-extrusion-color': state.basemap === 'landscape' ? LANDSCAPE_BUILDING_COLOR : state.mapDark ? '#638BC5' : '#d4d0c5',
       'fill-extrusion-height': ['interpolate', ['linear'], ['zoom'], 13, 0, 14,
         ['to-number', ['coalesce', ['get', 'render_height'], ['get', 'height']], 8]],
       'fill-extrusion-base': ['to-number', ['coalesce', ['get', 'render_min_height'], ['get', 'min_height']], 0],
-      'fill-extrusion-opacity': state.mapDark ? 0.30 : 0.72,
+      'fill-extrusion-opacity': state.basemap === 'landscape' ? 1 : state.mapDark ? 0.30 : 0.72,
     },
   }, (firstTrack || firstSymbol) && (firstTrack || firstSymbol).id);
-  if (state.mapDark) window.RailNightMap?.installGlass(M.raw);
+  if (state.mapDark && state.basemap !== 'landscape') window.RailNightMap?.installGlass(M.raw);
 }
 function syncMap3dUi() {
   const btn = document.getElementById('map3dBtn');
@@ -7121,7 +7125,7 @@ const MAP_PAL = {
   dark:  { stnFill: '#10141c', lbl: '#e8e4d8', lblStroke: 'rgba(16,20,28,.9)',     tagOutline: 'rgba(16,20,28,.9)',  railCase: '#10141c', followCase: '#10141c', collectGrey: '#3b3f46' },
   sat:   { stnFill: '#24382c', lbl: '#ffffff', lblStroke: 'rgba(20,30,20,.85)',    tagOutline: 'rgba(20,30,20,.85)', railCase: '#24382c', followCase: '#24382c', collectGrey: '#b9c0c8' },
 };
-function pal() { return MAP_PAL[state.basemap === 'sat' ? 'sat' : (state.mapDark ? 'dark' : 'light')]; }
+function pal() { return MAP_PAL[state.basemap === 'landscape' ? 'light' : state.basemap === 'sat' ? 'sat' : (state.mapDark ? 'dark' : 'light')]; }
 
 // 各系統的站名牌／副標／導言文案(loadSystem 依系統套用)
 const SYS_META = {
@@ -11446,7 +11450,7 @@ function railMix(color, keep) { // 純混色(向底圖色 railCase),帶快取
   return (_railDim[key] = out);
 }
 function railDimColor(color, keep = RAIL_DIM) { // 僅暗色壓暗;衛星底圖明暗不均,壓暗後軌道近隱形→原色直出
-  return state.mapDark && state.basemap !== 'sat' ? railMix(color, keep) : color;
+  return state.mapDark && state.basemap !== 'sat' && state.basemap !== 'landscape' ? railMix(color, keep) : color;
 }
 // 軌道底圖線最終色:吃「軌道顯示」選項
 function trackLineColor(color) {
@@ -11565,7 +11569,7 @@ function glTracksSync() {
   const profileKeys = window.railIslandIntegration?.profileKeys() || [];
   K.lineKeys = K.lineKeys.filter(key => !profileKeys.includes(key));
   const st = state.collectMap ? 'collect' : state.trackStyle;           // 與 trackLineColor 的優先序相同:collectMap > hidden/faint > auto
-  const theme = state.basemap === 'sat' ? 'sat' : (state.mapDark ? 'dark' : 'light'); // 同 pal()
+  const theme = glLandTheme(); // 同 pal()
   glFollowRouteSync(raw, theme);
   const stnMin = state.mode === 'sched' ? 11 - ML_Z : 0;                 // drawDecoBase 的 showStop = z>=11(256px 尺度);drawFreq 無 zoom 閘
   const sig = [st, theme, stnMin, K.lineKeys.join(','), K.stnKeys.join(','), K.schedKeys.join(',')].join('#');
@@ -12026,7 +12030,7 @@ function drawFreqTag(p, ln, tr, fg) {
 }
 
 function drawDot(p, color) {
-  if (state.mapDark && state.basemap !== 'sat') {
+  if (state.mapDark && state.basemap !== 'sat' && state.basemap !== 'landscape') {
     ctx.save();
     ctx.fillStyle = color; ctx.globalAlpha = .12; ctx.beginPath(); ctx.arc(p.x,p.y,11,0,7); ctx.fill();
     ctx.globalAlpha = .50; ctx.beginPath(); ctx.arc(p.x,p.y,5.5,0,7); ctx.fill();
@@ -12165,7 +12169,7 @@ function drawFreqDirArrow(cp, ln, carrier, pB) { // 捷運/輕軌:牌=線路縮�
 // 主題感霓虹光暈:暗色/衛星底圖下,主角列車(台鐵/高鐵)點下墊一層發光光暈,
 // 暖紙白紙底維持乾淨不發光。用 save/restore 隔離 shadow,只墊在列車下層——
 // 車號牌文字與站名標籤不吃到 shadow(否則會糊)。r 依標記大小給:圓點小、車號牌大。
-function trainGlow() { return state.basemap === 'sat' || state.mapDark; }
+function trainGlow() { return state.basemap !== 'landscape' && (state.basemap === 'sat' || state.mapDark); }
 function glowUnder(p, color, r) {
   if (!trainGlow()) return;
   ctx.save();
@@ -12673,7 +12677,7 @@ const WEB_STREET_SRC = (() => {
   try { const v = new URLSearchParams(location.search).get('basemap'); if (v === 'ofm') return v; } catch (e) {}
   return 'ofm';
 })();
-const OFM_STYLE = { light: 'vendor/ofm-positron.json', dark: 'vendor/ofm-dark.json' };
+const OFM_STYLE = { light: 'vendor/ofm-positron.json', dark: 'vendor/ofm-dark.json', landscape: 'vendor/ofm-landscape.json' };
 const OFM_ATTRIBUTION = '&copy; <a href="https://openfreemap.org/" target="_blank">OpenFreeMap</a> &copy; <a href="https://www.openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
 // M4-B：leaflet-maplibre-gl 外掛(把 GL 底圖塞進 Leaflet pane 的橋)與它的同步重繪補丁一併移除。
 // 那個補丁在治「外掛的 jumpTo 下一個 rAF 才畫 ⇒ 底圖比 pane 位移慢一幀」;MapLibre 直接當地圖引擎之後
@@ -30634,7 +30638,7 @@ async function refreshStaleSchedule(def, day) {
 let glLand = null;   // { land, style } 載入後才有
 let satAttribution = null; // TILES.sat.attribution(boot 內指定;TILES 是 boot 區域變數,頂層函式不能直接讀)
 const GL_SEA = { light: '#d4dadc', dark: '#262626', sat: '#132a35' };
-function glLandTheme() { return state.basemap === 'sat' ? 'sat' : (state.mapDark ? 'dark' : 'light'); }
+function glLandTheme() { return state.basemap === 'landscape' ? 'light' : state.basemap === 'sat' ? 'sat' : (state.mapDark ? 'dark' : 'light'); }
 async function glLandLoad() {
   if (!M || !M.onStyleLoad) return;
   const [land, style] = await Promise.all([fetchJSON('./data/taiwan_land.json'), fetchJSON('./data/offline_land_style.json')]);
@@ -30659,6 +30663,10 @@ function glLandInstall() {
   const first = raw.getStyle().layers[0];
   if (first && first.type === 'background') raw.setPaintProperty(first.id, 'background-color', GL_SEA[theme]);
   window.RailNightMap?.styleMap(raw, theme === 'dark');
+  if (state.basemap === 'landscape') {
+    raw.setPaintProperty('background', 'background-color', '#86babd');
+    if (raw.getLayer('offline-land-fill')) raw.setPaintProperty('offline-land-fill', 'fill-color', '#ece3cd');
+  }
   installBuilding3d();
 }
 // 署名:一般地圖=OFM(MapLibre 從 OFM 的 TileJSON 自動帶出「OpenFreeMap © OpenMapTiles Data from OpenStreetMap」,再推一份 OFM_ATTRIBUTION 會變兩行重複)、
@@ -30873,7 +30881,7 @@ function ofmWatch(layer) {
   // 街道底圖不是 OFM 向量時(開機就是衛星 sat-*、已退到 raster、或 8 秒內切去衛星)沒東西好量:不掛、時間到也不判失敗。
   // 8 秒到了還沒圖磚、但 TileJSON 已回來(sourcedata metadata)＝OFM 活著只是圖磚在路上(慢網路下字形／sprite 全串在圖磚後面、
   // 或使用者一直在動地圖讓 MapLibre 不停 abort 圖磚)⇒ 再寬限一輪 8 秒才判 slow;連 TileJSON 都沒回來就照舊 8 秒退場。
-  const ofmStreet = () => { const k = M && M.getStyleKind ? M.getStyleKind() : 'light'; return k === 'light' || k === 'dark'; };
+  const ofmStreet = () => { const k = M && M.getStyleKind ? M.getStyleKind() : 'light'; return k === 'light' || k === 'dark' || k === 'landscape'; };
   if (!ofmStreet()) return;
   const onSource = e => {
     if (settled || !e || e.sourceId !== OFM_VECTOR_SOURCE) return;
@@ -30932,6 +30940,7 @@ function ofmFallToRaster(why) {
   glStreetFallback = {};
   for (const k of ['light', 'dark']) if (built[k]) glStreetFallback[k] = built[k]();
   try { console.warn('[basemap] OpenFreeMap 退場改用 raster:' + why); } catch (e) {}
+  if (state.basemap === 'landscape') state.basemap = 'map'; // 本次退路回到一般街圖，重開仍可重試地景偏好。
   setBasemap(); // 把該顯示的那份 style 重新套上去(署名也會跟著換成 raster 那份)
 }
 // 底圖就是 style 本身:light/dark 用內建 OFM,衛星用 satGlStyle(M1a);離線陸地與署名在 style.load 重掛。
@@ -30942,9 +30951,10 @@ function setBasemap() {
   if (!online) state.basemap = 'map';
   const sat = online && state.basemap === 'sat' && satTokenState === 'ready' && !!satGlUrl; // token 未到位前維持一般地圖,不送無 token 的圖磚請求
   stage.classList.toggle('sat', sat);
-  stage.classList.toggle('dark', !!state.mapDark && !sat);
+  stage.classList.toggle('dark', !!state.mapDark && !sat && state.basemap !== 'landscape');
   const hi = sat && !state.followTrain && satRetinaAllowed(); // 跟車中鏡頭連續平移一律標準解析(圖磚量 4 倍會拖慢載入),非 Plus 也一律標準解析
-  if (sat) M.setStyleKind(hi ? 'sat-hi' : 'sat-lq', satGlStyle(hi));
+  if (state.basemap === 'landscape') M.setStyleKind('landscape');
+  else if (sat) M.setStyleKind(hi ? 'sat-hi' : 'sat-lq', satGlStyle(hi));
   else {
     const streetKind = state.mapDark ? 'dark' : 'light';
     const fallback = glStreetFallback && glStreetFallback[streetKind];
@@ -30954,12 +30964,36 @@ function setBasemap() {
   if (sat) warmSatUnderlayGl();
   glLandInstall();      // 同 kind 早退時 style 沒換,層都在只重套主題;換了 style 則 style.load 會再呼叫一次(冪等)
   glAttributionSync();
+  window.railIslandIntegration?.syncAppearance(true);
+  syncBasemapChoices();
   const satBtn = document.getElementById('satBtn');
   if (satBtn && online) {
     satBtn.querySelector('.ti').textContent = t(sat ? '圖' : '衛');
     satBtn.querySelector('.tl').textContent = t(sat ? '地圖' : '衛星');
     satBtn.title = t(sat ? '切回一般地圖' : '切換衛星影像');
   }
+}
+function syncBasemapChoices() {
+  const selected = state.basemap === 'map' ? (state.mapDark ? 'dark' : 'light') : state.basemap;
+  for (const b of document.querySelectorAll('#msBasemapSeg button')) {
+    b.classList.toggle('on', b.dataset.map === selected);
+    b.setAttribute('aria-pressed', String(b.dataset.map === selected));
+    b.disabled = b.dataset.map === 'sat' && (satTokenState !== 'ready' || !onlineBasemapsAvailable());
+  }
+}
+function chooseBasemap(kind) {
+  if (!['light','dark','sat','landscape'].includes(kind)) return;
+  if (kind === 'sat' && (satTokenState !== 'ready' || !onlineBasemapsAvailable())) return;
+  state.basemap = kind === 'light' || kind === 'dark' ? 'map' : kind;
+  try { localStorage.setItem('trainmap-basemap', state.basemap); } catch (e) {}
+  if (kind === 'light' || kind === 'dark') state._setAppearance(kind);
+  else setBasemap();
+  if (kind === 'landscape') {
+    setMap3d(true);
+    if (M.getPitch() < 20) M.setPitch(50);
+  }
+  window.railIslandIntegration?.syncAppearance();
+  if (state.ready) draw();
 }
 // ── Batch B:長頁內容遷入 sheet 的搬移/建置 helpers(單一 DOM 實例;跨 900 斷界由 resize 同步) ──
 // 搜尋列 .search 手機搬進「搜尋」sheet #searchSlot(v0726a 起;原本搬進亮點 sheet),桌面搬回 header 原位(錨點註記記住老家)
@@ -32049,6 +32083,7 @@ function setupMapTools() {
     });
     document.querySelectorAll('#msThemeSeg button').forEach(b =>
       b.classList.toggle('on', b.dataset.v === (state.appearance || 'auto')));
+    syncBasemapChoices();
     try { syncFontPanel(); } catch (e) {} // 字級的三段鈕與抽屜列的目前值都在這支裡
   }
   state._syncMoreSheet = syncMoreSheet;
@@ -32061,6 +32096,8 @@ function setupMapTools() {
     if (e.target.closest('#fontClose')) { closeFontPanel(); return; }
   });
   document.getElementById('moreBody').addEventListener('click', e => {
+    const mapBtn = e.target.closest('#msBasemapSeg button');
+    if (mapBtn) { chooseBasemap(mapBtn.dataset.map); syncMoreSheet(); return; }
     const segBtn = e.target.closest('#msThemeSeg button');
     if (segBtn) { setAppearance(segBtn.dataset.v); syncMoreSheet(); return; }
     const chip = e.target.closest('#msCities button[data-city]'); // 縣市 chip:飛過去並關 sheet
@@ -32489,6 +32526,7 @@ function setupMapTools() {
     if (eff === 'std') document.documentElement.removeAttribute('data-fs');
     else document.documentElement.setAttribute('data-fs', eff);
     if (state.ready) { try { M.resize({ pan: false }); } catch (e) {} } // 字級改變會動到面板高度,地圖尺寸快取要重量
+    syncBasemapChoices();
     try { syncFontPanel(); } catch (e) {} // 面板與抽屜列的選中態/目前值一律跟著實際生效的階走
     try { fitBadgeDetail(true); } catch (e) {} // 換字級=整排尺寸全變,強制重量
   }
@@ -33537,7 +33575,8 @@ async function boot() {
   // 跟隨系統字級:預設開(沒存過即開),使用者關過才記 '0'——與方向箭頭同一套慣例
   try { state.fontFollowSys = localStorage.getItem('trainmap-fontfollow') !== '0'; } catch (e) { state.fontFollowSys = true; }
   try { const ts = localStorage.getItem('trainmap-track'); if (ts === 'faint' || ts === 'hidden') state.trackStyle = ts; } catch (e) {}
-  try { state.basemap = onlineBasemapsAvailable() && localStorage.getItem('trainmap-basemap') === 'sat' ? 'sat' : 'map'; } catch (e) {}
+  try { state.basemap = onlineBasemapsAvailable() && ['sat', 'landscape'].includes(localStorage.getItem('trainmap-basemap')) ? localStorage.getItem('trainmap-basemap') : 'map'; } catch (e) {}
+  if (LANDSCAPE_REQUESTED) { state.basemap = 'landscape'; try { localStorage.setItem('trainmap-basemap', 'landscape'); } catch (e) {} }
   try { state.immersive = localStorage.getItem('trainmap-immersive') === '1'; } catch (e) {}
   try { state.xingOn = localStorage.getItem('trainmap-xing') === '1'; } catch (e) {}
   try { state.dirArrow = localStorage.getItem('trainmap-diron') !== '0'; } catch (e) {} // 列車方向箭頭:預設開(沒存過即開),使用者關過才記 '0'
