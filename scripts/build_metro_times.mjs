@@ -8,7 +8,8 @@
 // 台中捷運/三鶯線無 StationTimeTable → 以官方班距+首末班合成(estimated 標記)。
 // 輸出格式:lines[id] = { days:[週日..週六 → set 名], sets:{名:[班...]}, holiday:國定假日 set 名 };
 //   一班 = [idx,sec, idx,sec, ...] 攤平的 (線檔站序 index, 當日發車秒) 對,跨午夜 sec>86400。
-// 用法:node scripts/build_metro_times.mjs
+// 用法:node scripts/build_metro_times.mjs [--force-trtc]
+//   --force-trtc:無視下面的 TRTC 來源閘門硬重建北捷(補齊前只用於驗證,不要拿產物出貨)。
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -575,7 +576,28 @@ const SYSTEMS = [
     lines: {} },
 ];
 
+// 🔴 TRTC 來源閘門(2026-09-08 使用者裁示「把 TRTC 排除在自動重建之外」)
+// TDX 的 TRTC 快照自 v38 起就缺信義線東延段新站 R01 廣慈/奉天宮(北捷自己在 data.taipei 發布的
+// 是完整的,缺口在 TDX 匯入端);拿它重建會讓 R 線班次數掉 38%、幹線最大空檔 13→400+ 分。
+// 這道閘門的存在理由是:build 一次重建「所有」系統,所以別家(淡海/安坑/環狀線)一有班表變動,
+// 就會連帶用這份殘缺快照把 trtc_times.json 一起重建掉——2026-09-08 巡檢就是這樣被 gate 擋下的。
+// 判準用「Station/TRTC 查不查得到 R01」(記憶 trtc-tdx-v38-r-line-gap 定下的那條):
+// TDX 補齊的那天閘門自動失效,不必有人記得回來拆掉。
+const FORCE_TRTC = process.argv.includes('--force-trtc');
+const trtcSourceHasR01 = () => {
+  try {
+    const st = J('data/tdx/TRTC_Station.json');
+    return (Array.isArray(st) ? st : st.value || []).some(r => String(r.StationID) === 'R01');
+  } catch { return false; } // 快照不在就當作沒補齊——寧可不重建,不要產出壞班表
+};
+
 for (const sys of SYSTEMS) {
+  if (sys.out === 'data/trtc_times.json' && !FORCE_TRTC && !trtcSourceHasR01()) {
+    console.log(`== ${sys.file}`);
+    console.log('  ⏭ 跳過重建:TDX 的 TRTC 快照仍缺 R01 廣慈/奉天宮(信義線東延段),重建會產生殘缺 R 線班表。');
+    console.log('     TDX 上架 R01 後本閘門自動失效;要強制重建加 --force-trtc。');
+    continue;
+  }
   const data = J(sys.file);
   const out = { system: data.system, source_notes: sys.src, lines: {} };
   if (sys.estimated) out.estimated = true;
