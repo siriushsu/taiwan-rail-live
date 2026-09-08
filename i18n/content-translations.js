@@ -4,6 +4,7 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "終點站的車站看板現在會列出一小時以後才到站的班次——去接人的人看得到時間；其他車站維持只列一小時內的到站車。": "Terminus station boards now list arrivals more than an hour out, so people meeting a train can see the time; other stations still show only arrivals within the hour.",
     "跟車鏡頭保留目前的近景，點列車或隨機跟隨不再拉遠；再次點到正在跟隨的列車會回到車旁，不會結束跟隨": "Following keeps your current close-up zoom. Selecting a train or random follow no longer zooms out; tapping the train you are following recenters the camera without ending follow.",
     "修正列車在車站與彎道附近整列飄到軌道旁的問題，車廂沿指派股道逐節轉彎，不再因鄰車靠近而橫移": "Fixed whole trains drifting beside the rails near stations and curves. Each carriage follows its assigned track through bends without shifting sideways when another train approaches.",
     "改善立體地圖拖曳與旋轉的流暢度，保留完整列車與建築細節；切換地形後，建築輪廓也會回到正確高度": "Improved dragging and rotating the 3D map while keeping complete trains and building detail. Building outlines now return to the correct height when terrain is switched.",
@@ -224,6 +225,7 @@
   });
 
   Object.assign(messages.ja, {
+    "終點站的車站看板現在會列出一小時以後才到站的班次——去接人的人看得到時間；其他車站維持只列一小時內的到站車。": "終着駅の発車標では、1時間より先に到着する列車も表示するようになりました（出迎えの方が時刻を確認できます）。他の駅は従来どおり1時間以内の到着のみです。",
     "跟車鏡頭保留目前的近景，點列車或隨機跟隨不再拉遠；再次點到正在跟隨的列車會回到車旁，不會結束跟隨": "追従時は現在の拡大率を維持し、列車の選択やランダム追従で引きの画面になりません。追従中の列車をもう一度タップすると、追従を終了せずに列車へ戻ります。",
     "修正列車在車站與彎道附近整列飄到軌道旁的問題，車廂沿指派股道逐節轉彎，不再因鄰車靠近而橫移": "駅やカーブ付近で列車全体が線路脇へずれる問題を修正しました。各車両は割り当てられた線路に沿って順に曲がり、他の列車が近づいても横移動しません。",
     "改善立體地圖拖曳與旋轉的流暢度，保留完整列車與建築細節；切換地形後，建築輪廓也會回到正確高度": "列車の全編成と建物の細部を保ちながら、3D地図のドラッグと回転を改善しました。地形を切り替えた後も、建物の輪郭が正しい高さに戻ります。",
