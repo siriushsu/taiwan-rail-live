@@ -705,6 +705,9 @@
     '完乘達成　<b>{train} 次</b> 抵達終點': 'Journey complete · <b>train {train}</b> reached its terminus', '明星列車　<b>{name}</b> 蓋章！': 'Named Train · <b>{name}</b> stamped!',
     '車種圖鑑　<b>{name}</b> 蓋章！': 'Fleet Gallery · <b>{name}</b> stamped!', '支線行腳　<b>{name}</b> 蓋章！': 'Branch Explorer · <b>{name}</b> stamped!',
     '成就解鎖　<b>{achievement}</b>': 'Achievement unlocked · <b>{achievement}</b>', '今天沒有這一類的班次可搭': 'No services of this type run today.',
+    '今天沒有班次': 'No service today', '下一班 {date}': 'Next run {date}', '班表上還有 {dates}': 'Also running {dates}',
+    '{date} 前的班表裡都沒有，之後要看官方公告': 'Nothing through {date} in the published timetable; watch for official announcements after that.',
+    '{m}/{d}（{weekday}）': '{m}/{d} ({weekday})',
     '還沒有你的位置，先按一次「附近車站」定位': 'Your location is not available yet. Use Nearby stations to locate first.',
     '離「{station}」還有 {distance} 公尺，走近一點再蓋（這站的範圍 {radius} 公尺）': 'You are {distance} m from “{station}”. Move closer to stamp it (station radius: {radius} m).',
     '「{station}」今天已經蓋過章了': '“{station}” has already been stamped today.', '蓋章成功 · {station}{count}': 'Stamp added · {station}{count}', '（第 {n} 次）': ' (visit {n})',
@@ -804,6 +807,9 @@
     '還沒有收藏——跟隨列車後點資訊卡的收藏鈕收藏列車；打開車站看板點收藏鈕收藏車站；用工具列「儲存」在地圖上存地點。': 'お気に入りはまだありません。列車追跡カードや駅案内のお気に入りボタン、ツールバーの「保存」から追加できます。',
     '完乘達成　<b>{train} 次</b> 抵達終點': '完乗達成　<b>{train}列車</b>が終点に到着', '明星列車　<b>{name}</b> 蓋章！': '名物列車　<b>{name}</b> スタンプ獲得！', '車種圖鑑　<b>{name}</b> 蓋章！': '車両図鑑　<b>{name}</b> スタンプ獲得！',
     '支線行腳　<b>{name}</b> 蓋章！': '支線めぐり　<b>{name}</b> スタンプ獲得！', '成就解鎖　<b>{achievement}</b>': '実績解除　<b>{achievement}</b>', '今天沒有這一類的班次可搭': '今日はこの種類の列車がありません。',
+    '今天沒有班次': '本日は運行なし', '下一班 {date}': '次の運行 {date}', '班表上還有 {dates}': 'ほかに {dates} も運行',
+    '{date} 前的班表裡都沒有，之後要看官方公告': '{date} までの時刻表にはありません。以降は公式のお知らせをご確認ください。',
+    '{m}/{d}（{weekday}）': '{m}/{d}（{weekday}）',
     '還沒有你的位置，先按一次「附近車站」定位': '現在地がまだありません。先に「近くの駅」で測位してください。', '離「{station}」還有 {distance} 公尺，走近一點再蓋（這站的範圍 {radius} 公尺）': '「{station}」まであと{distance}mです。近づいてからスタンプしてください（判定範囲{radius}m）。',
     '「{station}」今天已經蓋過章了': '「{station}」は今日すでにスタンプ済みです。', '蓋章成功 · {station}{count}': 'スタンプ獲得・{station}{count}', '（第 {n} 次）': '（{n}回目）',
     '你已經在搭乘中了，先下車再上車': 'すでに乗車記録中です。先に下車してください。', '下車站要在上車站後面': '下車駅は乗車駅より後の駅を選んでください。', '開始收集 · {from} → {to}{note}': '収集開始・{from} → {to}{note}', '（沒定到位置，上車站先算搭過）': '（位置を確認できないため乗車駅は通過として記録）',
@@ -1479,5 +1485,12 @@
   });
   Object.assign(messages.ja, {
     "修正護照收集章與今日亮點：點「環島之星」不再跑成阿里山林鐵的同號車": "パスポートのスタンプと「今日のみどころ」を修正しました。「環島之星」をタップしても、同じ列車番号の阿里山森林鉄道の列車を追跡しなくなりました。"
+  });
+  // 9/8 收集章「今天沒有班次」說明卡（故事＋下一個開行日）的第一層更新紀錄。
+  Object.assign(messages.en, {
+    "收集章今天沒有班次時，改成跳出這班車的故事卡，並告訴你班表上的下一個開行日": "When a collection stamp has no service today, tapping it now opens that train’s story card and tells you the next date it runs in the timetable."
+  });
+  Object.assign(messages.ja, {
+    "收集章今天沒有班次時，改成跳出這班車的故事卡，並告訴你班表上的下一個開行日": "スタンプの列車が本日運行しない場合、タップするとその列車のストーリーカードが開き、時刻表上の次の運行日をお知らせします。"
   });
 })();

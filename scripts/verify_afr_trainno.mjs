@@ -293,6 +293,185 @@ if (f.setup) {
     `F2 控制組：台鐵 ${f.traNo} 次完乘仍蓋得到支線章（實際：${JSON.stringify(f.traBranch)}）`);
 }
 
+console.log('\n═══ G. 今天沒有這一類的車時：說明卡＋下次開行日（2026-09-08 使用者要求）═══');
+// 使用者：「點下去應該要資訊/故事卡出現,然後提示今天沒有這班車,請再有的時刻來搭乘。」
+// 期望值一律由磁碟的 dates 索引自己算(與 index.html 的實作不同源);_schedStale 與窗尾兩個
+// 邊界另外用注入的方式逼出來——真實資料今天不會走到那兩條路,不逼就是零資訊。
+const DAY_KEYS = Object.keys(dense.dates).sort();
+const WINDOW_END = DAY_KEYS[DAY_KEYS.length - 1];
+const futureOf = (pred, limit = 3) => {
+  const out = [];
+  for (const day of DAY_KEYS) {
+    if (day <= DAY_KEY) continue;
+    if ((dense.dates[day] || []).some(i => { const t = dense.trains[i]; return t && pred(t); })) out.push(day);
+    if (out.length >= limit) break;
+  }
+  return out;
+};
+const predOf = key => {
+  const [cat, id] = [key.slice(0, key.indexOf(':')), key.slice(key.indexOf(':') + 1)];
+  if (cat === 'named') { const n = sp.namedTrains.find(x => x.id === id); return t => n.trainNos.includes(String(t.train)); }
+  if (cat === 'stock') { const r = sp.rollingStock.find(x => x.id === id); return t => r.carNames.includes(t.carName); }
+  const b = sp.branchLines.find(x => x.id === id), ss = new Set(b.matchStations);
+  return t => t.stops.some(x => ss.has(x.name));
+};
+// 今天沒車、但窗內還有的章——這正是使用者點下去會出事的那一種
+const missKeys = [...expectOf].filter(([k, v]) => !v.size).map(([k]) => k).filter(k => futureOf(predOf(k)).length);
+ok(!dense.dates[TODAY] === false, `G0 班表窗涵蓋今天（${TODAY} ∈ ${dense.dateRange.join('～')}）——不涵蓋時產品不報日期,下面的 G1/G3 也不成立`);
+ok(missKeys.length > 0, `G0 今天沒車但窗內還有的章共 ${missKeys.length} 枚：${missKeys.join('、') || '無'}`);
+const denseOk = await page.evaluate(() => {
+  const d = (state.systems.find(s => s.id === 'tra_sched') || {}).data;
+  return { kept: Array.isArray(d && d._denseTrains), len: (d && d._denseTrains || []).length, stale: !!(d && d._schedStale) };
+});
+ok(denseOk.kept && denseOk.len === dense.trains.length,
+  `G0 resolveScheduleDay 留住了 14 天聯集：頁面 ${denseOk.len} 班＝磁碟 ${dense.trains.length} 班（沒留住就問不出下次開行日）`);
+ok(denseOk.stale === false, `G0 頁面判定班表未過期（_schedStale=${denseOk.stale}）`);
+
+// G1(正向,核心):下次開行日必須逐日等於磁碟算出來的那幾天。
+for (const key of missKeys) {
+  const [cat, id] = [key.slice(0, key.indexOf(':')), key.slice(key.indexOf(':') + 1)];
+  const want = futureOf(predOf(key));
+  const got = await page.evaluate(([c, i]) => dexRunDates(c, i), [cat, id]);
+  ok(got && JSON.stringify(got.days) === JSON.stringify(want),
+    `G1 ${key} 的下次開行日＝${want.join('、')}（實際：${got ? got.days.join('、') || '無' : 'null'}）`);
+}
+// G2(掃描機制的正向對照):同一支述詞套在「今天」那格索引上,要復現今日候選。
+// 這條把 dexRunDates 的索引解參考路徑與 dexCandidates 綁在一起——兩邊漂開就紅。
+let g2 = 0;
+for (const [key, want] of expectOf) {
+  if (!want.size) continue;
+  const [cat, id] = [key.slice(0, key.indexOf(':')), key.slice(key.indexOf(':') + 1)];
+  const got = await page.evaluate(([c, i]) => {
+    const d = (state.systems.find(s => s.id === 'tra_sched') || {}).data, m = dexMatcher(c, i);
+    return (d.dates[d._schedDay] || []).map(x => d._denseTrains[x]).filter(t => t && m(t)).map(t => String(t.train));
+  }, [cat, id]);
+  const miss = [...want].filter(no => !got.includes(no));
+  if (miss.length) ok(false, `G2 ${key} 用同一支述詞掃今天那格,漏掉 ${miss.join(',')}`);
+  else g2++;
+}
+ok(g2 > 0 && g2 === [...expectOf].filter(([, v]) => v.size).length,
+  `G2 ${g2} 枚有候選的章,述詞掃今日索引的結果與 dexCandidates 一致`);
+
+// G3(真做一次那個互動):點下去要看到卡,而且不准跟到任何車。
+const gKey = missKeys[0];
+if (!gKey) ok(false, 'G3 今天沒有可用的樣本章,跳過');
+else {
+  const [cat, id] = [gKey.slice(0, gKey.indexOf(':')), gKey.slice(gKey.indexOf(':') + 1)];
+  const rec = (cat === 'named' ? sp.namedTrains : cat === 'stock' ? sp.rollingStock : sp.branchLines).find(x => x.id === id);
+  const wantDay = futureOf(predOf(gKey))[0];
+  const wantLabel = `${Number(wantDay.slice(5, 7))}/${Number(wantDay.slice(8, 10))}`;
+  const el = page.locator(`#passport .seal[data-cat="${cat}"][data-id="${id}"]`);
+  await page.evaluate(() => { state.followTrain = null; hideHelpPop(); });
+  await el.click();
+  await page.waitForTimeout(300);
+  const g3 = await page.evaluate(() => { const p = document.getElementById('helpPop');
+    return { hidden: p.hidden, sticky: !!state._helpPopSticky, text: (p.textContent || '').replace(/\s+/g, ' '),
+             follow: state.followTrain ? state.followTrain.sys + '#' + state.followTrain.train : null }; });
+  ok(g3.hidden === false, `G3 點「${rec.name}」之後說明卡出現（helpPop.hidden=${g3.hidden}）`);
+  ok(g3.follow === null, `G3 點下去不跟任何車（實際：${g3.follow || '沒跟到車'}）`);
+  ok(g3.text.includes(rec.name), `G3 卡上有章名「${rec.name}」`);
+  ok(g3.text.includes('今天沒有班次'), 'G3 卡上明講「今天沒有班次」');
+  ok(g3.text.includes(wantLabel), `G3 卡上有下次開行日 ${wantLabel}（磁碟算出的 ${wantDay}）`);
+  ok(rec.story && g3.text.includes(rec.story.slice(0, 16)),
+    `G3 卡上有這班車的故事（比對資料檔開頭 16 字：「${(rec.story || '').slice(0, 16)}」）`);
+  // G3b:游標移開不能讓卡消失(.help-pop 是 pointer-events:none,不黏住就讀不完)
+  await page.mouse.move(4, 4);
+  await page.waitForTimeout(250);
+  ok(await page.evaluate(() => document.getElementById('helpPop').hidden) === false, 'G3b 游標移開後卡片仍在(sticky)');
+  // G3c:點別處要收得掉,不能賴在畫面上。用 body 上的合成事件而不是真的點地圖——
+  // 點地圖會順手把護照收起來,後面 G4 就沒有章可點了(第一版寫成 mouse.click 時當場踩到)。
+  await page.evaluate(() => document.body.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+  await page.waitForTimeout(250);
+  ok(await page.evaluate(() => document.getElementById('helpPop').hidden) === true, 'G3c 點別處後卡片收起');
+}
+
+// G4(反向控制組):今天有車的章照舊直接跟車,卡不准出現——防「一律改成開卡」的假修法。
+const g4Key = [...expectOf].find(([k, v]) => k.startsWith('named:') && v.size) || [...expectOf].find(([, v]) => v.size);
+if (!g4Key) ok(false, 'G4 今天算不出有候選的章,控制組無法成立');
+else {
+  const [cat, id] = [g4Key[0].slice(0, g4Key[0].indexOf(':')), g4Key[0].slice(g4Key[0].indexOf(':') + 1)];
+  await page.evaluate(() => { state.followTrain = null; hideHelpPop(); });
+  await page.locator(`#passport .seal[data-cat="${cat}"][data-id="${id}"]`).click();
+  await page.waitForTimeout(300);
+  const g4 = await page.evaluate(() => { const p = document.getElementById('helpPop');
+    return { pop: p.hidden, sticky: !!state._helpPopSticky, text: (p.textContent || '').replace(/\s+/g, ' '),
+      follow: state.followTrain ? state.followTrain.sys + '#' + state.followTrain.train : null }; });
+  ok(g4.follow !== null && g4.follow.startsWith('tra_sched#'), `G4 控制組：點 ${g4Key[0]} 仍直接跟台鐵的車（實際：${g4.follow || '沒跟到車'}）`);
+  // 🔴 這裡不能斷言「卡不存在」:桌面 hover 本來就會開一般提示卡(既有行為,滑鼠移過去點就會觸發),
+  //    第一版寫成 pop===true 當場假紅。要分辨的是「那張是不是『今天沒有班次』那一張」。
+  ok(g4.pop === true || (!g4.sticky && !g4.text.includes('今天沒有班次')),
+    `G4 控制組：有車可搭時不開「今天沒有班次」卡（hidden=${g4.pop}／sticky=${g4.sticky}／「${g4.text.slice(0, 30)}」）`);
+}
+
+// G5(邊界,注入):班表過期退回同週幾時,名冊根本不是今天的 ⇒ 一個日期都不准報。
+if (gKey) {
+  const [cat, id] = [gKey.slice(0, gKey.indexOf(':')), gKey.slice(gKey.indexOf(':') + 1)];
+  const g5 = await page.evaluate(([c, i]) => {
+    const d = (state.systems.find(s => s.id === 'tra_sched') || {}).data;
+    d._schedStale = true;
+    const r = { run: dexRunDates(c, i), html: dexMissHtml(c, i, 'X') };
+    d._schedStale = false;
+    return r;
+  }, [cat, id]);
+  ok(g5.run === null, `G5 _schedStale 時 dexRunDates 回 null（實際：${JSON.stringify(g5.run)}）`);
+  ok(!/\d+\/\d+/.test(g5.html), `G5 _schedStale 時卡上不出現任何日期（實際：「${g5.html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 70)}」）`);
+  ok(/今天沒有班次/.test(g5.html), 'G5 _schedStale 時仍然講「今天沒有班次」與故事,只是不報日期');
+}
+// G6(邊界,注入):窗內完全找不到 ⇒ 說「窗尾之前都沒有」,不准寫成「沒有下一班」也不准亂猜。
+const g6 = await page.evaluate(() => {
+  const sd = state.special;
+  sd.namedTrains.push({ id: '__probe_never__', name: '測試列車', trainNos: ['9999999'], story: '測試故事' });
+  const r = { run: dexRunDates('named', '__probe_never__'), html: dexMissHtml('named', '__probe_never__', '測試列車') };
+  sd.namedTrains.pop();
+  return r;
+});
+ok(g6.run && g6.run.days.length === 0, `G6 窗內找不到任何開行日時 days 為空（實際：${JSON.stringify(g6.run && g6.run.days)}）`);
+ok(g6.html.includes(`${Number(WINDOW_END.slice(5, 7))}/${Number(WINDOW_END.slice(8, 10))}`),
+  `G6 改口講窗尾 ${WINDOW_END}（實際：「${g6.html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 90)}」）`);
+ok(!g6.html.includes('下一班'), 'G6 找不到時不得出現「下一班」字樣');
+
+// G7(手機):觸控殼跑的是另一條路——護照在 sheet 裡、沒有 hover、而且原本點章第一件事是關面板。
+// 關掉面板就等於毀掉卡片的錨點,所以「沒車可搭」時不准關;再點同一枚要收起來。
+// 另開 context:isMobile 會讓 any-pointer:coarse 成立 ⇒ HELP_POP_HOVER 為 false,正是要驗的那一格。
+if (gKey) {
+  const [cat, id] = [gKey.slice(0, gKey.indexOf(':')), gKey.slice(gKey.indexOf(':') + 1)];
+  const mctx = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'zh-TW', isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+  await mctx.addInitScript(() => { try {
+    localStorage.setItem('trainmap-howto-seen', '1');
+    localStorage.setItem('trainmap-language', 'zh-TW');
+    localStorage.setItem('trainmap-appearance', 'light');
+    localStorage.setItem('trainmap-passport-open', '1');
+  } catch (e) {} });
+  const mp = await mctx.newPage();
+  const mErrs = [];
+  mp.on('pageerror', e => mErrs.push(String(e).slice(0, 200)));
+  await mp.goto(BASE + '/?lang=zh-TW&_cb=afrno-m', { waitUntil: 'domcontentloaded' });
+  await mp.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, { timeout: 60000 });
+  await mp.evaluate(() => selectGroup(GROUPS.find(g => g.id === 'tra')));
+  await mp.waitForFunction(() => state.trains.some(t => t.sys === 'tra_sched') && state.special, { timeout: 30000 });
+  ok(await mp.evaluate(() => HELP_POP_HOVER) === false, 'G7 手機殼確實沒有 hover（HELP_POP_HOVER=false,否則下面驗的是桌面那條路）');
+  await mp.evaluate(() => openRidePanel());
+  await mp.waitForTimeout(400);
+  const msel = `#ridePanel .seal[data-cat="${cat}"][data-id="${id}"]`;
+  const mel = mp.locator(msel);
+  if (!await mel.count()) ok(false, `G7 手機護照 sheet 裡找不到樣本章（${msel}）`);
+  else {
+    await mel.scrollIntoViewIfNeeded();
+    await mel.click();
+    await mp.waitForTimeout(350);
+    const m1 = await mp.evaluate(() => ({ pop: document.getElementById('helpPop').hidden,
+      panel: document.getElementById('ridePanel').hidden,
+      text: (document.getElementById('helpPop').textContent || '').replace(/\s+/g, ' ') }));
+    ok(m1.pop === false && m1.text.includes('今天沒有班次'), `G7 手機點下去出現「今天沒有班次」卡（hidden=${m1.pop}／「${m1.text.slice(0, 24)}」）`);
+    ok(m1.panel === false, 'G7 手機不得先關護照面板——關掉就毀了卡片的錨點,畫面上會變成「點了沒反應」');
+    await mel.click();
+    await mp.waitForTimeout(350);
+    ok(await mp.evaluate(() => document.getElementById('helpPop').hidden) === true, 'G7 手機再點同一枚收起卡片');
+  }
+  ok(mErrs.length === 0, `G7 手機殼期間無未捕捉例外（${mErrs.slice(0, 2).join(' | ') || '無'}）`);
+  await mctx.close();
+}
+
 ok(pageErrs.length === 0, `D／E／F 節期間頁面無未捕捉例外（${pageErrs.slice(0, 2).join(' | ') || '無'}）`);
 
 await browser.close();
