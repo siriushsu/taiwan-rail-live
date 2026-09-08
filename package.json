@@ -22,6 +22,7 @@
     "sync-metro": "python3 scripts/fetch_tdx.py && node scripts/build_metro_times.mjs && node scripts/build_data_manifest.mjs && node scripts/build_data_provenance.mjs",
     "build-bounty-units": "node scripts/build_bounty_units.mjs",
     "check-schedule": "python3 scripts/check_schedule.py",
+    "check-search-type": "node scripts/verify_search_train_type.mjs",
     "build-manifest": "node scripts/build_data_manifest.mjs && node scripts/build_data_provenance.mjs",
     "check-manifest": "node scripts/verify_data_manifest.mjs && node scripts/verify_data_provenance.mjs",
     "check-public": "node scripts/check_tracked_ignored.mjs && node scripts/verify_ignore_symmetry.mjs && node scripts/verify_public_repo_hygiene.mjs && node scripts/verify_privacy_providers.mjs",
