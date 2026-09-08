@@ -27,4 +27,4 @@ for(const [engineName,engine]of Object.entries({chromium,webkit})){
   results.push({engine:engineName,type:'無未處理錯誤',pass:errors.length===0,errors});
  }catch(e){results.push({engine:engineName,pass:false,error:e.stack});}finally{await browser.close();}
 }
-fs.writeFileSync(process.env.THEMES_ONLY?'output/historic-buildings/themes.json':'output/historic-buildings/results.json',JSON.stringify(results,null,2));for(const r of results)console.log(r.pass?'PASS':'FAIL',JSON.stringify(r));if(results.some(r=>!r.pass))process.exitCode=1;
+fs.writeFileSync(process.env.RESULT_FILE||(process.env.THEMES_ONLY?'output/historic-buildings/themes.json':'output/historic-buildings/results.json'),JSON.stringify(results,null,2));for(const r of results)console.log(r.pass?'PASS':'FAIL',JSON.stringify(r));if(results.some(r=>!r.pass))process.exitCode=1;

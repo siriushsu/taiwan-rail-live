@@ -34,3 +34,7 @@ node scripts/serve_landscape_preview.mjs
 較早的測試使用不支援 Range 的伺服器、headless 軟體 GPU，以及會被既有鏡頭管理中止的程式化 easeTo，結果不作為最終驗收。最終使用具 Range 支援的預覽、有視窗瀏覽器與真正滑鼠拖曳，完整重跑上述 68 項。
 
 MapLibre 樣式依照 [官方 fill-extrusion 與 hillshade 規格](https://maplibre.org/maplibre-style-spec/layers/)；沿用現有 OpenFreeMap／OpenMapTiles／OpenStreetMap 與 Mapterhorn／內政部地形署名。
+
+## v0909b 整合
+
+本功能與 WorldCover 及 25 組歷史建物一併整合進網站版本，保留最新車庫與列車功能。詳見 historic-buildings-0909.md；App 未重新打包。

@@ -1,6 +1,6 @@
 # 公開資料地景 v0908k
 
-在 `codex/island-landscape-0908` 的地景原型接入 ESA WorldCover 2021 v200。本機預覽更新，尚未部署或重新發行 App。
+在 `codex/island-landscape-0908` 的地景原型接入 ESA WorldCover 2021 v200。後續已整合進 v0909b 網站版本；App 未重新打包。
 
 ## 資料與呈現
 

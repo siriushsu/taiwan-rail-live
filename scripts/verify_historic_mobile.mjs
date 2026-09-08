@@ -2,7 +2,7 @@ import {chromium,webkit} from 'playwright';import fs from 'node:fs';
 const rows=[];fs.mkdirSync('output/historic-buildings',{recursive:true});
 for(const [engine,type] of Object.entries({chromium,webkit})){
  const browser=await type.launch();
- for(const width of [360,375,414,768]){
+ for(const width of (process.env.WIDTHS?process.env.WIDTHS.split(',').map(Number):[360,375,414,768])){
   const p=await browser.newPage({viewport:{width,height:900},isMobile:true,hasTouch:true,locale:'zh-TW'});const errors=[];p.on('pageerror',e=>errors.push(e.message));
   await p.addInitScript(()=>{localStorage.setItem('trainmap-howto-seen','1');localStorage.setItem('trainmap-map3d','1');});
   try{
