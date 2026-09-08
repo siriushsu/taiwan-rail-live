@@ -19,7 +19,11 @@ export function createPhysicalMotion(pack,profiles,dispatch,{requireSignature=tr
   let lo=0,hi=schedule.length-1;while(hi-lo>1){const m=(lo+hi)>>1;if(schedule[m].arrSec<=t)lo=m;else hi=m;}
   const i=t>=schedule[hi].arrSec?hi:lo,s=tr.stops[i],dwell=t<=schedule[i].depSec;
   const segment=Math.min(i,r.plan.pathIds.length-1),legStart=r.reversals.filter(k=>k<=segment).at(-1)||0,legEnd=r.reversals.find(k=>k>segment)||r.plan.pathIds.length;
-  const from=Math.max(legStart,segment-1),to=Math.min(legEnd,segment+2),route=geometry.route(r.plan.pathIds.slice(from,to),tr.sys||tr.system,tr.color||'#547466',{prefixM:from===legStart?250:0,suffixM:to===legEnd?250:0}),formationFacing=r.reversals.filter(k=>k<=segment).length%2?-1:1;
+  const from=Math.max(legStart,segment-1),to=Math.min(legEnd,segment+2);
+  // 全台活躍車超過共用 LRU 容量時，仍由這班車持有當前的三段線形。
+  // 區間改變即替換；WeakMap 跟隨班表物件釋放，不累積整日路線。
+  if(!r.activeRoute||r.routeFrom!==from||r.routeTo!==to){r.activeRoute=geometry.route(r.plan.pathIds.slice(from,to),tr.sys||tr.system,tr.color||'#547466',{prefixM:from===legStart?250:0,suffixM:to===legEnd?250:0});r.routeFrom=from;r.routeTo=to;}
+  const route=r.activeRoute,formationFacing=r.reversals.filter(k=>k<=segment).length%2?-1:1;
   let f=0,rawTime;
   if(dwell)rawTime=Math.min(s.depSec,s.arrSec+Math.max(0,t-schedule[i].arrSec));
   else{const elapsed=t-schedule[i].depSec,span=tr.stops[i+1].arrSec-s.depSec;rawTime=s.depSec+elapsed;

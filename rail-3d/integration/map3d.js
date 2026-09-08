@@ -58,7 +58,7 @@ export async function createLiveMap({map,isCurrent=()=>true,onGesture,onInteract
   const report=e=>{const text=e?.message||String(e);if(stats.errors.length<20)stats.errors.push(text);onError?.(text);};
   function world(coord,height){const m=ml.MercatorCoordinate.fromLngLat(coord);return [(m.x-anchor.x)/unit,-(m.y-anchor.y)/unit,height*m.meterInMercatorCoordinateUnits()/unit];}
   function height(coord){if(!terrainState.terrain)return .65;const h=map.queryTerrainElevation(coord);return Number.isFinite(h)?h+.65:null;}
-  function pathFor(route){if(!route?.coordinates?.length)return null;let p=paths.get(route.coordinates);if(!p){p=makePath(route.coordinates,route.loop);const data=profileData.entries[shapeKey(route.coordinates)];p.elevation=route.elevation||(data&&Math.abs(data.lengthM-p.length)<.01?makeHeightProfile(data.values,data.stepM,p.length):null);paths.set(route.coordinates,p);}return p;}
+  function pathFor(route){if(!route?.coordinates?.length)return null;if(route.physical&&route.path){route.path.elevation=route.elevation;return route.path;}let p=paths.get(route.coordinates);if(!p){p=makePath(route.coordinates,route.loop);const data=profileData.entries[shapeKey(route.coordinates)];p.elevation=route.elevation||(data&&Math.abs(data.lengthM-p.length)<.01?makeHeightProfile(data.values,data.stepM,p.length):null);paths.set(route.coordinates,p);}return p;}
   function clearLines(){profileVertices=[];rails.set([]);}
   function rebuildLines(){
     clearLines();if(!frame)return;const c=map.getCenter(),near=map.getZoom()>=14,bounds=map.getBounds(),margin=.004;lastNear=near;buildCenter=[c.lng,c.lat];buildView=[map.getZoom(),map.getPitch(),map.getBearing()];lastBuild=performance.now();dirty=false;stats.routeBuilds++;

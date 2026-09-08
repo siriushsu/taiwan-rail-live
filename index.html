@@ -5229,6 +5229,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="perf3d0908"><span class="d">9/8</span><span>改善立體地圖拖曳與旋轉的流暢度，保留完整列車與建築細節；切換地形後，建築輪廓也會回到正確高度</span></li>
         <li data-cl-of="boardcardfix0908"><span class="d">9/8</span><span>修正車站看板與跟車卡三處顯示問題：只有一條線經過的站不再多出線名標題、車號前不再多一個空格、跟車時拖地圖不會再把列車卡壓扁</span></li>
         <li data-cl-of="searchtraintype0908"><span class="d">9/8</span><span>搜尋框可以打車種與車型了：輸入「自強號」「EMU3000」「太魯閣」會列出符合的班次，正在跑的排前面，也能點車型看介紹（謝謝網友回報）</span></li>
         <li data-cl-of="mountaintrack0907"><span class="d">9/7</span><span>山線三義隧道段的軌道改用實際路線重畫，列車經過時不再偏離軌道</span></li>
@@ -5236,7 +5237,6 @@
         <li data-cl-of="ambientfollow3d0907"><span class="d">9/7</span><span>放空的跟車視角改成貼著車身的立體視角，看得到列車在軌道上跑，速度也放回實際車速；放空時的配樂改播完整曲庫</span></li>
         <li data-cl-of="garage0907"><span class="d">9/7</span><span>新增收藏車庫，62 款精修小車可旋轉欣賞；還沒收集到的是灰色車體，累積旅程進度解鎖後才有塗裝，舊護照自動帶入</span></li>
         <li data-cl-of="busboardscroll0907"><span class="d">9/7</span><span>修正車站看板更新時，已捲到公車資訊的位置被往回拉的問題</span></li>
-        <li data-cl-of="physicaltracks0907"><span class="d">9/7</span><span>近景列車依推估股道分流，少量交疊會暫時靠旁避讓；捷運到站時保留立體車身。阿里山林鐵暫不套股道，停站的車不再畫到軌道外；阿里山、祝山、神木一帶補畫站內與之字形折返股道</span></li>
 
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
@@ -5245,6 +5245,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="perf3d0908"><span class="d">9/8</span><span>改善立體地圖拖曳與旋轉的流暢度，保留完整列車與建築細節；切換地形後，建築輪廓也會回到正確高度</span></li>
         <li data-cl="mountaintrack0907"><span class="d">9/7</span><span>山線三義隧道段的軌道改用實際路線重畫，列車經過時不再偏離軌道</span></li>
         <li data-cl="tracreep0907"><span class="d">9/7</span><span>台鐵誤點加大時，列車改成慢速前進，不再停在原地等誤點追上</span></li>
         <li data-cl="searchtraintype0908"><span class="d">9/8</span><span>搜尋框接上車種與車型：以前打「自強號」會查無結果，現在輸入車種（自強、區間車、區間快、莒光）或車型（EMU3000、太魯閣、普悠瑪、推拉式 PP）都會列出當日符合的班次，正在跑的排最前面，命中的車型也能點開看介紹（謝謝網友回報）</span></li>
@@ -6137,11 +6138,11 @@
 // v0906n：併入 origin/main(9cb8ce8d：OFM 看門狗修正、捷運頂列徽章逐線指名)＋查詢分頁修正批(查詢 sheet 半高且不寫全站段高偏好、答案區手勢取消清紀錄、Android 挑選器示範列依真實列數、initialLayout 改中性卡、出貨鏈與閘門補牙)。
 // v0907c(撞號：上游同日另出了 v0907c 夜間玻璃建築，本分支這顆從未上線)：併入 origin/main(fc3ca03c：統一底圖監測把手命名、暗色路線霓虹微光、導覽路線站序與精選取景)＋查詢分頁修正批(查詢 sheet 半高且不寫全站段高偏好、答案區手勢取消清紀錄、Android 挑選器示範列依真實列數、initialLayout 改中性卡、出貨鏈與閘門補牙)。
 // v0907h：併入 origin/main(33cc762d：夜間霓虹玻璃建築與看板、車站標記放大與指北修正、近景列車地形透視與跟車方向開關、官方月台串接與無資料隱藏)＋查詢分頁修正批(查詢 sheet 半高且不寫全站段高偏好、答案區手勢取消清紀錄、Android 挑選器示範列依真實列數、initialLayout 改中性卡、出貨鏈與閘門補牙)。
-// v0907m：頁尾贊助區拿掉銀行轉帳帳號（Ko-fi 保留）。
+// v0907m：頁尾贊助區拿掉銀行轉帳帳號，其餘支持方式保留。
 // v0907n：更新紀錄拿掉 7/13 那條贊助方式（站上最後一處金流資訊）。
 // v0908b：阿里山林鐵補上站內股道與之字形折返股(阿里山、祝山的軌道畫進站裡);近景實體股道白名單
 //         改為單一來源(rail-3d.js 不再自帶第二份),沒被涵蓋的系統保留原本的示意線形。
-const BUILD = 'v0908d';
+const BUILD = 'v0908e';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
@@ -7276,12 +7277,28 @@ function reproject() {
     return [a, b, c, d];
   };
   const projShape = ln => {
-    if (ln.shape) ln.shapePts = ln.shape.map(c => {
-      const p = M.toScreen([c[0], c[1]]);
-      return { x: p.x, y: p.y };
-    });
+    if (ln.shape) {
+      const project = i => { const p = M.toScreen(ln.shape[i]); return { x: p.x, y: p.y }; };
+      // GL 已畫完整軌道。Canvas 在這條路徑只讀站名旁的少數切線點，
+      // 仍用本幀的同一投影，按索引延後計算；不逐幀重投影全台數萬點。
+      if (glTracksActive()) {
+        const points = new Array(ln.shape.length);
+        ln.shapePts = new Proxy(points, {
+          get(target, key, receiver) {
+            if (typeof key === 'string' && /^(0|[1-9]\d*)$/.test(key) && Number(key) < target.length) {
+              const i = Number(key); return target[i] || (target[i] = project(i));
+            }
+            return Reflect.get(target, key, receiver);
+          },
+          has(target, key) { return typeof key === 'string' && /^(0|[1-9]\d*)$/.test(key) && Number(key) < target.length || Reflect.has(target, key); }
+        });
+        ln._bbox = null; // 省略整線粗略裁切；各車站／列車仍以當幀螢幕座標裁切。
+        return;
+      }
+      ln.shapePts = ln.shape.map((_, i) => project(i));
+    }
     const line = ln.shapePts || ln.pts;
-    ln._bbox = (line && line.length) ? bboxOf(line) : null; // 整條離屏時 draw 直接跳過描邊
+    ln._bbox = (line && line.length) ? bboxOf(line) : null;
   };
   state.lines.forEach(ln => {
     ln.pts = ln.stations.map(s => {

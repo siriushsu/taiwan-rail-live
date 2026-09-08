@@ -36,7 +36,7 @@
     const layer = {
       id:'building-glass-edges', type:'custom', renderingMode:'3d',
       onAdd(raw, gl) {
-        this.raw=raw; this.gl=gl; this.count=0; this.origin=[0,0,0]; this.disposed=false;
+        this.raw=raw; this.gl=gl; this.count=0; this.origin=[0,0,0]; this.disposed=false; this.tiles=null; this.movedAt=0; this.deferSince=0;
         const shader = (type,source) => { const s=gl.createShader(type); gl.shaderSource(s,source); gl.compileShader(s); if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
         const modern=!!gl.createVertexArray;
         const vs=shader(gl.VERTEX_SHADER,(modern?'#version 300 es\nin':'attribute')+' vec4 position; uniform mat4 matrix; '+(modern?'out':'varying')+' float alpha; void main(){gl_Position=matrix*vec4(position.xyz,1.0);alpha=position.w;}');
@@ -46,42 +46,54 @@
         if(!gl.getProgramParameter(this.program,gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(this.program));
         this.attribute=gl.getAttribLocation(this.program,'position'); this.matrix=gl.getUniformLocation(this.program,'matrix');
         this.buffer=gl.createBuffer(); this.vao=gl.createVertexArray?.();
-        this.schedule=e=>{if(e?.sourceId && e.sourceId!=='openmaptiles'&&e.sourceId!=='terrain')return; if(this.timer||this.disposed)return; this.timer=setTimeout(()=>{this.timer=null;this.rebuild();},240);};
-        raw.on('moveend',this.schedule);raw.on('sourcedata',this.schedule);this.schedule();
+        // 與 rail-3d/station-layer.js 的遮罩同一條規則:相機距上次移動 <400ms 就先不重建(手指還在拖),
+        // 最多延後 15s(跟車時相機每幀都動,不能永遠不更新)。地形圖磚到貨會改高度,整批快取作廢。
+        this.schedule=e=>{if(e?.sourceId && e.sourceId!=='openmaptiles'&&e.sourceId!=='terrain')return; if(e?.sourceId==='terrain')this.tiles=null; if(this.timer||this.disposed)return; this.timer=setTimeout(()=>{this.timer=null;this.settle();},240);};
+        this.settle=()=>{const now=performance.now();if(now-(this.movedAt||0)<400){if(!this.deferSince)this.deferSince=now;if(now-this.deferSince<15000){this.timer=setTimeout(()=>{this.timer=null;this.settle();},150);return;}}this.deferSince=0;this.rebuild();};
+        this.noteMove=()=>{this.movedAt=performance.now();};
+        raw.on('moveend',this.schedule);raw.on('sourcedata',this.schedule);raw.on('move',this.noteMove);this.schedule();
         this.restore=()=>{this.onRemove(raw,gl);this.onAdd(raw,gl);};
         raw.on('webglcontextrestored',this.restore);
       },
+      // 解碼與畫線都依圖磚快取:每棟只解碼一次、第一次進畫面時算一次線段,之後重建只是把畫面內的
+      // 建物接起來送 GPU(2026-09-08 桌面 6x 實測:整批重算一次 210–290ms,其中解碼佔一半)。
+      // 頂點用固定原點的相對座標保 float32 精度,原點離相機 >0.05° 才換;換原點、跨 15.5 樓層線門檻、
+      // 地形到貨都整批作廢。圖磚緩衝區會讓同一棟出現在兩張圖磚,挑選時用完整外環鍵只畫第一份(與舊法同一順序)。
       rebuild() {
         if(this.disposed)return;
         const raw=this.raw, z=raw.getZoom();
         if(z<14||!raw.getSource('openmaptiles')){this.count=0;return;}
-        const center=raw.getCenter(), origin=maplibregl.MercatorCoordinate.fromLngLat(center);
-        this.origin=[origin.x,origin.y,0];
-        const bounds=raw.getBounds(), seen=new Set(), vertices=[];
+        const center=raw.getCenter(), floors=z>=15.5, terrain=!!raw.getTerrain();
+        // 關掉地形不會再送地形圖磚事件；此時也必須清掉帶有舊高程的線段。
+        if(!this.tiles||this.floors!==floors||this.terrain!==terrain||Math.abs(center.lng-this.originLL[0])+Math.abs(center.lat-this.originLL[1])>.05){
+          const o=maplibregl.MercatorCoordinate.fromLngLat(center);this.origin=[o.x,o.y,0];this.originLL=[center.lng,center.lat];this.floors=floors;this.terrain=terrain;this.tiles=new Map();}
+        const origin=this.origin, tiles=this.tiles, live=new Set(), order=[], fresh=new Map();
+        for(const f of raw.querySourceFeatures('openmaptiles',{sourceLayer:'building'})){const k=f.tile.z+'/'+f.tile.x+'/'+f.tile.y;if(!live.has(k)){live.add(k);order.push(k);}if(tiles.has(k))continue;if(!fresh.has(k))fresh.set(k,[]);fresh.get(k).push(f);}
+        // 每棟初次解碼時存完整鍵；避免短雜湊碰撞把不同建築誤當重複而漏畫。
+        const hash=ring=>JSON.stringify(ring);
+        for(const [k,feats] of fresh){const list=[];
+          for(const feature of feats){const p=feature.properties||{},height=Number(p.render_height??p.height??8),base=Number(p.render_min_height??p.min_height??0);
+            if(!Number.isFinite(height)||height<=base||height>1000)continue;
+            const polygons=feature.geometry.type==='Polygon'?[feature.geometry.coordinates]:feature.geometry.type==='MultiPolygon'?feature.geometry.coordinates:[];
+            for(const polygon of polygons){const ring=polygon[0];if(!ring||ring.length<4||ring.length>180)continue;
+              let [bw,bs]=ring[0],[be,bn]=ring[0];for(const [x,y] of ring){if(x<bw)bw=x;if(x>be)be=x;if(y<bs)bs=y;if(y>bn)bn=y;}
+              list.push({ring,height,base,bounds:[bw,bs,be,bn],hash:hash(ring),v:null});}}
+          tiles.set(k,list);}
+        for(const k of tiles.keys())if(!live.has(k))tiles.delete(k);
+        const bounds=raw.getBounds(), sw=bounds.getSouthWest(), ne=bounds.getNorthEast();
         const cap=matchMedia('(any-pointer:coarse)').matches?700:1600;
-        let buildings=0;
-        const point=(xy,height,alpha)=>{const ground=raw.getTerrain()?raw.queryTerrainElevation(xy):0;if(ground==null)return null;const p=maplibregl.MercatorCoordinate.fromLngLat(xy,height+ground);return [p.x-origin.x,p.y-origin.y,p.z,alpha];};
-        const edge=(a,b,ha,hb,alpha)=>{const p=point(a,ha,alpha),q=point(b,hb,alpha);if(p&&q)vertices.push(...p,...q);};
-        for(const feature of raw.querySourceFeatures('openmaptiles',{sourceLayer:'building'})) {
-          const p=feature.properties||{}, height=Number(p.render_height??p.height??8), base=Number(p.render_min_height??p.min_height??0);
-          if(!Number.isFinite(height)||height<=base||height>1000)continue;
-          const polygons=feature.geometry.type==='Polygon'?[feature.geometry.coordinates]:feature.geometry.type==='MultiPolygon'?feature.geometry.coordinates:[];
-          for(const polygon of polygons) {
-            const ring=polygon[0]; if(!ring||ring.length<4||ring.length>180)continue;
-            if(!ring.some(xy=>bounds.contains(xy)))continue;
-            const key=JSON.stringify(ring); if(seen.has(key))continue;seen.add(key);
-            for(let i=0;i<ring.length-1;i++) {
-              edge(ring[i],ring[i+1],height,height,.40);
-              edge(ring[i],ring[i],base,height,.24);
-              if(z>=15.5) { const step=Math.max(4,Math.ceil((height-base)/10)); for(let h=base+step;h<height-1;h+=step) edge(ring[i],ring[i+1],h,h,.10); }
-            }
-            if(++buildings>=cap||vertices.length>640000)break;
-          }
-          if(buildings>=cap||vertices.length>640000)break;
-        }
-        this.count=vertices.length/4; this.buildings=buildings;
+        const point=(xy,height,alpha)=>{const ground=raw.getTerrain()?raw.queryTerrainElevation(xy):0;if(ground==null)return null;const p=maplibregl.MercatorCoordinate.fromLngLat(xy,height+ground);return [p.x-origin[0],p.y-origin[1],p.z,alpha];};
+        const edges=b=>{const out=[],ring=b.ring,edge=(a,c,ha,hb,alpha)=>{const p=point(a,ha,alpha),q=point(c,hb,alpha);if(p&&q)out.push(...p,...q);};
+          for(let i=0;i<ring.length-1;i++){edge(ring[i],ring[i+1],b.height,b.height,.40);edge(ring[i],ring[i],b.base,b.height,.24);
+            if(floors){const step=Math.max(4,Math.ceil((b.height-b.base)/10));for(let h=b.base+step;h<b.height-1;h+=step)edge(ring[i],ring[i+1],h,h,.10);}}
+          return new Float32Array(out);};
+        const parts=[],picked=new Set();let buildings=0,total=0;
+        for(const k of order){const list=tiles.get(k);for(const b of list){const [bw,bs,be,bn]=b.bounds;if(be<sw.lng||bw>ne.lng||bn<sw.lat||bs>ne.lat||!b.ring.some(xy=>bounds.contains(xy))||picked.has(b.hash))continue;picked.add(b.hash);b.v=b.v||edges(b);parts.push(b.v);total+=b.v.length;if(++buildings>=cap||total>640000)break;}if(buildings>=cap||total>640000)break;}
+        // 與原版一樣，達到上限時仍保留最後一棟的完整輪廓。
+        const vertices=new Float32Array(total);let off=0;for(const a of parts){vertices.set(a,off);off+=a.length;}
+        this.count=off/4; this.buildings=buildings;
         const gl=this.gl, previous=gl.getParameter(gl.ARRAY_BUFFER_BINDING);
-        gl.bindBuffer(gl.ARRAY_BUFFER,this.buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(vertices),gl.STATIC_DRAW);gl.bindBuffer(gl.ARRAY_BUFFER,previous);
+        gl.bindBuffer(gl.ARRAY_BUFFER,this.buffer);gl.bufferData(gl.ARRAY_BUFFER,off===vertices.length?vertices:vertices.subarray(0,off),gl.STATIC_DRAW);gl.bindBuffer(gl.ARRAY_BUFFER,previous);
         raw.triggerRepaint();
       },
       render(gl,args) {
@@ -96,7 +108,7 @@
         gl.disable(gl.DEPTH_TEST);gl.depthMask(false);gl.lineWidth(1);gl.drawArrays(gl.LINES,0,this.count);gl.bindVertexArray?.(null);
       },
       onRemove(raw,gl) {
-        this.disposed=true;clearTimeout(this.timer);raw.off('moveend',this.schedule);raw.off('sourcedata',this.schedule);
+        this.disposed=true;clearTimeout(this.timer);raw.off('moveend',this.schedule);raw.off('sourcedata',this.schedule);raw.off('move',this.noteMove);this.tiles=null;
         raw.off('webglcontextrestored',this.restore);
         gl.deleteBuffer(this.buffer);if(this.vao)gl.deleteVertexArray(this.vao);gl.deleteProgram(this.program);
       },

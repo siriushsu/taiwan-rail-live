@@ -14,7 +14,7 @@ for(const[name,engine]of Object.entries({chromium,webkit})){
   for(const kind of ['sched','metro']){
    const id=await page.evaluate(kind=>{clearFollow();clearFreqFollow();state.playing=false;railIslandIntegration.setModelMode('all');let p,match;
     if(kind==='sched'){setSimSec(12*3600);const tr=state.trains.find(t=>t.train==='117');p=trainPos(tr,state.simSec);match=v=>v.publicLabel==='117'&&v.systemId==='tra_sched';}
-    else{const ln=state.decoLines.find(l=>l._sys==='tymc'&&l._tt?.length);let tr;for(const candidate of ln._tt){for(let i=1;i<candidate.length-2;i+=2){const sec=(candidate[i]+candidate[i+2])/2,q=freqTrainPosAt(ln,candidate,sec);if(q){tr=candidate;p=q;setSimSec(sec);break;}}if(tr)break;}match=v=>v.systemId==='tymc'&&Math.abs(v.latitude-p.lat)<1e-8&&Math.abs(v.longitude-p.lon)<1e-8;}
+    else{const ln=state.decoLines.find(l=>l._sys==='tymc'&&l._tt?.length);let tr;for(const candidate of ln._tt){for(let i=1;i<candidate.length-2;i+=2){const sec=(candidate[i]+candidate[i+2])/2,q=freqTrainPosAt(ln,candidate,sec);if(q){tr=candidate;p=q;setSimSec(sec);break;}}if(tr)break;}const physical=window.railIslandPhysical?.metro;if(physical)p=physical.sample(ln,p,Math.sign(tr.at(-2)-tr[0]));match=v=>v.systemId==='tymc'&&Math.abs(v.latitude-p.lat)<1e-8&&Math.abs(v.longitude-p.lon)<1e-8;}
     M.setView([p.lat,p.lon],18,{animate:false});M.setPitch(45);return railIslandIntegration.capture().vehicles.find(match).id;
    },kind);
    await page.waitForFunction(id=>railIslandIntegration.renderer?.hasModel(id),id);await page.waitForTimeout(500);

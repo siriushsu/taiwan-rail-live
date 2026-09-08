@@ -19,26 +19,44 @@ export async function createStationLayer(map,getState,onUpdate=()=>{}, {assetsBa
   }
   records.sort((a,b)=>catalog.findIndex(e=>e.id===a.meta.id)-catalog.findIndex(e=>e.id===b.meta.id));
   const camera=new THREE.Camera(),projection=new THREE.Matrix4(),filters=new Map(),symbolFilters=new Map(),appliedSymbols=new Map();
-  let renderer,ownedSource,disposed=false,timer=0,sourceEpoch=0,maskEpoch=-1,maskKey='',contextKey='',labelKey='',lastVisible='',clock=0,engineeringMasks=[],engineeringMaskKey='',labelBounds=[];
+  let renderer,ownedSource,disposed=false,timer=0,viewTimer=0,sourceEpoch=0,maskEpoch=-1,maskKey='',contextKey='',labelKey='',lastVisible='',clock=0,engineeringMasks=[],engineeringMaskKey='',labelBounds=[];
   function primary(){return records.find(r=>r.entry.key===getState().place)||records.find(r=>r.stats.visible)||records[0];}
   function expandedBox(r,padding){const points=r.masks.flat(2),xs=points.map(p=>p[0]),ys=points.map(p=>p[1]),dx=padding/(111320*Math.cos(r.meta.anchor[1]*Math.PI/180)),dy=padding/111320;return [Math.min(...xs)-dx,Math.min(...ys)-dy,Math.max(...xs)+dx,Math.max(...ys)+dy];}
   function rectangle([w,s,e,n]){return [[[w,s],[e,s],[e,n],[w,n],[w,s]]];}
+  // 每一棟建物(feature)的判定結果依「圖磚:id」快取:分件歸屬哪座站房、是否壓到行車走廊都是靜態幾何,
+  // 圖磚還在就不必再解碼、再跑 owner()/blocked(),remainders 的 Feature 物件也直接留用。
+  // 2026-09-08 桌面 6x 降速實測:一次重算 620ms,其中 blocked() 190ms、把一萬多個分件座標
+  // JSON.stringify 兩遍 135ms、解碼 110ms;圖磚集合沒變時這些全是重複工。
+  // 快取在路線集合(clearance.revision)或工程遮罩改變時整批作廢,圖磚卸載時逐條淘汰。
+  const partCache=new Map();let partCacheKey='';
+  // 只在新分件進快取時序列化一次；沿用原版的完整多邊形相等規則，不以短雜湊代替。
+  function polygonHash(rings){return JSON.stringify(rings);}
   function maskBuildings(active){
     const visibleKey=active.map(r=>r.meta.id).join(',')+':'+(clearance?.revision||0);if(maskEpoch===sourceEpoch&&visibleKey===lastVisible)return false;
     maskEpoch=sourceEpoch;lastVisible=visibleKey;
-    const ids=new Set();for(const r of [...records,...engineeringMasks]){r.stats.masked=r.stats.visible;r.stats.excludedFeatureIds=[];}
+    const cacheKey=(clearance?.revision||0)+':'+engineeringMaskKey;if(cacheKey!==partCacheKey){partCacheKey=cacheKey;partCache.clear();}
+    const ids=new Set(),activeSet=new Set(active),candidates=[...records,...engineeringMasks];for(const r of candidates){r.stats.masked=r.stats.visible;r.stats.excludedFeatureIds=[];}
     const polygons=f=>f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.type==='MultiPolygon'?f.geometry.coordinates:[];
     // 凹輪廓不能用中心放大當緩衝（凹角會把自己的頂點排除）。只容許 1.5m
-    // 邊界量化差，並先以 bbox 淘汰遠處建物。
-    const owner=p=>active.find(r=>p[0].every(q=>r.masks.some((mask,i)=>{const [w,s,e,n]=r.maskBounds[i];return q[0]>=w&&q[0]<=e&&q[1]>=s&&q[1]<=n&&(inPolygon(q[0],q[1],mask)||mask.some(ring=>ring.slice(1).some((b,k)=>distanceToSegment(q[0],q[1],ring[k],b)<1.5/111320)));})));
+    // 邊界量化差，並先以 bbox 淘汰遠處建物。歸屬對全部站房算(不只可見的),結果才能跨次重用。
+    const owners=p=>candidates.filter(r=>p[0].every(q=>r.masks.some((mask,i)=>{const [w,s,e,n]=r.maskBounds[i];return q[0]>=w&&q[0]<=e&&q[1]>=s&&q[1]<=n&&(inPolygon(q[0],q[1],mask)||mask.some(ring=>ring.slice(1).some((b,k)=>distanceToSegment(q[0],q[1],ring[k],b)<1.5/111320)));})));
     const features=map.getSource('openmaptiles')&&(active.length||clearance)?map.querySourceFeatures('openmaptiles',{sourceLayer:'building'}):[];
     // 圖磚會把站房和遠處建物合併成同一 MultiPolygon；拆出站房後，把其餘
     // 分件原位重畫，不能讓背景建物消失，也不能保留一個方塊蓋住新屋頂。
-    for(const f of features)if(f.id!==undefined)for(const p of polygons(f)){const r=owner(p),blocked=clearance?.blocked(p);if(r||blocked){ids.add(f.id);if(r&&!r.stats.excludedFeatureIds.includes(f.id))r.stats.excludedFeatureIds.push(f.id);}}
-    const remainders=new Map();for(const f of features)if(ids.has(f.id))for(const p of polygons(f))if(!owner(p)&&!clearance?.blocked(p)){const k=JSON.stringify([f.id,p]);remainders.set(k,{type:'Feature',properties:{...f.properties,station_original_id:f.id},geometry:{type:'Polygon',coordinates:p}});}
-    const data={type:'FeatureCollection',features:[...remainders.keys()].sort().map(k=>remainders.get(k))},nextContext=JSON.stringify(data);let changed=false;
-    if(nextContext!==contextKey){contextKey=nextContext;ownedSource.setData(data);changed=true;}
-    const values=[...ids].sort((a,b)=>a-b),key=JSON.stringify(values);if(key!==maskKey){maskKey=key;for(const [id,original] of filters){const exclude=['!', ['in',['id'],['literal',values]]];map.setFilter(id,values.length?(original?['all',original,exclude]:exclude):original);}changed=true;}return changed;
+    const live=new Set(),remainders=[],entries=[],hit=x=>x.blocked||x.owners.some(r=>activeSet.has(r));
+    for(const f of features){if(f.id===undefined)continue;const key=f.tile.z+'/'+f.tile.x+'/'+f.tile.y+':'+f.id;live.add(key);
+      let parts=partCache.get(key);
+      // 圖磚緩衝區會讓同一分件在相鄰圖磚各出現一次(座標逐 byte 相同),sig 對整個多邊形雜湊,remainders 只畫一份。
+      if(!parts){parts=polygons(f).map((p,i)=>({owners:owners(p),blocked:!!clearance?.blocked(p),key:key+':'+i,sig:f.id+':'+polygonHash(p),feature:{type:'Feature',properties:{...f.properties,station_original_id:f.id},geometry:{type:'Polygon',coordinates:p}}}));partCache.set(key,parts);}
+      entries.push([f.id,parts]);
+      for(const x of parts)if(hit(x)){ids.add(f.id);const r=x.owners.find(r=>activeSet.has(r));if(r&&!r.stats.excludedFeatureIds.includes(f.id))r.stats.excludedFeatureIds.push(f.id);}
+    }
+    // 同一個 id 在相鄰圖磚的另一份可能剛好沒有被遮到的分件,但整個 id 已從 building-3d 排除,它的分件也要重畫。
+    for(const [id,parts] of entries)if(ids.has(id))for(const x of parts)if(!hit(x))remainders.push(x);
+    for(const key of partCache.keys())if(!live.has(key))partCache.delete(key);
+    remainders.sort((a,b)=>a.key<b.key?-1:a.key>b.key?1:0);const sigs=new Set(),unique=remainders.filter(x=>!sigs.has(x.sig)&&sigs.add(x.sig)),nextContext=unique.map(x=>x.key).join('|');let changed=false;
+    if(nextContext!==contextKey){contextKey=nextContext;ownedSource.setData({type:'FeatureCollection',features:unique.map(x=>x.feature)});changed=true;}
+    const values=[...ids].sort((a,b)=>a-b),key=values.join(',');if(key!==maskKey){maskKey=key;for(const [id,original] of filters){const exclude=['!', ['in',['id'],['literal',values]]];map.setFilter(id,values.length?(original?['all',original,exclude]:exclude):original);}changed=true;}return changed;
   }
   function maskLabels(active){
     // 預留字幅及傾斜屋頂的投影範圍；透視仍不讓地名穿入站房，實體招牌保留。
@@ -87,13 +105,51 @@ export async function createStationLayer(map,getState,onUpdate=()=>{}, {assetsBa
     }
     // 環島巡覽只保留最近三座的 GPU 幾何。
     const cached=records.filter(r=>r.model).sort((a,b)=>b.lastUsed-a.lastUsed);for(const r of cached.slice(3))if(!r.stats.visible){r.scene.remove(r.model);disposeStation(r.model);r.model=null;r.stats.ready=false;r.stats.inspection=false;}
-    const active=[...records.filter(r=>r.stats.visible),...engineeringMasks];changed=maskBuildings(clearance?[...records.filter(r=>r.maskActive),...engineeringMasks]:active)||changed;changed=maskLabels(active)||changed;
     if(changed){onUpdate(primary()?.stats);map.triggerRepaint();}
+    scheduleMasks();
+  }
+  // 建物遮罩延後到「相機真的停下來」再算。maskBuildings 把所有已載入圖磚的建物解碼出來,逐棟做
+  // owner() 與 clearance.blocked();maskLabels 則對每一個 symbol 圖層 setFilter,而 filter 一變
+  // MapLibre 就要重跑整批圖磚的符號排版。平移時每張新圖磚都讓 sourceEpoch++,於是這兩件事每幾秒
+  // 就重來一次,每次都是一個明顯的停頓。
+  // 前期桌面 6x 降速排查(台北車站、拖曳 25 秒、建築 3D 開):整層移除後 >150ms 的幀
+  // 由 9-15 個變成 0、p99 由 433-488ms 降到 99-103ms，指向此層的重算尖峰。
+  // 判準用「距上次相機移動多久」而不是 map.isMoving():手指離開螢幕的瞬間 isMoving 就是 false,
+  // 兩次滑動之間照樣會掃,等於沒延後(2026-09-08 已實測無效)。
+  // 跟車時相機每幀都在動,故最多延後 MASK_DEFER_MS 一定要算一次,不會永遠不更新。
+  const MASK_STILL_MS=400,MASK_DEFER_MS=15000;let maskTimer=0,maskDeferSince=0,lastMoveAt=0;
+  function noteMove(){lastMoveAt=performance.now();}
+  function runMasks(){
+    maskDeferSince=0;if(disposed||!ownedSource||map.getSource('station-building-remainders')!==ownedSource)return;
+    const active=[...records.filter(r=>r.stats.visible),...engineeringMasks];
+    let changed=maskBuildings(clearance?[...records.filter(r=>r.maskActive),...engineeringMasks]:active);
+    changed=maskLabels(active)||changed;
+    if(changed){onUpdate(primary()?.stats);map.triggerRepaint();}
+  }
+  function scheduleMasks(){
+    if(maskTimer||disposed)return;
+    const now=performance.now();
+    if(now-lastMoveAt<MASK_STILL_MS){
+      if(!maskDeferSince)maskDeferSince=now;
+      if(now-maskDeferSince<MASK_DEFER_MS){maskTimer=setTimeout(()=>{maskTimer=0;scheduleMasks();},150);return;}
+    }
+    maskTimer=setTimeout(()=>{maskTimer=0;runMasks();},0);
   }
   // 切換鏡頭可重用快取圖磚，不一定再發 content 事件；idle 時仍需重新辨識。
   // 實際 setFilter / setData 都有內容比對，不會因這次辨識啟動無限重繪。
-  function schedule(){clearTimeout(timer);timer=setTimeout(()=>{maskEpoch=-1;labelKey='';refresh();},100);}
-  function sourceChanged(e){if(e.sourceDataType!=='content')return;if(e.sourceId==='openmaptiles'){sourceEpoch++;schedule();}else if(e.sourceId==='terrain')schedule();}
+  // 連續 render/idle 不能一直延後更新；快裝置會讓地形與模型永久不同步。
+  // 合併這 100ms 內的事件，但保證第一個事件排定的更新能執行。
+  function schedule(){if(timer||disposed)return;timer=setTimeout(()=>{timer=0;refresh();},100);}
+  // 移動鏡頭可能換成已快取的圖磚，要重掃遮罩；一般 idle／地形更新只需重算高度。
+  // openmaptiles 新資料由 sourceEpoch 使遮罩失效，不在每次 idle 強制掃建築物。
+  function viewChanged(){
+    // 跟車每幀都有 moveend；重用圖磚的遮罩等鏡頭暫停才重掃。
+    // 模型高度仍由獨立的 schedule 準時更新，新圖磚則由 sourceEpoch 即時失效。
+    clearTimeout(viewTimer);viewTimer=setTimeout(()=>{viewTimer=0;maskEpoch=-1;labelKey='';schedule();},100);schedule();
+  }
+  // MapLibre 5.9 的單張圖磚完成事件有 tile，但沒有 sourceDataType。
+  // 只收 content 會漏掉拖回快取區域後的圖磚更新，使遮罩停在上一區。
+  function sourceChanged(e){if(e.sourceDataType!=='content'&&!e.tile)return;if(e.sourceId==='openmaptiles'){sourceEpoch++;schedule();}else if(e.sourceId==='terrain')schedule();}
   return {
     id:'island-stations',type:'custom',renderingMode:'3d',failures,refresh,
     setEngineeringMasks(collection){
@@ -113,12 +169,12 @@ export async function createStationLayer(map,getState,onUpdate=()=>{}, {assetsBa
       const building=map.getStyle().layers.find(l=>l.id==='building-3d');
       if(building)map.addLayer({id:'station-building-context',type:'fill-extrusion',source:'station-building-remainders',minzoom:13,paint:building.paint},'building-3d');
       renderer=new THREE.WebGLRenderer({canvas:map.getCanvas(),context:gl});renderer.autoClear=false;
-      map.on('idle',schedule);map.on('moveend',schedule);map.on('sourcedata',sourceChanged);refresh();
+      map.on('idle',schedule);map.on('moveend',viewChanged);map.on('sourcedata',sourceChanged);map.on('move',noteMove);refresh();
     },
     render(gl,args){labelBounds=[];const canvas=map.getCanvas();for(const r of records)if(r.stats.visible&&r.model){camera.projectionMatrix.copy(projection.fromArray(args.defaultProjectionData.mainMatrix).multiply(r.transform));renderer.resetState();renderer.render(r.scene,camera);
       const points=[];for(const x of [r.labelBox.min.x,r.labelBox.max.x])for(const y of [r.labelBox.min.y,r.labelBox.max.y])for(const z of [r.labelBox.min.z,r.labelBox.max.z]){const p=new THREE.Vector3(x,y,z+r.stats.groundM).applyMatrix4(camera.projectionMatrix);if(p.z>=-1&&p.z<=1)points.push({x:(p.x+1)*canvas.clientWidth/2,y:(1-p.y)*canvas.clientHeight/2});}
       if(points.length){const xs=points.map(p=>p.x),ys=points.map(p=>p.y),x=Math.min(...xs),y=Math.min(...ys);labelBounds.push({id:r.meta.id,x,y,width:Math.max(...xs)-x,height:Math.max(...ys)-y});}
     }},
-    onRemove(){if(disposed)return;disposed=true;clearTimeout(timer);map.off('idle',schedule);map.off('moveend',schedule);map.off('sourcedata',sourceChanged);if(ownedSource&&map.getSource('station-building-remainders')===ownedSource){for(const [id,f] of filters)if(map.getLayer(id))map.setFilter(id,f);for(const [id,{original}] of symbolFilters)if(map.getLayer(id))map.setFilter(id,original);if(map.getLayer('station-building-context'))map.removeLayer('station-building-context');if(map.getSource('station-building-remainders'))map.removeSource('station-building-remainders');}for(const r of records)if(r.model)disposeStation(r.model);renderer?.dispose();}
+    onRemove(){if(disposed)return;disposed=true;clearTimeout(timer);clearTimeout(viewTimer);clearTimeout(maskTimer);map.off('idle',schedule);map.off('moveend',viewChanged);map.off('sourcedata',sourceChanged);map.off('move',noteMove);if(ownedSource&&map.getSource('station-building-remainders')===ownedSource){for(const [id,f] of filters)if(map.getLayer(id))map.setFilter(id,f);for(const [id,{original}] of symbolFilters)if(map.getLayer(id))map.setFilter(id,original);if(map.getLayer('station-building-context'))map.removeLayer('station-building-context');if(map.getSource('station-building-remainders'))map.removeSource('station-building-remainders');}for(const r of records)if(r.model)disposeStation(r.model);renderer?.dispose();}
   };
 }

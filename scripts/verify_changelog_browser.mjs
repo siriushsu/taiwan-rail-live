@@ -23,7 +23,8 @@ const widths = [360, 375, 414, 768];
 // 這條是「合併把整段更新紀錄吃掉」的棘輪(見 1.4.9 比 1.4.8 少 18 項那次),同源推導就沒牙了。
 // 09-05 M4-B → 263;09-07 補記:263→284 是這兩天各批次沒跟著 +1 的欠帳(靜態 check-copy 同樣數到 286,
 // 兩層獨立數出同一個數字 ⇒ 不是渲染漏條),本批加放空近景與誤點慢速前進兩條 → 286，再加山線軌道重畫一條 → 287；併入 origin/main 5715afb1 的收藏車庫一條 → 288。
-const expectedHistoryCount = 288;
+// 9/8：補上主線兩條既有紀錄，本次立體地圖效能再加一條。
+const expectedHistoryCount = 291;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

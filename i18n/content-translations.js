@@ -4,6 +4,7 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "改善立體地圖拖曳與旋轉的流暢度，保留完整列車與建築細節；切換地形後，建築輪廓也會回到正確高度": "Improved dragging and rotating the 3D map while keeping complete trains and building detail. Building outlines now return to the correct height when terrain is switched.",
     "山線三義隧道段的軌道改用實際路線重畫，列車經過時不再偏離軌道": "The Mountain Line's Sanyi tunnel section is redrawn along its real route, so trains no longer appear to drift off the track there.",
     "台鐵誤點加大時，列車改成慢速前進，不再停在原地等誤點追上": "When a TRA train's delay grows, it now keeps creeping forward instead of freezing in place, then picks up the next station's arrival time.",
     "放空的跟車視角改成貼著車身的立體視角，看得到列車在軌道上跑，速度也放回實際車速；放空時的配樂改播完整曲庫": "Ambient mode's follow view now sits right beside the train in 3D, so you can watch it run along the track at its real speed. Ambient music now draws on the full library too.",
@@ -222,6 +223,7 @@
   });
 
   Object.assign(messages.ja, {
+    "改善立體地圖拖曳與旋轉的流暢度，保留完整列車與建築細節；切換地形後，建築輪廓也會回到正確高度": "列車の全編成と建物の細部を保ちながら、3D地図のドラッグと回転を改善しました。地形を切り替えた後も、建物の輪郭が正しい高さに戻ります。",
     "山線三義隧道段的軌道改用實際路線重畫，列車經過時不再偏離軌道": "山線・三義トンネル区間の線路を実際の経路で描き直し、列車がその区間で線路から外れて見えることがなくなりました。",
     "台鐵誤點加大時，列車改成慢速前進，不再停在原地等誤點追上": "台鉄の遅れが大きくなったとき、列車はその場で止まらずゆっくり前進し、次の駅の到着時刻に追従します。",
     "放空的跟車視角改成貼著車身的立體視角，看得到列車在軌道上跑，速度也放回實際車速；放空時的配樂改播完整曲庫": "鑑賞モードの追跡ビューが車両のすぐそばに寄った立体視点になり、実際の速度で線路を走る列車を見られます。鑑賞中の音楽も全曲から流れます。",
