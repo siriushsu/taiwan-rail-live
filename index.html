@@ -5229,6 +5229,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="boardcardfix0908"><span class="d">9/8</span><span>修正車站看板與跟車卡三處顯示問題：只有一條線經過的站不再多出線名標題、車號前不再多一個空格、跟車時拖地圖不會再把列車卡壓扁</span></li>
         <li data-cl-of="searchtraintype0908"><span class="d">9/8</span><span>搜尋框可以打車種與車型了：輸入「自強號」「EMU3000」「太魯閣」會列出符合的班次，正在跑的排前面，也能點車型看介紹（謝謝網友回報）</span></li>
         <li data-cl-of="mountaintrack0907"><span class="d">9/7</span><span>山線三義隧道段的軌道改用實際路線重畫，列車經過時不再偏離軌道</span></li>
         <li data-cl-of="tracreep0907"><span class="d">9/7</span><span>台鐵誤點加大時，列車改成慢速前進，不再停在原地等誤點追上</span></li>
@@ -5236,7 +5237,6 @@
         <li data-cl-of="garage0907"><span class="d">9/7</span><span>新增收藏車庫，62 款精修小車可旋轉欣賞；還沒收集到的是灰色車體，累積旅程進度解鎖後才有塗裝，舊護照自動帶入</span></li>
         <li data-cl-of="busboardscroll0907"><span class="d">9/7</span><span>修正車站看板更新時，已捲到公車資訊的位置被往回拉的問題</span></li>
         <li data-cl-of="physicaltracks0907"><span class="d">9/7</span><span>近景列車依推估股道分流，少量交疊會暫時靠旁避讓；捷運到站時保留立體車身。阿里山林鐵暫不套股道，停站的車不再畫到軌道外；阿里山、祝山、神木一帶補畫站內與之字形折返股道</span></li>
-        <li data-cl-of="satellitemodel0907"><span class="d">9/7</span><span>衛星地圖上的地標與車站改用模型原色，建築透視可依需要切換</span></li>
 
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
@@ -5337,6 +5337,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="boardcardfix0908"><span class="d">9/8</span><span>修正車站看板與跟車卡三處顯示問題：只有一條線經過的捷運站不再多出一整條線名標題；看板列上沒有線名時，車號前不再多一個全形空格造成左緣參差；跟車時拖動地圖，下方的列車卡不再被壓扁到看不見下一站與到站時間</span></li>
         <li data-cl="widgethelp0906"><span class="d">9/6</span><span>App 說明中心的小工具頁改成介紹頁：每種小工具都有實際畫面預覽與尺寸；Android 可以直接按「加到桌面」把小工具釘到主畫面</span></li>
         <li data-cl="querytab0906"><span class="d">9/6</span><span>手機底部「搜尋」改為「查詢」：半高面板先給離你最近的站各方向下一班，再列提醒、今日動態、附近車站與小工具入口；在車站附近開 App 會自動出現</span></li>
         <li data-cl="xferlivehandoff"><span class="d">9/4</span><span>跟車時選好下一班台鐵或高鐵後，列車抵達轉乘站，鎖定畫面與動態島會接手顯示接續班次與發車倒數；開車後繼續顯示下一站，不再留在上一班車。</span></li>
@@ -6140,7 +6141,7 @@
 // v0907n：更新紀錄拿掉 7/13 那條贊助方式（站上最後一處金流資訊）。
 // v0908b：阿里山林鐵補上站內股道與之字形折返股(阿里山、祝山的軌道畫進站裡);近景實體股道白名單
 //         改為單一來源(rail-3d.js 不再自帶第二份),沒被涵蓋的系統保留原本的示意線形。
-const BUILD = 'v0908c';
+const BUILD = 'v0908d';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
@@ -32086,10 +32087,9 @@ function setupMapTools() {
     const immersive = document.body.classList.contains('immersive');
     // 側欄形態的跟隨欄是上下錨定(CSS 唯一權威,bottom 帶 !important),不參與底部讓位的抬升記帳;
     // 這裡把它當「不在」,尾端的歸零寫入(空字串)順便清掉直向時代殘留的 inline bottom
-    // 🔴 整合卡合併態(.uni-slot)同理:那時卡是看板的一頁,3795 那條 CSS 明文要 max-height:none
-    //    ＋overflow:visible(否則卡內一個捲軸、看板外面一個捲軸,手指永遠捲不到停靠表)。
-    //    inline style 不用比特異度就贏,所以這裡不排除的話,setCap 寫的 inline max-height 會
-    //    直接蓋掉那條契約——placeTrainCard(16217)早就有 uniCardOn 檢查,這支漏了同一個分歧點。
+    // 🔴 併進看板槽(.uni-slot)的卡也不參與:它的高度由槽負責,CSS 明文寫 max-height:none。
+    //    少了這一條,跟車中拖一下地圖就會對它寫 inline max-height 撞上 96px 下限,
+    //    卡被壓到剩 96px 且不會自己復原(2026-09-08 實測 2063px→96px)。同檔 34514 早就有這個 guard。
     const followVisible = state.followTrain && !fp.hidden && !immersive && !sheetIsSideRail()
       && !fp.closest('.uni-slot');
     const freqVisible = !!(state.freqFollow && fc && !fc.hidden && !immersive);

@@ -1381,32 +1381,30 @@ const L_SNAP = () => {
     //    整張淡出)就是這樣穿過 L6 的:分頁列還在、卡也還在槽裡,只有內容看不見。改量兩件事:
     //    卡到根的累乘不透明度、以及卡內容的中心點打到的是不是卡自己(淡出那條連 pointer-events 一起關)。
     fpOpacity: fp ? (() => { let o = 1, n = fp; while (n && n.nodeType === 1) { o *= parseFloat(getComputedStyle(n).opacity || '1'); n = n.parentElement; } return +o.toFixed(3); })() : 0,
-    // 🔴 契約③(body.sheet-full 把跟隨小卡整張淡出)要驗的是「卡的內容此刻真的看得見、點得到」。
-    //    不可以只打元素中心一點:整合卡合併態時卡是看板的一頁,#board 在 792px 硬裁切,而 #tcIntro
-    //    橫跨 752..842 ⇒ 中心點 797 落在裁切線【外面】,打到的是線下方的地圖。粗體 CJK 的字型度量
-    //    兩個引擎每層差 1–2px,十來層累積十幾 px,webkit 的中心點還在線內、chromium 被推出去
-    //    ⇒ 同一份程式碼兩個引擎給相反結論。那是量測點的問題,不是契約壞了。
-    //    也不要去推「哪個祖先會裁切」:overflow 只對【containing block 鏈經過它】的後代生效,
-    //    盲目跟 overflow≠visible 的祖先求交集會把毫不相干的頂列(0..78)算進來,交集直接倒過來。
-    //    改成在元素自己的框內取樣多點,只要有一點打到卡就算看得見——淡出時 opacity:0＋
-    //    pointer-events:none,任何一點都不會回到卡身上,判準的牙齒一顆沒少。
-    cardHit: (() => { const e = document.getElementById('tcIntro') || document.getElementById('fpProgTxt');
-      if (!e) return { ok: false, why: 'tcIntro/fpProgTxt 都不存在' };
-      const r = e.getBoundingClientRect();
-      if (!(r.width > 2 && r.height > 2)) return { ok: false, why: '元素沒有尺寸' };
-      let tried = 0, hit = 0, first = '', hitAt = '';
-      for (const fy of [0.5, 0.2, 0.8, 0.05, 0.95]) for (const fx of [0.5, 0.2, 0.8]) {
-        const x = r.left + r.width * fx, y = r.top + r.height * fy;
-        if (x < 1 || y < 1 || x > innerWidth - 1 || y > innerHeight - 1) continue;
-        tried++;
-        const q = document.elementFromPoint(x, y);
-        const id = q ? (q.id ? '#' + q.id : q.tagName + '.' + String(q.className || '').split(' ')[0]) : 'null';
-        if (!first) first = `${Math.round(x)},${Math.round(y)}→${id}`;
-        if (q && q.closest('#followPanel')) { hit++; if (!hitAt) hitAt = `${Math.round(x)},${Math.round(y)}`; }
+    // 🔴 打點要夾進「元素 rect ∩ 看板可視窗」,不是夾進 viewport。夾 viewport 的版本:元素被捲出
+    //    看板窗時中心點仍在 viewport 內 ⇒ 不觸發夾取 ⇒ elementFromPoint 打到底下的地圖 canvas,
+    //    而 L12 看起來像「卡是透明的」。2026-09-08 實測 #tcIntro t752/b842、看板窗 400–792
+    //    ⇒ 打到 canvas.maplibregl-canvas;同一刻窗內的 #fpProgTxt 打到自己。
+    //    這條當時**只有 chromium 紅**——webkit 的停靠表短 94px、中心剛好還在窗內。
+    //    同一支腳本兩個引擎結論不同,本身就是判準在說謊的紅旗,不是引擎差異。
+    //    ✱ 回傳物件不回布林:紅的時候要看得出「探哪一顆、打到誰」,否則又只剩一個 false。
+    cardHit: (() => {
+      // 夾取要用**捲動容器**的 rect(看板 bd),不是 .uni-slot——後者是槽裡的**內容**,
+      // 會跟著內容一起長到窗外,拿它當窗等於沒夾(2026-09-08 第一版就是這樣仍然打到地圖)。
+      const br = bd.getBoundingClientRect();
+      for (const id of ['tcIntro', 'fpProgTxt']) {
+        const e = document.getElementById(id); if (!e) continue;
+        const r = e.getBoundingClientRect();
+        const l = Math.max(r.left, br.left), rr = Math.min(r.right, br.right);
+        const t = Math.max(r.top, br.top), b = Math.min(r.bottom, br.bottom);
+        if (!(rr - l > 2 && b - t > 2)) continue;      // 這一顆整個在窗外,換下一顆探
+        const q = document.elementFromPoint((l + rr) / 2, (t + b) / 2);
+        return { probe: id, ok: !!(q && q.closest('#followPanel')),
+          hit: q ? q.tagName + '.' + String(q.className || '').split(' ')[0] : null,
+          pt: [Math.round((l + rr) / 2), Math.round((t + b) / 2)],
+          窗: [Math.round(br.top), Math.round(br.bottom)] };
       }
-      return { ok: hit > 0,
-        why: { 元素: `${Math.round(r.top)}..${Math.round(r.bottom)}`, 取樣: tried, 命中: hit,
-               第一點: first, 命中點: hitAt || '(無)' } };
+      return { probe: null, ok: false, hit: '兩顆探針都不在看板可視窗內' };
     })(),
   };
 };
@@ -1480,7 +1478,8 @@ async function sectionL(browser, engine) {
   // 🔴 第二種證據(心得 24 的雙證據):卡到根的累乘不透明度＝1,且卡內容中心點打到的是卡自己。
   //    契約③ 淡出時 opacity 0＋pointer-events:none,兩者會同時倒——而 DOM 檢查全綠。
   ok(`L12 ${tag} 展開段那一頁不是透明的:不透明度 1 且卡內容命中自己`,
-    B.fpOpacity === 1 && B.cardHit.ok, JSON.stringify({ opacity: B.fpOpacity, 命中卡: B.cardHit.ok, 診斷: B.cardHit.why }));
+    B.fpOpacity === 1 && !!B.cardHit && B.cardHit.ok,
+    JSON.stringify({ opacity: B.fpOpacity, 命中卡: B.cardHit }));
   // 反向對照:回到小段提示列要回來——少了這半,「提示列永遠不顯示」也會讓 L6 過。
   // 兩段制之後提示列只掛在小段(中段已經看得到下面了),所以反向對照的目標段是 small。
   await page.evaluate(() => setSheetSize(document.getElementById('board'), 'small'));
@@ -2234,24 +2233,42 @@ async function sectionT(browser, engine) {
     if (b) b.click();
   });
   await page.waitForTimeout(500);
-  // 🔴 d8fc2fc7(v0907a 路線導覽)把 #lineToggles 搬進軌道面板的第三個子分頁,面板一打開預設停在
-  //    「路線」那頁 ⇒ #rdSettings 是 hidden ⇒ chip 雖然在 DOM 裡但 rect 全是 0,下面的
-  //    page.mouse.click 會點到 (0,0)——實測 elementFromPoint(0,0) 命中的是地圖 canvas,
-  //    T3–T7 因此全紅而且看起來像「chip 點不動」。先切到那一頁再量。
-  await page.evaluate(() => document.querySelector('[data-rdtab="settings"]')?.click());
-  await page.waitForTimeout(400);
-  // 🔴 正向對照要證明的是「量得到」,不是「DOM 裡有」:上面那次搬家之後 chip 有 30 個而 rect 全 0,
-  //    舊版只數 querySelectorAll 的長度,照樣綠著穿過去(T2 也是——getComputedStyle 對隱藏祖先
-  //    底下的元素一樣回宣告值),只有 T6 的「開 0」洩了底。所以這裡連版面一起斷言。
-  const t1 = await page.evaluate(() => {
-    const all = [...document.querySelectorAll('#lineToggles .chip')];
-    return { all: all.length,
-      laid: all.filter(c => c.getClientRects().length > 0 && c.getBoundingClientRect().width > 0).length };
+  // 🔴 2026-09-07 的 d8fc2fc7 把 #lineToggles 搬進 <div id="rdSettings" hidden>(「顯示設定」分頁),
+  //    只點 #trackBtn 已經不夠。同一顆 commit 有替姊妹腳本補上這一下(verify_discovery.mjs:77 的
+  //    `tap('[data-rdtab=settings]')`),漏掉了這一支。
+  await page.evaluate(() => {
+    const t = document.querySelector('#rdTabs [data-rdtab="settings"]');
+    if (t) t.click();
   });
-  const n0 = t1.laid;
-  ok(`T1 ${engine} 正向對照:量得到車種 chip(而且真的有版面,不是躲在收起來的分頁裡)`,
-    t1.all >= 3 && t1.laid >= 3, `DOM=${t1.all} 有版面=${t1.laid}`);
+  await page.waitForTimeout(400);
+  const n0 = await page.evaluate(() => document.querySelectorAll('#lineToggles .chip').length);
+  ok(`T1 ${engine} 正向對照:量得到車種 chip`, n0 >= 3, `chip=${n0}`);
   if (n0 < 3) { await close(); return; }
+
+  // 🔴 T0 前置閘門:先證明 chip 真的量得到,再談顏色。
+  //    為什麼 T1/T2 擋不住:T1 數的是 DOM 節點數、T2 讀的是 getComputedStyle——這兩種對
+  //    `display:none` **全都失明**(藏起來的節點照樣被 querySelectorAll 數到、照樣回得出顏色)。
+  //    2026-09-08 之前 #lineToggles 就藏在 hidden 的分頁後面,T1(chip=30)與 T2 全綠,
+  //    而 T2 的 PASS 那行就印著 `"w":0` 卻沒有任何判準在看它。真正的症狀在下面三個量上:
+  //    chip 的 rect 是 0×0 ⇒ 後面 `page.mouse.click(0,0)` 打在地圖 canvas 上 ⇒ T3–T7 全紅。
+  //    ✱ 這一條與 U0 同族:DOM 在場 ≠ 看得見,正向對照要量**版面實際給的尺寸與命中**。
+  const g0 = await page.evaluate(() => {
+    const wrap = document.getElementById('rdSettings');
+    const on = document.querySelector('#lineToggles .chip:not(.off)');
+    const r = on ? on.getBoundingClientRect() : null;
+    const d = on && on.querySelector('.dot');
+    const hit = r ? document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2) : null;
+    return { panelDisp: wrap ? getComputedStyle(wrap).display : null,
+      chip: r ? [Math.round(r.width), Math.round(r.height)] : null,
+      dotW: d ? Math.round(d.getBoundingClientRect().width) : 0,
+      hit: hit ? hit.tagName + '.' + String(hit.className || '').split(' ')[0] : null,
+      hitsChip: !!(hit && hit.closest('#lineToggles .chip')) };
+  });
+  const g0pass = g0.panelDisp !== 'none' && !!g0.chip && g0.chip[0] > 0 && g0.chip[1] > 0 &&
+    g0.dotW > 0 && g0.hitsChip;
+  ok(`T0 ${engine} 🔴 前置閘門:車種 chip 真的量得到(版面有尺寸、圓點有寬度、點下去打得到自己)`,
+    g0pass, JSON.stringify(g0));
+  if (!g0pass) { await close(); return; }
 
   const READ = sel => {
     const el = document.querySelector(sel); if (!el) return null;
