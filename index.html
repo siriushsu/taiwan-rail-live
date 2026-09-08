@@ -5234,6 +5234,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="dexstarsys0908"><span class="d">9/8</span><span>修正護照收集章與今日亮點：點「環島之星」不再跑成阿里山林鐵的同號車</span></li>
         <li data-cl-of="blue1350908"><span class="d">9/8</span><span>藍皮解憂號模型重新校正短車鼻、頭燈、R135 車號牌與深藍白線塗裝，客車同步換上藍色車身及銀灰車頂</span></li>
         <li data-cl-of="terminusarr0908"><span class="d">9/8</span><span>終點站的車站看板現在會列出一小時以後才到站的班次——去接人的人看得到時間；其他車站維持只列一小時內的到站車。</span></li>
         <li data-cl-of="followkeep0908"><span class="d">9/8</span><span>跟車鏡頭保留目前的近景，點列車或隨機跟隨不再拉遠；再次點到正在跟隨的列車會回到車旁，不會結束跟隨</span></li>
@@ -5241,7 +5242,6 @@
         <li data-cl-of="perf3d0908"><span class="d">9/8</span><span>改善立體地圖拖曳與旋轉的流暢度，保留完整列車與建築細節；切換地形後，建築輪廓也會回到正確高度</span></li>
         <li data-cl-of="xferfontscale0908"><span class="d">9/8</span><span>調大字級時，轉乘接續裡的車次與「剩 N 分」會跟著一起放大，不再只長一點點</span></li>
         <li data-cl-of="boardcardfix0908"><span class="d">9/8</span><span>修正車站看板與跟車卡三處顯示問題：只有一條線經過的站不再多出線名標題、車號前不再多一個空格、跟車時拖地圖不會再把列車卡壓扁</span></li>
-        <li data-cl-of="searchtraintype0908"><span class="d">9/8</span><span>搜尋框可以打車種與車型了：輸入「自強號」「EMU3000」「太魯閣」會列出符合的班次，正在跑的排前面，也能點車型看介紹（謝謝網友回報）</span></li>
 
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
@@ -5414,6 +5414,7 @@
         <li><span class="d">7/13</span><span>新增「附近火車」：地圖上落一根釘，查周邊 60 分鐘內會通過的車次</span></li>
         <li><span class="d">7/12</span><span>新增平交道功能：點一下查接下來會通過的列車（7/13 補上貨運線 21 處）</span></li>
         <li class="grp">收藏、護照與成就</li>
+        <li data-cl="dexstarsys0908"><span class="d">9/8</span><span>修正護照收集章「環島之星 萌旅號」：台鐵與阿里山林鐵都有 1、2 次車，點下去會跑成林鐵的車。收集章與今日亮點現在只認台鐵班次，當天沒開行就直接說今天沒有這一類的班次</span></li>
         <li data-cl="rideseq"><span class="d">9/3</span><span>完乘記錄新增「順序」排序，依實際完成先後排列；手機旅程護照也補上順序、日期、車次、距離與車種排序（謝謝網友回報）</span></li>
         <li data-cl="guestmerge"><span class="d">9/1</span><span>登入後若裝置仍有登入前或其他帳號留下的資料，帳號面板會列出數量並讓你選擇併入；既有雲端資料不會被覆蓋（謝謝網友回報）</span></li>
         <li data-cl="achvhelp"><span class="d">8/18</span><span>護照成就章新增說明卡，顯示達成條件、建議與目前進度；明星列車、車種圖鑑與支線收集章也能查看內容。</span></li>
@@ -6152,7 +6153,7 @@
 // v0907n：更新紀錄拿掉 7/13 那條贊助方式（站上最後一處金流資訊）。
 // v0908b：阿里山林鐵補上站內股道與之字形折返股(阿里山、祝山的軌道畫進站裡);近景實體股道白名單
 //         改為單一來源(rail-3d.js 不再自帶第二份),沒被涵蓋的系統保留原本的示意線形。
-const BUILD = 'v0908j';
+const BUILD = 'v0908m';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
@@ -19056,8 +19057,10 @@ function recordRide(tr) {
     dep: s[0].depSec, stops: it.nStops, // 成就判定用(早鳥/夜行者/站站是風景)
     stockId: spd.stock ? spd.stock.id : undefined,
     namedId: spd.named ? spd.named.id : undefined,
-    // 一趟可能跨多條支線(如平溪線直通深澳線),全部記下才能各蓋各的章
-    branchIds: state.special
+    // 一趟可能跨多條支線(如平溪線直通深澳線),全部記下才能各蓋各的章。
+    // 上面兩行走 specialOf() 自帶台鐵閘門,這條是自己比對 stops,所以要自己補同一條——
+    // 少了它,林鐵/高鐵完乘會靠站名撞號蓋到台鐵的支線章(同 dexCandidates 的家族缺陷)。
+    branchIds: state.special && tr.sys === 'tra_sched'
       ? (ids => ids.length ? ids : undefined)(
           state.special.branchLines.filter(b => tr.stops.some(x => b._set.has(x.name))).map(b => b.id))
       : undefined,
@@ -19717,14 +19720,20 @@ function announceCollections(tr, rides, prevColl, prevAch, prevGarage = new Set(
   maybeAskReview(msgs.length * 700 + 2000, rides.length);
 }
 // 收集章(明星/圖鑑/支線)的候選車:同類今日所有班次。點擊時當場算,才能每次挑不同的一班。
+// 🔴 系統閘門與 specialOf() 同一條(data/tra_special_trains.json 是台鐵專屬):「台」分頁把台鐵與
+//    林鐵載進同一個 state.trains,不擋的話環島之星的 trainNos ['1','2'] 會撈到林鐵的 1/2 次,
+//    而環島之星並非天天開——今日名冊沒有台鐵 1/2 時林鐵那兩班就是僅有的候選,點下去 100%
+//    跑成阿里山林鐵(2026-09-08 使用者回報;issue#23 當時只補了 specialOf,漏掉這個消費端)。
+//    擋在候選池而不是三個分支各補一次:garage 的 launch 也靠這支判「今天有沒有車可搭」。
 function dexCandidates(cat, id) {
   const sd = state.special; if (!sd) return [];
+  const pool = state.trains.filter(t => t.sys === 'tra_sched');
   if (cat === 'named') { const n = sd.namedTrains.find(x => x.id === id);
-    return n ? state.trains.filter(t => n.trainNos.includes(String(t.train))) : []; }
+    return n ? pool.filter(t => n.trainNos.includes(String(t.train))) : []; }
   if (cat === 'stock') { const s = sd.rollingStock.find(x => x.id === id);
-    return s ? state.trains.filter(t => s.carNames.includes(t.carName)) : []; }
+    return s ? pool.filter(t => s.carNames.includes(t.carName)) : []; }
   if (cat === 'branch') { const b = sd.branchLines.find(x => x.id === id);
-    return b ? state.trains.filter(t => t.stops.some(x => b._set.has(x.name))) : []; }
+    return b ? pool.filter(t => t.stops.some(x => b._set.has(x.name))) : []; }
   return [];
 }
 // 點收集章:隨機挑一班該類的車(避開上次那班→每點必換),從發車跟一趟;完成過的章一樣能點來再看一班。
@@ -21986,8 +21995,11 @@ function computeHighlights() {
   add(t('平均最快'), c => c.v, v => t('約 {n} km/h', { n: i18nNumber(Math.round(v)) }), c => c.km >= 50); // 短程沒有平均速度代表性
   const sd = state.special;
   if (sd) {
+    // 系統閘門與 specialOf()／dexCandidates() 同一條:特別列車檔是台鐵專屬,而「台」分頁的
+    // state.trains 含林鐵——不擋的話環島之星 1/2 次會標到林鐵的 1/2 次(2026-09-08 實測到)。
+    const traPool = state.trains.filter(t => t.sys === 'tra_sched');
     for (const nt of sd.namedTrains) for (const no of nt.trainNos) {
-      const tr = state.trains.find(t => String(t.train) === no);
+      const tr = traPool.find(t => String(t.train) === no);
       if (tr) out.special.push({ tr, title: i18nContentData('namedTrains', nt, 'name'), sub: i18nContentData('namedTrains', nt, 'tags', 0) });
     }
     // 稀有車種各挑一班代表:行駛中優先,其次最近一班未發車
@@ -21997,11 +22009,11 @@ function computeHighlights() {
       || cands[0];
     for (const r of sd.rollingStock) {
       if (r.rarity !== '稀有') continue;
-      const cands = state.trains.filter(t => r.carNames.includes(t.carName) && !out.special.some(x => x.tr === t));
+      const cands = traPool.filter(t => r.carNames.includes(t.carName) && !out.special.some(x => x.tr === t));
       if (cands.length) out.special.push({ tr: pickRep(cands), title: i18nContentData('rollingStock', r, 'name'), sub: t('今日 {n} 班', { n: i18nNumber(cands.length) }, cands.length) });
     }
     for (const b of sd.branchLines) {
-      const cands = state.trains.filter(t => t.stops.some(s => b._set.has(s.name)));
+      const cands = traPool.filter(t => t.stops.some(s => b._set.has(s.name)));
       if (cands.length) out.branches.push({ tr: pickRep(cands), title: i18nContentData('branchLines', b, 'name'), sub: i18nContentData('branchLines', b, 'section') });
     }
   }

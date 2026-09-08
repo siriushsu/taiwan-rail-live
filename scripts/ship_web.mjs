@@ -287,6 +287,23 @@ try {
   if (fsRamp.status !== 0) fail('字級雙倍率契約未過——有字級跑錯倍率(主文 --ui／小標籤 --uis)'
     + '（單獨重跑：npm run check-font-ramp）');
 
+  // ── 2.19 林鐵車次撞號守門人(2026-09-08) ──────────────────────────────────
+  // 為什麼值得進出貨鏈:台鐵與阿里山林鐵的車次號碼大量重複(1、2、101、121…),而
+  // data/tra_special_trains.json 是台鐵專屬——凡「拿車次／車型名／站名去 state.trains 撈」
+  // 的地方漏了系統閘門,林鐵的車就會頂著台鐵具名列車的名字出現。issue#23(2026-08-04)只在
+  // specialOf() 補了閘門,這支腳本當時也只驗 specialOf;2026-09-08 使用者回報「點環島之星
+  // 會跑阿里山林鐵的車」,查出來是另外兩個消費端(護照收集章 dexCandidates、探索面板
+  // computeHighlights)各自繞過 specialOf 自己比對。**這支腳本先前不在任何 npm script、
+  // 也不在本鏈上,等於不存在**——這正是第二個洞活了一個月沒人發現的原因,所以這次一起掛上。
+  // 單引擎約 40 秒(含自己起 dev server)。
+  // 🔴 洗掉繼承來的 PORT:有值時它改連既有 server,出貨那個 shell 若 export 過 PORT
+  //    (本機同時 30+ 個 worktree 各有自己的 dev server)就會一聲不響地去驗別人的樹。
+  const afrNo = spawnSync('node', [path.join(wt, 'scripts', 'verify_afr_trainno.mjs'), wt],
+    { encoding: 'utf8', env: { ...process.env, PORT: '' } });
+  process.stdout.write(afrNo.stdout || ''); process.stderr.write(afrNo.stderr || '');
+  if (afrNo.status !== 0) fail('林鐵車次撞號守門人未過——林鐵的車被當成台鐵具名列車,或收集章／今日亮點跟到別的系統'
+    + '（單獨重跑：npm run check-afr-trainno）');
+
   // ── 3. strip（腳本內建 esbuild AST 重印等價證明，任何不等價都非零退出）────
   const rawBytes = fs.readFileSync(path.join(wt, 'index.html'));
   execFileSync('node', [path.join(wt, 'scripts', 'strip_ship_comments.mjs'), wt], { stdio: 'inherit' });
