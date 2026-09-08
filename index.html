@@ -28207,7 +28207,9 @@ function evWhen(ev) {
 }
 function evWhere(ev) {
   const a = ev.anchor || {};
-  if (a.kind === 'station' && a.name) return a.name + '站';
+  // 站名帶不帶「站」字尾各家線檔不一致(機捷 22/22 全帶、高捷 13/77、北捷 2/150、淡海 0/23),
+  // 而 anchor.name 必須逐字等於線檔站名才比對得到 ⇒ 這裡不能無條件加,否則機捷會顯示「環北站站」。
+  if (a.kind === 'station' && a.name) return /站$/.test(a.name) ? a.name : a.name + '站';
   const sys = (state.systems.find(x => x.id === a.sys) || {}).label || '';
   return sys || '沿線';
 }
