@@ -1153,6 +1153,7 @@
   .freq-card .fc-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .freq-card .fc-head .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
   .freq-card .fc-head b { font-size: calc(15px * var(--ui)); color: var(--ink-strong); }
+  .freq-card .fc-head .fc-no { font-size: calc(17px * var(--ui)); font-weight: 900; letter-spacing: 1px; }
   .freq-card .fc-dir { font-size: calc(12px * var(--uis)); color: var(--faint); font-weight: 600; order: 9; flex: 1 1 100%; min-width: 0; margin-top: 1px; }
   .freq-card .fc-end {
     margin-left: auto; background: none; border: 1px solid var(--line); border-radius: 6px;
@@ -4978,6 +4979,7 @@
     <div class="freq-card" id="freqCard" hidden>
       <div class="fc-head">
         <span class="dot" id="fcDot"></span>
+        <b class="fc-no" id="fcNo" hidden></b>
         <b id="fcLine"></b>
         <span class="fc-dir" id="fcDir"></span>
         <button class="fc-end" id="fcEnd" title="取消跟隨">結束</button>
@@ -5241,11 +5243,11 @@
         <li data-cl-of="historic0909"><span class="d">9/9</span><span>地景加入 25 組歷史建築模型，依建物位置與朝向呈現站房、倉庫和廠房，並以遠近細節切換維持流暢</span></li>
         <li data-cl-of="worldcover0908"><span class="d">9/8</span><span>地景加入公開土地覆蓋資料，補足台灣與離島的山林、草地和農田；樹群依林地範圍呈現，並保留道路與建物空間</span></li>
         <li data-cl-of="landscape0908"><span class="d">9/8</span><span>新增「地景」地圖風格：河流、林地、公園與街廓換上自然色，近看可見立體樹冠與建築，搭配列車沿線探索台灣</span></li>
+        <li data-cl-of="mrttrainno0908"><span class="d">9/8</span><span>跟隨台北捷運列車時，官方有給車次的班次會在資訊卡上方顯示車次</span></li>
+        <li data-cl-of="dexmisscard0908"><span class="d">9/8</span><span>收集章今天沒有班次時，改成跳出這班車的故事卡，並告訴你班表上的下一個開行日</span></li>
         <li data-cl-of="garageloop0908"><span class="d">9/8</span><span>車庫加入環形試跑，三節小車沿彎道逐節轉向，可暫停、反向與自由旋轉欣賞；所有場景都能按鈕、滾輪或雙指縮放，海岸行旅也保留在選單中</span></li>
         <li data-cl-of="garagecoast0908"><span class="d">9/8</span><span>車庫新增三節編組的頭城海岸行旅，沿著無盡鐵道欣賞立體海岸與龜山島；依台灣時間呈現日出、藍天、黃昏或星空，也能調整視角與反向欣賞車身</span></li>
         <li data-cl-of="garageselect0908"><span class="d">9/8</span><span>車庫改用下拉選單直接選車，按鐵道系統分組；展示台移到更容易看見的位置，不用輸入車型名稱</span></li>
-        <li data-cl-of="dexstarsys0908"><span class="d">9/8</span><span>修正護照收集章與今日亮點：點「環島之星」不再跑成阿里山林鐵的同號車</span></li>
-        <li data-cl-of="blue1350908"><span class="d">9/8</span><span>藍皮解憂號模型重新校正短車鼻、頭燈、R135 車號牌與深藍白線塗裝，客車同步換上藍色車身及銀灰車頂</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5356,6 +5358,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="mrttrainno0908"><span class="d">9/8</span><span>跟隨捷運列車時，資訊卡上方會顯示車次：只在官方即時資料真的有給車次時顯示，文湖線、環狀線與其他沒有公開車次的系統維持留白，不會用內部編號充數</span></li>
         <li data-cl="boardcardfix0908"><span class="d">9/8</span><span>修正車站看板與跟車卡三處顯示問題：只有一條線經過的捷運站不再多出一整條線名標題；看板列上沒有線名時，車號前不再多一個全形空格造成左緣參差；跟車時拖動地圖，下方的列車卡不再被壓扁到看不見下一站與到站時間</span></li>
         <li data-cl="widgethelp0906"><span class="d">9/6</span><span>App 說明中心的小工具頁改成介紹頁：每種小工具都有實際畫面預覽與尺寸；Android 可以直接按「加到桌面」把小工具釘到主畫面</span></li>
         <li data-cl="querytab0906"><span class="d">9/6</span><span>手機底部「搜尋」改為「查詢」：半高面板先給離你最近的站各方向下一班，再列提醒、今日動態、附近車站與小工具入口；在車站附近開 App 會自動出現</span></li>
@@ -5423,7 +5426,8 @@
         <li><span class="d">7/13</span><span>新增「附近火車」：地圖上落一根釘，查周邊 60 分鐘內會通過的車次</span></li>
         <li><span class="d">7/12</span><span>新增平交道功能：點一下查接下來會通過的列車（7/13 補上貨運線 21 處）</span></li>
         <li class="grp">收藏、護照與成就</li>
-        <li data-cl="dexstarsys0908"><span class="d">9/8</span><span>修正護照收集章「環島之星 萌旅號」：台鐵與阿里山林鐵都有 1、2 次車，點下去會跑成林鐵的車。收集章與今日亮點現在只認台鐵班次，當天沒開行就直接說今天沒有這一類的班次</span></li>
+        <li data-cl="dexmisscard0908"><span class="d">9/8</span><span>護照收集章今天沒有班次時，點下去會在章旁邊跳出這班車的故事，並依班表告訴你下一個開行日與之後幾天；班表過期或十四天內都沒有開行時只說明沒有，不推測日期</span></li>
+        <li data-cl="dexstarsys0908"><span class="d">9/8</span><span>修正護照收集章「環島之星 萌旅號」：台鐵與阿里山林鐵都有 1、2 次車，點下去會跑成林鐵的車。收集章與今日亮點現在只認台鐵班次</span></li>
         <li data-cl="rideseq"><span class="d">9/3</span><span>完乘記錄新增「順序」排序，依實際完成先後排列；手機旅程護照也補上順序、日期、車次、距離與車種排序（謝謝網友回報）</span></li>
         <li data-cl="guestmerge"><span class="d">9/1</span><span>登入後若裝置仍有登入前或其他帳號留下的資料，帳號面板會列出數量並讓你選擇併入；既有雲端資料不會被覆蓋（謝謝網友回報）</span></li>
         <li data-cl="achvhelp"><span class="d">8/18</span><span>護照成就章新增說明卡，顯示達成條件、建議與目前進度；明星列車、車種圖鑑與支線收集章也能查看內容。</span></li>
@@ -11194,6 +11198,16 @@ function updateFreqCard(info) {
   const f = state.freqFollow; if (!f) return;
   const ln = info.ln || f.ln; if (!ln) return;
   document.getElementById('fcDot').style.background = ln.color;
+  // 車次(使用者 2026-09-08:「如果有對到,我希望在列車資訊卡的上方有欄位顯示車次」)。
+  // 🔴 只認官方車號:北捷 roster 的 officialNo(＝TrackInfo.TrainNumber)與 Core 的 publicLabel,
+  //    兩條路徑都在各自的 *VehicleInfo() 裡填成同名欄位。文湖線 BR 與環狀線 Y 官方沒有這一欄、
+  //    機捷/中捷/淡海/安坑/三鶯根本不走官方名冊 ⇒ 一律留空,整欄收起來,不畫「BR」那種路線牌
+  //    (地圖上的橢圓牌是為了讓車有東西可標;卡片已經寫著線名,再標一次只是噪音)。
+  // 🔴 禁止退而求其次拿 f.vehicleId 或 _freqHits.officialNo:前者是我們自己合成的內部身分,
+  //    後者存的是地圖橢圓牌的顯示字串(沒有官方號時就是「BR」),兩個都會變成假車次。
+  const fcNo = document.getElementById('fcNo'), no = String(info.officialNo || '').trim();
+  fcNo.textContent = no;
+  fcNo.hidden = !no;
   // 冠系統名:全台同框/多系統群組裡光「綠線」分不清台中高雄
   document.getElementById('fcLine').textContent = (ln._sysLabel ? t(ln._sysLabel) + ' ' : '') + routeName(ln.name || ln.abbr || '', ln._sys);
   // 機捷兩種車跑同一條線、同一個顏色,不寫車種就分不出這班是站站停還是跳站(issue #44/#45)
@@ -19134,7 +19148,12 @@ function renderRidePanel() {
     if (e.target.closest('[data-act="collectmap"]')) { setCollectMap(true); return; } // setCollectMap 自己會收面板
     if (e.target.closest('[data-act="bountyboard"]')) { openBountyBoard(); return; }
     const st = e.target.closest('.seal[data-cat]');
-    if (st) { closeRidePanel(); followDexStamp(st.dataset.cat, st.dataset.id); }
+    // 🔴 沒車可搭那條路要開說明卡,而卡片是以這枚章當錨點定位的 ⇒ 先關面板等於當場毀掉錨點
+    //    (repositionHelpPop 量到錨點離開視窗就收卡,畫面上會是「點了什麼都沒發生」)。
+    if (st) {
+      if (dexCandidates(st.dataset.cat, st.dataset.id).length) closeRidePanel();
+      followDexStamp(st.dataset.cat, st.dataset.id, st);
+    }
   };
 }
 function openRidePanel() {
@@ -19737,27 +19756,79 @@ function announceCollections(tr, rides, prevColl, prevAch, prevGarage = new Set(
   // 等自己的「完乘達成 / 蓋章 / 成就解鎖」通知全部跑完再問,不跟它們搶畫面。
   maybeAskReview(msgs.length * 700 + 2000, rides.length);
 }
-// 收集章(明星/圖鑑/支線)的候選車:同類今日所有班次。點擊時當場算,才能每次挑不同的一班。
+// 收集章(明星/圖鑑/支線)「哪些車算數」的**唯一**定義。回傳一個述詞,今日候選(dexCandidates)
+// 與未來開行日(dexRunDates)共用它——同一條規則寫成兩份就是 2026-09-08 那個 bug 的形狀
+// (「環島之星跑成林鐵」＝同一條比對散在三處、各自漏掉系統閘門)。
+const DEX_GROUPS = { named: 'namedTrains', stock: 'rollingStock', branch: 'branchLines' };
+function dexEntry(cat, id) {
+  const sd = state.special, group = DEX_GROUPS[cat];
+  const rec = sd && group && sd[group].find(x => x.id === id);
+  if (!rec) return null;
+  const match = cat === 'named' ? (tr => rec.trainNos.includes(String(tr.train)))
+    : cat === 'stock' ? (tr => rec.carNames.includes(tr.carName))
+    : (tr => tr.stops.some(x => rec._set.has(x.name)));
+  return { group, rec, match };
+}
+function dexMatcher(cat, id) { const e = dexEntry(cat, id); return e && e.match; }
+// 今日候選車。
 // 🔴 系統閘門與 specialOf() 同一條(data/tra_special_trains.json 是台鐵專屬):「台」分頁把台鐵與
 //    林鐵載進同一個 state.trains,不擋的話環島之星的 trainNos ['1','2'] 會撈到林鐵的 1/2 次,
 //    而環島之星並非天天開——今日名冊沒有台鐵 1/2 時林鐵那兩班就是僅有的候選,點下去 100%
 //    跑成阿里山林鐵(2026-09-08 使用者回報;issue#23 當時只補了 specialOf,漏掉這個消費端)。
 //    擋在候選池而不是三個分支各補一次:garage 的 launch 也靠這支判「今天有沒有車可搭」。
 function dexCandidates(cat, id) {
-  const sd = state.special; if (!sd) return [];
-  const pool = state.trains.filter(t => t.sys === 'tra_sched');
-  if (cat === 'named') { const n = sd.namedTrains.find(x => x.id === id);
-    return n ? pool.filter(t => n.trainNos.includes(String(t.train))) : []; }
-  if (cat === 'stock') { const s = sd.rollingStock.find(x => x.id === id);
-    return s ? pool.filter(t => s.carNames.includes(t.carName)) : []; }
-  if (cat === 'branch') { const b = sd.branchLines.find(x => x.id === id);
-    return b ? pool.filter(t => t.stops.some(x => b._set.has(x.name))) : []; }
-  return [];
+  const m = dexMatcher(cat, id);
+  return m ? state.trains.filter(t => t.sys === 'tra_sched' && m(t)) : [];
+}
+// 這枚章接下來哪幾天有車開,只回打包班表窗內的事實。
+// 🔴 三種「不回答」比回答錯的日期重要:①班表過期退回同週幾(_schedStale)時名冊根本不是今天的,
+//    日期沒有意義 ②窗尾之後不猜(回 days:[] 讓呼叫端改口說「窗內都沒有」) ③資料還沒載完就回 null。
+function dexRunDates(cat, id, limit = 3) {
+  const sys = state.systems.find(s => s.id === 'tra_sched'), d = sys && sys.data, m = dexMatcher(cat, id);
+  if (!d || !m || d._schedStale || !d.dates || !Array.isArray(d._denseTrains)) return null;
+  const keys = Object.keys(d.dates).sort(), today = todayStr('Asia/Taipei'), days = [];
+  for (const day of keys) {
+    if (day <= today) continue;
+    if ((d.dates[day] || []).some(i => { const tr = d._denseTrains[i]; return tr && m(tr); })) days.push(day);
+    if (days.length >= limit) break;
+  }
+  return { days, last: keys[keys.length - 1] || '' };
+}
+// 'YYYY-MM-DD' → 「9/11（週五）」。週幾一律 getUTCDay,避免裝置時區把日期推掉一天(同 dhWeekday)。
+function dexDayLabel(day) {
+  const wd = [t('週日'), t('週一'), t('週二'), t('週三'), t('週四'), t('週五'), t('週六')][new Date(day + 'T00:00:00Z').getUTCDay()];
+  return t('{m}/{d}（{weekday}）', { m: i18nNumber(Number(day.slice(5, 7))), d: i18nNumber(Number(day.slice(8, 10))), weekday: wd });
+}
+// 今天沒有這一類班次時的說明卡:先講什麼時候有,再講這是什麼車。
+// 🔴 故事一律取自 state.special,不讀 el.dataset.tip——還沒收藏的章 tip 是「還沒搭過——點我去搭一班」,
+//    而這條路正是「點了也搭不到」的那條,照抄就是騙人。使用者 09-08 要的就是這張卡出現故事。
+function dexMissHtml(cat, id, name) {
+  const e = dexEntry(cat, id), rd = dexRunDates(cat, id);
+  let when = '';
+  if (rd && rd.days.length) {
+    when = `<div class="hp-cond">${escHtml(t('下一班 {date}', { date: dexDayLabel(rd.days[0]) }))}</div>` +
+      (rd.days.length > 1 ? `<div class="hp-note">${escHtml(t('班表上還有 {dates}', { dates: rd.days.slice(1).map(dexDayLabel).join('、') }))}</div>` : '');
+  } else if (rd && rd.last) {
+    when = `<div class="hp-note">${escHtml(t('{date} 前的班表裡都沒有，之後要看官方公告', { date: dexDayLabel(rd.last) }))}</div>`;
+  }
+  const story = e ? i18nContentData(e.group, e.rec, 'story') : '';
+  return `<div class="hp-t"><span>${escHtml(name || (e ? i18nContentData(e.group, e.rec, 'name') : ''))}</span>` +
+    `<em class="hp-st">${escHtml(t('今天沒有班次'))}</em></div>` + when +
+    (story ? `<div class="hp-how">${escHtml(story)}</div>` : '');
 }
 // 點收集章:隨機挑一班該類的車(避開上次那班→每點必換),從發車跟一趟;完成過的章一樣能點來再看一班。
-function followDexStamp(cat, id) {
+// 今天沒有這一類的車時不是丟一句吐司就沒了——開說明卡告訴他這是什麼車、下次什麼時候開
+// (使用者 2026-09-08:「點下去應該要資訊/故事卡出現，然後提示今天沒有這班車」)。
+function followDexStamp(cat, id, el) {
   const cands = dexCandidates(cat, id);
-  if (!cands.length) { showToast(t('今天沒有這一類的班次可搭')); return; }
+  if (!cands.length) {
+    if (!el) { showToast(t('今天沒有這一類的班次可搭')); return; } // 車庫的 launch 沒有錨點元素
+    // 觸控:再點同一枚收起(桌面 hover 本來就開著卡,再判「同一枚」會變成點了就關)
+    if (!HELP_POP_HOVER && state._helpPopFor === el && state._helpPopSticky) { hideHelpPop(); return; }
+    showHelpPop(el, dexMissHtml(cat, id, el.dataset.tipname));
+    state._helpPopSticky = true; // 點出來的卡比 hover 那句提示長,不能一移開游標就沒
+    return;
+  }
   state._dexLast = state._dexLast || {};
   const key = cat + ':' + id, last = state._dexLast[key];
   const pool = cands.length > 1 ? cands.filter(t => String(t.train) !== String(last)) : cands;
@@ -21814,6 +21885,7 @@ function hideHelpPop() {
   const p = document.getElementById('helpPop');
   if (p) { p.hidden = true; p.innerHTML = ''; }
   state._helpPopFor = null;
+  state._helpPopSticky = false;
 }
 function placeHelpPop(el) {
   const p = document.getElementById('helpPop');
@@ -21833,6 +21905,7 @@ function showHelpPop(el, html) {
   if (!p || !html) return;
   p.innerHTML = html; p.hidden = false;
   state._helpPopFor = el;
+  state._helpPopSticky = false; // 預設是 hover 提示;要黏住的呼叫端(followDexStamp)自己補 true
   placeHelpPop(el);
 }
 // 捲動時**跟著錨點重算位置**,不是直接收掉。原本收掉的版本有個很難看見的失效:
@@ -21879,13 +21952,17 @@ function helpPopHtmlFor(el) {
 function bindHelpPop() {
   const SEL = '[data-ach],[data-tip]';
   if (HELP_POP_HOVER) {
+    // 🔴 黏住的卡(followDexStamp 開的「今天沒有班次」)要讓開:它比 hover 提示長好幾行,
+    //    而 .help-pop 是 pointer-events:none ⇒ 游標一離開章就 mouseout,使用者根本讀不完。
+    //    移到別枚章上仍照常換卡(showHelpPop 自己會把 sticky 清掉)。
     document.addEventListener('mouseover', e => {
       const el = e.target.closest && e.target.closest(SEL);
-      if (el) showHelpPop(el, helpPopHtmlFor(el));
+      if (!el || (state._helpPopSticky && state._helpPopFor === el)) return;
+      showHelpPop(el, helpPopHtmlFor(el));
     });
     document.addEventListener('mouseout', e => {
       const el = e.target.closest && e.target.closest(SEL);
-      if (!el) return;
+      if (!el || state._helpPopSticky) return;
       if (e.relatedTarget && el.contains(e.relatedTarget)) return; // 章內部移動不算離開
       hideHelpPop();
     });
@@ -21896,6 +21973,10 @@ function bindHelpPop() {
   // 的 click 只有 capture 收得到、bubble 收不到)⇒ 掛 bubble 的話「點別處收起」在面板內一律失效,
   // 卡片會一直賴在畫面上。capture 在往下的路上跑,不受任何 stopPropagation 影響。
   document.addEventListener('click', e => {
+    // 收集章的點擊歸 followDexStamp 管(它可能要開「今天沒有班次」那張卡)。這裡是 capture,
+    // 跑在收集章自己的 handler 之前——不放過的話會先把卡收掉、連 state._helpPopFor 一起清空,
+    // 那邊的「再點一次收起」就永遠等不到相同的錨點。
+    if (e.target.closest && e.target.closest('.seal[data-cat]')) return;
     const el = e.target.closest && e.target.closest('[data-ach]');
     if (!el) { hideHelpPop(); return; }
     if (!HELP_POP_HOVER && state._helpPopFor === el) { hideHelpPop(); return; } // 觸控:再點一次收起
@@ -21979,7 +22060,8 @@ function renderPassport() {
     if (e.target.closest('[data-act="bountyboard"]')) { openBountyBoard(); return; }
     const st = e.target.closest('.seal[data-cat]');
     // 明星/圖鑑/支線章:每次點挑一班不同的車從發車跟(完成的章也可點來再看);成就徽章無 data-cat,不觸發
-    if (st) followDexStamp(st.dataset.cat, st.dataset.id);
+    // 第三個參數是說明卡的錨點:今天沒有這一類的車時改成在章旁邊開卡,不是丟一句吐司。
+    if (st) followDexStamp(st.dataset.cat, st.dataset.id, st);
   };
   el.hidden = false;
 }
@@ -24437,7 +24519,11 @@ function metroCoreVehicleInfo(rec) {
       step > 0 ? Math.ceil(pos.progress) : Math.floor(pos.progress)));
   const terminal = ln.stations[Number(train.destinationStationIndex)];
   const next = ln.stations[nextIndex];
-  return { ln, pos, loop: false, grace: !!rec.grace,
+  // officialNo 在這裡統一命名:Core 的 publicLabel 與北捷 roster 的 officialNo 是同一個東西
+  // ——freqCrowdCars() 拿 publicLabel 去 join crowdByNo(鍵＝官方 TrackInfo.TrainNumber)打得中,
+  // 那條 join 就是證據。統一之後 updateFreqCard 只要讀一個欄位,不必分辨自己在哪條路徑上。
+  // 🔴 永遠不是 vehicleId:那是我們自己由各站倒數合成的內部身分,契約明禁拿它冒充車次。
+  return { ln, pos, loop: false, grace: !!rec.grace, officialNo: String(train.publicLabel || ''),
     termName: terminal && terminal.name || '', nextName: next && next.name || '',
     nextSec: train.nextCall && Number.isFinite(Number(train.nextCall.arrivalEpoch))
       ? metroCoreEpochSecOfDay(train.nextCall.arrivalEpoch) : null };
@@ -30561,7 +30647,11 @@ function resolveScheduleDay(data) {
     }
   }
   state.wallDay = today; // schedWrapT 據此判斷「名冊是否仍是今天的名冊」;之後每秒 tick 持續刷新
-  return { ...data, trains, date: key, _schedDay: key, _schedStale: stale };
+  // _denseTrains＝原始的多日聯集陣列。`dates` 被 spread 保住了,但它存的是「索引」,
+  // 而 trains 在這裡被今日切片蓋掉 ⇒ 沒有這一份,那些索引就指不到任何東西。
+  // 留著它才問得出「這枚章接下來哪幾天有車」(dexRunDates)。額外滯留的只有「今天沒開」那幾十筆
+  // ——今日切片與它共用同一批物件,不是另外複製一份。
+  return { ...data, trains, _denseTrains: data.trains, date: key, _schedDay: key, _schedStale: stale };
 }
 
 // ── 台鐵今日停駛偵測(2026-08-20)────────────────────────────────────────────────
