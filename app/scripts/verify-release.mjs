@@ -4,6 +4,7 @@ import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { verifyAndroidWidgetParity } from './verify_android_widget_parity.mjs';
 import { verifyWidgetPreviews } from '../../scripts/verify_widget_previews.mjs';
+import { verify3dBundle } from './verify_3d_bundle.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '..');
@@ -506,6 +507,7 @@ export async function verifyRelease({
   skipNativeSyncCheck = false
 } = {}) {
   const output = resolve(out);
+  await verify3dBundle(output);
   const files = await walk(output);
   const relativeFiles = files.map(file => relative(output, file).replaceAll('\\', '/'));
   const indexPath = join(output, 'index.html');
@@ -853,14 +855,20 @@ export async function verifyRelease({
     // (M4-B:高速跟車底圖預抓 prefetchFollowAhead 隨 Leaflet 一起移除——它靠 tileLayer 的 getTileUrl
     //  自己 new Image() 熱快取,MapLibre 的 source 由 GL 自行排程與預取,沒有同型 API 可掛。
     //  這條斷言因此退役,不是被忘記。)
-    // 跟車 zoom 上限:設定要載明 16,且 index.html 的消費機制(FOLLOW_ZOOM_CAP/followEntryZoom)未被移除
-    assert(html.includes('"followZoomCap":16'), 'RAIL_APP_CONFIG 未載明 followZoomCap:16(計量底圖跟車上限)');
+    // (跟車 zoom 上限 followZoomCap 已於 2026-09-07 移除——理由見 index.html 的 followEntryZoom()。
+    //  原本那條「App 有 followZoomCap」的斷言因此退役,不是被忘記;反向守門改由下面這條負責。)
+    // 🔴 判準比對的是「注入的設定鍵」與「消費點」兩個形態,不是裸字串 followZoomCap:裸字串連
+    //    index.html 裡解釋「為什麼拿掉」的那段註解都會掃到(2026-09-07 實際擋掉一次 build),
+    //    等於禁止任何人把這段歷史寫下來——而那正是下一個讀到 followEntryZoom 的人最需要的。
+    //    正向對照就是下面那條 satRetina:同一個注入機制,格式若變它會先紅,這條不會空過。
+    assert(!/"followZoomCap"\s*:/.test(html) && !/APP_CFG\.followZoomCap/.test(html),
+      'RAIL_APP_CONFIG 又出現 followZoomCap——跟車上限已裁示移除(近景點列車會被拉遠、立體列車看不到)');
     // 衛星 Retina 止血開關:只驗機制還活著(值可為 true/false,由 Esri 額度狀況決定)
     assert(/"satRetina":(true|false)/.test(html), 'RAIL_APP_CONFIG 未載明 satRetina(衛星高解析止血開關)');
     assert(html.includes('APP_CFG.satRetina'), 'index.html 的 SAT_RETINA 消費機制消失——App 端衛星解析度開關失效');
-    // （DIRECTOR_FOLLOW_Z 那條斷言已隨 2026-09-03 刪除 OBS 導播模式一起拿掉；一般跟車的 z16 上限仍由上一條與下一條守著）
+    // （DIRECTOR_FOLLOW_Z 那條斷言已隨 2026-09-03 刪除 OBS 導播模式一起拿掉）
     assert((html.match(/followEntryZoom\(\), \{ animate: false \}/g) || []).length >= 3,
-      '跟車進場 followEntryZoom 呼叫點少於 3 處——台鐵／高鐵／捷運跟車 zoom 上限未完整覆蓋');
+      '跟車進場 followEntryZoom 呼叫點少於 3 處——台鐵／高鐵／捷運跟車進場沒有走同一條進場 zoom');
     assert(html.includes(JSON.stringify(STADIA_ATTRIBUTION)),
       'Stadia 圖磚署名不是官方要求的三組連結逐字內容');
     // ── OSM 向量街道底圖(OpenFreeMap)與它的兩層退路 ─────────────────────────
@@ -974,6 +982,7 @@ export async function verifyRelease({
         continue;
       }
       const nativeBuild = extractBuild(nativeHtml);
+      await verify3dBundle(dirname(nativeIndex));
       assert(nativeBuild === wwwBuild,
         `${label} 內嵌資產版本不一致：${relative(repoRoot, nativeIndex)} 為 ${nativeBuild},app/www 為 ${wwwBuild};請執行 npm run sync（build + cap sync）`);
     }

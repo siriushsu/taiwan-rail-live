@@ -313,10 +313,31 @@ const MODES = {
     //      weekend.html 09-06 實查正式站各回 200，97 當初排除的理由已消失；App 端是絕對網址外開）；
     //      ③ issue #46 新竹站看板共構段不再決定線別；④ bus-transfer-ui.js 打包修法（若上架的是 96 則為新增）。
     //   why 三語寫 ①②③；公車轉乘沿用 97 的裁定不重述（1.5.5／1.5.6 商店文案已宣告過）。
-    marketing: '1.5.8', build: '98', music: true, metroCore: true,
-    why: '軌島 1.5.8\n\n・修正在 App 裡點「關於軌島」「準確度說明」「車站索引」之後畫面卡住、要重開 App 才能繼續用的問題\n・新增「週末鐵道活動」：一頁看完這個週末各地的鐵道市集、特別列車與展覽，從更多選單進入\n・新竹站看板「往 內灣」不再混進縱貫線的列車',
-    whyEn: 'Rail Island 1.5.8\n\n• Fixed the app freezing after tapping About, Accuracy or Station index, which needed a restart\n• New Weekend Rail Events page: this weekend\u2019s rail markets, special trains and exhibitions in one place, from the More menu\n• The Hsinchu departure board no longer mixes West Coast line trains into the To Neiwan group',
-    whyJa: '軌島 1.5.8\n\n・App 内で「軌島について」「精度について」「駅索引」を開くと画面が固まり、再起動が必要になる問題を修正しました\n・「週末の鉄道イベント」を追加：今週末の鉄道マルシェ、臨時列車、展示を 1 ページにまとめました。その他メニューから開けます\n・新竹駅の発車案内で「内湾方面」に縦貫線の列車が混ざらないようにしました',
+    // 09-07：99 為 v0907p 真機基準包，100 為效能驗證包；101 驗證車站地形同步；102 分開跟車遮罩與高度更新排程。99–101 均未上傳。
+    // 103（2026-09-07 21:0x）：**兩邊一起進位 1.6.0**（使用者裁示）。實查商店（帶 no-cache，id 與
+    //   bundleId 各查一次）：App Store 仍是 1.5.7（2026-09-05T23:51:18Z），但 **Play 已於 09-06 上架
+    //   1.5.8＝versionCode 39**。102／40 的行銷版號還掛 1.5.8 ⇒ 跑過 39 的 Android 使用者升上來，
+    //   appUpdateState 的 `st.seen !== mine` 不成立（mine＝RAIL_APP_VERSION，只有行銷版號沒有 build 號）
+    //   ⇒ **看不到「更新了什麼」**；appGateShouldBlock 走同一個 cmpVer，也**分不出 39 與 40**。
+    //   Play 只要求 versionCode 遞增，所以這個錯誤不會有任何機器擋下來。
+    //   內容也撐得起 minor：相對線上 1.5.7 多 22 條更新紀錄、相對 Play 的 39 多 21 條。
+    //   102 archive 已存在且載貨掛著 1.5.8 ⇒ 規則四不重用號，進 103；Android 桌面已有一顆叫 40 的
+    //   檔案，同理進 41。**載貨完全不變**（76d91f3／BUILD v0907s），只動版號與下面三行 why。
+    //   why 三語同時改成完整版——102 烤進去的那份漏講暗色 2.0、路線導覽、官方月台與查詢分頁。
+    // 104（2026-09-07 23:0x）：使用者實測回報「點列車或按隨機跟隨都會縮到看不見車」，裁示「直接把
+    //   follow zoom cap 刪掉」；同一輪追加裁示「點到跟隨中的那台車就跳出追蹤，太容易誤觸」，改成
+    //   把鏡頭鎖回它。103／41 的 archive 與 AAB 都還沒上傳,但載貨已變 ⇒ 規則四不重用號,進 104／42。
+    //   三語 why 的「跟車」那條同輪改寫：1.6.0 的賣點就是近景立體列車，而 103 的文字只講流暢度,
+    //   沒講「鏡頭不會再把你拉遠」——那是使用者這次真正看得到的差別。誤觸那條留在更新紀錄
+    //   followzoom0907,不佔店頭 500 字元。
+    //   同輪追加裁示「搜尋那邊，希望可以打車型來搜尋」⇒ 新增車型查詢(commit d2ee77fb),是新功能
+    //   而非修正,三語各補一條。英文為此把 3D 車站那條與跟車那條收短讓出字數(Play 上限 500)。
+    // 105／Android 45（44 因 AGP 解壓模型缺檔不交付）：v0908h，保留 104 的跟車行為；加上手機 3D 效能、逐節沿軌修正與主線收藏車庫等更新。
+    marketing: '1.6.0', build: '105', music: true, metroCore: true,
+    why: "軌島 1.6.0\n\n・加入沿軌行駛的立體列車、完整編組、地形起伏與建築透視，並提供 22 款精修立體車站與地標\n・改善手機拖曳、旋轉及跟車時的流暢度；修正車站、彎道附近整列橫移，車廂沿指派股道逐節轉彎\n・跟車保留目前的近景，再次點列車會回到車旁，不會結束跟隨\n・新增收藏車庫：62 款小車可旋轉欣賞，累積旅程解鎖塗裝\n・新增路線導覽與車型搜尋，可用 EMU3000、普悠瑪、PP 等名稱找班次\n・暗色地圖改版，車站看板加入方向切換、大字倒數與官方月台；查詢頁先顯示附近車站下一班\n・改善台鐵誤點動畫、山線軌道、看板與大字顯示；修正關於軌島等連結，加入週末鐵道活動入口",
+    whyEn: "Rail Island 1.6.0\n\n• 3D trains, full formations, terrain and 22 stations and landmarks\n• Smoother mobile panning and rotation; carriages follow tracks without whole-train sideways shifts\n• Following keeps your zoom; tapping the train recenters it\n• Collect 62 train models and unlock liveries through journeys\n• Route guides and train-model search\n• Redesigned dark map, board directions, countdowns and official TRA platforms\n• Improved delays, tracks, large text and links; weekend rail events",
+    whyJa: "軌島 1.6.0\n\n・線路に沿って走る立体列車、編成、地形、建物透視と 22 種類の精密な駅舎・ランドマークを追加\n・スマートフォンの地図移動・回転を滑らかにし、駅やカーブで編成全体が横滑りする問題を修正。各車両が線路に沿って曲がります\n・追従時の拡大率を維持し、追従中の列車を再タップすると列車へ戻ります\n・62 種類の車両を鑑賞できるコレクション車庫を追加。旅の記録で塗装を解放\n・路線ガイドと車両形式検索を追加\n・ダーク地図を刷新。発車案内に方面切り替え、大きなカウントダウン、台鉄の公式ホーム番号を表示\n・遅延時の動き、線路、文字拡大、リンクを改善し、週末の鉄道イベント入口を追加",
+
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
   // 軌島通行證客端功能、雲端同步與伺服器付費牆。這顆不可選去正式送審；正式版必須另推 build 號，

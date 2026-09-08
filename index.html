@@ -5234,6 +5234,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="followkeep0908"><span class="d">9/8</span><span>跟車鏡頭保留目前的近景，點列車或隨機跟隨不再拉遠；再次點到正在跟隨的列車會回到車旁，不會結束跟隨</span></li>
         <li data-cl-of="ontrack0908"><span class="d">9/8</span><span>修正列車在車站與彎道附近整列飄到軌道旁的問題，車廂沿指派股道逐節轉彎，不再因鄰車靠近而橫移</span></li>
         <li data-cl-of="perf3d0908"><span class="d">9/8</span><span>改善立體地圖拖曳與旋轉的流暢度，保留完整列車與建築細節；切換地形後，建築輪廓也會回到正確高度</span></li>
         <li data-cl-of="xferfontscale0908"><span class="d">9/8</span><span>調大字級時，轉乘接續裡的車次與「剩 N 分」會跟著一起放大，不再只長一點點</span></li>
@@ -5241,7 +5242,6 @@
         <li data-cl-of="searchtraintype0908"><span class="d">9/8</span><span>搜尋框可以打車種與車型了：輸入「自強號」「EMU3000」「太魯閣」會列出符合的班次，正在跑的排前面，也能點車型看介紹（謝謝網友回報）</span></li>
         <li data-cl-of="mountaintrack0907"><span class="d">9/7</span><span>山線三義隧道段的軌道改用實際路線重畫，列車經過時不再偏離軌道</span></li>
         <li data-cl-of="tracreep0907"><span class="d">9/7</span><span>台鐵誤點加大時，列車改成慢速前進，不再停在原地等誤點追上</span></li>
-        <li data-cl-of="ambientfollow3d0907"><span class="d">9/7</span><span>放空的跟車視角改成貼著車身的立體視角，看得到列車在軌道上跑，速度也放回實際車速；放空時的配樂改播完整曲庫</span></li>
 
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
@@ -5250,6 +5250,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="followkeep0908"><span class="d">9/8</span><span>跟車鏡頭保留目前的近景，點列車或隨機跟隨不再拉遠；再次點到正在跟隨的列車會回到車旁，不會結束跟隨</span></li>
         <li data-cl="ontrack0908"><span class="d">9/8</span><span>修正列車在車站與彎道附近整列飄到軌道旁的問題，車廂沿指派股道逐節轉彎，不再因鄰車靠近而橫移</span></li>
         <li data-cl="perf3d0908"><span class="d">9/8</span><span>改善立體地圖拖曳與旋轉的流暢度，保留完整列車與建築細節；切換地形後，建築輪廓也會回到正確高度</span></li>
         <li data-cl="mountaintrack0907"><span class="d">9/7</span><span>山線三義隧道段的軌道改用實際路線重畫，列車經過時不再偏離軌道</span></li>
@@ -6149,7 +6150,7 @@
 // v0907n：更新紀錄拿掉 7/13 那條贊助方式（站上最後一處金流資訊）。
 // v0908b：阿里山林鐵補上站內股道與之字形折返股(阿里山、祝山的軌道畫進站裡);近景實體股道白名單
 //         改為單一來源(rail-3d.js 不再自帶第二份),沒被涵蓋的系統保留原本的示意線形。
-const BUILD = 'v0908g';
+const BUILD = 'v0908h';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
@@ -12541,11 +12542,10 @@ try {
   }
 } catch (e) {}
 // App 殼建置期注入的設定(app/scripts/prepare-web.mjs 在頁面腳本前寫入 window.RAIL_APP_CONFIG:
-// 授權圖磚 tiles 與計量底圖的跟車 zoom 上限 followZoomCap)。網站沒有這個物件→全部走預設,行為零變化。
+// 授權圖磚 tiles 與衛星高解析開關)。網站沒有這個物件→全部走預設,行為零變化。
 // 這是網站/App 分流的唯一正道:行為差異一律讀這裡,不准讓 build 腳本用字串比對改寫本檔程式碼
 // (舊法「精確字串手術」讓網站日常改動動輒弄壞 App build,2026-07-22 改為本設定機制)。
 const APP_CFG = window.RAIL_APP_CONFIG || {};
-const FOLLOW_ZOOM_CAP = APP_CFG.followZoomCap || Infinity; // App 計量底圖(Stadia/Esri)跟車 zoom 上限(App=16);網站不設限
 // 衛星 Retina 高解析:開=Retina 螢幕清晰,但圖磚請求量會明顯增加。網站與 App 共用同一份 Esri 圖磚配額,
 // 配額吃緊時的止血開關——網站改下面這行 true→false,App 改 prepare-web.mjs 的 satRetina。
 // 2026-07-29 關掉：上線後的實測用量顯示照當時的速度會在該計費期內把配額用完，
@@ -12573,7 +12573,12 @@ function maybeSatPlusNotice() {
   } catch (e) {}
   showToast('衛星影像免費看。想看更清楚的高解析版本，可以在「軌島通行證」裡開通（手機從「更多」進去）；跟車移動時一律用標準解析度，讓圖磚跟得上。', { wrap: true });
 }
-function followEntryZoom() { return Math.min(Math.max(M.getZoom(), 13), FOLLOW_ZOOM_CAP); } // 跟車進場:至少拉近到 13,App 再套上限
+// 跟車進場:沿用當下視角,只保證至少拉近到 13。
+// 2026-09-07 拿掉 App 的 followZoomCap=16 上限:它 2026-08-05 的理由是「App 兩種底圖都計量」,
+// 而 App 的街道底圖早已改成不計量的 OpenFreeMap(Stadia 只剩退路、Esri 只用於衛星),前提不再成立。
+// 上限的實害是反向的:從近景(z17+)點列車或按隨機跟隨會被「拉遠」到 16,1.6.0 的立體列車正好看不到;
+// 相機自癒每次貼車也走這裡,等於手動拉近後 3.5 秒又被扯回 16。
+function followEntryZoom() { return Math.max(M.getZoom(), 13); }
 const LOCATE_ENABLED = !!window.RAIL_NATIVE_GEOLOCATION;
 const NOTIFY_LOCAL_ENABLED = !!window.RAIL_NATIVE_LOCALNOTIFY;
 // 實體收集(單站打卡、搭乘模式、GPS 校正旅程)限原生 App——這是既有「虛實雙軌」延伸成平台分界:
@@ -33269,7 +33274,7 @@ async function boot() {
       if (fh && stHit && Math.abs(fh.dist - bdSt) < TAP_AMBIG_PX) { openTapPick(cp, [tapPickFreqTrain(fh), tapPickStation(stHit)]); return; }
       if (fh) {
         const f = state.freqFollow;
-        if (trtcOfficialSameTarget(f, fh)) clearFreqFollow();
+        if (trtcOfficialSameTarget(f, fh)) setFollowLock(true); // 同台鐵那條：點正在跟的那台＝鏡頭鎖回去，不取消跟隨
         else setFreqFollow(fh);
         return;
       }
@@ -33308,7 +33313,7 @@ async function boot() {
     stCands.sort((a, b) => a.d - b.d);
     // 與最近顆距離差 <TAP_AMBIG_PX 的視為疊站,選單一次列出(含系統名)讓使用者分開開板
     const stAmb = () => stCands.filter(c => c.d - stCands[0].d < TAP_AMBIG_PX).map(c => tapPickStation(c.st));
-    // 車與站都在範圍內時取較近者:點列車跟隨(再點一下取消)、點車站開時刻板;
+    // 車與站都在範圍內時取較近者:點列車跟隨(再點一下把鏡頭鎖回它)、點車站開時刻板;
     // 兩者距離幾乎相同(列車停靠中)分不出意圖 → 彈小選單讓使用者選。
     // 歧義判定要在勝負判定「之前」:停靠時車站常以次像素之差險勝,檢查放在車勝分支內會漏掉站險勝的那半
     const hits = trainsAt(cp), hit = hits[0];
@@ -33322,7 +33327,10 @@ async function boot() {
     }
     if (hit && best && bd <= stationRadius && Math.abs(hit.dist - bd) < TAP_AMBIG_PX) { openTapPick(cp, [tapPickSchedTrain(hit), ...stAmb()]); return; }
     if (hit && (bd > stationRadius || hit.dist <= bd)) {
-      if (hit.tr === state.followTrain) { setAutoTour(false); clearFollow(); return; }
+      // 點到「正在跟的那一台」＝把鏡頭鎖回它身上（拖走過就是回置中），不是取消跟隨：跟車時車子就在畫面
+      // 正中央，全畫面最容易誤觸的就是它，一點就跳出追蹤讓人莫名其妙（2026-09-07 使用者回報）。
+      // 要取消跟隨走跟車卡的 ×，或疊車選單裡那條寫明「取消跟隨 N 次」的項目——那兩個都是看得懂才會按的。
+      if (hit.tr === state.followTrain) { setFollowLock(true); return; }
       const ts = document.getElementById('trainSearch');
       if (ts) ts.value = hit.tr.train;
       setFollow(hit.tr);
@@ -33350,7 +33358,7 @@ async function boot() {
       }
       if (fh && (bd > stationRadius || fh.dist <= bd)) {
         const f = state.freqFollow;
-        if (trtcOfficialSameTarget(f, fh)) clearFreqFollow();
+        if (trtcOfficialSameTarget(f, fh)) setFollowLock(true); // 同台鐵那條：點正在跟的那台＝鏡頭鎖回去，不取消跟隨
         else setFreqFollow(fh);
         return;
       }
@@ -33362,7 +33370,8 @@ async function boot() {
       openBoard(stCands[0].st); return;
     }
     // 設計 1a:點到真的空白處 ⇒ 跟車中收成膠囊(跟車不斷),否則收掉開著的車站看板。
-    // 🔴 取消跟隨的入口仍是「再點一次跟隨中的那台車」(上面 hit.tr === state.followTrain),沒有被動到。
+    // 🔴 取消跟隨的入口是跟車卡的「結束」(fpEnd/fcEnd)與疊車選單那條「取消跟隨 N 次」,沒有被動到;
+    //    2026-09-07 起「再點一次跟隨中的那台車」改成把鏡頭鎖回它(見上面 hit.tr === state.followTrain)。
     tapBlank();
   }
   M.on('click', handleMapClick);

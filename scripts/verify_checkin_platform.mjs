@@ -66,7 +66,7 @@ await ctx.addInitScript(() => {
   // 判斷「是不是原生殼」的 ⇒ 少這一顆，F 段的鈕根本不會被渲染出來
   window.RAIL_ONLINE_BASEMAPS_AVAILABLE = true;
   window.RAIL_MUSIC_AVAILABLE = true;
-  window.RAIL_APP_CONFIG = { followZoomCap: 16, satRetina: true };
+  window.RAIL_APP_CONFIG = { satRetina: true };
   // 首訪教學卡（#howtoWrap，z800、inset:0）會攔掉所有點擊 ⇒ F 段的真點擊全部逾時。開頁前先標已看過。
   try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {}
 });
