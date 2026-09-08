@@ -48,10 +48,19 @@ export async function createConsist(id,primary,signal){
   const scale=1.25/primary.size.y,items=parts.map(part=>({...part,asset:assets.get(part.mesh)}));
   const gap=template.articulated?.08:.14,total=items.reduce((n,p)=>n+p.asset.size.x*scale,0)+gap*2;let front=total/2;
   for(const part of items){const a=part.asset,length=a.size.x*scale,car=new THREE.Group(),body=new THREE.Mesh(a.geometry,a.materials);
-   body.position.set(-a.center.x,-a.center.y,-a.geometry.boundingBox.min.z);car.add(body);car.scale.setScalar(scale);car.rotation.z=part.flip?Math.PI:0;car.position.set(front-length/2,0,.18);front-=length+gap;root.add(car);cars.push({car,body,asset:a,id:part.mesh,length});
+   body.position.set(-a.center.x,-a.center.y,-a.geometry.boundingBox.min.z);car.add(body);car.scale.setScalar(scale);car.rotation.z=part.flip?Math.PI:0;car.position.set(front-length/2,0,.18);front-=length+gap;root.add(car);cars.push({car,body,asset:a,id:part.mesh,length,offset:car.position.x,flip:part.flip,heading:0});
   }
-  const cg=new THREE.BoxGeometry(gap+.12,.11,.11),cm=new THREE.MeshStandardMaterial({color:'#343b3c',roughness:.8});
-  for(let i=0;i<2;i++){const c=new THREE.Mesh(cg,cm);c.position.set(cars[i].car.position.x-cars[i].length/2-gap/2,0,.44);root.add(c);}
-  return{root,cars,length:total,update(owned){for(const c of cars)c.body.material=owned?c.asset.materials:c.asset.lockedMaterials;},dispose(){root.clear();owned.forEach(a=>a.dispose());cg.dispose();cm.dispose();}};
+  const couplers=[],cg=new THREE.BoxGeometry(1,.11,.11),cm=new THREE.MeshStandardMaterial({color:'#343b3c',roughness:.8});
+  for(let i=0;i<2;i++){const c=new THREE.Mesh(cg,cm);root.add(c);couplers.push(c);}
+  function couple(){for(let i=0;i<2;i++){const a=cars[i],b=cars[i+1],ax=a.car.position.x-Math.cos(a.heading)*a.length/2,ay=a.car.position.y-Math.sin(a.heading)*a.length/2,bx=b.car.position.x+Math.cos(b.heading)*b.length/2,by=b.car.position.y+Math.sin(b.heading)*b.length/2,c=couplers[i];c.position.set((ax+bx)/2,(ay+by)/2,.44);c.rotation.z=Math.atan2(by-ay,bx-ax);c.scale.x=Math.hypot(bx-ax,by-ay)+.08;}}
+  function straight(direction){root.rotation.z=direction===-1?0:Math.PI;for(const c of cars){c.car.position.set(c.offset,0,.18);c.car.rotation.z=c.flip?Math.PI:0;c.heading=0;}couple();}
+  function follow(path,distance,direction){
+   root.rotation.z=0;
+   // 車身由前後轉向架之間的弦決定；反向只改朝向與速度，不瞬移車廂的位置。
+   for(const c of cars){const s=distance+c.offset,a=path.sample(s+c.length*.30),b=path.sample(s-c.length*.30);c.heading=Math.atan2(a.y-b.y,a.x-b.x);c.car.position.set((a.x+b.x)/2,(a.y+b.y)/2,.18);c.car.rotation.z=c.heading+(c.flip?Math.PI:0)+(direction===-1?Math.PI:0);}
+   couple();
+  }
+  straight(1);
+  return{root,cars,length:total,straight,follow,update(owned){for(const c of cars)c.body.material=owned?c.asset.materials:c.asset.lockedMaterials;},dispose(){root.clear();owned.forEach(a=>a.dispose());cg.dispose();cm.dispose();}};
  }catch(e){owned.forEach(a=>a.dispose());throw e;}
 }

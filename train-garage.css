@@ -77,8 +77,8 @@
 #trainGarage.g-legacy[open]{display:block;z-index:2147483647}
 
 #trainGarage .g-scene-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 12px;border-bottom:1px solid var(--g-line)}
-#trainGarage .g-scene-tabs{display:flex;gap:4px;min-width:0}
-#trainGarage .g-scene-tabs button{background:none;border:1px solid transparent;border-radius:8px;padding:8px 12px;font-size:13px}
+#trainGarage .g-scene-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;min-width:0;flex:1}
+#trainGarage .g-scene-tabs button{background:none;border:1px solid transparent;border-radius:8px;padding:8px 4px;font-size:12px;min-width:0}
 #trainGarage .g-scene-tabs button[aria-pressed=true]{background:var(--g-card);border-color:var(--g-line)}
 #trainGarage .g-reverse{min-width:44px;background:var(--g-card);border:1px solid var(--g-line);border-radius:8px;flex:none}
 #trainGarage .g-reverse[aria-pressed=true]{background:var(--g-ink);color:var(--g-paper)}
@@ -87,17 +87,23 @@
 #trainGarage .g-controls{justify-content:center;flex-wrap:wrap}
 #trainGarage .g-fallback{top:70px;bottom:110px}
 @media(max-width:480px){#trainGarage .g-view{height:clamp(170px,30dvh,238px)}}
-#trainGarage.g-coast .g-main{display:flex;flex-direction:column}
-#trainGarage.g-coast .g-heading{order:0}
-#trainGarage.g-coast .g-filters{order:1}
-#trainGarage.g-coast .g-empty{order:2}
-#trainGarage.g-coast .g-showcase{order:3}
-#trainGarage.g-coast .g-demo{order:4;margin-top:12px}
-#trainGarage.g-coast .g-result{order:5}
-#trainGarage.g-coast .g-grid{order:6}
-#trainGarage.g-coast .g-footer{order:7}
-@media(max-width:480px){#trainGarage.g-coast .g-view{height:clamp(240px,40dvh,340px)}}
+#trainGarage.g-scene .g-main{display:flex;flex-direction:column}
+#trainGarage.g-scene .g-heading{order:0}
+#trainGarage.g-scene .g-filters{order:1}
+#trainGarage.g-scene .g-empty{order:2}
+#trainGarage.g-scene .g-showcase{order:3}
+#trainGarage.g-scene .g-demo{order:4;margin-top:12px}
+#trainGarage.g-scene .g-result{order:5}
+#trainGarage.g-scene .g-grid{order:6}
+#trainGarage.g-scene .g-footer{order:7}
+@media(max-width:480px){#trainGarage.g-scene .g-view{height:clamp(240px,40dvh,340px)}}
 
 /* 橫向小螢幕也把車體留在第一屏，說明可接著往下讀。 */
 @media(max-height:500px) and (min-width:600px){#trainGarage .g-top{padding-top:6px;padding-bottom:6px}#trainGarage .g-main{padding-top:10px}#trainGarage .g-heading{margin-bottom:8px}#trainGarage h1{font-size:24px}#trainGarage .g-progress strong{font-size:24px}#trainGarage progress{display:none}#trainGarage .g-progress>span:last-child{margin-left:8px}#trainGarage .g-filters{margin-bottom:10px;gap:8px}#trainGarage .g-picker{flex-basis:0}#trainGarage .g-showcase{grid-template-columns:1.4fr 1fr}#trainGarage .g-stage{align-self:start}#trainGarage .g-view{height:144px}#trainGarage .g-stage-foot{padding:0 12px 8px}#trainGarage .g-detail{padding:16px}}
 @media(max-height:500px) and (min-width:600px){#trainGarage .g-main{display:flex;flex-direction:column}#trainGarage .g-heading{order:0}#trainGarage .g-filters{order:1}#trainGarage .g-empty{order:2}#trainGarage .g-showcase{order:3}#trainGarage .g-demo{order:4;margin-top:12px}#trainGarage .g-result{order:5}#trainGarage .g-grid{order:6}#trainGarage .g-footer{order:7}}
+
+#trainGarage .g-viewport{position:relative}
+#trainGarage .g-zoom{position:absolute;right:12px;top:12px;display:flex;flex-direction:column;align-items:center;gap:2px;border:1px solid var(--g-line);border-radius:12px;background:var(--g-card);overflow:hidden}
+#trainGarage .g-zoom button{width:44px;min-height:44px;padding:0;border:0;background:transparent;font:22px ui-sans-serif,sans-serif}
+#trainGarage .g-zoom button:disabled{opacity:.35;cursor:default}
+#trainGarage .g-zoom-level{font:10px ui-monospace,monospace;color:var(--g-muted);pointer-events:none}

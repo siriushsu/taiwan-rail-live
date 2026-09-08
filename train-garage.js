@@ -39,9 +39,11 @@
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   let host, dialog, rows = [], selected, filter = 'all', demo = false;
   let active = false, renderer, raf = 0, auto = false, yaw = -.55, elevation = .39, last = 0, drag = null, resize, visibility;
+  const pointers=new Map();let pinch=null,zoom=1;
   let mode='model',running=false,direction=1,distance=0,travelTime=0,inView=true,period='day';
   function scenePeriod(){const now=new Date(),h=(now.getUTCHours()+8)%24+now.getUTCMinutes()/60;return h>=5&&h<7?'sunrise':h>=7&&h<17?'day':h>=17&&h<19?'sunset':'night';}
-  function clampView(){if(mode==='track'){yaw=Math.max(-Math.PI/2-.20,Math.min(-Math.PI/2+.20,yaw));elevation=Math.max(.08,Math.min(.30,elevation));}}
+  function resetView(){zoom=1;pointers.clear();pinch=drag=null;yaw=mode==='track'?-Math.PI/2:mode==='loop'?-.9:-.55;elevation=mode==='track'?.16:mode==='loop'?.8:.39;}
+  function clampView(){if(mode==='loop')elevation=Math.max(.25,Math.min(1.35,elevation));if(mode==='track'){yaw=Math.max(-Math.PI/2-.20,Math.min(-Math.PI/2+.20,yaw));elevation=Math.max(.08,Math.min(.30,elevation));}}
   const reduced=matchMedia('(prefers-reduced-motion:reduce)');
   const tr = (key, values) => host.t(key, values);
   const $ = sel => dialog.querySelector(sel);
@@ -85,25 +87,27 @@
     if((auto||running)&&last&&at-last<32){requestDraw();return;}
     const dt=last?Math.min((at-last)/1000,.06):0;last=at;
     if(auto&&!drag)yaw+=dt*.35;
-    if(mode==='track'&&running&&loadedId){distance+=dt*2.1*direction;travelTime+=dt;}
+    if(mode!=='model'&&running&&loadedId){distance+=dt*2.1*direction;travelTime+=dt;}
     const row=rows.find(r=>r.id===selected);
-    if(row&&loadedId===row.id) { renderer?.draw($('.g-view'),row,yaw,{elevation,mode,distance,direction,period,time:travelTime}); }
+    if(row&&loadedId===row.id) { renderer?.draw($('.g-view'),row,yaw,{elevation,zoom,mode,distance,direction,period,time:travelTime}); }
 
     if((auto||running)&&loadedId)requestDraw();
   }
+  function setZoom(value){zoom=Math.max(.7,Math.min(3,value));showControls();requestDraw();}
   function showControls() {
-    dialog.classList.toggle('g-coast',mode==='track');
+    $('.g-zoom-in').disabled=zoom>=3;$('.g-zoom-out').disabled=zoom<=.7;$('.g-zoom-level').textContent=Math.round(zoom*100)+'%';
+    dialog.classList.toggle('g-scene',mode!=='model');
     for(const b of dialog.querySelectorAll('[data-view]'))b.setAttribute('aria-pressed',String(b.dataset.view===mode));
-    $('.g-reverse').hidden=mode!=='track';$('.g-reverse').setAttribute('aria-pressed',String(direction===-1));
-    $('.g-auto').setAttribute('aria-label',tr(mode==='track'?(running?'暫停行駛':'開始行駛'):'自動旋轉'));
-    $('.g-auto').setAttribute('aria-pressed',String(mode==='track'?running:auto));$('.g-auto').textContent=(mode==='track'?running:auto)?'Ⅱ':'▷';
-    $('.g-view-hint').textContent=mode==='track'?tr('頭城海岸・龜山島')+' · '+tr({sunrise:'日出',day:'藍天',sunset:'黃昏',night:'星空'}[period]):tr('上下左右拖曳，看看每一面');
+    $('.g-reverse').hidden=mode==='model';$('.g-reverse').setAttribute('aria-pressed',String(direction===-1));
+    $('.g-auto').setAttribute('aria-label',tr(mode!=='model'?(running?'暫停行駛':'開始行駛'):'自動旋轉'));
+    $('.g-auto').setAttribute('aria-pressed',String(mode!=='model'?running:auto));$('.g-auto').textContent=(mode!=='model'?running:auto)?'Ⅱ':'▷';
+    $('.g-view-hint').textContent=mode==='track'?tr('頭城海岸・龜山島')+' · '+tr({sunrise:'日出',day:'藍天',sunset:'黃昏',night:'星空'}[period]):mode==='loop'?tr('環形試跑 · 拖曳旋轉，欣賞三節小車'):tr('上下左右拖曳，看看每一面');
   }
   function showDetail() {
     const row=rows.find(r=>r.id===selected);
     $('.g-showcase').hidden=!row;
     if(!row){auto=running=false;cancelAnimationFrame(raf);raf=0;showControls();return;}
-    $('.g-view').setAttribute('aria-label',row.model.name+' · '+status(row)+' · '+tr(mode==='track'?'海岸行旅':'近看小車'));
+    $('.g-view').setAttribute('aria-label',row.model.name+' · '+status(row)+' · '+tr(mode==='track'?'海岸行旅':mode==='loop'?'環形試跑':'近看小車'));
     showControls();
     const badge=$('.g-status');badge.textContent=status(row);badge.classList.toggle('owned',row.owned);
     $('.g-name').textContent=row.model.name;
@@ -176,7 +180,7 @@
     showGrid();
   }
   function build() {
-    data();resize?.disconnect();visibility?.disconnect();inView=true;
+    data();resize?.disconnect();visibility?.disconnect();pointers.clear();pinch=drag=null;inView=true;
     dialog.lang=host.lang();
     dialog.classList.toggle('dark',host.dark());
     dialog.innerHTML=`<header class="g-top"><span class="g-brand">RAIL ISLAND / COLLECTION</span><button class="g-close" autofocus>${esc(tr('回到地圖'))} ↗</button></header>
@@ -186,7 +190,7 @@
       <div class="g-filters"><div class="g-tabs">${[['all','全部車款'],['owned','已入庫'],['pending','待收集']].map(([id,text])=>`<button data-filter="${id}" aria-pressed="${filter===id}">${esc(tr(text))}</button>`).join('')}</div>
       <label class="g-picker"><span>${esc(tr('選擇車款'))}</span><select class="g-model-select"></select></label></div>
       <div class="g-empty" hidden><p class="g-empty-text"></p><button class="g-reset">${esc(tr('查看所有車款'))}</button><button class="g-demo-start">${esc(tr('看看展示車庫'))}</button></div>
-      <section class="g-showcase" aria-label="${esc(tr('車型展示'))}"><div class="g-stage"><div class="g-scene-bar"><div class="g-scene-tabs">${[['model','近看小車'],['track','海岸行旅']].map(([id,label])=>`<button data-view="${id}" aria-pressed="${mode===id}">${esc(tr(label))}</button>`).join('')}</div><button class="g-reverse" hidden aria-pressed="false" title="${esc(tr('反向行駛'))}" aria-label="${esc(tr('反向行駛'))}">⇄</button></div><canvas class="g-view" tabindex="0" role="img"></canvas><div class="g-fallback" hidden>${esc(tr('這個裝置暫時無法顯示 3D，收藏紀錄與來源仍可查看。'))}</div>
+      <section class="g-showcase" aria-label="${esc(tr('車型展示'))}"><div class="g-stage"><div class="g-scene-bar"><div class="g-scene-tabs">${[['model','近看小車'],['loop','環形試跑'],['track','海岸行旅']].map(([id,label])=>`<button data-view="${id}" aria-pressed="${mode===id}">${esc(tr(label))}</button>`).join('')}</div><button class="g-reverse" hidden aria-pressed="false" title="${esc(tr('反向行駛'))}" aria-label="${esc(tr('反向行駛'))}">⇄</button></div><div class="g-viewport"><canvas class="g-view" tabindex="0" role="img"></canvas><div class="g-zoom"><button class="g-zoom-in" title="${esc(tr('放大場景'))}" aria-label="${esc(tr('放大場景'))}">+</button><output class="g-zoom-level" aria-label="${esc(tr('縮放比例'))}">100%</output><button class="g-zoom-out" title="${esc(tr('縮小場景'))}" aria-label="${esc(tr('縮小場景'))}">−</button></div></div><div class="g-fallback" hidden>${esc(tr('這個裝置暫時無法顯示 3D，收藏紀錄與來源仍可查看。'))}</div>
       <div class="g-stage-foot"><span class="g-view-hint"></span><div class="g-controls"><button class="g-left" title="${esc(tr('向左旋轉'))}" aria-label="${esc(tr('向左旋轉'))}">↶</button><button class="g-auto" aria-label="${esc(tr('自動旋轉'))}" aria-pressed="false">▷</button><button class="g-right" title="${esc(tr('向右旋轉'))}" aria-label="${esc(tr('向右旋轉'))}">↷</button><button class="g-up" title="${esc(tr('提高視角'))}" aria-label="${esc(tr('提高視角'))}">↑</button><button class="g-down" title="${esc(tr('降低視角'))}" aria-label="${esc(tr('降低視角'))}">↓</button><button class="g-reset-view" title="${esc(tr('重設視角'))}" aria-label="${esc(tr('重設視角'))}">⌂</button><button class="g-retry" hidden aria-label="${esc(tr('重新載入小車'))}">↻</button></div></div></div>
       <div class="g-detail"><span class="g-status"></span><h2 class="g-name"></h2><p class="g-system"></p><p class="g-reason"></p><p class="g-goal"></p><p class="g-date"></p><button class="g-cta"></button><details class="g-sources"><summary>${esc(tr('車型與來源'))} ↗</summary><div class="g-source-body"></div></details></div></section>
       <p class="g-result" role="status" aria-live="polite"></p><div class="g-grid"></div>
@@ -197,28 +201,31 @@
     $('.g-close').onclick=close;
     $('.g-retry').onclick=()=>{if(!renderer)rendererPromise=startRenderer();loadSelected();};
     $('.g-demo-off').onclick=()=>{demo=false;filter='owned';refresh();};
-    $('.g-demo-start').onclick=()=>{demo=true;selected='e200';yaw=mode==='track'?-Math.PI/2:-.55;filter='owned';refresh();dialog.scrollTop=0;};
+    $('.g-demo-start').onclick=()=>{demo=true;selected='e200';resetView();filter='owned';refresh();dialog.scrollTop=0;};
     $('.g-reset').onclick=()=>{filter='all';showGrid();};
     for(const b of dialog.querySelectorAll('[data-filter]'))b.onclick=()=>{filter=b.dataset.filter;showGrid();};
     $('.g-model-select').onchange=e=>chooseModel(e.target.value);
     const turn=(horizontal,vertical=0)=>{auto=false;yaw+=horizontal;elevation=Math.max(.08,Math.min(1.48,elevation+vertical));clampView();showControls();requestDraw();};
     $('.g-left').onclick=()=>turn(-Math.PI/6);$('.g-right').onclick=()=>turn(Math.PI/6);
     $('.g-up').onclick=()=>turn(0,Math.PI/12);$('.g-down').onclick=()=>turn(0,-Math.PI/12);
-    $('.g-reset-view').onclick=()=>{auto=false;yaw=mode==='track'?-Math.PI/2:-.55;elevation=mode==='track'?.16:.39;showControls();requestDraw();};
-    $('.g-auto').onclick=()=>{if(mode==='track')running=!running;else auto=!auto;last=0;showControls();requestDraw();};
+    $('.g-reset-view').onclick=()=>{auto=false;resetView();showControls();requestDraw();};
+    $('.g-auto').onclick=()=>{if(mode!=='model')running=!running;else auto=!auto;last=0;showControls();requestDraw();};
     $('.g-reverse').onclick=()=>{direction*=-1;showControls();requestDraw();};
-    for(const b of dialog.querySelectorAll('[data-view]'))b.onclick=()=>{if(mode===b.dataset.view)return;mode=b.dataset.view;auto=false;running=mode==='track'&&!reduced.matches;yaw=mode==='track'?-Math.PI/2:-.55;elevation=mode==='track'?.16:.39;last=0;showDetail();};
+    for(const b of dialog.querySelectorAll('[data-view]'))b.onclick=()=>{if(mode===b.dataset.view)return;mode=b.dataset.view;auto=false;running=mode!=='model'&&!reduced.matches;resetView();last=0;showDetail();};
+    $('.g-zoom-in').onclick=()=>setZoom(zoom*1.2);$('.g-zoom-out').onclick=()=>setZoom(zoom/1.2);
     const canvas=$('.g-view');
-    canvas.onkeydown=e=>{const directions={ArrowLeft:[-.15,0],ArrowRight:[.15,0],ArrowUp:[0,.12],ArrowDown:[0,-.12]};if(directions[e.key]){e.preventDefault();turn(...directions[e.key]);}};
-    canvas.onpointerdown=e=>{if(drag||e.button>0)return;auto=false;showControls();drag={id:e.pointerId,x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId);};
-    canvas.onpointermove=e=>{if(drag?.id===e.pointerId){turn((e.clientX-drag.x)*.012,(drag.y-e.clientY)*.008);drag.x=e.clientX;drag.y=e.clientY;}};
-    canvas.onpointerup=canvas.onpointercancel=canvas.onlostpointercapture=()=>{drag=null;};
+    canvas.onkeydown=e=>{if(['+','=','-','0'].includes(e.key)){e.preventDefault();if(e.key==='0')setZoom(1);else setZoom(zoom*(e.key==='-'?1/1.2:1.2));return;}const directions={ArrowLeft:[-.15,0],ArrowRight:[.15,0],ArrowUp:[0,.12],ArrowDown:[0,-.12]};if(directions[e.key]){e.preventDefault();turn(...directions[e.key]);}};
+    const gap=()=>{const [a,b]=[...pointers.values()];return Math.hypot(a.x-b.x,a.y-b.y);};
+    canvas.addEventListener('wheel',e=>{e.preventDefault();const pixels=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?canvas.clientHeight:1);setZoom(zoom*Math.exp(-Math.max(-160,Math.min(160,pixels))*.002));},{passive:false});
+    canvas.onpointerdown=e=>{if(e.button>0)return;auto=false;showControls();pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});canvas.setPointerCapture(e.pointerId);if(pointers.size===1)drag={id:e.pointerId,x:e.clientX,y:e.clientY};else{drag=null;pinch={gap:Math.max(1,gap()),zoom};}};
+    canvas.onpointermove=e=>{if(!pointers.has(e.pointerId))return;pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pointers.size>=2){if(pinch)setZoom(pinch.zoom*gap()/pinch.gap);}else if(drag?.id===e.pointerId){turn((e.clientX-drag.x)*.012,(drag.y-e.clientY)*.008);drag.x=e.clientX;drag.y=e.clientY;}};
+    canvas.onpointerup=canvas.onpointercancel=canvas.onlostpointercapture=e=>{if(!pointers.delete(e.pointerId))return;pinch=drag=null;if(pointers.size===1){const [id,p]=pointers.entries().next().value;drag={id,...p};}else if(pointers.size>=2)pinch={gap:Math.max(1,gap()),zoom};};
     refresh();
   }
   function cleanup() {
     if (!active) return;
     active = false;renderSession++;modelTicket++;loadedId='';
-    cancelAnimationFrame(raf);raf=0;auto=running=false;drag=null;resize?.disconnect();visibility?.disconnect();
+    cancelAnimationFrame(raf);raf=0;auto=running=false;drag=pinch=null;pointers.clear();resize?.disconnect();visibility?.disconnect();
     renderer?.dispose();renderer=null;
     host?.onClose();
   }
@@ -256,7 +263,7 @@
     host=adapter;active=true;
     if(!dialog){dialog=document.createElement('dialog');dialog.id='trainGarage';dialog.setAttribute('aria-labelledby','garageTitle');document.body.append(dialog);dialog.addEventListener('cancel',e=>{e.preventDefault();close();});dialog.addEventListener('close',()=>{if(!dialog.open)cleanup();});}
     demo=!!options.demo;data();selected=demo?'e200':rows.find(r=>r.owned)?.id||'emu3000';
-    filter=demo||rows.some(r=>r.owned)?'owned':'all';auto=running=false;mode='model';yaw=-.55;elevation=.39;direction=1;distance=0;travelTime=0;period=scenePeriod();last=0;inView=true;
+    filter=demo||rows.some(r=>r.owned)?'owned':'all';auto=running=false;mode='model';resetView();direction=1;distance=0;travelTime=0;period=scenePeriod();last=0;inView=true;
     rendererPromise=startRenderer();
     showDialog();build();dialog.scrollTop=0;$('.g-close').focus({preventScroll:true});requestDraw();
   }

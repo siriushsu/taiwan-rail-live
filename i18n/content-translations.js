@@ -1335,6 +1335,8 @@
     "所有系統": "All systems",
     "選擇車款": "Choose a train",
     "海岸行旅": "Coastal journey",
+    "環形試跑": "Loop track",
+    "環形試跑 · 拖曳旋轉，欣賞三節小車": "Loop track · Drag to view the three-car train",
     "反向行駛": "Reverse direction",
     "暫停行駛": "Pause journey",
     "開始行駛": "Start journey",
@@ -1409,6 +1411,8 @@
     "所有系統": "すべてのシステム",
     "選擇車款": "車両を選ぶ",
     "海岸行旅": "海辺の旅",
+    "環形試跑": "周回コース",
+    "環形試跑 · 拖曳旋轉，欣賞三節小車": "周回コース · ドラッグして3両編成を眺めよう",
     "反向行駛": "進行方向を反転",
     "暫停行駛": "走行を一時停止",
     "開始行駛": "走行を開始",
@@ -1511,3 +1515,9 @@
     "修正護照收集章與今日亮點：點「環島之星」不再跑成阿里山林鐵的同號車": "パスポートのスタンプと「今日のみどころ」を修正しました。「環島之星」をタップしても、同じ列車番号の阿里山森林鉄道の列車を追跡しなくなりました。"
   });
 })();
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"車庫加入環形試跑，三節小車沿彎道逐節轉向，可暫停、反向與自由旋轉欣賞；所有場景都能按鈕、滾輪或雙指縮放，海岸行旅也保留在選單中": "The garage now has a loop track. Each of the three cars follows the curves individually. Pause, reverse, rotate, and zoom with buttons, the mouse wheel or a two-finger gesture. The coastal journey remains in the scene menu."});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"車庫加入環形試跑，三節小車沿彎道逐節轉向，可暫停、反向與自由旋轉欣賞；所有場景都能按鈕、滾輪或雙指縮放，海岸行旅也保留在選單中": "車庫に周回コースを追加。3両の小さな列車が1両ずつカーブに沿って走ります。一時停止、逆走、自由な視点回転に対応。どの場面もボタン、ホイール、ピンチで拡大・縮小できます。海辺の旅も場面メニューに残しています。"});
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"放大場景":"Zoom in", "縮小場景":"Zoom out", "縮放比例":"Zoom level"});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"放大場景":"拡大", "縮小場景":"縮小", "縮放比例":"表示倍率"});
