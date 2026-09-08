@@ -12,6 +12,21 @@
     "openmaptiles": {
       "type": "vector",
       "url": "https://tiles.openfreemap.org/planet"
+    },
+    "taiwan-worldcover": {
+      "type": "vector",
+      "tiles": [
+        "./rail-3d/landcover/worldcover-2021/{z}/{x}/{y}.pbf"
+      ],
+      "minzoom": 6,
+      "maxzoom": 11,
+      "bounds": [
+        118.151366,
+        21.895601,
+        122.085059,
+        26.383474
+      ],
+      "attribution": "© <a href=\"https://esa-worldcover.org/en/data-access\" target=\"_blank\">ESA WorldCover 2021</a>"
     }
   },
   "sprite": "https://tiles.openfreemap.org/sprites/ofm_f384/ofm",
@@ -25,7 +40,92 @@
       }
     },
     {
+      "id": "landscape-worldcover",
+      "type": "fill",
+      "source": "taiwan-worldcover",
+      "source-layer": "landcover",
+      "filter": [
+        "!=",
+        [
+          "get",
+          "class"
+        ],
+        "wood"
+      ],
+      "paint": {
+        "fill-color": [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          "farmland",
+          "#dbd5a3",
+          "grass",
+          "#c6d2a3",
+          "scrub",
+          "#a5bd91",
+          "built",
+          "#e7dcc6",
+          "bare",
+          "#c5c1af",
+          "snow",
+          "#eeeee4",
+          "water",
+          "#86babd",
+          "wetland",
+          "#abc6af",
+          "mangrove",
+          "#7faaa0",
+          "moss",
+          "#b0bb94",
+          "#ece3cd"
+        ],
+        "fill-antialias": false
+      }
+    },
+    {
+      "id": "landscape-worldcover-wood",
+      "type": "fill",
+      "source": "taiwan-worldcover",
+      "source-layer": "landcover",
+      "filter": [
+        "==",
+        [
+          "get",
+          "class"
+        ],
+        "wood"
+      ],
+      "paint": {
+        "fill-color": "#7fa47b",
+        "fill-antialias": false
+      }
+    },
+    {
       "id": "landscape-farmland",
+      "type": "fill",
+      "source": "openmaptiles",
+      "source-layer": "landcover",
+      "filter": [
+        "match",
+        [
+          "get",
+          "class"
+        ],
+        [
+          "farmland"
+        ],
+        true,
+        false
+      ],
+      "paint": {
+        "fill-color": "#dbd5a3",
+        "fill-opacity": 1
+      }
+    },
+    {
+      "id": "landscape-farmyard",
       "type": "fill",
       "source": "openmaptiles",
       "source-layer": "landuse",
@@ -36,7 +136,6 @@
           "class"
         ],
         [
-          "farmland",
           "farmyard"
         ],
         true,

@@ -411,6 +411,10 @@
   .maplibregl-ctrl-bottom-right .maplibregl-ctrl:not(.maplibregl-ctrl-attrib) { margin-right: calc(10px + var(--sa-r)); }
   .maplibregl-ctrl-bottom-right .maplibregl-ctrl-attrib { margin-right: var(--sa-r); }
   .maplibregl-ctrl-attrib a { color: var(--muted); }
+  @media (min-width: 1025px) and (min-height: 501px) and (pointer: fine) {
+    /* 地景多了來源署名，固定在右半側橫捲，留出中央隨機跟隨鈕。 */
+    .landscape-map .maplibregl-ctrl-attrib { max-width: calc(50vw - 90px); white-space: nowrap; overflow-x: auto; overflow-y: hidden; }
+  }
   /* MapLibre 已經在正北且無俯角時不需要占一格；一旋轉或傾斜就立即現形成為回北出口。 */
   .maplibregl-map:not(.map-orient-active) .maplibregl-ctrl-compass { display: none; }
 
@@ -5234,6 +5238,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="worldcover0908"><span class="d">9/8</span><span>地景加入公開土地覆蓋資料，補足台灣與離島的山林、草地和農田；樹群依林地範圍呈現，並保留道路與建物空間</span></li>
         <li data-cl-of="landscape0908"><span class="d">9/8</span><span>新增「地景」地圖風格：河流、林地、公園與街廓換上自然色，近看可見立體樹冠與建築，搭配列車沿線探索台灣</span></li>
         <li data-cl-of="terminusarr0908"><span class="d">9/8</span><span>終點站的車站看板現在會列出一小時以後才到站的班次——去接人的人看得到時間；其他車站維持只列一小時內的到站車。</span></li>
         <li data-cl-of="followkeep0908"><span class="d">9/8</span><span>跟車鏡頭保留目前的近景，點列車或隨機跟隨不再拉遠；再次點到正在跟隨的列車會回到車旁，不會結束跟隨</span></li>
@@ -5241,7 +5246,6 @@
         <li data-cl-of="perf3d0908"><span class="d">9/8</span><span>改善立體地圖拖曳與旋轉的流暢度，保留完整列車與建築細節；切換地形後，建築輪廓也會回到正確高度</span></li>
         <li data-cl-of="xferfontscale0908"><span class="d">9/8</span><span>調大字級時，轉乘接續裡的車次與「剩 N 分」會跟著一起放大，不再只長一點點</span></li>
         <li data-cl-of="boardcardfix0908"><span class="d">9/8</span><span>修正車站看板與跟車卡三處顯示問題：只有一條線經過的站不再多出線名標題、車號前不再多一個空格、跟車時拖地圖不會再把列車卡壓扁</span></li>
-        <li data-cl-of="searchtraintype0908"><span class="d">9/8</span><span>搜尋框可以打車種與車型了：輸入「自強號」「EMU3000」「太魯閣」會列出符合的班次，正在跑的排前面，也能點車型看介紹（謝謝網友回報）</span></li>
 
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
@@ -5250,6 +5254,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="worldcover0908"><span class="d">9/8</span><span>地景加入公開土地覆蓋資料，補足台灣與離島的山林、草地和農田；樹群依林地範圍呈現，並保留道路與建物空間</span></li>
         <li data-cl="landscape0908"><span class="d">9/8</span><span>新增「地景」地圖風格：河流、林地、公園與街廓換上自然色，近看可見立體樹冠與建築，搭配列車沿線探索台灣</span></li>
         <li data-cl="terminusarr0908"><span class="d">9/8</span><span>終點站的車站看板現在會列出一小時以後才到站的班次——去接人的人看得到時間；其他車站維持只列一小時內的到站車。</span></li>
         <li data-cl="followkeep0908"><span class="d">9/8</span><span>跟車鏡頭保留目前的近景，點列車或隨機跟隨不再拉遠；再次點到正在跟隨的列車會回到車旁，不會結束跟隨</span></li>
@@ -5569,6 +5574,7 @@
         <li><span class="d">新北捷</span><span>淡海輕軌・安坑輕軌的即時列車動態引用自新北大眾捷運股份有限公司官網「列車動態」公開頁面，著作權屬該公司所有</span></li>
         <li><span class="d">軌道</span><span>台鐵軌道及阿里山林鐵的 TDX 缺口補線取自 © OpenStreetMap 貢獻者（ODbL），經 Overpass／OSM API</span></li>
         <li><span class="d">底圖</span><span><!-- APP_REPLACE_START basemap-credit（App 換 OpenFreeMap/Stadia/Esri 授權版文字，prepare-web.mjs 替換） -->OpenFreeMap（© OpenFreeMap © OpenMapTiles © OpenStreetMap 貢獻者，街道圖）、Esri World Imagery（衛星影像）與內政部「直轄市、縣市界線」（離線海陸輪廓，政府資料開放授權條款第1版）<!-- APP_REPLACE_END basemap-credit --></span></li>
+        <li id="landscapeDataCredit"><span class="d">地景</span><span>© ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a> · <a href="https://doi.org/10.5281/zenodo.7254221" target="_blank" rel="noopener">WorldCover 2021 v200</a></span></li>
         <!-- APP_REPLACE_START status-link:App 包內沒有 status.html 且其相對 API 呼叫在本機來源不通,App build 換成正式站絕對網址外開 -->
         <li><span class="d">狀態</span><a href="status.html">資料源連線狀態頁</a></li>
         <!-- APP_REPLACE_END status-link -->
@@ -6152,7 +6158,7 @@
 // v0907n：更新紀錄拿掉 7/13 那條贊助方式（站上最後一處金流資訊）。
 // v0908b：阿里山林鐵補上站內股道與之字形折返股(阿里山、祝山的軌道畫進站裡);近景實體股道白名單
 //         改為單一來源(rail-3d.js 不再自帶第二份),沒被涵蓋的系統保留原本的示意線形。
-const BUILD = 'v0908j';
+const BUILD = 'v0908k';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -6738,7 +6744,12 @@ function createMaplibreEngine(containerId, view) {
     center: [c0.lng, c0.lat], zoom: view.zoom - ML_Z,
     attributionControl: false, renderWorldCopies: false, fadeDuration: 0,
     dragRotate: true, pitchWithRotate: true, touchPitch: true, maxPitch: 60,
-    transformRequest: (url, type) => { if (type === 'Tile' && tileHook) tileHook(url); return { url }; },
+    transformRequest: (url, type) => {
+      // 向量圖磚由 worker 讀取，須先把自有相對路徑解析成網站／App 的絕對網址。
+      if (url.startsWith('./rail-3d/landcover/')) url = new URL(url, document.baseURI).href;
+      if (type === 'Tile' && tileHook) tileHook(url);
+      return { url };
+    },
   });
   raw.touchZoomRotate.enableRotation();
   // 這裡刻意不掛 raw.on('error'):OFM 街道底圖的退路(glStreetFallback)自己監聽 error 算次數、靜默切換,
@@ -30674,6 +30685,7 @@ function glLandInstall() {
 // 因為 MapLibre 的 AttributionControl 會在 sourcedata 時重寫 innerHTML,事後翻譯會被蓋回去。
 function glAttributionSync() {
   if (!M || !M.setAttribution) return;
+  M.getContainer().classList.toggle('landscape-map', state.basemap === 'landscape');
   const list = [];
   if (state.basemap === 'sat' && satTokenState === 'ready' && satAttribution) list.push(satAttribution);
   if (glLand) list.push(t('臺灣輪廓：內政部'));
