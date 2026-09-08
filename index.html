@@ -5238,14 +5238,12 @@
         <li class="grp">最近更新</li>
         <li data-cl-of="mrttrainno0908"><span class="d">9/8</span><span>跟隨台北捷運列車時，官方有給車次的班次會在資訊卡上方顯示車次</span></li>
         <li data-cl-of="dexmisscard0908"><span class="d">9/8</span><span>收集章今天沒有班次時，改成跳出這班車的故事卡，並告訴你班表上的下一個開行日</span></li>
+        <li data-cl-of="garageloop0908"><span class="d">9/8</span><span>車庫加入環形試跑，三節小車沿彎道逐節轉向，可暫停、反向與自由旋轉欣賞；所有場景都能按鈕、滾輪或雙指縮放，海岸行旅也保留在選單中</span></li>
+        <li data-cl-of="garagecoast0908"><span class="d">9/8</span><span>車庫新增三節編組的頭城海岸行旅，沿著無盡鐵道欣賞立體海岸與龜山島；依台灣時間呈現日出、藍天、黃昏或星空，也能調整視角與反向欣賞車身</span></li>
         <li data-cl-of="garageselect0908"><span class="d">9/8</span><span>車庫改用下拉選單直接選車，按鐵道系統分組；展示台移到更容易看見的位置，不用輸入車型名稱</span></li>
         <li data-cl-of="dexstarsys0908"><span class="d">9/8</span><span>修正護照收集章與今日亮點：點「環島之星」不再跑成阿里山林鐵的同號車</span></li>
         <li data-cl-of="blue1350908"><span class="d">9/8</span><span>藍皮解憂號模型重新校正短車鼻、頭燈、R135 車號牌與深藍白線塗裝，客車同步換上藍色車身及銀灰車頂</span></li>
         <li data-cl-of="terminusarr0908"><span class="d">9/8</span><span>終點站的車站看板現在會列出一小時以後才到站的班次——去接人的人看得到時間；其他車站維持只列一小時內的到站車。</span></li>
-        <li data-cl-of="followkeep0908"><span class="d">9/8</span><span>跟車鏡頭保留目前的近景，點列車或隨機跟隨不再拉遠；再次點到正在跟隨的列車會回到車旁，不會結束跟隨</span></li>
-        <li data-cl-of="ontrack0908"><span class="d">9/8</span><span>修正列車在車站與彎道附近整列飄到軌道旁的問題，車廂沿指派股道逐節轉彎，不再因鄰車靠近而橫移</span></li>
-
-
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5262,6 +5260,8 @@
         <li data-cl="tracreep0907"><span class="d">9/7</span><span>台鐵誤點加大時，列車改成慢速前進，不再停在原地等誤點追上</span></li>
         <li data-cl="searchtraintype0908"><span class="d">9/8</span><span>搜尋框接上車種與車型：以前打「自強號」會查無結果，現在輸入車種（自強、區間車、區間快、莒光）或車型（EMU3000、太魯閣、普悠瑪、推拉式 PP）都會列出當日符合的班次，正在跑的排最前面，命中的車型也能點開看介紹（謝謝網友回報）</span></li>
         <li data-cl="ambientfollow3d0907"><span class="d">9/7</span><span>放空的跟車視角改成貼著車身的立體視角，看得到列車在軌道上跑，速度也放回實際車速；放空時的配樂改播完整曲庫</span></li>
+        <li data-cl="garageloop0908"><span class="d">9/8</span><span>車庫加入環形試跑，三節小車沿彎道逐節轉向，可暫停、反向與自由旋轉欣賞；所有場景都能按鈕、滾輪或雙指縮放，海岸行旅也保留在選單中</span></li>
+        <li data-cl="garagecoast0908"><span class="d">9/8</span><span>車庫新增三節編組的頭城海岸行旅，沿著無盡鐵道欣賞立體海岸與龜山島；依台灣時間呈現日出、藍天、黃昏或星空，也能調整視角與反向欣賞車身</span></li>
         <li data-cl="garageselect0908"><span class="d">9/8</span><span>車庫改用下拉選單直接選車，按鐵道系統分組；展示台移到更容易看見的位置，不用輸入車型名稱</span></li>
         <li data-cl="garage0907"><span class="d">9/7</span><span>新增收藏車庫，62 款精修小車可旋轉欣賞；還沒收集到的是灰色車體，累積旅程進度解鎖後才有塗裝，舊護照自動帶入</span></li>
         <li data-cl="busboardscroll0907"><span class="d">9/7</span><span>修正車站看板更新時，已捲到公車資訊的位置被往回拉的問題</span></li>
@@ -6159,7 +6159,7 @@
 // v0907n：更新紀錄拿掉 7/13 那條贊助方式（站上最後一處金流資訊）。
 // v0908b：阿里山林鐵補上站內股道與之字形折返股(阿里山、祝山的軌道畫進站裡);近景實體股道白名單
 //         改為單一來源(rail-3d.js 不再自帶第二份),沒被涵蓋的系統保留原本的示意線形。
-const BUILD = 'v0908p-mrtno';
+const BUILD = 'v0908q-mrtno';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。

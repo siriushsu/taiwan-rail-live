@@ -1340,6 +1340,23 @@
     "篩選鐵道系統": "Filter rail systems",
     "所有系統": "All systems",
     "選擇車款": "Choose a train",
+    "海岸行旅": "Coastal journey",
+    "環形試跑": "Loop track",
+    "環形試跑 · 拖曳旋轉，欣賞三節小車": "Loop track · Drag to view the three-car train",
+    "反向行駛": "Reverse direction",
+    "暫停行駛": "Pause journey",
+    "開始行駛": "Start journey",
+    "頭城海岸・龜山島": "Toucheng coast · Guishan Island",
+    "日出": "Sunrise",
+    "藍天": "Blue skies",
+    "黃昏": "Dusk",
+    "星空": "Starry night",
+    "車庫新增三節編組的頭城海岸行旅，沿著無盡鐵道欣賞立體海岸與龜山島；依台灣時間呈現日出、藍天、黃昏或星空，也能調整視角與反向欣賞車身": "Take a three-car train along endless rails through the 3D Toucheng coast and Guishan Island scenery. Sunrise, blue skies, dusk or stars follow Taiwan time. Adjust the view or reverse direction to see the other side.",
+    "近看小車": "Close-up",
+    "提高視角": "Raise viewing angle",
+    "降低視角": "Lower viewing angle",
+    "重設視角": "Reset view",
+    "上下左右拖曳，看看每一面": "Drag in any direction to explore",
     "車庫改用下拉選單直接選車，按鐵道系統分組；展示台移到更容易看見的位置，不用輸入車型名稱": "Choose a train from the garage dropdown, grouped by rail system. The display is now easier to see, without typing a model name.",
     "查看所有車款": "View all trains",
     "看看展示車庫": "Try the demo garage",
@@ -1399,6 +1416,23 @@
     "篩選鐵道系統": "鉄道システムで絞り込み",
     "所有系統": "すべてのシステム",
     "選擇車款": "車両を選ぶ",
+    "海岸行旅": "海辺の旅",
+    "環形試跑": "周回コース",
+    "環形試跑 · 拖曳旋轉，欣賞三節小車": "周回コース · ドラッグして3両編成を眺めよう",
+    "反向行駛": "進行方向を反転",
+    "暫停行駛": "走行を一時停止",
+    "開始行駛": "走行を開始",
+    "頭城海岸・龜山島": "頭城海岸・亀山島",
+    "日出": "日の出",
+    "藍天": "青空",
+    "黃昏": "夕暮れ",
+    "星空": "星空",
+    "車庫新增三節編組的頭城海岸行旅，沿著無盡鐵道欣賞立體海岸與龜山島；依台灣時間呈現日出、藍天、黃昏或星空，也能調整視角與反向欣賞車身": "車庫に3両編成で走る頭城海岸の旅を追加。どこまでも続く線路と立体的な海岸、亀山島を眺められます。台湾時間に合わせて日の出、青空、夕暮れ、星空に変化。視点や進行方向を変えて車体を楽しめます。",
+    "近看小車": "車両を眺める",
+    "提高視角": "視点を上げる",
+    "降低視角": "視点を下げる",
+    "重設視角": "視点をリセット",
+    "上下左右拖曳，看看每一面": "上下左右にドラッグして眺める",
     "車庫改用下拉選單直接選車，按鐵道系統分組；展示台移到更容易看見的位置，不用輸入車型名稱": "車庫のプルダウンから鉄道システム別に車両を選べるようになりました。車名を入力せず、見やすい位置でモデルを楽しめます。",
     "查看所有車款": "すべての車両を見る",
     "看看展示車庫": "展示車庫を見る",
@@ -1501,3 +1535,9 @@
     "跟隨台北捷運列車時，官方有給車次的班次會在資訊卡上方顯示車次": "台北メトロの列車を追跡すると、公式データに列車番号がある便はカード上部に列車番号を表示します。"
   });
 })();
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"車庫加入環形試跑，三節小車沿彎道逐節轉向，可暫停、反向與自由旋轉欣賞；所有場景都能按鈕、滾輪或雙指縮放，海岸行旅也保留在選單中": "The garage now has a loop track. Each of the three cars follows the curves individually. Pause, reverse, rotate, and zoom with buttons, the mouse wheel or a two-finger gesture. The coastal journey remains in the scene menu."});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"車庫加入環形試跑，三節小車沿彎道逐節轉向，可暫停、反向與自由旋轉欣賞；所有場景都能按鈕、滾輪或雙指縮放，海岸行旅也保留在選單中": "車庫に周回コースを追加。3両の小さな列車が1両ずつカーブに沿って走ります。一時停止、逆走、自由な視点回転に対応。どの場面もボタン、ホイール、ピンチで拡大・縮小できます。海辺の旅も場面メニューに残しています。"});
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"放大場景":"Zoom in", "縮小場景":"Zoom out", "縮放比例":"Zoom level"});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"放大場景":"拡大", "縮小場景":"縮小", "縮放比例":"表示倍率"});

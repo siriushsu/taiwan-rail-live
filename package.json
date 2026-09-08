@@ -98,7 +98,7 @@
     "build-3d-display-profiles": "node scripts/build_3d_display_profiles.mjs",
     "check-3d-terrain-clearance": "node scripts/verify_3d_terrain_clearance.mjs",
     "check-3d-terrain-browser": "node scripts/verify_3d_terrain_browser.mjs",
-    "check-garage": "node scripts/verify_garage_assets.mjs && node scripts/verify_train_garage.mjs && node scripts/verify_garage_lifecycle.mjs",
+    "check-garage": "node scripts/verify_garage_assets.mjs && node scripts/verify_train_garage.mjs && node scripts/verify_garage_lifecycle.mjs && node scripts/verify_garage_motion.mjs && node scripts/verify_garage_coast_times.mjs && node scripts/verify_garage_coast_scene.mjs && node scripts/verify_garage_loop.mjs && node scripts/verify_garage_zoom.mjs",
     "check-garage-assets": "node scripts/verify_garage_assets.mjs",
     "check-3d-perf": "node scripts/verify_glass_cache.mjs && node scripts/verify_physical_runtime_cache.mjs && node scripts/verify_3d_mask_equivalence.mjs && HEADFUL=1 node scripts/verify_3d_mask_scheduling.mjs"
   },
