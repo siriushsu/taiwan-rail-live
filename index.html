@@ -5221,7 +5221,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/9/7</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/9/8</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -5229,6 +5229,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="searchtraintype0908"><span class="d">9/8</span><span>搜尋框可以打車種與車型了：輸入「自強號」「EMU3000」「太魯閣」會列出符合的班次，正在跑的排前面，也能點車型看介紹（謝謝網友回報）</span></li>
         <li data-cl-of="mountaintrack0907"><span class="d">9/7</span><span>山線三義隧道段的軌道改用實際路線重畫，列車經過時不再偏離軌道</span></li>
         <li data-cl-of="tracreep0907"><span class="d">9/7</span><span>台鐵誤點加大時，列車改成慢速前進，不再停在原地等誤點追上</span></li>
         <li data-cl-of="ambientfollow3d0907"><span class="d">9/7</span><span>放空的跟車視角改成貼著車身的立體視角，看得到列車在軌道上跑，速度也放回實際車速；放空時的配樂改播完整曲庫</span></li>
@@ -5236,7 +5237,6 @@
         <li data-cl-of="busboardscroll0907"><span class="d">9/7</span><span>修正車站看板更新時，已捲到公車資訊的位置被往回拉的問題</span></li>
         <li data-cl-of="physicaltracks0907"><span class="d">9/7</span><span>近景列車依推估股道分流，少量交疊會暫時靠旁避讓；捷運到站時保留立體車身。阿里山林鐵暫不套股道，停站的車不再畫到軌道外；阿里山、祝山、神木一帶補畫站內與之字形折返股道</span></li>
         <li data-cl-of="satellitemodel0907"><span class="d">9/7</span><span>衛星地圖上的地標與車站改用模型原色，建築透視可依需要切換</span></li>
-        <li data-cl-of="compactfollow0907"><span class="d">9/7</span><span>跟車卡收起後保持單行，編組說明留在展開資訊中；暗色改用精簡玻璃卡，結束按鈕更容易點擊</span></li>
 
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
@@ -5247,6 +5247,7 @@
         <li class="grp">路網與車站</li>
         <li data-cl="mountaintrack0907"><span class="d">9/7</span><span>山線三義隧道段的軌道改用實際路線重畫，列車經過時不再偏離軌道</span></li>
         <li data-cl="tracreep0907"><span class="d">9/7</span><span>台鐵誤點加大時，列車改成慢速前進，不再停在原地等誤點追上</span></li>
+        <li data-cl="searchtraintype0908"><span class="d">9/8</span><span>搜尋框接上車種與車型：以前打「自強號」會查無結果，現在輸入車種（自強、區間車、區間快、莒光）或車型（EMU3000、太魯閣、普悠瑪、推拉式 PP）都會列出當日符合的班次，正在跑的排最前面，命中的車型也能點開看介紹（謝謝網友回報）</span></li>
         <li data-cl="ambientfollow3d0907"><span class="d">9/7</span><span>放空的跟車視角改成貼著車身的立體視角，看得到列車在軌道上跑，速度也放回實際車速；放空時的配樂改播完整曲庫</span></li>
         <li data-cl="garage0907"><span class="d">9/7</span><span>新增收藏車庫，62 款精修小車可旋轉欣賞；還沒收集到的是灰色車體，累積旅程進度解鎖後才有塗裝，舊護照自動帶入</span></li>
         <li data-cl="busboardscroll0907"><span class="d">9/7</span><span>修正車站看板更新時，已捲到公車資訊的位置被往回拉的問題</span></li>
@@ -6139,7 +6140,7 @@
 // v0907n：更新紀錄拿掉 7/13 那條贊助方式（站上最後一處金流資訊）。
 // v0908b：阿里山林鐵補上站內股道與之字形折返股(阿里山、祝山的軌道畫進站裡);近景實體股道白名單
 //         改為單一來源(rail-3d.js 不再自帶第二份),沒被涵蓋的系統保留原本的示意線形。
-const BUILD = 'v0908b';
+const BUILD = 'v0908c';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
@@ -27332,6 +27333,57 @@ function renderNamedIntro(n) {
     `<div class="sd-note">${escHtml(t('觀光列車・無固定班次，開行日期與車次以台鐵公告為準'))}</div></div>`;
   openSearchDrop();
 }
+const SEARCH_TYPE_ROWS = 8;
+// 車種／車型比對(網友回報 issue #48：搜尋只打「自強號」查無結果)。兩個來源都是既有欄位,不另生資料:
+//   車種 = 班表 trains[].typeName(自強／區間車／區間快／莒光、復興)——車種 chip 篩選一直在用它;
+//   車型 = trains[].carName 經 data/tra_special_trains.json 的 rollingStock[].carNames 對照
+//          (EMU3000／太魯閣／普悠瑪／PP／DR3100／莒光／區間車／區間快,共 8 種)。
+// 只做台鐵:rollingStock 這份檔本身只涵蓋台鐵,且 specialOf() 已限定 tr.sys==='tra_sched'(跨系統會撞號)。
+// 覆蓋率實測 968/991 班對得到車型;其餘 23 班是「自強(商專)」「電車(專)」這種【專開／團體車】,
+// 官方本來就沒給固定車型——那些只靠 typeName 命中,不硬塞車型,也不列進車型區。
+// 正規化把「號」拿掉:使用者打的是「自強號」,而官方欄位寫「自強」;「莒光號」「太魯閣號」同理。
+function searchTypeNorm(s) {
+  return String(s || '').replace(/臺/g, '台').replace(/\s+/g, '').replace(/號/g, '').toLowerCase();
+}
+// 回傳 { stocks:命中的車型(點了看介紹卡), trs:命中的班次(可跟隨), total:命中班次總數 }
+// 排序「正在跑的優先」:搜尋的下一步通常是點下去跟車,跟一班今天已經跑完的車沒有意義。
+function searchTypeMatch(q) {
+  const out = { stocks: [], trs: [], total: 0 };
+  const nq = searchTypeNorm(q);
+  if (nq.length < 2) return out;                       // 1 字太寬(「自」會掃到整片),比照 searchNamedMatch
+  const sys = state.systems.find(s => s.id === 'tra_sched');
+  if (!sys || !sys.data || !sys.data.trains) return out;
+  const stocks = ((state.special && state.special.rollingStock) || []).filter(r =>
+    [r.name, r.id].concat(r.carNames || []).some(v => searchTypeNorm(v).includes(nq)));
+  const stockIds = new Set(stocks.map(r => r.id));
+  const now = state.simSec;
+  const hits = [];
+  for (const tr of sys.data.trains) {
+    if (!tr.stops || !tr.stops.length) continue;
+    const sp = specialOf(tr);
+    const stock = sp && sp.stock;
+    if (!(stock && stockIds.has(stock.id)) && !searchTypeNorm(tr.typeName).includes(nq)) continue;
+    const dep = tr.stops[0].depSec, arr = tr.stops[tr.stops.length - 1].arrSec;
+    // 0=在途 1=待發 2=今天已抵達;同組內在途／待發依發車時刻由早到晚,已抵達的反過來(剛跑完的先)
+    const rank = (dep <= now && now <= arr) ? 0 : (dep > now ? 1 : 2);
+    hits.push({ tr, sys, _r: rank, _d: dep });
+  }
+  hits.sort((a, b) => (a._r - b._r) || (a._r === 2 ? b._d - a._d : a._d - b._d));
+  out.stocks = stocks; out.total = hits.length; out.trs = hits.slice(0, SEARCH_TYPE_ROWS);
+  return out;
+}
+// 車型介紹卡(issue #48):rollingStock 的 story 原本只有「點地圖上正在跑的那台車」才看得到,
+// 搜尋接上車型之後這裡是第二個入口。版面沿用觀光列車介紹卡,不另做樣式。
+function renderStockIntro(r) {
+  const drop = document.getElementById('searchDrop');
+  if (!drop) return;
+  state._stockIntro = r;
+  drop.innerHTML = `<div class="sd-named"><b class="tn">${escHtml(i18nContentData('rollingStock', r, 'name'))}</b>` +
+    `<span class="sys-chip">${escHtml(t('車型'))}</span>` +
+    `<p>${escHtml(i18nContentData('rollingStock', r, 'story'))}</p>` +
+    `<div class="sd-note">${escHtml(t('車型依台鐵公告的車種代碼比對，實際配車以當日營運為準'))}</div></div>`;
+  openSearchDrop();
+}
 const SEARCH_STN_ROWS = 12;
 // 常駐搜尋框的下拉:列車名稱區＋車次區(含數字才出現,置頂)＋車站區。即時重繪、量小免 debounce。
 function renderSearchDrop() {
@@ -27352,10 +27404,16 @@ function renderSearchDrop() {
     openSearchDrop(); return;
   }
   const named = searchNamedMatch(q);
-  const trs = named.trs.concat(searchTrainMatch(q)); // 名稱命中的具名班次排最前(名稱查詢意圖明確)
+  const typed = searchTypeMatch(q);                  // 車種／車型(issue #48):「自強號」「EMU3000」「太魯閣」
+  // 名稱命中的具名班次排最前(名稱查詢意圖明確),車種／車型命中的排最後;同一班車只列一次
+  // (實務上不會重疊——searchTrainMatch 要求含數字且比對車次號前綴——去重是為了日後改判定式時不長出重複列)
+  const seen = new Set();
+  const trs = named.trs.concat(searchTrainMatch(q)).concat(typed.trs)
+    .filter(o => { const k = (o.sys && o.sys.id) + '|' + o.tr.train; if (seen.has(k)) return false; seen.add(k); return true; });
   const stns = stnSearchMatch(q);          // stnSearchMatch 內部自行正規化(臺→台、去空白)
   const stnShown = stns.slice(0, SEARCH_STN_ROWS);
   state._searchTrains = trs; state._searchStns = stnShown; state._searchNamed = named.infos;
+  state._searchStocks = typed.stocks;
   let html = '';
   if (named.infos.length) {
     html += `<div class="sd-sec">${escHtml(t('觀光列車'))}</div>`;
@@ -27363,6 +27421,13 @@ function renderSearchDrop() {
       `<div class="row named-row" data-ni="${i}"><span class="nm">${escHtml(i18nContentData('namedTrains', n, 'name'))}</span>`
       + `<span class="sys-chip">${escHtml(t('觀光列車'))}</span>`
       + `<span class="tr-meta">${escHtml(i18nContentData('namedTrains', n, 'tags', 0))}　${escHtml(t('點看介紹'))}</span></div>`).join('');
+  }
+  if (typed.stocks.length) {
+    html += `<div class="sd-sec">${escHtml(t('車型'))}</div>`;
+    html += typed.stocks.map((r, i) =>
+      `<div class="row stock-row" data-si="${i}"><span class="nm">${escHtml(i18nContentData('rollingStock', r, 'name'))}</span>`
+      + `<span class="sys-chip">${escHtml(t('車型'))}</span>`
+      + `<span class="tr-meta">${escHtml(t('點看介紹'))}</span></div>`).join('');
   }
   if (trs.length) {
     html += `<div class="sd-sec">${escHtml(t('車次'))}</div>`;
@@ -27374,6 +27439,8 @@ function renderSearchDrop() {
         + `<span class="tr-meta">${sp ? escHtml(spd?.named ? i18nContentData('namedTrains', spd.named, 'name') : t(sp.name)) + '・' : ''}${escHtml(trainTypeName(tr.typeName))}　${escHtml(stationName(a, tr.sys))}→${escHtml(stationName(b, tr.sys))}</span></div>`;
     }).join('');
   }
+  if (typed.total > typed.trs.length)
+    html += `<div class="stn-count">${escHtml(t('共 {n} 班符合，正在跑的排前面', { n: i18nNumber(typed.total) }, typed.total))}</div>`;
   if (stnShown.length) {
     if (trs.length) html += `<div class="sd-sec">${escHtml(t('車站'))}</div>`;
     html += stnShown.map((e, i) => {
@@ -27385,13 +27452,13 @@ function renderSearchDrop() {
     html += `<div class="stn-count">${escHtml(t('共 {n} 站符合', { n: i18nNumber(stns.length) }, stns.length))}${stns.length > SEARCH_STN_ROWS ? escHtml(t('（顯示前 {n}）', { n: i18nNumber(SEARCH_STN_ROWS) }, SEARCH_STN_ROWS)) : ''}</div>`;
   }
   // 設計 3h 的空結果文案:只講「查無」對使用者沒有下一步,補一句最常見的原因(誠實線的講法,不保證)
-  if (!trs.length && !stnShown.length && !named.infos.length)
+  if (!trs.length && !stnShown.length && !named.infos.length && !typed.stocks.length)
     html = `<div class="empty">${escHtml(t('查無車站、車次或列車'))}<span class="sd-tip">${escHtml(t('找不到就檢查一下車次是不是今天的班次——停駛或加班車不一定在時刻表裡。'))}</span></div>`;
   drop.innerHTML = html;
   openSearchDrop();
 }
 function openSearchDrop() { const d = document.getElementById('searchDrop'); if (d) d.hidden = false; }
-function closeSearchDrop() { const d = document.getElementById('searchDrop'); if (d) d.hidden = true; state._namedIntro = null; }
+function closeSearchDrop() { const d = document.getElementById('searchDrop'); if (d) d.hidden = true; state._namedIntro = null; state._stockIntro = null; }
 // ── 查詢面板(手機專屬;v0726a 起是 tab bar 放大鏡的落點)──
 // 面板本身不持有查詢 DOM:.search 由 placeSearch() 搬進 #searchSlot;瀏覽態只負責露出它、不叫鍵盤,收面板時鍵盤跟著收。
 // 桌面走不到(搜尋框常駐 header、tab bar 不顯示);跨回桌面時 placeSearch 會順手關掉。
@@ -34636,14 +34703,17 @@ try { initMusic(); } catch (e) { console.error('initMusic 失敗', e); }
     e.preventDefault();
     const q = ts.value.trim();
     const trs = state._searchTrains || [], stns = state._searchStns || [], nmd = state._searchNamed || [];
+    const stk = state._searchStocks || [];
     const exact = /^\d+$/.test(q) && trs.some(o => String(o.tr.train) === q);
     closeSearchDrop();
     // 精準命中可能同時是台鐵與高鐵的同號車(issue #16)。只有命中集合同屬一個系統時才指定系統;
     // 兩家都有就不指定,維持舊行為並讓使用者用下拉自己挑(下拉每列都標了系統且點擊會帶系統)。
     const exactSys = [...new Set(trs.filter(o => String(o.tr.train) === q).map(o => o.sys && o.sys.id))];
     if (exact) followNo(q, exactSys.length === 1 ? exactSys[0] : '');   // 全數字且車次精準命中→跟隨
-    else if (!/\d/.test(q) && trs.length) followNo(String(trs[0].tr.train), trs[0].sys && trs[0].sys.id); // 名稱命中具名班次(藍皮…)→跟第一班
+    // 純數字＝車次查詢,維持原路(前綴命中多班時交給下拉挑);其餘名稱型查詢(藍皮/自強號/EMU3000)有命中就跟第一班
+    else if (!/^\d+$/.test(q) && trs.length) followNo(String(trs[0].tr.train), trs[0].sys && trs[0].sys.id);
     else if (!/\d/.test(q) && nmd.length) renderNamedIntro(nmd[0]); // 名稱命中無班次觀光列車(山嵐/鳴日)→介紹卡(內部重開下拉)
+    else if (stk.length) renderStockIntro(stk[0]); // 車型命中但今天沒有在跑的班次(深夜的莒光號)→介紹卡
     else if (stns.length) gotoStn(stns[0]);       // 否則有車站→開第一站
     else if (q) { closeSearchHost(); followTrainNo(q); } // 都沒有→舊行為(含查無提示)
     else clearFollow();
@@ -34657,6 +34727,8 @@ try { initMusic(); } catch (e) { console.error('initMusic 失敗', e); }
     if (e.target.closest('[data-discovery]')) { ts.blur(); closeSearchDrop(); closeSearchHost(); openTrackPanel('routes'); return; }
     const nmRow = e.target.closest('.row.named-row');
     if (nmRow) { const n = (state._searchNamed || [])[+nmRow.dataset.ni]; if (n) renderNamedIntro(n); return; }
+    const stkRow = e.target.closest('.row.stock-row');
+    if (stkRow) { const r = (state._searchStocks || [])[+stkRow.dataset.si]; if (r) renderStockIntro(r); return; }
     const trRow = e.target.closest('.row.tr-row');
     if (trRow) { const o = (state._searchTrains || [])[+trRow.dataset.ti]; if (o) { closeSearchDrop(); followNo(String(o.tr.train), o.sys && o.sys.id); } return; }
     const stRow = e.target.closest('.row.stn-row');
