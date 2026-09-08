@@ -157,13 +157,22 @@ for (const eng of ENGINES) {
   const br = await launcher.launch();
   const ctx = await br.newContext({ viewport: { width: 1280, height: 800 }, locale: PAGE_LOCALE });
   const pg = await ctx.newPage();
+  // 此驗收要有行進中的台鐵樣本；午夜不保證找得到。固定台灣當日正午起跑，
+  // 時鐘仍自然推進，保留真實 rAF／計時器及四次行進取樣；模擬 API 同步使用這個時鐘。
+  const scenarioDay = new Date().toLocaleDateString('sv', { timeZone: 'Asia/Taipei' });
+  await pg.clock.install({ time: new Date(scenarioDay + 'T12:00:00+08:00') });
   const errs = [];
   pg.on('pageerror', e => errs.push(String(e)));
 
+  // 營運公告不屬於誤點時間軸情境；用有效的空公告避免上游連線影響這支驗收。
+  await pg.route(/\/api\/(?:tra|thsr|metro)-alert(?:\?|$)/, route => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify({ alerts: [] }),
+  }));
+
   let mockNo = null;
-  await pg.route('**/api/tra-live*', route => route.fulfill({
+  await pg.route('**/api/tra-live*', async route => route.fulfill({
     status: 200, contentType: 'application/json',
-    body: JSON.stringify({ at: new Date().toISOString(), trains: mockNo ? [{ no: mockNo, delay: DM }] : [] }),
+    body: JSON.stringify({ at: new Date(await pg.evaluate(() => Date.now())).toISOString(), trains: mockNo ? [{ no: mockNo, delay: DM }] : [] }),
   }));
   await pg.addInitScript(PROBE);
 
@@ -173,6 +182,9 @@ for (const eng of ENGINES) {
       null, { timeout: 60000 });
   };
   await boot();
+  const scenarioSec = await pg.evaluate(() => nowSecOfDay());
+  ck(scenarioSec >= 12 * 3600 && scenarioSec < 12 * 3600 + 120,
+    `G2 候選列車使用白天情境，不受部署時間影響：${scenarioDay} ${scenarioSec}s`);
 
   // ── G1 具名語系閘門：B1／B2／C* 全部在讀畫面上那行中文，語系一漂它們會同時假紅而各報不同的
   //    英文字串，計分板上看不出共同上游。把前提抽出來單獨判一次，紅的時候一眼看得出是語系沒釘住。
