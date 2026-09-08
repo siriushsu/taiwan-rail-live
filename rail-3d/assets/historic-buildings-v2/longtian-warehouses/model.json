@@ -1,0 +1,1113 @@
+{
+  "id": "longtian-warehouses",
+  "name": "隆田儲運站與倉庫群",
+  "county": "臺南市",
+  "category": "historic",
+  "kind": "longtian-warehouses",
+  "features": [
+    "鹽倉、南北倉、地磅室與屋頂排列"
+  ],
+  "sources": [
+    {
+      "url": "https://www.twtainan.net/zh-tw/attractions/detail/6043/",
+      "use": "臺南旅遊網"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/1116278519",
+      "use": "南倉：輪廓與位置",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/1116278520",
+      "use": "北倉：輪廓與位置",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/736748743",
+      "use": "鹽倉 1：輪廓與位置",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/1116278513",
+      "use": "鹽倉 2：輪廓與位置",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/1116278514",
+      "use": "鹽倉 3：輪廓與位置",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/1116278515",
+      "use": "鹽倉 4：輪廓與位置",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/1082704042",
+      "use": "鹽倉 5：輪廓與位置",
+      "license": "ODbL-1.0"
+    }
+  ],
+  "priority": 2,
+  "placementStatus": "calibrated-plan",
+  "anchor": [
+    120.31940977812934,
+    23.190546428731537
+  ],
+  "verifiedDimensionsM": {},
+  "estimatedDimensionsM": {
+    "width": 43.02220916748047,
+    "depth": 381.4366989135742,
+    "height": 7.8779425621032715,
+    "basis": "平面依各部件來源校正；高度仍為外觀建模估值"
+  },
+  "referenceReviewDate": null,
+  "geometryStatus": "plan-calibrated-exterior-estimated",
+  "scope": "按來源輪廓校正平面位置與尺度；高度、立面細節及正面方向仍為外觀估計",
+  "railRelation": "站區：隆田；園內四鐵共構為歷史遺跡",
+  "reviewedPhotos": [],
+  "referenceStatus": "exterior-review-pending",
+  "pendingChecks": [
+    "高度測量與完整多面立面校正",
+    "正面方向複核",
+    "未定位附屬構件：地磅室 / 屋頂、地磅室 / 立面、地磅室 / 貨門與月台"
+  ],
+  "orientationMode": "ENU-baked",
+  "absoluteGroundAltitudeM": null,
+  "railElevationM": null,
+  "omittedUnlocatedComponents": [
+    "地磅室 / 屋頂",
+    "地磅室 / 立面",
+    "地磅室 / 貨門與月台"
+  ],
+  "mapEligible": true,
+  "calibration": {
+    "version": 2,
+    "basis": "各部件獨立平面擬合；非工程測繪",
+    "parts": [
+      {
+        "id": "南倉",
+        "name": "南倉",
+        "placementStatus": "footprint-axis-calibrated",
+        "anchor": [
+          120.31940977812934,
+          23.190546428731537
+        ],
+        "rotationDeg": 93.0,
+        "scaleXY": [
+          0.6788258360158742,
+          0.9186355397315514
+        ],
+        "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+        "facadeBearingDeg": null
+      },
+      {
+        "id": "北倉",
+        "name": "北倉",
+        "placementStatus": "footprint-axis-calibrated",
+        "anchor": [
+          120.31938185462087,
+          23.190954055915398
+        ],
+        "rotationDeg": 94.25,
+        "scaleXY": [
+          0.8231426087426804,
+          0.9011427573737104
+        ],
+        "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+        "facadeBearingDeg": null
+      },
+      {
+        "id": "鹽倉 1",
+        "name": "鹽倉 1",
+        "placementStatus": "footprint-axis-calibrated",
+        "anchor": [
+          120.31949874233052,
+          23.187857987295615
+        ],
+        "rotationDeg": 4.5,
+        "scaleXY": [
+          0.677645669774854,
+          1.051945574057348
+        ],
+        "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+        "facadeBearingDeg": null
+      },
+      {
+        "id": "鹽倉 2",
+        "name": "鹽倉 2",
+        "placementStatus": "footprint-axis-calibrated",
+        "anchor": [
+          120.3194810280926,
+          23.188112871089086
+        ],
+        "rotationDeg": 4.0,
+        "scaleXY": [
+          0.6489883004889643,
+          1.20917573872415
+        ],
+        "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+        "facadeBearingDeg": null
+      },
+      {
+        "id": "鹽倉 3",
+        "name": "鹽倉 3",
+        "placementStatus": "footprint-axis-calibrated",
+        "anchor": [
+          120.31965354027568,
+          23.187887339353356
+        ],
+        "rotationDeg": 4.0,
+        "scaleXY": [
+          0.6052595579432308,
+          1.18938027137169
+        ],
+        "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+        "facadeBearingDeg": null
+      },
+      {
+        "id": "鹽倉 4",
+        "name": "鹽倉 4",
+        "placementStatus": "footprint-axis-calibrated",
+        "anchor": [
+          120.31962375608566,
+          23.188160187777623
+        ],
+        "rotationDeg": 3.5,
+        "scaleXY": [
+          0.6384085217980503,
+          1.0284653518302498
+        ],
+        "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+        "facadeBearingDeg": null
+      },
+      {
+        "id": "鹽倉 5",
+        "name": "鹽倉 5",
+        "placementStatus": "footprint-axis-calibrated",
+        "anchor": [
+          120.3194557037454,
+          23.18859420367131
+        ],
+        "rotationDeg": 4.25,
+        "scaleXY": [
+          0.7833729139902919,
+          1.917227178714784
+        ],
+        "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+        "facadeBearingDeg": null
+      }
+    ],
+    "verticalDatum": "terrain-relative",
+    "sourceFile": "placements-source.json"
+  },
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "axes": {
+    "up": "+Z",
+    "east": "+X",
+    "north": "+Y",
+    "front": null,
+    "units": "meters",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "gltfAxes": {
+    "up": "+Y",
+    "toZUp": "rotateX(+PI/2)"
+  },
+  "facadeBearingDeg": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -12.116846084594727,
+      -312.7275390625,
+      0.0
+    ],
+    "max": [
+      30.90536117553711,
+      68.70915985107422,
+      7.8779425621032715
+    ]
+  },
+  "sizeM": [
+    43.022207260131836,
+    381.4366989135742,
+    7.8779425621032715
+  ],
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "glb": "near.glb",
+      "sha256": "79508cc05e08681a302a448b5832d3f6d2916997f822994cfafc20411026afd0",
+      "glbSha256": "3acb3ac64e6dc510fbc9820324f31134cbd65bae6cd99172e13687bf4d8921e7",
+      "strideBytes": 24,
+      "vertexCount": 7602,
+      "triangleCount": 2534,
+      "drawGroups": [
+        {
+          "component": "南倉",
+          "name": "stone",
+          "start": 0,
+          "count": 72,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "南倉",
+          "name": "red",
+          "start": 72,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "南倉",
+          "name": "tile",
+          "start": 108,
+          "count": 1326,
+          "color": [
+            0.4793201684951782,
+            0.09758734703063965,
+            0.05448027700185776
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "南倉",
+          "name": "dark",
+          "start": 1434,
+          "count": 72,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "北倉",
+          "name": "stone",
+          "start": 1506,
+          "count": 72,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "北倉",
+          "name": "red",
+          "start": 1578,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "北倉",
+          "name": "tile",
+          "start": 1614,
+          "count": 1326,
+          "color": [
+            0.4793201684951782,
+            0.09758734703063965,
+            0.05448027700185776
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "北倉",
+          "name": "dark",
+          "start": 2940,
+          "count": 72,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 1",
+          "name": "stone",
+          "start": 3012,
+          "count": 72,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 1",
+          "name": "red",
+          "start": 3084,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 1",
+          "name": "tile",
+          "start": 3120,
+          "count": 738,
+          "color": [
+            0.4793201684951782,
+            0.09758734703063965,
+            0.05448027700185776
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 1",
+          "name": "dark",
+          "start": 3858,
+          "count": 72,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 2",
+          "name": "stone",
+          "start": 3930,
+          "count": 72,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 2",
+          "name": "red",
+          "start": 4002,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 2",
+          "name": "tile",
+          "start": 4038,
+          "count": 738,
+          "color": [
+            0.4793201684951782,
+            0.09758734703063965,
+            0.05448027700185776
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 2",
+          "name": "dark",
+          "start": 4776,
+          "count": 72,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 3",
+          "name": "stone",
+          "start": 4848,
+          "count": 72,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 3",
+          "name": "red",
+          "start": 4920,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 3",
+          "name": "tile",
+          "start": 4956,
+          "count": 738,
+          "color": [
+            0.4793201684951782,
+            0.09758734703063965,
+            0.05448027700185776
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 3",
+          "name": "dark",
+          "start": 5694,
+          "count": 72,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 4",
+          "name": "stone",
+          "start": 5766,
+          "count": 72,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 4",
+          "name": "red",
+          "start": 5838,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 4",
+          "name": "tile",
+          "start": 5874,
+          "count": 738,
+          "color": [
+            0.4793201684951782,
+            0.09758734703063965,
+            0.05448027700185776
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 4",
+          "name": "dark",
+          "start": 6612,
+          "count": 72,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 5",
+          "name": "stone",
+          "start": 6684,
+          "count": 72,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 5",
+          "name": "red",
+          "start": 6756,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 5",
+          "name": "tile",
+          "start": 6792,
+          "count": 738,
+          "color": [
+            0.4793201684951782,
+            0.09758734703063965,
+            0.05448027700185776
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 5",
+          "name": "dark",
+          "start": 7530,
+          "count": 72,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 182448
+    },
+    "far": {
+      "file": "far.mesh.bin",
+      "glb": "far.glb",
+      "sha256": "98eabe41e04d86f8e786ea0d0a7ae5edff788a303811835172018e18097ad66c",
+      "glbSha256": "f0b16da7e65ee4938566938420d348b3b6d12fc658f685f199095ef1f2838708",
+      "strideBytes": 24,
+      "vertexCount": 3486,
+      "triangleCount": 1162,
+      "drawGroups": [
+        {
+          "component": "南倉",
+          "name": "stone",
+          "start": 0,
+          "count": 72,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "南倉",
+          "name": "red",
+          "start": 72,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "南倉",
+          "name": "tile",
+          "start": 108,
+          "count": 318,
+          "color": [
+            0.4793201684951782,
+            0.09758734703063965,
+            0.05448027700185776
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "南倉",
+          "name": "dark",
+          "start": 426,
+          "count": 72,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "北倉",
+          "name": "stone",
+          "start": 498,
+          "count": 72,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "北倉",
+          "name": "red",
+          "start": 570,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "北倉",
+          "name": "tile",
+          "start": 606,
+          "count": 318,
+          "color": [
+            0.4793201684951782,
+            0.09758734703063965,
+            0.05448027700185776
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "北倉",
+          "name": "dark",
+          "start": 924,
+          "count": 72,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 1",
+          "name": "stone",
+          "start": 996,
+          "count": 72,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 1",
+          "name": "red",
+          "start": 1068,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 1",
+          "name": "tile",
+          "start": 1104,
+          "count": 318,
+          "color": [
+            0.4793201684951782,
+            0.09758734703063965,
+            0.05448027700185776
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 1",
+          "name": "dark",
+          "start": 1422,
+          "count": 72,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 2",
+          "name": "stone",
+          "start": 1494,
+          "count": 72,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 2",
+          "name": "red",
+          "start": 1566,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 2",
+          "name": "tile",
+          "start": 1602,
+          "count": 318,
+          "color": [
+            0.4793201684951782,
+            0.09758734703063965,
+            0.05448027700185776
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 2",
+          "name": "dark",
+          "start": 1920,
+          "count": 72,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 3",
+          "name": "stone",
+          "start": 1992,
+          "count": 72,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 3",
+          "name": "red",
+          "start": 2064,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 3",
+          "name": "tile",
+          "start": 2100,
+          "count": 318,
+          "color": [
+            0.4793201684951782,
+            0.09758734703063965,
+            0.05448027700185776
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 3",
+          "name": "dark",
+          "start": 2418,
+          "count": 72,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 4",
+          "name": "stone",
+          "start": 2490,
+          "count": 72,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 4",
+          "name": "red",
+          "start": 2562,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 4",
+          "name": "tile",
+          "start": 2598,
+          "count": 318,
+          "color": [
+            0.4793201684951782,
+            0.09758734703063965,
+            0.05448027700185776
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 4",
+          "name": "dark",
+          "start": 2916,
+          "count": 72,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 5",
+          "name": "stone",
+          "start": 2988,
+          "count": 72,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 5",
+          "name": "red",
+          "start": 3060,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 5",
+          "name": "tile",
+          "start": 3096,
+          "count": 318,
+          "color": [
+            0.4793201684951782,
+            0.09758734703063965,
+            0.05448027700185776
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鹽倉 5",
+          "name": "dark",
+          "start": 3414,
+          "count": 72,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 83664
+    }
+  },
+  "nativeObjectCount": 763,
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "modelUse": "map-exterior",
+  "components": [
+    {
+      "id": "南倉",
+      "name": "南倉",
+      "placementStatus": "footprint-axis-calibrated",
+      "anchor": [
+        120.31940977812934,
+        23.190546428731537
+      ],
+      "rotationDeg": 93.0,
+      "scaleXY": [
+        0.6788258360158742,
+        0.9186355397315514
+      ],
+      "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+      "facadeBearingDeg": null
+    },
+    {
+      "id": "北倉",
+      "name": "北倉",
+      "placementStatus": "footprint-axis-calibrated",
+      "anchor": [
+        120.31938185462087,
+        23.190954055915398
+      ],
+      "rotationDeg": 94.25,
+      "scaleXY": [
+        0.8231426087426804,
+        0.9011427573737104
+      ],
+      "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+      "facadeBearingDeg": null
+    },
+    {
+      "id": "鹽倉 1",
+      "name": "鹽倉 1",
+      "placementStatus": "footprint-axis-calibrated",
+      "anchor": [
+        120.31949874233052,
+        23.187857987295615
+      ],
+      "rotationDeg": 4.5,
+      "scaleXY": [
+        0.677645669774854,
+        1.051945574057348
+      ],
+      "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+      "facadeBearingDeg": null
+    },
+    {
+      "id": "鹽倉 2",
+      "name": "鹽倉 2",
+      "placementStatus": "footprint-axis-calibrated",
+      "anchor": [
+        120.3194810280926,
+        23.188112871089086
+      ],
+      "rotationDeg": 4.0,
+      "scaleXY": [
+        0.6489883004889643,
+        1.20917573872415
+      ],
+      "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+      "facadeBearingDeg": null
+    },
+    {
+      "id": "鹽倉 3",
+      "name": "鹽倉 3",
+      "placementStatus": "footprint-axis-calibrated",
+      "anchor": [
+        120.31965354027568,
+        23.187887339353356
+      ],
+      "rotationDeg": 4.0,
+      "scaleXY": [
+        0.6052595579432308,
+        1.18938027137169
+      ],
+      "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+      "facadeBearingDeg": null
+    },
+    {
+      "id": "鹽倉 4",
+      "name": "鹽倉 4",
+      "placementStatus": "footprint-axis-calibrated",
+      "anchor": [
+        120.31962375608566,
+        23.188160187777623
+      ],
+      "rotationDeg": 3.5,
+      "scaleXY": [
+        0.6384085217980503,
+        1.0284653518302498
+      ],
+      "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+      "facadeBearingDeg": null
+    },
+    {
+      "id": "鹽倉 5",
+      "name": "鹽倉 5",
+      "placementStatus": "footprint-axis-calibrated",
+      "anchor": [
+        120.3194557037454,
+        23.18859420367131
+      ],
+      "rotationDeg": 4.25,
+      "scaleXY": [
+        0.7833729139902919,
+        1.917227178714784
+      ],
+      "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+      "facadeBearingDeg": null
+    }
+  ]
+}

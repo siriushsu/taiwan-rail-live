@@ -1,0 +1,287 @@
+{
+  "id": "erjie-granary",
+  "name": "二結穀倉",
+  "county": "宜蘭縣",
+  "category": "historic",
+  "kind": "erjie-granary",
+  "features": [
+    "高穀倉、斜屋頂、磚牆與碾米工場；可與車站同框"
+  ],
+  "sources": [
+    {
+      "url": "https://museums.moc.gov.tw/MusData/Detail?museumsId=57526098-3f9d-40db-8fc6-c6ee97654fe8",
+      "use": "文化部博物之島"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/268061217",
+      "use": "OSM 建物輪廓"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/268061217",
+      "use": "二結穀倉：輪廓與位置",
+      "license": "ODbL-1.0"
+    }
+  ],
+  "priority": 1,
+  "placementStatus": "calibrated-plan",
+  "anchor": [
+    121.77464465251201,
+    24.705423935287342
+  ],
+  "verifiedDimensionsM": {},
+  "estimatedDimensionsM": {
+    "width": 25.625560760498047,
+    "depth": 51.686851501464844,
+    "height": 13.07794189453125,
+    "basis": "平面依各部件來源校正；高度仍為外觀建模估值"
+  },
+  "referenceReviewDate": "2026-09-08",
+  "geometryStatus": "plan-calibrated-exterior-estimated",
+  "scope": "按來源輪廓校正平面位置與尺度；高度、立面細節及正面方向仍為外觀估計",
+  "railRelation": "站區／沿線：臺鐵二結",
+  "reviewedPhotos": [
+    {
+      "url": "https://museums.moc.gov.tw/Upload/FrontPhoto/01f51695-2978-47ea-bd35-b7f767c30697.JPG",
+      "page": "https://museums.moc.gov.tw/MusData/Detail?museumsId=57526098-3f9d-40db-8fc6-c6ee97654fe8",
+      "viewedOn": "2026-09-08",
+      "scope": "局部外觀參考，非完整多面覆核"
+    }
+  ],
+  "referenceStatus": "partial-exterior-review",
+  "pendingChecks": [
+    "高度測量與完整多面立面校正",
+    "正面方向複核"
+  ],
+  "footprintReference": {
+    "osmType": "way",
+    "osmId": 268061217,
+    "name": "二結穀倉稻農文化館",
+    "url": "https://www.openstreetmap.org/way/268061217",
+    "timestamp": "2026-09-08T15:19:44Z",
+    "longSideM": 49.46,
+    "shortSideM": 18.31,
+    "source": "OpenStreetMap contributors",
+    "license": "ODbL-1.0",
+    "scope": "早期輪廓參考；本輪逐棟校正依 calibration.parts 與 placements-source.json",
+    "referenceFile": "source-layouts/erjie-granary.json"
+  },
+  "planCalibration": "OSM 輪廓包圍框校正平面尺度；內部翼樓與局部輪廓仍為估計",
+  "orientationMode": "ENU-baked",
+  "absoluteGroundAltitudeM": null,
+  "railElevationM": null,
+  "omittedUnlocatedComponents": [],
+  "calibration": {
+    "version": 2,
+    "basis": "各部件獨立平面擬合；非工程測繪",
+    "parts": [
+      {
+        "id": "二結穀倉",
+        "name": "二結穀倉",
+        "placementStatus": "footprint-axis-calibrated",
+        "anchor": [
+          121.77464465251201,
+          24.705423935287342
+        ],
+        "rotationDeg": 100.50000000000001,
+        "scaleXY": [
+          0.9999916032437751,
+          1.0011758197263294
+        ],
+        "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+        "facadeBearingDeg": null
+      }
+    ],
+    "verticalDatum": "terrain-relative",
+    "sourceFile": "placements-source.json"
+  },
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "axes": {
+    "up": "+Z",
+    "east": "+X",
+    "north": "+Y",
+    "front": null,
+    "units": "meters",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "gltfAxes": {
+    "up": "+Y",
+    "toZUp": "rotateX(+PI/2)"
+  },
+  "facadeBearingDeg": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -13.4996919631958,
+      -25.716114044189453,
+      0.0
+    ],
+    "max": [
+      12.125870704650879,
+      25.970739364624023,
+      13.07794189453125
+    ]
+  },
+  "sizeM": [
+    25.62556266784668,
+    51.68685340881348,
+    13.07794189453125
+  ],
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "glb": "near.glb",
+      "sha256": "0f69286e931ca8c5fb9e7c6dd00ef887ec4b6fff435b08e4b1ec1b982e7dbeb5",
+      "glbSha256": "978a41cc0e8eab68d954b99f7f4418ac2cd9c13203f904747b10c8a04028d9e5",
+      "strideBytes": 24,
+      "vertexCount": 5340,
+      "triangleCount": 1780,
+      "drawGroups": [
+        {
+          "component": "二結穀倉",
+          "name": "stone",
+          "start": 0,
+          "count": 324,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "二結穀倉",
+          "name": "cream",
+          "start": 324,
+          "count": 2160,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "二結穀倉",
+          "name": "dark",
+          "start": 2484,
+          "count": 2136,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "二結穀倉",
+          "name": "glass",
+          "start": 4620,
+          "count": 720,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        }
+      ],
+      "byteLength": 128160
+    },
+    "far": {
+      "file": "far.mesh.bin",
+      "glb": "far.glb",
+      "sha256": "8fd3077f36507bd5baaa0a1591db93547c930ada098f81eb7de4a4161750a416",
+      "glbSha256": "09a61d44bd08964269699185083e0f04aaca51d53b246109c031f1aa6612ebee",
+      "strideBytes": 24,
+      "vertexCount": 3120,
+      "triangleCount": 1040,
+      "drawGroups": [
+        {
+          "component": "二結穀倉",
+          "name": "stone",
+          "start": 0,
+          "count": 324,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "二結穀倉",
+          "name": "cream",
+          "start": 324,
+          "count": 720,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "二結穀倉",
+          "name": "dark",
+          "start": 1044,
+          "count": 1356,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "二結穀倉",
+          "name": "glass",
+          "start": 2400,
+          "count": 720,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        }
+      ],
+      "byteLength": 74880
+    }
+  },
+  "nativeObjectCount": 251,
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "modelUse": "map-exterior",
+  "components": [
+    {
+      "id": "二結穀倉",
+      "name": "二結穀倉",
+      "placementStatus": "footprint-axis-calibrated",
+      "anchor": [
+        121.77464465251201,
+        24.705423935287342
+      ],
+      "rotationDeg": 100.50000000000001,
+      "scaleXY": [
+        0.9999916032437751,
+        1.0011758197263294
+      ],
+      "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+      "facadeBearingDeg": null
+    }
+  ],
+  "mapEligible": true
+}

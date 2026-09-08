@@ -1,0 +1,328 @@
+{
+  "id": "shengxing",
+  "name": "勝興站",
+  "county": "苗栗縣",
+  "category": "historic",
+  "kind": "shengxing",
+  "features": [
+    "木造站房、虎牙式山牆、短月台與山坡關係"
+  ],
+  "sources": [
+    {
+      "url": "https://www.miaoli.gov.tw/News_Content2.aspx?n=285&s=200380",
+      "use": "苗栗縣站區資料"
+    },
+    {
+      "url": "https://www.taiwan.net.tw/m1.aspx?id=C100_341&sNo=0001016",
+      "use": "站區身分與位置；另以衛星確認站房位於站區道路西側"
+    },
+    {
+      "url": "https://cloud.hakka.gov.tw/Details?p=76273&pid=281393",
+      "use": "坐西向東、陡斜切妻屋頂外觀"
+    }
+  ],
+  "priority": 2,
+  "placementStatus": "mixed-plan-and-site-anchor",
+  "anchor": [
+    120.78191957758266,
+    24.388223891472567
+  ],
+  "verifiedDimensionsM": {},
+  "estimatedDimensionsM": {
+    "width": 17.43716526031494,
+    "depth": 16.351722717285156,
+    "height": 6.5334343910217285,
+    "basis": "平面依各部件來源校正；高度仍為外觀建模估值"
+  },
+  "referenceReviewDate": "2026-09-08",
+  "geometryStatus": "plan-calibrated-exterior-estimated",
+  "scope": "按來源輪廓校正平面位置與尺度；高度、立面細節及正面方向仍為外觀估計",
+  "railRelation": "**舊線地景**：舊山線，非現行臺鐵幹線站",
+  "reviewedPhotos": [
+    {
+      "url": "https://webws.miaoli.gov.tw/001/Upload/402/relpic/9462/200380/34ee539f-f86d-412a-952a-d26e6ae14c7b@710x470.jpg",
+      "page": "https://www.miaoli.gov.tw/News_Content2.aspx?n=285&s=200380",
+      "viewedOn": "2026-09-08",
+      "scope": "局部外觀參考，非完整多面覆核"
+    }
+  ],
+  "referenceStatus": "partial-exterior-review",
+  "pendingChecks": [
+    "高度測量與完整多面立面校正",
+    "正面方向複核",
+    "未定位附屬構件：舊月台、舊站棚"
+  ],
+  "orientationMode": "ENU-baked",
+  "absoluteGroundAltitudeM": null,
+  "railElevationM": null,
+  "omittedUnlocatedComponents": [
+    "舊月台",
+    "舊站棚"
+  ],
+  "mapEligible": true,
+  "calibration": {
+    "version": 2,
+    "basis": "各部件獨立平面擬合；非工程測繪",
+    "parts": [
+      {
+        "id": "勝興站房",
+        "name": "勝興站房",
+        "placementStatus": "site-anchor-estimated-outline",
+        "anchor": [
+          120.78191957758266,
+          24.388223891472567
+        ],
+        "rotationDeg": -76.3730236435151,
+        "scaleXY": [
+          0.5393681614383891,
+          1.168508246825175
+        ],
+        "basis": "官方景點資料確認場域，衛星屋頂目視交叉比對的位置、尺度與軸向估計；非實測外框",
+        "facadeBearingDeg": null
+      }
+    ],
+    "verticalDatum": "terrain-relative",
+    "sourceFile": "placements-source.json"
+  },
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "axes": {
+    "up": "+Z",
+    "east": "+X",
+    "north": "+Y",
+    "front": null,
+    "units": "meters",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "gltfAxes": {
+    "up": "+Y",
+    "toZUp": "rotateX(+PI/2)"
+  },
+  "facadeBearingDeg": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -9.752775192260742,
+      -8.175861358642578,
+      0.0
+    ],
+    "max": [
+      7.684389114379883,
+      8.175861358642578,
+      6.5334343910217285
+    ]
+  },
+  "sizeM": [
+    17.437164306640625,
+    16.351722717285156,
+    6.5334343910217285
+  ],
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "glb": "near.glb",
+      "sha256": "bdb73c55e1d730ee95fc437ba0eff0a79396474846c854af6f43885bbd957963",
+      "glbSha256": "d194a8b09c18d4c4b6a879c5609e2d99d824d6dfcddfba71c8de9d3c8762a91e",
+      "strideBytes": 24,
+      "vertexCount": 5232,
+      "triangleCount": 1744,
+      "drawGroups": [
+        {
+          "component": "勝興站房",
+          "name": "stone",
+          "start": 0,
+          "count": 1548,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "勝興站房",
+          "name": "brown",
+          "start": 1548,
+          "count": 156,
+          "color": [
+            0.31398871541023254,
+            0.23074005544185638,
+            0.177888423204422
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "勝興站房",
+          "name": "dark",
+          "start": 1704,
+          "count": 2676,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "勝興站房",
+          "name": "glass",
+          "start": 4380,
+          "count": 504,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "勝興站房",
+          "name": "white",
+          "start": 4884,
+          "count": 108,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "勝興站房",
+          "name": "cream",
+          "start": 4992,
+          "count": 240,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 125568
+    },
+    "far": {
+      "file": "far.mesh.bin",
+      "glb": "far.glb",
+      "sha256": "a97a7c4922cdc5223f02cdeee211bb9774639a962cba20eed847e400b51404ef",
+      "glbSha256": "946d20a478c9dc11782f537ada7b5d2f0c92660a0364ce9ead23d37d3e984051",
+      "strideBytes": 24,
+      "vertexCount": 2736,
+      "triangleCount": 912,
+      "drawGroups": [
+        {
+          "component": "勝興站房",
+          "name": "stone",
+          "start": 0,
+          "count": 540,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "勝興站房",
+          "name": "brown",
+          "start": 540,
+          "count": 156,
+          "color": [
+            0.31398871541023254,
+            0.23074005544185638,
+            0.177888423204422
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "勝興站房",
+          "name": "dark",
+          "start": 696,
+          "count": 1188,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "勝興站房",
+          "name": "glass",
+          "start": 1884,
+          "count": 504,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "勝興站房",
+          "name": "white",
+          "start": 2388,
+          "count": 108,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "勝興站房",
+          "name": "cream",
+          "start": 2496,
+          "count": 240,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 65664
+    }
+  },
+  "nativeObjectCount": 213,
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "modelUse": "map-exterior",
+  "components": [
+    {
+      "id": "勝興站房",
+      "name": "勝興站房",
+      "placementStatus": "site-anchor-estimated-outline",
+      "anchor": [
+        120.78191957758266,
+        24.388223891472567
+      ],
+      "rotationDeg": -76.3730236435151,
+      "scaleXY": [
+        0.5393681614383891,
+        1.168508246825175
+      ],
+      "basis": "官方景點資料確認場域，衛星屋頂目視交叉比對的位置、尺度與軸向估計；非實測外框",
+      "facadeBearingDeg": null
+    }
+  ]
+}

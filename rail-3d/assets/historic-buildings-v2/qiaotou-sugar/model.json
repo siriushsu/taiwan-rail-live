@@ -1,0 +1,658 @@
+{
+  "id": "qiaotou-sugar",
+  "name": "橋頭糖廠",
+  "county": "高雄市",
+  "category": "historic",
+  "kind": "qiaotou-sugar",
+  "features": [
+    "廠房、煙囪與辦公廳舍，避免整個園區合成單一方盒"
+  ],
+  "sources": [
+    {
+      "url": "https://ctc.kcg.gov.tw/cp.aspx?n=7CDBAEE0D278E5B1&s=D2C749328F9EC5D9",
+      "use": "橋頭區公所糖業資料"
+    },
+    {
+      "url": "https://takao.kcg.gov.tw/article/2442",
+      "use": "捷運與園區關係"
+    },
+    {
+      "url": "https://www.filmkh.org/tc/scene_detail?sc_sn=106",
+      "use": "高雄協拍中心製糖廠區座標 22.757926,120.314124"
+    },
+    {
+      "url": "https://eego.moenv.gov.tw/df_ufiles/a/171橋頭糖廠文化園區(1).pdf",
+      "use": "第1頁園區圖：製糖工場位於園區北部；分翼屋頂外框目視估計"
+    }
+  ],
+  "priority": 2,
+  "placementStatus": "mixed-plan-and-site-anchor",
+  "anchor": [
+    120.31453013114874,
+    22.758012976109125
+  ],
+  "verifiedDimensionsM": {},
+  "estimatedDimensionsM": {
+    "width": 78.58676528930664,
+    "depth": 63.97161102294922,
+    "height": 17.977941513061523,
+    "basis": "平面依各部件來源校正；高度仍為外觀建模估值"
+  },
+  "referenceReviewDate": "2026-09-08",
+  "geometryStatus": "plan-calibrated-exterior-estimated",
+  "scope": "按來源輪廓校正平面位置與尺度；高度、立面細節及正面方向仍為外觀估計",
+  "railRelation": "站區周邊：捷運橋頭糖廠；園內糖鐵另計",
+  "reviewedPhotos": [
+    {
+      "url": "https://takao-aws.hmgcdn.com/files/article/a0/2442/atl_2442_20240523142549_539.jpg",
+      "page": "https://takao.kcg.gov.tw/article/2442",
+      "viewedOn": "2026-09-08",
+      "scope": "局部外觀參考，非完整多面覆核"
+    }
+  ],
+  "referenceStatus": "partial-exterior-review",
+  "pendingChecks": [
+    "高度測量與完整多面立面校正",
+    "正面方向複核",
+    "未定位附屬構件：入口門廊、工場煙囪、辦公廳舍 / 屋頂、辦公廳舍 / 立面"
+  ],
+  "orientationMode": "ENU-baked",
+  "absoluteGroundAltitudeM": null,
+  "railElevationM": null,
+  "omittedUnlocatedComponents": [
+    "入口門廊",
+    "工場煙囪",
+    "辦公廳舍 / 屋頂",
+    "辦公廳舍 / 立面"
+  ],
+  "mapEligible": true,
+  "calibration": {
+    "version": 2,
+    "basis": "各部件獨立平面擬合；非工程測繪",
+    "parts": [
+      {
+        "id": "製糖工場西翼",
+        "name": "製糖工場西翼",
+        "placementStatus": "site-anchor-estimated-outline",
+        "anchor": [
+          120.31430102579536,
+          22.75791919306321
+        ],
+        "rotationDeg": -66.34205953479629,
+        "scaleXY": [
+          0.547212673017624,
+          0.8067109523375845
+        ],
+        "basis": "官方景點資料確認場域，衛星屋頂目視交叉比對的位置、尺度與軸向估計；非實測外框",
+        "facadeBearingDeg": null
+      },
+      {
+        "id": "製糖工場中央翼",
+        "name": "製糖工場中央翼",
+        "placementStatus": "site-anchor-estimated-outline",
+        "anchor": [
+          120.31453370742743,
+          22.758006380378422
+        ],
+        "rotationDeg": 23.267773901404258,
+        "scaleXY": [
+          0.9460668797973855,
+          0.8781934224138895
+        ],
+        "basis": "官方景點資料確認場域，衛星屋頂目視交叉比對的位置、尺度與軸向估計；非實測外框",
+        "facadeBearingDeg": null
+      },
+      {
+        "id": "製糖工場東翼",
+        "name": "製糖工場東翼",
+        "placementStatus": "site-anchor-estimated-outline",
+        "anchor": [
+          120.31475566022343,
+          22.75811335488574
+        ],
+        "rotationDeg": 21.630967454126253,
+        "scaleXY": [
+          0.5788208153650608,
+          2.6607190504584937
+        ],
+        "basis": "官方景點資料確認場域，衛星屋頂目視交叉比對的位置、尺度與軸向估計；非實測外框",
+        "facadeBearingDeg": null
+      }
+    ],
+    "verticalDatum": "terrain-relative",
+    "sourceFile": "placements-source.json"
+  },
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "axes": {
+    "up": "+Z",
+    "east": "+X",
+    "north": "+Y",
+    "front": null,
+    "units": "meters",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "gltfAxes": {
+    "up": "+Y",
+    "toZUp": "rotateX(+PI/2)"
+  },
+  "facadeBearingDeg": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -39.319095611572266,
+      -29.022560119628906,
+      0.0
+    ],
+    "max": [
+      39.267669677734375,
+      34.94905090332031,
+      17.977941513061523
+    ]
+  },
+  "sizeM": [
+    78.58676528930664,
+    63.97161102294922,
+    17.977941513061523
+  ],
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "glb": "near.glb",
+      "sha256": "19e1869b19220a13961dbfce20729dfe48442c94fd3a6fd54e01c52a85a179af",
+      "glbSha256": "d9be91357ad6e9b481ab55f519c086e59b205eb0c85a471f290000d45a154513",
+      "strideBytes": 24,
+      "vertexCount": 24756,
+      "triangleCount": 8252,
+      "drawGroups": [
+        {
+          "component": "製糖工場西翼",
+          "name": "stone",
+          "start": 0,
+          "count": 108,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "製糖工場西翼",
+          "name": "cream",
+          "start": 108,
+          "count": 8460,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "製糖工場西翼",
+          "name": "dark",
+          "start": 8568,
+          "count": 5388,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "製糖工場西翼",
+          "name": "glass",
+          "start": 13956,
+          "count": 2808,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "製糖工場中央翼",
+          "name": "stone",
+          "start": 16764,
+          "count": 36,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "製糖工場中央翼",
+          "name": "red",
+          "start": 16800,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "製糖工場中央翼",
+          "name": "cream",
+          "start": 16836,
+          "count": 1944,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "製糖工場中央翼",
+          "name": "dark",
+          "start": 18780,
+          "count": 648,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "製糖工場中央翼",
+          "name": "glass",
+          "start": 19428,
+          "count": 648,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "製糖工場中央翼",
+          "name": "tile",
+          "start": 20076,
+          "count": 882,
+          "color": [
+            0.4793201684951782,
+            0.09758734703063965,
+            0.05448027700185776
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "製糖工場東翼",
+          "name": "stone",
+          "start": 20958,
+          "count": 36,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "製糖工場東翼",
+          "name": "red",
+          "start": 20994,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "製糖工場東翼",
+          "name": "cream",
+          "start": 21030,
+          "count": 1728,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "製糖工場東翼",
+          "name": "dark",
+          "start": 22758,
+          "count": 576,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "製糖工場東翼",
+          "name": "glass",
+          "start": 23334,
+          "count": 576,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "製糖工場東翼",
+          "name": "tile",
+          "start": 23910,
+          "count": 846,
+          "color": [
+            0.4793201684951782,
+            0.09758734703063965,
+            0.05448027700185776
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 594144
+    },
+    "far": {
+      "file": "far.mesh.bin",
+      "glb": "far.glb",
+      "sha256": "428f4e8983202f2fbdd7ea6173d26f5d2d8eabc012bf9fb13d066bdc61e29e61",
+      "glbSha256": "d91f06a01d4644dc752c86b659e6ef12596a69bac4362fd5c1604b95fb222321",
+      "strideBytes": 24,
+      "vertexCount": 13656,
+      "triangleCount": 4552,
+      "drawGroups": [
+        {
+          "component": "製糖工場西翼",
+          "name": "stone",
+          "start": 0,
+          "count": 108,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "製糖工場西翼",
+          "name": "cream",
+          "start": 108,
+          "count": 2844,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "製糖工場西翼",
+          "name": "dark",
+          "start": 2952,
+          "count": 3444,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "製糖工場西翼",
+          "name": "glass",
+          "start": 6396,
+          "count": 2808,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "製糖工場中央翼",
+          "name": "stone",
+          "start": 9204,
+          "count": 36,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "製糖工場中央翼",
+          "name": "red",
+          "start": 9240,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "製糖工場中央翼",
+          "name": "cream",
+          "start": 9276,
+          "count": 648,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "製糖工場中央翼",
+          "name": "dark",
+          "start": 9924,
+          "count": 648,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "製糖工場中央翼",
+          "name": "glass",
+          "start": 10572,
+          "count": 648,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "製糖工場中央翼",
+          "name": "tile",
+          "start": 11220,
+          "count": 318,
+          "color": [
+            0.4793201684951782,
+            0.09758734703063965,
+            0.05448027700185776
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "製糖工場東翼",
+          "name": "stone",
+          "start": 11538,
+          "count": 36,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "製糖工場東翼",
+          "name": "red",
+          "start": 11574,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "製糖工場東翼",
+          "name": "cream",
+          "start": 11610,
+          "count": 576,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "製糖工場東翼",
+          "name": "dark",
+          "start": 12186,
+          "count": 576,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "製糖工場東翼",
+          "name": "glass",
+          "start": 12762,
+          "count": 576,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "製糖工場東翼",
+          "name": "tile",
+          "start": 13338,
+          "count": 318,
+          "color": [
+            0.4793201684951782,
+            0.09758734703063965,
+            0.05448027700185776
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 327744
+    }
+  },
+  "nativeObjectCount": 1098,
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "modelUse": "map-exterior",
+  "components": [
+    {
+      "id": "製糖工場西翼",
+      "name": "製糖工場西翼",
+      "placementStatus": "site-anchor-estimated-outline",
+      "anchor": [
+        120.31430102579536,
+        22.75791919306321
+      ],
+      "rotationDeg": -66.34205953479629,
+      "scaleXY": [
+        0.547212673017624,
+        0.8067109523375845
+      ],
+      "basis": "官方景點資料確認場域，衛星屋頂目視交叉比對的位置、尺度與軸向估計；非實測外框",
+      "facadeBearingDeg": null
+    },
+    {
+      "id": "製糖工場中央翼",
+      "name": "製糖工場中央翼",
+      "placementStatus": "site-anchor-estimated-outline",
+      "anchor": [
+        120.31453370742743,
+        22.758006380378422
+      ],
+      "rotationDeg": 23.267773901404258,
+      "scaleXY": [
+        0.9460668797973855,
+        0.8781934224138895
+      ],
+      "basis": "官方景點資料確認場域，衛星屋頂目視交叉比對的位置、尺度與軸向估計；非實測外框",
+      "facadeBearingDeg": null
+    },
+    {
+      "id": "製糖工場東翼",
+      "name": "製糖工場東翼",
+      "placementStatus": "site-anchor-estimated-outline",
+      "anchor": [
+        120.31475566022343,
+        22.75811335488574
+      ],
+      "rotationDeg": 21.630967454126253,
+      "scaleXY": [
+        0.5788208153650608,
+        2.6607190504584937
+      ],
+      "basis": "官方景點資料確認場域，衛星屋頂目視交叉比對的位置、尺度與軸向估計；非實測外框",
+      "facadeBearingDeg": null
+    }
+  ]
+}

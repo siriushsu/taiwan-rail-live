@@ -1,0 +1,314 @@
+{
+  "id": "taoyuan-warehouse",
+  "name": "桃園車站舊倉庫",
+  "county": "桃園市",
+  "category": "historic",
+  "kind": "taoyuan-warehouse",
+  "features": [
+    "磚牆、倉庫大門、連續斜屋頂與屋架輪廓"
+  ],
+  "sources": [
+    {
+      "url": "https://tyrp.tycg.gov.tw/about/history/",
+      "use": "軌道願景館沿革"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/1349895847",
+      "use": "桃園舊倉庫：輪廓與位置",
+      "license": "ODbL-1.0"
+    }
+  ],
+  "priority": 2,
+  "placementStatus": "calibrated-plan",
+  "anchor": [
+    121.31560381077722,
+    24.989853301987377
+  ],
+  "verifiedDimensionsM": {},
+  "estimatedDimensionsM": {
+    "width": 39.3940372467041,
+    "depth": 25.487467765808105,
+    "height": 9.07794189453125,
+    "basis": "平面依各部件來源校正；高度仍為外觀建模估值"
+  },
+  "referenceReviewDate": null,
+  "geometryStatus": "plan-calibrated-exterior-estimated",
+  "scope": "按來源輪廓校正平面位置與尺度；高度、立面細節及正面方向仍為外觀估計",
+  "railRelation": "站區：桃園站萬壽路出口，現為軌道願景館",
+  "reviewedPhotos": [],
+  "referenceStatus": "exterior-review-pending",
+  "pendingChecks": [
+    "高度測量與完整多面立面校正",
+    "正面方向複核"
+  ],
+  "orientationMode": "ENU-baked",
+  "absoluteGroundAltitudeM": null,
+  "railElevationM": null,
+  "omittedUnlocatedComponents": [],
+  "calibration": {
+    "version": 2,
+    "basis": "各部件獨立平面擬合；非工程測繪",
+    "parts": [
+      {
+        "id": "桃園舊倉庫",
+        "name": "桃園舊倉庫",
+        "placementStatus": "footprint-axis-calibrated",
+        "anchor": [
+          121.31560381077722,
+          24.989853301987377
+        ],
+        "rotationDeg": 11.5,
+        "scaleXY": [
+          0.6828998086514284,
+          0.8930515148471923
+        ],
+        "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+        "facadeBearingDeg": null
+      }
+    ],
+    "verticalDatum": "terrain-relative",
+    "sourceFile": "placements-source.json"
+  },
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "axes": {
+    "up": "+Z",
+    "east": "+X",
+    "north": "+Y",
+    "front": null,
+    "units": "meters",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "gltfAxes": {
+    "up": "+Y",
+    "toZUp": "rotateX(+PI/2)"
+  },
+  "facadeBearingDeg": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -19.80028533935547,
+      -12.726715087890625,
+      0.0
+    ],
+    "max": [
+      19.593751907348633,
+      12.76075267791748,
+      9.07794189453125
+    ]
+  },
+  "sizeM": [
+    39.3940372467041,
+    25.487467765808105,
+    9.07794189453125
+  ],
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "glb": "near.glb",
+      "sha256": "f2d4420d7aa9e2fde56142f34df21acbdccb7f231391303ee878af4d6db31ea1",
+      "glbSha256": "cfc50af35c23ac7e729c66372768275a19e5e4e55b86a3267ff4b5ed9585db0b",
+      "strideBytes": 24,
+      "vertexCount": 6870,
+      "triangleCount": 2290,
+      "drawGroups": [
+        {
+          "component": "桃園舊倉庫",
+          "name": "stone",
+          "start": 0,
+          "count": 72,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "桃園舊倉庫",
+          "name": "red",
+          "start": 72,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "桃園舊倉庫",
+          "name": "cream",
+          "start": 108,
+          "count": 3240,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "桃園舊倉庫",
+          "name": "dark",
+          "start": 3348,
+          "count": 1152,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "桃園舊倉庫",
+          "name": "glass",
+          "start": 4500,
+          "count": 1080,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "桃園舊倉庫",
+          "name": "tile",
+          "start": 5580,
+          "count": 1290,
+          "color": [
+            0.4793201684951782,
+            0.09758734703063965,
+            0.05448027700185776
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 164880
+    },
+    "far": {
+      "file": "far.mesh.bin",
+      "glb": "far.glb",
+      "sha256": "ac87861f2bc7e9969a8acea7943473e9d726c3d7f9cb5cff52d5cfd2a9fa1036",
+      "glbSha256": "0390fce27c8c8533878dbe03833207a91f16fd45c6cf1aec8eff60fa4536b616",
+      "strideBytes": 24,
+      "vertexCount": 3738,
+      "triangleCount": 1246,
+      "drawGroups": [
+        {
+          "component": "桃園舊倉庫",
+          "name": "stone",
+          "start": 0,
+          "count": 72,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "桃園舊倉庫",
+          "name": "red",
+          "start": 72,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "桃園舊倉庫",
+          "name": "cream",
+          "start": 108,
+          "count": 1080,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "桃園舊倉庫",
+          "name": "dark",
+          "start": 1188,
+          "count": 1152,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "桃園舊倉庫",
+          "name": "glass",
+          "start": 2340,
+          "count": 1080,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "桃園舊倉庫",
+          "name": "tile",
+          "start": 3420,
+          "count": 318,
+          "color": [
+            0.4793201684951782,
+            0.09758734703063965,
+            0.05448027700185776
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 89712
+    }
+  },
+  "nativeObjectCount": 323,
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "modelUse": "map-exterior",
+  "components": [
+    {
+      "id": "桃園舊倉庫",
+      "name": "桃園舊倉庫",
+      "placementStatus": "footprint-axis-calibrated",
+      "anchor": [
+        121.31560381077722,
+        24.989853301987377
+      ],
+      "rotationDeg": 11.5,
+      "scaleXY": [
+        0.6828998086514284,
+        0.8930515148471923
+      ],
+      "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+      "facadeBearingDeg": null
+    }
+  ],
+  "mapEligible": true
+}

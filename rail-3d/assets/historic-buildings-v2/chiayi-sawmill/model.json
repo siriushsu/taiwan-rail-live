@@ -1,0 +1,432 @@
+{
+  "id": "chiayi-sawmill",
+  "name": "嘉義製材所",
+  "county": "嘉義市",
+  "category": "historic",
+  "kind": "chiayi-sawmill",
+  "features": [
+    "第二代製材工場、抬高氣窗、動力室、鋸屑室及煙囪基座"
+  ],
+  "sources": [
+    {
+      "url": "https://afrch.forest.gov.tw/0000268",
+      "use": "管理單位建物明細"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/321233584",
+      "use": "動力室：輪廓與位置",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://afrch.forest.gov.tw/File.aspx?fno=83462",
+      "use": "官方摺頁背面園區圖：第二代製材工場位於北端、動力室位於南端；主工場採目視屋頂外框"
+    }
+  ],
+  "priority": 1,
+  "placementStatus": "mixed-plan-and-site-anchor",
+  "anchor": [
+    120.4508938249017,
+    23.48667026483158
+  ],
+  "verifiedDimensionsM": {},
+  "estimatedDimensionsM": {
+    "width": 84.1997423171997,
+    "depth": 116.21212196350098,
+    "height": 11.539455268532038,
+    "basis": "平面依各部件來源校正；高度仍為外觀建模估值"
+  },
+  "referenceReviewDate": null,
+  "geometryStatus": "plan-calibrated-exterior-estimated",
+  "scope": "按來源輪廓校正平面位置與尺度；高度、立面細節及正面方向仍為外觀估計",
+  "railRelation": "沿線園區：嘉義—北門一帶；園內含產業舊線",
+  "reviewedPhotos": [],
+  "referenceStatus": "exterior-review-pending",
+  "pendingChecks": [
+    "高度測量與完整多面立面校正",
+    "正面方向複核",
+    "未定位附屬構件：煙囪基座遺構、鋸屑室架空斜板"
+  ],
+  "orientationMode": "ENU-baked",
+  "absoluteGroundAltitudeM": null,
+  "railElevationM": null,
+  "omittedUnlocatedComponents": [
+    "煙囪基座遺構",
+    "鋸屑室架空斜板"
+  ],
+  "mapEligible": true,
+  "calibration": {
+    "version": 2,
+    "basis": "各部件獨立平面擬合；非工程測繪",
+    "parts": [
+      {
+        "id": "第二代製材工場",
+        "name": "第二代製材工場",
+        "placementStatus": "site-anchor-estimated-outline",
+        "anchor": [
+          120.45044061226707,
+          23.487409029588243
+        ],
+        "rotationDeg": 28.07265482418036,
+        "scaleXY": [
+          0.7800561590565213,
+          0.7478448754166274
+        ],
+        "basis": "林業署園區導覽圖確認北側第二代製材工場，並以衛星主屋頂目視定位與尺度估計；非測量輪廓",
+        "facadeBearingDeg": null
+      },
+      {
+        "id": "動力室",
+        "name": "動力室",
+        "placementStatus": "footprint-axis-calibrated",
+        "anchor": [
+          120.4508938249017,
+          23.48667026483158
+        ],
+        "rotationDeg": 33.0,
+        "scaleXY": [
+          0.8758275902173943,
+          1.209831719073241
+        ],
+        "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+        "facadeBearingDeg": null
+      }
+    ],
+    "verticalDatum": "terrain-relative",
+    "sourceFile": "placements-source.json"
+  },
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "axes": {
+    "up": "+Z",
+    "east": "+X",
+    "north": "+Y",
+    "front": null,
+    "units": "meters",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "gltfAxes": {
+    "up": "+Y",
+    "toZUp": "rotateX(+PI/2)"
+  },
+  "facadeBearingDeg": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -71.6492691040039,
+      -13.919488906860352,
+      -0.0615137554705143
+    ],
+    "max": [
+      12.550472259521484,
+      102.29263305664062,
+      11.477941513061523
+    ]
+  },
+  "sizeM": [
+    84.19974136352539,
+    116.21212196350098,
+    11.539455268532038
+  ],
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "glb": "near.glb",
+      "sha256": "6df41d7d457c22988b351642907a887c67932e7825e8537e740f020dd3ff5010",
+      "glbSha256": "0a813e228ed3893de871c2f0972ae6148f6d7b38449e520fa2077bcd5efac49c",
+      "strideBytes": 24,
+      "vertexCount": 24378,
+      "triangleCount": 8126,
+      "drawGroups": [
+        {
+          "component": "第二代製材工場",
+          "name": "stone",
+          "start": 0,
+          "count": 3744,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "第二代製材工場",
+          "name": "brown",
+          "start": 3744,
+          "count": 1764,
+          "color": [
+            0.31398871541023254,
+            0.23074005544185638,
+            0.177888423204422
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "第二代製材工場",
+          "name": "dark",
+          "start": 5508,
+          "count": 7908,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "第二代製材工場",
+          "name": "glass",
+          "start": 13416,
+          "count": 3456,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "第二代製材工場",
+          "name": "cream",
+          "start": 16872,
+          "count": 5328,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "動力室",
+          "name": "stone",
+          "start": 22200,
+          "count": 72,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "動力室",
+          "name": "cream",
+          "start": 22272,
+          "count": 864,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "動力室",
+          "name": "dark",
+          "start": 23136,
+          "count": 954,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "動力室",
+          "name": "glass",
+          "start": 24090,
+          "count": 288,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        }
+      ],
+      "byteLength": 585072
+    },
+    "far": {
+      "file": "far.mesh.bin",
+      "glb": "far.glb",
+      "sha256": "c98f116431adf064d742cb20f3b521fb0d93945a1b3206b08cc1b5f5ac5576f0",
+      "glbSha256": "01df892c670871edc17a44d0f8e2d74a20fd72fae065456a974be4969009f367",
+      "strideBytes": 24,
+      "vertexCount": 12726,
+      "triangleCount": 4242,
+      "drawGroups": [
+        {
+          "component": "第二代製材工場",
+          "name": "stone",
+          "start": 0,
+          "count": 1296,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "第二代製材工場",
+          "name": "brown",
+          "start": 1296,
+          "count": 828,
+          "color": [
+            0.31398871541023254,
+            0.23074005544185638,
+            0.177888423204422
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "第二代製材工場",
+          "name": "dark",
+          "start": 2124,
+          "count": 4092,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "第二代製材工場",
+          "name": "glass",
+          "start": 6216,
+          "count": 3456,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "第二代製材工場",
+          "name": "cream",
+          "start": 9672,
+          "count": 1800,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "動力室",
+          "name": "stone",
+          "start": 11472,
+          "count": 72,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "動力室",
+          "name": "cream",
+          "start": 11544,
+          "count": 288,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "動力室",
+          "name": "dark",
+          "start": 11832,
+          "count": 606,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "動力室",
+          "name": "glass",
+          "start": 12438,
+          "count": 288,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        }
+      ],
+      "byteLength": 305424
+    }
+  },
+  "nativeObjectCount": 997,
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "modelUse": "map-exterior",
+  "components": [
+    {
+      "id": "第二代製材工場",
+      "name": "第二代製材工場",
+      "placementStatus": "site-anchor-estimated-outline",
+      "anchor": [
+        120.45044061226707,
+        23.487409029588243
+      ],
+      "rotationDeg": 28.07265482418036,
+      "scaleXY": [
+        0.7800561590565213,
+        0.7478448754166274
+      ],
+      "basis": "林業署園區導覽圖確認北側第二代製材工場，並以衛星主屋頂目視定位與尺度估計；非測量輪廓",
+      "facadeBearingDeg": null
+    },
+    {
+      "id": "動力室",
+      "name": "動力室",
+      "placementStatus": "footprint-axis-calibrated",
+      "anchor": [
+        120.4508938249017,
+        23.48667026483158
+      ],
+      "rotationDeg": 33.0,
+      "scaleXY": [
+        0.8758275902173943,
+        1.209831719073241
+      ],
+      "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+      "facadeBearingDeg": null
+    }
+  ]
+}

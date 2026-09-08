@@ -115,6 +115,10 @@ try {
   if (wkApi.status !== 0) fail('週末活動 API 未過——handler 的資產接線、快取金鑰或跨層欄位契約壞了'
     + '（單獨重跑：npm run check-weekend-api）');
 
+  const historic = spawnSync('node', [path.join(wt, 'scripts', 'verify_historic_assets.mjs')], { encoding: 'utf8' });
+  process.stdout.write(historic.stdout || ''); process.stderr.write(historic.stderr || '');
+  if (historic.status !== 0) fail('歷史建物資產或定位契約未通過');
+
   // 收藏車庫：出貨樹必須包含完整模型、縮圖、雜湊与 62 款可達成規則。
   const garage = spawnSync('node', [path.join(wt, 'scripts', 'verify_garage_assets.mjs')], { encoding: 'utf8' });
   process.stdout.write(garage.stdout || ''); process.stderr.write(garage.stderr || '');

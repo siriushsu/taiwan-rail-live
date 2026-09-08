@@ -223,7 +223,7 @@ await cp(join(appRoot, 'node_modules/fflate/umd/index.js'), join(vendor, 'fflate
 // 所以這幾個檔非複製不可:少了 maplibre-gl.js 整張地圖起不來;少了 ofm-*.json 街道 style 讀不到
 // ⇒ App 悄悄退回計費的 Stadia,build 卻照樣成功(所以下面另有正向斷言)。
 // 樣式 JSON 內的圖磚/sprite/glyphs 仍指向 tiles.openfreemap.org(免金鑰、無用量上限、明文可商用)。
-for (const f of ['maplibre-gl.js', 'maplibre-gl.css', 'ofm-positron.json', 'ofm-dark.json']) await cp(join(repoRoot, 'vendor', f), join(vendor, f));
+for (const f of ['maplibre-gl.js', 'maplibre-gl.css', 'ofm-positron.json', 'ofm-dark.json', 'ofm-landscape.json']) await cp(join(repoRoot, 'vendor', f), join(vendor, f));
 
 await build({
   entryPoints: [join(appRoot, 'src/native-bridge.mjs')],
@@ -358,7 +358,7 @@ if (/ko-fi|PayPal|111010691056|web-only-donation-log|贊助方式更新/i.test(h
 if (/cartocdn\.com|arcgisonline\.com/i.test(html)) throw new Error('App index still contains unlicensed CARTO/Esri tile URLs');
 // 正向斷言:上面那條反向的「不該有的網址不在」照不到「該有的檔沒進來」。OFM 資產漏複製時
 // build 一樣成功、App 一樣能開,只是靜默退回計費底圖——那正是這批要消滅的成本,不能靠肉眼發現。
-for (const f of ['maplibre-gl.js', 'maplibre-gl.css', 'ofm-positron.json', 'ofm-dark.json']) {
+for (const f of ['maplibre-gl.js', 'maplibre-gl.css', 'ofm-positron.json', 'ofm-dark.json', 'ofm-landscape.json']) {
   try { await stat(join(vendor, f)); }
   catch { throw new Error(`www/vendor/${f} 沒進 bundle——地圖起不來,或街道底圖靜默退回計費的 Stadia`); }
 }

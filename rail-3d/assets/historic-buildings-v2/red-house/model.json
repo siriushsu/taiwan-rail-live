@@ -1,0 +1,339 @@
+{
+  "id": "red-house",
+  "name": "西門紅樓",
+  "county": "臺北市",
+  "category": "historic",
+  "kind": "red-house",
+  "features": [
+    "八角樓、十字樓與紅磚拱窗，保持兩部分完整輪廓"
+  ],
+  "sources": [
+    {
+      "url": "https://www.redhouse.taipei/ActiveWebSite/02-5.html",
+      "use": "場館建築介紹"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/222080307",
+      "use": "OSM 建物輪廓"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/222080307",
+      "use": "紅樓：輪廓與位置",
+      "license": "ODbL-1.0"
+    }
+  ],
+  "priority": 2,
+  "placementStatus": "calibrated-plan",
+  "anchor": [
+    121.50650533073967,
+    25.042079456734108
+  ],
+  "verifiedDimensionsM": {},
+  "estimatedDimensionsM": {
+    "width": 92.0326919555664,
+    "depth": 51.54697608947754,
+    "height": 15.0,
+    "basis": "平面依各部件來源校正；高度仍為外觀建模估值"
+  },
+  "referenceReviewDate": "2026-09-08",
+  "geometryStatus": "plan-calibrated-exterior-estimated",
+  "scope": "按來源輪廓校正平面位置與尺度；高度、立面細節及正面方向仍為外觀估計",
+  "railRelation": "市區周邊：捷運西門",
+  "reviewedPhotos": [
+    {
+      "url": "https://www.redhouse.taipei/ActiveWebSite/images/rh_building.jpg",
+      "page": "https://www.redhouse.taipei/ActiveWebSite/02-5.html",
+      "viewedOn": "2026-09-08",
+      "scope": "局部外觀參考，非完整多面覆核"
+    }
+  ],
+  "referenceStatus": "partial-exterior-review",
+  "pendingChecks": [
+    "高度測量與完整多面立面校正",
+    "正面方向複核"
+  ],
+  "footprintReference": {
+    "osmType": "way",
+    "osmId": 222080307,
+    "name": "西門紅樓",
+    "url": "https://www.openstreetmap.org/way/222080307",
+    "timestamp": "2026-09-08T15:19:44Z",
+    "longSideM": 91.73,
+    "shortSideM": 48.0,
+    "source": "OpenStreetMap contributors",
+    "license": "ODbL-1.0",
+    "scope": "早期輪廓參考；本輪逐棟校正依 calibration.parts 與 placements-source.json",
+    "referenceFile": "source-layouts/red-house.json"
+  },
+  "planCalibration": "OSM 輪廓包圍框校正平面尺度；內部翼樓與局部輪廓仍為估計",
+  "orientationMode": "ENU-baked",
+  "absoluteGroundAltitudeM": null,
+  "railElevationM": null,
+  "omittedUnlocatedComponents": [],
+  "calibration": {
+    "version": 2,
+    "basis": "各部件獨立平面擬合；非工程測繪",
+    "parts": [
+      {
+        "id": "紅樓",
+        "name": "紅樓",
+        "placementStatus": "footprint-axis-calibrated",
+        "anchor": [
+          121.50650533073967,
+          25.042079456734108
+        ],
+        "rotationDeg": 254.75,
+        "scaleXY": [
+          0.9999561312340236,
+          0.999973019210501
+        ],
+        "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+        "facadeBearingDeg": null
+      }
+    ],
+    "verticalDatum": "terrain-relative",
+    "sourceFile": "placements-source.json"
+  },
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "axes": {
+    "up": "+Z",
+    "east": "+X",
+    "north": "+Y",
+    "front": null,
+    "units": "meters",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "gltfAxes": {
+    "up": "+Y",
+    "toZUp": "rotateX(+PI/2)"
+  },
+  "facadeBearingDeg": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -45.490821838378906,
+      -28.903478622436523,
+      0.0
+    ],
+    "max": [
+      46.5418701171875,
+      22.64349937438965,
+      15.0
+    ]
+  },
+  "sizeM": [
+    92.0326919555664,
+    51.54697799682617,
+    15.0
+  ],
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "glb": "near.glb",
+      "sha256": "2002bc22036af11c03fb858167521a703e4303129506545e978450ec7542b288",
+      "glbSha256": "bb89338b0f58c85e94489c6bc3639cc9789046e7547d698bb9e02a83e43c2e9f",
+      "strideBytes": 24,
+      "vertexCount": 13470,
+      "triangleCount": 4490,
+      "drawGroups": [
+        {
+          "component": "紅樓",
+          "name": "red",
+          "start": 0,
+          "count": 156,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "紅樓",
+          "name": "glass",
+          "start": 156,
+          "count": 2106,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "紅樓",
+          "name": "cream",
+          "start": 2262,
+          "count": 8424,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "紅樓",
+          "name": "dark",
+          "start": 10686,
+          "count": 24,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "紅樓",
+          "name": "stone",
+          "start": 10710,
+          "count": 72,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "紅樓",
+          "name": "tile",
+          "start": 10782,
+          "count": 2688,
+          "color": [
+            0.4793201684951782,
+            0.09758734703063965,
+            0.05448027700185776
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 323280
+    },
+    "far": {
+      "file": "far.mesh.bin",
+      "glb": "far.glb",
+      "sha256": "4d0ae5b9c1debac07ca26fa46086f588613a7331aa310cc38f5a6b62d3c92c0f",
+      "glbSha256": "5dac47292d3eff0293173501c70401a7f3ca3860b6da587bd178468b4eb730e9",
+      "strideBytes": 24,
+      "vertexCount": 7530,
+      "triangleCount": 2510,
+      "drawGroups": [
+        {
+          "component": "紅樓",
+          "name": "red",
+          "start": 0,
+          "count": 156,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "紅樓",
+          "name": "glass",
+          "start": 156,
+          "count": 2106,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "紅樓",
+          "name": "cream",
+          "start": 2262,
+          "count": 4536,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "紅樓",
+          "name": "dark",
+          "start": 6798,
+          "count": 24,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "紅樓",
+          "name": "stone",
+          "start": 6822,
+          "count": 72,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "紅樓",
+          "name": "tile",
+          "start": 6894,
+          "count": 636,
+          "color": [
+            0.4793201684951782,
+            0.09758734703063965,
+            0.05448027700185776
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 180720
+    }
+  },
+  "nativeObjectCount": 576,
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "modelUse": "map-exterior",
+  "components": [
+    {
+      "id": "紅樓",
+      "name": "紅樓",
+      "placementStatus": "footprint-axis-calibrated",
+      "anchor": [
+        121.50650533073967,
+        25.042079456734108
+      ],
+      "rotationDeg": 254.75,
+      "scaleXY": [
+        0.9999561312340236,
+        0.999973019210501
+      ],
+      "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+      "facadeBearingDeg": null
+    }
+  ],
+  "mapEligible": true
+}

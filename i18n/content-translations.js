@@ -4,6 +4,12 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "地圖風格": "Map style",
+    "明": "Light",
+    "地景": "Landscape",
+    "地景加入 25 組歷史建築模型，依建物位置與朝向呈現站房、倉庫和廠房，並以遠近細節切換維持流暢": "Landscape adds 25 groups of historic buildings, with stations, warehouses and factories placed and oriented on the map. Distance-based detail keeps the scene smooth.",
+    "地景加入公開土地覆蓋資料，補足台灣與離島的山林、草地和農田；樹群依林地範圍呈現，並保留道路與建物空間": "Landscape now uses public land-cover data for Taiwan and its offshore islands, adding woodland, grassland and farmland. Tree groups follow woodland areas while keeping roads and buildings clear.",
+    "新增「地景」地圖風格：河流、林地、公園與街廓換上自然色，近看可見立體樹冠與建築，搭配列車沿線探索台灣": "New Landscape map: natural colors for rivers, woodland, parks and neighborhoods, with 3D tree canopies and buildings to explore along the railway.",
     "終點站的車站看板現在會列出一小時以後才到站的班次——去接人的人看得到時間；其他車站維持只列一小時內的到站車。": "Terminus station boards now list arrivals more than an hour out, so people meeting a train can see the time; other stations still show only arrivals within the hour.",
     "跟車鏡頭保留目前的近景，點列車或隨機跟隨不再拉遠；再次點到正在跟隨的列車會回到車旁，不會結束跟隨": "Following keeps your current close-up zoom. Selecting a train or random follow no longer zooms out; tapping the train you are following recenters the camera without ending follow.",
     "修正列車在車站與彎道附近整列飄到軌道旁的問題，車廂沿指派股道逐節轉彎，不再因鄰車靠近而橫移": "Fixed whole trains drifting beside the rails near stations and curves. Each carriage follows its assigned track through bends without shifting sideways when another train approaches.",
@@ -225,6 +231,12 @@
   });
 
   Object.assign(messages.ja, {
+    "地圖風格": "地図スタイル",
+    "明": "明色",
+    "地景": "風景",
+    "地景加入 25 組歷史建築模型，依建物位置與朝向呈現站房、倉庫和廠房，並以遠近細節切換維持流暢": "「風景」に歴史的建築25組を追加。駅舎・倉庫・工場を位置と向きに合わせて配置し、距離に応じて細部を切り替えて滑らかに表示します。",
+    "地景加入公開土地覆蓋資料，補足台灣與離島的山林、草地和農田；樹群依林地範圍呈現，並保留道路與建物空間": "公開土地被覆データで台湾と離島の森林・草地・農地を補完。樹木は森林の範囲に配置し、道路と建物の空間を確保します。",
+    "新增「地景」地圖風格：河流、林地、公園與街廓換上自然色，近看可見立體樹冠與建築，搭配列車沿線探索台灣": "「風景」地図を追加。川・森林・公園・街並みを自然な色で表示し、近づくと立体の樹木や建物が現れます。列車とともに台湾の沿線を楽しめます。",
     "終點站的車站看板現在會列出一小時以後才到站的班次——去接人的人看得到時間；其他車站維持只列一小時內的到站車。": "終着駅の発車標では、1時間より先に到着する列車も表示するようになりました（出迎えの方が時刻を確認できます）。他の駅は従来どおり1時間以内の到着のみです。",
     "跟車鏡頭保留目前的近景，點列車或隨機跟隨不再拉遠；再次點到正在跟隨的列車會回到車旁，不會結束跟隨": "追従時は現在の拡大率を維持し、列車の選択やランダム追従で引きの画面になりません。追従中の列車をもう一度タップすると、追従を終了せずに列車へ戻ります。",
     "修正列車在車站與彎道附近整列飄到軌道旁的問題，車廂沿指派股道逐節轉彎，不再因鄰車靠近而橫移": "駅やカーブ付近で列車全体が線路脇へずれる問題を修正しました。各車両は割り当てられた線路に沿って順に曲がり、他の列車が近づいても横移動しません。",
@@ -852,6 +864,7 @@
 
   window.RAIL_I18N_CONTENT_DATA = {
     en: {
+
       namedTrains: {
         'blue-train': {
           name: 'Breezy Blue', tags: ['Tourist train', 'Heritage coaches', 'Individual tickets available'],
@@ -946,6 +959,7 @@
       }
     },
     ja: {
+
       namedTrains: {
         'blue-train': {
           name: '藍皮解憂号', tags: ['観光列車', 'レトロ客車', '個人で乗車券購入可'],

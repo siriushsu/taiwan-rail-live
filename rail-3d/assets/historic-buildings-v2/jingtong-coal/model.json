@@ -1,0 +1,547 @@
+{
+  "id": "jingtong-coal",
+  "name": "菁桐站與選洗煤場",
+  "county": "新北市",
+  "category": "historic",
+  "kind": "jingtong-coal",
+  "features": [
+    "木造站房、站棚；對面選洗煤場保留高低錯落量體"
+  ],
+  "sources": [
+    {
+      "url": "https://newtaipei.travel/zh-tw/attractions/detail/110042",
+      "use": "新北市菁桐車站"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/263352418",
+      "use": "OSM 建物輪廓"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/263352418",
+      "use": "菁桐站房：輪廓與位置",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/281242237",
+      "use": "選洗煤場：輪廓與位置",
+      "license": "ODbL-1.0"
+    }
+  ],
+  "priority": 1,
+  "placementStatus": "calibrated-plan",
+  "anchor": [
+    121.72392636336046,
+    25.023881227281787
+  ],
+  "verifiedDimensionsM": {},
+  "estimatedDimensionsM": {
+    "width": 120.7547197341919,
+    "depth": 66.63879489898682,
+    "height": 16.277942657470703,
+    "basis": "平面依各部件來源校正；高度仍為外觀建模估值"
+  },
+  "referenceReviewDate": "2026-09-08",
+  "geometryStatus": "plan-calibrated-exterior-estimated",
+  "scope": "按來源輪廓校正平面位置與尺度；高度、立面細節及正面方向仍為外觀估計",
+  "railRelation": "站區：平溪線菁桐",
+  "reviewedPhotos": [
+    {
+      "url": "https://newtaipei.travel/content/images/attractions/25310/1024x768_attractions-image-qzacqwschk6wpt9m6ycytq.jpg",
+      "page": "https://newtaipei.travel/zh-tw/attractions/detail/110042",
+      "viewedOn": "2026-09-08",
+      "scope": "局部外觀參考，非完整多面覆核"
+    },
+    {
+      "url": "https://newtaipei.travel/content/images/attractions/25307/1024x768_attractions-image-maxwpzywxeqzu_da5zxjja.jpg",
+      "page": "https://newtaipei.travel/zh-tw/attractions/detail/110042",
+      "viewedOn": "2026-09-08",
+      "scope": "局部外觀參考，非完整多面覆核"
+    },
+    {
+      "url": "https://newtaipei.travel/content/images/attractions/25305/1024x768_attractions-image-vnxjar0znualwrobcaubda.jpg",
+      "page": "https://newtaipei.travel/zh-tw/attractions/detail/110042",
+      "viewedOn": "2026-09-08",
+      "scope": "局部外觀參考，非完整多面覆核"
+    }
+  ],
+  "referenceStatus": "partial-exterior-review",
+  "pendingChecks": [
+    "高度測量與完整多面立面校正",
+    "正面方向複核",
+    "未定位附屬構件：舊月台、舊站棚"
+  ],
+  "footprintReference": {
+    "osmType": "way",
+    "osmId": 263352418,
+    "name": "菁桐車站站房",
+    "url": "https://www.openstreetmap.org/way/263352418",
+    "timestamp": "2026-09-08T15:19:44Z",
+    "longSideM": 14.35,
+    "shortSideM": 9.17,
+    "source": "OpenStreetMap contributors",
+    "license": "ODbL-1.0",
+    "scope": "早期輪廓參考；本輪逐棟校正依 calibration.parts 與 placements-source.json",
+    "referenceFile": "source-layouts/jingtong-coal.json"
+  },
+  "orientationMode": "ENU-baked",
+  "absoluteGroundAltitudeM": null,
+  "railElevationM": null,
+  "omittedUnlocatedComponents": [
+    "舊月台",
+    "舊站棚"
+  ],
+  "calibration": {
+    "version": 2,
+    "basis": "各部件獨立平面擬合；非工程測繪",
+    "parts": [
+      {
+        "id": "菁桐站房",
+        "name": "菁桐站房",
+        "placementStatus": "footprint-axis-calibrated",
+        "anchor": [
+          121.72392636336046,
+          25.023881227281787
+        ],
+        "rotationDeg": 13.25,
+        "scaleXY": [
+          0.9878798731909108,
+          0.9808646293161242
+        ],
+        "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+        "facadeBearingDeg": null
+      },
+      {
+        "id": "選洗煤場",
+        "name": "選洗煤場",
+        "placementStatus": "footprint-axis-calibrated",
+        "anchor": [
+          121.72307554106979,
+          25.02420650329873
+        ],
+        "rotationDeg": 22.5,
+        "scaleXY": [
+          1.949286131584805,
+          1.1394752786534412
+        ],
+        "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+        "facadeBearingDeg": null
+      }
+    ],
+    "verticalDatum": "terrain-relative",
+    "sourceFile": "placements-source.json"
+  },
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "axes": {
+    "up": "+Z",
+    "east": "+X",
+    "north": "+Y",
+    "front": null,
+    "units": "meters",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "gltfAxes": {
+    "up": "+Y",
+    "toZUp": "rotateX(+PI/2)"
+  },
+  "facadeBearingDeg": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -112.73805236816406,
+      -8.124287605285645,
+      0.0
+    ],
+    "max": [
+      8.016667366027832,
+      58.514503479003906,
+      16.277942657470703
+    ]
+  },
+  "sizeM": [
+    120.7547197341919,
+    66.63879108428955,
+    16.277942657470703
+  ],
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "glb": "near.glb",
+      "sha256": "0a9a86428f958b74e2ea2c661e7c3d38fed73ad02122ec97967992d8a8581901",
+      "glbSha256": "903180d3ea03b442366b4beaa8b8559ccf5baf23d880ec336b2000f478a2a739",
+      "strideBytes": 24,
+      "vertexCount": 8634,
+      "triangleCount": 2878,
+      "drawGroups": [
+        {
+          "component": "菁桐站房",
+          "name": "stone",
+          "start": 0,
+          "count": 684,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "菁桐站房",
+          "name": "brown",
+          "start": 684,
+          "count": 156,
+          "color": [
+            0.31398871541023254,
+            0.23074005544185638,
+            0.177888423204422
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "菁桐站房",
+          "name": "dark",
+          "start": 840,
+          "count": 1770,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "菁桐站房",
+          "name": "glass",
+          "start": 2610,
+          "count": 216,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "菁桐站房",
+          "name": "white",
+          "start": 2826,
+          "count": 108,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "選洗煤場",
+          "name": "stone",
+          "start": 2934,
+          "count": 384,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "選洗煤場",
+          "name": "red",
+          "start": 3318,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "選洗煤場",
+          "name": "cream",
+          "start": 3354,
+          "count": 2160,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "選洗煤場",
+          "name": "dark",
+          "start": 5514,
+          "count": 1266,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "選洗煤場",
+          "name": "glass",
+          "start": 6780,
+          "count": 720,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "選洗煤場",
+          "name": "tile",
+          "start": 7500,
+          "count": 774,
+          "color": [
+            0.4793201684951782,
+            0.09758734703063965,
+            0.05448027700185776
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "選洗煤場",
+          "name": "metal",
+          "start": 8274,
+          "count": 360,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 207216
+    },
+    "far": {
+      "file": "far.mesh.bin",
+      "glb": "far.glb",
+      "sha256": "287120a18ef8ae02fb9f25470b81bb94eef599c750c20efa7f359e4d30278fdd",
+      "glbSha256": "034c2a0a5e36aa1ace31036bf2581a8b9fb49de4f51829b0411a892b2d7d06b8",
+      "strideBytes": 24,
+      "vertexCount": 4890,
+      "triangleCount": 1630,
+      "drawGroups": [
+        {
+          "component": "菁桐站房",
+          "name": "stone",
+          "start": 0,
+          "count": 252,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "菁桐站房",
+          "name": "brown",
+          "start": 252,
+          "count": 156,
+          "color": [
+            0.31398871541023254,
+            0.23074005544185638,
+            0.177888423204422
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "菁桐站房",
+          "name": "dark",
+          "start": 408,
+          "count": 582,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "菁桐站房",
+          "name": "glass",
+          "start": 990,
+          "count": 216,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "菁桐站房",
+          "name": "white",
+          "start": 1206,
+          "count": 108,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "選洗煤場",
+          "name": "stone",
+          "start": 1314,
+          "count": 384,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "選洗煤場",
+          "name": "red",
+          "start": 1698,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "選洗煤場",
+          "name": "cream",
+          "start": 1734,
+          "count": 720,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "選洗煤場",
+          "name": "dark",
+          "start": 2454,
+          "count": 1038,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "選洗煤場",
+          "name": "glass",
+          "start": 3492,
+          "count": 720,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "選洗煤場",
+          "name": "tile",
+          "start": 4212,
+          "count": 318,
+          "color": [
+            0.4793201684951782,
+            0.09758734703063965,
+            0.05448027700185776
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "選洗煤場",
+          "name": "metal",
+          "start": 4530,
+          "count": 360,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 117360
+    }
+  },
+  "nativeObjectCount": 354,
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "modelUse": "map-exterior",
+  "components": [
+    {
+      "id": "菁桐站房",
+      "name": "菁桐站房",
+      "placementStatus": "footprint-axis-calibrated",
+      "anchor": [
+        121.72392636336046,
+        25.023881227281787
+      ],
+      "rotationDeg": 13.25,
+      "scaleXY": [
+        0.9878798731909108,
+        0.9808646293161242
+      ],
+      "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+      "facadeBearingDeg": null
+    },
+    {
+      "id": "選洗煤場",
+      "name": "選洗煤場",
+      "placementStatus": "footprint-axis-calibrated",
+      "anchor": [
+        121.72307554106979,
+        25.02420650329873
+      ],
+      "rotationDeg": 22.5,
+      "scaleXY": [
+        1.949286131584805,
+        1.1394752786534412
+      ],
+      "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+      "facadeBearingDeg": null
+    }
+  ],
+  "mapEligible": true
+}

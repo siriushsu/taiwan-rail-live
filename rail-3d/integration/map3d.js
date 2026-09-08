@@ -9,6 +9,7 @@ import {formationFor,assembleFormation} from './formations.js';
 import {makePath,shapeKey,makeHeightProfile,formationPoses} from './train-path.js';
 import {profileLines} from './profile-lines.js';
 import {headFramingDistance} from './follow-framing.js';
+import {createLandscapeTrees} from './landscape-trees.js';
 import {orderBuildingPasses} from './layer-order.js';
 
 const asset=p=>new URL('../'+p,import.meta.url).href;
@@ -24,11 +25,12 @@ async function library(){if(!libraries)libraries=(async()=>{
 const empty=()=>({type:'FeatureCollection',features:[]});
 const feature=(geometry,properties)=>({type:'Feature',geometry,properties});
 
-export async function createLiveMap({map,isCurrent=()=>true,onGesture,onInteract,onError,getHeading,trainSizeMode='readable',groundMode='flat',formationMode='actual'}){
+export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGesture,onInteract,onError,getHeading,trainSizeMode='readable',groundMode='flat',formationMode='actual'}){
   const assertCurrent=()=>{if(!isCurrent())throw new DOMException('地圖樣式已切換','AbortError');};
   const ml=await library(),[catalog,profileData]=await Promise.all([json('assets/blender-map-v1/manifest.json'),json('integration/display-profiles.json')]);
   assertCurrent();
-  const el=map.getContainer(),landscapeTheme='original';
+  const el=map.getContainer(),landscapeTheme=landscape?'landscape':'original';
+  let trees=null;
   let disposed=false,ready=false,stationLayer=null,stationLabels=null,markers=null,inspection=false,frame=null,routeKey='',routeRefs=[],lastBuild=0,dirty=true,buildCenter=null,buildView=null,lastNear=null,popup=null;
   const clearance=createRailClearance();
   const terrainState={terrain:groundMode==='terrain',buildings:true,labels:true,stationInspection:false,stationInspectionAll:true,exaggeration:1};
@@ -97,6 +99,7 @@ export async function createLiveMap({map,isCurrent=()=>true,onGesture,onInteract
   function update(next){if(!ready||disposed)return;frame=next;
     syncZoomAnchor();
     if(clearance.update([...(next.clearanceRoutes||next.routes),...next.vehicles.filter(v=>!v.route?.physical).map(v=>v.route).filter(Boolean)]))stationLayer?.refresh();
+    trees?.refresh();
     syncRoutes(next);stats.vehicles=next.vehicles.length;stats.geometryVersion=next.geometryVersion;
     const now=performance.now(),center=map.getCenter(),near=map.getZoom()>=14;
     if(buildView&&(Math.abs(map.getZoom()-buildView[0])>.4||Math.abs(map.getPitch()-buildView[1])>5||Math.abs(map.getBearing()-buildView[2])>15))dirty=true;
@@ -166,7 +169,7 @@ export async function createLiveMap({map,isCurrent=()=>true,onGesture,onInteract
     else{const delta=((target-orbitBearing+540)%360)-180;orbitBearing+=delta*(1-Math.exp(-dt*1.4));}
     stats.ambientCamera=mode;return {bearing:orbitBearing,pitch:mode==='orbit'?52:62,zoom:Math.max(15.6,map.getZoom())};
   }
-  function destroy(){if(disposed)return;disposed=true;clearTimeout(gestureTimer);for(const [target,type,handler]of inputListeners)target.removeEventListener(type,handler,true);
+  function destroy(){if(disposed)return;disposed=true;trees?.destroy();clearTimeout(gestureTimer);for(const [target,type,handler]of inputListeners)target.removeEventListener(type,handler,true);
     for(const [type,handler]of mapListeners)map.off(type,handler);if(stationLayer){if(map.getLayer(stationLayer.id)?.implementation===stationLayer)map.removeLayer(stationLayer.id);else stationLayer.onRemove();}
     if(vehicleLayer&&map.getLayer('live-vehicles-3d')===vehicleLayer)map.removeLayer('live-vehicles-3d');if(underlayLayer&&map.getLayer('live-vehicles-underlay')===underlayLayer)map.removeLayer('live-vehicles-underlay');
     clearLines();for(const m of models.values())if(m.group)scene.remove(m.group);models.clear();rails.destroy();for(const g of cache.values())g.dispose();material.dispose();pointGeometry.dispose();pointMaterial.dispose();pointTexture.dispose();arrowGeometry.dispose();arrowMaterial.dispose();webgl?.dispose();}
@@ -174,6 +177,12 @@ export async function createLiveMap({map,isCurrent=()=>true,onGesture,onInteract
   try{
     if(!map.getSource('terrain'))map.addSource('terrain',{type:'raster-dem',tiles:['island-dem://{z}/{x}/{y}'],minzoom:0,maxzoom:12,tileSize:512,encoding:'terrarium',attribution:'<a href="https://mapterhorn.com/attribution/" target="_blank" rel="noopener">© Mapterhorn · 內政部 20m DTM</a>'});
     if(terrainState.terrain)map.setTerrain({source:'terrain',exaggeration:1});
+    if(landscape){
+      map.addLayer({id:'landscape-hillshade',type:'hillshade',source:'terrain',paint:{'hillshade-exaggeration':.42,'hillshade-shadow-color':'#5c785f','hillshade-highlight-color':'#fff4d6','hillshade-accent-color':'#90a580','hillshade-illumination-direction':315}},'building');
+      map.setLight({anchor:'map',color:'#fff2d7',intensity:.36,position:[1.5,210,45]});
+      trees=createLandscapeTrees({map,THREE,scene,world,clearance,getTerrain:()=>terrainState.terrain});
+      stats.landscape=trees.stats;
+    }
     points.visible=arrows.visible=false;
     map.addLayer({id:'live-vehicles-3d',type:'custom',renderingMode:'3d',onAdd(_,gl){webgl=new THREE.WebGLRenderer({canvas:map.getCanvas(),context:gl});webgl.autoClear=false;},
       render(gl,args){camera.projectionMatrix.copy(projection.fromArray(args.defaultProjectionData.mainMatrix).multiply(transform));updateModelScales();rails.render(el.clientWidth,el.clientHeight,routeWidth(map.getZoom()),map.getZoom()>=14&&(terrainState.terrain||frame?.routes.some(r=>r.physical)),frame?.display?.dark);webgl.resetState();webgl.render(scene,camera);stats.frames++;}});vehicleLayer=map.getLayer('live-vehicles-3d');
@@ -206,7 +215,7 @@ export async function createLiveMap({map,isCurrent=()=>true,onGesture,onInteract
     listenMap('moveend',()=>{if(gesture)finishGesture();});
     ready=true;
     return {map,stats,update,get interacting(){return gesture;},getVehicleLabels:()=>markers?.boxes||[],getRenderMemory:()=>({...webgl.info.memory}),
-      setGroundMode(mode){const relief=mode==='terrain';if(relief===terrainState.terrain)return;terrainState.terrain=relief;groundMode=relief?'terrain':'flat';stats.groundMode=groundMode;stats.displayHeight=relief?'fixed DEM clearance envelope + 0.65 m':'flat + 0.65 m';map.setTerrain(relief?{source:'terrain',exaggeration:1}:null);map.jumpTo({elevation:0});clearLines();dirty=true;lastBuild=0;stationLayer?.refresh();if(frame)update(frame);},
+      setGroundMode(mode){const relief=mode==='terrain';if(relief===terrainState.terrain)return;terrainState.terrain=relief;groundMode=relief?'terrain':'flat';stats.groundMode=groundMode;stats.displayHeight=relief?'fixed DEM clearance envelope + 0.65 m':'flat + 0.65 m';map.setTerrain(relief?{source:'terrain',exaggeration:1}:null);map.jumpTo({elevation:0});clearLines();dirty=true;lastBuild=0;stationLayer?.refresh();trees?.schedule();if(frame)update(frame);},
       setFormationMode(mode){formationMode=mode==='three'?'three':'actual';stats.formationMode=formationMode;failed.clear();if(frame)update(frame);},getStations:()=>stationLayer,getStationLabels:()=>stationLabels?.boxes||[],setTrainSizeMode(mode){trainSizeMode=mode==='scale'?'scale':'readable';stats.trainSizeMode=trainSizeMode;},resize:()=>map.resize(),getView:()=>({center:map.getCenter().toArray(),zoom:map.getZoom(),pitch:map.getPitch(),bearing:map.getBearing()}),
       setView(v){const c=map.getCenter();if(Math.abs(c.lng-v.center[0])+Math.abs(c.lat-v.center[1])>1e-9||Math.abs(map.getZoom()-v.zoom)>1e-6)map.jumpTo(v);},
       followCoordinate(coord,insets){
@@ -245,7 +254,7 @@ export async function createLiveMap({map,isCurrent=()=>true,onGesture,onInteract
       },
       togglePitch(){const flat=map.getPitch()>0;map.jumpTo({pitch:flat?0:55});return flat;},
       syncLayerOrder(){orderBuildingPasses(map);},
-      setAppearance({buildings,dark,transparent,satellite=false}){terrainState.buildings=buildings;terrainState.stationSolidAppearance=satellite&&!transparent;terrainState.stationInspection=transparent||dark&&!satellite;inspection=transparent;for(const id of ['building-3d','station-building-context'])if(map.getLayer(id)){map.setPaintProperty(id,'fill-extrusion-color',dark&&!satellite?'#638BC5':'#d4d0c5');map.setPaintProperty(id,'fill-extrusion-opacity',transparent?.24:satellite?1:dark?.30:.72);map.setLayoutProperty(id,'visibility',buildings?'visible':'none');}stationLayer?.refresh();},
+      setAppearance({buildings,dark,transparent,satellite=false,landscape=false}){dark=dark&&!landscape;terrainState.buildings=buildings;terrainState.stationSolidAppearance=(satellite||landscape)&&!transparent;terrainState.stationInspection=transparent||dark&&!satellite;inspection=transparent;for(const id of ['building-3d','station-building-context'])if(map.getLayer(id)){map.setPaintProperty(id,'fill-extrusion-color',landscape?['interpolate',['linear'],['to-number',['get','render_height'],8],0,'#d3bda0',12,'#e5d7bc',35,'#cad4c9',90,'#b3c9c7']:dark&&!satellite?'#638BC5':'#d4d0c5');map.setPaintProperty(id,'fill-extrusion-opacity',transparent?.24:satellite||landscape?1:dark?.30:.72);map.setLayoutProperty(id,'visibility',buildings?'visible':'none');}stationLayer?.refresh();},
       alignment(){const h=hits.find(h=>h.v.followed);if(!h)return null;let closest=null;for(const a of profileVertices){for(let i=0;i<a.length;i+=6){const dx=a[i+3]-a[i],dy=a[i+4]-a[i+1],d=dx*dx+dy*dy,t=Math.max(0,Math.min(1,((h.p[0]-a[i])*dx+(h.p[1]-a[i+1])*dy)/(d||1))),p=[a[i]+dx*t,a[i+1]+dy*t,a[i+2]+(a[i+5]-a[i+2])*t],horizontal=Math.hypot(p[0]-h.p[0],p[1]-h.p[1]);if(!closest||horizontal<closest.horizontal)closest={horizontal,heightDelta:p[2]-h.p[2],vehicle:project(h.p),rail:project(p),p,train:h.p};}}return closest;},
       projectedRailSamples(){return profileVertices.flatMap(a=>{const out=[];for(let i=0;i<a.length;i+=6)out.push(project([(a[i]+a[i+3])/2,(a[i+1]+a[i+4])/2,(a[i+2]+a[i+5])/2]));return out;});},
       projectedModels(){return [...models].flatMap(([id,m])=>{if(!m.group?.visible)return [];const box=new THREE.Box3().setFromObject(m.group),points=[];for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z])points.push(project([x,y,z]));return [{id,width:Math.max(...points.map(p=>p.x))-Math.min(...points.map(p=>p.x)),height:Math.max(...points.map(p=>p.y))-Math.min(...points.map(p=>p.y))}];});},

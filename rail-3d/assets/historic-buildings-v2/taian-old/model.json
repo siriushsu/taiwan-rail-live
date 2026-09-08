@@ -1,0 +1,287 @@
+{
+  "id": "taian-old",
+  "name": "泰安舊站",
+  "county": "臺中市",
+  "category": "historic",
+  "kind": "taian-old",
+  "features": [
+    "低於月台的站房、地下道、月台雨庇與紀念碑"
+  ],
+  "sources": [
+    {
+      "url": "https://www.tchac.taichung.gov.tw/building?pid=26&uid=33",
+      "use": "臺中文資處"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/460456181",
+      "use": "舊站房：輪廓與位置",
+      "license": "ODbL-1.0"
+    }
+  ],
+  "priority": 2,
+  "placementStatus": "calibrated-plan",
+  "anchor": [
+    120.74910546831173,
+    24.32274904359843
+  ],
+  "verifiedDimensionsM": {},
+  "estimatedDimensionsM": {
+    "width": 17.859725952148438,
+    "depth": 13.953080177307129,
+    "height": 4.099999904632568,
+    "basis": "平面依各部件來源校正；高度仍為外觀建模估值"
+  },
+  "referenceReviewDate": "2026-09-08",
+  "geometryStatus": "plan-calibrated-exterior-estimated",
+  "scope": "按來源輪廓校正平面位置與尺度；高度、立面細節及正面方向仍為外觀估計",
+  "railRelation": "**舊線地景**：舊山線，與新泰安站分開",
+  "reviewedPhotos": [
+    {
+      "url": "https://www.tchac.taichung.gov.tw/uploads/tchac/information/large/9ea08ef1-27fb-460d-91a1-a77b57273194.jpg",
+      "page": "https://www.tchac.taichung.gov.tw/building?pid=26&uid=33",
+      "viewedOn": "2026-09-08",
+      "scope": "局部外觀參考，非完整多面覆核"
+    },
+    {
+      "url": "https://www.tchac.taichung.gov.tw/uploads/tchac/images/large/41b598df-5780-4808-964f-4681d9f6547c.jpg",
+      "page": "https://www.tchac.taichung.gov.tw/building?pid=26&uid=33",
+      "viewedOn": "2026-09-08",
+      "scope": "局部外觀參考，非完整多面覆核"
+    },
+    {
+      "url": "https://www.tchac.taichung.gov.tw/uploads/tchac/images/large/8925d9aa-942b-4826-bae3-edaad97c669c.jpg",
+      "page": "https://www.tchac.taichung.gov.tw/building?pid=26&uid=33",
+      "viewedOn": "2026-09-08",
+      "scope": "局部外觀參考，非完整多面覆核"
+    }
+  ],
+  "referenceStatus": "partial-exterior-review",
+  "pendingChecks": [
+    "高度測量與完整多面立面校正",
+    "正面方向複核",
+    "未定位附屬構件：地下道入口、紀念碑、舊月台、高位舊月台雨庇"
+  ],
+  "orientationMode": "ENU-baked",
+  "absoluteGroundAltitudeM": null,
+  "railElevationM": null,
+  "omittedUnlocatedComponents": [
+    "地下道入口",
+    "紀念碑",
+    "舊月台",
+    "高位舊月台雨庇"
+  ],
+  "calibration": {
+    "version": 2,
+    "basis": "各部件獨立平面擬合；非工程測繪",
+    "parts": [
+      {
+        "id": "舊站房",
+        "name": "舊站房",
+        "placementStatus": "footprint-axis-calibrated",
+        "anchor": [
+          120.74910546831173,
+          24.32274904359843
+        ],
+        "rotationDeg": 12.5,
+        "scaleXY": [
+          0.6492536907302398,
+          1.0252782453319267
+        ],
+        "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+        "facadeBearingDeg": null
+      }
+    ],
+    "verticalDatum": "terrain-relative",
+    "sourceFile": "placements-source.json"
+  },
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "axes": {
+    "up": "+Z",
+    "east": "+X",
+    "north": "+Y",
+    "front": null,
+    "units": "meters",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "gltfAxes": {
+    "up": "+Y",
+    "toZUp": "rotateX(+PI/2)"
+  },
+  "facadeBearingDeg": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -8.929862976074219,
+      -6.976540565490723,
+      0.0
+    ],
+    "max": [
+      8.929862976074219,
+      6.976539611816406,
+      4.099999904632568
+    ]
+  },
+  "sizeM": [
+    17.859725952148438,
+    13.953080177307129,
+    4.099999904632568
+  ],
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "glb": "near.glb",
+      "sha256": "02733f26e39ce8bd0657962a21b608b7ce417ab8bd3a5f4ad16fa40e4114ad89",
+      "glbSha256": "5d4df9c0f102671768226d6c1c753237f559059e528fd1315457e5cfff87b175",
+      "strideBytes": 24,
+      "vertexCount": 2628,
+      "triangleCount": 876,
+      "drawGroups": [
+        {
+          "component": "舊站房",
+          "name": "stone",
+          "start": 0,
+          "count": 72,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "舊站房",
+          "name": "cream",
+          "start": 72,
+          "count": 1548,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "舊站房",
+          "name": "dark",
+          "start": 1620,
+          "count": 504,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "舊站房",
+          "name": "glass",
+          "start": 2124,
+          "count": 504,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        }
+      ],
+      "byteLength": 63072
+    },
+    "far": {
+      "file": "far.mesh.bin",
+      "glb": "far.glb",
+      "sha256": "b285440e4628d033bfe79f5d85bb8f887da7fed602672465da0e71f2cc0da09c",
+      "glbSha256": "cd899177559278a150defe4a854213af1fa5ea6599c1c11b29841bc2992a50fc",
+      "strideBytes": 24,
+      "vertexCount": 1620,
+      "triangleCount": 540,
+      "drawGroups": [
+        {
+          "component": "舊站房",
+          "name": "stone",
+          "start": 0,
+          "count": 72,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "舊站房",
+          "name": "cream",
+          "start": 72,
+          "count": 540,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "舊站房",
+          "name": "dark",
+          "start": 612,
+          "count": 504,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "舊站房",
+          "name": "glass",
+          "start": 1116,
+          "count": 504,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        }
+      ],
+      "byteLength": 38880
+    }
+  },
+  "nativeObjectCount": 73,
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "modelUse": "map-exterior",
+  "components": [
+    {
+      "id": "舊站房",
+      "name": "舊站房",
+      "placementStatus": "footprint-axis-calibrated",
+      "anchor": [
+        120.74910546831173,
+        24.32274904359843
+      ],
+      "rotationDeg": 12.5,
+      "scaleXY": [
+        0.6492536907302398,
+        1.0252782453319267
+      ],
+      "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+      "facadeBearingDeg": null
+    }
+  ],
+  "mapEligible": true
+}

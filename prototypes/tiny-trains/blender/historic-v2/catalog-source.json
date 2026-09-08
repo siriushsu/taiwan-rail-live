@@ -1,0 +1,1300 @@
+[
+  {
+    "id": "presidential-office",
+    "name": "總統府",
+    "county": "臺北市",
+    "category": "historic",
+    "kind": "presidential-office",
+    "features": [
+      "紅白立面、約 60m 中央塔、雙中庭、入口與側翼"
+    ],
+    "sources": [
+      {
+        "url": "https://www.president.gov.tw/Page/89",
+        "use": "總統府建築沿革"
+      },
+      {
+        "url": "https://www.president.gov.tw/Page/91",
+        "use": "現況建築細節"
+      },
+      {
+        "url": "https://www.openstreetmap.org/relation/206817",
+        "use": "OSM 建物輪廓"
+      }
+    ],
+    "priority": 1,
+    "placementStatus": "pending-georeference",
+    "anchor": null,
+    "components": [],
+    "verifiedDimensionsM": {},
+    "estimatedDimensionsM": {},
+    "referenceReviewDate": null,
+    "geometryStatus": "draft-estimated",
+    "scope": "地圖外觀模型；尺寸與附屬建物間距尚待測繪核對",
+    "railRelation": "市區周邊：捷運臺大醫院、西門一帶，路線在地下",
+    "reviewedPhotos": [
+      {
+        "url": "https://www.president.gov.tw/images/aboutus/about07.jpg",
+        "page": "https://www.president.gov.tw/Page/91",
+        "viewedOn": "2026-09-08",
+        "scope": "局部外觀參考，非完整多面覆核"
+      },
+      {
+        "url": "https://www.president.gov.tw/images/aboutus/about06.jpg",
+        "page": "https://www.president.gov.tw/Page/91",
+        "viewedOn": "2026-09-08",
+        "scope": "局部外觀參考，非完整多面覆核"
+      }
+    ],
+    "referenceStatus": "partial-exterior-review",
+    "pendingChecks": [
+      "完整多面現況照片",
+      "建物平面輪廓與估計尺寸校正",
+      "附屬建物相對位置",
+      "地圖錨點、正面方位與海拔"
+    ],
+    "footprintReference": {
+      "osmType": "relation",
+      "osmId": 206817,
+      "name": "中華民國總統府",
+      "url": "https://www.openstreetmap.org/relation/206817",
+      "timestamp": "2026-09-08T15:19:44Z",
+      "longSideM": 132.5,
+      "shortSideM": 92.94,
+      "source": "OpenStreetMap contributors",
+      "license": "ODbL-1.0",
+      "scope": "社群建物輪廓最小旋轉包圍框，非工程測繪；尚未用作地圖放樣",
+      "referenceFile": "source-layouts/presidential-office.json"
+    }
+  },
+  {
+    "id": "railway-department",
+    "name": "鐵道部廳舍及八角樓",
+    "county": "臺北市",
+    "category": "historic",
+    "kind": "railway-department",
+    "features": [
+      "轉角入口、雙塔、紅磚與半木構、屋頂老虎窗；八角樓獨立建"
+    ],
+    "sources": [
+      {
+        "url": "https://www.ntm.gov.tw/cp.aspx?n=5440",
+        "use": "臺博館園區建築"
+      }
+    ],
+    "priority": 1,
+    "placementStatus": "pending-georeference",
+    "anchor": null,
+    "components": [],
+    "verifiedDimensionsM": {},
+    "estimatedDimensionsM": {},
+    "referenceReviewDate": null,
+    "geometryStatus": "draft-estimated",
+    "scope": "地圖外觀模型；尺寸與附屬建物間距尚待測繪核對",
+    "railRelation": "市區周邊：捷運北門；歷史鐵道行政園區",
+    "reviewedPhotos": [
+      {
+        "url": "https://file.moc.gov.tw/001/Upload/OldFiles/AdminUploads/images/original/b0b93103-f5dc-408a-9b8c-0e386409ecea.jpg",
+        "page": "https://www.ntm.gov.tw/cp.aspx?n=5440",
+        "viewedOn": "2026-09-08",
+        "scope": "局部外觀參考，非完整多面覆核"
+      },
+      {
+        "url": "https://file.moc.gov.tw/001/Upload/OldFiles/AdminUploads//images/original/351bf9a9-8444-4bbf-99fe-8758d88a8b9f.jpg",
+        "page": "https://www.ntm.gov.tw/cp.aspx?n=5440",
+        "viewedOn": "2026-09-08",
+        "scope": "局部外觀參考，非完整多面覆核"
+      }
+    ],
+    "referenceStatus": "partial-exterior-review",
+    "pendingChecks": [
+      "完整多面現況照片",
+      "建物平面輪廓與估計尺寸校正",
+      "附屬建物相對位置",
+      "地圖錨點、正面方位與海拔"
+    ]
+  },
+  {
+    "id": "red-house",
+    "name": "西門紅樓",
+    "county": "臺北市",
+    "category": "historic",
+    "kind": "red-house",
+    "features": [
+      "八角樓、十字樓與紅磚拱窗，保持兩部分完整輪廓"
+    ],
+    "sources": [
+      {
+        "url": "https://www.redhouse.taipei/ActiveWebSite/02-5.html",
+        "use": "場館建築介紹"
+      },
+      {
+        "url": "https://www.openstreetmap.org/way/222080307",
+        "use": "OSM 建物輪廓"
+      }
+    ],
+    "priority": 2,
+    "placementStatus": "pending-georeference",
+    "anchor": null,
+    "components": [],
+    "verifiedDimensionsM": {},
+    "estimatedDimensionsM": {},
+    "referenceReviewDate": null,
+    "geometryStatus": "draft-estimated",
+    "scope": "地圖外觀模型；尺寸與附屬建物間距尚待測繪核對",
+    "railRelation": "市區周邊：捷運西門",
+    "reviewedPhotos": [
+      {
+        "url": "https://www.redhouse.taipei/ActiveWebSite/images/rh_building.jpg",
+        "page": "https://www.redhouse.taipei/ActiveWebSite/02-5.html",
+        "viewedOn": "2026-09-08",
+        "scope": "局部外觀參考，非完整多面覆核"
+      }
+    ],
+    "referenceStatus": "partial-exterior-review",
+    "pendingChecks": [
+      "完整多面現況照片",
+      "建物平面輪廓與估計尺寸校正",
+      "附屬建物相對位置",
+      "地圖錨點、正面方位與海拔"
+    ],
+    "footprintReference": {
+      "osmType": "way",
+      "osmId": 222080307,
+      "name": "西門紅樓",
+      "url": "https://www.openstreetmap.org/way/222080307",
+      "timestamp": "2026-09-08T15:19:44Z",
+      "longSideM": 91.73,
+      "shortSideM": 48.0,
+      "source": "OpenStreetMap contributors",
+      "license": "ODbL-1.0",
+      "scope": "社群建物輪廓最小旋轉包圍框，非工程測繪；尚未用作地圖放樣",
+      "referenceFile": "source-layouts/red-house.json"
+    }
+  },
+  {
+    "id": "shanjia-old",
+    "name": "山佳舊站",
+    "county": "新北市",
+    "category": "historic",
+    "kind": "shanjia-old",
+    "features": [
+      "洗石子外牆、和洋屋頂、入口門廊及舊站月台"
+    ],
+    "sources": [
+      {
+        "url": "https://newtaipei.travel/zh-cn/attractions/detail/110301",
+        "use": "新北市觀光介紹"
+      },
+      {
+        "url": "https://www.openstreetmap.org/way/236033179",
+        "use": "OSM 建物輪廓"
+      }
+    ],
+    "priority": 1,
+    "placementStatus": "pending-georeference",
+    "anchor": null,
+    "components": [],
+    "verifiedDimensionsM": {},
+    "estimatedDimensionsM": {},
+    "referenceReviewDate": null,
+    "geometryStatus": "draft-estimated",
+    "scope": "地圖外觀模型；尺寸與附屬建物間距尚待測繪核對",
+    "railRelation": "站區：臺鐵山佳，新舊站並存",
+    "reviewedPhotos": [
+      {
+        "url": "https://newtaipei.travel/content/images/attractions/25221/1024x768_attractions-image-yrge3gbxz0u21urwecomsw.jpg",
+        "page": "https://newtaipei.travel/zh-cn/attractions/detail/110301",
+        "viewedOn": "2026-09-08",
+        "scope": "局部外觀參考，非完整多面覆核"
+      },
+      {
+        "url": "https://newtaipei.travel/content/images/attractions/25217/1024x768_attractions-image-vn0fnwovwuo8pxsxztfo-w.jpg",
+        "page": "https://newtaipei.travel/zh-cn/attractions/detail/110301",
+        "viewedOn": "2026-09-08",
+        "scope": "局部外觀參考，非完整多面覆核"
+      },
+      {
+        "url": "https://newtaipei.travel/content/images/attractions/25215/1024x768_attractions-image-uhyhiszpr0irywm9mhjpmg.jpg",
+        "page": "https://newtaipei.travel/zh-cn/attractions/detail/110301",
+        "viewedOn": "2026-09-08",
+        "scope": "局部外觀參考，非完整多面覆核"
+      }
+    ],
+    "referenceStatus": "partial-exterior-review",
+    "pendingChecks": [
+      "完整多面現況照片",
+      "建物平面輪廓與估計尺寸校正",
+      "附屬建物相對位置",
+      "地圖錨點、正面方位與海拔"
+    ],
+    "footprintReference": {
+      "osmType": "way",
+      "osmId": 236033179,
+      "name": "山佳車站舊站房",
+      "url": "https://www.openstreetmap.org/way/236033179",
+      "timestamp": "2026-09-08T15:19:44Z",
+      "longSideM": 17.26,
+      "shortSideM": 6.1,
+      "source": "OpenStreetMap contributors",
+      "license": "ODbL-1.0",
+      "scope": "社群建物輪廓最小旋轉包圍框，非工程測繪；尚未用作地圖放樣",
+      "referenceFile": "source-layouts/shanjia-old.json"
+    }
+  },
+  {
+    "id": "jingtong-coal",
+    "name": "菁桐站與選洗煤場",
+    "county": "新北市",
+    "category": "historic",
+    "kind": "jingtong-coal",
+    "features": [
+      "木造站房、站棚；對面選洗煤場保留高低錯落量體"
+    ],
+    "sources": [
+      {
+        "url": "https://newtaipei.travel/zh-tw/attractions/detail/110042",
+        "use": "新北市菁桐車站"
+      },
+      {
+        "url": "https://www.openstreetmap.org/way/263352418",
+        "use": "OSM 建物輪廓"
+      }
+    ],
+    "priority": 1,
+    "placementStatus": "pending-georeference",
+    "anchor": null,
+    "components": [],
+    "verifiedDimensionsM": {},
+    "estimatedDimensionsM": {},
+    "referenceReviewDate": null,
+    "geometryStatus": "draft-estimated",
+    "scope": "地圖外觀模型；尺寸與附屬建物間距尚待測繪核對",
+    "railRelation": "站區：平溪線菁桐",
+    "reviewedPhotos": [
+      {
+        "url": "https://newtaipei.travel/content/images/attractions/25310/1024x768_attractions-image-qzacqwschk6wpt9m6ycytq.jpg",
+        "page": "https://newtaipei.travel/zh-tw/attractions/detail/110042",
+        "viewedOn": "2026-09-08",
+        "scope": "局部外觀參考，非完整多面覆核"
+      },
+      {
+        "url": "https://newtaipei.travel/content/images/attractions/25307/1024x768_attractions-image-maxwpzywxeqzu_da5zxjja.jpg",
+        "page": "https://newtaipei.travel/zh-tw/attractions/detail/110042",
+        "viewedOn": "2026-09-08",
+        "scope": "局部外觀參考，非完整多面覆核"
+      },
+      {
+        "url": "https://newtaipei.travel/content/images/attractions/25305/1024x768_attractions-image-vnxjar0znualwrobcaubda.jpg",
+        "page": "https://newtaipei.travel/zh-tw/attractions/detail/110042",
+        "viewedOn": "2026-09-08",
+        "scope": "局部外觀參考，非完整多面覆核"
+      }
+    ],
+    "referenceStatus": "partial-exterior-review",
+    "pendingChecks": [
+      "完整多面現況照片",
+      "建物平面輪廓與估計尺寸校正",
+      "附屬建物相對位置",
+      "地圖錨點、正面方位與海拔"
+    ],
+    "footprintReference": {
+      "osmType": "way",
+      "osmId": 263352418,
+      "name": "菁桐車站站房",
+      "url": "https://www.openstreetmap.org/way/263352418",
+      "timestamp": "2026-09-08T15:19:44Z",
+      "longSideM": 14.35,
+      "shortSideM": 9.17,
+      "source": "OpenStreetMap contributors",
+      "license": "ODbL-1.0",
+      "scope": "社群建物輪廓最小旋轉包圍框，非工程測繪；尚未用作地圖放樣",
+      "referenceFile": "source-layouts/jingtong-coal.json"
+    }
+  },
+  {
+    "id": "qidu-old",
+    "name": "七堵舊站",
+    "county": "基隆市",
+    "category": "historic",
+    "kind": "qidu-old",
+    "features": [
+      "木造屋頂、雨淋板、簷下柱列；採現址"
+    ],
+    "sources": [
+      {
+        "url": "https://travel.klcg.gov.tw/TourContent.aspx?n=7838&s=576",
+        "use": "基隆市七堵鐵道公園"
+      },
+      {
+        "url": "https://www.openstreetmap.org/way/554256899",
+        "use": "OSM 建物輪廓"
+      }
+    ],
+    "priority": 2,
+    "placementStatus": "pending-georeference",
+    "anchor": null,
+    "components": [],
+    "verifiedDimensionsM": {},
+    "estimatedDimensionsM": {},
+    "referenceReviewDate": null,
+    "geometryStatus": "draft-estimated",
+    "scope": "地圖外觀模型；尺寸與附屬建物間距尚待測繪核對",
+    "railRelation": "站區周邊／移築保存：七堵鐵道公園",
+    "reviewedPhotos": [],
+    "referenceStatus": "exterior-review-pending",
+    "pendingChecks": [
+      "完整多面現況照片",
+      "建物平面輪廓與估計尺寸校正",
+      "附屬建物相對位置",
+      "地圖錨點、正面方位與海拔"
+    ],
+    "footprintReference": {
+      "osmType": "way",
+      "osmId": 554256899,
+      "name": "七堵舊站",
+      "url": "https://www.openstreetmap.org/way/554256899",
+      "timestamp": "2026-09-08T15:19:44Z",
+      "longSideM": 13.8,
+      "shortSideM": 8.34,
+      "source": "OpenStreetMap contributors",
+      "license": "ODbL-1.0",
+      "scope": "社群建物輪廓最小旋轉包圍框，非工程測繪；尚未用作地圖放樣",
+      "referenceFile": "source-layouts/qidu-old.json"
+    }
+  },
+  {
+    "id": "taoyuan-warehouse",
+    "name": "桃園車站舊倉庫",
+    "county": "桃園市",
+    "category": "historic",
+    "kind": "taoyuan-warehouse",
+    "features": [
+      "磚牆、倉庫大門、連續斜屋頂與屋架輪廓"
+    ],
+    "sources": [
+      {
+        "url": "https://tyrp.tycg.gov.tw/about/history/",
+        "use": "軌道願景館沿革"
+      }
+    ],
+    "priority": 2,
+    "placementStatus": "pending-georeference",
+    "anchor": null,
+    "components": [],
+    "verifiedDimensionsM": {},
+    "estimatedDimensionsM": {},
+    "referenceReviewDate": null,
+    "geometryStatus": "draft-estimated",
+    "scope": "地圖外觀模型；尺寸與附屬建物間距尚待測繪核對",
+    "railRelation": "站區：桃園站萬壽路出口，現為軌道願景館",
+    "reviewedPhotos": [],
+    "referenceStatus": "exterior-review-pending",
+    "pendingChecks": [
+      "完整多面現況照片",
+      "建物平面輪廓與估計尺寸校正",
+      "附屬建物相對位置",
+      "地圖錨點、正面方位與海拔"
+    ]
+  },
+  {
+    "id": "hexing-old",
+    "name": "合興舊站房",
+    "county": "新竹縣",
+    "category": "historic",
+    "kind": "hexing-old",
+    "features": [
+      "小型木站房、屋簷與舊折返設施的位置關係"
+    ],
+    "sources": [
+      {
+        "url": "https://www.hsinchu.gov.tw/News_Content.aspx?n=153&s=256785",
+        "use": "新竹縣站區介紹"
+      },
+      {
+        "url": "https://www.openstreetmap.org/way/1359332987",
+        "use": "OSM 建物輪廓"
+      }
+    ],
+    "priority": 2,
+    "placementStatus": "pending-georeference",
+    "anchor": null,
+    "components": [],
+    "verifiedDimensionsM": {},
+    "estimatedDimensionsM": {},
+    "referenceReviewDate": null,
+    "geometryStatus": "draft-estimated",
+    "scope": "地圖外觀模型；尺寸與附屬建物間距尚待測繪核對",
+    "railRelation": "站區：內灣線合興",
+    "reviewedPhotos": [],
+    "referenceStatus": "exterior-review-pending",
+    "pendingChecks": [
+      "完整多面現況照片",
+      "建物平面輪廓與估計尺寸校正",
+      "附屬建物相對位置",
+      "地圖錨點、正面方位與海拔"
+    ],
+    "footprintReference": {
+      "osmType": "way",
+      "osmId": 1359332987,
+      "name": "合興車站",
+      "url": "https://www.openstreetmap.org/way/1359332987",
+      "timestamp": "2026-09-08T15:19:44Z",
+      "longSideM": 9.27,
+      "shortSideM": 5.96,
+      "source": "OpenStreetMap contributors",
+      "license": "ODbL-1.0",
+      "scope": "社群建物輪廓最小旋轉包圍框，非工程測繪；尚未用作地圖放樣",
+      "referenceFile": "source-layouts/hexing-old.json"
+    }
+  },
+  {
+    "id": "hsinchu-prefecture",
+    "name": "新竹州廳",
+    "county": "新竹市",
+    "category": "historic",
+    "kind": "hsinchu-prefecture",
+    "features": [
+      "對稱立面、雙柱門廊、小塔與瓦頂，現為新竹市政府"
+    ],
+    "sources": [
+      {
+        "url": "https://tourism.hccg.gov.tw/chtravel/app/travel/view?id=26&module=travel&serno=b7b47373-fb13-4c12-b49c-4496ac3bce4e",
+        "use": "新竹市建築介紹"
+      }
+    ],
+    "priority": 2,
+    "placementStatus": "pending-georeference",
+    "anchor": null,
+    "components": [],
+    "verifiedDimensionsM": {},
+    "estimatedDimensionsM": {},
+    "referenceReviewDate": null,
+    "geometryStatus": "draft-estimated",
+    "scope": "地圖外觀模型；尺寸與附屬建物間距尚待測繪核對",
+    "railRelation": "市區周邊：新竹站前市街",
+    "reviewedPhotos": [],
+    "referenceStatus": "exterior-review-pending",
+    "pendingChecks": [
+      "完整多面現況照片",
+      "建物平面輪廓與估計尺寸校正",
+      "附屬建物相對位置",
+      "地圖錨點、正面方位與海拔"
+    ]
+  },
+  {
+    "id": "shengxing",
+    "name": "勝興站",
+    "county": "苗栗縣",
+    "category": "historic",
+    "kind": "shengxing",
+    "features": [
+      "木造站房、虎牙式山牆、短月台與山坡關係"
+    ],
+    "sources": [
+      {
+        "url": "https://www.miaoli.gov.tw/News_Content2.aspx?n=285&s=200380",
+        "use": "苗栗縣站區資料"
+      }
+    ],
+    "priority": 2,
+    "placementStatus": "pending-georeference",
+    "anchor": null,
+    "components": [],
+    "verifiedDimensionsM": {},
+    "estimatedDimensionsM": {},
+    "referenceReviewDate": null,
+    "geometryStatus": "draft-estimated",
+    "scope": "地圖外觀模型；尺寸與附屬建物間距尚待測繪核對",
+    "railRelation": "**舊線地景**：舊山線，非現行臺鐵幹線站",
+    "reviewedPhotos": [
+      {
+        "url": "https://webws.miaoli.gov.tw/001/Upload/402/relpic/9462/200380/34ee539f-f86d-412a-952a-d26e6ae14c7b@710x470.jpg",
+        "page": "https://www.miaoli.gov.tw/News_Content2.aspx?n=285&s=200380",
+        "viewedOn": "2026-09-08",
+        "scope": "局部外觀參考，非完整多面覆核"
+      }
+    ],
+    "referenceStatus": "partial-exterior-review",
+    "pendingChecks": [
+      "完整多面現況照片",
+      "建物平面輪廓與估計尺寸校正",
+      "附屬建物相對位置",
+      "地圖錨點、正面方位與海拔"
+    ]
+  },
+  {
+    "id": "taian-old",
+    "name": "泰安舊站",
+    "county": "臺中市",
+    "category": "historic",
+    "kind": "taian-old",
+    "features": [
+      "低於月台的站房、地下道、月台雨庇與紀念碑"
+    ],
+    "sources": [
+      {
+        "url": "https://www.tchac.taichung.gov.tw/building?pid=26&uid=33",
+        "use": "臺中文資處"
+      }
+    ],
+    "priority": 2,
+    "placementStatus": "pending-georeference",
+    "anchor": null,
+    "components": [],
+    "verifiedDimensionsM": {},
+    "estimatedDimensionsM": {},
+    "referenceReviewDate": null,
+    "geometryStatus": "draft-estimated",
+    "scope": "地圖外觀模型；尺寸與附屬建物間距尚待測繪核對",
+    "railRelation": "**舊線地景**：舊山線，與新泰安站分開",
+    "reviewedPhotos": [
+      {
+        "url": "https://www.tchac.taichung.gov.tw/uploads/tchac/information/large/9ea08ef1-27fb-460d-91a1-a77b57273194.jpg",
+        "page": "https://www.tchac.taichung.gov.tw/building?pid=26&uid=33",
+        "viewedOn": "2026-09-08",
+        "scope": "局部外觀參考，非完整多面覆核"
+      },
+      {
+        "url": "https://www.tchac.taichung.gov.tw/uploads/tchac/images/large/41b598df-5780-4808-964f-4681d9f6547c.jpg",
+        "page": "https://www.tchac.taichung.gov.tw/building?pid=26&uid=33",
+        "viewedOn": "2026-09-08",
+        "scope": "局部外觀參考，非完整多面覆核"
+      },
+      {
+        "url": "https://www.tchac.taichung.gov.tw/uploads/tchac/images/large/8925d9aa-942b-4826-bae3-edaad97c669c.jpg",
+        "page": "https://www.tchac.taichung.gov.tw/building?pid=26&uid=33",
+        "viewedOn": "2026-09-08",
+        "scope": "局部外觀參考，非完整多面覆核"
+      }
+    ],
+    "referenceStatus": "partial-exterior-review",
+    "pendingChecks": [
+      "完整多面現況照片",
+      "建物平面輪廓與估計尺寸校正",
+      "附屬建物相對位置",
+      "地圖錨點、正面方位與海拔"
+    ]
+  },
+  {
+    "id": "taichung-prefecture",
+    "name": "臺中州廳",
+    "county": "臺中市",
+    "category": "historic",
+    "kind": "taichung-prefecture",
+    "features": [
+      "轉角塔、門廊、連續拱窗與兩翼屋頂"
+    ],
+    "sources": [
+      {
+        "url": "https://www.tchac.taichung.gov.tw/building?pid=18&uid=33",
+        "use": "臺中文資處"
+      },
+      {
+        "url": "https://www.tchac.taichung.gov.tw/attractioninfo?pid=32&uid=69",
+        "use": "與臺中站的街區關係"
+      },
+      {
+        "url": "https://www.openstreetmap.org/way/1240137344",
+        "use": "OSM 建物輪廓"
+      }
+    ],
+    "priority": 2,
+    "placementStatus": "pending-georeference",
+    "anchor": null,
+    "components": [],
+    "verifiedDimensionsM": {},
+    "estimatedDimensionsM": {},
+    "referenceReviewDate": null,
+    "geometryStatus": "draft-estimated",
+    "scope": "地圖外觀模型；尺寸與附屬建物間距尚待測繪核對",
+    "railRelation": "市區周邊：臺中站前舊城",
+    "reviewedPhotos": [
+      {
+        "url": "https://www.tchac.taichung.gov.tw/uploads/tchac/information/large/s_DSC_0203.jpg",
+        "page": "https://www.tchac.taichung.gov.tw/building?pid=18&uid=33",
+        "viewedOn": "2026-09-08",
+        "scope": "局部外觀參考，非完整多面覆核"
+      },
+      {
+        "url": "https://www.tchac.taichung.gov.tw/uploads/tchac/images/large/4e0f80d3-d161-4b8d-af3d-e5e95aebf60f.jpg",
+        "page": "https://www.tchac.taichung.gov.tw/building?pid=18&uid=33",
+        "viewedOn": "2026-09-08",
+        "scope": "局部外觀參考，非完整多面覆核"
+      },
+      {
+        "url": "https://www.tchac.taichung.gov.tw/uploads/tchac/images/large/febf5278-5fdb-4ff8-9d9b-4e06f4aca927.jpg",
+        "page": "https://www.tchac.taichung.gov.tw/building?pid=18&uid=33",
+        "viewedOn": "2026-09-08",
+        "scope": "局部外觀參考，非完整多面覆核"
+      },
+      {
+        "url": "https://www.tchac.taichung.gov.tw/uploads/tchac/images/large/17939096-aabe-4589-bdbf-91e3b5dc864e.jpg",
+        "page": "https://www.tchac.taichung.gov.tw/building?pid=18&uid=33",
+        "viewedOn": "2026-09-08",
+        "scope": "局部外觀參考，非完整多面覆核"
+      }
+    ],
+    "referenceStatus": "partial-exterior-review",
+    "pendingChecks": [
+      "完整多面現況照片",
+      "建物平面輪廓與估計尺寸校正",
+      "附屬建物相對位置",
+      "地圖錨點、正面方位與海拔"
+    ],
+    "footprintReference": {
+      "osmType": "way",
+      "osmId": 1240137344,
+      "name": "臺中州廳",
+      "url": "https://www.openstreetmap.org/way/1240137344",
+      "timestamp": "2026-09-08T15:19:44Z",
+      "longSideM": 65.72,
+      "shortSideM": 65.68,
+      "source": "OpenStreetMap contributors",
+      "license": "ODbL-1.0",
+      "scope": "社群建物輪廓最小旋轉包圍框，非工程測繪；尚未用作地圖放樣",
+      "referenceFile": "source-layouts/taichung-prefecture.json"
+    }
+  },
+  {
+    "id": "changhua-roundhouse",
+    "name": "彰化扇形車庫",
+    "county": "彰化縣",
+    "category": "historic",
+    "kind": "changhua-roundhouse",
+    "features": [
+      "扇形庫房、中央轉盤、放射狀庫線與高窗"
+    ],
+    "sources": [
+      {
+        "url": "https://tourism.chcg.gov.tw/AttractionsContent.aspx?chk=e51a4fad-7be7-43fd-9a61-56939757426f&fromsection=inarticle&id=29&l=TW&sectioninfo=6001095",
+        "use": "彰化旅遊資訊"
+      },
+      {
+        "url": "https://www.openstreetmap.org/way/220285047",
+        "use": "OSM 建物輪廓"
+      }
+    ],
+    "priority": 1,
+    "placementStatus": "pending-georeference",
+    "anchor": null,
+    "components": [],
+    "verifiedDimensionsM": {},
+    "estimatedDimensionsM": {},
+    "referenceReviewDate": null,
+    "geometryStatus": "draft-estimated",
+    "scope": "地圖外觀模型；尺寸與附屬建物間距尚待測繪核對",
+    "railRelation": "站區／沿線：彰化機務段",
+    "reviewedPhotos": [
+      {
+        "url": "https://tourism.chcg.gov.tw/upload/27/2023051214214634495.jpg",
+        "page": "https://tourism.chcg.gov.tw/AttractionsContent.aspx?chk=e51a4fad-7be7-43fd-9a61-56939757426f&fromsection=inarticle&id=29&l=TW&sectioninfo=6001095",
+        "viewedOn": "2026-09-08",
+        "scope": "局部外觀參考，非完整多面覆核"
+      },
+      {
+        "url": "https://tourism.chcg.gov.tw/images/2024_new/__search_02.svg",
+        "page": "https://tourism.chcg.gov.tw/AttractionsContent.aspx?chk=e51a4fad-7be7-43fd-9a61-56939757426f&fromsection=inarticle&id=29&l=TW&sectioninfo=6001095",
+        "viewedOn": "2026-09-08",
+        "scope": "局部外觀參考，非完整多面覆核"
+      },
+      {
+        "url": "https://tourism.chcg.gov.tw/images/hamberger_menu.png",
+        "page": "https://tourism.chcg.gov.tw/AttractionsContent.aspx?chk=e51a4fad-7be7-43fd-9a61-56939757426f&fromsection=inarticle&id=29&l=TW&sectioninfo=6001095",
+        "viewedOn": "2026-09-08",
+        "scope": "局部外觀參考，非完整多面覆核"
+      },
+      {
+        "url": "https://tourism.chcg.gov.tw/images/2023_new/__bread_home.svg",
+        "page": "https://tourism.chcg.gov.tw/AttractionsContent.aspx?chk=e51a4fad-7be7-43fd-9a61-56939757426f&fromsection=inarticle&id=29&l=TW&sectioninfo=6001095",
+        "viewedOn": "2026-09-08",
+        "scope": "局部外觀參考，非完整多面覆核"
+      }
+    ],
+    "referenceStatus": "partial-exterior-review",
+    "pendingChecks": [
+      "完整多面現況照片",
+      "建物平面輪廓與估計尺寸校正",
+      "附屬建物相對位置",
+      "地圖錨點、正面方位與海拔"
+    ],
+    "footprintReference": {
+      "osmType": "way",
+      "osmId": 220285047,
+      "name": "彰化扇形車庫",
+      "url": "https://www.openstreetmap.org/way/220285047",
+      "timestamp": "2026-09-08T15:19:44Z",
+      "longSideM": 87.51,
+      "shortSideM": 45.11,
+      "source": "OpenStreetMap contributors",
+      "license": "ODbL-1.0",
+      "scope": "社群建物輪廓最小旋轉包圍框，非工程測繪；尚未用作地圖放樣",
+      "referenceFile": "source-layouts/changhua-roundhouse.json"
+    }
+  },
+  {
+    "id": "checheng-wood",
+    "name": "車埕木業展示館",
+    "county": "南投縣",
+    "category": "historic",
+    "kind": "checheng-wood",
+    "features": [
+      "木業廠房、抬高採光屋頂、木構與貯木池邊緣"
+    ],
+    "sources": [
+      {
+        "url": "https://www.sunmoonlake.gov.tw/attractions/Attractions?a=20&id=22",
+        "use": "日月潭管理處"
+      },
+      {
+        "url": "https://www.openstreetmap.org/way/308581261",
+        "use": "OSM 建物輪廓"
+      }
+    ],
+    "priority": 2,
+    "placementStatus": "pending-georeference",
+    "anchor": null,
+    "components": [],
+    "verifiedDimensionsM": {},
+    "estimatedDimensionsM": {},
+    "referenceReviewDate": null,
+    "geometryStatus": "draft-estimated",
+    "scope": "地圖外觀模型；尺寸與附屬建物間距尚待測繪核對",
+    "railRelation": "站區：集集線車埕一帶",
+    "reviewedPhotos": [],
+    "referenceStatus": "exterior-review-pending",
+    "pendingChecks": [
+      "完整多面現況照片",
+      "建物平面輪廓與估計尺寸校正",
+      "附屬建物相對位置",
+      "地圖錨點、正面方位與海拔"
+    ],
+    "footprintReference": {
+      "osmType": "way",
+      "osmId": 308581261,
+      "name": "車埕木業展示館",
+      "url": "https://www.openstreetmap.org/way/308581261",
+      "timestamp": "2026-09-08T15:19:44Z",
+      "longSideM": 133.29,
+      "shortSideM": 56.94,
+      "source": "OpenStreetMap contributors",
+      "license": "ODbL-1.0",
+      "scope": "社群建物輪廓最小旋轉包圍框，非工程測繪；尚未用作地圖放樣",
+      "referenceFile": "source-layouts/checheng-wood.json"
+    }
+  },
+  {
+    "id": "dounan-warehouses",
+    "name": "斗南站北側倉庫群",
+    "county": "雲林縣",
+    "category": "historic",
+    "kind": "dounan-warehouses",
+    "features": [
+      "六棟倉庫屋頂節奏、磚牆、大開口與貨物月台"
+    ],
+    "sources": [
+      {
+        "url": "https://content.yunlin.gov.tw/News_Content.aspx?n=1024&s=557431",
+        "use": "雲林縣文化資產公告"
+      }
+    ],
+    "priority": 2,
+    "placementStatus": "pending-georeference",
+    "anchor": null,
+    "components": [],
+    "verifiedDimensionsM": {},
+    "estimatedDimensionsM": {},
+    "referenceReviewDate": null,
+    "geometryStatus": "draft-estimated",
+    "scope": "地圖外觀模型；尺寸與附屬建物間距尚待測繪核對",
+    "railRelation": "站區：斗南",
+    "reviewedPhotos": [],
+    "referenceStatus": "exterior-review-pending",
+    "pendingChecks": [
+      "完整多面現況照片",
+      "建物平面輪廓與估計尺寸校正",
+      "附屬建物相對位置",
+      "地圖錨點、正面方位與海拔"
+    ]
+  },
+  {
+    "id": "beimen-old",
+    "name": "北門驛",
+    "county": "嘉義市",
+    "category": "historic",
+    "kind": "beimen-old",
+    "features": [
+      "紅檜木造站房、屋簷與入口；舊驛與新營運站分開"
+    ],
+    "sources": [
+      {
+        "url": "https://afrch.forest.gov.tw/",
+        "use": "林鐵管理處"
+      },
+      {
+        "url": "https://recreation.forest.gov.tw/Railway/Introduce",
+        "use": "新舊北門站說明"
+      }
+    ],
+    "priority": 1,
+    "placementStatus": "pending-georeference",
+    "anchor": null,
+    "components": [],
+    "verifiedDimensionsM": {},
+    "estimatedDimensionsM": {},
+    "referenceReviewDate": null,
+    "geometryStatus": "draft-estimated",
+    "scope": "地圖外觀模型；尺寸與附屬建物間距尚待測繪核對",
+    "railRelation": "站區／沿線：阿里山林鐵北門",
+    "reviewedPhotos": [],
+    "referenceStatus": "exterior-review-pending",
+    "pendingChecks": [
+      "完整多面現況照片",
+      "建物平面輪廓與估計尺寸校正",
+      "附屬建物相對位置",
+      "地圖錨點、正面方位與海拔"
+    ]
+  },
+  {
+    "id": "chiayi-sawmill",
+    "name": "嘉義製材所",
+    "county": "嘉義市",
+    "category": "historic",
+    "kind": "chiayi-sawmill",
+    "features": [
+      "第二代製材工場、抬高氣窗、動力室、鋸屑室及煙囪基座"
+    ],
+    "sources": [
+      {
+        "url": "https://afrch.forest.gov.tw/0000268",
+        "use": "管理單位建物明細"
+      }
+    ],
+    "priority": 1,
+    "placementStatus": "pending-georeference",
+    "anchor": null,
+    "components": [],
+    "verifiedDimensionsM": {},
+    "estimatedDimensionsM": {},
+    "referenceReviewDate": null,
+    "geometryStatus": "draft-estimated",
+    "scope": "地圖外觀模型；尺寸與附屬建物間距尚待測繪核對",
+    "railRelation": "沿線園區：嘉義—北門一帶；園內含產業舊線",
+    "reviewedPhotos": [],
+    "referenceStatus": "exterior-review-pending",
+    "pendingChecks": [
+      "完整多面現況照片",
+      "建物平面輪廓與估計尺寸校正",
+      "附屬建物相對位置",
+      "地圖錨點、正面方位與海拔"
+    ]
+  },
+  {
+    "id": "longtian-warehouses",
+    "name": "隆田儲運站與倉庫群",
+    "county": "臺南市",
+    "category": "historic",
+    "kind": "longtian-warehouses",
+    "features": [
+      "鹽倉、南北倉、地磅室與屋頂排列"
+    ],
+    "sources": [
+      {
+        "url": "https://www.twtainan.net/zh-tw/attractions/detail/6043/",
+        "use": "臺南旅遊網"
+      }
+    ],
+    "priority": 2,
+    "placementStatus": "pending-georeference",
+    "anchor": null,
+    "components": [],
+    "verifiedDimensionsM": {},
+    "estimatedDimensionsM": {},
+    "referenceReviewDate": null,
+    "geometryStatus": "draft-estimated",
+    "scope": "地圖外觀模型；尺寸與附屬建物間距尚待測繪核對",
+    "railRelation": "站區：隆田；園內四鐵共構為歷史遺跡",
+    "reviewedPhotos": [],
+    "referenceStatus": "exterior-review-pending",
+    "pendingChecks": [
+      "完整多面現況照片",
+      "建物平面輪廓與估計尺寸校正",
+      "附屬建物相對位置",
+      "地圖錨點、正面方位與海拔"
+    ]
+  },
+  {
+    "id": "takao-old",
+    "name": "舊打狗驛與北號誌樓",
+    "county": "高雄市",
+    "category": "historic",
+    "kind": "takao-old",
+    "features": [
+      "站房、屋簷、號誌樓；臺鐵舊庫線與現行輕軌分開"
+    ],
+    "sources": [
+      {
+        "url": "https://heritage.kcg.gov.tw/KhccHeritageWebSite/CulHeritExplore/CulSiteDetail/1d385b3e-f5e0-4915-880d-fdc76492d993",
+        "use": "高雄文化資產網"
+      },
+      {
+        "url": "https://www.openstreetmap.org/way/203342621",
+        "use": "OSM 建物輪廓"
+      }
+    ],
+    "priority": 2,
+    "placementStatus": "pending-georeference",
+    "anchor": null,
+    "components": [],
+    "verifiedDimensionsM": {},
+    "estimatedDimensionsM": {},
+    "referenceReviewDate": null,
+    "geometryStatus": "draft-estimated",
+    "scope": "地圖外觀模型；尺寸與附屬建物間距尚待測繪核對",
+    "railRelation": "輕軌周邊／舊港區地景：哈瑪星",
+    "reviewedPhotos": [],
+    "referenceStatus": "exterior-review-pending",
+    "pendingChecks": [
+      "完整多面現況照片",
+      "建物平面輪廓與估計尺寸校正",
+      "附屬建物相對位置",
+      "地圖錨點、正面方位與海拔"
+    ],
+    "footprintReference": {
+      "osmType": "way",
+      "osmId": 203342621,
+      "name": "舊打狗驛故事館",
+      "url": "https://www.openstreetmap.org/way/203342621",
+      "timestamp": "2026-09-08T15:19:44Z",
+      "longSideM": 36.12,
+      "shortSideM": 9.5,
+      "source": "OpenStreetMap contributors",
+      "license": "ODbL-1.0",
+      "scope": "社群建物輪廓最小旋轉包圍框，非工程測繪；尚未用作地圖放樣",
+      "referenceFile": "source-layouts/takao-old.json"
+    }
+  },
+  {
+    "id": "qiaotou-sugar",
+    "name": "橋頭糖廠",
+    "county": "高雄市",
+    "category": "historic",
+    "kind": "qiaotou-sugar",
+    "features": [
+      "廠房、煙囪與辦公廳舍，避免整個園區合成單一方盒"
+    ],
+    "sources": [
+      {
+        "url": "https://ctc.kcg.gov.tw/cp.aspx?n=7CDBAEE0D278E5B1&s=D2C749328F9EC5D9",
+        "use": "橋頭區公所糖業資料"
+      },
+      {
+        "url": "https://takao.kcg.gov.tw/article/2442",
+        "use": "捷運與園區關係"
+      }
+    ],
+    "priority": 2,
+    "placementStatus": "pending-georeference",
+    "anchor": null,
+    "components": [],
+    "verifiedDimensionsM": {},
+    "estimatedDimensionsM": {},
+    "referenceReviewDate": null,
+    "geometryStatus": "draft-estimated",
+    "scope": "地圖外觀模型；尺寸與附屬建物間距尚待測繪核對",
+    "railRelation": "站區周邊：捷運橋頭糖廠；園內糖鐵另計",
+    "reviewedPhotos": [
+      {
+        "url": "https://takao-aws.hmgcdn.com/files/article/a0/2442/atl_2442_20240523142549_539.jpg",
+        "page": "https://takao.kcg.gov.tw/article/2442",
+        "viewedOn": "2026-09-08",
+        "scope": "局部外觀參考，非完整多面覆核"
+      }
+    ],
+    "referenceStatus": "partial-exterior-review",
+    "pendingChecks": [
+      "完整多面現況照片",
+      "建物平面輪廓與估計尺寸校正",
+      "附屬建物相對位置",
+      "地圖錨點、正面方位與海拔"
+    ]
+  },
+  {
+    "id": "zhutian-old",
+    "name": "竹田舊站",
+    "county": "屏東縣",
+    "category": "historic",
+    "kind": "zhutian-old",
+    "features": [
+      "木造站房、月台棚架及附屬小屋"
+    ],
+    "sources": [
+      {
+        "url": "https://www.ptc.moj.gov.tw/294926/295058/295076/295081/537401/post",
+        "use": "政府機關舊站介紹"
+      },
+      {
+        "url": "https://cloud.hakka.gov.tw/site/hakka/public/attachment/105B0033_2.pdf",
+        "use": "客家委員會地區調查"
+      },
+      {
+        "url": "https://www.openstreetmap.org/way/948468408",
+        "use": "OSM 建物輪廓"
+      }
+    ],
+    "priority": 1,
+    "placementStatus": "pending-georeference",
+    "anchor": null,
+    "components": [],
+    "verifiedDimensionsM": {},
+    "estimatedDimensionsM": {},
+    "referenceReviewDate": null,
+    "geometryStatus": "draft-estimated",
+    "scope": "地圖外觀模型；尺寸與附屬建物間距尚待測繪核對",
+    "railRelation": "站區：竹田驛園，需與現行高架站定位分開",
+    "reviewedPhotos": [],
+    "referenceStatus": "exterior-review-pending",
+    "pendingChecks": [
+      "完整多面現況照片",
+      "建物平面輪廓與估計尺寸校正",
+      "附屬建物相對位置",
+      "地圖錨點、正面方位與海拔"
+    ],
+    "footprintReference": {
+      "osmType": "way",
+      "osmId": 948468408,
+      "name": "竹田驛",
+      "url": "https://www.openstreetmap.org/way/948468408",
+      "timestamp": "2026-09-08T15:19:44Z",
+      "longSideM": 18.97,
+      "shortSideM": 8.37,
+      "source": "OpenStreetMap contributors",
+      "license": "ODbL-1.0",
+      "scope": "社群建物輪廓最小旋轉包圍框，非工程測繪；尚未用作地圖放樣",
+      "referenceFile": "source-layouts/zhutian-old.json"
+    }
+  },
+  {
+    "id": "erjie-granary",
+    "name": "二結穀倉",
+    "county": "宜蘭縣",
+    "category": "historic",
+    "kind": "erjie-granary",
+    "features": [
+      "高穀倉、斜屋頂、磚牆與碾米工場；可與車站同框"
+    ],
+    "sources": [
+      {
+        "url": "https://museums.moc.gov.tw/MusData/Detail?museumsId=57526098-3f9d-40db-8fc6-c6ee97654fe8",
+        "use": "文化部博物之島"
+      },
+      {
+        "url": "https://www.openstreetmap.org/way/268061217",
+        "use": "OSM 建物輪廓"
+      }
+    ],
+    "priority": 1,
+    "placementStatus": "pending-georeference",
+    "anchor": null,
+    "components": [],
+    "verifiedDimensionsM": {},
+    "estimatedDimensionsM": {},
+    "referenceReviewDate": null,
+    "geometryStatus": "draft-estimated",
+    "scope": "地圖外觀模型；尺寸與附屬建物間距尚待測繪核對",
+    "railRelation": "站區／沿線：臺鐵二結",
+    "reviewedPhotos": [
+      {
+        "url": "https://museums.moc.gov.tw/Upload/FrontPhoto/01f51695-2978-47ea-bd35-b7f767c30697.JPG",
+        "page": "https://museums.moc.gov.tw/MusData/Detail?museumsId=57526098-3f9d-40db-8fc6-c6ee97654fe8",
+        "viewedOn": "2026-09-08",
+        "scope": "局部外觀參考，非完整多面覆核"
+      }
+    ],
+    "referenceStatus": "partial-exterior-review",
+    "pendingChecks": [
+      "完整多面現況照片",
+      "建物平面輪廓與估計尺寸校正",
+      "附屬建物相對位置",
+      "地圖錨點、正面方位與海拔"
+    ],
+    "footprintReference": {
+      "osmType": "way",
+      "osmId": 268061217,
+      "name": "二結穀倉稻農文化館",
+      "url": "https://www.openstreetmap.org/way/268061217",
+      "timestamp": "2026-09-08T15:19:44Z",
+      "longSideM": 49.46,
+      "shortSideM": 18.31,
+      "source": "OpenStreetMap contributors",
+      "license": "ODbL-1.0",
+      "scope": "社群建物輪廓最小旋轉包圍框，非工程測繪；尚未用作地圖放樣",
+      "referenceFile": "source-layouts/erjie-granary.json"
+    }
+  },
+  {
+    "id": "luodong-forest",
+    "name": "羅東林場檢車庫與竹林站",
+    "county": "宜蘭縣",
+    "category": "historic",
+    "kind": "luodong-forest",
+    "features": [
+      "木造檢車庫、站房、貯木池邊緣與舊林鐵"
+    ],
+    "sources": [
+      {
+        "url": "https://yilan.forest.gov.tw/culture",
+        "use": "林業署園區資料"
+      },
+      {
+        "url": "https://recreation.forest.gov.tw/Files/Education/NC/photo/LD/08/%E9%9B%BB%E5%AD%90%E7%89%88_%282026%29%E7%AC%AC22%E6%9C%9F%E6%89%8B%E5%86%8A.pdf",
+        "use": "園區與宜蘭線位置圖"
+      },
+      {
+        "url": "https://www.openstreetmap.org/way/735285954",
+        "use": "OSM 建物輪廓"
+      }
+    ],
+    "priority": 2,
+    "placementStatus": "pending-georeference",
+    "anchor": null,
+    "components": [],
+    "verifiedDimensionsM": {},
+    "estimatedDimensionsM": {},
+    "referenceReviewDate": null,
+    "geometryStatus": "draft-estimated",
+    "scope": "地圖外觀模型；尺寸與附屬建物間距尚待測繪核對",
+    "railRelation": "沿線園區：宜蘭線旁；森林鐵路為歷史設施",
+    "reviewedPhotos": [],
+    "referenceStatus": "exterior-review-pending",
+    "pendingChecks": [
+      "完整多面現況照片",
+      "建物平面輪廓與估計尺寸校正",
+      "附屬建物相對位置",
+      "地圖錨點、正面方位與海拔"
+    ],
+    "footprintReference": {
+      "osmType": "way",
+      "osmId": 735285954,
+      "name": "竹林車站",
+      "url": "https://www.openstreetmap.org/way/735285954",
+      "timestamp": "2026-09-08T15:19:44Z",
+      "longSideM": 11.76,
+      "shortSideM": 7.41,
+      "source": "OpenStreetMap contributors",
+      "license": "ODbL-1.0",
+      "scope": "社群建物輪廓最小旋轉包圍框，非工程測繪；尚未用作地圖放樣",
+      "referenceFile": "source-layouts/luodong-forest.json"
+    }
+  },
+  {
+    "id": "hualien-railway",
+    "name": "花蓮港出張所及武道館",
+    "county": "花蓮縣",
+    "category": "historic",
+    "kind": "hualien-railway",
+    "features": [
+      "日式辦公廳舍、武道館屋頂與水塔"
+    ],
+    "sources": [
+      {
+        "url": "https://www.hccc.gov.tw/zh-tw/LocalCulturalHall/Detail/22",
+        "use": "花蓮縣文化局"
+      },
+      {
+        "url": "https://hlrcp.hccc.gov.tw/Story",
+        "use": "舊線位置說明"
+      }
+    ],
+    "priority": 2,
+    "placementStatus": "pending-georeference",
+    "anchor": null,
+    "components": [],
+    "verifiedDimensionsM": {},
+    "estimatedDimensionsM": {},
+    "referenceReviewDate": null,
+    "geometryStatus": "draft-estimated",
+    "scope": "地圖外觀模型；尺寸與附屬建物間距尚待測繪核對",
+    "railRelation": "**舊線地景**：花蓮鐵道文化園區，非現行花蓮站旁",
+    "reviewedPhotos": [
+      {
+        "url": "https://www.hccc.gov.tw/Utility/DisplayImage?id=2772",
+        "page": "https://www.hccc.gov.tw/zh-tw/LocalCulturalHall/Detail/22",
+        "viewedOn": "2026-09-08",
+        "scope": "局部外觀參考，非完整多面覆核"
+      },
+      {
+        "url": "https://www.hccc.gov.tw/Utility/DisplayImage?id=2770",
+        "page": "https://www.hccc.gov.tw/zh-tw/LocalCulturalHall/Detail/22",
+        "viewedOn": "2026-09-08",
+        "scope": "局部外觀參考，非完整多面覆核"
+      },
+      {
+        "url": "https://www.hccc.gov.tw/Utility/DisplayImage?id=31708",
+        "page": "https://www.hccc.gov.tw/zh-tw/LocalCulturalHall/Detail/22",
+        "viewedOn": "2026-09-08",
+        "scope": "局部外觀參考，非完整多面覆核"
+      }
+    ],
+    "referenceStatus": "partial-exterior-review",
+    "pendingChecks": [
+      "完整多面現況照片",
+      "建物平面輪廓與估計尺寸校正",
+      "附屬建物相對位置",
+      "地圖錨點、正面方位與海拔"
+    ]
+  },
+  {
+    "id": "guanshan-old",
+    "name": "關山舊站（里壠驛）",
+    "county": "臺東縣",
+    "category": "historic",
+    "kind": "guanshan-old",
+    "features": [
+      "農家式木造站房、屋脊、山牆與站前平台"
+    ],
+    "sources": [
+      {
+        "url": "https://www.guanshan.gov.tw/tour/tour4",
+        "use": "關山鎮公所"
+      }
+    ],
+    "priority": 1,
+    "placementStatus": "pending-georeference",
+    "anchor": null,
+    "components": [],
+    "verifiedDimensionsM": {},
+    "estimatedDimensionsM": {},
+    "referenceReviewDate": null,
+    "geometryStatus": "draft-estimated",
+    "scope": "地圖外觀模型；尺寸與附屬建物間距尚待測繪核對",
+    "railRelation": "站區周邊：現行關山站附近",
+    "reviewedPhotos": [
+      {
+        "url": "https://www.guanshan.gov.tw/images/6-1-8.jpg",
+        "page": "https://www.guanshan.gov.tw/tour/tour4",
+        "viewedOn": "2026-09-08",
+        "scope": "局部外觀參考，非完整多面覆核"
+      },
+      {
+        "url": "https://www.guanshan.gov.tw/images/6-1-8a.jpg",
+        "page": "https://www.guanshan.gov.tw/tour/tour4",
+        "viewedOn": "2026-09-08",
+        "scope": "局部外觀參考，非完整多面覆核"
+      },
+      {
+        "url": "https://www.guanshan.gov.tw/images/6-1-8b.jpg",
+        "page": "https://www.guanshan.gov.tw/tour/tour4",
+        "viewedOn": "2026-09-08",
+        "scope": "局部外觀參考，非完整多面覆核"
+      }
+    ],
+    "referenceStatus": "partial-exterior-review",
+    "pendingChecks": [
+      "完整多面現況照片",
+      "建物平面輪廓與估計尺寸校正",
+      "附屬建物相對位置",
+      "地圖錨點、正面方位與海拔"
+    ]
+  }
+]

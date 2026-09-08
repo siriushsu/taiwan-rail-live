@@ -1,0 +1,450 @@
+{
+  "id": "luodong-forest",
+  "name": "羅東林場檢車庫與竹林站",
+  "county": "宜蘭縣",
+  "category": "historic",
+  "kind": "luodong-forest",
+  "features": [
+    "木造檢車庫、站房、貯木池邊緣與舊林鐵"
+  ],
+  "sources": [
+    {
+      "url": "https://yilan.forest.gov.tw/culture",
+      "use": "林業署園區資料"
+    },
+    {
+      "url": "https://recreation.forest.gov.tw/Files/Education/NC/photo/LD/08/%E9%9B%BB%E5%AD%90%E7%89%88_%282026%29%E7%AC%AC22%E6%9C%9F%E6%89%8B%E5%86%8A.pdf",
+      "use": "園區與宜蘭線位置圖"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/735285954",
+      "use": "OSM 建物輪廓"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/735285958",
+      "use": "檢車庫：輪廓與位置",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/735285954",
+      "use": "竹林站：輪廓與位置",
+      "license": "ODbL-1.0"
+    }
+  ],
+  "priority": 2,
+  "placementStatus": "calibrated-plan",
+  "anchor": [
+    121.7722538,
+    24.6851722
+  ],
+  "verifiedDimensionsM": {},
+  "estimatedDimensionsM": {
+    "width": 24.81795310974121,
+    "depth": 129.43457412719727,
+    "height": 7.47794246673584,
+    "basis": "平面依各部件來源校正；高度仍為外觀建模估值"
+  },
+  "referenceReviewDate": null,
+  "geometryStatus": "plan-calibrated-exterior-estimated",
+  "scope": "按來源輪廓校正平面位置與尺度；高度、立面細節及正面方向仍為外觀估計",
+  "railRelation": "沿線園區：宜蘭線旁；森林鐵路為歷史設施",
+  "reviewedPhotos": [],
+  "referenceStatus": "exterior-review-pending",
+  "pendingChecks": [
+    "高度測量與完整多面立面校正",
+    "正面方向複核"
+  ],
+  "footprintReference": {
+    "osmType": "way",
+    "osmId": 735285954,
+    "name": "竹林車站",
+    "url": "https://www.openstreetmap.org/way/735285954",
+    "timestamp": "2026-09-08T15:19:44Z",
+    "longSideM": 11.76,
+    "shortSideM": 7.41,
+    "source": "OpenStreetMap contributors",
+    "license": "ODbL-1.0",
+    "scope": "早期輪廓參考；本輪逐棟校正依 calibration.parts 與 placements-source.json",
+    "referenceFile": "source-layouts/luodong-forest.json"
+  },
+  "orientationMode": "ENU-baked",
+  "absoluteGroundAltitudeM": null,
+  "railElevationM": null,
+  "omittedUnlocatedComponents": [],
+  "calibration": {
+    "version": 2,
+    "basis": "各部件獨立平面擬合；非工程測繪",
+    "parts": [
+      {
+        "id": "檢車庫",
+        "name": "檢車庫",
+        "placementStatus": "footprint-axis-calibrated",
+        "anchor": [
+          121.7722538,
+          24.6851722
+        ],
+        "rotationDeg": 100.75,
+        "scaleXY": [
+          1.0672465709290737,
+          0.4959412442438937
+        ],
+        "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+        "facadeBearingDeg": null
+      },
+      {
+        "id": "竹林站",
+        "name": "竹林站",
+        "placementStatus": "footprint-axis-calibrated",
+        "anchor": [
+          121.77234485,
+          24.68424495
+        ],
+        "rotationDeg": 94.25,
+        "scaleXY": [
+          0.9851628291850741,
+          0.8495749694584157
+        ],
+        "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+        "facadeBearingDeg": null
+      }
+    ],
+    "verticalDatum": "terrain-relative",
+    "sourceFile": "placements-source.json"
+  },
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "axes": {
+    "up": "+Z",
+    "east": "+X",
+    "north": "+Y",
+    "front": null,
+    "units": "meters",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "gltfAxes": {
+    "up": "+Y",
+    "toZUp": "rotateX(+PI/2)"
+  },
+  "facadeBearingDeg": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -8.709993362426758,
+      -109.35650634765625,
+      0.0
+    ],
+    "max": [
+      16.107959747314453,
+      20.078067779541016,
+      7.47794246673584
+    ]
+  },
+  "sizeM": [
+    24.81795310974121,
+    129.43457412719727,
+    7.47794246673584
+  ],
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "glb": "near.glb",
+      "sha256": "34d73a446a6ba327a1111b5e1fcf35764e89becf3450b716fbd954bb23b99f87",
+      "glbSha256": "2e8ec987d2e2017675420cda4aa6de84c12ec0fc5b76e9799953b269e072fbd4",
+      "strideBytes": 24,
+      "vertexCount": 9192,
+      "triangleCount": 3064,
+      "drawGroups": [
+        {
+          "component": "檢車庫",
+          "name": "stone",
+          "start": 0,
+          "count": 2232,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "檢車庫",
+          "name": "brown",
+          "start": 2232,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.23074005544185638,
+            0.177888423204422
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "檢車庫",
+          "name": "dark",
+          "start": 2268,
+          "count": 3210,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "檢車庫",
+          "name": "glass",
+          "start": 5478,
+          "count": 720,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "竹林站",
+          "name": "stone",
+          "start": 6198,
+          "count": 720,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "竹林站",
+          "name": "brown",
+          "start": 6918,
+          "count": 156,
+          "color": [
+            0.31398871541023254,
+            0.23074005544185638,
+            0.177888423204422
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "竹林站",
+          "name": "dark",
+          "start": 7074,
+          "count": 1794,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "竹林站",
+          "name": "glass",
+          "start": 8868,
+          "count": 216,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "竹林站",
+          "name": "white",
+          "start": 9084,
+          "count": 108,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 220608
+    },
+    "far": {
+      "file": "far.mesh.bin",
+      "glb": "far.glb",
+      "sha256": "58275c75a01cf24781ef60bbdb18e062abf18f7fa656240cdeb03741a21b0b36",
+      "glbSha256": "aa924104476c437056a3af2045449437715c50faf5bdb225a2995e8dee182351",
+      "strideBytes": 24,
+      "vertexCount": 4080,
+      "triangleCount": 1360,
+      "drawGroups": [
+        {
+          "component": "檢車庫",
+          "name": "stone",
+          "start": 0,
+          "count": 792,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "檢車庫",
+          "name": "brown",
+          "start": 792,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.23074005544185638,
+            0.177888423204422
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "檢車庫",
+          "name": "dark",
+          "start": 828,
+          "count": 1110,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "檢車庫",
+          "name": "glass",
+          "start": 1938,
+          "count": 720,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "竹林站",
+          "name": "stone",
+          "start": 2658,
+          "count": 288,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "竹林站",
+          "name": "brown",
+          "start": 2946,
+          "count": 156,
+          "color": [
+            0.31398871541023254,
+            0.23074005544185638,
+            0.177888423204422
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "竹林站",
+          "name": "dark",
+          "start": 3102,
+          "count": 654,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "竹林站",
+          "name": "glass",
+          "start": 3756,
+          "count": 216,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "竹林站",
+          "name": "white",
+          "start": 3972,
+          "count": 108,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 97920
+    }
+  },
+  "nativeObjectCount": 369,
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "modelUse": "map-exterior",
+  "components": [
+    {
+      "id": "檢車庫",
+      "name": "檢車庫",
+      "placementStatus": "footprint-axis-calibrated",
+      "anchor": [
+        121.7722538,
+        24.6851722
+      ],
+      "rotationDeg": 100.75,
+      "scaleXY": [
+        1.0672465709290737,
+        0.4959412442438937
+      ],
+      "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+      "facadeBearingDeg": null
+    },
+    {
+      "id": "竹林站",
+      "name": "竹林站",
+      "placementStatus": "footprint-axis-calibrated",
+      "anchor": [
+        121.77234485,
+        24.68424495
+      ],
+      "rotationDeg": 94.25,
+      "scaleXY": [
+        0.9851628291850741,
+        0.8495749694584157
+      ],
+      "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+      "facadeBearingDeg": null
+    }
+  ],
+  "mapEligible": true
+}

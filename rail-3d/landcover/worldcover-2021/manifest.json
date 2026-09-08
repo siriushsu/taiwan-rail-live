@@ -1,0 +1,65 @@
+{
+  "dataset": "ESA WorldCover 2021 v200",
+  "year": 2021,
+  "sourceResolutionM": 10,
+  "displayResolutionMApprox": 70,
+  "license": "CC-BY-4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+  "citation": "https://doi.org/10.5281/zenodo.7254221",
+  "attribution": "© ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium",
+  "processing": "台灣海岸線遮罩；各 zoom 最近鄰分類取樣；拓樸保留簡化；不提供單株樹木位置或高度",
+  "coastline": {
+    "source": "內政部 直轄市、縣市界線(TWD97經緯度)",
+    "version": "1140318",
+    "license": "政府資料開放授權條款-第1版",
+    "sourceUrl": "https://data.gov.tw/dataset/7442",
+    "note": "以縣市界線共用邊消去（dissolve）取海岸線，RDP 簡化 ~150m；僅供圖磚載入前的離線海陸墊底圖"
+  },
+  "bounds": [
+    118.151366,
+    21.895601,
+    122.085059,
+    26.383474
+  ],
+  "minzoom": 6,
+  "maxzoom": 11,
+  "tiles": 918,
+  "nonemptyTiles": 276,
+  "bytes": 22967839,
+  "largestTileBytes": 391261,
+  "classPixelsAtMaxzoom": {
+    "wood": 5555754,
+    "scrub": 82,
+    "grass": 343227,
+    "farmland": 708414,
+    "built": 617973,
+    "bare": 90627,
+    "snow": 2,
+    "water": 245304,
+    "wetland": 1515,
+    "mangrove": 253,
+    "moss": 0
+  },
+  "sources": [
+    {
+      "tile": "N21E117",
+      "url": "https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/map/ESA_WorldCover_10m_2021_v200_N21E117_Map.tif",
+      "sha256": "072533cfdf31cfddf3f4d033fe4b48df36448a5b36dd20f80abd80e2841244fb"
+    },
+    {
+      "tile": "N21E120",
+      "url": "https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/map/ESA_WorldCover_10m_2021_v200_N21E120_Map.tif",
+      "sha256": "b23a186262569b69c05b7638e6fa0645a7376ebbb2644a8eac8c58fa8a767bd2"
+    },
+    {
+      "tile": "N24E117",
+      "url": "https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/map/ESA_WorldCover_10m_2021_v200_N24E117_Map.tif",
+      "sha256": "99cbc3abd8b76a1bcb81e1e614323506807076dad6799b0727644cbf6a4024c1"
+    },
+    {
+      "tile": "N24E120",
+      "url": "https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/map/ESA_WorldCover_10m_2021_v200_N24E120_Map.tif",
+      "sha256": "730c11c72158595d6fcc9b0fe4a61ff2fb786e17f08a3412542ce7e4de17a3c9"
+    }
+  ]
+}

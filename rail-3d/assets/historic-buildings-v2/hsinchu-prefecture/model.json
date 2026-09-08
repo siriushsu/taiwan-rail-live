@@ -1,0 +1,288 @@
+{
+  "id": "hsinchu-prefecture",
+  "name": "新竹州廳",
+  "county": "新竹市",
+  "category": "historic",
+  "kind": "hsinchu-prefecture",
+  "features": [
+    "對稱立面、雙柱門廊、小塔與瓦頂，現為新竹市政府"
+  ],
+  "sources": [
+    {
+      "url": "https://tourism.hccg.gov.tw/chtravel/app/travel/view?id=26&module=travel&serno=b7b47373-fb13-4c12-b49c-4496ac3bce4e",
+      "use": "新竹市建築介紹"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/288160281",
+      "use": "新竹州廳：輪廓與位置",
+      "license": "ODbL-1.0"
+    }
+  ],
+  "priority": 2,
+  "placementStatus": "calibrated-plan",
+  "anchor": [
+    120.96908900366509,
+    24.8068616216532
+  ],
+  "verifiedDimensionsM": {},
+  "estimatedDimensionsM": {
+    "width": 123.91983413696289,
+    "depth": 127.13444900512695,
+    "height": 15.5,
+    "basis": "平面依各部件來源校正；高度仍為外觀建模估值"
+  },
+  "referenceReviewDate": null,
+  "geometryStatus": "plan-calibrated-exterior-estimated",
+  "scope": "按來源輪廓校正平面位置與尺度；高度、立面細節及正面方向仍為外觀估計",
+  "railRelation": "市區周邊：新竹站前市街",
+  "reviewedPhotos": [],
+  "referenceStatus": "exterior-review-pending",
+  "pendingChecks": [
+    "高度測量與完整多面立面校正",
+    "正面方向複核"
+  ],
+  "orientationMode": "ENU-baked",
+  "absoluteGroundAltitudeM": null,
+  "railElevationM": null,
+  "omittedUnlocatedComponents": [],
+  "calibration": {
+    "version": 2,
+    "basis": "各部件獨立平面擬合；非工程測繪",
+    "parts": [
+      {
+        "id": "新竹州廳",
+        "name": "新竹州廳",
+        "placementStatus": "footprint-axis-calibrated",
+        "anchor": [
+          120.96908900366509,
+          24.8068616216532
+        ],
+        "rotationDeg": 133.0,
+        "scaleXY": [
+          1.7545718560870085,
+          1.5844820750219877
+        ],
+        "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+        "facadeBearingDeg": null
+      }
+    ],
+    "verticalDatum": "terrain-relative",
+    "sourceFile": "placements-source.json"
+  },
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "axes": {
+    "up": "+Z",
+    "east": "+X",
+    "north": "+Y",
+    "front": null,
+    "units": "meters",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "gltfAxes": {
+    "up": "+Y",
+    "toZUp": "rotateX(+PI/2)"
+  },
+  "facadeBearingDeg": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -64.8048095703125,
+      -66.22013092041016,
+      0.0
+    ],
+    "max": [
+      59.11501693725586,
+      60.9143180847168,
+      15.5
+    ]
+  },
+  "sizeM": [
+    123.91982650756836,
+    127.13444900512695,
+    15.5
+  ],
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "glb": "near.glb",
+      "sha256": "c1b2e28ae7d8cc25b5f828bfcaf1caee5045625ea8b93ffab90a3c4fad1b3809",
+      "glbSha256": "c8e729719b16c31bb6789fe4a5f68b277aa97b8cc4948466c5d56a26384783e2",
+      "strideBytes": 24,
+      "vertexCount": 29682,
+      "triangleCount": 9894,
+      "drawGroups": [
+        {
+          "component": "新竹州廳",
+          "name": "cream",
+          "start": 0,
+          "count": 18732,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "新竹州廳",
+          "name": "stone",
+          "start": 18732,
+          "count": 108,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "新竹州廳",
+          "name": "white",
+          "start": 18840,
+          "count": 2556,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "新竹州廳",
+          "name": "glass",
+          "start": 21396,
+          "count": 4632,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "新竹州廳",
+          "name": "dark",
+          "start": 26028,
+          "count": 3654,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 712368
+    },
+    "far": {
+      "file": "far.mesh.bin",
+      "glb": "far.glb",
+      "sha256": "b64565d80e71d954fbebf69895b8d48fd4608c025d67e9e6bea059ded82f2b36",
+      "glbSha256": "5d13cfcf916143a48e25a7a4733df1071a2ca20bb5fa644daa24f2a567f35eb9",
+      "strideBytes": 24,
+      "vertexCount": 16734,
+      "triangleCount": 5578,
+      "drawGroups": [
+        {
+          "component": "新竹州廳",
+          "name": "cream",
+          "start": 0,
+          "count": 10092,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "新竹州廳",
+          "name": "stone",
+          "start": 10092,
+          "count": 108,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "新竹州廳",
+          "name": "white",
+          "start": 10200,
+          "count": 324,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "新竹州廳",
+          "name": "glass",
+          "start": 10524,
+          "count": 4632,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "新竹州廳",
+          "name": "dark",
+          "start": 15156,
+          "count": 1578,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 401616
+    }
+  },
+  "nativeObjectCount": 947,
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "modelUse": "map-exterior",
+  "components": [
+    {
+      "id": "新竹州廳",
+      "name": "新竹州廳",
+      "placementStatus": "footprint-axis-calibrated",
+      "anchor": [
+        120.96908900366509,
+        24.8068616216532
+      ],
+      "rotationDeg": 133.0,
+      "scaleXY": [
+        1.7545718560870085,
+        1.5844820750219877
+      ],
+      "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+      "facadeBearingDeg": null
+    }
+  ],
+  "mapEligible": true
+}
