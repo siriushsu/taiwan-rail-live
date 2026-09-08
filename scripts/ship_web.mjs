@@ -274,6 +274,19 @@ try {
   if (issue19.status !== 0) fail('跟車面板時間軸守門人未過——面板的里程與地圖畫的車對不上,或停靠態/遙測列壞了'
     + '（單獨重跑：npm run check-issue19）');
 
+  // ── 2.18 字級雙倍率契約守門人(2026-09-08)——純靜態、0.16 秒、不需要 dev server ────
+  // 設計檔 TURN 5/6 的對照表不是一顆倍率:主文 --ui 是 1／1.25／1.5,小標籤與次要說明
+  // --uis 只有 1／1.14／1.29。兩者互相跑錯邊時畫面「看起來只是字大了一點」,沒有任何
+  // 既有閘門會紅——2026-09-08 一次掃出六處違規,每一處都追得到具名的破壞 commit,
+  // 而且四處落在轉乘接續卡與查詢答案區這兩塊後來才加的 UI(新程式碼沒跟上契約)。
+  // 🔴 只掛 F0 這組靜態掃描,不掛整支 verify_font_scale:後者兩引擎 1468 條要 10 分 04 秒,
+  //    放進每次出貨的前置閘門不可行。走的是腳本裡同一份 staticRamps(),不是複製一份正則。
+  const fsRamp = spawnSync('node', [path.join(wt, 'scripts', 'verify_font_scale.mjs')],
+    { encoding: 'utf8', env: { ...process.env, FS_STATIC_ONLY: '1' } });
+  process.stdout.write(fsRamp.stdout || ''); process.stderr.write(fsRamp.stderr || '');
+  if (fsRamp.status !== 0) fail('字級雙倍率契約未過——有字級跑錯倍率(主文 --ui／小標籤 --uis)'
+    + '（單獨重跑：npm run check-font-ramp）');
+
   // ── 3. strip（腳本內建 esbuild AST 重印等價證明，任何不等價都非零退出）────
   const rawBytes = fs.readFileSync(path.join(wt, 'index.html'));
   execFileSync('node', [path.join(wt, 'scripts', 'strip_ship_comments.mjs'), wt], { stdio: 'inherit' });

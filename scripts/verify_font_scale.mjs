@@ -495,20 +495,34 @@ async function sectionE(browser, engine) {
 const F_ROWH = { std: 48, large: 68, xlarge: 80 };   // 設計對照表「列高」那一列
 const F_SECPX = { std: 11, large: 12.5, xlarge: 14 }; // 設計對照表「小標籤」那一列
 
+// F0 結構性:掃原始碼,確認兩條倍率沒有互相跑錯邊(數值判準抓不到「某一處忘了改」)。
+// 🔴 抽成獨立函式是為了讓它能【不開瀏覽器】單獨跑(FS_STATIC_ONLY=1),好掛進 ship_web 的
+//    前置閘門——整支腳本兩引擎要 10 分鐘,放進出貨鏈不可行,而這三條只花 30 毫秒,
+//    偏偏又是本輪唯一抓到真回歸的判準(2026-09-08 一次抓出六處違規,各有具名的破壞 commit)。
+//    只有一份正則:sectionF 與 static-only 兩條路都呼叫這裡,不會長出兩代同一道防線。
+//    ✱ ship_web §2.12 的 verify_engine_adapter 已經是同一個慣例(ENGINE_GATE_STATIC_ONLY)。
+function staticRamps() {
+  const src = readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const strayMain = [...src.matchAll(/font-size:\s*calc\(((?:\d(?:\.5)?|10(?:\.5)?|11(?:\.5)?|12)px)\s*\*\s*var\(--ui\)\)/g)];
+  const straySmall = [...src.matchAll(/font-size:\s*calc\((1[2-9]\.5px|1[3-9]px|[2-9]\d[\d.]*px)\s*\*\s*var\(--uis\)\)/g)];
+  ok('F0a 12px 以下的字級沒有一處還留在主倍率 --ui 上', strayMain.length === 0,
+    strayMain.slice(0, 3).map(m => m[1]).join(','));
+  ok('F0b 12.5px 以上的字級沒有一處跑到小倍率 --uis 上', straySmall.length === 0,
+    straySmall.slice(0, 3).map(m => m[1]).join(','));
+  ok('F0c 兩條倍率三檔都宣告齊全',
+    /--uis:\s*1;/.test(src) && /html\[data-fs=large\][^}]*--uis:\s*1\.14/.test(src)
+    && /html\[data-fs=xlarge\][^}]*--uis:\s*1\.29/.test(src));
+  // 🔴 正向對照:上面三條都是「恰為 0」型的反向判準,正則寫壞(或 index.html 換了寫法)時
+  //    掃到零個目標也是零違規,一樣全綠。所以另外斷言「這兩條倍率確實有人在用」——
+  //    數得到夠多的 calc(...*var(--ui)) 與 var(--uis),才證明剛才那兩趟掃描真的掃到東西。
+  const useMain = (src.match(/calc\([\d.]+px\s*\*\s*var\(--ui\)\)/g) || []).length;
+  const useSmall = (src.match(/calc\([\d.]+px\s*\*\s*var\(--uis\)\)/g) || []).length;
+  ok('F0d 正向對照:兩條倍率都真的有人在用(否則上面三條「零違規」是零訊號)',
+    useMain >= 100 && useSmall >= 20, `--ui=${useMain} --uis=${useSmall}`);
+}
+
 async function sectionF(browser, engine) {
-  // F0 結構性:掃原始碼,確認兩條倍率沒有互相跑錯邊(數值判準抓不到「某一處忘了改」)
-  if (engine === 'chromium') {
-    const src = readFileSync(path.join(ROOT, 'index.html'), 'utf8');
-    const strayMain = [...src.matchAll(/font-size:\s*calc\(((?:\d(?:\.5)?|10(?:\.5)?|11(?:\.5)?|12)px)\s*\*\s*var\(--ui\)\)/g)];
-    const straySmall = [...src.matchAll(/font-size:\s*calc\((1[2-9]\.5px|1[3-9]px|[2-9]\d[\d.]*px)\s*\*\s*var\(--uis\)\)/g)];
-    ok('F0a 12px 以下的字級沒有一處還留在主倍率 --ui 上', strayMain.length === 0,
-      strayMain.slice(0, 3).map(m => m[1]).join(','));
-    ok('F0b 12.5px 以上的字級沒有一處跑到小倍率 --uis 上', straySmall.length === 0,
-      straySmall.slice(0, 3).map(m => m[1]).join(','));
-    ok('F0c 兩條倍率三檔都宣告齊全',
-      /--uis:\s*1;/.test(src) && /html\[data-fs=large\][^}]*--uis:\s*1\.14/.test(src)
-      && /html\[data-fs=xlarge\][^}]*--uis:\s*1\.29/.test(src));
-  }
+  if (engine === 'chromium') staticRamps();
 
   for (const tier of ['std', 'large', 'xlarge']) {
     for (const width of [360, 393]) {
@@ -2734,6 +2748,21 @@ async function sectionW(browser, engine) {
     ok(`W13 ${tag} 零 pageerror`, errs.length === 0, errs[0] || '');
     await close();
   }
+}
+
+// 🔴 FS_STATIC_ONLY=1:只跑 F0 那組純靜態的倍率契約掃描,不開瀏覽器、也不需要 dev server
+//    (實測含 node 啟動 0.27 秒)。給 ship_web 前置閘門用——完整兩引擎要 10 分 04 秒,
+//    放進出貨鏈不可行,但整支腳本裡唯一抓到真回歸的就是這一組(2026-09-08 一次抓出六處違規,
+//    每一處都有具名的破壞 commit),不掛等於沒人守。走的是同一份 staticRamps(),不是副本。
+//    ✱ 必須排在 assertTarget() 【前面】:那道 gate 要 fetch dev server,而這條路徑根本不起
+//      server。「驗的是哪棵樹」在這裡是結構性成立的——staticRamps() 直接讀 ROOT/index.html,
+//      ROOT 由 import.meta.url 推出,讀的必然是腳本自己這棵樹,比 md5 對照更強。
+//    ✱ ship_web §2.12 的 verify_engine_adapter 已經是同一個慣例(ENGINE_GATE_STATIC_ONLY)。
+if (process.env.FS_STATIC_ONLY === '1') {
+  staticRamps();   // 每一條的 PASS/FAIL 與實得值 ok() 自己就印了,這裡只補總計
+  const bad0 = results.filter(r => !r.pass).length;
+  console.log(`=== 字級雙倍率靜態契約 ${results.length - bad0}/${results.length} 通過 ===`);
+  process.exit(bad0 ? 1 : 0);
 }
 
 await assertTarget();
