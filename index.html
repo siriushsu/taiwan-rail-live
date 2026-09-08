@@ -28966,7 +28966,7 @@ function metroBoardGroupHeads(groups) {
   //    當下有沒有車在兩支上而在兩種樣子之間跳(實測大橋頭剩一班車時就是這樣)。
   //    不帶括號的線維持 16b 原樣:單線站不長標題。
   const branchy = (groups || []).some(g => /（[^（）]*）\s*$/.test(String((g.ln && g.ln.name) || '')));
-  return labels.filter(Boolean).length >= (branchy ? 1 : 2) ? labels : null;
+  return new Set(labels.filter(Boolean)).size >= (branchy ? 1 : 2) ? labels : null;
 }
 // 同一條線的組是連續的(三支 renderer 的 groups 都先照 li 排序),所以只要跟前一組不同字就換組。
 // 有組標題時,列上不必再重複線名——只留組標題【沒講】的那件事:分支(中和新蘆線的「迴龍」/「蘆洲」)。
@@ -29008,7 +29008,7 @@ function renderMetroCoreFreqBoard(el, st, lines, isDeco, view, opts) {
       return `<div class="row${crowdHtml ? ' has-crowd' : ''}" data-core-record="${index}"${followable
         ? ` data-core-vehicle="${escHtml(rec.vehicleId)}" data-core-system="${escHtml(rec.systemId)}" data-core-line="${escHtml(group.ln.id)}" data-li="${group.li}" title="${escHtml(followTitle)}"` : ''}>` +
         `<span class="dot" style="background:${group.ln.color}"></span><b>${escHtml(direction)}</b>` +
-        `<span class="dest">${escHtml(lineLabel)}${label ? '　' + escHtml(label) : ''}</span>` +
+        `<span class="dest">${escHtml([lineLabel, label].filter(Boolean).join('　'))}</span>` +
         crowdHtml +
         `<span class="t">${trtcOfficialAbsoluteHM(rec.arrivalEpoch)}</span><span class="min">${escHtml(metroCoreCountdownText(rec))}</span></div>`;
     }
@@ -32083,7 +32083,11 @@ function setupMapTools() {
     const immersive = document.body.classList.contains('immersive');
     // 側欄形態的跟隨欄是上下錨定(CSS 唯一權威,bottom 帶 !important),不參與底部讓位的抬升記帳;
     // 這裡把它當「不在」,尾端的歸零寫入(空字串)順便清掉直向時代殘留的 inline bottom
-    const followVisible = state.followTrain && !fp.hidden && !immersive && !sheetIsSideRail();
+    // 🔴 併進看板槽(.uni-slot)的卡也不參與:它的高度由槽負責,CSS 明文寫 max-height:none。
+    //    少了這一條,跟車中拖一下地圖就會對它寫 inline max-height 撞上 96px 下限,
+    //    卡被壓到剩 96px 且不會自己復原(2026-09-08 實測 2063px→96px)。同檔 34514 早就有這個 guard。
+    const followVisible = state.followTrain && !fp.hidden && !immersive && !sheetIsSideRail()
+      && !fp.closest('.uni-slot');
     const freqVisible = !!(state.freqFollow && fc && !fc.hidden && !immersive);
     // ── 第一層:逃生提示(#iabHint)讓開膠囊 ──
     // 提示 CSS 釘死 bottom:74px,而收合(slim)膠囊的頂端比提示的下緣還高 26–29px ⇒ 提示(z713)
