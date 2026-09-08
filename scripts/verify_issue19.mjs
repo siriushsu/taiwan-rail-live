@@ -8,6 +8,17 @@
 // 用法：PORT=<自選> node scripts/dev_server.mjs & 然後
 //       VURL=http://localhost:<PORT>/index.html node scripts/verify_issue19.mjs
 // 環境變數：DELAY_MIN 注入誤點（預設 7，對齊使用者影片的台鐵 2619）、OUT 落檔路徑、ENGINES 引擎清單
+//
+// 🔴 語系必須釘死 zh-TW（2026-09-08）。B1／B2／C* 讀的是「使用者眼睛看到的那行字」，
+//    而 Playwright 的 chromium／webkit 預設 navigator.language=en-US ⇒ index.html 的 I18N_LANG
+//    變成 en，狀態列成了「⏸ At Luye · departs in 29 sec」、下一站成了「Shanli」，五條判準同時
+//    假紅、而且長得跟產品回歸一模一樣（實測 5 紅全出於此）。兩道一起下：
+//      * 網址帶 ?lang=zh-TW —— index.html 自己的最高優先語系開關（query > localStorage >
+//        navigator），top-level 就讀完，boot 途中 clearFollow() 清掉 query string 也影響不到它。
+//      * context locale: 'zh-TW' —— 讓 navigator.language 與沒帶 locale 的 Intl／toLocaleString
+//        也不隨跑測試的機器語系漂移。
+//    刻意【不】改成「驗結構旗標不驗文案」：B1／B2／C* 守的就是那行字有沒有說謊。文案耦合的代價
+//    由 G1 那道具名前置閘門承擔——語系釘不住時它直接指名，不會讓五條判準各報各的英文字串。
 import { chromium, webkit } from 'playwright';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -15,6 +26,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const URL = process.env.VURL || 'http://localhost:5288/index.html';
+const PAGE_LOCALE = 'zh-TW';
+// G0 的 md5 自檢仍打裸網址（dev_server 對靜態檔忽略 query，兩者同一份 bytes）；瀏覽器一律走這個。
+const NAV_URL = (() => { const u = new global.URL(URL); u.searchParams.set('lang', PAGE_LOCALE); return u.toString(); })();
 const DM = +(process.env.DELAY_MIN || 7), DS = DM * 60;
 const ENGINES = (process.env.ENGINES || 'chromium').split(',').filter(Boolean);
 const GAP_KM = 0.5;                 // 驗收門檻：面板里程換算回的點 vs 繪製點
@@ -117,7 +131,7 @@ for (const eng of ENGINES) {
   const launcher = eng === 'webkit' ? webkit : chromium;
   console.log(`\n===== ${eng} =====`);
   const br = await launcher.launch();
-  const ctx = await br.newContext({ viewport: { width: 1280, height: 800 } });
+  const ctx = await br.newContext({ viewport: { width: 1280, height: 800 }, locale: PAGE_LOCALE });
   const pg = await ctx.newPage();
   const errs = [];
   pg.on('pageerror', e => errs.push(String(e)));
@@ -130,11 +144,30 @@ for (const eng of ENGINES) {
   await pg.addInitScript(PROBE);
 
   const boot = async () => {
-    await pg.goto(URL, { waitUntil: 'load' });
+    await pg.goto(NAV_URL, { waitUntil: 'load' });
     await pg.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 500,
       null, { timeout: 60000 });
   };
   await boot();
+
+  // ── G1 具名語系閘門：B1／B2／C* 全部在讀畫面上那行中文，語系一漂它們會同時假紅而各報不同的
+  //    英文字串，計分板上看不出共同上游。把前提抽出來單獨判一次，紅的時候一眼看得出是語系沒釘住。
+  //    🔴 不可拿 location.search 當「網址有帶 ?lang」的證據——boot 途中 clearFollow() 會
+  //    replaceState 把整條 query 抹掉，事後讀恆為空字串，閘門會因為產品的正常行為而恆紅。
+  //    🔴 樣本要挑真的在訊息表裡的詞：t('跟隨系統') 在 zh-TW/en 都回中文（不在表內），拿它當
+  //    樣本就是一條恆真判準。下面兩個樣本各守一條翻譯路徑，且都實測過在 en 之下會變值：
+  //      stationName('松山') → 'Songshan'（B2 讀的站名走這條）
+  //      t('即將進站') → 'Arriving soon'（C* 讀的遙測列文案走這條）
+  const langState = await pg.evaluate(() => ({
+    i18n: window.__i18n ? window.__i18n.lang : null,
+    doc: document.documentElement.lang,
+    nav: navigator.language,
+    station: window.__i18n ? window.__i18n.stationName('松山') : null,
+    arriving: window.__i18n ? window.__i18n.t('即將進站') : null,
+  }));
+  ck(langState.i18n === 'zh-TW' && langState.doc === 'zh-TW' &&
+     langState.station === '松山' && langState.arriving === '即將進站',
+    `G1 語系釘死在 zh-TW（B1／B2／C* 的文案判準前提）：${JSON.stringify(langState)}`);
 
   // ── 選車：台鐵、非環島、此刻在旅途中、且扣掉注入誤點後仍在旅途中（全程短於誤點量的車扣完會落在發車前）。
   // 另要求後段還有一個「停靠 ≥30 秒」的停站，供情境 B（車停在站上）使用。

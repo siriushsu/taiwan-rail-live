@@ -11,6 +11,20 @@
 //   A 段 幾何:字放大之後東西還在不在畫面裡(頂列四顆分頁、tab bar 標籤)
 //   B 段 互動:真的用手指點那顆鈕會不會發生事(不是只看 CSS 算出什麼)
 //   C 段 契約:系統字級的正反向對照
+//
+// 🔴 語系必須釘死 zh-TW(2026-09-08)。這支腳本從頭到尾在比對畫面上的中文字(D2 的「跟隨系統」、
+//    TB8 的四個群組名、E/O/Q 段的看板與清單文案……),而 Playwright 的 chromium/webkit 預設
+//    navigator.language=en-US ⇒ index.html 的 I18N_LANG 變成 en,整批文案判準同時假紅
+//    ——而且長得跟產品回歸一模一樣。2026-09-08 實測:chromium 62 條紅,釘完只剩 22,那 22 條與
+//    「baseline 唯一跑在 zh-TW 的引擎」webkit 的 17 條紅完全對得上(前者是後者的超集)。
+//    🔴 webkit 預設語系跟隨系統(這台是 zh-TW),所以它一直是綠的——同一支腳本兩個引擎得到
+//    不同結論,本身就是語系沒釘住的紅旗。兩道一起下,都在 boot() 裡:
+//      * 網址帶 ?lang=zh-TW —— index.html 自己的最高優先語系開關(query > localStorage >
+//        navigator),top-level 就讀完,boot 途中 clearFollow() 清掉 query string 也影響不到它。
+//      * context locale: 'zh-TW' —— 讓 navigator.language 與沒帶 locale 的 Intl/toLocaleString
+//        也不隨跑測試的機器語系漂移。
+//    刻意【不】改成「驗結構旗標不驗文案」:這些判準守的就是使用者眼睛看到的那行字。文案耦合的
+//    代價由 T0L 那道具名前置閘門承擔——語系釘不住時它直接指名,不會讓幾十條判準各報各的英文字串。
 import { chromium, webkit } from 'playwright';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -20,6 +34,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = +(process.env.PORT || 5261);
 const URL_BASE = `http://127.0.0.1:${PORT}/index.html`;
+const PAGE_LOCALE = 'zh-TW';
 
 const results = [];
 const ok = (name, pass, detail = '') => {
@@ -37,9 +52,35 @@ async function assertTarget() {
   if (disk !== served) { console.log('\n目標不符,後面全部不用看了。'); process.exit(1); }
 }
 
+// 🔴 第二道 gate:先證明「我驗的是 zh-TW 那份畫面」。全檔幾十條判準在比對中文字串,語系一漂
+//    它們會同時假紅、各報不同的英文,計分板上看不出共同上游(2026-08-29 在 metro_core_defense
+//    上就是這樣燒掉一週)。把前提抽出來單獨判一次,紅的時候一眼看得出是語系沒釘住。
+//    刻意走 boot() 而不是自己另開一個 context:要驗的就是「每一段實際用的那條開頁路徑」有沒有釘住。
+//    🔴 不可拿 location.search 當「網址有帶 ?lang」的證據——開機途中 clearFollow() 會
+//    replaceState 把整條 query 抹掉,事後讀恆為空字串,閘門會因為產品的正常行為而恆紅。
+//    🔴 樣本要挑真的在訊息表裡的詞:t('跟隨系統')(沒有全形括號那版)在 zh-TW/en 都回中文
+//    ——不在表內,拿它當樣本就是一條恆真判準。下面兩個樣本各守一條翻譯路徑,都實測過在 en 之下會變值:
+//      t('（跟隨系統）') → ' (follows system)'(D2 讀的抽屜列文案走這條)
+//      stationName('松山') → 'Songshan'(E/O/Q 段讀的站名走這條)
+async function assertLocale(browser, engine) {
+  const { page, close } = await boot(browser, { width: 393 });
+  const st = await page.evaluate(() => ({
+    i18n: window.__i18n ? window.__i18n.lang : null,
+    doc: document.documentElement.lang,
+    nav: navigator.language,
+    followParen: window.__i18n ? window.__i18n.t('（跟隨系統）') : null,
+    station: window.__i18n ? window.__i18n.stationName('松山') : null,
+  }));
+  ok(`T0L ${engine} 語系釘死在 zh-TW(全檔中文文案判準的前提)`,
+    st.i18n === 'zh-TW' && st.doc === 'zh-TW' &&
+    st.followParen === '（跟隨系統）' && st.station === '松山', JSON.stringify(st));
+  await close();
+}
+
 async function boot(browser, { width = 393, tier = 'std', query = '', scheme, native = null } = {}) {
   const ctx = await browser.newContext({
     viewport: { width, height: 852 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true,
+    locale: PAGE_LOCALE,                          // 見檔頭「語系必須釘死」;與網址的 ?lang 兩道一起
     ...(scheme ? { colorScheme: scheme } : {}),   // 不傳＝沿用 Playwright 預設,既有各段行為不變
   });
   const page = await ctx.newPage();
@@ -52,7 +93,10 @@ async function boot(browser, { width = 393, tier = 'std', query = '', scheme, na
     // 只有原生殼會注入的旗標(末班車提醒鈴鐺靠它才出現);瀏覽器驗收要驗三顆鈕的版面時才傳
     if (a.native) for (const k of a.native) window[k] = true;
   }, { t: tier, native });
-  await page.goto(URL_BASE + query, { waitUntil: 'domcontentloaded' });
+  // query 可能已帶參數(例如 ?bust=...);用 URL 物件併進去,不做字串拼接。
+  const navUrl = new URL(URL_BASE + query);
+  navUrl.searchParams.set('lang', PAGE_LOCALE);
+  await page.goto(navUrl.toString(), { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => typeof state !== 'undefined' && state.ready, null, { timeout: 45000 })
     .catch(() => {});
   await page.waitForTimeout(600);
@@ -3192,6 +3236,8 @@ if (engWant.length) console.log(`⚠ 只跑 ${ENG.map(e => e[0]).join(',')} 引�
 if (!ENG.length) { console.error('ENGINES 沒有對到任何引擎'); process.exit(2); }
 for (const [engine, launcher] of ENG) {
   const browser = await launcher.launch();
+  // 前置閘門跑在段落迴圈【外面】:SECTIONS 窄化不該把它關掉,否則只跑一段時語系就沒人看門了。
+  await assertLocale(browser, engine);
   for (const k of run) {
     // 🔴 一段拋例外不可以把整支腳本連同另一個引擎一起帶走:那樣的輸出會變成「只有幾條紅」,
     //    看起來像局部問題,實際上後面整批根本沒跑到(突變測試實測踩過——比全綠更騙人)。
