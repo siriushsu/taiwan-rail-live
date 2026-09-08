@@ -1443,4 +1443,17 @@
   "收集 {count} 座車站": "{count} 駅を収集する",
   "取得 {count} 枚支線章": "支線スタンプを {count} 個集める"
 });
+  // issue #48（搜尋接上車種／車型）：新的 runtime key 與第一層更新紀錄。
+  Object.assign(messages.en, {
+    "車型": "Train model",
+    "車型依台鐵公告的車種代碼比對，實際配車以當日營運為準": "Models are matched from the car-class codes TRA publishes; the actual consist depends on that day's operations.",
+    "共 {n} 班符合，正在跑的排前面": { one: "{n} service found, currently running first", other: "{n} services found, currently running first" },
+    "搜尋框可以打車種與車型了：輸入「自強號」「EMU3000」「太魯閣」會列出符合的班次，正在跑的排前面，也能點車型看介紹（謝謝網友回報）": "You can now search by train class and model. Type “Tze-Chiang”, “EMU3000” or “Taroko” to list matching services, with the ones currently running first; tap a model to read about it. (Thanks to the readers who wrote in.)"
+  });
+  Object.assign(messages.ja, {
+    "車型": "車両形式",
+    "車型依台鐵公告的車種代碼比對，實際配車以當日營運為準": "車両形式は台鉄が公表する車種コードで照合しています。実際の編成は当日の運用によります。",
+    "共 {n} 班符合，正在跑的排前面": "{n}本が該当（走行中を先頭に表示）",
+    "搜尋框可以打車種與車型了：輸入「自強號」「EMU3000」「太魯閣」會列出符合的班次，正在跑的排前面，也能點車型看介紹（謝謝網友回報）": "検索欄で列車種別と車両形式を検索できるようになりました。「自強号」「EMU3000」「タロコ」などを入力すると該当する列車が一覧表示され、走行中の列車が先頭に並びます。車両形式をタップすると解説が読めます。（ご報告ありがとうございます）"
+  });
 })();
