@@ -4,6 +4,7 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "跟車鏡頭保留目前的近景，點列車或隨機跟隨不再拉遠；再次點到正在跟隨的列車會回到車旁，不會結束跟隨": "Following keeps your current close-up zoom. Selecting a train or random follow no longer zooms out; tapping the train you are following recenters the camera without ending follow.",
     "修正列車在車站與彎道附近整列飄到軌道旁的問題，車廂沿指派股道逐節轉彎，不再因鄰車靠近而橫移": "Fixed whole trains drifting beside the rails near stations and curves. Each carriage follows its assigned track through bends without shifting sideways when another train approaches.",
     "改善立體地圖拖曳與旋轉的流暢度，保留完整列車與建築細節；切換地形後，建築輪廓也會回到正確高度": "Improved dragging and rotating the 3D map while keeping complete trains and building detail. Building outlines now return to the correct height when terrain is switched.",
     "山線三義隧道段的軌道改用實際路線重畫，列車經過時不再偏離軌道": "The Mountain Line's Sanyi tunnel section is redrawn along its real route, so trains no longer appear to drift off the track there.",
@@ -223,6 +224,7 @@
   });
 
   Object.assign(messages.ja, {
+    "跟車鏡頭保留目前的近景，點列車或隨機跟隨不再拉遠；再次點到正在跟隨的列車會回到車旁，不會結束跟隨": "追従時は現在の拡大率を維持し、列車の選択やランダム追従で引きの画面になりません。追従中の列車をもう一度タップすると、追従を終了せずに列車へ戻ります。",
     "修正列車在車站與彎道附近整列飄到軌道旁的問題，車廂沿指派股道逐節轉彎，不再因鄰車靠近而橫移": "駅やカーブ付近で列車全体が線路脇へずれる問題を修正しました。各車両は割り当てられた線路に沿って順に曲がり、他の列車が近づいても横移動しません。",
     "改善立體地圖拖曳與旋轉的流暢度，保留完整列車與建築細節；切換地形後，建築輪廓也會回到正確高度": "列車の全編成と建物の細部を保ちながら、3D地図のドラッグと回転を改善しました。地形を切り替えた後も、建物の輪郭が正しい高さに戻ります。",
     "山線三義隧道段的軌道改用實際路線重畫，列車經過時不再偏離軌道": "山線・三義トンネル区間の線路を実際の経路で描き直し、列車がその区間で線路から外れて見えることがなくなりました。",
