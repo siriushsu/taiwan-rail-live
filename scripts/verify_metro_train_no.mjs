@@ -143,16 +143,31 @@ for (const v of noNo.slice(0, 6)) {
     `A2 ${v.line} 這台沒有官方車次的車不顯示車次欄（實際：hidden=${card.hidden}／「${card.text}」）`);
 }
 // A3(禁手):任何情況都不准把內部 vehicleId 或路線縮寫當車次。契約禁手表第 2 條。
-const bad = [];
-for (const v of rosterA.slice(0, 24)) {
-  const text = await pa.evaluate(([lineId, vehicleId]) => {
+// 🔴 名冊每輪重抓、vehicleId 每輪換一批 ⇒ 拿 A0 當時那份 id 去跟,會全部 follow 不到、
+//    updateFreqCard 根本不跑,而 #fcNo 還留著上一次的字 ⇒ 這一節看起來綠得很漂亮卻什麼都沒量
+//    (第一版就是這樣:N4/N5 兩發禁手突變 A2 紅了、A3 一聲不響地綠)。所以當場重讀名冊,
+//    每一台都自證「這一輪真的重畫過」,最後用具名的覆蓋率斷言擋住分母無聲縮水。
+const rosterA3 = await pa.evaluate(() => (state.trtcOfficialRoster && state.trtcOfficialRoster.vehicles || [])
+  .map(v => ({ id: String(v.vehicleId), line: String(v.line), no: String(v.officialNo || '').trim() })));
+const A3_SAMPLE = [...rosterA3.filter(v => v.no).slice(0, 12), ...rosterA3.filter(v => !v.no).slice(0, 12)];
+const bad = [], sampled = [];
+for (const v of A3_SAMPLE) {
+  const r = await pa.evaluate(([lineId, vehicleId]) => {
+    const el = document.getElementById('fcNo');
+    el.textContent = '\u0000';           // 哨兵:更新過就一定不是這個值
     state.freqFollow = { official: true, lineId, vehicleId };
+    document.getElementById('freqCard').hidden = false;
     updateFreqFollowCamera(true);
-    return document.getElementById('fcNo').textContent;
+    return { text: el.textContent, followed: !!state.freqFollow };
   }, [v.line, v.id]);
-  if (text && (text === v.id || text === v.line || /^(BR|Y)$/.test(text) || text.includes(':'))) bad.push(`${v.line}/${v.id}→「${text}」`);
+  if (!r.followed || r.text === '\u0000') continue;   // 這一輪名冊已經換掉這台,不算樣本
+  sampled.push(v.id);
+  if (r.text && (r.text === v.id || r.text === v.line || /^(BR|Y)$/.test(r.text) || r.text.includes(':')))
+    bad.push(`${v.line}/${v.id}→「${r.text}」`);
 }
-ok(bad.length === 0, `A3 抽驗 ${Math.min(24, rosterA.length)} 台,沒有一台把內部 id／路線縮寫當車次顯示（越界：${bad.join('、') || '無'}）`);
+ok(sampled.length > 0 && sampled.some(id => rosterA3.find(v => v.id === id && !v.no)),
+  `A3 覆蓋率:${sampled.length}/${A3_SAMPLE.length} 台真的重畫過卡片,且其中含「沒有官方車次」的樣本（否則禁手那條 fallback 一次都沒走到）`);
+ok(bad.length === 0, `A3 這 ${sampled.length} 台（有號 ${A3_SAMPLE.filter(v => v.no).length}／沒號 ${A3_SAMPLE.filter(v => !v.no).length}）沒有一台把內部 id／路線縮寫當車次顯示（越界：${bad.join('、') || '無'}）`);
 ok(errA.length === 0, `A 節期間頁面無未捕捉例外（${errA.slice(0, 2).join(' | ') || '無'}）`);
 await ctxA.close();
 
