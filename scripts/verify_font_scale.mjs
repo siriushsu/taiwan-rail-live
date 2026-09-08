@@ -77,9 +77,16 @@ async function assertLocale(browser, engine) {
   await close();
 }
 
-async function boot(browser, { width = 393, tier = 'std', query = '', scheme, native = null } = {}) {
+// desktop:true＝要桌面殼。🔴 光把 width 調寬【拿不到】桌面殼:index.html 的 MOBILE_MQ 是
+//   `(max-width:900px), (max-height:500px), (any-pointer:coarse) and (max-width:1400px)`,
+//   而 isMobile/hasTouch 讓 any-pointer 恆為 coarse ⇒ 1400px 以下的任何寬度都還是 mobile-shell+fs。
+//   U 段本來寫 width:1280 想要桌面版面,實際上拿到的是手機殼,而 `body.fs .flow{display:none}`
+//   把整張流量圖藏起來(clientW/H 都是 0)——見 U0 閘門的註解。所以這個開關關的是「殼的種類」,
+//   不是靠一個比 1400 大的魔術數字(斷點一動那種寫法就默默失效)。
+async function boot(browser, { width = 393, tier = 'std', query = '', scheme, native = null, desktop = false } = {}) {
   const ctx = await browser.newContext({
-    viewport: { width, height: 852 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true,
+    viewport: { width, height: 852 }, deviceScaleFactor: 2,
+    ...(desktop ? {} : { isMobile: true, hasTouch: true }),
     locale: PAGE_LOCALE,                          // 見檔頭「語系必須釘死」;與網址的 ?lang 兩道一起
     ...(scheme ? { colorScheme: scheme } : {}),   // 不傳＝沿用 Playwright 預設,既有各段行為不變
   });
@@ -2237,18 +2244,51 @@ async function sectionT(browser, engine) {
 async function sectionU(browser, engine) {
   const got = {};
   for (const scheme of ['light', 'dark']) {
-    const { page, errs, close } = await boot(browser, { width: 1280, scheme });
+    // 🔴 desktop:true 是必要的,不是偏好。這一段整段量的是 #flowChart 的實際像素,而流量圖在
+    //    手機殼裡被 `body.fs .flow{display:none}` 藏著(它的手機新家是「更多」抽屜的 #msFlowSlot,
+    //    要點開才搬進去)。boot() 預設 isMobile:true ⇒ any-pointer:coarse ⇒ 1400px 以下都是手機殼,
+    //    所以原本寫 width:1280 拿到的是「一張 0×0 的畫布」而不是桌面版面。見 U0。
+    const { page, errs, close } = await boot(browser, { width: 1280, scheme, desktop: true });
     const tag = `${engine}/${scheme}`;
     await page.evaluate(() => { if (state.playing) togglePlay(); });
     const st = await page.evaluate(() => ({
       hidden: document.getElementById('flowWrap').hidden,
       bins: state.flowBins ? state.flowBins.length : 0, max: state.flowMax,
     }));
-    ok(`U1 ${tag} 正向對照:流量圖有顯示、有資料`, !st.hidden && st.bins > 0 && st.max > 1, JSON.stringify(st));
+    ok(`U1 ${tag} 正向對照:流量圖沒有被 hidden 屬性關掉、而且有資料`,
+      !st.hidden && st.bins > 0 && st.max > 1, JSON.stringify(st));
     if (st.hidden || !st.bins) { await close(); continue; }
 
     await page.evaluate(() => { setSimSec(17 * 3600 + 50 * 60); state.clockAtNow = false; drawFlow(); });
     await page.waitForTimeout(250);
+
+    // 🔴 U0 前置閘門:先證明「那張圖真的量得到」,再讓 U2–U11 去談顏色。
+    //    為什麼要獨立一條:2026-09-08 之前 U 段整段以 IndexSizeError(source height is 0)收場,
+    //    U2–U5 各自拿到 null 然後判 false——計分板上長得跟「產品把顏色畫錯了」一模一樣,
+    //    實際上是量測端從來沒量到任何一個像素。U1 看的是 hidden【屬性】,對「CSS 藏起來」完全失明
+    //    (drawFlow 自己的註解就寫過同一個坑),所以它擋不住這件事。
+    //    三個條件各守一段路:版面有沒有給尺寸 → drawFlow 有沒有據此配置畫布 → 畫布讀不讀得到內容。
+    //    ✱ 畫布尺寸仍是預設的 300×150 ＝ drawFlow 在 `if (!cssW || !cssH) return` 就掉頭了。
+    const g0 = await page.evaluate(() => {
+      const c = document.getElementById('flowChart'), w = document.getElementById('flowWrap');
+      const dpr = state.dpr || 1, cssW = c.clientWidth, cssH = c.clientHeight;
+      const o = { disp: getComputedStyle(w).display, cssW, cssH, dpr,
+        store: [c.width, c.height], want: [Math.round(cssW * dpr), Math.round(cssH * dpr)],
+        sample: null, err: null };
+      if (!cssW || !cssH) return o;
+      try {                            // 整條掃描線:全透明＝畫布配置對了但根本沒畫上東西
+        const d = c.getContext('2d').getImageData(0, Math.round(cssH * dpr / 2), Math.round(cssW * dpr), 1).data;
+        let painted = 0;
+        for (let k = 3; k < d.length; k += 4) if (d[k] > 0) painted++;
+        o.sample = painted;
+      } catch (e) { o.err = String(e); }
+      return o;
+    });
+    const g0pass = g0.disp !== 'none' && g0.cssW > 0 && g0.cssH > 0 &&
+      g0.store[0] === g0.want[0] && g0.store[1] === g0.want[1] && g0.sample > 0;
+    ok(`U0 ${tag} 🔴 前置閘門:流量圖真的量得到(版面有尺寸、畫布照 dpr 配置、取樣讀得到已畫上的像素)`,
+      g0pass, JSON.stringify(g0));
+    if (!g0pass) { await close(); continue; }
     // 取第 i 根柱的柱身像素(避開頂緣抗鋸齒);柱高不足回 null
     const at = i => page.evaluate(j => {
       const c = document.getElementById('flowChart'), dpr = state.dpr || 1;
@@ -2279,6 +2319,7 @@ async function sectionU(browser, engine) {
     const night = await page.evaluate(() => {
       const c = document.getElementById('flowChart'), dpr = state.dpr || 1;
       const cssW = c.clientWidth, cssH = c.clientHeight;
+      if (!cssW || !cssH) return null;   // 量不到就回報「量不到」,不要拿 0 去 getImageData 炸掉整段
       const i = Math.floor(state.simSec / 600) % FLOW_BINS;
       const barH = state.flowBins[i] / state.flowMax * (cssH - 12);
       const x = Math.round(state.simSec / 86400 * cssW * dpr);
@@ -2288,7 +2329,7 @@ async function sectionU(browser, engine) {
       return { barH: +barH.toFixed(1), redPxUpperHalf: red };
     });
     ok(`U6 ${tag} 🔴 深夜柱高趨近 0 時「現在」仍找得到(上半部有貫穿的紅)`,
-      night.redPxUpperHalf > 5, JSON.stringify(night));
+      !!night && night.redPxUpperHalf > 5, JSON.stringify(night));
 
     const jump = await page.evaluate(async () => {
       const c = document.getElementById('flowChart'), b = c.getBoundingClientRect();
@@ -2304,6 +2345,7 @@ async function sectionU(browser, engine) {
     const tick = await page.evaluate(() => {
       const c = document.getElementById('flowChart'), dpr = state.dpr || 1;
       const cssW = c.clientWidth, cssH = c.clientHeight;
+      if (!cssW || !cssH) return null;   // 同上:寬度 0 一樣會丟 IndexSizeError
       const d = c.getContext('2d').getImageData(0, Math.round((cssH - 2) * dpr), Math.round(cssW * dpr), 1).data;
       let best = null;
       for (let k = 0; k < d.length; k += 4)
@@ -2313,7 +2355,7 @@ async function sectionU(browser, engine) {
       return { tick: best, paper: pap, d: best ? Math.round(Math.abs(lum(best) - lum(pap))) : null };
     });
     ok(`U11 ${tag} 整點刻度與紙底有對比(暗色不能沿用亮色的奶油色,也不能低到看不見)`,
-      !!tick.tick && tick.d >= 30, JSON.stringify(tick));
+      !!tick && !!tick.tick && tick.d >= 30, JSON.stringify(tick));
     ok(`U8 ${tag} 零 pageerror`, errs.length === 0, errs.slice(0, 1).join(''));
     got[scheme] = { bar: pOther, now: pNow };
     await close();
