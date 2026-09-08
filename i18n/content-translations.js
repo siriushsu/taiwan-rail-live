@@ -1493,4 +1493,11 @@
   Object.assign(messages.ja, {
     "收集章今天沒有班次時，改成跳出這班車的故事卡，並告訴你班表上的下一個開行日": "スタンプの列車が本日運行しない場合、タップするとその列車のストーリーカードが開き、時刻表上の次の運行日をお知らせします。"
   });
+  // 9/8 捷運跟車卡新增車次欄的第一層更新紀錄。
+  Object.assign(messages.en, {
+    "跟隨台北捷運列車時，官方有給車次的班次會在資訊卡上方顯示車次": "When you follow a Taipei Metro train, the card now shows its train number at the top for services where the official feed provides one."
+  });
+  Object.assign(messages.ja, {
+    "跟隨台北捷運列車時，官方有給車次的班次會在資訊卡上方顯示車次": "台北メトロの列車を追跡すると、公式データに列車番号がある便はカード上部に列車番号を表示します。"
+  });
 })();

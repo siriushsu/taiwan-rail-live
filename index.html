@@ -1149,6 +1149,7 @@
   .freq-card .fc-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .freq-card .fc-head .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
   .freq-card .fc-head b { font-size: calc(15px * var(--ui)); color: var(--ink-strong); }
+  .freq-card .fc-head .fc-no { font-size: calc(17px * var(--ui)); font-weight: 900; letter-spacing: 1px; }
   .freq-card .fc-dir { font-size: calc(12px * var(--uis)); color: var(--faint); font-weight: 600; order: 9; flex: 1 1 100%; min-width: 0; margin-top: 1px; }
   .freq-card .fc-end {
     margin-left: auto; background: none; border: 1px solid var(--line); border-radius: 6px;
@@ -4974,6 +4975,7 @@
     <div class="freq-card" id="freqCard" hidden>
       <div class="fc-head">
         <span class="dot" id="fcDot"></span>
+        <b class="fc-no" id="fcNo" hidden></b>
         <b id="fcLine"></b>
         <span class="fc-dir" id="fcDir"></span>
         <button class="fc-end" id="fcEnd" title="取消跟隨">結束</button>
@@ -5234,6 +5236,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="mrttrainno0908"><span class="d">9/8</span><span>跟隨台北捷運列車時，官方有給車次的班次會在資訊卡上方顯示車次</span></li>
         <li data-cl-of="dexmisscard0908"><span class="d">9/8</span><span>收集章今天沒有班次時，改成跳出這班車的故事卡，並告訴你班表上的下一個開行日</span></li>
         <li data-cl-of="garageselect0908"><span class="d">9/8</span><span>車庫改用下拉選單直接選車，按鐵道系統分組；展示台移到更容易看見的位置，不用輸入車型名稱</span></li>
         <li data-cl-of="dexstarsys0908"><span class="d">9/8</span><span>修正護照收集章與今日亮點：點「環島之星」不再跑成阿里山林鐵的同號車</span></li>
@@ -5241,7 +5244,6 @@
         <li data-cl-of="terminusarr0908"><span class="d">9/8</span><span>終點站的車站看板現在會列出一小時以後才到站的班次——去接人的人看得到時間；其他車站維持只列一小時內的到站車。</span></li>
         <li data-cl-of="followkeep0908"><span class="d">9/8</span><span>跟車鏡頭保留目前的近景，點列車或隨機跟隨不再拉遠；再次點到正在跟隨的列車會回到車旁，不會結束跟隨</span></li>
         <li data-cl-of="ontrack0908"><span class="d">9/8</span><span>修正列車在車站與彎道附近整列飄到軌道旁的問題，車廂沿指派股道逐節轉彎，不再因鄰車靠近而橫移</span></li>
-        <li data-cl-of="perf3d0908"><span class="d">9/8</span><span>改善立體地圖拖曳與旋轉的流暢度，保留完整列車與建築細節；切換地形後，建築輪廓也會回到正確高度</span></li>
 
 
       </ul>
@@ -5349,6 +5351,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="mrttrainno0908"><span class="d">9/8</span><span>跟隨捷運列車時，資訊卡上方會顯示車次：只在官方即時資料真的有給車次時顯示，文湖線、環狀線與其他沒有公開車次的系統維持留白，不會用內部編號充數</span></li>
         <li data-cl="boardcardfix0908"><span class="d">9/8</span><span>修正車站看板與跟車卡三處顯示問題：只有一條線經過的捷運站不再多出一整條線名標題；看板列上沒有線名時，車號前不再多一個全形空格造成左緣參差；跟車時拖動地圖，下方的列車卡不再被壓扁到看不見下一站與到站時間</span></li>
         <li data-cl="widgethelp0906"><span class="d">9/6</span><span>App 說明中心的小工具頁改成介紹頁：每種小工具都有實際畫面預覽與尺寸；Android 可以直接按「加到桌面」把小工具釘到主畫面</span></li>
         <li data-cl="querytab0906"><span class="d">9/6</span><span>手機底部「搜尋」改為「查詢」：半高面板先給離你最近的站各方向下一班，再列提醒、今日動態、附近車站與小工具入口；在車站附近開 App 會自動出現</span></li>
@@ -6156,7 +6159,7 @@
 // v0907n：更新紀錄拿掉 7/13 那條贊助方式（站上最後一處金流資訊）。
 // v0908b：阿里山林鐵補上站內股道與之字形折返股(阿里山、祝山的軌道畫進站裡);近景實體股道白名單
 //         改為單一來源(rail-3d.js 不再自帶第二份),沒被涵蓋的系統保留原本的示意線形。
-const BUILD = 'v0908o-dexmiss';
+const BUILD = 'v0908p-mrtno';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
@@ -11179,6 +11182,16 @@ function updateFreqCard(info) {
   const f = state.freqFollow; if (!f) return;
   const ln = info.ln || f.ln; if (!ln) return;
   document.getElementById('fcDot').style.background = ln.color;
+  // 車次(使用者 2026-09-08:「如果有對到,我希望在列車資訊卡的上方有欄位顯示車次」)。
+  // 🔴 只認官方車號:北捷 roster 的 officialNo(＝TrackInfo.TrainNumber)與 Core 的 publicLabel,
+  //    兩條路徑都在各自的 *VehicleInfo() 裡填成同名欄位。文湖線 BR 與環狀線 Y 官方沒有這一欄、
+  //    機捷/中捷/淡海/安坑/三鶯根本不走官方名冊 ⇒ 一律留空,整欄收起來,不畫「BR」那種路線牌
+  //    (地圖上的橢圓牌是為了讓車有東西可標;卡片已經寫著線名,再標一次只是噪音)。
+  // 🔴 禁止退而求其次拿 f.vehicleId 或 _freqHits.officialNo:前者是我們自己合成的內部身分,
+  //    後者存的是地圖橢圓牌的顯示字串(沒有官方號時就是「BR」),兩個都會變成假車次。
+  const fcNo = document.getElementById('fcNo'), no = String(info.officialNo || '').trim();
+  fcNo.textContent = no;
+  fcNo.hidden = !no;
   // 冠系統名:全台同框/多系統群組裡光「綠線」分不清台中高雄
   document.getElementById('fcLine').textContent = (ln._sysLabel ? t(ln._sysLabel) + ' ' : '') + routeName(ln.name || ln.abbr || '', ln._sys);
   // 機捷兩種車跑同一條線、同一個顏色,不寫車種就分不出這班是站站停還是跳站(issue #44/#45)
@@ -24490,7 +24503,11 @@ function metroCoreVehicleInfo(rec) {
       step > 0 ? Math.ceil(pos.progress) : Math.floor(pos.progress)));
   const terminal = ln.stations[Number(train.destinationStationIndex)];
   const next = ln.stations[nextIndex];
-  return { ln, pos, loop: false, grace: !!rec.grace,
+  // officialNo 在這裡統一命名:Core 的 publicLabel 與北捷 roster 的 officialNo 是同一個東西
+  // ——freqCrowdCars() 拿 publicLabel 去 join crowdByNo(鍵＝官方 TrackInfo.TrainNumber)打得中,
+  // 那條 join 就是證據。統一之後 updateFreqCard 只要讀一個欄位,不必分辨自己在哪條路徑上。
+  // 🔴 永遠不是 vehicleId:那是我們自己由各站倒數合成的內部身分,契約明禁拿它冒充車次。
+  return { ln, pos, loop: false, grace: !!rec.grace, officialNo: String(train.publicLabel || ''),
     termName: terminal && terminal.name || '', nextName: next && next.name || '',
     nextSec: train.nextCall && Number.isFinite(Number(train.nextCall.arrivalEpoch))
       ? metroCoreEpochSecOfDay(train.nextCall.arrivalEpoch) : null };

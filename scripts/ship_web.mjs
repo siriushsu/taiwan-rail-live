@@ -304,6 +304,19 @@ try {
   if (afrNo.status !== 0) fail('林鐵車次撞號守門人未過——林鐵的車被當成台鐵具名列車,或收集章／今日亮點跟到別的系統'
     + '（單獨重跑：npm run check-afr-trainno）');
 
+  // ── 2.20 捷運車次欄守門人(2026-09-08) ────────────────────────────────────
+  // 為什麼值得進出貨鏈:這個欄位的風險不是「顯示不出來」,是「顯示了不該顯示的東西」。
+  // 契約(trtc-official-lifecycle-contract 規則 7 與禁手表)寫死車次只是標籤——內部 vehicleId
+  // 不准冒充車次、CarWeight 的車廂編號也不准;文湖線 BR 與環狀線 Y 官方本來就沒有這一欄。
+  // 這一類「多顯示了一個看似合理的號碼」在畫面上完全不像壞掉,只有守門人抓得到。
+  // 兩份磁碟 fixture 各驗一條路(北捷官方名冊／Core publicLabel),正反判準成對,約 60 秒。
+  // 🔴 同 2.19:洗掉繼承來的 PORT,免得去驗別棵樹。
+  const mrtNo = spawnSync('node', [path.join(wt, 'scripts', 'verify_metro_train_no.mjs'), wt],
+    { encoding: 'utf8', env: { ...process.env, PORT: '' } });
+  process.stdout.write(mrtNo.stdout || ''); process.stderr.write(mrtNo.stderr || '');
+  if (mrtNo.status !== 0) fail('捷運車次欄守門人未過——有官方車次卻沒顯示,或沒有官方車次卻硬填了一個'
+    + '（單獨重跑：npm run check-metro-train-no）');
+
   // ── 3. strip（腳本內建 esbuild AST 重印等價證明，任何不等價都非零退出）────
   const rawBytes = fs.readFileSync(path.join(wt, 'index.html'));
   execFileSync('node', [path.join(wt, 'scripts', 'strip_ship_comments.mjs'), wt], { stdio: 'inherit' });

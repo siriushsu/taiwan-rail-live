@@ -4,6 +4,7 @@
     "check-aeo": "node scripts/verify_aeo.mjs",
     "check-afr": "node scripts/verify_afr.mjs",
     "check-afr-trainno": "node scripts/verify_afr_trainno.mjs",
+    "check-metro-train-no": "node scripts/verify_metro_train_no.mjs",
     "check-physical-tracks": "node scripts/verify_passing_avoidance.mjs && node scripts/verify_physical_tracks_browser.mjs",
     "check-aeo-browser": "node scripts/verify_aeo_browser.mjs",
     "check-copy": "node scripts/verify_changelog_copy.mjs",
