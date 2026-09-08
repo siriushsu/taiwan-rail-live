@@ -490,18 +490,57 @@ const F_ROWH = { std: 48, large: 68, xlarge: 80 };   // 設計對照表「列高
 const F_SECPX = { std: 11, large: 12.5, xlarge: 14 }; // 設計對照表「小標籤」那一列
 
 async function sectionF(browser, engine) {
-  // F0 結構性:掃原始碼,確認兩條倍率沒有互相跑錯邊(數值判準抓不到「某一處忘了改」)
+  // F0 結構性:掃原始碼,確認三條倍率沒有互相跑錯邊(數值判準抓不到「某一處忘了改」)
   if (engine === 'chromium') {
     const src = readFileSync(path.join(ROOT, 'index.html'), 'utf8');
-    const strayMain = [...src.matchAll(/font-size:\s*calc\(((?:\d(?:\.5)?|10(?:\.5)?|11(?:\.5)?|12)px)\s*\*\s*var\(--ui\)\)/g)];
-    const straySmall = [...src.matchAll(/font-size:\s*calc\((1[2-9]\.5px|1[3-9]px|[2-9]\d[\d.]*px)\s*\*\s*var\(--uis\)\)/g)];
-    ok('F0a 12px 以下的字級沒有一處還留在主倍率 --ui 上', strayMain.length === 0,
-      strayMain.slice(0, 3).map(m => m[1]).join(','));
-    ok('F0b 12.5px 以上的字級沒有一處跑到小倍率 --uis 上', straySmall.length === 0,
-      straySmall.slice(0, 3).map(m => m[1]).join(','));
+    // 🔴 這一段判的是「掛哪一顆倍率」,不是「幾 px」。三條倍率各有分工(見上面那張對照表):
+    //    --ui 主文 1／1.25／1.5、--uis 小標籤與次要說明 1／1.14／1.29、--uit 觸控格 1／1.18／1.36。
+    //    字面要容得下 max()／clamp() 包一層(index.html 已有一處 max(16px, calc(…))),否則寫法一變
+    //    就靜靜逃出盤點;逃了幾條由 F0e 具名守著,不靠人去數(第三條倍率以前根本不在掃描範圍內)。
+    const FS_RAMP = /font-size:[^;{}]*?calc\(\s*([\d.]+)px\s*\*\s*var\((--ui|--uis|--uit)\)\s*\)/g;
+    // 規則的選擇器:從宣告往回找最近的 `{`,再往回找上一個 `}`／`{`／`*/`／`;` 當左界。
+    // 解析不出來就是空字串——下面每一條都把「解析得出選擇器」算進判準,壞掉會轉紅而不是靜靜放行。
+    const selAt = i => { const o = src.lastIndexOf('{', i); if (o < 0) return '';
+      let p = 0; for (const ch of ['}', '{', '*/', ';']) { const k = src.lastIndexOf(ch, o - 1); if (k + ch.length > p) p = k + ch.length; }
+      return src.slice(p, o).replace(/\s+/g, ' ').trim(); };
+    const bodyAt = i => { const o = src.lastIndexOf('{', i), c = src.indexOf('}', i); return o < 0 || c < 0 ? '' : src.slice(o, c); };
+    const decls = [...src.matchAll(FS_RAMP)].map(m => ({ px: +m[1], ramp: m[2], at: m.index,
+      line: src.slice(0, m.index).split('\n').length, sel: selAt(m.index) }));
+    // 例外一律印全部,不印前三個:只印一部分,分母會無聲縮水(F0b 曾經 5 條例外只看得到 3 條)。
+    const list = xs => `${xs.length} 條` + (xs.length ? ':' + xs.map(d => `${d.line}:${d.px}px×${d.ramp} ${d.sel}`).join(' ／ ') : '');
+    // 同一顆元件用「選擇器最後一個 class」認:緊湊態覆寫與它的基底規則一定共用那個 class。
+    const cls = s => { const m = [...String(s).matchAll(/\.[-\w]+/g)]; return m.length ? m[m.length - 1][0] : ''; };
+    const baseOf = d => decls.filter(o => o !== d && o.ramp === '--ui' && o.px >= 12.5 && cls(o.sel) && cls(o.sel) === cls(d.sel));
+    // 🔴 F0a 判的是**語意層級**,不是 px 值。基底 ≥12.5px×--ui 的元件在緊湊態被收窄(例:App 把滿寬
+    //    金底 CTA 收成 44px 藥丸,字 12.5→11.5)並沒有被重新歸類成小標籤;把它改掛 --uis 會讓它在
+    //    特大檔只剩 14.8px,而網站上同一顆是 18.75px——那是把可及性做壞。新寫的小標籤誤用 --ui
+    //    因為沒有合規基底,照樣紅(這是判準升級,不是白名單:豁免條件在檔案裡可查證,不是一份清單)。
+    const small = decls.filter(d => d.ramp === '--ui' && d.px < 12.5);
+    const strayMain = small.filter(d => !baseOf(d).length);
+    ok('F0a 12px 以下的字級沒有一處還留在主倍率 --ui 上(同 class 另有 ≥12.5px×--ui 基底的緊湊態覆寫除外)',
+      strayMain.length === 0,
+      `${list(strayMain)};另有豁免 ${small.length - strayMain.length} 條` +
+      small.filter(d => baseOf(d).length).map(d => `(${d.line}:${d.px}px ${cls(d.sel)} ← 基底 ${baseOf(d)[0].line}:${baseOf(d)[0].px}px)`).join(''));
+    const straySmall = decls.filter(d => d.ramp === '--uis' && d.px >= 12.5);
+    ok('F0b 12.5px 以上的字級沒有一處跑到小倍率 --uis 上', straySmall.length === 0, list(straySmall));
     ok('F0c 兩條倍率三檔都宣告齊全',
       /--uis:\s*1;/.test(src) && /html\[data-fs=large\][^}]*--uis:\s*1\.14/.test(src)
       && /html\[data-fs=xlarge\][^}]*--uis:\s*1\.29/.test(src));
+    // --uit 是觸控格的倍率,不是字級的。字掛上去只有一種正當理由:它被裝在同一顆 --uit 撐大的
+    // 圈／格子裡,兩者不同倍率就會在特大檔溢出。所以判「有沒有成對」,不是判「准不准用」。
+    const touch = decls.filter(d => d.ramp === '--uit');
+    const touchBad = touch.filter(d => !/(?:width|height|min-width|min-height|--[-\w]+):[^;]*var\(--uit\)/
+      .test(bodyAt(d.at).replace(/font-size:[^;]*;/g, '')));
+    ok('F0d 掛在觸控倍率 --uit 上的字級,同一顆規則裡都有一個同樣吃 --uit 的盒子(圈與字同倍率才不會溢出)',
+      touch.length > 0 && touchBad.length === 0, `${list(touch)};不成對 ${list(touchBad)}`);
+    // 🔴 覆蓋率自己要有具名斷言:寬鬆掃描當分母、嚴格字面當分子,不等就是有寫法逃掉了。
+    //    順帶把「每一條都解析得出選擇器」一起釘死,免得 selAt 壞掉之後上面三條全部變成恆真。
+    const loose = [...src.matchAll(/font-size:[^;{}]*var\(--ui[st]?\)/g)];
+    const noSel = decls.filter(d => !d.sel);
+    ok('F0e 盤點沒有漏網:寬鬆掃到的每一條字級,嚴格字面也都認得,而且都解析得出選擇器',
+      loose.length === decls.length && noSel.length === 0,
+      `寬鬆 ${loose.length} / 嚴格 ${decls.length}(--ui ${decls.filter(d => d.ramp === '--ui').length}` +
+      `/--uis ${decls.filter(d => d.ramp === '--uis').length}/--uit ${touch.length});無選擇器 ${list(noSel)}`);
   }
 
   for (const tier of ['std', 'large', 'xlarge']) {
@@ -1633,6 +1672,20 @@ const N_SNAP = () => {
     clrInside: cr ? (cr.right <= r.right + 1 && cr.left >= r.left) : false,
     val: inp.value, focusId: (document.activeElement || {}).id || '',
     dropHidden: !!document.getElementById('searchDrop').hidden,
+    // 空欄時的下拉:2026-09-07 d8fc2fc7 起「清空 ⇒ 收下拉」改成「清空 ⇒ 換回可點的查詢範例」。
+    // 🔴 只驗「下拉還開著」不夠——「開著但整片空白」也會過。連「裡面真的有一顆按得到的建議鈕」
+    //    一起驗,而且是命中測試不是 rect(rect 對不代表點得到);另外要求沒有結果列,否則
+    //    「清空後還留著上一次的查詢結果」同樣會被放行。用結構認,不用中文字認(語系相依)。
+    drop: (() => {
+      const d = document.getElementById('searchDrop');
+      const btns = [...d.querySelectorAll('.rd-suggestions button')];
+      const b = btns[0]; let hit = false, box = null;
+      if (b) { const q = b.getBoundingClientRect(); box = [Math.round(q.width), Math.round(q.height)];
+        const e = document.elementFromPoint(q.left + q.width / 2, (q.top + q.bottom) / 2);
+        hit = !!(e && e.closest('button') === b); }
+      return { hidden: !!d.hidden, disp: getComputedStyle(d).display, 建議鈕: btns.length, 首鈕: box,
+        點得到: hit, 結果列: d.querySelectorAll('.row').length, 查無: !!d.querySelector('.empty') };
+    })(),
     emptyTip: (document.querySelector('#searchDrop .empty .sd-tip') || {}).textContent || '',
   };
 };
@@ -1679,9 +1732,14 @@ async function sectionN(browser, engine, tier = 'std') {
   await page.locator('#searchClear').click();
   await page.waitForTimeout(400);
   const C = await snap();
-  ok(`N5 ${tag} 點清除 ⇒ 值清空·下拉收起·焦點留在輸入框·鈕自己消失`,
-    C.val === '' && C.dropHidden && C.focusId === 'trainSearch' && C.clrW === 0,
-    JSON.stringify({ 值: C.val, 下拉收起: C.dropHidden, 焦點: C.focusId, 清除鈕寬: C.clrW }));
+  // 🔴 判準跟著 09-07 的設計走(d8fc2fc7:清空之後不是收下拉,是換回「不知道查什麼？試試看」的
+  //    可點範例)。不可以只把「下拉收起」那一項刪掉了事——那會讓「清空後下拉整片空白」也過,
+  //    所以正向要求「至少一顆建議鈕、而且點得到」,反向要求「結果列歸零、不是查無畫面」。
+  ok(`N5 ${tag} 點清除 ⇒ 值清空·下拉換回可點的查詢範例·焦點留在輸入框·鈕自己消失`,
+    C.val === '' && !C.drop.hidden && C.drop.disp !== 'none' &&
+    C.drop.建議鈕 >= 1 && C.drop.點得到 && C.drop.結果列 === 0 && !C.drop.查無 &&
+    C.focusId === 'trainSearch' && C.clrW === 0,
+    JSON.stringify({ 值: C.val, 下拉: C.drop, 焦點: C.focusId, 清除鈕寬: C.clrW }));
   // 🔴 反向對照:**程式**寫進去的值也要讓鈕出現。這條專門守「顯示條件不是 JS 開關」——
   //    這顆輸入框有十幾處程式在寫 value,用 JS 同步會漏掉其中一處而長出「空欄卻有鈕」。
   await page.evaluate(() => { const i = document.getElementById('trainSearch'); i.value = '152'; i.blur(); });
@@ -1822,15 +1880,32 @@ async function sectionO(browser, engine) {
     if (!e) return { skip: '站索引找不到 ' + name };
     openBoard({ name: e.name, sys: e.sysId, lat: e.lat, lon: e.lon });
     const bd = document.getElementById('board');
-    const first = bd.querySelector('.row .hm');
+    // 🔴 看板自 2026-08-31(1e26a501)起**依方向分組**,boardGroupOf 的註解逐字寫著「刻意不依
+    //    最近一班倒數排序:位置每次打開都一樣」⇒ **DOM 第一列不再是最早的那一班**(實測宜蘭
+    //    08:15:面板 08:20 在北上組,南下組的 08:37 排在它前面)。面板取的是 schedBoardRows[0]
+    //    ＝全站最早,所以要對的是看板上**最早的那一列**,不是排最前面的那一列。
+    //    每列的 data-night-at ＝ simSec+dtm(絕對模擬秒),用它排序才不會被跨午夜的 HH:MM 騙。
+    const all = [...bd.querySelectorAll('.row')];
+    const bRows = all.map(x => ({ at: Number(x.getAttribute('data-night-at')),
+      hm: ((x.querySelector('.hm') || {}).textContent || '').trim(), no: x.getAttribute('data-no') || '' }))
+      .filter(x => x.hm && Number.isFinite(x.at));
+    const soonest = bRows.length ? bRows.reduce((a, b) => (b.at < a.at ? b : a)) : null;
     const late = bd.querySelector('.row .lateTag');
-    return { name, panel, boardRows: bd.querySelectorAll('.row').length,
-      boardFirst: first ? first.textContent.trim() : '', boardLate: late ? late.textContent.trim() : '' };
+    return { name, panel, boardRows: all.length, 讀得到時刻的列: bRows.length, 最早列: soonest,
+      看板全列: bRows.map(r => r.hm),
+      // 反向對照的材料:面板寫的時刻在整張板上有沒有出現過(§八斗子那種「面板寫了一個板上
+      // 根本沒有的時刻」會讓這一欄變 false,新判準抓得到)
+      面板值在板上: !!(panel && bRows.some(r => panel.includes(r.hm))),
+      boardLate: late ? late.textContent.trim() : '' };
   });
+  // 分岔改成用「看板有沒有列」判,不用「面板有沒有字」判——語意才對得上(面板留白的原因可能
+  // 是別的);另外把「每一列都讀得到時刻」算進判準,否則列的結構一變分母會無聲縮水。
   const okNext = cmp.skip ? false
-    : cmp.panel ? (cmp.boardRows > 0 && cmp.panel.includes(cmp.boardFirst))
-                : cmp.boardRows === 0;
-  ok(`O6 ${tag} 「下一班」與車站看板是同一個時刻(${cmp.panel ? '走到正向那一半:有班次,要對得上' : '此刻全線無班次可列,只驗兩邊都留白'})`,
+    : cmp.boardRows > 0
+      ? (cmp.讀得到時刻的列 === cmp.boardRows && !!cmp.最早列 && !!cmp.panel &&
+         cmp.panel.includes(cmp.最早列.hm))
+      : cmp.panel === '';
+  ok(`O6 ${tag} 「下一班」＝車站看板上最早的那一列(${cmp.boardRows > 0 ? '走到正向那一半:有班次,要對得上' : '此刻全線無班次可列,只驗兩邊都留白'})`,
     okNext, JSON.stringify(cmp));
   // 捷運站:官方到站時刻不走班表,我方不自己推一份 ⇒ 留白(而不是寫 0 或 --)
   const metroRow = A.rows.find(r => /捷運/.test(r.txt));

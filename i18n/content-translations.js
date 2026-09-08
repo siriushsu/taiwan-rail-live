@@ -1458,9 +1458,11 @@
   });
   // 9/8 三處顯示修正（看板單組站標題／線名孤兒空白／跟車卡被壓成 96px）的第一層更新紀錄。
   Object.assign(messages.en, {
+    "調大字級時，轉乘接續裡的車次與「剩 N 分」會跟著一起放大，不再只長一點點": "At larger text sizes the train number and \"N min left\" in transfer connections now scale with the main text instead of barely growing.",
     "修正車站看板與跟車卡三處顯示問題：只有一條線經過的站不再多出線名標題、車號前不再多一個空格、跟車時拖地圖不會再把列車卡壓扁": "Fixed three display issues on the station board and the follow card: stations served by a single line no longer show a redundant line heading, train numbers no longer carry a stray leading space, and dragging the map while following a train no longer squashes the train card."
   });
   Object.assign(messages.ja, {
+    "調大字級時，轉乘接續裡的車次與「剩 N 分」會跟著一起放大，不再只長一點點": "文字を大きくしたとき、乗り換え接続の列車番号と「あと N 分」も本文と同じ倍率で大きくなるようになりました。",
     "修正車站看板與跟車卡三處顯示問題：只有一條線經過的站不再多出線名標題、車號前不再多一個空格、跟車時拖地圖不會再把列車卡壓扁": "駅の発車案内とフォローカードの表示を3点修正しました。1路線のみの駅で余分な路線見出しが出ない、列車番号の前に余分な空白が入らない、追跡中に地図をドラッグしても列車カードがつぶれない。"
   });
 })();
