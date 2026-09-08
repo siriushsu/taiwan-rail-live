@@ -161,8 +161,8 @@
       "kind": "whatsnew",
       "extract": {
         "type": "regex",
-        "pattern": "why:\\s*'((?:[^'\\\\]|\\\\.)*)'",
-        "group": 1
+        "pattern": "why:\\s*(['\"])((?:\\\\.|(?!\\1)[^\\\\])*)\\1",
+        "group": 2
       },
       "minCount": 3,
       "why": "App 內「更新了什麼」彈窗。單語繁中；由 prepare-web.mjs 於 build 時注入 window.RAIL_APP_WHATS_NEW。"

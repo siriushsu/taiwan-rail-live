@@ -1412,7 +1412,7 @@
     },
     "blue": {
       "id": "blue",
-      "name": "藍皮解憂・R123",
+      "name": "藍皮解憂・R135",
       "family": "hood",
       "articulated": false,
       "parts": [
@@ -1433,13 +1433,18 @@
       "appearance": "blender-map-lod",
       "source": {
         "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/blue/blue.model.json",
-        "rawSha256": "ceb203773946f4622cbd3a97f31399ee8aecd17a570c4921112fc6a694d9e57e",
-        "engineeringDimensionsM": null
+        "rawSha256": "a3377e96e867c92b871a340971eb1375b99f57db42b37c432f2ac1ae13535b05",
+        "engineeringDimensionsM": null,
+        "releaseSha256": "a80dd45fd7792a923a3658dbf0daf7facc5dde5885424ac0b0ac8c29117317ef"
       },
       "sources": [
         {
-          "label": "Blair Yu／原始攝影文章",
-          "url": "https://blair-train.blogspot.com/2015/08/r123-tra-r123-diesel-electric-locomotive.html"
+          "label": "原始照片與車型介紹",
+          "url": "https://commons.wikimedia.org/wiki/File:藍皮解憂號於太麻里車站.jpg"
+        },
+        {
+          "label": "官方設計與車輛資料",
+          "url": "https://www.railway.gov.tw/tra-tip-web/tip/tip00N/tipN01/blue/index"
         }
       ]
     },
@@ -1676,7 +1681,7 @@
     },
     "bluecoach": {
       "id": "bluecoach",
-      "name": "藍皮解憂・客車",
+      "name": "藍皮解憂・復古客車",
       "family": "coach",
       "articulated": false,
       "parts": [
@@ -1697,13 +1702,18 @@
       "appearance": "blender-map-lod",
       "source": {
         "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/bluecoach/bluecoach.model.json",
-        "rawSha256": "b2a25b470fcd7011141d8104270c5d043aba56a9d09dbd7e8bceab484c5d27b3",
-        "engineeringDimensionsM": null
+        "rawSha256": "7cf01a33235d406e90337d52efb0d06652f654b3f0dfbdeb9b212e076bfd2a7e",
+        "engineeringDimensionsM": null,
+        "releaseSha256": "a80dd45fd7792a923a3658dbf0daf7facc5dde5885424ac0b0ac8c29117317ef"
       },
       "sources": [
         {
           "label": "Blair Yu／原始攝影文章",
-          "url": "https://blair-train.blogspot.com/2015/08/r123-tra-r123-diesel-electric-locomotive.html"
+          "url": "https://blair-train.blogspot.com/2023/09/blog-post_97.html"
+        },
+        {
+          "label": "官方設計與車輛資料",
+          "url": "https://www.railway.gov.tw/tra-tip-web/tip/tip00N/tipN01/blue/index"
         }
       ]
     },
@@ -3649,23 +3659,24 @@
     },
     "blue": {
       "file": "blue.bin",
-      "sha256": "335fe7e68777b6210a2080a76acd18ac858a30dc5faa94ac827680065feb0fab",
-      "byteLength": 960000,
-      "vertexCount": 24000,
+      "sha256": "02fe7c5b4780e3ad5416479389fd290fe45dae2a8666990c22de98e136a4e1d7",
+      "byteLength": 946920,
+      "vertexCount": 23673,
       "min": [
         -4.689000129699707,
-        -1.394802451133728,
-        0.0010562441311776638
+        -1.3963617086410522,
+        0.0010562296956777573
       ],
       "max": [
         4.689000129699707,
-        1.394802451133728,
-        3.602376937866211
+        1.3963617086410522,
+        3.5200634002685547
       ],
       "source": {
         "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/blue/blue.model.json",
-        "rawSha256": "ceb203773946f4622cbd3a97f31399ee8aecd17a570c4921112fc6a694d9e57e",
-        "engineeringDimensionsM": null
+        "rawSha256": "a3377e96e867c92b871a340971eb1375b99f57db42b37c432f2ac1ae13535b05",
+        "engineeringDimensionsM": null,
+        "releaseSha256": "a80dd45fd7792a923a3658dbf0daf7facc5dde5885424ac0b0ac8c29117317ef"
       },
       "appearance": "blender-map-lod"
     },
@@ -3825,23 +3836,24 @@
     },
     "bluecoach": {
       "file": "bluecoach.bin",
-      "sha256": "2c634bee529576588ae2272f1bdc5a2e7d010a6412eb46721869329343d50a50",
-      "byteLength": 960000,
-      "vertexCount": 24000,
+      "sha256": "d28fe359fc73ecea358a835fef25d538e5652c1679423fa3e351a78a17ff7db9",
+      "byteLength": 959760,
+      "vertexCount": 23994,
       "min": [
-        -4.894000053405762,
-        -1.4895493984222412,
-        0.0011029987363144755
+        -4.968999862670898,
+        -1.6021485328674316,
+        0.001058580121025443
       ],
       "max": [
-        4.894000053405762,
-        1.4895493984222412,
-        3.530322551727295
+        4.968999862670898,
+        1.6021485328674316,
+        3.573901414871216
       ],
       "source": {
         "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/bluecoach/bluecoach.model.json",
-        "rawSha256": "b2a25b470fcd7011141d8104270c5d043aba56a9d09dbd7e8bceab484c5d27b3",
-        "engineeringDimensionsM": null
+        "rawSha256": "7cf01a33235d406e90337d52efb0d06652f654b3f0dfbdeb9b212e076bfd2a7e",
+        "engineeringDimensionsM": null,
+        "releaseSha256": "a80dd45fd7792a923a3658dbf0daf7facc5dde5885424ac0b0ac8c29117317ef"
       },
       "appearance": "blender-map-lod"
     },

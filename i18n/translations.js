@@ -1094,3 +1094,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {"下一班":"次の列車", "暗色
 
 Object.assign(window.RAIL_I18N_MESSAGES.en, {"放大地圖時，車站標記與點擊範圍一起加大；點開車站或跟隨列車時，指北按鈕也能正常回正":"Station markers and tap areas grow as you zoom in. The compass also works while viewing a station or following a train."});
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"放大地圖時，車站標記與點擊範圍一起加大；點開車站或跟隨列車時，指北按鈕也能正常回正":"地図を拡大すると駅マークとタップ範囲も大きくなります。駅の案内や列車の追跡中も、方位ボタンで北向きに戻せます。"});
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"藍皮解憂號模型重新校正短車鼻、頭燈、R135 車號牌與深藍白線塗裝，客車同步換上藍色車身及銀灰車頂": "The Breezy Blue model now has a shorter nose, detailed headlights, R135 number boards and corrected navy-and-white paint, with blue coaches and silver-grey roofs."});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"藍皮解憂號模型重新校正短車鼻、頭燈、R135 車號牌與深藍白線塗裝，客車同步換上藍色車身及銀灰車頂": "藍皮解憂号の短いノーズ、ヘッドライト、R135番号板、紺と白の塗装を修正。客車も青い車体と銀灰色の屋根に更新しました。"});

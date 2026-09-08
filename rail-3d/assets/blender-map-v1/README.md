@@ -18,3 +18,10 @@
 ```
 
 來源與簡化範圍請見原車庫的 `README.md`、`references.json`。原圖沒有封裝為貼圖。地圖衍生檔保留來源連結，不改變原資料的授權或適用範圍。
+
+## 2026-09-08 藍皮外觀校正
+
+本輪只更新 `blue` 與 `bluecoach`，來源為 Blender 精修包的 R135 第二輪修正版及復古客車。機車改短鼻、外凸燈組、深海軍藍、白飛翼及黃黑 V 紋；客車為全藍側牆、白腰線與銀灰拱頂。
+地圖沿用既有規則移除範例車籍文字，由行車資料顯示車次；燈座、字牌框及塗裝仍保留。單車目標 8,000 三角形。逐款來源 Raw 與 release SHA 記錄在 manifest，不改班表或編組規則。
+
+增量重建：`Blender -b --python scripts/import_blender_map.py -- --source <Blender 精修包> --models blue bluecoach`。
