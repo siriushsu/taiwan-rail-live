@@ -1374,12 +1374,33 @@ const L_SNAP = () => {
     //    整張淡出)就是這樣穿過 L6 的:分頁列還在、卡也還在槽裡,只有內容看不見。改量兩件事:
     //    卡到根的累乘不透明度、以及卡內容的中心點打到的是不是卡自己(淡出那條連 pointer-events 一起關)。
     fpOpacity: fp ? (() => { let o = 1, n = fp; while (n && n.nodeType === 1) { o *= parseFloat(getComputedStyle(n).opacity || '1'); n = n.parentElement; } return +o.toFixed(3); })() : 0,
+    // 🔴 契約③(body.sheet-full 把跟隨小卡整張淡出)要驗的是「卡的內容此刻真的看得見、點得到」。
+    //    不可以只打元素中心一點:整合卡合併態時卡是看板的一頁,#board 在 792px 硬裁切,而 #tcIntro
+    //    橫跨 752..842 ⇒ 中心點 797 落在裁切線【外面】,打到的是線下方的地圖。粗體 CJK 的字型度量
+    //    兩個引擎每層差 1–2px,十來層累積十幾 px,webkit 的中心點還在線內、chromium 被推出去
+    //    ⇒ 同一份程式碼兩個引擎給相反結論。那是量測點的問題,不是契約壞了。
+    //    也不要去推「哪個祖先會裁切」:overflow 只對【containing block 鏈經過它】的後代生效,
+    //    盲目跟 overflow≠visible 的祖先求交集會把毫不相干的頂列(0..78)算進來,交集直接倒過來。
+    //    改成在元素自己的框內取樣多點,只要有一點打到卡就算看得見——淡出時 opacity:0＋
+    //    pointer-events:none,任何一點都不會回到卡身上,判準的牙齒一顆沒少。
     cardHit: (() => { const e = document.getElementById('tcIntro') || document.getElementById('fpProgTxt');
-      if (!e) return false; const r = e.getBoundingClientRect();
-      if (!(r.width > 2 && r.height > 2)) return false;
-      const x = Math.min(Math.max(r.left + r.width / 2, 1), innerWidth - 1);
-      const y = Math.min(Math.max(r.top + r.height / 2, 1), innerHeight - 1);
-      const q = document.elementFromPoint(x, y); return !!(q && q.closest('#followPanel')); })(),
+      if (!e) return { ok: false, why: 'tcIntro/fpProgTxt 都不存在' };
+      const r = e.getBoundingClientRect();
+      if (!(r.width > 2 && r.height > 2)) return { ok: false, why: '元素沒有尺寸' };
+      let tried = 0, hit = 0, first = '', hitAt = '';
+      for (const fy of [0.5, 0.2, 0.8, 0.05, 0.95]) for (const fx of [0.5, 0.2, 0.8]) {
+        const x = r.left + r.width * fx, y = r.top + r.height * fy;
+        if (x < 1 || y < 1 || x > innerWidth - 1 || y > innerHeight - 1) continue;
+        tried++;
+        const q = document.elementFromPoint(x, y);
+        const id = q ? (q.id ? '#' + q.id : q.tagName + '.' + String(q.className || '').split(' ')[0]) : 'null';
+        if (!first) first = `${Math.round(x)},${Math.round(y)}→${id}`;
+        if (q && q.closest('#followPanel')) { hit++; if (!hitAt) hitAt = `${Math.round(x)},${Math.round(y)}`; }
+      }
+      return { ok: hit > 0,
+        why: { 元素: `${Math.round(r.top)}..${Math.round(r.bottom)}`, 取樣: tried, 命中: hit,
+               第一點: first, 命中點: hitAt || '(無)' } };
+    })(),
   };
 };
 
@@ -1452,7 +1473,7 @@ async function sectionL(browser, engine) {
   // 🔴 第二種證據(心得 24 的雙證據):卡到根的累乘不透明度＝1,且卡內容中心點打到的是卡自己。
   //    契約③ 淡出時 opacity 0＋pointer-events:none,兩者會同時倒——而 DOM 檢查全綠。
   ok(`L12 ${tag} 展開段那一頁不是透明的:不透明度 1 且卡內容命中自己`,
-    B.fpOpacity === 1 && B.cardHit, JSON.stringify({ opacity: B.fpOpacity, 命中卡: B.cardHit }));
+    B.fpOpacity === 1 && B.cardHit.ok, JSON.stringify({ opacity: B.fpOpacity, 命中卡: B.cardHit.ok, 診斷: B.cardHit.why }));
   // 反向對照:回到小段提示列要回來——少了這半,「提示列永遠不顯示」也會讓 L6 過。
   // 兩段制之後提示列只掛在小段(中段已經看得到下面了),所以反向對照的目標段是 small。
   await page.evaluate(() => setSheetSize(document.getElementById('board'), 'small'));
@@ -1606,6 +1627,8 @@ const N_SNAP = () => {
     clrInside: cr ? (cr.right <= r.right + 1 && cr.left >= r.left) : false,
     val: inp.value, focusId: (document.activeElement || {}).id || '',
     dropHidden: !!document.getElementById('searchDrop').hidden,
+    // 清空後的下拉改成「可點的查詢範例」(見 N5):數的是真的可按的鈕,不是有沒有字
+    dropTips: document.querySelectorAll('#searchDrop button, #searchDrop .sd-row').length,
     emptyTip: (document.querySelector('#searchDrop .empty .sd-tip') || {}).textContent || '',
   };
 };
@@ -1648,13 +1671,17 @@ async function sectionN(browser, engine, tier = 'std') {
   ok(`N4 ${tag} 打字後清除鈕出現:熱區 ≥44、命中自己、貼在框內、文字讓開`,
     B.clrW >= 44 && B.clrH >= 44 && B.clrHit && B.clrInside && B.padR >= 44,
     JSON.stringify({ 寬: B.clrW, 高: B.clrH, 命中: B.clrHit, 在框內: B.clrInside, 右內距: B.padR }));
-  // 🔴 驗按鈕是驗「點它會發生什麼」:值要清掉、下拉要收、焦點要留著(手機鍵盤不能因為按清除就收)
+  // 🔴 驗按鈕是驗「點它會發生什麼」:值要清掉、焦點要留著(手機鍵盤不能因為按清除就收)。
+  //    下拉那一項 2026-09-07(d8fc2fc7 v0907a 路線導覽)起【刻意】不再收起:renderSearchDrop 的
+  //    空值分支改成組「不知道查什麼?試試看」的可點範例並 openSearchDrop(),同一顆 commit 也把
+  //    scripts/verify_query_tab.mjs 一起改了、只有這支沒跟上。判準照新設計改成「下拉開著且
+  //    真的有可按的範例」——不是放寬:原本只要求 hidden 一個布林,現在還多要求列得出東西。
   await page.locator('#searchClear').click();
   await page.waitForTimeout(400);
   const C = await snap();
-  ok(`N5 ${tag} 點清除 ⇒ 值清空·下拉收起·焦點留在輸入框·鈕自己消失`,
-    C.val === '' && C.dropHidden && C.focusId === 'trainSearch' && C.clrW === 0,
-    JSON.stringify({ 值: C.val, 下拉收起: C.dropHidden, 焦點: C.focusId, 清除鈕寬: C.clrW }));
+  ok(`N5 ${tag} 點清除 ⇒ 值清空·焦點留在輸入框·鈕自己消失·下拉換成可點的查詢範例`,
+    C.val === '' && !C.dropHidden && C.dropTips >= 2 && C.focusId === 'trainSearch' && C.clrW === 0,
+    JSON.stringify({ 值: C.val, 下拉開著: !C.dropHidden, 範例數: C.dropTips, 焦點: C.focusId, 清除鈕寬: C.clrW }));
   // 🔴 反向對照:**程式**寫進去的值也要讓鈕出現。這條專門守「顯示條件不是 JS 開關」——
   //    這顆輸入框有十幾處程式在寫 value,用 JS 同步會漏掉其中一處而長出「空欄卻有鈕」。
   await page.evaluate(() => { const i = document.getElementById('trainSearch'); i.value = '152'; i.blur(); });
@@ -1795,13 +1822,29 @@ async function sectionO(browser, engine) {
     if (!e) return { skip: '站索引找不到 ' + name };
     openBoard({ name: e.name, sys: e.sysId, lat: e.lat, lon: e.lon });
     const bd = document.getElementById('board');
-    const first = bd.querySelector('.row .hm');
     const late = bd.querySelector('.row .lateTag');
+    // 🔴 不可以拿 DOM 的第一列當「下一班」:看板自 1e26a501(2026-08-31)起【依方向固定分組】
+    //    (南下→北上→支線→抵達,boardGroupOf 寫死 order),刻意不依倒數排序——註解原句是
+    //    「位置每次打開都一樣,使用者不必重新找」。所以 DOM 第一列只是「第一個非空群組裡最早的
+    //    那班」,在任何「南下最早班晚於北上最早班」的站都不等於全站最早,而面板的「下一班」取的
+    //    正是全站最早(schedBoardRows[0]) ⇒ 拿呈現順序比對會假紅(實測宜蘭:面板 08:20/DOM 08:37)。
+    //    判準改成【跟看板列出的班次裡最早的那班比】:一致性照樣守得住,但不再綁在呈現順序上。
+    const hm = [...bd.querySelectorAll('.row .hm')].map(x => x.textContent.trim()).filter(Boolean);
+    const now = (typeof state !== 'undefined' && state.simSec != null) ? state.simSec
+      : (new Date().getHours() * 3600 + new Date().getMinutes() * 60);
+    let boardNext = '', best = Infinity;
+    for (const x of hm) {
+      const m = /^(\d{1,2}):(\d{2})/.exec(x); if (!m) continue;
+      // 取模是為了跨午夜:剛過站的列會變成 ~86390 而不是負數,不會被誤選成「最早」
+      const d = (((+m[1] * 3600 + +m[2] * 60) - now) % 86400 + 86400) % 86400;
+      if (d < best) { best = d; boardNext = x; }
+    }
     return { name, panel, boardRows: bd.querySelectorAll('.row').length,
-      boardFirst: first ? first.textContent.trim() : '', boardLate: late ? late.textContent.trim() : '' };
+      boardNext, boardFirstDom: hm[0] || '', boardTimes: hm.slice(0, 8),
+      late: late ? late.textContent.trim() : '' };
   });
   const okNext = cmp.skip ? false
-    : cmp.panel ? (cmp.boardRows > 0 && cmp.panel.includes(cmp.boardFirst))
+    : cmp.panel ? (cmp.boardRows > 0 && !!cmp.boardNext && cmp.panel.includes(cmp.boardNext))
                 : cmp.boardRows === 0;
   ok(`O6 ${tag} 「下一班」與車站看板是同一個時刻(${cmp.panel ? '走到正向那一半:有班次,要對得上' : '此刻全線無班次可列,只驗兩邊都留白'})`,
     okNext, JSON.stringify(cmp));
@@ -2184,8 +2227,23 @@ async function sectionT(browser, engine) {
     if (b) b.click();
   });
   await page.waitForTimeout(500);
-  const n0 = await page.evaluate(() => document.querySelectorAll('#lineToggles .chip').length);
-  ok(`T1 ${engine} 正向對照:量得到車種 chip`, n0 >= 3, `chip=${n0}`);
+  // 🔴 d8fc2fc7(v0907a 路線導覽)把 #lineToggles 搬進軌道面板的第三個子分頁,面板一打開預設停在
+  //    「路線」那頁 ⇒ #rdSettings 是 hidden ⇒ chip 雖然在 DOM 裡但 rect 全是 0,下面的
+  //    page.mouse.click 會點到 (0,0)——實測 elementFromPoint(0,0) 命中的是地圖 canvas,
+  //    T3–T7 因此全紅而且看起來像「chip 點不動」。先切到那一頁再量。
+  await page.evaluate(() => document.querySelector('[data-rdtab="settings"]')?.click());
+  await page.waitForTimeout(400);
+  // 🔴 正向對照要證明的是「量得到」,不是「DOM 裡有」:上面那次搬家之後 chip 有 30 個而 rect 全 0,
+  //    舊版只數 querySelectorAll 的長度,照樣綠著穿過去(T2 也是——getComputedStyle 對隱藏祖先
+  //    底下的元素一樣回宣告值),只有 T6 的「開 0」洩了底。所以這裡連版面一起斷言。
+  const t1 = await page.evaluate(() => {
+    const all = [...document.querySelectorAll('#lineToggles .chip')];
+    return { all: all.length,
+      laid: all.filter(c => c.getClientRects().length > 0 && c.getBoundingClientRect().width > 0).length };
+  });
+  const n0 = t1.laid;
+  ok(`T1 ${engine} 正向對照:量得到車種 chip(而且真的有版面,不是躲在收起來的分頁裡)`,
+    t1.all >= 3 && t1.laid >= 3, `DOM=${t1.all} 有版面=${t1.laid}`);
   if (n0 < 3) { await close(); return; }
 
   const READ = sel => {

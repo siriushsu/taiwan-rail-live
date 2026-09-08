@@ -258,6 +258,22 @@ try {
   if (afr.status !== 0) fail('阿里山林鐵守門人未過——路網／班次／看板／手機版,或「奔跑中列車都在軌道上」壞了'
     + '（單獨重跑：npm run check-afr）');
 
+  // ── 2.17 issue #19 跟車面板時間軸守門人(2026-09-08) ───────────────────────
+  // 為什麼值得進出貨鏈:它守的是「跟車面板宣稱的已行駛里程」與「地圖實際繪製的車輛座標」
+  // 對不對得上,而判準刻意【不與實作同源】——不拿 nextStopInfo 去驗 journeyProgress(那兩者
+  // 同軸、必然自洽),是把面板的里程換算回路線上的一點,量它與繪製點的實地距離,另一路用幾何
+  // 投影反算里程互相對帳。這正是「別人改東西時會靜默壞掉」那一類:動誤點吸收、動 trainPos、
+  // 動 journeyProgress、動阻擋 hold,畫面照樣有車、面板照樣有數字,只是差了一個誤點量。
+  // 順帶守停靠態(狀態列/下一站/時速三處一致)與三種手機寬度下遙測列與跟隨小卡的一致性。
+  // 單引擎 12 秒(含自己起 dev server),是本鏈最便宜的瀏覽器閘門。
+  // 🔴 洗掉繼承來的 VURL:有值時它改連既有 server——出貨那個 shell 若 export 過 VURL
+  //    (本機同時 30+ 個 worktree 各有自己的 dev server),就會一聲不響地去驗別人的樹。
+  //    空字串走 falsy 分支＝照常自起(埠由 OS 指派),而且 G0 的 md5 閘門兩條路都會跑。
+  const issue19 = spawnSync('node', [path.join(wt, 'scripts', 'verify_issue19.mjs')], { encoding: 'utf8', env: { ...process.env, VURL: '', PORT: '' } });
+  process.stdout.write(issue19.stdout || ''); process.stderr.write(issue19.stderr || '');
+  if (issue19.status !== 0) fail('跟車面板時間軸守門人未過——面板的里程與地圖畫的車對不上,或停靠態/遙測列壞了'
+    + '（單獨重跑：npm run check-issue19）');
+
   // ── 3. strip（腳本內建 esbuild AST 重印等價證明，任何不等價都非零退出）────
   const rawBytes = fs.readFileSync(path.join(wt, 'index.html'));
   execFileSync('node', [path.join(wt, 'scripts', 'strip_ship_comments.mjs'), wt], { stdio: 'inherit' });

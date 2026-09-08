@@ -1259,11 +1259,11 @@
   /* 混系統/釘選時每列前面的系統小標(同系統時標題已指名,不重複顯示,見 xfcSysName 呼叫端)。 */
   .xfer-conn .xfc-sys { grid-area: sys; font-size: calc(11px * var(--uis));
     font-weight: 800; color: var(--faint); white-space: nowrap; }
-  .xfer-conn .xfc-no { grid-area: no; font-size: calc(15px * var(--uis)); font-weight: 800;
+  .xfer-conn .xfc-no { grid-area: no; font-size: calc(15px * var(--ui)); font-weight: 800;
     color: var(--ink-strong); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .xfer-conn .xfc-d { grid-area: d; font-size: calc(11.5px * var(--uis)); min-width: 0;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .xfer-conn .xfc-left { grid-area: left; justify-self: end; font-size: calc(13px * var(--uis));
+  .xfer-conn .xfc-left { grid-area: left; justify-self: end; font-size: calc(13px * var(--ui));
     font-weight: 800; color: var(--ink-strong); font-variant-numeric: tabular-nums; white-space: nowrap; }
   /* 寬支:收成一行。container-type 掛在 .xfer-conn 身上,所以斷點量的是「區塊自己的內容寬」
      而不是卡片寬——桌面 240 卡＝194px、全畫面 300 卡＝254px。
@@ -1271,7 +1271,7 @@
   @container (min-width: 250px) {
     .xfer-conn .xfc-row { grid-template-columns: auto auto 1fr auto;
       grid-template-areas: "sys no d left"; min-height: 38px; padding: 5px 0; }
-    .xfer-conn .xfc-no { font-size: calc(14px * var(--uis)); }
+    .xfer-conn .xfc-no { font-size: calc(14px * var(--ui)); }
   }
   /* 釘選態的視覺標記:左緣 2px 主色軌＋紙面加深＋車次轉主色。不加圖示、不加額外文字。 */
   .xfer-conn .xfc-row[aria-pressed=true] { box-shadow: inset 2px 0 0 var(--navy); padding-left: 8px;
@@ -2141,7 +2141,7 @@
      🔴 選擇器帶 html:not([data-fs]) ⇒ 只進標準檔(沒有 data-fs 就是標準)。大/特大是全站最會撞版的
      一列(見下面那段),padding 與 margin 若漏進去會動到它們的幾何——那兩塊要維持零變化對照。 */
   html:not([data-fs]) .board .row[data-no] .lateTag {
-    font-size: calc(12.5px * var(--uis)); font-weight: 900; padding: 1px 5px 2px; margin-left: 5px;
+    font-size: calc(12.5px * var(--ui)); font-weight: 900; padding: 1px 5px 2px; margin-left: 5px;
   }
 
   /* ── 設計 6b 車站看板列 · 三階實際塞法 ──────────────────────────────────────
@@ -2364,7 +2364,7 @@
       display: flex; align-items: center; justify-content: center;
       width: var(--board-wait-w); height: 44px; margin: 0; padding: 0 6px;
       background: none; border: 0; border-radius: 0; box-shadow: none;
-      font-size: calc(11.5px * var(--ui)); letter-spacing: 0; white-space: nowrap;
+      font-size: calc(11.5px * var(--uis)); letter-spacing: 0; white-space: nowrap;
       isolation: isolate;
     }
     html[data-app-platform] .board h3.has-wait .board-wait::before {
@@ -3911,7 +3911,7 @@
     #searchPanel .qa-head { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 14px 2px; cursor: pointer; }
     #searchPanel .qa-head b { font-size: calc(15px * var(--ui)); font-weight: 800; color: var(--ink); }
     #searchPanel .qa-head .qa-src { margin-left: auto; font-size: calc(11.5px * var(--uis)); color: var(--faint); font-weight: 600; white-space: nowrap; }
-    #searchPanel .qa-head .chev { font-size: calc(13px * var(--uis)); color: var(--faint); font-weight: 600; }
+    #searchPanel .qa-head .chev { font-size: calc(13px * var(--ui)); color: var(--faint); font-weight: 600; }
     /* 系統徽章:淺底版,與 #searchDrop .sys-chip 同一套(那條被 #searchDrop 限定,這裡再寫一份) */
     #searchPanel .qa-head .sys-chip {
       padding: 0 7px 1px; font-size: calc(10.5px * var(--uis)); font-weight: 700; letter-spacing: 1px;
@@ -28887,9 +28887,12 @@ function metroBoardGroupLabel(ln) {
   return String((ln && (ln.name || ln.abbr || ln._sysLabel)) || '').replace(/（[^（）]*）\s*$/, '');
 }
 // 回傳每組的標題字;整張板只有一種線名時回 null(＝不加標題)。
-// 🔴 門檻是「群組數」不是「不同線名數」:大橋頭同時服務中和新蘆線的迴龍與蘆洲兩支,去掉括號後
-//    兩組線名相同——用「不同線名 ≥2」判會退回無標題,列上就得帶回完整線名,而那正是分支資訊
-//    最重要的一站。有標題時連續同名只印一次,所以大橋頭得到的是「一個中和新蘆線標題＋迴龍/蘆洲兩種列」。
+// 🔴 門檻數的是「相異線名數」不是「群組數」:同一條線在同一站可以合法地切成多組——象山自
+//    8/30 信義東延段通車後固定有 北投／廣慈-奉天宮／淡水 三組,全都是淡水信義線,用群組數判
+//    會長出一排寫著同一條線名的標題,違反上面那行的契約(芝山、石牌等中途站同理,不是象山獨有)。
+//    大橋頭那個「去掉括號後兩組同名、但正是分支資訊最重要的一站」改由下面的 branchy 承擔:
+//    它不必等到兩組都有車,所以拿掉群組數門檻不會讓大橋頭掉標題。有標題時連續同名只印一次,
+//    大橋頭得到的仍是「一個中和新蘆線標題＋迴龍/蘆洲兩種列」。
 function metroBoardGroupHeads(groups) {
   const labels = (groups || []).map(g => metroBoardGroupLabel(g.ln));
   // 🔴 帶分支括號的線(中和新蘆線（迴龍）/（蘆洲）)只要出現就給標題,不必等到兩組都有車:
@@ -28897,7 +28900,7 @@ function metroBoardGroupHeads(groups) {
   //    當下有沒有車在兩支上而在兩種樣子之間跳(實測大橋頭剩一班車時就是這樣)。
   //    不帶括號的線維持 16b 原樣:單線站不長標題。
   const branchy = (groups || []).some(g => /（[^（）]*）\s*$/.test(String((g.ln && g.ln.name) || '')));
-  return labels.filter(Boolean).length >= (branchy ? 1 : 2) ? labels : null;
+  return new Set(labels.filter(Boolean)).size >= (branchy ? 1 : 2) ? labels : null;
 }
 // 同一條線的組是連續的(三支 renderer 的 groups 都先照 li 排序),所以只要跟前一組不同字就換組。
 // 有組標題時,列上不必再重複線名——只留組標題【沒講】的那件事:分支(中和新蘆線的「迴龍」/「蘆洲」)。
@@ -28939,7 +28942,7 @@ function renderMetroCoreFreqBoard(el, st, lines, isDeco, view, opts) {
       return `<div class="row${crowdHtml ? ' has-crowd' : ''}" data-core-record="${index}"${followable
         ? ` data-core-vehicle="${escHtml(rec.vehicleId)}" data-core-system="${escHtml(rec.systemId)}" data-core-line="${escHtml(group.ln.id)}" data-li="${group.li}" title="${escHtml(followTitle)}"` : ''}>` +
         `<span class="dot" style="background:${group.ln.color}"></span><b>${escHtml(direction)}</b>` +
-        `<span class="dest">${escHtml(lineLabel)}${label ? '　' + escHtml(label) : ''}</span>` +
+        `<span class="dest">${escHtml([lineLabel, label].filter(Boolean).join('　'))}</span>` +
         crowdHtml +
         `<span class="t">${trtcOfficialAbsoluteHM(rec.arrivalEpoch)}</span><span class="min">${escHtml(metroCoreCountdownText(rec))}</span></div>`;
     }
@@ -32014,7 +32017,12 @@ function setupMapTools() {
     const immersive = document.body.classList.contains('immersive');
     // 側欄形態的跟隨欄是上下錨定(CSS 唯一權威,bottom 帶 !important),不參與底部讓位的抬升記帳;
     // 這裡把它當「不在」,尾端的歸零寫入(空字串)順便清掉直向時代殘留的 inline bottom
-    const followVisible = state.followTrain && !fp.hidden && !immersive && !sheetIsSideRail();
+    // 🔴 整合卡合併態(.uni-slot)同理:那時卡是看板的一頁,3795 那條 CSS 明文要 max-height:none
+    //    ＋overflow:visible(否則卡內一個捲軸、看板外面一個捲軸,手指永遠捲不到停靠表)。
+    //    inline style 不用比特異度就贏,所以這裡不排除的話,setCap 寫的 inline max-height 會
+    //    直接蓋掉那條契約——placeTrainCard(16217)早就有 uniCardOn 檢查,這支漏了同一個分歧點。
+    const followVisible = state.followTrain && !fp.hidden && !immersive && !sheetIsSideRail()
+      && !fp.closest('.uni-slot');
     const freqVisible = !!(state.freqFollow && fc && !fc.hidden && !immersive);
     // ── 第一層:逃生提示(#iabHint)讓開膠囊 ──
     // 提示 CSS 釘死 bottom:74px,而收合(slim)膠囊的頂端比提示的下緣還高 26–29px ⇒ 提示(z713)
@@ -32068,10 +32076,12 @@ function setupMapTools() {
       //    下緣不隨高度變,先寫後量安全;bottom 只改位置不改尺寸,不會驚動 ResizeObserver。
       fp.style.bottom = followVisible ? lift + 'px' : '';
       if (fc) fc.style.bottom = freqVisible ? lift + 'px' : '';
-      for (const el of [followVisible && fp, freqVisible && fc]) {
+      // 🔴 兩張卡都要走一遍:只迭代「有參與的那張」會讓另一張留著上一輪的 inline max-height
+      //    (例:捷運跟車開著、台鐵跟隨欄剛併進整合卡 ⇒ fp 不參與,舊的夾高卻還在身上)。
+      for (const [vis, el] of [[followVisible, fp], [freqVisible, fc]]) {
         if (!el) continue;
         // 96px 下限:視窗矮到連這都放不下時,寧可少讓一點也要讓卡自己還有頭部可讀可關。
-        setCap(el, Math.max(96, Math.round(el.getBoundingClientRect().bottom - (ceil + 8))) + 'px');
+        setCap(el, vis ? Math.max(96, Math.round(el.getBoundingClientRect().bottom - (ceil + 8))) + 'px' : '');
       }
       capped = true;
     }
