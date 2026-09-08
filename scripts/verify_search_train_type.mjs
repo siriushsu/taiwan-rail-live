@@ -140,6 +140,19 @@ for (const engine of ENGINES) {
     ok(E('G1c 命中總數行寫出正確的班數'), r.count.includes(String(exp.trains.length)), `期望含 ${exp.trains.length}，實得「${r.count.trim()}」`);
   }
 
+  // G1d 專考「車種(typeName)」那一層：官方 carName 本身就寫「自強(3000障)」這種字樣，
+  // 所以「自強號」光靠車型那條路就全命中了——G1a–G1c 其實驗不到 typeName 比對有沒有接上
+  // （突變測試實證：拿掉 typeName 那行，G1 三條仍全綠）。「復興」是純車種路徑：
+  // rollingStock 八種車型的名稱與 carNames 都不含「復興」，只有班表的 typeName「莒光/復興」有。
+  {
+    const exp = expectHits('復興');
+    const r = await search(page, '復興');
+    ok(E(`G1d 前提：「復興」只有車種那條路命中（車型 ${exp.stocks.length} 種、班次 ${exp.trains.length} 班）`),
+      exp.stocks.length === 0 && exp.trains.length > 0, `車型 ${exp.stocks.length}／班次 ${exp.trains.length}`);
+    ok(E('G1d 「復興」查得到（考的是 typeName 比對這一層）'), r.trRows.length > 0, `列出 ${r.trRows.length} 列`);
+    ok(E('G1d2 「復興」不該冒出車型列'), r.stockRows.length === 0, `車型列 ${JSON.stringify(r.stockRows)}`);
+  }
+
   // G2 車型查詢：EMU3000 含數字，改動前會被當車次前綴查而落空
   {
     const exp = expectHits('EMU3000');
