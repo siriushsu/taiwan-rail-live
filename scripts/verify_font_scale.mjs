@@ -71,8 +71,14 @@ async function assertLocale(browser, engine) {
     followParen: window.__i18n ? window.__i18n.t('（跟隨系統）') : null,
     station: window.__i18n ? window.__i18n.stationName('松山') : null,
   }));
-  ok(`T0L ${engine} 語系釘死在 zh-TW(全檔中文文案判準的前提)`,
-    st.i18n === 'zh-TW' && st.doc === 'zh-TW' &&
+  // 🔴 nav 這一條是【第二道釘子】自己的守門人,不是裝飾:兩道釘子(網址 ?lang、context locale)
+  //    只有第一道被上面三個文案樣本蓋到——2026-09-08 突變實測 M2(context locale 改 en-US、
+  //    網址 ?lang 留 zh-TW)整條 T0L 照樣 PASS,而 detail 那行就明明白白印著 "nav":"en-US"。
+  //    那正是「覆蓋率印在 detail 裡卻沒有判準在看」的形態:context locale 管的是
+  //    navigator.language 與【沒帶 locale 參數】的 Intl/toLocaleString(時刻、數字格式),
+  //    它靜靜漂成跑測試那台機器的語系時,前面三個樣本一個都不會倒。
+  ok(`T0L ${engine} 語系釘死在 zh-TW(全檔中文文案判準的前提;兩道釘子各有一條判準)`,
+    st.i18n === PAGE_LOCALE && st.doc === PAGE_LOCALE && st.nav === PAGE_LOCALE &&
     st.followParen === '（跟隨系統）' && st.station === '松山', JSON.stringify(st));
   await close();
 }
