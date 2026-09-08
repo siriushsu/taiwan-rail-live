@@ -29,7 +29,7 @@ const chroma=p=>p.evaluate(()=>{const c=document.querySelector('.g-view'),d=c.ge
   let sum=0,n=0;for(let i=0;i<d.length;i+=4){if(!d[i+3])continue;sum+=Math.max(d[i],d[i+1],d[i+2])-Math.min(d[i],d[i+1],d[i+2]);n++;}return n?sum/n:-1;});
 const lockOf=p=>p.evaluate(()=>document.querySelector('.g-view').dataset.lock);
 
-const select=async(p,id)=>{await p.locator('.g-car[data-model="'+id+'"]').evaluate(e=>e.click());await p.waitForFunction(id=>document.querySelector('.g-view')?.dataset.rendered===id,id);};
+const select=async(p,id)=>{await p.selectOption('.g-model-select',id);await p.waitForFunction(id=>document.querySelector('.g-view')?.dataset.rendered===id,id);};
 async function auditControls(page){
  return page.evaluate(()=>{
   const d=document.getElementById('trainGarage'),els=[...d.querySelectorAll('button,input,select,summary,a')].filter(el=>{const r=el.getBoundingClientRect();return el.checkVisibility()&&r.width&&r.height&&r.top>=70&&r.bottom<=innerHeight;});
@@ -94,8 +94,10 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
   check(engine+' 重開保留護照推導進度',await page.locator('.g-count').textContent()===count);
   await page.evaluate(()=>{saveRides([]);saveCheckins({v:2,st:{},sg:{}});renderPassport();});
   check(engine+' 換成空白護照不殘留前一份收藏',await page.locator('.g-count').textContent()==='0');
-  await page.click('[data-filter="all"]');await page.fill('#trainGarage input','找不到的款式');check(engine+' 搜尋空結果',await page.locator('.g-empty').isVisible());await page.click('.g-reset');
-  await page.selectOption('#trainGarage select','台北捷運');check(engine+' 系統篩選',await page.locator('.g-car').count()===7);await page.selectOption('#trainGarage select','');
+  await page.click('[data-filter="owned"]');check(engine+' 空收藏停用選單並提供返回所有車款',await page.locator('.g-empty').isVisible()&&await page.locator('.g-model-select').isDisabled()&&!await page.locator('.g-showcase').isVisible());await page.click('.g-reset');
+  check(engine+' 移除搜尋框，62 款依系統分組選車',await page.locator('#trainGarage input').count()===0&&await page.locator('.g-model-select option').count()===62&&await page.locator('.g-model-select optgroup[label="台北捷運"] option').count()===7);
+  await select(page,'700t');check(engine+' 下拉選車同步展示台與收藏架',await page.locator('.g-car[data-model="700t"]').getAttribute('aria-pressed')==='true'&&await page.locator('.g-name').textContent()===await page.evaluate(()=>RailGarageCatalog['700t'].name));
+  await page.locator('.g-car[data-model="c301"]').click();await ready(page);check(engine+' 收藏架選車回到下拉選單',await page.locator('.g-model-select').inputValue()==='c301'&&await page.locator('.g-model-select').evaluate(el=>el===document.activeElement));
   await page.route('**/garage-blender-v1/ct273.bin.gz',r=>r.fulfill({status:503,body:'retry'}));
   await page.locator('.g-car[data-model="ct273"]').evaluate(e=>e.click());await page.waitForSelector('.g-retry:visible');
   check(engine+' 網格失敗顯示重試且不影響收藏',await page.locator('.g-count').textContent()==='0');
@@ -110,13 +112,18 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
   check(engine+' 桌面無 JS 例外',errors.length===0,errors);await ctx.close();
   }
   for(const width of [360,375,390,414,600,768,844]){
-   const {ctx,page,errors}=await boot(browser,width,'',width===844?390:width===768?1024:900);
+   const {ctx,page,errors}=await boot(browser,width,'',width===844?390:width===768?1024:width===360?640:width===375?667:width===414?736:900);
    await page.evaluate(()=>{document.body.classList.add('fs');const banner=document.getElementById('alertBanner');banner.hidden=false;banner.textContent='營運公告';const tr=state.trains.find(t=>t.sys==='tra_sched'&&!t.loop);followTrainNo(tr.train,{sys:tr.sys});openRidePanel();});
    await page.tap('#tabMore');await page.locator('#moreSheet [data-act="garage"]').scrollIntoViewIfNeeded();await page.tap('#moreSheet [data-act="garage"]');await ready(page);
+   const first=await page.evaluate(()=>{const c=document.querySelector('.g-view').getBoundingClientRect(),s=document.querySelector('.g-model-select').getBoundingClientRect(),d=document.getElementById('trainGarage');return {canvasTop:c.top,canvasBottom:c.bottom,selectorTop:s.top,selectorBottom:s.bottom,height:innerHeight,scroll:d.scrollTop};});
+   check(engine+' '+width+' 第一屏同時看得到選單與完整車模',first.selectorTop>=0&&first.selectorBottom<=first.canvasTop&&first.canvasBottom<=first.height&&first.scroll===0,first);
+   await page.tap('.g-model-select');await page.selectOption('.g-model-select','700t');await page.tap('.g-view');await page.waitForFunction(()=>document.querySelector('.g-view').dataset.rendered==='700t');
+   check(engine+' '+width+' 觸控下拉換車不跳離展示台',await page.locator('.g-model-select').inputValue()==='700t'&&await page.evaluate(()=>document.getElementById('trainGarage').scrollTop===0));
    let audit=await auditControls(page);check(engine+' '+width+' 全畫面／公告／跟車／抽屜／護照組合',!audit.failures.length&&!audit.overflow,audit);
    await page.locator('.g-right').scrollIntoViewIfNeeded();const before=await pix(page);await page.tap('.g-right');await settle(page);const after=await pix(page);check(engine+' '+width+' 真觸控旋轉',before.hash!==after.hash);
    await page.locator('.g-filters').scrollIntoViewIfNeeded();audit=await auditControls(page);check(engine+' '+width+' 收藏架與所有背景控件相交及命中',!audit.failures.length&&!audit.overflow,audit);
    await page.tap('[data-filter="owned"]');await page.locator('.g-demo-start').scrollIntoViewIfNeeded();await page.tap('.g-demo-start');await ready(page);
+   await page.evaluate(()=>document.getElementById('trainGarage').scrollTop=0);
    if(width===390)await page.screenshot({path:OUT+'/'+engine+'-mobile.png'});
    await page.locator('.g-sources summary').scrollIntoViewIfNeeded();await page.tap('.g-sources summary');await page.locator('.g-source-body').scrollIntoViewIfNeeded();
    audit=await auditControls(page);check(engine+' '+width+' 展開來源連結',!audit.failures.length&&!audit.overflow,audit);

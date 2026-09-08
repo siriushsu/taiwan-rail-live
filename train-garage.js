@@ -37,7 +37,7 @@
     return tr(keys[row.goal.metric],{count:row.goal.need});
   }
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  let host, dialog, rows = [], selected, filter = 'all', system = '', search = '', demo = false;
+  let host, dialog, rows = [], selected, filter = 'all', demo = false;
   let active = false, renderer, raf = 0, auto = false, yaw = -.55, last = 0, drag = null, resize;
   const tr = (key, values) => host.t(key, values);
   const $ = sel => dialog.querySelector(sel);
@@ -87,7 +87,7 @@
   function showDetail() {
     const row=rows.find(r=>r.id===selected);
     $('.g-showcase').hidden=!row;
-    if(!row)return;
+    if(!row){auto=false;cancelAnimationFrame(raf);raf=0;$('.g-auto').setAttribute('aria-pressed','false');$('.g-auto').textContent='▷';return;}
     $('.g-view').setAttribute('aria-label',row.model.name+' · '+status(row));
     const badge=$('.g-status');badge.textContent=status(row);badge.classList.toggle('owned',row.owned);
     $('.g-name').textContent=row.model.name;
@@ -112,17 +112,32 @@
     if(loadedId!==row.id)loadSelected();
     requestDraw();
   }
+  function chooseModel(id) {
+    selected=id;yaw=-.55;$('.g-model-select').value=id;
+    dialog.querySelectorAll('.g-car').forEach(el=>el.setAttribute('aria-pressed',String(el.dataset.model===id)));
+    showDetail();
+  }
   function showGrid() {
-    const needle=search.trim().toLocaleLowerCase();
-    const list=rows.filter(r=>(filter==='all'||(filter==='owned'?r.owned:r.rule&&!r.owned))&&(!system||r.model.system===system)&&(!needle||(r.id+' '+r.model.name+' '+r.model.system).toLocaleLowerCase().includes(needle)))
+    const list=rows.filter(r=>filter==='all'||(filter==='owned'?r.owned:r.rule&&!r.owned))
       .sort((a,b)=>Number(b.owned)-Number(a.owned)||Number(!!b.rule)-Number(!!a.rule));
+    if(!list.some(r=>r.id===selected))selected=list[0]?.id;
+    const picker=$('.g-model-select');picker.replaceChildren();picker.disabled=!list.length;
+    for(const sys of new Set(list.map(r=>r.model.system))) {
+      const group=document.createElement('optgroup');group.label=tr(sys);
+      for(const row of list.filter(r=>r.model.system===sys)) {
+        const option=document.createElement('option');option.value=row.id;option.textContent=row.model.name+' · '+status(row);group.append(option);
+      }
+      picker.append(group);
+    }
+    if(!list.length){const option=document.createElement('option');option.textContent=tr('沒有符合條件的車款。');option.value='';picker.append(option);}
+    picker.value=selected||'';
     $('.g-result').textContent=tr('{count} 款車車',{count:list.length});
     $('.g-grid').replaceChildren();
     for(const row of list) {
       const b=document.createElement('button');b.type='button';b.className=row.owned?'g-car':'g-car g-locked';b.dataset.model=row.id;b.setAttribute('aria-pressed',String(selected===row.id));
       b.setAttribute('aria-label',row.model.name+' · '+status(row));
       b.innerHTML=`<span class="g-check" aria-hidden="true">${row.owned?'✓':'○'}</span><img src="${esc(row.model.thumbnail)}" alt="" loading="lazy" width="320" height="200"><b>${esc(row.model.name)}</b><small>${esc(status(row))}</small>`;
-      b.onclick=()=>{selected=row.id;yaw=-.55;dialog.querySelectorAll('.g-car').forEach(el=>el.setAttribute('aria-pressed',String(el===b)));showDetail();$('.g-showcase').scrollIntoView({block:'start',behavior:'instant'});$('.g-view').focus({preventScroll:true});};
+      b.onclick=()=>{chooseModel(row.id);$('.g-filters').scrollIntoView({block:'start',behavior:'instant'});$('.g-model-select').focus({preventScroll:true});};
       $('.g-grid').append(b);
     }
     $('.g-empty').hidden=!!list.length;
@@ -149,15 +164,16 @@
     dialog.lang=host.lang();
     dialog.classList.toggle('dark',host.dark());
     dialog.innerHTML=`<header class="g-top"><span class="g-brand">RAIL ISLAND / COLLECTION</span><button class="g-close" autofocus>${esc(tr('回到地圖'))} ↗</button></header>
-      <main class="g-main"><div class="g-heading"><div><p class="g-kicker">YOUR LITTLE RAILWAY</p><h1 id="garageTitle">${esc(tr('我的車庫'))}</h1><p class="g-intro">${esc(tr('累積旅程，收藏小車。既有車種章與護照進度會自動帶入。'))}</p></div>
+      <main class="g-main"><div class="g-heading"><h1 id="garageTitle">${esc(tr('我的車庫'))}</h1>
       <div class="g-progress"><strong class="g-count">0</strong><span class="g-total"></span><progress max="1" value="0"></progress><span>${esc(tr('可收集車款'))}</span></div></div>
       <div class="g-demo" hidden><span>${esc(tr('展示模式・不計入收藏'))}</span><button class="g-demo-off"></button></div>
+      <div class="g-filters"><div class="g-tabs">${[['all','全部車款'],['owned','已入庫'],['pending','待收集']].map(([id,text])=>`<button data-filter="${id}" aria-pressed="${filter===id}">${esc(tr(text))}</button>`).join('')}</div>
+      <label class="g-picker"><span>${esc(tr('選擇車款'))}</span><select class="g-model-select"></select></label></div>
+      <div class="g-empty" hidden><p class="g-empty-text"></p><button class="g-reset">${esc(tr('查看所有車款'))}</button><button class="g-demo-start">${esc(tr('看看展示車庫'))}</button></div>
       <section class="g-showcase" aria-label="${esc(tr('車型展示'))}"><div class="g-stage"><canvas class="g-view" tabindex="0" role="img"></canvas><div class="g-fallback" hidden>${esc(tr('這個裝置暫時無法顯示 3D，收藏紀錄與來源仍可查看。'))}</div>
       <div class="g-stage-foot"><span>${esc(tr('左右拖曳，看看每一面'))}</span><div class="g-controls"><button class="g-left" aria-label="${esc(tr('向左旋轉'))}">↶</button><button class="g-auto" aria-label="${esc(tr('自動旋轉'))}" aria-pressed="false">▷</button><button class="g-retry" hidden aria-label="${esc(tr('重新載入小車'))}">↻</button><button class="g-right" aria-label="${esc(tr('向右旋轉'))}">↷</button></div></div></div>
       <div class="g-detail"><span class="g-status"></span><h2 class="g-name"></h2><p class="g-system"></p><p class="g-reason"></p><p class="g-goal"></p><p class="g-date"></p><button class="g-cta"></button><details class="g-sources"><summary>${esc(tr('車型與來源'))} ↗</summary><div class="g-source-body"></div></details></div></section>
-      <div class="g-filters"><div class="g-tabs">${[['all','全部車款'],['owned','已入庫'],['pending','待收集']].map(([id,text])=>`<button data-filter="${id}" aria-pressed="${filter===id}">${esc(tr(text))}</button>`).join('')}</div>
-      <div class="g-fields"><select aria-label="${esc(tr('篩選鐵道系統'))}"><option value="">${esc(tr('所有系統'))}</option>${[...new Set(rows.map(r=>r.model.system))].map(s=>`<option value="${esc(s)}">${esc(tr(s))}</option>`).join('')}</select><input type="search" aria-label="${esc(tr('搜尋車型'))}" placeholder="${esc(tr('搜尋車型'))}"></div></div>
-      <p class="g-result" role="status" aria-live="polite"></p><div class="g-grid"></div><div class="g-empty" hidden><p class="g-empty-text"></p><button class="g-reset">${esc(tr('查看所有車款'))}</button><button class="g-demo-start">${esc(tr('看看展示車庫'))}</button></div>
+      <p class="g-result" role="status" aria-live="polite"></p><div class="g-grid"></div>
       <footer class="g-footer"><span class="g-catalog"></span> · ${esc(tr('模型製作：軌島（Q 版示意）'))}<br>${esc(tr('進度沿用旅程護照；62 款小車都有收集條件，既有車種章自動帶入。'))}<br>${esc(tr('收藏的是紀念模型，不代表曾搭乘這個實際車型或車號。'))}</footer></main>`;
 
     resize=new ResizeObserver(()=>requestDraw());resize.observe($('.g-view'));
@@ -165,10 +181,9 @@
     $('.g-retry').onclick=()=>{if(!renderer)rendererPromise=startRenderer();loadSelected();};
     $('.g-demo-off').onclick=()=>{demo=false;filter='owned';refresh();};
     $('.g-demo-start').onclick=()=>{demo=true;selected='e200';yaw=-.55;filter='owned';refresh();dialog.scrollTop=0;};
-    $('.g-reset').onclick=()=>{filter='all';system=search='';$('select').value='';$('input').value='';showGrid();};
+    $('.g-reset').onclick=()=>{filter='all';showGrid();};
     for(const b of dialog.querySelectorAll('[data-filter]'))b.onclick=()=>{filter=b.dataset.filter;showGrid();};
-    $('select').value=system;$('select').onchange=e=>{system=e.target.value;showGrid();};
-    $('input').value=search;$('input').oninput=e=>{search=e.target.value;showGrid();};
+    $('.g-model-select').onchange=e=>chooseModel(e.target.value);
     const turn=step=>{yaw+=step;requestDraw();};
     $('.g-left').onclick=()=>turn(-Math.PI/6);$('.g-right').onclick=()=>turn(Math.PI/6);
     $('.g-auto').onclick=()=>{auto=!auto;$('.g-auto').setAttribute('aria-pressed',String(auto));$('.g-auto').textContent=auto?'Ⅱ':'▷';requestDraw();};
@@ -220,7 +235,7 @@
     host=adapter;active=true;
     if(!dialog){dialog=document.createElement('dialog');dialog.id='trainGarage';dialog.setAttribute('aria-labelledby','garageTitle');document.body.append(dialog);dialog.addEventListener('cancel',e=>{e.preventDefault();close();});dialog.addEventListener('close',()=>{if(!dialog.open)cleanup();});}
     demo=!!options.demo;data();selected=demo?'e200':rows.find(r=>r.owned)?.id||'emu3000';
-    filter=demo||rows.some(r=>r.owned)?'owned':'all';system=search='';auto=false;yaw=-.55;
+    filter=demo||rows.some(r=>r.owned)?'owned':'all';auto=false;yaw=-.55;
     rendererPromise=startRenderer();
     showDialog();build();dialog.scrollTop=0;$('.g-close').focus({preventScroll:true});requestDraw();
   }

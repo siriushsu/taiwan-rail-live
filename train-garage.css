@@ -6,26 +6,24 @@
 #trainGarage::backdrop{background:var(--paper)}
 #trainGarage *{box-sizing:border-box}
 #trainGarage [hidden]{display:none!important}
-#trainGarage button,#trainGarage input,#trainGarage select{font:inherit;color:inherit;min-height:44px}
+#trainGarage button,#trainGarage select{font:inherit;color:inherit;min-height:44px}
 #trainGarage button{cursor:pointer;touch-action:manipulation}
 #trainGarage :focus-visible{outline:3px solid var(--g-accent);outline-offset:3px}
 #trainGarage .g-top{position:sticky;top:0;z-index:3;background:var(--g-paper);border-bottom:1px solid var(--g-line);padding:max(12px,env(safe-area-inset-top)) max(20px,env(safe-area-inset-right)) 12px max(20px,env(safe-area-inset-left));display:flex;align-items:center;justify-content:space-between;gap:16px}
 #trainGarage .g-brand{font-size:12px;font-weight:700;letter-spacing:3px}
 #trainGarage .g-close{border:1px solid var(--g-line);border-radius:24px;padding:8px 18px;background:var(--g-card);white-space:nowrap}
-#trainGarage .g-main{max-width:1160px;margin:auto;padding:34px 28px max(50px,env(safe-area-inset-bottom))}
-#trainGarage .g-heading{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin-bottom:26px}
-#trainGarage .g-kicker{font:11px ui-monospace,monospace;letter-spacing:2px;color:var(--g-muted);margin:0 0 12px}
-#trainGarage h1{font-size:36px;font-weight:650;letter-spacing:4px;margin:0 0 10px}
+#trainGarage .g-main{max-width:1160px;margin:auto;padding:20px 28px max(50px,env(safe-area-inset-bottom))}
+#trainGarage .g-heading{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:16px}
+#trainGarage h1{font-size:30px;font-weight:650;letter-spacing:2px;margin:0}
 #trainGarage p{line-height:1.7}
-#trainGarage .g-intro{font-size:13px;color:var(--g-muted);margin:0;max-width:540px}
 #trainGarage .g-progress{flex:none;min-width:145px;text-align:right;font-size:12px;color:var(--g-muted)}
-#trainGarage .g-progress strong{font:42px ui-monospace,monospace;color:var(--g-ink)}
-#trainGarage progress{display:block;width:145px;height:5px;margin:12px 0 6px;accent-color:var(--g-accent)}
+#trainGarage .g-progress strong{font:32px ui-monospace,monospace;color:var(--g-ink)}
+#trainGarage progress{display:block;width:145px;height:5px;margin:6px 0;accent-color:var(--g-accent)}
 #trainGarage .g-demo{padding:12px 16px;border:1px dashed var(--g-accent);border-radius:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;margin-bottom:18px}
 #trainGarage .g-demo button{background:none;border:0;text-decoration:underline;flex:none}
-#trainGarage .g-showcase{display:grid;grid-template-columns:1.5fr 1fr;scroll-margin-top:85px;border:1px solid var(--g-line);border-radius:var(--r-m);overflow:hidden;background:var(--g-card)}
+#trainGarage .g-showcase{display:grid;grid-template-columns:1.8fr 1fr;scroll-margin-top:85px;border:1px solid var(--g-line);border-radius:var(--r-m);overflow:hidden;background:var(--g-card)}
 #trainGarage .g-stage{position:relative;min-width:0;background:var(--g-stage);display:flex;flex-direction:column;justify-content:center}
-#trainGarage .g-view{width:100%;height:326px;display:block;touch-action:pan-y;cursor:grab}
+#trainGarage .g-view{width:100%;height:380px;display:block;touch-action:pan-y;cursor:grab}
 #trainGarage .g-stage-foot{padding:0 20px 16px;display:flex;gap:8px;align-items:center;justify-content:space-between;font-size:11px;color:var(--g-muted)}
 #trainGarage .g-controls{display:flex;gap:6px;flex:none}
 #trainGarage .g-controls button{border:1px solid var(--g-line);border-radius:50%;min-width:44px;background:var(--g-card)}
@@ -41,13 +39,14 @@
 #trainGarage summary{min-height:44px;cursor:pointer;display:flex;align-items:center;text-decoration:underline;text-underline-offset:4px}
 #trainGarage .g-sources p{margin:8px 0}
 #trainGarage a{color:var(--g-accent);text-underline-offset:3px}
-#trainGarage .g-filters{margin:28px 0 16px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center}
+#trainGarage .g-filters{margin:0 0 14px;scroll-margin-top:84px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center}
 #trainGarage .g-tabs{display:flex;gap:3px;flex-wrap:wrap}
 #trainGarage .g-tabs button{border:1px solid transparent;border-radius:24px;padding:8px 14px;background:transparent;font-size:13px}
 #trainGarage .g-tabs button[aria-pressed=true]{background:var(--g-ink);color:var(--g-paper)}
-#trainGarage .g-fields{display:flex;gap:8px;min-width:0}
-#trainGarage input,#trainGarage select{border:1px solid var(--g-line);border-radius:8px;background:var(--g-card);padding:8px 10px;font-size:14px;min-width:0;max-width:190px}
-#trainGarage .g-result{font-size:12px;color:var(--g-muted);margin:0 0 12px}
+#trainGarage .g-picker{display:flex;gap:10px;align-items:center;flex:1;max-width:540px;min-width:0;font-size:12px;color:var(--g-muted)}
+#trainGarage .g-picker>span{flex:none}
+#trainGarage .g-model-select{border:1px solid var(--g-line);border-radius:10px;background:var(--g-card);padding:10px;font-size:16px;min-width:0;width:100%;height:48px;flex:1}
+#trainGarage .g-result{font-size:12px;color:var(--g-muted);margin:24px 0 12px}
 #trainGarage .g-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 #trainGarage .g-car{position:relative;text-align:left;min-width:0;border:1px solid var(--g-line);border-radius:14px;background:var(--g-card);padding:12px;display:flex;flex-direction:column;align-items:stretch}
 #trainGarage .g-car[aria-pressed=true]{border:2px solid var(--g-accent);padding:11px;background:var(--g-stage)}
@@ -64,8 +63,8 @@
 #trainGarage .g-empty button{margin:10px 4px;border:1px solid var(--g-line);border-radius:10px;background:var(--g-card);padding:8px 16px}
 #trainGarage .g-footer{margin-top:28px;padding-top:18px;border-top:1px solid var(--g-line);font-size:12px;color:var(--g-muted);line-height:1.8}
 #trainGarage .g-fallback{position:absolute;inset:20px;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--g-muted);background:var(--g-stage);padding:24px;border-radius:14px;font-size:14px}
-@media(max-width:800px){#trainGarage .g-grid{grid-template-columns:repeat(3,minmax(0,1fr))}#trainGarage .g-showcase{grid-template-columns:1fr}#trainGarage .g-view{height:270px}#trainGarage .g-detail{padding:22px}#trainGarage .g-fields{flex:1}#trainGarage input,#trainGarage select{width:50%;max-width:none}}
-@media(max-width:480px){#trainGarage .g-main{padding:24px 16px 40px}#trainGarage .g-top{padding-left:16px;padding-right:16px}#trainGarage .g-brand{font-size:10px;letter-spacing:1px}#trainGarage h1{font-size:28px;letter-spacing:2px}#trainGarage .g-heading{gap:12px;align-items:flex-start}#trainGarage .g-progress{min-width:78px}#trainGarage .g-progress strong{font-size:32px}#trainGarage progress{width:78px}#trainGarage .g-intro{font-size:12px}#trainGarage .g-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}#trainGarage .g-car canvas{height:92px}#trainGarage .g-car b{font-size:12px}#trainGarage .g-tabs button{padding:8px 12px}#trainGarage .g-fields{flex-basis:100%}#trainGarage .g-view{height:238px}#trainGarage .g-stage-foot{padding:0 12px 12px;gap:10px}#trainGarage .g-stage-foot>span{max-width:95px;line-height:1.5}#trainGarage .g-detail{padding:20px}#trainGarage .g-demo{align-items:flex-start}#trainGarage h2{font-size:22px}}
+@media(max-width:800px){#trainGarage .g-grid{grid-template-columns:repeat(3,minmax(0,1fr))}#trainGarage .g-showcase{grid-template-columns:1fr}#trainGarage .g-view{height:270px}#trainGarage .g-detail{padding:22px}#trainGarage .g-picker{flex-basis:100%;max-width:none}}
+@media(max-width:480px){#trainGarage .g-main{padding:12px 16px 40px}#trainGarage .g-top{padding-left:16px;padding-right:16px}#trainGarage .g-brand{font-size:10px;letter-spacing:1px}#trainGarage h1{font-size:26px;letter-spacing:2px}#trainGarage .g-heading{gap:12px;align-items:center}#trainGarage .g-progress{min-width:78px}#trainGarage .g-progress strong{font-size:26px}#trainGarage progress{width:78px}#trainGarage .g-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}#trainGarage .g-car canvas{height:92px}#trainGarage .g-car b{font-size:12px}#trainGarage .g-tabs button{padding:8px 12px}#trainGarage .g-view{height:238px}#trainGarage .g-stage-foot{padding:0 12px 12px;gap:10px}#trainGarage .g-stage-foot>span{max-width:95px;line-height:1.5}#trainGarage .g-detail{padding:20px}#trainGarage .g-demo{align-items:flex-start}#trainGarage h2{font-size:22px}}
 #trainGarage .g-car img{display:block;width:100%;height:auto;aspect-ratio:1.6;object-fit:contain;border-radius:8px;pointer-events:none;margin-bottom:10px}
 #trainGarage .g-goal{font-size:12px;color:var(--g-muted);margin:8px 0}
 #trainGarage .g-controls{position:relative;z-index:1}
@@ -76,3 +75,6 @@
 #trainGarage{scroll-padding-top:calc(84px + env(safe-area-inset-top));scroll-padding-bottom:16px}
 
 #trainGarage.g-legacy[open]{display:block;z-index:2147483647}
+
+/* 橫向小螢幕也把車體留在第一屏，說明可接著往下讀。 */
+@media(max-height:500px) and (min-width:600px){#trainGarage .g-top{padding-top:6px;padding-bottom:6px}#trainGarage .g-main{padding-top:10px}#trainGarage .g-heading{margin-bottom:8px}#trainGarage h1{font-size:24px}#trainGarage .g-progress strong{font-size:24px}#trainGarage progress{display:none}#trainGarage .g-progress>span:last-child{margin-left:8px}#trainGarage .g-filters{margin-bottom:10px;gap:8px}#trainGarage .g-picker{flex-basis:0}#trainGarage .g-showcase{grid-template-columns:1.4fr 1fr}#trainGarage .g-stage{align-self:start}#trainGarage .g-view{height:144px}#trainGarage .g-stage-foot{padding:0 12px 8px}#trainGarage .g-detail{padding:16px}}
