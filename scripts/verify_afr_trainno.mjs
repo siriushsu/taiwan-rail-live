@@ -259,7 +259,41 @@ ok(wantNamedRows.length > 0 && missRows.length === 0,
 const wantBranch = [...expectOf].filter(([k, v]) => k.startsWith('branch:') && v.size).length;
 ok(hi.branches.length === wantBranch, `E2 支線列 ${hi.branches.length} 條＝今日名冊算出的 ${wantBranch} 條`);
 
-ok(pageErrs.length === 0, `D／E 節期間頁面無未捕捉例外（${pageErrs.slice(0, 2).join(' | ') || '無'}）`);
+console.log('\n═══ F. 完乘記錄的支線章：跨系統站名撞號不得蓋到台鐵的章 ═══');
+// recordRide() 的 stockId/namedId 走 specialOf() 自帶閘門，branchIds 卻是自己比對 stops 的站名。
+// 今日資料裡林鐵站名恰好一個都沒撞到六條支線的 matchStations ⇒ 直接量今天的資料是**零資訊**
+// （判準盲點 1：真值恆為 0 的反向判準）。所以這裡**構造**一條 matchStations 指向林鐵實際停靠站
+// 的假支線，逼出這條路徑；正向對照同時證明台鐵那半仍照常蓋章。
+const f = await page.evaluate(() => {
+  const afrTr = state.trains.find(t => t.sys === 'afr_sched' && t.stops && t.stops.length > 1);
+  const traTr = state.trains.find(t => t.sys === 'tra_sched' && !t.loop
+    && state.special.branchLines.some(b => t.stops.some(s => b._set.has(s.name))));
+  if (!afrTr || !traTr) return { setup: false };
+  const fake = { id: '__probe__', name: '測試支線', section: '', matchStations: afrTr.stops.map(s => s.name), story: '' };
+  fake._set = new Set(fake.matchStations);
+  state.special.branchLines.push(fake);
+  const grab = tr => {
+    const before = loadRides().length;
+    recordRide(tr);
+    const rides = loadRides();
+    return rides.length > before ? rides[rides.length - 1] : null;
+  };
+  const afrRide = grab(afrTr), traRide = grab(traTr);
+  state.special.branchLines.pop();
+  return { setup: true, afrNo: String(afrTr.train), traNo: String(traTr.train),
+    afrBranch: afrRide ? (afrRide.branchIds || null) : 'no-ride',
+    afrNamed: afrRide ? (afrRide.namedId ?? null) : 'no-ride',
+    traBranch: traRide ? (traRide.branchIds || null) : 'no-ride' };
+});
+ok(f.setup, `F0 前置：取得林鐵與台鐵各一班可完乘的車（${f.setup ? `林鐵 ${f.afrNo}／台鐵 ${f.traNo}` : '取不到'}）`);
+if (f.setup) {
+  ok(f.afrBranch === null, `F1 林鐵 ${f.afrNo} 次完乘不得蓋到支線章——即使站名對得上（實際：${JSON.stringify(f.afrBranch)}）`);
+  ok(f.afrNamed === null, `F1 林鐵 ${f.afrNo} 次完乘不得帶具名列車 id（實際：${JSON.stringify(f.afrNamed)}）`);
+  ok(Array.isArray(f.traBranch) && f.traBranch.length > 0,
+    `F2 控制組：台鐵 ${f.traNo} 次完乘仍蓋得到支線章（實際：${JSON.stringify(f.traBranch)}）`);
+}
+
+ok(pageErrs.length === 0, `D／E／F 節期間頁面無未捕捉例外（${pageErrs.slice(0, 2).join(' | ') || '無'}）`);
 
 await browser.close();
 console.log(`\n${fail === 0 ? '✅' : '❌'} 通過 ${pass}／失敗 ${fail}`);
