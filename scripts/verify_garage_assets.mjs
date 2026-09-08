@@ -6,7 +6,7 @@ import {createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'), read=f=>fs.readFileSync(path.join(root,f));
 const {gunzipSync:browserGunzip}=await import('data:text/javascript;base64,'+read('rail-3d/vendor/fflate-gunzip.js').toString('base64'));
-const box={window:{addEventListener(){}},document:{addEventListener(){}}};vm.createContext(box);
+const box={matchMedia(){return {matches:false,addEventListener(){}};},window:{addEventListener(){}},document:{addEventListener(){}}};vm.createContext(box);
 vm.runInContext(read('train-garage-catalog.js').toString(),box);vm.runInContext(read('train-garage.js').toString(),box);
 const catalog=box.window.RailGarageCatalog,{collection,goals}=box.TrainGarage,ids=Object.keys(catalog);
 const assert=(ok,msg)=>{if(!ok)throw Error(msg);};
