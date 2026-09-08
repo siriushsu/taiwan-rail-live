@@ -189,7 +189,12 @@ for (const eng of ENGINES) {
     station: window.__i18n ? window.__i18n.stationName('松山') : null,
     arriving: window.__i18n ? window.__i18n.t('即將進站') : null,
   }));
-  ck(langState.i18n === 'zh-TW' && langState.doc === 'zh-TW' &&
+  //    🔴 nav 這一條守的是【第二道釘子】(context locale)。上面四項全部由第一道釘子(網址 ?lang)
+  //    決定——姊妹腳本 verify_font_scale 的 T0L 少了這一條,2026-09-08 突變實測「只把 context
+  //    locale 改成 en-US、網址 ?lang 留 zh-TW」整條閘門照樣 PASS,而 detail 就印著 "nav":"en-US"。
+  //    context locale 管的是 navigator.language 與沒帶 locale 參數的 Intl/toLocaleString(時刻、
+  //    數字格式),它漂成跑測試那台機器的語系時,前四項一個都不會倒,閘門卻宣稱兩道釘子都在。
+  ck(langState.i18n === PAGE_LOCALE && langState.doc === PAGE_LOCALE && langState.nav === PAGE_LOCALE &&
      langState.station === '松山' && langState.arriving === '即將進站',
     `G1 語系釘死在 zh-TW（B1／B2／C* 的文案判準前提）：${JSON.stringify(langState)}`);
 
