@@ -15,6 +15,9 @@
 //   · ISO8601 字串 → 要辦創始期,窗從這個時刻起算 30 天(閘門要求它不得早於 build 當天)
 //   · false        → 明確裁示「這一版不辦創始期」(閘門放行)
 //   · null / 未設定 → 還沒決定(閘門擋下,不讓需要人為決定的值靠安全預設溜上線)
+//   · ISO8601 字串 + foundingWindowClosed:true → 創始期辦過且已經收了。錨點原封留著給
+//     既有創始會員判定用,閘門不再要求 build 當天落在窗內。窗過了之後要出 build 就補這個,
+//     **不是**把 foundingLaunchAt 改成 false(理由見下面那條紅字)。
 // 🔴 2026-09-09 裁示:窗尾從 9/9 12:00 挪到 2026-09-10 00:00(今晚 12 點),錨點 8/10 12:00 → 8/11 00:00。
 // 原因:App Store Connect 的改價最早只能排到隔天(官方原文 "generally 1 to 2 days in advance"),
 // 原窗尾比任何可能的漲價時點都早,中間買到創始價 290 的人會拿不到徽章。
@@ -34,5 +37,9 @@ window.RAIL_REVENUECAT_CONFIG = window.RAIL_REVENUECAT_CONFIG || {
   entitlement: 'plus',
   offeringId: 'plus',
   iosApiKey: 'appl_YEaudYjWyOOPGRoMORPzdDgggvQ',
-  foundingLaunchAt: '2026-08-11T00:00:00+08:00'
+  foundingLaunchAt: '2026-08-11T00:00:00+08:00',
+  // 2026-09-09 裁示:徽章窗到 9/10 00:00 為止,之後創始期收掉。錨點原封留著給既有創始會員
+  // 判定(不可改 false),這個旗標只是告訴發版閘門「窗過期是故意的,不是忘了更新」。
+  // 之後若又要重開創始期,改錨點的同輪要把這行拿掉,否則閘門就不再幫你盯窗尾了。
+  foundingWindowClosed: true
 };
