@@ -1557,3 +1557,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {"車庫加入環形試跑，三節�
 
 Object.assign(window.RAIL_I18N_MESSAGES.en, {"放大場景":"Zoom in", "縮小場景":"Zoom out", "縮放比例":"Zoom level"});
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"放大場景":"拡大", "縮小場景":"縮小", "縮放比例":"表示倍率"});
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"修正車庫試跑時中間車廂消失的問題，環形與海岸場景都會完整顯示三節編組，輕軌分節也能正常欣賞": "Fixed missing middle cars in the garage. Both the loop track and coastal journey now display the full three-car formation, including articulated light rail sections."});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"修正車庫試跑時中間車廂消失的問題，環形與海岸場景都會完整顯示三節編組，輕軌分節也能正常欣賞": "車庫の試走で中間車両が消える問題を修正。周回コースと海辺の旅で3両編成がすべて表示され、連接式のライトレールも各車体を眺められます。"});

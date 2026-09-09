@@ -18,6 +18,8 @@ export async function loadGarageModel(id,signal,mapMeta){
    // 地圖衍生 mesh 的頂點色是 sRGB；轉回線性後與車頭使用同一組 PBR 光源。
    const rgb=new Float32Array(data.length/10*3),c=new THREE.Color();for(let i=0;i<data.length/10;i++){c.setRGB(data[i*10+6],data[i*10+7],data[i*10+8],THREE.SRGBColorSpace);rgb.set([c.r,c.g,c.b],i*3);}
    geometry.setAttribute('position',new THREE.InterleavedBufferAttribute(buffer,3,0));geometry.setAttribute('normal',new THREE.InterleavedBufferAttribute(buffer,3,3));geometry.setAttribute('color',new THREE.BufferAttribute(rgb,3));
+   // Mesh 共用材質陣列；即使只有一種材質，也必須指定繪製群組，否則整節不會送到 GPU。
+   geometry.addGroup(0,geometry.getAttribute('position').count,0);
    materials=[new THREE.MeshPhysicalMaterial({vertexColors:true,metalness:.18,roughness:.42,side:THREE.DoubleSide})];lockedMaterials=[grey(new THREE.MeshPhysicalMaterial({vertexColors:true,roughness:.9,side:THREE.DoubleSide}))];
   }else{
    const meta=await json(new URL(id+'.json',base),signal),b=await checked(new URL(meta.mesh.file,base),signal,meta.mesh.vertexCount*24,meta.mesh.sha256,true),buffer=new THREE.InterleavedBuffer(new Float32Array(b),6);
