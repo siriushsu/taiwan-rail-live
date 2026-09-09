@@ -13951,12 +13951,15 @@ function setupTakeoutUi() {
   const btn = document.getElementById('importBtn'), modal = document.getElementById('takeoutModal');
   const row = document.querySelector('.ms-row[data-proxy="importBtn"]');
   // 入口不長出來時抽屜列也要一起走(比照 recBtn):留一列點了靜默無反應比沒有更糟(v0718i 對 recBtn/accountBtn 的同一教訓)
-  if (!btn || !modal || !(TAKEOUT_PROTOTYPE || (accountConfigured() && plusConfigured()))) { if (row) row.remove(); return; }
+  if (!btn || !modal || !(TAKEOUT_PROTOTYPE || (accountConfigured() && PLUS_ENABLED))) { if (row) row.remove(); return; }
   btn.style.display = '';
   if (row) row.style.display = ''; // 抽屜列 HTML 預設 inline none。注意:這一格是中間態,不是最終可見性
   // ——抽屜每次打開時 syncMoreSheet() 都會依代理鈕(#importBtn)重算它,所以這裡設什麼都會被覆寫。
   // 真正決定使用者看不看得到那一列的是代理鈕的可見性;留這一行只是讓兩者在開啟前就一致。
-  btn.onclick = () => { if (plusConfigured()) plusRequire('takeout', takeoutOpen); else takeoutOpen(); };
+  // 🔴 判準是 PLUS_ENABLED(這個平台有沒有通行證面)不是 plusConfigured()(這個平台賣不賣得成)。
+  // 用後者的話,網站(有資格面、無 Web Billing key)會走 else ⇒ 未訂閱者直接免費匯入。
+  // 只有 TAKEOUT_PROTOTYPE(本機 ?takeout=1)才走 else,那是刻意不收資格的原型路徑。
+  btn.onclick = () => { if (PLUS_ENABLED) plusRequire('takeout', takeoutOpen); else takeoutOpen(); };
   const close = () => { state.takeoutPick = null; takeoutClose(); };
   document.getElementById('takeoutX').onclick = close;
   document.getElementById('takeoutCancel').onclick = close;
@@ -15054,18 +15057,20 @@ function plusRender() {
       : '<b>iPhone 捷運小工具放多站，或用「自動（最近的站）」跟著你移動換站</b>',
     '收藏與完乘記錄跨裝置雲端同步',
     '行程分享：把你在哪班車上分享給朋友',
-    // App 限定:選單入口(setupMusicPlUi)掛在 plusConfigured() 上,網站沒有 Web Billing key
-    // ⇒ 恆假 ⇒ 鈕不出現,措辭必須標明平台(比照下面兩項的理由)。
-    'App 的跟車配樂：音樂跟著你在看的那班車與當下時間換情境',
-    // App 限定:入口(setupTakeoutUi)掛在 plusConfigured() 上,網站沒有 Web Billing key ⇒ 恆假 ⇒ 鈕不出現。
-    // 2026-08-03 實測(網站 importBtnVisible=false／模擬原生殼=true)確認,不是從程式碼推論。
-    '在 App 匯入 Google Maps 已儲存清單，成為軌島的最愛地點',
+    // 2026-09-09 起網站也有:選單入口(setupMusicPlUi)改掛 PLUS_ENABLED,曲目本來就託管在網站上,
+    // 資格判定走 plusIsActive()。故措辭不再標平台(比照誤點履歷與雲端同步那幾項)。
+    '跟車配樂：音樂跟著你在看的那班車與當下時間換情境',
+    // 2026-09-09 起網站也有:入口(setupTakeoutUi)改掛 PLUS_ENABLED。解析全在瀏覽器端
+    // (takeoutParseFile 只用 File.arrayBuffer／TextDecoder／fflate,整段零 Capacitor 依賴,已實查),
+    // 沒有任何原生前提,故措辭不再標平台。
+    '匯入 Google Maps 已儲存清單，成為軌島的最愛地點',
     // App 限定:網站的 SAT_RETINA_DEFAULT 為 false ⇒ satRetinaAllowed() 在網站恆假,措辭必須標明平台。
     'App 非跟車時的衛星高解析圖磚（支援 Retina 螢幕）',
     ...(nativeAndroid
       ? ['跟車時在鎖定畫面顯示下一站與行程進度（Android 16／Samsung 支援 Now Bar）']
       : ['跟車時在鎖定畫面與動態島顯示即時動態（iOS 17.6 以上）']),
-    ...(Date.now() < FOUNDING_UNTIL_MS ? ['App 旅程護照的創始島民徽章'] : []),
+    // 旅程護照(renderPassport→buildFoundingSeal)網站上也會渲染,故不標平台。
+    ...(Date.now() < FOUNDING_UNTIL_MS ? ['旅程護照的創始島民徽章'] : []),
   ].map(feature => `<div class="plus-feature"><span>✓</span>${feature.startsWith('<b>') ? `<b>${escHtml(t(feature.slice(3, -4)))}</b>` : escHtml(t(feature))}</div>`).join('');
   const features = `<div class="plus-features">${feats}</div>` +
     `<p class="plus-trust">${escHtml(t('列車位置、誤點資訊與系統覆蓋現在免費提供——通行證不影響準確度。'))}</p>`;
@@ -15286,7 +15291,11 @@ async function plusRestore() {
 }
 async function plusRequire(source, onGranted) {
   if (plusIsActive()) { if (typeof onGranted === 'function') onGranted(); return true; }
-  if (!plusConfigured()) return false;
+  // 🔴 這裡問的是「這個平台有沒有通行證面」,不是「賣不賣得成」。原本用 plusConfigured() ⇒
+  // 網站(恆假)按了靜默 return false、什麼都不開,正是 plus-cta-silent-gates 那條「不給用也不說」。
+  // 改成 PLUS_ENABLED 之後,網站未訂閱者會拿到面板(內含「請在 App 內訂閱」與登入同步 CTA),
+  // 與 plusGateOpen() 一致;原生殼兩者恆同真,行為不變。
+  if (!PLUS_ENABLED) return false;
   plusOpen(source, onGranted);
   return false;
 }
@@ -17851,11 +17860,13 @@ function musicPlSync() {
   if (el && !el.hidden) musicPlRender();
 }
 function setupMusicPlUi() {
-  // App 限定:網站沒有購買通道(正式站 revenuecat-config 無 webApiKey),入口掛了就是死鈕 ⇒
-  // 把【入口】拿掉(工具帶按鈕與手機選單列)。對話框本身的處理器一律掛上——受管的是入口,
-  // 不是整組互動,否則連驗收都摸不到這個面板。
+  // 閘門問的是【這個平台有沒有通行證面】(PLUS_ENABLED),不是【賣不賣得成】(plusConfigured())。
+  // 原本用後者 ⇒ 網站恆假 ⇒ 入口整顆被拿掉,連已在 App 訂閱、資格已同步到網站的人也看不到。
+  // 面板內的資格判定本來就走 plusIsActive()(列點擊與 musicEffectiveMode 各一道),與平台無關,
+  // 所以放開入口不會放開內容。旗標關著時(今天的網站)行為與改動前一模一樣。
+  // 對話框本身的處理器一律掛上——受管的是入口,不是整組互動,否則連驗收都摸不到這個面板。
   const btn = document.getElementById('musicPlBtn');
-  const configured = plusConfigured() && musicAvailable();
+  const configured = PLUS_ENABLED && musicAvailable();
   if (btn) {
     if (configured) btn.onclick = musicPlOpen;
     else btn.remove();
@@ -31710,8 +31721,8 @@ const HELP_GROUPS = [
     { key: 'pin', ic: '釘', nm: '儲存地點', tg: 'pinBtn',
       one: '把家、公司、拍車點存下來，看有哪些火車會經過那裡。',
       steps: ['「更多」→ 打開「儲存地點」', '點地圖上任一位置', '取個名字存起來', '之後點那個釘，看接下來經過的列車與倒數'],
-      // 匯入入口掛在 plusConfigured() 上(App 才有購買通道) ⇒ 是 App 限定的 Plus 功能,不可寫成無條件可用
-      tip: '也可以在 App 內從 Google Maps 的「已儲存」清單匯入（需軌島通行證）；檔案只在這台裝置解析，不會上傳。', try: 'pin' },
+      // 匯入入口掛在 PLUS_ENABLED 上(2026-09-09 起網站也有) ⇒ 仍是通行證功能,不可寫成無條件可用
+      tip: '也可以從 Google Maps 的「已儲存」清單匯入（需軌島通行證）；檔案只在這台裝置解析，不會上傳。', try: 'pin' },
     { key: 'fav', ic: '', nm: '最愛', one: '常看的車次與車站收起來，下次直接從「最愛」進去。',
       steps: ['跟車卡或看板標題的收藏鈕點一下收藏', '從底部「最愛」看全部', '再點一次取消收藏'], try: 'fav' },
     { key: 'ride', ic: '<span class="seal na" style="width:26px;height:26px;padding:0"><b style="font-size:7px">章</b></span>', nm: '旅程護照與完乘章',
@@ -31815,8 +31826,8 @@ const HELP_GROUPS = [
         '訂閱在軌島 App 內完成，網站不收費',
         '在網站用同一個軌島帳號登入，App 訂的資格就會生效（面板裡的「已經在 App 訂閱了？登入以同步」）'],
       tip: IS_NATIVE_APP && window.Capacitor?.getPlatform?.() === 'android'
-        ? '通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、App 桌面與鎖定畫面的捷運小工具放多站或用「自動（最近的站）」跟著你移動換站（免費可設定一站）、收藏與完乘紀錄跨裝置雲端同步、行程分享、App 的跟車配樂（音樂跟著你在看的那班車與當下時間換情境；免費的背景音樂不受影響）、在 App 匯入 Google Maps 已儲存清單、App 非跟車時的衛星高解析圖磚，以及 Android 16 即時資訊與 Samsung Now Bar 的跟車鎖定畫面進度。'
-        : '通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、iPhone 桌面與鎖定畫面的捷運小工具放多站或用「自動（最近的站）」跟著你移動換站（免費可設定一站）、收藏與完乘紀錄跨裝置雲端同步、行程分享、App 的跟車配樂（音樂跟著你在看的那班車與當下時間換情境；免費的背景音樂不受影響）、在 App 匯入 Google Maps 已儲存清單、App 非跟車時的衛星高解析圖磚，以及 iOS 17.6 以上可用的跟車鎖定畫面與動態島即時動態。',
+        ? '通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、App 桌面與鎖定畫面的捷運小工具放多站或用「自動（最近的站）」跟著你移動換站（免費可設定一站）、收藏與完乘紀錄跨裝置雲端同步、行程分享、跟車配樂（音樂跟著你在看的那班車與當下時間換情境；免費的背景音樂不受影響）、匯入 Google Maps 已儲存清單、App 非跟車時的衛星高解析圖磚，以及 Android 16 即時資訊與 Samsung Now Bar 的跟車鎖定畫面進度。'
+        : '通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、iPhone 桌面與鎖定畫面的捷運小工具放多站或用「自動（最近的站）」跟著你移動換站（免費可設定一站）、收藏與完乘紀錄跨裝置雲端同步、行程分享、跟車配樂（音樂跟著你在看的那班車與當下時間換情境；免費的背景音樂不受影響）、匯入 Google Maps 已儲存清單、App 非跟車時的衛星高解析圖磚，以及 iOS 17.6 以上可用的跟車鎖定畫面與動態島即時動態。',
       try: 'plus' },
   ]},
   { key: 'c', name: '模式與外觀', open: false, secs: [
