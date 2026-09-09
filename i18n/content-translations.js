@@ -1565,3 +1565,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {"修正車庫試跑時中間車廂�
 Object.assign(window.RAIL_I18N_MESSAGES.en, {"補齊象山至廣慈／奉天宮的雙向軌道，來回列車沿各自股道進出，修正延伸段在 3D 地圖中斷的問題": "Completed both tracks between Xiangshan and Guangci/Fengtian Temple. Trains now use their respective tracks, fixing the missing extension in the 3D map."});
 
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"補齊象山至廣慈／奉天宮的雙向軌道，來回列車沿各自股道進出，修正延伸段在 3D 地圖中斷的問題": "象山から広慈／奉天宮までの上下線を補完。列車がそれぞれの線路を走り、3D地図で延伸区間が途切れる問題を修正しました。"});
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"修正車庫三節車廂的車窗反光不一致；海岸行旅的玻璃會跟著日出、藍天、黃昏與星空變換光影": "Fixed inconsistent window reflections across the three garage cars. Glass in the coastal journey now reflects sunrise, blue skies, sunset and the night sky."});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"修正車庫三節車廂的車窗反光不一致；海岸行旅的玻璃會跟著日出、藍天、黃昏與星空變換光影": "車庫の3両で窓の反射が異なる問題を修正。海辺の旅では、ガラスの光と色が朝日、青空、夕暮れ、星空に合わせて変わります。"});

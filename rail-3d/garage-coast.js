@@ -14,6 +14,23 @@ float fbm(vec2 p){return noise(p)*.55+noise(p*2.03)*.27+noise(p*4.07)*.13+noise(
 `;
 const shoreGLSL=`float shoreAt(float x){return 20.+sin(x*.055)*.65+sin(x*.17)*.22;}`;
 const color=s=>new THREE.Color(s);
+// 海岸車窗反射同一時段的天光；PMREM 保留世界 Z 軸朝上，與場景及車體一致。
+export function createCoastReflection(renderer,theme){
+ const scene=new THREE.Scene(),geometry=new THREE.SphereGeometry(30,32,16);
+ const material=new THREE.ShaderMaterial({side:THREE.BackSide,toneMapped:false,uniforms:{
+  top:{value:color(theme.top)},horizon:{value:color(theme.horizon)},sea:{value:color(theme.sea)},ground:{value:color(theme.night?'#17271f':'#73815b')},sun:{value:color(theme.sun)},sunDir:{value:new THREE.Vector3(-.24,.96,theme.sunZ).normalize()},night:{value:theme.night}
+ },vertexShader:'varying vec3 direction;void main(){direction=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',fragmentShader:`
+ varying vec3 direction;uniform vec3 top,horizon,sea,ground,sun,sunDir;uniform float night;
+ void main(){vec3 d=normalize(direction);float h=max(d.z,0.);vec3 sky=mix(horizon,top,pow(clamp(h,0.,1.),.55));
+ float clouds=pow(.5+.5*sin(atan(d.y,d.x)*4.+h*15.),3.)*exp(-pow((h-.28)*5.,2.));
+ sky=mix(sky,mix(horizon,vec3(1.),.5),clouds*(1.-night)*.45);
+ vec3 land=mix(ground,sea,smoothstep(-.1,.2,d.y));land=mix(land,horizon,exp(d.z*8.)*.25);
+ vec3 c=mix(land,sky,smoothstep(-.025,.025,d.z));c+=sun*exp(-length(d-sunDir)*24.)*(night>.5?.12:2.5);
+ gl_FragColor=vec4(c,1.);\n#include <colorspace_fragment>
+ }`});
+ const sphere=new THREE.Mesh(geometry,material);scene.add(sphere);const pmrem=new THREE.PMREMGenerator(renderer);
+ try{return pmrem.fromScene(scene,.035,.1,100);}finally{geometry.dispose();material.dispose();pmrem.dispose();}
+}
 export function createCoast(){
  const group=new THREE.Group(),geometries=new Set(),materials=new Set(),instances=[];
  const geometry=g=>(geometries.add(g),g),material=m=>(materials.add(m),m);

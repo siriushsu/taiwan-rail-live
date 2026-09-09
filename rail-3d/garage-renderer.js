@@ -1,6 +1,6 @@
 // 近看使用完整 Blender 網格；海岸保留目前車款的三節編組，共用單一 WebGL context。
 import * as THREE from './vendor/three.module.js';
-import {createCoast} from './garage-coast.js';
+import {createCoast,createCoastReflection} from './garage-coast.js';
 import {createLoop} from './garage-loop.js';
 import {loadGarageModel,createConsist} from './garage-model.js';
 
@@ -25,7 +25,7 @@ export function createRenderer(onLost = () => {}) {
   const pmrem=new THREE.PMREMGenerator(renderer), environment=pmrem.fromScene(studio,.07,.1,60);
   scene.environment=environment.texture;cards.forEach(c=>{c.geometry.dispose();c.material.dispose();});pmrem.dispose();
   const trainRoot=new THREE.Group();scene.add(trainRoot);
-  let coast,loop,primary,consist,car,abort,revision=0,disposed=false,lost=false,id='',loadKey='';
+  let coast,loop,primary,consist,car,abort,coastalReflection,reflectedTheme,revision=0,disposed=false,lost=false,id='',loadKey='';
   const focus=new THREE.Vector3(),project=new THREE.Vector3();
   const clear=()=>{trainRoot.clear();primary?.dispose();primary=null;car=null;if(consist){scene.remove(consist.root);consist.dispose();consist=null;}id=loadKey='';};
   renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();if(!disposed){lost=true;onLost();}});
@@ -55,6 +55,7 @@ export function createRenderer(onLost = () => {}) {
         focus.set(0,0,1.9);const span=Math.max(3.6,consist.length*.61/aspect),radius=span/Math.tan(THREE.MathUtils.degToRad(22));
         coastCamera.aspect=aspect;coastCamera.updateProjectionMatrix();coastCamera.position.set(radius*Math.cos(elevation)*Math.cos(angle),radius*Math.cos(elevation)*Math.sin(angle),focus.z+radius*Math.sin(elevation));coastCamera.lookAt(focus);coastCamera.updateMatrixWorld();view=coastCamera;
         const theme=coast.update(options.distance||0,options.period,view,options.time||0);coast.shadow.scale.x=consist.length/14;
+        if(reflectedTheme!==theme){const reflection=createCoastReflection(renderer,theme);coastalReflection?.dispose();coastalReflection=reflection;reflectedTheme=theme;}scene.environment=coastalReflection.texture;
         hemi.color.set(theme.ambient);hemi.groundColor.set('#525c4a');hemi.intensity=theme.night?.75:1.05;
         lights[0].color.set(theme.light);lights[0].intensity=theme.power;lights[0].position.set(-45,-25,theme.night?32:42);lights[1].intensity=theme.night?.28:.7;
         if(!scene.fog)scene.fog=new THREE.FogExp2();scene.fog.color.set(theme.horizon);scene.fog.density=theme.night?.0024:.0018;renderer.toneMappingExposure=theme.night?.75:1.0;
@@ -65,7 +66,7 @@ export function createRenderer(onLost = () => {}) {
         target.dataset.formation=JSON.stringify(bounds);target.dataset.coastAnchors=JSON.stringify(anchors);target.dataset.carCount='3';target.dataset.projection='perspective';
         target.dataset.trackX=String(-(options.distance||0));target.dataset.trackY='0';target.dataset.trackHeading=String(heading);target.dataset.distance=String(options.distance||0);target.dataset.period=options.period||'day';
       }else{
-        if(coast)coast.group.visible=false;scene.fog=null;hemi.color.set('#e6efff');hemi.groundColor.set('#938670');hemi.intensity=1.75;lights[0].color.set('#fff5e6');lights[0].position.set(7,-9,14);lights[0].intensity=3;lights[1].intensity=1.5;renderer.toneMappingExposure=1.02;
+        if(coast)coast.group.visible=false;scene.environment=environment.texture;scene.fog=null;hemi.color.set('#e6efff');hemi.groundColor.set('#938670');hemi.intensity=1.75;lights[0].color.set('#fff5e6');lights[0].position.set(7,-9,14);lights[0].intensity=3;lights[1].intensity=1.5;renderer.toneMappingExposure=1.02;
         if(onLoop){
           if(!consist)return false;if(!loop){loop=createLoop();scene.add(loop.group);}loop.group.visible=true;
           consist.update(row.owned);consist.follow(loop,options.distance||0,options.direction);
@@ -79,11 +80,15 @@ export function createRenderer(onLost = () => {}) {
         Object.assign(camera,{left:-span*aspect,right:span*aspect,top:span,bottom:-span});camera.updateProjectionMatrix();camera.position.set(center.x+50*Math.cos(elevation)*Math.cos(angle),center.y+50*Math.cos(elevation)*Math.sin(angle),center.z+50*Math.sin(elevation));camera.lookAt(center);target.dataset.carCount='1';target.dataset.projection='orthographic';
         }
       }
+      // 玻璃單獨使用環境反射強度；只依賴 scene.environment 時，Three 會改用場景的統一強度。
+      for(const a of new Set(onScene?consist.cars.map(c=>c.asset):[primary]))for(const m of [...a.materials,...a.lockedMaterials])if(m.name==='glass'||m.name==='glass:locked'){
+        if(m.envMap!==scene.environment){m.envMap=scene.environment;m.needsUpdate=true;}m.envMapIntensity=onTrack&&m.name==='glass'?3.2:1;
+      }
       renderer.render(scene,view);const ctx=target.getContext('2d');ctx.clearRect(0,0,w,h);ctx.drawImage(renderer.domElement,0,0);
       target.dataset.rendered=id;target.dataset.appearance='blender-original';target.dataset.lock=row.owned?'off':'grey';target.dataset.vertices=String(primary.geometry.attributes.position.count);
       target.dataset.mode=onLoop?'loop':onTrack?'track':'model';target.dataset.yaw=String(angle);target.dataset.zoom=String(zoom);target.dataset.elevation=String(elevation);target.dataset.drawCalls=String(renderer.info.render.calls);
       return true;
     },
-    dispose(){disposed=true;revision++;abort?.abort();clear();coast?.dispose();loop?.dispose();environment.dispose();renderer.dispose();renderer.forceContextLoss();}
+    dispose(){disposed=true;revision++;abort?.abort();clear();coast?.dispose();loop?.dispose();coastalReflection?.dispose();environment.dispose();renderer.dispose();renderer.forceContextLoss();}
   };
 }
