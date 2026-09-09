@@ -13,7 +13,9 @@ import {createMetroPhysicalMotion} from './metro-motion.js';
 const PHYSICAL_SYSTEMS=['tra_sched','thsr_sched'];
 export async function loadPhysicalMotion(){
  const json=async file=>{const r=await fetch(new URL(file,import.meta.url));if(!r.ok)throw Error('股道資料載入失敗');return r.json();};
- const [network,profiles,dispatch,metroNetwork,metroProfiles]=await Promise.all(['network.json','display-profiles.json','dispatch.json','metro-network.json','metro-display-profiles.json'].map(json)),motion=createPhysicalMotion(network,profiles,dispatch),metro=createMetroPhysicalMotion(metroNetwork,metroProfiles);
+ const [network,profiles,dispatch,metroNetwork,metroProfiles,levels]=await Promise.all(['network.json','display-profiles.json','dispatch.json','metro-network.json','metro-display-profiles.json','level-profiles.json'].map(json));
+ for(const p of [profiles,metroProfiles])for(const [id,e]of Object.entries(p.entries))e.level=levels.entries[id]||null;
+ const motion=createPhysicalMotion(network,profiles,dispatch),metro=createMetroPhysicalMotion(metroNetwork,metroProfiles);
  let visibleCache=null;const boxes=new WeakMap();
  function visibleRoutes(lines,bounds){const west=bounds.getWest()-.006,east=bounds.getEast()+.006,south=bounds.getSouth()-.006,north=bounds.getNorth()+.006,systems=new Map();
   for(const line of lines){const sys=line.systemId;if(PHYSICAL_SYSTEMS.includes(sys)&&!systems.has(sys))systems.set(sys,line.color);}

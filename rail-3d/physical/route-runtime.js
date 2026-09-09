@@ -3,7 +3,9 @@ import {makeTopology} from './topology.js';
 // 車身延伸只沿來源節點與可通行接頭；不補直線、不橫移列車。
 export function createRouteRuntime(pack,profiles){
  const ways=pack.ways,paths=new Map(),routes=new Map(),wayById=new Map(ways.map(w=>[String(w.id),w]));let graph=null;
- const atHeight=(wayId,s)=>{const e=profiles?.entries[wayId];if(!e)return null;let lo=0,hi=e.distances.length-1;while(hi-lo>1){const m=(lo+hi)>>1;if(e.distances[m]<=s)lo=m;else hi=m;}const f=Math.max(0,Math.min(1,(s-e.distances[lo])/(e.distances[hi]-e.distances[lo]||1)));return e.values[lo]*(1-f)+e.values[hi]*f;};
+ const sample=(e,s,key='values')=>{if(!e)return null;let lo=0,hi=e.distances.length-1;while(hi-lo>1){const m=(lo+hi)>>1;if(e.distances[m]<=s)lo=m;else hi=m;}const f=Math.max(0,Math.min(1,(s-e.distances[lo])/(e.distances[hi]-e.distances[lo]||1)));return e[key][lo]*(1-f)+e[key][hi]*f;};
+ const atHeight=(wayId,s,mode='terrain')=>{const e=profiles?.entries[wayId];return mode==='flat'?(e?.level?sample(e.level,s,'offsets'):0):sample(e?.level||e,s);};
+ const levelAt=(wayId,s)=>{const e=profiles?.entries[wayId]?.level;return {kind:e?.kind||'surface',layer:e?.layer??null,offsetM:e?sample(e,s,'offsets'):0,estimated:true};};
  const sourcePath=w=>w._path||(w._path=makePath(w.coordinates));
  const edgeRecord=(w,a,b)=>({wayId:String(w.id),edgeId:w.id+':'+Math.min(a,b),a:sourcePath(w).d[a],b:sourcePath(w).d[b],resource:[w.system,...[w.nodes[a],w.nodes[b]].sort()].join(':')});
  function unfold(id){if(paths.has(id))return paths.get(id);const record=pack.paths[id],coordinates=[],edges=[],nodeIds=[];
@@ -23,9 +25,9 @@ export function createRouteRuntime(pack,profiles){
   for(const id of ids){const p=unfold(id);if(nodeIds.length&&nodeIds.at(-1)!==p.nodeIds[0])throw Error('車站股道不連續');coordinates.push(...p.coordinates.slice(coordinates.length?1:0));nodeIds.push(...p.nodeIds.slice(nodeIds.length?1:0));edges.push(...p.edges);offsets.push(offsets.at(-1)+p.path.length);}
   let prefixLength=0;if(prefixM){const pre=extension(nodeIds[1],nodeIds[0],edges[0],prefixM);prefixLength=pre.length;coordinates.unshift(...pre.coordinates.reverse());nodeIds.unshift(...pre.nodes.reverse());edges.unshift(...pre.edges.reverse().map(e=>({...e,a:e.b,b:e.a})));for(let i=0;i<offsets.length;i++)offsets[i]+=prefixLength;}
   if(suffixM){const post=extension(nodeIds.at(-2),nodeIds.at(-1),edges.at(-1),suffixM);coordinates.push(...post.coordinates);nodeIds.push(...post.nodes);edges.push(...post.edges);}
-  const path=makePath(coordinates),elevation=s=>{const point=path.at(Math.max(0,Math.min(path.length,s)));if(!point)return null;const i=point.index,e=edges[i],f=(point.s-path.d[i])/(path.d[i+1]-path.d[i]||1);return atHeight(e.wayId,e.a+(e.b-e.a)*f);};
-  const result={id:'physical:'+key,systemId:system,routeId:'physical',coordinates,color,loop:false,physical:true,path,offsets,elevation,nodeIds,edges,prefixLength};routes.set(key,result);if(routes.size>128)routes.delete(routes.keys().next().value);return result;
+  const path=makePath(coordinates),lookup=(s,fn)=>{const point=path.at(Math.max(0,Math.min(path.length,s)));if(!point)return null;const i=point.index,e=edges[i],f=(point.s-path.d[i])/(path.d[i+1]-path.d[i]||1);return fn(e.wayId,e.a+(e.b-e.a)*f);},elevation=(s,mode)=>lookup(s,(id,d)=>atHeight(id,d,mode)),level=s=>lookup(s,levelAt);
+  const result={id:'physical:'+key,systemId:system,routeId:'physical',coordinates,color,loop:false,physical:true,path,offsets,elevation,level,nodeIds,edges,prefixLength};routes.set(key,result);if(routes.size>128)routes.delete(routes.keys().next().value);return result;
  }
- const drawings=new Map();function drawingWays(system,color){const key=system+':'+color;if(!drawings.has(key))drawings.set(key,ways.filter(w=>w.system===system).map(w=>({id:'physical-way:'+w.id,systemId:system,routeId:w.id,physical:true,coordinates:w.coordinates,color,elevation:s=>atHeight(w.id,s)})));return drawings.get(key);}
- return {unfold,route,drawingWays,atHeight,wayById};
+ const drawings=new Map();function drawingWays(system,color){const key=system+':'+color;if(!drawings.has(key))drawings.set(key,ways.filter(w=>w.system===system).map(w=>({id:'physical-way:'+w.id,systemId:system,routeId:w.id,physical:true,coordinates:w.coordinates,color,elevation:(s,mode)=>atHeight(w.id,s,mode),level:s=>levelAt(w.id,s)})));return drawings.get(key);}
+ return {unfold,route,drawingWays,atHeight,levelAt,wayById};
 }

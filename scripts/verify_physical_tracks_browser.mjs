@@ -65,13 +65,13 @@ for(const [name,engine]of Object.entries({chromium,webkit})){
     for(const pose of r.stats.poseSamples){const v=__ontrackVehicles.find(v=>v.id===pose.id),g=v.systemId.endsWith('_sched')?railIslandPhysical.geometry:railIslandPhysical.metro.geometry;
      for(let i=0;i<pose.cars.length;i++){const p=pose.cars[i],point=v.route.path.at(p.s),edge=v.route.edges[point.index],w=g.wayById.get(edge.wayId),j=Number(edge.edgeId.slice(edge.edgeId.lastIndexOf(':')+1));
       maxSourceM=Math.max(maxSourceM,distance(p.coordinate,w.coordinates[j],w.coordinates[j+1]));
-      const actual=projected.find(c=>c.id===v.id&&c.index===i).center,expected=M.raw.project(point.coordinate);
+      const actual=projected.find(c=>c.id===v.id&&c.index===i).center,expected=r.projectCoordinate(point.coordinate,p.height);
       maxScreenPx=Math.max(maxScreenPx,Math.hypot(actual.x-expected.x,actual.y-expected.y));count++;
      }
     }
     return {count,maxSourceM,maxScreenPx,models:r.stats.models};
    });
-   // .65m 的車底高度在此倍率投影小於 1px；5–15m 的錯誤橫移會明顯超過。
+   // 對照來源股道 XY 與該車廂的實際顯示高度；橋隧不能再與地表投影比較。
    check(name+' A54 Taipei cars align with source rails '+view.bearing,alignment.count===45&&alignment.maxSourceM<.00001&&alignment.maxScreenPx<1,alignment);
   }
   await page.screenshot({path:`output/physical-browser/${name}-taipei-ontrack.png`});

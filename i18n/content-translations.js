@@ -4,6 +4,7 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "3D 軌道依地下、地面與高架分層，捷運交會及共站不再全部擠在地面；地下列車以半透明顯示，開關地形都保留上下關係": "3D tracks now follow underground, ground-level and elevated layers at metro crossings and shared stations. Underground trains remain visible as translucent models, with track levels preserved when terrain is switched.",
     "地圖風格": "Map style",
     "明": "Light",
     "地景": "Landscape",
@@ -231,6 +232,7 @@
   });
 
   Object.assign(messages.ja, {
+    "3D 軌道依地下、地面與高架分層，捷運交會及共站不再全部擠在地面；地下列車以半透明顯示，開關地形都保留上下關係": "3Dの線路を地下・地上・高架に分け、地下鉄の交差や共用駅での上下関係を表現しました。地下の列車は半透明で表示され、地形表示を切り替えても上下関係を保ちます。",
     "地圖風格": "地図スタイル",
     "明": "明色",
     "地景": "風景",
