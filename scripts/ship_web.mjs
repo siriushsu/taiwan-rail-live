@@ -127,6 +127,9 @@ try {
   const linkou = spawnSync('node', [path.join(wt, 'scripts', 'verify_linkou_structures.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(linkou.stdout || ''); process.stderr.write(linkou.stderr || '');
   if (linkou.status !== 0) fail('林口台地橋隧縱坡或洞口連續性未通過');
+  const tunnelGrade = spawnSync('node', [path.join(wt, 'scripts', 'verify_rail_tunnel_grade.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(tunnelGrade.stdout || ''); process.stderr.write(tunnelGrade.stderr || '');
+  if (tunnelGrade.status !== 0) fail('隧道顯示縱坡未通過——隧道又跟著山坡起伏了（單獨重跑：node scripts/verify_rail_tunnel_grade.mjs）');
   const guangci = spawnSync('node', [path.join(wt, 'scripts', 'verify_guangci_tracks.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(guangci.stdout || ''); process.stderr.write(guangci.stderr || '');
   if (guangci.status !== 0) fail('廣慈延伸段雙軌連通性或來源座標未通過');
