@@ -5268,13 +5268,13 @@
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
         <li data-cl-of="webpass0910"><span class="d">9/10</span><span>網站也能用軌島通行證了：用同一個軌島帳號登入，App 訂的資格就在網站生效</span></li>
+        <li data-cl-of="passpeek0910"><span class="d">9/10</span><span>App 的通行證面板不用先登入也打得開，先看清楚有哪些功能，要訂閱時才登入</span></li>
         <li data-cl-of="nightroads0909"><span class="d">9/9</span><span>夜間地景的道路、機場鋪面與底圖鐵道跟著地面一起變暗，不再蓋過軌道與列車；白天配色維持不變</span></li>
         <li data-cl-of="metrotrackside0909"><span class="d">9/9</span><span>捷運與輕軌雙軌改為靠右行駛，來車與去車各走正確的一側；原本多數路線的兩個方向畫反了</span></li>
         <li data-cl-of="ppformation0909"><span class="d">9/9</span><span>推拉式自強號畫出完整 14 節（前後機車加 12 節客車），不再只顯示 3 節示意</span></li>
         <li data-cl-of="terrainrebuild0909"><span class="d">9/9</span><span>修正地形資料較慢載入時，橋梁與橋墩會被地面埋住的問題；地形到齊後會自動回到正確高度</span></li>
         <li data-cl-of="railstruct0909"><span class="d">9/9</span><span>橋梁與隧道改依官方橋隧圖資補正，高鐵、臺中捷運等原本被畫成平地的高架與隧道路段回到正確高度；沒有明確資料的一般路段仍然貼地</span></li>
         <li data-cl-of="landscapebeta0909"><span class="d">9/9</span><span>地景地圖標示 Beta，持續完善地形、建物與沿線景觀</span></li>
-        <li data-cl-of="linkougrade0909"><span class="d">9/9</span><span>修正龜山至林口台地的高鐵橋隧縱坡與洞口銜接，隧道不再隨山坡起伏，保留已知跨河橋梁</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -6222,7 +6222,7 @@
 // v0907n：更新紀錄拿掉 7/13 那條贊助方式（站上最後一處金流資訊）。
 // v0908b：阿里山林鐵補上站內股道與之字形折返股(阿里山、祝山的軌道畫進站裡);近景實體股道白名單
 //         改為單一來源(rail-3d.js 不再自帶第二份),沒被涵蓋的系統保留原本的示意線形。
-const BUILD = 'v0910b';
+const BUILD = 'v0910c';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。

@@ -1646,3 +1646,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {"網站也能用軌島通行證：�
 Object.assign(window.RAIL_I18N_MESSAGES.en, {"網站也能用軌島通行證了：用同一個軌島帳號登入，App 訂的資格就在網站生效": "The Rail Island Pass now works on the web: sign in with the same Rail Island account and the pass you bought in the app takes effect here."});
 
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"網站也能用軌島通行證了：用同一個軌島帳號登入，App 訂的資格就在網站生效": "軌島パスがWebでも使えるようになりました。同じ軌島アカウントでログインすると、Appで購入したパスがWebでも有効になります。"});
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"App 的通行證面板不用先登入也打得開，先看清楚有哪些功能，要訂閱時才登入": "The pass panel in the app now opens without signing in first, so you can see what's included before you subscribe."});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"App 的通行證面板不用先登入也打得開，先看清楚有哪些功能，要訂閱時才登入": "Appのパス画面はログインしなくても開けるようになりました。内容を確かめてから、購入するときにログインします。"});
