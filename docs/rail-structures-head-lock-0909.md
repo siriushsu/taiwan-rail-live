@@ -36,6 +36,18 @@
 - 共站／地下跟車 40／40。原測試只睡 350ms，有一次讀到尚未結束的 320ms 回正過渡（還含起手等候）；改為等待 `interacting`／`followReturning` 結束且相機高度對齊，再驗原本的斷言，沒有放寬容差。
 - 既有放空控制測試依最新需求更新跟車手勢判準，出口、閒置態、群車鎖定與音樂同步等 22／22 通過。
 - 更新紀錄 313 條／最近 8 條，Chromium、WebKit 四寬實際觸控驗收通過；條數棘輪由 309 補入先前兩條車庫紀錄及本次兩條，沒有刪除既有正本。i18n 2013 個 UI／內容 key 通過。
-- 正式部署結果於部署後補記。
+
+## 正式部署
+
+- 乾淨出貨基底 `469c7d634605afcbff128ccad5be06be693cf0e6`，BUILD `v0909i`。完整 `ship-web --preview` gate 與去註解 AST 等價檢查通過。
+- Cloudflare 版本 `fdb40855-9cb4-4f31-82aa-784843f4f32a` 已切換 100% 正式流量。
+- 預覽 URL 實際回傳 HTTP 302 至 Cloudflare Access 登入頁，因此沒有宣稱預覽瀏覽器驗收通過；依既有正式上線授權，使用本機／乾淨出貨驗收後部署，立即補做公開站實測。
+- 正式站 cache-buster 回傳 HTTP 200、`cf-cache-status: MISS`、BUILD `v0909i`，stripped HTML MD5 `0cc3f62f8a9d0bf138534ed2005eb32e`。五個相關 runtime 資產 SHA256 與來源一致，`/api/tra-live` 回傳 200。
+- 正式站橋梁瀏覽器驗收 14／14：Chromium／WebKit、平坦／起伏、雙向高鐵與 114 次 11:54 頭前溪附近，包含承托像素實際繪出及接地。
+- 正式站第一輪手機鏡頭驗收：Chromium 16／16；WebKit 的一般跟車操作通過，但放空換到另一台鐵模型後載入失敗（`models: 0`、兩筆 `Load failed`），後續等待模型及鏡頭置中逾時。這次失敗保留在 `output/head-lock/production-browser.json`，不計為全綠。
+- WebKit 加入診斷重驗時，放空解鎖、自由移動及重新鎖定同車均通過；離開放空後模型及鏡頭也正常。診斷版曾把換景時正常 `cancelled` 的地形／地物請求混入頁面錯誤而標紅；後續分開記錄網路失敗與 JavaScript 錯誤，未變動產品或放寬鏡頭斷言。
+
+
+- 分開診斷後再測，WebKit 放空選到 653 次時，再次出現 `juguang.bin` 與 `e200.bin` 的 `The network connection was lost.`；模型數為 0，置中等待逾時。一般跟車 13 個先行檢查通過，放空後續未完成，不能將這輪報為 16／16。結果保留於 `output/head-lock/production-webkit-confirmed.json`。
 
 此輪沒有修正前一輪已知的 WebKit 正式站模型／地形下載中斷；真實 iPhone 操作仍須與模擬引擎驗證分開看待。
