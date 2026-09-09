@@ -5241,13 +5241,13 @@
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
         <li data-cl-of="garageglass0909"><span class="d">9/9</span><span>修正車庫三節車廂的車窗反光不一致；海岸行旅的玻璃會跟著日出、藍天、黃昏與星空變換光影</span></li>
+        <li data-cl-of="trabinding0909"><span class="d">9/9</span><span>修正台鐵行車曲線更新後部分列車退回示意線形的問題，加開車也能沿已知連通股道行駛，雙軌與地下、高架顯示保持一致</span></li>
         <li data-cl-of="guangci0909"><span class="d">9/9</span><span>補齊象山至廣慈／奉天宮的雙向軌道，來回列車沿各自股道進出，修正延伸段在 3D 地圖中斷的問題</span></li>
         <li data-cl-of="garagecars0909"><span class="d">9/9</span><span>修正車庫試跑時中間車廂消失的問題，環形與海岸場景都會完整顯示三節編組，輕軌分節也能正常欣賞</span></li>
         <li data-cl-of="raillevel0909"><span class="d">9/9</span><span>3D 軌道依地下、地面與高架分層，捷運交會及共站不再全部擠在地面；地下列車以半透明顯示，開關地形都保留上下關係</span></li>
         <li data-cl-of="historic0909"><span class="d">9/9</span><span>地景加入 25 組歷史建築模型，依建物位置與朝向呈現站房、倉庫和廠房，並以遠近細節切換維持流暢</span></li>
         <li data-cl-of="worldcover0908"><span class="d">9/8</span><span>地景加入公開土地覆蓋資料，補足台灣與離島的山林、草地和農田；樹群依林地範圍呈現，並保留道路與建物空間</span></li>
         <li data-cl-of="landscape0908"><span class="d">9/8</span><span>新增「地景」地圖風格：河流、林地、公園與街廓換上自然色，近看可見立體樹冠與建築，搭配列車沿線探索台灣</span></li>
-        <li data-cl-of="mrttrainno0908"><span class="d">9/8</span><span>跟隨台北捷運列車時，官方有給車次的班次會在資訊卡上方顯示車次</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5255,6 +5255,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="trabinding0909"><span class="d">9/9</span><span>修正台鐵行車曲線更新後部分列車退回示意線形的問題，加開車也能沿已知連通股道行駛，雙軌與地下、高架顯示保持一致</span></li>
         <li data-cl="guangci0909"><span class="d">9/9</span><span>補齊象山至廣慈／奉天宮的雙向軌道，來回列車沿各自股道進出，修正延伸段在 3D 地圖中斷的問題</span></li>
         <li data-cl="raillevel0909"><span class="d">9/9</span><span>3D 軌道依地下、地面與高架分層，捷運交會及共站不再全部擠在地面；地下列車以半透明顯示，開關地形都保留上下關係</span></li>
         <li data-cl="historic0909"><span class="d">9/9</span><span>地景加入 25 組歷史建築模型，依建物位置與朝向呈現站房、倉庫和廠房，並以遠近細節切換維持流暢</span></li>
@@ -6171,7 +6172,7 @@
 // v0907n：更新紀錄拿掉 7/13 那條贊助方式（站上最後一處金流資訊）。
 // v0908b：阿里山林鐵補上站內股道與之字形折返股(阿里山、祝山的軌道畫進站裡);近景實體股道白名單
 //         改為單一來源(rail-3d.js 不再自帶第二份),沒被涵蓋的系統保留原本的示意線形。
-const BUILD = 'v0909f';
+const BUILD = 'v0909g';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。

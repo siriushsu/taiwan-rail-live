@@ -124,6 +124,12 @@ try {
   const guangci = spawnSync('node', [path.join(wt, 'scripts', 'verify_guangci_tracks.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(guangci.stdout || ''); process.stderr.write(guangci.stderr || '');
   if (guangci.status !== 0) fail('廣慈延伸段雙軌連通性或來源座標未通過');
+  const traBinding = spawnSync('node', [path.join(wt, 'scripts', 'verify_tra_plan_binding.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(traBinding.stdout || ''); process.stderr.write(traBinding.stderr || '');
+  if (traBinding.status !== 0) fail('台鐵班表與股道綁定防護未通過');
+  const traContinuity = spawnSync('node', [path.join(wt, 'scripts', 'verify_tra_binding_continuity.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(traContinuity.stdout || ''); process.stderr.write(traContinuity.stderr || '');
+  if (traContinuity.status !== 0) fail('台鐵雙向通過站或加開車股道連續性未通過');
 
   // 收藏車庫：出貨樹必須包含完整模型、縮圖、雜湊与 62 款可達成規則。
   const garage = spawnSync('node', [path.join(wt, 'scripts', 'verify_garage_assets.mjs')], { encoding: 'utf8' });

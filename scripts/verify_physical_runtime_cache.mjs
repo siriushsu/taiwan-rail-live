@@ -14,7 +14,9 @@ else {
 const pack=read('rail-3d/physical/network.json'),profiles=read('rail-3d/physical/display-profiles.json'),dispatch=read('rail-3d/physical/dispatch.json');
 const current=createPhysicalMotion(structuredClone(pack),profiles,dispatch),baseline=oldMotion(structuredClone(pack),profiles,dispatch);let samples=0,active=[],retained=0;
 const payload=p=>p&&({lat:p.lat,lon:p.lon,chainageM:p.chainageM,route:p.route.id,dwell:p.dwell,formationFacing:p.formationFacing,rawTime:p.rawTime});
-for(const tr of trains){for(const t of [tr.stops[0].depSec,28800,43200,tr.stops.at(-1).arrSec]){assert.deepEqual(payload(current.sample(tr,t)),payload(baseline.sample(tr,t)));samples++;}const p=current.sample(tr,28800);if(p)active.push([tr,p]);}
+// 新增覆蓋由綁定／連續性驗收負責；這裡逐值保護原本已套用股道的班次。
+for(const tr of trains){if(!baseline.has(tr))continue;for(const t of [tr.stops[0].depSec,28800,43200,tr.stops.at(-1).arrSec]){assert.deepEqual(payload(current.sample(tr,t)),payload(baseline.sample(tr,t)));samples++;}const p=current.sample(tr,28800);if(p)active.push([tr,p]);}
+assert(samples>0,'快取回歸必須涵蓋舊版已接受的班次');
 for(let frame=0;frame<5;frame++)for(const [tr,p]of active){const v=current.sample(tr,28800);assert.strictEqual(v.route,p.route,'活躍列車的路線不可因其他車擠滿 LRU 而每幀重建');retained++;}
 let locate=0;for(const w of pack.ways.filter(w=>w.coordinates.length>8).slice(0,30)){for(const coords of [w.coordinates,w.coordinates.toReversed()]){const a=oldPath(coords),b=makePath(coords);for(const f of [0,.1,.5,.9,1]){const at=a.at(a.length*f);for(const hint of [undefined,null,0,at.s,at.s-350,at.s+350,a.length+500,NaN]){assert.deepEqual(b.locate(at.coordinate,hint),a.locate(at.coordinate,hint));locate++;}}}}
 // 格網邊界、遠離走廊、長跨格線段與重複／折返路段，也必須與完整掃描逐值一致。

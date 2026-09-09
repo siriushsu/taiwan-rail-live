@@ -1569,3 +1569,6 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {"補齊象山至廣慈／奉天宮�
 Object.assign(window.RAIL_I18N_MESSAGES.en, {"修正車庫三節車廂的車窗反光不一致；海岸行旅的玻璃會跟著日出、藍天、黃昏與星空變換光影": "Fixed inconsistent window reflections across the three garage cars. Glass in the coastal journey now reflects sunrise, blue skies, sunset and the night sky."});
 
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"修正車庫三節車廂的車窗反光不一致；海岸行旅的玻璃會跟著日出、藍天、黃昏與星空變換光影": "車庫の3両で窓の反射が異なる問題を修正。海辺の旅では、ガラスの光と色が朝日、青空、夕暮れ、星空に合わせて変わります。"});
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"修正台鐵行車曲線更新後部分列車退回示意線形的問題，加開車也能沿已知連通股道行駛，雙軌與地下、高架顯示保持一致": "Fixed TRA trains reverting to schematic routes after motion profile updates. Additional services now use known connected tracks, keeping separate tracks and underground or elevated levels consistent."});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"修正台鐵行車曲線更新後部分列車退回示意線形的問題，加開車也能沿已知連通股道行駛，雙軌與地下、高架顯示保持一致": "走行曲線の更新後に一部の台鉄列車が模式線に戻る問題を修正。臨時列車も接続が確認された線路を走り、複線や地下・高架の表示を維持します。"});
