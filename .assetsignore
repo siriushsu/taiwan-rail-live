@@ -58,8 +58,9 @@ _專案資訊.html
 國土測繪中心_*
 ntmetro_fixtures
 # 暫存驗證腳本(Playwright 等):慣例放 repo 根目錄好解析 node_modules,一律 ephemeral、禁上正式站。
-# index.html 是純單檔 app、不載任何 .mjs 模組;正式 build 腳本都在已排除的 scripts/。
+# 維護腳本仍排除；日夜光影是首頁實際載入的 runtime 模組，單獨保留。
 *.mjs
+!rail-3d/environment/sun.mjs
 # 驗證腳本順手產的截圖(verify_*.mjs 每跑一次就重寫):同樣 ephemeral,不要變成公開資產
 _shot_*.png
 _baseline_*.html
