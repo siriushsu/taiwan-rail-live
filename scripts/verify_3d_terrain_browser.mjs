@@ -6,7 +6,7 @@ for(const [engineName,engine]of Object.entries(process.env.ENGINE==='chromium'?{
  for(const width of process.env.WIDTHS?process.env.WIDTHS.split(',').map(Number):[375,1280]){
  const mobile=width<900,context=await browser.newContext({viewport:{width,height:900},isMobile:mobile,hasTouch:mobile,locale:'zh-TW'});await context.addInitScript(()=>{localStorage.setItem('trainmap-howto-seen','1');localStorage.setItem('trainmap-appearance','light');});const page=await context.newPage();
  try{
- await page.goto(base+'?scene=3d&ground=terrain&g=all&lang=zh-TW');await page.waitForFunction(()=>state.ready&&window.railIslandIntegration?.renderer,null,{timeout:60000});
+ await page.goto(base+'?map='+(process.env.MAP||'light')+'&scene=3d&ground=terrain&g=all&lang=zh-TW');await page.waitForFunction(()=>state.ready&&window.railIslandIntegration?.renderer,null,{timeout:60000});
  for(const [train,time,pitch]of [['1',37285,0],['1',37420,45],['2',55830,55]]){
  await page.evaluate(({train,time,pitch})=>{state.playing=false;const tr=state.trains.find(t=>t.sys==='afr_sched'&&t.train===train);setFollow(tr,false,true);setSimSec(time);M.raw.setZoom(17.5);M.raw.setPitch(pitch);M.raw.setBearing(0);document.getElementById('overlay').style.visibility='hidden';}, {train,time,pitch});
  await page.waitForFunction(()=>M.raw.isSourceLoaded('terrain')&&railIslandIntegration.renderer.stats.models>0);await page.waitForTimeout(600);await page.evaluate(()=>setFollowLock(false));

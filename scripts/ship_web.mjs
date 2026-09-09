@@ -124,6 +124,10 @@ try {
   const guangci = spawnSync('node', [path.join(wt, 'scripts', 'verify_guangci_tracks.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(guangci.stdout || ''); process.stderr.write(guangci.stderr || '');
   if (guangci.status !== 0) fail('廣慈延伸段雙軌連通性或來源座標未通過');
+  const sun = spawnSync('node', [path.join(wt, 'scripts', 'verify_sun.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(sun.stdout || ''); process.stderr.write(sun.stderr || '');
+  if (sun.status !== 0) fail('日夜光影的太陽位置與時間連續性驗證未過');
+
   const railStructures = spawnSync('node', [path.join(wt, 'scripts', 'verify_rail_structures.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(railStructures.stdout || ''); process.stderr.write(railStructures.stderr || '');
   if (railStructures.status !== 0) fail('軌道橋面與路基驗證未過');

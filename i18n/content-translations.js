@@ -4,6 +4,13 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "搜尋框可以打車型了：輸入 EMU3000、普悠瑪、PP、DR3100 找那一型今天的班次，正在跑的排最前面，點一下直接跟車": "Search now understands train models: type EMU3000, Puyuma, PP or DR3100 to list that model's runs today, with the ones running right now first — tap one to start following.",
+    "跟車鏡頭改為沿用你當下的視角，在近景點列車或按隨機跟隨不會再被拉遠，立體車身看得到細節；點跟隨中的那台車改成把鏡頭鎖回它，不再取消跟隨": "Following keeps your current zoom, so tapping a train or using random follow up close no longer pulls the camera out and 3D trains stay detailed; tapping the train you are already following re-centres the camera on it instead of ending the follow.",
+    "改善立體列車跟隨與地形畫面的流暢度，保留完整編組、模型細節與沿軌行駛": "Improved 3D train following and terrain performance while preserving full formations, model detail and continuous movement along the tracks.",
+    "改善起伏地形的傾斜視角，遠方車牌與站名會逐漸收起，附近列車與車站保持清楚；修正切換地景的顯示異常": "Improved tilted terrain views: distant train tags and station names fade out while nearby trains and stations stay clear. Fixed display errors when switching landscape maps.",
+    "日夜光影": "Daylight cycle",
+    "光線跟隨地圖時間；傾斜地圖可看天空": "Light follows the map time. Tilt the map to see the sky.",
+    "新增「日夜光影」：天空、建築與山坡光線跟隨地圖時間和位置變化，回放也能看晨光、夕色與夜幕；傾斜地圖可看天空，更多設定可關閉": "New daylight cycle: sky colors, building light and terrain shading follow the map time and location, including during replay. Tilt the map to see the sky, or switch the effect off in More.",
     "3D 軌道依地下、地面與高架分層，捷運交會及共站不再全部擠在地面；地下列車以半透明顯示，開關地形都保留上下關係": "3D tracks now follow underground, ground-level and elevated layers at metro crossings and shared stations. Underground trains remain visible as translucent models, with track levels preserved when terrain is switched.",
     "地圖風格": "Map style",
     "明": "Light",
@@ -232,6 +239,13 @@
   });
 
   Object.assign(messages.ja, {
+    "搜尋框可以打車型了：輸入 EMU3000、普悠瑪、PP、DR3100 找那一型今天的班次，正在跑的排最前面，點一下直接跟車": "検索が車両形式に対応しました。EMU3000・普悠瑪・PP・DR3100 などを入力すると本日のその形式の列車が並び、走行中の列車が先頭に来ます。タップすればそのまま追従します。",
+    "跟車鏡頭改為沿用你當下的視角，在近景點列車或按隨機跟隨不會再被拉遠，立體車身看得到細節；點跟隨中的那台車改成把鏡頭鎖回它，不再取消跟隨": "追従カメラが現在の縮尺をそのまま使うようになり、拡大した状態で列車をタップしてもランダム追従を押しても引きの画面になりません。立体列車の細部も見えます。追従中の列車をタップした場合は追従を終了せず、カメラをその列車に戻します。",
+    "改善立體列車跟隨與地形畫面的流暢度，保留完整編組、模型細節與沿軌行駛": "編成や模型の細部、線路に沿った連続走行を保ちながら、立体列車の追従と地形表示を滑らかにしました。",
+    "改善起伏地形的傾斜視角，遠方車牌與站名會逐漸收起，附近列車與車站保持清楚；修正切換地景的顯示異常": "起伏のある地図を傾けたとき、遠方の列車番号と駅名が徐々に消え、近くの列車と駅が見やすくなりました。地景への切り替え時の表示不具合も修正しました。",
+    "日夜光影": "昼夜の光",
+    "光線跟隨地圖時間；傾斜地圖可看天空": "光は地図の時刻に連動します。地図を傾けると空が見えます。",
+    "新增「日夜光影」：天空、建築與山坡光線跟隨地圖時間和位置變化，回放也能看晨光、夕色與夜幕；傾斜地圖可看天空，更多設定可關閉": "「昼夜の光」を追加。空の色・建物の光・山肌の陰影が地図の時刻・位置に連動し、再生中も朝焼け・夕焼け・夜空を楽しめます。地図を傾けると空が見え、「その他」でオフにできます。",
     "3D 軌道依地下、地面與高架分層，捷運交會及共站不再全部擠在地面；地下列車以半透明顯示，開關地形都保留上下關係": "3Dの線路を地下・地上・高架に分け、地下鉄の交差や共用駅での上下関係を表現しました。地下の列車は半透明で表示され、地形表示を切り替えても上下関係を保ちます。",
     "地圖風格": "地図スタイル",
     "明": "明色",
