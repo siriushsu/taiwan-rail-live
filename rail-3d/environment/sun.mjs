@@ -218,7 +218,7 @@ export function createSunlight({ engine, context, enabled = true }) {
   const map = engine.raw;
   let on = enabled, original = null, key = '', current = null, disposed = false;
   let terrainOriginal = null;
-  let pavedOriginal = null;
+  let pavedOriginal = null, pavedAlpha = null;
   const terrainId = 'landscape-hillshade';
   const stats = { calculations: 0, applications: 0 };
   function update(force = false) {
@@ -248,8 +248,13 @@ export function createSunlight({ engine, context, enabled = true }) {
         .filter(([id]) => map.getLayer(id))
         .map(([id, prop]) => [id, prop, map.getPaintProperty(id, prop)])
         .filter(([, , value]) => parseColor(value));
-      for (const [id, prop, value] of pavedOriginal) {
-        if (map.getLayer(id)) map.setPaintProperty(id, prop, shadeColor(value, current.paved.ink, current.paved.alpha));
+      // 濃度沒變就不重寫:setPaintProperty 每次都會觸發重繪與 sourcedata,而地景林冠是掛在
+      // sourcedata 上重掃的。白天整天 0、深夜整晚 0.72,真正要寫的只有晨昏那兩段。
+      if (pavedAlpha === null || Math.abs(current.paved.alpha - pavedAlpha) > .002) {
+        for (const [id, prop, value] of pavedOriginal) {
+          if (map.getLayer(id)) map.setPaintProperty(id, prop, shadeColor(value, current.paved.ink, current.paved.alpha));
+        }
+        pavedAlpha = current.paved.alpha;
       }
     }
     key = nextKey; stats.applications++;
@@ -264,10 +269,11 @@ export function createSunlight({ engine, context, enabled = true }) {
     for (const [id, prop, value] of pavedOriginal || []) {
       if (map.getLayer(id)) map.setPaintProperty(id, prop, value);
     }
+    pavedAlpha = null;
   }
   function styleLoad() {
     original = { sky: map.getSky(), light: map.getLight() };
-    terrainOriginal = null; pavedOriginal = null;
+    terrainOriginal = null; pavedOriginal = null; pavedAlpha = null;
     key = ''; update(true);
   }
   function resume() { if (!document.hidden) update(true); }
