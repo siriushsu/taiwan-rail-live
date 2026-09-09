@@ -49,6 +49,8 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   const undergroundMaterial=material.clone();undergroundMaterial.transparent=true;undergroundMaterial.depthTest=true;undergroundMaterial.depthWrite=false;
   undergroundMaterial.fragmentShader=undergroundMaterial.fragmentShader.replace(')),1.);}', ')),.42);}');
   undergroundMaterial.onBeforeRender=(_renderer,_scene,view,_geometry,mesh)=>{undergroundMaterial.uniforms.trainClipMatrix.value.multiplyMatrices(view.projectionMatrix,mesh.modelViewMatrix);undergroundMaterial.uniformsNeedUpdate=true;};
+  const vehicleDepthMaterial=material.clone();vehicleDepthMaterial.colorWrite=false;vehicleDepthMaterial.depthWrite=true;vehicleDepthMaterial.depthTest=true;
+  vehicleDepthMaterial.onBeforeRender=(_renderer,_scene,view,_geometry,mesh)=>{vehicleDepthMaterial.uniforms.trainClipMatrix.value.multiplyMatrices(view.projectionMatrix,mesh.modelViewMatrix);vehicleDepthMaterial.uniformsNeedUpdate=true;};
   scene.add(new THREE.AmbientLight(0xffffff,1.9));const sun=new THREE.DirectionalLight(0xfff3dc,2);sun.position.set(-100,-150,300);scene.add(sun);
   const sprite=document.createElement('canvas');sprite.width=sprite.height=32;const sc=sprite.getContext('2d');sc.fillStyle='#fff';sc.beginPath();sc.arc(16,16,13,0,Math.PI*2);sc.fill();
   const pointTexture=new THREE.CanvasTexture(sprite);
@@ -123,7 +125,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
       positions.set(p,i*3);colors.set([color.r,color.g,color.b],i*3);const hit={v,p,modelled:false};hits.push(hit);
       if(m?.group){const poses=profile&&h!==null&&(!terrainState.terrain||profile.path.elevation)?formationPoses(profile.path,profile.s,profile.direction*(v.formationFacing||1),m.model.parts,s=>railHeight(profile.path,s)):null;m.group.visible=!!poses;
         if(poses){const displayScale=m.displayScale??1;
-          m.cars.forEach((car,k)=>{const part=m.model.parts[k],pose=poses[k],r=ml.MercatorCoordinate.fromLngLat(pose.coordinate).meterInMercatorCoordinateUnits()/unit;pose.underground=isUnderground(profile.path,pose.s);car.children[0].material=pose.underground?undergroundMaterial:material;car.children[0].layers.set(pose.underground?1:0);car.position.set(...world(pose.coordinate,pose.height));car.scale.set(r,r*displayScale,r);car.rotation.set(0,part.flip?pose.pitch:-pose.pitch,pose.angle+(part.flip?Math.PI:0),'ZYX');});
+          m.cars.forEach((car,k)=>{const part=m.model.parts[k],pose=poses[k],r=ml.MercatorCoordinate.fromLngLat(pose.coordinate).meterInMercatorCoordinateUnits()/unit;pose.underground=isUnderground(profile.path,pose.s);car.children[0].material=pose.underground?undergroundMaterial:material;car.children[0].layers.set(pose.underground?1:0);car.children[0].layers.enable(2);car.position.set(...world(pose.coordinate,pose.height));car.scale.set(r,r*displayScale,r);car.rotation.set(0,part.flip?pose.pitch:-pose.pitch,pose.angle+(part.flip?Math.PI:0),'ZYX');});
           stats.undergroundModels+=poses.some(p=>p.underground)?1:0;hit.modelled=true;positions[i*3+2]=-1e7;stats.models++;stats.poseSamples.push({id:v.id,coordinate:coord,displayHeightM:h,railElevationM:null,level:profile.path.level?.(profile.s)||null,underground:poses.some(p=>p.underground),angle:poses[0].angle,displayScale,lengthScale:1,lengthM:m.model.lengthM,carCount:m.cars.length,formationQuality:m.model.quality,formationMode,modelId:m.model.id,actualCarCount:m.model.actualCarCount,countBasis:m.model.countBasis,lengthKnown:m.model.lengthKnown,caption:m.model.caption,cars:poses});
           m.screenPose={p,angle:poses[0].angle,ratio,sample:stats.poseSamples.at(-1),physical:!!v.route?.physical};
         }else stats.modelFallbacks.push({id:v.id,reason:!profile?'來源位置不在線形上':terrainState.terrain&&!profile.path.elevation?'缺少固定顯示高程':'編組超出已知線形端點'});
@@ -178,7 +180,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     for(const [type,handler]of mapListeners)map.off(type,handler);if(stationLayer){if(map.getLayer(stationLayer.id)?.implementation===stationLayer)map.removeLayer(stationLayer.id);else stationLayer.onRemove();}
     if(vehicleLayer&&map.getLayer('live-vehicles-3d')===vehicleLayer)map.removeLayer('live-vehicles-3d');if(underlayLayer&&map.getLayer('live-vehicles-underlay')===underlayLayer)map.removeLayer('live-vehicles-underlay');
     if(undergroundLayer&&map.getLayer('live-underground-3d')===undergroundLayer)map.removeLayer('live-underground-3d');
-    clearLines();for(const m of models.values())if(m.group)scene.remove(m.group);models.clear();rails.destroy();undergroundRails.destroy();undergroundMaterial.dispose();for(const g of cache.values())g.dispose();material.dispose();pointGeometry.dispose();pointMaterial.dispose();pointTexture.dispose();arrowGeometry.dispose();arrowMaterial.dispose();webgl?.dispose();}
+    clearLines();for(const m of models.values())if(m.group)scene.remove(m.group);models.clear();rails.destroy();undergroundRails.destroy();undergroundMaterial.dispose();vehicleDepthMaterial.dispose();for(const g of cache.values())g.dispose();material.dispose();pointGeometry.dispose();pointMaterial.dispose();pointTexture.dispose();arrowGeometry.dispose();arrowMaterial.dispose();webgl?.dispose();}
   const mapListeners=[];const listenMap=(type,handler)=>{map.on(type,handler);mapListeners.push([type,handler]);};
   try{
     if(!map.getSource('terrain'))map.addSource('terrain',{type:'raster-dem',tiles:['island-dem://{z}/{x}/{y}'],minzoom:0,maxzoom:12,tileSize:512,encoding:'terrarium',attribution:'<a href="https://mapterhorn.com/attribution/" target="_blank" rel="noopener">© Mapterhorn · 內政部 20m DTM</a>'});
@@ -205,8 +207,9 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
       camera.projectionMatrix.copy(projection.fromArray(args.defaultProjectionData.mainMatrix).multiply(transform));
       // 只對地下模型建立自己的深度，再半透明混合；不讓背面及內部三角形累積成黑色雜點。
       undergroundRails.render(el.clientWidth,el.clientHeight,0,false);
-      camera.layers.set(1);webgl.resetState();webgl.clearDepth();undergroundMaterial.colorWrite=false;undergroundMaterial.depthWrite=true;if(stats.undergroundModels)webgl.render(scene,camera);
-      undergroundMaterial.colorWrite=true;undergroundMaterial.depthWrite=false;
+      webgl.resetState();webgl.clearDepth();
+      // 先保留所有車體的前後關係，僅略過地表與建物；地下透視不能蓋過上層列車。
+      camera.layers.set(2);scene.overrideMaterial=vehicleDepthMaterial;webgl.render(scene,camera);scene.overrideMaterial=null;camera.layers.set(1);
       undergroundRails.render(el.clientWidth,el.clientHeight,routeWidth(map.getZoom()),map.getZoom()>=14,frame?.display?.dark);webgl.render(scene,camera);camera.layers.set(0);
     }});undergroundLayer=map.getLayer('live-underground-3d');
     orderBuildingPasses(map);
