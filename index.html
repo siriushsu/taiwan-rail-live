@@ -5240,6 +5240,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="sunlight0909"><span class="d">9/9</span><span>新增「日夜光影」：天空與建築光線跟隨地圖時間和位置變化，回放也能看晨光、夕色與夜幕；傾斜地圖可看天空，更多設定可關閉</span></li>
         <li data-cl-of="guangci0909"><span class="d">9/9</span><span>補齊象山至廣慈／奉天宮的雙向軌道，來回列車沿各自股道進出，修正延伸段在 3D 地圖中斷的問題</span></li>
         <li data-cl-of="garagecars0909"><span class="d">9/9</span><span>修正車庫試跑時中間車廂消失的問題，環形與海岸場景都會完整顯示三節編組，輕軌分節也能正常欣賞</span></li>
         <li data-cl-of="raillevel0909"><span class="d">9/9</span><span>3D 軌道依地下、地面與高架分層，捷運交會及共站不再全部擠在地面；地下列車以半透明顯示，開關地形都保留上下關係</span></li>
@@ -5247,7 +5248,6 @@
         <li data-cl-of="worldcover0908"><span class="d">9/8</span><span>地景加入公開土地覆蓋資料，補足台灣與離島的山林、草地和農田；樹群依林地範圍呈現，並保留道路與建物空間</span></li>
         <li data-cl-of="landscape0908"><span class="d">9/8</span><span>新增「地景」地圖風格：河流、林地、公園與街廓換上自然色，近看可見立體樹冠與建築，搭配列車沿線探索台灣</span></li>
         <li data-cl-of="mrttrainno0908"><span class="d">9/8</span><span>跟隨台北捷運列車時，官方有給車次的班次會在資訊卡上方顯示車次</span></li>
-        <li data-cl-of="dexmisscard0908"><span class="d">9/8</span><span>收集章今天沒有班次時，改成跳出這班車的故事卡，並告訴你班表上的下一個開行日</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5255,6 +5255,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="sunlight0909"><span class="d">9/9</span><span>新增「日夜光影」：天空與建築光線跟隨地圖時間和位置變化，回放也能看晨光、夕色與夜幕；傾斜地圖可看天空，更多設定可關閉</span></li>
         <li data-cl="guangci0909"><span class="d">9/9</span><span>補齊象山至廣慈／奉天宮的雙向軌道，來回列車沿各自股道進出，修正延伸段在 3D 地圖中斷的問題</span></li>
         <li data-cl="raillevel0909"><span class="d">9/9</span><span>3D 軌道依地下、地面與高架分層，捷運交會及共站不再全部擠在地面；地下列車以半透明顯示，開關地形都保留上下關係</span></li>
         <li data-cl="historic0909"><span class="d">9/9</span><span>地景加入 25 組歷史建築模型，依建物位置與朝向呈現站房、倉庫和廠房，並以遠近細節切換維持流暢</span></li>
@@ -5883,6 +5884,7 @@
     <button class="ms-row" data-act="diagStrip"><span>診斷資訊</span><span class="toggle" data-tg="diagStrip"></span></button>
     <button class="ms-row" id="trtcDiagExportRow" data-act="exportTrtcDiag" hidden><span>匯出捷運診斷</span><span class="chev">↓</span></button>
     <div class="ms-row ri-basemap-row"><span>地圖風格</span><div class="seg" id="msBasemapSeg" role="group" aria-label="地圖風格"><button type="button" data-map="light">明</button><button type="button" data-map="dark">暗</button><button type="button" data-map="sat">衛星</button><button type="button" data-map="landscape">地景</button></div></div>
+    <button class="ms-row" id="sunlightRow" type="button" role="switch" aria-checked="true" disabled title="光線跟隨地圖時間；傾斜地圖可看天空"><span>日夜光影</span><span class="toggle on"></span></button>
     <button class="ms-row" id="map3dRow" data-proxy="map3dBtn" style="display:none"><span>3D 建築</span><span class="toggle" data-tg="map3dBtn"></span></button>
     <button class="ms-row" data-act="garage" data-close="1"><span>我的車庫</span><span class="chev">›</span></button>
     <button class="ms-row" data-act="track"><span>軌道與路線</span><span class="chev">›</span></button>
@@ -6170,7 +6172,7 @@
 // v0907n：更新紀錄拿掉 7/13 那條贊助方式（站上最後一處金流資訊）。
 // v0908b：阿里山林鐵補上站內股道與之字形折返股(阿里山、祝山的軌道畫進站裡);近景實體股道白名單
 //         改為單一來源(rail-3d.js 不再自帶第二份),沒被涵蓋的系統保留原本的示意線形。
-const BUILD = 'v0909e';
+const BUILD = 'v0909f-light';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -6755,7 +6757,7 @@ function createMaplibreEngine(containerId, view) {
     container: containerId, style: OFM_STYLE[styleKind],
     center: [c0.lng, c0.lat], zoom: view.zoom - ML_Z,
     attributionControl: false, renderWorldCopies: false, fadeDuration: 0,
-    dragRotate: true, pitchWithRotate: true, touchPitch: true, maxPitch: 60,
+    dragRotate: true, pitchWithRotate: true, touchPitch: true, maxPitch: 75,
     transformRequest: (url, type) => {
       // 向量圖磚由 worker 讀取，須先把自有相對路徑解析成網站／App 的絕對網址。
       if (url.startsWith('./rail-3d/landcover/')) url = new URL(url, document.baseURI).href;
@@ -6813,6 +6815,15 @@ function createMaplibreEngine(containerId, view) {
     // 投影(全程浮點;MapLibre project 回的是 Point{x,y})
     toScreen: ll => { const p = mlToLL(ll); const q = raw.project([p.lng, p.lat]); return { x: q.x, y: q.y }; },
     fromScreen: pt => { const q = raw.unproject([Array.isArray(pt) ? pt[0] : pt.x, Array.isArray(pt) ? pt[1] : pt.y]); return { lat: q.lat, lng: q.lng }; },
+    // 75° 可見天空時，用同一引擎的地表邊界裁掉遠方 canvas 標記；不平移任何標記。
+    // 5.9.0 已固定；此方法與引擎畫天空的 horizon 共用計算，避免另外估一條地平線。
+    surfaceTop: () => {
+      const tr = raw.transform;
+      if (raw.getPitch() <= 60 || tr.isPointOnMapSurface({x: tr.width / 2, y: 0})) return 0;
+      let lo = 0, hi = tr.height;
+      for (let i = 0; i < 14; i++) { const mid = (lo + hi) / 2; if (tr.isPointOnMapSurface({x: tr.width / 2, y: mid})) hi = mid; else lo = mid; }
+      return hi;
+    },
     worldPx: (ll, z) => mlWorldPx(ll, z),
     worldUnpx: (pt, z) => mlWorldUnpx(pt, z),
     // 相機
@@ -6919,6 +6930,42 @@ function createMaplibreEngine(containerId, view) {
 // 對 G1 邊界與未來換引擎都比散在 boot 裡好。
 function createEngine(containerId, view) { return createMaplibreEngine(containerId, view); }
 // ==== ENGINE ADAPTER END ====
+
+// 日夜光影只控制天空與 MapLibre 建築光源。外觀明暗仍由使用者選擇，
+// 不以「暗色主題」假裝午夜；也不調相機或列車位置。75° 上限讓手動傾斜可看見地平線。
+const SUNLIGHT_PREF_KEY = 'trainmap-sunlight';
+let sunlight = null;
+let sunlightEnabled = true;
+try { sunlightEnabled = localStorage.getItem(SUNLIGHT_PREF_KEY) !== '0'; } catch (e) {}
+{ const value = new URLSearchParams(location.search).get('sun');
+  if (value === 'on' || value === 'off') sunlightEnabled = value === 'on'; }
+function sunlightContextNow(solarTimeMs) {
+  if (!state.ready) return null;
+  const c = M.getCenter();
+  // 驗收可固定曆日／座標，時間預設仍吃真正的 state.simSec。
+  const input = { date: todayStr('Asia/Taipei'), simSec: state.simSec, lat: c.lat, lon: c.lng, ...window.__sunTestCtx };
+  return { utcMs: solarTimeMs(input.date, input.simSec), lat: input.lat, lon: input.lon };
+}
+function syncSunlightUI() {
+  const row = document.getElementById('sunlightRow');
+  row.disabled = !sunlight;
+  row.setAttribute('aria-checked', String(sunlightEnabled));
+  row.querySelector('.toggle').classList.toggle('on', sunlightEnabled);
+}
+async function setupSunlight() {
+  syncSunlightUI();
+  try {
+    const { solarTimeMs, createSunlight } = await import('./rail-3d/environment/sun.mjs');
+    sunlight = createSunlight({ engine: M, context: () => sunlightContextNow(solarTimeMs), enabled: sunlightEnabled });
+    window.railIslandSunlight = sunlight;
+    document.getElementById('sunlightRow').onclick = () => {
+      sunlightEnabled = !sunlightEnabled;
+      try { localStorage.setItem(SUNLIGHT_PREF_KEY, sunlightEnabled ? '1' : '0'); } catch (e) {}
+      sunlight.setEnabled(sunlightEnabled); syncSunlightUI();
+    };
+    syncSunlightUI();
+  } catch (e) { console.warn('日夜光影載入失敗', e); }
+}
 const MAP3D_PREF_KEY = 'trainmap-map-3d';
 function setFollowHeadingUp(on) {
   state.followHeadingUp = !!on;
@@ -7225,6 +7272,7 @@ function paintTimeRail() {
 }
 function setSimSec(sec) {
   state.simSec = ((sec % 86400) + 86400) % 86400;
+  sunlight?.update(); // 手動跳時立即同步；相同時間格仍去重，拖曳不逐幀重建樣式。
   // 顯式跳時間 = 離開「跟著現在」的狀態(拖時刻尺、跟車回放、時光機)。jumpToNow 會在呼叫本函式
   // 之後把旗標設回 true。用旗標而不是用「與現在的差距」來判斷,是因為差距分不出「時鐘漂移」與
   // 「使用者刻意拖到過去看重播」——兩者都是 1× 且落後於現在,靠差距判斷必然誤傷其中一方。
@@ -15380,6 +15428,8 @@ function draw() {
   if (state.mode === 'sched') { if (state.deco) drawDecoBase(w, h); drawSched(w, h, state.deco ? () => drawDecoTrains(w, h) : null); if (state.deco) drawDecoLabels(); } else drawFreq(w, h);
   drawMe(); // 「我的位置」畫最後=在所有軌道與列車之上,不會被蓋掉
   drawJourneyShareMarker(); // 收件端的分享位置同樣是移動元素：永遠畫在真實座標，不做碰撞位移
+  const skyHeight = M.surfaceTop();
+  if (skyHeight > 0) ctx.clearRect(0, 0, w, skyHeight); // 地平線外的車牌／站名不可浮在天空，也不參與下方命中。
   ctx.globalAlpha = 1; ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
 }
 
@@ -33172,6 +33222,7 @@ async function boot() {
   window.__map = M.raw; // 驗證腳本用的把手(maplibregl.Map)
   window.__M = M; // 適配層把手(verify_engine_adapter.mjs)
   setupMapOrientation(); // M2：compass／3D 建築
+  void setupSunlight();
   glTracksLoad(); // GL 軌道(M1a):抓 geojson/style,style.load 時冪等裝層;抓失敗就維持 canvas 畫法
   // 跨層對齊探針(只在 ?aligndot=lat,lng 時存在):同一個經緯度,底圖引擎畫一顆、overlay 畫一顆。
   // 兩顆在最終畫面上的像素距離＝底圖與列車圖層錯開多少。overlay 這顆刻意走 latLngToContainerPoint
@@ -33399,6 +33450,7 @@ async function boot() {
   }
   function handleMapClick(e) {
     const cp = e.containerPoint || M.toScreen(e.latlng);
+    if (cp.y < M.surfaceTop()) return;
     const stationRadius = stationHitRadius();
     closeTapPick(); // 點地圖任何地方先收掉歧義選單(選單列自身的點擊不會冒泡到 map)
     if (state.takeoutPick && state.takeoutResult) {
@@ -33560,6 +33612,7 @@ async function boot() {
   M.on('mousemove', e => {
     // 車站與列車都可點；游標使用與點擊相同的車站命中半徑。
     const c = M.getContainer();
+    if (e.containerPoint.y < M.surfaceTop()) { c.style.cursor = ''; return; }
     if (state.mode !== 'sched') { c.style.cursor = (freqTrainAt(e.containerPoint) || overStation(e.containerPoint)) ? 'pointer' : ''; return; }
     c.style.cursor = (trainAt(e.containerPoint) || (state.deco && freqTrainAt(e.containerPoint)) || overStation(e.containerPoint)) ? 'pointer' : '';
   });
@@ -34035,7 +34088,11 @@ const PUBLIC_SHARE_BASE = 'https://railisland.tw/';
 // 分享目前畫面:正在跟車→沿用 ?train= 深連結;否則打包 地點+縮放+路網+時間。手機叫原生分享面板,桌面複製連結。
 function buildShareUrl() {
   const base = PUBLIC_SHARE_BASE;
-  const finish = value => window.railIslandIntegration?.shareParams(new URL(value)).href || value;
+  const finish = value => {
+    const url = new URL(value);
+    url.searchParams.set('sun', sunlightEnabled ? 'on' : 'off');
+    return (window.railIslandIntegration?.shareParams(url) || url).href;
+  };
   const t = fmtHM(state.simSec);
   if (state.followTrain && state.followId) return finish(base + '?train=' + encodeURIComponent(state.followId) + '&t=' + t);
   const c = M.getCenter();

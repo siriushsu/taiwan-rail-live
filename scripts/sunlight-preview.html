@@ -1,0 +1,12 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>日夜光影 · 第一階段預覽</title>
+<style>*{box-sizing:border-box}body{margin:0;background:#ede8dc;color:#203e49;font-family:system-ui,sans-serif}header{padding:14px 20px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;border-bottom:1px solid #c3b99f}h1{font-size:17px;margin:0}p{font-size:12px;margin:5px 0 0;color:#706b5b}nav{display:flex;gap:6px;margin-left:auto}button{font:inherit;font-size:13px;color:inherit;border:1px solid #c3b99f;border-radius:9px;background:#fffcf5;padding:10px 14px;min-height:44px;cursor:pointer}button[aria-pressed=true]{background:#274e62;color:white;border-color:#274e62}iframe{display:block;width:100%;height:calc(100dvh - 85px);border:0}button:disabled{opacity:.4}</style>
+<header><div><h1>日夜光影 · 第一階段預覽</h1><p id="status">正在載入台北場景…</p></div><nav aria-label="預覽時段"><button data-hour="6" disabled>晨光 06:00</button><button data-hour="12" disabled>正午 12:00</button><button data-hour="18" aria-pressed="true" disabled>夕色 18:00</button><button data-hour="0" disabled>夜幕 00:00</button></nav></header>
+<iframe id="scene" title="軌島日夜光影實際場景" src="./index.html?lang=zh-TW&amp;scene=3d&amp;ground=flat&amp;at=25.033,121.565&amp;z=16.5&amp;t=18:00&amp;sun=on"></iframe>
+<script>
+const frame=document.getElementById('scene'),buttons=[...document.querySelectorAll('[data-hour]')];
+const timer=setInterval(()=>{try{if(!frame.contentWindow.eval('typeof state!=="undefined"&&state.ready&&!!window.railIslandSunlight&&!!window.railIslandIntegration?.renderer'))return;clearInterval(timer);
+frame.contentWindow.eval('state.playing=false;document.getElementById("howtoWrap")?.remove();M.raw.setPitch(75);M.raw.setBearing(0);railIslandIntegration.setInspection(false);sunlight.update(true)');
+document.getElementById('status').textContent='台北 · 光線跟隨時間軸 · 本機預覽，尚未上線';buttons.forEach(b=>{b.disabled=false;b.onclick=()=>{frame.contentWindow.eval('setSimSec('+Number(b.dataset.hour)*3600+')');buttons.forEach(x=>x.setAttribute('aria-pressed',String(x===b)));};});
+}catch{}},250);
+</script></html>

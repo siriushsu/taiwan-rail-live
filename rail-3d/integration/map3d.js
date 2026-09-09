@@ -190,7 +190,8 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     if(terrainState.terrain)map.setTerrain({source:'terrain',exaggeration:1});
     if(landscape){
       map.addLayer({id:'landscape-hillshade',type:'hillshade',source:'terrain',paint:{'hillshade-exaggeration':.42,'hillshade-shadow-color':'#5c785f','hillshade-highlight-color':'#fff4d6','hillshade-accent-color':'#90a580','hillshade-illumination-direction':315}},'building');
-      map.setLight({anchor:'map',color:'#fff2d7',intensity:.36,position:[1.5,210,45]});
+      const light={anchor:'map',color:'#fff2d7',intensity:.36,position:[1.5,210,45]};
+      if(window.railIslandSunlight)window.railIslandSunlight.setBaseLight(light);else map.setLight(light);
       trees=createLandscapeTrees({map,THREE,scene,world,clearance,getTerrain:()=>terrainState.terrain});
       stats.landscape=trees.stats;
     }

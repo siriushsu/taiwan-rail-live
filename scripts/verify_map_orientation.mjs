@@ -33,7 +33,7 @@ const predicates = {
   gestures: src => src.includes('dragRotate: true')
     && src.includes('pitchWithRotate: true')
     && src.includes('touchPitch: true')
-    && src.includes('maxPitch: 60')
+    && src.includes('maxPitch: 75') // 日夜天空需要看見地平線；預設角度維持原值。
     && (src.match(/raw\.touchZoomRotate\.enableRotation\(\)/g) || []).length >= 2,
   compass: src => src.includes('showCompass: true')
     && src.includes('visualizePitch: true')
