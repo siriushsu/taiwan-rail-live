@@ -32,7 +32,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   assertCurrent();
   const el=map.getContainer(),landscapeTheme=landscape?'landscape':'original';
   let trees=null;
-  let disposed=false,ready=false,stationLayer=null,stationLabels=null,markers=null,inspection=false,frame=null,routeKey='',routeRefs=[],lastBuild=0,dirty=true,buildCenter=null,buildView=null,lastNear=null,popup=null;
+  let disposed=false,ready=false,stationLayer=null,stationLabels=null,markers=null,inspection=false,frame=null,routeKey='',routeRefs=[],lastBuild=0,dirty=true,buildCenter=null,buildElev=0,buildView=null,lastNear=null,popup=null;
   const clearance=createRailClearance();
   const terrainState={terrain:groundMode==='terrain',buildings:true,labels:true,stationInspection:false,stationInspectionAll:true,exaggeration:1};
   const scene=new THREE.Scene(),camera=new THREE.Camera(),projection=new THREE.Matrix4(),anchor=ml.MercatorCoordinate.fromLngLat([121,24]),unit=anchor.meterInMercatorCoordinateUnits();
@@ -81,7 +81,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   function isUnderground(path,s){const level=path?.level?.(s);return level?.kind==='tunnel'||(level?.kind!=='bridge'&&(level?.offsetM??0)<-3);}
   function clearLines(){stats.undergroundRailSegments=0;profileVertices=[];rails.set([]);undergroundRails.set([]);structures.set([],[]);}
   function rebuildLines(){
-    clearLines();if(!frame)return;const c=map.getCenter(),near=map.getZoom()>=14,bounds=map.getBounds(),margin=.004;lastNear=near;buildCenter=[c.lng,c.lat];buildView=[map.getZoom(),map.getPitch(),map.getBearing()];lastBuild=performance.now();dirty=false;stats.routeBuilds++;
+    clearLines();if(!frame)return;const c=map.getCenter(),near=map.getZoom()>=14,bounds=map.getBounds(),margin=.004;lastNear=near;buildCenter=[c.lng,c.lat];buildElev=terrainState.terrain?map.queryTerrainElevation(buildCenter):0;buildView=[map.getZoom(),map.getPitch(),map.getBearing()];lastBuild=performance.now();dirty=false;stats.routeBuilds++;
 
     if(!near)return;const lineSegments=[],buriedSegments=[],structureSegments=[],piers=[];
     const ground=q=>terrainState.terrain?map.queryTerrainElevation(q):0;
@@ -139,6 +139,8 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     syncRoutes(next);stats.vehicles=next.vehicles.length;stats.geometryVersion=next.geometryVersion;
     const now=performance.now(),center=map.getCenter(),near=map.getZoom()>=14;
     if(buildView&&(Math.abs(map.getZoom()-buildView[0])>.4||Math.abs(map.getPitch()-buildView[1])>5||Math.abs(map.getBearing()-buildView[2])>15))dirty=true;
+    // 單一到貨事件可能早於整片 DEM 到齊:建置當時的地面高程若已經不同,同樣要重建。
+    if(terrainState.terrain&&buildCenter){const e=map.queryTerrainElevation(buildCenter);if(Number.isFinite(e)&&Math.abs(e-buildElev)>.5)dirty=true;}
     if(near!==lastNear||((dirty||!buildCenter||Math.hypot(center.lng-buildCenter[0],center.lat-buildCenter[1])>.003)&&now-lastBuild>250))rebuildLines();
     const all=next.display?.modelMode==='all'||!!next.display?.ambient,bounds=map.getBounds();
     // 同一縮放門檻及比例函式用於每一輛模型；一般模式只有選取車，全部模式涵蓋畫面內可用車型。
@@ -264,7 +266,9 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     for(const type of ['zoomstart','rotatestart','pitchstart'])listenMap(type,e=>{startGesture(e);if(e.originalEvent)gestureOrbited=true;});
     function finishGesture(){clearTimeout(gestureTimer);if(!gesture)return;gestureTimer=setTimeout(()=>{if(pointers.size||map.isMoving()){finishGesture();return;}const pan=gesturePanned&&!gestureOrbited;gesture=false;gesturePanned=gestureOrbited=false;if(pan&&!frame?.headLocked)onGesture();else if(frame?.followLock&&frame.selectedVehicleId)followReturn={id:frame.selectedVehicleId};},80);}
     listenMap('moveend',e=>{if(e.originalEvent)dirty=true;if(gesture)finishGesture();});
-    listenMap('sourcedata',e=>{if(terrainState.terrain&&e.sourceId==='terrain'&&e.sourceDataType==='content')dirty=true;});
+    // 圖磚到貨的 sourcedata 帶的是 e.tile,sourceDataType 是 undefined(只有 metadata／visibility 才有值),
+    // 舊條件永遠不成立 ⇒ DEM 晚於首次建置抵達時,橋墩與橋面會一直停在 0m 被地形埋住。
+    listenMap('sourcedata',e=>{if(terrainState.terrain&&e.sourceId==='terrain'&&(e.tile||e.sourceDataType==='content'))dirty=true;});
     ready=true;
     return {map,stats,update,get interacting(){return gesture;},getVehicleLabels:()=>markers?.boxes||[],getRenderMemory:()=>({...webgl.info.memory}),
       setGroundMode(mode){const relief=mode==='terrain';if(relief===terrainState.terrain)return;terrainState.terrain=relief;groundMode=relief?'terrain':'flat';stats.groundMode=groundMode;stats.displayHeight=relief?'DEM + estimated rail levels':'estimated rail levels';map.setTerrain(relief?{source:'terrain',exaggeration:1}:null);map.jumpTo({elevation:0});clearLines();dirty=true;lastBuild=0;stationLayer?.refresh();trees?.schedule();if(frame)update(frame);},

@@ -4,12 +4,24 @@ for(const [engine,type]of Object.entries({chromium,webkit})){const browser=await
 try{await page.goto(base+'?g=all&scene=3d&map=landscape&at=23.48,120.3247&z=17&t=12:00');await page.waitForFunction(()=>state.ready&&window.railIslandPhysical&&railIslandIntegration.renderer?.stats.structures?.piers>0,null,{timeout:90000});
 await page.evaluate(()=>{state.playing=false;clearFollow();clearFreqFollow();window.__bridgeFrame=railIslandIntegration.capture();window.__bridgeRender=railIslandIntegration.render;railIslandIntegration.render=()=>{};window.__bridgeUpdate=(show=true,vehicles=[])=>railIslandIntegration.renderer.update({...__bridgeFrame,routes:show?__bridgeFrame.routes:[],vehicles,display:{...__bridgeFrame.display,enabled:true,modelMode:'all'},followLock:false,selectedVehicleId:null});});
 for(const mode of ['flat','terrain']){
-if(mobile){await page.locator(await page.locator('#toolsFab').isVisible()?'#toolsFab':'#tabMore').tap();const target=page.locator('[data-rail3d="ground"] [data-value="'+mode+'"]');await target.scrollIntoViewIfNeeded();await target.tap();await page.locator('#moreClose').tap();}else await page.evaluate(mode=>railIslandIntegration.renderer.setGroundMode(mode),mode);
+// 桌面寬度以前走 renderer.setGroundMode 捷徑,那條只換模式、不重建結構幾何:本機 DEM 在記憶體裡
+// 所以下一次 update 就建出正確高度,對正式站則會在 DEM 還在下載時把整座高架橋建在 0m 並且不再更新。
+// 兩個寬度一律改走使用者真的會按的那顆控制項(rubric 形態 0:要量使用者走的路)。
+{const press=async loc=>{await loc.scrollIntoViewIfNeeded();mobile?await loc.tap():await loc.click();};
+await press(page.locator(await page.locator('#toolsFab').isVisible()?'#toolsFab':'#tabMore'));
+await press(page.locator('[data-rail3d="ground"] [data-value="'+mode+'"]'));
+const close=page.locator('#moreClose');if(await close.isVisible())await press(close);}
 await page.evaluate(()=>{railIslandIntegration.renderer.map.jumpTo({center:[120.3247,23.48],zoom:18.2,pitch:68,bearing:65});__bridgeUpdate();});
-await page.waitForFunction(mode=>{__bridgeUpdate();const r=railIslandIntegration.renderer,s=r.stats.structures;return s.piers>3&&s.samples.every(p=>Math.abs(p.groundM-(mode==='flat'?0:r.map.queryTerrainElevation(p.coordinate)))<.01);},mode,{timeout:60000});await page.waitForTimeout(700);
-const detail=await page.evaluate(()=>{const r=railIslandIntegration.renderer,rect=r.map.getCanvas().getBoundingClientRect();return {stats:structuredClone(r.stats.structures),errors:r.stats.errors,overflow:document.documentElement.scrollWidth>innerWidth+1,spots:r.stats.structures.samples.map(p=>{const s=r.projectCoordinate(p.coordinate,(p.groundM+p.topM)/2);return {x:s.x+rect.x,y:s.y+rect.y,z:s.z};}).filter(p=>p.x>5&&p.x<innerWidth-5&&p.y>140&&p.y<innerHeight-160&&Math.abs(p.z)<1)};});
+// 正向對照:terrain 這列要先證明地形真的開著、而且 DEM 在這些取樣點真的有值(此段約 10~12m)。
+// 少了這兩條,「建出來的 groundM」和「當下查到的高程」在 DEM 未載入或地形沒開時都是 0,
+// 一致性判準同源自洽、恆真——實測把控制項固定按 flat 時整列照樣全綠。
+await page.waitForFunction(mode=>{__bridgeUpdate();const r=railIslandIntegration.renderer,s=r.stats.structures;
+ if(r.stats.groundMode!==mode)return false;
+ if(mode==='terrain'&&!s.samples.every(p=>r.map.queryTerrainElevation(p.coordinate)>1))return false;
+ return s.piers>3&&s.samples.every(p=>Math.abs(p.groundM-(mode==='flat'?0:r.map.queryTerrainElevation(p.coordinate)))<.01);},mode,{timeout:60000});await page.waitForTimeout(700);
+const detail=await page.evaluate(()=>{const r=railIslandIntegration.renderer,rect=r.map.getCanvas().getBoundingClientRect();return {stats:structuredClone(r.stats.structures),groundMode:r.stats.groundMode,errors:r.stats.errors,overflow:document.documentElement.scrollWidth>innerWidth+1,spots:r.stats.structures.samples.map(p=>{const s=r.projectCoordinate(p.coordinate,(p.groundM+p.topM)/2);return {x:s.x+rect.x,y:s.y+rect.y,z:s.z};}).filter(p=>p.x>5&&p.x<innerWidth-5&&p.y>140&&p.y<innerHeight-160&&Math.abs(p.z)<1)};});
 const before=PNG.sync.read(await page.screenshot({path:out+'/'+engine+'-'+width+'-'+mode+'.png'})).data;await page.evaluate(()=>__bridgeUpdate(false));await page.waitForFunction(()=>{__bridgeUpdate(false);return railIslandIntegration.renderer.stats.structures.vertices===0;});await page.waitForTimeout(80);const after=PNG.sync.read(await page.screenshot()).data;let pixels=0;for(const spot of detail.spots)for(let y=Math.round(spot.y)-2;y<=Math.round(spot.y)+2;y++)for(let x=Math.round(spot.x)-2;x<=Math.round(spot.x)+2;x++){const i=(y*width+x)*4;if(Math.abs(before[i]-after[i])+Math.abs(before[i+1]-after[i+1])+Math.abs(before[i+2]-after[i+2])>20)pixels++;}
-rows.push({engine,width,mode,test:'只看軌道：橋面存在、橋墩接地且確實繪出',pass:detail.stats.decks>3&&detail.stats.piers>3&&!detail.overflow&&!detail.errors.length&&pixels>8,pixels,detail});console.log(engine,width,mode,rows.at(-1).pass,pixels);
+rows.push({engine,width,mode,test:'只看軌道：橋面存在、橋墩接地且確實繪出',pass:detail.groundMode===mode&&detail.stats.decks>3&&detail.stats.piers>3&&!detail.overflow&&!detail.errors.length&&pixels>8,pixels,detail});console.log(engine,width,mode,rows.at(-1).pass,pixels);
 await page.evaluate(()=>__bridgeUpdate());
 }
 // 以兩股既有高鐵股道驗雙向編組；新增結構不可更動車廂的定位與高程。

@@ -24,7 +24,9 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
     },id);
     for(const mode of ['flat','terrain']){
      await page.locator(await page.locator('#toolsFab').isVisible()?'#toolsFab':'#tabMore').tap();const control=page.locator('[data-rail3d="ground"] [data-value="'+mode+'"]');await control.scrollIntoViewIfNeeded();await control.tap();await page.locator('#moreClose').tap();
-     await page.waitForFunction(()=>{__update();return railIslandIntegration.renderer.stats.models===2;},null,{timeout:45000});
+     // 90s 不是 45s:45 秒是照本機磁碟調的,對正式站(BASE_URL 指遠端)webkit 跑到第四個案例時
+     // 會偶發等不到兩節模型。放寬只是晚一點宣告失敗,判準本身沒有放水——仍要求 models===2。
+     await page.waitForFunction(()=>{__update();return railIslandIntegration.renderer.stats.models===2;},null,{timeout:90000});
      await page.waitForTimeout(650);
      const detail=await page.evaluate(()=>{
       __update();const r=railIslandIntegration.renderer,poses=r.stats.poseSamples;
