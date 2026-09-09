@@ -29,8 +29,8 @@ import { fileURLToPath } from 'node:url';
 
 const SELF_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ROOT = path.resolve(process.argv[2] || SELF_ROOT);
-const PORT = Number(process.env.PORT || 5266);
-const BASE = `http://localhost:${PORT}/`;
+// 多個 worktree 可以同時驗收；預設讓系統分配空閒埠，仍保留明示 PORT 的覆寫能力。
+const PORT = Number(process.env.PORT || 0);
 const ENGINES = (process.env.ENGINES || 'chromium,webkit').split(',');
 
 const results = [];
@@ -54,7 +54,8 @@ const server = createServer((req, res) => {
   res.setHeader('content-type', MIME[path.extname(fp)] || 'application/octet-stream');
   res.end(readFileSync(fp));
 });
-await new Promise(r => server.listen(PORT, r));
+await new Promise((resolve,reject) => server.once('error',reject).listen(PORT,resolve));
+const BASE = `http://localhost:${server.address().port}/`;
 
 // G0：先證明「驗的是這棵樹」——多 worktree 並行，硬編埠號很容易連到別人的伺服器。
 {
