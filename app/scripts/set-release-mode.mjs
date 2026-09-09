@@ -333,10 +333,10 @@ const MODES = {
     //   同輪追加裁示「搜尋那邊，希望可以打車型來搜尋」⇒ 新增車型查詢(commit d2ee77fb),是新功能
     //   而非修正,三語各補一條。英文為此把 3D 車站那條與跟車那條收短讓出字數(Play 上限 500)。
     // 105／Android 45（44 因 AGP 解壓模型缺檔不交付）：v0908h，保留 104 的跟車行為；加上手機 3D 效能、逐節沿軌修正與主線收藏車庫等更新。
-    marketing: '1.6.0', build: '105', music: true, metroCore: true,
-    why: "軌島 1.6.0\n\n・加入沿軌行駛的立體列車、完整編組、地形起伏與建築透視，並提供 22 款精修立體車站與地標\n・改善手機拖曳、旋轉及跟車時的流暢度；修正車站、彎道附近整列橫移，車廂沿指派股道逐節轉彎\n・跟車保留目前的近景，再次點列車會回到車旁，不會結束跟隨\n・新增收藏車庫：62 款小車可旋轉欣賞，累積旅程解鎖塗裝\n・新增路線導覽與車型搜尋，可用 EMU3000、普悠瑪、PP 等名稱找班次\n・暗色地圖改版，車站看板加入方向切換、大字倒數與官方月台；查詢頁先顯示附近車站下一班\n・改善台鐵誤點動畫、山線軌道、看板與大字顯示；修正關於軌島等連結，加入週末鐵道活動入口",
-    whyEn: "Rail Island 1.6.0\n\n• 3D trains, full formations, terrain and 22 stations and landmarks\n• Smoother mobile panning and rotation; carriages follow tracks without whole-train sideways shifts\n• Following keeps your zoom; tapping the train recenters it\n• Collect 62 train models and unlock liveries through journeys\n• Route guides and train-model search\n• Redesigned dark map, board directions, countdowns and official TRA platforms\n• Improved delays, tracks, large text and links; weekend rail events",
-    whyJa: "軌島 1.6.0\n\n・線路に沿って走る立体列車、編成、地形、建物透視と 22 種類の精密な駅舎・ランドマークを追加\n・スマートフォンの地図移動・回転を滑らかにし、駅やカーブで編成全体が横滑りする問題を修正。各車両が線路に沿って曲がります\n・追従時の拡大率を維持し、追従中の列車を再タップすると列車へ戻ります\n・62 種類の車両を鑑賞できるコレクション車庫を追加。旅の記録で塗装を解放\n・路線ガイドと車両形式検索を追加\n・ダーク地図を刷新。発車案内に方面切り替え、大きなカウントダウン、台鉄の公式ホーム番号を表示\n・遅延時の動き、線路、文字拡大、リンクを改善し、週末の鉄道イベント入口を追加",
+    marketing: '1.6.1', build: '106', music: true, metroCore: true,
+    why: "軌島 1.6.1\n\n・新增自然色的地景地圖，呈現森林、河流、公園、田地與立體建築，並補上 25 組歷史建築\n・新增日夜光影：天空、建築與山坡隨地圖時間呈現晨光、夕色與夜幕，可在更多設定關閉\n・軌道依地下、地面與高架分層，高架補上示意橋面與橋墩；地下列車以半透明呈現\n・手機跟車與放空跟車加入車頭鎖定，縮放旋轉保持置中，解鎖可自由移動，再開啟回到原列車\n・修正台鐵股道銜接與象山至廣慈／奉天宮雙向軌道，改善立體地圖近景與遠方標記的顯示\n・改善收藏車庫三節編組、車窗光影與環形試跑跟隨，校正藍皮解憂號外觀",
+    whyEn: "Rail Island 1.6.1\n\n• A natural landscape map with forests, rivers, parks, fields, 3D buildings and 25 historic building groups\n• Day and night lighting follows map time across the sky, buildings and hillsides; turn it off in More settings\n• Separate underground, surface and elevated tracks, with illustrative bridge decks and piers and translucent underground trains\n• Train-head lock for mobile following and ambient mode: zoom and rotate around the train, unlock to explore and lock again to return\n• Improved TRA track connections, the Xiangshan–Guangci/Fengtian Temple tracks and distant map labels\n• Improved garage formations, window lighting and circular-track following, plus the Blue Train model",
+    whyJa: "軌島 1.6.1\n\n・森林、川、公園、田畑、立体建物と 25 組の歴史建築を表示する地景地図を追加\n・地図の時刻に合わせて空、建物、山肌が朝・夕・夜の光に変化。その他の設定で無効にできます\n・地下、地上、高架の線路を分け、高架に模式的な橋桁と橋脚を追加。地下列車は半透明で表示\n・スマートフォンとリラックスモードに先頭車両ロックを追加。拡大・回転中も追従し、解除して自由に移動、再ロックで元の列車へ戻れます\n・台鉄の線路接続、象山〜廣慈／奉天宮の複線と遠方のラベル表示を改善\n・車庫の編成、窓の光、環状試走の追従と藍皮解憂号モデルを改善",
 
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的

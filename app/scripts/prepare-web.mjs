@@ -162,6 +162,8 @@ for (const file of [
 // 語言按鈕也會改變 html lang，但英／日字典 404 後所有文字都安全 fallback 回繁中，
 // 真機看起來就像按鈕完全失效。與 assets/data 一樣只複製 git 已追蹤檔案。
 for (const dir of ['assets', 'data', 'i18n', 'rail-3d']) await copyTree(dir);
+// 舊 iOS 的 UTType 未必識別 mjs；App 以 js 副檔名載入相同模組，內容逐 byte 保留。
+await cp(join(out, 'rail-3d/environment/sun.mjs'), join(out, 'rail-3d/environment/sun.js'));
 // place_index.json 是本次 build 現場產物，尚未 git add 時不會通過 copyTree 的「只收 tracked」
 // 閘門；明確單檔複製，不放寬其他未追蹤資料進 bundle。
 await copyFile('data/place_index.json');
@@ -352,6 +354,7 @@ const androidPlusConfigInjection = androidPlusEnabled
 
 html = html
   .replace('<span class="ver" id="buildVer"></span>', '<a href="third-party-notices.txt" target="_blank" rel="noopener" style="min-height:44px;display:inline-flex;align-items:center;padding:0 4px">第三方軟體授權</a>\n      <span class="ver" id="buildVer"></span>')
+  .replace("import('./rail-3d/environment/sun.mjs')", "import('./rail-3d/environment/sun.js')")
   .replace('<script src="revenuecat-config.js"></script>', `<script src="revenuecat-config.js"></script>\n<script>window.RAIL_MUSIC_AVAILABLE=${includeLicensedMusic};window.RAIL_AMBIENCE_AVAILABLE=${includeLicensedMusic};window.RAIL_ONLINE_BASEMAPS_AVAILABLE=${includeLicensedBasemaps};window.RAIL_METRO_CORE_ENABLED=${enableMetroCore};window.RAIL_APP_VERSION=${JSON.stringify(appVersion)};window.RAIL_APP_WHATS_NEW=${JSON.stringify(whatsNew)};window.RAIL_APP_WHATS_NEW_EN=${JSON.stringify(whatsNewEn)};window.RAIL_APP_WHATS_NEW_JA=${JSON.stringify(whatsNewJa)};window.RAIL_PLUS_SANDBOX_OK=${plusSandboxOk};window.RAIL_PLUS_SANDBOX_BUILD=${plusSandboxOk ? JSON.stringify(plusSandboxBuild) : 'null'};window.RAIL_ANDROID_PLUS_ENABLED=${androidPlusEnabled};window.RAIL_ANDROID_PLUS_SANDBOX_POLICY=${androidPlusEnabled ? JSON.stringify(androidPlusSandboxPolicy) : 'null'};window.RAIL_ANDROID_PLUS_SANDBOX_BUILD=${androidPlusEnabled ? JSON.stringify(androidPlusSandboxBuild) : 'null'}${androidPlusConfigInjection}${appConfig ? `;window.RAIL_APP_CONFIG=${JSON.stringify(appConfig)}` : ''}</script>\n<script src="native-bridge.js"></script>`);
 if (!html.includes('vendor/maplibre-gl.js') || !html.includes('native-bridge.js')) throw new Error('App index vendor/native bridge injection failed');
 if (/ko-fi|PayPal|111010691056|web-only-donation-log|贊助方式更新/i.test(html) || html.includes('id="donateCopy"') || html.includes('class="foot-box foot-donate"')) throw new Error('External donation content leaked into native App');
