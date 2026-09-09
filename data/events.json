@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-08",
+  "updated": "2026-09-09",
   "events": [
     {
       "id": "trtc-20260811-pokemon10",
@@ -293,6 +293,16 @@
       "end": "2026-10-11",
       "anchor": { "kind": "system", "sys": "tymc" },
       "url": "https://www.tymetro.com.tw/tymetro-new/tw/_pages/news/show-2419-1.html"
+    },
+    {
+      "id": "trtc-20260908-jingjun-venues",
+      "source": "official",
+      "title": "敬軍優惠 三大遊憩場館免費",
+      "note": "現役軍人、替代役與軍眷持證免費，可帶最多 4 位親友同行",
+      "start": "2026-09-08",
+      "end": "2026-12-31",
+      "anchor": { "kind": "system", "sys": "mrt" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=267CEA86CE2AB5C2"
     }
   ]
 }
