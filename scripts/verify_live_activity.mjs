@@ -200,7 +200,47 @@ const calls = (page, m) => page.evaluate(mm => (window.__laCalls || []).filter(c
 const clearCalls = page => page.evaluate(() => { window.__laCalls = []; });
 
 // 挑一班「此刻真的在跑」的台鐵車,交給真的 followTrainNo()
-const followRunningTRA = (page, pick = 0) => page.evaluate(p => {
+//
+// 🔴 深夜沒有台鐵車在跑(實測 2026-09-10 01:16 台北時間:全網 908 班,894 班還沒發車、14 班已到終點、
+//    正在跑的 0 班)。跟車卡的開卡條件包含 state.clockAtNow ⇒ 不能用假的 simSec 混過去,
+//    而 Playwright 的 clock.install 只騙得到頁面、騙不到本檔在 Node 端拿 Date.now() 做的那些對帳。
+//    ⇒ 沒有 fixture 的話,整套 LA 閘門在每天 00:40–04:30 之間結構上不可能綠——不是產品壞了,
+//    是這個時段本來就沒車;而「出 build 的時間」剛好常常落在這個區間。
+//    修法是換掉【班表這個外部輸入】,不是換掉判準:把兩班當天的長程車整體平移到現在,
+//    被測的仍然是真的 followTrainNo／laSync／laPayload／跟隨面板。平移只做一次(整頁一次),
+//    因為 T3／T16 要靠 pick=0 與 pick=1 拿到【兩班不同的車】來驗換車。
+// 平移本身抽成獨立一步:T11 有自己的挑車判準(要兩班、不管翻站),只借這一步,不借挑車。
+const shiftScheduleIntoNow = page => page.evaluate(() => {
+  if (window.__laShifted) return window.__laShifted;
+  const running = t => {
+    if (t.sys !== 'tra_sched' || t.loop) return false;
+    const e = effTLive(t), s = t.stops;
+    return e > s[0].depSec + 60 && e < s[s.length - 1].arrSec - 300;
+  };
+  if (state.trains.some(running)) return null;          // 有車在跑就什麼都不做
+  window.__laShifted = [];
+  const shift = (t, d) => { for (const s of t.stops) { if (Number.isFinite(s.arrSec)) s.arrSec += d; if (Number.isFinite(s.depSec)) s.depSec += d; } };
+  const pool = state.trains
+    .filter(t => t.sys === 'tra_sched' && !t.loop && t.stops.length >= 5
+      && t.stops[t.stops.length - 1].arrSec - t.stops[0].depSec > 3600)
+    .sort((a, b) => String(a.train).localeCompare(String(b.train)));
+  for (const [i, t] of pool.slice(0, 2).entries()) {
+    const dur = t.stops[t.stops.length - 1].arrSec - t.stops[0].depSec;
+    // 先把首站發車挪到「現在往前 30%／45% 車程」,再把下一站推到 200 秒之外(避開翻站容差)。
+    shift(t, effTLive(t) - Math.round(dur * (0.3 + 0.15 * i)) - t.stops[0].depSec);
+    for (let k = 0; k < 12; k++) {
+      const e = effTLive(t), next = t.stops.find(x => x.stop !== false && x.arrSec > e);
+      if (!next || next.arrSec - e > 200) break;
+      shift(t, 200 - (next.arrSec - e));
+    }
+    window.__laShifted.push(String(t.train));
+  }
+  return window.__laShifted;
+});
+
+const followRunningTRA = async (page, pick = 0) => {
+  await shiftScheduleIntoNow(page);
+  return page.evaluate(p => {
   const run = state.trains.filter(t => {
     if (t.sys !== 'tra_sched' || t.loop) return false;
     const e = effTLive(t), s = t.stops;
@@ -213,8 +253,10 @@ const followRunningTRA = (page, pick = 0) => page.evaluate(p => {
   if (!run.length) return null;
   const tr = run[Math.min(run.length - 1, Math.floor(run.length * (p === 0 ? 0.3 : 0.7)))];
   followTrainNo(String(tr.train), { sys: tr.sys });   // ← 真實產品函式
-  return state.followTrain ? { no: String(state.followTrain.train), sys: state.followTrain.sys } : null;
-}, pick);
+  // shifted 一起回報:平移過班表這件事必須出現在每一條「前置」的輸出裡,不能靜默發生。
+  return state.followTrain ? { no: String(state.followTrain.train), sys: state.followTrain.sys, ...(window.__laShifted ? { shifted: window.__laShifted } : {}) } : null;
+  }, pick);
+};
 
 const cr = await chromium.launch();
 
@@ -586,6 +628,7 @@ const cr = await chromium.launch();
 {
   const { ctx, page, errors } = await boot(cr, { plus: true });
   await clearCalls(page);
+  await shiftScheduleIntoNow(page);   // 深夜 fixture,理由見 followRunningTRA 檔頭
   // 🔴 重播的必須是**另一台**車:重播同一台車時 _laKey 不變,「start 零次」在有沒有閘門的版本
   //    都會成立 ⇒ 那條斷言等於沒牙(實測突變 M16 抓到這件事,已改成兩台不同的車)。
   const two = await page.evaluate(() => {
