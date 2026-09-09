@@ -8,6 +8,7 @@ import {routeWidth,readableScale,stationNames,vehicleMarkers} from './readabilit
 import {formationFor,assembleFormation} from './formations.js';
 import {makePath,shapeKey,makeHeightProfile,formationPoses} from './train-path.js';
 import {profileLines} from './profile-lines.js';
+import {createRailStructures} from './rail-structures.js';
 import {headFramingDistance} from './follow-framing.js';
 import {createLandscapeTrees} from './landscape-trees.js';
 import {orderBuildingPasses} from './layer-order.js';
@@ -37,7 +38,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   const scene=new THREE.Scene(),camera=new THREE.Camera(),projection=new THREE.Matrix4(),anchor=ml.MercatorCoordinate.fromLngLat([121,24]),unit=anchor.meterInMercatorCoordinateUnits();
   const transform=new THREE.Matrix4().makeTranslation(anchor.x,anchor.y,0).scale(new THREE.Vector3(unit,-unit,unit));
   const cache=new Map(),pending=new Map(),models=new Map(),failed=new Set(),paths=new WeakMap(),motion=new Map(),formations=new WeakMap();
-  const rails=profileLines(scene),undergroundRails=profileLines(scene,{underground:true});
+  const rails=profileLines(scene),undergroundRails=profileLines(scene,{underground:true}),structures=createRailStructures(scene);
   let followingCamera=false,zoomFollows=null,followReturn=null,framingView=null;const pointers=new Set();
   let profileVertices=[],gesture=false,gesturePanned=false,gestureOrbited=false,gestureTimer=0,ambientWas=false,ambientView=null,cameraAt=0,orbitBearing=0;
   const material=createWenhuMaterial(THREE);material.transparent=false;material.opacity=1;
@@ -60,26 +61,40 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   const arrows=new THREE.Mesh(arrowGeometry,arrowMaterial);arrows.frustumCulled=false;scene.add(arrows);let arrowPositions=new Float32Array(0),arrowColors=new Float32Array(0);
   const inputListeners=[];
   let vehicleLayer,underlayLayer,undergroundLayer,webgl,positions=new Float32Array(0),colors=new Float32Array(0),hits=[];
-  const stats={frames:0,vehicles:0,models:0,routeBuilds:0,geometryVersion:null,railElevationM:null,displayHeight:terrainState.terrain?'DEM + estimated rail levels':'estimated rail levels',groundMode,landscapeTheme,trainSizeMode,formationMode,errors:[],poseSamples:[],get stationLabels(){return stationLabels?.count||0;},get routeWidthPx(){return routeWidth(map.getZoom());}};
+  const stats={structures:structures.stats,frames:0,vehicles:0,models:0,routeBuilds:0,geometryVersion:null,railElevationM:null,displayHeight:terrainState.terrain?'DEM + estimated rail levels':'estimated rail levels',groundMode,landscapeTheme,trainSizeMode,formationMode,errors:[],poseSamples:[],get stationLabels(){return stationLabels?.count||0;},get routeWidthPx(){return routeWidth(map.getZoom());}};
   const report=e=>{const text=e?.message||String(e);if(stats.errors.length<20)stats.errors.push(text);onError?.(text);};
   function world(coord,height){const m=ml.MercatorCoordinate.fromLngLat(coord);return [(m.x-anchor.x)/unit,-(m.y-anchor.y)/unit,height*m.meterInMercatorCoordinateUnits()/unit];}
   function height(coord){if(!terrainState.terrain)return .65;const h=map.queryTerrainElevation(coord);return Number.isFinite(h)?h+.65:null;}
   function pathFor(route){if(!route?.coordinates?.length)return null;if(route.physical&&route.path){route.path.elevation=route.elevation;route.path.level=route.level;return route.path;}let p=paths.get(route.coordinates);if(!p){p=makePath(route.coordinates,route.loop);const data=profileData.entries[shapeKey(route.coordinates)];p.elevation=route.elevation||(data&&Math.abs(data.lengthM-p.length)<.01?makeHeightProfile(data.values,data.stepM,p.length):null);p.level=route.level;paths.set(route.coordinates,p);}return p;}
   function railHeight(path,s){const h=path?.elevation?(terrainState.terrain?path.elevation(s):path.level?path.elevation(s,'flat'):0):terrainState.terrain?null:0;return Number.isFinite(h)?h+.65:null;}
   function isUnderground(path,s){return (path?.level?.(s)?.offsetM??0)<-3;}
-  function clearLines(){stats.undergroundRailSegments=0;profileVertices=[];rails.set([]);undergroundRails.set([]);}
+  function clearLines(){stats.undergroundRailSegments=0;profileVertices=[];rails.set([]);undergroundRails.set([]);structures.set([],[]);}
   function rebuildLines(){
     clearLines();if(!frame)return;const c=map.getCenter(),near=map.getZoom()>=14,bounds=map.getBounds(),margin=.004;lastNear=near;buildCenter=[c.lng,c.lat];buildView=[map.getZoom(),map.getPitch(),map.getBearing()];lastBuild=performance.now();dirty=false;stats.routeBuilds++;
 
-    if(!near)return;const lineSegments=[],buriedSegments=[];
+    if(!near)return;const lineSegments=[],buriedSegments=[],structureSegments=[],piers=[];
+    const ground=q=>terrainState.terrain?map.queryTerrainElevation(q):0;
     for(const r of frame.routes){const coords=r.coordinates,vertices=[],path=pathFor(r);for(let i=1;i<coords.length;i++){
       const a=coords[i-1],b=coords[i];if(Math.min(a[0],b[0])>bounds.getEast()+margin||Math.max(a[0],b[0])<bounds.getWest()-margin||Math.min(a[1],b[1])>bounds.getNorth()+margin||Math.max(a[1],b[1])<bounds.getSouth()-margin)continue;
       for(const [lo,hi] of r.drawingRanges||[[0,Infinity]]){
       const start=Math.max(path.d[i-1],lo),end=Math.min(path.d[i],hi);if(end<=start)continue;
-      const length=end-start,n=(terrainState.terrain||path.level)?Math.max(1,Math.ceil(length/5)):1;let prev=null;
-      for(let k=0;k<=n;k++){const s=start+length*k/n,q=path.at(Math.min(path.length,s)).coordinate,h=railHeight(path,s),p=h===null?null:world(q,h);if(prev&&p){vertices.push(...prev,...p);if(terrainState.terrain||r.physical||r.drawingRanges)(isUnderground(path,s)?buriedSegments:lineSegments).push({a:prev,b:p,color:r.displayColor||r.color,physical:!!r.physical});}prev=p;}
+      const length=end-start,n=(terrainState.terrain||path.level)?Math.max(1,Math.ceil(length/5)):1;let prev=null,prevGround=null;
+      for(let k=0;k<=n;k++){const s=start+length*k/n,q=path.at(Math.min(path.length,s)).coordinate,h=railHeight(path,s),p=h===null?null:world(q,h);if(prev&&p){vertices.push(...prev,...p);if(terrainState.terrain||r.physical||r.drawingRanges)(isUnderground(path,s)?buriedSegments:lineSegments).push({a:prev,b:p,color:r.displayColor||r.color,physical:!!r.physical});}
+        if(r.physical&&p&&!isUnderground(path,s)){
+          const g=ground(q),gp=Number.isFinite(g)?world(q,g)[2]:null,level=path.level?.(s),scale=ml.MercatorCoordinate.fromLngLat(q).meterInMercatorCoordinateUnits()/unit;
+          if(prev&&Number.isFinite(gp)&&Number.isFinite(prevGround))structureSegments.push({a:prev,b:p,groundA:prevGround,groundB:gp,bridge:level?.kind==='bridge'&&level.offsetM>0,scale});
+          prevGround=gp;
+        }else prevGround=null;
+        prev=p;}
+      // 橋墩沿來源 way 的固定里程放置，平移視角不會使橋墩滑動；地形未載入時不猜地面高度。
+      if(r.physical)for(let s=Math.ceil(start/32)*32;s<end;s+=32){
+        const level=path.level?.(s);if(level?.kind!=='bridge'||level.offsetM<=0)continue;
+        const point=path.at(s),q=point.coordinate,h=railHeight(path,s),g=ground(q);if(!Number.isFinite(h)||!Number.isFinite(g))continue;
+        const scale=ml.MercatorCoordinate.fromLngLat(q).meterInMercatorCoordinateUnits()/unit;
+        piers.push({p:world(q,h),ground:world(q,g)[2],angle:Math.atan2(b[1]-a[1],(b[0]-a[0])*Math.cos(q[1]*Math.PI/180)),scale,coordinate:q,railHeightM:h,groundM:g});
       }
-    }if(vertices.length)profileVertices.push(vertices);}rails.set(lineSegments);undergroundRails.set(buriedSegments);stats.undergroundRailSegments=buriedSegments.length;
+      }
+    }if(vertices.length)profileVertices.push(vertices);}rails.set(lineSegments);undergroundRails.set(buriedSegments);structures.set(structureSegments,piers);stats.undergroundRailSegments=buriedSegments.length;
   }
   async function geometry(id){if(cache.has(id))return cache.get(id);if(!pending.has(id))pending.set(id,(async()=>{
     const meta=catalog.meshes[id],r=await fetch(asset('assets/blender-map-v1/'+meta.file));if(!r.ok)throw Error('列車模型載入失敗');const b=await r.arrayBuffer();
@@ -183,7 +198,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     for(const [type,handler]of mapListeners)map.off(type,handler);if(stationLayer){if(map.getLayer(stationLayer.id)?.implementation===stationLayer)map.removeLayer(stationLayer.id);else stationLayer.onRemove();}
     if(vehicleLayer&&map.getLayer('live-vehicles-3d')===vehicleLayer)map.removeLayer('live-vehicles-3d');if(underlayLayer&&map.getLayer('live-vehicles-underlay')===underlayLayer)map.removeLayer('live-vehicles-underlay');
     if(undergroundLayer&&map.getLayer('live-underground-3d')===undergroundLayer)map.removeLayer('live-underground-3d');
-    clearLines();for(const m of models.values())if(m.group)scene.remove(m.group);models.clear();rails.destroy();undergroundRails.destroy();undergroundMaterial.dispose();vehicleDepthMaterial.dispose();for(const g of cache.values())g.dispose();material.dispose();pointGeometry.dispose();pointMaterial.dispose();pointTexture.dispose();arrowGeometry.dispose();arrowMaterial.dispose();webgl?.dispose();}
+    clearLines();for(const m of models.values())if(m.group)scene.remove(m.group);models.clear();rails.destroy();undergroundRails.destroy();structures.destroy();undergroundMaterial.dispose();vehicleDepthMaterial.dispose();for(const g of cache.values())g.dispose();material.dispose();pointGeometry.dispose();pointMaterial.dispose();pointTexture.dispose();arrowGeometry.dispose();arrowMaterial.dispose();webgl?.dispose();}
   const mapListeners=[];const listenMap=(type,handler)=>{map.on(type,handler);mapListeners.push([type,handler]);};
   try{
     if(!map.getSource('terrain'))map.addSource('terrain',{type:'raster-dem',tiles:['island-dem://{z}/{x}/{y}'],minzoom:0,maxzoom:12,tileSize:512,encoding:'terrarium',attribution:'<a href="https://mapterhorn.com/attribution/" target="_blank" rel="noopener">© Mapterhorn · 內政部 20m DTM</a>'});
@@ -196,7 +211,10 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     }
     points.visible=arrows.visible=false;
     map.addLayer({id:'live-vehicles-3d',type:'custom',renderingMode:'3d',onAdd(_,gl){webgl=new THREE.WebGLRenderer({canvas:map.getCanvas(),context:gl});webgl.autoClear=false;},
-      render(gl,args){camera.projectionMatrix.copy(projection.fromArray(args.defaultProjectionData.mainMatrix).multiply(transform));updateModelScales();rails.render(el.clientWidth,el.clientHeight,routeWidth(map.getZoom()),map.getZoom()>=14&&(terrainState.terrain||frame?.routes.some(r=>r.physical||r.drawingRanges)),frame?.display?.dark);webgl.resetState();webgl.render(scene,camera);stats.frames++;}});vehicleLayer=map.getLayer('live-vehicles-3d');
+      render(gl,args){camera.projectionMatrix.copy(projection.fromArray(args.defaultProjectionData.mainMatrix).multiply(transform));updateModelScales();structures.setVisible(map.getZoom()>=14);rails.render(el.clientWidth,el.clientHeight,routeWidth(map.getZoom()),map.getZoom()>=14&&(terrainState.terrain||frame?.routes.some(r=>r.physical||r.drawingRanges)),frame?.display?.dark);webgl.resetState();webgl.render(scene,camera);stats.frames++;
+        const lead=models.get(frame?.selectedVehicleId)?.cars?.[0],pad=map.getPadding();
+        stats.headLockErrorPx=frame?.headLocked&&lead?Math.hypot(project(lead.position.toArray()).x-(el.clientWidth+pad.left-pad.right)/2,project(lead.position.toArray()).y-(el.clientHeight+pad.top-pad.bottom)/2):null;
+      }});vehicleLayer=map.getLayer('live-vehicles-3d');
     // 透明 extrusion 仍寫深度；先在牆面下畫一次車體，才有真實車色可供玻璃混合。
     // 最後的正常深度 pass 再恢復位於建築前方的車體，路線不會蓋住車身。
     if(map.getLayer('building-3d'))map.addLayer({id:'live-vehicles-underlay',type:'custom',renderingMode:'3d',render(gl,args){
@@ -232,13 +250,22 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
       // 單指／左鍵平移可立即解鎖；雙指與右鍵需留給旋轉、縮放的組合手勢。
       if(input.touches?input.touches.length===1:input.button===0&&!input.ctrlKey)onGesture();}});
     for(const type of ['zoomstart','rotatestart','pitchstart'])listenMap(type,e=>{startGesture(e);if(e.originalEvent)gestureOrbited=true;});
-    function finishGesture(){clearTimeout(gestureTimer);if(!gesture)return;gestureTimer=setTimeout(()=>{if(pointers.size||map.isMoving()){finishGesture();return;}const pan=gesturePanned&&!gestureOrbited;gesture=false;gesturePanned=gestureOrbited=false;if(pan)onGesture();else if(frame?.followLock&&frame.selectedVehicleId)followReturn={id:frame.selectedVehicleId};},80);}
-    listenMap('moveend',()=>{if(gesture)finishGesture();});
+    function finishGesture(){clearTimeout(gestureTimer);if(!gesture)return;gestureTimer=setTimeout(()=>{if(pointers.size||map.isMoving()){finishGesture();return;}const pan=gesturePanned&&!gestureOrbited;gesture=false;gesturePanned=gestureOrbited=false;if(pan&&!frame?.headLocked)onGesture();else if(frame?.followLock&&frame.selectedVehicleId)followReturn={id:frame.selectedVehicleId};},80);}
+    listenMap('moveend',e=>{if(e.originalEvent)dirty=true;if(gesture)finishGesture();});
+    listenMap('sourcedata',e=>{if(terrainState.terrain&&e.sourceId==='terrain'&&e.sourceDataType==='content')dirty=true;});
     ready=true;
     return {map,stats,update,get interacting(){return gesture;},getVehicleLabels:()=>markers?.boxes||[],getRenderMemory:()=>({...webgl.info.memory}),
       setGroundMode(mode){const relief=mode==='terrain';if(relief===terrainState.terrain)return;terrainState.terrain=relief;groundMode=relief?'terrain':'flat';stats.groundMode=groundMode;stats.displayHeight=relief?'DEM + estimated rail levels':'estimated rail levels';map.setTerrain(relief?{source:'terrain',exaggeration:1}:null);map.jumpTo({elevation:0});clearLines();dirty=true;lastBuild=0;stationLayer?.refresh();trees?.schedule();if(frame)update(frame);},
       setFormationMode(mode){formationMode=mode==='three'?'three':'actual';stats.formationMode=formationMode;failed.clear();if(frame)update(frame);},getStations:()=>stationLayer,getStationLabels:()=>stationLabels?.boxes||[],setTrainSizeMode(mode){trainSizeMode=mode==='scale'?'scale':'readable';stats.trainSizeMode=trainSizeMode;},resize:()=>map.resize(),getView:()=>({center:map.getCenter().toArray(),zoom:map.getZoom(),pitch:map.getPitch(),bearing:map.getBearing()}),
       setView(v){const c=map.getCenter();if(Math.abs(c.lng-v.center[0])+Math.abs(c.lat-v.center[1])>1e-9||Math.abs(map.getZoom()-v.zoom)>1e-6)map.jumpTo(v);},
+      pinnedCameraTarget(){
+        if(!frame?.headLocked||!frame.selectedVehicleId)return null;
+        const v=frame.vehicles.find(v=>v.id===frame.selectedVehicleId),model=v&&modelFor(formationFor(v,formationMode)),profile=v&&routeProfile(v);if(!profile)return null;
+        const direction=profile.direction*(v.formationFacing||1),distance=model?.parts[0]?.offsetM||0,target=profile.path.at(profile.s+direction*distance)||profile.path.at(profile.s);
+        const elevation=railHeight(profile.path,target.s);if(!Number.isFinite(elevation))return null;
+        stats.followFraming={id:v.id,distanceM:distance,coordinate:target.coordinate,elevation,headLocked:true};
+        return {coordinate:target.coordinate,elevation};
+      },
       followCoordinate(coord,insets){
         if(gesture){stats.followSuppressed=(stats.followSuppressed||0)+1;return;}
         const w=el.clientWidth,h=el.clientHeight,padding={...insets};
@@ -280,7 +307,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
       projectedRailSamples(){return profileVertices.flatMap(a=>{const out=[];for(let i=0;i<a.length;i+=6)out.push(project([(a[i]+a[i+3])/2,(a[i+1]+a[i+4])/2,(a[i+2]+a[i+5])/2]));return out;});},
       projectedModels(){return [...models].flatMap(([id,m])=>{if(!m.group?.visible)return [];const box=new THREE.Box3().setFromObject(m.group),points=[];for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z])points.push(project([x,y,z]));return [{id,width:Math.max(...points.map(p=>p.x))-Math.min(...points.map(p=>p.x)),height:Math.max(...points.map(p=>p.y))-Math.min(...points.map(p=>p.y))}];});},
       projectedCars(){return [...models].flatMap(([id,m])=>m.group?.visible?m.cars.map((car,index)=>{const mesh=car.children[0],box=mesh.geometry.boundingBox,corners=[];for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z])corners.push(project(new THREE.Vector3(x,y,z).applyMatrix4(mesh.matrixWorld).toArray()));return {id,index,center:project(car.position.toArray()),roof:project([car.position.x,car.position.y,car.position.z+2]),scale:car.scale.toArray(),bounds:{left:Math.min(...corners.map(p=>p.x)),right:Math.max(...corners.map(p=>p.x)),top:Math.min(...corners.map(p=>p.y)),bottom:Math.max(...corners.map(p=>p.y))}};}):[]);},
-      frontScreen(){const m=models.get(frame?.selectedVehicleId);return m?.group?.visible&&stats.followFraming?.distanceM>0?project(m.cars[0].position.toArray()):null;},
+      frontScreen(){const m=models.get(frame?.selectedVehicleId);return m?.group?.visible&&(frame?.headLocked||stats.followFraming?.distanceM>0)?project(m.cars[0].position.toArray()):null;},
       hasModel:id=>!!models.get(id)?.group?.visible,
       profileKeys:()=>map.getZoom()>=14?[...(terrainState.terrain?(frame?.routes||[]).filter(r=>!r.physical&&pathFor(r)?.elevation).map(r=>r.lineKey):[]),...(frame?.replacedLineKeys||[])]:[],
       hitTest(point){const out=[];for(const [id,m]of models)if(m.group?.visible){for(const car of m.cars){const mesh=car.children[0],box=mesh.geometry.boundingBox,ps=[];for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z]){const p=project(new THREE.Vector3(x,y,z).applyMatrix4(mesh.matrixWorld).toArray());if(p.z>=-1&&p.z<=1)ps.push(p);}if(!ps.length)continue;const left=Math.min(...ps.map(p=>p.x)),right=Math.max(...ps.map(p=>p.x)),top=Math.min(...ps.map(p=>p.y)),bottom=Math.max(...ps.map(p=>p.y));if(point.x>=left-5&&point.x<=right+5&&point.y>=top-7&&point.y<=bottom+7){out.push({id,dist:0,boxed:true});break;}}}return out;},

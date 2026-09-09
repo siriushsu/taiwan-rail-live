@@ -1,3 +1,5 @@
+// 2026-09-09：使用者改為放空跟車可縮放／旋轉，以右側開關鎖定車頭。
+// A1–A3 改驗手勢開啟；逐幀中心、解鎖與返回由 verify_head_lock_browser.mjs 驗證。
 // 放空模式相機主權 + 出口鈕可及性 + 音樂開關同步 — Playwright 真引擎 + 本機靜態伺服器。
 //
 // 三件事的來源(2026-08-31 使用者回報 + 裁示):
@@ -145,10 +147,10 @@ const leaveAmbient = async () => { await page.evaluate(() => setAmbient(false));
 
 // ── A 手勢鎖 ──────────────────────────────────────────────────────────────────
 await enterAmbient('follow');
-ok('A1 放空(跟車) 六個相機手勢 handler 全關', (await handlers()).length === 0, `仍開著: ${JSON.stringify(await handlers())}`);
+ok('A1 放空(跟車) 六個相機手勢 handler 開啟', (await handlers()).length === 6, `仍開著: ${JSON.stringify(await handlers())}`);
 const gFollow = await gestureRound();
-ok('A2 放空(跟車) 真拖曳不發 dragstart', gFollow.dragstart === 0, `dragstart=${gFollow.dragstart}`);
-ok('A3 放空(跟車) 滾輪/雙擊不改 zoom', !gFollow.zoomChanged && gFollow.zoomstart === 0, `z ${gFollow.z0}→${gFollow.z1} zoomstart=${gFollow.zoomstart}`);
+ok('A2 放空(跟車) 接收真拖曳，中心由車頭鎖約束', gFollow.dragstart > 0, `dragstart=${gFollow.dragstart}`);
+ok('A3 放空(跟車) 滾輪/雙擊可改 zoom', gFollow.zoomChanged && gFollow.zoomstart > 0, `z ${gFollow.z0}→${gFollow.z1} zoomstart=${gFollow.zoomstart}`);
 ok('A8 放空中地圖點擊仍收得到(點車跟隨沒被鎖掉)', gFollow.click > 0, `click=${gFollow.click}`);
 
 await leaveAmbient();
@@ -159,7 +161,7 @@ ok('A5 控制組(非放空) 同一套手勢真的動得了地圖', gCtl.dragstar
   `dragstart=${gCtl.dragstart}(觸控+滑鼠兩路) z ${gCtl.z0}→${gCtl.z1}`);
 
 await enterAmbient('hotspot');
-ok('A7 放空(群車) 同樣六個手勢全關(兩視角一致)', (await handlers()).length === 0, `仍開著: ${JSON.stringify(await handlers())}`);
+ok('A7 放空(群車) 維持六個手勢全關', (await handlers()).length === 0, `仍開著: ${JSON.stringify(await handlers())}`);
 const gHot = await gestureRound();
 ok('A7b 放空(群車) 真拖曳/縮放都動不了', gHot.dragstart === 0 && !gHot.zoomChanged, `dragstart=${gHot.dragstart} z ${gHot.z0}→${gHot.z1}`);
 await leaveAmbient();

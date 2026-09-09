@@ -4657,6 +4657,14 @@
     body:not(.mobile-shell) #musicBtn .tl { display: none; }
     body:not(.mobile-shell):not(.ambient) #ambientStyleBtn { display: none; }
   }
+
+  #followLockBtn.head-lock, .map-actions #followLockBtn.head-lock { display:flex; flex-direction:column; align-items:center; justify-content:center; width:44px; height:52px; padding:3px; }
+  #followLockBtn.head-lock .ri-icon { width:20px; height:20px; }
+  #followLockBtn.head-lock .lock-state { font-size:10px; line-height:14px; }
+  body.fs.ambient .map-actions { opacity:1; pointer-events:none; }
+  body.fs.ambient .map-actions > :not(#followLockBtn) { display:none; }
+  body.fs.ambient .map-actions #followLockBtn { pointer-events:auto; }
+
 </style>
 <link rel="stylesheet" href="./night-theme.css">
 <script>
@@ -5240,14 +5248,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="headlock0909"><span class="d">9/9</span><span>手機跟車與放空跟車加入車頭鎖定開關，縮放旋轉時保持車頭置中；關閉後可自由移動，再開啟回到原列車</span></li>
+        <li data-cl-of="railbridge0909"><span class="d">9/9</span><span>3D 高架軌道補上示意橋面與橋墩，地面路段補上路基；開關地形都連接地表，列車不再只有懸空的軌道承托</span></li>
         <li data-cl-of="garagefollow0909"><span class="d">9/9</span><span>環形試跑放大時會鎖定三節列車、跟著編組繞圈，旋轉時保持列車置中；縮回 100% 即可欣賞完整跑道</span></li>
         <li data-cl-of="garageglass0909"><span class="d">9/9</span><span>修正車庫三節車廂的車窗反光不一致；海岸行旅的玻璃會跟著日出、藍天、黃昏與星空變換光影</span></li>
         <li data-cl-of="trabinding0909"><span class="d">9/9</span><span>修正台鐵行車曲線更新後部分列車退回示意線形的問題，加開車也能沿已知連通股道行駛，雙軌與地下、高架顯示保持一致</span></li>
         <li data-cl-of="guangci0909"><span class="d">9/9</span><span>補齊象山至廣慈／奉天宮的雙向軌道，來回列車沿各自股道進出，修正延伸段在 3D 地圖中斷的問題</span></li>
         <li data-cl-of="garagecars0909"><span class="d">9/9</span><span>修正車庫試跑時中間車廂消失的問題，環形與海岸場景都會完整顯示三節編組，輕軌分節也能正常欣賞</span></li>
         <li data-cl-of="raillevel0909"><span class="d">9/9</span><span>3D 軌道依地下、地面與高架分層，捷運交會及共站不再全部擠在地面；地下列車以半透明顯示，開關地形都保留上下關係</span></li>
-        <li data-cl-of="historic0909"><span class="d">9/9</span><span>地景加入 25 組歷史建築模型，依建物位置與朝向呈現站房、倉庫和廠房，並以遠近細節切換維持流暢</span></li>
-        <li data-cl-of="worldcover0908"><span class="d">9/8</span><span>地景加入公開土地覆蓋資料，補足台灣與離島的山林、草地和農田；樹群依林地範圍呈現，並保留道路與建物空間</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5255,6 +5263,8 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="headlock0909"><span class="d">9/9</span><span>手機跟車與放空跟車加入車頭鎖定開關，縮放旋轉時保持車頭置中；關閉後可自由移動，再開啟回到原列車</span></li>
+        <li data-cl="railbridge0909"><span class="d">9/9</span><span>3D 高架軌道補上示意橋面與橋墩，地面路段補上路基；開關地形都連接地表，列車不再只有懸空的軌道承托</span></li>
         <li data-cl="trabinding0909"><span class="d">9/9</span><span>修正台鐵行車曲線更新後部分列車退回示意線形的問題，加開車也能沿已知連通股道行駛，雙軌與地下、高架顯示保持一致</span></li>
         <li data-cl="guangci0909"><span class="d">9/9</span><span>補齊象山至廣慈／奉天宮的雙向軌道，來回列車沿各自股道進出，修正延伸段在 3D 地圖中斷的問題</span></li>
         <li data-cl="raillevel0909"><span class="d">9/9</span><span>3D 軌道依地下、地面與高架分層，捷運交會及共站不再全部擠在地面；地下列車以半透明顯示，開關地形都保留上下關係</span></li>
@@ -6173,7 +6183,7 @@
 // v0907n：更新紀錄拿掉 7/13 那條贊助方式（站上最後一處金流資訊）。
 // v0908b：阿里山林鐵補上站內股道與之字形折返股(阿里山、祝山的軌道畫進站裡);近景實體股道白名單
 //         改為單一來源(rail-3d.js 不再自帶第二份),沒被涵蓋的系統保留原本的示意線形。
-const BUILD = 'v0909h';
+const BUILD = 'v0909i';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -6621,7 +6631,7 @@ const state = {
   followTrain: null, followId: null, _routePts: null, _routeGlPts: null,
   followWrapStops: null, // setFollow 刻意回放的跨午夜 stops；只供 schedWrapT 解開該班的 _noPrevWrap
   freqFollow: null, // 捷運跟隨四形:{ln,tr}／{ln,k}／official vehicleId／{core:true,systemId,lineId,vehicleId}；獨立於 followTrain
-  followLock: true, // 跟隨鎖:true=每幀置中;拖曳地圖自動解鎖(Google 導航式),按「回到列車」恢復
+  followLock: true, // 手機／放空以明確開關鎖住車頭；桌面一般跟車仍可拖曳解鎖
   geoLoc: null, meLoc: null, geoFollow: false, // 前景 GPS 最新點／附近卡使用點／是否讓所在地鏡頭持續置中
   _geoTrackingWanted: false, _geoWatchId: null, _geoWatchStarting: false, _geoWatchBlocked: false,
   _geoWatchToken: 0, _geoWatchFirst: null, _geoWatchResolve: null, _geoWatchTimer: null,
@@ -16551,6 +16561,7 @@ function pickTourTrain() {
   return pick;
 }
 function nextTourTrain(now) {
+  if (state.ambient && !state.followLock && state.followTrain) return; // 自由瀏覽時保留原車，重新鎖定仍回同一班
   if (camBlocked()) return; // 劇場/背景分頁:不切換跟隨列車、不飛鏡頭(autoTour 狀態保留,回場續跑;成本防線)
   // 轉場防重入:到站觸發的換車條件(effT>終點arrSec)在淡出等待的每一幀都成立,
   // 不擋會機關槍連發幾十條轉場鏈,veil 淡入後殘餘 callback 輪流裸跳到不同隨機車
@@ -16603,12 +16614,15 @@ function ambientSpeed() {
 // 不覆寫使用者自己調過的速度。
 function ambientFollowSync() {
   if (!state.ambient || state.ambientStyle !== 'follow' || state._transition || camBlocked()) return;
-  const z = ambientFollowZoom();
-  if (M.getZoom() < z - 0.05) M.setView(M.getCenter(), z, { animate: false });
+  if (window.railIslandIntegration?.active && !state._amb3dReady) {
+    state._amb3dReady = true;
+    M.setView(M.getCenter(), ambientFollowZoom(), { animate: false });
+  }
   const sp = ambientSpeed();
   if (state.speedMult !== sp && state.speedMult === (state._ambSpd || 5)) { setSpeed(sp); state._ambSpd = sp; }
 }
 function ambientJumpTo(tr) {
+  state._amb3dReady = !!window.railIslandIntegration?.active;
   setFollow(tr, true, true);
   const p = trainPos(tr, state.simSec) || tr.stops[0];
   M.setView([p.lat, p.lon], ambientFollowZoom(), { animate: false });
@@ -16620,7 +16634,7 @@ function fadeSwitch(tr) {
   state._tourNext += 1600; // 轉場 ~1.6s 不計入跟隨時間
   veil.style.opacity = 1;
   setTimeout(() => {
-    if (!state.autoTour) { veil.style.opacity = 0; state._transition = false; return; }
+    if (!state.autoTour || (state.ambient && !state.followLock)) { veil.style.opacity = 0; state._transition = false; return; }
     ambientJumpTo(tr);
     veil.style.opacity = 0;
     setTimeout(() => { state._transition = false; }, 750);
@@ -16911,6 +16925,7 @@ function setAmbientStyle(style) {
   const b = document.getElementById('ambientStyleBtn');
   if (b) b.textContent = t(style === 'hotspot' ? '視角：群車' : '視角：跟車');
   if (!state.ambient) return;
+  setMapGestures(false);
   if (style === 'hotspot') {
     setAutoTour(false); clearFollow();
     state._hotFresh = true; state._hotScene = null; state._hotNext = 0;
@@ -17064,16 +17079,10 @@ function ambientIdleReset() {
 ['mousemove', 'pointerdown', 'keydown', 'touchstart'].forEach(ev =>
   document.addEventListener(ev, () => { if (state.ambient) ambientIdleReset(); }, { passive: true }));
 
-// ── 放空模式的相機主權(2026-08-31 使用者裁示:「放空模式就直接不要讓使用者隨意控制,除非離開放空」) ──
-// 進放空即停用地圖的平移/縮放手勢,兩個視角(跟車/群車)一致;離開時原樣還原。
-// 點擊【不】在此列——點列車接手跟隨、點站看板照舊(map 的 'click' 不經這些 handler),那是明示動作不是隨意控制。
-// 為什麼是「鎖」不是「拖了就讓位」:跟車視角根本沒有讓位機制,拖曳只會跟每幀 recenterTo 對打;捏出去的
-// zoom 也沒人還原(要等下一次換一班的 ambientJumpTo 才回 AMBIENT_Z,那是 60–120 秒後),而「回到列車」鈕
-// 在放空是藏的(見 updateFollowLockUI)⇒ 歪掉之後沒有任何回得來的路。群車視角雖有 _hotYield 讓位,
-// 但兩個視角行為不一致本身就是坑,一併鎖。
+// 放空跟車保留縮放與旋轉，以右側開關約束車頭中心；群車巡航維持導演控制。
 function setMapGestures(on) {
   if (!M || !M.setGestures) return;
-  M.setGestures(on); // 整組 handler(拖曳/捏合/滾輪/雙擊/框選/鍵盤/旋轉)由引擎適配層一次開關
+  M.setGestures(on || (!!state.ambient && state.ambientStyle === 'follow')); // 放空跟車也保留縮放與旋轉；中心另由車頭鎖約束。整組 handler(拖曳/捏合/滾輪/雙擊/框選/鍵盤/旋轉)由引擎適配層一次開關
 }
 
 function setAmbient(on) {
@@ -17096,7 +17105,7 @@ function setAmbient(on) {
       loadSystem(s);
     }
     b.textContent = t('離開放空');
-    setMapGestures(false); // 相機交給程式(放在 sched 早退之後:那條路徑沒真的進放空,不該把手勢鎖走)
+    setMapGestures(false); // 跟車保留手勢、群車交給導演；放在 sched 早退之後
     // 深夜(00–05)車太少 → 直接重播傍晚尖峰
     if (state.simSec < 5 * 3600) { state.nightReplay = true; setSimSec(18 * 3600); refreshBadge(); }
     if (!document.body.classList.contains('fs')) (state._setFs || (() => {}))(true);
@@ -23250,7 +23259,10 @@ function reframeFocus() {
 
 function recenterTo(lat, lon, extra) {
   if (camBlocked()) return; // 劇場/背景分頁:跟隨鏡頭不置中(成本防線,勿移除)
-  if (mapGestureActive()) return; // MapLibre 手指／滑鼠已接管相機；先讓 dragstart 有機會成立並解鎖
+  if (document.body.classList.contains('search-open')) return; // 打字搜尋時暫停跟車鏡頭
+  state._pinnedFollowTarget = {owner:state.followTrain || state.freqFollow,lat,lon};
+  if (followHeadLocked() && window.railIslandIntegration?.syncCameraLock()) return;
+  if (mapGestureActive()) return; // 非車頭鎖定時，讓手勢自行處理
   if (document.body.classList.contains('search-open')) return; // §04c 契約9:搜尋打字中不搶相機(關閉面板即恢復)
   // 每幀把列車釘在畫面「可視窗」中心(面板遮住的部分不算,見 focusCenter)。曾用「次像素平移」(移動 mapPane
   // 消階梯鋸齒),但 mapPane(圖磚)與獨立的列車/軌道 canvas 圖層在真機幀率下會脫鉤→整條路線跟著車移動/抖動
@@ -23382,9 +23394,15 @@ function updateFollowCamera() {
   updateFollowPanel(tr);
 }
 
-// ── 跟隨鎖(Google 導航式):拖曳地圖自動解鎖可自由瀏覽,按「回到列車」恢復置中 ──
+// ── 手機與放空以開關鎖定車頭；一般桌面仍可拖曳解鎖 ──
+function followHeadLocked() {
+  return !!state.followLock && !!(state.followTrain || state.freqFollow)
+    && (window.matchMedia(MOBILE_MQ).matches || !!state.ambient);
+}
 function setFollowLock(on) {
+  if (on && !state.followLock && state.ambient) state._tourNext = performance.now() + 60000;
   state.followLock = on;
+  window.railIslandIntegration?.render();
   if (on && state.followTrain) {
     // trainPos 為 null 有兩種:發車前回起點、抵達後回終點,不能一律回起點
     const s = state.followTrain.stops;
@@ -23418,16 +23436,19 @@ function syncFollowOnClass() {
 function updateFollowLockUI() {
   const b = document.getElementById('followLockBtn');
   if (!b) return;
-  // 放空模式藏 UI(鈕藏了解鎖鎖不回,鏡頭會漂走);隨機跟隨仍跟單車,保留鎖頭讓使用者能解鎖瀏覽/點回置中
-  const show = (!!state.followTrain || !!state.freqFollow) && !document.body.classList.contains('ambient');
+  // 一般跟車與放空跟車都保留開關，解鎖後仍可返回原車。
+  const show = !!state.followTrain || !!state.freqFollow;
+  const explicit = window.matchMedia(MOBILE_MQ).matches || !!state.ambient;
   // 鈕的家隨斷點搬(placeControlRail):手機在 #mapActions 工具欄——藏整個 parentNode 會把
   // 換一班/附近車站一起藏掉,只能藏鈕自己;桌面仍在地圖控制角,照舊藏容器(免留空槽佔版位)。
   if (b.parentNode && b.parentNode.id === 'mapActions') { b.style.display = show ? '' : 'none'; }
   else if (b.parentNode) { b.parentNode.style.display = show ? '' : 'none'; b.style.display = ''; }
   b.classList.toggle('unlocked', !state.followLock);
-  b.innerHTML = state.followLock ? railIcon('ui-follow-lock') : escHtml(t('回到列車'));
-  b.setAttribute('aria-label', t(state.followLock ? '解除跟隨鎖定' : '回到列車'));
-  b.title = state.followLock
+  b.classList.toggle('head-lock', explicit);
+  b.setAttribute('aria-pressed', String(state.followLock));
+  b.innerHTML = explicit ? railIcon('ui-follow-lock') + '<span class="lock-state">' + escHtml(t(state.followLock ? '鎖定' : '自由')) + '</span>' : state.followLock ? railIcon('ui-follow-lock') : escHtml(t('回到列車'));
+  b.setAttribute('aria-label', t(explicit ? (state.followLock ? '車頭鎖定：開啟' : '車頭鎖定：關閉') : (state.followLock ? '解除跟隨鎖定' : '回到列車')));
+  b.title = explicit ? t('鎖定時可縮放、旋轉；關閉後自由移動，再開啟回到車頭') : state.followLock
     ? t('跟隨鎖定中：地圖固定列車置中——點擊或直接拖曳地圖解鎖，可自由瀏覽')
     : t('自由瀏覽中：點擊回到列車，恢復置中跟隨');
   syncFollowOnClass();
@@ -33583,11 +33604,10 @@ async function boot() {
   const _flb = document.getElementById('followLockBtn'); if (_flb) _flb.onclick = () => setFollowLock(!state.followLock);
   placeControlRail(); // §04c:手機把鎖鈕搬進 #mapActions 工具欄(鈕剛建好,這是最早能搬的時點)
   updateFollowLockUI(); // 初始未跟隨 → 收起
-  // 拖曳地圖=解鎖(Google 導航式);縮放不解鎖
-  // 放空模式不解鎖:鈕是藏的,解了鎖沒辦法鎖回,鏡頭會永久漂走;隨機跟隨鈕有顯示,可解鎖也可點回置中
+  // 手機／放空的車頭鎖只由開關解除；一般桌面維持拖曳解鎖。
   M.on('dragstart', () => {
     if (state.geoFollow) state.geoFollow = false; // Google Maps 式：手動拖圖只解所在地鏡頭，不關前景 GPS／藍點
-    if ((state.followTrain || state.freqFollow) && state.followLock && !document.body.classList.contains('ambient')) setFollowLock(false);
+    if ((state.followTrain || state.freqFollow) && state.followLock && !followHeadLocked()) setFollowLock(false);
     if (state.ambient && state.ambientStyle === 'hotspot' && !state.followTrain) {
       state._hotNext = performance.now() + 45000; // 使用者動手看地圖:這一幕延長,巡航讓位幾秒再接手
       state._hotYield = performance.now() + 8000;

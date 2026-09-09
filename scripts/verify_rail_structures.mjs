@@ -1,0 +1,7 @@
+import assert from 'node:assert/strict';import * as THREE from '../rail-3d/vendor/three.module.js';import {createRailStructures} from '../rail-3d/integration/rail-structures.js';
+const scene=new THREE.Scene(),r=createRailStructures(scene),a=[0,0,8.65],b=[40,0,9.65];
+r.set([{a,b,groundA:0,groundB:1,bridge:true}],[{p:[16,0,9.05],ground:.4,angle:0,coordinate:[120,23],railHeightM:9.05,groundM:.4}]);
+assert.equal(scene.children.length,1);assert.equal(r.stats.decks,1);assert.equal(r.stats.piers,1);let geometry=scene.children[0].geometry;geometry.computeBoundingBox();assert.ok(Math.abs(geometry.boundingBox.min.z+.1)<1e-6);assert.ok(Math.abs(geometry.boundingBox.max.z-9.3)<1e-5);assert.ok([...geometry.attributes.normal.array].every(Number.isFinite));
+let disposed=false;geometry.addEventListener('dispose',()=>disposed=true);
+r.set([{a:[0,0,3.65],b:[40,0,4.65],groundA:0,groundB:1,bridge:false}],[]);assert.ok(disposed);assert.equal(r.stats.decks,0);assert.equal(r.stats.piers,0);assert.equal(r.stats.beds,1);geometry=scene.children[0].geometry;geometry.computeBoundingBox();assert.ok(Math.abs(geometry.boundingBox.min.z+.3)<1e-6);
+r.set([{a:[0,0,-8],b:[40,0,-8],groundA:0,groundB:0,bridge:false},{a,b,groundA:NaN,groundB:0,bridge:true}],[]);assert.equal(r.stats.vertices,0);r.destroy();assert.equal(scene.children.length,0);console.log('橋面／橋墩接合、路基接地、地下拒絕、單一網格與生命週期通過');

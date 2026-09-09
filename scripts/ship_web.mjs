@@ -124,6 +124,9 @@ try {
   const guangci = spawnSync('node', [path.join(wt, 'scripts', 'verify_guangci_tracks.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(guangci.stdout || ''); process.stderr.write(guangci.stderr || '');
   if (guangci.status !== 0) fail('廣慈延伸段雙軌連通性或來源座標未通過');
+  const railStructures = spawnSync('node', [path.join(wt, 'scripts', 'verify_rail_structures.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(railStructures.stdout || ''); process.stderr.write(railStructures.stderr || '');
+  if (railStructures.status !== 0) fail('軌道橋面與路基驗證未過');
   const traBinding = spawnSync('node', [path.join(wt, 'scripts', 'verify_tra_plan_binding.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(traBinding.stdout || ''); process.stderr.write(traBinding.stderr || '');
   if (traBinding.status !== 0) fail('台鐵班表與股道綁定防護未通過');

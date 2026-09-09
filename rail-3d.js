@@ -1,6 +1,8 @@
 /* 與主站共用 MapLibre、行車時鐘及點擊/跟隨；只接入 3D 顯示。 */
 (async()=>{
   const base='./rail-3d/integration/';
+  const {installFollowCameraLock}=await import(base+'follow-camera-lock.js');
+  let cameraLock=null;
   const {formationFor,airportServiceForTrip,tripDirection,stationDirection}=await import(base+'formations.js');
   const directionCache=new WeakMap();function timetableDirection(tr,ln){if(!directionCache.has(tr))directionCache.set(tr,tripDirection(tr,ln.stations.length,!!ln.loop));return directionCache.get(tr);}
   const serviceCache=new WeakMap();function airportService(tr){if(!serviceCache.has(tr))serviceCache.set(tr,airportServiceForTrip(tr));return serviceCache.get(tr);}
@@ -82,7 +84,7 @@
       clearanceRoutes:[...routes.filter(r=>r.physical),...[...new Set([...(state.trackLines||[]),...(state.lines||[]),...(state.decoLines||[])])].map(ln=>lineRecord(ln,ln.sys||ln._sys||'rail'))],
       replacedLineKeys,visible:[...state.visible],vehicles,routes:(state.collectMap||state.trackStyle==='hidden'?[]:routes).map(r=>({...r,displayColor:r.systemId.endsWith('_sched')||r.systemId==='rail'?trackLineColor(r.color):metroLineColor(r.color)})),stations,
       display:{enabled,modelMode,formationMode,ambient:!!state.ambient,ambientStyle:state.ambientStyle,ambientCamera,northUp:!!state._northReset||state._northUpTarget===(state.followTrain||state.freqFollow),dark:state.mapDark&&state.basemap!=='landscape',dirArrow:!!state.dirArrow,fontScale:Number(getComputedStyle(document.body).getPropertyValue('--ui'))||1},
-      followLock:state.followLock,selectedVehicleId:vehicles.find(v=>v.followed)?.id||null};
+      followLock:state.followLock,headLocked:followHeadLocked(),selectedVehicleId:vehicles.find(v=>v.followed)?.id||null};
   }
   function headingFor(v){const hit=targets.get(v.id),item=motionItems.get(v.id);if(!hit)return null;let previous;
     if(!hit.ln)previous=trainPos(hit.tr,state.simSec-DIR_DT_SEC);
@@ -105,7 +107,7 @@
   function inspectionEnabled(){return state.basemap==='landscape'?landscapeTransparent:state.basemap==='sat'?satelliteTransparent:transparent;}
   function syncAppearance(force=false){if(!renderer)return;const satellite=state.basemap==='sat',landscape=state.basemap==='landscape',inspection=inspectionEnabled(),key=[state.map3d,state.mapDark,satellite,landscape,inspection].join(':');if(!force&&key===appearanceKey)return;appearanceKey=key;renderer.setAppearance({buildings:state.map3d,dark:state.mapDark,transparent:inspection,satellite,landscape});syncUI();}
   function render(){if(!renderer||!M.raw.getLayer('live-vehicles-3d')||!state.ready||document.hidden)return;try{
-    if(M.raw.getZoom()<13.8){if(lastFrame?.vehicles.length){lastFrame={...lastFrame,vehicles:[],selectedVehicleId:null};renderer.update(lastFrame);}return;}
+    if(M.raw.getZoom()<13.8&&!followHeadLocked()){if(lastFrame?.vehicles.length){lastFrame={...lastFrame,vehicles:[],selectedVehicleId:null};renderer.update(lastFrame);}return;}
     lastFrame=capture();renderer.update(lastFrame);syncAppearance();updateNote();
   }catch(e){if(errors.length<5){errors.push(String(e.stack||e));console.error('3D 顯示',e);}enabled=false;syncUI();}}
   function recenter(lat,lon,extra){if(!renderer||!M.raw.getLayer('live-vehicles-3d')||!enabled||M.raw.getZoom()<14||!lastFrame?.selectedVehicleId||renderer.interacting)return false;
@@ -115,7 +117,7 @@
   }
   function attach(){const ticket=++epoch;loadSerial=loadSerial.catch(()=>{}).then(async()=>{if(ticket!==epoch)return;loading=true;syncUI();renderer?.destroy();renderer=null;appearanceKey='';
     try{const {createLiveMap}=await import(base+'map3d.js');if(ticket!==epoch)return;
-      const next=await createLiveMap({map:M.raw,isCurrent:()=>ticket===epoch&&M.isStyleReady(),landscape:state.basemap==='landscape',groundMode:effectiveGround(),formationMode,trainSizeMode,getHeading:headingFor,onGesture:()=>setFollowLock(false),onInteract:()=>{state._gestureAt=state._interactAt=performance.now();},onError:e=>{if(errors.length<20)errors.push(e);}});
+      const next=await createLiveMap({map:M.raw,isCurrent:()=>ticket===epoch&&M.isStyleReady(),landscape:state.basemap==='landscape',groundMode:effectiveGround(),formationMode,trainSizeMode,getHeading:headingFor,onGesture:()=>{if(!followHeadLocked())setFollowLock(false);},onInteract:()=>{state._gestureAt=state._interactAt=performance.now();},onError:e=>{if(errors.length<20)errors.push(e);}});
       if(ticket!==epoch){next.destroy();return;}renderer=next;syncAppearance();render();
     }catch(e){if(e.name!=='AbortError'){errors.push(String(e.stack||e));showToast(t('立體顯示載入失敗，請重試'));}}finally{loading=false;syncUI();}});}
   const labels={enabled:['立體列車','開啟','關閉'],formation:['列車編組','完整編組','三節示意'],ground:['地形','平坦','起伏試驗'],size:['列車大小','容易辨認','原始比例'],models:['顯示列車','全部近景','只看選取'],inspection:['建築透視','透明','一般'],camera:['賞車視角','側拍','環繞']};
@@ -130,6 +132,15 @@
     if(enabled&&!renderer&&!loading&&M.isStyleReady())attach();
     syncAppearance();syncUI();render();M.raw.triggerRepaint();}
   function setup(){const host=document.getElementById('map3dRow');if(!host||!M?.raw)return;
+    cameraLock=installFollowCameraLock(M.raw,()=>{
+      if(!followHeadLocked()||camBlocked()||state._transition||document.body.classList.contains('search-open'))return null;
+      const target=enabled&&renderer?.pinnedCameraTarget(),padding={...mapInsets()},size=M.getSize();
+      for(const k of ['top','bottom','left','right'])padding[k]=Math.max(0,Number(padding[k])||0);
+      for(const [a,b,total]of [['left','right',size.x],['top','bottom',size.y]])if(padding[a]+padding[b]>total-80){const f=(total-80)/(padding[a]+padding[b]);padding[a]*=f;padding[b]*=f;}
+      if(target)return {center:new maplibregl.LngLat(...target.coordinate),elevation:target.elevation,padding};
+      const fallback=state._pinnedFollowTarget;if(fallback?.owner!==(state.followTrain||state.freqFollow))return null;
+      return {center:new maplibregl.LngLat(fallback.lon,fallback.lat),elevation:0,padding};
+    });
     const group=document.createElement('div');group.className='ri-3d-settings';
     const values={enabled:['on','off'],formation:['actual','three'],ground:['flat','terrain'],size:['readable','scale'],models:['all','selected'],inspection:['on','off'],camera:['side','orbit']};
     for(const [key,[label,...options]]of Object.entries(labels)){const row=document.createElement('div');row.className='ms-row ri-3d-row';row.dataset.rail3d=key;const name=document.createElement('span');name.className='nm';name.textContent=t(label);row.append(name);const seg=document.createElement('div');seg.className='seg';seg.setAttribute('role','group');seg.setAttribute('aria-label',t(label));options.forEach((text,i)=>{const b=document.createElement('button');b.type='button';b.dataset.value=values[key][i];b.textContent=t(text);b.onclick=e=>{e.stopPropagation();setOption(key,b.dataset.value);};seg.append(b);});row.append(seg);group.append(row);}
@@ -139,6 +150,7 @@
     if(params.get('scene')==='3d'){setMap3d(true);M.setPitch(55);const zoom=Number(params.get('z'));if(Number.isFinite(zoom)&&zoom>=14&&zoom<=21){M.stop();M.raw.setZoom(zoom-ML_Z);}}if(M.isStyleReady())attach();syncUI();
   }
   window.railIslandIntegration={version:24,beforeStyleChange(){epoch++;renderer?.destroy();renderer=null;appearanceKey='';},get active(){return !!renderer&&enabled&&!!M.raw.getLayer('live-vehicles-3d');},get renderer(){return renderer;},get loading(){return loading;},errors,capture,render,recenter,select,
+    syncCameraLock(){return cameraLock?.sync()||false;},
     get frame(){return lastFrame;},
     get formationMode(){return formationMode;},get groundMode(){return effectiveGround();},get interacting(){return renderer?.interacting||false;},
     frontScreen(){return enabled&&renderer?.frontScreen();},
