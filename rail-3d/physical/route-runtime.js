@@ -6,7 +6,8 @@ export function createRouteRuntime(pack,profiles){
  const ways=pack.ways,paths=new Map(),routes=new Map(),wayById=new Map(ways.map(w=>[String(w.id),w]));let graph=null;const structureById=new Map(ways.map(w=>[String(w.id),classifyRailStructure(w.tags)]));
  const sample=(e,s,key='values')=>{if(!e)return null;let lo=0,hi=e.distances.length-1;while(hi-lo>1){const m=(lo+hi)>>1;if(e.distances[m]<=s)lo=m;else hi=m;}const f=Math.max(0,Math.min(1,(s-e.distances[lo])/(e.distances[hi]-e.distances[lo]||1)));return e[key][lo]*(1-f)+e[key][hi]*f;};
  const atHeight=(wayId,s,mode='terrain')=>{const e=profiles?.entries[wayId];return mode==='flat'?(e?.level?sample(e.level,s,'offsets'):0):sample(e?.level||e,s);};
- const levelAt=(wayId,s)=>{const e=profiles?.entries[wayId]?.level;return {kind:structureById.get(String(wayId))?.kind||'surface',layer:e?.layer??structureById.get(String(wayId))?.layer??null,offsetM:e?sample(e,s,'offsets'):0,...(e?.terrainValues?{terrainHeightM:sample(e,s,'terrainValues'),terrainBasis:e.terrainBasis,terrainTransition:e.terrainTransition}:{}),estimated:true};};
+ // kind 優先取層位剖面：那份是建置時算的，含官方橋隧補正；來源標籤只是沒有剖面時的退路。
+ const levelAt=(wayId,s)=>{const e=profiles?.entries[wayId]?.level;return {kind:e?.kind||structureById.get(String(wayId))?.kind||'surface',layer:e?.layer??structureById.get(String(wayId))?.layer??null,offsetM:e?sample(e,s,'offsets'):0,...(e?.terrainValues?{terrainHeightM:sample(e,s,'terrainValues'),terrainBasis:e.terrainBasis,terrainTransition:e.terrainTransition}:{}),estimated:true};};
  const sourcePath=w=>w._path||(w._path=makePath(w.coordinates));
  const edgeRecord=(w,a,b)=>({wayId:String(w.id),edgeId:w.id+':'+Math.min(a,b),a:sourcePath(w).d[a],b:sourcePath(w).d[b],resource:[w.system,...[w.nodes[a],w.nodes[b]].sort()].join(':')});
  function unfold(id){if(paths.has(id))return paths.get(id);const record=pack.paths[id],coordinates=[],edges=[],nodeIds=[];

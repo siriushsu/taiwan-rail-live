@@ -14,6 +14,6 @@ for(const ids of grid.values())for(let i=0;i<ids.length;i++)for(let j=i+1;j<ids.
 fs.mkdirSync('output/rail-levels',{recursive:true});fs.writeFileSync('output/rail-levels/crossings.json',JSON.stringify(rows,null,2));console.log({ways:Object.keys(levels.entries).length,shared,crossings:rows.length,failed:rows.filter(r=>!r.pass).length,examples:rows.filter(r=>!r.pass).slice(0,8)});
 for(const [id,e]of Object.entries(levels.entries)){assert.equal(e.offsets.length,e.distances.length);assert.equal(e.values.length,e.distances.length);assert.ok(e.values.every(Number.isFinite)&&e.offsets.every(Number.isFinite));for(let i=1;i<e.offsets.length;i++){assert.ok(e.distances[i]>e.distances[i-1],'取樣里程必須遞增 '+id);assert.ok(Math.abs(e.offsets[i]-e.offsets[i-1])<=(e.distances[i]-e.distances[i-1])*.08+.002,'顯示坡道不連續 '+id);}}
 for(const [file,sha]of Object.entries(levels.inputSha256||{}))assert.equal(crypto.createHash('sha256').update(fs.readFileSync('rail-3d/physical/'+file)).digest('hex'),sha,'來源幾何或 DEM 剖面改變，須重建層位');
-assert.equal(Object.keys(levels.inputSha256||{}).length,5);
+assert.equal(Object.keys(levels.inputSha256||{}).length,6);
 assert.equal(levels.railElevationM,null);
 if(rows.some(r=>!r.pass))process.exitCode=1;

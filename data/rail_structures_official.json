@@ -1,0 +1,1755 @@
+{
+ "_readme": "官方橋隧對照表：只列「OSM 標成地面、官方判定為橋或隧道」的路段，供 build_rail_levels.mjs 單向補正。coverage 是該 way 取樣點落在該結構上的比例，medianDistM 是取樣點到官方線的中位距離。不含反向（官方說平面而來源標橋的 280 條保留來源判定），也不含官方未涵蓋的新線。",
+ "generated": "2026-09-09T07:14:26.947Z",
+ "license": "政府資料開放授權條款-第1版（https://data.gov.tw/license）；顯名：內政部國土測繪中心",
+ "source": "內政部國土測繪中心 臺灣鐵路／高速鐵路／捷運（政府資料開放平臺）",
+ "datasets": [
+  {
+   "dataset": "臺灣鐵路",
+   "page": "https://data.gov.tw/dataset/73220",
+   "url": "https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/299841E1-714A-40BA-AF4B-D6527EEA2A41/resource/801DECA5-E75E-40A4-816C-1BD6A1F322C9/download",
+   "file": "RAIL_1150409",
+   "sha256": "924f0b41f28205f4d77d3f6e27e753ecc29060e131f000457ea030ef76bf653b",
+   "records": 2607,
+   "segments": 47164
+  },
+  {
+   "dataset": "高速鐵路",
+   "page": "https://data.gov.tw/dataset/73221",
+   "url": "https://www.tgos.tw/tgos/VirtualDir/Product/db6bff0a-58a5-40c1-81fb-ac8312213784/HSRAIL_1130417.zip",
+   "file": "HSRAIL_1130417",
+   "sha256": "2dc18b4abc90da3c3005705fc3844a7a50c6f18fb737c479c0c557d87becb5c4",
+   "records": 134,
+   "segments": 24178
+  },
+  {
+   "dataset": "捷運",
+   "page": "https://data.gov.tw/dataset/73222",
+   "url": "https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/159E4D93-A053-4382-A6BD-9DE6B5C4E19F/resource/9D9CF5D4-EEA3-4E1C-ACB0-ECDBBA27C713/download",
+   "file": "MRT_1150409",
+   "sha256": "f5b8e8f38e2653786e779d3bc2eaf9a75aa5d7040f1ffd09ba9441079a9790f9",
+   "records": 405,
+   "segments": 9396
+  }
+ ],
+ "params": {
+  "matchM": 40,
+  "minCover": 0.6,
+  "minMatched": 0.6,
+  "stepM": 20
+ },
+ "summary": {
+  "upgraded": {
+   "bridge": 265,
+   "tunnel": 12
+  },
+  "kept": {
+   "surface→surface": 2245,
+   "bridge→mixed": 139,
+   "bridge→bridge": 1185,
+   "bridge→surface": 280,
+   "tunnel→surface": 38,
+   "tunnel→mixed": 5,
+   "tunnel→tunnel": 635,
+   "surface→mixed": 34,
+   "tunnel→bridge": 13,
+   "bridge→tunnel": 1
+  },
+  "uncovered": 156,
+  "ways": 5008
+ },
+ "entries": {
+  "24261746": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 8
+  },
+  "25202572": {
+   "kind": "bridge",
+   "system": "mrt",
+   "coverage": 1,
+   "medianDistM": 1.8
+  },
+  "25937542": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.857,
+   "medianDistM": 1.3
+  },
+  "26547687": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 1,
+   "medianDistM": 1.6,
+   "name": "鯉魚潭橋"
+  },
+  "27670276": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 3.6
+  },
+  "28780771": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 5.1
+  },
+  "33090426": {
+   "kind": "bridge",
+   "system": "mrt",
+   "coverage": 1,
+   "medianDistM": 1.5
+  },
+  "60754388": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 1,
+   "medianDistM": 5.6,
+   "name": "鯉魚潭橋"
+  },
+  "88196947": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.917,
+   "medianDistM": 2.9
+  },
+  "96868740": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 7.9
+  },
+  "96868748": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 10.1
+  },
+  "103397329": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 1.1
+  },
+  "103397333": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 0.7
+  },
+  "103397334": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 1.2
+  },
+  "103397335": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 8.7
+  },
+  "103397337": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 4.8
+  },
+  "103397340": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 6.1
+  },
+  "103397345": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 6
+  },
+  "103397346": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 4
+  },
+  "103650502": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 0.75,
+   "medianDistM": 4.3,
+   "name": "楓樹腳橋"
+  },
+  "104635030": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 3.5
+  },
+  "106273100": {
+   "kind": "tunnel",
+   "system": "mrt",
+   "coverage": 1,
+   "medianDistM": 1.2
+  },
+  "111449035": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 4.8
+  },
+  "112294256": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 6.9
+  },
+  "118297225": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 0.75,
+   "medianDistM": 1.1,
+   "name": "金崙溪橋"
+  },
+  "122454343": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 1,
+   "medianDistM": 2.8,
+   "name": "四瑞一號橋"
+  },
+  "124999317": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.929,
+   "medianDistM": 2.9
+  },
+  "141030695": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 1,
+   "medianDistM": 3.4
+  },
+  "146741730": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 0.667,
+   "medianDistM": 2.3,
+   "name": "加津林一號橋"
+  },
+  "146741739": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 1,
+   "medianDistM": 0.7,
+   "name": "大溪一號橋"
+  },
+  "146741789": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 1,
+   "medianDistM": 4.9,
+   "name": "利嘉溪橋"
+  },
+  "146741792": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 1,
+   "medianDistM": 1.4,
+   "name": "富山五號橋"
+  },
+  "154917594": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 1.3
+  },
+  "154917595": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.964,
+   "medianDistM": 0.7
+  },
+  "164380432": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.957,
+   "medianDistM": 0.8
+  },
+  "166994641": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.944,
+   "medianDistM": 2.4
+  },
+  "174415331": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.983,
+   "medianDistM": 4.1
+  },
+  "188216247": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.935,
+   "medianDistM": 1.4
+  },
+  "188216250": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.97,
+   "medianDistM": 2.9
+  },
+  "188615642": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.8,
+   "medianDistM": 0.6
+  },
+  "188615643": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.824,
+   "medianDistM": 1.5
+  },
+  "188615646": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.842,
+   "medianDistM": 0.8
+  },
+  "188615648": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.857,
+   "medianDistM": 1.3
+  },
+  "188615649": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.8,
+   "medianDistM": 0.7
+  },
+  "188615657": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.917,
+   "medianDistM": 3.2
+  },
+  "190387296": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 2.1
+  },
+  "193939710": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 1,
+   "medianDistM": 1.8,
+   "name": "四瑞一號橋"
+  },
+  "194064858": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 1,
+   "medianDistM": 2,
+   "name": "南大溪橋"
+  },
+  "194064876": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 0.75,
+   "medianDistM": 2,
+   "name": "南大溪橋"
+  },
+  "194089092": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 1,
+   "medianDistM": 1.5,
+   "name": "五汐高架橋"
+  },
+  "194089093": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 1,
+   "medianDistM": 2.7,
+   "name": "五汐高架橋"
+  },
+  "194146294": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 3
+  },
+  "194618352": {
+   "kind": "bridge",
+   "system": "mrt",
+   "coverage": 1,
+   "medianDistM": 3
+  },
+  "194633997": {
+   "kind": "tunnel",
+   "system": "mrt",
+   "coverage": 1,
+   "medianDistM": 2.1
+  },
+  "194634008": {
+   "kind": "tunnel",
+   "system": "mrt",
+   "coverage": 1,
+   "medianDistM": 2.3
+  },
+  "197183111": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 1,
+   "medianDistM": 1.8,
+   "name": "宜蘭川橋"
+  },
+  "197638298": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 2.8
+  },
+  "197638300": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 2.5
+  },
+  "197638311": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 2.9
+  },
+  "197638313": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 2
+  },
+  "197638316": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.923,
+   "medianDistM": 2.9
+  },
+  "197666421": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 3.4
+  },
+  "197666423": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 7
+  },
+  "197666424": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 2.7
+  },
+  "197666429": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 3.6
+  },
+  "197877592": {
+   "kind": "tunnel",
+   "system": "mrt",
+   "coverage": 1,
+   "medianDistM": 0.4
+  },
+  "198181450": {
+   "kind": "bridge",
+   "system": "mrt",
+   "coverage": 1,
+   "medianDistM": 2.8
+  },
+  "199778749": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.935,
+   "medianDistM": 5.7
+  },
+  "199778751": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.9,
+   "medianDistM": 4.2
+  },
+  "199778753": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.7,
+   "medianDistM": 2.7
+  },
+  "199778754": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.97,
+   "medianDistM": 3.5
+  },
+  "199778758": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.667,
+   "medianDistM": 0.2
+  },
+  "199778761": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.857,
+   "medianDistM": 5.2
+  },
+  "199778762": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.7,
+   "medianDistM": 4
+  },
+  "199778765": {
+   "kind": "tunnel",
+   "system": "thsr_sched",
+   "coverage": 0.667,
+   "medianDistM": 8.2
+  },
+  "199778768": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.8,
+   "medianDistM": 4.6
+  },
+  "199778769": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.842,
+   "medianDistM": 3.9
+  },
+  "199778772": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.824,
+   "medianDistM": 2.5
+  },
+  "199778774": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.929,
+   "medianDistM": 3.3
+  },
+  "199778775": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.917,
+   "medianDistM": 2.9
+  },
+  "199778776": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.983,
+   "medianDistM": 1.2
+  },
+  "199779604": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.944,
+   "medianDistM": 1.6
+  },
+  "199779609": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 0.5
+  },
+  "199779617": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.964,
+   "medianDistM": 4.2
+  },
+  "199779620": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.929,
+   "medianDistM": 3.6
+  },
+  "202234036": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 2.8
+  },
+  "202811845": {
+   "kind": "bridge",
+   "system": "tymc",
+   "coverage": 1,
+   "medianDistM": 2.8
+  },
+  "203971047": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 0.854,
+   "medianDistM": 3.3
+  },
+  "207560620": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 2.5
+  },
+  "207560623": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 3.2
+  },
+  "207560628": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 1
+  },
+  "207560629": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 7.8
+  },
+  "207563724": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.941,
+   "medianDistM": 2.9
+  },
+  "207563726": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.941,
+   "medianDistM": 3.6
+  },
+  "207564112": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.667,
+   "medianDistM": 2.7
+  },
+  "207564115": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.667,
+   "medianDistM": 2.9
+  },
+  "207565114": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.923,
+   "medianDistM": 5.5
+  },
+  "207565116": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 7.2
+  },
+  "207565117": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.846,
+   "medianDistM": 1.3
+  },
+  "207565118": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 0.3
+  },
+  "229143350": {
+   "kind": "tunnel",
+   "system": "afr_sched",
+   "coverage": 1,
+   "medianDistM": 0.9
+  },
+  "229143359": {
+   "kind": "tunnel",
+   "system": "afr_sched",
+   "coverage": 1,
+   "medianDistM": 1.3
+  },
+  "242270263": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.929,
+   "medianDistM": 0.8
+  },
+  "244749022": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.917,
+   "medianDistM": 2.1
+  },
+  "323105868": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.963,
+   "medianDistM": 4
+  },
+  "323105872": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.833,
+   "medianDistM": 3.1
+  },
+  "323105882": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.833,
+   "medianDistM": 1.8
+  },
+  "323105891": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.889,
+   "medianDistM": 1.8
+  },
+  "323105893": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.714,
+   "medianDistM": 3.7
+  },
+  "323105894": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.929,
+   "medianDistM": 3.4
+  },
+  "323105895": {
+   "kind": "tunnel",
+   "system": "thsr_sched",
+   "coverage": 0.667,
+   "medianDistM": 4.7
+  },
+  "323105897": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.981,
+   "medianDistM": 0.5
+  },
+  "323105899": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.889,
+   "medianDistM": 3
+  },
+  "323105901": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.857,
+   "medianDistM": 1.1
+  },
+  "323105903": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.917,
+   "medianDistM": 1.8
+  },
+  "323105908": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.857,
+   "medianDistM": 4.1
+  },
+  "323105910": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.957,
+   "medianDistM": 4.5
+  },
+  "323105914": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.857,
+   "medianDistM": 0.4
+  },
+  "323105917": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.933,
+   "medianDistM": 3.9
+  },
+  "323105919": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 3.4
+  },
+  "323105920": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 1.5
+  },
+  "323105921": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.964,
+   "medianDistM": 4.2
+  },
+  "362240844": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 1,
+   "medianDistM": 3.2
+  },
+  "367044381": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 1,
+   "medianDistM": 1.7,
+   "name": "廣東南路陸橋"
+  },
+  "381211457": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.955,
+   "medianDistM": 1.4
+  },
+  "381211458": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.955,
+   "medianDistM": 4.9
+  },
+  "395582819": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 1,
+   "medianDistM": 1.1,
+   "name": "五汐高架橋"
+  },
+  "395582826": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 1,
+   "medianDistM": 1.8,
+   "name": "五汐高架橋"
+  },
+  "395582838": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 1,
+   "medianDistM": 2.4,
+   "name": "五汐高架橋"
+  },
+  "442247891": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 1,
+   "medianDistM": 0.6
+  },
+  "442247894": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 1,
+   "medianDistM": 3.7
+  },
+  "442254430": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 0.857,
+   "medianDistM": 2.3
+  },
+  "458093455": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 4
+  },
+  "458093456": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 2.3
+  },
+  "471171768": {
+   "kind": "bridge",
+   "system": "tymc",
+   "coverage": 1,
+   "medianDistM": 3.2
+  },
+  "479986427": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 1,
+   "medianDistM": 0.7,
+   "name": "鯉魚潭橋"
+  },
+  "479986655": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 1,
+   "medianDistM": 2.9,
+   "name": "鯉魚潭橋"
+  },
+  "501102955": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 15.9
+  },
+  "501132942": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 6.8
+  },
+  "501134072": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 4.6
+  },
+  "501135661": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 6.6
+  },
+  "501139165": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 11.1
+  },
+  "501139166": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 22.1
+  },
+  "530253121": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 1,
+   "medianDistM": 2.4
+  },
+  "530255686": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 1,
+   "medianDistM": 3.1,
+   "name": "廣東南路陸橋"
+  },
+  "555370218": {
+   "kind": "bridge",
+   "system": "mrt",
+   "coverage": 1,
+   "medianDistM": 3.9
+  },
+  "555370219": {
+   "kind": "bridge",
+   "system": "mrt",
+   "coverage": 1,
+   "medianDistM": 1
+  },
+  "603958445": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 3.8
+  },
+  "603958446": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 3.5
+  },
+  "603958453": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 4.6
+  },
+  "603958454": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 1.4
+  },
+  "605073281": {
+   "kind": "bridge",
+   "system": "tmrt",
+   "coverage": 1,
+   "medianDistM": 7.4
+  },
+  "605073284": {
+   "kind": "bridge",
+   "system": "tmrt",
+   "coverage": 1,
+   "medianDistM": 3
+  },
+  "618741885": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 0.9
+  },
+  "618741888": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 5
+  },
+  "618741892": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.964,
+   "medianDistM": 1.5
+  },
+  "618741894": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 0.8
+  },
+  "626756765": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 7.3
+  },
+  "626756766": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 4.2
+  },
+  "667354269": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 6.2
+  },
+  "667354270": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 2.5
+  },
+  "682814470": {
+   "kind": "bridge",
+   "system": "tymc",
+   "coverage": 1,
+   "medianDistM": 3.6
+  },
+  "682814471": {
+   "kind": "bridge",
+   "system": "tymc",
+   "coverage": 1,
+   "medianDistM": 0.9
+  },
+  "706622462": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 0.7
+  },
+  "712373729": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 0.2
+  },
+  "836959570": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 0.75,
+   "medianDistM": 0.4,
+   "name": "獅子四號高架橋"
+  },
+  "864687149": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 2.7
+  },
+  "864687150": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 2.5
+  },
+  "864687151": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 3
+  },
+  "864687152": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 2.5
+  },
+  "864687153": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 2.6
+  },
+  "864687154": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 2.2
+  },
+  "864687155": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.75,
+   "medianDistM": 5.2
+  },
+  "864687156": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.75,
+   "medianDistM": 0.4
+  },
+  "864687157": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.75,
+   "medianDistM": 0.7
+  },
+  "864687158": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.75,
+   "medianDistM": 5.3
+  },
+  "864687159": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 3.4
+  },
+  "864687160": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.75,
+   "medianDistM": 3.1
+  },
+  "864687161": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.667,
+   "medianDistM": 3.7
+  },
+  "864687162": {
+   "kind": "tunnel",
+   "system": "thsr_sched",
+   "coverage": 0.667,
+   "medianDistM": 0.9
+  },
+  "864687163": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 3.1
+  },
+  "864687164": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 2.4
+  },
+  "864694981": {
+   "kind": "bridge",
+   "system": "tymc",
+   "coverage": 1,
+   "medianDistM": 1.5
+  },
+  "864694982": {
+   "kind": "bridge",
+   "system": "tymc",
+   "coverage": 1,
+   "medianDistM": 2.6
+  },
+  "865641460": {
+   "kind": "bridge",
+   "system": "mrt",
+   "coverage": 1,
+   "medianDistM": 3.7
+  },
+  "865641461": {
+   "kind": "bridge",
+   "system": "mrt",
+   "coverage": 1,
+   "medianDistM": 1.2
+  },
+  "865642192": {
+   "kind": "bridge",
+   "system": "tymc",
+   "coverage": 1,
+   "medianDistM": 0.8
+  },
+  "865642193": {
+   "kind": "bridge",
+   "system": "tymc",
+   "coverage": 1,
+   "medianDistM": 4.8
+  },
+  "865642194": {
+   "kind": "bridge",
+   "system": "tymc",
+   "coverage": 1,
+   "medianDistM": 1.1
+  },
+  "865642195": {
+   "kind": "bridge",
+   "system": "tymc",
+   "coverage": 1,
+   "medianDistM": 3.8
+  },
+  "870498977": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.8,
+   "medianDistM": 1.3
+  },
+  "870498979": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.9,
+   "medianDistM": 4.1
+  },
+  "870498981": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.929,
+   "medianDistM": 3.2
+  },
+  "870498984": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.933,
+   "medianDistM": 1.3
+  },
+  "870498985": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.833,
+   "medianDistM": 2.7
+  },
+  "870498986": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.667,
+   "medianDistM": 2.1
+  },
+  "870498987": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 2
+  },
+  "870498988": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 2.8
+  },
+  "870498989": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.882,
+   "medianDistM": 1.6
+  },
+  "870498991": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.941,
+   "medianDistM": 2.6
+  },
+  "870498994": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.857,
+   "medianDistM": 2.6
+  },
+  "870498995": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.905,
+   "medianDistM": 2.9
+  },
+  "870498996": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.952,
+   "medianDistM": 4
+  },
+  "870498997": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.857,
+   "medianDistM": 5.5
+  },
+  "870498999": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.9,
+   "medianDistM": 2
+  },
+  "870499000": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.8,
+   "medianDistM": 5.5
+  },
+  "870499002": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 1.4
+  },
+  "870499007": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 6.5
+  },
+  "871829699": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 0.667,
+   "medianDistM": 5.8,
+   "name": "十里溪橋"
+  },
+  "922552878": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.667,
+   "medianDistM": 0.8
+  },
+  "922552879": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.667,
+   "medianDistM": 4.1
+  },
+  "922554268": {
+   "kind": "tunnel",
+   "system": "thsr_sched",
+   "coverage": 0.667,
+   "medianDistM": 3.3
+  },
+  "922554269": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.667,
+   "medianDistM": 1.7
+  },
+  "922554270": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.667,
+   "medianDistM": 0.5
+  },
+  "922554271": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.667,
+   "medianDistM": 3.6
+  },
+  "922555269": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 3
+  },
+  "922555270": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 3.6
+  },
+  "922555271": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 3
+  },
+  "922555272": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 4.1
+  },
+  "922564437": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.9,
+   "medianDistM": 4.4
+  },
+  "922564438": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.9,
+   "medianDistM": 0.8
+  },
+  "922572626": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.667,
+   "medianDistM": 3.8
+  },
+  "922572627": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.667,
+   "medianDistM": 3
+  },
+  "966439379": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 0.75,
+   "medianDistM": 1,
+   "name": "大溪四號橋"
+  },
+  "966440113": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.75,
+   "medianDistM": 1.1
+  },
+  "966440115": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.875,
+   "medianDistM": 7.5
+  },
+  "966445954": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 0.2
+  },
+  "966445955": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 4.8
+  },
+  "966445971": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 3.4
+  },
+  "966445972": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 2.9
+  },
+  "966445973": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 2
+  },
+  "966445976": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 3.7
+  },
+  "966445977": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 1.4
+  },
+  "966445978": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.667,
+   "medianDistM": 2.2
+  },
+  "966445981": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.667,
+   "medianDistM": 2.7
+  },
+  "966445983": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 3.4
+  },
+  "966445985": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.929,
+   "medianDistM": 1.2
+  },
+  "1005491329": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.857,
+   "medianDistM": 2.1
+  },
+  "1005491330": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.929,
+   "medianDistM": 3.8
+  },
+  "1061049431": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 1.3
+  },
+  "1128429898": {
+   "kind": "bridge",
+   "system": "tymc",
+   "coverage": 1,
+   "medianDistM": 4.9
+  },
+  "1128429899": {
+   "kind": "bridge",
+   "system": "tymc",
+   "coverage": 1,
+   "medianDistM": 0.6
+  },
+  "1136931229": {
+   "kind": "bridge",
+   "system": "tymc",
+   "coverage": 1,
+   "medianDistM": 3.7
+  },
+  "1136931230": {
+   "kind": "bridge",
+   "system": "tymc",
+   "coverage": 1,
+   "medianDistM": 2.2
+  },
+  "1165519972": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.846,
+   "medianDistM": 9
+  },
+  "1165519976": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 0.923,
+   "medianDistM": 2.6
+  },
+  "1165520701": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 4.8
+  },
+  "1165520704": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 7.6
+  },
+  "1165520794": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 14.9
+  },
+  "1165520795": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 14.4
+  },
+  "1165520797": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 12.4
+  },
+  "1174306658": {
+   "kind": "bridge",
+   "system": "mrt",
+   "coverage": 1,
+   "medianDistM": 2
+  },
+  "1174306660": {
+   "kind": "bridge",
+   "system": "mrt",
+   "coverage": 1,
+   "medianDistM": 2.1
+  },
+  "1175718513": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 1.9
+  },
+  "1175718514": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 4
+  },
+  "1176935251": {
+   "kind": "bridge",
+   "system": "mrt",
+   "coverage": 1,
+   "medianDistM": 2.2
+  },
+  "1176935253": {
+   "kind": "bridge",
+   "system": "mrt",
+   "coverage": 1,
+   "medianDistM": 1.7
+  },
+  "1176935260": {
+   "kind": "bridge",
+   "system": "mrt",
+   "coverage": 1,
+   "medianDistM": 2
+  },
+  "1176935261": {
+   "kind": "bridge",
+   "system": "mrt",
+   "coverage": 1,
+   "medianDistM": 2.1
+  },
+  "1317828102": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 2.3
+  },
+  "1318356686": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 0.667,
+   "medianDistM": 1.7,
+   "name": "員林大排水橋"
+  },
+  "1318356687": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 0.667,
+   "medianDistM": 1.6,
+   "name": "員林大排水橋"
+  },
+  "1393172409": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 1,
+   "medianDistM": 1.3,
+   "name": "南大溪橋"
+  },
+  "1393172411": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 0.667,
+   "medianDistM": 1.2,
+   "name": "南大溪橋"
+  },
+  "1469751014": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 1,
+   "medianDistM": 0.9
+  },
+  "1470244695": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 1,
+   "medianDistM": 4.1
+  },
+  "1470244696": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 1,
+   "medianDistM": 0.2
+  },
+  "1472900411": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 1,
+   "medianDistM": 3.4
+  },
+  "1472900413": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 1,
+   "medianDistM": 1.2
+  },
+  "1482263373": {
+   "kind": "bridge",
+   "system": "tmrt",
+   "coverage": 1,
+   "medianDistM": 5.9
+  },
+  "1482263374": {
+   "kind": "bridge",
+   "system": "tmrt",
+   "coverage": 1,
+   "medianDistM": 1.5
+  },
+  "1482263381": {
+   "kind": "bridge",
+   "system": "tmrt",
+   "coverage": 1,
+   "medianDistM": 1.5
+  },
+  "1482263382": {
+   "kind": "bridge",
+   "system": "tmrt",
+   "coverage": 1,
+   "medianDistM": 5.7
+  },
+  "1493067933": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 2.9
+  },
+  "1493067934": {
+   "kind": "bridge",
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 2
+  },
+  "1547904804": {
+   "kind": "tunnel",
+   "system": "tra_sched",
+   "coverage": 0.7,
+   "medianDistM": 2.9,
+   "name": "明隧二號"
+  },
+  "1549651573": {
+   "kind": "tunnel",
+   "system": "afr_sched",
+   "coverage": 1,
+   "medianDistM": 1.6
+  }
+ }
+}
