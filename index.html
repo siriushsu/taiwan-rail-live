@@ -5258,6 +5258,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="railstruct0909"><span class="d">9/9</span><span>橋梁與隧道改依官方橋隧圖資補正，高鐵、臺中捷運等原本被畫成平地的高架與隧道路段回到正確高度；沒有明確資料的一般路段仍然貼地</span></li>
         <li data-cl-of="landscapebeta0909"><span class="d">9/9</span><span>地景地圖標示 Beta，持續完善地形、建物與沿線景觀</span></li>
         <li data-cl-of="linkougrade0909"><span class="d">9/9</span><span>修正龜山至林口台地的高鐵橋隧縱坡與洞口銜接，隧道不再隨山坡起伏，保留已知跨河橋梁</span></li>
         <li data-cl-of="metrocompact0909"><span class="d">9/9</span><span>捷運跟車資訊卡可收成單行，保留路線、車號與結束按鈕，點卡片可再展開</span></li>
@@ -5265,7 +5266,6 @@
         <li data-cl-of="railfollow0909"><span class="d">9/9</span><span>修正低角度跟車時車頭超出畫面，以及平原號等示意列車在高架橋下行駛的問題</span></li>
         <li data-cl-of="railground0909"><span class="d">9/9</span><span>修正一般路段被誤畫成高架橋的問題；橋梁只依明確標記呈現，普通軌道貼近地表，保留交會與地下路段的高低差</span></li>
         <li data-cl-of="terrainview0909"><span class="d">9/9</span><span>改善起伏地形的傾斜視角，遠方車牌與站名會逐漸收起，附近列車與車站保持清楚；修正切換地景的顯示異常</span></li>
-        <li data-cl-of="sunlight0909"><span class="d">9/9</span><span>新增「日夜光影」：天空、建築與山坡光線跟隨地圖時間和位置變化，回放也能看晨光、夕色與夜幕；傾斜地圖可看天空，更多設定可關閉</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5279,6 +5279,7 @@
         <li data-cl="collecttaipei0909"><span class="d">9/9</span><span>車站收集移除重複的「臺北－環島」，舊紀錄併回臺北站，保留到訪次數與收集進度</span></li>
         <li data-cl="railfollow0909"><span class="d">9/9</span><span>修正低角度跟車時車頭超出畫面，以及平原號等示意列車在高架橋下行駛的問題</span></li>
         <li data-cl="railground0909"><span class="d">9/9</span><span>修正一般路段被誤畫成高架橋的問題；橋梁只依明確標記呈現，普通軌道貼近地表，保留交會與地下路段的高低差</span></li>
+        <li data-cl="railstruct0909"><span class="d">9/9</span><span>橋梁與隧道改依官方橋隧圖資補正，高鐵、臺中捷運等原本被畫成平地的高架與隧道路段回到正確高度；沒有明確資料的一般路段仍然貼地</span></li>
         <li data-cl="terrainview0909"><span class="d">9/9</span><span>改善起伏地形的傾斜視角，遠方車牌與站名會逐漸收起，附近列車與車站保持清楚；修正切換地景的顯示異常</span></li>
         <li data-cl="sunlight0909"><span class="d">9/9</span><span>新增「日夜光影」：天空、建築與山坡光線跟隨地圖時間和位置變化，回放也能看晨光、夕色與夜幕；傾斜地圖可看天空，更多設定可關閉</span></li>
         <li data-cl="headlock0909"><span class="d">9/9</span><span>手機跟車與放空跟車加入車頭鎖定開關，縮放旋轉時保持車頭置中；關閉後可自由移動，再開啟回到原列車</span></li>
@@ -6205,7 +6206,7 @@
 // v0907n：更新紀錄拿掉 7/13 那條贊助方式（站上最後一處金流資訊）。
 // v0908b：阿里山林鐵補上站內股道與之字形折返股(阿里山、祝山的軌道畫進站裡);近景實體股道白名單
 //         改為單一來源(rail-3d.js 不再自帶第二份),沒被涵蓋的系統保留原本的示意線形。
-const BUILD = 'v0909m';
+const BUILD = 'v0909n';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。

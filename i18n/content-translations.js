@@ -1611,6 +1611,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {"修正一般路段被誤畫成高�
 
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"修正一般路段被誤畫成高架橋的問題；橋梁只依明確標記呈現，普通軌道貼近地表，保留交會與地下路段的高低差": "通常の線路が高架橋として表示される問題を修正。橋は明示された情報に基づいて表示し、通常区間は地表に沿わせ、交差部と地下区間の高低差を保ちます。"});
 
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"橋梁與隧道改依官方橋隧圖資補正，高鐵、臺中捷運等原本被畫成平地的高架與隧道路段回到正確高度；沒有明確資料的一般路段仍然貼地": "Bridges and tunnels are now corrected against official structure data, so elevated and tunnel sections on the high speed rail, Taichung metro and other lines that used to be drawn at ground level sit at the right height. Ordinary track without clear data still follows the ground."});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"橋梁與隧道改依官方橋隧圖資補正，高鐵、臺中捷運等原本被畫成平地的高架與隧道路段回到正確高度；沒有明確資料的一般路段仍然貼地": "橋とトンネルを公式の構造物データで補正し、台湾高速鉄道や台中メトロなどで地平として描かれていた高架・トンネル区間が正しい高さになりました。明確なデータがない通常区間は地表に沿ったままです。"});
+
 Object.assign(window.RAIL_I18N_MESSAGES.en, {"修正低角度跟車時車頭超出畫面，以及平原號等示意列車在高架橋下行駛的問題": "Fixed the train head leaving the screen at low viewing angles and illustrative trains such as the Plains Express running beneath elevated tracks."});
 
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"修正低角度跟車時車頭超出畫面，以及平原號等示意列車在高架橋下行駛的問題": "低い視点で追跡中に先頭車両が画面外に出る問題と、平原号などの模式列車が高架線路の下を走る問題を修正しました。"});

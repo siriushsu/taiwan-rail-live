@@ -26,7 +26,7 @@ const widths = [360, 375, 414, 768];
 // 9/8：補上主線兩條既有紀錄，本次立體地圖效能再加一條。
 // 9/9：地景底圖、WorldCover、歷史建物共新增三條。
 // 9/9：先前車庫玻璃、環形鎖定兩條（309→311），本次軌道承托與車頭開關兩條（311→313）。
-const expectedHistoryCount = 324;
+const expectedHistoryCount = 325;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
