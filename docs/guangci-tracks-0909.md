@@ -8,7 +8,7 @@
 
 可重現：`node scripts/extend_guangci_physical.mjs`（已納入時不重複追加），然後以 NETWORK／OUT 指定 metro 檔執行 `build_physical_display_profiles.mjs`，再執行 `build_rail_levels.mjs`。
 
-驗收：`verify_guangci_tracks.mjs` 檢查 2 方向各 1101 個進度點、象山邊界连续性、地下高度、原始 XY、股道不重用；已加入出貨閘門。`verify_guangci_browser.mjs` 驗證 Chromium／WebKit 的兩方向六節車、起終點與中途位置、平地／地形、軌道 A/B 像素，以及不完整資料的 fallback 範圍。
+驗收：`verify_guangci_tracks.mjs` 檢查 2 方向各 1101 個進度點、象山邊界連續性、地下高度、原始 XY、股道不重用；已加入出貨閘門。`verify_guangci_browser.mjs` 驗證 Chromium／WebKit 的兩方向六節車、起終點與中途位置、平地／地形、軌道 A/B 像素，以及不完整資料的 fallback 範圍。
 
 實測結果：廣慈專項 Chromium／WebKit 30 項通過，軌道 A/B 像素差分別為 4770／21533。手機 360／375／414／768 的兩引擎觸控驗收通過；Chromium 414 首次 boot 超時，單獨重驗通過。上下層全網檢查 4237 ways、5686 共用節點、339 交叉均通過。
 
@@ -23,4 +23,4 @@
 - 預覽網址受 Cloudflare Access 保護，HTTP 302，未宣稱預覽瀏覽器驗證通過；完成本機及乾淨出貨驗證後，依授權切正式並立即實測公開網站。
 - 出貨整組網址／分頁驗證 245／245 通過，去註解等價檢查通過。正式首頁 BUILD 與 stripped MD5 `818d52344f7c70982e02fa3c727a9262` 一致，6 個修改資產 SHA256 相同，北捷 API HTTP 200。
 - 正式廣慈專項 Chromium／WebKit 30／30，廣慈區域 375px 雙引擎觸控／地形切換 6／6 通過。
-- 額外的台北全景 WebKit 手機驗證遇到多個模型與地形請求 `The network connection was lost`，重驗仍重現，不能將這項宣称為通過。廣慈區域模型無 renderer errors、两方向各正常顯示；有部分其他地形 chunk 請求取消或斷線。網路中斷的根因尚未確認。
+- 額外的台北全景 WebKit 手機驗證遇到多個模型與地形請求 `The network connection was lost`，重驗仍重現，不能將這項宣稱為通過。廣慈區域模型無 renderer errors、兩方向各正常顯示；有部分其他地形 chunk 請求取消或斷線。網路中斷的根因尚未確認。
