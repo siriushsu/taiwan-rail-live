@@ -1,5 +1,6 @@
 import {createPhysicalMotion} from './motion.js';
 import {createMetroPhysicalMotion} from './metro-motion.js';
+import {createDisplayLevelLookup} from './display-level.js';
 // 這裡的股道幾何與各系統既有的示意線形必須對得上,對不上的系統一律沿用原定位
 // ——與本模組既有的「班表簽章不符時沿用原始定位」同一條原則,寧可不套也不要套錯。
 //
@@ -16,6 +17,7 @@ export async function loadPhysicalMotion(){
  const [network,profiles,dispatch,metroNetwork,metroProfiles,levels]=await Promise.all(['network.json','display-profiles.json','dispatch.json','metro-network.json','metro-display-profiles.json','level-profiles.json'].map(json));
  for(const p of [profiles,metroProfiles])for(const [id,e]of Object.entries(p.entries))e.level=levels.entries[id]||null;
  const motion=createPhysicalMotion(network,profiles,dispatch),metro=createMetroPhysicalMotion(metroNetwork,metroProfiles);
+ let displayLevelLookup=null;
  let visibleCache=null;const boxes=new WeakMap();
  function visibleRoutes(lines,bounds){const west=bounds.getWest()-.006,east=bounds.getEast()+.006,south=bounds.getSouth()-.006,north=bounds.getNorth()+.006,systems=new Map();
   for(const line of lines){const sys=line.systemId;if(PHYSICAL_SYSTEMS.includes(sys)&&!systems.has(sys))systems.set(sys,line.color);}
@@ -30,6 +32,7 @@ export async function loadPhysicalMotion(){
  // systems 是這份白名單的**唯一**出處:rail-3d.js 決定「哪些線要把示意線形換成實體股道」時要讀它。
  // 兩邊各留一份的話,名單一改就會出現「宣告換圖、卻沒有東西可換」的空窗——線直接消失。
  return {...motion,metro,dispatch,visibleRoutes,systems:PHYSICAL_SYSTEMS,
+  displayLevelAt(system,coordinate,angle){if(!displayLevelLookup)displayLevelLookup=createDisplayLevelLookup(network.ways,motion.geometry.levelAt);return displayLevelLookup(system,coordinate,angle);},
   sample:(tr,...rest)=>covered(tr)?motion.sample(tr,...rest):undefined,
   has:tr=>covered(tr)&&motion.has(tr)};
 }

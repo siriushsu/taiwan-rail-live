@@ -65,8 +65,19 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   const report=e=>{const text=e?.message||String(e);if(stats.errors.length<20)stats.errors.push(text);onError?.(text);};
   function world(coord,height){const m=ml.MercatorCoordinate.fromLngLat(coord);return [(m.x-anchor.x)/unit,-(m.y-anchor.y)/unit,height*m.meterInMercatorCoordinateUnits()/unit];}
   function height(coord){if(!terrainState.terrain)return .65;const h=map.queryTerrainElevation(coord);return Number.isFinite(h)?h+.65:null;}
-  function pathFor(route){if(!route?.coordinates?.length)return null;if(route.physical&&route.path){route.path.elevation=route.elevation;route.path.level=route.level;return route.path;}let p=paths.get(route.coordinates);if(!p){p=makePath(route.coordinates,route.loop);const data=profileData.entries[shapeKey(route.coordinates)];p.elevation=route.elevation||(data&&Math.abs(data.lengthM-p.length)<.01?makeHeightProfile(data.values,data.stepM,p.length):null);p.level=route.level;paths.set(route.coordinates,p);}return p;}
-  function railHeight(path,s){const h=path?.elevation?(terrainState.terrain?path.elevation(s):path.level?path.elevation(s,'flat'):0):terrainState.terrain?null:0;return Number.isFinite(h)?h+.65:null;}
+  function pathFor(route){if(!route?.coordinates?.length)return null;if(route.physical&&route.path){route.path.elevation=route.elevation;route.path.level=route.level;return route.path;}let p=paths.get(route.coordinates);if(!p){p=makePath(route.coordinates,route.loop);const data=profileData.entries[shapeKey(route.coordinates)];p.elevation=route.elevation||(data&&Math.abs(data.lengthM-p.length)<.01?makeHeightProfile(data.values,data.stepM,p.length):null);p.level=route.level;paths.set(route.coordinates,p);}
+    if(!route.physical&&!p.level&&globalThis.railIslandPhysical?.systems?.includes(route.systemId))p.level=s=>{
+      const q=p.at(s);if(!q)return null;const a=p.coordinates[q.index],b=p.coordinates[q.index+1],angle=Math.atan2(b[1]-a[1],(b[0]-a[0])*Math.cos(q.coordinate[1]*Math.PI/180));
+      return globalThis.railIslandPhysical.displayLevelAt(route.systemId,q.coordinate,angle)||{kind:'surface',offsetM:0,estimated:true,displayOnly:true};
+    };return p;
+  }
+  function railHeight(path,s){
+    if(path)s=Math.max(0,Math.min(path.length,s));
+    // 實體軌道以畫面地表為基準；舊 DEM 淨空含全線 +2.5m，不能再把它當路基高度。
+    // 軌道、逐節車廂及跟車鏡頭共用此函式，保留交會層差，不以橋墩填補資料誤差。
+    if(path?.level){const ground=terrainState.terrain?map.queryTerrainElevation(path.at(s).coordinate):0,offset=path.level(s)?.offsetM??0;return Number.isFinite(ground)?ground+offset+.65:null;}
+    const h=path?.elevation?(terrainState.terrain?path.elevation(s):0):terrainState.terrain?null:0;return Number.isFinite(h)?h+.65:null;
+  }
   function isUnderground(path,s){return (path?.level?.(s)?.offsetM??0)<-3;}
   function clearLines(){stats.undergroundRailSegments=0;profileVertices=[];rails.set([]);undergroundRails.set([]);structures.set([],[]);}
   function rebuildLines(){
@@ -141,7 +152,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     next.vehicles.forEach((v,i)=>{const coord=[v.longitude,v.latitude],profile=near&&(terrainState.terrain||v.route?.level||wanted.has(v.id))&&Math.hypot(coord[0]-center.lng,coord[1]-center.lat)<.08?routeProfile(v):null,ratio=ml.MercatorCoordinate.fromLngLat(coord).meterInMercatorCoordinateUnits()/unit,
       h=profile?.height??height(coord),p=world(coord,h??.65),m=models.get(v.id),color=new THREE.Color(v.followed?'#d65130':v.color||'#287766');
       positions.set(p,i*3);colors.set([color.r,color.g,color.b],i*3);const hit={v,p,modelled:false};hits.push(hit);
-      if(m?.group){const poses=profile&&h!==null&&(!terrainState.terrain||profile.path.elevation)?formationPoses(profile.path,profile.s,profile.direction*(v.formationFacing||1),m.model.parts,s=>railHeight(profile.path,s)):null;m.group.visible=!!poses;
+      if(m?.group){const poses=profile&&h!==null&&(!terrainState.terrain||profile.path.elevation||profile.path.level)?formationPoses(profile.path,profile.s,profile.direction*(v.formationFacing||1),m.model.parts,s=>railHeight(profile.path,s)):null;m.group.visible=!!poses;
         if(poses){const displayScale=m.displayScale??1;
           m.cars.forEach((car,k)=>{const part=m.model.parts[k],pose=poses[k],r=ml.MercatorCoordinate.fromLngLat(pose.coordinate).meterInMercatorCoordinateUnits()/unit;pose.underground=isUnderground(profile.path,pose.s);car.children[0].material=pose.underground?undergroundMaterial:material;car.children[0].layers.set(pose.underground?1:0);car.children[0].layers.enable(2);car.position.set(...world(pose.coordinate,pose.height));car.scale.set(r,r*displayScale,r);car.rotation.set(0,part.flip?pose.pitch:-pose.pitch,pose.angle+(part.flip?Math.PI:0),'ZYX');});
           stats.undergroundModels+=poses.some(p=>p.underground)?1:0;hit.modelled=true;positions[i*3+2]=-1e7;stats.models++;stats.poseSamples.push({id:v.id,coordinate:coord,displayHeightM:h,railElevationM:null,level:profile.path.level?.(profile.s)||null,underground:poses.some(p=>p.underground),angle:poses[0].angle,displayScale,lengthScale:1,lengthM:m.model.lengthM,carCount:m.cars.length,formationQuality:m.model.quality,formationMode,modelId:m.model.id,actualCarCount:m.model.actualCarCount,countBasis:m.model.countBasis,lengthKnown:m.model.lengthKnown,caption:m.model.caption,cars:poses});

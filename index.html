@@ -5248,14 +5248,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="railfollow0909"><span class="d">9/9</span><span>修正低角度跟車時車頭超出畫面，以及平原號等示意列車在高架橋下行駛的問題</span></li>
+        <li data-cl-of="railground0909"><span class="d">9/9</span><span>修正一般路段被誤畫成高架橋的問題；橋梁只依明確標記呈現，普通軌道貼近地表，保留交會與地下路段的高低差</span></li>
         <li data-cl-of="terrainview0909"><span class="d">9/9</span><span>改善起伏地形的傾斜視角，遠方車牌與站名會逐漸收起，附近列車與車站保持清楚；修正切換地景的顯示異常</span></li>
         <li data-cl-of="sunlight0909"><span class="d">9/9</span><span>新增「日夜光影」：天空、建築與山坡光線跟隨地圖時間和位置變化，回放也能看晨光、夕色與夜幕；傾斜地圖可看天空，更多設定可關閉</span></li>
         <li data-cl-of="headlock0909"><span class="d">9/9</span><span>手機跟車與放空跟車加入車頭鎖定開關，縮放旋轉時保持車頭置中；關閉後可自由移動，再開啟回到原列車</span></li>
         <li data-cl-of="railbridge0909"><span class="d">9/9</span><span>3D 高架軌道補上示意橋面與橋墩，地面路段補上路基；開關地形都連接地表，列車不再只有懸空的軌道承托</span></li>
         <li data-cl-of="garagefollow0909"><span class="d">9/9</span><span>環形試跑放大時會鎖定三節列車、跟著編組繞圈，旋轉時保持列車置中；縮回 100% 即可欣賞完整跑道</span></li>
         <li data-cl-of="garageglass0909"><span class="d">9/9</span><span>修正車庫三節車廂的車窗反光不一致；海岸行旅的玻璃會跟著日出、藍天、黃昏與星空變換光影</span></li>
-        <li data-cl-of="trabinding0909"><span class="d">9/9</span><span>修正台鐵行車曲線更新後部分列車退回示意線形的問題，加開車也能沿已知連通股道行駛，雙軌與地下、高架顯示保持一致</span></li>
-        <li data-cl-of="guangci0909"><span class="d">9/9</span><span>補齊象山至廣慈／奉天宮的雙向軌道，來回列車沿各自股道進出，修正延伸段在 3D 地圖中斷的問題</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5263,6 +5263,8 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="railfollow0909"><span class="d">9/9</span><span>修正低角度跟車時車頭超出畫面，以及平原號等示意列車在高架橋下行駛的問題</span></li>
+        <li data-cl="railground0909"><span class="d">9/9</span><span>修正一般路段被誤畫成高架橋的問題；橋梁只依明確標記呈現，普通軌道貼近地表，保留交會與地下路段的高低差</span></li>
         <li data-cl="terrainview0909"><span class="d">9/9</span><span>改善起伏地形的傾斜視角，遠方車牌與站名會逐漸收起，附近列車與車站保持清楚；修正切換地景的顯示異常</span></li>
         <li data-cl="sunlight0909"><span class="d">9/9</span><span>新增「日夜光影」：天空、建築與山坡光線跟隨地圖時間和位置變化，回放也能看晨光、夕色與夜幕；傾斜地圖可看天空，更多設定可關閉</span></li>
         <li data-cl="headlock0909"><span class="d">9/9</span><span>手機跟車與放空跟車加入車頭鎖定開關，縮放旋轉時保持車頭置中；關閉後可自由移動，再開啟回到原列車</span></li>
@@ -6189,7 +6191,7 @@
 // v0907n：更新紀錄拿掉 7/13 那條贊助方式（站上最後一處金流資訊）。
 // v0908b：阿里山林鐵補上站內股道與之字形折返股(阿里山、祝山的軌道畫進站裡);近景實體股道白名單
 //         改為單一來源(rail-3d.js 不再自帶第二份),沒被涵蓋的系統保留原本的示意線形。
-const BUILD = 'v0909k';
+const BUILD = 'v0909l';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -23554,10 +23556,10 @@ function updateFollowCamera() {
   updateFollowPanel(tr);
 }
 
-// ── 手機與放空以開關鎖定車頭；一般桌面仍可拖曳解鎖 ──
+// ── 手機、放空與 3D 跟車共用車頭鎖定；低角度也不以編組中段置中 ──
 function followHeadLocked() {
   return !!state.followLock && !!(state.followTrain || state.freqFollow)
-    && (window.matchMedia(MOBILE_MQ).matches || !!state.ambient);
+    && (window.matchMedia(MOBILE_MQ).matches || !!state.ambient || !!window.railIslandIntegration?.active);
 }
 function setFollowLock(on) {
   if (on && !state.followLock && state.ambient) state._tourNext = performance.now() + 60000;
