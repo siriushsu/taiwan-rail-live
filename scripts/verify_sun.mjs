@@ -22,6 +22,10 @@ for(const lat of [22,23.4487,25.033])for(const date of ['2026-03-20','2026-06-21
   assert.ok(Number.isFinite(s.elevation)&&s.azimuth>=0&&s.azimuth<360);
   assert.deepEqual(s.light.position,toMapLibreSunPosition(ms,lat,121.565));
   assert.equal(s.light.anchor,'map');
+  assert.ok(s.hillshade['hillshade-illumination-direction']>=0&&s.hillshade['hillshade-illumination-direction']<=359);
+  assert.ok(s.hillshade['hillshade-illumination-altitude']>=0&&s.hillshade['hillshade-illumination-altitude']<=90);
+  assert.ok(s.hillshade['hillshade-exaggeration']>=.08&&s.hillshade['hillshade-exaggeration']<=.42+1e-10);
+  if(previous)assert.ok(Math.abs(s.hillshade['hillshade-exaggeration']-previous.hillshade['hillshade-exaggeration'])<.01,'坡面對比不突然跳變');
   assert.ok(s.light.intensity>=0&&s.light.intensity<=1);
   if(previous)for(const k of ['sky-color','horizon-color']){
    const rgb=x=>x.match(/\w\w/g).map(v=>parseInt(v,16));

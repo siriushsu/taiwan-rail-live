@@ -5240,14 +5240,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
-        <li data-cl-of="sunlight0909"><span class="d">9/9</span><span>新增「日夜光影」：天空與建築光線跟隨地圖時間和位置變化，回放也能看晨光、夕色與夜幕；傾斜地圖可看天空，更多設定可關閉</span></li>
+        <li data-cl-of="terrainview0909"><span class="d">9/9</span><span>改善起伏地形的傾斜視角，遠方車牌與站名會逐漸收起，附近列車與車站保持清楚；修正切換地景的顯示異常</span></li>
+        <li data-cl-of="sunlight0909"><span class="d">9/9</span><span>新增「日夜光影」：天空、建築與山坡光線跟隨地圖時間和位置變化，回放也能看晨光、夕色與夜幕；傾斜地圖可看天空，更多設定可關閉</span></li>
         <li data-cl-of="guangci0909"><span class="d">9/9</span><span>補齊象山至廣慈／奉天宮的雙向軌道，來回列車沿各自股道進出，修正延伸段在 3D 地圖中斷的問題</span></li>
         <li data-cl-of="garagecars0909"><span class="d">9/9</span><span>修正車庫試跑時中間車廂消失的問題，環形與海岸場景都會完整顯示三節編組，輕軌分節也能正常欣賞</span></li>
         <li data-cl-of="raillevel0909"><span class="d">9/9</span><span>3D 軌道依地下、地面與高架分層，捷運交會及共站不再全部擠在地面；地下列車以半透明顯示，開關地形都保留上下關係</span></li>
         <li data-cl-of="historic0909"><span class="d">9/9</span><span>地景加入 25 組歷史建築模型，依建物位置與朝向呈現站房、倉庫和廠房，並以遠近細節切換維持流暢</span></li>
         <li data-cl-of="worldcover0908"><span class="d">9/8</span><span>地景加入公開土地覆蓋資料，補足台灣與離島的山林、草地和農田；樹群依林地範圍呈現，並保留道路與建物空間</span></li>
         <li data-cl-of="landscape0908"><span class="d">9/8</span><span>新增「地景」地圖風格：河流、林地、公園與街廓換上自然色，近看可見立體樹冠與建築，搭配列車沿線探索台灣</span></li>
-        <li data-cl-of="mrttrainno0908"><span class="d">9/8</span><span>跟隨台北捷運列車時，官方有給車次的班次會在資訊卡上方顯示車次</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5255,7 +5255,8 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
-        <li data-cl="sunlight0909"><span class="d">9/9</span><span>新增「日夜光影」：天空與建築光線跟隨地圖時間和位置變化，回放也能看晨光、夕色與夜幕；傾斜地圖可看天空，更多設定可關閉</span></li>
+        <li data-cl="terrainview0909"><span class="d">9/9</span><span>改善起伏地形的傾斜視角，遠方車牌與站名會逐漸收起，附近列車與車站保持清楚；修正切換地景的顯示異常</span></li>
+        <li data-cl="sunlight0909"><span class="d">9/9</span><span>新增「日夜光影」：天空、建築與山坡光線跟隨地圖時間和位置變化，回放也能看晨光、夕色與夜幕；傾斜地圖可看天空，更多設定可關閉</span></li>
         <li data-cl="guangci0909"><span class="d">9/9</span><span>補齊象山至廣慈／奉天宮的雙向軌道，來回列車沿各自股道進出，修正延伸段在 3D 地圖中斷的問題</span></li>
         <li data-cl="raillevel0909"><span class="d">9/9</span><span>3D 軌道依地下、地面與高架分層，捷運交會及共站不再全部擠在地面；地下列車以半透明顯示，開關地形都保留上下關係</span></li>
         <li data-cl="historic0909"><span class="d">9/9</span><span>地景加入 25 組歷史建築模型，依建物位置與朝向呈現站房、倉庫和廠房，並以遠近細節切換維持流暢</span></li>
@@ -6172,7 +6173,7 @@
 // v0907n：更新紀錄拿掉 7/13 那條贊助方式（站上最後一處金流資訊）。
 // v0908b：阿里山林鐵補上站內股道與之字形折返股(阿里山、祝山的軌道畫進站裡);近景實體股道白名單
 //         改為單一來源(rail-3d.js 不再自帶第二份),沒被涵蓋的系統保留原本的示意線形。
-const BUILD = 'v0909f-light';
+const BUILD = 'v0909g-light';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -6810,20 +6811,37 @@ function createMaplibreEngine(containerId, view) {
     if (raw.isStyleLoaded()) putProbe();
   }
   window.__ofmGl = raw; // 驗證腳本的 GL 把手
+  let detailView;
+  function detailOpacity(ll) {
+    const tr = raw.transform, c = tr.center, pitch = tr.pitch;
+    if (pitch <= 30) return 1; // 俯視仍可看全台，不以站等或列車身分例外放行遠端標記。
+    if (!detailView || detailView.lng !== c.lng || detailView.lat !== c.lat || detailView.pitch !== pitch || detailView.zoom !== tr.zoom || detailView.width !== tr.width || detailView.height !== tr.height) {
+      const cos = Math.cos(c.lat * Math.PI / 180), tilt = Math.min(1, (pitch - 30) / 25);
+      const span = Math.max(500, Math.max(tr.width, tr.height) * 40075016.686 * cos / tr.worldSize);
+      detailView = { lng: c.lng, lat: c.lat, pitch, zoom: tr.zoom, width: tr.width, height: tr.height, cos, far: span * 2.5 / tilt };
+    }
+    const p = mlToLL(ll), v = detailView;
+    const distance = Math.hypot((p.lng - v.lng) * v.cos, p.lat - v.lat) * 111195;
+    const t = Math.max(0, Math.min(1, (distance / v.far - .55) / .45));
+    return 1 - t * t * (3 - 2 * t);
+  }
   const E = {
     engine: 'maplibre', raw,
     // 投影(全程浮點;MapLibre project 回的是 Point{x,y})
     toScreen: ll => { const p = mlToLL(ll); const q = raw.project([p.lng, p.lat]); return { x: q.x, y: q.y }; },
+    detailOpacity,
     fromScreen: pt => { const q = raw.unproject([Array.isArray(pt) ? pt[0] : pt.x, Array.isArray(pt) ? pt[1] : pt.y]); return { lat: q.lat, lng: q.lng }; },
-    // 75° 可見天空時，用同一引擎的地表邊界裁掉遠方 canvas 標記；不平移任何標記。
-    // 5.9.0 已固定；此方法與引擎畫天空的 horizon 共用計算，避免另外估一條地平線。
+    // 平坦模式才使用水平 horizon。起伏模式的 project 已讀取 DEM，不能再把山稜上的
+    // 標記用海平面直線截成半截；保留引擎投影，不在 draw 逐幀讀回 GPU 深度。
     surfaceTop: () => {
       const tr = raw.transform;
-      if (raw.getPitch() <= 60 || tr.isPointOnMapSurface({x: tr.width / 2, y: 0})) return 0;
+      if (raw.getTerrain() || raw.getPitch() <= 60 || tr.isPointOnMapSurface({x: tr.width / 2, y: 0})) return 0;
       let lo = 0, hi = tr.height;
       for (let i = 0; i < 14; i++) { const mid = (lo + hi) / 2; if (tr.isPointOnMapSurface({x: tr.width / 2, y: mid})) hi = mid; else lo = mid; }
       return hi;
     },
+    // 點擊/游標才查實際地形覆蓋，山稜高於水平 horizon 時仍可點選。
+    isOnSurface: pt => raw.transform.isPointOnMapSurface(pt, raw.terrain),
     worldPx: (ll, z) => mlWorldPx(ll, z),
     worldUnpx: (pt, z) => mlWorldUnpx(pt, z),
     // 相機
@@ -6904,6 +6922,9 @@ function createMaplibreEngine(containerId, view) {
       if (!s) return E;
       if (kind === styleKind) return E;
       window.railIslandIntegration?.beforeStyleChange();
+      // 起伏的深度/座標 framebuffer 仍引用舊 style 的 projection；先卸下 terrain，
+      // 再換整份樣式，避免載入空窗內 getBounds/unproject 讀到已移除的 shader。
+      if (raw.getTerrain()) raw.setTerrain(null);
       styleKind = kind; styleLoaded = false; raw.setStyle(s, { diff: false }); return E;
     },
     getStyleKind: () => styleKind,
@@ -7385,15 +7406,12 @@ function reproject() {
     ln._bbox = (line && line.length) ? bboxOf(line) : null;
   };
   state.lines.forEach(ln => {
-    ln.pts = ln.stations.map(s => {
-      const p = M.toScreen([s.lat, s.lon]);
-      return { x: p.x, y: p.y };
-    });
+    ln.pts = ln.stations.map(s => mapDetailPoint([s.lat, s.lon]));
     projShape(ln);
   });
   if (state.trackLines) state.trackLines.forEach(projShape);
   if (state.decoLines) state.decoLines.forEach(ln => { // 全台同框:裝飾捷運/輕軌層的線與站投影
-    ln.pts = ln.stations.map(s => { const p = M.toScreen([s.lat, s.lon]); return { x: p.x, y: p.y }; });
+    ln.pts = ln.stations.map(s => mapDetailPoint([s.lat, s.lon]));
     projShape(ln);
   });
 }
@@ -10953,7 +10971,8 @@ function trtcOfficialTagHalfWidth(label) {
   return (ctx.measureText(label).width + 10) / 2;
 }
 function drawTrtcOfficialVehicle(ln, item, showTrain, inView, collectHit, nowEpoch) {
-  const cp = M.toScreen([item.pos.lat, item.pos.lon]);
+  const cp = mapDetailPoint([item.pos.lat, item.pos.lon]);
+  if (!inView(cp)) return;
   if (window.railIslandIntegration?.hasModel({ln,vehicleId:item.vehicleId,core:false})) return;
   // officialNo 是北捷 TrackInfo.TrainNumber；文湖線該欄恆空，沿用舊版 ln.abbr 橢圓牌（BR），
   // 不把內部 vehicleId 畫給使用者，也不拿無法可靠對站牌的 CarWeight 編號冒充車次。
@@ -11005,11 +11024,17 @@ function updateCount() {
   document.getElementById('count').textContent = t('{n} 班奔跑中', { n: i18nNumber(n) }, n);
 }
 
+// 距離僅控制標記透明度，投影與軌道幾何沿用引擎原值。
+function mapDetailPoint(ll) {
+  const p = M.toScreen(ll);
+  return { x: p.x, y: p.y, detailOpacity: M.detailOpacity(ll) };
+}
+
 function drawFreq(w, h) {
   const P = pal();
   const z = M.getZoom();
   const showStation = z >= 13, showTrain = z >= 12;
-  const inView = p => p.x >= -40 && p.x <= w + 40 && p.y >= -20 && p.y <= h + 20;
+  const inView = p => (p.detailOpacity ?? 1) > 0 && p.x >= -40 && p.x <= w + 40 && p.y >= -20 && p.y <= h + 20;
   const drawnNames = new Set();
   ctx.textAlign = 'center';
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
@@ -11028,6 +11053,7 @@ function drawFreq(w, h) {
   state.lines.forEach(ln => {
     if (!state.visible.has(ln.id) || !ln.pts) return;
     ln.pts.forEach((p, idx) => {
+      if (!inView(p)) return;
       if (!glTracksActive()) {
         ctx.beginPath(); ctx.arc(p.x, p.y, 2.4 + stationZoomBoost(z) * 4, 0, 7);
         ctx.fillStyle = P.stnFill; ctx.fill();
@@ -11050,7 +11076,7 @@ function drawFreq(w, h) {
     const core = metroCoreItemsForLine(ln, officialNow);
     if (core !== null) {
       for (const item of core) {
-        const cp = M.toScreen([item.pos.lat, item.pos.lon]);
+        const cp = mapDetailPoint([item.pos.lat, item.pos.lon]);
         paintTrain(cp.x, cp.y, null, ln.id, () => drawMetroCoreVehicle(ln, item, showTrain, inView, true, officialNow));
       }
       return;
@@ -11058,7 +11084,7 @@ function drawFreq(w, h) {
     const official = trtcOfficialItemsForLine(ln, officialNow);
     if (official !== null) {
       for (const item of official) {
-        const cp = M.toScreen([item.pos.lat, item.pos.lon]); // 只為排序取位置,實際還是由該函式自己算
+        const cp = mapDetailPoint([item.pos.lat, item.pos.lon]); // 只為排序取位置,實際還是由該函式自己算
         paintTrain(cp.x, cp.y, null, ln.id, () => drawTrtcOfficialVehicle(ln, item, showTrain, inView, true, officialNow));
       }
       return;
@@ -11067,7 +11093,7 @@ function drawFreq(w, h) {
       for (const tr of ln._tt) {
         const pos = freqTrainPosAt(ln, tr, state.simSec);
         if (!pos) continue; // 未發車/已到終點
-        const cp = M.toScreen([pos.lat, pos.lon]);
+        const cp = mapDetailPoint([pos.lat, pos.lon]);
         paintTrain(cp.x, cp.y, null, ln.id, () => {
           if (window.railIslandIntegration?.hasModel({ln,tr})) return;
           if (ff && ff.ln === ln && ff.tr === tr) drawFreqRing(cp, ln.color);
@@ -11083,7 +11109,7 @@ function drawFreq(w, h) {
     if (!ln.sched) return; // 無時刻檔的線退回班距均勻撒車
     for (let k = 0; k < ln.n; k++) {
       const pos = posPeriodic(ln, tau + k * ln.period / ln.n);
-      const cp = M.toScreen([pos.lat, pos.lon]);
+      const cp = mapDetailPoint([pos.lat, pos.lon]);
       paintTrain(cp.x, cp.y, null, ln.id, () => {
         if (window.railIslandIntegration?.hasModel({ln,k})) return;
         if (ff && ff.ln === ln && ff.k === k) drawFreqRing(cp, ln.color); // 跟隨中的幽靈車:高亮環(畫在牌下)
@@ -11105,18 +11131,23 @@ function drawFreq(w, h) {
     if (drawnNames.has(name)) continue;
     drawnNames.add(name);
     const a = sideLabelAnchor(p, pa, pb, 18) || { x: p.x, y: p.y };
-    tryLabel(a.x, a.y, name);
+    tryLabel(a.x, a.y, name, undefined, undefined, p.detailOpacity);
   }
 }
 
 // ── 捷運(freq 幽靈車)點擊跟隨 ──
 // 幽靈車＝班距模擬的示意列車,沒有車次號;跟隨只做「相機置中＋輕量資訊卡」,絕不寫入完乘/成就(那套只認 sched)。
 function drawFreqRing(p, color) {
-  ctx.beginPath(); ctx.arc(p.x, p.y, 14, 0, 7);
-  ctx.strokeStyle = color; ctx.globalAlpha = 0.32; ctx.lineWidth = 2; ctx.stroke();
-  ctx.beginPath(); ctx.arc(p.x, p.y, 9, 0, 7);
-  ctx.strokeStyle = color; ctx.globalAlpha = 0.9; ctx.lineWidth = 2.5; ctx.stroke();
-  ctx.globalAlpha = 1;
+  const opacity = p.detailOpacity ?? 1;
+  if (opacity <= 0) return;
+  ctx.save(); ctx.globalAlpha = opacity;
+  try {
+    ctx.beginPath(); ctx.arc(p.x, p.y, 14, 0, 7);
+    ctx.strokeStyle = color; ctx.globalAlpha = opacity * (0.32); ctx.lineWidth = 2; ctx.stroke();
+    ctx.beginPath(); ctx.arc(p.x, p.y, 9, 0, 7);
+    ctx.strokeStyle = color; ctx.globalAlpha = opacity * (0.9); ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.globalAlpha = opacity * (1);
+  } finally { ctx.restore(); }
 }
 // posPeriodic 的資訊變體:除了座標,回傳方向(去程/回程)、目的地終點站、下一站站名。
 // 鏡像規則:非環線 seq 節點 0..F-1 是去程、F..2F-2 是回程;target=列車正前往的節點索引。
@@ -11400,7 +11431,7 @@ function drawDecoBase(w, h) {
   const P = pal();
   const z = M.getZoom();
   const showStation = z >= 13, showStop = z >= 11; // 遠景不畫站點:短線會糊成串珠(showTrain 移到 drawDecoTrains)
-  const inView = p => p.x >= -40 && p.x <= w + 40 && p.y >= -20 && p.y <= h + 20;
+  const inView = p => (p.detailOpacity ?? 1) > 0 && p.x >= -40 && p.x <= w + 40 && p.y >= -20 && p.y <= h + 20;
   const offLine = ln => ln._bbox && (ln._bbox[2] < -40 || ln._bbox[0] > w + 40 || ln._bbox[3] < -40 || ln._bbox[1] > h + 40); // 整條離屏
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   decoLabels.length = 0;
@@ -11437,7 +11468,7 @@ function drawDecoTrains(w, h) {
   if (!state.decoLines) return;
   const z = M.getZoom();
   const showTrain = z >= 12;
-  const inView = p => p.x >= -40 && p.x <= w + 40 && p.y >= -20 && p.y <= h + 20;
+  const inView = p => (p.detailOpacity ?? 1) > 0 && p.x >= -40 && p.x <= w + 40 && p.y >= -20 && p.y <= h + 20;
   const offLine = ln => ln._bbox && (ln._bbox[2] < -40 || ln._bbox[0] > w + 40 || ln._bbox[3] < -40 || ln._bbox[1] > h + 40); // 整條離屏
   const tau = state.decoElapsed * state.speedMult;
   const ff = state.freqFollow;
@@ -11448,7 +11479,7 @@ function drawDecoTrains(w, h) {
     const core = metroCoreItemsForLine(ln, officialNow);
     if (core !== null) {
       for (const item of core) {
-        const cp = M.toScreen([item.pos.lat, item.pos.lon]);
+        const cp = mapDetailPoint([item.pos.lat, item.pos.lon]);
         if (!inView(cp)) continue;
         paintTrain(cp.x, cp.y, null, ln.id, () => drawMetroCoreVehicle(ln, item, showTrain, inView, showTrain, officialNow));
       }
@@ -11457,7 +11488,7 @@ function drawDecoTrains(w, h) {
     const official = trtcOfficialItemsForLine(ln, officialNow);
     if (official !== null) {
       for (const item of official) {
-        const cp = M.toScreen([item.pos.lat, item.pos.lon]); // 只為排序取位置
+        const cp = mapDetailPoint([item.pos.lat, item.pos.lon]); // 只為排序取位置
         paintTrain(cp.x, cp.y, null, ln.id, () => drawTrtcOfficialVehicle(ln, item, showTrain, inView, showTrain, officialNow));
       }
       continue;
@@ -11466,7 +11497,7 @@ function drawDecoTrains(w, h) {
       for (const tr of ln._tt) {
         const pos = freqTrainPosAt(ln, tr, state.simSec);
         if (!pos) continue;
-        const cp = M.toScreen([pos.lat, pos.lon]);
+        const cp = mapDetailPoint([pos.lat, pos.lon]);
         if (!inView(cp)) continue;
         if (showTrain) state._freqHits.push({ x: cp.x, y: cp.y, ln, tr }); // 命中測試與畫的順序無關,照舊即時收
         paintTrain(cp.x, cp.y, null, ln.id, () => {
@@ -11483,7 +11514,7 @@ function drawDecoTrains(w, h) {
     if (!ln.sched) continue;
     for (let k = 0; k < ln.n; k++) {
       const pos = posPeriodic(ln, tau + k * ln.period / ln.n);
-      const cp = M.toScreen([pos.lat, pos.lon]);
+      const cp = mapDetailPoint([pos.lat, pos.lon]);
       if (!inView(cp)) continue;
       // 全台同框的捷運也可點擊跟隨;只在畫車號牌的縮放才收命中(遠景是密集小點,誤點率太高)
       if (showTrain) state._freqHits.push({ x: cp.x, y: cp.y, ln, k });
@@ -11510,7 +11541,7 @@ function drawDecoLabels() {
     if (drawn.has(name)) continue;
     drawn.add(name);
     const a = sideLabelAnchor(p, pa, pb, 18) || { x: p.x, y: p.y };
-    tryLabel(a.x, a.y, name);
+    tryLabel(a.x, a.y, name, undefined, undefined, p.detailOpacity);
   }
 }
 
@@ -11735,7 +11766,7 @@ function drawSched(w, h, paintDecoTrains) {
   const showTrain = z >= 11;
   if (!state._featured) buildFeatured(); // 每日之最快取:換系統/時刻表被 applySchedSystems 作廢後,這裡補建一次
   if (!state._punctual) buildPunctual(); // 準點排行快取:同上,換系統/資料到貨後補建一次
-  const inView = p => p.x >= -40 && p.x <= w + 40 && p.y >= -20 && p.y <= h + 20;
+  const inView = p => (p.detailOpacity ?? 1) > 0 && p.x >= -40 && p.x <= w + 40 && p.y >= -20 && p.y <= h + 20;
   if (state.trackLines) {
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     if (!glTracksActive()) for (const ln of state.trackLines) {
@@ -11746,7 +11777,7 @@ function drawSched(w, h, paintDecoTrains) {
         ln.shapePts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
       } else {
         ln.stations.forEach((s, i) => {
-          const cp = M.toScreen([s.lat, s.lon]);
+          const cp = mapDetailPoint([s.lat, s.lon]);
           i ? ctx.lineTo(cp.x, cp.y) : ctx.moveTo(cp.x, cp.y);
         });
       }
@@ -11767,7 +11798,7 @@ function drawSched(w, h, paintDecoTrains) {
   if (!glTracksActive() && state.followTrain && state.trackStyle !== 'hidden' && state._routePts && state._routePts.length > 1) {
     ctx.beginPath();
     for (let i = 0; i < state._routePts.length; i++) {
-      const p = M.toScreen([state._routePts[i].lat, state._routePts[i].lon]);
+      const p = mapDetailPoint([state._routePts[i].lat, state._routePts[i].lon]);
       i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y);
     }
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
@@ -11780,7 +11811,8 @@ function drawSched(w, h, paintDecoTrains) {
     for (const cr of state.crossings) {
       if (state.trackVisible && !cr.noSched && !state.trackVisible.has(cr.lnId)) continue; // 只顯示屬於當前已載入線形的平交道(noSched 筆無 lnId,一律放行)
       if (!cb.contains([cr.lat, cr.lon])) continue;                          // 僅視口內才計算/繪製
-      const cp = M.toScreen([cr.lat, cr.lon]);
+      const cp = mapDetailPoint([cr.lat, cr.lon]);
+      if (!inView(cp)) continue;
       drawCrossing(cp, cr, z);
       state._crossHits.push({ x: cp.x, y: cp.y, cr }); // 供點擊命中(每幀重建)
     }
@@ -11791,7 +11823,8 @@ function drawSched(w, h, paintDecoTrains) {
     const sb = M.getBounds().pad(0.06);
     for (const pk of SUGAR_PARKS) {
       if (!sb.contains([pk.lat, pk.lon])) continue;
-      const cp = M.toScreen([pk.lat, pk.lon]);
+      const cp = mapDetailPoint([pk.lat, pk.lon]);
+      if (!inView(cp)) continue;
       drawSugarMark(cp);
       state._sugarHits.push({ x: cp.x, y: cp.y, pk }); // 供點擊命中(每幀重建)
       if (z >= 11) sugarLbls.push({ cp, pk });
@@ -11800,7 +11833,7 @@ function drawSched(w, h, paintDecoTrains) {
   // 車站圖示(依站等分級):圖示墊在列車下、站名最後畫在最上層,遠景時小站不畫
   const labelCands = [];
   for (const st of state.schedStations) {
-    const cp = M.toScreen([st.lat, st.lon]);
+    const cp = mapDetailPoint([st.lat, st.lon]);
     if (!inView(cp)) continue;
     const tier = st.tier == null ? 4 : st.tier;
     if (z >= 10 || tier <= 2) drawStationIcon(cp, tier);
@@ -11817,7 +11850,8 @@ function drawSched(w, h, paintDecoTrains) {
     if (!isFollow && !state.visible.has(tr.typeName)) continue;
     const pos = trainPos(tr, state.simSec); if (!pos) continue;
     if (state.visible.has(tr.typeName)) n++;
-    const cp = M.toScreen([pos.lat, pos.lon]);
+    const cp = mapDetailPoint([pos.lat, pos.lon]);
+    if (!inView(cp)) continue;
     if (window.railIslandIntegration?.hasModel({tr})) continue;
     const sh = blockSideShift(tr, pos, cp, showTrain); // 同線同向貼太近 → 兩顆標記各往軌道法線偏一半
     // 跟隨中的那台一律畫牌(drawFollowMarker 內不看 showTrain),所以框也一律取牌的尺寸
@@ -11859,54 +11893,62 @@ function drawSched(w, h, paintDecoTrains) {
     if (c.st._co && z >= 11) {
       // 共構點(台鐵×高鐵同址):成組標示——主站在錨位、同群站逐行往下,各帶系統名,
       // 不然兩顆標籤幾乎同位置互撞,永遠只看得到其中一家(拉遠 z<11 視覺上是同一點,只標主站名)
-      tryLabel(a.x, a.y, key, t.f, c.tier <= 1 ? 4 : 3);
+      tryLabel(a.x, a.y, key, t.f, c.tier <= 1 ? 4 : 3, c.cp.detailOpacity);
       let dy = 0;
       for (const sib of c.st._co) {
         const sk = labelTextOf(sib);
         if (drawnNames.has(sk)) continue;
         drawnNames.add(sk);
         dy += 14;
-        tryLabel(a.x, a.y + dy, sk, TIER_STYLE[sib.tier == null ? 4 : sib.tier].f, 3);
+        tryLabel(a.x, a.y + dy, sk, TIER_STYLE[sib.tier == null ? 4 : sib.tier].f, 3, c.cp.detailOpacity);
       }
     } else {
-      tryLabel(a.x, a.y, key, t.f, c.tier <= 1 ? 4 : 3);
+      tryLabel(a.x, a.y, key, t.f, c.tier <= 1 ? 4 : 3, c.cp.detailOpacity);
     }
   }
   // 台糖園區名:排在站名之後參與同一套避讓(站名優先),放記號正下方
-  for (const s of sugarLbls) tryLabel(s.cp.x, s.cp.y + 24, s.pk.name, '600 10.5px ', 3);
+  for (const s of sugarLbls) tryLabel(s.cp.x, s.cp.y + 24, s.pk.name, '600 10.5px ', 3, s.cp.detailOpacity);
   document.getElementById('count').textContent = t('{n} 班奔跑中', { n: i18nNumber(n) }, n);
 }
 
 function drawFollowMarker(p, tr) {
-  const glowC = isHSR(tr) ? HSR_ORANGE : tr.color;
-  drawTrail(dt => trainPos(tr, state.simSec - dt), p, glowC);
-  glowUnder(p, glowC, 7); // 跟隨主角:光暈最強
-  const dw = dwellInfoOf(tr, effTLive(tr));
-  if (dw && dw.st.stop !== false) { // 停站脈動:外圈呼吸擴散
-    const ph = (performance.now() % 1600) / 1600;
-    ctx.beginPath(); ctx.arc(p.x, p.y, 17 + ph * 11, 0, 7);
-    ctx.strokeStyle = tr.color; ctx.globalAlpha = 0.35 * (1 - ph); ctx.lineWidth = 2; ctx.stroke();
-  }
-  ctx.beginPath(); ctx.arc(p.x, p.y, 17, 0, 7);
-  ctx.strokeStyle = tr.color; ctx.globalAlpha = 0.3; ctx.lineWidth = 2; ctx.stroke();
-  ctx.beginPath(); ctx.arc(p.x, p.y, 11, 0, 7);
-  ctx.strokeStyle = tr.color; ctx.globalAlpha = 0.9; ctx.lineWidth = 2.5; ctx.stroke();
-  ctx.globalAlpha = 1;
-  isHSR(tr) ? drawHSRTag(p, tr.train) : drawTag(p, tr.train, tr.color, textColorFor(tr.color));
-  if (state.dirArrow && M.getZoom() >= 11) drawDirArrow(p, tr, glowC); // 跟隨主角同樣加方向箭頭(牌模式才畫)
+  const opacity = p.detailOpacity ?? 1;
+  if (opacity <= 0) return;
+  ctx.save(); ctx.globalAlpha = opacity;
+  try {
+    const glowC = isHSR(tr) ? HSR_ORANGE : tr.color;
+    drawTrail(dt => trainPos(tr, state.simSec - dt), p, glowC);
+    glowUnder(p, glowC, 7); // 跟隨主角:光暈最強
+    const dw = dwellInfoOf(tr, effTLive(tr));
+    if (dw && dw.st.stop !== false) { // 停站脈動:外圈呼吸擴散
+      const ph = (performance.now() % 1600) / 1600;
+      ctx.beginPath(); ctx.arc(p.x, p.y, 17 + ph * 11, 0, 7);
+      ctx.strokeStyle = tr.color; ctx.globalAlpha = opacity * (0.35 * (1 - ph)); ctx.lineWidth = 2; ctx.stroke();
+    }
+    ctx.beginPath(); ctx.arc(p.x, p.y, 17, 0, 7);
+    ctx.strokeStyle = tr.color; ctx.globalAlpha = opacity * (0.3); ctx.lineWidth = 2; ctx.stroke();
+    ctx.beginPath(); ctx.arc(p.x, p.y, 11, 0, 7);
+    ctx.strokeStyle = tr.color; ctx.globalAlpha = opacity * (0.9); ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.globalAlpha = opacity * (1);
+    isHSR(tr) ? drawHSRTag(p, tr.train) : drawTag(p, tr.train, tr.color, textColorFor(tr.color));
+    if (state.dirArrow && M.getZoom() >= 11) drawDirArrow(p, tr, glowC); // 跟隨主角同樣加方向箭頭(牌模式才畫)
+  } finally { ctx.restore(); }
 }
 
 let labelBoxes = [];
-function tryLabel(x, y, name, font, halo) {
+function tryLabel(x, y, name, font, halo, opacity = 1) {
+  if (opacity <= 0) return;
   ctx.font = (font || '500 11px ') + FONT;
   const w = ctx.measureText(name).width, h = 13;
   const l = x - w / 2 - 1, r = x + w / 2 + 1, b = y - 4, t = b - h;
   for (const bx of labelBoxes) if (l < bx.r && r > bx.l && t < bx.b && b > bx.t) return;
-  labelBoxes.push({ l, r, t, b });
+  labelBoxes.push({ l, r, t, b, name, opacity });
+  ctx.save(); ctx.globalAlpha = opacity;
   ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
   ctx.lineWidth = halo || 3; ctx.strokeStyle = pal().lblStroke;
   ctx.strokeText(name, x, y - 4);
   ctx.fillStyle = pal().lbl; ctx.fillText(name, x, y - 4);
+  ctx.restore();
 }
 // ── 站名放軌道側邊:標籤位置固定(不對列車做避讓——避讓會讓牌亂跳,已撤),
 // 沿站點所在軌道的區域走向取法線偏移,列車沿軌道跑就壓不到字 ──
@@ -11960,28 +12002,33 @@ function stationZoomBoost(z = M.getZoom()) {
 }
 function stationHitRadius() { return 16 + stationZoomBoost() * 8; }
 function drawStationIcon(cp, tier) {
-  const t = TIER_STYLE[tier], boost = stationZoomBoost();
-  const radius = t.r + boost * 4, stroke = t.w + boost * .7;
-  if (t.sq) { // 特等站:白底圓角方牌+紅框+中心點,像站名牌
-    const s = radius, r0 = 2.5, x0 = cp.x - s, y0 = cp.y - s, ww = s * 2;
-    ctx.beginPath();
-    ctx.moveTo(x0 + r0, y0);
-    ctx.arcTo(x0 + ww, y0, x0 + ww, y0 + ww, r0);
-    ctx.arcTo(x0 + ww, y0 + ww, x0, y0 + ww, r0);
-    ctx.arcTo(x0, y0 + ww, x0, y0, r0);
-    ctx.arcTo(x0, y0, x0 + ww, y0, r0);
-    ctx.closePath();
-    ctx.fillStyle = '#fffdf6'; ctx.fill();
-    ctx.lineWidth = stroke; ctx.strokeStyle = t.ring; ctx.stroke();
-    ctx.beginPath(); ctx.arc(cp.x, cp.y, 1.8, 0, 7);
-    ctx.fillStyle = t.ring; ctx.fill();
-    return;
-  }
-  ctx.beginPath(); ctx.arc(cp.x, cp.y, radius, 0, 7);
-  ctx.fillStyle = tier <= 1 ? '#fffdf6' : pal().stnFill; ctx.fill();
-  ctx.lineWidth = stroke; ctx.strokeStyle = t.ring;
-  ctx.globalAlpha = tier >= 3 ? 0.8 : 1; ctx.stroke();
-  ctx.globalAlpha = 1;
+  const opacity = cp.detailOpacity ?? 1;
+  if (opacity <= 0) return;
+  ctx.save(); ctx.globalAlpha = opacity;
+  try {
+    const t = TIER_STYLE[tier], boost = stationZoomBoost();
+    const radius = t.r + boost * 4, stroke = t.w + boost * .7;
+    if (t.sq) { // 特等站:白底圓角方牌+紅框+中心點,像站名牌
+      const s = radius, r0 = 2.5, x0 = cp.x - s, y0 = cp.y - s, ww = s * 2;
+      ctx.beginPath();
+      ctx.moveTo(x0 + r0, y0);
+      ctx.arcTo(x0 + ww, y0, x0 + ww, y0 + ww, r0);
+      ctx.arcTo(x0 + ww, y0 + ww, x0, y0 + ww, r0);
+      ctx.arcTo(x0, y0 + ww, x0, y0, r0);
+      ctx.arcTo(x0, y0, x0 + ww, y0, r0);
+      ctx.closePath();
+      ctx.fillStyle = '#fffdf6'; ctx.fill();
+      ctx.lineWidth = stroke; ctx.strokeStyle = t.ring; ctx.stroke();
+      ctx.beginPath(); ctx.arc(cp.x, cp.y, 1.8, 0, 7);
+      ctx.fillStyle = t.ring; ctx.fill();
+      return;
+    }
+    ctx.beginPath(); ctx.arc(cp.x, cp.y, radius, 0, 7);
+    ctx.fillStyle = tier <= 1 ? '#fffdf6' : pal().stnFill; ctx.fill();
+    ctx.lineWidth = stroke; ctx.strokeStyle = t.ring;
+    ctx.globalAlpha = opacity * (tier >= 3 ? 0.8 : 1); ctx.stroke();
+    ctx.globalAlpha = opacity * (1);
+  } finally { ctx.restore(); }
 }
 
 // 平交道記號:仿台灣鐵路平交道實體「交叉標」牌面——白臂紅邊的 X 叉標(聖安德魯十字),
@@ -11989,45 +12036,55 @@ function drawStationIcon(cp, tier) {
 // 單線=單 X;雙線以上=X 下疊一道倒人字(對應官方雙軌牌較高的牌面);電化=右上迷你閃電(z≥13 才畫,遠景會糊成點)。
 // tracks/elec 由 OSM 推算,缺欄退單叉通用款。
 function drawCrossing(cp, cr, z) {
-  const multi = cr && cr.tracks >= 2;
-  const h = 6; // X 叉臂 45° 投影半長
-  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  // 白芯紅框:同一路徑先描粗紅、再蓋細白 → 白臂紅邊
-  const paint = (build) => {
-    ctx.strokeStyle = '#d0021b'; ctx.lineWidth = 5;   ctx.beginPath(); build(); ctx.stroke();
-    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.4; ctx.beginPath(); build(); ctx.stroke();
-  };
-  paint(() => {
-    ctx.moveTo(cp.x - h, cp.y - h); ctx.lineTo(cp.x + h, cp.y + h);
-    ctx.moveTo(cp.x + h, cp.y - h); ctx.lineTo(cp.x - h, cp.y + h);
-    if (multi) { // 雙線以上:下方疊一道倒人字 ∨(牌面較高)
-      const yt = cp.y + h * 0.2, yb = cp.y + h * 1.5;
-      ctx.moveTo(cp.x - h, yt); ctx.lineTo(cp.x, yb); ctx.lineTo(cp.x + h, yt);
+  const opacity = cp.detailOpacity ?? 1;
+  if (opacity <= 0) return;
+  ctx.save(); ctx.globalAlpha = opacity;
+  try {
+    const multi = cr && cr.tracks >= 2;
+    const h = 6; // X 叉臂 45° 投影半長
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    // 白芯紅框:同一路徑先描粗紅、再蓋細白 → 白臂紅邊
+    const paint = (build) => {
+      ctx.strokeStyle = '#d0021b'; ctx.lineWidth = 5;   ctx.beginPath(); build(); ctx.stroke();
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.4; ctx.beginPath(); build(); ctx.stroke();
+    };
+    paint(() => {
+      ctx.moveTo(cp.x - h, cp.y - h); ctx.lineTo(cp.x + h, cp.y + h);
+      ctx.moveTo(cp.x + h, cp.y - h); ctx.lineTo(cp.x - h, cp.y + h);
+      if (multi) { // 雙線以上:下方疊一道倒人字 ∨(牌面較高)
+        const yt = cp.y + h * 0.2, yb = cp.y + h * 1.5;
+        ctx.moveTo(cp.x - h, yt); ctx.lineTo(cp.x, yb); ctx.lineTo(cp.x + h, yt);
+      }
+    });
+    if (cr && cr.elec && z >= 13) { // 電化:右上迷你閃電(白暈紅電)
+      const bx = cp.x + h + 1.5, by = cp.y - h - 0.5;
+      ctx.beginPath(); ctx.arc(bx, by, 3.4, 0, 7);
+      ctx.fillStyle = '#ffffff'; ctx.globalAlpha = opacity * (0.95); ctx.fill(); ctx.globalAlpha = opacity * (1);
+      ctx.lineWidth = 1; ctx.strokeStyle = '#d0021b'; ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(bx + 1, by - 2); ctx.lineTo(bx - 0.8, by + 0.2); ctx.lineTo(bx + 0.5, by + 0.2); ctx.lineTo(bx - 1, by + 2.1);
+      ctx.lineWidth = 1; ctx.stroke();
     }
-  });
-  if (cr && cr.elec && z >= 13) { // 電化:右上迷你閃電(白暈紅電)
-    const bx = cp.x + h + 1.5, by = cp.y - h - 0.5;
-    ctx.beginPath(); ctx.arc(bx, by, 3.4, 0, 7);
-    ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.95; ctx.fill(); ctx.globalAlpha = 1;
-    ctx.lineWidth = 1; ctx.strokeStyle = '#d0021b'; ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(bx + 1, by - 2); ctx.lineTo(bx - 0.8, by + 0.2); ctx.lineTo(bx + 0.5, by + 0.2); ctx.lineTo(bx - 1, by + 2.1);
-    ctx.lineWidth = 1; ctx.stroke();
-  }
+  } finally { ctx.restore(); }
 }
 
 // ── 每日之最(探索面板 best 四項)的地圖識別:金色漣漪光環(車底,z 不拘) ──
 // 光環:兩圈相位錯開 1000ms 的擴散圈+常駐淡金底盤;純視覺疊層,不影響列車本體位置與 hit-test
 function drawFeaturedRing(p) {
-  ctx.beginPath(); ctx.arc(p.x, p.y, 13, 0, 7);
-  ctx.fillStyle = 'rgba(255,215,106,.15)'; ctx.fill();
-  const now = performance.now();
-  for (let i = 0; i < 2; i++) {
-    const ph = ((now + i * 1000) % 2000) / 2000;
-    ctx.beginPath(); ctx.arc(p.x, p.y, 8 + ph * 16, 0, 7);
-    ctx.strokeStyle = '#f0b429'; ctx.globalAlpha = 0.55 * (1 - ph); ctx.lineWidth = 2.5; ctx.stroke();
-  }
-  ctx.globalAlpha = 1;
+  const opacity = p.detailOpacity ?? 1;
+  if (opacity <= 0) return;
+  ctx.save(); ctx.globalAlpha = opacity;
+  try {
+    ctx.beginPath(); ctx.arc(p.x, p.y, 13, 0, 7);
+    ctx.fillStyle = 'rgba(255,215,106,.15)'; ctx.fill();
+    const now = performance.now();
+    for (let i = 0; i < 2; i++) {
+      const ph = ((now + i * 1000) % 2000) / 2000;
+      ctx.beginPath(); ctx.arc(p.x, p.y, 8 + ph * 16, 0, 7);
+      ctx.strokeStyle = '#f0b429'; ctx.globalAlpha = opacity * (0.55 * (1 - ph)); ctx.lineWidth = 2.5; ctx.stroke();
+    }
+    ctx.globalAlpha = opacity * (1);
+  } finally { ctx.restore(); }
 }
 
 // ── 準點排行(近30天最準點的10班台鐵車;探索面板「準點排行」節)的地圖識別:綠色光環(車底,z 不拘) ──
@@ -12035,15 +12092,20 @@ function drawFeaturedRing(p) {
 // 效能同量級(同樣 1 次 fill + 2 次 stroke);固定色未套 pal() 主題色,比照金環的做法(金環本來就不看
 // 主題),在亮/暗兩種底圖上都測過清楚可辨。
 function drawPunctualRing(p) {
-  ctx.beginPath(); ctx.arc(p.x, p.y, 13, 0, 7);
-  ctx.fillStyle = 'rgba(34,197,94,.15)'; ctx.fill();
-  const now = performance.now();
-  for (let i = 0; i < 2; i++) {
-    const ph = ((now + i * 1000) % 2000) / 2000;
-    ctx.beginPath(); ctx.arc(p.x, p.y, 8 + ph * 16, 0, 7);
-    ctx.strokeStyle = '#22c55e'; ctx.globalAlpha = 0.55 * (1 - ph); ctx.lineWidth = 2.5; ctx.stroke();
-  }
-  ctx.globalAlpha = 1;
+  const opacity = p.detailOpacity ?? 1;
+  if (opacity <= 0) return;
+  ctx.save(); ctx.globalAlpha = opacity;
+  try {
+    ctx.beginPath(); ctx.arc(p.x, p.y, 13, 0, 7);
+    ctx.fillStyle = 'rgba(34,197,94,.15)'; ctx.fill();
+    const now = performance.now();
+    for (let i = 0; i < 2; i++) {
+      const ph = ((now + i * 1000) % 2000) / 2000;
+      ctx.beginPath(); ctx.arc(p.x, p.y, 8 + ph * 16, 0, 7);
+      ctx.strokeStyle = '#22c55e'; ctx.globalAlpha = opacity * (0.55 * (1 - ph)); ctx.lineWidth = 2.5; ctx.stroke();
+    }
+    ctx.globalAlpha = opacity * (1);
+  } finally { ctx.restore(); }
 }
 
 // 車號牌的尺寸常數。抽出來的理由不是美觀,是**這些數字原本各寫了兩份**:
@@ -12056,20 +12118,25 @@ const HSR_TAG_PAD = 13;   // 高鐵牌本體內距(比台鐵寬)
 const HSR_NOSE = 5;       // 高鐵牌左右各一個尖角,兩側都超出牌本體
 const DOT_HIT = 12;       // 圓點模式的命中框邊長(drawDot 外圈 r=6)
 function drawTag(p, label, bg, fg) {
-  // textAlign 必須自己設:draw() 每幀結尾重設為 start,靠環境值會讓車號從中心點往右起筆(偏右半個字寬)
-  ctx.font = '700 10px ' + FONT; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
-  const pw = ctx.measureText(label).width + TAG_PAD, ph = TAG_H, rx = 7.5;
-  const x0 = p.x - pw / 2, y0 = p.y - ph / 2;
-  ctx.beginPath();
-  ctx.moveTo(x0 + rx, y0);
-  ctx.arcTo(x0 + pw, y0, x0 + pw, y0 + ph, rx);
-  ctx.arcTo(x0 + pw, y0 + ph, x0, y0 + ph, rx);
-  ctx.arcTo(x0, y0 + ph, x0, y0, rx);
-  ctx.arcTo(x0, y0, x0 + pw, y0, rx);
-  ctx.closePath();
-  ctx.fillStyle = bg; ctx.globalAlpha = 0.96; ctx.fill(); ctx.globalAlpha = 1;
-  ctx.lineWidth = 1.5; ctx.strokeStyle = pal().tagOutline; ctx.stroke();
-  ctx.fillStyle = fg; ctx.fillText(label, p.x, p.y + 0.5);
+  const opacity = p.detailOpacity ?? 1;
+  if (opacity <= 0) return;
+  ctx.save(); ctx.globalAlpha = opacity;
+  try {
+    // textAlign 必須自己設:draw() 每幀結尾重設為 start,靠環境值會讓車號從中心點往右起筆(偏右半個字寬)
+    ctx.font = '700 10px ' + FONT; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+    const pw = ctx.measureText(label).width + TAG_PAD, ph = TAG_H, rx = 7.5;
+    const x0 = p.x - pw / 2, y0 = p.y - ph / 2;
+    ctx.beginPath();
+    ctx.moveTo(x0 + rx, y0);
+    ctx.arcTo(x0 + pw, y0, x0 + pw, y0 + ph, rx);
+    ctx.arcTo(x0 + pw, y0 + ph, x0, y0 + ph, rx);
+    ctx.arcTo(x0, y0 + ph, x0, y0, rx);
+    ctx.arcTo(x0, y0, x0 + pw, y0, rx);
+    ctx.closePath();
+    ctx.fillStyle = bg; ctx.globalAlpha = opacity * (0.96); ctx.fill(); ctx.globalAlpha = opacity * (1);
+    ctx.lineWidth = 1.5; ctx.strokeStyle = pal().tagOutline; ctx.stroke();
+    ctx.fillStyle = fg; ctx.fillText(label, p.x, p.y + 0.5);
+  } finally { ctx.restore(); }
 }
 
 // 機捷車牌:直達＝兩側尖頭實心(沿用高鐵牌的「快車」語彙)、普通＝圓角白底線色框,兩者都比一般
@@ -12082,26 +12149,31 @@ function drawTag(p, label, bg, fg) {
 //    要改回雙色只需動下面的 fillStyle 兩行,判定邏輯(tymcKindOf)完全不必動。
 const TYMC_TAG_H = 19, TYMC_TAG_FONT = 12, TYMC_TAG_PAD = 12, TYMC_TAG_NOSE = 6;
 function drawTymcKindTag(p, kind, color, fg) {
-  const exp = kind === 'exp';
-  ctx.font = '700 ' + TYMC_TAG_FONT + 'px ' + FONT; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
-  const label = t(TYMC_KIND_TAG[kind]);
-  const pw = ctx.measureText(label).width + TYMC_TAG_PAD, ph = TYMC_TAG_H;
-  const x0 = p.x - pw / 2, x1 = p.x + pw / 2, y0 = p.y - ph / 2, y1 = p.y + ph / 2;
-  ctx.beginPath();
-  if (exp) {
-    const nose = TYMC_TAG_NOSE;
-    ctx.moveTo(x0, y0); ctx.lineTo(x1, y0); ctx.lineTo(x1 + nose, p.y);
-    ctx.lineTo(x1, y1); ctx.lineTo(x0, y1); ctx.lineTo(x0 - nose, p.y);
-  } else {
-    const rx = ph / 2;
-    ctx.moveTo(x0 + rx, y0);
-    ctx.arcTo(x1, y0, x1, y1, rx); ctx.arcTo(x1, y1, x0, y1, rx);
-    ctx.arcTo(x0, y1, x0, y0, rx); ctx.arcTo(x0, y0, x1, y0, rx);
-  }
-  ctx.closePath();
-  ctx.fillStyle = exp ? color : '#fffdf6'; ctx.globalAlpha = 0.96; ctx.fill(); ctx.globalAlpha = 1;
-  ctx.lineWidth = exp ? 1.5 : 2; ctx.strokeStyle = exp ? pal().tagOutline : color; ctx.stroke();
-  ctx.fillStyle = exp ? fg : color; ctx.fillText(label, p.x, p.y + 0.5);
+  const opacity = p.detailOpacity ?? 1;
+  if (opacity <= 0) return;
+  ctx.save(); ctx.globalAlpha = opacity;
+  try {
+    const exp = kind === 'exp';
+    ctx.font = '700 ' + TYMC_TAG_FONT + 'px ' + FONT; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+    const label = t(TYMC_KIND_TAG[kind]);
+    const pw = ctx.measureText(label).width + TYMC_TAG_PAD, ph = TYMC_TAG_H;
+    const x0 = p.x - pw / 2, x1 = p.x + pw / 2, y0 = p.y - ph / 2, y1 = p.y + ph / 2;
+    ctx.beginPath();
+    if (exp) {
+      const nose = TYMC_TAG_NOSE;
+      ctx.moveTo(x0, y0); ctx.lineTo(x1, y0); ctx.lineTo(x1 + nose, p.y);
+      ctx.lineTo(x1, y1); ctx.lineTo(x0, y1); ctx.lineTo(x0 - nose, p.y);
+    } else {
+      const rx = ph / 2;
+      ctx.moveTo(x0 + rx, y0);
+      ctx.arcTo(x1, y0, x1, y1, rx); ctx.arcTo(x1, y1, x0, y1, rx);
+      ctx.arcTo(x0, y1, x0, y0, rx); ctx.arcTo(x0, y0, x1, y0, rx);
+    }
+    ctx.closePath();
+    ctx.fillStyle = exp ? color : '#fffdf6'; ctx.globalAlpha = opacity * (0.96); ctx.fill(); ctx.globalAlpha = opacity * (1);
+    ctx.lineWidth = exp ? 1.5 : 2; ctx.strokeStyle = exp ? pal().tagOutline : color; ctx.stroke();
+    ctx.fillStyle = exp ? fg : color; ctx.fillText(label, p.x, p.y + 0.5);
+  } finally { ctx.restore(); }
 }
 // 捷運車牌唯一入口:車種認得出來就畫車種牌,認不出來(機捷首末班另有兩者皆非的跳法)照舊畫線代號。
 // 標錯車種比不標更糟——使用者會照著它決定要不要上車。
@@ -12111,19 +12183,24 @@ function drawFreqTag(p, ln, tr, fg) {
 }
 
 function drawDot(p, color) {
-  if (state.mapDark && state.basemap !== 'sat' && state.basemap !== 'landscape') {
-    ctx.save();
-    ctx.fillStyle = color; ctx.globalAlpha = .12; ctx.beginPath(); ctx.arc(p.x,p.y,11,0,7); ctx.fill();
-    ctx.globalAlpha = .50; ctx.beginPath(); ctx.arc(p.x,p.y,5.5,0,7); ctx.fill();
-    ctx.globalAlpha = 1; ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.arc(p.x,p.y,2.6,0,7); ctx.fill();
-    ctx.restore(); return;
-  }
-  ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, 7);
-  ctx.fillStyle = color; ctx.globalAlpha = 0.2; ctx.fill();
-  ctx.beginPath(); ctx.arc(p.x, p.y, 3.2, 0, 7);
-  ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.95; ctx.fill();
-  ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, 7);
-  ctx.fillStyle = color; ctx.globalAlpha = 1; ctx.fill();
+  const opacity = p.detailOpacity ?? 1;
+  if (opacity <= 0) return;
+  ctx.save(); ctx.globalAlpha = opacity;
+  try {
+    if (state.mapDark && state.basemap !== 'sat' && state.basemap !== 'landscape') {
+      ctx.save();
+      ctx.fillStyle = color; ctx.globalAlpha = opacity * (.12); ctx.beginPath(); ctx.arc(p.x,p.y,11,0,7); ctx.fill();
+      ctx.globalAlpha = opacity * (.50); ctx.beginPath(); ctx.arc(p.x,p.y,5.5,0,7); ctx.fill();
+      ctx.globalAlpha = opacity * (1); ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.arc(p.x,p.y,2.6,0,7); ctx.fill();
+      ctx.restore(); return;
+    }
+    ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, 7);
+    ctx.fillStyle = color; ctx.globalAlpha = opacity * (0.2); ctx.fill();
+    ctx.beginPath(); ctx.arc(p.x, p.y, 3.2, 0, 7);
+    ctx.fillStyle = '#ffffff'; ctx.globalAlpha = opacity * (0.95); ctx.fill();
+    ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, 7);
+    ctx.fillStyle = color; ctx.globalAlpha = opacity * (1); ctx.fill();
+  } finally { ctx.restore(); }
 }
 
 // 列車行進方向箭頭(state.dirArrow;車號牌前緣的小三角):一般列車由「回看 DIR_DT 秒的位置」→
@@ -12156,18 +12233,23 @@ function dirAngOf(carrier, cp, cpB) {
   return ang; // undefined=從未取得有效方向(發車前/端點):呼叫端不畫
 }
 function drawArrowAt(cp, ang, color, hw, hh) {
-  const ux = Math.cos(ang), uy = Math.sin(ang);       // 前進單位向量(平滑後)
-  const ax = Math.abs(ux), ay = Math.abs(uy);
-  const t = Math.min(ax > 1e-3 ? (hw + 3) / ax : 1e9, ay > 1e-3 ? (hh + 3) / ay : 1e9); // 沿方向射線到牌框外緣
-  const tx = cp.x + ux * t, ty = cp.y + uy * t;       // 箭頭中心(牌外 3px)
-  const s = 4.6, px = -uy, py = ux;                   // 箭頭大小與法向
-  ctx.beginPath();
-  ctx.moveTo(tx + ux * s, ty + uy * s);                                 // 尖端
-  ctx.lineTo(tx - ux * s * 0.55 + px * s * 0.95, ty - uy * s * 0.55 + py * s * 0.95);
-  ctx.lineTo(tx - ux * s * 0.55 - px * s * 0.95, ty - uy * s * 0.55 - py * s * 0.95);
-  ctx.closePath();
-  ctx.globalAlpha = 1; ctx.fillStyle = color; ctx.fill();
-  ctx.lineWidth = 1.4; ctx.strokeStyle = pal().tagOutline; ctx.stroke();
+  const opacity = cp.detailOpacity ?? 1;
+  if (opacity <= 0) return;
+  ctx.save(); ctx.globalAlpha = opacity;
+  try {
+    const ux = Math.cos(ang), uy = Math.sin(ang);       // 前進單位向量(平滑後)
+    const ax = Math.abs(ux), ay = Math.abs(uy);
+    const t = Math.min(ax > 1e-3 ? (hw + 3) / ax : 1e9, ay > 1e-3 ? (hh + 3) / ay : 1e9); // 沿方向射線到牌框外緣
+    const tx = cp.x + ux * t, ty = cp.y + uy * t;       // 箭頭中心(牌外 3px)
+    const s = 4.6, px = -uy, py = ux;                   // 箭頭大小與法向
+    ctx.beginPath();
+    ctx.moveTo(tx + ux * s, ty + uy * s);                                 // 尖端
+    ctx.lineTo(tx - ux * s * 0.55 + px * s * 0.95, ty - uy * s * 0.55 + py * s * 0.95);
+    ctx.lineTo(tx - ux * s * 0.55 - px * s * 0.95, ty - uy * s * 0.55 - py * s * 0.95);
+    ctx.closePath();
+    ctx.globalAlpha = opacity * (1); ctx.fillStyle = color; ctx.fill();
+    ctx.lineWidth = 1.4; ctx.strokeStyle = pal().tagOutline; ctx.stroke();
+  } finally { ctx.restore(); }
 }
 // 並排偏移的畫面端。只動畫出來的標記:trainPos、停靠時刻、effT 全不受影響;
 // 命中測試跟著偏(點得到的必須是看得見的那顆)。位移量以「標記自己的尺寸」為尺度而不是固定 px——
@@ -12252,13 +12334,18 @@ function drawFreqDirArrow(cp, ln, carrier, pB) { // 捷運/輕軌:牌=線路縮�
 // 車號牌文字與站名標籤不吃到 shadow(否則會糊)。r 依標記大小給:圓點小、車號牌大。
 function trainGlow() { return state.basemap !== 'landscape' && (state.basemap === 'sat' || state.mapDark); }
 function glowUnder(p, color, r) {
-  if (!trainGlow()) return;
-  ctx.save();
-  ctx.shadowColor = color; ctx.shadowBlur = 16;
-  ctx.globalAlpha = 0.85;
-  ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.fillStyle = color; ctx.fill();
-  ctx.fill(); // 二次疊塗加深光暈,核心更亮
-  ctx.restore();
+  const opacity = p.detailOpacity ?? 1;
+  if (opacity <= 0) return;
+  ctx.save(); ctx.globalAlpha = opacity;
+  try {
+    if (!trainGlow()) return;
+    ctx.save();
+    ctx.shadowColor = color; ctx.shadowBlur = 16;
+    ctx.globalAlpha = opacity * (0.85);
+    ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.fillStyle = color; ctx.fill();
+    ctx.fill(); // 二次疊塗加深光暈,核心更亮
+    ctx.restore();
+  } finally { ctx.restore(); }
 }
 
 // 流光拖尾:暗色/衛星底圖下,主角列車身後拖一條漸淡的彗星尾。
@@ -12295,50 +12382,65 @@ function trailRibbon(P, w0, fillA, color) {
   ctx.fillStyle = g; ctx.fill();
 }
 function drawTrail(getPos, head, color, sh) {
-  if (!trainGlow()) return;
-  const step = TRAIL_SEC / TRAIL_STEPS;
-  _trailPts.length = 0; _trailPts.push(head);
-  for (let k = 1; k <= TRAIL_STEPS; k++) {
-    const pos = getPos(k * step);
-    if (!pos) break; // 早於發車 / 環島與跨午夜回繞 → 沒有更早的位置,尾巴到此為止
-    const cp = M.toScreen([pos.lat, pos.lon]);
-    if (sh) { cp.x += sh.x; cp.y += sh.y; } // 整條尾巴跟著偏(頭已經偏了):只偏頭會在車底折一個角
-    const prev = _trailPts[_trailPts.length - 1];
-    const d = Math.hypot(cp.x - prev.x, cp.y - prev.y);
-    if (d > 200) break;      // 防回繞/跳站在畫面上拉出長弦
-    if (d < 0.8) continue;   // 停站取樣重合:跳過零長段,法線才不會退化
-    _trailPts.push(cp);
-  }
-  if (_trailPts.length < 2) return;
-  ctx.save();
-  ctx.globalCompositeOperation = 'lighter'; // 疊加混色:暗底上尾巴自然透出流光
-  trailRibbon(_trailPts, 3.1, 0.6, color);       // 本體:車色錐形絲帶
-  trailRibbon(_trailPts, 1.15, 0.42, '#ffffff'); // 白熱芯:同色路線上也拉得出對比
-  ctx.restore();
+  const opacity = head.detailOpacity ?? 1;
+  if (opacity <= 0) return;
+  ctx.save(); ctx.globalAlpha = opacity;
+  try {
+    if (!trainGlow()) return;
+    const step = TRAIL_SEC / TRAIL_STEPS;
+    _trailPts.length = 0; _trailPts.push(head);
+    for (let k = 1; k <= TRAIL_STEPS; k++) {
+      const pos = getPos(k * step);
+      if (!pos) break; // 早於發車 / 環島與跨午夜回繞 → 沒有更早的位置,尾巴到此為止
+      const cp = M.toScreen([pos.lat, pos.lon]);
+      if (sh) { cp.x += sh.x; cp.y += sh.y; } // 整條尾巴跟著偏(頭已經偏了):只偏頭會在車底折一個角
+      const prev = _trailPts[_trailPts.length - 1];
+      const d = Math.hypot(cp.x - prev.x, cp.y - prev.y);
+      if (d > 200) break;      // 防回繞/跳站在畫面上拉出長弦
+      if (d < 0.8) continue;   // 停站取樣重合:跳過零長段,法線才不會退化
+      _trailPts.push(cp);
+    }
+    if (_trailPts.length < 2) return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter'; // 疊加混色:暗底上尾巴自然透出流光
+    trailRibbon(_trailPts, 3.1, 0.6, color);       // 本體:車色錐形絲帶
+    trailRibbon(_trailPts, 1.15, 0.42, '#ffffff'); // 白熱芯:同色路線上也拉得出對比
+    ctx.restore();
+  } finally { ctx.restore(); }
 }
 
 // 高鐵列車專屬外觀:兩端尖頭的白底子彈輪廓＋橘框橘字(仿 700T/N700 白車身橘帶),
 // 一眼與台鐵的實心圓角車號牌區分——台鐵橘系(莒光/自強)與高鐵橘同色也不會認錯。
 const HSR_ORANGE = '#E85D0D';
 function drawHSRTag(p, label) {
-  ctx.font = '700 10px ' + FONT; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
-  const pw = ctx.measureText(label).width + HSR_TAG_PAD, ph = TAG_H, nose = HSR_NOSE;
-  const x0 = p.x - pw / 2, x1 = p.x + pw / 2, y0 = p.y - ph / 2, y1 = p.y + ph / 2;
-  ctx.beginPath();
-  ctx.moveTo(x0, y0); ctx.lineTo(x1, y0); ctx.lineTo(x1 + nose, p.y);
-  ctx.lineTo(x1, y1); ctx.lineTo(x0, y1); ctx.lineTo(x0 - nose, p.y);
-  ctx.closePath();
-  ctx.fillStyle = '#fffdf6'; ctx.globalAlpha = 0.97; ctx.fill(); ctx.globalAlpha = 1;
-  ctx.lineWidth = 2; ctx.strokeStyle = HSR_ORANGE; ctx.stroke();
-  ctx.fillStyle = HSR_ORANGE; ctx.fillText(label, p.x, p.y + 0.5);
+  const opacity = p.detailOpacity ?? 1;
+  if (opacity <= 0) return;
+  ctx.save(); ctx.globalAlpha = opacity;
+  try {
+    ctx.font = '700 10px ' + FONT; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+    const pw = ctx.measureText(label).width + HSR_TAG_PAD, ph = TAG_H, nose = HSR_NOSE;
+    const x0 = p.x - pw / 2, x1 = p.x + pw / 2, y0 = p.y - ph / 2, y1 = p.y + ph / 2;
+    ctx.beginPath();
+    ctx.moveTo(x0, y0); ctx.lineTo(x1, y0); ctx.lineTo(x1 + nose, p.y);
+    ctx.lineTo(x1, y1); ctx.lineTo(x0, y1); ctx.lineTo(x0 - nose, p.y);
+    ctx.closePath();
+    ctx.fillStyle = '#fffdf6'; ctx.globalAlpha = opacity * (0.97); ctx.fill(); ctx.globalAlpha = opacity * (1);
+    ctx.lineWidth = 2; ctx.strokeStyle = HSR_ORANGE; ctx.stroke();
+    ctx.fillStyle = HSR_ORANGE; ctx.fillText(label, p.x, p.y + 0.5);
+  } finally { ctx.restore(); }
 }
 function drawHSRDot(p) {
-  ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, 7);
-  ctx.fillStyle = HSR_ORANGE; ctx.globalAlpha = 0.2; ctx.fill(); ctx.globalAlpha = 1;
-  ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.PI / 4); // 白底菱形＋橘框,低倍率也與台鐵圓點區分
-  ctx.fillStyle = '#fffdf6'; ctx.fillRect(-3.3, -3.3, 6.6, 6.6);
-  ctx.lineWidth = 1.6; ctx.strokeStyle = HSR_ORANGE; ctx.strokeRect(-3.3, -3.3, 6.6, 6.6);
-  ctx.restore();
+  const opacity = p.detailOpacity ?? 1;
+  if (opacity <= 0) return;
+  ctx.save(); ctx.globalAlpha = opacity;
+  try {
+    ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, 7);
+    ctx.fillStyle = HSR_ORANGE; ctx.globalAlpha = opacity * (0.2); ctx.fill(); ctx.globalAlpha = opacity * (1);
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.PI / 4); // 白底菱形＋橘框,低倍率也與台鐵圓點區分
+    ctx.fillStyle = '#fffdf6'; ctx.fillRect(-3.3, -3.3, 6.6, 6.6);
+    ctx.lineWidth = 1.6; ctx.strokeStyle = HSR_ORANGE; ctx.strokeRect(-3.3, -3.3, 6.6, 6.6);
+    ctx.restore();
+  } finally { ctx.restore(); }
 }
 function isHSR(tr) { return tr && tr.sys === 'thsr_sched'; }
 
@@ -12489,11 +12591,16 @@ const SUGAR_PARKS = [
     hours: '週六日及國定假日開行（約 10–17 時，班次以現場公告為準）；平日 30 人以上預約' },
 ];
 function drawSugarMark(cp) {
-  ctx.beginPath(); ctx.arc(cp.x, cp.y, 7, 0, 7);
-  ctx.fillStyle = '#b07a2e'; ctx.fill(); // 蔗糖琥珀,與平交道紅/車站藏青區隔
-  ctx.lineWidth = 1.6; ctx.strokeStyle = '#fffdf6'; ctx.stroke();
-  ctx.font = '800 9px ' + FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#fffdf6'; ctx.fillText('糖', cp.x, cp.y + 0.5);
+  const opacity = cp.detailOpacity ?? 1;
+  if (opacity <= 0) return;
+  ctx.save(); ctx.globalAlpha = opacity;
+  try {
+    ctx.beginPath(); ctx.arc(cp.x, cp.y, 7, 0, 7);
+    ctx.fillStyle = '#b07a2e'; ctx.fill(); // 蔗糖琥珀,與平交道紅/車站藏青區隔
+    ctx.lineWidth = 1.6; ctx.strokeStyle = '#fffdf6'; ctx.stroke();
+    ctx.font = '800 9px ' + FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#fffdf6'; ctx.fillText('糖', cp.x, cp.y + 0.5);
+  } finally { ctx.restore(); }
 }
 function sugarAt(cp) {
   let best = null, bd = 15; // px
@@ -24582,7 +24689,8 @@ function metroCoreVehicleInfo(rec) {
       ? metroCoreEpochSecOfDay(train.nextCall.arrivalEpoch) : null };
 }
 function drawMetroCoreVehicle(ln, item, showTrain, inView, collectHit, nowEpoch) {
-  const cp = M.toScreen([item.pos.lat, item.pos.lon]);
+  const cp = mapDetailPoint([item.pos.lat, item.pos.lon]);
+  if (!inView(cp)) return;
   if (window.railIslandIntegration?.hasModel({ln,vehicleId:item.vehicleId,core:true})) return;
   const label = item.publicLabel || ln.abbr;
   if (trtcOfficialSameTarget(state.freqFollow, { ln, vehicleId: item.vehicleId })) drawFreqRing(cp, ln.color);
@@ -33450,7 +33558,7 @@ async function boot() {
   }
   function handleMapClick(e) {
     const cp = e.containerPoint || M.toScreen(e.latlng);
-    if (cp.y < M.surfaceTop()) return;
+    if (!M.isOnSurface(cp)) return;
     const stationRadius = stationHitRadius();
     closeTapPick(); // 點地圖任何地方先收掉歧義選單(選單列自身的點擊不會冒泡到 map)
     if (state.takeoutPick && state.takeoutResult) {
@@ -33473,6 +33581,7 @@ async function boot() {
       state.lines.forEach(ln => {
         if (!state.visible.has(ln.id) || !ln.pts) return;
         ln.pts.forEach((p, idx) => {
+          if ((p.detailOpacity ?? 1) <= 0) return;
           const d = Math.hypot(p.x - cp.x, p.y - cp.y);
           if (d < bdSt) { bdSt = d; bestSt = ln.stations[idx]; bestStLine = ln; }
         });
@@ -33504,7 +33613,8 @@ async function boot() {
     let best = null, bd = 1e9;
     const stCands = []; // 命中半徑內的候選站全收:共構站(台北/板橋/南港…台鐵與高鐵)座標幾乎重疊,只留最近一顆會讓另一顆永遠點不到
     for (const st of state.schedStations) {
-      const p = M.toScreen([st.lat, st.lon]);
+      const p = mapDetailPoint([st.lat, st.lon]);
+      if ((p.detailOpacity ?? 1) <= 0) continue;
       const d = Math.hypot(p.x - cp.x, p.y - cp.y);
       if (d < bd) { bd = d; best = st; }
       if (d <= stationRadius) stCands.push({ st, d });
@@ -33516,6 +33626,7 @@ async function boot() {
       state.decoLines.forEach(ln => {
         if (!ln.pts) return;
         ln.pts.forEach((p, idx) => {
+          if ((p.detailOpacity ?? 1) <= 0) return;
           const d = Math.hypot(p.x - cp.x, p.y - cp.y);
           if (d < bdDeco) { bdDeco = d; bestDeco = ln.stations[idx]; bestDecoLine = ln; }
         });
@@ -33604,15 +33715,15 @@ async function boot() {
   });
   function overStation(cp) {
     const radius = stationHitRadius();
-    const near = p => Math.hypot(p.x - cp.x, p.y - cp.y) <= radius;
-    if (state.mode === 'sched' && state.schedStations.some(st => near(M.toScreen([st.lat, st.lon])))) return true;
+    const near = p => (p.detailOpacity ?? 1) > 0 && Math.hypot(p.x - cp.x, p.y - cp.y) <= radius;
+    if (state.mode === 'sched' && state.schedStations.some(st => near(mapDetailPoint([st.lat, st.lon])))) return true;
     const lines = state.mode !== 'sched' ? state.lines : state.deco ? state.decoLines : [];
     return (lines || []).some(ln => (state.mode === 'sched' || state.visible.has(ln.id)) && (ln.pts || []).some(near));
   }
   M.on('mousemove', e => {
     // 車站與列車都可點；游標使用與點擊相同的車站命中半徑。
     const c = M.getContainer();
-    if (e.containerPoint.y < M.surfaceTop()) { c.style.cursor = ''; return; }
+    if (!M.isOnSurface(e.containerPoint)) { c.style.cursor = ''; return; }
     if (state.mode !== 'sched') { c.style.cursor = (freqTrainAt(e.containerPoint) || overStation(e.containerPoint)) ? 'pointer' : ''; return; }
     c.style.cursor = (trainAt(e.containerPoint) || (state.deco && freqTrainAt(e.containerPoint)) || overStation(e.containerPoint)) ? 'pointer' : '';
   });

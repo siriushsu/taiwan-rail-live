@@ -126,16 +126,28 @@ export function sunlightAt(utcMs, lat, lon) {
   let t = a === b ? 0 : clamp((e - a[0]) / (b[0] - a[0]));
   t = t * t * (3 - 2 * t);
   const horizon = color(a[2], b[2], t);
+  let daylight = clamp((e + 6) / 14);
+  daylight = daylight * daylight * (3 - 2 * daylight);
   return { ...sun, utcMs, lat, lon,
     phase: e < -12 ? 'night' : e < -6 ? 'blue-hour' : e < 8 ? (evening > .5 ? 'sunset' : 'dawn') : 'day',
     sky: {
       'sky-color': color(a[1], b[1], t), 'horizon-color': horizon,
       'fog-color': horizon, 'sky-horizon-blend': .65,
-      'horizon-fog-blend': .5, 'fog-ground-blend': .96,
+      'horizon-fog-blend': .5, 'fog-ground-blend': .7,
       'atmosphere-blend': 0, // 目前為平面 Mercator；globe 大氣散射不適用。
     },
     light: { anchor: 'map', position: [1.15, sun.azimuth, 90 - e],
       color: color(a[3], b[3], t), intensity: mix(a[4], b[4], t) },
+    // standard 方法不讀太陽高度；basic 才以 DEM 坡面法線計算入射光。
+    // 夜間只保留少量環境光的坡面對比，不改 map.setTerrain 的實際地形起伏。
+    hillshade: {
+      'hillshade-method': 'basic', 'hillshade-illumination-anchor': 'map',
+      'hillshade-illumination-direction': Math.min(359, sun.azimuth),
+      'hillshade-illumination-altitude': Math.max(0, Math.min(90, e)),
+      'hillshade-exaggeration': mix(.08, .42, daylight),
+      'hillshade-shadow-color': `rgba(23,38,59,${mix(.82, .54, daylight).toFixed(3)})`,
+      'hillshade-highlight-color': `rgba(255,222,177,${mix(.32, .08, clamp(e / 35)).toFixed(3)})`,
+    },
   };
 }
 
@@ -143,6 +155,8 @@ export function sunlightAt(utcMs, lat, lon) {
 export function createSunlight({ engine, context, enabled = true }) {
   const map = engine.raw;
   let on = enabled, original = null, key = '', current = null, disposed = false;
+  let terrainOriginal = null;
+  const terrainId = 'landscape-hillshade';
   const stats = { calculations: 0, applications: 0 };
   function update(force = false) {
     if (disposed || !on || document.hidden || !engine.isStyleReady() || !original) return;
@@ -152,19 +166,29 @@ export function createSunlight({ engine, context, enabled = true }) {
     const nextKey = [Math.floor(c.utcMs / 30000), Math.round(c.lat * 50), Math.round(c.lon * 50)].join(':');
     if (!force && nextKey === key) return;
     current = sunlightAt(c.utcMs, c.lat, c.lon); stats.calculations++;
+    const layer = map.getLayer(terrainId);
+    if (layer && terrainOriginal?.layer !== layer) {
+      terrainOriginal = { layer, paint: Object.fromEntries(Object.keys(current.hillshade)
+        .map(k => [k, map.getPaintProperty(terrainId, k) ?? null])) };
+    }
     // 5.9.0 的 Sky validator 不接受 *-transition，即使 getSky 仍回傳被拒收的設定。
     // 使用內建 300ms 漸變，驗收同時觀察實際畫面與 MapLibre error。
     map.setSky(current.sky);
     map.setLight(current.light);
+    if (layer) for (const [k, value] of Object.entries(current.hillshade)) map.setPaintProperty(terrainId, k, value);
     key = nextKey; stats.applications++;
   }
   function restore() {
     if (!original || !engine.isStyleReady()) return;
     map.setSky(original.sky ? {...skyDefaults, ...original.sky} : undefined);
     map.setLight(original.light);
+    if (terrainOriginal && map.getLayer(terrainId) === terrainOriginal.layer) {
+      for (const [k, value] of Object.entries(terrainOriginal.paint)) map.setPaintProperty(terrainId, k, value);
+    }
   }
   function styleLoad() {
     original = { sky: map.getSky(), light: map.getLight() };
+    terrainOriginal = null;
     key = ''; update(true);
   }
   function resume() { if (!document.hidden) update(true); }
