@@ -38,14 +38,15 @@ for(const run of runs){
     for(const o of neighbours){if(member.has(o))continue;const ow=byId.get(o),oe=E[o];if(!oe)continue;const oi=ow.nodes.indexOf(node);if(oi<0)continue;const os=makePath(ow.coordinates).d[oi];
      const oz=oe.terrainValues?at(oe,os,'terrainValues'):(await dem.ground(ow.coordinates[oi]))+at(oe,os,'offsets');
      if(Math.abs(oz-z)>1.5)failures.push(id+':洞口落差 '+(oz-z).toFixed(2)+'m vs '+o);}
-   }else{inner=Math.max(inner,z);if(shared.has(node)){joints++;if(Math.abs(shared.get(node)-z)>.01)failures.push(id+':接頭不連續');}else shared.set(node,z);}}
+   }else{if(shared.has(node)){joints++;if(Math.abs(shared.get(node)-z)>.01)failures.push(id+':接頭不連續');}else shared.set(node,z);}}
+  inner=Math.max(inner,...e.terrainValues); // 逐點取，不能只取 way 端點：單一 way 的隧道兩端都是洞口，只看端點永遠照不到中段爬升
   // 兩端高差由地形決定的短 way（洞口就差那麼多，沒有自由度）以自身弦坡為準。
   const chord=Math.abs(e.terrainValues.at(-1)-e.terrainValues[0])/Math.max(1,e.distances.at(-1));
   const wg=windowGrade(e)-Math.max(0,chord-cap(system));if(wg>grade){grade=wg;steepest=id;}
   if(Math.max(...e.terrainValues.map((x,i)=>Math.abs(x-e.values[i])))>5)changed++;
  }
  // 核心判準：隧道內部不得爬到高過自己的洞口——那正是「隧道還會爬山」的形狀。
- const rise=Number.isFinite(inner)&&Number.isFinite(hi)?inner-hi:0;
+ const rise=Number.isFinite(hi)?inner-hi:0;
  riseWorst=Math.max(riseWorst,rise);
  if(rise>RISE)failures.push(run[0]+':內部高過洞口 '+rise.toFixed(1)+'m');
  // 縱坡上限；兩端洞口的高差本身就超過上限的短隧道由地形決定，沒有自由度，以自身弦坡為準。

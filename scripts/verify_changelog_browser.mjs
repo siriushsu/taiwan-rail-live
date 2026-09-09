@@ -29,7 +29,7 @@ const widths = [360, 375, 414, 768];
 // 9/9：官方橋隧補正一條（324→325），地形晚到重建一條（325→326）。
 // 9/9：捷運雙軌左右一條、推拉式自強號節數一條（326→328）。
 // 9/9：夜間道路調暗一條（328→329）。
-const expectedHistoryCount = 329;
+const expectedHistoryCount = 330;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
