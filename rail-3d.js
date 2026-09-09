@@ -70,7 +70,13 @@
     // 名單只讀 client.js 的 physical.systems——這裡曾另外寫死一份,09-08 只改了一邊就讓林鐵
     // 近景「示意線形被抽掉、股道又沒有它」整條消失。舊快取沒有 systems 時退成空陣列＝不抽換。
     if(physical&&near){const originals=routes.filter(r=>(physical.systems||[]).includes(r.systemId));replacedLineKeys.push(...originals.map(r=>r.lineKey));const mapped=physical.visibleRoutes(originals,M.raw.getBounds());for(let i=routes.length-1;i>=0;i--)if(originals.includes(routes[i]))routes.splice(i,1);routes.push(...mapped);}
-    if(physical?.metro&&near){for(const ln of pools){const pair=[physical.metro.routeFor(ln,1),physical.metro.routeFor(ln,-1)].filter(Boolean);if(pair.length===2){const key=(ln._sys||ln.sys)+'|'+ln.id;replacedLineKeys.push(key);for(let i=routes.length-1;i>=0;i--)if(routes[i].lineKey===key)routes.splice(i,1);for(const p of pair)routes.push(p.route);}}}
+    if(physical?.metro&&near){for(const ln of pools){const pair=[physical.metro.routeFor(ln,1),physical.metro.routeFor(ln,-1)].filter(Boolean);if(pair.length===2){const key=(ln._sys||ln.sys)+'|'+ln.id;replacedLineKeys.push(key);for(let i=routes.length-1;i>=0;i--)if(routes[i].lineKey===key){
+      // 股道資料可能落後新站；只抽換兩方向共同涵蓋的區間，保留未涵蓋的原線形。
+      const start=Math.max(...pair.map(p=>p.record.startIndex)),end=Math.min(...pair.map(p=>p.record.endIndex)),ranges=[];
+      if(start>0)ranges.push([0,ln.stations[start].d*1000]);
+      if(end<ln.stations.length-1)ranges.push([ln.stations[end].d*1000,Infinity]);
+      if(ranges.length)routes[i]={...routes[i],drawingRanges:ranges};else routes.splice(i,1);
+    }for(const p of pair)routes.push(p.route);}}}
     for(const id of headings.keys())if(!targets.has(id))headings.delete(id);
     return {clock:{serviceDay:day,simSec:state.simSec,wallEpochSec:epoch,playing:state.playing,speed:state.speedMult},geometryVersion:'original-'+BUILD,
       clearanceRoutes:[...routes.filter(r=>r.physical),...[...new Set([...(state.trackLines||[]),...(state.lines||[]),...(state.decoLines||[])])].map(ln=>lineRecord(ln,ln.sys||ln._sys||'rail'))],

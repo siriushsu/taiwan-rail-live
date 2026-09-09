@@ -1561,3 +1561,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {"放大場景":"拡大", "縮小場
 Object.assign(window.RAIL_I18N_MESSAGES.en, {"修正車庫試跑時中間車廂消失的問題，環形與海岸場景都會完整顯示三節編組，輕軌分節也能正常欣賞": "Fixed missing middle cars in the garage. Both the loop track and coastal journey now display the full three-car formation, including articulated light rail sections."});
 
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"修正車庫試跑時中間車廂消失的問題，環形與海岸場景都會完整顯示三節編組，輕軌分節也能正常欣賞": "車庫の試走で中間車両が消える問題を修正。周回コースと海辺の旅で3両編成がすべて表示され、連接式のライトレールも各車体を眺められます。"});
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"補齊象山至廣慈／奉天宮的雙向軌道，來回列車沿各自股道進出，修正延伸段在 3D 地圖中斷的問題": "Completed both tracks between Xiangshan and Guangci/Fengtian Temple. Trains now use their respective tracks, fixing the missing extension in the 3D map."});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"補齊象山至廣慈／奉天宮的雙向軌道，來回列車沿各自股道進出，修正延伸段在 3D 地圖中斷的問題": "象山から広慈／奉天宮までの上下線を補完。列車がそれぞれの線路を走り、3D地図で延伸区間が途切れる問題を修正しました。"});
