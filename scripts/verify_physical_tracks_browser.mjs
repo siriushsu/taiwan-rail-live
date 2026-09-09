@@ -26,7 +26,7 @@ for(const [name,engine]of Object.entries({chromium,webkit})){
  await context.addInitScript(()=>localStorage.setItem('trainmap-howto-seen','1'));
  try{
   await page.goto(base+'?g=all&scene=3d&t=08:00&at=25.0477,121.5171&z=18');
-  await page.waitForFunction(()=>state.ready&&window.railIslandPhysical&&railIslandIntegration.renderer?.stats.models>0,null,{timeout:90000});
+  await page.waitForFunction(()=>state.ready&&window.railIslandPhysical&&window.railIslandIntegration?.renderer?.stats.models>0,null,{timeout:90000});
   const initial=await page.evaluate(()=>{state.playing=false;const f=railIslandIntegration.capture();return {build:BUILD,coverage:railIslandPhysical.dispatch.coverage,physical:f.vehicles.filter(v=>v.route?.physical).length,vehicles:f.vehicles.length,models:railIslandIntegration.renderer.stats.models,fallbacks:railIslandIntegration.renderer.stats.modelFallbacks,errors:railIslandIntegration.errors};});
   check(name+' default physical routes and models',initial.physical>initial.vehicles*.95&&initial.models>0&&!initial.errors.length&&!initial.fallbacks.length,initial);
   // 近景(raw zoom>=14)會把班表線的示意線形整批抽掉、換成實體股道,並把被抽掉的 lineKey 交給

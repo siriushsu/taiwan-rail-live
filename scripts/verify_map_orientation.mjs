@@ -201,13 +201,13 @@ async function desktopM2(browser, url, engine, browserName, check, onlyFor) {
     check(moved.compass && moved.orientClass && moved.overlayTransform === 'none',
       `${browserName} 指南針現形且 overlay 文字層不跟著旋轉`, moved);
     await page.locator('.maplibregl-ctrl-compass').click();
-    await page.waitForFunction(() => Math.abs(__M.getBearing()) < 0.01 && Math.abs(__M.getPitch()) < 0.01
-      && !__M.raw.getContainer().classList.contains('map-orient-active'));
+    await page.waitForFunction(() => Math.abs(window.__M?.getBearing()) < 0.01 && Math.abs(window.__M?.getPitch()) < 0.01
+      && !window.__M?.raw.getContainer().classList.contains('map-orient-active'));
     const reset = await page.evaluate(() => ({ bearing: __M.getBearing(), pitch: __M.getPitch(), orientClass: __M.raw.getContainer().classList.contains('map-orient-active') }));
     check(!reset.orientClass, `${browserName} 真點指南針回北且回水平`, reset);
 
     await page.evaluate(() => document.getElementById('map3dBtn').click());
-    await page.waitForFunction(() => __state.map3d && __M.raw.getLayer('building-3d') && __M.raw.getLayer('track-stations'));
+    await page.waitForFunction(() => window.__state?.map3d && window.__M?.raw.getLayer('building-3d') && window.__M?.raw.getLayer('track-stations'));
     const on3d = await page.evaluate(() => ({
       on: __state.map3d,
       visibility: __M.raw.getLayoutProperty('building-3d', 'visibility'),
@@ -238,7 +238,7 @@ async function desktopM2(browser, url, engine, browserName, check, onlyFor) {
     await page.waitForFunction(() => Math.abs(Number(localStorage.getItem('trainmap-map-pitch')) - 21) < 0.1);
     // boot 的 clearFollow 會清掉 query string；不帶 query 的 reload 只會吃預設引擎（M4-A 起是 maplibre），要驗哪個引擎就必須重走明示 ?engine= 的原 URL。
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60_000 });
-    await page.waitForFunction(() => window.__state?.ready && window.__M && Math.abs(window.__M.getPitch() - 21) < 0.1, null, { timeout: 90_000 });
+    await page.waitForFunction(() => window.__state?.ready && window.__M && Math.abs(window.__M?.getPitch() - 21) < 0.1, null, { timeout: 90_000 });
     check(await page.evaluate(() => Math.abs(__M.getPitch() - 21) < 0.1 && !__state.map3d),
       `${browserName} 使用者 pitch 跨重載保留，3D 偏好各自獨立`);
 
@@ -274,8 +274,8 @@ async function mobileM2(browser, url, engine, browserName, width, check) {
     }, { x: cr.x + cr.width / 2, y: cr.y + cr.height / 2 });
     check(!!hit, `${browserName}/${width} 指南針 elementFromPoint 真正可達`);
     await compass.tap();
-    await page.waitForFunction(() => Math.abs(__M.getBearing()) < 0.01 && Math.abs(__M.getPitch()) < 0.01
-      && !__M.raw.getContainer().classList.contains('map-orient-active'));
+    await page.waitForFunction(() => Math.abs(window.__M?.getBearing()) < 0.01 && Math.abs(window.__M?.getPitch()) < 0.01
+      && !window.__M?.raw.getContainer().classList.contains('map-orient-active'));
     await page.tap('#tabMore');
     const row = page.locator('#map3dRow');
     check(await row.isVisible(), `${browserName}/${width} 更多 sheet 的 3D 列可見`);

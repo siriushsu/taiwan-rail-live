@@ -242,7 +242,7 @@ try {
 
     let ml, adapter, hookProbe;
     if (engine === 'maplibre') {
-      await b.page.waitForFunction(() => window.__M.raw.isStyleLoaded(), null, { timeout: 30000 }).catch(() => {});
+      await b.page.waitForFunction(() => window.__M?.raw.isStyleLoaded(), null, { timeout: 30000 }).catch(() => {});
       ml = await b.page.evaluate(() => {
         const M = window.__M, raw = M.raw, ov = document.getElementById('overlay'), mapEl = document.getElementById('map');
         M.setView([25.0478, 121.517], 12, { animate: false });

@@ -85,7 +85,7 @@ async function boot(browser, breakSys) {
   // 順便讓 deepG 把「上次視野／預設地點」整條旁路掉;?lang=zh-TW 釘死語系。
   await page.goto(`http://127.0.0.1:${PORT}/index.html?g=nat&lang=zh-TW`, { waitUntil: 'domcontentloaded' });
   let ready = true;
-  await page.waitForFunction(() => window.__state && window.__state.ready, null, { timeout: 60000 }).catch(() => { ready = false; });
+  await page.waitForFunction(() => window.__state && window.__state?.ready, null, { timeout: 60000 }).catch(() => { ready = false; });
   // boot 沒到 window.__state 時仍要拿得到讀數,不能讓 evaluate 拋錯把整支腳本炸掉
   const r = await page.evaluate(id => {
     const s = window.__state || {};

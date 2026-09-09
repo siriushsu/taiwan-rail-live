@@ -42,7 +42,7 @@ const page = await ctx.newPage(), errs = [];
 page.on('pageerror', e => errs.push(String(e && e.message || e)));
 await page.addInitScript(() => { localStorage.setItem('trainmap-howto-seen', '1'); });
 await page.goto(`http://127.0.0.1:${PORT}/index.html?lang=zh-TW&engine=maplibre&aligndot=follow`, { waitUntil: 'domcontentloaded' });
-await page.waitForFunction(() => window.__state?.ready && window.__alignProbe && window.__alignProbe.state().live, null, { timeout: 60000 });
+await page.waitForFunction(() => window.__state?.ready && window.__alignProbe && window.__alignProbe?.state().live, null, { timeout: 60000 });
 await page.waitForTimeout(1500);
 // 連拍:截圖是一次完整合成(GL＋overlay 同一幀),能到幾 fps 就幾 fps;影格時距不均勻就當等距——這是幾何/顏色/壓縮的控制組,不是計時器
 const frames = []; let capturing = true; const t0 = performance.now();

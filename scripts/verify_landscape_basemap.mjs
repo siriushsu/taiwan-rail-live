@@ -3,8 +3,8 @@ import fs from 'node:fs';
 const base=process.env.BASE_URL||'http://127.0.0.1:5228/',out='output/landscape-0908';fs.mkdirSync(out,{recursive:true});
 const results=[];function check(name,pass,detail){results.push({name,pass,detail});console.log((pass?'PASS ':'FAIL ')+name+' '+JSON.stringify(detail??''));}
 const snap=()=>({kind:M.getStyleKind(),sim:state.simSec,id:state.followTrain?.train,center:M.raw.getCenter().toArray(),zoom:M.raw.getZoom(),bearing:M.raw.getBearing(),pose:railIslandIntegration.renderer?.stats.poseSamples.find(p=>p.id===railIslandIntegration.capture().selectedVehicleId)?.coordinate,errors:railIslandIntegration.errors});
-async function settle(p,kind){await p.waitForFunction(k=>M.getStyleKind()===k&&railIslandIntegration.renderer&&!railIslandIntegration.loading,null===kind?'landscape':kind,{timeout:60000});}
-async function boot(p){await p.goto(base+'?map=landscape&scene=3d&g=all&train=117&t=12:00&lang=zh-TW');await settle(p,'landscape');await p.waitForFunction(()=>state.ready&&state.followTrain);await p.evaluate(()=>{state.playing=false;setSimSec(43200);M.raw.setZoom(17);});await p.waitForFunction(()=>railIslandIntegration.renderer.stats.models>0,null,{timeout:45000});}
+async function settle(p,kind){await p.waitForFunction(k=>M.getStyleKind()===k&&window.railIslandIntegration?.renderer&&!window.railIslandIntegration?.loading,null===kind?'landscape':kind,{timeout:60000});}
+async function boot(p){await p.goto(base+'?map=landscape&scene=3d&g=all&train=117&t=12:00&lang=zh-TW');await settle(p,'landscape');await p.waitForFunction(()=>state.ready&&state.followTrain);await p.evaluate(()=>{state.playing=false;setSimSec(43200);M.raw.setZoom(17);});await p.waitForFunction(()=>window.railIslandIntegration?.renderer?.stats.models>0,null,{timeout:45000});}
 for(const [name,engine]of Object.entries(process.env.ENGINE?{[process.env.ENGINE]:({chromium,webkit})[process.env.ENGINE]}:{chromium,webkit})){
  const browser=await engine.launch({headless:process.env.HEADFUL!=='1'});const context=await browser.newContext({viewport:{width:1360,height:980},locale:'zh-TW'});
  await context.addInitScript(()=>{localStorage.setItem('trainmap-howto-seen','1');localStorage.setItem('trainmap-appearance','dark');});const p=await context.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));
@@ -16,13 +16,13 @@ for(const [name,engine]of Object.entries(process.env.ENGINE?{[process.env.ENGINE
   check(name+' 地景預設山體起伏',await p.evaluate(()=>!!M.raw.getTerrain()&&railIslandIntegration.groundMode==='terrain'));
   await p.screenshot({path:out+'/'+name+'-train.png'});
   for(const kind of ['dark','light','landscape']){
-    await p.evaluate(k=>chooseBasemap(k),kind);await settle(p,kind);await p.waitForFunction(()=>railIslandIntegration.renderer.stats.models>0);const s=await p.evaluate(snap);
+    await p.evaluate(k=>chooseBasemap(k),kind);await settle(p,kind);await p.waitForFunction(()=>window.railIslandIntegration?.renderer?.stats.models>0);const s=await p.evaluate(snap);
     check(name+' 切換 '+kind+' 保留同車/時間/位置',s.id===initial.id&&s.sim===initial.sim&&JSON.stringify(s.pose)===JSON.stringify(initial.pose),{id:s.id,sim:s.sim,pose:s.pose});
   }
   await p.evaluate(()=>state._setAppearance('light'));await p.locator('#toolsFab').click();await p.locator('#msBasemapSeg button[data-map=landscape]').scrollIntoViewIfNeeded();
   check(name+' 無衛星授權時入口明確停用',await p.locator('#msBasemapSeg button[data-map=sat]').isDisabled());
   await p.locator('#moreClose').click();await p.evaluate(()=>{railIslandIntegration.setGroundMode('flat');M.raw.jumpTo({center:[121.5795,24.9968],zoom:16.5,pitch:55,bearing:0});});
-  await p.waitForFunction(()=>railIslandIntegration.renderer.stats.landscape.count>100,null,{timeout:30000});await p.waitForTimeout(1500);
+  await p.waitForFunction(()=>window.railIslandIntegration?.renderer?.stats.landscape.count>100,null,{timeout:30000});await p.waitForTimeout(1500);
   const trees=await p.evaluate(()=>{const s=railIslandIntegration.renderer.stats.landscape;return {count:s.count,cap:s.cap,rebuilds:s.rebuilds,maxBuildMs:s.maxBuildMs,coordinates:s.coordinates};});
   check(name+' 真正渲染林冠且有固定數量上限',trees.count>100&&trees.count<=trees.cap,{...trees,coordinates:undefined});
   await p.screenshot({path:out+'/'+name+'-river-forest.png'});
@@ -31,7 +31,7 @@ for(const [name,engine]of Object.entries(process.env.ENGINE?{[process.env.ENGINE
   // 在真正的 move 事件期間核對延後重建，不只測計時器函式。
   const box=await p.locator('#map').boundingBox();await p.mouse.move(box.x+box.width*.55,box.y+box.height*.45);await p.mouse.down();const beforeDrag=await p.evaluate(()=>railIslandIntegration.renderer.stats.landscape.rebuilds);await p.mouse.move(box.x+box.width*.55+120,box.y+box.height*.45+20,{steps:12});await p.waitForTimeout(200);const moving=await p.evaluate(()=>({rebuilds:railIslandIntegration.renderer.stats.landscape.rebuilds,moving:M.raw.isMoving()}));
   check(name+' 移動中延後地景重掃',moving.moving&&moving.rebuilds===beforeDrag,moving);await p.mouse.up();await p.waitForTimeout(1500);
-  await p.evaluate(()=>M.raw.setZoom(12));await p.waitForFunction(()=>railIslandIntegration.renderer.stats.landscape.count===0);check(name+' 縮遠卸下林冠細節',true);
+  await p.evaluate(()=>M.raw.setZoom(12));await p.waitForFunction(()=>window.railIslandIntegration?.renderer?.stats.landscape.count===0);check(name+' 縮遠卸下林冠細節',true);
   await p.evaluate(()=>{railIslandIntegration.setGroundMode('terrain');M.raw.jumpTo({center:[120.731,23.518],zoom:12.5,pitch:60,bearing:-20});});await p.waitForFunction(()=>M.raw.queryTerrainElevation([120.731,23.518])>50,null,{timeout:30000});await p.waitForTimeout(1500);await p.screenshot({path:out+'/'+name+'-mountains.png'});
   check(name+' 山體使用既有 DEM 並有色彩陰影',await p.evaluate(()=>!!M.raw.getLayer('landscape-hillshade')&&M.raw.queryTerrainElevation([120.731,23.518])>50));
   for(let i=0;i<3;i++){await p.evaluate(()=>chooseBasemap('light'));await settle(p,'light');check(name+' 回切釋放地景 '+i,await p.evaluate(()=>!M.raw.getLayer('landscape-hillshade')&&!railIslandIntegration.renderer.stats.landscape));await p.evaluate(()=>chooseBasemap('landscape'));await settle(p,'landscape');}

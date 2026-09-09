@@ -11,8 +11,8 @@ for(const [name,engine] of Object.entries(process.env.ENGINE?{[process.env.ENGIN
  p.on('pageerror',e=>errors.push(e.stack));p.on('console',m=>{if(m.type()==='error'&&/unknown property|hillshade|sky-color|light\.position/.test(m.text()))errors.push(m.text());});await p.route('**/api/**',r=>r.fulfill({status:503,body:'{}'}));
  try{
   await p.goto(base+'?map=landscape&scene=3d&ground=terrain&at=23.518,120.731&z=12.5&t=12:00&sun=on&lang=zh-TW');
-  await p.waitForFunction(()=>state.ready&&railIslandIntegration.renderer&&sunlight?.current&&M.raw.queryTerrainElevation([120.731,23.518])>50,null,{timeout:90000});
-  await p.evaluate(()=>{state.playing=false;window.__sunTestCtx={date:'2026-09-08'};document.body.classList.add('fs');M.resize();M.raw.jumpTo({center:[120.731,23.518],zoom:12.5,pitch:75,bearing:75});setSimSec(43200);});await p.waitForFunction(()=>M.raw.isSourceLoaded('terrain')&&!railIslandIntegration.loading,null,{timeout:60000});await p.waitForTimeout(800);
+  await p.waitForFunction(()=>state.ready&&window.railIslandIntegration?.renderer&&sunlight?.current&&M.raw.queryTerrainElevation([120.731,23.518])>50,null,{timeout:90000});
+  await p.evaluate(()=>{state.playing=false;window.__sunTestCtx={date:'2026-09-08'};document.body.classList.add('fs');M.resize();M.raw.jumpTo({center:[120.731,23.518],zoom:12.5,pitch:75,bearing:75});setSimSec(43200);});await p.waitForFunction(()=>M.raw.isSourceLoaded('terrain')&&!!window.railIslandIntegration&&!window.railIslandIntegration?.loading,null,{timeout:60000});await p.waitForTimeout(800);
   const before=await p.evaluate(snap),readings={};
   const boundary=await p.evaluate(()=>{const tr=M.raw.transform;let ridge=0,sky=0;for(let x=40;x<tr.width-40;x+=40)for(let y=80;y<180;y+=5)if(!tr.isPointOnMapSurface({x,y})&&M.isOnSurface({x,y}))ridge++;for(let x=40;x<tr.width-40;x+=80)if(!M.isOnSurface({x,y:20}))sky++;return {ridge,sky,clip:M.surfaceTop()};});
   check(name+' 起伏山稜可點／天空拒收／不水平切字',boundary.ridge>0&&boundary.sky>0&&boundary.clip===0,boundary);
@@ -37,7 +37,7 @@ for(const [name,engine] of Object.entries(process.env.ENGINE?{[process.env.ENGIN
   const changes={east:[],west:[]};for(const s of samples){const lum=h=>{let v=0;const png=shots[h];for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const i=((s.y+dy)*png.width+s.x+dx)*4;v+=.2126*png.data[i]+.7152*png.data[i+1]+.0722*png.data[i+2];}return v/9;};changes[s.side].push(lum(8)-lum(16));}
   const detail=Object.fromEntries(Object.entries(changes).map(([k,a])=>[k,{count:a.length,mean:a.reduce((x,y)=>x+y,0)/a.length,correct:a.filter(v=>k==='east'?v>3:v< -3).length/a.length}]));
   check(name+' 真實 DEM 東坡晨亮／西坡夕亮像素驗證',detail.east.count>20&&detail.west.count>20&&detail.east.mean>8&&detail.west.mean< -8&&detail.east.correct>.7&&detail.west.correct>.7,detail);
-  for(const kind of ['light','landscape']){await p.evaluate(k=>chooseBasemap(k),kind);await p.waitForFunction(k=>M.getStyleKind()===k&&railIslandIntegration.renderer&&!railIslandIntegration.loading,kind,{timeout:60000});}
+  for(const kind of ['light','landscape']){await p.evaluate(k=>chooseBasemap(k),kind);await p.waitForFunction(k=>M.getStyleKind()===k&&window.railIslandIntegration?.renderer&&!window.railIslandIntegration?.loading,kind,{timeout:60000});}
   check(name+' 樣式重建恢復山坡光照',await p.evaluate(()=>M.raw.getPaintProperty('landscape-hillshade','hillshade-illumination-direction')===sunlight.current.azimuth));
   await p.evaluate(()=>{sunlight.setEnabled(false);railIslandIntegration.setGroundMode('flat');});check(name+' 切平坦並關閉保留原本配色',await p.evaluate(()=>!M.raw.getTerrain())&&JSON.stringify(await p.evaluate(()=>M.raw.getLayer('landscape-hillshade').serialize().paint))===JSON.stringify(originalPaint));
   await p.evaluate(()=>{railIslandIntegration.setGroundMode('terrain');sunlight.setEnabled(true);});check(name+' 切回起伏保留光照',await p.evaluate(()=>M.raw.getTerrain()?.exaggeration===1&&M.raw.getPaintProperty('landscape-hillshade','hillshade-method')==='basic'));
