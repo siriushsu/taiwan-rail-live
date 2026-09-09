@@ -572,12 +572,26 @@ export async function verifyRelease({
       + '這道閘門要跟著改;它刻意不設預設值,免得判準與程式碼各說各話');
     const windowDays = Number(windowDaysMatch[1]);
     const foundingUntilMs = foundingLaunchAtMs + windowDays * 86400000;
-    assert(buildDayStartMs < foundingUntilMs,
+    // 🔴 2026-09-09 補第四個合法狀態。創始期是一次性的事:窗關了之後錨點**仍然要留著**——
+    // foundingFrom() 每次都拿它比對既有會員的 originalPurchaseDate。原本這裡窗一過就 FAIL,
+    // 而訊息教人改成 false,那會讓 FOUNDING_LAUNCH_MS 解析成 NaN、foundingFrom() 回到
+    // 「沒人是創始會員」的安全預設 ⇒ **把已經拿到徽章的島民整批清掉**。所以「窗已結束」要有
+    // 自己的說法:foundingWindowClosed: true。四種狀態互不相同——ISO 字串＝在辦、
+    // false＝從沒辦過、null＝還沒決定、ISO 字串+windowClosed＝辦過且已收(錨點留給既有會員判定)。
+    const foundingWindowClosed = /foundingWindowClosed\s*:\s*true/.test(revenuecatSource);
+    assert(buildDayStartMs < foundingUntilMs || foundingWindowClosed,
       `revenuecat-config.js 的 foundingLaunchAt(${foundingLaunchAtRaw})起算 ${windowDays} 天的創始期視窗,`
       + `在本次 build 的日期(${buildDayTaipei})之前就已經結束——程式碼還宣稱在辦創始期,但窗早就關了。`
-      + '請更新 window.RAIL_REVENUECAT_CONFIG.foundingLaunchAt;若這一版不打算辦創始期,把它改成 false');
-    const daysLeft = Math.ceil((foundingUntilMs - buildDayStartMs) / 86400000);
-    console.log(`  · foundingLaunchAt=${foundingLaunchAtRaw}（窗 ${windowDays} 天，本次 build 當天起還剩 ${daysLeft} 天）`);
+      + '創始期還要繼續就更新 window.RAIL_REVENUECAT_CONFIG.foundingLaunchAt;'
+      + '創始期已經收了就在同一個物件補 foundingWindowClosed: true(錨點要原封留著)。'
+      + '🔴 不要改成 false——那是給「從沒辦過創始期」用的,填下去會讓 foundingFrom() 回到'
+      + '「沒人是創始會員」的安全預設,把已經拿到徽章的島民整批清掉。');
+    if (foundingWindowClosed) {
+      console.log(`  · foundingLaunchAt=${foundingLaunchAtRaw}（創始期已收:foundingWindowClosed=true;錨點保留給既有創始會員判定,不再收新人）`);
+    } else {
+      const daysLeft = Math.ceil((foundingUntilMs - buildDayStartMs) / 86400000);
+      console.log(`  · foundingLaunchAt=${foundingLaunchAtRaw}（窗 ${windowDays} 天，本次 build 當天起還剩 ${daysLeft} 天）`);
+    }
   }
 
   const musicEnabled = html.includes('window.RAIL_MUSIC_AVAILABLE=true');
