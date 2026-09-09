@@ -28,7 +28,8 @@ const widths = [360, 375, 414, 768];
 // 9/9：先前車庫玻璃、環形鎖定兩條（309→311），本次軌道承托與車頭開關兩條（311→313）。
 // 9/9：官方橋隧補正一條（324→325），地形晚到重建一條（325→326）。
 // 9/9：捷運雙軌左右一條、推拉式自強號節數一條（326→328）。
-const expectedHistoryCount = 328;
+// 9/9：夜間道路調暗一條（328→329）。
+const expectedHistoryCount = 329;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

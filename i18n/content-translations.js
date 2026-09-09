@@ -1630,3 +1630,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {"捷運與輕軌雙軌改為靠右�
 Object.assign(window.RAIL_I18N_MESSAGES.en, {"推拉式自強號畫出完整 14 節（前後機車加 12 節客車），不再只顯示 3 節示意": "The push-pull Tze-Chiang Express now shows all 14 cars (a locomotive at each end plus 12 coaches) instead of a three-car illustration."});
 
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"推拉式自強號畫出完整 14 節（前後機車加 12 節客車），不再只顯示 3 節示意": "推拉式（プッシュプル）自強号を、両端の機関車と客車12両を合わせた14両編成で表示するようになりました。これまでは3両の模式表示でした。"});
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"夜間地景的道路、機場鋪面與底圖鐵道跟著地面一起變暗，不再蓋過軌道與列車；白天配色維持不變": "At night the landscape map now darkens roads, airport paving and basemap railways along with the ground, so they no longer drown out the tracks and trains; daytime colours are unchanged."});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"夜間地景的道路、機場鋪面與底圖鐵道跟著地面一起變暗，不再蓋過軌道與列車；白天配色維持不變": "夜間の風景地図で、道路・空港の舗装・ベースマップの鉄道線を地面と一緒に暗くし、線路と列車が見えにくくならないようにしました。昼間の配色は変わりません。"});
