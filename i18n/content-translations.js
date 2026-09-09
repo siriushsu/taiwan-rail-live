@@ -1572,3 +1572,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {"修正車庫三節車廂的車窗�
 Object.assign(window.RAIL_I18N_MESSAGES.en, {"修正台鐵行車曲線更新後部分列車退回示意線形的問題，加開車也能沿已知連通股道行駛，雙軌與地下、高架顯示保持一致": "Fixed TRA trains reverting to schematic routes after motion profile updates. Additional services now use known connected tracks, keeping separate tracks and underground or elevated levels consistent."});
 
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"修正台鐵行車曲線更新後部分列車退回示意線形的問題，加開車也能沿已知連通股道行駛，雙軌與地下、高架顯示保持一致": "走行曲線の更新後に一部の台鉄列車が模式線に戻る問題を修正。臨時列車も接続が確認された線路を走り、複線や地下・高架の表示を維持します。"});
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"環形試跑放大時會鎖定三節列車、跟著編組繞圈，旋轉時保持列車置中；縮回 100% 即可欣賞完整跑道": "Zooming in on the loop track now centers and follows the three-car train, including when rotating the view. Return to 100% to see the whole track."});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"環形試跑放大時會鎖定三節列車、跟著編組繞圈，旋轉時保持列車置中；縮回 100% 即可欣賞完整跑道": "周回コースを拡大すると3両編成を中央に捉えて追いかけ、視点を回転しても列車が中央に留まります。100%に戻すとコース全体を見渡せます。"});

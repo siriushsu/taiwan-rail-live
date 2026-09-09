@@ -5240,6 +5240,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="garagefollow0909"><span class="d">9/9</span><span>環形試跑放大時會鎖定三節列車、跟著編組繞圈，旋轉時保持列車置中；縮回 100% 即可欣賞完整跑道</span></li>
         <li data-cl-of="garageglass0909"><span class="d">9/9</span><span>修正車庫三節車廂的車窗反光不一致；海岸行旅的玻璃會跟著日出、藍天、黃昏與星空變換光影</span></li>
         <li data-cl-of="trabinding0909"><span class="d">9/9</span><span>修正台鐵行車曲線更新後部分列車退回示意線形的問題，加開車也能沿已知連通股道行駛，雙軌與地下、高架顯示保持一致</span></li>
         <li data-cl-of="guangci0909"><span class="d">9/9</span><span>補齊象山至廣慈／奉天宮的雙向軌道，來回列車沿各自股道進出，修正延伸段在 3D 地圖中斷的問題</span></li>
@@ -5247,7 +5248,6 @@
         <li data-cl-of="raillevel0909"><span class="d">9/9</span><span>3D 軌道依地下、地面與高架分層，捷運交會及共站不再全部擠在地面；地下列車以半透明顯示，開關地形都保留上下關係</span></li>
         <li data-cl-of="historic0909"><span class="d">9/9</span><span>地景加入 25 組歷史建築模型，依建物位置與朝向呈現站房、倉庫和廠房，並以遠近細節切換維持流暢</span></li>
         <li data-cl-of="worldcover0908"><span class="d">9/8</span><span>地景加入公開土地覆蓋資料，補足台灣與離島的山林、草地和農田；樹群依林地範圍呈現，並保留道路與建物空間</span></li>
-        <li data-cl-of="landscape0908"><span class="d">9/8</span><span>新增「地景」地圖風格：河流、林地、公園與街廓換上自然色，近看可見立體樹冠與建築，搭配列車沿線探索台灣</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5270,6 +5270,7 @@
         <li data-cl="tracreep0907"><span class="d">9/7</span><span>台鐵誤點加大時，列車改成慢速前進，不再停在原地等誤點追上</span></li>
         <li data-cl="searchtraintype0908"><span class="d">9/8</span><span>搜尋框接上車種與車型：以前打「自強號」會查無結果，現在輸入車種（自強、區間車、區間快、莒光）或車型（EMU3000、太魯閣、普悠瑪、推拉式 PP）都會列出當日符合的班次，正在跑的排最前面，命中的車型也能點開看介紹（謝謝網友回報）</span></li>
         <li data-cl="ambientfollow3d0907"><span class="d">9/7</span><span>放空的跟車視角改成貼著車身的立體視角，看得到列車在軌道上跑，速度也放回實際車速；放空時的配樂改播完整曲庫</span></li>
+        <li data-cl="garagefollow0909"><span class="d">9/9</span><span>環形試跑放大時會鎖定三節列車、跟著編組繞圈，旋轉時保持列車置中；縮回 100% 即可欣賞完整跑道</span></li>
         <li data-cl="garageglass0909"><span class="d">9/9</span><span>修正車庫三節車廂的車窗反光不一致；海岸行旅的玻璃會跟著日出、藍天、黃昏與星空變換光影</span></li>
         <li data-cl="garagecars0909"><span class="d">9/9</span><span>修正車庫試跑時中間車廂消失的問題，環形與海岸場景都會完整顯示三節編組，輕軌分節也能正常欣賞</span></li>
         <li data-cl="garageloop0908"><span class="d">9/8</span><span>車庫加入環形試跑，三節小車沿彎道逐節轉向，可暫停、反向與自由旋轉欣賞；所有場景都能按鈕、滾輪或雙指縮放，海岸行旅也保留在選單中</span></li>
@@ -6172,7 +6173,7 @@
 // v0907n：更新紀錄拿掉 7/13 那條贊助方式（站上最後一處金流資訊）。
 // v0908b：阿里山林鐵補上站內股道與之字形折返股(阿里山、祝山的軌道畫進站裡);近景實體股道白名單
 //         改為單一來源(rail-3d.js 不再自帶第二份),沒被涵蓋的系統保留原本的示意線形。
-const BUILD = 'v0909g';
+const BUILD = 'v0909h';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。

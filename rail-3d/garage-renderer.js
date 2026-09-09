@@ -26,7 +26,7 @@ export function createRenderer(onLost = () => {}) {
   scene.environment=environment.texture;cards.forEach(c=>{c.geometry.dispose();c.material.dispose();});pmrem.dispose();
   const trainRoot=new THREE.Group();scene.add(trainRoot);
   let coast,loop,primary,consist,car,abort,coastalReflection,reflectedTheme,revision=0,disposed=false,lost=false,id='',loadKey='';
-  const focus=new THREE.Vector3(),project=new THREE.Vector3();
+  const focus=new THREE.Vector3(),project=new THREE.Vector3(),loopFocus=new THREE.Vector3(),viewRight=new THREE.Vector3(),viewUp=new THREE.Vector3();
   const clear=()=>{trainRoot.clear();primary?.dispose();primary=null;car=null;if(consist){scene.remove(consist.root);consist.dispose();consist=null;}id=loadKey='';};
   renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();if(!disposed){lost=true;onLost();}});
   return {
@@ -71,7 +71,22 @@ export function createRenderer(onLost = () => {}) {
           if(!consist)return false;if(!loop){loop=createLoop();scene.add(loop.group);}loop.group.visible=true;
           consist.update(row.owned);consist.follow(loop,options.distance||0,options.direction);
           const horizontal=loop.half*Math.abs(Math.sin(angle))+loop.outer,vertical=Math.sin(elevation)*(loop.half*Math.abs(Math.cos(angle))+loop.outer)+2.3*Math.cos(elevation),span=Math.max(horizontal/aspect,vertical)*1.07;
-          focus.set(0,0,1.0);Object.assign(camera,{left:-span*aspect,right:span*aspect,top:span,bottom:-span});camera.updateProjectionMatrix();camera.position.set(60*Math.cos(elevation)*Math.cos(angle),60*Math.cos(elevation)*Math.sin(angle),focus.z+60*Math.sin(elevation));camera.lookAt(focus);camera.updateMatrixWorld();scene.updateMatrixWorld(true);
+          scene.updateMatrixWorld(true);focus.set(0,0,1.0);
+          if(zoom>1){
+            // 依畫面方向取得整列車的中心，彎道也同時照顧前、中、後三節。
+            // 100% 保留全景；100–120% 隨縮放連續轉向列車，之後鎖住編組。
+            viewRight.set(-Math.sin(angle),Math.cos(angle),0);viewUp.set(-Math.sin(elevation)*Math.cos(angle),-Math.sin(elevation)*Math.sin(angle),Math.cos(elevation));
+            let left=Infinity,right=-Infinity,bottom=Infinity,top=-Infinity;loopFocus.set(0,0,0);
+            for(const c of consist.cars){const b=c.asset.geometry.boundingBox;
+              for(const x of [b.min.x,b.max.x])for(const y of [b.min.y,b.max.y])for(const z of [b.min.z,b.max.z]){
+                project.set(x,y,z).applyMatrix4(c.body.matrixWorld);loopFocus.addScaledVector(project,1/24);
+                const u=project.dot(viewRight),v=project.dot(viewUp);left=Math.min(left,u);right=Math.max(right,u);bottom=Math.min(bottom,v);top=Math.max(top,v);
+              }
+            }
+            loopFocus.addScaledVector(viewRight,(left+right)/2-loopFocus.dot(viewRight));loopFocus.addScaledVector(viewUp,(bottom+top)/2-loopFocus.dot(viewUp));
+            focus.lerp(loopFocus,THREE.MathUtils.smoothstep(zoom,1,1.2));
+          }
+          Object.assign(camera,{left:-span*aspect,right:span*aspect,top:span,bottom:-span});camera.updateProjectionMatrix();camera.position.set(focus.x+60*Math.cos(elevation)*Math.cos(angle),focus.y+60*Math.cos(elevation)*Math.sin(angle),focus.z+60*Math.sin(elevation));camera.lookAt(focus);camera.updateMatrixWorld();
           target.dataset.carCount='3';target.dataset.projection='orthographic';target.dataset.distance=String(options.distance||0);target.dataset.loopLength=String(loop.length);
           target.dataset.poses=JSON.stringify(consist.cars.map(c=>({model:c.id,x:c.car.position.x,y:c.car.position.y,heading:c.car.rotation.z,length:c.length})));
           target.dataset.formation=JSON.stringify(consist.cars.map(c=>{const b=new THREE.Box3().setFromObject(c.car),points=[];for(const x of [b.min.x,b.max.x])for(const y of [b.min.y,b.max.y])for(const z of [b.min.z,b.max.z]){project.set(x,y,z).project(camera);points.push([(project.x+1)*w/2,(1-project.y)*h/2]);}return{model:c.id,left:Math.min(...points.map(p=>p[0])),right:Math.max(...points.map(p=>p[0])),top:Math.min(...points.map(p=>p[1])),bottom:Math.max(...points.map(p=>p[1]))};}));
