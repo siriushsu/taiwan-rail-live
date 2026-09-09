@@ -20,10 +20,11 @@
 //   - deviceScaleFactor 全程 ≥2,否則 detectRetina 對誰都不生效,情境 3/4 測不出差異。
 //   - Esri 圖磚全程用 page.route 攔截並回應本機小圖(絕不打真正的 ibasemaps-api,不需要真
 //     token)——圖磚是按張計費的,驗收不該燒真額度,也不該依賴外部服務的可用性。
-//   - 情境6(2026-08-02 Task 6b 補 S1)是刻意的例外:它就是要驗「APP_CFG.satRetina 沒被
-//     注入」這條路徑本身(網站真實預設),所以改傳 appCfg:null。與上面「固定環境」的原則
-//     不衝突——上面固定的是「資格/跟車」以外的變數,這裡動的正是「網站有沒有開這個平台開關」
-//     這個變數本身,而且只有這一個情境動它,其餘情境仍全程固定 true。
+//   - 情境6(2026-08-02 Task 6b 補 S1)是刻意的例外:它動的正是「這個平台有沒有開高解析層」
+//     這個變數本身,其餘情境仍全程固定 true。2026-09-09 起 SAT_RETINA_DEFAULT 改成 true
+//     (網站也給持證者高解析),所以它拆成兩半:6a 不注入 RAIL_APP_CONFIG(=網站真實預設,現在
+//     是 true)驗網站確實拿得到高解析;6b 明確注入 satRetina:false 驗「平台開關關著時,光有
+//     訂閱資格也打不開高解析層」——那條技術契約的守門員從此掛在 6b,不再靠網站的預設值。
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
@@ -119,7 +120,8 @@ const ok = (name, pass, detail = '') => { results.push({ name, pass, detail }); 
 // 攔截 Esri 圖磚請求記錄 z、不打真網路、也不需要真 token。
 // appCfg 預設 { satRetina: true } 延續既有情境1-5 的固定環境;傳 null 則完全不注入
 // window.RAIL_APP_CONFIG,比照網站真實預設(index.html 讀不到 APP_CFG.satRetina → 落回
-// SAT_RETINA_DEFAULT=false)——這是 S1 情境(見下方情境6)專用,其餘呼叫點不傳就不受影響。
+// SAT_RETINA_DEFAULT,2026-09-09 起是 true);傳 { satRetina: false } 則是「平台開關明確關著」。
+// 這兩種都只有情境6 用(見下方),其餘呼叫點不傳就不受影響。
 async function boot(browser, { touch = false, width = 1280, height = 800, dsf = 2, query = '', appCfg = { satRetina: true } } = {}) {
   const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: dsf, hasTouch: touch, isMobile: touch });
   await ctx.addInitScript((cfg) => {
@@ -150,9 +152,12 @@ async function openSatellite(page, touch) {
   const visible = await page.evaluate(() => { const b = document.getElementById('satBtn'); return !!(b && b.offsetParent); });
   if (visible) { await act('#satBtn'); }
   else {
+    // 手機:底圖改由「更多」裡的「地圖風格」分段控制(#msBasemapSeg,index.html:5933)切換。
+    // 舊路徑等的是 .ms-row[data-proxy="satBtn"]——那一列已經不存在(抽屜改版後只剩分段控制),
+    // 於是 webkit 手機那一路長期卡在 waitForSelector 逾時,紅得像 webkit 起不來。
     await act('#tabMore');
-    await page.waitForSelector('.ms-row[data-proxy="satBtn"]', { state: 'visible', timeout: 5000 });
-    await act('.ms-row[data-proxy="satBtn"]');
+    await page.waitForSelector('#msBasemapSeg button[data-map="sat"]:not([disabled])', { state: 'visible', timeout: 5000 });
+    await act('#msBasemapSeg button[data-map="sat"]');
   }
   await page.waitForFunction(() => state.basemap === 'sat', null, { timeout: 5000 });
 }
@@ -164,12 +169,25 @@ async function followAnyTrain(page) {
     return state.followTrain ? { no: String(state.followId), sys: tr.sys } : null;
   });
 }
+// 2026-09-09 改寫(判準過期,不是產品回歸):底圖 2026-09-07 從 Leaflet TileLayer 換成 MapLibre
+// style(satGlStyle),高解析的做法也從 detectRetina 換成把 raster source 的 tileSize 由 256 改成 128。
+// MapLibre 的 raster source 取的圖磚層級 = 相機 zoom + log2(512 / tileSize),於是
+// 標準解析＝zoom+1、高解析＝zoom+2——仍然是「多一級 ⇒ 四倍圖磚」這同一件事,只是基準整體位移一格。
+// 舊算法「z===zoom 就是標準解析」是 Leaflet 時代的,換引擎後恆假:base 全 0、標準解析被算進 hi,
+// 八個情境一起紅而且紅得像功能壞掉(window.__map 現在是 maplibregl.Map,見 index.html 的把手註解)。
+// 另外 satGlStyle 有一層固定 z6 的保底圖(source sat6,minzoom=maxzoom=6)＋warmSatUnderlayGl() 的
+// 預抓,那與解析度無關,單獨歸一格,否則 other===0 這種判準永遠不可能成立。
+const SAT_UNDERLAY_Z = 6;
 function classify(zooms, zoom) {
+  const std = zoom + 1, hiZ = zoom + 2;
+  const isUnderlay = z => z === SAT_UNDERLAY_Z && z !== std && z !== hiZ; // 保底層剛好落在量測層級時不歸這格
+  const t = zooms.filter(z => !isUnderlay(z));
   return {
-    total: zooms.length,
-    base: zooms.filter(z => z === zoom).length,
-    hi: zooms.filter(z => z === zoom + 1).length,
-    other: zooms.filter(z => z !== zoom && z !== zoom + 1).length,
+    total: t.length,
+    base: t.filter(z => z === std).length,
+    hi: t.filter(z => z === hiZ).length,
+    other: t.filter(z => z !== std && z !== hiZ).length,
+    underlay: zooms.length - t.length,
   };
 }
 const injectPlus = page => page.evaluate(() => {
@@ -186,7 +204,7 @@ const cr = await chromium.launch();
   const zoom = await page.evaluate(() => Math.round(window.__map.getZoom()));
   const c = classify(zooms, zoom);
   ok('情境1 匿名+衛星(不跟車):有發出圖磚請求', c.total > 0, JSON.stringify(c));
-  ok('情境1 匿名+衛星(不跟車):全部 z===zoom(標準解析,零 z+1)', c.total > 0 && c.hi === 0 && c.other === 0, `zoom=${zoom} ${JSON.stringify(c)}`);
+  ok('情境1 匿名+衛星(不跟車):全部標準解析(零高解析圖磚)', c.total > 0 && c.hi === 0 && c.other === 0, `zoom=${zoom} ${JSON.stringify(c)}`);
   ok('情境1 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
 }
@@ -201,7 +219,7 @@ const cr = await chromium.launch();
   const zoom = await page.evaluate(() => Math.round(window.__map.getZoom()));
   const c = classify(zooms, zoom);
   ok('情境2 匿名+衛星+跟車:有發出圖磚請求', c.total > 0, JSON.stringify(c));
-  ok('情境2 匿名+衛星+跟車:全部 z===zoom(標準解析,零 z+1)', c.total > 0 && c.hi === 0 && c.other === 0, `zoom=${zoom} ${JSON.stringify(c)}`);
+  ok('情境2 匿名+衛星+跟車:全部標準解析(零高解析圖磚)', c.total > 0 && c.hi === 0 && c.other === 0, `zoom=${zoom} ${JSON.stringify(c)}`);
   ok('情境2 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
 }
@@ -215,7 +233,7 @@ const cr = await chromium.launch();
   const zoom = await page.evaluate(() => Math.round(window.__map.getZoom()));
   const c = classify(zooms, zoom);
   ok('情境3 Plus+衛星(不跟車):有發出圖磚請求', c.total > 0, JSON.stringify(c));
-  ok('情境3 Plus+衛星(不跟車):出現 z===zoom+1(高解析)', c.hi > 0, `zoom=${zoom} ${JSON.stringify(c)}`);
+  ok('情境3 Plus+衛星(不跟車):出現高解析圖磚', c.hi > 0, `zoom=${zoom} ${JSON.stringify(c)}`);
   ok('情境3 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
 }
@@ -231,7 +249,7 @@ const cr = await chromium.launch();
   const zoom = await page.evaluate(() => Math.round(window.__map.getZoom()));
   const c = classify(zooms, zoom);
   ok('情境4 Plus+衛星+跟車:有發出圖磚請求', c.total > 0, JSON.stringify(c));
-  ok('情境4 Plus+衛星+跟車:全部 z===zoom(跟車強制標準解析,零 z+1)', c.total > 0 && c.hi === 0 && c.other === 0, `zoom=${zoom} ${JSON.stringify(c)}`);
+  ok('情境4 Plus+衛星+跟車:全部標準解析(跟車強制降級,零高解析圖磚)', c.total > 0 && c.hi === 0 && c.other === 0, `zoom=${zoom} ${JSON.stringify(c)}`);
   ok('情境4 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
 }
@@ -262,7 +280,7 @@ const cr = await chromium.launch();
   await page.waitForTimeout(600);
   const zoomBefore = await page.evaluate(() => Math.round(window.__map.getZoom()));
   const cBefore = classify(zooms, zoomBefore);
-  ok('情境5 前置:未訂閱時衛星=標準解析(零 z+1)', cBefore.total > 0 && cBefore.hi === 0, JSON.stringify(cBefore));
+  ok('情境5 前置:未訂閱時衛星=標準解析(零高解析圖磚)', cBefore.total > 0 && cBefore.hi === 0, JSON.stringify(cBefore));
   zooms.length = 0; // 清空,只看購買之後新發出的請求
   await page.evaluate(() => plusOpen('test'));
   await page.waitForFunction(() => state.plus && !!state.plus.pkgMonthly, null, { timeout: 8000 });
@@ -271,16 +289,15 @@ const cr = await chromium.launch();
   await page.waitForTimeout(800); // 不再點 satBtn——驗的正是 Step 4 的自動重掛
   const zoomAfter = await page.evaluate(() => Math.round(window.__map.getZoom()));
   const cAfter = classify(zooms, zoomAfter);
-  ok('情境5 購買完成後不必重切底圖,自動出現 z===zoom+1(高解析)', cAfter.hi > 0, `zoom=${zoomAfter} ${JSON.stringify(cAfter)}`);
+  ok('情境5 購買完成後不必重切底圖,自動出現高解析圖磚', cAfter.hi > 0, `zoom=${zoomAfter} ${JSON.stringify(cAfter)}`);
   ok('情境5 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
 }
 
-// ── 情境 6(2026-08-02 Task 6b 補 S1):完全不注入 RAIL_APP_CONFIG(=網站真實預設,
-// SAT_RETINA_DEFAULT=false)+ Plus 資格 + 衛星(不跟車)→ 平台總開關擋下,全部 z===zoom。
-// 情境1-5 全程固定注入 satRetina:true(檔頭已解釋原因:隔離「資格」這個變數),代價是網站
-// 現行預設(無 APP_CFG 或 APP_CFG.satRetina 未設)這條路徑從未被走過——這條是「平台開關沒開時,
-// 訂閱資格不足以打開高解析層」這個技術契約唯一的守門員,SAT_RETINA 若被寫死 true 也测不出來。
+// ── 情境 6a(2026-09-09 改寫):完全不注入 RAIL_APP_CONFIG(=網站真實預設)+ Plus 資格 +
+// 衛星(不跟車)→ 網站也拿得到高解析。SAT_RETINA_DEFAULT 2026-09-09 由 false 改成 true,
+// 這一格量的就是那個預設值本身:它要是被改回 false,網站的持證者會靜靜地掉回標準解析而
+// 沒有任何錯誤訊息(功能少一項、程式碼一行不少),情境1-5 全程注入 satRetina:true 照不到。
 {
   const { ctx, page, zooms, errors } = await boot(cr, { appCfg: null });
   await injectPlus(page);
@@ -288,9 +305,26 @@ const cr = await chromium.launch();
   await page.waitForTimeout(800);
   const zoom = await page.evaluate(() => Math.round(window.__map.getZoom()));
   const c = classify(zooms, zoom);
-  ok('情境6 網站預設(無RAIL_APP_CONFIG)+Plus+衛星:有發出圖磚請求', c.total > 0, JSON.stringify(c));
-  ok('情境6 網站預設+Plus+衛星:平台總開關擋下,全部 z===zoom(零 z+1)', c.total > 0 && c.hi === 0 && c.other === 0, `zoom=${zoom} ${JSON.stringify(c)}`);
-  ok('情境6 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
+  ok('情境6a 網站預設(無RAIL_APP_CONFIG)+Plus+衛星:有發出圖磚請求', c.total > 0, JSON.stringify(c));
+  ok('情境6a 網站預設+Plus+衛星:預設值 true ⇒ 出現高解析圖磚', c.hi > 0, `zoom=${zoom} ${JSON.stringify(c)}`);
+  ok('情境6a 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
+// ── 情境 6b(2026-08-02 Task 6b 補 S1 的原意,2026-09-09 從「網站預設」改掛「明確注入 false」):
+// 平台總開關關著 + Plus 資格 + 衛星(不跟車)→ 擋下,全部標準解析。這是「平台開關沒開時,
+// 訂閱資格不足以打開高解析層」這個技術契約唯一的守門員(satRetinaAllowed() 的 AND 左半邊);
+// 它不能再依賴網站的預設值,否則預設值一改就連帶失去這條契約的驗證。
+{
+  const { ctx, page, zooms, errors } = await boot(cr, { appCfg: { satRetina: false } });
+  await injectPlus(page);
+  await openSatellite(page, false);
+  await page.waitForTimeout(800);
+  const zoom = await page.evaluate(() => Math.round(window.__map.getZoom()));
+  const c = classify(zooms, zoom);
+  ok('情境6b 平台開關 false+Plus+衛星:有發出圖磚請求', c.total > 0, JSON.stringify(c));
+  ok('情境6b 平台開關 false+Plus+衛星:擋下,全部標準解析(零高解析圖磚)', c.total > 0 && c.hi === 0 && c.other === 0, `zoom=${zoom} ${JSON.stringify(c)}`);
+  ok('情境6b 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
 }
 
@@ -304,7 +338,7 @@ const cr = await chromium.launch();
   await page.waitForTimeout(800);
   const zoomPre = await page.evaluate(() => Math.round(window.__map.getZoom()));
   const cPre = classify(zooms, zoomPre);
-  ok('情境7 前置:Plus+衛星(不跟車)先確認高解析', cPre.total > 0 && cPre.hi > 0, `zoom=${zoomPre} ${JSON.stringify(cPre)}`);
+  ok('情境7 前置:Plus+衛星(不跟車)先確認高解析圖磚', cPre.total > 0 && cPre.hi > 0, `zoom=${zoomPre} ${JSON.stringify(cPre)}`);
 
   zooms.length = 0; // 清空,只看開始跟車後新發出的請求
   const f = await followAnyTrain(page);
@@ -312,7 +346,7 @@ const cr = await chromium.launch();
   await page.waitForTimeout(800);
   const zoomFollow = await page.evaluate(() => Math.round(window.__map.getZoom()));
   const cFollow = classify(zooms, zoomFollow);
-  ok('情境7(S2)Plus+衛星,開始跟車後降回標準解析(零 z+1)', cFollow.total > 0 && cFollow.hi === 0 && cFollow.other === 0, `zoom=${zoomFollow} ${JSON.stringify(cFollow)}`);
+  ok('情境7(S2)Plus+衛星,開始跟車後降回標準解析(零高解析圖磚)', cFollow.total > 0 && cFollow.hi === 0 && cFollow.other === 0, `zoom=${zoomFollow} ${JSON.stringify(cFollow)}`);
 
   ok('情境7 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
@@ -337,7 +371,7 @@ const cr = await chromium.launch();
   await page.waitForTimeout(800);
   const zoomPre = await page.evaluate(() => Math.round(window.__map.getZoom()));
   const cPre = classify(zooms, zoomPre);
-  ok('情境8 前置:跟車中開衛星=標準解析(零 z+1,同情境4 已驗證的路徑)', cPre.total > 0 && cPre.hi === 0 && cPre.other === 0, `zoom=${zoomPre} ${JSON.stringify(cPre)}`);
+  ok('情境8 前置:跟車中開衛星=標準解析(零高解析圖磚,同情境4 已驗證的路徑)', cPre.total > 0 && cPre.hi === 0 && cPre.other === 0, `zoom=${zoomPre} ${JSON.stringify(cPre)}`);
 
   zooms.length = 0; // 清空,只看停止跟車後新發出的請求
   await page.evaluate(() => clearFollow());
@@ -345,7 +379,7 @@ const cr = await chromium.launch();
   await page.waitForTimeout(800);
   const zoomAfter = await page.evaluate(() => Math.round(window.__map.getZoom()));
   const cAfter = classify(zooms, zoomAfter);
-  ok('情境8(S3)停止跟車後恢復高解析(出現 z===zoom+1)', cAfter.total > 0 && cAfter.hi > 0, `zoom=${zoomAfter} ${JSON.stringify(cAfter)}`);
+  ok('情境8(S3)停止跟車後恢復高解析(出現高解析圖磚)', cAfter.total > 0 && cAfter.hi > 0, `zoom=${zoomAfter} ${JSON.stringify(cAfter)}`);
 
   ok('情境8 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
@@ -376,7 +410,7 @@ try {
     await page.waitForTimeout(800);
     const zoom = await page.evaluate(() => Math.round(window.__map.getZoom()));
     const c = classify(zooms, zoom);
-    ok('情境1w webkit手機 匿名+衛星(真觸控):全部 z===zoom', c.total > 0 && c.hi === 0, `zoom=${zoom} ${JSON.stringify(c)}`);
+    ok('情境1w webkit手機 匿名+衛星(真觸控):全部標準解析', c.total > 0 && c.hi === 0, `zoom=${zoom} ${JSON.stringify(c)}`);
     ok('情境1w 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
     await ctx.close();
   }
@@ -387,7 +421,7 @@ try {
     await page.waitForTimeout(800);
     const zoom = await page.evaluate(() => Math.round(window.__map.getZoom()));
     const c = classify(zooms, zoom);
-    ok('情境3w webkit手機 Plus+衛星(真觸控):出現 z===zoom+1', c.hi > 0, `zoom=${zoom} ${JSON.stringify(c)}`);
+    ok('情境3w webkit手機 Plus+衛星(真觸控):出現高解析圖磚', c.hi > 0, `zoom=${zoom} ${JSON.stringify(c)}`);
     ok('情境3w 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
     await ctx.close();
   }

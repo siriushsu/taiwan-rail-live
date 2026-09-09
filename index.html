@@ -12787,11 +12787,15 @@ try {
 const APP_CFG = window.RAIL_APP_CONFIG || {};
 // 衛星 Retina 高解析:開=Retina 螢幕清晰,但圖磚請求量會明顯增加。網站與 App 共用同一份 Esri 圖磚配額,
 // 配額吃緊時的止血開關——網站改下面這行 true→false,App 改 prepare-web.mjs 的 satRetina。
-// 2026-07-29 關掉：上線後的實測用量顯示照當時的速度會在該計費期內把配額用完，
-// 而 Retina 換來的只是「Retina 螢幕上衛星圖更銳利」——在配額用完會變成
-// 「衛星圖直接不能用」面前，這個交換不划算。（實測數字與配額狀況屬營運資訊，不寫進公開 repo。）
-// 要復原就把這行改回 true（App 端還要一併改 prepare-web.mjs 的 satRetina，兩處是分開的）。
-const SAT_RETINA_DEFAULT = false;
+// 2026-07-29 曾關掉：實測用量顯示照當時的速度會在該計費期內把配額用完，而 Retina 只換來
+// 「Retina 螢幕上衛星圖更銳利」——在「衛星圖直接不能用」面前不划算。（實測數字與配額狀況
+// 屬營運資訊，不寫進公開 repo。）
+// 2026-09-09 開回 true：關掉的當下 Retina 還是全體免費的——資格閘門 satRetinaAllowed() 是
+// 08-02 才加上去的，所以那時每一個 Retina 螢幕的訪客都在拉四倍圖磚；現在只有持通行證的人會，
+// 而且跟車中一律降回標準解析（setBasemap 的 wantLQ）。
+// 這行仍然是止血開關：配額再度吃緊就改回 false（App 端要一併改 prepare-web.mjs 的 satRetina，
+// 兩處是分開的）。
+const SAT_RETINA_DEFAULT = true;
 const SAT_RETINA = APP_CFG.satRetina ?? SAT_RETINA_DEFAULT;
 // 衛星高解析(Retina)＝Plus。SAT_RETINA 保留為「這個平台建不建得出高解析層」的總開關
 // (Esri 額度止血用),資格判定另外走 satRetinaAllowed()——兩者是 AND。
@@ -12800,7 +12804,7 @@ function satRetinaAllowed() {
 }
 // 衛星高解析是通行證項目,但「不給用」的顯形只是圖看起來比較糊——免費層完全不知道有更清楚的
 // 版本存在(專案第二個「不給用也不說」的閘門,另一個是跟車鎖屏,見 renderLaCta)。只在真的有差別
-// 的情境講一次:這個平台建得出高解析層(SAT_RETINA;網站的預設值是 false ⇒ 網站恆不觸發)＋
+// 的情境講一次:這個平台建得出高解析層(SAT_RETINA;2026-09-09 起網站的預設值也是 true)＋
 // 訂閱旗標開＋還沒訂閱＋剛切【進】衛星。一輩子講一次(localStorage),不是每次切都念——切底圖是
 // 高頻動作,念第二次就是騷擾。跟車中即使已訂閱也走標準解析(setBasemap 的 wantLQ),那是效能取捨
 // 不是資格問題,所以句子裡一併講清楚,免得訂了之後以為沒生效。
@@ -15067,8 +15071,10 @@ function plusRender() {
     // (takeoutParseFile 只用 File.arrayBuffer／TextDecoder／fflate,整段零 Capacitor 依賴,已實查),
     // 沒有任何原生前提,故措辭不再標平台。
     '匯入 Google Maps 已儲存清單，成為軌島的最愛地點',
-    // App 限定:網站的 SAT_RETINA_DEFAULT 為 false ⇒ satRetinaAllowed() 在網站恆假,措辭必須標明平台。
-    'App 非跟車時的衛星高解析圖磚（支援 Retina 螢幕）',
+    // 2026-09-09 起網站也有:SAT_RETINA_DEFAULT 改成 true,網站的資格判定同樣走 satRetinaAllowed()
+    // 的 plusIsActive()。「非跟車時」留著不是平台限制——兩個平台跟車中都一律標準解析(setBasemap
+    // 的 wantLQ),那是效能取捨不是資格問題。
+    '非跟車時的衛星高解析圖磚（支援 Retina 螢幕）',
     ...(nativeAndroid
       ? ['跟車時在鎖定畫面顯示下一站與行程進度（Android 16／Samsung 支援 Now Bar）']
       : ['跟車時在鎖定畫面與動態島顯示即時動態（iOS 17.6 以上）']),
@@ -31829,8 +31835,8 @@ const HELP_GROUPS = [
         '訂閱在軌島 App 內完成，網站不收費',
         '在網站用同一個軌島帳號登入，App 訂的資格就會生效（面板裡的「已經在 App 訂閱了？登入以同步」）'],
       tip: IS_NATIVE_APP && window.Capacitor?.getPlatform?.() === 'android'
-        ? '通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、App 桌面與鎖定畫面的捷運小工具放多站或用「自動（最近的站）」跟著你移動換站（免費可設定一站）、收藏與完乘紀錄跨裝置雲端同步、行程分享、跟車配樂（音樂跟著你在看的那班車與當下時間換情境；免費的背景音樂不受影響）、匯入 Google Maps 已儲存清單、App 非跟車時的衛星高解析圖磚，以及 Android 16 即時資訊與 Samsung Now Bar 的跟車鎖定畫面進度。'
-        : '通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、iPhone 桌面與鎖定畫面的捷運小工具放多站或用「自動（最近的站）」跟著你移動換站（免費可設定一站）、收藏與完乘紀錄跨裝置雲端同步、行程分享、跟車配樂（音樂跟著你在看的那班車與當下時間換情境；免費的背景音樂不受影響）、匯入 Google Maps 已儲存清單、App 非跟車時的衛星高解析圖磚，以及 iOS 17.6 以上可用的跟車鎖定畫面與動態島即時動態。',
+        ? '通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、App 桌面與鎖定畫面的捷運小工具放多站或用「自動（最近的站）」跟著你移動換站（免費可設定一站）、收藏與完乘紀錄跨裝置雲端同步、行程分享、跟車配樂（音樂跟著你在看的那班車與當下時間換情境；免費的背景音樂不受影響）、匯入 Google Maps 已儲存清單、非跟車時的衛星高解析圖磚，以及 Android 16 即時資訊與 Samsung Now Bar 的跟車鎖定畫面進度。'
+        : '通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、iPhone 桌面與鎖定畫面的捷運小工具放多站或用「自動（最近的站）」跟著你移動換站（免費可設定一站）、收藏與完乘紀錄跨裝置雲端同步、行程分享、跟車配樂（音樂跟著你在看的那班車與當下時間換情境；免費的背景音樂不受影響）、匯入 Google Maps 已儲存清單、非跟車時的衛星高解析圖磚，以及 iOS 17.6 以上可用的跟車鎖定畫面與動態島即時動態。',
       try: 'plus' },
   ]},
   { key: 'c', name: '模式與外觀', open: false, secs: [
