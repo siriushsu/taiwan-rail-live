@@ -15010,15 +15010,13 @@ async function plusOpen(source, onGranted) {
   if (!PLUS_ENABLED) return; // 止血旗標關閉時整張面板不可達:入口鈕都撤掉了,但深連結與既有呼叫點仍摸得到這支,故在此再擋一次
   const p = plusState();
   if (typeof onGranted === 'function') p.afterUnlock = onGranted;
-  // 未登入時依「這個平台賣不賣得成」分流:
-  // ・有購買通道(App):訂閱資格要綁軌島帳號才能跨裝置恢復 ⇒ 維持先登入再開面板。
-  // ・無購買通道(網站):只展示不賣,直接開面板讓人看得到內容與「請在 App 內訂閱」;
-  //   登入改由面板內的 data-plus="login" CTA 觸發(plusLoginForSync),在那之前完全不碰 Firebase。
-  if ((!state.account || !state.account.user) && plusConfigured()) {
-    state.plusPending = { source: source || 'account', onGranted };
-    await accountEnsureInit(); // 免費層匿名→購買才延遲載入帳號系統(Firebase);登入後 onAuthStateChanged 讀 plusPending 回接本函式
-    accountOpen(); showToast(t('請先登入軌島帳號，訂閱資格才能跨裝置使用')); return;
-  }
+  // 🔴 2026-09-10 裁示:未登入不再擋在面板外面。這裡原本有一道登入牆——「有購買通道(App)且
+  // 還沒登入」就不開面板、直接跳帳號視窗加一句 toast,於是 App 使用者想知道通行證是什麼、
+  // 包含哪些功能,得先交出一個帳號;而網站(無購買通道)那半從來都是直接開面板。同一個產品
+  // 兩種相反的待遇,擋的又正好是最前面那一步。現在兩個平台一律先開面板,登入延後到「要看
+  // 價格或要訂閱」那一刻,由 plusRender() 未登入分支的 CTA 觸發(plusLoginForSync)。
+  // 順帶一提的好處:這支不再無條件 accountEnsureInit(),免費層在按下那顆 CTA 之前完全不載
+  // Firebase——與網站那條分支本來就寫著的原則一致(見 setupAccountUi 的「免費層匿名」註解)。
   const modal = document.getElementById('plusModal'); if (!modal) return;
   accountClose();
   p.source = source || 'account'; modal.hidden = false; plusRender();
@@ -15027,7 +15025,9 @@ async function plusOpen(source, onGranted) {
   if (plusConfigured()) plusRefresh();
 }
 function plusClose() { const m = document.getElementById('plusModal'); if (m) m.hidden = true; }
-// 無購買通道的平台(網站)專用:Plus 面板內的「已經在 App 訂閱了？登入以同步」。
+// Plus 面板內所有「先去登入」的 CTA 共用這一支。原本只有無購買通道的平台(網站)畫得出那顆
+// 「已經在 App 訂閱了？登入以同步」;2026-09-10 拿掉 plusOpen() 的登入牆之後,有購買通道的
+// 平台在未登入時也會畫出「登入以查看方案」與「已訂閱？登入以恢復購買」,同樣走這裡。
 // 這裡才是帳號系統的初始化點——免費層訪客在按下它之前完全不載 Firebase、不建 state.account。
 // 留 plusPending 讓登入完成後 onAuthStateChanged 把人帶回 Plus 面板,那時 plusRefresh() 已
 // 打過 /api/plus-status,看到的是「Plus 已啟用」而不是同一張推銷畫面。
@@ -15110,6 +15110,25 @@ function plusRender() {
       `<button class="plus-restore" type="button" data-plus="login">${escHtml(t('已經在 App 訂閱了？登入以同步'))}</button>`;
     body.innerHTML = hero + features +
       `<p class="account-note">${escHtml(t('目前請在軌島 App 內訂閱；訂閱後同一個軌島帳號在網站也會自動生效。'))}</p>` + loginCta + legal;
+    return;
+  }
+  if (!(state.account && state.account.user)) {
+    // 有購買通道、但還沒登入。價格只能從商店拿,而 billing SDK 要先拿軌島帳號的 uid 當
+    // App User ID 才 configure 得起來(app/src/native-bridge.mjs 的 setUser)⇒ 這個狀態下
+    // 一個價格都拿不到。少了這個分支會直接掉進下面那句「目前無法取得訂閱方案,請稍後再試」,
+    // 那是把「還沒登入」誤報成「商店壞了」——2026-09-10 拿掉 plusOpen() 的登入牆之後,這條
+    // 路徑才第一次走得到,在那之前未登入的人根本開不了這張面板。
+    // 兩顆鈕都指向 plusLoginForSync:未登入時 plusRestore() 第一行就因為沒有 user 而早退,
+    // 恢復購買本來就無事可做;但 Apple 3.1.1 要求付費畫面看得到恢復購買的入口,故保留它的
+    // 措辭與位置,只是接到同一個登入流程上——登入後 onAuthStateChanged 會用 state.plusPending
+    // 把人帶回這張面板,那時 plusRefresh() 已經跑過,價格與資格都在,恢復購買自然完成。
+    body.innerHTML = hero + features +
+      `<p class="account-note">${escHtml(t('方案價格與訂閱需要先登入軌島帳號：資格綁在帳號上，換手機或換到另一個平台都帶得走。'))}</p>` +
+      '<div class="plus-plans">' +
+      '<button class="plus-plan plus-plan-primary" type="button" data-plus="login">' +
+      `<span class="plus-plan-name">${escHtml(t('登入以查看方案'))}</span>` +
+      '<span class="plus-plan-price" aria-hidden="true">›</span></button></div>' +
+      `<button class="plus-restore" type="button" data-plus="login">${escHtml(t('已訂閱？登入以恢復購買'))}</button>` + legal;
     return;
   }
   const plan = (pkg, kind, primary) => pkg
@@ -15325,7 +15344,7 @@ function setupPlusUi() {
     const b = e.target.closest('[data-plus]'); if (!b) return;
     if (b.dataset.plus === 'buy') plusPurchase(b.dataset.pkg || 'annual');
     else if (b.dataset.plus === 'restore') plusRestore();
-    else if (b.dataset.plus === 'login') plusLoginForSync(); // 無購買通道的平台才畫得出這顆(見 plusRender)
+    else if (b.dataset.plus === 'login') plusLoginForSync(); // 未登入時畫得出來:網站的「登入以同步」與 App 的「登入以查看方案／恢復購買」都走這裡(見 plusRender)
     else plusRefresh();
   };
 }

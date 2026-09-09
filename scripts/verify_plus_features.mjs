@@ -909,6 +909,158 @@ await cr.close();
   await wk3.close();
 }
 
+// ══════════ T9:未登入 × 有購買通道 —— 面板打不打得開、畫的是不是對的東西 ══════════
+// 2026-09-10 裁示「拿掉 App 的登入牆」。在那之前 plusOpen() 對「plusConfigured() 為真且未登入」
+// 直接 return(跳帳號視窗 + 一句 toast),面板根本開不出來——App 使用者想知道通行證是什麼、
+// 有哪些功能,得先交出一個帳號;而網站(無購買通道)那半從來都是直接開面板。現在兩邊一致:
+// 先開面板,登入延後到「要看價格或要訂閱」那一刻,由 plusRender() 未登入分支的 CTA 觸發。
+//
+// 為什麼非得新開一組:本檔既有的瀏覽器情境裡,plusConfigured() 為真的只有 T7b,而 T7b【先注入
+// state.account 才 plusOpen()】;其餘情境根本沒注入 RAIL_PLUS_TEST_ADAPTER ⇒ plusConfigured()
+// 恆假,走的是網站那條分支。也就是說「未登入 × 有購買通道」這一格在改動前後都沒有任何斷言
+// 照到——實測改動前後都是 105/105,登入牆是拆掉了還是長回來,舊的判準一條都分辨不出來。
+//
+// 判準設計(對照 assertion-blindspot-taxonomy):
+//  · 第 0 條「我在量的是誰」:每一輪先把 plusConfigured() 與「有沒有登入」兩個前提做成具名斷言。
+//    前提沒成立就是那一條紅,不會靜靜落到別的分支還讓後面全綠。
+//  · 第 2 條「量的是會發生什麼」:CTA 不驗「點得到」,驗點完之後面板真的關了、state.plusPending
+//    真的被寫進去——那才是「登入流程被接起來」。
+//  · 第 5 條「反向對照」:T9c 兩條證明登入 CTA 不是恆在(已登入時畫的是真方案鈕),也證明網站
+//    那半沒被這一改弄壞(無購買通道仍走「請在 App 內訂閱」)。
+//  · 兩個引擎各跑一次:App 的 WebView 在 iOS 是 WebKit、Android 是 Chromium,兩邊都要成立。
+{
+  // 未登入態的最小環境:有購買通道(RAIL_PLUS_TEST_ADAPTER,既有慣例)+ Firebase 用測試模組短路
+  // 且 onAuthStateChanged 明確回 null(「解析完了,就是沒登入」,不是「還沒解析」)。
+  // ACCOUNT_ENABLED=false 且 localStorage 沒有 trainmap-account-uid ⇒ 開機不會 eager 初始化
+  // 帳號系統,state.account 維持 undefined,T9 的「沒碰 Firebase」那條才量得到東西。
+  const initLoggedOut = () => {
+    try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {}
+    window.RAIL_REVENUECAT_CONFIG = { entitlement: 'plus', offeringId: 'plus' };
+    const offering = { availablePackages: [
+      { identifier: '$rc_monthly', packageType: 'MONTHLY', webBillingProduct: { currentPrice: { formattedPrice: 'STUB-MONTH' } } },
+      { identifier: '$rc_annual', packageType: 'ANNUAL', webBillingProduct: { currentPrice: { formattedPrice: 'STUB-YEAR' } } },
+    ] };
+    window.RAIL_PLUS_TEST_ADAPTER = {
+      setUser: async () => {},
+      getCustomerInfo: async () => ({ entitlements: { active: {} } }),
+      getOfferings: async () => ({ all: { plus: offering }, current: offering }),
+      purchase: async () => ({ customerInfo: { entitlements: { active: {} } } }),
+      restore: async () => ({ entitlements: { active: {} } }),
+    };
+    window.RAIL_FIREBASE_CONFIG = { apiKey: 'x', authDomain: 'x', projectId: 'x' };
+    window.RAIL_FIREBASE_TEST_MODULES = {
+      initializeApp: () => ({}), getAuth: () => ({}), getFirestore: () => ({}),
+      onAuthStateChanged: (auth, cb) => { setTimeout(() => cb(null), 10); },
+    };
+  };
+  // 面板現況的單一快照:一次 evaluate 取齊所有要斷言的量,避免逐項 evaluate 之間頁面又動了。
+  const snapshot = () => {
+    const modal = document.getElementById('plusModal');
+    const body = document.getElementById('plusBody');
+    const restore = body ? body.querySelector('.plus-restore') : null;
+    return {
+      configured: plusConfigured(),
+      loggedIn: !!(state.account && state.account.user),
+      accountTouched: !!state.account,
+      open: !!modal && modal.hidden === false,
+      feats: body ? body.querySelectorAll('.plus-feature').length : -1,
+      buyBtns: body ? body.querySelectorAll('[data-plus="buy"]').length : -1,
+      loginBtns: body ? body.querySelectorAll('[data-plus="login"]').length : -1,
+      restoreKind: restore ? restore.dataset.plus : null,
+      text: body ? body.textContent : '',
+    };
+  };
+  const run = async (browser, tag, { width, mobile }) => {
+    const ctx = await browser.newContext({
+      viewport: { width, height: 900 }, locale: 'zh-TW',
+      ...(mobile ? { hasTouch: true, isMobile: true } : {}),
+    });
+    // ?plus=1 與測試 adapter 都必須在【載入那一刻】就位:PLUS_ENABLED 是凍結的 const,
+    // plusConfigured() 第一道閘就是它(理由與 T7 的 bootTouch 註解相同)。語系同時釘 ?lang=
+    // 與 context locale——下面的判準比對中文字串,語系飄掉會紅得完全不像語系問題。
+    await ctx.addInitScript(initLoggedOut);
+    const page = await ctx.newPage();
+    const errors = [];
+    page.on('pageerror', e => errors.push('pageerror:' + String(e)));
+    await page.goto(base + '?plus=1&lang=zh-TW', { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready === true; } catch (e) { return false; } }, null, { timeout: 40000 });
+    const before = await page.evaluate(async (fn) => {
+      await plusOpen('verify-t9');
+      return eval(`(${fn})`)();
+    }, snapshot.toString());
+    ok(`${tag} 前置:情境真的是「有購買通道 × 未登入」(前提不成立就是這條紅,不會靜靜落到網站分支)`,
+      before.configured === true && before.loggedIn === false, JSON.stringify(before).slice(0, 300));
+    ok(`${tag} 未登入也打得開通行證面板(登入牆已拆——改動前這裡是 false)`,
+      before.open === true, `open=${before.open}`);
+    ok(`${tag} 面板真的講得出通行證是什麼(功能清單有渲染,不是一張空卡)`,
+      before.feats >= 5, `feats=${before.feats}`);
+    ok(`${tag} 畫的是登入 CTA,不是「目前無法取得訂閱方案」那句把「還沒登入」誤報成「商店壞了」的文案`,
+      before.loginBtns >= 1 && !before.text.includes('目前無法取得訂閱方案'),
+      `loginBtns=${before.loginBtns} 誤導文案=${before.text.includes('目前無法取得訂閱方案')}`);
+    ok(`${tag} 未登入不畫購買鈕(拿不到 uid 就拿不到價格,畫出來也只是點了沒反應)`,
+      before.buyBtns === 0, `buyBtns=${before.buyBtns}`);
+    ok(`${tag} 恢復購買入口仍在(Apple 3.1.1),且接到登入流程而不是無事可做的 restore`,
+      before.restoreKind === 'login', `restoreKind=${before.restoreKind}`);
+    ok(`${tag} 開面板全程沒碰 Firebase(免費層匿名:登入牆時代這裡會被 accountEnsureInit 建出 state.account)`,
+      before.accountTouched === false, `accountTouched=${before.accountTouched}`);
+    // 互動:真的點(mobile 用 tap,桌面用 click),斷言落在狀態改變上。
+    const cta = '#plusBody [data-plus="login"]';
+    await page.waitForSelector(cta, { state: 'visible', timeout: 10000 });
+    if (mobile) await page.tap(cta); else await page.click(cta);
+    await page.waitForTimeout(200);
+    const after = await page.evaluate(() => ({
+      plusOpen: !!document.getElementById('plusModal') && document.getElementById('plusModal').hidden === false,
+      pending: !!state.plusPending,
+      pendingSource: state.plusPending ? state.plusPending.source : null,
+    }));
+    ok(`${tag} 點下 CTA 真的接到登入流程:通行證面板關閉、state.plusPending 落地(登入後才回得來)`,
+      after.plusOpen === false && after.pending === true, JSON.stringify(after));
+    ok(`${tag} 全程無 JS 例外`, errors.length === 0, errors.slice(0, 3).join(' | '));
+    await ctx.close();
+  };
+  const crT9 = await chromium.launch(), wkT9 = await webkit.launch();
+  await run(wkT9, 'T9a', { width: 375, mobile: true });   // iOS WebView 這一側,手機寬度 + 真觸控
+  await run(crT9, 'T9b', { width: 1280, mobile: false }); // Android WebView 這一側,桌面寬度
+  // ── 反向對照:證明上面那組不是「不管什麼情境都畫登入 CTA」 ──
+  {
+    const ctx = await crT9.newContext({ viewport: { width: 1280, height: 900 }, locale: 'zh-TW' });
+    await ctx.addInitScript(initLoggedOut);
+    const page = await ctx.newPage();
+    await page.goto(base + '?plus=1&lang=zh-TW', { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready === true; } catch (e) { return false; } }, null, { timeout: 40000 });
+    await page.evaluate(async () => {
+      state.account = { ready: true, user: { uid: 'verify-t9c' }, fb: {} };
+      await plusOpen('verify-t9c');
+    });
+    // 🔴 等【完成訊號】不等固定秒數:plusOpen() 尾端那句 `if (plusConfigured()) plusRefresh();`
+    // 是刻意不 await 的,而 plusRefresh() 對「已經在讀取中」有 p.loading 早退——所以這裡不能
+    // 自己再 await 一次 plusRefresh()(第二發會立刻早退回來,快照就落在「正在讀取方案與訂閱
+    // 資格…」那一格:feats 有 8、按鈕全 0,看起來像功能壞了,其實只是量太早)。
+    await page.waitForFunction(() => !!state.plus && state.plus.loading === false, null, { timeout: 20000 });
+    const paid = await page.evaluate(fn => eval(`(${fn})`)(), snapshot.toString());
+    ok('T9c 反向:同一個情境改成【已登入】⇒ 畫的是真的月/年方案鈕,登入 CTA 消失(證明 CTA 不是恆在)',
+      paid.buyBtns === 2 && paid.loginBtns === 0, JSON.stringify(paid).slice(0, 300));
+    await ctx.close();
+  }
+  {
+    // 無購買通道(網站現況:沒有 Web Billing key、沒有原生 adapter)——這一改不該動到網站那半。
+    const ctx = await crT9.newContext({ viewport: { width: 1280, height: 900 }, locale: 'zh-TW' });
+    await ctx.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} });
+    const page = await ctx.newPage();
+    await page.goto(base + '?plus=1&lang=zh-TW', { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready === true; } catch (e) { return false; } }, null, { timeout: 40000 });
+    const web = await page.evaluate(async (fn) => {
+      await plusOpen('verify-t9c-web');
+      return eval(`(${fn})`)();
+    }, snapshot.toString());
+    ok('T9c 反向:無購買通道(網站)未登入時仍走原本的「請在 App 內訂閱」分支,沒有被這一改弄壞',
+      web.configured === false && web.open === true && web.buyBtns === 0
+        && web.text.includes('目前請在軌島 App 內訂閱'), JSON.stringify(web).slice(0, 300));
+    await ctx.close();
+  }
+  await crT9.close(); await wkT9.close();
+}
+
 server.close();
 
 // ══════════ T8:app-support.html 的「導覽目標標籤」與 index.html 槽位邏輯真值比對
@@ -1040,6 +1192,7 @@ const EXPECTED_COUNTS = {
   T1: 6 + REQUIRED.length + GATE_CALLS.length + 4 * expectedFeatCount(inFounding),
   T2: 1, T2a: 4, T2b: 1, T2c: 1, T2d: 1, T2e: 1, T2f: 1, // T2a=4:違禁詞斷言 + 偵測器正向對照 + 抽取器對照 + 具名豁免對照
   T3: 2, T3a: 1, T3b: 2, T4a: 2, T4b: 2, T4c: 2, T5: 6, T5w: 3, T7a: 4, T7b: 4,
+  T9a: 9, T9b: 9, T9c: 2, // T9=未登入×有購買通道(登入牆已拆);a=WebKit 375 觸控、b=Chromium 1280、c=兩條反向對照
   T8a: 1, T8b: 1, T8c: 2, T8d: 1, // T8=app-support.html 導覽標籤真值比對(見上方 T8 區塊);T8c=核心斷言+杜撰偵測正向對照
 };
 const actualCounts = {};
