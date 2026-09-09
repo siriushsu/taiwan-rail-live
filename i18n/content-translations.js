@@ -1634,3 +1634,11 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {"推拉式自強號畫出完整 14 
 Object.assign(window.RAIL_I18N_MESSAGES.en, {"夜間地景的道路、機場鋪面與底圖鐵道跟著地面一起變暗，不再蓋過軌道與列車；白天配色維持不變": "At night the landscape map now darkens roads, airport paving and basemap railways along with the ground, so they no longer drown out the tracks and trains; daytime colours are unchanged."});
 
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"夜間地景的道路、機場鋪面與底圖鐵道跟著地面一起變暗，不再蓋過軌道與列車；白天配色維持不變": "夜間の風景地図で、道路・空港の舗装・ベースマップの鉄道線を地面と一緒に暗くし、線路と列車が見えにくくならないようにしました。昼間の配色は変わりません。"});
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"網站也能用軌島通行證：用同一個軌島帳號登入，App 訂的資格就生效——收藏與完乘同步、行程分享、跟車配樂、匯入 Google Maps 清單、衛星高解析都會打開。訂閱仍只在 App 內完成，網站不收費。": "The Rail Island Pass now works on the web too: sign in with the same Rail Island account and the pass you bought in the app takes effect here — cloud sync for favourites and completed journeys, trip sharing, the train soundtrack, Google Maps list import and high-resolution satellite tiles all open up. Subscriptions are still purchased in the app; the website never charges you."});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"網站也能用軌島通行證：用同一個軌島帳號登入，App 訂的資格就生效——收藏與完乘同步、行程分享、跟車配樂、匯入 Google Maps 清單、衛星高解析都會打開。訂閱仍只在 App 內完成，網站不收費。": "軌島パスがWebでも使えるようになりました。同じ軌島アカウントでログインすると、Appで購入したパスがWebでも有効になり、お気に入りと完乗記録の同期、旅程共有、追跡サウンドトラック、Googleマップのリスト読み込み、高解像度衛星地図が利用できます。購入は引き続きApp内のみで、Webでは課金しません。"});
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"網站也能用軌島通行證了：用同一個軌島帳號登入，App 訂的資格就在網站生效": "The Rail Island Pass now works on the web: sign in with the same Rail Island account and the pass you bought in the app takes effect here."});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"網站也能用軌島通行證了：用同一個軌島帳號登入，App 訂的資格就在網站生效": "軌島パスがWebでも使えるようになりました。同じ軌島アカウントでログインすると、Appで購入したパスがWebでも有効になります。"});
