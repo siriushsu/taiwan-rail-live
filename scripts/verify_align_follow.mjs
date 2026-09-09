@@ -74,7 +74,7 @@ const measure = async (page, label = 'shot') => {
   return { ok: !!cen.mag && !!cen.cyn && cen.mag.sure && cen.cyn.sure, dist: +dist.toFixed(2), mag: cen.mag && { x: +cen.mag.x.toFixed(1), y: +cen.mag.y.toFixed(1), arc: +cen.mag.arc.toFixed(2), arcIn: cen.mag.arcIn == null ? null : +cen.mag.arcIn.toFixed(2), agree: cen.mag.agree == null ? null : +cen.mag.agree.toFixed(2) }, cyn: cen.cyn && { x: +cen.cyn.x.toFixed(1), y: +cen.cyn.y.toFixed(1), arc: +cen.cyn.arc.toFixed(2) } };
 };
 const probeState = page => page.evaluate(() => window.__alignProbe ? window.__alignProbe.state() : null);
-const waitSwaps = (page, n) => page.waitForFunction(n => window.__alignProbe && window.__alignProbe.state().swaps >= n && !window.__alignProbe.state().next, n, { timeout: 12000 });
+const waitSwaps = (page, n) => page.waitForFunction(n => window.__alignProbe && window.__alignProbe?.state().swaps >= n && !window.__alignProbe?.state().next, n, { timeout: 12000 });
 // 錨點相對可視窗:是否在內(留 70px 邊)、相對中心的向量、當下 bearing
 const placement = page => page.evaluate(() => {
   const P = window.__alignProbe.state(); if (!P.live) return null;
@@ -89,7 +89,7 @@ try {
   // F1／F1b(Leaflet 控制組:follow 在 Leaflet 是 no-op)已於 M4-B 退役——Leaflet 不存在了,
   // 那一輪 boot 會落回 MapLibre、量到的是受測組自己,判準必然假紅。
   const b = await boot(browser, url({ engine: 'maplibre', aligndot: 'follow' }));
-  await b.page.waitForFunction(() => window.__alignProbe && window.__alignProbe.state().live && !window.__alignProbe.state().next, null, { timeout: 30000 });
+  await b.page.waitForFunction(() => window.__alignProbe && window.__alignProbe?.state().live && !window.__alignProbe?.state().next, null, { timeout: 30000 });
   await b.page.waitForTimeout(600);
   const layers = await b.page.evaluate(() => ['aligndot-a', 'aligndot-b'].map(id => ({ id, layer: !!__M.raw.getLayer(id), opacity: __M.raw.getPaintProperty(id, 'circle-stroke-opacity'), transition: __M.raw.getPaintProperty(id, 'circle-stroke-opacity-transition'), ring: __M.raw.getPaintProperty(id, 'circle-radius') === 12 && __M.raw.getPaintProperty(id, 'circle-stroke-width') === 6 && __M.raw.getPaintProperty(id, 'circle-opacity') === 0 })));
   ck(layers.every(l => l.layer) && layers.filter(l => l.opacity === 1).length === 1 && layers.filter(l => l.opacity === 0).length === 1, 'F2 兩個輪替層都在、恰一亮一暗', layers);
@@ -144,7 +144,7 @@ try {
 
   // F9 style 重載:setStyle({diff:false}) 清掉自訂層 → ensure() 冪等重掛、探針回來
   await b.page.evaluate(async () => { const loaded = new Promise(r => __M.raw.once('style.load', r)); __M.setStyleKind('dark'); await loaded; });
-  await b.page.waitForFunction(() => ['aligndot-a', 'aligndot-b'].every(id => __M.raw.getLayer(id)) && __alignProbe.state().live && !__alignProbe.state().next, null, { timeout: 15000 });
+  await b.page.waitForFunction(() => ['aligndot-a', 'aligndot-b'].every(id => window.__M?.raw.getLayer(id)) && window.__alignProbe?.state().live && !window.__alignProbe?.state().next, null, { timeout: 15000 });
   await b.page.waitForTimeout(1000);
   const m4 = await measure(b.page, 'F9');
   ck(m4.ok && m4.dist <= 2, 'F9 style 重載(dark)後探針重掛且距離 ≤2px', m4);

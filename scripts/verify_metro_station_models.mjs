@@ -2,7 +2,7 @@ import {chromium,webkit} from 'playwright';import fs from 'node:fs';
 const base=process.env.BASE_URL||'http://127.0.0.1:5208/',rows=[];fs.mkdirSync('output/metro-station-models',{recursive:true});
 for(const [engineName,engine]of Object.entries({chromium,webkit})){
  const browser=await engine.launch(),context=await browser.newContext({viewport:{width:1280,height:900},isMobile:true,hasTouch:true}),page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto(base+'?g=all&scene=3d&tracks=legacy');await page.waitForFunction(()=>state.ready&&state.decoLines?.length&&railIslandIntegration.renderer,null,{timeout:60000});
+ await page.goto(base+'?g=all&scene=3d&tracks=legacy');await page.waitForFunction(()=>state.ready&&state.decoLines?.length&&window.railIslandIntegration?.renderer,null,{timeout:60000});
  const alignment=await page.evaluate(()=>state.decoLines.flatMap(ln=>ln.stations.map((s,i)=>({sys:ln._sys,line:ln.id,station:s.name,off:ln.hasShape?haversineKm(s,posBetweenStations(ln,i,i,0))*1000:0}))));
  rows.push({engineName,test:'all metro stops on running geometry',pass:alignment.every(r=>r.off<.01),count:alignment.length,maxM:Math.max(...alignment.map(r=>r.off))});
  await page.evaluate(async()=>{

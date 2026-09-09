@@ -74,7 +74,7 @@ async function bootBreath(browser, { width = 1280, height = 800, touch = false, 
   // 等進場穩定:_breathStage、固定整數 z13、CSS scale 已被 hotCruise 施加(computed transform 非 none)
   await page.waitForFunction(() => {
     try {
-      if (!(state._breathStage && window.__M.getZoom() === 13)) return false;
+      if (!(state._breathStage && window.__M?.getZoom() === 13)) return false;
       const t = getComputedStyle(document.getElementById('map')).transform;
       return t && t !== 'none';
     } catch (e) { return false; }

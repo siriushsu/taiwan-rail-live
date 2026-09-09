@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import {sunPosition, solarTimeMs, toMapLibreSunPosition, sunlightAt} from '../rail-3d/environment/sun.mjs';
+import fs from 'node:fs';
+import {sunPosition, solarTimeMs, toMapLibreSunPosition, sunlightAt, PAVED_LAYERS, parseColor, shadeColor} from '../rail-3d/environment/sun.mjs';
 
 // 獨立數值：NREL/TP-560-34302，A.5，表 A5.1。
 // https://docs.nlr.gov/docs/fy08osti/34302.pdf （2003-10-17 12:30:30，UTC−7）
@@ -42,3 +43,55 @@ assert.ok(at(18).azimuth>250&&at(18).azimuth<290);
 assert.ok(at(0).elevation<0);
 assert.equal(new Set([0,6,12,18].map(h=>at(h).sky['sky-color'])).size,4);
 console.log('PASS 晨東暮西、午夜在地平線下、四時段色彩');
+
+// ── 夜間鋪面（2026-09-09）────────────────────────────────────────────────────
+// 使用者回報「晚上道路都還是淺色的，幾乎看不清楚軌道跟車」。壓暗地面的是 landscape-hillshade
+// 的陰影色，而 map3d.js 把那層插在 'building' 之前——畫在它上面的道路、機場鋪面、底圖鐵道
+// 與 2D 建物因此整夜維持白天配色。這一組守的是「名單沒漏、白天不動、夜裡真的變暗」。
+const style = JSON.parse(fs.readFileSync('vendor/ofm-landscape.json', 'utf8'));
+const ids = style.layers.map(l => l.id);
+// 插入點改了，名單的上下界就整個失效——先擋住這件事，再談名單本身。
+assert.ok(fs.readFileSync('rail-3d/integration/map3d.js', 'utf8').includes("'landscape-hillshade'")
+  && /addLayer\(\{id:'landscape-hillshade'[\s\S]{0,400}?\},'building'\)/.test(fs.readFileSync('rail-3d/integration/map3d.js', 'utf8')),
+  'landscape-hillshade 不再插在 building 之前，PAVED_LAYERS 的上下界要重新盤');
+// 下界＝hillshade 的插入點；上界＝行政界線（再上面是地名標籤，壓暗只會看不清楚字）。
+const expected = ids.slice(ids.indexOf('building'), ids.indexOf('boundary_3'));
+assert.deepEqual(PAVED_LAYERS.map(([id]) => id), expected,
+  '樣式檔在 hillshade 與行政界線之間的圖層與 PAVED_LAYERS 不一致（少一條＝那條入夜後還是淺色）');
+assert.equal(PAVED_LAYERS.length, 25, '鋪面名單長度變了，請確認是樣式真的增減圖層');
+// 每一條都真的能解析出顏色：解析不出來的會被原樣跳過，等於這條沒被壓暗而且不會有錯誤訊息。
+for (const [id, prop] of PAVED_LAYERS) {
+  const layer = style.layers.find(l => l.id === id);
+  assert.ok(layer, `${id} 不在樣式檔裡`);
+  assert.ok(parseColor(layer.paint?.[prop]), `${id} 的 ${prop} 解析不出純色：${JSON.stringify(layer.paint?.[prop])}`);
+}
+console.log(`PASS 夜間鋪面名單涵蓋 hillshade 之上、界線之下的 ${PAVED_LAYERS.length} 個圖層，且都解析得出純色`);
+
+// 三種寫法都要認得；認不得的（資料驅動 expression）必須原樣不動，不可換成一個死色。
+assert.deepEqual(parseColor('#f7efd9'), [[247, 239, 217], 1]);
+assert.deepEqual(parseColor('#abc'), [[170, 187, 204], 1]);
+assert.deepEqual(parseColor('rgba(255, 255, 255, 1)'), [[255, 255, 255], 1]);
+assert.deepEqual(parseColor('hsl(0,0%,88%)')[0].map(Math.round), [224, 224, 224]);
+assert.equal(parseColor(['match', ['get', 'class'], 'a', '#fff', '#000']), null);
+assert.deepEqual(shadeColor(['get', 'color'], [23, 38, 59], .72), ['get', 'color']);
+assert.equal(shadeColor('rgba(255, 255, 255, .5)', [23, 38, 59], .5), 'rgba(139,147,157,0.5)');
+console.log('PASS 色彩解析涵蓋 #hex／rgba()／hsl()，expression 原樣跳過');
+
+const noon = at(12), midnight = at(0);
+assert.equal(noon.paved.alpha, 0, '白天不准動道路配色');
+assert.equal(shadeColor('#f7efd9', noon.paved.ink, noon.paved.alpha), '#f7efd9');
+assert.ok(midnight.paved.alpha > .7, `夜裡鋪面壓暗不足：${midnight.paved.alpha}`);
+// 反向對照：夜色不能壓到跟地面一樣暗，否則路網等於消失。地面吃的是 hillshade 的 0.82。
+assert.ok(midnight.paved.alpha < .82, '鋪面壓得比地面還暗，路網會整個看不見');
+// 逐 30 秒掃一天：不跳變，而且黃昏／黎明真的有一段中間值（硬切也會「正午 0、午夜滿」）。
+let last = null, maxJump = 0, between = 0;
+for (let sec = 0; sec < 86400; sec += 30) {
+  const s = sunlightAt(solarTimeMs('2026-09-08', sec), 25.033, 121.565);
+  assert.ok(s.paved.alpha >= 0 && s.paved.alpha <= .72);
+  if (s.paved.alpha > .001 && s.paved.alpha < .719) between += 30;
+  if (last !== null) maxJump = Math.max(maxJump, Math.abs(s.paved.alpha - last));
+  last = s.paved.alpha;
+}
+assert.ok(maxJump < .01, `鋪面夜色跳變 ${maxJump}`);
+assert.ok(between > 3600, `晨昏過渡只有 ${between} 秒，等於硬切`);
+console.log(`PASS 鋪面夜色：正午 0、午夜 ${midnight.paved.alpha.toFixed(2)}、晨昏過渡合計 ${between} 秒，逐 30 秒最大跳變 ${maxJump.toFixed(4)}`);

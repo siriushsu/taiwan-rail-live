@@ -14,7 +14,7 @@ for(const [name,engine]of Object.entries({chromium,webkit})){
  page.on('pageerror',e=>errors.push(e.message));
  try{
   await page.goto(base+'?map=landscape&scene=3d&ground=flat&g=all&at=23.6,120.95&z=9&lang=zh-TW');
-  await page.waitForFunction(()=>state.ready&&railIslandIntegration.renderer&&!railIslandIntegration.loading,null,{timeout:60000});
+  await page.waitForFunction(()=>state.ready&&window.railIslandIntegration?.renderer&&!window.railIslandIntegration?.loading,null,{timeout:60000});
   await page.waitForFunction(()=>M.raw.queryRenderedFeatures({layers:['landscape-worldcover-wood']}).length>0,null,{timeout:40000});
   check(name+' 公開分類資料實際渲染',await page.evaluate(()=>({count:M.raw.queryRenderedFeatures({layers:['landscape-worldcover-wood']}).length})).then(x=>x.count>0));
   check(name+' 來源與授權顯示',await page.locator('.maplibregl-ctrl-attrib').innerText().then(s=>s.includes('ESA WorldCover 2021')));
@@ -27,10 +27,10 @@ for(const [name,engine]of Object.entries({chromium,webkit})){
   check(name+' OSM 細節在分類底層之上',await page.evaluate(()=>{const ids=M.raw.getStyle().layers.map(l=>l.id);return ['water','building','landcover_wood','park'].every(id=>ids.indexOf(id)>ids.indexOf('landscape-worldcover-wood'));}));
   await page.screenshot({path:output+'/'+name+'-island.png'});
   await page.evaluate(()=>M.raw.jumpTo({center:[121.5795,24.9968],zoom:16.5,pitch:55,bearing:0}));
-  await page.waitForFunction(()=>railIslandIntegration.renderer.stats.landscape.count>100,null,{timeout:40000});
+  await page.waitForFunction(()=>window.railIslandIntegration?.renderer?.stats.landscape.count>100,null,{timeout:40000});
   // 關掉 OSM 林地顯示，確認 ESA 的林地本身能產生樹群，不只掛了空的資料來源。
   await page.evaluate(()=>{M.raw.setLayoutProperty('landcover_wood','visibility','none');M.raw.panBy([1,0],{duration:0});});
-  await page.waitForFunction(()=>railIslandIntegration.renderer.stats.landscape.worldcoverCount>50,null,{timeout:30000});
+  await page.waitForFunction(()=>window.railIslandIntegration?.renderer?.stats.landscape.worldcoverCount>50,null,{timeout:30000});
   let stats=await page.evaluate(()=>{const s=railIslandIntegration.renderer.stats.landscape;return {count:s.count,cap:s.cap,worldcoverCount:s.worldcoverCount,osmCount:s.osmCount,maxBuildMs:s.maxBuildMs,maxWorkSliceMs:s.maxWorkSliceMs,yields:s.yields,error:s.error};});
   check(name+' ESA 林地提供立體樹群',stats.worldcoverCount>50&&stats.count<=stats.cap,stats);
   check(name+' 樹群取樣分批且單次工作低於 50ms',stats.yields>1&&stats.maxWorkSliceMs<50&&!stats.error,stats);
@@ -43,13 +43,13 @@ for(const [name,engine]of Object.entries({chromium,webkit})){
   check(name+' 圖磚按視野載入且不超過 z11',requests.length>0&&requests.length<150&&requests.every(u=>Number(u.match(/worldcover-2021\/(\d+)/)?.[1])<=11),{requests:requests.length});
   check(name+' 圖磚無缺漏及程式錯誤',!failed.length&&!errors.length,{failed,errors});
   await page.evaluate(()=>chooseBasemap('light'));
-  await page.waitForFunction(()=>M.getStyleKind()==='light'&&railIslandIntegration.renderer&&!railIslandIntegration.loading);
+  await page.waitForFunction(()=>M.getStyleKind()==='light'&&window.railIslandIntegration?.renderer&&!window.railIslandIntegration?.loading);
   const before=requests.length;
   await page.evaluate(()=>M.raw.jumpTo({center:[120.3,22.6],zoom:10}));await page.waitForTimeout(1500);
   check(name+' 一般底圖卸載公開分類資料',await page.evaluate(()=>!M.raw.getSource('taiwan-worldcover'))&&requests.length===before);
   await page.route('**/landcover/**/*.pbf',r=>r.fulfill({status:503,body:''}));
   await page.evaluate(()=>chooseBasemap('landscape'));
-  await page.waitForFunction(()=>M.getStyleKind()==='landscape'&&railIslandIntegration.renderer&&!railIslandIntegration.loading);
+  await page.waitForFunction(()=>M.getStyleKind()==='landscape'&&window.railIslandIntegration?.renderer&&!window.railIslandIntegration?.loading);
   check(name+' 分類圖磚斷線仍可顯示既有底圖和列車',await page.evaluate(()=>!!M.raw.getSource('openmaptiles')&&railIslandIntegration.errors.length===0&&state.ready));
  }catch(e){check(name+' 公開圖資流程',false,String(e.stack));}
  await browser.close();

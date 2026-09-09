@@ -99,7 +99,7 @@ async function bootPage(browser, { width, height, seedHowto = true, url = active
 }
 
 async function waitBasemapStyle(page) {
-  await page.waitForFunction(() => !!window.__M && window.__M.isStyleReady(), null, { timeout: 15000 });
+  await page.waitForFunction(() => !!window.__M && window.__M?.isStyleReady(), null, { timeout: 15000 });
 }
 
 const rect = (page, sel) => page.evaluate(s => {

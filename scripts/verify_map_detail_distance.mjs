@@ -7,7 +7,7 @@ for(const [name,engine]of Object.entries(process.env.ENGINE?{[process.env.ENGINE
  for(const width of (process.env.WIDTHS||'414,1280').split(',').map(Number)){
   const ctx=await b.newContext({viewport:{width,height:900},locale:'zh-TW',isMobile:width<900,hasTouch:true});await ctx.addInitScript(()=>localStorage.setItem('trainmap-howto-seen','1'));const p=await ctx.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.stack));await p.route('**/api/**',r=>r.fulfill({status:503,body:'{}'}));
   try{
-   await p.goto((process.env.BASE_URL||'http://127.0.0.1:5236/')+'?map=landscape&scene=3d&ground=terrain&at=22.974,120.227&z=13.5&t=13:31&sun=on&lang=zh-TW');await p.waitForFunction(()=>state.ready&&railIslandIntegration.renderer&&!railIslandIntegration.loading,null,{timeout:90000});
+   await p.goto((process.env.BASE_URL||'http://127.0.0.1:5236/')+'?map=landscape&scene=3d&ground=terrain&at=22.974,120.227&z=13.5&t=13:31&sun=on&lang=zh-TW');await p.waitForFunction(()=>state.ready&&window.railIslandIntegration?.renderer&&!window.railIslandIntegration?.loading,null,{timeout:90000});
    await p.evaluate(()=>{state.playing=false;document.body.classList.add('fs');M.resize();M.raw.jumpTo({center:[120.227,22.974],zoom:13.5,pitch:75,bearing:0});setSimSec(48660);});await p.waitForFunction(()=>M.raw.isSourceLoaded('terrain'),null,{timeout:60000});
    for(const ground of ['terrain','flat'])for(const pitch of [45,60,75]){
     await p.evaluate(({ground,pitch})=>{railIslandIntegration.setGroundMode(ground);M.raw.setPitch(pitch);reproject();draw();},{ground,pitch});

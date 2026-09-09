@@ -6,10 +6,10 @@ for(const [name,engine]of Object.entries({chromium,webkit})){
  await p.addInitScript(()=>localStorage.setItem('trainmap-howto-seen','1'));await p.route('**/api/**',r=>r.fulfill({status:503,body:'{}'}));
  try{
  await p.goto((process.env.BASE_URL||'http://127.0.0.1:5236/')+'?map=landscape&scene=3d&ground=terrain&at=23.518,120.731&z=12.5&t=08:00&sun=on&lang=zh-TW');
- await p.waitForFunction(()=>state.ready&&railIslandIntegration.renderer&&!railIslandIntegration.loading&&M.raw.queryTerrainElevation([120.731,23.518])>1000,null,{timeout:90000});
+ await p.waitForFunction(()=>state.ready&&window.railIslandIntegration?.renderer&&!window.railIslandIntegration?.loading&&M.raw.queryTerrainElevation([120.731,23.518])>1000,null,{timeout:90000});
  await p.evaluate(()=>{state.playing=false;setSimSec(28800);});
  for(let i=0;i<3;i++)for(const kind of ['light','landscape']){
-  stage=i+' '+kind;await p.evaluate(kind=>chooseBasemap(kind),kind);await p.waitForFunction(kind=>M.getStyleKind()===kind&&M.isStyleReady()&&railIslandIntegration.renderer&&!railIslandIntegration.loading,kind,{timeout:60000});await p.waitForTimeout(400);
+  stage=i+' '+kind;await p.evaluate(kind=>chooseBasemap(kind),kind);await p.waitForFunction(kind=>M.getStyleKind()===kind&&M.isStyleReady()&&window.railIslandIntegration?.renderer&&!window.railIslandIntegration?.loading,kind,{timeout:60000});await p.waitForTimeout(400);
   const r=await p.evaluate(()=>({kind:M.getStyleKind(),terrain:!!M.raw.getTerrain(),time:state.simSec,paint:M.raw.getLayer('landscape-hillshade')?.serialize().paint,sun:sunlight.current,errors:railIslandIntegration.errors,tick:state._tickErrs||[]}));
   const pass=r.terrain&&r.time===28800&&!r.errors.length&&!r.tick.length&&(kind!=='landscape'||r.paint['hillshade-illumination-direction']===r.sun.azimuth);
   results.push({name:name+' '+stage,pass,errors:r.errors,tick:r.tick});console.log(pass?'PASS':'FAIL',name,stage);

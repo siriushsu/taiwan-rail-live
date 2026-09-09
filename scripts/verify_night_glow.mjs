@@ -32,7 +32,7 @@ try {
   await context.addInitScript(()=>{localStorage.setItem('trainmap-howto-seen','1');localStorage.setItem('trainmap-appearance','dark');});
   const page=await context.newPage(), errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(base+'?lang=zh-TW');
-  await page.waitForFunction(()=>window.__state?.ready&&window.__glTracks?.ready&&window.__M.raw.getLayer('track-glow'),null,{timeout:60000});
+  await page.waitForFunction(()=>window.__state?.ready&&window.__glTracks?.ready&&window.__M?.raw.getLayer('track-glow'),null,{timeout:60000});
   await page.evaluate(()=>{selectGroup(GROUPS.find(g=>g.id==='all'));setSimSec(9*3600);state.playing=false;M.setView([25.046,121.523],12,{animate:false});M.raw.setPitch(40);glTracksSync();});
   const layers=await page.evaluate(()=>{
     const raw=M.raw, all=raw.getStyle().layers, g=all.find(l=>l.id==='track-glow');

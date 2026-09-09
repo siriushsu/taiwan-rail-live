@@ -25,7 +25,9 @@ for(const ln of lines){
    for(const ca of a.candidates)for(const cb of b.candidates){const p=g.shortestPath({from:ca.nodeId,to:cb.nodeId,system:ln.system,maxLength:Math.max(2500,distanceM(ca.coordinate,cb.coordinate)*3),allowYard:ln.system==='tmrt',penalties:direction<0?penalties:new Map()});if(!p)continue;
     const c=makePath(p.coordinates),at=c.at(c.length/2),source=makePath(ln.shape.map(q=>[q[1],q[0]])),hit=source.locate(at.coordinate);if(hit.error>150)continue;
     const q=source.at(hit.s).coordinate,side=(-Math.sin(hit.angle)*(at.coordinate[0]-q[0])*Math.cos(q[1]*Math.PI/180)+Math.cos(hit.angle)*(at.coordinate[1]-q[1]))*111320*direction;
-    const id=paths.length;paths.push({...p,id,system:ln.system,from:ca.nodeId,to:cb.nodeId,cost:p.lengthM*.001-side+(direction<0?p.edgeIds.filter(id=>other.has(id)).length*1000:0)});options.push(id);
+    // side 為正代表這條候選在行進方向的左手邊。台灣的捷運與輕軌一律靠右行駛，
+    // 所以偏好 side 為負的那一條；原本寫成減號會把每條線都指到左邊那條股道。
+    const id=paths.length;paths.push({...p,id,system:ln.system,from:ca.nodeId,to:cb.nodeId,cost:p.lengthM*.001+side+(direction<0?p.edgeIds.filter(id=>other.has(id)).length*1000:0)});options.push(id);
    }pairs[key]=options;
   }
   while(keys.length&&!pairs[keys[0]].length){keys.shift();ss.shift();}while(keys.length&&!pairs[keys.at(-1)].length){keys.pop();ss.pop();}let states=[{ids:[],cost:0,last:null}];for(const key of keys){const next=[];for(const id of pairs[key]){const p=paths[id];let best=null;for(const old of states){const before=old.last;if(before&&(before.to!==p.from||!g.canTurn(before.nodeIds.at(-2),p.from,p.nodeIds[1],g.edges.get(before.edgeIds.at(-1)),g.edges.get(p.edgeIds[0]))))continue;const cost=old.cost+p.cost;if(!best||cost<best.cost)best={ids:[...old.ids,id],cost,last:p};}if(best)next.push(best);}states=next;if(!states.length){missing.push({line:ln.key,direction,key,candidates:pairs[key].length});break;}}

@@ -10,18 +10,18 @@ for(const [engineName,engine]of Object.entries({chromium,webkit})){
    if(process.env.BUILDING_IDS&&!process.env.BUILDING_IDS.split(',').includes(id))continue;
    for(const [zoom,lod]of [[17,'near'],[15,'far']]){
     await page.evaluate(({anchor,zoom})=>railIslandIntegration.renderer.map.jumpTo({center:anchor,zoom,pitch:45,bearing:0}),{anchor:p.anchor,zoom});
-    await page.waitForFunction(({id,lod})=>{const e=railIslandIntegration.renderer.getStations().entries.find(e=>e.id===id);return e?.visible&&e.ready&&e.lod===lod;},{id,lod},{timeout:45000});
+    await page.waitForFunction(({id,lod})=>{const e=window.railIslandIntegration?.renderer?.getStations().entries.find(e=>e.id===id);return e?.visible&&e.ready&&e.lod===lod;},{id,lod},{timeout:45000});
     const row=await page.evaluate(id=>{const s=railIslandIntegration.renderer.getStations(),entry=s.entries.find(e=>e.id===id);return {entry,failures:s.failures,errors:railIslandIntegration.errors,features:railIslandIntegration.renderer.map.queryRenderedFeatures().length};},id);
     results.push({engine:engineName,id,lod,pass:row.entry.blender&&row.entry.triangles>0&&!row.failures.length&&!row.errors.length,triangles:row.entry.triangles});
-    await page.waitForFunction(()=>railIslandIntegration.renderer.map.queryRenderedFeatures().length>0,null,{timeout:15000});
+    await page.waitForFunction(()=>window.railIslandIntegration?.renderer?.map.queryRenderedFeatures().length>0,null,{timeout:15000});
     if(['presidential-office','jingtong-coal','hualien-railway','takao-old'].includes(id)&&lod==='near')await page.screenshot({path:`output/historic-buildings/${engineName}-${id}.png`});
    }
   }
   for(const theme of ['light','dark']){
    await page.evaluate(theme=>state._setAppearance(theme),theme);
-   await page.waitForFunction(()=>railIslandIntegration.renderer&&!railIslandIntegration.loading,null,{timeout:45000});
+   await page.waitForFunction(()=>window.railIslandIntegration?.renderer&&!window.railIslandIntegration?.loading,null,{timeout:45000});
    await page.evaluate(()=>railIslandIntegration.renderer.map.jumpTo({center:[121.5171,25.0477],zoom:17,pitch:50,bearing:0}));
-   await page.waitForFunction(()=>!railIslandIntegration.loading&&railIslandIntegration.renderer?.getStations().entries.find(e=>e.id==='taipei-main-v1')?.visible,null,{timeout:45000});
+   await page.waitForFunction(()=>!window.railIslandIntegration?.loading&&window.railIslandIntegration?.renderer?.getStations().entries.find(e=>e.id==='taipei-main-v1')?.visible,null,{timeout:45000});
    results.push({engine:engineName,theme,pass:await page.evaluate(()=>!railIslandIntegration.renderer.getStations().failures.length)});
   }
   results.push({engine:engineName,type:'無未處理錯誤',pass:errors.length===0,errors});

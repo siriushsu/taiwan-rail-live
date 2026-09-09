@@ -1622,3 +1622,15 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {"橋梁與隧道改依官方橋隧�
 Object.assign(window.RAIL_I18N_MESSAGES.en, {"修正低角度跟車時車頭超出畫面，以及平原號等示意列車在高架橋下行駛的問題": "Fixed the train head leaving the screen at low viewing angles and illustrative trains such as the Plains Express running beneath elevated tracks."});
 
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"修正低角度跟車時車頭超出畫面，以及平原號等示意列車在高架橋下行駛的問題": "低い視点で追跡中に先頭車両が画面外に出る問題と、平原号などの模式列車が高架線路の下を走る問題を修正しました。"});
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"捷運與輕軌雙軌改為靠右行駛，來車與去車各走正確的一側；原本多數路線的兩個方向畫反了": "Metro and light rail double tracks now run on the right, so each direction uses its correct track; on most lines the two directions were previously drawn on the wrong sides."});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"捷運與輕軌雙軌改為靠右行駛，來車與去車各走正確的一側；原本多數路線的兩個方向畫反了": "メトロとライトレールの複線を右側通行に修正し、往路と復路がそれぞれ正しい線路を走るようになりました。これまでは多くの路線で両方向が左右逆に描かれていました。"});
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"推拉式自強號畫出完整 14 節（前後機車加 12 節客車），不再只顯示 3 節示意": "The push-pull Tze-Chiang Express now shows all 14 cars (a locomotive at each end plus 12 coaches) instead of a three-car illustration."});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"推拉式自強號畫出完整 14 節（前後機車加 12 節客車），不再只顯示 3 節示意": "推拉式（プッシュプル）自強号を、両端の機関車と客車12両を合わせた14両編成で表示するようになりました。これまでは3両の模式表示でした。"});
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"夜間地景的道路、機場鋪面與底圖鐵道跟著地面一起變暗，不再蓋過軌道與列車；白天配色維持不變": "At night the landscape map now darkens roads, airport paving and basemap railways along with the ground, so they no longer drown out the tracks and trains; daytime colours are unchanged."});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"夜間地景的道路、機場鋪面與底圖鐵道跟著地面一起變暗，不再蓋過軌道與列車；白天配色維持不變": "夜間の風景地図で、道路・空港の舗装・ベースマップの鉄道線を地面と一緒に暗くし、線路と列車が見えにくくならないようにしました。昼間の配色は変わりません。"});

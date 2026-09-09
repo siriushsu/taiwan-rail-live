@@ -15,9 +15,9 @@ await Promise.all(Object.entries({chromium,webkit}).map(async ([name,engine])=>{
   await page.route('**/api/basemap-session',r=>r.fulfill({json:{sessionToken:'S1',endTime:Date.now()+3600000}}));
   await page.route('**/World_Imagery/MapServer/tile/**',r=>r.fulfill({contentType:'image/png',body:tile}));
   const ready=async()=>{
-   await page.waitForFunction(()=>state.ready&&railIslandIntegration.renderer&&!railIslandIntegration.loading,null,{timeout:60000});
+   await page.waitForFunction(()=>state.ready&&window.railIslandIntegration?.renderer&&!window.railIslandIntegration?.loading,null,{timeout:60000});
    await page.evaluate(()=>{state.playing=false;clearFollow();clearFreqFollow();M.raw.jumpTo({center:[121.5171,25.0477],zoom:17,pitch:50,bearing:0});});
-   await page.waitForFunction(()=>railIslandIntegration.renderer?.getStations()?.entries.find(e=>e.id==='taipei-main-v1')?.visible,null,{timeout:45000});
+   await page.waitForFunction(()=>window.railIslandIntegration?.renderer?.getStations()?.entries.find(e=>e.id==='taipei-main-v1')?.visible,null,{timeout:45000});
   };
   const material=()=>page.evaluate(()=>{const s=railIslandIntegration.renderer.getStations(),stats=s.entries.find(e=>e.id==='taipei-main-v1'),meshes=[];s.getModel('taipei-main-v1').traverse(o=>{if(o.isMesh)meshes.push({color:o.material.color.toArray(),opacity:o.material.opacity,transparent:o.material.transparent,depthWrite:o.material.depthWrite,component:o.userData.component});});return {meshes,inspection:stats.inspection,excluded:stats.excludedComponents,kind:M.getStyleKind(),failures:s.failures};});
   const open=async()=>{await page.locator(await page.locator('#toolsFab').isVisible()?'#toolsFab':'#tabMore').tap();};
@@ -46,7 +46,7 @@ await Promise.all(Object.entries({chromium,webkit}).map(async ([name,engine])=>{
    // 底圖選擇由既有頁面偏好管理；驗證衛星專用偏好在重新載入後仍存在。
    await page.evaluate(()=>{state.basemap='sat';setBasemap();});await ready();
    check('重新載入保留衛星原貌',(await material()).meshes.every(m=>m.opacity===1));
-   await page.evaluate(()=>M.raw.setZoom(15));await page.waitForFunction(()=>railIslandIntegration.renderer.getStations().entries.find(e=>e.id==='taipei-main-v1')?.lod==='far');
+   await page.evaluate(()=>M.raw.setZoom(15));await page.waitForFunction(()=>window.railIslandIntegration?.renderer?.getStations().entries.find(e=>e.id==='taipei-main-v1')?.lod==='far');
    check('遠景也保留原貌',(await material()).meshes.every(m=>m.opacity===1));
    await page.evaluate(()=>state._setAppearance('light'));await ready();
    check('亮色介面的衛星也用原貌',(await material()).meshes.every(m=>m.opacity===1));

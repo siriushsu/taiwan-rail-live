@@ -43,7 +43,7 @@ async function boot(browser, url, setup) {
   await page.addInitScript(() => { localStorage.setItem('trainmap-howto-seen', '1'); });
   if (setup) await setup(page);
   await page.goto(url, { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => window.__state && window.__state.ready, null, { timeout: 60000 });
+  await page.waitForFunction(() => window.__state && window.__state?.ready, null, { timeout: 60000 });
   return { ctx, page, errs };
 }
 const idle = page => page.evaluate(() => new Promise(r => { const g = window.__ofmGl; if (g.loaded() && !g.isMoving()) r(); else { g.once('idle', r); setTimeout(r, 8000); } }));
@@ -107,7 +107,7 @@ try {
   // ── L1 正常開機 ──
   {
     const { ctx, page, errs } = await boot(browser, engineUrl(BASE));
-    await page.waitForFunction(() => window.__ofmGl && window.__ofmGl.getLayer && window.__ofmGl.getLayer('offline-land-line'), null, { timeout: 30000 }).catch(() => {});
+    await page.waitForFunction(() => window.__ofmGl && window.__ofmGl?.getLayer && window.__ofmGl?.getLayer('offline-land-line'), null, { timeout: 30000 }).catch(() => {});
     await page.waitForFunction(() => /OpenFreeMap/.test((document.querySelector('.maplibregl-ctrl-attrib-inner') || {}).textContent || ''), null, { timeout: 10000 }).catch(() => {}); // OFM 署名來自 TileJSON,非同步到
     const l1 = await page.evaluate(() => ({ order: window.__ofmGl.getLayersOrder().slice(0, 3), cls: document.querySelector('.stage').classList.contains('offline-land'), attrib: (document.querySelector('.maplibregl-ctrl-attrib-inner') || {}).textContent || '' }));
     ck(l1.order[1] === 'offline-land-fill' && l1.order[2] === 'offline-land-line' && l1.cls, 'L1 陸地兩層緊貼 background 之上且 .stage.offline-land', JSON.stringify(l1.order));
@@ -118,12 +118,12 @@ try {
   // ── L2/L3 OFM 圖磚全掛 ──
   {
     const { ctx, page, errs } = await boot(browser, engineUrl(BASE), p => p.route('**/tiles.openfreemap.org/**', r => r.fulfill({ status: 500, body: '' })));
-    await page.waitForFunction(() => window.__ofmGl && window.__ofmGl.getLayer && window.__ofmGl.getLayer('offline-land-fill'), null, { timeout: 30000 }).catch(() => {});
+    await page.waitForFunction(() => window.__ofmGl && window.__ofmGl?.getLayer && window.__ofmGl?.getLayer('offline-land-fill'), null, { timeout: 30000 }).catch(() => {});
     await page.evaluate(() => window.__M.setView([24.0, 121.0], 8, { animate: false })); await idle(page); await page.waitForTimeout(300);
     const land = await pixelAt(page, ...LAND), sea = await pixelAt(page, ...SEA);
     ck(near(land, '#f1f3f1') && near(sea, '#d4dadc'), 'L2 light:陸地 #f1f3f1、海面 #d4dadc', `land=${land} sea=${sea}`);
     await page.evaluate(() => new Promise(res => { window.__ofmGl.once('style.load', res); window.__state.mapDark = true; setBasemap(); setTimeout(res, 10000); })); // 先掛監聽再切 style(競態),10s 上限
-    await page.waitForFunction(() => window.__ofmGl.getLayer('offline-land-fill'), null, { timeout: 10000 }); await idle(page); await page.waitForTimeout(300);
+    await page.waitForFunction(() => window.__ofmGl?.getLayer('offline-land-fill'), null, { timeout: 10000 }); await idle(page); await page.waitForTimeout(300);
     const landD = await pixelAt(page, ...LAND), seaD = await pixelAt(page, ...SEA);
     ck(near(landD, '#0e0e0e') && near(seaD, '#262626'), 'L2b dark:陸地 #0e0e0e、海面 #262626', `land=${landD} sea=${seaD}`);
     await page.evaluate(() => window.__ofmGl.removeLayer('offline-land-fill')); await page.waitForTimeout(300);
@@ -150,8 +150,8 @@ try {
     await page.waitForFunction(() => document.getElementById('satBtn') && window.__satStats && window.__satStats().url, null, { timeout: 15000 });
     await page.evaluate(() => window.__M.setView([25.04, 121.52], 12, { animate: false }));
     await page.click('#satBtn');
-    await page.waitForFunction(() => window.__state.basemap === 'sat' && window.__ofmGl.getSource && window.__ofmGl.getSource('sat'), null, { timeout: 15000 });
-    await page.waitForFunction(() => window.__ofmGl.getLayer('offline-land-fill'), null, { timeout: 10000 }); await idle(page); await page.waitForTimeout(500);
+    await page.waitForFunction(() => window.__state?.basemap === 'sat' && window.__ofmGl?.getSource && window.__ofmGl?.getSource('sat'), null, { timeout: 15000 });
+    await page.waitForFunction(() => window.__ofmGl?.getLayer('offline-land-fill'), null, { timeout: 10000 }); await idle(page); await page.waitForTimeout(500);
     const s1 = await page.evaluate(() => ({ order: window.__ofmGl.getLayersOrder().slice(0, 5), cls: document.querySelector('.stage').classList.contains('sat'), kind: window.__M.getStyleKind(), attrib: (document.querySelector('.maplibregl-ctrl-attrib-inner') || {}).textContent || '', ts: window.__ofmGl.getSource('sat').tileSize }));
     ck(JSON.stringify(s1.order) === JSON.stringify(['background', 'offline-land-fill', 'offline-land-line', 'sat6', 'sat']) && s1.cls && s1.kind === 'sat-lq' && s1.ts === 256, 'S1 衛星 style 層序 background/陸地/sat6/sat、.stage.sat、非 Plus=sat-lq(tileSize 256)', JSON.stringify(s1).slice(0, 200));
     ck(/Esri/.test(s1.attrib) && /臺灣輪廓/.test(s1.attrib) && !/OpenFreeMap/.test(s1.attrib), 'S1b 衛星署名=Esri+內政部,無 OFM', s1.attrib.slice(0, 120));
@@ -202,7 +202,7 @@ try {
       window.__M.setView([25.04, 121.52], 12, { animate: false });
     });
     await page.click('#satBtn');
-    await page.waitForFunction(() => window.__M.getStyleKind() === 'sat-hi' && window.__ofmGl.getSource('sat'), null, { timeout: 15000 });
+    await page.waitForFunction(() => window.__M?.getStyleKind() === 'sat-hi' && window.__ofmGl?.getSource('sat'), null, { timeout: 15000 });
     await idle(page); await page.waitForTimeout(400);
     const hi = await page.evaluate(() => ({ kind: window.__M.getStyleKind(), tileSize: window.__ofmGl.getSource('sat').tileSize, basemap: state.basemap }));
     ck(hi.kind === 'sat-hi' && hi.tileSize === 128 && hi.basemap === 'sat' && reqs.length > 0,
