@@ -130,6 +130,9 @@ try {
   const guangci = spawnSync('node', [path.join(wt, 'scripts', 'verify_guangci_tracks.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(guangci.stdout || ''); process.stderr.write(guangci.stderr || '');
   if (guangci.status !== 0) fail('廣慈延伸段雙軌連通性或來源座標未通過');
+  const formations = spawnSync('node', [path.join(wt, 'scripts', 'verify_formations.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(formations.stdout || ''); process.stderr.write(formations.stderr || '');
+  if (formations.status !== 0) fail('列車編組節數未通過——有車種的實際編組退回 3 節示意（單獨重跑：npm run check-formations）');
   const trackSide = spawnSync('node', [path.join(wt, 'scripts', 'verify_metro_track_side.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(trackSide.stdout || ''); process.stderr.write(trackSide.stderr || '');
   if (trackSide.status !== 0) fail('捷運雙軌左右未通過——有路線的來車與去車跑在真實相反的股道上（單獨重跑：npm run check-metro-track-side）');

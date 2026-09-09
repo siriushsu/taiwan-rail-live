@@ -7,6 +7,7 @@
     "check-metro-train-no": "node scripts/verify_metro_train_no.mjs",
     "check-physical-tracks": "node scripts/verify_passing_avoidance.mjs && node scripts/verify_physical_tracks_browser.mjs",
     "check-metro-track-side": "node scripts/verify_metro_track_side.mjs",
+    "check-formations": "node scripts/verify_formations.mjs",
     "check-aeo-browser": "node scripts/verify_aeo_browser.mjs",
     "check-copy": "node scripts/verify_changelog_copy.mjs",
     "check-issue19": "node scripts/verify_issue19.mjs",

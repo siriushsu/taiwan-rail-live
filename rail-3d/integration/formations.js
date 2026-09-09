@@ -8,7 +8,9 @@ export const FORMATIONS={
   emu3000:spec('emu3000',[21.35,...repeat(10,20.3),21.35],2.91),
   taroko:spec('temu1000',repeat(8,21),2.9,'車型標準 8 節；長度暫用近似值',approximate),
   puyuma:spec('temu2000',[22.095,...repeat(6,20.7),22.095],2.9),
-  pp:unknown('e1000',[17.4,20,17.4],2.9),
+  // 前後各一部 E1000＋12 節客車。台鐵官方售票說明寫「PP推拉式自強號第12車親子車廂」，
+  // 班表車種名也出現「自強(PP障12)」，兩邊都指向 12 節客車；長度仍是近似值。
+  pp:spec('e1000',[17.4,...repeat(12,20),17.4],2.9,'車型標準編組：前後機車＋12 節客車；長度暫用近似值',approximate),
   dr1000:unknown('dr1000',repeat(3,20),2.8),
   dr3100:unknown('dr3100',repeat(3,20),2.9),
   commuter:unknown('emu800',repeat(3,20),2.9),
