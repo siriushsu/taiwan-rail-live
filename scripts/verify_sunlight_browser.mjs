@@ -12,7 +12,7 @@ async function boot(page,query=''){
  await page.goto(base+'?lang=zh-TW&scene=3d&ground=flat&at=25.033,121.565&z=17&t=12:00'+query,{waitUntil:'domcontentloaded'});
  await page.waitForFunction(()=>state.ready&&window.railIslandSunlight&&M.isStyleReady(),null,{timeout:60000});
  await page.evaluate(()=>{state.playing=false;window.__sunTestCtx={date:'2026-09-08'};setSimSec(43200);sunlight.update(true);});
- await page.waitForFunction(()=>railIslandIntegration?.renderer,null,{timeout:45000});
+ await page.waitForFunction(()=>window.railIslandIntegration?.renderer,null,{timeout:45000});
 }
 const init=()=>{localStorage.setItem('trainmap-howto-seen','1');localStorage.setItem('trainmap-appearance','light');};
 async function time(page,h){await page.evaluate(h=>setSimSec(h*3600),h);await page.waitForTimeout(350);}
@@ -53,7 +53,7 @@ for(const [name,engine] of Object.entries(process.env.ENGINE==='chromium'?{chrom
   for(const mode of ['dark','light','landscape']){
    await page.evaluate(mode=>{document.querySelector(`#msBasemapSeg [data-map="${mode}"]`).click();},mode);
    await page.waitForFunction(mode=>M.isStyleReady()&&M.getStyleKind()===mode&&sunlight.current&&!!M.raw.getSky(),mode,{timeout:45000});
-   await page.waitForFunction(()=>railIslandIntegration?.renderer&&!railIslandIntegration.loading,null,{timeout:45000});
+   await page.waitForFunction(()=>window.railIslandIntegration?.renderer&&!window.railIslandIntegration?.loading,null,{timeout:45000});
    check(name+' '+mode+' 重載保留天空',JSON.stringify(clean(await page.evaluate(()=>M.raw.getSky())))===JSON.stringify(baselineSky));
    const light=await page.evaluate(()=>({actual:M.raw.getLight(),expected:sunlight.current.light}));
    check(name+' '+mode+' 3D 非同步載入不覆蓋光源',JSON.stringify(clean(light.actual))===JSON.stringify(light.expected),light.actual);

@@ -8,7 +8,7 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
   try{
    await page.addInitScript(()=>localStorage.setItem('trainmap-howto-seen','1'));
    await page.goto(base+'?g=all&scene=3d&map=landscape&t=12:00');
-   await page.waitForFunction(()=>state.ready&&window.railIslandPhysical&&railIslandIntegration.renderer,null,{timeout:90000});
+   await page.waitForFunction(()=>state.ready&&window.railIslandPhysical&&window.railIslandIntegration?.renderer,null,{timeout:90000});
    await page.evaluate(()=>{state.playing=false;clearFollow();clearFreqFollow();window.__frame=railIslandIntegration.capture();railIslandIntegration.render=()=>{};});
    // 新竹市區、竹南附近與中部西線：來源只有 layer，沒有 bridge 標記，必須留在地面。
    // 966445954 是反過來的對照組：它原本也在這份名單裡，但官方橋隧幾何以 1.00 覆蓋、
@@ -26,7 +26,7 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
      await page.locator(await page.locator('#toolsFab').isVisible()?'#toolsFab':'#tabMore').tap();const control=page.locator('[data-rail3d="ground"] [data-value="'+mode+'"]');await control.scrollIntoViewIfNeeded();await control.tap();await page.locator('#moreClose').tap();
      // 90s 不是 45s:45 秒是照本機磁碟調的,對正式站(BASE_URL 指遠端)webkit 跑到第四個案例時
      // 會偶發等不到兩節模型。放寬只是晚一點宣告失敗,判準本身沒有放水——仍要求 models===2。
-     await page.waitForFunction(()=>{__update();return railIslandIntegration.renderer.stats.models===2;},null,{timeout:90000});
+     await page.waitForFunction(()=>{__update();return window.railIslandIntegration?.renderer?.stats.models===2;},null,{timeout:90000});
      await page.waitForTimeout(650);
      const detail=await page.evaluate(()=>{
       __update();const r=railIslandIntegration.renderer,poses=r.stats.poseSamples;

@@ -150,7 +150,7 @@ const row1 = page.locator('#fpConn .xfc-row').first();
 const no1 = await row1.getAttribute('data-xn');
 const sys1 = await row1.getAttribute('data-xs');
 await row1.click();
-await page.waitForFunction(() => !!window.__state.xferPin, null, { timeout: 5000 });
+await page.waitForFunction(() => !!window.__state?.xferPin, null, { timeout: 5000 });
 const pin1 = await page.evaluate(() => ({ ...window.__state.xferPin }));
 ok('G1 點了真的釘住(state.xferPin.n 對得上點的那列)', pin1.n === no1, `點的=${no1} 釘的=${pin1.n}`);
 ok('G1b 釘住的 sys 也對得上', pin1.sys === sys1, `點的=${sys1} 釘的=${pin1.sys}`);
@@ -178,7 +178,7 @@ ok('G7b tcConn 三實例同步(也只剩釘選那班)', synced.tc.length === 1 &
 
 // ── G3 —— 取消釘選回得去(三個容器都要回去) ───────────────────────────────────
 await page.locator('#fpConn .xfc-unpin').click();
-await page.waitForFunction(() => !window.__state.xferPin, null, { timeout: 5000 });
+await page.waitForFunction(() => !!window.__state && !window.__state.xferPin, null, { timeout: 5000 });
 const after2 = await page.evaluate(() => ({
   fp: [...document.querySelectorAll('#fpConn .xfc-row')].map(e => e.dataset.xn),
   fc: [...document.querySelectorAll('#fcConn .xfc-row')].map(e => e.dataset.xn),
@@ -198,11 +198,11 @@ const row2 = page.locator('#fpConn .xfc-row').nth(1);
 const no2 = await row2.getAttribute('data-xn');
 ok('G4pre 第二列與第一列不是同一班(換一班測試才有意義)', no2 !== no1, `${no2} vs ${no1}`);
 await row2.locator('.xfc-no').click();
-await page.waitForFunction(() => !!window.__state.xferPin, null, { timeout: 5000 });
+await page.waitForFunction(() => !!window.__state?.xferPin, null, { timeout: 5000 });
 const pin2 = await page.evaluate(() => window.__state.xferPin.n);
 ok('G4 點按鈕內的子元素(.xfc-no)一樣能釘住,而且是點的那一班', pin2 === no2, `點的=${no2} 釘的=${pin2}`);
 await page.locator('#fpConn .xfc-unpin').click();
-await page.waitForFunction(() => !window.__state.xferPin, null, { timeout: 5000 });
+await page.waitForFunction(() => !!window.__state && !window.__state.xferPin, null, { timeout: 5000 });
 
 // ── G8 —— 真實產線路徑,不繞過生產呼叫點 ───────────────────────────────────────
 // G0–G7 種資料的方式是直接呼叫 setTransferConn(見檔頭說明),這樣測得到「釘選互動」本身,
@@ -250,11 +250,11 @@ if (real.ok && real.fp.length && real.tc.length) {
   const rowR = page.locator('#fpConn .xfc-row').first();
   const noR = await rowR.getAttribute('data-xn');
   await rowR.click();
-  await page.waitForFunction(() => !!window.__state.xferPin, null, { timeout: 5000 });
+  await page.waitForFunction(() => !!window.__state?.xferPin, null, { timeout: 5000 });
   const tcAfterPin = await page.evaluate(() => [...document.querySelectorAll('#tcConn .xfc-row')].map(e => e.dataset.xn));
   ok('G8c 真實路徑下釘選後 tcConn 也同步收斂成同一班', tcAfterPin.length === 1 && tcAfterPin[0] === noR, JSON.stringify(tcAfterPin));
   await page.locator('#fpConn .xfc-unpin').click();
-  await page.waitForFunction(() => !window.__state.xferPin, null, { timeout: 5000 });
+  await page.waitForFunction(() => !!window.__state && !window.__state.xferPin, null, { timeout: 5000 });
 } else {
   ok('G8c 真實路徑下釘選後 tcConn 也同步收斂成同一班', false, '前置 G8/G8b 未成立,無法測(見上方 detail)');
 }

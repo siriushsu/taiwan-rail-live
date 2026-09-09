@@ -38,7 +38,7 @@ async function boot(browser, url) {
   page.on('console', m => { if (m.type() === 'error' && (u => u === '' || /index\.html/.test(u))(((m.location && m.location()) || {}).url || '')) errs.push('console.error: ' + m.text().slice(0, 200)); });
   await page.addInitScript(() => { localStorage.setItem('trainmap-howto-seen', '1'); });
   await page.goto(url, { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => window.__state && window.__state.ready, null, { timeout: 60000 });
+  await page.waitForFunction(() => window.__state && window.__state?.ready, null, { timeout: 60000 });
   return { ctx, page, errs };
 }
 async function settle(page, maplibre) {

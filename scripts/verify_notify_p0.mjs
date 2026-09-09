@@ -42,7 +42,7 @@ async function boot(page, query = '') {
     return route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
   });
   await page.goto(BASE + query, { waitUntil: 'domcontentloaded', timeout: 60000 });
-  await page.waitForFunction(() => window.__state && window.__state.ready, null, { timeout: 60000 });
+  await page.waitForFunction(() => window.__state && window.__state?.ready, null, { timeout: 60000 });
   if (await page.locator('#howtoWrap').isVisible()) await page.locator('#howtoSkip').click();
 }
 function watchErrors(page) {

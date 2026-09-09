@@ -60,7 +60,7 @@ try {
   page.on('pageerror', e => errs.push(String(e).slice(0, 140)));
   await page.goto(`http://127.0.0.1:${PORT}/index.html?live=1&lang=zh-TW`, { waitUntil: 'domcontentloaded' });
   let ready = true;
-  await page.waitForFunction(() => window.__state && window.__state.ready, null, { timeout: 60000 }).catch(() => { ready = false; });
+  await page.waitForFunction(() => window.__state && window.__state?.ready, null, { timeout: 60000 }).catch(() => { ready = false; });
   ok('G2a boot 到 state.ready', ready, ready ? '' : '60 秒內沒 ready——先看 pageerror');
   // boot 沒到 window.__state 時 G2b–G3 仍要印成紅,不能讓 evaluate 拋錯把整支腳本炸掉
   const r = await page.evaluate(() => { const s = window.__state || {}; return {

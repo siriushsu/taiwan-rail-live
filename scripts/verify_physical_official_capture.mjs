@@ -2,7 +2,7 @@ import {chromium,webkit} from 'playwright';
 const base=process.env.BASE_URL||'http://127.0.0.1:5208/';let tests=0;
 for(const [name,engine]of Object.entries({chromium,webkit})){
  const browser=await engine.launch(),page=await browser.newPage({viewport:{width:1280,height:900}});
- try{await page.goto(base+'?g=all&scene=3d&t=08:00&at=25.0477,121.5171&z=18&lang=zh-TW');await page.waitForFunction(()=>state.ready&&window.railIslandPhysical&&railIslandIntegration.renderer,null,{timeout:60000});
+ try{await page.goto(base+'?g=all&scene=3d&t=08:00&at=25.0477,121.5171&z=18&lang=zh-TW');await page.waitForFunction(()=>state.ready&&window.railIslandPhysical&&window.railIslandIntegration?.renderer,null,{timeout:60000});
   await page.evaluate(()=>{state.playing=false;railIslandIntegration.render=()=>{};window.__core=metroCoreItemsForLine;window.__official=trtcOfficialItemsForLine;});
   for(const dir of [1,-1])for(const phase of [-.00001,0,.00001]){
    const args={dir,phase};await page.evaluate(({dir,phase})=>{

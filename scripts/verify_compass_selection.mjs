@@ -50,7 +50,7 @@ try{
      await page.waitForFunction(()=>{const p=window.__alignProbe?.state();return p?.live&&!p.offscreen&&!p.pending&&!p.next;},null,{timeout:15000});
      // 車頭朝上現在預設關閉，南下的診斷探針可能落到隨機鈕下。先把兩層探針一同換到可見空白，再驗真實像素。
      await page.evaluate(()=>{const sz=M.getSize(),r=M.getContainer().getBoundingClientRect();for(const [fx,fy]of [[.7,.4],[.6,.4],[.7,.55]]){const p={x:sz.x*fx,y:sz.y*fy};if(![-20,0,20].every(dx=>[-20,0,20].every(dy=>document.elementFromPoint(r.x+p.x+dx,r.y+p.y+dy)===M.raw.getCanvas())))continue;const ll=M.fromScreen(p);if(window.__alignProbe.request(ll)){window.__probeAnchor=ll;return;}}throw Error('沒有未遮蔽的像素探針取樣區');});
-     await page.waitForFunction(()=>{const p=window.__alignProbe.state(),a=window.__probeAnchor;return !p.pending&&!p.next&&Math.abs(p.live.lat-a.lat)+Math.abs(p.live.lng-a.lng)<1e-8;},null,{timeout:15000});await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+     await page.waitForFunction(()=>{const p=window.__alignProbe?.state(),a=window.__probeAnchor;if(!p)return false;return !p.pending&&!p.next&&Math.abs(p.live.lat-a.lat)+Math.abs(p.live.lng-a.lng)<1e-8;},null,{timeout:15000});await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
      const png=await page.screenshot();fs.writeFileSync(path.join(out,`${en}-${kind}.png`),png);const{data,info}=await sharp(png).ensureAlpha().raw().toBuffer({resolveWithObject:true});const c=probeCentroids(data,info.width,info.height,{magR:18,magInR:12,cynR:5});const distance=c.mag&&c.cyn?Math.hypot(c.mag.x-c.cyn.x,c.mag.y-c.cyn.y):null;ok(`${en} ${kind} 指北後 GL 與 Canvas 真實像素對齊`,distance!==null&&distance<=2,{distance});
     }
    }

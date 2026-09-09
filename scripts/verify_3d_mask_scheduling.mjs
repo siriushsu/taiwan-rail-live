@@ -26,7 +26,7 @@ await page.evaluate(()=>{ const W=window; W.__qsf=[]; W.__qsfAll=[]; W.__mv=[];
   m.querySourceFeatures=(src,opt)=>{ if(opt?.sourceLayer==='building'){ const st=String(new Error().stack); const who=/station-layer/.test(st)?'station':/night-map/.test(st)?'night':'other'; W.__qsfAll.push([performance.now(),who]); if(who==='station') W.__qsf.push(performance.now()); } return oq(src,opt); };
   m.on('move',()=>{ W.__mv.push(performance.now()); if(W.__mv.length>20000) W.__mv.splice(0,10000); }); });
 await page.evaluate(()=>{try{M.raw.jumpTo({center:[121.5170,25.0478],zoom:16.5,pitch:60,bearing:0});}catch(e){}});
-await page.waitForFunction(()=>{try{const s=railIslandIntegration.renderer?.getStations?.()?.stats;return !!(s&&s.visible);}catch(e){return false;}}, null, {timeout:60000}).catch(()=>{});
+await page.waitForFunction(()=>{try{const s=window.railIslandIntegration?.renderer?.getStations?.()?.stats;return !!(s&&s.visible);}catch(e){return false;}}, null, {timeout:60000}).catch(()=>{});
 await page.waitForTimeout(6000);
 const scene = await page.evaluate(()=>{ const vis=id=>{try{return M.raw.getLayer(id)?(M.raw.getLayoutProperty(id,'visibility')||'visible'):'absent'}catch(e){return 'err'}};
   const st=railIslandIntegration.renderer?.getStations?.(); return { style:M.getStyleKind(), map3d:!!state.map3d, bldg:vis('building-3d'), stn:!!M.raw.getLayer('island-stations'),
