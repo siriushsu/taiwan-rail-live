@@ -72,11 +72,16 @@ const ok = (name, pass, detail = '') => { results.push({ name, pass, detail }); 
 
 // plus=1 才有 PLUS_ENABLED(見檔頭);widget=有 RailMetroWait plugin;la=有跟車即時動態橋接;
 // satRetina=這個平台建得出高解析衛星層。四者都必須在頁面腳本執行【之前】就位。
-async function boot(browser, { plus = true, widget = false, la = false, satRetina = false, viewport = { width: 1280, height: 900 } } = {}) {
+// satRetina 是三態(2026-09-09 改):null／不傳＝完全不注入 RAIL_APP_CONFIG(＝網站真實預設,
+// 自 SAT_RETINA_DEFAULT 改成 true 之後那就是「建得出高解析層」);true＝明確注入 true;
+// false＝明確注入 false,也就是「平台端總開關關著」。原本 false 是用「不注入」來表達的,
+// 那在預設值還是 false 的年代等價,預設值一改就變成完全相反的環境——S4 因此當場翻紅(它就是要
+// 驗平台開關關著時不可以宣傳高解析),是個好例子:反向情境的前置狀態不可以靠別處的預設值表達。
+async function boot(browser, { plus = true, widget = false, la = false, satRetina = null, viewport = { width: 1280, height: 900 } } = {}) {
   const ctx = await browser.newContext({ viewport });
   await ctx.addInitScript(({ widget, la, satRetina }) => {
     try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} // 首訪教學卡會蓋住整張地圖
-    if (satRetina) window.RAIL_APP_CONFIG = { satRetina: true };
+    if (satRetina !== null && satRetina !== undefined) window.RAIL_APP_CONFIG = { satRetina: !!satRetina };
     if (widget) {
       // 只給 Plugins,刻意不給 isNativePlatform:PLUS_ENABLED 才會維持由 ?plus=1 決定,
       // 這一組情境變數就完全握在測試手上(不會被「注入了 Capacitor 就自動變原生」綁在一起)。
@@ -335,6 +340,24 @@ for (const [engName, launcher] of ENGINES) {
     ok(`[${engName}] S 無 JS 例外`, errors.length === 0, errors.slice(0, 3).join(' | '));
     await ctx.close();
   }
+  // S5(2026-09-09):抽屜那條路徑也要講。手機的底圖入口是「更多」裡的 #msBasemapSeg,
+  // 走 chooseBasemap() 而不是 satBtn.onclick——提示原本只掛在後者,於是手機切衛星的人
+  // 從頭到尾不會知道有高解析版本,而這正是本專案最在意的「不給用也不說」。S1 只點得到
+  // 桌面那顆鈕,照不到這條;手機才是網站的多數流量,所以另立一格。
+  {
+    const { ctx, page, errors } = await boot(browser, { satRetina: true, viewport: { width: 375, height: 812 } });
+    await page.waitForFunction(() => { try { return satTokenState === 'ready'; } catch (e) { return false; } }, null, { timeout: 20000 });
+    await clearToasts(page);
+    await clickOk(page, '#tabMore', `[${engName}] S5a 開得了「更多」`);
+    await clickOk(page, '#msBasemapSeg button[data-map="sat"]', `[${engName}] S5b 抽屜裡的「衛星」點得到`);
+    await page.waitForTimeout(150);
+    const basemap = await page.evaluate(() => state.basemap);
+    ok(`[${engName}] S5c 前置:真的切進衛星了(不是點到空氣)`, basemap === 'sat', `basemap=${basemap}`);
+    const t5 = await toastText(page);
+    ok(`[${engName}] S5 從抽屜切進衛星也講出有更清楚的版本`, t5.includes('高解析'), JSON.stringify(t5.slice(0, 60)));
+    ok(`[${engName}] S5 無 JS 例外`, errors.length === 0, errors.slice(0, 3).join(' | '));
+    await ctx.close();
+  }
   // 反向一:已訂閱的人本來就拿得到高解析,不該被通知。
   {
     const { ctx, page, errors } = await boot(browser, { satRetina: true });
@@ -348,7 +371,8 @@ for (const [engName, launcher] of ENGINES) {
     ok(`[${engName}] S3 無 JS 例外`, errors.length === 0, errors.slice(0, 3).join(' | '));
     await ctx.close();
   }
-  // 反向二:網站的 SAT_RETINA 預設 false ⇒ 那裡根本沒有「更清楚的版本」可買,不可以宣傳。
+  // 反向二:平台端總開關關著時(SAT_RETINA=false)那裡根本沒有「更清楚的版本」可買,不可以宣傳。
+  // (2026-09-09 前這句寫的是「網站的預設」,那天起網站的預設改成 true,契約改由明確注入 false 來驗。)
   {
     const { ctx, page, errors } = await boot(browser, { satRetina: false });
     await page.waitForFunction(() => { try { return satTokenState === 'ready'; } catch (e) { return false; } }, null, { timeout: 20000 });

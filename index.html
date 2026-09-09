@@ -31345,6 +31345,10 @@ function chooseBasemap(kind) {
   try { localStorage.setItem('trainmap-basemap', state.basemap); } catch (e) {}
   if (kind === 'light' || kind === 'dark') state._setAppearance(kind);
   else setBasemap();
+  // 抽屜(手機主要路徑)的底圖入口走這裡,不經過 satBtn.onclick——不補這一行的話,從抽屜切衛星
+  // 的人永遠不會知道有高解析版本,而那正是本專案最在意的「不給用也不說」。chooseBasemap() 只有
+  // #msBasemapSeg 的點擊會呼叫(唯一呼叫點),不會在開機還原底圖時跑,所以不必怕一開站就跳。
+  if (kind === 'sat') maybeSatPlusNotice();
   if (kind === 'landscape') {
     setMap3d(true);
     if (M.getPitch() < 20) M.setPitch(50);
