@@ -2,6 +2,8 @@ const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3
 
 // 只計算相機在本車線形上向車頭前移幾公尺，絕不改變任何車廂的位置。
 export function headFramingDistance(model,{zoom,pitch,bearing,angle,latitude,width,height,padding}){
+  // 低角度不能用側向投影估整列可見範圍：透視會把近端車頭推到畫面外。
+  if(model?.parts?.length&&pitch>=60&&zoom>=14)return Math.max(0,model.parts[0].offsetM);
   if(!model||model.compact||model.mode!=='actual'||model.parts.length<4||zoom<14)return 0;
   const relative=(90-angle*180/Math.PI-bearing)*Math.PI/180,signedSide=Math.sin(relative),side=Math.abs(signedSide);
   const strength=smooth(12,42,pitch)*smooth(.25,.8,side)*smooth(14,15,zoom);

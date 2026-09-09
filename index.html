@@ -23556,10 +23556,10 @@ function updateFollowCamera() {
   updateFollowPanel(tr);
 }
 
-// ── 手機、放空與 3D 跟車共用車頭鎖定；低角度也不以編組中段置中 ──
+// ── 手機與放空以開關鎖定車頭；一般桌面仍可拖曳解鎖 ──
 function followHeadLocked() {
   return !!state.followLock && !!(state.followTrain || state.freqFollow)
-    && (window.matchMedia(MOBILE_MQ).matches || !!state.ambient || !!window.railIslandIntegration?.active);
+    && (window.matchMedia(MOBILE_MQ).matches || !!state.ambient);
 }
 function setFollowLock(on) {
   if (on && !state.followLock && state.ambient) state._tourNext = performance.now() + 60000;

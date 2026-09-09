@@ -285,14 +285,14 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
         if(padding.top+padding.bottom>h-80){const k=(h-80)/(padding.top+padding.bottom);padding.top*=k;padding.bottom*=k;}
         const v=frame?.vehicles.find(v=>v.followed),model=v&&modelFor(formationFor(v,formationMode));
         // 原站相機呼叫早於 draw；用本次傳入的位置求線形與高度，不讀前一幀的車輛里程。
-        const profile=v&&(terrainState.terrain||v.route?.level||model?.mode==='actual'&&!model.compact&&model.parts.length>=4)&&routeProfile({...v,longitude:coord[0],latitude:coord[1],chainageM:null});
+        const profile=v&&(terrainState.terrain||v.route?.level||model?.parts?.length)&&routeProfile({...v,longitude:coord[0],latitude:coord[1],chainageM:null});
         const elevation=profile?.height??height(coord)??0,c=map.getCenter(),p=map.getPadding();
         const pose=frame?.display?.northUp?null:cinematicPose(v);
         const view={id:v?.id,zoom:map.getZoom(),pitch:map.getPitch(),bearing:map.getBearing(),formation:model?.key,width:w,height:h};
         if(!ambientWas&&framingView?.id===view.id&&['zoom','pitch','bearing','formation','width','height'].some(k=>view[k]!==framingView[k]))followReturn={id:view.id};
         framingView=view;
         let center=coord,viewElevation=elevation;
-        if(profile&&(!terrainState.terrain||profile.path.elevation)){
+        if(profile&&(!terrainState.terrain||profile.path.elevation||profile.path.level)){
           const first=model?.parts[0],headS=profile.s+profile.direction*(first?.offsetM??0),span=Math.min(8,(first?.lengthM??20)*.32),a=profile.path.at(headS-profile.direction*span),b=profile.path.at(headS+profile.direction*span);
           const angle=a&&b?Math.atan2(b.coordinate[1]-a.coordinate[1],(b.coordinate[0]-a.coordinate[0])*Math.cos(coord[1]*Math.PI/180)):profile.angle+(profile.direction<0?Math.PI:0);
           const distance=headFramingDistance(model,{zoom:pose?.zoom??map.getZoom(),pitch:pose?.pitch??map.getPitch(),bearing:pose?.bearing??map.getBearing(),angle,latitude:coord[1],width:w,height:h,padding});
