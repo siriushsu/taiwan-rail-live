@@ -100,6 +100,66 @@ export function solarTimeMs(date, simSec) {
 }
 
 const clamp = x => Math.max(0, Math.min(1, x));
+// 入夜後壓暗地面的其實是 landscape-hillshade：太陽落到地平線下時 illumination-altitude 被
+// 夾成 0，整片地都算在陰影裡，於是 hillshade-shadow-color 以 0.82 的濃度蓋滿地被、土地利用
+// 與水域。那層是 map3d.js 插在 'building' 之前的，所以【畫在它上面】的道路、機場鋪面、
+// 底圖鐵道與 2D 建物入夜後仍是白天的淺色——2026-09-09 使用者回報「晚上道路都還是淺色的，
+// 幾乎看不清楚軌道跟車」就是這件事。這裡把同一顆陰影色補塗到那批圖層，讓它們一起入夜。
+const NIGHT_INK = [23, 38, 59];
+// 地面吃到 0.82；鋪面只吃 0.72，仍看得出路網走向，但不再比我們自己畫的軌道亮。
+const PAVED_NIGHT = .72;
+// 【上界是 boundary_3】：再上面是行政界線與地名標籤,壓暗它們只會變成看不清楚的字。
+// 名單刻意寫死而不在執行期依圖層順序推導:執行期那段還夾著本專案自己加的軌道與車輛圖層,
+// 依順序取會把軌道也一起壓暗。漏掉新圖層由 verify_sun.mjs 對照樣式檔擋下。
+export const PAVED_LAYERS = [
+  ['building', 'fill-color'],
+  ['tunnel_motorway_casing', 'line-color'], ['tunnel_motorway_inner', 'line-color'],
+  ['aeroway-taxiway', 'line-color'], ['aeroway-runway-casing', 'line-color'],
+  ['aeroway-area', 'fill-color'], ['aeroway-runway', 'line-color'],
+  ['road_area_pier', 'fill-color'], ['road_pier', 'line-color'],
+  ['highway_path', 'line-color'], ['highway_minor', 'line-color'],
+  ['highway_major_casing', 'line-color'], ['highway_major_inner', 'line-color'],
+  ['highway_major_subtle', 'line-color'],
+  ['highway_motorway_casing', 'line-color'], ['highway_motorway_inner', 'line-color'],
+  ['highway_motorway_subtle', 'line-color'],
+  ['railway_transit', 'line-color'], ['railway_transit_dashline', 'line-color'],
+  ['railway_service', 'line-color'], ['railway_service_dashline', 'line-color'],
+  ['railway', 'line-color'], ['railway_dashline', 'line-color'],
+  ['highway_motorway_bridge_casing', 'line-color'], ['highway_motorway_bridge_inner', 'line-color'],
+];
+
+// 樣式裡三種寫法都有:#rrggbb（道路）、rgba()（跑道）、hsl()（滑行道）。只認純色字串,
+// 遇到 expression（陣列）就跳過不動,免得把資料驅動的配色換成一個死色。
+export function parseColor(value) {
+  if (typeof value !== 'string') return null;
+  const text = value.trim().toLowerCase();
+  if (text[0] === '#') {
+    const hex = text.length === 4 ? [...text.slice(1)].map(c => c + c).join('') : text.slice(1, 7);
+    return /^[0-9a-f]{6}$/.test(hex) ? [[0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16)), 1] : null;
+  }
+  const n = text.match(/-?\d*\.?\d+/g)?.map(Number);
+  if (!n || n.length < 3) return null;
+  const alpha = n.length > 3 ? clamp(n[3]) : 1;
+  if (text.startsWith('rgb')) return [n.slice(0, 3).map(v => clamp(v / 255) * 255), alpha];
+  if (!text.startsWith('hsl')) return null;
+  const h = ((n[0] % 360) + 360) % 360 / 360, sat = clamp(n[1] / 100), l = clamp(n[2] / 100);
+  const q = l < .5 ? l * (1 + sat) : l + sat - l * sat, p = 2 * l - q;
+  const channel = t => { t = (t + 1) % 1;
+    return (t < 1 / 6 ? p + (q - p) * 6 * t : t < .5 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p) * 255; };
+  return [[channel(h + 1 / 3), channel(h), channel(h - 1 / 3)], alpha];
+}
+
+/** 把一個色彩字串往夜色靠 alpha 這麼多；認不得的寫法原樣回傳。 */
+export function shadeColor(value, ink, alpha) {
+  // 白天（alpha 0）原樣退回，不做「解析再重組」——那會把 hsl()／rgba() 悄悄改寫成等值的
+  // #rrggbb。畫面一樣，但樣式值不再等於樣式檔那份，之後任何逐字比對都會看到假差異。
+  if (!(alpha > 0)) return value;
+  const parsed = parseColor(value);
+  if (!parsed) return value;
+  const [rgb, a] = parsed, out = rgb.map((v, i) => Math.round(mix(v, ink[i], alpha)));
+  return a >= 1 ? '#' + out.map(v => v.toString(16).padStart(2, '0')).join('')
+    : `rgba(${out.join(',')},${a})`;
+}
 const mix = (a, b, t) => a + (b - a) * t;
 const color = (a, b, t) => '#' + a.map((v, i) => Math.round(mix(v, b[i], t)).toString(16).padStart(2, '0')).join('');
 // MapLibre 5.9.0 的 Sky.setSky 會合併值；還原局部 sky 時也要清掉本功能補入的值。
@@ -138,6 +198,8 @@ export function sunlightAt(utcMs, lat, lon) {
     },
     light: { anchor: 'map', position: [1.15, sun.azimuth, 90 - e],
       color: color(a[3], b[3], t), intensity: mix(a[4], b[4], t) },
+    // 道路等畫在 hillshade 上面的鋪面：跟著同一條 daylight 曲線入夜，黃昏連續過渡不硬切。
+    paved: { ink: NIGHT_INK, alpha: mix(PAVED_NIGHT, 0, daylight) },
     // standard 方法不讀太陽高度；basic 才以 DEM 坡面法線計算入射光。
     // 夜間只保留少量環境光的坡面對比，不改 map.setTerrain 的實際地形起伏。
     hillshade: {
@@ -156,6 +218,7 @@ export function createSunlight({ engine, context, enabled = true }) {
   const map = engine.raw;
   let on = enabled, original = null, key = '', current = null, disposed = false;
   let terrainOriginal = null;
+  let pavedOriginal = null;
   const terrainId = 'landscape-hillshade';
   const stats = { calculations: 0, applications: 0 };
   function update(force = false) {
@@ -176,6 +239,19 @@ export function createSunlight({ engine, context, enabled = true }) {
     map.setSky(current.sky);
     map.setLight(current.light);
     if (layer) for (const [k, value] of Object.entries(current.hillshade)) map.setPaintProperty(terrainId, k, value);
+    // 🔴 只在地景底圖動鋪面:壓暗地面的是 landscape-hillshade,而 positron／dark 兩個底圖沒有
+    //    那層——它們的地面整夜維持原色,道路卻與地景共用同一批圖層 id（positron 25 個全中）。
+    //    不綁這個條件的話,淺色底圖入夜會變成「亮底＋暗路」,比原本的問題更糟。
+    if (layer) {
+      // 先存原值再塗:塗過之後才存會把夜色當成白天的底色,還原時整條路網停在夜色。
+      if (!pavedOriginal) pavedOriginal = PAVED_LAYERS
+        .filter(([id]) => map.getLayer(id))
+        .map(([id, prop]) => [id, prop, map.getPaintProperty(id, prop)])
+        .filter(([, , value]) => parseColor(value));
+      for (const [id, prop, value] of pavedOriginal) {
+        if (map.getLayer(id)) map.setPaintProperty(id, prop, shadeColor(value, current.paved.ink, current.paved.alpha));
+      }
+    }
     key = nextKey; stats.applications++;
   }
   function restore() {
@@ -185,10 +261,13 @@ export function createSunlight({ engine, context, enabled = true }) {
     if (terrainOriginal && map.getLayer(terrainId) === terrainOriginal.layer) {
       for (const [k, value] of Object.entries(terrainOriginal.paint)) map.setPaintProperty(terrainId, k, value);
     }
+    for (const [id, prop, value] of pavedOriginal || []) {
+      if (map.getLayer(id)) map.setPaintProperty(id, prop, value);
+    }
   }
   function styleLoad() {
     original = { sky: map.getSky(), light: map.getLight() };
-    terrainOriginal = null;
+    terrainOriginal = null; pavedOriginal = null;
     key = ''; update(true);
   }
   function resume() { if (!document.hidden) update(true); }
