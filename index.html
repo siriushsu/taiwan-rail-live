@@ -4666,10 +4666,19 @@
   body.fs.ambient .map-actions #followLockBtn { pointer-events:auto; }
 
   #msBasemapSeg .ri-beta { font-size: .65em; opacity: .8; }
-  .freq-card .fc-close { margin-left: auto; border: 0; background: transparent; color: var(--faint); font-size: 22px; cursor: pointer; min-width: 44px; min-height: 44px; }
+  /* 收合鈕擺在卡片右上角:視覺只有一個 14px 小箭頭,觸控區仍是 44px。用絕對定位是因為它以前
+     排在 .fc-head 的流排裡,44px 方塊會把標題列撐開並把「結束」擠到下一行(桌面與手機都會)。 */
+  .freq-card .fc-close {
+    position: absolute; top: 0; right: 0; z-index: 1; width: 44px; height: 44px;
+    padding: 12px 12px 0 0; display: flex; align-items: flex-start; justify-content: flex-end;
+    border: 0; background: transparent; color: var(--faint); cursor: pointer;
+  }
+  .freq-card .fc-close svg { width: 14px; height: 14px; }
+  .freq-card .fc-head { padding-right: 22px; }
+  .freq-card .fc-dir { margin-right: -22px; }
   .freq-card .fc-end { margin-left: 0; min-width: 44px; min-height: 44px; flex-shrink: 0; }
   body .freq-card.fc-min { width: max-content; max-width: min(320px, calc(100% - 16px)); min-height: 52px; padding: 4px 8px; border-radius: var(--r-pill); cursor: pointer; }
-  .freq-card.fc-min .fc-head { flex-wrap: nowrap; gap: 6px; }
+  .freq-card.fc-min .fc-head { flex-wrap: nowrap; gap: 6px; padding-right: 0; }
   .freq-card.fc-min #fcLine { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; min-width: 0; }
   .freq-card.fc-min .fc-no { flex-shrink: 0; }
   .freq-card.fc-min .fc-dir, .freq-card.fc-min .fc-next, .freq-card.fc-min .fc-crowd,
@@ -4994,12 +5003,12 @@
       <div id="busJourneyRoot"></div>
     </section>
     <div class="freq-card" id="freqCard" hidden>
+      <button class="fc-close" id="fcClose" type="button" title="收起資訊卡（跟隨不中斷）" aria-label="收起資訊卡（跟隨不中斷）"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M3.5 10 8 5.5 12.5 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       <div class="fc-head">
         <span class="dot" id="fcDot"></span>
         <b class="fc-no" id="fcNo" hidden></b>
         <b id="fcLine"></b>
         <span class="fc-dir" id="fcDir"></span>
-        <button class="fc-close" id="fcClose" type="button" title="收起資訊卡（跟隨不中斷）" aria-label="收起資訊卡（跟隨不中斷）">×</button>
         <button class="fc-end" id="fcEnd" title="取消跟隨">結束</button>
       </div>
       <div class="fc-next">
@@ -5258,6 +5267,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="terrainrebuild0909"><span class="d">9/9</span><span>修正地形資料較慢載入時，橋梁與橋墩會被地面埋住的問題；地形到齊後會自動回到正確高度</span></li>
         <li data-cl-of="railstruct0909"><span class="d">9/9</span><span>橋梁與隧道改依官方橋隧圖資補正，高鐵、臺中捷運等原本被畫成平地的高架與隧道路段回到正確高度；沒有明確資料的一般路段仍然貼地</span></li>
         <li data-cl-of="landscapebeta0909"><span class="d">9/9</span><span>地景地圖標示 Beta，持續完善地形、建物與沿線景觀</span></li>
         <li data-cl-of="linkougrade0909"><span class="d">9/9</span><span>修正龜山至林口台地的高鐵橋隧縱坡與洞口銜接，隧道不再隨山坡起伏，保留已知跨河橋梁</span></li>
@@ -5265,7 +5275,6 @@
         <li data-cl-of="collecttaipei0909"><span class="d">9/9</span><span>車站收集移除重複的「臺北－環島」，舊紀錄併回臺北站，保留到訪次數與收集進度</span></li>
         <li data-cl-of="railfollow0909"><span class="d">9/9</span><span>修正低角度跟車時車頭超出畫面，以及平原號等示意列車在高架橋下行駛的問題</span></li>
         <li data-cl-of="railground0909"><span class="d">9/9</span><span>修正一般路段被誤畫成高架橋的問題；橋梁只依明確標記呈現，普通軌道貼近地表，保留交會與地下路段的高低差</span></li>
-        <li data-cl-of="terrainview0909"><span class="d">9/9</span><span>改善起伏地形的傾斜視角，遠方車牌與站名會逐漸收起，附近列車與車站保持清楚；修正切換地景的顯示異常</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5279,6 +5288,7 @@
         <li data-cl="collecttaipei0909"><span class="d">9/9</span><span>車站收集移除重複的「臺北－環島」，舊紀錄併回臺北站，保留到訪次數與收集進度</span></li>
         <li data-cl="railfollow0909"><span class="d">9/9</span><span>修正低角度跟車時車頭超出畫面，以及平原號等示意列車在高架橋下行駛的問題</span></li>
         <li data-cl="railground0909"><span class="d">9/9</span><span>修正一般路段被誤畫成高架橋的問題；橋梁只依明確標記呈現，普通軌道貼近地表，保留交會與地下路段的高低差</span></li>
+        <li data-cl="terrainrebuild0909"><span class="d">9/9</span><span>修正地形資料較慢載入時，橋梁與橋墩會被地面埋住的問題；地形到齊後會自動回到正確高度</span></li>
         <li data-cl="railstruct0909"><span class="d">9/9</span><span>橋梁與隧道改依官方橋隧圖資補正，高鐵、臺中捷運等原本被畫成平地的高架與隧道路段回到正確高度；沒有明確資料的一般路段仍然貼地</span></li>
         <li data-cl="terrainview0909"><span class="d">9/9</span><span>改善起伏地形的傾斜視角，遠方車牌與站名會逐漸收起，附近列車與車站保持清楚；修正切換地景的顯示異常</span></li>
         <li data-cl="sunlight0909"><span class="d">9/9</span><span>新增「日夜光影」：天空、建築與山坡光線跟隨地圖時間和位置變化，回放也能看晨光、夕色與夜幕；傾斜地圖可看天空，更多設定可關閉</span></li>
@@ -6206,7 +6216,7 @@
 // v0907n：更新紀錄拿掉 7/13 那條贊助方式（站上最後一處金流資訊）。
 // v0908b：阿里山林鐵補上站內股道與之字形折返股(阿里山、祝山的軌道畫進站裡);近景實體股道白名單
 //         改為單一來源(rail-3d.js 不再自帶第二份),沒被涵蓋的系統保留原本的示意線形。
-const BUILD = 'v0909n';
+const BUILD = 'v0909o';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。

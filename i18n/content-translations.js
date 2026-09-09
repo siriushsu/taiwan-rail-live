@@ -1611,7 +1611,11 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {"修正一般路段被誤畫成高�
 
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"修正一般路段被誤畫成高架橋的問題；橋梁只依明確標記呈現，普通軌道貼近地表，保留交會與地下路段的高低差": "通常の線路が高架橋として表示される問題を修正。橋は明示された情報に基づいて表示し、通常区間は地表に沿わせ、交差部と地下区間の高低差を保ちます。"});
 
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"修正地形資料較慢載入時，橋梁與橋墩會被地面埋住的問題；地形到齊後會自動回到正確高度": "Fixed bridges and piers being buried under the ground when the terrain data arrives late; they now return to the right height as soon as the terrain finishes loading."});
+
 Object.assign(window.RAIL_I18N_MESSAGES.en, {"橋梁與隧道改依官方橋隧圖資補正，高鐵、臺中捷運等原本被畫成平地的高架與隧道路段回到正確高度；沒有明確資料的一般路段仍然貼地": "Bridges and tunnels are now corrected against official structure data, so elevated and tunnel sections on the high speed rail, Taichung metro and other lines that used to be drawn at ground level sit at the right height. Ordinary track without clear data still follows the ground."});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"修正地形資料較慢載入時，橋梁與橋墩會被地面埋住的問題；地形到齊後會自動回到正確高度": "地形データの読み込みが遅れたときに橋と橋脚が地面に埋もれる問題を修正しました。地形が揃うと自動的に正しい高さに戻ります。"});
 
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"橋梁與隧道改依官方橋隧圖資補正，高鐵、臺中捷運等原本被畫成平地的高架與隧道路段回到正確高度；沒有明確資料的一般路段仍然貼地": "橋とトンネルを公式の構造物データで補正し、台湾高速鉄道や台中メトロなどで地平として描かれていた高架・トンネル区間が正しい高さになりました。明確なデータがない通常区間は地表に沿ったままです。"});
 
