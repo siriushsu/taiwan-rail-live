@@ -1004,17 +1004,25 @@ await cr.close();
     ok(`${tag} 開面板全程沒碰 Firebase(免費層匿名:登入牆時代這裡會被 accountEnsureInit 建出 state.account)`,
       before.accountTouched === false, `accountTouched=${before.accountTouched}`);
     // 互動:真的點(mobile 用 tap,桌面用 click),斷言落在狀態改變上。
+    // 🔴 這一段刻意包 try/catch:突變測試時把 plusRender() 的未登入分支拿掉,CTA 就不存在,
+    // 未保護的 waitForSelector 會【丟例外讓整支腳本中止】——後面的 T9b/T9c 與 T6 總數閘門
+    // 全都不會跑,終端看起來像「只紅了兩條」而不是「這一層被拆掉了」。判準要能報告失敗,
+    // 不是自己崩掉(assertion-blindspot-taxonomy:會崩的 harness 讓突變看起來像沒抓到)。
     const cta = '#plusBody [data-plus="login"]';
-    await page.waitForSelector(cta, { state: 'visible', timeout: 10000 });
-    if (mobile) await page.tap(cta); else await page.click(cta);
-    await page.waitForTimeout(200);
+    let clicked = '';
+    try {
+      await page.waitForSelector(cta, { state: 'visible', timeout: 10000 });
+      if (mobile) await page.tap(cta); else await page.click(cta);
+      await page.waitForTimeout(200);
+    } catch (e) { clicked = `CTA 點不到:${String(e).slice(0, 120)}`; }
     const after = await page.evaluate(() => ({
       plusOpen: !!document.getElementById('plusModal') && document.getElementById('plusModal').hidden === false,
       pending: !!state.plusPending,
       pendingSource: state.plusPending ? state.plusPending.source : null,
     }));
     ok(`${tag} 點下 CTA 真的接到登入流程:通行證面板關閉、state.plusPending 落地(登入後才回得來)`,
-      after.plusOpen === false && after.pending === true, JSON.stringify(after));
+      clicked === '' && after.plusOpen === false && after.pending === true,
+      clicked || JSON.stringify(after));
     ok(`${tag} 全程無 JS 例外`, errors.length === 0, errors.slice(0, 3).join(' | '));
     await ctx.close();
   };
