@@ -1565,3 +1565,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {"修正車庫試跑時中間車廂�
 Object.assign(window.RAIL_I18N_MESSAGES.en, {"補齊象山至廣慈／奉天宮的雙向軌道，來回列車沿各自股道進出，修正延伸段在 3D 地圖中斷的問題": "Completed both tracks between Xiangshan and Guangci/Fengtian Temple. Trains now use their respective tracks, fixing the missing extension in the 3D map."});
 
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"補齊象山至廣慈／奉天宮的雙向軌道，來回列車沿各自股道進出，修正延伸段在 3D 地圖中斷的問題": "象山から広慈／奉天宮までの上下線を補完。列車がそれぞれの線路を走り、3D地図で延伸区間が途切れる問題を修正しました。"});
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"修正台鐵行車曲線更新後部分列車退回示意線形的問題，加開車也能沿已知連通股道行駛，雙軌與地下、高架顯示保持一致": "Fixed TRA trains reverting to schematic routes after motion profile updates. Additional services now use known connected tracks, keeping separate tracks and underground or elevated levels consistent."});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"修正台鐵行車曲線更新後部分列車退回示意線形的問題，加開車也能沿已知連通股道行駛，雙軌與地下、高架顯示保持一致": "走行曲線の更新後に一部の台鉄列車が模式線に戻る問題を修正。臨時列車も接続が確認された線路を走り、複線や地下・高架の表示を維持します。"});

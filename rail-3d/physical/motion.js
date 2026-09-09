@@ -1,21 +1,21 @@
 import {createRouteRuntime} from './route-runtime.js';
 import {isScheduledTurnback} from './turnbacks.js';
-import {profileProgress,stationKey,turnbackProgress} from './timing.js';
-export const physicalTrainKey=tr=>[tr.sys||tr.system,tr.train,tr.stops[0].depSec,tr.stops.at(-1).arrSec].join(':');
-export const physicalStopSignature=tr=>JSON.stringify(tr.stops.map(s=>[stationKey(tr.sys||tr.system,s.name),s.arrSec,s.depSec]));
+import {profileProgress,turnbackProgress} from './timing.js';
+import {createPlanBinding,physicalTrainKey,physicalStopSignature} from './plan-binding.js';
+export {physicalTrainKey,physicalStopSignature};
 export function createPhysicalMotion(pack,profiles,dispatch,{requireSignature=true}={}){
- const geometry=createRouteRuntime(pack,profiles),cache=new WeakMap();
- function record(tr){if(cache.has(tr))return cache.get(tr);const plan=dispatch.plans[physicalTrainKey(tr)];
-  if(!plan||plan.pathIds.length!==tr.stops.length-1||(requireSignature&&plan.stopSignature!==physicalStopSignature(tr))){cache.set(tr,null);return null;}
+ const geometry=createRouteRuntime(pack,profiles),cache=new WeakMap(),bind=createPlanBinding(dispatch);
+ function record(tr){if(cache.has(tr))return cache.get(tr);const binding=requireSignature?bind(tr):{plan:dispatch.plans[physicalTrainKey(tr)],basis:'unchecked'},plan=binding?.plan;
+  if(!plan||plan.pathIds.length!==tr.stops.length-1){cache.set(tr,null);return null;}
   const holds=plan.holds||plan.departureHolds.map((departure,i)=>({arrival:plan.departureHolds[Math.max(0,i-1)],departure}));
   const schedule=tr.stops.map((s,i)=>({arrSec:s.arrSec+holds[i].arrival,depSec:s.depSec+holds[i].departure}));
   const reversals=[];for(let i=1;i<plan.pathIds.length;i++){const a=geometry.unfold(plan.pathIds[i-1]),b=geometry.unfold(plan.pathIds[i]);if(isScheduledTurnback(tr.sys||tr.system,tr.stops[i].name,a,b))reversals.push(i);}
-  const value={plan,holds,schedule,maxHold:Math.max(...holds.map(h=>h.departure)),reversals};cache.set(tr,value);return value;
+  const value={plan,bindingBasis:binding.basis,sourceKey:binding.sourceKey,holds,schedule,maxHold:Math.max(...holds.map(h=>h.departure)),reversals};cache.set(tr,value);return value;
  }
  function sample(tr,clockSec,{officialDelaySec=0,wrap=(s,t,grace)=>t<s[0].arrSec&&t+86400<=s.at(-1).depSec+grace?t+86400:t}={}){
   const r=record(tr);if(!r)return undefined;const t=wrap(tr.stops,clockSec-officialDelaySec,r.maxHold),schedule=r.schedule;
   if(t<schedule[0].arrSec||t>schedule.at(-1).depSec)return null;
-  if(dispatch.handoffs?.some(h=>h.from===physicalTrainKey(tr))&&t>=schedule.at(-1).arrSec)return null;
+  if(r.bindingBasis!=='route-template'&&dispatch.handoffs?.some(h=>h.from===physicalTrainKey(tr))&&t>=schedule.at(-1).arrSec)return null;
   let lo=0,hi=schedule.length-1;while(hi-lo>1){const m=(lo+hi)>>1;if(schedule[m].arrSec<=t)lo=m;else hi=m;}
   const i=t>=schedule[hi].arrSec?hi:lo,s=tr.stops[i],dwell=t<=schedule[i].depSec;
   const segment=Math.min(i,r.plan.pathIds.length-1),legStart=r.reversals.filter(k=>k<=segment).at(-1)||0,legEnd=r.reversals.find(k=>k>segment)||r.plan.pathIds.length;
