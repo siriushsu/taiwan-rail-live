@@ -4,6 +4,12 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "修正龜山至林口台地的高鐵橋隧縱坡與洞口銜接，隧道不再隨山坡起伏，保留已知跨河橋梁": "Corrected the HSR bridge and tunnel gradients and portal connections between Guishan and Linkou. Tunnels no longer follow hillsides, and known river bridges are preserved.",
+    "地景地圖標示 Beta，持續完善地形、建物與沿線景觀": "The Landscape map is marked Beta while terrain, buildings and trackside scenery continue to improve.",
+
+    "捷運跟車資訊卡可收成單行，保留路線、車號與結束按鈕，點卡片可再展開": "Metro follow cards can collapse to a single row showing the line, train number and End button. Tap the card to expand it.",
+    "車站收集移除重複的「臺北－環島」，舊紀錄併回臺北站，保留到訪次數與收集進度": "Station collection no longer lists the duplicate Taipei-Loop station. Previous records merge into Taipei, preserving visit counts and collection progress.",
+
     "搜尋框可以打車型了：輸入 EMU3000、普悠瑪、PP、DR3100 找那一型今天的班次，正在跑的排最前面，點一下直接跟車": "Search now understands train models: type EMU3000, Puyuma, PP or DR3100 to list that model's runs today, with the ones running right now first — tap one to start following.",
     "跟車鏡頭改為沿用你當下的視角，在近景點列車或按隨機跟隨不會再被拉遠，立體車身看得到細節；點跟隨中的那台車改成把鏡頭鎖回它，不再取消跟隨": "Following keeps your current zoom, so tapping a train or using random follow up close no longer pulls the camera out and 3D trains stay detailed; tapping the train you are already following re-centres the camera on it instead of ending the follow.",
     "改善立體列車跟隨與地形畫面的流暢度，保留完整編組、模型細節與沿軌行駛": "Improved 3D train following and terrain performance while preserving full formations, model detail and continuous movement along the tracks.",
@@ -239,6 +245,12 @@
   });
 
   Object.assign(messages.ja, {
+    "修正龜山至林口台地的高鐵橋隧縱坡與洞口銜接，隧道不再隨山坡起伏，保留已知跨河橋梁": "亀山から林口台地の高鉄の橋梁・トンネルの勾配と坑口接続を修正。トンネルが山肌の起伏に沿わないようにし、確認できる河川橋梁は維持します。",
+    "地景地圖標示 Beta，持續完善地形、建物與沿線景觀": "地景地図を Beta と表示。地形、建物、沿線風景を引き続き改善します。",
+
+    "捷運跟車資訊卡可收成單行，保留路線、車號與結束按鈕，點卡片可再展開": "MRTの追跡カードを1行に折りたためます。路線・列車番号・終了ボタンを残し、カードをタップすると展開します。",
+    "車站收集移除重複的「臺北－環島」，舊紀錄併回臺北站，保留到訪次數與收集進度": "駅コレクションの重複した「臺北－環島」を臺北駅に統合しました。過去の訪問回数と収集状況は引き継がれます。",
+
     "搜尋框可以打車型了：輸入 EMU3000、普悠瑪、PP、DR3100 找那一型今天的班次，正在跑的排最前面，點一下直接跟車": "検索が車両形式に対応しました。EMU3000・普悠瑪・PP・DR3100 などを入力すると本日のその形式の列車が並び、走行中の列車が先頭に来ます。タップすればそのまま追従します。",
     "跟車鏡頭改為沿用你當下的視角，在近景點列車或按隨機跟隨不會再被拉遠，立體車身看得到細節；點跟隨中的那台車改成把鏡頭鎖回它，不再取消跟隨": "追従カメラが現在の縮尺をそのまま使うようになり、拡大した状態で列車をタップしてもランダム追従を押しても引きの画面になりません。立体列車の細部も見えます。追従中の列車をタップした場合は追従を終了せず、カメラをその列車に戻します。",
     "改善立體列車跟隨與地形畫面的流暢度，保留完整編組、模型細節與沿軌行駛": "編成や模型の細部、線路に沿った連続走行を保ちながら、立体列車の追従と地形表示を滑らかにしました。",

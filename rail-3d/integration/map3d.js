@@ -75,10 +75,10 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     if(path)s=Math.max(0,Math.min(path.length,s));
     // 實體軌道以畫面地表為基準；舊 DEM 淨空含全線 +2.5m，不能再把它當路基高度。
     // 軌道、逐節車廂及跟車鏡頭共用此函式，保留交會層差，不以橋墩填補資料誤差。
-    if(path?.level){const ground=terrainState.terrain?map.queryTerrainElevation(path.at(s).coordinate):0,offset=path.level(s)?.offsetM??0;return Number.isFinite(ground)?ground+offset+.65:null;}
+    if(path?.level){const absolute=terrainState.terrain?path.level(s)?.terrainHeightM:undefined;if(Number.isFinite(absolute))return Number.isFinite(map.queryTerrainElevation(path.at(s).coordinate))?absolute+.65:null;const ground=terrainState.terrain?map.queryTerrainElevation(path.at(s).coordinate):0,level=path.level(s),offset=level?.offsetM??0;return Number.isFinite(ground)?ground+offset+.65:null;}
     const h=path?.elevation?(terrainState.terrain?path.elevation(s):0):terrainState.terrain?null:0;return Number.isFinite(h)?h+.65:null;
   }
-  function isUnderground(path,s){return (path?.level?.(s)?.offsetM??0)<-3;}
+  function isUnderground(path,s){const level=path?.level?.(s);return level?.kind==='tunnel'||(level?.kind!=='bridge'&&(level?.offsetM??0)<-3);}
   function clearLines(){stats.undergroundRailSegments=0;profileVertices=[];rails.set([]);undergroundRails.set([]);structures.set([],[]);}
   function rebuildLines(){
     clearLines();if(!frame)return;const c=map.getCenter(),near=map.getZoom()>=14,bounds=map.getBounds(),margin=.004;lastNear=near;buildCenter=[c.lng,c.lat];buildView=[map.getZoom(),map.getPitch(),map.getBearing()];lastBuild=performance.now();dirty=false;stats.routeBuilds++;
@@ -93,7 +93,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
       for(let k=0;k<=n;k++){const s=start+length*k/n,q=path.at(Math.min(path.length,s)).coordinate,h=railHeight(path,s),p=h===null?null:world(q,h);if(prev&&p){vertices.push(...prev,...p);if(terrainState.terrain||r.physical||r.drawingRanges)(isUnderground(path,s)?buriedSegments:lineSegments).push({a:prev,b:p,color:r.displayColor||r.color,physical:!!r.physical});}
         if(r.physical&&p&&!isUnderground(path,s)){
           const g=ground(q),gp=Number.isFinite(g)?world(q,g)[2]:null,level=path.level?.(s),scale=ml.MercatorCoordinate.fromLngLat(q).meterInMercatorCoordinateUnits()/unit;
-          if(prev&&Number.isFinite(gp)&&Number.isFinite(prevGround))structureSegments.push({a:prev,b:p,groundA:prevGround,groundB:gp,bridge:level?.kind==='bridge'&&level.offsetM>0,scale});
+          if(prev&&Number.isFinite(gp)&&Number.isFinite(prevGround))structureSegments.push({a:prev,b:p,groundA:prevGround,groundB:gp,bridge:level?.kind==='bridge'&&level.offsetM>0,transition:!!level?.terrainTransition,scale});
           prevGround=gp;
         }else prevGround=null;
         prev=p;}

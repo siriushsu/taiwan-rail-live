@@ -4665,6 +4665,15 @@
   body.fs.ambient .map-actions > :not(#followLockBtn) { display:none; }
   body.fs.ambient .map-actions #followLockBtn { pointer-events:auto; }
 
+  #msBasemapSeg .ri-beta { font-size: .65em; opacity: .8; }
+  .freq-card .fc-close { margin-left: auto; border: 0; background: transparent; color: var(--faint); font-size: 22px; cursor: pointer; min-width: 44px; min-height: 44px; }
+  .freq-card .fc-end { margin-left: 0; min-width: 44px; min-height: 44px; flex-shrink: 0; }
+  body .freq-card.fc-min { width: max-content; max-width: min(320px, calc(100% - 16px)); min-height: 52px; padding: 4px 8px; border-radius: var(--r-pill); cursor: pointer; }
+  .freq-card.fc-min .fc-head { flex-wrap: nowrap; gap: 6px; }
+  .freq-card.fc-min #fcLine { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; min-width: 0; }
+  .freq-card.fc-min .fc-no { flex-shrink: 0; }
+  .freq-card.fc-min .fc-dir, .freq-card.fc-min .fc-next, .freq-card.fc-min .fc-crowd,
+  .freq-card.fc-min .ri-formation-caption, .freq-card.fc-min .fc-status, .freq-card.fc-min .xfer-conn, .freq-card.fc-min .fc-close { display: none !important; }
 </style>
 <link rel="stylesheet" href="./night-theme.css">
 <script>
@@ -4990,6 +4999,7 @@
         <b class="fc-no" id="fcNo" hidden></b>
         <b id="fcLine"></b>
         <span class="fc-dir" id="fcDir"></span>
+        <button class="fc-close" id="fcClose" type="button" title="收起資訊卡（跟隨不中斷）" aria-label="收起資訊卡（跟隨不中斷）">×</button>
         <button class="fc-end" id="fcEnd" title="取消跟隨">結束</button>
       </div>
       <div class="fc-next">
@@ -5248,14 +5258,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="landscapebeta0909"><span class="d">9/9</span><span>地景地圖標示 Beta，持續完善地形、建物與沿線景觀</span></li>
+        <li data-cl-of="linkougrade0909"><span class="d">9/9</span><span>修正龜山至林口台地的高鐵橋隧縱坡與洞口銜接，隧道不再隨山坡起伏，保留已知跨河橋梁</span></li>
+        <li data-cl-of="metrocompact0909"><span class="d">9/9</span><span>捷運跟車資訊卡可收成單行，保留路線、車號與結束按鈕，點卡片可再展開</span></li>
+        <li data-cl-of="collecttaipei0909"><span class="d">9/9</span><span>車站收集移除重複的「臺北－環島」，舊紀錄併回臺北站，保留到訪次數與收集進度</span></li>
         <li data-cl-of="railfollow0909"><span class="d">9/9</span><span>修正低角度跟車時車頭超出畫面，以及平原號等示意列車在高架橋下行駛的問題</span></li>
         <li data-cl-of="railground0909"><span class="d">9/9</span><span>修正一般路段被誤畫成高架橋的問題；橋梁只依明確標記呈現，普通軌道貼近地表，保留交會與地下路段的高低差</span></li>
         <li data-cl-of="terrainview0909"><span class="d">9/9</span><span>改善起伏地形的傾斜視角，遠方車牌與站名會逐漸收起，附近列車與車站保持清楚；修正切換地景的顯示異常</span></li>
         <li data-cl-of="sunlight0909"><span class="d">9/9</span><span>新增「日夜光影」：天空、建築與山坡光線跟隨地圖時間和位置變化，回放也能看晨光、夕色與夜幕；傾斜地圖可看天空，更多設定可關閉</span></li>
-        <li data-cl-of="headlock0909"><span class="d">9/9</span><span>手機跟車與放空跟車加入車頭鎖定開關，縮放旋轉時保持車頭置中；關閉後可自由移動，再開啟回到原列車</span></li>
-        <li data-cl-of="railbridge0909"><span class="d">9/9</span><span>3D 高架軌道補上示意橋面與橋墩，地面路段補上路基；開關地形都連接地表，列車不再只有懸空的軌道承托</span></li>
-        <li data-cl-of="garagefollow0909"><span class="d">9/9</span><span>環形試跑放大時會鎖定三節列車、跟著編組繞圈，旋轉時保持列車置中；縮回 100% 即可欣賞完整跑道</span></li>
-        <li data-cl-of="garageglass0909"><span class="d">9/9</span><span>修正車庫三節車廂的車窗反光不一致；海岸行旅的玻璃會跟著日出、藍天、黃昏與星空變換光影</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5263,6 +5273,10 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="landscapebeta0909"><span class="d">9/9</span><span>地景地圖標示 Beta，持續完善地形、建物與沿線景觀</span></li>
+        <li data-cl="linkougrade0909"><span class="d">9/9</span><span>修正龜山至林口台地的高鐵橋隧縱坡與洞口銜接，隧道不再隨山坡起伏，保留已知跨河橋梁</span></li>
+        <li data-cl="metrocompact0909"><span class="d">9/9</span><span>捷運跟車資訊卡可收成單行，保留路線、車號與結束按鈕，點卡片可再展開</span></li>
+        <li data-cl="collecttaipei0909"><span class="d">9/9</span><span>車站收集移除重複的「臺北－環島」，舊紀錄併回臺北站，保留到訪次數與收集進度</span></li>
         <li data-cl="railfollow0909"><span class="d">9/9</span><span>修正低角度跟車時車頭超出畫面，以及平原號等示意列車在高架橋下行駛的問題</span></li>
         <li data-cl="railground0909"><span class="d">9/9</span><span>修正一般路段被誤畫成高架橋的問題；橋梁只依明確標記呈現，普通軌道貼近地表，保留交會與地下路段的高低差</span></li>
         <li data-cl="terrainview0909"><span class="d">9/9</span><span>改善起伏地形的傾斜視角，遠方車牌與站名會逐漸收起，附近列車與車站保持清楚；修正切換地景的顯示異常</span></li>
@@ -5902,7 +5916,7 @@
     <!-- 實機取證(TestFlight 試用期):左下角小字條顯示 rAF/相機/旗標即時狀態,截圖即可回報;正式上架前評估拔除 -->
     <button class="ms-row" data-act="diagStrip"><span>診斷資訊</span><span class="toggle" data-tg="diagStrip"></span></button>
     <button class="ms-row" id="trtcDiagExportRow" data-act="exportTrtcDiag" hidden><span>匯出捷運診斷</span><span class="chev">↓</span></button>
-    <div class="ms-row ri-basemap-row"><span>地圖風格</span><div class="seg" id="msBasemapSeg" role="group" aria-label="地圖風格"><button type="button" data-map="light">明</button><button type="button" data-map="dark">暗</button><button type="button" data-map="sat">衛星</button><button type="button" data-map="landscape">地景</button></div></div>
+    <div class="ms-row ri-basemap-row"><span>地圖風格</span><div class="seg" id="msBasemapSeg" role="group" aria-label="地圖風格"><button type="button" data-map="light">明</button><button type="button" data-map="dark">暗</button><button type="button" data-map="sat">衛星</button><button type="button" data-map="landscape"><span>地景</span> <small class="ri-beta">Beta</small></button></div></div>
     <button class="ms-row" id="sunlightRow" type="button" role="switch" aria-checked="true" disabled title="光線跟隨地圖時間；傾斜地圖可看天空"><span>日夜光影</span><span class="toggle on"></span></button>
     <button class="ms-row" id="map3dRow" data-proxy="map3dBtn" style="display:none"><span>3D 建築</span><span class="toggle" data-tg="map3dBtn"></span></button>
     <button class="ms-row" data-act="garage" data-close="1"><span>我的車庫</span><span class="chev">›</span></button>
@@ -6191,7 +6205,7 @@
 // v0907n：更新紀錄拿掉 7/13 那條贊助方式（站上最後一處金流資訊）。
 // v0908b：阿里山林鐵補上站內股道與之字形折返股(阿里山、祝山的軌道畫進站裡);近景實體股道白名單
 //         改為單一來源(rail-3d.js 不再自帶第二份),沒被涵蓋的系統保留原本的示意線形。
-const BUILD = 'v0909l';
+const BUILD = 'v0909m';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -20220,6 +20234,10 @@ function checkinAliasMap() {
 }
 // 打卡/收集用的正名站名;鍵一律走 favStationKey(捷運不分 freq/deco 視角,同站只有一枚章)
 function checkinName(sys, name, alias) {
+  // 已移除的官方別名不再出現在站列，舊跟車／打卡章仍需併回臺北。
+  if (sys === 'tra_sched' && /^台北(?:[-－—]?環島)?$/.test(String(name).replace(/臺/g, '台').replace(/\s/g, ''))) {
+    return (state.schedStations || []).find(s => s.sys === sys && s.name.replace(/臺/g, '台') === '台北')?.name || '臺北';
+  }
   const a = (alias || checkinAliasMap()).get(sys + '|' + name);
   if (a) return a;
   // 舊打卡紀錄可能還存著資料層正名前的台鐵括號別名(「左營(舊城)」——2026-08-16 前它是同座標的第二顆站,
@@ -23339,7 +23357,7 @@ function computeMapInsets() {
     if (el.closest('.board')) continue;
     const r = el.getBoundingClientRect();
     if (!(r.width > 0.5 && r.height > 0.5)) continue;
-    const min = el.classList.contains('fp-min');
+    const min = el.classList.contains('fp-min') || el.classList.contains('fc-min');
     // v3(08-27):跟車卡在橫式是「右側欄」(捷運 freq-card 仍是左下小卡),讓位方向跟著錨點走
     if (sideRail) {
       if (!min) {
@@ -34917,6 +34935,22 @@ document.getElementById('fpClose').onclick = (e) => {
 };
 try { if (localStorage.getItem('trainmap-fprail-min') === '1') document.getElementById('followPanel').classList.add('fp-min'); } catch (err) {}
 document.getElementById('fpEnd').onclick = (e) => { e.stopPropagation(); setAutoTour(false); clearFollow(); };
+function setFreqCardCompact(on, remember = true) {
+  const card = document.getElementById('freqCard');
+  card.classList.toggle('fc-min', on);
+  if (on) { card.setAttribute('tabindex', '0'); card.setAttribute('aria-label', t('展開')); }
+  else { card.removeAttribute('tabindex'); card.removeAttribute('aria-label'); }
+  if (remember) try { localStorage.setItem('trainmap-fc-min', on ? '1' : '0'); } catch (e) {}
+  invalidateMapInsets(); if (M) reframeFocus();
+}
+document.getElementById('fcClose').onclick = e => { e.stopPropagation(); setFreqCardCompact(true); };
+document.getElementById('freqCard').onclick = e => {
+  if (!e.target.closest('button,a') && e.currentTarget.classList.contains('fc-min')) setFreqCardCompact(false);
+};
+document.getElementById('freqCard').onkeydown = e => {
+  if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setFreqCardCompact(false); }
+};
+try { if (localStorage.getItem('trainmap-fc-min') === '1') setFreqCardCompact(true, false); } catch (e) {}
 document.getElementById('fcEnd').onclick = (e) => { e.stopPropagation(); clearFreqFollow(); };
 document.getElementById('followPanel').addEventListener('click', (e) => {
   const fp = e.currentTarget;

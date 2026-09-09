@@ -124,6 +124,9 @@ try {
   const railGrounding = spawnSync('node', [path.join(wt, 'scripts', 'verify_rail_grounding.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(railGrounding.stdout || ''); process.stderr.write(railGrounding.stderr || '');
   if (railGrounding.status !== 0) fail('橋梁來源判定或示意列車高度對應未通過');
+  const linkou = spawnSync('node', [path.join(wt, 'scripts', 'verify_linkou_structures.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(linkou.stdout || ''); process.stderr.write(linkou.stderr || '');
+  if (linkou.status !== 0) fail('林口台地橋隧縱坡或洞口連續性未通過');
   const guangci = spawnSync('node', [path.join(wt, 'scripts', 'verify_guangci_tracks.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(guangci.stdout || ''); process.stderr.write(guangci.stderr || '');
   if (guangci.status !== 0) fail('廣慈延伸段雙軌連通性或來源座標未通過');

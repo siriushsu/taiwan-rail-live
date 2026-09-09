@@ -11,11 +11,11 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
    await page.waitForFunction(()=>state.ready&&window.railIslandPhysical&&railIslandIntegration.renderer,null,{timeout:90000});
    await page.evaluate(()=>{state.playing=false;clearFollow();clearFreqFollow();window.__frame=railIslandIntegration.capture();railIslandIntegration.render=()=>{};});
    // 新竹市區、竹南附近與中部西線：來源只有 layer，沒有 bridge 標記。
-   for(const id of (width===375?['391706267','860092299','103544834']:['391706267'])){
+   for(const id of (width===375?['391706267','860092299','103544834','966445954']:['391706267'])){
     await page.evaluate(async id=>{
-     const {makePath}=await import('./rail-3d/integration/train-path.js'),route=railIslandPhysical.geometry.drawingWays('tra_sched','#547466').find(r=>String(r.routeId)===id),path=makePath(route.coordinates),s=path.length/2,q=path.at(s).coordinate;
-     const template=__frame.vehicles.find(v=>v.systemId==='tra_sched'&&String(v.publicLabel)==='114')||__frame.vehicles.find(v=>v.systemId==='tra_sched');
-     window.__route=route;window.__vehicles=[1,-1].map((dir,i)=>({...template,id:'ground:'+i,route,chainageM:s+dir*90,longitude:path.at(s+dir*90).coordinate[0],latitude:path.at(s+dir*90).coordinate[1],railDirection:dir,followed:false}));
+     const {makePath}=await import('./rail-3d/integration/train-path.js'),route=railIslandPhysical.geometry.drawingWays(id==='966445954'?'thsr_sched':'tra_sched','#547466').find(r=>String(r.routeId)===id),path=makePath(route.coordinates),s=path.length/2,q=path.at(s).coordinate;
+     const template=id==='966445954'?__frame.vehicles.find(v=>v.systemId==='thsr_sched'):__frame.vehicles.find(v=>v.systemId==='tra_sched'&&String(v.publicLabel)==='114')||__frame.vehicles.find(v=>v.systemId==='tra_sched');
+     window.__route=route;window.__vehicles=[1,-1].map((dir,i)=>({...template,id:'ground:'+i,route,chainageM:s+dir*Math.min(90,path.length/8),longitude:path.at(s+dir*Math.min(90,path.length/8)).coordinate[0],latitude:path.at(s+dir*Math.min(90,path.length/8)).coordinate[1],railDirection:dir,followed:false}));
      window.__update=()=>railIslandIntegration.renderer.update({...__frame,routes:[route],vehicles:__vehicles,display:{...__frame.display,enabled:true,modelMode:'all'},followLock:false,selectedVehicleId:null});
      railIslandIntegration.renderer.map.jumpTo({center:q,zoom:17.3,pitch:60,bearing:35});__update();
     },id);
@@ -25,9 +25,9 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
      await page.waitForTimeout(650);
      const detail=await page.evaluate(()=>{
       __update();const r=railIslandIntegration.renderer,poses=r.stats.poseSamples;
-      return {structures:structuredClone(r.stats.structures),poses:poses.map(p=>({id:p.id,kind:p.level.kind,cars:p.cars.length,error:Math.max(...p.cars.map(c=>Math.abs(c.height-(r.stats.groundMode==='terrain'?r.map.queryTerrainElevation(c.coordinate):0)-.65))),offset:Math.max(...p.cars.map(c=>Math.abs(__route.level(c.s).offsetM)))})),errors:r.stats.errors,overflow:document.documentElement.scrollWidth>innerWidth+1};
+      return {structures:structuredClone(r.stats.structures),poses:poses.map(p=>({id:p.id,kind:p.level.kind,cars:p.cars.length,error:Math.max(...p.cars.map(c=>Math.abs(c.height-(r.stats.groundMode==='terrain'?r.map.queryTerrainElevation(c.coordinate):0)-.65-(__route.routeId==='966445954'?__route.level(c.s).offsetM:0)))),offset:Math.max(...p.cars.map(c=>Math.abs(__route.level(c.s).offsetM)))})),errors:r.stats.errors,overflow:document.documentElement.scrollWidth>innerWidth+1};
      });
-     const pass=detail.structures.piers===0&&detail.structures.decks===0&&detail.poses.length===2&&detail.poses.every(p=>p.kind==='surface'&&p.cars>0&&p.error<.01&&p.offset<.001)&&!detail.errors.length&&!detail.overflow;
+     const pass=detail.structures.piers===0&&detail.structures.decks===0&&detail.poses.length===2&&detail.poses.every(p=>p.kind==='surface'&&p.cars>0&&p.error<.01&&(id==='966445954'?p.offset<8:p.offset<.001))&&!detail.errors.length&&!detail.overflow;
      results.push({engine,width,id,mode,pass,detail});console.log(engine,width,id,mode,pass);
      if(width===375)await page.screenshot({path:`${out}/${engine}-${id}-${mode}.png`});
     }
