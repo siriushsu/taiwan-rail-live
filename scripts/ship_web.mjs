@@ -75,6 +75,15 @@ try {
   if (cfg.status !== 0) fail('部署設定檢查未過——cron 或資產排除少了東西,出貨會靜默關掉功能'
     + '（單獨重跑：npm run check-deploy-config）');
 
+  // ── 2.61 網頁登入的 CSP 防線 ──────────────────────────────────────────────
+  // 2026-09-10 issue #54:CSP 少了 apis.google.com 與 frame-src,網頁登入從第一天就死在
+  // auth/internal-error。三重靜默(不報錯、錯誤字面不提 CSP、本機 server 不送 CSP)⇒
+  // 只有掛在出貨鏈上才擋得住(「不在出貨鏈上的驗收腳本等於不存在」)。純 node,毫秒級。
+  const loginCsp = spawnSync('node', [path.join(wt, 'scripts', 'verify_web_login_csp.mjs')], { encoding: 'utf8' });
+  process.stdout.write(loginCsp.stdout || ''); process.stderr.write(loginCsp.stderr || '');
+  if (loginCsp.status !== 0) fail('網頁登入的 CSP 檢查未過——出貨會讓登入回到 auth/internal-error'
+    + '（單獨重跑：npm run check-web-login-csp）');
+
   // ── 2.65 辦公日曆表兩份副本的同步 ──────────────────────────────────────────
   // index.html 的 TW_DAYTYPE(前端選捷運班表)與 data/tw_daytype.json(worker 做北捷逐班綁定)
   // 是同一份資料的兩個副本,補新年度時「補一邊忘另一邊」不會有任何錯誤訊息——

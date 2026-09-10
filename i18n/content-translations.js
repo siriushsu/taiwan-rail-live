@@ -1650,3 +1650,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {"網站也能用軌島通行證了�
 Object.assign(window.RAIL_I18N_MESSAGES.en, {"App 的通行證面板不用先登入也打得開，先看清楚有哪些功能，要訂閱時才登入": "The pass panel in the app now opens without signing in first, so you can see what's included before you subscribe."});
 
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"App 的通行證面板不用先登入也打得開，先看清楚有哪些功能，要訂閱時才登入": "Appのパス画面はログインしなくても開けるようになりました。内容を確かめてから、購入するときにログインします。"});
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"修正網站上的 Google 與 Apple 登入會顯示登入失敗的問題，登入後收藏與完乘即可同步": "Fixed sign-in on the website failing with an error: Google and Apple sign-in now work, and your collection and ride records sync once you are signed in."});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"修正網站上的 Google 與 Apple 登入會顯示登入失敗的問題，登入後收藏與完乘即可同步": "Webサイトでログインが「失敗」と表示される問題を修正しました。GoogleとAppleのログインが正常に完了し、ログイン後はコレクションと乗車記録が同期されます。"});

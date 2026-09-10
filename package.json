@@ -35,6 +35,7 @@
     "check-manifest": "node scripts/verify_data_manifest.mjs && node scripts/verify_data_provenance.mjs",
     "check-public": "node scripts/check_tracked_ignored.mjs && node scripts/verify_ignore_symmetry.mjs && node scripts/verify_public_repo_hygiene.mjs && node scripts/verify_privacy_providers.mjs",
     "check-privacy": "node scripts/verify_privacy_providers.mjs",
+    "check-web-login-csp": "node scripts/verify_web_login_csp.mjs",
     "check-ops": "node scripts/verify_stadia_projection.mjs",
     "check-basemap": "node scripts/verify_web_basemap_notice.mjs",
     "check-ofm-beacon": "node scripts/verify_ofm_fallback_beacon.mjs",

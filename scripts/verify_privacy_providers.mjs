@@ -29,6 +29,8 @@ const HOSTS = {
   'cloudflareinsights.com': 'Cloudflare',
   'railisland-metro-core.sirius1984.workers.dev': 'Cloudflare',
   'www.gstatic.com': 'Google Firebase',
+  'apis.google.com': 'Google Firebase',      // 網頁登入的 gapi 載入器(見 _headers 註解 2b)
+  'railisland.firebaseapp.com': 'Google Firebase', // 接收 OAuth 結果的跨來源 iframe ⇒ frame-src
   'googleapis.com': 'Google Firebase',
   'api.revenuecat.com': 'RevenueCat',
   'cdn.jsdelivr.net': 'jsDelivr',
@@ -47,7 +49,8 @@ const headers = read('_headers');
 const cspLine = (headers.match(/Content-Security-Policy:([^\n]*)/) || [])[1] || '';
 ok('S0 _headers 取得 CSP', cspLine.length > 100, `${cspLine.length} bytes`);
 const cspHosts = new Set();
-for (const dir of ['script-src', 'connect-src']) {
+// frame-src 也要掃:嵌進來的跨來源 iframe 一樣會拿到瀏覽器發出的請求,跟載腳本同級的暴露面。
+for (const dir of ['script-src', 'connect-src', 'frame-src']) {
   const seg = cspLine.split(';').map(x => x.trim()).find(x => x.startsWith(dir + ' '));
   if (!seg) { ok(`S0 CSP 含 ${dir}`, false, 'CSP 結構變了,這支掃不到東西'); continue; }
   for (const tok of seg.split(/\s+/)) {

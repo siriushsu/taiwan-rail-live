@@ -8,8 +8,17 @@
 #    擋掉「從別的網域載腳本」與「把偷到的資料送去別的網域」。
 # 2. 允許清單是實測出來的（對正式站錄網路請求）：cartocdn/arcgis=圖磚、
 #    static.cloudflareinsights.com=Cloudflare 自動注入的 Web Analytics beacon。
-#    gstatic(Firebase SDK)與 jsdelivr(RevenueCat)目前因帳號／Plus 關閉而不會載入，
-#    先放行以免日後打開旗標時被 CSP 悄悄擋掉；**改動登入或訂閱管線時要回頭重測這條**。
+#    gstatic(Firebase SDK)與 jsdelivr(RevenueCat)；**改動登入或訂閱管線時要回頭重測這條**。
+# 2b. 🔴 2026-09-10(issue #54「登入失敗：auth/internal-error」):放行 gstatic 只夠把 Firebase SDK
+#    「載進來」,不夠讓網頁登入「跑得完」。網頁版的 signInWithPopup 還要另外兩樣東西,
+#    當初寫這份清單時帳號功能在網站上沒人走得到,所以兩樣都沒進來,登入從第一天就是壞的:
+#      · https://apis.google.com/js/api.js —— Firebase 用 gapi 建立接收 OAuth 結果的通道 ⇒ script-src
+#      · https://railisland.firebaseapp.com/__/auth/iframe —— 那個通道本身是跨來源 iframe ⇒ frame-src
+#    frame-src 原本整個不存在 ⇒ 回退到 default-src 'self' ⇒ 連自家 authDomain 都被擋。
+#    兩者任一被擋,SDK 都只會丟一句沒有線索的 auth/internal-error(不會說是 CSP)。
+#    gapi 另外會對 apis.google.com/js/gen_204 發遙測 beacon,被 connect-src 擋住是【刻意的】——
+#    實測擋掉不影響登入,不要為了讓 console 乾淨而放行,那是多送一個第三方追蹤點。
+#    守門人:scripts/verify_web_login_csp.mjs(掛在 ship_web preflight)。
 # 圖磚供應商會換（Stadia／Esri／CARTO），img-src 用 https: 放寬——圖片不執行程式碼，風險低。
 # 3. ⚠️ 點陣圖磚與向量圖磚受不同指令管：點陣走 <img> ⇒ img-src（已用 https: 放寬，換供應商不必改這裡）；
 #    向量走 MapLibre 的 fetch()（圖磚、字形 glyphs、sprite 三種都是）⇒ **connect-src**，必須逐一列名。
@@ -26,7 +35,7 @@
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: accelerometer=(), autoplay=(self), camera=(), display-capture=(), encrypted-media=(), fullscreen=(self), geolocation=(self), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(self), publickey-credentials-get=(), screen-wake-lock=(self), usb=(), xr-spatial-tracking=(), browsing-topics=()
-  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com https://www.gstatic.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob:; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; connect-src 'self' https://cloudflareinsights.com https://*.googleapis.com https://api.revenuecat.com https://tiles.openfreemap.org https://ibasemaps-api.arcgis.com https://railisland-metro-core.sirius1984.workers.dev
+  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com https://www.gstatic.com https://apis.google.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob:; font-src 'self' data:; frame-src 'self' https://railisland.firebaseapp.com; worker-src 'self' blob:; manifest-src 'self'; connect-src 'self' https://cloudflareinsights.com https://*.googleapis.com https://api.revenuecat.com https://tiles.openfreemap.org https://ibasemaps-api.arcgis.com https://railisland-metro-core.sirius1984.workers.dev
 
 # App 殼要跨來源抓這些資料檔(index.html 的 initDataFreshness / refreshStaleSchedule):打包進
 # bundle 的 data/*.json 是送審當下的快照,之後只有再送審才會更新——台鐵班表 14 天窗必然過期、

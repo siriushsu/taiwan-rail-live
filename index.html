@@ -5267,6 +5267,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="weblogin0910"><span class="d">9/10</span><span>修正網站上的 Google 與 Apple 登入會顯示登入失敗的問題，登入後收藏與完乘即可同步</span></li>
         <li data-cl-of="webpass0910"><span class="d">9/10</span><span>網站也能用軌島通行證了：用同一個軌島帳號登入，App 訂的資格就在網站生效</span></li>
         <li data-cl-of="passpeek0910"><span class="d">9/10</span><span>App 的通行證面板不用先登入也打得開，先看清楚有哪些功能，要訂閱時才登入</span></li>
         <li data-cl-of="nightroads0909"><span class="d">9/9</span><span>夜間地景的道路、機場鋪面與底圖鐵道跟著地面一起變暗，不再蓋過軌道與列車；白天配色維持不變</span></li>
@@ -5274,7 +5275,6 @@
         <li data-cl-of="ppformation0909"><span class="d">9/9</span><span>推拉式自強號畫出完整 14 節（前後機車加 12 節客車），不再只顯示 3 節示意</span></li>
         <li data-cl-of="terrainrebuild0909"><span class="d">9/9</span><span>修正地形資料較慢載入時，橋梁與橋墩會被地面埋住的問題；地形到齊後會自動回到正確高度</span></li>
         <li data-cl-of="railstruct0909"><span class="d">9/9</span><span>橋梁與隧道改依官方橋隧圖資補正，高鐵、臺中捷運等原本被畫成平地的高架與隧道路段回到正確高度；沒有明確資料的一般路段仍然貼地</span></li>
-        <li data-cl-of="landscapebeta0909"><span class="d">9/9</span><span>地景地圖標示 Beta，持續完善地形、建物與沿線景觀</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5586,6 +5586,7 @@
         <li><span class="d">7/10</span><span>夜間與衛星模式視覺升級；「軌」軌道顯示三段切換：自動／淡化／隱藏</span></li>
         <li><span class="d">7/9</span><span>站名移到軌道側邊不再互相壓住；雙欄版面：搜尋／最愛／旅程收集移到右側欄</span></li>
         <li class="grp">分享與個人化</li>
+        <li data-cl="weblogin0910"><span class="d">9/10</span><span>修正網站按登入會顯示「登入失敗」的問題：Google 與 Apple 登入現在都能正常完成，登入後收藏、完乘與通行證資格就會同步。App 內的登入不受影響。（謝謝網友回報）</span></li>
         <li data-cl="passpeek0910"><span class="d">9/10</span><span>通行證不用先登入也看得到：面板直接打得開，可以先看清楚有哪些功能，要看價格或訂閱時才需要登入軌島帳號。已經訂閱的人一樣從同一個地方登入恢復。</span></li>
         <li data-cl="webpass0910"><span class="d">9/10</span><span>網站也能用軌島通行證：用同一個軌島帳號登入，App 訂的資格就生效——收藏與完乘同步、行程分享、跟車配樂、匯入 Google Maps 清單、衛星高解析都會打開。訂閱仍只在 App 內完成，網站不收費。</span></li>
         <li data-cl="journeysharelive"><span class="d">9/3</span><span>整段列車轉公車旅程可用最長 12 小時的連結分享；位置預設關閉，另行同意後只在前景保存最新一筆。停止分享即刪除，連結到期失效。</span></li>
@@ -6222,7 +6223,7 @@
 // v0907n：更新紀錄拿掉 7/13 那條贊助方式（站上最後一處金流資訊）。
 // v0908b：阿里山林鐵補上站內股道與之字形折返股(阿里山、祝山的軌道畫進站裡);近景實體股道白名單
 //         改為單一來源(rail-3d.js 不再自帶第二份),沒被涵蓋的系統保留原本的示意線形。
-const BUILD = 'v0910c';
+const BUILD = 'v0910d';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
