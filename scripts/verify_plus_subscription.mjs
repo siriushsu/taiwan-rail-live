@@ -906,7 +906,7 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
   // syncMoreSheet() 在開啟當下依代理鈕重算,開啟前那一格只是中間態(舊版咬在中間態上,
   // 2026-08-03 複審實測那一行對使用者看得到的結果沒有影響)。
   // 這裡刻意只驗「看得見」不驗標籤:本情境的 uid 是假的,Firebase 不會給出真的 user,
-  // 標籤會停在登出態該有的樣子(見 accountSlotMode),驗標籤等於把測試綁在一個與本條無關的分支上。
+  // 標籤會停在登出態該有的樣子,驗標籤等於把測試綁在一個與本條無關的分支上。
   const slot = await page.evaluate(async () => {
     const vis = el => { if (!el) return false; const st = getComputedStyle(el), r = el.getBoundingClientRect();
       return st.display !== 'none' && st.visibility !== 'hidden' && r.width > 0 && r.height > 0; };
@@ -1301,12 +1301,11 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
   const on = await run(`${BASE}&tripshare=1`, 'on');
   const off = await run(`${OFF_BASE}?tripshare=1`, 'off');
   // 🔴 第三次載入:accountEnsureInit() **有跑**、但 accountReturning() 為 false 的那條路。
-  // 為什麼非它不可(實測結論,與直覺相反):accountSlotMode() 的 `if (!PLUS_ENABLED) return 'account'`
-  // 在「回訪者」情境下**不是 load-bearing**——那一行拿掉之後,fallthrough 的
-  // `accountReturning() ? 'account' : 'plus'` 對回訪者照樣回 'account',槽位一模一樣(實測驗證)。
-  // 它唯一撐著的是「初始化跑了、但這台裝置沒登入過」那格,而現在只有兩條路走得到:
-  // `ACCOUNT_ENABLED=true`(帳號入口復活批次,尚未發生)與 `?account=delete`(帳號刪除深連結,現在就走得到)。
-  // 用後者當代理,那一行就從「無人看守」變成有判準——不必等旗標翻真才發現它已經壞了。
+  // 為什麼非它不可:那是 setupAccountUi() 裡「初始化跑了、但這台裝置沒登入過」那一格,
+  // 只有兩條路走得到——`ACCOUNT_ENABLED=true`(帳號入口復活批次,尚未發生)與 `?account=delete`
+  // (帳號刪除深連結,現在就走得到)。用後者當代理,那一格就從「無人看守」變成有判準。
+  // 2026-09-10 通行證拆出去之後,它還多守一件事:帳號槽位在這條路上照樣露得出來
+  // (匿名訪客的那顆鈕停在 inline display:none,靠 accountBtnSlot() 還原,不是被 remove 掉)。
   const offInit = await run(`${OFF_BASE}?tripshare=1&account=delete`, 'off-init');
   // 前置:on/off 兩個網址真的落在旗標的兩側。沒有這條,萬一 PORT/query string 拼錯或旗標的
   // 讀取邏輯本身壞了,下面每一條都會在錯的頁面上量,而且量出來的「不存在」還是綠的——正是本
