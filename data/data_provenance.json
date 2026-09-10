@@ -296,7 +296,7 @@
    "effectiveDateField": "date",
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "74eed5950e8ccb08d3b6bf8937bbf4d0"
+   "checksum": "444fff45dde47590a00d260bb38b5ed3"
   },
   "data/trtc.json": {
    "sourceDescription": "信義東延段廣慈/奉天宮站(R01):站點座標取 TDX 官方值(2026-09-10 上架後換掉先行補入的 OSM 值);線形取自 OSM(TDX 的 R 線幾何仍無東延段);沿線里程指 OSM 月台停車點;站間行駛時間仍為估算(TDX 尚未提供 R01 區間),上架後應以官方值取代;",

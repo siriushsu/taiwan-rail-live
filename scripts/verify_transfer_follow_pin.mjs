@@ -200,11 +200,18 @@ async function runEngine(engineName, engine) {
             - (parseFloat(c.paddingRight) || 0) - (parseFloat(c.borderRightWidth) || 0);
           return Math.round(el.getBoundingClientRect().right - edge);
         };
+        // 🔴 兩種形態各量一次。原本只量「同系統」那一格(標題已指名系統 ⇒ 整列根本沒有
+        // .xfc-sys),混系統那一格從來沒被量過——而 .xfc-sys 與 .xfc-no 是同一欄,它 nowrap,
+        // 英文的「High Speed Rail」(84px)、「Taoyuan Airport MRT」(111px)會把整欄撐開,
+        // 把同一列的「剩 N 分」擠出卡片右緣(176 卡實測溢出 23／50px)。這個缺陷在納入機捷
+        // 之前就存在,只是判準的狀態空間少抽了這一格(判準盲點第 4 條)。
+        const VIEWS = [{ tag: '同系統', from: xsys }, { tag: '混系統', from: null }];
         const out = [];
         try {
+          for (const v of VIEWS)
           for (const lang of ['zh-TW', 'en', 'ja']) {
             I18N_LANG = lang;
-            const html = transferConnectionHtml(gid, at, xsys);
+            const html = transferConnectionHtml(gid, at, v.from);
             for (const w of [176, 240, 300]) {
               panel.style.width = w + 'px';
               conn.innerHTML = html;          // 全程同步量完,rAF 沒有機會插進來覆蓋
@@ -212,11 +219,12 @@ async function runEngine(engineName, engine) {
               const lefts = [...conn.querySelectorAll('.xfc-left')];
               const nos = [...conn.querySelectorAll('.xfc-no')];
               out.push({
-                lang, card: w,
+                view: v.tag, lang, card: w,
                 connW: Math.round(conn.getBoundingClientRect().width),
                 tracks: row ? tracks(row) : 0,
                 leftWrap: lefts.filter(wrapped).length,
                 lefts: lefts.length,
+                syss: conn.querySelectorAll('.xfc-sys').length,
                 leftOver: Math.max(0, ...lefts.map(overRight)),
                 noOver: Math.max(0, ...nos.map(overRight)),
                 overflow: conn.scrollWidth > conn.clientWidth + 1,
@@ -241,9 +249,15 @@ async function runEngine(engineName, engine) {
       }, { gid: found.gid, at: found.at, sysKey: found.sys });
 
       const bad8 = lay.rows.filter(r => r.leftOver > 1 || r.noOver > 1 || r.overflow || r.leftWrap > 0 || r.lefts === 0);
-      ok(P('F8 三語 × 三種卡寬:「剩 N 分」與車次都完整落在卡內(沒有溢出、沒有換行)'),
-        lay.rows.length === 9 && bad8.length === 0,
+      ok(P('F8 兩種形態 × 三語 × 三種卡寬:「剩 N 分」與車次都完整落在卡內(沒有溢出、沒有換行)'),
+        lay.rows.length === 18 && bad8.length === 0,
         `n=${lay.rows.length} 壞=${JSON.stringify(bad8.slice(0, 3))}`);
+      // 具名前提:混系統那一格真的渲染出逐列系統小標。它是零,上面那條就退回只量「同系統」,
+      // 與修好之前一樣照不到——恆真的判準等於沒有判準(判準盲點第 5 條)。
+      const mixed8 = lay.rows.filter(r => r.view === '混系統');
+      ok(P('F8pre 混系統形態真的量到逐列系統小標(否則 F8 退回只量同系統那一格)'),
+        mixed8.length === 9 && mixed8.every(r => r.syss >= 1),
+        `n=${mixed8.length} syss=${mixed8.map(r => r.syss).join(',')}`);
       const cq = lay.rows.filter(r => r.tracks !== (r.card >= 300 ? 1 : 2));
       ok(P('F8b 容器查詢生效:176/240 走兩行排法、300 收成一行(引擎不支援就會全停在兩行)'),
         cq.length === 0, lay.rows.map(r => `${r.lang}/${r.card}=${r.tracks}行(容器${r.connW}px)`).join(' '));

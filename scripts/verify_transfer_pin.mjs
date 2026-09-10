@@ -319,6 +319,29 @@ const freq10 = await page.evaluate(() => {
 ok('G10 真實產線路徑(updateFreqCard→fcConn)收到接續資料(刪掉 index.html:10172 那行會在這裡就地現形)',
   freq10.ok && freq10.fc.length >= 1, JSON.stringify(freq10));
 
+// ── G10b —— 捷運班距卡必須排除「自己這條線」──────────────────────────────────
+// 2026-09-10 機捷/高捷進了接續表之後,updateFreqCard 那個 fromSys 就不能再傳 null:
+// 在高鐵桃園,機捷自己的下一班會被列進「可以轉乘」——那不是轉乘,而且它排在最前面會把
+// 真正的高鐵接續擠出前二列。判準寫「不含自己那個系統」,不寫「有幾列」。
+// 比照 G10 全部塞進同一次 evaluate(rAF 安全網會在下一拍收掉 #freqCard,見 mobile 那支的註解)。
+const freq10b = await page.evaluate(() => {
+  const fc = document.getElementById('fcConn');
+  fc.innerHTML = ''; fc.hidden = true;
+  loadSystem(state.systems.find(s => s.id === 'tymc'));
+  const ln = (state.lines || []).find(l => l.id === 'A');
+  if (!ln) return { ok: false, reason: '找不到機捷 A 線' };
+  state.freqFollow = { ln, k: 0 };
+  document.getElementById('freqCard').hidden = false;
+  // 07:26 高鐵桃園:實測此刻機捷與高鐵兩側都有班次,是「不排除就會混進自己」的真實情境
+  updateFreqCard({ nextName: '高鐵桃園站', nextSec: 26760, loop: false, termName: '老街溪站' });
+  return { ok: true, sys: [...document.querySelectorAll('#fcConn .xfc-row')].map(e => e.dataset.xs) };
+});
+ok('G10b pre 機捷卡在高鐵桃園真的有接續可看(前提成立,否則下面那條恆真)',
+  freq10b.ok && freq10b.sys.length >= 1, JSON.stringify(freq10b));
+ok('G10b 機捷卡不列自己那條線(fromSys 傳 null 會在這裡轉紅)',
+  freq10b.ok && freq10b.sys.length >= 1 && freq10b.sys.every(x => x !== 'TYMC'),
+  JSON.stringify(freq10b.sys));
+
 // ── G11 —— Finding C:同車次號、不同系統的釘選消歧(2026-09-01 修復輪1) ─────────────
 // 真實資料核實:T-THSR-1000 群裡車次「1238」同時是 THSR(sec=61020)與 TRA(sec=67500)兩筆
 // 獨立候選,AT_C=58000 落在 [56700,61020] 之間確保兩筆同時在 3 小時窗內。rows 依 sec 升冪

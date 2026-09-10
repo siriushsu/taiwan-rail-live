@@ -1664,3 +1664,11 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {"修正網站上的 Google 與 Appl
 Object.assign(window.RAIL_I18N_MESSAGES.en, {"地下列車可以改成實色：「更多」的「透視顯示」切到「實體」": "Underground trains can now be shown solid: switch See-through view to Solid under More."});
 
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"地下列車可以改成實色：「更多」的「透視顯示」切到「實體」": "地下の列車を実体表示にできます：「その他」の「透視表示」を「実体」に切り替えます。"});
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"轉乘接續也列捷運了：高鐵桃園等轉乘站會顯示桃園機場捷運與高雄捷運的接續班次，機捷每一班還標出直達車或普通車": "Transfer connections now include metros: stations such as Taoyuan HSR list onward Taoyuan Airport MRT and Kaohsiung Metro departures, and every Airport MRT train shows whether it is Express or Commuter."});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"轉乘接續也列捷運了：高鐵桃園等轉乘站會顯示桃園機場捷運與高雄捷運的接續班次，機捷每一班還標出直達車或普通車": "乗り継ぎ案内にメトロが加わりました。桃園HSR駅などの乗換駅で桃園空港MRTと高雄メトロの次の発車を表示し、空港MRTは列車ごとに直達か普通かも示します。"});
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"桃園機場捷運全線每一班都標得出直達車或普通車，首末班不再只顯示線號": "Every Taoyuan Airport MRT train on the whole line now shows whether it is Express or Commuter; the first and last trains no longer show only the line code."});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"桃園機場捷運全線每一班都標得出直達車或普通車，首末班不再只顯示線號": "桃園空港MRTは全線すべての列車に直達か普通かの種別を表示するようになりました。始発と最終の列車も路線記号だけの表示ではなくなりました。"});

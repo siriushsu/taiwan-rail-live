@@ -89,11 +89,15 @@ const picked = await page.evaluate(() => {
     for (const s of stops) if (s.stop !== false && s.arrSec > t) return s;                  // 尚未到達的第一個未過站
     return null;
   }
+  const xid = r => `${r.sys}#${r.n}@${r.sec}`;
   function xferRowsFor(stop) {
     const anchor = stop && transferAnchorForStop('TRA', stop);
     const gid = (anchor && anchor.station && anchor.station.transferId) || null;
     const list = gid ? transferConnections(gid, stop.arrSec, 'TRA').slice(0, 2) : [];
-    return { gid, rows: list.map(r => r.n), secs: list.map(r => r.sec) };
+    // 🔴 一列的身分是「系統#車次@發車秒」,不是車次。機捷/高捷沒有官方車次(r.n===''),
+    // 只拿車次當身分的話,兩班不同的捷運車會比對成同一列 ⇒ 換車、換站都測不出來,
+    // 而畫面看起來完全正常(2026-09-10 納入機捷/高捷時 T1c-pre 就地現形)。
+    return { gid, rows: list.map(xid), rowsN: list.map(r => r.n), secs: list.map(r => r.sec) };
   }
   for (const tr of state.trains) {
     if (tr.sys !== 'tra_sched') continue;
@@ -144,7 +148,7 @@ const picked = await page.evaluate(() => {
       if (JSON.stringify(after.rows) === JSON.stringify(at.rows)) continue;
       return {
         no: tr.train, sys: tr.sys, stn: st.name, arr: st.arrSec, dep: st.depSec,
-        gid: at.gid, expect: at.rows, expectSecs: at.secs, expectAfter: after.rows,
+        gid: at.gid, expect: at.rows, expectN: at.rowsN, expectSecs: at.secs, expectAfter: after.rows,
         nextName,
       };
     }
@@ -170,7 +174,9 @@ ok('G0b 真的跟上了挑到的那班車、跟隨面板已開', followed.train 
 // 🔴 直接寫 simSec 一定要同時清 clockAtNow,否則下一拍會被「回到現在」蓋掉。重繪交給既有的
 // rAF 迴圈(tick()→updateFollowCamera()→updateFollowPanel(),不受 state.playing 節流),不要自己呼叫 draw。
 const jump = async sec => page.evaluate(s => { state.simSec = s; state.clockAtNow = false; }, sec);
-const rowsOf = id => page.$$eval(`#${id} .xfc-row`, els => els.map(e => e.dataset.xn));
+// DOM 側的同一個身分:data-xs#data-xn@data-xd(與 page.evaluate 裡的 xid 同構)
+const rowsOf = id => page.$$eval(`#${id} .xfc-row`,
+  els => els.map(e => `${e.dataset.xs}#${e.dataset.xn}@${e.dataset.xd}`));
 // Finding A 需要讀「剩 N 分」的精確分鐘數,不只是列表有沒有變。用 $$eval 取第一列再讀 .xfc-left,
 // 不用 ':first-child'——innerHTML 灌進去後,容器裡實際的第一個子元素是 .xfc-h/取消釘選鈕,不是
 // .xfc-row 本身,':first-child' 選不到東西。包 try/catch:若前面的 waitForRows 已經標記某探測點
@@ -185,7 +191,8 @@ const leftMinOf = async id => {
 async function waitForRows(id, expect, timeout = 2000) {
   try {
     await page.waitForFunction(({ id, expect }) => {
-      const got = [...document.querySelectorAll(`#${id} .xfc-row`)].map(e => e.dataset.xn);
+      const got = [...document.querySelectorAll(`#${id} .xfc-row`)]
+        .map(e => `${e.dataset.xs}#${e.dataset.xn}@${e.dataset.xd}`);
       return JSON.stringify(got) === JSON.stringify(expect);
     }, { id, expect }, { timeout });
     return { settled: true, got: expect };
@@ -251,7 +258,8 @@ await jump(picked.arr - 5);
 const wNoDelay = await waitForLeftMin('fpConn', expMoving);
 const readRow = () => page.evaluate(() => {
   const r = document.querySelector('#fpConn .xfc-row');
-  return { no: r ? r.dataset.xn : null, next: document.getElementById('fpNext').textContent.trim() };
+  return { no: r ? `${r.dataset.xs}#${r.dataset.xn}@${r.dataset.xd}` : null,
+           next: document.getElementById('fpNext').textContent.trim() };
 });
 const beforeDelay = await readRow();
 await page.evaluate(() => { window.__liveDelayOrig = liveDelaySec; window.liveDelaySec = () => 120; });
@@ -323,9 +331,10 @@ const pinLeak = await page.evaluate(({ gid, no }) => {
   setXferPin(gid, no, 'TRA'); // production 本尊,不是灌 stub;refreshXferConns 會用 fpConn 當下
   return {                    // 存的 args(此刻對應的是新的 groupId,不是 picked.gid)原地重播一次
     hasUnpin: !!document.querySelector('#fpConn .xfc-unpin'),
-    rows: [...document.querySelectorAll('#fpConn .xfc-row')].map(e => e.dataset.xn),
+    rows: [...document.querySelectorAll('#fpConn .xfc-row')]
+      .map(e => `${e.dataset.xs}#${e.dataset.xn}@${e.dataset.xd}`),
   };
-}, { gid: picked.gid, no: picked.expect[0] });
+}, { gid: picked.gid, no: picked.expectN[0] });
 await page.evaluate(() => clearXferPin());
 ok('T4 對已離開的舊站事後補釘,不會在新站現出「已釘選」介面(驗證 brief 假說,決定要不要另寫清除邏輯)',
   !pinLeak.hasUnpin, JSON.stringify(pinLeak));
