@@ -62,6 +62,9 @@
     "建築透視": "Building view",
     "透明": "Transparent",
     "一般": "Normal",
+    "透視顯示": "See-through view",
+    "透視": "See-through",
+    "實體": "Solid",
     "賞車視角": "Train camera",
     "側拍": "Side view",
     "環繞": "Orbit",
@@ -70,7 +73,7 @@
     "{n} 節 · 標準編組": "{n} cars · standard formation",
     "{n} 分節 · 標準編組": "{n} sections · standard formation",
     "3 節示意 · 當班編組待確認": "3-car illustration · actual formation unconfirmed",
-    "放大地圖即可看見立體列車。完整編組依車型或路線標準；缺少當班資料時顯示三節示意。起伏為地表顯示，非實測軌道高程。": "Zoom in to see 3D trains. Full formations use vehicle or route standards; unknown formations use a 3-car illustration. Terrain represents the ground surface, not surveyed track elevation.",
+    "放大地圖即可看見立體列車。完整編組依車型或路線標準；缺少當班資料時顯示三節示意。起伏為地表顯示，非實測軌道高程。透視顯示同時管建築與地下列車，切到實體就看得到地下列車原本的顏色。": "Zoom in to see 3D trains. Full formations use vehicle or route standards; unknown formations use a 3-car illustration. Terrain represents the ground surface, not surveyed track elevation. See-through view covers both buildings and underground trains: switch to Solid to see underground trains in their own colors.",
     "近景自動顯示沿軌行駛的立體列車，可切換完整編組、地形起伏與建築透視；保留亮色琺瑯、暗色霓虹，以及車站看板與指北操作": "Zoom in to see 3D trains running along the tracks, with full formations, terrain relief and transparent buildings. Light enamel and dark neon designs, station boards and north reset remain available.",
     '轉乘站的官方來車資料換班時，偶爾會短暫缺一個方向；現在看板會先補上該方向的班表': 'When the official arrival feed changes over between trains, one direction can briefly disappear at an interchange. The station board now fills that gap with the timetable for that direction.',
     'Android 1.5.0 完整加入繁中、English、日本語：App 介面、三種桌面小工具，以及列車跟隨、捷運等車與台鐵等站的鎖定畫面／Now Bar 會同步切換語言；沿用既有正式版更新時，原本的小工具、設定和資料都會保留': 'Android 1.5.0 fully adds Traditional Chinese, English and Japanese across the app, all three home-screen widgets, train following, metro waiting and TRA station tracking on the lock screen and Now Bar. Updating the existing release keeps your widgets, settings and data.',
@@ -303,6 +306,9 @@
     "建築透視": "建物の透視",
     "透明": "透過",
     "一般": "通常",
+    "透視顯示": "透視表示",
+    "透視": "透視",
+    "實體": "実体",
     "賞車視角": "列車鑑賞の視点",
     "側拍": "側面",
     "環繞": "周回",
@@ -311,7 +317,7 @@
     "{n} 節 · 標準編組": "{n} 両 · 標準編成",
     "{n} 分節 · 標準編組": "{n} 車体 · 標準編成",
     "3 節示意 · 當班編組待確認": "3 両イメージ · 当該便の編成は未確認",
-    "放大地圖即可看見立體列車。完整編組依車型或路線標準；缺少當班資料時顯示三節示意。起伏為地表顯示，非實測軌道高程。": "地図を拡大すると 3D 列車が表示されます。全編成は車種・路線の標準に基づき、不明な便は 3 両イメージで表示します。起伏は地表の表現であり、実測の線路標高ではありません。",
+    "放大地圖即可看見立體列車。完整編組依車型或路線標準；缺少當班資料時顯示三節示意。起伏為地表顯示，非實測軌道高程。透視顯示同時管建築與地下列車，切到實體就看得到地下列車原本的顏色。": "地図を拡大すると 3D 列車が表示されます。全編成は車種・路線の標準に基づき、不明な便は 3 両イメージで表示します。起伏は地表の表現であり、実測の線路標高ではありません。透視表示は建物と地下の列車の両方に効きます。「実体」に切り替えると、地下の列車も本来の色で表示されます。",
     "近景自動顯示沿軌行駛的立體列車，可切換完整編組、地形起伏與建築透視；保留亮色琺瑯、暗色霓虹，以及車站看板與指北操作": "近景では線路に沿って走る 3D 列車を表示。全編成、地形の起伏、建物の透視を切り替えられます。明色のホーロー風・暗色のネオン、駅の発車案内、北向きに戻す操作も引き継ぎます。",
     '轉乘站的官方來車資料換班時，偶爾會短暫缺一個方向；現在看板會先補上該方向的班表': '公式の到着情報が次の列車へ切り替わる際、乗換駅で一方向だけ一時的に欠けることがあります。その方向は時刻表で補うようにしました。',
     'Android 1.5.0 完整加入繁中、English、日本語：App 介面、三種桌面小工具，以及列車跟隨、捷運等車與台鐵等站的鎖定畫面／Now Bar 會同步切換語言；沿用既有正式版更新時，原本的小工具、設定和資料都會保留': 'Android 1.5.0は繁体字中国語・英語・日本語に対応しました。App本体、3種類のホーム画面ウィジェット、列車追跡、メトロ待ち、台湾鉄路の駅待ちを表示するロック画面／Now Barが同じ言語に切り替わります。既存の正式版から更新しても、ウィジェット、設定、データは保持されます。',
@@ -1654,3 +1660,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {"App 的通行證面板不用先登
 Object.assign(window.RAIL_I18N_MESSAGES.en, {"修正網站上的 Google 與 Apple 登入會顯示登入失敗的問題，登入後收藏與完乘即可同步": "Fixed sign-in on the website failing with an error: Google and Apple sign-in now work, and your collection and ride records sync once you are signed in."});
 
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"修正網站上的 Google 與 Apple 登入會顯示登入失敗的問題，登入後收藏與完乘即可同步": "Webサイトでログインが「失敗」と表示される問題を修正しました。GoogleとAppleのログインが正常に完了し、ログイン後はコレクションと乗車記録が同期されます。"});
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"地下列車可以改成實色：「更多」的「透視顯示」切到「實體」": "Underground trains can now be shown solid: switch See-through view to Solid under More."});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"地下列車可以改成實色：「更多」的「透視顯示」切到「實體」": "地下の列車を実体表示にできます：「その他」の「透視表示」を「実体」に切り替えます。"});
