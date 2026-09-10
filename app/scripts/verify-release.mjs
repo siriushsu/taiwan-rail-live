@@ -231,17 +231,21 @@ export function assertPlusSandboxTestBuild(html, expectedBuild) {
 export const ANDROID_PLUS_GATE_LINE =
   "  if (IS_NATIVE_APP && window.Capacitor?.getPlatform?.() === 'android') return window.RAIL_ANDROID_PLUS_ENABLED === true;";
 
+// 2026-09-10 01:58(commit 7907d849)通行證在網站開通:iOS 原生與網站都恆開,`?plus=1` 分支不再存在,
+// 這道閘門的期望值自那時起就過期了(1.6.1/108 建在它之前,所以 1.6.2/109 是第一次撞到)。
+// 要守的東西沒變:Android 只准讀 build-time 旗標,而且那一行之後不得再有任何分支能把 Android 送回
+// true——那等於把 Play 的 kill-switch 拆掉。所以判準是「開頭兩行＋`return true;` 逐字,其後只准接
+// 同一行的註解與收尾」,而不是放寬成單行 includes:單行比對擋不住有人在它前面插一條
+// `if (native) return true;`。
 export function assertAndroidPlusGate(html) {
-  const exactInitializer = [
-    'const PLUS_ENABLED = (() => { try {',
-    ANDROID_PLUS_GATE_LINE,
-    '  if (window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()) return true;',
-    "  return new URLSearchParams(location.search).get('plus') === '1';",
-    '} catch (e) { return false; } })();',
-  ].join('\n');
-  assert(html.includes(exactInitializer),
-    'PLUS_ENABLED 必須讓原生 Android 只讀 build-time 明確旗標，再逐字保留既有 iOS 原生與 Web ?plus=1 分支；'
-    + '不得只藏單一入口或重寫共享判定式');
+  const found = /const PLUS_ENABLED = \(\(\) => \{ try \{\n([\s\S]*?)\n\} catch \(e\) \{ return false; \} \}\)\(\);/.exec(html);
+  assert(found, 'PLUS_ENABLED 的 initializer 不見了或整個形狀被改寫');
+  // 只剝行尾註解(出貨給網站的那份會被 strip、App bundle 那份留著,兩份都要驗得動),不動程式碼。
+  const body = found[1].split('\n').map(line => line.replace(/\s*\/\/.*$/, '').trimEnd());
+  assert(body.length === 2 && body[0] === ANDROID_PLUS_GATE_LINE && body[1] === '  return true;',
+    'PLUS_ENABLED 的本體必須恰好是「Android 只讀 build-time 旗標」那一行,然後無條件 return true'
+    + '(iOS 原生與網站都恆開);多出來的任何分支都可能讓 Android 繞過旗標。實際讀到:\n'
+    + body.join('\n'));
   assert(html.split(ANDROID_PLUS_GATE_LINE).length === 2,
     'Android 通行證平台 gate 必須且只能出現一次');
 }

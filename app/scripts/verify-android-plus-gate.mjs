@@ -40,10 +40,12 @@ const cases = [
   { name: 'android-native-disabled', native: true, platform: 'android', search: '?plus=1', userAgent: chromiumDesktopUa, androidPlusEnabled: false, expected: false },
   { name: 'android-native-enabled', native: true, platform: 'android', search: '', userAgent: chromiumDesktopUa, androidPlusEnabled: true, expected: true },
   { name: 'ios-native', native: true, platform: 'ios', search: '', userAgent: webkitDesktopUa, expected: true },
+  // 2026-09-10 起網站也恆開(commit 7907d849),所以「沒帶 ?plus=1」的期望值從 false 改成 true;
+  // 兩種 query 都留著,是為了證明開關不再看網址參數,而不是只換一個參數名。
   { name: 'chromium-web-plus', native: false, platform: 'web', search: '?plus=1', userAgent: chromiumDesktopUa, expected: true },
-  { name: 'chromium-web-off', native: false, platform: 'web', search: '', userAgent: chromiumDesktopUa, expected: false },
+  { name: 'chromium-web-off', native: false, platform: 'web', search: '', userAgent: chromiumDesktopUa, expected: true },
   { name: 'webkit-web-plus', native: false, platform: 'web', search: '?plus=1', userAgent: webkitDesktopUa, expected: true },
-  { name: 'webkit-web-off', native: false, platform: 'web', search: '', userAgent: webkitDesktopUa, expected: false },
+  { name: 'webkit-web-off', native: false, platform: 'web', search: '', userAgent: webkitDesktopUa, expected: true },
 ];
 
 assertAndroidPlusGate(html);
@@ -65,4 +67,15 @@ if (mutationAndroidValue !== true) {
   throw new Error(`移除 gate 後 Android native 應回到 true，實際為 ${mutationAndroidValue}`);
 }
 
-console.log(JSON.stringify({ target, results, negativeRejected, mutationAndroidValue }));
+// 第二個負樣本考的是新那條判準:在 Android 那行與 return true 之間插一條「原生一律通過」的分支。
+// 它不改 ANDROID_PLUS_GATE_LINE 本身,所以只有「其後不得再有分支」那條斷言擋得住;
+// 沒有它,上面那個負樣本會讓人以為整支 gate 都有牙。
+const insertedBranch = '  if (window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()) return true;';
+const bypassHtml = html.replace(`${ANDROID_PLUS_GATE_LINE}\n  return true;`,
+  `${ANDROID_PLUS_GATE_LINE}\n${insertedBranch}\n  return true;`);
+if (bypassHtml === html) throw new Error('負樣本二沒改到東西——initializer 形狀已變,請先對齊 assertAndroidPlusGate');
+let bypassRejected = false;
+try { assertAndroidPlusGate(bypassHtml); } catch { bypassRejected = true; }
+if (!bypassRejected) throw new Error('負樣本二在 Android gate 之後插入「原生一律通過」分支,verifier 仍放行');
+
+console.log(JSON.stringify({ target, results, negativeRejected, bypassRejected, mutationAndroidValue }));

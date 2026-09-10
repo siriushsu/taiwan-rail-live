@@ -61,6 +61,10 @@ sh('npm', ['run', 'check-bus-transfer'], { cwd: repoRoot });
 sh('npm', ['run', 'check-transfer-live-handoff'], { cwd: repoRoot });
 sh('npm', ['run', 'check-live-activity'], { cwd: repoRoot });
 sh('npm', ['run', 'check-tymc-kind'], { cwd: repoRoot });
+// PLUS_ENABLED 的形狀閘門本來只活在 prepare-web 裡(assertAndroidPlusGate),沒有正向對照,
+// 期望值過期了一整天沒人發現。這支帶兩個負樣本(改寫 gate 那行／在它後面插一條原生一律通過的
+// 分支),掛在這裡讓每顆 iOS build 先證明「該紅的時候真的會紅」。
+sh('npm', ['run', 'check-android-plus-gate'], { cwd: repoRoot });
 
 // ── 2／6　版號、更新了什麼、www、cap sync、發行閘門 ────────────────────────────
 // set-release-mode 自己會做：version train 實查、出貨基線涵蓋檢查、pbxproj 寫入＋回讀、

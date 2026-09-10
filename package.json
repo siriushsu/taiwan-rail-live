@@ -46,6 +46,7 @@
     "check-xbt-shuttle": "node scripts/verify_xbt_shuttle_motion.mjs",
     "check-crowd-outage": "node scripts/verify_crowd_and_outage.mjs",
     "check-plus": "node scripts/verify_plus_features.mjs",
+    "check-android-plus-gate": "node app/scripts/verify-android-plus-gate.mjs index.html",
     "check-widget-plus-sync": "node scripts/verify_metro_widget_plus_sync.mjs",
     "check-widget-previews": "node scripts/verify_widget_previews.mjs",
     "check-obs-removed": "node scripts/verify_obs_removed.mjs",
