@@ -5543,6 +5543,23 @@
         }
       }
     },
+    "已啟用": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Active"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有効"
+          }
+        }
+      }
+    },
     "已移除地點": {
       "extractionState": "manual",
       "localizations": {
@@ -14396,6 +14413,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "追跡中の駅の次列車をロック画面に表示します"
+          }
+        }
+      }
+    },
+    "地下列車可以改成實色：「更多」的「透視顯示」切到「實體」": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Underground trains can now be shown solid: switch See-through view to Solid under More."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "地下の列車を実体表示にできます：「その他」の「透視表示」を「実体」に切り替えます。"
           }
         }
       }
@@ -25263,6 +25297,23 @@
         }
       }
     },
+    "軌島通行證：訂閱內容與登入同步": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rail Island Pass: what it includes, and sign-in sync"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "軌島パス：特典とログイン同期"
+          }
+        }
+      }
+    },
     "軌島通行證已啟用": {
       "extractionState": "manual",
       "localizations": {
@@ -27044,6 +27095,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "桃園空港MRT"
+          }
+        }
+      }
+    },
+    "桃園機場捷運全線每一班都標得出直達車或普通車，首末班不再只顯示線號": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Every Taoyuan Airport MRT train on the whole line now shows whether it is Express or Commuter; the first and last trains no longer show only the line code."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "桃園空港MRTは全線すべての列車に直達か普通かの種別を表示するようになりました。始発と最終の列車も路線記号だけの表示ではなくなりました。"
           }
         }
       }
@@ -31957,6 +32025,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "パスには、台湾鉄路の過去90日の日別遅延履歴、iPhoneのホーム／ロック画面メトロウィジェットでの複数駅または移動に合わせる「自動（最寄り駅）」（1駅は無料）、お気に入りと完乗記録の端末間同期、旅程共有、追跡サウンドトラック（見ている列車と時刻に合わせて場面が切り替わります。無料のBGMには影響しません）、Googleマップ保存済みリストの読み込み、列車追跡中以外の高解像度衛星地図、iOS 17.6以降のロック画面／Dynamic Island追跡ライブ表示が含まれます。"
+          }
+        }
+      }
+    },
+    "通行證有自己的入口了：手機「更多」的第二列，電腦工具列多一顆，不再和「帳號同步」共用一格": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The pass now has its own entry: the second row in More on phones and a button of its own in the desktop toolbar, no longer sharing a slot with Account sync."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "パスに専用の入口ができました：スマートフォンは「その他」の2番目、パソコンはツールバーに独立したボタンがあり、「アカウント同期」と枠を共有しません。"
           }
         }
       }
@@ -44061,6 +44146,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "公式の到着情報が次の列車へ切り替わる際、乗換駅で一方向だけ一時的に欠けることがあります。その方向は時刻表で補うようにしました。"
+          }
+        }
+      }
+    },
+    "轉乘接續也列捷運了：高鐵桃園等轉乘站會顯示桃園機場捷運與高雄捷運的接續班次，機捷每一班還標出直達車或普通車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transfer connections now include metros: stations such as Taoyuan HSR list onward Taoyuan Airport MRT and Kaohsiung Metro departures, and every Airport MRT train shows whether it is Express or Commuter."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "乗り継ぎ案内にメトロが加わりました。桃園HSR駅などの乗換駅で桃園空港MRTと高雄メトロの次の発車を表示し、空港MRTは列車ごとに直達か普通かも示します。"
           }
         }
       }
