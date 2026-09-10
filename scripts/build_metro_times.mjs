@@ -6,8 +6,11 @@
 //   相鄰站的預期行駛秒(線檔 segs.run+停站)開時間窗,發車時刻逐站串成一班車;
 //   窗前多出的發車=中途始發(如板南線亞東醫院加班車),缺配對=通過不停(機捷直達)。
 // 台中捷運/三鶯線無 StationTimeTable → 以官方班距+首末班合成(estimated 標記)。
-// 輸出格式:lines[id] = { days:[週日..週六 → set 名], sets:{名:[班...]}, holiday:國定假日 set 名 };
+// 輸出格式:lines[id] = { days:[週日..週六 → set 名], sets:{名:[班...]}, holiday:國定假日 set 名,
+//   kinds:{名:車種字串} };
 //   一班 = [idx,sec, idx,sec, ...] 攤平的 (線檔站序 index, 當日發車秒) 對,跨午夜 sec>86400。
+//   kinds 只在上游有 TrainType 時輸出(目前只有機捷):與同名 set 等長同序,一班一字元
+//   —— 機捷 '1'=普通車 '2'=直達車(TDX TrainType 原值),'0'=官方未標。
 // 用法:node scripts/build_metro_times.mjs [--force-trtc]
 //   --force-trtc:無視下面的 TRTC 來源閘門硬重建北捷(補齊前只用於驗證,不要拿產物出貨)。
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -197,9 +200,14 @@ function buildLineTimes(line, routeSpecs, sttCache, stnNameCache, notes, allStop
           console.warn(`  ⚠ ${line.id} ${routeId}/${pat || "''"}: destByPattern 站號 ${destId} 查不到站名`);
         const groupDest = patternDest || dest;
         const key = [gname, spec.as ? '' : rec.Direction, groupDest, days, nh ? 'H' : '', pat].join('|');
-        if (!groups.has(key)) groups.set(key, { routeId: gname, dir: rec.Direction ?? 0, dest: groupDest, days, nh, tag: rec.ServiceDay.ServiceTag, pat, spec, stns: new Map(),
+        // 車種:TDX 每筆發車帶 TrainType(機捷 1=普通車 2=直達車),同一 StoppingPatternID 內恆一致
+        // → 掛在組上,讓前端不必再用停靠站序回推車種(首末班的跳站普通車回推不出來)。
+        const trainType = tts[0].TrainType ?? null;
+        if (!groups.has(key)) groups.set(key, { routeId: gname, dir: rec.Direction ?? 0, dest: groupDest, days, nh, tag: rec.ServiceDay.ServiceTag, pat, trainType, spec, stns: new Map(),
           reqFirstIdx: spec.requireFirst ? ctx.idxOf.get(stnName.get(spec.requireFirst)) : null });
         const g = groups.get(key);
+        if (g.trainType !== trainType)
+          console.warn(`  ⚠ ${line.id} ${routeId}/${pat || "''"}: 同組出現兩種 TrainType(${g.trainType} vs ${trainType}),車種標記以先到者為準`);
         const idx = ctx.idxOf.get(name);
         if (g.stns.has(idx)) { // 同組同站多筆記錄(虛擬路線合併時)→ 取聯集
           const merged = new Set([...g.stns.get(idx).deps, ...deps]);
@@ -375,7 +383,10 @@ function buildLineTimes(line, routeSpecs, sttCache, stnNameCache, notes, allStop
           if (!ok) break;
         }
       }
-      if (ok) good.push(c.stops.flat()); else stats.dropped++;
+      if (!ok) { stats.dropped++; continue; }
+      const tr = c.stops.flat();
+      if (g.trainType != null) tr.kind = g.trainType; // 陣列的非索引屬性不會被 JSON.stringify 輸出
+      good.push(tr);
     }
     stats.trains += good.length;
     for (let w = 0; w < 7; w++) if (g.days[w] === '1') {
@@ -385,15 +396,18 @@ function buildLineTimes(line, routeSpecs, sttCache, stnNameCache, notes, allStop
     if (g.nh) { byHol.push(...good); holTags.add(g.tag); }
   }
   // 各曜日班表去重成 sets(內容相同共用一份)
-  const sets = {}; const days = []; const seen = new Map();
+  const sets = {}; const kinds = {}; const days = []; const seen = new Map();
+  // kinds[set 名] = 與該 set 等長同序的車種字串,一班一字元('0'=官方未標);無車種資料的線不輸出
+  const kindStr = trains => { const s = trains.map(t => t.kind || 0).join(''); return /[^0]/.test(s) ? s : null; };
   for (let w = 0; w < 7; w++) {
     const trains = byDay[w].slice().sort((a, b) => a[1] - b[1]);
-    const sig = trains.map(t => t[1] + '.' + t[0] + '.' + t.length).join(',');
+    const sig = trains.map(t => t[1] + '.' + t[0] + '.' + t.length + '.' + (t.kind || 0)).join(',');
     if (!seen.has(sig)) {
       const tag = [...tagOfDay[w]].sort().join('+') || '無班次';
       let key = tag, i = 2;
       while (key in sets) key = tag + i++;
       sets[key] = trains; seen.set(sig, key);
+      const ks = kindStr(trains); if (ks) kinds[key] = ks;
     }
     days.push(seen.get(sig));
   }
@@ -401,16 +415,17 @@ function buildLineTimes(line, routeSpecs, sttCache, stnNameCache, notes, allStop
   let holiday = null;
   if (byHol.length) {
     const trains = byHol.slice().sort((a, b) => a[1] - b[1]);
-    const sig = trains.map(t => t[1] + '.' + t[0] + '.' + t.length).join(',');
+    const sig = trains.map(t => t[1] + '.' + t[0] + '.' + t.length + '.' + (t.kind || 0)).join(',');
     if (!seen.has(sig)) {
       const tag = [...holTags].sort().join('+') || '國定假日';
       let key = tag, i = 2;
       while (key in sets) key = tag + i++;
       sets[key] = trains; seen.set(sig, key);
+      const ks = kindStr(trains); if (ks) kinds[key] = ks;
     }
     holiday = seen.get(sig);
   }
-  return { days, sets, holiday, stats };
+  return { days, sets, holiday, kinds, stats };
 }
 
 // ── 班距合成(TMRT/三鶯線):首末班+時段班距 → 推算班表 ──
@@ -609,6 +624,7 @@ for (const sys of SYSTEMS) {
     const r = buildLineTimes(line, specs, sttCache, stnNameCache, notes, sys.allStop !== false);
     out.lines[lid] = { days: r.days, sets: r.sets };
     if (r.holiday) out.lines[lid].holiday = r.holiday;
+    if (Object.keys(r.kinds).length) out.lines[lid].kinds = r.kinds;
     const setInfo = Object.entries(r.sets).map(([k, v]) => `${k}:${v.length}班`).join(' ');
     console.log(`  ${lid.padEnd(12)} ${setInfo}  (中途始發${r.stats.midStart} 併碎片${r.stats.merged} 缺終點${r.stats.noDest} 剔除${r.stats.dropped})`);
   }

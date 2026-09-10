@@ -5267,6 +5267,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="tymctraintype0910"><span class="d">9/10</span><span>桃園機場捷運全線每一班都標得出直達車或普通車，首末班不再只顯示線號</span></li>
         <li data-cl-of="solidtrain0910"><span class="d">9/10</span><span>地下列車可以改成實色：「更多」的「透視顯示」切到「實體」</span></li>
         <li data-cl-of="weblogin0910"><span class="d">9/10</span><span>修正網站上的 Google 與 Apple 登入會顯示登入失敗的問題，登入後收藏與完乘即可同步</span></li>
         <li data-cl-of="webpass0910"><span class="d">9/10</span><span>網站也能用軌島通行證了：用同一個軌島帳號登入，App 訂的資格就在網站生效</span></li>
@@ -5274,7 +5275,6 @@
         <li data-cl-of="nightroads0909"><span class="d">9/9</span><span>夜間地景的道路、機場鋪面與底圖鐵道跟著地面一起變暗，不再蓋過軌道與列車；白天配色維持不變</span></li>
         <li data-cl-of="metrotrackside0909"><span class="d">9/9</span><span>捷運與輕軌雙軌改為靠右行駛，來車與去車各走正確的一側；原本多數路線的兩個方向畫反了</span></li>
         <li data-cl-of="ppformation0909"><span class="d">9/9</span><span>推拉式自強號畫出完整 14 節（前後機車加 12 節客車），不再只顯示 3 節示意</span></li>
-        <li data-cl-of="terrainrebuild0909"><span class="d">9/9</span><span>修正地形資料較慢載入時，橋梁與橋墩會被地面埋住的問題；地形到齊後會自動回到正確高度</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5283,6 +5283,7 @@
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
         <li data-cl="solidtrain0910"><span class="d">9/10</span><span>地下路段的列車可以顯示原本的車身顏色：「更多」的「透視顯示」切到「實體」，地下列車就不再半透明；這個開關同時管建築，切回「透視」時建築與地下列車都看得穿。</span></li>
+        <li data-cl="tymctraintype0910"><span class="d">9/10</span><span>桃園機場捷運的車種改讀官方時刻表的車種欄位，全線每一班都標得出直達車或普通車：先前是從停靠站型態回推，首末班有十幾班的跳法兩種都不像、只能標線號，機場第一航廈到第二航廈的區間班次也被當成普通車。</span></li>
         <li data-cl="tunnelgrade0910"><span class="d">9/10</span><span>全台鐵道與捷運的隧道改成兩端洞口之間的連續縱坡，內部不再跟著山坡起伏；原本山區隧道會在畫面上翻過山頭，北迴線新觀音隧道一度爬升 538 公尺</span></li>
         <li data-cl="nightroads0909"><span class="d">9/9</span><span>夜間地景的道路、機場鋪面與底圖鐵道跟著地面一起變暗，不再蓋過軌道與列車；白天配色維持不變</span></li>
         <li data-cl="metrotrackside0909"><span class="d">9/9</span><span>捷運與輕軌雙軌改為靠右行駛，來車與去車各走正確的一側；原本多數路線的兩個方向畫反了</span></li>
@@ -7381,33 +7382,19 @@ function abbrOf(ln) {
   if (/^[A-Za-z]/.test(ln.id)) return ln.id.split('_')[0];
   return TRA_ABBR[ln.id] || ln.name.replace(/（.*$/, '');
 }
-// 機捷車種:班表沒有 pattern 欄位(build 端只拿 StoppingPatternID 分桶串接,不寫進輸出),
-// 但直達車跳站、普通車站站停 ⇒ 停靠樣態就是車種本身。全線唯一一條 A 線,牌上不必再寫線代號。
-//
-// 官方時刻表(timetable.php)的圖例逐字實查,一共五類:
-//   加底線＝直達車(停靠A1、A3、A8、A12、A13)          → index [0,2,7,11,12]
-//   加星號＝尖峰增停直達車(…再加A18、A21)             → index [0,2,7,11,12,17,20]
-//   加菱形＝**尖峰跳站普通車**(停靠A21、A18、A13、A12、A9→A1每站)
-//   一般  ＝普通車(每站停靠)
-//   加三角＝增開往機場服務班次(A1→A13;A22→A12,每站停靠之普通車)
-// 🔴 所以「跳站＝直達車」是錯的——官方有跳站的普通車。官方公告寫得更白:
-//   「114/10/16起,平日上午07:00自A21環北站發車北上直達車,改以普通車車型跳站運行」。
-// 因此只認前兩種樣態;首末班另有每天約 17 班跳法與兩者都不同的班次(23:08 台北車站→老街溪
-// 前段跳站後段站站停、23:23 跳過 A2–A9…),班表沒有帶車種欄位、逐班硬編又會隨改點失效
-// ⇒ **留白顯示線代號,不猜**。標錯車種比不標更糟:使用者會照著它決定要不要上車。
-// 根本解是讓 build_metro_times.mjs 把 TDX 的 TrainType 一起寫進 tymc_times.json(尚未做)。
-const TYMC_EXPRESS_SOUTH = [0, 2, 7, 11, 12, 17, 20];
+// 機捷車種:直達車跳站、普通車站站停,但「跳站＝直達車」是錯的——官方另有跳站的普通車
+// (官方公告:「114/10/16起,平日上午07:00自A21環北站發車北上直達車,改以普通車車型跳站運行」),
+// 首末班還有每天約 17 班跳法與前兩者都不同。所以車種不由停靠樣態回推,直接讀官方值:
+// TDX StationTimeTable 每筆發車帶 TrainType(機捷 1=普通車 2=直達車),build_metro_times.mjs 把它
+// 寫進 tymc_times.json 的 kinds(與同名 set 等長同序,一班一字元),prepFreqTimes 建成 ln._ttKind。
+// 官方沒標的班次照舊留白顯示線代號,不猜——標錯車種比不標更糟:使用者會照著它決定要不要上車。
+// 全線唯一一條 A 線,牌上不必再寫線代號。
 const TYMC_KIND_TAG = { exp: '直', com: '普' };          // 車牌:單字,牌寬與原本的「A」相當
 const TYMC_KIND_NAME = { exp: '直達車', com: '普通車' }; // 跟隨卡/看板:全稱
+const TYMC_TRAIN_TYPE = { 1: 'com', 2: 'exp' };          // TDX TrainType 原值 → 內部代號
 function tymcKindOf(ln, tr) {
-  if (!ln || freqSysIdOf(ln) !== 'tymc' || !tr || tr.length < 4) return null;
-  const stops = []; for (let i = 0; i < tr.length; i += 2) stops.push(tr[i]);
-  // 站站停(索引連號,南下遞增北上遞減)＝普通車;短程區間車一樣認得出來
-  if (stops.every((v, i) => i === 0 || Math.abs(v - stops[i - 1]) === 1)) return 'com';
-  // 跳站:只有恰好落在官方樣態上(基本直達車＝完整樣態的前綴/後綴)才敢標直達
-  const full = stops[0] < stops[stops.length - 1] ? TYMC_EXPRESS_SOUTH : [...TYMC_EXPRESS_SOUTH].reverse();
-  const seg = stops[0] < stops[stops.length - 1] ? full.slice(0, stops.length) : full.slice(full.length - stops.length);
-  return stops.length === seg.length && stops.every((v, i) => v === seg[i]) ? 'exp' : null;
+  if (!ln || !tr || !ln._ttKind || freqSysIdOf(ln) !== 'tymc') return null;
+  return TYMC_TRAIN_TYPE[ln._ttKind.get(tr)] || null;
 }
 function textColorFor(hex) {
   const m = hex.replace('#', '');
@@ -7606,7 +7593,7 @@ const TW_DAYTYPE = {
   '2027-10-10': 1, '2027-10-11': 1, '2027-10-25': 1, '2027-12-24': 1, '2027-12-25': 1, '2027-12-31': 1,
 };
 function prepFreqTimes(ln, serviceDayOverride) {
-  ln._tt = null;
+  ln._tt = ln._ttKind = null;
   ln._metroRateCap = ln._metroMotion = null; // 追趕倍率是對這一天的 _tt 取最大值，換日型要重算
   const serviceDay = String(serviceDayOverride || taipeiServiceDayStr());
   ln._ttServiceDay = serviceDay;
@@ -7620,6 +7607,13 @@ function prepFreqTimes(ln, serviceDayOverride) {
   // 臨時營運調整(data/special_ops.json → dates):特定日期的官方例外班表,優先於週幾/國定假日判定
   if (t.dates && t.dates[serviceDay] && t.sets && t.sets[t.dates[serviceDay]]) day = t.dates[serviceDay];
   ln._tt = (day && t.sets && t.sets[day]) || [];
+  // 車種(目前只有機捷有 kinds):與同名 set 等長同序、一班一字元的官方 TrainType。建成
+  // 「班次陣列 → 字元」的 Map,畫車每幀查表要 O(1)。長度對不上就整份不採用——寧可留白也不標錯。
+  const kd = day && t.kinds && t.kinds[day];
+  if (kd && ln._tt.length && kd.length === ln._tt.length) {
+    ln._ttKind = new Map();
+    for (let i = 0; i < ln._tt.length; i++) if (kd[i] !== '0') ln._ttKind.set(ln._tt[i], kd[i]);
+  }
 }
 // 跨午夜正規化:班次秒值可 >86400,清晨檢視時把前一日跨午夜班接回來(比照 sched trainPos)
 function freqTrainTime(tr, t) {
