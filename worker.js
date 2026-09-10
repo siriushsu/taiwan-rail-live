@@ -5136,7 +5136,9 @@ async function passAdmin(request, env) {
   const key = String(env.PASS_ADMIN_KEY || '');
   if (!key) return jsonRes({ error: 'not_configured' }, 503, 'no-store');
   const url = new URL(request.url);
-  const given = request.headers.get('x-pass-admin') || url.searchParams.get('key') || '';
+  // 🔴 密鑰只收 header,不接受 ?key=——query string 會進 Cloudflare 存取日誌與瀏覽器歷史,
+  //    頁面再連出去時還會跟著 Referer 走。curl 改帶 -H 'x-pass-admin: …' 即可,沒有少任何便利。
+  const given = request.headers.get('x-pass-admin') || '';
   if (!await constantTimeHeaderEqual(given, key)) return jsonRes({ error: 'forbidden' }, 403, 'no-store');
   try {
     await ensurePassSchema(env);
