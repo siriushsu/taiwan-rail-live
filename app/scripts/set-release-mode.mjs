@@ -333,10 +333,21 @@ const MODES = {
     //   同輪追加裁示「搜尋那邊，希望可以打車型來搜尋」⇒ 新增車型查詢(commit d2ee77fb),是新功能
     //   而非修正,三語各補一條。英文為此把 3D 車站那條與跟車那條收短讓出字數(Play 上限 500)。
     // 105／Android 45（44 因 AGP 解壓模型缺檔不交付）：v0908h，保留 104 的跟車行為；加上手機 3D 效能、逐節沿軌修正與主線收藏車庫等更新。
-    marketing: '1.6.1', build: '106', music: true, metroCore: true,
-    why: "軌島 1.6.1\n\n・新增自然色的地景地圖，呈現森林、河流、公園、田地與立體建築，並補上 25 組歷史建築\n・新增日夜光影：天空、建築與山坡隨地圖時間呈現晨光、夕色與夜幕，可在更多設定關閉\n・軌道依地下、地面與高架分層，高架補上示意橋面與橋墩；地下列車以半透明呈現\n・手機跟車與放空跟車加入車頭鎖定，縮放旋轉保持置中，解鎖可自由移動，再開啟回到原列車\n・修正台鐵股道銜接與象山至廣慈／奉天宮雙向軌道，改善立體地圖近景與遠方標記的顯示\n・改善收藏車庫三節編組、車窗光影與環形試跑跟隨，校正藍皮解憂號外觀",
-    whyEn: "Rail Island 1.6.1\n\n• A natural landscape map with forests, rivers, parks, fields, 3D buildings and 25 historic building groups\n• Day and night lighting follows map time across the sky, buildings and hillsides; turn it off in More settings\n• Separate underground, surface and elevated tracks, with illustrative bridge decks and piers and translucent underground trains\n• Train-head lock for mobile following and ambient mode: zoom and rotate around the train, unlock to explore and lock again to return\n• Improved TRA track connections, the Xiangshan–Guangci/Fengtian Temple tracks and distant map labels\n• Improved garage formations, window lighting and circular-track following, plus the Blue Train model",
-    whyJa: "軌島 1.6.1\n\n・森林、川、公園、田畑、立体建物と 25 組の歴史建築を表示する地景地図を追加\n・地図の時刻に合わせて空、建物、山肌が朝・夕・夜の光に変化。その他の設定で無効にできます\n・地下、地上、高架の線路を分け、高架に模式的な橋桁と橋脚を追加。地下列車は半透明で表示\n・スマートフォンとリラックスモードに先頭車両ロックを追加。拡大・回転中も追従し、解除して自由に移動、再ロックで元の列車へ戻れます\n・台鉄の線路接続、象山〜廣慈／奉天宮の複線と遠方のラベル表示を改善\n・車庫の編成、窓の光、環状試走の追従と藍皮解憂号モデルを改善",
+    // 109／Android 49（2026-09-11 00:2x）：**1.6.1 已於 2026-09-09T23:02:33Z 上架**
+    //   （Apple lookup 帶 no-cache 實查；releaseNotes 逐字比對就是 108 那一份，所以上架的是 108）
+    //   ⇒ 1.6.1 train 已關，行銷版號進到 1.6.2。108 的 archive 還在 Archives 底下（規則四：
+    //   一個 build 號只對應一份載貨）⇒ 進 109；Android 桌面已有一顆叫 48 的 AAB，同理進 49。
+    //   🔴 Android 那一側 48 **沒有上傳**（Play 商店頁實查更新日期仍是 2026-09-09＝versionCode 47），
+    //   所以 48 的載貨從來沒到 Android 使用者手上；49 是接在 47 之後的下一顆，內容是 48 的超集。
+    //   載貨＝origin/main b150f646（網站 BUILD v0910g），相對上架的 1.6.1 載貨基底 3e68d1a8
+    //   多七條更新紀錄正本：通行證獨立入口、通行證免登入預覽、網站也能用通行證、地下列車實色、
+    //   轉乘接續納入機捷與高捷、機捷車種讀官方值、網站登入修復。
+    //   why 三語寫其中六條；weblogin0910 是網站專屬（更新紀錄自己就寫著「App 內的登入不受影響」），
+    //   不佔店頭 500 字元。
+    marketing: '1.6.2', build: '109', music: true, metroCore: true,
+    why: "軌島 1.6.2\n\n・通行證有自己的入口：手機從「更多」打開就在第二列，電腦在工具列上有一顆「通行證」\n・通行證不用先登入也看得到有哪些功能，要看價格或訂閱時才需要登入\n・網站也能用軌島通行證：用同一個軌島帳號登入，App 訂的資格在網站就生效\n・地下路段的列車可以顯示原本的車身顏色：「更多」的「透視顯示」切到「實體」\n・轉乘接續加入捷運：高鐵桃園、台北車站、左營等站會列出桃園機場捷運與高雄捷運紅線、橘線\n・桃園機場捷運的車種改讀官方時刻表，全線每一班都標得出直達車或普通車",
+    whyEn: "Rail Island 1.6.2\n\n• The Pass has its own entry: second row of the More drawer on phones, its own toolbar button on desktop\n• Open the Pass without signing in; sign in only for prices or to subscribe\n• Use the Pass on the website with the same Rail Island account\n• Underground trains in their real colors: set See-through view to Solid\n• Transfers now list Airport MRT and Kaohsiung MRT connections\n• Airport MRT runs are marked Express or Commuter from the official timetable",
+    whyJa: "軌島 1.6.2\n\n・パスに専用の入口を追加：スマートフォンは「その他」の 2 行目、パソコンはツールバーの「パス」\n・ログインしなくてもパスの内容を確認できます。価格の表示と購入のときだけログインが必要です\n・ウェブでも軌島パスが使えます：同じ軌島アカウントでログインすると App の権利が有効になります\n・地下区間の列車を本来の車体色で表示：「その他」の「透視表示」を「実体」に切り替え\n・乗り継ぎに地下鉄を追加：高鉄桃園、台北駅、左営などで桃園空港 MRT と高雄 MRT 紅線・橘線を表示\n・桃園空港 MRT の種別を公式時刻表から取得し、全列車を直達列車／普通列車で表示",
 
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
