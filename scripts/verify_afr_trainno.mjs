@@ -315,10 +315,39 @@ const predOf = key => {
   const b = sp.branchLines.find(x => x.id === id), ss = new Set(b.matchStations);
   return t => t.stops.some(x => ss.has(x.name));
 };
-// 今天沒車、但窗內還有的章——這正是使用者點下去會出事的那一種
+// 今天沒車、但窗內還有的章——這正是使用者點下去會出事的那一種。G1 拿它逐日比對。
 const missKeys = [...expectOf].filter(([k, v]) => !v.size).map(([k]) => k).filter(k => futureOf(predOf(k)).length);
 ok(!dense.dates[TODAY] === false, `G0 班表窗涵蓋今天（${TODAY} ∈ ${dense.dateRange.join('～')}）——不涵蓋時產品不報日期,下面的 G1/G3 也不成立`);
-ok(missKeys.length > 0, `G0 今天沒車但窗內還有的章共 ${missKeys.length} 枚：${missKeys.join('、') || '無'}`);
+console.log(`  · 磁碟算出「今天沒車、窗內還有」的章 ${missKeys.length} 枚：${missKeys.join('、') || '無'}（G1 的比對對象）`);
+
+// G3／G5／G7 要真的點一枚「今天沒有班次」的章。舊寫法把樣本綁死在 missKeys 上並硬斷言它非空,
+// 兩個後果:①那一組在真實班表上是浮動的——同一份磁碟資料實算 2026-09-09 有 2 枚、09-10 有 1 枚、
+// 09-11 起連三天 0 枚 ⇒ 每半個月有幾天 G0 直接紅掉把整條出貨鏈擋住(2026-09-11 實際發生);
+// ②0 枚那幾天 G5／G7 是靜靜地不跑,連紅都沒有,覆蓋率無聲縮水。
+// 🔴 樣本的判準還要問產品,不能只看磁碟:2026-09-11 磁碟說 named:shanhai／named:pingyuan 今天沒車,
+//    產品卻跟得到 tra_sched#8888——那兩班是本站原創的虛構列車,根本不在台鐵班表檔裡。
+// 沒有天然樣本時改用注入(與 G5／G6 同一套手法):挑一枚今天有車、窗內也還有車的章,把它的車從
+// state.trains 濾掉。dexCandidates 讀 state.trains(今天有沒有車)、dexRunDates 讀 d.dates
+// (未來哪幾天有車),兩邊來源不同 ⇒ 濾掉前者就精準造出「今天沒車、窗內還有」,日期期望值一行都不用改。
+// state.trains 在 index.html 只有一個寫入點(切換系統時重建),動畫 tick 不會把濾掉的車放回來。
+const keyList = [...expectOf.keys()];
+const pageNone = await page.evaluate(ks => ks.filter(k => {
+  const i = k.indexOf(':'); return dexCandidates(k.slice(0, i), k.slice(i + 1)).length === 0;
+}), keyList);
+const gNatural = missKeys.find(k => pageNone.includes(k)) || pageNone[0] || null;
+const gKey = gNatural || keyList.find(k => !pageNone.includes(k) && futureOf(predOf(k)).length) || null;
+const gSynth = !gNatural && !!gKey;
+ok(!!gKey, `G0 取得「今天沒有班次」的樣本章：${gKey || '(取不到)'}${gKey ? (gSynth ? '（注入:濾掉它今天的車）' : '（天然）') : ''}`);
+// 注入與還原。回傳注入後的今日候選數,呼叫端拿它當正向對照——沒濾成 0 就代表下面驗的是別條路。
+const synthOn = (pg, key) => pg.evaluate(k => {
+  const i = k.indexOf(':'), m = dexMatcher(k.slice(0, i), k.slice(i + 1));
+  window.__afrSynthSaved = state.trains;
+  state.trains = state.trains.filter(t => !(t.sys === 'tra_sched' && m(t)));
+  return dexCandidates(k.slice(0, i), k.slice(i + 1)).length;
+}, key);
+const synthOff = pg => pg.evaluate(() => {
+  if (window.__afrSynthSaved) { state.trains = window.__afrSynthSaved; window.__afrSynthSaved = null; }
+});
 const denseOk = await page.evaluate(() => {
   const d = (state.systems.find(s => s.id === 'tra_sched') || {}).data;
   return { kept: Array.isArray(d && d._denseTrains), len: (d && d._denseTrains || []).length, stale: !!(d && d._schedStale) };
@@ -353,13 +382,15 @@ ok(g2 > 0 && g2 === [...expectOf].filter(([, v]) => v.size).length,
   `G2 ${g2} 枚有候選的章,述詞掃今日索引的結果與 dexCandidates 一致`);
 
 // G3(真做一次那個互動):點下去要看到卡,而且不准跟到任何車。
-const gKey = missKeys[0];
-if (!gKey) ok(false, 'G3 今天沒有可用的樣本章,跳過');
+if (!gKey) ok(false, 'G3 取不到樣本章,跳過');
 else {
   const [cat, id] = [gKey.slice(0, gKey.indexOf(':')), gKey.slice(gKey.indexOf(':') + 1)];
   const rec = (cat === 'named' ? sp.namedTrains : cat === 'stock' ? sp.rollingStock : sp.branchLines).find(x => x.id === id);
+  if (gSynth) ok(await synthOn(page, gKey) === 0, `G3 注入生效:${gKey} 今天的候選被濾成 0（沒濾成 0 就代表下面驗的是「有車可搭」那條路）`);
   const wantDay = futureOf(predOf(gKey))[0];
-  const wantLabel = `${Number(wantDay.slice(5, 7))}/${Number(wantDay.slice(8, 10))}`;
+  // 窗內還有 ⇒ 卡上要出現那一天;窗內都沒有 ⇒ 要改口講窗尾(與 G6 驗同一條產品路徑,差別在這裡是真的章、真的點擊)。
+  const endLabel = `${Number(WINDOW_END.slice(5, 7))}/${Number(WINDOW_END.slice(8, 10))}`;
+  const wantLabel = wantDay ? `${Number(wantDay.slice(5, 7))}/${Number(wantDay.slice(8, 10))}` : endLabel;
   const el = page.locator(`#passport .seal[data-cat="${cat}"][data-id="${id}"]`);
   await page.evaluate(() => { state.followTrain = null; hideHelpPop(); });
   await el.click();
@@ -371,7 +402,10 @@ else {
   ok(g3.follow === null, `G3 點下去不跟任何車（實際：${g3.follow || '沒跟到車'}）`);
   ok(g3.text.includes(rec.name), `G3 卡上有章名「${rec.name}」`);
   ok(g3.text.includes('今天沒有班次'), 'G3 卡上明講「今天沒有班次」');
-  ok(g3.text.includes(wantLabel), `G3 卡上有下次開行日 ${wantLabel}（磁碟算出的 ${wantDay}）`);
+  ok(g3.text.includes(wantLabel), wantDay
+    ? `G3 卡上有下次開行日 ${wantLabel}（磁碟算出的 ${wantDay}）`
+    : `G3 這枚章窗內都沒有班次,卡上改口講窗尾 ${wantLabel}（${WINDOW_END}）`);
+  if (!wantDay) ok(!g3.text.includes('下一班'), 'G3 窗內都沒有時不得出現「下一班」字樣');
   ok(rec.story && g3.text.includes(rec.story.slice(0, 16)),
     `G3 卡上有這班車的故事（比對資料檔開頭 16 字：「${(rec.story || '').slice(0, 16)}」）`);
   // G3b:游標移開不能讓卡消失(.help-pop 是 pointer-events:none,不黏住就讀不完)
@@ -383,6 +417,7 @@ else {
   await page.evaluate(() => document.body.dispatchEvent(new MouseEvent('click', { bubbles: true })));
   await page.waitForTimeout(250);
   ok(await page.evaluate(() => document.getElementById('helpPop').hidden) === true, 'G3c 點別處後卡片收起');
+  if (gSynth) await synthOff(page);   // 還原:G4 的控制組要有車可搭
 }
 
 // G4(反向控制組):今天有車的章照舊直接跟車,卡不准出現——防「一律改成開卡」的假修法。
@@ -452,6 +487,7 @@ if (gKey) {
   ok(await mp.evaluate(() => HELP_POP_HOVER) === false, 'G7 手機殼確實沒有 hover（HELP_POP_HOVER=false,否則下面驗的是桌面那條路）');
   await mp.evaluate(() => openRidePanel());
   await mp.waitForTimeout(400);
+  if (gSynth) ok(await synthOn(mp, gKey) === 0, `G7 注入生效:手機頁 ${gKey} 今天的候選被濾成 0`);
   const msel = `#ridePanel .seal[data-cat="${cat}"][data-id="${id}"]`;
   const mel = mp.locator(msel);
   if (!await mel.count()) ok(false, `G7 手機護照 sheet 裡找不到樣本章（${msel}）`);
