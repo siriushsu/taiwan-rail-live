@@ -278,7 +278,7 @@
    "effectiveDateField": null,
    "geometrySource": "TDX+OSM",
    "coordinateBasis": "WGS84(OSM 段);TDX 段未載明(payload 無 CRS 欄位)——兩者實測同框,build_tdx.mjs 對 K03 的座標修正即以 OSM 座標落在 TDX 軌道幾何上離軌 0m 為據",
-   "checksum": "80119bc52c79b4b8389b984680535223"
+   "checksum": "8a2e68b3a3090106dd1addba4d6ae3fc"
   },
   "data/track_style_layers.json": {
    "sourceDescription": "軌道/站點的 MapLibre style 片段(三層、四種 runtime 狀態、三主題、跟隨兩層),顏色由 index.html 的 MAP_PAL 與 railMix 常數推導;scripts/verify_track_geojson.mjs G8/G10 對 index.html 逐值驗算",
@@ -299,13 +299,13 @@
    "checksum": "74eed5950e8ccb08d3b6bf8937bbf4d0"
   },
   "data/trtc.json": {
-   "sourceDescription": "信義東延段廣慈/奉天宮站(R01)於 TDX 上架前先行補入(2026-08-28):站點與線形取自 OSM,站間行駛時間依信義線平均營運速度估算,TDX 上架後應以官方值取代;交通部 TDX 運輸資料流通服務(台北捷運路線幾何/站序/班距/站間行駛時間,2026-07 抓取);",
+   "sourceDescription": "信義東延段廣慈/奉天宮站(R01):站點座標取 TDX 官方值(2026-09-10 上架後換掉先行補入的 OSM 值);線形取自 OSM(TDX 的 R 線幾何仍無東延段);沿線里程指 OSM 月台停車點;站間行駛時間仍為估算(TDX 尚未提供 R01 區間),上架後應以官方值取代;",
    "sourceField": "source_notes",
    "effectiveDate": null,
    "effectiveDateField": null,
    "geometrySource": "TDX+OSM",
    "coordinateBasis": "WGS84(OSM 段);TDX 段未載明(payload 無 CRS 欄位)——兩者實測同框,build_tdx.mjs 對 K03 的座標修正即以 OSM 座標落在 TDX 軌道幾何上離軌 0m 為據",
-   "checksum": "d412128a902bae91e8e4faaf1191a840"
+   "checksum": "62fe984ebdd8a2da96a07389c107fabf"
   },
   "data/trtc_codes.json": {
    "sourceDescription": "交通部 TDX Rail/Metro/TRTC/Station 的站碼與站名(實查 data/tdx/TRTC_Station.json,121/121 逐筆一致);所屬路線取自同批 TRTC_StationOfLine",
