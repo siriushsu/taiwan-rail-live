@@ -90,7 +90,19 @@ const noteLoud = (level, msg, detail) => {
 };
 
 const SAMPLE = () => {
-  const map = window.__map;
+  // 🔴 2026-09-07 主站換 MapLibre 之後 window.__map 是 raw maplibregl.Map,身上【沒有】Leaflet
+  //    那組座標換算(latLngToContainerPoint／containerPointToLatLng／distance)。整支掃描器就是
+  //    死在這裡:先是下面的 fitBounds 收到 Leaflet 順序的 [lat,lng] 當場丟
+  //    "Invalid LngLat latitude value",修掉之後換 SAMPLE 丟 not a function。
+  //    改走轉接層 M(index.html 的 Leaflet 相容殼)——它正是產品畫車時用的那個投影
+  //    (mapDetailPoint → M.toScreen);「浮點座標投影後落不落在畫出來的位置 2px 內」是身分判準,
+  //    本來就該與畫車同一個投影,換成別的投影只會生出假的 mismatch。
+  const map = {
+    latLngToContainerPoint: ll => M.toScreen(ll),
+    containerPointToLatLng: pt => M.fromScreen(pt),
+    distance: (a, b) => M.distance(a, b),
+    getZoom: () => M.getZoom(),                      // Leaflet 尺標的 zoom,與歷史日誌的數字同一把尺
+  };
   const hits = state._freqHits || [];
   const out = [];
   // 🔴 2026-09-01：Metro Core（2026-08-26 上正式站）接手畫捷運之後，畫面上的車已經不是
@@ -281,7 +293,8 @@ const switched = await page.evaluate(() => {
   return g ? g.id : null;
 });
 await page.waitForTimeout(2500);
-await page.evaluate(() => window.__map.fitBounds([[24.90, 121.30], [25.25, 121.75]], { animate: false }));
+// 🔴 一律走轉接層 M:raw MapLibre 的 fitBounds 收 [lng,lat],這組是 Leaflet 順序的 [lat,lng]。
+await page.evaluate(() => M.fitBounds([[24.90, 121.30], [25.25, 121.75]], { animate: false }));
 await page.waitForTimeout(3000);
 
 if (GAP_SEC < MIN_GAP_SEC)
