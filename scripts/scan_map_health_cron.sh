@@ -62,6 +62,28 @@ if [ "$CODE" -ne 0 ] && printf '%s' "$OUT" | grep -qE "$NETFAIL"; then
   if [ "$CODE" -ne 0 ] && printf '%s' "$OUT" | grep -qE "$NETFAIL"; then CODE=2; fi
 fi
 
+# 🔴 2026-09-10:掃描器 09-05→09-10 連續五天當機(主站換 MapLibre 之後它還在用 Leaflet 的
+# 座標 API),而通知每十分鐘照發「偵測到異常」——因為在這支殼裡「掃描器自己死了」與「掃描器
+# 發現產品有問題」長得一模一樣:下面的 SUMMARY 只收 ✅／❌ 開頭的行,例外堆疊一行都不符合,
+# 於是崩潰原因連日誌都進不去(那五天的日誌只剩 manifest 那一行),通知欄的 MSG 同理是空的。
+# 判別法是「這一輪有沒有產出任何判準」:一條都沒有＝它沒跑完,不是它有發現。
+# 刻意排除 CODE=2(網路類失敗／收班零台車):那本來就有自己的措辭,不算掃描器壞掉。
+SCAN_VERDICTS="$(printf '%s\n' "$OUT" | grep -cE '^[✅❌]')"
+STREAK_FILE="$OUTDIR/.no-verdict-streak"
+if [ "$CODE" -ne 0 ] && [ "$CODE" -ne 2 ] && [ "$SCAN_VERDICTS" -eq 0 ]; then
+  STREAK=$(( $(cat "$STREAK_FILE" 2>/dev/null || echo 0) + 1 ))
+  # 例外的首行才是原因(node 的 triggerUncaughtException 那幾行是雜訊)。刻意不截斷:
+  # 這一行要能進 SUMMARY,而綠的日誌行本來就有八百字,長度不是問題,截斷反而會切壞 UTF-8。
+  DIAG="$(printf '%s\n' "$OUT" | grep -m1 -E 'Error|Exception|Timeout|not a function|not defined')"
+  OUT="${OUT}
+❌ 掃描器沒跑出任何判準(連續 ${STREAK} 輪)：${DIAG:-無可辨識的錯誤行,全文見 last-failure.txt}"
+  printf '%s' "$STREAK" > "$STREAK_FILE"
+elif [ "$SCAN_VERDICTS" -gt 0 ]; then
+  STREAK=0; printf '0' > "$STREAK_FILE"        # 真的吐出判準才算活著,才准歸零
+else
+  STREAK="$(cat "$STREAK_FILE" 2>/dev/null || echo 0)"   # 網路類失敗:不增不減,免得遮住進行中的當機
+fi
+
 if [ "$MANI_CODE" -ne 0 ]; then
   OUT="${OUT}
 ❌ manifest 閘門紅：main 的 data/ 與清單不同步（改 data/ 那輪要跑 npm run build-manifest；紅行見明細）
@@ -81,7 +103,11 @@ ls -1t "$OUTDIR"/*.json 2>/dev/null | tail -n +201 | while read -r f; do rm -f "
 if [ "$CODE" -ne 0 ]; then
   # 全文留檔，通知只帶一行——通知欄放不下，也不該逼人在通知裡讀明細
   printf '%s\n' "$OUT" > "$OUTDIR/last-failure.txt"
-  TITLE="軌島地圖巡檢：$([ "$CODE" = 2 ] && echo '掃描沒跑起來' || echo '偵測到異常')"
+  # 三種互斥的紅,措辭要分得開:沒跑起來(環境)／自己掛了(判準工具壞)／偵測到異常(產品)。
+  if [ "$CODE" = 2 ]; then WHAT='掃描沒跑起來'
+  elif [ "$SCAN_VERDICTS" -eq 0 ]; then WHAT="巡檢自己掛了(連續 ${STREAK} 輪沒跑出判準)"
+  else WHAT='偵測到異常'; fi
+  TITLE="軌島地圖巡檢：${WHAT}"
   MSG="$(printf '%s\n' "$OUT" | grep -E '^❌' | head -2 | tr '\n' ' ')"
   osascript -e "display notification \"${MSG//\"/}\" with title \"${TITLE}\" sound name \"Basso\"" >/dev/null 2>&1
 fi
