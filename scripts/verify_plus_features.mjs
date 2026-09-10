@@ -1131,26 +1131,35 @@ server.close();
   // sat_retina G1 的做法:這種自由變數的值不重要,重要的是它存在,求值才不會因 ReferenceError
   // 中斷。t 是唯一的例外:它的**值**就是本段要量的東西(標籤到底長什麼樣),沒有空函式可給,
   // 一律傳 makeProductT() 抽出來的產品本尊。
-  function callAccountBtnSlot(mode, t) {
+  // 2026-09-10 起兩個入口各自獨立(通行證從帳號槽位拆出來),所以要各抽各的函式真的求值一次:
+  // 帳號那組出自 accountBtnSlot(),通行證那組出自 setupPlusEntry()。共用同一套假 DOM 做法。
+  function callSlotFn(src, name, btnId, rowSel, freeVars, t) {
     const ti = { textContent: '' }, tl = { textContent: '' }, label = { textContent: '' };
-    const btn = { style: {}, querySelector: sel => (sel === '.ti' ? ti : sel === '.tl' ? tl : null) };
-    const row = { style: {}, querySelector: sel => (sel === 'span' ? label : null) };
+    const btn = { style: {}, querySelector: sel => (sel === '.ti' ? ti : sel === '.tl' ? tl : null), remove: () => {} };
+    const row = { style: {}, querySelector: sel => (sel === 'span' ? label : null), remove: () => {} };
     const fakeDocument = {
-      getElementById: id => (id === 'accountBtn' ? btn : null),
-      querySelector: sel => (sel === '.ms-row[data-proxy="accountBtn"]' ? row : null),
+      getElementById: id => (id === btnId ? btn : null),
+      querySelector: sel => (sel === rowSel ? row : null),
     };
-    new Function('document', 'accountOpen', 'plusOpen', 't', `${fnSrc}\naccountBtnSlot(${JSON.stringify(mode)});`)
-      (fakeDocument, () => {}, () => {}, t);
+    const names = Object.keys(freeVars);
+    new Function('document', 't', ...names, `${src}\n${name}();`)
+      (fakeDocument, t, ...names.map(k => freeVars[k]));
     return { toolbar: tl.textContent, drawer: label.textContent };
   }
+  const plusFnSrc = extractFnSrc(SRC, 'setupPlusEntry');
   let plusLabels = null, acctLabels = null, extractError = null;
   try {
     if (!fnSrc) throw new Error('找不到「function accountBtnSlot(...) {」——index.html 結構已變動,請更新 verify_plus_features.mjs 的抽取邏輯');
+    if (!plusFnSrc) throw new Error('找不到「function setupPlusEntry(...) {」——index.html 結構已變動,請更新 verify_plus_features.mjs 的抽取邏輯');
     const productT = makeProductT();
-    plusLabels = callAccountBtnSlot('plus', productT);
-    acctLabels = callAccountBtnSlot('account', productT);
+    acctLabels = callSlotFn(fnSrc, 'accountBtnSlot', 'accountBtn', '.ms-row[data-proxy="accountBtn"]',
+      { accountOpen: () => {} }, productT);
+    // PLUS_ENABLED 給 true:給 false 時 setupPlusEntry() 走的是「整顆移除」那條,一個標籤都不會寫出來,
+    // 真值集合會變空(等於這一段在驗一個不存在的東西)。plusEntrySync 是尾巴那格的字,不在本段範圍。
+    plusLabels = callSlotFn(plusFnSrc, 'setupPlusEntry', 'plusBtn', '.ms-row[data-proxy="plusBtn"]',
+      { PLUS_ENABLED: true, plusOpen: () => {}, plusEntrySync: () => {} }, productT);
   } catch (e) { extractError = e; }
-  ok('T8a accountBtnSlot() 可從 index.html 原始碼抽取並在假 DOM 上真實求值(兩種 mode 皆不丟例外;抓不到宣告或求值出錯就是這格錯,不會被誤判成過關)',
+  ok('T8a accountBtnSlot()／setupPlusEntry() 可從 index.html 原始碼抽取並在假 DOM 上真實求值(兩支都不丟例外;抓不到宣告或求值出錯就是這格錯,不會被誤判成過關)',
     extractError === null && !!plusLabels && !!acctLabels,
     extractError ? String(extractError).slice(0, 300) : `plus=${JSON.stringify(plusLabels)} account=${JSON.stringify(acctLabels)}`);
 
@@ -1173,14 +1182,16 @@ server.close();
   ok('T8c 正向對照:杜撰標籤偵測對合成的假標籤真的會抓到(不是因為現有文案剛好都合法而恆綠)',
     probe.length === 1 && probe[0] === 'verify-probe-fabricated-label', JSON.stringify(probe));
 
-  // 涵蓋度(brief 原文:「文案要涵蓋使用者實際會遇到的狀態，不能只寫其中一種」)——plus 模式
-  // (新訪客,鈕顯示 Plus/軌島 Plus)與 account 模式(已登入或曾登入,鈕顯示 帳號/帳號同步)至少
-  // 各被提到一次(桌面或手機任一形式皆可),不能只寫其中一種狀態就當作寫完了。
+  // 2026-09-10 改版前這一條驗的是「plus 模式與 account 模式兩種標籤都要提到」——那時兩個身分
+  // 共用一格,使用者確實會遇到兩種狀態。拆開之後那條路不存在了:通行證入口恆在、與登入狀態無關,
+  // 而說明頁若還留著「若該按鈕顯示帳號同步,請先點進去」就是把人指去一條走不通的路。
+  // 所以同一個位置改守相反的方向:通行證的指路只准出現通行證那組標籤,不准出現帳號槽位的標籤。
   const hasPlusMode = !extractError && (claims.includes(plusLabels.toolbar) || claims.includes(plusLabels.drawer));
-  const hasAcctMode = !extractError && (claims.includes(acctLabels.toolbar) || claims.includes(acctLabels.drawer));
-  ok('T8d app-support.html 同時涵蓋 plus 模式與 account 模式的導覽標籤,不是只寫其中一種使用者會遇到的狀態',
-    hasPlusMode && hasAcctMode,
-    `plus模式(${JSON.stringify([plusLabels && plusLabels.toolbar, plusLabels && plusLabels.drawer])})提到=${hasPlusMode} account模式(${JSON.stringify([acctLabels && acctLabels.toolbar, acctLabels && acctLabels.drawer])})提到=${hasAcctMode}`);
+  const acctInClaims = extractError ? [] :
+    [acctLabels.toolbar, acctLabels.drawer].filter(label => label && claims.includes(label));
+  ok('T8d app-support.html 的通行證指路只提通行證入口,沒有殘留「先點帳號同步再進去」那條 2026-09-10 已經不存在的路',
+    hasPlusMode && acctInClaims.length === 0,
+    `通行證標籤(${JSON.stringify([plusLabels && plusLabels.toolbar, plusLabels && plusLabels.drawer])})提到=${hasPlusMode} 殘留的帳號標籤=${JSON.stringify(acctInClaims)}`);
 }
 
 // ══════════ 斷言總數閘門(比照 verify_live_activity.mjs / verify_founding_seal.mjs 的形狀) ══════════

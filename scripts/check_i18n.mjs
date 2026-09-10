@@ -299,6 +299,7 @@ const dynamicRenderers = [
   'stationIntroText', 'renderTrainCard', 'buildStamps', 'buildAchv', 'punctualRow',
   'renderExplorePanel', 'renderNamedIntro', 'renderSearchDrop', 'renderHelp',
   'takeoutSyncConfirm', 'takeoutRenderPreview', 'takeoutStartManual', 'accountRender', 'accountBtnSlot',
+  'setupPlusEntry', 'plusEntrySync',
   'myTrainRow', 'myTrainSection', 'renderFavs', 'renderFavPanel', 'todayRow', 'renderTodayEvents', 'renderTodayPanel',
   'renderFollowEvents', 'renderDelayRow', 'renderDelayHist', 'eventRowsHtml', 'eventSecHtml',
   'announceCollections', 'doCheckin', 'startRiding', 'finishRiding', 'updateRideBtn',

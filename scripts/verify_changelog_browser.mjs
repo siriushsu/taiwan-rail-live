@@ -31,7 +31,7 @@ const widths = [360, 375, 414, 768];
 // 9/9：夜間道路調暗一條（328→329）。
 // 9/10：地下列車實色、隧道縱坡、網站登入、網站通行證、通行證面板五條先前未補記（330→334），
 //       本次機捷官方車種一條（334→335）。
-const expectedHistoryCount = 336;
+const expectedHistoryCount = 337;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

@@ -3157,6 +3157,12 @@
   .plus-plan-price { font-weight: 900; font-size: calc(15px * var(--ui)); white-space: nowrap; }
   .plus-trust { margin: 2px 0 0; padding: 9px 2px 0; color: var(--muted); font-size: calc(11px * var(--uis)); line-height: 1.55; }
   .plus-manage { display: block; margin: 10px auto 0; min-height: 44px; line-height: 44px; text-align: center; color: var(--navy); font-size: calc(12px * var(--uis)); font-weight: 800; text-decoration: underline; }
+  /* 網站沒有購買通道時的下載入口(plusRender 的 !plusConfigured 分支):兩家並排,樣式比照 .plus-restore
+     但做成實心鈕——它是這條路上唯一能往下走的動作,不該長得像註腳連結 */
+  .plus-stores { display: flex; gap: 8px; margin: 10px 0 0; }
+  .plus-store { flex: 1; min-height: 44px; display: flex; align-items: center; justify-content: center; text-align: center;
+    border: 1.5px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--navy);
+    font-size: calc(12px * var(--uis)); font-weight: 800; text-decoration: none; }
   .plus-legal { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line-faint); color: var(--faint); font-size: calc(11px * var(--uis)); line-height: 1.6; }
   .plus-legal p { margin: 0 0 6px; }
   .plus-legal a { color: var(--navy); font-weight: 700; }
@@ -5175,6 +5181,9 @@
         <button id="exploreBtn" title="今日亮點——特別列車與今日之最"><span class="ti">探</span><span class="tl">亮點</span></button>
         <button id="favBtn" title="我的最愛列車"><span class="ti"><svg class="ri-icon" aria-hidden="true" focusable="false"><use href="#ri-ui-favorite"></use></svg></span><span class="tl">最愛</span></button>
         <button id="rideBtn" title="旅程護照（完乘記錄與收集章）"><span class="ti">旅</span><span class="tl">護照</span></button>
+        <!-- 通行證:2026-09-10 從 #accountBtn 的雙身分槽位拆出來變獨立入口。合用時登入過的人
+             只看得到「帳號」,通行證三個字整個消失——最可能付費的回頭客反而找不到入口 -->
+        <button id="plusBtn" style="display:none" title="軌島通行證：訂閱內容與登入同步"><span class="ti">票</span><span class="tl">通行證</span></button>
         <button id="todayBtn" title="今日台鐵動態——全台鐵今天每班車的誤點排行與逐站歷程"><span class="ti">今</span><span class="tl">今日</span></button>
         <button id="introBtn" title="經過特殊車站時顯示介紹"><span class="ti">介</span><span class="tl">站介紹</span></button>
         <button id="dirBtn" title="列車行進方向箭頭"><span class="ti">→</span><span class="tl">方向</span></button>
@@ -5275,6 +5284,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="passentry0910"><span class="d">9/10</span><span>通行證有自己的入口了：手機「更多」的第二列，電腦工具列多一顆，不再和「帳號同步」共用一格</span></li>
         <li data-cl-of="xfermetro0910"><span class="d">9/10</span><span>轉乘接續也列捷運了：高鐵桃園等轉乘站會顯示桃園機場捷運與高雄捷運的接續班次，機捷每一班還標出直達車或普通車</span></li>
         <li data-cl-of="tymctraintype0910"><span class="d">9/10</span><span>桃園機場捷運全線每一班都標得出直達車或普通車，首末班不再只顯示線號</span></li>
         <li data-cl-of="solidtrain0910"><span class="d">9/10</span><span>地下列車可以改成實色：「更多」的「透視顯示」切到「實體」</span></li>
@@ -5282,7 +5292,6 @@
         <li data-cl-of="webpass0910"><span class="d">9/10</span><span>網站也能用軌島通行證了：用同一個軌島帳號登入，App 訂的資格就在網站生效</span></li>
         <li data-cl-of="passpeek0910"><span class="d">9/10</span><span>App 的通行證面板不用先登入也打得開，先看清楚有哪些功能，要訂閱時才登入</span></li>
         <li data-cl-of="nightroads0909"><span class="d">9/9</span><span>夜間地景的道路、機場鋪面與底圖鐵道跟著地面一起變暗，不再蓋過軌道與列車；白天配色維持不變</span></li>
-        <li data-cl-of="metrotrackside0909"><span class="d">9/9</span><span>捷運與輕軌雙軌改為靠右行駛，來車與去車各走正確的一側；原本多數路線的兩個方向畫反了</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5598,6 +5607,7 @@
         <li><span class="d">7/9</span><span>站名移到軌道側邊不再互相壓住；雙欄版面：搜尋／最愛／旅程收集移到右側欄</span></li>
         <li class="grp">分享與個人化</li>
         <li data-cl="weblogin0910"><span class="d">9/10</span><span>修正網站按登入會顯示「登入失敗」的問題：Google 與 Apple 登入現在都能正常完成，登入後收藏、完乘與通行證資格就會同步。App 內的登入不受影響。（謝謝網友回報）</span></li>
+        <li data-cl="passentry0910"><span class="d">9/10</span><span>通行證有自己的入口了：手機從「更多」打開就在第二列，電腦在工具列上有一顆「通行證」，不再和「帳號同步」共用同一格。在網站上打開通行證時，也直接給 App Store 與 Google Play 的下載連結。</span></li>
         <li data-cl="passpeek0910"><span class="d">9/10</span><span>通行證不用先登入也看得到：面板直接打得開，可以先看清楚有哪些功能，要看價格或訂閱時才需要登入軌島帳號。已經訂閱的人一樣從同一個地方登入恢復。</span></li>
         <li data-cl="webpass0910"><span class="d">9/10</span><span>網站也能用軌島通行證：用同一個軌島帳號登入，App 訂的資格就生效——收藏與完乘同步、行程分享、跟車配樂、匯入 Google Maps 清單、衛星高解析都會打開。訂閱仍只在 App 內完成，網站不收費。</span></li>
         <li data-cl="journeysharelive"><span class="d">9/3</span><span>整段列車轉公車旅程可用最長 12 小時的連結分享；位置預設關閉，另行同意後只在前景保存最新一筆。停止分享即刪除，連結到期失效。</span></li>
@@ -5936,6 +5946,9 @@
     <!-- 議題3:四段分組(地圖顯示/資訊/觀看模式/分享與資料);列本身原封只重排,被旗標隱藏的列(recBtn/accountBtn/locateBtn)按性質歸段 -->
     <!-- 使用說明:刻意排在所有分組之前(第一次找不到功能的人第一眼就看到);桌面走同一個 sheet(#toolsFab) -->
     <button class="ms-row" data-act="help" data-close="1"><span>使用說明</span><span class="chev">›</span></button>
+    <!-- 通行證:原本掛在「分享與資料」段最後(第 41 列、要捲 2100px),使用者回報「找不到怎麼付費」。
+         尾巴那格由 syncMoreSheet() 依 plusIsActive() 換字:未持證=看方案,已持證=已啟用(不對已付費的人推銷) -->
+    <button class="ms-row" data-proxy="plusBtn" data-close="1" style="display:none"><span>軌島通行證</span><span class="ms-tail"><b id="msPassVal">看方案</b><span class="chev">›</span></span></button>
     <button class="ms-row" data-act="musicpl" data-close="1"><span>配樂情境</span><span class="chev">›</span></button>
     <div class="ms-row" data-act="language"><span>語言</span><span class="seg" id="msLangSeg" role="group" aria-label="選擇介面語言"><button data-lang="zh-TW">繁中</button><button data-lang="en">EN</button><button data-lang="ja">日本語</button></span></div>
     <div class="ms-sec">地圖顯示</div>
@@ -6234,7 +6247,9 @@
 // v0907n：更新紀錄拿掉 7/13 那條贊助方式（站上最後一處金流資訊）。
 // v0908b：阿里山林鐵補上站內股道與之字形折返股(阿里山、祝山的軌道畫進站裡);近景實體股道白名單
 //         改為單一來源(rail-3d.js 不再自帶第二份),沒被涵蓋的系統保留原本的示意線形。
-const BUILD = 'v0910f';
+// v0910g：通行證從帳號槽位拆成獨立入口(工具列 #plusBtn ＋「更多」抽屜第二列),網站沒有購買通道時
+//         的通行證面板補上 App Store／Google Play 下載連結。
+const BUILD = 'v0910g';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -14501,7 +14516,7 @@ function accountEnsureInit() {
   accountEnsureInit._p = (async () => {
     const modal = document.getElementById('accountModal');
     let accountIntent = new URLSearchParams(location.search).get('account');
-    accountBtnSlot(accountSlotMode()); // 帳號系統初始化不等於這個人有帳號:身分交給 accountSlotMode 判(見該函式)。這也是回訪／已登入者槽位的唯一露出點
+    accountBtnSlot(); // 回訪／已登入者的帳號槽位唯一露出點(HTML 預設 inline display:none)
     const accountX = document.getElementById('accountX'); if (accountX) accountX.onclick = accountClose;
     if (modal) {
       modal.addEventListener('click', e => { if (e.target === modal) accountClose(); });
@@ -14535,7 +14550,6 @@ function accountEnsureInit() {
         // else 分支要用它分辨這次 null 是不是一次真的「從有身分變成沒有」,見該分支內說明。
         const previousUid = state.account.user && state.account.user.uid;
         state.account.user = user; state.account.ready = true; state.account.actionError = ''; accountRender();
-        if (user) accountBtnSlot('account'); // 登入完成才把槽位換成帳號入口(帳號面板這時才有登出/同步/刪帳號可做);登出態刻意不翻,見 accountSlotMode
         if (accountIntent === 'delete') { accountIntent = ''; accountOpen(); }
         if (user) {
           // 2026-08-04 複審 Critical 1:這兩件事不能等 plusRefresh()/accountSyncNow('login') 才做
@@ -14606,26 +14620,26 @@ function accountEnsureInit() {
 }
 // #accountBtn(工具列)與 .ms-row[data-proxy="accountBtn"](「更多」抽屜列)是同一個槽位的兩個入口
 // ——抽屜列的點擊是 btn.click() 轉發過去的,所以只要換掉這顆鈕的 onclick,兩邊行為必然一致。
-// 這個槽位有兩種身分:'plus'(免費層匿名訪客——按下去開訂閱面板,不碰 Firebase)與
-// 'account'(帳號系統已初始化——按下去開帳號面板)。標籤/title/onclick 三件必須一起換,
-// 抽成一支就不會只改到其中一處(留下「寫著 Plus 但開帳號」的鈕)。
-function accountBtnSlot(mode) {
-  const btn = document.getElementById('accountBtn'); // 免費層且 Plus 關閉時整顆被移除→null,跳過
-  const plus = mode === 'plus';
+// 2026-09-10 起這個槽位只有【帳號】一種身分:通行證拆成 #plusBtn 獨立入口(見 setupPlusEntry)。
+// 拆的原因是使用者回報「找不到怎麼付費」——兩種身分合用一格時,只要這台裝置登入過,槽位就永久
+// 翻成帳號,通行證三個字整個消失,最可能付費的回頭客反而是唯一沒有入口的人。
+// 標籤仍走 t():HTML 的預設字是繁中字面,不經過這裡就不會跟著語言切換。
+function accountBtnSlot() {
+  const btn = document.getElementById('accountBtn'); // 免費層匿名時整顆被移除→null,跳過
   if (btn) {
     const ti = btn.querySelector('.ti'), tl = btn.querySelector('.tl');
-    if (ti) ti.textContent = plus ? '＋' : t('帳');
-    if (tl) tl.textContent = t(plus ? '通行證' : '帳號');
-    btn.title = t(plus ? '軌島通行證：訂閱內容與登入同步' : '登入與跨裝置同步');
-    btn.onclick = plus ? () => plusOpen('toolbar') : accountOpen;
+    if (ti) ti.textContent = t('帳');
+    if (tl) tl.textContent = t('帳號');
+    btn.title = t('登入與跨裝置同步');
+    btn.onclick = accountOpen;
     btn.style.display = '';
   }
-  // 抽屜列 HTML 預設 inline none。這是「這條路上」把它從 none 還原的地方(eager／Plus 延遲初始化／
-  // 免費層 Plus 入口都走這),但**不是**最終可見性:抽屜每次打開時 syncMoreSheet() 會依代理鈕
-  // (#accountBtn)重算這一格。所以驗「使用者看不看得到那一列」要在抽屜打開之後量,不能量這一格。
+  // 抽屜列 HTML 預設 inline none。這是「這條路上」把它從 none 還原的地方,但**不是**最終可見性:
+  // 抽屜每次打開時 syncMoreSheet() 會依代理鈕(#accountBtn)重算這一格。所以驗「使用者看不看得到
+  // 那一列」要在抽屜打開之後量,不能量這一格。
   const row = document.querySelector('.ms-row[data-proxy="accountBtn"]');
   if (row) {
-    const label = row.querySelector('span'); if (label) label.textContent = t(plus ? '軌島通行證' : '帳號同步');
+    const label = row.querySelector('span'); if (label) label.textContent = t('帳號同步');
     row.style.display = '';
   }
 }
@@ -14638,15 +14652,6 @@ function accountReturning() {
   // 回訪的非訂閱者呼叫 accountEnsureInit(),開機所有用戶端資格判斷都會誤判成「沒登入過」。改讀
   // ACCOUNT_UID_KEY(只要驗證過身分就寫,不論訂閱與否,見 userDataActiveUid 上方說明)。
   try { return !!localStorage.getItem(ACCOUNT_UID_KEY); } catch (e) { return false; }
-}
-// 槽位現在該是哪個身分。判準是「這個人跟帳號的關係」,不是「帳號系統初始化過沒有」——
-// 用後者的話,匿名訪客只要按過一次 Plus 面板裡的登入 CTA(那顆會 accountEnsureInit),槽位就
-// 永久翻成帳號入口;他若在登入畫面反悔(或登入失敗、popup 被擋),就再也回不到 Plus 面板了
-// ——手機更嚴重,抽屜列是唯一入口。已登入者仍然拿到帳號入口(登出/同步/刪帳號都只在那裡)。
-function accountSlotMode() {
-  if (state.account && state.account.user) return 'account';
-  if (!PLUS_ENABLED) return 'account';
-  return accountReturning() ? 'account' : 'plus'; // 登入過的裝置維持帳號入口;它的登出態另有回 Plus 的鈕(見 accountRender)
 }
 async function setupAccountUi() {
   // 🔴 2026-08-16「更新即關」:這台裝置沒有已驗證身分(ACCOUNT_UID_KEY 不存在)就不可能有資格——
@@ -14665,12 +14670,15 @@ async function setupAccountUi() {
   if (ACCOUNT_ENABLED || accountIntent === 'delete' || returning) {
     await accountEnsureInit(); return;
   }
-  // 免費層匿名:不載 Firebase、不建 state.account。Plus 開閘後這個槽位改當 Plus 面板入口——
-  // 剛在 App 訂閱、第一次用瀏覽器開站的人沒有 last-sync-uid,若整顆移除他就沒有任何入口可以登入同步。
-  // 按下去只 plusOpen()(純渲染,不碰帳號系統);要登入得再按面板內的 data-plus="login",匿名保證留在那一步。
-  if (PLUS_ENABLED) { accountBtnSlot('plus'); return; }
-  // Plus 也關閉時才回到「整顆移除」——留著一顆點了沒有任何去處的鈕比沒有更糟。
-  btn.remove(); const row = document.querySelector('.ms-row[data-proxy="accountBtn"]'); if (row) row.remove();
+  // 免費層匿名:不載 Firebase、不建 state.account,帳號槽位停在 HTML 預設的 inline display:none
+  // ——不可見就不會有「點了沒有任何去處」的死鈕(accountOpen 要 state.account 才畫得出面板,
+  // 這時它還不存在),抽屜列也因 syncMoreSheet() 讀代理鈕的 display 而跟著不顯示。
+  // 🔴 不可改成 btn.remove():這個人按下通行證面板的「已經在 App 訂閱了？登入以同步」之後,
+  // accountEnsureInit() 會呼叫 accountBtnSlot() 把這顆鈕露出來——那是他登入之後【唯一】能再找到
+  // 帳號面板(登出／立即同步／刪帳號)的入口,移掉的話就再也回不去了。
+  // 2026-09-10 前這裡會把槽位改當通行證入口,理由是「剛在 App 訂閱、第一次用瀏覽器開站的人沒有
+  // 足跡,整顆移除就沒有入口登入同步」。那個理由現在由 #plusBtn 承接:它與帳號無關、恆在,
+  // 面板裡的登入 CTA 仍是同一條路。
 }
 
 // ── 訂閱制 Plus（RevenueCat 月/年訂閱 → plus entitlement） ────────────────────────
@@ -15015,6 +15023,34 @@ function plusState() {
   if (!state.plus) state.plus = { active: false, entitlementEnvironment: '', founding: false, loading: false, error: '', pkgMonthly: null, pkgAnnual: null, mgmtUrl: '', adapter: null, afterUnlock: null, cloudSyncReady: false, cloudSyncPromise: null };
   return state.plus;
 }
+// 通行證的常設入口:工具列 #plusBtn ＋「更多」抽屜的代理列。與帳號槽位無關——不管有沒有登入、
+// 有沒有足跡,只要這個平台有通行證面就恆在。2026-09-10 使用者回報「找不到怎麼付費」的根因就是
+// 它以前沒有自己的家,得跟帳號共用一格(見 accountBtnSlot),登入過的人就再也看不到通行證三個字。
+// 比照 recBtn/locateBtn 的教訓:PLUS_ENABLED 關著時鈕與抽屜列一起移除,不留「點了靜默無反應」的死列。
+function setupPlusEntry() {
+  const btn = document.getElementById('plusBtn');
+  const row = document.querySelector('.ms-row[data-proxy="plusBtn"]');
+  if (!btn) return;
+  if (!PLUS_ENABLED) { btn.remove(); if (row) row.remove(); return; }
+  const ti = btn.querySelector('.ti'), tl = btn.querySelector('.tl');
+  if (ti) ti.textContent = t('票');
+  if (tl) tl.textContent = t('通行證');
+  btn.title = t('軌島通行證：訂閱內容與登入同步');
+  btn.onclick = () => plusOpen('toolbar');
+  btn.style.display = '';
+  if (row) {
+    const label = row.querySelector('span'); if (label) label.textContent = t('軌島通行證');
+    row.style.display = '';
+  }
+  plusEntrySync();
+}
+// 抽屜那一列尾巴的字:未持證=看方案,已持證=已啟用(已經付過錢的人不該被自己的入口推銷)。
+// 刻意由 syncMoreSheet() 在每次開抽屜時重算,不掛在資格變動的各條路徑上——資格有 plusRefresh／
+// 購買／恢復購買／登出好幾個入口,掛事件遲早漏一個;而這一格只在抽屜打開的當下看得到。
+function plusEntrySync() {
+  const val = document.getElementById('msPassVal');
+  if (val) val.textContent = t(plusIsActive() ? '已啟用' : '看方案');
+}
 async function plusOpen(source, onGranted) {
   if (!PLUS_ENABLED) return; // 止血旗標關閉時整張面板不可達:入口鈕都撤掉了,但深連結與既有呼叫點仍摸得到這支,故在此再擋一次
   const p = plusState();
@@ -15117,8 +15153,16 @@ function plusRender() {
     // 這顆是免費層匿名的最後一道門——按下去才 accountEnsureInit(),在那之前這個畫面零 Firebase。
     const loginCta = (state.account && state.account.user) ? '' :
       `<button class="plus-restore" type="button" data-plus="login">${escHtml(t('已經在 App 訂閱了？登入以同步'))}</button>`;
+    // 2026-09-10:網站訪客走到這一步以前是死路——寫著「請在 App 內訂閱」,而整個網站零個商店連結,
+    // 想付錢的人無路可走(使用者回報「找不到怎麼付費」的第二半)。兩家都列是因為網站不知道對方拿什麼裝置,
+    // UA 猜錯會把 Android 使用者送去 App Store。只在網站畫:原生殼走到這條分支代表商店設定有問題,
+    // 那時候該修的是設定,不是叫使用者再去下載一次自己正在用的 App。
+    const storeCta = IS_NATIVE_APP ? '' :
+      `<div class="plus-stores"><a class="plus-store" href="${APP_STORE_URL}" target="_blank" rel="noopener">App Store</a>` +
+      `<a class="plus-store" href="${PLAY_STORE_URL}" target="_blank" rel="noopener">Google Play</a></div>`;
     body.innerHTML = hero + features +
-      `<p class="account-note">${escHtml(t('目前請在軌島 App 內訂閱；訂閱後同一個軌島帳號在網站也會自動生效。'))}</p>` + loginCta + legal;
+      `<p class="account-note">${escHtml(t('目前請在軌島 App 內訂閱；訂閱後同一個軌島帳號在網站也會自動生效。'))}</p>` +
+      storeCta + loginCta + legal;
     return;
   }
   if (!(state.account && state.account.user)) {
@@ -31996,8 +32040,7 @@ const HELP_TRY = {
   // 懸賞板沒有自己的 id 鈕（唯一入口是護照那列的 data-act="bountyboard"），所以走 run 代等價動作。
   // bountyrec 這節也指到這裡：真的按下「開始錄製」會叫起 GPS 錄一趟，有副作用，不能當「試一次」。
   bounty: { run: () => openBountyBoard(), toast: '這是懸賞板——右上角的 × 可以關掉' },
-  // 刻意不代點 #accountBtn:那個槽位在回訪/已登入者身上是「帳號」入口,代點會開出帳號面板而不是 Plus 面板
-  // (同一顆鈕兩種身分,見 accountSlotMode)。走等價動作直接開面板,比照 bounty。
+  // 走等價動作直接開面板(比照 bounty),不代點 #plusBtn:來源標成 help 才看得出轉換是從說明中心來的。
   plus: { ok: () => PLUS_ENABLED, run: () => plusOpen('help') },
   share: { id: 'shareBtn' },
 };
@@ -32289,6 +32332,7 @@ function setupMapTools() {
   const themeBtn = document.getElementById('themeBtn');
   const satBtn = document.getElementById('satBtn');
   setupTakeoutUi();
+  setupPlusEntry();
   setupAccountUi();
   setupPlusUi();
   // 手機 tab bar＋「更多」sheet(原 ☰ 抽屜的繼承者;桌面 CSS 直接藏。#toolsFab 已停用,保留在 DOM)
@@ -32482,6 +32526,7 @@ function setupMapTools() {
   }
   function syncMoreSheet() {
     syncMoreDataStatus();
+    try { plusEntrySync(); } catch (e) {} // 通行證那列的尾巴字(看方案／已啟用);比照 syncFontPanel 不讓它拖垮整支同步
     document.querySelectorAll('#moreBody .ms-row').forEach(row => {
       const id = row.dataset.proxy, btn = id && document.getElementById(id);
       if (btn) {
