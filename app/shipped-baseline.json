@@ -2657,7 +2657,8 @@
       "zaParseMat",
       "zaRectBox",
       "zoomAnimFrame",
-      "searchStockMatch"
+      "searchStockMatch",
+      "accountSlotMode"
     ],
     "elementIds": [
       "liveHud",
@@ -2687,7 +2688,14 @@
       "WM_LOGO",
       "ZOOM_ANIM_MS",
       "FOLLOW_ZOOM_CAP",
-      "SEARCH_STOCK_ROWS"
+      "SEARCH_STOCK_ROWS",
+      "TYMC_EXPRESS_SOUTH"
+    ],
+    "plusFeats": [
+      "App 旅程護照的創始島民徽章",
+      "App 的跟車配樂：音樂跟著你在看的那班車與當下時間換情境",
+      "App 非跟車時的衛星高解析圖磚（支援 Retina 螢幕）",
+      "在 App 匯入 Google Maps 已儲存清單，成為軌島的最愛地點"
     ],
     "urlParams": [
       "live"
@@ -2696,6 +2704,7 @@
     "_why_phSortSeg": "與 OBS 無關:v0903c/d 完乘「順序」排法改由 buildRideSortSeg(rideSort, \"phSortSeg\") 動態組出 id,靜態 grep 看不到 id=\"phSortSeg\" 字面,元素在執行期仍存在(index.html 約 20472 行)。",
     "_why_m4b": "M4-B(2026-09-05)：地圖引擎收斂成 MapLibre 唯一，Leaflet 整個拔除。這 17 個符號全部是 Leaflet 專屬、在 MapLibre 路徑下沒有對應概念，逐一說明：createLeafletEngine=Leaflet 版引擎工廠；zoomAnimFrame/onZoomAnim/endZoomAnim/zaCalGl/zaParseMat/zaRectBox/ZOOM_ANIM_MS=縮放動畫仿射補償整套（治 Leaflet 圖磚 CSS 補間與 overlay canvas 失步；MapLibre 每幀真實更新相機、overlay 掛在 GL 的 render 幀，結構上不會失步）；setupOfflineLand=離線陸地的 Leaflet pane 版（MapLibre 版是 glLandLoad／glLandInstall，仍在）；warmSatUnderlay=衛星墊底層預抓的 Leaflet 版（MapLibre 版是 warmSatUnderlayGl，仍在）；activeBaseLayer/warmTileWindow/prefetchFollowAhead=高速跟車底圖預抓，靠 Leaflet tileLayer 的 getTileUrl／getTileSize，MapLibre 的 source 由 GL 自行排程與預取，沒有同型 API 可掛；ofmActiveCanvas=從 Leaflet 的 OFM 圖層取 _glMap 畫布（MapLibre 就是地圖本身，直接用 M.raw）；focusApplyLimit/focusShiftHave=面板讓位的世界像素記帳＋問 Leaflet 私有 _limitCenter 夾不夾（MapLibre 自 M1 起改走 setPadding／syncMapLibrePadding，引擎自己保證讓位與相機一致）；MAP_GESTURES=Leaflet 六個 handler 名字的清單（MapLibre 由 M.setGestures 一次開關）。這些符號刻意不再出現，不是被合併吃掉的回歸；守門人 scripts/verify_engine_adapter.mjs 的 G9／G4h／G4i。",
     "_why_followzoomcap": "2026-09-07 使用者裁示「直接把 follow zoom cap 刪掉」:App 殼原本注入 followZoomCap=16,index.html 的 FOLLOW_ZOOM_CAP 把跟車進場 zoom 封頂。該上限 2026-08-05 立起時的理由是「App 兩種底圖都計量」,但 App 的街道底圖之後改成不計量的 OpenFreeMap(Stadia 只剩退路、Esri 只用於衛星),前提已不成立;實害是反向的——從近景(z17+)點列車或按隨機跟隨會被拉遠到 16,1.6.0 的立體列車剛好看不到,且相機自癒每次貼車都重跑 followEntryZoom(),手動拉近後 3.5 秒又被扯回 16。符號刻意不再出現,不是被合併吃掉的回歸;反向守門人 app/scripts/verify-release.mjs「不得再出現 followZoomCap」。",
-    "_why_search_type_0909": "已上傳 1.6.0 build 104 的 searchStockMatch／SEARCH_STOCK_ROWS 由主線 ca16e73d 改為 searchTypeMatch／SEARCH_TYPE_ROWS，保留車型查班並擴充車種查詢與車型介紹。build 105 已使用新實作；本輪驗 verify_search_train_type.mjs，三條舊更新紀錄另恢復，未把功能缺漏加入例外。"
+    "_why_search_type_0909": "已上傳 1.6.0 build 104 的 searchStockMatch／SEARCH_STOCK_ROWS 由主線 ca16e73d 改為 searchTypeMatch／SEARCH_TYPE_ROWS，保留車型查班並擴充車種查詢與車型介紹。build 105 已使用新實作；本輪驗 verify_search_train_type.mjs，三條舊更新紀錄另恢復，未把功能缺漏加入例外。",
+    "_why_pass_entry_0911": "2026-09-11 出 1.6.2 (iOS 109／Android 49) 時的三筆刻意改動,都發生在已上架的 108 之後,每一筆都有替代品在載貨裡實查得到:\n① plusFeats 四條去掉「App」前綴(f76685dd,09-09):跟車配樂、Google Maps 清單匯入、衛星高解析(SAT_RETINA_DEFAULT)、旅程護照創始徽章這四項網站上也都有了,再標 App 限定是錯的。新措辭「跟車配樂:音樂跟著你在看的那班車與當下時間換情境」「匯入 Google Maps 已儲存清單,成為軌島的最愛地點」「非跟車時的衛星高解析圖磚(支援 Retina 螢幕)」「旅程護照的創始島民徽章」在載貨裡各恰好一次。這是改名不是下架。\n② accountSlotMode(93aceb1e):通行證從「與帳號共用槽位」拆成獨立入口之後,accountBtnSlot() 只剩帳號一種身分,那支判身分的函式沒有存在意義。入口本身改由 setupPlusEntry() 建(#plusBtn ＋ 抽屜第二列),check-plus 125/125 驗過兩支函式各自求值。\n③ TYMC_EXPRESS_SOUTH(636cae5a):機捷直達車原本用停靠站序回推(這個常數就是那份樣態),現在改讀官方 TDX TrainType。check-tymc-kind 14/14 驗過,解析出的班數從 14 班變成 142 班、今日 307 班零留白。舊常數留著只會有兩份真相。"
   }
 }
