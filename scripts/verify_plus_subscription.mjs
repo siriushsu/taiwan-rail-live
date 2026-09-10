@@ -1372,6 +1372,10 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
   // 兩者不再互相牽制(舊版得寫成身分,是因為同一顆鈕在關閉態仍可能合法地留著當帳號入口)。
   ok('KS6 旗標關閉:工具列的通行證鈕整顆不存在(不得留下一顆按下去被守衛擋掉的死鈕)',
     off.r.slot.passBtnVisible === false, JSON.stringify(off.r.slot));
+  // KS7 咬的是**可見性**不是存在,這是刻意的高度:2026-09-10 突變實測把 setupPlusEntry() 的
+  // `row.remove()` 單獨拿掉(鈕照舊 remove),那一列會留在 DOM 但停在 markup 自帶的
+  // inline display:none ⇒ 使用者看不到、也點不到,KS7 照樣綠(存活突變)。真正該紅的是「那一列
+  // 對使用者露出來」,實測把它改成 `row.style.display = ''` 之後 KS7 單獨轉紅,KS6/KS7b 不動。
   ok('KS7 旗標關閉:「更多」抽屜打開後也沒有通行證那一列(手機唯一入口,不能只關桌面那顆)',
     off.r.slot.sheetOpen === true && off.r.slot.passRowVisible === false, JSON.stringify(off.r.slot));
   ok('KS7b 旗標關閉:那顆鈕連 onclick 都不存在(整顆被 remove,不是只把 display 藏起來)',
