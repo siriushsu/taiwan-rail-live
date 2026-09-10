@@ -227,11 +227,27 @@ if (recentItems.length > RECENT_BUDGET) {
 for (const source of recentTexts) for (const lang of languages) {
   if (!keySets[lang]?.has(source)) fail(`近期更新缺少 ${lang} 精簡翻譯：${source}`);
 }
+// 🔴 第二層「完整更新歷史」對 en/ja 【不是】翻譯 index.html 那 332 條正本——i18nRenderChangelog()
+// 對外語一律 details.replaceChildren(),整塊改用 RAIL_I18N_CHANGELOG 的主題摘要重建(實測換手發生在
+// 開頁後約 0.43 秒)。所以正本那 332 條的中文【永遠不會】出現在外語畫面上,不可以照第一層的作法去
+// 要求它們有 en/ja key:那會讓 271 條已發佈的歷史條目當場轉紅,而且紅的是一個不存在的問題。
+// 外語使用者真正看得到的是下面這份摘要 ⇒ 閘門就要守這一份。原本只驗「陣列在、每組有 name 與 items」,
+// 是純結構檢查:摘要裡塞中文、或 ja 少掉一整組,兩種都照樣全綠。
 for (const lang of languages) {
   const summaries = sandbox.window.RAIL_I18N_CHANGELOG?.[lang];
   if (!Array.isArray(summaries) || !summaries.length || summaries.some(group => !group.name || !group.items?.length)) {
     fail(`${lang} 缺少歷史更新主題摘要`);
   }
+}
+// 摘要不在 messages.en 底下,檔頭那次 scanEnglishCjk(messages.en) 掃不到它 ⇒ 英文摘要沒補譯、
+// 直接留中文原句貼進去,是外語畫面上真的看得到中文的唯一途徑,而目前沒有任何守門人。
+scanEnglishCjk(sandbox.window.RAIL_I18N_CHANGELOG?.en, 'changelog.en');
+// 兩語是同一份摘要的兩個版本。少掉的那一組不會有任何錯誤訊息——ja 使用者只是靜靜地少看到一段歷史,
+// 跟第一層「被擠出去就消失」是同一類無聲缺損,所以組數與每組條目數都要對齊。
+const summaryShape = lang => (sandbox.window.RAIL_I18N_CHANGELOG?.[lang] || []).map(group => group.items?.length ?? 0);
+const enShape = summaryShape('en'), jaShape = summaryShape('ja');
+if (enShape.join(',') !== jaShape.join(',')) {
+  fail(`歷史更新主題摘要的 en 與 ja 結構對不上：en ${enShape.length} 組（各 ${enShape.join('／')} 條）、ja ${jaShape.length} 組（各 ${jaShape.join('／')} 條）——同一份摘要的兩個版本,少掉的那組在該語言的畫面上會無聲消失`);
 }
 
 const legalMessages = sandbox.window.RAIL_I18N_LEGAL_MESSAGES || {};
