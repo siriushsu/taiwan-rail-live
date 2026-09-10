@@ -212,19 +212,26 @@ const clearCalls = page => page.evaluate(() => { window.__laCalls = []; });
 // 平移本身抽成獨立一步:T11 有自己的挑車判準(要兩班、不管翻站),只借這一步,不借挑車。
 const shiftScheduleIntoNow = page => page.evaluate(() => {
   if (window.__laShifted) return window.__laShifted;
-  const running = t => {
+  // 🔴 判準要與 followRunningTRA 的挑車條件【同一條】(含 180 秒翻站容差),而且門檻是【兩班】不是一班:
+  //    T3／T21 驗的是「換到另一班車」,pick=0 與 pick=1 必須拿到不同的車。舊寫法用 some() 判
+  //    「有車在跑就什麼都不做」,於是只要恰好有 1 班在跑就整個不平移,兩次挑車拿到同一班,
+  //    T3 三條與 T21 兩條一起紅——2026-09-11 00:34 實測就是這個形狀(全網只有台鐵 281 夜車在跑)。
+  //    深夜 0 班那條路(2026-09-10 01:16 實測)舊寫法蓋得到,恰好 1 班這條蓋不到。
+  const pickable = t => {
     if (t.sys !== 'tra_sched' || t.loop) return false;
     const e = effTLive(t), s = t.stops;
-    return e > s[0].depSec + 60 && e < s[s.length - 1].arrSec - 300;
+    const next = s.find(x => x.stop !== false && x.arrSec > e);
+    return e > s[0].depSec + 60 && e < s[s.length - 1].arrSec - 300 && next && next.arrSec - e > 180;
   };
-  if (state.trains.some(running)) return null;          // 有車在跑就什麼都不做
+  const live = new Set(state.trains.filter(pickable));
+  if (live.size >= 2) return null;                      // 已經挑得到兩班就什麼都不做
   window.__laShifted = [];
   const shift = (t, d) => { for (const s of t.stops) { if (Number.isFinite(s.arrSec)) s.arrSec += d; if (Number.isFinite(s.depSec)) s.depSec += d; } };
   const pool = state.trains
-    .filter(t => t.sys === 'tra_sched' && !t.loop && t.stops.length >= 5
+    .filter(t => t.sys === 'tra_sched' && !t.loop && !live.has(t) && t.stops.length >= 5
       && t.stops[t.stops.length - 1].arrSec - t.stops[0].depSec > 3600)
     .sort((a, b) => String(a.train).localeCompare(String(b.train)));
-  for (const [i, t] of pool.slice(0, 2).entries()) {
+  for (const [i, t] of pool.slice(0, 2 - live.size).entries()) {
     const dur = t.stops[t.stops.length - 1].arrSec - t.stops[0].depSec;
     // 先把首站發車挪到「現在往前 30%／45% 車程」,再把下一站推到 200 秒之外(避開翻站容差)。
     shift(t, effTLive(t) - Math.round(dur * (0.3 + 0.15 * i)) - t.stops[0].depSec);
