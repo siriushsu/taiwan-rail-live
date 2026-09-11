@@ -30,6 +30,9 @@ export function createScene(params = {}) {
  const roof=mat('#4e6d74'),cream=mat('#ece3cd'),accent=mat('#b8593f');
  const lamp=mat('#f7dca6',{emissive:'#ffc87d',emissiveIntensity:0});
  const yellowLine=mat('#d8b451');
+ // 道床與電車線的材質。sleeper／mast／concrete 有名字，驗收腳本靠名字在合批網格裡找到它們。
+ const ballast=mat('#8b8577'),sleeper=mat('#c6c1b4'),railSide=mat('#6e6259',{metalness:.35,roughness:.6}),wire=mat('#4c4a46',{metalness:.5,roughness:.4}),mastSteel=mat('#b9bcb6',{metalness:.5,roughness:.45});
+ sleeper.name='sleeper';mastSteel.name='mast';concrete.name='concrete';
 
  // 同材質的靜態方塊合批，柱子與欄杆不各佔一次 draw call。
  const batches=new Map(),dummy=new THREE.Object3D();
@@ -84,20 +87,33 @@ export function createScene(params = {}) {
  }
  const path={sample,length};
 
- function ribbon(offset,width,z,material,N=520){
+ // 沿環線鋪帶狀面。每段給左右兩緣各自的橫向偏移與高度：兩緣同高是平面，異高是斜面，同偏移是立面；同材質的幾段合成一個網格。
+ // 法向量跟著頂點順序走：偏移由小到大鋪出來朝上，反過來朝下；立面由下往上鋪朝 −偏移側，由上往下鋪朝 ＋偏移側。
+ function strips(material,parts,N=520){
   const v=[],idx=[];
-  for(let i=0;i<=N;i++){const q=sample(i/N*length);for(const k of [-1,1])v.push(q.x-Math.sin(q.heading)*(offset+k*width/2),q.y+Math.cos(q.heading)*(offset+k*width/2),z);
-   if(i<N){const n=i*2;idx.push(n,n+2,n+1,n+1,n+2,n+3);}}
+  for(const [o1,z1,o2,z2] of parts){const base=v.length/3;
+   for(let i=0;i<=N;i++){const q=sample(i/N*length),sx=-Math.sin(q.heading),cx=Math.cos(q.heading);
+    v.push(q.x+sx*o1,q.y+cx*o1,z1,q.x+sx*o2,q.y+cx*o2,z2);
+    if(i<N){const n=base+i*2;idx.push(n,n+2,n+1,n+1,n+2,n+3);}}}
   const g=geo(new THREE.BufferGeometry());g.setAttribute('position',new THREE.Float32BufferAttribute(v,3));g.setIndex(idx);g.computeVertexNormals();return mesh(g,material);
  }
- // 橋面板、兩側腹版、道碴與鋼軌
- ribbon(0,7.0,deckZ-.55,concreteDark);
+ const ribbon=(offset,width,z,material,N)=>strips(material,[[offset-width/2,z,offset+width/2,z]],N);
+ // 箱型梁：頂板、兩側往內斜的腹板、底板。橋面比梁底寬，從街上往上看才有梁的厚度。
  ribbon(0,6.4,deckZ-.05,deckSide);
- ribbon(0,3.1,deckZ+.02,gravel);
- for(const side of [-1,1])ribbon(side*.62,.12,deckZ+.2,steel);
+ strips(concreteDark,[[-2.5,deckZ-.55,-3.2,deckZ-.05],[3.2,deckZ-.05,2.5,deckZ-.55],[2.5,deckZ-.55,-2.5,deckZ-.55]],360);
+ // 道床：道碴鋪成梯形斷面，PC 枕一根根露出上半截，鋼軌有軌頭有軌腰。
+ // 軌距 ±.46 是從車模量來的：底部頂點最密的橫向位置在 |y|=.45（驗收腳本每次重量），不是抄別的場景。
+ // 軌頂＝path 的 z：車模原點就是輪底，跟車器把車放在 path.z，軌頂剛好托住輪子。
+ const railZ=deckZ+.18,railH=.12,railW=.10,gauge=.46,ballastZ=deckZ,tieStep=.42;
+ strips(ballast,[[-1.45,deckZ-.05,-1.05,ballastZ],[-1.05,ballastZ,1.05,ballastZ],[1.05,ballastZ,1.45,deckZ-.05]],360);
+ for(let s=0;s<length;s+=tieStep){const q=sample(s);block(sleeper,[.18,1.4,.10],[q.x,q.y,ballastZ+.01],[0,0,q.heading]);}
+ strips(steel,[-gauge,gauge].map(o=>[o-railW/2,railZ,o+railW/2,railZ])).name='rail-head';
+ strips(railSide,[-gauge,gauge].flatMap(o=>[[o-railW/2,railZ-railH,o-railW/2,railZ],[o+railW/2,railZ,o+railW/2,railZ-railH]])).name='rail-web';
  // 防音／欄杆牆：外側高、內側低，讓月台側看得見車身
+ // 月台那一段的外側不砌牆，月台邊才不會多出一道矮牆擋在車前。
  for(let s=0;s<length;s+=1.05){const q=sample(s);
   for(const [side,h] of [[-1,.95],[1,.55]]){
+   if(side===-1&&q.y<cy&&Math.abs(q.x)<p.platformLength/2+.6)continue;
    const ox=q.x-Math.sin(q.heading)*side*3.15,oy=q.y+Math.cos(q.heading)*side*3.15;
    block(concrete,[1.06,.16,h],[ox,oy,deckZ-.05+h/2],[0,0,q.heading]);
   }}
@@ -109,6 +125,15 @@ export function createScene(params = {}) {
   block(concreteDark,[2.9,2.1,capH],[q.x,q.y,capZ],[0,0,q.heading]);
   block(concreteDark,[2.6,1.9,.3],[q.x,q.y,groundZ+.14],[0,0,q.heading]);
  }
+ // 電車線：EMU3000 是電聯車，環線上要有架空線。電桿立在內側（月台在外側），每根帶懸臂與吊架；接觸線是一條細帶。
+ // 高度：車模軌頂到車頂 1.50，實車 3.92 m 的車頂對 5.1 m 的接觸線，等比放大得 1.95。
+ const wireZ=railZ+1.95,mastO=2.75,mastTop=wireZ+.55,mastN=Math.round(length/7.4),mastStep=length/mastN;
+ for(let k=0;k<mastN;k++){const q=sample(mastStep*(k+.5)),sx=-Math.sin(q.heading),cx=Math.cos(q.heading);
+  block(mastSteel,[.16,.16,mastTop-(deckZ-.05)],[q.x+sx*mastO,q.y+cx*mastO,(mastTop+deckZ-.05)/2],[0,0,q.heading]);
+  block(mastSteel,[.09,mastO+.25,.09],[q.x+sx*mastO/2,q.y+cx*mastO/2,wireZ+.42],[0,0,q.heading]);
+  block(mastSteel,[.07,.07,.42],[q.x,q.y,wireZ+.21],[0,0,q.heading]);
+ }
+ strips(wire,[[-.015,wireZ,.015,wireZ]]).name='contact-wire';
 
  // 月台：沿前直線外側，長度吃 platformLength
  const pl=p.platformLength,py=cy-radius-3.1,platZ=deckZ-.05;

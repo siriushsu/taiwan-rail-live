@@ -51,7 +51,7 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
   check(engine+' 看月台停在月台中心且暫停',(await state(p)).distance===0&&(await state(p)).running===false,await state(p));
 
   // 看月台從跟車視角按下去也要看得見車：月台雨棚正好擋在跟車鏡頭與車之間。
-  // 判準用車窗暗色像素，遮擋狀態量到的是 0，等於自帶正向對照。
+  // 判準用車窗暗色像素：遮擋狀態要比露出狀態少一個數量級以上（道床的軌腰在陰影裡會入鏡一兩個像素，所以不是恰為 0），露出狀態要大於 0。
   const darkInBounds=pg=>pg.evaluate(()=>{
    const c=document.querySelector('#scene'),cv=document.createElement('canvas');cv.width=c.width;cv.height=c.height;
    const g=cv.getContext('2d');g.drawImage(c,0,0);
@@ -67,7 +67,40 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
   const occluded=await darkInBounds(p);
   await p.tap('#platform');await settle(p);
   const revealed=await darkInBounds(p);
-  check(engine+' 看月台從跟車視角按下也看得見車',revealed.view==='world'&&revealed.dark>0&&occluded.dark===0,{occluded,revealed});
+  check(engine+' 看月台從跟車視角按下也看得見車',revealed.view==='world'&&revealed.dark>0&&occluded.dark<=revealed.dark*.1,{occluded,revealed});
+
+  // 道床與電車線：對車模量出來的輪對位置與車頂，不對程式碼裡的常數。
+  const track=await p.evaluate(async()=>{
+   const T=await import('/rail-3d/vendor/three.module.js'),V=await import('/rail-3d/garage-scenes/viaduct.js'),M=await import('/rail-3d/garage-model.js');
+   const sc=V.createScene(),g=sc.group,path=sc.path,pl=sc.params.platformLength,deckZ=sc.params.pierHeight,q0=path.sample(0);
+   const byName=n=>g.children.find(o=>o.name===n),inst=n=>g.children.filter(o=>o.isInstancedMesh&&o.material.name===n);
+   // 車模：原點＝輪底；底部頂點最密的 |y| 桶＝輪對位置；最高頂點＝車頂。
+   const prim=await M.loadGarageModel('emu3000'),t=await M.createConsist('emu3000',prim),car=t.cars[1].car;car.updateMatrixWorld(true);
+   const hist={},v=new T.Vector3();let roof=-Infinity;
+   car.traverse(o=>{if(!o.isMesh)return;const a=o.geometry.attributes.position;for(let i=0;i<a.count;i++){v.fromBufferAttribute(a,i);o.localToWorld(v);const z=v.z-car.position.z;roof=Math.max(roof,z);if(z<.4){const k=Math.round(Math.abs(v.y)*20)/20;hist[k]=(hist[k]||0)+1;}}});
+   const wheel=+Object.entries(hist).sort((a,b)=>b[1]-a[1])[0][0];
+   // 鋼軌：軌頭網格兩段各取 s=0 那兩個頂點算中線偏移；軌腰網格最低點＝軌底。
+   const head=byName('rail-head').geometry.attributes.position,web=byName('rail-web').geometry.attributes.position,per=head.count/2;
+   const off=i=>(head.getY(i)+head.getY(i+1))/2-q0.y;
+   const railOffsets=[off(0),off(per)],railTop=head.getZ(0);let railBottom=Infinity;for(let i=0;i<web.count;i++)railBottom=Math.min(railBottom,web.getZ(i));
+   // 枕木：數量由環線長度推導，每根都落在環線上，頂面托住軌底。
+   const m=new T.Matrix4(),pos=new T.Vector3(),rot=new T.Quaternion(),scl=new T.Vector3(),samples=[];
+   for(let i=0;i<4000;i++){const s=path.sample(i/4000*path.length);samples.push([s.x,s.y]);}
+   const [ties]=inst('sleeper');let offPath=0,tieTop=null;
+   for(let i=0;i<ties.count;i++){ties.getMatrixAt(i,m);m.decompose(pos,rot,scl);let best=Infinity;for(const [x,y] of samples)best=Math.min(best,Math.hypot(x-pos.x,y-pos.y));if(best>.03)offPath++;tieTop=pos.z+scl.z/2;}
+   // 電車線高度；電桿（高度 >1 的那種方塊）不在月台側。
+   const wireZ=byName('contact-wire').geometry.attributes.position.getZ(0);
+   let mastCount=0,mastsOnPlatformSide=0;for(const mm of inst('mast'))for(let i=0;i<mm.count;i++){mm.getMatrixAt(i,m);m.decompose(pos,rot,scl);if(scl.z<1)continue;mastCount++;if(Math.abs(pos.x)<pl/2+.6&&pos.y<q0.y)mastsOnPlatformSide++;}
+   // 月台外側那段不砌牆：牆＝concrete 批次裡 y 厚 .16、高 .95 的方塊。月台範圍外的前直線要有牆，當正向對照。
+   let wallInPlatform=0,wallElsewhere=0;for(const w of inst('concrete'))for(let i=0;i<w.count;i++){w.getMatrixAt(i,m);m.decompose(pos,rot,scl);if(Math.abs(scl.y-.16)>1e-6||Math.abs(scl.z-.95)>1e-6||pos.y>q0.y-2)continue;if(Math.abs(pos.x)<pl/2)wallInPlatform++;else if(Math.abs(pos.x)<19)wallElsewhere++;}
+   sc.dispose();t.dispose();prim.dispose();
+   return{wheel,roof,railOffsets,railTop,railBottom,pathZ:q0.z,tieCount:ties.count,tieExpected:Math.ceil(path.length/.42),offPath,tieTop,wireZ,canopyUnder:deckZ-.05+2.92,mastCount,mastsOnPlatformSide,wallInPlatform,wallElsewhere};
+  });
+  check(engine+' 軌距對齊車模輪對（輪對位置每次從車模頂點重量）',track.railOffsets[0]<0&&track.railOffsets[1]>0&&track.railOffsets.every(o=>Math.abs(Math.abs(o)-track.wheel)<.06),{wheel:track.wheel,railOffsets:track.railOffsets});
+  check(engine+' 軌頂托住輪底、軌底坐在枕木上',Math.abs(track.railTop-track.pathZ)<1e-6&&Math.abs(track.railBottom-track.tieTop)<1e-6,{railTop:track.railTop,pathZ:track.pathZ,railBottom:track.railBottom,tieTop:track.tieTop});
+  check(engine+' 枕木鋪滿整圈且根根落在環線上',track.tieCount===track.tieExpected&&track.offPath===0,{tieCount:track.tieCount,tieExpected:track.tieExpected,offPath:track.offPath});
+  check(engine+' 電車線在車頂之上、雨棚之下',track.wireZ-(track.pathZ+track.roof)>.3&&track.wireZ<track.canopyUnder,{wireZ:track.wireZ,roofZ:track.pathZ+track.roof,canopyUnder:track.canopyUnder});
+  check(engine+' 電桿全在內側、月台外側那段不砌牆（範圍外有牆＝正向對照）',track.mastCount>0&&track.mastsOnPlatformSide===0&&track.wallInPlatform===0&&track.wallElsewhere>0,{mastCount:track.mastCount,mastsOnPlatformSide:track.mastsOnPlatformSide,wallInPlatform:track.wallInPlatform,wallElsewhere:track.wallElsewhere});
 
   // 參數化證明：在頁面裡直接 import viaduct.js，用不同參數各建一次場景。
   const paramProof=await p.evaluate(async()=>{
