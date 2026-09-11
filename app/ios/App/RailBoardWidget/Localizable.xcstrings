@@ -29615,6 +29615,23 @@
         }
       }
     },
+    "高鐵停靠列車不再為了等通過列車而多停一分鐘": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "THSR trains that stop no longer wait an extra minute for a passing train"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台湾高鐵の停車列車が通過列車を待って1分余計に停車することがなくなりました"
+          }
+        }
+      }
+    },
     "高鐵停靠列車改停外側月台、通過列車走內側正線，派車改用當日班表": {
       "extractionState": "manual",
       "localizations": {
