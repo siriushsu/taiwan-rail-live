@@ -38,6 +38,12 @@ const tierOf=c=>c.kind==='bridge'?1:c.kind==='tunnel'?-1:0;
 const MOUNTAIN_RELIEF_M=20;
 const dem=openRailDem(new URL('../',import.meta.url));
 let corridor,tunnels,bores={mountain:0,subsurface:0};
+// 洞口清單給算繪端畫拱圈用。算繪端只走「當下有車在跑」的股道，沒車的隧道連洞口都取樣不到，
+// 所以位置要在這裡算好隨產物出去。bearing 指向洞內。
+const portalList=[];
+const bearingTo=(a,b)=>{const y=Math.sin((b[0]-a[0])*Math.PI/180)*Math.cos(b[1]*Math.PI/180),
+ x=Math.cos(a[1]*Math.PI/180)*Math.sin(b[1]*Math.PI/180)-Math.sin(a[1]*Math.PI/180)*Math.cos(b[1]*Math.PI/180)*Math.cos((b[0]-a[0])*Math.PI/180);
+ return (Math.atan2(y,x)*180/Math.PI+360)%360;};
 try{
 const nodeWays=new Map();for(const r of records)for(const n of r.w.nodes){const k=r.w.system+':'+n;if(!nodeWays.has(k))nodeWays.set(k,[]);nodeWays.get(k).push(r);}
 const tunnelSet=new Set(records.filter(r=>r.c.kind==='tunnel')),placed=new Set();
@@ -60,6 +66,11 @@ for(const seed of tunnelSet){
  // 山岳隧道沿用洞口外側股道的層位；都市地下段維持 rank 的疊層深度。
  for(const r of run){r.tier=mountain?tier:r.c.rank;r.c.boreKind=mountain?'mountain':'subsurface';r.c.reliefM=reliefM;}
  bores[mountain?'mountain':'subsurface']++;
+ for(const p of portals){
+  const cs=p.r.w.coordinates,c=cs[p.i],inward=cs[p.i===0?Math.min(6,cs.length-1):Math.max(0,cs.length-7)];
+  if(c&&inward&&(c[0]!==inward[0]||c[1]!==inward[1]))
+   portalList.push([+c[0].toFixed(6),+c[1].toFixed(6),+bearingTo(c,inward).toFixed(1),p.r.w.system]);
+ }
 }
 for(const r of records)if(r.tier===undefined)r.tier=tierOf(r.c);
 const nodes=[],byKey=new Map(),edges=[];
@@ -83,5 +94,5 @@ const entries={},counts={};for(const r of records){const offsets=r.ids.map(i=>+n
 for(const [upper,lower] of crossings){upper.other=lower;upper.above=true;lower.other=upper;lower.above=false;}
 corridor=await applyLinkouRailGrade(records,entries,dem.ground);tunnels=await applyTunnelGrade(records,entries,dem.ground);
 console.log({linkouWays:corridor.length,tunnelWays:tunnels.ids.length,tunnelRuns:tunnels.runs,tunnelSolver:tunnels.worst,tunnelSteep:tunnels.steep,bores});if(process.env.TUNNEL_REPORT)console.log(tunnels.report.filter(r=>r.error>.01).sort((a,b)=>b.error-a.error).slice(0,10).map(r=>({system:r.system,error:r.error,knots:r.knots,n:r.ways.length,head:r.ways.slice(0,4)})));
-fs.writeFileSync('rail-3d/physical/level-profiles.json',JSON.stringify({version:1,railElevationM:null,basis:'OSM 明示 bridge/tunnel + 國土測繪中心官方橋隧幾何補正（含 DEM 地形裁決過的反向改判）+ layer 交叉上下序 + 固定 DEM；地面初值 0m，橋隧 ±8m 層位初值、7m 相交淨距、8% 顯示過渡限制均為估計，不是工程標高。層位初值只取結構種類的正負號，不乘 layer 數值——layer 只表示相交上下序。隧道依 DEM 地形起伏分兩種：山岳隧道沿用洞口外側股道的層位（軌面直行、山蓋過去），都市地下段維持地面下一層；兩者都以 terrainValues 給洞口間的連續縱坡，內部沿里程直線，不隨山坡起伏。',inputSha256:Object.fromEntries([['network.json','rail-3d/physical/network.json'],['metro-network.json','rail-3d/physical/metro-network.json'],['display-profiles.json','rail-3d/physical/display-profiles.json'],['metro-display-profiles.json','rail-3d/physical/metro-display-profiles.json'],['../terrain/manifest.json','rail-3d/terrain/manifest.json'],['../../'+officialFile,officialFile]].map(([k,p])=>[k,crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex')])),sources:['https://data.gov.tw/dataset/73220','https://data.gov.tw/dataset/73221','https://data.gov.tw/dataset/73222','https://www.futsu.com.tw/p_transportation.html','https://wiki.openstreetmap.org/wiki/Key:layer','https://web.metro.taipei/pages2026/WebStation/051'],solver:{iterations,violation,crossings:crossings.length},entries}));console.log({ways:Object.keys(entries).length,counts,iterations,violation});
+fs.writeFileSync('rail-3d/physical/level-profiles.json',JSON.stringify({version:1,railElevationM:null,basis:'OSM 明示 bridge/tunnel + 國土測繪中心官方橋隧幾何補正（含 DEM 地形裁決過的反向改判）+ layer 交叉上下序 + 固定 DEM；地面初值 0m，橋隧 ±8m 層位初值、7m 相交淨距、8% 顯示過渡限制均為估計，不是工程標高。層位初值只取結構種類的正負號，不乘 layer 數值——layer 只表示相交上下序。隧道依 DEM 地形起伏分兩種：山岳隧道沿用洞口外側股道的層位（軌面直行、山蓋過去），都市地下段維持地面下一層；兩者都以 terrainValues 給洞口間的連續縱坡，內部沿里程直線，不隨山坡起伏。',inputSha256:Object.fromEntries([['network.json','rail-3d/physical/network.json'],['metro-network.json','rail-3d/physical/metro-network.json'],['display-profiles.json','rail-3d/physical/display-profiles.json'],['metro-display-profiles.json','rail-3d/physical/metro-display-profiles.json'],['../terrain/manifest.json','rail-3d/terrain/manifest.json'],['../../'+officialFile,officialFile]].map(([k,p])=>[k,crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex')])),sources:['https://data.gov.tw/dataset/73220','https://data.gov.tw/dataset/73221','https://data.gov.tw/dataset/73222','https://www.futsu.com.tw/p_transportation.html','https://wiki.openstreetmap.org/wiki/Key:layer','https://web.metro.taipei/pages2026/WebStation/051'],solver:{iterations,violation,crossings:crossings.length},portals:portalList,entries}));console.log({ways:Object.keys(entries).length,counts,iterations,violation,portals:portalList.length});
 }finally{dem.close();}

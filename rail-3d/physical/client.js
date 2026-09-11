@@ -31,7 +31,9 @@ export async function loadPhysicalMotion(){
  const covered=tr=>PHYSICAL_SYSTEMS.includes(tr.sys||tr.system);
  // systems 是這份白名單的**唯一**出處:rail-3d.js 決定「哪些線要把示意線形換成實體股道」時要讀它。
  // 兩邊各留一份的話,名單一改就會出現「宣告換圖、卻沒有東西可換」的空窗——線直接消失。
- return {...motion,metro,dispatch,visibleRoutes,systems:PHYSICAL_SYSTEMS,
+ // portals＝建置時算好的洞口位置與朝向（[經度,緯度,朝洞內方位角,系統]）。算繪端只取樣有車在跑的
+ // 股道，沒車的隧道一個洞口都取樣不到，所以這份要隨產物出去。
+ return {...motion,metro,dispatch,visibleRoutes,systems:PHYSICAL_SYSTEMS,portals:levels.portals||[],
   displayLevelAt(system,coordinate,angle){if(!displayLevelLookup)displayLevelLookup=createDisplayLevelLookup(network.ways,motion.geometry.levelAt);return displayLevelLookup(system,coordinate,angle);},
   sample:(tr,...rest)=>covered(tr)?motion.sample(tr,...rest):undefined,
   has:tr=>covered(tr)&&motion.has(tr)};

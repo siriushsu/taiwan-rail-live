@@ -4,16 +4,21 @@
 // 而 z18 以上畫面裡的段數只剩幾百，加鋼軌與枕木仍遠低於廣角的量。
 import * as THREE from '../vendor/three.module.js';
 const GAUGE=1.435,RAIL_W=.14,RAIL_H=.2,TIE_LEN=2.5,TIE_W=.26,TIE_H=.15,TIE_SPACING=.65;
+// 洞口尺寸沿用 prototypes/taiwan-3d/rail-occlusion.js 的隧道示意：拱心半徑 3.2 公尺、
+// 起拱線在軌頂上 2.6 公尺、洞底在軌頂下 1.2 公尺、石環厚 .7 公尺。那一版是文湖線單線
+// 展示做的，這裡只取斷面比例，位置改成沿線每個洞口自己算。
+const BORE_R=3.2,SPRING=2.6,BORE_FLOOR=-1.2,RING=.7,ARCH_SEGMENTS=14;
 export function createRailStructures(scene){
   let geometry=new THREE.BufferGeometry();
   const material=new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide}),mesh=new THREE.Mesh(geometry,material);
   mesh.frustumCulled=false;mesh.renderOrder=-1;scene.add(mesh);
-  const stats={decks:0,piers:0,beds:0,rails:0,ties:0,detail:0,vertices:0,samples:[],buildMs:0};
-  function set(segments,piers,detail=0){
+  const stats={decks:0,piers:0,beds:0,rails:0,ties:0,portals:0,detail:0,vertices:0,samples:[],buildMs:0};
+  function set(segments,piers,detail=0,portals=[]){
     const started=performance.now(),positions=[],colors=[];
     const deck=new THREE.Color('#b2ad9e'),side=new THREE.Color('#989588'),
-          ballast=new THREE.Color('#9d978b'),steel=new THREE.Color('#6f6a62'),tie=new THREE.Color('#a8a299');
-    stats.decks=stats.piers=stats.beds=stats.rails=stats.ties=0;stats.detail=detail;stats.samples=[];
+          ballast=new THREE.Color('#9d978b'),steel=new THREE.Color('#6f6a62'),tie=new THREE.Color('#a8a299'),
+          stone=new THREE.Color('#d4c8ad'),lining=new THREE.Color('#344b52');
+    stats.decks=stats.piers=stats.beds=stats.rails=stats.ties=stats.portals=0;stats.detail=detail;stats.samples=[];
     function quad(a,b,c,d,color){for(const p of [a,b,c,a,c,d]){positions.push(...p);colors.push(color.r,color.g,color.b);}}
     // 上下底可以不同寬：道碴是梯形斷面，橋面是等寬箱梁。
     function prism(a,b,width,bottomA,bottomB,color,bottomWidth=width){
@@ -41,8 +46,9 @@ export function createRailStructures(scene){
       const half=TIE_LEN*scale/2,hw=TIE_W*scale/2,z=top+.01*scale;
       for(let d=step/2;d<length;d+=step){
        const cx=a[0]+tx*d,cy=a[1]+ty*d;
-       quad([cx+ux*half+tx*hw,cy+uy*half+ty*hw,z],[cx-ux*half+tx*hw,cy-uy*half+ty*hw,z],
-            [cx-ux*half-tx*hw,cy-uy*half-ty*hw,z],[cx+ux*half-tx*hw,cy+uy*half-ty*hw,z],tie);
+       // 繞向要跟 prism 頂面一致（先沿 -u 再沿 +t），否則法線朝下、枕木會被算成背光的深色。
+       quad([cx+ux*half-tx*hw,cy+uy*half-ty*hw,z],[cx-ux*half-tx*hw,cy-uy*half-ty*hw,z],
+            [cx-ux*half+tx*hw,cy-uy*half+ty*hw,z],[cx+ux*half+tx*hw,cy+uy*half+ty*hw,z],tie);
        stats.ties++;
       }
     }
@@ -56,6 +62,36 @@ export function createRailStructures(scene){
       if(detail>=2)ties(topA,topB,topA[2],scale);
       if(detail>=1){const top=a[2]-(detail>=2?.15*scale:.2*scale);rail(topA,topB,GAUGE/2,top,scale);rail(topA,topB,-GAUGE/2,top,scale);}
     }
+    // 洞口：石造拱圈加兩側翼牆，開口填深色襯砌當洞口。軌道本來就在洞口戛然而止，
+    // 補上這個之後才看得出來是「進洞」而不是「線畫到一半沒了」。
+    function portal({p,angle,scale=1}){
+      if(![...p,angle,scale].every(Number.isFinite))return;
+      const tx=Math.cos(angle),ty=Math.sin(angle),ux=-ty,uy=tx;
+      // 拱圈往洞內退一點，才不會跟路基頂面或地形同面閃爍。
+      const ox=tx*.25*scale,oy=ty*.25*scale;
+      const at=(r,t,d)=>[p[0]+ux*r*Math.cos(t)*scale+tx*d*scale,p[1]+uy*r*Math.cos(t)*scale+ty*d*scale,p[2]+(SPRING+r*Math.sin(t))*scale];
+      for(let i=0;i<ARCH_SEGMENTS;i++){
+        const a=i*Math.PI/ARCH_SEGMENTS,b=(i+1)*Math.PI/ARCH_SEGMENTS;
+        quad(at(BORE_R,a,0),at(BORE_R+RING,a,0),at(BORE_R+RING,b,0),at(BORE_R,b,0),stone);
+      }
+      // 兩側翼牆：從起拱線垂直落到洞底。
+      for(const sign of [1,-1]){
+        const inner=[p[0]+ux*sign*BORE_R*scale,p[1]+uy*sign*BORE_R*scale],outer=[p[0]+ux*sign*(BORE_R+RING)*scale,p[1]+uy*sign*(BORE_R+RING)*scale];
+        const hi=p[2]+SPRING*scale,lo=p[2]+BORE_FLOOR*scale;
+        quad([inner[0],inner[1],hi],[outer[0],outer[1],hi],[outer[0],outer[1],lo],[inner[0],inner[1],lo],stone);
+      }
+      // 開口填襯砌：拱內一圈扇形，再補洞底到起拱線的方塊。
+      const hub=[p[0]+ox,p[1]+oy,p[2]+SPRING*scale];
+      for(let i=0;i<ARCH_SEGMENTS;i++){
+        const a=i*Math.PI/ARCH_SEGMENTS,b=(i+1)*Math.PI/ARCH_SEGMENTS;
+        quad(hub,at(BORE_R,a,.25),at(BORE_R,b,.25),hub,lining);
+      }
+      const lx=ux*BORE_R*scale,ly=uy*BORE_R*scale,hi=p[2]+SPRING*scale,lo=p[2]+BORE_FLOOR*scale;
+      quad([p[0]+lx+ox,p[1]+ly+oy,hi],[p[0]-lx+ox,p[1]-ly+oy,hi],[p[0]-lx+ox,p[1]-ly+oy,lo],[p[0]+lx+ox,p[1]+ly+oy,lo],lining);
+      stats.portals++;
+    }
+    if(detail>=1)for(const item of portals)portal(item);
+
     for(const {p,ground,angle,scale=1,coordinate,railHeightM,groundM}of piers){
       const top=p[2]-1.5*scale;if(![...p,ground,angle,scale].every(Number.isFinite)||top-ground<.3*scale)continue;
       const dx=Math.cos(angle)*.8*scale,dy=Math.sin(angle)*.8*scale;
