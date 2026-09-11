@@ -14,6 +14,8 @@
 //
 // 用法：node scripts/verify_rail_structure_heights.mjs
 import fs from 'node:fs';
+import {makePath} from '../rail-3d/integration/train-path.js';
+import {openRailDem} from './lib/local_rail_dem.mjs';
 const levels=JSON.parse(fs.readFileSync('rail-3d/physical/level-profiles.json')),E=levels.entries;
 const official=JSON.parse(fs.readFileSync('data/rail_structures_official.json'));
 const ways=[];for(const f of ['network.json','metro-network.json'])ways.push(...JSON.parse(fs.readFileSync('rail-3d/physical/'+f)).ways);
@@ -71,28 +73,29 @@ const dipOf=(oe,oi,last)=>{
  const portalS=oi===0?0:len,inwardS=oi===0?Math.min(INWARD_M,len):Math.max(0,len-INWARD_M);
  return at(oe,inwardS,'offsets')-at(oe,portalS,'offsets');
 };
-let dipWorst=0,dipAt='',checked=0,ramps=0;
+let dipWorst=0,dipAt='',checked=0,ramps=0,portalEnds=0,adjacent=0,tunnelAdjacent=0,noEntry=0,tooShort=0;const checkedKinds={};
 for(const w of ways){
  const e=E[w.id];if(e?.kind!=='tunnel'||e.boreKind!=='mountain')continue;
  for(const i of [0,w.nodes.length-1]){
-  const node=w.nodes[i];
+  const node=w.nodes[i];portalEnds++;
   for(const o of nodeWays.get(w.system+':'+node)||[]){
-   if(String(o.id)===String(w.id))continue;
-   const oe=E[o.id];if(!oe||oe.kind==='tunnel')continue;  // 高架與平面都要量：兩種接法都會被拖下去
+   if(String(o.id)===String(w.id))continue;adjacent++;
+   const oe=E[o.id];if(!oe){noEntry++;continue;}if(oe.kind==='tunnel'){tunnelAdjacent++;continue;}  // 高架與平面都要量：兩種接法都會被拖下去
    const oi=o.nodes.indexOf(node),last=o.nodes.length-1;
    // 平面段的遠端若接著高架橋，這一段就是上橋引道，那個爬升是它該有的樣子不是洞口俯衝：
    // 實測 12 條最深的全是「洞口 0.00 公尺 → 遠端 4.6 公尺接上高架」的百餘公尺連接段。
    const farNode=oi===0?o.nodes[last]:o.nodes[0];
    if(oe.kind!=='bridge'&&(nodeWays.get(o.system+':'+farNode)||[]).some(x=>String(x.id)!==String(o.id)&&E[x.id]?.kind==='bridge')){ramps++;continue;}
-   const dip=dipOf(oe,oi,last);if(dip===null)continue;
-   checked++;if(dip>dipWorst){dipWorst=dip;dipAt=`way ${o.id}（${oe.kind}）接 ${w.id}`;}
+   const dip=dipOf(oe,oi,last);if(dip===null){tooShort++;continue;}
+   checked++;checkedKinds[oe.kind]=(checkedKinds[oe.kind]||0)+1;if(dip>dipWorst){dipWorst=dip;dipAt=`way ${o.id}（${oe.kind}）接 ${w.id}`;}
   }
  }
 }
 if(dipWorst>MAX_DIP_M)failures.push(`G3 洞口旁股道俯衝 ${dipWorst.toFixed(1)}m > ${MAX_DIP_M}m（${dipAt}）`);
 // 覆蓋率具名斷言：分母無聲縮水時（例如山岳隧道整批被誤判成橋）G3 會變成恆綠。
-// 2026-09-11 實測：586 個山岳隧道洞口端點、614 個相鄰段，扣掉鄰段也是隧道的 250 筆、
-// 上橋引道 134 筆、太短無法比對的 60 筆，實際列入判準 170 筆（高架 136、平面 34）。
+// 2026-09-12 實測（普查數字隨閘門一起印出，見 notes.洞口普查）：586 個山岳隧道洞口端點、614 個相鄰段，
+// 扣掉鄰段也是隧道的 200 筆、上橋引道 134 筆、太短無法比對的 72 筆，實際列入判準 208 筆（高架 136、平面 72）。
+// 09-11 露天段求解器補齊 entry 之前是 170 筆（平面 34）：差的 38 筆是原本沒有 entry 的平面 way。
 // 同一批對象在修改前的產物上量：204 筆可量，180 筆超過門檻，最深 16 公尺。
 if(checked<150)failures.push(`G3 只量到 ${checked} 處洞口銜接，分母異常縮水（2026-09-11 基準 170）`);
 // 正向對照：G3 的合格值是 0，而「恰為 0」本身零資訊。餵一段真的俯衝八公尺的剖面進同一個
@@ -100,7 +103,7 @@ if(checked<150)failures.push(`G3 只量到 ${checked} 處洞口銜接，分母�
 const dive={distances:[0,60,200,400],offsets:[.2,3,8,8]};
 const control=dipOf(dive,0,3);
 if(!(control>MAX_DIP_M))failures.push(`G3 正向對照失效：合成的八公尺俯衝只量到 ${control?.toFixed(1)}m，量法本身壞了`);
-notes.洞口銜接 = checked;notes.上橋引道 = ramps;notes.最大俯衝 = +dipWorst.toFixed(1);notes.對照組俯衝 = +control.toFixed(1);
+notes.洞口銜接 = checked;notes.洞口普查 = {洞口端點:portalEnds,相鄰段:adjacent,鄰段也是隧道:tunnelAdjacent,沒有entry:noEntry,上橋引道:ramps,太短:tooShort,列入:checkedKinds};notes.上橋引道 = ramps;notes.最大俯衝 = +dipWorst.toFixed(1);notes.對照組俯衝 = +control.toFixed(1);
 
 // ── G4 隧道分類的分母 ──────────────────────────────────────────────
 const bores={};for(const e of Object.values(E))if(e.boreKind)bores[e.boreKind]=(bores[e.boreKind]||0)+1;
@@ -177,9 +180,23 @@ for(const s of ['thsr_sched','tra_sched']){let shown=0,raw=0;for(const w of ways
  if(!(raw>0))failures.push(`G6 ${s} 高架橋原始剖面起伏為 0，比值無從計算`);
  else if(shown/raw>.3)failures.push(`G6 ${s} 高架橋顯示剖面的起伏是原始剖面的 ${(100*shown/raw).toFixed(0)}%，超過三成——平滑層沒在跑`);
  notes['起伏比_'+s]=+(shown/raw).toFixed(2);}
+// G6e 平面段不埋進地形：節點每 100 公尺一個，節點之間的 DEM 突起沒被任何節點看到，2026-09-12 修前實測臺鐵平面段
+// 19.6 公里低於原始 DEM 逾 .5 公尺（5.2 公里逾 1 公尺）；埋在地形底下的軌道畫了也看不見。每 10 公尺取一次原始 DEM
+// （rail-3d/terrain 的 z12 圖磚，與 MapLibre 同一份），只算平面段（隧道本來就在地下、高架離地另有 G3 管）。
+// 門檻 .1 公里：修後全網 0.00 公里；正向對照兩個——修前那份產物（28b0fc8b）要紅在 19.6 公里，合成「整段壓低 2 公尺」要被量到。
+const dem=openRailDem(new URL('../',import.meta.url)),shownAt=(e,s)=>{let i=0,j=e.distances.length-1;while(j-i>1){const m=(i+j)>>1;if(e.distances[m]<=s)i=m;else j=m;}const t=Math.max(0,Math.min(1,(s-e.distances[i])/(e.distances[j]-e.distances[i]||1)));return e.terrainValues[i]*(1-t)+e.terrainValues[j]*t;};
+let buriedKm=0,checkedKm=0;const buriedBy={};
+for(const w of ways){const e=E[String(w.id)];if(!e?.terrainValues||e.kind!=='surface')continue;const path=makePath(w.coordinates);
+ for(let s=5;s<path.length;s+=10){const g=await dem.ground(path.at(s).coordinate);if(!Number.isFinite(g))continue;checkedKm+=.01;if(shownAt(e,s)<g-.5){buriedKm+=.01;buriedBy[w.system]=+((buriedBy[w.system]||0)+.01).toFixed(2);}}}
+if(checkedKm<1500)failures.push(`G6 平面段取樣只有 ${checkedKm.toFixed(0)} 公里，分母異常縮水（2026-09-12 基準約 1630）`);
+if(buriedKm>.1)failures.push(`G6 平面段有 ${buriedKm.toFixed(2)} 公里埋在地形底下逾 .5 公尺（${JSON.stringify(buriedBy)}）`);
+{const w=ways.find(w=>E[String(w.id)]?.kind==='surface'&&E[String(w.id)].terrainValues),e=E[String(w.id)],fake={...e,terrainValues:e.terrainValues.map(v=>v-2)},path=makePath(w.coordinates);let hit=0;
+ for(let s=5;s<path.length;s+=10){const g=await dem.ground(path.at(s).coordinate);if(Number.isFinite(g)&&shownAt(fake,s)<g-.5)hit++;}
+ if(!hit)failures.push(`G6 正向對照失效：平面 way ${w.id} 整段壓低 2 公尺沒被量到`);}
+notes.平面埋沒公里 = +buriedKm.toFixed(2);notes.平面取樣公里 = +checkedKm.toFixed(0);
 notes.露天縱坡最陡 = Object.fromEntries(Object.entries(steepest).map(([s,{g}])=>[s,(100*g).toFixed(1)+'%']));notes.接縫 = seams.n;notes.接縫最大落差 = +seams.worst.toFixed(2);
 
 
 console.log(notes);
 if(failures.length){console.log(failures);process.exit(1);}
-console.log('橋隧種類與顯示高度：反向改判、橋面高度、洞口銜接、分類分母、穿透門檻、露天縱坡與接縫皆通過');
+console.log('橋隧種類與顯示高度：反向改判、橋面高度、洞口銜接、分類分母、穿透門檻、露天縱坡、接縫與平面埋沒皆通過');

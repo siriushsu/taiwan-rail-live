@@ -7,7 +7,7 @@
 // 交會處只抬上方股道（沿縱坡做帳篷狀抬升），下方不動；隧道稍後另解，洞口會接到這裡算出的高程。
 // 只改顯示高程，不改平面線形；縱坡上限、淨空與挖深都是顯示估計，不是測量或竣工標高。
 import {gradeOf} from './tunnel_rail_grade.mjs';
-const STEP=100,CLEAR=6,CUT=0,GAP=7,SMOOTH_PASSES=16;
+const STEP=100,CLEAR=6,CUT=0,GAP=7,SMOOTH_PASSES=16,DENSE=10,BURY=.25;
 export async function applyOutdoorRailGrade(records,entries,groundAt,crossings){
  const done=new Set(Object.keys(entries).filter(id=>entries[id].terrainValues));
  const sample=(r,s,key)=>{const e=entries[r.w.id];if(!e?.[key])return null;let i=0,j=e.distances.length-1;while(j-i>1){const m=(i+j)>>1;if(e.distances[m]<=s)i=m;else j=m;}const t=(s-e.distances[i])/(e.distances[j]-e.distances[i]||1);return e[key][i]*(1-t)+e[key][j]*t;};
@@ -63,10 +63,23 @@ export async function applyOutdoorRailGrade(records,entries,groundAt,crossings){
   if(!any)break;}
  for(const [u,l]of crossings){const ku=knotOf(u);if(!ku)continue;const kl=knotOf(l),low=kl?kl.h:sample(l.r,l.s,'terrainValues');if(low===null)continue;const deficit=low+GAP-ku.h;if(deficit>.01){residual=Math.max(residual,deficit);blocked++;}}
  const tangent=(k,link)=>{const own=(link.b.h-link.a.h)/link.len,other=k.links.find(l=>l!==link);if(!other)return own;const neighbor=other.a===k?other.b:other.a,adjacent=link.a===k?(k.h-neighbor.h)/other.len:(neighbor.h-k.h)/other.len;return own*adjacent<=0?0:2*own*adjacent/(own+adjacent);};
+ const hermite=(l,d)=>{const {a,b,len}=l,m0=tangent(a,l),m1=tangent(b,l),t=Math.max(0,Math.min(1,(d-l.start)/len)),t2=t*t,t3=t2*t;return (2*t3-3*t2+1)*a.h+(t3-2*t2+t)*len*m0+(-2*t3+3*t2)*b.h+(t3-t2)*len*m1;};
+ const pieceAt=(pieces,d)=>pieces.find(l=>d<=l.end)||pieces.at(-1);
+ // 節點之間的 DEM 突起：節點每 100 公尺一個，兩節點之間的 20 公尺 DTM 小丘（一兩公尺高、二三十公尺寬）沒被任何節點看到，
+ // 平滑後的剖面會從它底下穿過去——2026-09-12 實測臺鐵平面段 5.2 公里低於 DEM 逾 1 公尺、19.6 公里逾 .5 公尺，
+ // 瀏覽器接地閘門在新竹 391706267 量到 −1.03 公尺。每 10 公尺取一次地面，埋住的地方把兩端節點以帳篷抬到地面（高架加淨空）：
+ // 帳篷沿縱坡遞減、釘死節點不動、林口走廊的上界照樣管得住，抬完仍在縱坡上限內。最多三輪，剩下的計入 buried.after。
+ const floors=new Map();
+ for(const [r]of byWay){const len=r.distances.at(-1),clear=r.c.kind==='bridge'?CLEAR:0,rows=[];for(let s=DENSE;s<len;s+=DENSE){const g=await groundAt(r.path.at(s).coordinate);if(Number.isFinite(g))rows.push([s,g+clear]);}floors.set(r,rows);}
+ const buried={before:0,after:0,raised:0};
+ for(let round=0;round<3;round++){let count=0;
+  for(const [r,pieces]of byWay)for(const [s,f]of floors.get(r)){const l=pieceAt(pieces,s);if(hermite(l,s)>=f-BURY)continue;count++;for(const k of [l.a,l.b])if(k.h<f-1e-6){raise(k,f);buried.raised++;}}
+  if(!round)buried.before=count;if(!count)break;}
+ for(const [r,pieces]of byWay)for(const [s,f]of floors.get(r))if(hermite(pieceAt(pieces,s),s)<f-BURY)buried.after++;
  const ids=[],deviation={};let below=0;
  for(const k of knots.values()){const d=Math.abs(k.h-k.t),s=k.system;deviation[s]=Math.max(deviation[s]||0,d);if(k.h<k.b-.01)below++;}
  for(const [r,pieces]of byWay){let e=entries[r.w.id];if(!e)entries[r.w.id]=e={...r.c,distances:r.distances,offsets:r.distances.map(()=>0),values:r.distances.map(d=>+r.at(d).toFixed(4))};
-  e.terrainValues=e.distances.map(d=>{const l=pieces.find(l=>d<=l.end)||pieces.at(-1),{a,b,len}=l,m0=tangent(a,l),m1=tangent(b,l),t=Math.max(0,Math.min(1,(d-l.start)/len)),t2=t*t,t3=t2*t;return +((2*t3-3*t2+1)*a.h+(t3-2*t2+t)*len*m0+(-2*t3+3*t2)*b.h+(t3-t2)*len*m1).toFixed(2);});
+  e.terrainValues=e.distances.map(d=>+hermite(pieceAt(pieces,d),d).toFixed(2));
   e.terrainBasis='露天段連續縱坡（原始 DEM 加層位為目標，各系統縱坡上限內取最接近的剖面；高架至少離地 6 公尺、平面不低於地表、交會抬上方股道）';e.terrainTransition=false;ids.push(String(r.w.id));}
- return {ids,knots:knots.size,links:links.length,passes,tents,blocked,residual:+residual.toFixed(2),below,deviation:Object.fromEntries(Object.entries(deviation).map(([k,v])=>[k,+v.toFixed(1)]))};
+ return {ids,knots:knots.size,links:links.length,passes,tents,blocked,residual:+residual.toFixed(2),below,buried,deviation:Object.fromEntries(Object.entries(deviation).map(([k,v])=>[k,+v.toFixed(1)]))};
 }
