@@ -123,3 +123,9 @@ suno musics/_licensed
 *.wav
 # 內部宣傳縮時成品：本機產片用，不隨裸跑 wrangler 變成正式站靜態資產。
 輸出/縮時_*/
+# 驗收閘門的輸出目錄:48 支 verify_*／optimize_* 的預設 out(output/3d-integration、
+# output/dark20…),外加外包交付的 zip 與內部報告 PDF。前端與 worker 都不讀。
+# 2026-09-11 與 .gitignore 同一批補。理由同 .cache／scratchpad:wrangler 上傳的是**磁碟上的
+# 檔案**,.gitignore 對它完全無效,少了這條,裸跑 versions upload 就讓 output/ 變成公開路徑。
+# (同一批的另一半是上面的 _shot_*.png——那條這邊本來就有,這次補的是 .gitignore 那邊。)
+output
