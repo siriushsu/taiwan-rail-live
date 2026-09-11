@@ -13040,6 +13040,40 @@
         }
       }
     },
+    "立體地圖的高架橋不再跟著地形起伏，橋面、護欄與橋墩也畫得像真的高架橋": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Viaducts on the 3D map no longer follow the terrain up and down; decks, parapets and piers now look like real viaducts"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "立体地図の高架橋が地形に合わせて上下しなくなり、橋面・高欄・橋脚も本物の高架橋らしく描くようになりました"
+          }
+        }
+      }
+    },
+    "立體地圖的路線不再一下橋梁一下地下道地上上下下，過山洞就是過山洞": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Routes on the 3D map no longer flip between bridge and underpass every few metres; a tunnel is now drawn as a tunnel"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "立体地図の路線が橋と地下道を行き来して上下することがなくなり、トンネルはトンネルとして描くようになりました"
+          }
+        }
+      }
+    },
     "立體顯示載入失敗，請重試": {
       "extractionState": "manual",
       "localizations": {

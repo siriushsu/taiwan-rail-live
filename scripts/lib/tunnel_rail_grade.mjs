@@ -1,8 +1,8 @@
 // 隧道內部預設為直線：洞口沿用相接股道的現有顯示高程，內部沿里程調和內插。
 // 舊做法把隧道畫成「地表減固定深度」，於是隧道跟著山坡爬升；offsets 平順並不代表顯示高程平順。
 // 只改顯示高程，不改平面線形；覆土深度與縱坡上限都是顯示估計，不是測量或竣工標高。
-const GRADE={tra_sched:.025,thsr_sched:.025,afr_sched:.06},COVER=8,STEP=100;
-const gradeOf=system=>GRADE[system]??.04;
+export const GRADE={tra_sched:.025,thsr_sched:.025,afr_sched:.06},COVER=8,STEP=100;
+export const gradeOf=system=>GRADE[system]??.04;
 export async function applyTunnelGrade(records,entries,groundAt){
  const done=new Set(Object.keys(entries).filter(id=>entries[id].terrainValues));
  const sample=(r,s,key)=>{const e=entries[r.w.id];if(!e?.[key])return null;let i=0,j=e.distances.length-1;while(j-i>1){const m=(i+j)>>1;if(e.distances[m]<=s)i=m;else j=m;}const t=(s-e.distances[i])/(e.distances[j]-e.distances[i]||1);return e[key][i]*(1-t)+e[key][j]*t;};
@@ -28,13 +28,18 @@ export async function applyTunnelGrade(records,entries,groundAt){
     // 洞口：相接的股道不在本段內。它已經畫在地表附近，隧道端點必須沿用它的顯示高程才不會出現落差。
     for(const o of node===null?[]:nodeWays.get(r.w.system+':'+node)||[])if(!member.has(String(o.w.id))){k.portal=true;const os=o.w.nodes.indexOf(node)>=0?o.path.d[o.w.nodes.indexOf(node)]:null;const t=os===null?null:sample(o,os,'terrainValues');if(t!==null)k.fixedTo=t;}
     // 保留已求解的跨線上下序：交叉約束是下限／上限，不是等式。
-    for(const pin of r.pins.filter(p=>p.s===s)){const z=ground+(sample(pin.other.r,pin.other.s,'offsets')??0)+(pin.above?7:-7);if(pin.above)k.min=Math.max(k.min,z);else k.max=Math.min(k.max,z);}
+    for(const pin of r.pins.filter(p=>p.s===s)){const shown=sample(pin.other.r,pin.other.s,'terrainValues'),z=(shown??ground+(sample(pin.other.r,pin.other.s,'offsets')??0))+(pin.above?7:-7);if(pin.above)k.min=Math.max(k.min,z);else k.max=Math.min(k.max,z);}
     local.push({s,k});
    }
    const pieces=[];for(let i=1;i<local.length;i++){const a=local[i-1],b=local[i],link={r,start:a.s,end:b.s,len:b.s-a.s||1e-6,a:a.k,b:b.k};links.push(link);pieces.push(link);a.k.links.push(link);b.k.links.push(link);}
    byWay.set(r,pieces);
   }
   for(const k of knots.values()){k.ground/=k.n;k.hold/=k.n;k.h=k.fixedTo??k.hold;
+   // 只有一條連線又不是洞口的端點＝分岔支洞接在主洞「中段」的節點。主洞那一側的節點鍵是
+   // way 內部取樣（wayId:cross:s），與支洞端點的 system:node 不同鍵，所以兩邊在求解圖上沒有相連，
+   // 這個端點等於自由浮動卻被當成固定值。它位在山體內部，一律壓回覆土上界，
+   // 不能沿用「地表＋層位」——山岳隧道改用相鄰高架層位之後，那會把它釘到地表之上。
+   if(!k.portal&&k.links.length===1)k.h=Math.min(k.h,k.ground-COVER);
    if(k.portal||k.links.length===1)k.fixed=true;else k.max=Math.min(k.max,k.ground-COVER); // 自由節點只受覆土上界，不再逐點貼著地表
    k.reach=k.fixed?k.h:-Infinity;k.floor=k.fixed?k.h:Infinity;}
   // 先求無約束的調和解：單一鏈時它就是兩端洞口之間沿里程的直線，當作初值與「無解時退回哪裡」。

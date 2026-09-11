@@ -5446,13 +5446,13 @@
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
         <li data-cl-of="thsrtracks0912"><span class="d">9/12</span><span>高鐵停靠列車改停外側月台、通過列車走內側正線，派車改用當日班表</span></li>
+        <li data-cl-of="viaduct0912"><span class="d">9/12</span><span>立體地圖的高架橋不再跟著地形起伏，橋面、護欄與橋墩也畫得像真的高架橋</span></li>
         <li data-cl-of="thsrfold0912"><span class="d">9/12</span><span>修正高鐵列車在板橋等地下車站車廂折疊、上下跳動的問題</span></li>
+        <li data-cl-of="tunnelkind0911"><span class="d">9/11</span><span>立體地圖的路線不再一下橋梁一下地下道地上上下下，過山洞就是過山洞</span></li>
         <li data-cl-of="metrolead0911"><span class="d">9/11</span><span>捷運頁說明更正：台北捷運九線的位置與車站倒數都是官方逐班即時</span></li>
         <li data-cl-of="xfercollapse0911"><span class="d">9/11</span><span>轉乘接續可以收起來了，收合時仍看得到最近一班</span></li>
         <li data-cl-of="thsrseat0911"><span class="d">9/11</span><span>高鐵看板看得到對號座還有沒有位子，也查得到票價</span></li>
         <li data-cl-of="busstop0911"><span class="d">9/11</span><span>公車站牌可以搜尋了，點進去看得到每條路線還有幾分鐘到</span></li>
-        <li data-cl-of="widgetauto0911"><span class="d">9/11</span><span>小工具可以設成「自動（最近的站）」，走到哪就顯示哪一站</span></li>
-        <li data-cl-of="sanyinglast0911"><span class="d">9/11</span><span>三鶯線平日末班車補上官方的 00:00 那一班</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5461,7 +5461,10 @@
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
         <li data-cl="thsrtracks0912"><span class="d">9/12</span><span>高鐵車站股道照真實配置：桃園、新竹、苗栗、台中、彰化、雲林、嘉義、台南、板橋等有通過線的車站，停靠列車一律停外側月台到發線，通過列車走內側正線；股道派車也從 7 月靜態班表改成依當日班表重派。</span></li>
+        <li data-cl="viaduct0912"><span class="d">9/12</span><span>立體地圖全台軌道縱坡重算：高架橋與平面軌道不再逐點跟著地形上上下下（高鐵橋面最陡從 67% 降到 3.7%）；高架橋補上箱梁、護欄與墩帽，雙線橋墩對齊成排</span></li>
         <li data-cl="thsrfold0912"><span class="d">9/12</span><span>修正高鐵列車在板橋等地下車站車廂一節一節折疊、在地面與地下之間跳的問題：當日班表新增或改點的班次也會沿實體股道行駛，不再退回示意線形</span></li>
+        <li data-cl="tunnelkind0911"><span class="d">9/11</span><span>立體地圖的橋梁隧道判定與高度全台修正：13 段官方圖資其實是橋梁的路段改回橋梁，橋面離地最高從 48 公尺降到 12 公尺，隧道洞口也不再把相鄰的高架橋往下拉</span></li>
+        <li data-cl="railtrack0911"><span class="d">9/11</span><span>近看軌道畫得出道碴、鋼軌與枕木，不再是一塊棕色的板子；隧道口補上石造拱圈，軌道進山不再是畫到一半就沒了；山裡的隧道也不再把軌跡畫到山坡表面上</span></li>
         <li data-cl="solidtrain0910"><span class="d">9/10</span><span>地下路段的列車可以顯示原本的車身顏色：「更多」的「透視顯示」切到「實體」，地下列車就不再半透明；這個開關同時管建築，切回「透視」時建築與地下列車都看得穿。</span></li>
         <li data-cl="tymctraintype0910"><span class="d">9/10</span><span>桃園機場捷運的車種改讀官方時刻表的車種欄位，全線每一班都標得出直達車或普通車：先前是從停靠站型態回推，首末班有十幾班的跳法兩種都不像、只能標線號，機場第一航廈到第二航廈的區間班次也被當成普通車。</span></li>
         <li data-cl="tunnelgrade0910"><span class="d">9/10</span><span>全台鐵道與捷運的隧道改成兩端洞口之間的連續縱坡，內部不再跟著山坡起伏；原本山區隧道會在畫面上翻過山頭，北迴線新觀音隧道一度爬升 538 公尺</span></li>
@@ -6491,6 +6494,14 @@ function i18nContentData(group, item, field, index = null) {
 function i18nNumber(value, options) {
   try { return new Intl.NumberFormat(I18N_LANG, options).format(value); }
   catch (e) { return String(value); }
+}
+// 把兩個片語接起來時的分隔符:中文與日文詞間不留空白,英文要。
+// 🔴 分隔符屬於「這次拼接」,不可以塞進字典值裡當前導空白——片語會被重複使用,
+// 例如 t('準點') 另有兩處是獨立標籤(ld.textContent = t('準點')),字典裡若帶一個
+// 看不見的前導空白,那兩處就會多一格,而且下一個人完全看不出來為什麼。
+function i18nJoin(...parts) {
+  const gap = I18N_LANG === 'zh-TW' || I18N_LANG === 'ja' ? '' : ' ';
+  return parts.filter(part => part != null && part !== '').join(gap);
 }
 function i18nHasTranslation(source) {
   return Object.prototype.hasOwnProperty.call(I18N_MESSAGES.en || {}, source) ||
@@ -27077,7 +27088,7 @@ function updateMetroBadge() {
     const parts = onLines.map(ln => {
       const src = ln._trtcBoard || ln._liveShift || {};
       const m = Math.round((src.all || 0) / 60);
-      return routeName(ln.name || ln.id, ln._sys) + (m > 0 ? t('晚 {n} 分', { n: i18nNumber(m) }) : m < 0 ? t('早 {n} 分', { n: i18nNumber(-m) }) : t('準點'));
+      return i18nJoin(routeName(ln.name || ln.id, ln._sys), m > 0 ? t('晚 {n} 分', { n: i18nNumber(m) }) : m < 0 ? t('早 {n} 分', { n: i18nNumber(-m) }) : t('準點'));
     });
     const allFresh = onLines.every(ln => metroFresh(ln)); // 有任一線非 fresh(高倍速投射/資料稍舊)整體改推估措辭,不逐線精雕
     const hasTrtc = onLines.some(ln => ln._trtcBoard);

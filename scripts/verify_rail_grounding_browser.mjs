@@ -29,11 +29,18 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
      await page.waitForFunction(()=>{__update();return window.railIslandIntegration?.renderer?.stats.models===2;},null,{timeout:90000});
      await page.waitForTimeout(650);
      const detail=await page.evaluate(()=>{
-      __update();const r=railIslandIntegration.renderer,poses=r.stats.poseSamples;
-      return {structures:structuredClone(r.stats.structures),poses:poses.map(p=>({id:p.id,kind:p.level.kind,cars:p.cars.length,error:Math.max(...p.cars.map(c=>Math.abs(c.height-(r.stats.groundMode==='terrain'?r.map.queryTerrainElevation(c.coordinate):0)-.65-(__route.routeId==='966445954'?__route.level(c.s).offsetM:0)))),offset:Math.max(...p.cars.map(c=>Math.abs(__route.level(c.s).offsetM)))})),errors:r.stats.errors,overflow:document.documentElement.scrollWidth>innerWidth+1};
+      __update();const r=railIslandIntegration.renderer,poses=r.stats.poseSamples,terrain=r.stats.groundMode==='terrain',ground=c=>terrain?r.map.queryTerrainElevation(c.coordinate):0;
+      // 期望軌面＝層位剖面的顯示高程（地形開：建置端算好的絕對高程 terrainValues，沒有才退回 DEM＋層位；地形關：層位）。
+      // 09-12 露天段縱坡重算後，平面段的顯示剖面刻意平滑過、不再逐點等於 DEM，所以「留在地面」另用 lift 對 DEM 獨立驗。
+      const expectedRail=c=>{const level=__route.level(c.s);if(!terrain)return level.offsetM;return Number.isFinite(level.terrainHeightM)?level.terrainHeightM:ground(c)+level.offsetM;};
+      return {structures:structuredClone(r.stats.structures),poses:poses.map(p=>({id:p.id,kind:p.level.kind,cars:p.cars.length,error:Math.max(...p.cars.map(c=>Math.abs(c.height-.65-expectedRail(c)))),lift:[Math.min(...p.cars.map(c=>c.height-.65-ground(c))),Math.max(...p.cars.map(c=>c.height-.65-ground(c)))],offset:Math.max(...p.cars.map(c=>Math.abs(__route.level(c.s).offsetM)))})),errors:r.stats.errors,overflow:document.documentElement.scrollWidth>innerWidth+1};
      });
      const bridgeCase=id==='966445954';
-     const pass=(bridgeCase?detail.structures.decks>0&&detail.structures.piers>0:detail.structures.piers===0&&detail.structures.decks===0)&&detail.poses.length===2&&detail.poses.every(p=>p.kind===(bridgeCase?'bridge':'surface')&&p.cars>0&&p.error<.01&&(bridgeCase||p.offset<.001))&&!detail.errors.length&&!detail.overflow;
+     // lift 界線的來源：高架案例整列離 DEM > 3 公尺（求解器的離地下限 6 公尺，留 3 公尺給取樣差）；
+     // 平面案例看「最低的那節」——不低於 −1 公尺（埋進地形；−1 留給 MapLibre 與建置端取樣差）、也不高於 2 公尺
+     // （一列 14 節約 280 公尺，平面軌道總有一處貼近地面；整列都離地 2 公尺以上就是被當成高架抬起來了）。
+     // 不能拿最高的那節設上限：平面段跨小溪、翻 DTM 上的路堤時會合理地浮到 3～6 公尺（09-12 實測 860092299 就有 3.2）。
+     const pass=(bridgeCase?detail.structures.decks>0&&detail.structures.piers>0:detail.structures.piers===0&&detail.structures.decks===0)&&detail.poses.length===2&&detail.poses.every(p=>p.kind===(bridgeCase?'bridge':'surface')&&p.cars>0&&p.error<.01&&(bridgeCase?p.lift[0]>3:p.lift[0]>-1&&p.lift[0]<2&&p.offset<.001))&&!detail.errors.length&&!detail.overflow;
      results.push({engine,width,id,mode,pass,detail});console.log(engine,width,id,mode,pass);
      if(width===375)await page.screenshot({path:`${out}/${engine}-${id}-${mode}.png`});
     }

@@ -1,31 +1,134 @@
 // 沿既有軌面補示意橋梁／路基，不改列車 XY 或高程。尺寸與橋墩間距不是實測工程資料。
+// a[2] 是軌頂高度；道床／橋面頂面固定低 .35 公尺，枕木與鋼軌就疊在那個面上往回長到軌頂。
+// 近看才長細節：頂點預算幾乎全花在 z14.5 的廣角(實測台北 25.8 萬、后里 15.3 萬)，
+// 而 z18 以上畫面裡的段數只剩幾百，加鋼軌、枕木、護欄與墩帽仍遠低於廣角的量。
 import * as THREE from '../vendor/three.module.js';
+const GAUGE=1.435,RAIL_W=.14,RAIL_H=.2,TIE_LEN=2.5,TIE_W=.26,TIE_H=.15,TIE_SPACING=.65;
+// 高架橋斷面比例參考高鐵標準高架（雙線橋面約 13 公尺、箱梁深約 3 公尺），縮成「一股道一片橋面」：
+// 箱梁頂 5 公尺（含懸臂板，雙線並排時兩片相疊成一片）、底 2.8 公尺、梁深 1.8 公尺。護欄高 .9 厚 .35，
+// 只畫在側向 2～6.5 公尺內沒有並行股道的那一側，雙線中間才不會多出一道牆。橋墩 2×2.8 公尺，
+// 墩帽 5×1.6×1.2 公尺；護欄與墩帽都是近看（detail>=1）才畫。
+const DECK_W=5,GIRDER_BOTTOM_W=2.8,GIRDER_DEPTH=1.8,DECK_DROP=.35,PARAPET_H=.9,PARAPET_W=.35,
+      PIER_ALONG=2,PIER_ACROSS=2.8,CAP_ACROSS=5,CAP_ALONG=1.6,CAP_DEPTH=1.2,NEIGHBOR_M=6.5;
+// 路基：道碴梯形斷面頂 3.4 公尺、底 4.6 公尺，離地愈高底愈寬（1.5:1 的填方邊坡），底寬上限 30 公尺。
+const BED_TOP_W=3.4,BED_BOTTOM_W=4.6,FILL_SLOPE=1.5,BED_BOTTOM_MAX=30;
+// 洞口尺寸沿用 prototypes/taiwan-3d/rail-occlusion.js 的隧道示意：拱心半徑 3.2 公尺、
+// 起拱線在軌頂上 2.6 公尺、洞底在軌頂下 1.2 公尺、石環厚 .7 公尺。那一版是文湖線單線
+// 展示做的，這裡只取斷面比例，位置改成沿線每個洞口自己算。
+const BORE_R=3.2,SPRING=2.6,BORE_FLOOR=-1.2,RING=.7,ARCH_SEGMENTS=14;
 export function createRailStructures(scene){
   let geometry=new THREE.BufferGeometry();
   const material=new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide}),mesh=new THREE.Mesh(geometry,material);
   mesh.frustumCulled=false;mesh.renderOrder=-1;scene.add(mesh);
-  const stats={decks:0,piers:0,beds:0,vertices:0,samples:[],buildMs:0};
-  function set(segments,piers){
-    const started=performance.now(),positions=[],colors=[],deck=new THREE.Color('#b2ad9e'),side=new THREE.Color('#989588'),earth=new THREE.Color('#afa48a');
-    stats.decks=stats.piers=stats.beds=0;stats.samples=[];
+  const stats={decks:0,piers:0,caps:0,parapets:0,beds:0,rails:0,ties:0,portals:0,detail:0,vertices:0,samples:[],buildMs:0};
+  function set(segments,piers,detail=0,portals=[]){
+    const started=performance.now(),positions=[],colors=[];
+    const deck=new THREE.Color('#b2ad9e'),side=new THREE.Color('#989588'),
+          ballast=new THREE.Color('#9d978b'),steel=new THREE.Color('#6f6a62'),tie=new THREE.Color('#a8a299'),
+          stone=new THREE.Color('#d4c8ad'),lining=new THREE.Color('#344b52'),parapet=new THREE.Color('#cfcab9');
+    stats.decks=stats.piers=stats.caps=stats.parapets=stats.beds=stats.rails=stats.ties=stats.portals=0;stats.detail=detail;stats.samples=[];
     function quad(a,b,c,d,color){for(const p of [a,b,c,a,c,d]){positions.push(...p);colors.push(color.r,color.g,color.b);}}
-    function prism(a,b,width,bottomA,bottomB,color){
+    // 上下底可以不同寬：道碴是梯形斷面，箱梁上寬下窄。
+    function prism(a,b,width,bottomA,bottomB,color,bottomWidth=width){
       const dx=b[0]-a[0],dy=b[1]-a[1],length=Math.hypot(dx,dy);if(length<1e-5)return;
-      const nx=-dy/length*width/2,ny=dx/length*width/2;
-      const p=[[a[0]+nx,a[1]+ny,a[2]],[a[0]-nx,a[1]-ny,a[2]],[b[0]-nx,b[1]-ny,b[2]],[b[0]+nx,b[1]+ny,b[2]]],q=p.map((v,i)=>[v[0],v[1],i<2?bottomA:bottomB]);
-      quad(...p,color);quad(q[3],q[2],q[1],q[0],side);for(let i=0;i<4;i++){const j=(i+1)%4;quad(p[i],q[i],q[j],p[j],color===earth?earth:side);}
+      const ux=-dy/length,uy=dx/length,nx=ux*width/2,ny=uy*width/2,bx=ux*bottomWidth/2,by=uy*bottomWidth/2;
+      const p=[[a[0]+nx,a[1]+ny,a[2]],[a[0]-nx,a[1]-ny,a[2]],[b[0]-nx,b[1]-ny,b[2]],[b[0]+nx,b[1]+ny,b[2]]];
+      const q=[[a[0]+bx,a[1]+by,bottomA],[a[0]-bx,a[1]-by,bottomA],[b[0]-bx,b[1]-by,bottomB],[b[0]+bx,b[1]+by,bottomB]];
+      quad(...p,color);quad(q[3],q[2],q[1],q[0],side);for(let i=0;i<4;i++){const j=(i+1)%4;quad(p[i],q[i],q[j],p[j],color===ballast?ballast:side);}
     }
-    for(const {a,b,groundA,groundB,bridge,transition=false,scale=1} of segments){
-      const topA=[a[0],a[1],a[2]-.35*scale],topB=[b[0],b[1],b[2]-.35*scale];
-      if(![...a,...b,groundA,groundB,scale].every(Number.isFinite)||Math.min(topA[2]-groundA,topB[2]-groundB)<.05*scale)continue;
-      if(bridge){prism(topA,topB,4.2*scale,Math.max(groundA-.3*scale,topA[2]-1.15*scale),Math.max(groundB-.3*scale,topB[2]-1.15*scale),deck);stats.decks++;}
-      else{prism(topA,topB,4.2*scale,transition?Math.max(groundA-.3*scale,topA[2]-1.15*scale):groundA-.3*scale,transition?Math.max(groundB-.3*scale,topB[2]-1.15*scale):groundB-.3*scale,earth);stats.beds++;}
+    // 一條鋼軌：頂面加兩個側面。斜上方看過去底面永遠看不到，不畫。
+    function rail(a,b,offset,top,scale){
+      const dx=b[0]-a[0],dy=b[1]-a[1],length=Math.hypot(dx,dy);if(length<1e-5)return;
+      const ux=-dy/length,uy=dx/length,cx=ux*offset*scale,cy=uy*offset*scale,hx=ux*RAIL_W*scale/2,hy=uy*RAIL_W*scale/2;
+      const base=top-RAIL_H*scale;
+      const p=[[a[0]+cx+hx,a[1]+cy+hy,top],[a[0]+cx-hx,a[1]+cy-hy,top],[b[0]+cx-hx,b[1]+cy-hy,top],[b[0]+cx+hx,b[1]+cy+hy,top]];
+      quad(...p,steel);
+      quad(p[0],[p[0][0],p[0][1],base],[p[3][0],p[3][1],base],p[3],steel);
+      quad(p[2],[p[2][0],p[2][1],base],[p[1][0],p[1][1],base],p[1],steel);
+      stats.rails++;
     }
+    // 枕木只畫頂面：它嵌在道碴裡，側面本來就看不見，省下三分之二的頂點。
+    function ties(a,b,top,scale){
+      const dx=b[0]-a[0],dy=b[1]-a[1],length=Math.hypot(dx,dy);if(length<1e-5)return;
+      const tx=dx/length,ty=dy/length,ux=-ty,uy=tx,step=TIE_SPACING*scale;
+      const half=TIE_LEN*scale/2,hw=TIE_W*scale/2,z=top+.01*scale;
+      for(let d=step/2;d<length;d+=step){
+       const cx=a[0]+tx*d,cy=a[1]+ty*d;
+       // 繞向要跟 prism 頂面一致（先沿 -u 再沿 +t），否則法線朝下、枕木會被算成背光的深色。
+       quad([cx+ux*half-tx*hw,cy+uy*half-ty*hw,z],[cx-ux*half-tx*hw,cy-uy*half-ty*hw,z],
+            [cx-ux*half+tx*hw,cy-uy*half+ty*hw,z],[cx+ux*half+tx*hw,cy+uy*half+ty*hw,z],tie);
+       stats.ties++;
+      }
+    }
+    // 並行股道偵測：雙線高架的兩片橋面各自畫護欄，中間會多出一道牆。段中點丟進空間格，
+    // 只在側向 2～6.5 公尺內沒有同向高架段的那一側畫護欄。
+    const CELL=12,cell=new Map(),mids=segments.map(({a,b})=>[(a[0]+b[0])/2,(a[1]+b[1])/2]);
+    if(detail>=1)segments.forEach((s,i)=>{if(!s.bridge)return;const m=mids[i],k=Math.floor(m[0]/CELL)+','+Math.floor(m[1]/CELL);if(!cell.has(k))cell.set(k,[]);cell.get(k).push(i);});
+    function neighbor(i,sign,scale){
+      const s=segments[i],m=mids[i],dx=s.b[0]-s.a[0],dy=s.b[1]-s.a[1],len=Math.hypot(dx,dy);if(len<1e-5)return false;
+      const tx=dx/len,ty=dy/len,ux=-ty,uy=tx,cx=Math.floor(m[0]/CELL),cy=Math.floor(m[1]/CELL);
+      for(let gx=cx-1;gx<=cx+1;gx++)for(let gy=cy-1;gy<=cy+1;gy++)for(const j of cell.get(gx+','+gy)||[]){
+        if(j===i)continue;const o=segments[j],n=mids[j],ex=n[0]-m[0],ey=n[1]-m[1],lat=(ex*ux+ey*uy)*sign,along=ex*tx+ey*ty;
+        if(lat<2*scale||lat>NEIGHBOR_M*scale||Math.abs(along)>10*scale)continue;
+        const odx=o.b[0]-o.a[0],ody=o.b[1]-o.a[1],ol=Math.hypot(odx,ody);if(ol<1e-5||Math.abs((odx*tx+ody*ty)/ol)<.9)continue;
+        return true;}
+      return false;
+    }
+    segments.forEach(({a,b,groundA,groundB,bridge,transition=false,scale=1},i)=>{
+      const topA=[a[0],a[1],a[2]-DECK_DROP*scale],topB=[b[0],b[1],b[2]-DECK_DROP*scale];
+      if(![...a,...b,groundA,groundB,scale].every(Number.isFinite)||Math.min(topA[2]-groundA,topB[2]-groundB)<.05*scale)return;
+      if(bridge){
+        prism(topA,topB,DECK_W*scale,Math.max(groundA-.3*scale,topA[2]-GIRDER_DEPTH*scale),Math.max(groundB-.3*scale,topB[2]-GIRDER_DEPTH*scale),deck,GIRDER_BOTTOM_W*scale);stats.decks++;
+        if(detail>=1){const dx=b[0]-a[0],dy=b[1]-a[1],len=Math.hypot(dx,dy);if(len>1e-5){const ux=-dy/len,uy=dx/len,e=(DECK_W-PARAPET_W)/2*scale;
+          for(const sign of [1,-1]){if(neighbor(i,sign,scale))continue;
+            prism([a[0]+ux*e*sign,a[1]+uy*e*sign,topA[2]+PARAPET_H*scale],[b[0]+ux*e*sign,b[1]+uy*e*sign,topB[2]+PARAPET_H*scale],PARAPET_W*scale,topA[2],topB[2],parapet);stats.parapets++;}}}
+      }else{
+        // 路基：離地愈高底愈寬（填方邊坡）；林口走廊的過渡段沿舊做法畫成薄板。
+        const lift=Math.max(0,Math.min(topA[2]-groundA,topB[2]-groundB)),bottomW=Math.min(BED_BOTTOM_MAX*scale,BED_BOTTOM_W*scale+2*FILL_SLOPE*lift);
+        prism(topA,topB,BED_TOP_W*scale,transition?Math.max(groundA-.3*scale,topA[2]-1.15*scale):groundA-.3*scale,transition?Math.max(groundB-.3*scale,topB[2]-1.15*scale):groundB-.3*scale,ballast,transition?BED_BOTTOM_W*scale:bottomW);stats.beds++;
+      }
+      if(detail>=2)ties(topA,topB,topA[2],scale);
+      if(detail>=1){const top=a[2]-(detail>=2?.15*scale:.2*scale);rail(topA,topB,GAUGE/2,top,scale);rail(topA,topB,-GAUGE/2,top,scale);}
+    });
+    // 洞口：石造拱圈加兩側翼牆，開口填深色襯砌當洞口。軌道本來就在洞口戛然而止，
+    // 補上這個之後才看得出來是「進洞」而不是「線畫到一半沒了」。
+    function portal({p,angle,scale=1}){
+      if(![...p,angle,scale].every(Number.isFinite))return;
+      const tx=Math.cos(angle),ty=Math.sin(angle),ux=-ty,uy=tx;
+      // 拱圈往洞內退一點，才不會跟路基頂面或地形同面閃爍。
+      const ox=tx*.25*scale,oy=ty*.25*scale;
+      const at=(r,t,d)=>[p[0]+ux*r*Math.cos(t)*scale+tx*d*scale,p[1]+uy*r*Math.cos(t)*scale+ty*d*scale,p[2]+(SPRING+r*Math.sin(t))*scale];
+      for(let i=0;i<ARCH_SEGMENTS;i++){
+        const a=i*Math.PI/ARCH_SEGMENTS,b=(i+1)*Math.PI/ARCH_SEGMENTS;
+        quad(at(BORE_R,a,0),at(BORE_R+RING,a,0),at(BORE_R+RING,b,0),at(BORE_R,b,0),stone);
+      }
+      // 兩側翼牆：從起拱線垂直落到洞底。
+      for(const sign of [1,-1]){
+        const inner=[p[0]+ux*sign*BORE_R*scale,p[1]+uy*sign*BORE_R*scale],outer=[p[0]+ux*sign*(BORE_R+RING)*scale,p[1]+uy*sign*(BORE_R+RING)*scale];
+        const hi=p[2]+SPRING*scale,lo=p[2]+BORE_FLOOR*scale;
+        quad([inner[0],inner[1],hi],[outer[0],outer[1],hi],[outer[0],outer[1],lo],[inner[0],inner[1],lo],stone);
+      }
+      // 開口填襯砌：拱內一圈扇形，再補洞底到起拱線的方塊。
+      const hub=[p[0]+ox,p[1]+oy,p[2]+SPRING*scale];
+      for(let i=0;i<ARCH_SEGMENTS;i++){
+        const a=i*Math.PI/ARCH_SEGMENTS,b=(i+1)*Math.PI/ARCH_SEGMENTS;
+        quad(hub,at(BORE_R,a,.25),at(BORE_R,b,.25),hub,lining);
+      }
+      const lx=ux*BORE_R*scale,ly=uy*BORE_R*scale,hi=p[2]+SPRING*scale,lo=p[2]+BORE_FLOOR*scale;
+      quad([p[0]+lx+ox,p[1]+ly+oy,hi],[p[0]-lx+ox,p[1]-ly+oy,hi],[p[0]-lx+ox,p[1]-ly+oy,lo],[p[0]+lx+ox,p[1]+ly+oy,lo],lining);
+      stats.portals++;
+    }
+    if(detail>=1)for(const item of portals)portal(item);
+
+    // 橋墩：墩頂接在箱梁底；近看多一顆墩帽，墩身再往下接地。
     for(const {p,ground,angle,scale=1,coordinate,railHeightM,groundM}of piers){
-      const top=p[2]-1.5*scale;if(![...p,ground,angle,scale].every(Number.isFinite)||top-ground<.3*scale)continue;
-      const dx=Math.cos(angle)*.8*scale,dy=Math.sin(angle)*.8*scale;
-      prism([p[0]-dx,p[1]-dy,top],[p[0]+dx,p[1]+dy,top],1.8*scale,ground-.5*scale,ground-.5*scale,deck);stats.piers++;
-      if(stats.samples.length<60)stats.samples.push({coordinate,railHeightM,groundM,topM:railHeightM-1.5,baseM:groundM-.5});
+      const girderBottom=p[2]-(DECK_DROP+GIRDER_DEPTH)*scale,top=detail>=1?girderBottom-CAP_DEPTH*scale:girderBottom;
+      if(![...p,ground,angle,scale].every(Number.isFinite)||top-ground<.3*scale)continue;
+      const dx=Math.cos(angle),dy=Math.sin(angle);
+      if(detail>=1){const h=CAP_ALONG/2*scale;prism([p[0]-dx*h,p[1]-dy*h,girderBottom],[p[0]+dx*h,p[1]+dy*h,girderBottom],CAP_ACROSS*scale,top,top,side);stats.caps++;}
+      const h=PIER_ALONG/2*scale;
+      prism([p[0]-dx*h,p[1]-dy*h,top],[p[0]+dx*h,p[1]+dy*h,top],PIER_ACROSS*scale,ground-.5*scale,ground-.5*scale,deck);stats.piers++;
+      if(stats.samples.length<60)stats.samples.push({coordinate,railHeightM,groundM,topM:railHeightM-(DECK_DROP+GIRDER_DEPTH)-(detail>=1?CAP_DEPTH:0),baseM:groundM-.5});
     }
     geometry.dispose();geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));geometry.computeVertexNormals();mesh.geometry=geometry;stats.vertices=positions.length/3;stats.buildMs=performance.now()-started;
   }

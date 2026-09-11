@@ -32,7 +32,7 @@ const widths = [360, 375, 414, 768];
 // 9/10：地下列車實色、隧道縱坡、網站登入、網站通行證、通行證面板五條先前未補記（330→334），
 //       本次機捷官方車種一條（334→335）。
 // 9/11：高鐵對號座與票價、公車站牌搜尋、小工具自動最近站、三鶯線末班四條（337→341）。
-const expectedHistoryCount = 345;
+const expectedHistoryCount = 348;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
