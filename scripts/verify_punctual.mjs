@@ -23,7 +23,7 @@ import { execSync } from 'node:child_process';
 import { readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 
 const BASE = process.argv[2] || 'http://127.0.0.1:8917';
-const BASE_REF = '24e9c2c'; // 本分支基準(origin/main,改動前一顆)
+const BASE_REF = '24e9c2c'; // A0 的 BUILD 遞增基準(只用來證明「BUILD 有動過」,不是任何逐字快照的基準;見 C3 註解)
 const MUTANT_PATH = '_mutant_punctual_tmp.html';
 const R = [];
 const ok = (n, p, msg = '') => { R.push({ n, p, msg }); console.log(`${p ? '  ok ' : 'FAIL '} ${n}${msg ? ' — ' + msg : ''}`); };
@@ -75,6 +75,29 @@ const samplePixels = (page, cssX, cssY, boxCss = 44) => page.evaluate(({ cssX, c
   }
   return { green, gold, total: img.data.length / 4 };
 }, { cssX, cssY, boxCss });
+
+// 🔴 2026-09-11 補:脈衝環的相位取自 performance.now()(真實時鐘)。open() 的 state.playing=false 只凍結
+// **模擬**時鐘,凍不住它,所以「某一瞬間有幾個綠像素」會隨當下相位在 2~283 之間跳(實測 30 次取樣有 13 次
+// ≤50),任何 `> 50` 的門檻都是約四成機率的假紅——而且長得跟產品回歸一模一樣(M1 突變那輪 C2 就這樣紅過)。
+// 這正是 verify-locale-must-be-pinned 那條「驗收腳本必須釘死時鐘」的同族坑。
+// 修法不是調低門檻(那是弱化判準),而是**橫跨一整個脈衝週期取樣後取峰值**:要驗的不變量是
+// 「這個環在它的脈衝週期裡看得見」,不是「剛好我取樣那一毫秒看得見」。
+// 週期常數 2000ms 不是魔術數字:它就是 C3b 釘住的那個 `% 2000`,那條紅了這裡也該一起檢討。
+const PULSE_MS = 2000, PULSE_STEPS = 14;
+const samplePixelsPeak = async (page, cssX, cssY, boxCss = 44) => {
+  let green = 0, gold = 0, total = 0;
+  const lows = [], highs = [];
+  for (let i = 0; i < PULSE_STEPS; i++) {
+    await page.evaluate(() => draw()); // 每次取樣前重畫,才會推進到當下相位
+    const one = await samplePixels(page, cssX, cssY, boxCss);
+    green = Math.max(green, one.green); gold = Math.max(gold, one.gold); total = one.total;
+    lows.push(one.green + one.gold); highs.push(one.green + one.gold);
+    if (i < PULSE_STEPS - 1) await page.waitForTimeout(Math.ceil(PULSE_MS / (PULSE_STEPS - 1)));
+  }
+  // spread 是這個取樣器自己的正向對照:掃過一個完整週期本來就該量到峰與谷。
+  // 恆為 0 代表我根本沒掃到動畫(例如畫面凍結),此時「峰值」不是證據——峰谷同值的取樣等於單點取樣。
+  return { green, gold, total, spread: Math.max(...highs) - Math.min(...lows) };
+};
 
 const rectAround = (cp, size, vw, vh) => {
   const half = size / 2;
@@ -288,27 +311,73 @@ try {
         const pos = trainPos(tr, state.simSec);
         return window.__M.toScreen([pos.lat, pos.lon]);
       }, no);
-      const px = await samplePixels(page, cp.x, cp.y, 44);
-      ok('C1 綠環在亮色主題確實畫出綠色像素', px.green > 50, `green px=${px.green}／取樣框 ${px.total}px`);
+      const px = await samplePixelsPeak(page, cp.x, cp.y, 44);
+      ok('C1 綠環在亮色主題確實畫出綠色像素', px.green > 50, `脈衝週期內峰值 green px=${px.green}／取樣框 ${px.total}px`);
+      // 取樣器自己的正向對照:掃一整個脈衝週期本來就該看到峰與谷。恆為 0 代表沒掃到動畫,
+      // 此時上面那條的「峰值」退化成單點取樣、不構成證據(judgment 第七節第5條)。
+      ok('C1b 取樣確實掃過一個完整脈衝週期(峰谷有差,證明不是同一張凍結畫面量14次)', px.spread > 0,
+         `週期內像素數峰谷差=${px.spread}`);
       await page.screenshot({ path: '_shot_punctual_ring_light.png', clip: rectAround(cp, 70, 1440, 900) });
 
       await page.evaluate(() => { state.mapDark = true; draw(); });
       await page.waitForTimeout(80);
-      const px2 = await samplePixels(page, cp.x, cp.y, 44);
-      ok('C2 綠環在暗色主題確實畫出綠色像素', px2.green > 50, `green px=${px2.green}`);
+      const px2 = await samplePixelsPeak(page, cp.x, cp.y, 44);
+      ok('C2 綠環在暗色主題確實畫出綠色像素', px2.green > 50, `脈衝週期內峰值 green px=${px2.green}(峰谷差 ${px2.spread})`);
       await page.screenshot({ path: '_shot_punctual_ring_dark.png', clip: rectAround(cp, 70, 1440, 900) });
     }
     await ctx.close();
   }
 
-  // C3：drawFeaturedRing 原始碼與改動前 commit 逐字相同(金環外觀零變化的最強保證)
+  // C3：今日之最金環外觀零回歸。
+  // 🔴 2026-09-11 改判準。原本寫「drawFeaturedRing 原始碼與 BASE_REF 逐字相同」——那是**快照**不是不變量:
+  //    金環在 549ecff3(傾斜地景依距離淡出標記)合法長出 detailOpacity 與 save/restore 包裝之後,逐字比對
+  //    就永久紅,而錯誤訊息只說得出「長度 438 vs 628」,完全指不出改了哪裡。
+  //    「補一顆比較新的 BASE_REF」不是解,三個理由:(a) 下一次合法改動又紅,同一顆地雷只是重設引信
+  //    (心得 35:判準不要綁在會漂移的量上);(b) 若把基準指到一顆**已經含金環回歸**的 commit,那個回歸會被
+  //    靜默祝福——正是 verify_my_trains G1 寫的「白名單本身是個漏洞」,只是換成用 git ref 當白名單;
+  //    (c) 指到 HEAD 就變成拿自己比自己(同源比對恆真,零資訊,judgment 第七節第1條)。
+  //    比照本檔 A0 與 verify_my_trains I5 對寫死 BUILD 的修法,判準改成寫「金環**是什麼**」:外觀常數逐項
+  //    對齊設計值、不得混入綠環色、畫布操作序列不得多出東西。期望值寫在本腳本裡(與 index.html 不同源),
+  //    合法重構照樣綠,真的動到金環外觀才紅,而且訊息指得出是哪一項走鐘。
   {
     const curSrc = readFileSync('index.html', 'utf8');
-    const baseSrc = execSync(`git show ${BASE_REF}:index.html`, { maxBuffer: 64 * 1024 * 1024 }).toString();
-    const extract = src => (src.match(/function drawFeaturedRing\(p\) \{[\s\S]*?\n\}/) || [null])[0];
-    const curFn = extract(curSrc), baseFn = extract(baseSrc);
-    ok('C3 drawFeaturedRing 原始碼與改動前 commit 逐字相同', !!curFn && curFn === baseFn,
-       curFn === baseFn ? '' : `長度 改動前${(baseFn || '').length} vs 現在${(curFn || '').length}`);
+    const extract = name => (curSrc.match(new RegExp(`function ${name}\\(p\\) \\{[\\s\\S]*?\\n\\}`)) || [null])[0];
+    const goldFn = extract('drawFeaturedRing'), greenFn = extract('drawPunctualRing');
+    ok('C3a 抓得到金環與綠環原始碼(以下三條判準的前提,抓不到一律視為未驗)', !!goldFn && !!greenFn,
+       `金環 ${(goldFn || '').length}B／綠環 ${(greenFn || '').length}B`);
+    // 期望值刻意手寫在腳本裡:從 index.html 推導出來的「期望值」會跟著實作一起漂,等於零資訊。
+    const GOLD_SPEC = [
+      ['底圈半徑 13', 'ctx.arc(p.x, p.y, 13, 0, 7)'],
+      ['底圈填色 rgba(255,215,106,.15)', "ctx.fillStyle = 'rgba(255,215,106,.15)'"],
+      ['脈衝環描邊色 #f0b429', "ctx.strokeStyle = '#f0b429'"],
+      ['脈衝環半徑 8+ph*16', 'ctx.arc(p.x, p.y, 8 + ph * 16, 0, 7)'],
+      ['描邊線寬 2.5', 'ctx.lineWidth = 2.5'],
+      ['脈衝兩圈', 'i < 2'],
+      ['週期 2000ms', '% 2000) / 2000'],
+      ['脈衝衰減 0.55*(1-ph)', '0.55 * (1 - ph)'],
+    ];
+    const drifted = GOLD_SPEC.filter(([, snip]) => !(goldFn || '').includes(snip)).map(([label]) => label);
+    ok('C3b 金環外觀常數逐項等於設計值(半徑／填色／描邊色／線寬／脈衝圈數／週期／衰減)',
+       !!goldFn && drifted.length === 0,
+       drifted.length ? '走鐘：' + drifted.join('、') : `${GOLD_SPEC.length} 項全中`);
+    // 「金環不含綠色」是反向判準,偵測器壞掉時會恆真;故同一個偵測器必須對綠環測得出來當正向對照
+    // (judgment 第七節第5條:反向判準要有「該紅的時候真的會紅」的對照)。
+    const GREEN_TOKENS = ['#22c55e', 'rgba(34,197,94'];
+    const hasGreen = src => GREEN_TOKENS.some(tk => (src || '').includes(tk));
+    ok('C3c 金環不混入綠環色,且同一偵測器對綠環驗得出綠(正向對照)',
+       !!goldFn && !!greenFn && !hasGreen(goldFn) && hasGreen(greenFn),
+       `金環含綠=${hasGreen(goldFn)}(要 false)／綠環含綠=${hasGreen(greenFn)}(要 true,證明偵測器不是恆假)`);
+    // 只比常數會漏掉「多畫了東西」(第三圈脈衝、陰影、換 globalCompositeOperation),那類改動每個常數都還在。
+    // 把 ctx 操作序列整條釘住補這個洞。它與 BASE_REF 快照的差別:期望序列是腳本裡的具名清單,要改就得動手
+    // 改清單(審 diff 看得見),不像 git ref 可以把任何已漂掉的現況靜默變成新基準。
+    const CANVAS_OPS = ['save', 'globalAlpha', 'beginPath', 'arc', 'fillStyle', 'fill',
+                        'beginPath', 'arc', 'strokeStyle', 'globalAlpha', 'lineWidth', 'stroke',
+                        'globalAlpha', 'restore'];
+    const ops = [...(goldFn || '').matchAll(/\bctx\.(\w+)/g)].map(m => m[1]);
+    ok('C3d 金環畫布操作序列與設計一致(抓「多畫了東西」,常數清單照不到的那一半)',
+       ops.length === CANVAS_OPS.length && ops.every((o, i) => o === CANVAS_OPS[i]),
+       ops.join() === CANVAS_OPS.join() ? `${ops.length} 個操作依序吻合`
+         : `實際 [${ops.join(',')}] ≠ 設計 [${CANVAS_OPS.join(',')}]`);
   }
 
   // C4：真實(未 mock)資料下,今日之最仍實際畫出金色像素、且無綠像素混入(功能面零回歸)
@@ -336,16 +405,22 @@ try {
         const tr = [...state._featured].find(t => String(t.train) === fno);
         const pos = trainPos(tr, state.simSec);
         if (!pos) return null;
-        window.__map.setView([pos.lat, pos.lon], 13, { animate: false });
+        // 置中走適配層 window.__M(不是 window.__map)。__map 是 M.raw＝裸的 maplibregl.Map,
+        // 它沒有 setView(那是 Leaflet 的 API),這行會拋 TypeError 整支腳本中斷。適配層 E.setView(c, z, o)
+        // 保留原簽名並在 animate:false 時走 raw.jumpTo(相機同步更新,不補間),正是這裡要的語意。
+        // toScreen 不必改:它本來就是適配層的方法(同一支腳本的 C0/C1/C2 已在用並過關)。
+        window.__M.setView([pos.lat, pos.lon], 13, { animate: false });
         const cp2 = window.__M.toScreen([pos.lat, pos.lon]);
         draw();
         return cp2;
       }, fno);
       if (!cp) { notRunning++; continue; }
       goldChecked++;
-      const px = await samplePixels(page, cp.x, cp.y, 44);
+      // 同樣掃一整個脈衝週期:gold 取峰值(某一相位看得見就算畫得出來),green 取峰值則代表
+      // 「整個週期任何一刻都沒有綠」——比原本的單點 green===0 更嚴,不是放寬。
+      const px = await samplePixelsPeak(page, cp.x, cp.y, 44);
       if (px.gold > 20 && px.green === 0) goldOk++;
-      else info('C4b', `車次 ${fno} 置中後 gold px=${px.gold} green px=${px.green}`);
+      else info('C4b', `車次 ${fno} 置中後 週期峰值 gold px=${px.gold} green px=${px.green}(峰谷差 ${px.spread})`);
     }
     ok(`C4b 今日之最(共 ${info4.featuredSize} 台)逐台置中後都仍畫出金色像素、零綠色混入`,
        goldChecked > 0 && goldOk === goldChecked, `檢查 ${goldChecked} 台(${notRunning} 台目前未發車)，金色正確 ${goldOk} 台`);

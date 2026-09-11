@@ -4,6 +4,11 @@ const base=process.env.BASE_URL||'http://127.0.0.1:5228/',out='output/landscape-
 const results=[];function check(name,pass,detail){results.push({name,pass,detail});console.log((pass?'PASS ':'FAIL ')+name+' '+JSON.stringify(detail??''));}
 const snap=()=>({kind:M.getStyleKind(),sim:state.simSec,id:state.followTrain?.train,center:M.raw.getCenter().toArray(),zoom:M.raw.getZoom(),bearing:M.raw.getBearing(),pose:railIslandIntegration.renderer?.stats.poseSamples.find(p=>p.id===railIslandIntegration.capture().selectedVehicleId)?.coordinate,errors:railIslandIntegration.errors});
 async function settle(p,kind){await p.waitForFunction(k=>M.getStyleKind()===k&&window.railIslandIntegration?.renderer&&!window.railIslandIntegration?.loading,null===kind?'landscape':kind,{timeout:60000});}
+// 停下之後等林冠真的重建完（rebuilds 不再變動）才量，不是等固定秒數。
+async function treesSettled(p,timeout=40000){const t0=Date.now();let last=-1,stable=Date.now();
+ while(Date.now()-t0<timeout){const r=await p.evaluate(()=>railIslandIntegration?.renderer?.stats?.landscape?.rebuilds??-1);
+  if(r!==last){last=r;stable=Date.now();}if(last>0&&Date.now()-stable>1600)return true;await p.waitForTimeout(150);}
+ return false;}
 async function boot(p){await p.goto(base+'?map=landscape&scene=3d&g=all&train=117&t=12:00&lang=zh-TW');await settle(p,'landscape');await p.waitForFunction(()=>state.ready&&state.followTrain);await p.evaluate(()=>{state.playing=false;setSimSec(43200);M.raw.setZoom(17);});await p.waitForFunction(()=>window.railIslandIntegration?.renderer?.stats.models>0,null,{timeout:45000});}
 for(const [name,engine]of Object.entries(process.env.ENGINE?{[process.env.ENGINE]:({chromium,webkit})[process.env.ENGINE]}:{chromium,webkit})){
  const browser=await engine.launch({headless:process.env.HEADFUL!=='1'});const context=await browser.newContext({viewport:{width:1360,height:980},locale:'zh-TW'});
@@ -22,10 +27,20 @@ for(const [name,engine]of Object.entries(process.env.ENGINE?{[process.env.ENGINE
   await p.evaluate(()=>state._setAppearance('light'));await p.locator('#toolsFab').click();await p.locator('#msBasemapSeg button[data-map=landscape]').scrollIntoViewIfNeeded();
   check(name+' 無衛星授權時入口明確停用',await p.locator('#msBasemapSeg button[data-map=sat]').isDisabled());
   await p.locator('#moreClose').click();await p.evaluate(()=>{railIslandIntegration.setGroundMode('flat');M.raw.jumpTo({center:[121.5795,24.9968],zoom:16.5,pitch:55,bearing:0});});
-  await p.waitForFunction(()=>window.railIslandIntegration?.renderer?.stats.landscape.count>100,null,{timeout:30000});await p.waitForTimeout(1500);
-  const trees=await p.evaluate(()=>{const s=railIslandIntegration.renderer.stats.landscape;return {count:s.count,cap:s.cap,rebuilds:s.rebuilds,maxBuildMs:s.maxBuildMs,coordinates:s.coordinates};});
-  check(name+' 真正渲染林冠且有固定數量上限',trees.count>100&&trees.count<=trees.cap,{...trees,coordinates:undefined});
+  await p.waitForFunction(()=>window.railIslandIntegration?.renderer?.stats.landscape.count>20,null,{timeout:30000});await p.waitForTimeout(1500);
+  const trees=await p.evaluate(()=>{const s=railIslandIntegration.renderer.stats.landscape;return {count:s.count,cap:s.cap,patches:s.patches,broadSkipped:s.broadSkipped,rebuilds:s.rebuilds,maxBuildMs:s.maxBuildMs,coordinates:s.coordinates};});
+  check(name+' 小片林地照樣長樹且有固定數量上限',trees.count>20&&trees.count<=trees.cap&&trees.patches>0,{...trees,coordinates:undefined});
   await p.screenshot({path:out+'/'+name+'-river-forest.png'});
+  // 大片林地（山區、海岸、縱谷）底圖本來就是整片綠：只上色，不長樹。
+  // 反向判準配正向對照——同一畫面要量到 wood 圖層真的有畫，否則「0 株」只是沒林地。
+  await p.evaluate(()=>M.raw.jumpTo({center:[120.953,22.610],zoom:16.5,pitch:55,bearing:0}));
+  check(name+' 大片林地取樣有收斂',await treesSettled(p));
+  const broad=await p.evaluate(()=>{const s=railIslandIntegration.renderer.stats.landscape;
+   return {count:s.count,broadSkipped:s.broadSkipped,patches:s.patches,maxBuildMs:Math.round(s.maxBuildMs),
+    wood:M.raw.queryRenderedFeatures({layers:['landcover_wood','landscape-worldcover-wood'].filter(id=>M.raw.getLayer(id))}).length};});
+  check(name+' 大片林地只上色不長樹',broad.wood>0&&broad.broadSkipped>0&&broad.count===0,broad);
+  await p.screenshot({path:out+'/'+name+'-broad-forest.png'});
+  await p.evaluate(()=>M.raw.jumpTo({center:[121.5795,24.9968],zoom:16.5,pitch:55,bearing:0}));await treesSettled(p);
   await p.waitForTimeout(1400);const quiet=await p.evaluate(()=>railIslandIntegration.renderer.stats.landscape.rebuilds);
   await p.waitForTimeout(1000);check(name+' 靜止不重建樹木',await p.evaluate(n=>railIslandIntegration.renderer.stats.landscape.rebuilds===n,quiet));
   // 在真正的 move 事件期間核對延後重建，不只測計時器函式。

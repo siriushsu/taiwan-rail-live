@@ -69,6 +69,7 @@
     "check-journey-share-worker": "node scripts/verify_journey_share_worker.mjs",
     "check-bus-transfer": "node scripts/verify_bus_transfer_all.mjs",
     "check-bus-stop": "node scripts/verify_bus_stop_worker.mjs && node scripts/verify_bus_stop_frontend.mjs && node scripts/verify_bus_stop_browser.mjs",
+    "check-thsr-seat": "node scripts/verify_thsr_seat.mjs",
     "build-bus-stop-index": "node scripts/build_bus_stop_index.mjs",
     "strip-ship-comments": "node scripts/strip_ship_comments.mjs",
     "ship-web": "node scripts/ship_web.mjs",
