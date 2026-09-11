@@ -6307,7 +6307,9 @@
 //         改為單一來源(rail-3d.js 不再自帶第二份),沒被涵蓋的系統保留原本的示意線形。
 // v0910g：通行證從帳號槽位拆成獨立入口(工具列 #plusBtn ＋「更多」抽屜第二列),網站沒有購買通道時
 //         的通行證面板補上 App Store／Google Play 下載連結。
-const BUILD = 'v0910g';
+// v0911a：高鐵車站看板標出對號座餘位與票價、公車站牌可搜尋並逐路線報到站、小工具可設「自動(最近的站)」、
+//         三鶯線平日末班補上官方公告的 00:00 那一班;轉乘接續改成預設收合,收合態留最近一班的車次與「剩 N 分」。
+const BUILD = 'v0911a';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
