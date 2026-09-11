@@ -14,26 +14,31 @@ export function sameDerivedPasses(plan,tr){
   return i>0&&i<old.length-1&&p.stop===false&&s[1]===s[2]&&p.arrSec===p.depSec&&Number.isFinite(p.arrSec);
  });
 }
+const borrow=(pathIds,tr)=>{const holds=tr.stops.map(()=>({arrival:0,departure:0}));return {pathIds,holds,departureHolds:holds.map(()=>0),officialDelaySec:0,stopSignature:physicalStopSignature(tr)};};
+const sameStations=(plan,tr)=>{let old;try{old=JSON.parse(plan.stopSignature);}catch{return false;}return old.length===tr.stops.length&&old.every((s,i)=>s[0]===stationKey(tr.sys||tr.system,tr.stops[i].name));};
+// 可向既有計畫借路徑的系統:台鐵加開車、高鐵當日班表(車次或時刻與派車表不同的班次)。
+const TEMPLATE_SYSTEMS=['tra_sched','thsr_sched'];
 export function createPlanBinding(dispatch){
- let templates=null;
+ const templates=new Map();
  return tr=>{
-  const key=physicalTrainKey(tr),exact=dispatch.plans[key];
+  const sys=tr.sys||tr.system,key=physicalTrainKey(tr),exact=dispatch.plans[key];
   if(exact){if(exact.pathIds.length!==tr.stops.length-1)return null;
    if(exact.stopSignature===physicalStopSignature(tr))return {plan:exact,basis:'exact'};
-   return sameDerivedPasses(exact,tr)?{plan:exact,basis:'derived-pass-times'}:null;
+   if(sameDerivedPasses(exact,tr))return {plan:exact,basis:'derived-pass-times'};
+   // 高鐵當日班表只改了到離站時刻(同車次、同站序):沿用自己原本的股道,時間與待避一律用今天的。
+   return sys==='thsr_sched'&&sameStations(exact,tr)&&validTimes(tr)?{basis:'retimed',sourceKey:key,plan:borrow(exact.pathIds,tr)}:null;
   }
   // 加開車只借用完整、有序的既有路徑切片，不借用別班的時間、待避或接車關係。
-  if((tr.sys||tr.system)!=='tra_sched'||tr.loop||tr.stops.length<2||!validTimes(tr))return null;
-  if(!templates)templates=Object.entries(dispatch.plans).filter(([k])=>k.startsWith('tra_sched:')).map(([key,plan])=>({key,plan,stops:JSON.parse(plan.stopSignature)}));
-  const names=tr.stops.map(s=>stationKey('tra_sched',s.name));let best=null;
-  for(const t of templates)for(let start=0;start<=t.stops.length-names.length;start++){
+  if(!TEMPLATE_SYSTEMS.includes(sys)||tr.loop||tr.stops.length<2||!validTimes(tr))return null;
+  if(!templates.has(sys))templates.set(sys,Object.entries(dispatch.plans).filter(([k])=>k.startsWith(sys+':')).map(([key,plan])=>({key,plan,stops:JSON.parse(plan.stopSignature)})));
+  const names=tr.stops.map(s=>stationKey(sys,s.name));let best=null;
+  for(const t of templates.get(sys))for(let start=0;start<=t.stops.length-names.length;start++){
    if(!names.every((name,i)=>t.stops[start+i][0]===name))continue;
    // 優先使用相同停靠型態、同長度區間；最後用穩定的來源 key 決勝，不依車輛接近而換軌。
    const mismatch=tr.stops.reduce((n,s,i)=>n+(i>0&&i<names.length-1&&((s.stop!==false)!==(t.stops[start+i][2]>t.stops[start+i][1]))?1:0),0),score=mismatch*10000+t.stops.length-names.length;
    if(!best||score<best.score||(score===best.score&&t.key<best.key))best={...t,start,score};
   }
   if(!best)return null;
-  const holds=tr.stops.map(()=>({arrival:0,departure:0}));
-  return {basis:'route-template',sourceKey:best.key,plan:{pathIds:best.plan.pathIds.slice(best.start,best.start+names.length-1),holds,departureHolds:holds.map(()=>0),officialDelaySec:0,stopSignature:physicalStopSignature(tr)}};
+  return {basis:'route-template',sourceKey:best.key,plan:borrow(best.plan.pathIds.slice(best.start,best.start+names.length-1),tr)};
  };
 }

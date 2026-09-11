@@ -5327,7 +5327,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/9/11</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/9/12</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -5335,6 +5335,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="thsrfold0912"><span class="d">9/12</span><span>修正高鐵列車在板橋等地下車站車廂折疊、上下跳動的問題</span></li>
         <li data-cl-of="metrolead0911"><span class="d">9/11</span><span>捷運頁說明更正：台北捷運九線的位置與車站倒數都是官方逐班即時</span></li>
         <li data-cl-of="xfercollapse0911"><span class="d">9/11</span><span>轉乘接續可以收起來了，收合時仍看得到最近一班</span></li>
         <li data-cl-of="thsrseat0911"><span class="d">9/11</span><span>高鐵看板看得到對號座還有沒有位子，也查得到票價</span></li>
@@ -5342,7 +5343,6 @@
         <li data-cl-of="widgetauto0911"><span class="d">9/11</span><span>小工具可以設成「自動（最近的站）」，走到哪就顯示哪一站</span></li>
         <li data-cl-of="sanyinglast0911"><span class="d">9/11</span><span>三鶯線平日末班車補上官方的 00:00 那一班</span></li>
         <li data-cl-of="passentry0910"><span class="d">9/10</span><span>通行證有自己的入口了：手機「更多」的第二列，電腦工具列多一顆，不再和「帳號同步」共用一格</span></li>
-        <li data-cl-of="xfermetro0910"><span class="d">9/10</span><span>轉乘接續也列捷運了：高鐵桃園等轉乘站會顯示桃園機場捷運與高雄捷運的接續班次，機捷每一班還標出直達車或普通車</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5350,6 +5350,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="thsrfold0912"><span class="d">9/12</span><span>修正高鐵列車在板橋等地下車站車廂一節一節折疊、在地面與地下之間跳的問題：當日班表新增或改點的班次也會沿實體股道行駛，不再退回示意線形</span></li>
         <li data-cl="solidtrain0910"><span class="d">9/10</span><span>地下路段的列車可以顯示原本的車身顏色：「更多」的「透視顯示」切到「實體」，地下列車就不再半透明；這個開關同時管建築，切回「透視」時建築與地下列車都看得穿。</span></li>
         <li data-cl="tymctraintype0910"><span class="d">9/10</span><span>桃園機場捷運的車種改讀官方時刻表的車種欄位，全線每一班都標得出直達車或普通車：先前是從停靠站型態回推，首末班有十幾班的跳法兩種都不像、只能標線號，機場第一航廈到第二航廈的區間班次也被當成普通車。</span></li>
         <li data-cl="tunnelgrade0910"><span class="d">9/10</span><span>全台鐵道與捷運的隧道改成兩端洞口之間的連續縱坡，內部不再跟著山坡起伏；原本山區隧道會在畫面上翻過山頭，北迴線新觀音隧道一度爬升 538 公尺</span></li>
@@ -6308,9 +6309,10 @@
 //         改為單一來源(rail-3d.js 不再自帶第二份),沒被涵蓋的系統保留原本的示意線形。
 // v0910g：通行證從帳號槽位拆成獨立入口(工具列 #plusBtn ＋「更多」抽屜第二列),網站沒有購買通道時
 //         的通行證面板補上 App Store／Google Play 下載連結。
+// v0912a：高鐵當日班表新增／改點的班次綁回實體股道，示意列車整列同一高度，不再在地下車站逐節折疊。
 // v0911a：高鐵車站看板標出對號座餘位與票價、公車站牌可搜尋並逐路線報到站、小工具可設「自動(最近的站)」、
 //         三鶯線平日末班補上官方公告的 00:00 那一班;轉乘接續改成預設收合,收合態留最近一班的車次與「剩 N 分」。
-const BUILD = 'v0911a';
+const BUILD = 'v0912a';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
