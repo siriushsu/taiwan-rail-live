@@ -5335,6 +5335,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="tunnelkind0911"><span class="d">9/11</span><span>立體地圖的路線不再一下橋梁一下地下道地上上下下，過山洞就是過山洞</span></li>
         <li data-cl-of="metrolead0911"><span class="d">9/11</span><span>捷運頁說明更正：台北捷運九線的位置與車站倒數都是官方逐班即時</span></li>
         <li data-cl-of="xfercollapse0911"><span class="d">9/11</span><span>轉乘接續可以收起來了，收合時仍看得到最近一班</span></li>
         <li data-cl-of="thsrseat0911"><span class="d">9/11</span><span>高鐵看板看得到對號座還有沒有位子，也查得到票價</span></li>
@@ -5342,7 +5343,6 @@
         <li data-cl-of="widgetauto0911"><span class="d">9/11</span><span>小工具可以設成「自動（最近的站）」，走到哪就顯示哪一站</span></li>
         <li data-cl-of="sanyinglast0911"><span class="d">9/11</span><span>三鶯線平日末班車補上官方的 00:00 那一班</span></li>
         <li data-cl-of="passentry0910"><span class="d">9/10</span><span>通行證有自己的入口了：手機「更多」的第二列，電腦工具列多一顆，不再和「帳號同步」共用一格</span></li>
-        <li data-cl-of="xfermetro0910"><span class="d">9/10</span><span>轉乘接續也列捷運了：高鐵桃園等轉乘站會顯示桃園機場捷運與高雄捷運的接續班次，機捷每一班還標出直達車或普通車</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5350,6 +5350,8 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="tunnelkind0911"><span class="d">9/11</span><span>立體地圖的橋梁隧道判定與高度全台修正：13 段官方圖資其實是橋梁的路段改回橋梁，橋面離地最高從 48 公尺降到 12 公尺，隧道洞口也不再把相鄰的高架橋往下拉</span></li>
+        <li data-cl="railtrack0911"><span class="d">9/11</span><span>近看軌道畫得出道碴、鋼軌與枕木，不再是一塊棕色的板子；隧道口補上石造拱圈，軌道進山不再是畫到一半就沒了；山裡的隧道也不再把軌跡畫到山坡表面上</span></li>
         <li data-cl="solidtrain0910"><span class="d">9/10</span><span>地下路段的列車可以顯示原本的車身顏色：「更多」的「透視顯示」切到「實體」，地下列車就不再半透明；這個開關同時管建築，切回「透視」時建築與地下列車都看得穿。</span></li>
         <li data-cl="tymctraintype0910"><span class="d">9/10</span><span>桃園機場捷運的車種改讀官方時刻表的車種欄位，全線每一班都標得出直達車或普通車：先前是從停靠站型態回推，首末班有十幾班的跳法兩種都不像、只能標線號，機場第一航廈到第二航廈的區間班次也被當成普通車。</span></li>
         <li data-cl="tunnelgrade0910"><span class="d">9/10</span><span>全台鐵道與捷運的隧道改成兩端洞口之間的連續縱坡，內部不再跟著山坡起伏；原本山區隧道會在畫面上翻過山頭，北迴線新觀音隧道一度爬升 538 公尺</span></li>
@@ -6310,7 +6312,7 @@
 //         的通行證面板補上 App Store／Google Play 下載連結。
 // v0911a：高鐵車站看板標出對號座餘位與票價、公車站牌可搜尋並逐路線報到站、小工具可設「自動(最近的站)」、
 //         三鶯線平日末班補上官方公告的 00:00 那一班;轉乘接續改成預設收合,收合態留最近一班的車次與「剩 N 分」。
-const BUILD = 'v0911a';
+const BUILD = 'v0911b';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。

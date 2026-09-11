@@ -139,6 +139,12 @@ try {
   const tunnelGrade = spawnSync('node', [path.join(wt, 'scripts', 'verify_rail_tunnel_grade.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(tunnelGrade.stdout || ''); process.stderr.write(tunnelGrade.stderr || '');
   if (tunnelGrade.status !== 0) fail('隧道顯示縱坡未通過——隧道又跟著山坡起伏了（單獨重跑：node scripts/verify_rail_tunnel_grade.mjs）');
+  // 2026-09-11 issue #57：上面四道對「OSM 隧道／官方橋梁互指」「layer 當高度」「洞口把鄰接高架
+  // 拖下去」三個缺陷全是綠的——隧道被誤判成橋就整段退出 tunnelGrade 的分母，缺陷會讓判準的樣本
+  // 自己消失。這一支專驗反向改判、橋面離地高度、洞口銜接與地表穿透門檻。
+  const structureHeights = spawnSync('node', [path.join(wt, 'scripts', 'verify_rail_structure_heights.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(structureHeights.stdout || ''); process.stderr.write(structureHeights.stderr || '');
+  if (structureHeights.status !== 0) fail('橋隧種類或顯示高度未通過（單獨重跑：npm run check-rail-structure-heights）');
   const guangci = spawnSync('node', [path.join(wt, 'scripts', 'verify_guangci_tracks.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(guangci.stdout || ''); process.stderr.write(guangci.stderr || '');
   if (guangci.status !== 0) fail('廣慈延伸段雙軌連通性或來源座標未通過');
