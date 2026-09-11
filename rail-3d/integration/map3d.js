@@ -111,8 +111,8 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
       if(!Number.isFinite(h))continue;
       portals.push({p:world(q,h),angle,scale:ml.MercatorCoordinate.fromLngLat(q).meterInMercatorCoordinateUnits()/unit});
     }
-    const ground=q=>terrainState.terrain?map.queryTerrainElevation(q):0;
-    for(const r of frame.routes){const coords=r.coordinates,vertices=[],path=pathFor(r);for(let i=1;i<coords.length;i++){
+    const ground=q=>terrainState.terrain?map.queryTerrainElevation(q):0,PIER_M=32;
+    for(const r of frame.routes){const coords=r.coordinates,vertices=[],path=pathFor(r);let lastPierS=-Infinity;for(let i=1;i<coords.length;i++){
       const a=coords[i-1],b=coords[i];if(Math.min(a[0],b[0])>bounds.getEast()+margin||Math.max(a[0],b[0])<bounds.getWest()-margin||Math.min(a[1],b[1])>bounds.getNorth()+margin||Math.max(a[1],b[1])<bounds.getSouth()-margin)continue;
       for(const [lo,hi] of r.drawingRanges||[[0,Infinity]]){
       const start=Math.max(path.d[i-1],lo),end=Math.min(path.d[i],hi);if(end<=start)continue;
@@ -124,13 +124,16 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
           prevGround=gp;
         }else prevGround=null;
         prev=p;}
-      // 橋墩沿來源 way 的固定里程放置，平移視角不會使橋墩滑動；地形未載入時不猜地面高度。
-      if(r.physical)for(let s=Math.ceil(start/32)*32;s<end;s+=32){
+      // 橋墩放在「量化方位的投影格線」上（格距 32 公尺，格線綁世界座標，平移視角不會滑動）：雙線的兩條平行股道
+      // 投影到同一條格線，橋墩才會對齊成一排，而不是各自從自己的里程原點數、兩線錯開半根。方位量化成 10° 一格，
+      // 同格的平行線共用格線；轉彎換格時允許一次不規則間距，但同一股道兩根不得近於格距四成。地形未載入時不猜地面高度。
+      if(r.physical){const wa=world(a,0),wb=world(b,0),bin=Math.round(Math.atan2(wb[1]-wa[1],wb[0]-wa[0])/(Math.PI/18))*(Math.PI/18),cx=Math.cos(bin),cy=Math.sin(bin),qa=wa[0]*cx+wa[1]*cy,qb=wb[0]*cx+wb[1]*cy,dq=qb-qa,segLen=path.d[i]-path.d[i-1];
+       if(Math.abs(dq)>1e-6)for(let k=Math.ceil(Math.min(qa,qb)/PIER_M);k*PIER_M<=Math.max(qa,qb);k++){const s=path.d[i-1]+(k*PIER_M-qa)/dq*segLen;if(s<start||s>=end||Math.abs(s-lastPierS)<PIER_M*.4)continue;
         const level=path.level?.(s);if(level?.kind!=='bridge'||level.offsetM<=0)continue;
-        const point=path.at(s),q=point.coordinate,h=railHeight(path,s),g=ground(q);if(!Number.isFinite(h)||!Number.isFinite(g))continue;
+        const point=path.at(s),q=point.coordinate,h=railHeight(path,s),g=ground(q);if(!Number.isFinite(h)||!Number.isFinite(g))continue;lastPierS=s;
         const scale=ml.MercatorCoordinate.fromLngLat(q).meterInMercatorCoordinateUnits()/unit;
         piers.push({p:world(q,h),ground:world(q,g)[2],angle:Math.atan2(b[1]-a[1],(b[0]-a[0])*Math.cos(q[1]*Math.PI/180)),scale,coordinate:q,railHeightM:h,groundM:g});
-      }
+      }}
       }
     }if(vertices.length)profileVertices.push(vertices);}rails.set(lineSegments);undergroundRails.set(buriedSegments);structures.set(structureSegments,piers,detail,portals);stats.undergroundRailSegments=buriedSegments.length;
   }
