@@ -145,3 +145,20 @@ suno musics/_licensed
 scripts/.engine-matrix-baseline-*
 # 內部宣傳縮時成品：由 npm run render-timelapse 批次產生，可隨時重建；影片不進公開 repo。
 輸出/縮時_*/
+
+# ── 驗收閘門留在 repo 根目錄的產物（2026-09-11 補）─────────────────────────
+# 與上面的 tmp/ 同族：verify_*.mjs 每跑一次就重寫的現場產物，可隨時重建，不必進版控。
+# 差別在它們沒有 tmp/ 那種一望即知的容器——輸出路徑是寫死在腳本裡的**相對路徑**，
+# 一律落在 repo 根目錄，於是 git status 長期是髒的。repo 是 public，任何人（或任何
+# session）跑一次 git add -A 就把它們掃進公開歷史，而 push 後不可改寫。
+#
+# 🔴 照本檔那條鐵則，這批同時查過 .assetsignore：`_shot_*.png` 那邊本來就有，output
+#    是這次兩邊一起補的。少了那邊，裸跑 wrangler versions upload 會把磁碟上的 output/
+#    當靜態資產傳上去（它讀磁碟，本檔對它完全無效）——就是 2026-07-26 .cache 那次的形狀，
+#    而 output/ 裡是外包交付的 zip 與內部報告 PDF。兩類都已登記進
+#    scripts/verify_ignore_symmetry.mjs 的逐類斷言，往後刪掉任一邊都會紅。
+# 驗收腳本順手拍的截圖（verify_punctual.mjs:293,299 等四支；底線開頭是本 repo 的暫用檔慣例）
+_shot_*.png
+# 48 支 verify_*／optimize_* 的預設輸出目錄（verify_night_design 的 output/dark20、
+# verify_3d_integration 的 output/3d-integration…），外加外包交付物與報告 PDF。
+output/
