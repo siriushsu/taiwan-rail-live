@@ -344,10 +344,10 @@ const MODES = {
     //   轉乘接續納入機捷與高捷、機捷車種讀官方值、網站登入修復。
     //   why 三語寫其中六條；weblogin0910 是網站專屬（更新紀錄自己就寫著「App 內的登入不受影響」），
     //   不佔店頭 500 字元。
-    marketing: '1.6.2', build: '109', music: true, metroCore: true,
-    why: "軌島 1.6.2\n\n・通行證有自己的入口：手機從「更多」打開就在第二列，電腦在工具列上有一顆「通行證」\n・通行證不用先登入也看得到有哪些功能，要看價格或訂閱時才需要登入\n・網站也能用軌島通行證：用同一個軌島帳號登入，App 訂的資格在網站就生效\n・地下路段的列車可以顯示原本的車身顏色：「更多」的「透視顯示」切到「實體」\n・轉乘接續加入捷運：高鐵桃園、台北車站、左營等站會列出桃園機場捷運與高雄捷運紅線、橘線\n・桃園機場捷運的車種改讀官方時刻表，全線每一班都標得出直達車或普通車",
-    whyEn: "Rail Island 1.6.2\n\n• The Pass has its own entry: second row of the More drawer on phones, its own toolbar button on desktop\n• Open the Pass without signing in; sign in only for prices or to subscribe\n• Use the Pass on the website with the same Rail Island account\n• Underground trains in their real colors: set See-through view to Solid\n• Transfers now list Airport MRT and Kaohsiung MRT connections\n• Airport MRT runs are marked Express or Commuter from the official timetable",
-    whyJa: "軌島 1.6.2\n\n・パスに専用の入口を追加：スマートフォンは「その他」の 2 行目、パソコンはツールバーの「パス」\n・ログインしなくてもパスの内容を確認できます。価格の表示と購入のときだけログインが必要です\n・ウェブでも軌島パスが使えます：同じ軌島アカウントでログインすると App の権利が有効になります\n・地下区間の列車を本来の車体色で表示：「その他」の「透視表示」を「実体」に切り替え\n・乗り継ぎに地下鉄を追加：高鉄桃園、台北駅、左営などで桃園空港 MRT と高雄 MRT 紅線・橘線を表示\n・桃園空港 MRT の種別を公式時刻表から取得し、全列車を直達列車／普通列車で表示",
+    marketing: '1.6.3', build: '110', music: true, metroCore: true,
+    why: "軌島 1.6.3\n\n・搜尋框找得到全台公車站牌，點進去看每條路線還有幾分鐘到\n・高鐵車站看板標出對號座有位、剩不多或售完，並可查票價\n・桌面小工具的車站可以設成「自動（最近的站）」\n・跟車卡的轉乘接續可以收起來\n・高鐵停靠列車停外側月台到發線，通過列車走內側正線\n・修正高鐵列車在板橋等地下車站車廂折疊、上下跳動\n・立體地圖的高架橋補上箱梁、護欄與墩帽，全台軌道縱坡重算\n・近看軌道畫得出道碴、鋼軌與枕木，隧道口補上石造拱圈\n・地景的示意樹只長在公園、村落與河岸的小片林地\n・三鶯線平日末班補上 00:00 那一班",
+    whyEn: "Rail Island 1.6.3\n\n• Bus stop search nationwide, with live arrivals\n• THSR boards show reserved seats and fares\n• Widget station can follow the nearest station\n• Transfer connections can be collapsed\n• THSR trains stop on the outer tracks, pass on the inner\n• Fixed THSR carriages folding underground\n• Viaducts have box girders, parapets and pier caps\n• Track up close shows ballast, rails and sleepers\n• Scenery trees only in small woodlands\n• Added the Sanying line 00:00 last train",
+    whyJa: "軌島 1.6.3\n\n・全国のバス停を検索でき、各路線の到着まで何分かを表示\n・台湾高鐵の発車案内に指定席の空席状況と運賃を追加\n・ウィジェットの駅を「自動（最寄り駅）」に設定可能に\n・追跡カードの乗り換え接続を折りたたみ可能に\n・台湾高鐵の停車列車は外側の副本線、通過列車は内側の本線を走行\n・板橋など地下駅で高鐵の車両が折れ曲がる不具合を修正\n・高架橋に箱桁・防護壁・橋脚天端を追加\n・近づくとバラスト・レール・枕木が見えるように\n・イメージの樹木は小さな林地のみに\n・三鶯線の平日最終に00:00発を追加",
 
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
