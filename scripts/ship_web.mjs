@@ -181,6 +181,9 @@ try {
   const thsrTracks = spawnSync('node', [path.join(wt, 'scripts', 'verify_thsr_station_tracks.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(thsrTracks.stdout || ''); process.stderr.write(thsrTracks.stderr || '');
   if (thsrTracks.status !== 0) fail('高鐵車站股道規則未通過(停靠列車要停外側到發線、通過列車走內側正線)');
+  const thsrOccupancy = spawnSync('node', [path.join(wt, 'scripts', 'verify_thsr_reservation_motion.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(thsrOccupancy.stdout || ''); process.stderr.write(thsrOccupancy.stderr || '');
+  if (thsrOccupancy.status !== 0) fail('高鐵派車佔用模型與行車模型不同源(曲線指紋不符、通過時刻差超過 1 秒、或同日班次有股道交疊)——重跑六種日型派車');
   const traContinuity = spawnSync('node', [path.join(wt, 'scripts', 'verify_tra_binding_continuity.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(traContinuity.stdout || ''); process.stderr.write(traContinuity.stderr || '');
   if (traContinuity.status !== 0) fail('台鐵雙向通過站或加開車股道連續性未通過');
