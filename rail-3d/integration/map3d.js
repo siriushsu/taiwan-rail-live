@@ -65,17 +65,47 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   const report=e=>{const text=e?.message||String(e);if(stats.errors.length<20)stats.errors.push(text);onError?.(text);};
   function world(coord,height){const m=ml.MercatorCoordinate.fromLngLat(coord);return [(m.x-anchor.x)/unit,-(m.y-anchor.y)/unit,height*m.meterInMercatorCoordinateUnits()/unit];}
   function height(coord){if(!terrainState.terrain)return .65;const h=map.queryTerrainElevation(coord);return Number.isFinite(h)?h+.65:null;}
-  function pathFor(route){if(!route?.coordinates?.length)return null;if(route.physical&&route.path){route.path.elevation=route.elevation;route.path.level=route.level;return route.path;}let p=paths.get(route.coordinates);if(!p){p=makePath(route.coordinates,route.loop);const data=profileData.entries[shapeKey(route.coordinates)];p.elevation=route.elevation||(data&&Math.abs(data.lengthM-p.length)<.01?makeHeightProfile(data.values,data.stepM,p.length):null);p.level=route.level;paths.set(route.coordinates,p);}
+  // 同一個里程的 level，一次重建裡會被問到五次：railHeight 兩次、buriedDraw 兩次、橋墩判斷一次。
+  // 借來的 level 每一次都要重跑 displayLevelAt——3x3 網格撈候選股道、逐條 locate 最近點——台北那種
+  // 多線重疊的地方一個取樣點就要比對幾十條。只記住最後一次的答案，五次查詢就變一次；查詢結果只看
+  // 建置期的股道資料，同一個里程不會因為地形載入或視角改變而不同，記住是安全的。
+  const memoLevel=fn=>{if(!fn||fn.memoized)return fn;let lastS=NaN,last=null;
+    const g=s=>{if(s!==lastS){lastS=s;last=fn(s);}return last;};
+    g.memoized=true;if(fn.borrowed)g.borrowed=true;return g;};
+  function pathFor(route){if(!route?.coordinates?.length)return null;if(route.physical&&route.path){route.path.elevation=route.elevation;route.path.level=memoLevel(route.level);return route.path;}let p=paths.get(route.coordinates);if(!p){p=makePath(route.coordinates,route.loop);const data=profileData.entries[shapeKey(route.coordinates)];p.elevation=route.elevation||(data&&Math.abs(data.lengthM-p.length)<.01?makeHeightProfile(data.values,data.stepM,p.length):null);p.level=memoLevel(route.level);paths.set(route.coordinates,p);}
     if(!route.physical&&!p.level&&globalThis.railIslandPhysical?.systems?.includes(route.systemId)){p.level=s=>{
       const q=p.at(s);if(!q)return null;const a=p.coordinates[q.index],b=p.coordinates[q.index+1],angle=Math.atan2(b[1]-a[1],(b[0]-a[0])*Math.cos(q.coordinate[1]*Math.PI/180));
       return globalThis.railIslandPhysical.displayLevelAt(route.systemId,q.coordinate,angle)||{kind:'surface',offsetM:0,estimated:true,displayOnly:true};
-    };p.level.borrowed=true;}return p;
+    };p.level.borrowed=true;p.level=memoLevel(p.level);}return p;
+  }
+  // 一次重建裡，同一個取樣點的地形高程會被問三次：railHeight、覆土複查、橋墩地面用的是同一組經緯度。
+  // queryTerrainElevation 每一次都要重新解析「這是哪一張 DEM 圖磚」，實測台北 z15 一次重建有 41%
+  // 的時間花在這上面。只記住上一次的座標與答案，比兩個數就擋掉後面兩次查詢。
+  // 兩件事不要做：(1) 別拿座標拼字串當鍵——浮點數轉字串比查詢本身還貴，實測光拼鍵就吃掉 82 毫秒；
+  // (2) 別跨重建留著——算繪每一幀都在問列車腳下的高程，圖磚到貨後舊答案就是錯的。
+  let terrainCaching=false,tcLon=NaN,tcLat=NaN,tcValue=null;
+  function terrainAt(coordinate){
+    if(terrainCaching&&coordinate[0]===tcLon&&coordinate[1]===tcLat)return tcValue;
+    const g=map.queryTerrainElevation(coordinate);
+    if(terrainCaching){tcLon=coordinate[0];tcLat=coordinate[1];tcValue=g;}
+    return g;
+  }
+  // 有 terrainHeightM 時，地表查詢只是拿來問「這裡的 DEM 到貨了沒」——高度本身來自建置資料，
+  // 查回來的值當場丟掉。但逐節車廂每一幀都問一次：台北車站畫面裡一百多列車、上千節車廂，
+  // 等於為同一張 DEM 圖磚重複解析上千次，實測平移時有 22% 的時間花在這組查詢上。
+  // 一張 DEM 圖磚橫跨好幾公里，用 0.001 度（約 110 公尺）一格的格線記住答案綽綽有餘；
+  // 答案會隨圖磚到貨改變，所以每一幀清一次。
+  const LOADED_STEP=.001,loadedCells=new Map();
+  function terrainLoaded(coordinate){
+    const key=Math.round(coordinate[0]/LOADED_STEP)*4e7+Math.round(coordinate[1]/LOADED_STEP);
+    if(loadedCells.has(key))return loadedCells.get(key);
+    const v=Number.isFinite(map.queryTerrainElevation(coordinate));loadedCells.set(key,v);return v;
   }
   function railHeight(path,s){
     if(path)s=Math.max(0,Math.min(path.length,s));
     // 實體軌道以畫面地表為基準；舊 DEM 淨空含全線 +2.5m，不能再把它當路基高度。
     // 軌道、逐節車廂及跟車鏡頭共用此函式，保留交會層差，不以橋墩填補資料誤差。
-    if(path?.level){const absolute=terrainState.terrain?path.level(s)?.terrainHeightM:undefined;if(Number.isFinite(absolute))return Number.isFinite(map.queryTerrainElevation(path.at(s).coordinate))?absolute+.65:null;const ground=terrainState.terrain?map.queryTerrainElevation(path.at(s).coordinate):0,level=path.level(s),offset=level?.offsetM??0;return Number.isFinite(ground)?ground+offset+.65:null;}
+    if(path?.level){const absolute=terrainState.terrain?path.level(s)?.terrainHeightM:undefined;if(Number.isFinite(absolute))return terrainLoaded(path.at(s).coordinate)?absolute+.65:null;const ground=terrainState.terrain?terrainAt(path.at(s).coordinate):0,level=path.level(s),offset=level?.offsetM??0;return Number.isFinite(ground)?ground+offset+.65:null;}
     const h=path?.elevation?(terrainState.terrain?path.elevation(s):0):terrainState.terrain?null:0;return Number.isFinite(h)?h+.65:null;
   }
   // 鋼軌 .14 公尺寬，z17 以下不到一個像素，畫了只是燒頂點。枕木再近一級才長出來。
@@ -93,13 +123,19 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   // 不像在腳下。建置期的地表值（display-profiles）比隨站出貨的 DEM 平均高 5.2 公尺（p90 11.8），
   // 所以淺覆土段要拿真正畫得出來的地形再判一次，深的直接用建置值判，省下逐點地形查詢。
   const SEE_THROUGH_COVER_M=30,SEE_THROUGH_RELIEF_M=10,RELIEF_STEP=.0005,COVER_RECHECK_M=12;
-  const reliefCells=new Map();
+  // 格子的十字探點正好落在相鄰格子的中心上，所以探點的高程另外記一份，相鄰格子互相沿用，
+  // 一格五次查詢攤下來只剩約一次。鍵用整數格號算出來的數字，不走字串。
+  const reliefCells=new Map(),reliefPoints=new Map(),cellKey=(gx,gy)=>gx*4e7+gy;
+  function reliefPoint(gx,gy){
+    const key=cellKey(gx,gy);if(reliefPoints.has(key))return reliefPoints.get(key);
+    const g=map.queryTerrainElevation([gx*RELIEF_STEP,gy*RELIEF_STEP]);reliefPoints.set(key,g);return g;
+  }
   function localRelief(coordinate){
-    const gx=Math.round(coordinate[0]/RELIEF_STEP),gy=Math.round(coordinate[1]/RELIEF_STEP),key=gx+','+gy;
+    const gx=Math.round(coordinate[0]/RELIEF_STEP),gy=Math.round(coordinate[1]/RELIEF_STEP),key=cellKey(gx,gy);
     if(reliefCells.has(key))return reliefCells.get(key);
-    const cx=gx*RELIEF_STEP,cy=gy*RELIEF_STEP;let lo=Infinity,hi=-Infinity,value=null;
-    for(const [dx,dy] of [[0,0],[RELIEF_STEP,0],[-RELIEF_STEP,0],[0,RELIEF_STEP],[0,-RELIEF_STEP]]){
-      const g=map.queryTerrainElevation([cx+dx,cy+dy]);
+    let lo=Infinity,hi=-Infinity,value=null;
+    for(const [dx,dy] of [[0,0],[1,0],[-1,0],[0,1],[0,-1]]){
+      const g=reliefPoint(gx+dx,gy+dy);
       if(!Number.isFinite(g)){lo=Infinity;break;}
       lo=Math.min(lo,g);hi=Math.max(hi,g);}
     if(lo!==Infinity)value=hi-lo;
@@ -111,11 +147,13 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     if(!Number.isFinite(cover)||!terrainState.terrain)return 'xray';   // 沒有覆土資料、或平面模式沒有山可擋，沿用舊行為
     if(cover<=0)return 'none';
     const relief=localRelief(coordinate),hilly=Number.isFinite(relief)&&relief>=SEE_THROUGH_RELIEF_M;
-    if(hilly||cover<COVER_RECHECK_M){const g=map.queryTerrainElevation(coordinate);if(Number.isFinite(g)&&g<=railM)return 'none';}
+    if(hilly||cover<COVER_RECHECK_M){const g=terrainAt(coordinate);if(Number.isFinite(g)&&g<=railM)return 'none';}
     return hilly||cover>SEE_THROUGH_COVER_M?'depth':'xray';
   }
-  function clearLines(){stats.undergroundRailSegments=stats.buriedDepthSegments=stats.buriedHiddenSegments=0;reliefCells.clear();profileVertices=[];rails.set([]);undergroundRails.set([]);structures.set([],[]);}
+  function clearLines(){stats.undergroundRailSegments=stats.buriedDepthSegments=stats.buriedHiddenSegments=0;reliefCells.clear();reliefPoints.clear();profileVertices=[];rails.set([]);undergroundRails.set([]);structures.set([],[]);}
   function rebuildLines(){
+    const buildStarted=performance.now();terrainCaching=true;tcLon=tcLat=NaN;
+    try{
     clearLines();if(!frame)return;const c=map.getCenter(),near=map.getZoom()>=14,bounds=map.getBounds(),margin=.004;lastNear=near;const detail=detailLevel();lastDetail=detail;buildCenter=[c.lng,c.lat];buildElev=terrainState.terrain?map.queryTerrainElevation(buildCenter):0;buildView=[map.getZoom(),map.getPitch(),map.getBearing()];lastBuild=performance.now();dirty=false;stats.routeBuilds++;
 
     if(!near)return;const lineSegments=[],buriedSegments=[],structureSegments=[],piers=[];
@@ -133,16 +171,19 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
       const across=(bearingDeg+90)*Math.PI/180,mLon=111320*Math.cos(lat*Math.PI/180);
       const ground=PORTAL_FACE_U.map(u=>{
         const c=[lon+u*Math.sin(across)/mLon,lat+u*Math.cos(across)/110574],
-              g=terrainState.terrain?map.queryTerrainElevation(c):0;
+              g=terrainState.terrain?terrainAt(c):0;
         return Number.isFinite(g)?world(c,g)[2]:null;});
       portals.push({p:world(q,h),angle,ground,scale:ml.MercatorCoordinate.fromLngLat(q).meterInMercatorCoordinateUnits()/unit});
     }
-    const ground=q=>terrainState.terrain?map.queryTerrainElevation(q):0,PIER_M=32;
+    const ground=q=>terrainState.terrain?terrainAt(q):0,PIER_M=32;
     for(const r of frame.routes){const coords=r.coordinates,vertices=[],path=pathFor(r);let lastPierS=-Infinity;for(let i=1;i<coords.length;i++){
       const a=coords[i-1],b=coords[i];if(Math.min(a[0],b[0])>bounds.getEast()+margin||Math.max(a[0],b[0])<bounds.getWest()-margin||Math.min(a[1],b[1])>bounds.getNorth()+margin||Math.max(a[1],b[1])<bounds.getSouth()-margin)continue;
       for(const [lo,hi] of r.drawingRanges||[[0,Infinity]]){
       const start=Math.max(path.d[i-1],lo),end=Math.min(path.d[i],hi);if(end<=start)continue;
-      const length=end-start,n=(terrainState.terrain||path.level)?Math.max(1,Math.ceil(length/5)):1;let prev=null,prevGround=null;
+      // 露天段每 5 公尺取樣是為了貼地形與接結構；地下段兩者都不需要，密度照舊只是在燒 CPU。
+      // 實測台北車站 z15 一次重建 28613 段、559 ms（桌面 6x 降速），幾乎全是地下段。改成 20 公尺
+      // 一格：弦與真實線形的偏差在半徑 150 公尺的彎道也只有 0.33 公尺，隔著地表看不出來。
+      const length=end-start,stepM=isUnderground(path,start)?20:5,n=(terrainState.terrain||path.level)?Math.max(1,Math.ceil(length/stepM)):1;let prev=null,prevGround=null;
       for(let k=0;k<=n;k++){const s=start+length*k/n,q=path.at(Math.min(path.length,s)).coordinate,h=railHeight(path,s),p=h===null?null:world(q,h);if(prev&&p){vertices.push(...prev,...p);
         if(terrainState.terrain||r.physical||r.drawingRanges){const draw=buriedDraw(path,s,q,h);
           if(draw==='none')stats.buriedHiddenSegments++;
@@ -165,6 +206,8 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
       }}
       }
     }if(vertices.length)profileVertices.push(vertices);}rails.set(lineSegments);undergroundRails.set(buriedSegments);structures.set(structureSegments,piers,detail,portals);stats.undergroundRailSegments=buriedSegments.length;
+    stats.railSegments=lineSegments.length;
+    }finally{terrainCaching=false;stats.lineBuildMs=+(performance.now()-buildStarted).toFixed(1);stats.lineBuildMaxMs=Math.max(stats.lineBuildMaxMs||0,stats.lineBuildMs);}
   }
   async function geometry(id){if(cache.has(id))return cache.get(id);if(!pending.has(id))pending.set(id,(async()=>{
     const meta=catalog.meshes[id],r=await fetch(asset('assets/blender-map-v1/'+meta.file));if(!r.ok)throw Error('列車模型載入失敗');const b=await r.arrayBuffer();
@@ -193,7 +236,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   function syncRoutes(next){const key=next.routes.map(r=>r.id+':'+(r.displayColor||r.color)).join('|');if(key===routeKey&&next.routes.every((r,i)=>routeRefs[i]===r.coordinates))return;
     routeKey=key;routeRefs=next.routes.map(r=>r.coordinates);dirty=true;
   }
-  function update(next){if(!ready||disposed)return;frame=next;
+  function update(next){if(!ready||disposed)return;frame=next;loadedCells.clear();
     syncZoomAnchor();
     if(clearance.update([...(next.clearanceRoutes||next.routes),...next.vehicles.filter(v=>!v.route?.physical).map(v=>v.route).filter(Boolean)]))stationLayer?.refresh();
     trees?.refresh();
@@ -211,9 +254,15 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     for(const {v}of candidates)void ensureModel(v);
     if(!pointGeometry.attributes.position||positions.length!==next.vehicles.length*3){positions=new Float32Array(next.vehicles.length*3);colors=new Float32Array(positions.length);pointGeometry.setAttribute('position',new THREE.BufferAttribute(positions,3));pointGeometry.setAttribute('color',new THREE.BufferAttribute(colors,3));}
     const ids=new Set(next.vehicles.map(v=>v.id));for(const id of motion.keys())if(!ids.has(id))motion.delete(id);
+    // 畫面外的車在點雲裡會被 GPU 直接剔掉，高度是多少都看不到；但每一幀還是為它解析一張 DEM 圖磚。
+    // 實測台北車站畫面每幀 398 次地表查詢裡有 235 次來自畫面外的車，占六成。邊界放寬四分之一，
+    // 跟車的那一列一律照算，免得鏡頭跟著的車在邊緣掉高度。
+    const vw=bounds.getWest(),ve=bounds.getEast(),vs=bounds.getSouth(),vn=bounds.getNorth(),
+          padX=(ve-vw)*.25,padY=(vn-vs)*.25;
+    const onScreen=(c,v)=>v.followed||(c[0]>=vw-padX&&c[0]<=ve+padX&&c[1]>=vs-padY&&c[1]<=vn+padY);
     hits=[];stats.models=0;stats.undergroundModels=0;stats.poseSamples=[];stats.modelFallbacks=[];const arrowP=[],arrowC=[];
     next.vehicles.forEach((v,i)=>{const coord=[v.longitude,v.latitude],profile=near&&(terrainState.terrain||v.route?.level||wanted.has(v.id))&&Math.hypot(coord[0]-center.lng,coord[1]-center.lat)<.08?routeProfile(v):null,path=profile&&formationPath(v,profile),ratio=ml.MercatorCoordinate.fromLngLat(coord).meterInMercatorCoordinateUnits()/unit,
-      h=(profile?path===profile.path?profile.height:railHeight(path,profile.s):undefined)??height(coord),p=world(coord,h??.65),m=models.get(v.id),color=new THREE.Color(v.followed?'#d65130':v.color||'#287766');
+      h=(profile?path===profile.path?profile.height:railHeight(path,profile.s):undefined)??(onScreen(coord,v)?height(coord):null),p=world(coord,h??.65),m=models.get(v.id),color=new THREE.Color(v.followed?'#d65130':v.color||'#287766');
       positions.set(p,i*3);colors.set([color.r,color.g,color.b],i*3);const hit={v,p,modelled:false};hits.push(hit);
       if(m?.group){const poses=profile&&h!==null&&(!terrainState.terrain||path.elevation||path.level)?formationPoses(path,profile.s,profile.direction*(v.formationFacing||1),m.model.parts,s=>railHeight(path,s)):null;m.group.visible=!!poses;
         if(poses){const displayScale=m.displayScale??1;
