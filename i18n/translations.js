@@ -53,7 +53,7 @@
       '安坑輕軌依官方當日時刻表沿安康路串起新店丘陵，營運時段依官方列車動態即時校正 — 拖曳、縮放看看。': 'Ankeng light-rail trains follow today’s official timetable and use official train tracking during service hours.',
       '紅橘兩線與環狀輕軌依當日實際時刻表在港都穿梭，營運時段依官方到站看板即時校正 — 拖曳、縮放看看。': 'Kaohsiung Red and Orange lines and the Circular Light Rail follow today’s timetable with official live-board correction during service hours.',
       '綠線列車沿著文心路跑（無公開逐班時刻，班次依官方班距與首末班車推算）— 拖曳、縮放看看。': 'Green Line trains run along Wenxin Road. No per-train timetable is public, so services are estimated from official headways and first/last train times.',
-      '搜尋車站/車次/列車名': 'Search station, train no. or name',
+      '搜尋車站/車次/公車站牌': 'Search station, train no. or bus stop',
       '搜尋': 'Search', '查詢': 'Lookup', '亮點': 'Highlights', '最愛': 'Favorites', '護照': 'Passport', '更多': 'More',
       '主要導覽': 'Main navigation',
       '劇場模式・動一下回到地圖': 'Theater mode · interact to return to the map',
@@ -312,6 +312,18 @@
       '（待避／調度長停）': ' (held to let another train pass)', '▶ 行進中': '▶ In motion', '臺北⇄枋寮 永續來回中': 'Taipei ⇄ Fangliao continuous loop',
       '查無車次「{query}」': 'No train found for “{query}”', '共 {n} 站符合': { one: '{n} station found', other: '{n} stations found' },
       '（顯示前 {n}）': ' (showing first {n})', '查無車站、車次或列車': 'No matching station, train number or train',
+      // 公車站牌搜尋與到站（單元 C 第一批）。
+      // 🔴 到站狀態的用詞（進站中／即將進站／尚未發車／交管不停靠／末班已過／今日未營運／資料已過期／{n} 分）
+      //    刻意不寫在這裡——i18n/bus-transfer-translations.js 已經有一份正本，而它在 index.html 裡
+      //    最後載入，同名鍵會蓋掉本檔。字典裡看得到的那份不是生效的那份，是最難查的那種錯。
+      //    這裡只放它沒有的語意。守門人：scripts/verify_bus_stop_frontend.mjs。
+      '公車站牌': 'Bus stops',
+      '共 {n} 個站牌符合': { one: '{n} bus stop found', other: '{n} bus stops found' },
+      '查詢中…': 'Loading…',
+      '無即時資料': 'No live data',
+      '這一站目前沒有任何路線回報': 'No route is reporting at this stop right now',
+      '目前拿不到這一站的即時到站': 'Live arrivals for this stop are unavailable right now',
+      '實際到站時間請以各公車業者官方資訊為準': 'Actual arrival times follow each bus operator’s official information',
       '{train} 次 {station} {mode} {n} 分鐘': 'Train {train} · {station} · {n} min {mode}',
       '表定 {time}{delay}。開軌島看即時位置 →': 'Scheduled {time}{delay}. Open Rail Island for the live position →',
       '，排定時誤點 +{n} 分': ', running {n} min late when this was shared', '抵達前': 'before arrival',
@@ -535,7 +547,7 @@
       '安坑輕軌依官方當日時刻表沿安康路串起新店丘陵，營運時段依官方列車動態即時校正 — 拖曳、縮放看看。': '安坑ライトレールは当日の公式時刻表で運行し、運行時間中は公式列車位置情報で補正します。',
       '紅橘兩線與環狀輕軌依當日實際時刻表在港都穿梭，營運時段依官方到站看板即時校正 — 拖曳、縮放看看。': '高雄メトロの赤線・オレンジ線とライトレールは当日の時刻表で運行し、運行時間中は公式到着案内で補正します。',
       '綠線列車沿著文心路跑（無公開逐班時刻，班次依官方班距與首末班車推算）— 拖曳、縮放看看。': '台中メトロ緑線は列車ごとの公開時刻表がないため、公式の運転間隔と始発・終電時刻から推定します。',
-      '搜尋車站/車次/列車名': '駅名・列車番号・列車名を検索', '搜尋': '検索', '查詢': '調べる', '亮點': '注目', '最愛': 'お気に入り', '護照': 'パスポート', '更多': 'その他',
+      '搜尋車站/車次/公車站牌': '駅名・列車番号・バス停を検索', '搜尋': '検索', '查詢': '調べる', '亮點': '注目', '最愛': 'お気に入り', '護照': 'パスポート', '更多': 'その他',
       '主要導覽': 'メインナビゲーション', '劇場模式・動一下回到地圖': 'シアターモード・操作すると地図に戻ります',
       '收集地圖': '収集マップ', '離開': '終了', '離開收集地圖，回到即時地圖': '収集マップを終了してライブ地図に戻る',
       '隨機跟隨': 'ランダム追跡', '隨機跟隨列車——再按一次換一班（小卡 × 結束）': '列車をランダム追跡—もう一度押すと列車を変更（×で追跡終了）',
@@ -757,6 +769,15 @@
       '（待避／調度長停）': '（待避・運行調整による長時間停車）', '▶ 行進中': '▶ 走行中', '臺北⇄枋寮 永續來回中': '台北⇄枋寮を連続往復中',
       '查無車次「{query}」': '「{query}」に一致する列車はありません', '共 {n} 站符合': '{n}駅が見つかりました',
       '（顯示前 {n}）': '（先頭{n}件を表示）', '查無車站、車次或列車': '一致する駅・列車番号・列車はありません',
+      // 公車站牌搜尋與到站（單元 C 第一批）。到站狀態用詞沿用 i18n/bus-transfer-translations.js，
+      // 不在本檔重寫（同名鍵會被後載入的那份蓋掉）。
+      '公車站牌': 'バス停',
+      '共 {n} 個站牌符合': '{n}件のバス停が見つかりました',
+      '查詢中…': '読み込み中…',
+      '無即時資料': 'リアルタイム情報なし',
+      '這一站目前沒有任何路線回報': 'このバス停で情報を送っている路線は現在ありません',
+      '目前拿不到這一站的即時到站': 'このバス停のリアルタイム到着情報を取得できません',
+      '實際到站時間請以各公車業者官方資訊為準': '実際の到着時刻は各バス事業者の公式情報をご確認ください',
       '{train} 次 {station} {mode} {n} 分鐘': '{train}列車・{station}・{mode}{n}分',
       '表定 {time}{delay}。開軌島看即時位置 →': '所定{time}{delay}。軌島で現在位置を見る →', '，排定時誤點 +{n} 分': '、設定時は{n}分遅れ',
       '抵達前': '到着前', '這班車剩下的停靠站都來不及提醒了': 'この列車の残りの停車駅には通知が間に合いません。',

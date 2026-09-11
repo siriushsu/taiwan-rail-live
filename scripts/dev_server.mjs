@@ -22,7 +22,25 @@ const worker = (await import(path.join(ROOT, 'worker.js'))).default;
 
 // 副檔名不在表裡=一律 404(見下方 !type)。字型漏了會讓 assets/fonts/rail-emoji.woff2 在本機
 // 靜默 404、圖示掉回系統 emoji,本機看到的畫面與正式站不一樣(2026-07-29 由 verify_redesign 抓到)。
-const MIME = { '.bin':'application/octet-stream', '.webp':'image/webp', '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.geojson': 'application/geo+json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf' };
+const MIME = { '.bin':'application/octet-stream', '.webp':'image/webp', '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.geojson': 'application/geo+json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.tsv': 'text/tab-separated-values' };
+
+// env.ASSETS 替身。正式環境是 Cloudflare 的 assets binding;本機沒有它的話,任何用
+// env.ASSETS.fetch 讀靜態產物的端點(公車站牌索引、公車轉乘索引)在本機一律 503——
+// 而那看起來就像功能壞了,不像環境沒配好。只讀 repo 內的檔,路徑一律夾在 ROOT 底下。
+const devAssets = {
+  async fetch(request) {
+    const p = new URL(request.url).pathname;
+    const fp = path.resolve(path.join(ROOT, decodeURIComponent(p)));
+    if (path.relative(ROOT, fp).startsWith('..') || !existsSync(fp) || statSync(fp).isDirectory()) return new Response('not found', { status: 404 });
+    return new Response(readFileSync(fp), { headers: { 'content-type': MIME[path.extname(fp)] || 'application/octet-stream' } });
+  },
+};
+// process.env 是普通物件,展開它會把幾百個環境變數複製一份;用 Proxy 讓 env.XXX 直接落到
+// process.env,同時補上 ASSETS。
+const workerEnv = new Proxy({ ASSETS: devAssets }, {
+  get: (target, key) => (key in target ? target[key] : process.env[key]),
+  has: (target, key) => key in target || key in process.env,
+});
 
 createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
@@ -34,7 +52,7 @@ createServer(async (req, res) => {
       req.on('end', () => resolve(Buffer.concat(chunks)));
       req.on('error', reject);
     });
-    const resp = await worker.fetch(new Request('https://localhost' + req.url, { method, headers: req.headers, body }), process.env); // https:worker 對 http 一律 301,本機直連要繞過
+    const resp = await worker.fetch(new Request('https://localhost' + req.url, { method, headers: req.headers, body }), workerEnv); // https:worker 對 http 一律 301,本機直連要繞過
     res.statusCode = resp.status;
     resp.headers.forEach((v, k) => res.setHeader(k, v));
     return res.end(Buffer.from(await resp.arrayBuffer()));

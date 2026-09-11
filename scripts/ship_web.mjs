@@ -256,6 +256,23 @@ try {
   if (busTransfer.status !== 0) fail('公車轉乘驗收未過——修正資料索引、Worker、UI、手機互動或錯誤降級後再出貨'
     + '（單獨重跑：npm run check-bus-transfer）');
 
+  // ── 2.11b 公車站牌搜尋與到站守門（單元 C 第一批）─────────────────────────
+  // 🔴 不在出貨鏈上的驗收腳本等於不存在，所以本批一寫完就掛上來。這兩支守的是：
+  //    五種到站語意不得被收斂成同一個「沒資料」、GoBack 2／3 不准猜方向、
+  //    端點網址只能來自 data/bus_providers.json、四支公車端點都掛了 BUS_LIMITER
+  //    （其中兩支是本批補的舊債）、雙層 TTL 的算式與註解一致、授權署名沒被拿掉。
+  const busStop = spawnSync('node', [path.join(wt, 'scripts', 'verify_bus_stop_worker.mjs')], { encoding: 'utf8' });
+  process.stdout.write(busStop.stdout || ''); process.stderr.write(busStop.stderr || '');
+  if (busStop.status !== 0) fail('公車站牌到站驗收未過（單獨重跑：npm run check-bus-stop）');
+  const busStopFront = spawnSync('node', [path.join(wt, 'scripts', 'verify_bus_stop_frontend.mjs')], { encoding: 'utf8' });
+  process.stdout.write(busStopFront.stdout || ''); process.stderr.write(busStopFront.stderr || '');
+  if (busStopFront.status !== 0) fail('公車站牌前端／署名守門未過（單獨重跑：npm run check-bus-stop）');
+  // 瀏覽器那一支（真的開 Chromium、真的打字、真的點下去）也掛上來：靜態守門看得到「文案在檔案裡」，
+  // 看不到「按下去有沒有畫出來」，而本批第一次跑瀏覽器就抓到英日語顯示的是另一份字典的文案。
+  const busStopBrowser = spawnSync('node', [path.join(wt, 'scripts', 'verify_bus_stop_browser.mjs')], { encoding: 'utf8' });
+  process.stdout.write(busStopBrowser.stdout || ''); process.stderr.write(busStopBrowser.stderr || '');
+  if (busStopBrowser.status !== 0) fail('公車站牌瀏覽器驗收未過（單獨重跑：node scripts/verify_bus_stop_browser.mjs）');
+
   // ── 2.12 地圖引擎適配層閘門(換引擎 M0,2026-09-03)——純靜態、毫秒級:index.html 裡任何繞過適配層 M 直接
   // 呼叫 Leaflet `map.xxx(` 的程式碼都會在這裡擋下(否則 MapLibre 引擎一開就炸,而 Leaflet 路徑全綠照不到)。
   // 只跑靜態半段:動態半段(Playwright 開機比對)留給 npm run check-engine。

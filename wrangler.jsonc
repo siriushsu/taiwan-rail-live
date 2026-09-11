@@ -104,7 +104,16 @@
       { "name": "PASS_LIMITER", "type": "ratelimit", "namespace_id": "1007", "simple": { "limit": 5, "period": 60 } },
       // 旅程分享寫入：前景位置正常每 15 秒至多一發（4/分鐘），30/分鐘保留網路重送餘裕；
       // 所有寫入共用同一桶且 fail-closed，擋在 D1 前。公開讀取不走這桶。
-      { "name": "JOURNEY_SHARE_LIMITER", "type": "ratelimit", "namespace_id": "1008", "simple": { "limit": 30, "period": 60 } }
+      { "name": "JOURNEY_SHARE_LIMITER", "type": "ratelimit", "namespace_id": "1008", "simple": { "limit": 30, "period": 60 } },
+      // BUS_LIMITER：/api/bus-transfer、/api/bus-leg-live、/api/bus-stop-search、/api/bus-stop-live 共用。
+      // 🔴 這一族與 tra-live／metro-live 不是同一類：它們的 TDX 成本隨【請求參數】線性上升
+      // （不同站牌＝不同快取鍵＝各打一次 N1），不是「成本 = TTL × colo 數、與請求數無關」的固定成本輪詢。
+      // 實測（2026-09-02 公車轉乘用量稽核）無節流時一支腳本每 20 秒掃 239 站 ＝ 926 點/天、
+      // 400 點在 10.4 小時內用盡，且瞬間 15.9 次/秒超過金鑰每秒上限 ⇒ 共用金鑰被 429，
+      // **台鐵與捷運即時會一起掛**。前兩支自上線起一個 limiter 都沒有，本批補上。
+      // 60 次/分鐘的來源：真人一次查詢＝1 發搜尋＋1 發到站，翻幾個站牌再重整也用不到十發，
+      // 60 留了六倍餘裕；對「每 20 秒掃 239 站」那種腳本則直接壓到 1/15。
+      { "name": "BUS_LIMITER", "type": "ratelimit", "namespace_id": "1009", "simple": { "limit": 60, "period": 60 } }
     ]
   },
   "assets": {

@@ -4887,7 +4887,7 @@
         <!-- .sf-in 只包輸入框:清除鈕要貼齊輸入框右緣,而 #searchDrop 的定位錨**必須**留在 .search
              (見 .search 的註解:跟車時 followbar 在第二列,錨在 input 下方會蓋住取消鈕)。 -->
         <span class="sf-in">
-          <input type="text" id="trainSearch" placeholder="搜尋車站/車次/列車名" autocomplete="off" enterkeyhint="search" />
+          <input type="text" id="trainSearch" placeholder="搜尋車站/車次/公車站牌" autocomplete="off" enterkeyhint="search" />
           <button type="button" class="sp-clr" id="searchClear" aria-label="清除搜尋">×</button>
         </span>
         <div class="search-drop" id="searchDrop" hidden></div>
@@ -5693,6 +5693,8 @@
         <li><span class="d">北捷</span><span>臺北捷運各線與環狀線的秒級到站倒數取自臺北大眾捷運股份有限公司「臺北捷運 API」（會員申請制），依「政府資料開放授權條款」使用</span></li>
         <li><span class="d">新北捷</span><span>淡海輕軌・安坑輕軌的即時列車動態引用自新北大眾捷運股份有限公司官網「列車動態」公開頁面，著作權屬該公司所有</span></li>
         <li><span class="d">軌道</span><span>台鐵軌道及阿里山林鐵的 TDX 缺口補線取自 © OpenStreetMap 貢獻者（ODbL），經 Overpass／OSM API</span></li>
+        <li><span class="d">公車</span><span>全臺公車站牌名冊與非臺北市的到站預估介接交通部 TDX 運輸資料流通服務（Bus/Station、Bus/EstimatedTimeOfArrival），依政府資料開放授權條款第1版使用</span></li>
+        <li><span class="d">北市公車</span><span>臺北市公車的站牌、路線與到站預估取自臺北市政府交通局公共運輸處「臺北市公車動態資訊」（tcgbusfs.blob.core.windows.net/blobbus 之 GetEstimateTime／GetStop／GetRoute），依「政府資料開放授權條款－第1版」使用</span></li>
         <li><span class="d">底圖</span><span><!-- APP_REPLACE_START basemap-credit（App 換 OpenFreeMap/Stadia/Esri 授權版文字，prepare-web.mjs 替換） -->OpenFreeMap（© OpenFreeMap © OpenMapTiles © OpenStreetMap 貢獻者，街道圖）、Esri World Imagery（衛星影像）與內政部「直轄市、縣市界線」（離線海陸輪廓，政府資料開放授權條款第1版）<!-- APP_REPLACE_END basemap-credit --></span></li>
         <li id="landscapeDataCredit"><span class="d">地景</span><span>© ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a> · <a href="https://doi.org/10.5281/zenodo.7254221" target="_blank" rel="noopener">WorldCover 2021 v200</a></span></li>
         <!-- APP_REPLACE_START status-link:App 包內沒有 status.html 且其相對 API 呼叫在本機來源不通,App build 換成正式站絕對網址外開 -->
@@ -28021,15 +28023,100 @@ function renderStockIntro(r) {
     `<div class="sd-note">${escHtml(t('車型依台鐵公告的車種代碼比對，實際配車以當日營運為準'))}</div></div>`;
   openSearchDrop();
 }
+// ── 公車站牌搜尋（單元 C 第一批）──
+// 鐵道那幾區都是本地索引、即時重繪;公車站牌全臺 4 萬多個站位,索引留在 Worker 端,
+// 所以這一區是【非同步後到】的:先畫鐵道結果,公車回來了再補進同一張下拉。
+// 🔴 後到的結果要驗「查詢字串還是不是同一個」——使用者打字比網路快,不驗就會把上一個查詢的
+// 結果蓋在新的查詢上,而畫面看起來完全正常。
+const BUS_STOP_ROWS = 6;
+const BUS_SEARCH_DEBOUNCE_MS = 260;
+let busSearchTimer = null, busSearchToken = 0;
+// 每一種到站狀態各自對到一段文案。🔴 官方給了五種語意（見 scripts/bus_live_core.mjs 的來源引用），
+// 不可以收斂成同一個「沒有資料」;沒有即時資料就講沒有,不用班表推估頂替、也不留白。
+// 🔴 這些用詞不是本批新造的:i18n/bus-transfer-translations.js(既有的公車轉乘功能)已經有一份
+// 公車到站用語正本,而它在 index.html 裡最後載入、會蓋掉同名鍵。同一個鍵寫兩份的下場是
+// 「字典裡看得到的那份不是生效的那份」,所以這裡一律沿用既有字串,只有真的沒有的語意
+// (無即時資料)才新增。守門人在 scripts/verify_bus_stop_frontend.mjs。
+const BUS_STATE_TEXT = {
+  arriving: '進站中', countdown: null, scheduled: null,
+  not_departed: '尚未發車', skipped: '交管不停靠', last_bus_passed: '末班已過',
+  not_operating: '今日未營運', no_estimate: '無即時資料', unknown: '無即時資料', stale: '資料已過期',
+};
+function busEtaText(live) {
+  if (!live) return t('無即時資料');
+  if ((live.state === 'countdown' || live.state === 'scheduled') && Number.isFinite(live.etaSec)) {
+    const min = Math.floor(live.etaSec / 60);
+    return min <= 0 ? t('即將進站') : t('{n} 分', { n: i18nNumber(min) }, min);
+  }
+  return t(BUS_STATE_TEXT[live.state] || '無即時資料');
+}
+function scheduleBusSearch(q) {
+  if (busSearchTimer) clearTimeout(busSearchTimer);
+  const query = String(q || '').trim();
+  if (query.length < 2) { state._searchBus = null; return; }   // 1 字太寬,比照 searchNamedMatch
+  const token = ++busSearchToken;
+  busSearchTimer = setTimeout(async () => {
+    try {
+      const r = await fetch('/api/bus-stop-search?q=' + encodeURIComponent(query));
+      if (!r.ok) throw new Error('bus search ' + r.status);
+      const body = await r.json();
+      if (token !== busSearchToken) return;                    // 使用者已經改字,丟掉這一份
+      const inp = document.getElementById('trainSearch');
+      if (!inp || inp.value.trim() !== query) return;
+      state._searchBus = { query, total: body.total || 0, rows: (body.rows || []).slice(0, BUS_STOP_ROWS) };
+      renderSearchDrop({ keepBus: true });
+    } catch (e) { if (token === busSearchToken) state._searchBus = null; }
+  }, BUS_SEARCH_DEBOUNCE_MS);
+}
+// 點某個站牌 → 拉那一站的下一班,畫在下拉裡（版面沿用觀光列車介紹卡,不另做樣式）。
+async function renderBusStopCard(stop) {
+  const drop = document.getElementById('searchDrop');
+  if (!drop || !stop) return;
+  state._busStopCard = stop;
+  const head = `<div class="sd-named"><b class="tn">${escHtml(stop.name)}</b>`
+    + `<span class="sys-chip">${escHtml(t('公車'))}</span>`
+    + `<span class="tr-meta">${escHtml(stop.cityLabel || stop.city)}</span>`;
+  drop.innerHTML = head + `<p>${escHtml(t('查詢中…'))}</p></div>`;
+  openSearchDrop();
+  const token = ++busSearchToken;
+  let body = null;
+  try {
+    const r = await fetch('/api/bus-stop-live?stop=' + encodeURIComponent(stop.stationUid));
+    if (r.ok) body = await r.json();
+  } catch (e) { body = null; }
+  if (token !== busSearchToken || state._busStopCard !== stop) return;
+  if (!body || body.error) {
+    drop.innerHTML = head + `<p>${escHtml(t('目前拿不到這一站的即時到站'))}</p>`
+      + `<div class="sd-note">${escHtml(t('實際到站時間請以各公車業者官方資訊為準'))}</div></div>`;
+    openSearchDrop(); return;
+  }
+  const routes = (body.routes || []).slice(0, 12);
+  const rows = routes.length
+    ? routes.map(r => `<div class="row bus-eta-row"><span class="nm">${escHtml(r.routeName)}</span>`
+      + `<span class="tr-meta">${escHtml(r.arrivals.map(a => busEtaText(a.live)).join(' · '))}</span></div>`).join('')
+    : `<p>${escHtml(t('這一站目前沒有任何路線回報'))}</p>`;
+  const srcName = body.source && body.source.attribution ? body.source.attribution : '';
+  drop.innerHTML = head + rows
+    + `<div class="sd-note">${escHtml(t('實際到站時間請以各公車業者官方資訊為準'))}${srcName ? '　' + escHtml(srcName) : ''}</div></div>`;
+  openSearchDrop();
+}
 const SEARCH_STN_ROWS = 12;
-// 常駐搜尋框的下拉:列車名稱區＋車次區(含數字才出現,置頂)＋車站區。即時重繪、量小免 debounce。
-function renderSearchDrop() {
+// 常駐搜尋框的下拉:列車名稱區＋車次區(含數字才出現,置頂)＋車站區＋公車站牌區(非同步後到)。
+// 即時重繪、量小免 debounce(公車那一區例外,它要打網路所以自己 debounce)。
+// 🔴 opts 不可以用解構預設值:這支同時被當成 input/focus 的 listener 直接掛上去,
+// 那時第一個參數是 Event。明確比對 === true,不要讓 Event 上碰巧同名的屬性有機會生效。
+function renderSearchDrop(opts) {
+  const keepBus = !!(opts && opts.keepBus === true);
   const inp = document.getElementById('trainSearch'), drop = document.getElementById('searchDrop');
   if (!inp || !drop) return;
   state._namedIntro = null;
+  state._busStopCard = null;
   const q = inp.value;
+  // 公車那一區自己 debounce 打 Worker;keepBus 代表這一輪是「公車結果回來了」觸發的重繪,
+  // 不可以再排一次查詢,否則兩者互相觸發變成無限迴圈。
+  if (!keepBus) { state._searchBus = null; scheduleBusSearch(q); }
   if (!q.trim()) {
-    state._searchTrains = []; state._searchStns = []; state._searchNamed = [];
+    state._searchTrains = []; state._searchStns = []; state._searchNamed = []; state._searchBus = null;
     const suggestions = ['台北', '高雄'].filter(name => stnSearchMatch(name).length).map(name => ({ value: name, label: t(name) }));
     const tr = (state.systems.find(s => s.id === 'tra_sched')?.data.trains || []).find(tr => !tr.loop && /^\d+$/.test(String(tr.train)));
     if (tr) suggestions.push({ value: String(tr.train), label: t('{n} 次', { n: String(tr.train) }) });
@@ -28088,14 +28175,26 @@ function renderSearchDrop() {
     }).join('');
     html += `<div class="stn-count">${escHtml(t('共 {n} 站符合', { n: i18nNumber(stns.length) }, stns.length))}${stns.length > SEARCH_STN_ROWS ? escHtml(t('（顯示前 {n}）', { n: i18nNumber(SEARCH_STN_ROWS) }, SEARCH_STN_ROWS)) : ''}</div>`;
   }
+  // 公車站牌區:非同步後到,排在鐵道結果之後(鐵道才是軌島的主場)。
+  const bus = state._searchBus;
+  if (bus && bus.rows.length) {
+    html += `<div class="sd-sec">${escHtml(t('公車站牌'))}</div>`;
+    html += bus.rows.map((s, i) => {
+      const routes = (s.routes || []).slice(0, 6).join('、');
+      return `<div class="row bus-row" data-bi="${i}"><span class="nm">${escHtml(s.name)}</span>`
+        + `<span class="sys-chip">${escHtml(s.cityLabel || s.city)}</span>`
+        + `<span class="tr-meta">${escHtml(routes)}${(s.routes || []).length > 6 ? '…' : ''}</span></div>`;
+    }).join('');
+    html += `<div class="stn-count">${escHtml(t('共 {n} 個站牌符合', { n: i18nNumber(bus.total) }, bus.total))}${bus.total > bus.rows.length ? escHtml(t('（顯示前 {n}）', { n: i18nNumber(bus.rows.length) }, bus.rows.length)) : ''}</div>`;
+  }
   // 設計 3h 的空結果文案:只講「查無」對使用者沒有下一步,補一句最常見的原因(誠實線的講法,不保證)
-  if (!trs.length && !stnShown.length && !named.infos.length && !typed.stocks.length)
+  if (!trs.length && !stnShown.length && !named.infos.length && !typed.stocks.length && !(bus && bus.rows.length))
     html = `<div class="empty">${escHtml(t('查無車站、車次或列車'))}<span class="sd-tip">${escHtml(t('找不到就檢查一下車次是不是今天的班次——停駛或加班車不一定在時刻表裡。'))}</span></div>`;
   drop.innerHTML = html;
   openSearchDrop();
 }
 function openSearchDrop() { const d = document.getElementById('searchDrop'); if (d) d.hidden = false; }
-function closeSearchDrop() { const d = document.getElementById('searchDrop'); if (d) d.hidden = true; state._namedIntro = null; state._stockIntro = null; }
+function closeSearchDrop() { const d = document.getElementById('searchDrop'); if (d) d.hidden = true; state._namedIntro = null; state._stockIntro = null; state._busStopCard = null; }
 // ── 查詢面板(手機專屬;v0726a 起是 tab bar 放大鏡的落點)──
 // 面板本身不持有查詢 DOM:.search 由 placeSearch() 搬進 #searchSlot;瀏覽態只負責露出它、不叫鍵盤,收面板時鍵盤跟著收。
 // 桌面走不到(搜尋框常駐 header、tab bar 不顯示);跨回桌面時 placeSearch 會順手關掉。
@@ -35512,7 +35611,9 @@ try { initMusic(); } catch (e) { console.error('initMusic 失敗', e); }
     const trRow = e.target.closest('.row.tr-row');
     if (trRow) { const o = (state._searchTrains || [])[+trRow.dataset.ti]; if (o) { closeSearchDrop(); followNo(String(o.tr.train), o.sys && o.sys.id); } return; }
     const stRow = e.target.closest('.row.stn-row');
-    if (stRow) { const st = (state._searchStns || [])[+stRow.dataset.i]; if (st) gotoStn(st); } // gotoStn 內已 closeSearchDrop
+    if (stRow) { const st = (state._searchStns || [])[+stRow.dataset.i]; if (st) gotoStn(st); return; } // gotoStn 內已 closeSearchDrop
+    const busRow = e.target.closest('.row.bus-row');
+    if (busRow) { const s = ((state._searchBus && state._searchBus.rows) || [])[+busRow.dataset.bi]; if (s) renderBusStopCard(s); } // 內部重開下拉
   });
   // 點下拉外部收起(pointerdown 判 closest #searchRow)
   document.addEventListener('pointerdown', e => {
