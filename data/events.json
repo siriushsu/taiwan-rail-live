@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-09",
+  "updated": "2026-09-11",
   "events": [
     {
       "id": "trtc-20260811-pokemon10",
@@ -303,6 +303,26 @@
       "end": "2026-12-31",
       "anchor": { "kind": "system", "sys": "mrt" },
       "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=267CEA86CE2AB5C2"
+    },
+    {
+      "id": "trtc-20260910-kidsmovie-dahu",
+      "source": "official",
+      "title": "假日親子電影院：大湖公園場",
+      "note": "下午有特展與闖關，傍晚露天放《鞋貓劍客2》",
+      "start": "2026-09-12",
+      "end": "2026-09-12",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "大湖公園" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=A2C11A764A640D3D"
+    },
+    {
+      "id": "trtc-20260910-kidsmovie-daan",
+      "source": "official",
+      "title": "假日親子電影院：大安森林公園站場",
+      "note": "在陽光大廳，魔術開場後放《哆啦A夢：大雄的繪畫世界物語》",
+      "start": "2026-09-19",
+      "end": "2026-09-19",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "大安森林公園" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=A2C11A764A640D3D"
     }
   ]
 }
