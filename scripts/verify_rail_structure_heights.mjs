@@ -107,6 +107,37 @@ if(!(bores.mountain>=250))failures.push(`G4 山岳隧道只有 ${bores.mountain|
 if(!(bores.subsurface>=350))failures.push(`G4 都市地下段只有 ${bores.subsurface||0} 條 way`);
 notes.隧道分類 = bores;
 
+// ── G5 穿透地表的地下軌道，只留淺的 ────────────────────────────────
+// live-underground-3d 會清深度緩衝，畫在那一層的軌道看得穿地表。都市地下段要這個效果，
+// 山岳隧道不能要：線會浮在幾百公尺外的山坡上。門檻寫在 map3d.js，這裡驗它仍然站得住。
+const src=fs.readFileSync('rail-3d/integration/map3d.js','utf8');
+const limit=Number(/SEE_THROUGH_COVER_M=(\d+(?:\.\d+)?)/.exec(src)?.[1]);
+if(!(limit>0))failures.push('G5 map3d.js 找不到 SEE_THROUGH_COVER_M，穿透門檻不明');
+else{
+ const sysOf=new Map();
+ for(const w of ways)sysOf.set(String(w.id),w.system);
+ const tally={};
+ for(const [id,e] of Object.entries(E)){
+  if(e.kind!=='tunnel'||!e.terrainValues)continue;
+  const sys=sysOf.get(id)||'?';const t=tally[sys]??={n:0,see:0,deep:0,deepSee:0};
+  for(let i=0;i<e.terrainValues.length;i++){
+   const cover=e.values[i]-e.offsets[i]-e.terrainValues[i],see=cover<=limit;
+   t.n++;if(see)t.see++;
+   if(cover>100){t.deep++;if(see)t.deepSee++;}
+  }
+ }
+ const metro=['mrt','krtc','tymc','ntalrt','ntdlrt'].map(s=>tally[s]).filter(Boolean);
+ const mn=metro.reduce((a,t)=>a+t.n,0),ms=metro.reduce((a,t)=>a+t.see,0);
+ // 都市捷運地下段的透視是刻意保留的功能，門檻訂太嚴會先犧牲掉它。
+ if(!(mn>3000))failures.push(`G5 捷運地下段只取到 ${mn} 個取樣點，分母異常縮水（2026-09-11 基準 12447）`);
+ else if(ms/mn<.9)failures.push(`G5 捷運地下段只剩 ${(100*ms/mn).toFixed(1)}% 看得穿地表，低於 90%——門檻把該留的也砍掉了`);
+ // 反向：覆土超過 100 公尺的一定要被擋下來，否則就是那條規則沒生效。
+ const deep=Object.values(tally).reduce((a,t)=>a+t.deep,0),deepSee=Object.values(tally).reduce((a,t)=>a+t.deepSee,0);
+ if(!(deep>2000))failures.push(`G5 覆土超過 100m 的取樣點只有 ${deep} 個，分母異常縮水（2026-09-11 基準 5785）`);
+ if(deepSee)failures.push(`G5 有 ${deepSee} 個覆土超過 100m 的取樣點仍會穿透地表`);
+ notes.穿透門檻 = limit+'m';notes.捷運仍穿透 = +(100*ms/mn).toFixed(1)+'%';notes.深層仍穿透 = deepSee;
+}
+
 console.log(notes);
 if(failures.length){console.log(failures);process.exit(1);}
-console.log('橋隧種類與顯示高度：反向改判、橋面高度、洞口銜接、分類分母皆通過');
+console.log('橋隧種類與顯示高度：反向改判、橋面高度、洞口銜接、分類分母、穿透門檻皆通過');

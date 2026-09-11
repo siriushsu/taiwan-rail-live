@@ -79,6 +79,19 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     const h=path?.elevation?(terrainState.terrain?path.elevation(s):0):terrainState.terrain?null:0;return Number.isFinite(h)?h+.65:null;
   }
   function isUnderground(path,s){const level=path?.level?.(s);return level?.kind==='tunnel'||(level?.kind!=='bridge'&&(level?.offsetM??0)<-3);}
+  // 地下軌道有兩種畫法。live-underground-3d 那一層自己清深度，所以看得穿地表——看台北的
+  // 地下路網正是靠它。但同一招套在山岳隧道上就變成軌跡浮在山坡表面（issue #57 同一輪回報的
+  // 「山上有軌道的痕跡」）：線離它該在的位置有幾百公尺遠。
+  // 判準用「當地覆土深度」而不是隧道種類：種類是整條連續隧道一個值，台北地下段因為同一串
+  // 隧道一路連到南港的丘陵，整段會被算成山岳。覆土是逐點的，量的又剛好是「這條線看起來會
+  // 偏掉多遠」。全台 42984 個隧道取樣點裡 72.7% 淺於 30 公尺，捷運更有 96.1%；
+  // 30 公尺約十層樓，再深下去線就不像在腳下而像貼在山坡上了。
+  const SEE_THROUGH_COVER_M=30;
+  function seeThrough(path,s){
+    if(!isUnderground(path,s))return false;
+    const cover=path?.level?.(s)?.coverM;
+    return !Number.isFinite(cover)||cover<=SEE_THROUGH_COVER_M;   // 沒有覆土資料就沿用舊行為
+  }
   function clearLines(){stats.undergroundRailSegments=0;profileVertices=[];rails.set([]);undergroundRails.set([]);structures.set([],[]);}
   function rebuildLines(){
     clearLines();if(!frame)return;const c=map.getCenter(),near=map.getZoom()>=14,bounds=map.getBounds(),margin=.004;lastNear=near;buildCenter=[c.lng,c.lat];buildElev=terrainState.terrain?map.queryTerrainElevation(buildCenter):0;buildView=[map.getZoom(),map.getPitch(),map.getBearing()];lastBuild=performance.now();dirty=false;stats.routeBuilds++;
@@ -90,7 +103,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
       for(const [lo,hi] of r.drawingRanges||[[0,Infinity]]){
       const start=Math.max(path.d[i-1],lo),end=Math.min(path.d[i],hi);if(end<=start)continue;
       const length=end-start,n=(terrainState.terrain||path.level)?Math.max(1,Math.ceil(length/5)):1;let prev=null,prevGround=null;
-      for(let k=0;k<=n;k++){const s=start+length*k/n,q=path.at(Math.min(path.length,s)).coordinate,h=railHeight(path,s),p=h===null?null:world(q,h);if(prev&&p){vertices.push(...prev,...p);if(terrainState.terrain||r.physical||r.drawingRanges)(isUnderground(path,s)?buriedSegments:lineSegments).push({a:prev,b:p,color:r.displayColor||r.color,physical:!!r.physical});}
+      for(let k=0;k<=n;k++){const s=start+length*k/n,q=path.at(Math.min(path.length,s)).coordinate,h=railHeight(path,s),p=h===null?null:world(q,h);if(prev&&p){vertices.push(...prev,...p);if(terrainState.terrain||r.physical||r.drawingRanges)(seeThrough(path,s)?buriedSegments:lineSegments).push({a:prev,b:p,color:r.displayColor||r.color,physical:!!r.physical});}
         if(r.physical&&p&&!isUnderground(path,s)){
           const g=ground(q),gp=Number.isFinite(g)?world(q,g)[2]:null,level=path.level?.(s),scale=ml.MercatorCoordinate.fromLngLat(q).meterInMercatorCoordinateUnits()/unit;
           if(prev&&Number.isFinite(gp)&&Number.isFinite(prevGround))structureSegments.push({a:prev,b:p,groundA:prevGround,groundB:gp,bridge:level?.kind==='bridge'&&level.offsetM>0,transition:!!level?.terrainTransition,scale});
