@@ -172,6 +172,34 @@ const autoLiterals = ['MetroWidgetData.java', 'RailWidgetData.java', 'MetroWidge
 ok('W7 "__auto__" 字面值只有一份（在純層）',
    autoLiterals.length === 1 && autoLiterals[0] === 'WidgetNearestMath.java', autoLiterals.join('、'));
 
+// ── 退快取「標示」的另一半：旗標要真的走到卡面 ───────────────────────────────
+// 🔴 WidgetNearestMath 只證明 Outcome.stale 算得對。把 `snapshot.autoStale = autoStale;`
+//    整行刪掉，判定層每一條都還是綠的——而使用者看到的就是「退化態與正常態長得一模一樣」，
+//    也就是這項修法要解決的那件事本身。三顆小工具逐顆斷言。
+for (const [provider, snapshotLine] of [
+  ['MetroWidgetProvider', /snapshot\.autoStale = autoStale;/],
+  ['RailBoardWidgetProvider', /snapshot\.autoStale = autoStale;/],
+  ['MixedBoardWidgetProvider', /(rail|metro)\.autoStale = \w+Stale;/]
+]) {
+  const src = readCode(join(ANDROID, `${provider}.java`));
+  ok(`N1 ${provider} 把 Outcome.stale 接到快照`,
+     /\bauto\.stale\b|\bauto\w*\.stale\b/.test(src) && snapshotLine.test(src));
+}
+// 台鐵／混合是 RemoteViews 直出（要 Context，javac 跑不到），只驗得到順序這一件事——
+// 但順序正是會出錯的地方：排在 scheduleNote 後面的話，有班表註腳時標示就永遠不會出現。
+const railRender = readCode(join(ANDROID, 'RailWidgetRender.java'));
+const mixedRender = readCode(join(ANDROID, 'MixedWidgetRender.java'));
+const orderOk = (src, re) => {
+  const iFailed = src.search(/\.failed\b/);
+  const iStale = src.search(re);
+  const iNote = src.search(/scheduleNote/);
+  return iFailed >= 0 && iStale > iFailed && (iNote < 0 || iStale < iNote);
+};
+ok('N2 台鐵卡的「上次位置」註腳排在資料延遲之後、班表註腳之前',
+   orderOk(railRender, /snapshot\.autoStale \?/));
+ok('N3 混合卡同序（兩邊任一過期就標示）',
+   orderOk(mixedRender, /\(metro\.autoStale \|\| rail\.autoStale\)/));
+
 // ── 組 Java harness、編譯、執行 ───────────────────────────────────────────────
 // 探針的期望值在 JS 側【獨立算】（不呼叫 Java），Java 只負責輸出它自己的答案。
 const RADIUS = EXPECT.metro;
@@ -216,6 +244,20 @@ const judge = p => {
     : { kind: 'outOfRange', key: null, stale: false, clear: true };
 };
 
+// 卡面 chip 的取代規則（執行期，受測物＝真的會出貨的 MetroWidgetPlate）。
+// 🔴 P3/P4 是 P1 的反向對照：AUTO_STALE 只准頂掉 LIVE。頂掉營運異常或末班的話，
+//    「位置是舊的」會蓋住「這條線出事了」與「這是今天最後一班」——那兩件事更急。
+const plateProbes = [
+  { id: 'P1', name: '自動選站退快取 ⇒ chip 變「上次位置」', autoStale: true, mode: 'live',
+    expect: 'AUTO_STALE|上次位置' },
+  { id: 'P2', name: '同一格輸入但沒退快取 ⇒ 仍是 LIVE（P1 的正向對照）', autoStale: false,
+    mode: 'live', expect: 'LIVE|LIVE' },
+  { id: 'P3', name: '營運異常時不被「上次位置」蓋掉', autoStale: true, mode: 'alert',
+    expect: 'ALERT|營運異常' },
+  { id: 'P4', name: '末班車時不被「上次位置」蓋掉', autoStale: true, mode: 'last',
+    expect: 'LAST|末班' }
+];
+
 const linkProbes = [
   { id: 'L1', sys: 'trtc', station: '台北車站', expect: true, name: '解析出站 ⇒ 深連結帶站' },
   { id: 'L2', sys: 'trtc', station: '__auto__', expect: false, name: '哨兵 ⇒ 深連結不帶站' },
@@ -247,6 +289,7 @@ ${probes.map(p => {
   const hitExpr = p.hit ? `new WidgetNearestMath.Hit("HIT", ${p.meters}d)` : 'null';
   return `        emit(${java(p.id)}, WidgetNearestMath.decide(${fixExpr}, NOW, ${hitExpr}, ${p.radius}d, ${p.cached === null ? 'null' : java(p.cached)}));`;
 }).join('\n')}
+${plateProbes.map(p => `        emitPlate(${java(p.id)}, ${p.autoStale}, ${java(p.mode)});`).join('\n')}
 ${linkProbes.map(p => `        System.out.println(${java(p.id)} + S + "link" + S + WidgetNearestMath.linkable(${p.sys === null ? 'null' : java(p.sys)}, ${java(p.station)}));`).join('\n')}
 ${kmProbes.map(p => `        System.out.println(${java(p.id)} + S + "km" + S + WidgetNearestMath.outOfRangeKm(${p.meters}d));`).join('\n')}
         // 半徑查表：表由 JS 用【真的那份產物】的值餵進來，Java 這邊只負責查與守門。
@@ -271,6 +314,21 @@ ${Object.entries(radii || {}).map(([k, v]) => `        table.put(${java(k)}, ${N
             new WidgetNearestMath.Fix(25, 121.5, NOW - 9_000L, true)).fromApp);
     }
 
+    /** 除了 autoStale 與這一格的狀態之外，輸入逐格相同——變因只有一個才叫對照。 */
+    static void emitPlate(String id, boolean autoStale, String mode) {
+        MetroWidgetPlate.Input in = new MetroWidgetPlate.Input();
+        in.station = "台北車站";
+        in.dest = "淡水";
+        in.etaEpochSec = 1_700_000_180d;
+        in.nowEpochSec = 1_700_000_000d;
+        in.dataAtEpochSec = in.nowEpochSec - 5;
+        in.autoStale = autoStale;
+        if ("alert".equals(mode)) { in.alertTitle = "板南線行控設備異常"; in.alertFromOperator = true; }
+        if ("last".equals(mode)) in.lastTrainTime = "23:58";
+        MetroWidgetPlate p = MetroWidgetPlate.of(in);
+        System.out.println(id + S + "plate" + S + p.chip + S + p.chipText);
+    }
+
     static void emit(String id, WidgetNearestMath.Outcome o) {
         String kind = o.outOfRange ? "outOfRange"
             : o.key == null ? "none" : (o.stale ? "cache" : "serviceable");
@@ -285,11 +343,15 @@ mkdirSync(join(work, 'src/tw/railisland/app'), { recursive: true });
 mkdirSync(join(work, 'out'), { recursive: true });
 // 複製而不是 symlink：javac 的輸出目錄與來源目錄混在一起會把 .class 寫回工作樹。
 writeFileSync(join(work, 'src/tw/railisland/app/WidgetNearestMath.java'), nearestMath);
+// MetroWidgetPlate 也是純層（同一個理由存在），一起編進來就能對 chip 取代規則做執行期斷言。
+writeFileSync(join(work, 'src/tw/railisland/app/MetroWidgetPlate.java'),
+              read(join(ANDROID, 'MetroWidgetPlate.java')));
 writeFileSync(join(work, 'src/tw/railisland/app/NearestGate.java'), gate);
 const javacBin = process.env.JAVA_HOME ? join(process.env.JAVA_HOME, 'bin/javac') : 'javac';
 const javaBin = process.env.JAVA_HOME ? join(process.env.JAVA_HOME, 'bin/java') : 'java';
 execFileSync(javacBin, ['-encoding', 'UTF-8', '-nowarn', '-proc:none', '-d', join(work, 'out'),
                         join(work, 'src/tw/railisland/app/WidgetNearestMath.java'),
+                        join(work, 'src/tw/railisland/app/MetroWidgetPlate.java'),
                         join(work, 'src/tw/railisland/app/NearestGate.java')],
              { stdio: ['ignore', 'inherit', 'inherit'] });
 const lines = execFileSync(javaBin, ['-Dfile.encoding=UTF-8', '-cp', join(work, 'out'),
@@ -302,7 +364,7 @@ const got = new Map(lines.map(l => {
   return [id, rest];
 }));
 
-console.log(`  （服務範圍半徑 metro=${radii?.metro} rail=${radii?.rail} 公尺，探針 ${probes.length + linkProbes.length + kmProbes.length} 顆）`);
+console.log(`  （服務範圍半徑 metro=${radii?.metro} rail=${radii?.rail} 公尺，探針 ${probes.length + plateProbes.length + linkProbes.length + kmProbes.length} 顆）`);
 
 // ── 比對 ────────────────────────────────────────────────────────────────────
 let compared = 0;
@@ -333,6 +395,12 @@ ok('C2 清快取的正反兩面都有探針（反向判準必配正向對照）'
 ok('C3 退快取標示的正反兩面都有探針',
    probes.some(p => judge(p).stale) && probes.some(p => !judge(p).stale));
 
+for (const p of plateProbes) {
+  const row = got.get(p.id);
+  compared += 1;
+  ok(`${p.id} ${p.name}`, !!row && `${row[1]}|${row[2]}` === p.expect,
+     `plate=${row && `${row[1]}|${row[2]}`} 判準=${p.expect}`);
+}
 for (const p of linkProbes) {
   const row = got.get(p.id);
   compared += 1;
@@ -359,7 +427,7 @@ ok('F4 兩個來源取比較新的（App 前景較新 ⇒ 取它）', got.get('F
 ok('F5 兩個來源取比較新的（系統快取較新 ⇒ 取它，反向對照）', got.get('F5')?.[1] === 'false');
 
 // 覆蓋率要有具名斷言：只把 N/M 印在細節裡等於沒 gate，分母會無聲縮水。
-const total = probes.length + linkProbes.length + kmProbes.length;
+const total = probes.length + plateProbes.length + linkProbes.length + kmProbes.length;
 ok('C4 每一顆探針都真的被比對過', compared === total, `${compared}/${total}`);
 
 console.log(`\n總計 PASS=${pass} FAIL=${fail}`);

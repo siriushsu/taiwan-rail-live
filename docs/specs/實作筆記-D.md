@@ -46,7 +46,7 @@
 
 | 腳本 | 需要的工具鏈 | 內容 | 我跑出來的數字 |
 |---|---|---|---|
-| `app/scripts/verify_widget_nearest.mjs` | `javac`（JDK 21） | D 半徑單一來源／W 靜態接線／G 前景取位鏈／R·S·K 判定差分 | **PASS=88 FAIL=0** |
+| `app/scripts/verify_widget_nearest.mjs` | `javac`（JDK 21） | D 半徑單一來源／W 靜態接線／G 前景取位鏈／N 標示接到卡面／R·S·K 判定差分／P 卡面 chip 取代規則 | **PASS=97 FAIL=0**（22 顆探針） |
 | `app/scripts/verify_metro_nearest.mjs` | `xcrun swiftc` | 既有差分測試＋改寫後的半徑判準 | **PASS=63 FAIL=0**（改版前 56） |
 
 掛法：`app/scripts/verify-release.mjs` 的 `runNearestGates()`（呼叫點就在 `verifyAndroidWidgetParity()` 下一行），
@@ -63,7 +63,7 @@
 判準表 `EXPECT = { metro: 12000, rail: 5000 }` 是刻意的第四份（資料檔／iOS／Android 之外），
 所以改資料檔而沒改判準表會紅。判準與實作同源時「相等」是零資訊。
 
-## 突變測試（11 發，逐層各一發，全部指名）
+## 突變測試（15 發，逐層各一發，全部指名）
 
 做之前先 commit（`adb3a697`）——未 commit 的樹沒有還原點。
 
@@ -80,6 +80,16 @@
 | 9 | `fix()` 不呼叫 `rememberFix` | **G3** |
 | 10 | `fix()` 只刷捷運那顆小工具 | **G4 收到座標後刷新 RailBoardWidgetProvider** |
 | 11 | 時戳改用原生收到的那一刻 | **G5** |
+| 12 | `MetroWidgetProvider` 不把 `auto.stale` 接到快照 | **N1 MetroWidgetProvider** |
+| 13 | `MetroWidgetPlate` 的 chip 取代規則整段失效 | **P1 退快取 ⇒ chip 變「上次位置」** |
+| 14 | `AUTO_STALE` 改成連 ALERT／LAST 也頂掉 | **P3 營運異常不被蓋掉**、**P4 末班不被蓋掉** |
+| 15 | 台鐵卡把「上次位置」排到班表註腳後面 | **N2** |
+
+第 12–15 發補的是**標示的另一半**：`WidgetNearestMath` 只證明 `Outcome.stale` 算得對，
+而把 `snapshot.autoStale = autoStale;` 整行刪掉時判定層每一條都還是綠的——使用者看到的
+正是「退化態與正常態長得一模一樣」，也就是這項修法要解決的那件事本身。
+`MetroWidgetPlate` 本來就是純層，所以 P 組是**執行期**斷言（受測物＝真的會出貨的 `of(Input)`），
+P2 是 P1 的正向對照、P3/P4 是「只准頂掉 LIVE」的反向對照。
 
 **第 1 發驗證了兩側探針的必要性**：`R3 門檻上恰好相等` 在 `>=` 之下**仍然全綠**（等號兩邊都成立）。
 只有單側探針或只有等號探針的話，「乾脆全部放行」與「乾脆全部擋掉」都能過關。
@@ -112,6 +122,7 @@
 | `MetroWidgetData.json` 的 gradle Copy task 實際有跑 | 同上，靜態只驗得到 `build.gradle` 裡那段還在 | 出一次 debug APK 後 `unzip -l app-debug.apk \| grep MetroWidgetData` |
 | iOS 端 `Bundle.main` 真的找得到那份 JSON | 閘門用裸執行檔模擬（`Bundle.main` ＝執行檔所在目錄），不等於 widget extension 的 bundle | 真機小工具：自動選站在 12km 外要出範圍外卡面；值讀不到會退成 0 ⇒ 到處都是範圍外，很好認 |
 | 「開 App → 回桌面小工具更新」端到端 | 需要真機＋桌面小工具 | Android：開 App 等藍點出現 → 回桌面 → 捷運/台鐵/混合三顆卡都要換成最近的站 |
+| 台鐵／混合卡的「上次位置」註腳長什麼樣 | `RailWidgetRender`／`MixedWidgetRender` 直出 `RemoteViews`，要 `Context` | 只驗得到三元式的**順序**（N2/N3）。真機：把定位關掉等 30 分鐘後看小工具，或改小 `FIX_MAX_AGE_MS` 重打一顆 debug |
 | `MetroWidgetData.json` 無法重新產生 | 這棵樹的 `data/tdx/` 是空的（已知的「移出版控」危害） | 已改用外科式 patch：node 腳本照產生器的鍵序重建物件，並斷言其餘每個鍵逐 byte 相同（結果：1 行差異、+43 字元）。**下次有人跑得動產生器時要重跑一次確認鍵序一致** |
 
 ## 這棵樹上本來就紅、與本批無關的閘門（併入前不要誤記在本批頭上）
