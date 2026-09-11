@@ -1,4 +1,5 @@
 import {chromium,webkit} from 'playwright';
+import {panChecks} from './lib/garage_pan_checks.mjs';
 import {mkdirSync,writeFileSync} from 'node:fs';
 const OUT='output/south-coast',URL='http://127.0.0.1:5251/prototypes/garage-south-coast/';mkdirSync(OUT,{recursive:true});
 const results=[];function check(name,pass,detail){results.push({name,pass:!!pass,detail});console.log(pass?'PASS':'FAIL',name,JSON.stringify(detail??''));}
@@ -22,6 +23,7 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
   check(engine+' 環線沒有倒退入口',await p.locator('#reverse').count()===0);
   const before=await state(p);await p.tap('#play');await p.waitForFunction(d=>southCoastPreview.state.distance>d+.4,before.distance);await p.tap('#play');await settle(p);const after=await state(p);check(engine+' 環線固定向前且車廂不瞬移',after.distance>before.distance&&after.poses.every((c,i)=>Math.hypot(c.x-before.poses[i].x,c.y-before.poses[i].y)<3));
   await p.evaluate(()=>southCoastPreview.setDistance(34));await p.tap('#reset');await settle(p);check(engine+' 彎道仍三節且無非有限座標',(await state(p)).poses.every(c=>[c.x,c.y,c.heading].every(Number.isFinite)));await p.screenshot({path:`${OUT}/${engine}-curve.png`});
+  await panChecks({b,engine,URL,api:'southCoastPreview',check,settle,trainTarget:c=>[c[0],c[1],1.4]});   // 鏡頭平移（四頁共用的判準，在自己開的桌面頁與觸控頁上量）
   await p.tap('[data-view="world"]');await p.evaluate(()=>southCoastPreview.setDistance(0));
   for(const width of [360,375,390,414,520,768,1280]){
    await p.setViewportSize({width,height:width>800?900:900});await settle(p);await p.tap('#in');await p.tap('#out');await p.tap('#reset');await settle(p);

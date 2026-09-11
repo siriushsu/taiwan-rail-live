@@ -1,4 +1,5 @@
 import {chromium,webkit} from 'playwright';
+import {panChecks} from './lib/garage_pan_checks.mjs';
 import {mkdirSync,writeFileSync} from 'node:fs';
 import {createScene} from '../rail-3d/garage-scenes/viaduct.js';
 const OUT='output/viaduct',URL='http://127.0.0.1:5253/prototypes/garage-viaduct/';mkdirSync(OUT,{recursive:true});
@@ -121,6 +122,7 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
   check(engine+' 參數化：scene.params 反映傳入值',pShort.paramsEcho.platformLength===9&&pFields.paramsEcho.backdrop==='fields'&&pFields.paramsEcho.canopy==='simple'&&pDefault.paramsEcho.platformLength===19&&pDefault.paramsEcho.backdrop==='coast'&&pDefault.paramsEcho.canopy==='modern',paramProof.map(x=>x.paramsEcho));
   check(engine+' 參數化：四組都能 dispose 且不留下幾何',paramProof.every(x=>x.childCountBefore>0&&x.childCountAfter===0),paramProof.map(x=>({before:x.childCountBefore,after:x.childCountAfter})));
 
+  await panChecks({b,engine,URL,api:'viaductPreview',check,settle});   // 鏡頭平移（四頁共用的判準，在自己開的桌面頁與觸控頁上量）
   await p.tap('[data-view="world"]');await p.evaluate(()=>viaductPreview.setTime(4));
   for(const width of [360,375,390,414,520,768,1280]){await p.setViewportSize({width,height:900});await settle(p);await p.tap('#in');await p.tap('#out');await p.tap('#reset');await settle(p);const ui=await p.evaluate(()=>{const els=[...document.querySelectorAll('button,a')].filter(e=>e.getClientRects().length),bad=[],overlap=[];for(const e of els){const r=e.getBoundingClientRect(),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);if(!e.contains(hit)||r.width<43||r.height<43)bad.push(e.textContent);}for(let i=0;i<els.length;i++)for(let j=i+1;j<els.length;j++){const a=els[i].getBoundingClientRect(),b=els[j].getBoundingClientRect();if(Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1)overlap.push([els[i].textContent,els[j].textContent]);}return{bad,overlap,overflow:document.documentElement.scrollWidth>innerWidth};});check(engine+' '+width+' 真觸控與可及性',!ui.bad.length&&!ui.overlap.length&&!ui.overflow,ui);}
 
