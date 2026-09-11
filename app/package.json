@@ -8,6 +8,8 @@
     "verify": "node scripts/verify-release.mjs",
     "verify:android-plus-ui": "node scripts/verify-android-plus-ui.mjs",
     "verify:android-direction": "node scripts/verify_android_widget_direction.mjs",
+    "verify:widget-nearest": "node scripts/verify_widget_nearest.mjs",
+    "verify:metro-nearest": "node scripts/verify_metro_nearest.mjs",
     "verify:build-env": "node scripts/check_build_env.mjs",
     "build:verify": "npm run build && npm run verify",
     "sync": "npm run build && cap sync",

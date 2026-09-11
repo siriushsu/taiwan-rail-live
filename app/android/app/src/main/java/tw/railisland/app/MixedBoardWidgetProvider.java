@@ -86,23 +86,36 @@ public final class MixedBoardWidgetProvider extends AppWidgetProvider {
         }
 
         try {
+            boolean railStale = false, metroStale = false;
             if (RailWidgetData.AUTO.equals(railOrigin)) {
-                String nearest = RailWidgetData.nearest(context, RailWidgetData.catalog(context), railSys);
-                if (nearest == null) throw new IllegalStateException("rail location unavailable");
-                railOrigin = nearest;
+                WidgetNearestMath.Outcome auto =
+                    RailWidgetData.nearest(context, RailWidgetData.catalog(context), railSys);
+                // 範圍外與完全沒有位置在這張卡上都只能整卡退回訊息版面（雙看板沒有半張卡的形態），
+                // 所以兩者都丟出去交給 catch 的退路——但理由分開寫，log 上看得出是哪一種。
+                if (auto.outOfRange) throw new IllegalStateException("rail out of service range");
+                if (auto.key == null) throw new IllegalStateException("rail location unavailable");
+                railOrigin = auto.key;
+                railStale = auto.stale;
             }
             if (MetroWidgetData.AUTO.equals(metroStation)) {
                 MetroWidgetData.Catalog catalog = MetroWidgetData.catalog(context);
-                MetroWidgetData.StationInfo nearest = MetroWidgetData.nearest(context, catalog);
-                MetroWidgetData.SystemInfo system = MetroWidgetData.systemForStation(catalog, nearest);
+                WidgetNearestMath.Outcome auto = MetroWidgetData.nearest(context, catalog);
+                if (auto.outOfRange) throw new IllegalStateException("metro out of service range");
+                MetroWidgetData.StationInfo nearest = auto.key == null
+                    ? null : MetroWidgetData.stationForKey(catalog, auto.key);
+                MetroWidgetData.SystemInfo system = auto.key == null
+                    ? null : MetroWidgetData.systemForKey(catalog, auto.key);
                 if (nearest == null || system == null) throw new IllegalStateException("metro location unavailable");
                 metroSys = system.id;
                 metroStation = nearest.name;
                 metroDirection = "";
+                metroStale = auto.stale;
             }
 
             RailWidgetData.Snapshot rail = fetchRail(context, id, railSys, railOrigin);
             MetroWidgetData.Snapshot metro = fetchMetro(context, id, metroSys, metroStation, metroDirection);
+            rail.autoStale = railStale;
+            metro.autoStale = metroStale;
             manager.updateAppWidget(id, tap(context, id, metroSys, metroStation,
                 MixedWidgetRender.board(context, rail, metro)));
             schedule(context, id, System.currentTimeMillis() + 60_000L);
@@ -182,9 +195,17 @@ public final class MixedBoardWidgetProvider extends AppWidgetProvider {
         return views;
     }
 
+    /**
+     * 🔴 sys／station 為 null 或仍是哨兵 {@code __auto__}（自動選站這一輪還沒解析出站）時
+     *    【不可以】把它塞進深連結：App 端會拿它當站名去查，結果是開了 App 卻落在一個
+     *    不存在的車站上。不帶參數就是「開 App，不指定站」。
+     */
     private static RemoteViews tap(Context context, int id, String sys, String station, RemoteViews views) {
-        Uri uri = new Uri.Builder().scheme("railisland").authority("metro-wait")
-            .appendQueryParameter("sys", sys).appendQueryParameter("station", station).build();
+        Uri.Builder builder = new Uri.Builder().scheme("railisland").authority("metro-wait");
+        if (WidgetNearestMath.linkable(sys, station)) {
+            builder.appendQueryParameter("sys", sys).appendQueryParameter("station", station);
+        }
+        Uri uri = builder.build();
         Intent intent = new Intent(Intent.ACTION_VIEW, uri, context, MainActivity.class)
             .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent pending = PendingIntent.getActivity(context, id + 43000, intent,

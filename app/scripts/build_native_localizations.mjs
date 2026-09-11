@@ -83,6 +83,18 @@ const native = {
   '免費版可設定一站。點一下開啟軌島，用通行證解鎖多站。': ['The free version supports one station. Tap to open Rail Island and unlock more with a pass.', '無料版では1駅を設定できます。軌島を開き、パスで複数駅を利用できます。'],
   '免費版可設定一站（目前是「{station}」）。點一下開啟軌島，用通行證解鎖多站。': ['The free version supports one station (currently “{station}”). Tap to unlock more with a pass.', '無料版では1駅を設定できます（現在は「{station}」）。パスで複数駅を利用できます。'],
   '開啟 App 一次，或到「設定 › 軌島」允許取用位置': ['Open the app once, or allow location access in Settings › Rail Island', 'Appを一度開くか、「設定 › 軌島」で位置情報を許可してください'],
+  // ── 自動選站的三種退化狀態（iOS 與 Android 共用同一批字面值）──
+  // 🔴「上次位置」是退快取標示：這一輪沒拿到新鮮定位，卡上畫的是上次解析出來的站。
+  //    不標示的話退化狀態與正常狀態長得一模一樣，使用者只會覺得「壞了」而無從分辨。
+  '上次位置': ['Last known', '前回の位置'],
+  '上次位置 · 開啟軌島更新': ['Last known location · open Rail Island to refresh', '前回の位置・軌島を開いて更新'],
+  '不在服務範圍': ['Outside service area', 'サービス範囲外'],
+  '需要位置': ['Location needed', '位置情報が必要です'],
+  '還不知道你在哪': ['We do not know where you are yet', '現在地がまだ分かりません'],
+  '請開啟軌島並允許「大概位置」，之後這一格會自己跟著最近的車站。': ['Open Rail Island and allow approximate location; this widget will then follow your nearest station.', '軌島を開いて「おおよその位置」を許可すると、このウィジェットが最寄り駅に追従します。'],
+  '開啟軌島定位後即可自動選最近車站': ['Allow location in Rail Island to pick the nearest station automatically', '軌島で位置情報を許可すると最寄り駅を自動選択します'],
+  '最近的捷運站是{station}，約 {km} 公里。可改選一個固定車站。': ['The nearest metro station is {station}, about {km} km away. Choose a fixed station instead.', '最寄りのメトロ駅は{station}で、約{km}kmです。固定の駅を選んでください。'],
+  '最近的車站是{station}，約 {km} 公里。可改選一個固定車站。': ['The nearest station is {station}, about {km} km away. Choose a fixed station instead.', '最寄り駅は{station}で、約{km}kmです。固定の駅を選んでください。'],
   '請選擇車站': ['Choose a station', '駅を選択'], '請選擇起站': ['Choose an origin', '出発駅を選択'],
   '找不到這個車站，請重新設定': ['Station not found; please configure it again', '駅が見つかりません。再設定してください'],
   '所選班次近期沒有行駛': ['The selected service does not run in the current period', '選択した列車は当面運行しません'],

@@ -1,4 +1,6 @@
 import { inventory, compare as compareShipInventory } from './verify_no_ship_regression.mjs';
+import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { lstat, readFile, readdir } from 'node:fs/promises';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -13,6 +15,43 @@ const defaultOut = join(appRoot, 'www');
 
 const fail = message => { throw new Error(`App 發行檢查失敗：${message}`); };
 const assert = (condition, message) => { if (!condition) fail(message); };
+
+// ── 最近站解析共用層的兩支閘門（2026-09-11 掛上出貨鏈）────────────────────────
+// 🔴 為什麼要掛：`app/出貨規則.md` 第四節——「放在 repo 裡等人想到才跑 == 沒有這支腳本」。
+//    verify_metro_nearest.mjs 從 2026-08-18 寫出來就沒有任何 npm script、沒有任何呼叫點，
+//    整整三週沒有人在出 build 的時候跑到它。
+// 🔴 工具鏈缺席一律【紅】，不准靜默跳過：這兩支守的是「自動（最近的站）」——它壞掉的形狀是
+//    卡片畫出一個幾百公里外的車站、或點下去開 App 查一個叫 __auto__ 的站，兩者都不會讓 build 失敗。
+//    一支「環境不合就跳過」的閘門，在最需要它的那台機器上恰好什麼都不做。
+function runNearestGates() {
+  const gates = [
+    { script: 'verify_widget_nearest.mjs', need: 'javac',
+      tool: javacHome(), env: javacHome() ? { JAVA_HOME: javacHome() } : {},
+      miss: '找不到 JDK：請裝 openjdk@21（Android 那條線本來就需要它）或設 JAVA_HOME' },
+    { script: 'verify_metro_nearest.mjs', need: 'xcrun swiftc', tool: true, env: {},
+      miss: '找不到 xcrun swiftc：請裝 Xcode command line tools' }
+  ];
+  for (const g of gates) {
+    assert(g.tool, `${g.script} 跑不起來（${g.miss}）——閘門不可因為環境缺工具就放行`);
+    try {
+      execFileSync(process.execPath, [join(here, g.script)],
+        { stdio: ['ignore', 'pipe', 'inherit'], env: { ...process.env, ...g.env }, encoding: 'utf8' });
+    } catch (e) {
+      if (e.stdout) process.stdout.write(e.stdout);
+      fail(`${g.script} 沒過（單獨跑 node app/scripts/${g.script} 看完整輸出）`);
+    }
+  }
+  console.log('  · 最近站解析共用層閘門通過：半徑單一來源（資料檔 → iOS/Android 兩端）＋三態判定＋深連結不帶 __auto__');
+}
+
+// JDK 位置：出貨規則記的是 Android 要 JDK 21（Android Studio 內建的 25 不行）。
+// 這裡只需要 javac 編一個沒有相依的純 Java 檔，但仍優先用同一份，免得兩條路各用各的。
+function javacHome() {
+  const candidates = [process.env.JAVA_HOME, '/opt/homebrew/opt/openjdk@21', '/usr/local/opt/openjdk@21'];
+  for (const c of candidates) if (c && existsSync(join(c, 'bin/javac'))) return c;
+  return null;
+}
+
 
 export function assertNativeBridgeLoggingDisabled(capacitorConfig) {
   assert(capacitorConfig?.loggingBehavior === 'none',
@@ -520,6 +559,7 @@ export async function verifyRelease({
   const packagedBridge = await readFile(join(output, 'native-bridge.js'), 'utf8');
   const androidManifest = await readFile(join(appRoot, 'android/app/src/main/AndroidManifest.xml'), 'utf8');
   verifyAndroidWidgetParity();
+  runNearestGates();
   // 小工具預覽圖:repo 側守門(index.html 引用＝git 追蹤、預算)＋bundle 側實查(prepare-web 只收追蹤檔;這些是執行期組出來的 <img src>,
   // 上面那段掃 <script src>/<link href> 的資產完整性閘門照不到它們——整枝審查 M-1)
   for (const f of verifyWidgetPreviews({ log: false }).files) if (!relativeFiles.includes(f)) fail(`小工具預覽圖沒進 bundle：${f}`);

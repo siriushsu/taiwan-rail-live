@@ -122,6 +122,7 @@ public class MetroWidgetProvider extends AppWidgetProvider {
             scheduleBoundary(context, id, System.currentTimeMillis() + 300_000L);
             return;
         }
+        boolean autoStale = false;
         try {
             if (AUTO.equals(station)) {
                 if (!prefs.getBoolean("plus_active", false)) {
@@ -129,28 +130,53 @@ public class MetroWidgetProvider extends AppWidgetProvider {
                     return;
                 }
                 MetroWidgetData.Catalog catalog = MetroWidgetData.catalog(context);
-                MetroWidgetData.StationInfo nearest = MetroWidgetData.nearest(context, catalog);
-                MetroWidgetData.SystemInfo nearestSystem = MetroWidgetData.systemForStation(catalog, nearest);
+                WidgetNearestMath.Outcome auto = MetroWidgetData.nearest(context, catalog);
+                MetroWidgetData.StationInfo nearest = auto.key == null
+                    ? null : MetroWidgetData.stationForKey(catalog, auto.key);
+                MetroWidgetData.SystemInfo nearestSystem = auto.key == null
+                    ? null : MetroWidgetData.systemForKey(catalog, auto.key);
+                // 🔴 這兩張卡都【還沒解析出站】,深連結不可以照抄 station——那裡此刻是哨兵
+                //    `__auto__`,點下去 App 會拿它去查一個不存在的車站(等車卡直接落空)。
+                //    改帶「沒有目標」的深連結:開 App,不指定站。
+                if (auto.outOfRange) {
+                    manager.updateAppWidget(id, tap(
+                        MetroWidgetPlateRender.outOfRange(context,
+                            MetroWidgetData.stationNameOf(auto.farKey), auto.farMeters),
+                        openIntent(context, id, null, null)));
+                    scheduleBoundary(context, id, System.currentTimeMillis() + 300_000L);
+                    return;
+                }
                 if (nearest == null || nearestSystem == null) {
                     manager.updateAppWidget(id,
-                        tap(MetroWidgetPlateRender.noLocation(context), openIntent(context, id, sys, station)));
+                        tap(MetroWidgetPlateRender.noLocation(context), openIntent(context, id, null, null)));
+                    scheduleBoundary(context, id, System.currentTimeMillis() + 300_000L);
                     return;
                 }
                 sys = nearestSystem.id;
                 station = nearest.name;
                 direction = "";
+                autoStale = auto.stale;
             }
             MetroWidgetData.Snapshot snapshot = MetroWidgetData.fetch(context, sys, station, direction);
+            snapshot.autoStale = autoStale;
             if (!snapshot.rows.isEmpty()) MetroWidgetData.cache(context, id, snapshot);
             manager.updateAppWidget(id, build(context, id, snapshot, openIntent(context, id, sys, station)));
         } catch (Exception error) {
+            // 🔴 目錄／抓取在自動選站【解析完成之前】就拋了的話,station 這時仍是哨兵 `__auto__`。
+            //    深連結與卡面站名都要先把它換掉,不可以把哨兵字串拿去當車站名用。
+            String tapSys = AUTO.equals(station) ? null : sys;
+            String tapStation = AUTO.equals(station) ? null : station;
             MetroWidgetData.Snapshot fallback = MetroWidgetData.cached(context, id);
             if (fallback != null) {
                 fallback.failed = true;   // ⇒ 狀態 3 · 資料延遲（畫面上是「暫無資料／正在重新連線」）
-                manager.updateAppWidget(id, build(context, id, fallback, openIntent(context, id, sys, station)));
+                fallback.autoStale = autoStale;
+                manager.updateAppWidget(id, build(context, id, fallback, openIntent(context, id, tapSys, tapStation)));
+            } else if (tapStation == null) {
+                manager.updateAppWidget(id, tap(MetroWidgetPlateRender.noLocation(context),
+                    openIntent(context, id, null, null)));
             } else {
-                manager.updateAppWidget(id, tap(MetroWidgetPlateRender.offline(context, station),
-                    openIntent(context, id, sys, station)));
+                manager.updateAppWidget(id, tap(MetroWidgetPlateRender.offline(context, tapStation),
+                    openIntent(context, id, tapSys, tapStation)));
             }
             scheduleBoundary(context, id, System.currentTimeMillis() + 120_000L);
         }
@@ -303,6 +329,7 @@ public class MetroWidgetProvider extends AppWidgetProvider {
             in.alertTitle = snapshot.alertTitle;
             in.alertFromOperator = snapshot.alertFromOperator;
             in.passLimited = passLimited;
+            in.autoStale = snapshot.autoStale;
             if (system != null) {
                 String[] neighbors = system.neighbors(snapshot.station, lineId);
                 in.prevStation = neighbors[0];
@@ -396,10 +423,19 @@ public class MetroWidgetProvider extends AppWidgetProvider {
         return views;
     }
 
-    /** 整張卡片點下去開站台看板（設計稿沒有 ↻ 按鈕，點卡片就是要看更完整的資訊）。 */
+    /**
+     * 整張卡片點下去開站台看板（設計稿沒有 ↻ 按鈕，點卡片就是要看更完整的資訊）。
+     *
+     * 🔴 sys／station 為 null ＝「自動選站這一輪還沒解析出站」（沒有位置／範圍外／目錄拋錯）。
+     *    這時【不可以】把哨兵 {@code __auto__} 塞進深連結：App 端會拿它當站名去查，
+     *    結果是開了 App 卻落在一個不存在的車站上。不帶參數就是「開 App，不指定站」。
+     */
     private static PendingIntent openIntent(Context context, int id, String sys, String station) {
-        Uri uri = new Uri.Builder().scheme("railisland").authority("metro-wait")
-            .appendQueryParameter("sys", sys).appendQueryParameter("station", station).build();
+        Uri.Builder builder = new Uri.Builder().scheme("railisland").authority("metro-wait");
+        if (WidgetNearestMath.linkable(sys, station)) {
+            builder.appendQueryParameter("sys", sys).appendQueryParameter("station", station);
+        }
+        Uri uri = builder.build();
         Intent intent = new Intent(Intent.ACTION_VIEW, uri, context, MainActivity.class)
             .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         return PendingIntent.getActivity(context, id + 48000, intent,

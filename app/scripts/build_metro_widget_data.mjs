@@ -24,6 +24,18 @@ const SYS = [
     fl: ['data/tdx/TYMC_FirstLastTimetable.json'] },
 ];
 
+// 🔴 自動選站／「我的地點」的服務半徑,【唯一一份】就在這裡。
+//    iOS(WidgetServiceRadius)與 Android(WidgetNearest.radiusMeters)都從產物讀,兩端都不准寫死。
+//    在這之前是三份會各自漂移的字面值:MetroNearest.swift 12000、RailBoardData.swift 5000、
+//    RailWidgetData.java 5000——再加公車就是第四份。
+// 🔴 逐運具一個值,不是單一常數。捷運 12km 是對 trtc/krtc/tymc 三系統實算的天然斷點;
+//    台鐵站密度高所以 5km。公車站牌密度又高一個量級,那個值要另外實算(設計書單元 C),
+//    **實算出來之前不准在這裡填一個猜的**——填了兩端就會讀去用。
+// 🔴 這份檔名字叫 Metro 卻裝了跨運具的表,是刻意的:它是目前唯一「iOS 與 Android 都已經在讀」
+//    的原生產物(iOS 走 Bundle、Android 走 build.gradle 的 syncMetroWidgetData Copy),
+//    放這裡不必動 project.pbxproj 也不必新增 gradle task。公車有了自己的目錄檔之後再議搬家。
+const SERVICE_RADII = { metro: 12000, rail: 5000 };
+
 const read = p => JSON.parse(readFileSync(join(ROOT, p), 'utf8'));
 
 // 幾何檔的線 id 與 TDX 首末班表的 LineID 不是同一套命名，站號要對得起來就得先翻譯：
@@ -41,7 +53,8 @@ function canonical(liveName, known) {
   return null;
 }
 
-const out = { version: 2, builtAt: new Date().toISOString(), systems: [], alias: {},
+const out = { version: 2, builtAt: new Date().toISOString(), serviceRadii: SERVICE_RADII,
+               systems: [], alias: {},
                lastTrain: {}, firstTrain: {}, ambiguousFirstTrain: {}, dropped: {} };
 
 for (const s of SYS) {
