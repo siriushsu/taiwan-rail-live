@@ -14927,6 +14927,23 @@
         }
       }
     },
+    "地景地圖的山區與海岸不再鋪滿示意樹，公園、村落與河岸的小片林地照舊；地形看得更清楚，拖動也更順": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mountains and coasts on the landscape map are no longer carpeted with stylised trees; the small woods in parks, villages and riverbanks keep theirs, so the terrain reads clearly and panning stays smooth"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ランドスケープ地図の山地や海岸に樹木を敷き詰めるのをやめ、公園・集落・川沿いの小さな林はそのまま残しました。地形が見やすくなり、ドラッグも滑らかになります"
+          }
+        }
+      }
+    },
     "地景地圖標示 Beta，持續完善地形、建物與沿線景觀": {
       "extractionState": "manual",
       "localizations": {

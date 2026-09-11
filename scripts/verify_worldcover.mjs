@@ -4,6 +4,11 @@ const base=process.env.BASE_URL||'http://127.0.0.1:5228/';
 const output='output/worldcover-0908';fs.mkdirSync(output,{recursive:true});
 const results=[];
 function check(name,pass,detail){results.push({name,pass,detail});console.log((pass?'PASS ':'FAIL ')+name+' '+JSON.stringify(detail??''));}
+// 跳點之後等林冠真的重建完（rebuilds 不再變動）才量，否則讀到的是上一個地點的殘值。
+async function treesSettled(page,timeout=40000){const t0=Date.now();let last=-1,stable=Date.now();
+ while(Date.now()-t0<timeout){const r=await page.evaluate(()=>railIslandIntegration?.renderer?.stats?.landscape?.rebuilds??-1);
+  if(r!==last){last=r;stable=Date.now();}if(last>0&&Date.now()-stable>1600)return true;await page.waitForTimeout(150);}
+ return false;}
 for(const [name,engine]of Object.entries({chromium,webkit})){
  const browser=await engine.launch({headless:false});
  const page=await browser.newPage({viewport:{width:1360,height:980},locale:'zh-TW'}),requests=[],failed=[],errors=[];
@@ -27,14 +32,22 @@ for(const [name,engine]of Object.entries({chromium,webkit})){
   check(name+' OSM 細節在分類底層之上',await page.evaluate(()=>{const ids=M.raw.getStyle().layers.map(l=>l.id);return ['water','building','landcover_wood','park'].every(id=>ids.indexOf(id)>ids.indexOf('landscape-worldcover-wood'));}));
   await page.screenshot({path:output+'/'+name+'-island.png'});
   await page.evaluate(()=>M.raw.jumpTo({center:[121.5795,24.9968],zoom:16.5,pitch:55,bearing:0}));
-  await page.waitForFunction(()=>window.railIslandIntegration?.renderer?.stats.landscape.count>100,null,{timeout:40000});
-  // 關掉 OSM 林地顯示，確認 ESA 的林地本身能產生樹群，不只掛了空的資料來源。
-  await page.evaluate(()=>{M.raw.setLayoutProperty('landcover_wood','visibility','none');M.raw.panBy([1,0],{duration:0});});
-  await page.waitForFunction(()=>window.railIslandIntegration?.renderer?.stats.landscape.worldcoverCount>50,null,{timeout:30000});
-  let stats=await page.evaluate(()=>{const s=railIslandIntegration.renderer.stats.landscape;return {count:s.count,cap:s.cap,worldcoverCount:s.worldcoverCount,osmCount:s.osmCount,maxBuildMs:s.maxBuildMs,maxWorkSliceMs:s.maxWorkSliceMs,yields:s.yields,error:s.error};});
-  check(name+' ESA 林地提供立體樹群',stats.worldcoverCount>50&&stats.count<=stats.cap,stats);
+  await page.waitForFunction(()=>window.railIslandIntegration?.renderer?.stats.landscape.count>20,null,{timeout:40000});
+  // 關掉 OSM 林地顯示，確認 ESA 的小塊林地本身能產生樹群，不只掛了空的資料來源。
+  await page.evaluate(()=>{M.raw.setLayoutProperty('landcover_wood','visibility','none');M.raw.jumpTo({center:[121.4640,25.0140],zoom:16.5,pitch:55,bearing:0});});
+  check(name+' 都市綠地取樣有收斂',await treesSettled(page));
+  let stats=await page.evaluate(()=>{const s=railIslandIntegration.renderer.stats.landscape;return {count:s.count,cap:s.cap,worldcoverCount:s.worldcoverCount,osmCount:s.osmCount,patches:s.patches,broadSkipped:s.broadSkipped,maxBuildMs:s.maxBuildMs,maxWorkSliceMs:s.maxWorkSliceMs,yields:s.yields,error:s.error};});
+  check(name+' ESA 小塊綠地提供立體樹群',stats.worldcoverCount>0&&stats.osmCount===0&&stats.count<=stats.cap,stats);
   check(name+' 樹群取樣分批且單次工作低於 50ms',stats.yields>1&&stats.maxWorkSliceMs<50&&!stats.error,stats);
-  await page.evaluate(()=>M.raw.setLayoutProperty('landcover_wood','visibility','visible'));
+  // 整片山區的 ESA 林地只負責地面顏色：底圖照樣是綠的（正向對照），但一株樹都不長。
+  await page.evaluate(()=>M.raw.jumpTo({center:[120.9530,22.6100],zoom:16.5,pitch:55,bearing:0}));
+  check(name+' 整片山區取樣有收斂',await treesSettled(page));
+  const broad=await page.evaluate(()=>{const s=railIslandIntegration.renderer.stats.landscape;
+   return {count:s.count,worldcoverCount:s.worldcoverCount,broadSkipped:s.broadSkipped,patches:s.patches,maxBuildMs:Math.round(s.maxBuildMs),
+    esaWood:M.raw.queryRenderedFeatures({layers:['landscape-worldcover-wood']}).length};});
+  check(name+' 整片山區只上色不長樹',broad.esaWood>0&&broad.broadSkipped>0&&broad.count===0,broad);
+  await page.evaluate(()=>{M.raw.setLayoutProperty('landcover_wood','visibility','visible');M.raw.jumpTo({center:[121.5795,24.9968],zoom:16.5,pitch:55,bearing:0});});
+  await page.waitForTimeout(2500);
   await page.screenshot({path:output+'/'+name+'-forest.png'});
   await page.waitForTimeout(2500);
   const count=await page.evaluate(()=>railIslandIntegration.renderer.stats.landscape.rebuilds);
