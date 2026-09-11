@@ -147,7 +147,7 @@
       '班距改變，已結束跟隨': 'Service frequency changed; follow mode ended.', '列車已抵達終點': 'The train has reached its terminus.', '已離開此班次的行駛時段': 'This service is no longer running at the selected time.',
       '換一班': 'Another train', '離開放空': 'Exit ambient mode', '時刻推算': 'Estimated timetable', '停靠站': 'Stops', '到站': 'Arr.', '開車': 'Dep.',
       '推估': 'Estimated', '⚠ 異常推定': '⚠ Possible disruption', 
-      '晚 {n} 分': ' {n} min late', '早 {n} 分': ' {n} min early',
+      '晚 {n} 分': '{n} min late', '早 {n} 分': '{n} min early',
       
       
       '動畫已依官方即時資訊校正（約每分鐘更新）：': 'Animation corrected with official live data (about once per minute): ',

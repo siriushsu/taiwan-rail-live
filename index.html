@@ -6492,6 +6492,14 @@ function i18nNumber(value, options) {
   try { return new Intl.NumberFormat(I18N_LANG, options).format(value); }
   catch (e) { return String(value); }
 }
+// 把兩個片語接起來時的分隔符:中文與日文詞間不留空白,英文要。
+// 🔴 分隔符屬於「這次拼接」,不可以塞進字典值裡當前導空白——片語會被重複使用,
+// 例如 t('準點') 另有兩處是獨立標籤(ld.textContent = t('準點')),字典裡若帶一個
+// 看不見的前導空白,那兩處就會多一格,而且下一個人完全看不出來為什麼。
+function i18nJoin(...parts) {
+  const gap = I18N_LANG === 'zh-TW' || I18N_LANG === 'ja' ? '' : ' ';
+  return parts.filter(part => part != null && part !== '').join(gap);
+}
 function i18nHasTranslation(source) {
   return Object.prototype.hasOwnProperty.call(I18N_MESSAGES.en || {}, source) ||
     Object.prototype.hasOwnProperty.call(I18N_MESSAGES.ja || {}, source);
@@ -27077,7 +27085,7 @@ function updateMetroBadge() {
     const parts = onLines.map(ln => {
       const src = ln._trtcBoard || ln._liveShift || {};
       const m = Math.round((src.all || 0) / 60);
-      return routeName(ln.name || ln.id, ln._sys) + (m > 0 ? t('晚 {n} 分', { n: i18nNumber(m) }) : m < 0 ? t('早 {n} 分', { n: i18nNumber(-m) }) : t('準點'));
+      return i18nJoin(routeName(ln.name || ln.id, ln._sys), m > 0 ? t('晚 {n} 分', { n: i18nNumber(m) }) : m < 0 ? t('早 {n} 分', { n: i18nNumber(-m) }) : t('準點'));
     });
     const allFresh = onLines.every(ln => metroFresh(ln)); // 有任一線非 fresh(高倍速投射/資料稍舊)整體改推估措辭,不逐線精雕
     const hasTrtc = onLines.some(ln => ln._trtcBoard);

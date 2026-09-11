@@ -25,6 +25,88 @@ vm.runInContext(legalDictionarySource, sandbox, { filename: 'i18n/legal-translat
 const messages = sandbox.window.RAIL_I18N_MESSAGES || {};
 const languages = ['en', 'ja'];
 
+// ── 同物件重複鍵 ─────────────────────────────────────────────────────────
+// JS 物件字面量同名鍵是【後者覆蓋前者】,而且不是錯誤、沒有任何警告。後果不是當下顯示錯,
+// 是下一個人要改文案時 grep 先找到被蓋掉的那份,改完完全沒有效果也沒有訊息可查。
+// 2026-09-12 實測 i18n/translations.js 有 30 組(16 個唯一鍵,en/ja 各半),其中 20 組兩份
+// 的值不同——包含「晚 {n} 分」的前導空白修法被一個無空白的版本蓋掉,英文因此渲染成
+// "Western Line5 min late"。上面把字典 vm.runInContext 進來【看不到】這件事:重複鍵在
+// 解析階段就被摺疊掉了,求值後的字典永遠是乾淨的。所以只能掃原始碼字面量。
+//
+// 🔴 只掃 i18n/*.js,不掃 index.html:那是 HTML,裡面的 CSS 區塊會被當成物件字面量,
+//    `color:`／`width:` 這種宣告在同一條規則裡重複出現就會變成假陽性(實測 276 個)。
+function duplicateKeysIn(source) {
+  const readString = (at) => {
+    const quote = source[at];
+    let cursor = at + 1;
+    while (cursor < source.length) {
+      if (source[cursor] === '\\') { cursor += 2; continue; }
+      if (source[cursor] === quote) break;
+      cursor++;
+    }
+    return cursor + 1;
+  };
+  // 鍵的偵測必須在「泛用字串分支」之前、且從空白位置往前窺視,否則每個帶引號的鍵
+  // 都會先被當成一般字串吃掉,結果永遠掃不到任何鍵(全綠=假綠)。
+  const peekKey = (at) => {
+    let cursor = at;
+    while (cursor < source.length && /\s/.test(source[cursor])) cursor++;
+    let key = null, after = cursor;
+    if (source[cursor] === '"' || source[cursor] === "'") {
+      after = readString(cursor);
+      key = source.slice(cursor + 1, after - 1);
+    } else if (/[A-Za-z_$]/.test(source[cursor] || '')) {
+      let end = cursor;
+      while (end < source.length && /[A-Za-z_$0-9]/.test(source[end])) end++;
+      key = source.slice(cursor, end); after = end;
+    } else return null;
+    let colon = after;
+    while (colon < source.length && /\s/.test(source[colon])) colon++;
+    return source[colon] === ':' ? { key, after: colon + 1 } : null;
+  };
+  const stack = [], dupes = [];
+  let at = 0, line = 1;
+  while (at < source.length) {
+    const ch = source[at], pair = source.slice(at, at + 2);
+    if (ch === '\n') { line++; at++; continue; }
+    if (pair === '//') { while (at < source.length && source[at] !== '\n') at++; continue; }
+    if (pair === '/*') { at += 2; while (at < source.length && source.slice(at, at + 2) !== '*/') { if (source[at] === '\n') line++; at++; } at += 2; continue; }
+    if (stack.length) {
+      const hit = peekKey(at);
+      if (hit) {
+        const top = stack[stack.length - 1];
+        if (top.has(hit.key)) dupes.push({ key: hit.key, first: top.get(hit.key), second: line });
+        else top.set(hit.key, line);
+        at = hit.after; continue;
+      }
+    }
+    if (ch === '"' || ch === "'") { at = readString(at); continue; }
+    if (ch === '{') { stack.push(new Map()); at++; continue; }
+    if (ch === '}') { stack.pop(); at++; continue; }
+    at++;
+  }
+  return dupes;
+}
+
+const dictionaryFiles = [
+  ['i18n/translations.js', dictionarySource],
+  ['i18n/content-translations.js', contentDictionarySource],
+  ['i18n/bus-transfer-translations.js', busTransferDictionarySource],
+  ['i18n/legal-translations.js', legalDictionarySource],
+  ['i18n/legal-pages.js', fs.readFileSync(path.join(root, 'i18n/legal-pages.js'), 'utf8')],
+];
+for (const [name, source] of dictionaryFiles) {
+  for (const dupe of duplicateKeysIn(source)) {
+    fail(`${name} 同一個物件裡「${dupe.key}」重複(L${dupe.first} 與 L${dupe.second})——後者會靜默蓋掉前者,請只留一份`);
+  }
+}
+// 覆蓋率具名斷言。分母【取自磁碟】,不是上面那份清單:拿 scanned === list.length 當判準是假的,
+// 從清單刪掉一個檔會讓兩邊一起縮水而永遠相等。這樣寫,新增一個 i18n/*.js 卻忘了納入掃描會當場紅。
+const dictionariesOnDisk = fs.readdirSync(path.join(root, 'i18n')).filter(name => name.endsWith('.js')).sort();
+const dictionariesScanned = dictionaryFiles.map(([name]) => name.replace('i18n/', '')).sort();
+const unscanned = dictionariesOnDisk.filter(name => !dictionariesScanned.includes(name));
+if (unscanned.length) fail(`i18n/ 底下這些字典檔沒被重複鍵掃描涵蓋:${unscanned.join('、')}——請加進 check_i18n.mjs 的 dictionaryFiles`);
+
 for (const lang of languages) {
   if (!messages[lang] || typeof messages[lang] !== 'object') fail(`${lang} 字典不存在`);
 }
