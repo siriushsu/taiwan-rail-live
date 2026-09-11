@@ -152,6 +152,17 @@ try {
   process.stdout.write(sun.stdout || ''); process.stderr.write(sun.stderr || '');
   if (sun.status !== 0) fail('日夜光影的太陽位置與時間連續性驗證未過');
 
+  // 三鶯線營運時段(2026-09-11 掛上出貨鏈)。它守的是全網唯一一條「時刻表用官方公告的營運時段
+  // ＋班距合成出來」的線:兩端寫錯過三次,每次的症狀都是使用者才看得到的——時段太寬就整晚畫
+  // 幽靈車(v0711j,7.5 小時),太窄就該有車的時段整段空白(08-16~08-18,四小時)。腳本自己起
+  // server(洗掉繼承來的 VURL,免得去驗別棵樹),資料層先驗官方首末班發車真的各有一班,再用
+  // 兩引擎驗三條繪製路徑(單系統／北北桃群組／全台同框裝飾層)。
+  const sanying = spawnSync('node', [path.join(wt, 'scripts', 'verify_sanying_hours.mjs')],
+    { cwd: wt, encoding: 'utf8', env: { ...process.env, VURL: '' } });
+  process.stdout.write(sanying.stdout || ''); process.stderr.write(sanying.stderr || '');
+  if (sanying.status !== 0) fail('三鶯線營運時段守門人未過——官方首末班發車缺班,或營運窗外畫得出列車'
+    + '（單獨重跑：npm run check-sanying）');
+
   const railStructures = spawnSync('node', [path.join(wt, 'scripts', 'verify_rail_structures.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(railStructures.stdout || ''); process.stderr.write(railStructures.stderr || '');
   if (railStructures.status !== 0) fail('軌道橋面與路基驗證未過');

@@ -11,8 +11,11 @@
 //   一班 = [idx,sec, idx,sec, ...] 攤平的 (線檔站序 index, 當日發車秒) 對,跨午夜 sec>86400。
 //   kinds 只在上游有 TrainType 時輸出(目前只有機捷):與同名 set 等長同序,一班一字元
 //   —— 機捷 '1'=普通車 '2'=直達車(TDX TrainType 原值),'0'=官方未標。
-// 用法:node scripts/build_metro_times.mjs [--force-trtc]
+// 用法:node scripts/build_metro_times.mjs [--force-trtc] [--only=<字串>]
 //   --force-trtc:無視下面的 TRTC 來源閘門硬重建北捷(補齊前只用於驗證,不要拿產物出貨)。
+//   --only=<字串>:只重建輸出檔名含該字串的系統(如 --only=sanying)。data/tdx 是未追蹤快照,
+//     工作樹裡常常是空的,這時整份重跑會在第一個吃 TDX 的系統就 ENOENT 中斷,連不吃 TDX 的
+//     合成線(三鶯線)都重建不了;要重跑全部就先 python3 scripts/fetch_tdx.py 補快照。
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -438,19 +441,28 @@ function synthTimes(line, cfg) {
     for (const rev of [false, true]) {
       const idxs = [...line.stations.keys()];
       if (rev) idxs.reverse();
-      let t = sc.first, guard = 0;
-      while (t <= sc.last && guard++ < 500) {
-        const stops = [[idxs[0], Math.round(t)]];
-        let cur = t;
+      const runAt = dep => { // 一班車:自起點 dep 秒發車,逐站累加行駛秒與停站秒
+        const stops = [[idxs[0], Math.round(dep)]];
+        let cur = dep;
         for (let i = 1; i < idxs.length; i++) {
           cur += dirF.expected(idxs[i - 1], idxs[i]);
           stops.push([idxs[i], Math.round(cur)]);
           if (i < idxs.length - 1) cur += ctx.dwellOf(idxs[i]);
         }
-        trains.push(stops.flat());
+        return stops.flat();
+      };
+      let t = sc.first, guard = 0, lastDep = null;
+      while (t <= sc.last && guard++ < 500) {
+        trains.push(runAt(t));
+        lastDep = t;
         const band = sc.bands.find(b => t >= b[0] && t < b[1]);
         t += band ? band[2] : sc.bands[sc.bands.length - 1][2];
       }
+      // 末班補一班:班距格點不一定落在 sc.last 上,落不到就等於把官方公告的末班發車時刻整個
+      // 抹掉。三鶯線平日 6 分/8 分混排,最後一班停在 23:54,而官方逐站表寫明兩端點末班都是
+      // 00:00(2026-09-11 實查 node=863 的 1150814 圖)。first 照官方抄、last 也照官方抄,
+      // 兩端都要有車;格點本來就命中 last 的(三鶯線假日、整點整除的班距)不會多出一班。
+      if (lastDep !== null && lastDep < sc.last) trains.push(runAt(sc.last));
     }
     sets[tag] = trains.sort((a, b) => a[1] - b[1]);
   }
@@ -599,6 +611,7 @@ const SYSTEMS = [
 // 判準用「Station/TRTC 查不查得到 R01」(記憶 trtc-tdx-v38-r-line-gap 定下的那條):
 // TDX 補齊的那天閘門自動失效,不必有人記得回來拆掉。
 const FORCE_TRTC = process.argv.includes('--force-trtc');
+const ONLY = (process.argv.find(a => a.startsWith('--only=')) || '').slice('--only='.length);
 const trtcSourceHasR01 = () => {
   try {
     const st = J('data/tdx/TRTC_Station.json');
@@ -607,6 +620,7 @@ const trtcSourceHasR01 = () => {
 };
 
 for (const sys of SYSTEMS) {
+  if (ONLY && !sys.out.includes(ONLY)) continue;
   if (sys.out === 'data/trtc_times.json' && !FORCE_TRTC && !trtcSourceHasR01()) {
     console.log(`== ${sys.file}`);
     console.log('  ⏭ 跳過重建:TDX 的 TRTC 快照仍缺 R01 廣慈/奉天宮(信義線東延段),重建會產生殘缺 R 線班表。');

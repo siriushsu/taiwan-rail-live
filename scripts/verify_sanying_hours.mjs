@@ -6,15 +6,42 @@
 //   尖峰 06:30-08:30、17:30-19:30 六分,離峰及假日八分。
 //   改點時改下面的 OPEN/CLOSE/OUT 三個常數,案例會自己跟著長。
 import { chromium, webkit } from 'playwright';
+import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { spawn } from 'node:child_process';
+import { createServer } from 'node:net';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url'; // 下面的 URL 常數會遮蔽全域 URL,路徑一律走 path
 
-const URL = process.env.VURL || 'http://localhost:5178/index.html';
+// 伺服器自己起、連接埠由 OS 指派(照抄 verify_afr.mjs 的作法)。原本寫死 5178 要人先手動
+// 起 server,而本機同時開著 30+ 個 worktree,5178 當下很可能是別棵樹的 server ⇒ 全綠也
+// 毫無意義。ROOT 由本檔自身路徑推導、不吃參數,結構上只可能服務自己這棵樹;再用 md5 斷言
+// 「伺服器吐回來的 index.html === ROOT/index.html」,把「我在量誰」變成具名閘門。
+// VURL 仍可覆寫(指向已在跑的 server),但那條路要自己負責樹對不對,md5 閘門一樣會跑。
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+process.chdir(ROOT);
+const freePort = () => new Promise(res => { const s = createServer(); s.listen(0, '127.0.0.1', () => { const { port } = s.address(); s.close(() => res(port)); }); });
+let child = null;
+const PORT = process.env.VURL ? null : await freePort();
+const URL = process.env.VURL || `http://localhost:${PORT}/index.html`;
+if (!process.env.VURL) {
+  child = spawn(process.execPath, [path.join(ROOT, 'scripts/dev_server.mjs')], {
+    cwd: ROOT, env: { ...process.env, PORT: String(PORT) }, stdio: ['ignore', 'ignore', 'inherit'] });
+  process.on('exit', () => child?.kill());
+  for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { child?.kill(); process.exit(1); });
+}
+for (let i = 0; ; i++) { // 等它真的聽得到,不用固定秒數
+  try { const r = await fetch(URL); if (r.ok) break; } catch {}
+  if (i > 100) { console.error(`✗ dev server 起不來（${URL}）`); child?.kill(); process.exit(1); }
+  await new Promise(r => setTimeout(r, 100));
+}
 let fail = 0;
 const ck = (ok, msg) => { console.log((ok ? '  ✓ ' : '  ✗ ') + msg); if (!ok) fail++; };
 const hm = s => String(s / 3600 | 0).padStart(2, '0') + ':' + String(s % 3600 / 60 | 0).padStart(2, '0');
 const S = t => { const [h, m] = t.split(':').map(Number); return h * 3600 + m * 60; };
 
 // 公告營運窗(= build_metro_times.mjs 的 first/last)。CLOSE 是末班「發車」時刻。
-// 2026-08-16 起 CLOSE 就是日界(24:00),末班跑完全程約到隔日 00:22——當日秒模型測不到隔日,
+// 2026-08-16 起 CLOSE 就是日界(24:00),末班跑完全程約到隔日 00:27——當日秒模型測不到隔日,
 // 故「收班後」的陰性案例改由清晨那一段承擔(OUT 與 OPEN-60),窗外仍然兩側都驗得到。
 const OPEN = '06:00', CLOSE = '24:00', OUT = '04:00';
 // [當日秒, 是否應有車] —— 窗外取三點、窗內兩端各取一分鐘,中間鋪滿全窗(含早尖峰 06:30-08:30)
@@ -25,9 +52,34 @@ const CASES = [
   [S(CLOSE) - 60, true],
 ];
 
+// ── 資料層:官方公告的首班與末班「發車」時刻,每個起點每種日型都要真的有那一班 ──
+// 2026-09-11 補。下面那些「某時刻有幾班在跑」的取樣抓不到末班缺席:合成器的班距格點落不到
+// 24:00 時(平日 6 分/8 分混排,最後一班停在 23:54),23:59 仍有 6 班在途中,整支照樣全綠。
+// 官方逐站表(node=863 的 1150814 圖)兩端點平常日/例假日末班都是 00:00,首班都是 06:00。
+// 起點集合從資料推導,不寫死站號。
+console.log('[data] data/sanying_times.json');
+const md5 = b => createHash('md5').update(b).digest('hex');
+const localMd5 = md5(readFileSync(path.join(ROOT, 'index.html')));
+const servedMd5 = md5(Buffer.from(await (await fetch(URL)).arrayBuffer()));
+ck(localMd5 === servedMd5, `量的是這棵樹(ROOT ${localMd5.slice(0, 8)} / server 吐回 ${servedMd5.slice(0, 8)})`);
+const LB = JSON.parse(readFileSync(path.join(ROOT, 'data/sanying_times.json'), 'utf8')).lines.LB;
+for (const [tag, trains] of Object.entries(LB.sets)) {
+  for (const head of [...new Set(trains.map(t => t[0]))].sort((a, b) => a - b)) {
+    const deps = trains.filter(t => t[0] === head).map(t => t[1]);
+    const first = Math.min(...deps), last = Math.max(...deps);
+    ck(first === S(OPEN), `${tag} 起點 idx=${head} 首班發車 ${hm(first)}（應 ${OPEN}）`);
+    ck(last === S(CLOSE), `${tag} 起點 idx=${head} 末班發車 ${hm(last)}（應 ${CLOSE}）`);
+  }
+}
+
 for (const [name, launcher] of [['chromium', chromium], ['webkit', webkit]]) {
   const br = await launcher.launch();
-  const pg = await br.newPage({ viewport: { width: 375, height: 812 } });
+  // 🔴 語言要釘死成繁中:Playwright 預設 locale 是 en-US(webkit 則跟隨系統),下面兩條
+  // 導言/註記的比對是中文字面 ⇒ 不釘就只有 webkit 過、chromium 恆紅,而且紅起來完全
+  // 不像語系問題(2026-08-29~09-11 就這樣被當成「文案改寫過」誤記了兩週)。
+  const ctx = await br.newContext({ viewport: { width: 375, height: 812 }, locale: 'zh-TW' });
+  await ctx.addInitScript(() => { localStorage.setItem('trainmap-language', 'zh'); });
+  const pg = await ctx.newPage();
   const errs = [];
   pg.on('pageerror', e => errs.push(String(e)));
   await pg.goto(URL, { waitUntil: 'load' });
