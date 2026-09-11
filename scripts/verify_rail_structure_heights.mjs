@@ -6,6 +6,7 @@
 //     而且隧道一旦被誤判成橋就整個退出它的分母，缺陷會讓判準的樣本自己消失。
 //   verify_rail_grounding 驗的是「有沒有多長出橋墩」，方向相反。
 // 所以這一支專驗三件事：反向改判有沒有生效且有地形證據、橋面離地高度、洞口兩側有沒有俯衝。
+// 2026-09-11 晚間再加 G6：露天段（高架與平面）的顯示縱坡在各系統上限內、共用節點的股道高程一致。
 //
 // 期望值來源都不是實作自己算出來的數：
 //   反向改判查 data/rail_structures_official.json 的官方判定與 DEM 地形起伏（兩個都是外部來源），
@@ -138,6 +139,47 @@ else{
  notes.穿透門檻 = limit+'m';notes.捷運仍穿透 = +(100*ms/mn).toFixed(1)+'%';notes.深層仍穿透 = deepSee;
 }
 
+// ── G6 露天段顯示縱坡與接縫 ────────────────────────────────────────
+// 舊做法橋面＝執行期地表＋層位，DEM 的每一個起伏都複製到橋面上（高鐵橋面最陡 67.7%、臺鐵 117.6%），
+// 平面軌道直接踩 20 公尺 DTM 的雜訊。露天段求解器之後每條 way 都有 terrainValues：顯示縱坡在各系統
+// 上限內，共用節點的股道（含隧道洞口）在該節點的高程一致。
+// 期望值來源：縱坡上限取各系統的工程慣例（臺鐵高鐵 2.5%、林鐵 6%、捷運 4%），乘 1.6 容忍節點間
+// Hermite 內插的過衝；分母取 network.json／metro-network.json 的 way 清單與節點，不是產物自己。
+const GRADE_LIMIT={tra_sched:.025,thsr_sched:.025,afr_sched:.06},gradeLimit=s=>GRADE_LIMIT[s]??.04,GRADE_TOL=1.6;
+const maxGrade=(e,key)=>{const h=e[key],D=e.distances;let g=0;for(let i=1;i<D.length;i++){const ds=D[i]-D[i-1];if(ds>=10)g=Math.max(g,Math.abs(h[i]-h[i-1])/ds);}return g;};
+// 覆蓋率具名斷言：每一條 way 都要有顯示縱坡，少一條就是求解器漏了它。
+const missing=ways.filter(w=>!E[w.id]?.terrainValues);
+if(missing.length)failures.push(`G6 有 ${missing.length} 條 way 沒有顯示縱坡（例如 ${missing.slice(0,3).map(w=>w.system+'/'+w.id).join('、')}）`);
+if(ways.length<4500)failures.push(`G6 路網只有 ${ways.length} 條 way，分母異常縮水（2026-09-11 基準 5008）`);
+const steepest={};
+for(const w of ways){const e=E[w.id];if(!e?.terrainValues||e.kind==='tunnel')continue;const g=maxGrade(e,'terrainValues');if(!steepest[w.system]||g>steepest[w.system].g)steepest[w.system]={g,id:w.id};}
+for(const [s,{g,id}] of Object.entries(steepest))if(g>gradeLimit(s)*GRADE_TOL)failures.push(`G6 ${s} 露天段顯示縱坡 ${(100*g).toFixed(1)}% > ${(100*gradeLimit(s)*GRADE_TOL).toFixed(1)}% @ way ${id}`);
+// 正向對照一：同一把尺量「地表＋層位」的原始剖面（values），高鐵與臺鐵都必須超標，否則這把尺量不到東西。
+for(const s of ['thsr_sched','tra_sched']){let g=0;for(const w of ways){const e=E[w.id];if(w.system!==s||!e||e.kind==='tunnel')continue;g=Math.max(g,maxGrade(e,'values'));}
+ if(!(g>gradeLimit(s)*GRADE_TOL))failures.push(`G6 正向對照失效：${s} 原始剖面最陡只有 ${(100*g).toFixed(1)}%，沒超過門檻`);}
+// 正向對照二：合成一段 10% 的剖面餵同一個函式。
+if(!(maxGrade({distances:[0,100,200],terrainValues:[0,10,10]},'terrainValues')>.04*GRADE_TOL))failures.push('G6 正向對照失效：合成的 10% 縱坡沒被量到');
+// 接縫：同系統共用節點的股道在該節點的顯示高程要一致（含洞口：隧道的 terrainValues 必須接到露天段）。
+const junctionSteps=(entries,wayList)=>{const byNode=new Map();
+ for(const w of wayList){const e=entries[w.id];if(!e?.terrainValues)continue;for(const i of [0,w.nodes.length-1]){const k=w.system+':'+w.nodes[i],s=i===0?0:e.distances.at(-1);if(!byNode.has(k))byNode.set(k,[]);byNode.get(k).push(at(e,s,'terrainValues'));}}
+ let n=0,worst=0,worstNode='';for(const [k,hs] of byNode){if(hs.length<2)continue;n++;const step=Math.max(...hs)-Math.min(...hs);if(step>worst){worst=step;worstNode=k;}}return {n,worst,worstNode};};
+const seams=junctionSteps(E,ways);
+if(seams.n<3500)failures.push(`G6 只找到 ${seams.n} 個共用節點，分母異常縮水（2026-09-11 基準 4145）`);
+if(seams.worst>.5)failures.push(`G6 接縫落差 ${seams.worst.toFixed(2)}m > 0.5m @ ${seams.worstNode}`);
+// 正向對照三：兩條 way 共用一個節點但高程差三公尺，同一個函式要量得到。
+const seamControl=junctionSteps({a:{distances:[0,100],terrainValues:[10,10]},b:{distances:[0,100],terrainValues:[13,13]}},[{id:'a',system:'x',nodes:['n1','n2']},{id:'b',system:'x',nodes:['n2','n3']}]);
+if(!(seamControl.worst>.5))failures.push('G6 正向對照失效：合成的三公尺接縫沒被量到');
+// 平滑層有沒有在跑：只驗縱坡上限抓不到「平滑被拿掉」（縱坡內的雜訊一公尺上下仍會原封穿過去）。
+// 拿每條 way 的「爬升＋下降減淨高差」當起伏量，高鐵與臺鐵的高架橋顯示剖面必須不到原始剖面的三成
+//（2026-09-11 實測：高鐵 2.5 vs 12.0 公尺/公里、臺鐵 3.6 vs 14.8；沒有平滑層時是 4.5 與 5.4，比值 .37／.36）。
+const excessOf=(e,key)=>{const h=e[key];let climb=0;for(let i=1;i<h.length;i++)climb+=Math.abs(h[i]-h[i-1]);return climb-Math.abs(h.at(-1)-h[0]);};
+for(const s of ['thsr_sched','tra_sched']){let shown=0,raw=0;for(const w of ways){const e=E[w.id];if(w.system!==s||e?.kind!=='bridge'||!e.terrainValues)continue;shown+=excessOf(e,'terrainValues');raw+=excessOf(e,'values');}
+ if(!(raw>0))failures.push(`G6 ${s} 高架橋原始剖面起伏為 0，比值無從計算`);
+ else if(shown/raw>.3)failures.push(`G6 ${s} 高架橋顯示剖面的起伏是原始剖面的 ${(100*shown/raw).toFixed(0)}%，超過三成——平滑層沒在跑`);
+ notes['起伏比_'+s]=+(shown/raw).toFixed(2);}
+notes.露天縱坡最陡 = Object.fromEntries(Object.entries(steepest).map(([s,{g}])=>[s,(100*g).toFixed(1)+'%']));notes.接縫 = seams.n;notes.接縫最大落差 = +seams.worst.toFixed(2);
+
+
 console.log(notes);
 if(failures.length){console.log(failures);process.exit(1);}
-console.log('橋隧種類與顯示高度：反向改判、橋面高度、洞口銜接、分類分母、穿透門檻皆通過');
+console.log('橋隧種類與顯示高度：反向改判、橋面高度、洞口銜接、分類分母、穿透門檻、露天縱坡與接縫皆通過');
