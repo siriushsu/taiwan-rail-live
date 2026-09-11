@@ -107,6 +107,51 @@ ok('W3 getLastKnownLocation 只在共用層出現（三個小工具不各讀一�
 ok('W3b 共用層確實是那個唯一入口（反向對照：它自己要有）',
    /getLastKnownLocation/.test(nearestGlue));
 
+// ── 前景取位鏈（issue #55 的修法本體）─────────────────────────────────────────
+// 🔴 這一條鏈整條都在 javac 跑不到的地方（Context／SharedPreferences／WebView／Capacitor 橋），
+//    但它斷掉的症狀正是 issue #55 本身：小工具永遠拿不到新座標，而 App 一切正常、build 全綠。
+//    所以至少要有靜態斷言把「每一個接頭都還接著」釘住——斷一節就紅一條，而不是等使用者回報。
+// 🔴 斷言逐節寫、不合成一條：合成的話紅起來只知道「鏈斷了」，不知道斷在 JS、橋、還是原生。
+const html = read(join(ROOT, 'index.html'));
+const bridgeSrc = readCode(join(ROOT, 'app/src/native-bridge.mjs'));
+const plugin = readCode(join(ANDROID, 'RailPlacesPlugin.java'));
+// 🔴 只量 fix() 的【方法本體】，不量整個檔案。這一條是突變測試打出來的：第一版斷言寫成
+//    「檔案裡有沒有 RailBoardWidgetProvider.updateAll」，而同一個檔案裡的既有 sync() 本來就
+//    三顆都刷——所以把 fix() 裡那一行整個刪掉，G4 照樣全綠。判準沒有先回答「我在量的是誰」。
+const methodBody = (src, header) => {
+  const i = src.indexOf(header);
+  if (i < 0) return '';
+  const open = src.indexOf('{', i);
+  let depth = 0;
+  for (let j = open; j < src.length; j += 1) {
+    if (src[j] === '{') depth += 1;
+    else if (src[j] === '}') { depth -= 1; if (!depth) return src.slice(open, j + 1); }
+  }
+  return '';
+};
+const fixBody = methodBody(plugin, 'public void fix(PluginCall call)');
+ok('G1 前景定位真的會推給原生（acceptGeoFix 裡呼叫，沿用既有節流）',
+   /function pushNativeGeoFix\(/.test(html)
+   && /saveGeoCache\([^\n]*\);\s*\n\s*pushNativeGeoFix\(/.test(html));
+ok('G2 橋有 fix（且只在 Android 註冊：iOS 小工具自己會取位，註冊只會每次拋 not implemented）',
+   /fix:\s*platform === 'android'\s*\?/.test(bridgeSrc)
+   && /RailPlaces\.fix\(\{\s*lat,\s*lon,\s*at\s*\}\)/.test(bridgeSrc));
+ok('G0 抽得到 fix() 的方法本體（G3–G5 的前提；抽不到的話它們紅得沒有道理）',
+   fixBody.length > 0 && fixBody.includes('call.resolve'), `len=${fixBody.length}`);
+ok('G3 原生端 fix() 是 @PluginMethod 並寫進共用層',
+   /@PluginMethod\s+public void fix\(PluginCall call\)/.test(plugin)
+   && /WidgetNearest\.rememberFix\(getContext\(\)/.test(fixBody));
+// 🔴 三個小工具都要刷新。只刷捷運那顆的話，台鐵／混合卡會一直等到系統下一次排程才更新，
+//    而使用者的動作（開 App）與畫面變化之間就沒有因果關係可言了。
+for (const provider of ['MetroWidgetProvider', 'RailBoardWidgetProvider', 'MixedBoardWidgetProvider']) {
+  ok(`G4 收到座標後刷新 ${provider}`,
+     new RegExp(`${provider}\\.updateAll\\(getContext\\(\\)\\)`).test(fixBody));
+}
+// 反向對照：時戳要用 WebView 量到的那一刻，不是原生收到的那一刻——
+// 拿收到時間當時戳，過期的座標會被永遠續命成「剛剛量的」，新鮮度窗就形同不存在。
+ok('G5 時戳取自呼叫端帶進來的量測時間（只有缺值才退回現在）',
+   /call\.getLong\("at"/.test(fixBody) && /if \(at <= 0\) at = System\.currentTimeMillis\(\);/.test(fixBody));
+
 // 兩端原始碼都不准再出現半徑字面值。
 const swiftNearest = readCode(join(ROOT, 'app/ios/App/RailBoardWidget/MetroNearest.swift'));
 const swiftPlaces = readCode(join(ROOT, 'app/ios/App/RailBoardWidget/RailBoardData.swift'));
