@@ -12,35 +12,29 @@ function prism(){
 
 export function createProps({geo,mat,instance,rand}){
  // 幾何一律轉成 Z 朝上，跟場景的座標系一致。
- const trunkGeo=geo(new THREE.CylinderGeometry(.12,.18,1,7));trunkGeo.rotateX(Math.PI/2);
- const crown=geo(new THREE.SphereGeometry(1,10,7));crown.rotateX(Math.PI/2);   // 平滑球面，樹冠不露稜
  const stoneGeo=geo(new THREE.IcosahedronGeometry(1,0));
  const tankGeo=geo(new THREE.CylinderGeometry(.5,.5,1,10));tankGeo.rotateX(Math.PI/2);
  const poleGeo=geo(new THREE.CylinderGeometry(.5,.5,1,6));poleGeo.rotateX(Math.PI/2);
  const roofGeo=geo(prism());
  const box=geo(new THREE.BoxGeometry(1,1,1));
 
- const trunk=mat('#6d5a44');
- const greens=[[mat('#5c8a52'),mat('#4a7345')],[mat('#7a9a5e'),mat('#5f8250')],[mat('#456f4c'),mat('#385d42')]];   // 每種各一主冠一側冠
- const shrub=mat('#5f8a55'),stone=mat('#9a9688'),moss=mat('#7f9573');
+ const trunk=mat('#71664e');
+ const greens=['#4e7158','#668363','#8c9c70'].map(c=>mat(c));   // 三種綠，跟藍皮解憂號那組（south-coast.js）同一組色
+ const shrub=greens[0],stone=mat('#9a9688'),moss=mat('#7f9573');
  // 透天厝的外牆：米白、淡粉磚、淺灰、淡黃、淡綠，同一排不會全一個顏色。
  const walls=[mat('#ece4d2'),mat('#d9b9a6'),mat('#cfd0c8'),mat('#e6dcb2'),mat('#cfd8c4')];
  const dark=mat('#3a4548'),glass=mat('#2c3842',{emissive:'#ffcf8a',emissiveIntensity:0}),railing=mat('#c4c1b4'),cage=mat('#5b6366'),tin=mat('#556c70'),tank=mat('#d8d5c8');glass.name='glass';   // 窗玻璃：白天深色，夜裡由場景把 emissiveIntensity 調亮
  const tile=[mat('#a5553f'),mat('#4a4d52')],signs=['#b8593f','#3d6fa3','#d9a441'].map(c=>mat(c,{emissive:c,emissiveIntensity:0})),roadLine=mat('#d9a441'),asphalt=mat('#6b6d68'),concrete=mat('#b9b3a4');   // 店招夜裡可發光；馬路虛線用自己的材質
 
- // 闊葉樹：一個主冠加兩瓣同高嵌進去的側冠，讀起來是一棵樹有起伏，不是三顆球。
- // kind 'round' 圓冠（樟樹）｜'umbrella' 傘冠（榕樹）：更寬更扁、樹幹更粗更短。
+ // 樹：照藍皮解憂號那組（south-coast.js）的畫法——一根細方幹、三顆低面數二十面體樹冠往上疊、各自偏一點，三種綠輪著用。
+ // h 是整棵的高度（h=1.6 就是那組的原尺寸）；kind 'umbrella' 傘冠更寬更扁。每棵固定抽九次亂數，跟舊畫法一樣多，後面的房子與灌木才不會重排。
  function broadleaf(x,y,z,h=2.2,kind=rand()<.3?'umbrella':'round'){
-  const um=kind==='umbrella',r=h*(um?.6:.42),[main,side]=greens[Math.floor(rand()*3)];
-  const top=z+h*(um?.5:.42);                                   // 樹幹頂＝樹冠底附近
-  instance(trunkGeo,trunk,[x,y,z+(top-z)/2],[um?1.5:1,um?1.5:1,top-z+r*.4]);
-  instance(crown,main,[x,y,top+r*(um?.45:.7)],[r,r,r*(um?.55:.85)],[0,0,rand()*Math.PI]);
-  for(let j=0;j<2;j++){const a=rand()*Math.PI*2,d=r*.5,k=.55+rand()*.15;
-   instance(crown,side,[x+Math.cos(a)*d,y+Math.sin(a)*d,top+r*(um?.35:.55)],[r*k,r*k,r*k*(um?.6:.9)],[0,0,rand()*Math.PI]);
-  }
+  const um=kind==='umbrella',f=h/1.6,s=h*(um?.56:.44),tint=greens[Math.floor(rand()*3)],yaw=rand()*Math.PI;
+  instance(box,trunk,[x,y,z+.25*f],[.09*f,.09*f,.6*f]);
+  for(let j=0;j<3;j++)instance(stoneGeo,tint,[x+(rand()-.5)*s,y+(rand()-.5)*s,z+(.65+j*(um?.16:.24))*f],[s,s*(um?.9:.78),s*(um?.45:.65)],[0,0,yaw]);
  }
- // 灌木：單團壓扁的樹冠貼地。
- function bush(x,y,z,s=.5){instance(crown,shrub,[x,y,z+s*.45],[s*1.3,s*1.1,s*.7],[0,0,rand()*Math.PI]);}
+ // 灌木：一團壓扁的二十面體貼地。
+ function bush(x,y,z,s=.5){instance(stoneGeo,shrub,[x,y,z+s*.4],[s*1.3,s*1.1,s*.7],[0,0,rand()*Math.PI]);}
  function rock(x,y,z,s=.3,mossy=false){instance(stoneGeo,mossy?moss:stone,[x,y,z+s*.3],[s*1.4,s,s*.7],[0,0,rand()*Math.PI]);}
 
  // 透天厝。facing 是正面朝向：0 朝 −y（面向觀者）。
