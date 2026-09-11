@@ -53,13 +53,16 @@ export async function loadGarageModel(id,signal,mapMeta,reference){
  }catch(e){geometry.dispose();[...materials,...lockedMaterials].forEach(m=>m.dispose());throw e;}
 }
 let manifestPromise;
-export async function createConsist(id,primary,signal){
+export async function createConsist(id,primary,signal,opts={}){
  // Manifest 只含已發布的素材與示意編組；不推論使用者是否真的搭過這個編組。
  const catalog=await (manifestPromise??=json(new URL('manifest.json',mapBase)).catch(e=>{manifestPromise=null;throw e;}));
  const template=catalog.models[id];if(!template)throw Error('formation missing');
  let parts=template.articulated?[template.parts[0],template.parts[2],template.parts[4]]:template.parts;
  if(parts.length===1)parts=[parts[0],{mesh:'bluecoach',flip:false},{mesh:'bluecoach',flip:false}];
  if(parts.length!==3)throw Error('formation count');
+ // 阿里山林鐵的機關車固定連結在下山端、以推進方式上山（交通部觀光署與農業部都記載之字形是「時而前拖、時而後推」）。
+ // 車身朝向不動，只是換到編組的另一端。
+ if(opts.locoAtTail)parts=[...parts].reverse();
  const assets=new Map([[id,primary]]),owned=[],root=new THREE.Group(),cars=[];
  try{
   for(const part of parts){if(assets.has(part.mesh))continue;

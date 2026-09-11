@@ -12,7 +12,16 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
  const b=await type.launch({headless:true});
  try{
   const p=await b.newPage({viewport:{width:1440,height:1000},deviceScaleFactor:1,isMobile:true,hasTouch:true});const errors=[];p.on('pageerror',e=>errors.push(e.message));p.on('console',m=>{if(m.type()==='error')errors.push(m.text());});await p.goto(URL);await p.waitForFunction(()=>window.alishanPreview?.state.ready,null,{timeout:90000});await p.tap('#play');await settle(p);
-  check(engine+' DL38 與兩節林鐵客車',JSON.stringify((await state(p)).poses.map(c=>c.id))===JSON.stringify(['dl38','alicoach','alicoach']));
+  check(engine+' 編組＝DL38 ＋ 兩節林鐵客車',JSON.stringify([...(await state(p)).poses.map(c=>c.id)].sort())===JSON.stringify(['alicoach','alicoach','dl38']),(await state(p)).poses.map(c=>c.id));
+  // 阿里山林鐵的機關車固定連結在下山端、以推進方式運轉上山（交通部觀光署與農業部都記載之字形「時而前拖、時而後推」）。
+  // 判準取兩個端點：從山腳起步那段必為推進，回到山腳那段必為牽引。中間的交替是折返本身逼出來的。
+  const locoEnd=await p.evaluate(()=>{const api=alishanPreview,st=api.state.stages,out=[];
+   for(const i of [0,st.length-1]){const g=st[i];api.setTime(g.start+g.travel/2);const ps=api.state.poses;
+    const loco=ps.find(c=>c.id==='dl38'),other=ps.find(c=>c.id!=='dl38');
+    const along=(loco.x-other.x)*Math.cos(loco.heading)+(loco.y-other.y)*Math.sin(loco.heading);
+    out.push({stage:g.label,sign:g.sign,leading:along*g.sign>0});}
+   return out;});
+  check(engine+' 機關車固定在下山端：上山推進、下山牽引',locoEnd[0].leading===false&&locoEnd[1].leading===true,locoEnd);
   const alignment=await p.evaluate(()=>{const api=alishanPreview,s=api.state,rows=[];for(const stage of s.stages)for(const f of [.25,.5,.75]){api.setTime(stage.start+stage.travel*f);const a=api.state;let clearanceMin=Infinity,clearanceMax=-Infinity,pitch=0;for(const c of a.poses){pitch=Math.max(pitch,Math.abs(c.pitch));for(const ds of [-.3,.3]){const p=api.sample(a.pose.route,a.pose.s+c.offset+c.length*ds),z=api.surface([p.x,p.y]),clearance=p.z-z;clearanceMin=Math.min(clearanceMin,clearance);clearanceMax=Math.max(clearanceMax,clearance);}}rows.push({stage:a.pose.stage,clearanceMin,clearanceMax,pitch});}return rows;});
   check(engine+' 上下山六階段車輪路徑高於真實地表網格',alignment.every(r=>r.clearanceMin>0&&r.clearanceMax<.5)&&alignment.some(r=>r.pitch>.1),alignment);
   const continuity=await p.evaluate(()=>{const api=alishanPreview,stages=api.state.stages;let jump=0,angle=0,dwell=0;for(const s of stages){const t=s.start+s.duration;api.setTime(t-.00001);const a=api.state.poses;api.setTime(t+.00001);const b=api.state.poses;for(let i=0;i<a.length;i++){jump=Math.max(jump,Math.hypot(a[i].x-b[i].x,a[i].y-b[i].y,a[i].z-b[i].z));angle=Math.max(angle,Math.abs(a[i].heading-b[i].heading),Math.abs(a[i].pitch-b[i].pitch));}api.setTime(s.start+s.travel+.2);const c=JSON.stringify(api.state.poses);api.setTime(s.start+s.travel+2.8);if(c===JSON.stringify(api.state.poses)&&!api.state.pose.moving)dwell++;}return{jump,angle,dwell};});check(engine+' 折返與上下端停車不跳位／不翻頭／停足三秒',continuity.jump<1e-5&&continuity.angle<1e-5&&continuity.dwell===6,continuity);
