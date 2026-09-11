@@ -79,7 +79,11 @@ enum MetroNearestMath {
     ///    多顯示一個沒用的站名;而範圍外的卡面會明講最近站與距離,資訊仍然誠實。
     /// 🔴 姊妹功能(發車看板「我的地點」RailBoardPlaces.maximumDistanceMeters)是 5km,
     ///    刻意不共用:台鐵站密度遠高於捷運,5km 會把三峽/鶯歌/桃園全境一起誤擋。
-    static let serviceRadiusMeters = 12_000.0
+    /// 🔴 2026-09-11 常數不分岔:值搬進 MetroWidgetData.json 的 `serviceRadii.metro`
+    ///    (唯一來源＝build_metro_widget_data.mjs 的 SERVICE_RADII),Android 的
+    ///    WidgetNearest.radiusMeters 讀的是同一把。這裡【不准】改回字面值——改回去就是
+    ///    讓兩端各留一份,而它們會無聲分岔(公車進來就是第三份)。
+    static var serviceRadiusMeters: Double { WidgetServiceRadius.meters(WidgetServiceRadius.metro) }
 
     /// 範圍外時卡面那一行。距離【無條件進位】到公里:四捨五入會印出「約 12 公里」,
     /// 而 12 公里正好是門檻值,使用者看了會覺得自己明明在範圍內卻被擋。

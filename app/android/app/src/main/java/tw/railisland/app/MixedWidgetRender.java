@@ -25,8 +25,12 @@ final class MixedWidgetRender {
             "system", RailNativeL10n.name(context, metro.systemLabel), "station", RailNativeL10n.name(context, metro.station)));
         root.setTextViewText(R.id.wmx_rail_head, RailNativeL10n.text(context, "鐵路 · {system} · {station}",
             "system", RailNativeL10n.name(context, rail.systemLabel), "station", RailNativeL10n.name(context, rail.origin)));
+        // 退快取標示：資料延遲比位置舊更急，但「這一站是上次的位置解析出來的」不標示的話，
+        // 退化狀態與正常狀態長得一模一樣（與單卡那兩支 render 同一條決定）。
         root.setTextViewText(R.id.wmx_note, (metro.failed || rail.failed)
             ? RailNativeL10n.text(context, "部分資料延遲 · 顯示上次成功結果")
+            : (metro.autoStale || rail.autoStale)
+            ? RailNativeL10n.text(context, "上次位置 · 開啟軌島更新")
             : RailNativeL10n.text(context, "捷運即時 · 台鐵誤點 · 高鐵表定"));
 
         root.removeAllViews(R.id.wmx_metro_rows);

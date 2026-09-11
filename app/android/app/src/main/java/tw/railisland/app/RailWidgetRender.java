@@ -30,7 +30,11 @@ final class RailWidgetRender {
                 : "全部目的地 · 停靠與終到")
             : RailNativeL10n.text(context, "往 {station} · 直達列車", "station", RailNativeL10n.name(context, snapshot.destination)));
         root.setTextViewText(R.id.wr_stamp, clock(snapshot.generatedAt) + (compact ? "" : " " + RailNativeL10n.text(context, "更新")));
+        // 🔴 退快取標示排在「資料延遲」之後、其餘之前：資料本身壞掉比位置舊更急，
+        //    但「這一站是上次的位置解析出來的」一定要看得見——不標的話退化狀態與正常狀態
+        //    長得一模一樣，使用者只會覺得自動選站壞了而無從分辨（iOS 側同一條決定）。
         String note = snapshot.failed ? RailNativeL10n.text(context, "資料延遲 · 顯示上次成功結果")
+            : snapshot.autoStale ? RailNativeL10n.text(context, "上次位置 · 開啟軌島更新")
             : snapshot.scheduleNote != null ? scheduleNote(context, snapshot.scheduleNote)
             : RailNativeL10n.text(context, "台鐵即時誤點 · 高鐵表定時刻");
         root.setTextViewText(R.id.wr_note, note);

@@ -641,7 +641,12 @@ struct PlaceStationOption {
 }
 
 private enum RailBoardPlaces {
-    private static let maximumDistanceMeters = 5_000.0
+    /// 🔴 2026-09-11 常數不分岔:5,000 搬進 MetroWidgetData.json 的 `serviceRadii.rail`
+    ///    (唯一來源＝build_metro_widget_data.mjs 的 SERVICE_RADII),Android 的
+    ///    RailWidgetData 讀的是同一把。這裡【不准】改回字面值。
+    private static var maximumDistanceMeters: Double {
+        WidgetServiceRadius.meters(WidgetServiceRadius.rail)
+    }
     private static let maximumOptions = 20
     /// 共站視為平手的門檻。實測全網 256 站有 12 對站距 < 365m，其中三對是 0.0m
     /// （臺北↔臺北-環島、左營↔左營(舊城)、新城↔新城 (太魯閣)——同一個實體站的兩筆記錄），

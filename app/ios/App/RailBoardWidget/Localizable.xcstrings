@@ -3945,6 +3945,40 @@
         }
       }
     },
+    "上次位置": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last known"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "前回の位置"
+          }
+        }
+      }
+    },
+    "上次位置 · 開啟軌島更新": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last known location · open Rail Island to refresh"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "前回の位置・軌島を開いて更新"
+          }
+        }
+      }
+    },
     "上次看過": {
       "extractionState": "manual",
       "localizations": {
@@ -5981,6 +6015,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "別の都市にある同名のメトロ駅が同じ到着案内を共有しないようにし、それぞれの路線と列車だけを表示します。"
+          }
+        }
+      }
+    },
+    "不在服務範圍": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Outside service area"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サービス範囲外"
           }
         }
       }
@@ -32692,6 +32743,40 @@
         }
       }
     },
+    "最近的車站是{station}，約 {km} 公里。可改選一個固定車站。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The nearest station is {station}, about {km} km away. Choose a fixed station instead."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最寄り駅は{station}で、約{km}kmです。固定の駅を選んでください。"
+          }
+        }
+      }
+    },
+    "最近的捷運站是{station}，約 {km} 公里。可改選一個固定車站。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The nearest metro station is {station}, about {km} km away. Choose a fixed station instead."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最寄りのメトロ駅は{station}で、約{km}kmです。固定の駅を選んでください。"
+          }
+        }
+      }
+    },
     "最近軌道：{route} · 約 {distance}": {
       "extractionState": "manual",
       "localizations": {
@@ -35068,6 +35153,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "軌島を開いて周辺路線を更新してください"
+          }
+        }
+      }
+    },
+    "開啟軌島定位後即可自動選最近車站": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow location in Rail Island to pick the nearest station automatically"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "軌島で位置情報を許可すると最寄り駅を自動選択します"
           }
         }
       }
@@ -39879,6 +39981,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "手動で位置確認が必要"
+          }
+        }
+      }
+    },
+    "需要位置": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Location needed"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "位置情報が必要です"
           }
         }
       }

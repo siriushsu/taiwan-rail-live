@@ -91,18 +91,35 @@ public class RailBoardWidgetProvider extends AppWidgetProvider {
             return;
         }
         try {
+            boolean autoStale = false;
             if (RailWidgetData.AUTO.equals(origin)) {
-                String nearest = RailWidgetData.nearest(context, RailWidgetData.catalog(context), sys);
-                if (nearest == null) {
+                WidgetNearestMath.Outcome auto =
+                    RailWidgetData.nearest(context, RailWidgetData.catalog(context), sys);
+                // 定位到了但最近的車站在服務範圍外。硬解析下去會安靜地畫出幾百公里外那一站的
+                // 發車時刻——畫面完全正常而資訊是假的，所以直說範圍外並給出路。
+                if (auto.outOfRange) {
+                    manager.updateAppWidget(id, tap(context, id, RailWidgetRender.message(context,
+                        "不在服務範圍",
+                        // 🔴 整句一個 key＋{插值}，不可用字串串接：串接出來的句子在字典裡查不到，
+                        //    英日語系會變成「英文 + 中文 + 英文」的拼盤（而且驗收腳本抓不到）。
+                        RailNativeL10n.text(context, "最近的車站是{station}，約 {km} 公里。可改選一個固定車站。",
+                            "station", RailNativeL10n.name(context, auto.farKey),
+                            "km", WidgetNearestMath.outOfRangeKm(auto.farMeters)))));
+                    schedule(context, id, System.currentTimeMillis() + 5 * 60_000L);
+                    return;
+                }
+                if (auto.key == null) {
                     manager.updateAppWidget(id, tap(context, id,
                         RailWidgetRender.message(context, "需要位置", "開啟軌島定位後即可自動選最近車站")));
                     schedule(context, id, System.currentTimeMillis() + 5 * 60_000L);
                     return;
                 }
-                origin = nearest;
+                origin = auto.key;
                 destination = "";
+                autoStale = auto.stale;
             }
             RailWidgetData.Snapshot snapshot = RailWidgetData.fetch(context, sys, origin, destination, filters);
+            snapshot.autoStale = autoStale;
             RailWidgetData.cache(context, PREFS, id, snapshot);
             manager.updateAppWidget(id, sizes(context, id, snapshot, readable));
             long next = System.currentTimeMillis() + 5 * 60_000L;

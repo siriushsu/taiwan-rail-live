@@ -13125,6 +13125,15 @@ function updateGeoCamera(loc) {
   const z = M.getZoom();
   M.setView(focusCenter(loc.lat, loc.lon, z), z, { animate: false });
 }
+// 前景定位落地給桌面小工具。🔴 issue #55 的修法本體:Android 小工具刷新跑在背景,而軌島
+// 不申請背景定位權限(Play 高風險審查),原生端唯一拿得到新鮮座標的時機就是 App 在前景的這裡。
+// 節流沿用 saveGeoCache 那一組條件(15 秒或移動 100 公尺),不另開一套。
+// 失敗一律吞掉:小工具沒收到座標會自己退上次解析的站並在卡面標示,不該讓它擋住前景的藍點。
+function pushNativeGeoFix(loc, at) {
+  const bridge = window.RAIL_NATIVE_PLACES;
+  if (!bridge || typeof bridge.fix !== 'function') return;
+  try { Promise.resolve(bridge.fix(loc.lat, loc.lon, at)).catch(() => {}); } catch (e) {}
+}
 function acceptGeoFix(coords) {
   if (!coords || !inTaiwan(coords.latitude, coords.longitude)) return null;
   const loc = { lat: +coords.latitude, lon: +coords.longitude, acc: Math.max(0, +coords.accuracy || 0) };
@@ -13133,6 +13142,7 @@ function acceptGeoFix(coords) {
   const now = Date.now(), saved = state._geoSavedLoc;
   if (!saved || now - (state._geoSavedAt || 0) >= 15000 || haversineKm(saved, loc) >= .1) {
     saveGeoCache(loc.lat, loc.lon, loc.acc);
+    pushNativeGeoFix(loc, now);
     state._geoSavedAt = now; state._geoSavedLoc = loc;
   }
   const card = document.getElementById('nearCard');

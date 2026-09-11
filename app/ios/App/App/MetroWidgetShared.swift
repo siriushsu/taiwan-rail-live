@@ -120,6 +120,40 @@ struct MetroWidgetCatalog {
     }
 }
 
+// 自動選站與「我的地點」的服務半徑。
+//
+// 🔴 值【不住在程式碼裡】,住在 MetroWidgetData.json 的 `serviceRadii`
+//    (唯一來源是 app/scripts/build_metro_widget_data.mjs 的 SERVICE_RADII),
+//    iOS 與 Android 都從那份產物讀。在這之前是三份會各自漂移的字面值:
+//    MetroNearest 12000、RailBoardData 5000、RailWidgetData.java 5000——再加公車就四份。
+// 🔴 逐運具一個值,不是單一常數:捷運與台鐵的站密度差一個量級,公車又高一個量級,
+//    公車那一個要另外實算(設計書單元 C),沒實算出來之前資料檔裡不會有 bus 這一把。
+// 🔴 刻意【不】在這裡留字面值預設:留了就等於把那份字面值又複製回程式碼,
+//    而「資料檔沒接上」會靜靜地看起來完全正常。查不到回 0 ⇒ 所有站都落在範圍外、
+//    卡面當場說「不在服務範圍」,壞掉要壞得看得見。
+// 🔴 自己解析而不是走 MetroWidgetCatalog.shared:台鐵看板小工具也要用這個半徑,
+//    讓它為了一個數字去載整份捷運目錄是不必要的成本(這個檔 76KB,單獨解析一次可忽略)。
+enum WidgetServiceRadius {
+    static let metro = "metro"
+    static let rail = "rail"
+
+    static func meters(_ modality: String) -> Double { table[modality] ?? 0 }
+
+    static let table: [String: Double] = load()
+
+    private static func load() -> [String: Double] {
+        guard let url = Bundle.main.url(forResource: "MetroWidgetData", withExtension: "json"),
+              let raw = try? Data(contentsOf: url),
+              let obj = try? JSONSerialization.jsonObject(with: raw) as? [String: Any],
+              let radii = obj["serviceRadii"] as? [String: Any] else { return [:] }
+        var out: [String: Double] = [:]
+        for (k, v) in radii {
+            if let n = v as? Double { out[k] = n } else if let n = v as? Int { out[k] = Double(n) }
+        }
+        return out
+    }
+}
+
 extension MetroWidgetCatalog {
     /// 該站開得到的方向;查不到(自動選站哨兵、舊鍵)回空陣列,退路由呼叫端決定。
     func destinations(sys: String, station: String) -> [String] { destsByStation["\(sys)|\(station)"] ?? [] }

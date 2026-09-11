@@ -66,10 +66,24 @@ function extractDeclaration(source, header, { occurrence = 1 } = {}) {
 const D = JSON.parse(readFileSync(dataPath, 'utf8'));
 const nearestSource = readFileSync(join(widgetDir, 'MetroNearest.swift'), 'utf8');
 
-// 半徑從原始碼字面值取(Swift 的 12_000.0 底線分位要先去掉)。
-const radiusLiteral = /static let serviceRadiusMeters\s*=\s*([0-9_.]+)/.exec(nearestSource);
-if (!radiusLiteral) throw new Error('抽不到 serviceRadiusMeters 字面值（改名了？）');
-const RADIUS = Number(radiusLiteral[1].replace(/_/g, ''));
+// 半徑從【產物】取,不再 regex 抽 Swift 字面值。
+//
+// 🔴 2026-09-11 改法與理由:這支腳本原本是
+//      const radiusLiteral = /static let serviceRadiusMeters\s*=\s*([0-9_.]+)/.exec(nearestSource)
+//    ——判準與被測物同源(兩邊都是那一行 Swift),所以 C0「編出來的 === 原始碼字面值」其實只驗到
+//    「我的 regex 抄對了」,而且【只守得住 iOS】。同一個數字當時在三個地方各寫一份:
+//    MetroNearest.swift 12000、RailBoardData.swift 5000、RailWidgetData.java 5000,再加公車就是第四份,
+//    各自漂移時沒有任何一支腳本會紅。現在唯一來源是 build_metro_widget_data.mjs 產生的
+//    MetroWidgetData.json.serviceRadii,兩端都從那裡讀。
+//
+// 🔴 EXPECT_RADII 是【刻意的第四份】,與資料檔、iOS、Android 都不同源——只改資料檔而沒改這裡,
+//    D1 會紅(Android 那支 verify_widget_nearest.mjs 有一份一樣的表,所以兩端【同時】紅;
+//    只有 iOS 紅就代表 Android 沒真的接上)。判準與實作同源時「相等」是零資訊。
+//    這兩個值是對站點密度實算出來的天然斷點,不該被順手改掉;要改就兩邊一起改,
+//    而那一刻你會被迫看到這段註解。
+const EXPECT_RADII = { metro: 12000, rail: 5000 };
+const RADII = D.serviceRadii;
+const RADIUS = RADII?.metro;
 
 function jsHaversine(lat1, lon1, lat2, lon2) {
   const r = 6371000, toRad = x => x * Math.PI / 180;
@@ -148,14 +162,18 @@ const probes = [
 const sharedSource = readFileSync(join(widgetDir, '..', 'App', 'MetroWidgetShared.swift'), 'utf8');
 const harness = `
 import Foundation
+${extractDeclaration(sharedSource, 'enum WidgetServiceRadius')}
 ${extractDeclaration(sharedSource, 'struct MetroWidgetCatalog')}
 ${extractDeclaration(nearestSource, 'enum MetroNearestMath')}
 let probesPath = CommandLine.arguments[1]
 let raw = try! Data(contentsOf: URL(fileURLWithPath: probesPath))
 let probes = try! JSONSerialization.jsonObject(with: raw) as! [[Double]]
 let catalog = MetroWidgetCatalog.shared
-// 第一行印【編出來的】半徑常數,讓 JS 驗它與原始碼字面值一致(而不是只驗自己解析對了)。
+// 前兩行印【編出來的】半徑。第一行走 MetroNearestMath(捷運小工具真的用的那條路),
+// 第二行直接問共用層要台鐵的值——台鐵那一端在 RailBoardData(相依太多,裸編不起來),
+// 但真正要證明的是「iOS 這一側從產物讀得到 rail 的值」,那一段就是這裡這個 enum。
 print(MetroNearestMath.serviceRadiusMeters)
+print(WidgetServiceRadius.meters(WidgetServiceRadius.rail))
 for p in probes {
     // 距離一律另外由 nearest() 取,分類則走 classify()——兩支各自輸出,
     // 「算得對」與「判得對」才不會靠同一個回傳值互相掩護。
@@ -184,11 +202,34 @@ const lines = execFileSync(join(work, 'harness'), [join(work, 'probes.json')], {
   .trim().split('\n');
 
 const swiftRadius = Number(lines[0]);
-const out = lines.slice(1);
+const swiftRailRadius = Number(lines[1]);
+const out = lines.slice(2);
 
-console.log(`  （服務範圍半徑 ${RADIUS} 公尺，探針 ${probes.length} 顆）`);
-ok('C0 編出來的半徑常數 === 原始碼字面值', swiftRadius === RADIUS,
-   `swift=${swiftRadius} 原始碼=${RADIUS}`);
+console.log(`  （服務範圍半徑 metro=${RADII?.metro} rail=${RADII?.rail} 公尺，探針 ${probes.length} 顆）`);
+ok('D0 產物有 serviceRadii(metro/rail 都在)',
+   !!RADII && typeof RADII.metro === 'number' && typeof RADII.rail === 'number',
+   JSON.stringify(RADII));
+for (const [modality, expect] of Object.entries(EXPECT_RADII)) {
+  ok(`D1 資料檔 serviceRadii.${modality} === 判準表 ${expect}`,
+     RADII?.[modality] === expect, `資料檔=${RADII?.[modality]}`);
+}
+// 公車的值屬設計書單元 C(要對站牌密度實算)。實算之前資料檔裡不准有 bus——有了兩端就會讀去用。
+ok('D2 公車半徑尚未填入(單元 C 實算前不准猜一個)',
+   RADII?.bus === undefined, `bus=${RADII?.bus}`);
+ok('C0 iOS 編出來的捷運半徑 === 資料檔的值', swiftRadius === RADIUS,
+   `swift=${swiftRadius} 資料檔=${RADIUS}`);
+ok('C0b iOS 編出來的台鐵半徑 === 資料檔的值(「我的地點」那條路也接上了)',
+   swiftRailRadius === RADII?.rail, `swift=${swiftRailRadius} 資料檔=${RADII?.rail}`);
+// 反向對照:上面兩條在「iOS 又把數字寫死回原始碼」時仍會全綠(寫死的值剛好等於資料檔),
+// 所以另外斷言原始碼裡沒有字面值。註解不算——記病史的註解不是病灶。
+const stripSwift = src => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+const placesSource = stripSwift(readFileSync(join(widgetDir, 'RailBoardData.swift'), 'utf8'));
+ok('C0c iOS 捷運半徑沒有被寫死回原始碼',
+   !/static let serviceRadiusMeters\s*=\s*[0-9]/.test(stripSwift(nearestSource))
+   && /WidgetServiceRadius\.meters/.test(stripSwift(nearestSource)));
+ok('C0d iOS 台鐵「我的地點」半徑沒有被寫死回原始碼',
+   !/maximumDistanceMeters\s*=\s*[0-9]/.test(placesSource)
+   && /WidgetServiceRadius\.meters/.test(placesSource));
 ok('C1 探針數與輸出行數一致', out.length === probes.length, `${out.length} vs ${probes.length}`);
 // 探針集合本身要有兩邊:全部同一側的話「一律放行」與「一律擋掉」都能全綠。
 const kinds = probes.map(p => jsClassify(p.lat, p.lon).kind);
