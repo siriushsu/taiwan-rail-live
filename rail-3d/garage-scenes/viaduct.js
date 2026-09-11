@@ -154,14 +154,22 @@ export function createScene(params = {}) {
 
  // 站區外的房子、樹、灌木、石頭，讓底座邊緣不空。道具來自共用模組，合批仍走本場景的 instance()。
  const props=createProps({geo,mat,instance,rand});
- // 站前兩排透天厝面向觀者，樓層與外牆顏色輪流；中間留給站房。
- const rowY=-plinthD/2+3.2;
- for(let i=0;i<5;i++)props.townhouse(-25+i*3.3,rowY,groundZ,{floors:3+(i%2),width:2.8,depth:3.4,tint:i});
- for(let i=0;i<4;i++)props.townhouse(8.5+i*3.3,rowY,groundZ,{floors:2+(i%3),width:2.8,depth:3.4,tint:i+2});
- for(const [x,y,t] of [[-28,-9,0],[27.5,-7.6,3],[24,-12.6,2]])props.farmhouse(x,y,groundZ,{tint:t,facing:rand()*.6-.3});
- // 樹：底座前緣避開透天厝那排與站房，環線內側當成田間樹叢。
- const clearFront=(x,y)=>(y<rowY+2.3&&Math.abs(x)<27)||(Math.abs(x+1)<7&&y>stationY-3.5)||(Math.abs(x)<pl/2+1.5&&y>-13.5);
- for(let n=0;n<48;){const x=-31+rand()*62,y=-plinthD/2+1+rand()*10.5;if(clearFront(x,y))continue;props.broadleaf(x,y,groundZ,1.7+rand()*1.3);n++;}
+ // 站前一條馬路，路邊兩段連棟透天厝面向觀者，站房夾在中間。每棟寬深樓層屋頂一樓陽台各異，隔幾棟留一條巷子。
+ const roadY=-plinthD/2+1.1,rowY=-plinthD/2+3.6;
+ props.road(0,roadY,groundZ,plinthW-6);
+ const pick=list=>list[Math.floor(rand()*list.length)];
+ function terrace(x0,x1){let x=x0,i=0;
+  while(true){const w=2.2+rand()*1.2;if(x+w>x1)break;const depth=2.9+rand()*.9;
+   props.townhouse(x+w/2,rowY+(rand()-.5)*.5,groundZ,{floors:2+Math.floor(rand()*3.6),width:w,depth,tint:i,
+    roof:pick(['parapet','tin','tin','pitched']),ground:pick(['plain','plain','shop','arcade']),balcony:rand()<.35?'cage':'rail',tanks:Math.floor(rand()*3)});
+   x+=w+(rand()<.25?1.2:.03);i++;}
+ }
+ terrace(-27.5,-7.6);terrace(6.2,27.5);
+ for(let x=-26;x<28;x+=6.5)props.pole(x+rand()*.6,roadY+1.15,groundZ);
+ for(const [x,y,t] of [[-28,-9,0],[27.5,-7.6,3],[24,-12.6,2]])props.farmhouse(x,y,groundZ,{tint:t,facing:rand()*.6-.3,pitched:t!==3});
+ // 樹：避開馬路與透天厝那排、站房、月台下方；環線內側當成田間樹叢。
+ const clearFront=(x,y)=>(y<rowY+2.6&&Math.abs(x)<28.5)||(Math.abs(x+1)<7&&y>stationY-3.5)||(Math.abs(x)<pl/2+1.5&&y>-13.5);
+ for(let n=0;n<44;){const x=-31+rand()*62,y=-plinthD/2+1+rand()*10.5;if(clearFront(x,y))continue;props.broadleaf(x,y,groundZ,1.7+rand()*1.3);n++;}
  for(let n=0;n<14;){const x=-15+rand()*30,y=-3.5+rand()*10;if(Math.abs(y-(cy+radius))<2.2)continue;props.broadleaf(x,y,groundZ,1.5+rand()*1.1);n++;}
  for(let n=0;n<40;){const x=-31+rand()*62,y=-plinthD/2+1+rand()*11.5;if(clearFront(x,y))continue;props.bush(x,y,groundZ,.35+rand()*.35);n++;}
  for(let i=0;i<30;i++)props.rock(-30+rand()*60,seaY0-1.7+rand()*1.2,groundZ,.16+rand()*.22,rand()<.4);
