@@ -472,14 +472,16 @@ if (SECTIONS.has('D')) {
         const { ctx, page, consoleErrors } = await openPage(browser, { mockTable });
         await page.evaluate(name => openBoard({ name, sys: 'thsr_sched' }), '台北');
         await waitThsrLoaded(page); // loadThsrSeat()/loadThsrFare() 是非同步,等實際完成訊號
+        // 設計第二版:狀態不再是徽章框,是副列 .brow-sub 左邊的一段字,狀態走 data-s(四態)。
         const badges = await page.evaluate(trains => trains.map(no => {
           const row = document.querySelector(`.row[data-no="${no}"]`);
-          const tag = row && row.querySelector('.seatTag');
-          return tag ? { cls: [...tag.classList].join(' '), text: tag.textContent, title: tag.title } : null;
+          const sub = row && row.nextElementSibling;
+          const tag = sub && sub.classList.contains('brow-sub') ? sub.querySelector('.seatTag') : null;
+          return tag ? { s: tag.dataset.s, text: tag.textContent, title: tag.title } : null;
         }), [rows[0].train, rows[1].train, rows[2].train]);
-        ok(`D1a[${engineName}] O 態:class 含 seatTag-o,文字為「有位」`, !!badges[0] && /seatTag-o/.test(badges[0].cls) && badges[0].text === '有位', JSON.stringify(badges[0]));
-        ok(`D1b[${engineName}] L 態:class 含 seatTag-l,文字為「剩不多」`, !!badges[1] && /seatTag-l/.test(badges[1].cls) && badges[1].text === '剩不多', JSON.stringify(badges[1]));
-        ok(`D1c[${engineName}] X 態:class 含 seatTag-x,文字為「售完」`, !!badges[2] && /seatTag-x/.test(badges[2].cls) && badges[2].text === '售完', JSON.stringify(badges[2]));
+        ok(`D1a[${engineName}] O 態:data-s=avail,文字為「對號座 有位」`, !!badges[0] && badges[0].s === 'avail' && badges[0].text === '對號座 有位', JSON.stringify(badges[0]));
+        ok(`D1b[${engineName}] L 態:data-s=limited,文字為「對號座 剩不多」`, !!badges[1] && badges[1].s === 'limited' && badges[1].text === '對號座 剩不多', JSON.stringify(badges[1]));
+        ok(`D1c[${engineName}] X 態:data-s=soldout,文字為「對號座 售完」`, !!badges[2] && badges[2].s === 'soldout' && badges[2].text === '對號座 售完', JSON.stringify(badges[2]));
         ok(`D1d[${engineName}] O 態 tooltip 同時帶出商務座狀態(兩態都有值時)`, !!badges[0] && badges[0].title.includes('商務座'), JSON.stringify(badges[0]));
         ok(`D1e[${engineName}] L 態商務座缺值時 tooltip 只講標準座(不瞎補商務座字樣)`, !!badges[1] && !badges[1].title.includes('商務座'), JSON.stringify(badges[1]));
         ok(`D1f[${engineName}] 零 console error`, consoleErrors.length === 0, consoleErrors.join(' | '));
@@ -492,21 +494,40 @@ if (SECTIONS.has('D')) {
         await page.evaluate(name => openBoard({ name, sys: 'thsr_sched' }), '台北');
         await waitThsrLoaded(page);
         const rowSel = `.row[data-no="${rows[0].train}"]`;
-        const before = await page.evaluate(sel => !!document.querySelector(sel + ' + .fareExpand'), rowSel);
-        ok(`D2a[${engineName}] 開板當下票價展開層預設不存在`, before === false);
-
-        await page.click(`${rowSel} .fareBtn`);
+        const before = await page.evaluate(() => !!document.querySelector('.fare-page'));
+        ok(`D2a[${engineName}] 開板當下票價子頁不存在`, before === false);
+        // 🔴 設計第二版:票價不在列底下往下長,而是整個看板 body 換成子頁(卡頭變「‹ ○○看板」)。
+        //    先記下捲動位置,返回時要還原——這是子頁相對於展開層的主要好處之一。
+        await page.evaluate(() => { document.getElementById('board').scrollTop = 120; });
+        await page.click(`${rowSel} + .brow-sub .fareBtn`);
         await page.waitForTimeout(150);
-        const expand = await page.evaluate(sel => {
-          const el = document.querySelector(sel + ' + .fareExpand');
+        const expand = await page.evaluate(() => {
+          const el = document.querySelector('.fare-page');
           if (!el) return null;
           return {
-            head: el.querySelector('.fareHead')?.textContent,
-            rows: [...el.querySelectorAll(':scope > .fareRow')].map(r => ({ k: r.querySelector('.fareK')?.textContent, v: r.querySelector('.fareV')?.textContent })),
-            hasMore: !!el.querySelector('.fareMore'),
+            no: el.querySelector('.fp-no')?.textContent,
+            back: !!document.getElementById('fareBack'),
+            listRows: document.querySelectorAll('.board .row[data-no]').length,
+            rows: [...el.querySelectorAll('.fp-main .fareRow')].map(r => ({ k: r.querySelector('.fareK')?.textContent, v: r.querySelector('.fareV')?.textContent })),
+            groups: el.querySelectorAll('.fp-group').length,
+            otherRows: el.querySelectorAll('.fp-group .fareRow').length,
           };
-        }, rowSel);
-        ok(`D2b[${engineName}] 點「票價」後展開層出現`, !!expand, JSON.stringify(expand));
+        });
+        ok(`D2b[${engineName}] 點「票價」後票價子頁出現,而且是取代看板列不是插在列底下`,
+          !!expand && expand.listRows === 0 && expand.back, JSON.stringify(expand));
+        ok(`D2b2[${engineName}] 子頁標出的是按下去的那一班車`, !!expand && expand.no === String(rows[0].train), JSON.stringify(expand && expand.no));
+        // 🔴 返回鈕住在 sticky 卡頭裡、不在 .fare-page 裡:選擇器只要少寫這一層,症狀是
+        //    「一顆沒有樣式的 UA 預設按鈕」——看起來像功能還在,其實顏色、尺寸、‹ 全沒了。
+        //    所以不驗「存在」,驗它真的吃到自己的樣式(量的是渲染值,不是宣告值)。
+        const backStyle = await page.evaluate(() => {
+          const el = document.getElementById('fareBack');
+          if (!el) return null;
+          const cs = getComputedStyle(el), be = getComputedStyle(el, '::before');
+          return { h: Math.round(el.getBoundingClientRect().height), color: cs.color, before: be.content };
+        });
+        ok(`D2b3[${engineName}] 返回鈕吃到自己的樣式:淺色字、32px 高、帶「‹」`,
+          !!backStyle && backStyle.h >= 32 && backStyle.before.includes('‹') && backStyle.color !== 'rgb(0, 0, 0)',
+          JSON.stringify(backStyle));
 
         // 獨立算出這一對站的一般票成人三車廂價(直接讀 data/thsr_fare.json 自己再算一次,
         // 不呼叫頁面的 thsrFareDefaultTrio——判準不得跟實作同源,judgment.md 第七節第1條)。
@@ -524,20 +545,22 @@ if (SECTIONS.has('D')) {
           ok(`D2c[${engineName}] 標準座價格與獨立試算相符`, byLabel['標準座'] === expectPrice(1), `got=${byLabel['標準座']} expect=${expectPrice(1)}`);
           ok(`D2d[${engineName}] 商務座價格與獨立試算相符`, byLabel['商務座'] === expectPrice(2), `got=${byLabel['商務座']} expect=${expectPrice(2)}`);
           ok(`D2e[${engineName}] 自由座價格與獨立試算相符`, byLabel['自由座'] === expectPrice(3), `got=${byLabel['自由座']} expect=${expectPrice(3)}`);
-          ok(`D2f[${engineName}] 預設只顯示 3 種車廂,不含其他票種`, expand.rows.length === 3, JSON.stringify(expand.rows));
-          ok(`D2g[${engineName}] 有「其他票種」按鈕(8 組扣掉預設 3 組還有 5 組)`, expand.hasMore === (list.length > 3));
+          ok(`D2f[${engineName}] 主區只放一般票成人那 3 種車廂`, expand.rows.length === 3, JSON.stringify(expand.rows));
+          // 🔴 其他票種不再藏在第二顆按鈕後面:子頁有縱向空間,全部列出來。分子分母都具名,
+          //    否則「有幾組沒列出來」會無聲縮水(judgment.md 第七節第 6 條)。
+          ok(`D2g[${engineName}] 其他票種全列,不再需要第二顆展開鈕(總 ${list.length} 組扣掉主區 3 組)`,
+            expand.otherRows === list.length - 3 && expand.groups > 0, `otherRows=${expand.otherRows} groups=${expand.groups} expect=${list.length - 3}`);
         }
-        if (expand && expand.hasMore) {
-          await page.click(`${rowSel} + .fareExpand .fareMore`);
-          await page.waitForTimeout(150);
-          const otherCount = await page.evaluate(sel => document.querySelectorAll(sel + ' + .fareExpand .fareOther .fareRow').length, rowSel);
-          ok(`D2h[${engineName}] 點「其他票種」後展開 ${list.length - 3} 組(總 ${list.length} 組扣掉預設 3 組)`, otherCount === list.length - 3, `got=${otherCount}`);
-        }
-        // 收合:再點一次票價鈕,展開層應消失。
-        await page.click(`${rowSel} .fareBtn`);
-        await page.waitForTimeout(150);
-        const after = await page.evaluate(sel => !!document.querySelector(sel + ' + .fareExpand'), rowSel);
-        ok(`D2i[${engineName}] 再點一次「票價」收合,展開層消失`, after === false);
+        // 返回:點「‹ ○○看板」回到看板,而且還原剛才的捲動位置。
+        await page.click('#fareBack');
+        await page.waitForTimeout(200);
+        const after = await page.evaluate(() => ({
+          page: !!document.querySelector('.fare-page'),
+          listRows: document.querySelectorAll('.board .row[data-no]').length,
+          top: document.getElementById('board').scrollTop,
+        }));
+        ok(`D2i[${engineName}] 點「‹ 看板」返回,子頁消失、班次列回來`, after.page === false && after.listRows > 0, JSON.stringify(after));
+        ok(`D2i2[${engineName}] 返回還原進入子頁前的捲動位置(不是丟回最上面)`, after.top === 120, JSON.stringify(after));
         ok(`D2j[${engineName}] 全程零 console error`, consoleErrors.length === 0, consoleErrors.join(' | '));
         await ctx.close();
       }
@@ -562,9 +585,8 @@ if (SECTIONS.has('D')) {
       await browser.close();
     }
 
-    // D4:大/特大字級——只跑 chromium,驗證徽章/票價鈕確實整組隱藏(單元 A 的刻意範圍縮減:
-    // 這一列在這兩階是全站最容易撞版的地方,決定直接收起不硬擠 grid-area,見實作筆記-A;
-    // 這裡驗的是「隱藏規則有生效」,不是驗那兩階排版本身)。
+    // D4:大/特大字級——設計第二版把「整組 display:none」換掉了:大照常排副列,特大收進既有的
+    // 「›」展開器(點開就看得到)。所以這裡驗的是「兩階都還構得到」,不是「有沒有被藏起來」。
     {
       console.log('  -- D4 大/特大字級隱藏(chromium)--');
       const browser = await chromium.launch();
@@ -577,17 +599,139 @@ if (SECTIONS.has('D')) {
         await page.evaluate(v => { document.documentElement.dataset.fs = v; }, fs);
         await page.evaluate(name => openBoard({ name, sys: 'thsr_sched' }), '台北');
         await waitThsrLoaded(page);
-        const visible = await page.evaluate(() => {
-          const tag = document.querySelector('.seatTag'), btn = document.querySelector('.board .row .fareBtn');
-          const vis = el => el && getComputedStyle(el).display !== 'none';
-          return { tagVisible: vis(tag), btnVisible: vis(btn), tagExists: !!tag, btnExists: !!btn };
-        });
-        ok(`D4[${fs}] 徽章 DOM 仍在(不是沒渲染)但 display:none`, visible.tagExists && !visible.tagVisible, JSON.stringify(visible));
-        ok(`D4[${fs}] 票價鈕 DOM 仍在但 display:none`, visible.btnExists && !visible.btnVisible, JSON.stringify(visible));
+        const vis = await page.evaluate(no => {
+          const row = document.querySelector(`.row[data-no="${no}"]`);
+          const sub = row && row.nextElementSibling;
+          const seen = el => !!(el && el.getClientRects().length);
+          return {
+            hasSub: !!(sub && sub.classList.contains('brow-sub')),
+            seatSeen: seen(sub && sub.querySelector('.seatTag')),
+            fareSeen: seen(sub && sub.querySelector('.fareBtn')),
+            moreSeen: seen(row && row.querySelector('.rmore')),
+          };
+        }, rows[0].train);
+        ok(`D4[${fs}] 副列的 DOM 一直都在(不是靠不渲染來省版面)`, vis.hasSub, JSON.stringify(vis));
+        if (fs === 'large') {
+          ok(`D4[${fs}] 大字級照常排副列:座位與票價都看得到`, vis.seatSeen && vis.fareSeen, JSON.stringify(vis));
+        } else {
+          // 特大:預設收起來,但一定要有可達路徑——就是那顆只在特大出現的「›」。
+          ok(`D4[${fs}] 特大預設收起副列,但「›」展開器在`, !vis.seatSeen && !vis.fareSeen && vis.moreSeen, JSON.stringify(vis));
+          await page.click(`.row[data-no="${rows[0].train}"] .rmore`);
+          await page.waitForTimeout(150);
+          const opened = await page.evaluate(no => {
+            const sub = document.querySelector(`.row[data-no="${no}"]`).nextElementSibling;
+            const box = el => { const r = el && el.getBoundingClientRect(); return r ? Math.round(r.height) : 0; };
+            return { seat: box(sub.querySelector('.seatTag')), fare: box(sub.querySelector('.fareBtn')) };
+          }, rows[0].train);
+          ok(`D4[${fs}] 點「›」之後座位與票價都出現,而且是 44px 級的觸控目標`,
+            opened.seat >= 44 && opened.fare >= 44, JSON.stringify(opened));
+        }
         ok(`D4[${fs}] 零 console error`, consoleErrors.length === 0, consoleErrors.join(' | '));
         await ctx.close();
       }
       await browser.close();
+    }
+
+    // D6:暗色主題——這一批加的兩樣東西都落在「暗色會另外上漆」的地方,而暗色看板還多一層
+    // 方向頁籤機制(night-board.js 的 .night-group-hidden):
+    //   (a) 副列刻意做成 .row 的兄弟(列內加東西會動到三種字級的幾何),而 night-board.js 只認
+    //       .row ⇒ 沒有 CSS 補位的話,選一個方向時另一個方向的座位/票價副列會獨自留在板上;
+    //   (b) 返回鈕原本寫死 color:var(--paper),暗色把 --paper 翻成深色、night-theme.css 又把卡頭
+    //       漆成深底 ⇒ 暗字暗底(而且尺寸、‹ 都還在,看起來完全正常)。
+    // 兩條都量渲染結果、不量宣告值:(a) 量 getClientRects,(b) 直接截那顆鈕的像素量明暗跨度。
+    {
+      console.log('  -- D6 暗色主題(方向頁籤與返回鈕)--');
+      const sharp = (await import('sharp')).default;
+      // 「字看不看得見」:截那顆元件的像素,取最亮 5% 與最暗 5% 的明度差。字與底同色時整塊接近
+      // 單色 ⇒ 跨度趨近 0。門檻取 90,落在實測兩態中間,而且亮色要用同一支量一次當對照。
+      const inkSpread = async (page, selector) => {
+        const box = await page.locator(selector).boundingBox();
+        if (!box || box.width < 2 || box.height < 2) return null;
+        const png = await page.screenshot({ clip: { x: Math.round(box.x), y: Math.round(box.y), width: Math.round(box.width), height: Math.round(box.height) } });
+        const { data, info } = await sharp(png).raw().toBuffer({ resolveWithObject: true });
+        const ls = [];
+        for (let i = 0; i < data.length; i += info.channels) ls.push(0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]);
+        ls.sort((a, b) => a - b);
+        const at = q => ls[Math.min(ls.length - 1, Math.floor(q * ls.length))];
+        return Math.round(at(0.95) - at(0.05));
+      };
+      for (const [engineName, engine] of [['chromium', chromium], ['webkit', webkit]]) {
+        const browser = await engine.launch();
+        const probe = await openPage(browser);
+        const darkRows = await pickThsrRows(probe.page, '台北', 1);
+        await probe.ctx.close();
+        const mockTable = darkRows.length ? { [`${darkRows[0].train}|台北|${darkRows[0].dest}`]: { std: 'O', biz: 'L' } } : {};
+        const { ctx, page, consoleErrors } = await openPage(browser, { mockTable });
+        await page.evaluate(() => state._setAppearance('dark'));
+        await page.evaluate(name => openBoard({ name, sys: 'thsr_sched' }), '台北');
+        await waitThsrLoaded(page);
+        await page.evaluate(() => renderBoard());
+        await page.waitForTimeout(150);
+
+        const readSubs = () => page.evaluate(() => {
+          const seen = el => !!(el && el.getClientRects().length);
+          const subs = [...document.querySelectorAll('#board > .brow-sub')];
+          return {
+            theme: document.documentElement.dataset.theme,
+            tabs: document.querySelectorAll('#board .night-directions button').length,
+            subs: subs.length,
+            hiddenRows: document.querySelectorAll('#board > .row.night-group-hidden').length,
+            hiddenSubs: subs.filter(x => !seen(x)).length,
+            orphans: subs.filter(x => seen(x) && !seen(x.previousElementSibling)).length, // 副列看得見、它的列被藏起來
+          };
+        });
+
+        const d0 = await readSubs();
+        // 前提先立住,否則下面的「零孤兒」是恆真的空話(judgment.md 第七節第 5 條)。
+        ok(`D6a[${engineName}] 暗色高鐵板真的長出方向頁籤,而且真的藏了另一個方向的列`,
+          d0.theme === 'dark' && d0.tabs >= 2 && d0.hiddenRows > 0 && d0.subs > 0, JSON.stringify(d0));
+        ok(`D6b[${engineName}] 被藏起來的那幾列,副列也跟著不見(正向對照:確實有副列被藏)`,
+          d0.orphans === 0 && d0.hiddenSubs > 0, JSON.stringify(d0));
+        // 互動之後再量一次(只驗乾淨初始態等於沒驗,judgment.md 第七節第 4 條)。
+        await page.click('#board .night-directions button:nth-child(2)');
+        await page.waitForTimeout(150);
+        const d1 = await readSubs();
+        ok(`D6c[${engineName}] 切到第二個方向之後仍然零孤兒副列`,
+          d1.orphans === 0 && d1.hiddenSubs > 0 && d1.hiddenRows > 0, JSON.stringify(d1));
+
+        // 返回鈕:在還看得見的那個方向挑一顆票價鈕進子頁,量暗色下那顆鈕的字看不看得見。
+        const opened = await page.evaluate(() => {
+          const btn = [...document.querySelectorAll('#board > .brow-sub .fareBtn')].find(b => b.getClientRects().length);
+          if (!btn) return false; btn.click(); return true;
+        });
+        await page.waitForTimeout(200);
+        const backCount = await page.locator('#fareBack').count();
+        ok(`D6d[${engineName}] 暗色下點得到票價鈕,子頁與返回鈕都出來`, opened && backCount === 1, `opened=${opened} back=${backCount}`);
+        const darkSpread = backCount === 1 ? await inkSpread(page, '#fareBack') : null;
+        // 🔴 切暗色會把 MapLibre 的樣式整包換掉,在途的圖磚請求跟著被 abort ⇒ chromium 把
+        //    「AbortError: The user aborted a request.」當 console.error 吐出來(webkit 不吐)。
+        //    這是切主題本身既有的行為,不是這一批的東西——探針實證:全程不開任何看板、只切一次
+        //    暗色就重現,而本批對 index.html 的改動全部住在高鐵看板副列/票價子頁與公車站牌 sheet
+        //    裡,不開就跑不到;同一支探針「不切主題」的對照組是 0 筆。來源印出來是 maplibre-gl.js。
+        //    只擋這一句,其他 console.error 照樣算數(全擋等於把這條判準的牙拔掉)。
+        const darkErrors = consoleErrors.filter(x => !/AbortError/.test(x));
+        ok(`D6g[${engineName}] 暗色全程零 console error(切主題造成的 MapLibre 圖磚 abort 除外)`, darkErrors.length === 0, darkErrors.join(' | '));
+        await ctx.close();
+
+        // 亮色對照另開一頁,不在同一頁按鈕切主題:切主題會重建底圖樣式、把在途的圖磚請求
+        // abort 掉(chromium 實測吐 AbortError,webkit 不吐)——那是測試自己製造的雜訊,
+        // 拿它去污染「零 console error」等於把判準的牙拔掉。另開一頁也更接近使用者實況
+        // (亮色是從開頁就亮色,不是暗色頁重新上漆)。
+        const lit = await openPage(browser, { mockTable });
+        await lit.page.evaluate(name => openBoard({ name, sys: 'thsr_sched' }), '台北');
+        await waitThsrLoaded(lit.page);
+        const litOpened = await lit.page.evaluate(() => {
+          const btn = [...document.querySelectorAll('#board > .brow-sub .fareBtn')].find(b => b.getClientRects().length);
+          if (!btn) return false; btn.click(); return true;
+        });
+        await lit.page.waitForTimeout(200);
+        const lightSpread = litOpened && (await lit.page.locator('#fareBack').count()) === 1 ? await inkSpread(lit.page, '#fareBack') : null;
+        await lit.ctx.close();
+
+        ok(`D6e[${engineName}] 返回鈕的字在暗色也看得見(門檻 90)`, darkSpread !== null && darkSpread >= 90, `dark=${darkSpread} light=${lightSpread}`);
+        ok(`D6f[${engineName}] 亮色對照:同一顆鈕在亮色本來就看得見`, lightSpread !== null && lightSpread >= 90, `light=${lightSpread}`);
+        await browser.close();
+      }
     }
 
     // D5:零回歸——直接子行程重跑既有的權威驗收腳本(同 verify_thsr_freeseat.mjs 的 D6 慣例),

@@ -1969,41 +1969,149 @@
     background: none; border: 1px solid var(--ok); border-radius: 3px;
     padding: 0 4px 1px; white-space: nowrap; opacity: .9;
   }
-  /* 高鐵對號座徽章(單元 A,2026-09-11):沿用上面三顆標籤的視覺語彙,不新增色票——
-     O 有位比照 okTag(綠框)、L 剩不多比照 lateTag(警示底)、X 售完用警示色實心(比 L 更搶眼,
-     售完是預告自由座會擠的最強訊號)。 */
+  /* 高鐵對號座與票價(設計第二版,2026-09-11):狀態是字、動作是列。看板列底下多一條 32px 副列——
+     左邊「對號座 售完」是事實(純文字只上色,不做徽章框),右邊「票價 ›」是動作(藏青字＋箭頭,
+     與卡頭下方「在 Google 地圖開啟 ↗」同一種語法)。副列是 .row 的【兄弟】不是子元素:.row 在
+     標準檔是 flex、大/特大是兩套 grid,塞進去會動到那三套幾何;當兄弟則三檔一格不動。 */
+  .brow-sub {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px;
+    align-items: center; min-height: 32px; padding: 0 0 6px 20px;
+  }
   .seatTag {
-    font-weight: 800; font-size: calc(10.5px * var(--uis)); margin-left: 4px;
-    border-radius: 3px; padding: 0 4px 1px; white-space: nowrap; vertical-align: 1px;
+    display: inline-flex; align-items: center; gap: 6px; min-width: 0;
+    font-size: calc(12.5px * var(--ui)); font-weight: 800; white-space: nowrap;
   }
-  .seatTag-o { color: var(--ok); background: none; border: 1px solid var(--ok); opacity: .9; }
-  .seatTag-l { color: var(--warn-ink); background: var(--warn-bg); border: 1px solid var(--warn-line); }
-  .seatTag-x { color: var(--paper); background: var(--warn-ink); border: 1px solid var(--warn-ink); }
-  /* 票價鈕與展開層(單元 A):鈕比照 .rmore 的次要視覺重量,不搶過班次本身;展開層是站內
-     小卡,沿用 --bg-stage/--line-faint 這組既有的「次層資訊卡」語彙(比照 .tap-pick 的量級)。 */
-  .board .row .fareBtn {
-    flex: none; margin-left: 4px; font: inherit; font-size: calc(10.5px * var(--uis)); font-weight: 700;
+  /* 方點吃 currentColor:三個有資料的狀態各自上色,一顆點就跟著走,不必各寫一次 */
+  .seatTag::before { content: ''; width: 6px; height: 6px; border-radius: 1px; background: currentColor; flex: none; }
+  .seatTag[data-s=avail]   { color: var(--ok); }
+  .seatTag[data-s=limited] { color: var(--warn-ink); }
+  .seatTag[data-s=soldout] { color: var(--red); }
+  /* 第四態(官方沒給這班的座位狀態):淡字、不加粗——它是「沒有」不是一種座況 */
+  .seatTag[data-s=none] { color: var(--faint); font-weight: 400; }
+  .seatTag[data-s=none]::before { background: var(--line); }
+  .brow-sub .fareBtn {
+    justify-self: end; font: inherit; font-size: calc(13px * var(--ui)); font-weight: 800;
+    color: var(--navy); background: none; border: 0; border-radius: 0;
+    padding: 0 4px 0 10px; min-height: 32px; cursor: pointer; white-space: nowrap;
+  }
+  .brow-sub .fareBtn::after { content: '›'; margin-left: 4px; font-size: 1.25em; }
+  /* 票價子頁:整個換掉看板 body(不是在列底下往下長),內容從卡頭底下開始排 ⇒ 永遠在視窗內。
+     返回還原捲動位置,見 renderBoardBody 的 boardFarePage 段。 */
+  /* 🔴 返回鈕住在 <h3>(sticky 卡頭)裡,不在 .fare-page 裡面——選擇器寫成 .fare-page .fp-back
+     就完全不會生效,而症狀是「一顆沒有樣式的 UA 預設按鈕」而不是壞掉(實測:黑字灰底 25px、
+     連 ‹ 都沒有)。卡頭是藏青底,所以這顆走淺色字＋半透明底,與同一列的 × 同一種語彙。
+     文字色用 inherit 而不是 var(--paper):兩者在亮色下逐 byte 相同(#FFFDF6),但暗色主題把
+     --paper 翻成 #0C1221 而 night-theme.css 又把卡頭漆成深底 ⇒ 寫死 --paper 會變成「暗字暗底」;
+     inherit 拿的是 h3 自己的文字色(亮:--on-navy、暗:--ink),兩邊都是卡頭該用的那一色。 */
+  .board h3 .fp-back {
+    display: inline-flex; align-items: center; gap: 4px; font: inherit;
+    font-size: calc(13px * var(--ui)); font-weight: 800; color: inherit;
+    background: rgba(255, 253, 246, .14); border: 0; border-radius: 8px;
+    padding: 0 10px 0 6px; min-height: 32px; cursor: pointer;
+  }
+  .board h3 .fp-back::before { content: '‹'; font-size: 1.7em; line-height: 1; }
+  .fare-page .fp-train { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
+  .fare-page .fp-no { font-size: calc(20px * var(--ui)); font-weight: 900; color: var(--ink-strong); font-variant-numeric: tabular-nums; }
+  .fare-page .fp-od { font-size: calc(13px * var(--ui)); color: var(--ink); }
+  .fare-page .fp-seat { margin-top: 6px; }
+  .fare-page .fp-stamp { margin-left: 6px; font-weight: 400; color: var(--faint); }
+  .fare-page .fareHead {
+    font-size: calc(11.5px * var(--uis)); font-weight: 800; letter-spacing: .06em;
+    color: var(--muted); padding-bottom: 4px;
+  }
+  .fare-page .fp-main { margin-top: 12px; padding: 8px 10px 2px; background: var(--bg-stage); border: 1px solid var(--line-faint); border-radius: 10px; }
+  .fare-page .fp-group { margin-top: 10px; }
+  .fare-page .fareRow {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+    min-height: 32px; padding: 4px 0; border-top: 1px dashed var(--line-dash);
+  }
+  .fare-page .fareRow.fareEmpty { color: var(--faint); justify-content: flex-start; border-top: 0; }
+  .fare-page .fareK { font-size: calc(13px * var(--ui)); color: var(--ink); }
+  .fare-page .fareV { font-weight: 900; color: var(--ink-strong); font-variant-numeric: tabular-nums; font-size: calc(15px * var(--ui)); }
+  .fare-page .fp-main .fareV { font-size: calc(17px * var(--ui)); }
+  .fare-page .fp-note { margin: 12px 0 0; font-size: calc(11px * var(--uis)); line-height: 1.6; color: var(--faint); }
+  /* 大 ×1.25:副列照常排(15.6px 仍放得下「剩不多」＋「票價 ›」)。
+     特大 ×1.5:副列收進既有的「›」展開器——不再整組 display:none,兩件事都還構得到。 */
+  html[data-fs=xlarge] .brow-sub { display: none; }
+  html[data-fs=xlarge] .row.rx + .brow-sub {
+    display: flex; flex-direction: column; align-items: stretch;
+    padding: 0 0 8px 24px; row-gap: 0;
+  }
+  html[data-fs=xlarge] .row.rx + .brow-sub .seatTag { min-height: 44px; }
+  html[data-fs=xlarge] .row.rx + .brow-sub .fareBtn {
+    justify-self: stretch; display: flex; align-items: center; justify-content: space-between;
+    min-height: 44px; padding: 0 6px 0 0; border-top: 1px dashed var(--line-dash); text-align: left;
+  }
+  /* 🔴 暗色看板的方向頁籤是拿 .night-group-hidden 藏掉另一方向的列(night-board.js 的 select()),
+     而它只認 .row——副列是 .row 的「兄弟」(刻意的:列內加東西會動到三種字級的幾何),
+     沒人會替它掛上那個 class ⇒ 選「南下」時北上那幾列的座位/票價副列會獨自留在板上。
+     修在 CSS 而不是 night-board.js:那支檔有 App 兩份產生副本與自己的閘門,而這裡純粹是
+     「副列跟著它的列走」的顯示規則,跟上面兩條字級規則同一家。 */
+  html[data-theme=dark] #board .row.night-group-hidden + .brow-sub { display: none; }
+
+  /* ── 公車站牌 sheet(設計第二版,2026-09-11)──────────────────────────────────
+     站牌跟車站看板是同一類東西:一個地點、一份會過期的即時表。所以它不再住在搜尋下拉裡
+     (下拉是暫態清單,沒有卡頭/地圖/返回/刷新可以掛,也放不下完整路線),而是沿用 .board 這個
+     底部 sheet 殼——三段高、sticky 卡頭、讓位、重新取景全部免費繼承(見 SHEET_PANEL_IDS)。 */
+  .bus-eta-row {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+    column-gap: 10px; align-items: center; min-height: 56px; padding: 6px 0;
+    border-top: 1px dashed var(--line-dash);
+  }
+  .bus-eta-no { font-size: calc(16px * var(--ui)); font-weight: 900; color: var(--ink-strong); font-variant-numeric: tabular-nums; }
+  .bus-eta-to { font-size: calc(12.5px * var(--ui)); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bus-eta-when { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; text-align: right; }
+  /* 下一班大、再下一班小而淡:兩者上下疊,不用中點串成一行——串起來讀不出哪一個才是「現在要等的」 */
+  .bus-eta-next { font-size: calc(20px * var(--ui)); font-weight: 900; color: var(--ink-strong); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .bus-eta-next[data-k=now] { font-size: calc(15px * var(--ui)); color: var(--ok); }
+  .bus-eta-next[data-k=idle] { font-size: calc(15px * var(--ui)); color: var(--faint); }
+  .bus-eta-next[data-k=dead] { font-size: calc(15px * var(--ui)); color: var(--line); letter-spacing: .12em; }
+  .bus-eta-later { font-size: calc(11.5px * var(--uis)); color: var(--faint); white-space: nowrap; min-height: 1em; }
+  /* 特大 ×1.5:路線與往哪改成上下兩行,右欄只剩下一班(再下一班在這一檔不畫) */
+  html[data-fs=xlarge] .bus-eta-row { grid-template-columns: minmax(0, 1fr) auto; min-height: 72px; }
+  html[data-fs=xlarge] .bus-eta-no { grid-column: 1; grid-row: 1; }
+  html[data-fs=xlarge] .bus-eta-to { grid-column: 1; grid-row: 2; }
+  html[data-fs=xlarge] .bus-eta-when { grid-column: 2; grid-row: 1 / span 2; }
+  html[data-fs=xlarge] .bus-eta-later { display: none; }
+  /* 新鮮度:一顆點＋把資料時間寫出來。綠＝剛更新過,金＝這一份已經放了一陣子(附一顆更新鈕)。
+     🔴 不寫「即時」兩個字:它是每 30 秒重抓一次的快照,不是推播。 */
+  .bus-fresh {
+    display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 6px 0 4px;
+    border-top: 1px dashed var(--line-dash); border-bottom: 1px dashed var(--line-dash);
+    font-size: calc(12px * var(--uis)); color: var(--muted);
+  }
+  .bus-fresh::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); flex: none; }
+  .bus-fresh[data-stale]::before { background: var(--gold); }
+  .bus-fresh .bf-txt { flex: 1; min-width: 0; }
+  .bus-fresh .bf-go {
+    flex: none; font: inherit; font-size: calc(12.5px * var(--ui)); font-weight: 800;
     color: var(--navy); background: none; border: 1px solid var(--line); border-radius: 999px;
-    padding: 1px 7px; cursor: pointer; white-space: nowrap;
+    padding: 0 12px; min-height: 32px; cursor: pointer;
   }
-  .board .row .fareBtn.on { color: var(--paper); background: var(--navy); border-color: var(--navy); }
-  .fareExpand {
-    margin: 2px 0 6px; padding: 6px 8px; background: var(--bg-stage); border: 1px solid var(--line-faint);
-    border-radius: 8px; font-size: calc(12px * var(--uis));
+  .bus-sec { display: flex; align-items: baseline; gap: 8px; padding: 12px 0 2px; font-size: calc(11.5px * var(--uis)); color: var(--faint); }
+  .bus-sec b { font-weight: 800; letter-spacing: .16em; }
+  /* 兩種空手而回長得不一樣:「沒有路線」是資料本身的結論(中性卡＋一條出路),
+     「拿不到即時」是我們這邊的失敗(警示條＋重試,而且路線清單不跟著一起藏起來)。 */
+  .bus-empty {
+    display: flex; flex-direction: column; gap: 8px; margin-top: 10px; padding: 14px 12px;
+    border: 1px solid var(--line); border-radius: 10px; background: var(--bg-stage);
   }
-  .fareExpand .fareHead { font-weight: 700; color: var(--muted); margin-bottom: 3px; }
-  .fareExpand .fareRow { display: flex; justify-content: space-between; gap: 8px; padding: 1px 0; }
-  .fareExpand .fareRow.fareEmpty { color: var(--faint); justify-content: flex-start; }
-  .fareExpand .fareK { color: var(--muted); }
-  .fareExpand .fareV { font-weight: 700; color: var(--ink-strong); font-variant-numeric: tabular-nums; }
-  .fareExpand .fareMore {
-    margin-top: 3px; font: inherit; font-size: calc(11px * var(--uis)); color: var(--navy);
-    background: none; border: none; padding: 2px 0; cursor: pointer; text-decoration: underline;
+  .bus-empty b { font-size: calc(14px * var(--ui)); font-weight: 800; color: var(--ink-strong); }
+  .bus-empty span { font-size: calc(12.5px * var(--ui)); line-height: 1.6; color: var(--muted); }
+  .bus-warn {
+    display: flex; align-items: center; gap: 10px; min-height: 44px; margin: 10px 0 0; padding: 6px 12px;
+    border: 1px solid var(--warn-line); border-radius: 10px; background: var(--warn-bg);
+    font-size: calc(12.5px * var(--ui)); line-height: 1.45; color: var(--warn-ink); font-weight: 700;
   }
-  .fareExpand .fareOther { margin-top: 2px; border-top: 1px dashed var(--line-faint); padding-top: 3px; }
-  /* 大／特大字級是全站最容易撞版的一列(下面 data-fs=large/xlarge 那組 grid-area 規則的地盤,
-     見該處旁註);座位/票價是加值資訊不是導航必要資訊,直接收起,不硬擠一個 grid-area 進去。 */
-  html[data-fs] .seatTag, html[data-fs] .board .row .fareBtn, html[data-fs] .fareExpand { display: none; }
+  .bus-warn span { flex: 1; min-width: 0; }
+  .bus-warn .bf-go { color: var(--warn-ink); border-color: var(--warn-ink); }
+  .bus-note { margin: 14px 0 0; font-size: calc(11px * var(--uis)); line-height: 1.6; color: var(--faint); }
+  /* 搜尋下拉的「還有 N 個站牌」:取代原本無聲截斷 —— 截斷本身沒問題,不講才有問題 */
+  .sd-more {
+    display: block; width: 100%; margin-top: 6px; font: inherit; font-size: calc(12.5px * var(--ui));
+    font-weight: 800; color: var(--navy); background: none; border: 1px solid var(--line);
+    border-radius: 999px; padding: 0 12px; min-height: 40px; cursor: pointer;
+  }
 
   /* ── 點擊歧義小選單(tap-pick):列車停靠中壓住車站時,貼點擊處彈兩列讓使用者選車或站 ── */
   .tap-pick {
@@ -5140,6 +5248,8 @@
       <div class="ql" id="queryLinks" hidden></div>
     </div>
     <div class="board" id="todayPanel" hidden></div>
+    <!-- 公車站牌 sheet:刻意不新造殼,掛 .board 直接吃三段高/sticky 卡頭/讓位/重新取景那一整套 -->
+    <div class="board bus-stop-panel" id="busStopPanel" hidden></div>
     <!-- 誤點履歷卡(Plus 頭牌;跟隨台鐵時由準點列/車次卡入口開啟);×/☆ 家族鐵則——close 鈕放 sticky h3 內(v0717p) -->
     <div class="board delayhist-panel" id="delayHistPanel" hidden></div>
     <!-- 行程分享:選目的站(剩餘停站列表);×/☆ 家族鐵則——close 鈕放 sticky h3 內(v0717p) -->
@@ -18446,12 +18556,14 @@ function renderFreeSeat(tr) {
 // 大／特大字級不顯示徽章／票價鈕(見上方 CSS:看板列在那兩階是全站最容易撞版的一處,座位/
 // 票價是加值資訊不是導航必要資訊)。
 let _thsrSeatCache;
+let _thsrSeatAt = null;
 let _thsrSeatPromise = null;
 async function loadThsrSeat() {
   if (_thsrSeatCache !== undefined) return _thsrSeatCache;
   if (!_thsrSeatPromise) {
     _thsrSeatPromise = fetchJSONAt(apiUrl('api/thsr-seat')).then(d => {
       _thsrSeatCache = (d && d.table && typeof d.table === 'object') ? d.table : null;
+      _thsrSeatAt = (d && d.at) || null;   // 官方 UpdateTime:導言與票價頁要寫出「這是幾點的座位表」
       return _thsrSeatCache;
     });
   }
@@ -18491,30 +18603,43 @@ function thsrFareCodeName(kind, code) {
   return name ? t(name) : String(code);
 }
 
-// 座位狀態徽章:官方三態原字面對應文案,不推算不合併。查不到鍵、或標準座狀態本身缺值,
-// 一律不顯示(不留空框,不用其他站頂替)。
+// 座位狀態:官方三態原字面(有位／剩不多／售完)不推算不合併,加一個第四態「官方沒給這班」。
+// 第四態是「沒有資料」不是一種座況,所以淡字不加粗;整站的班次都查不到時改由看板導言講一次
+// (見 schedBoardListHtml 的 anySeat),三列各寫一次「未提供」太吵。
 const THSR_SEAT_LABEL = { O: '有位', L: '剩不多', X: '售完' };
-const THSR_SEAT_CLASS = { O: 'o', L: 'l', X: 'x' };
-function thsrSeatBadgeHtml(originName, destName, trainNo) {
+const THSR_SEAT_STATE = { O: 'avail', L: 'limited', X: 'soldout' };
+function thsrSeatRec(originName, destName, trainNo) {
   const table = _thsrSeatCache;
-  if (!table) return '';
+  if (!table) return null;
   const rec = table[`${trainNo}|${originName}|${destName}`];
-  if (!rec || !rec.std) return '';
+  return rec && rec.std ? rec : null;
+}
+// 官方座位表的 UpdateTime → HH:MM(看板導言與票價頁都印它;沒有就回空字串,呼叫端自己省略那一段)
+function thsrSeatStampHM() {
+  if (!_thsrSeatAt) return '';
+  const d = new Date(_thsrSeatAt);
+  return Number.isFinite(d.getTime()) ? fmtHM(d.getHours() * 3600 + d.getMinutes() * 60) : '';
+}
+function thsrSeatTextHtml(originName, destName, trainNo) {
+  const rec = thsrSeatRec(originName, destName, trainNo);
+  if (!rec) return `<span class="seatTag" data-s="none">${escHtml(t('座位狀態未提供'))}</span>`;
   const stdLabel = t(THSR_SEAT_LABEL[rec.std]);
+  // 商務座售完不會把人推去自由座(票價落差太大),標準座才是預測自由座擁擠度的訊號 ⇒ 主字只寫標準座,
+  // 商務座留在 tooltip。這條判斷與第一版相同,只是徽章換成了副列上的一段字。
   const title = rec.biz
     ? t('標準座 {std}・商務座 {biz}（每 10 分鐘更新，非即時）', { std: stdLabel, biz: t(THSR_SEAT_LABEL[rec.biz]) })
     : t('標準座 {std}（每 10 分鐘更新，非即時）', { std: stdLabel });
-  return ` <span class="seatTag seatTag-${THSR_SEAT_CLASS[rec.std]}" title="${escHtml(title)}">${escHtml(stdLabel)}</span>`;
+  return `<span class="seatTag" data-s="${THSR_SEAT_STATE[rec.std]}" title="${escHtml(title)}">${escHtml(t('對號座 {s}', { s: stdLabel }))}</span>`;
 }
 
-// 票價按鈕與展開層。origin/dest 沿用該列已知的起站/終點(schedBoardRows 算好的 st.name/r.dest),
+// 票價入口與票價子頁。origin/dest 沿用該列已知的起站/終點(schedBoardRows 算好的 st.name/r.dest),
 // 不做起訖選擇器(spec 明文:List 版端點不需要使用者先選目的地,票價一併沿用同一對站名)。
-// 展開狀態持久化比照 boardRxOpen 的寫法(看板每 20 模擬秒整個重繪一次,狀態要自己存)——鍵用
-// 「起站|訖站」而非車次,因為同一對站的票價與展開內容跟車次無關,不同班次共用同一份不必各開一次。
-const boardFareOpen = new Set();
-function thsrFareBtnHtml(originName, destName) {
-  const open = boardFareOpen.has(originName + '|' + destName);
-  return ` <button type="button" class="fareBtn${open ? ' on' : ''}" data-fare-key="${escHtml(originName + '|' + destName)}" aria-label="${escHtml(t('查詢 {o} → {d} 的票價', { o: originName, d: destName }))}">${escHtml(t('票價'))}</button>`;
+// 🔴 子頁不是「在列底下展開」:那會把內容推到視窗外,而且愈往下的班次愈難看完。按了票價整個
+// 看板 body 換成票價頁、卡頭變成「‹ 台中看板」,返回還原捲動位置(見 renderBoardBody)。
+let boardFarePage = null;      // { origin, dest, train, hm } —— 開著票價子頁時才有值
+let boardFareReturnTop = 0;    // 返回時要還原的看板捲動位置
+function thsrFareBtnHtml(originName, destName, trainNo, hm) {
+  return `<button type="button" class="fareBtn" data-fare-key="${escHtml(originName + '|' + destName)}" data-fare-no="${escHtml(String(trainNo))}" data-fare-hm="${escHtml(hm)}" aria-label="${escHtml(t('查詢 {o} → {d} 的票價', { o: originName, d: destName }))}">${escHtml(t('票價'))}</button>`;
 }
 // 一般票成人的三種車廂價(spec 預設只出這三種);抓不到票價資料/站碼/同站對站一律回 null。
 function thsrFareDefaultTrio(originName, destName) {
@@ -18528,23 +18653,35 @@ function thsrFareDefaultTrio(originName, destName) {
   if (byCabin[1] == null && byCabin[2] == null && byCabin[3] == null) return null;
   return { list, std: byCabin[1], biz: byCabin[2], unreserved: byCabin[3] };
 }
-function thsrFareExpandHtml(originName, destName) {
-  const trio = thsrFareDefaultTrio(originName, destName);
-  if (!trio) return `<div class="fareExpand"><div class="fareRow fareEmpty">${escHtml(t('沒有資料'))}</div></div>`;
+// 票價子頁的 body(卡頭另外由 renderBoardBody 組)。其他票種【全列】分組排出來,不再是一顆
+// 底線連結——子頁有的是縱向空間,再藏一層等於在同一張卡上放第二個可按的東西。
+function thsrFarePageHtml(pg, st) {
+  const trio = thsrFareDefaultTrio(pg.origin, pg.dest);
   const priceRow = (label, price) => price == null ? '' :
     `<div class="fareRow"><span class="fareK">${escHtml(t(label))}</span><span class="fareV">NT$${i18nNumber(price)}</span></div>`;
-  const otherKey = 'other|' + originName + '|' + destName;
-  const otherOpen = boardFareOpen.has(otherKey);
-  const otherRows = trio.list
-    .filter(f => !(f.ticketType === 1 && f.fareClass === 1))
-    .map(f => `<div class="fareRow"><span class="fareK">${escHtml(thsrFareCodeName('ticketType', f.ticketType))}・${escHtml(thsrFareCodeName('fareClass', f.fareClass))}・${escHtml(thsrFareCodeName('cabinClass', f.cabinClass))}</span><span class="fareV">NT$${i18nNumber(f.price)}</span></div>`)
-    .join('');
-  return `<div class="fareExpand">` +
-    `<div class="fareHead">${escHtml(t('{o} → {d}・一般票成人', { o: originName, d: destName }))}</div>` +
-    priceRow('標準座', trio.std) + priceRow('商務座', trio.biz) + priceRow('自由座', trio.unreserved) +
-    (otherRows ? `<button type="button" class="fareMore" data-fare-other="${escHtml(otherKey)}">${escHtml(otherOpen ? t('收合') : t('其他票種'))}</button>` : '') +
-    (otherOpen ? `<div class="fareOther">${otherRows}</div>` : '') +
-    `</div>`;
+  const stamp = thsrSeatStampHM();
+  const head = `<div class="fp-train"><span class="fp-no">${escHtml(String(pg.train))}</span>` +
+    `<span class="fp-od">${escHtml(t('{sys}・{o} → {d}・{hm}', { sys: t('高鐵'), o: stationName(pg.origin, 'thsr_sched'), d: stationName(pg.dest, 'thsr_sched'), hm: pg.hm }))}</span></div>` +
+    `<div class="fp-seat">${thsrSeatTextHtml(pg.origin, pg.dest, pg.train)}` +
+    (stamp && thsrSeatRec(pg.origin, pg.dest, pg.train) ? `<span class="fp-stamp">${escHtml(t('官方座位表 {hm}', { hm: stamp }))}</span>` : '') + `</div>`;
+  if (!trio) return head + `<div class="fp-main"><div class="fareRow fareEmpty">${escHtml(t('沒有資料'))}</div></div>`;
+  // 其他票種依「票種・優待別」分組,組名用官方原字(thsrFareCodeName 查表後 t()),列名是車廂。
+  const groups = new Map();
+  for (const f of trio.list) {
+    if (f.ticketType === 1 && f.fareClass === 1) continue;
+    const key = thsrFareCodeName('ticketType', f.ticketType) + '・' + thsrFareCodeName('fareClass', f.fareClass);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(f);
+  }
+  const groupHtml = [...groups.entries()].map(([title, rows]) =>
+    `<div class="fp-group"><div class="fareHead">${escHtml(title)}</div>` +
+    rows.map(f => `<div class="fareRow"><span class="fareK">${escHtml(thsrFareCodeName('cabinClass', f.cabinClass))}</span><span class="fareV">NT$${i18nNumber(f.price)}</span></div>`).join('') +
+    `</div>`).join('');
+  return head +
+    `<div class="fp-main"><div class="fareHead">${escHtml(t('一般票・成人'))}</div>` +
+    priceRow('標準座', trio.std) + priceRow('商務座', trio.biz) + priceRow('自由座', trio.unreserved) + `</div>` +
+    groupHtml +
+    `<p class="fp-note">${escHtml(t('票價為台灣高鐵公司公告票價表字面，未含優惠活動；實際以購票系統為準。'))}</p>`;
 }
 
 // 靜態轉乘表索引。配對本身已由 scripts/build_station_transfers.mjs 用各來源站碼、有限站名規則＋座標建好；
@@ -27668,7 +27805,7 @@ function jumpToNow() {
 // 手機底部 sheet 家族(看板/最愛/旅程/探索/軌道/今日/誤點履歷 + 「列車」sheet):互斥開啟。
 // nearCard(附近車站)2026-07-25 起併入 sheet 家族:它原本是上錨卡(頂緣 y=152、高 462),
 // 手機上直接把地圖中心埋在卡內 274px——藍點必然看不到。改成底部 sheet 後與看板/列車同一組幾何與三段高。
-const SHEET_PANEL_IDS = ['board', 'favPanel', 'ridePanel', 'explorePanel', 'searchPanel', 'trackPanel', 'fontPanel', 'todayPanel', 'delayHistPanel', 'nearCard'];
+const SHEET_PANEL_IDS = ['board', 'favPanel', 'ridePanel', 'explorePanel', 'searchPanel', 'trackPanel', 'fontPanel', 'todayPanel', 'delayHistPanel', 'nearCard', 'busStopPanel'];
 // 目前開啟中的那張 sheet(至多一張;含「列車」sheet)——供三段高定位
 function activeSheetEl() {
   const tc = document.getElementById('trainCard');
@@ -28074,7 +28211,7 @@ function renderStockIntro(r) {
 // 所以這一區是【非同步後到】的:先畫鐵道結果,公車回來了再補進同一張下拉。
 // 🔴 後到的結果要驗「查詢字串還是不是同一個」——使用者打字比網路快,不驗就會把上一個查詢的
 // 結果蓋在新的查詢上,而畫面看起來完全正常。
-const BUS_STOP_ROWS = 6;
+const BUS_STOP_ROWS = 6;   // 一開始先列 6 個;其餘由「還有 N 個站牌」那顆鈕展開(Worker 端本來就只回 12)
 const BUS_SEARCH_DEBOUNCE_MS = 260;
 let busSearchTimer = null, busSearchToken = 0;
 // 每一種到站狀態各自對到一段文案。🔴 官方給了五種語意（見 scripts/bus_live_core.mjs 的來源引用），
@@ -28109,42 +28246,139 @@ function scheduleBusSearch(q) {
       if (token !== busSearchToken) return;                    // 使用者已經改字,丟掉這一份
       const inp = document.getElementById('trainSearch');
       if (!inp || inp.value.trim() !== query) return;
-      state._searchBus = { query, total: body.total || 0, rows: (body.rows || []).slice(0, BUS_STOP_ROWS) };
+      state._searchBus = { query, total: body.total || 0, rows: body.rows || [], shown: BUS_STOP_ROWS };
       renderSearchDrop({ keepBus: true });
     } catch (e) { if (token === busSearchToken) state._searchBus = null; }
   }, BUS_SEARCH_DEBOUNCE_MS);
 }
-// 點某個站牌 → 拉那一站的下一班,畫在下拉裡（版面沿用觀光列車介紹卡,不另做樣式）。
-async function renderBusStopCard(stop) {
-  const drop = document.getElementById('searchDrop');
-  if (!drop || !stop) return;
-  state._busStopCard = stop;
-  const head = `<div class="sd-named"><b class="tn">${escHtml(stop.name)}</b>`
-    + `<span class="sys-chip">${escHtml(t('公車'))}</span>`
-    + `<span class="tr-meta">${escHtml(stop.cityLabel || stop.city)}</span>`;
-  drop.innerHTML = head + `<p>${escHtml(t('查詢中…'))}</p></div>`;
-  openSearchDrop();
-  const token = ++busSearchToken;
+// ── 公車站牌 sheet ────────────────────────────────────────────────────────
+// 點某個站牌 → 開一張 sheet(不再畫在搜尋下拉裡)。下拉是暫態清單:沒有卡頭、沒有地圖連結、
+// 沒有返回、沒有刷新可以掛,路線多了只能無聲截斷,而且它一失焦就消失——一份「會過期的即時表」
+// 需要的東西它一樣都給不了。站牌與車站看板同類,所以住進同一種殼(見 SHEET_PANEL_IDS)。
+const BUS_STOP_REFRESH_MS = 30000;   // 30 秒重抓一次:上游 direct-bulk 快照本身約 20 秒一輪
+const BUS_STOP_STALE_MS = 90000;     // 超過 90 秒沒有成功更新 ⇒ 點轉金色、給一顆更新鈕
+let busStopPanel = null;             // { stop, body, error, fetchedAtMs } —— 開著才有值
+let busStopPanelTimer = null;
+let busStopPanelToken = 0;
+function closeBusStopPanel() {
+  const el = document.getElementById('busStopPanel');
+  if (!el) return;
+  busStopPanel = null;
+  busStopPanelToken += 1;             // 在途的回應回來時認不得這個 token,不會往已關的面板寫
+  clearInterval(busStopPanelTimer); busStopPanelTimer = null;
+  el.hidden = true; el.innerHTML = ''; el.onclick = null;
+  updateSheetOpenClass();
+}
+function openBusStopPanel(stop) {
+  if (!stop) return;
+  soloPanel('busstop');
+  closeSearchDrop();
+  busStopPanel = { stop, body: null, error: null, fetchedAtMs: null };
+  renderBusStopPanel();
+  refreshBusStopPanel();
+  clearInterval(busStopPanelTimer);
+  busStopPanelTimer = setInterval(refreshBusStopPanel, BUS_STOP_REFRESH_MS);
+}
+async function refreshBusStopPanel() {
+  const cur = busStopPanel;
+  if (!cur) return;
+  const token = ++busStopPanelToken;
   let body = null;
   try {
-    const r = await fetch('/api/bus-stop-live?stop=' + encodeURIComponent(stop.stationUid));
+    const r = await fetch('/api/bus-stop-live?stop=' + encodeURIComponent(cur.stop.stationUid));
     if (r.ok) body = await r.json();
   } catch (e) { body = null; }
-  if (token !== busSearchToken || state._busStopCard !== stop) return;
+  if (token !== busStopPanelToken || busStopPanel !== cur) return;   // 使用者已經換站或關掉了
   if (!body || body.error) {
-    drop.innerHTML = head + `<p>${escHtml(t('目前拿不到這一站的即時到站'))}</p>`
-      + `<div class="sd-note">${escHtml(t('實際到站時間請以各公車業者官方資訊為準'))}</div></div>`;
-    openSearchDrop(); return;
+    // 🔴 拿不到即時【不清掉】既有的路線清單:那是兩件事,清掉等於用一次失敗抹掉還有效的資訊。
+    cur.error = true;
+  } else {
+    cur.body = body; cur.error = false; cur.fetchedAtMs = Date.now();
   }
-  const routes = (body.routes || []).slice(0, 12);
-  const rows = routes.length
-    ? routes.map(r => `<div class="row bus-eta-row"><span class="nm">${escHtml(r.routeName)}</span>`
-      + `<span class="tr-meta">${escHtml(r.arrivals.map(a => busEtaText(a.live)).join(' · '))}</span></div>`).join('')
-    : `<p>${escHtml(t('這一站目前沒有任何路線回報'))}</p>`;
-  const srcName = body.source && body.source.attribution ? body.source.attribution : '';
-  drop.innerHTML = head + rows
-    + `<div class="sd-note">${escHtml(t('實際到站時間請以各公車業者官方資訊為準'))}${srcName ? '　' + escHtml(srcName) : ''}</div></div>`;
-  openSearchDrop();
+  renderBusStopPanel();
+}
+// 這一份快照是幾點的:direct-bulk 有來源自己的 updateTime／snapshotAt,tdx-per-stop 只有我們
+// 抓到的時間。一律照抄來源給的那個,沒有才退回抓取時間;兩者都沒有就不寫時間(不編)。
+function busStopDataAtMs(body, fallbackMs) {
+  const src = body && body.source;
+  for (const v of [src && src.snapshotAt, src && src.updateTime, src && src.fetchedAt]) {
+    const ms = v ? Date.parse(v) : NaN;
+    if (Number.isFinite(ms)) return ms;
+  }
+  return fallbackMs || null;
+}
+function busStopHM(ms) {
+  const d = new Date(ms);
+  return fmtHM(d.getHours() * 3600 + d.getMinutes() * 60);
+}
+// 一列的右欄:下一班(大)與再下一班(小)。狀態字沿用 TDX 字面(busEtaText),
+// 顏色只分三種語意——來了(綠)、今天沒了/沒資料(淡)、其餘照常(主色)。
+const BUS_ETA_NOW = new Set(['arriving']);
+const BUS_ETA_IDLE = new Set(['not_departed', 'skipped', 'last_bus_passed', 'not_operating', 'no_estimate', 'unknown', 'stale']);
+function busEtaKind(live) {
+  if (!live) return 'dead';
+  if (BUS_ETA_NOW.has(live.state)) return 'now';
+  if (BUS_ETA_IDLE.has(live.state)) return 'idle';
+  return 'min';
+}
+function busStopRowHtml(r) {
+  const a0 = (r.arrivals || [])[0], a1 = (r.arrivals || [])[1];
+  const dirLabel = r.direction === 0 ? t('去程') : r.direction === 1 ? t('返程') : '';
+  const kind = busEtaKind(a0 && a0.live);
+  const later = a1 && a1.live ? t('再 {eta}', { eta: busEtaText(a1.live) }) : '';
+  return `<div class="bus-eta-row"><span class="bus-eta-no">${escHtml(r.routeName)}</span>` +
+    `<span class="bus-eta-to">${escHtml(dirLabel)}</span>` +
+    `<span class="bus-eta-when"><span class="bus-eta-next" data-k="${kind}">${escHtml(a0 ? busEtaText(a0.live) : t('無即時資料'))}</span>` +
+    `<span class="bus-eta-later">${escHtml(later)}</span></span></div>`;
+}
+function renderBusStopPanel() {
+  const el = document.getElementById('busStopPanel');
+  const cur = busStopPanel;
+  if (!el) return;
+  if (!cur) { el.hidden = true; el.innerHTML = ''; updateSheetOpenClass(); return; }
+  const stop = cur.stop, body = cur.body;
+  const sub = [stop.cityLabel || stop.city].filter(Boolean).join(' · ');
+  let html = `<h3>${escHtml(stop.name)}<span class="sys-chip">${escHtml(t('公車'))}</span>` +
+    `<button class="close" id="busStopClose" aria-label="${escHtml(t('關閉'))}">×</button></h3>` +
+    (sub ? `<div class="sub">${escHtml(sub)}</div>` : '');
+  const pos = stop.position || (body && body.stop && body.stop.position);
+  if (pos && pos.lat != null && pos.lon != null)
+    html += `<a class="mapLink" href="https://www.google.com/maps/search/?api=1&query=${pos.lat},${pos.lon}" target="_blank" rel="noopener">${escHtml(t('在 Google 地圖開啟 ↗'))}</a>`;
+  if (!body && !cur.error) { html += `<p>${escHtml(t('查詢中…'))}</p>`; el.innerHTML = html; el.hidden = false; updateSheetOpenClass(); bindBusStopPanel(el); return; }
+  // 新鮮度條:永遠把「這一份是幾點的」寫出來。放久了轉金色並給更新鈕。
+  const atMs = busStopDataAtMs(body, cur.fetchedAtMs);
+  const ageMs = cur.fetchedAtMs ? Date.now() - cur.fetchedAtMs : null;
+  const stale = cur.error || (ageMs != null && ageMs > BUS_STOP_STALE_MS);
+  const ageMin = ageMs == null ? null : Math.floor(ageMs / 60000);
+  html += `<div class="bus-fresh"${stale ? ' data-stale' : ''}><span class="bf-txt">` +
+    escHtml(atMs ? t('資料時間 {hm}', { hm: busStopHM(atMs) }) : t('無即時資料')) +
+    (stale ? '' : ' · ' + escHtml(t('每 {n} 秒自動更新', { n: i18nNumber(BUS_STOP_REFRESH_MS / 1000) }, BUS_STOP_REFRESH_MS / 1000))) +
+    (stale && ageMin != null && ageMin > 0 ? ' · ' + escHtml(t('已過 {n} 分', { n: i18nNumber(ageMin) }, ageMin)) : '') +
+    `</span>${stale ? `<button type="button" class="bf-go" id="busStopGo">${escHtml(t('更新'))}</button>` : ''}</div>`;
+  if (cur.error)
+    html += `<div class="bus-warn"><span>${escHtml(t('即時到站暫時拿不到'))}</span>` +
+      `<button type="button" class="bf-go" id="busStopRetry">${escHtml(t('重試'))}</button></div>`;
+  const routes = (body && body.routes) || [];
+  if (routes.length) {
+    html += `<div class="bus-sec"><b>${escHtml(t('路線'))}</b><span>` +
+      escHtml(t('{n} 條', { n: i18nNumber(routes.length) }, routes.length)) + ' · ' + escHtml(t('依下一班排序')) + `</span></div>`;
+    // 🔴 不截斷:sheet 捲得動,而「還有幾條沒給你看」在站牌這種場合是真的會害人錯過車。
+    html += routes.map(busStopRowHtml).join('');
+  } else if (body) {
+    html += `<div class="bus-empty"><b>${escHtml(t('這一站目前沒有路線回報'))}</b>` +
+      `<span>${escHtml(t('站牌在，但今天沒有任何路線回報經過這裡。'))}</span></div>`;
+  }
+  const srcName = body && body.source && body.source.attribution ? body.source.attribution : '';
+  html += `<p class="bus-note">${escHtml(t('實際到站時間請以各公車業者官方資訊為準'))}${srcName ? '　' + escHtml(srcName) : ''}</p>`;
+  el.innerHTML = html; el.hidden = false; updateSheetOpenClass();
+  bindBusStopPanel(el);
+}
+function bindBusStopPanel(el) {
+  const close = el.querySelector('#busStopClose'); if (close) close.onclick = closeBusStopPanel;
+  for (const id of ['busStopGo', 'busStopRetry']) {
+    const b = el.querySelector('#' + id);
+    if (b) b.onclick = () => { refreshBusStopPanel(); };
+  }
 }
 const SEARCH_STN_ROWS = 12;
 // 常駐搜尋框的下拉:列車名稱區＋車次區(含數字才出現,置頂)＋車站區＋公車站牌區(非同步後到)。
@@ -28156,7 +28390,6 @@ function renderSearchDrop(opts) {
   const inp = document.getElementById('trainSearch'), drop = document.getElementById('searchDrop');
   if (!inp || !drop) return;
   state._namedIntro = null;
-  state._busStopCard = null;
   const q = inp.value;
   // 公車那一區自己 debounce 打 Worker;keepBus 代表這一輪是「公車結果回來了」觸發的重繪,
   // 不可以再排一次查詢,否則兩者互相觸發變成無限迴圈。
@@ -28225,13 +28458,21 @@ function renderSearchDrop(opts) {
   const bus = state._searchBus;
   if (bus && bus.rows.length) {
     html += `<div class="sd-sec">${escHtml(t('公車站牌'))}</div>`;
-    html += bus.rows.map((s, i) => {
+    const shown = bus.shown || BUS_STOP_ROWS;
+    html += bus.rows.slice(0, shown).map((s, i) => {
       const routes = (s.routes || []).slice(0, 6).join('、');
       return `<div class="row bus-row" data-bi="${i}"><span class="nm">${escHtml(s.name)}</span>`
         + `<span class="sys-chip">${escHtml(s.cityLabel || s.city)}</span>`
         + `<span class="tr-meta">${escHtml(routes)}${(s.routes || []).length > 6 ? '…' : ''}</span></div>`;
     }).join('');
-    html += `<div class="stn-count">${escHtml(t('共 {n} 個站牌符合', { n: i18nNumber(bus.total) }, bus.total))}${bus.total > bus.rows.length ? escHtml(t('（顯示前 {n}）', { n: i18nNumber(bus.rows.length) }, bus.rows.length)) : ''}</div>`;
+    // 🔴 截斷本身沒問題,不講才有問題。原本句尾一句「（顯示前 6）」把「還有」寫成註腳,
+    // 而使用者在找的那一個很可能就在被切掉的那幾列裡。改成一顆按得到的鈕,按了就全部列出來。
+    const rest = bus.rows.length - shown;
+    if (rest > 0)
+      html += `<button type="button" class="sd-more" data-bus-more="1">` +
+        escHtml(t('還有 {n} 個站牌', { n: i18nNumber(rest) }, rest)) + `</button>`;
+    html += `<div class="stn-count">${escHtml(t('共 {n} 個站牌符合', { n: i18nNumber(bus.total) }, bus.total))}` +
+      `${bus.total > bus.rows.length ? escHtml(t('，這裡列得出前 {n} 個', { n: i18nNumber(bus.rows.length) }, bus.rows.length)) : ''}</div>`;
   }
   // 設計 3h 的空結果文案:只講「查無」對使用者沒有下一步,補一句最常見的原因(誠實線的講法,不保證)
   if (!trs.length && !stnShown.length && !named.infos.length && !typed.stocks.length && !(bus && bus.rows.length))
@@ -28240,7 +28481,7 @@ function renderSearchDrop(opts) {
   openSearchDrop();
 }
 function openSearchDrop() { const d = document.getElementById('searchDrop'); if (d) d.hidden = false; }
-function closeSearchDrop() { const d = document.getElementById('searchDrop'); if (d) d.hidden = true; state._namedIntro = null; state._stockIntro = null; state._busStopCard = null; }
+function closeSearchDrop() { const d = document.getElementById('searchDrop'); if (d) d.hidden = true; state._namedIntro = null; state._stockIntro = null; }
 // ── 查詢面板(手機專屬;v0726a 起是 tab bar 放大鏡的落點)──
 // 面板本身不持有查詢 DOM:.search 由 placeSearch() 搬進 #searchSlot;瀏覽態只負責露出它、不叫鍵盤,收面板時鍵盤跟著收。
 // 桌面走不到(搜尋框常駐 header、tab bar 不顯示);跨回桌面時 placeSearch 會順手關掉。
@@ -28435,6 +28676,7 @@ function soloPanel(keep) {
   if (keep !== 'track') closeTrackPanel();
   if (keep !== 'font') closeFontPanel();
   if (keep !== 'today') closeTodayPanel();
+  if (keep !== 'busstop') closeBusStopPanel();
   if (keep !== 'delayhist') closeDelayHist();
   if (keep !== 'train') closeTrainSheet();
 }
@@ -28681,13 +28923,13 @@ function saveLastBoard(st) {
   if (!st || !st.name || !st.sys) return;
   try { localStorage.setItem(LAST_BOARD_KEY, JSON.stringify({ sys: st.sys, name: st.name })); } catch (e) {}
 }
-function openBoard(st) { soloPanel('board'); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel(); closeDelayHist(); closePinCard(); closeNearbyStations(); closeSugarCard(); boardRxOpen.clear(); boardFareOpen.clear(); state.boardStation = st; saveLastBoard(st); uniTab = 'station'; uniUncollapseForBoard(); renderBoard(); }
+function openBoard(st) { soloPanel('board'); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel(); closeDelayHist(); closePinCard(); closeNearbyStations(); closeSugarCard(); boardRxOpen.clear(); boardFarePage = null; state.boardStation = st; saveLastBoard(st); uniTab = 'station'; uniUncollapseForBoard(); renderBoard(); }
 function closeBoard() {
   unmountUniCard(); // 先把跟車卡搬回家,再清 innerHTML——否則它會跟著被清掉
   busTransferCloseBoard();
   state.boardStation = null;
   boardRxOpen.clear(); // 展開態屬於這一張看板,關掉就結束
-  boardFareOpen.clear(); // 單元 A:票價展開態同一套理由,一起清
+  boardFarePage = null;  // 票價子頁屬於這一張看板,關掉就結束
   const el = document.getElementById('board');
   el.hidden = true; el.innerHTML = '';
   updateSheetOpenClass();
@@ -29510,11 +29752,14 @@ function renderBoard() {
 // renderBoardBody(perGroup 3/6)與查詢答案區(perGroup 1)共用同一份——答案區的字面必須等於看板同組第一列,
 // 所以不准有第二份產生器(spec §4.3)。
 function schedBoardListHtml(st, rows, perGroup) {
-  // 高鐵座位徽章／票價鈕僅限高鐵站板(單元 A,2026-09-11):台鐵/林鐵/捷運都沒有對號座概念。
-  // 答案區(perGroup=1)只出徽章不出票價鈕——那裡點列是「開看板」(renderQueryAnswer 的
-  // wrap.onclick,不是下面 renderBoardBody 的 el.onclick),沒有對應的按鈕守門,掛了會被
-  // 答案區自己的點擊誤判成開看板;徽章是純顯示的 <span>,兩處都安全。
+  // 高鐵座位與票價副列僅限高鐵站板:台鐵/林鐵/捷運都沒有對號座概念。
+  // 答案區(perGroup=1)完全不出副列——那裡點列是「開看板」(renderQueryAnswer 的 wrap.onclick,
+  // 不是下面 renderBoardBody 的 el.onclick),沒有對應的按鈕守門,票價鈕掛上去會被答案區自己的
+  // 點擊誤判成開看板;而答案區只有一列,「這一班有沒有位子」在那裡也不是它要回答的問題。
   const isThsr = st.sys === 'thsr_sched';
+  // 整站的班次在官方座位表都查不到時(實測左營就是這樣),逐列各寫一次「座位狀態未提供」太吵;
+  // 改由看板導言講一次(見 renderBoardBody 的 seatNote),列上只留票價。
+  const anySeat = isThsr && rows.some(r => !r.off && !r.isLast && thsrSeatRec(st.name, r.dest, r.tr.train));
   const rowHtml = r => {
     const minutes = Math.round(r.dtm / 60);
     const min = r.off ? t('停駛') : r.dtm < 60 ? t('即將') : t('{n} 分', { n: i18nNumber(minutes) }, minutes);
@@ -29525,14 +29770,14 @@ function schedBoardListHtml(st, rows, perGroup) {
     // I-1:答案區(perGroup=1)點列是開看板(見 renderQueryAnswer 的 wrap.onclick),不是跟車——
     // 「跟隨 N 次」的 tooltip 在那裡是假話,只在真正的看板(perGroup 3/6)才掛。
     const title = perGroup === 1 ? '' : ` title="${escHtml(t('跟隨 {train} 次', { train: r.tr.train }))}"`;
-    // 單元 A:徽章與票價入口只在「還有下一段行程」的列出現(終點到達/停駛沒有 OD 可言,
-    // r.dest 對它們也沒有意義)。key 用「起站|訖站」,同一對站不分車次共用同一份展開狀態。
-    const thsrOnward = isThsr && !r.off && !r.isLast;
-    const seatBadge = thsrOnward ? thsrSeatBadgeHtml(st.name, r.dest, r.tr.train) : '';
-    const fareKey = st.name + '|' + r.dest;
-    const showFare = thsrOnward && perGroup !== 1;
-    const fareBtn = showFare ? thsrFareBtnHtml(st.name, r.dest) : '';
-    const fareExpand = showFare && boardFareOpen.has(fareKey) ? thsrFareExpandHtml(st.name, r.dest) : '';
+    // 座位與票價副列只在「還有下一段行程」的列出現(終點到達/停駛沒有 OD 可言,r.dest 對它們
+    // 也沒有意義)。整站無座位資料時左半留空、只剩票價(anySeat)。
+    const hm = fmtHM(r.t % 86400);
+    const showSub = isThsr && !r.off && !r.isLast && perGroup !== 1;
+    const subRow = showSub
+      ? `<div class="brow-sub">${anySeat ? thsrSeatTextHtml(st.name, r.dest, r.tr.train) : '<span></span>'}`
+        + thsrFareBtnHtml(st.name, r.dest, r.tr.train, hm) + `</div>`
+      : '';
     return `<div data-night-at="${state.simSec + r.dtm}" class="row${r.off ? ' off' : ''}${rx}"${r.off ? '' : ` data-no="${escHtml(r.tr.train)}" data-sys="${escHtml(r.tr.sys || '')}"${title}`}><span class="dot" style="background:${r.tr.color}"></span>` +
       // 「推算」標貼著時刻放(被推算的是時間不是路線),與 lateTag 同位、不會同時出現(est 車無誤點資料);
       // 放 dest 欄會把「（終點到達）」擠成「(…」(280px 看板實測;v0901 加寬到 360 後未重測,維持原做法)。
@@ -29541,11 +29786,10 @@ function schedBoardListHtml(st, rows, perGroup) {
       `<b>${escHtml(r.tr.train)}</b><span class="dest"><span class="ty">${escHtml(r.tr.loop ? t(r.tr.loopName) : trainTypeName(r.tr.typeName))}</span>　<span class="to">${escHtml(dest)}</span>${!r.off ? (window.RailPlatforms?.slot(r.tr,r.stop,r.isLast?'arrival':'departure',r.t)||'') : ''}</span>` +
       // 時刻本身另包一層 .hm:大檔要把「誤點/推算」標排到第二行的方向後面(設計 6b),
       // 那需要 .t 交出排版權(display:contents),交出去之後裸文字節點就抓不到了。標準檔字元不變。
-      `<span class="t"><span class="hm">${fmtHM(r.t % 86400)}</span>${r.off ? '' : r.tr.est ? `<span class="estTag">${escHtml(t('推算'))}</span>` : r.dl > 0 ? `<span class="lateTag" data-min="${r.dl}">+${i18nNumber(r.dl)}</span>` : ''}${seatBadge}</span><span class="min">${escHtml(min)}</span>` +
-      fareBtn +
+      `<span class="t"><span class="hm">${hm}</span>${r.off ? '' : r.tr.est ? `<span class="estTag">${escHtml(t('推算'))}</span>` : r.dl > 0 ? `<span class="lateTag" data-min="${r.dl}">+${i18nNumber(r.dl)}</span>` : ''}</span><span class="min">${escHtml(min)}</span>` +
       // 收掉的欄位一定要有可達路徑(設計 6b 明文):這顆只在特大出現,點開就是原本那三個欄位。
       `<button class="rmore" type="button" tabindex="-1" aria-label="${escHtml(t('顯示車種與方向'))}">›</button></div>` +
-      fareExpand;
+      subRow;
   };
   // 依方向分組。空組不畫;組內維持時間序,各取 perGroup 班。
   const byKey = new Map();
@@ -29575,6 +29819,23 @@ function renderBoardBody() {
   if (state.mode !== 'sched') { renderFreqBoard(el, st, metroBoardLines(st, state.lines), false); appendBusTransferBoard(el, st, busTransferId); return; } // 捷運/輕軌分頁走獨立邏輯,sched(台鐵/高鐵)以下維持原樣;同名站只讀自己所屬系統
   if (st.sys === 'deco') { renderFreqBoard(el, st, metroBoardLines(st, state.decoLines), true); appendBusTransferBoard(el, st, busTransferId); return; } // 全台同框:點裝飾層捷運站,同款看板但讀 decoLines(無 state.visible 個別開關);同樣依系統分開,避免跨城市同名站合併
   const rows = schedBoardRows(st);
+  // 票價子頁:整張卡換成票價頁(卡頭「‹ ○○看板」＋×)。刻意走同一支 renderBoardBody,
+  // 看板每 20 模擬秒的重繪才不會把子頁掀掉;返回時還原進來之前的捲動位置。
+  if (boardFarePage && st.sys === 'thsr_sched') {
+    const pg = boardFarePage;
+    el.innerHTML = `<h3><button type="button" class="fp-back" id="fareBack">${escHtml(t('{station}看板', { station: stationName(st.name, st.sys) }))}</button>` +
+      `<button class="close" id="boardClose" aria-label="${escHtml(t('關閉'))}">×</button></h3>` +
+      `<div class="fare-page">${thsrFarePageHtml(pg, st)}</div>`;
+    el.hidden = false; updateSheetOpenClass(); syncUniCard(); el._stnKey = stnKey;
+    if (el._fareEnteredFrom !== pg) { el.scrollTop = 0; el._fareEnteredFrom = pg; }
+    el.querySelector('#boardClose').onclick = closeBoard;
+    el.querySelector('#fareBack').onclick = () => {
+      boardFarePage = null; el._fareEnteredFrom = null;
+      renderBoard();
+      const b = document.getElementById('board'); if (b) b.scrollTop = boardFareReturnTop;
+    };
+    return;
+  }
   // 單元 A:進到高鐵板才觸發座位/票價抓取(比照 loadThsrFreeSeat 的「跟到高鐵車才抓」節流精神,
   // 這裡改成「開到高鐵板才抓」——座位/票價是看板徽章,不是跟車卡),未抓過(undefined)才發起;
   // 抓完只有『還在同一站』才重繪,避免使用者早已切到別站卻被遲到的回應打斷。
@@ -29589,6 +29850,16 @@ function renderBoardBody() {
   const fav = isFavStation(st);
   // 共構站(台北/板橋/南港…)台鐵/高鐵各自成板,標題標系統才分得清這張是誰的
   const sysName = (state.systems.find(x => x.id === st.sys) || {}).label || '';
+  // 高鐵導言的座位那一句:有資料就寫「這是幾點的座位表」,整站都查不到就說一次「暫不顯示」
+  // (設計 2c:左營三班在官方座位表都是 0 筆,逐列各寫一次「未提供」太吵)。
+  let seatNote = '';
+  if (st.sys === 'thsr_sched' && _thsrSeatCache) {
+    const any = rows.some(r => !r.off && !r.isLast && thsrSeatRec(st.name, r.dest, r.tr.train));
+    const stamp = thsrSeatStampHM();
+    seatNote = any
+      ? (stamp ? '<br>' + escHtml(t('對號座狀態為官方 {hm} 座位表字面', { hm: stamp })) : '')
+      : '<br>' + escHtml(stamp ? t('本站班次在官方座位表 {hm} 無資料，對號座狀態暫不顯示', { hm: stamp }) : t('本站班次在官方座位表無資料，對號座狀態暫不顯示'));
+  }
   // 末班車提醒入口:台鐵/高鐵站限定(afr/捷運不顯示)、原生 App 才有;鈕必放 sticky h3 內(v0717p 鐵則)
   const showNotify = NOTIFY_LOCAL_ENABLED && (st.sys === 'tra_sched' || st.sys === 'thsr_sched');
   el.classList.toggle('has-notify', showNotify);
@@ -29603,7 +29874,7 @@ function renderBoardBody() {
     `<div class="sub">${escHtml(t('接下來 3 小時會有誰來'))} · ${escHtml(t(st.sys === 'afr_sched' ? '依林鐵官方時刻表（無即時資訊）' : liveFresh() ? '已套用台鐵即時誤點' : liveActive() ? '已依即時誤點推估' : '依時刻表（無誤點資訊）'))}${
       // 有停駛才多這一段;零停駛時整條副標與改動前逐字相同
       st.sys === 'tra_sched' && state.traDaily && state.traDaily.cancelled
-        ? ' · ' + escHtml(t('今日官方停駛 {n} 班', { n: i18nNumber(state.traDaily.cancelled) }, state.traDaily.cancelled)) : ''} · ${escHtml(t('點班次跟隨'))}</div>` +
+        ? ' · ' + escHtml(t('今日官方停駛 {n} 班', { n: i18nNumber(state.traDaily.cancelled) }, state.traDaily.cancelled)) : ''} · ${escHtml(t('點班次跟隨'))}${seatNote}</div>` +
     (list || `<div class="empty">${escHtml(t('此時段無停靠班次'))}</div>`) +
     (busTransferId ? '<div class="btu-board-slot" data-bus-transfer-slot></div>' : '');
   // 等站卡選單要的是【這張板算出來的那一份 rows】:時鐘被帶回「現在」之後會重繪一次,
@@ -29627,7 +29898,7 @@ function renderBoardBody() {
   // 所以 pointerdown 先把車次記在持久的 el 上,click 撈不到列時用記下的補。
   el.onpointerdown = e => {
     if (e.target.closest('.rmore')) { el._downNo = null; el._downSys = null; return; } // 展開鈕不是跟車熱區
-    if (e.target.closest('.fareBtn') || e.target.closest('.fareExpand')) { el._downNo = null; el._downSys = null; return; } // 單元 A:票價鈕與展開層不是跟車熱區
+    if (e.target.closest('.fareBtn')) { el._downNo = null; el._downSys = null; return; } // 票價鈕不是跟車熱區
     const row = e.target.closest('.row[data-no]');
     el._downNo = row ? row.dataset.no : null;
     el._downSys = row ? row.dataset.sys : null;   // 車次補記的同時也補記系統,否則重號時補回來的是別家的車
@@ -29648,26 +29919,18 @@ function renderBoardBody() {
       }
       return;
     }
-    // 單元 A(2026-09-11):票價鈕與「其他票種」子開關。兩者都用完整重繪反映新狀態——renderBoard
-    // 會保留捲動位置(preserveScroll,見該函式頂端說明),點擊頻率遠低於 .rmore(那顆才需要
-    // 不重繪的即時手感),用重繪換取「不必手刻 DOM patch」的簡單、不會跟資料不同步。
+    // 票價鈕 → 開票價子頁(設計 2b:不往下長,整個 body 換成票價頁)。先記下現在的捲動位置,
+    // 返回時還原——使用者是從第七班車按下去的,回來不該被丟回最上面。
     const fareBtn = e.target.closest('.fareBtn');
     if (fareBtn) {
       e.stopPropagation();
-      const key = fareBtn.dataset.fareKey;
-      if (boardFareOpen.has(key)) boardFareOpen.delete(key); else boardFareOpen.add(key);
+      const [origin, dest] = String(fareBtn.dataset.fareKey || '').split('|');
+      if (!origin || !dest) return;
+      boardFareReturnTop = el.scrollTop;
+      boardFarePage = { origin, dest, train: fareBtn.dataset.fareNo || '', hm: fareBtn.dataset.fareHm || '' };
       renderBoard();
       return;
     }
-    const fareMore = e.target.closest('.fareMore');
-    if (fareMore) {
-      e.stopPropagation();
-      const key = fareMore.dataset.fareOther;
-      if (boardFareOpen.has(key)) boardFareOpen.delete(key); else boardFareOpen.add(key);
-      renderBoard();
-      return;
-    }
-    if (e.target.closest('.fareExpand')) { e.stopPropagation(); return; } // 展開層內其餘點擊不觸發跟車
     const row = e.target.closest('.row[data-no]');
     const no = row ? row.dataset.no : el._downNo;
     const sys = row ? row.dataset.sys : el._downSys;
@@ -35659,8 +35922,9 @@ try { initMusic(); } catch (e) { console.error('initMusic 失敗', e); }
     if (trRow) { const o = (state._searchTrains || [])[+trRow.dataset.ti]; if (o) { closeSearchDrop(); followNo(String(o.tr.train), o.sys && o.sys.id); } return; }
     const stRow = e.target.closest('.row.stn-row');
     if (stRow) { const st = (state._searchStns || [])[+stRow.dataset.i]; if (st) gotoStn(st); return; } // gotoStn 內已 closeSearchDrop
+    if (e.target.closest('[data-bus-more]')) { if (state._searchBus) state._searchBus.shown = state._searchBus.rows.length; renderSearchDrop({ keepBus: true }); return; }
     const busRow = e.target.closest('.row.bus-row');
-    if (busRow) { const s = ((state._searchBus && state._searchBus.rows) || [])[+busRow.dataset.bi]; if (s) renderBusStopCard(s); } // 內部重開下拉
+    if (busRow) { const s = ((state._searchBus && state._searchBus.rows) || [])[+busRow.dataset.bi]; if (s) openBusStopPanel(s); } // 站牌開成 sheet,不再重開下拉
   });
   // 點下拉外部收起(pointerdown 判 closest #searchRow)
   document.addEventListener('pointerdown', e => {

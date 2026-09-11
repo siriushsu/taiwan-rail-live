@@ -21,16 +21,51 @@ const check = (name, fn) => {
   catch (error) { failures += 1; console.error(`FAIL ${name} — ${error.message}`); }
 };
 
-check('搜尋下拉真的有公車站牌區，且點擊有分流', () => {
+check('搜尋下拉真的有公車站牌區，且點擊開的是站牌 sheet', () => {
   assert(/class="row bus-row" data-bi=/.test(index), '沒有 bus-row 列');
   assert(/closest\('\.row\.bus-row'\)/.test(index), 'searchDrop 的 click 沒有分流到 bus-row');
-  assert(/renderBusStopCard\(/.test(index), '沒有到站卡片的渲染函式');
+  // 2026-09-11 設計第二版：到站表不再畫在下拉裡（下拉沒有卡頭／地圖／返回／刷新可以掛），
+  // 改成與車站看板同一種底部 sheet。點下拉列的落點必須是那張 sheet。
+  assert(/function openBusStopPanel\(/.test(index), '沒有站牌 sheet 的開啟函式');
+  assert(/if \(s\) openBusStopPanel\(s\)/.test(index), '點 bus-row 沒有開站牌 sheet');
+  assert(!/renderBusStopCard/.test(index), '舊的下拉卡片渲染函式還在（兩套並存＝兩份真相）');
   assert(/\/api\/bus-stop-search\?q=/.test(index), '沒有呼叫搜尋端點');
   assert(/\/api\/bus-stop-live\?stop=/.test(index), '沒有呼叫到站端點');
 });
 
+// 站牌 sheet 必須真的是 sheet 家族的一員：三段高／讓位／重新取景／互斥開啟全部靠這兩份名單，
+// 漏掉任一份的症狀都不是壞掉而是「行為跟別的面板不一樣」，最難從畫面上看出來。
+check('站牌 sheet 進了 sheet 家族，而且與其他面板互斥', () => {
+  const ids = /const SHEET_PANEL_IDS = \[([^\]]+)\]/.exec(index);
+  assert(ids, '找不到 SHEET_PANEL_IDS');
+  assert(ids[1].includes("'busStopPanel'"), 'SHEET_PANEL_IDS 沒有 busStopPanel');
+  assert(/id="busStopPanel"/.test(index), '沒有 #busStopPanel 這個節點');
+  assert(/class="board bus-stop-panel"/.test(index), '站牌 sheet 沒有沿用 .board 殼');
+  assert(/if \(keep !== 'busstop'\) closeBusStopPanel\(\);/.test(index), 'soloPanel 沒有把站牌 sheet 納入互斥');
+});
+
+// 新鮮度：這一份是幾點的資料一定要寫出來，而且來源給的時間優先於我們自己抓到的時間。
+check('站牌 sheet 會把資料時間寫出來，而且會自己重抓', () => {
+  const fn = index.slice(index.indexOf('function busStopDataAtMs'), index.indexOf('function busStopHM'));
+  assert(/snapshotAt/.test(fn) && /updateTime/.test(fn) && /fetchedAt/.test(fn),
+    '沒有依「來源時間優先、抓取時間墊底」的順序取資料時間');
+  assert(/資料時間 \{hm\}/.test(index), '沒有把資料時間寫進畫面');
+  assert(/setInterval\(refreshBusStopPanel/.test(index), '沒有自動重抓');
+  assert(/BUS_STOP_STALE_MS/.test(index), '沒有「放久了」的判定');
+});
+
+// 兩種空手而回是兩件事：站牌沒有路線回報（資料本身的結論）vs 我們拿不到即時（我們的失敗）。
+// 後者最容易被寫成「把整張表清空」，那等於用一次失敗抹掉還有效的資訊。
+check('拿不到即時的時候不清掉既有的路線清單', () => {
+  const fn = index.slice(index.indexOf('async function refreshBusStopPanel'), index.indexOf('function busStopDataAtMs'));
+  assert(/cur\.error = true;/.test(fn), '失敗時沒有記下錯誤旗標');
+  assert(!/cur\.body = null/.test(fn), '失敗時把既有的路線清單清掉了');
+  assert(/這一站目前沒有路線回報/.test(index), '缺「站牌在但沒有路線回報」的空狀態');
+  assert(/即時到站暫時拿不到/.test(index), '缺「拿不到即時」的警示條');
+});
+
 check('後到的搜尋結果有防過期：查詢字串與 token 都要比對', () => {
-  const fn = index.slice(index.indexOf('function scheduleBusSearch'), index.indexOf('async function renderBusStopCard'));
+  const fn = index.slice(index.indexOf('function scheduleBusSearch'), index.indexOf('// ── 公車站牌 sheet ──'));
   assert(fn.includes('busSearchToken'), '沒有 token 防過期');
   assert(/inp\.value\.trim\(\)\s*!==\s*query/.test(fn), '沒有比對「查詢字串還是不是同一個」');
 });
