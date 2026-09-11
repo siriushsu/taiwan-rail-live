@@ -29615,19 +29615,19 @@
         }
       }
     },
-    "高鐵停靠列車不再為了等通過列車而多停一分鐘": {
+    "高鐵停靠列車在站上的等待縮短，最久的一班從 2 分半降到 44 秒": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "THSR trains that stop no longer wait an extra minute for a passing train"
+            "value": "THSR trains wait less at stations: the longest hold drops from 2.5 minutes to 44 seconds"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "台湾高鐵の停車列車が通過列車を待って1分余計に停車することがなくなりました"
+            "value": "台湾高鐵の駅での待ち時間を短縮：最長の待避が2分半から44秒に"
           }
         }
       }
