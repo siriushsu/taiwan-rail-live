@@ -29615,6 +29615,23 @@
         }
       }
     },
+    "高鐵停靠列車改停外側月台、通過列車走內側正線，派車改用當日班表": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HSR trains that stop now use the outer platform tracks and through trains the inner main lines; track dispatch is built from the daily timetable"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "停車する高鐵列車は外側のホーム線、通過列車は内側の本線を走るように修正し、番線の割り当ては当日の時刻表から作成"
+          }
+        }
+      }
+    },
     "高鐵臺中站": {
       "extractionState": "manual",
       "localizations": {

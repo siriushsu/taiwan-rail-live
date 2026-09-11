@@ -5445,6 +5445,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="thsrtracks0912"><span class="d">9/12</span><span>高鐵停靠列車改停外側月台、通過列車走內側正線，派車改用當日班表</span></li>
         <li data-cl-of="landscapetrees0912"><span class="d">9/12</span><span>地景地圖的山區與海岸不再鋪滿示意樹，公園、村落與河岸的小片林地照舊；地形看得更清楚，拖動也更順</span></li>
         <li data-cl-of="viaduct0912"><span class="d">9/12</span><span>立體地圖的高架橋不再跟著地形起伏，橋面、護欄與橋墩也畫得像真的高架橋</span></li>
         <li data-cl-of="thsrfold0912"><span class="d">9/12</span><span>修正高鐵列車在板橋等地下車站車廂折疊、上下跳動的問題</span></li>
@@ -5452,7 +5453,6 @@
         <li data-cl-of="metrolead0911"><span class="d">9/11</span><span>捷運頁說明更正：台北捷運九線的位置與車站倒數都是官方逐班即時</span></li>
         <li data-cl-of="xfercollapse0911"><span class="d">9/11</span><span>轉乘接續可以收起來了，收合時仍看得到最近一班</span></li>
         <li data-cl-of="thsrseat0911"><span class="d">9/11</span><span>高鐵看板看得到對號座還有沒有位子，也查得到票價</span></li>
-        <li data-cl-of="busstop0911"><span class="d">9/11</span><span>公車站牌可以搜尋了，點進去看得到每條路線還有幾分鐘到</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5460,6 +5460,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="thsrtracks0912"><span class="d">9/12</span><span>高鐵車站股道照真實配置：桃園、新竹、苗栗、台中、彰化、雲林、嘉義、台南、板橋等有通過線的車站，停靠列車一律停外側月台到發線，通過列車走內側正線；股道派車也從 7 月靜態班表改成依當日班表重派。</span></li>
         <li data-cl="landscapetrees0912"><span class="d">9/12</span><span>地景地圖的示意樹改成只長在公園、村落與河岸這類小片林地：山區、海岸與縱谷的林地底圖本來就是整片綠，鋪上千株樹只擋住地形起伏，還拖慢載入</span></li>
         <li data-cl="viaduct0912"><span class="d">9/12</span><span>立體地圖全台軌道縱坡重算：高架橋與平面軌道不再逐點跟著地形上上下下（高鐵橋面最陡從 67% 降到 3.7%）；高架橋補上箱梁、護欄與墩帽，雙線橋墩對齊成排</span></li>
         <li data-cl="thsrfold0912"><span class="d">9/12</span><span>修正高鐵列車在板橋等地下車站車廂一節一節折疊、在地面與地下之間跳的問題：當日班表新增或改點的班次也會沿實體股道行駛，不再退回示意線形</span></li>
@@ -6424,9 +6425,11 @@
 // v0910g：通行證從帳號槽位拆成獨立入口(工具列 #plusBtn ＋「更多」抽屜第二列),網站沒有購買通道時
 //         的通行證面板補上 App Store／Google Play 下載連結。
 // v0912a：高鐵當日班表新增／改點的班次綁回實體股道，示意列車整列同一高度，不再在地下車站逐節折疊。
+// v0912c：高鐵停靠列車停外側月台到發線、通過列車走內側正線；dispatch.json 改依 TDX 當日班表(六種日型)重派，
+//         新閘門 verify_thsr_station_tracks 掛出貨鏈。
 // v0911a：高鐵車站看板標出對號座餘位與票價、公車站牌可搜尋並逐路線報到站、小工具可設「自動(最近的站)」、
 //         三鶯線平日末班補上官方公告的 00:00 那一班;轉乘接續改成預設收合,收合態留最近一班的車次與「剩 N 分」。
-const BUILD = 'v0912b';
+const BUILD = 'v0912c';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
