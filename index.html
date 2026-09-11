@@ -5311,7 +5311,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/9/10</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/9/11</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -5319,14 +5319,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="thsrseat0911"><span class="d">9/11</span><span>高鐵看板看得到對號座還有沒有位子，也查得到票價</span></li>
+        <li data-cl-of="busstop0911"><span class="d">9/11</span><span>公車站牌可以搜尋了，點進去看得到每條路線還有幾分鐘到</span></li>
+        <li data-cl-of="widgetauto0911"><span class="d">9/11</span><span>小工具可以設成「自動（最近的站）」，走到哪就顯示哪一站</span></li>
+        <li data-cl-of="sanyinglast0911"><span class="d">9/11</span><span>三鶯線平日末班車補上官方的 00:00 那一班</span></li>
         <li data-cl-of="passentry0910"><span class="d">9/10</span><span>通行證有自己的入口了：手機「更多」的第二列，電腦工具列多一顆，不再和「帳號同步」共用一格</span></li>
         <li data-cl-of="xfermetro0910"><span class="d">9/10</span><span>轉乘接續也列捷運了：高鐵桃園等轉乘站會顯示桃園機場捷運與高雄捷運的接續班次，機捷每一班還標出直達車或普通車</span></li>
         <li data-cl-of="tymctraintype0910"><span class="d">9/10</span><span>桃園機場捷運全線每一班都標得出直達車或普通車，首末班不再只顯示線號</span></li>
         <li data-cl-of="solidtrain0910"><span class="d">9/10</span><span>地下列車可以改成實色：「更多」的「透視顯示」切到「實體」</span></li>
-        <li data-cl-of="weblogin0910"><span class="d">9/10</span><span>修正網站上的 Google 與 Apple 登入會顯示登入失敗的問題，登入後收藏與完乘即可同步</span></li>
-        <li data-cl-of="webpass0910"><span class="d">9/10</span><span>網站也能用軌島通行證了：用同一個軌島帳號登入，App 訂的資格就在網站生效</span></li>
-        <li data-cl-of="passpeek0910"><span class="d">9/10</span><span>App 的通行證面板不用先登入也打得開，先看清楚有哪些功能，要訂閱時才登入</span></li>
-        <li data-cl-of="nightroads0909"><span class="d">9/9</span><span>夜間地景的道路、機場鋪面與底圖鐵道跟著地面一起變暗，不再蓋過軌道與列車；白天配色維持不變</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5464,6 +5464,8 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="busstop0911"><span class="d">9/11</span><span>搜尋框找得到全台公車站牌，點進去就是這個站牌每條路線的到站時間；臺北市的資料直接取自市府開放資料，其餘縣市取自 TDX，沒有即時資料的路線會照實說明而不是用班表假裝</span></li>
+        <li data-cl="thsrseat0911"><span class="d">9/11</span><span>高鐵車站看板每一班都標出對號座還有沒有位子（有位／剩不多／售完），旁邊一顆「票價」按得開，列出標準座、商務座、自由座與各種優待票價</span></li>
         <li data-cl="xfermetro0910"><span class="d">9/10</span><span>轉乘接續加入捷運：高鐵桃園、台北車站、左營、高雄、橋頭、岡山這些轉乘站，接續班次除了台鐵與高鐵，也會列出桃園機場捷運與高雄捷運紅線、橘線；機捷每一班都標出直達車或普通車。捷運沒有對外公告的車次，車次欄留白。</span></li>
         <li data-cl="mrttrainno0908"><span class="d">9/8</span><span>跟隨捷運列車時，資訊卡上方會顯示車次：只在官方即時資料真的有給車次時顯示，文湖線、環狀線與其他沒有公開車次的系統維持留白，不會用內部編號充數</span></li>
         <li data-cl="boardcardfix0908"><span class="d">9/8</span><span>修正車站看板與跟車卡三處顯示問題：只有一條線經過的捷運站不再多出一整條線名標題；看板列上沒有線名時，車號前不再多一個全形空格造成左緣參差；跟車時拖動地圖，下方的列車卡不再被壓扁到看不見下一站與到站時間</span></li>
@@ -5554,6 +5556,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="widgetauto0911"><span class="d">9/11</span><span>小工具的車站可以設成「自動（最近的站）」，走到哪就換到哪一站；離開服務範圍時卡片會直接說明，不再默默顯示上一個地方的班次</span></li>
         <li data-cl="xferfontscale0908"><span class="d">9/8</span><span>調大字級時，轉乘接續裡的車次與「剩 N 分」會跟著一起放大：這兩個數字之前掛在小標籤那條倍率上，特大檔只長 1.29 倍而不是 1.5 倍，字級調到最大時特別明顯</span></li>
         <li data-cl="ofmwatch0906"><span class="d">9/6</span><span>修正街道底圖被誤判成載入失敗：開圖後 8 秒內畫面還沒畫完（馬上放大看 3D 建築、行動網路較慢）就被當成失敗，App 默默換成備用底圖、3D 建築消失要重開才回來，網站則誤跳「街道底圖載入異常」。現在只看有沒有真的收到圖磚</span></li>
         <li data-cl="leafletremoved0905"><span class="d">9/5</span><span>地圖全面改用 MapLibre，不再保留舊版 Leaflet 地圖：?engine=leaflet 這個網址參數已失效，開啟網站也不會再多下載一份舊地圖函式庫。</span></li>
@@ -5659,6 +5662,7 @@
         <li><span class="d">7/13</span><span>新增「分享畫面」：把地圖位置、時間與路網打包成一條連結</span></li>
         <li><span class="d">7/11</span><span>可以安裝到主畫面（PWA），像 App 一樣全螢幕開啟</span></li>
         <li class="grp">資料校正</li>
+        <li data-cl="sanyinglast0911"><span class="d">9/11</span><span>三鶯線平日末班車補上官方公告的 00:00 那一班，原本合成的班表最後一班停在 23:54</span></li>
         <li data-cl="trapassjump"><span class="d">8/21</span><span>台鐵列車通過不停靠小站時改為連續移動，不再短暫停住後跳位；跨午夜切換系統也不會沿用前一天同號車的誤點。</span></li>
         <li data-cl="hsrcoast"><span class="d">8/18</span><span>高鐵站間動畫加入巡航、滑行與煞車階段，並依實車觀測校正速度；發車時間改取官方分鐘中點，到站時刻不變。</span></li>
         <li data-cl="sanying2"><span class="d">8/18</span><span>三鶯線 8/16 起全時段試營運：官方把營業時間延長為每天 6 時至 24 時（原本 08:00–22:00），早尖峰六分鐘班距的起點也提前到 06:30，清晨和深夜這幾個小時現在都看得到車</span></li>
