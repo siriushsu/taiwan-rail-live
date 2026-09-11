@@ -77,17 +77,17 @@ export function createScene(params = {}) {
  const props=createProps({geo,mat,instance,rand});
 
  // 老街：前直線中段，店屋兩排貼著鐵軌。遠排兩層樓連棟；近排（觀者這一側）只做一層樓的矮店面（瓦頂或女兒牆，不加蓋鐵皮），跟車鏡頭才看得到車身；矮店面背面朝觀者，所以背面也開窗。
- const streetX0=-13,streetX1=streetX0+p.streetLength,farFront=trackY+1.55,nearFront=trackY-1.55;
- for(const side of [1,-1])block(paving,[p.streetLength,.5,bedZ+.02-groundZ],[(streetX0+streetX1)/2,trackY+side*1.3,(groundZ+bedZ+.02)/2]);
+ const streetX0=-13,streetX1=streetX0+p.streetLength,farFront=trackY+1.75,nearFront=trackY-1.75;   // 店面離軌道中線 1.75：再近一點全景裡車身會被兩排屋簷夾成一條色帶
+ for(const side of [1,-1])block(paving,[p.streetLength,.7,bedZ+.02-groundZ],[(streetX0+streetX1)/2,trackY+side*1.4,(groundZ+bedZ+.02)/2]);
  for(let x=streetX0,i=0;x<streetX1-1.4;i++){const w=Math.min(2.2+rand()*.9,streetX1-x);
   props.townhouse(x+w/2,farFront+1.6,groundZ,{floors:rand()<.2?3:2,width:w,depth:3.2,tint:i,facing:0,roof:['tin','parapet','pitched'][i%3],ground:rand()<.3?'arcade':'shop',balcony:rand()<.4?'cage':'rail',tanks:i%3===2?0:1});x+=w;}
  for(let x=streetX0,i=0;x<streetX1-1.4;i++){const w=Math.min(2.0+rand()*1.0,streetX1-x);
-  props.townhouse(x+w/2,nearFront-1.3,groundZ,{floors:1,width:w,depth:2.6,tint:i*3+1,facing:Math.PI,roof:i%2?'parapet':'pitched',ground:'shop',tanks:i%2,back:true});x+=w;}
+  props.townhouse(x+w/2,nearFront-1.3,groundZ,{floors:1,width:w,depth:2.6,tint:i*3+1+(i%4===0?1:0),facing:Math.PI,roof:i%2?'parapet':'pitched',ground:'shop',tanks:i%2,back:true});x+=w;}
  // 燈籠串橫過街心：一頭綁在遠排店屋的簷口，一頭綁在近側的燈桿。高度在車頂之上。
  const lanternGeo=geo(new THREE.CylinderGeometry(.5,.5,1,8));lanternGeo.rotateX(Math.PI/2);
  const stringZ=groundZ+2.4;
  for(let x=streetX0+1.2;x<streetX1-.5;x+=3.6){
-  block(stringMat,[.03,3.1,.03],[x,trackY,stringZ]);
+  block(stringMat,[.03,3.5,.03],[x,trackY,stringZ]);
   block(postMat,[.09,.09,stringZ+.1-groundZ],[x,nearFront+.12,(groundZ+stringZ+.1)/2]);
   for(let k=-2;k<=2;k++)instance(lanternGeo,lanternMat,[x,trackY+k*.62,stringZ-.16],[.19,.19,.23]);
  }
