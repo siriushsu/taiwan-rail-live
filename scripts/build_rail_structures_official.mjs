@@ -9,11 +9,21 @@
 // 得不限目的利用，須顯名）。逐路段切分並標記結構種類，臺鐵那份另有橋隧專名。
 // 授權與 OSM 的 ODbL 不同源，故不混寫進 network.json，另存一份對照表。
 //
-// 只做單向升級：來源標成地面、官方說是橋或隧道 → 補上。**不做反向**——
-// 官方說平面而 OSM 明示 bridge 的 280 條一律保留原判，兩邊都是明示標記時不自行裁決。
+// 升級（來源標成地面、官方說是橋或隧道 → 補上）一律照做；官方說平面而來源明示結構的
+// 一律保留原判，那多半是官方圖資把引道併進平面段，補了會讓連續高架斷開。
+//
+// 2026-09-11 追加**反向改判**，只開給「來源與官方互指橋／隧道」這一格：
+// 回報者在 24.2738,120.6643 看到高鐵一下橋樑一下地下道，根因就是 OSM 把兩條各 732m 的
+// 高架橋標成 tunnel=yes layer=-2，而單向規則永遠改不回來。這一格全網路只有 13 條
+// （高鐵 6、北捷 5、機捷 2）＋反方向 1 條，不是靠比對兩份標記裁決，而是引入
+// **第三來源**：DEM 地形本身。山岳隧道的中段地表必然遠高於洞口，高架橋不會。
+// 實測三條對照隧道（新觀音 +525m、三義 +182m、中央 +590m）與那 13 條（−2.2～+9.0m）
+// 之間有兩個數量級的空隙，門檻取 RELIEF_M=20 落在空隙正中間。
+// 地形站哪邊就照哪邊；地形不表態（兩者都在門檻同側）就維持來源判定並記進 unresolved。
 //
 // 用法：node scripts/build_rail_structures_official.mjs [--refresh] [--out data/rail_structures_official.json]
 import fs from 'node:fs';import path from 'node:path';import crypto from 'node:crypto';import {execFileSync} from 'node:child_process';
+import {openRailDem} from './lib/local_rail_dem.mjs';import {makePath} from '../rail-3d/integration/train-path.js';
 
 const argv=process.argv.slice(2);
 const OUT=(()=>{const i=argv.indexOf('--out');return i>=0?argv[i+1]:'data/rail_structures_official.json';})();
@@ -122,6 +132,18 @@ function densify(coords){
  return out;
 }
 
+// ── 地形起伏：反向改判的第三來源 ────────────────────────────────────
+// 沿 way 取樣 DEM，回「中段最高地表」減「兩端地表平均」。山岳隧道必然很大（實測 182～591m），
+// 高架橋必然很小（實測 −2.2～+9.0m）。這個量與 OSM 標記、官方 shapefile 都不同源。
+const RELIEF_M=20;     // 兩群之間的空隙是 9m 到 182m，門檻取 20m。
+async function relief(coords,ground){
+ const path=makePath(coords),len=path.d.at(-1);
+ const n=Math.max(8,Math.min(160,Math.round(len/25))),g=[];
+ for(let i=0;i<=n;i++)g.push(await ground(path.at(Math.min(len*i/n,len-1e-3)).coordinate));
+ const ends=(g[0]+g[n])/2,inner=g.slice(1,n);
+ return +((inner.length?Math.max(...inner):ends)-ends).toFixed(1);
+}
+
 // ── 主流程 ──────────────────────────────────────────────────────────
 const MATCH_M=40;      // 取樣點認領官方線段的上限。實測匹配距離中位 2.5m、p90 7.9m，
                        // 40m 足以吃下雙線各自成 way 的橫向差，又不會跨到隔壁路廊。
@@ -150,7 +172,9 @@ const osmKind=t=>{
  return /^-\d/.test(String(t.layer??''))?'tunnel':'surface';
 };
 
-const entries={},summary={upgraded:{bridge:0,tunnel:0},kept:{},uncovered:0,ways:0};
+const entries={},summary={upgraded:{bridge:0,tunnel:0},overridden:{bridge:0,tunnel:0},unresolved:[],kept:{},uncovered:0,ways:0};
+const dem=openRailDem(new URL('../',import.meta.url));
+try{
 for(const f of ['network.json','metro-network.json']){
  for(const w of JSON.parse(fs.readFileSync('rail-3d/physical/'+f)).ways){
   const idx=pick(w.system),samples=densify(w.coordinates),tally={bridge:0,tunnel:0,surface:0};
@@ -161,24 +185,37 @@ for(const f of ['network.json','metro-network.json']){
   if(matched/samples.length<MIN_MATCHED){summary.uncovered++;continue;}
   const [kind,count]=Object.entries(tally).sort((a,b)=>b[1]-a[1])[0];
   const cover=count/samples.length,source=osmKind(w.tags||{}),verdict=cover<MIN_COVER?'mixed':kind;
-  // 只補「來源說地面、官方說結構」這一格；其餘全部記帳但不動（含來源已明示結構的反向歧異）。
-  if(source!=='surface'||!['bridge','tunnel'].includes(verdict)){
-   summary.kept[source+'→'+verdict]=(summary.kept[source+'→'+verdict]||0)+1;continue;}
   const name=Object.entries(names).sort((a,b)=>b[1]-a[1])[0];
-  entries[w.id]={kind,system:w.system,coverage:+cover.toFixed(3),medianDistM:+(sum/matched).toFixed(1),
-   ...(name?{name:name[0]}:{})};
-  summary.upgraded[kind]++;
+  const base={system:w.system,coverage:+cover.toFixed(3),medianDistM:+(sum/matched).toFixed(1),...(name?{name:name[0]}:{})};
+  // 升級：來源說地面、官方說結構。兩邊只有一邊表態，直接補。
+  if(source==='surface'&&['bridge','tunnel'].includes(verdict)){
+   entries[w.id]={kind:verdict,...base};summary.upgraded[verdict]++;continue;}
+  // 反向改判：兩邊互指橋／隧道。交給地形裁決，不自行比較兩份標記的可信度。
+  if(source!==verdict&&['bridge','tunnel'].includes(source)&&['bridge','tunnel'].includes(verdict)){
+   const reliefM=await relief(w.coordinates,dem.ground),mountain=reliefM>=RELIEF_M;
+   // 地形與官方同一邊才改；地形支持來源、或它對這一格沒有鑑別力，就維持原判並記帳。
+   if(mountain===(verdict==='tunnel')){
+    entries[w.id]={kind:verdict,override:source,reliefM,...base};summary.overridden[verdict]++;
+   }else{
+    summary.unresolved.push({id:String(w.id),system:w.system,source,official:verdict,reliefM,coverage:+cover.toFixed(3)});
+    summary.kept[source+'→'+verdict]=(summary.kept[source+'→'+verdict]||0)+1;}
+   continue;}
+  summary.kept[source+'→'+verdict]=(summary.kept[source+'→'+verdict]||0)+1;
  }
 }
+}finally{dem.close();}
 fs.mkdirSync(path.dirname(OUT),{recursive:true});
 fs.writeFileSync(OUT,JSON.stringify({
- _readme:'官方橋隧對照表：只列「OSM 標成地面、官方判定為橋或隧道」的路段，供 build_rail_levels.mjs 單向補正。'
+ _readme:'官方橋隧對照表，供 build_rail_levels.mjs 補正。兩類條目：沒有 override 的是升級'
+  +'（OSM 標成地面、官方判定為橋或隧道）；帶 override 的是反向改判（兩邊互指橋／隧道，'
+  +'由 DEM 地形起伏 reliefM 裁決，override 欄位記的是被推翻的來源判定）。'
   +'coverage 是該 way 取樣點落在該結構上的比例，medianDistM 是取樣點到官方線的中位距離。'
-  +'不含反向（官方說平面而來源標橋的 280 條保留來源判定），也不含官方未涵蓋的新線。',
+  +'官方說平面而來源標結構的一律保留來源判定，官方未涵蓋的新線也不動；'
+  +'地形不支持任何一方的爭議路段列在 summary.unresolved，同樣保留來源判定。',
  generated:new Date().toISOString(),
  license:'政府資料開放授權條款-第1版（https://data.gov.tw/license）；顯名：內政部國土測繪中心',
- source:'內政部國土測繪中心 臺灣鐵路／高速鐵路／捷運（政府資料開放平臺）',
- datasets,params:{matchM:MATCH_M,minCover:MIN_COVER,minMatched:MIN_MATCHED,stepM:STEP},
+ source:'內政部國土測繪中心 臺灣鐵路／高速鐵路／捷運（政府資料開放平臺）；地形＝隨站發布的固定 DEM 快照',
+ datasets,params:{matchM:MATCH_M,minCover:MIN_COVER,minMatched:MIN_MATCHED,stepM:STEP,reliefM:RELIEF_M},
  summary,entries},null,1));
 console.log(summary);
 console.log(`已寫入 ${OUT}：${Object.keys(entries).length} 條`);

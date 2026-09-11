@@ -1,8 +1,8 @@
 {
- "_readme": "官方橋隧對照表：只列「OSM 標成地面、官方判定為橋或隧道」的路段，供 build_rail_levels.mjs 單向補正。coverage 是該 way 取樣點落在該結構上的比例，medianDistM 是取樣點到官方線的中位距離。不含反向（官方說平面而來源標橋的 280 條保留來源判定），也不含官方未涵蓋的新線。",
- "generated": "2026-09-09T07:14:26.947Z",
+ "_readme": "官方橋隧對照表，供 build_rail_levels.mjs 補正。兩類條目：沒有 override 的是升級（OSM 標成地面、官方判定為橋或隧道）；帶 override 的是反向改判（兩邊互指橋／隧道，由 DEM 地形起伏 reliefM 裁決，override 欄位記的是被推翻的來源判定）。coverage 是該 way 取樣點落在該結構上的比例，medianDistM 是取樣點到官方線的中位距離。官方說平面而來源標結構的一律保留來源判定，官方未涵蓋的新線也不動；地形不支持任何一方的爭議路段列在 summary.unresolved，同樣保留來源判定。",
+ "generated": "2026-09-11T12:28:04.284Z",
  "license": "政府資料開放授權條款-第1版（https://data.gov.tw/license）；顯名：內政部國土測繪中心",
- "source": "內政部國土測繪中心 臺灣鐵路／高速鐵路／捷運（政府資料開放平臺）",
+ "source": "內政部國土測繪中心 臺灣鐵路／高速鐵路／捷運（政府資料開放平臺）；地形＝隨站發布的固定 DEM 快照",
  "datasets": [
   {
    "dataset": "臺灣鐵路",
@@ -36,13 +36,28 @@
   "matchM": 40,
   "minCover": 0.6,
   "minMatched": 0.6,
-  "stepM": 20
+  "stepM": 20,
+  "reliefM": 20
  },
  "summary": {
   "upgraded": {
    "bridge": 265,
    "tunnel": 12
   },
+  "overridden": {
+   "bridge": 13,
+   "tunnel": 0
+  },
+  "unresolved": [
+   {
+    "id": "741259917",
+    "system": "mrt",
+    "source": "bridge",
+    "official": "tunnel",
+    "reliefM": 0.5,
+    "coverage": 0.642
+   }
+  ],
   "kept": {
    "surface→surface": 2245,
    "bridge→mixed": 139,
@@ -52,7 +67,6 @@
    "tunnel→mixed": 5,
    "tunnel→tunnel": 635,
    "surface→mixed": 34,
-   "tunnel→bridge": 13,
    "bridge→tunnel": 1
   },
   "uncovered": 156,
@@ -127,6 +141,14 @@
    "coverage": 1,
    "medianDistM": 10.1
   },
+  "103397328": {
+   "kind": "bridge",
+   "override": "tunnel",
+   "reliefM": 9,
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 15.9
+  },
   "103397329": {
    "kind": "bridge",
    "system": "thsr_sched",
@@ -156,6 +178,14 @@
    "system": "thsr_sched",
    "coverage": 1,
    "medianDistM": 4.8
+  },
+  "103397339": {
+   "kind": "bridge",
+   "override": "tunnel",
+   "reliefM": 8.7,
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 9.7
   },
   "103397340": {
    "kind": "bridge",
@@ -403,6 +433,22 @@
    "coverage": 1,
    "medianDistM": 2.3
   },
+  "195696215": {
+   "kind": "bridge",
+   "override": "tunnel",
+   "reliefM": 0,
+   "system": "mrt",
+   "coverage": 1,
+   "medianDistM": 2.6
+  },
+  "195696226": {
+   "kind": "bridge",
+   "override": "tunnel",
+   "reliefM": 0.9,
+   "system": "mrt",
+   "coverage": 1,
+   "medianDistM": 2
+  },
   "197183111": {
    "kind": "bridge",
    "system": "tra_sched",
@@ -470,11 +516,27 @@
    "coverage": 1,
    "medianDistM": 0.4
   },
+  "198181449": {
+   "kind": "bridge",
+   "override": "tunnel",
+   "reliefM": 1,
+   "system": "mrt",
+   "coverage": 1,
+   "medianDistM": 3.1
+  },
   "198181450": {
    "kind": "bridge",
    "system": "mrt",
    "coverage": 1,
    "medianDistM": 2.8
+  },
+  "199775248": {
+   "kind": "bridge",
+   "override": "tunnel",
+   "reliefM": 1.7,
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 3.7
   },
   "199778749": {
    "kind": "bridge",
@@ -566,11 +628,27 @@
    "coverage": 0.944,
    "medianDistM": 1.6
   },
+  "199779608": {
+   "kind": "bridge",
+   "override": "tunnel",
+   "reliefM": -2,
+   "system": "thsr_sched",
+   "coverage": 0.842,
+   "medianDistM": 1.4
+  },
   "199779609": {
    "kind": "bridge",
    "system": "thsr_sched",
    "coverage": 1,
    "medianDistM": 0.5
+  },
+  "199779614": {
+   "kind": "bridge",
+   "override": "tunnel",
+   "reliefM": -2.2,
+   "system": "thsr_sched",
+   "coverage": 0.842,
+   "medianDistM": 4.9
   },
   "199779617": {
    "kind": "bridge",
@@ -938,6 +1016,14 @@
    "coverage": 1,
    "medianDistM": 22.1
   },
+  "527687888": {
+   "kind": "bridge",
+   "override": "tunnel",
+   "reliefM": 0,
+   "system": "mrt",
+   "coverage": 1,
+   "medianDistM": 2.5
+  },
   "530253121": {
    "kind": "bridge",
    "system": "tra_sched",
@@ -1070,6 +1156,14 @@
    "system": "thsr_sched",
    "coverage": 1,
    "medianDistM": 0.2
+  },
+  "768983984": {
+   "kind": "bridge",
+   "override": "tunnel",
+   "reliefM": 1.4,
+   "system": "thsr_sched",
+   "coverage": 1,
+   "medianDistM": 0.1
   },
   "836959570": {
    "kind": "bridge",
@@ -1548,6 +1642,22 @@
    "coverage": 1,
    "medianDistM": 2.2
   },
+  "1136931231": {
+   "kind": "bridge",
+   "override": "tunnel",
+   "reliefM": 3.6,
+   "system": "tymc",
+   "coverage": 1,
+   "medianDistM": 3.5
+  },
+  "1136931232": {
+   "kind": "bridge",
+   "override": "tunnel",
+   "reliefM": 3.6,
+   "system": "tymc",
+   "coverage": 1,
+   "medianDistM": 2.5
+  },
   "1165519972": {
    "kind": "bridge",
    "system": "thsr_sched",
@@ -1737,6 +1847,14 @@
    "system": "thsr_sched",
    "coverage": 1,
    "medianDistM": 2
+  },
+  "1535474839": {
+   "kind": "bridge",
+   "override": "tunnel",
+   "reliefM": 0.2,
+   "system": "mrt",
+   "coverage": 1,
+   "medianDistM": 4.6
   },
   "1547904804": {
    "kind": "tunnel",

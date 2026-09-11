@@ -35,6 +35,11 @@ export async function applyTunnelGrade(records,entries,groundAt){
    byWay.set(r,pieces);
   }
   for(const k of knots.values()){k.ground/=k.n;k.hold/=k.n;k.h=k.fixedTo??k.hold;
+   // 只有一條連線又不是洞口的端點＝分岔支洞接在主洞「中段」的節點。主洞那一側的節點鍵是
+   // way 內部取樣（wayId:cross:s），與支洞端點的 system:node 不同鍵，所以兩邊在求解圖上沒有相連，
+   // 這個端點等於自由浮動卻被當成固定值。它位在山體內部，一律壓回覆土上界，
+   // 不能沿用「地表＋層位」——山岳隧道改用相鄰高架層位之後，那會把它釘到地表之上。
+   if(!k.portal&&k.links.length===1)k.h=Math.min(k.h,k.ground-COVER);
    if(k.portal||k.links.length===1)k.fixed=true;else k.max=Math.min(k.max,k.ground-COVER); // 自由節點只受覆土上界，不再逐點貼著地表
    k.reach=k.fixed?k.h:-Infinity;k.floor=k.fixed?k.h:Infinity;}
   // 先求無約束的調和解：單一鏈時它就是兩端洞口之間沿里程的直線，當作初值與「無解時退回哪裡」。
