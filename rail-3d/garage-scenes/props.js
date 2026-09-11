@@ -25,8 +25,8 @@ export function createProps({geo,mat,instance,rand}){
  const shrub=mat('#5f8a55'),stone=mat('#9a9688'),moss=mat('#7f9573');
  // 透天厝的外牆：米白、淡粉磚、淺灰、淡黃、淡綠，同一排不會全一個顏色。
  const walls=[mat('#ece4d2'),mat('#d9b9a6'),mat('#cfd0c8'),mat('#e6dcb2'),mat('#cfd8c4')];
- const dark=mat('#3a4548'),railing=mat('#c4c1b4'),cage=mat('#5b6366'),tin=mat('#556c70'),tank=mat('#d8d5c8');
- const tile=[mat('#a5553f'),mat('#4a4d52')],signs=[mat('#b8593f'),mat('#3d6fa3'),mat('#d9a441')],asphalt=mat('#6b6d68'),concrete=mat('#b9b3a4');
+ const dark=mat('#3a4548'),glass=mat('#2c3842',{emissive:'#ffcf8a',emissiveIntensity:0}),railing=mat('#c4c1b4'),cage=mat('#5b6366'),tin=mat('#556c70'),tank=mat('#d8d5c8');glass.name='glass';   // 窗玻璃：白天深色，夜裡由場景把 emissiveIntensity 調亮
+ const tile=[mat('#a5553f'),mat('#4a4d52')],signs=['#b8593f','#3d6fa3','#d9a441'].map(c=>mat(c,{emissive:c,emissiveIntensity:0})),roadLine=mat('#d9a441'),asphalt=mat('#6b6d68'),concrete=mat('#b9b3a4');   // 店招夜裡可發光；馬路虛線用自己的材質
 
  // 闊葉樹：一個主冠加兩瓣同高嵌進去的側冠，讀起來是一棵樹有起伏，不是三顆球。
  // kind 'round' 圓冠（樟樹）｜'umbrella' 傘冠（榕樹）：更寬更扁、樹幹更粗更短。
@@ -57,12 +57,12 @@ export function createProps({geo,mat,instance,rand}){
   // 每層窗戶（一格一格，不是一條帶）、陽台
   const nw=Math.max(1,Math.round((width-.5)/.85));
   for(let f=0;f<floors;f++){const zc=z+f*fh;
-   if(f>0||ground==='plain')for(let i=0;i<nw;i++)put(box,dark,depth/2+.02,(i-(nw-1)/2)*.85,zc+fh*.6,[.5,.06,.58]);
-   if(back){for(let i=0;i<nw;i++)if(f>0||i!==nw-1)put(box,dark,-(depth/2+.02),(i-(nw-1)/2)*.85,zc+fh*.6,[.5,.06,.58]);if(f===0)put(box,dark,-(depth/2+.02),((nw-1)/2)*.85,fh*.45,[.5,.06,fh*.8]);}
+   if(f>0||ground==='plain')for(let i=0;i<nw;i++)put(box,glass,depth/2+.02,(i-(nw-1)/2)*.85,zc+fh*.6,[.5,.06,.58]);
+   if(back){for(let i=0;i<nw;i++)if(f>0||i!==nw-1)put(box,glass,-(depth/2+.02),(i-(nw-1)/2)*.85,zc+fh*.6,[.5,.06,.58]);if(f===0)put(box,dark,-(depth/2+.02),((nw-1)/2)*.85,fh*.45,[.5,.06,fh*.8]);}
    if(f>0){if(balcony==='rail'){put(box,wall,depth/2+.22,0,zc+.05,[width*1.02,.5,.1]);put(box,railing,depth/2+.45,0,zc+.32,[width*1.02,.04,.45]);}
     else put(box,cage,depth/2+.14,0,zc+fh*.55,[width*.9,.26,fh*.62]);}
   }
-  if(ground==='shop'){put(box,signs[tint%3],depth/2+.09,0,fh-.05,[width*.94,.12,.5]);put(box,dark,depth/2+.02,0,fh*.42,[width*.82,.06,fh*.7]);}
+  if(ground==='shop'){put(box,signs[tint%3],depth/2+.09,0,fh-.05,[width*.94,.12,.5]);put(box,glass,depth/2+.02,0,fh*.42,[width*.82,.06,fh*.7]);}
   else if(ground==='plain')put(box,signs[0],depth/2+.3,0,fh-.1,[width*.6,.55,.06]);            // 一樓雨遮
   // 屋頂
   if(roof==='pitched')instance(roofGeo,tile[tint%2],[x,y,z+H],[width+.3,depth+.3,.9+rand()*.3],rot);
@@ -75,11 +75,11 @@ export function createProps({geo,mat,instance,rand}){
   const rot=[0,0,facing],fx=Math.sin(facing),fy=-Math.cos(facing);
   instance(box,walls[tint%walls.length],[x,y,z+.7],[width,depth,1.4],rot);
   if(pitched)instance(roofGeo,tile[tint%2],[x,y,z+1.4],[width+.5,depth+.5,.8],rot);else instance(box,tin,[x,y,z+1.5],[width+.4,depth+.4,.22],rot);
-  for(const a of [-.7,.7])instance(box,dark,[x+fx*(depth/2+.02)+Math.cos(facing)*a,y+fy*(depth/2+.02)+Math.sin(facing)*a,z+.75],[.5,.06,.5],rot);
+  for(const a of [-.7,.7])instance(box,glass,[x+fx*(depth/2+.02)+Math.cos(facing)*a,y+fy*(depth/2+.02)+Math.sin(facing)*a,z+.75],[.5,.06,.5],rot);
  }
  // 電線桿：一根桿子一支橫擔。
  function pole(x,y,z,h=3.2){instance(poleGeo,concrete,[x,y,z+h/2],[.16,.16,h]);instance(box,dark,[x,y,z+h-.15],[.9,.07,.07]);}
  // 馬路：一條深灰帶子，配黃色虛線。長度沿 x。
- function road(x,y,z,length,width=1.8){instance(box,asphalt,[x,y,z+.015],[length,width,.03]);for(let s=-length/2+.6;s<length/2-.6;s+=1.4)instance(box,signs[2],[x+s,y,z+.035],[.7,.05,.01]);}
- return{broadleaf,bush,rock,townhouse,farmhouse,pole,road};
+ function road(x,y,z,length,width=1.8){instance(box,asphalt,[x,y,z+.015],[length,width,.03]);for(let s=-length/2+.6;s<length/2-.6;s+=1.4)instance(box,roadLine,[x+s,y,z+.035],[.7,.05,.01]);}
+ return{broadleaf,bush,rock,townhouse,farmhouse,pole,road,glass,signs};
 }

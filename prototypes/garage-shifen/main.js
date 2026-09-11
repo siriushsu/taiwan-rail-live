@@ -61,6 +61,7 @@ try{
   project:p=>{const q=new THREE.Vector3(...p).project(camera);return{x:(q.x+1)*canvas.width/2,y:(1-q.y)*canvas.height/2};},
   setTime:t=>{time=t;distance=t*SPEED;draw();},render:draw,dispose,
   trainVisible:visible=>{train.root.visible=visible;draw();},
-  sceneVisible:visible=>{shifen.group.visible=ground.visible=visible;draw();}   // 驗收用：只留車（連接影子的地面也收掉），量「車完全露出」的剪影當對照
+  sceneVisible:visible=>{shifen.group.visible=ground.visible=visible;draw();},   // 驗收用：只留車（連接影子的地面也收掉），量「車完全露出」的剪影當對照
+  setVisible:(name,visible)=>{const o=shifen.group.getObjectByName(name);if(o)o.visible=visible;draw();return !!o;}   // 驗收用：把某個具名網格藏起來當對照
  };
 }catch(e){if(!disposed){dispose();loading.hidden=false;loading.textContent='小車暫時無法載入。';const b=document.createElement('button');b.textContent='重新載入';b.onclick=()=>location.reload();loading.append(b);}console.error(e);}

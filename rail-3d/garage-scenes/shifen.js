@@ -4,9 +4,9 @@ import * as THREE from '../vendor/three.module.js';
 import {createProps} from './props.js';
 
 export const THEMES = {
- day:{background:'#e4e7df',sun:'#fff3d8',ambient:'#c3d6dd',ground:'#7f9068',power:3.0,exposure:1.04,water:'#3f7d72',shallow:'#8dbca3',paper:.12,lantern:0,lamp:0},
- sunset:{background:'#e9d3bd',sun:'#ffb168',ambient:'#d3b7ad',ground:'#6d7458',power:2.5,exposure:.92,water:'#587f74',shallow:'#a9b79a',paper:.6,lantern:.45,lamp:.5},
- night:{background:'#121a27',sun:'#93b3d8',ambient:'#566e88',ground:'#28313c',power:.6,exposure:.74,water:'#143536',shallow:'#2c5a55',paper:1.1,lantern:.95,lamp:1.8}
+ day:{background:'#e4e7df',sun:'#fff3d8',ambient:'#c3d6dd',ground:'#7f9068',power:3.0,exposure:1.04,water:'#3f7d72',shallow:'#8dbca3',paper:.12,lantern:0,lamp:0,window:0},
+ sunset:{background:'#e9d3bd',sun:'#ffb168',ambient:'#d3b7ad',ground:'#6d7458',power:2.5,exposure:.92,water:'#587f74',shallow:'#a9b79a',paper:.6,lantern:.6,lamp:.5,window:.4},
+ night:{background:'#121a27',sun:'#93b3d8',ambient:'#566e88',ground:'#28313c',power:.6,exposure:.74,water:'#143536',shallow:'#2c5a55',paper:1.1,lantern:1.5,lamp:1.8,window:1.2}
 };
 
 export const DEFAULTS = {
@@ -138,13 +138,21 @@ export function createScene(params = {}) {
    prev=[y,z];}}
  for(let i=0;i<3;i++)block(paving,[1.1,.5,(deckZ-groundZ)*(i+1)/3],[bx,by0-1.55+i*.5,groundZ+(deckZ-groundZ)*(i+1)/6]);
 
- // 對岸的山：一片起伏的地形，種滿樹；邊緣收回底座裡，不戳出台子。
+ // 對岸的山：一片起伏的地形，種滿樹；左右邊緣收回底座裡，後緣鋪到台子邊、立一面切面牆（見下）。
  const hills=[[-24,20.5,13,6.5,6.5],[-9,21,12,7,8],[6,20.5,11,6.5,6.2],[21,21,12,7,7.6],[31,20,9,6,5.5]];
- function hillHeight(x,y){let h=0;for(const [hx,hy,rx,ry,hz] of hills){const d=((x-hx)/rx)**2+((y-hy)/ry)**2;h=Math.max(h,hz*Math.max(0,1-d)**1.3);}return h*smooth((y-15.4)/1.6)*smooth((31-Math.abs(x))/2.2);}
- const hillY0=15.4,hillY1=19.3,hillGeo=geo(new THREE.PlaneGeometry(62,hillY1-hillY0,124,12)),hp=hillGeo.attributes.position;
- for(let i=0;i<hp.count;i++){const x=hp.getX(i),y=hp.getY(i)+(hillY0+hillY1)/2,h=hillHeight(x,y);hp.setZ(i,h+(h>.2?rand()*.18:0));}
+ function hillHeight(x,y){let h=0;for(const [hx,hy,rx,ry,hz] of hills){const d=((x-hx)/rx)**2+((y-hy)/ry)**2;h=Math.max(h,hz*Math.max(0,1-d)**1.3);}return h*smooth((y-15.4)/1.6)*smooth((20.6-y)/2.2)*smooth((31-Math.abs(x))/2.2);}   // 背面也淡出：山脊留在台子裡，背坡降到後緣只剩一截矮切面
+ const hillY0=15.4,hillY1=plinthD/2,hillGeo=geo(new THREE.PlaneGeometry(62,hillY1-hillY0,124,12)),hp=hillGeo.attributes.position;
+ // 頂點先收進圓角底座的輪廓裡（後緣兩角 |x|>29 的那幾顆），山高在那裡本來就淡到 0。
+ const rimX=y=>Math.abs(y)<=plinthD/2-plinthR?plinthW/2:plinthW/2-plinthR+Math.sqrt(Math.max(0,plinthR**2-(Math.abs(y)-(plinthD/2-plinthR))**2));
+ for(let i=0;i<hp.count;i++){const y=hp.getY(i)+(hillY0+hillY1)/2,lim=rimX(y)-.15,x=Math.max(-lim,Math.min(lim,hp.getX(i)));hp.setX(i,x);const h=hillHeight(x,y);hp.setZ(i,h+(h>.2?rand()*.18:0));}
  hillGeo.computeVertexNormals();
  mesh(hillGeo,hillMat,[0,(hillY0+hillY1)/2,groundZ+.02]).name='hills';
+ // 山的背面：以前陡坡從背面看被剔除、山腳又是開口，轉到背面整座山就消失。現在山脊留在台子裡、背坡降到後緣，
+ // 後緣照阿里山那景立一面土色切面牆封到地面（頂列頂點就是 y=+half 那一列，PlaneGeometry 第一列在上）。
+ {const cols=125,v=[],c=[],idx=[],earth=new THREE.Color('#6f5a45'),bed=new THREE.Color('#8b775e');
+  for(let i=0;i<cols;i++){const x=hp.getX(i),y=hp.getY(i),z=hp.getZ(i);v.push(x,y,z,x,y,0);c.push(earth.r,earth.g,earth.b,bed.r,bed.g,bed.b);if(i){const a=(i-1)*2;idx.push(a,a+2,a+1,a+1,a+2,a+3);}}
+  const sg=geo(new THREE.BufferGeometry());sg.setAttribute('position',new THREE.Float32BufferAttribute(v,3));sg.setAttribute('color',new THREE.Float32BufferAttribute(c,3));sg.setIndex(idx);sg.computeVertexNormals();
+  const skirt=mesh(sg,mat('#ffffff',{vertexColors:true,side:THREE.DoubleSide}),[0,(hillY0+hillY1)/2,groundZ+.02]);skirt.name='hills-skirt';skirt.castShadow=false;}
  for(let n=0;n<120;){const x=-30+rand()*60,y=hillY0+.3+rand()*3.4,h=hillHeight(x,y);if(h<.35)continue;props.broadleaf(x,y,groundZ+.02+h,1.3+rand()*1.1);n++;}
 
  // 其餘的樹、灌木、農舍：避開軌道、老街、車站、河與吊橋。
@@ -171,8 +179,9 @@ export function createScene(params = {}) {
  if(nSky){sky=new THREE.InstancedMesh(skyGeo,paper,nSky);flames=new THREE.InstancedMesh(flameGeo,flame,nSky);sky.name='sky-lanterns';flames.name='sky-flames';sky.castShadow=true;
   for(let k=0;k<nSky;k++)sky.setColorAt(k,new THREE.Color(colors[k%colors.length]));group.add(sky,flames);}
 
- // 夜燈：老街上三盞暖光、車站一盞。
- const lights=[[-9,trackY,2.6],[-2,trackY,2.6],[5,trackY,2.6],[stX+2.5,stY,1.9]].map(([x,y,z])=>{const l=new THREE.PointLight('#ffb570',0,9,2);l.position.set(x,y,groundZ+z);group.add(l);return l;});
+ // 夜燈：每一串燈籠底下一盞暖光（照亮鋪面與兩排店面）、車站一盞、三間農舍門口各一盞小的；強度在 update 依時段調，白天是 0。
+ const lampSpots=[];for(let x=streetX0+1.2;x<streetX1-.5;x+=3.6)lampSpots.push([x,trackY,1.85,1]);lampSpots.push([stX+2.5,stY,1.9,1],[-22,-15.3,1.3,.45],[-25.2,-3,1.3,.45],[22,-16.3,1.3,.45]);
+ const lights=lampSpots.map(([x,y,z,k],i)=>{const l=new THREE.PointLight('#ffb570',0,k<1?6:8,2);l.position.set(x,y,groundZ+z);l.name='lamp-'+i;l.userData.k=k;group.add(l);return l;});
 
  // 合批送進 GPU
  for(const [geometry,byMaterial] of batches)for(const [material,items] of byMaterial){
@@ -190,7 +199,7 @@ export function createScene(params = {}) {
    const t=THEMES[period]||THEMES.day;
    waterMat.color.set(t.water);const sh=waterMat.userData.shader;if(sh){sh.uniforms.seaTime.value=time;sh.uniforms.shallow.value.set(t.shallow);}
    paper.emissiveIntensity=t.paper;lanternMat.emissiveIntensity=t.lantern;lamp.emissiveIntensity=t.lamp;
-   for(const l of lights)l.intensity=t.lamp*1.3;
+   for(const l of lights)l.intensity=t.lamp*6*l.userData.k;props.glass.emissiveIntensity=t.window;for(const s of props.signs)s.emissiveIntensity=t.window*.7;   // 燈是燭光值（cd）；窗戶、店面玻璃與店招夜裡自發光
    if(sky){
     for(let k=0;k<nSky;k++){const L=lanternSet[k],c=((time*L.rise+L.phase)%H+H)%H,z=releaseZ+c,x=L.x+Math.sin(time*.23+k*1.3)*.5,y=L.y+Math.cos(time*.19+k*2.1)*.3;
      dummy.position.set(x,y,z);dummy.rotation.set(Math.sin(time*.5+k)*.06,Math.cos(time*.4+k)*.06,k*.7,'ZYX');dummy.scale.set(.5,.5,.75);dummy.updateMatrix();sky.setMatrixAt(k,dummy.matrix);
