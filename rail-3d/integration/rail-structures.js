@@ -16,6 +16,14 @@ const BED_TOP_W=3.4,BED_BOTTOM_W=4.6,FILL_SLOPE=1.5,BED_BOTTOM_MAX=30;
 // 起拱線在軌頂上 2.6 公尺、洞底在軌頂下 1.2 公尺、石環厚 .7 公尺。那一版是文湖線單線
 // 展示做的，這裡只取斷面比例，位置改成沿線每個洞口自己算。
 const BORE_R=3.2,SPRING=2.6,BORE_FLOOR=-1.2,RING=.7,ARCH_SEGMENTS=14;
+// 洞口面牆：半寬 6.2 公尺、牆頂在軌頂上 7.4（拱背再加 .9 公尺帽石）、厚 1.1 公尺，往洞內 7 公尺洞身，
+// 翼牆再往洞外斜出 6 公尺。底緣照洞口面上的地表取樣走，再埋進去 1.2 公尺；地形資料離譜時最多往下 45 公尺。
+// 要照地形是因為洞口大多不在地表上：全網 701 個洞口有 310 個軌面高出地表 3 公尺以上，
+// 最極端的高鐵三義段高出 15.8 公尺——固定高度的拱圈在那裡就是一塊浮在半空的黑斑。
+const PORTAL_HALF_W=6.2,PORTAL_TOP=SPRING+BORE_R+RING+.9,PORTAL_T=1.1,PORTAL_EMBED=1.2,
+      PORTAL_DROP_MAX=45,PORTAL_BARREL=7,PORTAL_WING_M=6,PORTAL_WING_FLARE=2.4;
+// 算繪端沿洞口面橫向取樣地表的位置（公尺），與這裡的內插同一組刻度。
+export const PORTAL_FACE_U=[-7,-3.5,0,3.5,7];
 export function createRailStructures(scene){
   let geometry=new THREE.BufferGeometry();
   const material=new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide}),mesh=new THREE.Mesh(geometry,material);
@@ -90,32 +98,56 @@ export function createRailStructures(scene){
       if(detail>=2)ties(topA,topB,topA[2],scale);
       if(detail>=1){const top=a[2]-(detail>=2?.15*scale:.2*scale);rail(topA,topB,GAUGE/2,top,scale);rail(topA,topB,-GAUGE/2,top,scale);}
     });
-    // 洞口：石造拱圈加兩側翼牆，開口填深色襯砌當洞口。軌道本來就在洞口戛然而止，
-    // 補上這個之後才看得出來是「進洞」而不是「線畫到一半沒了」。
-    function portal({p,angle,scale=1}){
+    // 洞口：面牆嵌進山坡、開口是一段暗色洞身。面牆底緣照現場地形走——地表低於軌面就往下長成
+    // 擋土牆，接住山坡；地表高於軌面就只露出拱背。軌道本來就在洞口戛然而止，補上這個之後才
+    // 看得出來是「進洞」而不是「線畫到一半沒了」。
+    function portal({p,angle,scale=1,ground}){
       if(![...p,angle,scale].every(Number.isFinite))return;
       const tx=Math.cos(angle),ty=Math.sin(angle),ux=-ty,uy=tx;
-      // 拱圈往洞內退一點，才不會跟路基頂面或地形同面閃爍。
-      const ox=tx*.25*scale,oy=ty*.25*scale;
-      const at=(r,t,d)=>[p[0]+ux*r*Math.cos(t)*scale+tx*d*scale,p[1]+uy*r*Math.cos(t)*scale+ty*d*scale,p[2]+(SPRING+r*Math.sin(t))*scale];
+      // 洞口面座標：u 橫向公尺、z 相對軌頂公尺、d 沿洞內方向公尺。
+      const at=(u,z,d=0)=>[p[0]+(ux*u+tx*d)*scale,p[1]+(uy*u+ty*d)*scale,p[2]+z*scale];
+      const samples=(ground||[]).map(z=>Number.isFinite(z)?(z-p[2])/scale:null),finite=samples.filter(z=>z!==null);
+      const groundAt=u=>{
+        if(!finite.length)return BORE_FLOOR;
+        const t=Math.max(0,Math.min(1,(u-PORTAL_FACE_U[0])/(PORTAL_FACE_U[PORTAL_FACE_U.length-1]-PORTAL_FACE_U[0])))*(samples.length-1);
+        const i=Math.min(samples.length-2,Math.floor(t)),f=t-i;
+        return (samples[i]??finite[0])*(1-f)+(samples[i+1]??finite[finite.length-1])*f;
+      };
+      const bottomAt=u=>Math.max(-PORTAL_DROP_MAX,Math.min(BORE_FLOOR,groundAt(u)-PORTAL_EMBED));
+      const archAt=u=>Math.abs(u)<BORE_R?SPRING+Math.sqrt(BORE_R*BORE_R-u*u):SPRING;
+      // 面牆分成三段掃：拱外兩側整片落到地面，拱的範圍只補拱背與洞底以下，中間留成洞口。
+      const edges=[-PORTAL_HALF_W,-BORE_R,BORE_R,PORTAL_HALF_W];
+      for(let e=0;e<3;e++){const n=e===1?ARCH_SEGMENTS:3;
+        for(let i=0;i<n;i++){
+          const u0=edges[e]+(edges[e+1]-edges[e])*i/n,u1=edges[e]+(edges[e+1]-edges[e])*(i+1)/n,b0=bottomAt(u0),b1=bottomAt(u1);
+          if(e!==1){quad(at(u0,b0),at(u1,b1),at(u1,PORTAL_TOP),at(u0,PORTAL_TOP),stone);continue;}
+          quad(at(u0,archAt(u0)),at(u1,archAt(u1)),at(u1,PORTAL_TOP),at(u0,PORTAL_TOP),stone);
+          if(b0<BORE_FLOOR-.01||b1<BORE_FLOOR-.01)quad(at(u0,b0),at(u1,b1),at(u1,BORE_FLOOR),at(u0,BORE_FLOOR),deck);
+        }}
+      // 牆頂與兩側收邊：有厚度才不像一張貼在山坡上的紙。
+      quad(at(-PORTAL_HALF_W,PORTAL_TOP),at(PORTAL_HALF_W,PORTAL_TOP),at(PORTAL_HALF_W,PORTAL_TOP,PORTAL_T),at(-PORTAL_HALF_W,PORTAL_TOP,PORTAL_T),side);
+      for(const sign of [1,-1]){const u=sign*PORTAL_HALF_W,b=bottomAt(u);
+        quad(at(u,b),at(u,PORTAL_TOP),at(u,PORTAL_TOP,PORTAL_T),at(u,b,PORTAL_T),side);}
+      // 拱環凸出面牆一點，洞口才有邊框而不是一塊黑斑。
       for(let i=0;i<ARCH_SEGMENTS;i++){
-        const a=i*Math.PI/ARCH_SEGMENTS,b=(i+1)*Math.PI/ARCH_SEGMENTS;
-        quad(at(BORE_R,a,0),at(BORE_R+RING,a,0),at(BORE_R+RING,b,0),at(BORE_R,b,0),stone);
+        const a=i*Math.PI/ARCH_SEGMENTS,b=(i+1)*Math.PI/ARCH_SEGMENTS,r=BORE_R+RING;
+        quad(at(BORE_R*Math.cos(a),SPRING+BORE_R*Math.sin(a),-.15),at(r*Math.cos(a),SPRING+r*Math.sin(a),-.15),
+             at(r*Math.cos(b),SPRING+r*Math.sin(b),-.15),at(BORE_R*Math.cos(b),SPRING+BORE_R*Math.sin(b),-.15),side);
       }
-      // 兩側翼牆：從起拱線垂直落到洞底。
+      // 洞身：往山裡一小段暗色圓筒加底板與端牆，正面看進去是個洞，不是一片黑色圓餅。
+      for(let i=0;i<ARCH_SEGMENTS;i++){
+        const a=i*Math.PI/ARCH_SEGMENTS,b=(i+1)*Math.PI/ARCH_SEGMENTS,
+              ca=BORE_R*Math.cos(a),sa=SPRING+BORE_R*Math.sin(a),cb=BORE_R*Math.cos(b),sb=SPRING+BORE_R*Math.sin(b);
+        quad(at(ca,sa,0),at(cb,sb,0),at(cb,sb,PORTAL_BARREL),at(ca,sa,PORTAL_BARREL),lining);
+        quad(at(0,SPRING,PORTAL_BARREL),at(ca,sa,PORTAL_BARREL),at(cb,sb,PORTAL_BARREL),at(0,SPRING,PORTAL_BARREL),lining);
+      }
+      quad(at(-BORE_R,BORE_FLOOR,0),at(BORE_R,BORE_FLOOR,0),at(BORE_R,BORE_FLOOR,PORTAL_BARREL),at(-BORE_R,BORE_FLOOR,PORTAL_BARREL),lining);
+      quad(at(-BORE_R,SPRING,PORTAL_BARREL),at(BORE_R,SPRING,PORTAL_BARREL),at(BORE_R,BORE_FLOOR,PORTAL_BARREL),at(-BORE_R,BORE_FLOOR,PORTAL_BARREL),lining);
+      // 翼牆：面牆兩側往洞外斜出去，接住路基與邊坡。
       for(const sign of [1,-1]){
-        const inner=[p[0]+ux*sign*BORE_R*scale,p[1]+uy*sign*BORE_R*scale],outer=[p[0]+ux*sign*(BORE_R+RING)*scale,p[1]+uy*sign*(BORE_R+RING)*scale];
-        const hi=p[2]+SPRING*scale,lo=p[2]+BORE_FLOOR*scale;
-        quad([inner[0],inner[1],hi],[outer[0],outer[1],hi],[outer[0],outer[1],lo],[inner[0],inner[1],lo],stone);
+        const u0=sign*PORTAL_HALF_W,u1=sign*(PORTAL_HALF_W+PORTAL_WING_FLARE),b=bottomAt(u0);
+        quad(at(u0,b),at(u0,PORTAL_TOP),at(u1,SPRING,-PORTAL_WING_M),at(u1,b,-PORTAL_WING_M),deck);
       }
-      // 開口填襯砌：拱內一圈扇形，再補洞底到起拱線的方塊。
-      const hub=[p[0]+ox,p[1]+oy,p[2]+SPRING*scale];
-      for(let i=0;i<ARCH_SEGMENTS;i++){
-        const a=i*Math.PI/ARCH_SEGMENTS,b=(i+1)*Math.PI/ARCH_SEGMENTS;
-        quad(hub,at(BORE_R,a,.25),at(BORE_R,b,.25),hub,lining);
-      }
-      const lx=ux*BORE_R*scale,ly=uy*BORE_R*scale,hi=p[2]+SPRING*scale,lo=p[2]+BORE_FLOOR*scale;
-      quad([p[0]+lx+ox,p[1]+ly+oy,hi],[p[0]-lx+ox,p[1]-ly+oy,hi],[p[0]-lx+ox,p[1]-ly+oy,lo],[p[0]+lx+ox,p[1]+ly+oy,lo],lining);
       stats.portals++;
     }
     if(detail>=1)for(const item of portals)portal(item);

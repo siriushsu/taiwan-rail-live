@@ -14,6 +14,11 @@ for(const layer of style.layers){
   if(layer.id==='landcover_wood')p['fill-opacity']=1;
   if(layer.id==='landuse_residential')p['fill-opacity']=.8;
   if(layer.id==='building')p['fill-outline-color']='#bda98f';
+  // 隧道段的鐵路線會直接鋪在地形表面上，在山坡就變成「山丘表面的軌道印子」（2026-09-12 回報，
+  // 高鐵三義穿山脊那段最明顯）。上游樣式本來就把捷運隧道濾掉了（railway_transit），這裡讓一般
+  // 鐵路比照辦理；隧道該長什麼樣由 3D 圖層自己畫（洞口拱圈＋透視軌跡）。
+  if(layer.type==='line'&&source==='transportation'&&/^railway/.test(layer.id)&&!/transit/.test(layer.id))
+    layer.filter=['all',layer.filter,['!=',['get','brunnel'],'tunnel']];
   if(layer.type==='line'){
     if(source==='waterway')p['line-color']='#7cafb4';
     else if(source==='transportation')p['line-color']=/casing/.test(layer.id)?'#c2b79f':/railway/.test(layer.id)?'#b5afa0':/path/.test(layer.id)?'#d3c3a0':'#f7efd9';
