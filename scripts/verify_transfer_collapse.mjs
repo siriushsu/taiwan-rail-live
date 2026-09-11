@@ -55,15 +55,19 @@ const md5 = createHash('md5').update(idxSrc).digest('hex').slice(0, 12);
 const localBuild = (idxSrc.match(/const BUILD = '([^']*)'/) || [])[1] || '?';
 console.log(`\n目標: ${path.join(ROOT, 'index.html')}\n      md5=${md5}  BUILD=${localBuild}\n`);
 
-// [引擎, 寬度]。四寬掃描只在 chromium(那四個寬度之間沒有其他斷點,唯一相關的是 900px 手機殼);
-// webkit 跑 375 當語系與引擎的對照組。
-const MATRIX = [['chromium', 360], ['chromium', 375], ['chromium', 414], ['chromium', 768], ['webkit', 375]];
+// [引擎, 寬度]。四個手機寬度之間沒有其他斷點(唯一相關的是 900px 手機殼),都只跑 chromium;
+// webkit 跑 375 當語系與引擎的對照組(兩者結論不同就是語系沒釘死)。
+// 🔴 1280 那一列是桌面殼——跟車卡的主要顯示形態其實是桌面,全部塞在 ≤900 的話桌面標記一次都
+//    沒被渲染過(memory 心得 37 那個坑)。手機專屬的兩組(列車 sheet 排除、兩個實例同步)在桌面
+//    不適用,由 MOBILE 旗標跳過,不讓它們變成恆真的假綠。
+const MATRIX = [['chromium', 360], ['chromium', 375], ['chromium', 414], ['chromium', 768], ['chromium', 1280], ['webkit', 375]];
 const OTHERS = ['#statBadge', '#randBtn', '#nearBtn'];
 const ENGINES = { chromium, webkit };
 let t0Done = false;
 
 for (const [engName, w] of MATRIX) {
   const P = n => `${engName} ${w} ${n}`;
+  const MOBILE = w <= 900;   // index.html 的 MOBILE_MQ 是 max-width:900px
   const browser = await ENGINES[engName].launch();
   // 🔴 刻意不設 trainmap-xfer-open:C1 量的就是「沒有這個鍵時的預設」。
   const ctx = await browser.newContext({ viewport: { width: w, height: 812 }, locale: 'zh-TW' });
@@ -125,6 +129,27 @@ for (const [engName, w] of MATRIX) {
   ok(P('找到可跟的車(已撥鐘到到站前,#fpConn 確定有真實資料)'), !!found, JSON.stringify(found));
   if (!found) { await browser.close(); continue; }
 
+  // 點之前先等版面沉澱:跟隨小卡錨在左下,欄位陸續到位時卡片會長高、上緣往上跑,
+  // #fpConn 跟著移動。Playwright 的 stability 只看連續兩幀,機器忙時會在檢查通過之後、
+  // 真正派發之前又位移 ⇒ 點到卡片裡別的東西(實測 webkit 在第六個 context 時中過一次:
+  // 沒點到 toggle、反而觸發 openTrainSheet)。這是量測穩定性,不是放寬判準。
+  const settle = async (sel) => {
+    let last = -1, same = 0;
+    for (let i = 0; i < 40 && same < 3; i++) {
+      const h = await page.evaluate(s2 => {
+        const e = document.querySelector(s2);
+        if (!e) return -1;
+        const b = e.getBoundingClientRect();
+        const p2 = document.getElementById('followPanel').getBoundingClientRect();
+        return Math.round(b.top * 10) + Math.round(p2.height * 10) * 1e5;
+      }, sel);
+      same = (h === last && h >= 0) ? same + 1 : 0;
+      last = h;
+      if (same < 3) await page.waitForTimeout(150);
+    }
+    return same >= 3;
+  };
+
   const snap = () => page.evaluate(sels => {
     const box = e => { const b = e.getBoundingClientRect(); return { l: b.left, t: b.top, r: b.right, b: b.bottom, w: +b.width.toFixed(1), h: +b.height.toFixed(1) }; };
     const hit = (a, c) => !(a.r <= c.l || c.r <= a.l || a.b <= c.t || c.b <= a.t);
@@ -174,11 +199,12 @@ for (const [engName, w] of MATRIX) {
      `clash=${a.clashes.join(',')||'無'} scrollW=${a.scrollW}/${a.inner} right=${a.conn.r}`);
 
   // ── C3/C4 真滑鼠點一次 → 展開 ──────────────────────────────────────────────
+  ok(P('C3pre 點之前版面已沉澱(卡片高度與 #fpConn 上緣連續三次取樣不變)'), await settle('#fpConn .xfc-t'));
   await page.locator('#fpConn .xfc-t').click();
   await page.waitForFunction(() => {
     const e = document.querySelector('#fpConn .xfc-t');
     return !!e && e.getAttribute('aria-expanded') === 'true';
-  }, null, { timeout: 5000 }).catch(() => {});
+  }, null, { timeout: 15000 }).catch(() => {});
   const b = await snap();
   ok(P('C3 真滑鼠點 toggle 會展開(面板每幀重畫沒有把點擊吃掉)'),
      b.aria === 'true' && b.rows >= 1 && b.foot, `aria=${b.aria} rows=${b.rows} foot=${b.foot}`);
@@ -186,7 +212,7 @@ for (const [engName, w] of MATRIX) {
   ok(P('C3c 收合那一行答案 = 展開後第一列的車次與剩 N 分(跨狀態是同一班車)'),
      !!b.firstLeft && a.sum === [b.firstNo, b.firstLeft].filter(Boolean).join(' · '),
      `${a.sum} vs ${[b.firstNo, b.firstLeft].filter(Boolean).join(' · ')}`);
-  ok(P('C4 點 toggle 不會順便把「列車」sheet 滑上來'), b.trainOpen === false, `train-open=${b.trainOpen}`);
+  if (MOBILE) ok(P('C4 點 toggle 不會順便把「列車」sheet 滑上來'), b.trainOpen === false, `train-open=${b.trainOpen}`);
   ok(P('C5 展開狀態寫進 localStorage'), b.ls === '1', `ls=${b.ls}`);
 
   // ── C2 收合真的讓卡片變短:省下的高度至少一整列(門檻由當下量到的列高推導) ────────
@@ -198,6 +224,8 @@ for (const [engName, w] of MATRIX) {
      `clash=${b.clashes.join(',')||'無'} scrollW=${b.scrollW}/${b.inner} right=${b.conn.r}`);
 
   // ── C6 三個實例一起換:把手機「列車」sheet 也打開(#tcConn),再切一次狀態 ─────────
+  // 桌面殼沒有這個 sheet,整組跳過(留著只會變成「只有一個實例 ⇒ 恆真」的假綠)。
+  if (MOBILE) {
   await page.evaluate(() => { if (typeof openTrainSheet === 'function') openTrainSheet(); });
   await page.waitForFunction(() => {
     const e = document.querySelector('#tcConn .xfc-t');
@@ -213,11 +241,12 @@ for (const [engName, w] of MATRIX) {
      two.length >= 2 && two.every(x => x.aria === two[0].aria && x.rows === two[0].rows),
      two.map(x => `${x.id}:${x.aria}/${x.rows}`).join(' '));
   // 再點一次收回:從 #tcConn 那顆點,收的必須是全部
+  await settle('#tcConn .xfc-t');
   await page.locator('#tcConn .xfc-t').click();
   await page.waitForFunction(() => {
     const e = document.querySelector('#tcConn .xfc-t');
     return !!e && e.getAttribute('aria-expanded') === 'false';
-  }, null, { timeout: 5000 }).catch(() => {});
+  }, null, { timeout: 15000 }).catch(() => {});
   const three = await page.evaluate(() => [...document.querySelectorAll('.xfer-conn')]
     .filter(e => e.querySelector('.xfc-t'))
     .map(e => ({ id: e.id, aria: e.querySelector('.xfc-t').getAttribute('aria-expanded'),
@@ -225,6 +254,7 @@ for (const [engName, w] of MATRIX) {
   ok(P('C6b 從另一個實例點收合,全部一起收(含剛剛展開的那一個)'),
      three.length >= 2 && three.every(x => x.aria === 'false' && x.rows === 0),
      three.map(x => `${x.id}:${x.aria}/${x.rows}`).join(' '));
+  }
 
   // ── C5 重新載入之後記得住 ─────────────────────────────────────────────────
   await page.evaluate(() => { try { localStorage.setItem('trainmap-xfer-open', '1'); } catch (e) {} });
