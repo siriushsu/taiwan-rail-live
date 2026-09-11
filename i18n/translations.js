@@ -1106,3 +1106,36 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {"放大地圖時，車站標記與�
 Object.assign(window.RAIL_I18N_MESSAGES.en, {"藍皮解憂號模型重新校正短車鼻、頭燈、R135 車號牌與深藍白線塗裝，客車同步換上藍色車身及銀灰車頂": "The Breezy Blue model now has a shorter nose, detailed headlights, R135 number boards and corrected navy-and-white paint, with blue coaches and silver-grey roofs."});
 
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"藍皮解憂號模型重新校正短車鼻、頭燈、R135 車號牌與深藍白線塗裝，客車同步換上藍色車身及銀灰車頂": "藍皮解憂号の短いノーズ、ヘッドライト、R135番号板、紺と白の塗装を修正。客車も青い車体と銀灰色の屋根に更新しました。"});
+
+// 高鐵對號座餘位徽章與票價展開(單元 A,2026-09-11 設計)。'標準座'/'商務座'/'自由座' 是看板徽章與
+// 票價摘要用的簡稱;'標準座車廂'/'商務座車廂'/'自由座車廂' 等 20 個代碼名稱來自 data/thsr_fare.json
+// 的官方代碼表(TicketType/FareClass/CabinClass,照抄 TDX swagger description),經 thsrFareCodeName()
+// 動態查表後仍會過 t(),字面掃描看不到,由 scripts/check_i18n.mjs 另外從資料檔補登(同 music.json 慣例)。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '有位': 'Seats available', '剩不多': 'Few seats left', '售完': 'Sold out',
+  '標準座': 'Standard', '商務座': 'Business', '自由座': 'Non-reserved', '票價': 'Fares', '其他票種': 'Other fare types',
+  '標準座 {std}・商務座 {biz}（每 10 分鐘更新，非即時）': 'Standard {std} · Business {biz} (updated every 10 min, not real-time)',
+  '標準座 {std}（每 10 分鐘更新，非即時）': 'Standard {std} (updated every 10 min, not real-time)',
+  '查詢 {o} → {d} 的票價': 'Check fares for {o} → {d}',
+  '{o} → {d}・一般票成人': '{o} → {d} · Standard adult fare',
+  '一般票(單程票)': 'Standard ticket (one-way)', '來回票': 'Round trip', '電子票證(悠遊卡、一卡通)': 'Smart card (EasyCard, iPASS)',
+  '回數票': 'Multi-ride ticket', '定期票(30天期)': '30-day pass', '定期票(60天期)': '60-day pass',
+  '早鳥票': 'Early bird ticket', '團體票': 'Group ticket',
+  '成人': 'Adult', '學生': 'Student', '孩童': 'Child', '敬老': 'Senior', '愛心': 'Disability',
+  '愛心孩童': 'Disability (child)', '愛心優待、愛心陪伴': 'Disability discount / companion', '軍警': 'Military / police', '法優': 'Statutory discount',
+  '標準座車廂': 'Standard car', '商務座車廂': 'Business car', '自由座車廂': 'Non-reserved car',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '有位': '空席あり', '剩不多': '残りわずか', '售完': '満席',
+  '標準座': '標準車両', '商務座': 'ビジネス車両', '自由座': '自由席', '票價': '運賃', '其他票種': 'その他の運賃種別',
+  '標準座 {std}・商務座 {biz}（每 10 分鐘更新，非即時）': '標準車両 {std}・ビジネス車両 {biz}（10分ごとに更新、リアルタイムではありません）',
+  '標準座 {std}（每 10 分鐘更新，非即時）': '標準車両 {std}（10分ごとに更新、リアルタイムではありません）',
+  '查詢 {o} → {d} 的票價': '{o} → {d} の運賃を確認',
+  '{o} → {d}・一般票成人': '{o} → {d}・普通運賃(大人)',
+  '一般票(單程票)': '普通乗車券(片道)', '來回票': '往復乗車券', '電子票證(悠遊卡、一卡通)': 'ICカード(悠遊卡・一卡通)',
+  '回數票': '回数券', '定期票(30天期)': '定期券(30日間)', '定期票(60天期)': '定期券(60日間)',
+  '早鳥票': '早割乗車券', '團體票': '団体乗車券',
+  '成人': '大人', '學生': '学生', '孩童': '小児', '敬老': 'シニア', '愛心': '障害者割引',
+  '愛心孩童': '障害者割引(小児)', '愛心優待、愛心陪伴': '障害者割引・付添者', '軍警': '軍人・警察', '法優': '法定割引',
+  '標準座車廂': '標準車両', '商務座車廂': 'ビジネス車両', '自由座車廂': '自由席車両',
+});

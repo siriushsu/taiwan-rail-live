@@ -5020,7 +5020,7 @@ const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/
 const API_ENDPOINTS = new Set([
   'tra-platforms', 'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'hazard-alert', 'metro-live', 'ntmetro-live', 'trtc-live',
   'klrt-position', 'bus-transfer', 'bus-leg-live', 'bus-route-stops', 'journey-share',
-  'delay-stats', 'delay-history', 'thsr-schedule', 'thsr-freeseat', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'basemap-src', 'basemap-fallback', 'account-delete',
+  'delay-stats', 'delay-history', 'thsr-schedule', 'thsr-freeseat', 'thsr-seat', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'basemap-src', 'basemap-fallback', 'account-delete',
   'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge', 'plus-status', 'revenuecat-webhook',
   'la/bind', 'la/unbind', 'metro-wait/bind', 'metro-wait/unbind', 'tra-wait/bind', 'tra-wait/unbind', 'pass-claim', 'pass-admin',
 ]);
@@ -6743,6 +6743,95 @@ async function thsrFreeSeat(request, env) {
   }
 }
 
+// ══ 高鐵對號座餘位(單元 A,2026-09-11 設計)═══════════════════════════════════════════
+// 資料源:TDX Rail/THSR/AvailableSeatStatusList(v2,無參數的「大量版」,不是 OD 版)。
+// 這不是訂票資訊,是擁擠預告——軌島不賣票,但訂不到對號座的人會去坐自由座,某班對號座顯示
+// 售完,等於預告那班自由座會擠。高鐵在 TDX 上沒有任何擁擠度/載客率資料(27 支端點清點過),
+// 對號座三態(O 有位/L 剩不多/X 售完)是唯一買得到的間接訊號,見 docs/specs/
+// 2026-09-11-bus-widget-shared-layers.md 單元 A。
+//
+// 🔴 陷阱記錄(不影響本端點,純供日後參考):OD 版端點 `AvailableSeatStatus/Train/OD/{起站}/to/
+// {迄站}/TrainDate/{日期}` 用英文站名或不存在的站碼會回 HTTP 200 + 空陣列,不是 404;
+// 分辨訊號是頂層 UpdateTime/SrcUpdateTime 欄位有沒有出現(壞輸入時沒有,合法輸入即使查無
+// 資料仍然會有)——TDX 把「這次查詢有沒有被真正處理」編碼在這兩個欄位,不是編碼在 HTTP
+// 狀態碼上。本端點改用 List 版,無使用者輸入、無站碼參數,不會撞到這個坑;但同一個教訓
+// (「上游 200+空陣列不等於『真的沒有』」)仍然適用,套用方式見下面 thsrSeat() 的空表守門人。
+const THSR_SEAT_URL_BASE = 'https://tdx.transportdata.tw/api/basic/v2/Rail/THSR/AvailableSeatStatusList?%24format=JSON';
+function thsrSeatUrl(env) {
+  return (env && env.THSR_SEAT_BASE_URL_OVERRIDE) || THSR_SEAT_URL_BASE;
+}
+
+// 官方三態字面,只認這三個值(照抄,不推算不合併)。
+function isThsrSeatCode(v) { return v === 'O' || v === 'L' || v === 'X'; }
+
+// TDX 原始回應({UpdateTime, AvailableSeats:[{TrainNo,StationID,StationName,DepartureTime,
+// EndingStationID,StopStations:[{StationID,StationName,StandardSeatStatus,BusinessSeatStatus}],
+// SrcUpdateTime}]}) → 精簡查詢表(純函式)。
+// 🔴 同一 TrainNo 在頂層陣列裡會出現多筆:每筆的頂層 StationID/StationName 是「一個可能的上車站」,
+// StopStations[] 是從那一站起算、往後每一停靠站各自的座位狀態——即 OD 矩陣攤平成「以每個可能
+// 起站為準」的清單(2026-09-11 實測驗證:TrainNo 1202 出現 5 筆,對應 thsr_schedule_dense.json
+// 裡 1202 扣掉終點站後的 5 個可上車站,逐一相符)。因此鍵要同時帶上起站與訖站,只用車次號會撞鍵
+// (同一班車在不同站上車、往同一終點,座位狀態可能不同——沿途上下客的自然結果)。
+// 鍵與值都原樣使用官方字面(StationName.Zh_tw 站名字串、O/L/X 三態字元),不重新命名、不推算、
+// 不合併——不可由此推導自由座擁擠度(spec 明文禁止)。
+function thsrConvertSeatList(raw) {
+  const list = Array.isArray(raw) ? raw : (raw && Array.isArray(raw.AvailableSeats)) ? raw.AvailableSeats : [];
+  const table = {};
+  for (const rec of list) {
+    const trainNo = rec && rec.TrainNo != null ? String(rec.TrainNo) : '';
+    const originName = rec && rec.StationName && rec.StationName.Zh_tw;
+    if (!trainNo || !originName) continue;
+    const stops = Array.isArray(rec.StopStations) ? rec.StopStations : [];
+    for (const s of stops) {
+      const destName = s && s.StationName && s.StationName.Zh_tw;
+      if (!destName) continue;
+      const std = isThsrSeatCode(s && s.StandardSeatStatus) ? s.StandardSeatStatus : null;
+      const biz = isThsrSeatCode(s && s.BusinessSeatStatus) ? s.BusinessSeatStatus : null;
+      if (!std && !biz) continue; // 兩態都拿不到就整筆跳過,不留空物件佔位
+      table[`${trainNo}|${originName}|${destName}`] = { std, biz };
+    }
+  }
+  return table;
+}
+
+// /api/thsr-seat:高鐵對號座餘位查詢表,無參數。
+// 雙層 TTL 算式(依既有規則:管上游呼叫的是 mem 不是 s-maxage;實際重打上游的最小間隔
+// 等於「大於 mem 的最小 edge 倍數」)——上游 UpdateInterval=600 秒(10 分鐘更新一次):
+//   edge s-maxage=300、mem=310 秒。同一 isolate 內,mem 過期(>310s)一定發生在
+//   第二個 edge 週期以後(300×2=600),所以實際重打上游的最小間隔是 600 秒,
+//   剛好對齊上游自己的更新節奏,不多打也不會落後太多。改這兩個數字前重算這個算式,
+//   否則後面的人會以為改 s-maxage 就能單獨調頻率(mem 才是真正管上游呼叫次數的那一層)。
+const THSR_SEAT_EDGE_MAXAGE = 300;
+const THSR_SEAT_MEM_TTL_MS = 310e3;
+let thsrSeatMem = null, thsrSeatMemAt = 0;
+async function thsrSeat(request, env) {
+  const cacheKey = new Request(new URL('/api/thsr-seat', request.url), { method: 'GET' });
+  const edge = caches.default;
+  const hit = await edge.match(cacheKey);
+  if (hit) return hit;
+  try {
+    if (!thsrSeatMem || Date.now() - thsrSeatMemAt > THSR_SEAT_MEM_TTL_MS) {
+      const r = await fetch(thsrSeatUrl(env), { headers: { authorization: 'Bearer ' + await getToken(env) }, redirect: 'manual' });
+      if (r.status === 401) { tok = null; throw new Error('tdx 401 thsr-seat'); }
+      if (!r.ok) throw new Error('tdx thsr-seat ' + r.status);
+      const d = await r.json();
+      const table = thsrConvertSeatList(d);
+      // 🔴 空表守門人:這支端點沒有使用者輸入/站碼參數,正常時段一律是幾百筆起跳(2026-09-11
+      // 實測 298 筆原始記錄、展開逾千個起訖配對);高鐵天天營運到深夜,轉換後空表在目前已知的
+      // 情境下沒有合法成因,幾乎必是我們這端出錯(URL 打錯/解析壞掉),對應 OD 版陷阱「200+空陣列
+      // 不等於『真的沒有』」的同一教訓。故空表一律視為上游異常,丟出去讓下面的 catch 退回舊值,
+      // 不快取這個可疑的空狀態(見 scripts/verify_thsr_seat.mjs 的正向對照與突變測試)。
+      if (Object.keys(table).length === 0) throw new Error('thsr-seat 轉換後為空表(疑似上游或解析異常,非「今天真的沒有高鐵」)');
+      thsrSeatMem = { at: (d && d.UpdateTime) || new Date().toISOString(), table };
+      thsrSeatMemAt = Date.now();
+    }
+    return await jsonResCached(edge, cacheKey, thsrSeatMem, 200, `public, s-maxage=${THSR_SEAT_EDGE_MAXAGE}, stale-while-revalidate=1800`);
+  } catch (e) {
+    if (thsrSeatMem) return jsonRes(thsrSeatMem, 200, 'public, s-maxage=60');
+    return jsonRes({ error: String(e.message || e) }, 502, 'no-store');
+  }
+}
+
 // 逐站事件保留期:刪掉台北今日往前 STATION_EVENT_KEEP_DAYS 天以外的舊列(重用 addDays/twToday)。
 // 獨立於 delay ingest——放進 scheduled 的 finally,ingest 成功或失敗(rethrow)都會執行;本函式失敗
 // 只由呼叫端 console.error、不 rethrow,不動既有「ingest 失敗要 rethrow」的語意。
@@ -6936,6 +7025,7 @@ export default {
     else if (url.pathname === '/api/thsr-schedule') res = await thsrSchedule(request, env);
     else if (url.pathname === '/api/tra-daily-trains') res = await traDailyTrains(request, env);
     else if (url.pathname === '/api/thsr-freeseat') res = await thsrFreeSeat(request, env);
+    else if (url.pathname === '/api/thsr-seat') res = await thsrSeat(request, env);
     else if (url.pathname === '/api/delay-history') res = await delayHistory(request, env);
     else if (url.pathname === '/api/station-events') res = await stationEvents(request, env);
     else if (url.pathname === '/api/today-board') res = await todayBoard(request, env);
@@ -7072,10 +7162,13 @@ export const _tw = { traWaitPushAll, traWaitBind, traWaitUnbind };
 // env 替身(env.DELAY_DB、env.ASSETS、env.TDX_AUTH_URL_OVERRIDE、env.THSR_SCHEDULE_BASE_URL_OVERRIDE)。
 // thsrConvertFreeSeat/thsrFreeSeatUrl 是純函式;thsrFreeSeat 端點會碰網路,測試自備
 // env.TDX_AUTH_URL_OVERRIDE/env.THSR_FREESEAT_BASE_URL_OVERRIDE(scripts/verify_thsr_freeseat.mjs)。
+// thsrConvertSeatList/isThsrSeatCode/thsrSeatUrl 是純函式;thsrSeat 端點會碰網路,測試自備
+// env.TDX_AUTH_URL_OVERRIDE/env.THSR_SEAT_BASE_URL_OVERRIDE(scripts/verify_thsr_seat.mjs)。
 export const _thsr = {
   thsrConvertDaily, thsrBuildStationMap, thsrSelectServedDay, thsrKeyToMs, thsrScheduleUrl,
   fetchThsrDaily, thsrStationMap, ingestThsrSchedule, thsrSchedule, authUrl,
   thsrConvertFreeSeat, thsrFreeSeatUrl, thsrFreeSeat,
+  thsrConvertSeatList, isThsrSeatCode, thsrSeatUrl, thsrSeat,
   // 自我檢查:測試要自備 env(DELAY_DB/ASSETS/TDX 覆寫)與 event.scheduledTime(節奏閘門看它,不看真時鐘)。
   thsrSelfHeal, THSR_SCHED_FETCH_DAYS, THSR_SCHED_KEEP_DAYS, THSR_HEAL_EVERY_MIN, THSR_HEAL_FROM_HOUR,
 };

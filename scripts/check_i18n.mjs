@@ -73,6 +73,29 @@ for (const key of new Set(musicDisplayKeys)) {
   for (const lang of languages) if (!keySets[lang]?.has(key)) fail(`${lang} 缺少配樂曲庫字串：${key}`);
 }
 
+// data/thsr_fare.json 的官方代碼名稱(TicketType/FareClass/CabinClass)經 thsrFareCodeName() 動態
+// 查表後才 t(),同樣是【資料】不是 index.html 字面 t('…'),上面的 runtime key 掃描看不到——
+// 理由與作法都同 music.json 那條。
+const thsrFareData = JSON.parse(fs.readFileSync(path.join(root, 'data/thsr_fare.json'), 'utf8'));
+const thsrFareCodeKeys = [
+  ...Object.values(thsrFareData.codes.ticketType),
+  ...Object.values(thsrFareData.codes.fareClass),
+  ...Object.values(thsrFareData.codes.cabinClass),
+];
+// 分母自己也要有斷言:欄位改名或代碼表清空時,這條檢查會靜默縮成 0 個而不是報錯(同 music.json 那條的理由)。
+if (thsrFareCodeKeys.length !== 8 + 9 + 3) fail(`高鐵票價代碼字串取到 ${thsrFareCodeKeys.length} 個,不等於官方代碼表筆數(8+9+3),欄位名可能改了`);
+for (const key of new Set(thsrFareCodeKeys)) {
+  for (const lang of languages) if (!keySets[lang]?.has(key)) fail(`${lang} 缺少高鐵票價代碼字串：${key}`);
+}
+
+// 座位三態(THSR_SEAT_LABEL)與票價摘要三車廂短稱(priceRow 的 label 參數)都是 index.html 裡的
+// JS 物件/字面值,經變數查表後才 t(id)——同樣不是字面 t('…'),上面的 runtime key 掃描看不到,
+// 用同一套「補成第一級來源」處理,不必為此另外解析 index.html 的物件定義。
+const thsrSeatBoardKeys = ['有位', '剩不多', '售完', '標準座', '商務座', '自由座'];
+for (const key of thsrSeatBoardKeys) {
+  for (const lang of languages) if (!keySets[lang]?.has(key)) fail(`${lang} 缺少高鐵座位／票價短稱字串：${key}`);
+}
+
 const coreStaticKeys = [
   '歡迎搭乘', '軌島怎麼玩', '上面', '全／台／高／捷', '選要看哪個系統',
   '點', '列車', '＝鏡頭跟著它跑，陪到終點蓋完乘章', '車站', '＝看接下來的班次與倒數',

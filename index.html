@@ -1953,6 +1953,41 @@
     background: none; border: 1px solid var(--ok); border-radius: 3px;
     padding: 0 4px 1px; white-space: nowrap; opacity: .9;
   }
+  /* 高鐵對號座徽章(單元 A,2026-09-11):沿用上面三顆標籤的視覺語彙,不新增色票——
+     O 有位比照 okTag(綠框)、L 剩不多比照 lateTag(警示底)、X 售完用警示色實心(比 L 更搶眼,
+     售完是預告自由座會擠的最強訊號)。 */
+  .seatTag {
+    font-weight: 800; font-size: calc(10.5px * var(--uis)); margin-left: 4px;
+    border-radius: 3px; padding: 0 4px 1px; white-space: nowrap; vertical-align: 1px;
+  }
+  .seatTag-o { color: var(--ok); background: none; border: 1px solid var(--ok); opacity: .9; }
+  .seatTag-l { color: var(--warn-ink); background: var(--warn-bg); border: 1px solid var(--warn-line); }
+  .seatTag-x { color: var(--paper); background: var(--warn-ink); border: 1px solid var(--warn-ink); }
+  /* 票價鈕與展開層(單元 A):鈕比照 .rmore 的次要視覺重量,不搶過班次本身;展開層是站內
+     小卡,沿用 --bg-stage/--line-faint 這組既有的「次層資訊卡」語彙(比照 .tap-pick 的量級)。 */
+  .board .row .fareBtn {
+    flex: none; margin-left: 4px; font: inherit; font-size: calc(10.5px * var(--uis)); font-weight: 700;
+    color: var(--navy); background: none; border: 1px solid var(--line); border-radius: 999px;
+    padding: 1px 7px; cursor: pointer; white-space: nowrap;
+  }
+  .board .row .fareBtn.on { color: var(--paper); background: var(--navy); border-color: var(--navy); }
+  .fareExpand {
+    margin: 2px 0 6px; padding: 6px 8px; background: var(--bg-stage); border: 1px solid var(--line-faint);
+    border-radius: 8px; font-size: calc(12px * var(--uis));
+  }
+  .fareExpand .fareHead { font-weight: 700; color: var(--muted); margin-bottom: 3px; }
+  .fareExpand .fareRow { display: flex; justify-content: space-between; gap: 8px; padding: 1px 0; }
+  .fareExpand .fareRow.fareEmpty { color: var(--faint); justify-content: flex-start; }
+  .fareExpand .fareK { color: var(--muted); }
+  .fareExpand .fareV { font-weight: 700; color: var(--ink-strong); font-variant-numeric: tabular-nums; }
+  .fareExpand .fareMore {
+    margin-top: 3px; font: inherit; font-size: calc(11px * var(--uis)); color: var(--navy);
+    background: none; border: none; padding: 2px 0; cursor: pointer; text-decoration: underline;
+  }
+  .fareExpand .fareOther { margin-top: 2px; border-top: 1px dashed var(--line-faint); padding-top: 3px; }
+  /* 大／特大字級是全站最容易撞版的一列(下面 data-fs=large/xlarge 那組 grid-area 規則的地盤,
+     見該處旁註);座位/票價是加值資訊不是導航必要資訊,直接收起,不硬擠一個 grid-area 進去。 */
+  html[data-fs] .seatTag, html[data-fs] .board .row .fareBtn, html[data-fs] .fareExpand { display: none; }
 
   /* ── 點擊歧義小選單(tap-pick):列車停靠中壓住車站時,貼點擊處彈兩列讓使用者選車或站 ── */
   .tap-pick {
@@ -18368,6 +18403,114 @@ function renderFreeSeat(tr) {
   paintFreeSeat(tr);
 }
 
+// ══ 高鐵對號座餘位徽章與票價展開(單元 A,2026-09-11 設計)══════════════════════════════
+// 這不是訂票資訊,是擁擠預告:軌島不賣票,但訂不到對號座的人會去坐自由座,某班標準座顯示
+// 售完,等於預告那班自由座會擠。只標「標準座」三態為主要徽章——商務座售完不會把人推去自由座
+// (票價落差太大),標準座才是預測自由座擁擠度的訊號;商務座狀態放進 tooltip,不佔看板版面。
+// 大／特大字級不顯示徽章／票價鈕(見上方 CSS:看板列在那兩階是全站最容易撞版的一處,座位/
+// 票價是加值資訊不是導航必要資訊)。
+let _thsrSeatCache;
+let _thsrSeatPromise = null;
+async function loadThsrSeat() {
+  if (_thsrSeatCache !== undefined) return _thsrSeatCache;
+  if (!_thsrSeatPromise) {
+    _thsrSeatPromise = fetchJSONAt(apiUrl('api/thsr-seat')).then(d => {
+      _thsrSeatCache = (d && d.table && typeof d.table === 'object') ? d.table : null;
+      return _thsrSeatCache;
+    });
+  }
+  return _thsrSeatPromise;
+}
+// 票價是建置期靜態表(data/thsr_fare.json,scripts/build_thsr_fare.mjs 產生),直接當一般靜態
+// 資產抓,不經 Worker——票價幾乎不變動,比照 thsr_track.json 的既有慣例,不需要即時代理層。
+let _thsrFareCache;
+let _thsrFarePromise = null;
+async function loadThsrFare() {
+  if (_thsrFareCache !== undefined) return _thsrFareCache;
+  if (!_thsrFarePromise) {
+    _thsrFarePromise = fetchJSONAt('./data/thsr_fare.json').then(d => {
+      _thsrFareCache = (d && d.fares && d.stations && d.codes) ? d : null;
+      return _thsrFareCache;
+    });
+  }
+  return _thsrFarePromise;
+}
+// 站名 → 官方站碼,由 data/thsr_fare.json 的 stations(站碼→站名)反向索引,只建一次。
+let _thsrStationIdByName = null;
+function thsrStationId(name) {
+  if (!_thsrFareCache) return null;
+  if (!_thsrStationIdByName) {
+    _thsrStationIdByName = new Map();
+    for (const [id, n] of Object.entries(_thsrFareCache.stations)) _thsrStationIdByName.set(n, id);
+  }
+  return _thsrStationIdByName.get(name) || null;
+}
+// 兩站碼由小到大排序組鍵——建置腳本只存「小站碼|大站碼」單一方向(2026-09-11 實測台北↔左營
+// 逐價相符,票價雙向共用同一份資料,見 scripts/build_thsr_fare.mjs 開頭註解)。
+function thsrFarePairKey(idA, idB) { return idA < idB ? `${idA}|${idB}` : `${idB}|${idA}`; }
+// 官方代碼名稱查表(TicketType/FareClass/CabinClass),動態查完才 t();字面掃描看不到,由
+// scripts/check_i18n.mjs 直接讀 data/thsr_fare.json 補登(同 music.json 既有慣例)。
+function thsrFareCodeName(kind, code) {
+  const name = _thsrFareCache && _thsrFareCache.codes[kind] && _thsrFareCache.codes[kind][code];
+  return name ? t(name) : String(code);
+}
+
+// 座位狀態徽章:官方三態原字面對應文案,不推算不合併。查不到鍵、或標準座狀態本身缺值,
+// 一律不顯示(不留空框,不用其他站頂替)。
+const THSR_SEAT_LABEL = { O: '有位', L: '剩不多', X: '售完' };
+const THSR_SEAT_CLASS = { O: 'o', L: 'l', X: 'x' };
+function thsrSeatBadgeHtml(originName, destName, trainNo) {
+  const table = _thsrSeatCache;
+  if (!table) return '';
+  const rec = table[`${trainNo}|${originName}|${destName}`];
+  if (!rec || !rec.std) return '';
+  const stdLabel = t(THSR_SEAT_LABEL[rec.std]);
+  const title = rec.biz
+    ? t('標準座 {std}・商務座 {biz}（每 10 分鐘更新，非即時）', { std: stdLabel, biz: t(THSR_SEAT_LABEL[rec.biz]) })
+    : t('標準座 {std}（每 10 分鐘更新，非即時）', { std: stdLabel });
+  return ` <span class="seatTag seatTag-${THSR_SEAT_CLASS[rec.std]}" title="${escHtml(title)}">${escHtml(stdLabel)}</span>`;
+}
+
+// 票價按鈕與展開層。origin/dest 沿用該列已知的起站/終點(schedBoardRows 算好的 st.name/r.dest),
+// 不做起訖選擇器(spec 明文:List 版端點不需要使用者先選目的地,票價一併沿用同一對站名)。
+// 展開狀態持久化比照 boardRxOpen 的寫法(看板每 20 模擬秒整個重繪一次,狀態要自己存)——鍵用
+// 「起站|訖站」而非車次,因為同一對站的票價與展開內容跟車次無關,不同班次共用同一份不必各開一次。
+const boardFareOpen = new Set();
+function thsrFareBtnHtml(originName, destName) {
+  const open = boardFareOpen.has(originName + '|' + destName);
+  return ` <button type="button" class="fareBtn${open ? ' on' : ''}" data-fare-key="${escHtml(originName + '|' + destName)}" aria-label="${escHtml(t('查詢 {o} → {d} 的票價', { o: originName, d: destName }))}">${escHtml(t('票價'))}</button>`;
+}
+// 一般票成人的三種車廂價(spec 預設只出這三種);抓不到票價資料/站碼/同站對站一律回 null。
+function thsrFareDefaultTrio(originName, destName) {
+  if (!_thsrFareCache) return null;
+  const oid = thsrStationId(originName), did = thsrStationId(destName);
+  if (!oid || !did || oid === did) return null;
+  const list = _thsrFareCache.fares[thsrFarePairKey(oid, did)];
+  if (!Array.isArray(list) || !list.length) return null;
+  const byCabin = {};
+  for (const f of list) if (f.ticketType === 1 && f.fareClass === 1) byCabin[f.cabinClass] = f.price;
+  if (byCabin[1] == null && byCabin[2] == null && byCabin[3] == null) return null;
+  return { list, std: byCabin[1], biz: byCabin[2], unreserved: byCabin[3] };
+}
+function thsrFareExpandHtml(originName, destName) {
+  const trio = thsrFareDefaultTrio(originName, destName);
+  if (!trio) return `<div class="fareExpand"><div class="fareRow fareEmpty">${escHtml(t('沒有資料'))}</div></div>`;
+  const priceRow = (label, price) => price == null ? '' :
+    `<div class="fareRow"><span class="fareK">${escHtml(t(label))}</span><span class="fareV">NT$${i18nNumber(price)}</span></div>`;
+  const otherKey = 'other|' + originName + '|' + destName;
+  const otherOpen = boardFareOpen.has(otherKey);
+  const otherRows = trio.list
+    .filter(f => !(f.ticketType === 1 && f.fareClass === 1))
+    .map(f => `<div class="fareRow"><span class="fareK">${escHtml(thsrFareCodeName('ticketType', f.ticketType))}・${escHtml(thsrFareCodeName('fareClass', f.fareClass))}・${escHtml(thsrFareCodeName('cabinClass', f.cabinClass))}</span><span class="fareV">NT$${i18nNumber(f.price)}</span></div>`)
+    .join('');
+  return `<div class="fareExpand">` +
+    `<div class="fareHead">${escHtml(t('{o} → {d}・一般票成人', { o: originName, d: destName }))}</div>` +
+    priceRow('標準座', trio.std) + priceRow('商務座', trio.biz) + priceRow('自由座', trio.unreserved) +
+    (otherRows ? `<button type="button" class="fareMore" data-fare-other="${escHtml(otherKey)}">${escHtml(otherOpen ? t('收合') : t('其他票種'))}</button>` : '') +
+    (otherOpen ? `<div class="fareOther">${otherRows}</div>` : '') +
+    `</div>`;
+}
+
 // 靜態轉乘表索引。配對本身已由 scripts/build_station_transfers.mjs 用各來源站碼、有限站名規則＋座標建好；
 // 前端只用「時刻表系統＋正規化站名」接回同系統 anchor，座標只作同名歧義／來源漂移的上界檢查。
 const TRANSFER_SCHED_SYSTEM = { tra_sched: 'TRA', thsr_sched: 'THSR', afr_sched: 'AFR' };
@@ -28383,12 +28526,13 @@ function saveLastBoard(st) {
   if (!st || !st.name || !st.sys) return;
   try { localStorage.setItem(LAST_BOARD_KEY, JSON.stringify({ sys: st.sys, name: st.name })); } catch (e) {}
 }
-function openBoard(st) { soloPanel('board'); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel(); closeDelayHist(); closePinCard(); closeNearbyStations(); closeSugarCard(); boardRxOpen.clear(); state.boardStation = st; saveLastBoard(st); uniTab = 'station'; uniUncollapseForBoard(); renderBoard(); }
+function openBoard(st) { soloPanel('board'); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel(); closeDelayHist(); closePinCard(); closeNearbyStations(); closeSugarCard(); boardRxOpen.clear(); boardFareOpen.clear(); state.boardStation = st; saveLastBoard(st); uniTab = 'station'; uniUncollapseForBoard(); renderBoard(); }
 function closeBoard() {
   unmountUniCard(); // 先把跟車卡搬回家,再清 innerHTML——否則它會跟著被清掉
   busTransferCloseBoard();
   state.boardStation = null;
   boardRxOpen.clear(); // 展開態屬於這一張看板,關掉就結束
+  boardFareOpen.clear(); // 單元 A:票價展開態同一套理由,一起清
   const el = document.getElementById('board');
   el.hidden = true; el.innerHTML = '';
   updateSheetOpenClass();
@@ -29211,6 +29355,11 @@ function renderBoard() {
 // renderBoardBody(perGroup 3/6)與查詢答案區(perGroup 1)共用同一份——答案區的字面必須等於看板同組第一列,
 // 所以不准有第二份產生器(spec §4.3)。
 function schedBoardListHtml(st, rows, perGroup) {
+  // 高鐵座位徽章／票價鈕僅限高鐵站板(單元 A,2026-09-11):台鐵/林鐵/捷運都沒有對號座概念。
+  // 答案區(perGroup=1)只出徽章不出票價鈕——那裡點列是「開看板」(renderQueryAnswer 的
+  // wrap.onclick,不是下面 renderBoardBody 的 el.onclick),沒有對應的按鈕守門,掛了會被
+  // 答案區自己的點擊誤判成開看板;徽章是純顯示的 <span>,兩處都安全。
+  const isThsr = st.sys === 'thsr_sched';
   const rowHtml = r => {
     const minutes = Math.round(r.dtm / 60);
     const min = r.off ? t('停駛') : r.dtm < 60 ? t('即將') : t('{n} 分', { n: i18nNumber(minutes) }, minutes);
@@ -29221,6 +29370,14 @@ function schedBoardListHtml(st, rows, perGroup) {
     // I-1:答案區(perGroup=1)點列是開看板(見 renderQueryAnswer 的 wrap.onclick),不是跟車——
     // 「跟隨 N 次」的 tooltip 在那裡是假話,只在真正的看板(perGroup 3/6)才掛。
     const title = perGroup === 1 ? '' : ` title="${escHtml(t('跟隨 {train} 次', { train: r.tr.train }))}"`;
+    // 單元 A:徽章與票價入口只在「還有下一段行程」的列出現(終點到達/停駛沒有 OD 可言,
+    // r.dest 對它們也沒有意義)。key 用「起站|訖站」,同一對站不分車次共用同一份展開狀態。
+    const thsrOnward = isThsr && !r.off && !r.isLast;
+    const seatBadge = thsrOnward ? thsrSeatBadgeHtml(st.name, r.dest, r.tr.train) : '';
+    const fareKey = st.name + '|' + r.dest;
+    const showFare = thsrOnward && perGroup !== 1;
+    const fareBtn = showFare ? thsrFareBtnHtml(st.name, r.dest) : '';
+    const fareExpand = showFare && boardFareOpen.has(fareKey) ? thsrFareExpandHtml(st.name, r.dest) : '';
     return `<div data-night-at="${state.simSec + r.dtm}" class="row${r.off ? ' off' : ''}${rx}"${r.off ? '' : ` data-no="${escHtml(r.tr.train)}" data-sys="${escHtml(r.tr.sys || '')}"${title}`}><span class="dot" style="background:${r.tr.color}"></span>` +
       // 「推算」標貼著時刻放(被推算的是時間不是路線),與 lateTag 同位、不會同時出現(est 車無誤點資料);
       // 放 dest 欄會把「（終點到達）」擠成「(…」(280px 看板實測;v0901 加寬到 360 後未重測,維持原做法)。
@@ -29229,9 +29386,11 @@ function schedBoardListHtml(st, rows, perGroup) {
       `<b>${escHtml(r.tr.train)}</b><span class="dest"><span class="ty">${escHtml(r.tr.loop ? t(r.tr.loopName) : trainTypeName(r.tr.typeName))}</span>　<span class="to">${escHtml(dest)}</span>${!r.off ? (window.RailPlatforms?.slot(r.tr,r.stop,r.isLast?'arrival':'departure',r.t)||'') : ''}</span>` +
       // 時刻本身另包一層 .hm:大檔要把「誤點/推算」標排到第二行的方向後面(設計 6b),
       // 那需要 .t 交出排版權(display:contents),交出去之後裸文字節點就抓不到了。標準檔字元不變。
-      `<span class="t"><span class="hm">${fmtHM(r.t % 86400)}</span>${r.off ? '' : r.tr.est ? `<span class="estTag">${escHtml(t('推算'))}</span>` : r.dl > 0 ? `<span class="lateTag" data-min="${r.dl}">+${i18nNumber(r.dl)}</span>` : ''}</span><span class="min">${escHtml(min)}</span>` +
+      `<span class="t"><span class="hm">${fmtHM(r.t % 86400)}</span>${r.off ? '' : r.tr.est ? `<span class="estTag">${escHtml(t('推算'))}</span>` : r.dl > 0 ? `<span class="lateTag" data-min="${r.dl}">+${i18nNumber(r.dl)}</span>` : ''}${seatBadge}</span><span class="min">${escHtml(min)}</span>` +
+      fareBtn +
       // 收掉的欄位一定要有可達路徑(設計 6b 明文):這顆只在特大出現,點開就是原本那三個欄位。
-      `<button class="rmore" type="button" tabindex="-1" aria-label="${escHtml(t('顯示車種與方向'))}">›</button></div>`;
+      `<button class="rmore" type="button" tabindex="-1" aria-label="${escHtml(t('顯示車種與方向'))}">›</button></div>` +
+      fareExpand;
   };
   // 依方向分組。空組不畫;組內維持時間序,各取 perGroup 班。
   const byKey = new Map();
@@ -29261,6 +29420,13 @@ function renderBoardBody() {
   if (state.mode !== 'sched') { renderFreqBoard(el, st, metroBoardLines(st, state.lines), false); appendBusTransferBoard(el, st, busTransferId); return; } // 捷運/輕軌分頁走獨立邏輯,sched(台鐵/高鐵)以下維持原樣;同名站只讀自己所屬系統
   if (st.sys === 'deco') { renderFreqBoard(el, st, metroBoardLines(st, state.decoLines), true); appendBusTransferBoard(el, st, busTransferId); return; } // 全台同框:點裝飾層捷運站,同款看板但讀 decoLines(無 state.visible 個別開關);同樣依系統分開,避免跨城市同名站合併
   const rows = schedBoardRows(st);
+  // 單元 A:進到高鐵板才觸發座位/票價抓取(比照 loadThsrFreeSeat 的「跟到高鐵車才抓」節流精神,
+  // 這裡改成「開到高鐵板才抓」——座位/票價是看板徽章,不是跟車卡),未抓過(undefined)才發起;
+  // 抓完只有『還在同一站』才重繪,避免使用者早已切到別站卻被遲到的回應打斷。
+  if (st.sys === 'thsr_sched') {
+    if (_thsrSeatCache === undefined) loadThsrSeat().then(() => { if (state.boardStation === st) renderBoard(); });
+    if (_thsrFareCache === undefined) loadThsrFare().then(() => { if (state.boardStation === st) renderBoard(); });
+  }
   // 分組前是全站合計 12 筆(大段 88%/24 筆 2026-08-26 退役);分組後改成【逐組】配額:
   // 冷門方向不會被熱門方向整個擠掉。🔴 App 線沒有大段 ⇒ el.expand 恆假 ⇒ 實際恆為 3。
   const perGroup = el.classList.contains('expand') ? 6 : 3;
@@ -29306,6 +29472,7 @@ function renderBoardBody() {
   // 所以 pointerdown 先把車次記在持久的 el 上,click 撈不到列時用記下的補。
   el.onpointerdown = e => {
     if (e.target.closest('.rmore')) { el._downNo = null; el._downSys = null; return; } // 展開鈕不是跟車熱區
+    if (e.target.closest('.fareBtn') || e.target.closest('.fareExpand')) { el._downNo = null; el._downSys = null; return; } // 單元 A:票價鈕與展開層不是跟車熱區
     const row = e.target.closest('.row[data-no]');
     el._downNo = row ? row.dataset.no : null;
     el._downSys = row ? row.dataset.sys : null;   // 車次補記的同時也補記系統,否則重號時補回來的是別家的車
@@ -29326,6 +29493,26 @@ function renderBoardBody() {
       }
       return;
     }
+    // 單元 A(2026-09-11):票價鈕與「其他票種」子開關。兩者都用完整重繪反映新狀態——renderBoard
+    // 會保留捲動位置(preserveScroll,見該函式頂端說明),點擊頻率遠低於 .rmore(那顆才需要
+    // 不重繪的即時手感),用重繪換取「不必手刻 DOM patch」的簡單、不會跟資料不同步。
+    const fareBtn = e.target.closest('.fareBtn');
+    if (fareBtn) {
+      e.stopPropagation();
+      const key = fareBtn.dataset.fareKey;
+      if (boardFareOpen.has(key)) boardFareOpen.delete(key); else boardFareOpen.add(key);
+      renderBoard();
+      return;
+    }
+    const fareMore = e.target.closest('.fareMore');
+    if (fareMore) {
+      e.stopPropagation();
+      const key = fareMore.dataset.fareOther;
+      if (boardFareOpen.has(key)) boardFareOpen.delete(key); else boardFareOpen.add(key);
+      renderBoard();
+      return;
+    }
+    if (e.target.closest('.fareExpand')) { e.stopPropagation(); return; } // 展開層內其餘點擊不觸發跟車
     const row = e.target.closest('.row[data-no]');
     const no = row ? row.dataset.no : el._downNo;
     const sys = row ? row.dataset.sys : el._downSys;
