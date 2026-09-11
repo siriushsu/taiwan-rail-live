@@ -44,8 +44,8 @@ export function createProps({geo,mat,instance,rand}){
  function rock(x,y,z,s=.3,mossy=false){instance(stoneGeo,mossy?moss:stone,[x,y,z+s*.3],[s*1.4,s,s*.7],[0,0,rand()*Math.PI]);}
 
  // 透天厝。facing 是正面朝向：0 朝 −y（面向觀者）。
- // roof 'parapet' 女兒牆｜'tin' 鐵皮加蓋｜'pitched' 瓦斜頂；ground 'plain'｜'arcade' 騎樓｜'shop' 店面招牌；balcony 'rail'｜'cage' 鐵窗。
- function townhouse(x,y,z,{floors=3,width=2.6,depth=3.2,tint=0,facing=0,roof='tin',ground='plain',balcony='rail',tanks=1}={}){
+ // roof 'parapet' 女兒牆｜'tin' 鐵皮加蓋｜'pitched' 瓦斜頂；ground 'plain'｜'arcade' 騎樓｜'shop' 店面招牌；balcony 'rail'｜'cage' 鐵窗；back 背面也開窗開門（背面朝觀者時用）。
+ function townhouse(x,y,z,{floors=3,width=2.6,depth=3.2,tint=0,facing=0,roof='tin',ground='plain',balcony='rail',tanks=1,back=false}={}){
   const fh=1.05,H=floors*fh,wall=walls[tint%walls.length],rot=[0,0,facing];
   const fx=Math.sin(facing),fy=-Math.cos(facing),tx=Math.cos(facing),ty=Math.sin(facing);   // 正面法向量、沿立面切向量
   const put=(g,m,o,a,dz,size)=>instance(g,m,[x+fx*o+tx*a,y+fy*o+ty*a,z+dz],size,rot);
@@ -58,6 +58,7 @@ export function createProps({geo,mat,instance,rand}){
   const nw=Math.max(1,Math.round((width-.5)/.85));
   for(let f=0;f<floors;f++){const zc=z+f*fh;
    if(f>0||ground==='plain')for(let i=0;i<nw;i++)put(box,dark,depth/2+.02,(i-(nw-1)/2)*.85,zc+fh*.6,[.5,.06,.58]);
+   if(back){for(let i=0;i<nw;i++)if(f>0||i!==nw-1)put(box,dark,-(depth/2+.02),(i-(nw-1)/2)*.85,zc+fh*.6,[.5,.06,.58]);if(f===0)put(box,dark,-(depth/2+.02),((nw-1)/2)*.85,fh*.45,[.5,.06,fh*.8]);}
    if(f>0){if(balcony==='rail'){put(box,wall,depth/2+.22,0,zc+.05,[width*1.02,.5,.1]);put(box,railing,depth/2+.45,0,zc+.32,[width*1.02,.04,.45]);}
     else put(box,cage,depth/2+.14,0,zc+fh*.55,[width*.9,.26,fh*.62]);}
   }
