@@ -1,6 +1,7 @@
 // 高架幹線的微縮印象；不是特定車站或實際線形的重建。
 // 這是第一個「場景原型＋參數」：同一份幾何靠 params 長出不同的站，供沒有專屬場景的車款共用。
 import * as THREE from '../vendor/three.module.js';
+import {createProps} from './props.js';
 
 export const THEMES = {
  day:{background:'#e7e8e1',sun:'#fff2d4',ambient:'#c6d9e2',ground:'#84936c',power:3.0,exposure:1.04,water:'#3b7f93',shallow:'#79b6b0'},
@@ -26,7 +27,7 @@ export function createScene(params = {}) {
  const box=geo(new THREE.BoxGeometry(1,1,1));
  const concrete=mat('#cdc7b8'),concreteDark=mat('#a79f8e'),deckSide=mat('#d7d2c4'),grass=mat('#87956b'),paddy=mat('#6f8a5a'),gravel=mat('#a49a86');
  const steel=mat('#9aa3a4',{metalness:.6,roughness:.34}),glass=mat('#6d8c96',{metalness:.2,roughness:.18,emissive:'#ffd79a',emissiveIntensity:0});
- const roof=mat('#4e6d74'),cream=mat('#ece3cd'),accent=mat('#b8593f'),trunk=mat('#6d6046'),leaf=mat('#4d7350');
+ const roof=mat('#4e6d74'),cream=mat('#ece3cd'),accent=mat('#b8593f');
  const lamp=mat('#f7dca6',{emissive:'#ffc87d',emissiveIntensity:0});
  const yellowLine=mat('#d8b451');
 
@@ -136,24 +137,34 @@ export function createScene(params = {}) {
  }
 
  // 地面站房與連通樓梯
- const stationD=5.6,stationY=-plinthD/2+stationD/2+1.6,stationFront=stationY+stationD/2;
+ // 站房入口朝街（−y，觀者這一側），天橋從背面接上月台。立面：一樓玻璃、二樓窗帶、入口雨棚、站名牌、屋頂機房。
+ const stationD=5.6,stationY=-plinthD/2+stationD/2+1.6,streetY=stationY-stationD/2;
  block(cream,[11,stationD,3.2],[-1,stationY,groundZ+1.6]);
  block(roof,[11.8,stationD+.7,.34],[-1,stationY,groundZ+3.35]);
- block(glass,[9.4,.12,1.5],[-1,stationFront-.05,groundZ+2.05]);
- block(accent,[4.4,.16,.5],[-1,stationFront,groundZ+2.95]);
+ block(glass,[9.4,.12,1.45],[-1,streetY-.02,groundZ+.95]);
+ block(glass,[8.6,.12,.62],[-1,streetY-.02,groundZ+2.45]);
+ block(accent,[4.6,1.2,.12],[-1,streetY-.62,groundZ+1.86]);
+ for(const x of [-3.1,1.1])block(steel,[.1,.1,1.86],[x,streetY-1.14,groundZ+.93]);
+ block(accent,[3.8,.16,.5],[-1,streetY-.06,groundZ+2.98]);
+ block(concreteDark,[2.2,1.6,.6],[2.4,stationY+.9,groundZ+3.82]);
  const bridgeBack=stationY+.3,bridgeFront=py-1.9,stairY=stationY+.9;
  block(concrete,[3.0,bridgeFront-bridgeBack,.3],[3.6,(bridgeBack+bridgeFront)/2,platZ-.1]);   // 天橋
  block(concrete,[3.0,.3,platZ-.4-groundZ],[3.6,stairY,(groundZ+platZ-.4)/2]);                 // 樓梯間
  for(let z=groundZ;z<platZ-.5;z+=.42)block(concreteDark,[2.6,.5,.1],[3.6,stairY+(z/platZ)*.3,z]);
 
- // 站區外的樹與小屋，讓底座邊緣不空
- for(let i=0;i<34;i++){
-  const x=-31+rand()*62,y=-plinthD/2+1+rand()*9;
-  if(Math.abs(x)<pl/2+3&&y>stationY-3)continue;
-  const h=1.5+rand()*1.1;block(trunk,[.16,.16,h*.45],[x,y,groundZ+h*.22]);
-  block(leaf,[1.0+rand()*.5,1.0+rand()*.5,h],[x,y,groundZ+h*.5+h*.2]);
- }
- for(const [x,y] of [[-24,-13.5],[21,-14.6],[27,-7.2]]){block(cream,[3.0,2.4,1.5],[x,y,groundZ+.75]);block(roof,[3.4,2.8,.22],[x,y,groundZ+1.57]);}
+ // 站區外的房子、樹、灌木、石頭，讓底座邊緣不空。道具來自共用模組，合批仍走本場景的 instance()。
+ const props=createProps({geo,mat,instance,rand});
+ // 站前兩排透天厝面向觀者，樓層與外牆顏色輪流；中間留給站房。
+ const rowY=-plinthD/2+3.2;
+ for(let i=0;i<5;i++)props.townhouse(-25+i*3.3,rowY,groundZ,{floors:3+(i%2),width:2.8,depth:3.4,tint:i});
+ for(let i=0;i<4;i++)props.townhouse(8.5+i*3.3,rowY,groundZ,{floors:2+(i%3),width:2.8,depth:3.4,tint:i+2});
+ for(const [x,y,t] of [[-28,-9,0],[27.5,-7.6,3],[24,-12.6,2]])props.farmhouse(x,y,groundZ,{tint:t,facing:rand()*.6-.3});
+ // 樹：底座前緣避開透天厝那排與站房，環線內側當成田間樹叢。
+ const clearFront=(x,y)=>(y<rowY+2.3&&Math.abs(x)<27)||(Math.abs(x+1)<7&&y>stationY-3.5)||(Math.abs(x)<pl/2+1.5&&y>-13.5);
+ for(let n=0;n<48;){const x=-31+rand()*62,y=-plinthD/2+1+rand()*10.5;if(clearFront(x,y))continue;props.broadleaf(x,y,groundZ,1.7+rand()*1.3);n++;}
+ for(let n=0;n<14;){const x=-15+rand()*30,y=-3.5+rand()*10;if(Math.abs(y-(cy+radius))<2.2)continue;props.broadleaf(x,y,groundZ,1.5+rand()*1.1);n++;}
+ for(let n=0;n<40;){const x=-31+rand()*62,y=-plinthD/2+1+rand()*11.5;if(clearFront(x,y))continue;props.bush(x,y,groundZ,.35+rand()*.35);n++;}
+ for(let i=0;i<30;i++)props.rock(-30+rand()*60,seaY0-1.7+rand()*1.2,groundZ,.16+rand()*.22,rand()<.4);
 
  // 合批送進 GPU
  for(const [geometry,byMaterial] of batches)for(const [material,items] of byMaterial){
