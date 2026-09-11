@@ -74,6 +74,7 @@ const INIT = () => {
   localStorage.setItem('trainmap-language', 'zh-TW');
   localStorage.setItem('trainmap-powersave', '0');
   localStorage.setItem('trainmap-fprail-min', '0');
+  localStorage.setItem('trainmap-xfer-open', '1'); // 轉乘接續 2026-09-11 起預設收合,本檔量的是展開態的列;收合本身由 verify_transfer_collapse.mjs 顧
 };
 
 // 找一班「下一站是轉乘錨點、且該時刻真的有對向班次」的台鐵車,撥鐘到到站前 120 秒再跟上去。

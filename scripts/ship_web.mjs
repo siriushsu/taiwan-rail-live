@@ -219,6 +219,11 @@ try {
 
   // 釘選成功不代表背景中的旅程會交棒。這支用真 D1＋laPushAll＋APNs body 驗證來源列車
   // 抵達轉乘站後，卡片身分、發車倒數與後續站序確實切到已選班次。
+  const xferCollapse = spawnSync('node', [path.join(wt, 'scripts', 'verify_transfer_collapse.mjs')], { encoding: 'utf8' });
+  process.stdout.write(xferCollapse.stdout || ''); process.stderr.write(xferCollapse.stderr || '');
+  if (xferCollapse.status !== 0) fail('轉乘接續的展開/收合未過——收合態把答案一起藏掉,或收合鈕點不動'
+    + '（單獨重跑：npm run check-transfer-collapse）');
+
   const xferHandoff = spawnSync('node', [path.join(wt, 'scripts', 'verify_transfer_live_handoff.mjs')], { encoding: 'utf8' });
   process.stdout.write(xferHandoff.stdout || ''); process.stderr.write(xferHandoff.stderr || '');
   if (xferHandoff.status !== 0) fail('跨車轉乘接棒未過——鎖屏卡會在轉乘站繼續跟來源列車'

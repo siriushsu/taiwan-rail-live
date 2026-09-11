@@ -1299,6 +1299,22 @@
     background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-pill); cursor: pointer; }
   .xfer-conn .xfc-f { display: block; font-size: calc(10px * var(--uis)); line-height: 1.45;
     color: var(--faint); margin-top: 4px; }
+  /* 展開/收合(使用者 2026-09-11:「資訊卡需要整理一下,轉乘要能夠收起來,否則太長了」)。
+     三個顯示實例裡最高的就是這一塊:手機 375 實測 145px,佔整張跟隨卡 486px 的 30%。
+     收合**不是把答案藏起來**——標題那行下面仍印出最近一班(釘選時就是釘的那一班)的車次與
+     「剩 N 分」,展開才列第二班、取消釘選鈕與註腳。整條標題列都是觸控目標,不是只有箭頭;
+     32px 沿用同一塊裡 .xfc-unpin 的觸控高。 */
+  .xfer-conn .xfc-t { display: flex; flex-direction: column; justify-content: center;
+    width: 100%; min-height: 32px; padding: 0; margin: 0; background: none; border: 0;
+    color: inherit; font: inherit; text-align: left; cursor: pointer; }
+  .xfer-conn .xfc-tr { display: flex; align-items: flex-start; gap: 6px; }
+  .xfer-conn .xfc-tr .xfc-h { flex: 1; min-width: 0; }
+  .xfer-conn .xfc-cv { flex: none; color: var(--faint);
+    font-size: calc(10px * var(--uis)); line-height: 1.35; }
+  /* 收合態那一行答案與 .xfc-no/.xfc-left 同級(「使用者要的數字」),所以掛 --ui 不是 --uis。 */
+  .xfer-conn .xfc-sum { display: block; margin-top: 2px; font-size: calc(13px * var(--ui));
+    font-weight: 800; color: var(--ink-strong); font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere; }
   .traincard .tc-st.hd { font-weight: 800; color: var(--faint); border-top: 0; cursor: default; font-size: calc(11px * var(--uis)); letter-spacing: 1px; }
   .traincard .tc-st.hd:hover { background: none; }
   .traincard .tc-st.past { opacity: .45; }
@@ -5319,6 +5335,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="xfercollapse0911"><span class="d">9/11</span><span>轉乘接續可以收起來了，收合時仍看得到最近一班</span></li>
         <li data-cl-of="thsrseat0911"><span class="d">9/11</span><span>高鐵看板看得到對號座還有沒有位子，也查得到票價</span></li>
         <li data-cl-of="busstop0911"><span class="d">9/11</span><span>公車站牌可以搜尋了，點進去看得到每條路線還有幾分鐘到</span></li>
         <li data-cl-of="widgetauto0911"><span class="d">9/11</span><span>小工具可以設成「自動（最近的站）」，走到哪就顯示哪一站</span></li>
@@ -5326,7 +5343,6 @@
         <li data-cl-of="passentry0910"><span class="d">9/10</span><span>通行證有自己的入口了：手機「更多」的第二列，電腦工具列多一顆，不再和「帳號同步」共用一格</span></li>
         <li data-cl-of="xfermetro0910"><span class="d">9/10</span><span>轉乘接續也列捷運了：高鐵桃園等轉乘站會顯示桃園機場捷運與高雄捷運的接續班次，機捷每一班還標出直達車或普通車</span></li>
         <li data-cl-of="tymctraintype0910"><span class="d">9/10</span><span>桃園機場捷運全線每一班都標得出直達車或普通車，首末班不再只顯示線號</span></li>
-        <li data-cl-of="solidtrain0910"><span class="d">9/10</span><span>地下列車可以改成實色：「更多」的「透視顯示」切到「實體」</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5464,6 +5480,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="xfercollapse0911"><span class="d">9/11</span><span>跟車卡的轉乘接續可以收起來：預設收成一行，只留最近一班的車次與剩下幾分鐘，點一下才展開第二班與註記。展開或收合會記住，跟車卡、捷運卡與手機列車卡三處一起換。</span></li>
         <li data-cl="busstop0911"><span class="d">9/11</span><span>搜尋框找得到全台公車站牌，點進去就是這個站牌每條路線的到站時間；臺北市的資料直接取自市府開放資料，其餘縣市取自 TDX，沒有即時資料的路線會照實說明而不是用班表假裝</span></li>
         <li data-cl="thsrseat0911"><span class="d">9/11</span><span>高鐵車站看板每一班都標出對號座還有沒有位子（有位／剩不多／售完），旁邊一顆「票價」按得開，列出標準座、商務座、自由座與各種優待票價</span></li>
         <li data-cl="xfermetro0910"><span class="d">9/10</span><span>轉乘接續加入捷運：高鐵桃園、台北車站、左營、高雄、橋頭、岡山這些轉乘站，接續班次除了台鐵與高鐵，也會列出桃園機場捷運與高雄捷運紅線、橘線；機捷每一班都標出直達車或普通車。捷運沒有對外公告的車次，車次欄留白。</span></li>
@@ -18751,6 +18768,15 @@ function xfcSysName(sys) {
 // 接續清單的 HTML。沒有接續就回空字串整塊不渲染——留空殼會多一個空框(與既有 transferMetaHtml
 // 同一個約定)。🔴 只寫「剩 N 分」,不寫「來得及/來不及」:站內步行時間沒有任何資料源,
 // 猜太短會害使用者錯過車。
+// 轉乘接續的展開/收合狀態。🔴 存在 DOM 之外:這一塊每分鐘(「剩 N 分」變動)就被 setTransferConn
+// 整段 innerHTML 重畫一次,狀態掛在元素身上會被下一次重畫洗掉。預設收合——使用者 2026-09-11
+// 說的是「否則太長了」,指的是現況,所以預設就要短;展開過一次就記住(比照 trainmap-routes-open)。
+let xferOpen = (() => { try { return localStorage.getItem('trainmap-xfer-open') === '1'; } catch (e) { return false; } })();
+function setXferOpen(on) {
+  xferOpen = !!on;
+  try { localStorage.setItem('trainmap-xfer-open', xferOpen ? '1' : '0'); } catch (e) {}
+  refreshXferConns();   // 三個實例一起換,不是只換被點的那一個
+}
 function transferConnectionHtml(groupId, atSec, fromSys) {
   const rows = transferConnections(groupId, atSec, fromSys);
   if (!rows.length) return '';
@@ -18769,6 +18795,17 @@ function transferConnectionHtml(groupId, atSec, fromSys) {
     : headSys
       ? `<span class="xfc-h">${escHtml(t('轉{system} · 你到站時', { system: xfcSysName(headSys) }))}</span>`
       : `<span class="xfc-h">${escHtml(t('你到站時'))}</span>`;
+  // 收合態的那一行答案:show[0] 就是最近一班(釘選時是釘的那一班)。混系統才標系統名——同系統時
+  // 標題已經指名。沒有官方車次的捷運(r.n 恆為 '')改印發車時刻,不留一個只有「剩 N 分」的裸行。
+  const r0 = show[0];
+  const sum = [headSys ? '' : xfcSysName(r0.sys), r0.n || fmtHM(r0.sec % 86400),
+    t('剩 {n} 分', { n: i18nNumber(Math.floor(r0.leftSec / 60)) }, Math.floor(r0.leftSec / 60))]
+    .filter(Boolean).join(' · ');
+  const toggle = `<button class="xfc-t" type="button" aria-expanded="${xferOpen ? 'true' : 'false'}" aria-label="${escHtml(t(xferOpen ? '收合' : '展開'))}">`
+    + `<span class="xfc-tr">${head}<span class="xfc-cv" aria-hidden="true">${xferOpen ? '▾' : '▸'}</span></span>`
+    + (xferOpen ? '' : `<span class="xfc-sum">${escHtml(sum)}</span>`)
+    + `</button>`;
+  if (!xferOpen) return toggle;
   // fmtHM 是既有的秒→HH:MM(看板 rowHtml 用的同一支),必須帶 % 86400——跨午夜的班次不取模
   // 會印出 25:10。r.de 是【對向系統】的終點站名,不能餵 stationName(name, tr.sys):那會拿本班車
   // 的系統去查別家的站,查不到就退回原字串、查得到更糟(撞名)。子集存的已經是可直接顯示的站名,
@@ -18798,7 +18835,7 @@ function transferConnectionHtml(groupId, atSec, fromSys) {
   // ⇒ 內外兩層都吃到 border/padding/margin-top,畫面上真的看得到兩圈圓角框、中間多一道 7px
   // 空隙(2026-09-01 廣審量 computed style:外 210px 框裡再套一個 192px 框,截圖確認)。
   // 前幾輪把它記成「結構冗餘、不影響畫面」是錯的。
-  return `${head}${body}${unpin}${foot}`;
+  return `${toggle}${body}${unpin}${foot}`;
 }
 // 三個顯示實例共用。照 setTransferTag 的形狀寫,差別只在這裡寫 innerHTML 不是 textContent
 // (接續列需要按鈕與分段結構,轉乘標只有純文字)。
@@ -18858,6 +18895,8 @@ function clearXferPin() {
 // .xfc-row/.xfc-unpin 本身會被重畫洗掉)。兩個 closest 都限定 .xfer-conn 祖先,不可裸寫
 // .xfc-row/.xfc-unpin——.xc-row(平交道卡)是完全不同的 class,但比照它的教訓仍舊自己作用域化。
 document.addEventListener('click', e => {
+  // 展開/收合。與 .xfc-row/.xfc-unpin 是兄弟不是巢狀,但先判它,意圖比較清楚。
+  if (e.target.closest && e.target.closest('.xfer-conn .xfc-t')) { setXferOpen(!xferOpen); return; }
   const row = e.target.closest && e.target.closest('.xfer-conn .xfc-row');
   if (row) {
     // groupId 只認 xferConnArgs 這一份真相(該容器最後一次收到的參數),不另外寫進 data-
@@ -35403,10 +35442,11 @@ document.getElementById('followPanel').addEventListener('click', (e) => {
   if (window.matchMedia(MOBILE_MQ).matches && document.body.classList.contains('fs') && state.followTrain
       && !document.body.classList.contains('ambient')
       && !fp.closest('.uni-slot')
-      // 🔴 .xfc-row/.xfc-unpin(轉乘接續)也要排除:#fpConn 就住在這張卡裡,不排除的話手機上點
+      // 🔴 .xfc-row/.xfc-unpin/.xfc-t(轉乘接續)也要排除:#fpConn 就住在這張卡裡,不排除的話手機上點
       //    一列接續會「順便」把整張列車 sheet 滑上來——使用者只想釘一班車,結果被導去另一個介面
       //    (2026-09-01 廣審實測 375×812 真觸控:xferPin 有值,body.train-open 同時 false→true)。
-      && !e.target.closest('.fp-end, .fp-close, .fp-tripshare, .fp-notify, .fp-bus, .fp-busbox, .fp-bus-slot, .xfc-row, .xfc-unpin')) { openTrainSheet(); return; }
+      //    .xfc-t 是 2026-09-11 加的展開/收合鈕,同一張卡同一個坑。
+      && !e.target.closest('.fp-end, .fp-close, .fp-tripshare, .fp-notify, .fp-bus, .fp-busbox, .fp-bus-slot, .xfc-row, .xfc-unpin, .xfc-t')) { openTrainSheet(); return; }
   if (fp.classList.contains('fp-min') && !e.target.closest('.fp-end')) {
     fp.classList.remove('fp-min');
     try { localStorage.setItem('trainmap-fprail-min', '0'); } catch (err) {}

@@ -172,8 +172,9 @@ const mFull = html.match(/const XFER_WINDOW_SEC[\s\S]*?\nfunction transferConnec
 // 就是 .xfer-conn,包兩層等於兩圈框線),所以具名閘門改認三個永遠會出現的結構性 class:
 // xfc-h(標題)/xfc-row(可點的列)/xfc-f(表定註腳)。判準沒有放寬——三個同時比對比原本
 // 一個 xfer-conn 更難巧合命中,且都是這個函式獨有的字樣。
-ok('G15 抽出的原始碼含 xfc-h/xfc-row/xfc-f(具名閘門,防抽到舊版/空字串)',
-   !!mFull && /xfc-h/.test(mFull[0]) && /xfc-row/.test(mFull[0]) && /xfc-f/.test(mFull[0]));
+ok('G15 抽出的原始碼含 xfc-h/xfc-row/xfc-f/xfc-t(具名閘門,防抽到舊版/空字串)',
+   !!mFull && /xfc-h/.test(mFull[0]) && /xfc-row/.test(mFull[0]) && /xfc-f/.test(mFull[0]) &&
+   /xfc-t/.test(mFull[0]) && /xferOpen/.test(mFull[0]));
 if (!mFull) { console.log(`\n${fails} 項未過`); process.exit(1); }
 
 // stub 只求最小、夠撐起結構與分支判斷,不求譯文正確(譯文由 check_i18n.mjs 另外把關):
@@ -183,10 +184,55 @@ const hFmtHM = sec => { sec = ((sec % 86400) + 86400) % 86400; return String(Mat
 const hT = (source, vars = {}) => String(source == null ? '' : source).replace(/\{([\w]+)\}/g, (_, k) => (vars[k] == null ? '' : String(vars[k])));
 const hI18nNumber = v => String(v);
 const hState = { transferDepartures: data, xferPin: null };
-const transferConnectionHtml = new Function(
-  'state', 't', 'escHtml', 'fmtHM', 'i18nNumber',
-  `${mFull[0]}\n; return transferConnectionHtml;`
-)(hState, hT, hEscHtml, hFmtHM, hI18nNumber);
+// 抽出的那一段現在也含 xferOpen/setXferOpen(展開收合狀態,2026-09-11)。兩者都是生產碼本尊:
+// xferOpen 的初值讀 localStorage,在 node 裡 ReferenceError 被它自己的 try/catch 吃掉 ⇒ 回 false
+// (＝預設收合,與瀏覽器上全新 profile 同一個結果);setXferOpen 會呼叫 refreshXferConns(),
+// 那是 DOM 端的事,沙箱注入一個 no-op 讓它可以被呼叫。
+const box = new Function(
+  'state', 't', 'escHtml', 'fmtHM', 'i18nNumber', 'refreshXferConns',
+  `${mFull[0]}\n; return { transferConnectionHtml, setXferOpen, xferOpen: () => xferOpen };`
+)(hState, hT, hEscHtml, hFmtHM, hI18nNumber, () => {});
+const transferConnectionHtml = box.transferConnectionHtml;
+
+// ── G25 —— 展開/收合(2026-09-11 使用者:「資訊卡需要整理一下,轉乘要能夠收起來,否則太長了」) ──
+// 收合態**只有**標題那顆 toggle:沒有列、沒有註腳、沒有取消釘選鈕。
+// 🔴 反向對照就寫在同一組裡——收合不等於把答案藏起來:.xfc-sum 那一行必須印出最近一班的
+//    車次與「剩 N 分」,而且要與展開後第一列逐字相同(防「收合時顯示的是另一班車」這種
+//    只有兩個狀態對照才看得出來的缺陷)。
+ok('G25pre 沙箱預設收合(localStorage 取不到 ⇒ 走 catch 回 false,與瀏覽器全新 profile 同結果)',
+   box.xferOpen() === false);
+const closedHtml = transferConnectionHtml(GID_TAICHUNG, S(15, 38), 'TRA');
+ok('G25 收合態只有 toggle(無 xfc-row / xfc-f / xfc-unpin)',
+   /class="xfc-t"/.test(closedHtml) && !/xfc-row/.test(closedHtml) &&
+   !/xfc-f/.test(closedHtml) && !/xfc-unpin/.test(closedHtml), closedHtml.slice(0, 90));
+ok('G25b 收合態 aria-expanded=false 且箭頭是 ▸',
+   /aria-expanded="false"/.test(closedHtml) && /▸/.test(closedHtml));
+ok('G25c 收合態仍留著原本的標題(xfc-h 沒有被 toggle 取代掉)',
+   /<span class="xfc-h">轉高鐵 · 你到站時<\/span>/.test(closedHtml));
+const sumTxt = (closedHtml.match(/<span class="xfc-sum">([^<]*)</) || [])[1] || '';
+ok('G25d 收合態那一行答案印出車次與「剩 N 分」(答案沒有被藏起來)',
+   /^\d+ · 剩 \d+ 分$/.test(sumTxt), sumTxt);
+// 混系統:標題是中性的,那一行答案不標系統名就分不出是哪一家
+const closedMixed = transferConnectionHtml(GID_TAICHUNG, S(6, 2), null);
+const sumMixed = (closedMixed.match(/<span class="xfc-sum">([^<]*)</) || [])[1] || '';
+ok('G25e 混系統收合態那一行答案要標系統名(標題中性,不標就不知道是哪一家)',
+   /^(台鐵|高鐵|阿里山林鐵|桃園機捷|高雄捷運) · /.test(sumMixed), sumMixed);
+// 沒有官方車次的捷運(機捷/高捷):r.n 恆為空,改印發車時刻,不留一個只有「剩 N 分」的裸行
+const closedMetro = transferConnectionHtml('T-THSR-1020', S(8, 0), 'THSR');
+const sumMetro = (closedMetro.match(/<span class="xfc-sum">([^<]*)</) || [])[1] || '';
+ok('G25f 沒有官方車次的捷運:收合那一行改印發車時刻(不是只剩「剩 N 分」)',
+   /^\d\d:\d\d · 剩 \d+ 分$/.test(sumMetro), sumMetro);
+// 展開:以下所有既有斷言量的都是展開態的列
+box.setXferOpen(true);
+ok('G25g setXferOpen(true) 之後是展開態', box.xferOpen() === true);
+const openedHtml = transferConnectionHtml(GID_TAICHUNG, S(15, 38), 'TRA');
+ok('G25h 展開態 aria-expanded=true 且箭頭是 ▾',
+   /aria-expanded="true"/.test(openedHtml) && /▾/.test(openedHtml));
+ok('G25i 展開態不印那一行答案(與第一列重複就是雜訊)', !/xfc-sum/.test(openedHtml));
+const firstNo = (openedHtml.match(/<span class="xfc-no">([^<]*)</) || [])[1];
+const firstLeft = (openedHtml.match(/<span class="xfc-left">([^<]*)</) || [])[1];
+ok('G25j 收合那一行 = 展開後第一列的車次與剩 N 分(跨狀態是同一班車)',
+   !!firstNo && sumTxt === `${firstNo} · ${firstLeft}`, `${sumTxt} vs ${firstNo} · ${firstLeft}`);
 
 // G16 —— 無接續回空字串,不留空殼(打死突變6:把 '' 換成 <div class="xfer-conn"></div>)。
 // 沿用 G2d 已驗過的窗:凌晨 2 點,台中群排除台鐵後窗內無車。
