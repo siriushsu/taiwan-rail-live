@@ -134,7 +134,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "73c8525a50c22d90074086ad07e55934"
+   "checksum": "9ab49c27ee1cafe4d94f98ce6008bd92"
   },
   "data/station_transfers.json": {
    "sourceDescription": "由 data/tdx/*_Station.json 與 *_StationOfLine.json 逐系統彙整(檔內 sourceSystems 列出 12 個系統的實際輸入檔);轉乘判定為站名正規化後 haversine < 450 公尺(檔內 criteria)",
@@ -153,6 +153,15 @@
    "geometrySource": "MOI",
    "coordinateBasis": "TWD97 經緯度(內政部資料集名稱即載明)",
    "checksum": "697cf75bcd2141fafa4fd3579e1d0f45"
+  },
+  "data/thsr_fare.json": {
+   "sourceDescription": "交通部 TDX Rail/THSR/ODFare(v2),2026-09-11 建置期擷取;票價幾乎不變動,靜態表,不逐次打 TDX。鍵為「小站碼|大站碼」(字典序),雙向共用同一份資料——2026-09-11 實測反向與正向逐價相符,僅 Direction 欄位互換。查表前請把兩個站碼由小到大排序。",
+   "sourceField": "source_notes",
+   "effectiveDate": null,
+   "effectiveDateField": null,
+   "geometrySource": null,
+   "coordinateBasis": null,
+   "checksum": "3945fbe83c174d40dee022af41f1a1b0"
   },
   "data/thsr_schedule_dense.json": {
    "sourceDescription": "時刻表來源:交通部 TDX Rail/THSR/DailyTimetable/Today(20260709 當日逐車次,含加開/停駛);路線幾何 Rail/THSR/Shape;站間通過點沿路線幾何依弧長內插",

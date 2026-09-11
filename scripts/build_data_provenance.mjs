@@ -45,6 +45,7 @@ export const GEOMETRY_SOURCE = {
   'data/sanying_times.json': null,
   'data/station_transfers.json': null,         // 輸出只有站名/距離,不含座標(距離由 data/tdx/*_Station.json 算)
   'data/taiwan_land.json': 'MOI',
+  'data/thsr_fare.json': null,                 // 高鐵票價表,只有金額與票種代碼,不含座標
   'data/thsr_schedule_dense.json': 'TDX',
   'data/thsr_track.json': 'TDX',
   'data/tmrt.json': 'TDX',
