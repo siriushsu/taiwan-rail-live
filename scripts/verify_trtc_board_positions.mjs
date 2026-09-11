@@ -260,7 +260,13 @@ async function preparePage(page, documentHtml = PAGE_HTML) {
 }
 
 async function waitForBoot(page) {
-  await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  // 🔴 2026-09-11:一定要帶 ?officialroster=0。本檔從頭到尾驗的是 applyTrtcBoard(看板／班表那條
+  // 校正路徑),但 OFFICIAL_ROSTER_ENABLED 自 2026-08-18 使用者裁示起【預設開啟】,開著的時候
+  // pollTrtcLive 走逐車名冊分支、末尾直接 clearTrtcBoard(),applyTrtcBoard **一次都不會被呼叫**
+  // (index.html:26479 那行是 else if)。於是 state._trtcBoardAudit 恆為 null,下面第一道整合閘門
+  // 永遠逾時、整支腳本一條判準都跑不到——harness 開機進了一個它要驗的函式根本不存在的模式
+  // (verify-harness-must-prove-it-ran-the-path)。?officialroster=0 是產品自己文件化的逃生口。
+  await page.goto(BASE + '/?officialroster=0', { waitUntil: 'domcontentloaded', timeout: 30000 });
   await page.waitForFunction(() => typeof state !== 'undefined' &&
     ((state.decoLines || []).concat(state.lines || [])).some(ln => ln._sys === 'mrt' && ln._tt && ln._tt.length),
     null, { timeout: 30000 });
@@ -344,7 +350,11 @@ async function run() {
         luzhou: payload.rows.filter(x => x.line === 'O_LUZHOU' && !x.terminal).length,
         xinzhuang: payload.rows.filter(x => x.line === 'O_XINZHUANG' && !x.terminal).length });
       const result = await page.evaluate(({ rows, at, atStation, horizonCap }) => {
-        window.__map.setView([25.0478, 121.5170], 16, { animate: false });
+        // 置中走適配層 window.__M(不是 window.__map)。__map 是 M.raw＝裸的 maplibregl.Map,
+        // 它沒有 setView／distance(那是 Leaflet 的 API),呼下去是 TypeError 整支腳本中斷。
+        // 適配層 E.setView(c, z, o) 保留原簽名並在 animate:false 時走 raw.jumpTo(相機同步更新,不補間),
+        // z 也沿用全站的 256px 圖磚尺度,不必自己加減 ML_Z。
+        window.__M.setView([25.0478, 121.5170], 16, { animate: false });
         state.simSec = trtcServiceSec(at); state.clockAtNow = true;
         _easedShift.clear(); _metroGateEp.on = false; _metroGateEp.at = 0;
         _mlGate = true; _mlGateAt = Date.now();
@@ -419,7 +429,8 @@ async function run() {
             expected = posBetweenStations(ln, a.from, a.to, progress);
           }
           if (actual && baseline && expected) positions.push({ line: a.line, dir: a.dir, no: a.no,
-            anchorResidualM: window.__map.distance(actual, expected), baselineDistanceM: window.__map.distance(baseline, expected), shift: a.shift });
+            // 同上:distance 也只在適配層有(haversine, R=6371000),裸引擎沒這個方法。
+            anchorResidualM: window.__M.distance(actual, expected), baselineDistanceM: window.__M.distance(baseline, expected), shift: a.shift });
         }
         const truths = [];
         for (const truth of atStation || []) {
@@ -433,7 +444,9 @@ async function run() {
         }
         const anomalies = pool.filter(ln => anomalyOf(ln)).map(ln => ln.id + ':' + anomalyOf(ln).kind);
         return { audit, countRows, positions, predictions, truths, screenPositions, rangeFailures, simSec: state.simSec,
-          mutationHits, zoom: window.__map.getZoom(), anomalies };
+          // zoom 只寫進 output.samples 供人看,沒有判準讀它;但既然上面是用 256px 尺度的 16 下的指令,
+          // 這裡也讀適配層的同一把尺,否則報表會出現「要了 16 卻記成 15」這種自相矛盾的數字。
+          mutationHits, zoom: window.__M.getZoom(), anomalies };
       }, { ...payload, horizonCap: HOLDOUT_HORIZON_SEC });
       auditFrames.push({ slot, at: payload.at, issuedSec: result.simSec, predictions: result.predictions, truths: result.truths,
         positions: result.screenPositions, rangeFailures: result.rangeFailures });

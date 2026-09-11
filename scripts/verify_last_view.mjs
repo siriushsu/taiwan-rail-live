@@ -76,7 +76,13 @@ function attach(page, tag) {
 }
 
 async function newPage(browser, { width = 1280, height = 800, touch = false, seed = null } = {}) {
-  const ctx = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch });
+  // 🔴 釘語系:本檔用中文字當選擇器與期望值(A2 的 title「全台同框」、B/I/J 的 .gtab[title="捷運與輕軌"]
+  // 與頁籤短名「捷」),newContext 不帶 locale 時 Chromium 預設 en-US ⇒ 整個殼渲染成英文 ⇒ 那個
+  // locator 永遠等不到,整支腳本在 B 段第一個點擊就逾時中斷,而訊息只說得出「waiting for locator」,
+  // 看起來跟頁籤被拿掉一模一樣(本輪實測 A2 印的就是 文字=All title=All Taiwan)。
+  // 這是 verify-locale-must-be-pinned 記過的坑,比照 9fae5731 對 verify_my_trains 的修法兩道一起下:
+  // context locale(讓 Intl/toLocaleString 也不漂)＋網址 lang(index.html 自己最高優先的語系開關)。
+  const ctx = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch, locale: 'zh-TW' });
   // 抑制首訪「怎麼玩」教學卡(#howtoWrap,index.html:8713-8730)——它與 last-view 記憶功能無關,
   // 但全螢幕擋在畫面上會讓後續真實點擊(.gtab/#ambientBtn/#trainSearch)卡住;比照既有
   // scripts/verify_ride_sort.mjs 的作法,固定先寫 trainmap-howto-seen=1 抑制它,不影響本腳本任何判準。
@@ -92,10 +98,14 @@ async function waitReady(page) {
   await page.waitForTimeout(350);
 }
 async function gotoReady(page, qs = '') {
-  await page.goto(BASE + qs, { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + qs + (qs.includes('?') ? '&' : '?') + 'lang=zh-TW', { waitUntil: 'domcontentloaded' });
   await waitReady(page);
 }
-const centerOf = (page) => page.evaluate(() => { const c = window.__map.getCenter(); return { lat: c.lat, lng: c.lng, z: window.__map.getZoom() }; });
+// 🔴 讀相機一律走適配層 window.__M(不是 window.__map)。__map 是 M.raw＝裸的 maplibregl.Map,它的
+// getZoom() 回的是 MapLibre 的 512px 圖磚尺度,比全站慣例的 256px 尺度**少 1**(index.html 的 ML_Z)。
+// 下面 B3/I3/J3 是拿它跟 target.z=14 比、C1 是跟連結指定的 13 比,那些都是 256px 尺度的數字——
+// 讀錯把尺不會拋錯,只會靜靜地每次都差一格、紅得像「縮放沒有還原」。適配層 getZoom() 已經加回 ML_Z。
+const centerOf = (page) => page.evaluate(() => { const c = window.__M.getCenter(); return { lat: c.lat, lng: c.lng, z: window.__M.getZoom() }; });
 const rawLV = (page) => page.evaluate(k => localStorage.getItem(k), LAST_VIEW_KEY);
 const near = (a, b, eps = 0.01) => Math.abs(a - b) < eps;
 const moved = (c1, c2) => Math.abs(c1.lat - c2.lat) > 1e-4 || Math.abs(c1.lng - c2.lng) > 1e-4 || Math.round(c1.z) !== Math.round(c2.z);
@@ -173,7 +183,18 @@ async function persistRestoreFlow(browser, label, { width = 1280, height = 800, 
   // (index.html:2422「手機 fs 常駐——左=軌島迷你牌,右=全/台/高/捷短標」);#systems 在 fs 下量到 0×0,
   // 對它 tap 只會等到逾時。以 body.fs 分流——那正是產品自己用的那個開關,不另外用寬度猜。
   const fsShell = await page.evaluate(() => document.body.classList.contains('fs'));
-  await act(`${fsShell ? '#topTabs' : '#systems'} .gtab[title="${GROUP_LABEL}"]`);
+  // 🔴 2026-09-11:手機 fs 那一路的選擇器**已經過期**(判準過期,不是產品回歸)。自 2026-08-27 使用者裁示
+  // 「你把那四顆鈕收成一顆 點擊會打開就好」起,#topTabs 那四顆在 fs 殼一律 display:none,群組改由頂列的
+  // #gtabOne 開 #gtabPop 選單切換(index.html:4893 的按鈕、31603 的 renderGtabPop)。舊寫法 locator
+  // **找得到元素卻永遠 not visible**,I 段自那天起就跑不完,而訊息只說得出「waiting for element to be
+  // visible」——看起來跟頁籤被整個拿掉一樣。選單項照 TAB_GROUPS 生成,.gp-nm 放全名、.gp-sh 放短名。
+  if (fsShell) {
+    await act('#gtabOne');
+    await page.waitForSelector('#gtabPop:not([hidden])', { timeout: 5000 });
+    await act(`#gtabPopRows .gp-row:has(.gp-nm:text-is("${GROUP_LABEL}"))`);
+  } else {
+    await act(`#systems .gtab[title="${GROUP_LABEL}"]`);
+  }
   await page.waitForTimeout(500);
   // 取消勾選之前先問這個群組本來有哪些成員:期望值＝全體成員扣掉待會取消的兩個,不寫死清單
   // (GROUPS 成員早晚會再增減,寫死就是下一次的假紅)。下面 expectSel 另有「非退化」檢查當正向對照。
@@ -188,7 +209,8 @@ async function persistRestoreFlow(browser, label, { width = 1280, height = 800, 
     await page.waitForTimeout(150);
   }
   const target = { lat: 25.0330, lon: 121.5654, z: 14 };
-  await page.evaluate((t) => window.__map.setView([t.lat, t.lon], t.z, { animate: false }), target);
+  // 同上:setView 根本不存在於裸的 maplibregl.Map(那是 Leaflet 的 API),呼下去是 TypeError。
+  await page.evaluate((t) => window.__M.setView([t.lat, t.lon], t.z, { animate: false }), target);
   await page.waitForTimeout(300);
 
   const savedRaw = await rawLV(page);
@@ -299,7 +321,7 @@ if (FIX_TRIP) {
   const { ctx, page } = await newPage(chromiumB);
   attach(page, 'E');
   await gotoReady(page);
-  await page.evaluate(() => window.__map.setView([23.9, 120.9], 9, { animate: false }));
+  await page.evaluate(() => window.__M.setView([23.9, 120.9], 9, { animate: false }));
   await page.waitForTimeout(300);
   const baseline = await rawLV(page);
   ok('E0 進入放空前已有一筆使用者操作的記憶', !!baseline, `實際=${baseline}`);
@@ -323,7 +345,7 @@ if (FIX_TRAIN_ACTIVE) {
   const { ctx, page } = await newPage(chromiumB);
   attach(page, 'F');
   await gotoReady(page);
-  await page.evaluate(() => window.__map.setView([23.5, 121.0], 8, { animate: false }));
+  await page.evaluate(() => window.__M.setView([23.5, 121.0], 8, { animate: false }));
   await page.waitForTimeout(300);
   const baseline = await rawLV(page);
 
@@ -376,7 +398,7 @@ for (const [label, seed] of G_CASES) {
     const real = nowSecOfDay(activeTz());
     const fake = (real + 12 * 3600) % 86400; // 刻意設一個保證遠離現在時刻(12小時外)的假時刻
     setSimSec(fake);
-    window.__map.setView([24.0, 121.2], 10, { animate: false }); // 順便觸發一次寫入,檢驗payload不含時間欄位
+    window.__M.setView([24.0, 121.2], 10, { animate: false }); // 順便觸發一次寫入,檢驗payload不含時間欄位
     return { real, fake, applied: state.simSec };
   });
   await page.waitForTimeout(250);

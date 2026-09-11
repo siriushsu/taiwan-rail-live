@@ -169,7 +169,11 @@ async function runEngine(name) {
     };
 
     state.playing = false; state.ready = false; _trtcPolling = true;
-    window.__map.setView([25.0478, 121.5170], 16, { animate: false });
+    // 置中走適配層 window.__M(不是 window.__map)。__map 是 M.raw＝裸的 maplibregl.Map,
+    // 它沒有 setView(那是 Leaflet 的 API),這行會拋 TypeError 整支腳本中斷——本檔在 chromium 第一輪
+    // 連一條判準都還沒跑到就死在這裡。適配層 E.setView(c, z, o) 保留原簽名並在 animate:false 時走
+    // raw.jumpTo(相機同步更新,不補間);z 也沿用全站的 256px 圖磚尺度,不必自己加減 ML_Z。
+    window.__M.setView([25.0478, 121.5170], 16, { animate: false });
     // 預掃：找跨槽最穩定、且橫跨多線的逐秒時間序列見證車。
     const appearances = new Map();
     _trtcNoTrip.clear(); _easedShift.clear(); _metroGateEp.on = false; _metroGateEp.at = 0;
@@ -342,13 +346,24 @@ async function mobileMatrix(name) {
   const launcher = name === 'webkit' ? webkit : chromium;
   for (const width of [360, 375, 414, 768]) {
     const browser = await launcher.launch({ headless: true });
+    // 釘語系:下面用中文 label 找群組選單項,不釘的話 Chromium 預設 en-US、整個殼渲染成英文,
+    // 選擇器永遠等不到而紅得像「鈕不見了」(verify-locale-must-be-pinned)。主流程那個 context 全是
+    // 數值判準,不受語系影響,故只釘這裡。
     const context = await browser.newContext({ viewport: { width, height: width === 768 ? 1024 : 800 },
-      isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
+      isMobile: true, hasTouch: true, deviceScaleFactor: 1, locale: 'zh-TW' });
     const page = await context.newPage(); await preparePage(page);
-    const selector = 'button.gtab[title="捷運與輕軌"]:visible';
+    // 🔴 2026-09-11 修判準過期(不是產品回歸):手機殼自 2026-08-27 使用者裁示「你把那四顆鈕收成一顆
+    // 點擊會打開就好」起,body.fs 底下 #topTabs 那四顆一律 display:none,群組改由頂列的 #gtabOne
+    // 開 #gtabPop 選單(index.html:4893 按鈕、31603 renderGtabPop)。舊選擇器於是永遠等不到 visible,
+    // 四個寬度一起紅。這一格要量的事情沒變——「群組切換鈕在這個寬度點得到、而且沒有被別的東西蓋住」
+    // ——只是那顆鈕換人當,所以 elementFromPoint 的遮擋檢查照舊掛在現役的那一顆上。
+    const selector = '#gtabOne:visible';
     await page.waitForSelector(selector, { state: 'visible' });
     const hit = await page.$eval(selector, el => { const r = el.getBoundingClientRect(); const top = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return top === el || !!(top && top.closest('button') === el); });
     await page.tap(selector);
+    // 真的把群組切過去(不只是點開選單):mode 要從 sched 變 freq,才是這一格原本在驗的狀態改變。
+    await page.waitForSelector('#gtabPop:not([hidden])', { timeout: 5000 });
+    await page.tap('#gtabPopRows .gp-row:has(.gp-nm:text-is("捷運與輕軌"))');
     await page.waitForFunction(() => state.mode === 'freq', null, { timeout: 10000 });
     const layout = await page.evaluate(() => ({ mode: state.mode,
       noHorizontalScroll: document.documentElement.scrollWidth <= innerWidth + 1,
