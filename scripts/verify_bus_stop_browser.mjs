@@ -49,7 +49,7 @@ const FIXTURE_LIVE = {
   provider: 'direct-bulk',
   source: { kind: 'direct-bulk', attribution: '臺北市政府交通局公共運輸處「臺北市公車動態資訊」', license: '政府資料開放授權條款－第1版' },
   routes: [
-    { routeId: '901', routeName: 'R-countdown', direction: 0, arrivals: [{ key: 'a', live: live('countdown', 420) }] },
+    { routeId: '901', routeName: 'R-countdown', direction: 0, arrivals: [{ key: 'a', live: live('countdown', 420) }, { key: 'a2', live: live('countdown', 960) }] },
     { routeId: '902', routeName: 'R-notdeparted', direction: null, arrivals: [{ key: 'b', live: live('not_departed', null) }] },
     { routeId: '903', routeName: 'R-skipped', direction: 1, arrivals: [{ key: 'c', live: live('skipped', null) }] },
     { routeId: '904', routeName: 'R-lastbus', direction: null, arrivals: [{ key: 'd', live: live('last_bus_passed', null) }] },
@@ -127,26 +127,51 @@ for (const lang of ['zh-TW', 'en']) {
     assert.deepEqual(errors, [], `有 pageerror：${errors.join(' | ')}`);
   }));
 
-  await check(`[${lang}] 點站牌 → 出現到站卡，四種官方負值各自是不同文案`, () => withPage(lang, async (page, errors) => {
+  await check(`[${lang}] 點站牌 → 開站牌 sheet，四種官方負值各自是不同文案`, () => withPage(lang, async (page, errors) => {
     const before = liveCalls;
     await typeQuery(page, '固定站');
     await page.locator('.bus-row').first().waitFor({ state: 'visible', timeout: 15000 });
     await page.locator('.bus-row').first().click();
-    await page.locator('.bus-eta-row').first().waitFor({ state: 'visible', timeout: 15000 });
+    await page.locator('#busStopPanel .bus-eta-row').first().waitFor({ state: 'visible', timeout: 15000 });
     assert(liveCalls > before, '沒有打到站端點');
-    const texts = await page.locator('.bus-eta-row').allInnerTexts();
-    assert.equal(texts.length, 5, `應該五列，實際 ${texts.length}`);
+    // 2026-09-11 設計第二版：到站表住在 sheet 裡，不在搜尋下拉裡（下拉此時應已收起）。
+    assert.equal(await page.locator('#searchDrop:not([hidden])').count(), 0, '開了 sheet，搜尋下拉卻沒收起來');
+    const rows = page.locator('#busStopPanel .bus-eta-row');
+    assert.equal(await rows.count(), 5, `應該五列，實際 ${await rows.count()}`);
+    // 下一班與再下一班是兩個【分開的】元素，不是串成一行——這正是設計第二版要解掉的事。
+    const nexts = await page.locator('#busStopPanel .bus-eta-next').allInnerTexts();
+    assert.equal(nexts.length, 5, `.bus-eta-next 應該五個，實際 ${nexts.length}`);
     // 四個負值的文案兩兩不同——收斂成同一句正是設計書點名禁止的事。
-    const negatives = texts.slice(1).map(s => s.split('\n').pop().trim());
+    const negatives = nexts.slice(1).map(x => x.trim());
     assert.equal(new Set(negatives).size, 4, `四種語意共用了文案：${JSON.stringify(negatives)}`);
     // 文案必須真的是這個語系的那一份（期望值從字典讀，不寫死）。
     const expect = ['尚未發車', '交管不停靠', '末班已過', '今日未營運'].map(zh => say(lang, zh));
     assert.deepEqual(negatives, expect, `文案與 ${lang} 字典不符：${JSON.stringify(negatives)} vs ${JSON.stringify(expect)}`);
     // 倒數那一列要顯示分鐘（420 秒 → 7 分）；斷言只看「有數字 7」，不綁單位字。
-    assert(/\b7\b/.test(texts[0]), `倒數列沒顯示分鐘：${texts[0]}`);
-    // 署名必須在卡片上
-    const card = await page.locator('.sd-named').innerText();
-    assert(card.includes('臺北市政府交通局公共運輸處'), `卡片少了來源署名：${card}`);
+    assert(/\b7\b/.test(nexts[0]), `倒數列沒顯示分鐘：${nexts[0]}`);
+    // 🔴「下一班大、再下一班小而淡」是設計第二版的核心：兩者必須是【兩個分開的元素】，
+    //    不是串成一行。第一列有兩筆到站（420／960 秒 → 7 分／16 分），所以這裡量得到。
+    const laters = await page.locator('#busStopPanel .bus-eta-later').allInnerTexts();
+    assert.equal(laters.length, 5, `.bus-eta-later 應該五個，實際 ${laters.length}`);
+    assert(/\b16\b/.test(laters[0]), `再下一班沒有畫在自己的元素裡：${JSON.stringify(laters[0])}`);
+    assert(!/\b16\b/.test(nexts[0]), `再下一班被併進「下一班」那一格：${JSON.stringify(nexts[0])}`);
+    // 兩者字級要真的不同（小而淡才讀得出哪一個是現在要等的）——量渲染值，不是宣告值。
+    const sizes = await page.evaluate(() => {
+      const row = document.querySelector('#busStopPanel .bus-eta-row');
+      const px = sel => parseFloat(getComputedStyle(row.querySelector(sel)).fontSize);
+      return { next: px('.bus-eta-next'), later: px('.bus-eta-later') };
+    });
+    assert(sizes.next > sizes.later + 2, `下一班沒有比再下一班大：${JSON.stringify(sizes)}`);
+    // 「來了」與「今天沒了」要真的分得出來：靠 data-k，不靠顏色字面。
+    const kinds = await rows.locator('.bus-eta-next').evaluateAll(els => els.map(e => e.dataset.k));
+    assert.equal(kinds[0], 'min', `倒數列的 data-k 應為 min：${kinds[0]}`);
+    assert(kinds.slice(1).every(k => k === 'idle'), `四個負值列的 data-k 應都是 idle：${JSON.stringify(kinds)}`);
+    // 新鮮度：這一份是幾點的資料一定要寫在畫面上（不是只寫在 tooltip 或 console）。
+    const fresh = await page.locator('#busStopPanel .bus-fresh').innerText();
+    assert(/\d{1,2}:\d{2}/.test(fresh), `新鮮度條沒有寫出資料時間：${fresh}`);
+    // 署名必須在 sheet 上（政府資料開放授權的生效要件）
+    const note = await page.locator('#busStopPanel .bus-note').innerText();
+    assert(note.includes('臺北市政府交通局公共運輸處'), `sheet 少了來源署名：${note}`);
     assert.deepEqual(errors, [], `有 pageerror：${errors.join(' | ')}`);
   }));
 }
@@ -165,6 +190,30 @@ await check('查無公車站牌時不得出現 bus-row（正向對照）', () =>
       { stationUid: 'ILA-FIX-1', name: '固定站乙', city: 'YilanCounty', cityLabel: '宜蘭縣', provider: 'tdx-per-stop', position: null, routes: ['綠19'] },
     ];
   }
+}));
+
+// 空狀態要分得出「站牌沒有路線回報」與「我們拿不到即時」——兩件事兩種樣子（設計 1c）。
+// 反向對照一起做：正常情況不得出現這兩張，否則上面的 count===5 與這裡都變恆真。
+await check('站牌沒有路線回報 → 中性空卡，而且不是警示條', () => withPage('zh-TW', async page => {
+  const saved = FIXTURE_LIVE.routes;
+  FIXTURE_LIVE.routes = [];
+  try {
+    await typeQuery(page, '固定站');
+    await page.locator('.bus-row').first().waitFor({ state: 'visible', timeout: 15000 });
+    await page.locator('.bus-row').first().click();
+    await page.locator('#busStopPanel .bus-empty').waitFor({ state: 'visible', timeout: 15000 });
+    assert.equal(await page.locator('#busStopPanel .bus-warn').count(), 0, '資料本身沒有路線，卻用了「我們失敗了」的警示條');
+    assert.equal(await page.locator('#busStopPanel .bus-eta-row').count(), 0, '零路線卻畫出了到站列');
+  } finally { FIXTURE_LIVE.routes = saved; }
+}));
+
+await check('正向對照：有路線回報時不得出現空卡（證明上一條不是恆真）', () => withPage('zh-TW', async page => {
+  await typeQuery(page, '固定站');
+  await page.locator('.bus-row').first().waitFor({ state: 'visible', timeout: 15000 });
+  await page.locator('.bus-row').first().click();
+  await page.locator('#busStopPanel .bus-eta-row').first().waitFor({ state: 'visible', timeout: 15000 });
+  assert.equal(await page.locator('#busStopPanel .bus-empty').count(), 0, '有五條路線卻同時畫了空卡');
+  assert.equal(await page.locator('#busStopPanel .bus-warn').count(), 0, '成功取得資料卻畫了警示條');
 }));
 
 await browser.close();
