@@ -3,8 +3,10 @@
 import fs from 'node:fs';import {chromium} from 'playwright';
 const OUT='output/tunnel-compare';fs.mkdirSync(OUT,{recursive:true});
 const SHOTS=[
- {key:'reporter',name:'回報者視角 24.2738,120.6643 z20',center:[120.6643,24.2738],zoom:20,pitch:60,bearing:0},
- {key:'reporter-wide',name:'回報者視角拉遠 z17',center:[120.6643,24.2738],zoom:17,pitch:64,bearing:0},
+ // 回報者跟的是高鐵 0120 次（左營→南港）。11:45 是它離這個座標最近的一刻（實測 114 公尺），
+ // 08:00 那個位置附近一班車都沒有，拍出來只有軌道、對不上他說的『跟著車看』。
+ {key:'reporter',name:'回報者視角 24.2738,120.6643 z20（0120 次）',center:[120.6643,24.2738],zoom:20,pitch:60,bearing:0,t:'11:45'},
+ {key:'reporter-wide',name:'回報者視角拉遠 z17（0120 次）',center:[120.6643,24.2738],zoom:17,pitch:64,bearing:0,t:'11:45'},
  // 山岳隧道鏡頭：站在洞口、朝洞內看，拉到看得見整座山的距離。缺陷本來就是山體尺度的
  // （隧道跟著山坡爬、山頂地表浮出軌道痕跡），貼著洞口拍反而照不到。
  // 座標取自各段真正的洞口節點（與非隧道股道相接的那一端），不是 way 的第一個點。
@@ -20,10 +22,15 @@ for(const [tag,base] of targets){
  const page=await browser.newPage({viewport:{width:1400,height:900},locale:'zh-TW'});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.addInitScript(()=>localStorage.setItem('trainmap-howto-seen','1'));
- await page.goto(base+'?scene=3d&map=landscape&g=all&t=08:00');
+ let clock='08:00';
+ await page.goto(base+'?scene=3d&map=landscape&g=all&t='+clock);
  await page.waitForFunction(()=>state.ready&&window.railIslandIntegration?.renderer,null,{timeout:120000});
  await page.evaluate(()=>{state.playing=false;railIslandIntegration.renderer.setGroundMode('terrain');});
  for(const s of SHOTS){
+  // 換時刻只能重新載入：撥鐘的入口在 index.html 內部，這裡不假設它掛在 window 上。
+  if((s.t||'08:00')!==clock){clock=s.t||'08:00';await page.goto(base+'?scene=3d&map=landscape&g=all&t='+clock);
+   await page.waitForFunction(()=>state.ready&&window.railIslandIntegration?.renderer,null,{timeout:120000});
+   await page.evaluate(()=>{state.playing=false;railIslandIntegration.renderer.setGroundMode('terrain');});}
   await page.evaluate(v=>railIslandIntegration.renderer.map.jumpTo({center:v.center,zoom:v.zoom,pitch:v.pitch,bearing:v.bearing}),s);
   // 等圖磚與地形真的到齊再拍，不然「修改前」拍到半載入的畫面會被誤讀成修好了
   await page.waitForFunction(()=>{const m=railIslandIntegration.renderer.map;return m.loaded()&&m.areTilesLoaded();},null,{timeout:60000}).catch(()=>{});
