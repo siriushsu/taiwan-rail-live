@@ -8,7 +8,7 @@ import {routeWidth,readableScale,stationNames,vehicleMarkers} from './readabilit
 import {formationFor,assembleFormation} from './formations.js';
 import {makePath,shapeKey,makeHeightProfile,formationPoses} from './train-path.js';
 import {profileLines} from './profile-lines.js';
-import {createRailStructures} from './rail-structures.js';
+import {createRailStructures,PORTAL_FACE_U} from './rail-structures.js';
 import {headFramingDistance} from './follow-framing.js';
 import {createLandscapeTrees} from './landscape-trees.js';
 import {orderBuildingPasses} from './layer-order.js';
@@ -81,20 +81,40 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   // 鋼軌 .14 公尺寬，z17 以下不到一個像素，畫了只是燒頂點。枕木再近一級才長出來。
   const detailLevel=()=>{const z=map.getZoom();return z>=18.5?2:z>=17?1:0;};
   function isUnderground(path,s){const level=path?.level?.(s);return level?.kind==='tunnel'||(level?.kind!=='bridge'&&(level?.offsetM??0)<-3);}
-  // 地下軌道有兩種畫法。live-underground-3d 那一層自己清深度，所以看得穿地表——看台北的
-  // 地下路網正是靠它。但同一招套在山岳隧道上就變成軌跡浮在山坡表面（issue #57 同一輪回報的
-  // 「山上有軌道的痕跡」）：線離它該在的位置有幾百公尺遠。
-  // 判準用「當地覆土深度」而不是隧道種類：種類是整條連續隧道一個值，台北地下段因為同一串
-  // 隧道一路連到南港的丘陵，整段會被算成山岳。覆土是逐點的，量的又剛好是「這條線看起來會
-  // 偏掉多遠」。全台 42984 個隧道取樣點裡 72.7% 淺於 30 公尺，捷運更有 96.1%；
-  // 30 公尺約十層樓，再深下去線就不像在腳下而像貼在山坡上了。
-  const SEE_THROUGH_COVER_M=30;
-  function seeThrough(path,s){
-    if(!isUnderground(path,s))return false;
-    const cover=path?.level?.(s)?.coverM;
-    return !Number.isFinite(cover)||cover<=SEE_THROUGH_COVER_M;   // 沒有覆土資料就沿用舊行為
+  // 地下軌道分三種畫法：
+  //   xray  透視——live-underground-3d 那一層自己清深度，看得穿地表，台北地下路網正是靠它。
+  //   depth 一般線層——會被地形擋住，山自己把山岳隧道遮掉。
+  //   none  完全不畫——軌面比地表還高的隧道段，畫出來就是一條浮在半空的線。
+  // 分界不看隧道種類：種類是整條連續隧道一個值，台北地下段一路連到南港的丘陵，整段會被算成
+  // 山岳。改成逐點量「這一點的地表是不是山坡」——取樣點周圍 ±55 公尺十字的地形高差。
+  // 實測台北地下段中位 0.6 公尺（p90 1.5），高鐵三義穿山脊那段 38～39 公尺；取 10 公尺為界，
+  // 台北只有 3% 受影響。2026-09-12 回報的「山丘表面的軌道印子」就是山脊那一段。
+  // 覆土深度仍是第二道：全台 42984 個取樣點 72.7% 淺於 30 公尺，30 公尺約十層樓，再深線就
+  // 不像在腳下。建置期的地表值（display-profiles）比隨站出貨的 DEM 平均高 5.2 公尺（p90 11.8），
+  // 所以淺覆土段要拿真正畫得出來的地形再判一次，深的直接用建置值判，省下逐點地形查詢。
+  const SEE_THROUGH_COVER_M=30,SEE_THROUGH_RELIEF_M=10,RELIEF_STEP=.0005,COVER_RECHECK_M=12;
+  const reliefCells=new Map();
+  function localRelief(coordinate){
+    const gx=Math.round(coordinate[0]/RELIEF_STEP),gy=Math.round(coordinate[1]/RELIEF_STEP),key=gx+','+gy;
+    if(reliefCells.has(key))return reliefCells.get(key);
+    const cx=gx*RELIEF_STEP,cy=gy*RELIEF_STEP;let lo=Infinity,hi=-Infinity,value=null;
+    for(const [dx,dy] of [[0,0],[RELIEF_STEP,0],[-RELIEF_STEP,0],[0,RELIEF_STEP],[0,-RELIEF_STEP]]){
+      const g=map.queryTerrainElevation([cx+dx,cy+dy]);
+      if(!Number.isFinite(g)){lo=Infinity;break;}
+      lo=Math.min(lo,g);hi=Math.max(hi,g);}
+    if(lo!==Infinity)value=hi-lo;
+    reliefCells.set(key,value);return value;
   }
-  function clearLines(){stats.undergroundRailSegments=0;profileVertices=[];rails.set([]);undergroundRails.set([]);structures.set([],[]);}
+  function buriedDraw(path,s,coordinate,railM){
+    if(!isUnderground(path,s))return null;
+    const cover=path?.level?.(s)?.coverM;
+    if(!Number.isFinite(cover)||!terrainState.terrain)return 'xray';   // 沒有覆土資料、或平面模式沒有山可擋，沿用舊行為
+    if(cover<=0)return 'none';
+    const relief=localRelief(coordinate),hilly=Number.isFinite(relief)&&relief>=SEE_THROUGH_RELIEF_M;
+    if(hilly||cover<COVER_RECHECK_M){const g=map.queryTerrainElevation(coordinate);if(Number.isFinite(g)&&g<=railM)return 'none';}
+    return hilly||cover>SEE_THROUGH_COVER_M?'depth':'xray';
+  }
+  function clearLines(){stats.undergroundRailSegments=stats.buriedDepthSegments=stats.buriedHiddenSegments=0;reliefCells.clear();profileVertices=[];rails.set([]);undergroundRails.set([]);structures.set([],[]);}
   function rebuildLines(){
     clearLines();if(!frame)return;const c=map.getCenter(),near=map.getZoom()>=14,bounds=map.getBounds(),margin=.004;lastNear=near;const detail=detailLevel();lastDetail=detail;buildCenter=[c.lng,c.lat];buildElev=terrainState.terrain?map.queryTerrainElevation(buildCenter):0;buildView=[map.getZoom(),map.getPitch(),map.getBearing()];lastBuild=performance.now();dirty=false;stats.routeBuilds++;
 
@@ -109,7 +129,13 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
       // 借 railHeight 算高度：包一個只有 level 與 at 的假路徑，平面／地形兩種模式的規則就不必再寫一次。
       const h=railHeight({level:()=>level,at:()=>({coordinate:q}),length:0},0);
       if(!Number.isFinite(h))continue;
-      portals.push({p:world(q,h),angle,scale:ml.MercatorCoordinate.fromLngLat(q).meterInMercatorCoordinateUnits()/unit});
+      // 面牆底緣要照現場地形，所以沿洞口面橫向取樣地表高程交給算繪端內插；地形關掉時一律取地面 0。
+      const across=(bearingDeg+90)*Math.PI/180,mLon=111320*Math.cos(lat*Math.PI/180);
+      const ground=PORTAL_FACE_U.map(u=>{
+        const c=[lon+u*Math.sin(across)/mLon,lat+u*Math.cos(across)/110574],
+              g=terrainState.terrain?map.queryTerrainElevation(c):0;
+        return Number.isFinite(g)?world(c,g)[2]:null;});
+      portals.push({p:world(q,h),angle,ground,scale:ml.MercatorCoordinate.fromLngLat(q).meterInMercatorCoordinateUnits()/unit});
     }
     const ground=q=>terrainState.terrain?map.queryTerrainElevation(q):0,PIER_M=32;
     for(const r of frame.routes){const coords=r.coordinates,vertices=[],path=pathFor(r);let lastPierS=-Infinity;for(let i=1;i<coords.length;i++){
@@ -117,7 +143,10 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
       for(const [lo,hi] of r.drawingRanges||[[0,Infinity]]){
       const start=Math.max(path.d[i-1],lo),end=Math.min(path.d[i],hi);if(end<=start)continue;
       const length=end-start,n=(terrainState.terrain||path.level)?Math.max(1,Math.ceil(length/5)):1;let prev=null,prevGround=null;
-      for(let k=0;k<=n;k++){const s=start+length*k/n,q=path.at(Math.min(path.length,s)).coordinate,h=railHeight(path,s),p=h===null?null:world(q,h);if(prev&&p){vertices.push(...prev,...p);if(terrainState.terrain||r.physical||r.drawingRanges)(seeThrough(path,s)?buriedSegments:lineSegments).push({a:prev,b:p,color:r.displayColor||r.color,physical:!!r.physical});}
+      for(let k=0;k<=n;k++){const s=start+length*k/n,q=path.at(Math.min(path.length,s)).coordinate,h=railHeight(path,s),p=h===null?null:world(q,h);if(prev&&p){vertices.push(...prev,...p);
+        if(terrainState.terrain||r.physical||r.drawingRanges){const draw=buriedDraw(path,s,q,h);
+          if(draw==='none')stats.buriedHiddenSegments++;
+          else{if(draw==='depth')stats.buriedDepthSegments++;(draw==='xray'?buriedSegments:lineSegments).push({a:prev,b:p,color:r.displayColor||r.color,physical:!!r.physical});}}}
         if(r.physical&&p&&!isUnderground(path,s)){
           const g=ground(q),gp=Number.isFinite(g)?world(q,g)[2]:null,level=path.level?.(s),scale=ml.MercatorCoordinate.fromLngLat(q).meterInMercatorCoordinateUnits()/unit;
           if(prev&&Number.isFinite(gp)&&Number.isFinite(prevGround))structureSegments.push({a:prev,b:p,groundA:prevGround,groundB:gp,bridge:level?.kind==='bridge'&&level.offsetM>0,transition:!!level?.terrainTransition,scale});
