@@ -39,6 +39,8 @@ const tierOf=c=>c.kind==='bridge'?1:c.kind==='tunnel'?-1:0;
 const MOUNTAIN_RELIEF_M=20;
 const dem=openRailDem(new URL('../',import.meta.url));
 let corridor,outdoor,tunnels,bores={mountain:0,subsurface:0};
+// 只靠 layer<0 被判成隧道、DEM 又找不到山的段：改判成平面，理由隨產物出去供回查。
+const demoted=[];
 // 洞口清單給算繪端畫拱圈用。算繪端只走「當下有車在跑」的股道，沒車的隧道連洞口都取樣不到，
 // 所以位置要在這裡算好隨產物出去。bearing 指向洞內。
 const portalList=[];
@@ -62,6 +64,22 @@ for(const seed of tunnelSet){
  const portalGround=[];for(const p of portals)portalGround.push(await dem.ground(p.r.w.coordinates[p.i]));
  const base=portalGround.length?portalGround.reduce((a,b)=>a+b,0)/portalGround.length:Math.min(...grounds);
  const reliefM=+(Math.max(...grounds)-base).toFixed(1),mountain=reliefM>=MOUNTAIN_RELIEF_M;
+ // 只靠 layer<0 判成隧道的段，要地形站得住腳才留下來。
+ // structure-kind.js 檔頭的原則是「layer 表達交叉上下序，不能單獨作為結構的證據」，橋的方向
+ // 早就照做（只認 tags.bridge），隧道的方向一直沒有——於是「有道路從上面跨過去」的平地路段
+ // 被整段當成地下段。症狀有兩個而且都看得見：(1) 平地上立起一個洞口面牆；(2) 整段軌道因為
+ // 被當成地下段、而軌面又高於地表，buriedDraw 判 'none' 完全不畫，雙線只剩一條。
+ // 2026-09-12 回報的兩處都是這一格：縱貫線中洲–大湖 8.4 公里（兩端接二層行溪橋、起伏 12.7m）、
+ // 宜蘭線牡丹 474 公尺（兩端都接橋、起伏 7.1m）。全網 15 段 17.7 公里，全部是單條 way。
+ // 判準用的是這裡本來就算好的兩個量，不引入新常數：明示標記（來源 tunnel=yes／location=underground
+ // 或官方橋隧圖資判隧道）與 DEM 起伏。有山的（起伏 ≥20m）一律留著，所以三貂嶺那條只有 layer=-2
+ // 的 372 公尺（起伏 235.9m）不受影響。
+ const evidence=run.some(r=>r.w.tags?.tunnel==='yes'||r.w.tags?.location==='underground'||official[r.w.id]?.kind==='tunnel');
+ if(!evidence&&!mountain){
+  for(const r of run){r.c.kind='surface';r.c.layerOnlyTunnel=true;r.c.reliefM=reliefM;}
+  demoted.push({system:run[0].w.system,ways:run.map(r=>String(r.w.id)),reliefM,km:+(run.reduce((a,r)=>a+r.path.d.at(-1),0)/1000).toFixed(2)});
+  continue;
+ }
  const outside=portals.flatMap(p=>(nodeWays.get(p.r.w.system+':'+p.r.w.nodes[p.i])||[]).filter(o=>!member.has(o)));
  const tier=outside.length?Math.max(...outside.map(o=>tierOf(o.c))):0;
  // 山岳隧道沿用洞口外側股道的層位；都市地下段維持 rank 的疊層深度。
@@ -97,6 +115,6 @@ corridor=await applyLinkouRailGrade(records,entries,dem.ground);
 // 露天段先於隧道：洞口要接到露天段求出的顯示高程，交會處的上下界也要對著顯示高程算。
 outdoor=await applyOutdoorRailGrade(records,entries,dem.ground,crossings);
 tunnels=await applyTunnelGrade(records,entries,dem.ground);
-console.log({linkouWays:corridor.length,outdoorWays:outdoor.ids.length,outdoorKnots:outdoor.knots,outdoorPasses:outdoor.passes,outdoorTents:outdoor.tents,outdoorBlocked:outdoor.blocked,outdoorResidual:outdoor.residual,outdoorBelow:outdoor.below,outdoorBuried:outdoor.buried,outdoorDeviation:outdoor.deviation,tunnelWays:tunnels.ids.length,tunnelRuns:tunnels.runs,tunnelSolver:tunnels.worst,tunnelSteep:tunnels.steep,bores});if(process.env.TUNNEL_REPORT)console.log(tunnels.report.filter(r=>r.error>.01).sort((a,b)=>b.error-a.error).slice(0,10).map(r=>({system:r.system,error:r.error,knots:r.knots,n:r.ways.length,head:r.ways.slice(0,4)})));
-fs.writeFileSync('rail-3d/physical/level-profiles.json',JSON.stringify({version:1,railElevationM:null,basis:'OSM 明示 bridge/tunnel + 國土測繪中心官方橋隧幾何補正（含 DEM 地形裁決過的反向改判）+ layer 交叉上下序 + 固定 DEM；地面初值 0m，橋隧 ±8m 層位初值、7m 相交淨距、8% 顯示過渡限制均為估計，不是工程標高。層位初值只取結構種類的正負號，不乘 layer 數值——layer 只表示相交上下序。隧道依 DEM 地形起伏分兩種：山岳隧道沿用洞口外側股道的層位（軌面直行、山蓋過去），都市地下段維持地面下一層；兩者都以 terrainValues 給洞口間的連續縱坡，內部沿里程直線，不隨山坡起伏。露天段（高架與平面）也以 terrainValues 給連續縱坡：以原始 DEM 加層位為目標，在各系統縱坡上限（臺鐵高鐵 2.5%、林鐵 6%、捷運 4%）內取最接近的剖面，高架至少離地 6 公尺、平面不低於地表，交會處抬上方股道；橋面不再逐點複製 DEM 起伏。',inputSha256:Object.fromEntries([['network.json','rail-3d/physical/network.json'],['metro-network.json','rail-3d/physical/metro-network.json'],['display-profiles.json','rail-3d/physical/display-profiles.json'],['metro-display-profiles.json','rail-3d/physical/metro-display-profiles.json'],['../terrain/manifest.json','rail-3d/terrain/manifest.json'],['../../'+officialFile,officialFile]].map(([k,p])=>[k,crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex')])),sources:['https://data.gov.tw/dataset/73220','https://data.gov.tw/dataset/73221','https://data.gov.tw/dataset/73222','https://www.futsu.com.tw/p_transportation.html','https://wiki.openstreetmap.org/wiki/Key:layer','https://web.metro.taipei/pages2026/WebStation/051'],solver:{iterations,violation,crossings:crossings.length},portals:portalList,entries}));console.log({ways:Object.keys(entries).length,counts,iterations,violation,portals:portalList.length});
+console.log({linkouWays:corridor.length,outdoorWays:outdoor.ids.length,outdoorKnots:outdoor.knots,outdoorPasses:outdoor.passes,outdoorTents:outdoor.tents,outdoorBlocked:outdoor.blocked,outdoorResidual:outdoor.residual,outdoorBelow:outdoor.below,outdoorBuried:outdoor.buried,outdoorDeviation:outdoor.deviation,tunnelWays:tunnels.ids.length,tunnelRuns:tunnels.runs,tunnelSolver:tunnels.worst,tunnelSteep:tunnels.steep,bores,layerOnlyDemoted:{runs:demoted.length,km:+demoted.reduce((a,d)=>a+d.km,0).toFixed(2)}});if(process.env.TUNNEL_REPORT)console.log(tunnels.report.filter(r=>r.error>.01).sort((a,b)=>b.error-a.error).slice(0,10).map(r=>({system:r.system,error:r.error,knots:r.knots,n:r.ways.length,head:r.ways.slice(0,4)})));
+fs.writeFileSync('rail-3d/physical/level-profiles.json',JSON.stringify({version:1,railElevationM:null,basis:'OSM 明示 bridge/tunnel + 國土測繪中心官方橋隧幾何補正（含 DEM 地形裁決過的反向改判）+ layer 交叉上下序 + 固定 DEM；地面初值 0m，橋隧 ±8m 層位初值、7m 相交淨距、8% 顯示過渡限制均為估計，不是工程標高。層位初值只取結構種類的正負號，不乘 layer 數值——layer 只表示相交上下序。隧道依 DEM 地形起伏分兩種：山岳隧道沿用洞口外側股道的層位（軌面直行、山蓋過去），都市地下段維持地面下一層；兩者都以 terrainValues 給洞口間的連續縱坡，內部沿里程直線，不隨山坡起伏。露天段（高架與平面）也以 terrainValues 給連續縱坡：以原始 DEM 加層位為目標，在各系統縱坡上限（臺鐵高鐵 2.5%、林鐵 6%、捷運 4%）內取最接近的剖面，高架至少離地 6 公尺、平面不低於地表，交會處抬上方股道；橋面不再逐點複製 DEM 起伏。',inputSha256:Object.fromEntries([['network.json','rail-3d/physical/network.json'],['metro-network.json','rail-3d/physical/metro-network.json'],['display-profiles.json','rail-3d/physical/display-profiles.json'],['metro-display-profiles.json','rail-3d/physical/metro-display-profiles.json'],['../terrain/manifest.json','rail-3d/terrain/manifest.json'],['../../'+officialFile,officialFile]].map(([k,p])=>[k,crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex')])),sources:['https://data.gov.tw/dataset/73220','https://data.gov.tw/dataset/73221','https://data.gov.tw/dataset/73222','https://www.futsu.com.tw/p_transportation.html','https://wiki.openstreetmap.org/wiki/Key:layer','https://web.metro.taipei/pages2026/WebStation/051'],solver:{iterations,violation,crossings:crossings.length},layerOnlyDemoted:demoted,portals:portalList,entries}));console.log({ways:Object.keys(entries).length,counts,iterations,violation,portals:portalList.length});
 }finally{dem.close();}
