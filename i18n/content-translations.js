@@ -4,6 +4,13 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "補回太麻里兩條月台股道，減少同站列車重疊；修正部分列車誤入同一股道的交會畫面": "Restored both platform tracks at Taimali to reduce overlapping trains, and corrected some trains meeting on the wrong shared track.",
+    "減少車站裡兩班車疊在同一條股道上的情況，潮州、板橋、南港等站重新指派停靠月台": "Reduced trains overlapping on the same station track by revising platform assignments at Chaozhou, Banqiao, Nangang and other stations.",
+    "減少開站時重複下載地形與股道資料，改善初次開啟的等待時間與畫面凍結。": "Reduced repeated downloads of terrain and track data at startup, improving initial loading time and screen freezes.",
+    "修正中洲到大湖等平地路段被誤畫成隧道的情況；抬高路基的邊坡改得更窄、更接近地表顏色，避免遮住列車。": "Corrected flat sections such as Zhongzhou–Dahu that were wrongly drawn as tunnels. Raised embankments are narrower and closer to the ground color so they do not obscure trains.",
+    "立體地圖的隧道洞口改為貼合山坡的洞門與擋土牆，改善懸空拱圈；移除山丘表面沿著地下隧道出現的軌道線。": "Tunnel entrances in the 3D map now fit hillsides with portals and retaining walls, reducing floating arches. Removed track lines appearing on hills above underground tunnels.",
+    "台北、板橋等都市的立體地圖拖動更順，減少地下路網與畫面外列車重複計算地形的時間。": "Panning the 3D map in Taipei, Banqiao and other cities is smoother, with less repeated terrain calculation for underground tracks and off-screen trains.",
+    "減少同股道列車追上、穿過前車的情況：後車依前車位置減速跟隨，顯示位置最多延後 120 秒。部分交會與待避仍受班表及股道資料限制。": "Reduced trains catching and passing through a train ahead on the same track. Following trains slow down, with display positions delayed by up to 120 seconds. Some meetings and passing waits remain limited by timetable and track data.",
     "修正全網平坦地圖的橋梁與引道突起，列車行經短橋時更平順": "Smoothed bridge and approach humps across the flat map, so trains pass over short bridges more smoothly.",
     "列車光環": "Train glow",
     "列車周圍新增自然散開的柔光，夜晚呈暖色、白天沿用車次顏色，可在「更多」開關": "Trains now have a naturally diffused glow: warm at night and in their service color by day. Toggle it in More.",
@@ -267,6 +274,13 @@
   });
 
   Object.assign(messages.ja, {
+    "補回太麻里兩條月台股道，減少同站列車重疊；修正部分列車誤入同一股道的交會畫面": "太麻里駅の2本のホーム線路を復元して列車の重なりを減らし、一部の列車が誤って同じ線路ですれ違う表示を修正しました。",
+    "減少車站裡兩班車疊在同一條股道上的情況，潮州、板橋、南港等站重新指派停靠月台": "潮州・板橋・南港などの停車ホーム割当を見直し、駅で2列車が同じ線路上に重なる表示を減らしました。",
+    "減少開站時重複下載地形與股道資料，改善初次開啟的等待時間與畫面凍結。": "起動時の地形・線路データの重複ダウンロードを減らし、初回読み込みの待ち時間や画面の停止を改善しました。",
+    "修正中洲到大湖等平地路段被誤畫成隧道的情況；抬高路基的邊坡改得更窄、更接近地表顏色，避免遮住列車。": "中洲～大湖などの平地区間が誤ってトンネル表示になる問題を修正。盛土の法面を狭くして地面に近い色にし、列車が隠れにくくしました。",
+    "立體地圖的隧道洞口改為貼合山坡的洞門與擋土牆，改善懸空拱圈；移除山丘表面沿著地下隧道出現的軌道線。": "立体地図のトンネル入口を斜面に沿う坑門・擁壁に変更し、浮いたアーチを改善。地下トンネルに沿って山肌に現れる線路表示も除去しました。",
+    "台北、板橋等都市的立體地圖拖動更順，減少地下路網與畫面外列車重複計算地形的時間。": "台北・板橋などの立体地図をより滑らかに移動できるよう、地下路網や画面外の列車による地形の重複計算を減らしました。",
+    "減少同股道列車追上、穿過前車的情況：後車依前車位置減速跟隨，顯示位置最多延後 120 秒。部分交會與待避仍受班表及股道資料限制。": "同じ線路で後続列車が前の列車に追いつき、すり抜ける表示を低減。後続列車は減速し、表示位置を最大120秒遅らせます。一部の交換・待避には時刻表や線路データによる制約が残ります。",
     "修正全網平坦地圖的橋梁與引道突起，列車行經短橋時更平順": "平坦な地図全体で橋と接続区間の不自然な盛り上がりを修正し、列車が短い橋を滑らかに通過するようになりました。",
     "列車光環": "列車の光",
     "列車周圍新增自然散開的柔光，夜晚呈暖色、白天沿用車次顏色，可在「更多」開關": "列車の周囲に自然に広がる柔らかな光を追加。夜は暖色、昼は列車の色になり、「その他」で切り替えられます。",
