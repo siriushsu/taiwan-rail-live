@@ -59,7 +59,10 @@
       "lineFile": "data/tdx/NTMC_Line.json",
       "stationRecords": 14,
       "stationOfLines": 1,
-      "routeMemberships": 14
+      "routeMemberships": 14,
+      "excludedDuplicateRoutes": [
+        "NTMC:LB"
+      ]
     },
     {
       "system": "SANYING",
@@ -106,9 +109,9 @@
       "stationFile": "data/tdx/TRTC_Station.json",
       "stationOfLineFile": "data/tdx/TRTC_StationOfLine.json",
       "lineFile": "data/tdx/TRTC_Line.json",
-      "stationRecords": 121,
+      "stationRecords": 122,
       "stationOfLines": 5,
-      "routeMemberships": 121
+      "routeMemberships": 122
     },
     {
       "system": "TYMC",
@@ -6618,8 +6621,8 @@
       "normalizedName": "頂埔",
       "transferName": "頂埔",
       "position": [
-        24.959351,
-        121.418744
+        24.96012,
+        121.4205
       ],
       "routes": [
         "TRTC:BL"
@@ -6663,8 +6666,8 @@
       "normalizedName": "海山",
       "transferName": "海山",
       "position": [
-        24.985348,
-        121.448787
+        24.985305,
+        121.44873
       ],
       "routes": [
         "TRTC:BL"
@@ -6708,8 +6711,8 @@
       "normalizedName": "板橋",
       "transferName": "板橋",
       "position": [
-        25.014098,
-        121.462671
+        25.013825,
+        121.462305
       ],
       "routes": [
         "TRTC:BL"
@@ -6723,8 +6726,8 @@
       "normalizedName": "新埔",
       "transferName": "新埔",
       "position": [
-        25.023736,
-        121.468363
+        25.02327,
+        121.468055
       ],
       "routes": [
         "TRTC:BL"
@@ -6768,8 +6771,8 @@
       "normalizedName": "西門",
       "transferName": "西門",
       "position": [
-        25.042274,
-        121.508511
+        25.042025,
+        121.508175
       ],
       "routes": [
         "TRTC:BL"
@@ -6813,8 +6816,8 @@
       "normalizedName": "忠孝新生",
       "transferName": "忠孝新生",
       "position": [
-        25.0423,
-        121.5328
+        25.042498,
+        121.53321
       ],
       "routes": [
         "TRTC:BL"
@@ -6828,8 +6831,8 @@
       "normalizedName": "忠孝復興",
       "transferName": "忠孝復興",
       "position": [
-        25.041633,
-        121.543769
+        25.041749,
+        121.545026
       ],
       "routes": [
         "TRTC:BL"
@@ -7098,8 +7101,8 @@
       "normalizedName": "忠孝復興",
       "transferName": "忠孝復興",
       "position": [
-        25.041104,
-        121.543703
+        25.041749,
+        121.545026
       ],
       "routes": [
         "TRTC:BR"
@@ -7143,8 +7146,8 @@
       "normalizedName": "松山機場",
       "transferName": "松山機場",
       "position": [
-        25.063111,
-        121.55162
+        25.062908,
+        121.55201
       ],
       "routes": [
         "TRTC:BR"
@@ -7218,8 +7221,8 @@
       "normalizedName": "文德",
       "transferName": "文德",
       "position": [
-        25.078567,
-        121.584973
+        25.078455,
+        121.584999
       ],
       "routes": [
         "TRTC:BR"
@@ -7293,8 +7296,8 @@
       "normalizedName": "南港軟體園區",
       "transferName": "南港軟體園區",
       "position": [
-        25.059911,
-        121.61586
+        25.05992,
+        121.615
       ],
       "routes": [
         "TRTC:BR"
@@ -7323,8 +7326,8 @@
       "normalizedName": "新店",
       "transferName": "新店",
       "position": [
-        24.958181,
-        121.5377
+        24.95761,
+        121.53746
       ],
       "routes": [
         "TRTC:G"
@@ -7353,8 +7356,8 @@
       "normalizedName": "七張",
       "transferName": "七張",
       "position": [
-        24.975036,
-        121.543129
+        24.97545,
+        121.542985
       ],
       "routes": [
         "TRTC:G"
@@ -7488,8 +7491,8 @@
       "normalizedName": "小南門",
       "transferName": "小南門",
       "position": [
-        25.035619,
-        121.510798
+        25.035585,
+        121.51088
       ],
       "routes": [
         "TRTC:G"
@@ -7503,8 +7506,8 @@
       "normalizedName": "西門",
       "transferName": "西門",
       "position": [
-        25.042274,
-        121.508511
+        25.042025,
+        121.508175
       ],
       "routes": [
         "TRTC:G"
@@ -7668,8 +7671,8 @@
       "normalizedName": "頂溪",
       "transferName": "頂溪",
       "position": [
-        25.01308,
-        121.515398
+        25.013858,
+        121.515462
       ],
       "routes": [
         "TRTC:O"
@@ -7713,8 +7716,8 @@
       "normalizedName": "忠孝新生",
       "transferName": "忠孝新生",
       "position": [
-        25.041797,
-        121.532856
+        25.042498,
+        121.53321
       ],
       "routes": [
         "TRTC:O"
@@ -7818,8 +7821,8 @@
       "normalizedName": "菜寮",
       "transferName": "菜寮",
       "position": [
-        25.059808,
-        121.491451
+        25.059451,
+        121.491421
       ],
       "routes": [
         "TRTC:O"
@@ -7863,8 +7866,8 @@
       "normalizedName": "頭前庄",
       "transferName": "頭前庄",
       "position": [
-        25.039862,
-        121.460479
+        25.039735,
+        121.461655
       ],
       "routes": [
         "TRTC:O"
@@ -7953,8 +7956,8 @@
       "normalizedName": "三和國中",
       "transferName": "三和國中",
       "position": [
-        25.076794,
-        121.486455
+        25.07646,
+        121.486795
       ],
       "routes": [
         "TRTC:O"
@@ -8006,6 +8009,21 @@
       ],
       "transferId": null
     },
+    "TRTC:R01": {
+      "system": "TRTC",
+      "stationId": "R01",
+      "name": "廣慈/奉天宮",
+      "normalizedName": "廣慈/奉天宮",
+      "transferName": "廣慈/奉天宮",
+      "position": [
+        25.037583,
+        121.581789
+      ],
+      "routes": [
+        "TRTC:R"
+      ],
+      "transferId": null
+    },
     "TRTC:R02": {
       "system": "TRTC",
       "stationId": "R02",
@@ -8013,8 +8031,8 @@
       "normalizedName": "象山",
       "transferName": "象山",
       "position": [
-        25.032816,
-        121.57008
+        25.032395,
+        121.570116
       ],
       "routes": [
         "TRTC:R"
@@ -8028,8 +8046,8 @@
       "normalizedName": "台北101/世貿",
       "transferName": "台北101/世貿",
       "position": [
-        25.033028,
-        121.562755
+        25.032865,
+        121.563667
       ],
       "routes": [
         "TRTC:R"
@@ -8043,8 +8061,8 @@
       "normalizedName": "信義安和",
       "transferName": "信義安和",
       "position": [
-        25.03331,
-        121.55265
+        25.033015,
+        121.552326
       ],
       "routes": [
         "TRTC:R"
@@ -8343,8 +8361,8 @@
       "normalizedName": "復興崗",
       "transferName": "復興崗",
       "position": [
-        25.137474,
-        121.485457
+        25.137497,
+        121.485456
       ],
       "routes": [
         "TRTC:R"
@@ -8358,8 +8376,8 @@
       "normalizedName": "忠義",
       "transferName": "忠義",
       "position": [
-        25.131041,
-        121.473293
+        25.130923,
+        121.473298
       ],
       "routes": [
         "TRTC:R"
@@ -8373,8 +8391,8 @@
       "normalizedName": "關渡",
       "transferName": "關渡",
       "position": [
-        25.12563,
-        121.4671
+        25.12551,
+        121.467
       ],
       "routes": [
         "TRTC:R"
@@ -9079,7 +9097,7 @@
         {
           "a": "NTMC:Y16",
           "b": "TRTC:BL07",
-          "distanceM": 246.88
+          "distanceM": 293.911
         },
         {
           "a": "THSR:1010",
@@ -9089,12 +9107,12 @@
         {
           "a": "THSR:1010",
           "b": "TRTC:BL07",
-          "distanceM": 114.493
+          "distanceM": 156.731
         },
         {
           "a": "TRA:1020",
           "b": "TRTC:BL07",
-          "distanceM": 113.963
+          "distanceM": 158.339
         }
       ]
     },
@@ -9113,7 +9131,7 @@
         {
           "a": "NTMC:Y18",
           "b": "TRTC:O17",
-          "distanceM": 0
+          "distanceM": 119.314
         }
       ]
     },
@@ -9151,7 +9169,7 @@
         {
           "a": "SANYING:LB01",
           "b": "TRTC:BL01",
-          "distanceM": 68.287
+          "distanceM": 128.432
         }
       ]
     },
@@ -9660,7 +9678,7 @@
         {
           "a": "TRTC:BL14",
           "b": "TRTC:O07",
-          "distanceM": 56.215
+          "distanceM": 0
         }
       ]
     },
@@ -9679,7 +9697,7 @@
         {
           "a": "TRTC:BL15",
           "b": "TRTC:BR10",
-          "distanceM": 59.197
+          "distanceM": 0
         }
       ]
     },
@@ -9876,8 +9894,8 @@
   ],
   "stats": {
     "sourceSystems": 12,
-    "stationRecords": 562,
-    "routeMemberships": 579,
+    "stationRecords": 563,
+    "routeMemberships": 580,
     "matchedStationPairs": 63,
     "transferStations": 58,
     "transferStationRecords": 109,
