@@ -112,7 +112,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     if(path)s=Math.max(0,Math.min(path.length,s));
     // 實體軌道以畫面地表為基準；舊 DEM 淨空含全線 +2.5m，不能再把它當路基高度。
     // 軌道、逐節車廂及跟車鏡頭共用此函式，保留交會層差，不以橋墩填補資料誤差。
-    if(path?.level){const absolute=terrainState.terrain?path.level(s)?.terrainHeightM:undefined;if(Number.isFinite(absolute))return terrainLoaded(path.at(s).coordinate)?absolute+.65:null;const ground=terrainState.terrain?terrainAt(path.at(s).coordinate):0,level=path.level(s),offset=level?.offsetM??0;return Number.isFinite(ground)?ground+offset+.65:null;}
+    if(path?.level){const absolute=terrainState.terrain?path.level(s)?.terrainHeightM:undefined;if(Number.isFinite(absolute))return terrainLoaded(path.at(s).coordinate)?absolute+.65:null;const ground=terrainState.terrain?terrainAt(path.at(s).coordinate):0,level=path.level(s),offset=(terrainState.terrain?level?.offsetM:level?.flatOffsetM??level?.offsetM)??0;return Number.isFinite(ground)?ground+offset+.65:null;}
     const h=path?.elevation?(terrainState.terrain?path.elevation(s):0):terrainState.terrain?null:0;return Number.isFinite(h)?h+.65:null;
   }
   // 鋼軌 .14 公尺寬，z17 以下不到一個像素，畫了只是燒頂點。枕木再近一級才長出來。
