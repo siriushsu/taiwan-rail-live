@@ -8,7 +8,7 @@ import {routeWidth,readableScale,stationNames,vehicleMarkers} from './readabilit
 import {formationFor,assembleFormation} from './formations.js';
 import {makePath,shapeKey,makeHeightProfile,formationPoses} from './train-path.js';
 import {profileLines} from './profile-lines.js';
-import {createRailStructures,PORTAL_FACE_U} from './rail-structures.js';
+import {createRailStructures,PORTAL_FACE_U,VIADUCT_LIFT_M} from './rail-structures.js';
 import {headFramingDistance} from './follow-framing.js';
 import {createLandscapeTrees} from './landscape-trees.js';
 import {orderBuildingPasses} from './layer-order.js';
@@ -199,8 +199,11 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
       // 同格的平行線共用格線；轉彎換格時允許一次不規則間距，但同一股道兩根不得近於格距四成。地形未載入時不猜地面高度。
       if(r.physical){const wa=world(a,0),wb=world(b,0),bin=Math.round(Math.atan2(wb[1]-wa[1],wb[0]-wa[0])/(Math.PI/18))*(Math.PI/18),cx=Math.cos(bin),cy=Math.sin(bin),qa=wa[0]*cx+wa[1]*cy,qb=wb[0]*cx+wb[1]*cy,dq=qb-qa,segLen=path.d[i]-path.d[i-1];
        if(Math.abs(dq)>1e-6)for(let k=Math.ceil(Math.min(qa,qb)/PIER_M);k*PIER_M<=Math.max(qa,qb);k++){const s=path.d[i-1]+(k*PIER_M-qa)/dq*segLen;if(s<start||s>=end||Math.abs(s-lastPierS)<PIER_M*.4)continue;
-        const level=path.level?.(s);if(level?.kind!=='bridge'||level.offsetM<=0)continue;
-        const point=path.at(s),q=point.coordinate,h=railHeight(path,s),g=ground(q);if(!Number.isFinite(h)||!Number.isFinite(g))continue;lastPierS=s;
+        const level=path.level?.(s);
+        const point=path.at(s),q=point.coordinate,h=railHeight(path,s),g=ground(q);if(!Number.isFinite(h)||!Number.isFinite(g))continue;
+        // 高填方段照高架橋畫（見 rail-structures.js VIADUCT_LIFT_M），橋墩要跟著補，否則橋面會浮在半空。
+        if(!(level?.kind==='bridge'&&level.offsetM>0)&&!(h-g>=VIADUCT_LIFT_M))continue;
+        lastPierS=s;
         const scale=ml.MercatorCoordinate.fromLngLat(q).meterInMercatorCoordinateUnits()/unit;
         piers.push({p:world(q,h),ground:world(q,g)[2],angle:Math.atan2(b[1]-a[1],(b[0]-a[0])*Math.cos(q[1]*Math.PI/180)),scale,coordinate:q,railHeightM:h,groundM:g});
       }}

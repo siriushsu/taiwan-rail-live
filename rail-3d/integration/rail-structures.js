@@ -15,6 +15,14 @@ const DECK_W=5,GIRDER_BOTTOM_W=2.8,GIRDER_DEPTH=1.8,DECK_DROP=.35,PARAPET_H=.9,P
 // 舊比例在那裡畫出 13～30 公尺寬的土堆——比軌距寬近十倍，整個畫面只看得到那塊土，看不到車。
 // 高填方本來就不會放成自然邊坡，實務上是擋土牆或橋梁，所以收窄之後反而比較像真的。
 const BED_TOP_W=3.4,BED_BOTTOM_W=4.6,FILL_SLOPE=1,BED_BOTTOM_MAX=14;
+// 高填方改畫成高架橋。路基底寬在離地 4.7 公尺就頂到 14 公尺上限，再高兩側就不再放坡，
+// 整段長成一面垂直的土牆——跨谷的短段會從軌面一路拉到谷底，畫面上只剩那塊土。
+// 2026-09-12 裁示：真的是高的軌道，確認過就讓它高，只是不要變成像是一道牆。
+// 門檻取求解器自己的高架淨空 CLEAR=6（scripts/lib/outdoor_rail_grade.mjs:10）：那條線以上，
+// 求解器本來就是照橋面在算高度，畫法跟著同一個數字走，不另立新常數。
+// 判斷逐取樣點做（結構段每 5 公尺一段），不是逐條 way——逐 way 判會把整條線一起改，
+// 實測會多畫 11 倍的長度。橋墩在 map3d.js 用同一個門檻補上，兩邊共用這個匯出值。
+export const VIADUCT_LIFT_M=6;
 // 洞口尺寸沿用 prototypes/taiwan-3d/rail-occlusion.js 的隧道示意：拱心半徑 3.2 公尺、
 // 起拱線在軌頂上 2.6 公尺、洞底在軌頂下 1.2 公尺、石環厚 .7 公尺。那一版是文湖線單線
 // 展示做的，這裡只取斷面比例，位置改成沿線每個洞口自己算。
@@ -92,7 +100,9 @@ export function createRailStructures(scene){
     segments.forEach(({a,b,groundA,groundB,bridge,transition=false,scale=1},i)=>{
       const topA=[a[0],a[1],a[2]-DECK_DROP*scale],topB=[b[0],b[1],b[2]-DECK_DROP*scale];
       if(![...a,...b,groundA,groundB,scale].every(Number.isFinite)||Math.min(topA[2]-groundA,topB[2]-groundB)<.05*scale)return;
-      if(bridge){
+      // 逐段判：軌面離地超過 VIADUCT_LIFT_M 的填方段照高架橋畫（林口走廊的過渡段除外，它另有畫法）。
+      const railLift=Math.max(0,Math.min(a[2]-groundA,b[2]-groundB));
+      if(bridge||(!transition&&railLift>=VIADUCT_LIFT_M*scale)){
         prism(topA,topB,DECK_W*scale,Math.max(groundA-.3*scale,topA[2]-GIRDER_DEPTH*scale),Math.max(groundB-.3*scale,topB[2]-GIRDER_DEPTH*scale),deck,GIRDER_BOTTOM_W*scale);stats.decks++;
         if(detail>=1){const dx=b[0]-a[0],dy=b[1]-a[1],len=Math.hypot(dx,dy);if(len>1e-5){const ux=-dy/len,uy=dx/len,e=(DECK_W-PARAPET_W)/2*scale;
           for(const sign of [1,-1]){if(neighbor(i,sign,scale))continue;
