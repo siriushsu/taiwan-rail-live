@@ -3381,7 +3381,7 @@
        data-act=theme 列內含真按鈕(seg),不可巢狀 button,仍是 div,此規則對它無副作用。 */
     appearance: none; -webkit-appearance: none; background: none; margin: 0;
     border: 0; border-bottom: 1px dashed var(--line-faint); /* v0718k:歸零不得吃掉上面的虛線分隔(border 簡寫晚宣告會蓋掉 border-bottom,驗收實抓) */
-    font-family: inherit; text-align: inherit; width: 100%;
+    font-family: inherit; text-align: inherit; width: 100%; text-decoration: none;
   }
   .more-sheet .ms-row:last-child { border-bottom: 0; }
   .more-sheet .ms-row .chev { font-size: calc(12px * var(--uis)); color: var(--faint); font-weight: 600; }
@@ -5445,6 +5445,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="tainanmemory0912"><span class="d">9/12</span><span>新增台南地面鐵道重播，保留舊站、地面股道與封存班表</span></li>
         <li data-cl-of="platformtracks0912"><span class="d">9/12</span><span>車站裡不再有兩班車疊在同一條股道上，潮州、板橋、南港等站重新指派停靠月台</span></li>
         <li data-cl-of="estformation0912"><span class="d">9/12</span><span>柴聯自強與支線柴聯車的節數改標「推估編組」，不再和真的查不到編組的車種混為一談</span></li>
         <li data-cl-of="landscapefixes0912"><span class="d">9/12</span><span>修正地下段多餘橋墩、洞口內的山體與路基閃動，橋墩改得更低調；明亮外觀預設關閉日夜光影，暗色預設開啟</span></li>
@@ -5452,7 +5453,6 @@
         <li data-cl-of="namedtrains0912"><span class="d">9/12</span><span>山嵐號可以在地圖上認出來並跟車，環島之星與山海／平原號改畫成機車牽引的觀光列車</span></li>
         <li data-cl-of="afrphysical0912"><span class="d">9/12</span><span>阿里山林鐵恢復實際股道與之字形折返，近看也能看到站內配線</span></li>
         <li data-cl-of="tmrtground0912"><span class="d">9/12</span><span>臺中捷運高鐵臺中站改為平面站，進站路段不再畫成高架橋</span></li>
-        <li data-cl-of="tymcmodel0912"><span class="d">9/12</span><span>機捷依官方車種顯示普通車與直達車，跳站普通車也能顯示正確編組</span></li>
 
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
@@ -5461,6 +5461,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="tainanmemory0912"><span class="d">9/12</span><span>從「更多」重播 9 月 12 日的台南地面鐵道，保留舊站、股道與班表，可調時間、加速、跟車並返回即時地圖。股道安排未確認的時段以車次標記呈現，不套用今天的誤點。</span></li>
         <li data-cl="landscapefixes0912"><span class="d">9/12</span><span>修正地下段多餘橋墩、洞口內的山體與路基閃動，橋墩改得更低調；明亮外觀預設關閉日夜光影，暗色預設開啟</span></li>
         <li data-cl="headlightspill0912"><span class="d">9/12</span><span>夜間車頭燈更明亮，近看時列車前方會灑下柔和的地面光</span></li>
         <li data-cl="namedtrains0912"><span class="d">9/12</span><span>山嵐號補上固定車次 6676／6677，介紹卡、搜尋與收集章都認得出來，明星列車章從 5 枚變成 6 枚；環島之星與虛構的山海號、平原號原本畫成通勤電聯車，改成機車牽引的觀光列車外觀</span></li>
@@ -6146,6 +6147,7 @@
          尾巴那格由 syncMoreSheet() 依 plusIsActive() 換字:未持證=看方案,已持證=已啟用(不對已付費的人推銷) -->
     <button class="ms-row" data-proxy="plusBtn" data-close="1" style="display:none"><span>軌島通行證</span><span class="ms-tail"><b id="msPassVal">看方案</b><span class="chev">›</span></span></button>
     <button class="ms-row" data-act="musicpl" data-close="1"><span>配樂情境</span><span class="chev">›</span></button>
+    <a class="ms-row" id="tainanMemoryLink" href="./memories/tainan-2026-09-12/"><span>台南地面鐵道・歷史重播</span><span class="chev">›</span></a>
     <div class="ms-row" data-act="language"><span>語言</span><span class="seg" id="msLangSeg" role="group" aria-label="選擇介面語言"><button data-lang="zh-TW">繁中</button><button data-lang="en">EN</button><button data-lang="ja">日本語</button></span></div>
     <div class="ms-sec">地圖顯示</div>
     <div class="ms-row" data-act="theme"><span>外觀</span><span class="seg" id="msThemeSeg"><button data-v="light">亮</button><button data-v="dark">暗</button><button data-v="auto">自動</button></span></div>
