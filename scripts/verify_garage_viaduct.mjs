@@ -2,7 +2,7 @@ import {chromium,webkit} from 'playwright';
 import {panChecks} from './lib/garage_pan_checks.mjs';
 import {mkdirSync,writeFileSync} from 'node:fs';
 import {createScene} from '../rail-3d/garage-scenes/viaduct.js';
-const OUT='output/viaduct',URL='http://127.0.0.1:5253/prototypes/garage-viaduct/';mkdirSync(OUT,{recursive:true});
+const OUT='output/viaduct',URL=process.env.GARAGE_VIADUCT_URL||'http://127.0.0.1:5253/prototypes/garage-viaduct/';mkdirSync(OUT,{recursive:true});
 const results=[];function check(name,pass,detail){results.push({name,pass:!!pass,detail});console.log(pass?'PASS':'FAIL',name,JSON.stringify(detail??''));}
 const state=p=>p.evaluate(()=>viaductPreview.state);
 const settle=p=>p.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
