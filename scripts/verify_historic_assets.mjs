@@ -13,7 +13,7 @@ for(const e of catalog){
  assert(!ids.has(e.id));ids.add(e.id);
  const m=read(e.metadata),p=placements[e.id];assert.equal(m.id,e.id);assert(m.mapEligible);assert.equal(m.orientationMode,'ENU-baked');assert.deepEqual(m.anchor,p.anchor);assert.equal(p.railElevationM,null);assert.equal(m.railElevationM,null);
  const components=new Set(m.calibration.parts.map(p=>p.id));parts+=components.size;assert(components.size>0);assert(m.sources.length>0);
- for(const part of m.calibration.parts){assert(part.anchor.every(Number.isFinite));assert(part.basis);assert(p.footprint.features.some(f=>f.properties.component===part.id));}
+ for(const part of m.calibration.parts){assert(part.anchor.every(Number.isFinite));if(part.terrainAnchor){assert.equal(part.terrainAnchor.length,2);assert(part.terrainAnchor.every(Number.isFinite));}if(part.flatGroundOffsetM!==undefined)assert(Number.isFinite(part.flatGroundOffsetM));assert(part.basis);assert(p.footprint.features.some(f=>f.properties.component===part.id));}
  for(const [lod,s] of Object.entries(m.lods)){
   assert(['near','far'].includes(lod));const b=fs.readFileSync(path.join(base,e.id,s.file));bytes+=b.length;assert.equal(b.length,s.vertexCount*24);assert.equal(createHash('sha256').update(b).digest('hex'),s.sha256);assert.equal(s.vertexCount,s.triangleCount*3);
   let end=0;for(const g of s.drawGroups){assert.equal(g.start,end);end+=g.count;assert(components.has(g.component));}assert.equal(end,s.vertexCount);

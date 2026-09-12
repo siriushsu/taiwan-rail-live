@@ -23,6 +23,22 @@
     {
       "url": "https://eego.moenv.gov.tw/df_ufiles/a/171橋頭糖廠文化園區(1).pdf",
       "use": "第1頁園區圖：製糖工場位於園區北部；分翼屋頂外框目視估計"
+    },
+    {
+      "url": "https://www.taisugar.com.tw/Chinese/Attractions_detail.aspx?n=10048&s=12",
+      "use": "社宅事務所：架高基座、連續開放拱廊、中央女兒牆與低坡瓦頂"
+    },
+    {
+      "url": "https://www.google.com/maps?cid=12668514700591710176",
+      "use": "社宅事務所地點標記；交叉比對官方園區圖及衛星屋頂"
+    },
+    {
+      "url": "https://www.google.com/maps?cid=3881618641165406408",
+      "use": "園區大煙囪地點標記；用於辨認場址，非工程輪廓"
+    },
+    {
+      "url": "https://www.taisugar.com.tw/Chinese/Attractions_detail.aspx?n=10048&s=16",
+      "use": "製糖工場煙囪筒身及頂端環帶外觀"
     }
   ],
   "priority": 2,
@@ -33,14 +49,14 @@
   ],
   "verifiedDimensionsM": {},
   "estimatedDimensionsM": {
-    "width": 78.58676528930664,
-    "depth": 63.97161102294922,
-    "height": 17.977941513061523,
+    "width": 127.59870529174805,
+    "depth": 354.8805694580078,
+    "height": 32.0,
     "basis": "平面依各部件來源校正；高度仍為外觀建模估值"
   },
-  "referenceReviewDate": "2026-09-08",
+  "referenceReviewDate": "2026-09-12",
   "geometryStatus": "plan-calibrated-exterior-estimated",
-  "scope": "按來源輪廓校正平面位置與尺度；高度、立面細節及正面方向仍為外觀估計",
+  "scope": "依來源校正平面與補齊可確認附屬構件；尺寸與高度屬地圖外觀估計，非工程測繪",
   "railRelation": "站區周邊：捷運橋頭糖廠；園內糖鐵另計",
   "reviewedPhotos": [
     {
@@ -53,18 +69,20 @@
   "referenceStatus": "partial-exterior-review",
   "pendingChecks": [
     "高度測量與完整多面立面校正",
-    "正面方向複核",
-    "未定位附屬構件：入口門廊、工場煙囪、辦公廳舍 / 屋頂、辦公廳舍 / 立面"
+    "正面方向複核"
   ],
+  "completionReview": {
+    "date": "2026-09-12",
+    "changes": [
+      "補社宅事務所的開放拱廊與架高基座；與製糖工場分開定位",
+      "補工場北側獨立煙囪；不把舊草模兩根懸空煙管搬進地圖"
+    ],
+    "precision": "地圖外觀模型；無實測高度或完整多面立面，不視為工程測繪"
+  },
   "orientationMode": "ENU-baked",
   "absoluteGroundAltitudeM": null,
   "railElevationM": null,
-  "omittedUnlocatedComponents": [
-    "入口門廊",
-    "工場煙囪",
-    "辦公廳舍 / 屋頂",
-    "辦公廳舍 / 立面"
-  ],
+  "omittedUnlocatedComponents": [],
   "mapEligible": true,
   "calibration": {
     "version": 2,
@@ -117,6 +135,38 @@
         ],
         "basis": "官方景點資料確認場域，衛星屋頂目視交叉比對的位置、尺度與軸向估計；非實測外框",
         "facadeBearingDeg": null
+      },
+      {
+        "id": "社宅事務所",
+        "name": "社宅事務所",
+        "placementStatus": "site-anchor-estimated-outline",
+        "anchor": [
+          120.31525800276813,
+          22.75586965167798
+        ],
+        "rotationDeg": 29.585382246828804,
+        "scaleXY": [
+          0.9028071673193279,
+          1.0353579913484947
+        ],
+        "basis": "台糖社宅事務所現況照片與官方園區圖確認拱廊廳舍；Google Maps 同名 POI 僅協助辨認場址；屋頂或遺址邊緣依既有 Esri 底圖目視估計，非測量外框",
+        "facadeBearingDeg": 150
+      },
+      {
+        "id": "工場煙囪",
+        "name": "工場煙囪",
+        "placementStatus": "site-anchor-estimated-outline",
+        "anchor": [
+          120.31497,
+          22.7589342
+        ],
+        "rotationDeg": 0,
+        "scaleXY": [
+          1.0,
+          1.0
+        ],
+        "basis": "園區大煙囪地點標記，交叉對照台糖製糖工場照片；筒身直徑與約 32m 高度為目視估計",
+        "facadeBearingDeg": null
       }
     ],
     "verticalDatum": "terrain-relative",
@@ -145,29 +195,29 @@
   "bounds": {
     "min": [
       -39.319095611572266,
-      -29.022560119628906,
+      -249.82992553710938,
       0.0
     ],
     "max": [
-      39.267669677734375,
-      34.94905090332031,
-      17.977941513061523
+      88.27960968017578,
+      105.05064392089844,
+      32.0
     ]
   },
   "sizeM": [
-    78.58676528930664,
-    63.97161102294922,
-    17.977941513061523
+    127.59870529174805,
+    354.8805694580078,
+    32.0
   ],
   "lods": {
     "near": {
       "file": "near.mesh.bin",
       "glb": "near.glb",
-      "sha256": "19e1869b19220a13961dbfce20729dfe48442c94fd3a6fd54e01c52a85a179af",
-      "glbSha256": "d9be91357ad6e9b481ab55f519c086e59b205eb0c85a471f290000d45a154513",
+      "sha256": "69b95ef337bb352e3256db075c9ee9402f63186953ee4994f284bf968cc055e3",
+      "glbSha256": "0d4bd226f65bfe6ee0d3432694622ea45c6c22f6c15c14c3d57e43c522a21526",
       "strideBytes": 24,
-      "vertexCount": 24756,
-      "triangleCount": 8252,
+      "vertexCount": 44574,
+      "triangleCount": 14858,
       "drawGroups": [
         {
           "component": "製糖工場西翼",
@@ -376,18 +426,122 @@
           ],
           "metalness": 0.05000000074505806,
           "roughness": 0.5699999928474426
+        },
+        {
+          "component": "社宅事務所",
+          "name": "stone",
+          "start": 24756,
+          "count": 36,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "社宅事務所",
+          "name": "cream",
+          "start": 24792,
+          "count": 2604,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "社宅事務所",
+          "name": "dark",
+          "start": 27396,
+          "count": 1446,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "社宅事務所",
+          "name": "glass",
+          "start": 28842,
+          "count": 216,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "社宅事務所",
+          "name": "white",
+          "start": 29058,
+          "count": 432,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "工場煙囪",
+          "name": "stone",
+          "start": 29490,
+          "count": 456,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "工場煙囪",
+          "name": "smoke",
+          "start": 29946,
+          "count": 228,
+          "color": [
+            0.18447498977184296,
+            0.21223075687885284,
+            0.22696587443351746
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "工場煙囪",
+          "name": "metal",
+          "start": 30174,
+          "count": 14400,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
         }
       ],
-      "byteLength": 594144
+      "byteLength": 1069776
     },
     "far": {
       "file": "far.mesh.bin",
       "glb": "far.glb",
-      "sha256": "428f4e8983202f2fbdd7ea6173d26f5d2d8eabc012bf9fb13d066bdc61e29e61",
-      "glbSha256": "d91f06a01d4644dc752c86b659e6ef12596a69bac4362fd5c1604b95fb222321",
+      "sha256": "4251f56f8e0f0cd3d800c86df530fd08355de460280873972539ca74e18ecd59",
+      "glbSha256": "0358e2dc5b7128f835a58727a287d76d53b2b2f50d72703f1b51244e3c9ad620",
       "strideBytes": 24,
-      "vertexCount": 13656,
-      "triangleCount": 4552,
+      "vertexCount": 17730,
+      "triangleCount": 5910,
       "drawGroups": [
         {
           "component": "製糖工場西翼",
@@ -596,12 +750,103 @@
           ],
           "metalness": 0.05000000074505806,
           "roughness": 0.5699999928474426
+        },
+        {
+          "component": "社宅事務所",
+          "name": "stone",
+          "start": 13656,
+          "count": 36,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "社宅事務所",
+          "name": "cream",
+          "start": 13692,
+          "count": 2172,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "社宅事務所",
+          "name": "dark",
+          "start": 15864,
+          "count": 534,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "社宅事務所",
+          "name": "glass",
+          "start": 16398,
+          "count": 216,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "社宅事務所",
+          "name": "white",
+          "start": 16614,
+          "count": 432,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "工場煙囪",
+          "name": "stone",
+          "start": 17046,
+          "count": 456,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "工場煙囪",
+          "name": "smoke",
+          "start": 17502,
+          "count": 228,
+          "color": [
+            0.18447498977184296,
+            0.21223075687885284,
+            0.22696587443351746
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
         }
       ],
-      "byteLength": 327744
+      "byteLength": 425520
     }
   },
-  "nativeObjectCount": 1098,
+  "nativeObjectCount": 1523,
   "sourcePhotosIncluded": false,
   "operatorLogoIncluded": false,
   "modelUse": "map-exterior",
@@ -652,6 +897,38 @@
         2.6607190504584937
       ],
       "basis": "官方景點資料確認場域，衛星屋頂目視交叉比對的位置、尺度與軸向估計；非實測外框",
+      "facadeBearingDeg": null
+    },
+    {
+      "id": "社宅事務所",
+      "name": "社宅事務所",
+      "placementStatus": "site-anchor-estimated-outline",
+      "anchor": [
+        120.31525800276813,
+        22.75586965167798
+      ],
+      "rotationDeg": 29.585382246828804,
+      "scaleXY": [
+        0.9028071673193279,
+        1.0353579913484947
+      ],
+      "basis": "台糖社宅事務所現況照片與官方園區圖確認拱廊廳舍；Google Maps 同名 POI 僅協助辨認場址；屋頂或遺址邊緣依既有 Esri 底圖目視估計，非測量外框",
+      "facadeBearingDeg": 150
+    },
+    {
+      "id": "工場煙囪",
+      "name": "工場煙囪",
+      "placementStatus": "site-anchor-estimated-outline",
+      "anchor": [
+        120.31497,
+        22.7589342
+      ],
+      "rotationDeg": 0,
+      "scaleXY": [
+        1.0,
+        1.0
+      ],
+      "basis": "園區大煙囪地點標記，交叉對照台糖製糖工場照片；筒身直徑與約 32m 高度為目視估計",
       "facadeBearingDeg": null
     }
   ]
