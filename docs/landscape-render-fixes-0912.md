@@ -30,3 +30,14 @@
 執行 `scripts/ship_web.mjs` 的乾淨 worktree、完整閘門與去註解等價檢查。出貨原始碼基準為 `3c4e3242`；後續測試／本文補充不改變公開執行資產。
 
 去註解副本另以 Chromium 桌面與 WebKit 手機實測：BUILD v0912k、明亮預設關閉、日夜按鈕操作與林口長隧道 648 段零橋墩皆通過。預期正式首頁為 1,664,218 bytes，MD5 `3991beb0269917ec79fb623d8fd06360`。
+
+2026/9/12 已部署 Cloudflare 版本 `d3df55d2-df0d-4701-b2ad-38761ced5646`，100% 流量，正式站 BUILD `v0912k`。Preview 網址回應 Cloudflare Access 登入轉址，未變更存取設定；出貨前使用上述相同雜湊的乾淨副本完成瀏覽器驗證。
+
+正式站複驗：
+
+- 12 份本次更新的公開資產全部 SHA-256 相符。首頁 HTTP 200、`cf-cache-status: HIT`，內容為新版；SHA-256 `415b41bc986edc16ba96def1af314b8a104c900ca49c1a525c6f5d9e64f473c8`。
+- Chromium 與 WebKit 地景、日夜、頭燈、雙向照射共 26 項通過；台北與林口地下段零橋墩，真實高架橋面與洞內遮擋像素通過。
+- Chromium 1280px 桌面、WebKit 375px 手機實際操作日夜開關，明亮預設關閉、切換開啟、林口長隧道 648 段零橋墩、無水平溢出與執行例外均通過。
+- 手機驗證等待式曾在非同步模組宣告前讀取未定義名稱；改用 `window` 可選鏈後重測通過。此為測試啟動競態，沒有更動已發布程式。
+
+結果保存在工作目錄 `output/render-fixes/production-regression.log`、`production-assets.json`、`production-smoke-final.log` 與 `production-smoke.json`。

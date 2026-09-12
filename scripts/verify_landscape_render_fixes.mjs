@@ -6,7 +6,7 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
  const b=await type.launch(),p=await b.newPage({viewport:{width:1280,height:900},locale:'zh-TW'}),errors=[];p.on('pageerror',e=>errors.push(e.message));
  try{
  await p.addInitScript(()=>{localStorage.setItem('trainmap-howto-seen','1');localStorage.setItem('trainmap-appearance','light');});
- await p.goto(base+'?scene=3d&g=all&map=light&t=21:00&at=25.047,121.517&z=17');await p.waitForFunction(()=>state.ready&&railIslandIntegration?.renderer&&railIslandSunlight&&railIslandPhysical?.portalPaths,null,{timeout:120000});
+ await p.goto(base+'?scene=3d&g=all&map=light&t=21:00&at=25.047,121.517&z=17');await p.waitForFunction(()=>typeof state!=='undefined'&&state.ready&&window.railIslandIntegration?.renderer&&window.railIslandSunlight&&window.railIslandPhysical?.portalPaths,null,{timeout:120000});
  await p.evaluate(()=>{state.playing=false;clearFollow();clearFreqFollow();M.raw.jumpTo({center:[121.517,25.047],zoom:17,pitch:60,bearing:160});});await p.waitForTimeout(1000);
  check(engine+' 明亮預設關閉日夜',await p.evaluate(()=>!railIslandSunlight.enabled&&!state.mapDark));
  await p.evaluate(()=>state._setAppearance('dark'));await p.waitForFunction(()=>railIslandIntegration?.renderer&&railIslandSunlight.enabled);
