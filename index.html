@@ -24836,6 +24836,11 @@ async function commitLocalReminderDraft() {
   if (prev) {
     // 🔴 舊槽位與新槽位可能是同一批 id(例如只改了時刻、星期集合沒動)。沒有這個取消,sync 會看到
     //    pending 裡 id 都在就【判定已排好】而不重排,鬧鐘停在舊時刻——而畫面上一切正常。
+    // 取新舊【聯集】而不是只取新的:星期集合變小時(週一到五 → 只剩週一)舊的那幾格不在新集合裡。
+    // 2026-09-13 突變測試的誠實紀錄:單獨拿掉 prev 那一半,23 案全數照過——因為 syncLocalReminders()
+    // 的 extra 掃除會把同一批孤兒收掉。兩層一起拿掉才會紅(G8)。留著這一層的理由不是「sync 會漏」,
+    // 是 sync 那段整個包在 try 裡,getPending() 在真機上拒絕時掃除根本不會執行,而那時使用者
+    // 【關掉的提醒會繼續每週響】。這是刻意的兩層防線,不是忘了刪。
     try { await window.RAIL_NATIVE_LOCALNOTIFY.cancel([...new Set([...localReminderSlotIds(prev), ...localReminderSlotIds(item)])]); }
     catch (e) { console.error('本地提醒更新前取消失敗', e); }
   }

@@ -722,6 +722,53 @@ try {
     detail.G5 = { ids: first.ids.length, from: first.on, to: second.on };
   });
 
+  // G8 【縮小】星期集合或關掉重複,舊槽位必須跟著消失。缺這個行為的症狀是使用者
+  //    【關掉的提醒繼續每週響】,而畫面上一則都看不到。G5 量不到:星期集合沒變時新舊槽位
+  //    id 一模一樣,量不出「舊的有沒有被清掉」。
+  //    🔴 突變測試的誠實紀錄(2026-09-13):清孤兒有兩層——commitLocalReminderDraft() 取新舊
+  //    槽位聯集來取消,以及 syncLocalReminders() 把 pending 裡不在 desiredIds 的一律取消。
+  //    單獨拿掉任一層,本案都照樣綠(兩層互相蓋住);兩層【同時】拿掉才紅。所以這一案考的是
+  //    「這個行為還在不在」,不是任何單一層防線,別把它當成聯集那一行的守門人。
+  await run('G8:repeat-shrink-cancels-orphans', async (page, errors) => {
+    await boot(page, '?notifymock=1&notifyreset=1&notifynow=0&case=repeat-shrink');
+    await openRandomFollow(page); await openNotifyFromFollow(page);
+    await page.evaluate(() => window.__localNotifyTest.setRepeat({ kind: 'weekly', days: [1, 2, 3, 4, 5] }));
+    await page.locator('#notifySave').click();
+    await page.waitForFunction(() => window.__notifyMockPending.length === 5);
+    const wide = await page.evaluate(() => ({ ids: window.__notifyMockPending.map(p => p.id).sort((a, b) => a - b), item: JSON.parse(localStorage.getItem('trainmap-local-reminders-v1'))[0] }));
+
+    // (a) 週一到五 → 只剩週一。期望值獨立算:用實作曝露的 slotIds 對【縮小後的那份】求值。
+    await page.evaluate(() => window.__localNotifyTest.setRepeat({ kind: 'weekly', days: [1] }));
+    await page.locator('#notifySave').click();
+    await page.waitForFunction(() => window.__notifyMockPending.length !== 5);
+    const narrow = await page.evaluate(() => {
+      const it = JSON.parse(localStorage.getItem('trainmap-local-reminders-v1'))[0];
+      return { ids: window.__notifyMockPending.map(p => p.id).sort((a, b) => a - b), want: window.__localNotifyTest.slotIds(it).sort((a, b) => a - b), days: it.repeat && it.repeat.days };
+    });
+    assert(JSON.stringify(narrow.days) === '[1]', 'G8: 縮小後應該只剩週一 ' + JSON.stringify(narrow.days));
+    assert(JSON.stringify(narrow.ids) === JSON.stringify(narrow.want),
+      `G8: 縮小星期集合後,原生待排清單要恰好等於新的槽位(殘留＝關掉的日子還會響) pending=${JSON.stringify(narrow.ids)} want=${JSON.stringify(narrow.want)}`);
+    const orphans = wide.ids.filter(id => !narrow.want.includes(id) && narrow.ids.includes(id));
+    assert(orphans.length === 0, 'G8: 有舊槽位沒被取消 ' + JSON.stringify(orphans));
+    // 正向對照:上一步確實【曾經】排過那 4 個槽位,否則「殘留 0」是恆真的空話。
+    assert(wide.ids.length === 5 && wide.ids.filter(id => !narrow.want.includes(id)).length === 4,
+      'G8 正向對照: 縮小前應該有 4 個之後該消失的槽位 ' + JSON.stringify(wide.ids));
+
+    // (b) 再關掉重複 ⇒ 槽位要回到「一次性」那一段(id 本身),週期段一個都不能留。
+    await page.evaluate(() => window.__localNotifyTest.setRepeat(null));
+    await page.locator('#notifySave').click();
+    await page.waitForFunction(() => !JSON.parse(localStorage.getItem('trainmap-local-reminders-v1'))[0].repeat);
+    const off = await page.evaluate(() => {
+      const it = JSON.parse(localStorage.getItem('trainmap-local-reminders-v1'))[0];
+      return { ids: window.__notifyMockPending.map(p => p.id).sort((a, b) => a - b), want: window.__localNotifyTest.slotIds(it), id: it.id, repeats: window.__notifyMockPending.map(p => !!(p.schedule && p.schedule.repeats)) };
+    });
+    assert(JSON.stringify(off.ids) === JSON.stringify([off.id]),
+      `G8: 關掉重複後只該剩 id=${off.id} 這一則一次性 pending=${JSON.stringify(off.ids)}`);
+    assert(off.repeats.every(r => r === false), 'G8: 關掉重複後不該有任何 repeats:true 的排程 ' + JSON.stringify(off.repeats));
+    assert(errors.length === 0, 'G8 console error: ' + errors.join(' | '));
+    detail.G8 = { wide: wide.ids.length, narrow: narrow.ids, off: off.ids };
+  });
+
   // G6 兩道上限:一則重複算一則項目(不展開成七則),但原生槽位總數不可以衝破預算。
   await run('G6:repeat-limits', async (page, errors) => {
     await boot(page, `?notifymock=1&notifyreset=1&notifynow=${MON}&case=repeat-limit`);
