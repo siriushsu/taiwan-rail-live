@@ -24,6 +24,17 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
   check(engine+' 167 次雙向動畫 '+dir,result.n===121&&result.maxPitch<.012&&result.maxSpan<1.7&&result.maxStep<.04&&result.maxRailPx<1&&!result.errors.length&&!result.fallbacks.length,result);
  }
  await page.evaluate(()=>{__flatUpdate(14728.7);});await page.waitForFunction(()=>M.raw.areTilesLoaded(),null,{timeout:90000});await page.screenshot({path:`${out}/${engine}-167-fixed.png`});
+ for(const id of ['194060009','146741696']){
+  await page.evaluate(async id=>{const pack=await(await fetch('rail-3d/physical/network.json')).json(),wi=pack.ways.findIndex(w=>String(w.id)===id),way=pack.ways[wi],pid=Object.keys(pack.paths).find(k=>pack.paths[k].walk.some(x=>x[0]===wi)),g=railIslandPhysical.geometry,route=g.route([pid],way.system,'#C0392B',{prefixM:200,suffixM:200}),mid=way.coordinates[Math.floor(way.coordinates.length/2)],at=route.path.locate(mid).s;
+   window.__groundAt=at;window.__groundRoute=route;
+   // 原 167 次模型的首節 offset 為 112.175m；把首節放在具名橋面上，檢查實際算繪高度。
+   const s=at-112.175,q=route.path.at(s).coordinate,v={...__flatVehicle,id:'flat-floor:'+id,route,longitude:q[0],latitude:q[1],chainageM:s,railDirection:1,followed:true};
+   window.__groundUpdate=()=>railIslandIntegration.renderer.update({...__flatFrame,vehicles:[v],routes:[route],selectedVehicleId:v.id,followLock:false});M.raw.jumpTo({center:mid,zoom:19,pitch:55,bearing:70});__groundUpdate();
+  },id);
+  await page.waitForFunction(()=>{__groundUpdate();return railIslandIntegration.renderer.stats.poseSamples[0]?.id.startsWith('flat-floor:')&&railIslandIntegration.renderer.stats.poseSamples[0].cars.length===12;},null,{timeout:30000});
+  const detail=await page.evaluate(()=>{const r=railIslandIntegration.renderer,car=r.stats.poseSamples[0].cars[0];return {height:car.height,atError:Math.abs(car.s-__groundAt),expected:__groundRoute.level(car.s).flatOffsetM+.65,models:r.stats.models,errors:r.stats.errors};});
+  check(engine+' 洞口旁露天橋面不被拉入地下 '+id,detail.height>=.649&&detail.atError<.01&&Math.abs(detail.height-detail.expected)<.001&&detail.models===1&&!detail.errors.length,detail);
+ }
  check(engine+' 無瀏覽器錯誤',!errors.length,errors);
  const context=await browser.newContext({viewport:{width:360,height:820},isMobile:true,hasTouch:true,locale:'zh-TW'}),mobile=await context.newPage();await setup(mobile);
  for(const width of [360,375,390,414,520,768]){

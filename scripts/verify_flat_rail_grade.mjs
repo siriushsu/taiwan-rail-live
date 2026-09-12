@@ -10,6 +10,7 @@ for(const [nf,pf]of [['network.json','display-profiles.json'],['metro-network.js
   const e=levels.entries[w.id],path=makePath(w.coordinates);assert.equal(e.flatOffsets?.length,e.distances.length,'缺少平坦剖面 '+w.id);assert.ok(e.flatOffsets.every(Number.isFinite));
   const summary=report.systems[w.system]??={ways:0,outdoorWays:0,oldSteepWays:0,bridgeSteepWays:0,oldSteepKm:0,maxGrade:0};summary.ways++;
   // 所有樣本（含很短的來源節點間距）都驗，不只看 10m 以上的段。
+  if(e.kind!=='tunnel')for(let i=0;i<e.offsets.length;i++)assert.ok(e.flatOffsets[i]>=Math.min(0,e.offsets[i])-.00002,'柔化把露天軌道拉入地下 '+w.id);
   const cap=e.kind==='tunnel'?.08:grade(w.system);let oldMax=0,max=0,oldKm=0;
   for(let i=1;i<e.distances.length;i++){
    const ds=e.distances[i]-e.distances[i-1],dz=Math.abs(e.flatOffsets[i]-e.flatOffsets[i-1]);assert.ok(ds>0);
