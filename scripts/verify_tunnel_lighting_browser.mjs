@@ -6,7 +6,7 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
  const b=await type.launch({headless:!process.env.HEADFUL}),page=await b.newPage({viewport:{width:1280,height:900},locale:'zh-TW'}),errors=[];page.on('pageerror',e=>errors.push(e.message));
  try{
  await page.addInitScript(()=>localStorage.setItem('trainmap-howto-seen','1'));
- await page.goto(base+'?g=all&scene=3d&map=landscape&t=12:00');await page.waitForFunction(()=>state.ready&&window.railIslandPhysical?.portalPaths&&window.railIslandIntegration?.renderer,null,{timeout:120000});
+ await page.goto(base+'?g=all&scene=3d&map=landscape&t=12:00&sun=on');await page.waitForFunction(()=>state.ready&&window.railIslandPhysical?.portalPaths&&window.railIslandIntegration?.renderer,null,{timeout:120000});
  await page.evaluate(()=>{state.playing=false;clearFollow();clearFreqFollow();});
  check(engine+' 全洞口來源有綁定',await page.evaluate(()=>railIslandPhysical.portalPaths.length===railIslandPhysical.portals.length));
  await page.evaluate(async()=>{const {makePath}=await import('./rail-3d/integration/train-path.js');window.__frame=railIslandIntegration.capture();railIslandIntegration.render=()=>{};

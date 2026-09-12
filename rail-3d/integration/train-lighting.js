@@ -43,9 +43,9 @@ export function installTrainLighting(material,THREE){
 export function createTrainLamps(THREE){
  const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute([0,-.82,0,0,.82,0],3));
  const material=new THREE.ShaderMaterial({transparent:true,depthTest:true,depthWrite:false,toneMapped:false,
-  uniforms:{clip:{value:new THREE.Matrix4()},strength:{value:0},tint:{value:new THREE.Color(1,.91,.68)},pixelRatio:{value:1}},
-  vertexShader:'uniform mat4 clip; uniform float strength,pixelRatio; void main(){gl_Position=clip*vec4(position,1.);gl_PointSize=(5.+4.*strength)*pixelRatio;}',
-  fragmentShader:'precision highp float; uniform float strength; uniform vec3 tint; void main(){float r=length(gl_PointCoord-.5)*2.;float glow=exp(-r*r*5.)*(1.-smoothstep(.75,1.,r));gl_FragColor=vec4(tint,glow*strength);}' });
- material.onBeforeRender=(_r,_s,c,_g,mesh)=>{material.uniforms.clip.value.multiplyMatrices(c.projectionMatrix,mesh.modelViewMatrix);material.uniforms.strength.value=mesh.userData.lightStrength||0;material.uniforms.tint.value.setRGB(...(mesh.userData.tail?[1,.16,.06]:[1,.91,.68]));material.uniforms.pixelRatio.value=Math.min(globalThis.devicePixelRatio||1,2);material.uniformsNeedUpdate=true;};
+  uniforms:{clip:{value:new THREE.Matrix4()},strength:{value:0},tint:{value:new THREE.Color(1,.91,.68)},pixelRatio:{value:1},tail:{value:0}},
+  vertexShader:'uniform mat4 clip; uniform float strength,pixelRatio,tail; void main(){gl_Position=clip*vec4(position,1.);gl_PointSize=mix(7.+11.*strength,5.+4.*strength,tail)*pixelRatio;}',
+  fragmentShader:'precision highp float; uniform float strength,tail; uniform vec3 tint; void main(){float r=length(gl_PointCoord-.5)*2.;float glow=exp(-r*r*5.)*(1.-smoothstep(.75,1.,r));float core=1.-smoothstep(.04,.24,r);vec3 color=mix(tint,vec3(1.,.99,.94),core*(1.-tail));gl_FragColor=vec4(color,min(1.,(glow+core*.8)*strength));}' });
+ material.onBeforeRender=(_r,_s,c,_g,mesh)=>{material.uniforms.clip.value.multiplyMatrices(c.projectionMatrix,mesh.modelViewMatrix);material.uniforms.strength.value=mesh.userData.lightStrength||0;material.uniforms.tail.value=mesh.userData.tail?1:0;material.uniforms.tint.value.setRGB(...(mesh.userData.tail?[1,.16,.06]:[1,.91,.68]));material.uniforms.pixelRatio.value=Math.min(globalThis.devicePixelRatio||1,2);material.uniformsNeedUpdate=true;};
  return {add(car,part,width,side){const points=new THREE.Points(geometry,material);points.position.set(side*(part.bodyLengthM/2+.04),0,1.25);points.scale.y=width/3.2;points.frustumCulled=false;points.renderOrder=4;car.add(points);return points;},destroy(){geometry.dispose();material.dispose();}};
 }
