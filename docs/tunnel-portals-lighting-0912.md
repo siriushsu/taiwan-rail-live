@@ -1,6 +1,6 @@
 # 隧道口與列車光影（2026-09-12）
 
-基於 `0592a2f6`，獨立工作樹 `/private/tmp/railisland-portals-0912`，分支 `codex/tunnel-portals-0912`。版本 `v0912h`，目前僅本機，尚未部署或產生 App。
+基於 `0592a2f6`，獨立工作樹 `/private/tmp/railisland-portals-0912`，分支 `codex/tunnel-portals-0912`。開發版本 `v0912h` 已整合至正式站 `v0912i`；發布識別與驗證見 [發布紀錄](release-0912i.md)。本次未產生 App。
 
 ## 成果
 
