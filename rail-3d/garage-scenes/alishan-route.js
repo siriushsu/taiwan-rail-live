@@ -5,6 +5,10 @@ function makeRoute(nodes){
  for(let j=0;j<nodes.length-1;j++)for(let i=0;i<=120;i++){
   if(j&&i===0)continue;const a=nodes[j],b=nodes[j+1],t=i/120,u=smooth(t);
   const p={x:mix(a[0],b[0],t),y:mix(a[1],b[1],u),z:mix(a[2],b[2],u)};
+  // 兩處分道在同一水平道岔床上，避免鋼軌在轍叉處上下穿越。
+  for(const [cx,cy,z] of [[12,-5,4],[-12,6,8]]){
+   const d=Math.abs(p.x-cx);if(d<11&&Math.abs(p.y-cy)<4){const blend=smooth(Math.max(0,Math.min(1,(d-7)/4)));p.z=mix(z,p.z,blend);}
+  }
   if(points.length){const prev=points.at(-1);lengths.push(lengths.at(-1)+Math.hypot(p.x-prev.x,p.y-prev.y,p.z-prev.z));}points.push(p);
  }
  const length=lengths.at(-1);
@@ -22,4 +26,12 @@ export function createJourney(routes,trainLength){
  let total=0;const stages=entries.map(([route,sign,label,stop])=>{const path=routes[route],length=path.length-margin*2,speed=2.6,travel=length/speed+1,stage={route,sign,label,stop,start:total,travel,duration:travel+3,length,speed,from:sign>0?margin:path.length-margin};total+=stage.duration;return stage;});
  function at(time){const t=((time%total)+total)%total,stage=stages.find(s=>t<s.start+s.duration)||stages.at(-1),elapsed=t-stage.start,u=Math.min(stage.travel,elapsed),v=stage.speed;let distance;if(u<1)distance=.5*v*u*u;else if(u<stage.travel-1)distance=v*(u-.5);else distance=stage.length-.5*v*(stage.travel-u)**2;return{route:stage.route,s:stage.from+stage.sign*distance,moving:elapsed<stage.travel,label:elapsed<stage.travel?stage.label:stage.stop,sign:stage.sign,stage:stages.indexOf(stage),remaining:Math.max(0,stage.travel-elapsed),dwell:Math.max(0,elapsed-stage.travel)};}
  return{at,total,stages,margin};
+}
+
+// 共用留置線的全列淨空已由 journey.margin 保留；只在停妥後 .6～1.8 秒轉轍。
+export function turnoutStates(pose){
+ const initial=[[0,0],[1,0],[1,1],[1,1],[1,0],[0,0]][pose.stage];
+ const target=[[1,0],[1,1],[1,1],[1,0],[0,0],[0,0]][pose.stage];
+ const t=smooth(Math.max(0,Math.min(1,(pose.dwell-.6)/1.2)));
+ return initial.map((value,i)=>({id:i,position:mix(value,target[i],t),moving:initial[i]!==target[i]&&t>0&&t<1,route:([ [0,1],[1,2] ][i])[t===1?target[i]:value]}));
 }

@@ -1,7 +1,7 @@
 import * as THREE from '../../rail-3d/vendor/three.module.js';
-import {createScene,THEMES} from '../../rail-3d/garage-scenes/alishan.js';
+import {createScene,THEMES} from '../../rail-3d/garage-scenes/alishan.js?revision=turnouts-0912';
 import {loadGarageModel,createConsist} from '../../rail-3d/garage-model.js?revision=headlights-0912';
-import {createJourney} from '../../rail-3d/garage-scenes/alishan-route.js';
+import {createJourney} from '../../rail-3d/garage-scenes/alishan-route.js?revision=turnouts-0912';
 import {createTerrainFollower} from '../../rail-3d/garage-scenes/consist-3d.js';
 const canvas=document.querySelector('#scene'),loading=document.querySelector('#loading');
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
@@ -16,7 +16,7 @@ function resize(){if(!renderer)return;const r=canvas.getBoundingClientRect();ren
 function setTheme(next){period=next;const t=THEMES[period];document.body.dataset.period=period;scene.background=new THREE.Color(t.background);hemi.color.set(t.ambient);hemi.groundColor.set(t.ground);hemi.intensity=period==='night'?1.2:2;sun.color.set(t.sun);sun.intensity=t.power;sun.position.set(period==='sunset'?-40:-25,period==='sunset'?10:-30,period==='sunset'?20:45);if(renderer)renderer.toneMappingExposure=t.exposure;document.querySelectorAll('[data-period]').forEach(b=>{if(b.tagName==='BUTTON')b.setAttribute('aria-pressed',String(b.dataset.period===period));});schedule();}
 function draw(){
  if(!ready||disposed)return;
- coast.update(time,period);pose=journey.at(time);distance=pose.s;follow3D(coast.routes[pose.route],pose.s);const status=document.querySelector('#journey-status');if(status.textContent!==pose.label)status.textContent=pose.label;
+ pose=journey.at(time);coast.update(time,period,pose);distance=pose.s;follow3D(coast.routes[pose.route],pose.s);const status=document.querySelector('#journey-status');const label=coast.turnouts.state.some(s=>s.moving)?pose.label.replace('停車換向','道岔轉向'):pose.label;if(status.textContent!==label)status.textContent=label;
  train.lighting.update(period,pose.sign);
  const rect=canvas.getBoundingClientRect(),aspect=rect.width/Math.max(1,rect.height);
  if(view==='train'){target.set(0,0,0);for(const c of train.cars)target.add(c.car.position);target.multiplyScalar(1/train.cars.length);target.z+=1.4;}else target.set(0,0,6.5);
@@ -55,7 +55,7 @@ try{
  coast=createScene();scene.add(coast.group);primary=await loadGarageModel('dl38');if(disposed){primary.dispose();throw Error('disposed');}train=await createConsist('dl38',primary,null,{locoAtTail:true});if(disposed){train.dispose();throw Error('disposed');}scene.add(train.root);train.root.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
  journey=createJourney(coast.routes,train.length);follow3D=createTerrainFollower(train);ready=true;loading.hidden=true;setView(view);setTheme(period);controls();resize();draw();schedule();
  window.alishanPreview={
-  get state(){return{ready,lighting:train.lighting.state,period,view,running,pan:{x:pan.x,y:pan.y},direction:pose?.sign,distance,time,zoom,draws,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,memory:{...renderer.info.memory},poses:train.cars.map(c=>({id:c.id,x:c.car.position.x,y:c.car.position.y,z:c.car.position.z,heading:c.heading,pitch:c.pitch,offset:c.offset,length:c.length})),pose,journeyDuration:journey.total,stages:journey.stages,trainLength:train.length, bounds:train.cars.map(c=>{const b=new THREE.Box3().setFromObject(c.car),ps=[];for(const x of [b.min.x,b.max.x])for(const y of [b.min.y,b.max.y])for(const z of [b.min.z,b.max.z]){const q=new THREE.Vector3(x,y,z).project(camera);ps.push([(q.x+1)*canvas.width/2,(1-q.y)*canvas.height/2]);}return{left:Math.min(...ps.map(p=>p[0])),right:Math.max(...ps.map(p=>p[0])),top:Math.min(...ps.map(p=>p[1])),bottom:Math.max(...ps.map(p=>p[1]))};})};},
+  get state(){return{ready,turnouts:coast.turnouts.state,lighting:train.lighting.state,period,view,running,pan:{x:pan.x,y:pan.y},direction:pose?.sign,distance,time,zoom,draws,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,memory:{...renderer.info.memory},poses:train.cars.map(c=>({id:c.id,x:c.car.position.x,y:c.car.position.y,z:c.car.position.z,heading:c.heading,pitch:c.pitch,offset:c.offset,length:c.length})),pose,journeyDuration:journey.total,stages:journey.stages,trainLength:train.length, bounds:train.cars.map(c=>{const b=new THREE.Box3().setFromObject(c.car),ps=[];for(const x of [b.min.x,b.max.x])for(const y of [b.min.y,b.max.y])for(const z of [b.min.z,b.max.z]){const q=new THREE.Vector3(x,y,z).project(camera);ps.push([(q.x+1)*canvas.width/2,(1-q.y)*canvas.height/2]);}return{left:Math.min(...ps.map(p=>p[0])),right:Math.max(...ps.map(p=>p[0])),top:Math.min(...ps.map(p=>p[1])),bottom:Math.max(...ps.map(p=>p[1]))};})};},
   sample:(route,s)=>coast.routes[route].sample(s),
   ground:p=>coast.groundHeight(...p),surface:p=>coast.surfaceHeight(...p),
   project:p=>{const q=new THREE.Vector3(...p).project(camera);return{x:(q.x+1)*canvas.width/2,y:(1-q.y)*canvas.height/2};},

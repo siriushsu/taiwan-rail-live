@@ -1,5 +1,6 @@
 import * as THREE from '../vendor/three.module.js';
-import {createRoutes} from './alishan-route.js';
+import {createRoutes,turnoutStates} from './alishan-route.js?revision=turnouts-0912';
+import {createTurnouts,turnoutAt} from './alishan-turnouts.js?revision=turnouts-0912';
 export const THEMES={day:{background:'#e8e9de',sun:'#fff0ca',ambient:'#c2d5d0',ground:'#65795c',power:2.8,exposure:1.02},sunset:{background:'#e7d8c4',sun:'#ffbf80',ambient:'#c7bdb9',ground:'#657160',power:2.8,exposure:.93},night:{background:'#182d32',sun:'#b4cfdd',ambient:'#758f96',ground:'#304c3c',power:.8,exposure:.8}};
 export function createScene(){
  const group=new THREE.Group(),geometries=new Set(),materials=new Set(),routes=createRoutes();
@@ -26,12 +27,13 @@ export function createScene(){
  // 軌道含 Z 高程；共享留置線只畫一次，避免深度重疊。
  const seen=new Set(),ties=new Set();
  for(const [routeIndex,path] of routes.entries()){const runs=[];for(let s=0;s<path.length;s+=.25){const a=path.sample(s),b=path.sample(Math.min(path.length,s+.25));if((routeIndex===1&&a.x>=12)||(routeIndex===2&&b.x<=-12))continue;const key=[a.x,a.y,a.z].map(n=>Math.round(n*20)).join(',');if(seen.has(key))continue;seen.add(key);runs.push([a,b]);}
-  for(const [offset,width,z,m]of [[0,1.92,-.10,ballast],[-.48,.075,0,steel],[.48,.075,0,steel]]){const v=[],idx=[];for(const [a,b]of runs){const k=v.length/3;for(const p of [a,b])for(const sign of [-1,1])v.push(p.x-Math.sin(p.heading)*(offset+sign*width/2),p.y+Math.cos(p.heading)*(offset+sign*width/2),p.z+z);idx.push(k,k+2,k+1,k+1,k+2,k+3);}const r=geo(new THREE.BufferGeometry());r.setAttribute('position',new THREE.Float32BufferAttribute(v,3));r.setIndex(idx);r.computeVertexNormals();mesh(r,m);}
-  for(let s=0;s<=path.length;s+=.43){const p=path.sample(s);if((routeIndex===1&&p.x>=12)||(routeIndex===2&&p.x<=-12))continue;const key=[p.x,p.y,p.z].map(n=>Math.round(n*2)).join(',');if(ties.has(key))continue;ties.add(key);const a=path.sample(s+.1),b=path.sample(s-.1),pitch=Math.atan2(a.z-b.z,Math.hypot(a.x-b.x,a.y-b.y));instance(box,wood,[p.x,p.y,p.z-.07],[.16,1.55,.10],[0,-pitch,p.heading]);}
+  for(const [offset,width,z,m]of [[0,1.92,-.10,ballast],[-.48,.075,0,steel],[.48,.075,0,steel]]){const v=[],idx=[];for(const [a,b]of runs){if(turnoutAt((a.x+b.x)/2,(a.y+b.y)/2))continue;const k=v.length/3;for(const p of [a,b])for(const sign of [-1,1])v.push(p.x-Math.sin(p.heading)*(offset+sign*width/2),p.y+Math.cos(p.heading)*(offset+sign*width/2),p.z+z);idx.push(k,k+2,k+1,k+1,k+2,k+3);}const r=geo(new THREE.BufferGeometry());r.setAttribute('position',new THREE.Float32BufferAttribute(v,3));r.setIndex(idx);r.computeVertexNormals();mesh(r,m);}
+  for(let s=0;s<=path.length;s+=.43){const p=path.sample(s);if((routeIndex===1&&p.x>=12)||(routeIndex===2&&p.x<=-12))continue;if(turnoutAt(p.x,p.y))continue;const key=[p.x,p.y,p.z].map(n=>Math.round(n*2)).join(',');if(ties.has(key))continue;ties.add(key);const a=path.sample(s+.1),b=path.sample(s-.1),pitch=Math.atan2(a.z-b.z,Math.hypot(a.x-b.x,a.y-b.y));instance(box,wood,[p.x,p.y,p.z-.07],[.16,1.55,.10],[0,-pitch,p.heading]);}
  }
+ const turnouts=createTurnouts({THREE,group,routes,geo,mesh,block,wood,steel,ballast,mat});
  // 針葉樹使用不規則的多層樹冠與高樹幹，前方留空，保留列車辨識度。
  const crown=geo(new THREE.ConeGeometry(1,1,7));crown.rotateX(Math.PI/2);const trunkGeo=geo(new THREE.CylinderGeometry(.11,.17,1,7));trunkGeo.rotateX(Math.PI/2);
- for(let i=0;i<330;i++){const x=rand()*63-31.5,y=rand()*40-19,near=nearRail(x,y);if((y<-9&&x<10)||near.distance<2.8||((x<-15&&y<-10)||(x>15&&y>12)))continue;const z=groundHeight(x,y),h=3.4+rand()*4.8,r=.65+rand()*.8;instance(trunkGeo,wood,[x,y,z+h*.38],[1,1,h*.76]);for(let j=0;j<4;j++){const k=1-j*.19;instance(crown,[leaf,leaf2,leaf3][i%3],[x,y,z+h*(.48+j*.14)],[r*k,r*k,h*.40],[0,0,rand()]);}}
+ for(let i=0;i<330;i++){const x=rand()*63-31.5,y=rand()*40-19,near=nearRail(x,y);if((y<-9&&x<10)||near.distance<2.8||turnoutAt(x,y,3)||((x<-15&&y<-10)||(x>15&&y>12)))continue;const z=groundHeight(x,y),h=3.4+rand()*4.8,r=.65+rand()*.8;instance(trunkGeo,wood,[x,y,z+h*.38],[1,1,h*.76]);for(let j=0;j<4;j++){const k=1-j*.19;instance(crown,[leaf,leaf2,leaf3][i%3],[x,y,z+h*(.48+j*.14)],[r*k,r*k,h*.40],[0,0,rand()]);}}
  for(let i=0;i<140;i++){const x=rand()*64-32,y=rand()*41-20;if(nearRail(x,y).distance<1.45)continue;const s=.2+rand()*.4;instance(stone,moss,[x,y,groundHeight(x,y)+s*.3],[s*1.4,s,s*.7]);}
  const glass=mat('#819b8c',{emissive:'#ffd69b',emissiveIntensity:0}),lamp=mat('#efd09b',{emissive:'#ffd294',emissiveIntensity:.08}),pointLights=[];
  function station(x,y,z,size){
@@ -45,10 +47,10 @@ export function createScene(){
  station(-23,-10.9,1,5.3);station(23,18.2,12,4.7);
  // 折返端擋車器與轉轍標誌；留置線長度依完整編組驗算。
  const red=mat('#a75240'),sign=mat('#e6d9b6');for(const [x,y,z]of [[30.4,-5,4],[-30.4,6,8],[-30.4,-14,1],[30.4,15,12]]){block(wood,[.2,1.4,.65],[x,y,z+.28]);block(red,[.3,1.55,.18],[x,y,z+.60]);}
- for(const [x,y,z]of [[12,-3.6,4],[-12,7.4,8]]){block(wood,[.1,.1,1.15],[x,y,z+.4]);block(sign,[.65,.12,.55],[x,y,z+1]);block(red,[.17,.14,.4],[x,y,z+1]);}
+
  // 林間步道與枕木色欄杆，讓月台融入山坡。
  for(let i=0;i<10;i++){const x=-18+i*.42,y=-8.9,z=groundHeight(x,y);block(wood,[.36,1.2,.12],[x,y,z+.05]);}
  for(const [geometry,byMaterial]of batches)for(const [material,items]of byMaterial){const o=new THREE.InstancedMesh(geometry,material,items.length);items.forEach((p,i)=>{dummy.position.set(...p.pos);dummy.rotation.set(...p.rot,'ZYX');dummy.scale.set(...p.scale);dummy.updateMatrix();o.setMatrixAt(i,dummy.matrix);});o.castShadow=o.receiveShadow=true;group.add(o);}
  const ray=new THREE.Raycaster();
- return{surfaceHeight(x,y){group.updateMatrixWorld(true);ray.set(new THREE.Vector3(x,y,100),new THREE.Vector3(0,0,-1));return ray.intersectObject(terrain)[0]?.point.z;},group,routes,label:'阿里山林鐵',groundHeight,nearRail,themes:THEMES,camera:{yaw:-1.35,elevation:.65},update(time,period){glass.emissiveIntensity=period==='night'?1.1:period==='sunset'?.25:0;lamp.emissiveIntensity=period==='night'?2:.08;pointLights.forEach(l=>l.intensity=period==='night'?5:0);},dispose(){group.clear();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());}};
+ return{surfaceHeight(x,y){group.updateMatrixWorld(true);ray.set(new THREE.Vector3(x,y,100),new THREE.Vector3(0,0,-1));return ray.intersectObject(terrain)[0]?.point.z;},group,routes,turnouts,label:'阿里山林鐵',groundHeight,nearRail,themes:THEMES,camera:{yaw:-1.35,elevation:.65},update(time,period,pose){if(pose)turnouts.update(turnoutStates(pose));glass.emissiveIntensity=period==='night'?1.1:period==='sunset'?.25:0;lamp.emissiveIntensity=period==='night'?2:.08;pointLights.forEach(l=>l.intensity=period==='night'?5:0);},dispose(){group.clear();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());}};
 }
