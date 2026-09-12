@@ -5445,6 +5445,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="estformation0912"><span class="d">9/12</span><span>柴聯自強與支線柴聯車的節數改標「推估編組」，不再和真的查不到編組的車種混為一談</span></li>
         <li data-cl-of="landscapefixes0912"><span class="d">9/12</span><span>修正地下段多餘橋墩、洞口內的山體與路基閃動，橋墩改得更低調；明亮外觀預設關閉日夜光影，暗色預設開啟</span></li>
         <li data-cl-of="headlightspill0912"><span class="d">9/12</span><span>夜間車頭燈更明亮，近看時列車前方會灑下柔和的地面光</span></li>
         <li data-cl-of="namedtrains0912"><span class="d">9/12</span><span>山嵐號可以在地圖上認出來並跟車，環島之星與山海／平原號改畫成機車牽引的觀光列車</span></li>
@@ -5452,7 +5453,6 @@
         <li data-cl-of="tmrtground0912"><span class="d">9/12</span><span>臺中捷運高鐵臺中站改為平面站，進站路段不再畫成高架橋</span></li>
         <li data-cl-of="tymcmodel0912"><span class="d">9/12</span><span>機捷依官方車種顯示普通車與直達車，跳站普通車也能顯示正確編組</span></li>
         <li data-cl-of="historicdetails0912"><span class="d">9/12</span><span>歷史車站與糖廠補上月台、棚架、附屬木屋和煙囪等細節</span></li>
-        <li data-cl-of="windowlights0912"><span class="d">9/12</span><span>夜晚車窗亮起柔和暖白光，窗格完整清楚，進出隧道也會逐節漸亮、漸暗</span></li>
 
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
@@ -5467,6 +5467,7 @@
         <li data-cl="afrphysical0912"><span class="d">9/12</span><span>阿里山林鐵恢復實際股道與之字形折返，近看也能看到站內配線</span></li>
         <li data-cl="tmrtground0912"><span class="d">9/12</span><span>臺中捷運高鐵臺中站改為平面站，進站路段不再畫成高架橋</span></li>
         <li data-cl="tymcmodel0912"><span class="d">9/12</span><span>機捷依官方車種顯示普通車與直達車，跳站普通車也能顯示正確編組</span></li>
+        <li data-cl="estformation0912"><span class="d">9/12</span><span>自強(D31) 柴聯自強固定 3 輛一組、平溪與深澳等支線的 DR1000 平日常態 3 輛，節數查得到出處，跟車面板改寫「3 節 · 推估編組」；真的查不到當班編組的車種仍標示「3 節示意 · 當班編組待確認」</span></li>
         <li data-cl="historicdetails0912"><span class="d">9/12</span><span>補齊 11 組歷史建物的月台、棚架與附屬設施：泰安舊站保留站房和高位月台的落差，嘉義製材所補鋸屑室與煙囪遺構，橋頭糖廠補事務所與煙囪，隆田保留地磅室遺構，竹田補舊站北側文庫。建物高度與部分外框仍為外觀估計。</span></li>
         <li data-cl="windowlights0912"><span class="d">9/12</span><span>夜晚車窗亮起柔和暖白光，窗格完整清楚，進出隧道也會逐節漸亮、漸暗</span></li>
         <li data-cl="portalclear0912"><span class="d">9/12</span><span>全線隧道口補上立體拱圈、側壁與燈帶，雙線共用開口，修正高架銜接與彎道入口擋住列車的問題</span></li>
@@ -6452,7 +6453,7 @@
 //         介紹卡／搜尋／收集章／3D 外觀全部自動接上，明星列車章 5→6 枚；環島之星與虛構的山海／平原號
 //         不再退回 EMU800 代表外觀，改成機車牽引的觀光列車（環島之星＝E500＋莒光客車）。
 //         守門人：verify_formations 新增具名覆蓋率斷言，名冊「有固定車次」的集合必須與對照表逐一相等。
-const BUILD = 'v0912k';
+const BUILD = 'v0912l';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
