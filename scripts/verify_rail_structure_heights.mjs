@@ -236,7 +236,9 @@ notes.平面浮空 = Object.fromEntries(Object.entries(floatBy).map(([s,t])=>[s,
 // 這裡用的 coverM 公式與 route-runtime.js 的 levelAt 逐字相同——目的是重現**算繪端的判斷**,
 // 不是量物理真值(values-offsets 不是地表,那條基準先前已證實不可用)。
 {
- const INVISIBLE_BASELINE=5.0;   // 2026-09-12 實測合計 4.56km;求解器修好後要一起收
+ // 2026-09-12 收緊: 併入 ship-main 23e86b67(layer<0 不再單獨當隧道證據)之後 4.55→3.23km,
+ // 台鐵 1.216→0.175、高捷與淡海輕軌整個歸零。剩下的 3.23 仍是已知缺陷不是目標值。
+ const INVISIBLE_BASELINE=3.4;
  const sysOfWay=new Map(ways.map(w=>[String(w.id),w.system]));
  // 同上:判定寫一次,對照組餵假剖面進同一支。
  const noCover=(e,i)=>e.values[i]-e.offsets[i]-e.terrainValues[i]<=0;
@@ -246,7 +248,7 @@ notes.平面浮空 = Object.fromEntries(Object.entries(floatBy).map(([s,t])=>[s,
   bores++;const sys=sysOfWay.get(id)||'?';
   for(let i=1;i<e.terrainValues.length;i++){
    if(noCover(e,i)){const L=(e.distances[i]-e.distances[i-1])/1000;tally[sys]=+((tally[sys]||0)+L).toFixed(3);total+=L;}}}
- if(bores<600)failures.push(`G5b 只量到 ${bores} 條有剖面的隧道 way，分母異常縮水（2026-09-12 基準 716）`);
+ if(bores<600)failures.push(`G5b 只量到 ${bores} 條有剖面的隧道 way，分母異常縮水（2026-09-12 基準 701）`);
  if(total>INVISIBLE_BASELINE)failures.push(`G5b 隧道有 ${total.toFixed(2)} 公里軌面高於地表、整段不會被畫出來，超過基準 ${INVISIBLE_BASELINE}（${JSON.stringify(tally)}）`);
  // 正向對照:把一條隧道的軌面整段抬到地表之上(terrainValues 是軌面高,values-offsets 是地表,
  // 所以抬軌面＝加),覆土必須變成負的、同一把尺必須量得到。
