@@ -283,15 +283,79 @@ async function probeNews() {
   } finally { if (browser) await browser.close(); }
 }
 
-// ═══════════════ 探針三:台鐵 14 天班表窗 ═══════════════
+// ═══════════════ 探針三:台鐵 14 天班表窗＋官方站清單 ═══════════════
 // 台鐵是逐日制、只抓 14 天(見 memory tra-schedule-multiday),窗尾到期就會沒有班表可推。
-function probeTra() {
+function probeTraWindow() {
   const d = J('data/tra_schedule.json');
   const end = (d.dateRange || [])[1];
   if (!end) { report.tdx.errors.push({ key: 'tra_schedule', error: '讀不到 dateRange' }); return; }
   const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
   const daysLeft = Math.floor((new Date(end + 'T23:59:59+08:00') - today) / 86400000);
-  report.tra = { rangeEnd: end, daysLeft, needsRefresh: daysLeft < 5 };
+  Object.assign(report.tra, { rangeEnd: end, daysLeft, needsRefresh: daysLeft < 5 });
+}
+
+// 官方站清單(2026-09-12 補)。**在這之前台鐵的站清單沒有任何探針在盯**:上面 TDX_OPS
+// 只列捷運業者,probeTdx 照不到台鐵;官網公告探針只讀得到文字公告,讀不到機讀資料何時
+// 真的上架。起因是平鎮臨時站(介於中壢 1100 與埔心 1110,里程 K68+880~K69+109)
+// 2026-09-12 完成履勘、預計 2026-10 通車,而新站要進站序/線形/i18n 有一整串人工步驟
+// (fetch_tra.py 的 LINE_DEFS 是手寫站序陣列),不能等使用者自己看到新聞才想起來。
+//
+// 判準刻意不只認站碼:1105 是媒體與維基的說法,**不是官方發布值**,只認它的話台鐵改配
+// 別的碼就靜默失明。三條任一成立即回報:命中站碼、命中站名、整份清單指紋變了。
+const TRA_WATCH_CODES = ['1105'];           // 待上架新站:平鎮(預定 2026-10 通車)
+const TRA_WATCH_NAMES = ['平鎮'];
+const TRA_CONTROL_CODES = ['1100', '1110']; // 正向對照:平鎮的兩個鄰站(中壢/埔心)
+const TRA_MIN_STATIONS = 200;
+// 🔴 正向對照存在的理由:「1105 還沒出現」是恆假的反向判準,探針壞掉跟「還沒上架」長得
+// 一模一樣(judgment 七-5、八)。所以每輪先證明這支看得到站——中壢與埔心必須都在、
+// 總站數 ≥200,任一不成立一律判探針故障,不准回報「還沒上架」。
+//
+// 具名命中之後**每天都會再報**,直到有人把該筆從 TRA_WATCH_* 移除——這是刻意的棘輪:
+// --accept 只收得掉「指紋變了」,收不掉具名命中,免得資料上架了卻沒人動手就靜音。
+async function probeTraStations() {
+  const out = { url: null, total: null, controlOk: false, hits: [], changed: false, firstRun: false, prevTotal: null, error: null };
+  report.tra.stations = out;
+  try {
+    // 上游 URL 從班表抓取腳本讀出來,不另抄一份:巡檢盯的必須就是管線實際吃的那個資料集
+    // (台鐵班表走 ods.railway.gov.tw 的官方開放資料,**不走 TDX**)。那邊改了這裡自動跟著,
+    // 讀不到就是探針故障,不會靜默盯著一個過期網址。
+    const py = readFileSync(path.join(ROOT, 'scripts/fetch_tra_schedule.py'), 'utf8');
+    const m = py.match(/^STATIONS_URL\s*=\s*"([^"]+)"/m);
+    if (!m) throw new Error('讀不到 fetch_tra_schedule.py 的 STATIONS_URL(那支腳本被改過?)');
+    out.url = m[1];
+    const r = await fetch(out.url, { headers: { 'user-agent': UA }, signal: AbortSignal.timeout(60000) });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const raw = JSON.parse(await r.text());
+    const arr = Array.isArray(raw) ? raw : (Object.values(raw).find(Array.isArray) || []);
+    const list = arr.map(x => ({ code: String(x.stationCode ?? ''), name: String(x.stationName ?? x.name ?? '') }))
+      .filter(x => x.code);
+    out.total = list.length;
+    const missing = TRA_CONTROL_CODES.filter(c => !list.some(x => x.code === c));
+    if (missing.length || out.total < TRA_MIN_STATIONS)
+      throw new Error(`正向對照未過(站數 ${out.total}/需 ≥${TRA_MIN_STATIONS};對照站缺 ${missing.join('、') || '無'})`
+        + ' — 判定探針故障,不當作「新站還沒上架」');
+    out.controlOk = true;
+    for (const x of list) {
+      if (TRA_WATCH_CODES.includes(x.code)) out.hits.push(`站碼 ${x.code} 已上架(站名「${x.name || '空'}」)`);
+      else if (TRA_WATCH_NAMES.some(n => x.name.includes(n))) out.hits.push(`站名「${x.name}」已上架(站碼 ${x.code})`);
+    }
+    // 指紋只取 站碼|站名:這支要答的是「站的增減與改名」。座標/地址/電話變動不在它的職責,
+    // 也不該讓它天天噴——班表管線每次重抓本來就會吃到新座標。
+    const fp = md5(list.map(x => `${x.code}|${x.name}`).sort().join('\n'));
+    const prev = state.tra_stations;
+    if (!prev) out.firstRun = true;
+    else if (prev.fp !== fp) { out.changed = true; out.prevTotal = prev.total; }
+    state.tra_stations = { fp, total: out.total };
+  } catch (e) {
+    out.error = String(e.message || e);
+    report.tdx.errors.push({ key: 'tra_stations', error: out.error });
+  }
+}
+
+async function probeTra() {
+  report.tra = { rangeEnd: null, daysLeft: null, needsRefresh: false, stations: null };
+  probeTraWindow();
+  await probeTraStations();
 }
 
 // ═══════════════ 探針四:北捷自家會員 API(經 /api/trtc-live) ═══════════════
@@ -395,13 +459,17 @@ try {
   if (want('tdx')) await probeTdx();
   if (want('trtc')) await probeTrtc();
   if (want('news')) await probeNews();
-  if (want('tra')) probeTra();
+  if (want('tra')) await probeTra();
 } catch (e) { probeFailed = true; report.fatal = String(e.stack || e); }
 
 // 北捷這面的健康度也算「要處理」:上游斷線與結構變動同樣會讓站上畫錯,
 // 不能像其他探針的 errors 那樣只印出來卻仍 exit 0。
+const traSt = report.tra && report.tra.stations;
 const acted = report.tdx.changed.length || report.news.newItems.length || (report.tra && report.tra.needsRefresh)
-  || report.trtc.added.length || report.trtc.gone.length || report.trtc.health.length;
+  || report.trtc.added.length || report.trtc.gone.length || report.trtc.health.length
+  // 站清單三種都要人看:具名命中(等的新站上架了)、指紋變動(有站被加/刪/改名),
+  // 以及探針自己看不到站——陰性結果不可信,不能靜靜 exit 0(比照上面北捷健康度那條)。
+  || (traSt && (traSt.hits.length || traSt.changed || traSt.error));
 report.verdict = probeFailed ? 'probe-error' : acted ? 'action' : 'clean';
 
 // ── 人看的摘要 ──
@@ -442,6 +510,17 @@ if (want('trtc') && !probeFailed) {
 }
 if (hm.news.firstRun.length) console.log(`\n▍首次建立基準(不算變動):${hm.news.firstRun.map(f => `${f.name}×${f.count}`).join('、')}`);
 if (hm.tra) console.log(`\n▍台鐵班表窗:到 ${hm.tra.rangeEnd},剩 ${hm.tra.daysLeft} 天` + (hm.tra.needsRefresh ? '  ⚠ 需重抓' : ''));
+if (hm.tra && hm.tra.stations) {
+  const st = hm.tra.stations;
+  const watching = `監看 ${[...TRA_WATCH_CODES.map(c => '站碼' + c), ...TRA_WATCH_NAMES.map(n => '站名' + n)].join('、') || '(無)'}`;
+  if (st.error) console.log(`\n▍台鐵官方站清單:✗ ${st.error}`);
+  else if (st.hits.length) {
+    console.log(`\n▍台鐵官方站清單:${st.total} 站,${watching}`);
+    for (const h of st.hits) console.log(`  ★ ${h} → 停下來問使用者;整進站序/線形/i18n 之後才把該筆從 TRA_WATCH_* 移除`);
+  } else if (st.firstRun) console.log(`\n▍台鐵官方站清單:${st.total} 站,首次建立基準(不算變動),${watching}`);
+  else if (st.changed) console.log(`\n▍台鐵官方站清單:${st.total} 站  ⚠ 指紋變了(基準 ${st.prevTotal} 站),有站新增/移除/改名,要人看`);
+  else console.log(`\n▍台鐵官方站清單:${st.total} 站,與基準一致,${watching}`);
+}
 if (hm.tdx.errors.length || hm.news.errors.length || hm.trtc.errors.length) {
   console.log('\n▍探針錯誤(這些來源今天沒驗到,不等於沒變):');
   for (const e of [...hm.tdx.errors, ...hm.trtc.errors, ...hm.news.errors]) console.log(`  ${e.key || e.name}: ${e.error}`);
