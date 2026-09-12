@@ -54,7 +54,8 @@ export function createScene(params = {}) {
  mesh(geo(new THREE.ExtrudeGeometry(rounded(66.6,40.6,4.2),{depth:.23,bevelEnabled:true,bevelSize:.13,bevelThickness:.1,bevelSegments:2,curveSegments:12})),mat('#614f3a'),[0,0,-2.16]);
  // 底座頂面＝起點 -2 ＋ depth 1.05 ＋ bevelThickness .2；地面貼在它上面一點，別讓斜角把地面埋掉。
  const plinthTop=-2+1.05+.2,groundZ=plinthTop+.05;
- const ground=mesh(geo(new THREE.ShapeGeometry(outline,24)),grass,[0,0,groundZ]);ground.castShadow=false;
+ // 地表有實際厚度，向下搭入底座，低角度看外緣不會露出懸空細縫。
+ const ground=mesh(geo(new THREE.ExtrudeGeometry(outline,{depth:.08,bevelEnabled:false,steps:1,curveSegments:24})),grass,[0,0,groundZ-.08]);ground.castShadow=false;ground.name='ground-slab';
 
  // 環線幾何先定義，因為水域位置要引用它。
  const deckZ=p.pierHeight,half=19,radius=8,cy=1.5,length=half*4+2*Math.PI*radius;

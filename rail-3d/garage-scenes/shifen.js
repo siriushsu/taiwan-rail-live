@@ -42,7 +42,8 @@ export function createScene(params = {}) {
  mesh(geo(new THREE.ExtrudeGeometry(outline,{depth:1.05,bevelEnabled:true,bevelSize:.28,bevelThickness:.2,bevelSegments:2,steps:1,curveSegments:12})),mat('#a28c6a'),[0,0,-2]);
  mesh(geo(new THREE.ExtrudeGeometry(rounded(66.6,40.6,4.2),{depth:.23,bevelEnabled:true,bevelSize:.13,bevelThickness:.1,bevelSegments:2,curveSegments:12})),mat('#614f3a'),[0,0,-2.16]);
  const plinthTop=-2+1.05+.2,groundZ=plinthTop+.05;
- const ground=mesh(geo(new THREE.ShapeGeometry(outline,24)),grass,[0,0,groundZ]);ground.castShadow=false;
+ // 地表有實際厚度，向下搭入底座，低角度看外緣不會露出懸空細縫。
+ const ground=mesh(geo(new THREE.ExtrudeGeometry(outline,{depth:.08,bevelEnabled:false,steps:1,curveSegments:24})),grass,[0,0,groundZ-.08]);ground.castShadow=false;ground.name='ground-slab';
 
  // 平地環線：前直線穿過老街，後直線沿河走。軌頂＝path 的 z，車模原點就是輪底。
  const half=17,radius=7.5,cy=1.0,length=half*4+2*Math.PI*radius,trackY=cy-radius;
@@ -147,12 +148,18 @@ export function createScene(params = {}) {
  for(let i=0;i<hp.count;i++){const y=hp.getY(i)+(hillY0+hillY1)/2,lim=rimX(y)-.15,x=Math.max(-lim,Math.min(lim,hp.getX(i)));hp.setX(i,x);const h=hillHeight(x,y);hp.setZ(i,h+(h>.2?rand()*.18:0));}
  hillGeo.computeVertexNormals();
  mesh(hillGeo,hillMat,[0,(hillY0+hillY1)/2,groundZ+.02]).name='hills';
- // 山的背面：以前陡坡從背面看被剔除、山腳又是開口，轉到背面整座山就消失。現在山脊留在台子裡、背坡降到後緣，
- // 後緣照阿里山那景立一面土色切面牆封到地面（頂列頂點就是 y=+half 那一列，PlaneGeometry 第一列在上）。
- {const cols=125,v=[],c=[],idx=[],earth=new THREE.Color('#6f5a45'),bed=new THREE.Color('#8b775e');
-  for(let i=0;i<cols;i++){const x=hp.getX(i),y=hp.getY(i),z=hp.getZ(i);v.push(x,y,z,x,y,0);c.push(earth.r,earth.g,earth.b,bed.r,bed.g,bed.b);if(i){const a=(i-1)*2;idx.push(a,a+2,a+1,a+1,a+2,a+3);}}
+ // 四周切面使用山面實際邊界頂點，向下搭進地表；含左右圓角與前方山腳。
+ // 沿順時針邊界建立朝外的面，不靠雙面材質掩蓋缺面。
+ {const cols=125,rows=13,boundary=[];
+  for(let x=0;x<cols;x++)boundary.push(x);
+  for(let y=1;y<rows;y++)boundary.push(y*cols+cols-1);
+  for(let x=cols-2;x>=0;x--)boundary.push((rows-1)*cols+x);
+  for(let y=rows-2;y>0;y--)boundary.push(y*cols);
+  const v=[],c=[],idx=[],earth=new THREE.Color('#6f5a45'),bed=new THREE.Color('#8b775e');
+  for(const i of boundary){v.push(hp.getX(i),hp.getY(i),hp.getZ(i),hp.getX(i),hp.getY(i),-.03);c.push(earth.r,earth.g,earth.b,bed.r,bed.g,bed.b);}
+  for(let i=0;i<boundary.length;i++){const a=i*2,b=((i+1)%boundary.length)*2;idx.push(a,b,a+1,a+1,b,b+1);}
   const sg=geo(new THREE.BufferGeometry());sg.setAttribute('position',new THREE.Float32BufferAttribute(v,3));sg.setAttribute('color',new THREE.Float32BufferAttribute(c,3));sg.setIndex(idx);sg.computeVertexNormals();
-  const skirt=mesh(sg,mat('#ffffff',{vertexColors:true,side:THREE.DoubleSide}),[0,(hillY0+hillY1)/2,groundZ+.02]);skirt.name='hills-skirt';skirt.castShadow=false;}
+  const skirt=mesh(sg,mat('#ffffff',{vertexColors:true}),[0,(hillY0+hillY1)/2,groundZ+.02]);skirt.name='hills-skirt';skirt.castShadow=false;}
  for(let n=0;n<120;){const x=-30+rand()*60,y=hillY0+.3+rand()*3.4,h=hillHeight(x,y);if(h<.35)continue;props.broadleaf(x,y,groundZ+.02+h,1.3+rand()*1.1);n++;}
 
  // 其餘的樹、灌木、農舍：避開軌道、老街、車站、河與吊橋。
