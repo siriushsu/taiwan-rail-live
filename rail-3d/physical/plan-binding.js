@@ -32,7 +32,8 @@ export function createPlanBinding(dispatch){
   }
   // 加開車只借用完整、有序的既有路徑切片，不借用別班的時間、待避或接車關係。
   if(!TEMPLATE_SYSTEMS.includes(sys)||tr.loop||tr.stops.length<2||!validTimes(tr))return null;
-  if(!templates.has(sys))templates.set(sys,Object.entries(dispatch.plans).filter(([k])=>k.startsWith(sys+':')).map(([key,plan])=>({key,plan,stops:JSON.parse(plan.stopSignature)})));
+  // 限定車種的站內股道（例如藍皮的非電化月台）不能被其他加開車借走。
+  if(!templates.has(sys))templates.set(sys,Object.entries(dispatch.plans).filter(([k,p])=>k.startsWith(sys+':')&&p.templateEligible!==false).map(([key,plan])=>({key,plan,stops:JSON.parse(plan.stopSignature)})));
   const names=tr.stops.map(s=>stationKey(sys,s.name));let best=null;
   for(const t of templates.get(sys))for(let start=0;start<=t.stops.length-names.length;start++){
    if(!names.every((name,i)=>t.stops[start+i][0]===name))continue;

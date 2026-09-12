@@ -1,0 +1,468 @@
+{
+  "reviewedOn": "2026-09-12",
+  "basis": "OSM 原有 stop_position、月台面與兩端 switch 共同支持的通行股道；不是官方當班月台指派。",
+  "license": "OpenStreetMap contributors, ODbL 1.0",
+  "queryTimestamp": "2026-09-12T14:53:26Z",
+  "sources": [
+    "https://www.openstreetmap.org/way/1175179822",
+    "https://www.openstreetmap.org/node/9267198334",
+    "https://www.openstreetmap.org/way/547476108",
+    "https://www.openstreetmap.org/way/179533237",
+    "https://www.openstreetmap.org/node/9267198335",
+    "https://www.openstreetmap.org/way/547476109",
+    "https://tip.railway.gov.tw/tra-tip-web/tip/file/0048eeb6-562d-4e32-abae-b2b6ef1c373c"
+  ],
+  "station": "太麻里",
+  "system": "tra_sched",
+  "stopNode": "9267198334",
+  "allowedWay": "1175179822",
+  "elements": [
+    {
+      "type": "node",
+      "id": 9267198334,
+      "lat": 22.6190421,
+      "lon": 121.0045981,
+      "tags": {
+        "name": "太麻里",
+        "name:en": "Taimali",
+        "name:hak": "tai maˇ liˊ",
+        "name:hak-Hant": "太麻里",
+        "name:nan": "Thài-mâ-lí",
+        "name:nan-Hant": "太麻里",
+        "name:nan-Latn-pehoeji": "Thài-mâ-lí",
+        "name:nan-Latn-tailo": "Thài-mâ-lí",
+        "name:zh": "太麻里",
+        "name:zh-Hans": "太麻里",
+        "name:zh-Hant": "太麻里",
+        "name:zh-Latn-pinyin": "tài má lǐ",
+        "old_operator": "臺灣鐵路管理局",
+        "old_operator:en": "Taiwan Railways Administration",
+        "old_operator:hak": "Thòi-vân Thiet-lu Kón-lî-khiu̍k",
+        "old_operator:nan": "Tâi-oân Thih-lō͘ Koán-lí-kio̍k",
+        "old_operator:nan-Hant": "臺灣鐵路管理局",
+        "old_operator:nan-Latn-pehoeji": "Tâi-oân Thih-lō͘ Koán-lí-kio̍k",
+        "old_operator:nan-Latn-tailo": "Tâi-uân Thih-lōo Kuán-lí-kio̍k",
+        "old_operator:short:en": "TRA",
+        "old_operator:wikidata": "Q697926",
+        "old_operator:wikipedia": "zh:臺灣鐵路管理局",
+        "old_operator:zh": "臺灣鐵路管理局",
+        "operator": "國營臺灣鐵路股份有限公司",
+        "operator:en": "Taiwan Railway Corporation",
+        "operator:nan": "Kok-êng Tâi-oân Thih-lō͘ Iú-hān Kong-si",
+        "operator:nan-Hant": "國營臺灣鐵路股份有限公司",
+        "operator:nan-Latn-pehoeji": "Kok-êng Tâi-oân Thih-lō͘ Iú-hān Kong-si",
+        "operator:nan-Latn-tailo": "Kok-îng Tâi-uân Thih-lōo Kóo-hūn Iú-hān Kong-si",
+        "operator:short": "台鐵",
+        "operator:short:en": "TRC",
+        "operator:short:nan": "Tâi-thih",
+        "operator:short:nan-Hant": "台鐵",
+        "operator:short:nan-Latn-pehoeji": "Tâi-thih",
+        "operator:short:nan-Latn-tailo": "Tâi-thih",
+        "operator:short:zh": "台鐵",
+        "operator:wikidata": "Q112151129",
+        "operator:wikipedia": "zh:臺灣鐵路公司",
+        "operator:zh": "國營臺灣鐵路股份有限公司",
+        "public_transport": "stop_position",
+        "railway": "stop",
+        "train": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 10920208647,
+      "lat": 22.6168516,
+      "lon": 121.0028637,
+      "tags": {
+        "railway": "switch"
+      }
+    },
+    {
+      "type": "node",
+      "id": 10920208652,
+      "lat": 22.6209508,
+      "lon": 121.0063061,
+      "tags": {
+        "railway": "switch"
+      }
+    },
+    {
+      "type": "way",
+      "id": 81151575,
+      "bounds": {
+        "minlat": 22.6162121,
+        "minlon": 121.0023292,
+        "maxlat": 22.623266,
+        "maxlon": 121.0079231
+      },
+      "nodes": [
+        945711059,
+        1600001670,
+        1600001668,
+        945711117,
+        7193394624,
+        1899023664,
+        10920208652,
+        10920208655,
+        9267198336,
+        10920208647,
+        1899023650,
+        1600001658
+      ],
+      "geometry": [
+        {
+          "lat": 22.623266,
+          "lon": 121.0079231
+        },
+        {
+          "lat": 22.6227889,
+          "lon": 121.007706
+        },
+        {
+          "lat": 22.6223758,
+          "lon": 121.0074522
+        },
+        {
+          "lat": 22.6220452,
+          "lon": 121.0072168
+        },
+        {
+          "lat": 22.6214466,
+          "lon": 121.0067219
+        },
+        {
+          "lat": 22.6212671,
+          "lon": 121.0065669
+        },
+        {
+          "lat": 22.6209508,
+          "lon": 121.0063061
+        },
+        {
+          "lat": 22.6201431,
+          "lon": 121.0056402
+        },
+        {
+          "lat": 22.6189771,
+          "lon": 121.0046468
+        },
+        {
+          "lat": 22.6168516,
+          "lon": 121.0028637
+        },
+        {
+          "lat": 22.6164645,
+          "lon": 121.0025386
+        },
+        {
+          "lat": 22.6162121,
+          "lon": 121.0023292
+        }
+      ],
+      "tags": {
+        "electrified": "contact_line",
+        "frequency": "60",
+        "gauge": "1067",
+        "name": "南迴線",
+        "name:en": "South-Link Line",
+        "name:nan": "Lâm-hôe-sòaⁿ",
+        "name:nan-Hant": "南迴線",
+        "name:nan-Latn-pehoeji": "Lâm-hôe-sòaⁿ",
+        "name:nan-Latn-tailo": "Lâm-huê-suànn",
+        "name:zh": "南迴線",
+        "old_operator": "臺灣鐵路管理局",
+        "old_operator:en": "Taiwan Railways Administration",
+        "old_operator:hak": "Thòi-vân Thiet-lu Kón-lî-khiu̍k",
+        "old_operator:nan": "Tâi-oân Thih-lō͘ Koán-lí-kio̍k",
+        "old_operator:nan-Hant": "臺灣鐵路管理局",
+        "old_operator:nan-Latn-pehoeji": "Tâi-oân Thih-lō͘ Koán-lí-kio̍k",
+        "old_operator:nan-Latn-tailo": "Tâi-uân Thih-lōo Kuán-lí-kio̍k",
+        "old_operator:short:en": "TRA",
+        "old_operator:wikidata": "Q697926",
+        "old_operator:wikipedia": "zh:臺灣鐵路管理局",
+        "old_operator:zh": "臺灣鐵路管理局",
+        "operator": "國營臺灣鐵路股份有限公司",
+        "operator:en": "Taiwan Railway Corporation",
+        "operator:nan": "Kok-êng Tâi-oân Thih-lō͘ Iú-hān Kong-si",
+        "operator:nan-Hant": "國營臺灣鐵路股份有限公司",
+        "operator:nan-Latn-pehoeji": "Kok-êng Tâi-oân Thih-lō͘ Iú-hān Kong-si",
+        "operator:nan-Latn-tailo": "Kok-îng Tâi-uân Thih-lōo Kóo-hūn Iú-hān Kong-si",
+        "operator:short": "台鐵",
+        "operator:short:en": "TRC",
+        "operator:short:nan": "Tâi-thih",
+        "operator:short:nan-Hant": "台鐵",
+        "operator:short:nan-Latn-pehoeji": "Tâi-thih",
+        "operator:short:nan-Latn-tailo": "Tâi-thih",
+        "operator:short:zh": "台鐵",
+        "operator:wikidata": "Q112151129",
+        "operator:wikipedia": "zh:臺灣鐵路公司",
+        "operator:zh": "國營臺灣鐵路股份有限公司",
+        "passenger_lines": "1",
+        "railway": "rail",
+        "ref": "南迴線",
+        "source": "Bing",
+        "usage": "main",
+        "voltage": "25000"
+      }
+    },
+    {
+      "type": "way",
+      "id": 547476108,
+      "bounds": {
+        "minlat": 22.6178793,
+        "minlon": 121.0036623,
+        "maxlat": 22.6200268,
+        "maxlon": 121.005496
+      },
+      "nodes": [
+        5290038393,
+        10920208657,
+        10920208656,
+        5290038392,
+        5290038393
+      ],
+      "geometry": [
+        {
+          "lat": 22.6178793,
+          "lon": 121.0036936
+        },
+        {
+          "lat": 22.6179022,
+          "lon": 121.0036623
+        },
+        {
+          "lat": 22.6200268,
+          "lon": 121.0054519
+        },
+        {
+          "lat": 22.6199965,
+          "lon": 121.005496
+        },
+        {
+          "lat": 22.6178793,
+          "lon": 121.0036936
+        }
+      ],
+      "tags": {
+        "area": "yes",
+        "bench": "yes",
+        "bin": "yes",
+        "electrified": "contact_line",
+        "public_transport": "platform",
+        "railway": "platform",
+        "shelter": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1175179822,
+      "bounds": {
+        "minlat": 22.6168516,
+        "minlon": 121.0028637,
+        "maxlat": 22.6209508,
+        "maxlon": 121.0063061
+      },
+      "nodes": [
+        10920208652,
+        10920208651,
+        10920208650,
+        9267198334,
+        10920208648,
+        10920208647
+      ],
+      "geometry": [
+        {
+          "lat": 22.6209508,
+          "lon": 121.0063061
+        },
+        {
+          "lat": 22.6204248,
+          "lon": 121.0057803
+        },
+        {
+          "lat": 22.6201401,
+          "lon": 121.0055148
+        },
+        {
+          "lat": 22.6190421,
+          "lon": 121.0045981
+        },
+        {
+          "lat": 22.6175053,
+          "lon": 121.0033185
+        },
+        {
+          "lat": 22.6168516,
+          "lon": 121.0028637
+        }
+      ],
+      "tags": {
+        "electrified": "contact_line",
+        "gauge": "1067",
+        "railway": "rail",
+        "service": "spur"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1899023650,
+      "lat": 22.6164645,
+      "lon": 121.0025386,
+      "tags": {
+        "railway": "switch"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1899023664,
+      "lat": 22.6212671,
+      "lon": 121.0065669,
+      "tags": {
+        "railway": "switch"
+      }
+    },
+    {
+      "type": "node",
+      "id": 9267198335,
+      "lat": 22.6189263,
+      "lon": 121.0047764,
+      "tags": {
+        "name": "太麻里",
+        "name:en": "Taimali",
+        "name:hak": "tai maˇ liˊ",
+        "name:hak-Hant": "太麻里",
+        "name:nan": "Thài-mâ-lí",
+        "name:nan-Hant": "太麻里",
+        "name:nan-Latn-pehoeji": "Thài-mâ-lí",
+        "name:nan-Latn-tailo": "Thài-mâ-lí",
+        "name:zh": "太麻里",
+        "name:zh-Hans": "太麻里",
+        "name:zh-Hant": "太麻里",
+        "name:zh-Latn-pinyin": "tài má lǐ",
+        "public_transport": "stop_position",
+        "railway": "stop",
+        "train": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 179533237,
+      "bounds": {
+        "minlat": 22.6164645,
+        "minlon": 121.0025386,
+        "maxlat": 22.6212671,
+        "maxlon": 121.0065669
+      },
+      "nodes": [
+        1899023650,
+        10920208653,
+        1899023651,
+        1899023652,
+        9267198335,
+        1899023662,
+        10920208643,
+        10920208654,
+        1899023664
+      ],
+      "geometry": [
+        {
+          "lat": 22.6164645,
+          "lon": 121.0025386
+        },
+        {
+          "lat": 22.6168228,
+          "lon": 121.0028944
+        },
+        {
+          "lat": 22.6169689,
+          "lon": 121.0030458
+        },
+        {
+          "lat": 22.6175943,
+          "lon": 121.0036512
+        },
+        {
+          "lat": 22.6189263,
+          "lon": 121.0047764
+        },
+        {
+          "lat": 22.6200296,
+          "lon": 121.0056962
+        },
+        {
+          "lat": 22.6206885,
+          "lon": 121.0061665
+        },
+        {
+          "lat": 22.6209287,
+          "lon": 121.006338
+        },
+        {
+          "lat": 22.6212671,
+          "lon": 121.0065669
+        }
+      ],
+      "tags": {
+        "electrified": "no",
+        "gauge": "1067",
+        "railway": "rail",
+        "service": "spur"
+      }
+    },
+    {
+      "type": "way",
+      "id": 547476109,
+      "bounds": {
+        "minlat": 22.6178057,
+        "minlon": 121.0037692,
+        "maxlat": 22.6200485,
+        "maxlon": 121.0056612
+      },
+      "nodes": [
+        5290038395,
+        10920208659,
+        10920208658,
+        5290038394,
+        5290038395
+      ],
+      "geometry": [
+        {
+          "lat": 22.6200275,
+          "lon": 121.0056612
+        },
+        {
+          "lat": 22.6200485,
+          "lon": 121.0056318
+        },
+        {
+          "lat": 22.6178267,
+          "lon": 121.0037692
+        },
+        {
+          "lat": 22.6178057,
+          "lon": 121.0037985
+        },
+        {
+          "lat": 22.6200275,
+          "lon": 121.0056612
+        }
+      ],
+      "tags": {
+        "area": "yes",
+        "bench": "yes",
+        "bin": "yes",
+        "electrified": "contact_line",
+        "public_transport": "platform",
+        "railway": "platform",
+        "shelter": "yes"
+      }
+    }
+  ],
+  "dieselTrack": {
+    "allowedWay": "179533237",
+    "stopNode": "9267198335",
+    "platformWay": 547476109,
+    "namedId": "blue-train",
+    "basis": "台鐵官方通訊確認藍皮解憂號由柴油機車牽引；非電化來源股道只開給此具名列車。",
+    "source": "https://tip.railway.gov.tw/tra-tip-web/tip/file/0048eeb6-562d-4e32-abae-b2b6ef1c373c"
+  }
+}

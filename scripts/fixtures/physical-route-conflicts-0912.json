@@ -1,0 +1,3448 @@
+{
+  "serviceDate": "2026-09-12",
+  "basis": "真瀏覽器車身共用 edge 的具名案例；替代路徑仍須通過全日棘輪與接站連續驗證。",
+  "repairs": [
+    {
+      "train": "1208",
+      "station": "埔心—中壢",
+      "oldPath": 1255,
+      "blocked": [
+        "tra_sched:9748938776:9748938777"
+      ]
+    },
+    {
+      "train": "411",
+      "station": "枋野—大武",
+      "oldPath": 19475,
+      "blocked": [
+        "tra_sched:13852123993:13852123997",
+        "tra_sched:13852123997:945711007"
+      ]
+    },
+    {
+      "train": "2608",
+      "station": "日南—苑裡",
+      "oldPath": 1061,
+      "blocked": [
+        "tra_sched:2218236259:2218236260",
+        "tra_sched:2218236260:2218236261"
+      ]
+    },
+    {
+      "train": "4234",
+      "station": "七堵—八堵",
+      "oldPath": 1533,
+      "blocked": [
+        "tra_sched:3984192953:3984192954"
+      ]
+    }
+  ],
+  "beforePlans": {
+    "tra_sched:1208:47580:59100": {
+      "pathIds": [
+        1737,
+        1743,
+        1744,
+        1126,
+        1136,
+        1143,
+        1148,
+        1560,
+        1568,
+        1605,
+        1615,
+        1635,
+        1159,
+        1173,
+        1194,
+        1218,
+        1255,
+        1267,
+        1277,
+        1289,
+        1296,
+        1320,
+        1329,
+        1337,
+        1348,
+        1354,
+        1363,
+        1377,
+        1410,
+        1425,
+        1434,
+        1436,
+        1450,
+        1459,
+        1476,
+        1506,
+        1541,
+        1548
+      ],
+      "departureHolds": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "officialDelaySec": 0,
+      "holds": [
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        }
+      ],
+      "stopSignature": "[[\"tra_sched:苗栗\",47580,47580],[\"tra_sched:豐富\",47850,47880],[\"tra_sched:造橋\",48150,48180],[\"tra_sched:竹南\",48480,48540],[\"tra_sched:崎頂\",48780,48810],[\"tra_sched:香山\",49140,49500],[\"tra_sched:三姓橋\",49740,49770],[\"tra_sched:新竹\",50040,50100],[\"tra_sched:北新竹\",50250,50280],[\"tra_sched:竹北\",50520,50550],[\"tra_sched:新豐\",50820,50850],[\"tra_sched:湖口\",51150,51180],[\"tra_sched:北湖\",51330,51360],[\"tra_sched:新富\",51480,51540],[\"tra_sched:富岡\",51660,51690],[\"tra_sched:楊梅\",52020,52050],[\"tra_sched:埔心\",52320,52590],[\"tra_sched:中壢\",53100,53160],[\"tra_sched:內壢\",53370,53430],[\"tra_sched:桃園\",53760,53820],[\"tra_sched:鳳鳴\",54090,54120],[\"tra_sched:鶯歌\",54420,54480],[\"tra_sched:山佳\",54720,54750],[\"tra_sched:南樹林\",54900,54930],[\"tra_sched:樹林\",55080,55140],[\"tra_sched:浮洲\",55320,55350],[\"tra_sched:板橋\",55530,55590],[\"tra_sched:萬華\",55860,55890],[\"tra_sched:台北\",56160,56280],[\"tra_sched:松山\",56640,56700],[\"tra_sched:南港\",56880,56910],[\"tra_sched:汐科\",57210,57240],[\"tra_sched:汐止\",57360,57660],[\"tra_sched:五堵\",57780,57810],[\"tra_sched:百福\",58020,58050],[\"tra_sched:七堵\",58320,58380],[\"tra_sched:八堵\",58590,58620],[\"tra_sched:三坑\",58800,58830],[\"tra_sched:基隆\",59100,59100]]",
+      "lengthM": 60
+    },
+    "tra_sched:411:19380:45780": {
+      "pathIds": [
+        5178,
+        5179,
+        5183,
+        5186,
+        5189,
+        5191,
+        5195,
+        5199,
+        5201,
+        5203,
+        5208,
+        5214,
+        5222,
+        5225,
+        5236,
+        5240,
+        5243,
+        5254,
+        5264,
+        8886,
+        8893,
+        8900,
+        8908,
+        6141,
+        8910,
+        8912,
+        6153,
+        6159,
+        6161,
+        19459,
+        19475,
+        6170,
+        6184,
+        6190,
+        6194,
+        6201,
+        6216,
+        1795,
+        1824,
+        1834,
+        1850,
+        1852,
+        1857,
+        1869,
+        1888,
+        1908,
+        1919,
+        1933,
+        3508,
+        3530,
+        3540,
+        3556,
+        3563,
+        2135,
+        2170,
+        2204,
+        4446,
+        4452,
+        2236,
+        2245,
+        2248,
+        2252,
+        2264,
+        3568,
+        3617,
+        3640,
+        3677,
+        3719,
+        3762,
+        10882,
+        10891,
+        10901,
+        8464,
+        8505,
+        8532,
+        19534,
+        19549,
+        8563,
+        8567,
+        8577,
+        8587,
+        8597,
+        8604,
+        8606,
+        8609,
+        8612,
+        8617,
+        8619,
+        8621,
+        8627,
+        8635,
+        8640,
+        8644,
+        8652,
+        8657,
+        1764,
+        1782,
+        1652,
+        1665,
+        1667,
+        342,
+        385,
+        420,
+        426,
+        436,
+        449,
+        455,
+        474,
+        501,
+        522,
+        524,
+        532
+      ],
+      "departureHolds": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "officialDelaySec": 0,
+      "holds": [
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        }
+      ],
+      "stopSignature": "[[\"tra_sched:新左營\",19380,19380],[\"tra_sched:左營\",19503.999987244606,19503.999987244606],[\"tra_sched:內惟\",19566.99999153614,19566.99999153614],[\"tra_sched:美術館\",19662.999985814095,19662.999985814095],[\"tra_sched:鼓山\",19740.999997258186,19740.999997258186],[\"tra_sched:三塊厝\",19853.000001311302,19853.000001311302],[\"tra_sched:高雄\",19920,20040],[\"tra_sched:民族\",20117.525095419558,20117.525095419558],[\"tra_sched:科工館\",20174.752141672237,20174.752141672237],[\"tra_sched:正義\",20258.603352678787,20258.603352678787],[\"tra_sched:鳳山\",20340,20400],[\"tra_sched:後庄\",20574.31290643667,20574.31290643667],[\"tra_sched:九曲堂\",20760,20820],[\"tra_sched:六塊厝\",21044.599827954276,21044.599827954276],[\"tra_sched:屏東\",21150,21240],[\"tra_sched:歸來\",21370.000001192093,21370.000001192093],[\"tra_sched:麟洛\",21467.000015974045,21467.000015974045],[\"tra_sched:西勢\",21567.999991178513,21567.999991178513],[\"tra_sched:竹田\",21693.00001502037,21693.00001502037],[\"tra_sched:潮州\",21840,21900],[\"tra_sched:崁頂\",22173.000007867813,22173.000007867813],[\"tra_sched:南州\",22277.9999935627,22277.9999935627],[\"tra_sched:鎮安\",22428.000000715256,22428.000000715256],[\"tra_sched:林邊\",22549.999998807907,22549.999998807907],[\"tra_sched:佳冬\",22685.999969244003,22685.999969244003],[\"tra_sched:東海\",22800.000010728836,22800.000010728836],[\"tra_sched:枋寮\",22980,23040],[\"tra_sched:加祿\",23311.000033020973,23311.000033020973],[\"tra_sched:內獅\",23437.0000487566,23437.0000487566],[\"tra_sched:枋山\",23609.000002741814,23609.000002741814],[\"tra_sched:枋野\",23976.00003540516,23976.00003540516],[\"tra_sched:大武\",24780,24840],[\"tra_sched:瀧溪\",25371.000016629696,25371.000016629696],[\"tra_sched:金崙\",25650,25710],[\"tra_sched:太麻里\",26220,26280],[\"tra_sched:知本\",26880,26940],[\"tra_sched:康樂\",27249.000000357628,27249.000000357628],[\"tra_sched:台東\",27600,27780],[\"tra_sched:山里\",28129.00000691414,28129.00000691414],[\"tra_sched:鹿野\",28380,28440],[\"tra_sched:瑞源\",28690.999982357025,28690.999982357025],[\"tra_sched:瑞和\",28799.00000810623,28799.00000810623],[\"tra_sched:關山\",29160,29280],[\"tra_sched:海端\",29589.000009298325,29589.000009298325],[\"tra_sched:池上\",29880,30000],[\"tra_sched:富里\",30330,30390],[\"tra_sched:東竹\",30655.00001102686,30655.00001102686],[\"tra_sched:東里\",30838.000008165836,30838.000008165836],[\"tra_sched:玉里\",31200,31320],[\"tra_sched:三民\",31763.000017404556,31763.000017404556],[\"tra_sched:瑞穗\",32160,32310],[\"tra_sched:富源\",32633.89617958573,32633.89617958573],[\"tra_sched:大富\",32734.2205564372,32734.2205564372],[\"tra_sched:光復\",33000,33090],[\"tra_sched:萬榮\",33368.00000756979,33368.00000756979],[\"tra_sched:鳳林\",33540,33630],[\"tra_sched:南平\",33819.000006616116,33819.000006616116],[\"tra_sched:林榮新光\",33883.00002783537,33883.00002783537],[\"tra_sched:豐田\",34059.999964535236,34059.999964535236],[\"tra_sched:壽豐\",34140.000043809414,34140.000043809414],[\"tra_sched:平和\",34195.999983251095,34195.999983251095],[\"tra_sched:志學\",34292.000015079975,34292.000015079975],[\"tra_sched:吉安\",34838.99998873472,34838.99998873472],[\"tra_sched:花蓮\",35400,35700],[\"tra_sched:北埔\",35946.99996829033,35946.99996829033],[\"tra_sched:景美\",36145.000022649765,36145.000022649765],[\"tra_sched:新城\",36305.999962091446,36305.999962091446],[\"tra_sched:崇德\",36489.99992251396,36489.99992251396],[\"tra_sched:和仁\",37113.000057935715,37113.000057935715],[\"tra_sched:和平\",37395.00005364418,37395.00005364418],[\"tra_sched:漢本\",37544.00009036064,37544.00009036064],[\"tra_sched:武塔\",37919.99994635582,37919.99994635582],[\"tra_sched:南澳\",38045.999962091446,38045.999962091446],[\"tra_sched:東澳\",38306.99992060661,38306.99992060661],[\"tra_sched:永樂\",38522.000044584274,38522.000044584274],[\"tra_sched:蘇澳新\",38752.00004696846,38752.00004696846],[\"tra_sched:新馬\",38801.000064611435,38801.000064611435],[\"tra_sched:冬山\",38976.898037195206,38976.898037195206],[\"tra_sched:羅東\",39180,39300],[\"tra_sched:中里\",39424.00000423193,39424.00000423193],[\"tra_sched:二結\",39488.99998873472,39488.99998873472],[\"tra_sched:宜蘭\",39690,39780],[\"tra_sched:四城\",40014.999943971634,40014.999943971634],[\"tra_sched:礁溪\",40194.00001645088,40194.00001645088],[\"tra_sched:頂埔\",40350.99999547005,40350.99999547005],[\"tra_sched:頭城\",40436.999942064285,40436.999942064285],[\"tra_sched:外澳\",40569.000009298325,40569.000009298325],[\"tra_sched:龜山\",40695.99999547005,40695.99999547005],[\"tra_sched:大溪\",40875.9999525547,40875.9999525547],[\"tra_sched:大里\",41060.999990701675,41060.999990701675],[\"tra_sched:石城\",41156.99993491173,41156.99993491173],[\"tra_sched:福隆\",41347.999938726425,41347.999938726425],[\"tra_sched:貢寮\",41508.00006508827,41508.00006508827],[\"tra_sched:雙溪\",41739.999943971634,41739.999943971634],[\"tra_sched:牡丹\",41933.000046014786,41933.000046014786],[\"tra_sched:三貂嶺\",42131.99994921684,42131.99994921684],[\"tra_sched:猴硐\",42261.00003361702,42261.00003361702],[\"tra_sched:瑞芳\",42540,42660],[\"tra_sched:四腳亭\",42965.99999696016,42965.99999696016],[\"tra_sched:暖暖\",43077.00000554323,43077.00000554323],[\"tra_sched:八堵\",43170,43260],[\"tra_sched:七堵\",43405.99997520447,43405.99997520447],[\"tra_sched:百福\",43540.99997520447,43540.99997520447],[\"tra_sched:五堵\",43692.00001716614,43692.00001716614],[\"tra_sched:汐止\",43819.00002479553,43819.00002479553],[\"tra_sched:汐科\",43884.000005722046,43884.000005722046],[\"tra_sched:南港\",44119.00002479553,44119.00002479553],[\"tra_sched:松山\",44220,44280],[\"tra_sched:台北\",44700,44880],[\"tra_sched:萬華\",45121.00000709295,45121.00000709295],[\"tra_sched:板橋\",45330,45390],[\"tra_sched:浮洲\",45571.15081092054,45571.15081092054],[\"tra_sched:樹林\",45780,45960]]",
+      "lengthM": 245.70000000000005
+    },
+    "tra_sched:2608:40260:45660": {
+      "pathIds": [
+        4554,
+        4559,
+        4560,
+        4566,
+        4586,
+        14242,
+        861,
+        871,
+        894,
+        909,
+        942,
+        983,
+        1021,
+        1061,
+        1084
+      ],
+      "departureHolds": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "officialDelaySec": 0,
+      "holds": [
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        }
+      ],
+      "stopSignature": "[[\"tra_sched:台中\",40260,40260],[\"tra_sched:五權\",40470,40500],[\"tra_sched:大慶\",40650,40710],[\"tra_sched:烏日\",40890,40920],[\"tra_sched:新烏日\",41040,41460],[\"tra_sched:成功\",41700,41940],[\"tra_sched:追分\",42150,42180],[\"tra_sched:大肚\",42480,42540],[\"tra_sched:龍井\",42840,43110],[\"tra_sched:沙鹿\",43500,43590],[\"tra_sched:清水\",43800,43860],[\"tra_sched:台中港\",44160,44190],[\"tra_sched:大甲\",44460,44520],[\"tra_sched:日南\",44790,44820],[\"tra_sched:苑裡\",45180,45240],[\"tra_sched:通霄\",45660,45660]]",
+      "lengthM": 60
+    },
+    "tra_sched:4234:64140:70440": {
+      "pathIds": [
+        1350,
+        1354,
+        1363,
+        1377,
+        1410,
+        1425,
+        1434,
+        1438,
+        1452,
+        1457,
+        1498,
+        1533,
+        1668,
+        1674,
+        1681,
+        1708,
+        1718,
+        8658,
+        8664,
+        8673,
+        8677
+      ],
+      "departureHolds": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "officialDelaySec": 0,
+      "holds": [
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        }
+      ],
+      "stopSignature": "[[\"tra_sched:樹林\",63840,64140],[\"tra_sched:浮洲\",64380,64440],[\"tra_sched:板橋\",64620,64680],[\"tra_sched:萬華\",64950,65010],[\"tra_sched:台北\",65280,65400],[\"tra_sched:松山\",65760,65820],[\"tra_sched:南港\",66000,66060],[\"tra_sched:汐科\",66360,66420],[\"tra_sched:汐止\",66540,66600],[\"tra_sched:五堵\",66720,66750],[\"tra_sched:百福\",66960,66990],[\"tra_sched:七堵\",67200,67260],[\"tra_sched:八堵\",67470,67500],[\"tra_sched:暖暖\",67650,67680],[\"tra_sched:四腳亭\",67860,67890],[\"tra_sched:瑞芳\",68220,68580],[\"tra_sched:猴硐\",68940,69000],[\"tra_sched:三貂嶺\",69210,69240],[\"tra_sched:牡丹\",69510,69540],[\"tra_sched:雙溪\",69780,69840],[\"tra_sched:貢寮\",70110,70140],[\"tra_sched:福隆\",70440,70440]]",
+      "lengthM": 60
+    },
+    "tra_sched:5898:51420:63540": {
+      "pathIds": [
+        6558,
+        6580,
+        6293,
+        6294,
+        6581,
+        6593,
+        19519,
+        19472,
+        6603,
+        6604,
+        6610
+      ],
+      "departureHolds": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "officialDelaySec": 0,
+      "holds": [
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        }
+      ],
+      "stopSignature": "[[\"tra_sched:台東\",51420,51420],[\"tra_sched:康樂\",51818.000022768974,51818.000022768974],[\"tra_sched:知本\",52200,52260],[\"tra_sched:太麻里\",53040,53160],[\"tra_sched:金崙\",54000,57720],[\"tra_sched:瀧溪\",58594.99996125698,58594.99996125698],[\"tra_sched:大武\",59340,59760],[\"tra_sched:枋野\",61098.999992609024,61098.999992609024],[\"tra_sched:枋山\",61560,62640],[\"tra_sched:內獅\",62983.00000369549,62983.00000369549],[\"tra_sched:加祿\",63179.00001347065,63179.00001347065],[\"tra_sched:枋寮\",63540,63540]]",
+      "lengthM": 57
+    },
+    "tra_sched:431:45720:72420": {
+      "pathIds": [
+        5178,
+        5179,
+        5183,
+        5186,
+        5189,
+        5192,
+        5196,
+        5199,
+        5201,
+        5203,
+        5208,
+        5214,
+        5222,
+        5225,
+        5236,
+        5240,
+        5243,
+        5254,
+        5264,
+        8886,
+        8893,
+        8900,
+        8908,
+        6141,
+        8910,
+        8912,
+        6153,
+        6159,
+        6161,
+        19459,
+        19475,
+        6170,
+        6184,
+        6190,
+        6194,
+        6201,
+        6216,
+        1795,
+        1824,
+        1834,
+        1850,
+        1852,
+        1857,
+        1869,
+        1888,
+        1908,
+        1919,
+        1933,
+        3508,
+        3530,
+        3540,
+        3556,
+        3563,
+        2135,
+        2170,
+        2204,
+        4446,
+        4452,
+        2236,
+        2245,
+        2248,
+        2252,
+        2264,
+        3568,
+        3617,
+        3640,
+        3677,
+        3719,
+        3762,
+        10882,
+        10891,
+        10901,
+        8464,
+        8505,
+        8532,
+        19534,
+        19549,
+        8563,
+        8567,
+        8577,
+        8587,
+        8597,
+        8604,
+        8606,
+        8609,
+        8612,
+        8617,
+        8619,
+        8621,
+        8627,
+        8635,
+        8640,
+        8644,
+        8652,
+        8657,
+        1764,
+        1782,
+        1652,
+        1665,
+        1667,
+        342,
+        385,
+        420,
+        426,
+        436,
+        449,
+        455,
+        474,
+        501,
+        522,
+        524,
+        532
+      ],
+      "departureHolds": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "officialDelaySec": 0,
+      "holds": [
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        }
+      ],
+      "stopSignature": "[[\"tra_sched:新左營\",45720,45720],[\"tra_sched:左營\",45837.00000107288,45837.00000107288],[\"tra_sched:內惟\",45895.999994874,45895.999994874],[\"tra_sched:美術館\",45987.00000822544,45987.00000822544],[\"tra_sched:鼓山\",46070.00000059605,46070.00000059605],[\"tra_sched:三塊厝\",46187.99998819828,46187.99998819828],[\"tra_sched:高雄\",46260,46380],[\"tra_sched:民族\",46457.52509541956,46457.52509541956],[\"tra_sched:科工館\",46514.75214167224,46514.75214167224],[\"tra_sched:正義\",46598.60335267879,46598.60335267879],[\"tra_sched:鳳山\",46680,46740],[\"tra_sched:後庄\",46912.9999896884,46912.9999896884],[\"tra_sched:九曲堂\",47079.00001734495,47079.00001734495],[\"tra_sched:六塊厝\",47269.999987185,47269.999987185],[\"tra_sched:屏東\",47370,47460],[\"tra_sched:歸來\",47594.99999642372,47594.99999642372],[\"tra_sched:麟洛\",47695.00000834465,47695.00000834465],[\"tra_sched:西勢\",47800.00001549721,47800.00001549721],[\"tra_sched:竹田\",47920.00000834465,47920.00000834465],[\"tra_sched:潮州\",48060,48180],[\"tra_sched:崁頂\",48459.00002360344,48459.00002360344],[\"tra_sched:南州\",48566.99998497963,48566.99998497963],[\"tra_sched:鎮安\",48731.999999284744,48731.999999284744],[\"tra_sched:林邊\",48866.00002884865,48866.00002884865],[\"tra_sched:佳冬\",48980.000005960464,48980.000005960464],[\"tra_sched:東海\",49088.00003170967,49088.00003170967],[\"tra_sched:枋寮\",49260,49320],[\"tra_sched:加祿\",49674.00002717972,49674.00002717972],[\"tra_sched:內獅\",49837.999942302704,49837.999942302704],[\"tra_sched:枋山\",50061.000044345856,50061.000044345856],[\"tra_sched:枋野\",50537.999975681305,50537.999975681305],[\"tra_sched:大武\",51480,51660],[\"tra_sched:瀧溪\",52207.00002372265,52207.00002372265],[\"tra_sched:金崙\",52498.00002515316,52498.00002515316],[\"tra_sched:太麻里\",52920,53100],[\"tra_sched:知本\",53640,53760],[\"tra_sched:康樂\",54045.99999547005,54045.99999547005],[\"tra_sched:台東\",54360,54600],[\"tra_sched:山里\",54939.00001645088,54939.00001645088],[\"tra_sched:鹿野\",55200,55260],[\"tra_sched:瑞源\",55501.999985575676,55501.999985575676],[\"tra_sched:瑞和\",55598.00001204014,55598.00001204014],[\"tra_sched:關山\",55920,56040],[\"tra_sched:海端\",56525.999992489815,56525.999992489815],[\"tra_sched:池上\",56940,57000],[\"tra_sched:富里\",57360,57540],[\"tra_sched:東竹\",57838.999979496,57838.999979496],[\"tra_sched:東里\",58040.000002384186,58040.000002384186],[\"tra_sched:玉里\",58260,58380],[\"tra_sched:三民\",58834.000018537045,58834.000018537045],[\"tra_sched:瑞穗\",59130,59220],[\"tra_sched:富源\",59588.00000935793,59588.00000935793],[\"tra_sched:大富\",59733.99998098612,59733.99998098612],[\"tra_sched:光復\",60150,60240],[\"tra_sched:萬榮\",60482.99999624491,60482.99999624491],[\"tra_sched:鳳林\",60690,60780],[\"tra_sched:南平\",60979.99999701977,60979.99999701977],[\"tra_sched:林榮新光\",61080,61140],[\"tra_sched:豐田\",61407.6067537572,61407.6067537572],[\"tra_sched:壽豐\",61530,61620],[\"tra_sched:平和\",61709.99999463558,61709.99999463558],[\"tra_sched:志學\",61828.000010848045,61828.000010848045],[\"tra_sched:吉安\",62103.000006079674,62103.000006079674],[\"tra_sched:花蓮\",62400,62580],[\"tra_sched:北埔\",62865.00007510185,62865.00007510185],[\"tra_sched:景美\",63056.999970674515,63056.999970674515],[\"tra_sched:新城\",63220.000101327896,63220.000101327896],[\"tra_sched:崇德\",63411.99999690056,63411.99999690056],[\"tra_sched:和仁\",64049.00001883507,64049.00001883507],[\"tra_sched:和平\",64306.00000977516,64306.00000977516],[\"tra_sched:漢本\",64472.99990057945,64472.99990057945],[\"tra_sched:武塔\",64844.86122965813,64844.86122965813],[\"tra_sched:南澳\",64956.99991822243,64956.99991822243],[\"tra_sched:東澳\",65234.99994635582,65234.99994635582],[\"tra_sched:永樂\",65408.99998784065,65408.99998784065],[\"tra_sched:蘇澳新\",65645.99993348122,65645.99993348122],[\"tra_sched:新馬\",65694.99995112419,65694.99995112419],[\"tra_sched:冬山\",65867.23004221916,65867.23004221916],[\"tra_sched:羅東\",66060,66120],[\"tra_sched:中里\",66242.00000435114,66242.00000435114],[\"tra_sched:二結\",66306.00000053644,66306.00000053644],[\"tra_sched:宜蘭\",66510,66600],[\"tra_sched:四城\",66825.99998116493,66825.99998116493],[\"tra_sched:礁溪\",67012.0000398159,67012.0000398159],[\"tra_sched:頂埔\",67170.00004649162,67170.00004649162],[\"tra_sched:頭城\",67252.99988865852,67252.99988865852],[\"tra_sched:外澳\",67387.99999594688,67387.99999594688],[\"tra_sched:龜山\",67519.00002837181,67519.00002837181],[\"tra_sched:大溪\",67705.00008702278,67705.00008702278],[\"tra_sched:大里\",67894.99998450279,67894.99998450279],[\"tra_sched:石城\",67990.00005126,67990.00005126],[\"tra_sched:福隆\",68179.99994874,68179.99994874],[\"tra_sched:貢寮\",68337.99995541573,68337.99995541573],[\"tra_sched:雙溪\",68531.99992775917,68531.99992775917],[\"tra_sched:牡丹\",68758.0000269413,68758.0000269413],[\"tra_sched:三貂嶺\",68987.99996495247,68987.99996495247],[\"tra_sched:猴硐\",69099.00009512901,69099.00009512901],[\"tra_sched:瑞芳\",69344.00001883507,69344.00001883507],[\"tra_sched:四腳亭\",69582.0001065731,69582.0001065731],[\"tra_sched:暖暖\",69693.00000071526,69693.00000071526],[\"tra_sched:八堵\",69767.99992918968,69767.99992918968],[\"tra_sched:七堵\",69879.00005936623,69879.00005936623],[\"tra_sched:百福\",69977.99996495247,69977.99996495247],[\"tra_sched:五堵\",70089.00009512901,70089.00009512901],[\"tra_sched:汐止\",70250.99994063377,70250.99994063377],[\"tra_sched:汐科\",70310.99988341331,70310.99988341331],[\"tra_sched:南港\",70560,70620],[\"tra_sched:松山\",70860,70920],[\"tra_sched:台北\",71340,71520],[\"tra_sched:萬華\",71755.000012815,71755.000012815],[\"tra_sched:板橋\",71970,72030],[\"tra_sched:浮洲\",72211.15081092055,72211.15081092055],[\"tra_sched:樹林\",72420,72660]]",
+      "lengthM": 245.70000000000005
+    },
+    "tra_sched:5899:37500:48720": {
+      "pathIds": [
+        6153,
+        6159,
+        6161,
+        19459,
+        19476,
+        6170,
+        6184,
+        6190,
+        6194,
+        6201,
+        6215
+      ],
+      "departureHolds": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "officialDelaySec": 0,
+      "holds": [
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        }
+      ],
+      "stopSignature": "[[\"tra_sched:枋寮\",37500,37500],[\"tra_sched:加祿\",37920,39120],[\"tra_sched:內獅\",39380.99997103214,39380.99997103214],[\"tra_sched:枋山\",39660.999997258186,39660.999997258186],[\"tra_sched:枋野\",40123.999995589256,40123.999995589256],[\"tra_sched:大武\",41580,42780],[\"tra_sched:瀧溪\",43543.99995446205,43543.99995446205],[\"tra_sched:金崙\",44340,44400],[\"tra_sched:太麻里\",45300,47040],[\"tra_sched:知本\",47820,47880],[\"tra_sched:康樂\",48395.00001311302,48395.00001311302],[\"tra_sched:台東\",48720,48720]]",
+      "lengthM": 57
+    },
+    "tra_sched:410:27240:54060": {
+      "pathIds": [
+        1350,
+        1354,
+        1363,
+        1377,
+        1410,
+        1425,
+        1434,
+        1438,
+        1452,
+        1457,
+        1498,
+        1536,
+        1669,
+        1670,
+        1677,
+        1693,
+        1718,
+        8658,
+        8664,
+        8673,
+        8678,
+        8681,
+        8686,
+        8693,
+        8696,
+        8698,
+        8704,
+        8706,
+        8709,
+        8714,
+        8716,
+        4041,
+        4047,
+        4061,
+        4072,
+        19553,
+        19544,
+        4096,
+        4120,
+        4162,
+        4172,
+        4196,
+        4197,
+        4210,
+        4281,
+        4305,
+        4355,
+        4369,
+        4392,
+        3807,
+        3823,
+        3831,
+        3836,
+        3845,
+        4438,
+        4440,
+        3868,
+        3906,
+        3943,
+        3975,
+        3982,
+        3990,
+        4004,
+        4017,
+        1955,
+        1981,
+        1989,
+        1995,
+        2020,
+        2038,
+        2043,
+        2047,
+        2056,
+        2072,
+        2083,
+        6558,
+        6575,
+        6288,
+        6296,
+        6587,
+        6591,
+        19511,
+        19472,
+        6603,
+        6604,
+        6610,
+        11168,
+        11172,
+        10314,
+        11175,
+        11179,
+        11187,
+        11194,
+        5358,
+        5364,
+        5373,
+        5381,
+        5383,
+        5393,
+        5402,
+        5405,
+        5412,
+        5414,
+        5419,
+        5421,
+        5424,
+        5428,
+        5431,
+        5434,
+        5436,
+        5440,
+        5447
+      ],
+      "departureHolds": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "officialDelaySec": 0,
+      "holds": [
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        }
+      ],
+      "stopSignature": "[[\"tra_sched:樹林\",27000,27240],[\"tra_sched:浮洲\",27468.11065826159,27468.11065826159],[\"tra_sched:板橋\",27660,27840],[\"tra_sched:萬華\",28120.00000476837,28120.00000476837],[\"tra_sched:台北\",28320,28500],[\"tra_sched:松山\",28860,28920],[\"tra_sched:南港\",29100,29160],[\"tra_sched:汐科\",29428.999949097633,29428.999949097633],[\"tra_sched:汐止\",29487.999910712242,29487.999910712242],[\"tra_sched:五堵\",29632.000041604042,29632.000041604042],[\"tra_sched:百福\",29728.99993121624,29728.99993121624],[\"tra_sched:七堵\",29819.00004208088,29819.00004208088],[\"tra_sched:八堵\",29952.000022530556,29952.000022530556],[\"tra_sched:暖暖\",30045.000005364418,30045.000005364418],[\"tra_sched:四腳亭\",30177.999985814095,30177.999985814095],[\"tra_sched:瑞芳\",30411.99999511242,30411.99999511242],[\"tra_sched:猴硐\",30662.000096440315,30662.000096440315],[\"tra_sched:三貂嶺\",30814.000040888786,30814.000040888786],[\"tra_sched:牡丹\",30989.000088572502,30989.000088572502],[\"tra_sched:雙溪\",31156.99989259243,31156.99989259243],[\"tra_sched:貢寮\",31383.000088334084,31383.000088334084],[\"tra_sched:福隆\",31538.99993956089,31538.99993956089],[\"tra_sched:石城\",31760.999996066093,31760.999996066093],[\"tra_sched:大里\",31873.999977707863,31873.999977707863],[\"tra_sched:大溪\",32033.99996817112,32033.99996817112],[\"tra_sched:龜山\",32190.00005185604,32190.00005185604],[\"tra_sched:外澳\",32331.000078320503,32331.000078320503],[\"tra_sched:頭城\",32483.000022768974,32483.000022768974],[\"tra_sched:頂埔\",32560.999948382378,32560.999948382378],[\"tra_sched:礁溪\",32700.999940037727,32700.999940037727],[\"tra_sched:四城\",32880.99992930889,32880.99992930889],[\"tra_sched:宜蘭\",33060,33180],[\"tra_sched:二結\",33465.00000625849,33465.00000625849],[\"tra_sched:中里\",33503.00000399351,33503.00000399351],[\"tra_sched:羅東\",33570,33660],[\"tra_sched:冬山\",33830.15560090542,33830.15560090542],[\"tra_sched:新馬\",34000.999901890755,34000.999901890755],[\"tra_sched:蘇澳新\",34035.999972224236,34035.999972224236],[\"tra_sched:永樂\",34320.00003039837,34320.00003039837],[\"tra_sched:東澳\",34531.99999630451,34531.99999630451],[\"tra_sched:南澳\",34767.99999296665,34767.99999296665],[\"tra_sched:武塔\",34900.99993407726,34900.99993407726],[\"tra_sched:漢本\",35356.00003302097,35356.00003302097],[\"tra_sched:和平\",35473.22296321392,35473.22296321392],[\"tra_sched:和仁\",35695.00008523464,35695.00008523464],[\"tra_sched:崇德\",36241.99999630451,36241.99999630451],[\"tra_sched:新城\",36410.000007748604,36410.000007748604],[\"tra_sched:景美\",36573.99991214275,36573.99991214275],[\"tra_sched:北埔\",36759.0000218153,36759.0000218153],[\"tra_sched:花蓮\",37080,37260],[\"tra_sched:吉安\",37530,37620],[\"tra_sched:志學\",38010,38100],[\"tra_sched:平和\",38247.12698137728,38247.12698137728],[\"tra_sched:壽豐\",38340,38400],[\"tra_sched:豐田\",38519.38815628188,38519.38815628188],[\"tra_sched:林榮新光\",38760,38820],[\"tra_sched:南平\",38926.99999630451,38926.99999630451],[\"tra_sched:鳳林\",39120,39180],[\"tra_sched:萬榮\",39415.000012815,39415.000012815],[\"tra_sched:光復\",39630,39690],[\"tra_sched:大富\",39999.999997615814,39999.999997615814],[\"tra_sched:富源\",40102.99999952316,40102.99999952316],[\"tra_sched:瑞穗\",40410,40500],[\"tra_sched:三民\",40856.99999034405,40856.99999034405],[\"tra_sched:玉里\",41280,41400],[\"tra_sched:東里\",41675.99998354912,41675.99998354912],[\"tra_sched:東竹\",42039.00000214577,42039.00000214577],[\"tra_sched:富里\",42480,42540],[\"tra_sched:池上\",42870,42960],[\"tra_sched:海端\",43231.00000977516,43231.00000977516],[\"tra_sched:關山\",43560,43620],[\"tra_sched:瑞和\",44012.99998998642,44012.99998998642],[\"tra_sched:瑞源\",44124.9999833107,44124.9999833107],[\"tra_sched:鹿野\",44340,44400],[\"tra_sched:山里\",44763.00001859665,44763.00001859665],[\"tra_sched:台東\",45120,45300],[\"tra_sched:康樂\",45569.00001347065,45569.00001347065],[\"tra_sched:知本\",45840,45900],[\"tra_sched:太麻里\",46440,46500],[\"tra_sched:金崙\",47040,47220],[\"tra_sched:瀧溪\",47580.99998652935,47580.99998652935],[\"tra_sched:大武\",48120,48180],[\"tra_sched:枋野\",49081.99997127056,49081.99997127056],[\"tra_sched:枋山\",49508.00000846386,49508.00000846386],[\"tra_sched:內獅\",49700.00004708767,49700.00004708767],[\"tra_sched:加祿\",49839.00002539158,49839.00002539158],[\"tra_sched:枋寮\",50040,50100],[\"tra_sched:東海\",50314.99999523163,50314.99999523163],[\"tra_sched:佳冬\",50442.999987602234,50442.999987602234],[\"tra_sched:林邊\",50580,50640],[\"tra_sched:鎮安\",50834.348850325514,50834.348850325514],[\"tra_sched:南州\",51060,51120],[\"tra_sched:崁頂\",51266.9152355689,51266.9152355689],[\"tra_sched:潮州\",51540,51660],[\"tra_sched:竹田\",51840.99998831749,51840.99998831749],[\"tra_sched:西勢\",51989.999989271164,51989.999989271164],[\"tra_sched:麟洛\",52075.00001549721,52075.00001549721],[\"tra_sched:歸來\",52156.00000977516,52156.00000977516],[\"tra_sched:屏東\",52260,52380],[\"tra_sched:六塊厝\",52502.00000882149,52502.00000882149],[\"tra_sched:九曲堂\",52718.000017404556,52718.000017404556],[\"tra_sched:後庄\",52848.000000715256,52848.000000715256],[\"tra_sched:鳳山\",52980,53100],[\"tra_sched:正義\",53185.74414376864,53185.74414376864],[\"tra_sched:科工館\",53269.54116185015,53269.54116185015],[\"tra_sched:民族\",53326.73122233971,53326.73122233971],[\"tra_sched:高雄\",53400,53580],[\"tra_sched:三塊厝\",53640.02432377807,53640.02432377807],[\"tra_sched:鼓山\",53733.513821014385,53733.513821014385],[\"tra_sched:美術館\",53792.28782905324,53792.28782905324],[\"tra_sched:內惟\",53882.11086491149,53882.11086491149],[\"tra_sched:左營\",53942.10748161198,53942.10748161198],[\"tra_sched:新左營\",54060,54060]]",
+      "lengthM": 245.70000000000005
+    },
+    "tra_sched:3021:61980:73200": {
+      "pathIds": [
+        5178,
+        5179,
+        5183,
+        5186,
+        5189,
+        5191,
+        5195,
+        5199,
+        5201,
+        5204,
+        5209,
+        5214,
+        5222,
+        5225,
+        5236,
+        5240,
+        5243,
+        5254,
+        5264,
+        8886,
+        8893,
+        8900,
+        8908,
+        6141,
+        8910,
+        8912,
+        6153,
+        6159,
+        6161,
+        19459,
+        19475,
+        6170,
+        6184,
+        6190,
+        6194,
+        6201,
+        6215
+      ],
+      "departureHolds": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "officialDelaySec": 0,
+      "holds": [
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        }
+      ],
+      "stopSignature": "[[\"tra_sched:新左營\",61980,61980],[\"tra_sched:左營\",62102.999984622,62102.999984622],[\"tra_sched:內惟\",62164.000015854836,62164.000015854836],[\"tra_sched:美術館\",62259.000007510185,62259.000007510185],[\"tra_sched:鼓山\",62336.99998676777,62336.99998676777],[\"tra_sched:三塊厝\",62449.99999344349,62449.99999344349],[\"tra_sched:高雄\",62520,62580],[\"tra_sched:民族\",62674.7013687213,62674.7013687213],[\"tra_sched:科工館\",62760,62790],[\"tra_sched:正義\",62903.69269465453,62903.69269465453],[\"tra_sched:鳳山\",63000,63060],[\"tra_sched:後庄\",63233.26066206071,63233.26066206071],[\"tra_sched:九曲堂\",63420,63480],[\"tra_sched:六塊厝\",63724.08907628724,63724.08907628724],[\"tra_sched:屏東\",63840,63900],[\"tra_sched:歸來\",64033.067171202085,64033.067171202085],[\"tra_sched:麟洛\",64132.3439759979,64132.3439759979],[\"tra_sched:西勢\",64236.82894387594,64236.82894387594],[\"tra_sched:竹田\",64397.23862785545,64397.23862785545],[\"tra_sched:潮州\",64590,64680],[\"tra_sched:崁頂\",64955.803136501905,64955.803136501905],[\"tra_sched:南州\",65100,65160],[\"tra_sched:鎮安\",65388.47033243599,65388.47033243599],[\"tra_sched:林邊\",65580,65820],[\"tra_sched:佳冬\",66060,66090],[\"tra_sched:東海\",66259.04805122044,66259.04805122044],[\"tra_sched:枋寮\",66480,66600],[\"tra_sched:加祿\",67107.9999268055,67107.9999268055],[\"tra_sched:內獅\",67354.9999988079,67354.9999988079],[\"tra_sched:枋山\",67692.99995541573,67692.99995541573],[\"tra_sched:枋野\",68405.99998354912,68405.99998354912],[\"tra_sched:大武\",70080,70140],[\"tra_sched:瀧溪\",70680,70710],[\"tra_sched:金崙\",71070,71100],[\"tra_sched:太麻里\",71670,71820],[\"tra_sched:知本\",72420,72480],[\"tra_sched:康樂\",72810,72840],[\"tra_sched:台東\",73200,73200]]",
+      "lengthM": 60
+    },
+    "tra_sched:301:23400:39540": {
+      "pathIds": [
+        5068,
+        5075,
+        5083,
+        5089,
+        5102,
+        5116,
+        5129,
+        5150,
+        5162,
+        5178,
+        5179,
+        5183,
+        5186,
+        5189,
+        5191,
+        5195,
+        5199,
+        5201,
+        5203,
+        5208,
+        5214,
+        5222,
+        5225,
+        5236,
+        5240,
+        5243,
+        5254,
+        5264,
+        8886,
+        8893,
+        8900,
+        8908,
+        6141,
+        8910,
+        8912,
+        6153,
+        6159,
+        6161,
+        19459,
+        19475,
+        6170,
+        6184,
+        6190,
+        6194,
+        6201,
+        6216,
+        1795,
+        1824,
+        1834,
+        1850,
+        1852,
+        1857,
+        1869,
+        1888,
+        1908,
+        1919,
+        1933,
+        3508,
+        3530,
+        3540,
+        3556,
+        3563,
+        2135,
+        2170,
+        2204,
+        4446,
+        4452,
+        2236,
+        2245,
+        2248,
+        2252,
+        2266
+      ],
+      "departureHolds": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "officialDelaySec": 0,
+      "holds": [
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        },
+        {
+          "arrival": 0,
+          "departure": 0
+        }
+      ],
+      "stopSignature": "[[\"tra_sched:台南\",23400,23400],[\"tra_sched:保安\",23842.000029981136,23842.000029981136],[\"tra_sched:仁德\",23889.00002092123,23889.00002092123],[\"tra_sched:中洲\",23972.000022232533,23972.000022232533],[\"tra_sched:大湖\",24079.99999076128,24079.99999076128],[\"tra_sched:路竹\",24203.99997085333,24203.99997085333],[\"tra_sched:岡山\",24450,24540],[\"tra_sched:橋頭\",24747.00001180172,24747.00001180172],[\"tra_sched:楠梓\",24863.99999678135,24863.99999678135],[\"tra_sched:新左營\",25080,25200],[\"tra_sched:左營\",25315.00000476837,25315.00000476837],[\"tra_sched:內惟\",25371.00000858307,25371.00000858307],[\"tra_sched:美術館\",25457.999997138977,25457.999997138977],[\"tra_sched:鼓山\",25525.00000476837,25525.00000476837],[\"tra_sched:三塊厝\",25619.999985694885,25619.999985694885],[\"tra_sched:高雄\",25680,25800],[\"tra_sched:民族\",25877.525095419558,25877.525095419558],[\"tra_sched:科工館\",25934.752141672237,25934.752141672237],[\"tra_sched:正義\",26018.603352678787,26018.603352678787],[\"tra_sched:鳳山\",26100,26160],[\"tra_sched:後庄\",26338.99998933077,26338.99998933077],[\"tra_sched:九曲堂\",26509.999997913837,26509.999997913837],[\"tra_sched:六塊厝\",26693.999986946583,26693.999986946583],[\"tra_sched:屏東\",26790,26880],[\"tra_sched:歸來\",26996.99998676777,26996.99998676777],[\"tra_sched:麟洛\",27087.000018954277,27087.000018954277],[\"tra_sched:西勢\",27180.000008940697,27180.000008940697],[\"tra_sched:竹田\",27347.000007033348,27347.000007033348],[\"tra_sched:潮州\",27540,27720],[\"tra_sched:崁頂\",28025.000027418137,28025.000027418137],[\"tra_sched:南州\",28141.999980211258,28141.999980211258],[\"tra_sched:鎮安\",28280.999990701675,28280.999990701675],[\"tra_sched:林邊\",28393.0000269413,28393.0000269413],[\"tra_sched:佳冬\",28526.00002169609,28526.00002169609],[\"tra_sched:東海\",28631.999977827072,28631.999977827072],[\"tra_sched:枋寮\",28800,28920],[\"tra_sched:加祿\",29183.999986052513,29183.999986052513],[\"tra_sched:內獅\",29306.000034213066,29306.000034213066],[\"tra_sched:枋山\",29475.000012516975,29475.000012516975],[\"tra_sched:枋野\",29847.000004649162,29847.000004649162],[\"tra_sched:大武\",30660,30780],[\"tra_sched:瀧溪\",31296.99998795986,31296.99998795986],[\"tra_sched:金崙\",31607.99998819828,31607.99998819828],[\"tra_sched:太麻里\",32040,32220],[\"tra_sched:知本\",32820,32940],[\"tra_sched:康樂\",33246.00001215935,33246.00001215935],[\"tra_sched:台東\",33540,33720],[\"tra_sched:山里\",34073.99999052286,34073.99999052286],[\"tra_sched:鹿野\",34335.000042021275,34335.000042021275],[\"tra_sched:瑞源\",34486.999991834164,34486.999991834164],[\"tra_sched:瑞和\",34583.999952971935,34583.999952971935],[\"tra_sched:關山\",34849.999976456165,34849.999976456165],[\"tra_sched:海端\",35030.000006854534,35030.000006854534],[\"tra_sched:池上\",35275.99999397993,35275.99999397993],[\"tra_sched:富里\",35502.99996882677,35502.99996882677],[\"tra_sched:東竹\",35681.99997514486,35681.99997514486],[\"tra_sched:東里\",35858.9999333024,35858.9999333024],[\"tra_sched:玉里\",36210,36360],[\"tra_sched:三民\",36842.00000882149,36842.00000882149],[\"tra_sched:瑞穗\",37200,37320],[\"tra_sched:富源\",37663.99996697903,37663.99996697903],[\"tra_sched:大富\",37771.00002229214,37771.00002229214],[\"tra_sched:光復\",38021.9999653101,38021.9999653101],[\"tra_sched:萬榮\",38191.99999630451,38191.99999630451],[\"tra_sched:鳳林\",38329.99999344349,38329.99999344349],[\"tra_sched:南平\",38442.99993932247,38442.99993932247],[\"tra_sched:林榮新光\",38517.00000107288,38517.00000107288],[\"tra_sched:豐田\",38723.00003707409,38723.00003707409],[\"tra_sched:壽豐\",38815.999994874,38815.999994874],[\"tra_sched:平和\",38875.999959111214,38875.999959111214],[\"tra_sched:志學\",38976.00003182888,38976.00003182888],[\"tra_sched:吉安\",39255.999997258186,39255.999997258186],[\"tra_sched:花蓮\",39540,39540]]",
+      "lengthM": 245.70000000000005
+    }
+  }
+}
