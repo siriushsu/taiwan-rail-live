@@ -1,6 +1,6 @@
 import * as THREE from '../../rail-3d/vendor/three.module.js';
 import {createScene,THEMES} from '../../rail-3d/garage-scenes/south-coast.js';
-import {loadGarageModel,createConsist} from '../../rail-3d/garage-model.js';
+import {loadGarageModel,createConsist} from '../../rail-3d/garage-model.js?revision=headlights-0912';
 const canvas=document.querySelector('#scene'),loading=document.querySelector('#loading');
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
 let renderer,environment,primary,train,coast,raf=0,last=0,time=0,distance=0,period='day',view=matchMedia('(max-width:800px)').matches?'train':'world',running=!reduced.matches,zoom=1,span=1,cameraYaw=-1.14,yaw=-1.14,elevation=.65,disposed=false,ready=false,draws=0;

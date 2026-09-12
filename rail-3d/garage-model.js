@@ -1,6 +1,6 @@
 // 車庫的完整 Blender 素材與既有中間車／輕軌分節共用載入器。
 import * as THREE from './vendor/three.module.js';
-import {createTrainLights} from './garage-train-lights.js';
+import {createTrainLights} from './garage-train-lights.js?revision=headlights-0912';
 const base=new URL('./assets/garage-blender-v1/',import.meta.url),mapBase=new URL('./assets/blender-map-v1/',import.meta.url);
 async function json(url,signal){const r=await fetch(url,{signal});if(!r.ok)throw Error('model metadata');return r.json();}
 async function checked(url,signal,bytes,sha,gzip=false){
@@ -12,7 +12,7 @@ async function checked(url,signal,bytes,sha,gzip=false){
 }
 function grey(m){m.onBeforeCompile=s=>{s.fragmentShader=s.fragmentShader.replace('#include <opaque_fragment>','#include <opaque_fragment>\ngl_FragColor.rgb=vec3(dot(gl_FragColor.rgb,vec3(.2126,.7152,.0722)));');};return m;}
 export async function loadGarageModel(id,signal,mapMeta,reference){
- const geometry=new THREE.BufferGeometry();let materials=[],lockedMaterials=[];
+ const geometry=new THREE.BufferGeometry();let materials=[],lockedMaterials=[],lighting=null;
  try{
   if(mapMeta){
    const b=await checked(new URL(mapMeta.file,mapBase),signal,mapMeta.byteLength,mapMeta.sha256),data=new Float32Array(b),buffer=new THREE.InterleavedBuffer(data,10);
@@ -44,6 +44,7 @@ export async function loadGarageModel(id,signal,mapMeta,reference){
   }else{
    const meta=await json(new URL(id+'.json',base),signal),b=await checked(new URL(meta.mesh.file,base),signal,meta.mesh.vertexCount*24,meta.mesh.sha256,true),buffer=new THREE.InterleavedBuffer(new Float32Array(b),6);
    geometry.setAttribute('position',new THREE.InterleavedBufferAttribute(buffer,3,0));geometry.setAttribute('normal',new THREE.InterleavedBufferAttribute(buffer,3,3));
+   lighting=meta.lighting||null;
    const flat=v=>Math.min(1,Math.max(0,(v*.95-.5)*.45+.5));
    for(const [i,g]of meta.mesh.drawGroups.entries()){geometry.addGroup(g.start,g.count,i);materials.push(new THREE.MeshPhysicalMaterial({name:g.name,color:new THREE.Color(...g.color),metalness:g.metalness,roughness:g.roughness,clearcoat:g.clearcoat,side:THREE.DoubleSide}));
     materials[i].userData.railLightingRole=g.lightingRole||null;
@@ -51,7 +52,7 @@ export async function loadGarageModel(id,signal,mapMeta,reference){
    }
   }
   geometry.computeBoundingBox();geometry.computeBoundingSphere();const center=new THREE.Vector3(),size=new THREE.Vector3();geometry.boundingBox.getCenter(center);geometry.boundingBox.getSize(size);
-  return{geometry,materials,lockedMaterials,center,size,dispose(){geometry.dispose();[...materials,...lockedMaterials].forEach(m=>m.dispose());}};
+  return{geometry,materials,lockedMaterials,center,size,lighting,dispose(){geometry.dispose();[...materials,...lockedMaterials].forEach(m=>m.dispose());}};
  }catch(e){geometry.dispose();[...materials,...lockedMaterials].forEach(m=>m.dispose());throw e;}
 }
 let manifestPromise;
@@ -74,7 +75,7 @@ export async function createConsist(id,primary,signal,opts={}){
   const scale=1.25/primary.size.y,items=parts.map(part=>({...part,asset:assets.get(part.mesh)}));
   const gap=template.articulated?.08:.14,total=items.reduce((n,p)=>n+p.asset.size.x*scale,0)+gap*2;let front=total/2;
   for(const part of items){const a=part.asset,length=a.size.x*scale,car=new THREE.Group(),body=new THREE.Mesh(a.geometry,a.materials);
-   body.position.set(-a.center.x,-a.center.y,-a.geometry.boundingBox.min.z);car.add(body);car.scale.setScalar(scale);car.rotation.z=part.flip?Math.PI:0;car.position.set(front-length/2,0,.18);front-=length+gap;root.add(car);cars.push({car,body,asset:a,id:part.mesh,length,offset:car.position.x,flip:part.flip,heading:0});
+   body.castShadow=body.receiveShadow=true;body.position.set(-a.center.x,-a.center.y,-a.geometry.boundingBox.min.z);car.add(body);car.scale.setScalar(scale);car.rotation.z=part.flip?Math.PI:0;car.position.set(front-length/2,0,.18);front-=length+gap;root.add(car);cars.push({car,body,asset:a,id:part.mesh,length,offset:car.position.x,flip:part.flip,heading:0});
   }
   const couplers=[],cg=new THREE.BoxGeometry(1,.11,.11),cm=new THREE.MeshStandardMaterial({color:'#343b3c',roughness:.8});
   for(let i=0;i<2;i++){const c=new THREE.Mesh(cg,cm);root.add(c);couplers.push(c);}

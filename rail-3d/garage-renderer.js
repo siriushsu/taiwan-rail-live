@@ -6,6 +6,7 @@ import {loadGarageModel,createConsist} from './garage-model.js';
 
 export function createRenderer(onLost = () => {}) {
   const renderer = new THREE.WebGLRenderer({alpha:true, antialias:true, preserveDrawingBuffer:true});
+  renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.02;
@@ -50,7 +51,7 @@ export function createRenderer(onLost = () => {}) {
       const zoom=Math.max(.7,Math.min(3,options.zoom??1));camera.zoom=coastCamera.zoom=zoom;
       let view=camera;
       if(onTrack){
-        if(!consist)return false;if(!coast){coast=createCoast();scene.add(coast.group);}coast.group.visible=true;
+        if(!consist)return false;if(!coast){coast=createCoast();coast.group.traverse(o=>{if(o.isMesh)o.castShadow=o.receiveShadow=true;});scene.add(coast.group);}coast.group.visible=true;
         consist.update(row.owned);consist.lighting.update(options.period,1,row.owned);const heading=options.direction===-1?0:Math.PI;consist.straight(options.direction);
         focus.set(0,0,1.9);const span=Math.max(3.6,consist.length*.61/aspect),radius=span/Math.tan(THREE.MathUtils.degToRad(22));
         coastCamera.aspect=aspect;coastCamera.updateProjectionMatrix();coastCamera.position.set(radius*Math.cos(elevation)*Math.cos(angle),radius*Math.cos(elevation)*Math.sin(angle),focus.z+radius*Math.sin(elevation));coastCamera.lookAt(focus);coastCamera.updateMatrixWorld();view=coastCamera;
@@ -68,7 +69,7 @@ export function createRenderer(onLost = () => {}) {
       }else{
         if(coast)coast.group.visible=false;scene.environment=environment.texture;scene.fog=null;hemi.color.set('#e6efff');hemi.groundColor.set('#938670');hemi.intensity=1.75;lights[0].color.set('#fff5e6');lights[0].position.set(7,-9,14);lights[0].intensity=3;lights[1].intensity=1.5;renderer.toneMappingExposure=1.02;
         if(onLoop){
-          if(!consist)return false;if(!loop){loop=createLoop();scene.add(loop.group);}loop.group.visible=true;
+          if(!consist)return false;if(!loop){loop=createLoop();loop.group.traverse(o=>{if(o.isMesh)o.castShadow=o.receiveShadow=true;});scene.add(loop.group);}loop.group.visible=true;
           consist.update(row.owned);consist.lighting.update(options.period,1,row.owned);consist.follow(loop,options.distance||0,options.direction);
           const horizontal=loop.half*Math.abs(Math.sin(angle))+loop.outer,vertical=Math.sin(elevation)*(loop.half*Math.abs(Math.cos(angle))+loop.outer)+2.3*Math.cos(elevation),span=Math.max(horizontal/aspect,vertical)*1.07;
           scene.updateMatrixWorld(true);focus.set(0,0,1.0);

@@ -1,6 +1,6 @@
 import * as THREE from '../../rail-3d/vendor/three.module.js';
 import {createScene,THEMES} from '../../rail-3d/garage-scenes/shifen.js';
-import {loadGarageModel,createConsist} from '../../rail-3d/garage-model.js';
+import {loadGarageModel,createConsist} from '../../rail-3d/garage-model.js?revision=headlights-0912';
 import {createTerrainFollower} from '../../rail-3d/garage-scenes/consist-3d.js';
 const canvas=document.querySelector('#scene'),loading=document.querySelector('#loading');
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
