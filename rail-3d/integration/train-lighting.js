@@ -11,17 +11,32 @@ export function tunnelAmount(path,s){
   const boundary=(lo+hi)/2,value=smooth(-6,6,s-boundary);return left?1-value:value;
  }return here;
 }
+// LOD 玻璃的平滑頂點法線會朝向窗框，不能拿它判斷側窗，否則同一片窗會出現黑三角。
+// 以實際三角面的朝向辨識側面玻璃；每份共用網格只算一次，保留原頂點與白天材質。
+export function prepareWindowLighting(geometry,THREE){
+ const p=geometry.getAttribute('position'),color=geometry.getAttribute('color'),gloss=geometry.getAttribute('gloss'),values=new Float32Array(p.count*2),faces=[];
+ let low=Infinity,high=-Infinity;
+ for(let i=0;i<p.count;i+=3){
+  if(![i,i+1,i+2].every(j=>gloss.getX(j)>.78&&color.getX(j)<.2&&color.getY(j)<.35&&color.getZ(j)<.4))continue;
+  const ax=p.getX(i+1)-p.getX(i),ay=p.getY(i+1)-p.getY(i),az=p.getZ(i+1)-p.getZ(i),bx=p.getX(i+2)-p.getX(i),by=p.getY(i+2)-p.getY(i),bz=p.getZ(i+2)-p.getZ(i);
+  const nx=ay*bz-az*by,ny=az*bx-ax*bz,nz=ax*by-ay*bx;
+  if(Math.abs(ny)<Math.hypot(nx,ny,nz)*.75||Math.hypot(nx,ny,nz)<1e-9)continue;
+  faces.push(i);for(let j=i;j<i+3;j++){low=Math.min(low,p.getZ(j));high=Math.max(high,p.getZ(j));}
+ }
+ for(const i of faces)for(let j=i;j<i+3;j++){values[j*2]=1;values[j*2+1]=(p.getZ(j)-low)/Math.max(.01,high-low);}
+ geometry.setAttribute('windowLight',new THREE.Float32BufferAttribute(values,2));
+}
 export function installTrainLighting(material,THREE){
  Object.assign(material.uniforms,{trainNight:{value:0},trainTunnel:{value:new THREE.Vector3()},trainBounds:{value:new THREE.Vector2(-1,1)},trainOpacity:{value:1}});
- material.vertexShader=material.vertexShader.replace('varying vec3 rgb,nrm;', 'uniform vec2 trainBounds; varying float carriageX; varying vec3 rgb,nrm;').replace('void main(){rgb=color;', 'void main(){carriageX=clamp((position.x-trainBounds.x)/(trainBounds.y-trainBounds.x),0.,1.);rgb=color;');
- material.fragmentShader=material.fragmentShader.replace('varying vec3 rgb,nrm;', 'uniform float trainNight,trainOpacity; uniform vec3 trainTunnel; varying float carriageX; varying vec3 rgb,nrm;');
+ material.vertexShader=material.vertexShader.replace('varying vec3 rgb,nrm;', 'attribute vec2 windowLight; varying vec2 cabinLight; uniform vec2 trainBounds; varying float carriageX; varying vec3 rgb,nrm;').replace('void main(){rgb=color;', 'void main(){cabinLight=windowLight;carriageX=clamp((position.x-trainBounds.x)/(trainBounds.y-trainBounds.x),0.,1.);rgb=color;');
+ material.fragmentShader=material.fragmentShader.replace('varying vec3 rgb,nrm;', 'uniform float trainNight,trainOpacity; uniform vec3 trainTunnel; varying vec2 cabinLight; varying float carriageX; varying vec3 rgb,nrm;');
  material.fragmentShader=material.fragmentShader.replace('gl_FragColor=vec4(min(vec3(1.),rgb*light+vec3(spec)),1.);}', [
   'float tunnel=carriageX<.5?mix(trainTunnel.x,trainTunnel.y,carriageX*2.):mix(trainTunnel.y,trainTunnel.z,(carriageX-.5)*2.);',
   'float darkness=max(trainNight,tunnel*.94);',
   'vec3 shade=mix(vec3(1.),vec3(.29,.36,.47),darkness);',
-  'float windowMask=smoothstep(.72,.8,shine)*(1.-smoothstep(.18,.48,max(rgb.r,max(rgb.g,rgb.b))))*(1.-smoothstep(.3,.7,abs(n.x)));',
   'vec3 lit=rgb*light*shade+vec3(spec)*(1.-darkness*.8);',
-  'lit=mix(lit,vec3(1.,.77,.42),windowMask*darkness*.88);',
+  'vec3 interior=mix(vec3(.94,.72,.43),vec3(1.,.93,.76),smoothstep(0.,1.,cabinLight.y));',
+  'lit=mix(lit,interior,cabinLight.x*darkness);',
   'gl_FragColor=vec4(min(vec3(1.),lit),trainOpacity);}'
  ].join('\n'));
 }

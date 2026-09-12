@@ -10,7 +10,7 @@ import {makePath,shapeKey,makeHeightProfile,formationPoses} from './train-path.j
 import {profileLines} from './profile-lines.js';
 import {createRailStructures,VIADUCT_LIFT_M} from './rail-structures.js';
 import {groupTunnelPortals,PORTAL_GROUND_U} from './tunnel-portals.js';
-import {installTrainLighting,createTrainLamps,nightAmount,tunnelAmount} from './train-lighting.js';
+import {installTrainLighting,prepareWindowLighting,createTrainLamps,nightAmount,tunnelAmount} from './train-lighting.js';
 import {headFramingDistance} from './follow-framing.js';
 import {createLandscapeTrees} from './landscape-trees.js';
 import {orderBuildingPasses} from './layer-order.js';
@@ -221,7 +221,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   async function geometry(id){if(cache.has(id))return cache.get(id);if(!pending.has(id))pending.set(id,(async()=>{
     const meta=catalog.meshes[id],r=await fetch(asset('assets/blender-map-v1/'+meta.file));if(!r.ok)throw Error('列車模型載入失敗');const b=await r.arrayBuffer();
     const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',b)),v=>v.toString(16).padStart(2,'0')).join('');if(b.byteLength!==meta.byteLength||hash!==meta.sha256)throw Error('列車模型版本不符');
-    const data=new Float32Array(b.byteLength/4),view=new DataView(b);for(let i=0;i<data.length;i++)data[i]=view.getFloat32(i*4,true);const g=createWenhuGeometry(THREE,{data});if(disposed){g.dispose();return null;}cache.set(id,g);return g;
+    const data=new Float32Array(b.byteLength/4),view=new DataView(b);for(let i=0;i<data.length;i++)data[i]=view.getFloat32(i*4,true);const g=createWenhuGeometry(THREE,{data});prepareWindowLighting(g,THREE);if(disposed){g.dispose();return null;}cache.set(id,g);return g;
   })());try{return await pending.get(id);}finally{pending.delete(id);}}
   function modelFor(spec){if(!spec)return null;if(!formations.has(spec))formations.set(spec,assembleFormation(spec,catalog));return formations.get(spec);}
   async function ensureModel(v){const spec=formationFor(v,formationMode);if(!spec)return;const old=models.get(v.id);if(old&&old.key!==spec.key){if(old.group)scene.remove(old.group);models.delete(v.id);}if(models.has(v.id)||failed.has(v.id))return;
