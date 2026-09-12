@@ -4,6 +4,7 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "修正三鶯線重複轉乘資訊，更新站名翻譯與鄰近公車轉乘資料": "Fixed duplicate Sanying Line transfer information and updated station translations and nearby bus connections.",
     "補回太麻里兩條月台股道，減少同站列車重疊；修正部分列車誤入同一股道的交會畫面": "Restored both platform tracks at Taimali to reduce overlapping trains, and corrected some trains meeting on the wrong shared track.",
     "減少車站裡兩班車疊在同一條股道上的情況，潮州、板橋、南港等站重新指派停靠月台": "Reduced trains overlapping on the same station track by revising platform assignments at Chaozhou, Banqiao, Nangang and other stations.",
     "減少開站時重複下載地形與股道資料，改善初次開啟的等待時間與畫面凍結。": "Reduced repeated downloads of terrain and track data at startup, improving initial loading time and screen freezes.",
@@ -274,6 +275,7 @@
   });
 
   Object.assign(messages.ja, {
+    "修正三鶯線重複轉乘資訊，更新站名翻譯與鄰近公車轉乘資料": "三鶯線の重複した乗換情報を修正し、駅名の翻訳と周辺のバス乗換情報を更新しました。",
     "補回太麻里兩條月台股道，減少同站列車重疊；修正部分列車誤入同一股道的交會畫面": "太麻里駅の2本のホーム線路を復元して列車の重なりを減らし、一部の列車が誤って同じ線路ですれ違う表示を修正しました。",
     "減少車站裡兩班車疊在同一條股道上的情況，潮州、板橋、南港等站重新指派停靠月台": "潮州・板橋・南港などの停車ホーム割当を見直し、駅で2列車が同じ線路上に重なる表示を減らしました。",
     "減少開站時重複下載地形與股道資料，改善初次開啟的等待時間與畫面凍結。": "起動時の地形・線路データの重複ダウンロードを減らし、初回読み込みの待ち時間や画面の停止を改善しました。",
