@@ -62,6 +62,40 @@ for (const [label, vehicle] of provisional) {
   if (spec.actualCarCount !== null) failures.push(`${label} 當班編組未知，actualCarCount 必須留 null`);
   if (!spec.caption.includes('待確認')) failures.push(`${label} 未標示「待確認」：${spec.caption}`);
 }
+// ── 具名觀光列車的外觀：名冊有車次就一定要對得到自己的外觀 ──────────────
+// 為什麼有這一節：2026-07-25 環島之星（車次 1／2）補進 namedTrains 的 trainNos，
+// 但 formations.js 的 named 對照表沒跟著加 star ⇒ 它落到「車型未知的台鐵車」那條路，
+// 被畫成 EMU800 通勤電聯車。這條退化不拋錯、不少畫車，七週沒有任何訊號。
+// 另一種更糟的寫法是把對照表指到 FORMATIONS 沒有的鍵（例如 star:'star' 而沒有 FORMATIONS.star）：
+// formationFor 回 null，map3d.js 拿它當候選過濾條件，整台列車直接從 3D 消失。兩種都要擋。
+// 期望值來源是磁碟上的 data/tra_special_trains.json，與對照表不同源（判準盲點 1）。
+const NAMED = JSON.parse(fs.readFileSync('data/tra_special_trains.json')).namedTrains;
+// id → [班表車種名, 應有的外觀, 首／中／尾部件]。車種名帶真值是刻意的：藍皮的「普通車(專)」
+// 會命中下面的 /莒光|普通車/ 分支，帶著它才驗得到「具名比對排在車種比對前面」。
+const namedLook = {
+  'blue-train': ['普通車(專)', 'blue', ['blue', 'bluecoach', 'bluecoach']],
+  haifeng: ['電車(專)', 'haifeng', ['haifeng', 'haifeng-mid', 'haifeng']],
+  shanlan: ['電車(專)', 'shanlan', ['shanlan', 'shanlan-mid', 'shanlan']],
+  star: ['自強(商專)', 'e500', ['e500', 'juguang', 'juguang']],
+  shanhai: ['', 'mingri', ['mingri', 'mingricoach', 'mingricoach']],
+  pingyuan: ['', 'mingri', ['mingri', 'mingricoach', 'mingricoach']],
+};
+const withNos = NAMED.filter(n => n.trainNos.length).map(n => n.id).sort();
+// 反向閘門：名冊長出新的具名列車（或某輛補上固定車次）時當場紅，而不是讓它默默退回代表外觀。
+assert.deepEqual(withNos, Object.keys(namedLook).sort(),
+  `namedTrains 裡有固定車次的是 ${withNos.join('、')}，與本表不符——新增具名列車時要同時決定它的外觀`);
+for (const id of withNos) {
+  const [carName, wantModel, wantMeshes] = namedLook[id];
+  const spec = formationFor({systemId: 'tra_sched', namedId: id, carName}, 'actual');
+  if (!spec) { failures.push(`具名列車 ${id} 對不到編組——它會整台從 3D 消失`); continue; }
+  if (spec.id !== wantModel) failures.push(`具名列車 ${id} 的外觀是 ${spec.id}，應為 ${wantModel}`);
+  const seen = assembleFormation(spec, catalog).parts.map(p => p.mesh);
+  if (seen.join(',') !== wantMeshes.join(',')) failures.push(`具名列車 ${id} 的首／中／尾部件為 ${seen.join('／')}，應為 ${wantMeshes.join('／')}`);
+  // 觀光列車沒有官方標準編組,節數一律留未知;寫死節數要先有官方依據(見 FORMATIONS.md)。
+  if (spec.actualCarCount !== null) failures.push(`具名列車 ${id} 的 actualCarCount=${spec.actualCarCount}，沒有官方節數依據時必須留 null`);
+  if (!spec.caption.includes('待確認')) failures.push(`具名列車 ${id} 未標示「待確認」：${spec.caption}`);
+}
+
 // 具名覆蓋率斷言：這兩張表是手寫的，少一列不會有任何錯誤訊息。
 assert.equal(cases.length, 19, '標準編組檢查表被改動，請同時更新這個數字');
 assert.equal(provisional.length, 4, '示意編組檢查表被改動，請同時更新這個數字');
@@ -87,4 +121,5 @@ if (failures.length) {
   process.exit(1);
 }
 console.log(`列車編組驗收通過：${cases.length} 種標準編組節數與首中尾部件相符，${provisional.length} 種維持 3 節示意並標示待確認；`
+  + `${withNos.length} 輛有固定車次的具名觀光列車各自對到專屬外觀（${withNos.join('、')}）；`
   + `機捷 ${coverage.map(c => `${c.key} ${c.tagged}/${c.trips}`).join('、')} 班帶官方車種，3D 讀的是官方值`);
