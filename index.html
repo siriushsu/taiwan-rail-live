@@ -5449,10 +5449,10 @@
         <li data-cl-of="cityperf0912"><span class="d">9/12</span><span>都市的立體地圖拖起來更順，台北車站一帶重畫軌道的時間降到原本的六分之一</span></li>
         <li data-cl-of="thsrtracks0912"><span class="d">9/12</span><span>高鐵停靠列車改停外側月台、通過列車走內側正線，派車改用當日班表</span></li>
         <li data-cl-of="landscapetrees0912"><span class="d">9/12</span><span>地景地圖的山區與海岸不再鋪滿示意樹，公園、村落與河岸的小片林地照舊；地形看得更清楚，拖動也更順</span></li>
+        <li data-cl-of="thsrhold0912"><span class="d">9/12</span><span>高鐵停靠列車在站上的等待縮短，最久的一班從 2 分半降到 44 秒</span></li>
         <li data-cl-of="viaduct0912"><span class="d">9/12</span><span>立體地圖的高架橋不再跟著地形起伏，橋面、護欄與橋墩也畫得像真的高架橋</span></li>
         <li data-cl-of="thsrfold0912"><span class="d">9/12</span><span>修正高鐵列車在板橋等地下車站車廂折疊、上下跳動的問題</span></li>
         <li data-cl-of="tunnelkind0911"><span class="d">9/11</span><span>立體地圖的路線不再一下橋梁一下地下道地上上下下，過山洞就是過山洞</span></li>
-        <li data-cl-of="metrolead0911"><span class="d">9/11</span><span>捷運頁說明更正：台北捷運九線的位置與車站倒數都是官方逐班即時</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5464,6 +5464,7 @@
         <li data-cl="cityperf0912"><span class="d">9/12</span><span>都市的立體地圖拖動更順：台北車站一帶重畫軌道從 263 毫秒降到 41 毫秒、板橋 236 降到 58、台北全景 499 降到 173（桌面 6 倍降速實測取最小值）。地下路網改用較疏的取樣、沿線層位與地形高程查詢加上快取，畫面外的列車也不再每一幀查一次地形</span></li>
         <li data-cl="thsrtracks0912"><span class="d">9/12</span><span>高鐵車站股道照真實配置：桃園、新竹、苗栗、台中、彰化、雲林、嘉義、台南、板橋等有通過線的車站，停靠列車一律停外側月台到發線，通過列車走內側正線；股道派車也從 7 月靜態班表改成依當日班表重派。</span></li>
         <li data-cl="landscapetrees0912"><span class="d">9/12</span><span>地景地圖的示意樹改成只長在公園、村落與河岸這類小片林地：山區、海岸與縱谷的林地底圖本來就是整片綠，鋪上千株樹只擋住地形起伏，還拖慢載入</span></li>
+        <li data-cl="thsrhold0912"><span class="d">9/12</span><span>高鐵派車的佔用時刻改成與畫面上的行車曲線同源：求解以前用等速內插估通過時刻，平均晚 27 秒，停靠列車被多壓將近一分鐘；改用同一組跑段曲線後，待避從 55 班 2006 秒降到 26 班 608 秒，單次最久 148.5 秒降到 44 秒</span></li>
         <li data-cl="viaduct0912"><span class="d">9/12</span><span>立體地圖全台軌道縱坡重算：高架橋與平面軌道不再逐點跟著地形上上下下（高鐵橋面最陡從 67% 降到 3.7%）；高架橋補上箱梁、護欄與墩帽，雙線橋墩對齊成排</span></li>
         <li data-cl="thsrfold0912"><span class="d">9/12</span><span>修正高鐵列車在板橋等地下車站車廂一節一節折疊、在地面與地下之間跳的問題：當日班表新增或改點的班次也會沿實體股道行駛，不再退回示意線形</span></li>
         <li data-cl="tunnelkind0911"><span class="d">9/11</span><span>立體地圖的橋梁隧道判定與高度全台修正：13 段官方圖資其實是橋梁的路段改回橋梁，橋面離地最高從 48 公尺降到 12 公尺，隧道洞口也不再把相鄰的高架橋往下拉</span></li>

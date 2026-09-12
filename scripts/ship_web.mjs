@@ -181,6 +181,9 @@ try {
   const thsrTracks = spawnSync('node', [path.join(wt, 'scripts', 'verify_thsr_station_tracks.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(thsrTracks.stdout || ''); process.stderr.write(thsrTracks.stderr || '');
   if (thsrTracks.status !== 0) fail('高鐵車站股道規則未通過(停靠列車要停外側到發線、通過列車走內側正線)');
+  const thsrOccupancy = spawnSync('node', [path.join(wt, 'scripts', 'verify_thsr_reservation_motion.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(thsrOccupancy.stdout || ''); process.stderr.write(thsrOccupancy.stderr || '');
+  if (thsrOccupancy.status !== 0) fail('高鐵派車佔用模型與行車模型不同源(曲線指紋不符、通過時刻差超過 1 秒、或同日班次有股道交疊)——重跑六種日型派車');
   const traContinuity = spawnSync('node', [path.join(wt, 'scripts', 'verify_tra_binding_continuity.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(traContinuity.stdout || ''); process.stderr.write(traContinuity.stderr || '');
   if (traContinuity.status !== 0) fail('台鐵雙向通過站或加開車股道連續性未通過');
@@ -300,6 +303,13 @@ try {
   const busStopBrowser = spawnSync('node', [path.join(wt, 'scripts', 'verify_bus_stop_browser.mjs')], { encoding: 'utf8' });
   process.stdout.write(busStopBrowser.stdout || ''); process.stderr.write(busStopBrowser.stderr || '');
   if (busStopBrowser.status !== 0) fail('公車站牌瀏覽器驗收未過（單獨重跑：node scripts/verify_bus_stop_browser.mjs）');
+
+  // 高鐵對號座餘位與票價(2026-09-11 的設計批次)——這支閘門寫好之後一直沒掛上出貨鏈,等於沒有守門人。
+  // 它自己就分四層(純函式／端點替身／Playwright 雙引擎／零回歸重跑 punctual＋my_trains),預設離線,
+  // 真上游要 --real 才打(TDX 有節流),所以掛在這裡不會讓出貨依賴外部服務。
+  const thsrSeat = spawnSync('node', [path.join(wt, 'scripts', 'verify_thsr_seat.mjs')], { cwd: wt, encoding: 'utf8' });
+  process.stdout.write(thsrSeat.stdout || ''); process.stderr.write(thsrSeat.stderr || '');
+  if (thsrSeat.status !== 0) fail('高鐵對號座餘位／票價驗收未過（單獨重跑：npm run check-thsr-seat）');
 
   // ── 2.12 地圖引擎適配層閘門(換引擎 M0,2026-09-03)——純靜態、毫秒級:index.html 裡任何繞過適配層 M 直接
   // 呼叫 Leaflet `map.xxx(` 的程式碼都會在這裡擋下(否則 MapLibre 引擎一開就炸,而 Leaflet 路徑全綠照不到)。

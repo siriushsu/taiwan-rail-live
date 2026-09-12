@@ -4,7 +4,7 @@
 //   之後每個日型各跑一次 SYSTEM=thsr_sched TIMETABLE=<日型檔> OUT=<結果檔> node scripts/optimize_physical_dispatch.mjs,
 //   再 node scripts/assemble_physical_dispatch.mjs output/dispatch-passthrough.json <結果檔...>、node scripts/pack_physical_network.mjs。
 import fs from 'node:fs';
-import {makeTopology} from '../rail-3d/physical/topology.js';
+import {restorePhysicalRoutes} from './lib/restore_physical_routes.mjs';
 import {distanceM} from '../rail-3d/integration/train-path.js';
 import {stationKey} from '../rail-3d/physical/timing.js';
 import {physicalTrainKey,physicalStopSignature} from '../rail-3d/physical/plan-binding.js';
@@ -12,22 +12,8 @@ const root=new URL('../',import.meta.url),read=p=>JSON.parse(fs.readFileSync(new
 const dayFiles=process.argv.slice(2);if(!dayFiles.length)throw Error('必須指定高鐵逐日時刻表(TDX Rail/THSR/DailyTimetable/TrainDate 原始回應)');
 const net=read('rail-3d/physical/network.json'),dispatch=read('rail-3d/physical/dispatch.json');
 
-// 1. 路網底稿:network.json 保留全部來源股道、節點座標、節點標記與系統歸屬。
-const nodes={};for(const w of net.ways)w.nodes.forEach((id,i)=>{nodes[id]=w.coordinates[i];});
-const source={source:net.source,nodeSource:net.nodeSource,ways:net.ways.map(w=>({id:w.id,tags:w.tags,nodes:w.nodes})),nodes,nodeTags:net.nodeTags,systemByWay:Object.fromEntries(net.ways.map(w=>[w.id,w.system]))};
-const g=makeTopology(source);
-
-// 2. 舊路徑原編號還原(台鐵／林鐵派車直接引用這些編號),每一條都必須逐邊對回拓撲。
-const paths=[];
-for(const [pid,p] of Object.entries(net.paths)){
- const edgeIds=[],nodeIds=[];
- for(const [wi,ix,steps] of p.walk){const w=net.ways[wi],dir=Math.sign(steps);for(let k=0;k<Math.abs(steps);k++){const e=ix+k*dir,[from,to]=dir>0?[w.nodes[e],w.nodes[e+1]]:[w.nodes[e+1],w.nodes[e]];if(!nodeIds.length)nodeIds.push(from);else if(nodeIds.at(-1)!==from)throw Error('舊路徑不連續 '+pid);nodeIds.push(to);edgeIds.push(w.id+':'+e);}}
- for(const id of edgeIds)if(!g.edges.has(id))throw Error('舊路徑的邊不在拓撲 '+pid+' '+id);
- if(nodeIds[0]!==p.from||nodeIds.at(-1)!==p.to)throw Error('舊路徑端點不符 '+pid);
- paths[+pid]={from:p.from,to:p.to,fromGroup:p.fromGroup,toGroup:p.toGroup,system:p.system,nodeIds,edgeIds,lengthM:p.lengthM,preference:p.preference};
-}
-for(let i=0;i<paths.length;i++)if(!paths[i])paths[i]=null;
-const edges={};for(const e of g.edges.values())edges[e.id]={a:e.a,b:e.b,resource:e.resource,length:e.length,wayId:e.wayId,system:e.system,tags:e.tags};
+// 1–2. 路網底稿與舊路徑原編號還原(台鐵／林鐵派車直接引用這些編號):與出貨閘門共用 lib/restore_physical_routes.mjs。
+const {source,g,paths,edges}=restorePhysicalRoutes(net);
 
 // 3. 高鐵停車候選。高鐵站只停 OSM 標的停車點,不用推估點;有通過線的車站,外側側線才是到發線(月台),
 //    內側正線只供通過——停靠列車一律停外側、通過列車一律走內側(使用者 2026-09-12 指正,桃園最明顯)。
@@ -106,6 +92,8 @@ write('.cache/physical-tracks/routed-source.json',source);
 write('.cache/physical-tracks/routes.json',result);
 write('.cache/physical-tracks/timetable.json',trains);
 days.forEach((d,i)=>{d.file='.cache/physical-tracks/timetable-thsr-'+i+'.json';write(d.file,d.trains);});
+// 日型索引:哪幾天、哪些班同一天跑。assemble 把它嵌進 dispatch.json(groups),出貨閘門才能逐日型重算零交疊。
+write('.cache/physical-tracks/timetable-thsr-days.json',days.map(d=>({file:d.file.split('/').at(-1),dates:d.files.map(f=>f.replace(/\.json$/,'')),trains:d.trains.map(t=>t.id)})));
 write('output/dispatch-coord-all.json',{plans:dispatch.plans});
 write('output/dispatch-passthrough.json',{plans:passthrough,handoffs:dispatch.handoffs||[],conflicts:0,failures:[],source:net.source,nodeSource:net.nodeSource});
 console.log(JSON.stringify({oldPaths:Object.keys(net.paths).length,edges:Object.keys(edges).length,thsrPairs:pairs.size,thsrPaths:paths.length-Object.keys(net.paths).length,droppedOtherSide:dropped,passthroughPlans:Object.keys(passthrough).length,thsrTrains:seen.size,days:days.map(d=>({file:d.file,trains:d.trains.length,dates:d.files})),stations:report},null,1));

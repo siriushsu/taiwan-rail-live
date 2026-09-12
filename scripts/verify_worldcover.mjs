@@ -1,6 +1,23 @@
 import {chromium,webkit} from 'playwright';
 import fs from 'node:fs';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
 const base=process.env.BASE_URL||'http://127.0.0.1:5228/';
+const repo=path.join(path.dirname(fileURLToPath(import.meta.url)),'..');
+// 開跑前先確認 BASE_URL 服的是這棵樹。2026-09-12 踩過：預設的 5228 被一支跑了四天的舊 server 佔住,
+// `curl` 照樣回 200、閘門照樣全綠,量到的卻全是四天前的樹。只加連線逾時擋不住這種——要比對內容。
+{
+  const localBuild=/^const BUILD = '([^']+)'/m.exec(fs.readFileSync(path.join(repo,'index.html'),'utf8'))?.[1];
+  let served=null;
+  try{const r=await fetch(base);if(!r.ok)throw Error('HTTP '+r.status);served=/const BUILD = '([^']+)'/.exec(await r.text())?.[1];}
+  catch(e){console.error(`FAIL 前置 ${base} 連不上（${e.message}）——先起 server 再跑`);process.exit(1);}
+  if(!served||served!==localBuild){
+    console.error(`FAIL 前置 ${base} 服的是 BUILD ${served??'(讀不到)'},本機 index.html 是 ${localBuild}——那個埠上是別棵樹`);
+    process.exit(1);}
+  console.log(`前置：${base} 服的是 BUILD ${served}，與本機相同`);
+}
+// 板橋檢查點的株數每個引擎各記一筆,跑完兩引擎再互相對照(見檔尾 CL-COUNT)。
+const urbanCount={};
 const output='output/worldcover-0908';fs.mkdirSync(output,{recursive:true});
 const results=[];
 function check(name,pass,detail){results.push({name,pass,detail});console.log((pass?'PASS ':'FAIL ')+name+' '+JSON.stringify(detail??''));}
@@ -36,14 +53,19 @@ for(const [name,engine]of Object.entries({chromium,webkit})){
   // 關掉 OSM 林地顯示，確認 ESA 的小塊林地本身能產生樹群，不只掛了空的資料來源。
   await page.evaluate(()=>{M.raw.setLayoutProperty('landcover_wood','visibility','none');M.raw.jumpTo({center:[121.4640,25.0140],zoom:16.5,pitch:55,bearing:0});});
   check(name+' 都市綠地取樣有收斂',await treesSettled(page));
-  let stats=await page.evaluate(()=>{const s=railIslandIntegration.renderer.stats.landscape;return {count:s.count,cap:s.cap,worldcoverCount:s.worldcoverCount,osmCount:s.osmCount,patches:s.patches,broadSkipped:s.broadSkipped,maxBuildMs:s.maxBuildMs,maxWorkSliceMs:s.maxWorkSliceMs,yields:s.yields,error:s.error};});
+  let stats=await page.evaluate(()=>{const s=railIslandIntegration.renderer.stats.landscape;return {count:s.count,cap:s.cap,worldcoverCount:s.worldcoverCount,osmCount:s.osmCount,patches:s.patches,broadSkipped:s.broadSkipped,checks:s.checks,maxBuildMs:s.maxBuildMs,maxWorkSliceMs:s.maxWorkSliceMs,yields:s.yields,error:s.error};});
   check(name+' ESA 小塊綠地提供立體樹群',stats.worldcoverCount>0&&stats.osmCount===0&&stats.count<=stats.cap,stats);
   check(name+' 樹群取樣分批且單次工作低於 50ms',stats.yields>1&&stats.maxWorkSliceMs<50&&!stats.error,stats);
+  // 株數本身要有具名斷言。原本三條判準都只問「有沒有樹／來源對不對／有沒有超過上限」,
+  // 於是 2026-09-12 出現過一次 22→156 的七倍暫態而全鏈照綠(十次量測裡九次是 22、checks 恆 640,
+  // 那一次重現不出來也歸因不了)。不釘死數字——ESA 圖磚換版就會假紅——只擋「逼近上限」。
+  urbanCount[name]=stats.count;
+  check(name+' 都市綠地株數未逼近上限',stats.count>0&&stats.count<stats.cap*.5,{count:stats.count,cap:stats.cap,checks:stats.checks});
   // 整片山區的 ESA 林地只負責地面顏色：底圖照樣是綠的（正向對照），但一株樹都不長。
   await page.evaluate(()=>M.raw.jumpTo({center:[120.9530,22.6100],zoom:16.5,pitch:55,bearing:0}));
   check(name+' 整片山區取樣有收斂',await treesSettled(page));
   const broad=await page.evaluate(()=>{const s=railIslandIntegration.renderer.stats.landscape;
-   return {count:s.count,worldcoverCount:s.worldcoverCount,broadSkipped:s.broadSkipped,patches:s.patches,maxBuildMs:Math.round(s.maxBuildMs),
+   return {count:s.count,worldcoverCount:s.worldcoverCount,broadSkipped:s.broadSkipped,patches:s.patches,checks:s.checks,maxBuildMs:Math.round(s.maxBuildMs),
     esaWood:M.raw.queryRenderedFeatures({layers:['landscape-worldcover-wood']}).length};});
   check(name+' 整片山區只上色不長樹',broad.esaWood>0&&broad.broadSkipped>0&&broad.count===0,broad);
   await page.evaluate(()=>{M.raw.setLayoutProperty('landcover_wood','visibility','visible');M.raw.jumpTo({center:[121.5795,24.9968],zoom:16.5,pitch:55,bearing:0});});
@@ -66,6 +88,15 @@ for(const [name,engine]of Object.entries({chromium,webkit})){
   check(name+' 分類圖磚斷線仍可顯示既有底圖和列車',await page.evaluate(()=>!!M.raw.getSource('openmaptiles')&&railIslandIntegration.errors.length===0&&state.ready));
  }catch(e){check(name+' 公開圖資流程',false,String(e.stack));}
  await browser.close();
+}
+// CL-COUNT：同一個檢查點、同一份資料,兩個引擎長出來的株數不該差一個量級。
+// 這是唯一抓得到 2026-09-12 那個七倍暫態的判準——它當時兩引擎一邊 22 一邊 156,而所有既有判準全綠。
+// 倍數取 3：實測正常狀態兩引擎完全相同(十次量測全是 22),留 3 倍給圖磚到貨時序的抖動,
+// 仍遠小於那次 7.1 倍。分母為零由上面的「株數未逼近上限」擋,這裡只在兩邊都有值時才判。
+{
+  const [a,b]=Object.values(urbanCount),RATIO=3;
+  if(Object.keys(urbanCount).length<2)check('跨引擎株數對照的分母齊全',false,urbanCount);
+  else check('兩引擎的都市綠地株數同一量級',Math.max(a,b)<=Math.min(a,b)*RATIO,{...urbanCount,ratio:+(Math.max(a,b)/Math.max(1,Math.min(a,b))).toFixed(2),limit:RATIO});
 }
 fs.writeFileSync(output+'/results.json',JSON.stringify(results,null,2));
 console.log(results.filter(r=>r.pass).length+'/'+results.length+' 通過');if(results.some(r=>!r.pass))process.exitCode=1;

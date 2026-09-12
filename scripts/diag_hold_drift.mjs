@@ -14,7 +14,15 @@ await p.evaluate(() => {
   if (g) selectGroup(g);
 });
 await p.waitForTimeout(2500);
-await p.evaluate(() => window.__map.fitBounds([[24.90, 121.30], [25.25, 121.75]], { animate: false }));
+// 框視野走適配層 window.__M(不是 window.__map)。__map 是 M.raw＝裸的 maplibregl.Map:它有 fitBounds,
+// 但吃的是 [lng, lat],而這裡傳的是 Leaflet 慣例的 [lat, lng] ⇒ 緯度 121.3 超出 ±90,MapLibre 的 LngLat
+// 建構式當場拋 Invalid LngLat latitude value,整支腳本中斷(不是靜靜框到別的地方——相機一步都沒動)。
+// 適配層的 fitBounds 自己做 [lat,lng]→LngLat 轉換,傳原樣即可。
+await p.evaluate(() => window.__M.fitBounds([[24.90, 121.30], [25.25, 121.75]], { animate: false }));
+// 框到哪裡直接印出來:這支的每一列輸出都建立在「北捷整張網在畫面內」之上,框歪了會長得像「今天沒車」。
+const _view = await p.evaluate(() => { const c = window.__M.getCenter(), b = window.__M.getBounds();
+  return `中心 ${c.lat.toFixed(4)},${c.lng.toFixed(4)} z${window.__M.getZoom().toFixed(1)} ｜ 南北 ${b.getSouth().toFixed(3)}~${b.getNorth().toFixed(3)} 東西 ${b.getWest().toFixed(3)}~${b.getEast().toFixed(3)}`; });
+console.log('視野:', _view);
 await p.waitForTimeout(4000);
 
 for (let r = 0; r < ROUNDS; r++) {

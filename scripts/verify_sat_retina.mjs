@@ -177,6 +177,12 @@ async function followAnyTrain(page) {
 // 八個情境一起紅而且紅得像功能壞掉(window.__map 現在是 maplibregl.Map,見 index.html 的把手註解)。
 // 另外 satGlStyle 有一層固定 z6 的保底圖(source sat6,minzoom=maxzoom=6)＋warmSatUnderlayGl() 的
 // 預抓,那與解析度無關,單獨歸一格,否則 other===0 這種判準永遠不可能成立。
+// 🔴 別把下面十幾處 window.__map.getZoom() 「順手」改成 window.__M.getZoom()。其他驗收腳本裡
+//    window.__map.<Leaflet API> 一律是遷移沒跟上的 bug,但**這裡是對的**:上面那條公式
+//    (raster 圖磚層級 = 相機 zoom + log2(512/tileSize)) 吃的是 MapLibre 的**相機 zoom**,
+//    也就是 raw.getZoom();適配層的 getZoom() 已經加了 ML_Z=1 換成全站的 256px 尺度,
+//    換過去會讓 std/hiZ 整組偏移一格,現在全過的 38 條判準會一起翻紅(標準解析被算成 other、
+//    高解析被算成 base)。2026-09-11 實測基準:情境1 zoom=7、18 張圖磚全落在 std=8。
 const SAT_UNDERLAY_Z = 6;
 function classify(zooms, zoom) {
   const std = zoom + 1, hiZ = zoom + 2;
