@@ -9,13 +9,19 @@ import {
   ROOT,
   OUTPUT,
   MAX_TRANSFER_DISTANCE_M,
+  DUPLICATE_ROUTE_SOURCES,
   buildTransferData,
   haversineMeters,
   loadSourceData,
 } from './build_station_transfers.mjs';
 
 const mutation = process.env.TRANSFER_MUTATION || 'none';
-const mutationModes = new Set(['none', 'zero-distance', 'drop-reverse-route', 'drop-tra-source']);
+const mutationModes = new Set([
+  'none', 'zero-distance', 'drop-reverse-route', 'drop-tra-source',
+  // 考「重複來源排除」這一層：keep-duplicate-route 讓重建端不排除（考產物一致性與涵蓋率斷言），
+  // inject-duplicate-route 把重複那份塞回產物（考去重具名斷言本身）。
+  'keep-duplicate-route', 'inject-duplicate-route',
+]);
 if (!mutationModes.has(mutation)) throw new Error(`未知 TRANSFER_MUTATION=${mutation}`);
 const verifyDistanceM = mutation === 'zero-distance' ? 0.01 : MAX_TRANSFER_DISTANCE_M;
 const reportPath = process.env.TRANSFER_VERIFY_REPORT ? path.resolve(ROOT, process.env.TRANSFER_VERIFY_REPORT) : null;
@@ -37,7 +43,19 @@ if (mutation === 'drop-reverse-route') {
   target.routes = target.routes.filter(route => route !== 'TRTC:G');
   log(`MUTATION drop-reverse-route group=${target.id} removed=TRTC:G`);
 }
-const expected = buildTransferData({ maxDistanceM: verifyDistanceM, includeTra: mutation !== 'drop-tra-source' });
+if (mutation === 'inject-duplicate-route') {
+  const [excluded, spec] = Object.entries(DUPLICATE_ROUTE_SOURCES)[0];
+  const [system, lineId] = excluded.split(':');
+  product.routes[excluded] = { system, lineId, name: spec.label, lineDefinition: null };
+  const donor = Object.entries(product.stations).find(([key]) => key.startsWith(`${spec.keptRoute.split(':')[0]}:`));
+  product.stations[`${system}:${donor[0].split(':')[1]}`] = { ...donor[1], system, routes: [excluded], transferId: null };
+  log(`MUTATION inject-duplicate-route 塞回 ${excluded}`);
+}
+const expected = buildTransferData({
+  maxDistanceM: verifyDistanceM,
+  includeTra: mutation !== 'drop-tra-source',
+  excludeDuplicates: mutation !== 'keep-duplicate-route',
+});
 const source = loadSourceData();
 
 // ── 待通車新站：把「站進來時每個計數會變成多少」事先寫成預測 ──────────────────
@@ -91,11 +109,11 @@ check('待通車站清單與 fetch_tra.py 同步', () => {
 });
 
 check('產物與目前來源及配對規則完全一致', () => assert.deepEqual(product, expected));
-check(`涵蓋率具名斷言：12 系統／全網 ${562 + dLine} 站／${579 + dLine} 路線會員（待通車 ${pendingNote}）`, () => {
+check(`涵蓋率具名斷言：12 系統／全網 ${563 + dLine} 站／${580 + dLine} 路線會員（待通車 ${pendingNote}）`, () => {
   assert.equal(product.stats.sourceSystems, 12);
-  assert.equal(product.stats.stationRecords, 562 + dLine);
-  assert.equal(product.stats.routeMemberships, 579 + dLine);
-  assert.equal(Object.keys(product.stations).length, 562 + dLine);
+  assert.equal(product.stats.stationRecords, 563 + dLine);
+  assert.equal(product.stats.routeMemberships, 580 + dLine);
+  assert.equal(Object.keys(product.stations).length, 563 + dLine);
 });
 check('轉乘涵蓋具名斷言：58 轉乘站／涵蓋 109 站記錄／126 路線會員', () => {
   assert.equal(product.stats.transferStations, 58);
@@ -103,6 +121,39 @@ check('轉乘涵蓋具名斷言：58 轉乘站／涵蓋 109 站記錄／126 路�
   assert.equal(product.stats.transferRouteMemberships, 126);
   assert.equal(product.stats.matchedStationPairs, 63);
 });
+
+// ── 重複來源去重：同一條實體線只准有一份 ──────────────────────────────────
+// 2026-09-12：TDX 把三鶯線同時掛在 NTMC 底下，與 repo 既有的 SANYING 來源重複。裁示留 SANYING。
+// 這條斷言刻意配一個**正向對照**：光說「產物裡沒有 NTMC:LB」是恆真的反向判準——上游哪天撤掉
+// 那份重複，判準照樣綠，但它已經什麼都沒在擋了。所以同時要求來源裡真的還有那條線。
+check(`重複來源去重：${Object.keys(DUPLICATE_ROUTE_SOURCES).join('、')} 被排除，留下的那一份恰好一套`, () => {
+  for (const [excluded, spec] of Object.entries(DUPLICATE_ROUTE_SOURCES)) {
+    const [system, lineId] = excluded.split(':');
+    // 正向對照：來源裡真的有這條重複，排除才有在做事
+    const sourceHas = loadSourceData(ROOT, { excludeDuplicates: false })
+      .stations.filter(station => station.routes.includes(excluded));
+    assert(sourceHas.length > 0, `來源裡找不到 ${excluded}：這條排除已經沒有在擋任何東西，請重新確認`);
+    // 產物裡不准有被排除的那一份
+    assert(!Object.hasOwn(product.routes, excluded), `產物含被排除的路線 ${excluded}`);
+    const leaked = Object.keys(product.stations).filter(key => key.startsWith(`${system}:${lineId}`));
+    assert.deepEqual(leaked, [], `產物含被排除的站 ${leaked.join('、')}`);
+    // 留下來的那一份要在，而且站數要與被排除的那份相同（少一站代表擇錯邊或來源殘缺）
+    const kept = Object.entries(product.stations)
+      .filter(([, station]) => station.routes.includes(spec.keptRoute)).map(([key]) => key).sort();
+    assert.equal(kept.length, sourceHas.length,
+      `${spec.label} 留下 ${kept.length} 站、被排除的那份有 ${sourceHas.length} 站，兩份站數不同`);
+    // 沒有任何轉乘群同時收了兩份（那就是「自己配自己」）
+    for (const group of product.transferStations) {
+      assert(!group.members.some(key => key.startsWith(`${system}:${lineId}`)),
+        `${group.id} 含被排除的成員`);
+    }
+    // 排除紀錄要寫在產物裡，讓讀產物的人看得到這件事發生過
+    const record = product.sourceSystems.find(item => item.system === system);
+    assert(record && (record.excludedDuplicateRoutes || []).includes(excluded),
+      `${system} 的 sourceSystem 沒有記下 excludedDuplicateRoutes=${excluded}`);
+  }
+});
+log(`DEDUP ${Object.entries(DUPLICATE_ROUTE_SOURCES).map(([k, v]) => `${k}→留 ${v.keptRoute}（${v.label}）`).join('、')}`);
 
 const traSource = product.sourceSystems.find(system => system.system === 'TRA');
 check(`台鐵來源具名斷言：三檔接線／${242 + dLine} 線網站／12 線／${256 + dLine} 路線會員`, () => {
