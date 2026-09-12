@@ -5445,6 +5445,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="trainhalo0912"><span class="d">9/12</span><span>列車周圍新增自然散開的柔光，夜晚呈暖色、白天沿用車次顏色，可在「更多」開關</span></li>
         <li data-cl-of="tainanmemory0912"><span class="d">9/12</span><span>新增台南地面鐵道重播，保留舊站、地面股道與封存班表</span></li>
         <li data-cl-of="platformtracks0912"><span class="d">9/12</span><span>車站裡不再有兩班車疊在同一條股道上，潮州、板橋、南港等站重新指派停靠月台</span></li>
         <li data-cl-of="estformation0912"><span class="d">9/12</span><span>柴聯自強與支線柴聯車的節數改標「推估編組」，不再和真的查不到編組的車種混為一談</span></li>
@@ -5452,8 +5453,6 @@
         <li data-cl-of="headlightspill0912"><span class="d">9/12</span><span>夜間車頭燈更明亮，近看時列車前方會灑下柔和的地面光</span></li>
         <li data-cl-of="namedtrains0912"><span class="d">9/12</span><span>山嵐號可以在地圖上認出來並跟車，環島之星與山海／平原號改畫成機車牽引的觀光列車</span></li>
         <li data-cl-of="afrphysical0912"><span class="d">9/12</span><span>阿里山林鐵恢復實際股道與之字形折返，近看也能看到站內配線</span></li>
-        <li data-cl-of="tmrtground0912"><span class="d">9/12</span><span>臺中捷運高鐵臺中站改為平面站，進站路段不再畫成高架橋</span></li>
-
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5461,6 +5460,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="trainhalo0912"><span class="d">9/12</span><span>列車周圍新增自然散開的柔光，夜晚呈暖色、白天沿用車次顏色，可在「更多」開關</span></li>
         <li data-cl="tainanmemory0912"><span class="d">9/12</span><span>從「更多」重播 9 月 12 日的台南地面鐵道，保留舊站、股道與班表，可調時間、加速、跟車並返回即時地圖。股道安排未確認的時段以車次標記呈現，不套用今天的誤點。</span></li>
         <li data-cl="landscapefixes0912"><span class="d">9/12</span><span>修正地下段多餘橋墩、洞口內的山體與路基閃動，橋墩改得更低調；明亮外觀預設關閉日夜光影，暗色預設開啟</span></li>
         <li data-cl="headlightspill0912"><span class="d">9/12</span><span>夜間車頭燈更明亮，近看時列車前方會灑下柔和的地面光</span></li>
@@ -6158,6 +6158,7 @@
     <button class="ms-row" id="trtcDiagExportRow" data-act="exportTrtcDiag" hidden><span>匯出捷運診斷</span><span class="chev">↓</span></button>
     <div class="ms-row ri-basemap-row"><span>地圖風格</span><div class="seg" id="msBasemapSeg" role="group" aria-label="地圖風格"><button type="button" data-map="light">明</button><button type="button" data-map="dark">暗</button><button type="button" data-map="sat">衛星</button><button type="button" data-map="landscape"><span>地景</span> <small class="ri-beta">Beta</small></button></div></div>
     <button class="ms-row" id="sunlightRow" type="button" role="switch" aria-checked="true" disabled title="光線跟隨地圖時間；傾斜地圖可看天空"><span>日夜光影</span><span class="toggle on"></span></button>
+    <button class="ms-row" id="trainHaloRow" type="button" role="switch" aria-checked="true"><span>列車光環</span><span class="toggle on"></span></button>
     <button class="ms-row" id="map3dRow" data-proxy="map3dBtn" style="display:none"><span>3D 建築</span><span class="toggle" data-tg="map3dBtn"></span></button>
     <button class="ms-row" data-act="garage" data-close="1"><span>我的車庫</span><span class="chev">›</span></button>
     <button class="ms-row" data-act="track"><span>軌道與路線</span><span class="chev">›</span></button>
@@ -6456,7 +6457,7 @@
 //         介紹卡／搜尋／收集章／3D 外觀全部自動接上，明星列車章 5→6 枚；環島之星與虛構的山海／平原號
 //         不再退回 EMU800 代表外觀，改成機車牽引的觀光列車（環島之星＝E500＋莒光客車）。
 //         守門人：verify_formations 新增具名覆蓋率斷言，名冊「有固定車次」的集合必須與對照表逐一相等。
-const BUILD = 'v0912m';
+const BUILD = 'v0912n';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -7243,6 +7244,28 @@ function createMaplibreEngine(containerId, view) {
 function createEngine(containerId, view) { return createMaplibreEngine(containerId, view); }
 // ==== ENGINE ADAPTER END ====
 
+// A 版固定夜間 100%、日間 70%；只保存開關，與日夜光影各自獨立。
+const TRAIN_HALO_PREF_KEY = 'trainmap-train-halo';
+let trainHaloEnabled = true, trainHaloStyle = null;
+try { trainHaloEnabled = localStorage.getItem(TRAIN_HALO_PREF_KEY) !== '0'; } catch (e) {}
+function syncTrainHaloUI() {
+  const row = document.getElementById('trainHaloRow');
+  row.setAttribute('aria-checked', String(trainHaloEnabled));
+  row.querySelector('.toggle').classList.toggle('on', trainHaloEnabled);
+}
+document.getElementById('trainHaloRow').onclick = () => {
+  trainHaloEnabled = !trainHaloEnabled;
+  try { localStorage.setItem(TRAIN_HALO_PREF_KEY, trainHaloEnabled ? '1' : '0'); } catch (e) {}
+  syncTrainHaloUI(); window.railIslandIntegration?.render();
+};
+syncTrainHaloUI();
+import('./rail-3d/integration/train-halo-style.js').then(m => { trainHaloStyle = m; }).catch(e => console.warn('列車光環載入失敗', e));
+function drawTrainHalo(p, color) {
+  if (!trainHaloEnabled || !trainHaloStyle) return;
+  const night = trainHaloStyle.haloNight(window.railIslandSunlight?.current, state.mapDark && state.basemap !== 'landscape');
+  const sprite = trainHaloStyle.haloSprite(color, night);
+  ctx.drawImage(sprite, p.x - 32, p.y - 32, 64, 64);
+}
 // 明亮外觀預設維持均勻照明；暗色外觀預設依播放時間顯示日夜光影。
 // 兩種外觀各自記住手動選擇，切換後不沿用另一種外觀的開關。
 const SUNLIGHT_PREF_KEY = 'trainmap-sunlight-v2';
@@ -12425,6 +12448,7 @@ function drawTag(p, label, bg, fg) {
   if (opacity <= 0) return;
   ctx.save(); ctx.globalAlpha = opacity;
   try {
+    drawTrainHalo(p, bg);
     // textAlign 必須自己設:draw() 每幀結尾重設為 start,靠環境值會讓車號從中心點往右起筆(偏右半個字寬)
     ctx.font = '700 10px ' + FONT; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
     const pw = ctx.measureText(label).width + TAG_PAD, ph = TAG_H, rx = 7.5;
@@ -12456,6 +12480,7 @@ function drawTymcKindTag(p, kind, color, fg) {
   if (opacity <= 0) return;
   ctx.save(); ctx.globalAlpha = opacity;
   try {
+    drawTrainHalo(p, color);
     const exp = kind === 'exp';
     ctx.font = '700 ' + TYMC_TAG_FONT + 'px ' + FONT; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
     const label = t(TYMC_KIND_TAG[kind]);
@@ -12490,6 +12515,7 @@ function drawDot(p, color) {
   if (opacity <= 0) return;
   ctx.save(); ctx.globalAlpha = opacity;
   try {
+    drawTrainHalo(p, color);
     if (state.mapDark && state.basemap !== 'sat' && state.basemap !== 'landscape') {
       ctx.save();
       ctx.fillStyle = color; ctx.globalAlpha = opacity * (.12); ctx.beginPath(); ctx.arc(p.x,p.y,11,0,7); ctx.fill();
@@ -12720,6 +12746,7 @@ function drawHSRTag(p, label) {
   if (opacity <= 0) return;
   ctx.save(); ctx.globalAlpha = opacity;
   try {
+    drawTrainHalo(p, HSR_ORANGE);
     ctx.font = '700 10px ' + FONT; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
     const pw = ctx.measureText(label).width + HSR_TAG_PAD, ph = TAG_H, nose = HSR_NOSE;
     const x0 = p.x - pw / 2, x1 = p.x + pw / 2, y0 = p.y - ph / 2, y1 = p.y + ph / 2;
@@ -12737,6 +12764,7 @@ function drawHSRDot(p) {
   if (opacity <= 0) return;
   ctx.save(); ctx.globalAlpha = opacity;
   try {
+    drawTrainHalo(p, HSR_ORANGE);
     ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, 7);
     ctx.fillStyle = HSR_ORANGE; ctx.globalAlpha = opacity * (0.2); ctx.fill(); ctx.globalAlpha = opacity * (1);
     ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.PI / 4); // 白底菱形＋橘框,低倍率也與台鐵圓點區分
