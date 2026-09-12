@@ -160,6 +160,10 @@ try {
   process.stdout.write(overlap.stdout || ''); process.stderr.write(overlap.stderr || '');
   if (overlap.status !== 0) fail('實體股道上的列車互穿檢查未通過（單獨重跑：npm run check-physical-overlap）');
 
+  const stationRoutes = spawnSync('node', [path.join(wt, 'scripts', 'verify_verified_station_routes.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(stationRoutes.stdout || ''); process.stderr.write(stationRoutes.stderr || '');
+  if (stationRoutes.status !== 0) fail('具名派軌、太麻里月台來源、非電化限制或接站連續驗證未通過');
+
   const terrainChunks = spawnSync('node', [path.join(wt, 'scripts', 'verify_terrain_chunk_cache.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(terrainChunks.stdout || ''); process.stderr.write(terrainChunks.stderr || '');
   if (terrainChunks.status !== 0) fail('地形分片快取未通過——忽略 Range 的伺服器會被重複下載同一片（單獨重跑：npm run check-terrain-chunk-cache）');
