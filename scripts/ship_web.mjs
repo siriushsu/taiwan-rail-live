@@ -145,6 +145,21 @@ try {
   const structureHeights = spawnSync('node', [path.join(wt, 'scripts', 'verify_rail_structure_heights.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(structureHeights.stdout || ''); process.stderr.write(structureHeights.stderr || '');
   if (structureHeights.status !== 0) fail('橋隧種類或顯示高度未通過（單獨重跑：npm run check-rail-structure-heights）');
+  // 2026-09-12：地形分片的 Range 在 Cloudflare 靜態資產上不生效（要 16 KB 回 200 ＋整個 8 MB），
+  // 開站一次白抓 96 MB。本機 dev_server 會正確回 206 ⇒ 瀏覽器驗收在這件事上結構性失明，
+  // 這一支自己造一台照 Cloudflare 行為的伺服器來考，另配一台回 206 的當正向對照。
+  // 兩列車互相穿越:issue #17 的防追撞在 0f5bb774 被 railIslandPhysical.has() 短路掉之後,台鐵整整
+  // 五天是 100% 死碼,而唯一那支相關閘門(verify_no_overtake)量的是示意線形管線、照樣全綠。
+  // 🔴 所以這支一定要掛在出貨鏈上,而且它自己會先具名斷言「physical 已就緒、has() 覆蓋 918/918」
+  //    ——分母塌掉的話它會紅,不會像前一支那樣靜靜地驗錯管線。全日重放約五分鐘,不接受縮短取樣:
+  //    BASE_A/B/C/OPP 那幾個棘輪基線是在 SAMPLE=120 下量的,改取樣密度會讓棘輪失去意義。
+  const overlap = spawnSync('node', [path.join(wt, 'scripts', 'verify_physical_no_overlap.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(overlap.stdout || ''); process.stderr.write(overlap.stderr || '');
+  if (overlap.status !== 0) fail('實體股道上的列車互穿檢查未通過（單獨重跑：npm run check-physical-overlap）');
+
+  const terrainChunks = spawnSync('node', [path.join(wt, 'scripts', 'verify_terrain_chunk_cache.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(terrainChunks.stdout || ''); process.stderr.write(terrainChunks.stderr || '');
+  if (terrainChunks.status !== 0) fail('地形分片快取未通過——忽略 Range 的伺服器會被重複下載同一片（單獨重跑：npm run check-terrain-chunk-cache）');
   const guangci = spawnSync('node', [path.join(wt, 'scripts', 'verify_guangci_tracks.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(guangci.stdout || ''); process.stderr.write(guangci.stderr || '');
   if (guangci.status !== 0) fail('廣慈延伸段雙軌連通性或來源座標未通過');

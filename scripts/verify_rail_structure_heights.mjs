@@ -186,17 +186,150 @@ for(const s of ['thsr_sched','tra_sched']){let shown=0,raw=0;for(const w of ways
 // 門檻 .1 公里：修後全網 0.00 公里；正向對照兩個——修前那份產物（28b0fc8b）要紅在 19.6 公里，合成「整段壓低 2 公尺」要被量到。
 const dem=openRailDem(new URL('../',import.meta.url)),shownAt=(e,s)=>{let i=0,j=e.distances.length-1;while(j-i>1){const m=(i+j)>>1;if(e.distances[m]<=s)i=m;else j=m;}const t=Math.max(0,Math.min(1,(s-e.distances[i])/(e.distances[j]-e.distances[i]||1)));return e.terrainValues[i]*(1-t)+e.terrainValues[j]*t;};
 let buriedKm=0,checkedKm=0;const buriedBy={};
+// G6f 的量測搭在同一趟 DEM 取樣上：方向相反，成本為零。
+const FLOAT_OVER=10,floatBy={};
+// 判定與累計只寫一次,真掃描與正向對照共用同一支。分開寫過一次:2026-09-12 的突變測試把
+// 真掃描的門檻改成 1e9(等於關掉偵測),對照組自己算自己的、照樣全綠——控制組驗不到被弄壞的
+// 那條路徑就等於沒有控制組。
+const addFloat=(bucket,sys,shown,g,wayId)=>{const up=shown-g;if(!(up>FLOAT_OVER))return;
+ const t=bucket[sys]??={km:0,max:0,id:null};t.km=+(t.km+.01).toFixed(2);if(up>t.max){t.max=up;t.id=String(wayId);}};
 for(const w of ways){const e=E[String(w.id)];if(!e?.terrainValues||e.kind!=='surface')continue;const path=makePath(w.coordinates);
- for(let s=5;s<path.length;s+=10){const g=await dem.ground(path.at(s).coordinate);if(!Number.isFinite(g))continue;checkedKm+=.01;if(shownAt(e,s)<g-.5){buriedKm+=.01;buriedBy[w.system]=+((buriedBy[w.system]||0)+.01).toFixed(2);}}}
+ for(let s=5;s<path.length;s+=10){const g=await dem.ground(path.at(s).coordinate);if(!Number.isFinite(g))continue;checkedKm+=.01;
+  const shown=shownAt(e,s);
+  if(shown<g-.5){buriedKm+=.01;buriedBy[w.system]=+((buriedBy[w.system]||0)+.01).toFixed(2);}
+  addFloat(floatBy,w.system,shown,g,w.id);}}
 if(checkedKm<1500)failures.push(`G6 平面段取樣只有 ${checkedKm.toFixed(0)} 公里，分母異常縮水（2026-09-12 基準約 1630）`);
 if(buriedKm>.1)failures.push(`G6 平面段有 ${buriedKm.toFixed(2)} 公里埋在地形底下逾 .5 公尺（${JSON.stringify(buriedBy)}）`);
 {const w=ways.find(w=>E[String(w.id)]?.kind==='surface'&&E[String(w.id)].terrainValues),e=E[String(w.id)],fake={...e,terrainValues:e.terrainValues.map(v=>v-2)},path=makePath(w.coordinates);let hit=0;
  for(let s=5;s<path.length;s+=10){const g=await dem.ground(path.at(s).coordinate);if(Number.isFinite(g)&&shownAt(fake,s)<g-.5)hit++;}
  if(!hit)failures.push(`G6 正向對照失效：平面 way ${w.id} 整段壓低 2 公尺沒被量到`);}
+// ── G6f 露天平面段不浮在地形上（與 G6e 反向）────────────────────────
+// 為什麼要有這條:G6e 只量「埋進地形」,浮在地形上的方向**沒有任何閘門在看**,於是
+// 2026-09-12 量到台鐵現行出貨就有 6.49 公里浮空 >10m(最高 29.9m)——最糟六條全是
+// 「很短、兩端接橋或隧道、身上沒有 bridge 標籤」的形狀,被 G6 接縫規則正確地拉到橋面高度,
+// 跨谷時就用道碴從軌面拉到地面畫成實心擋牆。全網這個形狀有 268 條/41.29 km。
+// 🔴 下面是**已知缺陷的棘輪基準,不是目標值**:求解器修好之後這組數字要一起收到 0。
+// 它現在的作用只有兩個:(a) 擋住惡化 (b) 讓「不在名單裡的系統」不能靜悄悄帶著浮空上線。
+const FLOAT_BASELINE={
+ tra_sched:{km:6.6,max:31},   // 2026-09-12 實測 6.49km / 29.9m
+ thsr_sched:{km:.3,max:15},   // 2026-09-12 實測 0.12km / 13.6m
+ afr_sched:{km:14.2,max:130}, // 實測 13.86km / 126.6m——這就是林鐵還沒進 PHYSICAL_SYSTEMS 的原因
+ ntalrt:{km:.05,max:12},      // 實測 0.01km / 10.2m(way 1274452662),單一取樣點剛過門檻
+};
+for(const [sys,t] of Object.entries(floatBy)){
+ const b=FLOAT_BASELINE[sys];
+ if(!b){failures.push(`G6f ${sys} 不在浮空基準表裡卻有 ${t.km.toFixed(2)} 公里浮空 >${FLOAT_OVER}m（最高 ${t.max.toFixed(1)}m @way ${t.id}）——新系統不得帶著浮空上線`);continue;}
+ if(t.km>b.km)failures.push(`G6f ${sys} 平面段浮空 >${FLOAT_OVER}m 有 ${t.km.toFixed(2)} 公里，超過基準 ${b.km}（最高 ${t.max.toFixed(1)}m @way ${t.id}）`);
+ if(t.max>b.max)failures.push(`G6f ${sys} 平面段單點浮空 ${t.max.toFixed(1)}m，超過基準 ${b.max}m @way ${t.id}`);
+}
+// 正向對照:把一條真的平面 way 整段抬高 40 公尺,餵進**同一支** addFloat,必須量得到。
+{const w=ways.find(w=>E[String(w.id)]?.kind==='surface'&&E[String(w.id)].terrainValues),e=E[String(w.id)],
+  fake={...e,terrainValues:e.terrainValues.map(v=>v+40)},path=makePath(w.coordinates),ctl={};
+ for(let s=5;s<path.length;s+=10){const g=await dem.ground(path.at(s).coordinate);if(Number.isFinite(g))addFloat(ctl,'ctl',shownAt(fake,s),g,w.id);}
+ if(!(ctl.ctl?.km>0))failures.push(`G6f 正向對照失效：平面 way ${w.id} 整段抬高 40 公尺沒被量到`);}
+notes.平面浮空 = Object.fromEntries(Object.entries(floatBy).map(([s,t])=>[s,t.km.toFixed(2)+'km/'+t.max.toFixed(1)+'m']));
+
+// ── G5b 隧道段軌面高於地表 ⇒ 整段完全不畫 ──────────────────────────
+// map3d.js 的 buriedDraw 在 coverM<=0 時回 'none',那一段一根線都不畫(刻意的:畫出來就是
+// 一條浮在半空的線)。但**沒有人在數它**:2026-09-12 全網有 4.56 公里隧道因此完全不畫。
+// G5 驗的是「穿透地表」與「深層不准穿透」,cover<=0 這一格不在它的判準裡。
+// 這裡用的 coverM 公式與 route-runtime.js 的 levelAt 逐字相同——目的是重現**算繪端的判斷**,
+// 不是量物理真值(values-offsets 不是地表,那條基準先前已證實不可用)。
+{
+ // 2026-09-12 收緊: 併入 ship-main 23e86b67(layer<0 不再單獨當隧道證據)之後 4.55→3.23km,
+ // 台鐵 1.216→0.175、高捷與淡海輕軌整個歸零。剩下的 3.23 仍是已知缺陷不是目標值。
+ const INVISIBLE_BASELINE=3.4;
+ const sysOfWay=new Map(ways.map(w=>[String(w.id),w.system]));
+ // 同上:判定寫一次,對照組餵假剖面進同一支。
+ const noCover=(e,i)=>e.values[i]-e.offsets[i]-e.terrainValues[i]<=0;
+ const tally={};let total=0,bores=0;
+ for(const [id,e] of Object.entries(E)){
+  if(e.kind!=='tunnel'||!e.terrainValues)continue;
+  bores++;const sys=sysOfWay.get(id)||'?';
+  for(let i=1;i<e.terrainValues.length;i++){
+   if(noCover(e,i)){const L=(e.distances[i]-e.distances[i-1])/1000;tally[sys]=+((tally[sys]||0)+L).toFixed(3);total+=L;}}}
+ if(bores<600)failures.push(`G5b 只量到 ${bores} 條有剖面的隧道 way，分母異常縮水（2026-09-12 基準 701）`);
+ if(total>INVISIBLE_BASELINE)failures.push(`G5b 隧道有 ${total.toFixed(2)} 公里軌面高於地表、整段不會被畫出來，超過基準 ${INVISIBLE_BASELINE}（${JSON.stringify(tally)}）`);
+ // 正向對照:把一條隧道的軌面整段抬到地表之上(terrainValues 是軌面高,values-offsets 是地表,
+ // 所以抬軌面＝加),覆土必須變成負的、同一把尺必須量得到。
+ const tid=Object.keys(E).find(id=>E[id].kind==='tunnel'&&E[id].terrainValues),te=E[tid];
+ const fakeT={...te,terrainValues:te.terrainValues.map(v=>v+9999)};
+ let ctl=0;for(let i=1;i<te.terrainValues.length;i++)if(noCover(fakeT,i))ctl++;
+ if(!ctl)failures.push(`G5b 正向對照失效：way ${tid} 的軌面整段抬高 9999 公尺仍被判定為有覆土`);
+ notes.隧道完全不畫 = +total.toFixed(2);notes.隧道完全不畫分系統 = tally;
+}
 notes.平面埋沒公里 = +buriedKm.toFixed(2);notes.平面取樣公里 = +checkedKm.toFixed(0);
 notes.露天縱坡最陡 = Object.fromEntries(Object.entries(steepest).map(([s,{g}])=>[s,(100*g).toFixed(1)+'%']));notes.接縫 = seams.n;notes.接縫最大落差 = +seams.worst.toFixed(2);
 
 
+// ── G7 隧道要有證據：layer<0 不算 ──────────────────────────────────
+// 2026-09-12 回報兩處「平地上立著一個洞口」：縱貫線中洲–大湖與宜蘭線牡丹。兩處的來源標記
+// 都只有 layer=-1／-2、沒有 tunnel=yes，兩端接的還都是橋——OSM 用 layer 記「有東西從上面跨過去」，
+// 被當成了隧道。症狀有兩個：洞口憑空出現，以及整段軌道被當成地下段而完全不畫（雙線只剩一條）。
+// structure-kind.js 檔頭早就寫明「layer 不能單獨作為結構的證據」，橋的方向照做了，隧道沒有。
+// 修法在 build_rail_levels.mjs：沒有明示標記的隧道段，要 DEM 地形起伏站得住腳才留。
+// 這一條驗的是修法還在，而且**期望值不取產物自己算的 reliefM**（同源等於零資訊）——
+// 這裡拿 DEM 重算一次，門檻直接從 build_rail_levels.mjs 的原始碼讀，不另抄一份常數。
+{
+ const src=fs.readFileSync('scripts/build_rail_levels.mjs','utf8');
+ const RELIEF=Number(/MOUNTAIN_RELIEF_M=(\d+(?:\.\d+)?)/.exec(src)?.[1]);
+ if(!(RELIEF>0))failures.push('G7 build_rail_levels.mjs 找不到 MOUNTAIN_RELIEF_M，山岳門檻不明');
+ else{
+  const officialKindOf=id=>official.entries[id]?.kind;
+  const evidenceOf=w=>w.tags?.tunnel==='yes'||w.tags?.location==='underground'||officialKindOf(String(w.id))==='tunnel';
+  const tunnelWay=w=>E[String(w.id)]?.kind==='tunnel';
+  const byNode=new Map();for(const w of ways)for(const n of w.nodes){const k=w.system+':'+n;if(!byNode.has(k))byNode.set(k,[]);byNode.get(k).push(w);}
+  // 與 build_rail_levels.mjs 同一套取樣：沿線每 50 公尺一點，基準取各洞口節點的地表平均。
+  const reliefOf=async run=>{
+   const member=new Set(run.map(w=>String(w.id))),grounds=[],portalGround=[];
+   for(const w of run){const path=makePath(w.coordinates),len=path.length,n=Math.max(4,Math.min(240,Math.round(len/50)));
+    for(let i=0;i<=n;i++){const g=await dem.ground(path.at(Math.min(len*i/n,len-1e-3)).coordinate);if(Number.isFinite(g))grounds.push(g);}
+    for(const i of [0,w.nodes.length-1])if((byNode.get(w.system+':'+w.nodes[i])||[]).some(o=>!member.has(String(o.id)))){
+     const g=await dem.ground(w.coordinates[i]);if(Number.isFinite(g))portalGround.push(g);}}
+   if(!grounds.length)return null;
+   const base=portalGround.length?portalGround.reduce((a,b)=>a+b,0)/portalGround.length:Math.min(...grounds);
+   return Math.max(...grounds)-base;
+  };
+  const placed=new Set(),runs=[];
+  for(const w of ways){if(!tunnelWay(w)||placed.has(String(w.id)))continue;
+   const stack=[w],run=[];placed.add(String(w.id));
+   while(stack.length){const cur=stack.pop();run.push(cur);
+    for(const n of cur.nodes)for(const o of byNode.get(cur.system+':'+n)||[])if(tunnelWay(o)&&!placed.has(String(o.id))){placed.add(String(o.id));stack.push(o);}}
+   runs.push(run);}
+  let noEvidence=0,bad=[];
+  for(const run of runs){
+   if(run.some(evidenceOf))continue;
+   noEvidence++;
+   const relief=await reliefOf(run);
+   if(relief===null||relief<RELIEF)bad.push(`${run[0].system}/${run.map(w=>w.id).join('+')} 起伏 ${relief===null?'?':relief.toFixed(1)}m`);
+  }
+  // 分母具名斷言。修好之後「整段都沒有明示標記」的連續段是 0（那正是合格的樣子），所以分母不能拿它，
+  // 要拿**自己沒有明示標記、靠同段鄰居的標記留下來**的 way：那才是這條規則實際在裁決的對象。
+  // 2026-09-12 實測：324→338 段（改判後拆出新的獨立段），靠鄰居留下的 way 恰好 2 條——
+  // 宜蘭線 1181895950 與臺東線 1021846211，兩條都只有 layer=-1／-2、卻真的在穿山。
+  // 這兩條就是下面具名回歸的對象；數字掉到 0 代表規則把它們一起砍了。
+  const ridingOnNeighbour=ways.filter(w=>tunnelWay(w)&&!evidenceOf(w)).length;
+  if(runs.length<300)failures.push(`G7 隧道連續段只有 ${runs.length} 段，分母異常縮水（2026-09-12 基準 338）`);
+  if(ridingOnNeighbour<2)failures.push(`G7 只有 ${ridingOnNeighbour} 條隧道 way 是靠鄰居的標記留下來的，這條規則的作用面消失了（2026-09-12 基準 2）`);
+  if(bad.length)failures.push(`G7 有 ${bad.length} 段隧道既無明示標記、DEM 也找不到山（${bad.slice(0,4).join('、')}）`);
+  // 具名回歸：2026-09-12 回報的兩處改判成平面，而同樣只有 layer=-2、但真的穿山的三貂嶺那段留著。
+  for(const id of ['213099735','193939712'])
+   if(E[id]?.kind!=='surface')failures.push(`G7 ${id}（2026-09-12 回報現場）應改判成平面，實際 ${E[id]?.kind}`);
+  for(const id of ['1181895950','1021846211'])
+   if(E[id]?.kind!=='tunnel')failures.push(`G7 ${id}（只有 layer、但 DEM 有山）應維持隧道，實際 ${E[id]?.kind}`);
+  // 正向對照：拿一條**確定在平地**的 way 餵同一個量法，它必須量到接近 0 的起伏。
+  // 對照組不可以挑「已被改判的段」——那是被驗實作自己的產物，同源等於零資訊，而且規則被關掉時
+  // 對照組會跟著消失（實測：關掉改判後這一條只會說「找不到對照」，看不出量法有沒有壞）。
+  // 取臺中線后里那條 103 公尺的道路下穿段（DEM 起伏 0.1m），它在平原上，改判與否都存在。
+  const CONTROL_ID='747411508',flatWay=ways.find(w=>String(w.id)===CONTROL_ID);
+  const control=flatWay?await reliefOf([flatWay]):null;
+  if(control===null)failures.push(`G7 正向對照失效：找不到對照 way ${CONTROL_ID}（來源重切了？換一條平原上的 way）`);
+  else if(control>=RELIEF)failures.push(`G7 正向對照失效：平原上的 way ${CONTROL_ID} 量到起伏 ${control.toFixed(1)}m，量法沒有分辨力`);
+  notes.隧道段 = runs.length;notes.整段無明示標記 = noEvidence;notes.靠鄰居留下的way = ridingOnNeighbour;notes.平地假隧道 = bad.length;
+  notes.對照組平地起伏 = control===null?null:+control.toFixed(1);
+ }
+}
+
 console.log(notes);
 if(failures.length){console.log(failures);process.exit(1);}
-console.log('橋隧種類與顯示高度：反向改判、橋面高度、洞口銜接、分類分母、穿透門檻、露天縱坡、接縫與平面埋沒皆通過');
+console.log('橋隧種類與顯示高度：反向改判、橋面高度、洞口銜接、分類分母、穿透門檻、露天縱坡、接縫、平面埋沒、平面浮空、隧道不畫與隧道證據皆通過');
