@@ -10,8 +10,11 @@ const GAUGE=1.435,RAIL_W=.14,RAIL_H=.2,TIE_LEN=2.5,TIE_W=.26,TIE_H=.15,TIE_SPACI
 // 墩帽 5×1.6×1.2 公尺；護欄與墩帽都是近看（detail>=1）才畫。
 const DECK_W=5,GIRDER_BOTTOM_W=2.8,GIRDER_DEPTH=1.8,DECK_DROP=.35,PARAPET_H=.9,PARAPET_W=.35,
       PIER_ALONG=2,PIER_ACROSS=2.8,CAP_ACROSS=5,CAP_ALONG=1.6,CAP_DEPTH=1.2,NEIGHBOR_M=6.5;
-// 路基：道碴梯形斷面頂 3.4 公尺、底 4.6 公尺，離地愈高底愈寬（1.5:1 的填方邊坡），底寬上限 30 公尺。
-const BED_TOP_W=3.4,BED_BOTTOM_W=4.6,FILL_SLOPE=1.5,BED_BOTTOM_MAX=30;
+// 路基：道碴梯形斷面頂 3.4 公尺、底 4.6 公尺，離地愈高底愈寬，底寬有上限。
+// 邊坡 1:1、上限 14 公尺（原本 1.5:1、上限 30）：全網平面軌道有 15.5% 的取樣點軌面高出地表 3 公尺以上，
+// 舊比例在那裡畫出 13～30 公尺寬的土堆——比軌距寬近十倍，整個畫面只看得到那塊土，看不到車。
+// 高填方本來就不會放成自然邊坡，實務上是擋土牆或橋梁，所以收窄之後反而比較像真的。
+const BED_TOP_W=3.4,BED_BOTTOM_W=4.6,FILL_SLOPE=1,BED_BOTTOM_MAX=14;
 // 洞口尺寸沿用 prototypes/taiwan-3d/rail-occlusion.js 的隧道示意：拱心半徑 3.2 公尺、
 // 起拱線在軌頂上 2.6 公尺、洞底在軌頂下 1.2 公尺、石環厚 .7 公尺。那一版是文湖線單線
 // 展示做的，這裡只取斷面比例，位置改成沿線每個洞口自己算。
@@ -33,16 +36,20 @@ export function createRailStructures(scene){
     const started=performance.now(),positions=[],colors=[];
     const deck=new THREE.Color('#b2ad9e'),side=new THREE.Color('#989588'),
           ballast=new THREE.Color('#9d978b'),steel=new THREE.Color('#6f6a62'),tie=new THREE.Color('#a8a299'),
-          stone=new THREE.Color('#d4c8ad'),lining=new THREE.Color('#344b52'),parapet=new THREE.Color('#cfcab9');
+          stone=new THREE.Color('#d4c8ad'),lining=new THREE.Color('#344b52'),parapet=new THREE.Color('#cfcab9'),
+          // 填方邊坡自己一個色：道碴色畫到坡腳時，整座土堆會變成比地表暗三成的實心塊。
+          // 坡面退到接近地表的淺色、只留道碴頂面那條深色，看到的才是一條軌道而不是一道土牆。
+          bank=new THREE.Color('#c6c0b1');
     stats.decks=stats.piers=stats.caps=stats.parapets=stats.beds=stats.rails=stats.ties=stats.portals=0;stats.detail=detail;stats.samples=[];
     function quad(a,b,c,d,color){for(const p of [a,b,c,a,c,d]){positions.push(...p);colors.push(color.r,color.g,color.b);}}
     // 上下底可以不同寬：道碴是梯形斷面，箱梁上寬下窄。
-    function prism(a,b,width,bottomA,bottomB,color,bottomWidth=width){
+    function prism(a,b,width,bottomA,bottomB,color,bottomWidth=width,flank=null){
       const dx=b[0]-a[0],dy=b[1]-a[1],length=Math.hypot(dx,dy);if(length<1e-5)return;
       const ux=-dy/length,uy=dx/length,nx=ux*width/2,ny=uy*width/2,bx=ux*bottomWidth/2,by=uy*bottomWidth/2;
       const p=[[a[0]+nx,a[1]+ny,a[2]],[a[0]-nx,a[1]-ny,a[2]],[b[0]-nx,b[1]-ny,b[2]],[b[0]+nx,b[1]+ny,b[2]]];
       const q=[[a[0]+bx,a[1]+by,bottomA],[a[0]-bx,a[1]-by,bottomA],[b[0]-bx,b[1]-by,bottomB],[b[0]+bx,b[1]+by,bottomB]];
-      quad(...p,color);quad(q[3],q[2],q[1],q[0],side);for(let i=0;i<4;i++){const j=(i+1)%4;quad(p[i],q[i],q[j],p[j],color===ballast?ballast:side);}
+      const flankColor=flank||(color===ballast?ballast:side);
+      quad(...p,color);quad(q[3],q[2],q[1],q[0],side);for(let i=0;i<4;i++){const j=(i+1)%4;quad(p[i],q[i],q[j],p[j],flankColor);}
     }
     // 一條鋼軌：頂面加兩個側面。斜上方看過去底面永遠看不到，不畫。
     function rail(a,b,offset,top,scale){
@@ -93,7 +100,7 @@ export function createRailStructures(scene){
       }else{
         // 路基：離地愈高底愈寬（填方邊坡）；林口走廊的過渡段沿舊做法畫成薄板。
         const lift=Math.max(0,Math.min(topA[2]-groundA,topB[2]-groundB)),bottomW=Math.min(BED_BOTTOM_MAX*scale,BED_BOTTOM_W*scale+2*FILL_SLOPE*lift);
-        prism(topA,topB,BED_TOP_W*scale,transition?Math.max(groundA-.3*scale,topA[2]-1.15*scale):groundA-.3*scale,transition?Math.max(groundB-.3*scale,topB[2]-1.15*scale):groundB-.3*scale,ballast,transition?BED_BOTTOM_W*scale:bottomW);stats.beds++;
+        prism(topA,topB,BED_TOP_W*scale,transition?Math.max(groundA-.3*scale,topA[2]-1.15*scale):groundA-.3*scale,transition?Math.max(groundB-.3*scale,topB[2]-1.15*scale):groundB-.3*scale,ballast,transition?BED_BOTTOM_W*scale:bottomW,bank);stats.beds++;
       }
       if(detail>=2)ties(topA,topB,topA[2],scale);
       if(detail>=1){const top=a[2]-(detail>=2?.15*scale:.2*scale);rail(topA,topB,GAUGE/2,top,scale);rail(topA,topB,-GAUGE/2,top,scale);}
