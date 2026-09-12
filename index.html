@@ -5445,14 +5445,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="notrainoverlap0912"><span class="d">9/12</span><span>同一條股道上的兩列列車不再從彼此身上穿過去，後車會依前車位置減速跟車</span></li>
+        <li data-cl-of="bootfaster0912"><span class="d">9/12</span><span>開站讀取變快：同一片地形不再重複下載，冷啟動要傳的資料從 110.6 MB 降到 21.3 MB</span></li>
+        <li data-cl-of="surfacetrack0912"><span class="d">9/12</span><span>平地上的軌道不再被畫成隧道；抬高路基的土堆收窄、邊坡改成接近地表的顏色，看車時不再被土堆擋住</span></li>
         <li data-cl-of="tunnelportal0912"><span class="d">9/12</span><span>立體地圖的隧道口做成嵌進山坡的洞門，山丘表面那條軌道印子也拿掉了</span></li>
         <li data-cl-of="cityperf0912"><span class="d">9/12</span><span>都市的立體地圖拖起來更順，台北車站一帶重畫軌道的時間降到原本的六分之一</span></li>
         <li data-cl-of="thsrtracks0912"><span class="d">9/12</span><span>高鐵停靠列車改停外側月台、通過列車走內側正線，派車改用當日班表</span></li>
         <li data-cl-of="landscapetrees0912"><span class="d">9/12</span><span>地景地圖的山區與海岸不再鋪滿示意樹，公園、村落與河岸的小片林地照舊；地形看得更清楚，拖動也更順</span></li>
         <li data-cl-of="thsrhold0912"><span class="d">9/12</span><span>高鐵停靠列車在站上的等待縮短，最久的一班從 2 分半降到 44 秒</span></li>
-        <li data-cl-of="viaduct0912"><span class="d">9/12</span><span>立體地圖的高架橋不再跟著地形起伏，橋面、護欄與橋墩也畫得像真的高架橋</span></li>
-        <li data-cl-of="thsrfold0912"><span class="d">9/12</span><span>修正高鐵列車在板橋等地下車站車廂折疊、上下跳動的問題</span></li>
-        <li data-cl-of="tunnelkind0911"><span class="d">9/11</span><span>立體地圖的路線不再一下橋梁一下地下道地上上下下，過山洞就是過山洞</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5460,6 +5460,8 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="bootfaster0912"><span class="d">9/12</span><span>開站讀取變快：地形高程改成整片留在記憶體，同一片不再重複下載（開站預設視角的圖磚讀取從 12 次、96 MB 降到 1 次、8 MB，主畫面不再為此凍結 8.3 秒）；股道剖面的沿線里程精度收到 0.1 公釐，三個資料檔上線少傳 3.78 MB。冷啟動總下載量從 110.6 MB 降到 21.3 MB</span></li>
+        <li data-cl="surfacetrack0912"><span class="d">9/12</span><span>平地上的軌道不再被畫成隧道：圖資只標了層級、現地卻沒有山丘的路段（例如中州到大湖之間）改回地面軌道，該畫的山洞照舊。抬高路基的土堆同時收窄：邊坡從 1.5:1 改成 1:1、底寬上限從 30 公尺降到 14 公尺，坡面改用接近地表的淺色、只有道碴頂面保留深色——原本全網平面軌道有 15.5% 的取樣點軌面高出地表 3 公尺以上，那些地方會畫出 13～30 公尺寬的土堆，整個畫面只看得到土、看不到車</span></li>
         <li data-cl="tunnelportal0912"><span class="d">9/12</span><span>立體地圖的隧道洞口改成嵌進山坡的洞門：面牆、翼牆與洞口下方的擋土牆，底緣都照現地地表走，不再是浮在半空的拱圈（全網 701 個洞口有 310 個軌面高出地表 3 公尺以上，最極端的高鐵三義段高出 15.8 公尺）；山丘表面那條沿著隧道走的軌道印子也拿掉了，隧道段的鐵路線不再鋪在地形表面上</span></li>
         <li data-cl="cityperf0912"><span class="d">9/12</span><span>都市的立體地圖拖動更順：台北車站一帶重畫軌道從 263 毫秒降到 41 毫秒、板橋 236 降到 58、台北全景 499 降到 173（桌面 6 倍降速實測取最小值）。地下路網改用較疏的取樣、沿線層位與地形高程查詢加上快取，畫面外的列車也不再每一幀查一次地形</span></li>
         <li data-cl="thsrtracks0912"><span class="d">9/12</span><span>高鐵車站股道照真實配置：桃園、新竹、苗栗、台中、彰化、雲林、嘉義、台南、板橋等有通過線的車站，停靠列車一律停外側月台到發線，通過列車走內側正線；股道派車也從 7 月靜態班表改成依當日班表重派。</span></li>
@@ -5546,6 +5548,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="notrainoverlap0912"><span class="d">9/12</span><span>同一條股道上的兩列列車不再從彼此身上穿過去：後車依前車位置減速跟車，最多回撥 120 秒。全日 570 個時點實測，同向行進中的車身重疊從 12 筆降到 5 筆，剩下的是時刻表上快車追上慢車、120 秒也讓不開的區段。停靠月台的列車仍可被通過列車超越</span></li>
         <li data-cl="badgefallen"><span class="d">9/6</span><span>捷運頂列的「官方即時（N 線改用備案）」與「即時資料異常」徽章現在指得出是哪幾條線、為什麼：桌面滑鼠移上去、手機點時鐘徽章打開資料狀態卡，都會逐線列出原因（例如看板列對不到車、站列版本不一致、即時模型這一輪沒有這條線的車）</span></li>
         <li data-cl="trasnap0905"><span class="d">9/5</span><span>台鐵誤點一次跳增 5 分鐘以上（例如區間待避後到站才回報），列車立刻跳回實際位置，不再在原地停等到誤點追上；5 分鐘以內的小幅增加仍原地停等，像真實的臨時停車。</span></li>
         <li data-cl="xingorder"><span class="d">9/4</span><span>兩條路線立體交叉的地方，改成依實際的高架與地下關係決定哪一條畫在上面，不再看繪製順序。</span></li>
@@ -6432,7 +6435,7 @@
 //         新閘門 verify_thsr_station_tracks 掛出貨鏈。
 // v0911a：高鐵車站看板標出對號座餘位與票價、公車站牌可搜尋並逐路線報到站、小工具可設「自動(最近的站)」、
 //         三鶯線平日末班補上官方公告的 00:00 那一班;轉乘接續改成預設收合,收合態留最近一班的車次與「剩 N 分」。
-const BUILD = 'v0912d';
+const BUILD = 'v0912e';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -10648,7 +10651,7 @@ const _blockSideSign = new Map();            // 上一幀給過的號誌:相位�
 const _blockSideRole = new Map();            // 已經定案的讓位角色:同一對車沒散開就不重新分配
 let _blockSim = null;
 function blockKeyOf(tr) { return (tr.sys || '') + ':' + tr.train; } // 跨系統車次會撞號,不能只用車次
-function blockHoldSec(tr) { if(window.railIslandPhysical?.has(tr))return 0;return _blockHold.size && BLOCK_SYS[tr.sys] ? (_blockHold.get(blockKeyOf(tr)) || 0) : 0; }
+function blockHoldSec(tr) { return _blockHold.size && BLOCK_SYS[tr.sys] ? (_blockHold.get(blockKeyOf(tr)) || 0) : 0; }
 function updateBlockHolds() {
   _blockSide.clear();
   if (state.mode !== 'sched' || !state.trains) { _blockHold.clear(); _blockGap.clear(); _blockPrevD.clear(); _blockSim = null; return; }
@@ -10657,7 +10660,13 @@ function updateBlockHolds() {
   _blockSim = state.simSec;
   const groups = new Map();
   for (const tr of state.trains) {
-    if (!BLOCK_SYS[tr.sys] || window.railIslandPhysical?.has(tr)) continue;
+    // 🔴 這裡曾經加上「走實體股道的車就跳過」(0f5bb774 v0907n)，因為那一版另有一套橫移避讓
+    // (rail-3d/integration/passing-avoidance.js)接手。那套在 06dd0034 v0908f 依裁示整個移除了
+    // (車廂必須沿指派股道走、不准整列橫移)，短路卻留在原地 ⇒ 台鐵 918 班全部 has()=true
+    // ⇒ issue #17 的防追撞在台鐵上變成 100% 死碼。實測 05:00–23:55 每 5 分抽樣 228 個時點，
+    // 同向在途車身互相穿透 9 對(七堵→八堵 278/6652 車頭距 0.39 公尺、車身重疊 60 公尺)，
+    // 這 9 對全部落在同一個 ln.id|dir 分組內 ⇒ 拿掉短路就接得住，不必改分組的尺。
+    if (!BLOCK_SYS[tr.sys]) continue;
     const key = blockKeyOf(tr), h = _blockHold.get(key) || 0;
     const g = trainSeg(tr, state.simSec - liveDelaySec(tr) - h);
     // 沒在跑,或這段沒貼上軌道線形 → 不參與耦合。緩動狀態一併清掉:不清的話,收班時帶著偏移離場的車,
