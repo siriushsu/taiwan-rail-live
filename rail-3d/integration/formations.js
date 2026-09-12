@@ -19,6 +19,9 @@ export const FORMATIONS={
   haifeng:unknown('haifeng',repeat(3,20),2.9),
   shanlan:unknown('shanlan',repeat(3,20),2.9),
   mingri:unknown('mingri',[17,20,20],2.9),
+  // 環島之星＝電力機車牽引＋莒光號 10500／10600 改造客車，不是自走式電聯車；機車世代 2025-07 起
+  // 換 E500。節數維持未知：目前只有旅遊媒體寫「6 節」，沒有官方依據，不拿它當標準編組。
+  star:unknown('e500',[17,20,20],2.9),
   forest:unknown('dl25',[10,12,12],2),
   wenhu:spec('wenhu',repeat(4,13.78),2.54,'路線標準編組'),
   c321:spec('c321',repeat(6,23.5),3.2,'路線標準編組'),
@@ -39,7 +42,12 @@ function baseFormation(v){
   if(v.systemId==='thsr_sched')return FORMATIONS['700t'];
   if(v.systemId==='tra_sched'){
     const cn=v.carName||'',stock=v.stockId;
-    const named={'blue-train':'blue',haifeng:'haifeng',shanlan:'shanlan',mingri:'mingri'}[v.namedId];if(named)return FORMATIONS[named];
+    // 名冊有固定車次的具名列車都要在這裡有一列，漏一列就默默退到下面的 emu800 代表外觀
+    // （2026-07-25 環島之星補了 trainNos、這裡沒跟上，它就被畫成通勤電聯車七週）。
+    // 山海號／平原號是本站虛構的環島觀光列車（兄弟車，在枋寮擦肩），沿用鳴日號那組機車＋
+    // 觀景客車外觀——鳴日號本身無固定車次，這個外觀沒有任何實際班次在用，不會撞到真車。
+    const named={'blue-train':'blue',haifeng:'haifeng',shanlan:'shanlan',mingri:'mingri',
+      star:'star',shanhai:'mingri',pingyuan:'mingri'}[v.namedId];if(named)return FORMATIONS[named];
     if(stock==='emu3000'||/^自強\(3000|^110[KM]$/.test(cn))return FORMATIONS.emu3000;
     if(stock==='taroko'||cn.includes('(太,'))return FORMATIONS.taroko;
     if(stock==='puyuma'||cn.includes('(普,'))return FORMATIONS.puyuma;
