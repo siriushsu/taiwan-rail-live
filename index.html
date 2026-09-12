@@ -3233,6 +3233,10 @@
   .notify-basis button { min-height: 44px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--muted); font: inherit; font-size: calc(12px * var(--uis)); font-weight: 800; cursor: pointer; }
   .notify-basis button.on { background: var(--navy); border-color: var(--navy); color: var(--on-navy); }
   .notify-basis button:disabled { opacity: .4; cursor: not-allowed; }
+  .notify-repeat { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .notify-repeat-days { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+  .notify-repeat-days button { min-height: 40px; }
+  .notify-modal[data-notify-view="overview"] #notifyRepeatDaysField { display: none; }
   /* 三檢視共用同一 modal:總覽模式只留清單、藏草稿表單;末班車模式藏基準切換 */
   .notify-empty { display: none; padding: 12px 2px; color: var(--faint); font-size: calc(12.5px * var(--ui)); }
   .notify-modal[data-notify-view="overview"] .notify-train,
@@ -3256,6 +3260,7 @@
   .notify-reminder-row:first-child { border-top: 0; }
   .notify-reminder-row .notify-reminder-main { flex: 1; min-width: 0; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .notify-reminder-row .notify-standby { flex: none; color: var(--warn-ink); font-size: calc(10.5px * var(--uis)); font-weight: 800; }
+  .notify-reminder-row .notify-repeat-tag { flex: none; color: var(--navy); font-size: calc(10.5px * var(--uis)); font-weight: 800; }
   .notify-reminder-row button { flex: none; width: 44px; height: 44px; border: 0; background: transparent; color: var(--faint); font-size: calc(18px * var(--ui)); cursor: pointer; }
   .notify-primer { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; padding: 18px; background: rgba(20,29,42,.66); }
   .notify-primer-card { width: min(400px, 100%); padding: 18px; border: 2px solid var(--navy); border-radius: 14px; background: var(--paper); box-shadow: 0 12px 40px rgba(15,25,40,.32); }
@@ -5445,6 +5450,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="repeatreminder0913"><span class="d">9/13</span><span>到站提醒新增每天、週一到五或自訂星期的重複設定，通勤固定搭的那班設一次就長期有效</span></li>
         <li data-cl-of="glassnear0913"><span class="d">9/13</span><span>修正台北等密集市區近處建築缺少透視線條，優先保留畫面內的近景輪廓</span></li>
         <li data-cl-of="sanyingtransfers0912"><span class="d">9/12</span><span>修正三鶯線重複轉乘資訊，更新站名翻譯與鄰近公車轉乘資料</span></li>
         <li data-cl-of="verifiedtracks0912"><span class="d">9/12</span><span>補回太麻里兩條月台股道，減少同站列車重疊；修正部分列車誤入同一股道的交會畫面</span></li>
@@ -5452,7 +5458,6 @@
         <li data-cl-of="trainhalo0912"><span class="d">9/12</span><span>列車周圍新增自然散開的柔光，夜晚呈暖色、白天沿用車次顏色，可在「更多」開關</span></li>
         <li data-cl-of="tainanmemory0912"><span class="d">9/12</span><span>新增台南地面鐵道重播，保留舊站、地面股道與封存班表</span></li>
         <li data-cl-of="platformtracks0912"><span class="d">9/12</span><span>減少車站裡兩班車疊在同一條股道上的情況，潮州、板橋、南港等站重新指派停靠月台</span></li>
-        <li data-cl-of="estformation0912"><span class="d">9/12</span><span>柴聯自強與支線柴聯車的節數改標「推估編組」，不再和真的查不到編組的車種混為一談</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5715,6 +5720,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="repeatreminder0913"><span class="d">9/13</span><span>到站提醒可以設成每天、週一到五或自訂星期重複：通勤固定搭的那班設一次就長期有效，不必每天重設。重複的提醒依表定時刻在每個符合的日子響，一則重複提醒在 20 則上限裡仍然只算一則；原本設好的一次性提醒不受影響。</span></li>
         <li data-cl="widgetauto0911"><span class="d">9/11</span><span>小工具的車站可以設成「自動（最近的站）」，走到哪就換到哪一站；離開服務範圍時卡片會直接說明，不再默默顯示上一個地方的班次</span></li>
         <li data-cl="xferfontscale0908"><span class="d">9/8</span><span>調大字級時，轉乘接續裡的車次與「剩 N 分」會跟著一起放大：這兩個數字之前掛在小標籤那條倍率上，特大檔只長 1.29 倍而不是 1.5 倍，字級調到最大時特別明顯</span></li>
         <li data-cl="ofmwatch0906"><span class="d">9/6</span><span>修正街道底圖被誤判成載入失敗：開圖後 8 秒內畫面還沒畫完（馬上放大看 3D 建築、行動網路較慢）就被當成失敗，App 默默換成備用底圖、3D 建築消失要重開才回來，網站則誤跳「街道底圖載入異常」。現在只看有沒有真的收到圖磚</span></li>
@@ -6063,6 +6069,8 @@
         <label><input type="radio" name="notifyOffset" value="30"><span>30</span></label>
       </div></div>
       <label class="notify-field"><span>步行到車站</span><span class="notify-walk"><input id="notifyWalk" type="number" min="0" max="60" step="1" inputmode="numeric" value="0"><span>分鐘</span></span></label>
+      <div class="notify-field notify-repeat-field"><span>重複</span><div class="notify-basis notify-repeat" id="notifyRepeat" role="group" aria-label="重複"><button type="button" data-repeat="none">不重複</button><button type="button" data-repeat="daily">每天</button><button type="button" data-repeat="weekdays">週一到五</button><button type="button" data-repeat="custom">自訂</button></div></div>
+      <div class="notify-field" id="notifyRepeatDaysField" hidden><span>哪幾天</span><div class="notify-basis notify-repeat-days" id="notifyRepeatDays" role="group" aria-label="哪幾天"><button type="button" data-weekday="1">一</button><button type="button" data-weekday="2">二</button><button type="button" data-weekday="3">三</button><button type="button" data-weekday="4">四</button><button type="button" data-weekday="5">五</button><button type="button" data-weekday="6">六</button><button type="button" data-weekday="7">日</button></div></div>
       <div class="notify-preview" id="notifyPreview"></div>
       <div class="notify-permission" id="notifyPermission" hidden><span>通知權限已關閉，請到 設定 &gt; 軌島 開啟</span><button id="notifySettings" type="button" hidden>開啟設定</button></div>
       <button class="notify-primary" id="notifySave" type="button">設定提醒</button>
@@ -24259,6 +24267,18 @@ const LOCAL_REMINDER_KEY = 'trainmap-local-reminders-v1';
 const LOCAL_REMINDER_NEXT_ID_KEY = 'trainmap-local-reminders-next-id-v1';
 const LOCAL_REMINDER_WALK_KEY = 'trainmap-local-reminder-walk-v1';
 const LOCAL_REMINDER_LIMIT = 20;
+// 重複提醒:一則項目可能要佔用多個原生通知(指定星期集合＝一個星期幾一則,iOS/Android 的重複觸發
+// 都只能綁單一個星期幾)。因此除了「項目數 ≤ 20」之外,還要看【原生槽位】總數——iOS 的 pending
+// 上限是 64,超過的會被系統【靜默丟掉】,沒有任何錯誤。留 4 格餘裕給未來的其他通知。
+const LOCAL_REMINDER_SLOT_BUDGET = 60;
+// 重複提醒的原生 id 另開一段,與一次性提醒的 id(＝項目 id 本身)不相交:
+//   一次性 → id 就是項目 id(舊版排下去的 pending 因此原地沿用,升版不會churn)
+//   重複   → LOCAL_REMINDER_SLOT_BASE + 項目id*8 + k(k=0 每天;k=1..7 ISO 星期幾)
+// 兩段不相交是必要的——若讓衍生 id 落回 1..n 這段,item 1 的週一槽(9)會撞到 item 9 本身,
+// 而 getPending() 只看得到 id 看不到內容,撞到時會【誤判成已排好】而不重排,內容卻是別人的。
+// 1e9 + 1e8*8 + 7 < 2^31-1,Android 的 int32 通知 id 放得下。
+const LOCAL_REMINDER_SLOT_BASE = 1000000000;
+const LOCAL_REMINDER_MAX_ID = 100000000;
 let localReminderDraft = null;
 
 function localNotifyNowEpoch() {
@@ -24285,18 +24305,80 @@ function nextLocalReminderId() {
   const used = new Set(loadLocalReminders().map(x => Number(x.id)));
   let id = 1;
   try { id = parseInt(localStorage.getItem(LOCAL_REMINDER_NEXT_ID_KEY), 10) || 1; } catch (e) {}
-  if (id < 1 || id > 2147483647) id = 1;
-  while (used.has(id) && id < 2147483647) id++;
+  // 上限由 int32 極大值收斂到 1e8:重複提醒的原生 id 是 BASE + id*8 + k 推出來的,id 太大會溢位 int32。
+  if (id < 1 || id > LOCAL_REMINDER_MAX_ID) id = 1;
+  while (used.has(id) && id < LOCAL_REMINDER_MAX_ID) id++;
   if (used.has(id)) {
     id = 1;
-    while (used.has(id) && id < 2147483647) id++;
+    while (used.has(id) && id < LOCAL_REMINDER_MAX_ID) id++;
   }
-  try { localStorage.setItem(LOCAL_REMINDER_NEXT_ID_KEY, String(id >= 2147483647 ? 1 : id + 1)); } catch (e) {}
+  try { localStorage.setItem(LOCAL_REMINDER_NEXT_ID_KEY, String(id >= LOCAL_REMINDER_MAX_ID ? 1 : id + 1)); } catch (e) {}
   return id;
 }
 function loadLocalReminderWalk() {
   try { return Math.max(0, Math.min(60, parseInt(localStorage.getItem(LOCAL_REMINDER_WALK_KEY), 10) || 0)); }
   catch (e) { return 0; }
+}
+// ── 重複規則(單元 B)。既有 v1 項目沒有這個欄位 ⇒ 一律當「不重複」,零遷移。 ──
+// 形狀只有三種:null(不重複)／{kind:'daily'}／{kind:'weekly',days:[ISO 1=週一…7=週日]}。
+// 「週一到五」不是第四種,它就是 weekly + [1,2,3,4,5];UI 上的按鈕只是這個集合的捷徑。
+const REMINDER_WEEKDAY_SET = [1, 2, 3, 4, 5];
+function reminderRepeatOf(item) {
+  const r = item && item.repeat;
+  if (!r || typeof r !== 'object') return null;
+  if (r.kind === 'daily') return { kind: 'daily' };
+  if (r.kind === 'weekly') {
+    const days = [...new Set((Array.isArray(r.days) ? r.days : []).map(Number).filter(d => d >= 1 && d <= 7))].sort();
+    return days.length ? { kind: 'weekly', days } : null; // 空集合＝沒有任何一天會響,退回不重複
+  }
+  return null;
+}
+function reminderIsRecurring(item) { return !!reminderRepeatOf(item); }
+// 把 epoch 拆成台北的日期／時分／ISO 星期幾。台灣無日光節約,offset 恆定,所以位移後直接讀 UTC 欄位即可。
+function reminderTaipeiParts(epochSec) {
+  const d = new Date((Math.floor(Number(epochSec)) + tzOffsetSec('Asia/Taipei')) * 1000);
+  return { date: d.toISOString().slice(0, 10), hour: d.getUTCHours(), minute: d.getUTCMinutes(), iso: d.getUTCDay() === 0 ? 7 : d.getUTCDay() };
+}
+// 下一次會響的時刻。不重複＝fireAt 本身;重複＝以 fireAt 的【台北時分】為準,往後找第一個符合的日子。
+// fireAt 對重複項目的角色是「錨點」,不隨時間前進,所以清單與排序一律走這支,不要直接讀 fireAt。
+function reminderNextFireAt(item, nowEpoch) {
+  const rep = reminderRepeatOf(item);
+  const anchor = Number(item && item.fireAt);
+  if (!rep || !Number.isFinite(anchor)) return anchor;
+  const { hour, minute } = reminderTaipeiParts(anchor);
+  const sec = hour * 3600 + minute * 60;
+  for (let k = 0; k <= 7; k++) { // 0..7 走滿一週:當天時刻已過會落到下一個符合的星期幾
+    const p = reminderTaipeiParts(nowEpoch + k * 86400);
+    if (rep.kind === 'weekly' && !rep.days.includes(p.iso)) continue;
+    const at = localReminderServiceEpoch(p.date, sec);
+    if (Number.isFinite(at) && at > nowEpoch) return at;
+  }
+  return anchor;
+}
+// 星期名走 Intl,不進 i18n 字典:七個名字 x 兩種寬度 x 三語＝42 條人工維護的條目,而 Intl 本來就有,
+// 且與本檔既有的 localReminderHHMM 同一個語系來源(I18N_LANG)。2024-01-01 是週一,拿它當基準日。
+function reminderWeekdayNames(width) {
+  const f = new Intl.DateTimeFormat(I18N_LANG, { weekday: width, timeZone: 'UTC' });
+  return [0, 1, 2, 3, 4, 5, 6].map(i => f.format(new Date(Date.UTC(2024, 0, 1 + i))));
+}
+function reminderRepeatLabel(item) {
+  const rep = reminderRepeatOf(item);
+  if (!rep) return '';
+  if (rep.kind === 'daily' || rep.days.length === 7) return t('每天');
+  if (rep.days.join() === REMINDER_WEEKDAY_SET.join()) return t('週一到五');
+  const names = reminderWeekdayNames('short');
+  const picked = rep.days.map(d => names[d - 1]);
+  // 連接詞也交給 Intl:中文用「、」英文用 "and" 日文用「、」,手寫分隔符一定會在某個語系讀起來很怪。
+  try { return new Intl.ListFormat(I18N_LANG, { style: 'short', type: 'conjunction' }).format(picked); }
+  catch (e) { return picked.join(' '); }
+}
+// 一則項目要佔用的原生通知 id。一次性恰一個(＝項目 id);重複則一個星期幾一個。
+function localReminderSlotIds(item) {
+  const rep = reminderRepeatOf(item);
+  const id = Number(item.id);
+  if (!rep) return [id];
+  const base = LOCAL_REMINDER_SLOT_BASE + id * 8;
+  return rep.kind === 'daily' ? [base] : rep.days.map(d => base + d);
 }
 function reminderSysOf(tr) {
   return tr && tr.sys === 'tra_sched' ? 'tra' : tr && tr.sys === 'thsr_sched' ? 'thsr' : null;
@@ -24350,9 +24432,13 @@ function localReminderBaseSecFor(draft, x) {
   const basis = x.i === draft.tr.stops.length - 1 ? 'arr' : (draft.basis === 'arr' ? 'arr' : 'dep');
   return basis === 'arr' ? x.s.arrSec : x.s.depSec;
 }
+// 生效誤點:重複提醒恆為 0(表定)。今天的誤點快照對下週二沒有意義,帶進固定時刻的重複只會每次都偏掉。
+function localReminderEffDelay(draft) {
+  return reminderIsRecurring(draft) ? 0 : Number(draft && draft.snapshotDelaySec || 0);
+}
 function localReminderFireAtFor(draft, x) {
   return localReminderServiceEpoch(draft.svcDate, localReminderBaseSecFor(draft, x))
-    + draft.snapshotDelaySec - (draft.offsetMin + draft.walkMin) * 60;
+    + localReminderEffDelay(draft) - (draft.offsetMin + draft.walkMin) * 60;
 }
 function localReminderRecompute(draft) {
   if (!draft) return null;
@@ -24366,30 +24452,53 @@ function localReminderRecompute(draft) {
   draft.stName = at.s.name;
   return draft;
 }
-function localReminderPayload(item) {
+// 一則項目 → 一到七筆原生通知。重複的走 on+repeats(系統自己算下一次),一次性的維持 at(零行為變化)。
+// 🔴 重複提醒一律以【表定】為錨點(snapshotDelaySec 在存檔時就被歸零):今天的誤點快照套不到下週二,
+//    把它帶進固定時刻的重複裡只會讓每一次都偏掉同樣的秒數。
+function localReminderPayloads(item) {
   const leadMin = Number(item.offsetMin || 0) + Number(item.walkMin || 0);
   const baseEpoch = Number(item.fireAt) - Number(item.snapshotDelaySec || 0) + leadMin * 60;
   const delayMin = Math.max(0, Math.round(Number(item.snapshotDelaySec || 0) / 60));
-  return {
-    id: Number(item.id),
-    title: t('{train} 次 {station} {mode} {n} 分鐘', {
-      train: item.train, station: stationName(item.stName, item.sys === 'thsr' ? 'thsr_sched' : 'tra_sched'),
-      mode: t(item.mode === 'arr' ? '抵達前' : '開車前'), n: i18nNumber(leadMin),
-    }, leadMin),
-    body: t('表定 {time}{delay}。開軌島看即時位置 →', {
-      time: localReminderHHMM(baseEpoch), delay: delayMin > 0 ? t('，排定時誤點 +{n} 分', { n: i18nNumber(delayMin) }, delayMin) : '',
-    }),
-    schedule: { at: new Date(Number(item.fireAt) * 1000) }
-  };
+  const title = t('{train} 次 {station} {mode} {n} 分鐘', {
+    train: item.train, station: stationName(item.stName, item.sys === 'thsr' ? 'thsr_sched' : 'tra_sched'),
+    mode: t(item.mode === 'arr' ? '抵達前' : '開車前'), n: i18nNumber(leadMin),
+  }, leadMin);
+  const body = t('表定 {time}{delay}。開軌島看即時位置 →', {
+    time: localReminderHHMM(baseEpoch), delay: delayMin > 0 ? t('，排定時誤點 +{n} 分', { n: i18nNumber(delayMin) }, delayMin) : '',
+  });
+  const rep = reminderRepeatOf(item);
+  const ids = localReminderSlotIds(item);
+  if (!rep) return [{ id: ids[0], title, body, schedule: { at: new Date(Number(item.fireAt) * 1000) } }];
+  const { hour, minute } = reminderTaipeiParts(Number(item.fireAt));
+  // Capacitor 的 Weekday 是 Apple 慣例 Sunday=1…Saturday=7;我們內部存 ISO 1=週一…7=週日,這裡轉一次。
+  const days = rep.kind === 'daily' ? [null] : rep.days;
+  return days.map((d, i) => ({
+    id: ids[i], title, body,
+    schedule: { on: d == null ? { hour, minute } : { weekday: d === 7 ? 1 : d + 1, hour, minute }, repeats: true }
+  }));
 }
+function localReminderPayload(item) { return localReminderPayloads(item)[0]; }
 async function syncLocalReminders() {
   if (!NOTIFY_LOCAL_ENABLED) return [];
   const bridge = window.RAIL_NATIVE_LOCALNOTIFY;
   const now = localNotifyNowEpoch();
-  const items = loadLocalReminders().filter(x => Number(x.fireAt) > now).sort((a, b) => a.fireAt - b.fireAt || a.id - b.id);
-  const desired = items.slice(0, LOCAL_REMINDER_LIMIT);
-  const desiredIds = new Set(desired.map(x => Number(x.id)));
-  for (const item of items) item.state = desiredIds.has(Number(item.id)) ? 'scheduled' : 'standby';
+  // 重複項目永遠有下一次,不會過期;一次性項目時刻過了就丟掉(既有行為)。
+  // 排序一律看「下一次會響的時刻」而不是錨點 fireAt——重複項目的 fireAt 會一直留在過去。
+  const items = loadLocalReminders()
+    .filter(x => reminderIsRecurring(x) || Number(x.fireAt) > now)
+    .sort((a, b) => reminderNextFireAt(a, now) - reminderNextFireAt(b, now) || a.id - b.id);
+  // 兩道上限,先到先排:項目數 20(一則重複算一則,不展開成七則)＋原生槽位 60。
+  // 槽位那道是給「指定星期集合」用的——七天集合一則就吃七格,只數項目會靜靜衝破 iOS 的 64。
+  const desired = [];
+  let slots = 0;
+  for (const x of items) {
+    const need = localReminderSlotIds(x).length;
+    if (desired.length >= LOCAL_REMINDER_LIMIT || slots + need > LOCAL_REMINDER_SLOT_BUDGET) break;
+    desired.push(x); slots += need;
+  }
+  const desiredIds = new Set(desired.flatMap(localReminderSlotIds).map(Number));
+  const scheduledItemIds = new Set(desired.map(x => Number(x.id)));
+  for (const item of items) item.state = scheduledItemIds.has(Number(item.id)) ? 'scheduled' : 'standby';
   saveLocalReminders(items);
   try {
     const raw = await bridge.getPending();
@@ -24397,15 +24506,18 @@ async function syncLocalReminders() {
     const pendingIds = new Set(pending.map(x => Number(x.id)).filter(Number.isFinite));
     const extra = [...pendingIds].filter(id => !desiredIds.has(id));
     if (extra.length) await bridge.cancel(extra);
-    const missing = desired.filter(x => !pendingIds.has(Number(x.id)));
-    if (missing.length) await bridge.schedule(missing.map(localReminderPayload));
+    const missing = desired.flatMap(localReminderPayloads).filter(p => !pendingIds.has(Number(p.id)));
+    if (missing.length) await bridge.schedule(missing);
   } catch (e) { console.error('本地提醒同步失敗', e); }
   renderLocalReminderList();
   return items;
 }
 async function removeLocalReminder(id) {
+  const gone = loadLocalReminders().find(x => Number(x.id) === Number(id));
   saveLocalReminders(loadLocalReminders().filter(x => Number(x.id) !== Number(id)));
-  try { await window.RAIL_NATIVE_LOCALNOTIFY.cancel([Number(id)]); } catch (e) { console.error('本地提醒取消失敗', e); }
+  // 重複項目佔好幾個原生 id,只取消項目 id 會留下孤兒鬧鐘(而且系統會照響)。
+  try { await window.RAIL_NATIVE_LOCALNOTIFY.cancel(gone ? localReminderSlotIds(gone) : [Number(id)]); }
+  catch (e) { console.error('本地提醒取消失敗', e); }
   await syncLocalReminders();
   renderLocalReminderDraft();
 }
@@ -24413,7 +24525,8 @@ function renderLocalReminderList() {
   const box = document.getElementById('notifyReminderList');
   if (!box) return;
   box.innerHTML = '';
-  const all = loadLocalReminders().sort((a, b) => a.fireAt - b.fireAt || a.id - b.id);
+  const listNow = localNotifyNowEpoch();
+  const all = loadLocalReminders().sort((a, b) => reminderNextFireAt(a, listNow) - reminderNextFireAt(b, listNow) || a.id - b.id);
   if (!all.length) {
     const empty = document.createElement('div'); empty.className = 'notify-empty'; empty.textContent = t('還沒有排任何提醒');
     box.appendChild(empty); return; // 空狀態:CSS 只在總覽模式顯示,一般模式沿用「無條目=空白」
@@ -24421,8 +24534,11 @@ function renderLocalReminderList() {
   for (const item of all) {
     const row = document.createElement('div'); row.className = 'notify-reminder-row';
     const main = document.createElement('span'); main.className = 'notify-reminder-main';
-    main.textContent = `${reminderSysLabel(item.sys)} ${t('{train} 次', { train: item.train })}・${stationName(item.stName, item.sys === 'thsr' ? 'thsr_sched' : 'tra_sched')}・${localReminderHHMM(item.fireAt)}`;
+    // 重複項目顯示的是「下一次」的時刻,不是錨點 fireAt(那個會一直停在建立的那天)。
+    main.textContent = `${reminderSysLabel(item.sys)} ${t('{train} 次', { train: item.train })}・${stationName(item.stName, item.sys === 'thsr' ? 'thsr_sched' : 'tra_sched')}・${localReminderHHMM(reminderNextFireAt(item, listNow))}`;
     row.appendChild(main);
+    const repLabel = reminderRepeatLabel(item);
+    if (repLabel) { const tag = document.createElement('span'); tag.className = 'notify-repeat-tag'; tag.textContent = repLabel; row.appendChild(tag); }
     if (item.state === 'standby') { const tag = document.createElement('span'); tag.className = 'notify-standby'; tag.textContent = t('候補中'); row.appendChild(tag); }
     const del = document.createElement('button'); del.type = 'button'; del.textContent = '×'; del.dataset.notifyDelete = item.id;
     del.onclick = () => removeLocalReminder(item.id);
@@ -24435,7 +24551,7 @@ function renderLocalReminderDraft() {
   if (!draft) return;
   // 來不及提醒的站淺色不可選（門檻與儲存時的攔截一致）；目前選擇來不及→跳到第一個來得及的站
   const lateNowE = localNotifyNowEpoch();
-  const isLate = x => localReminderFireAtFor(draft, x) <= lateNowE + 60;
+  const isLate = x => localReminderDraftNextAt(draft, localReminderFireAtFor(draft, x)) <= lateNowE + 60;
   const curStop = draft.stops.find(x => x.i === draft.stIndex);
   if ((!curStop || isLate(curStop))) {
     const firstOk = draft.stops.find(x => !isLate(x));
@@ -24444,10 +24560,12 @@ function renderLocalReminderDraft() {
   const modal = document.getElementById('notifyModal');
   modal.dataset.notifyBaseSec = String(draft.baseSec);
   modal.dataset.notifyServiceEpoch = String(localReminderServiceEpoch(draft.svcDate, 0));
-  modal.dataset.notifySnapshotDelaySec = String(draft.snapshotDelaySec);
+  modal.dataset.notifySnapshotDelaySec = String(localReminderEffDelay(draft));
   modal.dataset.notifyOffsetMin = String(draft.offsetMin);
   modal.dataset.notifyWalkMin = String(draft.walkMin);
   modal.dataset.notifyFireAt = String(draft.fireAt);
+  modal.dataset.notifyRepeat = JSON.stringify(reminderRepeatOf(draft));
+  modal.dataset.notifyNextAt = String(localReminderDraftNextAt(draft, draft.fireAt));
   document.getElementById('notifySys').textContent = reminderSysLabel(draft.sys);
   document.getElementById('notifyTrain').textContent = t('{train} 次', { train: draft.train });
   const select = document.getElementById('notifyStation');
@@ -24462,15 +24580,55 @@ function renderLocalReminderDraft() {
   document.getElementById('notifyWalk').value = draft.walkMin;
   document.getElementById('notifyModeLabel').textContent = t(draft.mode === 'arr' ? '到達前' : '開車前');
   renderNotifyBasisToggle(draft); // 開車前｜到達前 分段切換:終點站鎖 arr(開車前 disabled)
-  const delayMin = Math.max(0, Math.round(draft.snapshotDelaySec / 60));
-  document.getElementById('notifyPreview').textContent = draft.stops.every(isLate)
-    ? t('這班車剩下的停靠站都來不及提醒了')
-    : delayMin > 0
-      ? t('將於 {time} 提醒你（以目前誤點 +{n} 分計）', { time: localReminderHHMM(draft.fireAt), n: i18nNumber(delayMin) }, delayMin)
-      : t('將於 {time} 提醒你（依表定時刻）', { time: localReminderHHMM(draft.fireAt) });
+  renderNotifyRepeat(draft);
+  const delayMin = Math.max(0, Math.round(localReminderEffDelay(draft) / 60));
+  const repLabel = reminderRepeatLabel(draft);
+  document.getElementById('notifyPreview').textContent = notifyRepeatIncomplete(draft)
+    ? t('請至少選一天')
+    : draft.stops.every(isLate)
+      ? t('這班車剩下的停靠站都來不及提醒了')
+      : repLabel
+        ? t('{repeat} {time} 提醒你（依表定時刻）', { repeat: repLabel, time: localReminderHHMM(draft.fireAt) })
+        : delayMin > 0
+          ? t('將於 {time} 提醒你（以目前誤點 +{n} 分計）', { time: localReminderHHMM(draft.fireAt), n: i18nNumber(delayMin) }, delayMin)
+          : t('將於 {time} 提醒你（依表定時刻）', { time: localReminderHHMM(draft.fireAt) });
   const exists = loadLocalReminders().some(x => localReminderMatchDraft(x, draft));
   document.getElementById('notifySave').textContent = t(exists ? '更新提醒' : '設定提醒');
   renderLocalReminderList();
+}
+// 重複選擇的視覺狀態。模式判定讀【草稿原值】不是正規化後的值:自訂但一天都沒選時,
+// reminderRepeatOf() 會回 null(＝存下去是不重複),但畫面必須仍停在「自訂」讓使用者把天數選完,
+// 否則按鈕會自己跳回「不重複」。差異由 notifyRepeatIncomplete() 明講,不靜靜當成不重複存掉。
+function notifyRepeatIncomplete(draft) {
+  const raw = draft && draft.repeat;
+  return !!(raw && raw.kind === 'weekly' && !reminderRepeatOf(draft));
+}
+function renderNotifyRepeat(draft) {
+  const box = document.getElementById('notifyRepeat');
+  if (!box || !draft) return;
+  const raw = draft.repeat;
+  // 🔴 「自訂」不能靠星期集合反推:從「週一到五」切過去時集合原樣是 1–5,反推會判回 weekdays,
+  //    按鈕當場彈回去、天數列打不開。使用者按了哪一顆是【意圖】,只有旗標記得住。
+  const mode = !raw ? 'none' : raw.kind === 'daily' ? 'daily'
+    : (!draft.repeatCustom && Array.isArray(raw.days) && [...raw.days].sort((a, b) => a - b).join() === REMINDER_WEEKDAY_SET.join()) ? 'weekdays' : 'custom';
+  box.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.repeat === mode));
+  const field = document.getElementById('notifyRepeatDaysField');
+  field.hidden = mode !== 'custom';
+  const picked = new Set(raw && raw.kind === 'weekly' && Array.isArray(raw.days) ? raw.days.map(Number) : []);
+  const narrow = reminderWeekdayNames('narrow');
+  document.getElementById('notifyRepeatDays').querySelectorAll('button').forEach(b => {
+    const d = Number(b.dataset.weekday);
+    b.classList.toggle('on', picked.has(d));
+    b.textContent = narrow[d - 1]; // 標籤也由 Intl 給,HTML 裡那七個中文字只是沒有腳本時的退路
+    b.setAttribute('aria-pressed', picked.has(d) ? 'true' : 'false');
+  });
+}
+// 草稿的「下一次會響」:不重複＝算出來的 fireAt 本身;重複＝往後找第一個符合的日子。
+// 「來不及」的判定一律走這支——每週一 08:00 在週一 09:00 設定並不是來不及,它下週一才響。
+function localReminderDraftNextAt(draft, fireAt) {
+  return reminderIsRecurring(draft)
+    ? reminderNextFireAt({ fireAt, repeat: draft.repeat }, localNotifyNowEpoch())
+    : fireAt;
 }
 // 開車前｜到達前 分段切換的視覺狀態:終點站「開車前」不可選(鎖到達前),高亮=目前生效基準(draft.mode)。
 function renderNotifyBasisToggle(draft) {
@@ -24506,7 +24664,8 @@ function lastTrainCandidates(st) {
   return out.slice(0, 5);
 }
 function lastTrainCandFireAt(draft, c) {
-  return localReminderServiceEpoch(draft.svcDate, c.s.depSec) + c.delay - (draft.offsetMin + draft.walkMin) * 60;
+  return localReminderServiceEpoch(draft.svcDate, c.s.depSec)
+    + (reminderIsRecurring(draft) ? 0 : c.delay) - (draft.offsetMin + draft.walkMin) * 60;
 }
 function lastTrainRecompute(draft) {
   if (!draft) return null;
@@ -24521,7 +24680,7 @@ function renderLastTrainDraft() {
   const draft = lastTrainRecompute(localReminderDraft);
   if (!draft) return;
   const nowE = localNotifyNowEpoch();
-  const isLate = c => lastTrainCandFireAt(draft, c) <= nowE + 60;
+  const isLate = c => localReminderDraftNextAt(draft, lastTrainCandFireAt(draft, c)) <= nowE + 60;
   const cur = draft.cands[draft.candIndex];
   if (!cur || isLate(cur)) { // 目前選擇來不及→跳到第一個來得及(比照 v0721e)
     const okIdx = draft.cands.findIndex(c => !isLate(c));
@@ -24530,10 +24689,12 @@ function renderLastTrainDraft() {
   const modal = document.getElementById('notifyModal');
   modal.dataset.notifyBaseSec = String(draft.baseSec);
   modal.dataset.notifyServiceEpoch = String(localReminderServiceEpoch(draft.svcDate, 0));
-  modal.dataset.notifySnapshotDelaySec = String(draft.snapshotDelaySec);
+  modal.dataset.notifySnapshotDelaySec = String(localReminderEffDelay(draft));
   modal.dataset.notifyOffsetMin = String(draft.offsetMin);
   modal.dataset.notifyWalkMin = String(draft.walkMin);
   modal.dataset.notifyFireAt = String(draft.fireAt);
+  modal.dataset.notifyRepeat = JSON.stringify(reminderRepeatOf(draft));
+  modal.dataset.notifyNextAt = String(localReminderDraftNextAt(draft, draft.fireAt));
   document.getElementById('notifyTrainLabel').textContent = t('車站');
   document.getElementById('notifySys').textContent = reminderSysLabel(draft.sys);
   document.getElementById('notifyTrain').textContent = stationName(draft.stName, draft.sys === 'thsr' ? 'thsr_sched' : 'tra_sched');
@@ -24551,12 +24712,18 @@ function renderLastTrainDraft() {
   document.querySelectorAll('input[name=notifyOffset]').forEach(r => { r.checked = Number(r.value) === draft.offsetMin; });
   document.getElementById('notifyWalk').value = draft.walkMin;
   document.getElementById('notifyModeLabel').textContent = t('開車前');
-  const delayMin = Math.max(0, Math.round(draft.snapshotDelaySec / 60));
-  document.getElementById('notifyPreview').textContent = draft.cands.every(isLate)
-    ? t('今天的末班車已經開走了')
-    : delayMin > 0
-      ? t('將於 {time} 提醒你（以目前誤點 +{n} 分計）', { time: localReminderHHMM(draft.fireAt), n: i18nNumber(delayMin) }, delayMin)
-      : t('將於 {time} 提醒你（依表定時刻）', { time: localReminderHHMM(draft.fireAt) });
+  renderNotifyRepeat(draft);
+  const delayMin = Math.max(0, Math.round(localReminderEffDelay(draft) / 60));
+  const repLabel = reminderRepeatLabel(draft);
+  document.getElementById('notifyPreview').textContent = notifyRepeatIncomplete(draft)
+    ? t('請至少選一天')
+    : draft.cands.every(isLate)
+      ? t('今天的末班車已經開走了')
+      : repLabel
+        ? t('{repeat} {time} 提醒你（依表定時刻）', { repeat: repLabel, time: localReminderHHMM(draft.fireAt) })
+        : delayMin > 0
+          ? t('將於 {time} 提醒你（以目前誤點 +{n} 分計）', { time: localReminderHHMM(draft.fireAt), n: i18nNumber(delayMin) }, delayMin)
+          : t('將於 {time} 提醒你（依表定時刻）', { time: localReminderHHMM(draft.fireAt) });
   const exists = loadLocalReminders().some(x => localReminderMatchDraft(x, draft));
   document.getElementById('notifySave').textContent = t(exists ? '更新提醒' : '設定提醒');
   if (window.__notifyMockLog) modal.dataset.notifyLastTrain = JSON.stringify( // 測試用:曝露候選時刻供腳本控時鐘
@@ -24574,6 +24741,8 @@ function applyStoredLocalReminderSettings() {
   draft.offsetMin = Number(item.offsetMin) || 10;
   draft.walkMin = Math.max(0, Math.min(60, Number(item.walkMin) || 0));
   if ((item.basis === 'arr' || item.basis === 'dep') && draft.view !== 'lasttrain') draft.basis = item.basis;
+  draft.repeat = reminderRepeatOf(item);
+  draft.repeatCustom = false; // 讀回已存的設定＝重新判定,不帶上一次開啟時按過哪一顆
 }
 async function refreshLocalReminderPermission(draft) {
   try {
@@ -24597,7 +24766,7 @@ async function openLocalReminderSheet(tr, source) {
   const chosen = stops[0];
   localReminderDraft = {
     view: 'normal', tr, stops, stIndex: chosen.i, sys: reminderSysOf(tr), train: String(tr.train), svcDate: todayStr('Asia/Taipei'),
-    offsetMin: 10, walkMin: loadLocalReminderWalk(), snapshotDelaySec, basis: 'dep'
+    offsetMin: 10, walkMin: loadLocalReminderWalk(), snapshotDelaySec, basis: 'dep', repeat: null
   };
   applyStoredLocalReminderSettings();
   setNotifyView('normal');
@@ -24625,7 +24794,7 @@ async function openLastTrainReminderSheet(st) {
   localReminderDraft = {
     view: 'lasttrain', cands, candIndex: 0, sys, stName: st.name,
     offsetMin: 10, walkMin: loadLocalReminderWalk(), snapshotDelaySec: cands[0].delay,
-    svcDate: todayStr('Asia/Taipei'), basis: 'dep'
+    svcDate: todayStr('Asia/Taipei'), basis: 'dep', repeat: null
   };
   const nowE = localNotifyNowEpoch();
   const okIdx = cands.findIndex(c => lastTrainCandFireAt(localReminderDraft, c) > nowE + 60);
@@ -24655,16 +24824,19 @@ async function commitLocalReminderDraft() {
   const draft = localReminderRecomputeAny(localReminderDraft); if (!draft) return;
   let items = loadLocalReminders();
   const at = items.findIndex(x => localReminderMatchDraft(x, draft));
+  const prev = at >= 0 ? items[at] : null; // 取消要用【舊】的槽位:星期集合改小時,被拿掉的那幾天要退掉
   const item = {
     id: at >= 0 ? items[at].id : nextLocalReminderId(), sys: draft.sys, train: draft.train, stName: draft.stName, mode: draft.mode, basis: draft.mode,
-    offsetMin: draft.offsetMin, walkMin: draft.walkMin, fireAt: Math.round(draft.fireAt), snapshotDelaySec: draft.snapshotDelaySec,
-    svcDate: draft.svcDate, state: 'scheduled'
+    offsetMin: draft.offsetMin, walkMin: draft.walkMin, fireAt: Math.round(draft.fireAt), snapshotDelaySec: localReminderEffDelay(draft),
+    repeat: reminderRepeatOf(draft), svcDate: draft.svcDate, state: 'scheduled'
   };
   if (at >= 0) items[at] = item; else items.push(item);
   saveLocalReminders(items);
   try { localStorage.setItem(LOCAL_REMINDER_WALK_KEY, String(draft.walkMin)); } catch (e) {}
-  if (at >= 0) {
-    try { await window.RAIL_NATIVE_LOCALNOTIFY.cancel([Number(item.id)]); }
+  if (prev) {
+    // 🔴 舊槽位與新槽位可能是同一批 id(例如只改了時刻、星期集合沒動)。沒有這個取消,sync 會看到
+    //    pending 裡 id 都在就【判定已排好】而不重排,鬧鐘停在舊時刻——而畫面上一切正常。
+    try { await window.RAIL_NATIVE_LOCALNOTIFY.cancel([...new Set([...localReminderSlotIds(prev), ...localReminderSlotIds(item)])]); }
     catch (e) { console.error('本地提醒更新前取消失敗', e); }
   }
   await syncLocalReminders();
@@ -24672,7 +24844,9 @@ async function commitLocalReminderDraft() {
 }
 async function requestLocalReminderSave() {
   const draft = localReminderRecomputeAny(localReminderDraft); if (!draft) return;
-  if (draft.fireAt <= localNotifyNowEpoch() + 60) { showToast(t('太接近發車時間，來不及提醒')); return; }
+  if (notifyRepeatIncomplete(draft)) { showToast(t('請至少選一天')); return; }
+  // 重複提醒看的是「下一次」:每週一 08:00 在週一 09:00 設定不是來不及,它下週一才響。
+  if (localReminderDraftNextAt(draft, draft.fireAt) <= localNotifyNowEpoch() + 60) { showToast(t('太接近發車時間，來不及提醒')); return; }
   const permission = await refreshLocalReminderPermission(draft);
   if (permission === 'denied') return;
   if (permission === 'granted') { await commitLocalReminderDraft(); return; }
@@ -24713,6 +24887,34 @@ async function setupLocalNotifications() {
     localReminderDraft.basis = btn.dataset.basis === 'arr' ? 'arr' : 'dep';
     renderLocalReminderDraft(); // 重算 disabled 集合;若當前站在新基準下變 disabled 會自動跳到第一個合法站
   };
+  document.getElementById('notifyRepeat').onclick = e => {
+    const btn = e.target.closest('button[data-repeat]');
+    if (!btn || !localReminderDraft) return;
+    const kind = btn.dataset.repeat;
+    localReminderDraft.repeatCustom = kind === 'custom';
+    const cur = localReminderDraft.repeat;
+    const curDays = cur && cur.kind === 'weekly' && Array.isArray(cur.days) ? cur.days.map(Number) : null;
+    localReminderDraft.repeat =
+      kind === 'daily' ? { kind: 'daily' }
+      : kind === 'weekdays' ? { kind: 'weekly', days: [...REMINDER_WEEKDAY_SET] }
+      // 切到自訂:既有的星期集合原樣留著(從「週一到五」切過來不該把五天清掉);
+      // 沒有集合可留就用錨點那天當起點,而不是空集合——空集合按下去什麼都沒選中,看起來像壞了。
+      : kind === 'custom' ? { kind: 'weekly', days: curDays && curDays.length ? curDays : [reminderTaipeiParts(localReminderDraft.fireAt).iso] }
+      : null;
+    renderLocalReminderDraft();
+  };
+  document.getElementById('notifyRepeatDays').onclick = e => {
+    const btn = e.target.closest('button[data-weekday]');
+    if (!btn || !localReminderDraft) return;
+    const d = Number(btn.dataset.weekday);
+    const cur = localReminderDraft.repeat;
+    const days = new Set(cur && cur.kind === 'weekly' && Array.isArray(cur.days) ? cur.days.map(Number) : []);
+    if (days.has(d)) days.delete(d); else days.add(d);
+    // 一天都不剩時保留 kind:'weekly' 空集合,讓畫面停在自訂並由預覽說「請至少選一天」;
+    // 存檔那關會擋下來,不會靜靜存成不重複。
+    localReminderDraft.repeat = { kind: 'weekly', days: [...days].sort((a, b) => a - b) };
+    renderLocalReminderDraft();
+  };
   document.getElementById('notifyOffsets').onchange = e => {
     if (!localReminderDraft || e.target.name !== 'notifyOffset') return;
     localReminderDraft.offsetMin = Number(e.target.value); renderLocalReminderDraft();
@@ -24730,7 +24932,14 @@ async function setupLocalNotifications() {
     open: (no, sys, source) => openLocalReminderSheet(findLocalReminderTrain(no, sys), source || 'favorite'),
     lastTrain: (name, sys) => openLastTrainReminderSheet({ name, sys }),
     overview: () => openLocalReminderOverview(),
-    lastTrainCands: (name, sys) => lastTrainCandidates({ name, sys }).map(c => ({ train: String(c.tr.train), depSec: c.s.depSec, dest: c.dest }))
+    lastTrainCands: (name, sys) => lastTrainCandidates({ name, sys }).map(c => ({ train: String(c.tr.train), depSec: c.s.depSec, dest: c.dest })),
+    // 單元 B:重複規則的純函式直接曝露,讓驗收可以釘死假時鐘逐日推進,不必靠畫面猜。
+    nextFireAt: (item, now) => reminderNextFireAt(item, now),
+    slotIds: item => localReminderSlotIds(item),
+    payloads: item => localReminderPayloads(item),
+    taipeiParts: epoch => reminderTaipeiParts(epoch),
+    setRepeat: rep => { if (!localReminderDraft) return null; localReminderDraft.repeat = rep; renderLocalReminderDraft(); return localReminderDraft.repeat; },
+    draftRepeat: () => localReminderDraft && localReminderDraft.repeat
   };
   const mockOpts = window.__notifyMockOptions;
   if (mockOpts && mockOpts.reset) {

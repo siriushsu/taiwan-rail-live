@@ -444,6 +444,23 @@ try {
   if (mrtNo.status !== 0) fail('捷運車次欄守門人未過——有官方車次卻沒顯示,或沒有官方車次卻硬填了一個'
     + '（單獨重跑：npm run check-metro-train-no）');
 
+  // ── 2.21 本地提醒守門人(2026-09-13) ──────────────────────────────────────
+  // 為什麼值得進出貨鏈:這支此前【沒有任何呼叫者】,而且它自己已經紅了大約兩個月沒人知道——
+  // 12 個案例倒在同一個原因(腳本用中文字串找元件,Playwright 預設語系讓 I18N_LANG 變成 en),
+  // 另外 4 個倒在 2026-09-06 查詢分頁改版把提醒入口搬走而判準沒跟著搬。兩者都是
+  // 「不在出貨鏈上的驗收腳本等於不存在」的教科書例子(同 2.7／2.8／2.9)。
+  // 它守的東西沒有別的判準照得到:提醒是【純本地】功能(localStorage + Capacitor 本地通知),
+  // 不經過任何 API,所以資料閘門一條都碰不到;而排程算錯的症狀是「時間到了沒響」或
+  // 「響在錯的時間」——畫面永遠正常,使用者要等到隔天才發現,而且只在真機上發現。
+  // 涵蓋:五個入口都還在、跨日與誤點快照、20 則上限、週期性規則的下次時間、原生排程格位
+  // 不相撞、iOS 64 則預算、既有 v1 資料不被動到。實測 38 秒(22 案、自己起 dev server)。
+  // 🔴 洗掉繼承來的 NOTIFY_BASE:它會讓整支跑去驗【別棵樹】而紅綠長得一模一樣(同 2.19 的 PORT)。
+  const notify = spawnSync('node', [path.join(wt, 'scripts', 'verify_notify_p0.mjs')],
+    { encoding: 'utf8', env: { ...process.env, NOTIFY_BASE: '', PORT: '' } });
+  process.stdout.write(notify.stdout || ''); process.stderr.write(notify.stderr || '');
+  if (notify.status !== 0) fail('本地提醒守門人未過——提醒入口不見了,或排程時間／格位／上限算錯'
+    + '（單獨重跑：npm run check-notify）');
+
   // ── 3. strip（腳本內建 esbuild AST 重印等價證明，任何不等價都非零退出）────
   const rawBytes = fs.readFileSync(path.join(wt, 'index.html'));
   execFileSync('node', [path.join(wt, 'scripts', 'strip_ship_comments.mjs'), wt], { stdio: 'inherit' });

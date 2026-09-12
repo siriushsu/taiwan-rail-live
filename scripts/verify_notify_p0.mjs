@@ -1,9 +1,7 @@
 // 本地到站提醒（P0）+ 批次A2 驗收腳本 —— Playwright，涵蓋 §6 A–F。
 //
-// 跑法：
-//   1) 於 repo 根目錄起靜態站：  python3 -m http.server 5178
-//   2) 執行：                    node scripts/verify_notify_p0.mjs
-//   （要換 port：NOTIFY_BASE=http://127.0.0.1:5179/ node scripts/verify_notify_p0.mjs）
+// 跑法：node scripts/verify_notify_p0.mjs（或 npm run check-notify）——server 本檔自己起,
+//       不必先開靜態站。要指向已經在跑的 server：NOTIFY_BASE=http://127.0.0.1:5179/ node …
 //
 // 涵蓋：
 //   A 既有零回歸（批次A 全部案例：無 mock 入口、一般/收藏/終點到達、跨日/過近拒絕、
@@ -17,13 +15,42 @@
 // 斷言刻意避開會腐化的字面值：BUILD 只驗格式 /v\d{4}[a-z]/，不 assert 具體版號與更新紀錄日期。
 
 import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { spawn } from 'node:child_process';
+import { createServer } from 'node:net';
+import { createHash } from 'node:crypto';
 
 let pw;
 try { pw = await import('playwright'); }
 catch { pw = await import(process.env.PLAYWRIGHT_MJS ?? '/Users/xuxiang/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs'); }
 const { chromium } = pw;
 
-const BASE = process.env.NOTIFY_BASE || 'http://127.0.0.1:5178/';
+// 🔴 自己起 dev server(比照 verify_afr.mjs)。沒有這段的話本檔【上不了出貨鏈】——ship_web 跑在
+//    一棵乾淨的 worktree 上,沒有人在服那棵樹,而「不在出貨鏈上的驗收腳本等於不存在」。
+//    dev_server 而不是 http.server:本檔的 mock 走 /api/* 全攔,但頁面開機仍要拿得到靜態資產。
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const freePort = () => new Promise(res => { const srv = createServer(); srv.listen(0, '127.0.0.1', () => { const { port } = srv.address(); srv.close(() => res(port)); }); });
+let devChild = null;
+let BASE = process.env.NOTIFY_BASE;
+if (!BASE) {
+  const port = await freePort();
+  BASE = `http://127.0.0.1:${port}/`;
+  devChild = spawn(process.execPath, [path.join(ROOT, 'scripts/dev_server.mjs')], {
+    cwd: ROOT, env: { ...process.env, PORT: String(port) }, stdio: ['ignore', 'ignore', 'inherit'] });
+  process.on('exit', () => devChild?.kill());
+  for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { devChild?.kill(); process.exit(1); });
+  for (let i = 0; ; i++) { // 等它真的聽得到,不用固定秒數
+    try { const r = await fetch(BASE + 'index.html'); if (r.ok) break; } catch {}
+    if (i > 100) { console.error('✗ dev server 起不來（' + BASE + '）'); devChild.kill(); process.exit(1); }
+    await new Promise(r => setTimeout(r, 100));
+  }
+}
+// 🔴 判準盲點 0「我在量的是誰」:NOTIFY_BASE 可以把整支指到【別棵樹】,而紅綠會長得一模一樣。
+//    所以第一行就印出這支實際服的根目錄與 index.html 的 md5,出貨鏈紅掉時才分辨得出樹對不對。
+console.log('驗收目標：' + (process.env.NOTIFY_BASE ? 'NOTIFY_BASE=' + BASE + '（外部 server,樹未知）'
+  : ROOT + '  index.html md5=' + createHash('md5').update(readFileSync(path.join(ROOT, 'index.html'))).digest('hex')));
+
 // 高鐵班表自 2026-08-07 改以 apiUrl('api/thsr-schedule') 為主來源、靜態檔降級為 fallbackUrl。
 // 下面 boot() 那條 **/api/** 的全攔 route 會把它也一起吃掉,而 `[]` 是 200 ⇒ fetchJSONAt
 // 視同成功 ⇒ fallback 永不啟動 ⇒ applySchedSystems 迭代 undefined 的 sys.data.trains 拋錯
@@ -35,7 +62,12 @@ const assert = (ok, msg) => { if (!ok) throw new Error(msg); };
 const results = {}; // caseName -> 'PASS' | 'FAIL: ...'
 const detail = {};
 
+// 🔴 語系一律釘死:本檔大量用中文字串找元件與比對標籤,而 Playwright 的預設 locale 是 en-US
+//    ⇒ 頁面整份切成英文 ⇒ 15 案裡 12 案紅,而且紅的樣子完全不像語系問題(「缺少欄位標籤」「點不到」
+//    「標題錯誤」)。兩邊都要釘:網址參數決定頁面語系,context locale 決定 Intl 的格式化結果。
+const ZH = 'lang=zh-TW';
 async function boot(page, query = '') {
+  query = query ? (query + '&' + ZH) : ('?' + ZH);
   await page.route('**/api/**', route => {
     if (new URL(route.request().url()).pathname.endsWith('/api/thsr-schedule'))
       return route.fulfill({ status: 200, contentType: 'application/json', body: THSR_SCHED });
@@ -109,7 +141,7 @@ async function toSchedTraStation(page) {
 
 const browser = await chromium.launch({ headless: true });
 async function run(name, fn) {
-  const context = await browser.newContext(name.startsWith('E:') ? undefined : { viewport: { width: 1280, height: 900 } });
+  const context = await browser.newContext(name.startsWith('E:') ? { locale: 'zh-TW' } : { viewport: { width: 1280, height: 900 }, locale: 'zh-TW' });
   const page = await context.newPage();
   const errors = watchErrors(page);
   try { await fn(page, errors, context); results[name] = 'PASS'; }
@@ -445,7 +477,7 @@ try {
   const widths = [360, 375, 414, 768];
   const mobile = [];
   for (const width of widths) {
-    const context = await browser.newContext({ viewport: { width, height: width === 768 ? 1024 : 844 }, isMobile: true, hasTouch: true });
+    const context = await browser.newContext({ viewport: { width, height: width === 768 ? 1024 : 844 }, isMobile: true, hasTouch: true, locale: 'zh-TW' });
     const page = await context.newPage(); const errors = watchErrors(page);
     const key = `E:mobile-${width}`;
     try {
@@ -462,15 +494,21 @@ try {
       assert(!sheetScan.overflow && !sheetScan.collisions.length && sheetScan.targets.every(x => x.hit && x.min44), `${width}: sheet(含 basis) ${JSON.stringify(sheetScan)}`);
       const basisScan = await scan(page, ['#notifyBasis button']);
       assert(basisScan.targets.length === 2 && basisScan.targets.every(x => x.hit && x.min44), `${width}: basis 兩鈕命中/44px 失敗 ${JSON.stringify(basisScan)}`);
+      // 單元 B 的重複列：四顆模式鈕 + 展開後的七顆星期鈕，都要摸得到、夠大、不互相蓋。
+      const repeatScan = await scan(page, ['#notifyRepeat button']);
+      assert(repeatScan.targets.length === 4 && !repeatScan.collisions.length && repeatScan.targets.every(x => x.hit && x.min44),
+        `${width}: 重複四鈕 ${JSON.stringify(repeatScan)}`);
+      await page.tap('#notifyRepeat button[data-repeat="custom"]');
+      await page.locator('#notifyRepeatDays button[data-weekday="4"]').waitFor({ state: 'visible', timeout: 15000 });
+      const daysScan = await scan(page, ['#notifyRepeatDays button']);
+      assert(daysScan.targets.length === 7 && !daysScan.overflow && !daysScan.collisions.length && daysScan.targets.every(x => x.hit),
+        `${width}: 星期七鈕 ${JSON.stringify(daysScan)}`);
+      // 七顆擠在一列,寬度一定小於 44;高度仍要守住(比照板頭圖示鈕沿用既有慣例的寫法,只是這裡改守高)
+      assert(daysScan.targets.every(x => x.rect.h >= 40), `${width}: 星期鈕高度不足 ${JSON.stringify(daysScan.targets.map(x => Math.round(x.rect.h)))}`);
+      await page.tap('#notifyRepeat button[data-repeat="none"]');
+      await page.waitForFunction(() => document.getElementById('notifyModal').dataset.notifyRepeat === 'null');
       await page.tap('#notifyClose');
-      // 更多抽屜「已排提醒」列（≥44px）
-      await page.tap('#tabMore'); await page.waitForFunction(() => document.body.classList.contains('tools-open'));
-      const moreScan = await scan(page, ['.ms-row[data-act="notify"]']);
-      assert(!moreScan.overflow && !moreScan.collisions.length && moreScan.targets.length === 1 && moreScan.targets.every(x => x.hit && x.min44), `${width}: 更多列 ${JSON.stringify(moreScan)}`);
-      // 點更多列 → 開總覽
-      await page.tap('.ms-row[data-act="notify"]'); await page.locator('#notifyModal:not([hidden])').waitFor();
-      assert(await page.evaluate(() => document.getElementById('notifyModal').dataset.notifyView) === 'overview', `${width}: 更多列未開總覽`);
-      await page.tap('#notifyClose');
+      await page.waitForFunction(() => document.getElementById('notifyModal').hidden);
       // board 🔔 入口（台鐵站；沿用 ☆/× 22px 圖示鈕慣例，驗命中/相交/無溢出，不強制 44px）
       const st = await toSchedTraStation(page);
       await page.evaluate(s => { const stObj = state.schedStations.find(x => x.sys === s.sys && x.name === s.name); openBoard(stObj); }, st);
@@ -479,13 +517,262 @@ try {
       assert(!boardScan.overflow && !boardScan.collisions.length && boardScan.targets.length === 1 && boardScan.targets.every(x => x.hit), `${width}: board 🔔 ${JSON.stringify(boardScan)}`);
       await page.tap('#boardNotify'); await page.locator('#notifyModal:not([hidden])').waitFor();
       assert(await page.evaluate(() => document.getElementById('notifyModal').dataset.notifyView) === 'lasttrain', `${width}: board 🔔 未開末班車`);
+      await page.tap('#notifyClose');
+      await page.waitForFunction(() => document.getElementById('notifyModal').hidden);
+      // 「已排提醒」的手機入口。🔴 2026-09-06 查詢分頁定案之後它搬到【查詢 sheet 的快捷列】,
+      //    更多抽屜那一列在手機被 CSS 藏起來(.more-sheet .ms-row[data-home="query"])。兩邊都驗:
+      //    只驗新的,舊那列哪天又冒出來沒人知道;只驗舊的,就是現在這支腳本紅了兩個月的原因。
+      //    順序刻意把抽屜放最後——抽屜蓋住整條分頁列,開了就點不到 #tabSearch。
+      await page.tap('#tabSearch');
+      await page.locator('#queryLinks .ql-row[data-act="notify"]').waitFor({ state: 'visible', timeout: 20000 });
+      const qlScan = await scan(page, ['#queryLinks .ql-row[data-act="notify"]']);
+      assert(!qlScan.overflow && !qlScan.collisions.length && qlScan.targets.length === 1 && qlScan.targets.every(x => x.hit && x.min44), `${width}: 查詢快捷列 ${JSON.stringify(qlScan)}`);
+      await page.tap('#queryLinks .ql-row[data-act="notify"]'); await page.locator('#notifyModal:not([hidden])').waitFor();
+      assert(await page.evaluate(() => document.getElementById('notifyModal').dataset.notifyView) === 'overview', `${width}: 查詢快捷列未開總覽`);
+      await page.tap('#notifyClose');
+      await page.waitForFunction(() => document.getElementById('notifyModal').hidden);
+      await page.tap('#tabMore'); await page.waitForFunction(() => document.body.classList.contains('tools-open'));
+      const moreHidden = await page.evaluate(() => {
+        const el = document.querySelector('.ms-row[data-act="notify"]');
+        // 正向對照:同一個抽屜裡有別的列是看得見的 ⇒ 證明抽屜真的開了,而不是整個抽屜都沒渲染。
+        return { exists: !!el, display: el ? getComputedStyle(el).display : null,
+                 siblingsVisible: [...document.querySelectorAll('.ms-row[data-act]')].filter(x => getComputedStyle(x).display !== 'none').length };
+      });
+      assert(moreHidden.exists && moreHidden.display === 'none' && moreHidden.siblingsVisible > 0,
+        `${width}: 更多抽屜那列應該存在、被藏起來,且同抽屜其他列看得見 ${JSON.stringify(moreHidden)}`);
       assert(errors.length === 0, `${width}: console error ${errors.join(' | ')}`);
-      mobile.push({ width, touch: env.touch, basisTargets: basisScan.targets.length, moreRow: moreScan.targets.length, boardNotify: boardScan.targets.length, boardNotifyPx: boardScan.targets[0] && [Math.round(boardScan.targets[0].rect.w), Math.round(boardScan.targets[0].rect.h)] });
+      mobile.push({ width, touch: env.touch, basisTargets: basisScan.targets.length, repeatTargets: repeatScan.targets.length, dayTargets: daysScan.targets.length, queryLink: qlScan.targets.length, moreRowHidden: moreHidden.display === 'none', siblingsVisible: moreHidden.siblingsVisible, boardNotify: boardScan.targets.length, boardNotifyPx: boardScan.targets[0] && [Math.round(boardScan.targets[0].rect.w), Math.round(boardScan.targets[0].rect.h)] });
       results[key] = 'PASS';
     } catch (e) { results[key] = 'FAIL: ' + e.message; }
     finally { await context.close(); }
   }
   detail.E = mobile;
+
+  // ─────────── G. 單元 B：重複規則 ───────────
+  // 時鐘一律釘死成字面 epoch(台北牆上時刻推出來),不讀系統時間:這一組全部在判「星期幾」,
+  // 跟著真實時間跑的話同一支腳本在星期一與星期四會得到不同結果,紅起來完全不像時鐘問題。
+  // 2026-09-14 是星期一(ISO 1)。
+  const TPE = (y, m, d, hh, mm) => Math.floor(Date.UTC(y, m - 1, d, hh, mm) / 1000) - 8 * 3600;
+  const MON = TPE(2026, 9, 14, 8, 30); // 錨點:週一 08:30
+
+  // G1 假時鐘逐日推進一週:指定星期只在那幾天響,其餘每一天都不可以。
+  await run('G1:repeat-clock-walk', async (page, errors) => {
+    await boot(page, `?notifymock=1&notifyreset=1&notifynow=${MON}&case=repeat-clock`);
+    const out = await page.evaluate(([anchor, tpeBase]) => {
+      const api = window.__localNotifyTest;
+      const day = 86400;
+      const at = (k, hh, mm) => tpeBase + k * day + hh * 3600 + mm * 60; // tpeBase = 週一 00:00
+      const weekly = { id: 1, fireAt: anchor, repeat: { kind: 'weekly', days: [1, 5] } };
+      const daily = { id: 2, fireAt: anchor, repeat: { kind: 'daily' } };
+      const once = { id: 3, fireAt: anchor };
+      const isoOf = e => api.taipeiParts(e).iso;
+      const dateOf = e => api.taipeiParts(e).date;
+      const walk = [];
+      for (let k = 0; k < 14; k++) {           // 連走兩週,跨週界也要對
+        const now = at(k, 0, 5);               // 每天 00:05 問「下一次是什麼時候」
+        walk.push({ k, nowIso: isoOf(now), weeklyIso: isoOf(api.nextFireAt(weekly, now)), weeklyDate: dateOf(api.nextFireAt(weekly, now)),
+                    dailyDate: dateOf(api.nextFireAt(daily, now)) });
+      }
+      const weeklyAts = [];
+      for (let k = 0; k < 14; k++) { const now = at(k, 0, 5); weeklyAts.push({ now, next: api.nextFireAt(weekly, now) }); }
+      return {
+        walk,
+        monotonic: weeklyAts.every((x, i) => i === 0 || x.next >= weeklyAts[i - 1].next),
+        allFuture: weeklyAts.every(x => x.next > x.now),
+        weeklyIsoSet: [...new Set(walk.map(x => x.weeklyIso))].sort(),
+        weeklyDates: [...new Set(walk.map(x => x.weeklyDate))].sort(),
+        dailySameDay: api.nextFireAt(daily, at(0, 7, 0)) === at(0, 8, 30),   // 當天時刻還沒到 → 今天
+        dailyNextDay: api.nextFireAt(daily, at(0, 9, 0)) === at(1, 8, 30),   // 當天時刻過了 → 明天
+        weeklyMonToFri: api.nextFireAt(weekly, at(0, 9, 0)) === at(4, 8, 30), // 週一過了 → 週五
+        weeklyFriToMon: api.nextFireAt(weekly, at(4, 9, 0)) === at(7, 8, 30), // 週五過了 → 下週一
+        onceStaysAnchor: api.nextFireAt(once, at(9, 0, 0)) === anchor,        // 不重複:永遠是錨點本身
+      };
+    }, [MON, TPE(2026, 9, 14, 0, 0)]);
+    assert(out.walk.length === 14 && out.walk[0].nowIso === 1, 'G1: 假時鐘沒有從週一開始走 ' + JSON.stringify(out.walk[0]));
+    // 正向:只落在週一與週五。反向對照:任何一天都不可以落在其他五個星期幾(沒有這條,判準對「永遠回同一天」也會綠)
+    assert(JSON.stringify(out.weeklyIsoSet) === JSON.stringify([1, 5]), 'G1: 指定星期落到別的日子 ' + JSON.stringify(out.weeklyIsoSet));
+    // 獨立真值:日期字串自己算星期幾(不經過被測的那支函式),再加上「不倒退」與「一定在未來」。
+    const isoOfDate = d => { const w = new Date(d + 'T00:00:00Z').getUTCDay(); return w === 0 ? 7 : w; };
+    assert(out.weeklyDates.every(d => [1, 5].includes(isoOfDate(d))), 'G1: 命中的日期自己算出來不是週一或週五 ' + JSON.stringify(out.weeklyDates));
+    assert(out.weeklyDates.length >= 4, 'G1: 兩週的窗只命中 ' + out.weeklyDates.length + ' 個日期,太少 ' + JSON.stringify(out.weeklyDates));
+    assert(out.monotonic, 'G1: 逐日推進時「下一次」倒退了 ' + JSON.stringify(out.walk));
+    assert(out.allFuture, 'G1: 有一天算出來的「下一次」不在未來');
+    assert(out.dailySameDay && out.dailyNextDay, 'G1: 每天的當日/隔日邊界錯 ' + JSON.stringify(out));
+    assert(out.weeklyMonToFri && out.weeklyFriToMon, 'G1: 週一↔週五的接續錯 ' + JSON.stringify(out));
+    assert(out.onceStaysAnchor, 'G1: 不重複項目的下一次不應該被推算');
+    assert(errors.length === 0, 'G1 console error: ' + errors.join(' | '));
+    detail.G1 = { weeklyIsoSet: out.weeklyIsoSet, weeklyDates: out.weeklyDates, dailySameDay: out.dailySameDay, dailyNextDay: out.dailyNextDay };
+  });
+
+  // G2 原生排程 payload 的形狀:重複走 on+repeats、一次性走 at;ISO→Capacitor 星期碼要真的轉過。
+  await run('G2:repeat-payload', async (page, errors) => {
+    await boot(page, `?notifymock=1&notifyreset=1&notifynow=${MON}&case=repeat-payload`);
+    const out = await page.evaluate(anchor => {
+      const api = window.__localNotifyTest;
+      const mk = (id, repeat) => ({ id, sys: 'tra', train: '123', stName: '臺北', mode: 'dep', offsetMin: 10, walkMin: 0, fireAt: anchor, snapshotDelaySec: 0, svcDate: '2026-09-14', repeat });
+      const once = api.payloads(mk(1, null));
+      const daily = api.payloads(mk(2, { kind: 'daily' }));
+      const weekdays = api.payloads(mk(3, { kind: 'weekly', days: [1, 2, 3, 4, 5] }));
+      const sunday = api.payloads(mk(4, { kind: 'weekly', days: [7] }));
+      return {
+        once: { n: once.length, hasAt: !!(once[0].schedule && once[0].schedule.at), repeats: !!once[0].schedule.repeats },
+        daily: { n: daily.length, on: daily[0].schedule.on, repeats: daily[0].schedule.repeats },
+        weekdays: { n: weekdays.length, weekdays: weekdays.map(p => p.schedule.on.weekday).sort((a, b) => a - b), allRepeat: weekdays.every(p => p.schedule.repeats === true), hours: [...new Set(weekdays.map(p => p.schedule.on.hour))] },
+        sundayWeekday: sunday[0].schedule.on.weekday,
+        titleSame: new Set([...once, ...daily, ...weekdays].map(p => p.title)).size === 1,
+      };
+    }, MON);
+    assert(out.once.n === 1 && out.once.hasAt && !out.once.repeats, 'G2: 一次性應該恰一筆 at 且不重複 ' + JSON.stringify(out.once));
+    assert(out.daily.n === 1 && out.daily.repeats === true && out.daily.on.hour === 8 && out.daily.on.minute === 30 && out.daily.on.weekday === undefined,
+      'G2: 每天應該恰一筆、綁時分不綁星期 ' + JSON.stringify(out.daily));
+    // Capacitor 的 Weekday 是 Sunday=1…Saturday=7;ISO 的週一到五(1..5)要變成 2..6。
+    assert(out.weekdays.n === 5 && JSON.stringify(out.weekdays.weekdays) === JSON.stringify([2, 3, 4, 5, 6]) && out.weekdays.allRepeat,
+      'G2: 週一到五的星期碼沒有從 ISO 轉成 Capacitor ' + JSON.stringify(out.weekdays));
+    assert(out.sundayWeekday === 1, 'G2: ISO 週日(7)必須轉成 Capacitor 的 1,實得 ' + out.sundayWeekday);
+    assert(JSON.stringify(out.weekdays.hours) === JSON.stringify([8]), 'G2: 五筆的時刻應該一致 ' + JSON.stringify(out.weekdays.hours));
+    assert(out.titleSame, 'G2: 同一則提醒的各槽位標題應該一致');
+    assert(errors.length === 0, 'G2 console error: ' + errors.join(' | '));
+    detail.G2 = out;
+  });
+
+  // G3 原生 id 不相交:重複的衍生 id 不可以撞到別則提醒的 id,而且要放得進 Android 的 int32。
+  await run('G3:slot-id-disjoint', async (page, errors) => {
+    await boot(page, `?notifymock=1&notifyreset=1&notifynow=${MON}&case=slot-id`);
+    const out = await page.evaluate(anchor => {
+      const api = window.__localNotifyTest;
+      const all = [], per = {};
+      for (let id = 1; id <= 60; id++) {
+        for (const [tag, repeat] of [['once', null], ['daily', { kind: 'daily' }], ['week', { kind: 'weekly', days: [1, 2, 3, 4, 5, 6, 7] }]]) {
+          const ids = api.slotIds({ id, fireAt: anchor, repeat });
+          per[tag + id] = ids;
+          if (tag !== 'once' || true) all.push(...ids);
+        }
+      }
+      const onceIds = Object.entries(per).filter(([k]) => k.startsWith('once')).flatMap(([, v]) => v);
+      const recurIds = Object.entries(per).filter(([k]) => !k.startsWith('once')).flatMap(([, v]) => v);
+      return {
+        onceIsIdentity: onceIds.every((v, i) => v === i + 1),
+        overlap: onceIds.filter(v => recurIds.includes(v)).length,
+        recurDup: recurIds.length - new Set(recurIds).size,
+        maxId: Math.max(...all),
+        int32Ok: Math.max(...all) <= 2147483647,
+        weekCount: per.week7.length, dailyCount: per.daily7.length, onceCount: per.once7.length,
+      };
+    }, MON);
+    assert(out.onceIsIdentity, 'G3: 一次性的原生 id 應該就是項目 id(舊版排下去的 pending 才不會churn)');
+    assert(out.overlap === 0, `G3: 重複的衍生 id 撞到一次性的 id ${out.overlap} 次`);
+    assert(out.recurDup === 0, `G3: 不同項目的重複槽位撞號 ${out.recurDup} 次`);
+    assert(out.int32Ok, `G3: 最大 id ${out.maxId} 超出 int32,Android 會排不下去`);
+    assert(out.onceCount === 1 && out.dailyCount === 1 && out.weekCount === 7, 'G3: 槽位數不對 ' + JSON.stringify(out));
+    assert(errors.length === 0, 'G3 console error: ' + errors.join(' | '));
+    detail.G3 = out;
+  });
+
+  // G4 端到端:在畫面上設一則「週一到五」,存檔後原生真的收到五筆重複排程,清單也標出來。
+  await run('G4:repeat-end-to-end', async (page, errors) => {
+    await boot(page, '?notifymock=1&notifyreset=1&notifynow=0&case=repeat-e2e');
+    await openRandomFollow(page); await openNotifyFromFollow(page);
+    const before = await page.evaluate(() => document.getElementById('notifyModal').dataset.notifyRepeat);
+    assert(before === 'null', 'G4: 預設應該是不重複,實得 ' + before);
+    await page.evaluate(() => window.__localNotifyTest.setRepeat({ kind: 'weekly', days: [1, 2, 3, 4, 5] }));
+    await page.locator('#notifySave').click();
+    await page.waitForFunction(() => (JSON.parse(localStorage.getItem('trainmap-local-reminders-v1') || '[]')).length === 1);
+    const out = await page.evaluate(() => {
+      const items = JSON.parse(localStorage.getItem('trainmap-local-reminders-v1') || '[]');
+      const pending = window.__notifyMockPending;
+      return {
+        repeat: items[0].repeat, snapshot: items[0].snapshotDelaySec,
+        pendingN: pending.length,
+        allRepeat: pending.every(p => p.schedule && p.schedule.repeats === true),
+        weekdays: pending.map(p => p.schedule.on.weekday).sort((a, b) => a - b),
+        tagCount: document.querySelectorAll('#notifyReminderList .notify-repeat-tag').length,
+        tagEmpty: [...document.querySelectorAll('#notifyReminderList .notify-repeat-tag')].some(x => !x.textContent.trim()),
+      };
+    });
+    assert(out.repeat && out.repeat.kind === 'weekly' && JSON.stringify(out.repeat.days) === JSON.stringify([1, 2, 3, 4, 5]), 'G4: 存下來的重複規則不對 ' + JSON.stringify(out.repeat));
+    assert(out.snapshot === 0, 'G4: 重複提醒必須以表定為錨點(誤點快照要歸零),實得 ' + out.snapshot);
+    assert(out.pendingN === 5 && out.allRepeat, 'G4: 原生應收到五筆重複排程 ' + JSON.stringify(out));
+    assert(JSON.stringify(out.weekdays) === JSON.stringify([2, 3, 4, 5, 6]), 'G4: 原生星期碼不對 ' + JSON.stringify(out.weekdays));
+    assert(out.tagCount === 1 && !out.tagEmpty, 'G4: 清單沒有標出重複 ' + JSON.stringify(out));
+    assert(errors.length === 0, 'G4 console error: ' + errors.join(' | '));
+    detail.G4 = out;
+  });
+
+  // G5 改時刻要真的重排。🔴 這是本批最容易靜默壞掉的一處:星期集合沒變 ⇒ 槽位 id 一模一樣 ⇒
+  //    sync 看到 pending 裡 id 都在就判定「已排好」,鬧鐘會停在舊時刻,而畫面完全正常。
+  await run('G5:repeat-edit-reschedules', async (page, errors) => {
+    await boot(page, '?notifymock=1&notifyreset=1&notifynow=0&case=repeat-edit');
+    await openRandomFollow(page); await openNotifyFromFollow(page);
+    await page.evaluate(() => window.__localNotifyTest.setRepeat({ kind: 'weekly', days: [1, 2, 3, 4, 5] }));
+    await page.locator('#notifySave').click();
+    await page.waitForFunction(() => (JSON.parse(localStorage.getItem('trainmap-local-reminders-v1') || '[]')).length === 1);
+    const first = await page.evaluate(() => ({ ids: window.__notifyMockPending.map(p => p.id).sort(), on: window.__notifyMockPending[0].schedule.on, fireAt: JSON.parse(localStorage.getItem('trainmap-local-reminders-v1'))[0].fireAt }));
+    // 提前量 10 → 30 分（同一則、同一個星期集合）
+    await page.locator('#notifyOffsets label:has(input[value="30"])').click(); // radio 本身 opacity:0/pointer-events:none,要點 label
+    await page.locator('#notifySave').click();
+    await page.waitForFunction(prev => JSON.parse(localStorage.getItem('trainmap-local-reminders-v1'))[0].fireAt !== prev, first.fireAt);
+    const second = await page.evaluate(() => ({ ids: window.__notifyMockPending.map(p => p.id).sort(), on: window.__notifyMockPending[0].schedule.on, n: window.__notifyMockPending.length, items: JSON.parse(localStorage.getItem('trainmap-local-reminders-v1')).length }));
+    assert(second.items === 1 && second.n === 5, 'G5: 更新後應該仍是一則五槽 ' + JSON.stringify(second));
+    assert(JSON.stringify(first.ids) === JSON.stringify(second.ids), 'G5: 星期集合沒變,槽位 id 不該換 ' + JSON.stringify([first.ids, second.ids]));
+    assert(first.on.hour * 60 + first.on.minute !== second.on.hour * 60 + second.on.minute,
+      `G5: 提前量改了 20 分鐘,原生排程的時刻卻沒動(${JSON.stringify(first.on)} → ${JSON.stringify(second.on)})——鬧鐘停在舊時刻`);
+    assert((first.on.hour * 60 + first.on.minute - (second.on.hour * 60 + second.on.minute) + 1440) % 1440 === 20,
+      `G5: 時刻要正好往前 20 分鐘 ${JSON.stringify([first.on, second.on])}`);
+    assert(errors.length === 0, 'G5 console error: ' + errors.join(' | '));
+    detail.G5 = { ids: first.ids.length, from: first.on, to: second.on };
+  });
+
+  // G6 兩道上限:一則重複算一則項目(不展開成七則),但原生槽位總數不可以衝破預算。
+  await run('G6:repeat-limits', async (page, errors) => {
+    await boot(page, `?notifymock=1&notifyreset=1&notifynow=${MON}&case=repeat-limit`);
+    const out = await page.evaluate(async anchor => {
+      const api = window.__localNotifyTest;
+      const mk = (id, repeat, off) => ({ id, sys: 'tra', train: String(1000 + id), stName: '臺北', mode: 'dep', basis: 'dep', offsetMin: 10, walkMin: 0, fireAt: anchor + off, snapshotDelaySec: 0, svcDate: '2026-09-14', repeat, state: 'scheduled' });
+      // (a) 19 則一次性 ＋ 1 則七天重複 ⇒ 項目 20(剛好在上限內)、槽位 19+7=26(遠低於預算)
+      const a = [];
+      for (let i = 1; i <= 19; i++) a.push(mk(i, null, 3600 + i * 60));
+      a.push(mk(20, { kind: 'weekly', days: [1, 2, 3, 4, 5, 6, 7] }, 3600 + 20 * 60));
+      api.save(a); await api.sync();
+      const afterA = { pending: window.__notifyMockPending.length, standby: api.load().filter(x => x.state === 'standby').length };
+      // (b) 九則七天重複 ⇒ 項目 9(遠低於 20),槽位 63 > 預算 60 ⇒ 必須有項目被推去候補
+      const b = [];
+      for (let i = 1; i <= 9; i++) b.push(mk(i, { kind: 'weekly', days: [1, 2, 3, 4, 5, 6, 7] }, 3600 + i * 60));
+      await window.RAIL_NATIVE_LOCALNOTIFY.cancel(window.__notifyMockPending.map(p => p.id));
+      api.save(b); await api.sync();
+      const afterB = { pending: window.__notifyMockPending.length, standby: api.load().filter(x => x.state === 'standby').length, items: api.load().length };
+      return { afterA, afterB };
+    }, MON);
+    assert(out.afterA.pending === 26 && out.afterA.standby === 0,
+      'G6: 一則七天重複應該只算一則項目(20 則全排、槽位 26) ' + JSON.stringify(out.afterA));
+    // 反向對照:沒有槽位預算這條的話,下面會排出 63 筆,iOS 超過 64 的部分會被系統靜默丟掉。
+    assert(out.afterB.items === 9 && out.afterB.pending === 56 && out.afterB.standby === 1,
+      'G6: 槽位預算沒有生效(9 則 x 7 天 = 63 槽,預算 60 ⇒ 只能排 8 則 56 槽、1 則候補) ' + JSON.stringify(out.afterB));
+    assert(errors.length === 0, 'G6 console error: ' + errors.join(' | '));
+    detail.G6 = out;
+  });
+
+  // G7 既有 v1 資料零遷移:沒有 repeat 欄位的項目一律當不重複,行為與改版前相同。
+  await run('G7:legacy-v1-untouched', async (page, errors) => {
+    await boot(page, `?notifymock=1&notifyreset=1&notifyseed=3&notifynow=${MON}&case=legacy`);
+    const out = await page.evaluate(() => {
+      const api = window.__localNotifyTest;
+      const items = api.load();
+      return {
+        n: items.length,
+        noRepeatField: items.every(x => !('repeat' in x) || x.repeat == null),
+        slotIsIdentity: items.every(x => { const s = api.slotIds(x); return s.length === 1 && s[0] === x.id; }),
+        payloadHasAt: items.every(x => { const p = api.payloads(x)[0]; return !!p.schedule.at && !p.schedule.repeats; }),
+        nextIsAnchor: items.every(x => api.nextFireAt(x, 0) === x.fireAt),
+        tags: document.querySelectorAll('#notifyReminderList .notify-repeat-tag').length,
+      };
+    });
+    assert(out.n === 3, 'G7: 種子資料沒進來 ' + JSON.stringify(out));
+    assert(out.noRepeatField && out.slotIsIdentity && out.payloadHasAt && out.nextIsAnchor,
+      'G7: 舊資料被改動或被當成重複 ' + JSON.stringify(out));
+    assert(out.tags === 0, 'G7: 舊資料不該出現重複標籤');
+    assert(errors.length === 0, 'G7 console error: ' + errors.join(' | '));
+    detail.G7 = out;
+  });
 
   // ─────────── F. 無 mock：所有新入口不可見、零 console error ───────────
   await run('F:no-mock-entries', async (page, errors) => {
@@ -514,4 +801,5 @@ try {
   process.exitCode = fails.length === 0 ? 0 : 1;
 } finally {
   await browser.close();
+  devChild?.kill();
 }
