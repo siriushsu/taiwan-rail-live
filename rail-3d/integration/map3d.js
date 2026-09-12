@@ -8,7 +8,12 @@ import {routeWidth,readableScale,stationNames,vehicleMarkers} from './readabilit
 import {formationFor,assembleFormation} from './formations.js';
 import {makePath,shapeKey,makeHeightProfile,formationPoses} from './train-path.js';
 import {profileLines} from './profile-lines.js';
-import {createRailStructures,PORTAL_FACE_U} from './rail-structures.js';
+import {createRailStructures,VIADUCT_LIFT_M} from './rail-structures.js';
+import {createTrainHalo} from './train-halo.js';
+import {createHeadlightSpill} from './headlight-spill.js';
+import {createTunnelApertures} from './tunnel-apertures.js';
+import {groupTunnelPortals,PORTAL_GROUND_U} from './tunnel-portals.js';
+import {installTrainLighting,prepareWindowLighting,createTrainLamps,nightAmount,tunnelAmount} from './train-lighting.js';
 import {headFramingDistance} from './follow-framing.js';
 import {createLandscapeTrees} from './landscape-trees.js';
 import {orderBuildingPasses} from './layer-order.js';
@@ -38,21 +43,22 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   const scene=new THREE.Scene(),camera=new THREE.Camera(),projection=new THREE.Matrix4(),anchor=ml.MercatorCoordinate.fromLngLat([121,24]),unit=anchor.meterInMercatorCoordinateUnits();
   const transform=new THREE.Matrix4().makeTranslation(anchor.x,anchor.y,0).scale(new THREE.Vector3(unit,-unit,unit));
   const cache=new Map(),pending=new Map(),models=new Map(),failed=new Set(),paths=new WeakMap(),motion=new Map(),formations=new WeakMap();
-  const rails=profileLines(scene),undergroundRails=profileLines(scene,{underground:true}),structures=createRailStructures(scene);
+  const rails=profileLines(scene),undergroundRails=profileLines(scene,{underground:true}),structures=createRailStructures(scene),apertures=createTunnelApertures((x,y)=>{const q=new ml.MercatorCoordinate(anchor.x+x*unit,anchor.y-y*unit).toLngLat(),h=map.queryTerrainElevation([q.lng,q.lat]);return Number.isFinite(h)?world([q.lng,q.lat],h)[2]:null;});
   let followingCamera=false,zoomFollows=null,followReturn=null,framingView=null;const pointers=new Set();
   let profileVertices=[],gesture=false,gesturePanned=false,gestureOrbited=false,gestureTimer=0,ambientWas=false,ambientView=null,cameraAt=0,orbitBearing=0;
-  const material=createWenhuMaterial(THREE);material.transparent=false;material.opacity=1;
+  const material=createWenhuMaterial(THREE);installTrainLighting(material,THREE);const lamps=createTrainLamps(THREE);material.transparent=false;material.opacity=1;
   // 在 CPU 的雙精度矩陣先合成每節車的投影，避免 GPU 以全台公尺座標做大數相減。
   // 只替換列車材質；路線、底圖、建物與車體的實際位置完全沿用原本資料。
   material.uniforms.trainClipMatrix={value:new THREE.Matrix4()};
   material.vertexShader='uniform mat4 trainClipMatrix;\n'+material.vertexShader.replace('projectionMatrix*modelViewMatrix*vec4(position,1.0)','trainClipMatrix*vec4(position,1.0)');
-  material.onBeforeRender=(_renderer,_scene,view,_geometry,mesh)=>{material.uniforms.trainClipMatrix.value.multiplyMatrices(view.projectionMatrix,mesh.modelViewMatrix);material.uniformsNeedUpdate=true;};
+  function lightUniforms(mat,view,mesh){mat.uniforms.trainClipMatrix.value.multiplyMatrices(view.projectionMatrix,mesh.modelViewMatrix);const l=mesh.userData.trainLight;mat.uniforms.trainNight.value=nightAmount(globalThis.railIslandSunlight?.current);mat.uniforms.trainTunnel.value.fromArray(l?.tunnel||[0,0,0]);const box=mesh.geometry.boundingBox;mat.uniforms.trainBounds.value.set(box.min.x,box.max.x);mat.uniformsNeedUpdate=true;}
+  material.onBeforeRender=(_renderer,_scene,view,_geometry,mesh)=>lightUniforms(material,view,mesh);
   const undergroundMaterial=material.clone();undergroundMaterial.transparent=true;undergroundMaterial.depthTest=true;undergroundMaterial.depthWrite=false;
-  undergroundMaterial.fragmentShader=undergroundMaterial.fragmentShader.replace(')),1.);}', ')),.42);}');
-  undergroundMaterial.onBeforeRender=(_renderer,_scene,view,_geometry,mesh)=>{undergroundMaterial.uniforms.trainClipMatrix.value.multiplyMatrices(view.projectionMatrix,mesh.modelViewMatrix);undergroundMaterial.uniformsNeedUpdate=true;};
+  undergroundMaterial.uniforms.trainOpacity.value=.42;
+  undergroundMaterial.onBeforeRender=(_renderer,_scene,view,_geometry,mesh)=>{lightUniforms(undergroundMaterial,view,mesh);};
   const vehicleDepthMaterial=material.clone();vehicleDepthMaterial.colorWrite=false;vehicleDepthMaterial.depthWrite=true;vehicleDepthMaterial.depthTest=true;
   vehicleDepthMaterial.onBeforeRender=(_renderer,_scene,view,_geometry,mesh)=>{vehicleDepthMaterial.uniforms.trainClipMatrix.value.multiplyMatrices(view.projectionMatrix,mesh.modelViewMatrix);vehicleDepthMaterial.uniformsNeedUpdate=true;};
-  scene.add(new THREE.AmbientLight(0xffffff,1.9));const sun=new THREE.DirectionalLight(0xfff3dc,2);sun.position.set(-100,-150,300);scene.add(sun);
+  const ambientLight=new THREE.AmbientLight(0xffffff,1.9);scene.add(ambientLight);const sun=new THREE.DirectionalLight(0xfff3dc,2);sun.position.set(-100,-150,300);scene.add(sun);
   const sprite=document.createElement('canvas');sprite.width=sprite.height=32;const sc=sprite.getContext('2d');sc.fillStyle='#fff';sc.beginPath();sc.arc(16,16,13,0,Math.PI*2);sc.fill();
   const pointTexture=new THREE.CanvasTexture(sprite);
   const pointGeometry=new THREE.BufferGeometry(),pointMaterial=new THREE.PointsMaterial({size:10,map:pointTexture,alphaTest:.5,sizeAttenuation:false,vertexColors:true,depthTest:true});
@@ -61,7 +67,8 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   const arrows=new THREE.Mesh(arrowGeometry,arrowMaterial);arrows.frustumCulled=false;scene.add(arrows);let arrowPositions=new Float32Array(0),arrowColors=new Float32Array(0);
   const inputListeners=[];
   let vehicleLayer,underlayLayer,undergroundLayer,webgl,positions=new Float32Array(0),colors=new Float32Array(0),hits=[];
-  const stats={structures:structures.stats,frames:0,vehicles:0,models:0,routeBuilds:0,geometryVersion:null,railElevationM:null,displayHeight:terrainState.terrain?'DEM + estimated rail levels':'estimated rail levels',groundMode,landscapeTheme,trainSizeMode,formationMode,errors:[],poseSamples:[],get stationLabels(){return stationLabels?.count||0;},get routeWidthPx(){return routeWidth(map.getZoom());}};
+  const headlightSpill=createHeadlightSpill(scene),trainHalo=createTrainHalo(scene);
+  const stats={trainHalo:trainHalo.stats,headlightSpill:headlightSpill.stats,structures:structures.stats,frames:0,vehicles:0,models:0,routeBuilds:0,geometryVersion:null,railElevationM:null,displayHeight:terrainState.terrain?'DEM + estimated rail levels':'estimated rail levels',groundMode,landscapeTheme,trainSizeMode,formationMode,errors:[],poseSamples:[],get stationLabels(){return stationLabels?.count||0;},get routeWidthPx(){return routeWidth(map.getZoom());}};
   const report=e=>{const text=e?.message||String(e);if(stats.errors.length<20)stats.errors.push(text);onError?.(text);};
   function world(coord,height){const m=ml.MercatorCoordinate.fromLngLat(coord);return [(m.x-anchor.x)/unit,-(m.y-anchor.y)/unit,height*m.meterInMercatorCoordinateUnits()/unit];}
   function height(coord){if(!terrainState.terrain)return .65;const h=map.queryTerrainElevation(coord);return Number.isFinite(h)?h+.65:null;}
@@ -105,7 +112,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     if(path)s=Math.max(0,Math.min(path.length,s));
     // 實體軌道以畫面地表為基準；舊 DEM 淨空含全線 +2.5m，不能再把它當路基高度。
     // 軌道、逐節車廂及跟車鏡頭共用此函式，保留交會層差，不以橋墩填補資料誤差。
-    if(path?.level){const absolute=terrainState.terrain?path.level(s)?.terrainHeightM:undefined;if(Number.isFinite(absolute))return terrainLoaded(path.at(s).coordinate)?absolute+.65:null;const ground=terrainState.terrain?terrainAt(path.at(s).coordinate):0,level=path.level(s),offset=level?.offsetM??0;return Number.isFinite(ground)?ground+offset+.65:null;}
+    if(path?.level){const absolute=terrainState.terrain?path.level(s)?.terrainHeightM:undefined;if(Number.isFinite(absolute))return terrainLoaded(path.at(s).coordinate)?absolute+.65:null;const ground=terrainState.terrain?terrainAt(path.at(s).coordinate):0,level=path.level(s),offset=(terrainState.terrain?level?.offsetM:level?.flatOffsetM??level?.offsetM)??0;return Number.isFinite(ground)?ground+offset+.65:null;}
     const h=path?.elevation?(terrainState.terrain?path.elevation(s):0):terrainState.terrain?null:0;return Number.isFinite(h)?h+.65:null;
   }
   // 鋼軌 .14 公尺寬，z17 以下不到一個像素，畫了只是燒頂點。枕木再近一級才長出來。
@@ -150,7 +157,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     if(hilly||cover<COVER_RECHECK_M){const g=terrainAt(coordinate);if(Number.isFinite(g)&&g<=railM)return 'none';}
     return hilly||cover>SEE_THROUGH_COVER_M?'depth':'xray';
   }
-  function clearLines(){stats.undergroundRailSegments=stats.buriedDepthSegments=stats.buriedHiddenSegments=0;reliefCells.clear();reliefPoints.clear();profileVertices=[];rails.set([]);undergroundRails.set([]);structures.set([],[]);}
+  function clearLines(){stats.undergroundRailSegments=stats.buriedDepthSegments=stats.buriedHiddenSegments=0;reliefCells.clear();reliefPoints.clear();profileVertices=[];rails.set([]);undergroundRails.set([]);structures.set([],[]);apertures.set([]);}
   function rebuildLines(){
     const buildStarted=performance.now();terrainCaching=true;tcLon=tcLat=NaN;
     try{
@@ -160,20 +167,23 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     // 洞口取建置時算好的清單（railIslandPhysical.portals），不從股道取樣推。算繪端只走「當下
     // 有車在跑」的股道，沒車的隧道整段都取樣不到，推不出任何一個洞口。
     const portals=[];
-    if(detail>=1)for(const [lon,lat,bearingDeg,system] of globalThis.railIslandPhysical?.portals||[]){
+    if(detail>=1)for(const source of globalThis.railIslandPhysical?.portalPaths||[]){
+      const {coordinate:q,angle,system}=source,[lon,lat]=q;
       if(lon<bounds.getWest()-margin||lon>bounds.getEast()+margin||lat<bounds.getSouth()-margin||lat>bounds.getNorth()+margin)continue;
-      const angle=(90-bearingDeg)*Math.PI/180,q=[lon,lat];
-      const level=globalThis.railIslandPhysical.displayLevelAt(system,q,angle);
-      // 借 railHeight 算高度：包一個只有 level 與 at 的假路徑，平面／地形兩種模式的規則就不必再寫一次。
-      const h=railHeight({level:()=>level,at:()=>({coordinate:q}),length:0},0);
-      if(!Number.isFinite(h))continue;
-      // 面牆底緣要照現場地形，所以沿洞口面橫向取樣地表高程交給算繪端內插；地形關掉時一律取地面 0。
-      const across=(bearingDeg+90)*Math.PI/180,mLon=111320*Math.cos(lat*Math.PI/180);
-      const ground=PORTAL_FACE_U.map(u=>{
-        const c=[lon+u*Math.sin(across)/mLon,lat+u*Math.cos(across)/110574],
-              g=terrainState.terrain?terrainAt(c):0;
-        return Number.isFinite(g)?world(c,g)[2]:null;});
-      portals.push({p:world(q,h),angle,ground,scale:ml.MercatorCoordinate.fromLngLat(q).meterInMercatorCoordinateUnits()/unit});
+      const sample=d=>{const point=source.at(d),level=point.level,h=railHeight({level:()=>level,at:()=>point,length:0},0);return Number.isFinite(h)?world(point.coordinate,h):null;};
+      const p=sample(0),samples=[0,3,6,9,12].map(sample);if(!p||samples.some(p=>!p))continue;
+      portals.push({p,angle,system,coordinate:q,samples,scale:ml.MercatorCoordinate.fromLngLat(q).meterInMercatorCoordinateUnits()/unit});
+    }
+    const portalGroups=groupTunnelPortals(portals);
+    for(const item of portalGroups){
+      // 合併後再沿外牆取樣，且橫向的正負必須與模型的 u 軸一致。
+      const mx=anchor.x+item.p[0]*unit,my=anchor.y-item.p[1]*unit,
+            center=new ml.MercatorCoordinate(mx,my,0).toLngLat(),mLon=111320*Math.cos(center.lat*Math.PI/180),
+            ux=-Math.sin(item.angle),uy=Math.cos(item.angle);
+      item.ground=PORTAL_GROUND_U.map(f=>{
+        const u=f*(item.halfWidth+4),q=[center.lng+ux*u/mLon,center.lat+uy*u/110574],g=terrainState.terrain?terrainAt(q):0;
+        return Number.isFinite(g)?world(q,g)[2]:null;
+      });
     }
     const ground=q=>terrainState.terrain?terrainAt(q):0,PIER_M=32;
     for(const r of frame.routes){const coords=r.coordinates,vertices=[],path=pathFor(r);let lastPierS=-Infinity;for(let i=1;i<coords.length;i++){
@@ -199,25 +209,31 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
       // 同格的平行線共用格線；轉彎換格時允許一次不規則間距，但同一股道兩根不得近於格距四成。地形未載入時不猜地面高度。
       if(r.physical){const wa=world(a,0),wb=world(b,0),bin=Math.round(Math.atan2(wb[1]-wa[1],wb[0]-wa[0])/(Math.PI/18))*(Math.PI/18),cx=Math.cos(bin),cy=Math.sin(bin),qa=wa[0]*cx+wa[1]*cy,qb=wb[0]*cx+wb[1]*cy,dq=qb-qa,segLen=path.d[i]-path.d[i-1];
        if(Math.abs(dq)>1e-6)for(let k=Math.ceil(Math.min(qa,qb)/PIER_M);k*PIER_M<=Math.max(qa,qb);k++){const s=path.d[i-1]+(k*PIER_M-qa)/dq*segLen;if(s<start||s>=end||Math.abs(s-lastPierS)<PIER_M*.4)continue;
-        const level=path.level?.(s);if(level?.kind!=='bridge'||level.offsetM<=0)continue;
-        const point=path.at(s),q=point.coordinate,h=railHeight(path,s),g=ground(q);if(!Number.isFinite(h)||!Number.isFinite(g))continue;lastPierS=s;
+        const level=path.level?.(s);
+        if(isUnderground(path,s))continue;
+        const point=path.at(s),q=point.coordinate,h=railHeight(path,s),g=ground(q);if(!Number.isFinite(h)||!Number.isFinite(g))continue;
+        // 高填方段照高架橋畫（見 rail-structures.js VIADUCT_LIFT_M），橋墩要跟著補，否則橋面會浮在半空。
+        if(!(level?.kind==='bridge'&&level.offsetM>0)&&!(h-g>=VIADUCT_LIFT_M))continue;
+        lastPierS=s;
         const scale=ml.MercatorCoordinate.fromLngLat(q).meterInMercatorCoordinateUnits()/unit;
         piers.push({p:world(q,h),ground:world(q,g)[2],angle:Math.atan2(b[1]-a[1],(b[0]-a[0])*Math.cos(q[1]*Math.PI/180)),scale,coordinate:q,railHeightM:h,groundM:g});
       }}
       }
-    }if(vertices.length)profileVertices.push(vertices);}rails.set(lineSegments);undergroundRails.set(buriedSegments);structures.set(structureSegments,piers,detail,portals);stats.undergroundRailSegments=buriedSegments.length;
+    }if(vertices.length)profileVertices.push(vertices);}rails.set(lineSegments);undergroundRails.set(buriedSegments);structures.set(structureSegments,piers,detail,portalGroups);apertures.set(terrainState.terrain?portalGroups:[]);stats.undergroundRailSegments=buriedSegments.length;
     stats.railSegments=lineSegments.length;
     }finally{terrainCaching=false;stats.lineBuildMs=+(performance.now()-buildStarted).toFixed(1);stats.lineBuildMaxMs=Math.max(stats.lineBuildMaxMs||0,stats.lineBuildMs);}
   }
   async function geometry(id){if(cache.has(id))return cache.get(id);if(!pending.has(id))pending.set(id,(async()=>{
     const meta=catalog.meshes[id],r=await fetch(asset('assets/blender-map-v1/'+meta.file));if(!r.ok)throw Error('列車模型載入失敗');const b=await r.arrayBuffer();
     const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',b)),v=>v.toString(16).padStart(2,'0')).join('');if(b.byteLength!==meta.byteLength||hash!==meta.sha256)throw Error('列車模型版本不符');
-    const data=new Float32Array(b.byteLength/4),view=new DataView(b);for(let i=0;i<data.length;i++)data[i]=view.getFloat32(i*4,true);const g=createWenhuGeometry(THREE,{data});if(disposed){g.dispose();return null;}cache.set(id,g);return g;
+    const data=new Float32Array(b.byteLength/4),view=new DataView(b);for(let i=0;i<data.length;i++)data[i]=view.getFloat32(i*4,true);const g=createWenhuGeometry(THREE,{data});prepareWindowLighting(g,THREE);if(disposed){g.dispose();return null;}cache.set(id,g);return g;
   })());try{return await pending.get(id);}finally{pending.delete(id);}}
   function modelFor(spec){if(!spec)return null;if(!formations.has(spec))formations.set(spec,assembleFormation(spec,catalog));return formations.get(spec);}
   async function ensureModel(v){const spec=formationFor(v,formationMode);if(!spec)return;const old=models.get(v.id);if(old&&old.key!==spec.key){if(old.group)scene.remove(old.group);models.delete(v.id);}if(models.has(v.id)||failed.has(v.id))return;
     const ticket={loading:true,key:spec.key};models.set(v.id,ticket);try{const model=modelFor(spec),geometries=await Promise.all(model.parts.map(p=>geometry(p.mesh)));if(disposed||models.get(v.id)!==ticket)return;
-      const group=new THREE.Group(),cars=model.parts.map((part,i)=>{const car=new THREE.Group(),mesh=new THREE.Mesh(geometries[i],material),meta=catalog.meshes[part.mesh],sx=part.bodyLengthM/(meta.max[0]-meta.min[0]),sy=model.widthM/(meta.max[1]-meta.min[1]);mesh.scale.set(sx,sy,sy);mesh.position.set(-(meta.min[0]+meta.max[0])/2*sx+part.bodyShiftM*(part.flip?-1:1),0,-meta.min[2]*sy);mesh.renderOrder=3;car.add(mesh);group.add(car);return car;});group.visible=false;scene.add(group);models.set(v.id,{group,cars,model,key:spec.key});
+      const group=new THREE.Group(),cars=model.parts.map((part,i)=>{const car=new THREE.Group(),mesh=new THREE.Mesh(geometries[i],material),meta=catalog.meshes[part.mesh],sx=part.bodyLengthM/(meta.max[0]-meta.min[0]),sy=model.widthM/(meta.max[1]-meta.min[1]);mesh.scale.set(sx,sy,sy);mesh.position.set(-(meta.min[0]+meta.max[0])/2*sx+part.bodyShiftM*(part.flip?-1:1),0,-meta.min[2]*sy);mesh.renderOrder=3;car.add(mesh);group.add(car);return car;});const lightPoints=[];
+      for(const [index,side] of [[0,1],[cars.length-1,-1]]){const part=model.parts[index],localSide=side*(part.flip?-1:1);lightPoints.push({index,side,points:lamps.add(cars[index],part,model.widthM,localSide)});}
+      group.visible=false;scene.add(group);models.set(v.id,{group,cars,model,lightPoints,key:spec.key});
     }catch(e){if(!disposed&&models.get(v.id)===ticket){models.delete(v.id);failed.add(v.id);report(e);}}
   }
   // 只從這班車自己的來源路線取車體切線；車輛錨點保持原站經緯度，無跨線吸附。
@@ -260,7 +276,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     const vw=bounds.getWest(),ve=bounds.getEast(),vs=bounds.getSouth(),vn=bounds.getNorth(),
           padX=(ve-vw)*.25,padY=(vn-vs)*.25;
     const onScreen=(c,v)=>v.followed||(c[0]>=vw-padX&&c[0]<=ve+padX&&c[1]>=vs-padY&&c[1]<=vn+padY);
-    hits=[];stats.models=0;stats.undergroundModels=0;stats.poseSamples=[];stats.modelFallbacks=[];const arrowP=[],arrowC=[];
+    hits=[];stats.models=0;stats.undergroundModels=0;stats.poseSamples=[];stats.modelFallbacks=[];const arrowP=[],arrowC=[],beams=[],beamLimit=el.clientWidth<768?8:24;let beamMs=0;
     next.vehicles.forEach((v,i)=>{const coord=[v.longitude,v.latitude],profile=near&&(terrainState.terrain||v.route?.level||wanted.has(v.id))&&Math.hypot(coord[0]-center.lng,coord[1]-center.lat)<.08?routeProfile(v):null,path=profile&&formationPath(v,profile),ratio=ml.MercatorCoordinate.fromLngLat(coord).meterInMercatorCoordinateUnits()/unit,
       h=(profile?path===profile.path?profile.height:railHeight(path,profile.s):undefined)??(onScreen(coord,v)?height(coord):null),p=world(coord,h??.65),m=models.get(v.id),color=new THREE.Color(v.followed?'#d65130':v.color||'#287766');
       positions.set(p,i*3);colors.set([color.r,color.g,color.b],i*3);const hit={v,p,modelled:false};hits.push(hit);
@@ -268,9 +284,28 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
         if(poses){const displayScale=m.displayScale??1;
           // 「透視顯示」切到實體時,地下列車改用實色車體:仍留在地下圖層,與地面列車的前後關係不變,只是不再半透明。
           // 地下軌道線照舊半透明(profile-lines 的 .32),所以還看得出這一段在地下——2026-09-10 裁示只讓列車變實色。
-          m.cars.forEach((car,k)=>{const part=m.model.parts[k],pose=poses[k],r=ml.MercatorCoordinate.fromLngLat(pose.coordinate).meterInMercatorCoordinateUnits()/unit;pose.underground=isUnderground(path,pose.s);car.children[0].material=(pose.translucent=pose.underground&&inspection)?undergroundMaterial:material;car.children[0].layers.set(pose.underground?1:0);car.children[0].layers.enable(2);car.position.set(...world(pose.coordinate,pose.height));car.scale.set(r,r*displayScale,r);car.rotation.set(0,part.flip?pose.pitch:-pose.pitch,pose.angle+(part.flip?Math.PI:0),'ZYX');});
+          m.cars.forEach((car,k)=>{const part=m.model.parts[k],pose=poses[k],r=ml.MercatorCoordinate.fromLngLat(pose.coordinate).meterInMercatorCoordinateUnits()/unit;pose.underground=isUnderground(path,pose.s);
+            const direction=profile.direction*(v.formationFacing||1)*(part.flip?-1:1),half=part.bodyLengthM/2;
+            pose.light={night:nightAmount(globalThis.railIslandSunlight?.current),tunnel:[-half,0,half].map(d=>tunnelAmount(path,pose.s+d*direction))};car.children[0].userData.trainLight=pose.light;car.children[0].material=(pose.translucent=pose.underground&&inspection)?undergroundMaterial:material;car.children[0].layers.set(pose.underground?1:0);car.children[0].layers.enable(2);car.position.set(...world(pose.coordinate,pose.height));car.scale.set(r,r*displayScale,r);car.rotation.set(0,part.flip?pose.pitch:-pose.pitch,pose.angle+(part.flip?Math.PI:0),'ZYX');});
+          for(const lamp of m.lightPoints){const pose=poses[lamp.index],tail=lamp.side*(v.formationFacing||1)<0;lamp.points.userData.tail=tail;lamp.points.userData.lightStrength=Math.max(pose.light.night,...pose.light.tunnel)*(tail?.7:1);lamp.points.visible=lamp.points.userData.lightStrength>.01;lamp.points.layers.set(pose.underground?1:0);}
+          // 洞外、近景才畫地面柔光。沿真正股道取樣，高架只照亮橋面寬度，平面段延伸到兩旁。
+          if(map.getZoom()>=16&&(beams.length<beamLimit||v.followed)){
+            const beamStart=performance.now(),forward=(v.formationFacing||1)>0,index=forward?0:poses.length-1,pose=poses[index],direction=profile.direction;
+            if(!pose.underground&&pose.light.night>.05){const leadS=pose.s+direction*m.model.parts[index].bodyLengthM/2,rows=[];
+              for(let i=0;i<=6;i++){const d=3+i*5,s=leadS+direction*d;if(s<0||s>path.length||isUnderground(path,s))break;
+                const q=path.at(s),h=railHeight(path,s);if(!q||!Number.isFinite(h))break;
+                const ground=terrainState.terrain?terrainAt(q.coordinate):0;if(!Number.isFinite(ground))break;
+                const elevated=h-ground>2,half=elevated?2.15:1.1+d*.13,
+                  a=path.coordinates[q.index],b=path.coordinates[q.index+1]||a,dx=(b[0]-a[0])*Math.cos(q.coordinate[1]*Math.PI/180),dy=b[1]-a[1],len=Math.hypot(dx,dy)||1,ux=-dy/len,uy=dx/len;
+                rows.push([-1,-.5,0,.5,1].map(f=>{const coord=[q.coordinate[0]+ux*f*half/(111320*Math.cos(q.coordinate[1]*Math.PI/180)),q.coordinate[1]+uy*f*half/110574];
+                  const z=elevated?h-.1:Math.max(ground+.12,h-.1-Math.max(0,Math.abs(f)*half-1.5)*.45);return world(coord,z);}));
+              }
+              if(rows.length>1){if(beams.length>=beamLimit)beams.pop();beams.push({rows,strength:pose.light.night});}
+            }
+            beamMs+=performance.now()-beamStart;
+          }
           stats.undergroundModels+=poses.some(p=>p.underground)?1:0;hit.modelled=true;positions[i*3+2]=-1e7;stats.models++;stats.poseSamples.push({id:v.id,coordinate:coord,displayHeightM:h,railElevationM:null,level:profile.path.level?.(profile.s)||null,underground:poses.some(p=>p.underground),angle:poses[0].angle,displayScale,lengthScale:1,lengthM:m.model.lengthM,carCount:m.cars.length,formationQuality:m.model.quality,formationMode,modelId:m.model.id,actualCarCount:m.model.actualCarCount,countBasis:m.model.countBasis,lengthKnown:m.model.lengthKnown,caption:m.model.caption,cars:poses});
-          m.screenPose={p,angle:poses[0].angle,ratio,sample:stats.poseSamples.at(-1),physical:!!v.route?.physical};
+          m.screenPose={p,color:v.color,angle:poses[0].angle,ratio,sample:stats.poseSamples.at(-1),physical:!!v.route?.physical};
         }else stats.modelFallbacks.push({id:v.id,reason:!profile?'來源位置不在線形上':terrainState.terrain&&!profile.path.elevation?'缺少固定顯示高程':'編組超出已知線形端點'});
       }else if(v.followed&&!formationFor(v,formationMode))stats.modelFallbacks.push({id:v.id,reason:'車型或編組長度尚未確認'});
       const screen=!markers&&next.display?.dirArrow?project(p):null;
@@ -278,6 +313,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
       if(heading!==null&&heading!==undefined){const angle=heading,dx=Math.cos(angle),dy=Math.sin(angle),a=screen,b=project([p[0]+dx*ratio,p[1]+dy*ratio,p[2]]),s=ratio/Math.max(.015,Math.hypot(b.x-a.x,b.y-a.y));
         for(const [x,y]of [[12,0],[5,3],[5,-3]]){arrowP.push(p[0]+(dx*x-dy*y)*s,p[1]+(dy*x+dx*y)*s,p[2]+.1);arrowC.push(color.r,color.g,color.b);}}
     });
+    headlightSpill.update(beams);stats.headlightSpill.totalMs=beamMs+stats.headlightSpill.buildMs;
     // 每節車廂的位置直接取自指派股道的里程；過岔道時自然逐節轉向。
     // 近距離或地表投影交疊不等於共用股道，不能再整列橫移來掩蓋派軌衝突。
     if(!arrowGeometry.attributes.position||arrowPositions.length!==arrowP.length){arrowPositions=new Float32Array(arrowP.length);arrowColors=new Float32Array(arrowP.length);arrowGeometry.setAttribute('position',new THREE.BufferAttribute(arrowPositions,3));arrowGeometry.setAttribute('color',new THREE.BufferAttribute(arrowColors,3));}
@@ -321,9 +357,10 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   }
   function destroy(){if(disposed)return;disposed=true;trees?.destroy();clearTimeout(gestureTimer);for(const [target,type,handler]of inputListeners)target.removeEventListener(type,handler,true);
     for(const [type,handler]of mapListeners)map.off(type,handler);if(stationLayer){if(map.getLayer(stationLayer.id)?.implementation===stationLayer)map.removeLayer(stationLayer.id);else stationLayer.onRemove();}
+    if(map.getLayer('live-tunnel-apertures'))map.removeLayer('live-tunnel-apertures');
     if(vehicleLayer&&map.getLayer('live-vehicles-3d')===vehicleLayer)map.removeLayer('live-vehicles-3d');if(underlayLayer&&map.getLayer('live-vehicles-underlay')===underlayLayer)map.removeLayer('live-vehicles-underlay');
     if(undergroundLayer&&map.getLayer('live-underground-3d')===undergroundLayer)map.removeLayer('live-underground-3d');
-    clearLines();for(const m of models.values())if(m.group)scene.remove(m.group);models.clear();rails.destroy();undergroundRails.destroy();structures.destroy();undergroundMaterial.dispose();vehicleDepthMaterial.dispose();for(const g of cache.values())g.dispose();material.dispose();pointGeometry.dispose();pointMaterial.dispose();pointTexture.dispose();arrowGeometry.dispose();arrowMaterial.dispose();webgl?.dispose();}
+    clearLines();for(const m of models.values())if(m.group)scene.remove(m.group);models.clear();rails.destroy();undergroundRails.destroy();structures.destroy();apertures.destroy();headlightSpill.destroy();trainHalo.destroy();lamps.destroy();undergroundMaterial.dispose();vehicleDepthMaterial.dispose();for(const g of cache.values())g.dispose();material.dispose();pointGeometry.dispose();pointMaterial.dispose();pointTexture.dispose();arrowGeometry.dispose();arrowMaterial.dispose();webgl?.dispose();}
   const mapListeners=[];const listenMap=(type,handler)=>{map.on(type,handler);mapListeners.push([type,handler]);};
   try{
     if(!map.getSource('terrain'))map.addSource('terrain',{type:'raster-dem',tiles:['island-dem://{z}/{x}/{y}'],minzoom:0,maxzoom:12,tileSize:512,encoding:'terrarium',attribution:'<a href="https://mapterhorn.com/attribution/" target="_blank" rel="noopener">© Mapterhorn · 內政部 20m DTM</a>'});
@@ -337,10 +374,15 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     }
     points.visible=arrows.visible=false;
     map.addLayer({id:'live-vehicles-3d',type:'custom',renderingMode:'3d',onAdd(_,gl){webgl=new THREE.WebGLRenderer({canvas:map.getCanvas(),context:gl});webgl.autoClear=false;},
-      render(gl,args){camera.projectionMatrix.copy(projection.fromArray(args.defaultProjectionData.mainMatrix).multiply(transform));updateModelScales();structures.setVisible(map.getZoom()>=14);rails.render(el.clientWidth,el.clientHeight,routeWidth(map.getZoom()),map.getZoom()>=14&&(terrainState.terrain||frame?.routes.some(r=>r.physical||r.drawingRanges)),frame?.display?.dark);webgl.resetState();webgl.render(scene,camera);stats.frames++;
+      render(gl,args){const night=nightAmount(globalThis.railIslandSunlight?.current);ambientLight.intensity=1.9*(1-night*.7);sun.intensity=2*(1-night*.94);camera.projectionMatrix.copy(projection.fromArray(args.defaultProjectionData.mainMatrix).multiply(transform));updateModelScales();trainHalo.update(models,(c,h)=>project(world(c,h)),el.clientWidth,el.clientHeight,frame?.display);structures.setVisible(map.getZoom()>=14);rails.render(el.clientWidth,el.clientHeight,routeWidth(map.getZoom()),map.getZoom()>=14&&(terrainState.terrain||frame?.routes.some(r=>r.physical||r.drawingRanges)),frame?.display?.dark);webgl.resetState();camera.layers.enable(3);webgl.render(scene,camera);camera.layers.disable(3);stats.frames++;
         const lead=models.get(frame?.selectedVehicleId)?.cars?.[0],pad=map.getPadding();
         stats.headLockErrorPx=frame?.headLocked&&lead?Math.hypot(project(lead.position.toArray()).x-(el.clientWidth+pad.left-pad.right)/2,project(lead.position.toArray()).y-(el.clientHeight+pad.top-pad.bottom)/2):null;
       }});vehicleLayer=map.getLayer('live-vehicles-3d');
+    map.addLayer({id:'live-tunnel-apertures',type:'custom',renderingMode:'3d',render(gl,args){
+      if(!terrainState.terrain||!stats.structures.portals)return;
+      camera.projectionMatrix.copy(projection.fromArray(args.defaultProjectionData.mainMatrix).multiply(transform));
+      webgl.resetState();apertures.render(webgl,camera,nightAmount(globalThis.railIslandSunlight?.current));
+    }},map.getLayer('building-3d')?'building-3d':'live-vehicles-3d');
     // 透明 extrusion 仍寫深度；先在牆面下畫一次車體，才有真實車色可供玻璃混合。
     // 最後的正常深度 pass 再恢復位於建築前方的車體，路線不會蓋住車身。
     if(map.getLayer('building-3d'))map.addLayer({id:'live-vehicles-underlay',type:'custom',renderingMode:'3d',render(gl,args){

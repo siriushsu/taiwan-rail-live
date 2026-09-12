@@ -1,6 +1,6 @@
 # 歷史建物平面校正版 v2
 
-本輪成果是「平面校正」，**不是 25 組均已完成現況復原**。位置來源、估計外框與未定位構件分開保存。
+25 組主體已於 2026/9/9 上線。2026/9/12 對照正式站後，另補 11 組的外觀與附屬設施；詳見 [本輪補件與驗證紀錄](COMPLETION-2026-09-12.md)。這是地圖外觀模型，完整立面及實測高度仍不在已完成範圍。
 
 - 25 組均保留校正工作檔與近／遠景輸出。
 - 25 組主體已可匯入地圖；嘉義製材所包含北側主工場與動力室；未定位的附屬構件仍保留在原草模。
@@ -22,7 +22,7 @@ node verify_browser.mjs
 node serve.mjs
 ```
 
-`build_calibrated.py` 使用 `export_core.py` 的原生建模／匯出工具及 `geometry.py`，再套用 `calibration.py`。原草模 `historic-v1` 保持不變。地圖匯入腳本位於地景 worktree 的 `scripts/import_historic_buildings.py`。
+`build_calibrated.py` 使用 `export_core.py` 的原生建模／匯出工具及 `geometry.py`，經 `completion.py` 補件後套用 `calibration.py`。原草模 `historic-v1` 保持不變。地圖匯入腳本位於 repo 的 `scripts/import_historic_buildings.py`。
 
 工坊「輪廓比對」綠線為來源輪廓，橘線為估計外框；可搭配俯看檢查。驗證程式核對格式、雜湊、渲染與互動，不代表建築現實精度獲得認證。
 

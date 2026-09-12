@@ -120,6 +120,41 @@ def resolve_station(index, name, notes, line_id):
     return {"name": name, "lat": lat, "lon": lon}
 
 
+INFO_PATH = "data/tra_station_info.json"
+
+
+def _norm(n):
+    """站名正規化：去掉括號後綴、臺→台。站名比對一律走這支。"""
+    return re.sub(r"\s*[（(].*$", "", n).replace("臺", "台")
+
+
+def official_station_names(path=INFO_PATH):
+    """官方站基本資料裡的站名集合（已正規化）。讀不到回 None。
+
+    🔴 回 None 與回空集合是兩件事：前者是「我沒讀到上游」，後者是「上游真的沒有」。
+    下面的待通車閘門必須分得出來，不然探不到上游會被當成「新站還沒上架」。
+    """
+    if not os.path.exists(path):
+        return None
+    try:
+        return {_norm(k) for k in json.load(open(path)).keys()}
+    except Exception:
+        return None
+
+
+# ── 待通車新站：站序先備好，但不准提前畫出來 ──────────────────────────────
+# 為什麼要這個閘門，而不是直接把站名加進 LINE_DEFS：OSM 是社群測繪，車站蓋好就可能
+# 先被標上去；一旦 OSM 冒出節點，裸加的站就會在**通車前**被畫出來——那正是 v0711j
+# 三鶯線幽靈列車那種錯（把「未來規劃」當成現況）。使用者裁示過的判準是：不照媒體日期
+# 提前加站，判準是**上游資料真的有了**（memory trtc-xinyi-east-extension-0830）。
+# 所以這裡的站要先出現在官方站基本資料裡才納入站序。
+# 通車、資料上架、整條管線跑完之後，把該筆從這裡移除（留著只是每次多印一行）。
+PENDING_STATIONS = {
+    "平鎮": "臨時站；2026-09-12 完成履勘、預計 2026-10 通車。站碼預期 1105，"
+            "但那是媒體與維基的說法、不是官方發布值，所以閘門認站名不認站碼。",
+}
+
+
 # 9 段路線的官方站序（公開常識性資料：台鐵官網時刻表/ 路線圖）。
 # 顏色：相鄰路線不同色，非官方配色，純為動畫辨識用。
 LINE_DEFS = [
@@ -132,7 +167,7 @@ LINE_DEFS = [
         "stations": [
             "基隆", "三坑", "八堵", "七堵", "百福", "五堵", "汐止", "汐科", "南港", "松山",
             "臺北", "萬華", "板橋", "浮洲", "樹林", "南樹林", "山佳", "鶯歌", "桃園", "鳳鳴",
-            "內壢", "中壢", "埔心", "楊梅", "富岡", "新富", "北湖", "湖口", "新豐",
+            "內壢", "中壢", "平鎮", "埔心", "楊梅", "富岡", "新富", "北湖", "湖口", "新豐",
             "竹北", "北新竹", "新竹", "三姓橋", "香山", "崎頂", "竹南",
         ],
     },
@@ -255,11 +290,36 @@ def main():
         "班距（headwaySec）為粗估值，headway_estimated=true。",
     ]
 
+    official = official_station_names()
+    if official is None:
+        notes.append(f"警告：讀不到 {INFO_PATH}，待通車站閘門無法判定，本輪一律不納入。")
+        print(f"⚠ 讀不到 {INFO_PATH}，待通車站閘門無法判定", file=sys.stderr)
+
     lines_out = []
     for line_def in LINE_DEFS:
         stations = []
+        held = 0
         for name in line_def["stations"]:
+            if name in PENDING_STATIONS and not (official and _norm(name) in official):
+                held += 1
+                why = "讀不到官方站基本資料" if official is None else "尚未出現在官方站基本資料"
+                print(f"  ⏸ 待通車站「{name}」{why}，依閘門不納入", file=sys.stderr)
+                continue
             st = resolve_station(index, name, notes, line_def["id"])
+            if name in PENDING_STATIONS:
+                # 閘門過了但 OSM 還沒測繪到：官方站基本資料本來就是座標的權威
+                # （下面會覆寫掉所有 OSM 座標），沒有理由讓這站因為 OSM 缺一個節點就
+                # **靜默消失**——那是這支腳本原本最容易漏掉的一種失敗。
+                if not st:
+                    t = json.load(open(INFO_PATH))
+                    t = {_norm(k): v for k, v in t.items()}.get(_norm(name))
+                    st = {"name": name, "lat": t["lat"], "lon": t["lon"]}
+                    notes.append(f"{line_def['id']}: 待通車站「{name}」OSM 無節點，座標直接取自官方站基本資料。")
+                    print(f"  ▶ 待通車站「{name}」已上架（OSM 無節點，座標取官方值）", file=sys.stderr)
+                else:
+                    print(f"  ▶ 待通車站「{name}」已上架，納入站序", file=sys.stderr)
+                notes.append(f"{line_def['id']}: 待通車站「{name}」已出現在官方站基本資料，本輪納入站序。")
+                print(f"     → 整條管線跑完後記得把它從 PENDING_STATIONS 移除", file=sys.stderr)
             if st:
                 stations.append(st)
         lines_out.append(
@@ -273,10 +333,12 @@ def main():
                 "stations": stations,
             }
         )
-        missing = len(line_def["stations"]) - len(stations)
+        expected = len(line_def["stations"]) - held
+        missing = expected - len(stations)
         print(
-            f"  {line_def['id']}: {len(stations)}/{len(line_def['stations'])} 站"
-            + (f"（缺 {missing}）" if missing else ""),
+            f"  {line_def['id']}: {len(stations)}/{expected} 站"
+            + (f"（缺 {missing}）" if missing else "")
+            + (f"（待通車保留 {held}）" if held else ""),
             file=sys.stderr,
         )
 
@@ -287,8 +349,6 @@ def main():
     info_path = "data/tra_station_info.json"
     if os.path.exists(info_path):
         info = json.load(open(info_path))
-        def _norm(n):
-            return re.sub(r"\s*[（(].*$", "", n).replace("臺", "台")
         info_by_norm = {_norm(k): v for k, v in info.items()}
         overridden = 0
         for ln in lines_out:

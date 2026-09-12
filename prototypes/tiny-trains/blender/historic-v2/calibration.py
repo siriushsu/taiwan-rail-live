@@ -24,7 +24,7 @@ def apply_calibration(s):
  for item in plan['parts']:
   selected=[o for o in OB if any(o['component_id'].startswith(p) for p in item['prefixes']) and o not in assigned]
   if not selected:raise ValueError((s['id'],item['name'],'未匹配元件'))
-  reference=[o for o in selected if any(o['component_id'].startswith(p) for p in item.get('fitPrefixes',item['prefixes']))]
+  reference=[o for o in selected if any(o['component_id'].startswith(p) for p in item.get('fitPrefixes',item['prefixes'])) and not any(o['component_id'].startswith(p) for p in item.get('fitExcludePrefixes',[]))]
   pts=[o.matrix_world@v.co for o in reference for v in o.data.vertices];lo=[min(v[j] for v in pts) for j in range(2)];hi=[max(v[j] for v in pts) for j in range(2)];center=[(lo[j]+hi[j])/2 for j in range(2)];dims=[hi[j]-lo[j] for j in range(2)]
   if 'footprints' in item:
    rs=[r for e in item['footprints'] for r in rings(e)];f=fit([p for r in rs for p in r],dims[0]/dims[1]);target=f['anchor'];angle=f['rotationDeg']+item.get('flipDeg',0);scale=[f['extentM'][j]/dims[j] for j in range(2)]
@@ -37,7 +37,7 @@ def apply_calibration(s):
    features.append({'type':'Feature','properties':{'component':item['name'],'outlineEstimated':True},'geometry':{'type':'Polygon','coordinates':[rr]}})
   a=math.radians(angle);mat=Matrix.Translation(Vector(((target[0]-anchor[0])*sx,(target[1]-anchor[1])*111320,0)))@Matrix.Rotation(a,4,'Z')@Matrix.Diagonal(Vector((*scale,1,1)))@Matrix.Translation(Vector((-center[0],-center[1],0)))
   for o in selected:o.matrix_world=mat@o.matrix_world;o['original_component_id']=o['component_id'];o['component_id']=item['name'];assigned.add(o)
-  parts.append({'id':item['name'],'name':item['name'],'placementStatus':status,'anchor':target,'rotationDeg':angle,'scaleXY':scale,'basis':item['basis'],'facadeBearingDeg':None})
+  parts.append({'id':item['name'],'name':item['name'],'placementStatus':status,'anchor':target,'rotationDeg':angle,'scaleXY':scale,'basis':item['basis'],'facadeBearingDeg':item.get('facadeBearingDeg'),**({'terrainAnchor':item['terrainAnchor']} if 'terrainAnchor' in item else {}),**({'flatGroundOffsetM':item['flatGroundOffsetM']} if 'flatGroundOffsetM' in item else {})})
  for o in list(OB):
   if o not in assigned:notes.append(o['component_id']);OB.remove(o);bpy.data.objects.remove(o,do_unlink=True)
  s.update(anchor=anchor,components=parts,orientationMode='ENU-baked',placementStatus='calibrated-plan' if all(p['placementStatus']=='footprint-axis-calibrated' for p in parts) else 'mixed-plan-and-site-anchor',geometryStatus='plan-calibrated-exterior-estimated',absoluteGroundAltitudeM=None,railElevationM=None,omittedUnlocatedComponents=sorted(set(notes)),scope='按來源輪廓校正平面位置與尺度；高度、立面細節及正面方向仍為外觀估計',pendingChecks=['高度測量與完整多面立面校正','正面方向複核']+(['未定位附屬構件：'+ '、'.join(sorted(set(notes)))] if notes else []))
@@ -45,6 +45,9 @@ def apply_calibration(s):
  s['mapEligible']=plan.get('mapEligible',False)
  if not s['mapEligible']:s['scope']='僅供定位研究的草模；尚未確認逐棟位置及輪廓，不納入地圖';s['placementStatus']='pending-georeference';s['geometryStatus']='draft-estimated'
  s['sources']+=plan['sources'];s['calibration']={'version':2,'basis':'各部件獨立平面擬合；非工程測繪','parts':parts,'verticalDatum':'terrain-relative','sourceFile':'placements-source.json'}
+ if plan.get('completionReview'):
+  s['scope']='依來源校正平面與補齊可確認附屬構件；尺寸與高度屬地圖外觀估計，非工程測繪'
+  s['completionReview']=plan['completionReview']
  (P/'placements').mkdir(exist_ok=True)
  (P/'placements'/(s['id']+'.json')).write_text(json.dumps({'anchor':anchor,'rotationDeg':0,'orientationBasis':'ENU-baked','facadeBearingDeg':None,'railElevationM':None,'footprint':{'type':'FeatureCollection','features':features},'sources':plan['sources']},ensure_ascii=False,indent=2))
  return parts

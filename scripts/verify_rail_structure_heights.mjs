@@ -163,8 +163,10 @@ for(const s of ['thsr_sched','tra_sched']){let g=0;for(const w of ways){const e=
 // 正向對照二：合成一段 10% 的剖面餵同一個函式。
 if(!(maxGrade({distances:[0,100,200],terrainValues:[0,10,10]},'terrainValues')>.04*GRADE_TOL))failures.push('G6 正向對照失效：合成的 10% 縱坡沒被量到');
 // 接縫：同系統共用節點的股道在該節點的顯示高程要一致（含洞口：隧道的 terrainValues 必須接到露天段）。
-const junctionSteps=(entries,wayList)=>{const byNode=new Map();
- for(const w of wayList){const e=entries[w.id];if(!e?.terrainValues)continue;for(const i of [0,w.nodes.length-1]){const k=w.system+':'+w.nodes[i],s=i===0?0:e.distances.at(-1);if(!byNode.has(k))byNode.set(k,[]);byNode.get(k).push(at(e,s,'terrainValues'));}}
+const junctionSteps=(entries,wayList,nodeChainages)=>{const byNode=new Map();
+ for(const w of wayList){const e=entries[w.id];if(!e?.terrainValues)continue;
+  const ds=nodeChainages?nodeChainages(w):null,picks=ds?ds.map((s,i)=>[i,s]):[[0,0],[w.nodes.length-1,e.distances.at(-1)]];
+  for(const [i,s] of picks){const k=w.system+':'+w.nodes[i];if(!byNode.has(k))byNode.set(k,[]);byNode.get(k).push(at(e,s,'terrainValues'));}}
  let n=0,worst=0,worstNode='';for(const [k,hs] of byNode){if(hs.length<2)continue;n++;const step=Math.max(...hs)-Math.min(...hs);if(step>worst){worst=step;worstNode=k;}}return {n,worst,worstNode};};
 const seams=junctionSteps(E,ways);
 if(seams.n<3500)failures.push(`G6 只找到 ${seams.n} 個共用節點，分母異常縮水（2026-09-11 基準 4145）`);
@@ -172,6 +174,22 @@ if(seams.worst>.5)failures.push(`G6 接縫落差 ${seams.worst.toFixed(2)}m > 0.
 // 正向對照三：兩條 way 共用一個節點但高程差三公尺，同一個函式要量得到。
 const seamControl=junctionSteps({a:{distances:[0,100],terrainValues:[10,10]},b:{distances:[0,100],terrainValues:[13,13]}},[{id:'a',system:'x',nodes:['n1','n2']},{id:'b',system:'x',nodes:['n2','n3']}]);
 if(!(seamControl.worst>.5))failures.push('G6 正向對照失效：合成的三公尺接縫沒被量到');
+// 中段接縫：路線在道岔處會從一條 way 的**中間節點**切到另一條 way，而車廂高度是逐節各自取樣的，
+// 那個節點兩側顯示高程不一致，跨過去的列車就當場折斷。上面那道只取 way 兩端，對這一族完全失明
+// ——2026-09-12 沿實跑路線實測：臺鐵板橋／萬華地下段 4.3m、高鐵臺北站 7.3m、南迴線 11.0m，
+// 而同一時間端點接縫最大落差是 0.00m。根因在隧道求解器把中段節點用 way 私有鍵（wayId:cross:s）
+// 建 knot，兩條 way 在同一個節點各自內插；修法是中段共用節點也改用 system:node 共用鍵。
+const midSeams=junctionSteps(E,ways,w=>makePath(w.coordinates).d);
+if(midSeams.n<5000)failures.push(`G6 含中段的共用節點只有 ${midSeams.n} 個，分母異常縮水（2026-09-12 基準 5432）`);
+if(midSeams.worst>.5)failures.push(`G6 中段接縫落差 ${midSeams.worst.toFixed(2)}m > 0.5m @ ${midSeams.worstNode}`);
+notes.接縫含中段=midSeams.n;notes.中段接縫最大落差=+midSeams.worst.toFixed(2);
+// 正向對照四＋反向對照：一條 way 的中間節點與另一條 way 的端點共用、高程差三公尺。
+// 中段版必須量到（正向），端點版必須量不到（反證這一道確實補了新的覆蓋，不是重複既有判準）。
+const midCtlWays=[{id:'a',system:'x',nodes:['n0','nJ','n1'],coordinates:[[120,23],[120.001,23],[120.002,23]]},
+ {id:'b',system:'x',nodes:['nJ','n2'],coordinates:[[120.001,23],[120.001,23.001]]}];
+const midCtlE={a:{distances:[0,205],terrainValues:[10,10]},b:{distances:[0,111],terrainValues:[13,13]}};
+if(!(junctionSteps(midCtlE,midCtlWays,w=>makePath(w.coordinates).d).worst>.5))failures.push('G6 正向對照失效：合成的中段接縫沒被量到');
+if(junctionSteps(midCtlE,midCtlWays).worst>.5)failures.push('G6 對照矛盾：端點版竟然量到了中段接縫，兩道判準沒有分工');
 // 平滑層有沒有在跑：只驗縱坡上限抓不到「平滑被拿掉」（縱坡內的雜訊一公尺上下仍會原封穿過去）。
 // 拿每條 way 的「爬升＋下降減淨高差」當起伏量，高鐵與臺鐵的高架橋顯示剖面必須不到原始剖面的三成
 //（2026-09-11 實測：高鐵 2.5 vs 12.0 公尺/公里、臺鐵 3.6 vs 14.8；沒有平滑層時是 4.5 與 5.4，比值 .37／.36）。
@@ -208,8 +226,11 @@ if(buriedKm>.1)failures.push(`G6 平面段有 ${buriedKm.toFixed(2)} 公里埋�
 // 2026-09-12 量到台鐵現行出貨就有 6.49 公里浮空 >10m(最高 29.9m)——最糟六條全是
 // 「很短、兩端接橋或隧道、身上沒有 bridge 標籤」的形狀,被 G6 接縫規則正確地拉到橋面高度,
 // 跨谷時就用道碴從軌面拉到地面畫成實心擋牆。全網這個形狀有 268 條/41.29 km。
-// 🔴 下面是**已知缺陷的棘輪基準,不是目標值**:求解器修好之後這組數字要一起收到 0。
-// 它現在的作用只有兩個:(a) 擋住惡化 (b) 讓「不在名單裡的系統」不能靜悄悄帶著浮空上線。
+// 🔴 2026-09-12 裁示改寫了這條的定位:「真的是高的軌道,確認過就讓他變高,不要變成像是一道牆。」
+// 也就是**高度是對的,錯的是畫法**——求解器不必把軌面壓下來(壓下來的代價已經量過:侵蝕實驗浮空 −9%、
+// 埋沒 ×50),算繪端改成離地超過 VIADUCT_LIFT_M 就畫高架橋(rail-structures.js)。
+// 所以這組數字**不會**、也不該收到 0;它現在的作用只有兩個:(a) 擋住惡化 (b) 讓「不在名單裡的
+// 系統」不能靜悄悄帶著浮空上線。要調低基準請先確認那是求解器真的改好了,不是有人把軌道壓進地形。
 const FLOAT_BASELINE={
  tra_sched:{km:6.6,max:31},   // 2026-09-12 實測 6.49km / 29.9m
  thsr_sched:{km:.3,max:15},   // 2026-09-12 實測 0.12km / 13.6m

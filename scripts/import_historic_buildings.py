@@ -12,5 +12,5 @@ for id,p in plans.items():
   shutil.copyfile(src/file,dest/file)
  catalog.append({'id':id,'name':m['name'],'category':'historic','metadata':id+'/model.json'});placements[id]=placement
 (out/'catalog.json').write_text(json.dumps(catalog,ensure_ascii=False,separators=(',',':'))+'\n');(out/'placement.json').write_text(json.dumps({'version':2,'entries':placements},ensure_ascii=False,separators=(',',':'))+'\n')
-(out/'README.md').write_text('# 歷史建物平面校正版\n\n來源：historic-v2 工坊。OSM 輪廓 © OpenStreetMap contributors，ODbL 1.0。\n\n依逐棟轮廓定位，立面與高度仍為外觀建模估計。北門驛使用官方景點座標及面積，非測量外框。花蓮水塔使用 OSM 節點、塔身尺寸估計。勝興、車埕、斗南、橋頭以官方場域資料及衛星目視比對定位，外框與分段界線仍為估計。嘉義包含官方園區圖及衛星定位的主工場，以及 OSM 動力室輪廓。\n'.replace('轮','輪').replace('组','組'))
+(out/'README.md').write_text('# 歷史建物外觀模型\n\n25 組主體於 2026/9/9 上線；2026/9/12 補 11 組的外觀與附屬構件，合計 61 個獨立定位部件。完整比對、來源、估計範圍與驗證見 prototypes/tiny-trains/blender/historic-v2/COMPLETION-2026-09-12.md。\n\n來源：historic-v2 工坊。OSM 輪廓 © OpenStreetMap contributors，ODbL 1.0；其餘依官方場域資料、照片及衛星目視估計。高度、部分外框與正面朝向未經完整測繪。隆田地磅室採現存低矮遺構；泰安平面模式的月台相對高度 4.5m 為視覺估計，開啟地形則逐部件貼地。\n')
 print('匯入',len(catalog))

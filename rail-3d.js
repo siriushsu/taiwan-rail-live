@@ -3,9 +3,12 @@
   const base='./rail-3d/integration/';
   const {installFollowCameraLock}=await import(base+'follow-camera-lock.js');
   let cameraLock=null;
-  const {formationFor,airportServiceForTrip,tripDirection,stationDirection}=await import(base+'formations.js');
+  const {formationFor,tripDirection,stationDirection}=await import(base+'formations.js');
   const directionCache=new WeakMap();function timetableDirection(tr,ln){if(!directionCache.has(tr))directionCache.set(tr,tripDirection(tr,ln.stations.length,!!ln.loop));return directionCache.get(tr);}
-  const serviceCache=new WeakMap();function airportService(tr){if(!serviceCache.has(tr))serviceCache.set(tr,airportServiceForTrip(tr));return serviceCache.get(tr);}
+  // 機捷車種讀官方 TrainType(index.html 的 tymcKindOf,來源 TDX StationTimeTable),不由停靠樣態回推——
+  // 官方另有「跳站的普通車」,回推會把它畫成 5 節直達車。實測今日兩種日型 607 班官方全部有標,
+  // 回推則 11 班猜不出、6 班猜錯。官方沒標的留 null,照舊退成 3 節示意並標「當班編組待確認」。
+  const TYMC_SERVICE={com:'local',exp:'express'};
   const params=new URLSearchParams(location.search);
   if(params.get('tracks')!=='legacy')import('./rail-3d/physical/client.js').then(m=>m.loadPhysicalMotion()).then(m=>{window.railIslandPhysical=m;glTracks.sig='';}).catch(e=>console.error('實體股道',e));
   const read=(key,fallback)=>{try{return sessionStorage.getItem(key)||fallback;}catch{return fallback;}};
@@ -64,7 +67,7 @@
         }continue;
       }
       if(ln._tt){for(const tr of ln._tt){const f=state.freqFollow;
-        add([sys,ln.id,ln._ttServiceDay||day,'tt',tripKey(tr)].join(':'),freqTrainPosAt(ln,tr,state.simSec),{...common,airportService:sys==='tymc'?airportService(tr):null,sourceKind:'timetable',direction:Math.sign(tr.at(-2)-tr[0]),railDirection:timetableDirection(tr,ln),followed:!!f&&f.ln===ln&&f.tr===tr},{ln,tr});}
+        add([sys,ln.id,ln._ttServiceDay||day,'tt',tripKey(tr)].join(':'),freqTrainPosAt(ln,tr,state.simSec),{...common,airportService:sys==='tymc'?(TYMC_SERVICE[tymcKindOf(ln,tr)]||null):null,sourceKind:'timetable',direction:Math.sign(tr.at(-2)-tr[0]),railDirection:timetableDirection(tr,ln),followed:!!f&&f.ln===ln&&f.tr===tr},{ln,tr});}
       }else if(ln.sched)for(let k=0;k<ln.n;k++){const tau=(state.mode==='sched'?state.decoElapsed:state.elapsed)*state.speedMult+k*ln.period/ln.n,f=state.freqFollow;
         add([sys,ln.id,day,'frequency',k].join(':'),posPeriodic(ln,tau),{...common,sourceKind:'frequency',direction:null,followed:!!f&&f.ln===ln&&f.k===k},{ln,k});}
     }
@@ -83,7 +86,7 @@
     return {clock:{serviceDay:day,simSec:state.simSec,wallEpochSec:epoch,playing:state.playing,speed:state.speedMult},geometryVersion:'original-'+BUILD,
       clearanceRoutes:[...routes.filter(r=>r.physical),...[...new Set([...(state.trackLines||[]),...(state.lines||[]),...(state.decoLines||[])])].map(ln=>lineRecord(ln,ln.sys||ln._sys||'rail'))],
       replacedLineKeys,visible:[...state.visible],vehicles,routes:(state.collectMap||state.trackStyle==='hidden'?[]:routes).map(r=>({...r,displayColor:r.systemId.endsWith('_sched')||r.systemId==='rail'?trackLineColor(r.color):metroLineColor(r.color)})),stations,
-      display:{enabled,modelMode,formationMode,ambient:!!state.ambient,ambientStyle:state.ambientStyle,ambientCamera,northUp:!!state._northReset||state._northUpTarget===(state.followTrain||state.freqFollow),dark:state.mapDark&&state.basemap!=='landscape',dirArrow:!!state.dirArrow,fontScale:Number(getComputedStyle(document.body).getPropertyValue('--ui'))||1},
+      display:{enabled,trainHalo:trainHaloEnabled,modelMode,formationMode,ambient:!!state.ambient,ambientStyle:state.ambientStyle,ambientCamera,northUp:!!state._northReset||state._northUpTarget===(state.followTrain||state.freqFollow),dark:state.mapDark&&state.basemap!=='landscape',dirArrow:!!state.dirArrow,fontScale:Number(getComputedStyle(document.body).getPropertyValue('--ui'))||1},
       followLock:state.followLock,headLocked:followHeadLocked(),selectedVehicleId:vehicles.find(v=>v.followed)?.id||null};
   }
   function headingFor(v){const hit=targets.get(v.id),item=motionItems.get(v.id);if(!hit)return null;let previous;
@@ -100,7 +103,7 @@
   function idFor(target){for(const [id,hit]of targets)if(sameTarget(target,hit))return id;return null;}
   function select(id){const hit=targets.get(id);if(!hit)return false;manualTarget=null;if(hit.ln)setFreqFollow(hit);else setFollow(hit.tr,false,true);return true;}
   function updateNote(){if(performance.now()-noteAt<300)return;noteAt=performance.now();const v=lastFrame?.vehicles.find(v=>v.followed),spec=v&&formationFor(v,formationMode);
-    for(const panel of [document.getElementById('followPanel'),document.getElementById('freqCard')]){if(!panel)continue;panel.style.setProperty('--follow-color',v?.color||'var(--red)');let el=panel.querySelector('.ri-formation-caption');if(!el){el=document.createElement('div');el.className='ri-formation-caption';panel.append(el);}let text=spec?(spec.mode==='three'?t('3 節示意'):spec.countBasis==='unknown'?t('3 節示意 · 當班編組待確認'):t(spec.articulated?'{n} 分節 · 標準編組':'{n} 節 · 標準編組',{n:spec.actualCarCount})):'';if(v?.route?.physical)text+=' · '+t('推估股道');el.hidden=!enabled||!spec;el.textContent=text?text+(effectiveGround()==='terrain'?' · '+t('地表起伏示意'):''):'';}
+    for(const panel of [document.getElementById('followPanel'),document.getElementById('freqCard')]){if(!panel)continue;panel.style.setProperty('--follow-color',v?.color||'var(--red)');let el=panel.querySelector('.ri-formation-caption');if(!el){el=document.createElement('div');el.className='ri-formation-caption';panel.append(el);}let text=spec?(spec.mode==='three'?t('3 節示意'):spec.countBasis==='unknown'?t('3 節示意 · 當班編組待確認'):spec.countBasis==='estimated'?t('{n} 節 · 推估編組',{n:spec.actualCarCount}):t(spec.articulated?'{n} 分節 · 標準編組':'{n} 節 · 標準編組',{n:spec.actualCarCount})):'';if(v?.route?.physical)text+=' · '+t('推估股道');el.hidden=!enabled||!spec;el.textContent=text?text+(effectiveGround()==='terrain'?' · '+t('地表起伏示意'):''):'';}
   }
   // 衛星原貌與街圖透視各自記住選擇，避免沿用舊街圖的預設透明。
   let landscapeTransparent=read('ri-landscape-transparent','0')==='1';

@@ -22,7 +22,10 @@ const worker = (await import(path.join(ROOT, 'worker.js'))).default;
 
 // 副檔名不在表裡=一律 404(見下方 !type)。字型漏了會讓 assets/fonts/rail-emoji.woff2 在本機
 // 靜默 404、圖示掉回系統 emoji,本機看到的畫面與正式站不一樣(2026-07-29 由 verify_redesign 抓到)。
-const MIME = { '.bin':'application/octet-stream', '.webp':'image/webp', '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.geojson': 'application/geo+json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.tsv': 'text/tab-separated-values' };
+// 🔴 '.gz' 少了這一條時,車庫素材(*.bin.gz)一律 404 ⇒ check-garage 那 11 支閘門全部結構上跑不起來
+// (loadGarageModel 在第一個 fetch 就拋 'model mesh')。不設 content-encoding 是刻意的:載入器自己
+// 用 DecompressionStream／fflate 解壓,瀏覽器先解一次會讓長度檢查改抛 'model size'。
+const MIME = { '.bin':'application/octet-stream', '.gz':'application/gzip', '.webp':'image/webp', '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.geojson': 'application/geo+json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.tsv': 'text/tab-separated-values' };
 
 // env.ASSETS 替身。正式環境是 Cloudflare 的 assets binding;本機沒有它的話,任何用
 // env.ASSETS.fetch 讀靜態產物的端點(公車站牌索引、公車轉乘索引)在本機一律 503——

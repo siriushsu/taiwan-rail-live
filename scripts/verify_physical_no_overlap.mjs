@@ -8,7 +8,7 @@
 // 那是「判準沒在量出貨的那個東西」的教科書實例，所以這支的第一件事就是**具名斷言 physical
 // 已就緒且覆蓋率夠**，分母不准無聲縮水。
 //
-// 判準（刻意不與實作同源，而且**沒有門檻**）：
+// 判準（比車身交集，另設既有數量棘輪）：
 //   * 位置只吃 `trainPos()` —— 畫面用的同一個入口，不讀 `_blockHold`、不讀 `trainSeg` 的簿記。
 //   * 「互相穿越」＝兩列車的車身佔用了**同一個 `resource`**（`system:節點A:節點B`，＝一段實體
 //     股道；`route-runtime.js:12` 造的那把鍵，也是派車求解器用的同一把）。兩列車同時佔同一段
@@ -25,33 +25,34 @@
 // 真正要清掉這 5 筆得從派車表下手（278 與 6652 被指派了同一條 pathIds，見下面 B 那一段）。
 // 每一筆的 hold 都印出來，人看得到它是不是頂到上限了。
 //
-// 已知**仍未修**、故意只申報不斷言的兩族（改它們要動派車表或要裁示，不在本閘門範圍）：
-//   B 兩車同時停在**同一個停車節點**：全日每 2 分抽樣 199 筆／去重 152 對。63% 是
-//     「中途/中途」（不是折返接力），`dispatch.handoffs` 全表只有 1 筆（而且是林鐵），
-//     所以這是派車的月台指派沒有把停站佔用算進去，要重跑 optimize_physical_dispatch。
-//   A′ 對向同一條股道：全日 19 筆（枋野/大武 411/162 共用 145 m）。時間 hold 修不了
-//     （兩台互為障礙會鎖死），要先裁示「這代表資料錯，該藏還是該顯示」。
-//   兩族都用棘輪守住（不得比基線更糟），基線寫在 BASE_B／BASE_OPP。
+// 既有 B／A′／C 仍有殘餘，棘輪只代表不得惡化，不代表零互穿。
+// 2026-09-12 補回太麻里來源月台股道與四段路徑，固定重放的 B 48→42、A′ 19→17。
+// 兩分鐘取樣會漏掉短暫衝突；具名案例另由 verify_verified_station_routes_browser 逐秒檢查。
+// 不能把西部雙線的錯股指派概括為「官方班表錯」或「單線無解」。
 //
 // 跑法（自帶 node:http 靜態站，不需要外部 server）：
 //   node scripts/verify_physical_no_overlap.mjs
 //   可選 PORT=／STEP=（重放步長秒，預設 4）／SAMPLE=（取樣間隔秒，預設 120）
+//   TEST_DATE=YYYY-MM-DD 固定服務日；FORMATION_PROBE=long 只在瀏覽器試驗長編組，不寫回產品。
+//   ENGINE=webkit 可換真實引擎；REPORT= 指定完整事件報告。
 //   FROM=／TO= 只給除錯用：縮小視窗會讓 G3 的分母斷言紅（那是刻意的，全日才是契約）。
-import { chromium } from 'playwright';
+import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
-import { readFileSync, existsSync, statSync } from 'node:fs';
+import { readFileSync, existsSync, statSync, writeFileSync, mkdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.env.PORT || 5531);
+const TEST_DATE = process.env.TEST_DATE;
+if (TEST_DATE && !/^\d{4}-\d{2}-\d{2}$/.test(TEST_DATE)) throw Error('TEST_DATE 必須為 YYYY-MM-DD');
 const STEP = Number(process.env.STEP || 4);
 const SAMPLE = Number(process.env.SAMPLE || 120);
 const FROM = Number(process.env.FROM || 5 * 3600);
 const TO = Number(process.env.TO || 24 * 3600 - 1);
 const BASE_A = 5;             // 同向在途互穿:實測基線(對照組關掉防追撞是 12 筆)。棘輪,只准往下
-const BASE_B = 240;           // 已知未修:兩車同停同一節點,全日取樣數上限(棘輪)
+const BASE_B = 62;            // 兩車同停同一節點:月台修復後實測 51,棘輪留兩成餘裕(修復前是 188/上限 240)
 const BASE_C = 60;           // 已知未修:一停一跑在站區道岔共用一小段,全日取樣數上限(棘輪)
 const BLOCK_CAP = 120;        // 與 index.html 的 BLOCK_CAP_SEC 同值,只用來寫進訊息
 const BASE_OPP = 24;          // 已知未修:對向同股道,全日取樣數上限(棘輪,實測 19)
@@ -75,10 +76,12 @@ const results = [];
 const ok = (name, pass, detail = '') => { results.push({ name, pass, detail }); console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}${detail ? '  — ' + detail : ''}`); };
 const hhmm = s => String(Math.floor(s / 3600)).padStart(2, '0') + ':' + String(Math.floor(s / 60) % 60).padStart(2, '0');
 
-const browser = await chromium.launch();
+const browser = await (process.env.ENGINE === 'webkit' ? webkit : chromium).launch();
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'zh-TW' });
 await ctx.addInitScript(() => { localStorage.setItem('trainmap-howto-seen', '1'); });
 const page = await ctx.newPage();
+const clockStart = TEST_DATE ? new Date(TEST_DATE + 'T12:00:00+08:00') : new Date();
+await page.clock.install({time:clockStart});
 const errors = [];
 page.on('pageerror', e => errors.push(e.message));
 // 即時誤點釘死成「沒有」:同一支腳本每分鐘結果不同的話,紅了也無從歸因。
@@ -91,15 +94,24 @@ const disk = md5(readFileSync(path.join(ROOT, 'index.html')));
 const served = md5(Buffer.from(await (await fetch(`http://127.0.0.1:${PORT}/index.html`)).arrayBuffer()));
 ok('G0 伺服器吐的是受測樹', disk === served, `${ROOT} md5=${disk.slice(0, 12)}`);
 
+if (process.env.FORMATION_PROBE === 'long') {
+  const source=readFileSync(path.join(ROOT,'rail-3d/integration/formations.js'),'utf8');
+  const candidate=source.replace("commuter:unknown('emu800',repeat(3,20),2.9)","commuter:estimated('emu800',repeat(8,20),2.9,'推估 8 節')").replace("chukuang:unknown('e200',[17,20,20],2.9)","chukuang:estimated('e200',[17,...repeat(8,20)],2.9,'推估 9 節')");
+  if(candidate===source)throw Error('長編組探針沒有改到受測編組');
+  await page.route('**/rail-3d/integration/formations.js',r=>r.fulfill({contentType:'text/javascript',body:candidate}));
+}
+for (const [env,file] of [['NETWORK','network.json'],['DISPATCH','dispatch.json']]) if(process.env[env]) await page.route('**/rail-3d/physical/'+file,r=>r.fulfill({contentType:'application/json',body:readFileSync(process.env[env])}));
 await page.goto(`http://127.0.0.1:${PORT}/?g=all&scene=3d&lang=zh-TW&at=24.6,121.8&z=13&t=09:56`);
 await page.waitForFunction(() => state.ready && state.trains?.length > 0 && window.railIslandPhysical, null, { timeout: 180000 });
 
+// 凍結自動 rAF／計時器，避免兩個重放 chunk 之間多呼叫一次 dSim=0 的 snap 改變 hold。
+await page.clock.pauseAt(new Date(clockStart.getTime()+60000));
 const setup = await page.evaluate(async () => {
   const F = await import('/rail-3d/integration/formations.js');
   const P = await import('/rail-3d/integration/train-path.js');
   const catalog = await (await fetch('/rail-3d/assets/blender-map-v1/manifest.json')).json();
   const models = new WeakMap();
-  const modelOf = tr => { if (models.has(tr)) return models.get(tr); const f = F.formationFor({ systemId: tr.sys, typeName: tr.typeName, carName: tr.carName }, 'actual'); const m = f ? F.assembleFormation(f, catalog) : null; models.set(tr, m); return m; };
+  const modelOf = tr => { if (models.has(tr)) return models.get(tr); const f = F.formationFor({ systemId: tr.sys, typeName: tr.typeName, carName: tr.carName, stockId: specialOf(tr)?.stock?.id, branchId: specialOf(tr)?.branch?.id, namedId: specialOf(tr)?.named?.id }, 'actual'); const m = f ? F.assembleFormation(f, catalog) : null; models.set(tr, m); return m; };
   // 車廂軸線:以公尺平面座標表示的線段(兩端＝該節車廂前後端)
   const axis = (p, half) => { const mx = 111320 * Math.cos(p.coordinate[1] * Math.PI / 180), x = p.coordinate[0] * mx, y = p.coordinate[1] * 111320, dx = Math.cos(p.angle) * half, dy = Math.sin(p.angle) * half; return [[x - dx, y - dy], [x + dx, y + dy]]; };
   const ptSeg = (p, a, b) => { const x = b[0] - a[0], y = b[1] - a[1], t = Math.max(0, Math.min(1, ((p[0] - a[0]) * x + (p[1] - a[1]) * y) / (x * x + y * y || 1))); return Math.hypot(p[0] - a[0] - x * t, p[1] - a[1] - y * t); };
@@ -158,7 +170,7 @@ const setup = await page.evaluate(async () => {
       for (const a of aa) for (const b of bb) { const t = segDist(a[0], a[1], b[0], b[1]); if (t < min) min = t; }
       // 車頭距＝使用者看到的那件事的強度(截圖那一對量到 0.39 m:兩列車的車廂互相穿插)
       const headM = pa.length && pb.length ? haversineKm({ lat: pa[0].coordinate[1], lon: pa[0].coordinate[0] }, { lat: pb[0].coordinate[1], lon: pb[0].coordinate[0] }) * 1000 : null;
-      hits.push({ a: A.no, b: B.no, sharedM: +shared.toFixed(1), resources: keys.length,
+      hits.push({ a: A.no, b: B.no, sharedM: +shared.toFixed(1), resources: keys.length, edgeIds: keys,
         minM: Number.isFinite(min) ? +min.toFixed(2) : null, dwellA: A.dwell, dwellB: B.dwell,
         sameDir: A.dir === B.dir, holds: A.hold + '/' + B.hold, headM: headM === null ? null : +headM.toFixed(2),
         centreM: +(haversineKm(A, B) * 1000).toFixed(1), stop: A.stop + '/' + B.stop });
@@ -175,7 +187,10 @@ const setup = await page.evaluate(async () => {
     }
     return { held, moved };
   };
-  return { trains: state.trains.length,
+  // 獨立的具名判準：支線與觀光車不能因主線區間車放長而一起變成 8 節。
+  const identityRoster=(await (await fetch('/data/tra_schedule_dense.json')).json()).trains;
+  const identities = ['2','1839','6652'].map(no => {const raw=identityRoster.find(t=>String(t.train)===no),tr=raw&&{...raw,sys:'tra_sched'};const m=tr&&modelOf(tr);return {no,id:m?.id,lengthM:m?.lengthM};});
+  return { identities, serviceDate: state.trains.find(t=>t.sys==='tra_sched'&&!t.loop&&!t.stops._prevNight)?._rday, trains: state.trains.length,
     traTotal: state.trains.filter(t => t.sys === 'tra_sched' && !t.loop).length,
     hasCovered: state.trains.filter(t => t.sys === 'tra_sched' && !t.loop && railIslandPhysical.has(t)).length,
     physicalReady: !!window.railIslandPhysical, live: liveActive() };
@@ -184,10 +199,12 @@ ok('G1 physical 已就緒且覆蓋台鐵全班',
   setup.physicalReady && setup.traTotal >= 800 && setup.hasCovered / setup.traTotal >= 0.99,
   `台鐵 ${setup.hasCovered}/${setup.traTotal} 走實體股道, 全系統 ${setup.trains} 班, liveActive=${setup.live}`);
 
+ok('G1b 判準使用畫面的支線與具名車型', setup.identities.every((r,i)=>r.id===['e500','dr1000','haifeng'][i] && Math.abs(r.lengthM-[57,60,60][i])<1e-6), JSON.stringify(setup.identities));
+if(TEST_DATE) ok('G1c 班表服務日與固定重放日一致', setup.serviceDate===TEST_DATE, `${setup.serviceDate} / ${TEST_DATE}`);
 // ── 連續重放（棘輪要演化,快照掃描量不到真實動態）────────────────────────────────
 await page.evaluate(([f]) => { __reset(); __step(f); }, [FROM]);
 const cls = h => h.dwellA && h.dwellB ? 'B 兩車都停站' : (!h.sameDir ? 'A′ 對向' : (h.dwellA || h.dwellB ? 'C 一停一跑' : 'A 同向在途'));
-const counts = {}, uniq = new Map();
+const counts = {}, uniq = new Map(), events = [];
 let samples = 0, runSum = 0, comparedSum = 0, wiredHeld = 0, wiredMoved = 0, capped = 0;
 for (let hour = FROM; hour <= TO; hour += 3600) {
   const end = Math.min(TO, hour + 3600 - 1);
@@ -203,6 +220,7 @@ for (let hour = FROM; hour <= TO; hour += 3600) {
     samples++; runSum += r.running; comparedSum += r.compared;
     wiredHeld += r.wired.held; wiredMoved += r.wired.moved;
     for (const h of r.hits) {
+      events.push({timeSec:r.s,...h});
       const k = cls(h); counts[k] = (counts[k] || 0) + 1;
       if (k === 'A 同向在途' && (h.holds || '').split('/').some(v => +v >= BLOCK_CAP - 1)) capped++;
       const id = [h.a, h.b].sort().join('/') + '@' + h.stop + '|' + k;
@@ -239,7 +257,10 @@ ok('G8 正向對照:關掉防追撞,同向在途互穿必須明顯變多', contr
   `對照組 ${control.n} 個時點量到 ${control.a} 筆（有防追撞時 ${A} 筆）`);
 ok('G9 頁面沒有 JS 例外', errors.length === 0, errors.slice(0, 2).join(' | ') || '0');
 
-console.log(`\n分類統計 A=${A}(撞上限 ${capped}) A′=${Ap} B=${B} C=${C}｜判準＝共用同一段實體股道(無門檻)`);
+console.log(`\n分類統計 A=${A}(撞上限 ${capped}) A′=${Ap} B=${B} C=${C}｜判準＝車身共用股道；數量採棘輪上限`);
+const reportPath=process.env.REPORT || path.join(ROOT,'output/physical-no-overlap.json');
+mkdirSync(path.dirname(reportPath),{recursive:true});
+writeFileSync(reportPath,JSON.stringify({serviceDate:setup.serviceDate,formationProbe:process.env.FORMATION_PROBE||'production',setup,step:STEP,sample:SAMPLE,samples,counts,events,results},null,2));
 await browser.close();
 server.close();
 const bad = results.filter(r => !r.pass);

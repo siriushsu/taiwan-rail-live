@@ -127,9 +127,15 @@ try {
   const historic = spawnSync('node', [path.join(wt, 'scripts', 'verify_historic_assets.mjs')], { encoding: 'utf8' });
   process.stdout.write(historic.stdout || ''); process.stderr.write(historic.stderr || '');
   if (historic.status !== 0) fail('歷史建物資產或定位契約未通過');
+  const tainanMemory = spawnSync('node', [path.join(wt, 'scripts', 'verify_tainan_memory.mjs')], { encoding: 'utf8' });
+  process.stdout.write(tainanMemory.stdout || ''); process.stderr.write(tainanMemory.stderr || '');
+  if (tainanMemory.status !== 0) fail('台南地面鐵道封存雜湊、班次或沿軌接續未通過');
   const railLevels = spawnSync('node', [path.join(wt, 'scripts', 'verify_rail_levels.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(railLevels.stdout || ''); process.stderr.write(railLevels.stderr || '');
   if (railLevels.status !== 0) fail('軌道上下層、交叉淨距或來源剖面版本未通過');
+  const flatGrade = spawnSync('node', [path.join(wt, 'scripts', 'verify_flat_rail_grade.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(flatGrade.stdout || ''); process.stderr.write(flatGrade.stderr || '');
+  if (flatGrade.status !== 0) fail('平坦地圖的橋梁、引道或列車縱坡未通過');
   const railGrounding = spawnSync('node', [path.join(wt, 'scripts', 'verify_rail_grounding.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(railGrounding.stdout || ''); process.stderr.write(railGrounding.stderr || '');
   if (railGrounding.status !== 0) fail('橋梁來源判定或示意列車高度對應未通過');
@@ -156,6 +162,10 @@ try {
   const overlap = spawnSync('node', [path.join(wt, 'scripts', 'verify_physical_no_overlap.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(overlap.stdout || ''); process.stderr.write(overlap.stderr || '');
   if (overlap.status !== 0) fail('實體股道上的列車互穿檢查未通過（單獨重跑：npm run check-physical-overlap）');
+
+  const stationRoutes = spawnSync('node', [path.join(wt, 'scripts', 'verify_verified_station_routes.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(stationRoutes.stdout || ''); process.stderr.write(stationRoutes.stderr || '');
+  if (stationRoutes.status !== 0) fail('具名派軌、太麻里月台來源、非電化限制或接站連續驗證未通過');
 
   const terrainChunks = spawnSync('node', [path.join(wt, 'scripts', 'verify_terrain_chunk_cache.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(terrainChunks.stdout || ''); process.stderr.write(terrainChunks.stderr || '');

@@ -71,10 +71,23 @@ check('高鐵、林鐵與七組捷運輕軌的 302 座地圖實體站全進索�
   });
   for (const id of ['THSR:0990', 'TRTC:BL01', 'TYMC:A1', 'TMRT:G0', 'KRTC:R3', 'KLRT:C1',
     'NTALRT:K01', 'NTDLRT:V01', 'SANYING:LB01', 'AFR:360']) assert(manifest.stations[id], `缺少 ${id}`);
-  // 官方共站表仍未收錄／座標差距超過嚴格閘門的新站也必須有穩定 fallback，不得整站消失。
+  // 官方共站表尚未收錄／座標差距超過嚴格閘門的站，也必須有穩定 fallback，不得整站消失。
+  // 判準綁「這一站有沒有進索引」，不綁「它走的是哪一條路」：2026-09-12 廣慈/奉天宮就是這樣紅過
+  // 一次——TDX 09-10 上架 TRTC:R01 之後它改走官方 id，站好端端在索引裡，判準卻因為找不到
+  // fallback id 而紅。那是判準過期，不是產品回歸。
+  const fallbackControls = [];
   for (const [system, name] of [['mrt', '廣慈/奉天宮'], ['ntalrt', '台北小城'], ['krtc', '灣仔內(大順鼎山)']]) {
-    assert(manifest.stations[stableRailId(system, name)], `缺少 ${system} ${name} fallback 索引`);
+    const station = expectedRailStations.find(item => item.appSystem === system && item.name === name);
+    assert(station, `${system} ${name} 整站從索引消失`);
+    assert(manifest.stations[station.id], `${system} ${name} 不在 manifest（id=${station.id}）`);
+    if (!station.id.startsWith('RI:')) continue;
+    assert.equal(station.id, stableRailId(system, name), `${system} ${name} 的 fallback id 不穩定`);
+    fallbackControls.push(`${system}/${name}`);
   }
+  // 正向對照：fallback 這條路要真的還有站在走，否則上面那圈只是在驗官方 id，
+  // fallback 壞掉時會靜靜地全綠。全部都升上官方 id 的那天要換一站當控制，不是刪掉這條。
+  assert(fallbackControls.length > 0,
+    'fallback 路徑已經沒有任何站在走，這組控制失去意義：請改挑一個目前沒有官方共站記錄的站');
 });
 
 check('每站獨立檔案且不超過 128 KiB，全臺索引總量不超過 12 MiB', () => {

@@ -4,6 +4,32 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "修正三鶯線重複轉乘資訊，更新站名翻譯與鄰近公車轉乘資料": "Fixed duplicate Sanying Line transfer information and updated station translations and nearby bus connections.",
+    "補回太麻里兩條月台股道，減少同站列車重疊；修正部分列車誤入同一股道的交會畫面": "Restored both platform tracks at Taimali to reduce overlapping trains, and corrected some trains meeting on the wrong shared track.",
+    "減少車站裡兩班車疊在同一條股道上的情況，潮州、板橋、南港等站重新指派停靠月台": "Reduced trains overlapping on the same station track by revising platform assignments at Chaozhou, Banqiao, Nangang and other stations.",
+    "減少開站時重複下載地形與股道資料，改善初次開啟的等待時間與畫面凍結。": "Reduced repeated downloads of terrain and track data at startup, improving initial loading time and screen freezes.",
+    "修正中洲到大湖等平地路段被誤畫成隧道的情況；抬高路基的邊坡改得更窄、更接近地表顏色，避免遮住列車。": "Corrected flat sections such as Zhongzhou–Dahu that were wrongly drawn as tunnels. Raised embankments are narrower and closer to the ground color so they do not obscure trains.",
+    "立體地圖的隧道洞口改為貼合山坡的洞門與擋土牆，改善懸空拱圈；移除山丘表面沿著地下隧道出現的軌道線。": "Tunnel entrances in the 3D map now fit hillsides with portals and retaining walls, reducing floating arches. Removed track lines appearing on hills above underground tunnels.",
+    "台北、板橋等都市的立體地圖拖動更順，減少地下路網與畫面外列車重複計算地形的時間。": "Panning the 3D map in Taipei, Banqiao and other cities is smoother, with less repeated terrain calculation for underground tracks and off-screen trains.",
+    "減少同股道列車追上、穿過前車的情況：後車依前車位置減速跟隨，顯示位置最多延後 120 秒。部分交會與待避仍受班表及股道資料限制。": "Reduced trains catching and passing through a train ahead on the same track. Following trains slow down, with display positions delayed by up to 120 seconds. Some meetings and passing waits remain limited by timetable and track data.",
+    "修正全網平坦地圖的橋梁與引道突起，列車行經短橋時更平順": "Smoothed bridge and approach humps across the flat map, so trains pass over short bridges more smoothly.",
+    "列車光環": "Train glow",
+    "列車周圍新增自然散開的柔光，夜晚呈暖色、白天沿用車次顏色，可在「更多」開關": "Trains now have a naturally diffused glow: warm at night and in their service color by day. Toggle it in More.",
+
+    "台南地面鐵道・歷史重播": "Tainan surface railway · Historical replay",
+    "新增台南地面鐵道重播，保留舊站、地面股道與封存班表": "Replay Tainan’s surface railway with its historic station, ground-level tracks and archived timetable.",
+    "修正地下段多餘橋墩、洞口內的山體與路基閃動，橋墩改得更低調；明亮外觀預設關閉日夜光影，暗色預設開啟": "Fixed unwanted underground piers, terrain inside tunnel openings and flickering embankments, with subtler bridge piers. Day/night lighting now defaults off in light appearance and on in dark appearance.",
+    "夜間車頭燈更明亮，近看時列車前方會灑下柔和的地面光": "Brighter nighttime headlights now cast a soft pool of light ahead of trains when viewed up close.",
+    "柴聯自強與支線柴聯車的節數改標「推估編組」，不再和真的查不到編組的車種混為一談": "Diesel express and branch-line railcar formations are now labelled as estimated, no longer lumped in with trains whose formation genuinely cannot be determined.",
+    "車站裡不再有兩班車疊在同一條股道上，潮州、板橋、南港等站重新指派停靠月台": "Trains no longer stack on the same station track: platform assignments were redone at Chaozhou, Banqiao, Nangang and other stations.",
+    "山嵐號可以在地圖上認出來並跟車，環島之星與山海／平原號改畫成機車牽引的觀光列車": "Shanlan can now be identified and followed on the map, and Formosa Star Cute Express, Mountain & Sea and Plains Explorer are drawn as locomotive-hauled tourist trains.",
+    "全線隧道口補上立體拱圈、側壁與燈帶，雙線共用開口，修正高架銜接與彎道入口擋住列車的問題": "Tunnel portals now have solid arches, side walls and light strips, with shared openings for parallel tracks. Fixed viaduct connections and curved entrances obstructing trains.",
+    "阿里山林鐵恢復實際股道與之字形折返，近看也能看到站內配線": "Alishan Forest Railway now uses its physical tracks and zigzag switchbacks, with station track layouts visible up close.",
+    "臺中捷運高鐵臺中站改為平面站，進站路段不再畫成高架橋": "Taichung MRT HSR Taichung Station is now shown at ground level, with its station approach no longer drawn as a viaduct.",
+    "機捷依官方車種顯示普通車與直達車，跳站普通車也能顯示正確編組": "Airport MRT models now follow the official train type, including the correct formation for skip-stop commuter trains.",
+    "夜晚車窗亮起柔和暖白光，窗格完整清楚，進出隧道也會逐節漸亮、漸暗": "Train windows now glow with soft warm-white light at night, with clear, fully lit panes and smooth changes along each carriage when entering or leaving tunnels.",
+    "夜間列車亮起車頭燈、紅色尾燈與暖色車窗，進出隧道時每節車廂的光線平順變化": "At night, trains have headlights, red tail lights and warm-lit windows. Lighting changes smoothly along each carriage as it enters or leaves a tunnel.",
+
     "修正龜山至林口台地的高鐵橋隧縱坡與洞口銜接，隧道不再隨山坡起伏，保留已知跨河橋梁": "Corrected the HSR bridge and tunnel gradients and portal connections between Guishan and Linkou. Tunnels no longer follow hillsides, and known river bridges are preserved.",
     "地景地圖標示 Beta，持續完善地形、建物與沿線景觀": "The Landscape map is marked Beta while terrain, buildings and trackside scenery continue to improve.",
 
@@ -71,6 +97,7 @@
     "地表起伏示意": "Illustrated surface relief",
     "立體顯示載入失敗，請重試": "3D view could not load. Please try again.",
     "{n} 節 · 標準編組": "{n} cars · standard formation",
+    "{n} 節 · 推估編組": "{n} cars · estimated formation",
     "{n} 分節 · 標準編組": "{n} sections · standard formation",
     "3 節示意 · 當班編組待確認": "3-car illustration · actual formation unconfirmed",
     "放大地圖即可看見立體列車。完整編組依車型或路線標準；缺少當班資料時顯示三節示意。起伏為地表顯示，非實測軌道高程。透視顯示同時管建築與地下列車，切到實體就看得到地下列車原本的顏色。": "Zoom in to see 3D trains. Full formations use vehicle or route standards; unknown formations use a 3-car illustration. Terrain represents the ground surface, not surveyed track elevation. See-through view covers both buildings and underground trains: switch to Solid to see underground trains in their own colors.",
@@ -248,6 +275,32 @@
   });
 
   Object.assign(messages.ja, {
+    "修正三鶯線重複轉乘資訊，更新站名翻譯與鄰近公車轉乘資料": "三鶯線の重複した乗換情報を修正し、駅名の翻訳と周辺のバス乗換情報を更新しました。",
+    "補回太麻里兩條月台股道，減少同站列車重疊；修正部分列車誤入同一股道的交會畫面": "太麻里駅の2本のホーム線路を復元して列車の重なりを減らし、一部の列車が誤って同じ線路ですれ違う表示を修正しました。",
+    "減少車站裡兩班車疊在同一條股道上的情況，潮州、板橋、南港等站重新指派停靠月台": "潮州・板橋・南港などの停車ホーム割当を見直し、駅で2列車が同じ線路上に重なる表示を減らしました。",
+    "減少開站時重複下載地形與股道資料，改善初次開啟的等待時間與畫面凍結。": "起動時の地形・線路データの重複ダウンロードを減らし、初回読み込みの待ち時間や画面の停止を改善しました。",
+    "修正中洲到大湖等平地路段被誤畫成隧道的情況；抬高路基的邊坡改得更窄、更接近地表顏色，避免遮住列車。": "中洲～大湖などの平地区間が誤ってトンネル表示になる問題を修正。盛土の法面を狭くして地面に近い色にし、列車が隠れにくくしました。",
+    "立體地圖的隧道洞口改為貼合山坡的洞門與擋土牆，改善懸空拱圈；移除山丘表面沿著地下隧道出現的軌道線。": "立体地図のトンネル入口を斜面に沿う坑門・擁壁に変更し、浮いたアーチを改善。地下トンネルに沿って山肌に現れる線路表示も除去しました。",
+    "台北、板橋等都市的立體地圖拖動更順，減少地下路網與畫面外列車重複計算地形的時間。": "台北・板橋などの立体地図をより滑らかに移動できるよう、地下路網や画面外の列車による地形の重複計算を減らしました。",
+    "減少同股道列車追上、穿過前車的情況：後車依前車位置減速跟隨，顯示位置最多延後 120 秒。部分交會與待避仍受班表及股道資料限制。": "同じ線路で後続列車が前の列車に追いつき、すり抜ける表示を低減。後続列車は減速し、表示位置を最大120秒遅らせます。一部の交換・待避には時刻表や線路データによる制約が残ります。",
+    "修正全網平坦地圖的橋梁與引道突起，列車行經短橋時更平順": "平坦な地図全体で橋と接続区間の不自然な盛り上がりを修正し、列車が短い橋を滑らかに通過するようになりました。",
+    "列車光環": "列車の光",
+    "列車周圍新增自然散開的柔光，夜晚呈暖色、白天沿用車次顏色，可在「更多」開關": "列車の周囲に自然に広がる柔らかな光を追加。夜は暖色、昼は列車の色になり、「その他」で切り替えられます。",
+
+    "台南地面鐵道・歷史重播": "台南の地上鉄道・過去の運行を再生",
+    "新增台南地面鐵道重播，保留舊站、地面股道與封存班表": "台南の旧駅舎と地上の線路を残し、保存した時刻表で当時の運行を再生できます。",
+    "修正地下段多餘橋墩、洞口內的山體與路基閃動，橋墩改得更低調；明亮外觀預設關閉日夜光影，暗色預設開啟": "地下区間の不要な橋脚、坑口内の地形、路盤のちらつきを修正し、橋脚の見た目を控えめにしました。昼夜の光は明るい外観では初期設定でオフ、暗い外観ではオンになります。",
+    "夜間車頭燈更明亮，近看時列車前方會灑下柔和的地面光": "夜間の前照灯を明るくし、近くでは列車前方の地面に柔らかな光が広がります。",
+    "柴聯自強與支線柴聯車的節數改標「推估編組」，不再和真的查不到編組的車種混為一談": "気動車特急と支線の気動車の両数を「推定編成」と表示するようにし、本当に編成が分からない車種と区別しました。",
+    "車站裡不再有兩班車疊在同一條股道上，潮州、板橋、南港等站重新指派停靠月台": "駅で 2 本の列車が同じ線路に重なって表示されなくなりました。潮州・板橋・南港などで停車番線を割り当て直しています。",
+    "山嵐號可以在地圖上認出來並跟車，環島之星與山海／平原號改畫成機車牽引的觀光列車": "山嵐号を地図上で識別して追跡できるようになりました。環島之星 萌旅号、山海号、平原号は機関車牽引の観光列車として描画されます。",
+    "全線隧道口補上立體拱圈、側壁與燈帶，雙線共用開口，修正高架銜接與彎道入口擋住列車的問題": "全線のトンネル坑口に立体的なアーチ、側壁、照明を追加し、並行する線路は開口部を共用します。高架との接続やカーブの入口で列車を遮る問題も修正しました。",
+    "阿里山林鐵恢復實際股道與之字形折返，近看也能看到站內配線": "阿里山森林鉄道の実際の線路とスイッチバックを表示し、近くでは駅構内の配線も見えるようになりました。",
+    "臺中捷運高鐵臺中站改為平面站，進站路段不再畫成高架橋": "台中MRTの高鉄台中駅を地上駅として表示し、駅への進入区間を高架橋で描かないようにしました。",
+    "機捷依官方車種顯示普通車與直達車，跳站普通車也能顯示正確編組": "桃園空港MRTは公式の車種に合わせて普通車と直達車を表示し、一部の駅を通過する普通車も正しい編成になりました。",
+    "夜晚車窗亮起柔和暖白光，窗格完整清楚，進出隧道也會逐節漸亮、漸暗": "夜間の車窓に柔らかな暖白色の明かりを追加しました。窓全体がくっきりと灯り、トンネルへの出入りに合わせて車両ごとの明るさが滑らかに変わります。",
+    "夜間列車亮起車頭燈、紅色尾燈與暖色車窗，進出隧道時每節車廂的光線平順變化": "夜間の列車に前照灯、赤い尾灯、暖色の窓明かりを追加しました。トンネルへの出入りに合わせて、車両ごとの明るさが滑らかに変化します。",
+
     "修正龜山至林口台地的高鐵橋隧縱坡與洞口銜接，隧道不再隨山坡起伏，保留已知跨河橋梁": "亀山から林口台地の高鉄の橋梁・トンネルの勾配と坑口接続を修正。トンネルが山肌の起伏に沿わないようにし、確認できる河川橋梁は維持します。",
     "地景地圖標示 Beta，持續完善地形、建物與沿線景觀": "地景地図を Beta と表示。地形、建物、沿線風景を引き続き改善します。",
 
@@ -315,6 +368,7 @@
     "地表起伏示意": "地表の起伏イメージ",
     "立體顯示載入失敗，請重試": "3D 表示を読み込めませんでした。再度お試しください。",
     "{n} 節 · 標準編組": "{n} 両 · 標準編成",
+    "{n} 節 · 推估編組": "{n} 両 · 推定編成",
     "{n} 分節 · 標準編組": "{n} 車体 · 標準編成",
     "3 節示意 · 當班編組待確認": "3 両イメージ · 当該便の編成は未確認",
     "放大地圖即可看見立體列車。完整編組依車型或路線標準；缺少當班資料時顯示三節示意。起伏為地表顯示，非實測軌道高程。透視顯示同時管建築與地下列車，切到實體就看得到地下列車原本的顏色。": "地図を拡大すると 3D 列車が表示されます。全編成は車種・路線の標準に基づき、不明な便は 3 両イメージで表示します。起伏は地表の表現であり、実測の線路標高ではありません。透視表示は建物と地下の列車の両方に効きます。「実体」に切り替えると、地下の列車も本来の色で表示されます。",

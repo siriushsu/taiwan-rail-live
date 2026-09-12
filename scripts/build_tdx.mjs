@@ -368,7 +368,14 @@ function assemble({ id, name, color, ids, stations, parts, maps, freq, loop, est
   const oldMrt = JSON.parse(readFileSync(path.join(ROOT, 'data/mrt.json'), 'utf8'));
   const y = oldMrt.lines.find(l => l.id === 'Y');
   if (y) { lines.push(y); console.log(`  Y ${y.name}: 自 mrt.json 搬入(OSM 幾何,班距估算)`); }
-  writeFileSync(path.join(ROOT, 'data/trtc.json'), JSON.stringify({
+  // 🔴 2026-09-12 巡檢實測:本機 TDX 快照若還沒有 R01 廣慈/奉天宮(信義東延段,北捷自家 API 早就有,
+  //    缺口在 TDX 匯入端),重建會把那一站從 trtc.json 直接刪掉——R 線 28→27 站、線形少 27 點、
+  //    26 段站間時間跟著位移,而且不會有任何錯誤訊息。現檔的 R01 是人工補進去的(座標取 TDX 官方值、
+  //    線形取 OSM),重建等於把那份工作清掉。比照 build_metro_times.mjs 的 TRTC 閘門:
+  //    讀得到 R01 才准重寫,讀不到就保留現檔;TDX 補齊的那天閘門自動失效,不必有人回來拆。
+  if (!stations.has('R01') && !process.argv.includes('--force-trtc')) {
+    console.warn('  ⚠ 跳過 data/trtc.json:TDX 快照缺 R01 廣慈/奉天宮,重建會刪站(要覆蓋請加 --force-trtc)');
+  } else writeFileSync(path.join(ROOT, 'data/trtc.json'), JSON.stringify({
     system: 'TRTC',
     source_notes: '交通部 TDX 運輸資料流通服務(台北捷運路線幾何/站序/班距/站間行駛時間,2026-07 抓取);環狀線為 OSM 幾何+官網公告班距估算',
     lines,
@@ -486,13 +493,16 @@ function assemble({ id, name, color, ids, stations, parts, maps, freq, loop, est
   }));
 }
 
-// ─────────────── SANYING 三鶯線(TDX 尚未收錄,幾何/站序取自 OSM) ───────────────
+// ─────────────── SANYING 三鶯線(幾何/站序取自 OSM,站間行駛時間取自 TDX) ───────────────
 {
   console.log('== SANYING 三鶯線');
   const stations = stationMap('SANYING_Station.json');
   const sol = solOrder('SANYING_StationOfLine.json');
   const shapes = shapeParts('SANYING_Shape.json');
-  const maps = s2sMapsOpt('SANYING_S2STravelTime.json'); // TDX 未收錄,無 S2S 檔
+  // 2026-09-12 起 TDX 以 NTMC(新北捷運)營運商發布三鶯線,站碼與本線同為 LB01~LB12,
+  // 直接取官方站間行駛時間填 segs[].run(先前 11 段全 null,前端只能用距離/速度回推)。
+  // 幾何(Shape)與班距(Frequency)TDX 查無 LB,故線形續用 OSM、班距續用官方公告值。
+  const maps = s2sMaps('NTMC_S2STravelTime.json');
   const lines = [
     assemble({
       id: 'LB', name: '三鶯線', color: '#79BCE8', ids: sol.get('LB'), parts: shapes.get('LB'),
@@ -502,7 +512,7 @@ function assemble({ id, name, color, ids, stations, parts, maps, freq, loop, est
   ];
   writeFileSync(path.join(ROOT, 'data/sanying.json'), JSON.stringify({
     system: 'NTMC-LB',
-    source_notes: '路線幾何與車站座標:OpenStreetMap 貢獻者(ODbL,2026-07 擷取);站序站名:新北捷運公司官網;班距為試營運公告估算(尖峰6分/離峰8分)',
+    source_notes: '路線幾何與車站座標:OpenStreetMap 貢獻者(ODbL,2026-07 擷取);站序站名:新北捷運公司官網;站間行駛時間:交通部 TDX 運輸資料流通服務(新北捷運三鶯線,2026-09-12 抓取);班距為試營運公告估算(尖峰6分/離峰8分)',
     lines,
   }));
 }

@@ -46,10 +46,18 @@
       "url": "https://www.openstreetmap.org/way/1082704042",
       "use": "鹽倉 5：輪廓與位置",
       "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://chacha.tainan.gov.tw/#/Post/11",
+      "use": "官方園區平面圖：III 地磅室遺址"
+    },
+    {
+      "url": "https://donghong.info/blog/?p=34107",
+      "use": "2025-05-25 實地照片、公開照片時間與 GPS：遺構形態及場址交叉查證；未隨模型散布照片或整段軌跡"
     }
   ],
   "priority": 2,
-  "placementStatus": "calibrated-plan",
+  "placementStatus": "mixed-plan-and-site-anchor",
   "anchor": [
     120.31940977812934,
     23.190546428731537
@@ -61,25 +69,27 @@
     "height": 7.8779425621032715,
     "basis": "平面依各部件來源校正；高度仍為外觀建模估值"
   },
-  "referenceReviewDate": null,
+  "referenceReviewDate": "2026-09-12",
   "geometryStatus": "plan-calibrated-exterior-estimated",
-  "scope": "按來源輪廓校正平面位置與尺度；高度、立面細節及正面方向仍為外觀估計",
+  "scope": "依來源校正平面與補齊可確認附屬構件；尺寸與高度屬地圖外觀估計，非工程測繪",
   "railRelation": "站區：隆田；園內四鐵共構為歷史遺跡",
   "reviewedPhotos": [],
   "referenceStatus": "exterior-review-pending",
   "pendingChecks": [
     "高度測量與完整多面立面校正",
-    "正面方向複核",
-    "未定位附屬構件：地磅室 / 屋頂、地磅室 / 立面、地磅室 / 貨門與月台"
+    "正面方向複核"
   ],
+  "completionReview": {
+    "date": "2026-09-12",
+    "changes": [
+      "補地磅室低矮磚基；移除草模的完整房舍屋頂假設"
+    ],
+    "precision": "地圖外觀模型；無實測高度或完整多面立面，不視為工程測繪"
+  },
   "orientationMode": "ENU-baked",
   "absoluteGroundAltitudeM": null,
   "railElevationM": null,
-  "omittedUnlocatedComponents": [
-    "地磅室 / 屋頂",
-    "地磅室 / 立面",
-    "地磅室 / 貨門與月台"
-  ],
+  "omittedUnlocatedComponents": [],
   "mapEligible": true,
   "calibration": {
     "version": 2,
@@ -196,6 +206,22 @@
         ],
         "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
         "facadeBearingDeg": null
+      },
+      {
+        "id": "地磅室遺構",
+        "name": "地磅室遺構",
+        "placementStatus": "site-anchor-estimated-outline",
+        "anchor": [
+          120.319455,
+          23.189274
+        ],
+        "rotationDeg": 86,
+        "scaleXY": [
+          1.0,
+          0.9999999783255843
+        ],
+        "basis": "官方園區圖標示 III；2025-05-25 現場照片為低矮磚基，拍攝時間 16:55:16 與公開 GPX 的 08:55:12Z/08:55:21Z 近鄰點交叉定位，再比對衛星小型設施；遺址中心、尺度及方向為目視估計，GPS 非測繪",
+        "facadeBearingDeg": null
       }
     ],
     "verticalDatum": "terrain-relative",
@@ -242,11 +268,11 @@
     "near": {
       "file": "near.mesh.bin",
       "glb": "near.glb",
-      "sha256": "79508cc05e08681a302a448b5832d3f6d2916997f822994cfafc20411026afd0",
-      "glbSha256": "3acb3ac64e6dc510fbc9820324f31134cbd65bae6cd99172e13687bf4d8921e7",
+      "sha256": "7ad67e6ae47ea901077e8cbd63de54263e3cf4e327dbc5dc9ee6edc2f44dd97c",
+      "glbSha256": "abd1106e45ab1b1101bc61c4ab056d4c9455bcc7146c46810aaa9f6356b419f0",
       "strideBytes": 24,
-      "vertexCount": 7602,
-      "triangleCount": 2534,
+      "vertexCount": 7782,
+      "triangleCount": 2594,
       "drawGroups": [
         {
           "component": "南倉",
@@ -611,18 +637,44 @@
           ],
           "metalness": 0.05000000074505806,
           "roughness": 0.5699999928474426
+        },
+        {
+          "component": "地磅室遺構",
+          "name": "stone",
+          "start": 7602,
+          "count": 72,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "地磅室遺構",
+          "name": "red",
+          "start": 7674,
+          "count": 108,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
         }
       ],
-      "byteLength": 182448
+      "byteLength": 186768
     },
     "far": {
       "file": "far.mesh.bin",
       "glb": "far.glb",
-      "sha256": "98eabe41e04d86f8e786ea0d0a7ae5edff788a303811835172018e18097ad66c",
-      "glbSha256": "f0b16da7e65ee4938566938420d348b3b6d12fc658f685f199095ef1f2838708",
+      "sha256": "36a0be1ee2a83ede7bc5f63e4b7f31eccbeeaf0eced33d5825bbc34f836e8ce6",
+      "glbSha256": "7fd1d11e60b77a87cebd4e6753460b0ffdc6b5fe930b97152bc6ddeb2c952003",
       "strideBytes": 24,
-      "vertexCount": 3486,
-      "triangleCount": 1162,
+      "vertexCount": 3666,
+      "triangleCount": 1222,
       "drawGroups": [
         {
           "component": "南倉",
@@ -987,12 +1039,38 @@
           ],
           "metalness": 0.05000000074505806,
           "roughness": 0.5699999928474426
+        },
+        {
+          "component": "地磅室遺構",
+          "name": "stone",
+          "start": 3486,
+          "count": 72,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "地磅室遺構",
+          "name": "red",
+          "start": 3558,
+          "count": 108,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
         }
       ],
-      "byteLength": 83664
+      "byteLength": 87984
     }
   },
-  "nativeObjectCount": 763,
+  "nativeObjectCount": 768,
   "sourcePhotosIncluded": false,
   "operatorLogoIncluded": false,
   "modelUse": "map-exterior",
@@ -1107,6 +1185,22 @@
         1.917227178714784
       ],
       "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+      "facadeBearingDeg": null
+    },
+    {
+      "id": "地磅室遺構",
+      "name": "地磅室遺構",
+      "placementStatus": "site-anchor-estimated-outline",
+      "anchor": [
+        120.319455,
+        23.189274
+      ],
+      "rotationDeg": 86,
+      "scaleXY": [
+        1.0,
+        0.9999999783255843
+      ],
+      "basis": "官方園區圖標示 III；2025-05-25 現場照片為低矮磚基，拍攝時間 16:55:16 與公開 GPX 的 08:55:12Z/08:55:21Z 近鄰點交叉定位，再比對衛星小型設施；遺址中心、尺度及方向為目視估計，GPS 非測繪",
       "facadeBearingDeg": null
     }
   ]
