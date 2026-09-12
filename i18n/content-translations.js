@@ -4,6 +4,9 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "全線隧道口補上立體拱圈、側壁與燈帶，雙線共用開口，修正高架銜接與彎道入口擋住列車的問題": "Tunnel portals now have solid arches, side walls and light strips, with shared openings for parallel tracks. Fixed viaduct connections and curved entrances obstructing trains.",
+    "夜間列車亮起車頭燈、紅色尾燈與暖色車窗，進出隧道時每節車廂的光線平順變化": "At night, trains have headlights, red tail lights and warm-lit windows. Lighting changes smoothly along each carriage as it enters or leaves a tunnel.",
+
     "修正龜山至林口台地的高鐵橋隧縱坡與洞口銜接，隧道不再隨山坡起伏，保留已知跨河橋梁": "Corrected the HSR bridge and tunnel gradients and portal connections between Guishan and Linkou. Tunnels no longer follow hillsides, and known river bridges are preserved.",
     "地景地圖標示 Beta，持續完善地形、建物與沿線景觀": "The Landscape map is marked Beta while terrain, buildings and trackside scenery continue to improve.",
 
@@ -248,6 +251,9 @@
   });
 
   Object.assign(messages.ja, {
+    "全線隧道口補上立體拱圈、側壁與燈帶，雙線共用開口，修正高架銜接與彎道入口擋住列車的問題": "全線のトンネル坑口に立体的なアーチ、側壁、照明を追加し、並行する線路は開口部を共用します。高架との接続やカーブの入口で列車を遮る問題も修正しました。",
+    "夜間列車亮起車頭燈、紅色尾燈與暖色車窗，進出隧道時每節車廂的光線平順變化": "夜間の列車に前照灯、赤い尾灯、暖色の窓明かりを追加しました。トンネルへの出入りに合わせて、車両ごとの明るさが滑らかに変化します。",
+
     "修正龜山至林口台地的高鐵橋隧縱坡與洞口銜接，隧道不再隨山坡起伏，保留已知跨河橋梁": "亀山から林口台地の高鉄の橋梁・トンネルの勾配と坑口接続を修正。トンネルが山肌の起伏に沿わないようにし、確認できる河川橋梁は維持します。",
     "地景地圖標示 Beta，持續完善地形、建物與沿線景觀": "地景地図を Beta と表示。地形、建物、沿線風景を引き続き改善します。",
 
