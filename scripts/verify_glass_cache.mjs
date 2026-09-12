@@ -7,7 +7,7 @@ vm.createContext(context);vm.runInContext(fs.readFileSync(new URL('../night-map.
 let terrain=false,layer,uploaded;
 const center={lng:121,lat:25},feature={id:1,tile:{z:14,x:1,y:1},properties:{height:20},geometry:{type:'Polygon',coordinates:[[[121,25],[121.001,25],[121.001,25.001],[121,25.001],[121,25]]]}};
 const gl=new Proxy({bufferData:(_target,data)=>uploaded=Array.from(data),getShaderParameter:()=>true,getProgramParameter:()=>true},{get:(o,k)=>k in o?o[k]:()=>{}});
-const map={getLayer:()=>null,getStyle:()=>({layers:[]}),addLayer:l=>layer=l,on:()=>{},off:()=>{},triggerRepaint:()=>{},getZoom:()=>16.5,getSource:()=>true,getCenter:()=>center,getTerrain:()=>terrain?{}:null,queryTerrainElevation:()=>100,querySourceFeatures:()=>[feature],getBounds:()=>({getSouthWest:()=>({lng:120,lat:24}),getNorthEast:()=>({lng:122,lat:26}),contains:()=>true})};
+const map={getCanvas:()=>({clientWidth:1000,clientHeight:800}),getPitch:()=>0,unproject:()=>center,project:()=>({x:500,y:400}),getLayer:()=>null,getStyle:()=>({layers:[]}),addLayer:l=>layer=l,on:()=>{},off:()=>{},triggerRepaint:()=>{},getZoom:()=>16.5,getSource:()=>true,getCenter:()=>center,getTerrain:()=>terrain?{}:null,queryTerrainElevation:()=>100,querySourceFeatures:()=>[feature],getBounds:()=>({getSouthWest:()=>({lng:120,lat:24}),getNorthEast:()=>({lng:122,lat:26}),contains:()=>true})};
 context.window.RailNightMap.installGlass(map);layer.onAdd(map,gl);layer.rebuild();const flat=uploaded;assert(flat.length>0&&flat.every(Number.isFinite),'測試必須確實產生有效的玻璃線頂點');
 terrain=true;layer.schedule({sourceId:'terrain'});layer.rebuild();const raised=uploaded;
 assert(raised.some((n,i)=>i%4===2&&n===flat[i]+100),'地形上移的前置樣本必須存在');

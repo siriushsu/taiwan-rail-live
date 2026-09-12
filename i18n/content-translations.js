@@ -1726,3 +1726,6 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {"轉乘接續也列捷運了：高�
 Object.assign(window.RAIL_I18N_MESSAGES.en, {"桃園機場捷運全線每一班都標得出直達車或普通車，首末班不再只顯示線號": "Every Taoyuan Airport MRT train on the whole line now shows whether it is Express or Commuter; the first and last trains no longer show only the line code."});
 
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"桃園機場捷運全線每一班都標得出直達車或普通車，首末班不再只顯示線號": "桃園空港MRTは全線すべての列車に直達か普通かの種別を表示するようになりました。始発と最終の列車も路線記号だけの表示ではなくなりました。"});
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"修正台北等密集市區近處建築缺少透視線條，優先保留畫面內的近景輪廓": "Fixed missing see-through outlines on nearby buildings in dense areas such as Taipei, prioritizing nearby buildings in view."});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"修正台北等密集市區近處建築缺少透視線條，優先保留畫面內的近景輪廓": "台北など建物が密集する地域で、近くの建物の透視線が欠ける問題を修正しました。画面内の近景の輪郭を優先して表示します。"});

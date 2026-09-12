@@ -58,7 +58,7 @@
       // 解碼與畫線都依圖磚快取:每棟只解碼一次、第一次進畫面時算一次線段,之後重建只是把畫面內的
       // 建物接起來送 GPU(2026-09-08 桌面 6x 實測:整批重算一次 210–290ms,其中解碼佔一半)。
       // 頂點用固定原點的相對座標保 float32 精度,原點離相機 >0.05° 才換;換原點、跨 15.5 樓層線門檻、
-      // 地形到貨都整批作廢。圖磚緩衝區會讓同一棟出現在兩張圖磚,挑選時用完整外環鍵只畫第一份(與舊法同一順序)。
+      // 地形到貨都整批作廢。圖磚緩衝區會讓同一棟出現在兩張圖磚,用完整外環鍵去重。
       rebuild() {
         if(this.disposed)return;
         const raw=this.raw, z=raw.getZoom();
@@ -87,8 +87,31 @@
           for(let i=0;i<ring.length-1;i++){edge(ring[i],ring[i+1],b.height,b.height,.40);edge(ring[i],ring[i],b.base,b.height,.24);
             if(floors){const step=Math.max(4,Math.ceil((b.height-b.base)/10));for(let h=b.base+step;h<b.height-1;h+=step)edge(ring[i],ring[i+1],h,h,.10);}}
           return new Float32Array(out);};
-        const parts=[],picked=new Set();let buildings=0,total=0;
-        for(const k of order){const list=tiles.get(k);for(const b of list){const [bw,bs,be,bn]=b.bounds;if(be<sw.lng||bw>ne.lng||bn<sw.lat||bs>ne.lat||!b.ring.some(xy=>bounds.contains(xy))||picked.has(b.hash))continue;picked.add(b.hash);b.v=b.v||edges(b);parts.push(b.v);total+=b.v.length;if(++buildings>=cap||total>640000)break;}if(buildings>=cap||total>640000)break;}
+        // 預算先分給畫面內的近景，不能由圖磚回傳順序決定；斜視時遠方圖磚可能先填滿上限。
+        // 下緣中央是可見地面的近端；俯視時用畫面中心。只在重建時投影／排序，逐幀仍只 drawArrays。
+        const canvas=raw.getCanvas(), width=canvas.clientWidth, height=canvas.clientHeight;
+        const near=raw.unproject([width/2,raw.getPitch()>0?height:height/2]);
+        const lngScale=Math.cos(center.lat*Math.PI/180), candidates=[],picked=new Set();
+        for(const k of order)for(const b of tiles.get(k)){
+          const [bw,bs,be,bn]=b.bounds;
+          if(be<sw.lng||bw>ne.lng||bn<sw.lat||bs>ne.lat||picked.has(b.hash))continue;
+          picked.add(b.hash);
+          const p=raw.project([(bw+be)/2,(bs+bn)/2]);
+          let visible=p.x>=0&&p.x<=width&&p.y>=0&&p.y<=height;
+          if(!visible){
+            // 中心在畫面外的大樓仍可能露出一部分；用投影外框保留跨畫面邊緣的建築。
+            const corners=[[bw,bs],[bw,bn],[be,bs],[be,bn]].map(xy=>raw.project(xy));
+            visible=Math.max(...corners.map(p=>p.x))>=0&&Math.min(...corners.map(p=>p.x))<=width&&
+              Math.max(...corners.map(p=>p.y))>=0&&Math.min(...corners.map(p=>p.y))<=height;
+          }
+          const dx=(Math.max(bw,Math.min(be,near.lng))-near.lng)*lngScale;
+          const dy=Math.max(bs,Math.min(bn,near.lat))-near.lat;
+          candidates.push({b,visible,distance:dx*dx+dy*dy});
+        }
+        candidates.sort((a,b)=>Number(b.visible)-Number(a.visible)||a.distance-b.distance||
+          (a.b.hash<b.b.hash?-1:a.b.hash>b.b.hash?1:0));
+        const parts=[];let buildings=0,total=0;
+        for(const {b} of candidates){b.v=b.v||edges(b);if(!b.v.length)continue;parts.push(b.v);total+=b.v.length;if(++buildings>=cap||total>640000)break;}
         // 與原版一樣，達到上限時仍保留最後一棟的完整輪廓。
         const vertices=new Float32Array(total);let off=0;for(const a of parts){vertices.set(a,off);off+=a.length;}
         this.count=off/4; this.buildings=buildings;
