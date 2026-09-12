@@ -3234,6 +3234,10 @@
   .notify-basis button.on { background: var(--navy); border-color: var(--navy); color: var(--on-navy); }
   .notify-basis button:disabled { opacity: .4; cursor: not-allowed; }
   .notify-repeat { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  /* 四顆擠一列,最長的「週一到五」在 360px 寬只分到 47px 的內容框——12px 的四個字要 48px,
+     差 1px 就折成兩行。縮到 11px(44px)剛好進得去。不下 nowrap:字級調到特大時 --uis 會把它
+     推回兩行,那時折行才是對的,強制不折會被切掉。 */
+  .notify-repeat button { font-size: calc(11px * var(--uis)); padding: 0; }
   .notify-repeat-days { grid-template-columns: repeat(7, minmax(0, 1fr)); }
   .notify-repeat-days button { min-height: 40px; }
   .notify-modal[data-notify-view="overview"] #notifyRepeatDaysField { display: none; }

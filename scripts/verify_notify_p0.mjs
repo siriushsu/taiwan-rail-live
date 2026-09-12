@@ -498,6 +498,27 @@ try {
       const repeatScan = await scan(page, ['#notifyRepeat button']);
       assert(repeatScan.targets.length === 4 && !repeatScan.collisions.length && repeatScan.targets.every(x => x.hit && x.min44),
         `${width}: 重複四鈕 ${JSON.stringify(repeatScan)}`);
+      // 四顆擠一列,最長的「週一到五」在 360px 只差 1px 就折成兩行(修法＝字級 12→11、去掉左右內距)。
+      // 折了不溢出也不被切掉,按鈕的 min-height:44px 還會把兩行整個蓋住,所以沒有這條就【沒有任何訊號】。
+      // 🔴 量法不可以用 line-height：這些鈕算出來是 'normal',parseFloat 得 NaN,判準會整條變 null
+      //    （第一版就是這樣，四個寬度同時紅）。改量「強制單行時這行字需要多寬 vs 框內有多寬」。
+      const lineScan = await page.evaluate(() => [...document.querySelectorAll('#notifyRepeat button')].map(el => {
+        const keep = el.style.whiteSpace; el.style.whiteSpace = 'nowrap';
+        const need = el.scrollWidth, have = el.clientWidth;
+        el.style.whiteSpace = keep;
+        return { t: el.textContent, need, have };
+      }));
+      assert(lineScan.every(x => x.need <= x.have), `${width}: 重複鈕的字放不進一行 ${JSON.stringify(lineScan)}`);
+      // 正向對照:塞一個一定放不下的字串,同一把尺必須量到放不下。沒有它,量法寫錯
+      //（need 恆等於 have 之類）會讓上面那條恆真空過。
+      const tooLong = await page.evaluate(() => {
+        const el = document.querySelector('#notifyRepeat button[data-repeat="weekdays"]');
+        const keepT = el.textContent, keepW = el.style.whiteSpace;
+        el.textContent = '週一到五'.repeat(20); el.style.whiteSpace = 'nowrap'; // 20 份:最寬的 768 也一定塞不下
+        const out = { need: el.scrollWidth, have: el.clientWidth };
+        el.textContent = keepT; el.style.whiteSpace = keepW; return out;
+      });
+      assert(tooLong.need > tooLong.have, `${width}: 換行量尺失效——連塞爆的字串都說放得下 ${JSON.stringify(tooLong)}`);
       await page.tap('#notifyRepeat button[data-repeat="custom"]');
       await page.locator('#notifyRepeatDays button[data-weekday="4"]').waitFor({ state: 'visible', timeout: 15000 });
       const daysScan = await scan(page, ['#notifyRepeatDays button']);
@@ -541,7 +562,7 @@ try {
       assert(moreHidden.exists && moreHidden.display === 'none' && moreHidden.siblingsVisible > 0,
         `${width}: 更多抽屜那列應該存在、被藏起來,且同抽屜其他列看得見 ${JSON.stringify(moreHidden)}`);
       assert(errors.length === 0, `${width}: console error ${errors.join(' | ')}`);
-      mobile.push({ width, touch: env.touch, basisTargets: basisScan.targets.length, repeatTargets: repeatScan.targets.length, dayTargets: daysScan.targets.length, queryLink: qlScan.targets.length, moreRowHidden: moreHidden.display === 'none', siblingsVisible: moreHidden.siblingsVisible, boardNotify: boardScan.targets.length, boardNotifyPx: boardScan.targets[0] && [Math.round(boardScan.targets[0].rect.w), Math.round(boardScan.targets[0].rect.h)] });
+      mobile.push({ width, touch: env.touch, basisTargets: basisScan.targets.length, repeatTargets: repeatScan.targets.length, repeatFit: lineScan.map(x => x.need + '/' + x.have), dayTargets: daysScan.targets.length, queryLink: qlScan.targets.length, moreRowHidden: moreHidden.display === 'none', siblingsVisible: moreHidden.siblingsVisible, boardNotify: boardScan.targets.length, boardNotifyPx: boardScan.targets[0] && [Math.round(boardScan.targets[0].rect.w), Math.round(boardScan.targets[0].rect.h)] });
       results[key] = 'PASS';
     } catch (e) { results[key] = 'FAIL: ' + e.message; }
     finally { await context.close(); }
