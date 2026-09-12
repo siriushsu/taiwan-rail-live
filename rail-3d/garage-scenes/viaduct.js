@@ -155,7 +155,8 @@ export function createScene(params = {}) {
  }
  if(p.canopy==='modern'){
   block(cream,[pl-.6,4.1,.16],[0,py-1.45,platZ+3.0]);
-  block(accent,[pl-.6,.12,.22],[0,py+.55,platZ+2.94]);
+  // 邊條略伸出雨棚兩端與外側，避免同平面的異色端面在跟車時互搶深度。
+  block(accent,[pl-.5,.12,.22],[0,py+.64,platZ+2.94]);
  } else {
   block(cream,[pl-.6,3.6,.14],[0,py-1.6,platZ+2.86],[0.12,0,0]);
  }
@@ -172,7 +173,8 @@ export function createScene(params = {}) {
  // 站房入口朝街（−y，觀者這一側），天橋從背面接上月台。立面：一樓玻璃、二樓窗帶、入口雨棚、站名牌、屋頂機房。
  const stationD=5.6,stationY=-plinthD/2+stationD/2+1.6,streetY=stationY-stationD/2;
  block(cream,[11,stationD,3.2],[-1,stationY,groundZ+1.6]);
- block(roof,[11.8,stationD+.7,.34],[-1,stationY,groundZ+3.35]);
+ // 屋簷伸過樓梯踏階的 x=4.9 端面，兩者不能剛好共面。
+ block(roof,[12.0,stationD+.7,.34],[-1,stationY,groundZ+3.35]);
  block(glass,[9.4,.12,1.45],[-1,streetY-.02,groundZ+.95]);
  block(glass,[8.6,.12,.62],[-1,streetY-.02,groundZ+2.45]);
  block(accent,[4.6,1.2,.12],[-1,streetY-.62,groundZ+1.86]);
