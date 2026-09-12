@@ -41,7 +41,7 @@ export const GEOMETRY_SOURCE = {
   'data/ntdlrt.json': 'TDX',
   'data/ntdlrt_times.json': null,
   'data/rail_crossing_levels.json': 'OSM',
-  'data/sanying.json': 'OSM',                  // TDX 尚未收錄三鶯線,幾何與站座標取自 OSM
+  'data/sanying.json': 'OSM',                  // 幾何與站座標仍取自 OSM(TDX 2026-09-12 上架三鶯線,但只有站序/站間行駛時間/首末班,無 Shape)
   'data/sanying_times.json': null,
   'data/station_transfers.json': null,         // 輸出只有站名/距離,不含座標(距離由 data/tdx/*_Station.json 算)
   'data/taiwan_land.json': 'MOI',

@@ -576,28 +576,40 @@ const SYSTEMS = [
       flFile: 'data/tdx/TMRT_FirstLastTimetable.json', terminals: ['G0', 'G17'] }],
     lines: {} },
   { file: 'data/sanying.json', out: 'data/sanying_times.json', estimated: true,
-    src: '三鶯線免費試營運期(2026-06-30~08-31)無公開逐班時刻表:依新北捷運公司公告營運時段06:00-24:00與班距(平日尖峰06:30-08:30、17:30-19:30 6分/平日離峰及假日8分)合成,非公告時刻',
-    // ⏰ 會過期的值,到期必重查 https://www.ntmetro.com.tw/basic/?mode=detail&node=863
-    //   2026-08-16 起全時段試營運,官方 node=863 逐字:「自8月16日起至8月31日止,試營運營業時間
-    //   為6時至24時;將以尖峰(06:30~08:30;17:30~19:30)約 6分鐘、離峰及假日約8分鐘的班距運行。
-    //   並視搭乘人潮狀況機動加班。」——本處逐字照抄該組數字,不自行詮釋(前值 08:00-22:00 是
-    //   2026-08-01 起,10:00-20:00 是 2026-07-18 起,皆已作廢)。
-    //   「6時至24時」沿用本檔既有慣例當成首/末班【發車】時刻(同前兩版把 08:00-22:00 當發車窗),
-    //   故末班 24:00 前發車、跑完全程約 00:28 到站。
-    //   三個已知的到期訊號:
-    //   (1) 2026-08-31 免費試營運結束,正式營運時段官方稱「另行公告」;
-    //   (2) 官方站 node=863/10165 換新文字時,以官方文字為準覆蓋本處;
-    //   (3) 官方稱「視搭乘人潮狀況機動加班」→ 班距是公告值,不等於實際發車。
+    src: '三鶯線無公開逐班時刻表:營運時段06:00-24:00(各站首末班)與站間行駛時間取自交通部TDX運輸資料流通服務(新北捷運三鶯線,2026-09-12 抓取),班距依新北捷運公司公告(平日尖峰06:30-08:30、17:30-19:30 6分/平日離峰及假日8分)合成,非公告時刻',
+    // 首末班自 2026-09-12 起改吃 TDX 官方逐站首末班表(該日 TDX 以 NTMC 營運商上架三鶯線):
+    //   兩端點 LB01 頂埔 / LB12 鶯桃福德,平日假日都是 06:00 首班、00:00 末班,與先前照抄官方
+    //   node=863 公告「6時至24時」得到的值相同,但自此隨官方更新,不必再有人記得回來改。
+    //   沿用本檔既有慣例:首/末班是【發車】時刻,故末班 24:00 前發車、跑完全程約 00:28 到站。
+    // ⏰ 班距仍是會過期的手抄值,到期必重查 https://www.ntmetro.com.tw/basic/?mode=detail&node=863
+    //   官方 node=863 逐字:「將以尖峰(06:30~08:30;17:30~19:30)約 6分鐘、離峰及假日約8分鐘的
+    //   班距運行。並視搭乘人潮狀況機動加班。」——本處逐字照抄該組數字,不自行詮釋。
+    //   TDX 的 Frequency/NTMC 查無 LB(2026-09-12 實查),所以班距還接不上官方機讀資料。
+    //   兩個已知的到期訊號:
+    //   (1) 官方站 node=863/10165 換新班距文字時,以官方文字為準覆蓋本處;
+    //   (2) 官方稱「視搭乘人潮狀況機動加班」→ 班距是公告值,不等於實際發車。
     //   注意反例:v0711j 把「正式營運後」的規劃當成現況寫死 06:00-23:30,每天生出 7.5 小時
-    //   不存在的幽靈列車(使用者 2026-07-18 回報)——這次的 6時至24時是官方寫明的【現況】,不同事。
+    //   不存在的幽靈列車(使用者 2026-07-18 回報)——公告的【現況】才能抄,規劃不能。
     synth: [{ lineId: 'LB', cfg: (() => {
-      const OFF = 480, PEAK = 360, first = toSec('06:00'), last = toSec('24:00');
+      const OFF = 480, PEAK = 360;
+      // 端點首末班取官方值:同 tdxSynthCfg 的取法(首班取兩端最早、末班取兩端最晚,跨午夜補一日)
+      const fl = J('data/tdx/NTMC_FirstLastTimetable.json')
+        .filter(x => ['LB01', 'LB12'].includes(x.StationID));
+      const flOf = dayKey => {
+        const ends = fl.filter(x => !x.ServiceDay || x.ServiceDay[dayKey]);
+        if (!ends.length) throw new Error(`三鶯線首末班:NTMC_FirstLastTimetable 查無端點(${dayKey})`);
+        return {
+          first: Math.min(...ends.map(x => toSec(x.FirstTrainTime))),
+          last: Math.max(...ends.map(x => { const t = toSec(x.LastTrainTime); return t < 4 * 3600 ? t + 86400 : t; })),
+        };
+      };
+      const wd = flOf('Monday'), we = flOf('Saturday');
       // 平日雙尖峰(06:30-08:30 早、17:30-19:30 晚)6 分;假日全天 8 分,無尖峰
       return { services: {
-        '平日': { first, last, bands: [[first, toSec('06:30'), OFF], [toSec('06:30'), toSec('08:30'), PEAK],
+        '平日': { ...wd, bands: [[wd.first, toSec('06:30'), OFF], [toSec('06:30'), toSec('08:30'), PEAK],
           [toSec('08:30'), toSec('17:30'), OFF],
-          [toSec('17:30'), toSec('19:30'), PEAK], [toSec('19:30'), last, OFF]] },
-        '假日': { first, last, bands: [[first, last, OFF]] } },
+          [toSec('17:30'), toSec('19:30'), PEAK], [toSec('19:30'), wd.last, OFF]] },
+        '假日': { ...we, bands: [[we.first, we.last, OFF]] } },
         dayMap: ['假日', '平日', '平日', '平日', '平日', '平日', '假日'] };
     })() }],
     lines: {} },
@@ -608,13 +620,16 @@ const SYSTEMS = [
 // 是完整的,缺口在 TDX 匯入端);拿它重建會讓 R 線班次數掉 38%、幹線最大空檔 13→400+ 分。
 // 這道閘門的存在理由是:build 一次重建「所有」系統,所以別家(淡海/安坑/環狀線)一有班表變動,
 // 就會連帶用這份殘缺快照把 trtc_times.json 一起重建掉——2026-09-08 巡檢就是這樣被 gate 擋下的。
-// 判準用「Station/TRTC 查不查得到 R01」(記憶 trtc-tdx-v38-r-line-gap 定下的那條):
-// TDX 補齊的那天閘門自動失效,不必有人記得回來拆掉。
+// 判準是「StationTimeTable/TRTC 查不查得到 R01」:TDX 補齊的那天閘門自動失效,不必有人回來拆。
+// 🔴 判準原本掛在 Station/TRTC,2026-09-12 巡檢實查發現它已經失明:TDX 於 09-10 把 R01 補進
+//    Station 與 StationOfLine,但 StationTimeTable 至今仍無 R01(當日實打端點,614 筆零命中)。
+//    也就是說舊判準會在缺口還在的時候就放行重建,正好放掉它要擋的那件事(R 線班次掉 38%)。
+//    判準要盯的是「這次重建真正要讀的那份資料」,不是同一個上游的另一份。
 const FORCE_TRTC = process.argv.includes('--force-trtc');
 const ONLY = (process.argv.find(a => a.startsWith('--only=')) || '').slice('--only='.length);
 const trtcSourceHasR01 = () => {
   try {
-    const st = J('data/tdx/TRTC_Station.json');
+    const st = J('data/tdx/TRTC_StationTimeTable.json');
     return (Array.isArray(st) ? st : st.value || []).some(r => String(r.StationID) === 'R01');
   } catch { return false; } // 快照不在就當作沒補齊——寧可不重建,不要產出壞班表
 };
