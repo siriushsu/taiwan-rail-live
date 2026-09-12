@@ -25,7 +25,7 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
   await p.evaluate(()=>southCoastPreview.setDistance(34));await p.tap('#reset');await settle(p);check(engine+' 彎道仍三節且無非有限座標',(await state(p)).poses.every(c=>[c.x,c.y,c.heading].every(Number.isFinite)));await p.screenshot({path:`${OUT}/${engine}-curve.png`});
   await panChecks({b,engine,URL,api:'southCoastPreview',check,settle,trainTarget:c=>[c[0],c[1],1.4]});   // 鏡頭平移（四頁共用的判準，在自己開的桌面頁與觸控頁上量）
   await p.evaluate(()=>southCoastPreview.setDistance(28));await p.tap('#play');
-  const turn=await p.evaluate(()=>new Promise(resolve=>{const samples=[],start=performance.now();function sample(now){samples.push(southCoastPreview.state.cameraYaw);if(now-start<1200)requestAnimationFrame(sample);else resolve(samples);}requestAnimationFrame(sample);}));
+  const turn=await p.evaluate(()=>new Promise(resolve=>{const samples=[],start=performance.now(),distance=southCoastPreview.state.distance;function sample(now){samples.push(southCoastPreview.state.cameraYaw);if(southCoastPreview.state.distance-distance<1&&now-start<10000)requestAnimationFrame(sample);else resolve(samples);}requestAnimationFrame(sample);}));
   await p.tap('#play');await settle(p);
   const angle=(a,b)=>Math.abs(Math.atan2(Math.sin(a-b),Math.cos(a-b)));
   check(engine+' 彎道行駛鏡頭持續旋轉且無跳轉',angle(turn.at(-1),turn[0])>.08&&turn.slice(1).every((a,i)=>angle(a,turn[i])<.1),{rotation:angle(turn.at(-1),turn[0]),maxStep:Math.max(...turn.slice(1).map((a,i)=>angle(a,turn[i])))});
