@@ -743,7 +743,10 @@ export async function verifyRelease({
   assertAndroidPlusGate(html);
   const androidGradleForPlus = await readFile(join(appRoot, 'android/app/build.gradle'), 'utf8');
   const androidVersionCodeForPlus = /\bversionCode\s+(\d+)/.exec(androidGradleForPlus)?.[1] || '';
-  assertAndroidPlusReleaseConfig(html, androidVersionCodeForPlus);
+  const androidPlusReady = assertAndroidPlusReleaseConfig(html, androidVersionCodeForPlus);
+  if (process.env.RAIL_EXPECT_ANDROID_PLUS === '1') {
+    assert(androidPlusReady, '正式發行模式必須保留已上架的 Android 通行證入口');
+  }
 
   await assertLicensedBuildAllowed({
     includeLicensedMusic: musicEnabled,

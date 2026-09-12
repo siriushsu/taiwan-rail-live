@@ -353,10 +353,11 @@ const MODES = {
     //   🔴 why 三語不是互譯也不等長：中文 331／日文 354 還有 150 字元以上餘裕，**英文 489 只剩 11**
     //   （Play 硬上限 500）。所以英文把「高架橋外觀」「近看軌道」「平地不畫隧道」併成一條、
     //   三鶯線末班那條不寫；中日文照舊逐條列。要再加一條就得先從英文砍一條，不是三語一起加。
-    marketing: '1.6.3', build: '110', music: true, metroCore: true,
-    why: "軌島 1.6.3\n\n・搜尋框找得到全台公車站牌，點進去看每條路線還有幾分鐘到\n・高鐵車站看板標出對號座有位、剩不多或售完，並可查票價\n・桌面小工具的車站可以設成「自動（最近的站）」\n・跟車卡的轉乘接續可以收起來\n・同一條股道上的兩列列車不再從彼此身上穿過去\n・開站讀取變快，都市裡拖動立體地圖也更順\n・高鐵停靠列車停外側月台到發線，通過列車走內側正線\n・修正高鐵列車在板橋等地下車站車廂折疊、上下跳動\n・立體地圖的高架橋補上箱梁、護欄與墩帽，全台軌道縱坡重算\n・近看軌道畫得出道碴、鋼軌與枕木，隧道口做成嵌進山坡的洞門\n・平地上的軌道不再被畫成隧道，抬高路基的土堆也收窄了\n・地景的示意樹只長在公園、村落與河岸的小片林地\n・三鶯線平日末班補上 00:00 那一班",
-    whyEn: "Rail Island 1.6.3\n\n• Nationwide bus stop search with live arrivals\n• THSR boards show reserved seats and fares\n• Widgets can follow the nearest station\n• Transfer connections collapse to one line\n• Trains no longer pass through each other\n• Faster start and smoother panning in cities\n• THSR stops on outer tracks, passes on inner\n• Fixed THSR carriages folding underground\n• Viaducts and tunnel portals look right; flat ground is no longer a tunnel\n• Scenery trees only in small woodlands",
-    whyJa: "軌島 1.6.3\n\n・全国のバス停を検索でき、各路線の到着まで何分かを表示\n・台湾高鐵の発車案内に指定席の空席状況と運賃を追加\n・ウィジェットの駅を「自動（最寄り駅）」に設定可能に\n・追跡カードの乗り換え接続を折りたたみ可能に\n・同じ線路上の2本の列車が互いをすり抜けなくなりました\n・起動時の読み込みが速くなり、都市部のドラッグも滑らかに\n・台湾高鐵の停車列車は外側の副本線、通過列車は内側の本線を走行\n・板橋など地下駅で高鐵の車両が折れ曲がる不具合を修正\n・高架橋に箱桁・防護壁・橋脚天端を追加\n・近づくとバラスト・レール・枕木が見え、トンネル坑口は山肌の坑門に\n・平地の線路がトンネルとして描かれなくなり、盛土も細くなりました\n・イメージの樹木は小さな林地のみに\n・三鶯線の平日最終に00:00発を追加",
+    // 111／Android 51：延續尚未公開的 1.6.3，合併 v0912r；111 未曾出檔。
+    marketing: '1.6.3', build: '111', music: true, metroCore: true, androidPlus: true,
+    why: "軌島 1.6.3\n\n・搜尋全台公車站牌，查看各路線即時到站資訊\n・高鐵看板新增對號座空位與票價查詢\n・桌面小工具可自動選最近車站，跟車卡的轉乘接續可收合\n・新增台南地面鐵道歷史重播，重看舊站旁的列車往來\n・夜間車窗與車頭燈更明亮；列車柔光可開關，夜晚暖色、白天依車次配色\n・改善隧道洞口、高架橋與軌道外觀，修正路基閃爍、地下路段橋墩及橋面不合理突起\n・修正部分高鐵車廂折疊與列車交會重疊，改善太麻里股道安排\n・更新三鶯線轉乘、站名與公車資訊，補上平日午夜末班\n・改善載入速度與都市立體地圖操作流暢度",
+    whyEn: "Rail Island 1.6.3\n\n• Bus stop search with live arrivals\n• THSR seat availability and fares\n• Nearest-station widgets; collapsible transfers\n• Replay Tainan's former ground-level railway\n• Brighter night lights; optional warm night glow and train-colored daytime glow\n• Improved tunnels, bridges and tracks; less terrain flicker\n• Fixed some carriage folding and train overlaps\n• Updated Sanying Line transfers, station names, bus links and last trains\n• Faster loading and smoother 3D maps",
+    whyJa: "軌島 1.6.3\n\n・全国のバス停検索と各路線の到着案内\n・台湾高鐵の指定席空席状況と運賃を表示\n・最寄り駅を自動選択するウィジェット、折りたためる乗り換え接続\n・台南の地上鉄道を保存した歴史リプレイを追加\n・夜の車窓と前照灯を明るく。列車を包む柔らかな光は切替可能で、夜は暖色、昼は列車の表示色に\n・トンネル坑口、高架橋、線路を改善。盛土のちらつき、地下区間の橋脚、不自然な橋面の隆起を修正\n・一部の車両の折れ曲がりと列車の重なり、太麻里の線路配置を改善\n・三鶯線の乗り換え、駅名、バス情報を更新し、平日深夜の最終便を追加\n・起動を速くし、都市部の3D地図をより滑らかに",
 
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
@@ -477,6 +478,17 @@ else delete env.RAIL_INCLUDE_LICENSED_MUSIC;
 env.RAIL_EXPECT_METRO_CORE = cfg.metroCore ? '1' : '0';
 if (cfg.metroCore) env.RAIL_ENABLE_METRO_CORE = '1';
 else delete env.RAIL_ENABLE_METRO_CORE;
+// Android 49 已上架通行證；正式模式自己保留設定，不能靠執行者記得額外傳環境變數。
+// 50 的 AAB 曾因漏傳而關掉入口。驗收 build 標記直接讀 Gradle，避免沿用舊號。
+if (cfg.androidPlus) {
+  const gradle = await readFile(join(appRoot, 'android/app/build.gradle'), 'utf8');
+  const code = /\bversionCode\s+(\d+)/.exec(gradle)?.[1];
+  if (!code) throw new Error('Android versionCode 缺失，無法設定正式通行證');
+  env.RAIL_ANDROID_PLUS_ENABLED = '1';
+  env.RAIL_EXPECT_ANDROID_PLUS = '1';
+  env.RAIL_ANDROID_PLUS_SANDBOX_POLICY = 'revenuecat-allowlist';
+  env.RAIL_ANDROID_PLUS_SANDBOX_BUILD = code;
+}
 // 本版「更新了什麼」內建文案＝why 本人。iTunes lookup 的 releaseNotes 是【線上版】的,
 // 剛裝的版比線上新時(每次送審前必然)彈到的是上一版的文——1.4.9 (74) 實踩。
 env.RAIL_WHATS_NEW = cfg.why;

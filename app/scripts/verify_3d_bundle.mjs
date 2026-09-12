@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 export async function verify3dBundle(target) {
-  const files = execFileSync('git', ['ls-files', '-z', '--', 'rail-3d', 'rail-3d.js', 'rail-3d.css', 'train-garage.js', 'train-garage.css', 'train-garage-catalog.js', 'rail-discovery.js', 'night-theme.css', 'night-map.js', 'night-board.js', 'rail-platform.js', 'rail-platform-ui.js', 'rail-platform.css', 'bus-transfer-ui.js', 'i18n'], { cwd: repo, encoding: 'utf8' }).split('\0').filter(Boolean);
+  const files = execFileSync('git', ['ls-files', '-z', '--', 'rail-3d', 'rail-3d.js', 'rail-3d.css', 'train-garage.js', 'train-garage.css', 'train-garage-catalog.js', 'rail-discovery.js', 'night-theme.css', 'night-map.js', 'night-board.js', 'rail-platform.js', 'rail-platform-ui.js', 'rail-platform.css', 'bus-transfer-ui.js', 'i18n', 'memories'], { cwd: repo, encoding: 'utf8' }).split('\0').filter(Boolean);
   for (const required of ['rail-3d/environment/sun.mjs', 'rail-3d/integration/rail-structures.js', 'rail-3d/integration/follow-camera-lock.js', 'rail-3d/physical/network.json', 'rail-3d/physical/display-profiles.json', 'rail-3d/physical/metro-network.json', 'rail-3d/physical/metro-display-profiles.json', 'rail-3d/physical/dispatch.json', 'rail-3d/assets/blender-map-v1/manifest.json']) {
     if (!files.includes(required)) throw Error('3D 必要資產未追蹤：' + required);
   }

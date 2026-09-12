@@ -7,6 +7,9 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
 const root = resolve(process.argv[2] || fileURLToPath(new URL('../www', import.meta.url)));
+const gradle = await readFile(new URL('../android/app/build.gradle', import.meta.url), 'utf8');
+const expectedBuild = /\bversionCode\s+(\d+)/.exec(gradle)?.[1];
+if (!expectedBuild) throw new Error('Android versionCode 缺失，無法驗收正式通行證');
 const types = new Map([
   ['.html', 'text/html; charset=utf-8'], ['.js', 'text/javascript; charset=utf-8'],
   ['.mjs', 'text/javascript; charset=utf-8'], ['.css', 'text/css; charset=utf-8'],
@@ -95,7 +98,7 @@ try {
       };
     });
     if (!stateResult.plusEnabled || !stateResult.plusConfigured || !stateResult.metroCoreEnabled
-        || stateResult.sandboxBuild !== '16'
+        || stateResult.sandboxBuild !== expectedBuild
         || !stateResult.hasGooglePlay || stateResult.hasAppStore || stateResult.hasIosOnlyFeature
         || stateResult.planCount !== 2 || stateResult.restoreCount !== 1) {
       throw new Error(`${width}px Android Plus 狀態不符：${JSON.stringify(stateResult)}`);
