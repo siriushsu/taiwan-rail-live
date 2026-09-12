@@ -7,10 +7,10 @@ import {portalClearanceVolumes,outsidePortalClearance} from './portal-clearance.
 const GAUGE=1.435,RAIL_W=.14,RAIL_H=.2,TIE_LEN=2.5,TIE_W=.26,TIE_H=.15,TIE_SPACING=.65;
 // 高架橋斷面比例參考高鐵標準高架（雙線橋面約 13 公尺、箱梁深約 3 公尺），縮成「一股道一片橋面」：
 // 箱梁頂 5 公尺（含懸臂板，雙線並排時兩片相疊成一片）、底 2.8 公尺、梁深 1.8 公尺。護欄高 .9 厚 .35，
-// 只畫在側向 2～6.5 公尺內沒有並行股道的那一側，雙線中間才不會多出一道牆。橋墩 2×2.8 公尺，
+// 只畫在側向 2～6.5 公尺內沒有並行股道的那一側，雙線中間才不會多出一道牆。橋墩 1.6×2.2 公尺，
 // 墩帽 5×1.6×1.2 公尺；護欄與墩帽都是近看（detail>=1）才畫。
 const DECK_W=5,GIRDER_BOTTOM_W=2.8,GIRDER_DEPTH=1.8,DECK_DROP=.35,PARAPET_H=.9,PARAPET_W=.35,
-      PIER_ALONG=2,PIER_ACROSS=2.8,CAP_ACROSS=5,CAP_ALONG=1.6,CAP_DEPTH=1.2,NEIGHBOR_M=6.5;
+      PIER_ALONG=1.6,PIER_ACROSS=2.2,CAP_ACROSS=5,CAP_ALONG=1.6,CAP_DEPTH=1.2,NEIGHBOR_M=6.5;
 // 路基：道碴梯形斷面頂 3.4 公尺、底 4.6 公尺，離地愈高底愈寬，底寬有上限。
 // 邊坡 1:1、上限 14 公尺（原本 1.5:1、上限 30）：全網平面軌道有 15.5% 的取樣點軌面高出地表 3 公尺以上，
 // 舊比例在那裡畫出 13～30 公尺寬的土堆——比軌距寬近十倍，整個畫面只看得到那塊土，看不到車。
@@ -30,8 +30,12 @@ const PORTAL_T=1.2,PORTAL_EMBED=.8,PORTAL_DROP_MAX=45;
 import {PORTAL_DEPTH,PORTAL_WING} from './tunnel-portals.js';
 export function createRailStructures(scene){
   let geometry=new THREE.BufferGeometry();
+  const clip={value:new THREE.Matrix4()};
   const material=new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide}),mesh=new THREE.Mesh(geometry,material);
+  material.onBeforeRender=(_r,_s,c,_g,m)=>clip.value.multiplyMatrices(c.projectionMatrix,m.modelViewMatrix);
   material.onBeforeCompile=shader=>{
+    shader.uniforms.structureClip=clip;
+    shader.vertexShader='uniform mat4 structureClip;\n'+shader.vertexShader.replace('#include <project_vertex>', 'vec4 mvPosition=modelViewMatrix*vec4(transformed,1.); gl_Position=structureClip*vec4(transformed,1.);');
     shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nattribute float railGlow; varying float vRailGlow;').replace('#include <begin_vertex>','#include <begin_vertex>\nvRailGlow=railGlow;');
     shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nvarying float vRailGlow;').replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\ntotalEmissiveRadiance+=vec3(1.,.74,.38)*vRailGlow;');
   };
@@ -44,21 +48,28 @@ export function createRailStructures(scene){
           lining=new THREE.Color('#344b52'),parapet=new THREE.Color('#cfcab9'),
           // 填方邊坡自己一個色：道碴色畫到坡腳時，整座土堆會變成比地表暗三成的實心塊。
           // 坡面退到接近地表的淺色、只留道碴頂面那條深色，看到的才是一條軌道而不是一道土牆。
-          bank=new THREE.Color('#c6c0b1');
+          bank=new THREE.Color('#c6c0b1'),pierColor=new THREE.Color('#bdbbad'),pierSide=new THREE.Color('#b1afa2');
     stats.decks=stats.piers=stats.caps=stats.parapets=stats.beds=stats.rails=stats.ties=stats.portals=0;stats.detail=detail;stats.samples=[];stats.portalTracks=0;stats.portalSamples=[];
     let portalMasks=null,portalEmission=0;
     function quad(a,b,c,d,color){
       const polygons=portalMasks?outsidePortalClearance([a,b,c,d],portalMasks):[[a,b,c,d]];
       for(const poly of polygons)for(let i=1;i<poly.length-1;i++)for(const p of [poly[0],poly[i],poly[i+1]]){positions.push(...p);colors.push(color.r,color.g,color.b);glows.push(portalEmission);}
     }
+    const joins=new Map(),joinKey=p=>p.map(v=>Math.round(v*1000)).join(',');
+    for(const {a,b} of segments){const dx=b[0]-a[0],dy=b[1]-a[1],len=Math.hypot(dx,dy);if(len<1e-5)continue;
+      for(const p of [a,b]){const key=joinKey(p),items=joins.get(key)||[];items.push([-dy/len,dx/len]);joins.set(key,items);}}
+    function edge(p,ux,uy){const items=joins.get(joinKey(p))||[];let x=ux,y=uy;
+      for(const [nx,ny] of items){const sign=nx*ux+ny*uy>=0?1:-1;x+=nx*sign;y+=ny*sign;}
+      const len=Math.hypot(x,y);x/=len;y/=len;const m=Math.max(.7,x*ux+y*uy);return [x/m,y/m];}
     // 上下底可以不同寬：道碴是梯形斷面，箱梁上寬下窄。
-    function prism(a,b,width,bottomA,bottomB,color,bottomWidth=width,flank=null){
+    function prism(a,b,width,bottomA,bottomB,color,bottomWidth=width,flank=null,ribbon=null){
       const dx=b[0]-a[0],dy=b[1]-a[1],length=Math.hypot(dx,dy);if(length<1e-5)return;
       const ux=-dy/length,uy=dx/length,nx=ux*width/2,ny=uy*width/2,bx=ux*bottomWidth/2,by=uy*bottomWidth/2;
-      const p=[[a[0]+nx,a[1]+ny,a[2]],[a[0]-nx,a[1]-ny,a[2]],[b[0]-nx,b[1]-ny,b[2]],[b[0]+nx,b[1]+ny,b[2]]];
-      const q=[[a[0]+bx,a[1]+by,bottomA],[a[0]-bx,a[1]-by,bottomA],[b[0]-bx,b[1]-by,bottomB],[b[0]+bx,b[1]+by,bottomB]];
+      const ea=ribbon?edge(ribbon.a,ux,uy):[ux,uy],eb=ribbon?edge(ribbon.b,ux,uy):[ux,uy],wa=bottomWidth/2,wb=(ribbon?.bottomEnd??bottomWidth)/2;
+      const p=[[a[0]+ea[0]*width/2,a[1]+ea[1]*width/2,a[2]],[a[0]-ea[0]*width/2,a[1]-ea[1]*width/2,a[2]],[b[0]-eb[0]*width/2,b[1]-eb[1]*width/2,b[2]],[b[0]+eb[0]*width/2,b[1]+eb[1]*width/2,b[2]]];
+      const q=[[a[0]+ea[0]*wa,a[1]+ea[1]*wa,bottomA],[a[0]-ea[0]*wa,a[1]-ea[1]*wa,bottomA],[b[0]-eb[0]*wb,b[1]-eb[1]*wb,bottomB],[b[0]+eb[0]*wb,b[1]+eb[1]*wb,bottomB]];
       const flankColor=flank||(color===ballast?ballast:side);
-      quad(...p,color);quad(q[3],q[2],q[1],q[0],side);for(let i=0;i<4;i++){const j=(i+1)%4;quad(p[i],q[i],q[j],p[j],flankColor);}
+      quad(...p,color);quad(q[3],q[2],q[1],q[0],side);for(let i=0;i<4;i++){if(ribbon&&((i===0&&(joins.get(joinKey(ribbon.a))?.length||0)>1)||(i===2&&(joins.get(joinKey(ribbon.b))?.length||0)>1)))continue;const j=(i+1)%4;quad(p[i],q[i],q[j],p[j],flankColor);}
     }
     // 一條鋼軌：頂面加兩個側面。斜上方看過去底面永遠看不到，不畫。
     function rail(a,b,offset,top,scale,endTop=top){
@@ -104,14 +115,14 @@ export function createRailStructures(scene){
       // 逐段判：軌面離地超過 VIADUCT_LIFT_M 的填方段照高架橋畫（林口走廊的過渡段除外，它另有畫法）。
       const railLift=Math.max(0,Math.min(a[2]-groundA,b[2]-groundB));
       if(bridge||(!transition&&railLift>=VIADUCT_LIFT_M*scale)){
-        prism(topA,topB,DECK_W*scale,Math.max(groundA-.3*scale,topA[2]-GIRDER_DEPTH*scale),Math.max(groundB-.3*scale,topB[2]-GIRDER_DEPTH*scale),deck,GIRDER_BOTTOM_W*scale);stats.decks++;
+        prism(topA,topB,DECK_W*scale,Math.max(groundA-.3*scale,topA[2]-GIRDER_DEPTH*scale),Math.max(groundB-.3*scale,topB[2]-GIRDER_DEPTH*scale),deck,GIRDER_BOTTOM_W*scale,null,{a,b});stats.decks++;
         if(detail>=1){const dx=b[0]-a[0],dy=b[1]-a[1],len=Math.hypot(dx,dy);if(len>1e-5){const ux=-dy/len,uy=dx/len,e=(DECK_W-PARAPET_W)/2*scale;
           for(const sign of [1,-1]){if(neighbor(i,sign,scale))continue;
             prism([a[0]+ux*e*sign,a[1]+uy*e*sign,topA[2]+PARAPET_H*scale],[b[0]+ux*e*sign,b[1]+uy*e*sign,topB[2]+PARAPET_H*scale],PARAPET_W*scale,topA[2],topB[2],parapet);stats.parapets++;}}}
       }else{
         // 路基：離地愈高底愈寬（填方邊坡）；林口走廊的過渡段沿舊做法畫成薄板。
-        const lift=Math.max(0,Math.min(topA[2]-groundA,topB[2]-groundB)),bottomW=Math.min(BED_BOTTOM_MAX*scale,BED_BOTTOM_W*scale+2*FILL_SLOPE*lift);
-        prism(topA,topB,BED_TOP_W*scale,transition?Math.max(groundA-.3*scale,topA[2]-1.15*scale):groundA-.3*scale,transition?Math.max(groundB-.3*scale,topB[2]-1.15*scale):groundB-.3*scale,ballast,transition?BED_BOTTOM_W*scale:bottomW,bank);stats.beds++;
+        const widthAt=(top,ground)=>Math.min(BED_BOTTOM_MAX*scale,BED_BOTTOM_W*scale+2*FILL_SLOPE*Math.max(0,top-ground)),bottomW=widthAt(topA[2],groundA);
+        prism(topA,topB,BED_TOP_W*scale,transition?Math.max(groundA-.3*scale,topA[2]-1.15*scale):groundA-.3*scale,transition?Math.max(groundB-.3*scale,topB[2]-1.15*scale):groundB-.3*scale,ballast,transition?BED_BOTTOM_W*scale:bottomW,bank,{a,b,bottomEnd:transition?BED_BOTTOM_W*scale:widthAt(topB[2],groundB)});stats.beds++;
       }
       if(detail>=2)ties(topA,topB,topA[2],scale);
       if(detail>=1){const top=a[2]-(detail>=2?.15*scale:.2*scale);rail(topA,topB,GAUGE/2,top,scale,top+b[2]-a[2]);rail(topA,topB,-GAUGE/2,top,scale,top+b[2]-a[2]);}
@@ -194,11 +205,15 @@ export function createRailStructures(scene){
       const girderBottom=p[2]-(DECK_DROP+GIRDER_DEPTH)*scale,top=detail>=1?girderBottom-CAP_DEPTH*scale:girderBottom;
       if(![...p,ground,angle,scale].every(Number.isFinite)||top-ground<.3*scale)continue;
       const dx=Math.cos(angle),dy=Math.sin(angle);
-      if(detail>=1){const h=CAP_ALONG/2*scale;prism([p[0]-dx*h,p[1]-dy*h,girderBottom],[p[0]+dx*h,p[1]+dy*h,girderBottom],CAP_ACROSS*scale,top,top,side);stats.caps++;}
+      if(detail>=1){const h=CAP_ALONG/2*scale;prism([p[0]-dx*h,p[1]-dy*h,girderBottom],[p[0]+dx*h,p[1]+dy*h,girderBottom],CAP_ACROSS*scale,top,top,pierColor,CAP_ACROSS*scale,pierSide);stats.caps++;}
       const h=PIER_ALONG/2*scale;
-      prism([p[0]-dx*h,p[1]-dy*h,top],[p[0]+dx*h,p[1]+dy*h,top],PIER_ACROSS*scale,ground-.5*scale,ground-.5*scale,deck);stats.piers++;
+      prism([p[0]-dx*h,p[1]-dy*h,top],[p[0]+dx*h,p[1]+dy*h,top],PIER_ACROSS*scale,ground-.5*scale,ground-.5*scale,pierColor,PIER_ACROSS*scale,pierSide);stats.piers++;
       if(stats.samples.length<60)stats.samples.push({coordinate,railHeightM,groundM,topM:railHeightM-(DECK_DROP+GIRDER_DEPTH)-(detail>=1?CAP_DEPTH:0),baseM:groundM-.5});
     }
+    // 先在雙精度移到畫面附近，再交給 GPU；跟車時不以全台公尺座標做浮點大數相減。
+    const origin=segments[0]?.a||portals[0]?.p||piers[0]?.p||[0,0,0];
+    for(let i=0;i<positions.length;i+=3)for(let k=0;k<3;k++)positions[i+k]-=origin[k];
+    mesh.position.fromArray(origin);
     geometry.dispose();geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));geometry.setAttribute('railGlow',new THREE.Float32BufferAttribute(glows,1));geometry.computeVertexNormals();mesh.geometry=geometry;stats.vertices=positions.length/3;stats.buildMs=performance.now()-started;
   }
   return {stats,set,setVisible(visible){mesh.visible=visible;},destroy(){scene.remove(mesh);geometry.dispose();material.dispose();}};

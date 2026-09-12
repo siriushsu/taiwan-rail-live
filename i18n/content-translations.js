@@ -4,6 +4,8 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "修正地下段多餘橋墩、洞口內的山體與路基閃動，橋墩改得更低調；明亮外觀預設關閉日夜光影，暗色預設開啟": "Fixed unwanted underground piers, terrain inside tunnel openings and flickering embankments, with subtler bridge piers. Day/night lighting now defaults off in light appearance and on in dark appearance.",
+    "夜間車頭燈更明亮，近看時列車前方會灑下柔和的地面光": "Brighter nighttime headlights now cast a soft pool of light ahead of trains when viewed up close.",
     "全線隧道口補上立體拱圈、側壁與燈帶，雙線共用開口，修正高架銜接與彎道入口擋住列車的問題": "Tunnel portals now have solid arches, side walls and light strips, with shared openings for parallel tracks. Fixed viaduct connections and curved entrances obstructing trains.",
     "阿里山林鐵恢復實際股道與之字形折返，近看也能看到站內配線": "Alishan Forest Railway now uses its physical tracks and zigzag switchbacks, with station track layouts visible up close.",
     "臺中捷運高鐵臺中站改為平面站，進站路段不再畫成高架橋": "Taichung MRT HSR Taichung Station is now shown at ground level, with its station approach no longer drawn as a viaduct.",
@@ -255,6 +257,8 @@
   });
 
   Object.assign(messages.ja, {
+    "修正地下段多餘橋墩、洞口內的山體與路基閃動，橋墩改得更低調；明亮外觀預設關閉日夜光影，暗色預設開啟": "地下区間の不要な橋脚、坑口内の地形、路盤のちらつきを修正し、橋脚の見た目を控えめにしました。昼夜の光は明るい外観では初期設定でオフ、暗い外観ではオンになります。",
+    "夜間車頭燈更明亮，近看時列車前方會灑下柔和的地面光": "夜間の前照灯を明るくし、近くでは列車前方の地面に柔らかな光が広がります。",
     "全線隧道口補上立體拱圈、側壁與燈帶，雙線共用開口，修正高架銜接與彎道入口擋住列車的問題": "全線のトンネル坑口に立体的なアーチ、側壁、照明を追加し、並行する線路は開口部を共用します。高架との接続やカーブの入口で列車を遮る問題も修正しました。",
     "阿里山林鐵恢復實際股道與之字形折返，近看也能看到站內配線": "阿里山森林鉄道の実際の線路とスイッチバックを表示し、近くでは駅構内の配線も見えるようになりました。",
     "臺中捷運高鐵臺中站改為平面站，進站路段不再畫成高架橋": "台中MRTの高鉄台中駅を地上駅として表示し、駅への進入区間を高架橋で描かないようにしました。",

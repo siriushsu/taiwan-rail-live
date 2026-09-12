@@ -5445,14 +5445,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="landscapefixes0912"><span class="d">9/12</span><span>修正地下段多餘橋墩、洞口內的山體與路基閃動，橋墩改得更低調；明亮外觀預設關閉日夜光影，暗色預設開啟</span></li>
+        <li data-cl-of="headlightspill0912"><span class="d">9/12</span><span>夜間車頭燈更明亮，近看時列車前方會灑下柔和的地面光</span></li>
         <li data-cl-of="afrphysical0912"><span class="d">9/12</span><span>阿里山林鐵恢復實際股道與之字形折返，近看也能看到站內配線</span></li>
         <li data-cl-of="tmrtground0912"><span class="d">9/12</span><span>臺中捷運高鐵臺中站改為平面站，進站路段不再畫成高架橋</span></li>
         <li data-cl-of="tymcmodel0912"><span class="d">9/12</span><span>機捷依官方車種顯示普通車與直達車，跳站普通車也能顯示正確編組</span></li>
         <li data-cl-of="historicdetails0912"><span class="d">9/12</span><span>歷史車站與糖廠補上月台、棚架、附屬木屋和煙囪等細節</span></li>
         <li data-cl-of="windowlights0912"><span class="d">9/12</span><span>夜晚車窗亮起柔和暖白光，窗格完整清楚，進出隧道也會逐節漸亮、漸暗</span></li>
         <li data-cl-of="portalclear0912"><span class="d">9/12</span><span>全線隧道口補上立體拱圈、側壁與燈帶，雙線共用開口，修正高架銜接與彎道入口擋住列車的問題</span></li>
-        <li data-cl-of="trainlights0912"><span class="d">9/12</span><span>夜間列車亮起車頭燈、紅色尾燈與暖色車窗，進出隧道時每節車廂的光線平順變化</span></li>
-        <li data-cl-of="tunnelseam0912"><span class="d">9/12</span><span>地下路段的列車車廂不再一節一節折斷、在不同高度之間跳</span></li>
 
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
@@ -5461,6 +5461,8 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="landscapefixes0912"><span class="d">9/12</span><span>修正地下段多餘橋墩、洞口內的山體與路基閃動，橋墩改得更低調；明亮外觀預設關閉日夜光影，暗色預設開啟</span></li>
+        <li data-cl="headlightspill0912"><span class="d">9/12</span><span>夜間車頭燈更明亮，近看時列車前方會灑下柔和的地面光</span></li>
         <li data-cl="afrphysical0912"><span class="d">9/12</span><span>阿里山林鐵恢復實際股道與之字形折返，近看也能看到站內配線</span></li>
         <li data-cl="tmrtground0912"><span class="d">9/12</span><span>臺中捷運高鐵臺中站改為平面站，進站路段不再畫成高架橋</span></li>
         <li data-cl="tymcmodel0912"><span class="d">9/12</span><span>機捷依官方車種顯示普通車與直達車，跳站普通車也能顯示正確編組</span></li>
@@ -6445,7 +6447,7 @@
 //         新閘門 verify_thsr_station_tracks 掛出貨鏈。
 // v0911a：高鐵車站看板標出對號座餘位與票價、公車站牌可搜尋並逐路線報到站、小工具可設「自動(最近的站)」、
 //         三鶯線平日末班補上官方公告的 00:00 那一班;轉乘接續改成預設收合,收合態留最近一班的車次與「剩 N 分」。
-const BUILD = 'v0912i';
+const BUILD = 'v0912j';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -7232,14 +7234,23 @@ function createMaplibreEngine(containerId, view) {
 function createEngine(containerId, view) { return createMaplibreEngine(containerId, view); }
 // ==== ENGINE ADAPTER END ====
 
-// 日夜光影只控制天空與 MapLibre 建築光源。外觀明暗仍由使用者選擇，
-// 不以「暗色主題」假裝午夜；也不調相機或列車位置。75° 上限讓手動傾斜可看見地平線。
-const SUNLIGHT_PREF_KEY = 'trainmap-sunlight';
+// 明亮外觀預設維持均勻照明；暗色外觀預設依播放時間顯示日夜光影。
+// 兩種外觀各自記住手動選擇，切換後不沿用另一種外觀的開關。
+const SUNLIGHT_PREF_KEY = 'trainmap-sunlight-v2';
 let sunlight = null;
-let sunlightEnabled = true;
-try { sunlightEnabled = localStorage.getItem(SUNLIGHT_PREF_KEY) !== '0'; } catch (e) {}
-{ const value = new URLSearchParams(location.search).get('sun');
-  if (value === 'on' || value === 'off') sunlightEnabled = value === 'on'; }
+let sunlightOverride = new URLSearchParams(location.search).get('sun');
+function sunlightPreference(dark) {
+  if (sunlightOverride === 'on' || sunlightOverride === 'off') return sunlightOverride === 'on';
+  try { const value = localStorage.getItem(SUNLIGHT_PREF_KEY + (dark ? '-dark' : '-light'));
+    if (value === '1' || value === '0') return value === '1'; } catch (e) {}
+  return dark;
+}
+let sunlightEnabled = sunlightPreference(document.documentElement.getAttribute('data-theme') === 'dark');
+function syncSunlightAppearance(dark) {
+  sunlightEnabled = sunlightPreference(dark);
+  sunlight?.setEnabled(sunlightEnabled);
+  syncSunlightUI();
+}
 function sunlightContextNow(solarTimeMs) {
   if (!state.ready) return null;
   const c = M.getCenter();
@@ -7261,7 +7272,8 @@ async function setupSunlight() {
     window.railIslandSunlight = sunlight;
     document.getElementById('sunlightRow').onclick = () => {
       sunlightEnabled = !sunlightEnabled;
-      try { localStorage.setItem(SUNLIGHT_PREF_KEY, sunlightEnabled ? '1' : '0'); } catch (e) {}
+      sunlightOverride = null;
+      try { localStorage.setItem(SUNLIGHT_PREF_KEY + (state.mapDark ? '-dark' : '-light'), sunlightEnabled ? '1' : '0'); } catch (e) {}
       sunlight.setEnabled(sunlightEnabled); syncSunlightUI();
     };
     syncSunlightUI();
@@ -33581,6 +33593,7 @@ function setupMapTools() {
     document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
     const mt = document.querySelector('meta[name=theme-color]'); if (mt) mt.content = dark ? '#10141c' : '#F2EDE2';
     state.mapDark = dark;
+    syncSunlightAppearance(dark);
     if (state.ready) { renderBoard(); updateSheetOpenClass(); }
     themeBtn.querySelector('.tl').textContent = t({ light: '外觀:亮', dark: '外觀:暗', auto: '外觀:自動' }[mode]);
     setBasemap();

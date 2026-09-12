@@ -10,6 +10,7 @@ export function orderBuildingPasses(map) {
   layers.forEach((layer,i)=>{if(isGround(layer))lastGround=i;});
   const anchor=layers.slice(lastGround+1).find(layer=>layer.type==='symbol'||layer.id.startsWith('track-'))?.id;
   for(const layer of buildings)map.moveLayer(layer.id,anchor);
+  if(map.getLayer('live-tunnel-apertures'))map.moveLayer('live-tunnel-apertures',buildings[0].id);
   if(map.getLayer('live-vehicles-underlay'))map.moveLayer('live-vehicles-underlay',buildings[0].id);
   if(map.getLayer('building-glass-edges'))map.moveLayer('building-glass-edges',anchor);
 }
