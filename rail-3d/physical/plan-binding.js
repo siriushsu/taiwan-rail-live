@@ -16,8 +16,10 @@ export function sameDerivedPasses(plan,tr){
 }
 const borrow=(pathIds,tr)=>{const holds=tr.stops.map(()=>({arrival:0,departure:0}));return {pathIds,holds,departureHolds:holds.map(()=>0),officialDelaySec:0,stopSignature:physicalStopSignature(tr)};};
 const sameStations=(plan,tr)=>{let old;try{old=JSON.parse(plan.stopSignature);}catch{return false;}return old.length===tr.stops.length&&old.every((s,i)=>s[0]===stationKey(tr.sys||tr.system,tr.stops[i].name));};
-// 可向既有計畫借路徑的系統:台鐵加開車、高鐵當日班表(車次或時刻與派車表不同的班次)。
-const TEMPLATE_SYSTEMS=['tra_sched','thsr_sched'];
+// 可向既有計畫借路徑的系統:台鐵加開車、高鐵當日班表(車次或時刻與派車表不同的班次)、
+// 林鐵祝山線觀日車(97/98 依官方日出表逐旬改發車時刻,而配對鍵含起訖秒,派車表只存得下一組
+// 寫死的時刻——不借路徑的話一年裡只有恰好對上那兩天綁得到,其餘日子整班退回示意線形)。
+const TEMPLATE_SYSTEMS=['tra_sched','thsr_sched','afr_sched'];
 export function createPlanBinding(dispatch){
  const templates=new Map();
  return tr=>{

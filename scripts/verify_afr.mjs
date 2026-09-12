@@ -14,6 +14,7 @@
 //   · TDX 班次的 TrainTypeID/TrainTypeName 十班全 null,車種是本專案依起訖路線歸類的四類;
 //     前端用 typeName 做繪製 gate(state.visible.has),故 key 不可與台鐵車種相撞。
 import { readFileSync } from 'node:fs';
+import { createPlanBinding } from '../rail-3d/physical/plan-binding.js';
 import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:net';
@@ -303,6 +304,39 @@ const SUGAR_INDEP = {
   '新營糖廠': [23.2997, 120.3169],
   '橋頭糖廠': [22.7578, 120.3142],
 };
+
+// ── 祝山線觀日車的派車綁定(2026-09-12) ────────────────────────────────
+// 97/98 的發車時刻由前端依官方日出表逐旬推算,而配對鍵 physicalTrainKey 含起訖秒,
+// dispatch.json 只存得下一組寫死的時刻。不讓林鐵借路徑的話,一年裡只有恰好對上
+// 那兩天綁得到,其餘日子整班退回示意線形——而且沒有任何閘門會紅(當時 2/22)。
+// 判準掃「日出位移」而不是只驗今天:只驗單一日期正是這個缺陷藏住的原因。
+// 分母具名,少一個位移就是掃描範圍被改小了。
+{
+  const dispatch = JSON.parse(readFileSync('rail-3d/physical/dispatch.json', 'utf8'));
+  const bind = createPlanBinding(dispatch);
+  const mk = (train, sig, shift) => ({ sys: 'afr_sched', train, stops: sig.map(x => ({
+    name: x[0].split(':')[1], arrSec: x[1] + shift, depSec: x[2] + shift,
+    ...(x[1] === x[2] ? { stop: false } : {}) })) });
+  const SHIFTS = [0, -2400, -1800, -1200, -600, -300, 300, 600, 900, 1200, 1800, 2400];
+  const SEED = { '97': 'afr_sched:97:16800:18600', '98': 'afr_sched:98:23400:25200' };
+  let bound = 0, total = 0, worst = '';
+  for (const [no, key] of Object.entries(SEED)) {
+    const plan = dispatch.plans[key];
+    if (!plan) { worst = worst || `派車表缺 ${key}`; continue; }
+    const sig = JSON.parse(plan.stopSignature);
+    for (const shift of SHIFTS) {
+      total++;
+      const r = bind(mk(no, sig, shift));
+      if (r) bound++; else worst = worst || `${no} 位移 ${shift}s 綁不到`;
+    }
+  }
+  ok(total === SHIFTS.length * 2, `日出位移掃描分母 ${total}（${SHIFTS.length} 個位移 × 2 班）`);
+  ok(bound === total, `祝山線觀日車每個日出位移都綁得到派車（${bound}/${total}${worst ? '；首個失敗：' + worst : ''}）`);
+  // 正向對照:同一把尺對一個不存在的站序必須綁不到,否則這條斷言恆真。
+  const bogus = bind({ sys: 'afr_sched', train: '97', stops: [
+    { name: '阿里山', arrSec: 100, depSec: 200 }, { name: '嘉義', arrSec: 300, depSec: 400 }] });
+  ok(!bogus, `正向對照：不存在的站序（阿里山→嘉義）綁不到派車${bogus ? '，判準恆真' : ''}`);
+}
 
 console.log('\n═══ E. 端到端（Playwright 真引擎）═══');
 // 視窗尺寸一律在 newContext 就釘死,不用 setViewportSize:headless chromium 的視窗是
