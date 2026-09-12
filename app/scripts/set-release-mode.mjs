@@ -344,10 +344,19 @@ const MODES = {
     //   轉乘接續納入機捷與高捷、機捷車種讀官方值、網站登入修復。
     //   why 三語寫其中六條；weblogin0910 是網站專屬（更新紀錄自己就寫著「App 內的登入不受影響」），
     //   不佔店頭 500 字元。
+    // 110／Android 50（2026-09-12 12:xx）：**1.6.2 已於 2026-09-11T16:37:44Z 上架**
+    //   （Apple lookup 帶 no-cache 實查 version=1.6.2；Play 商店頁也是 1.6.2）⇒ 1.6.2 train 已關，
+    //   行銷版號進到 1.6.3。Archives 底下沒有任何 1.6.3 的 archive，110 是這個號的第一份載貨（規則四）。
+    //   載貨＝origin/main 751f86ff（網站 BUILD v0912e）。31c395ec 當時的載貨是 52e83adc（v0912c），
+    //   之後 main 多出五條第一層更新紀錄正本：隧道洞門、都市立體地圖效能、同股道兩列車不再互穿、
+    //   開站不重複下載地形、平地假隧道與路基收窄。
+    //   🔴 why 三語不是互譯也不等長：中文 331／日文 354 還有 150 字元以上餘裕，**英文 489 只剩 11**
+    //   （Play 硬上限 500）。所以英文把「高架橋外觀」「近看軌道」「平地不畫隧道」併成一條、
+    //   三鶯線末班那條不寫；中日文照舊逐條列。要再加一條就得先從英文砍一條，不是三語一起加。
     marketing: '1.6.3', build: '110', music: true, metroCore: true,
-    why: "軌島 1.6.3\n\n・搜尋框找得到全台公車站牌，點進去看每條路線還有幾分鐘到\n・高鐵車站看板標出對號座有位、剩不多或售完，並可查票價\n・桌面小工具的車站可以設成「自動（最近的站）」\n・跟車卡的轉乘接續可以收起來\n・高鐵停靠列車停外側月台到發線，通過列車走內側正線\n・修正高鐵列車在板橋等地下車站車廂折疊、上下跳動\n・立體地圖的高架橋補上箱梁、護欄與墩帽，全台軌道縱坡重算\n・近看軌道畫得出道碴、鋼軌與枕木，隧道口補上石造拱圈\n・地景的示意樹只長在公園、村落與河岸的小片林地\n・三鶯線平日末班補上 00:00 那一班",
-    whyEn: "Rail Island 1.6.3\n\n• Bus stop search nationwide, with live arrivals\n• THSR boards show reserved seats and fares\n• Widget station can follow the nearest station\n• Transfer connections can be collapsed\n• THSR trains stop on the outer tracks, pass on the inner\n• Fixed THSR carriages folding underground\n• Viaducts have box girders, parapets and pier caps\n• Track up close shows ballast, rails and sleepers\n• Scenery trees only in small woodlands\n• Added the Sanying line 00:00 last train",
-    whyJa: "軌島 1.6.3\n\n・全国のバス停を検索でき、各路線の到着まで何分かを表示\n・台湾高鐵の発車案内に指定席の空席状況と運賃を追加\n・ウィジェットの駅を「自動（最寄り駅）」に設定可能に\n・追跡カードの乗り換え接続を折りたたみ可能に\n・台湾高鐵の停車列車は外側の副本線、通過列車は内側の本線を走行\n・板橋など地下駅で高鐵の車両が折れ曲がる不具合を修正\n・高架橋に箱桁・防護壁・橋脚天端を追加\n・近づくとバラスト・レール・枕木が見えるように\n・イメージの樹木は小さな林地のみに\n・三鶯線の平日最終に00:00発を追加",
+    why: "軌島 1.6.3\n\n・搜尋框找得到全台公車站牌，點進去看每條路線還有幾分鐘到\n・高鐵車站看板標出對號座有位、剩不多或售完，並可查票價\n・桌面小工具的車站可以設成「自動（最近的站）」\n・跟車卡的轉乘接續可以收起來\n・同一條股道上的兩列列車不再從彼此身上穿過去\n・開站讀取變快，都市裡拖動立體地圖也更順\n・高鐵停靠列車停外側月台到發線，通過列車走內側正線\n・修正高鐵列車在板橋等地下車站車廂折疊、上下跳動\n・立體地圖的高架橋補上箱梁、護欄與墩帽，全台軌道縱坡重算\n・近看軌道畫得出道碴、鋼軌與枕木，隧道口做成嵌進山坡的洞門\n・平地上的軌道不再被畫成隧道，抬高路基的土堆也收窄了\n・地景的示意樹只長在公園、村落與河岸的小片林地\n・三鶯線平日末班補上 00:00 那一班",
+    whyEn: "Rail Island 1.6.3\n\n• Nationwide bus stop search with live arrivals\n• THSR boards show reserved seats and fares\n• Widgets can follow the nearest station\n• Transfer connections collapse to one line\n• Trains no longer pass through each other\n• Faster start and smoother panning in cities\n• THSR stops on outer tracks, passes on inner\n• Fixed THSR carriages folding underground\n• Viaducts and tunnel portals look right; flat ground is no longer a tunnel\n• Scenery trees only in small woodlands",
+    whyJa: "軌島 1.6.3\n\n・全国のバス停を検索でき、各路線の到着まで何分かを表示\n・台湾高鐵の発車案内に指定席の空席状況と運賃を追加\n・ウィジェットの駅を「自動（最寄り駅）」に設定可能に\n・追跡カードの乗り換え接続を折りたたみ可能に\n・同じ線路上の2本の列車が互いをすり抜けなくなりました\n・起動時の読み込みが速くなり、都市部のドラッグも滑らかに\n・台湾高鐵の停車列車は外側の副本線、通過列車は内側の本線を走行\n・板橋など地下駅で高鐵の車両が折れ曲がる不具合を修正\n・高架橋に箱桁・防護壁・橋脚天端を追加\n・近づくとバラスト・レール・枕木が見え、トンネル坑口は山肌の坑門に\n・平地の線路がトンネルとして描かれなくなり、盛土も細くなりました\n・イメージの樹木は小さな林地のみに\n・三鶯線の平日最終に00:00発を追加",
 
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
