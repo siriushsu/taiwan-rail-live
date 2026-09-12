@@ -1,6 +1,6 @@
 import * as THREE from '../vendor/three.module.js';
-import {createRoutes,turnoutStates} from './alishan-route.js?revision=turnouts-0912';
-import {createTurnouts,turnoutAt} from './alishan-turnouts.js?revision=turnouts-0912';
+import {createRoutes,turnoutStates} from './alishan-route.js?revision=turnout-sign-0912';
+import {createTurnouts,turnoutAt} from './alishan-turnouts.js?revision=turnout-sign-0912';
 export const THEMES={day:{background:'#e8e9de',sun:'#fff0ca',ambient:'#c2d5d0',ground:'#65795c',power:2.8,exposure:1.02},sunset:{background:'#e7d8c4',sun:'#ffbf80',ambient:'#c7bdb9',ground:'#657160',power:2.8,exposure:.93},night:{background:'#182d32',sun:'#b4cfdd',ambient:'#758f96',ground:'#304c3c',power:.8,exposure:.8}};
 export function createScene(){
  const group=new THREE.Group(),geometries=new Set(),materials=new Set(),routes=createRoutes();

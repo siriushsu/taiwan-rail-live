@@ -37,10 +37,15 @@ export function createTurnouts({THREE,group,routes,geo,mesh,block,wood,steel,bal
   // 連桿、扳柄及雙面指示牌跟同一個轉轍進度，避免牌已轉但尖軌未到位。
   const mechanism=new THREE.Group();mechanism.position.set(x+dir*.8,y+1.8,z);group.add(mechanism);
   function part(material,size,pos,parent=mechanism){const m=new THREE.Mesh(geo(new THREE.BoxGeometry(...size)),material);m.position.set(...pos);m.castShadow=m.receiveShadow=true;parent.add(m);return m;}
-  part(iron,[.65,.55,.18],[0,0,-.03]);part(iron,[.1,.1,1.25],[0,0,.6]);
+  part(iron,[.65,.55,.18],[0,0,-.03]);
+  // 方柱止於牌底以下，改由細軸接入牌內，避免柱面與牌面共面閃爍。
+  part(iron,[.1,.1,1.0],[0,0,.48]);part(iron,[.035,.035,.1],[0,0,1.01]);
   const indicator=new THREE.Group();indicator.position.z=1.25;mechanism.add(indicator);
-  part(ivory,[.65,.1,.46],[0,0,0],indicator);part(red,[.39,.12,.12],[0,0,0],indicator);
-  part(red,[.15,.13,.27],[.17,0,0],indicator);
+  const board=part(ivory,[.65,.1,.46],[0,0,0],indicator);board.receiveShadow=false;
+  // 正反面標記各自浮離底板 .01；小標記不用陰影貼圖，避免斜視時自陰影閃爍。
+  for(const side of [-1,1])for(const [size,pos]of [[[.29,.014,.12],[-.05,side*.067,0]],[[.15,.014,.27],[.17,side*.067,0]]]){
+   const mark=part(red,size,pos,indicator);mark.castShadow=mark.receiveShadow=false;
+  }
   const lever=part(iron,[.08,.08,.65],[0,.23,.33]);
   const rod=part(iron,[.08,2.05,.055],[0,-1.03,-.02]);
   let value=-1;
