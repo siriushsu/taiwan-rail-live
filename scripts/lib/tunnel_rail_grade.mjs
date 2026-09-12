@@ -9,6 +9,11 @@ export async function applyTunnelGrade(records,entries,groundAt){
  const tunnels=new Set(records.filter(r=>entries[r.w.id]?.kind==='tunnel'&&!done.has(String(r.w.id))));
  // 依共用節點與同系統把隧道 way 串成一條連續隧道；洞口＝與非本段股道相接的節點。
  const nodeWays=new Map();for(const r of records)for(const n of r.w.nodes){const k=r.w.system+':'+n;if(!nodeWays.has(k))nodeWays.set(k,[]);nodeWays.get(k).push(r);}
+ // 共用節點落在某條 way「中段」時,舊做法只有 way 端點用 system:node 當鍵,中段一律用私有鍵
+ // wayId:cross:s ⇒ 同一個節點被兩條 way 各自內插出不同顯示高度。車廂高度是逐節取樣的,跨過這種
+ // 節點的列車會當場折斷(2026-09-12 實測沿實跑路線:臺鐵板橋／萬華地下段 4.3m、高鐵臺北站 7.3m、
+ // 南迴線 11.0m)。把中段共用節點也做成共用鍵,兩側由同一個 knot 決定高度,連續性由結構保證。
+ const sharedNodes=new Set();for(const [k,list] of nodeWays)if(list.length>1)sharedNodes.add(k);
  const placed=new Set(),runs=[];
  for(const seed of tunnels){if(placed.has(seed))continue;const stack=[seed],run=[];placed.add(seed);
   while(stack.length){const cur=stack.pop();run.push(cur);for(const n of cur.w.nodes)for(const o of nodeWays.get(cur.w.system+':'+n)||[])if(tunnels.has(o)&&!placed.has(o)){placed.add(o);stack.push(o);}}
@@ -20,9 +25,10 @@ export async function applyTunnelGrade(records,entries,groundAt){
    // 每 STEP 公尺補一個節點：只在 way 端點求解時，縱坡上限與覆土上界在長 way 中段完全不生效，
    // 內插曲線也會比兩端弦線陡得多。
    const len=r.distances.at(-1),steps=Array.from({length:Math.max(0,Math.ceil(len/STEP)-1)},(_,i)=>(i+1)*STEP);
-   const distances=[...new Set([0,...steps,...r.pins.map(p=>p.s),len])].sort((a,b)=>a-b),local=[];
+   const midNodes=new Map();for(let i=1;i<r.w.nodes.length-1;i++){const s=r.path.d[i];if(s>0&&s<len&&sharedNodes.has(r.w.system+':'+r.w.nodes[i]))midNodes.set(s,String(r.w.nodes[i]));}
+   const distances=[...new Set([0,...steps,...midNodes.keys(),...r.pins.map(p=>p.s),len])].sort((a,b)=>a-b),local=[];
    for(const s of distances){
-    const end=s===0?0:s===len?-1:null,node=end===null?null:String(r.w.nodes.at(end)),id=node===null?r.w.id+':cross:'+s:r.w.system+':'+node;
+    const end=s===0?0:s===len?-1:null,node=end===null?(midNodes.get(s)??null):String(r.w.nodes.at(end)),id=node===null?r.w.id+':cross:'+s:r.w.system+':'+node;
     let k=knots.get(id);if(!k)knots.set(id,k={h:0,n:0,links:[],ground:0,hold:0,min:-Infinity,max:Infinity,portal:false});
     const ground=await groundAt(r.path.at(s).coordinate);k.ground+=ground;k.hold+=ground+(sample(r,s,'offsets')??0);k.n++;
     // 洞口：相接的股道不在本段內。它已經畫在地表附近，隧道端點必須沿用它的顯示高程才不會出現落差。
