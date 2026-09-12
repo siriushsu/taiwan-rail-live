@@ -57,6 +57,13 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
  check(engine+' 真實列車前方地面有柔光',info.stats.beams===1&&glow>30,{...info,glow});
  const perf=await p.evaluate(async()=>{const measure=async hide=>{for(const m of __beamMeshes)m.layers.set(hide?4:3);const frameMs=[],beamMs=[];let last=performance.now();for(let i=0;i<80;i++){await new Promise(requestAnimationFrame);const now=performance.now();if(i>9)frameMs.push(now-last);last=now;__update();beamMs.push(railIslandIntegration.renderer.stats.headlightSpill.totalMs);}const p=(a,k)=>a.sort((a,b)=>a-b)[Math.floor(a.length*k)];return{frameP50:p(frameMs,.5),frameP90:p(frameMs,.9),beamP90:p(beamMs,.9)};};return {without:await measure(true),with:await measure(false)};});
  check(engine+' 柔光沒有新增大量算繪負擔',perf.with.beamP90<5&&perf.with.frameP50<perf.without.frameP50*1.5+4,perf);
+ const directions=await p.evaluate(async()=>{const {makePath}=await import('./rail-3d/integration/train-path.js'),path=makePath(__train.route.coordinates),anchor=maplibregl.MercatorCoordinate.fromLngLat([121,24]),unit=anchor.meterInMercatorCoordinateUnits(),rows=[];
+   for(const direction of [1,-1]){__train={...__train,railDirection:direction};__update();const mesh=[...__beamMeshes].find(m=>m.visible&&m.geometry.drawRange.count>0),r=railIslandIntegration.renderer,lead=r.stats.poseSamples[0].cars[0];if(!mesh){rows.push({direction,error:'光斑網格未繪出'});continue;}
+     const p=mesh.geometry.attributes.position,n=mesh.geometry.drawRange.count;let x=0,y=0;for(let i=0;i<n;i++){x+=p.getX(i);y+=p.getY(i);}x=x/n+mesh.position.x;y=y/n+mesh.position.y;
+     const q=new maplibregl.MercatorCoordinate(anchor.x+x*unit,anchor.y-y*unit).toLngLat(),ahead=direction*(path.locate([q.lng,q.lat]).s-lead.s);rows.push({direction,ahead,beams:r.stats.headlightSpill.beams});
+   }return rows;
+ });
+ check(engine+' 兩個方向的地面光都在車頭前方',directions.every(r=>r.beams===1&&r.ahead>8&&r.ahead<50),directions);
  check(engine+' 無執行例外',!errors.length,errors);
  }catch(e){check(engine+' 執行',false,e.stack);}finally{await b.close();}
 }
