@@ -10,7 +10,7 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
   p.on('pageerror',e=>errors.push(e.message));p.on('console',m=>{if(m.type()==='error'&&/WebGLProgram|Shader Error|GL_INVALID/.test(m.text()))errors.push(m.text());});
   await p.route('**/__garage_glass',r=>r.fulfill({contentType:'text/html',body:'<!doctype html><body style="margin:0"><canvas style="width:900px;height:500px"></canvas>'}));
   await p.goto(new URL('/__garage_glass',BASE).href);
-  const rows=await p.evaluate(async()=>{
+  const rows=await p.evaluate(async ids=>{
    const T=await import('/rail-3d/vendor/three.module.js');let frame;
    const afterRender=T.Scene.prototype.onAfterRender;
    T.Scene.prototype.onAfterRender=function(renderer,scene,camera){afterRender.call(this,renderer,scene,camera);frame={renderer,scene,camera};};
@@ -19,16 +19,16 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
    const pixels=()=>{const c=frame.renderer.domElement;if(copy.width!==c.width||copy.height!==c.height){copy.width=c.width;copy.height=c.height;}ctx.drawImage(c,0,0);return ctx.getImageData(0,0,c.width,c.height).data;};
    const redraw=()=>frame.renderer.render(frame.scene,frame.camera),rows=[];
    try{
-    for(const id of ['emu3000','700t','c301','e200','danhai']){
+    for(const id of ids){
      await r.load(id,'track');
      for(const period of ['sunrise','day','sunset','night'])for(const direction of [1,-1]){
       r.draw(canvas,{id,owned:true},-Math.PI/2,{mode:'track',period,direction,elevation:.16,distance:2.4});
-      const baseline=pixels(),meshes=[];frame.scene.traverseVisible(o=>{if(o.isMesh&&Array.isArray(o.material)&&o.material.some(m=>m.name==='glass'))meshes.push(o);});
+      const baseline=pixels(),meshes=[];frame.scene.traverseVisible(o=>{if(o.isMesh&&Array.isArray(o.material)&&o.material.some(m=>(m.name==='glass'||m.userData.railLightingRole==='window')))meshes.push(o);});
       const cars=[];
       for(const mesh of meshes){
-       const original=mesh.material;mesh.material=original.map(m=>m.name==='glass'?maskMaterial:m);redraw();const mask=pixels(),indices=[];
+       const original=mesh.material;mesh.material=original.map(m=>(m.name==='glass'||m.userData.railLightingRole==='window')?maskMaterial:m);redraw();const mask=pixels(),indices=[];
        for(let i=0;i<mask.length;i+=4)if(mask[i]>250&&mask[i+1]<5&&mask[i+2]>250)indices.push(i);
-       mesh.material=original;const glass=original.filter(m=>m.name==='glass'),gains=glass.map(m=>m.envMapIntensity);glass.forEach(m=>m.envMapIntensity=0);redraw();const unreflected=pixels();glass.forEach((m,i)=>m.envMapIntensity=gains[i]);
+       mesh.material=original;const glass=original.filter(m=>(m.name==='glass'||m.userData.railLightingRole==='window')),gains=glass.map(m=>m.envMapIntensity);glass.forEach(m=>m.envMapIntensity=0);redraw();const unreflected=pixels();glass.forEach((m,i)=>m.envMapIntensity=gains[i]);
        let response=0,luminance=0;for(const i of indices){const l=d=>d[i]*.2126+d[i+1]*.7152+d[i+2]*.0722;response+=l(baseline)-l(unreflected);luminance+=l(baseline);}
        cars.push({pixels:indices.length,reflection:response/Math.max(1,indices.length),luminance:luminance/Math.max(1,indices.length)});
       }
@@ -44,7 +44,7 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
     await r.load('emu3000','track');r.draw(canvas,{id:'emu3000',owned:true},-Math.PI/2,{mode:'track',period:'day',elevation:.16});rows.push({id:'場景反射切換',pass:frame.scene.environment!==studio});
    }finally{r.dispose();maskMaterial.dispose();T.Scene.prototype.onAfterRender=afterRender;}
    return rows;
-  });
+  },(process.env.GARAGE_GLASS_IDS||'emu3000,700t,c301,e200,danhai').split(','));
   for(const row of rows){results.push({engine,...row});console.log(row.pass?'PASS':'FAIL',engine,JSON.stringify(row));}
   results.push({engine,id:'渲染錯誤',pass:errors.length===0,errors});
  }catch(e){results.push({engine,pass:false,error:e.stack});console.error(e);}finally{await browser.close();}

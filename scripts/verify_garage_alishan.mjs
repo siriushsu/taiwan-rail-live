@@ -2,7 +2,7 @@ import {chromium,webkit} from 'playwright';
 import {panChecks} from './lib/garage_pan_checks.mjs';
 import {mkdirSync,writeFileSync} from 'node:fs';
 import {createRoutes,createJourney} from '../rail-3d/garage-scenes/alishan-route.js';
-const OUT='output/alishan',URL='http://127.0.0.1:5252/prototypes/garage-alishan/';mkdirSync(OUT,{recursive:true});
+const OUT='output/alishan',URL=process.env.GARAGE_ALISHAN_URL||'http://127.0.0.1:5252/prototypes/garage-alishan/';mkdirSync(OUT,{recursive:true});
 const results=[];function check(name,pass,detail){results.push({name,pass:!!pass,detail});console.log(pass?'PASS':'FAIL',name,JSON.stringify(detail??''));}
 const state=p=>p.evaluate(()=>alishanPreview.state),settle=p=>p.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
 const routes=createRoutes(),journey=createJourney(routes,13.628863594123153);let maxJump=0,maxSlope=0;

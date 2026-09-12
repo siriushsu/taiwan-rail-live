@@ -2,7 +2,7 @@ import {chromium,webkit} from 'playwright';
 import {panChecks} from './lib/garage_pan_checks.mjs';
 import {mkdirSync,writeFileSync} from 'node:fs';
 import {createScene} from '../rail-3d/garage-scenes/shifen.js';
-const OUT='output/shifen',URL='http://127.0.0.1:5254/prototypes/garage-shifen/';mkdirSync(OUT,{recursive:true});
+const OUT='output/shifen',URL=process.env.GARAGE_SHIFEN_URL||'http://127.0.0.1:5254/prototypes/garage-shifen/';mkdirSync(OUT,{recursive:true});
 const results=[];function check(name,pass,detail){results.push({name,pass:!!pass,detail});console.log(pass?'PASS':'FAIL',name,JSON.stringify(detail??''));}
 const state=p=>p.evaluate(()=>shifenPreview.state);
 const settle=p=>p.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));

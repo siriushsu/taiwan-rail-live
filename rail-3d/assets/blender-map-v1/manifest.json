@@ -661,9 +661,10 @@
       "illustrative": true,
       "appearance": "blender-map-lod",
       "source": {
-        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/dr1000/dr1000.model.json",
-        "rawSha256": "9e2f46100ae6d5aaaa10a4cbc788a6f20854e52a22ab35893d9d3d419fa3f572",
-        "engineeringDimensionsM": null
+        "metadata": "output/fleet-refinement-20260912/models/dr1000/dr1000.model.json",
+        "rawSha256": "76156e6a38ad7d3309822213b5d6749336ce5fd30ac0f27d1408586bf29d004e",
+        "engineeringDimensionsM": null,
+        "releaseSha256": "b4d5a840dd1c5f19a452269c167ccf611704a7e6f190798f93fd85c3ad999b6a"
       },
       "sources": [
         {
@@ -999,9 +1000,10 @@
       "illustrative": true,
       "appearance": "blender-map-lod",
       "source": {
-        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/emu3000/emu3000.model.json",
-        "rawSha256": "f42a4d2d2a78eb8f9d600333e9eabeb84dca1e9512580afabcb2ddb7d778e700",
-        "engineeringDimensionsM": null
+        "metadata": "output/fleet-refinement-20260912/models/emu3000/emu3000.model.json",
+        "rawSha256": "dbb01685b34c07452667fb82fca041ad5f70fa7e3a9e6d0f33edbceca68928e5",
+        "engineeringDimensionsM": null,
+        "releaseSha256": "b4d5a840dd1c5f19a452269c167ccf611704a7e6f190798f93fd85c3ad999b6a"
       },
       "sources": [
         {
@@ -1432,10 +1434,10 @@
       "illustrative": true,
       "appearance": "blender-map-lod",
       "source": {
-        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/blue/blue.model.json",
-        "rawSha256": "a3377e96e867c92b871a340971eb1375b99f57db42b37c432f2ac1ae13535b05",
+        "metadata": "output/fleet-refinement-20260912/models/blue/blue.model.json",
+        "rawSha256": "2d3a0a42962b57cabd63a6cc02be3743bffe0aa1f8a899bd6c6d2b37da7ab81f",
         "engineeringDimensionsM": null,
-        "releaseSha256": "a80dd45fd7792a923a3658dbf0daf7facc5dde5885424ac0b0ac8c29117317ef"
+        "releaseSha256": "b4d5a840dd1c5f19a452269c167ccf611704a7e6f190798f93fd85c3ad999b6a"
       },
       "sources": [
         {
@@ -1536,9 +1538,10 @@
       "illustrative": true,
       "appearance": "blender-map-lod",
       "source": {
-        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/dl38/dl38.model.json",
-        "rawSha256": "401caa47aec1f4365bf80b9885e31e923264eac36329b80a59f8a0a0a9cc4094",
-        "engineeringDimensionsM": null
+        "metadata": "output/fleet-refinement-20260912/models/dl38/dl38.model.json",
+        "rawSha256": "4f102c52bcca14c2fda3e99f1b9caf7ac401917f2e3b6aa12f4875966767a294",
+        "engineeringDimensionsM": null,
+        "releaseSha256": "b4d5a840dd1c5f19a452269c167ccf611704a7e6f190798f93fd85c3ad999b6a"
       },
       "sources": [
         {
@@ -1701,10 +1704,10 @@
       "illustrative": true,
       "appearance": "blender-map-lod",
       "source": {
-        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/bluecoach/bluecoach.model.json",
-        "rawSha256": "7cf01a33235d406e90337d52efb0d06652f654b3f0dfbdeb9b212e076bfd2a7e",
+        "metadata": "output/fleet-refinement-20260912/models/bluecoach/bluecoach.model.json",
+        "rawSha256": "703cffbe821a16c485791bbbb30af7795d69f9de6b5f86f31d408303ab55210d",
         "engineeringDimensionsM": null,
-        "releaseSha256": "a80dd45fd7792a923a3658dbf0daf7facc5dde5885424ac0b0ac8c29117317ef"
+        "releaseSha256": "b4d5a840dd1c5f19a452269c167ccf611704a7e6f190798f93fd85c3ad999b6a"
       },
       "sources": [
         {
@@ -1772,9 +1775,10 @@
       "illustrative": true,
       "appearance": "blender-map-lod",
       "source": {
-        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/alicoach/alicoach.model.json",
-        "rawSha256": "000789958a70b00356155a01846eed3481ab29364927ad10069982ac8aae0b20",
-        "engineeringDimensionsM": null
+        "metadata": "output/fleet-refinement-20260912/models/alicoach/alicoach.model.json",
+        "rawSha256": "1e4831fd5c0dd3b012783dd33e8b122882e18032e9ac60366572fd1fa0892024",
+        "engineeringDimensionsM": null,
+        "releaseSha256": "b4d5a840dd1c5f19a452269c167ccf611704a7e6f190798f93fd85c3ad999b6a"
       },
       "sources": [
         {
@@ -2911,9 +2915,9 @@
     },
     "dr1000": {
       "file": "dr1000.bin",
-      "sha256": "fbc6cc2b773e042269b0c1e41e45c32588dca248adc2fd4c1a6c17801d51e11b",
-      "byteLength": 960000,
-      "vertexCount": 24000,
+      "sha256": "2fd098b46de8b5a3bc93f03b7545cc3414165e263cfe15437d00ead6b7e69ed0",
+      "byteLength": 959760,
+      "vertexCount": 23994,
       "min": [
         -4.199000358581543,
         -1.4895493984222412,
@@ -2922,12 +2926,13 @@
       "max": [
         4.209000587463379,
         1.489506721496582,
-        3.668865919113159
+        3.7844464778900146
       ],
       "source": {
-        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/dr1000/dr1000.model.json",
-        "rawSha256": "9e2f46100ae6d5aaaa10a4cbc788a6f20854e52a22ab35893d9d3d419fa3f572",
-        "engineeringDimensionsM": null
+        "metadata": "output/fleet-refinement-20260912/models/dr1000/dr1000.model.json",
+        "rawSha256": "76156e6a38ad7d3309822213b5d6749336ce5fd30ac0f27d1408586bf29d004e",
+        "engineeringDimensionsM": null,
+        "releaseSha256": "b4d5a840dd1c5f19a452269c167ccf611704a7e6f190798f93fd85c3ad999b6a"
       },
       "appearance": "blender-map-lod"
     },
@@ -3329,31 +3334,32 @@
     },
     "emu3000": {
       "file": "emu3000.bin",
-      "sha256": "f4a5ca66cf118162dab12c2ebfe87f59dd5f04f4f2d2c0b0ae488ab7256ecc86",
+      "sha256": "8e2e343350c241b230242440fefe0f5de6f04fe0d516d3a6e1b31ea2f34a5786",
       "byteLength": 960000,
       "vertexCount": 24000,
       "min": [
         -5.199000358581543,
         -1.5145492553710938,
-        0.001103037502616644
+        0.0010585890850052238
       ],
       "max": [
-        4.8514862060546875,
+        4.87346887588501,
         1.5145492553710938,
         3.6500003337860107
       ],
       "source": {
-        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/emu3000/emu3000.model.json",
-        "rawSha256": "f42a4d2d2a78eb8f9d600333e9eabeb84dca1e9512580afabcb2ddb7d778e700",
-        "engineeringDimensionsM": null
+        "metadata": "output/fleet-refinement-20260912/models/emu3000/emu3000.model.json",
+        "rawSha256": "dbb01685b34c07452667fb82fca041ad5f70fa7e3a9e6d0f33edbceca68928e5",
+        "engineeringDimensionsM": null,
+        "releaseSha256": "b4d5a840dd1c5f19a452269c167ccf611704a7e6f190798f93fd85c3ad999b6a"
       },
       "appearance": "blender-map-lod"
     },
     "emu3000-mid": {
       "file": "emu3000-mid.bin",
-      "sha256": "31075611389b15595ac243b3784310b1d7037dd4df9e3ec4997660b83e6854a7",
-      "byteLength": 1008720,
-      "vertexCount": 25218,
+      "sha256": "6f4dc66857eec625d9e8dbde15c318796a6715da1b60209a001fa91cc95eac36",
+      "byteLength": 907440,
+      "vertexCount": 22686,
       "min": [
         -5.199000358581543,
         -1.5145492553710938,
@@ -3365,9 +3371,10 @@
         3.63246488571167
       ],
       "source": {
-        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/emu3000/emu3000.model.json",
-        "rawSha256": "f42a4d2d2a78eb8f9d600333e9eabeb84dca1e9512580afabcb2ddb7d778e700",
-        "engineeringDimensionsM": null
+        "metadata": "output/fleet-refinement-20260912/models/emu3000/emu3000.model.json",
+        "rawSha256": "dbb01685b34c07452667fb82fca041ad5f70fa7e3a9e6d0f33edbceca68928e5",
+        "engineeringDimensionsM": null,
+        "releaseSha256": "b4d5a840dd1c5f19a452269c167ccf611704a7e6f190798f93fd85c3ad999b6a"
       },
       "appearance": "blender-map-lod"
     },
@@ -3659,9 +3666,9 @@
     },
     "blue": {
       "file": "blue.bin",
-      "sha256": "02fe7c5b4780e3ad5416479389fd290fe45dae2a8666990c22de98e136a4e1d7",
-      "byteLength": 946920,
-      "vertexCount": 23673,
+      "sha256": "3d1ec69cfddac37c577397f6b576bb465a713596ff190ce773c0ccbe8b6777a8",
+      "byteLength": 947040,
+      "vertexCount": 23676,
       "min": [
         -4.689000129699707,
         -1.3963617086410522,
@@ -3673,10 +3680,10 @@
         3.5200634002685547
       ],
       "source": {
-        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/blue/blue.model.json",
-        "rawSha256": "a3377e96e867c92b871a340971eb1375b99f57db42b37c432f2ac1ae13535b05",
+        "metadata": "output/fleet-refinement-20260912/models/blue/blue.model.json",
+        "rawSha256": "2d3a0a42962b57cabd63a6cc02be3743bffe0aa1f8a899bd6c6d2b37da7ab81f",
         "engineeringDimensionsM": null,
-        "releaseSha256": "a80dd45fd7792a923a3658dbf0daf7facc5dde5885424ac0b0ac8c29117317ef"
+        "releaseSha256": "b4d5a840dd1c5f19a452269c167ccf611704a7e6f190798f93fd85c3ad999b6a"
       },
       "appearance": "blender-map-lod"
     },
@@ -3726,7 +3733,7 @@
     },
     "dl38": {
       "file": "dl38.bin",
-      "sha256": "011482b276e4f6cf7246bf883f3515dc8734d3548268cd8b329d095393767dd5",
+      "sha256": "1dd6252afdac03db6c60a8c4dd30329cd60be60447fa6cbfc2d08a392263d2a7",
       "byteLength": 960000,
       "vertexCount": 24000,
       "min": [
@@ -3740,9 +3747,10 @@
         3.1119792461395264
       ],
       "source": {
-        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/dl38/dl38.model.json",
-        "rawSha256": "401caa47aec1f4365bf80b9885e31e923264eac36329b80a59f8a0a0a9cc4094",
-        "engineeringDimensionsM": null
+        "metadata": "output/fleet-refinement-20260912/models/dl38/dl38.model.json",
+        "rawSha256": "4f102c52bcca14c2fda3e99f1b9caf7ac401917f2e3b6aa12f4875966767a294",
+        "engineeringDimensionsM": null,
+        "releaseSha256": "b4d5a840dd1c5f19a452269c167ccf611704a7e6f190798f93fd85c3ad999b6a"
       },
       "appearance": "blender-map-lod"
     },
@@ -3836,7 +3844,7 @@
     },
     "bluecoach": {
       "file": "bluecoach.bin",
-      "sha256": "d28fe359fc73ecea358a835fef25d538e5652c1679423fa3e351a78a17ff7db9",
+      "sha256": "92be69a81abb4502019e0df775eddb8b5b42860adefe40d67cf41fc29d3828df",
       "byteLength": 959760,
       "vertexCount": 23994,
       "min": [
@@ -3850,10 +3858,10 @@
         3.573901414871216
       ],
       "source": {
-        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/bluecoach/bluecoach.model.json",
-        "rawSha256": "7cf01a33235d406e90337d52efb0d06652f654b3f0dfbdeb9b212e076bfd2a7e",
+        "metadata": "output/fleet-refinement-20260912/models/bluecoach/bluecoach.model.json",
+        "rawSha256": "703cffbe821a16c485791bbbb30af7795d69f9de6b5f86f31d408303ab55210d",
         "engineeringDimensionsM": null,
-        "releaseSha256": "a80dd45fd7792a923a3658dbf0daf7facc5dde5885424ac0b0ac8c29117317ef"
+        "releaseSha256": "b4d5a840dd1c5f19a452269c167ccf611704a7e6f190798f93fd85c3ad999b6a"
       },
       "appearance": "blender-map-lod"
     },
@@ -3881,7 +3889,7 @@
     },
     "alicoach": {
       "file": "alicoach.bin",
-      "sha256": "40abd880c5a81587668594cd0361e81dbe57a80989d76d41f1bdb19ce3e9cc58",
+      "sha256": "339576a4a13ebb6f91253b12e273ff8bed6bd229fbaf897baacbc6755a36a557",
       "byteLength": 960000,
       "vertexCount": 24000,
       "min": [
@@ -3895,9 +3903,10 @@
         3.0000691413879395
       ],
       "source": {
-        "metadata": "prototypes/tiny-trains/blender/fleet-v1/models/alicoach/alicoach.model.json",
-        "rawSha256": "000789958a70b00356155a01846eed3481ab29364927ad10069982ac8aae0b20",
-        "engineeringDimensionsM": null
+        "metadata": "output/fleet-refinement-20260912/models/alicoach/alicoach.model.json",
+        "rawSha256": "1e4831fd5c0dd3b012783dd33e8b122882e18032e9ac60366572fd1fa0892024",
+        "engineeringDimensionsM": null,
+        "releaseSha256": "b4d5a840dd1c5f19a452269c167ccf611704a7e6f190798f93fd85c3ad999b6a"
       },
       "appearance": "blender-map-lod"
     },

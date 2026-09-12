@@ -111,8 +111,9 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
   await page.evaluate(()=>{openTrainGarage();window.dispatchEvent(new Event('rail:native-back',{cancelable:true}));});check(engine+' App 返回關閉車庫',await page.evaluate(()=>!TrainGarage.isOpen));
   check(engine+' 桌面無 JS 例外',errors.length===0,errors);await ctx.close();
   }
-  for(const width of [360,375,390,414,600,768,844]){
+  for(const width of (process.env.GARAGE_WIDTHS?process.env.GARAGE_WIDTHS.split(',').map(Number):[360,375,390,414,600,768,844])){
    const {ctx,page,errors}=await boot(browser,width,'',width===844?390:width===768?1024:width===360?640:width===375?667:width===414?736:900);
+   await page.waitForFunction(()=>state.trains.some(t=>t.sys==='tra_sched'&&!t.loop),null,{timeout:90000});
    await page.evaluate(()=>{document.body.classList.add('fs');const banner=document.getElementById('alertBanner');banner.hidden=false;banner.textContent='營運公告';const tr=state.trains.find(t=>t.sys==='tra_sched'&&!t.loop);followTrainNo(tr.train,{sys:tr.sys});openRidePanel();});
    await page.tap('#tabMore');await page.locator('#moreSheet [data-act="garage"]').scrollIntoViewIfNeeded();await page.tap('#moreSheet [data-act="garage"]');await ready(page);
    const first=await page.evaluate(()=>{const c=document.querySelector('.g-view').getBoundingClientRect(),s=document.querySelector('.g-model-select').getBoundingClientRect(),d=document.getElementById('trainGarage');return {canvasTop:c.top,canvasBottom:c.bottom,selectorTop:s.top,selectorBottom:s.bottom,height:innerHeight,scroll:d.scrollTop};});

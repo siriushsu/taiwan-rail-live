@@ -1,5 +1,6 @@
 // 車庫的完整 Blender 素材與既有中間車／輕軌分節共用載入器。
 import * as THREE from './vendor/three.module.js';
+import {createTrainLights} from './garage-train-lights.js';
 const base=new URL('./assets/garage-blender-v1/',import.meta.url),mapBase=new URL('./assets/blender-map-v1/',import.meta.url);
 async function json(url,signal){const r=await fetch(url,{signal});if(!r.ok)throw Error('model metadata');return r.json();}
 async function checked(url,signal,bytes,sha,gzip=false){
@@ -29,7 +30,7 @@ export async function loadGarageModel(id,signal,mapMeta,reference){
      // Blender 與 Three 的色彩轉換有浮點近似差；只容許極小誤差，仍須同時符合粗糙度。
      if(mi===undefined){mi=swatches.findIndex(s=>s.every((v,k)=>Math.abs(v-data[j+6+k])<.0002));if(mi<0)throw Error('model material');palette.set(k,mi);}
      buckets[mi].push(i,i+1,i+2);
-     if(materials[mi].name==='glass'){
+     if(materials[mi].name==='glass'||materials[mi].userData.railLightingRole==='window'){
       // 簡化時的平滑法線會把平面玻璃變成鼓起的反光；車窗用實際三角面方向。
       a.set(data[j+10]-data[j],data[j+11]-data[j+1],data[j+12]-data[j+2]);b.set(data[j+20]-data[j],data[j+21]-data[j+1],data[j+22]-data[j+2]);n.crossVectors(a,b).normalize();
       for(let k=0;k<3;k++)n.toArray(data,j+k*10+3);
@@ -45,6 +46,7 @@ export async function loadGarageModel(id,signal,mapMeta,reference){
    geometry.setAttribute('position',new THREE.InterleavedBufferAttribute(buffer,3,0));geometry.setAttribute('normal',new THREE.InterleavedBufferAttribute(buffer,3,3));
    const flat=v=>Math.min(1,Math.max(0,(v*.95-.5)*.45+.5));
    for(const [i,g]of meta.mesh.drawGroups.entries()){geometry.addGroup(g.start,g.count,i);materials.push(new THREE.MeshPhysicalMaterial({name:g.name,color:new THREE.Color(...g.color),metalness:g.metalness,roughness:g.roughness,clearcoat:g.clearcoat,side:THREE.DoubleSide}));
+    materials[i].userData.railLightingRole=g.lightingRole||null;
     const l=flat(.2126*g.color[0]+.7152*g.color[1]+.0722*g.color[2]);lockedMaterials.push(grey(new THREE.MeshPhysicalMaterial({name:g.name+':locked',color:new THREE.Color(l,l,l),roughness:.9,side:THREE.DoubleSide})));
    }
   }
@@ -85,6 +87,7 @@ export async function createConsist(id,primary,signal,opts={}){
    couple();
   }
   straight(1);
-  return{root,cars,length:total,straight,follow,update(owned){for(const c of cars)c.body.material=owned?c.asset.materials:c.asset.lockedMaterials;},dispose(){root.clear();owned.forEach(a=>a.dispose());cg.dispose();cm.dispose();}};
+  const lighting=createTrainLights(cars);
+  return{root,cars,length:total,straight,follow,lighting,update(owned){for(const c of cars)c.body.material=owned?c.litMaterials:c.asset.lockedMaterials;},dispose(){lighting.dispose();root.clear();owned.forEach(a=>a.dispose());cg.dispose();cm.dispose();}};
  }catch(e){owned.forEach(a=>a.dispose());throw e;}
 }

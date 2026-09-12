@@ -51,7 +51,7 @@ export function createRenderer(onLost = () => {}) {
       let view=camera;
       if(onTrack){
         if(!consist)return false;if(!coast){coast=createCoast();scene.add(coast.group);}coast.group.visible=true;
-        consist.update(row.owned);const heading=options.direction===-1?0:Math.PI;consist.straight(options.direction);
+        consist.update(row.owned);consist.lighting.update(options.period,1,row.owned);const heading=options.direction===-1?0:Math.PI;consist.straight(options.direction);
         focus.set(0,0,1.9);const span=Math.max(3.6,consist.length*.61/aspect),radius=span/Math.tan(THREE.MathUtils.degToRad(22));
         coastCamera.aspect=aspect;coastCamera.updateProjectionMatrix();coastCamera.position.set(radius*Math.cos(elevation)*Math.cos(angle),radius*Math.cos(elevation)*Math.sin(angle),focus.z+radius*Math.sin(elevation));coastCamera.lookAt(focus);coastCamera.updateMatrixWorld();view=coastCamera;
         const theme=coast.update(options.distance||0,options.period,view,options.time||0);coast.shadow.scale.x=consist.length/14;
@@ -69,7 +69,7 @@ export function createRenderer(onLost = () => {}) {
         if(coast)coast.group.visible=false;scene.environment=environment.texture;scene.fog=null;hemi.color.set('#e6efff');hemi.groundColor.set('#938670');hemi.intensity=1.75;lights[0].color.set('#fff5e6');lights[0].position.set(7,-9,14);lights[0].intensity=3;lights[1].intensity=1.5;renderer.toneMappingExposure=1.02;
         if(onLoop){
           if(!consist)return false;if(!loop){loop=createLoop();scene.add(loop.group);}loop.group.visible=true;
-          consist.update(row.owned);consist.follow(loop,options.distance||0,options.direction);
+          consist.update(row.owned);consist.lighting.update(options.period,1,row.owned);consist.follow(loop,options.distance||0,options.direction);
           const horizontal=loop.half*Math.abs(Math.sin(angle))+loop.outer,vertical=Math.sin(elevation)*(loop.half*Math.abs(Math.cos(angle))+loop.outer)+2.3*Math.cos(elevation),span=Math.max(horizontal/aspect,vertical)*1.07;
           scene.updateMatrixWorld(true);focus.set(0,0,1.0);
           if(zoom>1){
@@ -96,8 +96,9 @@ export function createRenderer(onLost = () => {}) {
         }
       }
       // 玻璃單獨使用環境反射強度；只依賴 scene.environment 時，Three 會改用場景的統一強度。
-      for(const a of new Set(onScene?consist.cars.map(c=>c.asset):[primary]))for(const m of [...a.materials,...a.lockedMaterials])if(m.name==='glass'||m.name==='glass:locked'){
-        if(m.envMap!==scene.environment){m.envMap=scene.environment;m.needsUpdate=true;}m.envMapIntensity=onTrack&&m.name==='glass'?3.2:1;
+      const surfaceMaterials=onScene?consist.cars.flatMap(c=>[...c.litMaterials,...c.asset.lockedMaterials]):[...primary.materials,...primary.lockedMaterials];
+      for(const m of new Set(surfaceMaterials))if(m.name==='glass'||m.name==='glass:locked'||m.userData.railLightingRole==='window'){
+        if(m.envMap!==scene.environment){m.envMap=scene.environment;m.needsUpdate=true;}m.envMapIntensity=onTrack&&!m.name.endsWith(':locked')?3.2:1;
       }
       renderer.render(scene,view);const ctx=target.getContext('2d');ctx.clearRect(0,0,w,h);ctx.drawImage(renderer.domElement,0,0);
       target.dataset.rendered=id;target.dataset.appearance='blender-original';target.dataset.lock=row.owned?'off':'grey';target.dataset.vertices=String(primary.geometry.attributes.position.count);

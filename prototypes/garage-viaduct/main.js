@@ -17,6 +17,7 @@ function setTheme(next){period=next;const t=THEMES[period];document.body.dataset
 function draw(){
  if(!ready||disposed)return;
  viaduct.update(time,period);follow3D(viaduct.path,distance);
+ train.lighting.update(period,1);
  const rect=canvas.getBoundingClientRect(),aspect=rect.width/Math.max(1,rect.height);
  if(view==='train'){target.set(0,0,0);for(const c of train.cars)target.add(c.car.position);target.multiplyScalar(1/train.cars.length);target.z+=1.4;}else target.set(0,1.5,2.6);
  focus.copy(target).add(pan);
@@ -56,7 +57,7 @@ try{
  viaduct=createScene();scene.add(viaduct.group);primary=await loadGarageModel('emu3000');if(disposed){primary.dispose();throw Error('disposed');}train=await createConsist('emu3000',primary);if(disposed){train.dispose();throw Error('disposed');}scene.add(train.root);train.root.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
  follow3D=createTerrainFollower(train);ready=true;loading.hidden=true;setView(view);setTheme(period);controls();resize();draw();schedule();
  window.viaductPreview={
-  get state(){return{ready,period,view,running,pan:{x:pan.x,y:pan.y},distance,time,zoom,draws,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,memory:{...renderer.info.memory},poses:train.cars.map(c=>({id:c.id,x:c.car.position.x,y:c.car.position.y,z:c.car.position.z,heading:c.heading,pitch:c.pitch,offset:c.offset,length:c.length})),trainLength:train.length,pathLength:viaduct.path.length,params:viaduct.params,speed:SPEED, bounds:train.cars.map(c=>{const b=new THREE.Box3().setFromObject(c.car),ps=[];for(const x of [b.min.x,b.max.x])for(const y of [b.min.y,b.max.y])for(const z of [b.min.z,b.max.z]){const q=new THREE.Vector3(x,y,z).project(camera);ps.push([(q.x+1)*canvas.width/2,(1-q.y)*canvas.height/2]);}return{left:Math.min(...ps.map(p=>p[0])),right:Math.max(...ps.map(p=>p[0])),top:Math.min(...ps.map(p=>p[1])),bottom:Math.max(...ps.map(p=>p[1]))};})};},
+  get state(){return{ready,lighting:train.lighting.state,period,view,running,pan:{x:pan.x,y:pan.y},distance,time,zoom,draws,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,memory:{...renderer.info.memory},poses:train.cars.map(c=>({id:c.id,x:c.car.position.x,y:c.car.position.y,z:c.car.position.z,heading:c.heading,pitch:c.pitch,offset:c.offset,length:c.length})),trainLength:train.length,pathLength:viaduct.path.length,params:viaduct.params,speed:SPEED, bounds:train.cars.map(c=>{const b=new THREE.Box3().setFromObject(c.car),ps=[];for(const x of [b.min.x,b.max.x])for(const y of [b.min.y,b.max.y])for(const z of [b.min.z,b.max.z]){const q=new THREE.Vector3(x,y,z).project(camera);ps.push([(q.x+1)*canvas.width/2,(1-q.y)*canvas.height/2]);}return{left:Math.min(...ps.map(p=>p[0])),right:Math.max(...ps.map(p=>p[0])),top:Math.min(...ps.map(p=>p[1])),bottom:Math.max(...ps.map(p=>p[1]))};})};},
   sample:s=>viaduct.path.sample(s),
   project:p=>{const q=new THREE.Vector3(...p).project(camera);return{x:(q.x+1)*canvas.width/2,y:(1-q.y)*canvas.height/2};},
   setTime:t=>{time=t;distance=t*SPEED;draw();},render:draw,dispose,

@@ -49,7 +49,7 @@ def export(id,tris,groups,source,translate=0):
 for item in catalog:
  id=item['id'];path=(SRC/item['metadata']).resolve();meta=json.loads(path.read_text());rawpath=path.parent/meta['mesh']['file'];raw=rawpath.read_bytes()
  if sha(raw)!=meta['mesh']['sha256']:raise ValueError(id+' 來源雜湊不符')
- source={'metadata':'prototypes/tiny-trains/blender/fleet-v1/'+os.path.relpath(path,SRC),'rawSha256':sha(raw),'engineeringDimensionsM':meta.get('engineeringDimensionsM'),'releaseSha256':sha((SRC/'release.json').read_bytes())}
+ source={'metadata':os.path.relpath(path,ROOT),'rawSha256':sha(raw),'engineeringDimensionsM':meta.get('engineeringDimensionsM'),'releaseSha256':sha((SRC/'release.json').read_bytes())}
  data=list(struct.iter_unpack('<6f',raw));groups=meta['mesh']['drawGroups'];identity=meta.get('identityMaterial') or meta.get('fleetNumberMaterial')
  vertices=[];faces=[];indices={};materials=[];normals=[]
  for gi,g in enumerate(groups):
