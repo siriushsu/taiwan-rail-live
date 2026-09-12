@@ -98,9 +98,9 @@ export async function createStationLayer(map,getState,onUpdate=()=>{}, {assetsBa
       }
       const visible=canShow&&!!r.model;r.maskActive=visible;let revision=r.stats.visible!==visible;
       if(r.model){r.model.visible=visible;if(visible){r.lastUsed=++clock;if(r.stats.groundM!==ground){r.model.position.z=ground;r.stats.groundM=ground;revision=true;}
-        // 複合園區逐棟貼地；同一個展示錨點不能把山坡上的煤場壓進地下。
+        // 複合園區逐棟貼地；相連的月台與棚架可共用地面錨點，避免棚柱懸空。
         if(r.meta.calibration){
-          const heights=new Map(r.meta.calibration.parts.map(p=>[p.id,state.terrain?map.queryTerrainElevation(p.anchor):0]));
+          const heights=new Map(r.meta.calibration.parts.map(p=>[p.id,state.terrain?map.queryTerrainElevation(p.terrainAnchor||p.anchor):(p.flatGroundOffsetM??0)]));
           r.model.traverse(mesh=>{if(!mesh.isMesh)return;const h=heights.get(mesh.userData.component);const ready=Number.isFinite(h);if(mesh.visible!==ready){mesh.visible=ready;revision=true;}if(ready&&mesh.position.z!==h-ground){mesh.position.z=h-ground;revision=true;}});
         }
         const inspect=!!state.stationInspection&&(state.stationInspectionAll||r.entry.key===state.place),appearance=JSON.stringify([inspect,r.stats.excludedComponents,!!state.stationSolidAppearance]);
