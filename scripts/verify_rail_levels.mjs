@@ -13,6 +13,22 @@ for(const ids of grid.values())for(let i=0;i<ids.length;i++)for(let j=i+1;j<ids.
 }
 fs.mkdirSync('output/rail-levels',{recursive:true});fs.writeFileSync('output/rail-levels/crossings.json',JSON.stringify(rows,null,2));console.log({ways:Object.keys(levels.entries).length,shared,crossings:rows.length,failed:rows.filter(r=>!r.pass).length,examples:rows.filter(r=>!r.pass).slice(0,8)});
 for(const [id,e]of Object.entries(levels.entries)){assert.equal(e.offsets.length,e.distances.length);assert.equal(e.values.length,e.distances.length);assert.ok(e.values.every(Number.isFinite)&&e.offsets.every(Number.isFinite));for(let i=1;i<e.offsets.length;i++){assert.ok(e.distances[i]>e.distances[i-1],'取樣里程必須遞增 '+id);assert.ok(Math.abs(e.offsets[i]-e.offsets[i-1])<=(e.distances[i]-e.distances[i-1])*.08+.002,'顯示坡道不連續 '+id);}}
+// display-profiles 那兩支的取樣里程也必須嚴格遞增。level-profiles 那份上面已經驗了，這兩支一直
+// 沒有人驗——而它們不只是算繪資料：build_rail_levels.mjs:16 的 at() 在 e.distances 上二分搜、把
+// values 內插成地表值，再當成露天段下界包絡 k.b（同檔 :80 的 node.ground）。里程一旦不遞增，內插
+// 分母會變負、外插出離譜的地表，於是解出來的顯示高度錯而且一聲不響：at() 只擋「分母恰為 0」。
+// 為什麼現在要補：2026-09-12 實測這兩支的最小相鄰間距已經在浮點精度邊緣（1.8e-15 與 3.6e-15 公尺），
+// 任何人把里程收精度來瘦檔（實測四捨五入到毫米，display-profiles 就有 307 對塌掉）都會踩到這裡。
+// 收精度本身是對的方向，但必須「捨入後把塌掉的點丟掉」而不是只捨入；這條就是那件事的守門人。
+const PAIRS={'display-profiles.json':600000,'metro-display-profiles.json':130000};
+for(const [pf,floor]of Object.entries(PAIRS)){const p=read(pf);let pairs=0;
+ for(const [id,e]of Object.entries(p.entries)){const d=e.distances;
+  for(let i=1;i<d.length;i++){pairs++;assert.ok(d[i]>d[i-1],`${pf} 取樣里程必須嚴格遞增：way ${id} 第 ${i} 點 ${d[i-1]} → ${d[i]}`);}}
+ assert.ok(pairs>=floor,`${pf} 只檢查到 ${pairs} 對相鄰里程，分母異常縮水（2026-09-12 基準 ${floor}）`);
+ // 正向對照：遞增判準恆真時零訊號，塞一個重複里程進去，同一個比較式必須判它不遞增。
+ const d=[...Object.values(p.entries)[0].distances];d[1]=d[0];
+ let caught=false;for(let i=1;i<d.length&&!caught;i++)if(!(d[i]>d[i-1]))caught=true;
+ assert.ok(caught,`${pf} 正向對照失效：塞進重複里程仍被判為嚴格遞增`);}
 for(const [file,sha]of Object.entries(levels.inputSha256||{}))assert.equal(crypto.createHash('sha256').update(fs.readFileSync('rail-3d/physical/'+file)).digest('hex'),sha,'來源幾何或 DEM 剖面改變，須重建層位');
 assert.equal(Object.keys(levels.inputSha256||{}).length,6);
 assert.equal(levels.railElevationM,null);
