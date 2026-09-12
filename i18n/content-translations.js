@@ -4,6 +4,8 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "台南地面鐵道・歷史重播": "Tainan surface railway · Historical replay",
+    "新增台南地面鐵道重播，保留舊站、地面股道與封存班表": "Replay Tainan’s surface railway with its historic station, ground-level tracks and archived timetable.",
     "修正地下段多餘橋墩、洞口內的山體與路基閃動，橋墩改得更低調；明亮外觀預設關閉日夜光影，暗色預設開啟": "Fixed unwanted underground piers, terrain inside tunnel openings and flickering embankments, with subtler bridge piers. Day/night lighting now defaults off in light appearance and on in dark appearance.",
     "夜間車頭燈更明亮，近看時列車前方會灑下柔和的地面光": "Brighter nighttime headlights now cast a soft pool of light ahead of trains when viewed up close.",
     "山嵐號可以在地圖上認出來並跟車，環島之星與山海／平原號改畫成機車牽引的觀光列車": "Shanlan can now be identified and followed on the map, and Formosa Star Cute Express, Mountain & Sea and Plains Explorer are drawn as locomotive-hauled tourist trains.",
@@ -258,6 +260,8 @@
   });
 
   Object.assign(messages.ja, {
+    "台南地面鐵道・歷史重播": "台南の地上鉄道・過去の運行を再生",
+    "新增台南地面鐵道重播，保留舊站、地面股道與封存班表": "台南の旧駅舎と地上の線路を残し、保存した時刻表で当時の運行を再生できます。",
     "修正地下段多餘橋墩、洞口內的山體與路基閃動，橋墩改得更低調；明亮外觀預設關閉日夜光影，暗色預設開啟": "地下区間の不要な橋脚、坑口内の地形、路盤のちらつきを修正し、橋脚の見た目を控えめにしました。昼夜の光は明るい外観では初期設定でオフ、暗い外観ではオンになります。",
     "夜間車頭燈更明亮，近看時列車前方會灑下柔和的地面光": "夜間の前照灯を明るくし、近くでは列車前方の地面に柔らかな光が広がります。",
     "山嵐號可以在地圖上認出來並跟車，環島之星與山海／平原號改畫成機車牽引的觀光列車": "山嵐号を地図上で識別して追跡できるようになりました。環島之星 萌旅号、山海号、平原号は機関車牽引の観光列車として描画されます。",

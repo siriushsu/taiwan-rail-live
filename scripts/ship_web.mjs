@@ -127,6 +127,9 @@ try {
   const historic = spawnSync('node', [path.join(wt, 'scripts', 'verify_historic_assets.mjs')], { encoding: 'utf8' });
   process.stdout.write(historic.stdout || ''); process.stderr.write(historic.stderr || '');
   if (historic.status !== 0) fail('歷史建物資產或定位契約未通過');
+  const tainanMemory = spawnSync('node', [path.join(wt, 'scripts', 'verify_tainan_memory.mjs')], { encoding: 'utf8' });
+  process.stdout.write(tainanMemory.stdout || ''); process.stderr.write(tainanMemory.stderr || '');
+  if (tainanMemory.status !== 0) fail('台南地面鐵道封存雜湊、班次或沿軌接續未通過');
   const railLevels = spawnSync('node', [path.join(wt, 'scripts', 'verify_rail_levels.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(railLevels.stdout || ''); process.stderr.write(railLevels.stderr || '');
   if (railLevels.status !== 0) fail('軌道上下層、交叉淨距或來源剖面版本未通過');
