@@ -3,9 +3,12 @@
   const base='./rail-3d/integration/';
   const {installFollowCameraLock}=await import(base+'follow-camera-lock.js');
   let cameraLock=null;
-  const {formationFor,airportServiceForTrip,tripDirection,stationDirection}=await import(base+'formations.js');
+  const {formationFor,tripDirection,stationDirection}=await import(base+'formations.js');
   const directionCache=new WeakMap();function timetableDirection(tr,ln){if(!directionCache.has(tr))directionCache.set(tr,tripDirection(tr,ln.stations.length,!!ln.loop));return directionCache.get(tr);}
-  const serviceCache=new WeakMap();function airportService(tr){if(!serviceCache.has(tr))serviceCache.set(tr,airportServiceForTrip(tr));return serviceCache.get(tr);}
+  // 機捷車種讀官方 TrainType(index.html 的 tymcKindOf,來源 TDX StationTimeTable),不由停靠樣態回推——
+  // 官方另有「跳站的普通車」,回推會把它畫成 5 節直達車。實測今日兩種日型 607 班官方全部有標,
+  // 回推則 11 班猜不出、6 班猜錯。官方沒標的留 null,照舊退成 3 節示意並標「當班編組待確認」。
+  const TYMC_SERVICE={com:'local',exp:'express'};
   const params=new URLSearchParams(location.search);
   if(params.get('tracks')!=='legacy')import('./rail-3d/physical/client.js').then(m=>m.loadPhysicalMotion()).then(m=>{window.railIslandPhysical=m;glTracks.sig='';}).catch(e=>console.error('實體股道',e));
   const read=(key,fallback)=>{try{return sessionStorage.getItem(key)||fallback;}catch{return fallback;}};
@@ -64,7 +67,7 @@
         }continue;
       }
       if(ln._tt){for(const tr of ln._tt){const f=state.freqFollow;
-        add([sys,ln.id,ln._ttServiceDay||day,'tt',tripKey(tr)].join(':'),freqTrainPosAt(ln,tr,state.simSec),{...common,airportService:sys==='tymc'?airportService(tr):null,sourceKind:'timetable',direction:Math.sign(tr.at(-2)-tr[0]),railDirection:timetableDirection(tr,ln),followed:!!f&&f.ln===ln&&f.tr===tr},{ln,tr});}
+        add([sys,ln.id,ln._ttServiceDay||day,'tt',tripKey(tr)].join(':'),freqTrainPosAt(ln,tr,state.simSec),{...common,airportService:sys==='tymc'?(TYMC_SERVICE[tymcKindOf(ln,tr)]||null):null,sourceKind:'timetable',direction:Math.sign(tr.at(-2)-tr[0]),railDirection:timetableDirection(tr,ln),followed:!!f&&f.ln===ln&&f.tr===tr},{ln,tr});}
       }else if(ln.sched)for(let k=0;k<ln.n;k++){const tau=(state.mode==='sched'?state.decoElapsed:state.elapsed)*state.speedMult+k*ln.period/ln.n,f=state.freqFollow;
         add([sys,ln.id,day,'frequency',k].join(':'),posPeriodic(ln,tau),{...common,sourceKind:'frequency',direction:null,followed:!!f&&f.ln===ln&&f.k===k},{ln,k});}
     }

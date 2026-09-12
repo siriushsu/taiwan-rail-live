@@ -66,17 +66,13 @@ const variants=new WeakMap();
 export function formationFor(v,mode='actual'){
   const base=baseFormation(v);if(!base)return null;
   let pair=variants.get(base);if(!pair){pair={};variants.set(base,pair);}mode=mode==='three'?'three':'actual';if(pair[mode])return pair[mode];
-  const compact=mode==='three'||!base.countKnown,lengths=compact?[base.lengths[0],base.lengths[Math.floor(base.lengths.length/2)],base.lengths.at(-1)]:base.lengths;
+  // 三節示意取首、中、尾；本來就不到三節的（臺中捷運、三鶯線各 2 節）維持原節數——
+  // 示意模式是把長列車縮短，不該反而多長一節出來。
+  const compact=(mode==='three'||!base.countKnown)&&base.lengths.length>3,
+    lengths=compact?[base.lengths[0],base.lengths[Math.floor(base.lengths.length/2)],base.lengths.at(-1)]:base.lengths;
   const countBasis=base.countKnown?'standard':'unknown',actualCarCount=base.countKnown?base.lengths.length:null;
   return pair[mode]={...base,lengths,compact,mode,countBasis,actualCarCount,key:[base.id,base.lengths.length,mode,base.countKnown].join(':'),
     caption:mode==='three'?'3 節示意':base.countKnown?`${base.lengths.length} ${base.articulated?'分節':'節'} · 標準編組`:'3 節示意 · 當班編組待確認'};
-}
-// 只用完整停靠序列判別服務；不把車次 ID 或單一跳站誤當實際車型。
-export function airportServiceForTrip(tr){
-  if(!Array.isArray(tr)||tr.length<4)return null;const stops=tr.filter((_,i)=>i%2===0);
-  if(stops.every((s,i)=>i===0||Math.abs(s-stops[i-1])===1))return 'local';
-  const express=new Set([0,2,7,11,12,17,20]);
-  return stops.every(s=>express.has(s))&&stops.some((s,i)=>i>0&&Math.abs(s-stops[i-1])>=4)?'express':null;
 }
 // 環線回到起站不代表反向；用逐站的小幅前進判斷，真正折返的混合序列交回動態軌跡。
 export function stationDirection(a,b,count,loop=false){let d=b-a;if(!Number.isFinite(d))return null;if(loop&&count>1){if(d>count/2)d-=count;if(d<-count/2)d+=count;}return Math.sign(d)||null;}

@@ -4,6 +4,8 @@ import {applyOutdoorRailGrade} from './lib/outdoor_rail_grade.mjs';
 import {openRailDem} from './lib/local_rail_dem.mjs';
 // layer 只代表相交處的上下關係。顯示間距與坡道均為估計，沒有改動 XY 或派軌。
 import fs from 'node:fs';import crypto from 'node:crypto';import {makePath} from '../rail-3d/integration/train-path.js';
+// 官方圖資對不上現地的具名排除（清單與理由在該檔）。
+import {OFFICIAL_IGNORE} from './lib/rail_official_ignore.mjs';
 import {classifyRailStructure as classify} from '../rail-3d/physical/structure-kind.js';
 // 南港東側兩個交叉的 layer 與明示樓層互相矛盾：此處採同來源 B1（高鐵）／-3（台鐵）的樓層上下序。
 const rankOverrides={'706622459':-1};
@@ -13,7 +15,7 @@ const read=f=>JSON.parse(fs.readFileSync('rail-3d/physical/'+f));
 // 整條 entry 傳進 classify，不是只傳 kind——只傳 kind 會讓反向改判整批靜默失效。
 const officialFile='data/rail_structures_official.json',official=JSON.parse(fs.readFileSync(officialFile)).entries;
 const records=[],segments=[],grid=new Map(),seen=new Set(),crossings=[];
-for(const [nf,pf]of [['network.json','display-profiles.json'],['metro-network.json','metro-display-profiles.json']]){const n=read(nf),p=read(pf);for(const w of n.ways){const path=makePath(w.coordinates),e=p.entries[w.id],c={...classify(w.tags,official[w.id]),...(rankOverrides[w.id]!==undefined?{rank:rankOverrides[w.id],correction:'來源 level=B1；與 layer=-3 衝突，採與相鄰 B1 股道一致的樓層序'}:{})},at=s=>{let i=0,j=e.distances.length-1;while(j-i>1){const k=(i+j)>>1;if(e.distances[k]<=s)i=k;else j=k;}const f=(s-e.distances[i])/(e.distances[j]-e.distances[i]||1);return e.values[i]*(1-f)+e.values[j]*f;},r={w,path,e,c,at,pins:[]};records.push(r);
+for(const [nf,pf]of [['network.json','display-profiles.json'],['metro-network.json','metro-display-profiles.json']]){const n=read(nf),p=read(pf);for(const w of n.ways){const path=makePath(w.coordinates),e=p.entries[w.id],c={...classify(w.tags,OFFICIAL_IGNORE.has(String(w.id))?null:official[w.id]),...(rankOverrides[w.id]!==undefined?{rank:rankOverrides[w.id],correction:'來源 level=B1；與 layer=-3 衝突，採與相鄰 B1 股道一致的樓層序'}:{})},at=s=>{let i=0,j=e.distances.length-1;while(j-i>1){const k=(i+j)>>1;if(e.distances[k]<=s)i=k;else j=k;}const f=(s-e.distances[i])/(e.distances[j]-e.distances[i]||1);return e.values[i]*(1-f)+e.values[j]*f;},r={w,path,e,c,at,pins:[]};records.push(r);
 for(let i=1;i<w.coordinates.length;i++){const a=w.coordinates[i-1],b=w.coordinates[i],ix=segments.length;segments.push({r,a,b,i});for(let x=Math.floor(Math.min(a[0],b[0])*250);x<=Math.floor(Math.max(a[0],b[0])*250);x++)for(let y=Math.floor(Math.min(a[1],b[1])*250);y<=Math.floor(Math.max(a[1],b[1])*250);y++){const k=x+','+y;if(!grid.has(k))grid.set(k,[]);grid.get(k).push(ix);}}}}
 const cross=(a,b)=>a[0]*b[1]-a[1]*b[0];
 for(const ids of grid.values())for(let i=0;i<ids.length;i++)for(let j=i+1;j<ids.length;j++){const key=ids[i]+':'+ids[j];if(seen.has(key))continue;seen.add(key);const a=segments[ids[i]],b=segments[ids[j]];if(a.r.w.id===b.r.w.id||a.r.c.rank===b.r.c.rank)continue;const da=[a.b[0]-a.a[0],a.b[1]-a.a[1]],db=[b.b[0]-b.a[0],b.b[1]-b.a[1]],q=[b.a[0]-a.a[0],b.a[1]-a.a[1]],den=cross(da,db);if(Math.abs(den)<1e-16)continue;let t=cross(q,db)/den,u=cross(q,da)/den;if(t< -1e-8||t>1+1e-8||u< -1e-8||u>1+1e-8)continue;t=t<1e-8?0:t>1-1e-8?1:t;u=u<1e-8?0:u>1-1e-8?1:u;

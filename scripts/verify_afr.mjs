@@ -603,7 +603,9 @@ console.log('\n═══ H. 近景不可把軌道畫沒了（實體股道白名�
 //
 // 判準取兩個地點各量一次,兩邊都是正向斷言(「抽掉的系統都有替代」寫成通則會假紅——
 // visibleRoutes 只回視野內的股道,站在阿里山時台鐵本來就沒有替代幾何,那不是缺陷):
-//   · 阿里山近景:林鐵**不該**被抽換,四條示意線形要還在圖層 filter 裡。
+//   · 阿里山近景:林鐵**該**被抽換(2026-09-12 起 afr_sched 回到 PHYSICAL_SYSTEMS),而且
+//     要換得出 physical 路線回來——這一條才是當年那個缺陷的正向判準:「抽掉了換不出來」。
+//     原本寫成「林鐵不該被抽換」是把當時的權宜狀態當成規格,白名單一改就會假紅。
 //   · 台北近景:台鐵**該**被抽換,而且要換得出 physical 路線回來。
 // 只跑 chromium:量的是 frame payload 與圖層 filter(純 JS 判斷),不是各引擎的算繪差異。
 // ?scene=3d 是必要的——不強制 3D 場景時 renderer 不產生幀、capture() 的 replacedLineKeys 恆空,
@@ -627,6 +629,7 @@ console.log('\n═══ H. 近景不可把軌道畫沒了（實體股道白名�
         replacedAfr: rep.filter(k => /^afr_sched\|/.test(k)).length,
         afrDrawn: drawn.filter(k => /^afr_sched\|/.test(k)).length,
         traPhysical: routes.filter(r => r.physical && r.systemId === 'tra_sched').length,
+        afrPhysical: routes.filter(r => r.physical && r.systemId === 'afr_sched').length,
       };
     });
   };
@@ -634,8 +637,8 @@ console.log('\n═══ H. 近景不可把軌道畫沒了（實體股道白名�
   const far = await read(13, ALISHAN, 'far'), near = await read(15, ALISHAN, 'near'), tpe = await read(15, TAIPEI, 'tpe');
   ok(far.afrDrawn >= 4, `[chromium] 遠景(raw ${far.raw})林鐵有 ${far.afrDrawn} 條軌道在畫（正向對照:判準量得到東西）`);
   ok(near.replaced > 0, `[chromium] 近景(raw ${near.raw})確實有在抽換示意線形（${near.replaced} 個 lineKey；為 0 表示下面兩條恆真）`);
-  ok(near.afrDrawn >= 4 && near.replacedAfr === 0,
-    `[chromium] 近景林鐵仍有 ${near.afrDrawn} 條軌道在畫、且沒被列為已抽換（被抽換 ${near.replacedAfr} 條；0 條在畫就是「放大後林鐵消失」那個回歸）`);
+  ok(near.replacedAfr > 0 && near.afrPhysical > 0,
+    `[chromium] 近景林鐵抽掉 ${near.replacedAfr} 條示意線形、換回 ${near.afrPhysical} 條實體股道（抽掉了卻換不出來就是「放大後林鐵消失」那個回歸；示意線形剩 ${near.afrDrawn} 條）`);
   ok(tpe.traPhysical > 0, `[chromium] 近景台北的台鐵換得出 ${tpe.traPhysical} 條實體股道（抽掉了卻換不出來就是同一個病）`);
   await ctx.close();
   await b.close();

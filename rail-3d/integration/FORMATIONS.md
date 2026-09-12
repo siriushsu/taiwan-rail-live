@@ -27,7 +27,7 @@
 - [台鐵普悠瑪事故調查報告](https://www.railway.gov.tw/tra-tip-web/tip/file/d2a8e89f-1ab8-4355-9f5f-bf04c0a4f9af)：表 3.4.1 的車體尺寸；列車總長 168,390 mm。
 - [Hitachi：TEMU1000 增備](https://www.hitachi.com/New/cnews/month/2015/01/150109.html)：16 輛共兩組，核對 8 節標準編組。
 - [桃園捷運列車介紹](https://www.tymetro.com.tw/tymetro-new/tw/_pages/travel-guide/introduce.html)：普通 4 節約 82 m；直達 4 旅客車＋1 行李車約 102 m。
-- [桃捷時刻表說明](https://www.tymetro.com.tw/tymetro-new/tw/_pages/travel-guide/timetable-search.php?Lang=zh-tw)：有普通車車型跳停服務，不能將任何跳站都判為 5 節直達車。整合端只從完整且可辨識的停靠序列選擇標準外觀；混合停靠或 Core 未附完整服務資料時標示未知。
+- [桃捷時刻表說明](https://www.tymetro.com.tw/tymetro-new/tw/_pages/travel-guide/timetable-search.php?Lang=zh-tw)：有普通車車型跳停服務，不能將任何跳站都判為 5 節直達車。**2026-09-12 起車種改讀官方 TrainType**（TDX StationTimeTable，1=普通車 2=直達車，經 build_metro_times.mjs 寫進 `tymc_times.json` 的 `kinds`），不再由停靠樣態回推——回推在今日兩種日型的 607 班裡 11 班判不出、6 班判錯（跳站的普通車被當成直達車）。官方沒標的仍標示未知，不猜。
 - [高捷：目前三節車廂的營運模式](https://www.krtc.com.tw/Service/faq_more?id=cfcf9e266ae4469eac293cb5d1289986)：不把遠期 6 節規劃當現況。
 - [高捷車務中心：電聯車與號誌系統](https://www.finance.nsysu.edu.tw/KRTC4/krtc_class/krtc2.pdf)：全列約 65.45 m。
 - [新北捷運列車介紹](https://www.ntmetro.com.tw/basic/?node=10012)：淡海／安坑 5 分節、34,450 mm。
