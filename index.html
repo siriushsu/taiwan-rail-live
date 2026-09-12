@@ -5445,14 +5445,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="tunnelseam0912"><span class="d">9/12</span><span>地下路段的列車車廂不再一節一節折斷、在不同高度之間跳</span></li>
+        <li data-cl-of="highfill0912"><span class="d">9/12</span><span>高填方的平面軌道改畫成高架橋，不再從軌面拉一道土牆到地面</span></li>
         <li data-cl-of="notrainoverlap0912"><span class="d">9/12</span><span>同一條股道上的兩列列車不再從彼此身上穿過去，後車會依前車位置減速跟車</span></li>
         <li data-cl-of="bootfaster0912"><span class="d">9/12</span><span>開站讀取變快：同一片地形不再重複下載，冷啟動要傳的資料從 110.6 MB 降到 21.3 MB</span></li>
         <li data-cl-of="surfacetrack0912"><span class="d">9/12</span><span>平地上的軌道不再被畫成隧道；抬高路基的土堆收窄、邊坡改成接近地表的顏色，看車時不再被土堆擋住</span></li>
         <li data-cl-of="tunnelportal0912"><span class="d">9/12</span><span>立體地圖的隧道口做成嵌進山坡的洞門，山丘表面那條軌道印子也拿掉了</span></li>
         <li data-cl-of="cityperf0912"><span class="d">9/12</span><span>都市的立體地圖拖起來更順，台北車站一帶重畫軌道的時間降到原本的六分之一</span></li>
         <li data-cl-of="thsrtracks0912"><span class="d">9/12</span><span>高鐵停靠列車改停外側月台、通過列車走內側正線，派車改用當日班表</span></li>
-        <li data-cl-of="landscapetrees0912"><span class="d">9/12</span><span>地景地圖的山區與海岸不再鋪滿示意樹，公園、村落與河岸的小片林地照舊；地形看得更清楚，拖動也更順</span></li>
-        <li data-cl-of="thsrhold0912"><span class="d">9/12</span><span>高鐵停靠列車在站上的等待縮短，最久的一班從 2 分半降到 44 秒</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5460,6 +5460,8 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="tunnelseam0912"><span class="d">9/12</span><span>修正地下路段的列車車廂一節一節折斷、在不同高度之間跳的問題：臺鐵板橋、萬華、松山、南港與南迴線都有，原本最大落差 11 公尺，現在相鄰車廂落差都在 1.7 公尺以內。</span></li>
+        <li data-cl="highfill0912"><span class="d">9/12</span><span>高填方的平面軌道改畫成高架橋：軌面離地 6 公尺以上不再從軌面拉一道土牆到地面，改成箱梁橋面配橋墩，地景從橋下透出來。臺鐵 37.3 公里、高鐵 0.7 公里換成高架，較低的填方仍是自然邊坡的路基。</span></li>
         <li data-cl="bootfaster0912"><span class="d">9/12</span><span>開站讀取變快：地形高程改成整片留在記憶體，同一片不再重複下載（開站預設視角的圖磚讀取從 12 次、96 MB 降到 1 次、8 MB，主畫面不再為此凍結 8.3 秒）；股道剖面的沿線里程精度收到 0.1 公釐，三個資料檔上線少傳 3.78 MB。冷啟動總下載量從 110.6 MB 降到 21.3 MB</span></li>
         <li data-cl="surfacetrack0912"><span class="d">9/12</span><span>平地上的軌道不再被畫成隧道：圖資只標了層級、現地卻沒有山丘的路段（例如中州到大湖之間）改回地面軌道，該畫的山洞照舊。抬高路基的土堆同時收窄：邊坡從 1.5:1 改成 1:1、底寬上限從 30 公尺降到 14 公尺，坡面改用接近地表的淺色、只有道碴頂面保留深色——原本全網平面軌道有 15.5% 的取樣點軌面高出地表 3 公尺以上，那些地方會畫出 13～30 公尺寬的土堆，整個畫面只看得到土、看不到車</span></li>
         <li data-cl="tunnelportal0912"><span class="d">9/12</span><span>立體地圖的隧道洞口改成嵌進山坡的洞門：面牆、翼牆與洞口下方的擋土牆，底緣都照現地地表走，不再是浮在半空的拱圈（全網 701 個洞口有 310 個軌面高出地表 3 公尺以上，最極端的高鐵三義段高出 15.8 公尺）；山丘表面那條沿著隧道走的軌道印子也拿掉了，隧道段的鐵路線不再鋪在地形表面上</span></li>
@@ -6435,7 +6437,7 @@
 //         新閘門 verify_thsr_station_tracks 掛出貨鏈。
 // v0911a：高鐵車站看板標出對號座餘位與票價、公車站牌可搜尋並逐路線報到站、小工具可設「自動(最近的站)」、
 //         三鶯線平日末班補上官方公告的 00:00 那一班;轉乘接續改成預設收合,收合態留最近一班的車次與「剩 N 分」。
-const BUILD = 'v0912e';
+const BUILD = 'v0912f';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
