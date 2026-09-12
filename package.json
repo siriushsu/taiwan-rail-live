@@ -109,6 +109,7 @@
     "check-3d-road-occlusion": "node scripts/verify_3d_road_occlusion.mjs",
     "build-3d-display-profiles": "node scripts/build_3d_display_profiles.mjs",
     "check-rail-structure-heights": "node scripts/verify_rail_structure_heights.mjs",
+    "check-terrain-chunk-cache": "node scripts/verify_terrain_chunk_cache.mjs",
     "check-worldcover": "node scripts/verify_worldcover.mjs",
     "check-landscape-basemap": "node scripts/verify_landscape_basemap.mjs",
     "check-tunnel-grade-stats": "node scripts/report_tunnel_grade_stats.mjs",

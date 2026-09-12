@@ -145,6 +145,12 @@ try {
   const structureHeights = spawnSync('node', [path.join(wt, 'scripts', 'verify_rail_structure_heights.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(structureHeights.stdout || ''); process.stderr.write(structureHeights.stderr || '');
   if (structureHeights.status !== 0) fail('橋隧種類或顯示高度未通過（單獨重跑：npm run check-rail-structure-heights）');
+  // 2026-09-12：地形分片的 Range 在 Cloudflare 靜態資產上不生效（要 16 KB 回 200 ＋整個 8 MB），
+  // 開站一次白抓 96 MB。本機 dev_server 會正確回 206 ⇒ 瀏覽器驗收在這件事上結構性失明，
+  // 這一支自己造一台照 Cloudflare 行為的伺服器來考，另配一台回 206 的當正向對照。
+  const terrainChunks = spawnSync('node', [path.join(wt, 'scripts', 'verify_terrain_chunk_cache.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(terrainChunks.stdout || ''); process.stderr.write(terrainChunks.stderr || '');
+  if (terrainChunks.status !== 0) fail('地形分片快取未通過——忽略 Range 的伺服器會被重複下載同一片（單獨重跑：npm run check-terrain-chunk-cache）');
   const guangci = spawnSync('node', [path.join(wt, 'scripts', 'verify_guangci_tracks.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(guangci.stdout || ''); process.stderr.write(guangci.stderr || '');
   if (guangci.status !== 0) fail('廣慈延伸段雙軌連通性或來源座標未通過');
