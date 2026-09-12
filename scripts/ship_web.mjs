@@ -133,6 +133,9 @@ try {
   const railLevels = spawnSync('node', [path.join(wt, 'scripts', 'verify_rail_levels.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(railLevels.stdout || ''); process.stderr.write(railLevels.stderr || '');
   if (railLevels.status !== 0) fail('軌道上下層、交叉淨距或來源剖面版本未通過');
+  const flatGrade = spawnSync('node', [path.join(wt, 'scripts', 'verify_flat_rail_grade.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(flatGrade.stdout || ''); process.stderr.write(flatGrade.stderr || '');
+  if (flatGrade.status !== 0) fail('平坦地圖的橋梁、引道或列車縱坡未通過');
   const railGrounding = spawnSync('node', [path.join(wt, 'scripts', 'verify_rail_grounding.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(railGrounding.stdout || ''); process.stderr.write(railGrounding.stderr || '');
   if (railGrounding.status !== 0) fail('橋梁來源判定或示意列車高度對應未通過');
