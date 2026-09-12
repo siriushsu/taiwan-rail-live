@@ -39,7 +39,8 @@ const widths = [360, 375, 414, 768];
 // 9/12：柴聯車推估編組一條（365→366）；併 origin/main 337bb2d3 時發現它的地下橋墩、車頭燈兩條
 //       同樣沒 bump（該分支自己跑這支會紅在 367），一併補齊 → 368。靜態數 li 與瀏覽器數 DOM
 //       兩邊獨立都是 368，所以是欠帳不是漏渲染。
-const expectedHistoryCount = 368;
+// 9/12：月台股道重新指派一條（368→369）。
+const expectedHistoryCount = 369;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
