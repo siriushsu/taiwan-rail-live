@@ -2,6 +2,8 @@
 
 分支 `fix/tra-overlap-rootcause-0914`，基底 `86663b05`（v0913e）。本輪只做量測與根因，**沒有改路網、進路、時間模型、車長、hold 上限**，也沒有部署。
 
+> 2026-09-14 深夜追記：F3 之後 F1／F2／F4 也已落地在同一分支（未併、未部署），結果、剩下的缺口與重跑順序在第九節。
+
 ## 一、結論（先講答案）
 
 互穿不是車長的問題，也不是「真實班表不可行」。**全日 4 秒解析度掃描，三個服務日各有 506～635 場互穿，長編組只多 3%**。事件分成四個獨立缺口，每一個都有程式碼與逐秒時間軸證據：
@@ -126,3 +128,64 @@
 - `scripts/summarize_overlap_intervals.mjs`（新）、`scripts/probe_overlap_timeline.mjs`（新）
 - `docs/tra-overlap-rootcause-0914/`：`families-0912-prod.txt`、`families-0913-prod.txt`、`families-0913-long.txt`、`families-0914-prod.txt`、`probe-0913-prod-keycases.txt`、`codemap_timing.md`、`codemap_dispatch.md`
 - 沒有動 `index.html`、`rail-3d/`、`data/`。
+- 2026-09-14 追記（第九節）：新增 `scripts/lib/parallel_tracks.mjs`、`scripts/lib/track_directions.mjs`、`scripts/repair_physical_directions.mjs`、`scripts/repair_physical_stations.mjs`、`scripts/verify_tra_overlap_families.mjs`、`scripts/fixtures/tra-overlap-families-baseline.json`；改了 `rail-3d/physical/{network,dispatch,level-profiles}.json`、`data/tra_track_sections.json`、`scripts/fixtures/remaining-routes-0913.json`、`scripts/verify_remaining_station_routes.mjs`。
+
+## 九、修復落地（2026-09-14，同一分支；未併 main、未部署）
+
+### 9.1 做了什麼（順序＝依賴順序，全部可從 HEAD 的輸入重跑、輸出逐 byte 相同）
+
+- **F3 交會／待避推論**：前一輪已落地（`a90c1a20`）。這輪 `build_run_profiles` 的統計：夾回 121 處通過時刻、窗內無解 10、重建不合格 9、位移超過上限 100。
+- **F1 方向規則** `scripts/repair_physical_directions.mjs`（方向模型 `scripts/lib/track_directions.mjs`；平行股道幾何 `scripts/lib/parallel_tracks.mjs` 與區間表建置器共用同一份判準，區間表逐 byte 不變）。每份計畫逐站做動態規劃：候選停車節點＝整份派車表曾派過該站的節點，相鄰兩站只准走不逆向通過任何乾淨方向股道的路徑，而且進站段與出站段在停車節點要接得上（`g.canTurn`，狀態帶著進站段）。乾淨方向股道 1729／2819 條有派車的正線。逆向段 **729 → 35**（187 份計畫、換 568 個停車節點、769 段路徑、新落成 582 條路徑）。剩 35 段：三貂嶺→大華 17（平溪線借宜蘭線股道）、新莊→竹中 8、猴硐→瑞芳 8、二水→田中 2。
+- **F2 節點／側線指派** `scripts/repair_physical_stations.mjs`：逐日名冊（14 天）；衝突模型 B＝同節點停站時窗相交、C＝停站時窗（前後各 60 s）內另一班的進出段經過該節點。**衝突時刻用 `computeProfiles`（含 F3 推論）的通過時刻，不用班表密化插值**——第一版用插值時刻，漏掉的正是 F3 把通過時刻夾進停站窗的那些（永康 135／3251、北新竹 273／1793、潮州 324／3268）。貪婪修：衝突最多的（車次, 站）先搬，候選＝派過的節點 ∪ 路網裡該站的停車位置（OSM `railway=stop` 與建置時推估停車點，含側線），進出段順向且前一站／本站／下一站三個接點都接得上，只認「該站與前後站衝突變少」。14 天模型 B **642 → 405**、C **9668 → 2652**；搬 367 個停車節點、8 份借路徑的計畫落成、新路徑 169；逆向段 35 → 35。60 個搬移目標是求解器派車表從沒用過的停車位置（都在正線或側線上的 OSM `railway=stop`／建置推估點，沒有 yard／spur）：福隆 7、雙溪 6、富岡 5、樹林 5、鶯歌 4、斗六 4、和仁 4、富里 4、楊梅 3、永康 3、光復 2、富源 2、新城 2、金崙 2，其餘各 1。
+- **F4 偵測成閘門** `scripts/verify_tra_overlap_families.mjs`（`npm run check-physical-overlap-families`）：4 秒全日掃描 → `summarize_overlap_intervals` 分家族 → 每個家族不得高於基線、不得出現基線沒有的家族；基線 `scripts/fixtures/tra-overlap-families-baseline.json`（三個服務日 × 生產／長編組）。同輸入重跑六組逐家族相同；突變（基線少 1、刪掉一個家族）都會紅。120 秒閘門的 A≤5／C≤10／B≤55／A′≤18 棘輪照舊，沒有放鬆。
+- **F5 長編組：沒開。** 第六節寫的判準是「三個服務日 4 s 掃描不再有 A′ 雙線與 B 類」，現況 A′ 雙線 73／76／62、B 35／39／27，未達。長編組探針的掃描只比生產編組多 +14／+16／+13 場，沒有新家族（9.2 表）。
+
+### 9.2 結果（4 秒全日掃描，獨立事件場次；修前＝F3 之後的基線）
+
+| 家族 | 9/12 | 9/13 | 9/14 |
+| --- | --- | --- | --- |
+| A′ 雙線同股（旁有平行股道） | 196 → **73** | 221 → **76** | 186 → **62** |
+| C 通過車穿過停站車，旁有平行股道 | 271 → **101** | 288 → **102** | 237 → **84** |
+| C 無平行股道 | 10 → 0 | 10 → 0 | 8 → 0 |
+| A′ 單線交會落站間 | 80 → 58 | 60 → 39 | 42 → 27 |
+| A 追撞頂到 120 s 上限 | 21 → 21 | 21 → 21 | 10 → 10 |
+| A 追撞未頂上限 | 4 → 3 | 6 → 5 | 3 → 2 |
+| B 同月台同節點 | 24 → **35** | 28 → **39** | 19 → **27** |
+| C 同月台進出尾巴 | 0 → 1 | 1 → 0 | 1 → 0 |
+| **合計** | **606 → 292** | **635 → 282** | **506 → 212** |
+| 長編組探針（修後） | 306 | 298 | 225 |
+
+120 秒閘門（`verify_physical_no_overlap`，三日各 12/12 PASS）：9/12 A3／A′7／B39／C6；9/13 A3／A′5／B52／C9（修前 A0／A′14／B26／C5）；9/14 A0／A′4／B28／C7。
+
+**B 變多是預期的**：以前是靠「兩班各走一股、方向亂派」把同月台疊車藏起來的，方向修對之後同向車都回到同一股，站沒有第三個可用節點就疊出來。F2 修不掉的 451 筆裡 438 筆是「無順向路徑」（見 9.3）。
+
+### 9.3 剩下的都是路網（OSM）與時間模型的事，不是判準
+
+- **C 平行 102（9/13）**：四城／礁溪 8、善化／拔林 6、瑞芳／猴硐 5、四腳亭／瑞芳 5、永康／新市 5、岡山／橋頭 5、竹南／崎頂 5、外澳／頭城 4、外澳／龜山 4、南靖／水上 4、竹南／造橋 4。F2 修不掉最多的站：礁溪 26、善化 23、新左營 22、岡山 22、枋寮 21、瑞芳 20、竹南 20、頭城 17、猴硐 16、龜山 15、羅東 11、五堵 10、永康 10——理由幾乎全是「無順向路徑」：候選側線在 OSM 只接一端（善化側線末端只有一組道岔）、缺渡線（岡山）。≤60 m 逆向跳接的放寬試過：0 筆解鎖，所以不是方向模型太嚴，是拓樸缺口，要補 OSM 或路網。
+- **B 39（9/13）**：新左營／左營 3、臺南／保安 3、三民／玉里 3、二結／宜蘭 3、善化／拔林 3、松山／臺北 3、四城／礁溪 2、瑞芳／四腳亭 2。玉里那 3 場是加了「道岔不得倒車」之後多出來的（第一版在玉里造出 4 處要倒車轉進道岔另一支的接法，被 `verify_remaining_station_routes` 抓到；合法的改法只剩留在同一股）。
+- **A′ 雙線 76（9/13）**：彰化／追分 20、山里／臺東 11、萬華／臺北 10（隧道 `1551465831` 兩向共用，第七節）、瑞穗／三民 6、八堵／七堵 5、枋野／大武 4、日南／苑裡 3——臺東線／南迴線的同名平行 way 仍未核實為第二股，方向模型照第七節不把它們當平行股道。
+- **A′ 單線 39 與 A 頂上限 21**：時間模型（交會窗內無解 10、重建不合格 9、位移超過上限 100，都是 `build_run_profiles` 自己列出來的），集中在枋寮／加祿／東海、東竹／富里、枋野；A 在七堵 2 場，其餘各 1。
+- **35 段逆向**（9.1）。
+
+### 9.4 順手修的、動了的閘門、沒動的
+
+- `verify_physical_runtime_cache.mjs` 在 origin/main 本來就紅：林鐵推拉方向（`86663b05` v0913e）是刻意加的，基線碼 `b5d7ff27` 沒有；比對前把舊碼的 `formationFacing` 乘上 `afrInitialFacing`，其餘逐值相同。突變（全系統翻面）會紅在台鐵班次。獨立一顆 commit。
+- `verify_remaining_station_routes.mjs`＋fixture `remaining-routes-0913.json`：「原派車表用過的停車節點」原本從現行派車表倒推，F1／F2 把別班搬走後集合會少掉當時真的用過的節點（3218@田中、246@羅東），改成釘在 fixture 的 `sourceStops`（768 個，取 `f492a546` 的派車表）。79 個計畫重釘為 F1／F2 之後的內容；四個 09-13 新建的加開模板 F2 各搬了一個停車節點，一併重釘。動態判準沒動，過：75 班、82 處、每秒取樣 89134 點、進出站邊界 870 處最大跳躍 0.07 m。09-13 的 82 處改動有 11 處被搬回 09-13 之前的節點：9 處是 F1（09-13 的目標節點在對向那一股），2 處是 F2（北湖 1163 衝突 78→68、太原 2 衝突 16→0）。
+- `verify_physical_tracks_browser.mjs` 第三項（A54 台北六車重放）在 origin/main `86663b05` 就逾時，與本批無關，未查。其餘：`verify_rail_levels`、`verify_run_profiles_match`、`verify_tra_plan_binding`、`verify_tra_pass_continuity`（4/4）、`verify_passing_avoidance` 全過；`data/tra_run_profiles.json` 內容不變。
+- 沒動：`index.html`、hold 上限 120、車身、班表時刻、`stopSignature`、yard／spur。
+
+### 9.5 跑法與順序（🔴 重抓班表 `npm run fetch-schedule` 之後整條重跑）
+
+```
+node scripts/repair_physical_directions.mjs            # → output/directions/
+OUT_DIR=output/stations NETWORK=output/directions/network.json DISPATCH=output/directions/dispatch.json node scripts/repair_physical_stations.mjs
+cp output/stations/{network,dispatch}.json rail-3d/physical/
+node scripts/build_rail_levels.mjs && node scripts/verify_rail_levels.mjs
+node scripts/build_tra_track_sections.mjs               # 區間表變了就 node scripts/build_run_profiles.mjs && node scripts/verify_run_profiles_match.mjs
+node scripts/verify_tra_plan_binding.mjs && node scripts/verify_remaining_station_routes.mjs
+TEST_DATE=<服務日> npm run check-physical-overlap        # 三個服務日各跑一次
+UPDATE_BASELINE=1 DATES=all node scripts/verify_tra_overlap_families.mjs   # 看過家族表沒有新家族才更新基線
+```
+
+`repair_physical_platforms.mjs`（不看方向的舊修法）已被 F2 取代，不要再跑。
+
