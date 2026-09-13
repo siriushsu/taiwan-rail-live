@@ -233,7 +233,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "a1dbffaad1089f704afc9f197ff6a1f0"
+   "checksum": "5c8dd3eb56ecdfd8bf3ac03e9234bbc2"
   },
   "data/tra_schedule_dense.json": {
    "sourceDescription": "時刻表來源：https://ods.railway.gov.tw/tra-ods-web/ods/download/dataResource/railway_schedule/JSON/list 清單頁，抓取今天(2026-09-09)起連續 14 天中實際發佈得到的 14 天（2026-09-09…2026-09-2",
@@ -270,6 +270,15 @@
    "geometrySource": "TDX",
    "coordinateBasis": "未載明(TDX 回傳 PositionLat/PositionLon,payload 無 CRS 欄位)",
    "checksum": "e9f9108b960c026c12b35ecbb6cdf9c3"
+  },
+  "data/tra_track_sections.json": {
+   "sourceDescription": "本站自算，無外部上游：由 rail-3d/physical/network.json（OSM 股道幾何）與 rail-3d/physical/dispatch.json（各站對實際派過的路徑）算出相鄰兩站之間有平行正線股道的長度佔比，≥0.5 判雙線（tracks=2）否則單線（tracks=1）。",
+   "sourceField": "source_notes",
+   "effectiveDate": null,
+   "effectiveDateField": null,
+   "geometrySource": null,
+   "coordinateBasis": null,
+   "checksum": "78bc625d51a682111afcfb25e90d6d06"
   },
   "data/track_lines.geojson": {
    "sourceDescription": "由 data/{tra,thsr_track,afr,trtc,tymc,ntdlrt,ntalrt,sanying,krtc,tmrt}.json 的 lines[].shape 與 lines[].stations 轉成 GeoJSON([lon,lat],小數 6 位),scripts/build_track_g",

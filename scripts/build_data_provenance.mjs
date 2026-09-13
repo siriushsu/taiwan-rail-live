@@ -53,6 +53,7 @@ export const GEOMETRY_SOURCE = {
   'data/tra.json': 'TDX+OSM',                  // 主線形 OSM Overpass;山線三義–后里等區段以 TDX Shape 替換
   'data/tra_pass_obs.json': null,
   'data/tra_run_profiles.json': null,           // 輸出只有時間與沿跑段的里程,不含座標(里程由 data/tra.json 線形算)
+  'data/tra_track_sections.json': null,         // 只有站對→單線/雙線與平行股道長度佔比,不含座標(幾何來自 rail-3d/physical/network.json)
   'data/tra_platforms.json': 'OSM',
   'data/tra_schedule_dense.json': 'TDX+OSM',   // 通過站沿 tra.json 線形內插
   'data/tra_special_trains.json': null,
