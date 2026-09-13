@@ -19,58 +19,19 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { makeParallelIndex, isTrack, segLen } from './lib/parallel_tracks.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const net = JSON.parse(readFileSync(path.join(ROOT, 'rail-3d/physical/network.json'), 'utf8'));
 const dispatch = JSON.parse(readFileSync(path.join(ROOT, 'rail-3d/physical/dispatch.json'), 'utf8'));
-const UNVERIFIED_REFS = new Set(['南迴線', '臺東線', '台東線']);
 // OSM 把「單一隧道、雙軌並列」的區段畫成一條 way（北迴線新觀音、新永春等隧道），幾何上量不到平行股道。
 // 北迴線 2005 年雙軌電氣化全線完工是公開事實（交通部鐵道局），整條線一律雙線；其餘線別只信幾何。
 const KNOWN_DOUBLE_REFS = { '北迴線': '北迴線雙軌電氣化 2005 年全線完工，OSM 雙軌隧道只畫一條 way' };
-const NEAR_M = 14, ANGLE = 25 * Math.PI / 180, DOUBLE_FRAC = 0.5;
+const DOUBLE_FRAC = 0.5;
 
 const ways = net.ways;
-const isTrack = w => w.system === 'tra_sched' && w.tags?.railway === 'rail' && !['siding', 'crossover', 'yard', 'spur'].includes(w.tags?.service) && Array.isArray(w.coordinates);
-const M = 111320;
-const lat0 = 23.7, kx = M * Math.cos(lat0 * Math.PI / 180);
-const xy = p => [p[0] * kx, p[1] * M];
-// 空間格：50 m 一格，鍵 = cellX:cellY，值 = [{w, i}]（way 與段序）
-const CELL = 50, grid = new Map();
-const cellKey = (x, y) => Math.floor(x / CELL) + ':' + Math.floor(y / CELL);
-const trackWays = ways.filter(isTrack);
-for (const w of trackWays) {
-  const c = w.coordinates;
-  for (let i = 0; i + 1 < c.length; i++) {
-    const A = xy(c[i]), B = xy(c[i + 1]);
-    const x0 = Math.min(A[0], B[0]) - NEAR_M, x1 = Math.max(A[0], B[0]) + NEAR_M, y0 = Math.min(A[1], B[1]) - NEAR_M, y1 = Math.max(A[1], B[1]) + NEAR_M;
-    for (let gx = Math.floor(x0 / CELL); gx <= Math.floor(x1 / CELL); gx++) for (let gy = Math.floor(y0 / CELL); gy <= Math.floor(y1 / CELL); gy++) {
-      const k = gx + ':' + gy; (grid.get(k) || grid.set(k, []).get(k)).push({ w, i, A, B });
-    }
-  }
-}
-const unverifiedPair = (a, b) => a.tags?.tunnel && b.tags?.tunnel && a.tags?.name && a.tags.name === b.tags.name && (UNVERIFIED_REFS.has(a.tags?.ref) || UNVERIFIED_REFS.has(b.tags?.ref));
-const parallelCache = new Map();  // wayId:i → true/false
-function hasParallel(w, i) {
-  const key = w.id + ':' + i;
-  if (parallelCache.has(key)) return parallelCache.get(key);
-  const c = w.coordinates, A = xy(c[i]), B = xy(c[i + 1]);
-  const mid = [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2], dir = Math.atan2(B[1] - A[1], B[0] - A[0]);
-  let found = false;
-  for (const e of grid.get(cellKey(mid[0], mid[1])) || []) {
-    if (e.w === w) continue;
-    if (unverifiedPair(w, e.w)) continue;
-    const vx = e.B[0] - e.A[0], vy = e.B[1] - e.A[1], L2 = vx * vx + vy * vy || 1;
-    const t = Math.max(0, Math.min(1, ((mid[0] - e.A[0]) * vx + (mid[1] - e.A[1]) * vy) / L2));
-    const d = Math.hypot(mid[0] - e.A[0] - vx * t, mid[1] - e.A[1] - vy * t);
-    if (d > NEAR_M) continue;
-    let ang = Math.abs(Math.atan2(vy, vx) - dir) % Math.PI; ang = Math.min(ang, Math.PI - ang);
-    if (ang > ANGLE) continue;
-    found = true; break;
-  }
-  parallelCache.set(key, found);
-  return found;
-}
-const segLen = (w, i) => { const A = xy(w.coordinates[i]), B = xy(w.coordinates[i + 1]); return Math.hypot(A[0] - B[0], A[1] - B[1]); };
+// 平行股道的判準（14 m、25°、南迴／臺東同名隧道不算）與 repair_physical_directions.mjs 共用 scripts/lib/parallel_tracks.mjs。
+const { hasParallel } = makeParallelIndex(ways);
 // 沿 walk 走一條路徑：[[wayIndex, startIdx, signedCount], ...]
 function pathStats(p) {
   let total = 0, par = 0; const refs = new Set();

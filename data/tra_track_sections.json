@@ -4,8 +4,8 @@
  "pairs": {
   "七堵|八堵": {
    "tracks": 2,
-   "parallelFrac": 0.992,
-   "lengthM": 2293,
+   "parallelFrac": 0.995,
+   "lengthM": 2382,
    "refs": [
     "宜蘭線",
     "縱貫線"
@@ -13,24 +13,24 @@
   },
   "七堵|百福": {
    "tracks": 2,
-   "parallelFrac": 0.941,
-   "lengthM": 2516,
+   "parallelFrac": 0.953,
+   "lengthM": 2409,
    "refs": [
     "縱貫線"
    ]
   },
   "九曲堂|六塊厝": {
    "tracks": 2,
-   "parallelFrac": 0.973,
-   "lengthM": 4911,
+   "parallelFrac": 0.968,
+   "lengthM": 4851,
    "refs": [
     "屏東線"
    ]
   },
   "九曲堂|後庄": {
    "tracks": 2,
-   "parallelFrac": 0.971,
-   "lengthM": 4090,
+   "parallelFrac": 0.964,
+   "lengthM": 3976,
    "refs": [
     "屏東線"
    ]
@@ -53,8 +53,8 @@
   },
   "二水|田中": {
    "tracks": 2,
-   "parallelFrac": 0.955,
-   "lengthM": 5696,
+   "parallelFrac": 0.96,
+   "lengthM": 5670,
    "refs": [
     "縱貫線",
     "集集線"
@@ -62,8 +62,8 @@
   },
   "二水|林內": {
    "tracks": 2,
-   "parallelFrac": 0.978,
-   "lengthM": 7981,
+   "parallelFrac": 0.975,
+   "lengthM": 8179,
    "refs": [
     "縱貫線",
     "集集線"
@@ -79,8 +79,8 @@
   },
   "二結|宜蘭": {
    "tracks": 2,
-   "parallelFrac": 0.989,
-   "lengthM": 4979,
+   "parallelFrac": 0.967,
+   "lengthM": 5464,
    "refs": [
     "宜蘭線"
    ]
@@ -96,7 +96,7 @@
   "八堵|暖暖": {
    "tracks": 2,
    "parallelFrac": 1,
-   "lengthM": 1614,
+   "lengthM": 1613,
    "refs": [
     "宜蘭線"
    ]
@@ -119,8 +119,8 @@
   },
   "三民|玉里": {
    "tracks": 1,
-   "parallelFrac": 0.046,
-   "lengthM": 10611,
+   "parallelFrac": 0.045,
+   "lengthM": 10434,
    "refs": [
     "臺東線"
    ]
@@ -136,31 +136,31 @@
   "三坑|八堵": {
    "tracks": 2,
    "parallelFrac": 1,
-   "lengthM": 1659,
+   "lengthM": 1719,
    "refs": [
     "縱貫線"
    ]
   },
   "三坑|基隆": {
    "tracks": 2,
-   "parallelFrac": 0.991,
-   "lengthM": 1324,
+   "parallelFrac": 1,
+   "lengthM": 1340,
    "refs": [
     "縱貫線"
    ]
   },
   "三姓橋|香山": {
    "tracks": 2,
-   "parallelFrac": 0.95,
-   "lengthM": 3279,
+   "parallelFrac": 0.943,
+   "lengthM": 3291,
    "refs": [
     "縱貫線"
    ]
   },
   "三姓橋|新竹": {
    "tracks": 2,
-   "parallelFrac": 0.956,
-   "lengthM": 4633,
+   "parallelFrac": 0.965,
+   "lengthM": 4787,
    "refs": [
     "內灣線",
     "縱貫線"
@@ -168,8 +168,8 @@
   },
   "三貂嶺|大華": {
    "tracks": 1,
-   "parallelFrac": 0.149,
-   "lengthM": 3229,
+   "parallelFrac": 0.147,
+   "lengthM": 3301,
    "refs": [
     "宜蘭線",
     "平溪線"
@@ -177,24 +177,24 @@
   },
   "三貂嶺|牡丹": {
    "tracks": 2,
-   "parallelFrac": 0.998,
-   "lengthM": 3467,
+   "parallelFrac": 1,
+   "lengthM": 3416,
    "refs": [
     "宜蘭線"
    ]
   },
   "三貂嶺|猴硐": {
    "tracks": 2,
-   "parallelFrac": 0.968,
-   "lengthM": 2300,
+   "parallelFrac": 0.958,
+   "lengthM": 2264,
    "refs": [
     "宜蘭線"
    ]
   },
   "三塊厝|高雄": {
    "tracks": 2,
-   "parallelFrac": 0.907,
-   "lengthM": 871,
+   "parallelFrac": 0.862,
+   "lengthM": 877,
    "refs": [
     "縱貫線"
    ]
@@ -202,7 +202,7 @@
   "三塊厝|鼓山": {
    "tracks": 2,
    "parallelFrac": 1,
-   "lengthM": 1777,
+   "lengthM": 1774,
    "refs": [
     "縱貫線"
    ]
@@ -218,7 +218,7 @@
   "三義|銅鑼": {
    "tracks": 2,
    "parallelFrac": 0.991,
-   "lengthM": 7155,
+   "lengthM": 7172,
    "refs": [
     "縱貫線"
    ]
@@ -249,40 +249,40 @@
   },
   "大山|後龍": {
    "tracks": 2,
-   "parallelFrac": 1,
-   "lengthM": 3639,
+   "parallelFrac": 0.999,
+   "lengthM": 3635,
    "refs": [
     "縱貫線"
    ]
   },
   "大山|談文": {
    "tracks": 1,
-   "parallelFrac": 0.293,
-   "lengthM": 6449,
+   "parallelFrac": 0.297,
+   "lengthM": 6478,
    "refs": [
     "縱貫線"
    ]
   },
   "大甲|日南": {
    "tracks": 1,
-   "parallelFrac": 0.144,
-   "lengthM": 4341,
+   "parallelFrac": 0.14,
+   "lengthM": 4236,
    "refs": [
     "縱貫線"
    ]
   },
   "大村|花壇": {
    "tracks": 2,
-   "parallelFrac": 0.952,
-   "lengthM": 4236,
+   "parallelFrac": 0.942,
+   "lengthM": 4449,
    "refs": [
     "縱貫線"
    ]
   },
   "大肚|追分": {
    "tracks": 1,
-   "parallelFrac": 0.053,
-   "lengthM": 5035,
+   "parallelFrac": 0.05,
+   "lengthM": 5036,
    "refs": [
     "成追線",
     "縱貫線"
@@ -298,8 +298,8 @@
   },
   "大里|石城": {
    "tracks": 2,
-   "parallelFrac": 0.975,
-   "lengthM": 2627,
+   "parallelFrac": 0.963,
+   "lengthM": 2639,
    "refs": [
     "宜蘭線"
    ]
@@ -307,7 +307,7 @@
   "大林|民雄": {
    "tracks": 2,
    "parallelFrac": 0.95,
-   "lengthM": 5395,
+   "lengthM": 5787,
    "refs": [
     "縱貫線"
    ]
@@ -315,7 +315,7 @@
   "大林|石龜": {
    "tracks": 2,
    "parallelFrac": 0.984,
-   "lengthM": 4441,
+   "lengthM": 4641,
    "refs": [
     "縱貫線"
    ]
@@ -339,23 +339,23 @@
   "大富|富源": {
    "tracks": 1,
    "parallelFrac": 0.009,
-   "lengthM": 2620,
+   "lengthM": 2678,
    "refs": [
     "臺東線"
    ]
   },
   "大湖|路竹": {
    "tracks": 2,
-   "parallelFrac": 0.967,
-   "lengthM": 2975,
+   "parallelFrac": 0.977,
+   "lengthM": 2957,
    "refs": [
     "縱貫線"
    ]
   },
   "大溪|大里": {
    "tracks": 2,
-   "parallelFrac": 0.969,
-   "lengthM": 4101,
+   "parallelFrac": 0.954,
+   "lengthM": 4066,
    "refs": [
     "宜蘭線"
    ]
@@ -379,22 +379,22 @@
   "大橋|永康": {
    "tracks": 2,
    "parallelFrac": 0.933,
-   "lengthM": 3807,
+   "lengthM": 3811,
    "refs": [
     "縱貫線"
    ]
   },
   "山里|鹿野": {
    "tracks": 1,
-   "parallelFrac": 0.041,
-   "lengthM": 5637,
+   "parallelFrac": 0.036,
+   "lengthM": 5540,
    "refs": [
     "臺東線"
    ]
   },
   "山佳|鶯歌": {
    "tracks": 2,
-   "parallelFrac": 0.93,
+   "parallelFrac": 0.934,
    "lengthM": 4454,
    "refs": [
     "縱貫線"
@@ -402,24 +402,24 @@
   },
   "中里|二結": {
    "tracks": 2,
-   "parallelFrac": 0.96,
-   "lengthM": 1088,
+   "parallelFrac": 0.977,
+   "lengthM": 1013,
    "refs": [
     "宜蘭線"
    ]
   },
   "中里|羅東": {
    "tracks": 2,
-   "parallelFrac": 0.878,
-   "lengthM": 1713,
+   "parallelFrac": 0.857,
+   "lengthM": 1817,
    "refs": [
     "宜蘭線"
    ]
   },
   "中洲|大湖": {
    "tracks": 2,
-   "parallelFrac": 0.951,
-   "lengthM": 2770,
+   "parallelFrac": 0.94,
+   "lengthM": 2854,
    "refs": [
     "沙崙線",
     "縱貫線"
@@ -427,8 +427,8 @@
   },
   "中洲|仁德": {
    "tracks": 2,
-   "parallelFrac": 0.964,
-   "lengthM": 2420,
+   "parallelFrac": 0.978,
+   "lengthM": 2459,
    "refs": [
     "沙崙線",
     "縱貫線"
@@ -444,16 +444,16 @@
   },
   "中壢|內壢": {
    "tracks": 2,
-   "parallelFrac": 0.991,
-   "lengthM": 3775,
+   "parallelFrac": 0.977,
+   "lengthM": 3895,
    "refs": [
     "縱貫線"
    ]
   },
   "中壢|埔心": {
    "tracks": 2,
-   "parallelFrac": 0.983,
-   "lengthM": 5812,
+   "parallelFrac": 0.97,
+   "lengthM": 5856,
    "refs": [
     "縱貫線"
    ]
@@ -484,8 +484,8 @@
   },
   "五權|台中": {
    "tracks": 2,
-   "parallelFrac": 0.916,
-   "lengthM": 2319,
+   "parallelFrac": 0.903,
+   "lengthM": 2269,
    "refs": [
     "縱貫線"
    ]
@@ -493,7 +493,7 @@
   "仁德|保安": {
    "tracks": 2,
    "parallelFrac": 1,
-   "lengthM": 1155,
+   "lengthM": 1327,
    "refs": [
     "縱貫線"
    ]
@@ -501,7 +501,7 @@
   "內惟|左營": {
    "tracks": 2,
    "parallelFrac": 1,
-   "lengthM": 1066,
+   "lengthM": 1139,
    "refs": [
     "縱貫線"
    ]
@@ -509,7 +509,7 @@
   "內惟|美術館": {
    "tracks": 2,
    "parallelFrac": 0.938,
-   "lengthM": 1644,
+   "lengthM": 1648,
    "refs": [
     "縱貫線"
    ]
@@ -524,16 +524,16 @@
   },
   "內獅|枋山": {
    "tracks": 1,
-   "parallelFrac": 0.028,
-   "lengthM": 4281,
+   "parallelFrac": 0.024,
+   "lengthM": 3981,
    "refs": [
     "南迴線"
    ]
   },
   "內壢|桃園": {
    "tracks": 2,
-   "parallelFrac": 0.989,
-   "lengthM": 5520,
+   "parallelFrac": 0.994,
+   "lengthM": 5616,
    "refs": [
     "縱貫線"
    ]
@@ -556,24 +556,24 @@
   },
   "六塊厝|屏東": {
    "tracks": 2,
-   "parallelFrac": 0.911,
-   "lengthM": 1634,
+   "parallelFrac": 0.934,
+   "lengthM": 1695,
    "refs": [
     "屏東線"
    ]
   },
   "太原|松竹": {
    "tracks": 2,
-   "parallelFrac": 0.924,
-   "lengthM": 1364,
+   "parallelFrac": 0.908,
+   "lengthM": 1241,
    "refs": [
     "縱貫線"
    ]
   },
   "太原|精武": {
    "tracks": 2,
-   "parallelFrac": 0.937,
-   "lengthM": 1797,
+   "parallelFrac": 0.936,
+   "lengthM": 1855,
    "refs": [
     "縱貫線"
    ]
@@ -588,32 +588,32 @@
   },
   "太麻里|金崙": {
    "tracks": 1,
-   "parallelFrac": 0.015,
-   "lengthM": 8530,
+   "parallelFrac": 0.013,
+   "lengthM": 7958,
    "refs": [
     "南迴線"
    ]
   },
   "斗六|斗南": {
    "tracks": 2,
-   "parallelFrac": 0.925,
-   "lengthM": 7432,
+   "parallelFrac": 0.926,
+   "lengthM": 7365,
    "refs": [
     "縱貫線"
    ]
   },
   "斗六|石榴": {
    "tracks": 2,
-   "parallelFrac": 0.983,
-   "lengthM": 4619,
+   "parallelFrac": 0.98,
+   "lengthM": 4793,
    "refs": [
     "縱貫線"
    ]
   },
   "斗南|石龜": {
    "tracks": 2,
-   "parallelFrac": 0.944,
-   "lengthM": 3567,
+   "parallelFrac": 0.951,
+   "lengthM": 3873,
    "refs": [
     "縱貫線"
    ]
@@ -645,15 +645,15 @@
   "冬山|新馬": {
    "tracks": 2,
    "parallelFrac": 1,
-   "lengthM": 4163,
+   "lengthM": 4159,
    "refs": [
     "宜蘭線"
    ]
   },
   "冬山|羅東": {
    "tracks": 2,
-   "parallelFrac": 0.943,
-   "lengthM": 4164,
+   "parallelFrac": 0.95,
+   "lengthM": 4420,
    "refs": [
     "宜蘭線"
    ]
@@ -668,8 +668,8 @@
   },
   "北埔|花蓮": {
    "tracks": 2,
-   "parallelFrac": 0.953,
-   "lengthM": 4239,
+   "parallelFrac": 0.975,
+   "lengthM": 4551,
    "refs": [
     "北迴線"
    ],
@@ -677,8 +677,8 @@
   },
   "北埔|景美": {
    "tracks": 2,
-   "parallelFrac": 0.99,
-   "lengthM": 6181,
+   "parallelFrac": 1,
+   "lengthM": 6522,
    "refs": [
     "北迴線"
    ],
@@ -686,24 +686,24 @@
   },
   "北湖|湖口": {
    "tracks": 2,
-   "parallelFrac": 0.936,
-   "lengthM": 2390,
+   "parallelFrac": 0.94,
+   "lengthM": 2502,
    "refs": [
     "縱貫線"
    ]
   },
   "北湖|新富": {
    "tracks": 2,
-   "parallelFrac": 0.89,
-   "lengthM": 1627,
+   "parallelFrac": 0.895,
+   "lengthM": 1607,
    "refs": [
     "縱貫線"
    ]
   },
   "北新竹|千甲": {
    "tracks": 2,
-   "parallelFrac": 0.991,
-   "lengthM": 2008,
+   "parallelFrac": 0.994,
+   "lengthM": 1798,
    "refs": [
     "內灣線",
     "縱貫線"
@@ -711,8 +711,8 @@
   },
   "北新竹|竹北": {
    "tracks": 2,
-   "parallelFrac": 0.975,
-   "lengthM": 4272,
+   "parallelFrac": 0.976,
+   "lengthM": 4636,
    "refs": [
     "內灣線",
     "縱貫線"
@@ -720,8 +720,8 @@
   },
   "北新竹|新竹": {
    "tracks": 2,
-   "parallelFrac": 0.888,
-   "lengthM": 1295,
+   "parallelFrac": 0.867,
+   "lengthM": 1302,
    "refs": [
     "內灣線",
     "縱貫線"
@@ -730,15 +730,15 @@
   "台中|精武": {
    "tracks": 2,
    "parallelFrac": 0.88,
-   "lengthM": 1735,
+   "lengthM": 1701,
    "refs": [
     "縱貫線"
    ]
   },
   "台中港|大甲": {
    "tracks": 2,
-   "parallelFrac": 0.96,
-   "lengthM": 5154,
+   "parallelFrac": 0.967,
+   "lengthM": 5129,
    "refs": [
     "縱貫線"
    ]
@@ -753,24 +753,24 @@
   },
   "台北|松山": {
    "tracks": 2,
-   "parallelFrac": 0.976,
-   "lengthM": 6238,
+   "parallelFrac": 0.973,
+   "lengthM": 6285,
    "refs": [
     "縱貫線"
    ]
   },
   "台北|萬華": {
    "tracks": 2,
-   "parallelFrac": 0.967,
-   "lengthM": 2712,
+   "parallelFrac": 0.956,
+   "lengthM": 2766,
    "refs": [
     "縱貫線"
    ]
   },
   "台東|山里": {
    "tracks": 1,
-   "parallelFrac": 0.332,
-   "lengthM": 7867,
+   "parallelFrac": 0.347,
+   "lengthM": 7711,
    "refs": [
     "臺東線"
    ]
@@ -785,8 +785,8 @@
   },
   "台南|大橋": {
    "tracks": 2,
-   "parallelFrac": 0.937,
-   "lengthM": 2566,
+   "parallelFrac": 0.941,
+   "lengthM": 2695,
    "refs": [
     "縱貫線"
    ]
@@ -794,7 +794,7 @@
   "四城|宜蘭": {
    "tracks": 2,
    "parallelFrac": 1,
-   "lengthM": 3526,
+   "lengthM": 3652,
    "refs": [
     "宜蘭線"
    ]
@@ -802,23 +802,23 @@
   "四城|礁溪": {
    "tracks": 2,
    "parallelFrac": 1,
-   "lengthM": 4518,
+   "lengthM": 4525,
    "refs": [
     "宜蘭線"
    ]
   },
   "四腳亭|暖暖": {
    "tracks": 2,
-   "parallelFrac": 0.94,
-   "lengthM": 1978,
+   "parallelFrac": 0.941,
+   "lengthM": 1850,
    "refs": [
     "宜蘭線"
    ]
   },
   "四腳亭|瑞芳": {
    "tracks": 2,
-   "parallelFrac": 0.906,
-   "lengthM": 4470,
+   "parallelFrac": 0.869,
+   "lengthM": 3673,
    "refs": [
     "宜蘭線"
    ]
@@ -826,7 +826,7 @@
   "外澳|頭城": {
    "tracks": 2,
    "parallelFrac": 1,
-   "lengthM": 3076,
+   "lengthM": 3060,
    "refs": [
     "宜蘭線"
    ]
@@ -834,15 +834,15 @@
   "外澳|龜山": {
    "tracks": 2,
    "parallelFrac": 1,
-   "lengthM": 3221,
+   "lengthM": 3241,
    "refs": [
     "宜蘭線"
    ]
   },
   "左營|新左營": {
    "tracks": 2,
-   "parallelFrac": 0.921,
-   "lengthM": 1967,
+   "parallelFrac": 0.901,
+   "lengthM": 2032,
    "refs": [
     "縱貫線"
    ]
@@ -866,15 +866,15 @@
   "正義|科工館": {
    "tracks": 2,
    "parallelFrac": 1,
-   "lengthM": 1793,
+   "lengthM": 1704,
    "refs": [
     "屏東線"
    ]
   },
   "正義|鳳山": {
    "tracks": 2,
-   "parallelFrac": 0.851,
-   "lengthM": 1335,
+   "parallelFrac": 0.828,
+   "lengthM": 1449,
    "refs": [
     "屏東線"
    ]
@@ -882,15 +882,15 @@
   "民族|科工館": {
    "tracks": 2,
    "parallelFrac": 1,
-   "lengthM": 1120,
+   "lengthM": 1163,
    "refs": [
     "屏東線"
    ]
   },
   "民族|高雄": {
    "tracks": 2,
-   "parallelFrac": 0.912,
-   "lengthM": 1115,
+   "parallelFrac": 0.884,
+   "lengthM": 1268,
    "refs": [
     "屏東線",
     "縱貫線"
@@ -898,16 +898,16 @@
   },
   "永靖|社頭": {
    "tracks": 2,
-   "parallelFrac": 0.936,
-   "lengthM": 3483,
+   "parallelFrac": 0.949,
+   "lengthM": 3528,
    "refs": [
     "縱貫線"
    ]
   },
   "永樂|蘇澳新": {
    "tracks": 2,
-   "parallelFrac": 0.519,
-   "lengthM": 4615,
+   "parallelFrac": 0.517,
+   "lengthM": 4437,
    "refs": [
     "北迴線"
    ],
@@ -916,7 +916,7 @@
   "田中|社頭": {
    "tracks": 2,
    "parallelFrac": 0.933,
-   "lengthM": 3551,
+   "lengthM": 3849,
    "refs": [
     "縱貫線"
    ]
@@ -924,31 +924,31 @@
   "白沙屯|龍港": {
    "tracks": 2,
    "parallelFrac": 1,
-   "lengthM": 7937,
+   "lengthM": 7820,
    "refs": [
     "縱貫線"
    ]
   },
   "石城|福隆": {
    "tracks": 2,
-   "parallelFrac": 0.998,
-   "lengthM": 5043,
+   "parallelFrac": 0.978,
+   "lengthM": 4702,
    "refs": [
     "宜蘭線"
    ]
   },
   "光復|大富": {
    "tracks": 1,
-   "parallelFrac": 0.057,
-   "lengthM": 7267,
+   "parallelFrac": 0.064,
+   "lengthM": 7093,
    "refs": [
     "臺東線"
    ]
   },
   "光復|萬榮": {
    "tracks": 2,
-   "parallelFrac": 0.552,
-   "lengthM": 5461,
+   "parallelFrac": 0.551,
+   "lengthM": 5449,
    "refs": [
     "臺東線"
    ]
@@ -971,8 +971,8 @@
   },
   "吉安|花蓮": {
    "tracks": 1,
-   "parallelFrac": 0.159,
-   "lengthM": 2660,
+   "parallelFrac": 0.13,
+   "lengthM": 2717,
    "refs": [
     "臺東線"
    ]
@@ -987,16 +987,16 @@
   },
   "后里|豐原": {
    "tracks": 2,
-   "parallelFrac": 0.975,
-   "lengthM": 6698,
+   "parallelFrac": 0.968,
+   "lengthM": 6704,
    "refs": [
     "縱貫線"
    ]
   },
   "成功|追分": {
    "tracks": 2,
-   "parallelFrac": 0.901,
-   "lengthM": 2128,
+   "parallelFrac": 0.897,
+   "lengthM": 2086,
    "refs": [
     "成追線",
     "縱貫線"
@@ -1004,8 +1004,8 @@
   },
   "成功|新烏日": {
    "tracks": 2,
-   "parallelFrac": 0.957,
-   "lengthM": 2116,
+   "parallelFrac": 0.946,
+   "lengthM": 2142,
    "refs": [
     "成追線",
     "縱貫線"
@@ -1013,8 +1013,8 @@
   },
   "汐止|汐科": {
    "tracks": 2,
-   "parallelFrac": 0.912,
-   "lengthM": 896,
+   "parallelFrac": 0.906,
+   "lengthM": 894,
    "refs": [
     "縱貫線"
    ]
@@ -1029,8 +1029,8 @@
   },
   "竹田|西勢": {
    "tracks": 2,
-   "parallelFrac": 0.946,
-   "lengthM": 3383,
+   "parallelFrac": 0.941,
+   "lengthM": 3407,
    "refs": [
     "屏東線"
    ]
@@ -1038,7 +1038,7 @@
   "竹南|造橋": {
    "tracks": 2,
    "parallelFrac": 1,
-   "lengthM": 4889,
+   "lengthM": 4910,
    "refs": [
     "縱貫線"
    ]
@@ -1053,8 +1053,8 @@
   },
   "西勢|麟洛": {
    "tracks": 2,
-   "parallelFrac": 0.962,
-   "lengthM": 2557,
+   "parallelFrac": 0.965,
+   "lengthM": 2669,
    "refs": [
     "屏東線"
    ]
@@ -1085,8 +1085,8 @@
   },
   "牡丹|雙溪": {
    "tracks": 2,
-   "parallelFrac": 0.761,
-   "lengthM": 3172,
+   "parallelFrac": 0.755,
+   "lengthM": 3182,
    "refs": [
     "宜蘭線"
    ]
@@ -1109,8 +1109,8 @@
   },
   "和仁|和平": {
    "tracks": 2,
-   "parallelFrac": 0.961,
-   "lengthM": 7102,
+   "parallelFrac": 0.946,
+   "lengthM": 7075,
    "refs": [
     "北迴線"
    ],
@@ -1118,8 +1118,8 @@
   },
   "和仁|崇德": {
    "tracks": 2,
-   "parallelFrac": 0.152,
-   "lengthM": 9661,
+   "parallelFrac": 0.16,
+   "lengthM": 8933,
    "refs": [
     "北迴線"
    ],
@@ -1127,8 +1127,8 @@
   },
   "和平|漢本": {
    "tracks": 2,
-   "parallelFrac": 0.934,
-   "lengthM": 3732,
+   "parallelFrac": 0.926,
+   "lengthM": 3780,
    "refs": [
     "北迴線"
    ],
@@ -1136,40 +1136,40 @@
   },
   "岡山|路竹": {
    "tracks": 2,
-   "parallelFrac": 0.987,
-   "lengthM": 7508,
+   "parallelFrac": 0.983,
+   "lengthM": 7910,
    "refs": [
     "縱貫線"
    ]
   },
   "岡山|橋頭": {
    "tracks": 2,
-   "parallelFrac": 0.994,
-   "lengthM": 2927,
+   "parallelFrac": 1,
+   "lengthM": 3605,
    "refs": [
     "縱貫線"
    ]
   },
   "拔林|隆田": {
    "tracks": 2,
-   "parallelFrac": 0.97,
-   "lengthM": 1832,
+   "parallelFrac": 0.974,
+   "lengthM": 2137,
    "refs": [
     "縱貫線"
    ]
   },
   "東竹|東里": {
    "tracks": 1,
-   "parallelFrac": 0.041,
-   "lengthM": 5134,
+   "parallelFrac": 0.045,
+   "lengthM": 5410,
    "refs": [
     "臺東線"
    ]
   },
   "東里|玉里": {
    "tracks": 2,
-   "parallelFrac": 0.946,
-   "lengthM": 6388,
+   "parallelFrac": 0.976,
+   "lengthM": 6140,
    "refs": [
     "臺東線"
    ]
@@ -1184,8 +1184,8 @@
   },
   "東澳|永樂": {
    "tracks": 2,
-   "parallelFrac": 0.122,
-   "lengthM": 5599,
+   "parallelFrac": 0.126,
+   "lengthM": 5617,
    "refs": [
     "北迴線"
    ],
@@ -1201,32 +1201,32 @@
   },
   "板橋|浮洲": {
    "tracks": 2,
-   "parallelFrac": 0.968,
-   "lengthM": 2314,
+   "parallelFrac": 0.958,
+   "lengthM": 2493,
    "refs": [
     "縱貫線"
    ]
   },
   "板橋|萬華": {
    "tracks": 2,
-   "parallelFrac": 0.968,
-   "lengthM": 4256,
+   "parallelFrac": 0.956,
+   "lengthM": 4276,
    "refs": [
     "縱貫線"
    ]
   },
   "枋山|枋野": {
    "tracks": 1,
-   "parallelFrac": 0.008,
-   "lengthM": 5842,
+   "parallelFrac": 0.007,
+   "lengthM": 5589,
    "refs": [
     "南迴線"
    ]
   },
   "林內|石榴": {
    "tracks": 2,
-   "parallelFrac": 0.999,
-   "lengthM": 4047,
+   "parallelFrac": 1,
+   "lengthM": 4751,
    "refs": [
     "縱貫線"
    ]
@@ -1241,16 +1241,16 @@
   },
   "林鳳營|柳營": {
    "tracks": 2,
-   "parallelFrac": 0.96,
-   "lengthM": 3402,
+   "parallelFrac": 0.943,
+   "lengthM": 3561,
    "refs": [
     "縱貫線"
    ]
   },
   "林鳳營|隆田": {
    "tracks": 2,
-   "parallelFrac": 0.967,
-   "lengthM": 5511,
+   "parallelFrac": 0.961,
+   "lengthM": 5589,
    "refs": [
     "縱貫線"
    ]
@@ -1265,8 +1265,8 @@
   },
   "武塔|漢本": {
    "tracks": 2,
-   "parallelFrac": 0.984,
-   "lengthM": 12772,
+   "parallelFrac": 0.982,
+   "lengthM": 12657,
    "refs": [
     "北迴線"
    ],
@@ -1274,8 +1274,8 @@
   },
   "保安|台南": {
    "tracks": 2,
-   "parallelFrac": 0.978,
-   "lengthM": 7203,
+   "parallelFrac": 0.985,
+   "lengthM": 7616,
    "refs": [
     "縱貫線"
    ]
@@ -1290,64 +1290,64 @@
   },
   "南平|鳳林": {
    "tracks": 2,
-   "parallelFrac": 0.991,
-   "lengthM": 3720,
+   "parallelFrac": 0.994,
+   "lengthM": 3587,
    "refs": [
     "臺東線"
    ]
   },
   "南州|崁頂": {
    "tracks": 1,
-   "parallelFrac": 0.186,
-   "lengthM": 2434,
+   "parallelFrac": 0.163,
+   "lengthM": 2362,
    "refs": [
     "屏東線"
    ]
   },
   "南州|鎮安": {
    "tracks": 2,
-   "parallelFrac": 0.978,
-   "lengthM": 3245,
+   "parallelFrac": 0.967,
+   "lengthM": 3028,
    "refs": [
     "屏東線"
    ]
   },
   "南科|善化": {
    "tracks": 2,
-   "parallelFrac": 0.979,
-   "lengthM": 2946,
+   "parallelFrac": 0.965,
+   "lengthM": 2925,
    "refs": [
     "縱貫線"
    ]
   },
   "南科|新市": {
    "tracks": 2,
-   "parallelFrac": 0.938,
-   "lengthM": 4733,
+   "parallelFrac": 0.964,
+   "lengthM": 4652,
    "refs": [
     "縱貫線"
    ]
   },
   "南港|汐科": {
    "tracks": 2,
-   "parallelFrac": 0.789,
-   "lengthM": 4887,
+   "parallelFrac": 0.782,
+   "lengthM": 4906,
    "refs": [
     "縱貫線"
    ]
   },
   "南港|松山": {
    "tracks": 2,
-   "parallelFrac": 0.78,
-   "lengthM": 2624,
+   "parallelFrac": 0.768,
+   "lengthM": 2626,
    "refs": [
     "縱貫線"
    ]
   },
   "南勢|苗栗": {
    "tracks": 2,
-   "parallelFrac": 0.99,
-   "lengthM": 5534,
+   "parallelFrac": 0.991,
+   "lengthM": 5448,
    "refs": [
     "縱貫線"
    ]
@@ -1362,16 +1362,16 @@
   },
   "南靖|水上": {
    "tracks": 2,
-   "parallelFrac": 0.928,
-   "lengthM": 2554,
+   "parallelFrac": 0.929,
+   "lengthM": 2603,
    "refs": [
     "縱貫線"
    ]
   },
   "南靖|後壁": {
    "tracks": 2,
-   "parallelFrac": 0.947,
-   "lengthM": 5853,
+   "parallelFrac": 0.944,
+   "lengthM": 5940,
    "refs": [
     "縱貫線"
    ]
@@ -1387,15 +1387,15 @@
   "南樹林|樹林": {
    "tracks": 2,
    "parallelFrac": 1,
-   "lengthM": 2170,
+   "lengthM": 2162,
    "refs": [
     "縱貫線"
    ]
   },
   "南澳|東澳": {
    "tracks": 2,
-   "parallelFrac": 0.128,
-   "lengthM": 7423,
+   "parallelFrac": 0.115,
+   "lengthM": 7341,
    "refs": [
     "北迴線"
    ],
@@ -1403,8 +1403,8 @@
   },
   "南澳|武塔": {
    "tracks": 2,
-   "parallelFrac": 0.949,
-   "lengthM": 3373,
+   "parallelFrac": 0.923,
+   "lengthM": 3287,
    "refs": [
     "北迴線"
    ],
@@ -1413,23 +1413,23 @@
   "屏東|歸來": {
    "tracks": 2,
    "parallelFrac": 0.936,
-   "lengthM": 2540,
+   "lengthM": 2492,
    "refs": [
     "屏東線"
    ]
   },
   "後庄|鳳山": {
    "tracks": 2,
-   "parallelFrac": 0.96,
-   "lengthM": 3509,
+   "parallelFrac": 0.945,
+   "lengthM": 3475,
    "refs": [
     "屏東線"
    ]
   },
   "後壁|新營": {
    "tracks": 2,
-   "parallelFrac": 0.947,
-   "lengthM": 6659,
+   "parallelFrac": 0.951,
+   "lengthM": 7254,
    "refs": [
     "縱貫線"
    ]
@@ -1437,15 +1437,15 @@
   "後龍|龍港": {
    "tracks": 2,
    "parallelFrac": 1,
-   "lengthM": 3672,
+   "lengthM": 3666,
    "refs": [
     "縱貫線"
    ]
   },
   "美術館|鼓山": {
    "tracks": 2,
-   "parallelFrac": 0.873,
-   "lengthM": 1142,
+   "parallelFrac": 0.871,
+   "lengthM": 1128,
    "refs": [
     "縱貫線"
    ]
@@ -1460,40 +1460,40 @@
   },
   "苗栗|豐富": {
    "tracks": 2,
-   "parallelFrac": 0.964,
-   "lengthM": 3276,
+   "parallelFrac": 0.942,
+   "lengthM": 3118,
    "refs": [
     "縱貫線"
    ]
   },
   "員林|大村": {
    "tracks": 2,
-   "parallelFrac": 0.961,
-   "lengthM": 3427,
+   "parallelFrac": 0.953,
+   "lengthM": 3445,
    "refs": [
     "縱貫線"
    ]
   },
   "員林|永靖": {
    "tracks": 2,
-   "parallelFrac": 0.957,
-   "lengthM": 3052,
+   "parallelFrac": 0.95,
+   "lengthM": 3144,
    "refs": [
     "縱貫線"
    ]
   },
   "埔心|楊梅": {
    "tracks": 2,
-   "parallelFrac": 0.938,
-   "lengthM": 3791,
+   "parallelFrac": 0.946,
+   "lengthM": 3979,
    "refs": [
     "縱貫線"
    ]
   },
   "崁頂|潮州": {
    "tracks": 1,
-   "parallelFrac": 0.041,
-   "lengthM": 4385,
+   "parallelFrac": 0.028,
+   "lengthM": 4510,
    "refs": [
     "屏東線"
    ]
@@ -1516,8 +1516,8 @@
   },
   "桃園|鳳鳴": {
    "tracks": 2,
-   "parallelFrac": 0.991,
-   "lengthM": 3171,
+   "parallelFrac": 0.989,
+   "lengthM": 3143,
    "refs": [
     "縱貫線"
    ]
@@ -1540,16 +1540,16 @@
   },
   "貢寮|雙溪": {
    "tracks": 2,
-   "parallelFrac": 0.96,
-   "lengthM": 5073,
+   "parallelFrac": 0.966,
+   "lengthM": 5225,
    "refs": [
     "宜蘭線"
    ]
   },
   "崇德|新城": {
    "tracks": 2,
-   "parallelFrac": 0.975,
-   "lengthM": 4739,
+   "parallelFrac": 0.917,
+   "lengthM": 5238,
    "refs": [
     "北迴線"
    ],
@@ -1557,16 +1557,16 @@
   },
   "崎頂|竹南": {
    "tracks": 2,
-   "parallelFrac": 0.983,
-   "lengthM": 4320,
+   "parallelFrac": 0.976,
+   "lengthM": 4467,
    "refs": [
     "縱貫線"
    ]
   },
   "崎頂|香山": {
    "tracks": 2,
-   "parallelFrac": 0.971,
-   "lengthM": 6402,
+   "parallelFrac": 0.967,
+   "lengthM": 6435,
    "refs": [
     "縱貫線"
    ]
@@ -1582,7 +1582,7 @@
   "頂埔|頭城": {
    "tracks": 2,
    "parallelFrac": 1,
-   "lengthM": 2034,
+   "lengthM": 1994,
    "refs": [
     "宜蘭線"
    ]
@@ -1590,7 +1590,7 @@
   "善化|拔林": {
    "tracks": 2,
    "parallelFrac": 1,
-   "lengthM": 4266,
+   "lengthM": 4656,
    "refs": [
     "縱貫線"
    ]
@@ -1598,31 +1598,31 @@
   "富里|池上": {
    "tracks": 1,
    "parallelFrac": 0.009,
-   "lengthM": 5461,
+   "lengthM": 5559,
    "refs": [
     "臺東線"
    ]
   },
   "富里|東竹": {
    "tracks": 1,
-   "parallelFrac": 0.02,
-   "lengthM": 5456,
+   "parallelFrac": 0.018,
+   "lengthM": 5284,
    "refs": [
     "臺東線"
    ]
   },
   "富岡|新富": {
    "tracks": 2,
-   "parallelFrac": 0.85,
-   "lengthM": 1407,
+   "parallelFrac": 0.87,
+   "lengthM": 1553,
    "refs": [
     "縱貫線"
    ]
   },
   "富岡|楊梅": {
    "tracks": 2,
-   "parallelFrac": 0.942,
-   "lengthM": 6963,
+   "parallelFrac": 0.95,
+   "lengthM": 6974,
    "refs": [
     "縱貫線"
    ]
@@ -1630,15 +1630,15 @@
   "富源|瑞穗": {
    "tracks": 1,
    "parallelFrac": 0.026,
-   "lengthM": 8809,
+   "lengthM": 8770,
    "refs": [
     "臺東線"
    ]
   },
   "猴硐|瑞芳": {
    "tracks": 2,
-   "parallelFrac": 0.876,
-   "lengthM": 3707,
+   "parallelFrac": 0.87,
+   "lengthM": 3327,
    "refs": [
     "宜蘭線",
     "深澳線"
@@ -1654,24 +1654,24 @@
   },
   "新左營|楠梓": {
    "tracks": 2,
-   "parallelFrac": 0.961,
-   "lengthM": 4989,
+   "parallelFrac": 0.974,
+   "lengthM": 5044,
    "refs": [
     "縱貫線"
    ]
   },
   "新市|永康": {
    "tracks": 2,
-   "parallelFrac": 0.904,
-   "lengthM": 4125,
+   "parallelFrac": 0.888,
+   "lengthM": 4574,
    "refs": [
     "縱貫線"
    ]
   },
   "新城|景美": {
    "tracks": 2,
-   "parallelFrac": 0.797,
-   "lengthM": 5175,
+   "parallelFrac": 0.76,
+   "lengthM": 5229,
    "refs": [
     "北迴線"
    ],
@@ -1679,8 +1679,8 @@
   },
   "新埔|白沙屯": {
    "tracks": 1,
-   "parallelFrac": 0.199,
-   "lengthM": 2822,
+   "parallelFrac": 0.192,
+   "lengthM": 2746,
    "refs": [
     "縱貫線"
    ]
@@ -1703,8 +1703,8 @@
   },
   "新馬|蘇澳新": {
    "tracks": 2,
-   "parallelFrac": 0.987,
-   "lengthM": 984,
+   "parallelFrac": 1,
+   "lengthM": 895,
    "refs": [
     "北迴線",
     "宜蘭線"
@@ -1721,32 +1721,32 @@
   },
   "新營|柳營": {
    "tracks": 2,
-   "parallelFrac": 0.898,
-   "lengthM": 2797,
+   "parallelFrac": 0.909,
+   "lengthM": 3333,
    "refs": [
     "縱貫線"
    ]
   },
   "新豐|竹北": {
    "tracks": 2,
-   "parallelFrac": 0.918,
-   "lengthM": 4525,
+   "parallelFrac": 0.919,
+   "lengthM": 4674,
    "refs": [
     "縱貫線"
    ]
   },
   "新豐|湖口": {
    "tracks": 2,
-   "parallelFrac": 0.914,
-   "lengthM": 4185,
+   "parallelFrac": 0.906,
+   "lengthM": 3819,
    "refs": [
     "縱貫線"
    ]
   },
   "楠梓|橋頭": {
    "tracks": 2,
-   "parallelFrac": 0.963,
-   "lengthM": 4097,
+   "parallelFrac": 0.982,
+   "lengthM": 4157,
    "refs": [
     "縱貫線"
    ]
@@ -1777,64 +1777,64 @@
   },
   "瑞源|鹿野": {
    "tracks": 1,
-   "parallelFrac": 0.069,
-   "lengthM": 5350,
+   "parallelFrac": 0.072,
+   "lengthM": 5155,
    "refs": [
     "臺東線"
    ]
   },
   "萬榮|鳳林": {
    "tracks": 2,
-   "parallelFrac": 0.759,
-   "lengthM": 4350,
+   "parallelFrac": 0.769,
+   "lengthM": 4185,
    "refs": [
     "臺東線"
    ]
   },
   "嘉北|民雄": {
    "tracks": 2,
-   "parallelFrac": 0.971,
-   "lengthM": 5575,
+   "parallelFrac": 0.977,
+   "lengthM": 6675,
    "refs": [
     "縱貫線"
    ]
   },
   "嘉北|嘉義": {
    "tracks": 2,
-   "parallelFrac": 0.971,
-   "lengthM": 2283,
+   "parallelFrac": 0.966,
+   "lengthM": 2459,
    "refs": [
     "縱貫線"
    ]
   },
   "嘉義|水上": {
    "tracks": 2,
-   "parallelFrac": 0.964,
-   "lengthM": 6493,
+   "parallelFrac": 0.954,
+   "lengthM": 6743,
    "refs": [
     "縱貫線"
    ]
   },
   "壽豐|平和": {
    "tracks": 1,
-   "parallelFrac": 0.272,
-   "lengthM": 1563,
+   "parallelFrac": 0.222,
+   "lengthM": 1580,
    "refs": [
     "臺東線"
    ]
   },
   "壽豐|豐田": {
    "tracks": 2,
-   "parallelFrac": 0.992,
-   "lengthM": 2655,
+   "parallelFrac": 0.97,
+   "lengthM": 2731,
    "refs": [
     "臺東線"
    ]
   },
   "彰化|成功": {
    "tracks": 2,
-   "parallelFrac": 0.958,
-   "lengthM": 6599,
+   "parallelFrac": 0.962,
+   "lengthM": 7037,
    "refs": [
     "成追線",
     "縱貫線"
@@ -1843,15 +1843,15 @@
   "彰化|花壇": {
    "tracks": 2,
    "parallelFrac": 0.97,
-   "lengthM": 6065,
+   "lengthM": 6121,
    "refs": [
     "縱貫線"
    ]
   },
   "彰化|追分": {
    "tracks": 2,
-   "parallelFrac": 0.931,
-   "lengthM": 6444,
+   "parallelFrac": 0.926,
+   "lengthM": 6966,
    "refs": [
     "縱貫線"
    ]
@@ -1866,40 +1866,40 @@
   },
   "福隆|貢寮": {
    "tracks": 2,
-   "parallelFrac": 0.969,
-   "lengthM": 3651,
+   "parallelFrac": 0.957,
+   "lengthM": 3700,
    "refs": [
     "宜蘭線"
    ]
   },
   "鳳鳴|鶯歌": {
    "tracks": 2,
-   "parallelFrac": 0.949,
-   "lengthM": 4910,
+   "parallelFrac": 0.971,
+   "lengthM": 4880,
    "refs": [
     "縱貫線"
    ]
   },
   "潭子|頭家厝": {
    "tracks": 2,
-   "parallelFrac": 0.92,
-   "lengthM": 1966,
+   "parallelFrac": 0.914,
+   "lengthM": 1968,
    "refs": [
     "縱貫線"
    ]
   },
   "潮州|竹田": {
    "tracks": 2,
-   "parallelFrac": 0.959,
-   "lengthM": 3787,
+   "parallelFrac": 0.954,
+   "lengthM": 3808,
    "refs": [
     "屏東線"
    ]
   },
   "樹林|浮洲": {
    "tracks": 2,
-   "parallelFrac": 0.993,
-   "lengthM": 2785,
+   "parallelFrac": 0.992,
+   "lengthM": 2844,
    "refs": [
     "縱貫線"
    ]
@@ -1939,7 +1939,7 @@
   "礁溪|頂埔": {
    "tracks": 2,
    "parallelFrac": 1,
-   "lengthM": 3963,
+   "lengthM": 4039,
    "refs": [
     "宜蘭線"
    ]
@@ -1947,7 +1947,7 @@
   "歸來|麟洛": {
    "tracks": 2,
    "parallelFrac": 1,
-   "lengthM": 2066,
+   "lengthM": 1959,
    "refs": [
     "屏東線"
    ]
@@ -1955,15 +1955,15 @@
   "豐富|造橋": {
    "tracks": 2,
    "parallelFrac": 1,
-   "lengthM": 4973,
+   "lengthM": 4730,
    "refs": [
     "縱貫線"
    ]
   },
   "瀧溪|金崙": {
    "tracks": 1,
-   "parallelFrac": 0.023,
-   "lengthM": 7332,
+   "parallelFrac": 0.02,
+   "lengthM": 6324,
    "refs": [
     "南迴線"
    ]
@@ -1971,7 +1971,7 @@
   "蘇澳|蘇澳新": {
    "tracks": 2,
    "parallelFrac": 1,
-   "lengthM": 2963,
+   "lengthM": 2870,
    "refs": [
     "北迴線",
     "宜蘭線"
