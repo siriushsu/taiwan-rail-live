@@ -168,10 +168,26 @@ try {
   // A2 一般案／收藏入口／終點到達基準案
   await run('A2:general-terminal', async (page, errors) => {
     await boot(page, '?notifymock=1&notifyreset=1&notifynow=0&case=general');
-    await openRandomFollow(page); assert(await page.locator('#fpNotify').isVisible(), '跟隨入口不可見');
+    // 隨機挑當下列車，在午夜可能只剩終點可選；那時 arr 正確，不能拿來驗一般站 dep。
+    // 用真實班表選出有中途站與終點的行程，重播到第一段，兩種基準仍由實際 UI 設定。
+    const fixture = await page.evaluate(() => {
+      const tr = state.trains.find(t => {
+        if (t.sys !== 'tra_sched') return false;
+        const s = localReminderStops(t);
+        return s.length >= 3 && s[1].s.arrSec > s[0].s.depSec + 1;
+      });
+      if (!tr) throw Error('缺少一般站／終點測試行程');
+      const s = localReminderStops(tr), time = s[0].s.depSec + 1;
+      state.playing = false; followTrainNo(tr.train, { sys: tr.sys }); setSimSec(time);
+      return { train: tr.train, time, terminalIndex: tr.stops.length - 1 };
+    });
+    await page.locator('#followPanel:not([hidden])').waitFor();
+    assert(await page.locator('#fpNotify').isVisible(), '跟隨入口不可見');
     await openNotifyFromFollow(page);
+    assert(await page.locator('#notifyStation option').count() >= 2, '一般案必須保留中途站與終點');
     assert(await page.getByText('提前', { exact: true }).count() === 1, '缺少定稿欄位標籤「提前」');
     await page.locator('#notifyStation').selectOption({ index: 0 });
+    assert(Number(await page.locator('#notifyStation').inputValue()) !== fixture.terminalIndex, '一般案誤選終點');
     const general = await readDraft(page); assert(general.mode === '開車前', '一般案不是發車基準'); assertMath(general, '一般案');
     await page.locator('#notifySave').click();
     await page.locator('.notify-reminder-row').waitFor();
@@ -189,7 +205,7 @@ try {
     state = await mockState(page); scheduled = state.log.filter(x => x.op === 'schedule').at(-1).notifications[0];
     assert(scheduled.title.includes('抵達前 15 分鐘'), '終點通知 title 未含步行提前量');
     assert(errors.length === 0, '一般/終點 console error: ' + errors.join(' | '));
-    detail.A2 = { generalFireAt: general.fireAt, terminalFireAt: terminal.fireAt, favoriteEntry: 1 };
+    detail.A2 = { fixture, generalFireAt: general.fireAt, terminalFireAt: terminal.fireAt, favoriteEntry: 1 };
   });
 
   // A3 跨日案／過近拒絕案
