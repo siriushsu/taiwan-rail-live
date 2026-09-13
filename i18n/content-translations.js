@@ -1735,3 +1735,5 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {"調整多站列車的停靠與進�
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"調整多站列車的停靠與進出股道，減少待避時重疊，以及部分追撞、對向互穿的畫面": "複数の駅で停車位置と着発線を調整し、待避中の列車の重なりや、一部で追突や対向列車とのすり抜けに見える表示を減らしました。"});
 Object.assign(window.RAIL_I18N_MESSAGES.en, {"修正阿里山林鐵機車的位置與方向，依路段呈現車尾推進、車頭牽引及之字形折返": "Corrected locomotive placement on the Alishan Forest Railway to show pushing, pulling and switchback reversals along each route."});
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"修正阿里山林鐵機車的位置與方向，依路段呈現車尾推進、車頭牽引及之字形折返": "阿里山林業鉄道の機関車の位置と向きを修正し、区間に応じた後方からの推進、前方での牽引、スイッチバックを表示します。"});
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"修正台鐵近 30 天準點率與準點排行偶爾停在幾天前，資料漏抓時當天會自動補上": "Fixed TRA 30-day on-time rates and the Punctuality ranking occasionally stalling several days behind; missed data is now fetched again the same day."});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"修正台鐵近 30 天準點率與準點排行偶爾停在幾天前，資料漏抓時當天會自動補上": "台鐵の直近30日の定時率と定時運行ランキングが数日前のまま止まることがある問題を修正し、取得漏れは当日中に自動で補うようにしました。"});

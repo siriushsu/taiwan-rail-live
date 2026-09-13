@@ -40,7 +40,9 @@ const widths = [360, 375, 414, 768];
 //       同樣沒 bump（該分支自己跑這支會紅在 367），一併補齊 → 368。靜態數 li 與瀏覽器數 DOM
 //       兩邊獨立都是 368，所以是欠帳不是漏渲染。
 // 9/12：月台股道重新指派一條（368→369）；併 origin/main b7f1dcf1 的台南地面鐵道重播一條（369→370）。
-const expectedHistoryCount = 370;
+// 9/14：370→378 是 9/12～9/13 各批沒跟著 bump 的欠帳（靜態 check-copy 在 origin/main ac47adb5 同樣數到 378），
+//       本次台鐵準點統計當天自動補抓一條（378→379）。
+const expectedHistoryCount = 379;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
