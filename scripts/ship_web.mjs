@@ -389,6 +389,9 @@ try {
   process.stdout.write(afr.stdout || ''); process.stderr.write(afr.stderr || '');
   if (afr.status !== 0) fail('阿里山林鐵守門人未過——路網／班次／看板／手機版,或「奔跑中列車都在軌道上」壞了'
     + '（單獨重跑：npm run check-afr）');
+  const afrFacing = spawnSync('node', [path.join(wt, 'scripts', 'verify_afr_push_pull.mjs')], { cwd:wt, encoding:'utf8', env:{...process.env,PORT:'',ENGINE:'',MUTATE:'',OUT:''} });
+  process.stdout.write(afrFacing.stdout || ''); process.stderr.write(afrFacing.stderr || '');
+  if (afrFacing.status !== 0) fail('林鐵推進／牽引方向、折返車身或手機驗證未通過');
 
   // ── 2.17 issue #19 跟車面板時間軸守門人(2026-09-08) ───────────────────────
   // 為什麼值得進出貨鏈:它守的是「跟車面板宣稱的已行駛里程」與「地圖實際繪製的車輛座標」
