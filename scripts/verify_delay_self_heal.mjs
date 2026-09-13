@@ -253,11 +253,15 @@ try {
     const from = src.indexOf("event.cron === '* * * * *'");
     const to = src.indexOf('return ledger;', from);
     const minuteBranch = from >= 0 && to > from ? src.slice(from, to) : '';
-    ok('H7 布線:delaySelfHeal 掛在每分鐘 cron 分支內', /delaySelfHeal\(event, env\)/.test(minuteBranch), `branch=${minuteBranch.length} bytes`);
-    ok('H7 布線:自帶 .catch(不會改變 scheduled 的成功/失敗契約)', /delaySelfHeal\(event, env\)\.catch\(/.test(minuteBranch));
-    ok('H7 布線:return 前有 await(waitUntil 可能被截斷,同 thsrHealTask 的理由)', /await delayHealTask;/.test(minuteBranch));
-    const iThsr = minuteBranch.indexOf('await thsrHealTask;');
-    const iDelay = minuteBranch.indexOf('await delayHealTask;');
+    // 只在「未被 // 注解掉」的行裡找——單純子字串比對抓不到「整段被註解掉」這種突變
+    // (規格突變(c)就是要驗這個:把布線那幾行整段加上 // 之後,子字串其實還在檔案裡,
+    // 純粹的 .test(minuteBranch) 會被騙過去,必須先濾掉注解行)。
+    const activeBranch = minuteBranch.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
+    ok('H7 布線:delaySelfHeal 掛在每分鐘 cron 分支內(未被注解掉)', /delaySelfHeal\(event, env\)/.test(activeBranch), `branch=${minuteBranch.length} bytes`);
+    ok('H7 布線:自帶 .catch(不會改變 scheduled 的成功/失敗契約)', /delaySelfHeal\(event, env\)\.catch\(/.test(activeBranch));
+    ok('H7 布線:return 前有 await(waitUntil 可能被截斷,同 thsrHealTask 的理由)', /await delayHealTask;/.test(activeBranch));
+    const iThsr = activeBranch.indexOf('await thsrHealTask;');
+    const iDelay = activeBranch.indexOf('await delayHealTask;');
     ok('H7 布線:await 順序在 await thsrHealTask; 之後(規格明講的順序)', iThsr >= 0 && iDelay > iThsr, `iThsr=${iThsr} iDelay=${iDelay}`);
 
     const wcfg = readFileSync(path.join(ROOT, 'wrangler.jsonc'), 'utf8');
