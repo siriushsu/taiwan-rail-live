@@ -1,0 +1,18 @@
+import {chromium,webkit} from 'playwright';
+import {mkdirSync,writeFileSync} from 'node:fs';
+const out='output/garage-wave1-details';mkdirSync(out,{recursive:true});const results=[];
+function check(name,pass,detail){results.push({name,pass:!!pass,detail});console.log(pass?'PASS':'FAIL',name,JSON.stringify(detail));}
+for(const [engine,type]of Object.entries({chromium,webkit})){
+ const browser=await type.launch();try{for(const kind of ['duoliang','crossing']){
+ const p=await browser.newPage({viewport:{width:1200,height:900},reducedMotion:'reduce'});await p.goto(`http://127.0.0.1:5291/prototypes/garage-${kind}/`);await p.waitForFunction(()=>window.newScenePreview?.state.ready);
+ const pixel=await p.evaluate(()=>{const api=newScenePreview,c=document.querySelector('#scene'),copy=document.createElement('canvas');copy.width=c.width;copy.height=c.height;const ctx=copy.getContext('2d'),read=()=>{ctx.drawImage(c,0,0);return ctx.getImageData(0,0,c.width,c.height).data;},diff=(a,b)=>{let n=0;for(let i=0;i<a.length;i+=4)if(Math.abs(a[i]-b[i])+Math.abs(a[i+1]-b[i+1])+Math.abs(a[i+2]-b[i+2])>30)n++;return n;};
+ api.setView('world');api.setPeriod('night');api.setTime(30/2.6);const lit=read();api.sceneLightsVisible(false);const unlit=read();api.sceneLightsVisible(true);api.trainVisible(false);const empty=read();api.trainVisible(true);api.setTime(110/2.6);const exited=read();api.trainVisible(false);const clean=read();api.trainVisible(true);return{sceneLightPixels:diff(lit,unlit),trainPixels:diff(lit,empty),exitPixels:diff(exited,clean)};});check(`${engine} ${kind} 實際夜燈、車體與出場像素`,pixel.sceneLightPixels>50&&pixel.trainPixels>100&&pixel.exitPixels===0,pixel);
+ await p.evaluate(()=>{newScenePreview.setView('train');newScenePreview.setPeriod('night');newScenePreview.setTime(30/2.6);});await p.selectOption('#train','emu3000');await p.waitForFunction(()=>newScenePreview.state.model==='emu3000'&&!newScenePreview.state.changing);const before=await p.evaluate(()=>newScenePreview.state);
+ for(const id of ['blue','dr1000','emu3000']){await p.selectOption('#train',id);await p.waitForFunction(id=>newScenePreview.state.model===id&&!newScenePreview.state.changing,id);}
+ const after=await p.evaluate(()=>newScenePreview.state);check(`${engine} ${kind} 換車保留狀態且資源不累積`,after.view==='train'&&after.period==='night'&&!after.running&&before.time===after.time&&after.memory.geometries<=before.memory.geometries+1&&after.memory.textures<=before.memory.textures+1,{before:before.memory,after:after.memory});
+ if(kind==='crossing'){const flow=await p.evaluate(()=>{const api=newScenePreview,L=api.state.trainLength,rows=[];for(const dt of [4,5,6,7,9,12,18,25,35,45]){api.setTime((30+L/2+3.5+dt*2.6)/2.6);rows.push(api.state.scene);}return rows;});check(`${engine} 雙向道路車流通過且警示時淨空`,flow.some(s=>s.vehicles.some(v=>Math.abs(v.y)<2))&&flow.every(s=>!s.alarm||s.vehicles.every(v=>Math.abs(v.y)-v.length/2>3.1)),flow.map(s=>({alarm:s.alarm,y:s.vehicles.map(v=>v.y)})));}
+ else{const visitors=await p.evaluate(()=>{const api=newScenePreview;api.setTime(10);const a=api.state.scene;api.setTime(18);return{a,b:api.state.scene};});check(`${engine} 遊客在月台步行`,visitors.a.visitors===17&&JSON.stringify(visitors.a.walkers)!==JSON.stringify(visitors.b.walkers)&&visitors.b.walkers.every(p=>p[1]>1.6&&p[2]===4.5),visitors);}
+ await p.screenshot({path:`${out}/${engine}-${kind}-night-detail.png`});await p.locator('#scene').press('ArrowRight');await p.locator('#scene').press('ArrowRight');await p.locator('#scene').press('ArrowUp');await p.screenshot({path:`${out}/${engine}-${kind}-angle.png`});await p.close();
+ }}finally{await browser.close();}
+}
+writeFileSync(`${out}/verification.json`,JSON.stringify(results,null,2));if(results.some(r=>!r.pass))process.exitCode=1;
