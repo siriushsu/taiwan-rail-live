@@ -6530,6 +6530,12 @@ function buildBlob(rows, generatedIso) {
 // (AbortController+setTimeout,計時器一路蓋到 await r.text() 讀完 body 才在 finally 清掉,
 // 不是只蓋到回應標頭回來為止——TDX 卡在下載到一半和完全不回應是同一種故障)。429 重試是
 // 對同一個 URL 再打一次,兩次嘗試各自獨立的 controller/計時器,不共用同一顆 120 秒預算。
+// 🔴 範圍:739 秒只涵蓋這裡的歷史 API 這一段。getToken(見上方)與所有 D1 呼叫都沒有加
+// 逾時,卡住時一樣沒有上限——這不是這次加逾時造成的回歸,是既有模式(同檔 thsrSelfHeal
+// 一樣沒管)。每日 cron 那一發(15 1 * * *)的 finally 段(pruneStationEvents、
+// ingestThsrSchedule)與這裡的歷史段共用同一個 15 分鐘牆鐘:歷史段吃滿 739 秒時,留給
+// finally 段(還要扣 token、D1 的耗時)大約只剩 2.7 分鐘。加這顆逾時之前,歷史段本身
+// 完全沒有上限,所以這不是讓情況變糟,只是還沒把整發都封頂。
 const HIST_FETCH_TIMEOUT_MS = 120000;
 async function fetchHistDayWithTimeout(url, headers, dayIso) {
   const controller = new AbortController();

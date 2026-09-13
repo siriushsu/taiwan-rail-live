@@ -17,8 +17,10 @@
 // 控管,無條件執行)。每發最多補 MAX_DATES_PER_RUN=3 天,每天最多 1 次 429 重試(fetchDelayDay)
 // ⇒ 每發最多 3×2=6 次歷史 API 請求。合計最壞 6 發×6 次＝**36 次歷史 API 請求/天**(全部遇到
 // 429 重試);不計 429 重試則是 6×3=**18 次/天**。TDX 公開規則:歷史服務 10 次呼叫＝1 點、
-// 用量到 105% 會硬斷線(全部即時資料一起停擺)。H8 驗的是自癒那 5 發的結構(不含每日 cron 的
-// 份額);H9 驗逾時保護與全系統上限的算式;H12 驗 429 重試不會被放大成無限重打。
+// 用量到 105% 會硬斷線(全部即時資料一起停擺)。H8 驗的是自癒那 5 發自己的份額(不含每日
+// cron 的份額,也不是系統總數);H9 驗的是逾時保護本身,以及「6 次歷史請求+sleep 預算
+// < 15 分鐘牆鐘」這個算式(算的是牆鐘時間,不是呼叫次數的系統總上限);H12 驗 429 重試
+// 不會被放大成無限重打。
 //
 // 分層:H1/H3/H6/H8/H9/H10/H11/H12/H4/H5 直接呼叫 _ingest.delaySelfHeal(純函式呼叫+
 // scripts/d1_local.mjs 的真 SQLite D1 替身+攔截 globalThis.fetch,零 wrangler、零真上游);
@@ -80,17 +82,28 @@ Date.now = () => NOW;
 const setNow = (dateIso, h, m) => { NOW = mkNow(dateIso, h, m); };
 
 // ── setTimeout 替身:只截「逾時計時器」那一種延遲,其餘 sleep 用的延遲照真的等 ─────
-// H9b 要驗「body 讀取期間 abort 真的會讓這發 reject」,但 HIST_FETCH_TIMEOUT_MS(120000)
+// H9c 要驗「body 讀取期間 abort 真的會讓這發 reject」,但 HIST_FETCH_TIMEOUT_MS(120000)
 // 真的等 2 分鐘不切實際。這裡只攔截「delay 恰好等於 HIST_FETCH_TIMEOUT_MS」這一種
 // setTimeout 呼叫,改成真的等一小段時間(20ms)就觸發;其餘 delay(429 重試用的 5000、
 // 日間隔用的 2000)完全不受影響,繼續真的等——不影響 H6/H8b/H12 原本就依賴「真的等」的
 // 計時語意。histTimeoutRealDelayMs 在動態 import 之後才會被賦值成 HIST_FETCH_TIMEOUT_MS
 // 的實際值,賦值前維持 null=不生效。
 const realSetTimeout = globalThis.setTimeout;
+const realClearTimeout = globalThis.clearTimeout;
 let histTimeoutRealDelayMs = null;
 const HANG_TIMER_MS = 20;
+// H9f(TM8:finally 不 clearTimeout)用:記錄每一顆「逾時計時器」的 handle,以及哪些 handle
+// 被 clearTimeout 過——只追蹤這一種攔截到的計時器,其餘 delay(2000/5000)的計時器不是
+// fetchHistDayWithTimeout 自己那顆、與這條斷言無關,不記。
+const histTimersCreated = [];
+const clearedTimers = new Set();
+globalThis.clearTimeout = (handle) => { clearedTimers.add(handle); return realClearTimeout(handle); };
 globalThis.setTimeout = (fn, delay, ...args) => {
-  if (histTimeoutRealDelayMs !== null && delay === histTimeoutRealDelayMs) return realSetTimeout(fn, HANG_TIMER_MS, ...args);
+  if (histTimeoutRealDelayMs !== null && delay === histTimeoutRealDelayMs) {
+    const h = realSetTimeout(fn, HANG_TIMER_MS, ...args);
+    histTimersCreated.push(h);
+    return h;
+  }
   return realSetTimeout(fn, delay, ...args);
 };
 
@@ -102,9 +115,23 @@ const historyHits = [];               // 實際被要求歷史 API 的日期(判
 const historySignals = [];            // 每次歷史 fetch 呼叫時的 init.signal(H9 驗證都是真的 AbortSignal)
 const emptyDays = new Set();          // 對這些日期回空 JSONL,模擬「上游還沒發布」
 const alwaysHistory429 = new Set();   // 對這些日期永遠回 429(初次+重試都是),模擬 429 重試耗盡(H12)
-let hangDay = null;                   // 非 null 時,對這一天回一個 body 永不自然結束、但會聽 signal 的假回應(H9b)
+let hangDay = null;                   // 非 null 時,對這一天回一個 body 永不自然結束、但會聽 signal 的假回應(H9c)
+let retryHangDay = null;              // 非 null 時,對這一天第一次回 429、429 重試那一次才 hang(H9e,單獨驗證重試路徑的逾時保護)
 function jsonlFor(dayIso) {
   return JSON.stringify({ TrainNo: '1001', StationID: '1080', DelayTime: 3, SrcUpdateTime: `${dayIso}T10:00:00+08:00` }) + '\n';
+}
+// body 讀取永遠不會自然 resolve,只靠呼叫端的 signal 觸發 abort 來讓它 reject——用來驗證
+// 逾時不是只掛在等回應標頭那一段,body 下載中也要能被中止(H9c 用在首次嘗試、H9e 用在
+// 429 重試那一次,共用同一套假回應)。
+function hangingBodyResponse(sig) {
+  return {
+    status: 200, ok: true,
+    text: () => new Promise((resolve, reject) => {
+      if (!sig) return; // 沒有 signal 就真的永遠掛住,測試本身會被外層逾時抓到(視為缺陷)
+      if (sig.aborted) return reject(new DOMException('The operation was aborted.', 'AbortError'));
+      sig.addEventListener('abort', () => reject(new DOMException('The operation was aborted.', 'AbortError')), { once: true });
+    }),
+  };
 }
 const realFetch = globalThis.fetch;
 globalThis.fetch = async (input, init) => {
@@ -120,19 +147,15 @@ globalThis.fetch = async (input, init) => {
     historyHits.push(day);
     historySignals.push(init && init.signal);
     if (alwaysHistory429.has(day)) return new Response('too many requests', { status: 429 });
-    if (day === hangDay) {
-      // body 讀取永遠不會自然 resolve,只靠呼叫端的 signal 觸發 abort 來讓它 reject——
-      // 用來驗證逾時不是只掛在等回應標頭那一段,body 下載中也要能被中止(H9b)。
-      const sig = init && init.signal;
-      return {
-        status: 200, ok: true,
-        text: () => new Promise((resolve, reject) => {
-          if (!sig) return; // 沒有 signal 就真的永遠掛住,測試本身會被外層逾時抓到(視為缺陷)
-          if (sig.aborted) return reject(new DOMException('The operation was aborted.', 'AbortError'));
-          sig.addEventListener('abort', () => reject(new DOMException('The operation was aborted.', 'AbortError')), { once: true });
-        }),
-      };
+    if (day === retryHangDay) {
+      // 首次嘗試回 429,429 重試那一次才 hang——單獨驗證「重試」那條路徑是否也有逾時保護
+      // (H9e/殺 TM2:429 重試若被改回裸 fetch,重試那次不會帶 signal,這裡的假回應會永遠
+      // 掛住,交給呼叫端的 3 秒 meta-timeout 看門狗接住,不讓整支腳本卡死)。
+      const attemptNum = historyHits.filter(d => d === day).length;   // 含這次自己,第 1 次=首次嘗試
+      if (attemptNum === 1) return new Response('too many requests', { status: 429 });
+      return hangingBodyResponse(init && init.signal);
     }
+    if (day === hangDay) return hangingBodyResponse(init && init.signal);
     return new Response(emptyDays.has(day) ? '' : jsonlFor(day), { status: 200 });
   }
   throw new Error('未預期的上游請求(驗收禁止打真上游):' + url);
@@ -156,9 +179,9 @@ console.log(`[準備] TODAY=${TODAY} YESTERDAY=${YESTERDAY} DELAY_HEAL_SLOTS=${J
 // readEnd 那句 SELECT」與「誤跑了 ingestDelayHistory 的額外讀取」(即使那次誤跑本身零 TDX
 // 呼叫、零 D1 寫入,讀取次數還是會露餡)。
 function countingDb(realDb) {
-  // 只數 prepare() 呼叫次數;batch() 原樣轉呼叫真正的 db,不然「M2:不落後時也跑 ingest」
+  // 只數 prepare() 呼叫次數;batch() 原樣轉呼叫真正的 db,不然「不落後時也誤跑 ingest」
   // 這種突變一旦讓 ingestDelayHistory 真的寫入,會在 writeDayRows 的 db.batch(...) 撞
-  // TypeError 把整支腳本炸掉,而不是讓 H3 乾淨地紅一條(同 H1/H2 的 forbiddenDb 教訓)。
+  // TypeError 把整支腳本炸掉,而不是讓 H3 乾淨地紅一條(同 H1 的 forbiddenDb 教訓)。
   const wrapper = {
     count: 0,
     prepare(sql) { wrapper.count++; return realDb.prepare(sql); },
@@ -282,8 +305,12 @@ try {
   }
 
   // ── H8:自癒本身的成本上限——(a) 一天 1440 分鐘只有 5 分鐘放行;(b) 餓死情境單發 ≤3 次歷史 API ──
-  // 這裡驗的是「自癒那 5 發」的份額(5×3=15 次);含每日 cron 那 1 發的系統總上限見 H9。
-  console.log('\n── H8: 自癒本身的成本上限(5 個時刻 × 單發最多 3 次 = 15 次) ──');
+  // 這裡驗的是「自癒本身」自己的份額:5 發×單發 3 天＝15 次(不計 429 重試;計入 429 重試
+  // 則每天最多 2 次歷史請求,5×3×2=30 次)。整體上限(含每日 cron 那 1 發的份額)是
+  // 36(全部遇 429)／18(不計 429)次歷史 API 請求/天,見 worker.js DELAY_HEAL_SLOTS 上方
+  // 的成本推導註解與本檔開頭——這裡不驗系統總數,只驗自癒自己這一份;H9b 驗的是牆鐘時間
+  // 的算式,同樣不是呼叫次數的系統總上限。
+  console.log('\n── H8: 自癒本身的成本上限(5 個時刻 × 單發最多 3 天 = 15 次,不計 429 重試) ──');
   {
     // (a) 用「不落後」的種子,讓放行的分鐘只做一句 D1 讀取就 return——省時間,不必真的補抓。
     console.log('  ── H8a: 整天 1440 分鐘逐分掃描,放行分鐘數必須恰為 5 ──');
@@ -320,8 +347,9 @@ try {
     }
 
     // (b) 餓死情境:35 天窗內最舊 3 個缺日永遠回空、昨天也缺——單發歷史 API 呼叫必須 ≤3、
-    // D1 不寫任何列、blob 迄日不變。自癒本身的上限就是(a)的 5 發 ×(b)的 3 次 = 15 次;
-    // 加計每日 cron 自己的份額,系統總上限見 H9 的算式。
+    // D1 不寫任何列、blob 迄日不變。自癒本身的上限就是(a)的 5 發 ×(b)的 3 次 = 15 次
+    // (不計 429 重試;計入為 30 次)。整體系統上限(含每日 cron 的份額)是 36／18,見
+    // worker.js 的成本推導註解——H9b 驗的是牆鐘時間的算式,不是呼叫次數,兩者不要混為一談。
     console.log('  ── H8b: 餓死情境(最舊 3 缺日永遠回空)單發 ≤3 次歷史 API、D1 不變 ──');
     {
       const oldest3 = [addDaysIso(YESTERDAY, -33), addDaysIso(YESTERDAY, -32), addDaysIso(YESTERDAY, -31)];
@@ -345,8 +373,8 @@ try {
     }
   }
 
-  // ── H9:逾時保護——每次歷史 fetch 都要有真的 AbortSignal;系統總上限的算式要成立 ──────
-  console.log('\n── H9: 逾時保護(真的 AbortSignal;系統總上限 < 15 分鐘牆鐘) ──');
+  // ── H9:逾時保護——每次歷史 fetch 都要有真的 AbortSignal;牆鐘算式要成立(不是呼叫次數) ──
+  console.log('\n── H9: 逾時保護(真的 AbortSignal;6×逾時+sleep < 15 分鐘牆鐘) ──');
   {
     const DELAY_DB = await seedDb(YESTERDAY, [YESTERDAY]);   // 只缺昨天(同 H5/H6 的最小情境)
     setNow(TODAY, 9, 37);
@@ -362,6 +390,16 @@ try {
     // 15 分鐘這裡寫死,不從任何常數推導,避免跟錯誤的假設同源。
     ok('H9b 最壞情形上限:6×HIST_FETCH_TIMEOUT_MS+19000 < 15×60×1000(15 分鐘寫死)',
       6 * HIST_FETCH_TIMEOUT_MS + 19000 < 15 * 60 * 1000, `6×${HIST_FETCH_TIMEOUT_MS}+19000=${6 * HIST_FETCH_TIMEOUT_MS + 19000}`);
+
+    // H9d:HIST_FETCH_TIMEOUT_MS 不能被調得太小——寫死下限,不是估計。單日 JSONL 原始約
+    // 13 MB(gzip 後約 1 MB,build_pass_obs.mjs 實測;Cloudflare fetch 子請求文件寫明會自動
+    // 對 origin 帶 gzip/brotli),而 Cron Triggers 實際落在哪個 colo 不可控(可能是 SIN／
+    // EWR／CDG／BOM 這類離台灣較遠的節點)。逾時值調得太小,會在仍正常下載中把請求提早
+    // 腰斬,正式環境天天補不進去——而且把常數改小這件事,先前的 H9 案例全部測不出來
+    // (setTimeout 替身的攔截鍵本來就取自這顆實作常數,不管常數多小都會被縮成 20ms,這只是
+    // 加速手段、不是斷言本身)。上限保留給 H9b 那條 < 15 分鐘牆鐘的算式,這裡只釘下限。
+    ok('H9d HIST_FETCH_TIMEOUT_MS 下限 ≥60000(60 秒,寫死,避免被調到來不及下載完一天的量)',
+      HIST_FETCH_TIMEOUT_MS >= 60000, `HIST_FETCH_TIMEOUT_MS=${HIST_FETCH_TIMEOUT_MS}`);
 
     // H9c:逾時不是只掛在等回應標頭那一段——body 下載中被 abort 也要讓這次嘗試 reject。
     // 用 hangDay 讓替身回一個 body 永不自然結束、但會聽 signal 的假回應;setTimeout 替身
@@ -382,6 +420,63 @@ try {
     hangDay = null;
     ok('H9c body 讀取期間被 abort 時,delaySelfHeal 這一發 reject(逾時保護涵蓋到讀完 body 為止)',
       threwHang && /tdx historical timeout/.test(msgHang), msgHang);
+
+    // H9e:429 重試那一次的逾時保護也要有牙——首次嘗試回 429,重試那一次的 body 永遠不
+    // 自然結束、但會聽 signal。H9a/H9c 測的都只是「首次嘗試」(沒有 429、不會走到重試),
+    // 沒辦法證明重試那一次是不是也真的建了獨立的 controller/計時器——萬一日後 429 重試被
+    // 改回裸 fetch(不經過 fetchHistDayWithTimeout),重試那次會既沒有逾時保護、也不帶
+    // signal,正式環境對某天持續 429 之後又卡住 body 時,這一發會直接吊到牆鐘上限,而
+    // 沒有這個案例的話驗收仍然全綠。沿用 H9c 同一套手法:retryHangDay 讓替身在第一次回
+    // 429、第二次(重試)才 hang;setTimeout 替身照舊把 HIST_FETCH_TIMEOUT_MS 那顆計時器
+    // 縮成 20ms。
+    // 🔴 meta-timeout 必須大於 5000ms:429 之後、重試之前有一段真的 sleep(5000)(不是
+    // HIST_FETCH_TIMEOUT_MS,不會被替身縮短),這段時間就算逾時保護正常也一定要真的等完,
+    // 所以看門狗要比它更長,這裡取 8 秒(5 秒真 sleep + 20ms 縮短後的逾時 + 餘裕)。第一版
+    // 誤用了跟 H9c 一樣的 3 秒,結果看門狗在真 sleep 都還沒睡完前就搶先觸發:不只兩條斷言
+    // 假紅,被 Promise.race 判輸的那個真正的 delaySelfHeal 呼叫並不會被取消,還在背景繼續
+    // 跑,睡完剩下的時間後才真的送出重試請求,retryHangDay 這時已經被下面那行清成 null,
+    // 替身把它當成正常請求放行、寫回 historyHits——污染了後面 H12 案例共用的同一個陣列。
+    // 這裡記下來,不要再犯:凡是「跨越一段不受替身管控的真實 sleep」的案例,meta-timeout
+    // 的下限就是那段真實 sleep 的時長,不能沿用其他案例(如 H9c,沒有真 sleep)的秒數。
+    const DELAY_DB3 = await seedDb(YESTERDAY, [YESTERDAY]);
+    retryHangDay = YESTERDAY;
+    historyHits.length = 0;
+    historySignals.length = 0;
+    let threwRetryHang = false, msgRetryHang = '';
+    try {
+      await Promise.race([
+        delaySelfHeal({ scheduledTime: NOW }, mkEnv(DELAY_DB3)),
+        new Promise((_, reject) => realSetTimeout(() => reject(new Error('H9e 測試本身逾時(8 秒)——429 重試那一次沒有在預期時間內 reject,重試路徑的逾時保護可能被拿掉了')), 8000)),
+      ]);
+    } catch (e) { threwRetryHang = true; msgRetryHang = String((e && e.message) || e); }
+    retryHangDay = null;
+    ok('H9e 429 重試那一次 body 讀取期間被 abort 時,delaySelfHeal 這一發 reject(重試路徑也有逾時保護,不是共用已到期的計時器或直接略過)',
+      threwRetryHang && /tdx historical timeout/.test(msgRetryHang), msgRetryHang);
+    ok('H9e 429 重試那一次請求的 init.signal 是真的 AbortSignal(不是改回裸 fetch)',
+      historySignals.length >= 2 && historySignals[1] instanceof AbortSignal,
+      `signals=${JSON.stringify(historySignals.map(s => s && s.constructor && s.constructor.name))}`);
+    ok('H9e 在 8 秒 meta-timeout 看門狗到期前就結束(沒有掛住整支腳本)',
+      threwRetryHang && !/測試本身逾時/.test(msgRetryHang), msgRetryHang);
+
+    // H9f(殺 TM8:finally 不 clearTimeout)——正常成功路徑結束後,fetchHistDayWithTimeout
+    // 那顆逾時計時器必須被 clearTimeout 掉,不能留著(洩漏的計時器雖然只會在到期時 abort
+    // 一個早就結束的請求、沒有使用者可見副作用,但仍是資源洩漏,而且是「finally 有沒有寫
+    // clearTimeout」這個具體改動最直接的證據)。做法:setTimeout 替身額外記錄每一顆攔截到
+    // 的計時器 handle(histTimersCreated),clearTimeout 替身記錄哪些 handle 被清過
+    // (clearedTimers);只種一個缺日(不會有 429、不會逾時),跑完立刻檢查這一發自己建立
+    // 的那顆計時器 handle 是否已經在「被清過」的集合裡——晚一點再檢查沒有意義,因為就算
+    // finally 沒清,那顆計時器最終還是會在 20ms(替身縮短後的值)後自己觸發並被替身的
+    // abort 邏輯間接處理掉,及時性才是這條斷言要抓的東西。
+    const DELAY_DB4 = await seedDb(YESTERDAY, [YESTERDAY]);
+    const timerStartIdx = histTimersCreated.length;
+    setNow(TODAY, 9, 37);
+    historyHits.length = 0;
+    const rTimer = await delaySelfHeal({ scheduledTime: NOW }, mkEnv(DELAY_DB4));
+    const newTimers = histTimersCreated.slice(timerStartIdx);
+    ok('H9f 正常成功路徑只建立 1 顆逾時計時器(這一發只有 1 次歷史請求、無 429)',
+      rTimer.behind === true && newTimers.length === 1, `newTimers=${newTimers.length} historyHits=${JSON.stringify(historyHits)}`);
+    ok('H9f 成功路徑結束後,那顆逾時計時器已經被 clearTimeout(沒有殘留計時器)',
+      newTimers.length === 1 && clearedTimers.has(newTimers[0]), `newTimers=${JSON.stringify(newTimers)} clearedCount=${clearedTimers.size}`);
   }
 
   // ── H10:blob 不存在——不能被當成「已追上」,補抓完之後要被重建出正確迄日 ────────────
@@ -505,13 +600,19 @@ try {
     ok('H7 布線:delaySelfHeal 掛在每分鐘 cron 分支內(未被注解掉)', /delaySelfHeal\(event, env\)/.test(activeBranch), `branch=${minuteBranch.length} bytes`);
     ok('H7 布線:自帶 .catch(不會改變 scheduled 的成功/失敗契約)', /delaySelfHeal\(event, env\)\.catch\(/.test(activeBranch));
 
-    // 「有 .catch(」只證明接住了,接住之後如果處理函式把例外原樣 throw 回去,await delayHealTask
-    // 一樣會拋出——單看上面那條子字串比對抓不到這種改法,必須把處理函式的內文抽出來檢查。
+    // 「有 .catch(」只證明接住了,接住之後如果處理函式把例外原樣丟出去或讓外層 promise
+    // reject,await delayHealTask 一樣會拋出——單看上面那條子字串比對抓不到這種改法,必須
+    // 把處理函式的內文抽出來檢查。`throw` 之外,`return Promise.reject(e)` 或直接呼叫
+    // `reject(...)` 都是等價的「把例外重新丟出去」,三種寫法都要擋(殺 M1b:改成
+    // `return Promise.reject(e)` 這種與 throw 等價但不含 throw 這個字面字串的寫法)。
     const catchStart = activeBranch.indexOf('delaySelfHeal(event, env).catch(');
     const catchEnd = catchStart >= 0 ? activeBranch.indexOf('});', catchStart) : -1;
     const catchBody = catchStart >= 0 && catchEnd > catchStart ? activeBranch.slice(catchStart, catchEnd) : '';
-    ok('H7 布線:.catch 的處理函式內沒有 throw(不會把例外重新丟出去)',
-      catchStart >= 0 && catchEnd > catchStart && !/\bthrow\b/.test(catchBody), `catchBody=${JSON.stringify(catchBody)}`);
+    const catchBodyRethrows = /\bthrow\b/.test(catchBody) || /Promise\.reject\s*\(/.test(catchBody) || /\breject\s*\(/.test(catchBody);
+    ok('H7 布線:.catch 的處理函式內沒有 throw/Promise.reject(/reject((不會用任何方式把例外重新丟出去)',
+      catchStart >= 0 && catchEnd > catchStart && !catchBodyRethrows, `catchBody=${JSON.stringify(catchBody)}`);
+    ok('H7 布線:.catch 的處理函式內有 return { ... } 物件字面值(吞下例外後正常返回結果物件,不是讓呼叫端繼續 reject)',
+      catchStart >= 0 && catchEnd > catchStart && /return\s*\{/.test(catchBody), `catchBody=${JSON.stringify(catchBody)}`);
 
     ok('H7 布線:有 ctx.waitUntil(delayHealTask)(tick 提早結束時這個 task 才不會被砍斷)',
       /ctx\.waitUntil\(delayHealTask\)/.test(activeBranch));
@@ -530,6 +631,8 @@ try {
 } finally {
   Date.now = realDateNow;
   globalThis.fetch = realFetch;
+  globalThis.setTimeout = realSetTimeout;
+  globalThis.clearTimeout = realClearTimeout;
 }
 
 console.log(failures ? `\n❌ ${failures} 項失敗` : '\n✅ 全部通過');
