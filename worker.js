@@ -6614,18 +6614,25 @@ async function ingestDelayHistory(env) {
 // 09-06~09-08 就停,統計窗仍落後好幾天,且沒有任何東西會在當天把它補起來(這個現象本身已經有
 // 巡檢在盯:scripts/lib/delay_window_verdict.mjs 問 /api/delay-stats 的迄日,generated 是新的
 // 不代表窗有追上)。
-// 這裡每 DELAY_HEAL_EVERY_MIN 分鐘問一次「blob 的迄日有沒有追上昨天」,沒追上就當場補抓
-// (ingestDelayHistory 冪等:缺日掃描+INSERT OR REPLACE,重跑安全);積欠多天時,當天靠多發
-// 自己接力補完,不必空等到隔天。從台北 09:30(09:15 那發理論上已跑完的下一刻)才開始檢查,
-// 避免那發還在跑的空窗被誤判成落後。
-// 點數成本:沒有落後時 0 次 TDX 呼叫(只有一句 D1 唯讀查詢);落後時每發最多 3 次歷史 API
-// (TDX 歷史服務 10 次呼叫＝1 點)＋可能 1 次取 token(24 小時內重複發生時走模組層快取,不再打)。
-const DELAY_HEAL_EVERY_MIN = 15;
-const DELAY_HEAL_FROM_MIN_OF_DAY = 9 * 60 + 30;   // 台北 09:30(以「時×60+分」比較,避免整點外的邊界問題)
+// 為什麼是「一天固定 5 個時刻」而不是每 15 分鐘一次:ingestDelayHistory 每發都只挑缺日裡
+// 「最舊的 3 天」補——TDX 對某天回空(0 筆事件)會 continue 跳過、那天永遠算缺,回非 2xx 則
+// 整發 throw。也就是說只要 35 天窗內有 ≥3 天 TDX 持續回空或持續出錯,每一發都會重新去抓
+// 「同樣那 3 天」,永遠輪不到昨天,blob 迄日就會一直落後——而落後就會再觸發一次補抓。原本
+// 每 15 分鐘一次的節奏在這種持續失敗的情境下沒有上限:一天最多可能觸發 58 次(09:30~23:45),
+// 每次最多 3 次歷史 API,理論上限來到 58×3=174 次。TDX 公開規則是歷史服務 10 次呼叫＝1 點、
+// 用量到 105% 會硬斷線(斷線會讓所有即時資料一起停擺),使用者已明確要求不要對 TDX 迴圈重打。
+// 改成 DELAY_HEAL_SLOTS 這種固定清單之後,不管持續失敗幾天,一天最多就是 5 發、每發最多 3 次
+// (MAX_DATES_PER_RUN,沒有改動)＝15 次歷史 API,不會再往上疊加。
+// 挑 :37 而不是整點/:15/:30/:45 是為了避開熱門 cron 分鐘——TDX token 端點按來源 IP 限流,
+// Cloudflare Workers 的出口 IP 與其他客戶共用,常見的整點/:15/:30/:45 更可能撞到別的服務也在
+// 打的那一分鐘;這一步是推測,沒有實測驗證過。09:37 是 09:15 那發每日 cron 之後的第一個時刻,
+// 其餘 10:37/12:37/15:37/19:37 把檢查機會分散到白天到晚間,不必整天空等到隔天的每日 cron。
+// 沒有落後時每個時刻只有一句 D1 唯讀查詢,零 TDX 呼叫。
+const DELAY_HEAL_SLOTS = [9 * 60 + 37, 10 * 60 + 37, 12 * 60 + 37, 15 * 60 + 37, 19 * 60 + 37];
 async function delaySelfHeal(event, env) {
   const tw = new Date(((event && event.scheduledTime) || Date.now()) + 8 * 3600 * 1000);
-  if (tw.getUTCMinutes() % DELAY_HEAL_EVERY_MIN !== 0) return { skipped: 'cadence' };
-  if (tw.getUTCHours() * 60 + tw.getUTCMinutes() < DELAY_HEAL_FROM_MIN_OF_DAY) return { skipped: 'off-hours' };
+  const minuteOfDay = tw.getUTCHours() * 60 + tw.getUTCMinutes();
+  if (!DELAY_HEAL_SLOTS.includes(minuteOfDay)) return { skipped: 'not-slot' };
   const db = env.DELAY_DB;
   const yesterday = addDays(twToday(), -1);
   // 問 blob(/api/delay-stats 原樣吐回的那份,使用者實際看到的東西)的迄日,不問
@@ -7188,10 +7195,12 @@ export default {
       });
       if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(thsrHealTask);
       // 台鐵誤點統計自我檢查:與帳本、推播、高鐵自癒都無關,自帶 .catch ⇒ 不可能改變 scheduled
-      // 的成功/失敗契約(同 thsrHealTask)。絕大多數 tick 會在第一行就 return(不到檢查週期或
-      // 台北 09:30 前),不碰 D1。每日誤點 ingest 只有一發(15 1 * * *)、第二發(15 4 * * *)是
-      // owner 刻意停用的,不得以任何形式加回 wrangler.jsonc——這支自癒是那一發失敗/積欠時當天
-      // 唯一的補救(見 delaySelfHeal 上方註解與 2026-09-08~09-12 的 TDX token 429 事故)。
+      // 的成功/失敗契約(同 thsrHealTask)。一天只有 DELAY_HEAL_SLOTS 那 5 個固定時刻會真的
+      // 檢查一次,其餘 tick 都在第一行就 return、不碰 D1(見 delaySelfHeal 上方註解:固定時刻
+      // 是為了讓「持續落後時的歷史 API 呼叫量」有上限,不是每 15 分鐘都打)。每日誤點 ingest
+      // 只有一發(15 1 * * *)、第二發(15 4 * * *)是 owner 刻意停用的,不得以任何形式加回
+      // wrangler.jsonc——這支自癒是那一發失敗/積欠時當天唯一的補救(見 2026-09-08~09-12 的
+      // TDX token 429 事故)。
       const delayHealTask = delaySelfHeal(event, env).catch(e => {
         console.error('[delay 自癒] 失敗:', (e && e.stack) || String(e));
         return { error: String((e && e.message) || e) };
@@ -7369,8 +7378,8 @@ export default {
 // 純函式導出,供離線回歸測試 import(不影響 fetch/scheduled 執行路徑)。
 export const _ingest = {
   parseDayEvents, buildDayRows, buildBlob, roundHalfUpStr, addDays, twParts,
-  // 自我檢查:測試要自備 env(DELAY_DB/TDX 覆寫)與 event.scheduledTime(節奏閘門看它,不看真時鐘)。
-  delaySelfHeal, DELAY_HEAL_EVERY_MIN, DELAY_HEAL_FROM_MIN_OF_DAY,
+  // 自我檢查:測試要自備 env(DELAY_DB/TDX 覆寫)與 event.scheduledTime(時刻閘門看它,不看真時鐘)。
+  delaySelfHeal, DELAY_HEAL_SLOTS,
 };
 // 純函式導出,供離線回歸測試 import:metroAlert 的 per-op last-known-good + News/TYMC 過濾轉換。
 export const _metroAlert = {

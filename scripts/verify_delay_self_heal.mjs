@@ -4,13 +4,16 @@
 // 背景:每日誤點 ingest(ingestDelayHistory)一天只有一發(15 1 * * *＝台北 09:15),第二發
 // (15 4 * * *)是 owner 刻意停用的。2026-09-08~09-12 連五天,那一發在第一個 TDX 呼叫(取 token)
 // 就吃 HTTP 429、整發拋例外;缺日自癒一發只補最舊 3 天,積欠超過 3 天時單靠每日那一發永遠追不上
-// (09-13 補完 09-06~09-08 就停,統計窗仍落後好幾天)。delaySelfHeal 掛在每分鐘 cron,形狀同
-// thsrSelfHeal:每 15 分鐘問一次 blob 迄日有沒有追上昨天,沒追上就當場補抓,讓積欠當天就能靠
-// 多發接力補完,不必空等到隔天。這支驗收同時是那個修法的突變測試地基(見 worker.js 的
-// git 歷史與 scripts/verify_delay_window_sentinel.mjs——那支只驗「有沒有發現落後」的巡檢哨兵,
-// 這支驗「落後了會不會自己好」的修法本身)。
+// (09-13 補完 09-06~09-08 就停,統計窗仍落後好幾天)。delaySelfHeal 掛在每分鐘 cron,問 blob
+// 迄日有沒有追上昨天,沒追上就當場補抓,讓積欠當天就能靠多發接力補完,不必空等到隔天。
 //
-// 分層:H1/H2/H3/H6/H4/H5 直接呼叫 _ingest.delaySelfHeal(純函式呼叫+scripts/d1_local.mjs 的
+// 🔴 為什麼是「一天固定 5 個時刻」而不是每 15 分鐘一次(2026-09-14 改版):ingestDelayHistory
+// 每發只挑缺日裡「最舊的 3 天」補,TDX 對某天持續回空或持續出錯時,那 3 天永遠補不進去、
+// 昨天就永遠輪不到——這種「餓死」情境下,舊的 15 分鐘節奏一天最多可能觸發 58 次補抓,每次
+// 最多 3 次歷史 API,完全沒有每日上限。改成 DELAY_HEAL_SLOTS 固定清單之後,一天最多 5 發、
+// 每發最多 3 次(MAX_DATES_PER_RUN,沒有改動)＝15 次歷史 API 封頂,H8 就是專門驗這個上限。
+//
+// 分層:H1/H3/H6/H8/H4/H5 直接呼叫 _ingest.delaySelfHeal(純函式呼叫+scripts/d1_local.mjs 的
 // 真 SQLite D1 替身+攔截 globalThis.fetch,零 wrangler、零真上游);H7 是靜態原始碼檢查
 // (布線有沒有接對,同 verify_thsr_schedule.mjs 的 V9)。
 //
@@ -19,14 +22,15 @@
 // 從最舊開始補、一發最多 3 天(MAX_DATES_PER_RUN)。種子資料只放「刻意缺的那幾天」,其餘 35 天
 // 視窗內的日期一律填滿,否則它會先去補更早的空日,案例就測到錯的東西。
 //
-// 🔴 陷阱二(時鐘對齊):ingestDelayHistory 用 Date.now() 算「昨天」,delaySelfHeal 的節奏/時段
-// 閘門看 event.scheduledTime——兩者必須對齊到同一個台北日,所以這裡整支把 Date.now 換成可控的
+// 🔴 陷阱二(時鐘對齊):ingestDelayHistory 用 Date.now() 算「昨天」,delaySelfHeal 的時刻閘門
+// 看 event.scheduledTime——兩者必須對齊到同一個台北日,所以這裡整支把 Date.now 換成可控的
 // NOW,每次要模擬某個台北時刻就同時挪動 NOW 與傳入的 scheduledTime,結束時還原。
 //
 // 🔴 陷阱三(token 模組層快取):getToken 的 tok/tokExp 是模組層變數,第一次成功後 24 小時內
 // 不會再打 token 端點。H6(token 429)必須是全檔第一個真的觸發 getToken 的案例,否則後面案例
-// 早就把 token 快取填好,H6 的 429 替身永遠不會被打到。H1/H2 全程不碰 D1、H3 不落後,兩者都
-// 不會呼叫 getToken,所以只要讓 H6 排在 H4/H5 之前執行即可(執行順序,不是印出來的編號順序)。
+// 早就把 token 快取填好,H6 的 429 替身永遠不會被打到。H1 全程用 forbiddenDb(不論放不放行都
+// 碰不到真上游)、H8(a) 全程不落後(零 TDX 呼叫)、H3 不落後,三者都不會呼叫 getToken,所以
+// 只要讓 H6 排在 H4/H5/H8(b) 之前執行即可(執行順序,不是印出來的編號順序)。
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
@@ -97,13 +101,13 @@ const forbiddenDb = { prepare() { throw new Error('不該碰 D1'); } };
 
 // stub 先架好才動態 import worker.js(同 verify_trtc_call_budget.mjs 慣例)。
 const { _ingest } = await import('../worker.js');
-const { delaySelfHeal, DELAY_HEAL_EVERY_MIN, DELAY_HEAL_FROM_MIN_OF_DAY, buildBlob } = _ingest;
+const { delaySelfHeal, DELAY_HEAL_SLOTS, buildBlob } = _ingest;
 
 const DELAY_BLOB_KEY = 'tra_delay_stats_30d';   // 鏡射 worker.js 的私有常數(delayStats 端點本身也是這樣內嵌字串,同一種慣例)
 const SCAN_WINDOW_DAYS = 35;                    // 鏡射 worker.js 的私有 SCAN_WINDOW_DAYS(陷阱一;若上游調整需同步)
 const MAX_DATES_PER_RUN = 3;                    // 鏡射 worker.js 的私有 MAX_DATES_PER_RUN(規格明講不得更動這顆常數)
 
-console.log(`[準備] TODAY=${TODAY} YESTERDAY=${YESTERDAY} EVERY_MIN=${DELAY_HEAL_EVERY_MIN} FROM_MIN_OF_DAY=${DELAY_HEAL_FROM_MIN_OF_DAY}`);
+console.log(`[準備] TODAY=${TODAY} YESTERDAY=${YESTERDAY} DELAY_HEAL_SLOTS=${JSON.stringify(DELAY_HEAL_SLOTS)}`);
 
 // 填滿 [yesterdayIso-34, yesterdayIso] 這 35 天,missingDays 指定的日期刻意不寫——陷阱一的解法。
 async function seedDb(yesterdayIso, missingDays) {
@@ -133,39 +137,40 @@ async function snapshotAll(DELAY_DB) {
 }
 
 try {
-  // ── H1:節奏閘門——分鐘不是 15 的倍數,早退且不碰 D1 ──────────────────────────
-  console.log('\n── H1: 節奏閘門 ──');
+  // ── H1:固定時刻清單閘門——只有 DELAY_HEAL_SLOTS 裡的分鐘才放行,其餘一律早退不碰 D1 ──
+  console.log('\n── H1: 固定時刻清單閘門(6 個代表時刻,正反都要) ──');
   {
-    // 🔴 用 try/catch 包住,不能假設它一定乾淨 return:節奏閘門若被拿掉(突變 b),
-    // forbiddenDb 會被碰到並拋錯,若不接住這裡會拋出未捕捉例外、整支腳本當場中止,
-    // 後面 H2-H7 全部驗不到——那樣「H1 必須紅」變成「整支腳本崩潰」,訊號比 FAIL 更粗但
-    // 掩蓋了其餘案例的結果,不利於一次看清楚突變影響範圍。
-    setNow(TODAY, 10, 7);
+    // 🔴 用 try/catch 包住,不能假設它一定乾淨 return:閘門若被拿掉或改壞(突變 e/f/g),
+    // forbiddenDb 會被碰到並拋錯,若不接住這裡會拋出未捕捉例外、整支腳本當場中止,後面
+    // 案例全部驗不到——那樣「H1 必須紅」變成「整支腳本崩潰」,訊號比 FAIL 更粗但掩蓋了
+    // 其餘案例的結果,不利於一次看清楚突變影響範圍。
+    // 用 forbiddenDb 同時做兩件事:skip 案例證明「沒碰到 D1」(沒拋錯),allow 案例證明
+    // 「真的碰到 D1」(拋錯)——後者是正向對照,沒有它「skip 案例沒拋錯」可能只是巧合。
+    const cases = [
+      ['09:36', 9, 36, false],
+      ['09:37', 9, 37, true],
+      ['09:38', 9, 38, false],
+      ['19:37', 19, 37, true],
+      ['23:45', 23, 45, false],
+      ['00:37', 0, 37, false],
+    ];
     historyHits.length = 0;
-    let r = null, threw = null;
-    try { r = await delaySelfHeal({ scheduledTime: NOW }, { DELAY_DB: forbiddenDb }); }
-    catch (e) { threw = e; }
-    ok('H1 不拋例外(節奏閘門在碰 D1 之前就 return)', !threw, threw ? String(threw.message) : '');
-    ok(`H1 台北 10:07(分鐘非 ${DELAY_HEAL_EVERY_MIN} 的倍數)→ skipped:'cadence'`, !!r && r.skipped === 'cadence', JSON.stringify(r));
-    ok('H1 零上游呼叫', historyHits.length === 0 && authHits === 0, `history=${historyHits.length} auth=${authHits}`);
-  }
-
-  // ── H2:時段閘門——早於 09:30 早退不碰 D1;正向對照 09:30 forbiddenDb 必須拋錯 ──
-  console.log('\n── H2: 時段閘門(含正向對照) ──');
-  {
-    // 同 H1 的理由:時段閘門若被拿掉或門檻改壞(突變 d),forbiddenDb 會拋錯,必須接住。
-    setNow(TODAY, 9, 15);
-    let r = null, threw = null;
-    try { r = await delaySelfHeal({ scheduledTime: NOW }, { DELAY_DB: forbiddenDb }); }
-    catch (e) { threw = e; }
-    ok('H2a 不拋例外(時段閘門在碰 D1 之前就 return)', !threw, threw ? String(threw.message) : '');
-    ok('H2a 台北 09:15(早於 09:30)→ skipped:\'off-hours\'', !!r && r.skipped === 'off-hours', JSON.stringify(r));
-
-    setNow(TODAY, 9, 30);
-    let threwB = false, msgB = '';
-    try { await delaySelfHeal({ scheduledTime: NOW }, { DELAY_DB: forbiddenDb }); }
-    catch (e) { threwB = true; msgB = String((e && e.message) || e); }
-    ok('H2b 正向對照:台北 09:30(到期)forbiddenDb 確實會被碰到並拋錯', threwB && /不該碰 D1/.test(msgB), msgB);
+    const authHitsBefore = authHits;
+    for (const [label, h, m, allowed] of cases) {
+      setNow(TODAY, h, m);
+      let r = null, threw = null;
+      try { r = await delaySelfHeal({ scheduledTime: NOW }, { DELAY_DB: forbiddenDb }); }
+      catch (e) { threw = e; }
+      if (allowed) {
+        ok(`H1 台北 ${label}(在清單內)→ 正向對照:確實碰到 D1(forbiddenDb 拋錯)`,
+          !!threw && /不該碰 D1/.test(String(threw.message)), threw ? String(threw.message) : JSON.stringify(r));
+      } else {
+        ok(`H1 台北 ${label}(不在清單)→ skipped:'not-slot',不碰 D1`,
+          !threw && !!r && r.skipped === 'not-slot', threw ? `拋錯:${threw.message}` : JSON.stringify(r));
+      }
+    }
+    ok('H1 全程零上游呼叫(forbiddenDb 讓放行案例也在碰到 fetch 之前就先拋錯)',
+      historyHits.length === 0 && authHits === authHitsBefore, `history=${historyHits.length} auth自${authHitsBefore}起=${authHits - authHitsBefore}`);
   }
 
   // ── H3:不落後——迄日已是昨天,零上游呼叫、兩張表逐列不變 ─────────────────────
@@ -173,7 +178,7 @@ try {
   {
     const DELAY_DB = await seedDb(YESTERDAY, []);   // 35 天全填滿,含昨天
     const before = await snapshotAll(DELAY_DB);
-    setNow(TODAY, 9, 30);
+    setNow(TODAY, 9, 37);
     historyHits.length = 0;
     const authHitsBefore = authHits;
     const r = await delaySelfHeal({ scheduledTime: NOW }, mkEnv(DELAY_DB));
@@ -190,7 +195,7 @@ try {
   {
     const DELAY_DB = await seedDb(YESTERDAY, [YESTERDAY]);   // 只缺昨天
     const before = await snapshotAll(DELAY_DB);
-    setNow(TODAY, 9, 30);
+    setNow(TODAY, 9, 37);
     historyHits.length = 0;
     authStatus = 429;
     let threw = false, msg = '';
@@ -208,6 +213,57 @@ try {
     ok('H6b 歷史 API 只被要求了昨天這一天', JSON.stringify(historyHits) === JSON.stringify([YESTERDAY]), JSON.stringify(historyHits));
   }
 
+  // ── H8:成本上限——(a) 一天 1440 分鐘只有 5 分鐘放行;(b) 餓死情境單發 ≤3 次歷史 API ──
+  console.log('\n── H8: 成本上限(一天最多 5 發 × 單發最多 3 次 = 15 次封頂) ──');
+  {
+    // (a) 用「不落後」的種子,讓放行的分鐘只做一句 D1 讀取就 return——省時間,不必真的補抓。
+    console.log('  ── H8a: 整天 1440 分鐘逐分掃描,放行分鐘數必須恰為 5 ──');
+    {
+      const DELAY_DB = await seedDb(YESTERDAY, []);   // 不落後的種子(同 H3)
+      historyHits.length = 0;
+      const authHitsBefore = authHits;
+      let allowedCount = 0;
+      const allowedMinutes = [];
+      for (let minuteOfDay = 0; minuteOfDay < 1440; minuteOfDay++) {
+        setNow(TODAY, Math.floor(minuteOfDay / 60), minuteOfDay % 60);
+        const r = await delaySelfHeal({ scheduledTime: NOW }, mkEnv(DELAY_DB));
+        if (!r.skipped) { allowedCount++; allowedMinutes.push(minuteOfDay); }
+      }
+      // 期望值 5 是寫死的字面值,不准從 DELAY_HEAL_SLOTS.length 取——避免判準與實作同源(零資訊)。
+      ok('H8a 整天 1440 分鐘裡,放行(沒回 skipped)的分鐘數恰為 5(寫死,非取自實作)', allowedCount === 5, `allowedCount=${allowedCount} minutes=${JSON.stringify(allowedMinutes)}`);
+      // 次要佐證:也要等於 DELAY_HEAL_SLOTS.length——兩個獨立表達式一致,才說明寫死的 5 不是巧合。
+      ok('H8a 放行分鐘數同時等於 DELAY_HEAL_SLOTS.length(佐證,不取代上一條)', allowedCount === DELAY_HEAL_SLOTS.length, `slots.length=${DELAY_HEAL_SLOTS.length}`);
+      ok('H8a 放行的分鐘清單逐一對上 DELAY_HEAL_SLOTS(時刻也要對,不只是數量對)',
+        JSON.stringify(allowedMinutes) === JSON.stringify([...DELAY_HEAL_SLOTS].sort((x, y) => x - y)), JSON.stringify(allowedMinutes));
+      ok('H8a 全程零上游呼叫(不落後的種子,連放行分鐘都只讀 D1 就 return)',
+        historyHits.length === 0 && authHits === authHitsBefore, `history=${historyHits.length} auth自${authHitsBefore}起=${authHits - authHitsBefore}`);
+    }
+
+    // (b) 餓死情境:35 天窗內最舊 3 個缺日永遠回空、昨天也缺——單發歷史 API 呼叫必須 ≤3、
+    // D1 不寫任何列、blob 迄日不變。這就是每日上限 15 次(＝(a)的 5 發 ×(b)的 3 次)的來源。
+    console.log('  ── H8b: 餓死情境(最舊 3 缺日永遠回空)單發 ≤3 次歷史 API、D1 不變 ──');
+    {
+      const oldest3 = [addDaysIso(YESTERDAY, -33), addDaysIso(YESTERDAY, -32), addDaysIso(YESTERDAY, -31)];
+      const starveMissing = [...oldest3, YESTERDAY];
+      const DELAY_DB = await seedDb(YESTERDAY, starveMissing);
+      for (const d of oldest3) emptyDays.add(d);
+      const readEndSql = "SELECT json_extract(v, '$._meta.date_range[1]') AS end FROM kv_blobs WHERE k = ?";
+      const before = await snapshotAll(DELAY_DB);
+      const endBefore = await DELAY_DB.prepare(readEndSql).bind(DELAY_BLOB_KEY).first();
+
+      setNow(TODAY, 9, 37);   // 清單內的放行時刻
+      historyHits.length = 0;
+      const r = await delaySelfHeal({ scheduledTime: NOW }, mkEnv(DELAY_DB));
+      ok('H8b 這一發確實嘗試補抓(behind:true——證明不是誤判成不落後才通過下面的檢查)', r.behind === true, JSON.stringify(r));
+      ok('H8b 單發歷史 API 呼叫次數 ≤3(MAX_DATES_PER_RUN 封頂,沒有因為餓死而多打)', historyHits.length <= MAX_DATES_PER_RUN, `hits=${JSON.stringify(historyHits)}`);
+      const after = await snapshotAll(DELAY_DB);
+      ok('H8b D1 不寫任何一列(兩張表逐位元組不變)', before === after, `before=${before.length}bytes after=${after.length}bytes`);
+      const endAfter = await DELAY_DB.prepare(readEndSql).bind(DELAY_BLOB_KEY).first();
+      ok('H8b blob 迄日不變', (endBefore && endBefore.end) === (endAfter && endAfter.end), `before=${endBefore && endBefore.end} after=${endAfter && endAfter.end}`);
+      for (const d of oldest3) emptyDays.delete(d);
+    }
+  }
+
   // ── H4:重現 09-13 事故形狀——積欠 4 天,分兩發接力補完,第三發不再落後 ──────────
   console.log('\n── H4: 積欠 4 天,兩發接力補完 ──');
   {
@@ -216,25 +272,25 @@ try {
       missing.length > MAX_DATES_PER_RUN, `missing=${missing.length}`);
     const DELAY_DB = await seedDb(YESTERDAY, missing);
 
-    setNow(TODAY, 9, 30);
+    setNow(TODAY, 9, 37);
     historyHits.length = 0;
     const r1 = await delaySelfHeal({ scheduledTime: NOW }, mkEnv(DELAY_DB));
     const want1 = missing.slice(0, MAX_DATES_PER_RUN);
-    ok('H4-1 09:30 補最舊 3 天', r1.behind === true && JSON.stringify(r1.written) === JSON.stringify(want1), JSON.stringify(r1));
+    ok('H4-1 09:37 補最舊 3 天', r1.behind === true && JSON.stringify(r1.written) === JSON.stringify(want1), JSON.stringify(r1));
     ok('H4-1 healed:false(還缺最後一天)', r1.healed === false, JSON.stringify(r1));
     ok('H4-1 上游被要求的日期＝最舊 3 天(獨立來源核對)', JSON.stringify(historyHits) === JSON.stringify(want1), JSON.stringify(historyHits));
 
-    setNow(TODAY, 9, 45);
+    setNow(TODAY, 10, 37);
     historyHits.length = 0;
     const r2 = await delaySelfHeal({ scheduledTime: NOW }, mkEnv(DELAY_DB));
-    ok('H4-2 09:45 補最後 1 天且 healed:true', r2.behind === true && JSON.stringify(r2.written) === JSON.stringify([YESTERDAY]) && r2.healed === true, JSON.stringify(r2));
+    ok('H4-2 10:37 補最後 1 天且 healed:true', r2.behind === true && JSON.stringify(r2.written) === JSON.stringify([YESTERDAY]) && r2.healed === true, JSON.stringify(r2));
     ok('H4-2 blob 迄日追上昨天', r2.after === YESTERDAY, `after=${r2.after}`);
     ok('H4-2 上游被要求的日期＝最後 1 天', JSON.stringify(historyHits) === JSON.stringify([YESTERDAY]), JSON.stringify(historyHits));
 
-    setNow(TODAY, 10, 0);
+    setNow(TODAY, 12, 37);
     historyHits.length = 0;
     const r3 = await delaySelfHeal({ scheduledTime: NOW }, mkEnv(DELAY_DB));
-    ok('H4-3 10:00 behind:false(追上了)', r3.behind === false && r3.end === YESTERDAY, JSON.stringify(r3));
+    ok('H4-3 12:37 behind:false(追上了)', r3.behind === false && r3.end === YESTERDAY, JSON.stringify(r3));
     ok('H4-3 hits 不再增加', historyHits.length === 0, `hits=${JSON.stringify(historyHits)}`);
   }
 
@@ -243,7 +299,7 @@ try {
   {
     const DELAY_DB = await seedDb(YESTERDAY, [YESTERDAY]);
     emptyDays.add(YESTERDAY);
-    setNow(TODAY, 9, 30);
+    setNow(TODAY, 9, 37);
     historyHits.length = 0;
     let threw = false;
     let r = null;
