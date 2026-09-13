@@ -319,8 +319,9 @@ try {
   // ── 2.11b 公車站牌搜尋與到站守門（單元 C 第一批）─────────────────────────
   // 🔴 不在出貨鏈上的驗收腳本等於不存在，所以本批一寫完就掛上來。這兩支守的是：
   //    五種到站語意不得被收斂成同一個「沒資料」、GoBack 2／3 不准猜方向、
-  //    端點網址只能來自 data/bus_providers.json、四支公車端點都掛了 BUS_LIMITER
-  //    （其中兩支是本批補的舊債）、雙層 TTL 的算式與註解一致、授權署名沒被拿掉。
+  //    端點網址只能來自 data/bus_providers.json、五支公車端點都掛了 BUS_LIMITER
+  //    （bus-transfer／bus-leg-live 是本批補的舊債，bus-route-stops 是 09-13 補的）、
+  //    雙層 TTL 的算式與註解一致、授權署名沒被拿掉。
   const busStop = spawnSync('node', [path.join(wt, 'scripts', 'verify_bus_stop_worker.mjs')], { encoding: 'utf8' });
   process.stdout.write(busStop.stdout || ''); process.stderr.write(busStop.stderr || '');
   if (busStop.status !== 0) fail('公車站牌到站驗收未過（單獨重跑：npm run check-bus-stop）');

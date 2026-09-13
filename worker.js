@@ -5032,6 +5032,9 @@ async function busStopLive(request, env) {
 }
 
 async function busRouteStops(request, env) {
+  // 🔴 限流要擋在最前面：下面的 cachedBusTransferRaw 在快取未命中時會打 N1，
+  // 與 /api/bus-transfer 是同一條成本路徑——這支不掛，bus-transfer 那把限流就能從這裡繞過去。
+  if (await rateLimited(env.BUS_LIMITER, request)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
   const url = new URL(request.url);
   const stationId = url.searchParams.get('station') || '';
   const arrivalKey = url.searchParams.get('arrival') || '';

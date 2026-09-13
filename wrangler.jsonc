@@ -105,7 +105,8 @@
       // 旅程分享寫入：前景位置正常每 15 秒至多一發（4/分鐘），30/分鐘保留網路重送餘裕；
       // 所有寫入共用同一桶且 fail-closed，擋在 D1 前。公開讀取不走這桶。
       { "name": "JOURNEY_SHARE_LIMITER", "type": "ratelimit", "namespace_id": "1008", "simple": { "limit": 30, "period": 60 } },
-      // BUS_LIMITER：/api/bus-transfer、/api/bus-leg-live、/api/bus-stop-search、/api/bus-stop-live 共用。
+      // BUS_LIMITER：/api/bus-transfer、/api/bus-leg-live、/api/bus-route-stops、/api/bus-stop-search、/api/bus-stop-live 共用。
+      // （bus-route-stops 09-13 補上：它在快取未命中時會打 N1，不掛就能繞過 bus-transfer 這把；只在點選路線時發，不影響下面的額度估算。）
       // 🔴 這一族與 tra-live／metro-live 不是同一類：它們的 TDX 成本隨【請求參數】線性上升
       // （不同站牌＝不同快取鍵＝各打一次 N1），不是「成本 = TTL × colo 數、與請求數無關」的固定成本輪詢。
       // 實測（2026-09-02 公車轉乘用量稽核）無節流時一支腳本每 20 秒掃 239 站 ＝ 926 點/天、
