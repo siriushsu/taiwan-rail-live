@@ -9,6 +9,7 @@
 //  -1. 每日 cron（台北 09:15）有沒有跑：它一天只有一次機會、無重試無告警，掛掉會讓高鐵班表
 //      停在前一天（當天新增班次看不到、取消的畫成幽靈車）。主指紋取誤點統計的 generated
 //      ＝那發自己寫的時戳，故**同日**就抓得到；只看高鐵班表日期會晚一天。
+//      另問誤點統計窗的迄日：generated 新只證明那發跑完，連掛幾天後窗照樣停在過去（2026-09-13）。
 //  -2. 官方即時資料源新不新：站牌倒數在純班表模式下**仍然是官方即時**，所以上游停更照樣
 //      是使用者看得到的傷害。這條不依賴任何前端旗標，是純班表模式下唯一照得到上游停更的。
 //   0. 名冊有沒有在換新：整包被驗證器退掉時，車會照舊時間線繼續跑（動得很順），
@@ -34,6 +35,7 @@ import fs from 'node:fs';
 import { chromium } from 'playwright';
 
 import { traDailyVerdict } from './lib/tra_daily_verdict.mjs';
+import { delayWindowVerdict, CRON_TW_HOUR } from './lib/delay_window_verdict.mjs';
 
 const args = process.argv.slice(2);
 const URL_ARG = args.find(a => !a.startsWith('--')) || process.env.TRTC_SCAN_URL || 'https://railisland.tw/';
@@ -374,7 +376,7 @@ else if (s2.censusFallbackLines && s2.censusFallbackLines.length)
     s2.censusFallbackLines);
 
 // -1. 每日 cron（台北 09:15）有沒有跑。詳細動機見上面 daily 的抓取註解。
-const CRON_TW_HOUR = 9;            // wrangler.jsonc 的 `15 1 * * *`（UTC）＝台北 09:15
+// CRON_TW_HOUR 從 lib/delay_window_verdict.mjs 匯入：「那發有沒有跑」與「窗有沒有追上」的到期閘門必須是同一個數。
 {
   const twDay = ms => new Date(ms).toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' });   // YYYY-MM-DD
   const today = twDay(Date.now());
@@ -404,6 +406,10 @@ const CRON_TW_HOUR = 9;            // wrangler.jsonc 的 `15 1 * * *`（UTC）�
       noteLoud('bad', `每日 cron（台北 ${CRON_TW_HOUR}:15 那發）看起來沒跑成功：${stale.join('、')}。` +
         '⚠️ 它沒有第二發、沒有重試、沒有其他告警；高鐵班表過期會讓當天新增班次看不到、' +
         '取消的班次畫成幽靈車。手動補跑法見 memory daily-cron-single-run-silent-failure', detail);
+    // 🔴 2026-09-13：上面那條只證明「那發有跑完」。那天 generated 是新的、上面印 ℓ，統計窗卻停在 09-08
+    //    ——前幾天連掛，而缺日自癒一發只補最舊 3 天。窗的迄日單獨問；判定式抽在 lib 裡做突變測試。
+    const w = delayWindowVerdict(daily.statsRange, today, twHour);
+    noteLoud(w.level, w.msg, { today, twHour, statsRange: daily.statsRange, expectedEnd: w.expectedEnd, lagDays: w.lagDays });
   }
 }
 
