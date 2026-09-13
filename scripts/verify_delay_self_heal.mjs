@@ -136,26 +136,36 @@ try {
   // ── H1:節奏閘門——分鐘不是 15 的倍數,早退且不碰 D1 ──────────────────────────
   console.log('\n── H1: 節奏閘門 ──');
   {
+    // 🔴 用 try/catch 包住,不能假設它一定乾淨 return:節奏閘門若被拿掉(突變 b),
+    // forbiddenDb 會被碰到並拋錯,若不接住這裡會拋出未捕捉例外、整支腳本當場中止,
+    // 後面 H2-H7 全部驗不到——那樣「H1 必須紅」變成「整支腳本崩潰」,訊號比 FAIL 更粗但
+    // 掩蓋了其餘案例的結果,不利於一次看清楚突變影響範圍。
     setNow(TODAY, 10, 7);
     historyHits.length = 0;
-    const r = await delaySelfHeal({ scheduledTime: NOW }, { DELAY_DB: forbiddenDb });
-    ok(`H1 台北 10:07(分鐘非 ${DELAY_HEAL_EVERY_MIN} 的倍數)→ skipped:'cadence'`, r.skipped === 'cadence', JSON.stringify(r));
-    ok('H1 forbiddenDb 全程沒被碰(沒拋錯就是沒碰)', true);
+    let r = null, threw = null;
+    try { r = await delaySelfHeal({ scheduledTime: NOW }, { DELAY_DB: forbiddenDb }); }
+    catch (e) { threw = e; }
+    ok('H1 不拋例外(節奏閘門在碰 D1 之前就 return)', !threw, threw ? String(threw.message) : '');
+    ok(`H1 台北 10:07(分鐘非 ${DELAY_HEAL_EVERY_MIN} 的倍數)→ skipped:'cadence'`, !!r && r.skipped === 'cadence', JSON.stringify(r));
     ok('H1 零上游呼叫', historyHits.length === 0 && authHits === 0, `history=${historyHits.length} auth=${authHits}`);
   }
 
   // ── H2:時段閘門——早於 09:30 早退不碰 D1;正向對照 09:30 forbiddenDb 必須拋錯 ──
   console.log('\n── H2: 時段閘門(含正向對照) ──');
   {
+    // 同 H1 的理由:時段閘門若被拿掉或門檻改壞(突變 d),forbiddenDb 會拋錯,必須接住。
     setNow(TODAY, 9, 15);
-    const r = await delaySelfHeal({ scheduledTime: NOW }, { DELAY_DB: forbiddenDb });
-    ok('H2a 台北 09:15(早於 09:30)→ skipped:\'off-hours\'', r.skipped === 'off-hours', JSON.stringify(r));
+    let r = null, threw = null;
+    try { r = await delaySelfHeal({ scheduledTime: NOW }, { DELAY_DB: forbiddenDb }); }
+    catch (e) { threw = e; }
+    ok('H2a 不拋例外(時段閘門在碰 D1 之前就 return)', !threw, threw ? String(threw.message) : '');
+    ok('H2a 台北 09:15(早於 09:30)→ skipped:\'off-hours\'', !!r && r.skipped === 'off-hours', JSON.stringify(r));
 
     setNow(TODAY, 9, 30);
-    let threw = false, msg = '';
+    let threwB = false, msgB = '';
     try { await delaySelfHeal({ scheduledTime: NOW }, { DELAY_DB: forbiddenDb }); }
-    catch (e) { threw = true; msg = String((e && e.message) || e); }
-    ok('H2b 正向對照:台北 09:30(到期)forbiddenDb 確實會被碰到並拋錯', threw && /不該碰 D1/.test(msg), msg);
+    catch (e) { threwB = true; msgB = String((e && e.message) || e); }
+    ok('H2b 正向對照:台北 09:30(到期)forbiddenDb 確實會被碰到並拋錯', threwB && /不該碰 D1/.test(msgB), msgB);
   }
 
   // ── H3:不落後——迄日已是昨天,零上游呼叫、兩張表逐列不變 ─────────────────────
