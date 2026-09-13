@@ -59,6 +59,11 @@ const TDX_SETS = [
 // TDX 每次回傳都會動的欄位。**不剔除就是天天假警報**:2026-08-01 實測北捷含這些欄位與剔除後
 // 都不同(那天是真變動),但多數日子只有這些在跳。
 const VOLATILE = new Set(['UpdateTime', 'SrcUpdateTime', 'VersionID', 'SrcVersionID']);
+// 刻意凍結、不跟線上的磁碟快照:只跟「上次 --accept 的線上指紋」比,不跟磁碟比。
+// 起因:使用者 09-12 裁示「R01 廣慈/奉天宮我們是吃北捷的,這個不管」,且重抓這兩份會讓
+// build_tdx 把 R01 整站刪掉 ⇒ 快照永遠停在舊版 ⇒ 舊判準「線上≠磁碟」每天都報,--accept 也收不掉,
+// 使用者被同一件事問了好幾天(2026-09-13 被罵)。凍結後 TDX 若「再」動這兩份,仍會報一次。
+const FROZEN_SNAPSHOTS = new Set(['TRTC_Station', 'TRTC_StationOfLine']);
 
 // ── 小工具 ────────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
@@ -180,7 +185,7 @@ async function probeTdx() {
       // 基準優先用 state(上次巡檢時的線上指紋);沒有就用磁碟快照——這樣第一次跑就抓得到
       // 「磁碟快照早就落後線上」這種既存漂移,而不是只從今天開始比。
       const base = state.tdx[key] || snapH;
-      if (liveH === base && liveH === snapH) continue;
+      if (liveH === base && (liveH === snapH || FROZEN_SNAPSHOTS.has(key))) continue;
       const lc = countsOf(live), sc = countsOf(snap);
       const diffs = Object.keys({ ...lc, ...sc })
         .filter(k => (lc[k] ?? -1) !== (sc[k] ?? -1))
