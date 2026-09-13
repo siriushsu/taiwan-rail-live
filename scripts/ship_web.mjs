@@ -167,6 +167,10 @@ try {
   process.stdout.write(stationRoutes.stdout || ''); process.stderr.write(stationRoutes.stderr || '');
   if (stationRoutes.status !== 0) fail('具名派軌、太麻里月台來源、非電化限制或接站連續驗證未通過');
 
+  const remainingRoutes = spawnSync('node', [path.join(wt, 'scripts', 'verify_remaining_station_routes.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(remainingRoutes.stdout || ''); process.stderr.write(remainingRoutes.stderr || '');
+  if (remainingRoutes.status !== 0) fail('多站改派、借路保護或進出站連續驗證未通過');
+
   const terrainChunks = spawnSync('node', [path.join(wt, 'scripts', 'verify_terrain_chunk_cache.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(terrainChunks.stdout || ''); process.stderr.write(terrainChunks.stderr || '');
   if (terrainChunks.status !== 0) fail('地形分片快取未通過——忽略 Range 的伺服器會被重複下載同一片（單獨重跑：npm run check-terrain-chunk-cache）');
