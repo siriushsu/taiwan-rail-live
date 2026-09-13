@@ -1731,3 +1731,5 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {"修正台北等密集市區近處�
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"修正台北等密集市區近處建築缺少透視線條，優先保留畫面內的近景輪廓": "台北など建物が密集する地域で、近くの建物の透視線が欠ける問題を修正しました。画面内の近景の輪郭を優先して表示します。"});
 Object.assign(window.RAIL_I18N_MESSAGES.en, {"到站提醒新增每天、週一到五或自訂星期的重複設定，通勤固定搭的那班設一次就長期有效": "Arrival reminders can now repeat every day, on weekdays, or on days you pick, so a regular commute only needs setting up once."});
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"到站提醒新增每天、週一到五或自訂星期的重複設定，通勤固定搭的那班設一次就長期有效": "到着リマインダーに毎日・平日・曜日指定の繰り返し設定を追加しました。いつも乗る通勤列車は一度設定すれば使い続けられます。"});
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"調整多站列車的停靠與進出股道，減少待避時重疊，以及部分追撞、對向互穿的畫面": "Adjusted stops and track routing at several stations, so trains waiting for others to pass overlap less, and fewer appear to run into or pass through each other."});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"調整多站列車的停靠與進出股道，減少待避時重疊，以及部分追撞、對向互穿的畫面": "複数の駅で停車位置と着発線を調整し、待避中の列車の重なりや、一部で追突や対向列車とのすり抜けに見える表示を減らしました。"});
