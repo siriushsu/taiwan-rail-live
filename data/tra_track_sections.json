@@ -4,8 +4,8 @@
  "pairs": {
   "七堵|八堵": {
    "tracks": 2,
-   "parallelFrac": 0.99,
-   "lengthM": 2400,
+   "parallelFrac": 0.995,
+   "lengthM": 2398,
    "refs": [
     "宜蘭線",
     "縱貫線"
@@ -13,7 +13,7 @@
   },
   "七堵|百福": {
    "tracks": 2,
-   "parallelFrac": 0.961,
+   "parallelFrac": 0.954,
    "lengthM": 2659,
    "refs": [
     "縱貫線"

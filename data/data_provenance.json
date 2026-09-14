@@ -278,7 +278,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "972eefefc9cb6fce5e9e18f853372d6f"
+   "checksum": "0b689bd70b9ecb460d6128609e7d20ba"
   },
   "data/track_lines.geojson": {
    "sourceDescription": "由 data/{tra,thsr_track,afr,trtc,tymc,ntdlrt,ntalrt,sanying,krtc,tmrt}.json 的 lines[].shape 與 lines[].stations 轉成 GeoJSON([lon,lat],小數 6 位),scripts/build_track_g",
