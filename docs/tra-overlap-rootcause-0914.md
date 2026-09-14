@@ -182,14 +182,20 @@ node scripts/repair_physical_directions.mjs            # → output/directions/
 OUT_DIR=output/stations NETWORK=output/directions/network.json DISPATCH=output/directions/dispatch.json node scripts/repair_physical_stations.mjs
 cp output/stations/{network,dispatch}.json rail-3d/physical/
 node scripts/build_physical_display_profiles.mjs       # 只有 way 變多／變了才需要（build_rail_levels 要每條 way 都有剖面）
+node scripts/build_rail_structures_official.mjs        # 補了 way 就重跑（官方橋隧改判是逐 way 的）；快取 .cache/nlsc 三份 zip 的 sha256 要等於檔內 datasets
 node scripts/build_rail_levels.mjs && node scripts/verify_rail_levels.mjs
+node scripts/verify_rail_structure_heights.mjs         # = npm run check-rail-structure-heights；G5b／G6f 是絕對公里 ratchet，不准放寬
 node scripts/build_tra_track_sections.mjs               # 區間表變了就 node scripts/build_run_profiles.mjs && node scripts/verify_run_profiles_match.mjs
 node scripts/verify_tra_plan_binding.mjs && node scripts/verify_remaining_station_routes.mjs
+node scripts/verify_verified_station_routes.mjs        # 09-12 具名路線回歸（ship-web 預檢有跑）
+node scripts/verify_track_geojson.mjs                  # tra.json 站座標一改就紅；它會就地重產 data/track_*.geojson，重產結果要提交
 TEST_DATE=<服務日> npm run check-physical-overlap        # 三個服務日各跑一次
 UPDATE_BASELINE=1 DATES=all node scripts/verify_tra_overlap_families.mjs   # 看過家族表沒有新家族才更新基線
 ```
 
 `repair_physical_platforms.mjs`（不看方向的舊修法）已被 F2 取代，不要再跑。
+
+🔴 推 main 前：`scripts/ship_web.mjs` 預檢裡的**每一支**閘門都要在**合併後的樹**上跑過；上面只列本批直接相關的，§9.12 就是漏跑一支被擋下。
 
 ### 9.6 F6 補回站場咽喉連接段（2026-09-14 下午，同一分支；未併 main、未部署）
 
@@ -688,3 +694,24 @@ A 名單內座標不變且等於 `assertStationCoord`；B 名單外 240 站照�
 - 下一步（不放寬基準）：逐 way 比對 `239fdbf7` 與本分支的 G6f／G5b 貢獻，找出新增的浮空與不畫段、修高度；
   把 `check-rail-structure-heights` 加進 §9.5 閘門清單；推 main 前跑完整 ship-web 預檢。
 
+### 9.13 修高度：基隆隧道回到 main 的值；蘇澳港線待裁（2026-09-14 晚，同一分支；未併 main、未部署）
+
+- 逐 way 比對合併前 main（`d5e3a113`）與分支的 G6f／G5b 貢獻（兩棵樹各跑同一份量測再相減）：
+  - G5b 隧道不畫 +0.23 km 全在**基隆站場**：新增股道鏈「橋 1254269078（16 m，layer 1）→ 明示隧道 1434789997（13 m）→ 1254269077（187 m，只有 layer −1）」
+    接到第一A月台停靠線 533464243 北端。隧道求解器把洞口釘在橋面高度（離地 CLEAR 6 m），縱坡 2.5% 下 200 m 內降不到覆土，整段高於地表、一根線都不畫。
+  - G6f 平面浮空 +0.13 km 全在**蘇澳港線** 4 條新 spur（145608233、1527875178、1527875179、1033291385），既有 way 零變化。
+- 根因與修法（`06847626`）：官方橋隧對照表的反向改判只用 DEM 起伏當裁判，對官方結構碼 3（都市地下段，上方沒有山）永遠沒有鑑別力，
+  「來源標橋、官方判地下、地形沒有山」這一格一定落進 unresolved。1254269078 官方涵蓋 100%、起伏 0.1 m，端點直接接上來源明示 tunnel=yes 的股道
+  ⇒ 產生器補 `flushTunnel` 第二裁判。全網只命中這一條；另一條 unresolved 的捷運環狀線 741259917 兩端接高架，不受影響。
+  - 對照表重產：既有 290 條逐條不變；新增 1254269078（改判地下）與 101917173 枋寮一號橋（新增股道的一般升級）。
+    控制組在 main 重產，逐條等於已提交版；快取 zip 三份 sha256 與檔內記錄相同。
+  - 重跑 build_rail_levels：**G5b 3.46 → 3.23 km，逐 way 與 main 零差異**。
+    G1 對第二裁判條目從 network 原始標記重算鄰接、重驗涵蓋並釘死名單；突變（起伏改 25 m／拿掉 arbiter）各自被抓，控制組只剩 G6f。
+- 🔴 **蘇澳港線（未解，待裁示）**：軌道中心線 DEM 在 80 m 內從 7 m 升到 17 m 再降回 5 m，南側約 40 m 是 33 m 的小山頂；
+  國土測繪中心同一段判「一般平面」、前一段是蘇澳橋 ⇒ 實際是 20 m DTM 解析不到的路塹。
+  求解器「平面不低於地表」＋縱坡 2.5% 只能把軌道抬過山肩再慢慢降，兩側尾段浮空 10.6–12.5 m。
+  畫在真實高度會埋進地形（G6e 上限 0.1 km，現況 0.06 km），維持抬升則 G6f 6.62 km 超過 6.6。
+  蘇澳橋以東這 4 條 spur 合計 385 m，都是死端，沒有任何列車使用。
+- 預檢順帶補的：`verify_track_geojson` G0 在分支紅（本分支 tra.json 已更正汐科座標，track_stations.geojson 沒重跑）⇒ `a1031e81` 重產並提交，607 點只有汐科改變。
+  `verify_verified_station_routes` 在 `b87dc013` 就紅：4234 七堵—八堵的新進路踩到 09-12 擋掉的對向資源；1208 埔心—中壢的起訖停車點變了。另案處理。
+  ship-web 預檢中與台鐵／軌道／班表相關的另 34 支，在分支上除 verified_station_routes 外全過；i18n／manifest 類要在合併後的樹上跑。
