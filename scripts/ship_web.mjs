@@ -207,6 +207,12 @@ try {
   const traBinding = spawnSync('node', [path.join(wt, 'scripts', 'verify_tra_plan_binding.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(traBinding.stdout || ''); process.stderr.write(traBinding.stderr || '');
   if (traBinding.status !== 0) fail('台鐵班表與股道綁定防護未通過');
+  // 同向預排待避是瀏覽器裡依當日車群決定，靜態派車檢查碰不到；固定順向 6563／207 與
+  // 反向 114／228，在 Chromium＋WebKit 實測煞車提前量、站內停等、清站間隔與實體股道。
+  const overtakeStation = spawnSync('node', [path.join(wt, 'scripts', 'verify_overtake_station_planning.mjs')],
+    { cwd: wt, encoding: 'utf8', env: { ...process.env, PORT: '' } });
+  process.stdout.write(overtakeStation.stdout || ''); process.stderr.write(overtakeStation.stderr || '');
+  if (overtakeStation.status !== 0) fail('台鐵預排待避的煞車距離、站內停等或雙方向案例未通過');
   const thsrBinding = spawnSync('node', [path.join(wt, 'scripts', 'verify_thsr_plan_binding.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(thsrBinding.stdout || ''); process.stderr.write(thsrBinding.stderr || '');
   if (thsrBinding.status !== 0) fail('高鐵當日班表與股道綁定防護未通過(新車次或改時刻的班次會掉回示意線形而折疊)');

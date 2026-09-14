@@ -11,7 +11,8 @@ export function sameDerivedPasses(plan,tr){
  return old.length===tr.stops.length&&old.every((s,i)=>{
   const p=tr.stops[i];if(s[0]!==stationKey(tr.sys||tr.system,p.name))return false;
   if(s[1]===p.arrSec&&s[2]===p.depSec)return true;
-  return i>0&&i<old.length-1&&p.stop===false&&s[1]===s[2]&&p.arrSec===p.depSec&&Number.isFinite(p.arrSec);
+  return i>0&&i<old.length-1&&p.stop===false&&s[1]===s[2]&&Number.isFinite(p.arrSec)&&Number.isFinite(p.depSec)
+   &&(p.arrSec===p.depSec||p._plannedDwell===true&&p.depSec>p.arrSec);
  });
 }
 const borrow=(pathIds,tr)=>{const holds=tr.stops.map(()=>({arrival:0,departure:0}));return {pathIds,holds,departureHolds:holds.map(()=>0),officialDelaySec:0,stopSignature:physicalStopSignature(tr)};};

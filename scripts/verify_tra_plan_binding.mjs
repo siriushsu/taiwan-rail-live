@@ -6,6 +6,7 @@ const make=([key,p])=>({sys:'tra_sched',train:key.split(':')[1],stops:JSON.parse
 const entry=rows.find(e=>make(e).stops.slice(1,-1).some(s=>!s.stop)),tr=make(entry),bind=createPlanBinding(dispatch),pass=tr.stops.findIndex((s,i)=>i>0&&!s.stop);
 assert.equal(bind(tr).basis,'exact');
 const derived=structuredClone(tr);derived.stops[pass].arrSec+=.125;derived.stops[pass].depSec+=.125;assert.equal(bind(derived).basis,'derived-pass-times');assert.strictEqual(bind(derived).plan,entry[1]);
+const planned=structuredClone(derived);planned.stops[pass]._plannedDwell=true;planned.stops[pass].depSec+=90;assert.equal(bind(planned).basis,'derived-pass-times');assert.strictEqual(bind(planned).plan,entry[1]);
 const backwards=structuredClone(derived);backwards.stops[pass].arrSec=backwards.stops[pass].depSec=backwards.stops[pass-1].depSec-1;assert.equal(bind(backwards),null,'時間倒退不可被當成通過曲線更新');
 const changedStop=structuredClone(tr),stop=changedStop.stops.findIndex((s,i)=>i>0&&i<tr.stops.length-1&&s.stop);changedStop.stops[stop].depSec+=1;assert.equal(bind(changedStop),null,'正式停靠時間改變不可套舊派車');
 const changedNames=structuredClone(tr);[changedNames.stops[pass].name,changedNames.stops[pass+1].name]=[changedNames.stops[pass+1].name,changedNames.stops[pass].name];assert.equal(bind(changedNames),null,'站序改變不可套舊路徑');

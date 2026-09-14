@@ -21,13 +21,16 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 // 頂層宣告依 index.html 的原始順序無關（函式提升），但 const 必須排在用到它的執行之前。
 const CONSTS = ['PERF_DEFAULT', 'PERF_HSR', 'HSR_DEP_MID_SEC', 'PERF_RULES', 'PERF_BY_TYPE',
-  'SPEED_ZONES', 'ZONE_KNOT_GAP', '_rpPre', 'MEET_HEADWAY_SEC', 'MEET_NEAR_SEC'];
+  'SPEED_ZONES', 'ZONE_KNOT_GAP', '_rpPre', 'MEET_HEADWAY_SEC', 'MEET_NEAR_SEC',
+  'OVERTAKE_LOOKAHEAD_KM', 'OVERTAKE_CLEAR_SEC', 'OVERTAKE_MAX_WAIT_SEC'];
 const FUNCS = ['haversineKm', 'ensureCum', 'posAlongShape', 'isHSR', 'resolvePerf',
   'speedZoneClassOf', 'runSpeedZones', 'zoneProfileOk', 'zoneNatural', 'speedZoneKnots',
   'buildProfile', 'buildObsProfile', 'profTimeToProg', 'profProgToTime',
   'schedSegmentKm', 'schedSegKmOf', 'assignRunProfiles', 'canonicalizeAliasTrains',
   'projectOntoShape', 'assignSchedShapePathsFor',
   'inferMeetPassTimes', 'inferMeetRun', 'reanchorRunProfile', 'applyRunProfile'];
+FUNCS.push('clearPlannedOvertakes', 'reassignTrainProfile', 'overtakeRunBuildable',
+  'planSameDirectionOvertakes', 'resolveTraTraffic');
 
 // 🔴 前端存進 state.passObs 的是檔案的 .trains 子物件，不是根物件（index.html:26667）。
 // 傳整份進去不會報錯，只會讓每一次查表都落空、全部跑段靜默退回梯形——實測 236 台車的
@@ -69,9 +72,10 @@ export function computeProfiles({ indexPath, schedule, track, passObs, mutate, t
   //    臺北-環島，實測跑段長度差 0.36 公尺，check-run-profiles 的逐字比對會紅、
   //    那兩台車在使用者手上靜默退回現算。順序也要照前端：併完才貼軌。
   runInContext('canonicalizeAliasTrains(trains)', ctx);
-  runInContext('assignSchedShapePathsFor(trains, lines)', ctx);
+  runInContext('clearPlannedOvertakes(trains); assignSchedShapePathsFor(trains, lines)', ctx);
   // 交會／待避推論：與前端 applySchedSystems 同一個呼叫（聯集班表＋dates＋單雙線表），跑在貼軌之後。
   ctx.union = { trains: schedule.trains, dates: schedule.dates };
+  // 預排同向待避取決於某一天實際同場的車群，不烤進跨日共用檔；前端選完站後會讓該班整車現算。
   const meetStats = runInContext('inferMeetPassTimes(trains, union, state.trackSections)', ctx);
   return { segStats: ctx.state._segStats, meetStats };
 }
@@ -90,11 +94,15 @@ export function collectProfiles(schedule) {
   let obsRuns = 0, plainRuns = 0, knots = 0;
   for (const tr of schedule.trains) {
     const seen = new Set(), per = {};
+    // 預排待避取決於當日實際同場的車群，不能把多日聯集算出的結果烤成所有日期共用的剖面。
+    // 前端看到 _plannedDwell 的列車會整班現算；這裡同樣不收，避免快取反過來左右選站。
+    const transient = tr.stops.some(st => st._plannedDwell);
     tr.stops.forEach((st, i) => {
       if (!st.rp || seen.has(st.rp)) return;
       seen.add(st.rp);
       if (!st.rp.obs) { plainRuns++; return; }
       obsRuns++; knots += st.rp.xs.length;
+      if (transient) return;
       // 這顆 rp 第一次出現的 stop index 就是跑段起點 k0（assignRunProfiles 從 k0 開始逐站掛同一顆）
       // h 與 obs 不送：h 恆等於 diff(xs)（index.html:7771，整數相減 ⇒ 重建逐 bit 精確）、
       // obs 對收錄的每一條都是 true。兩者合計省下約三分之一的體積。
@@ -145,7 +153,7 @@ function main() {
       + '三者，套 index.html 的位置模型（buildObsProfile／speedZoneKnots／assignRunProfiles，'
       + '由 scripts/build_run_profiles.mjs 原封切進 vm 沙箱執行）算出。'
       + '鍵＝車次→跑段起點站序；前端只在自己算出的跑段長度與時間對得上時才採用，對不上就現算。'
-      + '梯形剖面不收錄（前端閉式解即得）。上述任一輸入或模型改動後必須重跑本腳本。',
+      + '梯形剖面不收錄；前端依當日車群安排待避時，該班整車不採用預算、改為現算。上述任一輸入或模型改動後必須重跑本腳本。',
     built_from: { schedule_date: work.date, trains: work.trains.length },
     trains: table,
   }));
@@ -154,7 +162,8 @@ function main() {
   console.log(`收錄 ${Object.keys(table).length} 個車次號`
     + (dropped.length ? `｜🔴 同號多版本且剖面不一致，整個不收：${dropped.join('／')}（前端現算）` : '｜無同號衝突'));
   console.log(`貼軌 ${JSON.stringify(segStats)}｜耗時 ${Date.now() - t0}ms`);
-  console.log(`交會／待避推論：夾回 ${meetStats.snapped} 處通過時刻｜窗內無解 ${meetStats.infeasible}｜重建不合格 ${meetStats.unbuildable}｜位移超過上限 ${meetStats.tooFar}｜彎道跑段略過 ${meetStats.zoneSkipped}`);
+  console.log(`交會／待避推論：夾回 ${meetStats.snapped} 處通過時刻｜窗內無解 ${meetStats.infeasible}｜`
+    + `重建不合格 ${meetStats.unbuildable}｜位移超過上限 ${meetStats.tooFar}｜彎道跑段略過 ${meetStats.zoneSkipped}`);
   console.log(`已寫入 ${profPath}（班表檔未動）`);
 }
 
