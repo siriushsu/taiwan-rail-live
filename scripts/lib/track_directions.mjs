@@ -9,8 +9,9 @@
 // 使用者：scripts/repair_physical_directions.mjs（逐站動態規劃改道）、scripts/repair_physical_stations.mjs
 //（同月台／待避的節點指派，換節點時進出路徑必須順向）。
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { restorePhysicalRoutes } from './restore_physical_routes.mjs';
-import { makeParallelIndex, isTrack, segLen } from './parallel_tracks.mjs';
+import { makeParallelIndex, isTrack, segLen, normSta } from './parallel_tracks.mjs';
 
 // 站場咽喉連接段（F6，scripts/extend_tra_station_throats.mjs 補入的 service=yard 短段）：只在沒有純正線順向路徑時才准走，
 // 一條路徑走 yard／spur 的總長不得超過這個上限（乾跑 81 筆全在 130 m 內），計價以 20 倍長度讓搜尋挑走最少 yard 的走法。
@@ -40,6 +41,80 @@ export function makeDirectionModel({ net, dispatch, system = 'tra_sched', parFra
 
   // ── 方向統計：每條 way 被多少段路徑順著／逆著節點序走過（同一段路徑同一條 way 只計一次） ──
   const dirOfEdge = (p, k) => (edges[p.edgeIds[k]].a === p.nodeIds[k] ? 1 : -1);
+
+  // ── 方向種子（F17-S1，2026-09-14；docs/tra-overlap-rootcause-0914.md §9.9）──
+  // 上面那條「乾淨方向股道」的判準，dom／minority 全部是從**現行派車表**統計出來的，於是自舉死結：
+  // 派錯得夠嚴重的區間，統計上永遠不乾淨，F1 就永遠不會去修它。萬華–臺北隧道就是這一型——兩個方向
+  // 都派在西正線 1551465831（n=346、minority 0.494），東正線 1551465832 與 F9 補入的橋接段零派車。
+  // 種子的依據不是統計，是 **OSM 名稱（東正線／西正線）＋台鐵靠左行駛慣例**：縱貫線順行＝南下，
+  // 靠左 ⇒ 東正線＝順行、西正線＝逆行。🔴 這個慣例**線別相依**（宜蘭線／北迴線順行＝北上，東西相反），
+  // 而且七堵–八堵三線區段的「東正線」最近平行股是中股不是對向股，所以**不得照名稱自動擴充**——
+  // 種子逐條指名寫在 scripts/fixtures/tra-direction-seeds-0914.json，含依據與節點序方向的算法。
+  const SEEDS = JSON.parse(fs.readFileSync(new URL('../fixtures/tra-direction-seeds-0914.json', import.meta.url), 'utf8')).seeds;
+  // 防止鎖反的硬檢查用：逐「站間」判台鐵方向（data/tra.json 該線 d 遞增＝順行，index.html:21652 的契約），
+  // 統計種子 way 在**允許方向**那些車次段上走的節點序——多數必須等於種子方向。
+  const seedAudit = (() => {
+    const lines = JSON.parse(fs.readFileSync(new URL('../../data/tra.json', import.meta.url), 'utf8')).lines
+      .map(L => new Map(L.stations.map(s => [normSta(s.name), s.d])));
+    const traDir = (a, b) => { a = normSta(a); b = normSta(b); const m = lines.find(m => m.has(a) && m.has(b)); return m ? Math.sign(m.get(b) - m.get(a)) : 0; };
+    const want = new Set(SEEDS.map(s => s.id)), audit = new Map(SEEDS.map(s => [s.id, { 順行: { 1: 0, '-1': 0 }, 逆行: { 1: 0, '-1': 0 } }]));
+    // 拓樸連續性檢查要用的另一份統計：鏈上每條 way（種子＋錨＋via）不分台鐵方向的節點序次數。
+    for (const s of SEEDS) { const ps = s.basis.propagationSource; if (ps) { want.add(ps.anchorWay); if (ps.via) want.add(ps.via); } }
+    const chainUse = new Map([...want].map(id => [id, { 1: 0, '-1': 0 }]));
+    for (const [, plan] of plans) {
+      const sig = sigOf(plan); if (sig.length !== plan.pathIds.length + 1) continue;
+      for (let i = 0; i < plan.pathIds.length; i++) {
+        const p = paths[plan.pathIds[i]]; if (!p) continue;
+        const d = traDir(sig[i][0].split(':')[1], sig[i + 1][0].split(':')[1]); if (!d) continue;
+        const seen = new Set();
+        for (let k = 0; k < p.edgeIds.length; k++) {
+          const wid = edges[p.edgeIds[k]].wayId; if (!want.has(wid)) continue;
+          const nd = dirOfEdge(p, k), key = wid + '|' + nd; if (seen.has(key)) continue; seen.add(key);
+          chainUse.get(wid)[nd]++;
+          if (audit.has(wid)) audit.get(wid)[d > 0 ? '順行' : '逆行'][nd]++;
+        }
+      }
+    }
+    return { audit, chainUse };
+  })();
+
+  // ── 拓樸連續性（零派車種子的防鎖反；上面那條統計檢查對它們是瞎的）──
+  // 上面的 assert 靠「允許方向那些車次段」的統計，被 `if (n)` 守著：1551465832 與 F9 橋接段引入當下零派車
+  //（n=0）⇒ 翻面在引入當下的派車表上不會紅。所以帶 propagationSource 的種子另外驗一件統計以外的事：
+  // 錨 way 必須自己有派車且**只走一個節點序方向**，沿 sharedNodes 逐段推——前一條以它的方向走完會從共用
+  // 節點出去，下一條以它的**種子方向**走起來就必須從同一個節點進。用節點序拓樸就夠，不必切線內積：
+  // 方向鎖反時「入口」會變成 way 的另一端，一定對不上。
+  const seedChains = (() => {
+    const byId = new Map(SEEDS.map(s => [s.id, s])), nodesOf = new Map(ways.map(w => [String(w.id), w.nodes]));
+    const walk = (id, d) => { const ns = nodesOf.get(id); assert(ns && ns.length > 1, `方向種子傳播鏈：路網裡找不到 way ${id}（或它只有一個節點）`); return d > 0 ? ns : [...ns].reverse(); };
+    return SEEDS.filter(s => s.basis.propagationSource).map(s => {
+      const ps = s.basis.propagationSource, u = seedAudit.chainUse.get(ps.anchorWay) || { 1: 0, '-1': 0 }, dirs = [1, -1].filter(d => u[d] > 0);
+      assert.equal(dirs.length, 1, `方向種子 ${s.id}（${s.name}）的錨 way ${ps.anchorWay} 不合格：錨必須自己有派車、而且只走一個節點序方向（+1:${u[1]}／−1:${u['-1']}）`);
+      const chain = [ps.anchorWay, ...(ps.via ? [ps.via] : []), s.id];
+      const dd = chain.map((id, i) => i === 0 ? dirs[0] : byId.get(id) && byId.get(id).nodeDir);
+      dd.forEach((d, i) => assert([1, -1].includes(d), `方向種子 ${s.id} 的傳播鏈第 ${i + 1} 條 ${chain[i]} 沒有種子方向（propagationSource.via 必須自己也是 fixture 裡的種子）`));
+      assert.equal(ps.sharedNodes.length, chain.length - 1, `方向種子 ${s.id}：sharedNodes 要 ${chain.length - 1} 個（鏈上每個接點一個），fixture 給了 ${ps.sharedNodes.length} 個`);
+      for (let i = 0; i + 1 < chain.length; i++) {
+        const exit = walk(chain[i], dd[i]).at(-1), entry = walk(chain[i + 1], dd[i + 1])[0], X = ps.sharedNodes[i];
+        assert.equal(exit, X, `方向種子 ${s.id} 的傳播鏈斷了：${chain[i]} 以節點序 ${dd[i] > 0 ? '+1' : '−1'} 走完是從節點 ${exit} 出去，不是 fixture 宣告的共用節點 ${X}`);
+        assert.equal(entry, X, `方向種子 ${s.id} 的傳播鏈斷了（多半是鎖反）：${chain[i + 1]} 以節點序 ${dd[i + 1] > 0 ? '+1' : '−1'} 走起來是從節點 ${entry} 進，不是上一條 ${chain[i]} 出去的節點 ${X}`);
+      }
+      return `${chain.join('→')}（錨 ${ps.anchorWay} 派車 ${u[1] + u['-1']} 段全走節點序 ${dirs[0] > 0 ? '+1' : '−1'}；接點 ${ps.sharedNodes.join('、')} 逐段連續）`;
+    });
+  })();
+  // 種子 way 一律視為乾淨方向股道並鎖成種子方向（即使 minority > 0.2 或統計判它不乾淨）。
+  function applySeeds(clean) {
+    return SEEDS.map(s => {
+      const a = seedAudit.audit.get(s.id), allow = a[s.allowedTraDirection], n = allow['1'] + allow['-1'];
+      if (n) assert.equal(allow['1'] >= allow['-1'] ? 1 : -1, s.nodeDir,
+        `方向種子 ${s.id}（${s.name}）可能鎖反：允許方向「${s.allowedTraDirection}」的 ${n} 段車次，節點序多數不是 ${s.nodeDir}（+1:${allow['1']}／−1:${allow['-1']}）`);
+      const was = clean.get(s.id); clean.set(s.id, s.nodeDir);
+      return `${s.id}「${s.name}」允許${s.allowedTraDirection}＝節點序${s.nodeDir > 0 ? '+1' : '−1'}`
+        + `（該向派車 ${n} 段、反向 ${a[s.allowedTraDirection === '順行' ? '逆行' : '順行']['1'] + a[s.allowedTraDirection === '順行' ? '逆行' : '順行']['-1']} 段；`
+        + (was === undefined ? '統計未判乾淨' : was === s.nodeDir ? '與統計一致' : '覆蓋統計 ' + was) + '）';
+    });
+  }
+
   function classify(planList = plans) {
     const use = new Map();  // wayIndex → {fwd, rev}
     for (const [, plan] of planList) for (const pid of plan.pathIds) {
@@ -62,7 +137,10 @@ export function makeDirectionModel({ net, dispatch, system = 'tra_sched', parFra
       const ps = [...r.partners].map(wi => rows.get(wi)).filter(Boolean);
       if (ps.length && ps.every(selfOK)) clean.set(String(ways[r.wi].id), r.dom);
     }
-    return { rows, clean };
+    const statClean = clean.size, seeds = applySeeds(clean);
+    console.log(`方向種子（名稱＋靠左行駛）：${seeds.join('；')} ⇒ 乾淨方向股道 ${statClean} → ${clean.size} 條`);
+    if (seedChains.length) console.log(`方向種子傳播鏈（拓樸連續性，零派車種子靠這道）：${seedChains.join('；')}`);
+    return { rows, clean, statClean, seeds };
   }
   // 一段路徑在哪些乾淨股道上逆向（way id 清單，空 = 順向）
   const wrongOn = (p, clean) => [...new Set(p.edgeIds.map((eid, k) => { const e = edges[eid], dom = clean.get(e.wayId); return dom !== undefined && dirOfEdge(p, k) !== dom ? e.wayId : null; }).filter(Boolean))];

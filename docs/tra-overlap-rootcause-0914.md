@@ -378,7 +378,7 @@ diff 恰好只有那 3 個雜湊，`verify_data_manifest`／`verify_data_provena
 node scripts/extend_tra_station_throats.mjs             # F6（有 extensions 記錄就略過）
 SECTION=ways,bridge node scripts/extend_tra_station_tracks.mjs   # F9 ← 新步驟，一定在 throats 之後
 OUT=<暫存> node scripts/build_physical_display_profiles.mjs        # 🔴 補了 way 就一定要重建（build_rail_levels 要每條 way 都有剖面），比對後原子搬入
-node scripts/repair_physical_directions.mjs             # F1
+node scripts/repair_physical_directions.mjs             # F1 ← 會讀 scripts/fixtures/tra-direction-seeds-0914.json（F17-S1 方向種子；改種子就要從這一步整鏈重跑）
 OUT_DIR=output/stations NETWORK=output/directions/network.json DISPATCH=output/directions/dispatch.json node scripts/repair_physical_stations.mjs
 cp output/stations/{network,dispatch}.json rail-3d/physical/
 node scripts/build_rail_levels.mjs && node scripts/verify_rail_levels.mjs
@@ -387,3 +387,118 @@ node scripts/build_tra_track_sections.mjs && node scripts/verify_tra_track_secti
 node scripts/build_run_profiles.mjs && node scripts/verify_run_profiles_match.mjs          # 區間表／index.html／tra.json 任一動了就要重跑
 node scripts/verify_tra_plan_binding.mjs && node scripts/verify_remaining_station_routes.mjs
 ```
+
+### 9.9 F17-S1 方向種子：萬華–臺北東／西正線（2026-09-14 晚，同一分支；未併 main、未部署；**閘門全綠**）
+
+**一句話**：用「OSM way 名稱（縱貫線東正線／西正線）＋台鐵靠左行駛慣例」指名鎖住萬華–臺北隧道那三條 way 的允許方向，
+F1 把 171 段臺北→萬華順行派車從西正線 `1551465831` 改走 F9 補進來的東正線鏈，繞路 **+0.17 m**、**換節點 0**、
+**F2 的行為與 HEAD 控制組逐筆相同**（它本來就會搬潮州那一次，見下）；4 秒全日掃描三日 **production 645 → 619、long 688 → 658**，消失的 56 場**全部**是萬華–臺北對開、
+**零新增**、任何家族任何日期都沒有退步。逐步紀錄在 `output/audit-0914/f17-run.md`。
+`verify_remaining_station_routes` 一度紅（25 份已釘計畫被改到＋1 台借模板的車不在名冊裡），依 **2026-09-14 裁示**擴充名冊並附逐份證據後 **EXIT 0**；F4 基線已更新並原樣重跑確認（見「裁示與處置」）。
+
+**做了什麼**
+
+1. 新增 `scripts/fixtures/tra-direction-seeds-0914.json`：三條種子——`1551465831`（縱貫線西正線，允許**逆行**，節點序 **+1**）、
+   `1551465832` 與 `f9-taipei-east-bridge-0914`（縱貫線東正線，允許**順行**，節點序 **−1**）。每條寫依據與節點序方向的算法。
+   檔頭寫死兩條紀律：**慣例線別相依**（宜蘭線／北迴線順行＝北上，東西正線與縱貫線相反；實測 `194097697` 宜蘭線東正線 170 段**全部**逆行）、
+   **七堵–八堵三線區段 `746106068`／`830088709` 排除**（台鐵方向 minority 0.434／0.423，最近平行股是中股不是對向股，§9.7 已判）。
+2. `scripts/lib/track_directions.mjs`：`classify()` 產出 `clean` 之後套種子——種子 way **一律**視為乾淨方向股道並鎖成種子方向，
+   也就是**整套統計判準都繞過**，不只 `minority`：`parFrac ≥ 0.8`、`n ≥ minUses(10)`、`minority ≤ 0.2`、`keepLeft`，
+   以及「每一條夥伴平行股道也要自己合格」的**連坐條款**，五條一條都不必過
+   （`1551465831` 的 minority 0.494 正是統計判準的自舉死結：派錯得夠嚴重就永遠不會被判乾淨；另外兩條零派車，`rows` 裡根本沒有它們的列）。
+   🔴 **判準本身一個字都沒改**（`parFrac`／`minUses`／`minority`／`keepLeft`／連坐條款原封不動），改的只是「種子這幾條不歸它管」。
+   防鎖反是**兩道分工互補**的硬檢查：
+   - **統計檢查**（`scripts/lib/track_directions.mjs:109-110`）：種子 way「屬於允許方向的那些車次段」，節點序多數必須等於種子方向。
+     它被 `if (n)` 守著 ⇒ **只對已經有派車的種子有牙**；`1551465832` 與 F9 橋接段在**引入當下零派車**（n=0），這道對它們是瞎的。
+   - **拓樸連續性檢查**（`scripts/lib/track_directions.mjs:87-104`，2026-09-14 補）：凡 fixture 裡帶 `propagationSource` 的種子
+     （就是那兩條零派車的）必須從一條**自己有派車、且只走一個節點序方向**的錨 way，沿 `sharedNodes` 逐段接得起來——
+     前一條以它的方向走完會從共用節點出去，下一條以它的**種子方向**走起來就必須從同一個節點進。
+     只用節點序拓樸、不用切線內積：方向鎖反時「入口」會變成 way 的另一端，一定對不上。
+     突變實測（f17-run.md §12.1）：把 `1551465832` 或橋接段的 `nodeDir` 翻面，**在 HEAD 那份派車表上**也會紅，控制組綠。
+   其餘 F1／F2 邏輯零改動。
+3. 節點序方向是自己從資料算的：`1551465831` 用派車統計 × 台鐵方向（`data/tra.json` 的 `d` 遞增＝順行）拆開——
+   **順行 171 段全部節點序 −1、逆行 175 段全部節點序 +1**，兩向各 100% 純；零派車兩條用沿鏈幾何傳播
+   （錨 `871112939` 順行 171 段全部節點序 −1 → 共用節點 `5244930008`，內積 −0.9859 → 橋接段 → 共用節點 `8114403662`，內積 −0.9879 → `1551465832`）。
+   🔴 `f9-run.md` §7.2 那句「n=346、順 175／逆 171」指的是 `classify()` 的 `fwd/rev`（**節點序**），不是台鐵方向；
+   要改走東正線的是 **171** 段順行。
+
+**結果（4 秒全日掃描，獨立事件；修前＝HEAD `e98f7d82`，同一支掃描器實跑重現基線 244／258／232／248／169／182）**
+
+| 家族 | 09-12 P | 09-12 L | 09-13 P | 09-13 L | 09-14 P | 09-14 L |
+| --- | --- | --- | --- | --- | --- | --- |
+| A-追撞未頂上限 | 3 → 3 | 6 → 6 | 5 → 5 | 7 → 7 | 2 → 2 | 4 → 4 |
+| A-追撞頂到 120s 上限 | 21 → 21 | 21 → 21 | 21 → 21 | 22 → 22 | 10 → 10 | 10 → 10 |
+| Ap-單線交會落站間 | 49 → 49 | 50 → 50 | 30 → 30 | 31 → 31 | 20 → 20 | 21 → 21 |
+| Ap-雙線同股 | 68 → **60** | 76 → **67** | 71 → **61** | 80 → **68** | 58 → **50** | 66 → **57** |
+| B-同月台同節點 | 20 → 20 | 20 → 20 | 22 → 22 | 22 → 22 | 13 → 13 | 13 → 13 |
+| C-通過車穿過停站車 | 83 → 83 | 85 → 85 | 83 → 83 | 86 → 86 | 66 → 66 | 68 → 68 |
+| **合計** | 244 → **236** | 258 → **249** | 232 → **222** | 248 → **236** | 169 → **161** | 182 → **173** |
+
+三日合計 production **645 → 619**（−26）、long **688 → 658**（−30）。
+**萬華–臺北：26 → 0（production，逐日 8／10／8 全歸零）、30 → 0（long，逐日 9／12／9）**——
+`f9-run.md` §7.2 列的三組「要靠派路改」的站對，這一組結清了（台東–山里 31、大武–枋野 22 不在本批範圍）。
+逐場比對：**消失 56 場、新增 0 場**，56 場全部落在 `1551465831`、家族全部是 `Ap-雙線同股`。
+沒有像 §9.7 的 F8 那樣「在事實單線走廊上換一對車撞」。
+
+**F1／F2**
+
+- F1：逆向段（套種子後）**206 → 35**，修不掉的 35 段與 §9.8 **逐站間完全相同**（三貂嶺→大華 17、新莊→竹中 8、猴硐→瑞芳 8、二水→田中 2），**零新增**；
+  新落成路徑 14、改到 171 份計畫、**換停車節點 0**；同節點停站時窗相交 158 → 158。171 段全部是臺北→萬華，
+  新走法 `…871112939, f9-taipei-east-bridge-0914, 1551465832, 615600483…`（少走一條 crossover `871112937`），繞路 min/median/max 全是 **+0.17 m**。
+- F2：修不掉 **370**（無順向路徑 353／道岔接不上 5／無替代節點 4／換了不會更好 8）、B 213、C 2100、搬 1 次（潮州）——
+  **與 HEAD 控制組逐筆相同**（控制組＝把兩支程式 `git show HEAD:` 還原後對同一份輸入重跑；HEAD 程式碼在出貨檔上是 no-op）。
+- 🔴 **潮州那一搬要單獨交代**（`output/stations/report.json` 的 `moves` 原文）：
+  `{"key":"tra_sched:161:20700:44100","i":107,"station":"tra_sched:潮州","from":"12183049788","to":"12183049787","before":6,"after":4}`。
+  依據：161 次 **2026-09-12** 停潮州（第 107 站，`arrSec 39300`／`depSec 39420`、官方停靠）停在節點 `12183049788`；
+  **6099 次只在 2026-09-12 行駛**，`stop:false` **通過**潮州（`arrSec = depSec = 39324`，剖面時刻 39323.0），
+  進站段與出站段的路徑都經過 `12183049788`，落在 161 的停站窗 ±`PASS_MARGIN` 60 s 內
+  ⇒ **C 類（通過車穿過停站車）兩場**（進站一場、出站一場）。搬到 `12183049787` 之後這兩場歸零：
+  該站與前後站（竹田／潮州／崁頂）局部 **6 → 4**、全域 **C 2102 → 2100**、**B 213 不變**。
+  **HEAD 控制組重跑 F2 搬的是同一次**（同 key、同 `i=107`、同 `from`／`to`、同 6→4、同 2102→2100）
+  ⇒ 這是 **HEAD 那份派車表本來就有、而 F2 從來不是它的定點**，**不是方向種子造成的**。
+- 全部影響：ways 0 改變、新增 14 條 path（21117–21130）；**實際變動段 173**——
+  F1 重指 171 段（171 份計畫**各只有 1 段**，全部是臺北→萬華）＋F2 搬潮州再動 2 段
+  （同一份計畫 `tra_sched:161:20700:44100` 的第 106 段竹田→潮州 `5264→5263`、第 107 段潮州→崁頂 `8886→20452`，兩條都是既有路徑，`newPaths: 0`）。
+  161 是**唯一**變動超過一段的計畫。**`stopSignature` 0 變動、`holds` 0 變動**。
+  `scripts/fixtures/remaining-routes-0913.json` 的名冊**不含計畫 161**（`afterPlans`／`changes` 都沒有這個 key），所以 fixture 不必因此再動。
+
+**閘門**：`verify_rail_levels`（failed 0）、`verify_physical_display_profiles`、`verify_tra_track_sections`（243 對不一致 0）、
+`verify_run_profiles_match`（**FAIL 0**，且 `data/tra_run_profiles.json` **md5 與 HEAD 逐 byte 相同**）、`verify_tra_plan_binding`、
+`verify_passing_avoidance`、`verify_tra_pass_continuity`（4/4）、`verify_physical_runtime_cache`、
+**官方停靠時刻 21 992 筆差異 0**、`verify_data_manifest`／`verify_data_provenance`（依檔頭規定重產，diff 只有 `tra_track_sections` 一個雜湊）、
+**F4 棘輪 6 次掃描 0 退步**、**120 秒閘門三日各 12/12 PASS**（A′ 9/12 6→5、9/13 5→4、9/14 4→3）、`verify_remaining_station_routes`（裁示後 **EXIT 0**：trains 76／changes 83／samples 89 396／protectedCount 4）。
+`display-profiles.json` 沒重建（沒加 way，md5 不變）；`level-profiles.json` 只差 `inputSha256`；
+`tra_track_sections.json` 243 對只有 `臺北|萬華` 的 `parallelFrac` 0.964 → 0.970，單／雙線旗標 0 改變。
+
+**裁示與處置：`verify_remaining_station_routes` 紅 → EXIT 0（2026-09-14 裁示）**
+
+紅的內容：F17 改到了 fixture 釘住的 79 份計畫裡的 **25 份**（21 份在 `changes` 名冊內、4 份是 `protectedTemplates`），
+外加 `tra_sched:213:37440:48000`——它自己沒有計畫，以 `route-template` 借用 `tra_sched:281:58980:88980`，
+借的區段剛好涵蓋模板第 45 段（臺北→萬華）。HEAD 控制組同一支閘門 EXIT 0，證明是 F17 造成、不是既有紅。
+
+裁示原文（節錄）：「**這 5 台走的是同一個修法、不是回歸，准予擴充名冊，但要附證據、不改閘門判準。**」依此處置：
+
+1. **`changes` 補第 83 筆**，新 `kind: "direction-seed"`：
+   `{"key":"tra_sched:213:37440:48000","station":"臺北→萬華","oldPaths":[501],"newPaths":[21117],`
+   `"from":47100,"to":47361.99998706579,"date":"2026-09-13","timeSec":47100,"holds":"0/0","note":"借用模板 281 的第 45 段隨 F17 改走東正線"}`。
+   先驗過閘門的逐 change 迴圈只讀 `key`（`:9`）、`from`／`to`（`:11`）與**可選**的 `toNode`（`:7` 有 `if(c.toNode)` 守著），
+   所以 `fromNode`／`toNode` 依裁示省略，**閘門程式一行都沒改**（`git status --porcelain -- 'scripts/verify_*.mjs'` 為空）。
+2. **25 份 `afterPlans` 重釘**；`protectedTemplates` 那 4 份的 **`beforePlans` 同步重釘**——
+   閘門 `:5` 的比較基準就是 `beforePlans`，只動 `afterPlans` 會讓 `:9` 的「未改車班因模板變更被動換軌」當場紅（實測 EXIT 1）。
+   兩邊一起改，§9.6 立下的 `beforePlans === afterPlans`＝「本批不動這 4 份模板」不變式原封不動，`protectedCount === 4` 照常成立。
+3. **逐份證據**（`output/audit-0914/f17_repin_evidence.mjs`，對 HEAD 出貨派車表逐份逐段比對，EXIT 0）：
+   26 份每一份的「相同段數」**恰好等於總段數 − 1**，唯一那一段的站對**全部是臺北｜萬華**，`pathIds` 以外欄位零變動
+   ⇒ 4 份受保護模板 09-13 修的站段（含 `stopSignature`／`holds`）原封不動。
+   差異段索引 `1`／`7`／`10`／`17`／`34`／`45`／`49`／`71`／`108` 各不相同，pathId 對照只有兩種：`501→21117`（23 份）、`509→21118`（3 份）。
+   完整表格在 `output/audit-0914/f17-run.md` §11.3，fixture 的 `refreshed` 也記了日期、原因與 pathId 對照。
+4. **閘門重跑**：`verify_remaining_station_routes` **EXIT 0**（trains 76、changes 83、samples 89 396、boundaries 972、
+   maxBoundaryJump 0.075 m、protectedCount 4；多出的 262 筆 samples 恰好是 213 次那一筆的取樣窗，證明新名冊真的被跑到）。
+   `UPDATE_BASELINE=1 DATES=all` 更新 F4 基線後**原樣再跑一次 `DATES=all`：PASS、0 退步**，六次逐項與新基線完全相同
+   （236／249／222／236／161／173）。基線的逐項差異**只有 `Ap-雙線同股` 一個家族**（六天次合計 −56 場），
+   其餘 5 個家族 6 天次逐項不變、`basis` 逐 byte 沒動 ⇒ 是把收益鎖進棘輪，不是放寬棘輪。
+   `verify_data_manifest`／`verify_data_provenance` EXIT 0（三個 fixture 都不在這兩份清單涵蓋的 `data/` 開機資料檔裡，不需重產）。
+
+**判準沒有被動過**：兩次天然的紅（只重釘 `afterPlans` 時紅、`beforePlans` 留舊時也紅）就是這道閘門仍有牙的正向對照。
+
+**沒動的**：`index.html`、`BLOCK_CAP_SEC`／hold 上限 120、車身常數、班表時刻、`stopSignature`、任何 way、
+任何 `verify_*` 的判準與門檻、`MEET_HEADWAY_SEC`／`MEET_NEAR_SEC`。
