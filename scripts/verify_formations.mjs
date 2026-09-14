@@ -10,6 +10,8 @@ const catalog = JSON.parse(fs.readFileSync('rail-3d/assets/blender-map-v1/manife
 // 每列：說明、辨識用的車輛欄位、實際模式應有節數、首／中／尾應該用的部件 mesh。
 // 中間節多半是 `<id>-mid`（後半車體鏡射的通用中間車）；PP 的中間節用的是另一款 `ppcoach`。
 const cases = [
+  ['海風號', {systemId:'tra_sched',namedId:'haifeng'},4,['haifeng','haifeng-mid','haifeng']],
+  ['山嵐號', {systemId:'tra_sched',namedId:'shanlan'},4,['shanlan','shanlan-mid','shanlan']],
   ['高鐵 700T', {systemId: 'thsr_sched'}, 12, ['700t', '700t-mid', '700t']],
   ['EMU3000 新自強', {systemId: 'tra_sched', carName: '自強(3000障)'}, 12, ['emu3000', 'emu3000-mid', 'emu3000']],
   ['普悠瑪 TEMU2000', {systemId: 'tra_sched', carName: '自強(普,障)'}, 8, ['temu2000', 'temu2000-mid', 'temu2000']],
@@ -32,9 +34,19 @@ const cases = [
 ];
 // 推估編組：節數有出處，但班表分不出當班是哪一代車／掛幾組。必須畫出推估的節數、標明「推估」，
 // 而且不可以偽裝成「標準編組」。逐條依據與信心寫在 FORMATIONS.md。
-// 這兩列最危險：節數跟改之前一樣是 3，只有 countBasis 變了——只看畫面會誤判「沒改到東西」，
-// 所以這一桶一定要具名斷言 countBasis，不能只數節數。
+// 柴聯兩列節數維持 3，仍需驗證 countBasis，避免與未知編組混淆。
+// 其餘推估與具名列車在 9/14 依使用者要求開放，來源見 FORMATIONS.md。
 const estimated = [
+  ['一般區間車', {systemId:'tra_sched',carName:'區間車'},8],
+  ['區間快', {systemId:'tra_sched',carName:'區間快'},8],
+  ['莒光號', {systemId:'tra_sched',carName:'莒光'},9],
+  ['林鐵', {systemId:'afr_sched'},6],
+  ['機捷車種缺值', {systemId:'tymc'},4],
+  ['藍皮', {systemId:'tra_sched',namedId:'blue-train'},5],
+  ['鳴日', {systemId:'tra_sched',namedId:'mingri'},6],
+  ['環島之星', {systemId:'tra_sched',namedId:'star'},7],
+  ['山海號', {systemId:'tra_sched',namedId:'shanhai'},6],
+  ['平原號', {systemId:'tra_sched',namedId:'pingyuan'},6],
   ['柴聯自強 DR3100', {systemId: 'tra_sched', carName: '自強(D31)'}, 3],
   ['支線柴聯 DR1000', {systemId: 'tra_sched', carName: '區間車', branchId: 'pingxi'}, 3],
 ];
@@ -42,17 +54,6 @@ const estimated = [
 // 所以綁一個到期日：台鐵慣例 4／7／10 月改點，下一次是 2026-10。改點後請重查
 // FORMATIONS.md「推估編組」那一節的來源，確認還成立再把日期往後推。
 const ESTIMATE_RECHECK = '2026-10-20';
-// 沒有固定標準編組的車種：維持 3 節示意，而且必須明示「待確認」，不可默默升格成實測。
-// 🔴 區間車／區間快／莒光的節數其實查得到出處（FORMATIONS.md〈推估編組〉），刻意還留在這一桶：
-//    實體股道的派車表是用 60 公尺車身解出來的，照真長畫會互穿（verify_physical_no_overlap 的
-//    A 類 5→10、A′ 類 19→32）。這三列要搬到 estimated 那一桶，前提是台鐵派車先依真實車長重解。
-const provisional = [
-  ['一般區間車（節數待派車重解）', {systemId: 'tra_sched', carName: '區間車'}],
-  ['區間快（節數待派車重解）', {systemId: 'tra_sched', carName: '區間快'}],
-  ['莒光號（節數待派車重解）', {systemId: 'tra_sched', carName: '莒光'}],
-  ['阿里山林鐵', {systemId: 'afr_sched'}],
-];
-
 const failures = [];
 for (const [label, vehicle, cars, meshes] of cases) {
   const spec = formationFor(vehicle, 'actual');
@@ -82,13 +83,6 @@ for (const [label, vehicle, cars] of estimated) {
   const short = assembleFormation(formationFor(vehicle, 'three'), catalog);
   if (short.parts.length !== Math.min(3, cars)) failures.push(`${label} 三節示意畫了 ${short.parts.length} 節`);
 }
-for (const [label, vehicle] of provisional) {
-  const spec = formationFor(vehicle, 'actual');
-  if (!spec) { failures.push(`${label} 沒有對應編組`); continue; }
-  if (spec.lengths.length !== 3) failures.push(`${label} 當班編組未知，應維持 3 節示意，實為 ${spec.lengths.length} 節`);
-  if (spec.actualCarCount !== null) failures.push(`${label} 當班編組未知，actualCarCount 必須留 null`);
-  if (!spec.caption.includes('待確認')) failures.push(`${label} 未標示「待確認」：${spec.caption}`);
-}
 // ── 具名觀光列車的外觀：名冊有車次就一定要對得到自己的外觀 ──────────────
 // 為什麼有這一節：2026-07-25 環島之星（車次 1／2）補進 namedTrains 的 trainNos，
 // 但 formations.js 的 named 對照表沒跟著加 star ⇒ 它落到「車型未知的台鐵車」那條路，
@@ -116,17 +110,15 @@ for (const id of withNos) {
   const spec = formationFor({systemId: 'tra_sched', namedId: id, carName}, 'actual');
   if (!spec) { failures.push(`具名列車 ${id} 對不到編組——它會整台從 3D 消失`); continue; }
   if (spec.id !== wantModel) failures.push(`具名列車 ${id} 的外觀是 ${spec.id}，應為 ${wantModel}`);
-  const seen = assembleFormation(spec, catalog).parts.map(p => p.mesh);
+  const parts = assembleFormation(spec, catalog).parts;
+  const seen = [parts[0],parts[Math.floor(parts.length/2)],parts.at(-1)].map(p=>p.mesh);
   if (seen.join(',') !== wantMeshes.join(',')) failures.push(`具名列車 ${id} 的首／中／尾部件為 ${seen.join('／')}，應為 ${wantMeshes.join('／')}`);
-  // 觀光列車沒有官方標準編組,節數一律留未知;寫死節數要先有官方依據(見 FORMATIONS.md)。
-  if (spec.actualCarCount !== null) failures.push(`具名列車 ${id} 的 actualCarCount=${spec.actualCarCount}，沒有官方節數依據時必須留 null`);
-  if (!spec.caption.includes('待確認')) failures.push(`具名列車 ${id} 未標示「待確認」：${spec.caption}`);
+  if (!Number.isInteger(spec.actualCarCount) || spec.actualCarCount < 4) failures.push(`具名列車 ${id} 未顯示完整或推估編組`);
 }
 
 // 具名覆蓋率斷言：這兩張表是手寫的，少一列不會有任何錯誤訊息。
-assert.equal(cases.length, 19, '標準編組檢查表被改動，請同時更新這個數字');
-assert.equal(estimated.length, 2, '推估編組檢查表被改動，請同時更新這個數字');
-assert.equal(provisional.length, 4, '示意編組檢查表被改動，請同時更新這個數字');
+assert.equal(cases.length, 21, '標準編組檢查表被改動，請同時更新這個數字');
+assert.equal(estimated.length, 12, '推估編組檢查表被改動，請同時更新這個數字');
 assert.ok(new Date() < new Date(ESTIMATE_RECHECK + 'T00:00:00+08:00'),
   `推估編組的重驗期限 ${ESTIMATE_RECHECK} 已到：台鐵改點後請重查 FORMATIONS.md「推估編組」那一節的依據，確認仍成立再把這個日期往後推`);
 
@@ -138,7 +130,7 @@ const tymc = JSON.parse(fs.readFileSync('data/tymc_times.json')).lines.A;
 const coverage = Object.entries(tymc.sets).map(([key, set]) => ({key, trips: set.length, tagged: [...(tymc.kinds?.[key] || '')].filter(c => c !== '0').length}));
 assert.equal(coverage.length, 2, '機捷日型數量改變（原本平日／假日兩種），請同時更新這個數字');
 for (const {key, trips, tagged} of coverage)
-  assert.equal(tagged, trips, `機捷 ${key} 只有 ${tagged}/${trips} 班帶官方車種，沒有官方值的會退成 3 節示意`);
+  assert.equal(tagged, trips, `機捷 ${key} 只有 ${tagged}/${trips} 班帶官方車種，沒有官方值的會退成推估編組`);
 const rail3d = fs.readFileSync('rail-3d.js', 'utf8');
 const wiring = rail3d.split('\n').find(line => line.includes('airportService:'));
 assert.ok(wiring?.includes('tymcKindOf('), '3D 的機捷車種不是讀官方 tymcKindOf：' + (wiring ?? '(找不到 airportService 那行)'));
@@ -150,6 +142,6 @@ if (failures.length) {
   for (const f of failures) console.error('- ' + f);
   process.exit(1);
 }
-console.log(`列車編組驗收通過：${cases.length} 種標準編組節數與首中尾部件相符，${estimated.length} 種推估編組標明推估，${provisional.length} 種維持 3 節示意並標示待確認；`
+console.log(`列車編組驗收通過：${cases.length} 種標準編組節數與首中尾部件相符，${estimated.length} 種推估編組標明推估；`
   + `${withNos.length} 輛有固定車次的具名觀光列車各自對到專屬外觀（${withNos.join('、')}）；`
   + `機捷 ${coverage.map(c => `${c.key} ${c.tagged}/${c.trips}`).join('、')} 班帶官方車種，3D 讀的是官方值`);

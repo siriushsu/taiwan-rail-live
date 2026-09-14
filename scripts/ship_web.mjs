@@ -180,6 +180,9 @@ try {
   const formations = spawnSync('node', [path.join(wt, 'scripts', 'verify_formations.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(formations.stdout || ''); process.stderr.write(formations.stderr || '');
   if (formations.status !== 0) fail('列車編組節數未通過——有車種的實際編組退回 3 節示意（單獨重跑：npm run check-formations）');
+  const fullFormations = spawnSync('node', [path.join(wt, 'scripts', 'verify_full_formations_browser.mjs')], { cwd:wt, encoding:'utf8', env:{...process.env,PORT:''} });
+  process.stdout.write(fullFormations.stdout || ''); process.stderr.write(fullFormations.stderr || '');
+  if (fullFormations.status !== 0) fail('完整／推估編組的實際渲染或手機切換未通過');
   const trackSide = spawnSync('node', [path.join(wt, 'scripts', 'verify_metro_track_side.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(trackSide.stdout || ''); process.stderr.write(trackSide.stderr || '');
   if (trackSide.status !== 0) fail('捷運雙軌左右未通過——有路線的來車與去車跑在真實相反的股道上（單獨重跑：npm run check-metro-track-side）');

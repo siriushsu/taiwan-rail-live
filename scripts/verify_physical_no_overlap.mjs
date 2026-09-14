@@ -94,10 +94,19 @@ const disk = md5(readFileSync(path.join(ROOT, 'index.html')));
 const served = md5(Buffer.from(await (await fetch(`http://127.0.0.1:${PORT}/index.html`)).arrayBuffer()));
 ok('G0 伺服器吐的是受測樹', disk === served, `${ROOT} md5=${disk.slice(0, 12)}`);
 
-if (process.env.FORMATION_PROBE === 'long') {
+// 9/14 完整編組已成產品預設。long 現在直接驗產品；legacy-three 只重播既有短編組基線。
+// 不改產品磁碟或預設，不把短編組結果冒充完整編組結果。
+if (process.env.FORMATION_PROBE === 'legacy-three') {
   const source=readFileSync(path.join(ROOT,'rail-3d/integration/formations.js'),'utf8');
-  const candidate=source.replace("commuter:unknown('emu800',repeat(3,20),2.9)","commuter:estimated('emu800',repeat(8,20),2.9,'推估 8 節')").replace("chukuang:unknown('e200',[17,20,20],2.9)","chukuang:estimated('e200',[17,...repeat(8,20)],2.9,'推估 9 節')");
-  if(candidate===source)throw Error('長編組探針沒有改到受測編組');
+  const legacy={commuter:"spec('emu800',repeat(3,20),2.9)",chukuang:"spec('e200',[17,20,20],2.9)",
+    blue:"spec('blue',[17,20,20],2.9)",haifeng:"spec('haifeng',repeat(3,20),2.9)",shanlan:"spec('shanlan',repeat(3,20),2.9)",
+    mingri:"spec('mingri',[17,20,20],2.9)",star:"spec('e500',[17,20,20],2.9)",forest:"spec('dl25',[10,12,12],2)"};
+  let candidate=source;
+  for(const [key,value] of Object.entries(legacy)) {
+    const pattern=new RegExp('^  '+key+':.*,$','m');
+    if(!pattern.test(candidate))throw Error('舊編組探針找不到 '+key);
+    candidate=candidate.replace(pattern,'  '+key+':'+value+',');
+  }
   await page.route('**/rail-3d/integration/formations.js',r=>r.fulfill({contentType:'text/javascript',body:candidate}));
 }
 for (const [env,file] of [['NETWORK','network.json'],['DISPATCH','dispatch.json']]) if(process.env[env]) await page.route('**/rail-3d/physical/'+file,r=>r.fulfill({contentType:'application/json',body:readFileSync(process.env[env])}));
@@ -199,7 +208,7 @@ ok('G1 physical 已就緒且覆蓋台鐵全班',
   setup.physicalReady && setup.traTotal >= 800 && setup.hasCovered / setup.traTotal >= 0.99,
   `台鐵 ${setup.hasCovered}/${setup.traTotal} 走實體股道, 全系統 ${setup.trains} 班, liveActive=${setup.live}`);
 
-ok('G1b 判準使用畫面的支線與具名車型', setup.identities.every((r,i)=>r.id===['e500','dr1000','haifeng'][i] && Math.abs(r.lengthM-[57,60,60][i])<1e-6), JSON.stringify(setup.identities));
+ok('G1b 判準使用畫面的支線與具名車型', setup.identities.every((r,i)=>r.id===['e500','dr1000','haifeng'][i] && Math.abs(r.lengthM-(process.env.FORMATION_PROBE==='legacy-three'?[57,60,60]:[137,60,80])[i])<1e-6), JSON.stringify(setup.identities));
 if(TEST_DATE) ok('G1c 班表服務日與固定重放日一致', setup.serviceDate===TEST_DATE, `${setup.serviceDate} / ${TEST_DATE}`);
 // ── 連續重放（棘輪要演化,快照掃描量不到真實動態）────────────────────────────────
 await page.evaluate(([f]) => { __reset(); __step(f); }, [FROM]);
