@@ -72,7 +72,10 @@ const BRIDGE_WAY = '1551465832', DUP_OF_BRIDGE_WAY = '1551482234';
 // 用 scratchpad/f9/falsecross.mjs 掃全網：rank 不同的交叉 86 個，其中「兩條 way 直接相連」的
 // 只有這 1 個，且只有它是 F9 新增的。不動模型的 8% 坡度／7 m 淨距／收斂斷言，改成不收這條。
 const LAYER_CONFLICT_WAYS = new Set(['581275240']);
+// 2026-09-14 使用者要求直接完成交接：採本批暫緩蘇澳橋東四條死端的建議。20m DEM 未表達路塹，現行算繪會浮空；四條皆無列車路徑，待路塹算繪支援再補，不放寬高度閘門。
+const DEFERRED_SU_AO_CUTTING = new Set(["145608233","1527875178","1527875179","1527875182"]);
 function rejectReason(w) {
+  if (DEFERRED_SU_AO_CUTTING.has(String(w.id))) return '蘇澳橋東路塹待算繪支援（本批暫緩）';
   const t = w.tags || {};
   if (t.railway !== 'rail') return 'railway=' + t.railway;
   if (t.gauge && !String(t.gauge).split(';').includes('1067')) return 'gauge=' + t.gauge;
@@ -83,7 +86,7 @@ function rejectReason(w) {
   if (t.description && EXCL_DESC.test(t.description)) return 'description';
   // 2026-09-14 裁示：「不得把施工線、地面保存線、未核實用途的 yard 隨手當現役客運線」。
   // 沒有 service 標籤的貨運／港線支線（臺中港線、花蓮臨港線）補進去會被 topology 的 isTrack() 當成一般正線，
-  // 不受 track_directions.mjs 的 YARD_CAP_M 限制 ⇒ 不收。帶 service=spur 的蘇澳港線那 4 條照舊收（受 yard 規則管）。
+  // 不受 track_directions.mjs 的 YARD_CAP_M 限制 ⇒ 不收。蘇澳橋東四條死端另依具名清單暫緩；其他 spur 仍受 yard 規則管。
   if (!t.service && (t['railway:traffic_mode'] === 'freight' || /港線|臨港/.test(t.name || ''))) return '貨運／港線支線（無 service，會被當一般正線）';
   if (LAYER_CONFLICT_WAYS.has(String(w.id))) return 'layer 與直接相連的既有 way 矛盾（build_rail_levels 無解）';
   if (String(w.id) === DUP_OF_BRIDGE_WAY) return '重複繪製（與 ' + BRIDGE_WAY + ' 同起訖）';
@@ -169,7 +172,7 @@ const doc = {
   license: 'ODbL 1.0',
   osmBase: OSM_BASE,
   generator: 'scripts/build_tra_station_tracks_fixture.mjs',
-  basis: `F6（tra-station-throats-osm-0914.json，9 條）的一般化：不再只挑乾跑證明要走的幾條，改成把「站區 ${STATION_RADIUS_M} m 內、OSM 已畫、屬台鐵營運股道、且能（遞移）接回出貨路網 tra_sched」的 way 全部列出。2026-09-14 使用者裁示「當然是你把資料有的都補上去」。路徑搜尋端仍沿用 scripts/lib/track_directions.mjs 的 yard 規則（沒有純正線順向路徑才准走、一條路徑 yard 總長 ≤ YARD_CAP_M），所以補進來的站場股道不會自動變成現役客運線。2026-09-14 同一裁示的另一半「不得把施工線、地面保存線、未核實用途的 yard 隨手當現役客運線」⇒ 沒有 service 標籤的貨運／港線支線（臺中港線 89697472／106915416、花蓮臨港線 693144762／693143447／693144763，合計 5 條 6 771 m）不收：它們少了 service 標籤，補進去會被 isTrack() 當一般正線、不受 YARD_CAP_M 限制，等同把未核實用途的貨運線升格成現役客運線；帶 service=spur 的蘇澳港線 4 條不在此列，照舊收。另排除 581275240（斗南 crossover，OSM layer=1 與它在出貨路網裡唯一相連的既有側線 580149815 無 layer 矛盾，距共用節點 0.41 m 處被判異層交叉、要求 7 m 淨距 ⇒ build_rail_levels 的鬆弛 violation 從第 200 圈起卡死在 3.4673 不再下降），理由與掃描方法見 LAYER_CONFLICT_WAYS 註解。`,
+  basis: `F6（tra-station-throats-osm-0914.json，9 條）的一般化：不再只挑乾跑證明要走的幾條，改成把「站區 ${STATION_RADIUS_M} m 內、OSM 已畫、屬台鐵營運股道、且能（遞移）接回出貨路網 tra_sched」的 way 全部列出。2026-09-14 使用者裁示「當然是你把資料有的都補上去」。路徑搜尋端仍沿用 scripts/lib/track_directions.mjs 的 yard 規則（沒有純正線順向路徑才准走、一條路徑 yard 總長 ≤ YARD_CAP_M），所以補進來的站場股道不會自動變成現役客運線。2026-09-14 同一裁示的另一半「不得把施工線、地面保存線、未核實用途的 yard 隨手當現役客運線」⇒ 沒有 service 標籤的貨運／港線支線（臺中港線 89697472／106915416、花蓮臨港線 693144762／693143447／693144763，合計 5 條 6 771 m）不收：它們少了 service 標籤，補進去會被 isTrack() 當一般正線、不受 YARD_CAP_M 限制，等同把未核實用途的貨運線升格成現役客運線；帶 service=spur 的股道不因這條貨運規則排除；蘇澳橋東四條死端另依具名清單暫緩，待路塹算繪支援。另排除 581275240（斗南 crossover，OSM layer=1 與它在出貨路網裡唯一相連的既有側線 580149815 無 layer 矛盾，距共用節點 0.41 m 處被判異層交叉、要求 7 m 淨距 ⇒ build_rail_levels 的鬆弛 violation 從第 200 圈起卡死在 3.4673 不再下降），理由與掃描方法見 LAYER_CONFLICT_WAYS 註解。`,
   selection: { stationRadiusM: STATION_RADIUS_M, rejects, candidates: cands.length, accepted: accepted.length },
   totals: { ways: accepted.length, lengthM: Object.values(byService).reduce((a, v) => a + v.lengthM, 0), stations: Object.keys(byStation).length, byService, byStationTop: Object.entries(byStation).sort((a, b) => b[1] - a[1]).slice(0, 20) },
   ways: accepted.sort((a, b) => String(a.w.id).localeCompare(String(b.w.id))).map(shape),
