@@ -103,8 +103,11 @@ for (const day of days) {
 function cellConflicts(cell, override) {
   const idsOf = key => (override && override.key === key ? override.ids : current.get(key));
   const dw = cell.dwell.map(d => ({ ...d, node: nodeAt(idsOf(d.key), d.i) })).filter(d => d.node), out = [];
+  // 時窗含端點：起點站／終點站的官方停靠是 a===b 的零長時窗（發車那一刻在起點、到達那一刻在終點），
+  // 用「嚴格相交」它永遠撞不到任何人，F2 就會把別班搬到它正要發車的節點上（2026-09-14 F6 把枋寮側線接回正線後，
+  // 3001 被搬到 3054 06:25 發車的節點，4 秒全日掃描多出 3001/3054 同節點事件）。算繪端那一刻兩班車身確實同在該節點。
   for (let i = 0; i < dw.length; i++) for (let j = i + 1; j < dw.length; j++)
-    if (dw[i].key !== dw[j].key && dw[i].node === dw[j].node && Math.min(dw[i].b, dw[j].b) > Math.max(dw[i].a, dw[j].a)) out.push({ type: 'B', x: dw[i], y: dw[j] });
+    if (dw[i].key !== dw[j].key && dw[i].node === dw[j].node && Math.min(dw[i].b, dw[j].b) >= Math.max(dw[i].a, dw[j].a)) out.push({ type: 'B', x: dw[i], y: dw[j] });
   for (const p of cell.pass) {
     const ids = idsOf(p.key), pid = p.side === 'in' ? ids[p.i - 1] : ids[p.i]; if (!paths[pid]) continue;
     const set = nodeSet(pid), own = nodeAt(ids, p.i);

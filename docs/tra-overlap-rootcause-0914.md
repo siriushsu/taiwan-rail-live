@@ -177,9 +177,11 @@
 ### 9.5 跑法與順序（🔴 重抓班表 `npm run fetch-schedule` 之後整條重跑）
 
 ```
+node scripts/extend_tra_station_throats.mjs            # F6：重新打包 network.json 之後才需要（有 extensions 記錄就直接略過）
 node scripts/repair_physical_directions.mjs            # → output/directions/
 OUT_DIR=output/stations NETWORK=output/directions/network.json DISPATCH=output/directions/dispatch.json node scripts/repair_physical_stations.mjs
 cp output/stations/{network,dispatch}.json rail-3d/physical/
+node scripts/build_physical_display_profiles.mjs       # 只有 way 變多／變了才需要（build_rail_levels 要每條 way 都有剖面）
 node scripts/build_rail_levels.mjs && node scripts/verify_rail_levels.mjs
 node scripts/build_tra_track_sections.mjs               # 區間表變了就 node scripts/build_run_profiles.mjs && node scripts/verify_run_profiles_match.mjs
 node scripts/verify_tra_plan_binding.mjs && node scripts/verify_remaining_station_routes.mjs
@@ -188,4 +190,42 @@ UPDATE_BASELINE=1 DATES=all node scripts/verify_tra_overlap_families.mjs   # 看
 ```
 
 `repair_physical_platforms.mjs`（不看方向的舊修法）已被 F2 取代，不要再跑。
+
+### 9.6 F6 補回站場咽喉連接段（2026-09-14 下午，同一分支；未併 main、未部署）
+
+**根因**：`build_physical_routes.mjs` 只把候選路徑走過的 way 收進 `.cache`，`pack_physical_network.mjs` 再只打包這些 way；而 `topology.js` 的 `shortestPath` 預設不走 `service=yard`。站場咽喉裡 OSM 標成 yard 的短連接段（16–130 m）從來沒進過 `network.json`，月台旁的到發線只剩一端接著正線，F2 就報「無順向路徑」。乾跑（把 F2 修不掉的 438 筆放到「補齊殘留站上游全部 OSM way」的試驗路網重搜）把它們分成四類：只差 yard 連接段 **81**（新左營 21、枋寮 18、善化 16、岡山 14、竹南 10、新竹 2）；OSM 只畫單向渡線、要倒車才接得上 **133**（礁溪 24、瑞芳 18、猴硐 14、羅東 11…）；要逆向 **43**；幾何不連通 **138**（龜山、貢寮這類兩股無側線的小站）。這一節只做第一類。
+
+**做了什麼**
+
+- `scripts/fixtures/tra-station-throats-osm-0914.json`：Overpass 快照（osm base 2026-09-13T23:10:01Z）裡乾跑證明有人走的 9 條 way（8 條 yard、1 條 siding），含節點座標與標籤。只補這 9 條，不把整個站場搬進路網。
+- `scripts/extend_tra_station_throats.mjs`：照 `extend_guangci_physical.mjs` 的原則接回 `network.json`——接頭同 node ID（16 個接頭的 OSM 現況座標與出貨檔逐一比對，差距全為 0 m）、新節點 15 個、不改原始標籤（yard 照留）、記 `extensions`、重跑無害；補入後檢查既有路徑經過接頭仍接得上（24 處，加了第三股之後 `canTurn` 從「接頭直通」變成道岔規則）。
+- `scripts/lib/track_directions.mjs` `cleanRoute`：先照舊只找純正線順向路徑，找不到才 `allowYard` 重搜；yard／spur 以 20 倍長度計價，一條路徑的 yard 總長 ≤ `YARD_CAP_M`=150 m（乾跑 81 筆全在 130 m 內）。控制組：新程式碼在舊路網上跑 F1，network／dispatch／report 三檔逐 byte 與前一版相同；補段後 F1 的統計也一字不差（187 份計畫、597 條新路徑、35 段逆向），F1 多落成的 15 條走 yard 的路徑沒有一份計畫採用——差別全在 F2。
+- `scripts/repair_physical_stations.mjs`：B 判準改成時窗含端點。起點站／終點站的官方停靠是 a===b 的零長時窗，「嚴格相交」永遠撞不到任何人，F2 就把 3001 搬到 3054 06:25 正要發車的枋寮側線節點——這是接回側線後 4 秒全日掃描多出來的唯一一種新事件（六次掃描各 +1／+2，全在枋寮側線 101917177：3001/3054、3028/3067，比對修前修後的事件清單確認），改完不再搬。修復前可見的 B 從 642 變 752，多出來的 110 對就是零長時窗。
+- `scripts/build_tra_track_sections.mjs`：反向走的段序原本從 start−1 起算，與 `restore_physical_routes.mjs`／`route-runtime.js` 的 walk 解碼差一段（12343 段反向走法用正確段序全部連續，用舊段序 8490 段接不上），改成 start＋k·dir。243 站對的單／雙線旗標一個都沒變（只修段序：0；再加 F6 幾何與新派車：0），平行佔比動 ≥0.05 的只有沙鹿｜清水（0.247→0.17）與榮華｜竹東（0.34→0.263）；`tra_run_profiles.json` 內容不變。
+- `display-profiles.json`／`level-profiles.json` 重建（加了 way 之後 `build_rail_levels` 先要每條 way 都有剖面）：既有 4364 條 way 的剖面 4356 條不變，改變的 8 條全是接頭所在的 way（共用節點取最大值），最大高程差 0.37 m。
+- `remaining-routes-0913.json`：`waysSha256` 重釘為含 9 條補段的 ways（重釘前先驗前 4364 條與 `5689e582` 釘住的 sha 相同），afterPlans 重釘；F2 又搬了加開模板 6835 的兩個停車節點，照上午的做法 beforePlans 釘成與 afterPlans 相同。
+
+**結果**
+
+- F2 修不掉：451 → **374**；「無順向路徑」438 → **355**。新左營 22→0、枋寮 21→0、新竹 2→0、善化 23→7、岡山 22→8、竹南 20→10。37 份計畫走新接回的連接段（新左營→楠梓 7、枋寮↔加祿 10、橋頭→岡山 7、拔林→善化 7、竹南→造橋 5、新竹→三姓橋 1），每條走 yard 最長 130 m。既有兩條 spur（太麻里 179533237 等，09-13 就在用）不在本輪範圍。
+- 120 秒閘門（三日各 12/12 PASS）：9/12 A3／A′6／B25／C6（9.2 時 B39）；9/13 A3／A′5／B36／C9（B52）；9/14 A0／A′4／B15／C7（B28）。
+- 家族表（4 秒全日掃描，基線＝9.2 修後）：見下表（F4 六次掃描全部 PASS 後才更新基線）。
+
+| 家族 | 9/12 | 9/13 | 9/14 |
+| --- | --- | --- | --- |
+| A-追撞未頂上限 | 3 → 3 | 5 → 5 | 2 → 2 |
+| A-追撞頂到120s上限 | 21 → 21 | 21 → 21 | 10 → 10 |
+| A′ 單線交會落站間 | 58 → **51** | 39 → **31** | 27 → **21** |
+| A′ 雙線同股 | 73 → **70** | 76 → **73** | 62 → **60** |
+| B-同月台同節點 | 35 → **21** | 39 → **22** | 27 → **13** |
+| C-同月台進出尾巴 | 1 → **0** | 0 → 0 | 0 → 0 |
+| C-通過車穿過停站車，旁有平行股道 | 101 → **83** | 102 → **83** | 84 → **66** |
+| **合計** | **292 → 249** | **282 → 235** | **212 → 172** |
+| 長編組探針合計 | 306 → 263 | 298 → 251 | 225 → 185 |
+
+- 其餘閘門全過：`verify_rail_levels`（5019 way、0 失敗）、`verify_physical_display_profiles`、`verify_run_profiles_match`、`verify_tra_plan_binding`、`verify_physical_runtime_cache`、`verify_remaining_station_routes`（75 班、82 處、每秒取樣 89134 點、進出站邊界 902 處最大跳躍 0.07 m）、`verify_tra_pass_continuity` 4/4、`verify_passing_avoidance`。`verify_physical_tracks_browser` 第三項在 `32186503`（本節之前）就同樣逾時，與本節無關。`verify_physical_topology.mjs` 要 `.cache/physical-tracks/`，本機沒有，沒跑。
+- 沒動：hold 上限 120、車身、班表時刻、`index.html`、yard 標籤。
+- 重跑起點：本節的 `rail-3d/physical/{network,dispatch}.json` 是從 `27e1295d`（F1 之前）的兩個檔開始 `extend_tra_station_throats` → F1 → F2 一路產出的，不是疊在 9.1 的產物上再修；F1 本身確定性（同輸入兩次逐 byte 相同）。
+
+**剩下的**：第二類 133 筆要在 OSM 補畫另一向渡線（先用國土測繪中心正射影像核實，公開編輯；礁溪東北咽喉在影像上看得到接西正線的連接、OSM 沒畫），第三類 138 筆是時間模型的事，F5 長編組仍未開。
 

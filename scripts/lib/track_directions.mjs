@@ -12,8 +12,15 @@ import assert from 'node:assert/strict';
 import { restorePhysicalRoutes } from './restore_physical_routes.mjs';
 import { makeParallelIndex, isTrack, segLen } from './parallel_tracks.mjs';
 
+// 站場咽喉連接段（F6，scripts/extend_tra_station_throats.mjs 補入的 service=yard 短段）：只在沒有純正線順向路徑時才准走，
+// 一條路徑走 yard／spur 的總長不得超過這個上限（乾跑 81 筆全在 130 m 內），計價以 20 倍長度讓搜尋挑走最少 yard 的走法。
+export const YARD_CAP_M = 150;
+
 export function makeDirectionModel({ net, dispatch, system = 'tra_sched', parFrac = 0.8, minUses = 10, minority = 0.2, detour = len => len * 1.25 + 300 }) {
   const { g, paths, edges } = restorePhysicalRoutes(net);
+  const isYard = e => ['yard', 'spur'].includes(e.tags.service);
+  const yardPenalty = new Map(); for (const e of Object.values(edges)) if (isYard(e)) yardPenalty.set(e.resource, e.length * 20);
+  const yardLength = r => r.edgeIds.reduce((s, eid) => s + (isYard(edges[eid]) ? edges[eid].length : 0), 0);
   const ways = net.ways, wayIndex = new Map(ways.map((w, i) => [String(w.id), i]));
   const { nearestParallel } = makeParallelIndex(ways);
   const plans = Object.entries(dispatch.plans).filter(([k]) => k.startsWith(system + ':'));
@@ -102,7 +109,8 @@ export function makeDirectionModel({ net, dispatch, system = 'tra_sched', parFra
     let res = best !== null ? { id: best, lengthM: paths[best].lengthM } : null;
     if (!res) {
       const edgeAllowed = (edge, from) => { const dom = clean.get(edge.wayId); return dom === undefined || (edge.a === from ? 1 : -1) === dom; };
-      const r = g.shortestPath({ from: a, to: b, system, maxLength: detour(refLen), edgeAllowed });
+      let r = g.shortestPath({ from: a, to: b, system, maxLength: detour(refLen), edgeAllowed });
+      if (!r && yardPenalty.size) { r = g.shortestPath({ from: a, to: b, system, maxLength: detour(refLen), edgeAllowed, allowYard: true, penalties: yardPenalty }); if (r && yardLength(r) > YARD_CAP_M) r = null; }
       if (r) { assert.equal(wrongOn({ edgeIds: r.edgeIds, nodeIds: r.nodeIds }, clean).length, 0); res = { id: register(r), lengthM: r.lengthM }; }
     }
     memo.set(key, res); return res;

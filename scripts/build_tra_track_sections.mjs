@@ -40,7 +40,9 @@ function pathStats(p) {
     if (w.tags?.ref) refs.add(w.tags.ref);
     const n = Math.abs(cnt), dirn = Math.sign(cnt) || 1;
     for (let k = 0; k < n; k++) {
-      const i = dirn > 0 ? start + k : start - k - 1;   // 反向走時段序是 start-1, start-2, …
+      // walk 的第二項是第一段的段序，反向走時段序是 start, start-1, …（與 restore_physical_routes.mjs／route-runtime.js 同一套；
+      // 2026-09-14 前寫成 start-1 起算，反向的每一段都往前錯一段）。
+      const i = start + k * dirn;
       if (i < 0 || i + 1 >= w.coordinates.length) continue;
       const L = segLen(w, i); total += L;
       if (isTrack(w) && hasParallel(w, i)) par += L;
