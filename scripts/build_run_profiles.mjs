@@ -21,23 +21,18 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 // 頂層宣告依 index.html 的原始順序無關（函式提升），但 const 必須排在用到它的執行之前。
 const CONSTS = ['PERF_DEFAULT', 'PERF_HSR', 'HSR_DEP_MID_SEC', 'PERF_RULES', 'PERF_BY_TYPE',
-  'SPEED_ZONES', 'ZONE_KNOT_GAP', '_rpPre', 'MEET_HEADWAY_SEC', 'MEET_NEAR_SEC'];
+  'SPEED_ZONES', 'ZONE_KNOT_GAP', '_rpPre'];
 const FUNCS = ['haversineKm', 'ensureCum', 'posAlongShape', 'isHSR', 'resolvePerf',
   'speedZoneClassOf', 'runSpeedZones', 'zoneProfileOk', 'zoneNatural', 'speedZoneKnots',
   'buildProfile', 'buildObsProfile', 'profTimeToProg', 'profProgToTime',
   'schedSegmentKm', 'schedSegKmOf', 'assignRunProfiles', 'canonicalizeAliasTrains',
-  'projectOntoShape', 'assignSchedShapePathsFor',
-  'inferMeetPassTimes', 'inferMeetRun', 'reanchorRunProfile', 'applyRunProfile'];
+  'projectOntoShape', 'assignSchedShapePathsFor'];
 
 // 🔴 前端存進 state.passObs 的是檔案的 .trains 子物件，不是根物件（index.html:26667）。
 // 傳整份進去不會報錯，只會讓每一次查表都落空、全部跑段靜默退回梯形——實測 236 台車的
 // 剖面因此與瀏覽器不同，而畫面照樣有車。凡「餵給模型的東西」都要照前端的取法取，不要照檔案的形狀猜。
 export function readPassObs(path) {
   return JSON.parse(readFileSync(path, 'utf8'))?.trains || null;
-}
-// 同理:前端存的是 .pairs（index.html 的 state.trackSections），照前端的取法取。
-export function readTrackSections(path) {
-  return JSON.parse(readFileSync(path, 'utf8'))?.pairs || null;
 }
 
 export function makeSandbox(indexPath) {
@@ -53,12 +48,9 @@ export function makeSandbox(indexPath) {
 
 // 前端 applySchedSystems 對台鐵做的事，只留會影響剖面的那些：標 tr.sys、掛 passObs。
 // （站等分級、共構站群、車種可見度…都不進剖面，刻意不做。）
-// trackSections 不傳就讀 repo 內那份（每個呼叫端都該吃同一張表，交會推論才與前端一致）；
-// 傳 null 代表「刻意不用」（前端缺檔時的行為）。
-export function computeProfiles({ indexPath, schedule, track, passObs, mutate, trackSections }) {
+export function computeProfiles({ indexPath, schedule, track, passObs, mutate }) {
   const ctx = makeSandbox(indexPath);
   ctx.state.passObs = passObs;
-  ctx.state.trackSections = trackSections === undefined ? readTrackSections(join(ROOT, 'data/tra_track_sections.json')) : trackSections;
   ctx.trains = schedule.trains;
   ctx.lines = track.lines;
   for (const tr of schedule.trains) tr.sys = 'tra_sched';
@@ -70,10 +62,7 @@ export function computeProfiles({ indexPath, schedule, track, passObs, mutate, t
   //    那兩台車在使用者手上靜默退回現算。順序也要照前端：併完才貼軌。
   runInContext('canonicalizeAliasTrains(trains)', ctx);
   runInContext('assignSchedShapePathsFor(trains, lines)', ctx);
-  // 交會／待避推論：與前端 applySchedSystems 同一個呼叫（聯集班表＋dates＋單雙線表），跑在貼軌之後。
-  ctx.union = { trains: schedule.trains, dates: schedule.dates };
-  const meetStats = runInContext('inferMeetPassTimes(trains, union, state.trackSections)', ctx);
-  return { segStats: ctx.state._segStats, meetStats };
+  return { segStats: ctx.state._segStats };
 }
 
 // 只收【實測型】剖面（obs:true）。梯形是 34 行閉式解，輸入前端全都有、算起來也快，
@@ -125,7 +114,7 @@ function main() {
   const passObs = readPassObs(join(ROOT, 'data/tra_pass_obs.json'));
 
   const t0 = Date.now();
-  const { segStats, meetStats } = computeProfiles({ indexPath, schedule: work, track, passObs });
+  const { segStats } = computeProfiles({ indexPath, schedule: work, track, passObs });
   const { table, obsRuns, plainRuns, knots, dropped } = collectProfiles(work);
 
   // 自我斷言：這支腳本只准【讀】班表，一個 byte 都不准改。算的時候會在 stops 上掛 segLn
@@ -154,7 +143,6 @@ function main() {
   console.log(`收錄 ${Object.keys(table).length} 個車次號`
     + (dropped.length ? `｜🔴 同號多版本且剖面不一致，整個不收：${dropped.join('／')}（前端現算）` : '｜無同號衝突'));
   console.log(`貼軌 ${JSON.stringify(segStats)}｜耗時 ${Date.now() - t0}ms`);
-  console.log(`交會／待避推論：夾回 ${meetStats.snapped} 處通過時刻｜窗內無解 ${meetStats.infeasible}｜重建不合格 ${meetStats.unbuildable}｜位移超過上限 ${meetStats.tooFar}｜彎道跑段略過 ${meetStats.zoneSkipped}`);
   console.log(`已寫入 ${profPath}（班表檔未動）`);
 }
 
