@@ -723,11 +723,11 @@ A 名單內座標不變且等於 `assertStationCoord`；B 名單外 240 站照�
 - **B：`ccc51f6a`**。194095477／746106069 西正線補北上方向種子，F1→F2→F2 增量重跑，6 份計畫 12 段改走既有路徑；network 逐 byte 不變，全部計畫非 pathIds 欄位（官方時間、holds、車長）不變。1208 的 oldPath 1255→1263、blocked 不變；4234 的 oldPath 1533→1536，blocked 改成 path 20080 的 28 個對向資源。4193 afterPlans 只改第 26／27 格，完整前後與原因寫在兩份 fixture。
 - 14 天逐資源證明：4234（百福—七堵—八堵—暖暖）、1208（楊梅—埔心—中壢—內壢）共 6 段，所有資源均覆蓋、交集均 0。舊分支派車表每天重現 4234×231；4234 改回 20080 時每天在新 blocked 與 231 碰撞；1208 改回 1255 時每天在原 blocked 與 129 碰撞。對照以產品 motion、F3 與車身 footprint 計算，不靠 runtime hold。
 - 具名路徑、remaining routes、plan binding、binding continuity、run profiles、manifest/provenance 均 exit 0；remaining routes 保護 4 模板、76 班、83 處、89,396 取樣，最大接站跳躍 0.0748 m。Chromium/WebKit 11 個具名案例均修前重現、修後指定時點交集 0，長編組車身不變；兩引擎均通過 360/375/414/768 真觸控與 flat/terrain 切換、elementFromPoint 可及性與水平溢出檢查。
-- 三日 120 秒閘門均 exit 0；4 秒全日家族掃描 6/6 exit 0、沒有新家族／退步，事件總數 9/12 正式 236→233、長編組249→246；9/13 正式222→219、長編組236→233；9/14 正式161→158、長編組175→172。**基線、BLOCK_CAP_SEC=120、車長與門檻均未更動。這不是全網所有互穿歸零。**
+- 三日 120 秒閘門均 exit 0；4 秒全日家族掃描 6/6 exit 0、沒有新家族／退步，事件總數 9/12 正式 236→233、長編組249→246；9/13 正式222→219、長編組236→233；9/14 正式161→158、長編組173→170。**基線、BLOCK_CAP_SEC=120、車長與門檻均未更動。這不是全網所有互穿歸零。**
 - **A：`db019221`**。採交接建議暫緩蘇澳橋東145608233／1527875178／1527875179／1527875182四條無列車使用的死端。ways 恰少四條、nodeTags 只少獨有節點，paths 與 dispatch 逐 byte 不變。來源 OSM fixture 完整保留；extend 與 fixture 建置器具名排除，沒有把一般 spur／yard 全部排除。
 - **交接預測修正**：rejectReason 實際在 build_tra_station_tracks_fixture.mjs。完整重算 display 會連動蘇澳橋145608231與1033291385；再重算 level 會更動32條保留股道（含flat平滑傳播）。這個候選未採用。最終改用 `BASE_REF=ccc51f6a node scripts/prune_suao_deadend_profiles_0914.mjs` 做剖面子集裁剪：只刪四個 entry，其餘 display／level entry 逐 byte 保留，1033291385 也完全不變。刪邊只減少原約束；沿用原可行解後重新驗坡度、接縫與高度，而非改寫輸出以迎合閘門。level-profiles.incrementalPrune 保存原commit、原輸入雜湊與方法，inputSha256 指向裁剪後輸入。
 - A 最終：高度／display／level／remaining／verified／geojson／瀏覽器互穿均 exit 0。**G6f 6.62→6.51 km（門檻6.6不變）；G5b 3.23 km不變**；level 350處交叉 failed 0、7354共用節點，display最低淨空2.808m。geojson閘門首次指出既有汐科過期並重產，結果逐 byte 等於另一分支a1031e81，複跑exit 0。
 - waysSha256：`a67dea3e64f7f492bc082264aec01425b6786a223984e95b0c711456f506f835` → `aa85288eec16663a7fa72f1f07ff8038980c2a0e6916e6db22422ca6e07ad866`，fixture附舊值／新值／理由／證據。
-- 整合以遠端字面sha `d5e3a11347ff83fcde4b35d425ffc5176804cac6` 為基準，正式站v0914c；先revert該撤回commit，再合併647a0aba與db019221。沿用原v0914d公開更新條目，重產manifest修回四個捷運班表雜湊。後續僅經ship_web完整預檢與出貨。
+- 整合以遠端字面sha `d5e3a11347ff83fcde4b35d425ffc5176804cac6` 為基準，正式站v0914c；先revert該撤回commit，再合併647a0aba與db019221。沿用原v0914d公開更新條目，四個捷運班表雜湊已隨B重產恢復，整合後manifest僅更新汐科geojson雜湊。後續僅經ship_web完整預檢與出貨。
 
 使用者補充的單軌清單已對照既有243站對真相表：海線五段已包含；花東鐵道局現行工程範圍104.5km，花蓮—干城另案，不能與112.6km混用。南迴中央—古莊雙軌僅占大武—枋野站間一部分，既有二值站對的「雙線」不代表整段每一個edge都雙線；本次未憑區域敘述新增第二股或改動方向資料。
