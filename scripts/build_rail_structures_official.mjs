@@ -173,6 +173,9 @@ const osmKind=t=>{
 };
 
 const entries={},summary={upgraded:{bridge:0,tunnel:0},overridden:{bridge:0,tunnel:0},unresolved:[],kept:{},uncovered:0,ways:0};
+// 端點相接的來源明示隧道（反向改判的第二裁判用，理由見下方「flushTunnel」）。
+const explicitTunnelAt=new Map();
+for(const f of ['network.json','metro-network.json'])for(const w of JSON.parse(fs.readFileSync('rail-3d/physical/'+f)).ways){const t=w.tags||{};if(t.tunnel!=='yes'&&t.location!=='underground')continue;for(const n of w.nodes){const k=w.system+':'+n;if(!explicitTunnelAt.has(k))explicitTunnelAt.set(k,[]);explicitTunnelAt.get(k).push(String(w.id));}}
 const dem=openRailDem(new URL('../',import.meta.url));
 try{
 for(const f of ['network.json','metro-network.json']){
@@ -194,8 +197,18 @@ for(const f of ['network.json','metro-network.json']){
   if(source!==verdict&&['bridge','tunnel'].includes(source)&&['bridge','tunnel'].includes(verdict)){
    const reliefM=await relief(w.coordinates,dem.ground),mountain=reliefM>=RELIEF_M;
    // 地形與官方同一邊才改；地形支持來源、或它對這一格沒有鑑別力，就維持原判並記帳。
-   if(mountain===(verdict==='tunnel')){
-    entries[w.id]={kind:verdict,override:source,reliefM,...base};summary.overridden[verdict]++;
+   // 2026-09-14 補第二個裁判，只開給「來源標橋、官方判地下、地形沒有山」這一格。地形起伏是拿來分辨
+   // 山岳隧道與高架橋的；官方結構碼 3（都市地下段）上方本來就沒有山，這一格照上一行的規則結構上
+   // 一定落進 unresolved，等於永遠不裁。第二個獨立證據取來源自己的相接標記：這條「橋」的端點直接
+   // 接上同系統明示 tunnel=yes／location=underground 的股道——平地上橋面不會與隧道口零距離相接，
+   // 顯示上也接不起來（橋面至少離地 CLEAR、隧道要覆土，兩者在同一個節點上差十幾公尺，
+   // 隧道求解器只能把整段隧道頂出地表，buriedDraw 判 'none' 一根線都不畫）。
+   // 官方涵蓋已過 MIN_COVER、地形不反對、來源自己的鄰接也指向地下，三方同一邊才改。
+   // 09-14 路網實測只命中基隆站場 1254269078（16 m、coverage 1、relief 0.1 m）；另一條 unresolved 的
+   // 捷運環狀線 741259917 兩端接的都是高架，不受影響。
+   const flushTunnel=source==='bridge'&&verdict==='tunnel'&&!mountain&&[w.nodes[0],w.nodes.at(-1)].some(n=>explicitTunnelAt.has(w.system+':'+n));
+   if(mountain===(verdict==='tunnel')||flushTunnel){
+    entries[w.id]={kind:verdict,override:source,reliefM,...(flushTunnel?{arbiter:'端點直接接上來源明示的隧道'}:{}),...base};summary.overridden[verdict]++;
    }else{
     summary.unresolved.push({id:String(w.id),system:w.system,source,official:verdict,reliefM,coverage:+cover.toFixed(3)});
     summary.kept[source+'→'+verdict]=(summary.kept[source+'→'+verdict]||0)+1;}
