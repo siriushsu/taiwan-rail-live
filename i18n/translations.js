@@ -1270,3 +1270,14 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '愛心孩童': '障害者割引(小児)', '愛心優待、愛心陪伴': '障害者割引・付添者', '軍警': '軍人・警察', '法優': '法定割引',
   '標準座車廂': '標準車両', '商務座車廂': 'ビジネス車両', '自由座車廂': '自由席車両',
 });
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"觀看設定": "View settings", "關閉觀看設定": "Close view settings", "觀看設定分類": "View setting categories", "觀看": "View", "視角": "Camera", "標示": "Labels", "畫面": "Display", "導覽": "Places"});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"觀看設定": "表示設定", "關閉觀看設定": "表示設定を閉じる", "觀看設定分類": "表示設定のカテゴリ", "觀看": "表示", "視角": "視点", "標示": "表示項目", "畫面": "画面", "導覽": "スポット"});
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"其他設定":"Other settings"});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"其他設定":"その他の設定"});
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"觀看設定移到網站右側；手機可按「觀看」切換視角、地圖與列車設定，沉浸模式也能隨時重新開啟": "View settings now live on the right side of the website. On mobile, tap View to change camera, map and train settings, including while in immersive mode."});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"觀看設定移到網站右側；手機可按「觀看」切換視角、地圖與列車設定，沉浸模式也能隨時重新開啟": "表示設定をウェブサイトの右側に移動しました。モバイルでは「表示」から視点・地図・列車の設定を変更でき、没入モード中も開き直せます。"});

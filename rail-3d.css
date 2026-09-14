@@ -24,3 +24,32 @@ body.ambient .ri-formation-caption{display:none}
 .ri-guide-input select { flex:1; min-width:0; width:100%; min-height:44px; color:var(--navy); background:var(--paper); border:1px solid var(--line); border-radius:6px; font:inherit; }
 .ri-guide-input button { flex:none; min-width:52px; min-height:44px; color:var(--paper); background:var(--navy); border:0; border-radius:6px; font:inherit; }
 @media(max-width:480px){.ri-guide-row > label{width:100%;}}
+
+/* 觀看工具：桌面右側分類欄；觸控殼由「觀看」打開同一份設定。 */
+.view-dock{position:fixed;right:16px;top:var(--view-top,160px);z-index:1050;display:flex;align-items:flex-start;gap:10px;color:var(--navy);font-size:13px;pointer-events:none}
+.view-dock button{font:inherit;cursor:pointer;color:inherit}
+.view-rail{order:2;display:flex;flex-direction:column;padding:4px;gap:3px;background:var(--paper);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-1);pointer-events:auto;max-height:var(--view-space,500px);overflow:auto}
+.view-tab{border:0;border-radius:9px;background:transparent;min-height:48px;min-width:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px 8px;white-space:nowrap}
+.view-symbol{font-size:19px;line-height:20px}.view-tab.on{background:var(--navy);color:var(--paper)}
+.view-tab:hover:not(.on){background:var(--line)}
+.view-panel{order:1;width:320px;max-height:var(--view-space,500px);display:flex;flex-direction:column;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-1),0 10px 30px #14233320;background:var(--paper);overflow:hidden;pointer-events:auto}
+.view-panel[hidden],.view-page[hidden]{display:none!important}
+.view-head{display:flex;align-items:center;justify-content:space-between;padding:5px 8px 5px 16px;border-bottom:1px solid var(--line);flex:none}
+.view-close{width:44px;height:44px;border:0;background:none;font-size:24px!important;border-radius:8px}
+.view-tabs{display:none}.view-body{min-height:0;overflow:auto;overscroll-behavior:contain;padding-bottom:6px}
+.view-body .ms-row{font-size:13px;min-height:48px;padding:10px 14px}.view-body .ri-3d-row .seg{margin-left:auto}.view-body .ri-3d-help{margin-bottom:10px}
+#viewSettingsBtn{display:none;min-width:44px;min-height:44px;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:10px;background:var(--paper);color:var(--navy);font:inherit;font-size:12px;box-shadow:var(--shadow-1);cursor:pointer;padding:6px 9px}
+body.mobile-shell #viewSettingsBtn{display:flex}
+.view-mobile{left:10px;right:10px;display:block}.view-mobile .view-rail{display:none}.view-mobile .view-panel{width:100%}.view-mobile .view-tabs{display:flex;flex:none;gap:2px;overflow-x:auto;padding:5px 6px;border-bottom:1px solid var(--line)}
+.view-mobile .view-tab{flex:1;min-width:44px;min-height:44px;padding:7px 3px;gap:0}.view-mobile .view-tabs .view-symbol{display:none}.view-mobile .view-head{padding-top:0;padding-bottom:0}
+body.mobile-shell.view-open #followPanel,body.mobile-shell.view-open #freqCard{visibility:hidden}
+body:is(.ambient,.tools-open,.search-open,.rec-panel,.collect-map) .view-dock{display:none}
+body:is(.rec-panel,.collect-map) #viewSettingsBtn{display:none}
+@media(prefers-reduced-motion:reduce){.view-dock *{scroll-behavior:auto}}
+.view-body .seg button{min-height:44px;min-width:44px}
+.view-body .ms-row{font-size:calc(13px * var(--ui))}
+.view-body .toggle{flex:none}
+.view-rail .view-tab{min-height:44px;padding:3px 6px;gap:2px}
+.view-rail .view-symbol{font-size:16px;line-height:16px}
+body:is(.tools-open,.search-open,.train-open,.sheet-open) #viewSettingsBtn{visibility:hidden}
+@media(orientation:landscape) and (max-height:500px){body.mobile-shell #viewSettingsBtn{position:fixed;right:calc(var(--rail-w,340px) + 18px);top:calc(56px + var(--sa-t,0px))}}

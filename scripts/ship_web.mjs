@@ -469,6 +469,11 @@ try {
   if (notify.status !== 0) fail('本地提醒守門人未過——提醒入口不見了,或排程時間／格位／上限算錯'
     + '（單獨重跑：npm run check-notify）');
 
+  // 觀看入口是沉浸模式的退出路徑；雙引擎真點進入、重開、退出與重載。
+  const viewControls = spawnSync('node', [path.join(wt, 'scripts', 'verify_view_controls_gate.mjs')], { cwd: wt, encoding: 'utf8' });
+  process.stdout.write(viewControls.stdout || ''); process.stderr.write(viewControls.stderr || '');
+  if (viewControls.status !== 0) fail('觀看設定與沉浸模式退出驗收未通過');
+
   // ── 3. strip（腳本內建 esbuild AST 重印等價證明，任何不等價都非零退出）────
   const rawBytes = fs.readFileSync(path.join(wt, 'index.html'));
   execFileSync('node', [path.join(wt, 'scripts', 'strip_ship_comments.mjs'), wt], { stdio: 'inherit' });
