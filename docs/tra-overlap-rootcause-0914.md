@@ -674,3 +674,17 @@ A 名單內座標不變且等於 `assertStationCoord`；B 名單外 240 站照�
 
 **沒動的**：`index.html`、`BLOCK_CAP_SEC`／hold 上限 120、`MEET_*`、車身常數、班表時刻、`stopSignature`、
 任何 way、任何 `verify_*` 的判準與門檻、`scripts/repair_physical_stations.mjs`（F2）本體、家族基線。
+
+### 9.12 出貨嘗試：被 3D 橋隧高度閘門擋下，main 已退回（2026-09-14 19:49）
+
+- 本分支併進 main（`4a5a3f6f`，零衝突；BUILD v0914d；更新紀錄沿用 `remainingtracks0913` 並補中英日翻譯）推上後，
+  `npm run ship-web` 預檢被 **`verify_rail_structure_heights`**（`npm run check-rail-structure-heights`）擋下，沒有部署：
+  - G6f 台鐵平面段浮空 >10 m：**6.49 → 6.62 km**（基準 6.6，最高點仍 29.2 m @way 1270414589）
+  - G5b 隧道軌面高於地表、整段不畫：**3.23 → 3.46 km**（基準 3.4）
+- 對照：合併前 main（`239fdbf7`）這支通過；本分支 `bab68011` 單獨跑就紅 ⇒ 是本分支造成（F6／F9 新增 way 與 rail levels 重算），
+  不是環境。**§9.5 的閘門清單一直沒有這支**，所以分支上從沒量到。
+- 處置：main 以 `d5e3a113` 整顆退回合併（另補 `aba8f003` 漏更新的 4 個捷運班表雜湊），正式站未變動（仍 v0914c）。
+  🔴 **再併本分支時要先 revert `d5e3a113`**，否則 git 會把分支當成已合併而略過內容。
+- 下一步（不放寬基準）：逐 way 比對 `239fdbf7` 與本分支的 G6f／G5b 貢獻，找出新增的浮空與不畫段、修高度；
+  把 `check-rail-structure-heights` 加進 §9.5 閘門清單；推 main 前跑完整 ship-web 預檢。
+
