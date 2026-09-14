@@ -52,4 +52,5 @@ body:is(.rec-panel,.collect-map) #viewSettingsBtn{display:none}
 .view-rail .view-tab{min-height:44px;padding:3px 6px;gap:2px}
 .view-rail .view-symbol{font-size:16px;line-height:16px}
 body:is(.tools-open,.search-open,.train-open,.sheet-open) #viewSettingsBtn{visibility:hidden}
-@media(orientation:landscape) and (max-height:500px){body.mobile-shell #viewSettingsBtn{position:fixed;right:calc(var(--rail-w,340px) + 18px);top:calc(56px + var(--sa-t,0px))}}
+body.mobile-shell #viewSettingsBtn.view-side-entry{position:fixed;right:calc(var(--rail-w,340px) + 18px);top:calc(56px + var(--sa-t,0px))}
+.ri-3d-row .ri-3d-help{flex-basis:100%;margin:0}

@@ -1,3 +1,4 @@
+import {terrainElevation} from './terrain-elevation.js';
 import * as THREE from '../vendor/three.module.js';
 import {registerTerrainProtocol} from '../terrain.js';
 import {terrainArchive} from '../terrain-source.js';
@@ -37,14 +38,14 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   const ml=await library(),[catalog,profileData]=await Promise.all([json('assets/blender-map-v1/manifest.json'),json('integration/display-profiles.json')]);
   assertCurrent();
   const el=map.getContainer(),landscapeTheme=landscape?'landscape':'original';
-  let trees=null;
+  let trees=null,terrainRefreshPending=groundMode==='terrain';
   let disposed=false,ready=false,lastDetail=null,stationLayer=null,stationLabels=null,markers=null,inspection=false,frame=null,routeKey='',routeRefs=[],lastBuild=0,dirty=true,buildCenter=null,buildElev=0,buildView=null,lastNear=null,popup=null;
   const clearance=createRailClearance();
   const terrainState={terrain:groundMode==='terrain',buildings:true,labels:true,stationInspection:false,stationInspectionAll:true,exaggeration:1};
   const scene=new THREE.Scene(),camera=new THREE.Camera(),projection=new THREE.Matrix4(),anchor=ml.MercatorCoordinate.fromLngLat([121,24]),unit=anchor.meterInMercatorCoordinateUnits();
   const transform=new THREE.Matrix4().makeTranslation(anchor.x,anchor.y,0).scale(new THREE.Vector3(unit,-unit,unit));
   const cache=new Map(),pending=new Map(),models=new Map(),failed=new Set(),paths=new WeakMap(),motion=new Map(),formations=new WeakMap();
-  const rails=profileLines(scene),undergroundRails=profileLines(scene,{underground:true}),structures=createRailStructures(scene),apertures=createTunnelApertures((x,y)=>{const q=new ml.MercatorCoordinate(anchor.x+x*unit,anchor.y-y*unit).toLngLat(),h=map.queryTerrainElevation([q.lng,q.lat]);return Number.isFinite(h)?world([q.lng,q.lat],h)[2]:null;});
+  const rails=profileLines(scene),undergroundRails=profileLines(scene,{underground:true}),structures=createRailStructures(scene),apertures=createTunnelApertures((x,y)=>{const q=new ml.MercatorCoordinate(anchor.x+x*unit,anchor.y-y*unit).toLngLat(),h=terrainSample([q.lng,q.lat]);return Number.isFinite(h)?world([q.lng,q.lat],h)[2]:null;});
   let followingCamera=false,zoomFollows=null,followReturn=null,framingView=null,framingPanelAt=0,framingPanelTop=null,framingControlsBottom=0;const pointers=new Set();
   const motionCamera=cameraMotion(map,{apply:pose=>{const previous=state._autoPan;state._autoPan=true;followingCamera=true;try{map.jumpTo(pose);}finally{followingCamera=false;state._autoPan=previous;}},onEnd:()=>map.fire('pitchend')});
   let profileVertices=[],gesture=false,gesturePanned=false,gestureOrbited=false,gestureTimer=0,ambientWas=false,ambientView=null,cameraAt=0,orbitBearing=0;
@@ -73,7 +74,8 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   const stats={trainHalo:trainHalo.stats,headlightSpill:headlightSpill.stats,structures:structures.stats,frames:0,vehicles:0,models:0,routeBuilds:0,geometryVersion:null,railElevationM:null,displayHeight:terrainState.terrain?'DEM + estimated rail levels':'estimated rail levels',groundMode,landscapeTheme,trainSizeMode,formationMode,errors:[],poseSamples:[],get stationLabels(){return stationLabels?.count||0;},get routeWidthPx(){return routeWidth(map.getZoom());}};
   const report=e=>{const text=e?.message||String(e);if(stats.errors.length<20)stats.errors.push(text);onError?.(text);};
   function world(coord,height){const m=ml.MercatorCoordinate.fromLngLat(coord);return [(m.x-anchor.x)/unit,-(m.y-anchor.y)/unit,height*m.meterInMercatorCoordinateUnits()/unit];}
-  function height(coord){if(!terrainState.terrain)return .65;const h=map.queryTerrainElevation(coord);return Number.isFinite(h)?h+.65:null;}
+  function terrainSample(coord){return terrainElevation(map,coord,ml);}
+  function height(coord){if(!terrainState.terrain)return .65;const h=terrainSample(coord);return Number.isFinite(h)?h+.65:null;}
   // 同一個里程的 level，一次重建裡會被問到五次：railHeight 兩次、buriedDraw 兩次、橋墩判斷一次。
   // 借來的 level 每一次都要重跑 displayLevelAt——3x3 網格撈候選股道、逐條 locate 最近點——台北那種
   // 多線重疊的地方一個取樣點就要比對幾十條。只記住最後一次的答案，五次查詢就變一次；查詢結果只看
@@ -95,7 +97,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   let terrainCaching=false,tcLon=NaN,tcLat=NaN,tcValue=null;
   function terrainAt(coordinate){
     if(terrainCaching&&coordinate[0]===tcLon&&coordinate[1]===tcLat)return tcValue;
-    const g=map.queryTerrainElevation(coordinate);
+    const g=terrainSample(coordinate);
     if(terrainCaching){tcLon=coordinate[0];tcLat=coordinate[1];tcValue=g;}
     return g;
   }
@@ -108,7 +110,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   function terrainLoaded(coordinate){
     const key=Math.round(coordinate[0]/LOADED_STEP)*4e7+Math.round(coordinate[1]/LOADED_STEP);
     if(loadedCells.has(key))return loadedCells.get(key);
-    const v=Number.isFinite(map.queryTerrainElevation(coordinate));loadedCells.set(key,v);return v;
+    const v=Number.isFinite(terrainSample(coordinate));loadedCells.set(key,v);return v;
   }
   function railHeight(path,s){
     if(path)s=Math.max(0,Math.min(path.length,s));
@@ -137,7 +139,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   const reliefCells=new Map(),reliefPoints=new Map(),cellKey=(gx,gy)=>gx*4e7+gy;
   function reliefPoint(gx,gy){
     const key=cellKey(gx,gy);if(reliefPoints.has(key))return reliefPoints.get(key);
-    const g=map.queryTerrainElevation([gx*RELIEF_STEP,gy*RELIEF_STEP]);reliefPoints.set(key,g);return g;
+    const g=terrainSample([gx*RELIEF_STEP,gy*RELIEF_STEP]);reliefPoints.set(key,g);return g;
   }
   function localRelief(coordinate){
     const gx=Math.round(coordinate[0]/RELIEF_STEP),gy=Math.round(coordinate[1]/RELIEF_STEP),key=cellKey(gx,gy);
@@ -163,7 +165,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   function rebuildLines(){
     const buildStarted=performance.now();terrainCaching=true;tcLon=tcLat=NaN;
     try{
-    clearLines();if(!frame)return;const c=map.getCenter(),near=map.getZoom()>=14,bounds=map.getBounds(),margin=.004;lastNear=near;const detail=detailLevel();lastDetail=detail;buildCenter=[c.lng,c.lat];buildElev=terrainState.terrain?map.queryTerrainElevation(buildCenter):0;buildView=[map.getZoom(),map.getPitch(),map.getBearing()];lastBuild=performance.now();dirty=false;stats.routeBuilds++;
+    clearLines();if(!frame)return;const c=map.getCenter(),near=map.getZoom()>=14,bounds=map.getBounds(),margin=.004;lastNear=near;const detail=detailLevel();lastDetail=detail;buildCenter=[c.lng,c.lat];buildElev=terrainState.terrain?terrainSample(buildCenter):0;buildView=[map.getZoom(),map.getPitch(),map.getBearing()];lastBuild=performance.now();dirty=false;stats.routeBuilds++;
 
     if(!near)return;const lineSegments=[],buriedSegments=[],structureSegments=[],piers=[];
     // 洞口取建置時算好的清單（railIslandPhysical.portals），不從股道取樣推。算繪端只走「當下
@@ -262,7 +264,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     const now=performance.now(),center=map.getCenter(),near=map.getZoom()>=14;
     if(buildView&&(Math.abs(map.getZoom()-buildView[0])>.4||Math.abs(map.getPitch()-buildView[1])>5||Math.abs(map.getBearing()-buildView[2])>15))dirty=true;
     // 單一到貨事件可能早於整片 DEM 到齊:建置當時的地面高程若已經不同,同樣要重建。
-    if(terrainState.terrain&&buildCenter){const e=map.queryTerrainElevation(buildCenter);if(Number.isFinite(e)&&Math.abs(e-buildElev)>.5)dirty=true;}
+    if(terrainState.terrain&&buildCenter){const e=terrainSample(buildCenter);if(Number.isFinite(e)&&Math.abs(e-buildElev)>.5)dirty=true;}
     if(near!==lastNear||detailLevel()!==lastDetail||((dirty||!buildCenter||Math.hypot(center.lng-buildCenter[0],center.lat-buildCenter[1])>.003)&&now-lastBuild>250))rebuildLines();
     const all=next.display?.modelMode==='all'||!!next.display?.ambient,bounds=map.getBounds();
     // 同一縮放門檻及比例函式用於每一輛模型；一般模式只有選取車，全部模式涵蓋畫面內可用車型。
@@ -341,7 +343,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   function updateModelScales(){
     // MapLibre 已給出本幀縮放／旋轉矩陣後才求螢幕寬度；所有車輛共用這個時點。
     for(const m of models.values())if(m.group?.visible&&m.screenPose){const {p,angle,ratio,sample}=m.screenPose;
-      const scale=m.screenPose.physical?1:readableScale(m.model,p,angle,ratio,map.getZoom(),project,trainSizeMode);
+      const scale=readableScale(m.model,p,angle,ratio,map.getZoom(),project,trainSizeMode);
       for(const car of m.cars)car.scale.y=car.scale.x*scale;
       m.displayScale=sample.displayScale=scale;
     }
@@ -376,7 +378,10 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     }
     points.visible=arrows.visible=false;
     map.addLayer({id:'live-vehicles-3d',type:'custom',renderingMode:'3d',onAdd(_,gl){webgl=new THREE.WebGLRenderer({canvas:map.getCanvas(),context:gl});webgl.autoClear=false;},
-      render(gl,args){const night=nightAmount(globalThis.railIslandSunlight?.current);ambientLight.intensity=1.9*(1-night*.7);sun.intensity=2*(1-night*.94);camera.projectionMatrix.copy(projection.fromArray(args.defaultProjectionData.mainMatrix).multiply(transform));updateModelScales();trainHalo.update(models,(c,h)=>project(world(c,h)),el.clientWidth,el.clientHeight,frame?.display);structures.setVisible(map.getZoom()>=14);rails.render(el.clientWidth,el.clientHeight,routeWidth(map.getZoom()),map.getZoom()>=14&&(terrainState.terrain||frame?.routes.some(r=>r.physical||r.drawingRanges)),frame?.display?.dark);webgl.resetState();camera.layers.enable(3);webgl.render(scene,camera);camera.layers.disable(3);stats.frames++;
+      render(gl,args){
+        // DEM 在 MapLibre 本幀準備完成後才同步橋墩與車體，避免沿用前一幀地表。
+        if(terrainRefreshPending&&terrainState.terrain&&frame&&Number.isFinite(terrainSample(map.getCenter().toArray()))){dirty=true;lastBuild=-Infinity;update(frame);if(map.isSourceLoaded('terrain'))terrainRefreshPending=false;}
+        const night=nightAmount(globalThis.railIslandSunlight?.current);ambientLight.intensity=1.9*(1-night*.7);sun.intensity=2*(1-night*.94);camera.projectionMatrix.copy(projection.fromArray(args.defaultProjectionData.mainMatrix).multiply(transform));updateModelScales();trainHalo.update(models,(c,h)=>project(world(c,h)),el.clientWidth,el.clientHeight,frame?.display);structures.setVisible(map.getZoom()>=14);rails.render(el.clientWidth,el.clientHeight,routeWidth(map.getZoom()),map.getZoom()>=14&&(terrainState.terrain||frame?.routes.some(r=>r.physical||r.drawingRanges)),frame?.display?.dark);webgl.resetState();camera.layers.enable(3);webgl.render(scene,camera);camera.layers.disable(3);stats.frames++;
         const lead=models.get(frame?.selectedVehicleId)?.cars?.[0],pad=map.getPadding();
         stats.headLockErrorPx=frame?.headLocked&&lead?Math.hypot(project(lead.position.toArray()).x-(el.clientWidth+pad.left-pad.right)/2,project(lead.position.toArray()).y-(el.clientHeight+pad.top-pad.bottom)/2):null;
       }});vehicleLayer=map.getLayer('live-vehicles-3d');
@@ -424,10 +429,10 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     listenMap('moveend',e=>{if(e.originalEvent)dirty=true;if(gesture)finishGesture();});
     // 圖磚到貨的 sourcedata 帶的是 e.tile,sourceDataType 是 undefined(只有 metadata／visibility 才有值),
     // 舊條件永遠不成立 ⇒ DEM 晚於首次建置抵達時,橋墩與橋面會一直停在 0m 被地形埋住。
-    listenMap('sourcedata',e=>{if(terrainState.terrain&&e.sourceId==='terrain'&&(e.tile||e.sourceDataType==='content'))dirty=true;});
+    listenMap('sourcedata',e=>{if(terrainState.terrain&&e.sourceId==='terrain'&&(e.tile||e.sourceDataType==='content')){dirty=true;terrainRefreshPending=true;}});
     ready=true;
     return {map,stats,update,animateCamera:motionCamera.animate,cancelCamera:motionCamera.cancel,get transitioning(){return motionCamera.active;},get positioning(){return motionCamera.positioning;},get interacting(){return gesture;},getVehicleLabels:()=>markers?.boxes||[],getRenderMemory:()=>({...webgl.info.memory}),
-      setGroundMode(mode){const relief=mode==='terrain';if(relief===terrainState.terrain)return;terrainState.terrain=relief;groundMode=relief?'terrain':'flat';stats.groundMode=groundMode;stats.displayHeight=relief?'DEM + estimated rail levels':'estimated rail levels';map.setTerrain(relief?{source:'terrain',exaggeration:1}:null);map.jumpTo({elevation:0});clearLines();dirty=true;lastBuild=0;stationLayer?.refresh();trees?.schedule();if(frame)update(frame);},
+      setGroundMode(mode){const relief=mode==='terrain';if(relief===terrainState.terrain)return;terrainState.terrain=relief;terrainRefreshPending=relief;groundMode=relief?'terrain':'flat';stats.groundMode=groundMode;stats.displayHeight=relief?'DEM + estimated rail levels':'estimated rail levels';map.setTerrain(relief?{source:'terrain',exaggeration:1}:null);map.jumpTo({elevation:0});clearLines();dirty=true;lastBuild=0;stationLayer?.refresh();trees?.schedule();if(frame)update(frame);},
       setFormationMode(mode){formationMode=mode==='three'?'three':'actual';stats.formationMode=formationMode;failed.clear();if(frame)update(frame);},getStations:()=>stationLayer,getStationLabels:()=>stationLabels?.boxes||[],setTrainSizeMode(mode){trainSizeMode=mode==='scale'?'scale':'readable';stats.trainSizeMode=trainSizeMode;},resize:()=>map.resize(),getView:()=>({center:map.getCenter().toArray(),zoom:map.getZoom(),pitch:map.getPitch(),bearing:map.getBearing()}),
       setView(v){const c=map.getCenter();if(Math.abs(c.lng-v.center[0])+Math.abs(c.lat-v.center[1])>1e-9||Math.abs(map.getZoom()-v.zoom)>1e-6)map.jumpTo(v);},
       pinnedCameraTarget(){

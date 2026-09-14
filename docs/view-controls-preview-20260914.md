@@ -17,3 +17,5 @@ App 預覽沿用 mobile-shell 版面，尚未產生原生安裝包。App 的 pre
 本機可用 `python3 -m http.server 5248 --bind 127.0.0.1`，地圖網址 `/?train=117&t=12:00&scene=3d&z=18`。雙尺寸展示頁在本機忽略目錄 `output/view-controls/preview.html`。
 
 正式出貨已補上公開更新紀錄與翻譯，導覽、林鐵地形與車頭朝上驗收改走觀看入口；沉浸模式的雙引擎進出與重載已加入 ship-web gate。原生 App 安裝包仍未發布。
+
+使用者錄影補修：DEM 未就緒時 MapLibre 回 0，改讀同一個實際 DEM 圖磚的就緒狀態，並在 MapLibre 本幀準備後同步橋墩與車體。保留有效零海拔。實體股道恢復遠景的橫向辨識加寬；車長、車距、座標與近景比例不變。舊邏輯受控延遲 DEM 對照產生 217.76m 假橋墩，新版最大 8.96m；兩方向列車比例與地表跨層比對均通過。verify_ground_size.mjs 已加入雙引擎出貨 gate。
