@@ -454,8 +454,8 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
         framingView=view;
         let center=coord,viewElevation=elevation;
         if(profile&&(!terrainState.terrain||profile.path.elevation||profile.path.level)){
-          const first=model?.parts[0],headS=profile.s+profile.direction*(first?.offsetM??0),span=Math.min(8,(first?.lengthM??20)*.32),a=profile.path.at(headS-profile.direction*span),b=profile.path.at(headS+profile.direction*span);
-          const angle=a&&b?Math.atan2(b.coordinate[1]-a.coordinate[1],(b.coordinate[0]-a.coordinate[0])*Math.cos(coord[1]*Math.PI/180)):profile.angle+(profile.direction<0?Math.PI:0);
+          const direction=profile.direction*(v.formationFacing||1),first=model?.parts[0],headS=profile.s+direction*(first?.offsetM??0),span=Math.min(8,(first?.lengthM??20)*.32),a=profile.path.at(headS-direction*span),b=profile.path.at(headS+direction*span);
+          const angle=a&&b?Math.atan2(b.coordinate[1]-a.coordinate[1],(b.coordinate[0]-a.coordinate[0])*Math.cos(coord[1]*Math.PI/180)):profile.angle+(direction<0?Math.PI:0);
           const framing={zoom:pose?.zoom??map.getZoom(),pitch:pose?.pitch??map.getPitch(),bearing:pose?.bearing??map.getBearing(),angle,latitude:coord[1],width:w,height:h,padding};
           // 窄螢幕的長車頭橫跨小卡旁的窄縫時，改用小卡上方的完整寬度。
           // 只量可見的左下跟車卡；抽屜與橫向側欄仍保留原本的讓位範圍。
@@ -466,7 +466,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
             Object.assign(padding,headFramingPadding(model,framing,framingPanelTop,framingControlsBottom));
           }
           const distance=headFramingDistance(model,framing);
-          const target=distance>0&&profile.path.at(profile.s+profile.direction*distance);
+          const target=distance>0&&profile.path.at(profile.s+direction*distance);
           if(target){center=target.coordinate;viewElevation=railHeight(profile.path,target.s);}
           stats.followFraming={id:v.id,distanceM:target?distance:0,coordinate:center,elevation:viewElevation};
         }else stats.followFraming={id:v?.id,distanceM:0,coordinate:center,elevation:viewElevation};
