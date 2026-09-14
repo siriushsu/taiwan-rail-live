@@ -316,6 +316,11 @@ UPDATE_BASELINE=1 DATES=all node scripts/verify_tra_overlap_families.mjs   # 看
    抄的（`fetch_tra_schedule.py`，不走站表），重抓班表也不會跟上；而 F2 的候選池座標（`repair_physical_stations.mjs` 的 `coords`）
    與執行期站標（`state.schedStations`）都取自密檔 ⇒ 本批 F2 對汐科仍是用官方 GPS 找候選，執行期汐科站標與實體停車點相差 329 m。
    下一批處理：抓班表腳本加「以站表為準」的座標覆寫名單（汐科第一個），重跑 F2。
+   → **§9.10／§9.11 做成候選但未落地**（封存在 `output/audit-0914/f18-candidate/`，見 §9.10 開頭）。
+   同時訂正本點的一個前提：密檔的座標**不是**抓班表時抄官方 GPS 的，`densify_schedule.py` 對「對得上站表節點」
+   的停靠站本來就會改用**站表**座標（該檔 docstring 與 `scripts/densify_schedule.py:247`），密檔的
+   25.06406/121.65233 是**舊站表值**（與原始檔的 25.06405/121.65237 差 4 m，正好證明不同源）
+   ⇒ 重跑 densify 就會讓密檔跟上，覆寫步驟真正不可少的對象是**原始檔** `data/tra_schedule.json`。
 6. **單雙線區間表的真相來源**：TDX GIS v3「軌道路網實體路線」逐股幾何核實 8 對同名隧道 way（6 verified／1 rejected／1 樣本不足），
    再用官方《路線修築沿革》＋鐵道局公告＋維基條目交叉，逐對依據寫進 fixture 的 `truthSource`；
    新增**真相表** `scripts/fixtures/tra-track-sections-truth-0914.json`（243 對）與**新閘門**
@@ -375,11 +380,19 @@ diff 恰好只有那 3 個雜湊，`verify_data_manifest`／`verify_data_provena
 ### 9.5 補充（本批新增的步驟，順序有依賴）
 
 ```
+# ── 重抓班表那一段（npm run fetch-schedule 已含，離線只有第一步跑不了）────────────────
+python3 scripts/fetch_tra_schedule.py                   # 要外網
+# [F18 候選，未落地：下一行的腳本不在 HEAD，要重裝先套 output/audit-0914/f18-candidate/]
+python3 scripts/apply_station_coord_overrides.py        # F18 ← 新步驟，一定在抓班表之後、densify 之前
+python3 scripts/densify_schedule.py                     # 之後照鏈跑 pass_obs → track_sections → run_profiles → …
+# ── 實體鏈 ─────────────────────────────────────────────────────────────────────
 node scripts/extend_tra_station_throats.mjs             # F6（有 extensions 記錄就略過）
 SECTION=ways,bridge node scripts/extend_tra_station_tracks.mjs   # F9 ← 新步驟，一定在 throats 之後
 OUT=<暫存> node scripts/build_physical_display_profiles.mjs        # 🔴 補了 way 就一定要重建（build_rail_levels 要每條 way 都有剖面），比對後原子搬入
 node scripts/repair_physical_directions.mjs             # F1 ← 會讀 scripts/fixtures/tra-direction-seeds-0914.json（F17-S1 方向種子；改種子就要從這一步整鏈重跑）
-OUT_DIR=output/stations NETWORK=output/directions/network.json DISPATCH=output/directions/dispatch.json node scripts/repair_physical_stations.mjs
+# [F18 候選，未落地：下一行的腳本不在 HEAD，要重裝先套 output/audit-0914/f18-candidate/]
+OUT_DIR=output/relocations NETWORK=output/directions/network.json DISPATCH=output/directions/dispatch.json node scripts/relocate_physical_station_stops.mjs   # F18b ← 新步驟，一定在 F1 之後、F2 之前（名單 scripts/fixtures/tra-station-relocations-0914.json；§9.11 已整組回退，要出貨才跑）
+OUT_DIR=output/stations NETWORK=output/relocations/network.json DISPATCH=output/relocations/dispatch.json node scripts/repair_physical_stations.mjs
 cp output/stations/{network,dispatch}.json rail-3d/physical/
 node scripts/build_rail_levels.mjs && node scripts/verify_rail_levels.mjs
 node scripts/verify_physical_display_profiles.mjs
@@ -502,3 +515,162 @@ F1 把 171 段臺北→萬華順行派車從西正線 `1551465831` 改走 F9 補
 
 **沒動的**：`index.html`、`BLOCK_CAP_SEC`／hold 上限 120、車身常數、班表時刻、`stopSignature`、任何 way、
 任何 `verify_*` 的判準與門檻、`MEET_HEADWAY_SEC`／`MEET_NEAR_SEC`。
+
+### 9.10 F18 汐科座標：站表成為站座標的單一來源（2026-09-14 深夜，同一分支；未併 main、未部署；**閘門全綠，但目標距離沒達成**）
+
+> 🅿️ **封存（2026-09-14 19:40）**：本節與相鄰節（§9.10／§9.11）的程式、fixture、資料變更**全部沒有 commit**，整包在 `output/audit-0914/f18-candidate/`（`f18-tracked.patch`＋`untracked/`，gitignored）；原因是 F18b 讓「Ap-雙線同股」六次掃描各 +1～+2，依「不得放鬆基線」回退，出貨與否交使用者裁示（§9.11 待裁）。HEAD 上汐科維持「站標與停車點一起偏東北 330 m」的一致狀態。
+
+**一句話**：班表原始檔與密檔的汐科座標統一成站表 `data/tra.json` 的 OSM `railway=stop` 形心
+（25.06288／121.649372），機制是站表新增的 `stationCoordOverrides` 名單＋新腳本
+`scripts/apply_station_coord_overrides.py`（接進 `npm run fetch-schedule`、離線可跑、冪等）。
+**官方停靠時刻 21 992 筆差異 0、通過站時刻 14 469 筆差異 0**，閘門全綠、4 秒掃描六次 0 退步。
+**但「站標貼著車」沒有達成**：修前 188/188 < 60 m 是**兩個錯互相抵消**（站標與停車點一起錯在東北 330 m），
+修後站標對了、停車點仍在舊位置 ⇒ **0/188**。逐步紀錄在 `output/audit-0914/f18-run.md`。
+
+**現況量測（動手前）**
+
+汐科同時有四份座標：站表 25.06288/121.649372（F9 已改，0 m）、原始班表 25.06405/121.65237（官方 ODS `gps`，**328.8 m**）、
+密檔 25.06406/121.65233（**舊站表值**，325.6 m）、`data/tra_station_info.json` 25.06406/121.65233（TDX，325.6 m）。
+`stopCandidates('汐科')` 用站表座標回 **3** 個 `railway=stop` 節點（`289132000` 1.6 m、`2046001385` 5.9 m、
+`2046001420` 7.5 m），用官方 GPS 或密檔座標回 **0** 個，只給站名也回 0（那三個節點沒有 `name` 標籤）。
+出貨派車表裡汐科的 188 個官方停靠用了 `2046001446`（92 班，285.5 m）、`12054459153`（89 班，331.5 m）、
+`12054459154`（7 班，331.7 m）——**沒有一個是 `railway=stop`**，全是 `build_physical_routes.mjs:22-27` 在
+`stopCandidates` 回 0 時的 `estimated-stop-on-osm-track` 退路用錯座標挑出來的。
+
+**做了什麼**
+
+1. `data/tra.json` 新增頂層 **`stationCoordOverrides`**（只有汐科一筆；`lines` 一個字沒動）：
+   `name`／`since`／`reason`／`supersededCoords[]`（兩個上游原值與偏移）／`evidence`／`assertStationCoord`。
+   **覆寫值不寫在名單裡**，一律取自站表 `lines`，避免長出第二份真相。
+2. 新增 **`scripts/apply_station_coord_overrides.py`**：斷言站表該站座標 ≡ `assertStationCoord`
+   （`fetch_tra.py` 把它退回上游時當場紅）→ 把 `data/tra_schedule.json` 同名站每一筆 stop 的 `lat`/`lon`
+   換成站表座標 → `source_notes` 尾端重寫覆寫紀錄。**冪等實測**：連跑兩次，第二次改動 0 筆、輸出逐 byte 相同。
+3. `package.json` 的 `fetch-schedule` 插入這一步（在 `fetch_tra_schedule.py` 之後、`densify_schedule.py` 之前）；
+   `fetch_tra_schedule.py` 只加檔頭註解，抓取邏輯一行沒改。
+
+**數字**
+
+- 原始檔逐欄比對：差異欄位**只有汐科的 `lat` 188 筆與 `lon` 188 筆**＋`source_notes` 尾段；時刻零變動。
+- 密檔：汐科 360 筆（官方 188／通過 172）座標**全部等於站表**；
+  **官方停靠列 21 992 筆時刻差異 0、通過列 14 469 筆時刻差異 0**——連經過汐科的車都沒變，
+  因為內插與最短路徑的權重取自 `data/tra_station_of_line.json` 的官方累計里程（`mileage_fallback_edges=0/243`），
+  改站座標動不到任何時刻。正向對照：故意把 1217 次汐科 `arrSec` +1 秒，同一支比對當場 `FAIL`。
+- `tra_track_sections.json`／`tra_run_profiles.json`／`transfer_departures.json` **md5 與 HEAD 逐 byte 相同**；
+  `tra_widget_schedule.json` 只差 `stations[29]` 兩個座標＋`generated` 時戳；manifest／provenance 只改兩個雜湊。
+- **站標 ↔ 停車點**：修前 min/中位/max = 12.8/17.8/47.4 m（188/188 < 60 m，但站標錯 330 m）；
+  修後 285.5/331.5/331.7 m（**0/188**）。
+
+**實體鏈重跑：做了、量了、整組回退**
+
+F1 零改動；F2 搬 **3** 次（汐科 2：`1235`、`4135`，`2046001446 → 2046001420`；潮州 1），C 2102 → 2097。
+控制組（HEAD 資料檔原樣重跑 F1／F2）搬 **1** 次（潮州，同 key、同 `i=107`、同 6→4，方向與 §9.9 那次**相反**
+⇒ **F2 對潮州 161 不是定點，會來回翻**，既有行為、與本批無關）。
+`verify_remaining_station_routes` 因 `4135` 在 fixture 釘住的 79 份裡而紅，重釘 `afterPlans` 後 EXIT 0
+（boundaries 972 → 974，多的 2 個正是新的汐科進出站邊界），其餘閘門含 120 秒三日 12/12 也全綠。
+
+**但 `DATES=all` 的 4 秒全日掃描 6 次有 4 次退步**，全部集中在 `A-追撞未頂上限`：
+09-13 P 5→8、09-13 L 7→8、09-14 P 2→5、09-14 L 4→5（09-12 兩項不變；其餘 5 個家族 6 天次逐項不變，C 一場都沒少）。
+逐場核對：新增事件**全部**是 `1235/5257`、站段 `汐止/汐止`／`汐止/汐科`、時間 64 448–64 484 s。
+**根因是半套搬遷**——F2 只在「有 B／C 衝突且搬了會變少」時才搬，188 班裡只有 2 班搬到真月台、186 班還在 330 m 外，
+同一站出現相距 330 m 的兩個停車位置，1235 的走行幾何整個變了就和後面的 5257 追撞。
+F2 的模型只數「停站時窗 × 節點」的 B／C、不模擬行車，所以它賺到的 C 在掃描上一場都沒兌現。
+依「不得為了讓閘門變綠改判準、基線或門檻」與「逐家族逐日期不得上升」，**不更新基線、不放寬判準，整組回退**：
+`rail-3d/physical/{network,dispatch}.json` 與 `scripts/fixtures/remaining-routes-0913.json` 用 `git show HEAD:` 還原，
+`level-profiles.json` 重建後 md5 與 HEAD 逐 byte 相同。產物留在 `output/directions/`、`output/stations/`（控制組 `output/*-ctl/`）。
+
+**targeted 重派做不到（不是不想做）**：`build_physical_routes.mjs` 沒有 targeted 模式（一次跑完全部站對，
+再經 `pack_physical_network` 與 `assemble_physical_dispatch` 整份重組＝被禁止的整包重解）；
+它的輸入 `.cache/physical-tracks/network-with-stations.json` 在這棵樹裡**不存在**、repo 裡沒有任何腳本產生它
+（要回頭抓 OSM，本批沒有外網）；而且它取站座標用的是 `data/tra_station_info.json`，不是站表。
+⇒ **站標已對、停靠點仍舊。**
+
+**閘門**：官方停靠時刻 21 992 筆差異 0（含正向對照）、`verify_rail_levels`（failed 0）、
+`verify_physical_display_profiles`、`verify_tra_track_sections`（不一致 0）、`verify_run_profiles_match`（FAIL 0）、
+`verify_tra_plan_binding`、`verify_remaining_station_routes`（trains 76／changes 83／samples 89 396／
+boundaries 972／maxBoundaryJump 0.0748 m／protectedCount 4）、`verify_passing_avoidance`、
+`verify_tra_pass_continuity`（4/4）、`verify_physical_runtime_cache`、`verify_data_manifest`／`verify_data_provenance`、
+**120 秒閘門三日各 12/12**、**`DATES=all` 六次掃描 0 退步**（236／249／222／236／161／173，逐項等於基線）。
+`UPDATE_BASELINE=1` **沒有跑**——結果與基線逐項相同，不必動也不該動。
+
+**風險**
+
+1. 🔴 **`fetch_tra.py:345-361` 會拿 `data/tra_station_info.json` 覆寫站表每一站的座標**，下次跑它，
+   F9 的汐科修正會被靜默退回（該檔註解自己就寫著 2026-07-11 修過「汐科(偏0.4km)」）。
+   `assertStationCoord` 守門人只在覆寫腳本跑到時才叫，而 `fetch_tra.py` 不在 `fetch-schedule` 鏈裡。
+   ✅ **已於 §9.11（F18b）根治**：名單內的站跳過 TDX 覆寫，守門人 `npm run check-station-coord-overrides`（含正向對照）。
+2. **站標與車差 330 m 是使用者看得到的新落差**（修前是兩個錯抵消才貼合）。依「位置不用準，時間一定要準」
+   在裁示範圍內，但要不要這樣出貨請裁示。
+   ⚠️ **§9.11（F18b）把落差收到 1.6–7.5 m 了，但因為家族棘輪退步而整組回退** ⇒ 這一條**仍然成立**，
+   等裁示要不要收下那批（候選產物在 `output/stations/`，裝法見 `output/audit-0914/f18b-run.md` §7）。
+3. `build_pass_obs.mjs` 與 `fetch_tra_schedule.py` 離線跑不了 ⇒ 「抓班表 → 覆寫」這一段**沒有端到端跑過**，
+   要等有外網那一輪才算驗到底。
+4. `data/seg_distance_audit.json` 仍因汐科的 `d` 改變而過期（F9 留下的尾巴）。
+
+**沒動的**：`index.html`、`BLOCK_CAP_SEC`／hold 上限 120、`MEET_*`、車身常數、班表時刻、`stopSignature`、
+任何 way、任何 `verify_*` 的判準與門檻、`rail-3d/physical/*`、`scripts/fixtures/*`。
+
+### 9.11 F18b 汐科站位遷移：機制做好、距離達標、**實體層整組回退**（2026-09-14 深夜，同一分支；未併 main、未部署）
+
+> 🅿️ **封存（2026-09-14 19:40）**：本節與相鄰節（§9.10／§9.11）的程式、fixture、資料變更**全部沒有 commit**，整包在 `output/audit-0914/f18-candidate/`（`f18-tracked.patch`＋`untracked/`，gitignored）；原因是 F18b 讓「Ap-雙線同股」六次掃描各 +1～+2，依「不得放鬆基線」回退，出貨與否交使用者裁示（§9.11 待裁）。HEAD 上汐科維持「站標與停車點一起偏東北 330 m」的一致狀態。
+
+**一句話**：新增 `scripts/relocate_physical_station_stops.mjs`（接在 F1 之後、F2 之前），
+把汐科**全部 360 個車次鍵**（官方停靠 188 ＋ 通過 172）的節點從初次派路挑錯的舊位置搬到 OSM 三個
+`railway=stop` 月台——**離站標 285–332 m → 1.6–7.5 m，188/188 與 172/172 全部 < 60 m**，§9.10 沒達成的
+目標這一批達成了；官方停靠時刻 21 992 筆差異 0、`tra_run_profiles.json` 與 HEAD 逐 byte 相同、
+120 秒閘門三日各 12/12、其餘閘門全綠。**但 4 秒全日掃描的 `Ap-雙線同股` 六次掃描全部 +1（production）／
++2（long）**，根因在**汐止站的股道指派**（南下與北上本來就都走中正線 `194089087`），不是汐科；
+依「不得為了讓閘門變綠改判準、基線或門檻」與「逐家族逐日期不得上升」**整組回退**，逐檔 md5 回到 HEAD。
+逐步紀錄與逐場證據在 `output/audit-0914/f18b-run.md`。
+
+**機制**（`scripts/fixtures/tra-station-relocations-0914.json`：站名／`since`／`maxGapM`=60／`includePassing`／
+正確座標來源＝`data/tra.json`／原因與證據）
+
+* 要搬誰＝「經過該站、且現行節點離**現查站表**座標 > `maxGapM`」；語意是**一定要搬**，不是 F2 的「搬了會更好才搬」。
+* 候選＝`topology.stopCandidates(正確座標)` 且 ≤ `maxGapM` 的節點（OSM 標的停車位置，不憑空造月台）；
+  挑法與 F2 同一套（`cleanRoute` 順向路徑、三個接點 `g.canTurn`、日別 B／C 衝突最少、同分挑路徑短的）。
+* 候選為 0 或無順向路徑／道岔接不上 ⇒ **留原地並記錄原因**；收尾斷言「沒搬的每一筆都要有原因」。本批留原地 **0 筆**。
+* **冪等**：拿自己的輸出再跑一次 ⇒ 要搬 0、搬了 0、新路徑 0（門檻是「離站標 > `maxGapM`」，搬完就沒人符合）。
+
+**🔴 通過車（`stop:false`）也要搬——這是第一輪的教訓**：通過車在該站的節點不是停車位置，而是進站段／出站段的
+**切點**，motion 就用那個切點把通過時刻對到地面上。只搬 188 班停靠車的那一輪，`A-追撞未頂上限`
+在 09-13／09-14 各 +3（新增事件全部是 `1235/5257`，與 §9.10 F2 半套搬遷量到的是同一組）。逐秒定位：
+同一個「汐止｜汐科」站間，停靠車的終點在真月台（1 082 m）、通過車的終點還在 285 m 外的舊點（948 m），
+官方時間不變 ⇒ 兩類車被拉出不同的速度，1235 追上前面的 5257，兩車間距在 64 464 s 從 HEAD 的 266 m 掉到 **58.8 m**。
+`includePassing: true` 把 172 筆通過一起搬之後，同一時刻間距是 **345 m（比 HEAD 還大）**，
+`A-追撞未頂上限` 六次掃描逐項回到基線。
+
+**搬完的結果**：股道血統幾乎完全保留（東正線 `2046001446`→`2046001420` 92+87 筆、
+西正線 `12054459153`→`2046001385` 89+82 筆、中正線 `12054459154`→`289132000` 5+1 筆），
+只有 4 筆從中正線改到西正線（衝突數相同、路徑短 37 m）。**356/360 的新舊路徑總長差 0 m**——
+新舊節點在同一條走廊上，變的只有切點。區間表只有兩對變：`汐止|汐科` 948→1082 m、`南港|汐科` 5128→4969 m（`tracks` 都還是 2）。
+
+**為什麼回退**：`Ap-雙線同股` 六次掃描全退步，逐場只有兩個新事件，**都在中正線 `194089087`、都在
+`汐科/汐止` 站間**：`4013/472`（32 200 s，共用 0.5 m／long 15.2 m，六次全有）與 `1228/1235`
+（64 424–64 428 s，共用 21.0 m，只在 long 探針）。兩對都是對向車，而**HEAD 的路徑本來就都走那段中正線**
+（汐止站的咽喉）——這正是這個家族在講的事（基線本來就有 50–68 場）。本批把站間長度改對之後
+（南下 964→1251 m、北上 916→1247 m，官方時刻不變 ⇒ 兩向都跑得比原來快），交會點往那段共用中正線上挪，
+各多量到一場。**不是「還有班沒搬」**（360/360 全搬、留原地 0），**也不是汐止站標偏移**
+（汐止的停車節點離站標只有 3.5–23.1 m，257/257 < 60 m）。要根治得動汐止的股道指派／方向模型，
+而中正線是三線區段的中股，§9.7 已明文禁止照名稱把中股列入方向種子 ⇒ 超出本批範圍。
+
+**回退驗證**：`rail-3d/physical/{network,dispatch,level-profiles}.json`、`scripts/fixtures/remaining-routes-0913.json`、
+`data/tra_track_sections.json`、`data/tra_run_profiles.json` **六個檔逐 byte 等於 HEAD**；回退後十道閘門複跑全 EXIT 0。
+`UPDATE_BASELINE=1` **沒有跑**。候選產物完整留在 `output/relocations/`、`output/stations/`，
+裁示要出貨的話兩行指令就裝得回去（`f18b-run.md` §7）。
+
+**順帶根治 §9.10 風險 1（`fetch_tra.py` 的靜默退回）**：把那段抽成兩支可離線單測的函式
+（`load_station_coord_overrides()`＋`apply_station_coords()`），名單內的站**跳過 TDX 覆寫**、改用名單釘住的
+`assertStationCoord`（那組值與站表 `lines` 的值由 `apply_station_coord_overrides.py` 的斷言綁在一起），
+並印一行跳過紀錄；名單本身在重寫 `data/tra.json` 時原樣帶回去（不然名單會被自己洗掉）。
+新守門人 `scripts/verify_station_coord_overrides.py`（`npm run check-station-coord-overrides`）離線重演那一段：
+A 名單內座標不變且等於 `assertStationCoord`；B 名單外 240 站照舊等於 TDX 值（其中 201 站與覆寫前不同 ⇒
+覆寫真的有發生，這一項不是恆真）；**C 正向對照**——把名單清空，汐科就被退回 25.06406/121.65233（離站表 325.6 m）。
+
+**這一輪順手量到、但沒處理的**：站表現值與 `data/tra_station_info.json` 不一致的站有 **202 站**
+（中位 28.6 m，> 50 m 的 35 站：漢本 182.7、基隆 151.9、和平 141.5…）⇒ 跑一次 `fetch_tra.py` 會搬動這 202 站，
+覆寫名單目前只保護汐科。另外**南港（143.5–148.5 m）與松山（126.0–141.8 m）的停車節點也離站標超過 60 m**，
+與汐科同一類缺陷；機制已經在了（加進 fixture 即可），但要先確認那兩站的「正確站標」本身可信
+（汐科有官方營業里程佐證；南港／松山是地下站、月台很長，143 m 也可能只是月台中心與停車位置的正常偏移）。
+
+**沒動的**：`index.html`、`BLOCK_CAP_SEC`／hold 上限 120、`MEET_*`、車身常數、班表時刻、`stopSignature`、
+任何 way、任何 `verify_*` 的判準與門檻、`scripts/repair_physical_stations.mjs`（F2）本體、家族基線。
