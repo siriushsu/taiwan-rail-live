@@ -1,6 +1,6 @@
 {
  "_readme": "官方橋隧對照表，供 build_rail_levels.mjs 補正。兩類條目：沒有 override 的是升級（OSM 標成地面、官方判定為橋或隧道）；帶 override 的是反向改判（兩邊互指橋／隧道，由 DEM 地形起伏 reliefM 裁決，override 欄位記的是被推翻的來源判定）。coverage 是該 way 取樣點落在該結構上的比例，medianDistM 是取樣點到官方線的中位距離。官方說平面而來源標結構的一律保留來源判定，官方未涵蓋的新線也不動；地形不支持任何一方的爭議路段列在 summary.unresolved，同樣保留來源判定。",
- "generated": "2026-09-11T12:28:04.284Z",
+ "generated": "2026-09-14T12:28:01.163Z",
  "license": "政府資料開放授權條款-第1版（https://data.gov.tw/license）；顯名：內政部國土測繪中心",
  "source": "內政部國土測繪中心 臺灣鐵路／高速鐵路／捷運（政府資料開放平臺）；地形＝隨站發布的固定 DEM 快照",
  "datasets": [
@@ -41,12 +41,12 @@
  },
  "summary": {
   "upgraded": {
-   "bridge": 265,
+   "bridge": 266,
    "tunnel": 12
   },
   "overridden": {
    "bridge": 13,
-   "tunnel": 0
+   "tunnel": 1
   },
   "unresolved": [
    {
@@ -59,18 +59,18 @@
    }
   ],
   "kept": {
-   "surface→surface": 2245,
-   "bridge→mixed": 139,
-   "bridge→bridge": 1185,
-   "bridge→surface": 280,
-   "tunnel→surface": 38,
-   "tunnel→mixed": 5,
-   "tunnel→tunnel": 635,
-   "surface→mixed": 34,
+   "surface→surface": 3256,
+   "bridge→mixed": 140,
+   "bridge→bridge": 1218,
+   "bridge→surface": 284,
+   "tunnel→surface": 46,
+   "tunnel→mixed": 6,
+   "tunnel→tunnel": 644,
+   "surface→mixed": 36,
    "bridge→tunnel": 1
   },
-  "uncovered": 156,
-  "ways": 5008
+  "uncovered": 364,
+  "ways": 6287
  },
  "entries": {
   "24261746": {
@@ -140,6 +140,13 @@
    "system": "thsr_sched",
    "coverage": 1,
    "medianDistM": 10.1
+  },
+  "101917173": {
+   "kind": "bridge",
+   "system": "tra_sched",
+   "coverage": 0.667,
+   "medianDistM": 14.3,
+   "name": "枋寮一號橋"
   },
   "103397328": {
    "kind": "bridge",
@@ -1747,6 +1754,15 @@
    "system": "mrt",
    "coverage": 1,
    "medianDistM": 2.1
+  },
+  "1254269078": {
+   "kind": "tunnel",
+   "override": "bridge",
+   "reliefM": 0.1,
+   "arbiter": "端點直接接上來源明示的隧道",
+   "system": "tra_sched",
+   "coverage": 1,
+   "medianDistM": 11.5
   },
   "1317828102": {
    "kind": "bridge",
