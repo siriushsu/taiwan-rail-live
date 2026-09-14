@@ -16,8 +16,8 @@ android {
         if (project.hasProperty("railApplicationId")) applicationId project.property("railApplicationId")
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 52
-        versionName "1.6.3"
+        versionCode 53
+        versionName "1.6.4"
         if (project.hasProperty("railVersionName")) versionName project.property("railVersionName")
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {

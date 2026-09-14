@@ -353,11 +353,15 @@ const MODES = {
     //   🔴 why 三語不是互譯也不等長：中文 331／日文 354 還有 150 字元以上餘裕，**英文 489 只剩 11**
     //   （Play 硬上限 500）。所以英文把「高架橋外觀」「近看軌道」「平地不畫隧道」併成一條、
     //   三鶯線末班那條不寫；中日文照舊逐條列。要再加一條就得先從英文砍一條，不是三語一起加。
-    // 112／Android 52：加入 v0913a 近景建築透視線條修正，取代 111／51 送審。
-    marketing: '1.6.3', build: '112', music: true, metroCore: true, androidPlus: true,
-    why: "軌島 1.6.3\n\n・搜尋全台公車站牌，查看各路線即時到站資訊\n・高鐵看板新增對號座空位與票價查詢\n・桌面小工具可自動選最近車站，跟車卡的轉乘接續可收合\n・新增台南地面鐵道歷史重播，重看舊站旁的列車往來\n・夜間車窗與車頭燈更明亮；列車柔光可開關，夜晚暖色、白天依車次配色\n・改善隧道洞口、高架橋與軌道外觀，修正路基閃爍、地下路段橋墩及橋面不合理突起\n・修正部分高鐵車廂折疊與列車交會重疊，改善太麻里股道安排\n・更新三鶯線轉乘、站名與公車資訊，補上平日午夜末班\n・改善載入速度與都市立體地圖操作流暢度\n・修正密集市區近景建築的透視線條消失",
-    whyEn: "Rail Island 1.6.3\n\n• Bus stop search with live arrivals\n• THSR seat availability and fares\n• Nearest-station widgets; collapsible transfers\n• Replay Tainan's former ground-level railway\n• Brighter night lights; optional warm night glow and train-colored daytime glow\n• Clearer nearby building outlines; improved tunnels and bridges\n• Fixed some carriage folding and train overlaps\n• Updated Sanying transfers, names, bus links and last trains\n• Faster loading and smoother 3D maps",
-    whyJa: "軌島 1.6.3\n\n・全国のバス停検索と各路線の到着案内\n・台湾高鐵の指定席空席状況と運賃を表示\n・最寄り駅を自動選択するウィジェット、折りたためる乗り換え接続\n・台南の地上鉄道を保存した歴史リプレイを追加\n・夜の車窓と前照灯を明るく。列車を包む柔らかな光は切替可能で、夜は暖色、昼は列車の表示色に\n・トンネル坑口、高架橋、線路を改善。盛土のちらつき、地下区間の橋脚、不自然な橋面の隆起を修正\n・一部の車両の折れ曲がりと列車の重なり、太麻里の線路配置を改善\n・三鶯線の乗り換え、駅名、バス情報を更新し、平日深夜の最終便を追加\n・起動を速くし、都市部の3D地図をより滑らかに\n・建物が密集する市街地で、近くの建物の透視線が消える不具合を修正",
+    // 113／Android 53（2026-09-14）：**1.6.3 已於 2026-09-13T00:46:10Z 上架**
+    //   （Apple lookup 帶 no-cache 實查）⇒ 1.6.3 train 已關，行銷版號進到 1.6.4。
+    //   112／52 已各有載貨，規則四不重用號，因此進 113／53。載貨同時包含上一顆 App 專屬改動，
+    //   以及 9/13 上架後至 origin/main 087e909b（網站 BUILD v0914d）的全部更新；兩條來源均為
+    //   本次 merge commit 的祖先，並以已上架 1.6.3 (112) 的可見面聯集跑出貨回歸閘門。
+    marketing: '1.6.4', build: '113', music: true, metroCore: true, androidPlus: true,
+    why: "軌島 1.6.4\n\n・到站提醒可設定每天、平日或自訂星期重複\n・新增「觀看」面板，可切換視角、地圖與列車設定，並重新開啟沉浸模式\n・地圖俯視與傾斜切換更平順，新增車站與地標導覽\n・所有列車可顯示完整或推估編組，清楚標示推估車廂數\n・修正阿里山林鐵機車位置與方向，呈現推進、牽引及之字形折返\n・調整台鐵站區與進出股道，減少待避重疊、追撞與對向互穿，改善單線會車\n・台鐵近 30 天準點資料漏抓時會在當天自動補回\n・修正部分橋隧、高程、遠景列車比例與近景跟車顯示\n・更新高捷、安坑、淡海與台中捷運班表",
+    whyEn: "Rail Island 1.6.4\n\n• Repeat alerts daily, weekdays or selected days\n• View panel for camera, map, train settings and immersive mode\n• Smoother view switching; new station and place guides\n• Full or estimated train formations\n• Correct Alishan locomotive direction, push/pull and zigzags\n• Better TRA tracks, overtakes and single-track meets\n• Automatic recovery for missed TRA punctuality data\n• Improved bridges, tunnels, elevation, distant scale and close-up following\n• Updated metro timetables",
+    whyJa: "軌島 1.6.4\n\n・到着通知を毎日、平日、または選んだ曜日に繰り返し設定\n・視点、地図、列車設定をまとめた「表示」パネルと没入モード再開ボタンを追加\n・俯瞰／傾斜表示の切替を滑らかにし、駅とスポットの案内を追加\n・すべての列車で完全編成または推定編成を表示し、推定両数を明記\n・阿里山林鉄の機関車位置と向き、推進・牽引・スイッチバックを修正\n・台鉄の駅構内と進入線を調整し、待避の重なり、追突、対向列車の交差、単線交換を改善\n・台鉄の直近 30 日間の定時運行データを、取得漏れがあれば当日中に自動補完\n・橋梁、トンネル、高低差、遠景の縮尺、近接追尾表示を修正\n・高雄、安坑、淡海、台中メトロの時刻表を更新",
 
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
