@@ -5032,6 +5032,9 @@ async function busStopLive(request, env) {
 }
 
 async function busRouteStops(request, env) {
+  // 🔴 限流要擋在最前面：下面的 cachedBusTransferRaw 在快取未命中時會打 N1，
+  // 與 /api/bus-transfer 是同一條成本路徑——這支不掛，bus-transfer 那把限流就能從這裡繞過去。
+  if (await rateLimited(env.BUS_LIMITER, request)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
   const url = new URL(request.url);
   const stationId = url.searchParams.get('station') || '';
   const arrivalKey = url.searchParams.get('arrival') || '';
@@ -6520,15 +6523,43 @@ function buildBlob(rows, generatedIso) {
   return { _meta: meta, trains, json };
 }
 
+// TDX 黏住不回應時,不加逾時的話這個 await 可以吊到 cron 的 15 分鐘牆鐘上限——每分鐘 cron
+// 一發最多抓 3 天、每天最多 1 次 429 重試,最壞 6 次請求全部逾時仍要留在牆鐘之內:
+// 6×HIST_FETCH_TIMEOUT_MS(120 秒)+ 既有的 sleep 預算(日間隔 2 秒×2 + 429 重試 5 秒×3
+// ＝19 秒)＝739 秒 ≈ 12.3 分鐘,小於 15 分鐘。寫法照同檔既有的 refreshHazardMem 慣例
+// (AbortController+setTimeout,計時器一路蓋到 await r.text() 讀完 body 才在 finally 清掉,
+// 不是只蓋到回應標頭回來為止——TDX 卡在下載到一半和完全不回應是同一種故障)。429 重試是
+// 對同一個 URL 再打一次,兩次嘗試各自獨立的 controller/計時器,不共用同一顆 120 秒預算。
+// 🔴 範圍:739 秒只涵蓋這裡的歷史 API 這一段。getToken(見上方)與所有 D1 呼叫都沒有加
+// 逾時,卡住時一樣沒有上限——這不是這次加逾時造成的回歸,是既有模式(同檔 thsrSelfHeal
+// 一樣沒管)。每日 cron 那一發(15 1 * * *)的 finally 段(pruneStationEvents、
+// ingestThsrSchedule)與這裡的歷史段共用同一個 15 分鐘牆鐘:歷史段吃滿 739 秒時,留給
+// finally 段(還要扣 token、D1 的耗時)大約只剩 2.7 分鐘。加這顆逾時之前,歷史段本身
+// 完全沒有上限,所以這不是讓情況變糟,只是還沒把整發都封頂。
+const HIST_FETCH_TIMEOUT_MS = 120000;
+async function fetchHistDayWithTimeout(url, headers, dayIso) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), HIST_FETCH_TIMEOUT_MS);
+  try {
+    const r = await fetch(url, { headers, redirect: 'manual', signal: controller.signal });   // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
+    const text = await r.text();
+    return { status: r.status, ok: r.ok, text };
+  } catch (e) {
+    if (controller.signal.aborted) throw new Error('tdx historical timeout for ' + dayIso);
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 // 抓單日 TDX 歷史 LiveTrainDelay(JSONL,$top 必帶大值)。429 等 5 秒重試一次。
 async function fetchDelayDay(token, dayIso) {
   const url = `${HIST_DELAY_URL}?Dates=${dayIso}&%24top=1000000&%24format=JSONL`;
   const headers = { authorization: 'Bearer ' + token, accept: 'application/json, text/plain, */*' };
-  let r = await fetch(url, { headers, redirect: 'manual' });   // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
-  if (r.status === 429) { await sleep(5000); r = await fetch(url, { headers, redirect: 'manual' }); }
+  let r = await fetchHistDayWithTimeout(url, headers, dayIso);
+  if (r.status === 429) { await sleep(5000); r = await fetchHistDayWithTimeout(url, headers, dayIso); }
   if (r.status === 401) { tok = null; throw new Error('tdx 401 historical'); }
   if (!r.ok) throw new Error('tdx historical ' + r.status + ' for ' + dayIso);
-  return await r.text();
+  return r.text;
 }
 
 // 把一日的 mergedPrev(UPDATE 前一日)+ ownRows(INSERT OR REPLACE 當日)分批寫入 D1。
@@ -6597,6 +6628,63 @@ async function ingestDelayHistory(env) {
     console.log('[cron delay] blob 無需重建');
   }
   return { written, dbMax };
+}
+
+// ── 台鐵誤點統計自我檢查(掛每分鐘 cron,形狀同下面的 thsrSelfHeal)─────────────────
+// 為什麼要有這條:上面的每日誤點 ingest 一天只有一發(15 1 * * *＝台北 09:15);第二發
+// (15 4 * * *)是 owner 刻意停用的(同 thsrSelfHeal 那條註解講的第二發高鐵 cron,不得以任何
+// 形式加回 wrangler.jsonc)。2026-09-08~09-12 連五天,這一發在第一個 TDX 呼叫(取 token)就吃
+// HTTP 429、整發拋例外——實測 TDX token 端點是 Kong 限流「每個來源 IP 每分鐘 20 次」(回應標頭
+// x-ratelimit-limit-minute:20,換不同 client_id 計數照樣遞減),而 Cloudflare Workers 的出口
+// IP 與其他客戶共用,那一分鐘的額度可能早被別人用光;getToken 本身沒有重試。缺日自癒
+// (SCAN_WINDOW_DAYS=35、MAX_DATES_PER_RUN=3)只在下一次每日 cron 才會跑、一發只補「最舊」
+// 3 天,積欠超過 3 天時單靠每日那一發永遠追不上——09-13 那發成功了,但缺日自癒只補完
+// 09-06~09-08 就停,統計窗仍落後好幾天,且沒有任何東西會在當天把它補起來(這個現象本身已經有
+// 巡檢在盯:scripts/lib/delay_window_verdict.mjs 問 /api/delay-stats 的迄日,generated 是新的
+// 不代表窗有追上)。
+// 為什麼是「一天固定 5 個時刻」:ingestDelayHistory 每發都只挑缺日裡「最舊的 3 天」補——
+// TDX 對某天回空(0 筆事件)會 continue 跳過、那天永遠算缺,回非 2xx 則整發 throw。也就是說
+// 只要 35 天窗內有 ≥3 天 TDX 持續回空或持續出錯,每一發都會重新去抓「同樣那 3 天」,永遠輪不到
+// 昨天,blob 迄日就會一直落後——而落後就會再觸發一次補抓。若不是固定清單、而是每隔 N 分鐘就
+// 檢查一次,這種持續失敗的情境下一天的補抓次數就沒有上限(檢查越勤,越常重打注定失敗的同 3
+// 天)。改成 DELAY_HEAL_SLOTS 固定清單之後,不管持續失敗幾天,一天的自癒檢查固定就是 5 次,
+// 結構上限封頂。
+//
+// 成本上限(結構保證,不是估計):一天最多 6 發會真的呼叫 ingestDelayHistory——這裡的 5 個
+// 固定時刻 + 每日 cron 那 1 發(15 1 * * *,不受這個閘門控管,無條件執行)。每發最多補
+// MAX_DATES_PER_RUN=3 天,每天遇 429 最多重試 1 次(fetchDelayDay)⇒ 每發最多 3×2=6 次
+// 歷史 API 請求。合計最壞情形 6 發×6 次＝36 次歷史 API 請求/天(全部遇到 429 重試);不計
+// 429 重試則是 6×3=18 次/天。TDX 公開規則是歷史服務 10 次呼叫＝1 點、用量到 105% 會硬斷線
+// (斷線會讓所有即時資料一起停擺),使用者已明確要求不要對 TDX 迴圈重打。
+// 挑 :37 而不是整點/:15/:30/:45 是為了避開熱門 cron 分鐘——TDX token 端點按來源 IP 限流,
+// Cloudflare Workers 的出口 IP 與其他客戶共用,常見的整點/:15/:30/:45 更可能撞到別的服務也在
+// 打的那一分鐘;這一步是推測,沒有實測驗證過。09:37 是 09:15 那發每日 cron 之後的第一個時刻,
+// 其餘 10:37/12:37/15:37/19:37 把檢查機會分散到白天到晚間,不必整天空等到隔天的每日 cron。
+// 沒有落後時每個時刻只有一句 D1 唯讀查詢,零 TDX 呼叫。
+const DELAY_HEAL_SLOTS = [9 * 60 + 37, 10 * 60 + 37, 12 * 60 + 37, 15 * 60 + 37, 19 * 60 + 37];
+async function delaySelfHeal(event, env) {
+  const tw = new Date(((event && event.scheduledTime) || Date.now()) + 8 * 3600 * 1000);
+  const minuteOfDay = tw.getUTCHours() * 60 + tw.getUTCMinutes();
+  if (!DELAY_HEAL_SLOTS.includes(minuteOfDay)) return { skipped: 'not-slot' };
+  const db = env.DELAY_DB;
+  const yesterday = addDays(twToday(), -1);
+  // 問 blob(/api/delay-stats 原樣吐回的那份,使用者實際看到的東西)的迄日,不問
+  // tra_delay_daily 的 MAX(service_date):後者只證明「D1 有資料」,證明不了「統計窗追上了」——
+  // ingestDelayHistory 自己在 blobMax < dbMax 時會重建 blob,但這支自癒不能假設那條邏輯沒問題,
+  // 這樣才會連「D1 有資料但 blob 沒重建」這種情形都照得到。
+  const readEnd = async () => {
+    const row = await db.prepare(
+      "SELECT json_extract(v, '$._meta.date_range[1]') AS end FROM kv_blobs WHERE k = ?"
+    ).bind(DELAY_BLOB_KEY).first();
+    return row && typeof row.end === 'string' ? row.end : null;
+  };
+  const before = await readEnd();
+  if (before !== null && before >= yesterday) return { ok: true, behind: false, end: before };
+  console.warn(`[delay 自癒] blob 迄日=${before} 落後台北昨天(${yesterday})——每日 cron 應該是失敗了或還沒追上,現在補抓`);
+  const r = await ingestDelayHistory(env);
+  const after = await readEnd();
+  console.log(`[delay 自癒] 補抓結束 written=${JSON.stringify(r.written)} 迄日 ${before} → ${after}`);
+  return { ok: true, behind: true, before, after, written: r.written, healed: after >= yesterday };
 }
 
 // ── 高鐵未來班表 cron(scheduled handler)+ /api/thsr-schedule ──────────────────
@@ -7139,6 +7227,21 @@ export default {
         return { error: String((e && e.message) || e) };
       });
       if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(thsrHealTask);
+      // 台鐵誤點統計自我檢查:與帳本、推播、高鐵自癒都無關。自帶 .catch 只保證 JS 例外不會
+      // 改變 scheduled 的成功/失敗契約(同 thsrHealTask)——撞到 CPU、記憶體或牆鐘上限時,
+      // 這發 invocation 仍會整個一起結束,.catch 接不住那種終止。實測:落後時一發(補 3 天)
+      // 純 JS CPU 約 0.2-0.3 秒、記憶體峰值約 50-60 MB(原文含 CJK 雙位元組字串,只在落後的
+      // 日子才會發生);不落後的日子只有一句 D1 讀取,零 TDX 呼叫。一天只有 DELAY_HEAL_SLOTS
+      // 那 5 個固定時刻會真的檢查一次,其餘 tick 都在第一行就 return、不碰 D1(見 delaySelfHeal
+      // 上方註解:固定時刻是為了讓「持續落後時的歷史 API 呼叫量」有上限)。每日誤點 ingest
+      // 只有一發(15 1 * * *)、第二發(15 4 * * *)是 owner 刻意停用的,不得以任何形式加回
+      // wrangler.jsonc——這支自癒是那一發失敗/積欠時當天唯一的補救(見 2026-09-08~09-12 的
+      // TDX token 429 事故)。
+      const delayHealTask = delaySelfHeal(event, env).catch(e => {
+        console.error('[delay 自癒] 失敗:', (e && e.stack) || String(e));
+        return { error: String((e && e.message) || e) };
+      });
+      if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(delayHealTask);
       // 短效旅程分享每 15 分鐘清掉已到期列。GET 會先以 expires_at 擋住，因此清理失敗也不會
       // 讓過期連結重新可讀；這一段只負責把已不可見的座標從實體儲存中刪掉。
       const journeySharePruneTask = pruneJourneyShares(event, env).catch(e => {
@@ -7165,6 +7268,9 @@ export default {
         // 同理 await:北捷營運窗外(約 01:00–06:00)trtcLedgerScheduled 會立刻早退,handler 一 return
         // 就可能把 waitUntil 截斷——而 05:00–06:00 正是自癒該把今天班表準備好的時段。
         await thsrHealTask;
+        // 同理 await:delayHealTask 自帶 .catch,這裡只是確保 handler return 前它已跑完,
+        // 不被 waitUntil 的存活時間截斷(同 thsrHealTask 上面那段理由)。
+        await delayHealTask;
         return ledger; // 維持原本 scheduled 回傳 shape，避免帳本驗收/觀測端因加觸發器而變契約
       }
       catch (e) {
@@ -7306,7 +7412,11 @@ export default {
 };
 
 // 純函式導出,供離線回歸測試 import(不影響 fetch/scheduled 執行路徑)。
-export const _ingest = { parseDayEvents, buildDayRows, buildBlob, roundHalfUpStr, addDays, twParts };
+export const _ingest = {
+  parseDayEvents, buildDayRows, buildBlob, roundHalfUpStr, addDays, twParts,
+  // 自我檢查:測試要自備 env(DELAY_DB/TDX 覆寫)與 event.scheduledTime(時刻閘門看它,不看真時鐘)。
+  delaySelfHeal, DELAY_HEAL_SLOTS, HIST_FETCH_TIMEOUT_MS,
+};
 // 純函式導出,供離線回歸測試 import:metroAlert 的 per-op last-known-good + News/TYMC 過濾轉換。
 export const _metroAlert = {
   metroAlertOpFallback, isRecentNews, isIncidentNewsTitle,

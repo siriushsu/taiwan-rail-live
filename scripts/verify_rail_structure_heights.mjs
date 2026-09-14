@@ -28,7 +28,25 @@ const overrides=Object.entries(official.entries).filter(([,e])=>e.override);
 const RELIEF=official.params.reliefM;
 if(!(RELIEF>0))failures.push('G1 對照表沒有 params.reliefM，地形門檻不明');
 if(overrides.length<10)failures.push(`G1 反向改判只有 ${overrides.length} 條，2026-09-11 全網路盤點是 13 條——規則可能被關掉了`);
+// 第二裁判（2026-09-14，產生器的 flushTunnel）：只開給「來源標橋、官方判地下、地形沒有山」這一格——
+// 地形起伏分辨的是山岳隧道與高架橋，對上方沒有山的都市地下段永遠沒有鑑別力。證據是這條橋的端點直接接上
+// 來源明示 tunnel=yes／location=underground 的同系統股道。期望值不取產物自己寫的 arbiter 欄位（同源零資訊）：
+// 橋標記與端點鄰接從 network 原始標記重算，涵蓋率對產生器參數重驗，命中名單另外釘死——
+// 路網再長出新命中，要人看過現地才准進來。
+const ARBITER_EXPECTED=['1254269078'];
+const explicitTunnelAt=new Set();for(const w of ways){const t=w.tags||{};if(t.tunnel==='yes'||t.location==='underground')for(const n of w.nodes||[])explicitTunnelAt.add(w.system+':'+n);}
+const wayById=new Map(ways.map(w=>[String(w.id),w]));
+const arbitered=overrides.filter(([,e])=>e.arbiter).map(([id])=>id).sort();
+if(JSON.stringify(arbitered)!==JSON.stringify([...ARBITER_EXPECTED].sort()))failures.push(`G1 第二裁判命中 ${JSON.stringify(arbitered)}，與具名清單 ${JSON.stringify(ARBITER_EXPECTED)} 不符——新命中要先人工確認現地`);
 for(const [id,e] of overrides){
+ if(e.arbiter){
+  const w=wayById.get(id),t=w?.tags||{},flush=!!w&&[w.nodes[0],w.nodes.at(-1)].some(n=>explicitTunnelAt.has(w.system+':'+n));
+  const bridgeTag=!!t.bridge&&t.bridge!=='no'&&t.tunnel!=='yes'&&t.location!=='underground';
+  if(!(e.kind==='tunnel'&&e.override==='bridge'&&bridgeTag&&flush&&e.reliefM<RELIEF&&e.coverage>=official.params.minCover))
+   failures.push(`G1 ${id} 第二裁判改判不成立（kind=${e.kind} override=${e.override} 來源橋標記=${bridgeTag} 端點接明示隧道=${flush} 起伏=${e.reliefM}m 涵蓋=${e.coverage}）`);
+  if(E[id]&&E[id].kind!==e.kind)failures.push(`G1 ${id} 對照表判 ${e.kind}，產物卻是 ${E[id].kind}——classify 沒收到整條 entry`);
+  continue;
+ }
  // 地形必須站在官方那一邊：判成隧道就要有山（起伏 ≥ 門檻），判成橋就不能有山。
  if((e.kind==='tunnel')!==(e.reliefM>=RELIEF))failures.push(`G1 ${id} 改判成 ${e.kind}，但地形起伏 ${e.reliefM}m 對門檻 ${RELIEF}m 不支持這個方向`);
  // 產物必須真的吃到改判。只傳 kind 不傳整條 entry 會讓這一批靜默失效，2026-09-11 就踩過一次。

@@ -309,8 +309,8 @@ await check('limiter 擋得住：超過上限回 429，且不再打任何上游'
   assert.equal(directCalls.length + tdxCalls.length, upstreamBefore, '被擋下之後不該再打上游');
 });
 
-await check('limiter 也掛在既有的 bus-transfer／bus-leg-live 上（本批補的那兩支）', () => {
-  for (const fn of ['async function busTransfer(', 'async function busLegLive(']) {
+await check('limiter 也掛在既有的 bus-transfer／bus-leg-live／bus-route-stops 上（補舊債的那三支）', () => {
+  for (const fn of ['async function busTransfer(', 'async function busLegLive(', 'async function busRouteStops(']) {
     const start = workerSource.indexOf(fn);
     assert(start > 0, `找不到 ${fn}`);
     const head = workerSource.slice(start, start + 1400);
@@ -319,6 +319,35 @@ await check('limiter 也掛在既有的 bus-transfer／bus-leg-live 上（本批
   // 正向對照：同一把尺套在一支「本來就沒有 limiter」的端點上必須失敗，證明這個檢查有牙。
   const noLimiter = workerSource.slice(workerSource.indexOf('async function thsrFreeSeat('), workerSource.indexOf('async function thsrFreeSeat(') + 1400);
   assert(!noLimiter.includes('rateLimited(env.BUS_LIMITER'), '正向對照失敗：對照組竟然也有 BUS_LIMITER');
+});
+
+// bus-route-stops 在快取未命中時會經 cachedBusTransferRaw 打 N1（與 bus-transfer 同一條成本路徑）。
+// 只驗「有掛」不夠：掛在那幾個呼叫之後，上游照打、限流形同虛設，所以順序也要驗。
+await check('bus-route-stops 超過上限回 429，且限流擋在任何上游呼叫之前', async () => {
+  reset();
+  limiterAllow = 0;
+  const url = 'https://railisland.tw/api/bus-route-stops?station=1000&arrival=fixture-key';
+  const blocked = await get(url, makeEnv());
+  assert.equal(blocked.status, 429, `超過上限應回 429，實際 ${blocked.status}`);
+  assert.deepEqual(await blocked.json(), { error: 'rate_limited' });
+  assert.equal(directCalls.length + tdxCalls.length, 0, '被擋下之後不該打任何上游');
+  // 正向對照：同一個請求放行時不能也是 429，否則上面那個 429 不見得是限流給的。
+  reset();
+  const allowed = await get(url, makeEnv());
+  assert.notEqual(allowed.status, 429, '正向對照失敗：放行時也回 429');
+  assert.equal(limiterCalls, 1, `放行那一發應該問過限流一次，實際 ${limiterCalls}`);
+  // 順序：限流呼叫必須排在三個會觸發上游的呼叫之前。
+  const start = workerSource.indexOf('async function busRouteStops(');
+  const body = workerSource.slice(start, workerSource.indexOf('\n}\n', start));
+  const at = {
+    limiter: body.indexOf('rateLimited(env.BUS_LIMITER, request)'),
+    stationData: body.indexOf('busTransferStationData('),
+    stationRaw: body.indexOf('cachedBusTransferRaw('),
+    routeRaw: body.indexOf('cachedBusRouteStopsRaw('),
+  };
+  assert(at.stationData > 0 && at.stationRaw > 0 && at.routeRaw > 0, `正向對照失敗：函式本體裡找不到上游呼叫 ${JSON.stringify(at)}`);
+  assert(at.limiter > 0 && at.limiter < Math.min(at.stationData, at.stationRaw, at.routeRaw),
+    `限流沒有擋在上游呼叫之前 ${JSON.stringify(at)}`);
 });
 
 await check('wrangler.jsonc 有宣告 BUS_LIMITER binding', () => {

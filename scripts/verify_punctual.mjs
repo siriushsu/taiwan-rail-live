@@ -398,6 +398,15 @@ try {
     ok('C4a 未 mock 資料時準點排行 Set 為空(本機無後端,不影響今日之最判定)', info4.punctualSize === 0, `punctualSize=${info4.punctualSize}`);
     // 預設「全」視角是拉遠看全台(甚至含中國海岸),今日之最未必落在初始畫面內——逐台把地圖瞬間置中(不用動畫,
     // 避免補間期間位置與繪製對不上)到它現在的實際位置再取樣,才是對「這台車畫得出金環嗎」的公平測試。
+    // 2026-09-13：3132 次的金環疊在藍色車緣，ph=80ms 時會生成 rgba(102,136,102,15)，
+    // 關掉金環同點是 rgba(28,113,170,9)。舊 green 色域把這個混色算成綠環，造成 1px 假紅。
+    // 保留完整畫面的金色像素門檻；「不得誤畫準點綠環」則數實際繪製呼叫，並在 C4c 故意
+    // 讓同一批車畫綠環，證明探針抓得到。C3 仍獨立鎖住金環函式的色碼與繪圖操作序列。
+    await page.evaluate(() => {
+      window.__c4GreenCalls = 0;
+      const original = drawPunctualRing;
+      drawPunctualRing = (...args) => { window.__c4GreenCalls++; return original(...args); };
+    });
     let goldOk = 0, goldChecked = 0, notRunning = 0;
     const featuredNos = await page.evaluate(() => [...state._featured].map(t => String(t.train)));
     for (const fno of featuredNos) {
@@ -416,14 +425,22 @@ try {
       }, fno);
       if (!cp) { notRunning++; continue; }
       goldChecked++;
-      // 同樣掃一整個脈衝週期:gold 取峰值(某一相位看得見就算畫得出來),green 取峰值則代表
-      // 「整個週期任何一刻都沒有綠」——比原本的單點 green===0 更嚴,不是放寬。
+      // 金環跨完整脈衝週期取像素峰值；綠環探針涵蓋這輪所有 draw()，不受疊色與相位干擾。
       const px = await samplePixelsPeak(page, cp.x, cp.y, 44);
-      if (px.gold > 20 && px.green === 0) goldOk++;
-      else info('C4b', `車次 ${fno} 置中後 週期峰值 gold px=${px.gold} green px=${px.green}(峰谷差 ${px.spread})`);
+      const greenCalls = await page.evaluate(() => window.__c4GreenCalls);
+      if (px.gold > 20 && greenCalls === 0) goldOk++;
+      else info('C4b', `車次 ${fno} gold px=${px.gold} green px=${px.green} 綠環呼叫=${greenCalls}(峰谷差 ${px.spread})`);
     }
-    ok(`C4b 今日之最(共 ${info4.featuredSize} 台)逐台置中後都仍畫出金色像素、零綠色混入`,
+    ok(`C4b 今日之最(共 ${info4.featuredSize} 台)逐台置中後都仍畫出金色像素、零準點綠環`,
        goldChecked > 0 && goldOk === goldChecked, `檢查 ${goldChecked} 台(${notRunning} 台目前未發車)，金色正確 ${goldOk} 台`);
+    const control = await page.evaluate(() => {
+      const before = window.__c4GreenCalls;
+      state._punctual = new Set(state._featured);
+      draw();
+      return { before, after: window.__c4GreenCalls };
+    });
+    ok('C4c 正向對照：今日之最誤入準點集合時，綠環探針必須抓到',
+       control.before === 0 && control.after > control.before, JSON.stringify(control));
     await ctx.close();
   }
 

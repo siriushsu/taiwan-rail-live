@@ -1729,3 +1729,15 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {"桃園機場捷運全線每一班�
 
 Object.assign(window.RAIL_I18N_MESSAGES.en, {"修正台北等密集市區近處建築缺少透視線條，優先保留畫面內的近景輪廓": "Fixed missing see-through outlines on nearby buildings in dense areas such as Taipei, prioritizing nearby buildings in view."});
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"修正台北等密集市區近處建築缺少透視線條，優先保留畫面內的近景輪廓": "台北など建物が密集する地域で、近くの建物の透視線が欠ける問題を修正しました。画面内の近景の輪郭を優先して表示します。"});
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"到站提醒新增每天、週一到五或自訂星期的重複設定，通勤固定搭的那班設一次就長期有效": "Arrival reminders can now repeat every day, on weekdays, or on days you pick, so a regular commute only needs setting up once."});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"到站提醒新增每天、週一到五或自訂星期的重複設定，通勤固定搭的那班設一次就長期有效": "到着リマインダーに毎日・平日・曜日指定の繰り返し設定を追加しました。いつも乗る通勤列車は一度設定すれば使い続けられます。"});
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"台鐵列車互穿再減少：補回 97 站的站區股道，雙線區間依行車方向分股行駛，台北–萬華地下段不再兩向共用同一條軌道，並改善單線會車判斷": "Fewer TRA trains now appear to pass through each other: station yard tracks are restored at 97 stations, double-track sections keep each direction on its own track (the Taipei–Wanhua underground section no longer shares one track both ways), and meets on single-track lines are judged more accurately."});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"台鐵列車互穿再減少：補回 97 站的站區股道，雙線區間依行車方向分股行駛，台北–萬華地下段不再兩向共用同一條軌道，並改善單線會車判斷": "台鉄の列車同士がすり抜けて見える表示をさらに減らしました。97 駅の構内線路を補い、複線区間は進行方向ごとに線路を分けて走るようにし（台北–萬華の地下区間で上下の列車が同じ線路を共用しなくなりました）、単線区間の行き違い判定も改善しました。"});
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"修正阿里山林鐵機車的位置與方向，依路段呈現車尾推進、車頭牽引及之字形折返": "Corrected locomotive placement on the Alishan Forest Railway to show pushing, pulling and switchback reversals along each route."});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"修正阿里山林鐵機車的位置與方向，依路段呈現車尾推進、車頭牽引及之字形折返": "阿里山林業鉄道の機関車の位置と向きを修正し、区間に応じた後方からの推進、前方での牽引、スイッチバックを表示します。"});
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"修正台鐵近 30 天準點率與準點排行偶爾停在幾天前，資料漏抓時當天會自動補上": "Fixed TRA 30-day on-time rates and the Punctuality ranking occasionally stalling several days behind; missed data is now fetched again the same day."});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"修正台鐵近 30 天準點率與準點排行偶爾停在幾天前，資料漏抓時當天會自動補上": "台鐵の直近30日の定時率と定時運行ランキングが数日前のまま止まることがある問題を修正し、取得漏れは当日中に自動で補うようにしました。"});
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"所有列車都可顯示完整編組；區間車、莒光與觀光列車等資料不足的班次顯示推估車廂數，並清楚標示推估": "All trains can now display full formations. Services without confirmed consist data, including local, Chu-Kuang and sightseeing trains, show clearly labelled estimated car counts."});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"所有列車都可顯示完整編組；區間車、莒光與觀光列車等資料不足的班次顯示推估車廂數，並清楚標示推估": "すべての列車で全編成を表示できるようになりました。区間車・莒光号・観光列車など編成情報が不足する便は、推定両数であることを明記して表示します。"});

@@ -2,6 +2,33 @@
   'use strict';
   window.RAIL_I18N_MESSAGES = {
     en: {
+      "臺北車站": "Taipei Main Station",
+      "臺鐵臺中": "TRA Taichung",
+      "高雄車站": "Kaohsiung Station",
+      "新烏日・高鐵臺中": "Xinwuri · HSR Taichung",
+      "左營・新左營": "Zuoying · Xinzuoying",
+      "南港車站": "Nangang Station",
+      "板橋車站": "Banqiao Station",
+      "高鐵桃園・A18": "HSR Taoyuan · A18",
+      "高鐵新竹・六家": "HSR Hsinchu · Liujia",
+      "高鐵臺南・沙崙": "HSR Tainan · Shalun",
+      "花蓮車站": "Hualien Station",
+      "臺東車站": "Taitung Station",
+      "台北101": "Taipei 101",
+      "中正紀念堂": "Chiang Kai-shek Memorial Hall",
+      "國父紀念館": "Sun Yat-sen Memorial Hall",
+      "新光摩天大樓": "Shin Kong Life Tower",
+      "高雄85大樓": "85 Sky Tower",
+      "取景資料尚未載入": "View data is not available yet",
+      "暫時無法前往，請再試一次": "Unable to navigate. Please try again.",
+      "地圖視角": "Map view",
+      "俯視": "Top view",
+      "傾斜": "Tilted view",
+      "車站／地標導覽": "Stations & landmarks",
+      "地標": "Landmarks",
+      "前往": "Go",
+      "正在看：{name}": "Viewing: {name}",
+      "地圖俯視與傾斜切換更平順，新增車站與地標導覽；放大跟車時保留車頭與手機操作空間": "Smoothly switch between top and tilted views, explore stations and landmarks, and keep the train front visible when zooming in.",
       '列車停駛': 'Service cancelled',
       "月台 {platform}": "Platform {platform}",
       "月台 —": "Platform —",
@@ -179,6 +206,9 @@
       '還沒有完乘記錄——從地圖角落「探」挑一班有趣的車，陪它跑完全程吧。': 'No completed trips yet. Use Pick below the map to find a train and follow it for the full trip.',
       '趟 · 總里程': 'trips · total', '最長一趟': 'longest trip', '座': 'stations',
       '順序': 'Order', '日期': 'Date', '距離': 'Distance', '車種': 'Type',
+      '重複': 'Repeat', '哪幾天': 'Which days', '不重複': 'Once', '每天': 'Every day', '週一到五': 'Mon–Fri', '自訂': 'Custom',
+      '請至少選一天': 'Pick at least one day',
+      '{repeat} {time} 提醒你（依表定時刻）': '{repeat} at {time}, by the timetable',
       '到站提醒': 'Arrival alert', '車次': 'Train', '提醒站點': 'Alert station', '提醒基準': 'Alert timing',
       '開車前': 'Before departure', '到達前': 'Before arrival', '提前': 'Lead time', '步行到車站': 'Walking time to station',
       '分鐘': 'min', '通知權限已關閉，請到 設定 > 軌島 開啟': 'Notifications are off. Enable them in Settings > Rail Island.',
@@ -540,6 +570,33 @@
       '已接續追蹤 {system} {train} 次': 'Now following {system} train {train}',
     },
     ja: {
+      "臺北車站": "台北駅",
+      "臺鐵臺中": "台鉄台中駅",
+      "高雄車站": "高雄駅",
+      "新烏日・高鐵臺中": "新烏日・高鉄台中",
+      "左營・新左營": "左営・新左営",
+      "南港車站": "南港駅",
+      "板橋車站": "板橋駅",
+      "高鐵桃園・A18": "高鉄桃園・A18",
+      "高鐵新竹・六家": "高鉄新竹・六家",
+      "高鐵臺南・沙崙": "高鉄台南・沙崙",
+      "花蓮車站": "花蓮駅",
+      "臺東車站": "台東駅",
+      "台北101": "台北101",
+      "中正紀念堂": "中正紀念堂",
+      "國父紀念館": "国父紀念館",
+      "新光摩天大樓": "新光摩天大楼",
+      "高雄85大樓": "高雄85ビル",
+      "取景資料尚未載入": "表示用データを読み込めません",
+      "暫時無法前往，請再試一次": "移動できません。もう一度お試しください。",
+      "地圖視角": "地図の視点",
+      "俯視": "真上から",
+      "傾斜": "斜めから",
+      "車站／地標導覽": "駅・ランドマーク案内",
+      "地標": "ランドマーク",
+      "前往": "移動",
+      "正在看：{name}": "表示中：{name}",
+      "地圖俯視與傾斜切換更平順，新增車站與地標導覽；放大跟車時保留車頭與手機操作空間": "真上と斜めの視点を滑らかに切り替え、駅やランドマークを案内。拡大時も列車の先頭と操作スペースを確保します。",
       '列車停駛': '運休',
       "月台 {platform}": "{platform}番線",
       "月台 —": "番線 —",
@@ -679,6 +736,9 @@
       '還沒有完乘記錄——從地圖角落「探」挑一班有趣的車，陪它跑完全程吧。': '完乗記録はまだありません。地図の下にある「選」から列車を選び、終点まで追跡してみましょう。',
       '趟 · 總里程': '回・総距離', '最長一趟': '最長記録', '座': '駅',
       '順序': '完乗順', '日期': '日付', '距離': '距離', '車種': '列車種別',
+      '重複': '繰り返し', '哪幾天': '曜日', '不重複': '繰り返さない', '每天': '毎日', '週一到五': '月〜金', '自訂': 'カスタム',
+      '請至少選一天': '曜日を 1 つ以上選んでください',
+      '{repeat} {time} 提醒你（依表定時刻）': '{repeat} {time} に通知します（時刻表どおり）',
       '到站提醒': '到着通知', '車次': '列車', '提醒站點': '通知する駅', '提醒基準': '通知基準', '開車前': '発車前', '到達前': '到着前',
       '提前': '通知時刻', '步行到車站': '駅までの徒歩時間', '分鐘': '分', '通知權限已關閉，請到 設定 > 軌島 開啟': '通知がオフです。「設定」>「軌島」で許可してください。',
       '開啟設定': '設定を開く', '設定提醒': '通知を設定', '更新提醒': '通知を更新', '開車前叫你': '発車前にお知らせ', '好，提醒我': '通知を許可', '先不要': '後で',
@@ -1210,3 +1270,21 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '愛心孩童': '障害者割引(小児)', '愛心優待、愛心陪伴': '障害者割引・付添者', '軍警': '軍人・警察', '法優': '法定割引',
   '標準座車廂': '標準車両', '商務座車廂': 'ビジネス車両', '自由座車廂': '自由席車両',
 });
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"觀看設定": "View settings", "關閉觀看設定": "Close view settings", "觀看設定分類": "View setting categories", "觀看": "View", "視角": "Camera", "標示": "Labels", "畫面": "Display", "導覽": "Places"});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"觀看設定": "表示設定", "關閉觀看設定": "表示設定を閉じる", "觀看設定分類": "表示設定のカテゴリ", "觀看": "表示", "視角": "視点", "標示": "表示項目", "畫面": "画面", "導覽": "スポット"});
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"其他設定":"Other settings"});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"其他設定":"その他の設定"});
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"觀看設定移到網站右側；手機可按「觀看」切換視角、地圖與列車設定，沉浸模式也能隨時重新開啟": "View settings now live on the right side of the website. On mobile, tap View to change camera, map and train settings, including while in immersive mode."});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"觀看設定移到網站右側；手機可按「觀看」切換視角、地圖與列車設定，沉浸模式也能隨時重新開啟": "表示設定をウェブサイトの右側に移動しました。モバイルでは「表示」から視点・地図・列車の設定を変更でき、没入モード中も開き直せます。"});
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"容易辨認會在遠景加寬車身，近看維持原始比例。":"Easy to see widens trains at a distance. Close-up views retain their original scale."});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"容易辨認會在遠景加寬車身，近看維持原始比例。":"見やすい表示では遠景の車幅を広げます。近くでは元の縮尺を維持します。"});
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"觀看設定移到網站右側；手機可按「觀看」切換視角、地圖與列車設定，沉浸模式也能隨時重新開啟；修正地形切換時橋墩閃現與遠景列車大小設定未生效":"View settings now live on the right side of the website. On mobile, tap View to adjust the scene, including in immersive mode. Fixed flashing bridge piers when switching terrain and restored distant train size settings."});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"觀看設定移到網站右側；手機可按「觀看」切換視角、地圖與列車設定，沉浸模式也能隨時重新開啟；修正地形切換時橋墩閃現與遠景列車大小設定未生效":"表示設定をウェブサイトの右側に移動しました。モバイルでは「表示」から変更でき、没入モード中も開き直せます。地形切替時に橋脚が一瞬伸びる問題と、遠景の列車サイズ設定を修正しました。"});

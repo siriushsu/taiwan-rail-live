@@ -1,4 +1,5 @@
 import {createRouteRuntime} from './route-runtime.js';
+import {afrInitialFacing} from './afr-operation.js';
 import {isScheduledTurnback} from './turnbacks.js';
 import {profileProgress,turnbackProgress} from './timing.js';
 import {createPlanBinding,physicalTrainKey,physicalStopSignature} from './plan-binding.js';
@@ -10,7 +11,7 @@ export function createPhysicalMotion(pack,profiles,dispatch,{requireSignature=tr
   const holds=plan.holds||plan.departureHolds.map((departure,i)=>({arrival:plan.departureHolds[Math.max(0,i-1)],departure}));
   const schedule=tr.stops.map((s,i)=>({arrSec:s.arrSec+holds[i].arrival,depSec:s.depSec+holds[i].departure}));
   const reversals=[];for(let i=1;i<plan.pathIds.length;i++){const a=geometry.unfold(plan.pathIds[i-1]),b=geometry.unfold(plan.pathIds[i]);if(isScheduledTurnback(tr.sys||tr.system,tr.stops[i].name,a,b))reversals.push(i);}
-  const value={plan,bindingBasis:binding.basis,sourceKey:binding.sourceKey,holds,schedule,maxHold:Math.max(...holds.map(h=>h.departure)),reversals};cache.set(tr,value);return value;
+  const value={plan,bindingBasis:binding.basis,sourceKey:binding.sourceKey,holds,schedule,maxHold:Math.max(...holds.map(h=>h.departure)),reversals,initialFacing:afrInitialFacing(tr)??1};cache.set(tr,value);return value;
  }
  function sample(tr,clockSec,{officialDelaySec=0,wrap=(s,t,grace)=>t<s[0].arrSec&&t+86400<=s.at(-1).depSec+grace?t+86400:t}={}){
   const r=record(tr);if(!r)return undefined;const t=wrap(tr.stops,clockSec-officialDelaySec,r.maxHold),schedule=r.schedule;
@@ -23,7 +24,7 @@ export function createPhysicalMotion(pack,profiles,dispatch,{requireSignature=tr
   // 全台活躍車超過共用 LRU 容量時，仍由這班車持有當前的三段線形。
   // 區間改變即替換；WeakMap 跟隨班表物件釋放，不累積整日路線。
   if(!r.activeRoute||r.routeFrom!==from||r.routeTo!==to){r.activeRoute=geometry.route(r.plan.pathIds.slice(from,to),tr.sys||tr.system,tr.color||'#547466',{prefixM:from===legStart?250:0,suffixM:to===legEnd?250:0});r.routeFrom=from;r.routeTo=to;}
-  const route=r.activeRoute,formationFacing=r.reversals.filter(k=>k<=segment).length%2?-1:1;
+  const route=r.activeRoute,formationFacing=r.initialFacing*(r.reversals.filter(k=>k<=segment).length%2?-1:1);
   let f=0,rawTime;
   if(dwell)rawTime=Math.min(s.depSec,s.arrSec+Math.max(0,t-schedule[i].arrSec));
   else{const elapsed=t-schedule[i].depSec,span=tr.stops[i+1].arrSec-s.depSec;rawTime=s.depSec+elapsed;

@@ -2,7 +2,6 @@
 const repeat=(n,x)=>Array(n).fill(x);
 const spec=(id,lengths,widthM,quality='車型標準編組',extra={})=>({id,lengths,widthM,quality,countBasis:'standard',lengthKnown:true,...extra});
 const approximate={lengthKnown:false};
-const unknown=(id,lengths,widthM)=>spec(id,lengths,widthM,'當班編組待確認',{countBasis:'unknown',lengthKnown:false});
 // 推估編組：節數有出處，但班表分不出當班是哪一代車／掛幾組，所以不是當班實測值。
 // 逐條出處、信心與重驗期限寫在 FORMATIONS.md；閘門 verify_formations.mjs 有獨立的一桶在守。
 const estimated=(id,lengths,widthM,quality)=>spec(id,lengths,widthM,quality,{countBasis:'estimated',lengthKnown:false});
@@ -16,19 +15,15 @@ export const FORMATIONS={
   pp:spec('e1000',[17.4,...repeat(12,20),17.4],2.9,'車型標準編組：前後機車＋12 節客車；長度暫用近似值',approximate),
   dr1000:estimated('dr1000',repeat(3,20),2.8,'支線柴聯車平日 2~3 輛，假日加掛 1 輛；班表看不出當班輛數，取平日常態 3 輛'),
   dr3100:estimated('dr3100',repeat(3,20),2.9,'柴聯自強固定 3 輛一組，連假最多 5 組重聯；班表看不出當班組數，取單組 3 輛'),
-  // 區間車 8 輛／160 m、莒光 8 客車＋機車／177 m 仍未解鎖。
-  // 已修正車型判準與部分派軌，2026-09-12 長編組全日仍超過 A／A′ 棘輪。
-  // 不加大 120 秒 hold，不靠縮小驗收分母通過。重驗方式與殘餘案例見 FORMATIONS.md。
-  commuter:unknown('emu800',repeat(3,20),2.9),
-  chukuang:unknown('e200',[17,20,20],2.9),
-  blue:unknown('blue',[17,20,20],2.9),
-  haifeng:unknown('haifeng',repeat(3,20),2.9),
-  shanlan:unknown('shanlan',repeat(3,20),2.9),
-  mingri:unknown('mingri',[17,20,20],2.9),
-  // 環島之星＝電力機車牽引＋莒光號 10500／10600 改造客車，不是自走式電聯車；機車世代 2025-07 起
-  // 換 E500。節數維持未知：目前只有旅遊媒體寫「6 節」，沒有官方依據，不拿它當標準編組。
-  star:unknown('e500',[17,20,20],2.9),
-  forest:unknown('dl25',[10,12,12],2),
+  // 無當班派車資料者以代表編組推估；來源與限制見 FORMATIONS.md（2026-09-14）。
+  commuter:estimated('emu800',repeat(8,20),2.9,'以 EMU700／800 的 8 輛推估；當班可能使用 4／8／10 輛等其他編組'),
+  chukuang:estimated('e200',[17,...repeat(8,20)],2.9,'推估機車 1 輛＋客車 8 輛；當班掛車數未提供'),
+  blue:estimated('blue',[17,...repeat(4,20)],2.9,'推估機車 1 輛＋客車 4 輛；實際依當班調度'),
+  haifeng:spec('haifeng',repeat(4,20),2.9,'官方 4 輛編組；單車長度暫用近似值',approximate),
+  shanlan:spec('shanlan',repeat(4,20),2.9,'官方 4 輛編組；單車長度暫用近似值',approximate),
+  mingri:estimated('mingri',[17,...repeat(5,20)],2.9,'推估機車 1 輛＋客車 5 輛；鳴日廚房與包車可能採其他編組'),
+  star:estimated('e500',[17,...repeat(6,20)],2.9,'推估機車 1 輛＋客車 6 輛；當班掛車數未提供'),
+  forest:estimated('dl25',[10,...repeat(5,12)],2,'以林鐵包車資料推估機車 1 輛＋客車 5 輛；本線、園區支線與專列實際編組可能不同'),
   wenhu:spec('wenhu',repeat(4,13.78),2.54,'路線標準編組'),
   c321:spec('c321',repeat(6,23.5),3.2,'路線標準編組'),
   c381:spec('c381',repeat(6,23.5),3.2,'路線標準編組'),
@@ -39,7 +34,7 @@ export const FORMATIONS={
   kaohsiung:spec('kaohsiung',repeat(3,65.45/3),3.15,'路線標準編組；單車均分示意'),
   airportlocal:spec('airportlocal',repeat(4,82/4),3.03,'普通車標準編組；總長約 82 m，單車均分'),
   airportexpress:spec('airportexpress',repeat(5,102/5),3.03,'直達車標準編組；總長約 102 m，單車均分'),
-  airportunknown:unknown('airportlocal',repeat(3,20.5),3.03),
+  airportunknown:estimated('airportlocal',repeat(4,20.5),3.03,'缺少官方車種時暫以普通車 4 輛推估；不代表已確認為普通車'),
   danhai:spec('danhai',repeat(5,34.45/5),2.65,'路線標準 5 分節；單節長度示意',{articulated:true}),
   ankeng:spec('ankeng',repeat(5,34.45/5),2.65,'路線標準 5 分節；單節長度示意',{articulated:true}),
   caf:spec('caf',repeat(5,34/5),2.65,'路線標準 5 分節；CAF 代表外觀、長度約值',{articulated:true}),

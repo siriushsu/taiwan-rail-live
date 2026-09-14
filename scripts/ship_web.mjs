@@ -167,6 +167,10 @@ try {
   process.stdout.write(stationRoutes.stdout || ''); process.stderr.write(stationRoutes.stderr || '');
   if (stationRoutes.status !== 0) fail('具名派軌、太麻里月台來源、非電化限制或接站連續驗證未通過');
 
+  const remainingRoutes = spawnSync('node', [path.join(wt, 'scripts', 'verify_remaining_station_routes.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(remainingRoutes.stdout || ''); process.stderr.write(remainingRoutes.stderr || '');
+  if (remainingRoutes.status !== 0) fail('多站改派、借路保護或進出站連續驗證未通過');
+
   const terrainChunks = spawnSync('node', [path.join(wt, 'scripts', 'verify_terrain_chunk_cache.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(terrainChunks.stdout || ''); process.stderr.write(terrainChunks.stderr || '');
   if (terrainChunks.status !== 0) fail('地形分片快取未通過——忽略 Range 的伺服器會被重複下載同一片（單獨重跑：npm run check-terrain-chunk-cache）');
@@ -176,6 +180,9 @@ try {
   const formations = spawnSync('node', [path.join(wt, 'scripts', 'verify_formations.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(formations.stdout || ''); process.stderr.write(formations.stderr || '');
   if (formations.status !== 0) fail('列車編組節數未通過——有車種的實際編組退回 3 節示意（單獨重跑：npm run check-formations）');
+  const fullFormations = spawnSync('node', [path.join(wt, 'scripts', 'verify_full_formations_browser.mjs')], { cwd:wt, encoding:'utf8', env:{...process.env,PORT:''} });
+  process.stdout.write(fullFormations.stdout || ''); process.stderr.write(fullFormations.stderr || '');
+  if (fullFormations.status !== 0) fail('完整／推估編組的實際渲染或手機切換未通過');
   const trackSide = spawnSync('node', [path.join(wt, 'scripts', 'verify_metro_track_side.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(trackSide.stdout || ''); process.stderr.write(trackSide.stderr || '');
   if (trackSide.status !== 0) fail('捷運雙軌左右未通過——有路線的來車與去車跑在真實相反的股道上（單獨重跑：npm run check-metro-track-side）');
@@ -315,8 +322,9 @@ try {
   // ── 2.11b 公車站牌搜尋與到站守門（單元 C 第一批）─────────────────────────
   // 🔴 不在出貨鏈上的驗收腳本等於不存在，所以本批一寫完就掛上來。這兩支守的是：
   //    五種到站語意不得被收斂成同一個「沒資料」、GoBack 2／3 不准猜方向、
-  //    端點網址只能來自 data/bus_providers.json、四支公車端點都掛了 BUS_LIMITER
-  //    （其中兩支是本批補的舊債）、雙層 TTL 的算式與註解一致、授權署名沒被拿掉。
+  //    端點網址只能來自 data/bus_providers.json、五支公車端點都掛了 BUS_LIMITER
+  //    （bus-transfer／bus-leg-live 是本批補的舊債，bus-route-stops 是 09-13 補的）、
+  //    雙層 TTL 的算式與註解一致、授權署名沒被拿掉。
   const busStop = spawnSync('node', [path.join(wt, 'scripts', 'verify_bus_stop_worker.mjs')], { encoding: 'utf8' });
   process.stdout.write(busStop.stdout || ''); process.stderr.write(busStop.stderr || '');
   if (busStop.status !== 0) fail('公車站牌到站驗收未過（單獨重跑：npm run check-bus-stop）');
@@ -384,6 +392,9 @@ try {
   process.stdout.write(afr.stdout || ''); process.stderr.write(afr.stderr || '');
   if (afr.status !== 0) fail('阿里山林鐵守門人未過——路網／班次／看板／手機版,或「奔跑中列車都在軌道上」壞了'
     + '（單獨重跑：npm run check-afr）');
+  const afrFacing = spawnSync('node', [path.join(wt, 'scripts', 'verify_afr_push_pull.mjs')], { cwd:wt, encoding:'utf8', env:{...process.env,PORT:'',ENGINE:'',MUTATE:'',OUT:''} });
+  process.stdout.write(afrFacing.stdout || ''); process.stderr.write(afrFacing.stderr || '');
+  if (afrFacing.status !== 0) fail('林鐵推進／牽引方向、折返車身或手機驗證未通過');
 
   // ── 2.17 issue #19 跟車面板時間軸守門人(2026-09-08) ───────────────────────
   // 為什麼值得進出貨鏈:它守的是「跟車面板宣稱的已行駛里程」與「地圖實際繪製的車輛座標」
@@ -443,6 +454,28 @@ try {
   process.stdout.write(mrtNo.stdout || ''); process.stderr.write(mrtNo.stderr || '');
   if (mrtNo.status !== 0) fail('捷運車次欄守門人未過——有官方車次卻沒顯示,或沒有官方車次卻硬填了一個'
     + '（單獨重跑：npm run check-metro-train-no）');
+
+  // ── 2.21 本地提醒守門人(2026-09-13) ──────────────────────────────────────
+  // 為什麼值得進出貨鏈:這支此前【沒有任何呼叫者】,而且它自己已經紅了大約兩個月沒人知道——
+  // 12 個案例倒在同一個原因(腳本用中文字串找元件,Playwright 預設語系讓 I18N_LANG 變成 en),
+  // 另外 4 個倒在 2026-09-06 查詢分頁改版把提醒入口搬走而判準沒跟著搬。兩者都是
+  // 「不在出貨鏈上的驗收腳本等於不存在」的教科書例子(同 2.7／2.8／2.9)。
+  // 它守的東西沒有別的判準照得到:提醒是【純本地】功能(localStorage + Capacitor 本地通知),
+  // 不經過任何 API,所以資料閘門一條都碰不到;而排程算錯的症狀是「時間到了沒響」或
+  // 「響在錯的時間」——畫面永遠正常,使用者要等到隔天才發現,而且只在真機上發現。
+  // 涵蓋:五個入口都還在、跨日與誤點快照、20 則上限、週期性規則的下次時間、原生排程格位
+  // 不相撞、iOS 64 則預算、既有 v1 資料不被動到。實測 38 秒(22 案、自己起 dev server)。
+  // 🔴 洗掉繼承來的 NOTIFY_BASE:它會讓整支跑去驗【別棵樹】而紅綠長得一模一樣(同 2.19 的 PORT)。
+  const notify = spawnSync('node', [path.join(wt, 'scripts', 'verify_notify_p0.mjs')],
+    { encoding: 'utf8', env: { ...process.env, NOTIFY_BASE: '', PORT: '' } });
+  process.stdout.write(notify.stdout || ''); process.stderr.write(notify.stderr || '');
+  if (notify.status !== 0) fail('本地提醒守門人未過——提醒入口不見了,或排程時間／格位／上限算錯'
+    + '（單獨重跑：npm run check-notify）');
+
+  // 觀看入口是沉浸模式的退出路徑；雙引擎真點進入、重開、退出與重載。
+  const viewControls = spawnSync('node', [path.join(wt, 'scripts', 'verify_view_controls_gate.mjs')], { cwd: wt, encoding: 'utf8' });
+  process.stdout.write(viewControls.stdout || ''); process.stderr.write(viewControls.stderr || '');
+  if (viewControls.status !== 0) fail('觀看設定與沉浸模式退出驗收未通過');
 
   // ── 3. strip（腳本內建 esbuild AST 重印等價證明，任何不等價都非零退出）────
   const rawBytes = fs.readFileSync(path.join(wt, 'index.html'));
