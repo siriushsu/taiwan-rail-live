@@ -30,7 +30,9 @@ const file = process.env.NETWORK || 'rail-3d/physical/network.json', out = proce
 const net = JSON.parse(fs.readFileSync(file, 'utf8'));
 if (net.extensions?.some(e => e.name === NAME)) { console.log('已補入', NAME); process.exit(0); }
 const fx = JSON.parse(fs.readFileSync(FIXTURE, 'utf8'));
-const wanted = sections.flatMap(s => { const v = s === 'bridge' ? fx.bridge?.ways : fx[s]; assert(Array.isArray(v), 'fixture 沒有區段 ' + s); return v; });
+// 2026-09-14 使用者要求直接完成交接：採本批暫緩蘇澳橋東四條死端的建議。20m DEM 未表達路塹，現行算繪會浮空；四條皆無列車路徑，待路塹算繪支援再補，不放寬高度閘門。
+const DEFERRED_SU_AO_CUTTING = new Set(["145608233","1527875178","1527875179","1527875182"]);
+const wanted = sections.flatMap(s => { const v = s === 'bridge' ? fx.bridge?.ways : fx[s]; assert(Array.isArray(v), 'fixture 沒有區段 ' + s); return v.filter(w => !DEFERRED_SU_AO_CUTTING.has(String(w.id))); });
 
 // 既有節點座標：接頭必須同 node ID，且 OSM 現況座標與出貨檔一致（不位移原軌道）。
 const coord = new Map(); for (const w of net.ways) w.nodes.forEach((n, i) => coord.set(String(n), w.coordinates[i]));
