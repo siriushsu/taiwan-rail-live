@@ -1,0 +1,1981 @@
+{
+ "version": 1,
+ "source_notes": "本站自算，無外部上游：由 rail-3d/physical/network.json（OSM 股道幾何）與 rail-3d/physical/dispatch.json（各站對實際派過的路徑）算出相鄰兩站之間有平行正線股道的長度佔比，≥0.5 判雙線（tracks=2）否則單線（tracks=1）。南迴線／臺東線同名隧道 way 是否為第二股，2026-09-14 已用交通部 TDX GIS 圖資 v3「軌道路網實體路線」（逐股道官方幾何，政府資料開放授權條款-1.0）逐對核實：核實過的算平行股道，未核實／經核實只有一股的仍不算。核實證據 scripts/fixtures/tra-parallel-verified-tdx-0914.json（產生器 scripts/build_tdx_parallel_evidence.mjs）；TDX 與台鐵官方《路線修築沿革》衝突時以沿革為準（南迴線無添築雙線紀錄 ⇒ 不算；山里─臺東 2013 添築雙線 ⇒ 算）。鍵＝兩站名正規化成班表用字「臺」後排序、以 | 相接（讀表端 index.html 用班表站名查）。產生器 scripts/build_tra_track_sections.mjs。",
+ "pairs": {
+  "七堵|八堵": {
+   "tracks": 2,
+   "parallelFrac": 0.99,
+   "lengthM": 2400,
+   "refs": [
+    "宜蘭線",
+    "縱貫線"
+   ]
+  },
+  "七堵|百福": {
+   "tracks": 2,
+   "parallelFrac": 0.961,
+   "lengthM": 2659,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "九曲堂|六塊厝": {
+   "tracks": 2,
+   "parallelFrac": 0.978,
+   "lengthM": 4969,
+   "refs": [
+    "屏東線"
+   ]
+  },
+  "九曲堂|後庄": {
+   "tracks": 2,
+   "parallelFrac": 0.952,
+   "lengthM": 4166,
+   "refs": [
+    "屏東線"
+   ]
+  },
+  "九讚頭|合興": {
+   "tracks": 1,
+   "parallelFrac": 0.045,
+   "lengthM": 2173,
+   "refs": [
+    "內灣線"
+   ]
+  },
+  "九讚頭|橫山": {
+   "tracks": 1,
+   "parallelFrac": 0.02,
+   "lengthM": 2074,
+   "refs": [
+    "內灣線"
+   ]
+  },
+  "二水|田中": {
+   "tracks": 2,
+   "parallelFrac": 0.961,
+   "lengthM": 5827,
+   "refs": [
+    "縱貫線",
+    "集集線"
+   ]
+  },
+  "二水|林內": {
+   "tracks": 2,
+   "parallelFrac": 0.975,
+   "lengthM": 8179,
+   "refs": [
+    "縱貫線",
+    "集集線"
+   ]
+  },
+  "二水|源泉": {
+   "tracks": 1,
+   "parallelFrac": 0.037,
+   "lengthM": 2952,
+   "refs": [
+    "集集線"
+   ]
+  },
+  "二結|宜蘭": {
+   "tracks": 2,
+   "parallelFrac": 0.976,
+   "lengthM": 5732,
+   "refs": [
+    "宜蘭線"
+   ]
+  },
+  "八斗子|海科館": {
+   "tracks": 1,
+   "parallelFrac": 0.022,
+   "lengthM": 388,
+   "refs": [
+    "深澳線"
+   ]
+  },
+  "八堵|暖暖": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 1638,
+   "refs": [
+    "宜蘭線"
+   ]
+  },
+  "十分|大華": {
+   "tracks": 1,
+   "parallelFrac": 0.097,
+   "lengthM": 2868,
+   "refs": [
+    "平溪線"
+   ]
+  },
+  "十分|望古": {
+   "tracks": 1,
+   "parallelFrac": 0.154,
+   "lengthM": 1721,
+   "refs": [
+    "平溪線"
+   ]
+  },
+  "三民|玉里": {
+   "tracks": 1,
+   "parallelFrac": 0.047,
+   "lengthM": 11023,
+   "refs": [
+    "臺東線"
+   ]
+  },
+  "三民|瑞穗": {
+   "tracks": 2,
+   "parallelFrac": 0.98,
+   "lengthM": 9330,
+   "refs": [
+    "臺東線"
+   ]
+  },
+  "三坑|八堵": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 2355,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "三坑|基隆": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 1282,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "三姓橋|香山": {
+   "tracks": 2,
+   "parallelFrac": 0.943,
+   "lengthM": 3291,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "三姓橋|新竹": {
+   "tracks": 2,
+   "parallelFrac": 0.964,
+   "lengthM": 4812,
+   "refs": [
+    "內灣線",
+    "縱貫線"
+   ]
+  },
+  "三貂嶺|大華": {
+   "tracks": 1,
+   "parallelFrac": 0.17,
+   "lengthM": 3663,
+   "refs": [
+    "宜蘭線",
+    "平溪線"
+   ]
+  },
+  "三貂嶺|牡丹": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 3634,
+   "refs": [
+    "宜蘭線"
+   ]
+  },
+  "三貂嶺|猴硐": {
+   "tracks": 2,
+   "parallelFrac": 0.959,
+   "lengthM": 2456,
+   "refs": [
+    "宜蘭線"
+   ]
+  },
+  "三塊厝|高雄": {
+   "tracks": 2,
+   "parallelFrac": 0.837,
+   "lengthM": 903,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "三塊厝|鼓山": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 1774,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "三義|泰安": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 10924,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "三義|銅鑼": {
+   "tracks": 2,
+   "parallelFrac": 0.985,
+   "lengthM": 7503,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "上員|竹中": {
+   "tracks": 1,
+   "parallelFrac": 0.056,
+   "lengthM": 2665,
+   "refs": [
+    "內灣線"
+   ]
+  },
+  "上員|榮華": {
+   "tracks": 1,
+   "parallelFrac": 0.018,
+   "lengthM": 4458,
+   "refs": [
+    "內灣線"
+   ]
+  },
+  "千甲|新莊": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 2998,
+   "refs": [
+    "內灣線"
+   ]
+  },
+  "大山|後龍": {
+   "tracks": 2,
+   "parallelFrac": 0.999,
+   "lengthM": 3706,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "大山|談文": {
+   "tracks": 1,
+   "parallelFrac": 0.318,
+   "lengthM": 6843,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "大甲|日南": {
+   "tracks": 1,
+   "parallelFrac": 0.119,
+   "lengthM": 4659,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "大甲|臺中港": {
+   "tracks": 2,
+   "parallelFrac": 0.951,
+   "lengthM": 5286,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "大村|花壇": {
+   "tracks": 2,
+   "parallelFrac": 0.973,
+   "lengthM": 4598,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "大肚|追分": {
+   "tracks": 1,
+   "parallelFrac": 0.053,
+   "lengthM": 5068,
+   "refs": [
+    "成追線",
+    "縱貫線"
+   ]
+  },
+  "大肚|龍井": {
+   "tracks": 1,
+   "parallelFrac": 0,
+   "lengthM": 4976,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "大里|石城": {
+   "tracks": 2,
+   "parallelFrac": 0.964,
+   "lengthM": 2716,
+   "refs": [
+    "宜蘭線"
+   ]
+  },
+  "大林|民雄": {
+   "tracks": 2,
+   "parallelFrac": 0.948,
+   "lengthM": 5801,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "大林|石龜": {
+   "tracks": 2,
+   "parallelFrac": 0.984,
+   "lengthM": 4641,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "大武|枋野": {
+   "tracks": 2,
+   "parallelFrac": 0.739,
+   "lengthM": 23034,
+   "refs": [
+    "南迴線"
+   ]
+  },
+  "大武|瀧溪": {
+   "tracks": 1,
+   "parallelFrac": 0.023,
+   "lengthM": 11680,
+   "refs": [
+    "南迴線"
+   ]
+  },
+  "大富|富源": {
+   "tracks": 1,
+   "parallelFrac": 0.013,
+   "lengthM": 3070,
+   "refs": [
+    "臺東線"
+   ]
+  },
+  "大湖|路竹": {
+   "tracks": 2,
+   "parallelFrac": 0.957,
+   "lengthM": 3026,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "大溪|大里": {
+   "tracks": 2,
+   "parallelFrac": 0.96,
+   "lengthM": 4751,
+   "refs": [
+    "宜蘭線"
+   ]
+  },
+  "大溪|龜山": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 4600,
+   "refs": [
+    "宜蘭線"
+   ]
+  },
+  "大慶|烏日": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 3046,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "大橋|永康": {
+   "tracks": 2,
+   "parallelFrac": 0.954,
+   "lengthM": 3729,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "大橋|臺南": {
+   "tracks": 2,
+   "parallelFrac": 0.943,
+   "lengthM": 2775,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "山里|鹿野": {
+   "tracks": 1,
+   "parallelFrac": 0.047,
+   "lengthM": 6147,
+   "refs": [
+    "臺東線"
+   ]
+  },
+  "山里|臺東": {
+   "tracks": 2,
+   "parallelFrac": 0.979,
+   "lengthM": 8150,
+   "refs": [
+    "臺東線"
+   ]
+  },
+  "山佳|鶯歌": {
+   "tracks": 2,
+   "parallelFrac": 0.924,
+   "lengthM": 4450,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "中里|二結": {
+   "tracks": 2,
+   "parallelFrac": 0.943,
+   "lengthM": 1279,
+   "refs": [
+    "宜蘭線"
+   ]
+  },
+  "中里|羅東": {
+   "tracks": 2,
+   "parallelFrac": 0.899,
+   "lengthM": 1905,
+   "refs": [
+    "宜蘭線"
+   ]
+  },
+  "中洲|大湖": {
+   "tracks": 2,
+   "parallelFrac": 0.94,
+   "lengthM": 2865,
+   "refs": [
+    "沙崙線",
+    "縱貫線"
+   ]
+  },
+  "中洲|仁德": {
+   "tracks": 2,
+   "parallelFrac": 0.963,
+   "lengthM": 2569,
+   "refs": [
+    "沙崙線",
+    "縱貫線"
+   ]
+  },
+  "中洲|長榮大學": {
+   "tracks": 2,
+   "parallelFrac": 0.917,
+   "lengthM": 2565,
+   "refs": [
+    "沙崙線"
+   ]
+  },
+  "中壢|內壢": {
+   "tracks": 2,
+   "parallelFrac": 0.977,
+   "lengthM": 3895,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "中壢|埔心": {
+   "tracks": 2,
+   "parallelFrac": 0.97,
+   "lengthM": 5856,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "五堵|汐止": {
+   "tracks": 2,
+   "parallelFrac": 0.943,
+   "lengthM": 1453,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "五堵|百福": {
+   "tracks": 2,
+   "parallelFrac": 0.917,
+   "lengthM": 3088,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "五權|大慶": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 2102,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "五權|臺中": {
+   "tracks": 2,
+   "parallelFrac": 0.903,
+   "lengthM": 2269,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "仁德|保安": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 1425,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "內惟|左營": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 1139,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "內惟|美術館": {
+   "tracks": 2,
+   "parallelFrac": 0.913,
+   "lengthM": 1694,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "內獅|加祿": {
+   "tracks": 1,
+   "parallelFrac": 0.01,
+   "lengthM": 3344,
+   "refs": [
+    "南迴線"
+   ]
+  },
+  "內獅|枋山": {
+   "tracks": 1,
+   "parallelFrac": 0.034,
+   "lengthM": 4920,
+   "refs": [
+    "南迴線"
+   ]
+  },
+  "內壢|桃園": {
+   "tracks": 2,
+   "parallelFrac": 0.994,
+   "lengthM": 6076,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "內灣|富貴": {
+   "tracks": 1,
+   "parallelFrac": 0.077,
+   "lengthM": 2247,
+   "refs": [
+    "內灣線"
+   ]
+  },
+  "六家|竹中": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 3130,
+   "refs": [
+    "六家線"
+   ]
+  },
+  "六塊厝|屏東": {
+   "tracks": 2,
+   "parallelFrac": 0.926,
+   "lengthM": 2235,
+   "refs": [
+    "屏東線"
+   ]
+  },
+  "太原|松竹": {
+   "tracks": 2,
+   "parallelFrac": 0.935,
+   "lengthM": 1771,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "太原|精武": {
+   "tracks": 2,
+   "parallelFrac": 0.93,
+   "lengthM": 1697,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "太麻里|知本": {
+   "tracks": 1,
+   "parallelFrac": 0.03,
+   "lengthM": 11778,
+   "refs": [
+    "南迴線"
+   ]
+  },
+  "太麻里|金崙": {
+   "tracks": 1,
+   "parallelFrac": 0.017,
+   "lengthM": 10947,
+   "refs": [
+    "南迴線"
+   ]
+  },
+  "斗六|斗南": {
+   "tracks": 2,
+   "parallelFrac": 0.934,
+   "lengthM": 7655,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "斗六|石榴": {
+   "tracks": 2,
+   "parallelFrac": 0.978,
+   "lengthM": 4786,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "斗南|石龜": {
+   "tracks": 2,
+   "parallelFrac": 0.942,
+   "lengthM": 3913,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "日南|苑裡": {
+   "tracks": 2,
+   "parallelFrac": 0.979,
+   "lengthM": 7795,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "水里|車埕": {
+   "tracks": 1,
+   "parallelFrac": 0.054,
+   "lengthM": 2250,
+   "refs": [
+    "集集線"
+   ]
+  },
+  "水里|集集": {
+   "tracks": 1,
+   "parallelFrac": 0.061,
+   "lengthM": 7341,
+   "refs": [
+    "集集線"
+   ]
+  },
+  "冬山|新馬": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 4244,
+   "refs": [
+    "宜蘭線"
+   ]
+  },
+  "冬山|羅東": {
+   "tracks": 2,
+   "parallelFrac": 0.93,
+   "lengthM": 4993,
+   "refs": [
+    "宜蘭線"
+   ]
+  },
+  "加祿|枋寮": {
+   "tracks": 1,
+   "parallelFrac": 0.011,
+   "lengthM": 5346,
+   "refs": [
+    "南迴線"
+   ]
+  },
+  "北埔|花蓮": {
+   "tracks": 2,
+   "parallelFrac": 0.965,
+   "lengthM": 4608,
+   "refs": [
+    "北迴線"
+   ],
+   "override": "北迴線雙軌電氣化 2005 年全線完工，OSM 雙軌隧道只畫一條 way"
+  },
+  "北埔|景美": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 6522,
+   "refs": [
+    "北迴線"
+   ],
+   "override": "北迴線雙軌電氣化 2005 年全線完工，OSM 雙軌隧道只畫一條 way"
+  },
+  "北湖|湖口": {
+   "tracks": 2,
+   "parallelFrac": 0.933,
+   "lengthM": 2520,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "北湖|新富": {
+   "tracks": 2,
+   "parallelFrac": 0.9,
+   "lengthM": 1596,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "北新竹|千甲": {
+   "tracks": 2,
+   "parallelFrac": 0.981,
+   "lengthM": 2248,
+   "refs": [
+    "內灣線",
+    "縱貫線"
+   ]
+  },
+  "北新竹|竹北": {
+   "tracks": 2,
+   "parallelFrac": 0.972,
+   "lengthM": 4470,
+   "refs": [
+    "內灣線",
+    "縱貫線"
+   ]
+  },
+  "北新竹|新竹": {
+   "tracks": 2,
+   "parallelFrac": 0.878,
+   "lengthM": 1393,
+   "refs": [
+    "內灣線",
+    "縱貫線"
+   ]
+  },
+  "四城|宜蘭": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 3704,
+   "refs": [
+    "宜蘭線"
+   ]
+  },
+  "四城|礁溪": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 4710,
+   "refs": [
+    "宜蘭線"
+   ]
+  },
+  "四腳亭|暖暖": {
+   "tracks": 2,
+   "parallelFrac": 0.929,
+   "lengthM": 2250,
+   "refs": [
+    "宜蘭線"
+   ]
+  },
+  "四腳亭|瑞芳": {
+   "tracks": 2,
+   "parallelFrac": 0.893,
+   "lengthM": 5146,
+   "refs": [
+    "宜蘭線"
+   ]
+  },
+  "外澳|頭城": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 3663,
+   "refs": [
+    "宜蘭線"
+   ]
+  },
+  "外澳|龜山": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 3612,
+   "refs": [
+    "宜蘭線"
+   ]
+  },
+  "左營|新左營": {
+   "tracks": 2,
+   "parallelFrac": 0.852,
+   "lengthM": 2056,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "平和|志學": {
+   "tracks": 1,
+   "parallelFrac": 0.022,
+   "lengthM": 2957,
+   "refs": [
+    "臺東線"
+   ]
+  },
+  "平溪|菁桐": {
+   "tracks": 1,
+   "parallelFrac": 0.08,
+   "lengthM": 1775,
+   "refs": [
+    "平溪線"
+   ]
+  },
+  "正義|科工館": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 1704,
+   "refs": [
+    "屏東線"
+   ]
+  },
+  "正義|鳳山": {
+   "tracks": 2,
+   "parallelFrac": 0.828,
+   "lengthM": 1449,
+   "refs": [
+    "屏東線"
+   ]
+  },
+  "民族|科工館": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 1163,
+   "refs": [
+    "屏東線"
+   ]
+  },
+  "民族|高雄": {
+   "tracks": 2,
+   "parallelFrac": 0.876,
+   "lengthM": 1279,
+   "refs": [
+    "屏東線",
+    "縱貫線"
+   ]
+  },
+  "永靖|社頭": {
+   "tracks": 2,
+   "parallelFrac": 0.939,
+   "lengthM": 3723,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "永樂|蘇澳新": {
+   "tracks": 2,
+   "parallelFrac": 0.483,
+   "lengthM": 5063,
+   "refs": [
+    "北迴線"
+   ],
+   "override": "北迴線雙軌電氣化 2005 年全線完工，OSM 雙軌隧道只畫一條 way"
+  },
+  "田中|社頭": {
+   "tracks": 2,
+   "parallelFrac": 0.947,
+   "lengthM": 4328,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "白沙屯|龍港": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 8175,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "石城|福隆": {
+   "tracks": 2,
+   "parallelFrac": 0.978,
+   "lengthM": 5435,
+   "refs": [
+    "宜蘭線"
+   ]
+  },
+  "光復|大富": {
+   "tracks": 1,
+   "parallelFrac": 0.038,
+   "lengthM": 7653,
+   "refs": [
+    "臺東線"
+   ]
+  },
+  "光復|萬榮": {
+   "tracks": 2,
+   "parallelFrac": 0.945,
+   "lengthM": 5600,
+   "refs": [
+    "臺東線"
+   ]
+  },
+  "合興|富貴": {
+   "tracks": 1,
+   "parallelFrac": 0,
+   "lengthM": 1436,
+   "refs": [
+    "內灣線"
+   ]
+  },
+  "吉安|志學": {
+   "tracks": 1,
+   "parallelFrac": 0.004,
+   "lengthM": 8973,
+   "refs": [
+    "臺東線"
+   ]
+  },
+  "吉安|花蓮": {
+   "tracks": 1,
+   "parallelFrac": 0.123,
+   "lengthM": 3443,
+   "refs": [
+    "臺東線"
+   ]
+  },
+  "后里|泰安": {
+   "tracks": 2,
+   "parallelFrac": 0.895,
+   "lengthM": 2607,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "后里|豐原": {
+   "tracks": 2,
+   "parallelFrac": 0.965,
+   "lengthM": 6737,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "成功|追分": {
+   "tracks": 2,
+   "parallelFrac": 0.864,
+   "lengthM": 2277,
+   "refs": [
+    "成追線",
+    "縱貫線"
+   ]
+  },
+  "成功|新烏日": {
+   "tracks": 2,
+   "parallelFrac": 0.93,
+   "lengthM": 2352,
+   "refs": [
+    "成追線",
+    "縱貫線"
+   ]
+  },
+  "汐止|汐科": {
+   "tracks": 2,
+   "parallelFrac": 0.887,
+   "lengthM": 948,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "池上|海端": {
+   "tracks": 1,
+   "parallelFrac": 0.046,
+   "lengthM": 5568,
+   "refs": [
+    "臺東線"
+   ]
+  },
+  "竹田|西勢": {
+   "tracks": 2,
+   "parallelFrac": 0.946,
+   "lengthM": 3686,
+   "refs": [
+    "屏東線"
+   ]
+  },
+  "竹南|造橋": {
+   "tracks": 2,
+   "parallelFrac": 0.976,
+   "lengthM": 5368,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "竹南|談文": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 4442,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "西勢|麟洛": {
+   "tracks": 2,
+   "parallelFrac": 0.961,
+   "lengthM": 2402,
+   "refs": [
+    "屏東線"
+   ]
+  },
+  "沙崙|長榮大學": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 3064,
+   "refs": [
+    "沙崙線"
+   ]
+  },
+  "沙鹿|清水": {
+   "tracks": 1,
+   "parallelFrac": 0.17,
+   "lengthM": 3154,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "沙鹿|龍井": {
+   "tracks": 1,
+   "parallelFrac": 0.05,
+   "lengthM": 4655,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "牡丹|雙溪": {
+   "tracks": 2,
+   "parallelFrac": 0.756,
+   "lengthM": 3303,
+   "refs": [
+    "宜蘭線"
+   ]
+  },
+  "佳冬|東海": {
+   "tracks": 1,
+   "parallelFrac": 0.022,
+   "lengthM": 3056,
+   "refs": [
+    "屏東線"
+   ]
+  },
+  "佳冬|林邊": {
+   "tracks": 1,
+   "parallelFrac": 0.074,
+   "lengthM": 3838,
+   "refs": [
+    "屏東線"
+   ]
+  },
+  "和仁|和平": {
+   "tracks": 2,
+   "parallelFrac": 0.952,
+   "lengthM": 7885,
+   "refs": [
+    "北迴線"
+   ],
+   "override": "北迴線雙軌電氣化 2005 年全線完工，OSM 雙軌隧道只畫一條 way"
+  },
+  "和仁|崇德": {
+   "tracks": 2,
+   "parallelFrac": 0.141,
+   "lengthM": 10137,
+   "refs": [
+    "北迴線"
+   ],
+   "override": "北迴線雙軌電氣化 2005 年全線完工，OSM 雙軌隧道只畫一條 way"
+  },
+  "和平|漢本": {
+   "tracks": 2,
+   "parallelFrac": 0.934,
+   "lengthM": 4241,
+   "refs": [
+    "北迴線"
+   ],
+   "override": "北迴線雙軌電氣化 2005 年全線完工，OSM 雙軌隧道只畫一條 way"
+  },
+  "岡山|路竹": {
+   "tracks": 2,
+   "parallelFrac": 0.983,
+   "lengthM": 7808,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "岡山|橋頭": {
+   "tracks": 2,
+   "parallelFrac": 0.982,
+   "lengthM": 3571,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "拔林|隆田": {
+   "tracks": 2,
+   "parallelFrac": 0.965,
+   "lengthM": 2246,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "東竹|東里": {
+   "tracks": 1,
+   "parallelFrac": 0.037,
+   "lengthM": 5963,
+   "refs": [
+    "臺東線"
+   ]
+  },
+  "東里|玉里": {
+   "tracks": 2,
+   "parallelFrac": 0.983,
+   "lengthM": 6714,
+   "refs": [
+    "臺東線"
+   ]
+  },
+  "東海|枋寮": {
+   "tracks": 1,
+   "parallelFrac": 0.006,
+   "lengthM": 4145,
+   "refs": [
+    "屏東線"
+   ]
+  },
+  "東澳|永樂": {
+   "tracks": 2,
+   "parallelFrac": 0.158,
+   "lengthM": 5960,
+   "refs": [
+    "北迴線"
+   ],
+   "override": "北迴線雙軌電氣化 2005 年全線完工，OSM 雙軌隧道只畫一條 way"
+  },
+  "松山|臺北": {
+   "tracks": 2,
+   "parallelFrac": 0.974,
+   "lengthM": 6475,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "松竹|頭家厝": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 1699,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "板橋|浮洲": {
+   "tracks": 2,
+   "parallelFrac": 0.964,
+   "lengthM": 2538,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "板橋|萬華": {
+   "tracks": 2,
+   "parallelFrac": 0.949,
+   "lengthM": 4375,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "枋山|枋野": {
+   "tracks": 1,
+   "parallelFrac": 0.009,
+   "lengthM": 6909,
+   "refs": [
+    "南迴線"
+   ]
+  },
+  "林內|石榴": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 4751,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "林榮新光|豐田": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 6202,
+   "refs": [
+    "臺東線"
+   ]
+  },
+  "林鳳營|柳營": {
+   "tracks": 2,
+   "parallelFrac": 0.948,
+   "lengthM": 3870,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "林鳳營|隆田": {
+   "tracks": 2,
+   "parallelFrac": 0.959,
+   "lengthM": 5568,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "林邊|鎮安": {
+   "tracks": 2,
+   "parallelFrac": 0.968,
+   "lengthM": 3160,
+   "refs": [
+    "屏東線"
+   ]
+  },
+  "武塔|漢本": {
+   "tracks": 2,
+   "parallelFrac": 0.982,
+   "lengthM": 13177,
+   "refs": [
+    "北迴線"
+   ],
+   "override": "北迴線雙軌電氣化 2005 年全線完工，OSM 雙軌隧道只畫一條 way"
+  },
+  "保安|臺南": {
+   "tracks": 2,
+   "parallelFrac": 0.985,
+   "lengthM": 7636,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "南平|林榮新光": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 2282,
+   "refs": [
+    "臺東線"
+   ]
+  },
+  "南平|鳳林": {
+   "tracks": 2,
+   "parallelFrac": 0.972,
+   "lengthM": 4229,
+   "refs": [
+    "臺東線"
+   ]
+  },
+  "南州|崁頂": {
+   "tracks": 1,
+   "parallelFrac": 0.161,
+   "lengthM": 2444,
+   "refs": [
+    "屏東線"
+   ]
+  },
+  "南州|鎮安": {
+   "tracks": 2,
+   "parallelFrac": 0.972,
+   "lengthM": 3768,
+   "refs": [
+    "屏東線"
+   ]
+  },
+  "南科|善化": {
+   "tracks": 2,
+   "parallelFrac": 0.965,
+   "lengthM": 2925,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "南科|新市": {
+   "tracks": 2,
+   "parallelFrac": 0.964,
+   "lengthM": 4652,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "南港|汐科": {
+   "tracks": 2,
+   "parallelFrac": 0.777,
+   "lengthM": 5128,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "南港|松山": {
+   "tracks": 2,
+   "parallelFrac": 0.756,
+   "lengthM": 2717,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "南勢|苗栗": {
+   "tracks": 2,
+   "parallelFrac": 0.992,
+   "lengthM": 6614,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "南勢|銅鑼": {
+   "tracks": 2,
+   "parallelFrac": 0.952,
+   "lengthM": 4160,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "南靖|水上": {
+   "tracks": 2,
+   "parallelFrac": 0.913,
+   "lengthM": 2649,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "南靖|後壁": {
+   "tracks": 2,
+   "parallelFrac": 0.927,
+   "lengthM": 6046,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "南樹林|山佳": {
+   "tracks": 2,
+   "parallelFrac": 0.928,
+   "lengthM": 1861,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "南樹林|樹林": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 2133,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "南澳|東澳": {
+   "tracks": 2,
+   "parallelFrac": 0.141,
+   "lengthM": 7888,
+   "refs": [
+    "北迴線"
+   ],
+   "override": "北迴線雙軌電氣化 2005 年全線完工，OSM 雙軌隧道只畫一條 way"
+  },
+  "南澳|武塔": {
+   "tracks": 2,
+   "parallelFrac": 0.929,
+   "lengthM": 3746,
+   "refs": [
+    "北迴線"
+   ],
+   "override": "北迴線雙軌電氣化 2005 年全線完工，OSM 雙軌隧道只畫一條 way"
+  },
+  "屏東|歸來": {
+   "tracks": 2,
+   "parallelFrac": 0.946,
+   "lengthM": 2676,
+   "refs": [
+    "屏東線"
+   ]
+  },
+  "後庄|鳳山": {
+   "tracks": 2,
+   "parallelFrac": 0.949,
+   "lengthM": 3761,
+   "refs": [
+    "屏東線"
+   ]
+  },
+  "後壁|新營": {
+   "tracks": 2,
+   "parallelFrac": 0.963,
+   "lengthM": 7653,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "後龍|龍港": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 3687,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "美術館|鼓山": {
+   "tracks": 2,
+   "parallelFrac": 0.892,
+   "lengthM": 1101,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "苑裡|通霄": {
+   "tracks": 1,
+   "parallelFrac": 0.097,
+   "lengthM": 6180,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "苗栗|豐富": {
+   "tracks": 2,
+   "parallelFrac": 0.955,
+   "lengthM": 4041,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "員林|大村": {
+   "tracks": 2,
+   "parallelFrac": 0.952,
+   "lengthM": 3568,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "員林|永靖": {
+   "tracks": 2,
+   "parallelFrac": 0.95,
+   "lengthM": 3496,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "埔心|楊梅": {
+   "tracks": 2,
+   "parallelFrac": 0.945,
+   "lengthM": 4045,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "崁頂|潮州": {
+   "tracks": 1,
+   "parallelFrac": 0.027,
+   "lengthM": 4809,
+   "refs": [
+    "屏東線"
+   ]
+  },
+  "栗林|潭子": {
+   "tracks": 2,
+   "parallelFrac": 0.934,
+   "lengthM": 2508,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "栗林|豐原": {
+   "tracks": 2,
+   "parallelFrac": 0.933,
+   "lengthM": 2621,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "桃園|鳳鳴": {
+   "tracks": 2,
+   "parallelFrac": 0.983,
+   "lengthM": 3285,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "海科館|瑞芳": {
+   "tracks": 1,
+   "parallelFrac": 0.241,
+   "lengthM": 4326,
+   "refs": [
+    "深澳線"
+   ]
+  },
+  "海端|關山": {
+   "tracks": 1,
+   "parallelFrac": 0.077,
+   "lengthM": 6497,
+   "refs": [
+    "臺東線"
+   ]
+  },
+  "貢寮|雙溪": {
+   "tracks": 2,
+   "parallelFrac": 0.967,
+   "lengthM": 5435,
+   "refs": [
+    "宜蘭線"
+   ]
+  },
+  "崇德|新城": {
+   "tracks": 2,
+   "parallelFrac": 0.923,
+   "lengthM": 5236,
+   "refs": [
+    "北迴線"
+   ],
+   "override": "北迴線雙軌電氣化 2005 年全線完工，OSM 雙軌隧道只畫一條 way"
+  },
+  "崎頂|竹南": {
+   "tracks": 2,
+   "parallelFrac": 0.96,
+   "lengthM": 4573,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "崎頂|香山": {
+   "tracks": 2,
+   "parallelFrac": 0.967,
+   "lengthM": 6435,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "康樂|知本": {
+   "tracks": 1,
+   "parallelFrac": 0,
+   "lengthM": 7038,
+   "refs": [
+    "南迴線"
+   ]
+  },
+  "康樂|臺東": {
+   "tracks": 1,
+   "parallelFrac": 0.066,
+   "lengthM": 4545,
+   "refs": [
+    "南迴線"
+   ]
+  },
+  "清水|臺中港": {
+   "tracks": 2,
+   "parallelFrac": 0.973,
+   "lengthM": 6049,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "頂埔|頭城": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 2216,
+   "refs": [
+    "宜蘭線"
+   ]
+  },
+  "善化|拔林": {
+   "tracks": 2,
+   "parallelFrac": 0.975,
+   "lengthM": 4667,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "富里|池上": {
+   "tracks": 1,
+   "parallelFrac": 0.013,
+   "lengthM": 6904,
+   "refs": [
+    "臺東線"
+   ]
+  },
+  "富里|東竹": {
+   "tracks": 1,
+   "parallelFrac": 0.025,
+   "lengthM": 6227,
+   "refs": [
+    "臺東線"
+   ]
+  },
+  "富岡|新富": {
+   "tracks": 2,
+   "parallelFrac": 0.85,
+   "lengthM": 1589,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "富岡|楊梅": {
+   "tracks": 2,
+   "parallelFrac": 0.947,
+   "lengthM": 6966,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "富源|瑞穗": {
+   "tracks": 1,
+   "parallelFrac": 0.029,
+   "lengthM": 9251,
+   "refs": [
+    "臺東線"
+   ]
+  },
+  "猴硐|瑞芳": {
+   "tracks": 2,
+   "parallelFrac": 0.862,
+   "lengthM": 4610,
+   "refs": [
+    "宜蘭線",
+    "深澳線"
+   ]
+  },
+  "集集|龍泉": {
+   "tracks": 1,
+   "parallelFrac": 0.116,
+   "lengthM": 4356,
+   "refs": [
+    "集集線"
+   ]
+  },
+  "新左營|楠梓": {
+   "tracks": 2,
+   "parallelFrac": 0.95,
+   "lengthM": 5091,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "新市|永康": {
+   "tracks": 2,
+   "parallelFrac": 0.885,
+   "lengthM": 4898,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "新城|景美": {
+   "tracks": 2,
+   "parallelFrac": 0.733,
+   "lengthM": 5362,
+   "refs": [
+    "北迴線"
+   ],
+   "override": "北迴線雙軌電氣化 2005 年全線完工，OSM 雙軌隧道只畫一條 way"
+  },
+  "新埔|白沙屯": {
+   "tracks": 1,
+   "parallelFrac": 0.217,
+   "lengthM": 3051,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "新埔|通霄": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 5795,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "新烏日|烏日": {
+   "tracks": 2,
+   "parallelFrac": 0.829,
+   "lengthM": 931,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "新馬|蘇澳新": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 988,
+   "refs": [
+    "北迴線",
+    "宜蘭線"
+   ]
+  },
+  "新莊|竹中": {
+   "tracks": 2,
+   "parallelFrac": 0.987,
+   "lengthM": 1348,
+   "refs": [
+    "內灣線",
+    "六家線"
+   ]
+  },
+  "新營|柳營": {
+   "tracks": 2,
+   "parallelFrac": 0.909,
+   "lengthM": 3333,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "新豐|竹北": {
+   "tracks": 2,
+   "parallelFrac": 0.909,
+   "lengthM": 4794,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "新豐|湖口": {
+   "tracks": 2,
+   "parallelFrac": 0.943,
+   "lengthM": 6211,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "楠梓|橋頭": {
+   "tracks": 2,
+   "parallelFrac": 0.981,
+   "lengthM": 4184,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "源泉|濁水": {
+   "tracks": 1,
+   "parallelFrac": 0.036,
+   "lengthM": 7886,
+   "refs": [
+    "集集線"
+   ]
+  },
+  "瑞和|瑞源": {
+   "tracks": 1,
+   "parallelFrac": 0.115,
+   "lengthM": 2707,
+   "refs": [
+    "臺東線"
+   ]
+  },
+  "瑞和|關山": {
+   "tracks": 1,
+   "parallelFrac": 0.002,
+   "lengthM": 7590,
+   "refs": [
+    "臺東線"
+   ]
+  },
+  "瑞源|鹿野": {
+   "tracks": 1,
+   "parallelFrac": 0.065,
+   "lengthM": 5552,
+   "refs": [
+    "臺東線"
+   ]
+  },
+  "萬榮|鳳林": {
+   "tracks": 2,
+   "parallelFrac": 0.767,
+   "lengthM": 4839,
+   "refs": [
+    "臺東線"
+   ]
+  },
+  "嘉北|民雄": {
+   "tracks": 2,
+   "parallelFrac": 0.971,
+   "lengthM": 6720,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "嘉北|嘉義": {
+   "tracks": 2,
+   "parallelFrac": 0.941,
+   "lengthM": 2524,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "嘉義|水上": {
+   "tracks": 2,
+   "parallelFrac": 0.96,
+   "lengthM": 6698,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "壽豐|平和": {
+   "tracks": 1,
+   "parallelFrac": 0.197,
+   "lengthM": 1822,
+   "refs": [
+    "臺東線"
+   ]
+  },
+  "壽豐|豐田": {
+   "tracks": 2,
+   "parallelFrac": 0.97,
+   "lengthM": 2731,
+   "refs": [
+    "臺東線"
+   ]
+  },
+  "彰化|成功": {
+   "tracks": 2,
+   "parallelFrac": 0.947,
+   "lengthM": 7192,
+   "refs": [
+    "成追線",
+    "縱貫線"
+   ]
+  },
+  "彰化|花壇": {
+   "tracks": 2,
+   "parallelFrac": 0.955,
+   "lengthM": 6613,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "彰化|追分": {
+   "tracks": 2,
+   "parallelFrac": 0.92,
+   "lengthM": 7195,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "榮華|竹東": {
+   "tracks": 1,
+   "parallelFrac": 0.263,
+   "lengthM": 1633,
+   "refs": [
+    "內灣線"
+   ]
+  },
+  "福隆|貢寮": {
+   "tracks": 2,
+   "parallelFrac": 0.963,
+   "lengthM": 3772,
+   "refs": [
+    "宜蘭線"
+   ]
+  },
+  "精武|臺中": {
+   "tracks": 2,
+   "parallelFrac": 0.894,
+   "lengthM": 1923,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "臺北|萬華": {
+   "tracks": 2,
+   "parallelFrac": 0.97,
+   "lengthM": 2862,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "鳳鳴|鶯歌": {
+   "tracks": 2,
+   "parallelFrac": 0.961,
+   "lengthM": 4937,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "潭子|頭家厝": {
+   "tracks": 2,
+   "parallelFrac": 0.912,
+   "lengthM": 1928,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "潮州|竹田": {
+   "tracks": 2,
+   "parallelFrac": 0.956,
+   "lengthM": 4122,
+   "refs": [
+    "屏東線"
+   ]
+  },
+  "樹林|浮洲": {
+   "tracks": 2,
+   "parallelFrac": 0.987,
+   "lengthM": 2891,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "橫山|竹東": {
+   "tracks": 1,
+   "parallelFrac": 0.062,
+   "lengthM": 3474,
+   "refs": [
+    "內灣線"
+   ]
+  },
+  "濁水|龍泉": {
+   "tracks": 1,
+   "parallelFrac": 0.116,
+   "lengthM": 4853,
+   "refs": [
+    "集集線"
+   ]
+  },
+  "嶺腳|平溪": {
+   "tracks": 1,
+   "parallelFrac": 0.014,
+   "lengthM": 979,
+   "refs": [
+    "平溪線"
+   ]
+  },
+  "嶺腳|望古": {
+   "tracks": 1,
+   "parallelFrac": 0.015,
+   "lengthM": 2071,
+   "refs": [
+    "平溪線"
+   ]
+  },
+  "礁溪|頂埔": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 4099,
+   "refs": [
+    "宜蘭線"
+   ]
+  },
+  "歸來|麟洛": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 2281,
+   "refs": [
+    "屏東線"
+   ]
+  },
+  "豐富|造橋": {
+   "tracks": 2,
+   "parallelFrac": 1,
+   "lengthM": 5938,
+   "refs": [
+    "縱貫線"
+   ]
+  },
+  "瀧溪|金崙": {
+   "tracks": 1,
+   "parallelFrac": 0.025,
+   "lengthM": 8311,
+   "refs": [
+    "南迴線"
+   ]
+  },
+  "蘇澳|蘇澳新": {
+   "tracks": 2,
+   "parallelFrac": 0.996,
+   "lengthM": 3277,
+   "refs": [
+    "北迴線",
+    "宜蘭線"
+   ]
+  }
+ }
+}

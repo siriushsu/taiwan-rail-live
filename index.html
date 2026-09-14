@@ -5454,11 +5454,11 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="remainingtracks0913"><span class="d">9/14</span><span>台鐵列車互穿再減少：補回 97 站的站區股道，雙線區間依行車方向分股行駛，台北–萬華地下段不再兩向共用同一條軌道，並改善單線會車判斷</span></li>
         <li data-cl-of="viewcontrols0914"><span class="d">9/14</span><span>觀看設定移到網站右側；手機可按「觀看」切換視角、地圖與列車設定，沉浸模式也能隨時重新開啟；修正地形切換時橋墩閃現與遠景列車大小設定未生效</span></li>
         <li data-cl-of="viewguide0914"><span class="d">9/14</span><span>地圖俯視與傾斜切換更平順，新增車站與地標導覽；放大跟車時保留車頭與手機操作空間</span></li>
         <li data-cl-of="delayselfheal0914"><span class="d">9/14</span><span>修正台鐵近 30 天準點率與準點排行偶爾停在幾天前，資料漏抓時當天會自動補上</span></li>
         <li data-cl-of="afrpushpull0913"><span class="d">9/13</span><span>修正阿里山林鐵機車的位置與方向，依路段呈現車尾推進、車頭牽引及之字形折返</span></li>
-        <li data-cl-of="remainingtracks0913"><span class="d">9/13</span><span>調整多站列車的停靠與進出股道，減少待避時重疊，以及部分追撞、對向互穿的畫面</span></li>
         <li data-cl-of="repeatreminder0913"><span class="d">9/13</span><span>到站提醒新增每天、週一到五或自訂星期的重複設定，通勤固定搭的那班設一次就長期有效</span></li>
         <li data-cl-of="glassnear0913"><span class="d">9/13</span><span>修正台北等密集市區近處建築缺少透視線條，優先保留畫面內的近景輪廓</span></li>
         <li data-cl-of="sanyingtransfers0912"><span class="d">9/12</span><span>修正三鶯線重複轉乘資訊，更新站名翻譯與鄰近公車轉乘資料</span></li>
@@ -5469,8 +5469,8 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="remainingtracks0913"><span class="d">9/14</span><span>調整台鐵各站停靠與進出股道，減少待避重疊、追撞與對向互穿；9/14 再補回 97 站的站區股道，雙線區間依行車方向分股行駛（台北–萬華地下段不再兩向共用同一條軌道），並改善單線會車判斷</span></li>
         <li data-cl="afrpushpull0913"><span class="d">9/13</span><span>修正阿里山林鐵機車的位置與方向，依路段呈現車尾推進、車頭牽引及之字形折返</span></li>
-        <li data-cl="remainingtracks0913"><span class="d">9/13</span><span>調整多站列車的停靠與進出股道，減少待避時重疊，以及部分追撞、對向互穿的畫面</span></li>
         <li data-cl="glassnear0913"><span class="d">9/13</span><span>修正台北等密集市區近處建築缺少透視線條，優先保留畫面內的近景輪廓</span></li>
         <li data-cl="sanyingtransfers0912"><span class="d">9/12</span><span>修正三鶯線重複轉乘資訊，更新站名翻譯與鄰近公車轉乘資料</span></li>
         <li data-cl="verifiedtracks0912"><span class="d">9/12</span><span>補回太麻里兩條月台股道，減少同站列車重疊；修正部分列車誤入同一股道的交會畫面</span></li>
@@ -6478,7 +6478,7 @@
 //         介紹卡／搜尋／收集章／3D 外觀全部自動接上，明星列車章 5→6 枚；環島之星與虛構的山海／平原號
 //         不再退回 EMU800 代表外觀，改成機車牽引的觀光列車（環島之星＝E500＋莒光客車）。
 //         守門人：verify_formations 新增具名覆蓋率斷言，名冊「有固定車次」的集合必須與對照表逐一相等。
-const BUILD = 'v0914c';
+const BUILD = 'v0914d';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -10602,6 +10602,228 @@ function assignRunProfiles(s, perf, obs, zoneCls, pre) {
     k0 = k1;
   }
 }
+// ── 交會／待避推論(台鐵限定;跑在 assignRunProfiles 之後) ──────────────────────────────
+// 通過站時刻是 assignRunProfiles 對【單一班車】的跑段曲線回填的,完全不知道班表設計的交會與待避:
+// 141 次在員林停 20:18–20:23 等 143 次通過(TDX 8/13 實錄),曲線卻把 143 回填在 20:23:36 ⇒ 143 被畫在
+// 141 後面追撞、被 #17 的 hold 頂到 120 秒上限;165 次回填在大武 19:13:03、428 次 19:16–19:18 才到大武
+// ⇒ 兩班 EMU3000 在單線的瀧溪–大武間迎面。2026-09-14 根因報告 R3(docs/tra-overlap-rootcause-0914.md)。
+// 這裡拿其他班車 Y 的【官方停靠時刻】當硬約束,把 X 的通過時刻夾回去(X 通過 S,前一站 P、下一站 N):
+//   同向待避(Y 的下一站也是 N):X 在 Y 離站後才通過 S,卻比 Y 先到 Y 的下一個官方停靠站 Q ⇒ X 在
+//     S–Q 之間穿過了 Y,閉塞制式下不可能——那是 Y 在 S 待避 X ⇒ X 必須在 Y 離站前(留 m 秒)通過。
+//   對向交會(Y 從 N 來或往 P 去)且中間有單線區間(data/tra_track_sections.json):兩班不能同時在站間,
+//     交會只能發生在有人停靠的站。Y 從 N 來:除非 X 在 Y 離開它上一個官方停靠站 R 之前就到了 R(在 R 交會),
+//     否則 X 得等 Y 到 S 之後才能往 N 走;Y 往 P 去:除非 X 是在 Y 到達它下一個官方停靠站 R′ 之後才經過 R′
+//     (在 R′ 交會),否則 X 得在 Y 離站前就通過 S。雙線區間對向互不相干,不動。
+// 夾法:把該站通過時刻當一顆受保護(z)的折點,連同原剖面其餘折點重建同一跑段的實測剖面。重建後錨點沒
+// 留住、或任一區間平均速度超過車種極速(端點區間 0.85 倍,與 buildObsProfile 的閘門同一把尺——它只能
+// 刪未保護的折點,刪不掉時會承認超速)⇒ 這一顆不套用,寧可維持原曲線(該場互穿留給閘門報)。
+// 只動通過站(stop===false)的 arrSec/depSec 與 rp;正式停靠時刻一律不動,派車綁定仍走 derived-pass-times。
+// 🔴 離線預算(scripts/build_run_profiles.mjs)與前端跑的是同一段原始碼,判斷只能吃兩邊都有、且兩邊
+//    相同的輸入:union＝多日聯集班表(前端 sys.data._denseTrains)、其 dates(哪天開哪些班)、單雙線表、
+//    X 自己這一跑段的時刻。Y 只准看【官方停靠】時刻——Y 的通過站時刻在前端只對今日名冊算過,聯集裡其他
+//    班還是 densify 的內插值,拿來判斷兩邊就會不一樣。X、Y 至少要有一天同時開行(dates 交集非空)才會相遇。
+//    約束只來自 Y 的官方停靠時刻與 X 自己的跑段,所以結果不依賴 trains 的順序、也不依賴 Y 是否在今日名冊;
+//    前端讀到離線預算的剖面時重跑一次只會確認「已在窗內」,不會再動。
+const MEET_HEADWAY_SEC = 300;   // 同向待避最多把通過時刻往前夾這麼多秒;再多就不是估錯而是真的跟在後面
+// 🔴 這個 300 秒對【對向交會】其實偏緊(上面那句理由只對同向成立:對向車的通過時刻誤差是整段單線的
+// 跑行時間,南迴花東一段十幾分鐘;實測 100 筆超限裡 94 筆是對向交會、中位位移 595 秒)。但 2026-09-14
+// 實測把對向交會的上限單獨拆出來放寬【不可以做】:600 秒與 900 秒兩檔的 4 秒全日掃描都退步——
+// 總場數雖從 656 降到 648／645,卻讓 A-追撞家族從 24 升到 27／28、並長出基線沒有的
+// 「C-通過車穿過停站車,無平行股道」2 場。根因是本函式對每一跑段【貪婪套用、套完不回頭檢查】:
+// 5256 次被 4517 的交會往後推 9.9 分鐘之後,在花蓮／志學撞上 6676；6099 提早 304 秒後在太麻里
+// 撞上 423。要放寬上限得先讓套用後能對全隊重新檢查衝突,不是改這個數字。
+// 逐場證據與三檔上限的統計在 output/audit-0914/time-model-run.md。
+const MEET_NEAR_SEC = 1800;     // 只看時刻相近的停靠,更遠的班互不相干(單線長區間的交會也在半小時內)
+function inferMeetPassTimes(trains, union, sections) {
+  const stats = { snapped: 0, infeasible: 0, unbuildable: 0, tooFar: 0, zoneSkipped: 0, log: [] };
+  if (!union || !Array.isArray(union.trains)) return stats;
+  const keyOf = tr => tr.train + ':' + tr.stops[0].depSec + ':' + tr.stops[tr.stops.length - 1].arrSec;
+  const days = new Map();                         // 班鍵 → Set(開行日);沒有 dates 資料的班視為天天開
+  for (const [day, idxs] of Object.entries(union.dates || {})) for (const i of idxs) {
+    const tr = union.trains[i]; if (!tr || !tr.stops || !tr.stops.length) continue;
+    const k = keyOf(tr); (days.get(k) || days.set(k, new Set()).get(k)).add(day);
+  }
+  const shareDay = (a, b) => { const A = days.get(a), B = days.get(b); if (!A || !B) return true; for (const d of A) if (B.has(d)) return true; return false; };
+  const at = new Map();                           // 站名 → Y 的官方停靠(含起終點)＋前後官方停靠站的時刻
+  for (const tr of union.trains) {
+    if (!tr || !tr.stops || tr.stops.length < 2 || tr.loop) continue;
+    const k = keyOf(tr), s = tr.stops;
+    let pv = -1;                                  // 上一個官方停靠的站序
+    for (let j = 0; j < s.length; j++) {
+      const st = s[j]; if (st.stop === false) continue;
+      let nx = j + 1; while (nx < s.length && s[nx].stop === false) nx++;
+      (at.get(st.name) || at.set(st.name, []).get(st.name)).push({ k, arr: st.arrSec, dep: st.depSec,
+        prev: j > 0 ? s[j - 1].name : null, next: j + 1 < s.length ? s[j + 1].name : null,
+        prevStop: pv >= 0 ? s[pv].name : null, prevDep: pv >= 0 ? s[pv].depSec : null,
+        nextStop: nx < s.length ? s[nx].name : null, nextArr: nx < s.length ? s[nx].arrSec : null });
+      pv = j;
+    }
+  }
+  // 區間表的鍵=兩站名正規化成班表用字「臺」後排序(產生端 scripts/lib/parallel_tracks.mjs 的 sectionKey())。
+  // 表是從派車表產的,站名用 OSM 用字「台東/台北/台南/台中」,這裡拿到的是班表站名「臺東/臺北…」;
+  // 不正規化的話所有含臺/台的站對查不到,而查不到不會報錯(當成不是單線)=>整段交會推論失明。
+  const secKey = (a, b) => [a, b].map(n => String(n).replace(/台/g, '臺')).sort().join('|');
+  const single = (a, b) => { if (!sections) return false; const p = sections[secKey(a, b)]; return !!p && p.tracks === 1; };
+  for (const tr of trains) {
+    if ((tr.sys && tr.sys !== 'tra_sched') || tr.loop || !tr.stops || tr.stops.length < 3) continue;
+    const s = tr.stops, xk = keyOf(tr), perf = resolvePerf(tr), zoneCls = speedZoneClassOf(tr);
+    let k0 = 0;
+    for (let k1 = 1; k1 < s.length; k1++) {
+      if (s[k1].stop === false && k1 < s.length - 1) continue;
+      if (k1 - k0 >= 2 && s[k0].rp) inferMeetRun(tr, s, k0, k1, xk, perf, zoneCls, at, shareDay, single, stats);
+      k0 = k1;
+    }
+  }
+  return stats;
+}
+// 一個跑段。每一輪:逐通過站算「允許的通過時刻區間」,不在區間內的都是候選;先套【位移最小】的那一顆
+// (同一場衝突常有兩種解法——X 趕在 Y 開車前通過、或等 Y 到站後才走——位移小的才是班表設計的那一種),
+// 重建剖面後同跑段其他通過站的時刻都會動,所以整段重算,直到沒有候選為止(上限 8 顆)。
+// 重建不合格的候選記下來不再試(rejected),換下一顆位移次小的。
+function inferMeetRun(tr, s, k0, k1, xk, perf, zoneCls, at, shareDay, single, stats) {
+  const segKm = []; let runKm = 0;
+  for (let i = k0; i < k1; i++) { segKm.push(s[i].rpSegKm); runKm += s[i].rpSegKm; }
+  if (!(runKm > 0)) return;
+  // 彎道速限跑段(新馬／和仁):節點是官方核定值,不與交會折點混排,整段不動。
+  if (zoneCls && runSpeedZones(s, k0, k1, segKm, zoneCls, perf.v, runKm * 1000)) { stats.zoneSkipped++; return; }
+  const off = i => i < k1 ? s[i].rpOff : runKm * 1000;          // 距跑段起點公尺(末站＝跑段全長)
+  const idx = (name, from, to) => { for (let i = from; i <= to; i++) if (s[i].name === name) return i; return -1; };
+  // Y 在 X 的第 i 站的時刻:Y 在兩個官方停靠站之間的時刻按 X 的里程線性內插(Y 自己的通過站時刻不能用,
+  // 見 inferMeetPassTimes 檔頭);Y 的那個官方停靠站不在 X 這一跑段裡時,整段一律當成 Y 都可能在(粗估)。
+  const overlaps = (a0, a1, b0, b1) => a0 < b1 && b0 < a1;
+  const conflictOn = (a, b, yAtA, yAtB, exact) => {              // X 從第 a 站走到第 b 站(a<b),Y 反向;有單線段同時被佔 ⇒ true
+    for (let i = a; i < b; i++) {
+      if (!single(s[i].name, s[i + 1].name)) continue;
+      const x0 = i === a ? s[a].depSec : s[i].arrSec, x1 = s[i + 1].arrSec;
+      let y0, y1;
+      if (exact) { const f0 = (off(i) - off(a)) / (off(b) - off(a)), f1 = (off(i + 1) - off(a)) / (off(b) - off(a)); y0 = yAtA + (yAtB - yAtA) * f1; y1 = yAtA + (yAtB - yAtA) * f0; }
+      else { y0 = Math.min(yAtA, yAtB); y1 = Math.max(yAtA, yAtB); }
+      if (overlaps(x0, x1, y0, y1)) return true;
+    }
+    return false;
+  };
+  const rejected = new Set();
+  for (let round = 0; round < 8; round++) {
+    const cands = [];
+    for (let j = k0 + 1; j < k1; j++) {
+      const tp = s[j].arrSec, name = s[j].name, P = s[j - 1].name, N = s[j + 1].name;
+      // hi 拆成兩個來源分開記:同向待避(hiWait)與對向交會(hiMeet)。平常取兩者較小的那一個當上界,
+      // 只有在「下界比上界還晚」(窗內無解)時才需要分辨誰是硬約束——見下面 lo > hi 那一段。
+      let lo = -Infinity, hiWait = Infinity, hiMeet = Infinity, whyLo = null, whyHiWait = null, whyHiMeet = null;
+      for (const y of at.get(name) || []) {
+        if (y.k === xk || (Math.abs(tp - y.arr) > MEET_NEAR_SEC && Math.abs(tp - y.dep) > MEET_NEAR_SEC) || !shareDay(xk, y.k)) continue;
+        const dwell = y.dep - y.arr, end = !y.prev || !y.next;   // 起終點站:停多久沒有意義,留 30 秒
+        if (!end && dwell < 30) continue;                        // 班表 30 秒解析度,看不到的停靠不當交會點
+        const m = end ? 30 : Math.min(30, Math.floor(dwell / 3));
+        if (y.next === N && y.nextStop && tp > y.dep) {                                            // 同向待避
+          const q = idx(y.nextStop, j + 1, k1);
+          if (q > 0 && s[q].arrSec < y.nextArr && y.dep - m < hiWait) { hiWait = y.dep - m; whyHiWait = '待避 ' + y.k; }
+        }
+        if (y.prev === N && y.prevStop && tp < y.arr) {                                            // 對向:Y 從 N 來
+          let r = idx(y.prevStop, j + 1, k1); const exact = r > 0; if (!exact) r = k1;
+          if (conflictOn(j, r, y.arr, y.prevDep, exact) && y.arr + m > lo) { lo = y.arr + m; whyLo = '交會(等它到) ' + y.k; }
+        }
+        if (y.next === P && y.nextStop && tp > y.dep) {                                            // 對向:Y 往 P 去
+          let r = -1; for (let i = j - 1; i >= k0; i--) if (s[i].name === y.nextStop) { r = i; break; }
+          const exact = r >= 0; if (!exact) r = k0;
+          if (conflictOn(r, j, y.nextArr, y.dep, exact) && y.dep - m < hiMeet) { hiMeet = y.dep - m; whyHiMeet = '交會(趕它開) ' + y.k; }
+        }
+      }
+      const hi = Math.min(hiWait, hiMeet), whyHi = hiMeet <= hiWait ? whyHiMeet : whyHiWait;
+      if (tp >= lo - 0.5 && tp <= hi + 0.5) continue;
+      let target = tp < lo ? lo : hi, why = tp < lo ? whyLo : whyHi;
+      if (lo > hi) {
+        // 窗內無解(下界比上界還晚)。原本兩邊都不套用,等於把整顆約束丟掉;但這兩種約束的份量不一樣:
+        // 【單線對向交會】是閉塞制式的硬約束——兩班不可能同時在同一段單線上,這是物理;
+        // 【同向待避】只是從「X 比 Y 先到 Y 的下一個官方停靠站」反推出來的推論,前提本身就可能錯
+        // (X 的到站時刻是表定、Y 的下一站時刻也是表定,兩者的精度差一分鐘就會推出假的待避)。
+        // 所以打架時讓推論那一邊:165 次在枋寮——交會(等它到) 386 要它晚、待避 3021 要它早,
+        // 丟掉待避之後窗就開了。丟掉之後原值本來就落在交會的窗內,就什麼都不用動。
+        // 兩邊都是交會(實測 10 筆裡 8 筆)代表班表在這一站排了兩場交會、模型挑不出誰對,
+        // 取離原值較近的那一個——位移小的才是班表設計的那一種(與下面 cands 依 shift 排序同一個理由)。
+        const id = j + ':x';
+        if (!rejected.has(id)) { rejected.add(id); stats.infeasible++; if (stats.log.length < 400) stats.log.push({ no: tr.train, k: xk, station: name, from: Math.round(tp), why: whyLo + ' vs ' + whyHi, skip: 'infeasible' }); }
+        if (lo <= hiMeet) {
+          if (tp >= lo - 0.5 && tp <= hiMeet + 0.5) continue;
+          target = tp < lo ? lo : hiMeet; why = tp < lo ? whyLo : whyHiMeet;
+        } else {
+          const useLo = Math.abs(lo - tp) <= Math.abs(hiMeet - tp);
+          target = useLo ? lo : hiMeet; why = useLo ? whyLo : whyHiMeet;
+        }
+      }
+      const shift = Math.abs(target - tp);
+      if (!(shift > 0.5)) continue;   // 已經在該去的位置(窗內無解那條路徑才可能走到這裡,否則上面就 continue 了)
+      if (shift > MEET_HEADWAY_SEC) { const id = j + ':' + Math.round(target); if (!rejected.has(id)) { rejected.add(id); stats.tooFar++; if (stats.log.length < 400) stats.log.push({ no: tr.train, k: xk, station: name, from: Math.round(tp), to: Math.round(target), why, skip: 'tooFar' }); } continue; }
+      if (rejected.has(j + ':' + Math.round(target))) continue;
+      cands.push({ j, target, shift, why, tp });
+    }
+    if (!cands.length) break;
+    cands.sort((a, b) => a.shift - b.shift || a.j - b.j);
+    let applied = false;
+    for (const c of cands) {
+      const rec = { no: tr.train, k: xk, station: s[c.j].name, from: Math.round(c.tp), to: Math.round(c.target), why: c.why };
+      const rp = reanchorRunProfile(s, k0, k1, c.j, c.target, perf, runKm);
+      if (!rp) { rejected.add(c.j + ':' + Math.round(c.target)); stats.unbuildable++; rec.skip = 'unbuildable'; if (stats.log.length < 400) stats.log.push(rec); continue; }
+      applyRunProfile(s, k0, k1, rp, runKm);
+      stats.snapped++; rec.to = Math.round(s[c.j].arrSec); if (stats.log.length < 400) stats.log.push(rec); applied = true; break;
+    }
+    if (!applied) break;
+  }
+}
+// 把第 j 站(通過站)的通過時刻釘在 target(絕對秒)重建跑段剖面。其餘折點沿用原剖面,與錨點時間順序衝突的
+// 讓路;重建後若有區間要求的平均速度超過車種極速(端點區間 0.85 倍,與 buildObsProfile 的閘門同一把尺),
+// 就丟掉該區間非錨點那一側的實測折點再建——錨點是班表推出來的硬約束,實測折點只是統計形狀,且實測層本來
+// 就會把該車常態誤點型態帶進準點班表(143 次出彰化 6.6 公里走 10 分鐘),誰讓路很清楚。
+// runKm 必須是 assignRunProfiles 同序累加出來的值,重建的 L 才逐 bit 相同(離線預算的 T/L 閘門用它比對)。
+// 回 null＝建不出合格剖面(錨點沒留住、或只剩端點還是超速)。
+function reanchorRunProfile(s, k0, k1, j, target, perf, runKm) {
+  const rp0 = s[k0].rp, runDep = s[k0].depSec, runT = s[k1].arrSec - runDep, dS = s[j].rpOff;
+  const tA = Math.round(target - runDep);
+  if (!(tA > 4 && tA < runT - 4)) return null;
+  let pts = [];
+  if (rp0.obs) for (let i = 1; i < rp0.xs.length - 1; i++) {
+    const t = rp0.xs[i], d = rp0.ys[i];
+    if (Math.abs(d - dS) < 1 || (d < dS ? t > tA - 5 : t < tA + 5)) continue;
+    pts.push({ t, d });
+  }
+  pts.push({ t: tA, d: dS, z: true });
+  pts.sort((a, b) => a.d - b.d);
+  const vMid = (perf.v > 0 ? perf.v : 135) / 3.6, vEnd = vMid * 0.85;
+  for (let guard = 0; guard < 64; guard++) {
+    const rp = buildObsProfile(runKm, runT, pts, perf.v);
+    if (!rp) return null;
+    const n = rp.xs.length, ia = rp.ys.indexOf(dS);
+    if (ia <= 0 || ia >= n - 1 || rp.xs[ia] !== tA) return null;
+    let bad = -1;
+    for (let q = 0; q < n - 1; q++) {
+      const v = (rp.ys[q + 1] - rp.ys[q]) / (rp.xs[q + 1] - rp.xs[q]);
+      if (v > (q === 0 || q === n - 2 ? vEnd : vMid)) { bad = q; break; }
+    }
+    if (bad < 0) return rp;
+    const drop = bad + 1 !== ia && bad + 1 < n - 1 ? rp.ys[bad + 1] : bad !== ia && bad > 0 ? rp.ys[bad] : null;
+    // drop == null ＝【超速的那一側根本沒有折點可刪】:錨點緊鄰跑段端點(ia===1 或 ia===n-2),
+    // 超標的區間就是「真停靠站 ↔ 錨點」本身。2026-09-14 實測:把交會的位移上限從 300 一路放到 1800,
+    // 每一種上限下的 unbuildable(9→48 筆)【全部】落在這個分支,沒有一筆是 tA 出界或錨點沒留住。
+    // 所以「在錨點兩側各多刪一顆實測折點再重建」這條路走不通:超標的是 dS/tA 這個平均速度,它由
+    // 約束本身與【不准動的官方停靠時刻】共同決定,刪掉任何折點都改不動它。cap=300 那 9 筆裡 6 筆
+    // 連車種極速 vMid 都超過(最兇的 420 次汐止要 5882 公尺/30 秒＝706 km/h),另 3 筆介於 vEnd 與
+    // vMid 之間——而那一側的端點是真停靠站(車子從靜止起步),0.85 的端點係數正是為此而設。
+    // 結論:走到這裡代表【班表推出來的約束在物理上做不到】,維持原曲線、讓互穿閘門去報才是誠實的。
+    if (drop == null) return null;
+    const before = pts.length;
+    pts = pts.filter(p => p.d !== drop);
+    if (pts.length === before) return null;
+  }
+  return null;
+}
+// 換掉整個跑段的剖面並依它回填通過站時刻(與 assignRunProfiles 的回填逐字同一條算式)。
+function applyRunProfile(s, k0, k1, rp, runKm) {
+  const runDep = s[k0].depSec; let cum = 0;
+  for (let i = k0; i < k1; i++) {
+    s[i].rp = rp; cum += s[i].rpSegKm;
+    if (i + 1 < k1 && s[i + 1].stop === false) s[i + 1].arrSec = s[i + 1].depSec = runDep + profProgToTime(rp, cum / runKm);
+  }
+}
 
 // 跨午夜時間軸的唯一判定(2026-08-08,452 事件):「t 要不要 +86400 解讀成前一日發車的班」集中在這裡。
 // 三種身分三種答案:
@@ -11128,6 +11350,10 @@ function applySchedSystems(sysList) {
     const trs = state.trains.filter(t => t.sys === sys.id);
     const lns = state.trackLines.filter(l => l.sys === sys.id);
     if (lns.length) assignSchedShapePathsFor(trs, lns);
+    // 交會／待避推論(台鐵限定):要等全部台鐵車的跑段曲線都建好才看得到彼此的停站窗。
+    // 聯集班表與 dates 走 _denseTrains(今日名冊只是它的切片),與離線預算餵同一份輸入。
+    if (sys.id === 'tra_sched' && lns.length)
+      state._meetStats = inferMeetPassTimes(trs, { trains: sys.data._denseTrains || sys.data.trains, dates: sys.data.dates }, state.trackSections);
   }
   if (sysList.some(s => s.special)) retimeLoopTrains(); // 貼軌後才有弧長,環島車此時才能鋪
   computeFlow();
@@ -35099,6 +35325,7 @@ async function boot() {
   const platformsP = _p(fetchJSON('./data/tra_platforms.json'));
   const passObsP   = _p(fetchJSON('./data/tra_pass_obs.json'));
   const runProfP   = _p(fetchJSON('./data/tra_run_profiles.json'));
+  const sectionsP  = _p(fetchJSON('./data/tra_track_sections.json'));
   const specialP   = _p(fetchJSON('./data/tra_special_trains.json'));
 
   // 以下只是「收貨」,順序與改動前逐字相同(state.systems 仍照 SYS_DEFS 順序 push)
@@ -35138,6 +35365,9 @@ async function boot() {
   // 貼軌里程＋車種＋實測折點＋彎道速限;即時誤點是 easedShift 另一層),算在前端就代表【調校
   // 要重出 App build 才修得到已安裝的使用者】。缺檔 → null ⇒ 每一條跑段原地現算,行為逐字不變。
   state.runProfiles = (await runProfP)?.trains || null;
+  // 台鐵相鄰兩站之間單線／雙線(scripts/build_tra_track_sections.mjs 由 network.json 幾何產)。交會／待避
+  // 推論(inferMeetPassTimes)的對向規則只在單線區間成立;缺檔 → null ⇒ 對向規則整個不套用,同向待避照常。
+  state.trackSections = (await sectionsP)?.pairs || null;
   // 特別列車故事檔案(車型/具名觀光列車/支線);缺檔時 specialOf 回 null,退回內建簡版介紹
   state.special = await specialP;
   if (state.special) state.special.branchLines.forEach(b => { b._set = new Set(b.matchStations); });
