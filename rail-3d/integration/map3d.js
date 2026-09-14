@@ -14,7 +14,8 @@ import {createHeadlightSpill} from './headlight-spill.js';
 import {createTunnelApertures} from './tunnel-apertures.js';
 import {groupTunnelPortals,PORTAL_GROUND_U} from './tunnel-portals.js';
 import {installTrainLighting,prepareWindowLighting,createTrainLamps,nightAmount,tunnelAmount} from './train-lighting.js';
-import {headFramingDistance} from './follow-framing.js';
+import {headFramingDistance,headFramingPadding} from './follow-framing.js';
+import {cameraMotion} from './camera-motion.js';
 import {createLandscapeTrees} from './landscape-trees.js';
 import {orderBuildingPasses} from './layer-order.js';
 
@@ -44,7 +45,8 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   const transform=new THREE.Matrix4().makeTranslation(anchor.x,anchor.y,0).scale(new THREE.Vector3(unit,-unit,unit));
   const cache=new Map(),pending=new Map(),models=new Map(),failed=new Set(),paths=new WeakMap(),motion=new Map(),formations=new WeakMap();
   const rails=profileLines(scene),undergroundRails=profileLines(scene,{underground:true}),structures=createRailStructures(scene),apertures=createTunnelApertures((x,y)=>{const q=new ml.MercatorCoordinate(anchor.x+x*unit,anchor.y-y*unit).toLngLat(),h=map.queryTerrainElevation([q.lng,q.lat]);return Number.isFinite(h)?world([q.lng,q.lat],h)[2]:null;});
-  let followingCamera=false,zoomFollows=null,followReturn=null,framingView=null;const pointers=new Set();
+  let followingCamera=false,zoomFollows=null,followReturn=null,framingView=null,framingPanelAt=0,framingPanelTop=null,framingControlsBottom=0;const pointers=new Set();
+  const motionCamera=cameraMotion(map,{apply:pose=>{const previous=state._autoPan;state._autoPan=true;followingCamera=true;try{map.jumpTo(pose);}finally{followingCamera=false;state._autoPan=previous;}},onEnd:()=>map.fire('pitchend')});
   let profileVertices=[],gesture=false,gesturePanned=false,gestureOrbited=false,gestureTimer=0,ambientWas=false,ambientView=null,cameraAt=0,orbitBearing=0;
   const material=createWenhuMaterial(THREE);installTrainLighting(material,THREE);const lamps=createTrainLamps(THREE);material.transparent=false;material.opacity=1;
   // 在 CPU 的雙精度矩陣先合成每節車的投影，避免 GPU 以全台公尺座標做大數相減。
@@ -355,7 +357,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     else{const delta=((target-orbitBearing+540)%360)-180;orbitBearing+=delta*(1-Math.exp(-dt*1.4));}
     stats.ambientCamera=mode;return {bearing:orbitBearing,pitch:mode==='orbit'?52:62,zoom:Math.max(15.6,map.getZoom())};
   }
-  function destroy(){if(disposed)return;disposed=true;trees?.destroy();clearTimeout(gestureTimer);for(const [target,type,handler]of inputListeners)target.removeEventListener(type,handler,true);
+  function destroy(){if(disposed)return;disposed=true;motionCamera.cancel();trees?.destroy();clearTimeout(gestureTimer);for(const [target,type,handler]of inputListeners)target.removeEventListener(type,handler,true);
     for(const [type,handler]of mapListeners)map.off(type,handler);if(stationLayer){if(map.getLayer(stationLayer.id)?.implementation===stationLayer)map.removeLayer(stationLayer.id);else stationLayer.onRemove();}
     if(map.getLayer('live-tunnel-apertures'))map.removeLayer('live-tunnel-apertures');
     if(vehicleLayer&&map.getLayer('live-vehicles-3d')===vehicleLayer)map.removeLayer('live-vehicles-3d');if(underlayLayer&&map.getLayer('live-vehicles-underlay')===underlayLayer)map.removeLayer('live-vehicles-underlay');
@@ -402,7 +404,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
       undergroundRails.render(el.clientWidth,el.clientHeight,routeWidth(map.getZoom()),map.getZoom()>=14,frame?.display?.dark);webgl.render(scene,camera);camera.layers.set(0);
     }});undergroundLayer=map.getLayer('live-underground-3d');
     orderBuildingPasses(map);
-    function startGesture(e){if(!e.originalEvent)return;onInteract?.();if(!gesture){gesturePanned=false;gestureOrbited=false;followReturn=null;stats.followReturning=false;}gesture=true;clearTimeout(gestureTimer);}
+    function startGesture(e){if(!e.originalEvent)return;motionCamera.cancel();onInteract?.();if(!gesture){gesturePanned=false;gestureOrbited=false;followReturn=null;stats.followReturning=false;}gesture=true;clearTimeout(gestureTimer);}
     // 在引擎下一個 rAF 處理手勢前就保留操作權，避免跟車 jumpTo 先中止輸入。
     function listen(target,type,handler){target.addEventListener(type,handler,{capture:true,passive:true});inputListeners.push([target,type,handler]);}
     listen(map.getCanvas(),'pointerdown',e=>{pointers.add(e.pointerId);startGesture({originalEvent:e});
@@ -424,7 +426,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     // 舊條件永遠不成立 ⇒ DEM 晚於首次建置抵達時,橋墩與橋面會一直停在 0m 被地形埋住。
     listenMap('sourcedata',e=>{if(terrainState.terrain&&e.sourceId==='terrain'&&(e.tile||e.sourceDataType==='content'))dirty=true;});
     ready=true;
-    return {map,stats,update,get interacting(){return gesture;},getVehicleLabels:()=>markers?.boxes||[],getRenderMemory:()=>({...webgl.info.memory}),
+    return {map,stats,update,animateCamera:motionCamera.animate,cancelCamera:motionCamera.cancel,get transitioning(){return motionCamera.active;},get positioning(){return motionCamera.positioning;},get interacting(){return gesture;},getVehicleLabels:()=>markers?.boxes||[],getRenderMemory:()=>({...webgl.info.memory}),
       setGroundMode(mode){const relief=mode==='terrain';if(relief===terrainState.terrain)return;terrainState.terrain=relief;groundMode=relief?'terrain':'flat';stats.groundMode=groundMode;stats.displayHeight=relief?'DEM + estimated rail levels':'estimated rail levels';map.setTerrain(relief?{source:'terrain',exaggeration:1}:null);map.jumpTo({elevation:0});clearLines();dirty=true;lastBuild=0;stationLayer?.refresh();trees?.schedule();if(frame)update(frame);},
       setFormationMode(mode){formationMode=mode==='three'?'three':'actual';stats.formationMode=formationMode;failed.clear();if(frame)update(frame);},getStations:()=>stationLayer,getStationLabels:()=>stationLabels?.boxes||[],setTrainSizeMode(mode){trainSizeMode=mode==='scale'?'scale':'readable';stats.trainSizeMode=trainSizeMode;},resize:()=>map.resize(),getView:()=>({center:map.getCenter().toArray(),zoom:map.getZoom(),pitch:map.getPitch(),bearing:map.getBearing()}),
       setView(v){const c=map.getCenter();if(Math.abs(c.lng-v.center[0])+Math.abs(c.lat-v.center[1])>1e-9||Math.abs(map.getZoom()-v.zoom)>1e-6)map.jumpTo(v);},
@@ -437,6 +439,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
         return {coordinate:target.coordinate,elevation};
       },
       followCoordinate(coord,insets){
+        if(motionCamera.positioning)motionCamera.cancel();
         if(gesture){stats.followSuppressed=(stats.followSuppressed||0)+1;return;}
         const w=el.clientWidth,h=el.clientHeight,padding={...insets};
         if(padding.left+padding.right>w-80){const k=(w-80)/(padding.left+padding.right);padding.left*=k;padding.right*=k;}
@@ -447,13 +450,22 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
         const elevation=profile?.height??height(coord)??0,c=map.getCenter(),p=map.getPadding();
         const pose=frame?.display?.northUp?null:cinematicPose(v);
         const view={id:v?.id,zoom:map.getZoom(),pitch:map.getPitch(),bearing:map.getBearing(),formation:model?.key,width:w,height:h};
-        if(!ambientWas&&framingView?.id===view.id&&['zoom','pitch','bearing','formation','width','height'].some(k=>view[k]!==framingView[k]))followReturn={id:view.id};
+        if(!motionCamera.active&&!ambientWas&&framingView?.id===view.id&&['zoom','pitch','bearing','formation','width','height'].some(k=>view[k]!==framingView[k]))followReturn={id:view.id};
         framingView=view;
         let center=coord,viewElevation=elevation;
         if(profile&&(!terrainState.terrain||profile.path.elevation||profile.path.level)){
           const first=model?.parts[0],headS=profile.s+profile.direction*(first?.offsetM??0),span=Math.min(8,(first?.lengthM??20)*.32),a=profile.path.at(headS-profile.direction*span),b=profile.path.at(headS+profile.direction*span);
           const angle=a&&b?Math.atan2(b.coordinate[1]-a.coordinate[1],(b.coordinate[0]-a.coordinate[0])*Math.cos(coord[1]*Math.PI/180)):profile.angle+(profile.direction<0?Math.PI:0);
-          const distance=headFramingDistance(model,{zoom:pose?.zoom??map.getZoom(),pitch:pose?.pitch??map.getPitch(),bearing:pose?.bearing??map.getBearing(),angle,latitude:coord[1],width:w,height:h,padding});
+          const framing={zoom:pose?.zoom??map.getZoom(),pitch:pose?.pitch??map.getPitch(),bearing:pose?.bearing??map.getBearing(),angle,latitude:coord[1],width:w,height:h,padding};
+          // 窄螢幕的長車頭橫跨小卡旁的窄縫時，改用小卡上方的完整寬度。
+          // 只量可見的左下跟車卡；抽屜與橫向側欄仍保留原本的讓位範圍。
+          if(w<=768&&h>w&&padding.left>0&&padding.right<=80){
+            if(performance.now()-framingPanelAt>80){framingPanelAt=performance.now();framingPanelTop=null;const rect=el.getBoundingClientRect(),actions=document.getElementById('mapActions');framingControlsBottom=0;if(actions){const style=getComputedStyle(actions),b=actions.getBoundingClientRect();if(style.visibility!=='hidden'&&Number(style.opacity)>=.5&&b.width&&b.height)framingControlsBottom=Math.max(0,b.bottom-rect.top+12);}
+              for(const id of ['followPanel','freqCard']){const card=document.getElementById(id);if(!card||card.hidden||card.closest('.board'))continue;const style=getComputedStyle(card),b=card.getBoundingClientRect();if(style.visibility==='hidden'||Number(style.opacity)<.5||!b.width||!b.height||b.left>rect.left+w*.3||b.top<rect.top+h*.45)continue;framingPanelTop=Math.min(framingPanelTop??h,b.top-rect.top);}
+            }
+            Object.assign(padding,headFramingPadding(model,framing,framingPanelTop,framingControlsBottom));
+          }
+          const distance=headFramingDistance(model,framing);
           const target=distance>0&&profile.path.at(profile.s+profile.direction*distance);
           if(target){center=target.coordinate;viewElevation=railHeight(profile.path,target.s);}
           stats.followFraming={id:v.id,distanceM:target?distance:0,coordinate:center,elevation:viewElevation};
@@ -476,7 +488,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
       alignment(){const h=hits.find(h=>h.v.followed);if(!h)return null;let closest=null;for(const a of profileVertices){for(let i=0;i<a.length;i+=6){const dx=a[i+3]-a[i],dy=a[i+4]-a[i+1],d=dx*dx+dy*dy,t=Math.max(0,Math.min(1,((h.p[0]-a[i])*dx+(h.p[1]-a[i+1])*dy)/(d||1))),p=[a[i]+dx*t,a[i+1]+dy*t,a[i+2]+(a[i+5]-a[i+2])*t],horizontal=Math.hypot(p[0]-h.p[0],p[1]-h.p[1]);if(!closest||horizontal<closest.horizontal)closest={horizontal,heightDelta:p[2]-h.p[2],vehicle:project(h.p),rail:project(p),p,train:h.p};}}return closest;},
       projectedRailSamples(){return profileVertices.flatMap(a=>{const out=[];for(let i=0;i<a.length;i+=6)out.push(project([(a[i]+a[i+3])/2,(a[i+1]+a[i+4])/2,(a[i+2]+a[i+5])/2]));return out;});},
       projectedModels(){return [...models].flatMap(([id,m])=>{if(!m.group?.visible)return [];const box=new THREE.Box3().setFromObject(m.group),points=[];for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z])points.push(project([x,y,z]));return [{id,width:Math.max(...points.map(p=>p.x))-Math.min(...points.map(p=>p.x)),height:Math.max(...points.map(p=>p.y))-Math.min(...points.map(p=>p.y))}];});},
-      projectedCars(){return [...models].flatMap(([id,m])=>m.group?.visible?m.cars.map((car,index)=>{const mesh=car.children[0],box=mesh.geometry.boundingBox,corners=[];for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z])corners.push(project(new THREE.Vector3(x,y,z).applyMatrix4(mesh.matrixWorld).toArray()));return {id,index,center:project(car.position.toArray()),roof:project([car.position.x,car.position.y,car.position.z+2]),scale:car.scale.toArray(),bounds:{left:Math.min(...corners.map(p=>p.x)),right:Math.max(...corners.map(p=>p.x)),top:Math.min(...corners.map(p=>p.y)),bottom:Math.max(...corners.map(p=>p.y))}};}):[]);},
+      projectedCars(){return [...models].flatMap(([id,m])=>m.group?.visible?m.cars.map((car,index)=>{const mesh=car.children[0],box=mesh.geometry.boundingBox,corners=[];for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z])corners.push(project(new THREE.Vector3(x,y,z).applyMatrix4(mesh.matrixWorld).toArray()));return {id,index,corners,center:project(car.position.toArray()),roof:project([car.position.x,car.position.y,car.position.z+2]),scale:car.scale.toArray(),bounds:{left:Math.min(...corners.map(p=>p.x)),right:Math.max(...corners.map(p=>p.x)),top:Math.min(...corners.map(p=>p.y)),bottom:Math.max(...corners.map(p=>p.y))}};}):[]);},
       frontScreen(){const m=models.get(frame?.selectedVehicleId);return m?.group?.visible&&(frame?.headLocked||stats.followFraming?.distanceM>0)?project(m.cars[0].position.toArray()):null;},
       hasModel:id=>!!models.get(id)?.group?.visible,
       profileKeys:()=>map.getZoom()>=14?[...(terrainState.terrain?(frame?.routes||[]).filter(r=>!r.physical&&pathFor(r)?.elevation).map(r=>r.lineKey):[]),...(frame?.replacedLineKeys||[])]:[],

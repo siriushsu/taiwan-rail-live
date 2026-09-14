@@ -128,6 +128,13 @@ literalKeys.push(...[...garageSource.matchAll(/\btr\(\s*(['"])((?:\\.|(?!\1).)*)
 literalKeys.push('完乘 {count} 趟','累積旅程 {count} 公里','收集 {count} 座車站','取得 {count} 枚支線章');
 const rail3dSource = fs.readFileSync(path.join(root, 'rail-3d.js'), 'utf8');
 literalKeys.push(...[...rail3dSource.matchAll(/\bt\(\s*(['"])((?:\\.|(?!\1).)*)\1/g)].map(m => m[2]));
+const guideSource = fs.readFileSync(path.join(root, 'rail-3d/integration/place-guide.js'), 'utf8');
+literalKeys.push(...[...guideSource.matchAll(/\btranslate\(\s*(['"])((?:\\.|(?!\1).)*)\1/g)].map(m => m[2]));
+literalKeys.push('車站', '地標', '取景資料尚未載入', '暫時無法前往，請再試一次');
+for (const file of ['station-catalog.js', 'landmark-catalog.js']) {
+  const source = fs.readFileSync(path.join(root, 'rail-3d', file), 'utf8');
+  literalKeys.push(...[...source.matchAll(/"name":\s*"([^"]+)"/g)].map(m => m[1]));
+}
 const rail3dLabels = rail3dSource.match(/const labels=(\{[^;]+\});/);
 if (rail3dLabels) literalKeys.push(...Object.values(vm.runInNewContext('(' + rail3dLabels[1] + ')')).flat());
 literalKeys.push('{n} 分節 · 標準編組', '{n} 節 · 標準編組');
