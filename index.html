@@ -10621,6 +10621,14 @@ function assignRunProfiles(s, perf, obs, zoneCls, pre) {
 //    約束只來自 Y 的官方停靠時刻與 X 自己的跑段,所以結果不依賴 trains 的順序、也不依賴 Y 是否在今日名冊;
 //    前端讀到離線預算的剖面時重跑一次只會確認「已在窗內」,不會再動。
 const MEET_HEADWAY_SEC = 300;   // 同向待避最多把通過時刻往前夾這麼多秒;再多就不是估錯而是真的跟在後面
+// 🔴 這個 300 秒對【對向交會】其實偏緊(上面那句理由只對同向成立:對向車的通過時刻誤差是整段單線的
+// 跑行時間,南迴花東一段十幾分鐘;實測 100 筆超限裡 94 筆是對向交會、中位位移 595 秒)。但 2026-09-14
+// 實測把對向交會的上限單獨拆出來放寬【不可以做】:600 秒與 900 秒兩檔的 4 秒全日掃描都退步——
+// 總場數雖從 656 降到 648／645,卻讓 A-追撞家族從 24 升到 27／28、並長出基線沒有的
+// 「C-通過車穿過停站車,無平行股道」2 場。根因是本函式對每一跑段【貪婪套用、套完不回頭檢查】:
+// 5256 次被 4517 的交會往後推 9.9 分鐘之後,在花蓮／志學撞上 6676；6099 提早 304 秒後在太麻里
+// 撞上 423。要放寬上限得先讓套用後能對全隊重新檢查衝突,不是改這個數字。
+// 逐場證據與三檔上限的統計在 output/audit-0914/time-model-run.md。
 const MEET_NEAR_SEC = 1800;     // 只看時刻相近的停靠,更遠的班互不相干(單線長區間的交會也在半小時內)
 function inferMeetPassTimes(trains, union, sections) {
   const stats = { snapped: 0, infeasible: 0, unbuildable: 0, tooFar: 0, zoneSkipped: 0, log: [] };
@@ -10647,7 +10655,11 @@ function inferMeetPassTimes(trains, union, sections) {
       pv = j;
     }
   }
-  const single = (a, b) => { if (!sections) return false; const p = sections[[a, b].sort().join('|')]; return !!p && p.tracks === 1; };
+  // 區間表的鍵=兩站名正規化成班表用字「臺」後排序(產生端 scripts/lib/parallel_tracks.mjs 的 sectionKey())。
+  // 表是從派車表產的,站名用 OSM 用字「台東/台北/台南/台中」,這裡拿到的是班表站名「臺東/臺北…」;
+  // 不正規化的話所有含臺/台的站對查不到,而查不到不會報錯(當成不是單線)=>整段交會推論失明。
+  const secKey = (a, b) => [a, b].map(n => String(n).replace(/台/g, '臺')).sort().join('|');
+  const single = (a, b) => { if (!sections) return false; const p = sections[secKey(a, b)]; return !!p && p.tracks === 1; };
   for (const tr of trains) {
     if ((tr.sys && tr.sys !== 'tra_sched') || tr.loop || !tr.stops || tr.stops.length < 3) continue;
     const s = tr.stops, xk = keyOf(tr), perf = resolvePerf(tr), zoneCls = speedZoneClassOf(tr);
@@ -10691,7 +10703,9 @@ function inferMeetRun(tr, s, k0, k1, xk, perf, zoneCls, at, shareDay, single, st
     const cands = [];
     for (let j = k0 + 1; j < k1; j++) {
       const tp = s[j].arrSec, name = s[j].name, P = s[j - 1].name, N = s[j + 1].name;
-      let lo = -Infinity, hi = Infinity, whyLo = null, whyHi = null;
+      // hi 拆成兩個來源分開記:同向待避(hiWait)與對向交會(hiMeet)。平常取兩者較小的那一個當上界,
+      // 只有在「下界比上界還晚」(窗內無解)時才需要分辨誰是硬約束——見下面 lo > hi 那一段。
+      let lo = -Infinity, hiWait = Infinity, hiMeet = Infinity, whyLo = null, whyHiWait = null, whyHiMeet = null;
       for (const y of at.get(name) || []) {
         if (y.k === xk || (Math.abs(tp - y.arr) > MEET_NEAR_SEC && Math.abs(tp - y.dep) > MEET_NEAR_SEC) || !shareDay(xk, y.k)) continue;
         const dwell = y.dep - y.arr, end = !y.prev || !y.next;   // 起終點站:停多久沒有意義,留 30 秒
@@ -10699,7 +10713,7 @@ function inferMeetRun(tr, s, k0, k1, xk, perf, zoneCls, at, shareDay, single, st
         const m = end ? 30 : Math.min(30, Math.floor(dwell / 3));
         if (y.next === N && y.nextStop && tp > y.dep) {                                            // 同向待避
           const q = idx(y.nextStop, j + 1, k1);
-          if (q > 0 && s[q].arrSec < y.nextArr && y.dep - m < hi) { hi = y.dep - m; whyHi = '待避 ' + y.k; }
+          if (q > 0 && s[q].arrSec < y.nextArr && y.dep - m < hiWait) { hiWait = y.dep - m; whyHiWait = '待避 ' + y.k; }
         }
         if (y.prev === N && y.prevStop && tp < y.arr) {                                            // 對向:Y 從 N 來
           let r = idx(y.prevStop, j + 1, k1); const exact = r > 0; if (!exact) r = k1;
@@ -10708,15 +10722,36 @@ function inferMeetRun(tr, s, k0, k1, xk, perf, zoneCls, at, shareDay, single, st
         if (y.next === P && y.nextStop && tp > y.dep) {                                            // 對向:Y 往 P 去
           let r = -1; for (let i = j - 1; i >= k0; i--) if (s[i].name === y.nextStop) { r = i; break; }
           const exact = r >= 0; if (!exact) r = k0;
-          if (conflictOn(r, j, y.nextArr, y.dep, exact) && y.dep - m < hi) { hi = y.dep - m; whyHi = '交會(趕它開) ' + y.k; }
+          if (conflictOn(r, j, y.nextArr, y.dep, exact) && y.dep - m < hiMeet) { hiMeet = y.dep - m; whyHiMeet = '交會(趕它開) ' + y.k; }
         }
       }
+      const hi = Math.min(hiWait, hiMeet), whyHi = hiMeet <= hiWait ? whyHiMeet : whyHiWait;
       if (tp >= lo - 0.5 && tp <= hi + 0.5) continue;
-      if (lo > hi) { const id = j + ':x'; if (!rejected.has(id)) { rejected.add(id); stats.infeasible++; if (stats.log.length < 400) stats.log.push({ no: tr.train, k: xk, station: name, from: Math.round(tp), why: whyLo + ' vs ' + whyHi, skip: 'infeasible' }); } continue; }
-      const target = tp < lo ? lo : hi, shift = Math.abs(target - tp);
-      if (shift > MEET_HEADWAY_SEC) { const id = j + ':' + Math.round(target); if (!rejected.has(id)) { rejected.add(id); stats.tooFar++; if (stats.log.length < 400) stats.log.push({ no: tr.train, k: xk, station: name, from: Math.round(tp), to: Math.round(target), why: tp < lo ? whyLo : whyHi, skip: 'tooFar' }); } continue; }
+      let target = tp < lo ? lo : hi, why = tp < lo ? whyLo : whyHi;
+      if (lo > hi) {
+        // 窗內無解(下界比上界還晚)。原本兩邊都不套用,等於把整顆約束丟掉;但這兩種約束的份量不一樣:
+        // 【單線對向交會】是閉塞制式的硬約束——兩班不可能同時在同一段單線上,這是物理;
+        // 【同向待避】只是從「X 比 Y 先到 Y 的下一個官方停靠站」反推出來的推論,前提本身就可能錯
+        // (X 的到站時刻是表定、Y 的下一站時刻也是表定,兩者的精度差一分鐘就會推出假的待避)。
+        // 所以打架時讓推論那一邊:165 次在枋寮——交會(等它到) 386 要它晚、待避 3021 要它早,
+        // 丟掉待避之後窗就開了。丟掉之後原值本來就落在交會的窗內,就什麼都不用動。
+        // 兩邊都是交會(實測 10 筆裡 8 筆)代表班表在這一站排了兩場交會、模型挑不出誰對,
+        // 取離原值較近的那一個——位移小的才是班表設計的那一種(與下面 cands 依 shift 排序同一個理由)。
+        const id = j + ':x';
+        if (!rejected.has(id)) { rejected.add(id); stats.infeasible++; if (stats.log.length < 400) stats.log.push({ no: tr.train, k: xk, station: name, from: Math.round(tp), why: whyLo + ' vs ' + whyHi, skip: 'infeasible' }); }
+        if (lo <= hiMeet) {
+          if (tp >= lo - 0.5 && tp <= hiMeet + 0.5) continue;
+          target = tp < lo ? lo : hiMeet; why = tp < lo ? whyLo : whyHiMeet;
+        } else {
+          const useLo = Math.abs(lo - tp) <= Math.abs(hiMeet - tp);
+          target = useLo ? lo : hiMeet; why = useLo ? whyLo : whyHiMeet;
+        }
+      }
+      const shift = Math.abs(target - tp);
+      if (!(shift > 0.5)) continue;   // 已經在該去的位置(窗內無解那條路徑才可能走到這裡,否則上面就 continue 了)
+      if (shift > MEET_HEADWAY_SEC) { const id = j + ':' + Math.round(target); if (!rejected.has(id)) { rejected.add(id); stats.tooFar++; if (stats.log.length < 400) stats.log.push({ no: tr.train, k: xk, station: name, from: Math.round(tp), to: Math.round(target), why, skip: 'tooFar' }); } continue; }
       if (rejected.has(j + ':' + Math.round(target))) continue;
-      cands.push({ j, target, shift, why: tp < lo ? whyLo : whyHi, tp });
+      cands.push({ j, target, shift, why, tp });
     }
     if (!cands.length) break;
     cands.sort((a, b) => a.shift - b.shift || a.j - b.j);
@@ -10762,6 +10797,14 @@ function reanchorRunProfile(s, k0, k1, j, target, perf, runKm) {
     }
     if (bad < 0) return rp;
     const drop = bad + 1 !== ia && bad + 1 < n - 1 ? rp.ys[bad + 1] : bad !== ia && bad > 0 ? rp.ys[bad] : null;
+    // drop == null ＝【超速的那一側根本沒有折點可刪】:錨點緊鄰跑段端點(ia===1 或 ia===n-2),
+    // 超標的區間就是「真停靠站 ↔ 錨點」本身。2026-09-14 實測:把交會的位移上限從 300 一路放到 1800,
+    // 每一種上限下的 unbuildable(9→48 筆)【全部】落在這個分支,沒有一筆是 tA 出界或錨點沒留住。
+    // 所以「在錨點兩側各多刪一顆實測折點再重建」這條路走不通:超標的是 dS/tA 這個平均速度,它由
+    // 約束本身與【不准動的官方停靠時刻】共同決定,刪掉任何折點都改不動它。cap=300 那 9 筆裡 6 筆
+    // 連車種極速 vMid 都超過(最兇的 420 次汐止要 5882 公尺/30 秒＝706 km/h),另 3 筆介於 vEnd 與
+    // vMid 之間——而那一側的端點是真停靠站(車子從靜止起步),0.85 的端點係數正是為此而設。
+    // 結論:走到這裡代表【班表推出來的約束在物理上做不到】,維持原曲線、讓互穿閘門去報才是誠實的。
     if (drop == null) return null;
     const before = pts.length;
     pts = pts.filter(p => p.d !== drop);

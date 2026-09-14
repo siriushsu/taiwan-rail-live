@@ -229,3 +229,161 @@ UPDATE_BASELINE=1 DATES=all node scripts/verify_tra_overlap_families.mjs   # 看
 
 **剩下的**：第二類 133 筆要在 OSM 補畫另一向渡線（先用國土測繪中心正射影像核實，公開編輯；礁溪東北咽喉在影像上看得到接西正線的連接、OSM 沒畫），第三類 138 筆是時間模型的事，F5 長編組仍未開。
 
+
+### 9.7 F8 方向種子改成幾何：做完、量完，**沒有收益，已回退**（2026-09-14 晚；分支未動、沒有 commit）
+
+**一句話**：把「乾淨方向股道」的種子從派車統計改成幾何（`output/audit-0914/residual-fix-candidates.md` §② 的 F8，預估 119 場）**整條鏈跑完了**，4 秒全日掃描三日總場數**一場都沒少**（249／235／172 → 249／235／172）：A′ 雙線同股每日 −1、B 同月台同節點每日 +1，F4 棘輪六次掃描全部因為 B 退步而 FAIL。依棘輪政策**不更新基線**，工作樹已逐檔還原回 `bda9c67c`（十個會動到的檔逐一 `cmp` 對 `git show HEAD:` 全部相同，`git status --porcelain` 只剩本檔）。實作補丁與全部產物留在 scratchpad（見下），要撿回來隨時可以。
+
+**F8 的前提有兩處與實測不符**（這才是沒有收益的原因，不是實作沒做對）：
+
+1. **彰化–成功–追分那 61 場修不掉**。§② 說「145／150 在 `796686558` 上對開，4.4 m 外的 `109806489` 空著」——但 `109806489`／`109806490` 是**成功–彰化**那一段，`796686558`／`841983999` 是**追分–彰化**那一段，兩者只是並排、不是同一段的兩股。把這兩條擋掉重搜，**追分↔彰化 兩個方向都變成無解**（`g.shortestPath` 放寬到 40 km 仍無解），追分的 3 個候選節點 × 彰化的 3 個候選節點 **9 組全部求不到順向路徑**。也就是說它在模型裡是**事實單線**，鎖了只會把 30 段既有通行變成無處可去。
+2. **三民–瑞穗那 17 場也不是方向問題**。該走廊五條 way（`801832761`／`762`／`763`／`764`／`767`）的派車統計一模一樣：n=59、順 32／逆 27、`minority` 0.458——模型裡同樣是事實單線。七堵–八堵（14 場）則是三線區段，`830088709` 的幾何方向與 140 段派車的多數方向相反，屬於「最近平行股是中股不是對向股」，對向閘門擋掉是對的。
+
+**實際做了什麼（三種設計，逐一實測）**
+
+| 種子規則 | 新增鎖定 | F1 逆向段（before → after） | 可行？ |
+| --- | ---: | --- | --- |
+| ① 純幾何（§② 的原設計：`parFrac ≥ 0.8`＋`leftFrac` 明確＋對向閘門） | +239 | 3705 → **1943** | ❌ 59 條種子與上百段派車的多數方向相反（臺北隧道 `1551465831` 170 段、`849808697` 236 段…），鎖了修不掉 |
+| ② ①＋「幾何要與派車多數方向一致」 | +110 | 1338 → **353** | ❌ 仍有臺北隧道（minority 0.497）、竹南–崎頂 99 段孤兒 |
+| ③ ②＋`minority ≤ 0.2` 照舊（幾何只取代**連坐條款**與 `keepLeft`） | **+61** | 755 → **35**（＝基線） | ✅ 鏈跑得完、除 F4 外閘門全綠 |
+
+③ 的量測（種子細節 `scratchpad/f8-directions/f8-seed.json`，49 條收斂值；`縱貫線 33、宜蘭線 9、臺東線 2、平溪線 1、北迴線 1、成追線 1、南迴線 1`）：
+
+- 幾何可定向 2190 條；對向閘門擋下 294；與派車多數方向相反 53；兩向混用（minority > 0.2）47；派車不足 73。
+- **幾何方向與統計判乾淨的方向相衝 0 條**（程式裡是 `assert.equal(conflicts, 0)` 的硬檢查，三輪都 0），與 §② 和獨立複核的預期一致。
+- 唯一「幾何會把正線鎖反」的 `197197702`（派車 111/42 順向、幾何判逆向）被 `leftFrac` 門檻與「與派車多數方向一致」兩道同時擋下。
+- F1：乾淨方向股道 1729（統計）＋61（幾何）＝1790 → 收斂 1747＋49＝1796；逆向段 755 → **35**，剩的站間與 9.6 完全相同（三貂嶺→大華 17、新莊→竹中 8、猴硐→瑞芳 8、二水→田中 2）；193 份計畫、換節點 584、新落成路徑 544。
+- F2：14 天模型 B 794 → 229、C 9700 → 2106（9.6 是 752 → 214、9668 → 2128）；修不掉 374 → **382**（無順向路徑 355 → 363），新增的整批是 **彰化 0 → 10**「無順向路徑」——鎖了成功–彰化那一對之後，F2 在彰化搬不動月台了。
+
+**4 秒全日掃描（生產編組；長編組探針同步 +0）**
+
+| 家族 | 9/12 | 9/13 | 9/14 |
+| --- | --- | --- | --- |
+| A′ 雙線同股 | 70 → **69** | 73 → **72** | 60 → **59** |
+| B 同月台同節點 | 21 → **22** | 22 → **23** | 13 → **14** |
+| 其餘家族（A、A′ 單線、C×2） | 不變 | 不變 | 不變 |
+| **合計** | **249 → 249** | **235 → 235** | **172 → 172** |
+
+`fam_diff.mjs` 逐場差異（三日完全一致，模型是確定性的）：
+
+- 消失 3 場：`2244/3267 成功/彰化`（way `1553579166`）、`149/438 南港/汐科`（`87192065`，共用 245.7 m）、`1241/438 汐科/南港`（`194492532`）——**正是 F8 鎖上的那幾條**，機制有效。
+- 新增 3 場：`122/2540 彰化/彰化` B（siding `198649668`，F2 報「無順向路徑」修不掉）、`420/477` 與 `434/445` 兩場 `瑞穗/三民` A′（way `801832762`／`801832763`）。後兩場的來源是 F1 為了別處的鎖定重解了 477（純 F1 改）與 445（F1＋F2 都改），把它們挪到那條事實單線走廊的另一段去對開——**在單線走廊上換股只是換一對車撞**。
+
+**閘門**（實跑，逐條）：`verify_rail_levels` 0 失敗、`verify_physical_display_profiles`、`build_tra_track_sections`（243 站對單／雙線旗標 **0 改變**、`parallelFrac` 動 ≥0.05 **0 個**）、`verify_run_profiles_match` FAIL 0 且 `data/tra_run_profiles.json` **內容不變**、`verify_tra_plan_binding`、`verify_remaining_station_routes`（fixture 只重釘 afterPlans 24 份，`waysSha256` 不變——本輪沒動任何 way）、`verify_physical_runtime_cache`、`verify_tra_pass_continuity`、`verify_passing_avoidance` **全部 exit 0**；120 秒閘門三日各 **12/12 PASS**（B 25→26、36→37、15→16，A／A′／C 不變）。**只有 `verify_tra_overlap_families`（F4）FAIL：六次掃描六次退步，全部是 B +1。**
+
+**結論與處置**：F8 的可修部分實測只有每日 3 場（南港–汐科 2、成功–彰化 1），而 F1 的重解會在事實單線走廊上再生出 3 場，淨值 0；再加上棘輪 B 退步、且**不得為了讓閘門變綠改判準／基線**，所以**回退**。§② 的 119 場要重新歸因：彰化–追分 61、三民–瑞穗 17 應改列「模型裡的事實單線／OSM 沒有第二股」（F16 家族），七堵–八堵 14 與南港–汐科的 `194492532` 屬三線區段（對向閘門正確地不鎖）。
+
+**留下的材料**（scratchpad `/private/tmp/claude-501/-Users-xuxiang-Code------/3378a3e7-35bd-44a5-9c10-0b5b5695651c/scratchpad/`）：`f8-patch/f8.diff`（兩支程式的完整補丁，已驗證重放出同一組種子數字）、`f8-directions/`（F1 產物＋`f8-seed.json`）、`f8-stations/`（F2 產物＋report）、`chain-f8.log`（整鏈逐步輸出）、`f8-f4.log`（F4 六次掃描）、`gate-default-09{12,13,14}-f8.log`、`f8/head-shipped/`（還原用的 HEAD 檔）、`f8/before/`（fam_diff 的修前家族檔）。逐步紀錄在 `output/audit-0914/f8-run.md`。
+
+### 9.8 F12 時間模型 ＋ F9 資料補齊：整合落地（2026-09-14 傍晚，同一分支；未併 main、未部署）
+
+**使用者裁示（逐字）**
+
+- 「當然是你把資料有的都補上去」「交通部都有資料，那我們就應該知道有，怎麼會是當作沒有核實就不畫？」
+  ⇒ OSM／TDX 有的軌道都進路網，TDX 官方逐股幾何算核實來源。
+- 「不得把施工線、地面保存線、未核實用途的 yard 隨手當現役客運線」。
+- 「位置不用準，時間一定要準：站牌時間完全照官方」。
+- 不得靠移動畫面上的列車、隱藏行進列車、縮短車身、放鬆基線或拉高 `BLOCK_CAP_SEC=120` 消除紅燈；
+  **不得為了讓閘門變綠改判準、基線或門檻**。
+
+同日稍後使用者提供台鐵官方《路線修築沿革》，一度裁示「南迴線沒有添築雙線紀錄 ⇒ 改回單線」；
+獨立核實（`worktrees/f9-prep-0914/output/audit-0914/double-track-truth.md`）指出**沿革表只記施工案，
+沒列不等於單線**（沙崙線 2011 建成即雙線、整條表沒列），裁示再訂正為「6 對全部保留核實」。
+第二輪退回了 4 對的 TDX 核實旗標，區間表實際改判單線的只有大武|枋野一對（單／雙 62／181 → 63／180，其餘三對本就由幾何判雙線），
+第三輪全部訂正回來；243 對逐對依據的詳本已抄進 `docs/tra-double-track-truth-0914.md`（真相表 fixture 的 `provenance` 指向它）。
+三輪的產物都留著可比對（`scratchpad/f9/step1-tdx6/`、`step1-officialhist/`、出貨現況），逐輪數字在
+`output/audit-0914/f9-run.md` §5.5。
+
+**做了什麼**
+
+1. **F12 時間模型**（`index.html`，46+/7−）：交會／待避推論的夾回改法，通過站時刻只在官方停站窗內移動。
+2. **F9 資料補齊**：`scripts/build_tra_station_tracks_fixture.mjs`（新）從 Overpass 快照挑出「OSM 已畫、沒被打包進出貨路網」
+   的站區股道 → `scripts/fixtures/tra-station-tracks-osm-0914.json`（**1 266 條 way／307 494 m／96 站**＋`bridge` 2 條）；
+   `scripts/extend_tra_station_tracks.mjs`（新）依共用節點接回 `network.json`（接頭同 node id、座標差 <0.5 m、
+   `nodeTags` 只補不改、記 `extensions` 以便重跑無害）。**補入 1 268 條、ways 4 373 → 5 641。**
+3. **排除的非客運線（照裁示）**：臺中港線 `106915416`／`89697472`、花蓮臨港線 `693143447`／`693144762`／`693144763`
+   ——無 `service` 標籤的貨運／港線支線補進去會被 `topology.isTrack()` 當一般正線、不受 `YARD_CAP_M` 限制。
+   蘇澳港線 4 條帶 `service=spur` 照舊收。另排除 `581275240`（斗南 crossover，`layer=1` 與唯一相連的既有側線矛盾，
+   會讓 `build_rail_levels` 結構性無解；**不動 8% 坡度／7 m 淨距／收斂斷言**，改成不收這條）。
+4. **萬華–臺北東正線橋接**（F7）：`1551465832`（OSM 既有東正線末段）＋ `f9-taipei-east-bridge-0914`
+   ——**後者是依 TDX 官方逐股幾何擬的合成 way，OSM 沒畫**，fixture 裡 `synthetic: true`、證據在 `bridge.evidence`，
+   `extensions.note` 也寫明「含 1 條非 OSM 既有的補缺 way（依 TDX 官方幾何）」。兩條都在路網裡，**目前零派車**。
+   注意 `network.json` 打包時沒有帶 `synthetic` 欄位，路網裡只能靠「id 不是純數字」認出合成段（全網僅此一條）；旗標與證據在 fixture `bridge.ways[1]`。
+5. **汐科座標訂正**：`data/tra.json` 25.06406/121.65233 → **25.06288/121.649372**（OSM 月台停車點形心），
+   `d` 14.2516 → **14.577161497760995**（同一條 `shape` 的投影里程，與其他站的推算法一致）。
+   官方營業里程獨立佐證：汐止–汐科 誤差 373 m → **47 m**、汐科–南港 255 m → **71 m**。
+   `stopCandidates` 0 → 3（用站表新座標自己重測）。🔴 但 `data/tra_schedule_dense.json` 的站座標是抓班表時從**台鐵官方車站清單 API 的 GPS**
+   抄的（`fetch_tra_schedule.py`，不走站表），重抓班表也不會跟上；而 F2 的候選池座標（`repair_physical_stations.mjs` 的 `coords`）
+   與執行期站標（`state.schedStations`）都取自密檔 ⇒ 本批 F2 對汐科仍是用官方 GPS 找候選，執行期汐科站標與實體停車點相差 329 m。
+   下一批處理：抓班表腳本加「以站表為準」的座標覆寫名單（汐科第一個），重跑 F2。
+6. **單雙線區間表的真相來源**：TDX GIS v3「軌道路網實體路線」逐股幾何核實 8 對同名隧道 way（6 verified／1 rejected／1 樣本不足），
+   再用官方《路線修築沿革》＋鐵道局公告＋維基條目交叉，逐對依據寫進 fixture 的 `truthSource`；
+   新增**真相表** `scripts/fixtures/tra-track-sections-truth-0914.json`（243 對）與**新閘門**
+   `scripts/verify_tra_track_sections.mjs`（逐對 `tracks` 必須等於真相表；全網里程只印不擋）。
+   **里程對帳**（閘門每次印出，不擋）：區間表幾何長 單線 300.6 km／雙線 761.6 km；真相表官方里程 單線 299.5／雙線 758.6 km；
+   官方《臺鐵路線及軌道長度統計》2020 年 單線 397.8／雙線 717.4 km。雙線差 **+41.2 km ＝ 2022-11 才完工的花東 4 處瓶頸 +9.1
+   ＋「營業雙線里程」與「逐區間幾何加總」的口徑差 +22.5 ＋ 每對只能記 1 或 2 的二值化進位 +4.6（大武｜枋野一對佔 6.4）
+   ＋ 母體差 +5.0（243 對 1058.1 km vs 表列各線 1053.1 km）**，四項加總剛好等於差額，沒有一項是逐對判錯，所以只印不擋。
+   官方兩份原始檔進 `scripts/fixtures/`：`tra-line-construction-history.csv`（資料集更新至 2024-08，逐 byte 等於官方下載）、
+   `tra-track-length-stats.json`（1951–2020 單／雙線里程）。
+   **來源與授權：交通部 TDX 運輸資料流通服務／臺灣鐵路股份有限公司開放資料，政府資料開放授權條款第 1 版，使用須顯名。**
+7. **🔴 臺／台鍵正規化（本批抓到的真 bug）**：區間表的鍵來自派車表站名（OSM 用字「台東」），
+   `index.html` 查表用班表站名（「臺東」），**查不到不報錯 ⇒ 10 對站對（1 873 次）在交會推論裡整個失明**，
+   其中 `康樂|臺東` 是真單線被當雙線。修法：`scripts/lib/parallel_tracks.mjs` 新增 `sectionKey()`（正規化成「臺」再排序），
+   建置端兩支與 `index.html:10661` 查表入口共用同一把鍵；量測腳本 `output/audit-0914/section_key_miss.mjs`（10 → **0**）。
+
+**結果（4 秒全日掃描，獨立事件；修前＝HEAD `bda9c67c` 基線）**
+
+| 家族 | 9/12 | 9/13 | 9/14 |
+| --- | --- | --- | --- |
+| A-追撞未頂上限 | 3 → 3 | 5 → 5 | 2 → 2 |
+| A-追撞頂到 120s 上限 | 21 → 21 | 21 → 21 | 10 → 10 |
+| A′-單線交會落站間 | 51 → **49** | 31 → **30** | 21 → **20** |
+| A′-雙線同股 | 70 → **68** | 73 → **71** | 60 → **58** |
+| B-同月台同節點 | 21 → **20** | 22 → 22 | 13 → 13 |
+| C-通過車穿過停站車 | 83 → 83 | 83 → 83 | 66 → 66 |
+| **合計（production）** | **249 → 244** | **235 → 232** | **172 → 169** |
+| **合計（long）** | **263 → 258** | **251 → 248** | **185 → 182** |
+
+三日合計 production **656 → 645**、long **699 → 688**（各 −11）。沒有新家族。
+台東–山里 31 → 31、大武–枋野 22 → 22、萬華–臺北 26 → 26 **一場都沒少**——那三組要靠派路改，補資料不會動到（見 `f9-run.md` §7.2、§8）。
+
+**閘門**：`verify_tra_track_sections`（新）、`verify_rail_levels`（failed 0）、`verify_physical_display_profiles`、
+`verify_run_profiles_match`（FAIL 0）、`verify_tra_plan_binding`、`verify_remaining_station_routes`（最大跳躍 0.0748 m）、
+`verify_physical_runtime_cache`、`verify_tra_pass_continuity`（4/4）、`verify_passing_avoidance`、
+**官方停靠時刻 21 992 筆差異 0（控制組故意動一筆會 FAIL）**、F4 棘輪 6 次掃描 0 退步、120 秒閘門三日各 12/12 PASS ——
+全綠之後才 `UPDATE_BASELINE=1 DATES=all`。唯一非綠是 `verify_physical_tracks_browser` 第三項的既有
+`waitForFunction` TimeoutError（`32186503` 以來就有，與 HEAD 那輪逐項相同）。
+
+**出貨檔**：`network.json` 3.82 → 4.39 MB、`display-profiles.json` 10.23 → 11.32 MB、`level-profiles.json` 8.74 → 9.79 MB
+（三檔合計 +2.71 MB）；`data/tra_run_profiles.json` 2 700 個跑段中 **152 個不同**。
+
+**重跑起點**：`scratchpad/f9/step0/` 是 HEAD 出貨檔快照；把 `network.json`／`dispatch.json`／`display-profiles.json`／
+`level-profiles.json`／`scripts/fixtures/remaining-routes-0913.json`／`…families-baseline.json` 複製回去，
+再照 9.5 的順序整條重跑，就會逐 byte 得到同一組產物（本批實測跑了三輪，三輪的 `network.json`／`dispatch.json`／
+`tra_run_profiles.json` md5 完全一致）。
+
+**順手修掉的**：`data/data_manifest.json`／`data/data_provenance.json` **在 HEAD 就已經是紅的**
+（manifest 釘 `78bc625d…`、HEAD 檔實際是 `32176755…`——F6 那輪重產區間表沒有重跑 `build_data_manifest`），
+本批又改了 `data/tra.json`／`tra_track_sections.json`／`tra_run_profiles.json` 三個受管檔。
+已照 `build_data_manifest.mjs` 檔頭的規定（「資料檔改動後必須重跑本腳本並一起 commit」）重產兩份，
+diff 恰好只有那 3 個雜湊，`verify_data_manifest`／`verify_data_provenance` 都回到綠（7 項全過）。
+
+**剩下的**：汐科的密檔座標（360 筆）要靠抓班表腳本的座標覆寫才會與站表一致（見第 5 點，重抓班表本身不會改）；
+`data/seg_distance_audit.json` 會因為汐科的 `d` 改變而過期；萬華–臺北那 26 場要等 F7 續（見 `f9-run.md` §8）。
+
+### 9.5 補充（本批新增的步驟，順序有依賴）
+
+```
+node scripts/extend_tra_station_throats.mjs             # F6（有 extensions 記錄就略過）
+SECTION=ways,bridge node scripts/extend_tra_station_tracks.mjs   # F9 ← 新步驟，一定在 throats 之後
+OUT=<暫存> node scripts/build_physical_display_profiles.mjs        # 🔴 補了 way 就一定要重建（build_rail_levels 要每條 way 都有剖面），比對後原子搬入
+node scripts/repair_physical_directions.mjs             # F1
+OUT_DIR=output/stations NETWORK=output/directions/network.json DISPATCH=output/directions/dispatch.json node scripts/repair_physical_stations.mjs
+cp output/stations/{network,dispatch}.json rail-3d/physical/
+node scripts/build_rail_levels.mjs && node scripts/verify_rail_levels.mjs
+node scripts/verify_physical_display_profiles.mjs
+node scripts/build_tra_track_sections.mjs && node scripts/verify_tra_track_sections.mjs   # ← 新閘門
+node scripts/build_run_profiles.mjs && node scripts/verify_run_profiles_match.mjs          # 區間表／index.html／tra.json 任一動了就要重跑
+node scripts/verify_tra_plan_binding.mjs && node scripts/verify_remaining_station_routes.mjs
+```
