@@ -83,9 +83,17 @@ function watchErrors(page) {
   page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
   return errors;
 }
-async function openRandomFollow(page) {
-  await page.locator('#randBtn').click();
-  await page.locator('#followPanel:not([hidden])').waitFor();
+async function openRandomFollow(page, requireNotify = true) {
+  // 隨機鈕可能抽到沒有可設到離站提醒的班次（例如頻率型捷運或已到終點的車）。
+  // 出貨 gate 要驗的是提醒流程，不應把一次隨機抽樣當成產品失敗；持續用真實入口
+  // 換車，直到跟車卡上的提醒鈕確實可見，再交給後續案例操作。
+  for (let attempt = 0; attempt < 20; attempt++) {
+    await page.locator('#randBtn').click();
+    await page.locator('#followPanel:not([hidden])').waitFor();
+    if (!requireNotify) return;
+    if (await page.locator('#fpNotify').isVisible()) return;
+  }
+  throw new Error('連續 20 次隨機跟車都沒有出現提醒入口');
 }
 async function openNotifyFromFollow(page) {
   await page.locator('#fpNotify').click();
@@ -156,7 +164,7 @@ try {
   await run('A1:web-no-mock', async (page, errors) => {
     await boot(page, '?case=nomock');
     assert(await page.locator('#fpNotify').count() === 0, '無 mock 時跟隨入口仍存在');
-    await openRandomFollow(page);
+    await openRandomFollow(page, false);
     await page.locator('#tcStar').click(); await page.locator('#favBtn').click();
     assert(await page.locator('.row.fv').count() === 1, '無 mock 收藏列未建立');
     assert(await page.locator('.fv-notify').count() === 0, '無 mock 時收藏入口仍存在');
@@ -561,10 +569,25 @@ try {
       //    只驗新的,舊那列哪天又冒出來沒人知道;只驗舊的,就是現在這支腳本紅了兩個月的原因。
       //    順序刻意把抽屜放最後——抽屜蓋住整條分頁列,開了就點不到 #tabSearch。
       await page.tap('#tabSearch');
-      await page.locator('#queryLinks .ql-row[data-act="notify"]').waitFor({ state: 'visible', timeout: 20000 });
+      const queryNotify = page.locator('#queryLinks .ql-row[data-act="notify"]');
+      await queryNotify.waitFor({ state: 'visible', timeout: 20000 });
+      // 快捷列位在可捲動的查詢 sheet 內容尾端；先模擬使用者捲到該列，再驗它沒有被
+      // sheet 邊界或底部分頁列裁住。直接量初始版位會把「摺線下但可捲到」誤判成不可及。
+      await queryNotify.evaluate(el => el.scrollIntoView({ block: 'center', inline: 'nearest' }));
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      const queryReach = await queryNotify.evaluate(el => {
+        const row = el.getBoundingClientRect(), panel = document.getElementById('searchPanel').getBoundingClientRect();
+        return {
+          panelScrollTop: document.getElementById('searchPanel').scrollTop,
+          insidePanel: row.top >= panel.top - 1 && row.bottom <= panel.bottom + 1,
+          insideViewport: row.top >= 0 && row.bottom <= innerHeight,
+        };
+      });
+      assert(queryReach.insidePanel && queryReach.insideViewport,
+        `${width}: 查詢快捷列捲動後仍被裁切 ${JSON.stringify(queryReach)}`);
       const qlScan = await scan(page, ['#queryLinks .ql-row[data-act="notify"]']);
       assert(!qlScan.overflow && !qlScan.collisions.length && qlScan.targets.length === 1 && qlScan.targets.every(x => x.hit && x.min44), `${width}: 查詢快捷列 ${JSON.stringify(qlScan)}`);
-      await page.tap('#queryLinks .ql-row[data-act="notify"]'); await page.locator('#notifyModal:not([hidden])').waitFor();
+      await queryNotify.tap(); await page.locator('#notifyModal:not([hidden])').waitFor();
       assert(await page.evaluate(() => document.getElementById('notifyModal').dataset.notifyView) === 'overview', `${width}: 查詢快捷列未開總覽`);
       await page.tap('#notifyClose');
       await page.waitForFunction(() => document.getElementById('notifyModal').hidden);

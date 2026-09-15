@@ -93,7 +93,7 @@ async function boot(hide, label) {
       // （實測 2026-08-29 的 281：今日班 ＋ 昨夜借進來的那班）。所以鍵要帶「哪一天發的」，
       // 並把名冊台數一起帶回來當分母，否則併掉一台是零訊號的。
       out[String(tr.train) + (tr.stops._prevNight ? '@prev' : '@day')] =
-        { profs, stops, rday: tr._rday || '' };
+        { profs, stops, rday: tr._rday || '', planned: tr.stops.some(s => s._plannedDwell) };
     }
     return { trains: out, roster, pre: { ..._rpPre }, hasTable: !!state.runProfiles };
   });
@@ -200,6 +200,9 @@ for (const tr of schedule.trains) {
 
 const offline = {};
 for (const [key, L] of Object.entries(fresh.trains)) {
+  // 同向待避依當日實際車群決定，刻意不寫進跨日共用的預算檔；其剖面由上面的瀏覽器
+  // 現算 vs 讀檔比對（兩邊都必須現算）與 verify_overtake_station_planning 負責。
+  if (L.planned) continue;
   const [no, kind] = key.split('@');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(L.rday)) continue;   // 前端沒回報營運日就別猜，留給下面的斷言紅
   const day = kind === 'prev' ? prevOf(L.rday) : L.rday;
@@ -252,7 +255,7 @@ for (const [tn, L] of Object.entries(fresh.trains)) {
 // 只寫「允許缺 2 台」的話，哪天真的漏算兩台真車也會照樣通過。
 const SYNTH = new Set(['8888', '8889']);
 const schedHas = new Set(schedule.trains.map(t => String(t.train)));
-const missed = Object.keys(fresh.trains).filter(tn => !offline[tn]).map(noOf);
+const missed = Object.keys(fresh.trains).filter(tn => !offline[tn] && !fresh.trains[tn].planned).map(noOf);
 check('離線缺的車次恰好只有合成的環島之星', missed.every(t => SYNTH.has(t)),
   missed.length ? `缺 ${missed.join('／')}` : '一台都不缺');
 check('那些車確實不在班表檔裡（證明是合成的、不是我漏算）',
