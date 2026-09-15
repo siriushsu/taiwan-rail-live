@@ -318,11 +318,28 @@ try {
   // ─────────── B. ①基準切換 ───────────
   await run('B:basis-switch', async (page, errors) => {
     await boot(page, '?notifymock=1&notifyreset=1&notifynow=0&case=basis');
-    await openRandomFollow(page); await openNotifyFromFollow(page);
+    // 基準切換必須拿「中途站真的有停站時間」的台鐵行程；隨機列車可能抽到
+    // arrSec===depSec 的通過站，拿它宣稱預設值錯誤只是在測抽籤結果。
+    await page.evaluate(() => {
+      const tr = state.trains.find(t => {
+        if (t.sys !== 'tra_sched') return false;
+        const stops = localReminderStops(t);
+        return stops.length >= 3 && stops.slice(1, -1).some(x => x.s.depSec > x.s.arrSec);
+      });
+      if (!tr) throw new Error('缺少有停站時間的中途站測試行程');
+      const stops = localReminderStops(tr);
+      state.playing = false;
+      followTrainNo(tr.train, { sys: tr.sys });
+      setSimSec(stops[0].s.depSec + 1);
+    });
+    await page.locator('#followPanel:not([hidden])').waitFor();
+    assert(await page.locator('#fpNotify').isVisible(), '基準切換案例的提醒入口不可見');
+    await openNotifyFromFollow(page);
     // 中途站切到達前 → baseSec 用 arrSec，且 fireAt 獨立重算相等
     const mid = await page.evaluate(() => {
       const d = localReminderDraft;
-      const midIdx = d.stops.findIndex(x => x.i !== d.tr.stops.length - 1); // 非終點
+      const midIdx = d.stops.findIndex(x => x.i !== d.tr.stops.length - 1 && x.s.depSec > x.s.arrSec);
+      if (midIdx < 0) throw new Error('下拉選單沒有可驗證的有停站時間中途站');
       const sel = document.getElementById('notifyStation'); sel.selectedIndex = midIdx; sel.dispatchEvent(new Event('change'));
       const stop = localReminderDraft.stops.find(x => x.i === localReminderDraft.stIndex);
       return { midIdx, arrSec: stop.s.arrSec, depSec: stop.s.depSec };
