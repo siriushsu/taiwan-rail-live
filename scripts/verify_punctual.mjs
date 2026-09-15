@@ -48,6 +48,9 @@ async function open(browser, { width = 1440, height = 900, path = '/index.html',
 const pickOnscreenTraTrain = page => page.evaluate(() => {
   const cands = state.trains.filter(t => t.sys === 'tra_sched' && state.visible.has(t.typeName) && trainPos(t, state.simSec));
   for (const tr of cands) {
+    // drawSched 遇到已交給 3D integration 的列車會直接 continue；那種車即使幾何位置在
+    // 畫面內，也不會走下面受測的 2D drawPunctualRing，不能拿來當像素樣本。
+    if (window.railIslandIntegration?.hasModel({ tr })) continue;
     const pos = trainPos(tr, state.simSec);
     const cp = window.__M.toScreen([pos.lat, pos.lon]);
     if (cp.x >= 30 && cp.x <= innerWidth - 30 && cp.y >= 30 && cp.y <= innerHeight - 30) return String(tr.train);
@@ -303,27 +306,34 @@ try {
     ok('C0 找得到目前畫面內的台鐵列車(供像素測試)', !!no, `no=${no}`);
     if (no) {
       await page.evaluate((no) => {
+        window.__punctualProbe = null;
+        const original = drawPunctualRing;
+        drawPunctualRing = p => { window.__punctualProbe = { x: p.x, y: p.y }; return original(p); };
+        const tr = state.trains.find(t => String(t.train) === no && t.sys === 'tra_sched');
+        const pos = trainPos(tr, state.simSec);
+        // 全台視角會依距離把 detailOpacity 壓到接近 0；那是在驗遠景淡出，不是在驗環的
+        // 亮／暗主題可見性。把受測列車拉近到使用者會辨識車牌與光環的縮放層級。
+        window.__M.setView([pos.lat, pos.lon], 13, { animate: false });
         state.delayStats = {}; state.delayStats[no] = { a: 0, d: 22, m: 1 };
         state._punctual = null; buildPunctual(); draw();
       }, no);
-      const cp = await page.evaluate((no) => {
-        const tr = state.trains.find(t => String(t.train) === no && t.sys === 'tra_sched');
-        const pos = trainPos(tr, state.simSec);
-        return window.__M.toScreen([pos.lat, pos.lon]);
-      }, no);
-      const px = await samplePixelsPeak(page, cp.x, cp.y, 44);
+      // 直接取 drawSched 傳入綠環函式的實際畫點；同向近車可能套用 blockSideShift，
+      // 用未偏移的軌道中心取像素會隨當時車流密度採偏而假紅。
+      const cp = await page.evaluate(() => window.__punctualProbe);
+      ok('C0b 準點列車確實進入 2D 綠環繪製路徑', !!cp, JSON.stringify(cp));
+      const px = cp ? await samplePixelsPeak(page, cp.x, cp.y, 44) : { green: 0, gold: 0, total: 0, spread: 0 };
       ok('C1 綠環在亮色主題確實畫出綠色像素', px.green > 50, `脈衝週期內峰值 green px=${px.green}／取樣框 ${px.total}px`);
       // 取樣器自己的正向對照:掃一整個脈衝週期本來就該看到峰與谷。恆為 0 代表沒掃到動畫,
       // 此時上面那條的「峰值」退化成單點取樣、不構成證據(judgment 第七節第5條)。
       ok('C1b 取樣確實掃過一個完整脈衝週期(峰谷有差,證明不是同一張凍結畫面量14次)', px.spread > 0,
          `週期內像素數峰谷差=${px.spread}`);
-      await page.screenshot({ path: '_shot_punctual_ring_light.png', clip: rectAround(cp, 70, 1440, 900) });
+      if (cp) await page.screenshot({ path: '_shot_punctual_ring_light.png', clip: rectAround(cp, 70, 1440, 900) });
 
       await page.evaluate(() => { state.mapDark = true; draw(); });
       await page.waitForTimeout(80);
       const px2 = await samplePixelsPeak(page, cp.x, cp.y, 44);
       ok('C2 綠環在暗色主題確實畫出綠色像素', px2.green > 50, `脈衝週期內峰值 green px=${px2.green}(峰谷差 ${px2.spread})`);
-      await page.screenshot({ path: '_shot_punctual_ring_dark.png', clip: rectAround(cp, 70, 1440, 900) });
+      if (cp) await page.screenshot({ path: '_shot_punctual_ring_dark.png', clip: rectAround(cp, 70, 1440, 900) });
     }
     await ctx.close();
   }
@@ -554,16 +564,19 @@ try {
   const no = await pickOnscreenTraTrain(page);
   if (no) {
     await page.evaluate((no) => {
+      window.__punctualProbe = null;
+      const original = drawPunctualRing;
+      drawPunctualRing = p => { window.__punctualProbe = { x: p.x, y: p.y }; return original(p); };
+      const tr = state.trains.find(t => String(t.train) === no && t.sys === 'tra_sched');
+      const pos = trainPos(tr, state.simSec);
+      window.__M.setView([pos.lat, pos.lon], 13, { animate: false });
       state.delayStats = {}; state.delayStats[no] = { a: 0, d: 22, m: 1 };
       state._punctual = null; buildPunctual(); draw();
     }, no);
-    const cp = await page.evaluate((no) => {
-      const tr = state.trains.find(t => String(t.train) === no && t.sys === 'tra_sched');
-      const pos = trainPos(tr, state.simSec);
-      return window.__M.toScreen([pos.lat, pos.lon]);
-    }, no);
-    const px = await samplePixels(page, cp.x, cp.y, 44);
-    ok('E2 WebKit：綠環確實畫出綠色像素', px.green > 50, `green px=${px.green}`);
+    const cp = await page.evaluate(() => window.__punctualProbe);
+    const px = cp ? await samplePixelsPeak(page, cp.x, cp.y, 44) : { green: 0, spread: 0 };
+    ok('E2 WebKit：綠環確實進入繪製路徑並畫出綠色像素', !!cp && px.green > 50,
+       `point=${JSON.stringify(cp)}／脈衝週期內峰值 green px=${px.green}(峰谷差 ${px.spread})`);
   } else ok('E2 WebKit：綠環確實畫出綠色像素', false, '找不到畫面內台鐵列車');
 
   const setup = await page.evaluate(() => {
