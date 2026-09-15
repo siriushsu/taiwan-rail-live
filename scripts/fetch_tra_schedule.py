@@ -132,7 +132,7 @@ def classify_carclass(car_class, unknown_codes_seen):
 
 def http_get(url):
     req = urllib.request.Request(url, headers={"User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=60) as resp:
+    with urllib.request.urlopen(req, timeout=60) as resp:  # nosec B310
         return resp.read()
 
 
@@ -237,7 +237,7 @@ def train_identity(tr):
     for s in tr["stops"]:
         parts.append("{name}|{order}|{arr}|{dep}".format(
             name=s["name"], order=s["order"], arr=s["arrSec"], dep=s["depSec"]))
-    return hashlib.md5("\n".join(parts).encode("utf-8")).hexdigest()
+    return hashlib.sha256("\n".join(parts).encode("utf-8")).hexdigest()
 
 
 def yyyymmdd_to_dash(ds):
