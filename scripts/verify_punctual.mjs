@@ -102,6 +102,38 @@ const samplePixelsPeak = async (page, cssX, cssY, boxCss = 44) => {
   return { green, gold, total, spread: Math.max(...highs) - Math.min(...lows) };
 };
 
+// 綠環視覺證據用隔離取樣：產品每幀會在同一點接著畫光暈、車牌與附近列車，直接等到
+// 下一個 evaluate 再讀 canvas，結果會依 rAF 先後與疊色落在 0～數百。每一步都在同一個
+// evaluate 裡「正常 draw → 清出 60px 樣本格 → 呼叫產品原函式 → 立刻讀像素」，既驗到
+// 真正的 drawPunctualRing，也不讓後續畫層覆蓋受測色。實際列車有走進此函式另由 C0b 的
+// probe 獨立證明，兩條合在一起才構成完整證據。
+const samplePunctualRingPeak = async (page, cssX, cssY, boxCss = 60) => {
+  const samples = [];
+  for (let i = 0; i < PULSE_STEPS; i++) {
+    const one = await page.evaluate(({ cssX, cssY, boxCss }) => {
+      draw();
+      ctx.save();
+      try { ctx.globalAlpha = 1; ctx.clearRect(cssX - boxCss / 2, cssY - boxCss / 2, boxCss, boxCss); }
+      finally { ctx.restore(); }
+      drawPunctualRing({ x: cssX, y: cssY, detailOpacity: 1 });
+      const dpr = devicePixelRatio || 1, cv = document.getElementById('overlay'), c2 = cv.getContext('2d');
+      const sx = Math.max(0, Math.round((cssX - boxCss / 2) * dpr));
+      const sy = Math.max(0, Math.round((cssY - boxCss / 2) * dpr));
+      const sw = Math.max(0, Math.min(cv.width - sx, Math.round(boxCss * dpr)));
+      const sh = Math.max(0, Math.min(cv.height - sy, Math.round(boxCss * dpr)));
+      const img = c2.getImageData(sx, sy, sw, sh); let green = 0;
+      for (let j = 0; j < img.data.length; j += 4) {
+        const r = img.data[j], g = img.data[j + 1], b = img.data[j + 2], a = img.data[j + 3];
+        if (a >= 10 && g > r + 30 && g > b + 30 && g > 100) green++;
+      }
+      return { green, total: img.data.length / 4 };
+    }, { cssX, cssY, boxCss });
+    samples.push(one.green);
+    if (i < PULSE_STEPS - 1) await page.waitForTimeout(Math.ceil(PULSE_MS / (PULSE_STEPS - 1)));
+  }
+  return { green: Math.max(...samples), total: boxCss * boxCss, spread: Math.max(...samples) - Math.min(...samples) };
+};
+
 const rectAround = (cp, size, vw, vh) => {
   const half = size / 2;
   return { x: Math.max(0, Math.min(vw - size, cp.x - half)), y: Math.max(0, Math.min(vh - size, cp.y - half)), width: size, height: size };
@@ -307,6 +339,10 @@ try {
     if (no) {
       await page.evaluate((no) => {
         window.__punctualProbe = null;
+        // 3D 模型會在頁面載入後非同步接手列車；亮色取樣的兩秒週期跑完時，若剛好
+        // 從 2D 切成 3D，後續暗色 canvas 取樣就會得到 0。這一節專驗 2D 綠環，固定
+        // hasModel=false，3D 編組另由 verify_formation_full_cars.mjs 驗收。
+        if (window.railIslandIntegration) window.railIslandIntegration.hasModel = () => false;
         const original = drawPunctualRing;
         drawPunctualRing = p => { window.__punctualProbe = { x: p.x, y: p.y }; return original(p); };
         const tr = state.trains.find(t => String(t.train) === no && t.sys === 'tra_sched');
@@ -321,7 +357,7 @@ try {
       // 用未偏移的軌道中心取像素會隨當時車流密度採偏而假紅。
       const cp = await page.evaluate(() => window.__punctualProbe);
       ok('C0b 準點列車確實進入 2D 綠環繪製路徑', !!cp, JSON.stringify(cp));
-      const px = cp ? await samplePixelsPeak(page, cp.x, cp.y, 44) : { green: 0, gold: 0, total: 0, spread: 0 };
+      const px = cp ? await samplePunctualRingPeak(page, cp.x, cp.y) : { green: 0, total: 0, spread: 0 };
       ok('C1 綠環在亮色主題確實畫出綠色像素', px.green > 50, `脈衝週期內峰值 green px=${px.green}／取樣框 ${px.total}px`);
       // 取樣器自己的正向對照:掃一整個脈衝週期本來就該看到峰與谷。恆為 0 代表沒掃到動畫,
       // 此時上面那條的「峰值」退化成單點取樣、不構成證據(judgment 第七節第5條)。
@@ -331,7 +367,7 @@ try {
 
       await page.evaluate(() => { state.mapDark = true; draw(); });
       await page.waitForTimeout(80);
-      const px2 = await samplePixelsPeak(page, cp.x, cp.y, 44);
+      const px2 = await samplePunctualRingPeak(page, cp.x, cp.y);
       ok('C2 綠環在暗色主題確實畫出綠色像素', px2.green > 50, `脈衝週期內峰值 green px=${px2.green}(峰谷差 ${px2.spread})`);
       if (cp) await page.screenshot({ path: '_shot_punctual_ring_dark.png', clip: rectAround(cp, 70, 1440, 900) });
     }
@@ -565,6 +601,7 @@ try {
   if (no) {
     await page.evaluate((no) => {
       window.__punctualProbe = null;
+      if (window.railIslandIntegration) window.railIslandIntegration.hasModel = () => false;
       const original = drawPunctualRing;
       drawPunctualRing = p => { window.__punctualProbe = { x: p.x, y: p.y }; return original(p); };
       const tr = state.trains.find(t => String(t.train) === no && t.sys === 'tra_sched');
@@ -574,7 +611,7 @@ try {
       state._punctual = null; buildPunctual(); draw();
     }, no);
     const cp = await page.evaluate(() => window.__punctualProbe);
-    const px = cp ? await samplePixelsPeak(page, cp.x, cp.y, 44) : { green: 0, spread: 0 };
+    const px = cp ? await samplePunctualRingPeak(page, cp.x, cp.y) : { green: 0, spread: 0 };
     ok('E2 WebKit：綠環確實進入繪製路徑並畫出綠色像素', !!cp && px.green > 50,
        `point=${JSON.stringify(cp)}／脈衝週期內峰值 green px=${px.green}(峰谷差 ${px.spread})`);
   } else ok('E2 WebKit：綠環確實畫出綠色像素', false, '找不到畫面內台鐵列車');
