@@ -83,9 +83,17 @@ function watchErrors(page) {
   page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
   return errors;
 }
-async function openRandomFollow(page) {
-  await page.locator('#randBtn').click();
-  await page.locator('#followPanel:not([hidden])').waitFor();
+async function openRandomFollow(page, requireNotify = true) {
+  // 隨機鈕可能抽到沒有可設到離站提醒的班次（例如頻率型捷運或已到終點的車）。
+  // 出貨 gate 要驗的是提醒流程，不應把一次隨機抽樣當成產品失敗；持續用真實入口
+  // 換車，直到跟車卡上的提醒鈕確實可見，再交給後續案例操作。
+  for (let attempt = 0; attempt < 20; attempt++) {
+    await page.locator('#randBtn').click();
+    await page.locator('#followPanel:not([hidden])').waitFor();
+    if (!requireNotify) return;
+    if (await page.locator('#fpNotify').isVisible()) return;
+  }
+  throw new Error('連續 20 次隨機跟車都沒有出現提醒入口');
 }
 async function openNotifyFromFollow(page) {
   await page.locator('#fpNotify').click();
@@ -156,7 +164,7 @@ try {
   await run('A1:web-no-mock', async (page, errors) => {
     await boot(page, '?case=nomock');
     assert(await page.locator('#fpNotify').count() === 0, '無 mock 時跟隨入口仍存在');
-    await openRandomFollow(page);
+    await openRandomFollow(page, false);
     await page.locator('#tcStar').click(); await page.locator('#favBtn').click();
     assert(await page.locator('.row.fv').count() === 1, '無 mock 收藏列未建立');
     assert(await page.locator('.fv-notify').count() === 0, '無 mock 時收藏入口仍存在');
