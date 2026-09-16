@@ -1749,11 +1749,19 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {"台鐵後車即將追上前車時�
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
   "選取縣市或搜尋車站後自動解除定位跟隨，避免地圖鏡頭隨即跳回所在地點": "Selecting a city or searching for a station now releases location follow mode, preventing the camera from jumping straight back to your current spot.",
   "選取縣市或搜尋車站後自動解除所在地鏡頭跟隨，避免地圖剛飛過去又隨即跳回使用者目前的定位點": "Selecting a city or searching for a station now releases location follow mode, preventing the camera from jumping straight back to your current spot after flying.",
-  "跟車轉動視角維持鎖定不中斷，並修正開啟車頭朝上時列車在轉彎處跑出畫面外的問題": "Rotating the view while following a train keeps follow mode locked, and fixed an issue where heading-up mode caused trains to drift off-screen on curves."
+  "跟車轉動視角維持鎖定不中斷，並修正開啟車頭朝上時列車在轉彎處跑出畫面外的問題": "Rotating the view while following a train keeps follow mode locked, and fixed an issue where heading-up mode caused trains to drift off-screen on curves.",
+  "最愛車站星號整合至站名標籤避免遮蔽文字，傾斜跟車時自動隱藏定位藍圈維持純淨視角": "Favourite station stars are integrated into station labels to avoid covering text, and the blue location circle is hidden when following trains in tilted 3D view.",
+  "＋ 搜尋車站": "+ Search stations",
+  "＋ 搜尋並收藏車站": "+ Search & favourite stations",
+  "搜尋車站名稱以加入最愛…": "Search station name to add to favourites…"
 });
 
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   "選取縣市或搜尋車站後自動解除定位跟隨，避免地圖鏡頭隨即跳回所在地點": "県市選択や駅検索を行うと現在地の自動追従を解除し、カメラがすぐに現在地へ戻ってしまうのを防ぎます。",
   "選取縣市或搜尋車站後自動解除所在地鏡頭跟隨，避免地圖剛飛過去又隨即跳回使用者目前的定位點": "県市選択や駅検索を行うと現在地のカメラ追従を解除し、移動した直後に現在地へ戻ってしまうのを防ぎます。",
-  "跟車轉動視角維持鎖定不中斷，並修正開啟車頭朝上時列車在轉彎處跑出畫面外的問題": "追従中の視点回転でも追従ロックを維持し、進行方向上向きでカーブを走行する際に列車が画面外へ外れる問題を修正しました。"
+  "跟車轉動視角維持鎖定不中斷，並修正開啟車頭朝上時列車在轉彎處跑出畫面外的問題": "追従中の視点回転でも追従ロックを維持し、進行方向上向きでカーブを走行する際に列車が画面外へ外れる問題を修正しました。",
+  "最愛車站星號整合至站名標籤避免遮蔽文字，傾斜跟車時自動隱藏定位藍圈維持純淨視角": "お気に入り駅の星印を駅名ラベルに統合して文字の重なりを防ぎ、3D傾斜追従時は現在地の青い精度円を非表示にして視界をすっきり保ちます。",
+  "＋ 搜尋車站": "+ 駅を検索",
+  "＋ 搜尋並收藏車站": "+ 駅を検索してお気に入りに追加",
+  "搜尋車站名稱以加入最愛…": "駅名を検索してお気に入りに追加…"
 });
