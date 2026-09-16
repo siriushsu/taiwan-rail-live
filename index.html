@@ -12664,7 +12664,7 @@ let labelBoxes = [];
 let _favStNames = new Set();
 function refreshFavStationNames() {
   _favStNames.clear();
-  if (!state.liveMode && typeof loadFavStations === 'function') {
+  if (typeof loadFavStations === 'function') {
     for (const f of loadFavStations()) {
       if (f && f.name) _favStNames.add(f.name.replace(/臺/g, '台'));
     }
