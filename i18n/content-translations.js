@@ -1745,3 +1745,15 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {"所有列車都可顯示完整編�
 Object.assign(window.RAIL_I18N_MESSAGES.en, {"台鐵後車即將追上前車時，會預先回找有足夠煞車時間的車站安排待避，減少列車在站間追撞或互相穿越": "When a following TRA train is predicted to catch the train ahead, the map now looks back for a station with enough braking time and schedules a passing wait there, reducing collisions and pass-through overlaps between stations.", "台鐵後車即將追上前車時，會預先回找有足夠煞車時間的車站安排待避；例如 6563 次與 207 次原本會在和仁到和平間互穿，現在會提前在崇德停妥、等後車通過再開，並依車種煞車性能決定是否還要往前一站": "When a following TRA train is predicted to catch the train ahead, the map now looks back for a station with enough braking time and schedules a passing wait. For example, trains 6563 and 207 previously crossed between Heren and Heping; train 6563 now stops safely at Chongde and departs after 207 passes, with braking performance determining whether an earlier station is needed."});
 
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"台鐵後車即將追上前車時，會預先回找有足夠煞車時間的車站安排待避，減少列車在站間追撞或互相穿越": "後続の台鉄列車が先行列車に追いつくと予測したとき、十分な制動時間を確保できる手前の駅までさかのぼって待避を設定し、駅間での追突やすり抜け表示を減らします。", "台鐵後車即將追上前車時，會預先回找有足夠煞車時間的車站安排待避；例如 6563 次與 207 次原本會在和仁到和平間互穿，現在會提前在崇德停妥、等後車通過再開，並依車種煞車性能決定是否還要往前一站": "後続の台鉄列車が先行列車に追いつくと予測したとき、十分な制動時間を確保できる手前の駅までさかのぼって待避を設定します。たとえば、和仁－和平間ですり抜けていた6563次と207次は、6563次が崇徳で先に停車し、207次の通過後に発車します。車種ごとの制動性能に応じて、さらに手前の駅が必要かも判断します。"});
+
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  "選取縣市或搜尋車站後自動解除定位跟隨，避免地圖鏡頭隨即跳回所在地點": "Selecting a city or searching for a station now releases location follow mode, preventing the camera from jumping straight back to your current spot.",
+  "選取縣市或搜尋車站後自動解除所在地鏡頭跟隨，避免地圖剛飛過去又隨即跳回使用者目前的定位點": "Selecting a city or searching for a station now releases location follow mode, preventing the camera from jumping straight back to your current spot after flying.",
+  "跟車轉動視角維持鎖定不中斷，並修正開啟車頭朝上時列車在轉彎處跑出畫面外的問題": "Rotating the view while following a train keeps follow mode locked, and fixed an issue where heading-up mode caused trains to drift off-screen on curves."
+});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  "選取縣市或搜尋車站後自動解除定位跟隨，避免地圖鏡頭隨即跳回所在地點": "県市選択や駅検索を行うと現在地の自動追従を解除し、カメラがすぐに現在地へ戻ってしまうのを防ぎます。",
+  "選取縣市或搜尋車站後自動解除所在地鏡頭跟隨，避免地圖剛飛過去又隨即跳回使用者目前的定位點": "県市選択や駅検索を行うと現在地のカメラ追従を解除し、移動した直後に現在地へ戻ってしまうのを防ぎます。",
+  "跟車轉動視角維持鎖定不中斷，並修正開啟車頭朝上時列車在轉彎處跑出畫面外的問題": "追従中の視点回転でも追従ロックを維持し、進行方向上向きでカーブを走行する際に列車が画面外へ外れる問題を修正しました。"
+});
