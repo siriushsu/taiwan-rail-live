@@ -88,7 +88,7 @@
     return {clock:{serviceDay:day,simSec:state.simSec,wallEpochSec:epoch,playing:state.playing,speed:state.speedMult},geometryVersion:'original-'+BUILD,
       clearanceRoutes:[...routes.filter(r=>r.physical),...[...new Set([...(state.trackLines||[]),...(state.lines||[]),...(state.decoLines||[])])].map(ln=>lineRecord(ln,ln.sys||ln._sys||'rail'))],
       replacedLineKeys,visible:[...state.visible],vehicles,routes:(state.collectMap||state.trackStyle==='hidden'?[]:routes).map(r=>({...r,displayColor:r.systemId.endsWith('_sched')||r.systemId==='rail'?trackLineColor(r.color):metroLineColor(r.color)})),stations,
-      display:{enabled,trainHalo:trainHaloEnabled,modelMode,formationMode,ambient:!!state.ambient,ambientStyle:state.ambientStyle,ambientCamera,northUp:!!state._northReset||state._northUpTarget===(state.followTrain||state.freqFollow),dark:state.mapDark&&state.basemap!=='landscape',dirArrow:!!state.dirArrow,fontScale:Number(getComputedStyle(document.body).getPropertyValue('--ui'))||1},
+      display:{enabled,trainHalo:trainHaloEnabled,modelMode,formationMode,ambient:!!state.ambient,ambientStyle:state.ambientStyle,ambientCamera,northUp:!!state._northReset||state._northUpTarget===(state.followTrain||state.freqFollow),headingUp:!!state.followHeadingUp,dark:state.mapDark&&state.basemap!=='landscape',dirArrow:!!state.dirArrow,fontScale:Number(getComputedStyle(document.body).getPropertyValue('--ui'))||1},
       followLock:state.followLock,headLocked:followHeadLocked(),selectedVehicleId:vehicles.find(v=>v.followed)?.id||null};
   }
   function headingFor(v){const hit=targets.get(v.id),item=motionItems.get(v.id);if(!hit)return null;let previous;
@@ -176,7 +176,7 @@
     get formationMode(){return formationMode;},get groundMode(){return effectiveGround();},get interacting(){return renderer?.interacting||false;},
     frontScreen(){return enabled&&renderer?.frontScreen();},
     resetManualHeading(){manualTarget=null;},
-    keepBearing(){return !!renderer?.transitioning||enabled&&M?.raw?.getZoom()>=14&&(sameTarget(manualTarget,currentTarget())||state.ambient&&state.ambientStyle==='follow');},
+    keepBearing(){return !!renderer?.transitioning||(!state.followHeadingUp&&enabled&&M?.raw?.getZoom()>=14&&(sameTarget(manualTarget,currentTarget())||state.ambient&&state.ambientStyle==='follow'));},
     hasModel(target){const id=idFor(target);return enabled&&id&&!!M.raw.getLayer('live-vehicles-3d')&&renderer?.hasModel(id);},
     hits(point,freq){if(!enabled||!M.raw.getLayer('live-vehicles-3d'))return [];return renderer?.hitTest(point).map(hit=>({...targets.get(hit.id),dist:hit.dist,boxed:true})).filter(hit=>!!hit.ln===freq)||[];},
     profileKeys(){return renderer?.profileKeys()||[];},syncLayerOrder(){renderer?.syncLayerOrder();},setMode:value=>setOption('enabled',value?'on':'off'),setGroundMode:value=>setOption('ground',value),setFormationMode:value=>setOption('formation',value),setTrainSize:value=>setOption('size',value),setModelMode:value=>setOption('models',value),setAmbientCamera:value=>setOption('camera',value),setInspection:value=>setOption('inspection',value?'on':'off'),syncAppearance,

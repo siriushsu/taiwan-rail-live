@@ -10,7 +10,11 @@ export async function buildingCatalog(){
 }
 export async function buildBlenderBuilding(record,lod){
  const {source,placement,base}=record,spec=source.lods[lod],r=await fetch(new URL(source.id+'/'+spec.file,base));if(!r.ok)throw Error(source.name+' Blender 網格載入失敗');const bytes=await r.arrayBuffer();
- const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');if(hash!==spec.sha256||bytes.byteLength!==spec.vertexCount*24)throw Error(source.name+' Blender 網格版本不符');
+ if(bytes.byteLength!==spec.vertexCount*24)throw Error(source.name+' Blender 網格長度不符');
+ if(globalThis.crypto?.subtle){
+  const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');
+  if(hash!==spec.sha256)throw Error(source.name+' Blender 網格版本不符');
+ }
  const group=new THREE.Group();group.name=source.name;group.userData.blender=true;group.userData.lod=lod;group.rotation.z=placement.rotationDeg*Math.PI/180;
  const data=new Float32Array(bytes),buffer=new THREE.InterleavedBuffer(data,6),position=new THREE.InterleavedBufferAttribute(buffer,3,0),normal=new THREE.InterleavedBufferAttribute(buffer,3,3);
  for(const part of spec.drawGroups){const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',position);geometry.setAttribute('normal',normal);geometry.setDrawRange(part.start,part.count);

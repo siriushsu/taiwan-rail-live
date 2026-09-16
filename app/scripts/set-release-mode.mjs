@@ -344,10 +344,26 @@ const MODES = {
     //   轉乘接續納入機捷與高捷、機捷車種讀官方值、網站登入修復。
     //   why 三語寫其中六條；weblogin0910 是網站專屬（更新紀錄自己就寫著「App 內的登入不受影響」），
     //   不佔店頭 500 字元。
-    marketing: '1.6.2', build: '109', music: true, metroCore: true,
-    why: "軌島 1.6.2\n\n・通行證有自己的入口：手機從「更多」打開就在第二列，電腦在工具列上有一顆「通行證」\n・通行證不用先登入也看得到有哪些功能，要看價格或訂閱時才需要登入\n・網站也能用軌島通行證：用同一個軌島帳號登入，App 訂的資格在網站就生效\n・地下路段的列車可以顯示原本的車身顏色：「更多」的「透視顯示」切到「實體」\n・轉乘接續加入捷運：高鐵桃園、台北車站、左營等站會列出桃園機場捷運與高雄捷運紅線、橘線\n・桃園機場捷運的車種改讀官方時刻表，全線每一班都標得出直達車或普通車",
-    whyEn: "Rail Island 1.6.2\n\n• The Pass has its own entry: second row of the More drawer on phones, its own toolbar button on desktop\n• Open the Pass without signing in; sign in only for prices or to subscribe\n• Use the Pass on the website with the same Rail Island account\n• Underground trains in their real colors: set See-through view to Solid\n• Transfers now list Airport MRT and Kaohsiung MRT connections\n• Airport MRT runs are marked Express or Commuter from the official timetable",
-    whyJa: "軌島 1.6.2\n\n・パスに専用の入口を追加：スマートフォンは「その他」の 2 行目、パソコンはツールバーの「パス」\n・ログインしなくてもパスの内容を確認できます。価格の表示と購入のときだけログインが必要です\n・ウェブでも軌島パスが使えます：同じ軌島アカウントでログインすると App の権利が有効になります\n・地下区間の列車を本来の車体色で表示：「その他」の「透視表示」を「実体」に切り替え\n・乗り継ぎに地下鉄を追加：高鉄桃園、台北駅、左営などで桃園空港 MRT と高雄 MRT 紅線・橘線を表示\n・桃園空港 MRT の種別を公式時刻表から取得し、全列車を直達列車／普通列車で表示",
+    // 110／Android 50（2026-09-12 12:xx）：**1.6.2 已於 2026-09-11T16:37:44Z 上架**
+    //   （Apple lookup 帶 no-cache 實查 version=1.6.2；Play 商店頁也是 1.6.2）⇒ 1.6.2 train 已關，
+    //   行銷版號進到 1.6.3。Archives 底下沒有任何 1.6.3 的 archive，110 是這個號的第一份載貨（規則四）。
+    //   載貨＝origin/main 751f86ff（網站 BUILD v0912e）。31c395ec 當時的載貨是 52e83adc（v0912c），
+    //   之後 main 多出五條第一層更新紀錄正本：隧道洞門、都市立體地圖效能、同股道兩列車不再互穿、
+    //   開站不重複下載地形、平地假隧道與路基收窄。
+    //   🔴 why 三語不是互譯也不等長：中文 331／日文 354 還有 150 字元以上餘裕，**英文 489 只剩 11**
+    //   （Play 硬上限 500）。所以英文把「高架橋外觀」「近看軌道」「平地不畫隧道」併成一條、
+    //   三鶯線末班那條不寫；中日文照舊逐條列。要再加一條就得先從英文砍一條，不是三語一起加。
+    // 113／Android 53（2026-09-14）：**1.6.3 已於 2026-09-13T00:46:10Z 上架**
+    //   （Apple lookup 帶 no-cache 實查）⇒ 1.6.3 train 已關，行銷版號進到 1.6.4。
+    //   112／52 已各有載貨，規則四不重用號，因此進 113／53。載貨同時包含上一顆 App 專屬改動，
+    //   以及 9/13 上架後至 origin/main 087e909b（網站 BUILD v0914d）的全部更新；兩條來源均為
+    //   本次 merge commit 的祖先，並以已上架 1.6.3 (112) 的可見面聯集跑出貨回歸閘門。
+    // 114（2026-09-15）：Apple 公開 lookup 仍為 1.6.3，故沿用 1.6.4；113 已有 archive，
+    //   不重用載貨號。納入 v0915a：同向快車將追上慢車時，提早回找有足夠煞車距離的車站待避。
+    marketing: '1.6.4', build: '114', music: true, metroCore: true, androidPlus: true,
+    why: "軌島 1.6.4\n\n・到站提醒可設定每天、平日或自訂星期重複\n・新增「觀看」面板，可切換視角、地圖與列車設定，並重新開啟沉浸模式\n・地圖俯視與傾斜切換更平順，新增車站與地標導覽\n・所有列車可顯示完整或推估編組，清楚標示推估車廂數\n・修正阿里山林鐵機車位置與方向，呈現推進、牽引及之字形折返\n・台鐵快車追上慢車時會提早回找有足夠煞車距離的車站待避，並改善站區股道與單線會車\n・台鐵近 30 天準點資料漏抓時會在當天自動補回\n・修正部分橋隧、高程、遠景列車比例與近景跟車顯示\n・更新高捷、安坑、淡海與台中捷運班表",
+    whyEn: "Rail Island 1.6.4\n\n• Daily, weekday or custom-day repeat alerts\n• View panel for camera, map, trains and immersive mode\n• Smoother views; station and place guides\n• Full or estimated train formations\n• Correct Alishan locomotive placement, push/pull and zigzags\n• Earlier TRA overtakes with braking room; better tracks and single-track meets\n• Recovery for missed TRA punctuality data\n• Better bridges, tunnels, elevation, distant scale and close-up following\n• Updated metro timetables",
+    whyJa: "軌島 1.6.4\n\n・到着通知を毎日、平日、または選んだ曜日に繰り返し設定\n・視点、地図、列車設定をまとめた「表示」パネルと没入モード再開ボタンを追加\n・俯瞰／傾斜表示の切替を滑らかにし、駅とスポットの案内を追加\n・すべての列車で完全編成または推定編成を表示し、推定両数を明記\n・阿里山林鉄の機関車位置と向き、推進・牽引・スイッチバックを修正\n・台鉄の追越しは制動時間を確保できる手前の駅で待避し、駅構内の線路と単線交換も改善\n・台鉄の直近 30 日間の定時運行データを、取得漏れがあれば当日中に自動補完\n・橋梁、トンネル、高低差、遠景の縮尺、近接追尾表示を修正\n・高雄、安坑、淡海、台中メトロの時刻表を更新",
 
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
@@ -468,6 +484,17 @@ else delete env.RAIL_INCLUDE_LICENSED_MUSIC;
 env.RAIL_EXPECT_METRO_CORE = cfg.metroCore ? '1' : '0';
 if (cfg.metroCore) env.RAIL_ENABLE_METRO_CORE = '1';
 else delete env.RAIL_ENABLE_METRO_CORE;
+// Android 49 已上架通行證；正式模式自己保留設定，不能靠執行者記得額外傳環境變數。
+// 50 的 AAB 曾因漏傳而關掉入口。驗收 build 標記直接讀 Gradle，避免沿用舊號。
+if (cfg.androidPlus) {
+  const gradle = await readFile(join(appRoot, 'android/app/build.gradle'), 'utf8');
+  const code = /\bversionCode\s+(\d+)/.exec(gradle)?.[1];
+  if (!code) throw new Error('Android versionCode 缺失，無法設定正式通行證');
+  env.RAIL_ANDROID_PLUS_ENABLED = '1';
+  env.RAIL_EXPECT_ANDROID_PLUS = '1';
+  env.RAIL_ANDROID_PLUS_SANDBOX_POLICY = 'revenuecat-allowlist';
+  env.RAIL_ANDROID_PLUS_SANDBOX_BUILD = code;
+}
 // 本版「更新了什麼」內建文案＝why 本人。iTunes lookup 的 releaseNotes 是【線上版】的,
 // 剛裝的版比線上新時(每次送審前必然)彈到的是上一版的文——1.4.9 (74) 實踩。
 env.RAIL_WHATS_NEW = cfg.why;

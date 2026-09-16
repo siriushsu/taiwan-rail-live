@@ -229,7 +229,11 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   }
   async function geometry(id){if(cache.has(id))return cache.get(id);if(!pending.has(id))pending.set(id,(async()=>{
     const meta=catalog.meshes[id],r=await fetch(asset('assets/blender-map-v1/'+meta.file));if(!r.ok)throw Error('列車模型載入失敗');const b=await r.arrayBuffer();
-    const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',b)),v=>v.toString(16).padStart(2,'0')).join('');if(b.byteLength!==meta.byteLength||hash!==meta.sha256)throw Error('列車模型版本不符');
+    if(b.byteLength!==meta.byteLength)throw Error('列車模型長度不符');
+    if(globalThis.crypto?.subtle){
+      const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',b)),v=>v.toString(16).padStart(2,'0')).join('');
+      if(hash!==meta.sha256)throw Error('列車模型版本不符');
+    }
     const data=new Float32Array(b.byteLength/4),view=new DataView(b);for(let i=0;i<data.length;i++)data[i]=view.getFloat32(i*4,true);const g=createWenhuGeometry(THREE,{data});prepareWindowLighting(g,THREE);if(disposed){g.dispose();return null;}cache.set(id,g);return g;
   })());try{return await pending.get(id);}finally{pending.delete(id);}}
   function modelFor(spec){if(!spec)return null;if(!formations.has(spec))formations.set(spec,assembleFormation(spec,catalog));return formations.get(spec);}
@@ -421,9 +425,8 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     listen(window,'blur',e=>{if(e.target===window){pointers.clear();finishGesture();}});
     listenMap('movestart',startGesture);
     listenMap('move',e=>{if(e.originalEvent)onInteract?.();});
-    listenMap('dragstart',e=>{startGesture(e);if(e.originalEvent){gesturePanned=true;const input=e.originalEvent;
-      // 單指／左鍵平移可立即解鎖；雙指與右鍵需留給旋轉、縮放的組合手勢。
-      if(input.touches?input.touches.length===1:input.button===0&&!input.ctrlKey)onGesture();}});
+    listenMap('dragstart',e=>{startGesture(e);if(e.originalEvent){const input=e.originalEvent;
+      if(input.touches?input.touches.length===1:input.button===0&&!input.ctrlKey&&!input.metaKey&&!input.shiftKey)gesturePanned=true;}});
     for(const type of ['zoomstart','rotatestart','pitchstart'])listenMap(type,e=>{startGesture(e);if(e.originalEvent)gestureOrbited=true;});
     function finishGesture(){clearTimeout(gestureTimer);if(!gesture)return;gestureTimer=setTimeout(()=>{if(pointers.size||map.isMoving()){finishGesture();return;}const pan=gesturePanned&&!gestureOrbited;gesture=false;gesturePanned=gestureOrbited=false;if(pan&&!frame?.headLocked)onGesture();else if(frame?.followLock&&frame.selectedVehicleId)followReturn={id:frame.selectedVehicleId};},80);}
     listenMap('moveend',e=>{if(e.originalEvent)dirty=true;if(gesture)finishGesture();});
@@ -445,7 +448,9 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
       },
       followCoordinate(coord,insets){
         if(motionCamera.positioning)motionCamera.cancel();
-        if(gesture){stats.followSuppressed=(stats.followSuppressed||0)+1;return;}
+        if(gesture){
+          if(!gestureOrbited||!frame?.followLock){stats.followSuppressed=(stats.followSuppressed||0)+1;return;}
+        }
         const w=el.clientWidth,h=el.clientHeight,padding={...insets};
         if(padding.left+padding.right>w-80){const k=(w-80)/(padding.left+padding.right);padding.left*=k;padding.right*=k;}
         if(padding.top+padding.bottom>h-80){const k=(h-80)/(padding.top+padding.bottom);padding.top*=k;padding.bottom*=k;}
@@ -455,7 +460,9 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
         const elevation=profile?.height??height(coord)??0,c=map.getCenter(),p=map.getPadding();
         const pose=frame?.display?.northUp?null:cinematicPose(v);
         const view={id:v?.id,zoom:map.getZoom(),pitch:map.getPitch(),bearing:map.getBearing(),formation:model?.key,width:w,height:h};
-        if(!motionCamera.active&&!ambientWas&&framingView?.id===view.id&&['zoom','pitch','bearing','formation','width','height'].some(k=>view[k]!==framingView[k]))followReturn={id:view.id};
+        const isHeadingUp=!!(frame?.display?.headingUp||globalThis.state?.followHeadingUp);
+        const viewKeys=isHeadingUp?['zoom','pitch','formation','width','height']:['zoom','pitch','bearing','formation','width','height'];
+        if(!followReturn&&!motionCamera.active&&!ambientWas&&framingView?.id===view.id&&viewKeys.some(k=>view[k]!==framingView[k]))followReturn={id:view.id};
         framingView=view;
         let center=coord,viewElevation=elevation;
         if(profile&&(!terrainState.terrain||profile.path.elevation||profile.path.level)){
