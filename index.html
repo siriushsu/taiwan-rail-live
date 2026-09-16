@@ -2658,6 +2658,14 @@
         文字仍釘在頂端、星卻置中,看起來就是「字在上、星掛在右下」(實測截圖如此)。
         有星的列一律改置中,整列的名稱/標籤/狀態與星才在同一條水平線上。 */
   #favPanel .row:has(.rm) { padding: 2px 0; align-items: center; }
+  #favPanel .sec-row { display: flex; align-items: center; justify-content: space-between; margin: 10px 0 1px; border-bottom: 1.5px dashed var(--line-dash); }
+  #favPanel .sec-row .sec { margin: 0; padding-bottom: 3px; border-bottom: none; }
+  #favPanel .fv-add-st {
+    font: 700 11px var(--font); font-size: calc(11px * var(--uis));
+    background: var(--bg-stage); color: var(--navy); border: 1px solid var(--border);
+    border-radius: 6px; padding: 2px 8px; cursor: pointer; display: inline-flex; align-items: center;
+  }
+  #favPanel .fv-add-st:hover { background: var(--border); }
   /* 我的車(通行證專屬:favPanel 收藏的台鐵列車準點總覽,見 myTrainSection)。列本身的 cursor/hover
      吃通用的 .board .row[data-no] 規則(不必再寫一次);這裡只補 teaser 遮罩——結構比照誤點履歷卡
      的 dh-lock/dh-cta(模糊+置中CTA),換一套自己的類名,不共用 .delayhist-panel 專屬作用域。 */
@@ -5454,6 +5462,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="favstangeo0916"><span class="d">9/16</span><span>最愛車站星號整合至站名標籤避免遮蔽文字，傾斜跟車時自動隱藏定位藍圈維持純淨視角</span></li>
         <li data-cl-of="followrotate0916"><span class="d">9/16</span><span>跟車轉動視角維持鎖定不中斷，並修正開啟車頭朝上時列車在轉彎處跑出畫面外的問題</span></li>
         <li data-cl-of="citynav0916"><span class="d">9/16</span><span>選取縣市或搜尋車站後自動解除定位跟隨，避免地圖鏡頭隨即跳回所在地點</span></li>
         <li data-cl-of="overtakeplan0915"><span class="d">9/15</span><span>台鐵後車即將追上前車時，會預先回找有足夠煞車時間的車站安排待避，減少列車在站間追撞或互相穿越</span></li>
@@ -5461,7 +5470,6 @@
         <li data-cl-of="remainingtracks0913"><span class="d">9/14</span><span>台鐵列車互穿再減少：補回 97 站的站區股道，雙線區間依行車方向分股行駛，台北–萬華地下段不再兩向共用同一條軌道，並改善單線會車判斷</span></li>
         <li data-cl-of="viewcontrols0914"><span class="d">9/14</span><span>觀看設定移到網站右側；手機可按「觀看」切換視角、地圖與列車設定，沉浸模式也能隨時重新開啟；修正地形切換時橋墩閃現與遠景列車大小設定未生效</span></li>
         <li data-cl-of="viewguide0914"><span class="d">9/14</span><span>地圖俯視與傾斜切換更平順，新增車站與地標導覽；放大跟車時保留車頭與手機操作空間</span></li>
-        <li data-cl-of="delayselfheal0914"><span class="d">9/14</span><span>修正台鐵近 30 天準點率與準點排行偶爾停在幾天前，資料漏抓時當天會自動補上</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5712,6 +5720,7 @@
         <li><span class="d">7/13</span><span>新增「附近火車」：地圖上落一根釘，查周邊 60 分鐘內會通過的車次</span></li>
         <li><span class="d">7/12</span><span>新增平交道功能：點一下查接下來會通過的列車（7/13 補上貨運線 21 處）</span></li>
         <li class="grp">收藏、護照與成就</li>
+        <li data-cl="favstangeo0916"><span class="d">9/16</span><span>最愛車站星號整合至站名標籤避免遮蔽文字，隨視距自然淡出；傾斜跟車時自動隱藏定位大圈與脈動環，維持 3D 視角純淨</span></li>
         <li data-cl="dexmisscard0908"><span class="d">9/8</span><span>護照收集章今天沒有班次時，點下去會在章旁邊跳出這班車的故事，並依班表告訴你下一個開行日與之後幾天；班表過期或十四天內都沒有開行時只說明沒有，不推測日期</span></li>
         <li data-cl="dexstarsys0908"><span class="d">9/8</span><span>修正護照收集章「環島之星 萌旅號」：台鐵與阿里山林鐵都有 1、2 次車，點下去會跑成林鐵的車。收集章與今日亮點現在只認台鐵班次</span></li>
         <li data-cl="rideseq"><span class="d">9/3</span><span>完乘記錄新增「順序」排序，依實際完成先後排列；手機旅程護照也補上順序、日期、車次、距離與車種排序（謝謝網友回報）</span></li>
@@ -6482,7 +6491,7 @@
 //         介紹卡／搜尋／收集章／3D 外觀全部自動接上，明星列車章 5→6 枚；環島之星與虛構的山海／平原號
 //         不再退回 EMU800 代表外觀，改成機車牽引的觀光列車（環島之星＝E500＋莒光客車）。
 //         守門人：verify_formations 新增具名覆蓋率斷言，名冊「有固定車次」的集合必須與對照表逐一相等。
-const BUILD = 'v0916a';
+const BUILD = 'v0916c';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -11766,8 +11775,10 @@ function drawFreq(w, h) {
         ctx.lineWidth = 1.5 + stationZoomBoost(z) * .7; ctx.strokeStyle = metroLineColor(ln.color); ctx.globalAlpha = 0.9; ctx.stroke();
         ctx.globalAlpha = 1;
       }
-      if (showStation && inView(p)) freqLabels.push({
-        p, name: stationName(ln.stations[idx].name, ln._sys),
+      const isFav = isFavStationName(ln.stations[idx].name);
+      if ((showStation || (isFav && z >= 11.5)) && inView(p)) freqLabels.push({
+        p, name: stationName(ln.stations[idx].name, ln._sys), isFav,
+        st: { name: ln.stations[idx].name, lat: ln.stations[idx].lat, lon: ln.stations[idx].lon, sys: 'freq', metroSysId: freqSysIdOf(ln) },
         pa: ln.pts[Math.max(0, idx - 1)], pb: ln.pts[Math.min(ln.pts.length - 1, idx + 1)],
       });
     });
@@ -11833,11 +11844,11 @@ function drawFreq(w, h) {
   flushTrainPaint(); // 車在這裡才真的畫出來:交叉口附近依真實高低排序,其餘維持原順序
   // 站名最後畫(蓋在列車上層),錨點推到軌道側邊
   ctx.textAlign = 'center';
-  for (const { p, name, pa, pb } of freqLabels) {
+  for (const { p, name, pa, pb, isFav, st } of freqLabels) {
     if (drawnNames.has(name)) continue;
     drawnNames.add(name);
     const a = sideLabelAnchor(p, pa, pb, 18) || { x: p.x, y: p.y };
-    tryLabel(a.x, a.y, name, undefined, undefined, p.detailOpacity);
+    tryLabel(a.x, a.y, name, undefined, undefined, p.detailOpacity, isFav, st);
   }
 }
 
@@ -12165,8 +12176,10 @@ function drawDecoBase(w, h) {
         ctx.lineWidth = 1.5 + stationZoomBoost(z) * .7; ctx.strokeStyle = metroLineColor(ln.color); ctx.globalAlpha = 0.9; ctx.stroke();
         ctx.globalAlpha = 1;
       }
-      if (showStation) decoLabels.push({
-        p, name: stationName(ln.stations[idx].name, ln._sys),
+      const isFav = isFavStationName(ln.stations[idx].name);
+      if (showStation || (isFav && z >= 11.5)) decoLabels.push({
+        p, name: stationName(ln.stations[idx].name, ln._sys), isFav,
+        st: { name: ln.stations[idx].name, lat: ln.stations[idx].lat, lon: ln.stations[idx].lon, sys: 'deco', metroSysId: freqSysIdOf(ln) },
         pa: ln.pts[Math.max(0, idx - 1)], pb: ln.pts[Math.min(ln.pts.length - 1, idx + 1)],
       });
     });
@@ -12246,11 +12259,11 @@ function drawDecoTrains(w, h) {
 function drawDecoLabels() {
   ctx.textAlign = 'center';
   const drawn = new Set();
-  for (const { p, name, pa, pb } of decoLabels) {
+  for (const { p, name, pa, pb, isFav, st } of decoLabels) {
     if (drawn.has(name)) continue;
     drawn.add(name);
     const a = sideLabelAnchor(p, pa, pb, 18) || { x: p.x, y: p.y };
-    tryLabel(a.x, a.y, name, undefined, undefined, p.detailOpacity);
+    tryLabel(a.x, a.y, name, undefined, undefined, p.detailOpacity, isFav, st);
   }
 }
 
@@ -12545,8 +12558,9 @@ function drawSched(w, h, paintDecoTrains) {
     const cp = mapDetailPoint([st.lat, st.lon]);
     if (!inView(cp)) continue;
     const tier = st.tier == null ? 4 : st.tier;
-    if (z >= 10 || tier <= 2) drawStationIcon(cp, tier);
-    labelCands.push({ cp, st, tier });
+    const isFav = isFavStationName(st.name);
+    if (z >= 10 || tier <= 2 || isFav) drawStationIcon(cp, tier);
+    labelCands.push({ cp, st, tier, isFav });
   }
   // 軌道、平交道、車站圖示都畫完了，這裡才輪到列車：先補畫裝飾層(捷運)的車，再畫台鐵/高鐵的車。
   // 順序＝所有軌道 → 捷運列車 → 台鐵/高鐵列車 → 站名，任何一台車都浮在所有軌道之上(見疊層鐵則)
@@ -12584,7 +12598,7 @@ function drawSched(w, h, paintDecoTrains) {
   // 站名標籤:大站先取位、字級隨站等、蓋在列車上層;錨點放軌道側邊(法線方向)——
   // 列車沿軌道跑就壓不到字,標籤與車號牌位置都固定不動(對列車做避讓會讓牌亂跳,已撤)
   ctx.textAlign = 'center';
-  labelCands.sort((a, b) => a.tier - b.tier);
+  labelCands.sort((a, b) => (b.isFav ? 1 : 0) - (a.isFav ? 1 : 0) || a.tier - b.tier);
   const drawnNames = new Set();
   const sysLabelOf = st => t((state.systems.find(x => x.id === st.sys) || {}).label || '');
   // 去重鍵=實際要畫的字串:共構展開時「新竹・高鐵」(六家旁)與台鐵縱貫線「新竹」是兩個不同實體站,
@@ -12596,23 +12610,25 @@ function drawSched(w, h, paintDecoTrains) {
   for (const c of labelCands) {
     const t = TIER_STYLE[c.tier];
     const key = labelTextOf(c.st);
-    if (z < t.lz || drawnNames.has(key)) continue;
+    const effLz = c.isFav ? Math.max(0, t.lz - 1.5) : t.lz;
+    if (z < effLz || drawnNames.has(key)) continue;
     drawnNames.add(key);
     const a = stationLabelAnchor(c.cp, c.st, t);
     if (c.st._co && z >= 11) {
       // 共構點(台鐵×高鐵同址):成組標示——主站在錨位、同群站逐行往下,各帶系統名,
       // 不然兩顆標籤幾乎同位置互撞,永遠只看得到其中一家(拉遠 z<11 視覺上是同一點,只標主站名)
-      tryLabel(a.x, a.y, key, t.f, c.tier <= 1 ? 4 : 3, c.cp.detailOpacity);
+      tryLabel(a.x, a.y, key, t.f, c.tier <= 1 ? 4 : 3, c.cp.detailOpacity, c.isFav, c.st);
       let dy = 0;
       for (const sib of c.st._co) {
         const sk = labelTextOf(sib);
         if (drawnNames.has(sk)) continue;
         drawnNames.add(sk);
         dy += 14;
-        tryLabel(a.x, a.y + dy, sk, TIER_STYLE[sib.tier == null ? 4 : sib.tier].f, 3, c.cp.detailOpacity);
+        const sibFav = isFavStationName(sib.name);
+        tryLabel(a.x, a.y + dy, sk, TIER_STYLE[sib.tier == null ? 4 : sib.tier].f, 3, c.cp.detailOpacity, sibFav, sib);
       }
     } else {
-      tryLabel(a.x, a.y, key, t.f, c.tier <= 1 ? 4 : 3, c.cp.detailOpacity);
+      tryLabel(a.x, a.y, key, t.f, c.tier <= 1 ? 4 : 3, c.cp.detailOpacity, c.isFav, c.st);
     }
   }
   // 台糖園區名:排在站名之後參與同一套避讓(站名優先),放記號正下方
@@ -12645,18 +12661,38 @@ function drawFollowMarker(p, tr) {
 }
 
 let labelBoxes = [];
-function tryLabel(x, y, name, font, halo, opacity = 1) {
+let _favStNames = new Set();
+function refreshFavStationNames() {
+  _favStNames.clear();
+  if (!state.liveMode && typeof loadFavStations === 'function') {
+    for (const f of loadFavStations()) {
+      if (f && f.name) _favStNames.add(f.name.replace(/臺/g, '台'));
+    }
+  }
+  return _favStNames;
+}
+function isFavStationName(name) {
+  if (!_favStNames.size && typeof loadFavStations === 'function') refreshFavStationNames();
+  return !!name && _favStNames.has(name.replace(/臺/g, '台'));
+}
+function tryLabel(x, y, name, font, halo, opacity = 1, isFav = false, st = null) {
   if (opacity <= 0) return;
+  const displayName = isFav ? '★ ' + name : name;
   ctx.font = (font || '500 11px ') + FONT;
-  const w = ctx.measureText(name).width, h = 13;
+  const w = ctx.measureText(displayName).width, h = 13;
   const l = x - w / 2 - 1, r = x + w / 2 + 1, b = y - 4, t = b - h;
   for (const bx of labelBoxes) if (l < bx.r && r > bx.l && t < bx.b && b > bx.t) return;
-  labelBoxes.push({ l, r, t, b, name, opacity });
+  labelBoxes.push({ l, r, t, b, name, opacity, isFav, st });
   ctx.save(); ctx.globalAlpha = opacity;
   ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
   ctx.lineWidth = halo || 3; ctx.strokeStyle = pal().lblStroke;
-  ctx.strokeText(name, x, y - 4);
-  ctx.fillStyle = pal().lbl; ctx.fillText(name, x, y - 4);
+  ctx.strokeText(displayName, x, y - 4);
+  ctx.fillStyle = pal().lbl; ctx.fillText(displayName, x, y - 4);
+  if (isFav) {
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#f5a623';
+    ctx.fillText('★', x - w / 2, y - 4);
+  }
   ctx.restore();
 }
 // ── 站名放軌道側邊:標籤位置固定(不對列車做避讓——避讓會讓牌亂跳,已撤),
@@ -13691,20 +13727,30 @@ const GPS_RGB = (() => { // 精度圈要半透明,把 hex 拆成 r,g,b 備用
 // (2.1 秒一輪、scale .55→2.7、opacity .5→0),換成畫布後外觀一致。
 function drawMe() {
   if (!mePos) return;
+  const opacity = (typeof M.detailOpacity === 'function') ? M.detailOpacity([mePos.lat, mePos.lon]) : 1;
+  if (opacity <= 0) return; // 視距淡出:遠方地平線不畫孤立藍點
+  const isFollowing = !!(state.followTrain || state.freqFollow);
+  const pitch = typeof M.getPitch === 'function' ? M.getPitch() : 0;
+  const hideCircle = isFollowing && pitch > 15;
+
   const p = M.toScreen([mePos.lat, mePos.lon]);
   const mPerPx = 40075016.686 * Math.cos(mePos.lat * Math.PI / 180) / (256 * Math.pow(2, M.getZoom()));
-  const rPx = mePos.acc / mPerPx; // 精度圈用真實公尺換算,跟著縮放變大變小(與原本的 circle 圖層語意相同)
+  const rPx = mePos.acc / mPerPx; // 精度圈用真實公尺換算,跟著縮放變大變小
+
   ctx.save();
-  if (rPx > 12) { // 精度圈比藍點還小就不必畫,只會糊成一團
+  ctx.globalAlpha = opacity;
+  if (!hideCircle && rPx > 12) { // 精度圈比藍點還小就不必畫,只會糊成一團;傾斜跟車時隱藏
     ctx.beginPath(); ctx.arc(p.x, p.y, rPx, 0, Math.PI * 2);
     ctx.fillStyle = `rgba(${GPS_RGB},.10)`; ctx.fill();
     ctx.strokeStyle = `rgba(${GPS_RGB},.5)`; ctx.lineWidth = 1; ctx.stroke();
   }
-  const t = (performance.now() % 2100) / 2100; // 脈動環
-  ctx.globalAlpha = .5 * (1 - t);
-  ctx.beginPath(); ctx.arc(p.x, p.y, 11 * (.55 + 2.15 * t), 0, Math.PI * 2);
-  ctx.fillStyle = GPS_BLUE; ctx.fill();
-  ctx.globalAlpha = 1;
+  if (!hideCircle) { // 脈動環:傾斜跟車時隱藏
+    const t = (performance.now() % 2100) / 2100;
+    ctx.globalAlpha = opacity * .5 * (1 - t);
+    ctx.beginPath(); ctx.arc(p.x, p.y, 11 * (.55 + 2.15 * t), 0, Math.PI * 2);
+    ctx.fillStyle = GPS_BLUE; ctx.fill();
+  }
+  ctx.globalAlpha = opacity;
   ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);   // 白色外環(在深色底圖上也看得見)
   ctx.fillStyle = '#fff'; ctx.shadowColor = 'rgba(0,0,0,.32)'; ctx.shadowBlur = 2; ctx.shadowOffsetY = 1; ctx.fill();
   ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
@@ -20083,16 +20129,8 @@ function favStationHere(f) { // 解析目前檢視能開板的站物件;開不�
 }
 function renderFavStationMarkers() {
   favStMarks.forEach(m => m.remove()); favStMarks = [];
-  for (const f of loadFavStations()) {
-    const st = favStationHere(f);
-    if (!st) continue;
-    const html = railIcon('ui-favorite', 'ri-icon--fill');
-    // 錨在站點上方一點,不壓站上的列車
-    const mk = new maplibregl.Marker({ element: maplibreMarkerElement('favst-ico', html, 880), anchor: 'bottom', offset: [0, -3] }).setLngLat([f.lon, f.lat]).addTo(M.raw);
-    const open = () => openBoard(favStationHere(f) || st); // 點 ★=明確要看板,不經車/站歧義判定
-    mk.getElement().addEventListener('click', event => { event.stopPropagation(); open(); });
-    favStMarks.push(mk);
-  }
+  refreshFavStationNames();
+  if (typeof requestDraw === 'function') requestDraw();
 }
 function renderFavs() {
   const box = document.getElementById('favRow');
@@ -20135,7 +20173,7 @@ function renderFavPanel() {
   el.innerHTML = `<h3>${escHtml(t('我的最愛'))}<button class="close" id="favClose" aria-label="${escHtml(t('關閉'))}">×</button></h3>` +
     (counts ? `<div class="sub">${counts}</div>` : '') +
     (stns.length
-      ? `<div class="sec">${escHtml(t('車站'))}</div>` + stns.map(f => {
+      ? `<div class="sec-row"><div class="sec">${escHtml(t('車站'))}</div><button type="button" class="fv-add-st" id="favAddStationBtn">${escHtml(t('＋ 搜尋車站'))}</button></div>` + stns.map(f => {
           const key = escHtml(f.sys + '|' + f.name);
           // 下一班:台鐵/高鐵讀**看板同一份**計算(schedBoardRows);捷運/輕軌的到站時刻來自官方
           // 即時看板、不是班表,這裡不自己推一份 ⇒ **留白**(寧可不寫,也不寫一個可能不對的時間)。
@@ -20148,7 +20186,7 @@ function renderFavPanel() {
         }).join('')
       : '') +
     (favs.length
-      ? (stns.length ? `<div class="sec">${escHtml(t('列車'))}</div>` : '') + favs.map(f => {
+      ? `<div class="sec">${escHtml(t('列車'))}</div>` + favs.map(f => {
           const no = escHtml(f.train);
           const sys = favTrainSys(f), reminderSys = sys === 'thsr_sched' ? 'thsr' : (sys === 'tra_sched' ? 'tra' : '');
           // 設計 3f:每列右側標它此刻在不在跑(與亮點面板同一支 trainStatusTxt,不另寫一套判斷)。
@@ -20176,7 +20214,7 @@ function renderFavPanel() {
         })()
       : '') +
     (!favs.length && !stns.length && !pins.length
-      ? `<div class="empty">${escHtml(t('還沒有收藏——跟隨列車後點資訊卡的收藏鈕收藏列車；打開車站看板點收藏鈕收藏車站；用工具列「儲存」在地圖上存地點。'))}</div>` : '');
+      ? `<div class="empty">${escHtml(t('還沒有收藏——跟隨列車後點資訊卡的收藏鈕收藏列車；打開車站看板點收藏鈕收藏車站；用工具列「儲存」在地圖上存地點。'))}<div style="margin-top:12px;text-align:center"><button type="button" class="fv-add-st" id="favAddStationBtn" style="padding:6px 14px;font-size:13px">${escHtml(t('＋ 搜尋並收藏車站'))}</button></div></div>` : '');
   el.querySelector('#favClose').onclick = closeFavPanel;
 }
 function openFavPanel() {
@@ -35060,7 +35098,11 @@ async function boot() {
           if (d < bdSt) { bdSt = d; bestSt = ln.stations[idx]; bestStLine = ln; }
         });
       });
-      const stHit = bestSt && bdSt <= stationRadius ? { name: bestSt.name, lat: bestSt.lat, lon: bestSt.lon, sys: 'freq', metroSysId: freqSysIdOf(bestStLine) } : null;
+      let stHit = bestSt && bdSt <= stationRadius ? { name: bestSt.name, lat: bestSt.lat, lon: bestSt.lon, sys: 'freq', metroSysId: freqSysIdOf(bestStLine) } : null;
+      if (!stHit) {
+        const lbHit = labelBoxes.find(b => (b.opacity ?? 1) > 0 && b.st && cp.x >= b.l && cp.x <= b.r && cp.y >= b.t && cp.y <= b.b);
+        if (lbHit) { stHit = lbHit.st; bdSt = 0; }
+      }
       if (fhs.length > 1) {
         const items = fhs.map(tapPickFreqTrain);
         if (stHit && Math.abs(fh.dist - bdSt) < TAP_AMBIG_PX) items.push(tapPickStation(stHit));
@@ -35106,6 +35148,11 @@ async function boot() {
         });
       });
       if (bestDeco && bdDeco <= stationRadius) stCands.push({ st: { name: bestDeco.name, lat: bestDeco.lat, lon: bestDeco.lon, sys: 'deco', metroSysId: freqSysIdOf(bestDecoLine) }, d: bdDeco });
+    }
+    const lbHit = labelBoxes.find(b => (b.opacity ?? 1) > 0 && b.st && cp.x >= b.l && cp.x <= b.r && cp.y >= b.t && cp.y <= b.b);
+    if (lbHit && lbHit.st) {
+      stCands.push({ st: lbHit.st, d: 0 });
+      if (!best || bd > 0) { best = lbHit.st; bd = 0; }
     }
     stCands.sort((a, b) => a.d - b.d);
     // 與最近顆距離差 <TAP_AMBIG_PX 的視為疊站,選單一次列出(含系統名)讓使用者分開開板
@@ -36437,6 +36484,14 @@ document.getElementById('todayBtn').onclick = () => {
   document.getElementById('todayPanel').hidden ? openTodayPanel() : closeTodayPanel();
 };
 document.getElementById('favPanel').onclick = e => {
+  const addSt = e.target.closest('#favAddStationBtn');
+  if (addSt) {
+    closeFavPanel();
+    openSearchPanel({ user: true });
+    const si = document.getElementById('searchIn');
+    if (si) { si.focus(); si.placeholder = t('搜尋車站名稱以加入最愛…'); }
+    return;
+  }
   const nb = e.target.closest('.fv-notify');
   if (nb) { e.stopPropagation(); openLocalReminderSheet(findLocalReminderTrain(nb.dataset.notifyNo, nb.dataset.notifySys), 'favorite'); return; }
   const myc = e.target.closest('[data-myt-cta]');
