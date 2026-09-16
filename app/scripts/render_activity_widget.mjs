@@ -78,6 +78,9 @@ function intentGate() {
              + '——鎖屏跑不了 closure，沒接 intent 的那顆按了不會有任何反應');
     }
   }
+  if (!followSource.includes('RailFollowEndIntent')) {
+    bad.push('跟車卡完全沒有 RailFollowEndIntent（「結束」鈕收不掉卡）');
+  }
   if (!waitSource.includes('MetroWaitEndIntent')) {
     bad.push('等車卡完全沒有 MetroWaitEndIntent（「結束」鈕收不掉卡）');
   }
@@ -85,6 +88,7 @@ function intentGate() {
     bad.push('等站卡完全沒有 TraWaitEndIntent（「結束」鈕收不掉卡）');
   }
   for (const [name, src, needle] of [
+    ['跟車卡', followSource, 'struct RailFollowEndButton'],
     ['等車卡', waitSource, 'struct MetroWaitEndButton'],
     ['跟車卡', followSource, 'RailFollowDisplay.make('],
     ['等車卡', waitSource, 'MetroWaitDisplay.make('],
@@ -117,6 +121,7 @@ function expandedIslandSafeInsetGate() {
     }
   }
   for (const [name, src, header] of [
+    ['跟車卡', followSource, 'struct RailFollowEndButton'],
     ['捷運等車卡', waitSource, 'struct MetroWaitEndButton'],
     ['台鐵等站卡', traSource, 'struct TraWaitEndButton'],
   ]) {
@@ -276,6 +281,26 @@ struct MetroWaitEndButton: View {
 
 // 等站卡「結束」鈕的替身（理由同上，出貨版是 Button(intent: TraWaitEndIntent())）。
 struct TraWaitEndButton: View {
+    var scale: RailScale = RailScale(k: 1)
+    var compact: Bool = false
+    var height: CGFloat = 30
+
+    @ViewBuilder var body: some View {
+        if compact {
+            Text("結束")
+                .font(.system(size: scale.pt(11), weight: .semibold))
+                .padding(.horizontal, scale.pt(8))
+                .frame(height: scale.pt(20))
+                .background(RoundedRectangle(cornerRadius: scale.pt(5)).fill(Color.primary.opacity(0.12)))
+                .fixedSize(horizontal: true, vertical: false)
+        } else {
+            RailEndButton(scale: scale, height: height) { Text("結束") }
+        }
+    }
+}
+
+// 跟車卡「結束」鈕的替身（理由同上，出貨版是 Button(intent: RailFollowEndIntent())）。
+struct RailFollowEndButton: View {
     var scale: RailScale = RailScale(k: 1)
     var compact: Bool = false
     var height: CGFloat = 30

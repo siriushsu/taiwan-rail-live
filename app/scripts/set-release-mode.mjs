@@ -360,10 +360,10 @@ const MODES = {
     //   本次 merge commit 的祖先，並以已上架 1.6.3 (112) 的可見面聯集跑出貨回歸閘門。
     // 114（2026-09-15）：Apple 公開 lookup 仍為 1.6.3，故沿用 1.6.4；113 已有 archive，
     //   不重用載貨號。納入 v0915a：同向快車將追上慢車時，提早回找有足夠煞車距離的車站待避。
-    marketing: '1.6.4', build: '114', music: true, metroCore: true, androidPlus: true,
-    why: "軌島 1.6.4\n\n・到站提醒可設定每天、平日或自訂星期重複\n・新增「觀看」面板，可切換視角、地圖與列車設定，並重新開啟沉浸模式\n・地圖俯視與傾斜切換更平順，新增車站與地標導覽\n・所有列車可顯示完整或推估編組，清楚標示推估車廂數\n・修正阿里山林鐵機車位置與方向，呈現推進、牽引及之字形折返\n・台鐵快車追上慢車時會提早回找有足夠煞車距離的車站待避，並改善站區股道與單線會車\n・台鐵近 30 天準點資料漏抓時會在當天自動補回\n・修正部分橋隧、高程、遠景列車比例與近景跟車顯示\n・更新高捷、安坑、淡海與台中捷運班表",
-    whyEn: "Rail Island 1.6.4\n\n• Daily, weekday or custom-day repeat alerts\n• View panel for camera, map, trains and immersive mode\n• Smoother views; station and place guides\n• Full or estimated train formations\n• Correct Alishan locomotive placement, push/pull and zigzags\n• Earlier TRA overtakes with braking room; better tracks and single-track meets\n• Recovery for missed TRA punctuality data\n• Better bridges, tunnels, elevation, distant scale and close-up following\n• Updated metro timetables",
-    whyJa: "軌島 1.6.4\n\n・到着通知を毎日、平日、または選んだ曜日に繰り返し設定\n・視点、地図、列車設定をまとめた「表示」パネルと没入モード再開ボタンを追加\n・俯瞰／傾斜表示の切替を滑らかにし、駅とスポットの案内を追加\n・すべての列車で完全編成または推定編成を表示し、推定両数を明記\n・阿里山林鉄の機関車位置と向き、推進・牽引・スイッチバックを修正\n・台鉄の追越しは制動時間を確保できる手前の駅で待避し、駅構内の線路と単線交換も改善\n・台鉄の直近 30 日間の定時運行データを、取得漏れがあれば当日中に自動補完\n・橋梁、トンネル、高低差、遠景の縮尺、近接追尾表示を修正\n・高雄、安坑、淡海、台中メトロの時刻表を更新",
+    marketing: '1.6.5', build: '116', music: true, metroCore: true, androidPlus: true,
+    why: "軌島 1.6.5\n\n・選取縣市或搜尋車站後，地圖不再跳回目前所在地\n・修正 Android 部分 3D 列車與建築無法載入的問題\n・跟車時旋轉視角可維持鎖定，車頭朝上轉彎時列車持續留在畫面中\n・改善台鐵快慢車待避判斷與行車顯示\n・火車與高鐵跟車在 iOS 動態島放大與鎖定畫面新增結束按鈕",
+    whyEn: "Rail Island 1.6.5\n\n• Keep the map at your selected city or searched station instead of jumping back to your location\n• Fix loading of some 3D trains and buildings on Android\n• Keep following while rotating the view, and keep trains in frame around curves with heading-up enabled\n• Improve TRA overtaking decisions and train movement\n• Add end tracking button for TRA and THSR train follow on Dynamic Island and Lock Screen",
+    whyJa: "軌島 1.6.5\n\n・都市や駅を選んだ後、地図が現在地に戻る問題を修正\n・Android で一部の 3D 列車や建物を読み込めない問題を修正\n・追尾中に視点を回転してもロックを維持し、進行方向を上にしたカーブでも列車を画面内に表示\n・台鉄の追越し待避判定と列車の動きを改善\n・台鉄・高鉄の列車追尾でダイナミックアイランド拡大時とロック画面に終了ボタンを追加",
 
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
