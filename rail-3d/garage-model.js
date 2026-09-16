@@ -7,7 +7,12 @@ async function checked(url,signal,bytes,sha,gzip=false){
  if(gzip){let decoded;if(typeof DecompressionStream==='function')try{decoded=await new Response(new Blob([b]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();}catch{}
   if(!decoded){const {gunzipSync}=await import('./vendor/fflate-gunzip.js');const a=gunzipSync(new Uint8Array(b));decoded=a.buffer.slice(a.byteOffset,a.byteOffset+a.byteLength);}b=decoded;
  }
- if(b.byteLength!==bytes)throw Error('model size');const digest=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',b)),v=>v.toString(16).padStart(2,'0')).join('');if(digest!==sha)throw Error('model hash');return b;
+ if(b.byteLength!==bytes)throw Error('model size');
+ if(globalThis.crypto?.subtle){
+  const digest=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',b)),v=>v.toString(16).padStart(2,'0')).join('');
+  if(digest!==sha)throw Error('model hash');
+ }
+ return b;
 }
 function grey(m){m.onBeforeCompile=s=>{s.fragmentShader=s.fragmentShader.replace('#include <opaque_fragment>','#include <opaque_fragment>\ngl_FragColor.rgb=vec3(dot(gl_FragColor.rgb,vec3(.2126,.7152,.0722)));');};return m;}
 export async function loadGarageModel(id,signal,mapMeta,reference){
