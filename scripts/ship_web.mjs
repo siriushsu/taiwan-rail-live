@@ -65,6 +65,16 @@ try {
   process.stdout.write(i18n.stdout || ''); process.stderr.write(i18n.stderr || '');
   if (i18n.status !== 0) fail('i18n 稽核未過——補齊 en/ja 再出貨（單獨重跑：npm run check-i18n）');
 
+  // ── 2.5b i18n 瀏覽器驗收（Chromium＋WebKit，約 70 秒）──────────────────────
+  // 2.5 是靜態掃描，看不到「畫出來的畫面」：切換語言後殘留前一種語言、App 的「更多」面板、法務頁、
+  // 手機四寬度的可見中文，都只有真的開瀏覽器才量得到(2026-09-19 使用者在 App 英日文實測回報的那一批，
+  // 靜態掃描全綠)。這支此前沒有任何呼叫者，而且還要人先起一個 5178 的 server 才跑得動。
+  // 🔴 洗掉繼承來的 RAIL_I18N_URL：有值時它改連既有 server、驗的可能是別棵樹（G0 會擋，但別讓它發生）。
+  const i18nBrowser = spawnSync('node', [path.join(wt, 'scripts', 'verify_i18n.mjs')],
+    { cwd: wt, encoding: 'utf8', env: { ...process.env, RAIL_I18N_URL: '' } });
+  process.stdout.write(i18nBrowser.stdout || ''); process.stderr.write(i18nBrowser.stderr || '');
+  if (i18nBrowser.status !== 0) fail('i18n 瀏覽器驗收未過——英日文畫面有中文殘留或切換語言殘留（單獨重跑：npm run check-i18n-browser）');
+
   // ── 2.6 部署設定的「整包覆蓋」防線 ────────────────────────────────────────
   // `triggers.crons` 與 `.assetsignore` 都是宣告式整包覆蓋:部署時拿檔案裡那份【取代】現況。
   // 少一條不會有任何錯誤訊息——git 不當衝突、wrangler 不報錯、worker.js 的程式碼一行不少,
@@ -565,8 +575,17 @@ try {
       await new Promise(r => setTimeout(r, 20000));
     }
     if (!live) fail('正式站內容在 ~3 分鐘內未收斂到本次 stripped md5——查 deployments list 與快取');
-    const api = await fetchProd('/api/trtc-live');
-    if (api.status !== 200) fail(`/api/trtc-live 回 ${api.status}——Worker 路由疑似壞了`);
+    // 429 只重試不判死：2026-09-19 claude-4e 那輪收貨後這裡拿到 Cloudflare 邊緣限流(body「error code: 1015」、
+    // retry-after 1),同一時間 /api/tra-live 與 /api/thsr-schedule 都 200、幾十秒後 trtc-live 也回 200——
+    // 多個 session 同時打正式站就會踩到,與 Worker 壞沒壞無關。其他非 200 仍當場判死。
+    let api = await fetchProd('/api/trtc-live');
+    for (let attempt = 1; api.status === 429 && attempt <= 6; attempt++) {
+      console.log(`  /api/trtc-live 回 429（${String(api.body).slice(0, 40)}），邊緣限流，10s 後重試 ${attempt}/6`);
+      await new Promise(r => setTimeout(r, 10000));
+      api = await fetchProd('/api/trtc-live');
+    }
+    if (api.status !== 200) fail(`/api/trtc-live 回 ${api.status}——Worker 路由疑似壞了`
+      + (api.status === 429 ? '（連續一分鐘 429：先手動 curl 確認是不是邊緣限流還沒退）' : ''));
     console.log(`✅ 出貨完成：railisland.tw 逐 byte＝stripped(${sha.slice(0, 8)})，${stripped.length} bytes，BUILD '${newBuild}'，API 200`);
   }
   ok = true;

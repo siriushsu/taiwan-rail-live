@@ -1,6 +1,38 @@
 import { chromium, webkit } from 'playwright';
+import { createServer } from 'node:http';
+import { createHash } from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const BASE = process.env.RAIL_I18N_URL || 'http://127.0.0.1:5178/';
+// 沒給 RAIL_I18N_URL 就自己起:純靜態、/api 一律 404,服這支腳本所在的樹(出貨鏈跑的是乾淨出貨樹,驗的就是那棵)。
+// 給了就改連既有 server(例如 /api 轉發正式站的那種,深夜才看得到的官方公告字串要靠它)。
+// 兩種模式都先做 G0:服出來的 index.html 必須逐 byte 等於本樹——驗到別棵樹時紅綠長得一模一樣。
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json',
+  '.geojson': 'application/geo+json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml',
+  '.webp': 'image/webp', '.woff2': 'font/woff2', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
+let BASE = process.env.RAIL_I18N_URL;
+let ownServer = null;
+if (!BASE) {
+  ownServer = createServer((q, s) => {
+    const u = new URL(q.url, 'http://x');
+    let fp = path.join(ROOT, decodeURIComponent(u.pathname));
+    if (fs.existsSync(fp) && fs.statSync(fp).isDirectory()) fp = path.join(fp, 'index.html');
+    // 比 ROOT + 分隔符:只比 ROOT 的話,/..%2F<同名前綴的兄弟目錄>/… 也服得到(同 verify_tra_motion)
+    if (u.pathname.startsWith('/api/') || !path.resolve(fp).startsWith(ROOT + path.sep) || !fs.existsSync(fp)) { s.statusCode = 404; return s.end(); }
+    s.setHeader('content-type', MIME[path.extname(fp)] || 'application/octet-stream');
+    s.end(fs.readFileSync(fp));
+  });
+  await new Promise(r => ownServer.listen(0, '127.0.0.1', r));
+  BASE = `http://127.0.0.1:${ownServer.address().port}/`;
+}
+{
+  const diskMd5 = createHash('md5').update(fs.readFileSync(path.join(ROOT, 'index.html'))).digest('hex');
+  const servedMd5 = createHash('md5').update(Buffer.from(await (await fetch(new URL('index.html', BASE))).arrayBuffer())).digest('hex');
+  console.log(`G0 target=${ROOT}\n   base=${BASE}\n   disk=${diskMd5}\n   serve=${servedMd5}`);
+  if (diskMd5 !== servedMd5) { console.error('G0 FAIL：server 服的不是這棵樹的 index.html'); process.exit(1); }
+}
 const results = [];
 const failures = [];
 
@@ -627,3 +659,4 @@ if (failures.length) {
   process.exit(1);
 }
 console.log(`\ni18n 瀏覽器驗證通過：${results.length} 個情境。`);
+if (ownServer) { ownServer.closeAllConnections?.(); ownServer.close(); }
