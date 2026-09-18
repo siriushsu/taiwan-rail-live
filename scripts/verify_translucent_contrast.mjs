@@ -372,9 +372,12 @@ const FLOOR = 3.0, KEEP = 0.8;
 //   暗色 2.0(v0907c,更新紀錄「玻璃面板」)＝霓虹玻璃:night-theme.css 的 rgba(12,18,33,.80)＋blur(20px),
 //   關掉開關本來就回不到「實色」。地板取 .80:退到比它更透(例如半透明的 .30 殘留)才算沒回去。
 const BASELINE = {
-  light: { name: '實色', minAlpha: 0.9, backdrop: 'none' },
-  dark: { name: '暗色玻璃底', minAlpha: 0.8, backdrop: 'any' },
+  light: { name: '實色', minAlpha: 0.9, backdrop: 'none', onAlpha: 0.55 },
+  dark: { name: '暗色玻璃底', minAlpha: 0.8, backdrop: 'any', onAlpha: 0.45 },
 };
+// 開著半透明時面板本體要真的是使用者核定的那格(亮 .55 / 暗 .45,09-19 裁示)＋凍結的 blur(3px)。
+// 2026-09-19 裁示 A 之前,暗色 2.0 的 ID 特異度把開關整個蓋掉(開著仍是 .80),G2 只比「開 vs 關」量不出來。
+const PANEL_SEL = '.board,.traincard,#nearCard,#xingCard,#xingHelp,.follow-panel,.freq-card';
 const alphaOf = bg => { const c = (String(bg).match(/rgba?\(([^)]+)\)/) || [])[1]; return c ? (c.split(/[\s,/]+/).filter(Boolean).map(Number)[3] ?? 1) : 0; };
 const sdSeen = [];
 
@@ -403,6 +406,14 @@ async function measurePass(page, sc, label, pass, no) {
     const loaded = gl.isStyleLoaded() || !!(st && st.layers && st.layers.length);
     return { ok: loaded && r.width > 0 && r.height > 0, detail: `GL 樣式${loaded ? '已載' : '未載'} 畫布 ${Math.round(r.width)}×${Math.round(r.height)}` };
   });
+  const glassOn = await page.evaluate(sel => [...document.querySelectorAll(sel)]
+    .filter(e => e.getClientRects().length && !e.closest('[hidden]') && getComputedStyle(e).display !== 'none'
+      && !e.matches('.fp-min, .tc-sheet.sheet-small'))
+    .map(e => { const cs = getComputedStyle(e); return { id: e.id || e.className.split(' ')[0], bg: cs.backgroundColor, bd: cs.backdropFilter || cs.webkitBackdropFilter || '' }; }), PANEL_SEL);
+  const want = BASELINE[sc.theme].onAlpha;
+  const glassBad = glassOn.filter(g => Math.abs(alphaOf(g.bg) - want) > 0.02 || !/blur\(3px\)/.test(g.bd));
+  ok(`G2c ${tag} 開著半透明時面板本體是 ${want}＋blur(3px)(量到 ${glassOn.length} 張)`, glassOn.length > 0 && glassBad.length === 0,
+    glassBad.length ? glassBad.map(g => `${g.id} bg=${g.bg} backdrop=${g.bd}`).join('; ') : glassOn.map(g => g.id).join('/'));
   const itemsT = await page.evaluate(COLLECT);
   const sparkT = await page.evaluate(COLLECT_SPARK);
   await page.screenshot({ path: `${OUT}/_glass_${label.replace(/\//g, '_')}_${pass.name}.png` });
