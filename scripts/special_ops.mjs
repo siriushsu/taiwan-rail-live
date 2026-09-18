@@ -55,6 +55,28 @@ function densify(trains, fromSec, headwaySec) {
   return out;
 }
 
+// 常態加班(op 沒有 dates):官方公告的新增班次 TDX 還沒上架時,直接併進基準 set(不是例外日)。
+// 行駛型態複製同 set 裡「從同一站、於 like 發車」的那班,整班平移到 dep;kinds 同步插入同一位置。
+// TDX 已有同站同刻發車的班次 ⇒ 跳過並提示可刪,不會疊出兩班。
+function addTrips(L, setName, adds, id, log) {
+  const trains = L.sets[setName];
+  for (const a of adds) {
+    const from = a.from ?? 0, dep = toSec(a.dep), like = toSec(a.like);
+    if (trains.some(tr => tr[0] === from && depOf(tr) === dep)) {
+      log(`  ⚑ ${id}: ${setName} 已有 ${a.dep} 發車班次(TDX 已上架),本條可刪`);
+      continue;
+    }
+    const ti = trains.findIndex(tr => tr[0] === from && depOf(tr) === like);
+    if (ti < 0) throw new Error(`special_ops ${id}: ${setName} 找不到 ${a.like} 發車的模板班次`);
+    const tr = trains[ti].map((v, i) => (i % 2 ? v - like + dep : v));
+    let at = trains.findIndex(t => depOf(t) > dep); if (at < 0) at = trains.length;
+    trains.splice(at, 0, tr);
+    const ks = L.kinds?.[setName];
+    if (ks) L.kinds[setName] = ks.slice(0, at) + ks[ti] + ks.slice(at);
+    log(`  ⚑ ${id}: ${setName} 加 ${a.dep} 班(型態同 ${a.like})`);
+  }
+}
+
 export function applySpecialOps(out, outPath, ROOT, log = console.log) {
   let cfg;
   try { cfg = JSON.parse(readFileSync(path.join(ROOT, 'data/special_ops.json'), 'utf8')); }
@@ -66,6 +88,7 @@ export function applySpecialOps(out, outPath, ROOT, log = console.log) {
       if (!L) throw new Error(`special_ops ${op.id}: 線 ${lid} 不存在於 ${outPath}`);
       const base = L.sets[op.base];
       if (!base) throw new Error(`special_ops ${op.id}: ${lid} 沒有基準 set「${op.base}」`);
+      if (!op.dates) { addTrips(L, op.base, rule.add || [], op.id, log); continue; }
       let trains = base.map(tr => tr.slice());
       if (rule.thin) trains = thin(trains, toSec(rule.thin.from), rule.thin.headwayMin * 60);
       if (rule.suspend) trains = suspend(trains, toSec(rule.suspend.from), rule.suspend.branchFrom);

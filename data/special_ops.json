@@ -18,6 +18,18 @@
           "densify": { "from": "17:00", "headwaySec": 270 }
         }
       }
+    },
+    {
+      "id": "tymc-20260921-a1-1804",
+      "out": "data/tymc_times.json",
+      "base": "平日",
+      "effectiveFrom": "2026-09-21",
+      "source": "https://www.tymetro.com.tw/tymetro-new/tw/_pages/news/show-2421-1.html",
+      "quote": "自9月21日起,再增開平日傍晚18時04分由A1台北車站發車,往機場方向行駛的加班車。新增班次沿途各站皆停靠,預計18時50分抵達終點站A13機場第二航廈站",
+      "_note": "常態加班(無 dates):併進基準 set。行駛型態沿用同 set 18:19 A1→A13 普通車(同為 46 分鐘)。TDX 上架後建置會印「本條可刪」。",
+      "lines": {
+        "A": { "add": [{ "from": 0, "like": "18:19", "dep": "18:04" }] }
+      }
     }
   ]
 }

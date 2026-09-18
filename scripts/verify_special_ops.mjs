@@ -28,6 +28,14 @@ const EXPECT = {
       VB: { denseFrom: '17:00', gapMinSec: 180, gapMaxSec: 360 },
     },
   },
+  // 桃園機捷 2026-09-07 新聞稿(show-2421)逐字:
+  //   「自9月21日起,再增開平日傍晚18時04分由A1台北車站發車,往機場方向行駛的加班車。
+  //     新增班次沿途各站皆停靠,預計18時50分抵達終點站A13機場第二航廈站」
+  // A1 = 站索引 0、A13 = 站索引 12;常態加班(無 dates),落在平日 set。
+  'tymc-20260921-a1-1804': {
+    out: 'data/tymc_times.json', base: '平日',
+    add: { line: 'A', from: 0, to: 12, dep: '18:04', arr: '18:50' },
+  },
 };
 
 let pass = 0, fail = 0;
@@ -47,6 +55,25 @@ for (const [id, E] of Object.entries(EXPECT)) {
   ok(!!op.source && !!op.quote, '有官方公告連結與原文引用(沒有原文的值不准上線)');
   ok(op.out === E.out, `輸出檔 ${op.out} == 公告涉及的 ${E.out}`);
   const T = J(E.out).lines;
+
+  if (E.add) {
+    const X = E.add, L = T[X.line], set = L && L.sets[E.base];
+    if (!set) { ok(false, `線 ${X.line} 的基準 set「${E.base}」存在`); continue; }
+    ok(!op.dates, '常態加班沒有 dates(不是只在特定日期生效)');
+    ok([1, 2, 3, 4, 5].every(w => L.days[w] === E.base), `週一到週五都走「${E.base}」`);
+    const hits = set.map((tr, i) => [tr, i]).filter(([tr]) => tr[0] === X.from && depOf(tr) === toSec(X.dep));
+    ok(hits.length === 1, `${E.base} 恰有一班 ${X.dep} 由站索引 ${X.from} 發車 — 實際 ${hits.length} 班`);
+    if (hits.length === 1) {
+      const [tr, i] = hits[0], idx = tr.filter((_, j) => j % 2 === 0);
+      ok(tr[tr.length - 2] === X.to && tr[tr.length - 1] === toSec(X.arr), `終點站索引 ${X.to}、${X.arr} 到達 — 實際 ${tr[tr.length - 2]}、${hh(tr[tr.length - 1])}`);
+      ok(idx.every((v, j) => v === X.from + j) && idx.length === X.to - X.from + 1, `沿途各站皆停(${idx.length} 站)`);
+      ok(tr.every((v, j) => j < 3 || j % 2 === 0 || v > tr[j - 2]), '逐站時刻嚴格遞增');
+      const ks = L.kinds && L.kinds[E.base];
+      ok(!ks || (ks.length === set.length && ks[i] === '1'), `kinds 與 set 等長且這班標普通車('1') — 實際 ${ks ? ks[i] : '(無 kinds)'}`);
+    }
+    for (const w of [0, 6]) ok(!L.sets[L.days[w]].some(tr => tr[0] === X.from && depOf(tr) === toSec(X.dep) && tr[tr.length - 2] === X.to), `對照:${w ? '週六' : '週日'}沒有這班(公告只說平日)`);
+    continue;
+  }
 
   for (const [lid, X] of Object.entries(E.lines)) {
     const L = T[lid];
