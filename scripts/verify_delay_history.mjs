@@ -16,6 +16,16 @@ const ok = (name, pass, detail = '') => { results.push({ name, pass }); console.
 }
 ok('A2 dbMaxDate=null 回 null', delayHistoryWindow(null, 90) === null);
 ok('A3 dbMaxDate=空字串 回 null(falsy 防呆)', delayHistoryWindow('', 90) === null);
+// A4/A5:2026-09-18 視窗放大到 365 天(DELAY_HISTORY_WINDOW_DAYS)之後,要證明 257 天回填
+// (2025-12-31~2026-09-13)整段都落在窗內——這是放大視窗的唯一目的,不能只驗常數改了。
+// 2026-09-13 往前 364 天 = 2025-09-14(2026 非閏年,區間內只有 2026-02 的 28 天)。
+{
+  const win = delayHistoryWindow('2026-09-13', 365);
+  ok('A4 365天窗起訖正確', win && win.startDate === '2025-09-14' && win.maxDate === '2026-09-13', JSON.stringify(win));
+  ok('A5 回填首日 2025-12-31 落在 365 天窗內(90 天窗會把它切掉)',
+    win && win.startDate <= '2025-12-31' && delayHistoryWindow('2026-09-13', 90).startDate > '2025-12-31',
+    `365窗起=${win && win.startDate} / 90窗起=${delayHistoryWindow('2026-09-13', 90).startDate}`);
+}
 
 // ── B. buildDelayHistoryBody:視窗邊界、排序、型別、髒資料 ──────────────────
 const win90 = delayHistoryWindow('2026-07-19', 90);   // {startDate:'2026-04-21', maxDate:'2026-07-19'}

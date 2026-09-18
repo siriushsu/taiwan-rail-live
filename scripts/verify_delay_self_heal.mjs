@@ -166,7 +166,7 @@ const forbiddenDb = { prepare() { throw new Error('不該碰 D1'); } };
 
 // stub 先架好才動態 import worker.js(同 verify_trtc_call_budget.mjs 慣例)。
 const { _ingest } = await import('../worker.js');
-const { delaySelfHeal, DELAY_HEAL_SLOTS, HIST_FETCH_TIMEOUT_MS, buildBlob } = _ingest;
+const { delaySelfHeal, DELAY_HEAL_SLOTS, HIST_FETCH_TIMEOUT_MS, buildBlob, delayWriteLockState, DELAY_WRITE_LOCK_KEY } = _ingest;
 histTimeoutRealDelayMs = HIST_FETCH_TIMEOUT_MS;   // 現在才知道實際值,啟用 setTimeout 替身的攔截
 
 const DELAY_BLOB_KEY = 'tra_delay_stats_30d';   // 鏡射 worker.js 的私有常數(delayStats 端點本身也是這樣內嵌字串,同一種慣例)
@@ -627,6 +627,59 @@ try {
     try { cronsArr = m && JSON.parse(m[1]); cronsOk = Array.isArray(cronsArr) && JSON.stringify(cronsArr) === JSON.stringify(['* * * * *', '15 1 * * *']); } catch {}
     ok('H7 wrangler.jsonc 的 crons 陣列逐字恰為 ["* * * * *","15 1 * * *"](owner 停用的第二發沒被加回來)',
       cronsOk, m ? m[1] : 'crons 找不到');
+  }
+
+  // ── H13:回填互斥租約——持有中整發讓開,過期不擋 ──────────────────────────────
+  // 為什麼要驗這個:writeDayRows 寫一天會順手 UPDATE 前一天(00:00–03:00 事件併回),所以
+  // 「第 D-1 天的列只有在第 D 天處理完之後才是最終值」。手動回填與這支 cron 同時寫,交界那天
+  // 會被其中一方用自己的版本覆蓋,少掉跨午夜那一段——列數對得上、值錯掉,回放時看不出來。
+  // H13b 證明持有中真的整發讓開(零歷史 API、D1 逐字不變);H13c 是正向對照,證明這道閘門不是
+  // 恆真——租約過期就必須照常補抓,否則「讓開」的 PASS 可能只是因為它永遠不做事。
+  console.log('\n── H13: 回填互斥租約 ──');
+  {
+    // H13a:純判斷函式(不碰 D1、不碰上游)
+    const nowMs = Date.parse('2026-09-18T00:00:00Z');
+    const held = r => r && r.held === true;
+    const pureCases = [
+      ['沒有那一列(null)→ 不擋', delayWriteLockState(null, nowMs) === null],
+      ['undefined → 不擋', delayWriteLockState(undefined, nowMs) === null],
+      ['空字串 → 不擋', delayWriteLockState('', nowMs) === null],
+      ['只有空白 → 不擋', delayWriteLockState('   ', nowMs) === null],
+      ['未來時間戳 → 擋(active)', (r => held(r) && r.reason === 'active')(delayWriteLockState('2026-09-18T03:00:00Z', nowMs))],
+      ['過去時間戳 → 不擋(已過期)', delayWriteLockState('2026-09-17T23:59:59Z', nowMs) === null],
+      ['剛好等於現在 → 不擋(<= 視為過期)', delayWriteLockState('2026-09-18T00:00:00Z', nowMs) === null],
+      ['未來時間戳＋備註 → 擋,且備註留著供 log 指名', (r => held(r) && r.note === '257d backfill')(delayWriteLockState('2026-09-18T03:00:00Z 257d backfill', nowMs))],
+      ['解不出時間戳 → 保守當成擋(unparsable)', (r => held(r) && r.reason === 'unparsable')(delayWriteLockState('{"until":"oops"}', nowMs))],
+    ];
+    for (const [label, pass] of pureCases) ok(`H13a ${label}`, pass);
+
+    // H13b:租約持有中 → 整發讓開
+    {
+      setNow(TODAY, 9, 37);
+      const DELAY_DB = await seedDb(YESTERDAY, [YESTERDAY]);   // 只缺昨天 ⇒ blob 迄日落後 ⇒ 平常會去補抓
+      await DELAY_DB.prepare("INSERT OR REPLACE INTO kv_blobs(k,v,updated) VALUES(?,?,datetime('now'))")
+        .bind(DELAY_WRITE_LOCK_KEY, `${addDaysIso(TODAY, 1)}T00:00:00Z 回填中`).run();
+      const before = await snapshotAll(DELAY_DB);
+      const hits0 = historyHits.length;
+      const r = await delaySelfHeal({ scheduledTime: NOW }, mkEnv(DELAY_DB));
+      const after = await snapshotAll(DELAY_DB);
+      ok('H13b 回報 skipped=backfill-lock', r && r.skipped === 'backfill-lock', JSON.stringify(r));
+      ok('H13b healed 不是 true(窗確實還落後,不能假裝補好了)', !(r && r.healed === true), JSON.stringify(r));
+      ok('H13b 零歷史 API 呼叫', historyHits.length === hits0, `新增 ${historyHits.length - hits0} 次`);
+      ok('H13b tra_delay_daily 與統計 blob 逐字不變', after === before);
+    }
+
+    // H13c:正向對照——租約已過期 → 不擋,照常補抓
+    {
+      setNow(TODAY, 9, 37);
+      const DELAY_DB = await seedDb(YESTERDAY, [YESTERDAY]);
+      await DELAY_DB.prepare("INSERT OR REPLACE INTO kv_blobs(k,v,updated) VALUES(?,?,datetime('now'))")
+        .bind(DELAY_WRITE_LOCK_KEY, `${addDaysIso(TODAY, -1)}T00:00:00Z 早就該解了`).run();
+      const hits0 = historyHits.length;
+      const r = await delaySelfHeal({ scheduledTime: NOW }, mkEnv(DELAY_DB));
+      ok('H13c 過期租約不擋:確實去抓了歷史 API', historyHits.length > hits0, `新增 ${historyHits.length - hits0} 次`);
+      ok('H13c 過期租約不擋:沒有回報 backfill-lock', !(r && r.skipped === 'backfill-lock'), JSON.stringify(r));
+    }
   }
 } finally {
   Date.now = realDateNow;

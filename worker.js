@@ -1996,7 +1996,13 @@ async function delayStats(request, env) {
 // 頭牌功能)用。跟 /api/delay-stats 的差異:delay-stats 吐每車 30 天聚合值(a/p/d/m),這裡吐逐日
 // 序列(d=service_date、fd=final_delay、md=max_delay)。train 白名單同 stationEvents(台鐵車次
 // 1~6 碼英數),一律 bind、禁止字串拼 SQL。
-const DELAY_HISTORY_WINDOW_DAYS = 90;
+//
+// 2026-09-18 從 90 天放大到 365 天:257 天回填(2025-12-31~2026-09-13)進 D1 之後,90 天的窗會
+// 把其中 167 天擋在 API 外面——資料在庫裡但前端拿不到。取 365 而不是剛好 257,是因為回填之後
+// 每日 cron 還會繼續往前長,365 讓它一年內不必再動這個常數(owner 決定本期只補今年,不補 2025)。
+// 單一車次 365 筆 {d,fd,md} 約 10 KB JSON,遠低於邊緣快取與 D1 單次查詢的實務上限。
+// 🔴 index.html 的 DH_WINDOW_DAYS(誤點履歷卡付費牆文案用)是這個數字的前端副本,改這裡要一起改。
+const DELAY_HISTORY_WINDOW_DAYS = 365;
 
 // 視窗基準:「表內最大 service_date」(dbMaxDate,呼叫端先查 MAX(service_date) 拿到)回推
 // windowDays-1 天——語意同 buildBlob 的 30 天窗(見下方 BLOB_WINDOW_DAYS),不是這班車自己的
@@ -6325,6 +6331,48 @@ const SCAN_WINDOW_DAYS = 35;   // 缺日偵測觀察窗
 const MAX_DATES_PER_RUN = 3;   // 單次 cron 最多補幾天(避免單發吃太多 CPU/流量)
 const D1_BATCH_SIZE = 80;      // 每個 batch() 最多幾句 prepared statement
 
+// ── 回填互斥租約(2026-09-18)────────────────────────────────────────────────
+// 為什麼需要它:writeDayRows 寫一天會【順手改前一天】——當日 INSERT OR REPLACE,前一日
+// 因為 00:00–03:00 事件併回而下 UPDATE(見 writeDayRows)。也就是說「第 D-1 天的列只有在
+// 第 D 天處理完之後才是最終值」。手動回填(從 owner 機器用 wrangler --command 分批灌 257 天)
+// 與這支 cron 若同時在寫,兩邊都會用自己的版本覆蓋交界那天:
+//   · cron 先把 D-1 併好 → 回填隨後 REPLACE 掉 D-1 → 併回的跨午夜事件消失;
+//   · 回填先寫 D-1(還沒處理到 D,所以尚未併) → cron 的 UPDATE 落在舊列上 → 之後回填處理到 D
+//     時再 UPDATE 一次,結果取決於兩邊誰最後跑,不可預期。
+// 兩種都是靜默的資料錯誤:列數對得上、值卻少了跨午夜那一段,回放時看不出來。
+// 所以回填期間由回填方持有這個租約,cron 與自癒一律整發讓開(不抓 TDX、不寫 D1、不重建 blob)。
+//
+// 為什麼是「租約」而不是單純的旗標:旗標若因回填中途死掉而留在庫裡,每日誤點管線會【無聲
+// 凍結到有人發現】——那比競寫更糟。租約自己會過期,最壞情形只是停到 until 為止。
+// 值的格式刻意做成「一個 ISO 時間戳,後面可選空白加備註」而不是 JSON:這一列是人手用
+// wrangler --command 打進去的,JSON 引號在 shell 裡很容易打錯,而打錯的後果見下面的 fail-safe。
+// 設(台北時間持有 3 小時,備註寫給下一個看 log 的人):
+//   npx wrangler d1 execute railisland-delay-history --remote --command \
+//     "INSERT OR REPLACE INTO kv_blobs(k,v,updated) VALUES('tra_delay_write_lock','2026-09-18T15:00:00Z 257d backfill',datetime('now'))"
+// 解(回填做完立刻解,不要等它自己過期):
+//   npx wrangler d1 execute railisland-delay-history --remote --command \
+//     "DELETE FROM kv_blobs WHERE k='tra_delay_write_lock'"
+const DELAY_WRITE_LOCK_KEY = 'tra_delay_write_lock';
+
+// 純函式:判斷租約現在是否有效。raw 是 kv_blobs.v 的原始字串(無列時傳 null)。
+// 回 null 表示沒鎖可以寫;回物件表示要讓開,reason 供 log 與測試辨識。
+// fail-safe 方向:有列但時間戳解不出來 → 當【有鎖】。理由是「有人放了這一列」本身就代表有意
+// 持有,而兩個方向的代價不對稱——誤放行會靜默弄壞歷史列(難回復),誤擋只會讓統計窗停住,而窗
+// 停住這件事已經有巡檢在盯(scripts/lib/delay_window_verdict.mjs 問 /api/delay-stats 的迄日)。
+// 打錯字造成的誤擋,log 會指名原始值,刪掉那一列即可。
+function delayWriteLockState(raw, nowMs) {
+  if (raw === null || raw === undefined) return null;
+  const s = String(raw).trim();
+  if (!s) return null;                                  // 空字串當沒鎖(等同沒放)
+  const sp = s.search(/\s/);
+  const stamp = sp === -1 ? s : s.slice(0, sp);
+  const note = sp === -1 ? '' : s.slice(sp + 1).trim();
+  const until = Date.parse(stamp);
+  if (!Number.isFinite(until)) return { held: true, reason: 'unparsable', until: null, note, raw: s };
+  if (until <= nowMs) return null;                      // 已過期 → 放行
+  return { held: true, reason: 'active', until: new Date(until).toISOString(), note, raw: s };
+}
+
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // 日期工具:全走 UTC 計算(台北無日光節約,固定 +8);ISO 皆 YYYY-MM-DD。
@@ -6576,6 +6624,22 @@ async function writeDayRows(db, prevDate, dayIso, ownRows, mergedPrev) {
 // scheduled handler 的主流程(冪等:中途死掉下次 cron 自動從缺日續補)。
 async function ingestDelayHistory(env) {
   const db = env.DELAY_DB;
+  // 0. 回填互斥租約:有人正在手動灌歷史資料就整發讓開——不抓 TDX、不寫 D1、不重建 blob。
+  //    擺在最前面(連缺日掃描都不做)是因為這一發【整體】都不該與回填交錯,不只是寫入那一段。
+  //    冪等性照舊:讓開這一發不會留下半套狀態,下一發(或回填解鎖後的每日 cron)照缺日續補。
+  {
+    const lockRow = await db.prepare('SELECT v FROM kv_blobs WHERE k=?').bind(DELAY_WRITE_LOCK_KEY).first();
+    const lock = delayWriteLockState(lockRow ? lockRow.v : null, Date.now());
+    if (lock) {
+      if (lock.reason === 'unparsable') {
+        // 值截斷再印:誤把統計 blob 寫進這個鍵的話,原始值可能是好幾 KB,不該灌滿 log。
+        console.error(`[cron delay] 回填租約值解析不出時間戳,保守當成持有中而讓開:${JSON.stringify(lock.raw.slice(0, 120))}${lock.raw.length > 120 ? `…(共 ${lock.raw.length} 字)` : ''}——確認沒有回填在跑就刪掉 kv_blobs 的 ${DELAY_WRITE_LOCK_KEY} 那一列`);
+      } else {
+        console.log(`[cron delay] 回填租約持有中(至 ${lock.until}${lock.note ? ',備註:' + lock.note : ''}),本發讓開`);
+      }
+      return { written: [], dbMax: null, skipped: 'backfill-lock', lock };
+    }
+  }
   // 1. 缺日掃描:到「昨天」為止近 35 天(cron 跑台北 09:15/12:15,昨天必已發布)。
   const yesterday = isoFromDate(new Date(Date.now() + 8 * 3600 * 1000 - 24 * 3600 * 1000));
   const expected = [];
@@ -6682,6 +6746,12 @@ async function delaySelfHeal(event, env) {
   if (before !== null && before >= yesterday) return { ok: true, behind: false, end: before };
   console.warn(`[delay 自癒] blob 迄日=${before} 落後台北昨天(${yesterday})——每日 cron 應該是失敗了或還沒追上,現在補抓`);
   const r = await ingestDelayHistory(env);
+  // 回填租約讓開時不算「補抓失敗」:窗確實還落後,但原因是有人正在灌歷史資料,不該再報一次警。
+  // 分開回報,巡檢才不會把「刻意讓開」與「每日 cron 真的壞了」混成同一件事。
+  if (r.skipped === 'backfill-lock') {
+    console.log(`[delay 自癒] 回填租約持有中,本次不補抓(迄日仍 ${before})`);
+    return { ok: true, behind: true, before, after: before, skipped: 'backfill-lock', lock: r.lock, healed: false };
+  }
   const after = await readEnd();
   console.log(`[delay 自癒] 補抓結束 written=${JSON.stringify(r.written)} 迄日 ${before} → ${after}`);
   return { ok: true, behind: true, before, after, written: r.written, healed: after >= yesterday };
@@ -7280,7 +7350,9 @@ export default {
     }
     try {
       const r = await ingestDelayHistory(env);
-      console.log(`[cron delay] 完成: 寫入日 ${JSON.stringify(r.written)}, D1 迄日 ${r.dbMax}`);
+      // 讓開時 dbMax 沒查(是 null),不要印成「D1 迄日 null」讓人以為庫空了——分開講。
+      if (r.skipped === 'backfill-lock') console.log('[cron delay] 完成: 回填租約持有中,本發讓開,未查未寫');
+      else console.log(`[cron delay] 完成: 寫入日 ${JSON.stringify(r.written)}, D1 迄日 ${r.dbMax}`);
     } catch (e) {
       console.error('[cron delay] 失敗:', (e && e.stack) || String(e));
       throw e;
@@ -7416,6 +7488,8 @@ export const _ingest = {
   parseDayEvents, buildDayRows, buildBlob, roundHalfUpStr, addDays, twParts,
   // 自我檢查:測試要自備 env(DELAY_DB/TDX 覆寫)與 event.scheduledTime(時刻閘門看它,不看真時鐘)。
   delaySelfHeal, DELAY_HEAL_SLOTS, HIST_FETCH_TIMEOUT_MS,
+  // 回填互斥租約:純判斷函式 + 鍵名,供離線測試證明「持有中一律讓開、過期放行、壞值保守擋」。
+  delayWriteLockState, DELAY_WRITE_LOCK_KEY, ingestDelayHistory,
 };
 // 純函式導出,供離線回歸測試 import:metroAlert 的 per-op last-known-good + News/TYMC 過濾轉換。
 export const _metroAlert = {
