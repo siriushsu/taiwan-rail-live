@@ -53,7 +53,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "b21bf90a7e45503cde9549b910ba5a48"
+   "checksum": "856c2ffa3c710750af076688c64ae919"
   },
   "data/music.json": {
    "sourceDescription": "本站自製配樂,無外部資料源。曲目由 Suno 生成後人工挑選,dur/bytes 由 scripts/build_music_data.mjs 以 ffprobe 與檔案大小量出;情境池的分區/時段/家族歸屬是產品設計,定義在同一支建置腳本的 POOLS 常數",
@@ -341,7 +341,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "b0587078d7d65b8082d1dcc190ad5728"
+   "checksum": "af331da12e219bf820764c7aad1822f0"
   },
   "data/tymc.json": {
    "sourceDescription": "交通部 TDX 運輸資料流通服務(桃園機場捷運:路線幾何/站序/班距/站間行駛時間,2026-07 抓取);以普通車全站停靠型態繪製 2026-07-11:移除新北產業園區站西側shape反向重走段(同軌去回偽折返,致列車視覺繞圈);站點d重投影。",
@@ -359,7 +359,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "aa9799c0cb23fedff87d71f46b17ef41"
+   "checksum": "b45e7a037b8ad91f2ef8497e5597c1a6"
   }
  }
 }

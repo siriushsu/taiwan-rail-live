@@ -1837,3 +1837,12 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   "淡水信義線班表換成 8/31 改點後的官方時刻；機捷晚上的直達車不再開到長庚就消失，照官方時刻開到機場第二航廈": "淡水信義線の時刻表を8月31日改正後の公式ダイヤに更新しました。桃園空港MRTの夜の直達車が長庚医院駅で消えなくなり、公式時刻どおり空港第2ターミナル駅まで走ります。"
 });
+
+// 2026-09-18 開窗改取時段附近的官方站間秒(第一層更新紀錄那條的 en/ja;第二層正本一律走 RAIL_I18N_CHANGELOG)
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  "高雄環狀輕軌假日 29 班不再接錯車；機捷深夜往機場 23:23、23:38 兩班，中和新蘆線南勢角 22:26、淡水信義線週六廣慈 23:08 也照官方時刻開完全程": "Kaohsiung Circular Light Rail: 29 weekend trains are no longer joined to the wrong train. The late-night 23:23 and 23:38 Airport MRT trains to the airport, the 22:26 Zhonghe–Xinlu Line train from Nanshijiao, and the Saturday 23:08 Tamsui-Xinyi Line train from Guangci/Fengtian Temple also run their full routes on the official timetable."
+});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  "高雄環狀輕軌假日 29 班不再接錯車；機捷深夜往機場 23:23、23:38 兩班，中和新蘆線南勢角 22:26、淡水信義線週六廣慈 23:08 也照官方時刻開完全程": "高雄環状LRT：週末の29本が別の列車とつながらなくなりました。空港MRTの深夜23:23・23:38発の空港行き、中和新蘆線の南勢角22:26発、淡水信義線の土曜23:08広慈/奉天宮発も、公式時刻どおり全区間を走ります。"
+});

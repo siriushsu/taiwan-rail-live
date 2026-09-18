@@ -101,44 +101,86 @@ function depsOf(timetables) {
 // 同站的區間車、尖峰跳站普通車、以及那一格沒有直達車的普通車只停 0~1 分;合成一個「發車→發車」
 // 中位數(林口→長庚 420 秒)會讓只停 1 分的車整整晚 4 分鐘去搶下一班車的時刻——平日山鼻 07:37
 // 區間車就是這樣在林口斷掉。到站時刻不含本站停站,拿它開窗就沒有這個問題。
-// 到站=發車的線(目前機捷以外全部):停站中位數恆 0,dep 與 arr 兩條累計與舊版單一累計逐項相同。
+// 到站=發車的線(目前機捷以外全部):停站中位數恆 0。
+// 行駛秒取「該時段附近」的官方值,不取全日單一值:官方時刻表的站間時間本來就隨時段排
+// (中和新蘆線古亭→東門 尖峰 3 分、離峰 4~5 分;高雄環狀輕軌假日凱旋中華→夢時代 中午 4 分、
+// 平日同時段 2 分;機捷台北→三重 傍晚 5 分、深夜 7~8 分)。拿全日中位數開窗,官方排得比中位數長的
+// 那些班就掉出窗、被切成兩台。取法:前站發車 ±60 分內的樣本取中位數;不足 5 個就取時間上最近的
+// 5 個;整組不足 5 個(機捷 SP3 增開車全天 4 班)就用整組全部——都是這組車自己的官方時刻。
+// 只有整組一個樣本都沒有,才退回線檔的站間秒(線檔 segs.run 本身也是官方站間行駛時間;線檔缺值的段
+// 才以站距/35km/h 推估,見 lineCtx)。
 function calibrate(stns, dir) {
   const arrsOf = s => s.deps.map(d => s.arr.get(d)).sort((a, b) => a - b);
   const dwell = stns.map(s => {
     const ds = s.deps.map(d => d - s.arr.get(d)).sort((a, b) => a - b);
     return ds.length ? ds[Math.floor(ds.length / 2)] : 0;
   });
-  const dep = [0];
+  const median = xs => xs.slice().sort((a, b) => a - b)[Math.floor(xs.length / 2)];
+  // samples[k] = 站 k 每個發車 → [發車秒, 到站 k+1 的行駛秒],依發車排序。
+  // 配對分兩步:先照舊「發車後第一個到站」取全日中位數 g,再讓每個發車配「最接近 發車+g」的到站。
+  // 只用第一步不行:班距短於行駛秒的時段,發車後第一個到站是前一班車(環狀線平日中和 Y12 記錄排除後,
+  // 景安→橋和兩站官方 5 分,尖峰班距 4~5 分,第一步在尖峰整段配成 1 分)。全日中位數被離峰稀釋
+  // 看不出來,改取時段中位數就會被尖峰的錯配主導。
+  const samples = [];
   for (let k = 0; k + 1 < stns.length; k++) {
     const A = stns[k].deps, B = arrsOf(stns[k + 1]);
-    const ds = [];
+    const first = [];
     let j = 0;
     for (const a of A) {
       while (j < B.length && B[j] < a + 15) j++;
-      if (j < B.length && B[j] - a <= 1800) ds.push(B[j] - a);
+      if (j < B.length && B[j] - a <= 1800) first.push(B[j] - a);
     }
-    ds.sort((a, b) => a - b);
-    // 退回線檔預期時沿用舊的「發車→發車」估計(行駛+25 秒停站),再扣掉後站的停站中位數
-    const run = ds.length >= 5 ? ds[Math.floor(ds.length / 2)]
-      : dir.expected(stns[k].idx, stns[k + 1].idx) + 25 - dwell[k + 1];
-    dep.push(dep[k] + run + dwell[k + 1]);
+    const g = first.length ? median(first) : null;
+    const ss = [];
+    j = 0;
+    if (g != null) for (const a of A) {
+      while (j < B.length && B[j] < a + 15) j++;
+      let best = -1;
+      for (let i = j; i < B.length && B[i] - a <= 1800; i++) {
+        if (best < 0 || Math.abs(B[i] - a - g) < Math.abs(B[best] - a - g)) best = i;
+        if (B[i] - a > g) break;
+      }
+      if (best >= 0) ss.push([a, B[best] - a]);
+    }
+    samples.push(ss);
   }
-  // dep[k] = 從 stns[0] 發車累計到 stns[k] 發車的典型秒數;arr[k] = 累計到 stns[k] 到站
-  return { dep, arr: dep.map((p, k) => p - dwell[k]) };
+  const memo = new Map();
+  // 站 k 在 t 秒發車 → 到站 k+1 的行駛秒
+  const runAt = (k, t) => {
+    const ss = samples[k];
+    // 退回線檔預期時沿用舊的「發車→發車」估計(行駛+25 秒停站),再扣掉後站的停站中位數
+    if (!ss.length) return dir.expected(stns[k].idx, stns[k + 1].idx) + 25 - dwell[k + 1];
+    const key = k + '|' + t;
+    if (memo.has(key)) return memo.get(key);
+    const firstAtOrAfter = x => { let lo = 0, hi = ss.length; while (lo < hi) { const m = (lo + hi) >> 1; if (ss[m][0] < x) lo = m + 1; else hi = m; } return lo; };
+    let lo = firstAtOrAfter(t - 3600), hi = firstAtOrAfter(t + 3601);
+    if (hi - lo < 5) {
+      lo = hi = firstAtOrAfter(t);
+      while (hi - lo < Math.min(5, ss.length)) {
+        if (hi === ss.length || (lo > 0 && t - ss[lo - 1][0] <= ss[hi][0] - t)) lo--; else hi++;
+      }
+    }
+    const v = median(ss.slice(lo, hi).map(x => x[1]));
+    memo.set(key, v);
+    return v;
+  };
+  return { dwell, runAt };
 }
 
 // ── 鏈匹配:一條路線(站序已沿行進方向)×一種營運日 → 班車陣列 ──
 function chainRoute(stns, dir, stats, dbg) {
   const chains = [];
-  const { dep: prefix, arr: arrPrefix } = calibrate(stns, dir);
-  if (dbg) console.log(`  [dbg] ${dbg} 校準行駛:`, arrPrefix.map((p, i) => i ? p - prefix[i - 1] : 0).slice(1).join(','),
-    '停站:', prefix.map((p, i) => p - arrPrefix[i]).join(','));
+  const { dwell, runAt } = calibrate(stns, dir);
+  if (dbg) console.log(`  [dbg] ${dbg} 停站:`, dwell.join(','));
   let active = [];
   for (let k = 0; k < stns.length; k++) {
     const st = stns[k];
     const bBefore = chains.length;
     for (const c of active) {
-      const E = arrPrefix[k] - prefix[c.lastK]; // 鏈尾發車 → 本站「到站」,窗與配對都比到站時刻
+      // 鏈尾發車 → 本站「到站」,窗與配對都比到站時刻;逐段取這班車經過當時的官方站間秒
+      let t = c.last;
+      for (let m = c.lastK; m < k; m++) { t += runAt(m, t); if (m + 1 < k) t += dwell[m + 1]; }
+      const E = t - c.last;
       const gap = dir.steps(c.lastIdx, st.idx); // 數實際跨過幾站:被 drop 的站不在 stns 裡,但車還是要開過去
       c.pred = c.last + E;
       c.lo = c.last + Math.max(20, E - Math.max(90, E * 0.45)); // 多站跳點(直達車)少算停站時間,窗前緣放寬
