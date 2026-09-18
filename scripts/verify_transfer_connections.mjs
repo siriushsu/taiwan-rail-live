@@ -183,15 +183,18 @@ const hEscHtml = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':
 const hFmtHM = sec => { sec = ((sec % 86400) + 86400) % 86400; return String(Math.floor(sec / 3600)).padStart(2, '0') + ':' + String(Math.floor(sec % 3600 / 60)).padStart(2, '0'); };
 const hT = (source, vars = {}) => String(source == null ? '' : source).replace(/\{([\w]+)\}/g, (_, k) => (vars[k] == null ? '' : String(vars[k])));
 const hI18nNumber = v => String(v);
+// 2026-09-19（93f11e6b）：對向終點站名改走 stationName(r.de, XFER_SYS_CATALOG[r.sys]) 換英日文官方譯名；
+// 與 t 同一原則——繁中原字照出，譯名正確與否由 check_i18n／i18n sweep 另外把關。
+const hStationName = name => String(name == null ? '' : name);
 const hState = { transferDepartures: data, xferPin: null };
 // 抽出的那一段現在也含 xferOpen/setXferOpen(展開收合狀態,2026-09-11)。兩者都是生產碼本尊:
 // xferOpen 的初值讀 localStorage,在 node 裡 ReferenceError 被它自己的 try/catch 吃掉 ⇒ 回 false
 // (＝預設收合,與瀏覽器上全新 profile 同一個結果);setXferOpen 會呼叫 refreshXferConns(),
 // 那是 DOM 端的事,沙箱注入一個 no-op 讓它可以被呼叫。
 const box = new Function(
-  'state', 't', 'escHtml', 'fmtHM', 'i18nNumber', 'refreshXferConns',
+  'state', 't', 'escHtml', 'fmtHM', 'i18nNumber', 'refreshXferConns', 'stationName',
   `${mFull[0]}\n; return { transferConnectionHtml, setXferOpen, xferOpen: () => xferOpen };`
-)(hState, hT, hEscHtml, hFmtHM, hI18nNumber, () => {});
+)(hState, hT, hEscHtml, hFmtHM, hI18nNumber, () => {}, hStationName);
 const transferConnectionHtml = box.transferConnectionHtml;
 
 // ── G25 —— 展開/收合(2026-09-11 使用者:「資訊卡需要整理一下,轉乘要能夠收起來,否則太長了」) ──
