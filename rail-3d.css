@@ -53,5 +53,7 @@ body:is(.rec-panel,.collect-map) #viewSettingsBtn{display:none}
 .view-rail .view-symbol{font-size:16px;line-height:16px}
 /* 車站卡、列車卡等底部卡片開著時也要能進觀看設定（09-18 裁示），只有更多、搜尋打字才收起入口；放空不顯示（09-18 裁示），由 index.html 的 body.fs.ambient .map-actions 規則收起。 */
 body:is(.tools-open,.search-open) #viewSettingsBtn{visibility:hidden}
+/* 開著列車卡（.tc-sheet z 1105）按觀看，面板要浮在卡片上，不然分頁與下半的列被卡片壓住（09-18 實測 360×640）；仍低於更多 1110 與彈出小卡 1200。 */
+body.view-open .view-dock{z-index:1106}
 body.mobile-shell #viewSettingsBtn.view-side-entry{position:fixed;right:calc(var(--rail-w,340px) + 18px);top:calc(56px + var(--sa-t,0px))}
 .ri-3d-row .ri-3d-help{flex-basis:100%;margin:0}
