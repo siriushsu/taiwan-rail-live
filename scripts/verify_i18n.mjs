@@ -337,6 +337,8 @@ async function desktopCore(browser, engine) {
         help: document.getElementById('helpBody').textContent.replace(/\s+/g, ' ').trim(),
         footer: document.querySelector('.site-foot').textContent.replace(/\s+/g, ' ').trim(),
         recent: document.querySelector('.foot-recent').textContent.replace(/\s+/g, ' ').trim(),
+        recentHead: document.querySelector('.foot-recent li.grp')?.textContent.trim() || '',
+        recentItems: document.querySelectorAll('.foot-recent li[data-cl-of]').length,
         history: document.querySelector('.foot-more').textContent.replace(/\s+/g, ' ').trim(),
         footerCjk: [...new Set(footerCjk)],
       };
@@ -351,7 +353,10 @@ async function desktopCore(browser, engine) {
     assert(contentEn.help.includes('Search stations, train numbers and train names') && contentEn.help.includes('Journey Passport and completion stamps') && contentEn.help.includes('Background music'), `英文使用說明未完整翻譯：${contentEn.help.slice(0, 1000)}`);
     assert(contentEn.footer.includes('Data sources and licences') && contentEn.footer.includes('independent hobby project'), `英文資料來源介紹未翻譯：${contentEn.footer.slice(-1200)}`);
     assert(contentEn.footerCjk.length === 0, `英文頁尾展開後仍有中文：${contentEn.footerCjk.join(' ｜ ')}`);
-    assert(contentEn.recent.includes('English and Japanese now cover') && contentEn.history.includes('Earlier updates by topic') && contentEn.history.includes('Map and live data'), `英文公開更新紀錄未精簡翻譯：${contentEn.recent} ｜ ${contentEn.history}`);
+    // 第一層「最近更新」是滾動檢視(最多 8 條,新的一進榜舊的就被合法擠出去),不可綁某一條的字面:原本綁 8/28
+    // 多語上線那條 'English and Japanese now cover',它 9 月初被擠出第一層後這條就恆紅(被上一條頁尾中文遮住沒人看到)。
+    // 改驗「標題已譯＋至少一條」;每條有沒有譯文交給上面的 footerCjk——它掃整個展開後的 .site-foot,含第一層。
+    assert(contentEn.recentHead === 'Recent updates' && contentEn.recentItems >= 1 && contentEn.history.includes('Earlier updates by topic') && contentEn.history.includes('Map and live data'), `英文公開更新紀錄未精簡翻譯：${JSON.stringify({ head: contentEn.recentHead, items: contentEn.recentItems })} ${contentEn.recent} ｜ ${contentEn.history}`);
     record(engine, '英文品牌、說明、特色站車、圖鑑、護照、成就與精簡更新紀錄');
 
     // 選單保持開啟時切換語言，驗證不是只在下次開啟／重整才更新。
@@ -451,7 +456,11 @@ async function legalPages(browser, engine) {
     await page.goto(new URL('privacy.html?lang=en', BASE).href, { waitUntil: 'domcontentloaded' });
     assert(await page.getAttribute('html', 'lang') === 'en', '英文隱私頁 lang 錯誤');
     const privacyEn = await bodyText(page, 'main');
-    assert(privacyEn.includes('Raw coordinates obtained directly from system location do not leave your device') && privacyEn.includes('does not sell personal data'), '英文隱私頁缺少定位／資料用途核心條款');
+    // 定位條款錨在承諾本身(「原始座標……不離開裝置」),不綁主詞那半句的措辭:9/3 加「整段旅程分享可附即時位置」
+    // 時,隱私頁把「直接從系統定位取得的原始座標不會離開裝置」如實收窄成「一般藍點與附近車站使用的原始座標……」,
+    // 譯文同輪跟上,這裡卻還比對舊句 ⇒ 兩引擎恆紅兩週。舊句的無條件承諾在分享位置上線後已不成立,不可改回去。
+    const privacyEnCore = { location: /Raw coordinates [^.]*do not leave your device/.test(privacyEn), noSale: privacyEn.includes('does not sell personal data') };
+    assert(privacyEnCore.location && privacyEnCore.noSale, `英文隱私頁缺少定位／資料用途核心條款：${JSON.stringify(privacyEnCore)}`);
     assert(!/[\u3400-\u9fff]/.test(privacyEn), `英文隱私頁仍有中文：${privacyEn.match(/[\u3400-\u9fff][^.!?]{0,80}/)?.[0] || ''}`);
     assert((await page.locator('a[href*="terms.html"]').first().getAttribute('href')).includes('lang=en'), '法務頁連結沒有保留語言');
 
@@ -462,7 +471,8 @@ async function legalPages(browser, engine) {
 
     await page.goto(new URL('privacy.html?lang=ja', BASE).href, { waitUntil: 'domcontentloaded' });
     const privacyJa = await bodyText(page, 'main');
-    assert(await page.getAttribute('html', 'lang') === 'ja' && privacyJa.includes('システム位置情報から直接得た生の座標は端末外へ送信しません') && privacyJa.includes('個人データを販売せず'), '日文隱私頁核心條款未翻譯');
+    const privacyJaCore = { lang: await page.getAttribute('html', 'lang'), location: /生の座標は端末外へ/.test(privacyJa), noSale: privacyJa.includes('個人データを販売せず') }; // 錨法同英文那條
+    assert(privacyJaCore.lang === 'ja' && privacyJaCore.location && privacyJaCore.noSale, `日文隱私頁核心條款未翻譯：${JSON.stringify(privacyJaCore)}`);
     await page.goto(new URL('terms.html?lang=ja', BASE).href, { waitUntil: 'domcontentloaded' });
     const termsJa = await bodyText(page, 'main');
     assert(termsJa.includes('自動更新サブスクリプション') && termsJa.includes('自動解約'), '日文服務條款核心說明未翻譯');
@@ -581,19 +591,27 @@ async function mobileScenario(browser, engine, width) {
   }
 }
 
+// 每個情境各自 try/catch(各自開 context,彼此不共用狀態)。原本整個引擎包一個 try,第一條紅就中止,
+// 後面的情境從沒跑過:2026-09-19 Chromium 死在 desktopCore(公告沒翻譯),隱私頁那條只在 WebKit 看得到,
+// 被當成「WebKit 沒切到英文」——其實兩引擎都紅,只是 Chromium 根本沒跑到那裡。
 for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
   let browser;
+  const widths = engine === 'Chromium' ? [360, 375, 414, 768] : [375, 768];
+  const scenarios = [
+    ...(engine === 'Chromium' ? [['desktopCore', () => desktopCore(browser, engine)]] : []),
+    ['navigatorDetection', () => navigatorDetection(browser, engine)],
+    ['legalPages', () => legalPages(browser, engine)],
+    ...widths.map(width => [`mobile ${width}px`, () => mobileScenario(browser, engine, width)]),
+  ];
   try {
     browser = await launcher.launch({ headless: true });
-    if (engine === 'Chromium') {
-      await desktopCore(browser, engine);
-      await navigatorDetection(browser, engine);
-      await legalPages(browser, engine);
-      for (const width of [360, 375, 414, 768]) await mobileScenario(browser, engine, width);
-    } else {
-      await navigatorDetection(browser, engine);
-      await legalPages(browser, engine);
-      for (const width of [375, 768]) await mobileScenario(browser, engine, width);
+    for (const [name, run] of scenarios) {
+      try {
+        await run();
+      } catch (error) {
+        failures.push(`${engine} · ${name}：${error.stack || error.message}`);
+        console.error(`✗ ${engine} · ${name}：${error.message}`);
+      }
     }
   } catch (error) {
     failures.push(`${engine}：${error.stack || error.message}`);

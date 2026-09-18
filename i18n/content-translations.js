@@ -416,7 +416,7 @@
     '六家線': '六家線', '內灣線': '内湾線', '平溪線': '平渓線',
     '深澳線': '深澳線', '沙崙線': '沙崙線', '南迴線': '南廻線',
     '蘇澳線': '蘇澳線', '西部幹線（山線）': '西部幹線（山線）', '海線': '海線',
-    '尚未發車': '発車前', '回到列車': '列車へ戻る', '解除跟隨鎖定': '追跡ロックを解除',
+    '尚未發車': '未発車', '回到列車': '列車へ戻る', '解除跟隨鎖定': '追跡ロックを解除',
     '加入最愛車站': '駅をお気に入りに追加', '移除最愛車站': '駅をお気に入りから削除',
     '已加入最愛車站': '駅をお気に入りに追加しました', '已移除最愛車站': '駅をお気に入りから削除しました',
     '站台預告與地圖列車共用同一份即時身分與時間軸': '駅の到着案内と地図の列車は同じリアルタイム識別情報と時系列を使用します',
@@ -648,8 +648,36 @@
     '畫面上的列車位置是依': '画面の列車位置は', '當日時刻表推演': '当日の時刻表から推定', '並套用': 'し、', '即時誤點': 'リアルタイム遅延', '校正，不是列車的實際 GPS 位置；實際到離站時刻請以各營運機構官方資訊為準。': 'で補正しています。実際のGPS位置ではありません。発着時刻は各事業者の公式情報をご確認ください。'
   });
 
+  // 手動策展公告(index.html 的 CURATED_NOTICES):標題／內文／系統名經 t(變數) 查表,不是字面 t('…'),
+  // 由 check_i18n.mjs 的「手動公告」那條守——還在顯示窗內的每一則都要有 en/ja。
   Object.assign(messages.en, {
-    '桌面小工具的發車看板：大尺寸一次列出五班並分北上南下，每列都有開車時刻與準點誤點；也可以改成主要顯示發車時刻': 'The large departure board widget lists five trains, split into northbound and southbound, with a departure time and on-time status on every row. You can also switch the widget to show the departure time first.',
+    '信義東延段 8/30 14 時通車:淡水信義線新增終點站廣慈/奉天宮': 'Xinyi east extension in service from 30 Aug, 14:00: Guangci/Fengtian Temple is the new Tamsui-Xinyi Line terminus',
+    '淡水信義線營運端點由象山延伸至廣慈/奉天宮站,8 月 30 日 13 時 50 分開放旅客進站、14 時發出首班列車。地圖上這一站與新路段我已經先畫出來,線形取自 OSM;官方即時到站資料要等通車後才會帶到這一站,在那之前這一段不會有列車、車站倒數也還沒有,通車後會自動跟上。8 月 30 日至 9 月 28 日行經新通車區間(象山站至廣慈/奉天宮站)不計票價。以官方公告為準。': 'The Tamsui-Xinyi Line terminus extends from Xiangshan to Guangci/Fengtian Temple. Passengers could enter from 13:50 on 30 August, and the first train left at 14:00. I drew the new station and track on the map ahead of time, using the OSM alignment. Official live arrival data only covers this station once the line is open, so until opening this section shows no trains and no station countdowns; after that it updates automatically. Travel through the new section (Xiangshan to Guangci/Fengtian Temple) is free from 30 August to 28 September. Always follow the operator’s official notice.',
+    '三鶯線 9/1 起正式收費,免費試營運結束': 'Sanying Line fares apply from 1 Sep; the free trial period has ended',
+    '三鶯線自 9 月 1 日起正式收費營運,票價採階梯費率,起程 20 元、最高 35 元;同步發售每卡 60 元的「三鶯線一日票」,限購票當日營業時間內不限次數進出三鶯線各站。正式營運的首末班官方已經公布:兩端點首班 06:00、末班 00:00,與試營運時段相同,地圖上這條線照這個時段推算。以官方公告為準。': 'The Sanying Line has charged fares since 1 September, on a distance-based scale from NT$20 to NT$35. A NT$60 Sanying Line day pass is also on sale, allowing unlimited entries at all Sanying Line stations during operating hours on the day of purchase. The official first and last trains for regular service have been announced: 06:00 and 00:00 from both terminals, the same hours as the trial period, and the map runs this line within those hours. Always follow the operator’s official notice.',
+    '新北捷運三鶯線': 'New Taipei Metro Sanying Line',
+  });
+  Object.assign(messages.ja, {
+    '信義東延段 8/30 14 時通車:淡水信義線新增終點站廣慈/奉天宮': '信義線東延伸区間 8/30 14時開業：淡水信義線の新しい終点は廣慈/奉天宮',
+    '淡水信義線營運端點由象山延伸至廣慈/奉天宮站,8 月 30 日 13 時 50 分開放旅客進站、14 時發出首班列車。地圖上這一站與新路段我已經先畫出來,線形取自 OSM;官方即時到站資料要等通車後才會帶到這一站,在那之前這一段不會有列車、車站倒數也還沒有,通車後會自動跟上。8 月 30 日至 9 月 28 日行經新通車區間(象山站至廣慈/奉天宮站)不計票價。以官方公告為準。': '淡水信義線の終点が象山から廣慈/奉天宮駅まで延びました。8月30日13時50分に駅への入場が始まり、14時に始発列車が出発しました。新駅と新しい線路は事前に地図へ描いており、線形はOSMのものを使っています。公式のリアルタイム到着情報は開業後にこの駅へ届くため、開業まではこの区間に列車も駅のカウントダウンも表示されず、開業後は自動的に反映されます。8月30日から9月28日まで、新区間（象山駅〜廣慈/奉天宮駅）を通る乗車は運賃無料です。実際の運行は公式情報をご確認ください。',
+    '三鶯線 9/1 起正式收費,免費試營運結束': '三鶯線は9/1から運賃徴収開始、無料の試運転営業は終了',
+    '三鶯線自 9 月 1 日起正式收費營運,票價採階梯費率,起程 20 元、最高 35 元;同步發售每卡 60 元的「三鶯線一日票」,限購票當日營業時間內不限次數進出三鶯線各站。正式營運的首末班官方已經公布:兩端點首班 06:00、末班 00:00,與試營運時段相同,地圖上這條線照這個時段推算。以官方公告為準。': '三鶯線は9月1日から正式に運賃を徴収しています。運賃は距離制で、初乗り20元、最高35元です。1枚60元の「三鶯線1日乗車券」も販売しており、購入当日の営業時間内は三鶯線の各駅に何度でも出入りできます。正式営業の始発・終電は公式に発表済みで、両端の駅とも始発06:00、終電00:00と試運転営業の時間帯と同じです。地図上のこの路線もこの時間帯で推定しています。実際の運行は公式情報をご確認ください。',
+    '新北捷運三鶯線': '新北メトロ三鶯線',
+  });
+  // 頁尾「資料來源與授權」的兩條公車來源(9/11 公車站牌資料層上線時加的,當時沒有 en/ja)。署名與授權名照原文保留。
+  Object.assign(messages.en, {
+    '全臺公車站牌名冊與非臺北市的到站預估介接交通部 TDX 運輸資料流通服務（Bus/Station、Bus/EstimatedTimeOfArrival），依政府資料開放授權條款第1版使用': 'The island-wide bus stop list and arrival estimates outside Taipei City come from the Ministry of Transportation TDX Transport Data eXchange (Bus/Station, Bus/EstimatedTimeOfArrival), used under Taiwan’s Open Government Data Licence, version 1.0.',
+    '北市公車': 'Taipei buses',
+    '臺北市公車的站牌、路線與到站預估取自臺北市政府交通局公共運輸處「臺北市公車動態資訊」（tcgbusfs.blob.core.windows.net/blobbus 之 GetEstimateTime／GetStop／GetRoute），依「政府資料開放授權條款－第1版」使用': 'Taipei City bus stops, routes and arrival estimates come from the Public Transportation Office, Department of Transportation, Taipei City Government (Taipei City Bus Dynamic Information: GetEstimateTime, GetStop and GetRoute at tcgbusfs.blob.core.windows.net/blobbus), used under Taiwan’s Open Government Data Licence, version 1.0.',
+  });
+  Object.assign(messages.ja, {
+    '全臺公車站牌名冊與非臺北市的到站預估介接交通部 TDX 運輸資料流通服務（Bus/Station、Bus/EstimatedTimeOfArrival），依政府資料開放授權條款第1版使用': '全国のバス停一覧と台北市以外の到着予測は交通部 TDX 運輸資料流通サービス（Bus/Station、Bus/EstimatedTimeOfArrival）から取得し、台湾政府資料開放ライセンス第1版に基づき利用しています。',
+    '北市公車': '台北市バス',
+    '臺北市公車的站牌、路線與到站預估取自臺北市政府交通局公共運輸處「臺北市公車動態資訊」（tcgbusfs.blob.core.windows.net/blobbus 之 GetEstimateTime／GetStop／GetRoute），依「政府資料開放授權條款－第1版」使用': '台北市バスのバス停・路線・到着予測は台北市政府交通局公共運輸処「臺北市公車動態資訊」（tcgbusfs.blob.core.windows.net/blobbus の GetEstimateTime／GetStop／GetRoute）から取得し、台湾政府資料開放ライセンス第1版に基づき利用しています。',
+  });
+
+  Object.assign(messages.en, {
+    '桌面小工具的發車看板：大尺寸一次列出五班並分北上南下，每列都有開車時刻與準點誤點；也可以改成主要顯示發車時刻':'The large departure board widget lists five trains, split into northbound and southbound, with a departure time and on-time status on every row. You can also switch the widget to show the departure time first.',
     '捷運列車的車廂擁擠度不會再整批消失一輪：官方擁擠度偶爾抓不到時改用剛才那一份，最多兩分鐘，超過就留白（謝謝網友回報）': 'Car-by-car crowding on metro trains no longer disappears for a whole refresh: when the official crowding feed is briefly unavailable, the reading from moments earlier is reused for up to two minutes, and after that the space is left blank. Thanks to the reader who reported it.',
     '桌面小工具：方向與目的站多了「不指定」，選過也能改回來；捷運看板的方向只列所選車站開得到的終點。Android 補齊到七種尺寸，捷運與火車都有大張卡片，5 欄手機會佔滿五格（謝謝網友回報）': 'Home screen widgets: direction and destination now offer "Any", so a choice can be undone, and the metro board only lists directions reachable from the chosen station. Android now has all seven sizes, with large cards for both metro and rail, and fills all five columns on 5-column phones. Thanks to the readers who reported it.',
     '車站看板的誤點標示放大加粗，一眼就看得出這班晚了幾分（謝謝網友回報）': 'The delay tag on the station board is bigger and bolder, so you can see at a glance how many minutes a train is late. Thanks to the reader who reported it.',

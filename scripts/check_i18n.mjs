@@ -107,6 +107,28 @@ const dictionariesScanned = dictionaryFiles.map(([name]) => name.replace('i18n/'
 const unscanned = dictionariesOnDisk.filter(name => !dictionariesScanned.includes(name));
 if (unscanned.length) fail(`i18n/ 底下這些字典檔沒被重複鍵掃描涵蓋:${unscanned.join('、')}——請加進 check_i18n.mjs 的 dictionaryFiles`);
 
+// 功能模組字典(bus-transfer-translations.js)只准【新增】鍵,不准改寫核心字典(translations.js＋content-translations.js)
+// 已有的譯文:它最後載入、Object.assign 進同一份全域字典,而 bus-transfer-ui.js 的 tr() 直接用宿主的 t()
+// ⇒ 同一個中文鍵全站只有一個譯文。2026-09-19 實測它把「我上車了」改成 'I’m on the bus'／'乗車しました'
+// (火車跟車卡的「我上車了」鈕在英文版因此寫著 on the bus)、把日文「取消」改成「取消」(全站對話框的
+// キャンセル鈕一起變),9/3 上線至今沒有任何閘門紅過:上面的重複鍵掃描只看得到同一個物件字面量裡的重複。
+// 值完全相同的冗餘不算。公車畫面真的需要不同說法時,換一個中文鍵,不要改寫共用鍵。
+const isolatedMessages = sources => {
+  const box = { window: { RAIL_I18N_MESSAGES: { en: {}, ja: {} } } };
+  vm.createContext(box);
+  for (const source of sources) vm.runInContext(source, box);
+  return box.window.RAIL_I18N_MESSAGES;
+};
+const coreMessages = isolatedMessages([dictionarySource, contentDictionarySource]);
+const busMessages = isolatedMessages([busTransferDictionarySource]);
+if (!Object.keys(busMessages.en || {}).length) fail('公車轉乘字典單獨求值後是空的——下面的「不得改寫核心譯文」檢查會空過');
+for (const lang of languages) for (const [key, value] of Object.entries(busMessages[lang] || {})) {
+  if (!Object.prototype.hasOwnProperty.call(coreMessages[lang] || {}, key)) continue;
+  if (JSON.stringify(coreMessages[lang][key]) !== JSON.stringify(value)) {
+    fail(`bus-transfer-translations.js 改寫了核心字典的 ${lang}「${key}」：${JSON.stringify(coreMessages[lang][key])} → ${JSON.stringify(value)}（它最後載入，全站同一個鍵都會被蓋掉）`);
+  }
+}
+
 for (const lang of languages) {
   if (!messages[lang] || typeof messages[lang] !== 'object') fail(`${lang} 字典不存在`);
 }
@@ -287,6 +309,25 @@ for (const group of helpBlocks.HELP_GROUPS || []) {
 }
 for (const source of new Set(helpSources.filter(value => value && /[\u3400-\u9fff]/.test(value)))) for (const lang of languages) {
   if (!keySets[lang]?.has(source)) fail(`使用說明缺少 ${lang}：${source}`);
+}
+
+// 手動策展公告(CURATED_NOTICES)的標題／內文／系統名是【資料】,經 renderAlertBanner／renderAlertDetail
+// 的 t(a.title)／t(a.desc)／t(a.sysLabel) 查表——不是字面 t('…'),上面的 runtime key 掃描看不到。
+// 2026-09-19 實測:8/29 上架的三則全都沒有 en/ja,英文首頁的公告橫幅標題就是中文(verify_i18n 的
+// desktopCore 從那時起就紅)。只守「還會顯示」的那幾則(until ≥ 今天,台北時間,同 curatedNoticeEntries
+// 的日期窗):過期的永遠不再顯示,替它補譯是白工;時間經過只會讓這條變寬鬆,不會讓已綠的出貨轉紅。
+// 形狀斷言對每一則都做(含過期):欄位改名時 [title, desc] 會變成 undefined 而被略過、
+// until 不是日期字串時 >= 比較恆 false,兩種都會讓下面那條全稱斷言無聲空過。
+const { CURATED_NOTICES = [] } = evaluateConstBlock('const CURATED_NOTICES =', 'function curatedNoticeEntries', ['CURATED_NOTICES']);
+const taipeiToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei' }).format(new Date());
+for (const notice of CURATED_NOTICES) {
+  const shapeOk = ['title', 'desc', 'sysLabel'].every(field => typeof notice[field] === 'string' && notice[field])
+    && [notice.from, notice.until].every(day => /^\d{4}-\d{2}-\d{2}$/.test(day || ''));
+  if (!shapeOk) { fail(`手動公告形狀不對（需 title／desc／sysLabel 字串與 from／until 日期）：${JSON.stringify(notice).slice(0, 120)}`); continue; }
+  if (notice.until < taipeiToday) continue;
+  for (const source of [notice.title, notice.desc, notice.sysLabel]) for (const lang of languages) {
+    if (!keySets[lang]?.has(source)) fail(`手動公告（${notice.sys}，顯示到 ${notice.until}）缺少 ${lang}：${source}`);
+  }
 }
 
 // 第一層「最近更新」是滾動檢視,不是正本(index.html 的 foot-recent 註解寫明:每條用 data-cl-of
