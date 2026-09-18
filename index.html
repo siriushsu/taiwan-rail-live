@@ -5497,7 +5497,7 @@
         <li class="grp">最近更新</li>
         <li data-cl-of="updatebanner0919"><span class="d">9/19</span><span>App 有新版時，頂端的更新提示不再蓋住「觀看」按鈕</span></li>
         <li data-cl-of="overtakeplan0915"><span class="d">9/19</span><span>台鐵後車待避與對向交會都保留安全間隔，同一條軌道上互相穿過的情況再減少</span></li>
-        <li data-cl-of="i18ngaps0919"><span class="d">9/19</span><span>英日文介面補上漏翻的按鈕、路線名、公告與提示，切換語言不再殘留前一種語言；車站看板太長的字改成兩行，不再被切掉</span></li>
+        <li data-cl-of="i18ngaps0919"><span class="d">9/19</span><span>英日文介面補上漏翻的按鈕、路線名、公告與提示，切換語言不再殘留前一種語言；車站看板太長的字改成兩行，不再被切掉；iOS 定位權限說明改用中文</span></li>
         <li data-cl-of="night200907"><span class="d">9/19</span><span>暗色模式下，附近車站、平交道、糖鐵與儲存地點卡的關閉鈕與「存」看得見了</span></li>
         <li data-cl-of="translucent0730"><span class="d">9/19</span><span>暗色主題下「面板半透明」開關恢復作用；半透明時看板倒數、預計到站與「在 Google 地圖開啟」等藍字加深，疊在衛星影像上也看得清楚</span></li>
         <li data-cl-of="speedcapzone0919"><span class="d">9/19</span><span>台鐵列車在地圖上不再跑得比車種極速還快，新馬急彎與立體地圖都修正了，站牌時刻不變</span></li>
@@ -5779,7 +5779,7 @@
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
         <li data-cl="updatebanner0919"><span class="d">9/19</span><span>App 有新版時，頂端的更新提示不再蓋住「觀看」按鈕：右側按鈕列載入後會變長，提示現在會跟著往下讓位</span></li>
-        <li data-cl="i18ngaps0919"><span class="d">9/19</span><span>英日文介面補上漏翻並修正譯錯的按鈕：行程分享、捷運路線名、倒數準確度、最後更新、今日亮點次數、成就說明、公告與各種提示；切換語言不再殘留前一種語言；車站看板一列放不下改成兩行；三鶯線公告列出官方首末班</span></li>
+        <li data-cl="i18ngaps0919"><span class="d">9/19</span><span>英日文介面補上漏翻並修正譯錯的按鈕：行程分享、捷運路線名、倒數準確度、最後更新、今日亮點次數、成就說明、公告與各種提示；切換語言不再殘留前一種語言；車站看板一列放不下改成兩行；三鶯線公告列出官方首末班；iOS 定位權限說明改用中文</span></li>
         <li data-cl="mixedwidget0919"><span class="d">9/19</span><span>Android 桌面的鐵路＋捷運雙看板重新排版：字放大，卡片放得下幾班就列幾班，不再空一大塊；已開通行證時，設定頁不會再誤寫需要通行證。</span></li>
         <li data-cl="repeatreminder0913"><span class="d">9/13</span><span>到站提醒可以設成每天、週一到五或自訂星期重複：通勤固定搭的那班設一次就長期有效，不必每天重設。重複的提醒依表定時刻在每個符合的日子響，一則重複提醒在 20 則上限裡仍然只算一則；原本設好的一次性提醒不受影響。</span></li>
         <li data-cl="widgetauto0911"><span class="d">9/11</span><span>小工具的車站可以設成「自動（最近的站）」，走到哪就換到哪一站；離開服務範圍時卡片會直接說明，不再默默顯示上一個地方的班次</span></li>
@@ -6545,6 +6545,8 @@
 //         併進 overtakeplan0915)、交會推論棘輪 MR1(987cb6d2)、App 新版橫幅不再蓋住「觀看」鈕(ResizeObserver 重新定位)。
 //         手機提示位置改寫成「量到的值＋var(--sa-t)」,Android 開機後才注入安全區也跟著走(027b7b80);我的車庫 62 款車名、
 //         出處與入庫通知走翻譯(00a5c02d);verify_anomaly 判準修正並掛出貨鏈 2.23、verify_side_offset 不再當機(a326447f、f4a89c58)。
+//         公車轉乘卡規劃／接近兩階補翻＋閘門(f378b878);iOS 定位權限說明補繁中(62ceeb0c);出貨鏈三支過期閘門修正
+//         (verify_bus_transfer_ui、verify_transfer_connections、verify_bus_stop_frontend)。
 const BUILD = 'v0919e';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
