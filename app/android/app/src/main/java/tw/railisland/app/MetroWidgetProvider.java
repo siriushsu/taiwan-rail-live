@@ -282,6 +282,11 @@ public class MetroWidgetProvider extends AppWidgetProvider {
      * 每一列都走同一個 MetroWidgetPlate.of(...)——狀態判定只有一份。
      */
     static List<MetroWidgetPlate> plates(Context context, MetroWidgetData.Snapshot snapshot) {
+        return plates(context, snapshot, 3);
+    }
+
+    /** 雙看板的列數跟著卡片高度走，大站可能要超過三個終點方向；其餘呼叫端維持三個。 */
+    static List<MetroWidgetPlate> plates(Context context, MetroWidgetData.Snapshot snapshot, int limit) {
         MetroWidgetData.Catalog catalog = null;
         MetroWidgetData.SystemInfo system = null;
         try {
@@ -337,7 +342,7 @@ public class MetroWidgetProvider extends AppWidgetProvider {
             }
             in.nowEpochSec = now;
             out.add(MetroWidgetPlate.of(in));
-            if (out.size() == 3) break;
+            if (out.size() == limit) break;
         }
         return out;
     }

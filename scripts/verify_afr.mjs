@@ -42,7 +42,8 @@ if (!process.env.PORT) {
 }
 for (let i = 0; ; i++) {                               // 等它真的聽得到,不用固定秒數
   try { const r = await fetch(BASE + '/index.html'); if (r.ok) break; } catch {}
-  if (i > 100) { console.error(`✗ dev server 起不來（${BASE}）`); child?.kill(); process.exit(1); }
+  // 上限 60 秒（原本 10 秒）：同一個等待寫法在 verify_issue19 於高負載時逾時擋下出貨，見該檔同處說明。
+  if (i > 600) { console.error(`✗ dev server 起不來（${BASE}）`); child?.kill(); process.exit(1); }
   await new Promise(r => setTimeout(r, 100));
 }
 let pass = 0, fail = 0;

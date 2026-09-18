@@ -72,8 +72,24 @@ final class RailWidgetRender {
     }
 
     static RemoteViews row(Context context, RailWidgetData.Row row, boolean readable, boolean compact) {
-        RemoteViews out = new RemoteViews(context.getPackageName(), readable
+        RemoteViews out = row(context, row, readable
             ? R.layout.widget_rail_row_readable : R.layout.widget_rail_row);
+        if (compact) {
+            out.setViewVisibility(R.id.wrr_status, View.GONE);
+            out.setTextViewTextSize(R.id.wrr_time, TypedValue.COMPLEX_UNIT_SP, readable ? 23 : 15);
+            out.setTextViewTextSize(R.id.wrr_train, TypedValue.COMPLEX_UNIT_SP, readable ? 16 : 11);
+        } else if (readable) {
+            out.setTextViewTextSize(R.id.wrr_time, TypedValue.COMPLEX_UNIT_SP, 23);
+            out.setTextViewTextSize(R.id.wrr_train, TypedValue.COMPLEX_UNIT_SP, 16);
+            out.setTextViewTextSize(R.id.wrr_status, TypedValue.COMPLEX_UNIT_SP, 12);
+            out.setViewVisibility(R.id.wrr_dest, View.GONE);
+        }
+        return out;
+    }
+
+    /** 只綁資料、不動字級：任何帶 wrr_* 這組 id 的列 layout 都能用（雙看板的主角列／次列也走這裡）。 */
+    static RemoteViews row(Context context, RailWidgetData.Row row, int layout) {
+        RemoteViews out = new RemoteViews(context.getPackageName(), layout);
         int color;
         try { color = Color.parseColor(row.color); }
         catch (IllegalArgumentException ignored) { color = context.getColor(R.color.wg_navy); }
@@ -121,16 +137,6 @@ final class RailWidgetRender {
         } else {
             out.setTextViewText(R.id.wrr_status, RailNativeL10n.text(context, "早到 {n} 分", "n", String.valueOf(Math.abs(row.delayMinutes))));
             out.setTextColor(R.id.wrr_status, context.getColor(R.color.wg_ok));
-        }
-        if (compact) {
-            out.setViewVisibility(R.id.wrr_status, View.GONE);
-            out.setTextViewTextSize(R.id.wrr_time, TypedValue.COMPLEX_UNIT_SP, readable ? 23 : 15);
-            out.setTextViewTextSize(R.id.wrr_train, TypedValue.COMPLEX_UNIT_SP, readable ? 16 : 11);
-        } else if (readable) {
-            out.setTextViewTextSize(R.id.wrr_time, TypedValue.COMPLEX_UNIT_SP, 23);
-            out.setTextViewTextSize(R.id.wrr_train, TypedValue.COMPLEX_UNIT_SP, 16);
-            out.setTextViewTextSize(R.id.wrr_status, TypedValue.COMPLEX_UNIT_SP, 12);
-            out.setViewVisibility(R.id.wrr_dest, View.GONE);
         }
         return out;
     }

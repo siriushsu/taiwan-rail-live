@@ -108,12 +108,52 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
     }
     return found;
   }
-  function mixedBoardLimits(src) {
-    const metro = src.match(/Math\.min\((\d+),\s*plates\.size\(\)\)/);
-    const rail = src.match(/Math\.min\((\d+),\s*rail\.rows\.size\(\)\)/);
-    if (!metro) throw new Error('MixedWidgetRender.java 抓不到 Math.min(N, plates.size())，混合看板捷運段示範列期望值無法推導');
-    if (!rail) throw new Error('MixedWidgetRender.java 抓不到 Math.min(N, rail.rows.size())，混合看板鐵路段示範列期望值無法推導');
-    return { metroRows: Number(metro[1]), railRows: Number(rail[1]) };
+  // 雙看板的列數跟著卡片高度走（MixedWidgetRender.heightFor，2026-09-18 起），沒有固定上限可以拿來
+  // 比示範列數。改驗「示範列長得跟真實列一樣」：主角一列在前、次列至少一列，而且每一列的幾何
+  // （寬高、最小高度、字級、字重、邊距、權重、可見度）逐元素等於對應的真實列 layout——示範列跟真實列
+  // 漂開，挑選器上看到的就不是放上桌面之後的樣子。文字、顏色、id、圖示方向不算幾何，不比。
+  const LAYOUT_DIR = 'app/android/app/src/main/res/layout';
+  const GEOMETRY = ['layout_width', 'layout_height', 'minHeight', 'textSize', 'textStyle',
+    'layout_marginStart', 'layout_marginTop', 'layout_marginEnd', 'layout_weight', 'visibility'];
+  function elementsOf(xml) {
+    const body = xml.replace(/<!--[\s\S]*?-->/g, '').replace(/<\?xml[^>]*\?>/, '');
+    const re = /<(\/?)([A-Za-z][\w.]*)((?:\s+[\w:]+="[^"]*")*)\s*(\/?)>/g;
+    const out = [];
+    let depth = 0;
+    let match;
+    while ((match = re.exec(body))) {
+      const [, close, tag, attrs, selfClose] = match;
+      if (close) { depth--; continue; }
+      const attr = Object.fromEntries([...attrs.matchAll(/android:(\w+)="([^"]*)"/g)].map(a => [a[1], a[2]]));
+      out.push({ tag, depth, attr });
+      if (!selfClose) depth++;
+    }
+    if (depth !== 0 || out.length === 0) throw new Error('layout 元素切不出來（標籤不成對或檔案是空的），雙看板示範列幾何期望值無法推導');
+    return out;
+  }
+  function geometry(elements) {
+    const base = elements[0].depth;
+    return elements.map(e => [e.depth - base, e.tag, ...GEOMETRY.map(k => e.attr[k] ?? '')].join('|')).join('\n');
+  }
+  // 示範檔的根是一個直向容器，它底下的每一個直接子節點（連同子孫）就是一列。
+  function demoBlocks(layoutName) {
+    const blocks = [];
+    for (const e of elementsOf(read(`${LAYOUT_DIR}/${layoutName}.xml`))) {
+      if (e.depth === 1) blocks.push({ tag: e.attr.tag ?? '(無 tag)', els: [e] });
+      else if (e.depth > 1 && blocks.length) blocks[blocks.length - 1].els.push(e);
+    }
+    return blocks;
+  }
+  function mixedSection(includes, heroLayout, rowLayout) {
+    const blocks = includes.flatMap(demoBlocks);
+    const hero = geometry(elementsOf(read(`${LAYOUT_DIR}/${heroLayout}.xml`)));
+    const row = geometry(elementsOf(read(`${LAYOUT_DIR}/${rowLayout}.xml`)));
+    const tags = blocks.map(b => b.tag);
+    return {
+      tags,
+      ordered: tags.length >= 2 && tags[0] === 'demo-hero' && tags.slice(1).every(t => t === 'demo-row'),
+      drift: blocks.filter((b, i) => geometry(b.els) !== (i === 0 ? hero : row)).map((b, i) => `${i + 1}:${b.tag}`),
+    };
   }
   function includesOf(section) {
     return [...section.matchAll(/<include\s+layout="@layout\/(\w+)"/g)].map(m => m[1]);
@@ -139,10 +179,10 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
   // removeAllViews 是否搶在 addView 前面，必須在「同一個函式」裡驗，否則兩個字串各自散落在檔案
   // 任何地方都會被 .includes() 誤判成過（task-15-fix1-review.md 必修 6 殘留）。先用大括號配對切出
   // 函式本體，再把 // 行註解剝掉──否則「把那行註解掉」這個突變會被純字串搜尋照樣命中，測不出來。
-  function extractFunctionBody(src, functionName, label) {
-    const signature = new RegExp(`static\\s+RemoteViews\\s+${functionName}\\s*\\([\\s\\S]*?\\)\\s*\\{`);
+  function extractFunctionBody(src, functionName, label, returnType = 'RemoteViews') {
+    const signature = new RegExp(`static\\s+${returnType}\\s+${functionName}\\s*\\([\\s\\S]*?\\)\\s*\\{`);
     const match = signature.exec(src);
-    if (!match) throw new Error(`${label} 抓不到 ${functionName}() 函式定義，removeAllViews／addView 順序期望值無法推導`);
+    if (!match) throw new Error(`${label} 抓不到 ${functionName}() 函式定義，期望值無法推導`);
     const braceStart = match.index + match[0].length - 1;
     let depth = 0;
     let i = braceStart;
@@ -150,7 +190,7 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
       if (src[i] === '{') depth++;
       else if (src[i] === '}') { depth--; if (depth === 0) { i++; break; } }
     }
-    if (depth !== 0) throw new Error(`${label} 的 ${functionName}() 大括號不成對，removeAllViews／addView 順序期望值無法推導`);
+    if (depth !== 0) throw new Error(`${label} 的 ${functionName}() 大括號不成對，期望值無法推導`);
     return src.slice(braceStart, i).replace(/\/\/[^\n]*/g, '');
   }
   function removeBeforeFirstAdd(body, containerId) {
@@ -163,7 +203,6 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
   const exp2x2 = railMaxRows.get('widget_rail_2x2');
   const exp4x2 = railMaxRows.get('widget_rail_4x2');
   const exp4x4 = railMaxRows.get('widget_rail_4x4');
-  const mixedLimits = mixedBoardLimits(mixedRender);
 
   const railSmallIncludes = includesOf(railSmall);
   const railMediumIncludes = includesOf(railMedium);
@@ -180,8 +219,25 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
   const railSmallRows = sumDemoRows(railSmallIncludes);
   const railMediumRows = sumDemoRows(railMediumIncludes);
   const railLargeRows = sumDemoRows(railLargeIncludes);
-  const mixedMetroRows = sumDemoRows(mixedMetroIncludes);
-  const mixedRailRows = sumDemoRows(mixedRailIncludes);
+  const mixedMetro = mixedSection(mixedMetroIncludes, 'widget_mixed_metro_hero', 'widget_mixed_metro_row');
+  const mixedRail = mixedSection(mixedRailIncludes, 'widget_mixed_rail_hero', 'widget_mixed_rail_row');
+  // 列數預算與版面讀同一組高度（dimens_widget_mixed.xml）：Java 算列數用的 R.dimen.wmx_*、版面用的
+  // @dimen/wmx_*、檔裡定義的，三份集合要一模一樣；四種真實列的根節點要是 wrap_content＋minHeight=@dimen。
+  // 任何一邊改成寫死的數字，預算就跟畫面對不上（症狀：最後一列被切掉，或底部又空出一大塊）。
+  const mixedRowLayouts = ['widget_mixed_metro_hero', 'widget_mixed_metro_row', 'widget_mixed_rail_hero', 'widget_mixed_rail_row'];
+  const namesOf = (src, re) => [...new Set([...src.matchAll(re)].map(m => m[1]))].sort().join('、');
+  const mixedDimensDefined = namesOf(read('app/android/app/src/main/res/values/dimens_widget_mixed.xml'), /<dimen\s+name="(wmx_\w+)"/g);
+  const mixedDimensInLayouts = namesOf(['widget_mixed_4x4', ...mixedRowLayouts].map(n => read(`${LAYOUT_DIR}/${n}.xml`)).join('\n'), /@dimen\/(wmx_\w+)/g);
+  const mixedDimensInJava = namesOf(mixedRender, /R\.dimen\.(wmx_\w+)/g);
+  const mixedRowRootsFromDimens = mixedRowLayouts.every(n => {
+    const root = elementsOf(read(`${LAYOUT_DIR}/${n}.xml`))[0].attr;
+    return root.layout_height === 'wrap_content' && /^@dimen\/wmx_\w+$/.test(root.minHeight ?? '');
+  });
+  // 上一條只管「三邊引用的是同一組名字」，照不到預算本身漏算一塊：版面加了一塊、Java 只在 pin() 引用、
+  // 忘了加進 fixedDp()，三份集合照樣相等，卡片卻少算那一塊的高度（症狀：註腳被擠出卡外）。
+  // 期望值取自 dimens 定義（上一條已證明它＝版面），不取自 fixedDp 本身；次列高 follow_h 是逐列加的單位，不在固定段裡。
+  const mixedDimensInBudget = namesOf(extractFunctionBody(mixedRender, 'fixedDp', 'MixedWidgetRender.java', 'float'), /R\.dimen\.(wmx_\w+)/g);
+  const mixedDimensExpectedInBudget = mixedDimensDefined.split('、').filter(name => name && name !== 'wmx_follow_h').join('、');
 
   const allDemoFiles = [...new Set([
     ...railSmallIncludes, ...railMediumIncludes, ...railLargeIncludes,
@@ -268,10 +324,19 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
       railMediumRows === exp4x2.rows],
     [`widget_rail_4x4 示範列數＝${railLargeRows}（真實上限＝${exp4x4.rows}，RailBoardWidgetProvider.java board() maxRows）`,
       railLargeRows === exp4x4.rows],
-    [`widget_mixed_4x4 捷運段(wmx_metro_rows)示範列數＝${mixedMetroRows}（真實上限＝${mixedLimits.metroRows}，MixedWidgetRender.java Math.min(N, plates.size())）`,
-      mixedMetroRows === mixedLimits.metroRows],
-    [`widget_mixed_4x4 鐵路段(wmx_rail_rows)示範列數＝${mixedRailRows}（真實上限＝${mixedLimits.railRows}，MixedWidgetRender.java Math.min(N, rail.rows.size())）`,
-      mixedRailRows === mixedLimits.railRows],
+    [`widget_mixed_4x4 捷運段(wmx_metro_rows)示範＝${mixedMetro.tags.join('、') || '(無)'}（期望：demo-hero 一列在前、demo-row 至少一列）`,
+      mixedMetro.ordered],
+    [`widget_mixed_4x4 捷運段示範列幾何＝真實列 widget_mixed_metro_hero／widget_mixed_metro_row（漂開的列：${mixedMetro.drift.join('、') || '無'}）`,
+      mixedMetro.drift.length === 0],
+    [`widget_mixed_4x4 鐵路段(wmx_rail_rows)示範＝${mixedRail.tags.join('、') || '(無)'}（期望：demo-hero 一列在前、demo-row 至少一列）`,
+      mixedRail.ordered],
+    [`widget_mixed_4x4 鐵路段示範列幾何＝真實列 widget_mixed_rail_hero／widget_mixed_rail_row（漂開的列：${mixedRail.drift.join('、') || '無'}）`,
+      mixedRail.drift.length === 0],
+    [`雙看板列數預算與版面同一組高度：定義［${mixedDimensDefined}］＝版面［${mixedDimensInLayouts}］＝MixedWidgetRender［${mixedDimensInJava}］，且四種列的根節點是 wrap_content＋minHeight=@dimen`,
+      mixedDimensDefined.length > 0 && mixedDimensDefined === mixedDimensInLayouts
+        && mixedDimensDefined === mixedDimensInJava && mixedRowRootsFromDimens],
+    [`雙看板預算 fixedDp() 算進了次列以外的每一塊：［${mixedDimensInBudget}］（期望＝定義的 wmx_* 扣掉逐列加的 wmx_follow_h：［${mixedDimensExpectedInBudget}］）`,
+      mixedDimensInBudget.length > 0 && mixedDimensInBudget === mixedDimensExpectedInBudget],
     [`widget_rail_2x2 只准 include compact 示範檔（compact=${exp2x2.compact}）：${railSmallIncludes.join('、') || '(無 include)'}`,
       railSmallIncludes.length > 0 && railSmallIncludes.every(name => name.includes('_compact'))],
     [`widget_rail_4x2／4x4／widget_mixed_4x4 的 include 都不是 compact 示範檔：${[...railMediumIncludes, ...railLargeIncludes, ...mixedMetroIncludes, ...mixedRailIncludes].join('、')}`,

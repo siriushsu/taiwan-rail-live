@@ -739,12 +739,15 @@ if (SECTIONS.has('D')) {
     console.log('  -- D5 零回歸(重跑既有驗收腳本)--');
     for (const script of ['verify_punctual.mjs', 'verify_my_trains.mjs']) {
       try {
-        const out = execSync(`node "${path.join(ROOT, 'scripts', script)}" "${BASE}"`, { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: 240000 });
+        const out = execSync(`node "${path.join(ROOT, 'scripts', script)}" "${BASE}"`, { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: 600000 });
         const lastLines = out.trim().split('\n').slice(-3).join(' / ');
         ok(`D5 ${script} 全綠(零回歸)`, !/FAIL/.test(out), lastLines);
       } catch (e) {
         const out = String((e && e.stdout) || (e && e.message) || e);
-        ok(`D5 ${script} 全綠(零回歸)`, false, out.trim().split('\n').slice(-5).join(' / '));
+        // 被逾時砍掉時 stdout 尾巴全是 ok,看起來像「全過卻判紅」——把原因寫在最前面。
+        // 上限 10 分鐘:09-19 ship-web 在多個 session 同跑瀏覽器時,verify_my_trains 單獨跑就要 246 秒(94/94 全綠),撞上原本的 240 秒。
+        const why = e && e.signal ? `被 ${e.signal} 終止(逾時或被殺)· ` : `exit ${e && e.status} · `;
+        ok(`D5 ${script} 全綠(零回歸)`, false, why + out.trim().split('\n').slice(-5).join(' / '));
       }
     }
   }
