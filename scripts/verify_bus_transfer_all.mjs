@@ -13,6 +13,8 @@ const scripts = [
   'verify_bus_transfer_worker.mjs',
   'verify_journey_share_worker.mjs',
   'verify_bus_transfer_gate.mjs',
+  // 2026-09-19：英日文三階段＋展開掃中文殘留（自起 fixture server，PORT=0）。
+  'verify_bus_transfer_i18n.mjs',
 ];
 
 function run(script, env = process.env) {

@@ -84,7 +84,40 @@
     '這一路目前沒有可選的後續下車站。': 'This route currently has no downstream stop available to select.',
     '選擇下車站': 'Choose an alighting stop', '開始接續旅程': 'Start continuing journey', '取消': 'Cancel',
     '已建立公車接續旅程': 'Bus journey created', '已切換為公車行程': 'Switched to the bus journey',
-    '這段接續旅程已完成': 'This continuing journey is complete'
+    '這段接續旅程已完成': 'This continuing journey is complete',
+    // 2026-09-19 補譯：規劃／接近轉乘站兩階原本走空 routes 陣列，這批字串沒有實機路徑觸發過，
+    // 因此漏了 tr() 包裝；bus-transfer-ui.js 同輪已全部補上 tr()。
+    '營運時間與班距未提供': 'Service hours and headway unavailable',
+    '末班 {time}': 'Last bus {time}', '約每 {n} 分一班': 'Every {n} min',
+    '上車：{stop}': 'Board: {stop}', '站牌未定': 'Stop not set',
+    '約 {meters} 公尺（戶外估算）': 'About {meters} m (outdoor estimate)', '距離未知': 'Distance unknown',
+    '步行 {distance}': 'Walk {distance}',
+    '這一段還沒有可用的公車轉乘建議。規劃資料由行程來源提供，不是此刻的公車動態。':
+      'No bus transfer suggestion is available for this leg yet. Planning data comes from the journey source, not current bus activity.',
+    '路線與班表資訊，不是此刻的公車位置': 'Route and timetable information, not current bus positions',
+    '共 {n} 條候選': { one: '{n} candidate', other: '{n} candidates' },
+    '再顯示其餘 {n} 條': 'Show {n} more', '只顯示前三條': 'Show the first three only',
+    '列車預估抵達時間未提供': 'Estimated train arrival time unavailable',
+    '即將抵達': 'Arriving soon', '約 {n} 分後': 'In about {n} min', '列車預估抵達': 'Estimated train arrival',
+    '來源 {source}': 'Source {source}',
+    '公車即時資訊尚未提供，無法估算裕度': 'Live bus information is not yet available, so the buffer cannot be estimated',
+    '預估有 {n} 分鐘裕度': 'Estimated {n} min buffer',
+    '轉乘時間偏緊，預估裕度約 {n} 分': 'Tight connection, estimated buffer about {n} min',
+    '目前看來可能接不上': 'This connection may not be possible right now',
+    '無法估算：缺站牌位置，算不出步行時間': 'Cannot estimate: stop location missing, so walking time cannot be calculated',
+    '抵達後步行約 {n} 分到站牌；此路線未提供班距，無法估算等候':
+      'About {n} min walk to the stop after arrival; this route has no headway data, so waiting time cannot be estimated',
+    '抵達後步行約 {n} 分到站牌': 'About {n} min walk to the stop after arrival',
+    '此路線約每 {headway} 分一班，平均等候約 {avg} 分、最壞 {headway} 分':
+      'This route runs about every {headway} min; average wait about {avg} min, worst case {headway} min',
+    '你預估 {clock} 抵達，已晚於這條路線的末班 {lastBus}':
+      'Your estimated arrival {clock} is later than the last bus on this route at {lastBus}',
+    '依目前狀況推估，仍可能變動；不保證接得上；未計月台到出口的站內步行。':
+      'Estimated from current conditions and may change; connection is not guaranteed; excludes in-station walking from platform to exit.',
+    '其餘 {n} 條候選路線': { one: '{n} more candidate route', other: '{n} more candidate routes' },
+    '這一段沒有候選公車路線可估算銜接裕度。': 'No candidate bus routes are available to estimate the connection buffer for this leg.',
+    '裕度由班距推估，不是此刻的公車倒數': 'Buffer is estimated from headway, not the current bus countdown',
+    '轉乘規劃：{n} 條候選路線與班表': { one: 'Transfer plan: {n} candidate route with timetable', other: 'Transfer plan: {n} candidate routes with timetable' }
   });
   messages.ja = Object.assign(messages.ja || {}, {
     '規劃': '計画', '接近': '接近', '已抵達': '到着',
@@ -161,6 +194,39 @@
     '這一路目前沒有可選的後續下車站。': 'この路線には現在選択できる後続停留所がありません。',
     '選擇下車站': '降車停留所を選択', '開始接續旅程': '乗換後の旅程を開始',
     '已建立公車接續旅程': 'バスの乗換旅程を作成しました', '已切換為公車行程': 'バス旅程に切り替えました',
-    '這段接續旅程已完成': 'この乗換旅程は完了しました'
+    '這段接續旅程已完成': 'この乗換旅程は完了しました',
+    // 2026-09-19 補譯：規劃／接近轉乘站兩階原本走空 routes 陣列，這批字串沒有實機路徑觸發過，
+    // 因此漏了 tr() 包裝；bus-transfer-ui.js 同輪已全部補上 tr()。
+    '營運時間與班距未提供': '運行時間と運行間隔は未提供',
+    '末班 {time}': '最終 {time}', '約每 {n} 分一班': '約{n}分間隔',
+    '上車：{stop}': '乗車：{stop}', '站牌未定': '停留所未定',
+    '約 {meters} 公尺（戶外估算）': '約{meters}m（屋外推定）', '距離未知': '距離不明',
+    '步行 {distance}': '徒歩 {distance}',
+    '這一段還沒有可用的公車轉乘建議。規劃資料由行程來源提供，不是此刻的公車動態。':
+      'この区間にはまだ利用できるバス乗換案内がありません。計画データは旅程情報源によるもので、現在のバスの動態ではありません。',
+    '路線與班表資訊，不是此刻的公車位置': '路線と時刻表の情報です。現在のバス位置ではありません',
+    '共 {n} 條候選': '候補{n}件',
+    '再顯示其餘 {n} 條': '残り{n}件を表示', '只顯示前三條': '先頭3件のみ表示',
+    '列車預估抵達時間未提供': '列車の到着予測時刻は未提供',
+    '即將抵達': 'まもなく到着', '約 {n} 分後': '約{n}分後', '列車預估抵達': '列車到着予測',
+    '來源 {source}': '情報源 {source}',
+    '公車即時資訊尚未提供，無法估算裕度': 'バスのリアルタイム情報がまだ提供されていないため、乗換余裕を推定できません',
+    '預估有 {n} 分鐘裕度': '推定余裕 {n}分',
+    '轉乘時間偏緊，預估裕度約 {n} 分': '乗換時間が短め・推定余裕約{n}分',
+    '目前看來可能接不上': '現在は間に合わない可能性があります',
+    '無法估算：缺站牌位置，算不出步行時間': '推定不可：停留所位置がなく、徒歩時間を算出できません',
+    '抵達後步行約 {n} 分到站牌；此路線未提供班距，無法估算等候':
+      '到着後、停留所まで徒歩約{n}分です。この路線は運行間隔の情報がなく、待ち時間を推定できません。',
+    '抵達後步行約 {n} 分到站牌': '到着後、停留所まで徒歩約{n}分',
+    '此路線約每 {headway} 分一班，平均等候約 {avg} 分、最壞 {headway} 分':
+      'この路線は約{headway}分間隔・平均待ち約{avg}分、最大{headway}分',
+    '你預估 {clock} 抵達，已晚於這條路線的末班 {lastBus}':
+      '到着予測{clock}はこの路線の最終便{lastBus}より後です',
+    '依目前狀況推估，仍可能變動；不保證接得上；未計月台到出口的站內步行。':
+      '現在の状況からの推定であり変動する可能性があります。接続は保証されません。ホームから出口までの駅構内徒歩は含みません。',
+    '其餘 {n} 條候選路線': '他{n}件の候補路線',
+    '這一段沒有候選公車路線可估算銜接裕度。': 'この区間には乗換余裕を推定できる候補バス路線がありません。',
+    '裕度由班距推估，不是此刻的公車倒數': '余裕は運行間隔からの推定であり、現在のバスの到着予測ではありません',
+    '轉乘規劃：{n} 條候選路線與班表': '乗換案内：候補{n}路線と時刻表'
   });
 })(window);

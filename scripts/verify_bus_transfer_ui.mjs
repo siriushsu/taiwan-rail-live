@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import vm from 'node:vm';
 
 const index = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const ui = fs.readFileSync(new URL('../bus-transfer-ui.js', import.meta.url), 'utf8');
@@ -76,8 +77,24 @@ check(/rail-bus-journey-change/.test(index) && /syncBusJourneyDock\(\)/.test(ind
 check(!/vehicles\[0\]/.test(ui) && /item\.binding === 'n1_plate_verified'/.test(ui),
   '沒有官方車牌綁定時不拿同路線第一台候選車冒充使用者搭的車');
 
+const i18nCtx = { console };
+i18nCtx.window = i18nCtx;
+vm.createContext(i18nCtx);
+for (const f of ['translations.js', 'content-translations.js', 'bus-transfer-translations.js']) {
+  vm.runInContext(fs.readFileSync(new URL(`../i18n/${f}`, import.meta.url), 'utf8'), i18nCtx, { filename: f });
+}
+const I18N = i18nCtx.RAIL_I18N_MESSAGES || {};
+const hasEnJa = key => ['en', 'ja'].every(lang => {
+  const v = I18N[lang] && I18N[lang][key];
+  return typeof v === 'string' ? v.trim().length > 0 : !!(v && typeof v === 'object' && v.other);
+});
+check(!hasEnJa('公車轉乘守門不存在的鍵'), '字典判準的反向對照：不存在的鍵量得到紅');
+
 for (const key of ['查看現在可搭公車', '步行導航到站牌', '此縣市未提供擁擠度', '資料已過期', '暫時無法取得附近公車資訊，請稍後重試。', '暫時無法取得這一路的車輛位置，請稍後重試。', '暫時無法取得這一路的完整站序，請稍後重試。', '目前靜態索引在本站 600 公尺內沒有找到可用公車站牌，因此這次沒有發出即時查詢。你仍可改用地圖查看更遠的站牌。', '預估可轉乘・保守裕度 {n} 分', '轉乘時間偏緊・保守裕度 {n} 分', '這一班目前可能接不上', '轉乘助手 · {station}', '高鐵時刻表推估', '林鐵時刻表推估', '接續這班', '選擇下車站', '我上車了', '我下車了', '原預估已過，請重新查詢']) {
-  check(translations.includes(`'${key}'`), `英日翻譯表包含「${key}」`);
+  // 2026-09-19：「我上車了」這類核心鍵由宿主 t() 從核心字典給譯文——公車字典不准重寫核心鍵
+  // （fe009954 起由 check_i18n 守），所以這裡量「三份字典合起來 en 與 ja 都有譯文」，
+  // 不再只認公車字典的原始碼字串（那個判準也量不出 en、ja 是否各有一份）。
+  check(hasEnJa(key), `英日翻譯表包含「${key}」`);
 }
 
 console.log('公車轉乘 UI 靜態守門全部通過。');

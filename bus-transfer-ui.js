@@ -409,14 +409,15 @@
 
   // ── 規劃中 ───────────────────────────────────────────────────────
   function serviceText(service) {
-    if (!service) return { line: '營運時間與班距未提供', headway: null };
+    const notProvided = tr('營運時間與班距未提供');
+    if (!service) return { line: notProvided, headway: null };
     const bits = [];
     if (service.firstBus && service.lastBus) bits.push(`${esc(service.firstBus)}–${esc(service.lastBus)}`);
-    else if (service.lastBus) bits.push(`末班 ${esc(service.lastBus)}`);
-    if (Number.isFinite(service.headwayMin)) bits.push(`約每 ${service.headwayMin} 分一班`);
+    else if (service.lastBus) bits.push(tr('末班 {time}', { time: esc(service.lastBus) }));
+    if (Number.isFinite(service.headwayMin)) bits.push(tr('約每 {n} 分一班', { n: service.headwayMin }, service.headwayMin));
     if (service.days) bits.push(esc(service.days));
     return {
-      line: bits.length ? bits.join('・') : '營運時間與班距未提供',
+      line: bits.length ? bits.join('・') : notProvided,
       headway: Number.isFinite(service.headwayMin) ? service.headwayMin : null,
     };
   }
@@ -426,12 +427,14 @@
     const walk = renderAccess(route.access);
     const service = serviceText(route.service);
     const lines = [];
-    lines.push({ cls: '', text: `上車：${esc(route.boardStopName || '站牌未定')}・${walk.tight}` });
-    lines.push({ cls: 'btu-opt', text: `步行 ${route.access ? `約 ${route.access.estimatedWalkM} 公尺（戶外估算）` : '距離未知'}` });
-    if (route.alightStopName) lines.push({ cls: '', text: `下車：${esc(route.alightStopName)}` });
+    const boardName = route.boardStopName ? esc(route.boardStopName) : tr('站牌未定');
+    lines.push({ cls: '', text: `${tr('上車：{stop}', { stop: boardName })}・${walk.tight}` });
+    const walkDist = route.access ? tr('約 {meters} 公尺（戶外估算）', { meters: route.access.estimatedWalkM }) : tr('距離未知');
+    lines.push({ cls: 'btu-opt', text: tr('步行 {distance}', { distance: walkDist }) });
+    if (route.alightStopName) lines.push({ cls: '', text: tr('下車：{stop}', { stop: esc(route.alightStopName) }) });
     lines.push({ cls: '', text: service.line });
     return `<div class="btu-row"><div class="btu-plan">
-<span class="btu-route">${esc(name)}${sub ? `<span class="btu-sub">${esc(sub)}</span>` : ''}${route.headsign ? `<span class="btu-sub">往 ${esc(route.headsign)}</span>` : ''}</span>
+<span class="btu-route">${esc(name)}${sub ? `<span class="btu-sub">${esc(sub)}</span>` : ''}${route.headsign ? `<span class="btu-sub">${tr('往 {destination}', { destination: esc(route.headsign) })}</span>` : ''}</span>
 ${lines.map(line => `<span class="btu-sec${line.cls ? ` ${line.cls}` : ''}">${line.text}</span>`).join('')}
 ${navLink(route.boardStopPosition, arrived, stationPosition, route.boardStopName)}
 </div></div>`;
@@ -446,29 +449,29 @@ ${renderAssistantShare(instance)}${renderWalkNote()}`;
     const plan = instance.plan;
     const routes = plan && Array.isArray(plan.routes) ? plan.routes : [];
     if (!routes.length) {
-      return `<div class="btu-msg">這一段還沒有可用的公車轉乘建議。規劃資料由行程來源提供，不是此刻的公車動態。</div>${renderWalkNote()}`;
+      return `<div class="btu-msg">${esc(tr('這一段還沒有可用的公車轉乘建議。規劃資料由行程來源提供，不是此刻的公車動態。'))}</div>${renderWalkNote()}`;
     }
     const shown = view.showAll ? routes : routes.slice(0, 3);
     const rest = routes.length - shown.length;
     const position = plan.stationPosition || null;
-    return `<div class="btu-meta"><span>路線與班表資訊，不是此刻的公車位置</span><span class="btu-opt">共 ${routes.length} 條候選</span></div>
+    return `<div class="btu-meta"><span>${esc(tr('路線與班表資訊，不是此刻的公車位置'))}</span><span class="btu-opt">${esc(tr('共 {n} 條候選', { n: routes.length }, routes.length))}</span></div>
 <div class="btu-list">${shown.map(route => renderPlanRoute(route, position, false)).join('')}</div>
-${rest > 0 ? `<button type="button" class="btu-more" data-btu-act="more">再顯示其餘 ${rest} 條</button>` : ''}
-${view.showAll && routes.length > 3 ? '<button type="button" class="btu-more" data-btu-act="less">只顯示前三條</button>' : ''}
+${rest > 0 ? `<button type="button" class="btu-more" data-btu-act="more">${esc(tr('再顯示其餘 {n} 條', { n: rest }, rest))}</button>` : ''}
+${view.showAll && routes.length > 3 ? `<button type="button" class="btu-more" data-btu-act="less">${esc(tr('只顯示前三條'))}</button>` : ''}
 ${renderWalkNote()}`;
   }
 
   // ── 接近轉乘站 ───────────────────────────────────────────────────
   function renderTrainEta(trainEta) {
-    if (!trainEta) return '<div class="btu-train"><span class="btu-tlbl">列車預估抵達時間未提供</span></div>';
+    if (!trainEta) return `<div class="btu-train"><span class="btu-tlbl">${esc(tr('列車預估抵達時間未提供'))}</span></div>`;
     const clock = clockText(trainEta.arrivalAt);
     const mins = minutesUntil(trainEta.arrivalAt);
     const head = clock ? `${clock}` : '—';
-    const rel = mins == null ? '' : (mins <= 0 ? '即將抵達' : `約 ${mins} 分後`);
+    const rel = mins == null ? '' : (mins <= 0 ? tr('即將抵達') : tr('約 {n} 分後', { n: mins }, mins));
     return `<div class="btu-train">
 <span class="btu-tnum">${esc(head)}</span>
-<span class="btu-tlbl">列車預估抵達${rel ? `・${esc(rel)}` : ''}</span>
-<span class="btu-age">${esc(ageText(trainEta.ageSec))}${trainEta.source ? `・來源 ${esc(trainEta.source)}` : ''}</span>
+<span class="btu-tlbl">${esc(tr('列車預估抵達'))}${rel ? `・${esc(rel)}` : ''}</span>
+<span class="btu-age">${esc(ageText(trainEta.ageSec))}${trainEta.source ? `・${esc(tr('來源 {source}', { source: trainEta.source }))}` : ''}</span>
 </div>`;
   }
 
@@ -500,12 +503,12 @@ ${renderWalkNote()}`;
     const busMs = Date.parse(route.busEtaAt || '');
     const trainMs = Date.parse((trainEta && trainEta.arrivalAt) || '');
     if (!Number.isFinite(busMs) || !Number.isFinite(trainMs) || walkMin == null) {
-      return { tone: 'unknown', text: '公車即時資訊尚未提供，無法估算裕度' };
+      return { tone: 'unknown', text: tr('公車即時資訊尚未提供，無法估算裕度') };
     }
     const slack = Math.round((busMs - trainMs) / 60000) - walkMin - SAFETY_BUFFER_MIN;
-    if (slack >= 5) return { tone: 'ok', text: `預估有 ${slack} 分鐘裕度` };
-    if (slack >= 0) return { tone: 'tight', text: `轉乘時間偏緊，預估裕度約 ${slack} 分` };
-    return { tone: 'miss', text: '目前看來可能接不上' };
+    if (slack >= 5) return { tone: 'ok', text: tr('預估有 {n} 分鐘裕度', { n: slack }, slack) };
+    if (slack >= 0) return { tone: 'tight', text: tr('轉乘時間偏緊，預估裕度約 {n} 分', { n: slack }, slack) };
+    return { tone: 'miss', text: tr('目前看來可能接不上') };
   }
 
   function slackOf(route, trainEta) {
@@ -513,19 +516,19 @@ ${renderWalkNote()}`;
     const headway = route.service && Number.isFinite(route.service.headwayMin) ? route.service.headwayMin : null;
     const lines = [];
     if (walkMin == null) {
-      lines.push({ cls: 'btu-slack', text: '無法估算：缺站牌位置，算不出步行時間' });
+      lines.push({ cls: 'btu-slack', text: tr('無法估算：缺站牌位置，算不出步行時間') });
     } else if (headway == null) {
-      lines.push({ cls: 'btu-slack', text: `抵達後步行約 ${walkMin} 分到站牌；此路線未提供班距，無法估算等候` });
+      lines.push({ cls: 'btu-slack', text: tr('抵達後步行約 {n} 分到站牌；此路線未提供班距，無法估算等候', { n: walkMin }, walkMin) });
     } else {
       const avg = Math.ceil(headway / 2);
-      lines.push({ cls: 'btu-slack', text: `抵達後步行約 ${walkMin} 分到站牌` });
-      lines.push({ cls: 'btu-sec', text: `此路線約每 ${headway} 分一班，平均等候約 ${avg} 分、最壞 ${headway} 分` });
+      lines.push({ cls: 'btu-slack', text: tr('抵達後步行約 {n} 分到站牌', { n: walkMin }, walkMin) });
+      lines.push({ cls: 'btu-sec', text: tr('此路線約每 {headway} 分一班，平均等候約 {avg} 分、最壞 {headway} 分', { headway, avg }) });
     }
     // 抵達時刻已過末班：這是使用者最需要提前知道的一件事。
     const lastBus = route.service && route.service.lastBus;
     const clock = clockText(trainEta && trainEta.arrivalAt);
     if (lastBus && clock && String(clock) > String(lastBus)) {
-      lines.push({ cls: 'btu-caveat', text: `你預估 ${clock} 抵達，已晚於這條路線的末班 ${esc(lastBus)}` });
+      lines.push({ cls: 'btu-caveat', text: tr('你預估 {clock} 抵達，已晚於這條路線的末班 {lastBus}', { clock, lastBus: esc(lastBus) }) });
     }
     return lines;
   }
@@ -535,10 +538,10 @@ ${renderWalkNote()}`;
     const verdict = slackVerdict(route, trainEta);
     const lines = slackOf(route, trainEta);
     return `<div class="btu-row"><div class="btu-plan">
-<span class="btu-route">${esc(name)}${sub ? `<span class="btu-sub">${esc(sub)}</span>` : ''}${route.headsign ? `<span class="btu-sub">往 ${esc(route.headsign)}</span>` : ''}</span>
+<span class="btu-route">${esc(name)}${sub ? `<span class="btu-sub">${esc(sub)}</span>` : ''}${route.headsign ? `<span class="btu-sub">${tr('往 {destination}', { destination: esc(route.headsign) })}</span>` : ''}</span>
 <span class="btu-verdict btu-v-${verdict.tone}">${esc(verdict.text)}</span>
 ${lines.map(line => `<span class="${line.cls}">${line.text}</span>`).join('')}
-<span class="btu-caveat">依目前狀況推估，仍可能變動；不保證接得上；未計月台到出口的站內步行。</span>
+<span class="btu-caveat">${esc(tr('依目前狀況推估，仍可能變動；不保證接得上；未計月台到出口的站內步行。'))}</span>
 ${navLink(route.boardStopPosition, false, stationPosition, route.boardStopName)}
 </div></div>`;
   }
@@ -558,11 +561,11 @@ ${renderLivePanel(instance, view)}${renderAssistantShare(instance)}${renderWalkN
     const position = plan && plan.stationPosition || null;
     const body = routes.length
       ? `<div class="btu-list">${routes.slice(0, 3).map(route => renderSlackRoute(route, position, instance.trainEta)).join('')}</div>
-${routes.length > 3 ? `<button type="button" class="btu-summary" data-btu-act="plan">其餘 ${routes.length - 3} 條候選路線<span class="btu-caret" aria-hidden="true">${view.planOpen ? '收合' : '展開'}</span></button>` : ''}
+${routes.length > 3 ? `<button type="button" class="btu-summary" data-btu-act="plan">${esc(tr('其餘 {n} 條候選路線', { n: routes.length - 3 }, routes.length - 3))}<span class="btu-caret" aria-hidden="true">${esc(tr(view.planOpen ? '收合' : '展開'))}</span></button>` : ''}
 ${view.planOpen && routes.length > 3 ? `<div class="btu-list">${routes.slice(3).map(route => renderSlackRoute(route, position, instance.trainEta)).join('')}</div>` : ''}`
-      : '<div class="btu-msg">這一段沒有候選公車路線可估算銜接裕度。</div>';
+      : `<div class="btu-msg">${esc(tr('這一段沒有候選公車路線可估算銜接裕度。'))}</div>`;
     return `${renderTrainEta(instance.trainEta)}
-<div class="btu-meta"><span>裕度由班距推估，不是此刻的公車倒數</span></div>
+<div class="btu-meta"><span>${esc(tr('裕度由班距推估，不是此刻的公車倒數'))}</span></div>
 ${body}
 ${renderWalkNote()}`;
   }
@@ -833,7 +836,7 @@ ${view.showAll && arrivals.length > 3 ? `<button type="button" class="btu-more" 
       : `<button type="button" class="btu-primary" data-btu-act="toggle" aria-expanded="${view.expanded ? 'true' : 'false'}">${esc(tr(view.expanded ? '收合即時公車' : '查看現在可搭公車'))}</button>`;
     const live = view.expanded ? renderLivePanel(instance, view) : '';
     // 前兩階降級成摘要，不消失也不搶版面。
-    const summary = routes.length ? `<button type="button" class="btu-summary" data-btu-act="plan">轉乘規劃：${routes.length} 條候選路線與班表<span class="btu-caret" aria-hidden="true">${view.planOpen ? '收合' : '展開'}</span></button>
+    const summary = routes.length ? `<button type="button" class="btu-summary" data-btu-act="plan">${esc(tr('轉乘規劃：{n} 條候選路線與班表', { n: routes.length }, routes.length))}<span class="btu-caret" aria-hidden="true">${esc(tr(view.planOpen ? '收合' : '展開'))}</span></button>
 ${view.planOpen ? `<div class="btu-list">${routes.map(route => renderPlanRoute(route, position, true)).join('')}</div>` : ''}` : '';
     return `${primary}${live}${summary}${renderWalkNote()}`;
   }
