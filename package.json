@@ -28,6 +28,7 @@
     "check-transfer": "npm run check-transfer-departures && npm run check-transfer-connections && npm run check-transfer-pin && npm run check-transfer-transitions && npm run check-transfer-mobile && npm run check-transfer-follow-pin && npm run check-transfer-collapse && npm run check-transfer-live-handoff",
     "build-run-profiles": "node scripts/build_run_profiles.mjs",
     "check-run-profiles": "node scripts/verify_run_profiles_match.mjs",
+    "check-phys-speed-cap": "node scripts/verify_phys_speed_cap.mjs",
     "check-dr1000-perf": "node scripts/verify_dr1000_perf.mjs",
     "sync-metro": "python3 scripts/fetch_tdx.py && node scripts/build_metro_times.mjs && node scripts/build_data_manifest.mjs && node scripts/build_data_provenance.mjs",
     "build-bounty-units": "node scripts/build_bounty_units.mjs",
