@@ -46,6 +46,17 @@ for(const [name,engine]of Object.entries({chromium,webkit})){
   await page.evaluate(()=>{window.__sunTestCtx={date:'2026-09-08'};state.playing=false;setSimSec(43200);M.raw.setPitch(0);});
   const motion=await page.evaluate(async()=>{const before={c:M.getCenter(),z:M.getZoom(),pitch:M.getPitch()};setSimSec(86399);const a=sunlight.current;setSimSec(0);const replay=sunlight.current;window.__sunTestCtx.date='2026-09-09';sunlight.update(true);const b=sunlight.current;M.raw.jumpTo({center:[120.3,22.6]});await new Promise(r=>setTimeout(r,1200));const south=sunlight.current;M.raw.jumpTo({center:[121.6,25.1]});await new Promise(r=>setTimeout(r,1200));const north=sunlight.current;const s=sunlight.stats.applications;state.playing=true;state.speedMult=600;await new Promise(r=>setTimeout(r,3200));state.playing=false;return {midnightDelta:Math.abs(a.elevation-b.elevation),utcDelta:b.utcMs-a.utcMs,replaySkySame:JSON.stringify(a.sky)===JSON.stringify(replay.sky),south,north,updates:sunlight.stats.applications-s,before};});
   check(name+' 跨午夜連續、南北移動都更新、快轉每秒至多一次',motion.midnightDelta<.01&&motion.utcDelta===1000&&motion.replaySkySame&&motion.south.lat<23&&motion.north.lat>25&&motion.updates<=4&&motion.updates>=2,{midnightDelta:motion.midnightDelta,utcDelta:motion.utcDelta,replaySkySame:motion.replaySkySame,south:motion.south.lat,north:motion.north.lat,updates:motion.updates});
+  // 09-18 裁示：展開的列車卡開著也要能進觀看設定；放空時不顯示觀看鈕。跟車會拉鏡頭，放在 motion 之後另開一頁。
+  await boot('&train=117');await page.waitForFunction(()=>!!state.followTrain,null,{timeout:60000});
+  const trainSheet=await page.evaluate(()=>{state.playing=false;openTrainSheet();return document.body.classList.contains('train-open');});
+  await openMapTab();await page.locator('#sunlightRow').scrollIntoViewIfNeeded();
+  const trainHit=await page.locator('#sunlightRow').evaluate(el=>{const r=el.getBoundingClientRect();return el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));});
+  const trainStill=await page.evaluate(()=>document.body.classList.contains('train-open'));
+  check(name+' 列車卡＋觀看面板仍可操作',trainSheet&&trainHit&&trainStill,{trainSheet,trainHit,trainStill});
+  const vc2=page.locator('.view-close');if(await vc2.isVisible())await vc2.tap();
+  // 正向對照：進放空前鈕看得到、而且真的進了放空，「看不到」才有意義。
+  const amb=await page.evaluate(()=>{const b=document.getElementById('viewSettingsBtn'),shown=()=>{const r=b.getBoundingClientRect(),cs=getComputedStyle(b);return r.width>0&&cs.visibility!=='hidden'&&cs.display!=='none';};closeTrainSheet();const before=shown();setAmbient(true);return {before,ambient:document.body.classList.contains('ambient'),shown:shown()};});
+  check(name+' 放空時不顯示觀看鈕',amb.before&&amb.ambient&&!amb.shown,amb);
   await ctx.close();
  }catch(e){check(name+' 完成',false,String(e.stack||e));}finally{await browser.close();}
 }
