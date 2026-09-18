@@ -53,6 +53,13 @@ const OFFICIAL = [
     want: ['23:00', '23:10', '23:16', '23:24', '23:37', '23:48', '24:01', '24:12'] },
 ];
 
+// 共用一段軌道的支線對(下面「疊車」判準的覆蓋率斷言):中和新蘆線兩支線共用南勢角～大橋頭,
+// 淡海綠山線/藍海線共用紅樹林～濱海沙崙。
+const TRUNK_PAIRS = {
+  'data/trtc_times.json': ['O_XINZHUANG×O_LUZHOU'],
+  'data/ntdlrt_times.json': ['V×VB'],
+};
+
 const argv = process.argv.slice(2);
 const flagVal = f => { const i = argv.indexOf(f); return i >= 0 ? argv[i + 1] : null; };
 const BASELINE = flagVal('--baseline') || 'HEAD';
@@ -118,8 +125,8 @@ for (const rel of FILES) {
   if (!existsSync(abs)) { ck(false, `${rel} 不存在`); continue; }
   const cur = JSON.parse(readFileSync(abs, 'utf8'));
   const lines = cur.lines || cur;
-  const loopIds = new Set(JSON.parse(readFileSync(path.join(ROOT, rel.replace('_times', '')), 'utf8'))
-    .lines.filter(l => l.loop).map(l => l.id));
+  const geoLines = JSON.parse(readFileSync(path.join(ROOT, rel.replace('_times', '')), 'utf8')).lines;
+  const loopIds = new Set(geoLines.filter(l => l.loop).map(l => l.id));
   console.log(`\n[${rel}]`);
 
   for (const [lid, L] of Object.entries(lines)) {
@@ -238,6 +245,62 @@ for (const rel of FILES) {
       ck(holes === 0, `${lid}/${tag} 無整段服務斷層（${holes} 處${holeEx ? `，首例 ${holeEx}` : ''}）`);
     }
   }
+
+  // ── 結構:共線段上兩條線的車不得同站同向同時通過(疊車) ──
+  // 2026-09-18 補。淡海假日幹線的站別記錄在綠山線/藍海線兩組間互相歸錯,建置把歸錯的一兩筆
+  // 補成 2~3 站的短班——它就是另一條支線那班真車的分身(濱海沙崙 V 08:39:00 對 VB 08:39:38)。
+  // 上面每一條都只看單一條線,一班一班都合法,所以抓不到。
+  // 共線段=兩線共有、且在兩條線裡都跟另一個共有站相鄰的站(轉乘站只共一站,不算)。
+  // 通過時刻:停靠站用產物值,沒停的站按站距在前後停靠之間線性內插。
+  const trunkPairs = [];
+  const geoRun = geoLines.filter(l => lines[l.id] && lines[l.id].sets && !loopIds.has(l.id));
+  for (let a = 0; a < geoRun.length; a++) for (let b = a + 1; b < geoRun.length; b++) {
+    const A = geoRun[a], B = geoRun[b];
+    const nA = A.stations.map(s => s.name), nB = B.stations.map(s => s.name);
+    const toA = new Map(); // B 站序 → A 站序(只收共線段)
+    nA.forEach((n, i) => {
+      const j = nB.indexOf(n);
+      if (j >= 0 && [nA[i - 1], nA[i + 1]].some(x => x !== undefined && nB.includes(x) && Math.abs(nB.indexOf(x) - j) === 1)) toA.set(j, i);
+    });
+    if (toA.size < 2) continue;
+    const trunkA = new Set(toA.values());
+    trunkPairs.push(`${A.id}×${B.id}`);
+    const [[j0, i0], [j1, i1]] = [...toA];
+    const flip = Math.sign(i1 - i0) === Math.sign(j1 - j0) ? 1 : -1; // 兩線站序方向相同或相反
+    const passes = (L, tr) => { // [站序, 通過秒, 站序方向]
+      const out = [], dOf = i => L.stations[i].d ?? i;
+      for (let k = 2; k < tr.length; k += 2) {
+        const [ia, ta, ib, tb] = [tr[k - 2], tr[k - 1], tr[k], tr[k + 1]], st = Math.sign(ib - ia);
+        if (k === 2) out.push([ia, ta, st]);
+        for (let m = ia + st; m !== ib; m += st)
+          out.push([m, ta + (tb - ta) * (dOf(m) - dOf(ia)) / ((dOf(ib) - dOf(ia)) || 1), st]);
+        out.push([ib, tb, st]);
+      }
+      return out;
+    };
+    for (const tag of Object.keys(lines[A.id].sets).filter(t => lines[B.id].sets[t])) {
+      const at = new Map();
+      for (const tr of lines[A.id].sets[tag]) for (const [m, t, st] of passes(A, tr)) {
+        if (!trunkA.has(m)) continue;
+        const k = `${m}|${st}`;
+        if (!at.has(k)) at.set(k, []);
+        at.get(k).push(t);
+      }
+      let hits = 0, hitEx = null;
+      for (const tr of lines[B.id].sets[tag]) for (const [m, t, st] of passes(B, tr)) {
+        if (!toA.has(m)) continue;
+        for (const u of at.get(`${toA.get(m)}|${st * flip}`) || []) {
+          if (Math.abs(u - t) >= MIN_HEADWAY_SEC) continue;
+          hits++;
+          hitEx ??= `${A.stations[toA.get(m)].name} ${A.id} ${hm(u)} / ${B.id} ${hm(t)}（${B.id} 那班 ${hm(tr[1])} 自站序 ${tr[0]} 發）`;
+        }
+      }
+      ck(hits === 0, `${A.id}×${B.id}/${tag} 共線段 ${toA.size} 站無疊車（同站同向相隔 <${MIN_HEADWAY_SEC}s 的有 ${hits} 處${hitEx ? `，首例 ${hitEx}` : ''}）`);
+    }
+  }
+  // 覆蓋率:共線段是路網的結構事實,這裡列的每一對都必須被上面找到——站名一改就會無聲地一對都不比
+  for (const p of (TRUNK_PAIRS[rel] || []))
+    ck(trunkPairs.includes(p), `${p} 的共線段有被疊車檢查涵蓋（本檔找到：${trunkPairs.join('、') || '無'}）`);
 
   // ── 官方:與營運者公告的字面值逐筆比對 ──
   for (const o of OFFICIAL.filter(o => o.file === rel)) {
