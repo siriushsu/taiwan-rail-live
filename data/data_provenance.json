@@ -233,7 +233,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "000509c14ffe61a6f44697bd000d3443"
+   "checksum": "fe4fac20f17618491011ea8822c28352"
   },
   "data/tra_schedule_dense.json": {
    "sourceDescription": "時刻表來源：https://ods.railway.gov.tw/tra-ods-web/ods/download/dataResource/railway_schedule/JSON/list 清單頁，抓取今天(2026-09-09)起連續 14 天中實際發佈得到的 14 天（2026-09-09…2026-09-2",
@@ -341,7 +341,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "234afed6991e14f0dc0fea9c2331f3cb"
+   "checksum": "a838a3f8d294b4310ee8291a128a0b6c"
   },
   "data/tymc.json": {
    "sourceDescription": "交通部 TDX 運輸資料流通服務(桃園機場捷運:路線幾何/站序/班距/站間行駛時間,2026-07 抓取);以普通車全站停靠型態繪製 2026-07-11:移除新北產業園區站西側shape反向重走段(同軌去回偽折返,致列車視覺繞圈);站點d重投影。",
