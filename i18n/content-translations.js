@@ -2362,3 +2362,13 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   "非營運時段": "運行時間外",
   "正常營運": "平常運転",
 });
+
+// 2026-09-19 Android 更新說明的標題：繁中維持舊字面(「軌島 {version} 有什麼新的」代入「Google Play 新版」)，
+// 外語不再代入中文版號字串。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  "軌島 Google Play 新版 有什麼新的": "What’s new in Rail Island on Google Play",
+});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  "軌島 Google Play 新版 有什麼新的": "軌島 Google Play版の新機能",
+});
