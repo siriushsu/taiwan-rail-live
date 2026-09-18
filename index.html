@@ -10866,15 +10866,18 @@ function inferMeetRun(tr, s, k0, k1, xk, perf, zoneCls, at, shareDay, single, st
         const dwell = y.dep - y.arr, end = !y.prev || !y.next;   // 起終點站:停多久沒有意義,留 30 秒
         if (!end && dwell < 30) continue;                        // 班表 30 秒解析度,看不到的停靠不當交會點
         const m = end ? 30 : Math.min(30, Math.floor(dwell / 3));
-        if (y.next === N && y.nextStop && tp > y.dep) {                                            // 同向待避
+        // 同向待避的觸發是「X 比 Y 離站前 m 秒還晚」,不是「比 Y 離站還晚」:X 落在 (y.dep−m, y.dep] 時
+        // 目標 hiWait=y.dep−m 本來就違反,舊條件卻整段放行。2026-09-19 實測 214 在 2008 離開汐止前 12 秒
+        // 通過(要求 30 秒),出站後兩車在汐止–五堵同軌互穿。
+        if (y.next === N && y.nextStop && tp > y.dep - m) {                                        // 同向待避
           const q = idx(y.nextStop, j + 1, k1);
           if (q > 0 && s[q].arrSec < y.nextArr && y.dep - m < hiWait) { hiWait = y.dep - m; whyHiWait = '待避 ' + y.k; }
         }
-        if (y.prev === N && y.prevStop && tp < y.arr) {                                            // 對向:Y 從 N 來
+        if (y.prev === N && y.prevStop && tp < y.arr + m) {                                              // 對向:Y 從 N 來
           let r = idx(y.prevStop, j + 1, k1); const exact = r > 0; if (!exact) r = k1;
           if (conflictOn(j, r, y.arr, y.prevDep, exact) && y.arr + m > lo) { lo = y.arr + m; whyLo = '交會(等它到) ' + y.k; }
         }
-        if (y.next === P && y.nextStop && tp > y.dep) {                                            // 對向:Y 往 P 去
+        if (y.next === P && y.nextStop && tp > y.dep - m) {                                              // 對向:Y 往 P 去
           let r = -1; for (let i = j - 1; i >= k0; i--) if (s[i].name === y.nextStop) { r = i; break; }
           const exact = r >= 0; if (!exact) r = k0;
           if (conflictOn(r, j, y.nextArr, y.dep, exact) && y.dep - m < hiMeet) { hiMeet = y.dep - m; whyHiMeet = '交會(趕它開) ' + y.k; }
@@ -11015,7 +11018,7 @@ function overtakeRunBuildable(tr, j, dep) {
   };
   return can(a, j, s[j].arrSec - s[a].depSec) && can(j, b, s[b].arrSec - dep);
 }
-function planSameDirectionOvertakes(trains, union) {
+function planSameDirectionOvertakes(trains, union, sections) {
   const stats = { planned: 0, tooClose: 0, unbuildable: 0, log: [] };
   if (!Array.isArray(trains) || trains.length < 2) return stats;
   const keyOf = tr => tr.train + ':' + tr.stops[0].depSec + ':' + tr.stops[tr.stops.length - 1].arrSec;
@@ -11079,6 +11082,11 @@ function planSameDirectionOvertakes(trains, union) {
       if (stats.log.length < 200) stats.log.push({ no: String(tr.train), by: p.follower, station: p.station,
         arr: Math.round(st.arrSec), dep: Math.round(st.depSec), lead: Math.round(p.lead), need: Math.round(p.need), km: +p.lookKm.toFixed(1) });
       reassignTrainProfile(tr);               // 下一個候選要看這次停等重算後的通過時刻
+      // 重建剖面會把 inferMeetPassTimes 已夾好的通過時刻整條洗掉(它是從實測／梯形重算,不是從夾過的
+      // 那條改)。只對這一班重推:約束只吃 Y 的官方停靠時刻與這班自己的跑段,不會反餵到別班。
+      // 2026-09-19 實測 6021 被排在崎頂待避 131 後,樹林的夾點(10:00:10)被洗回 09:59:03,
+      // 浮洲的通過時刻落在 2173 離站後 5 秒,兩車在浮洲–樹林同軌互穿 2.5 分鐘。
+      inferMeetPassTimes([tr], union, sections);
     }
   }
   return stats;
@@ -11089,7 +11097,7 @@ function resolveTraTraffic(trains, union, sections) {
   // 車群的暫態決策，再把它反餵進多日聯集交會會讓沒有參與待避的列車也依載入日產生不同曲線。
   out.meet.push(inferMeetPassTimes(trains, union, sections));
   for (let round = 0; round < 8; round++) {
-    const p = planSameDirectionOvertakes(trains, union); out.overtake.push(p); out.planned += p.planned;
+    const p = planSameDirectionOvertakes(trains, union, sections); out.overtake.push(p); out.planned += p.planned;
     if (!p.planned) break;
   }
   return out;
