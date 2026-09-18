@@ -11,21 +11,34 @@ for(const [name,engine]of Object.entries({chromium,webkit})){
   await boot('');
   // v0914c 起「日夜光影」列(#sunlightRow)搬進觀看面板「地圖」分頁,不再掛在「更多」抽屜下。
   const openMapTab=async()=>{const rail=page.locator('.view-rail [data-view="map"]');if(await rail.isVisible())await rail.tap();else{await page.tap('#viewSettingsBtn');await page.tap('.view-tabs [data-view="map"]');}};
+  // v0912 起明亮外觀預設就是關：原本「開著才點關」從來不會點，偏好沒寫進去，下面「關閉保留」空轉通過。
+  // 先開、重載驗「開」有被記住（預設是關，這條才量得到記憶），再關、重載驗「關」。
   await openMapTab();await page.locator('#sunlightRow').scrollIntoViewIfNeeded();
-  if(await page.evaluate(()=>sunlight.enabled))await page.tap('#sunlightRow');
+  if(!await page.evaluate(()=>sunlight.enabled))await page.tap('#sunlightRow');
+  await boot('');check(name+' 開啟偏好跨重新載入保留',await page.evaluate(()=>sunlight.enabled));
+  await openMapTab();await page.locator('#sunlightRow').scrollIntoViewIfNeeded();await page.tap('#sunlightRow');
   await boot('');check(name+' 關閉偏好跨重新載入保留',await page.evaluate(()=>!sunlight.enabled&&!M.raw.getSky()));
   await boot('&sun=on');
-  check(name+' 分享連結覆蓋本次偏好且不改儲存值',await page.evaluate(()=>sunlight.enabled&&localStorage.getItem('trainmap-sunlight')==='0'));
+  // v0912（dcf6ca80）起偏好依外觀分兩把鍵（SUNLIGHT_PREF_KEY＋-dark／-light）；舊鍵 trainmap-sunlight 已沒人寫，讀它恆為 null。
+  // 上面那次關閉寫進的是當下外觀那一把，==='0' 同時證明讀對了鍵。
+  const shared=await page.evaluate(()=>{const key=SUNLIGHT_PREF_KEY+(document.documentElement.getAttribute('data-theme')==='dark'?'-dark':'-light');return {enabled:sunlight.enabled,key,stored:localStorage.getItem(key)};});
+  check(name+' 分享連結覆蓋本次偏好且不改儲存值',shared.enabled&&shared.stored==='0',shared);
   await page.evaluate(()=>{state._setAppearance('light');window.__sunTestCtx={date:'2026-09-08'};});
   // 使用真實 time input，讓 input/change 事件走使用者平常那條路。
   await page.locator('#todPick').fill('18:00');await page.locator('#todPick').blur();
   await page.waitForFunction(()=>sunlight.current?.phase==='sunset');
   check(name+' 直接指定時刻會更新光線',await page.evaluate(()=>state.simSec===64800&&musicContextNow().hour==='dusk'));
-  for(const fs of [false,true])for(const banner of [false,true]){
-   await page.evaluate(({fs,banner})=>{document.body.classList.toggle('fs',fs);const el=document.getElementById('alertBanner');el.innerHTML='<span>測試營運公告</span><button type="button">詳情</button>';el.hidden=!banner;M.resize();const st=state.schedStations.find(st=>st.name.includes('臺北'));if(st)openBoard(st);},{fs,banner});
+  // 手機殼（≤900）一律全畫面：setFs(false) 在手機直接 return，載入即 fs（09-18 實測 360／414／768 皆是）。
+  // 這支是 414 寬，fs=false 是產品進不去的狀態（頂列 ⚠ 鈕寬 0），只量 fs=true；桌面的車站卡＋觀看由 verify_view_controls 覆蓋。
+  for(const fs of [true])for(const banner of [false,true]){
+   // 公告走產品自己的 renderAlertBanner：手機一律把橫幅設 hidden、改亮頂列 ⚠ 鈕（07-30 改版）。
+   // 不能直接拿掉 #alertBanner 的 hidden——那是手機永遠不會出現的狀態，會觸發桌面的
+   // `.alert-banner:not([hidden]) ~ .board` 讓位規則，把車站卡撐到整個畫面。
+   const alertOn=await page.evaluate(({fs,banner})=>{document.body.classList.toggle('fs',fs);state.alert={...(state.alert||{}),list:banner?[{title:'測試營運公告',start:'2026-09-08 12:00'}]:[]};renderAlertBanner();M.resize();const st=state.schedStations.find(st=>st.name.includes('臺北'));if(st)openBoard(st);const chip=document.getElementById('alertChip'),b=document.getElementById('alertBanner');return (chip&&!chip.hidden&&chip.getBoundingClientRect().width>0)||(!b.hidden&&b.getBoundingClientRect().width>0);},{fs,banner});
    await openMapTab();await page.locator('#sunlightRow').scrollIntoViewIfNeeded();
    const hit=await page.locator('#sunlightRow').evaluate(el=>{const r=el.getBoundingClientRect();return el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2))&&document.documentElement.scrollWidth<=innerWidth+1;});
-   check(`${name} fs=${fs} 橫幅=${banner} 車站卡＋觀看面板仍可操作`,hit);
+   // alertOn 是正向對照：有公告那兩格必須真的看得到公告入口，否則這格什麼都沒量到。
+   check(`${name} fs=${fs} 橫幅=${banner} 車站卡＋觀看面板仍可操作`,hit&&(!banner||alertOn),{alertOn});
    await page.tap('#sunlightRow');await page.tap('#sunlightRow');
    // #sunlightRow 沒有 data-act/data-proxy,不在自動關閉清單裡,面板不會自己收起。
    const vc=page.locator('.view-close');if(await vc.isVisible())await vc.tap();
