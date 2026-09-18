@@ -61,6 +61,31 @@ const TRUNK_PAIRS = {
   'data/ntdlrt_times.json': { 'V×VB': 9 },
 };
 
+// [官方] 逐班追蹤:同一班車在沿線各站官方時刻表上的字面值,產物必須有一班車同時停這些站、
+// 時刻逐一相符(可以還停別站)。上面的逐站判準只問「這站這方向有哪些時刻」,抓不到「時刻都在、
+// 只是被接到別班車上」:機捷平日山鼻 07:37 區間車在林口斷掉時,長庚那幾個時刻一個不少,是被
+// 三條鏈輪流拿錯(2026-09-18 查出;斷掉的那班直接整班刪掉也一樣全綠,當時突變實測過)。
+// 來源:桃園捷運各站時刻表 https://www.tymetro.com.tw/tymetro-new/tw/_pages/travel-guide/timetable-A{站號}
+// (2026-09-18 平日實查,往台北車站)。每個值都是該站時刻表上的字面值;怎麼知道是同一班:
+//   ◆ 官方標記「尖峰跳站普通車(停靠A21、A18、A13、A12、A9→A1每站)」,各站的 ◆ 直接指明是同一班。
+//   未標記的普通車/區間車在 A10→A2 站站停、彼此不超車(直達車各站另有標記),同站先後順序就是同一班。
+// stops = [線檔站序 index, 站名, HH:MM];站名只用來確認 index 沒有漂掉。
+const OFFICIAL_TRAINS = [
+  { file: 'data/tymc_times.json', line: 'A', set: '平日', kind: '1',
+    src: '機捷北上 ◆尖峰跳站普通車 環北 07:00',
+    stops: [[20, '環北站', '07:00'], [17, '高鐵桃園站', '07:11'], [12, '機場第二航廈站', '07:25'], [11, '機場第一航廈站', '07:28'],
+      [8, '林口站', '07:40'], [7, '長庚醫院站', '07:43'], [6, '體育大學站', '07:47'], [5, '泰山貴和站', '07:54'],
+      [4, '泰山站', '07:57'], [3, '新莊副都心站', '07:59'], [2, '新北產業園區站', '08:02'], [1, '三重站', '08:06']] },
+  { file: 'data/tymc_times.json', line: 'A', set: '平日', kind: '1',
+    src: '機捷北上 山鼻 07:37 區間車',
+    stops: [[9, '山鼻站', '07:37'], [8, '林口站', '07:45'], [7, '長庚醫院站', '07:48'], [6, '體育大學站', '07:52'], [5, '泰山貴和站', '07:58'],
+      [4, '泰山站', '08:02'], [3, '新莊副都心站', '08:04'], [2, '新北產業園區站', '08:06'], [1, '三重站', '08:10']] },
+  { file: 'data/tymc_times.json', line: 'A', set: '平日', kind: '1',
+    src: '機捷北上 山鼻 07:28 普通車',
+    stops: [[9, '山鼻站', '07:28'], [8, '林口站', '07:36'], [7, '長庚醫院站', '07:39'], [6, '體育大學站', '07:43'], [5, '泰山貴和站', '07:50'],
+      [4, '泰山站', '07:53'], [3, '新莊副都心站', '07:55'], [2, '新北產業園區站', '07:58'], [1, '三重站', '08:02']] },
+];
+
 const argv = process.argv.slice(2);
 const flagVal = f => { const i = argv.indexOf(f); return i >= 0 ? argv[i + 1] : null; };
 const BASELINE = flagVal('--baseline') || 'HEAD';
@@ -284,7 +309,7 @@ for (const rel of FILES) {
     const LA = lines[A.id], LB = lines[B.id];
     const dowOf = d => new Date(`${d}T00:00:00Z`).getUTCDay();
     const tagPairs = new Map();
-    const addPair = (ta, tb) => { if (LA.sets[ta] && LB.sets[tb]) tagPairs.set(`${ta} ${tb}`, [ta, tb]); };
+    const addPair = (ta, tb) => { if (LA.sets[ta] && LB.sets[tb]) tagPairs.set(`${ta}\x00${tb}`, [ta, tb]); };
     for (let w = 0; w < 7; w++) addPair(LA.days?.[w], LB.days?.[w]);
     addPair(LA.holiday, LB.holiday);
     for (const d of new Set([...Object.keys(LA.dates || {}), ...Object.keys(LB.dates || {})]))
@@ -328,6 +353,22 @@ for (const rel of FILES) {
     const g = got.sort((a, b) => a - b).map(hm);
     ck(g.join(' ') === o.want.join(' '),
       `${o.line}/${o.set} ${o.src} ${o.from} 後與官方時刻表一致（官方 ${o.want.join(' ')}${g.join(' ') === o.want.join(' ') ? '' : `；產物 ${g.join(' ') || '無'}`}）`);
+  }
+  for (const o of OFFICIAL_TRAINS.filter(o => o.file === rel)) {
+    const geo = geoLines.find(l => l.id === o.line);
+    const badIdx = o.stops.filter(([i, name]) => !geo || !geo.stations[i] || geo.stations[i].name !== name);
+    ck(!badIdx.length, `${o.line} ${o.src}：站序 index 對得上線檔站名${badIdx.length ? `（對不上 ${badIdx.map(([i, n]) => `${i}≠${n}`).join('、')}）` : ''}`);
+    const trains = (lines[o.line] && lines[o.line].sets[o.set]) || [];
+    const kinds = (lines[o.line] && lines[o.line].kinds && lines[o.line].kinds[o.set]) || '';
+    const stopsOf = tr => { const m = new Map(); for (let i = 0; i < tr.length; i += 2) m.set(tr[i], hm(tr[i + 1])); return m; };
+    const ti = trains.findIndex(tr => { const m = stopsOf(tr); return o.stops.every(([i, , t]) => m.get(i) === t); });
+    // 找不到時印出「從第一站那個時刻出發的那班」實際長什麼樣,紅燈當下就看得出斷在哪、被接去哪
+    const [i0, , t0] = o.stops[0];
+    const near = trains.find(tr => stopsOf(tr).get(i0) === t0);
+    const fmt = tr => idxsOf(tr).map((i, k) => `${i}@${hm(secsOf(tr)[k])}`).join(' ');
+    ck(ti >= 0 && (!o.kind || kinds[ti] === o.kind),
+      `${o.line}/${o.set} ${o.src} 整班照官方時刻表逐站相符（官方 ${o.stops.map(([i, , t]) => `${i}@${t}`).join(' ')}` +
+      (ti < 0 ? `；產物 ${near ? fmt(near) : '無此班'}` : kinds[ti] === o.kind || !o.kind ? '' : `；車種 ${kinds[ti] || '未標'}≠${o.kind}`) + '）');
   }
 
   if (STRUCT_ONLY) continue;
