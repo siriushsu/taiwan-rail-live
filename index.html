@@ -23044,6 +23044,16 @@ function setupCollectDemo() {
   };
   tick();
 }
+// 線網的線名帶起訖站:「縱貫線北段（基隆–竹南）」。外語介面線名查字典、括號裡的端點站走站名目錄,
+// 整串丟 t() 查不到會原樣吐出中文(2026-09-19 護照完乘的滑鼠提示就是這樣)。
+function lineFullNameI18n(l) {
+  if (I18N_LANG === 'zh-TW') return l.name;
+  const m = /^(.*?)（(.+)）$/.exec(l.name);
+  if (!m) return t(l.name);
+  // 端點分隔號兩種都有:台鐵用 –(U+2013),林鐵「本線（嘉義－阿里山）」用全形 －(U+FF0D)
+  const ends = m[2].split(/[–－]/).map(s => stationName(s, l.sys)).join('–');
+  return I18N_LANG === 'ja' ? `${t(m[1])}（${ends}）` : `${t(m[1])} (${ends})`;
+}
 // 各線完乘率(分母每條線各自算)。只列走過的線,由高到低;沒搭過任何一段就整區不出現
 function buildLineBars() {
   const lines = lineCompletion();
@@ -23055,7 +23065,7 @@ function buildLineBars() {
     `<div class="ph-lines">` +
     lines.map(l => {
       const pct = Math.round(l.pct * 100);
-      return `<div class="ph-line" title="${escHtml(`${l.name}　${l.ridN}/${l.nSeg} ${t('段')}　${l.ridKm.toFixed(1)}/${l.km.toFixed(1)} km`)}">` +
+      return `<div class="ph-line" title="${escHtml(`${lineFullNameI18n(l)}　${l.ridN}/${l.nSeg} ${t('段')}　${l.ridKm.toFixed(1)}/${l.km.toFixed(1)} km`)}">` +
         `<span class="pl-name">${escHtml(t(l.name.replace(/（.*$/, '')))}</span>` +
         `<span class="pl-bar"><i style="width:${pct}%;background:${escHtml(l.color || 'var(--red)')}"></i></span>` +
         `<span class="pl-pct${pct >= 100 ? ' done' : ''}">${pct}%</span></div>`;
