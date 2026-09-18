@@ -280,22 +280,32 @@ const MEASURE = async ({ b64, items, spark, vw, vh }) => {
   return { rows, spark: sparkOut, bg: { mean, sd, n: bgLums.length } };
 };
 
+// 釘時鐘:要量的是「面板背後透出來的地圖」,而地圖停在哪是跟著被跟隨的列車走的。拿牆鐘挑車,
+// 深夜與白天會量到完全不同的底圖(memory: verify-locale-must-be-pinned 時鐘段),紅綠跟著幾點跑。
+const PIN_SEC = 12 * 3600;
+
 async function boot(browser, { theme, width, height, touch, sheetSize, tag }) {
-  const ctx = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch, deviceScaleFactor: 1 });
+  // 語系兩道都釘(memory: verify-locale-must-be-pinned):Playwright chromium 預設 en-US、webkit 跟系統,
+  // 同一支腳本兩個引擎量到的是不同字串、不同換行。
+  const ctx = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch, deviceScaleFactor: 1, locale: 'zh-TW' });
   await ctx.addInitScript(([t, ss]) => {
     try {
       localStorage.setItem('trainmap-howto-seen', '1');
       localStorage.setItem('trainmap-appearance', t);
       localStorage.setItem('trainmap-panel-translucent', '1');
-      if (ss) localStorage.setItem('trainmap-sheet-size', ss);
+      // 手機 sheet 段高:08-26 裁示起亮色預設「小」(CSS 收掉內文,只剩車號列 ⇒ 列車 sheet 只量得到 4 個節點、
+      // 速度曲線整條藏起來),暗色 v0907c 起另存一份、預設「中」。兩份都釘,兩個主題量的才是同一個狀態。
+      if (ss) { localStorage.setItem('trainmap-sheet-size', ss); localStorage.setItem('trainmap-night-sheet-size', ss); }
     } catch (e) {}
   }, [theme, sheetSize || '']);
   const page = await ctx.newPage();
   const errs = [];
   page.on('pageerror', e => errs.push(`pageerror: ${e}`));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errs.push(`console.error: ${m.text()}`); });
-  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + '?lang=zh-TW', { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready === true; } catch (e) { return false; } }, null, { timeout: 45000 });
+  // 只釘一次 simSec 不夠:切群組／切系統會 state.simSec = nowSecOfDay() 拉回現在,所以連 nowSecOfDay 一起換掉。
+  await page.evaluate(sec => { nowSecOfDay = () => sec; setSimSec(sec); state.clockAtNow = false; }, PIN_SEC);
   if (SPARK_VARS) await page.addStyleTag({ content: `body.panel-translucent{${SPARK_VARS}}` });
   const no = await page.evaluate(async () => {
     let tries = 0;
@@ -355,10 +365,24 @@ const HIDE_PANELS = '.board,.traincard,#nearCard,#xingCard,#xingHelp,.follow-pan
 // 為什麼不是硬套 WCAG 4.5:實色紙面下 --ok 綠(#1B8F4D)本來就只有 4.03、--red 也接近門檻,
 // 那是既有色票的事(要改得動品牌色),不是這次半透明造成的回歸。實色基準低於 4.5 的另外列出來。
 const FLOOR = 3.0, KEEP = 0.8;
+// 沒開半透明時面板的基準外觀,兩個主題不同:
+//   亮色＝琺瑯實色紙面(--paper-tr .97,無背景模糊)。
+//   暗色 2.0(v0907c,更新紀錄「玻璃面板」)＝霓虹玻璃:night-theme.css 的 rgba(12,18,33,.80)＋blur(20px),
+//   關掉開關本來就回不到「實色」。地板取 .80:退到比它更透(例如半透明的 .30 殘留)才算沒回去。
+const BASELINE = {
+  light: { name: '實色', minAlpha: 0.9, backdrop: 'none' },
+  dark: { name: '暗色玻璃底', minAlpha: 0.8, backdrop: 'any' },
+};
+const alphaOf = bg => { const c = (String(bg).match(/rgba?\(([^)]+)\)/) || [])[1]; return c ? (c.split(/[\s,/]+/).filter(Boolean).map(Number)[3] ?? 1) : 0; };
 const sdSeen = [];
 
 async function measurePass(page, sc, label, pass, no) {
   const { opened, missing } = await runSteps(page, pass.steps, no);
+  const tag = `${label}/${pass.name}`;
+  if (pass.steps.includes('trainSheet')) {
+    const small = await page.evaluate(() => document.getElementById('trainCard').classList.contains('sheet-small'));
+    ok(`G1d ${tag} 列車 sheet 開在中段(小段會把內文與速度曲線收掉,量不到東西)`, !small, small ? 'sheet-small:段高偏好沒釘到或預設又改了' : '');
+  }
   // 桌機的速度曲線落在摺線以下(1280×800 實測可視像素 0 個 → G3 只會回「找不到 #tcSpark」),
   // 先把它捲進畫面再取樣;背景真值那張截圖也是在捲動之後才拍,兩者同一個視窗位置。
   if (pass.spark) {
@@ -400,7 +424,6 @@ async function measurePass(page, sc, label, pass, no) {
   const mS = await page.evaluate(MEASURE, { b64, items: itemsS, spark: sparkS, vw: sc.width, vh: sc.height });
   await style.evaluate(el => el.remove());
 
-  const tag = `${label}/${pass.name}`;
   // 圖磚真的載到才有背景真值可談;變異度只當資訊列出來——暗色底圖本來就是接近純黑的平面,
   // sd 低是事實不是缺陷(全域另有一條 G1z 確認這套量測抓得到變異)。
   sdSeen.push(mT.bg.sd);
@@ -441,6 +464,11 @@ async function runScenario(browser, engine, sc) {
   const label = `${engine}/${sc.theme}${sc.basemap === 'sat' ? '+衛星' : ''}/${sc.tag}`;
   if (ONLY && !label.includes(ONLY)) return null;
   const { ctx, page, errs, no } = await boot(browser, sc);
+  // 前置閘門:語系與時鐘沒釘住的話,後面每一條紅都長得像產品回歸(語系不看 location.search——開機途中
+  // clearFollow 會 replaceState 把整條 query 抹掉,事後讀恆為空)。
+  const pin = await page.evaluate(() => ({ lang: document.documentElement.lang, i18n: window.__i18n && window.__i18n.lang, sim: state.simSec, atNow: state.clockAtNow }));
+  ok(`G0b ${label} 語系釘在 zh-TW`, pin.lang === 'zh-TW' && pin.i18n === 'zh-TW', `html lang=${pin.lang} __i18n.lang=${pin.i18n}`);
+  ok(`G0c ${label} 時鐘釘在 12:00(跟隨的車＝面板背後的地圖不隨牆鐘漂)`, !pin.atNow && Math.abs(pin.sim - PIN_SEC) < 600, `simSec=${Math.round(pin.sim)} clockAtNow=${pin.atNow} 跟隨=${no}`);
   if (sc.basemap === 'sat') {
     const satOn = await page.evaluate(async () => {
       for (let i = 0; i < 60; i++) { if (typeof satTokenState !== 'undefined' && satTokenState !== 'pending') break; await new Promise(r => setTimeout(r, 100)); }
@@ -488,10 +516,11 @@ async function runScenario(browser, engine, sc) {
   // ——2026-08-10 就這樣丟過 14 個檢查(附近車站排在最後 ⇒ clearFollow() 把跟隨面板收掉)。
   ok(`G4 ${label} 收合態取樣有涵蓋到跟隨面板`, Object.prototype.hasOwnProperty.call(mins, 'fpMin'),
     `實際取到:${Object.keys(mins).join('、') || '(空——跟隨面板不在畫面上,pass 順序或面板互斥規則改過了)'}`);
+  // 收合態要退回該主題的基準外觀(BASELINE):亮色＝實色;暗色 2.0(v0907c)的基準本身就是玻璃,
+  // 更新紀錄寫明「暗色改用精簡玻璃卡」——不准比它更透,但不要求它變成實色。
   for (const [k, v] of Object.entries(mins)) {
-    const c = (v.bg.match(/rgba?\(([^)]+)\)/) || [])[1];
-    const a = c ? (c.split(/[\s,/]+/).filter(Boolean).map(Number)[3] ?? 1) : 0;
-    ok(`G4 ${label} ${k} 收合態恢復實色`, a >= 0.9 && (!v.bd || v.bd === 'none'), `bg=${v.bg} backdrop=${v.bd}`);
+    const base = BASELINE[sc.theme];
+    ok(`G4 ${label} ${k} 收合態退回${base.name}`, alphaOf(v.bg) >= base.minAlpha && (base.backdrop === 'any' || !v.bd || v.bd === 'none'), `bg=${v.bg} backdrop=${v.bd}`);
   }
 
   // ── G5 關掉開關要回到原本的樣子 ──
@@ -510,9 +539,9 @@ async function runScenario(browser, engine, sc) {
       muted: cs.getPropertyValue('--muted').trim(), faint: cs.getPropertyValue('--faint').trim(),
       line: cs.getPropertyValue('--line').trim(), lineDash: cs.getPropertyValue('--line-dash').trim() };
   });
-  const oa = off ? (off.bg.match(/rgba?\(([^)]+)\)/) || [])[1] : null;
-  const offAlpha = oa ? (oa.split(/[\s,/]+/).filter(Boolean).map(Number)[3] ?? 1) : 0;
-  ok(`G5 ${label} 關掉半透明後回實色、無 halo`, !!off && offAlpha >= 0.9 && (!off.bd || off.bd === 'none') && (off.shadow === 'none' || !off.shadow),
+  const base = BASELINE[sc.theme];
+  const baseOk = !!off && alphaOf(off.bg) >= base.minAlpha && (base.backdrop === 'any' || !off.bd || off.bd === 'none');
+  ok(`G5 ${label} 關掉半透明後回到${base.name}、無 halo`, baseOk && (off.shadow === 'none' || !off.shadow),
     off ? `bg=${off.bg} backdrop=${off.bd} shadow=${off.shadow} muted=${off.muted} faint=${off.faint} line=${off.line}`
       : '最後一輪跑完沒有任何可量的面板留在畫面上(.follow-panel/.board/#nearCard 都不在)');
 
@@ -547,7 +576,7 @@ const MOBILE_PASSES = [
   { name: '平交道', steps: ['xingCard', 'xingHelp'], spark: false },
 ];
 const D = { tag: 'desktop', width: 1280, height: 800, touch: false, passes: DESKTOP_PASSES };
-const M = { tag: 'mobile', width: 390, height: 844, touch: true, passes: MOBILE_PASSES };
+const M = { tag: 'mobile', width: 390, height: 844, touch: true, sheetSize: 'medium', passes: MOBILE_PASSES };
 const SCENARIOS = [
   { ...D, theme: 'light' },
   { ...D, theme: 'dark' },

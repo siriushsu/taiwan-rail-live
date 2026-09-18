@@ -983,7 +983,9 @@
   .xing-card .xc-ttl { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
   .xing-card .xc-ttl b { font-size: calc(15px * var(--ui)); font-weight: 900; letter-spacing: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .xing-card .xc-meta { font-size: calc(11px * var(--uis)); font-weight: 600; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .xing-card .xc-close { flex: none; background: none; border: 0; color: var(--on-navy); font-size: calc(15px * var(--ui)); line-height: 1; cursor: pointer; opacity: .82; padding: 2px 4px; }
+  /* ✕／「存」的字色用 inherit 不用 var(--on-navy)(同看板票價頁返回鈕那條):亮色下兩者逐 byte 相同,
+     但暗色 --on-navy 是 #0C1322、night-theme.css 又把 .xc-head 漆成深底 ⇒ 寫死會變「暗字暗底」(實測 1.01)。 */
+  .xing-card .xc-close { flex: none; background: none; border: 0; color: inherit; font-size: calc(15px * var(--ui)); line-height: 1; cursor: pointer; opacity: .82; padding: 2px 4px; }
   .xing-card .xc-close:hover { opacity: 1; }
   .xing-card .xc-list { padding: 2px 0; }
   .xing-card .xc-row { display: flex; align-items: baseline; gap: 8px; padding: 6px 12px; border-top: 1px dashed var(--line-faint); font-size: calc(12.5px * var(--ui)); }
@@ -996,7 +998,7 @@
   .xing-card .xc-cd { font-weight: 800; color: var(--warn-ink); min-width: 44px; text-align: right; }
   .xing-card .xc-empty { padding: 15px 12px; text-align: center; color: var(--muted); font-size: calc(12.5px * var(--ui)); }
   .xing-card .xc-foot { padding: 8px 12px 10px; background: var(--bg-stage); border-top: 1.5px dashed var(--line-dash); color: var(--faint); font-size: calc(10.5px * var(--uis)); line-height: 1.5; }
-  .xing-card .xc-save { flex: none; background: rgba(255,255,255,.16); border: 0; color: var(--on-navy); font-size: calc(11.5px * var(--uis)); font-weight: 800; cursor: pointer; padding: 3px 9px; border-radius: var(--r-pill); white-space: nowrap; }
+  .xing-card .xc-save { flex: none; background: rgba(255,255,255,.16); border: 0; color: inherit; font-size: calc(11.5px * var(--uis)); font-weight: 800; cursor: pointer; padding: 3px 9px; border-radius: var(--r-pill); white-space: nowrap; }
   .xing-card .xc-save:hover { background: rgba(255,255,255,.3); }
   .xing-card .xc-row[data-no] { cursor: pointer; }
   .xing-card .xc-row[data-no]:hover { background: var(--bg-stage); }
@@ -2171,6 +2173,12 @@
     --ok: #0B4A26;
     --red: #8E1F11;
     --warn-ink: #4A2A05;
+    /* 🔴 --navy 是面板裡的強調字色(看板倒數 .min、跟隨面板 ETA、「在 Google 地圖開啟」、平交道時刻…),
+       08-27 拿掉光暈時漏了它:#2A4A73 疊在 .55 玻璃＋深色空照上實測 3.5(實色 8.4)。
+       #0F243D 在「.55 紙面疊純黑」這個底色地板上仍有 4.6,任何底圖都過 AA;色相不變,只壓深。
+       方向色是 :root 上的 var() 轉指、在根節點就解析掉了,要在子樹內重新轉指才會跟著走。 */
+    --navy: #0F243D;
+    --dir-north: var(--navy); --dir-south: var(--ok);
     /* 🔴 2026-08-27 使用者裁示:「面板變成半透明的時候要維持文字的易讀性,可以直接改文字的顏色,
        不要加光暈來做。」原本這裡給整個面板子樹鋪 text-shadow 外圈(--glass-halo),整組拿掉——
        連帶那兩條配套規則(button 不繼承要明確接回、自帶底色的元件要豁免)也一併廢除,
@@ -2233,6 +2241,7 @@
     --ok: #7BE6A9;
     --red: #FF8A80;
     --warn-ink: #FFE3C0;  /* 同理:亮色那邊壓深的三色在暗底上會消失,這裡各往亮的方向再一階 */
+    --navy: inherit;      /* 暗色的 navy 本來就是亮字色(#AFCBF5),不吃亮色那格壓深 */
   }
   /* 列車資訊收到最小的兩種樣子——桌機收合成藥丸的跟隨小卡、手機「列車」sheet 的小段——
      只剩車號與時速幾個字,字級小又常停在路網密集處:整張退回實心紙面,連外圈都不需要。
