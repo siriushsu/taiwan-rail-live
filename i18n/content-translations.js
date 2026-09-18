@@ -1801,3 +1801,12 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   "開著車站卡時也能直接按「觀看」調整視角、地圖與列車設定": "駅カードを開いたままでも「表示」から視点・地図・列車の設定を変更できるようになりました。"
 });
+
+// 2026-09-18 機捷山鼻 07:37 區間車開到台北(第一層更新紀錄那條的 en/ja;第二層正本一律走 RAIL_I18N_CHANGELOG)
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  "機捷平日早上山鼻 7:37 那班區間車不再開到林口就消失，照官方時刻開到台北": "Taoyuan Airport MRT: the 7:37 weekday-morning short-run train from Shanbi no longer disappears at Linkou and now runs to Taipei Main Station on its official timetable."
+});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  "機捷平日早上山鼻 7:37 那班區間車不再開到林口就消失，照官方時刻開到台北": "桃園空港MRT：平日朝7:37山鼻発の区間列車が林口で消えなくなり、公式時刻どおり台北駅まで走るようになりました。"
+});

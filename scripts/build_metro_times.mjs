@@ -71,25 +71,43 @@ function makeDirFns(ctx, loop, asc) {
 // 不信 Sequence:TDX 偶見亂序(淡海假日把 00:0x 擺在清晨段中間)與整段重複(環狀線幸福站假日)。
 // 04:00–05:29 與 25h 後物理上無班(台灣捷運首班≥05:30、末班≤01:00)→ 髒值剔除;
 // 髒值 ≥3 筆代表整筆記錄損壞(如環狀線頭前庄假日),回傳 null 整筆跳過。
+// arr:發車秒 → 到站秒。鏈匹配用到站時刻開窗(見 chainRoute);沒有到站欄、或到站不在發車前
+// 10 分內的髒值,一律視為停站 0 秒(=發車時刻)。目前只有機捷兩者不同,其餘各線 arr 恆等於發車。
 function depsOf(timetables) {
   const set = new Set();
+  const arr = new Map();
   let junk = 0;
   for (const t of timetables) {
     let s = toSec(t.DepartureTime ?? t.ArrivalTime);
     if (s < 4 * 3600) s += 86400;
     if ((s >= 4 * 3600 && s < 5.5 * 3600) || s > 25 * 3600) { junk++; continue; }
     set.add(s);
+    let a = t.ArrivalTime ? toSec(t.ArrivalTime) : s;
+    if (a < 4 * 3600) a += 86400;
+    if (!(a <= s && s - a <= 600)) a = s;
+    if (!arr.has(s)) arr.set(s, a);
   }
   if (junk >= 3) return null;
-  return [...set].sort((a, b) => a - b);
+  return { deps: [...set].sort((a, b) => a - b), arr };
 }
 
-// 相鄰記錄站的「典型發車間隔」:對前站每班找後站最近的下一班,取中位數。
-// 自我校準,不信 S2S(高捷橘線 S2S 有 240s 但實跑 120s 的髒值);樣本不足退回線檔預期。
+// 相鄰記錄站的「典型行駛秒」:對前站每班發車找後站最近的下一個到站,取中位數;
+// 另取各站典型停站秒(到站→發車)的中位數。自我校準,不信 S2S(高捷橘線 S2S 有 240s 但實跑
+// 120s 的髒值);樣本不足退回線檔預期。
+// 為什麼分開算行駛與停站:停站秒不是常數。機捷普通車多數班次在長庚要停 4 分等直達車超車,
+// 同站的區間車、尖峰跳站普通車、以及那一格沒有直達車的普通車只停 0~1 分;合成一個「發車→發車」
+// 中位數(林口→長庚 420 秒)會讓只停 1 分的車整整晚 4 分鐘去搶下一班車的時刻——平日山鼻 07:37
+// 區間車就是這樣在林口斷掉。到站時刻不含本站停站,拿它開窗就沒有這個問題。
+// 到站=發車的線(目前機捷以外全部):停站中位數恆 0,dep 與 arr 兩條累計與舊版單一累計逐項相同。
 function calibrate(stns, dir) {
-  const exp = [];
+  const arrsOf = s => s.deps.map(d => s.arr.get(d)).sort((a, b) => a - b);
+  const dwell = stns.map(s => {
+    const ds = s.deps.map(d => d - s.arr.get(d)).sort((a, b) => a - b);
+    return ds.length ? ds[Math.floor(ds.length / 2)] : 0;
+  });
+  const dep = [0];
   for (let k = 0; k + 1 < stns.length; k++) {
-    const A = stns[k].deps, B = stns[k + 1].deps;
+    const A = stns[k].deps, B = arrsOf(stns[k + 1]);
     const ds = [];
     let j = 0;
     for (const a of A) {
@@ -97,25 +115,27 @@ function calibrate(stns, dir) {
       if (j < B.length && B[j] - a <= 1800) ds.push(B[j] - a);
     }
     ds.sort((a, b) => a - b);
-    exp.push(ds.length >= 5 ? ds[Math.floor(ds.length / 2)]
-      : dir.expected(stns[k].idx, stns[k + 1].idx) + 25);
+    // 退回線檔預期時沿用舊的「發車→發車」估計(行駛+25 秒停站),再扣掉後站的停站中位數
+    const run = ds.length >= 5 ? ds[Math.floor(ds.length / 2)]
+      : dir.expected(stns[k].idx, stns[k + 1].idx) + 25 - dwell[k + 1];
+    dep.push(dep[k] + run + dwell[k + 1]);
   }
-  const prefix = [0];
-  for (let k = 0; k < exp.length; k++) prefix.push(prefix[k] + exp[k]);
-  return prefix; // prefix[k] = 從 stns[0] 累計到 stns[k] 的典型秒數
+  // dep[k] = 從 stns[0] 發車累計到 stns[k] 發車的典型秒數;arr[k] = 累計到 stns[k] 到站
+  return { dep, arr: dep.map((p, k) => p - dwell[k]) };
 }
 
 // ── 鏈匹配:一條路線(站序已沿行進方向)×一種營運日 → 班車陣列 ──
 function chainRoute(stns, dir, stats, dbg) {
   const chains = [];
-  const prefix = calibrate(stns, dir);
-  if (dbg) console.log(`  [dbg] ${dbg} 校準間隔:`, prefix.map((p, i) => i ? p - prefix[i - 1] : 0).slice(1).join(','));
+  const { dep: prefix, arr: arrPrefix } = calibrate(stns, dir);
+  if (dbg) console.log(`  [dbg] ${dbg} 校準行駛:`, arrPrefix.map((p, i) => i ? p - prefix[i - 1] : 0).slice(1).join(','),
+    '停站:', prefix.map((p, i) => p - arrPrefix[i]).join(','));
   let active = [];
   for (let k = 0; k < stns.length; k++) {
     const st = stns[k];
     const bBefore = chains.length;
     for (const c of active) {
-      const E = prefix[k] - prefix[c.lastK];
+      const E = arrPrefix[k] - prefix[c.lastK]; // 鏈尾發車 → 本站「到站」,窗與配對都比到站時刻
       const gap = dir.steps(c.lastIdx, st.idx); // 數實際跨過幾站:被 drop 的站不在 stns 裡,但車還是要開過去
       c.pred = c.last + E;
       c.lo = c.last + Math.max(20, E - Math.max(90, E * 0.45)); // 多站跳點(直達車)少算停站時間,窗前緣放寬
@@ -125,10 +145,11 @@ function chainRoute(stns, dir, stats, dbg) {
     // 每個發車在「窗含它的未配對活鏈」中挑 pred 最近的;沒有就是本站始發。
     const born = [];
     for (const dep of st.deps) {
+      const arr = st.arr.get(dep);
       let best = null;
       for (const c of active) {
-        if (c._mk === k || dep < c.lo || dep > c.hi) continue;
-        if (!best || Math.abs(c.pred - dep) < Math.abs(best.pred - dep)) best = c;
+        if (c._mk === k || arr < c.lo || arr > c.hi) continue;
+        if (!best || Math.abs(c.pred - arr) < Math.abs(best.pred - arr)) best = c;
       }
       if (best) {
         best.stops.push([st.idx, dep]);
@@ -191,8 +212,8 @@ function buildLineTimes(line, routeSpecs, sttCache, stnNameCache, notes, allStop
         patBuckets.get(pat).push(t);
       }
       for (const [pat, tts] of patBuckets) {
-        const deps = depsOf(tts);
-        if (!deps) {
+        const rs = depsOf(tts);
+        if (!rs) {
           notes.push(`${line.id} ${rec.StationID}/dir${rec.Direction}/${rec.ServiceDay.ServiceTag}${pat ? '/' + pat : ''}: 髒值過多(時間亂碼),整筆排除`);
           continue;
         }
@@ -214,9 +235,10 @@ function buildLineTimes(line, routeSpecs, sttCache, stnNameCache, notes, allStop
           console.warn(`  ⚠ ${line.id} ${routeId}/${pat || "''"}: 同組出現兩種 TrainType(${g.trainType} vs ${trainType}),車種標記以先到者為準`);
         const idx = ctx.idxOf.get(name);
         if (g.stns.has(idx)) { // 同組同站多筆記錄(虛擬路線合併時)→ 取聯集
-          const merged = new Set([...g.stns.get(idx).deps, ...deps]);
-          g.stns.set(idx, { idx, deps: [...merged].sort((a, b) => a - b) });
-        } else g.stns.set(idx, { idx, deps });
+          const prev = g.stns.get(idx);
+          const merged = new Set([...prev.deps, ...rs.deps]);
+          g.stns.set(idx, { idx, deps: [...merged].sort((a, b) => a - b), arr: new Map([...rs.arr, ...prev.arr]) });
+        } else g.stns.set(idx, { idx, deps: rs.deps, arr: rs.arr });
       }
     }
   }
@@ -347,7 +369,8 @@ function buildLineTimes(line, routeSpecs, sttCache, stnNameCache, notes, allStop
   // 淡水行政中心/濱海沙崙的記錄在 V-1、V-2 兩組間互相歸錯(V-1 濱海沙崙 08:39 是藍海線 08:22 那班、
   // V-2 的 08:32 是綠山線 08:14 那班),各自成鏈後補成終點短班,正好疊在另一條支線的真車上。
   // 「接得上」用碎片合併的同一個時間窗、看原始記錄而不是別的鏈:記錄被別條鏈認走了也算
-  // (機捷平日山鼻 07:37 的長庚 07:48 被別條鏈認走,那班是被截斷的真車,不是幻影)。
+  // (機捷平日山鼻 07:37 的長庚 07:48 曾被別條鏈認走,那班是被截斷的真車,不是幻影;截斷本身
+  // 已在 v0918e 由 chainRoute 改比到站時刻修掉,這條留著擋同類的「接錯車」)。
   // 三筆以上記錄的鏈不動:末班車在中途收班就長這樣。環線沒有「中途」,不適用。
   if (!line.loop) for (const b of built) {
     const first = b.stns[0].idx, last = b.stns[b.stns.length - 1].idx;
