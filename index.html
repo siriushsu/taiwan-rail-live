@@ -21156,7 +21156,7 @@ function announceCollections(tr, rides, prevColl, prevAch, prevGarage = new Set(
   }
   const ach = unlockedAchievements(rides);
   ACHIEVEMENTS.forEach(a => { if (ach.has(a.id) && !prevAch.has(a.id)) msgs.push(t('成就解鎖　<b>{achievement}</b>', { achievement: `${railIcon(a.icon, 'ri-toast-ic')} ${escHtml(t(a.name))}` })); });
-  for (const r of garageCollection(rides)) if (r.owned && !prevGarage.has(r.id)) msgs.push(t('車庫入庫　<b>{name}</b>', { name: escHtml(r.model.name) }));
+  for (const r of garageCollection(rides)) if (r.owned && !prevGarage.has(r.id)) msgs.push(t('車庫入庫　<b>{name}</b>', { name: escHtml(t(r.model.name)) }));
   msgs.forEach((m, i) => setTimeout(() => showToast(m), i * 700));
   // 等自己的「完乘達成 / 蓋章 / 成就解鎖」通知全部跑完再問,不跟它們搶畫面。
   maybeAskReview(msgs.length * 700 + 2000, rides.length);

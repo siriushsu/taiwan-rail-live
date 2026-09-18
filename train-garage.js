@@ -107,12 +107,12 @@
     const row=rows.find(r=>r.id===selected);
     $('.g-showcase').hidden=!row;
     if(!row){auto=running=false;cancelAnimationFrame(raf);raf=0;showControls();return;}
-    $('.g-view').setAttribute('aria-label',row.model.name+' · '+status(row)+' · '+tr(mode==='track'?'海岸行旅':mode==='loop'?'環形試跑':'近看小車'));
+    $('.g-view').setAttribute('aria-label',tr(row.model.name)+' · '+status(row)+' · '+tr(mode==='track'?'海岸行旅':mode==='loop'?'環形試跑':'近看小車'));
     showControls();
     const badge=$('.g-status');badge.textContent=status(row);badge.classList.toggle('owned',row.owned);
-    $('.g-name').textContent=row.model.name;
+    $('.g-name').textContent=tr(row.model.name);
     $('.g-system').textContent=tr(row.model.system)+' · '+tr('Q 版收藏模型');
-    $('.g-reason').textContent=demo ? tr('展示模式・不計入收藏') : row.earned ? tr('完成「{name}」收藏，代表車型已入庫。',{name:row.label}) :
+    $('.g-reason').textContent=demo ? tr('展示模式・不計入收藏') : row.earned ? tr('完成「{name}」收藏，代表車型已入庫。',{name:tr(row.label)}) :
       row.owned ? tr('已達成「{goal}」，紀念模型已入庫。',{goal:goalText(row)}) :
       row.rule.category==='progress' ? goalText(row) : tr('取得「{name}」收集章，或達成「{goal}」。',{name:tr(row.label),goal:goalText(row)});
     $('.g-goal').textContent=goalText(row)+' · '+Math.min(Math.floor(row.now),row.goal.need)+' / '+row.goal.need;
@@ -127,7 +127,7 @@
     for(const source of row.model.sources||[]) {
       let url;try{url=new URL(source.url);}catch{continue;}if(!['https:','http:'].includes(url.protocol))continue;
       const p=document.createElement('p'),a=document.createElement('a');
-      a.href=url.href;a.target='_blank';a.rel='noopener noreferrer';a.textContent=tr('外觀參考')+' · '+source.label+' ↗';p.append(a);$('.g-source-body').append(p);
+      a.href=url.href;a.target='_blank';a.rel='noopener noreferrer';a.textContent=tr('外觀參考')+' · '+tr(source.label)+' ↗';p.append(a);$('.g-source-body').append(p);
     }
     if(loadedId!==row.id||loadedMode!==mode)loadSelected();
     requestDraw();
@@ -145,7 +145,7 @@
     for(const sys of new Set(list.map(r=>r.model.system))) {
       const group=document.createElement('optgroup');group.label=tr(sys);
       for(const row of list.filter(r=>r.model.system===sys)) {
-        const option=document.createElement('option');option.value=row.id;option.textContent=row.model.name+' · '+status(row);group.append(option);
+        const option=document.createElement('option');option.value=row.id;option.textContent=tr(row.model.name)+' · '+status(row);group.append(option);
       }
       picker.append(group);
     }
@@ -155,8 +155,8 @@
     $('.g-grid').replaceChildren();
     for(const row of list) {
       const b=document.createElement('button');b.type='button';b.className=row.owned?'g-car':'g-car g-locked';b.dataset.model=row.id;b.setAttribute('aria-pressed',String(selected===row.id));
-      b.setAttribute('aria-label',row.model.name+' · '+status(row));
-      b.innerHTML=`<span class="g-check" aria-hidden="true">${row.owned?'✓':'○'}</span><img src="${esc(row.model.thumbnail)}" alt="" loading="lazy" width="320" height="200"><b>${esc(row.model.name)}</b><small>${esc(status(row))}</small>`;
+      b.setAttribute('aria-label',tr(row.model.name)+' · '+status(row));
+      b.innerHTML=`<span class="g-check" aria-hidden="true">${row.owned?'✓':'○'}</span><img src="${esc(row.model.thumbnail)}" alt="" loading="lazy" width="320" height="200"><b>${esc(tr(row.model.name))}</b><small>${esc(status(row))}</small>`;
       b.onclick=()=>{chooseModel(row.id);$('.g-filters').scrollIntoView({block:'start',behavior:'instant'});$('.g-model-select').focus({preventScroll:true});};
       $('.g-grid').append(b);
     }
