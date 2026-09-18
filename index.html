@@ -6969,6 +6969,8 @@ const state = {
   clockAtNow: false, // 模擬時鐘是否處於「跟著現在」的狀態(開機對齊/按現在鈕為真,拖時刻尺或快轉即false)
 
   stnIntro: false, immersive: false, // 特殊站介紹開關(放空自動開)、極簡沉浸(全畫面隱藏左側卡)
+  stnIntroPref: false, // 特殊站介紹:使用者自己按出來的那個選擇(trainmap-stn-intro)。放空進出會臨時覆寫 stnIntro,
+                       // 不落盤也不動這裡;離開放空回到這個值,放空一趟才不會把使用者的設定抹掉
   xingOn: false, // 台鐵平交道顯示開關(預設關;開了才畫記號、建命中、攔點擊)
   dirArrow: true, // 列車行進方向箭頭開關(預設開;台鐵/高鐵車號牌前緣加小箭頭,由前後點位推方向)
   panelTranslucent: document.body.classList.contains('panel-translucent'), // 面板半透明:預設關,偏好由首繪腳本從 localStorage 還原
@@ -18124,7 +18126,7 @@ function setAmbient(on) {
     if (state.autoTour) setAutoTour(false);
     musicSyncAmbient(); // 離開放空:曲庫退回原本的模式
     hotspotStop();
-    (state._setStnIntro || (() => {}))(false); // 離開放空自動關特殊站介紹
+    (state._setStnIntro || (() => {}))(state.stnIntroPref === true); // 離開放空回到使用者自己的選擇(沒開過就是關)
     setSparkOpen(true); // 回一般模式:曲線預設展開(時刻表維持收起)
     if (document.body.classList.contains('fs')) (state._setFs || (() => {}))(false);
   }
@@ -34248,14 +34250,17 @@ function setupMapTools() {
 
   // ── 特殊車站介紹:經過特等/一等/有特色的站,停靠時在站名牌下緣自動顯示介紹 ──
   const introBtn = document.getElementById('introBtn');
-  function setStnIntro(on) {
+  function setStnIntro(on, save = true) {
     state.stnIntro = on;
     introBtn.classList.toggle('active', on);
     introBtn.title = t(on ? '經過特殊車站顯示介紹（已開啟）' : '經過特殊車站時顯示介紹');
     state._plateStop = null; // 立即重算,讓正停靠中的站即時反映開關
+    // save=false 是放空的臨時覆寫與開機初始化,兩者都不是使用者按的,不得寫回偏好
+    if (save !== false) { state.stnIntroPref = on; try { localStorage.setItem('trainmap-stn-intro', on ? '1' : '0'); } catch (e) {} }
   }
   introBtn.onclick = () => setStnIntro(!state.stnIntro);
-  state._setStnIntro = setStnIntro;
+  state._setStnIntro = (on) => setStnIntro(on, false);
+  setStnIntro(state.stnIntro, false); // 初始化按鈕態(沿用 boot 從 localStorage 還原的選擇)
   // ── 外觀三段:亮/暗/自動——html[data-theme] 全介面換色,地圖底圖與 canvas 調色盤(MAP_PAL)連動 ──
   function setAppearance(mode) {
     state.appearance = mode;
@@ -35386,6 +35391,7 @@ async function boot() {
   if (LANDSCAPE_REQUESTED) { state.basemap = 'landscape'; try { localStorage.setItem('trainmap-basemap', 'landscape'); } catch (e) {} }
   try { state.immersive = localStorage.getItem('trainmap-immersive') === '1'; } catch (e) {}
   try { state.xingOn = localStorage.getItem('trainmap-xing') === '1'; } catch (e) {}
+  try { state.stnIntro = state.stnIntroPref = localStorage.getItem('trainmap-stn-intro') === '1'; } catch (e) {} // 特殊站介紹:預設關,使用者開過才記 '1'
   try { state.dirArrow = localStorage.getItem('trainmap-diron') !== '0'; } catch (e) {} // 列車方向箭頭:預設開(沒存過即開),使用者關過才記 '0'
   try { setAmbientStyle(localStorage.getItem('trainmap-ambient-style') === 'follow' ? 'follow' : 'hotspot'); } catch (e) {} // 預設群車(v0717v);使用者切過跟車才存 'follow'
   // 省電模式預設:手機開、桌機關;使用者手動切過就記住(setupMapTools 內 setPowerSave 讀此值初始化按鈕)

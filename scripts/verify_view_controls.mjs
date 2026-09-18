@@ -6,7 +6,12 @@ for(const key of ['angle','map','train','labels','places','display']){const tab=
 const controls=p.locator('#viewSettingsBody .view-page:not([hidden]) button:visible,#viewSettingsBody .view-page:not([hidden]) select:visible');for(let i=0;i<await controls.count();i++){const c=controls.nth(i);await c.scrollIntoViewIfNeeded();const hit=await c.evaluate(e=>{const r=e.getBoundingClientRect(),h=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return{hit:e===h||e.contains(h),height:r.height,label:(e.textContent||e.getAttribute('aria-label')||'').trim()};});ok(`${width} ${key} 控件可點`,hit.hit&&hit.height>=40,hit);}
 }
 await tap((mobile?'.view-tabs':'.view-rail')+' [data-view="angle"]');await p.locator('[data-rail3d="perspective"] [data-value="flat"]').scrollIntoViewIfNeeded();await tap('[data-rail3d="perspective"] [data-value="flat"]');await p.waitForFunction(()=>M.getPitch()<1);ok(width+' 俯視操作生效',true);
-await tap((mobile?'.view-tabs':'.view-rail')+' [data-view="train"]');const size='[data-rail3d="size"] [data-value="scale"]';await p.locator(size).scrollIntoViewIfNeeded();await tap(size);ok(width+' 原設定狀態共用',await p.evaluate(()=>sessionStorage.getItem('ri-train-size-v21')==='scale'));
+await tap((mobile?'.view-tabs':'.view-rail')+' [data-view="train"]');const size='[data-rail3d="size"] [data-value="scale"]';await p.locator(size).scrollIntoViewIfNeeded();await tap(size);ok(width+' 原設定狀態共用',await p.evaluate(()=>localStorage.getItem('ri-train-size-v21')==='scale'));
+// 觀看設定要跨「關掉再打開」活著:把這一頁存下來的狀態帶進全新 context(等同重開 app,sessionStorage 不會跟過去),
+// 不帶任何網址參數重開,rail-3d 仍要自己讀回 原始比例。放 sessionStorage 的舊寫法在這裡必然掉回 容易辨認。
+const reopened=await b.newPage({viewport:{width,height},isMobile:mobile,hasTouch:mobile,locale:'zh-TW',storageState:await p.context().storageState()});
+reopened.on('pageerror',e=>errors.push(e.message));await reopened.route('**/api/**',r=>r.fulfill({status:503,body:'{}'}));await reopened.goto(base+'/');await reopened.waitForFunction(()=>window.railIslandIntegration&&document.querySelector('[data-rail3d="size"]'));
+ok(width+' 重開仍記得觀看設定',await reopened.evaluate(()=>document.querySelector('[data-rail3d="size"] [data-value="scale"]').getAttribute('aria-pressed')==='true'));await reopened.close();
 await tap('.view-close');ok(width+' 收起恢復地圖',await p.evaluate(()=>!railViewControls.opened&&!document.body.classList.contains('view-open')));
 await tap(mobile?'#tabMore':'#toolsFab');ok(width+' 更多沒有重複觀看設定',await p.evaluate(()=>document.body.classList.contains('tools-open')&&!document.querySelector('#moreBody [data-rail3d]')&&!document.querySelector('#moreBody #riGuideRow')));await tap('#moreClose');
 await tap(opener);await p.screenshot({path:`output/view-controls/${engine}-${width}.png`});await p.close();}
