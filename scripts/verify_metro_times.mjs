@@ -53,11 +53,12 @@ const OFFICIAL = [
     want: ['23:00', '23:10', '23:16', '23:24', '23:37', '23:48', '24:01', '24:12'] },
 ];
 
-// 共用一段軌道的支線對(下面「疊車」判準的覆蓋率斷言):中和新蘆線兩支線共用南勢角～大橋頭,
-// 淡海綠山線/藍海線共用紅樹林～濱海沙崙。
+// 共用一段軌道的支線對與共線段站數(下面「疊車」判準的覆蓋率斷言):中和新蘆線兩支線共用
+// 南勢角～大橋頭 12 站,淡海綠山線/藍海線共用紅樹林～濱海沙崙 9 站。站數也要釘:只釘「有找到」
+// 的話,一站改名共線段就無聲地少比一站。
 const TRUNK_PAIRS = {
-  'data/trtc_times.json': ['O_XINZHUANG×O_LUZHOU'],
-  'data/ntdlrt_times.json': ['V×VB'],
+  'data/trtc_times.json': { 'O_XINZHUANG×O_LUZHOU': 12 },
+  'data/ntdlrt_times.json': { 'V×VB': 9 },
 };
 
 const argv = process.argv.slice(2);
@@ -252,7 +253,7 @@ for (const rel of FILES) {
   // 上面每一條都只看單一條線,一班一班都合法,所以抓不到。
   // 共線段=兩線共有、且在兩條線裡都跟另一個共有站相鄰的站(轉乘站只共一站,不算)。
   // 通過時刻:停靠站用產物值,沒停的站按站距在前後停靠之間線性內插。
-  const trunkPairs = [];
+  const trunkPairs = new Map(); // `A×B` → 共線段站數
   const geoRun = geoLines.filter(l => lines[l.id] && lines[l.id].sets && !loopIds.has(l.id));
   for (let a = 0; a < geoRun.length; a++) for (let b = a + 1; b < geoRun.length; b++) {
     const A = geoRun[a], B = geoRun[b];
@@ -264,7 +265,7 @@ for (const rel of FILES) {
     });
     if (toA.size < 2) continue;
     const trunkA = new Set(toA.values());
-    trunkPairs.push(`${A.id}×${B.id}`);
+    trunkPairs.set(`${A.id}×${B.id}`, toA.size);
     const [[j0, i0], [j1, i1]] = [...toA];
     const flip = Math.sign(i1 - i0) === Math.sign(j1 - j0) ? 1 : -1; // 兩線站序方向相同或相反
     const passes = (L, tr) => { // [站序, 通過秒, 站序方向]
@@ -278,16 +279,28 @@ for (const rel of FILES) {
       }
       return out;
     };
-    for (const tag of Object.keys(lines[A.id].sets).filter(t => lines[B.id].sets[t])) {
+    // 按「同一天兩條線各跑哪個 set」配對,不按 set 名稱:名稱一分岔(北捷 R 線就是週六/週日,
+    // 別線是假日)按名稱配就無聲地一個都不比。星期、國定假日、特定日期各配一次,去重。
+    const LA = lines[A.id], LB = lines[B.id];
+    const dowOf = d => new Date(`${d}T00:00:00Z`).getUTCDay();
+    const tagPairs = new Map();
+    const addPair = (ta, tb) => { if (LA.sets[ta] && LB.sets[tb]) tagPairs.set(`${ta} ${tb}`, [ta, tb]); };
+    for (let w = 0; w < 7; w++) addPair(LA.days?.[w], LB.days?.[w]);
+    addPair(LA.holiday, LB.holiday);
+    for (const d of new Set([...Object.keys(LA.dates || {}), ...Object.keys(LB.dates || {})]))
+      addPair(LA.dates?.[d] ?? LA.days?.[dowOf(d)], LB.dates?.[d] ?? LB.days?.[dowOf(d)]);
+    ck(tagPairs.size > 0, `${A.id}×${B.id} 至少有一天兩條線都有班表可比（配到 ${tagPairs.size} 組）`);
+    for (const [tagA, tagB] of tagPairs.values()) {
+      const tag = tagA === tagB ? tagA : `${tagA}/${tagB}`;
       const at = new Map();
-      for (const tr of lines[A.id].sets[tag]) for (const [m, t, st] of passes(A, tr)) {
+      for (const tr of LA.sets[tagA]) for (const [m, t, st] of passes(A, tr)) {
         if (!trunkA.has(m)) continue;
         const k = `${m}|${st}`;
         if (!at.has(k)) at.set(k, []);
         at.get(k).push(t);
       }
       let hits = 0, hitEx = null;
-      for (const tr of lines[B.id].sets[tag]) for (const [m, t, st] of passes(B, tr)) {
+      for (const tr of LB.sets[tagB]) for (const [m, t, st] of passes(B, tr)) {
         if (!toA.has(m)) continue;
         for (const u of at.get(`${toA.get(m)}|${st * flip}`) || []) {
           if (Math.abs(u - t) >= MIN_HEADWAY_SEC) continue;
@@ -298,9 +311,10 @@ for (const rel of FILES) {
       ck(hits === 0, `${A.id}×${B.id}/${tag} 共線段 ${toA.size} 站無疊車（同站同向相隔 <${MIN_HEADWAY_SEC}s 的有 ${hits} 處${hitEx ? `，首例 ${hitEx}` : ''}）`);
     }
   }
-  // 覆蓋率:共線段是路網的結構事實,這裡列的每一對都必須被上面找到——站名一改就會無聲地一對都不比
-  for (const p of (TRUNK_PAIRS[rel] || []))
-    ck(trunkPairs.includes(p), `${p} 的共線段有被疊車檢查涵蓋（本檔找到：${trunkPairs.join('、') || '無'}）`);
+  // 覆蓋率:共線段是路網的結構事實,這裡列的每一對都必須被上面找到、站數也要對——
+  // 站名一改就會無聲地一對都不比,或少比一站
+  for (const [p, n] of Object.entries(TRUNK_PAIRS[rel] || {}))
+    ck(trunkPairs.get(p) === n, `${p} 的共線段 ${n} 站都有被疊車檢查涵蓋（本檔找到：${[...trunkPairs].map(([k, v]) => `${k} ${v} 站`).join('、') || '無'}）`);
 
   // ── 官方:與營運者公告的字面值逐筆比對 ──
   for (const o of OFFICIAL.filter(o => o.file === rel)) {
