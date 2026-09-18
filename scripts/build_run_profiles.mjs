@@ -12,6 +12,7 @@
 // 不是 bundle 檔，環島號是前端 buildLoopTrains 合成的、且在貼軌後才 retime ⇒ 兩者都不在
 // 這份檔案裡，前端對它們維持現算。
 import { readFileSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { createContext, runInContext } from 'node:vm';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -47,18 +48,20 @@ export function readTrackSections(path) {
 // 支線表：resolvePerf 靠它認出 DR1000 柴油客車（班表只標「區間車」）。照前端開機的取法——
 // 整份掛 state.special、每條支線補 _set。少了它不會報錯，支線車只會靜默拿到電聯車參數。
 export function readSpecial(path) {
-  const sd = JSON.parse(readFileSync(path, 'utf8'));
+  return prepSpecial(JSON.parse(readFileSync(path, 'utf8')));
+}
+function prepSpecial(sd) {
   sd.branchLines.forEach(b => { b._set = new Set(b.matchStations); });
   return sd;
 }
 
-export function makeSandbox(indexPath) {
+export function makeSandbox(indexPath, special) {
   const lines = loadIndexSource(indexPath);
   const src = extract(lines, [...CONSTS, ...FUNCS]);
   const ctx = createContext({
     console,
     state: { _segStats: { onShape: 0, straight: 0, bridged: 0 }, passObs: null,
-      special: readSpecial(join(ROOT, 'data/tra_special_trains.json')) },
+      special: special || readSpecial(join(ROOT, 'data/tra_special_trains.json')) },
   });
   runInContext(src, ctx, { filename: 'index.html(extracted)' });
   return ctx;
@@ -68,8 +71,8 @@ export function makeSandbox(indexPath) {
 // （站等分級、共構站群、車種可見度…都不進剖面，刻意不做。）
 // trackSections 不傳就讀 repo 內那份（每個呼叫端都該吃同一張表，交會推論才與前端一致）；
 // 傳 null 代表「刻意不用」（前端缺檔時的行為）。
-export function computeProfiles({ indexPath, schedule, track, passObs, mutate, trackSections }) {
-  const ctx = makeSandbox(indexPath);
+export function computeProfiles({ indexPath, schedule, track, passObs, mutate, trackSections, special }) {
+  const ctx = makeSandbox(indexPath, special);
   ctx.state.passObs = passObs;
   ctx.state.trackSections = trackSections === undefined ? readTrackSections(join(ROOT, 'data/tra_track_sections.json')) : trackSections;
   ctx.trains = schedule.trains;
@@ -132,8 +135,69 @@ export function collectProfiles(schedule) {
   return { table: out, obsRuns, plainRuns, knots, dropped };
 }
 
+// ── 交會推論棘輪（MR1）───────────────────────────────────────────────────
+// buildObsProfile 的節點閘門有一條「超標區間內側是受保護節點（彎道／交會錨點）⇒ 改丟外側」。
+// 拿掉它，車速照樣守得住、剖面表照樣可以重產到與模型一致，唯一的症狀是交會推論靜默退步
+// （2026-09-19 實測：夾回 192→108、重建不合格 16→92）——速度閘門與上面的逐 byte 比對都看不到。
+// 夾回數與重建不合格數本身會跟著每週重抓的班表漂移，所以不跟「今天的資料」比：基線記的是
+// 量測當下那幾個資料檔的 git blob，每次都拿【目前的程式碼】重跑那份凍結資料再比。
+// 資料更新不會讓它紅，只有程式碼退步會。門檻由 --update-meet-ratchet 實測寫入，不手打。
+const RATCHET_PATH = join(ROOT, 'scripts/meet_ratchet.json');
+const RATCHET_INPUTS = {
+  schedule: 'data/tra_schedule_dense.json', track: 'data/tra.json', passObs: 'data/tra_pass_obs.json',
+  trackSections: 'data/tra_track_sections.json', special: 'data/tra_special_trains.json',
+};
+const git = (...args) => execFileSync('git', ['-C', ROOT, ...args], { encoding: 'utf8', maxBuffer: 1 << 30 });
+
+function meetStatsOnBlobs(indexPath, blobs) {
+  const j = k => JSON.parse(git('cat-file', 'blob', blobs[k]));
+  return computeProfiles({ indexPath, schedule: j('schedule'), track: j('track'),
+    passObs: j('passObs')?.trains || null, trackSections: j('trackSections')?.pairs || null,
+    special: prepSpecial(j('special')) }).meetStats;
+}
+
+function updateMeetRatchet(indexPath) {
+  const head = git('rev-parse', 'HEAD').trim();
+  const inputs = {};
+  for (const [k, rel] of Object.entries(RATCHET_INPUTS)) {
+    const blob = git('rev-parse', `HEAD:${rel}`).trim();
+    // 基線必須指向已 commit 的內容：磁碟上改過沒 commit 的資料，blob 日後不保證還在。
+    if (git('hash-object', join(ROOT, rel)).trim() !== blob) throw new Error(`${rel} 與 HEAD 不同——先 commit 資料再量基線`);
+    inputs[k] = { path: rel, blob };
+  }
+  const st = meetStatsOnBlobs(indexPath, Object.fromEntries(Object.entries(inputs).map(([k, v]) => [k, v.blob])));
+  writeFileSync(RATCHET_PATH, JSON.stringify({
+    note: '由 node scripts/build_run_profiles.mjs --update-meet-ratchet 實測寫入，不要手改。'
+      + '--check 用目前的程式碼重跑 inputs 這幾個凍結的資料 blob：夾回數不得少於 snapped、重建不合格不得多於 unbuildable。',
+    measured_at: head, inputs, snapped: st.snapped, unbuildable: st.unbuildable,
+  }, null, 1) + '\n');
+  console.log(`MR1 基線已寫入 ${RATCHET_PATH}：夾回 ${st.snapped}｜重建不合格 ${st.unbuildable}（凍結資料＝${head.slice(0, 8)}）`);
+}
+
+// 回傳 true＝通過。任何讀不到基線或凍結資料的情況都算不通過，不准靜默略過。
+function checkMeetRatchet(indexPath) {
+  let base;
+  try { base = JSON.parse(readFileSync(RATCHET_PATH, 'utf8')); }
+  catch (e) { console.error(`✗ MR1 交會推論棘輪：讀不到基線 ${RATCHET_PATH}（${e.message}）`); return false; }
+  let st;
+  try { st = meetStatsOnBlobs(indexPath, Object.fromEntries(Object.entries(base.inputs).map(([k, v]) => [k, v.blob]))); }
+  catch (e) { console.error(`✗ MR1 交會推論棘輪：凍結資料重跑失敗（${e.message.split('\n')[0]}）`); return false; }
+  const tag = `凍結資料＝${base.measured_at.slice(0, 8)}`;
+  if (st.snapped < base.snapped || st.unbuildable > base.unbuildable) {
+    console.error(`✗ MR1 交會推論棘輪：夾回 ${st.snapped}（基線 ≥${base.snapped}）｜重建不合格 ${st.unbuildable}（基線 ≤${base.unbuildable}）｜${tag}`
+      + '——同一份資料、只換程式碼，交會推論退步了。先查 buildObsProfile 的節點閘門（受保護內側節點改丟外側）'
+      + '與 reanchorRunProfile；確定是刻意的取捨才跑 --update-meet-ratchet 重量基線');
+    return false;
+  }
+  const better = st.snapped > base.snapped || st.unbuildable < base.unbuildable;
+  console.log(`✓ MR1 交會推論棘輪：夾回 ${st.snapped}（基線 ≥${base.snapped}）｜重建不合格 ${st.unbuildable}（基線 ≤${base.unbuildable}）｜${tag}`
+    + (better ? '｜比基線好，可跑 --update-meet-ratchet 收緊' : ''));
+  return true;
+}
+
 function main() {
   const indexPath = join(ROOT, 'index.html');
+  if (process.argv.includes('--update-meet-ratchet')) return updateMeetRatchet(indexPath);
   const schedPath = join(ROOT, 'data/tra_schedule_dense.json');
   const raw = readFileSync(schedPath, 'utf8');
   // 解析兩份：一份拿去算（會被掛上 segLn 等含循環參照的欄位、通過站時刻也會被改寫），
@@ -172,8 +236,10 @@ function main() {
   // 位置模型卻沒重跑本腳本，舊表照樣被採用、畫面無聲沿用舊參數——DR1000 那批驗收拿舊表實測過：
   // stale 仍是 0，2703／2707 位置差到 4040 m。出貨鏈（ship_web.mjs）靠這條擋。
   if (process.argv.includes('--check')) {
+    const ratchetOk = checkMeetRatchet(indexPath);   // 與逐 byte 比對各自獨立：重產過表也躲不掉這條
     if (readFileSync(profPath, 'utf8') === body) {
       console.log(`✓ 台鐵預算剖面表與目前的模型一致（收錄 ${Object.keys(table).length} 個車次號）`);
+      if (!ratchetOk) process.exit(1);
       return;
     }
     const was = JSON.parse(readFileSync(profPath, 'utf8')).trains || {};
