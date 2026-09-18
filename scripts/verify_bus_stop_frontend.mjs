@@ -134,10 +134,15 @@ check('本批用到的 i18n 鍵沒有被後載入的字典遮蔽（看得到的�
   }
 
   // 🔴 正向對照：這個偵測器真的抓得到遮蔽（`=== 0` 型判準在讀錯檔時也會成立）。
-  // '尚未發車' 同時被 content-translations.js（列車語境，ja「発車前」）與
-  // bus-transfer-translations.js（公車語境，ja「未発車」）宣告 —— 既有狀況，非本批造成，
-  // 這裡只拿它當「偵測器沒瞎」的證據，不修別人的字典。
-  assert(shadowed('尚未發車'), '正向對照失敗：偵測器連已知的 尚未發車[ja] 遮蔽都抓不到，上面的 0 是假綠');
+  // 原本拿 '尚未發車'[ja] 的真實遮蔽當證據；fe009954 起公車字典不准重寫核心鍵，那個遮蔽已被修掉，
+  // 對照組就跟著永遠紅。改成疊一層合成的「後載入字典」蓋掉一個本批鍵，偵測器必須抓得到。
+  const probeKey = OWN_KEYS[0];
+  const probe = JSON.parse(JSON.stringify(effective));
+  probe.ja[probeKey] = '__shadow_probe__';
+  layers.push({ file: '(合成對照層)', snapshot: probe });
+  const caught = shadowed(probeKey);
+  layers.pop();
+  assert(caught, '正向對照失敗：偵測器連合成的後載入遮蔽都抓不到，上面的 0 是假綠');
 });
 
 check('資料來源與授權清單補上了公車兩條（署名是政府資料開放授權的生效要件）', () => {
