@@ -212,7 +212,8 @@ export function applyGapFill(out, lineFile, log = console.log) {
 }
 
 // ── CLI:對現有 data/*_times.json 就地重跑。缺口補起來之後再跑一次不會再動到任何一班(冪等)。
-if (import.meta.url === `file://${process.argv[1]}`) {
+// 路徑含中文:import.meta.url 會百分比編碼、argv[1] 不會,直接比永遠不等(同 build_data_manifest.mjs 的註解)
+if (fileURLToPath(import.meta.url) === path.resolve(process.argv[1] || '')) {
   const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
   const DRY = process.argv.includes('--dry-run');
   const PAIRS = [['data/trtc_times.json', 'data/trtc.json'], ['data/krtc_times.json', 'data/krtc.json'],
