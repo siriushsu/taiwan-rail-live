@@ -5,15 +5,25 @@ html[data-theme=dark] {
   --ink:#F4F7FD; --ink-strong:#F4F7FD; --muted:#A9B8D4; --faint:#8394B2;
   --navy:#AFCBF5; --on-navy:#0C1322; --red:#FF6B57; --gold:#F5C242; --ok:#3DDC97;
   --line:rgba(146,180,235,.22); --line-dash:rgba(146,180,235,.19); --line-faint:rgba(146,180,235,.12);
-  --panel-glass:rgba(12,18,33,.80); --panel-body-glass:rgba(12,18,33,.80);
+  --panel-glass:rgba(12,18,33,.80); --panel-body-glass:rgba(12,18,33,.45); /* 只給「面板半透明」用，見下 */
   --panel-head-glass:rgba(12,18,33,.94); --navy-glass:rgba(12,18,33,.94);
   --shadow-navy:inset 0 1px 0 rgba(255,255,255,.09),0 20px 50px rgba(2,6,16,.55);
 }
-html[data-theme=dark] body :is(.board,.traincard,#nearCard,#xingCard,#xingHelp,.follow-panel,.freq-card) {
+/* 面板字色：開「面板半透明」時讓位給 index.html 那組暗色半透明字色（更亮一階，底透出地圖時要撐住）。 */
+html[data-theme=dark] body:not(.panel-translucent) :is(.board,.traincard,#nearCard,#xingCard,#xingHelp,.follow-panel,.freq-card) {
   --ink:#F4F7FD; --ink-strong:#F4F7FD; --muted:#A9B8D4; --faint:#8394B2;
   --red:#FF6B57; --ok:#3DDC97;
+}
+html[data-theme=dark] body :is(.board,.traincard,#nearCard,#xingCard,#xingHelp,.follow-panel,.freq-card) {
   background:rgba(12,18,33,.80); border:1px solid rgba(146,180,235,.22); border-radius:14px;
   box-shadow:var(--shadow-navy); -webkit-backdrop-filter:blur(20px); backdrop-filter:blur(20px);
+}
+/* 2026-09-19 裁示 A：「面板半透明」在暗色也要有作用——開＝本體 .45＋08-27 凍結的 blur(3px)（原 .30 在「暗色＋衛星／手機」白字只剩 3.4–3.8，字色已到頂；.40 仍紅、.45 兩引擎全綠，使用者 09-19 裁示改 .45）；
+   關＝上面的 .80 玻璃。收到最小的跟隨小卡／列車 sheet 小段排除在外，退回 .80 玻璃（同亮色退回實色）。
+   特異度 (1,2,2) 蓋過上面 (1,1,2)。 */
+html[data-theme=dark] body.panel-translucent :is(.board,.traincard:not(.tc-sheet.sheet-small),#nearCard,#xingCard,#xingHelp,.follow-panel:not(.fp-min),.freq-card) {
+  background:var(--panel-body-glass);
+  -webkit-backdrop-filter:blur(3px) saturate(1.08); backdrop-filter:blur(3px) saturate(1.08);
 }
 html[data-theme=dark] body :is(.board h3,.traincard.tc-sheet .tc-head,.xing-card .xc-head,#nearCard .xc-head) {
   background:rgba(12,18,33,.94); color:var(--ink); border-bottom:1px solid var(--line);
@@ -91,7 +101,8 @@ html[data-theme=dark] :is(.night-directions button,.night-next):focus-visible { 
   html[data-theme=dark] .board { width:var(--rail-w); max-height:none; }
 }
 @media (prefers-reduced-transparency:reduce) {
-  html[data-theme=dark] body :is(.board,.traincard,#nearCard,#xingCard,.follow-panel,.freq-card) { background:#0C1221; backdrop-filter:none; -webkit-backdrop-filter:none; }
+  html[data-theme=dark] body :is(.board,.traincard,#nearCard,#xingCard,.follow-panel,.freq-card),
+  html[data-theme=dark] body.panel-translucent :is(.board,.traincard,#nearCard,#xingCard,.follow-panel,.freq-card) { background:#0C1221; backdrop-filter:none; -webkit-backdrop-filter:none; }
 }
 /* 設計稿的精簡跟車卡：玻璃材質、橫向排列與路線色頂緣。 */
 html[data-theme=dark] body #followPanel.fp-min{min-height:64px;padding:8px 14px;border-radius:14px;border-top:3px solid var(--follow-color,var(--red))}
