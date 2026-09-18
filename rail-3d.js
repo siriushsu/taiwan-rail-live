@@ -120,7 +120,9 @@
     if(M.raw.getZoom()<13.8&&!followHeadLocked()){if(lastFrame?.vehicles.length){lastFrame={...lastFrame,vehicles:[],selectedVehicleId:null};renderer.update(lastFrame);}return;}
     lastFrame=capture();renderer.update(lastFrame);syncAppearance();updateNote();
   }catch(e){if(errors.length<5){errors.push(String(e.stack||e));console.error('3D 顯示',e);}enabled=false;syncUI();}}
-  function recenter(lat,lon,extra){if(!renderer||!M.raw.getLayer('live-vehicles-3d')||!enabled||M.raw.getZoom()<14||!lastFrame?.selectedVehicleId||renderer.interacting)return false;
+  // renderer.interacting 期間本來一律讓位;純旋轉／傾斜手勢改交給 followCoordinate 自己判斷
+  // (它只在 gestureOrbited 且 followLock 時才續跟),免得落到平面 setView 去搶同一個中心。
+  function recenter(lat,lon,extra){if(!renderer||!M.raw.getLayer('live-vehicles-3d')||!enabled||M.raw.getZoom()<14||!lastFrame?.selectedVehicleId||renderer.interacting&&!followOrbitGesture())return false;
     // 完整編組自己沿軌預留車頭空間，不再疊加平面模式的像素前瞻。
     const padding={...mapInsets()};for(const key of ['top','bottom','left','right'])padding[key]=Math.max(0,Number(padding[key])||0);
     state._autoPan=true;try{const v=lastFrame?.vehicles.find(v=>v.id===lastFrame.selectedVehicleId);renderer.followCoordinate(v?.route?.physical?[v.longitude,v.latitude]:[lon,lat],padding);}finally{state._autoPan=false;}return true;
