@@ -1873,3 +1873,14 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   "自強號駛近新馬急彎時，地圖上的列車不再跑得比車種極速還快": "新馬の急カーブ手前で、地図上の自強号が車両の最高速度を超えて走ることがなくなりました。"
 });
+
+// 2026-09-19 暗色卡頭關閉鈕與「存」看得見、半透明面板藍字加深(第一層更新紀錄那兩條的 en/ja;第二層正本一律走 RAIL_I18N_CHANGELOG)
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  "暗色模式下，附近車站、平交道、糖鐵與儲存地點卡的關閉鈕與「存」看得見了": "In dark mode, the close and Save buttons on the nearby-stations, level-crossing, sugar-railway and saved-place cards are now visible.",
+  "面板半透明時，看板倒數、預計到站與「在 Google 地圖開啟」等藍字加深，疊在衛星影像上也看得清楚": "With translucent panels on, blue text such as board countdowns, arrival times and “Open in Google Maps” is darker and stays readable over satellite imagery."
+});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  "暗色模式下，附近車站、平交道、糖鐵與儲存地點卡的關閉鈕與「存」看得見了": "ダークモードで、近くの駅・踏切・糖業鉄道・保存した地点のカードにある閉じるボタンと「保存」が見えるようになりました。",
+  "面板半透明時，看板倒數、預計到站與「在 Google 地圖開啟」等藍字加深，疊在衛星影像上也看得清楚": "パネル半透明時、案内板のカウントダウン・到着予定・「Google マップで開く」などの青い文字を濃くし、衛星画像の上でも読みやすくしました。"
+});

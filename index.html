@@ -5477,14 +5477,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="night200907"><span class="d">9/19</span><span>暗色模式下，附近車站、平交道、糖鐵與儲存地點卡的關閉鈕與「存」看得見了</span></li>
+        <li data-cl-of="translucent0730"><span class="d">9/19</span><span>面板半透明時，看板倒數、預計到站與「在 Google 地圖開啟」等藍字加深，疊在衛星影像上也看得清楚</span></li>
         <li data-cl-of="speedcapzone0919"><span class="d">9/19</span><span>自強號駛近新馬急彎時，地圖上的列車不再跑得比車種極速還快</span></li>
         <li data-cl-of="dr1000branch"><span class="d">9/19</span><span>平溪、深澳、集集、內灣線的列車改照 DR1000 柴油客車加減速，列車卡也改顯示 DR1000 介紹</span></li>
         <li data-cl-of="mixedwidget0919"><span class="d">9/19</span><span>Android 雙看板小工具字放大、依卡片高度多列幾班；設定頁通行證文字修正</span></li>
         <li data-cl-of="legwindow0918"><span class="d">9/18</span><span>高雄環狀輕軌假日 29 班不再接錯車；機捷深夜往機場 23:23、23:38 兩班，中和新蘆線南勢角 22:26、淡水信義線週六廣慈 23:08 也照官方時刻開完全程</span></li>
         <li data-cl-of="metrott0918"><span class="d">9/18</span><span>淡水信義線班表換成 8/31 改點後的官方時刻；機捷晚上的直達車不再開到長庚就消失，照官方時刻開到機場第二航廈</span></li>
         <li data-cl-of="tiebreak0918"><span class="d">9/18</span><span>機捷南下末班車（台北 23:08）不再被拆成兩台，照官方時刻一路開完全程；中和新蘆線白天與晚間、淡水信義線晚間少掉的班次補回來了</span></li>
-        <li data-cl-of="landscapedem0918"><span class="d">9/18</span><span>Android App 的地景地圖立體列車不再消失，照真實地形高度顯示</span></li>
-        <li data-cl-of="tymcshort0918"><span class="d">9/18</span><span>機捷平日早上山鼻 7:37 那班區間車不再開到林口就消失，照官方時刻開到台北</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5823,7 +5823,7 @@
         <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，面板都住進底部；新增「捷」分頁，北中高捷運一張圖同框</span></li>
         <li><span class="d">7/13</span><span>新增「省電」模式（手機預設開啟）：降到 30fps；手機一次只開一個面板</span></li>
         <li class="grp">外觀與品牌</li>
-        <li data-cl="night200907"><span class="d">9/7</span><span>暗色 2.0：霓虹路線、透明藍色建築與玻璃面板；車站看板新增方向切換和大字倒數，亮色維持琺瑯風格</span></li>
+        <li data-cl="night200907"><span class="d">9/7</span><span>暗色 2.0：霓虹路線、透明藍色建築與玻璃面板；車站看板新增方向切換和大字倒數，亮色維持琺瑯風格。9/19 附近車站、平交道、糖鐵與儲存地點卡的關閉鈕與「存」改用亮字，暗色下看得見了</span></li>
         <li data-cl="tracksovermap0904"><span class="d">9/4</span><span>修正暗色 MapLibre 地圖的彩色路線仍被道路切碎；所有道路與 3D 建築現在都在路線下方，地名維持在上方。</span></li>
         <li data-cl="copyaudit"><span class="d">9/3</span><span>更新紀錄改得更精簡好讀；資料來源、source-available 授權、地圖供應商與 Android 帳號刪除說明也同步更新。</span></li>
         <li data-cl="cartoretreat"><span class="d">8/31</span><span>網站的 OpenFreeMap 載入異常時不再退回帶浮水印的 CARTO，改為明示錯誤並建議切換衛星或重新整理；App 仍使用自有備援底圖。</span></li>
@@ -5839,7 +5839,7 @@
         <li data-cl="osmbasemap"><span class="d">8/18</span><span>街道底圖改用 OpenFreeMap 提供的 OpenStreetMap 向量圖磚，地名、路名與公路編號更精簡；頁尾也同步更新實際來源與署名。</span></li>
         <li data-cl="satretina"><span class="d">8/2</span><span>在 App 裡訂閱通行證後，衛星底圖會換成高解析度圖磚，在 Retina 螢幕上更銳利；沒訂閱的人維持標準解析度，畫面內容一樣</span></li>
         <li data-cl="satbilling"><span class="d">8/1</span><span>衛星底圖換成比較省的計費方式：計費從「看了幾張圖磚」改成「看得夠多才算一次時段費」，看到的畫面完全一樣，只是我們付給圖資供應商的錢少很多</span></li>
-        <li><span class="d">7/30</span><span>外觀設定新增「面板半透明」：資訊面板可透出地圖並維持文字對比；收合小卡仍使用實心底。</span></li>
+        <li data-cl="translucent0730"><span class="d">7/30</span><span>外觀設定新增「面板半透明」：資訊面板可透出地圖並維持文字對比；收合小卡仍使用實心底。9/19 半透明時看板倒數、預計到站、平交道時刻與「在 Google 地圖開啟」等藍字加深一階，疊在衛星影像上也看得清楚。</span></li>
         <li><span class="d">7/28</span><span>全站圖示換成軌島自製單色線稿，亮暗主題下都更一致清楚</span></li>
         <li><span class="d">7/28</span><span>全站圖示改用軌島自製的單色線稿與單色字形（介面圖示、成就徽章、車廂標記都在內），亮暗主題與各家瀏覽器下長相一致，不再交給各系統自己的 emoji 決定</span></li>
         <li><span class="d">7/27</span><span>切到「高」時左邊牌子下面的那行字改成「台灣高鐵即時軌跡」，先前一直沿用台鐵的字串</span></li>
@@ -6517,7 +6517,7 @@
 //         介紹卡／搜尋／收集章／3D 外觀全部自動接上，明星列車章 5→6 枚；環島之星與虛構的山海／平原號
 //         不再退回 EMU800 代表外觀，改成機車牽引的觀光列車（環島之星＝E500＋莒光客車）。
 //         守門人：verify_formations 新增具名覆蓋率斷言，名冊「有固定車次」的集合必須與對照表逐一相等。
-const BUILD = 'v0919c';
+const BUILD = 'v0919d';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
