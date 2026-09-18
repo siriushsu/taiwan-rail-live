@@ -343,6 +343,30 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     // 只數 querySelector 的話會得到 5 這個虛數,而零相交其實只是拿 2 個在比。
     ok(res.compared >= 2, `${name} @${w}px 對照組:真的比對到 ${res.compared} 個浮層 [${res.comparedList || '無'}]（需 ≥2）`);
     ok(res.bad === '', `${name} @${w}px 橫幅不與時鐘/資訊卡/追蹤列/錄製列/動作列相交（${res.bad || res.rect}）`);
+    // 🔴 安全區晚注入(Android WebView 由 Capacitor 在開機後才注入 --safe-area-inset-*,不觸發任何事件):
+    //    頂列與動作列整條往下移、尺寸不變 ⇒ 橫幅若是寫死的絕對 px 就會被蓋住。先證明注入真的推動了
+    //    動作列(正向對照,否則「不相交」可能只是什麼都沒動),再比一次相交。
+    if (w < 900) {
+      const late = await q.evaluate(async sels => {
+        const act = document.querySelector('.map-actions');
+        const b = document.getElementById('updBanner');
+        const a0 = act.getBoundingClientRect().top, b0 = b.getBoundingClientRect().top;
+        document.documentElement.style.setProperty('--safe-area-inset-top', '59px');
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+        const r = b.getBoundingClientRect();
+        const hits = [];
+        for (const sel of sels) {
+          const o = document.querySelector(sel);
+          if (!o || o.hidden || !o.offsetParent) continue;
+          const t = o.getBoundingClientRect();
+          if (t.width === 0 || t.height === 0) continue;
+          if (!(r.right <= t.left || r.left >= t.right || r.bottom <= t.top || r.top >= t.bottom)) hits.push(sel);
+        }
+        return { actMoved: Math.round(act.getBoundingClientRect().top - a0), bannerMoved: Math.round(r.top - b0), bad: hits.join(',') };
+      }, OVERLAYS);
+      ok(late.actMoved >= 50, `${name} @${w}px 正向對照:注入安全區 59px 後動作列真的往下移（${late.actMoved}px）`);
+      ok(late.bad === '', `${name} @${w}px 🔴 安全區晚注入後橫幅仍不與浮層相交（${late.bad || `橫幅移動 ${late.bannerMoved}px`}）`);
+    }
     await q.close();
   }
   if (name !== 'chromium') await br.close();

@@ -20796,9 +20796,14 @@ function placeMobileNotice(el) {
     const f = document.getElementById(id);
     if (f && !f.hidden && f.offsetParent) { const r = f.getBoundingClientRect(); if (r.height) botV = Math.min(botV, r.top - 8); }
   }
-  el.style.top = (topV - pr.top) + 'px';
+  // 🔴 寫成「量到的值扣掉當下安全區＋var(--sa-t)」,不寫絕對 px:Capacitor(Android WebView)的安全區是
+  //    開機後才注入、且不觸發任何事件,頂列與 .map-actions 會整條往下移而尺寸不變(ResizeObserver 也不開火),
+  //    寫死的 inline top 就被它們蓋住(memory top-stack-hardcoded-offsets 形狀一)。下界是地圖底部的卡,不隨安全區動,
+  //    所以可用高度要反向扣回同一個量。
+  const sat = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sa-t')) || 0;
+  el.style.top = `calc(${topV - pr.top - sat}px + var(--sa-t))`;
   el.style.bottom = 'auto';
-  el.style.maxHeight = Math.max(64, botV - topV) + 'px';
+  el.style.maxHeight = `max(64px, calc(${botV - topV + sat}px - var(--sa-t)))`;
   el.style.overflowY = 'auto';
 }
 // ── App 版本提示:純邏輯層 ─────────────────────────────────────────────────
