@@ -38,6 +38,14 @@ if (diskMd5 !== servedMd5) { console.error('G0 FAIL：server 提供的不是目�
 
 const results = [];
 const check = (n, pass, detail) => { results.push({ n, pass }); console.log(`${pass ? 'PASS ' : 'FAIL '} ${n} — ${detail}`); };
+// 🔴 時鐘要釘（2026-09-19，同 verify_tra_motion 當晚同款修法）：本檔原本佈題用真實 nowSecOfDay()
+//   挑「此刻在跑」的台鐵車，深夜（末班後到首班前）全線沒有車在跑 ⇒ running.length<2 ⇒ 佈題失敗，
+//   看起來像產品壞了，其實是環境（牆鐘）。分辨實驗（scratch copy 釘 12:00、期望值零改動）
+//   全線 6/6 綠 ⇒ 結論是環境條件，不是回歸、也不是判準過期。
+//   手法照 repo 慣例（verify_query_tab／verify_search_train_type／verify_tra_motion）：
+//   先重綁 nowSecOfDay，再 setSimSec；P0 斷言釘鐘真的生效（不只是間接靠「有沒有車在跑」猜）。
+const PIN_SEC = 12 * 3600;
+const hms = s => new Date(Math.round(s) * 1000).toISOString().slice(11, 19);
 
 for (const eng of ENGINES) {
   const browser = await pw[eng].launch();
@@ -49,17 +57,21 @@ for (const eng of ENGINES) {
   await page.waitForFunction(
     () => typeof state !== 'undefined' && state.trains && state.trains.some(t => t.sys === 'tra_sched' && t.stops),
     null, { timeout: 180000 });
+  await page.evaluate(sec => { nowSecOfDay = () => sec; setSimSec(sec); state.clockAtNow = false; }, PIN_SEC);
 
-  const r = await page.evaluate(() => {
+  const r = await page.evaluate((PIN_SEC) => {
     const DELAY_MIN = 10, FULL = DELAY_MIN * 60;
     const sysObj = state.schedSystems.find(s => s.id === 'tra_sched');
     const day0 = sysObj.data._schedDay;
     state.playing = false;
     state.simSec = nowSecOfDay(); state.clockAtNow = true;
+    // P0 的量：釘鐘生效與否是可以直接問的事實，不必只靠「有沒有車在跑」反推——
+    // 否則哪天釘鐘機制被改壞，白天重跑仍然綠，深夜才會再度看到誤導的「無法佈題」。
+    const p0 = { simSec: state.simSec, now: nowSecOfDay(), pinOk: Math.abs(state.simSec - PIN_SEC) < 1 && nowSecOfDay() === PIN_SEC };
     // 在跑的車才有位置可比;取兩台不同車次
     const running = state.trains.filter(t => t.sys === 'tra_sched' && !t.loop && t.stops && t.stops.length > 4
       && state.simSec > t.stops[0].depSec + 120 && state.simSec < t.stops[t.stops.length - 1].arrSec - 120);
-    if (running.length < 2) return { err: `此刻在跑的台鐵車只有 ${running.length} 台,無法佈題` };
+    if (running.length < 2) return { p0, err: `此刻在跑的台鐵車只有 ${running.length} 台,無法佈題` };
     const A = running[0], other = running.find(t => String(t.train) !== String(A.train));
     const setLive = m => { state.live = { map: new Map(m), at: Date.now(), srcMs: Date.now(), delayed: m.length, srcAt: '' }; };
 
@@ -70,7 +82,7 @@ for (const eng of ENGINES) {
       return liveDelaySec(A);
     };
 
-    const out = { day0, trainA: String(A.train), trainB: String(other.train) };
+    const out = { day0, trainA: String(A.train), trainB: String(other.train), p0 };
     // 名冊日是不是真的由出貨路徑標上去的(而不是只有本腳本自己在戳):全台鐵車逐台比對。
     const tra = state.trains.filter(t => t.sys === 'tra_sched');
     out.stamped = tra.filter(t => t._rday === day0).length;
@@ -98,7 +110,10 @@ for (const eng of ENGINES) {
 
     _easedShift.clear();
     return out;
-  });
+  }, PIN_SEC);
+
+  check(`[${eng}] P0 前提：時鐘已釘在 ${hms(PIN_SEC)}（否則後面「在跑的車不足」量到的是深夜牆鐘，不是產品）`,
+    r.p0 && r.p0.pinOk, `simSec=${hms(r.p0 ? r.p0.simSec : -1)}、nowSecOfDay=${hms(r.p0 ? r.p0.now : -1)}`);
 
   if (r.err) { check(`[${eng}] 佈題`, false, r.err); await browser.close(); continue; }
 
