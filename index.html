@@ -10624,7 +10624,17 @@ function segProgToTime(seg, f) {            // 段內距離進度 0..1 → 絕�
   const distRun = seg.rpOff + f * seg.rpSegKm * 1000;
   return seg.rpDep + profProgToTime(seg.rp, distRun / seg.rp.L);
 }
-function schedSegKmOf(s, i) { return s[i].segLn ? schedSegmentKm(s[i]) : haversineKm(s[i], s[i + 1]); }
+// 跑段剖面的站間長度。示意線形長之外,台鐵還要不小於這個站對最長的實體股道路徑(physKm,
+// assignSchedShapePathsFor 從 data/tra_track_sections.json 的 maxPathM 掛上)。
+// 為什麼:畫車是把剖面的站間比例投到實體股道上(rail-3d/physical/motion.js 的 sample()),
+// 點速＝剖面速度×(實體站間長÷這裡的長度);實體股道還沒載完前則投在示意線形上,點速＝剖面速度×(示意長÷這裡的長度)。
+// 取兩者較大,兩種畫法的點速都 ≤ 剖面速度,而剖面本身不超過車種極速(issue #15:不留容差)。
+// 2026-09-19 前只用示意長:實測剖面峰值恰好夾在極速,實體只要長一點點就超速(271 段、137 班,最高 150 km/h)。
+// 到離站時刻不受影響:剖面的端點由 T 釘死,長度只改變站間怎麼加減速。
+function schedSegKmOf(s, i) {
+  const km = s[i].segLn ? schedSegmentKm(s[i]) : haversineKm(s[i], s[i + 1]);
+  return s[i].physKm > km ? s[i].physKm : km;
+}
 // 預算剖面的採用情形。存在的理由:採不採用【兩種結果都是對的畫面】,差別只在「調校要不要
 // 重出 build 才生效」——所以「預算資料整批沒被採用」會長得跟成功一模一樣,沒有任何紅燈。
 // 有了這個計數器,驗收才寫得出「used 必須 >0 且 stale 必須 =0」這種具名斷言。
@@ -10769,6 +10779,11 @@ const MEET_HEADWAY_SEC = 300;   // 同向待避最多把通過時刻往前夾這
 // 撞上 423。要放寬上限得先讓套用後能對全隊重新檢查衝突,不是改這個數字。
 // 逐場證據與三檔上限的統計在 output/audit-0914/time-model-run.md。
 const MEET_NEAR_SEC = 1800;     // 只看時刻相近的停靠,更遠的班互不相干(單線長區間的交會也在半小時內)
+// 台鐵區間表(data/tra_track_sections.json)的鍵=兩站名正規化成班表用字「臺」後排序(產生端
+// scripts/lib/parallel_tracks.mjs 的 sectionKey())。表是從派車表產的,站名用 OSM 用字「台東/台北/台南/台中」,
+// 這裡拿到的是班表站名「臺東/臺北…」;不正規化的話所有含臺/台的站對查不到,而查不到不會報錯
+// (交會推論當成不是單線、跑段長度當成沒有實體股道)=>整段失明。讀表的兩處共用這一份。
+function traSectionKey(a, b) { return [a, b].map(n => String(n).replace(/台/g, '臺')).sort().join('|'); }
 function inferMeetPassTimes(trains, union, sections) {
   const stats = { snapped: 0, infeasible: 0, unbuildable: 0, tooFar: 0, zoneSkipped: 0, log: [] };
   if (!union || !Array.isArray(union.trains)) return stats;
@@ -10794,11 +10809,7 @@ function inferMeetPassTimes(trains, union, sections) {
       pv = j;
     }
   }
-  // 區間表的鍵=兩站名正規化成班表用字「臺」後排序(產生端 scripts/lib/parallel_tracks.mjs 的 sectionKey())。
-  // 表是從派車表產的,站名用 OSM 用字「台東/台北/台南/台中」,這裡拿到的是班表站名「臺東/臺北…」;
-  // 不正規化的話所有含臺/台的站對查不到,而查不到不會報錯(當成不是單線)=>整段交會推論失明。
-  const secKey = (a, b) => [a, b].map(n => String(n).replace(/台/g, '臺')).sort().join('|');
-  const single = (a, b) => { if (!sections) return false; const p = sections[secKey(a, b)]; return !!p && p.tracks === 1; };
+  const single = (a, b) => { if (!sections) return false; const p = sections[traSectionKey(a, b)]; return !!p && p.tracks === 1; };
   for (const tr of trains) {
     if ((tr.sys && tr.sys !== 'tra_sched') || tr.loop || !tr.stops || tr.stops.length < 3) continue;
     const s = tr.stops, xk = keyOf(tr), perf = resolvePerf(tr), zoneCls = speedZoneClassOf(tr);
@@ -11442,7 +11453,14 @@ function assignSchedShapePathsFor(trains, lines) {
   }
   for (const tr of trains) {
     const s = tr.stops, perf = resolvePerf(tr); // 車種加減速參數(HSR/carName/typeName 解析)
-    for (const st of s) { delete st.bridgeTo; delete st.bridgeKm; delete st.rp; delete st.rpDep; delete st.rpOff; delete st.rpSegKm; }
+    for (const st of s) { delete st.bridgeTo; delete st.bridgeKm; delete st.rp; delete st.rpDep; delete st.rpOff; delete st.rpSegKm; delete st.physKm; }
+    // 台鐵每段掛上該站對最長的實體股道路徑長,給 schedSegKmOf 當剖面站間長度的下限(理由見該函式)。
+    // 只做台鐵:高鐵的派車表是拿現行剖面解出來的(dispatch.json 的 thsrProfileSha256),改高鐵剖面要重解
+    // 六種日型派車;林鐵的待避計畫要求通過時刻逐秒吻合,且實測點速離極速還很遠(27 vs 45 km/h)。
+    if (tr.sys === 'tra_sched' && state.trackSections) for (let i = 0; i < s.length - 1; i++) {
+      const p = state.trackSections[traSectionKey(s[i].name, s[i + 1].name)];
+      if (p && p.maxPathM > 0) s[i].physKm = p.maxPathM / 1000;
+    }
     for (let i = 0; i < s.length - 1; i++) {
       const A = byName.get(s[i].name), B = byName.get(s[i + 1].name);
       let best = null;

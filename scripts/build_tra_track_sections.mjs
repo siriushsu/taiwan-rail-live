@@ -32,6 +32,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { makeParallelIndex, isTrack, segLen, sectionKey } from './lib/parallel_tracks.mjs';
+import { createRouteRuntime } from '../rail-3d/physical/route-runtime.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const net = JSON.parse(readFileSync(path.join(ROOT, 'rail-3d/physical/network.json'), 'utf8'));
@@ -62,8 +63,17 @@ function pathStats(p) {
   }
   return { total, par, refs };
 }
+// maxPathM＝這個站對派過的路徑裡最長的那一條，給 index.html 當跑段剖面的站間長度下限（schedSegKmOf）。
+// 為什麼要它：剖面原本只照示意線形的站間長建，畫車卻是把同一個比例投到實體股道上
+// （rail-3d/physical/motion.js 的 sample()），點速＝剖面速度×（實體站間長÷示意站間長）。實測剖面會把
+// 峰值夾在剛好等於車種極速，只要實體比示意長一點點就超速——2026-09-19 量到 271 段、137 班，
+// 其中多數站對兩份幾何都在官方營業里程的 0.1 km 解析度內（和平–和仁：比例 1.003），修不了幾何。
+// 取「最長」是因為同一站對不同班次會派到不同股道；剖面長 ≥ 任何一條會畫的路徑，點速就恆 ≤ 剖面速度。
+// 長度用 route-runtime 的 unfold()＝畫車端量站間的同一段程式；無條件進位到公釐再加 1 公釐，
+// 讓公尺→公里→公尺的浮點來回與 offsets 累加誤差永遠落在安全側。
+const runtime = createRouteRuntime(net, null);
 // 站對 ← 派車表：plan.stopSignature 第 i 站→第 i+1 站的路徑就是 pathIds[i]
-const pairs = new Map();   // "A|B" → {total, par, paths:Set, refs:Set}
+const pairs = new Map();   // "A|B" → {total, par, maxPath, paths:Set, refs:Set}
 for (const [key, plan] of Object.entries(dispatch.plans)) {
   if (!key.startsWith('tra_sched:')) continue;
   const sig = JSON.parse(plan.stopSignature);
@@ -71,18 +81,20 @@ for (const [key, plan] of Object.entries(dispatch.plans)) {
     const a = sig[i][0].split(':')[1], b = sig[i + 1][0].split(':')[1];
     const pk = sectionKey(a, b);   // 站名正規化成班表用字「臺」再排序，理由見 lib/parallel_tracks.mjs
 
-    const rec = pairs.get(pk) || pairs.set(pk, { total: 0, par: 0, paths: new Set(), refs: new Set() }).get(pk);
+    const rec = pairs.get(pk) || pairs.set(pk, { total: 0, par: 0, maxPath: 0, paths: new Set(), refs: new Set() }).get(pk);
     const pid = plan.pathIds[i]; if (rec.paths.has(pid)) continue;
     const p = net.paths[pid]; if (!p) continue;
     rec.paths.add(pid);
     const st = pathStats(p); rec.total += st.total; rec.par += st.par; for (const r of st.refs) rec.refs.add(r);
+    rec.maxPath = Math.max(rec.maxPath, runtime.unfold(String(pid)).path.length);
   }
 }
 const out = {};
 for (const [pk, r] of [...pairs].sort((x, y) => x[0].localeCompare(y[0], 'zh-Hant'))) {
   const frac = r.total > 0 ? r.par / r.total : 0, refs = [...r.refs].sort();
   const known = refs.length && refs.every(x => KNOWN_DOUBLE_REFS[x]) ? refs.map(x => KNOWN_DOUBLE_REFS[x]).join('；') : null;
-  out[pk] = { tracks: known || frac >= DOUBLE_FRAC ? 2 : 1, parallelFrac: +frac.toFixed(3), lengthM: Math.round(r.total / r.paths.size), refs, ...(known ? { override: known } : {}) };
+  out[pk] = { tracks: known || frac >= DOUBLE_FRAC ? 2 : 1, parallelFrac: +frac.toFixed(3), lengthM: Math.round(r.total / r.paths.size),
+    maxPathM: +((Math.ceil(r.maxPath * 1000) + 1) / 1000).toFixed(3), refs, ...(known ? { override: known } : {}) };
 }
 const file = path.join(ROOT, 'data/tra_track_sections.json');
 writeFileSync(file, JSON.stringify({
@@ -93,6 +105,8 @@ writeFileSync(file, JSON.stringify({
     + '（逐股道官方幾何，政府資料開放授權條款-1.0）逐對核實：核實過的算平行股道，未核實／經核實只有一股的仍不算。'
     + '核實證據 scripts/fixtures/tra-parallel-verified-tdx-0914.json（產生器 scripts/build_tdx_parallel_evidence.mjs）；'
     + 'TDX 與台鐵官方《路線修築沿革》衝突時以沿革為準（南迴線無添築雙線紀錄 ⇒ 不算；山里─臺東 2013 添築雙線 ⇒ 算）。'
+    + 'maxPathM＝該站對派過的實體股道路徑中最長者（公尺，進位到公釐再加 1 公釐），index.html 建跑段剖面時站間長度取它與示意線形長的較大者，'
+    + '畫在任一條實體股道或示意線形上的點速才不會超過剖面速度（＝不超過車種極速）。'
     + '鍵＝兩站名正規化成班表用字「臺」後排序、以 | 相接（讀表端 index.html 用班表站名查）。'
     + '產生器 scripts/build_tra_track_sections.mjs。',
   pairs: out,

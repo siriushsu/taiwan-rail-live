@@ -162,6 +162,11 @@ try {
   const overlap = spawnSync('node', [path.join(wt, 'scripts', 'verify_physical_no_overlap.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(overlap.stdout || ''); process.stderr.write(overlap.stderr || '');
   if (overlap.status !== 0) fail('實體股道上的列車互穿檢查未通過（單獨重跑：npm run check-physical-overlap）');
+  // 實體層畫車速度：立體地圖把剖面的進度比例乘到實體股道長上，#fpSpd 已夾過看不出來，
+  // 只有直接量 railIslandPhysical.sample 才抓得到（issue #15，2026-09-19 修前 271 段超標）。
+  const physSpeed = spawnSync('node', [path.join(wt, 'scripts', 'verify_phys_speed_cap.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(physSpeed.stdout || ''); process.stderr.write(physSpeed.stderr || '');
+  if (physSpeed.status !== 0) fail('實體股道上的畫車速度超過車種極速（單獨重跑：npm run check-phys-speed-cap）');
 
   const stationRoutes = spawnSync('node', [path.join(wt, 'scripts', 'verify_verified_station_routes.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(stationRoutes.stdout || ''); process.stderr.write(stationRoutes.stderr || '');

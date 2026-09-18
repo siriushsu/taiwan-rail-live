@@ -28,7 +28,7 @@ const FUNCS = ['haversineKm', 'ensureCum', 'posAlongShape', 'isHSR', 'specialOf'
   'speedZoneClassOf', 'runSpeedZones', 'zoneProfileOk', 'zoneNatural', 'speedZoneKnots',
   'buildProfile', 'buildObsProfile', 'profTimeToProg', 'profProgToTime',
   'schedSegmentKm', 'schedSegKmOf', 'assignRunProfiles', 'canonicalizeAliasTrains',
-  'projectOntoShape', 'assignSchedShapePathsFor',
+  'projectOntoShape', 'assignSchedShapePathsFor', 'traSectionKey',
   'inferMeetPassTimes', 'inferMeetRun', 'reanchorRunProfile', 'applyRunProfile'];
 FUNCS.push('clearPlannedOvertakes', 'reassignTrainProfile', 'overtakeRunBuildable',
   'planSameDirectionOvertakes', 'resolveTraTraffic');
@@ -159,8 +159,9 @@ function main() {
   const profPath = join(ROOT, 'data/tra_run_profiles.json');
   const body = JSON.stringify({
     source_notes: '本站自算，無外部上游：由 data/tra_schedule_dense.json（表定時刻）、'
-      + 'data/tra.json（軌道線形，供跑段里程）與 data/tra_pass_obs.json（通過站實測時刻）'
-      + '三者，套 index.html 的位置模型（buildObsProfile／speedZoneKnots／assignRunProfiles，'
+      + 'data/tra.json（軌道線形，供跑段里程）、data/tra_pass_obs.json（通過站實測時刻）與 '
+      + 'data/tra_track_sections.json（單雙線供交會推論；各站對最長實體股道路徑 maxPathM 供跑段里程下限）'
+      + '四者，套 index.html 的位置模型（buildObsProfile／speedZoneKnots／assignRunProfiles，'
       + '由 scripts/build_run_profiles.mjs 原封切進 vm 沙箱執行）算出。'
       + '鍵＝車次→跑段起點站序；前端只在自己算出的跑段長度與時間對得上時才採用，對不上就現算。'
       + '梯形剖面不收錄；前端依當日車群安排待避時，該班整車不採用預算、改為現算。上述任一輸入或模型改動後必須重跑本腳本。',

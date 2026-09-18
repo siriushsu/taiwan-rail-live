@@ -1,11 +1,12 @@
 {
  "version": 1,
- "source_notes": "本站自算，無外部上游：由 rail-3d/physical/network.json（OSM 股道幾何）與 rail-3d/physical/dispatch.json（各站對實際派過的路徑）算出相鄰兩站之間有平行正線股道的長度佔比，≥0.5 判雙線（tracks=2）否則單線（tracks=1）。南迴線／臺東線同名隧道 way 是否為第二股，2026-09-14 已用交通部 TDX GIS 圖資 v3「軌道路網實體路線」（逐股道官方幾何，政府資料開放授權條款-1.0）逐對核實：核實過的算平行股道，未核實／經核實只有一股的仍不算。核實證據 scripts/fixtures/tra-parallel-verified-tdx-0914.json（產生器 scripts/build_tdx_parallel_evidence.mjs）；TDX 與台鐵官方《路線修築沿革》衝突時以沿革為準（南迴線無添築雙線紀錄 ⇒ 不算；山里─臺東 2013 添築雙線 ⇒ 算）。鍵＝兩站名正規化成班表用字「臺」後排序、以 | 相接（讀表端 index.html 用班表站名查）。產生器 scripts/build_tra_track_sections.mjs。",
+ "source_notes": "本站自算，無外部上游：由 rail-3d/physical/network.json（OSM 股道幾何）與 rail-3d/physical/dispatch.json（各站對實際派過的路徑）算出相鄰兩站之間有平行正線股道的長度佔比，≥0.5 判雙線（tracks=2）否則單線（tracks=1）。南迴線／臺東線同名隧道 way 是否為第二股，2026-09-14 已用交通部 TDX GIS 圖資 v3「軌道路網實體路線」（逐股道官方幾何，政府資料開放授權條款-1.0）逐對核實：核實過的算平行股道，未核實／經核實只有一股的仍不算。核實證據 scripts/fixtures/tra-parallel-verified-tdx-0914.json（產生器 scripts/build_tdx_parallel_evidence.mjs）；TDX 與台鐵官方《路線修築沿革》衝突時以沿革為準（南迴線無添築雙線紀錄 ⇒ 不算；山里─臺東 2013 添築雙線 ⇒ 算）。maxPathM＝該站對派過的實體股道路徑中最長者（公尺，進位到公釐再加 1 公釐），index.html 建跑段剖面時站間長度取它與示意線形長的較大者，畫在任一條實體股道或示意線形上的點速才不會超過剖面速度（＝不超過車種極速）。鍵＝兩站名正規化成班表用字「臺」後排序、以 | 相接（讀表端 index.html 用班表站名查）。產生器 scripts/build_tra_track_sections.mjs。",
  "pairs": {
   "七堵|八堵": {
    "tracks": 2,
    "parallelFrac": 0.995,
    "lengthM": 2398,
+   "maxPathM": 2411.357,
    "refs": [
     "宜蘭線",
     "縱貫線"
@@ -15,6 +16,7 @@
    "tracks": 2,
    "parallelFrac": 0.954,
    "lengthM": 2659,
+   "maxPathM": 2656.694,
    "refs": [
     "縱貫線"
    ]
@@ -23,6 +25,7 @@
    "tracks": 2,
    "parallelFrac": 0.978,
    "lengthM": 4969,
+   "maxPathM": 4999.212,
    "refs": [
     "屏東線"
    ]
@@ -31,6 +34,7 @@
    "tracks": 2,
    "parallelFrac": 0.952,
    "lengthM": 4166,
+   "maxPathM": 4185.86,
    "refs": [
     "屏東線"
    ]
@@ -39,6 +43,7 @@
    "tracks": 1,
    "parallelFrac": 0.045,
    "lengthM": 2173,
+   "maxPathM": 2165.521,
    "refs": [
     "內灣線"
    ]
@@ -47,6 +52,7 @@
    "tracks": 1,
    "parallelFrac": 0.02,
    "lengthM": 2074,
+   "maxPathM": 2067.548,
    "refs": [
     "內灣線"
    ]
@@ -55,6 +61,7 @@
    "tracks": 2,
    "parallelFrac": 0.961,
    "lengthM": 5827,
+   "maxPathM": 5822.717,
    "refs": [
     "縱貫線",
     "集集線"
@@ -64,6 +71,7 @@
    "tracks": 2,
    "parallelFrac": 0.975,
    "lengthM": 8179,
+   "maxPathM": 8171.986,
    "refs": [
     "縱貫線",
     "集集線"
@@ -73,6 +81,7 @@
    "tracks": 1,
    "parallelFrac": 0.037,
    "lengthM": 2952,
+   "maxPathM": 2947.394,
    "refs": [
     "集集線"
    ]
@@ -81,6 +90,7 @@
    "tracks": 2,
    "parallelFrac": 0.976,
    "lengthM": 5732,
+   "maxPathM": 5721.66,
    "refs": [
     "宜蘭線"
    ]
@@ -89,6 +99,7 @@
    "tracks": 1,
    "parallelFrac": 0.022,
    "lengthM": 388,
+   "maxPathM": 384.634,
    "refs": [
     "深澳線"
    ]
@@ -97,6 +108,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 1638,
+   "maxPathM": 1625.878,
    "refs": [
     "宜蘭線"
    ]
@@ -105,6 +117,7 @@
    "tracks": 1,
    "parallelFrac": 0.097,
    "lengthM": 2868,
+   "maxPathM": 2846.762,
    "refs": [
     "平溪線"
    ]
@@ -113,6 +126,7 @@
    "tracks": 1,
    "parallelFrac": 0.154,
    "lengthM": 1721,
+   "maxPathM": 1710.017,
    "refs": [
     "平溪線"
    ]
@@ -121,6 +135,7 @@
    "tracks": 1,
    "parallelFrac": 0.047,
    "lengthM": 11023,
+   "maxPathM": 11019.468,
    "refs": [
     "臺東線"
    ]
@@ -129,6 +144,7 @@
    "tracks": 2,
    "parallelFrac": 0.98,
    "lengthM": 9330,
+   "maxPathM": 9325.43,
    "refs": [
     "臺東線"
    ]
@@ -137,6 +153,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 2355,
+   "maxPathM": 2353.426,
    "refs": [
     "縱貫線"
    ]
@@ -145,6 +162,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 1282,
+   "maxPathM": 1277.725,
    "refs": [
     "縱貫線"
    ]
@@ -153,6 +171,7 @@
    "tracks": 2,
    "parallelFrac": 0.943,
    "lengthM": 3291,
+   "maxPathM": 3280.681,
    "refs": [
     "縱貫線"
    ]
@@ -161,6 +180,7 @@
    "tracks": 2,
    "parallelFrac": 0.964,
    "lengthM": 4812,
+   "maxPathM": 4772.529,
    "refs": [
     "內灣線",
     "縱貫線"
@@ -170,6 +190,7 @@
    "tracks": 1,
    "parallelFrac": 0.17,
    "lengthM": 3663,
+   "maxPathM": 3637.035,
    "refs": [
     "宜蘭線",
     "平溪線"
@@ -179,6 +200,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 3634,
+   "maxPathM": 3604.218,
    "refs": [
     "宜蘭線"
    ]
@@ -187,6 +209,7 @@
    "tracks": 2,
    "parallelFrac": 0.959,
    "lengthM": 2456,
+   "maxPathM": 2453.758,
    "refs": [
     "宜蘭線"
    ]
@@ -195,6 +218,7 @@
    "tracks": 2,
    "parallelFrac": 0.837,
    "lengthM": 903,
+   "maxPathM": 909.619,
    "refs": [
     "縱貫線"
    ]
@@ -203,6 +227,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 1774,
+   "maxPathM": 1784.856,
    "refs": [
     "縱貫線"
    ]
@@ -211,6 +236,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 10924,
+   "maxPathM": 10904.743,
    "refs": [
     "縱貫線"
    ]
@@ -219,6 +245,7 @@
    "tracks": 2,
    "parallelFrac": 0.985,
    "lengthM": 7503,
+   "maxPathM": 7495.377,
    "refs": [
     "縱貫線"
    ]
@@ -227,6 +254,7 @@
    "tracks": 1,
    "parallelFrac": 0.056,
    "lengthM": 2665,
+   "maxPathM": 2641.672,
    "refs": [
     "內灣線"
    ]
@@ -235,6 +263,7 @@
    "tracks": 1,
    "parallelFrac": 0.018,
    "lengthM": 4458,
+   "maxPathM": 4436.654,
    "refs": [
     "內灣線"
    ]
@@ -243,6 +272,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 2998,
+   "maxPathM": 2984.773,
    "refs": [
     "內灣線"
    ]
@@ -251,6 +281,7 @@
    "tracks": 2,
    "parallelFrac": 0.999,
    "lengthM": 3706,
+   "maxPathM": 3696.604,
    "refs": [
     "縱貫線"
    ]
@@ -259,6 +290,7 @@
    "tracks": 1,
    "parallelFrac": 0.318,
    "lengthM": 6843,
+   "maxPathM": 6804.661,
    "refs": [
     "縱貫線"
    ]
@@ -267,6 +299,7 @@
    "tracks": 1,
    "parallelFrac": 0.119,
    "lengthM": 4659,
+   "maxPathM": 4645.876,
    "refs": [
     "縱貫線"
    ]
@@ -275,6 +308,7 @@
    "tracks": 2,
    "parallelFrac": 0.951,
    "lengthM": 5286,
+   "maxPathM": 5273.654,
    "refs": [
     "縱貫線"
    ]
@@ -283,6 +317,7 @@
    "tracks": 2,
    "parallelFrac": 0.973,
    "lengthM": 4598,
+   "maxPathM": 4589.938,
    "refs": [
     "縱貫線"
    ]
@@ -291,6 +326,7 @@
    "tracks": 1,
    "parallelFrac": 0.053,
    "lengthM": 5068,
+   "maxPathM": 5056.728,
    "refs": [
     "成追線",
     "縱貫線"
@@ -300,6 +336,7 @@
    "tracks": 1,
    "parallelFrac": 0,
    "lengthM": 4976,
+   "maxPathM": 4969.662,
    "refs": [
     "縱貫線"
    ]
@@ -308,6 +345,7 @@
    "tracks": 2,
    "parallelFrac": 0.964,
    "lengthM": 2716,
+   "maxPathM": 2694.968,
    "refs": [
     "宜蘭線"
    ]
@@ -316,6 +354,7 @@
    "tracks": 2,
    "parallelFrac": 0.948,
    "lengthM": 5801,
+   "maxPathM": 5797.931,
    "refs": [
     "縱貫線"
    ]
@@ -324,6 +363,7 @@
    "tracks": 2,
    "parallelFrac": 0.984,
    "lengthM": 4641,
+   "maxPathM": 4638.376,
    "refs": [
     "縱貫線"
    ]
@@ -332,6 +372,7 @@
    "tracks": 2,
    "parallelFrac": 0.739,
    "lengthM": 23034,
+   "maxPathM": 23176.538,
    "refs": [
     "南迴線"
    ]
@@ -340,6 +381,7 @@
    "tracks": 1,
    "parallelFrac": 0.023,
    "lengthM": 11680,
+   "maxPathM": 11686.702,
    "refs": [
     "南迴線"
    ]
@@ -348,6 +390,7 @@
    "tracks": 1,
    "parallelFrac": 0.013,
    "lengthM": 3070,
+   "maxPathM": 3067.197,
    "refs": [
     "臺東線"
    ]
@@ -356,6 +399,7 @@
    "tracks": 2,
    "parallelFrac": 0.957,
    "lengthM": 3026,
+   "maxPathM": 3028.689,
    "refs": [
     "縱貫線"
    ]
@@ -364,6 +408,7 @@
    "tracks": 2,
    "parallelFrac": 0.96,
    "lengthM": 4751,
+   "maxPathM": 4722.136,
    "refs": [
     "宜蘭線"
    ]
@@ -372,6 +417,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 4600,
+   "maxPathM": 4583.054,
    "refs": [
     "宜蘭線"
    ]
@@ -380,6 +426,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 3046,
+   "maxPathM": 3037.551,
    "refs": [
     "縱貫線"
    ]
@@ -388,6 +435,7 @@
    "tracks": 2,
    "parallelFrac": 0.954,
    "lengthM": 3729,
+   "maxPathM": 3738.229,
    "refs": [
     "縱貫線"
    ]
@@ -396,6 +444,7 @@
    "tracks": 2,
    "parallelFrac": 0.943,
    "lengthM": 2775,
+   "maxPathM": 2775.895,
    "refs": [
     "縱貫線"
    ]
@@ -404,6 +453,7 @@
    "tracks": 1,
    "parallelFrac": 0.047,
    "lengthM": 6147,
+   "maxPathM": 6147.258,
    "refs": [
     "臺東線"
    ]
@@ -412,6 +462,7 @@
    "tracks": 2,
    "parallelFrac": 0.979,
    "lengthM": 8150,
+   "maxPathM": 8151.202,
    "refs": [
     "臺東線"
    ]
@@ -420,6 +471,7 @@
    "tracks": 2,
    "parallelFrac": 0.924,
    "lengthM": 4450,
+   "maxPathM": 4418.294,
    "refs": [
     "縱貫線"
    ]
@@ -428,6 +480,7 @@
    "tracks": 2,
    "parallelFrac": 0.943,
    "lengthM": 1279,
+   "maxPathM": 1277.964,
    "refs": [
     "宜蘭線"
    ]
@@ -436,6 +489,7 @@
    "tracks": 2,
    "parallelFrac": 0.899,
    "lengthM": 1905,
+   "maxPathM": 1903.537,
    "refs": [
     "宜蘭線"
    ]
@@ -444,6 +498,7 @@
    "tracks": 2,
    "parallelFrac": 0.94,
    "lengthM": 2865,
+   "maxPathM": 2863.608,
    "refs": [
     "沙崙線",
     "縱貫線"
@@ -453,6 +508,7 @@
    "tracks": 2,
    "parallelFrac": 0.963,
    "lengthM": 2569,
+   "maxPathM": 2571.813,
    "refs": [
     "沙崙線",
     "縱貫線"
@@ -462,6 +518,7 @@
    "tracks": 2,
    "parallelFrac": 0.917,
    "lengthM": 2565,
+   "maxPathM": 2586.39,
    "refs": [
     "沙崙線"
    ]
@@ -470,6 +527,7 @@
    "tracks": 2,
    "parallelFrac": 0.977,
    "lengthM": 3895,
+   "maxPathM": 3866.613,
    "refs": [
     "縱貫線"
    ]
@@ -478,6 +536,7 @@
    "tracks": 2,
    "parallelFrac": 0.97,
    "lengthM": 5856,
+   "maxPathM": 5818.965,
    "refs": [
     "縱貫線"
    ]
@@ -486,6 +545,7 @@
    "tracks": 2,
    "parallelFrac": 0.943,
    "lengthM": 1453,
+   "maxPathM": 1448.28,
    "refs": [
     "縱貫線"
    ]
@@ -494,6 +554,7 @@
    "tracks": 2,
    "parallelFrac": 0.917,
    "lengthM": 3088,
+   "maxPathM": 3118.716,
    "refs": [
     "縱貫線"
    ]
@@ -502,6 +563,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 2102,
+   "maxPathM": 2096.887,
    "refs": [
     "縱貫線"
    ]
@@ -510,6 +572,7 @@
    "tracks": 2,
    "parallelFrac": 0.903,
    "lengthM": 2269,
+   "maxPathM": 2263.179,
    "refs": [
     "縱貫線"
    ]
@@ -518,6 +581,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 1425,
+   "maxPathM": 1428.547,
    "refs": [
     "縱貫線"
    ]
@@ -526,6 +590,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 1139,
+   "maxPathM": 1141.31,
    "refs": [
     "縱貫線"
    ]
@@ -534,6 +599,7 @@
    "tracks": 2,
    "parallelFrac": 0.913,
    "lengthM": 1694,
+   "maxPathM": 1695.656,
    "refs": [
     "縱貫線"
    ]
@@ -542,6 +608,7 @@
    "tracks": 1,
    "parallelFrac": 0.01,
    "lengthM": 3344,
+   "maxPathM": 3351.63,
    "refs": [
     "南迴線"
    ]
@@ -550,6 +617,7 @@
    "tracks": 1,
    "parallelFrac": 0.034,
    "lengthM": 4920,
+   "maxPathM": 4924.318,
    "refs": [
     "南迴線"
    ]
@@ -558,6 +626,7 @@
    "tracks": 2,
    "parallelFrac": 0.994,
    "lengthM": 6076,
+   "maxPathM": 6015.859,
    "refs": [
     "縱貫線"
    ]
@@ -566,6 +635,7 @@
    "tracks": 1,
    "parallelFrac": 0.077,
    "lengthM": 2247,
+   "maxPathM": 2235.46,
    "refs": [
     "內灣線"
    ]
@@ -574,6 +644,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 3130,
+   "maxPathM": 3127.265,
    "refs": [
     "六家線"
    ]
@@ -582,6 +653,7 @@
    "tracks": 2,
    "parallelFrac": 0.926,
    "lengthM": 2235,
+   "maxPathM": 2249.199,
    "refs": [
     "屏東線"
    ]
@@ -590,6 +662,7 @@
    "tracks": 2,
    "parallelFrac": 0.935,
    "lengthM": 1771,
+   "maxPathM": 1769.864,
    "refs": [
     "縱貫線"
    ]
@@ -598,6 +671,7 @@
    "tracks": 2,
    "parallelFrac": 0.93,
    "lengthM": 1697,
+   "maxPathM": 1694.852,
    "refs": [
     "縱貫線"
    ]
@@ -606,6 +680,7 @@
    "tracks": 1,
    "parallelFrac": 0.03,
    "lengthM": 11778,
+   "maxPathM": 11789.9,
    "refs": [
     "南迴線"
    ]
@@ -614,6 +689,7 @@
    "tracks": 1,
    "parallelFrac": 0.017,
    "lengthM": 10947,
+   "maxPathM": 10954.247,
    "refs": [
     "南迴線"
    ]
@@ -622,6 +698,7 @@
    "tracks": 2,
    "parallelFrac": 0.934,
    "lengthM": 7655,
+   "maxPathM": 7648.033,
    "refs": [
     "縱貫線"
    ]
@@ -630,6 +707,7 @@
    "tracks": 2,
    "parallelFrac": 0.978,
    "lengthM": 4786,
+   "maxPathM": 4781.09,
    "refs": [
     "縱貫線"
    ]
@@ -638,6 +716,7 @@
    "tracks": 2,
    "parallelFrac": 0.942,
    "lengthM": 3913,
+   "maxPathM": 3911.061,
    "refs": [
     "縱貫線"
    ]
@@ -646,6 +725,7 @@
    "tracks": 2,
    "parallelFrac": 0.979,
    "lengthM": 7795,
+   "maxPathM": 7782.145,
    "refs": [
     "縱貫線"
    ]
@@ -654,6 +734,7 @@
    "tracks": 1,
    "parallelFrac": 0.054,
    "lengthM": 2250,
+   "maxPathM": 2246.479,
    "refs": [
     "集集線"
    ]
@@ -662,6 +743,7 @@
    "tracks": 1,
    "parallelFrac": 0.061,
    "lengthM": 7341,
+   "maxPathM": 7328.701,
    "refs": [
     "集集線"
    ]
@@ -670,6 +752,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 4244,
+   "maxPathM": 4222.994,
    "refs": [
     "宜蘭線"
    ]
@@ -678,6 +761,7 @@
    "tracks": 2,
    "parallelFrac": 0.93,
    "lengthM": 4993,
+   "maxPathM": 4986.577,
    "refs": [
     "宜蘭線"
    ]
@@ -686,6 +770,7 @@
    "tracks": 1,
    "parallelFrac": 0.011,
    "lengthM": 5346,
+   "maxPathM": 5363.988,
    "refs": [
     "南迴線"
    ]
@@ -694,6 +779,7 @@
    "tracks": 2,
    "parallelFrac": 0.965,
    "lengthM": 4608,
+   "maxPathM": 4605.296,
    "refs": [
     "北迴線"
    ],
@@ -703,6 +789,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 6522,
+   "maxPathM": 6515.736,
    "refs": [
     "北迴線"
    ],
@@ -712,6 +799,7 @@
    "tracks": 2,
    "parallelFrac": 0.933,
    "lengthM": 2520,
+   "maxPathM": 2512.23,
    "refs": [
     "縱貫線"
    ]
@@ -720,6 +808,7 @@
    "tracks": 2,
    "parallelFrac": 0.9,
    "lengthM": 1596,
+   "maxPathM": 1588.514,
    "refs": [
     "縱貫線"
    ]
@@ -728,6 +817,7 @@
    "tracks": 2,
    "parallelFrac": 0.981,
    "lengthM": 2248,
+   "maxPathM": 2234.593,
    "refs": [
     "內灣線",
     "縱貫線"
@@ -737,6 +827,7 @@
    "tracks": 2,
    "parallelFrac": 0.972,
    "lengthM": 4470,
+   "maxPathM": 4458.556,
    "refs": [
     "內灣線",
     "縱貫線"
@@ -746,6 +837,7 @@
    "tracks": 2,
    "parallelFrac": 0.878,
    "lengthM": 1393,
+   "maxPathM": 1387.55,
    "refs": [
     "內灣線",
     "縱貫線"
@@ -755,6 +847,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 3704,
+   "maxPathM": 3699.875,
    "refs": [
     "宜蘭線"
    ]
@@ -763,6 +856,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 4710,
+   "maxPathM": 4703.461,
    "refs": [
     "宜蘭線"
    ]
@@ -771,6 +865,7 @@
    "tracks": 2,
    "parallelFrac": 0.929,
    "lengthM": 2250,
+   "maxPathM": 2225.333,
    "refs": [
     "宜蘭線"
    ]
@@ -779,6 +874,7 @@
    "tracks": 2,
    "parallelFrac": 0.893,
    "lengthM": 5146,
+   "maxPathM": 5123.332,
    "refs": [
     "宜蘭線"
    ]
@@ -787,6 +883,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 3663,
+   "maxPathM": 3646.634,
    "refs": [
     "宜蘭線"
    ]
@@ -795,6 +892,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 3612,
+   "maxPathM": 3591.555,
    "refs": [
     "宜蘭線"
    ]
@@ -803,6 +901,7 @@
    "tracks": 2,
    "parallelFrac": 0.852,
    "lengthM": 2056,
+   "maxPathM": 2060.997,
    "refs": [
     "縱貫線"
    ]
@@ -811,6 +910,7 @@
    "tracks": 1,
    "parallelFrac": 0.022,
    "lengthM": 2957,
+   "maxPathM": 2954.3,
    "refs": [
     "臺東線"
    ]
@@ -819,6 +919,7 @@
    "tracks": 1,
    "parallelFrac": 0.08,
    "lengthM": 1775,
+   "maxPathM": 1772.326,
    "refs": [
     "平溪線"
    ]
@@ -827,6 +928,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 1704,
+   "maxPathM": 1715.501,
    "refs": [
     "屏東線"
    ]
@@ -835,6 +937,7 @@
    "tracks": 2,
    "parallelFrac": 0.828,
    "lengthM": 1449,
+   "maxPathM": 1461.693,
    "refs": [
     "屏東線"
    ]
@@ -843,6 +946,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 1163,
+   "maxPathM": 1170.899,
    "refs": [
     "屏東線"
    ]
@@ -851,6 +955,7 @@
    "tracks": 2,
    "parallelFrac": 0.876,
    "lengthM": 1279,
+   "maxPathM": 1289.428,
    "refs": [
     "屏東線",
     "縱貫線"
@@ -860,6 +965,7 @@
    "tracks": 2,
    "parallelFrac": 0.939,
    "lengthM": 3723,
+   "maxPathM": 3718.724,
    "refs": [
     "縱貫線"
    ]
@@ -868,6 +974,7 @@
    "tracks": 2,
    "parallelFrac": 0.483,
    "lengthM": 5063,
+   "maxPathM": 5053.206,
    "refs": [
     "北迴線"
    ],
@@ -877,6 +984,7 @@
    "tracks": 2,
    "parallelFrac": 0.947,
    "lengthM": 4328,
+   "maxPathM": 4323.564,
    "refs": [
     "縱貫線"
    ]
@@ -885,6 +993,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 8175,
+   "maxPathM": 8141.709,
    "refs": [
     "縱貫線"
    ]
@@ -893,6 +1002,7 @@
    "tracks": 2,
    "parallelFrac": 0.978,
    "lengthM": 5435,
+   "maxPathM": 5414.573,
    "refs": [
     "宜蘭線"
    ]
@@ -901,6 +1011,7 @@
    "tracks": 1,
    "parallelFrac": 0.038,
    "lengthM": 7653,
+   "maxPathM": 7645.2,
    "refs": [
     "臺東線"
    ]
@@ -909,6 +1020,7 @@
    "tracks": 2,
    "parallelFrac": 0.945,
    "lengthM": 5600,
+   "maxPathM": 5595.285,
    "refs": [
     "臺東線"
    ]
@@ -917,6 +1029,7 @@
    "tracks": 1,
    "parallelFrac": 0,
    "lengthM": 1436,
+   "maxPathM": 1426.256,
    "refs": [
     "內灣線"
    ]
@@ -925,6 +1038,7 @@
    "tracks": 1,
    "parallelFrac": 0.004,
    "lengthM": 8973,
+   "maxPathM": 8956.673,
    "refs": [
     "臺東線"
    ]
@@ -933,6 +1047,7 @@
    "tracks": 1,
    "parallelFrac": 0.123,
    "lengthM": 3443,
+   "maxPathM": 3437.662,
    "refs": [
     "臺東線"
    ]
@@ -941,6 +1056,7 @@
    "tracks": 2,
    "parallelFrac": 0.895,
    "lengthM": 2607,
+   "maxPathM": 2604.122,
    "refs": [
     "縱貫線"
    ]
@@ -949,6 +1065,7 @@
    "tracks": 2,
    "parallelFrac": 0.965,
    "lengthM": 6737,
+   "maxPathM": 6729.212,
    "refs": [
     "縱貫線"
    ]
@@ -957,6 +1074,7 @@
    "tracks": 2,
    "parallelFrac": 0.864,
    "lengthM": 2277,
+   "maxPathM": 2268.805,
    "refs": [
     "成追線",
     "縱貫線"
@@ -966,6 +1084,7 @@
    "tracks": 2,
    "parallelFrac": 0.93,
    "lengthM": 2352,
+   "maxPathM": 2343.183,
    "refs": [
     "成追線",
     "縱貫線"
@@ -975,6 +1094,7 @@
    "tracks": 2,
    "parallelFrac": 0.887,
    "lengthM": 948,
+   "maxPathM": 967.094,
    "refs": [
     "縱貫線"
    ]
@@ -983,6 +1103,7 @@
    "tracks": 1,
    "parallelFrac": 0.046,
    "lengthM": 5568,
+   "maxPathM": 5579.736,
    "refs": [
     "臺東線"
    ]
@@ -991,6 +1112,7 @@
    "tracks": 2,
    "parallelFrac": 0.946,
    "lengthM": 3686,
+   "maxPathM": 3688.959,
    "refs": [
     "屏東線"
    ]
@@ -999,6 +1121,7 @@
    "tracks": 2,
    "parallelFrac": 0.976,
    "lengthM": 5368,
+   "maxPathM": 5358.463,
    "refs": [
     "縱貫線"
    ]
@@ -1007,6 +1130,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 4442,
+   "maxPathM": 4427.804,
    "refs": [
     "縱貫線"
    ]
@@ -1015,6 +1139,7 @@
    "tracks": 2,
    "parallelFrac": 0.961,
    "lengthM": 2402,
+   "maxPathM": 2406.006,
    "refs": [
     "屏東線"
    ]
@@ -1023,6 +1148,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 3064,
+   "maxPathM": 3073.721,
    "refs": [
     "沙崙線"
    ]
@@ -1031,6 +1157,7 @@
    "tracks": 1,
    "parallelFrac": 0.17,
    "lengthM": 3154,
+   "maxPathM": 3149.557,
    "refs": [
     "縱貫線"
    ]
@@ -1039,6 +1166,7 @@
    "tracks": 1,
    "parallelFrac": 0.05,
    "lengthM": 4655,
+   "maxPathM": 4648.702,
    "refs": [
     "縱貫線"
    ]
@@ -1047,6 +1175,7 @@
    "tracks": 2,
    "parallelFrac": 0.756,
    "lengthM": 3303,
+   "maxPathM": 3306.529,
    "refs": [
     "宜蘭線"
    ]
@@ -1055,6 +1184,7 @@
    "tracks": 1,
    "parallelFrac": 0.022,
    "lengthM": 3056,
+   "maxPathM": 3077.341,
    "refs": [
     "屏東線"
    ]
@@ -1063,6 +1193,7 @@
    "tracks": 1,
    "parallelFrac": 0.074,
    "lengthM": 3838,
+   "maxPathM": 3863.694,
    "refs": [
     "屏東線"
    ]
@@ -1071,6 +1202,7 @@
    "tracks": 2,
    "parallelFrac": 0.952,
    "lengthM": 7885,
+   "maxPathM": 7893.558,
    "refs": [
     "北迴線"
    ],
@@ -1080,6 +1212,7 @@
    "tracks": 2,
    "parallelFrac": 0.141,
    "lengthM": 10137,
+   "maxPathM": 10148.87,
    "refs": [
     "北迴線"
    ],
@@ -1089,6 +1222,7 @@
    "tracks": 2,
    "parallelFrac": 0.934,
    "lengthM": 4241,
+   "maxPathM": 4234.474,
    "refs": [
     "北迴線"
    ],
@@ -1098,6 +1232,7 @@
    "tracks": 2,
    "parallelFrac": 0.983,
    "lengthM": 7808,
+   "maxPathM": 7813.554,
    "refs": [
     "縱貫線"
    ]
@@ -1106,6 +1241,7 @@
    "tracks": 2,
    "parallelFrac": 0.982,
    "lengthM": 3571,
+   "maxPathM": 3570.638,
    "refs": [
     "縱貫線"
    ]
@@ -1114,6 +1250,7 @@
    "tracks": 2,
    "parallelFrac": 0.965,
    "lengthM": 2246,
+   "maxPathM": 2252.341,
    "refs": [
     "縱貫線"
    ]
@@ -1122,6 +1259,7 @@
    "tracks": 1,
    "parallelFrac": 0.037,
    "lengthM": 5963,
+   "maxPathM": 5962.348,
    "refs": [
     "臺東線"
    ]
@@ -1130,6 +1268,7 @@
    "tracks": 2,
    "parallelFrac": 0.983,
    "lengthM": 6714,
+   "maxPathM": 6710.723,
    "refs": [
     "臺東線"
    ]
@@ -1138,6 +1277,7 @@
    "tracks": 1,
    "parallelFrac": 0.006,
    "lengthM": 4145,
+   "maxPathM": 4153.265,
    "refs": [
     "屏東線"
    ]
@@ -1146,6 +1286,7 @@
    "tracks": 2,
    "parallelFrac": 0.158,
    "lengthM": 5960,
+   "maxPathM": 6061.648,
    "refs": [
     "北迴線"
    ],
@@ -1155,6 +1296,7 @@
    "tracks": 2,
    "parallelFrac": 0.974,
    "lengthM": 6475,
+   "maxPathM": 6410.311,
    "refs": [
     "縱貫線"
    ]
@@ -1163,6 +1305,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 1699,
+   "maxPathM": 1697.695,
    "refs": [
     "縱貫線"
    ]
@@ -1171,6 +1314,7 @@
    "tracks": 2,
    "parallelFrac": 0.964,
    "lengthM": 2538,
+   "maxPathM": 2521.105,
    "refs": [
     "縱貫線"
    ]
@@ -1179,6 +1323,7 @@
    "tracks": 2,
    "parallelFrac": 0.949,
    "lengthM": 4375,
+   "maxPathM": 4344.317,
    "refs": [
     "縱貫線"
    ]
@@ -1187,6 +1332,7 @@
    "tracks": 1,
    "parallelFrac": 0.009,
    "lengthM": 6909,
+   "maxPathM": 6956.342,
    "refs": [
     "南迴線"
    ]
@@ -1195,6 +1341,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 4751,
+   "maxPathM": 4744.771,
    "refs": [
     "縱貫線"
    ]
@@ -1203,6 +1350,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 6202,
+   "maxPathM": 6194.311,
    "refs": [
     "臺東線"
    ]
@@ -1211,6 +1359,7 @@
    "tracks": 2,
    "parallelFrac": 0.948,
    "lengthM": 3870,
+   "maxPathM": 3865.739,
    "refs": [
     "縱貫線"
    ]
@@ -1219,6 +1368,7 @@
    "tracks": 2,
    "parallelFrac": 0.959,
    "lengthM": 5568,
+   "maxPathM": 5561.964,
    "refs": [
     "縱貫線"
    ]
@@ -1227,6 +1377,7 @@
    "tracks": 2,
    "parallelFrac": 0.968,
    "lengthM": 3160,
+   "maxPathM": 3162.045,
    "refs": [
     "屏東線"
    ]
@@ -1235,6 +1386,7 @@
    "tracks": 2,
    "parallelFrac": 0.982,
    "lengthM": 13177,
+   "maxPathM": 13160.356,
    "refs": [
     "北迴線"
    ],
@@ -1244,6 +1396,7 @@
    "tracks": 2,
    "parallelFrac": 0.985,
    "lengthM": 7636,
+   "maxPathM": 7635.574,
    "refs": [
     "縱貫線"
    ]
@@ -1252,6 +1405,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 2282,
+   "maxPathM": 2279.229,
    "refs": [
     "臺東線"
    ]
@@ -1260,6 +1414,7 @@
    "tracks": 2,
    "parallelFrac": 0.972,
    "lengthM": 4229,
+   "maxPathM": 4224.265,
    "refs": [
     "臺東線"
    ]
@@ -1268,6 +1423,7 @@
    "tracks": 1,
    "parallelFrac": 0.161,
    "lengthM": 2444,
+   "maxPathM": 2442.192,
    "refs": [
     "屏東線"
    ]
@@ -1276,6 +1432,7 @@
    "tracks": 2,
    "parallelFrac": 0.972,
    "lengthM": 3768,
+   "maxPathM": 3764.569,
    "refs": [
     "屏東線"
    ]
@@ -1284,6 +1441,7 @@
    "tracks": 2,
    "parallelFrac": 0.965,
    "lengthM": 2925,
+   "maxPathM": 2921.939,
    "refs": [
     "縱貫線"
    ]
@@ -1292,6 +1450,7 @@
    "tracks": 2,
    "parallelFrac": 0.964,
    "lengthM": 4652,
+   "maxPathM": 4651.017,
    "refs": [
     "縱貫線"
    ]
@@ -1300,6 +1459,7 @@
    "tracks": 2,
    "parallelFrac": 0.777,
    "lengthM": 5128,
+   "maxPathM": 5102.971,
    "refs": [
     "縱貫線"
    ]
@@ -1308,6 +1468,7 @@
    "tracks": 2,
    "parallelFrac": 0.756,
    "lengthM": 2717,
+   "maxPathM": 2694.581,
    "refs": [
     "縱貫線"
    ]
@@ -1316,6 +1477,7 @@
    "tracks": 2,
    "parallelFrac": 0.992,
    "lengthM": 6614,
+   "maxPathM": 6591.972,
    "refs": [
     "縱貫線"
    ]
@@ -1324,6 +1486,7 @@
    "tracks": 2,
    "parallelFrac": 0.952,
    "lengthM": 4160,
+   "maxPathM": 4155.204,
    "refs": [
     "縱貫線"
    ]
@@ -1332,6 +1495,7 @@
    "tracks": 2,
    "parallelFrac": 0.913,
    "lengthM": 2649,
+   "maxPathM": 2649.746,
    "refs": [
     "縱貫線"
    ]
@@ -1340,6 +1504,7 @@
    "tracks": 2,
    "parallelFrac": 0.927,
    "lengthM": 6046,
+   "maxPathM": 6044.173,
    "refs": [
     "縱貫線"
    ]
@@ -1348,6 +1513,7 @@
    "tracks": 2,
    "parallelFrac": 0.928,
    "lengthM": 1861,
+   "maxPathM": 1846.005,
    "refs": [
     "縱貫線"
    ]
@@ -1356,6 +1522,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 2133,
+   "maxPathM": 2121.487,
    "refs": [
     "縱貫線"
    ]
@@ -1364,6 +1531,7 @@
    "tracks": 2,
    "parallelFrac": 0.141,
    "lengthM": 7888,
+   "maxPathM": 7903.654,
    "refs": [
     "北迴線"
    ],
@@ -1373,6 +1541,7 @@
    "tracks": 2,
    "parallelFrac": 0.929,
    "lengthM": 3746,
+   "maxPathM": 3728.952,
    "refs": [
     "北迴線"
    ],
@@ -1382,6 +1551,7 @@
    "tracks": 2,
    "parallelFrac": 0.946,
    "lengthM": 2676,
+   "maxPathM": 2685.475,
    "refs": [
     "屏東線"
    ]
@@ -1390,6 +1560,7 @@
    "tracks": 2,
    "parallelFrac": 0.949,
    "lengthM": 3761,
+   "maxPathM": 3785.63,
    "refs": [
     "屏東線"
    ]
@@ -1398,6 +1569,7 @@
    "tracks": 2,
    "parallelFrac": 0.963,
    "lengthM": 7653,
+   "maxPathM": 7649.7,
    "refs": [
     "縱貫線"
    ]
@@ -1406,6 +1578,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 3687,
+   "maxPathM": 3668.275,
    "refs": [
     "縱貫線"
    ]
@@ -1414,6 +1587,7 @@
    "tracks": 2,
    "parallelFrac": 0.892,
    "lengthM": 1101,
+   "maxPathM": 1100.568,
    "refs": [
     "縱貫線"
    ]
@@ -1422,6 +1596,7 @@
    "tracks": 1,
    "parallelFrac": 0.097,
    "lengthM": 6180,
+   "maxPathM": 6165.342,
    "refs": [
     "縱貫線"
    ]
@@ -1430,6 +1605,7 @@
    "tracks": 2,
    "parallelFrac": 0.955,
    "lengthM": 4041,
+   "maxPathM": 4037.981,
    "refs": [
     "縱貫線"
    ]
@@ -1438,6 +1614,7 @@
    "tracks": 2,
    "parallelFrac": 0.952,
    "lengthM": 3568,
+   "maxPathM": 3563.865,
    "refs": [
     "縱貫線"
    ]
@@ -1446,6 +1623,7 @@
    "tracks": 2,
    "parallelFrac": 0.95,
    "lengthM": 3496,
+   "maxPathM": 3492.319,
    "refs": [
     "縱貫線"
    ]
@@ -1454,6 +1632,7 @@
    "tracks": 2,
    "parallelFrac": 0.945,
    "lengthM": 4045,
+   "maxPathM": 4012.622,
    "refs": [
     "縱貫線"
    ]
@@ -1462,6 +1641,7 @@
    "tracks": 1,
    "parallelFrac": 0.027,
    "lengthM": 4809,
+   "maxPathM": 4815.208,
    "refs": [
     "屏東線"
    ]
@@ -1470,6 +1650,7 @@
    "tracks": 2,
    "parallelFrac": 0.934,
    "lengthM": 2508,
+   "maxPathM": 2505.472,
    "refs": [
     "縱貫線"
    ]
@@ -1478,6 +1659,7 @@
    "tracks": 2,
    "parallelFrac": 0.933,
    "lengthM": 2621,
+   "maxPathM": 2615.486,
    "refs": [
     "縱貫線"
    ]
@@ -1486,6 +1668,7 @@
    "tracks": 2,
    "parallelFrac": 0.983,
    "lengthM": 3285,
+   "maxPathM": 3265.966,
    "refs": [
     "縱貫線"
    ]
@@ -1494,6 +1677,7 @@
    "tracks": 1,
    "parallelFrac": 0.241,
    "lengthM": 4326,
+   "maxPathM": 4304.024,
    "refs": [
     "深澳線"
    ]
@@ -1502,6 +1686,7 @@
    "tracks": 1,
    "parallelFrac": 0.077,
    "lengthM": 6497,
+   "maxPathM": 6491.71,
    "refs": [
     "臺東線"
    ]
@@ -1510,6 +1695,7 @@
    "tracks": 2,
    "parallelFrac": 0.967,
    "lengthM": 5435,
+   "maxPathM": 5407.675,
    "refs": [
     "宜蘭線"
    ]
@@ -1518,6 +1704,7 @@
    "tracks": 2,
    "parallelFrac": 0.923,
    "lengthM": 5236,
+   "maxPathM": 5228.055,
    "refs": [
     "北迴線"
    ],
@@ -1527,6 +1714,7 @@
    "tracks": 2,
    "parallelFrac": 0.96,
    "lengthM": 4573,
+   "maxPathM": 4563.626,
    "refs": [
     "縱貫線"
    ]
@@ -1535,6 +1723,7 @@
    "tracks": 2,
    "parallelFrac": 0.967,
    "lengthM": 6435,
+   "maxPathM": 6403.064,
    "refs": [
     "縱貫線"
    ]
@@ -1543,6 +1732,7 @@
    "tracks": 1,
    "parallelFrac": 0,
    "lengthM": 7038,
+   "maxPathM": 7044.377,
    "refs": [
     "南迴線"
    ]
@@ -1551,6 +1741,7 @@
    "tracks": 1,
    "parallelFrac": 0.066,
    "lengthM": 4545,
+   "maxPathM": 4557.124,
    "refs": [
     "南迴線"
    ]
@@ -1559,6 +1750,7 @@
    "tracks": 2,
    "parallelFrac": 0.973,
    "lengthM": 6049,
+   "maxPathM": 6032.685,
    "refs": [
     "縱貫線"
    ]
@@ -1567,6 +1759,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 2216,
+   "maxPathM": 2207.518,
    "refs": [
     "宜蘭線"
    ]
@@ -1575,6 +1768,7 @@
    "tracks": 2,
    "parallelFrac": 0.975,
    "lengthM": 4667,
+   "maxPathM": 4670.407,
    "refs": [
     "縱貫線"
    ]
@@ -1583,6 +1777,7 @@
    "tracks": 1,
    "parallelFrac": 0.013,
    "lengthM": 6904,
+   "maxPathM": 6903.98,
    "refs": [
     "臺東線"
    ]
@@ -1591,6 +1786,7 @@
    "tracks": 1,
    "parallelFrac": 0.025,
    "lengthM": 6227,
+   "maxPathM": 6227.524,
    "refs": [
     "臺東線"
    ]
@@ -1599,6 +1795,7 @@
    "tracks": 2,
    "parallelFrac": 0.85,
    "lengthM": 1589,
+   "maxPathM": 1573.242,
    "refs": [
     "縱貫線"
    ]
@@ -1607,6 +1804,7 @@
    "tracks": 2,
    "parallelFrac": 0.947,
    "lengthM": 6966,
+   "maxPathM": 6902.619,
    "refs": [
     "縱貫線"
    ]
@@ -1615,6 +1813,7 @@
    "tracks": 1,
    "parallelFrac": 0.029,
    "lengthM": 9251,
+   "maxPathM": 9241.221,
    "refs": [
     "臺東線"
    ]
@@ -1623,6 +1822,7 @@
    "tracks": 2,
    "parallelFrac": 0.862,
    "lengthM": 4610,
+   "maxPathM": 4585.453,
    "refs": [
     "宜蘭線",
     "深澳線"
@@ -1632,6 +1832,7 @@
    "tracks": 1,
    "parallelFrac": 0.116,
    "lengthM": 4356,
+   "maxPathM": 4349.6,
    "refs": [
     "集集線"
    ]
@@ -1640,6 +1841,7 @@
    "tracks": 2,
    "parallelFrac": 0.95,
    "lengthM": 5091,
+   "maxPathM": 5097.083,
    "refs": [
     "縱貫線"
    ]
@@ -1648,6 +1850,7 @@
    "tracks": 2,
    "parallelFrac": 0.885,
    "lengthM": 4898,
+   "maxPathM": 4905.936,
    "refs": [
     "縱貫線"
    ]
@@ -1656,6 +1859,7 @@
    "tracks": 2,
    "parallelFrac": 0.733,
    "lengthM": 5362,
+   "maxPathM": 5351.573,
    "refs": [
     "北迴線"
    ],
@@ -1665,6 +1869,7 @@
    "tracks": 1,
    "parallelFrac": 0.217,
    "lengthM": 3051,
+   "maxPathM": 3044.235,
    "refs": [
     "縱貫線"
    ]
@@ -1673,6 +1878,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 5795,
+   "maxPathM": 5785.772,
    "refs": [
     "縱貫線"
    ]
@@ -1681,6 +1887,7 @@
    "tracks": 2,
    "parallelFrac": 0.829,
    "lengthM": 931,
+   "maxPathM": 926.888,
    "refs": [
     "縱貫線"
    ]
@@ -1689,6 +1896,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 988,
+   "maxPathM": 986.087,
    "refs": [
     "北迴線",
     "宜蘭線"
@@ -1698,6 +1906,7 @@
    "tracks": 2,
    "parallelFrac": 0.987,
    "lengthM": 1348,
+   "maxPathM": 1342.382,
    "refs": [
     "內灣線",
     "六家線"
@@ -1707,6 +1916,7 @@
    "tracks": 2,
    "parallelFrac": 0.909,
    "lengthM": 3333,
+   "maxPathM": 3331.943,
    "refs": [
     "縱貫線"
    ]
@@ -1715,6 +1925,7 @@
    "tracks": 2,
    "parallelFrac": 0.909,
    "lengthM": 4794,
+   "maxPathM": 4769.449,
    "refs": [
     "縱貫線"
    ]
@@ -1723,6 +1934,7 @@
    "tracks": 2,
    "parallelFrac": 0.943,
    "lengthM": 6211,
+   "maxPathM": 6169.946,
    "refs": [
     "縱貫線"
    ]
@@ -1731,6 +1943,7 @@
    "tracks": 2,
    "parallelFrac": 0.981,
    "lengthM": 4184,
+   "maxPathM": 4188.069,
    "refs": [
     "縱貫線"
    ]
@@ -1739,6 +1952,7 @@
    "tracks": 1,
    "parallelFrac": 0.036,
    "lengthM": 7886,
+   "maxPathM": 7880.147,
    "refs": [
     "集集線"
    ]
@@ -1747,6 +1961,7 @@
    "tracks": 1,
    "parallelFrac": 0.115,
    "lengthM": 2707,
+   "maxPathM": 2704.654,
    "refs": [
     "臺東線"
    ]
@@ -1755,6 +1970,7 @@
    "tracks": 1,
    "parallelFrac": 0.002,
    "lengthM": 7590,
+   "maxPathM": 7585.292,
    "refs": [
     "臺東線"
    ]
@@ -1763,6 +1979,7 @@
    "tracks": 1,
    "parallelFrac": 0.065,
    "lengthM": 5552,
+   "maxPathM": 5555.253,
    "refs": [
     "臺東線"
    ]
@@ -1771,6 +1988,7 @@
    "tracks": 2,
    "parallelFrac": 0.767,
    "lengthM": 4839,
+   "maxPathM": 4833.477,
    "refs": [
     "臺東線"
    ]
@@ -1779,6 +1997,7 @@
    "tracks": 2,
    "parallelFrac": 0.971,
    "lengthM": 6720,
+   "maxPathM": 6714.685,
    "refs": [
     "縱貫線"
    ]
@@ -1787,6 +2006,7 @@
    "tracks": 2,
    "parallelFrac": 0.941,
    "lengthM": 2524,
+   "maxPathM": 2525.672,
    "refs": [
     "縱貫線"
    ]
@@ -1795,6 +2015,7 @@
    "tracks": 2,
    "parallelFrac": 0.96,
    "lengthM": 6698,
+   "maxPathM": 6696.953,
    "refs": [
     "縱貫線"
    ]
@@ -1803,6 +2024,7 @@
    "tracks": 1,
    "parallelFrac": 0.197,
    "lengthM": 1822,
+   "maxPathM": 1819.203,
    "refs": [
     "臺東線"
    ]
@@ -1811,6 +2033,7 @@
    "tracks": 2,
    "parallelFrac": 0.97,
    "lengthM": 2731,
+   "maxPathM": 2727.036,
    "refs": [
     "臺東線"
    ]
@@ -1819,6 +2042,7 @@
    "tracks": 2,
    "parallelFrac": 0.947,
    "lengthM": 7192,
+   "maxPathM": 7174.446,
    "refs": [
     "成追線",
     "縱貫線"
@@ -1828,6 +2052,7 @@
    "tracks": 2,
    "parallelFrac": 0.955,
    "lengthM": 6613,
+   "maxPathM": 6606.365,
    "refs": [
     "縱貫線"
    ]
@@ -1836,6 +2061,7 @@
    "tracks": 2,
    "parallelFrac": 0.92,
    "lengthM": 7195,
+   "maxPathM": 7178.414,
    "refs": [
     "縱貫線"
    ]
@@ -1844,6 +2070,7 @@
    "tracks": 1,
    "parallelFrac": 0.263,
    "lengthM": 1633,
+   "maxPathM": 1624.023,
    "refs": [
     "內灣線"
    ]
@@ -1852,6 +2079,7 @@
    "tracks": 2,
    "parallelFrac": 0.963,
    "lengthM": 3772,
+   "maxPathM": 3732.848,
    "refs": [
     "宜蘭線"
    ]
@@ -1860,6 +2088,7 @@
    "tracks": 2,
    "parallelFrac": 0.894,
    "lengthM": 1923,
+   "maxPathM": 1920.704,
    "refs": [
     "縱貫線"
    ]
@@ -1868,6 +2097,7 @@
    "tracks": 2,
    "parallelFrac": 0.97,
    "lengthM": 2862,
+   "maxPathM": 2846.246,
    "refs": [
     "縱貫線"
    ]
@@ -1876,6 +2106,7 @@
    "tracks": 2,
    "parallelFrac": 0.961,
    "lengthM": 4937,
+   "maxPathM": 4912.343,
    "refs": [
     "縱貫線"
    ]
@@ -1884,6 +2115,7 @@
    "tracks": 2,
    "parallelFrac": 0.912,
    "lengthM": 1928,
+   "maxPathM": 1926.376,
    "refs": [
     "縱貫線"
    ]
@@ -1892,6 +2124,7 @@
    "tracks": 2,
    "parallelFrac": 0.956,
    "lengthM": 4122,
+   "maxPathM": 4119.816,
    "refs": [
     "屏東線"
    ]
@@ -1900,6 +2133,7 @@
    "tracks": 2,
    "parallelFrac": 0.987,
    "lengthM": 2891,
+   "maxPathM": 2881.183,
    "refs": [
     "縱貫線"
    ]
@@ -1908,6 +2142,7 @@
    "tracks": 1,
    "parallelFrac": 0.062,
    "lengthM": 3474,
+   "maxPathM": 3453.643,
    "refs": [
     "內灣線"
    ]
@@ -1916,6 +2151,7 @@
    "tracks": 1,
    "parallelFrac": 0.116,
    "lengthM": 4853,
+   "maxPathM": 4850.554,
    "refs": [
     "集集線"
    ]
@@ -1924,6 +2160,7 @@
    "tracks": 1,
    "parallelFrac": 0.014,
    "lengthM": 979,
+   "maxPathM": 971.149,
    "refs": [
     "平溪線"
    ]
@@ -1932,6 +2169,7 @@
    "tracks": 1,
    "parallelFrac": 0.015,
    "lengthM": 2071,
+   "maxPathM": 2054.135,
    "refs": [
     "平溪線"
    ]
@@ -1940,6 +2178,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 4099,
+   "maxPathM": 4068.656,
    "refs": [
     "宜蘭線"
    ]
@@ -1948,6 +2187,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 2281,
+   "maxPathM": 2283.602,
    "refs": [
     "屏東線"
    ]
@@ -1956,6 +2196,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 5938,
+   "maxPathM": 5909.743,
    "refs": [
     "縱貫線"
    ]
@@ -1964,6 +2205,7 @@
    "tracks": 1,
    "parallelFrac": 0.025,
    "lengthM": 8311,
+   "maxPathM": 8310.747,
    "refs": [
     "南迴線"
    ]
@@ -1972,6 +2214,7 @@
    "tracks": 2,
    "parallelFrac": 0.996,
    "lengthM": 3277,
+   "maxPathM": 3281.269,
    "refs": [
     "北迴線",
     "宜蘭線"
