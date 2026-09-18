@@ -19,7 +19,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
         // 處理冷啟動時的深連結（URL）
         if let urlContext = connectionOptions.urlContexts.first {
-            handleURL(urlContext.url)
+            handleURL(urlContext)
         }
         // 處理冷啟動時的 Universal Link
         if let userActivity = connectionOptions.userActivities.first {
@@ -29,8 +29,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
         // 熱啟動時的深連結（URL scheme），比照原 AppDelegate.application(_:open:options:)
-        guard let url = URLContexts.first?.url else { return }
-        handleURL(url)
+        guard let context = URLContexts.first else { return }
+        handleURL(context)
     }
 
     func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
@@ -40,10 +40,6 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     func sceneDidBecomeActive(_ scene: UIScene) {
         // 比照原 AppDelegate.applicationDidBecomeActive
-        // 使用 shared 的 UIApplication 觸發 WidgetCenter 刷新與待辦開卡
-        if let app = scene as? UIWindowScene {
-            _ = app  // suppress unused warning
-        }
         WidgetKit.WidgetCenter.shared.reloadAllTimelines()
         RailMetroWaitPlugin.flushPendingOpen()
     }
@@ -62,13 +58,25 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     // MARK: - Private
 
-    private func handleURL(_ url: URL) {
+    private func handleURL(_ context: UIOpenURLContext) {
         // 捷運小工具深連結
-        if RailMetroWaitPlugin.handleOpen(url: url) { return }
+        if RailMetroWaitPlugin.handleOpen(url: context.url) { return }
         // 其餘 URL（google-signin 等）交回 Capacitor
-        ApplicationDelegateProxy.shared.application(
-            UIApplication.shared, open: url, options: [:]
+        _ = ApplicationDelegateProxy.shared.application(
+            UIApplication.shared, open: context.url,
+            options: Self.openURLOptions(from: context.options)
         )
+    }
+
+    // 🔴 options 要原封帶過去，不可以傳 [:]。Capacitor 的 proxy 只是把它塞進
+    //    .capacitorOpenURL 通知的 payload，今天沒有 plugin 在讀 sourceApplication，
+    //    但少帶的壞法是「哪天有人讀了就讀到空的」——沒有編譯錯誤、沒有執行期訊號。
+    private static func openURLOptions(from options: UIScene.OpenURLOptions) -> [UIApplication.OpenURLOptionsKey: Any] {
+        var out: [UIApplication.OpenURLOptionsKey: Any] = [:]
+        if let sourceApplication = options.sourceApplication { out[.sourceApplication] = sourceApplication }
+        if let annotation = options.annotation { out[.annotation] = annotation }
+        out[.openInPlace] = options.openInPlace
+        return out
     }
 
     private func handleUserActivity(_ userActivity: NSUserActivity) -> Bool {

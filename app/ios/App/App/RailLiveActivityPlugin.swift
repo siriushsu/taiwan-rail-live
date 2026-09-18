@@ -77,6 +77,20 @@ public final class RailLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
     override public func load() {
         guard #available(iOS 17.6, *) else { return }
         enqueue { await self.endAll() }   // App 啟動先掃一次孤兒
+        // 鎖屏/動態島的「結束」鈕走 RailFollowEndIntent,而那個檔同時要編進 widget
+        // extension ⇒ 它【看不到】這個 plugin,收完卡片只能發 railFollowChanged。
+        // 這裡接住它,補上 endAll() 的另外兩件事:否則 App 還活著時從鎖屏按結束,
+        // current 會留著一張已經收掉的卡,之後每一發 update 都對死卡片送出(不報錯、
+        // 畫面也不會動),而 current 清掉之後 update 會誠實回 noactivity。
+        NotificationCenter.default.addObserver(
+            forName: Notification.Name("railFollowChanged"), object: nil, queue: .main
+        ) { [weak self] note in
+            guard let self, (note.userInfo?["active"] as? Bool) == false else { return }
+            // 🔴 current／tokenTask 只能在 main queue 上讀寫(見 enqueue 的註解),所以
+            //    queue 指定 .main。endAll() 自己發的那一份會走進這裡,但它剛清過,冪等。
+            self.tokenTask?.cancel(); self.tokenTask = nil
+            self.current = nil
+        }
     }
 
     @objc func start(_ call: CAPPluginCall) {
