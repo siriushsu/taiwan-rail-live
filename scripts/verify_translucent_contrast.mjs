@@ -330,7 +330,9 @@ async function boot(browser, { theme, width, height, touch, sheetSize, tag }) {
 const STEP = {
   traincard: no => `(() => { const tr = state.trains.find(t => String(t.train) === '${no}'); if (!tr) return false; renderTrainCard(tr); if (typeof setSparkOpen === 'function') setSparkOpen(true); return true; })()`,
   trainSheet: () => `(() => { if (typeof openTrainSheet !== 'function') return false; openTrainSheet(); const tc = document.getElementById('trainCard'); return tc.classList.contains('tc-sheet'); })()`,
-  board: () => `(() => { openBoard({ name: '台北', sys: 'tra_sched' }); return true; })()`,
+  // 台鐵站名是「臺北」:用「台北」開得出看板外框,但一列班次都沒有(「此時段無停靠班次」)⇒ 倒數、車種等
+  // 列內文字從沒被量過。回傳「有班次列」,空看板就讓 G1b 以「開不起來:board」具名變紅。
+  board: () => `(() => { openBoard({ name: '臺北', sys: 'tra_sched' }); return document.querySelectorAll('#board .row').length > 0; })()`,
   nearCard: () => `(() => { if (typeof openNearbyStations !== 'function') return false; openNearbyStations(25.0478, 121.5170, 40); return true; })()`,
   xingCard: () => `(() => { const cr = (state.crossings || [])[0]; if (!cr || typeof openCrossingCard !== 'function') return false; openCrossingCard(cr); return true; })()`,
   xingHelp: () => `(() => { const el = document.getElementById('xingHelp'); if (!el) return false; el.hidden = false; el.classList.add('show'); clearTimeout(state._xingHelpT); return true; })()`,
