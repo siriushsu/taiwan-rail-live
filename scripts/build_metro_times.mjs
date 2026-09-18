@@ -69,7 +69,10 @@ function makeDirFns(ctx, loop, asc) {
 
 // ── 單一記錄的發車清單:凌晨 4 點前一律視為跨午夜(+86400)後整段排序去重。
 // 不信 Sequence:TDX 偶見亂序(淡海假日把 00:0x 擺在清晨段中間)與整段重複(環狀線幸福站假日)。
-// 04:00–05:29 與 25h 後物理上無班(台灣捷運首班≥05:30、末班≤01:00)→ 髒值剔除;
+// 04:00–05:29 與 26h 後物理上無班(台灣捷運首班≥05:30、末班≤01:30)→ 髒值剔除;
+// 上限原本是 25h(01:00),北捷 8/31 改點後淡水信義線往淡水末段開到 01:17(紅樹林),板南線到 01:12:
+// 紅樹林往淡水一筆記錄 01:00 後有 3 個時刻 → 被判整筆損壞丟掉,整條線往淡水每班都跳過紅樹林,
+// 末班車在 01:00 後的各站也被剪掉。全快照 01:00–04:00 只有 01:00–01:29 這一段有值,留到 02:00 為界。
 // 髒值 ≥3 筆代表整筆記錄損壞(如環狀線頭前庄假日),回傳 null 整筆跳過。
 // arr:發車秒 → 到站秒。鏈匹配用到站時刻開窗(見 chainRoute);沒有到站欄、或到站不在發車前
 // 10 分內的髒值,一律視為停站 0 秒(=發車時刻)。目前只有機捷兩者不同,其餘各線 arr 恆等於發車。
@@ -80,7 +83,7 @@ function depsOf(timetables) {
   for (const t of timetables) {
     let s = toSec(t.DepartureTime ?? t.ArrivalTime);
     if (s < 4 * 3600) s += 86400;
-    if ((s >= 4 * 3600 && s < 5.5 * 3600) || s > 25 * 3600) { junk++; continue; }
+    if ((s >= 4 * 3600 && s < 5.5 * 3600) || s > 26 * 3600) { junk++; continue; }
     set.add(s);
     let a = t.ArrivalTime ? toSec(t.ArrivalTime) : s;
     if (a < 4 * 3600) a += 86400;
@@ -147,6 +150,10 @@ function chainRoute(stns, dir, stats, dbg) {
     // 舊寫法按陣列順序先到先贏,贏家常是鏈尾停在很上游、只是還沒過期的殘鏈。
     // 2026-09-18 機捷南下末班台北 23:08:官方台北→三重跑 8 分(平常 6 分),多出的 30 秒掉出窗,
     // 台北那一筆落單成殘鏈,在下游同分處搶走真車的記錄,把末班切成兩台錯的車。
+    // 連鏈尾都同一站時,先到先配(pred 較早的那條拿較早的發車):發車由早到晚處理,兩條車
+    // 距離相等時交給陣列順序,會讓後出發的車搶走前車的時刻。2026-09-18 淡水信義線平日清晨
+    // 唭哩岸 06:00、石牌 06:00 兩班:劍潭 06:07/06:09 → 圓山 06:10/06:12,後車先搶 06:10,
+    // 兩條鏈此後互相錯接、跳站,被全停站品質閘整班丟掉,官方有的兩班車在畫面上不存在。
     const born = [];
     for (const dep of st.deps) {
       const arr = st.arr.get(dep);
@@ -154,7 +161,8 @@ function chainRoute(stns, dir, stats, dbg) {
       for (const c of active) {
         if (c._mk === k || arr < c.lo || arr > c.hi) continue;
         const d = Math.abs(c.pred - arr);
-        if (!best || d < bd || (d === bd && c.lastK > best.lastK)) { best = c; bd = d; }
+        if (!best || d < bd || (d === bd && (c.lastK > best.lastK ||
+          (c.lastK === best.lastK && c.pred < best.pred)))) { best = c; bd = d; }
       }
       if (best) {
         best.stops.push([st.idx, dep]);
@@ -175,7 +183,7 @@ function chainRoute(stns, dir, stats, dbg) {
 // ── 主流程:一組營運路線 → 某前端線的 sets ──
 // routeSpecs 項可帶:destIs(只收此終點的記錄)、only(只收這些 StationID)、
 // as(虛擬路線名:跨 RouteID 合併記錄,治淡海回程幹線被亂拆在 V-1/V-2/空編號)、
-// stitchTo(本組鏈尾接到目標組的中途始發鏈,治藍海支線頭與幹線分家)、noDestOk(不計缺終點)、
+// stitchTo(本組鏈尾接到目標組的中途始發鏈,治藍海支線頭與幹線分家)、noDestOk(不計缺終點)、noOriginBackfill(第一個有記錄站即真起點,不回推始發)、
 // requireFirst(只留從此站發起的鏈:幹線記錄混含多線班次時,擋掉對方線造成的幻影中途始發車)、
 // destByPattern/originByPattern(StoppingPatternID → 該停靠模式的官方端點 StationID):
 //   StoppingPatternID 只在同一個 RouteID 內唯一;覆寫不得掛在 routeId:'*' 或帶 as: 的合併 spec 上
@@ -398,7 +406,8 @@ function buildLineTimes(line, routeSpecs, sttCache, stnNameCache, notes, allStop
       else if (!g.spec.noDestOk) stats.noDest++;
     }
     // 起點站整份缺記錄(如環狀線大坪林)→ 對「從第一個有記錄站發車」的鏈回推始發
-    if (!line.loop && destIdx != null && stns.length) {
+    // spec.noOriginBackfill:第一個有記錄的站就是真起點(北捷 R-2 北投區間車),不回推
+    if (!line.loop && destIdx != null && stns.length && !g.spec.noOriginBackfill) {
       const firstIdx = stns[0].idx;
       // 該停靠模式有官方起點就用它;沒有才退回「往前補一站」的通用推測。機捷 SP2 北上直達車的
       // 官方起點是 A21 環北,而 A21 本來就在這個 group 裡 ⇒ 下面的 !g.stns.has(originIdx) 會擋掉
@@ -613,7 +622,10 @@ const SYSTEMS = [
       flFile: 'data/tdx/TRTC_FirstLastTimetable.json', terminals: ['BR01', 'BR24'],
       measured: BR_MEASURED_HEADWAY }],
     lines: {
-      R: [{ op: 'TRTC', routeId: 'R-1' }, { op: 'TRTC', routeId: 'R-2' }],
+      // R-2 是北投發車的區間車(北投↔廣慈/奉天宮、北投→大安):北投本身有記錄,不是「起點站缺記錄」。
+      // 不宣告的話起點回推會往淡水方向多補一站,每天 100 多班憑空從復興崗開出來
+      // (2026-09-18 對 data.taipei 三種日型:這些復興崗時刻官方一筆都沒有,北投時刻全在)。
+      R: [{ op: 'TRTC', routeId: 'R-1' }, { op: 'TRTC', routeId: 'R-2', noOriginBackfill: true }],
       R_XBT: [{ op: 'TRTC', routeId: 'R-3' }],
       G: [{ op: 'TRTC', routeId: 'G-1' }, { op: 'TRTC', routeId: 'G-2' }],
       G_XBT: [{ op: 'TRTC', routeId: 'G-3' }],
@@ -719,6 +731,8 @@ const SYSTEMS = [
 //    Station 與 StationOfLine,但 StationTimeTable 至今仍無 R01(當日實打端點,614 筆零命中)。
 //    也就是說舊判準會在缺口還在的時候就放行重建,正好放掉它要擋的那件事(R 線班次掉 38%)。
 //    判準要盯的是「這次重建真正要讀的那份資料」,不是同一個上游的另一份。
+// 2026-09-18:StationTimeTable 已有 R01(6 筆,UpdateTime 09-16),本閘門已自動放行;同快照重建的
+//    淡水信義線對 data.taipei 平日/週六/週日站別時刻表逐站相符(週六廣慈 23:08 一班仍接不起來)。
 const FORCE_TRTC = process.argv.includes('--force-trtc');
 const ONLY = (process.argv.find(a => a.startsWith('--only=')) || '').slice('--only='.length);
 const trtcSourceHasR01 = () => {

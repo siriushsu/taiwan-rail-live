@@ -1828,3 +1828,12 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   "機捷南下末班車（台北 23:08）不再被拆成兩台，照官方時刻一路開完全程；中和新蘆線白天與晚間、淡水信義線晚間少掉的班次補回來了": "桃園空港MRT：台北駅23:08発の南行き終電が2本に分かれなくなり、公式時刻どおり全区間を走ります。中和新蘆線の日中・夜間、淡水信義線の夜間に欠けていた列車も復元しました。"
 });
+
+// 2026-09-18 淡水信義線與機捷班表刷新(第一層更新紀錄那條的 en/ja;第二層正本一律走 RAIL_I18N_CHANGELOG)
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  "淡水信義線班表換成 8/31 改點後的官方時刻；機捷晚上的直達車不再開到長庚就消失，照官方時刻開到機場第二航廈": "Tamsui–Xinyi Line timetable now follows the official schedule effective Aug 31. Taoyuan Airport MRT evening Express trains no longer vanish at Chang Gung Memorial Hospital and run to Airport Terminal 2 on the official timetable."
+});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  "淡水信義線班表換成 8/31 改點後的官方時刻；機捷晚上的直達車不再開到長庚就消失，照官方時刻開到機場第二航廈": "淡水信義線の時刻表を8月31日改正後の公式ダイヤに更新しました。桃園空港MRTの夜の直達車が長庚医院駅で消えなくなり、公式時刻どおり空港第2ターミナル駅まで走ります。"
+});

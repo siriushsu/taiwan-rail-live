@@ -5468,6 +5468,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="metrott0918"><span class="d">9/18</span><span>淡水信義線班表換成 8/31 改點後的官方時刻；機捷晚上的直達車不再開到長庚就消失，照官方時刻開到機場第二航廈</span></li>
         <li data-cl-of="tiebreak0918"><span class="d">9/18</span><span>機捷南下末班車（台北 23:08）不再被拆成兩台，照官方時刻一路開完全程；中和新蘆線白天與晚間、淡水信義線晚間少掉的班次補回來了</span></li>
         <li data-cl-of="landscapedem0918"><span class="d">9/18</span><span>Android App 的地景地圖立體列車不再消失，照真實地形高度顯示</span></li>
         <li data-cl-of="tymcshort0918"><span class="d">9/18</span><span>機捷平日早上山鼻 7:37 那班區間車不再開到林口就消失，照官方時刻開到台北</span></li>
@@ -5475,7 +5476,6 @@
         <li data-cl-of="mergedir0918"><span class="d">9/18</span><span>淡水信義線平日清晨少掉的 6 班補回來了；機捷與淡海輕軌少數班次不再開到半路掉頭</span></li>
         <li data-cl-of="ylast0918"><span class="d">9/18</span><span>環狀線平日深夜少掉的末班車補回來了，中和站時刻也改對齊官方時刻表</span></li>
         <li data-cl-of="neardismiss0918"><span class="d">9/18</span><span>「附近車站」清單多了兩個關法：點地圖空白處、或把卡片往下滑，不必先選一站才收得掉</span></li>
-        <li data-cl-of="favstangeo0916"><span class="d">9/16</span><span>最愛車站星號整合至站名標籤避免遮蔽文字，傾斜跟車時自動隱藏定位藍圈維持純淨視角</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5861,6 +5861,7 @@
         <li data-cl="ylast0918"><span class="d">9/18</span><span>環狀線平日深夜班表補齊：大坪林 23:12 到 24:00 發往新北產業園區的末班車照官方時刻開到終點，中和站時刻改對齊官方時刻表</span></li>
         <li data-cl="tymcshort0918"><span class="d">9/18</span><span>機捷平日早上班表修正：山鼻 7:37 發車的區間車不再開到林口就消失，照官方時刻一路開到台北；同時段環北 7:00 的尖峰跳站普通車與山鼻 7:28 的普通車，過長庚後也改回各自的官方時刻，長庚不再多冒出一班車</span></li>
         <li data-cl="tiebreak0918"><span class="d">9/18</span><span>班表配對修正：機捷南下台北 23:08 末班車照官方時刻開完全程，不再拆成兩台錯的車；中和新蘆線平日白天與晚間補回 32 班、假日 2 班；淡水信義線晚間補回 11 班；高雄環狀輕軌假日接錯車的情形減少</span></li>
+        <li data-cl="metrott0918"><span class="d">9/18</span><span>班表更新：淡水信義線換成北捷 8/31 改點後的官方時刻表，平日清晨唭哩岸、石牌 6:00 發車的 2 班補回，北投發車的區間車不再從復興崗冒出來；機捷晚上的直達車不再開到長庚就消失，照官方時刻開到機場第二航廈</span></li>
         <li data-cl="metrolead0911"><span class="d">9/11</span><span>捷運頁導言更正：台北捷運九線（含文湖線、環狀線）的列車位置與車站倒數都來自官方逐班即時資料，導言現在只把三鶯線與台中捷運標為班距推算。</span></li>
         <li data-cl="sanyinglast0911"><span class="d">9/11</span><span>三鶯線平日末班車補上官方公告的 00:00 那一班，原本合成的班表最後一班停在 23:54</span></li>
         <li data-cl="trapassjump"><span class="d">8/21</span><span>台鐵列車通過不停靠小站時改為連續移動，不再短暫停住後跳位；跨午夜切換系統也不會沿用前一天同號車的誤點。</span></li>
@@ -6503,7 +6504,7 @@
 //         介紹卡／搜尋／收集章／3D 外觀全部自動接上，明星列車章 5→6 枚；環島之星與虛構的山海／平原號
 //         不再退回 EMU800 代表外觀，改成機車牽引的觀光列車（環島之星＝E500＋莒光客車）。
 //         守門人：verify_formations 新增具名覆蓋率斷言，名冊「有固定車次」的集合必須與對照表逐一相等。
-const BUILD = 'v0918h';
+const BUILD = 'v0918i';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
