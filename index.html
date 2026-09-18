@@ -5495,14 +5495,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="i18ngaps0919"><span class="d">9/19</span><span>英日文介面補上漏翻的按鈕、路線名、公告與提示，切換語言不再殘留前一種語言；車站看板太長的字改成兩行，不再被切掉</span></li>
+        <li data-cl-of="physspeed0919"><span class="d">9/19</span><span>台鐵列車在立體地圖上不會再超過車種極速，站牌時刻不變</span></li>
         <li data-cl-of="night200907"><span class="d">9/19</span><span>暗色模式下，附近車站、平交道、糖鐵與儲存地點卡的關閉鈕與「存」看得見了</span></li>
         <li data-cl-of="translucent0730"><span class="d">9/19</span><span>面板半透明時，看板倒數、預計到站與「在 Google 地圖開啟」等藍字加深，疊在衛星影像上也看得清楚</span></li>
         <li data-cl-of="speedcapzone0919"><span class="d">9/19</span><span>自強號駛近新馬急彎時，地圖上的列車不再跑得比車種極速還快</span></li>
         <li data-cl-of="dr1000branch"><span class="d">9/19</span><span>平溪、深澳、集集、內灣線的列車改照 DR1000 柴油客車加減速，列車卡也改顯示 DR1000 介紹</span></li>
         <li data-cl-of="mixedwidget0919"><span class="d">9/19</span><span>Android 雙看板小工具字放大、依卡片高度多列幾班；設定頁通行證文字修正</span></li>
         <li data-cl-of="legwindow0918"><span class="d">9/18</span><span>高雄環狀輕軌假日 29 班不再接錯車；機捷深夜往機場 23:23、23:38 兩班，中和新蘆線南勢角 22:26、淡水信義線週六廣慈 23:08 也照官方時刻開完全程</span></li>
-        <li data-cl-of="metrott0918"><span class="d">9/18</span><span>淡水信義線班表換成 8/31 改點後的官方時刻；機捷晚上的直達車不再開到長庚就消失，照官方時刻開到機場第二航廈</span></li>
-        <li data-cl-of="tiebreak0918"><span class="d">9/18</span><span>機捷南下末班車（台北 23:08）不再被拆成兩台，照官方時刻一路開完全程；中和新蘆線白天與晚間、淡水信義線晚間少掉的班次補回來了</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5623,6 +5623,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="physspeed0919"><span class="d">9/19</span><span>修正台鐵列車在立體地圖上偶爾跑得比車種極速還快：速度改依列車實際走的股道長度計算，站牌時刻不變</span></li>
         <li data-cl="speedcapzone0919"><span class="d">9/19</span><span>2、438、5232 次自強號駛近新馬急彎前，地圖上的列車曾短暫快過車種極速（最高 148 km/h）；現在全程不超過極速，也照彎道速限通過，到站時刻不變</span></li>
         <li data-cl="viewcontrols0914"><span class="d">9/14</span><span>觀看設定移到網站右側；手機可按「觀看」切換視角、地圖與列車設定，沉浸模式也能隨時重新開啟；修正地形切換時橋墩閃現與遠景列車大小設定未生效；9/18 起開著車站卡或列車卡也能直接進觀看設定</span></li>
         <li data-cl="viewguide0914"><span class="d">9/14</span><span>地圖俯視與傾斜切換更平順，新增車站與地標導覽；放大跟車時保留車頭與手機操作空間</span></li>
@@ -5778,6 +5779,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="i18ngaps0919"><span class="d">9/19</span><span>英日文介面補上漏翻並修正譯錯的按鈕：行程分享、捷運路線名、倒數準確度、最後更新、今日亮點次數、成就說明、公告與各種提示；切換語言不再殘留前一種語言；車站看板一列放不下改成兩行；三鶯線公告列出官方首末班</span></li>
         <li data-cl="mixedwidget0919"><span class="d">9/19</span><span>Android 桌面的鐵路＋捷運雙看板重新排版：字放大，卡片放得下幾班就列幾班，不再空一大塊；已開通行證時，設定頁不會再誤寫需要通行證。</span></li>
         <li data-cl="repeatreminder0913"><span class="d">9/13</span><span>到站提醒可以設成每天、週一到五或自訂星期重複：通勤固定搭的那班設一次就長期有效，不必每天重設。重複的提醒依表定時刻在每個符合的日子響，一則重複提醒在 20 則上限裡仍然只算一則；原本設好的一次性提醒不受影響。</span></li>
         <li data-cl="widgetauto0911"><span class="d">9/11</span><span>小工具的車站可以設成「自動（最近的站）」，走到哪就換到哪一站；離開服務範圍時卡片會直接說明，不再默默顯示上一個地方的班次</span></li>
@@ -6535,7 +6537,10 @@
 //         介紹卡／搜尋／收集章／3D 外觀全部自動接上，明星列車章 5→6 枚；環島之星與虛構的山海／平原號
 //         不再退回 EMU800 代表外觀，改成機車牽引的觀光列車（環島之星＝E500＋莒光客車）。
 //         守門人：verify_formations 新增具名覆蓋率斷言，名冊「有固定車次」的集合必須與對照表逐一相等。
-const BUILD = 'v0919d';
+// v0919e：英日文介面補翻(行程分享、捷運路線名、準確度、最後更新、今日亮點次數、成就、公告與各種提示、App 更新牆)、
+//         切換語言不殘留、車站看板一列放不下改兩行(data-wrap2)、週末活動期間名；併入 verify_i18n 紅修正(fe009954)、
+//         台鐵實體股道層不超極速(373c0ae4)、verify_tra_motion 釘鐘(483a0bf8)、半透明對比閘門 fixture(499d152a)。
+const BUILD = 'v0919e';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
