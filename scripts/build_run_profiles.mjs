@@ -157,7 +157,7 @@ function main() {
   // 「新檔案裝好的舊 App 抓不到」（initDataFreshness 不收 bundle 裡沒有的鍵）在這裡不是問題：
   // 前端本來就要改一次才會讀預算值，那顆 build 會把新檔一起帶進 bundle 與 manifest。
   const profPath = join(ROOT, 'data/tra_run_profiles.json');
-  writeFileSync(profPath, JSON.stringify({
+  const body = JSON.stringify({
     source_notes: '本站自算，無外部上游：由 data/tra_schedule_dense.json（表定時刻）、'
       + 'data/tra.json（軌道線形，供跑段里程）與 data/tra_pass_obs.json（通過站實測時刻）'
       + '三者，套 index.html 的位置模型（buildObsProfile／speedZoneKnots／assignRunProfiles，'
@@ -166,7 +166,24 @@ function main() {
       + '梯形剖面不收錄；前端依當日車群安排待避時，該班整車不採用預算、改為現算。上述任一輸入或模型改動後必須重跑本腳本。',
     built_from: { schedule_date: work.date, trains: work.trains.length },
     trains: table,
-  }));
+  });
+  // --check：只比對、不寫。前端判斷預算值過期只看 T／L（index.html 的 _rpPre.stale），改了車種參數或
+  // 位置模型卻沒重跑本腳本，舊表照樣被採用、畫面無聲沿用舊參數——DR1000 那批驗收拿舊表實測過：
+  // stale 仍是 0，2703／2707 位置差到 4040 m。出貨鏈（ship_web.mjs）靠這條擋。
+  if (process.argv.includes('--check')) {
+    if (readFileSync(profPath, 'utf8') === body) {
+      console.log(`✓ 台鐵預算剖面表與目前的模型一致（收錄 ${Object.keys(table).length} 個車次號）`);
+      return;
+    }
+    const was = JSON.parse(readFileSync(profPath, 'utf8')).trains || {};
+    const diff = [...new Set([...Object.keys(was), ...Object.keys(table)])]
+      .filter(k => JSON.stringify(was[k]) !== JSON.stringify(table[k]));
+    console.error(`✗ 台鐵預算剖面表與目前的模型不符：${diff.length} 個車次號的剖面不同`
+      + (diff.length ? `（${diff.slice(0, 8).join('、')}${diff.length > 8 ? '…' : ''}）` : '（剖面相同，表頭的班表日期或班次數不同）')
+      + '——修法：npm run build-run-profiles 後 npm run build-manifest，兩個檔一起 commit');
+    process.exit(1);
+  }
+  writeFileSync(profPath, body);
 
   console.log(`車次 ${work.trains.length}｜實測型剖面 ${obsRuns}（折點 ${knots}）｜梯形 ${plainRuns} 條不收錄`);
   console.log(`收錄 ${Object.keys(table).length} 個車次號`
