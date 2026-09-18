@@ -118,6 +118,8 @@ for (const rel of FILES) {
   if (!existsSync(abs)) { ck(false, `${rel} 不存在`); continue; }
   const cur = JSON.parse(readFileSync(abs, 'utf8'));
   const lines = cur.lines || cur;
+  const loopIds = new Set(JSON.parse(readFileSync(path.join(ROOT, rel.replace('_times', '')), 'utf8'))
+    .lines.filter(l => l.loop).map(l => l.id));
   console.log(`\n[${rel}]`);
 
   for (const [lid, L] of Object.entries(lines)) {
@@ -146,6 +148,22 @@ for (const rel of FILES) {
       }
       ck(shortTrains === 0, `${lid}/${tag} 每班至少兩站（${shortTrains} 班不足）`);
       ck(nonMono === null, `${lid}/${tag} 逐站時刻嚴格遞增${nonMono ? `（首例：${nonMono}）` : ''}`);
+
+      // ── 結構:非環線一班車不得中途掉頭(站序嚴格單調) ──
+      // 2026-09-18 補。建置的碎片合併曾經不分方向,把落在鏈尾「後方」的碎片接成同一班
+      // (機捷平日 …9@07:37 8@07:45 接 9@07:52 8@08:00…):時刻照樣遞增,上面每一條都綠。
+      // 環線跨縫本來就是一次反向跳站,由建置端的跨縫防線管,這裡不問。
+      if (!loopIds.has(lid)) {
+        let uTurns = 0, uEx = null;
+        for (const tr of trains) {
+          const idx = idxsOf(tr), d = dirOf(tr) === 'asc' ? 1 : -1;
+          const k = idx.findIndex((v, i) => i > 0 && Math.sign(v - idx[i - 1]) !== d);
+          if (k < 0) continue;
+          uTurns++;
+          uEx ??= `發車 ${hm(tr[1])} 站序 ${idx[k - 1]}→${idx[k]}`;
+        }
+        ck(uTurns === 0, `${lid}/${tag} 無中途掉頭的班次（${uTurns} 班${uEx ? `，首例 ${uEx}` : ''}）`);
+      }
 
       // ── 結構:發車間隔落在合理帶 ──
       // 方向用「首站 index vs 末站 index」判,不靠欄位:合成線與鏈匹配線的欄位不一致。

@@ -290,7 +290,12 @@ function buildLineTimes(line, routeSpecs, sttCache, stnNameCache, notes, allStop
     built.push({ g, stns: useStns, asc, dir, destIdx, chains });
   }
   // 碎片合併(組內):一班車在某站漏配會被切成前後兩段——
-  // 鏈尾到另一鏈頭若站序相接(1~3 步)且時間吻合行駛預期,併回同一班
+  // 鏈尾到另一鏈頭若站序相接(1~3 步)且時間吻合行駛預期,併回同一班。
+  // 鏈頭必須在鏈尾的行進方向前方:非環線的 steps 是 |b-a| 不分方向,落在鏈尾「後方」的碎片也算
+  // 1~3 步,併起來就是一台開回頭的車(2026-09-18 環狀線平日 …9@23:09 接 6@23:19)。站站停的線
+  // 會被品質閘整班丟掉、連同兩段真碎片一起消失;可跳站的線(機捷、淡海)則照樣出貨成折返車。
+  // 環線的 steps 本來就依 asc 繞行,另有下面的跨縫防線。
+  const ahead = (b, from, to) => line.loop || (b.asc ? to > from : to < from);
   for (const b of built) {
     if (b.g.spec.anchorTags && b.g.spec.anchorTags.includes(b.g.tag)) continue;
     const byStart = b.chains.slice().sort((x, y) => x.stops[0][1] - y.stops[0][1]);
@@ -298,6 +303,7 @@ function buildLineTimes(line, routeSpecs, sttCache, stnNameCache, notes, allStop
       for (;;) {
         const y = byStart.find(y => !y._merged && y !== x && y.stops[0][1] > x.last &&
           !(line.loop && y.stops[0][0] === b.destIdx) && // 環線不跨縫合併:圈尾接圈頭=把整天縫成一台車
+          ahead(b, x.lastIdx, y.stops[0][0]) &&
           b.dir.steps(x.lastIdx, y.stops[0][0]) >= 1 && b.dir.steps(x.lastIdx, y.stops[0][0]) <= 3 &&
           y.stops[0][1] - x.last >= b.dir.expected(x.lastIdx, y.stops[0][0]) * 0.5 &&
           y.stops[0][1] - x.last <= b.dir.expected(x.lastIdx, y.stops[0][0]) + 240);
