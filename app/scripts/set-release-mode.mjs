@@ -360,10 +360,15 @@ const MODES = {
     //   本次 merge commit 的祖先，並以已上架 1.6.3 (112) 的可見面聯集跑出貨回歸閘門。
     // 114（2026-09-15）：Apple 公開 lookup 仍為 1.6.3，故沿用 1.6.4；113 已有 archive，
     //   不重用載貨號。納入 v0915a：同向快車將追上慢車時，提早回找有足夠煞車距離的車站待避。
-    marketing: '1.6.5', build: '117', music: true, metroCore: true, androidPlus: true,
-    why: '軌島 1.6.5\n\n• 即時動態島與跟車優化：iOS 動態島展開視圖及鎖定畫面跟車資訊卡新增「結束跟車」按鈕，快速退出追蹤更直覺。\n• 3D 視角穩定：跟隨列車時若微調旋轉視角，地圖會依您設定的視角持續跟隨，不再被系統強制定回正北。\n• Android 3D 顯示修復：修正部分 3D 列車與建築在 Android 上無法載入的問題。\n• 台鐵快慢車待避模擬精進：快車追越待避列車時，提前於進站號誌前平滑減速，避免劇烈急煞，動態更自然真實。\n• 搜尋與最愛體驗提升：解決搜尋縣市定位後點擊隨機列車卡住的問題，最愛車站清單操作與站名標籤顯示更穩定。\n• 系統穩定性修復與多項細節體驗打磨。',
-    whyEn: 'Rail Island 1.6.5\n\n• End Tracking button on Live Activities and Lock Screen\n• Follow camera stays locked to your custom angle\n• Fix loading of some 3D trains and buildings on Android\n• Smoother TRA station approach when being overtaken\n• Stability fixes for city search and station favorites\n• Performance and visual improvements',
-    whyJa: '軌島 1.6.5\n\n• ライブアクティビティ・追跡操作の改善：iOS のダイナミックアイランド展開表示およびロック画面の列車追跡カードに「追跡終了」ボタンを追加し、より直感的に追跡を解除できるようになりました。\n• 3D カメラ角度の維持：列車追跡中に回転させたカメラの視角を維持したまま追従を継続。自動的に北向きへ戻されることがなくなりました。\n• Android の 3D 表示修正：一部の 3D 列車や建物が読み込めない問題を修正しました。\n• 台鉄（TRA）待避シミュレーションの向上：上位列車による追越し待避時、駅手前の信号機手前から余裕を持ってスムーズに減速。急ブレーキ感を解消し、より自然な挙動を再現しました。\n• 検索・お気に入り機能の安定性向上：都市検索後のランダム列車追跡時に画面が固まる問題を修正。お気に入り駅の操作性と駅名ラベルの視認性を改善しました。\n• その他、細かな表示調整およびパフォーマンスの向上を行いました。',
+    // 118／Android 56（2026-09-19）：Apple lookup 與 Play 實查線上都是 1.6.5 ⇒ 1.6.5 train 已關，行銷版號進到 1.6.6。
+    //   Archives 最新是 1.6.5 (117)、桌面最新 AAB 是 55 ⇒ 規則四進 118／56。載貨＝網站 v0919e（含 iOS 27 UIScene 修正 541719e4／0a39ac93）。
+    //   why 三語只寫 v0916c（117 的網頁層）之後的更新紀錄：英日補翻、台鐵不超極速＋待避交會安全間隔、DR1000 支線、
+    //   捷運班表（8/31 改點與接車修正）、附近車站收合、暗色關閉鈕與半透明開關、Android 地景與雙看板。
+    //   英文受 Play 500 字元上限（494），所以把暗色與 Android 併成一條。
+    marketing: '1.6.6', build: '118', music: true, metroCore: true, androidPlus: true,
+    why: '軌島 1.6.6\n\n• 英文、日文介面補上漏翻的按鈕、路線名與提示，切換語言不再殘留前一種語言；車站看板太長的字改成兩行，不再被切掉。\n• 台鐵列車在地圖上不再超過車種極速；待避與對向交會保留安全間隔，同一條軌道上互相穿過的情況更少。\n• 平溪、深澳、集集、內灣線改照 DR1000 柴油客車的加減速、極速與介紹。\n• 捷運班表修正：淡水信義線換成 8/31 改點後的官方時刻，機捷、中和新蘆線、環狀線與輕軌補回漏掉或接錯的班次。\n• 「附近車站」清單點空白處或往下滑就能收起；開著車站卡或列車卡也能進觀看設定。\n• 暗色模式下卡片的關閉鈕看得見了，「面板半透明」開關恢復作用。\n• Android：地景地圖的立體列車不再消失；雙看板小工具字放大，依卡片高度多列幾班。',
+    whyEn: 'Rail Island 1.6.6\n\n• English and Japanese: remaining Chinese buttons, line names and messages are translated; switching languages no longer leaves text behind\n• TRA trains no longer exceed their top speed and keep a safety margin when passing or meeting\n• Pingxi, Shen’ao, Jiji and Neiwan lines use DR1000 diesel performance\n• Timetable fixes for Tamsui–Xinyi, Airport, Zhonghe–Xinlu, Circular and light rail\n• Tap the map or swipe down to close Nearby stations\n• Dark mode and Android 3D fixes',
+    whyJa: '軌島 1.6.6\n\n• 英語・日本語表示で中国語のまま残っていたボタン、路線名、メッセージを翻訳し、言語を切り替えても前の言語が残らなくなりました。駅の案内板で長い文字は2行で表示します。\n• 台鉄の列車が地図上で車種の最高速度を超えなくなり、待避や行き違いで安全間隔を保つようになりました。\n• 平渓・深澳・集集・内湾線は DR1000 気動車の加減速・最高速度・紹介に変更。\n• MRT 時刻表の修正：淡水信義線を8/31改正後の公式時刻に更新し、空港MRT・中和新蘆線・環状線・ライトレールの抜けや接続違いの便を修正。\n• 「近くの駅」は地図の空白部分をタップするか下にスワイプで閉じられます。\n• ダークモードでカードの閉じるボタンが見え、「パネルを半透明にする」も効くようになりました。\n• Android：地形表示で3D列車が消える問題を修正。',
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
   // 軌島通行證客端功能、雲端同步與伺服器付費牆。這顆不可選去正式送審；正式版必須另推 build 號，
