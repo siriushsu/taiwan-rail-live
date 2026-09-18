@@ -2248,36 +2248,6 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '環狀線': 'Circular Line'
 });
 
-// 2026-09-19 硬編中文審計修復 任務項目4(續):CURATED_NOTICES 陣列本身的 title/desc/sysLabel。
-// 這批是純靜態字面值(desc 雖用 + 串接跨行,但串接的每一段都是字面字串、無執行期變數),
-// render 端(renderAlertBanner/renderAlertDetail)本來就有呼叫 t(a.title)/t(a.desc)/t(a.sysLabel)，
-// 差的只是字典沒有對應 key——不需要像另外四個函式那樣改寫成模板，直接補上完整串接後的整句 key 即可。
-Object.assign(window.RAIL_I18N_MESSAGES.en, {
-  '信義東延段 8/30 14 時通車:淡水信義線新增終點站廣慈/奉天宮': 'Xinyi extension opens 14:00 on 8/30: Tamsui-Xinyi line gets a new terminus at Guangci/Fengtian Temple',
-  '淡水信義線營運端點由象山延伸至廣慈/奉天宮站,8 月 30 日 13 時 50 分開放旅客進站、14 時發出首班列車。地圖上這一站與新路段我已經先畫出來,線形取自 OSM;官方即時到站資料要等通車後才會帶到這一站,在那之前這一段不會有列車、車站倒數也還沒有,通車後會自動跟上。8 月 30 日至 9 月 28 日行經新通車區間(象山站至廣慈/奉天宮站)不計票價。以官方公告為準。':
-    "The Tamsui-Xinyi line's operating terminus extends from Xiangshan to Guangci/Fengtian Temple station: the station opens to passengers at 13:50 on 30 August, with the first train departing at 14:00. I've already drawn this station and the new section on the map, with alignment taken from OSM; official live arrival data won't reach this station until the line opens, so until then this section shows no trains and the station has no countdown — it will catch up automatically once service starts. Travel through the newly opened section (Xiangshan to Guangci/Fengtian Temple) is fare-free from 30 August to 28 September. Follow official announcements for the latest.",
-  '9/7-9/10 台中車站軌道大修:部分列車調整': '9/7-9/10: Major track renewal at Taichung Station — some trains adjusted',
-  '台中車站南下月台軌進行軌道大修,9 月 7 日至 10 日全日限速 70 公里。9 月 7 日至 9 日 T333 次彰化發車延誤 2~4 分鐘,抵達雲林、嘉義預估延誤 1~3 分鐘;9 月 7 日至 10 日 T565、T567 次台中車站改停西月台。地圖上的高鐵列車走的是官方時刻表,這幾天這幾班的實際時間會與畫面略有出入。以官方公告為準。':
-    'Major track renewal on Taichung Station\'s southbound platform track runs all day with a 70 km/h speed limit from 7 to 10 September. From 7 to 9 September, train T333 departs Changhua 2-4 minutes late, arriving in Yunlin and Chiayi an estimated 1-3 minutes late; from 7 to 10 September, trains T565 and T567 use Taichung Station\'s west platform instead. HSR trains on the map follow the official timetable, so actual times for these trains may differ slightly from what\'s shown these few days. Follow official announcements for the latest.',
-  '三鶯線 9/1 起正式收費,免費試營運結束': 'Sanying Line starts charging fares from 9/1 — free trial period ends',
-  '三鶯線自 9 月 1 日起正式收費營運,票價採階梯費率,起程 20 元、最高 35 元;同步發售每卡 60 元的「三鶯線一日票」,限購票當日營業時間內不限次數進出三鶯線各站。正式營運後的首末班時間官方尚未公告,地圖上這條線目前仍照試營運時段(6 時至 24 時)推算,官方公布後我會更新。以官方公告為準。':
-    "The Sanying Line starts charging fares from 1 September, with tiered pricing from NT$20 up to NT$35. A NT$60 one-day Sanying Line pass is also on sale, valid for unlimited rides on Sanying Line stations within the day of purchase during operating hours. Official first and last train times after the change to regular service haven't been announced yet, so the map still estimates this line on the trial-period schedule (06:00 to 24:00) for now — I'll update it once the official times are out. Follow official announcements for the latest.",
-  '新北捷運三鶯線': 'New Taipei Metro Sanying Line'
-});
-
-Object.assign(window.RAIL_I18N_MESSAGES.ja, {
-  '信義東延段 8/30 14 時通車:淡水信義線新增終點站廣慈/奉天宮': '信義東延伸区間が8/30 14時開通:淡水信義線に新終点「廣慈／奉天宮」が加わります',
-  '淡水信義線營運端點由象山延伸至廣慈/奉天宮站,8 月 30 日 13 時 50 分開放旅客進站、14 時發出首班列車。地圖上這一站與新路段我已經先畫出來,線形取自 OSM;官方即時到站資料要等通車後才會帶到這一站,在那之前這一段不會有列車、車站倒數也還沒有,通車後會自動跟上。8 月 30 日至 9 月 28 日行經新通車區間(象山站至廣慈/奉天宮站)不計票價。以官方公告為準。':
-    '淡水信義線の営業終点が象山駅から廣慈／奉天宮駅まで延伸します。8月30日13時50分に改札を開放し、14時に始発列車が発車します。この駅と新区間は地図上にOSM由来の線形で先行して描いていますが、公式のリアルタイム到着データは開通後にこの駅まで届くようになるため、それまでこの区間に列車は表示されず、駅の到着秒数もまだ出ません。開通後は自動的に反映されます。8月30日から9月28日までは新規開通区間(象山駅〜廣慈／奉天宮駅)の運賃が無料です。詳細は公式発表をご確認ください。',
-  '9/7-9/10 台中車站軌道大修:部分列車調整': '9/7〜9/10 台中駅で軌道大規模改修:一部列車のダイヤを調整',
-  '台中車站南下月台軌進行軌道大修,9 月 7 日至 10 日全日限速 70 公里。9 月 7 日至 9 日 T333 次彰化發車延誤 2~4 分鐘,抵達雲林、嘉義預估延誤 1~3 分鐘;9 月 7 日至 10 日 T565、T567 次台中車站改停西月台。地圖上的高鐵列車走的是官方時刻表,這幾天這幾班的實際時間會與畫面略有出入。以官方公告為準。':
-    '台中駅下り線ホーム軌道で軌道大規模改修が行われ、9月7日から10日まで終日70km/h制限となります。9月7日から9日はT333列車が彰化発2〜4分遅れ、雲林・嘉義への到着も1〜3分程度遅れる見込みです。9月7日から10日はT565・T567列車が台中駅の西側ホームに変更されます。地図上の高鐵列車は公式時刻表どおりに走らせているため、この期間はこれらの列車の実際の時刻が画面と多少ずれることがあります。詳細は公式発表をご確認ください。',
-  '三鶯線 9/1 起正式收費,免費試營運結束': '三鶯線が9/1から正式に運賃徴収開始、無料試験運行終了',
-  '三鶯線自 9 月 1 日起正式收費營運,票價採階梯費率,起程 20 元、最高 35 元;同步發售每卡 60 元的「三鶯線一日票」,限購票當日營業時間內不限次數進出三鶯線各站。正式營運後的首末班時間官方尚未公告,地圖上這條線目前仍照試營運時段(6 時至 24 時)推算,官方公布後我會更新。以官方公告為準。':
-    '三鶯線は9月1日から正式に運賃を徴収します。運賃は距離に応じた階段制で、初乗り20元・最大35元です。あわせて1枚60元の「三鶯線一日券」も発売され、購入当日の営業時間内であれば三鶯線内の各駅を回数無制限で利用できます。正式営業開始後の始発・終発時刻は公式にまだ発表されていないため、地図では引き続き試験運行時の運行時間帯(6時〜24時)で推定しています。公式発表があり次第更新します。詳細は公式発表をご確認ください。',
-  '新北捷運三鶯線': '新北捷運三鶯線'
-});
-
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '官方到站看板倒數與時刻表大幅不符': '公式到着案内のカウントダウンが時刻表と大きく異なっています',
   '官方看板各站到站時間彼此矛盾': '公式案内の各駅到着時刻が互いに矛盾しています',
