@@ -16,6 +16,13 @@ const server = createServer((req, res) => {
 });
 await new Promise(resolve => server.listen(PORT, '127.0.0.1', resolve));
 
+// 釘死的日期會隨台鐵 14 天班表窗滾出去（原寫死 09-15，而 6563 只在 09-15 開；09-18 重抓後整支結構性紅）。
+// 改用台北今天（OVERTAKE_DATE 可覆寫）；指名的那對車不在窗內時，改從產品自己排出的待避裡挑同方向替身，
+// 挑到誰一律印出來。順向待避不是天天都有（09-18、09-21 產品整天只排出反向），所以從起始日往後逐日找
+// 第一個「兩個方向都有案例」的日子來驗；班表窗 14 天內都找不到才 FAIL。指定 OVERTAKE_DATE 則只驗那天。
+const DAY = process.env.OVERTAKE_DATE || new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10);
+const SCAN = process.env.OVERTAKE_DATE ? 1 : 14;
+const addDays = (d, n) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 864e5).toISOString().slice(0, 10);
 const failures = [];
 const ok = (engine, name, pass, detail = '') => {
   console.log(`${pass ? 'PASS' : 'FAIL'} ${engine} ${name}${detail ? ` — ${detail}` : ''}`);
@@ -23,22 +30,45 @@ const ok = (engine, name, pass, detail = '') => {
 };
 
 for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
-  const browser = await launcher.launch();
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: 'zh-TW' });
-  const page = await context.newPage(), errors = [];
+  const browser = await launcher.launch(), errors = [];
+  let context, report, usedDay;
+  for (let i = 0; i < SCAN; i++) {
+  usedDay = addDays(DAY, i);
+  context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: 'zh-TW' });
+  const page = await context.newPage();
   page.on('pageerror', e => errors.push(e.message));
   await page.route('**/*tra-live*', r => r.abort());
-  await page.addInitScript(() => {
+  await page.addInitScript(day => {
     localStorage.setItem('trainmap-howto-seen', '1');
-    const NativeDate = Date, fixed = new NativeDate('2026-09-15T07:43:00+08:00').getTime();
+    const NativeDate = Date, fixed = new NativeDate(`${day}T07:43:00+08:00`).getTime();
     window.Date = class extends NativeDate { constructor(...args) { super(...(args.length ? args : [fixed])); } static now() { return fixed; } };
-  });
+  }, usedDay);
   await page.goto(`http://127.0.0.1:${PORT}/?g=tra&t=07:43`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
   await page.waitForFunction(() => typeof state !== 'undefined' && state.ready && state.trains?.length > 300, null, { timeout: 120_000 });
   await page.waitForFunction(() => !!window.railIslandPhysical, null, { timeout: 120_000 });
-  const report = await page.evaluate(() => {
+  report = await page.evaluate(() => {
     const train = no => state.trains.find(t => String(t.train) === no);
+    // 指名那對在窗內就用它；否則挑同方向、有預排待避且超越車在場的第一組（依車次排序，結果可重現）
+    const pick = (leaderNo, followerNo, station, dir) => {
+      const leader = train(leaderNo), wait = leader?.stops.find(s => s.name === station && s._plannedDwell);
+      if (leader && train(followerNo) && wait) return { leaderNo, followerNo, station, substitute: false };
+      const cands = [];
+      for (const t of state.trains) for (const s of t.stops)
+        if (s._plannedDwell && s._overtakeBy && Math.sign(s.dB - s.dA) === dir && train(String(s._overtakeBy)))
+          cands.push({ leaderNo: String(t.train), followerNo: String(s._overtakeBy), station: s.name, substitute: true });
+      cands.sort((a, b) => a.leaderNo.localeCompare(b.leaderNo, 'en', { numeric: true }) || a.station.localeCompare(b.station));
+      return cands[0] || null;
+    };
     const inspect = (leaderNo, followerNo, station, dir) => {
+      const chosen = pick(leaderNo, followerNo, station, dir);
+      if (!chosen) {
+        const planned = { '1': 0, '-1': 0, '0': 0 }, byOk = { '1': 0, '-1': 0, '0': 0 };
+        for (const t of state.trains) for (const s of t.stops) if (s._plannedDwell) {
+          const d = String(Math.sign(s.dB - s.dA) || 0); planned[d]++; if (s._overtakeBy && train(String(s._overtakeBy))) byOk[d]++;
+        }
+        return { missing: true, planned, withOvertaker: byOk, trains: state.trains.length, sched: state.data?._schedDay };
+      }
+      ({ leaderNo, followerNo, station } = chosen);
       const leader = train(leaderNo), follower = train(followerNo), wait = leader?.stops.find(s => s.name === station && s._plannedDwell);
       if (!leader || !follower || !wait) return { missing: true };
       const followerAt = follower.stops.find(s => s.name === station), mid = (wait.arrSec + wait.depSec) / 2;
@@ -62,7 +92,7 @@ for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
         }
         prev = { p, t };
       }
-      return { missing: false, station: wait.name, stopFlag: wait.stop, by: wait._overtakeBy,
+      return { missing: false, pair: `${leaderNo}／${followerNo}`, substitute: chosen.substitute, station: wait.name, stopFlag: wait.stop, by: wait._overtakeBy,
         dwellSec: wait.depSec - wait.arrSec, clearance: wait.depSec - followerAt.depSec,
         brakingLead: followerAt.arrSec - wait.arrSec, required: OVERTAKE_CLEAR_SEC + resolvePerf(leader).v / resolvePerf(leader).b,
         same, physical: samples.every(p => p?.physical), binding: railIslandPhysical.record(leader)?.bindingBasis,
@@ -71,8 +101,14 @@ for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
     return { build: BUILD, day: state.data?._schedDay, planned: state._meetStats?.planned,
       forward: inspect('6563', '207', '崇德', 1), reverse: inspect('114', '228', '五堵', -1) };
   });
-  for (const [name, row] of [['順向 6563／207', report.forward], ['反向 114／228', report.reverse]]) {
-    ok(engine, `${name} 有預排待避`, !row.missing, JSON.stringify(row));
+  if ((!report.forward.missing && !report.reverse.missing) || i === SCAN - 1) break;
+  console.log(`  ${engine} ${usedDay} 缺${report.forward.missing ? '順向' : ''}${report.reverse.missing ? '反向' : ''}案例，往後一天`);
+  await context.close();
+  }
+  console.log(`${engine} 驗收日 ${usedDay}（排程日 ${report.day}）`);
+  for (const [dirName, row] of [['順向', report.forward], ['反向', report.reverse]]) {
+    const name = `${dirName} ${row.pair || '(無)'}${row.substitute ? '(替身)' : ''}`;
+    ok(engine, `${dirName} 有預排待避`, !row.missing, JSON.stringify(row));
     if (row.missing) continue;
     ok(engine, `${name} 回找的站留足煞車時間`, row.brakingLead >= row.required, `${row.brakingLead.toFixed(1)}s ≥ ${row.required.toFixed(1)}s`);
     ok(engine, `${name} 後車清站 30 秒才放行`, Math.abs(row.clearance - 30) < .01, `${row.clearance.toFixed(3)}s`);
