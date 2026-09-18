@@ -3928,7 +3928,13 @@
     .xing-card .xc-head { padding: 6px 8px 6px 10px; gap: 7px; }
     .xing-card .xc-ttl b { font-size: calc(14px * var(--ui)); }
     .xing-card .xc-meta { font-size: calc(10px * var(--uis)); }
-    .xing-card .xc-close { font-size: calc(14px * var(--ui)); }
+    .xing-card .xc-close { font-size: calc(14px * var(--ui)); position: relative; }
+    /* ✕ 的觸控目標撐到 44px(手指最小目標),但視覺大小與位置完全不變——用 ::after 開一塊透明
+       命中區,不動 padding/margin 就不會推到標題列的版位。附近車站卡在手機是底部 sheet,
+       這顆 20×18px 的 ✕ 原本是唯一的出口,太小按不準正是「關不掉」的一半原因。
+       高度只取 30px(不是 44):標題列本身才 42px 高,再高就會蓋到清單第一列右緣的距離數字,
+       把「點第一站」變成「關掉卡片」——那是拿一個誤觸換另一個誤觸。 */
+    .xing-card .xc-close::after { content: ""; position: absolute; left: 50%; top: 50%; width: 44px; height: 30px; transform: translate(-50%, -50%); }
     .xing-card .xc-row { padding: 5px 10px; font-size: calc(11.5px * var(--uis)); gap: 6px; }
     .xing-card .xc-no { min-width: 34px; }
     .xing-card .xc-kind { display: none; }
@@ -5462,6 +5468,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="neardismiss0918"><span class="d">9/18</span><span>「附近車站」清單多了兩個關法：點地圖空白處、或把卡片往下滑，不必先選一站才收得掉</span></li>
         <li data-cl-of="favstangeo0916"><span class="d">9/16</span><span>最愛車站星號整合至站名標籤避免遮蔽文字，傾斜跟車時自動隱藏定位藍圈維持純淨視角</span></li>
         <li data-cl-of="followrotate0916"><span class="d">9/16</span><span>跟車轉動視角維持鎖定不中斷，並修正開啟車頭朝上時列車在轉彎處跑出畫面外的問題</span></li>
         <li data-cl-of="citynav0916"><span class="d">9/16</span><span>選取縣市或搜尋車站後自動解除定位跟隨，避免地圖鏡頭隨即跳回所在地點</span></li>
@@ -5469,7 +5476,6 @@
         <li data-cl-of="fullformations0914"><span class="d">9/14</span><span>所有列車都可顯示完整編組；區間車、莒光與觀光列車等資料不足的班次顯示推估車廂數，並清楚標示推估</span></li>
         <li data-cl-of="remainingtracks0913"><span class="d">9/14</span><span>台鐵列車互穿再減少：補回 97 站的站區股道，雙線區間依行車方向分股行駛，台北–萬華地下段不再兩向共用同一條軌道，並改善單線會車判斷</span></li>
         <li data-cl-of="viewcontrols0914"><span class="d">9/14</span><span>觀看設定移到網站右側；手機可按「觀看」切換視角、地圖與列車設定，沉浸模式也能隨時重新開啟；修正地形切換時橋墩閃現與遠景列車大小設定未生效</span></li>
-        <li data-cl-of="viewguide0914"><span class="d">9/14</span><span>地圖俯視與傾斜切換更平順，新增車站與地標導覽；放大跟車時保留車頭與手機操作空間</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5647,6 +5653,7 @@
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
         <li data-cl="followrotate0916"><span class="d">9/16</span><span>跟車轉動視角維持鎖定不中斷，並修正開啟車頭朝上時列車在轉彎處跑出畫面外的問題</span></li>
+        <li data-cl="neardismiss0918"><span class="d">9/18</span><span>「附近車站」清單原本只有標題列那顆小小的 ✕ 關得掉，點地圖空白處或往下滑都沒反應，只能先點一站才收得起來；現在點空白處、往下滑都會收起來，✕ 的可按範圍也放大了</span></li>
         <li data-cl="citynav0916"><span class="d">9/16</span><span>選取縣市或搜尋車站後自動解除所在地鏡頭跟隨，避免地圖剛飛過去又隨即跳回使用者目前的定位點</span></li>
         <li data-cl="xfercollapse0911"><span class="d">9/11</span><span>跟車卡的轉乘接續可以收起來：預設收成一行，只留最近一班的車次與剩下幾分鐘，點一下才展開第二班與註記。展開或收合會記住，跟車卡、捷運卡與手機列車卡三處一起換。</span></li>
         <li data-cl="busstop0911"><span class="d">9/11</span><span>搜尋框找得到全台公車站牌，點進去就是這個站牌每條路線的到站時間；臺北市的資料直接取自市府開放資料，其餘縣市取自 TDX，沒有即時資料的路線會照實說明而不是用班表假裝</span></li>
@@ -28656,6 +28663,10 @@ function stepSheetSize(el, direction) {
   // 同上:回瀏覽態並展開到中段(不寫入全站段高偏好)
   if (el.id === 'searchPanel' && document.body.classList.contains('search-open')) { if (direction < 0) { setSearchTyping(false); applySheetSize(el, 'medium'); } return; }
   const i = SHEET_SIZES.indexOf(sheetSizeOf(el));
+  // 已經在最小段還往下滑 ⇒ 收起附近車站卡。手機的 sheet 一律「下滑＝丟掉」,原本這裡在邊界直接不動作,
+  // 使用者下滑兩次看它縮一下就不動了,只會更確定「關不掉」(2026-09-18 回報)。只給附近車站卡:
+  // 看板/護照/查詢那幾張各自有開關記憶與 tab 選中態,把它們一起改成下滑即關是另一件事。
+  if (direction < 0 && i === 0 && el.id === 'nearCard') { closeNearbyStations(); return; }
   setSheetSize(el, SHEET_SIZES[Math.max(0, Math.min(SHEET_SIZES.length - 1, i + direction))]);
 }
 // 抓把/標題列的點擊(循環)與拖曳(相鄰 snap);只在標題列頂區觸發,不攔內容捲動與按鈕
@@ -35056,20 +35067,14 @@ async function boot() {
   //     捷運模式的跟車卡是 #freqCard、不吃 uniCollapse,所以捷運一律走這條——原本整個空白點擊是 no-op。
   //     🔴 走 closeBoard() 而不是自己藏 el:它會 unmountUniCard、清 boardStation、並經 updateSheetOpenClass
   //     觸發 invalidateMapInsets/reframeFocus ⇒ 「列車或車站置中不被卡片擋住」那套讓位會跟著重算。
+  //  ③ 附近車站卡吃同一條規則(2026-09-18 使用者回報「按定位跳出附近車站就關不掉,只能選車站」):
+  //     它跟看板一樣是蓋住地圖的清單卡,使用者的直覺出口就是點旁邊的地圖。原本只有看板收、它不收,
+  //     所以唯一走得通的出路變成「點一站」——點了開看板,看板點空白處收得掉,於是看起來像「選車站才關得掉」。
+  //     放在 closeBoard() 之前:兩張卡在手機是互斥的(soloPanel),桌面則可能同時開著,兩張都該收。
   function tapBlank() {
     if (uniCollapse()) return;
-    const bd = document.getElementById('board');
-    if (bd && !bd.hidden) closeBoard();
-  }
-  // 點到真的空白處(車/站/平交道/記號全部沒命中)的統一收尾。兩條分支:
-  //  ① 跟車中的手機整合卡 ⇒ 維持設計 1a:卡片收成膠囊、跟車不斷(uniCollapse 自己會把看板一併收起,
-  //     innerHTML 與 state.boardStation 都留著,點膠囊展開回得去)。
-  //  ② 其餘情形 ⇒ 車站看板開著就關掉(使用者要求:看板開著時點地圖空白處要把它收掉)。
-  //     捷運模式的跟車卡是 #freqCard、不吃 uniCollapse,所以捷運一律走這條——原本整個空白點擊是 no-op。
-  //     🔴 走 closeBoard() 而不是自己藏 el:它會 unmountUniCard、清 boardStation、並經 updateSheetOpenClass
-  //     觸發 invalidateMapInsets/reframeFocus ⇒ 「列車或車站置中不被卡片擋住」那套讓位會跟著重算。
-  function tapBlank() {
-    if (uniCollapse()) return;
+    const nc = document.getElementById('nearCard');
+    if (nc && !nc.hidden) closeNearbyStations();
     const bd = document.getElementById('board');
     if (bd && !bd.hidden) closeBoard();
   }
