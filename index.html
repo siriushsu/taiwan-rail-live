@@ -10790,11 +10790,11 @@ function inferMeetRun(tr, s, k0, k1, xk, perf, zoneCls, at, shareDay, single, st
           const q = idx(y.nextStop, j + 1, k1);
           if (q > 0 && s[q].arrSec < y.nextArr && y.dep - m < hiWait) { hiWait = y.dep - m; whyHiWait = '待避 ' + y.k; }
         }
-        if (y.prev === N && y.prevStop && tp < y.arr) {                                            // 對向:Y 從 N 來
+        if (y.prev === N && y.prevStop && tp < y.arr + m) {                                              // 對向:Y 從 N 來
           let r = idx(y.prevStop, j + 1, k1); const exact = r > 0; if (!exact) r = k1;
           if (conflictOn(j, r, y.arr, y.prevDep, exact) && y.arr + m > lo) { lo = y.arr + m; whyLo = '交會(等它到) ' + y.k; }
         }
-        if (y.next === P && y.nextStop && tp > y.dep) {                                            // 對向:Y 往 P 去
+        if (y.next === P && y.nextStop && tp > y.dep - m) {                                              // 對向:Y 往 P 去
           let r = -1; for (let i = j - 1; i >= k0; i--) if (s[i].name === y.nextStop) { r = i; break; }
           const exact = r >= 0; if (!exact) r = k0;
           if (conflictOn(r, j, y.nextArr, y.dep, exact) && y.dep - m < hiMeet) { hiMeet = y.dep - m; whyHiMeet = '交會(趕它開) ' + y.k; }
