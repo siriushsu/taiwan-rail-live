@@ -133,6 +133,18 @@ try {
     chk('D1 英文分節標題', (await pg.locator('#body h2').first().textContent()) === 'Only during these days');
     chk('D2 中文來源有標記', (await pg.locator('#body').textContent()).includes('Chinese source'));
     chk('D3 html lang 跟著換', (await pg.evaluate(() => document.documentElement.lang)) === 'en');
+    // 期間名是 API 給的中文分類，外語標題以前原樣照貼(「本週末 · Rail Events This Weekend」，2026-09-19)
+    chk('D5 英文標題連期間名也翻', (await pg.locator('#h1').textContent()) === 'This weekend · Rail events');
+    await ctx.close();
+  }
+  {
+    const { ctx, pg } = await open(browser, { lang: 'ja', payload: { ...PAYLOAD, span: { ...PAYLOAD.span, label: '光復節連假' } } });
+    chk('D6 日文「節日＋連假」組得出來', (await pg.locator('#h1').textContent()) === '光復節の連休 · 鉄道イベント');
+    await ctx.close();
+  }
+  {
+    const { ctx, pg } = await open(browser, { lang: 'en', payload: { ...PAYLOAD, span: { ...PAYLOAD.span, label: '新節日連假' } } });
+    chk('D7 查不到的節日退回中文原字，不編譯名', (await pg.locator('#h1').textContent()) === '新節日連假 · Rail events');
     await ctx.close();
   }
   {

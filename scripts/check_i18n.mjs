@@ -261,7 +261,7 @@ const { METRO_OFFICIAL = [] } = evaluateConstBlock('const METRO_OFFICIAL =', 'fu
 for (const source of Object.values(STATION_INTRO)) for (const lang of languages) {
   if (!keySets[lang]?.has(source)) fail(`特色車站缺少 ${lang}：${source}`);
 }
-for (const achievement of ACHIEVEMENTS) for (const source of [achievement.name, achievement.desc]) for (const lang of languages) {
+for (const achievement of ACHIEVEMENTS) for (const source of [achievement.name, achievement.desc, achievement.how].filter(Boolean)) for (const lang of languages) {
   if (!keySets[lang]?.has(source)) fail(`成就「${achievement.id}」缺少 ${lang}：${source}`);
 }
 const metadataSources = [
@@ -443,6 +443,53 @@ for (const name of dynamicRenderers) {
     fail(`${name} 第 ${index + 1} 行仍有未包 t() 的核心 DOM 中文：${code.trim()}`);
   });
 }
+
+// ── 任務項目5:整個 inline <script> 內容裡「裸中文直接流入」互動/DOM sink ──────────────
+// 上面的 dynamicRenderers 只掃固定的三十幾個具名函式清單；旗標關閉的功能(懸賞板 BOUNTY_ENABLED、
+// 收集地圖 COLLECT_MAP_ENABLED、各種 demo 模式)平常不會被那份白名單掃到——旗標關掉不代表可以
+// 中文，旗標打開的那天不能突然變成沒翻譯，所以需要一份不管中文出現在哪個函式裡、只要流進
+// 這幾個 sink 就算的全文掃描。sink 定死 8 種：4 個直接呼叫 + 4 個屬性右值賦值(含 += 的累加寫法)。
+// 只掃 index.html 自己的 inline <script>，不含 src="..." 外部檔(那些檔案的 runtime key 覆蓋率
+// 已由上面 literalKeys 那段涵蓋，是不同維度的檢查)。
+// 註解(單行 // 與區塊 /* */)與 console.* 呼叫不算數；逐行豁免寫法：行尾加
+// `// i18n-literal-ok: 理由`（計數並印出，不計入失敗——真的有合法例外時才用，不是拿來關燈）。
+const scriptBlocks = [...indexSource.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)];
+if (!scriptBlocks.length) fail('sink 全文掃描找不到任何 inline <script> 區塊——掃描空轉');
+const sinkPattern = /\b(?:showToast|confirm|alert|prompt)\s*\(|\.(?:textContent|innerText|title|placeholder)\s*\+?=(?!=)/;
+let literalOkCount = 0;
+for (const block of scriptBlocks) {
+  const startLine = indexSource.slice(0, block.index).split('\n').length;
+  const lines = block[1].split('\n');
+  let inBlockComment = false;
+  lines.forEach((rawLine, offset) => {
+    const lineNo = startLine + offset;
+    let line = rawLine;
+    if (inBlockComment) {
+      const end = line.indexOf('*/');
+      if (end < 0) return; // 整行仍在跨行區塊註解裡
+      line = line.slice(end + 2);
+      inBlockComment = false;
+    }
+    // 這一行裡出現的 /* ... */ 先摘掉；若這一行只開了頭沒結束，剩餘部分整段當註解、狀態延續到下一行。
+    while (true) {
+      const bs = line.indexOf('/*');
+      if (bs < 0) break;
+      const be = line.indexOf('*/', bs + 2);
+      if (be < 0) { line = line.slice(0, bs); inBlockComment = true; break; }
+      line = line.slice(0, bs) + line.slice(be + 2);
+    }
+    const hasExemptTag = /\/\/\s*i18n-literal-ok:/.test(line);
+    // console.* 呼叫本身不算 sink：把單行內的 console.xxx(...) 呼叫先挖掉，避免例如
+    // console.error(...) 裡剛好同時出現中文與巧合字樣時誤判。
+    const codeOnly = line.replace(/\/\/.*$/, '').replace(/\bconsole\s*\.\s*\w+\s*\([^;]*\)\s*;?/g, '');
+    if (!/[㐀-鿿]/.test(codeOnly)) return;
+    if (!sinkPattern.test(codeOnly)) return;
+    if (/\bt\s*\(/.test(codeOnly)) return; // 已經包 t()——是否漏字典由上面的 runtime key 覆蓋率負責，這裡只管「有沒有包」
+    if (hasExemptTag) { literalOkCount++; return; }
+    fail(`index.html 第 ${lineNo} 行（script 全文掃描）疑似裸中文直接流入 sink，未包 t() 也沒有 i18n-literal-ok 豁免：${codeOnly.trim()}`);
+  });
+}
+console.log(`sink 全文掃描：${literalOkCount} 處使用 i18n-literal-ok 豁免。`);
 
 if (failures.length) {
   console.error(`i18n 稽核失敗（${failures.length} 項）`);

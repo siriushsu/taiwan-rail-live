@@ -2344,10 +2344,12 @@
   html[data-fs=large] .board .row[data-no] .lateTag,
   html[data-fs=large] .board .row[data-no] .estTag { grid-area: late; justify-self: start; align-self: center; }
   /* 兩行版有橫向餘裕,誤點寫完整的「誤點 N 分」(設計 6b),不必再用 +N 這種省略寫法。
-     用 attr() 換字樣而不動 DOM:標準檔那顆徽章的文字節點原封不動,零變化對照才守得住。 */
+     用 attr() 換字樣而不動 DOM:標準檔那顆徽章的文字節點原封不動,零變化對照才守得住。
+     字樣取 data-full(列產生時用 t() 翻好寫進去)：原本把「誤點 」「 分」寫死在 content 裡，
+     英日文大字級一直顯示中文(2026-09-19)。 */
   html[data-fs=large] .board .row[data-no] .lateTag { font-size: 0; letter-spacing: 0; }
   html[data-fs=large] .board .row[data-no] .lateTag::after {
-    content: '誤點 ' attr(data-min) ' 分'; font-size: calc(11px * var(--uis)); letter-spacing: normal;
+    content: attr(data-full); font-size: calc(11px * var(--uis)); letter-spacing: normal;
   }
 
   html[data-fs=xlarge] .board .row[data-no] {
@@ -2448,6 +2450,22 @@
   .board .row b { color: var(--ink-strong); }
   .board .row .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; align-self: center; }
   .board .row .dest { flex: 1; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* 外語一列塞不下(2026-09-19 回報「車站資訊的字有些都被切到了」):英文的車種、線名常比中文長一倍，
+     實測 402px 寬英文台鐵板約三成的列「往哪裡」整個被擠到框外，捷運板把線名與車次擠成 0 寬
+     (日文少數幾站，中文只有台北車站的機捷那格)。boardAlignColumns 在單行版量到任何一格 .dest 被截，
+     就替那個容器掛 data-wrap2：.dest 改排到下一行、從主標底下開始、拿整列寬；主標吃掉第一行剩下的寬，
+     時刻/倒數/擁擠度照舊靠右成欄。整板一致、不逐列跳；放得下的板不掛旗標，幾何一格不動。
+     台鐵列(.row[data-no])在大/特大另有格線排法，這裡只接手它的標準檔。 */
+  :is(.board[data-wrap2], .board [data-wrap2]) .row:not([data-no]),
+  html:not([data-fs]) :is(.board[data-wrap2], .board [data-wrap2]) .row[data-no] { flex-wrap: wrap; row-gap: 1px; }
+  /* 主標 basis 0:只吃第一行剩下的寬、在自己框內換行。用 auto 的話它會拿整句自然寬去排行，
+     把時刻或倒數擠到下一行最左邊(英文機捷板「Arriving soon」實測就掉下去了)。 */
+  :is(.board[data-wrap2], .board [data-wrap2]) .row:not([data-no]) > b,
+  html:not([data-fs]) :is(.board[data-wrap2], .board [data-wrap2]) .row[data-no] > b { flex: 1 1 0%; }
+  :is(.board[data-wrap2], .board [data-wrap2]) .row:not([data-no]) > .dest,
+  html:not([data-fs]) :is(.board[data-wrap2], .board [data-wrap2]) .row[data-no] > .dest { order: 1; flex: 1 0 100%; }
+  :is(.board[data-wrap2], .board [data-wrap2]) .row:not([data-no]) > .dot ~ .dest,
+  html:not([data-fs]) :is(.board[data-wrap2], .board [data-wrap2]) .row[data-no] > .dot ~ .dest { padding-left: 16px; } /* 對齊主標:圓點 8＋間距 8 */
   .board .row .t, .board .row .min { font-variant-numeric: tabular-nums; }
   /* 時刻欄同樣鎖住:(a) flex:none——列擠不下時預設會壓縮 .t,要讓的是線名(.dest 有 ellipsis);
      (b) --t-col 由 boardAlignColumns 量出來。理由是 tabular-nums 只在字型真的有 tnum 時才生效,
@@ -2476,7 +2494,7 @@
      換成「即將進站／列車進站」——四個字擠掉同一列的車次與時刻。使用者裁示:「如果特大字的
      時候需要精簡,就精簡後面進站那邊」⇒ 特大時改用 data-soon 裡的短字。
      手法比照上面 lateTag 的 attr() 換字樣(不動 DOM ⇒ 標準/大字級的零變化對照守得住),
-     但短字是 boardAlignColumns 用 t() 產生後寫進屬性的,不像 lateTag 把中文寫死在 content 裡,
+     短字是 boardAlignColumns 用 t() 產生後寫進屬性的(lateTag 的 data-full 也是同一招),
      所以英日(Due／まもなく、Arriving／到着中)一樣吃得到。 */
   html[data-fs=xlarge] .board .row .min[data-soon] { font-size: 0; letter-spacing: 0; }
   html[data-fs=xlarge] .board .row .min[data-soon]::after {
@@ -5193,7 +5211,7 @@
         <div class="fp-ridebox-r"><span>到</span><select id="fpRideTo" aria-label="下車站"></select></div>
         <div class="fp-ridebox-r"><button id="fpRideGo" type="button">開始收集</button><button id="fpRideCancel" type="button">取消</button></div>
       </div>
-      <button class="fp-tripshare" id="fpTripShare" hidden>↗ 行程分享</button>
+      <button class="fp-tripshare" id="fpTripShare" hidden>↗ <span>行程分享</span></button>
     </div>
     <section class="bus-journey-panel" id="busJourneyPanel" aria-label="公車接續旅程" hidden>
       <div id="busJourneyRoot"></div>
@@ -6536,6 +6554,13 @@ let I18N_LANG = (() => {
 let I18N_CATALOG = { systems: {}, routes: {}, trainTypes: {} };
 const I18N_TEXT_SOURCE = new WeakMap();
 const I18N_ATTR_SOURCE = new WeakMap();
+// 本次開站以來 t() 實際產出過的外語整句 → 繁中原文。開機時直接把 t() 結果寫進 DOM 的地方
+// (setupPlusEntry 的「軌島通行證」、view-controls 的「其他設定」、accountBtnSlot 的「帳號同步」…)
+// 留下的是外語文字節點，i18nTranslateTree 拿它查字典查不到，下次換語言就整段卡在上一個語言
+// (2026-09-19 使用者回報：選了英文，通行證那列、「其他設定」、帳號同步仍是日文)。
+// 只收不帶 {變數} 的整句：插值句反推不回原文，那種一律由產生它的函式在 i18nRefreshDynamic 重畫。
+const I18N_PRODUCED = { en: new Map(), ja: new Map() };
+let I18N_PREV_LANG = null;
 document.documentElement.lang = I18N_LANG;
 
 function i18nLookup(source, lang = I18N_LANG) {
@@ -6551,6 +6576,8 @@ function t(source, vars = {}, count = vars.n) {
     const rule = new Intl.PluralRules(I18N_LANG).select(Number(count));
     value = value[rule] ?? value.other ?? fallback;
   }
+  const produced = I18N_PRODUCED[I18N_LANG];
+  if (produced && typeof value === 'string' && value !== fallback && !value.includes('{')) produced.set(value.trim(), fallback);
   return String(value).replace(/\{([\w]+)\}/g, (_, key) => {
     const replacement = vars[key];
     return replacement == null ? '' : String(replacement);
@@ -6584,6 +6611,31 @@ function i18nHasTranslation(source) {
   return Object.prototype.hasOwnProperty.call(I18N_MESSAGES.en || {}, source) ||
     Object.prototype.hasOwnProperty.call(I18N_MESSAGES.ja || {}, source);
 }
+// 外語整句 → 繁中原文。先查剛離開的那個語言（畫面上殘留的最可能是它），再查其他語言。
+function i18nProducedSource(text) {
+  for (const lang of [I18N_PREV_LANG, 'en', 'ja']) {
+    const key = lang && I18N_PRODUCED[lang] ? I18N_PRODUCED[lang].get(text) : null;
+    if (key != null) return key;
+  }
+  return null;
+}
+// 靜態 HTML 裡夾著會變的值的句子：字典存樣板，這裡把值抽出來代回去。
+// 「最後更新：2026/9/18」原本拿整句當 key，日期一換 key 就對不上，外語頁尾從那天起一直是中文。
+const I18N_TEXT_PATTERNS = [
+  { re: /^最後更新：(.+)$/, key: '最後更新：{date}', name: 'date' },
+];
+// 認出一段畫面文字的原文：繁中原文本身、t() 產出過的外語整句、或上面的樣板句。認不出來回 null。
+function i18nSourceOf(text) {
+  if (!text) return null;
+  if (i18nHasTranslation(text)) return { key: text };
+  const produced = i18nProducedSource(text);
+  if (produced != null) return { key: produced };
+  for (const p of I18N_TEXT_PATTERNS) {
+    const m = p.re.exec(text);
+    if (m && i18nHasTranslation(p.key)) return { key: p.key, vars: { [p.name]: m[1] } };
+  }
+  return null;
+}
 function i18nTranslateTree(root = document.body) {
   if (!root) return;
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
@@ -6592,31 +6644,33 @@ function i18nTranslateTree(root = document.body) {
     const parent = node.parentElement;
     if (!parent || /^(SCRIPT|STYLE|NOSCRIPT|TEXTAREA)$/.test(parent.tagName)) continue;
     let source = I18N_TEXT_SOURCE.get(node);
+    // 記下的原文只在「這個節點上次是我們寫的」時才算數；被別的程式就地改過字，就重新認一次，
+    // 認不出來就放手——不可以拿舊原文把別人剛寫的字蓋回去。
+    if (source && node.nodeValue !== source.rendered) source = null;
     if (source == null) {
       const raw = node.nodeValue || '', trimmed = raw.trim();
-      if (!trimmed || !i18nHasTranslation(trimmed)) continue;
-      source = { raw, text: trimmed };
+      const found = i18nSourceOf(trimmed);
+      if (!found) { I18N_TEXT_SOURCE.delete(node); continue; }
+      source = { raw, text: trimmed, key: found.key, vars: found.vars };
       I18N_TEXT_SOURCE.set(node, source);
     }
-    const translated = t(source.text);
-    node.nodeValue = source.raw.replace(source.text, translated);
+    node.nodeValue = source.raw.replace(source.text, t(source.key, source.vars));
+    source.rendered = node.nodeValue;
   }
   const elements = root.nodeType === 1 ? [root, ...root.querySelectorAll('*')] : [...root.querySelectorAll('*')];
   for (const el of elements) {
     let saved = I18N_ATTR_SOURCE.get(el);
-    if (!saved) { saved = {}; I18N_ATTR_SOURCE.set(el, saved); }
     for (const attr of ['title', 'aria-label', 'placeholder']) {
       if (!el.hasAttribute(attr)) continue;
-      if (!(attr in saved)) {
-        const source = el.getAttribute(attr);
-        if (!i18nHasTranslation(source)) continue;
-        saved[attr] = { source, rendered: source };
-      } else if (typeof saved[attr] === 'string') {
-        saved[attr] = { source: saved[attr], rendered: el.getAttribute(attr) };
+      const current = el.getAttribute(attr);
+      let record = saved && saved[attr];
+      if (!record || current !== record.rendered) {
+        const found = i18nSourceOf(current);
+        if (!found) { if (record) delete saved[attr]; continue; }
+        if (!saved) { saved = {}; I18N_ATTR_SOURCE.set(el, saved); }
+        record = saved[attr] = { key: found.key, vars: found.vars, rendered: current };
       }
-      const record = saved[attr], current = el.getAttribute(attr);
-      if (current !== record.rendered && current !== record.source && i18nHasTranslation(current)) record.source = current;
-      record.rendered = t(record.source);
+      record.rendered = t(record.key, record.vars);
       el.setAttribute(attr, record.rendered);
     }
   }
@@ -6630,7 +6684,9 @@ function i18nDisplayForeign(value) {
 function i18nCatalogValue(group, sysId, source) {
   if (I18N_LANG === 'zh-TW' || !source) return source || '';
   const table = I18N_CATALOG[group] || {};
-  const systems = sysId ? [sysId] : Object.keys(table);
+  // 捷運車站物件的 sys 是 'freq'／'deco'(畫法代碼，不是系統代碼)，索引裡沒有這種鍵；
+  // 查不到系統時改掃全部系統，不要直接退回繁中(公車接續卡的站名就是這樣一直是中文)。
+  const systems = sysId && table[sysId] ? [sysId] : Object.keys(table);
   const sources = [String(source)];
   // 官方到站看板會回「動物園站」，而靜態路網與官方譯名索引使用「動物園」。只在站名表
   // 額外試一次去掉尾端「站／車站」；精確名稱仍優先，查不到外語才安全退回原繁中。
@@ -6644,6 +6700,12 @@ function i18nCatalogValue(group, sysId, source) {
     const direct = sources.map(name => rows[name]).find(Boolean) ||
       Object.entries(rows).find(([name]) => wanted.has(i18nNormalizeName(name)))?.[1];
     if (direct && direct[I18N_LANG]) return i18nDisplayForeign(direct[I18N_LANG]);
+  }
+  // 分支線名「中和新蘆線（迴龍）」：索引只有線名與站名，兩段各自翻好再組回去。
+  const branch = group === 'routes' && !i18nHasTranslation(String(source)) && /^(.+?)（([^（）]+)）$/.exec(String(source).trim());
+  if (branch) {
+    const base = i18nCatalogValue('routes', sysId, branch[1]), place = i18nCatalogValue('systems', sysId, branch[2]);
+    if (base !== branch[1] || place !== branch[2]) return I18N_LANG === 'ja' ? `${base}（${place}）` : `${base} (${place})`;
   }
   return t(source);
 }
@@ -6770,6 +6832,12 @@ function i18nRefreshDynamic() {
   try { if (typeof renderFreeSeat === 'function' && state.followTrain) renderFreeSeat(state.followTrain); } catch (e) {}
   try { if (typeof renderNearbyStations === 'function' && state.meLoc) renderNearbyStations(); } catch (e) {}
   try { if (typeof renderPinCard === 'function' && pinDraft) renderPinCard(); } catch (e) {}
+  // App「更多」的版本列與新版橫幅標題都帶版本號插值,反推不回原文,照上次檢查結果重寫。
+  try { if (typeof appUpdateRowSync === 'function') appUpdateRowSync(); } catch (e) {}
+  try {
+    const ub = document.querySelector('#updBanner:not([hidden]) .ub-title');
+    if (ub && appUpdateLast && appUpdateLast.latest) ub.textContent = appUpdateBannerTitle(appUpdateLast.latest);
+  } catch (e) {}
   try {
     if (typeof renderLocalReminderList === 'function' && !document.getElementById('notifyModal')?.hidden) {
       if (localReminderDraft) renderLocalReminderDraft(); else renderLocalReminderList();
@@ -6788,6 +6856,7 @@ function i18nRefreshDynamic() {
 function setLanguage(lang) {
   if (!I18N_LANGS.has(lang)) return;
   if (lang === I18N_LANG) { i18nSyncNativeLanguage(lang); return; }
+  I18N_PREV_LANG = I18N_LANG;
   I18N_LANG = lang;
   document.documentElement.lang = lang;
   try {
@@ -8249,7 +8318,7 @@ async function exportTrtcEntityDiagnostics() {
   try {
     const file = new File([blob], name, { type: blob.type });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ files: [file], title: '軌島捷運診斷' });
+      await navigator.share({ files: [file], title: t('軌島捷運診斷') });
       return true;
     }
   } catch (e) {
@@ -9579,10 +9648,10 @@ function trtcOfficialResyncTick(nowEpoch) {
   const removed = rec && Number(rec.removed) > 0 && Number(rec.atEpoch) !== Number(r.removedFor)
     ? Number(rec.removed) : 0;
   if (removed) r.removedFor = Number(rec.atEpoch);
-  const resyncMsg = `官方訊號恢復　北捷即時資料中斷約 <b>${mins} 分鐘</b>後恢復，`
-    + `<b>${count} 台</b>列車已重新對齊官方位置——中斷期間畫面上的位置是推估的，`
-    + `所以這些車會往前跳或往後退。`
-    + (removed ? `另有 <b>${removed} 台</b>推估中的列車因為不在官方名單上而移除，這不代表它們停駛。` : '');
+  const removedClause = removed
+    ? t('另有 <b>{removed} 台</b>推估中的列車因為不在官方名單上而移除，這不代表它們停駛。', { removed })
+    : '';
+  const resyncMsg = t('官方訊號恢復　北捷即時資料中斷約 <b>{mins} 分鐘</b>後恢復，<b>{count} 台</b>列車已重新對齊官方位置——中斷期間畫面上的位置是推估的，所以這些車會往前跳或往後退。{removedClause}', { mins, count, removedClause });
   showToast(resyncMsg, { wrap: true });   // 整句說明，不能被單行截斷（實測手機只看得到前 20 字）
   return { mins, count, removed, msg: resyncMsg };
 }
@@ -12033,7 +12102,7 @@ function updateFreqCard(info) {
   fcNo.textContent = no;
   fcNo.hidden = !no;
   // 冠系統名:全台同框/多系統群組裡光「綠線」分不清台中高雄
-  document.getElementById('fcLine').textContent = (ln._sysLabel ? t(ln._sysLabel) + ' ' : '') + routeName(ln.name || ln.abbr || '', ln._sys);
+  document.getElementById('fcLine').textContent = metroLineFullLabel(ln);
   // 機捷兩種車跑同一條線、同一個顏色,不寫車種就分不出這班是站站停還是跳站(issue #44/#45)
   const fcKind = f.tr ? tymcKindOf(ln, f.tr) : null;
   const fcDirTxt = info.loop ? t('環狀線循環') : (info.termName ? t('往 {station}', { station: stationName(info.termName, ln._sys) }) : '');
@@ -13543,7 +13612,7 @@ function maybeSatPlusNotice() {
     if (localStorage.getItem('trainmap-satplus-seen') === '1') return;
     localStorage.setItem('trainmap-satplus-seen', '1');
   } catch (e) {}
-  showToast('衛星影像免費看。想看更清楚的高解析版本，可以在「軌島通行證」裡開通（手機從「更多」進去）；跟車移動時一律用標準解析度，讓圖磚跟得上。', { wrap: true });
+  showToast(t('衛星影像免費看。想看更清楚的高解析版本，可以在「軌島通行證」裡開通（手機從「更多」進去）；跟車移動時一律用標準解析度，讓圖磚跟得上。'), { wrap: true });
 }
 // 跟車進場:沿用當下視角,只保證至少拉近到 13。
 // 2026-09-07 拿掉 App 的 followZoomCap=16 上限:它 2026-08-05 的理由是「App 兩種底圖都計量」,
@@ -15188,7 +15257,7 @@ async function accountDeleteServerData(user) {
 }
 async function accountDelete() {
   const a = state.account, u = a && a.user; if (!a || !u) return;
-  if (!confirm('確定要永久刪除軌島帳號、雲端收藏與完乘紀錄？這個動作無法復原。')) return;
+  if (!confirm(t('確定要永久刪除軌島帳號、雲端收藏與完乘紀錄？這個動作無法復原。'))) return;
   // 2026-08-04 複審 Important 5:比照 accountSignOut 的 a.loggingOut,從這裡到刪除流程結束
   // (無論成功或失敗)為止一律不受理任何同步(見 accountSyncNow/accountScheduleSync 的
   // a.syncSuspended 檢查)。旗標刻意取語意中性的名字,不沿用 a.loggingOut——這裡是刪帳號,不是
@@ -17051,8 +17120,8 @@ function renderTopTabs(cur) {
   // 手機殼把四顆收成一顆,那顆要跟著顯示目前在哪一群(它跟四顆是同一份資料,不另存狀態)
   const one = document.getElementById('gtabOneTx'), oneBtn = document.getElementById('gtabOne');
   const cg = TAB_GROUPS.find(g => g.id === act);
-  if (one && cg) one.textContent = cg.short;
-  if (oneBtn && cg) oneBtn.title = '群組:' + cg.label + '(點一下換)';
+  if (one && cg) one.textContent = t(cg.short);
+  if (oneBtn && cg) oneBtn.title = t('群組:{group}(點一下換)', { group: t(cg.label) });
   if (!document.getElementById('gtabPop')?.hidden) renderGtabPop();
 }
 
@@ -20678,7 +20747,7 @@ async function fetchLatestAppVersion() {
       return {
         android: true, checked: true, playInstalled: !!play.playInstalled, available: !!play.available,
         code: Number(play.availableVersionCode) || 0,
-        v: 'Google Play 新版', notes: 'Google Play 有較新的軌島版本可下載。', url: PLAY_STORE_URL,
+        url: PLAY_STORE_URL,
       };
     }
   } catch (e) { return { android: true, checked: false, playInstalled: false }; }
@@ -20774,35 +20843,49 @@ function appUpdateOpenNotes(latest, title) {
   wrap.querySelector('#updNotesX').addEventListener('click', () => wrap.remove());
 }
 
+// 最近一次版本檢查結果。「更多」的版本列字串帶版本號插值,樹狀翻譯反推不回原文,
+// 換語言時由 i18nRefreshDynamic 照這份重寫(只重寫那一列,不重跳橫幅與彈窗)。
+let appUpdateLast = null;
+function appUpdateBannerTitle(latest) {
+  return latest.android ? t('軌島新版已在 Google Play 上架') : t('軌島 {version} 已經上架', { version: latest.v });
+}
+function appUpdateRowSync() {
+  if (!appUpdateLast) return;
+  const { state, latest } = appUpdateLast;
+  const row = document.querySelector('.ms-row[data-act="update"]');
+  if (!row) return;
+  row.style.display = '';
+  // 指名標籤那顆 <span>,不用 firstElementChild:這一列尾端還有 .chev,而列形以後若再加東西
+  // (2026-08-27 之前第一個元素是單字圓章,就踩過寫進錯的元素這件事)也不會寫錯地方。
+  (row.querySelector('span:not(.chev)') || row).textContent = state.hasUpdate
+    ? (latest.android ? t('Google Play 有新版可更新') : t('有新版可更新　{version}', { version: latest.v }))
+    : (latest && latest.android && !(state.updateChecked && state.playInstalled)
+      ? t('目前版本　{version}', { version: window.RAIL_APP_VERSION })
+      : t('已是最新版　{version}', { version: window.RAIL_APP_VERSION }));
+  row.classList.toggle('warnrow', state.hasUpdate);
+  // 沒新版時這列改當「看本版更新內容」的常駐入口(有內建文案才可點)——
+  // 開機彈窗同版只出一次,之後想再看就從這裡。
+  row.disabled = !state.hasUpdate && !appWhatsNewText();
+}
 function appUpdateRender(res) {
   if (!res) return;                       // 網站版:appUpdateInit 回 null,這裡什麼都不做
+  appUpdateLast = res;
   const { state, latest } = res;
   // 「更多」面板那一段:App 版一律現身(評分那列在任何狀態都要在),更新那列依狀態換字。
-  const row = document.querySelector('.ms-row[data-act="update"]');
   appUpdateRevealBase();
-  if (row) {
-    row.style.display = '';
-    // 指名標籤那顆 <span>,不用 firstElementChild:這一列尾端還有 .chev,而列形以後若再加東西
-    // (2026-08-27 之前第一個元素是單字圓章,就踩過寫進錯的元素這件事)也不會寫錯地方。
-    (row.querySelector('span:not(.chev)') || row).textContent = state.hasUpdate
-      ? (latest.android ? t('Google Play 有新版可更新') : t('有新版可更新　{version}', { version: latest.v }))
-      : (latest && latest.android && !(state.updateChecked && state.playInstalled)
-        ? t('目前版本　{version}', { version: window.RAIL_APP_VERSION })
-        : t('已是最新版　{version}', { version: window.RAIL_APP_VERSION }));
-    row.classList.toggle('warnrow', state.hasUpdate);
-    // 沒新版時這列改當「看本版更新內容」的常駐入口(有內建文案才可點)——
-    // 開機彈窗同版只出一次,之後想再看就從這裡。
-    row.disabled = !state.hasUpdate && !appWhatsNewText();
-  }
+  appUpdateRowSync();
   if (state.showBanner && latest) {
     const b = document.getElementById('updBanner');
-    b.innerHTML = `<span class="ub-title">${escHtml(latest.android ? t('軌島新版已在 Google Play 上架') : t('軌島 {version} 已經上架', { version: latest.v }))}</span>`
+    b.innerHTML = `<span class="ub-title">${escHtml(appUpdateBannerTitle(latest))}</span>`
       + `<button class="ub-act" id="updBannerNotes" type="button">${escHtml(t('看更新內容'))}</button>`
       + `<button class="ub-act" id="updBannerGo" type="button">${escHtml(t('前往更新'))}</button>`
       + `<button class="ub-close" id="updBannerClose" type="button" aria-label="${escHtml(t('關閉'))}">×</button>`;
     b.hidden = false;
     b.querySelector('#updBannerNotes').addEventListener('click',
-      () => appUpdateOpenNotes(latest, t('軌島 {version} 有什麼新的', { version: latest.v })));
+      () => latest.android
+        // Play Core 不給更新說明，這兩句是自己寫的固定文案：點開當下照目前語言翻，也就不是「中文原文」
+        ? appUpdateOpenNotes({ notes: t('Google Play 有較新的軌島版本可下載。'), localized: true }, t('軌島新版已在 Google Play 上架'))
+        : appUpdateOpenNotes(latest, t('軌島 {version} 有什麼新的', { version: latest.v })));
     b.querySelector('#updBannerGo').addEventListener('click',
       () => window.open(latest.url, '_blank', 'noopener'));
     b.querySelector('#updBannerClose').addEventListener('click', () => {
@@ -20847,9 +20930,9 @@ function appGateCheck(d) {
   const wrap = document.createElement('div');
   wrap.id = 'appGate';
   wrap.innerHTML = '<div class="ag-box" role="alertdialog" aria-modal="true" aria-labelledby="agTitle">'
-    + '<h2 id="agTitle">需要更新</h2>'
-    + `<p>這個版本（${escHtml(String(window.RAIL_APP_VERSION))}）已停止支援，部分服務無法再使用。請更新到最新版，馬上就好。</p>`
-    + '<button id="appGateGo" type="button">前往更新</button></div>';
+    + `<h2 id="agTitle">${escHtml(t('需要更新'))}</h2>`
+    + `<p>${escHtml(t('這個版本（{version}）已停止支援，部分服務無法再使用。請更新到最新版，馬上就好。', { version: String(window.RAIL_APP_VERSION) }))}</p>`
+    + `<button id="appGateGo" type="button">${escHtml(t('前往更新'))}</button></div>`;
   document.body.appendChild(wrap);
   document.getElementById('appGateGo').addEventListener('click',
     () => window.open(storeUrl(), '_blank', 'noopener'));
@@ -21870,15 +21953,17 @@ function bountyCardName(card) {
       stationNames.sort((a, b) => (order.get(a) ?? 1e9) - (order.get(b) ?? 1e9) || a.localeCompare(b));
     }
     const first = stationNames[0] || (rec ? rec.name : card.lnId);
-    const title = stationNames.length > 1 ? `${first}等 ${stationNames.length} 站　停站` : `${first}　停站`;
+    const title = stationNames.length > 1
+      ? t('{first}等 {n} 站　停站', { first, n: stationNames.length })
+      : t('{first}　停站', { first });
     return {
       from: '', to: '', title, lineName: rec ? rec.name : card.lnId, segs: card.units,
-      isDwell: true, unitWord: '站', stationNames,
+      isDwell: true, unitWord: t('站'), stationNames,
     };
   }
   if (!rec) return {
     from: card.lnId, to: '', title: card.lnId, lineName: card.lnId,
-    segs: card.units, isDwell: false, unitWord: '段',
+    segs: card.units, isDwell: false, unitWord: t('段'),
   };
   const names = new Set();
   for (const s of rec.segs) if (!want.size || want.has(s.key)) { names.add(s.a); names.add(s.b); }
@@ -21886,15 +21971,15 @@ function bountyCardName(card) {
     .slice().sort((a, b) => a.d - b.d);
   if (!sts.length) return {
     from: rec.name, to: '', title: rec.name, lineName: rec.name,
-    segs: card.units, isDwell: false, unitWord: '段',
+    segs: card.units, isDwell: false, unitWord: t('段'),
   }; // 一個端點都解不出來時不談方向
   const lo = sts[0].name, hi = sts[sts.length - 1].name, down = Number(card.dir) === 1;
   const from = down ? hi : lo, to = down ? lo : hi;
   return { from, to, title: `${from} → ${to}`, lineName: rec.name, segs: card.units,
-    isDwell: false, unitWord: '段' };
+    isDwell: false, unitWord: t('段') };
 }
 function bountySlotName(slot) {
-  return ({ peak: '平日尖峰', off: '平日離峰', holiday: '假日' })[slot] || '';
+  return ({ peak: t('平日尖峰'), off: t('平日離峰'), holiday: t('假日') })[slot] || '';
 }
 let bountyBoardMem = null;
 async function openBountyBoard() {
@@ -21903,7 +21988,7 @@ async function openBountyBoard() {
   document.getElementById('bountyList').innerHTML = '<div class="bt-empty">載入中…</div>';
   try { bountyBoardMem = await fetchBountyBoard(); }
   catch (e) {
-    document.getElementById('bountyList').innerHTML = '<div class="bt-empty">懸賞板暫時讀不到，等一下再試一次</div>';
+    document.getElementById('bountyList').innerHTML = `<div class="bt-empty">${escHtml(t('懸賞板暫時讀不到，等一下再試一次'))}</div>`;
     return;
   }
   renderBountyBoard();
@@ -21912,11 +21997,11 @@ function closeBountyBoard() { document.getElementById('bountyModal').hidden = tr
 function renderBountyBoard() {
   const b = bountyBoardMem || { cards: [] };
   const el = document.getElementById('bountyList');
-  document.getElementById('bountySub').textContent = (b.demo ? '示範資料，僅供確認設計：這裡的路段與點數都是假的，接下來也不會真的錄。' : '')
+  document.getElementById('bountySub').textContent = (b.demo ? t('示範資料，僅供確認設計：這裡的路段與點數都是假的，接下來也不會真的錄。') : '')
     + (PHYSICAL_COLLECT_ENABLED
-      ? '接一張、搭那班車時開錄，把沿途的速度剖面測出來。全部免費，獎勵是榮譽。'
-      : '這些項目還沒有實測資料。用 App 才能接下來錄——網頁可以先看看有哪些。');
-  if (!b.cards.length) { el.innerHTML = '<div class="bt-empty">目前沒有待校正的項目——全部收滿了。</div>'; return; }
+      ? t('接一張、搭那班車時開錄，把沿途的速度剖面測出來。全部免費，獎勵是榮譽。')
+      : t('這些項目還沒有實測資料。用 App 才能接下來錄——網頁可以先看看有哪些。'));
+  if (!b.cards.length) { el.innerHTML = `<div class="bt-empty">${escHtml(t('目前沒有待校正的項目——全部收滿了。'))}</div>`; return; }
   const claims = loadBounty().claims || {};
   el.innerHTML = b.cards.map(c => {
     const nm = bountyCardName(c);
@@ -21925,19 +22010,19 @@ function renderBountyBoard() {
     const claimers = bountyNum(c.claimers), coverN = bountyNum(c.coverN);
     const meta = [nm.lineName, c.trainKind, nm.isDwell ? bountySlotName(c.slot) : '',
       `${bountyNum(c.units)} ${nm.unitWord}`,
-      claimers > 0 ? `已有 ${claimers} 人接了${nm.isDwell ? '這站' : '這段'}` : '',
-      coverN > 1 ? `已有 ${bountyNum(c.samples)}/${coverN} 趟` : ''].filter(Boolean).join('・');
+      claimers > 0 ? t('已有 {claimers} 人接了{unit}', { claimers, unit: nm.isDwell ? t('這站') : t('這段') }) : '',
+      coverN > 1 ? t('已有 {samples}/{coverN} 趟', { samples: bountyNum(c.samples), coverN }) : ''].filter(Boolean).join('・');
     // 已接下的卡要看得出來（2026-07-28 Codex 審查 F-05）：舊版無論接沒接都印「接下這段」，
     // 使用者在說明卡按了「等一下再說」之後回到板上，既看不出自己接過、也沒有任何路徑回到那張
     // 說明卡；再點一次還會**再送一次 POST**（實測兩次點擊＝兩個 claim 請求），而後端可能把
     // 重複認領當成新鎖價或衝突。鎖價 24 小時到期後才恢復成可接（判準用 claim 自己的 expiresAt）。
     const live = !!bountyLiveClaim(c.id, claims);
-    const label = !PHYSICAL_COLLECT_ENABLED ? '要用 App 才能接' : live ? '已接下・看說明' :
-      (nm.isDwell ? '接下停站' : '接下這段');
+    const label = !PHYSICAL_COLLECT_ENABLED ? t('要用 App 才能接') : live ? t('已接下・看說明') :
+      (nm.isDwell ? t('接下停站') : t('接下這段'));
     return `<div class="bt-card" data-card="${escHtml(c.id)}">` +
       `<div class="bt-r">${escHtml(nm.title)}</div>` +
       `<div class="bt-meta">${escHtml(meta)}</div>` +
-      `<div class="bt-pt">${bountyNum(c.points)} 點</div>` +
+      `<div class="bt-pt">${escHtml(t('{n} 點', { n: bountyNum(c.points) }))}</div>` +
       `<button class="bt-take" type="button"${live ? ' data-claimed="1"' : ''}>${label}</button>` +
       `</div>`;
   }).join('');
@@ -21950,7 +22035,7 @@ function setupBounty() {
     if (!btn) return;
     const id = btn.closest('.bt-card').dataset.card;
     // 網頁端點下去只給一句話，不寫任何本機資料——這是自然的下載誘因（規格 §9）
-    if (!PHYSICAL_COLLECT_ENABLED) { showToast('GPS 校正旅程需要用 App。網頁可以看懸賞板與自己的成果'); return; }
+    if (!PHYSICAL_COLLECT_ENABLED) { showToast(t('GPS 校正旅程需要用 App。網頁可以看懸賞板與自己的成果')); return; }
     bountyClaim(id); // 已接下的卡由 bountyClaim() 自己擋（F-05），這裡不重複判斷
   };
   // Esc 關閉＋點背景關閉：比照 setupTakeoutUi 等既有六顆 modal 的寫法（審查 I3：這顆先前只有 × 有效）
@@ -21976,7 +22061,7 @@ async function bountyClaim(cardId) {
     if (cl) {
       const card = ((bountyBoardMem && bountyBoardMem.cards) || []).find(x => x.id === cardId);
       if (card) showBountyBrief(card, { points: cl.points, expiresAt: cl.expiresAt });
-      else showToast('這段你已經接下了，鎖價還在');
+      else showToast(t('這段你已經接下了，鎖價還在'));
       return;
     }
   }
@@ -21984,13 +22069,13 @@ async function bountyClaim(cardId) {
   // 整條流程在備援站就斷在第一步。只寫本機、不打網路,語意與成功路徑一致(含 24 小時期限)。
   if (DEMO_MODE === 'bounty') {
     const c = ((bountyBoardMem && bountyBoardMem.cards) || []).find(x => x.id === cardId);
-    if (!c) { showToast('（示範）找不到這張卡'); return; }
+    if (!c) { showToast(t('（示範）找不到這張卡')); return; }
     const exp = Date.now() + 86400000;
     const b = loadBounty();
     const pts = bountyNum(c.points);
     b.claims[cardId] = { cardId, units: bountyNum(c.units), points: pts, expiresAt: exp, u: userDataNow() };
-    if (!saveBounty(b)) { showToast('（示範）這台裝置存不下來，示範資料無法保留'); return; }
-    showToast(`（示範）接下了・${pts} 點・24 小時內有效`);
+    if (!saveBounty(b)) { showToast(t('（示範）這台裝置存不下來，示範資料無法保留')); return; }
+    showToast(t('（示範）接下了・{pts} 點・24 小時內有效', { pts }));
     showBountyBrief(c, { points: pts, expiresAt: exp });
     renderBountyBoard(); renderPassport(); renderRidePanel();
     return;
@@ -22008,8 +22093,8 @@ async function bountyClaim(cardId) {
       body: JSON.stringify({ actor: bountyActor(), cardId }),
     });
     j = await r.json();
-    if (!r.ok || !j.ok) { showToast('接不下來——' + (j.error === 'no_open_units' ? '這段剛剛被收滿了' : '等一下再試一次')); return; }
-  } catch (e) { showToast('接不下來——網路不通，等一下再試一次'); return; }
+    if (!r.ok || !j.ok) { showToast(t('接不下來——{reason}', { reason: j.error === 'no_open_units' ? t('這段剛剛被收滿了') : t('等一下再試一次') })); return; }
+  } catch (e) { showToast(t('接不下來——網路不通，等一下再試一次')); return; }
   // 伺服器回的值一律先收斂成有限整數再用（2026-07-28 Codex 審查 F-01）：pointsLocked 帶
   // '<img src=x onerror=…>' 時，下面那句 showToast() 會把它當 HTML 執行（showToast 走
   // innerHTML，見 6568 既有註記）——實測 marker 真的被設起來。這一層同時擋住畫面與落盤兩個出口。
@@ -22023,9 +22108,9 @@ async function bountyClaim(cardId) {
   // 磁碟上卻是 null，重新整理認領就沒了。伺服器那邊已經接下，所以話要說準：說明卡照開（使用者
   // 正要出發，那三件事得看得到），但把「這台裝置沒記住」明講出來，不能混在一般成功訊息裡。
   if (!saveBounty(b)) {
-    showToast(`已在伺服器接下・${pts} 點，但這台裝置存不下來（可能是儲存空間滿了或無痕模式）——重新整理後認領不會留著`);
+    showToast(t('已在伺服器接下・{pts} 點，但這台裝置存不下來（可能是儲存空間滿了或無痕模式）——重新整理後認領不會留著', { pts }));
   } else {
-    showToast(`接下了・${pts} 點・24 小時內有效`);
+    showToast(t('接下了・{pts} 點・24 小時內有效', { pts }));
   }
   showBountyBrief(bountyBoardMem.cards.find(c => c.id === cardId) || { units: bountyNum(j.units), sys: '', lnId: '' },
     { points: pts, expiresAt: exp });
@@ -22044,8 +22129,8 @@ function bountyRecordingDir(card, tr) {
   return ds.length >= 2 && ds[ds.length - 1] < ds[0] ? 1 : 0;
 }
 function startBountyRecording(card) {
-  if (!PHYSICAL_COLLECT_ENABLED) { showToast('GPS 校正旅程需要用 App'); return; }
-  if (state.recording) { showToast('已經在錄了'); return; }
+  if (!PHYSICAL_COLLECT_ENABLED) { showToast(t('GPS 校正旅程需要用 App')); return; }
+  if (state.recording) { showToast(t('已經在錄了')); return; }
   const tr = state.followTrain;
   state.recording = {
     card: bountyCleanCard(card),
@@ -22092,12 +22177,12 @@ function stopBountyRecording() {
   // 上按了常駐列，詳細面板此刻是 display:none，但狀態仍要同步，不然之後點「詳細」會看到
   // 過期的按鈕文字)。
   const panelBtn = document.getElementById('recStop'), barBtn = document.getElementById('recordBarStop');
-  panelBtn.disabled = true; panelBtn.textContent = '正在保存…';
-  barBtn.disabled = true; barBtn.textContent = '保存中';
+  panelBtn.disabled = true; panelBtn.textContent = t('正在保存…');
+  barBtn.disabled = true; barBtn.textContent = t('保存中');
   r._stopPromise = bountyFlush(true, r).then(ok => {
     if (ok) { bountyFinishStop(r); return true; }
-    bountyRecordNotice('上傳暫時失敗；里程已保存在這台裝置，之後會自動重傳。', 'error');
-    panelBtn.textContent = '已保存在裝置'; barBtn.textContent = '已保存';
+    bountyRecordNotice(t('上傳暫時失敗；里程已保存在這台裝置，之後會自動重傳。'), 'error');
+    panelBtn.textContent = t('已保存在裝置'); barBtn.textContent = t('已保存');
     return new Promise(resolve => setTimeout(() => { bountyFinishStop(r); resolve(false); }, 1400));
   });
   return r._stopPromise;
@@ -22111,8 +22196,8 @@ function bountyFinishStop(r) {
   document.getElementById('recordScreen').hidden = true;
   document.getElementById('recordBar').hidden = true;
   const panelBtn = document.getElementById('recStop'), barBtn = document.getElementById('recordBarStop');
-  panelBtn.disabled = false; panelBtn.textContent = '停止錄製';
-  barBtn.disabled = false; barBtn.textContent = '停止';
+  panelBtn.disabled = false; panelBtn.textContent = t('停止錄製');
+  barBtn.disabled = false; barBtn.textContent = t('停止');
   const hint = document.getElementById('recHint');
   hint.hidden = true; hint.textContent = ''; hint.classList.remove('err');
   releaseWakeLock();
@@ -22129,13 +22214,13 @@ function renderRecordScreen() {
   const cov = r._cov || {};
   const done = Object.values(cov).filter(c => c >= 0.6).length;
   document.getElementById('recSegs').textContent = String(done);
-  document.getElementById('recUnitWord').textContent = nm ? nm.unitWord : '段';
+  document.getElementById('recUnitWord').textContent = nm ? nm.unitWord : t('段');
   document.getElementById('recPts').textContent = String(r.points);
   const total = (r.card && r.card.units) || Object.keys(cov).length || 1;
   document.getElementById('recBar').style.width = Math.min(100, done / total * 100) + '%';
   // 常駐列(規格覆審 2026-07-28):地圖預設可見,里程要不開詳細面板也看得到——單一事實來源
   // (state.recording)同時餵兩個畫面,不是各自另外維護一份。
-  document.getElementById('recordBarStat').textContent = km + ' 公里';
+  document.getElementById('recordBarStat').textContent = km + ' ' + t('公里');
 }
 function setupRecordScreen() {
   document.getElementById('recStop').onclick = () => stopBountyRecording();
@@ -22262,7 +22347,7 @@ function bountyRestoreRecording() {
   bountyRules();
   bountyStartSampling();
   renderRecordScreen();
-  if (!r.demo) bountyRecordNotice(`已接回重新整理前保存在裝置上的 ${r._buf.length} 個里程點。`, 'restore');
+  if (!r.demo) bountyRecordNotice(t('已接回重新整理前保存在裝置上的 {n} 個里程點。', { n: r._buf.length }), 'restore');
   return true;
 }
 // #recHint 是 body 層獨立浮條(見 index.html #recordScreen 旁的完整註解),貼著 #recordBar 常駐列
@@ -22496,7 +22581,7 @@ async function bountyFlush(force, r = state.recording) {
       dir: r.dir, tripDate: r.tripDate, batch: batchNo, samples: batch,
     };
     if (!bountyPayloadSafe(payload)) {
-      bountyRecordNotice('里程批次格式不安全，已留在裝置端，沒有送出。', 'error');
+      bountyRecordNotice(t('里程批次格式不安全，已留在裝置端，沒有送出。'), 'error');
       return false;
     }
     r._buf = []; r._batch = batchNo; r._lastFlush = Date.now();
@@ -22511,7 +22596,7 @@ async function bountyFlush(force, r = state.recording) {
     bountySaveUploadQueue(q);
     bountyPersistRecording(r);
     const ok = await bountyRetryPending();
-    if (!ok) bountyRecordNotice('上傳暫時失敗；里程已保存在這台裝置，稍後會自動重傳。', 'error');
+    if (!ok) bountyRecordNotice(t('上傳暫時失敗；里程已保存在這台裝置，稍後會自動重傳。'), 'error');
     return ok;
   })();
   try { return await r._flushPromise; } finally { r._flushPromise = null; }
@@ -22550,7 +22635,7 @@ function bountyStartSampling() {
   r._qualityTimer = setInterval(() => bountyTickQuality(), 5000);
   void bountyRetryPending();
   if (r.demo) {
-    bountyRecordNotice('示範模式正用假路徑演示投影與進度；不會上傳你的定位。', 'demo');
+    bountyRecordNotice(t('示範模式正用假路徑演示投影與進度；不會上傳你的定位。'), 'demo');
     bountyDemoFix(r);
     r._watch = { demo: setInterval(() => bountyDemoFix(r), 1000) };
     return;
@@ -22618,19 +22703,19 @@ async function bountyTickQuality() {
     const rules = await bountyRules();
     const stale = !r._lastFix || Date.now() - r._lastFix > rules.quality.noFixGapSec * 1000;
     r.quality = stale ? 'none' : bountyLiveQuality(r._recent || [], rules);
-    const labels = { good: '訊號良好', weak: '訊號弱', none: '等待定位', precise_off: '精確位置未開' };
+    const labels = { good: t('訊號良好'), weak: t('訊號弱'), none: t('等待定位'), precise_off: t('精確位置未開') };
     const lamp = document.getElementById('recQuality');
     lamp.dataset.q = r.quality;
     document.getElementById('recQualityText').textContent = labels[r.quality] || labels.none;
     // 常駐列燈號跟詳細面板同步(規格覆審 2026-07-28)：單一事實來源(r.quality)同時餵兩個畫面。
     const barSig = document.getElementById('recordBarSig');
-    barSig.dataset.q = r.quality; barSig.title = '訊號：' + (labels[r.quality] || labels.none);
+    barSig.dataset.q = r.quality; barSig.title = t('訊號：{status}', { status: labels[r.quality] || labels.none });
     bountyUpdateDwellProgress(r, rules);
     bountyTickQualityHint(r, rules.qualityText);
     renderRecordScreen();
     bountyPersistRecording(r);
   } catch (e) {
-    bountyRecordNotice('品質規則暫時讀不到；里程仍會保存在裝置端。', 'error');
+    bountyRecordNotice(t('品質規則暫時讀不到；里程仍會保存在裝置端。'), 'error');
   }
 }
 // 規格 §5 之五、§7「把檢查往前移」:七種品質失敗有五種在錄製當下就看得出來,那時候使用者
@@ -22652,7 +22737,7 @@ function bountyTickQualityHint(r, T) {
     r._weakSince = r._weakSince || Date.now();
     if (!r._nagOff && Date.now() - r._weakSince >= BOUNTY_WEAK_NAG_MS) {
       hint.innerHTML = `<b>${escHtml(T.acc_blocked.title)}</b><br>${escHtml(T.acc_blocked.how)}` +
-        `<button class="rc-x" type="button">知道了</button>`;
+        `<button class="rc-x" type="button">${escHtml(t('知道了'))}</button>`;
       hint.classList.remove('err');
       hint.hidden = false;
       positionRecHint();
@@ -22662,7 +22747,7 @@ function bountyTickQualityHint(r, T) {
   }
   if (r.card && r.card.kind === 'dwell' && r._dwellMissed && !r._dwellNagOff) {
     hint.innerHTML = `<b>${escHtml(T.no_dwell.title)}</b><br>${escHtml(T.no_dwell.how)}` +
-      `<button class="rc-x" type="button">知道了</button>`;
+      `<button class="rc-x" type="button">${escHtml(t('知道了'))}</button>`;
     hint.classList.remove('err');
     hint.hidden = false;
     positionRecHint();
@@ -22681,7 +22766,7 @@ function bountyTickQualityHint(r, T) {
 // sanying-trial-hours-expiry：寫死的營運時段過期之後生出幽靈列車）。
 function bountyUndergroundHint(card) {
   const n = Number(card && card.undergroundSegs) || 0;   // 後端還沒有這個欄位 ⇒ 恆 0 ⇒ 不顯示
-  return n > 0 ? `這條線有 ${n} 段在地下，那幾段收不到是正常的。` : '';
+  return n > 0 ? t('這條線有 {n} 段在地下，那幾段收不到是正常的。', { n }) : '';
 }
 // 預計多久(2026-07-28 審查糾正第二輪,規格缺口):第一段規格要求三件事——哪一段、多少點、
 // 大概多久——這裡原本只做到兩件。資料來源是該批段真正的表定時間差,不是憑印象的均速推算:
@@ -22724,35 +22809,35 @@ function showBountyBrief(card, claim) {
   const nm = bountyCardName(card);
   const ug = bountyUndergroundHint(card);
   const mins = nm.isDwell ? null : bountySpanMinutes(card.sys, nm.from, nm.to, card.trainKind);
-  const durTxt = nm.isDwell ? '' : mins != null ? `，約 ${escHtml(mins)} 分鐘` : '，大概多久算不出來';
+  const durTxt = nm.isDwell ? '' : mins != null ? t('，約 {mins} 分鐘', { mins: escHtml(mins) }) : t('，大概多久算不出來');
   const unitTxt = `${escHtml(card.units)} ${nm.unitWord}`;
   const taskTxt = nm.isDwell
-    ? `錄 ${escHtml(nm.title)}（${escHtml(nm.lineName)}・${escHtml(bountySlotName(card.slot))}・${unitTxt}）`
-    : `錄 ${escHtml(nm.title)}（${escHtml(nm.lineName)}，${unitTxt}${durTxt}）`;
+    ? t('錄 {title}（{line}・{slot}・{unit}）', { title: escHtml(nm.title), line: escHtml(nm.lineName), slot: escHtml(bountySlotName(card.slot)), unit: unitTxt })
+    : t('錄 {title}（{line}，{unit}{dur}）', { title: escHtml(nm.title), line: escHtml(nm.lineName), unit: unitTxt, dur: durTxt });
   const timingTxt = nm.isDwell
-    ? '進站前就開始錄，列車停穩後繼續錄到出站；只通過、不停靠不算停站樣本。'
-    : '搭上那班車之後開始錄，到站就結束。';
+    ? t('進站前就開始錄，列車停穩後繼續錄到出站；只通過、不停靠不算停站樣本。')
+    : t('搭上那班車之後開始錄，到站就結束。');
   // 原生設定頁的橋接：Capacitor Geolocation 沒有這個 API。比照 RAIL_NATIVE_LOCALNOTIFY.openSettings
   // 的既有做法——見 null 就改顯示純文字引導，不留一顆點了沒反應的鈕。
   const canOpen = !!(window.RAIL_NATIVE_GEOLOCATION && window.RAIL_NATIVE_GEOLOCATION.openSettings);
   document.getElementById('bountyBriefBody').innerHTML =
-    `<div class="bb-sec"><b>這趟要做什麼</b><p>${taskTxt}，值 <b>${escHtml(claim.points)} 點</b>。` +
+    `<div class="bb-sec"><b>${escHtml(t('這趟要做什麼'))}</b><p>${taskTxt}，值 <b>${t('{n} 點', { n: escHtml(claim.points) })}</b>。` +
       // 最終審查 C:期限原本只在接下當下的 toast 一閃即逝(showBountyBrief 這張常駐卡完全沒提)，
       // 使用者接了段之後回頭想確認期限就找不到。與 bountyClaim() 兩條路徑(demo/真實)的 toast
       // 用同一句「24 小時內有效」，不用 claim.expiresAt 另外算文字——避免兩個地方各自描述
       // 同一件事卻可能用不同措辭。
-      `${timingTxt}這個鎖價 <b>24 小時內有效</b>。</p></div>` +
-    `<div class="bb-sec"><b>三件事先做好</b><ol>` +
-      `<li>打開<b>精確位置</b>` + (canOpen
-        ? `<button id="bountyOpenSettings" type="button">開啟設定</button>`
-        : `<br><span class="bb-how">設定 → 隱私權與安全性 → 定位服務 → 軌島 → 打開「精確位置」</span>`) + `</li>` +
-      `<li>關掉<b>低耗電模式</b>（它會降低定位頻率）</li>` +
-      `<li>手機<b>靠窗</b>，別放在包包裡或車廂中央</li></ol></div>` +
-    `<div class="bb-sec"><b>先講清楚</b><ul>` +
+      `${timingTxt}${t('這個鎖價 <b>24 小時內有效</b>。')}</p></div>` +
+    `<div class="bb-sec"><b>${escHtml(t('三件事先做好'))}</b><ol>` +
+      `<li>${t('打開<b>精確位置</b>')}` + (canOpen
+        ? `<button id="bountyOpenSettings" type="button">${escHtml(t('開啟設定'))}</button>`
+        : `<br><span class="bb-how">${escHtml(t('設定 → 隱私權與安全性 → 定位服務 → 軌島 → 打開「精確位置」'))}</span>`) + `</li>` +
+      `<li>${t('關掉<b>低耗電模式</b>（它會降低定位頻率）')}</li>` +
+      `<li>${t('手機<b>靠窗</b>，別放在包包裡或車廂中央')}</li></ol></div>` +
+    `<div class="bb-sec"><b>${escHtml(t('先講清楚'))}</b><ul>` +
       (ug ? `<li>${escHtml(ug)}</li>` : '') +
-      `<li>錄到一半中斷沒關係，<b>錄到的部分照樣算</b>。</li>` +
+      `<li>${t('錄到一半中斷沒關係，<b>錄到的部分照樣算</b>。')}</li>` +
       // 🔴 這一句是三態判定的直接承諾（規格 §7、§8），不可以只寫在規格裡不寫在 UI 上
-      `<li><b>即使這次的資料不能用，校正者章與點數還是你的。</b>我們會告訴你是什麼原因、下次怎麼改善。</li>` +
+      `<li>${t('<b>即使這次的資料不能用，校正者章與點數還是你的。</b>我們會告訴你是什麼原因、下次怎麼改善。')}</li>` +
       `</ul></div>`;
   const st = document.getElementById('bountyOpenSettings');
   if (st) st.onclick = () => { try { window.RAIL_NATIVE_GEOLOCATION.openSettings(); } catch (e) {} };
@@ -22882,7 +22967,7 @@ function setCollectMap(on) {
   if (state.collectMap === to) return;
   // 🔴 規格覆審 2026-07-28：錄製改成地圖預設可見可操作之後，護照(內含收集地圖入口)在錄製中
   // 也點得到——兩個模式都要接管地圖的視覺(靜態收集圖 vs 即時列車+常駐錄製列)，不能同時開。
-  if (to && state.recording) { showToast('錄製中無法開啟收集地圖'); return; }
+  if (to && state.recording) { showToast(t('錄製中無法開啟收集地圖')); return; }
   state.collectMap = to;
   document.body.classList.toggle('collect-map', to);
   document.getElementById('collectBar').hidden = !to;
@@ -22913,12 +22998,12 @@ function renderCollectStat() {
 function seedCollectDemo() {
   const cur = loadCheckins();
   if (Object.keys(cur.st || {}).length || Object.keys(cur.sg || {}).length) {
-    showToast('你已經有收集資料了——示範模式不覆蓋。要看示範請先用 ?demo=off 清除');
+    showToast(t('你已經有收集資料了——示範模式不覆蓋。要看示範請先用 ?demo=off 清除'));
     return;
   }
   // 挑區間數最多的幾條線（＝主要幹線，畫面上看得出來），各給不同完成度讓長條圖有層次
   const recs = [...lineNetwork().values()].sort((a, b) => b.segs.length - a.segs.length).slice(0, 6);
-  if (!recs.length) { showToast('資料還沒載完，等一下再試一次'); return; }
+  if (!recs.length) { showToast(t('資料還沒載完，等一下再試一次')); return; }
   const RATIO = [1, 0.55, 1, 0.3, 0.75, 0.2];
   const st = {}, sg = {}, today = todayStr(activeTz());
   recs.forEach((rec, i) => {
@@ -22937,7 +23022,7 @@ function seedCollectDemo() {
   });
   saveCheckins({ v: 1, st, sg });
   renderPassport(); if (typeof renderRidePanel === 'function') renderRidePanel();
-  showToast('已載入示範收集資料（僅供確認設計）——清除請在網址加 ?demo=off');
+  showToast(t('已載入示範收集資料（僅供確認設計）——清除請在網址加 ?demo=off'));
 }
 function setupCollectDemo() {
   const mode = DEMO_MODE;
@@ -22945,7 +23030,7 @@ function setupCollectDemo() {
   if (mode === 'off') {
     try { localStorage.removeItem(CHECKIN_KEY); localStorage.removeItem(RIDING_KEY); } catch (e) {}
     renderPassport();
-    showToast('示範收集資料已清除');
+    showToast(t('示範收集資料已清除'));
     return;
   }
   // 閘門要押在**真正的前置條件**(線網建好)上,不能用代理指標。原本等 #count 有字就放行,
@@ -22954,7 +23039,7 @@ function setupCollectDemo() {
   let n = 0;
   const tick = () => {
     if (lineNetwork().size) { seedCollectDemo(); return; }
-    if (++n > 150) { showToast('示範資料等太久沒載完——重新整理再試一次'); return; } // 150×200ms = 30 秒
+    if (++n > 150) { showToast(t('示範資料等太久沒載完——重新整理再試一次')); return; } // 150×200ms = 30 秒
     setTimeout(tick, 200);
   };
   tick();
@@ -22970,7 +23055,7 @@ function buildLineBars() {
     `<div class="ph-lines">` +
     lines.map(l => {
       const pct = Math.round(l.pct * 100);
-      return `<div class="ph-line" title="${escHtml(`${l.name}　${l.ridN}/${l.nSeg} 段　${l.ridKm.toFixed(1)}/${l.km.toFixed(1)} km`)}">` +
+      return `<div class="ph-line" title="${escHtml(`${l.name}　${l.ridN}/${l.nSeg} ${t('段')}　${l.ridKm.toFixed(1)}/${l.km.toFixed(1)} km`)}">` +
         `<span class="pl-name">${escHtml(t(l.name.replace(/（.*$/, '')))}</span>` +
         `<span class="pl-bar"><i style="width:${pct}%;background:${escHtml(l.color || 'var(--red)')}"></i></span>` +
         `<span class="pl-pct${pct >= 100 ? ' done' : ''}">${pct}%</span></div>`;
@@ -23133,11 +23218,11 @@ function achHelpHtml(id) {
   const pf = ACH_PROG[a.id];
   let pv = null;
   try { pv = pf ? pf(rides, c.coll, c.km, c.x) : null; } catch (e) { pv = null; } // 資料還沒載完就先不畫進度
-  return `<div class="hp-t"><span>${escHtml(a.name)}</span>` +
-    `<em class="hp-st${got ? ' on' : ''}">${got ? '已達成' : '未達成'}</em></div>` +
-    `<div class="hp-cond">${escHtml(a.desc)}</div>` +
+  return `<div class="hp-t"><span>${escHtml(t(a.name))}</span>` +
+    `<em class="hp-st${got ? ' on' : ''}">${got ? escHtml(t('已達成')) : escHtml(t('未達成'))}</em></div>` +
+    `<div class="hp-cond">${escHtml(t(a.desc))}</div>` +
     (got ? '' : helpProgHtml(pv)) +   // 已達成就不必再看進度條(它必然是滿的)
-    `<div class="hp-how">${escHtml(a.how || '')}</div>`;
+    `<div class="hp-how">${escHtml(t(a.how || ''))}</div>`;
 }
 function helpPopHtmlFor(el) {
   if (el.dataset.ach) return achHelpHtml(el.dataset.ach);
@@ -23408,32 +23493,15 @@ function guideRow(n, i) {
 // 整格是 <button>,`data-no`/`data-sys` 與 hlRow 同款 ⇒ 直接沿用面板既有的點擊處理常式(點了就跟隨)。
 // 狀態(行駛中/重播/幾點發)不佔版面,放進 title——四格是「今天最」的排行,不是即時看板;
 // 同一批車的即時狀態在下面「特別列車出沒中」每列右側都看得到。
+// 文字一律走 t()／stationName(),與 hlRow 同一套(以前這裡寫死「N 次」與中文站名,外語版整格是中文)。
 function hlCard(h) {
   const tr = h.tr, last = tr.stops[tr.stops.length - 1];
-  const running = !!trainPos(tr, state.simSec);
-  const status = running ? '行駛中'
-    : (state.simSec > last.arrSec ? '重播' : fmtHM(tr.stops[0].depSec % 86400) + ' 發');
+  const status = trainStatusTxt(tr);
   return `<button type="button" class="hl-card" data-no="${tr.train}" data-sys="${tr.sys || ''}" ` +
-    `title="跟隨 ${tr.train} 次・${status}">` +
-    `<span class="hc-k">${h.title}</span>` +
-    `<span class="hc-v"><i class="dot" style="background:${tr.color}"></i>${tr.train} 次</span>` +
-    `<span class="hc-s">${escHtml(tr.stops[0].name)} → ${escHtml(last.name)}${h.sub ? ' · ' + h.sub : ''}</span>` +
-    `</button>`;
-}
-// 設計 3e:今日之最改成四格「1.5px 邊框卡」(設計原話:不用實色底,免得跟看板列的虛線分隔打架)。
-// 整格是 <button>,`data-no`/`data-sys` 與 hlRow 同款 ⇒ 直接沿用面板既有的點擊處理常式(點了就跟隨)。
-// 狀態(行駛中/重播/幾點發)不佔版面,放進 title——四格是「今天最」的排行,不是即時看板;
-// 同一批車的即時狀態在下面「特別列車出沒中」每列右側都看得到。
-function hlCard(h) {
-  const tr = h.tr, last = tr.stops[tr.stops.length - 1];
-  const running = !!trainPos(tr, state.simSec);
-  const status = running ? '行駛中'
-    : (state.simSec > last.arrSec ? '重播' : fmtHM(tr.stops[0].depSec % 86400) + ' 發');
-  return `<button type="button" class="hl-card" data-no="${tr.train}" data-sys="${tr.sys || ''}" ` +
-    `title="跟隨 ${tr.train} 次・${status}">` +
-    `<span class="hc-k">${h.title}</span>` +
-    `<span class="hc-v"><i class="dot" style="background:${tr.color}"></i>${tr.train} 次</span>` +
-    `<span class="hc-s">${escHtml(tr.stops[0].name)} → ${escHtml(last.name)}${h.sub ? ' · ' + h.sub : ''}</span>` +
+    `title="${escHtml(t('跟隨 {train} 次・{status}', { train: tr.train, status }))}">` +
+    `<span class="hc-k">${escHtml(h.title)}</span>` +
+    `<span class="hc-v"><i class="dot" style="background:${tr.color}"></i>${escHtml(t('{train} 次', { train: tr.train }))}</span>` +
+    `<span class="hc-s">${escHtml(stationName(tr.stops[0].name, tr.sys))} → ${escHtml(stationName(last.name, tr.sys))}${h.sub ? ' · ' + escHtml(h.sub) : ''}</span>` +
     `</button>`;
 }
 function renderExplorePanel() {
@@ -23869,23 +23937,7 @@ function renderLaCta() {
   const el = document.getElementById('fpLaCta'); if (!el) return;
   const show = !!(state.followTrain && PLUS_ENABLED && LIVE_ACTIVITY_ENABLED && !plusIsActive());
   if (!show) { el.hidden = true; el.textContent = ''; return; }
-  el.innerHTML = '鎖定畫面顯示這班車的倒數<span class="fp-dhlink">通行證 ›</span>';
-  el.hidden = false;
-}
-
-// 跟車鎖定畫面/動態島的通行證入口。這個功能原本是**不給用也不說**:liveActivityAllowed() 直接
-// 回 false,免費層從頭到尾看不到它存在(方案面板有列,但要先想到去開那個面板才看得到)。
-// 樣式與點擊回路照抄 renderDelayRow 的 fp-dhlink——那是專案自己的正確範本(專案唯一「有付費牆
-// 也講清楚」的既有案例),不另造一套 CTA 樣式。
-// 顯示條件刻意收窄成「只在真的用得到的人面前出現」:正在跟車＋原生殼有這個能力(網站沒有鎖定
-// 畫面這回事,LIVE_ACTIVITY_ENABLED 由原生殼注入)＋訂閱旗標開＋還沒訂閱。已訂閱者不看廣告
-// (他們看到的是卡片本身)。裝置低於 iOS 17.6 這件事 JS 側事前不知道(原生 start() 回 ios<17.6
-// 才知道),那是開卡當下的既有處理,不在這條入口的判準裡。
-function renderLaCta() {
-  const el = document.getElementById('fpLaCta'); if (!el) return;
-  const show = !!(state.followTrain && PLUS_ENABLED && LIVE_ACTIVITY_ENABLED && !plusIsActive());
-  if (!show) { el.hidden = true; el.textContent = ''; return; }
-  el.innerHTML = '鎖定畫面顯示這班車的倒數<span class="fp-dhlink">通行證 ›</span>';
+  el.innerHTML = `${escHtml(t('鎖定畫面顯示這班車的倒數'))}<span class="fp-dhlink">${escHtml(t('通行證 ›'))}</span>`;
   el.hidden = false;
 }
 
@@ -24037,7 +24089,10 @@ function showFollowPanel(tr) {
   document.getElementById('fpDot').style.background = tr.color;
   document.getElementById('fpTrain').textContent = tr.train;
   const it = renderTrainCard(tr);
-  document.getElementById('fpKind').textContent = tr.loop ? `${t(tr.loopName)}・${t('觀光列車')}` : trainTypeName(it.kind || tr.typeName);
+  // 車型名(區間車（通勤電聯車）…)是資料檔 rollingStock 的名稱,要走 i18nContentData 才有外語(同 renderTrainCard 的 tcKind);
+  // DR1000 那種被 trainIntro 覆寫掉的 kind 已不是車型名,照舊走 trainTypeName。
+  document.getElementById('fpKind').textContent = tr.loop ? `${t(tr.loopName)}・${t('觀光列車')}`
+    : it.stock && it.kind === it.stock.name ? i18nContentData('rollingStock', it.stock, 'name') : trainTypeName(it.kind || tr.typeName);
   const first = tr.stops[0], last = tr.stops[tr.stops.length - 1];
   document.getElementById('fpDest').textContent = tr.loop
     ? t('臺北 ⇄ 枋寮 永續來回 · 一輪 12 小時 · 永不到站')
@@ -28274,8 +28329,9 @@ function alertAffectedLineIds() {
 const ANOM_KIND_DESC = { reject: '官方到站看板倒數與時刻表大幅不符', spread: '官方看板各站到站時間彼此矛盾', skip: '部分車站顯示交管不停靠' };
 function metroSelfEntry(ln, an) {
   const name = (ln._sysLabel ? ln._sysLabel + ' ' : '') + (ln.name || ln.id);
-  return { self: true, title: name + '疑似營運異常',
-    desc: '本站偵測到官方到站看板與時刻表明顯不符（' + (ANOM_KIND_DESC[an.kind] || '看板與時刻表不符') + '），該線列車位置僅供參考。此為本站自動推定，非官方公告。' };
+  const kindDesc = t(ANOM_KIND_DESC[an.kind] || '看板與時刻表不符');
+  return { self: true, title: t('{name}疑似營運異常', { name }),
+    desc: t('本站偵測到官方到站看板與時刻表明顯不符（{kindDesc}），該線列車位置僅供參考。此為本站自動推定，非官方公告。', { kindDesc }) };
 }
 // 自家觀測條目(非官方公告):台鐵大面積誤點(sched)、捷運線級異常(對應模式可見的線)
 function selfAnomalyEntries() {
@@ -28283,8 +28339,8 @@ function selfAnomalyEntries() {
   if (state.mode === 'sched') {
     if (state.traAnomaly && liveActive()) {
       const a = state.traAnomaly;
-      out.push({ self: true, title: '台鐵大面積誤點中：' + a.d10 + ' 班誤點滿 10 分（最高 ' + a.maxDelay + ' 分）',
-        desc: '誤點的部分動畫有跟上：列車位置已依台鐵官方即時誤點資料逐車回撥，晚幾分就畫在晚幾分的位置。但若有停駛或取消的班次，畫面不會自動移除、該班車仍會照時刻表顯示行駛，請以官方公告為準。此為本站自動觀測，非官方公告。' });
+      out.push({ self: true, title: t('台鐵大面積誤點中：{d10} 班誤點滿 10 分（最高 {maxDelay} 分）', { d10: a.d10, maxDelay: a.maxDelay }),
+        desc: t('誤點的部分動畫有跟上：列車位置已依台鐵官方即時誤點資料逐車回撥，晚幾分就畫在晚幾分的位置。但若有停駛或取消的班次，畫面不會自動移除、該班車仍會照時刻表顯示行駛，請以官方公告為準。此為本站自動觀測，非官方公告。') });
     }
     if (state.deco && state.decoLines) for (const ln of state.decoLines) { const an = anomalyOf(ln); if (an) out.push(metroSelfEntry(ln, an)); }
   } else {
@@ -28329,14 +28385,11 @@ function trtcOutageEntries() {
     const mins = Math.max(1, Math.round(core.ageSec / 60));
     const labels = [...new Set(trtcVisible.map(id => trtcFeedGroupOf(id).label))];
     const upstream = trtcOutageAttribution() === 'upstream';
+    const titleHead = upstream ? t('{labels}即時訊號中斷', { labels: labels.map(l => t(l)).join(t('、')) }) : t('捷運即時資料中斷');
+    const attrib = upstream ? t('官方上游已自報訊號中斷。') : t('這不一定是官方那邊的問題——也可能是本站服務發不出來，或你目前的網路連線中斷。');
     return [{ self: true, outage: true, sig: 'trtc-outage',
-      title: (upstream ? labels.join('、') + '即時訊號中斷' : '捷運即時資料中斷')
-        + ` ${mins} 分鐘：列車位置與車站倒數都可能不準`,
-      desc: `統一捷運即時模型已經 ${mins} 分鐘沒有取得可安全發布的新資料。`
-        + (upstream ? `官方上游已自報訊號中斷。`
-          : `這不一定是官方那邊的問題——也可能是本站服務發不出來，或你目前的網路連線中斷。`)
-        + `這段期間畫面會退回備援推估，位置與車站倒數都可能與實際不符，但這不代表列車停駛。`
-        + `資料恢復後會重新對齊官方位置。此為本站自動偵測，非官方公告。` }];
+      title: t('{head} {mins} 分鐘：列車位置與車站倒數都可能不準', { head: titleHead, mins }),
+      desc: t('統一捷運即時模型已經 {mins} 分鐘沒有取得可安全發布的新資料。{attrib}這段期間畫面會退回備援推估，位置與車站倒數都可能與實際不符，但這不代表列車停駛。資料恢復後會重新對齊官方位置。此為本站自動偵測，非官方公告。', { mins, attrib }) }];
   }
   const feeds = trtcOfficialStaleFeeds(state.trtcOfficialRoster, Date.now() / 1000);
   if (!feeds.length) return [];
@@ -28344,14 +28397,12 @@ function trtcOutageEntries() {
   if (!hit.length) return [];
   const mins = Math.max(1, Math.round(Math.max(...hit.map(f => f.ageSec)) / 60));
   const upstream = trtcOutageAttribution() === 'upstream';
+  const titleHead2 = upstream ? t('{labels}即時訊號中斷', { labels: hit.map(f => t(f.label)).join(t('、')) }) : t('捷運即時資料中斷');
+  const lead2 = upstream ? t('官方到站看板已經 {mins} 分鐘沒有送出新資料。', { mins })
+    : t('已經 {mins} 分鐘沒有取得新的到站資料——這不一定是官方那邊的問題，也可能是本站服務或你目前的網路連線。', { mins });
   return [{ self: true, outage: true, sig: 'trtc-outage', // 簽章刻意不含分鐘數,見 alertSig
-    title: (upstream ? hit.map(f => f.label).join('、') + '即時訊號中斷' : '捷運即時資料中斷')
-      + ` ${mins} 分鐘：列車位置與車站倒數都可能不準`,
-    desc: (upstream ? `官方到站看板已經 ${mins} 分鐘沒有送出新資料。`
-      : `已經 ${mins} 分鐘沒有取得新的到站資料——這不一定是官方那邊的問題，也可能是本站服務或你目前的網路連線。`)
-      + `這段期間畫面上的列車是依各站之間的固定行車時間往前推估的，`
-      + `車站倒數也可能找不到車或停住不動——都可能與實際不符，但這不代表列車停駛。`
-      + `官方資料恢復後畫面會重新對齊官方位置，部分列車會因此往前跳或往後退。此為本站自動偵測，非官方公告。` }];
+    title: t('{head} {mins} 分鐘：列車位置與車站倒數都可能不準', { head: titleHead2, mins }),
+    desc: t('{lead}這段期間畫面上的列車是依各站之間的固定行車時間往前推估的，車站倒數也可能找不到車或停住不動——都可能與實際不符，但這不代表列車停駛。官方資料恢復後畫面會重新對齊官方位置，部分列車會因此往前跳或往後退。此為本站自動偵測，非官方公告。', { lead: lead2 }) }];
 }
 // 訊號恢復的那一下畫面會跳：續推中的位置被官方名單取代，接不回去的推估車直接消失。
 // 使用者裁示（2026-08-15）：訊號回來就以訊號為準、不能留多的車，但**必須跳通知**讓人知道
@@ -28372,15 +28423,13 @@ function trtcRecoveryEntries() {
   const labels = [...new Set(hit.map(id => trtcFeedGroupOf(id).label))];
   const mins = Number.isFinite(Number(rec.outageSec)) ? Math.max(1, Math.round(Number(rec.outageSec) / 60)) : null;
   const removed = Number(rec.removed) || 0;
+  const dur = mins ? t('中斷約 {mins} 分鐘期間，', { mins }) : t('訊號中斷期間，');
+  const removedClause = removed > 0
+    ? t('，並移除了 {removed} 台官方名單上已經沒有的推估列車。這不代表那些車停駛或發生事故——它們只是在中斷期間被推估出來、官方資料回來後對不上任何一班車。', { removed })
+    : t('。');
   return [{ self: true, recovery: true, sig: `trtc-recovery:${rec.atEpoch}`, // 簽章綁恢復時刻,同一次只提醒一次
-    title: `${labels.join('、')}即時訊號已恢復：畫面剛依官方名單重新對齊`,
-    desc: `${mins ? `中斷約 ${mins} 分鐘期間，` : '訊號中斷期間，'}畫面上的列車是依各站之間的固定行車時間往前推估的。`
-      + `官方資料一回來，軌島就改以官方名單為準重新對齊，因此列車位置會出現一次跳動`
-      + (removed > 0
-        ? `，並移除了 ${removed} 台官方名單上已經沒有的推估列車。這不代表那些車停駛或發生事故——`
-          + `它們只是在中斷期間被推估出來、官方資料回來後對不上任何一班車。`
-        : '。')
-      + `目前畫面已回到官方即時資料。` }];
+    title: t('{labels}即時訊號已恢復：畫面剛依官方名單重新對齊', { labels: labels.map(l => t(l)).join(t('、')) }),
+    desc: t('{dur}畫面上的列車是依各站之間的固定行車時間往前推估的。官方資料一回來，軌島就改以官方名單為準重新對齊，因此列車位置會出現一次跳動{removedClause}目前畫面已回到官方即時資料。', { dur, removedClause }) }];
 }
 // 外部災害只是一個「去檢查」的理由，不是鐵路異常證據；文字必須把兩者分清楚。
 function hazardWatchEntries() {
@@ -29651,7 +29700,7 @@ function mountBusTransferBoard(el, st, stationId) {
   window.BusTransferUI.mount({
     root,
     stationId,
-    stationName: stationName(st.name, st.sys),
+    stationName: stationName(st.name, st.metroSysId || st.sys),
     phase: 'arrived',
     viewKey: `${stationId}|station-board`,
     translate: t,
@@ -29728,7 +29777,7 @@ function uniDetailHint(fp) {
     h = document.createElement('button');
     h.type = 'button';
     h.className = 'uni-more';
-    h.innerHTML = '<span class="um-k">詳細</span><span class="um-t">往上拉看完整資料</span><span class="um-c">›</span>';
+    h.innerHTML = `<span class="um-k">${escHtml(t('詳細'))}</span><span class="um-t">${escHtml(t('往上拉看完整資料'))}</span><span class="um-c">›</span>`;
     h.onclick = ev => {
       ev.stopPropagation();
       const bd = document.getElementById('board');
@@ -29756,8 +29805,8 @@ function mountUniCard() {
   const tabs = document.createElement('div');
   tabs.className = 'uni-tabs';
   tabs.setAttribute('role', 'tablist');
-  tabs.innerHTML = '<button type="button" role="tab" data-t="train">這班車</button>' +
-    '<button type="button" role="tab" data-t="station">這一站</button>';
+  tabs.innerHTML = `<button type="button" role="tab" data-t="train">${escHtml(t('這班車'))}</button>` +
+    `<button type="button" role="tab" data-t="station">${escHtml(t('這一站'))}</button>`;
   const slot = document.createElement('div');
   slot.className = 'uni-slot';
   h3.after(tabs, slot);
@@ -30152,9 +30201,11 @@ function stnMetaHtml(st, omitMap = false) {
 // 網站是 'web' ⇒ 兩邊的閘門一定同時開或同時關，不會出現「JS 搬了位置、CSS 沒跟上」。
 function nativeCompactMetroBoard() { const p = window.RAIL_APP_PLATFORM; return p === 'android' || p === 'ios'; }
 // 原生 App 的第一列只回答「這個倒數目前有多準」；網站逐字維持既有內容與順序。
+// accuracy 由呼叫端用字串常值呼叫 t() 翻好再傳進來：這幾句只在 App 出現，以前在這裡 t(變數)，
+// check-i18n 只抽得到 t() 裡的字串常值、看不到它們，於是英日文 App 一直顯示中文（2026-09-19 回報）。
 function metroBoardInfoHtml(st, accuracy, legacySub, extras = '') {
   if (!nativeCompactMetroBoard()) return stnMetaHtml(st) + extras + `<div class="sub">${legacySub}</div>`;
-  return `<div class="sub board-accuracy">${escHtml(t('倒數準確度：{accuracy}', { accuracy: t(accuracy) }))}</div>` + stnMetaHtml(st, true) + extras;
+  return `<div class="sub board-accuracy">${escHtml(t('倒數準確度：{accuracy}', { accuracy }))}</div>` + stnMetaHtml(st, true) + extras;
 }
 function metroBoardMapFooterHtml(st) {
   return nativeCompactMetroBoard() ? `<div class="stnMeta stnMeta-bottom">${stnMapLinkHtml(st)}</div>` : '';
@@ -30472,6 +30523,7 @@ function boardAlignColumns(el) {
   if (!el || el.hidden) return;
   el.style.removeProperty('--min-col');
   el.style.removeProperty('--t-col');
+  delete el.dataset.wrap2;
   // 特大字級要把「即將進站／列車進站」換成短字(見 .min[data-soon] 那段 CSS)。寫在量寬之前:
   // 換過字的那一列本來就該用短字的寬度參與「全板最寬」的計算,先量後換會多留一截空白。
   // 標準與大字級一樣寫這個屬性(CSS 只在特大才讀),讓三階的 DOM 完全相同。
@@ -30489,6 +30541,9 @@ function boardAlignColumns(el) {
   if (ts.length && ts.every(n => n.children.length === 0)) {
     const w = widest(ts); if (w > 0) el.style.setProperty('--t-col', w.toFixed(2) + 'px');
   }
+  // 一列塞不下就整板改兩行(CSS 見 data-wrap2 那段)。要在單行版量:兩行版量起來永遠放得下，
+  // 旗標留著量，下一次重繪就會切回單行而來回閃。欄寬變數先設好再量，量到的才是最終的單行版。
+  if ([...el.querySelectorAll('.row > .dest')].some(d => d.scrollWidth > d.clientWidth + 1)) el.dataset.wrap2 = '1';
 }
 function renderBoard() {
   const el = document.getElementById('board'), st = state.boardStation;
@@ -30539,7 +30594,7 @@ function schedBoardListHtml(st, rows, perGroup) {
       `<b>${escHtml(r.tr.train)}</b><span class="dest"><span class="ty">${escHtml(r.tr.loop ? t(r.tr.loopName) : trainTypeName(r.tr.typeName))}</span>　<span class="to">${escHtml(dest)}</span>${!r.off ? (window.RailPlatforms?.slot(r.tr,r.stop,r.isLast?'arrival':'departure',r.t)||'') : ''}</span>` +
       // 時刻本身另包一層 .hm:大檔要把「誤點/推算」標排到第二行的方向後面(設計 6b),
       // 那需要 .t 交出排版權(display:contents),交出去之後裸文字節點就抓不到了。標準檔字元不變。
-      `<span class="t"><span class="hm">${hm}</span>${r.off ? '' : r.tr.est ? `<span class="estTag">${escHtml(t('推算'))}</span>` : r.dl > 0 ? `<span class="lateTag" data-min="${r.dl}">+${i18nNumber(r.dl)}</span>` : ''}</span><span class="min">${escHtml(min)}</span>` +
+      `<span class="t"><span class="hm">${hm}</span>${r.off ? '' : r.tr.est ? `<span class="estTag">${escHtml(t('推算'))}</span>` : r.dl > 0 ? `<span class="lateTag" data-full="${escHtml(t('誤點 {n} 分', { n: i18nNumber(r.dl) }, r.dl))}">+${i18nNumber(r.dl)}</span>` : ''}</span><span class="min">${escHtml(min)}</span>` +
       // 收掉的欄位一定要有可達路徑(設計 6b 明文):這顆只在特大出現,點開就是原本那三個欄位。
       `<button class="rmore" type="button" tabindex="-1" aria-label="${escHtml(t('顯示車種與方向'))}">›</button></div>` +
       subRow;
@@ -30847,12 +30902,20 @@ function metroBoardRowLabel(heads, full, ln, dest) {
   if (!m) return '';
   // 🔴 目的地已經講了同一件事就不要再講一次:北上的車「往 迴龍」再標一次「迴龍」是結巴。
   //    分支字樣真正帶資訊的是南下那種列——「往 南勢角　蘆洲」告訴你這班是從蘆洲那一支過來的。
-  return String(dest || '').includes(m[1]) ? '' : m[1];
+  return String(dest || '').includes(m[1]) ? '' : stationName(m[1], ln._sys);
+}
+// 系統名＋線名。其中一個已經包含另一個時只留長的那個：「三鶯線 三鶯線」「Taoyuan Airport MRT Airport MRT」
+// 「安坑ライトレール 安坑ライトレール」這種重複既佔寬(外語板就是被它擠掉車次)又沒多講任何事。
+function metroLineFullLabel(ln) {
+  const sys = ln._sysLabel ? t(ln._sysLabel) : '';
+  const route = routeName(ln.name || ln.abbr || '', ln._sys);
+  const a = sys.toLowerCase(), b = route.toLowerCase();
+  return !a ? route : !b || a.includes(b) ? sys : b.includes(a) ? route : `${sys} ${route}`;
 }
 function metroBoardHeadHtml(heads, gi, ln) {
   if (!heads || !heads[gi] || heads[gi] === heads[gi - 1]) return '';
   return `<div class="grp${gi ? '' : ' first'}"><span class="gdot" style="--c:${(ln && ln.color) || 'transparent'}"></span>` +
-    `<b>${escHtml(heads[gi])}</b></div>`;
+    `<b>${escHtml(routeName(heads[gi], ln && ln._sys))}</b></div>`;
 }
 function renderMetroCoreFreqBoard(el, st, lines, isDeco, view, opts) {
   const compact = !!(opts && opts.compact);
@@ -30860,7 +30923,7 @@ function renderMetroCoreFreqBoard(el, st, lines, isDeco, view, opts) {
   const records = [];
   const heads = metroBoardGroupHeads(view.groups);
   const body = view.groups.map((group, gi) => metroBoardHeadHtml(heads, gi, group.ln) + (compact ? group.rows.slice(0, 1) : group.rows).map(rec => {
-    const lineLabel = metroBoardRowLabel(heads, (group.ln._sysLabel ? t(group.ln._sysLabel) + ' ' : '') + routeName(group.ln.name || group.ln.abbr || '', group.ln._sys), group.ln, rec.destName);
+    const lineLabel = metroBoardRowLabel(heads, metroLineFullLabel(group.ln), group.ln, rec.destName);
     const destination = stationName(rec.destName, group.ln._sys);
     const direction = t('往 {station}', { station: destination });
     const followTitle = t('跟隨往 {station} 的班次', { station: destination });
@@ -30899,7 +30962,7 @@ function renderMetroCoreFreqBoard(el, st, lines, isDeco, view, opts) {
     `<button class="board-star${fav ? ' on' : ''}" id="boardStar" title="${escHtml(favLabel)}" aria-label="${escHtml(favLabel)}">${railIcon('ui-favorite', fav ? 'ri-icon--fill' : '')}</button>` +
     `<button class="close" id="boardClose" aria-label="${escHtml(t('關閉'))}">×</button></h3>` +
     metroBoardInfoHtml(st,
-      coreHasFallback ? '官方即時；缺列方向依時刻表推估' : '官方即時資料',
+      coreHasFallback ? t('官方即時；缺列方向依時刻表推估') : t('官方即時資料'),
       `${escHtml(t('站台預告與地圖列車共用同一份即時身分與時間軸'))} · ${escHtml(t(view.linked ? '可點選已連結的班次跟隨動畫' : '目前班次未連結動畫'))}`,
       eventRowsHtml(st)) +
     (body || `<div class="empty">${escHtml(t('此時段無停靠班次'))}</div>`) + metroBoardMapFooterHtml(st);
@@ -31158,7 +31221,7 @@ function renderTrtcOfficialFreqBoard(el, st, lines, isDeco, view, opts) {
     `<button class="board-star${fav ? ' on' : ''}" id="boardStar" title="${escHtml(favLabel)}" aria-label="${escHtml(favLabel)}">${railIcon('ui-favorite', fav ? 'ri-icon--fill' : '')}</button>` +
     `<button class="close" id="boardClose" aria-label="${escHtml(t('關閉'))}">×</button></h3>` +
     metroBoardInfoHtml(st,
-      hasFallback ? '官方即時；缺列方向依時刻表推估' : '北捷官方即時倒數',
+      hasFallback ? t('官方即時；缺列方向依時刻表推估') : t('北捷官方即時倒數'),
       `${escHtml(t('北捷班次直接顯示官方即時倒數'))} · ${escHtml(t(canFollow ? '可點選的班次可跟隨動畫' : '目前班次未連結動畫'))}${hasEstimated ? escHtml(t('（其他系統部分路線為班距推算）')) : ''}`,
       eventRowsHtml(st)) +
     (body || `<div class="empty">${escHtml(t('此時段無停靠班次'))}</div>`) + metroBoardMapFooterHtml(st);
@@ -31270,7 +31333,7 @@ function renderFreqBoard(el, st, lines, isDeco, opts) {
   const allFresh = hasLive && groups.filter(g => metroLiveOn(g.ln)).every(g => metroFresh(g.ln)); // 有任一線非 fresh(高倍速投射/資料稍舊)整體改推估措辭,同 updateMetroBadge
   const heads = metroBoardGroupHeads(groups);
   const body = groups.map((g, gi) => {
-    const lineLabel = metroBoardRowLabel(heads, (g.ln._sysLabel ? t(g.ln._sysLabel) + ' ' : '') + routeName(g.ln.name || g.ln.abbr || '', g.ln._sys), g.ln, g.destName);
+    const lineLabel = metroBoardRowLabel(heads, metroLineFullLabel(g.ln), g.ln, g.destName);
     const destination = stationName(g.destName, g.ln._sys);
     return metroBoardHeadHtml(heads, gi, g.ln) + (compact ? g.rows.slice(0, 1) : g.rows).map(r => {
       const minutes = Math.round(r.dtm / 60);
@@ -31325,8 +31388,8 @@ function renderFreqBoard(el, st, lines, isDeco, opts) {
       + `${escHtml(t('以下倒數與地圖上的列車位置都是依各站之間的固定行車時間推估的，可能與實際不符，也可能整段空著。'))}`
       + `${escHtml(t('這不代表列車停駛，請以月台看板為準。'))}</div>`
     : '';
-  const accuracy = staleHere.length ? '即時訊號中斷，依固定行車時間推估'
-    : hasLive ? (allFresh ? '已依官方即時資訊校正' : '依稍早官方資料推估') : '依官方當日時刻表推估';
+  const accuracy = staleHere.length ? t('即時訊號中斷，依固定行車時間推估')
+    : hasLive ? (allFresh ? t('已依官方即時資訊校正') : t('依稍早官方資料推估')) : t('依官方當日時刻表推估');
   const favLabel = t(fav ? '移除最愛車站' : '加入最愛車站');
   const titleSys = groups[0]?.ln?._sys || lines.find(ln => ln.stations && ln.stations.some(s => s.name.replace(/臺/g, '台') === key))?._sys || '';
   el.innerHTML = `<h3${waitSys && metroWaitEnabled() ? ' class="has-wait"' : ''}>${stationHeadingHtml(st.name, titleSys)}${sysNames.map(n => `<span class="sys-chip">${escHtml(t(n))}</span>`).join('')}` +
@@ -31614,11 +31677,11 @@ function metroWaitOfferLiveUpdateSettings(plugin, live) {
       !plugin || typeof plugin.openLiveUpdateSettings !== 'function') return;
   _mwLiveUpdatePrompted = true;
   setTimeout(async () => {
-    if (!confirm('要把等車倒數顯示在鎖定畫面的即時資訊（Samsung Now Bar），請允許軌島的「即時通知」。現在前往設定？')) return;
+    if (!confirm(t('要把等車倒數顯示在鎖定畫面的即時資訊（Samsung Now Bar），請允許軌島的「即時通知」。現在前往設定？'))) return;
     try {
       const result = await metroWaitCall(plugin.openLiveUpdateSettings(), 4000);
-      if (!result || !result.opened) showToast('這支手機沒有提供即時通知設定頁');
-    } catch (e) { showToast('無法開啟即時通知設定，請從系統設定的軌島通知中開啟'); }
+      if (!result || !result.opened) showToast(t('這支手機沒有提供即時通知設定頁'));
+    } catch (e) { showToast(t('無法開啟即時通知設定，請從系統設定的軌島通知中開啟')); }
   }, 0);
 }
 // dest===null 是「最快一班(全部方向)」與深連結的既有路徑;指定 dest 時必須先過濾再取兩班。
@@ -31904,7 +31967,7 @@ function traWaitBoardHtml(st) {
   if (!st || st.sys !== 'tra_sched' || !traWaitEnabled()) return '';
   const on = !!(state.traWait && state.traWait.station === st.name);
   return `<button class="board-wait${on ? ' on' : ''}" id="boardTraWait" type="button">` +
-    `${on ? '結束追蹤' : '追蹤一班車'}</button>`;
+    `${escHtml(t(on ? '結束追蹤' : '追蹤一班車'))}</button>`;
 }
 function bindTraWaitBoard(el, st) {
   const btn = el.querySelector('#boardTraWait');
@@ -31920,7 +31983,7 @@ function refreshTraWaitButton() {
   if (!btn) return;
   const cur = state.boardStation;
   const on = !!(state.traWait && cur && state.traWait.station === cur.name);
-  btn.textContent = on ? '結束追蹤' : '追蹤一班車';
+  btn.textContent = t(on ? '結束追蹤' : '追蹤一班車');
   btn.classList.toggle('on', on);
 }
 // 這一班車的官方誤點。回 { delayMin, dataAt } 或 null（整份即時資料不可用）。
@@ -31974,10 +32037,10 @@ function traWaitCandidates(rows) {
 }
 function traWaitDelayChip(trainNo) {
   const d = traWaitOfficialDelay(trainNo);
-  if (!d || d.delayMin == null) return { text: '誤點未知', cls: 'unknown' };
-  if (d.delayMin > 0) return { text: '誤點 ' + d.delayMin + ' 分', cls: 'late' };
-  if (d.delayMin < 0) return { text: '早到 ' + (-d.delayMin) + ' 分', cls: 'late' };
-  return { text: '準點', cls: 'ontime' };
+  if (!d || d.delayMin == null) return { text: t('誤點未知'), cls: 'unknown' };
+  if (d.delayMin > 0) return { text: t('誤點 {n} 分', { n: d.delayMin }), cls: 'late' };
+  if (d.delayMin < 0) return { text: t('早到 {n} 分', { n: -d.delayMin }), cls: 'late' };
+  return { text: t('準點'), cls: 'ontime' };
 }
 let traWaitPickerDraft = null;
 function traWaitClosePicker(restoreFocus = true) {
@@ -31996,7 +32059,7 @@ function traWaitOpenPicker(st, cands, opener) {
     return `<button class="tra-wait-choice" type="button" data-tra-wait="${i}">` +
       `<span class="tra-wait-choice-time">${escHtml(c.schedText)}</span>` +
       `<span class="tra-wait-choice-main"><span class="tra-wait-choice-no">${escHtml(c.trainType)} ${escHtml(c.trainNo)}</span>` +
-      `<span class="tra-wait-choice-sub">${c.isLast ? '（終點到達）' : '往 ' + escHtml(c.dest)}</span></span>` +
+      `<span class="tra-wait-choice-sub">${c.isLast ? escHtml(t('（終點到達）')) : escHtml(t('往 {station}', { station: c.dest }))}</span></span>` +
       `<span class="tra-wait-choice-delay ${chip.cls}">${escHtml(chip.text)}</span></button>`;
   }).join('');
   modal.hidden = false;
@@ -32011,11 +32074,11 @@ async function traWaitStartFromBoard(st, opener) {
   if (Math.abs(state.simSec - nowSecOfDay(activeTz())) > 120 || state.speed !== 1) {
     jumpToNow();
     renderBoard();
-    showToast('已把時間帶回「現在」才能追蹤班次');
+    showToast(t('已把時間帶回「現在」才能追蹤班次'));
   }
   const el = document.getElementById('board');
   const cands = traWaitCandidates(el && el._traWaitRows);
-  if (!cands.length) { showToast('這一站接下來沒有可追蹤的班次'); return; }
+  if (!cands.length) { showToast(t('這一站接下來沒有可追蹤的班次')); return; }
   traWaitOpenPicker(st, cands, opener);
 }
 // 🔴 原生 start/stop/status 共用同一條 Task 佇列（RailTraWaitPlugin.swift 的 enqueue）:
@@ -32035,7 +32098,7 @@ async function traWaitStartFor(st, cand) {
   // 🔴 背景一律不呼叫 p.start():iOS 會拒（ActivityAuthorizationError.visibility）,而失敗只有
   //    toast、鎖屏看不到。等站卡沒有深連結入口（開卡一定是使用者當場按的）⇒ 這裡不做待辦補開,
   //    直接如實告訴他。（捷運那張有小工具深連結,才需要 _mwPendingOpen 那套。）
-  if (document.hidden) { showToast('請回到軌島再按一次「追蹤一班車」'); return; }
+  if (document.hidden) { showToast(t('請回到軌島再按一次「追蹤一班車」')); return; }
   const delay = traWaitOfficialDelay(cand.trainNo);
   const key = 'tra|' + st.name + '|' + cand.trainNo + '|' + Date.now();
   const payload = {
@@ -33543,7 +33606,7 @@ function syncReportGo() {
   const txt = ((document.getElementById('rpText') || {}).value || '').trim();
   b.dataset.url = reportIssueUrl();   // 攤在 DOM 上:驗收讀得到,好奇的人也看得到會開哪一條網址
   b.disabled = !txt;                  // 沒寫說明的回報幫不上忙,擋住
-  b.title = txt ? '' : '請先寫一句說明';
+  b.title = txt ? '' : t('請先寫一句說明');
 }
 function openReport() {
   const m = document.getElementById('reportModal'); if (!m) return;
@@ -33591,7 +33654,7 @@ function setupReport() {
     syncReportGo();   // 只是把說明欄的最新內容接上;診斷值來自畫面那幾列,不會在這裡變動
     const url = e.currentTarget.dataset.url; if (!url) return;
     const w = window.open(url, '_blank', 'noopener,noreferrer');
-    if (!w) showToast('瀏覽器擋下了新視窗，請允許彈出視窗後再按一次');   // 不改成整頁跳走:那會把畫面弄丟
+    if (!w) showToast(t('瀏覽器擋下了新視窗，請允許彈出視窗後再按一次'));   // 不改成整頁跳走:那會把畫面弄丟
   });
 }
 // sectionKey(可選):有給就展開該節所屬群組、捲到該節並短暫高亮(查詢 sheet 的「小工具」列走這條)
@@ -33927,7 +33990,8 @@ function setupMapTools() {
       if (r && r.state.hasUpdate && r.latest && r.latest.url) { window.open(r.latest.url, '_blank', 'noopener'); return; }
       if (appWhatsNewText()) {
         setMore(false);
-        appUpdateOpenNotes({ notes: appWhatsNewText() }, `軌島 ${window.RAIL_APP_VERSION} 更新了什麼`);
+        // 與開機彈窗同一句 key 與 localized 旗標：少了旗標，日文說明會被誤標成「中国語の原文」
+        appUpdateOpenNotes({ notes: appWhatsNewText(), localized: appWhatsNewLocalized() }, t('軌島 {version} 更新了什麼', { version: window.RAIL_APP_VERSION }));
       }
       return;
     }
@@ -35063,9 +35127,7 @@ async function boot() {
     const f = state.freqFollow;
     const same = trtcOfficialSameTarget(f, fh);
     const sysId = freqSysIdOf(fh.ln);
-    const system = fh.ln._sysLabel ? t(fh.ln._sysLabel) : '';
-    const line = routeName(fh.ln.name || fh.ln.abbr || '捷運', sysId);
-    const nm = [system, line].filter((value, index, values) => value && values.indexOf(value) === index).join(' ');
+    const nm = metroLineFullLabel(fh.ln) || routeName('捷運', sysId);
     const vehicle = fh.vehicleId != null && state.trtcOfficialRoster && state.trtcOfficialRoster.vehicles.find(v =>
       String(v.vehicleId) === String(fh.vehicleId));
     const no = vehicle && String(vehicle.officialNo || '');
