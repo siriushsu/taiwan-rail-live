@@ -8,9 +8,9 @@ for(const mode of ['flat','terrain']){
 // 所以下一次 update 就建出正確高度,對正式站則會在 DEM 還在下載時把整座高架橋建在 0m 並且不再更新。
 // 兩個寬度一律改走使用者真的會按的那顆控制項(rubric 形態 0:要量使用者走的路)。
 {const press=async loc=>{await loc.scrollIntoViewIfNeeded();mobile?await loc.tap():await loc.click();};
-await press(page.locator(await page.locator('#toolsFab').isVisible()?'#toolsFab':'#tabMore'));
+if(await page.locator('.view-rail [data-view="map"]').isVisible())await press(page.locator('.view-rail [data-view="map"]'));else{await press(page.locator('#viewSettingsBtn'));await press(page.locator('.view-tabs [data-view="map"]'));}
 await press(page.locator('[data-rail3d="ground"] [data-value="'+mode+'"]'));
-const close=page.locator('#moreClose');if(await close.isVisible())await press(close);}
+const close=page.locator('.view-close');if(await close.isVisible())await press(close);}
 await page.evaluate(()=>{railIslandIntegration.renderer.map.jumpTo({center:[120.3247,23.48],zoom:18.2,pitch:68,bearing:65});__bridgeUpdate();});
 // 正向對照:terrain 這列要先證明地形真的開著、而且 DEM 在這些取樣點真的有值(此段約 10~12m)。
 // 少了這兩條,「建出來的 groundM」和「當下查到的高程」在 DEM 未載入或地形沒開時都是 0,
