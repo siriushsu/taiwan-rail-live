@@ -496,6 +496,20 @@ try {
   if (notify.status !== 0) fail('本地提醒守門人未過——提醒入口不見了,或排程時間／格位／上限算錯'
     + '（單獨重跑：npm run check-notify）');
 
+  // ── 2.22 台鐵誤點偏移的畫面行為守門人(2026-09-19) ─────────────────────────
+  // 為什麼值得進出貨鏈:它守兩條使用者裁示——誤點一次加大 ≥5 分要一步跳回真實位置(09-05)、未滿 5 分要
+  // 慢速前進不准定格(09-07)——外加「暫停時車不准自己動」「追回誤點時不得超過車種極速 2 倍」。受測的
+  // easedShift／liveDelaySec／trainPos／實體股道 trainPosAt 都是別批常改的地方,改壞了畫面照樣有車,
+  // 只是位置差一個誤點量,沒有別的閘門量得到。這支此前沒有任何呼叫者,而且深夜跑會因為選到沒在跑的車
+  // 而假紅(2026-09-19 已釘鐘 12:00 修掉,另加 P0／D2 具名前提)。自己起純靜態 server(/api 一律 404,
+  // 不打上游),雙引擎約 30 秒。
+  // 🔴 洗掉繼承來的 PORT／ROOT:有值時它改連既有 server、驗的可能是別棵樹(同 2.16／2.17)。
+  const traMotion = spawnSync('node', [path.join(wt, 'scripts', 'verify_tra_motion.mjs')],
+    { cwd: wt, encoding: 'utf8', env: { ...process.env, PORT: '', ROOT: '', ENGINES: 'chromium,webkit' } });
+  process.stdout.write(traMotion.stdout || ''); process.stderr.write(traMotion.stderr || '');
+  if (traMotion.status !== 0) fail('台鐵誤點偏移守門人未過——大跳變沒一步跳回、小增量定格、暫停時車自己動,或追回時超速'
+    + '（單獨重跑：ENGINES=chromium,webkit npm run check-tra-motion）');
+
   // 觀看入口是沉浸模式的退出路徑；雙引擎真點進入、重開、退出與重載。
   const viewControls = spawnSync('node', [path.join(wt, 'scripts', 'verify_view_controls_gate.mjs')], { cwd: wt, encoding: 'utf8' });
   process.stdout.write(viewControls.stdout || ''); process.stderr.write(viewControls.stderr || '');
