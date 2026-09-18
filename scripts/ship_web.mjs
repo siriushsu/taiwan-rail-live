@@ -520,6 +520,17 @@ try {
   if (traMotion.status !== 0) fail('台鐵誤點偏移守門人未過——大跳變沒一步跳回、小增量定格、暫停時車自己動,或追回時超速'
     + '（單獨重跑：ENGINES=chromium,webkit npm run check-tra-motion）');
 
+  // ── 2.23 自家營運異常偵測守門人(2026-09-19) ─────────────────────────────
+  // 為什麼值得進出貨鏈:捷運徽章(即時更新中／官方即時／官方中斷／班表備案)與台鐵大面積誤點橫幅是異常狀態機
+  // 的兩個出口,改壞了畫面照樣有字、只是狀態錯,沒有別的閘門量得到。這支此前沒有任何呼叫者,判準一度過期
+  // (Metro-Core 接管後的新字樣、橫幅清空只設 hidden),2026-09-19 修正並逐條突變驗過。純靜態 server、約 4 秒。
+  // 🔴 PORT 傳 0:讓它自己挑空埠,不撞別的 session 正在用的預設 5188。
+  const anomaly = spawnSync('node', [path.join(wt, 'scripts', 'verify_anomaly.mjs')],
+    { cwd: wt, encoding: 'utf8', env: { ...process.env, PORT: '0' } });
+  process.stdout.write(anomaly.stdout || ''); process.stderr.write(anomaly.stderr || '');
+  if (anomaly.status !== 0) fail('營運異常偵測守門人未過——捷運即時徽章或台鐵大面積誤點橫幅的狀態錯了'
+    + '（單獨重跑：npm run check-anomaly）');
+
   // 觀看入口是沉浸模式的退出路徑；雙引擎真點進入、重開、退出與重載。
   const viewControls = spawnSync('node', [path.join(wt, 'scripts', 'verify_view_controls_gate.mjs')], { cwd: wt, encoding: 'utf8' });
   process.stdout.write(viewControls.stdout || ''); process.stderr.write(viewControls.stderr || '');

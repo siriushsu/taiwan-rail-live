@@ -22,8 +22,9 @@ const server = createServer((req, res) => {
   res.setHeader('content-type', MIME[path.extname(fp)] || 'application/octet-stream');
   res.end(readFileSync(fp));
 });
+// PORT=0 時由系統挑空埠(出貨鏈這樣傳，避免撞到別的 session 正在用的 5188 而假紅)。
 await new Promise(r => server.listen(PORT, r));
-const URLROOT = `http://localhost:${PORT}/`;
+const URLROOT = `http://localhost:${server.address().port}/`;
 
 const results = [];
 const ok = (name, pass, detail = '') => { results.push({ name, pass }); console.log(`${pass ? 'PASS' : 'FAIL'} ${name}${detail ? ' — ' + detail : ''}`); };
