@@ -7449,12 +7449,21 @@ function followHeadingFor(key, a, b) {
 }
 // MapLibre 的 touchPan 在 touchstart 就進 active，dragstart 則要等位移超過門檻才發。
 // 跟車相機若在這段間隙繼續 setView/setBearing，handler 會被重設，使用者永遠拖不開鎖。
-// 旋轉／傾斜手勢同理：手指在圖上時相機完全讓位，dragstart 之後 followLock 會接手解鎖。
 function mapGestureActive() {
   if (!M || !M.raw) return false;
   if (window.railIslandIntegration?.interacting) return true;
   return [M.raw.dragPan, M.raw.dragRotate, M.raw.touchZoomRotate]
     .some(h => h && typeof h.isActive === 'function' && h.isActive());
+}
+// 旋轉／傾斜手勢跟跟車鏡頭不搶同一個量:使用者改 bearing 與 pitch,鏡頭只改 center,兩邊互不重設
+// (9/16 車頭朝上路徑已實測可行)。平移手勢仍要完全讓位,否則使用者永遠拖不開鎖(見上)。
+// dragRotate 同時承接右鍵拖曳與 Ctrl＋左鍵拖曳;手機的雙指旋轉走 touchZoomRotate,
+// 但手機本來就是車頭鎖定,走 syncCameraLock 那條路,不從這裡過。
+function followOrbitGesture() {
+  if (!M || !M.raw) return false;
+  if (!(state.followTrain || state.freqFollow) || !state.followLock) return false;
+  const active = h => !!h && typeof h.isActive === 'function' && h.isActive();
+  return active(M.raw.dragRotate) && !active(M.raw.dragPan);
 }
 // 自家鏡頭轉向一律走這裡:MapLibre 的 setBearing 每呼叫一次就發 movestart,不標 _autoPan 的話
 // closeTapPickOnUserMove 會把剛開的疊車選單當成使用者拖曳收掉(跟車中每幀插值、離開跟車 240 ms 轉正北都會發)。
@@ -24421,7 +24430,7 @@ function recenterTo(lat, lon, extra) {
   if (document.body.classList.contains('search-open')) return; // 打字搜尋時暫停跟車鏡頭
   state._pinnedFollowTarget = {owner:state.followTrain || state.freqFollow,lat,lon};
   if (followHeadLocked() && window.railIslandIntegration?.syncCameraLock()) return;
-  if (mapGestureActive()) return; // 非車頭鎖定時，讓手勢自行處理
+  if (mapGestureActive() && !followOrbitGesture()) return; // 非車頭鎖定時，平移讓手勢自行處理；純旋轉／傾斜繼續跟車
   if (document.body.classList.contains('search-open')) return; // §04c 契約9:搜尋打字中不搶相機(關閉面板即恢復)
   // 每幀把列車釘在畫面「可視窗」中心(面板遮住的部分不算,見 focusCenter)。曾用「次像素平移」(移動 mapPane
   // 消階梯鋸齒),但 mapPane(圖磚)與獨立的列車/軌道 canvas 圖層在真機幀率下會脫鉤→整條路線跟著車移動/抖動

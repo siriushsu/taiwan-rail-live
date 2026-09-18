@@ -492,7 +492,16 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
         }
         stats.followReturning=!!followReturn;
         if(!pose&&Math.abs(c.lng-center[0])+Math.abs(c.lat-center[1])<1e-9&&Object.keys(padding).every(k=>Math.abs(p[k]-padding[k])<.5)&&Math.abs(map.getCenterElevation()-viewElevation)<.05)return;
-        map.setCenterClampedToGround(false);followingCamera=true;try{map.jumpTo({center,elevation:viewElevation,padding,...pose});stats.followMoves=(stats.followMoves||0)+1;}finally{followingCamera=false;}
+        map.setCenterClampedToGround(false);followingCamera=true;try{
+          // 手勢進行中不能用 jumpTo:它會 stop() 並重設旋轉 handler,使用者永遠轉不動。
+          // 沿用 follow-camera-lock 那條已驗證的路徑,只提交中心與 padding;bearing／pitch
+          // 這時是使用者在開,cinematicPose 不參一腳(手放開後由 applyFollowHeading 收斂)。
+          if(gesture&&(pointers.size||map.handlers?.isActive())){
+            const next=map._getTransformForUpdate();
+            next.setCenter(new ml.LngLat(center[0],center[1]));next.setElevation(viewElevation);next.setPadding(padding);
+            map._applyUpdatedTransform(next);map.fire('move');map._update();
+          }else map.jumpTo({center,elevation:viewElevation,padding,...pose});
+          stats.followMoves=(stats.followMoves||0)+1;}finally{followingCamera=false;}
       },
       togglePitch(){const flat=map.getPitch()>0;map.jumpTo({pitch:flat?0:55});return flat;},
       syncLayerOrder(){orderBuildingPasses(map);},
