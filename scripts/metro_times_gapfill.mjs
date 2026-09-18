@@ -32,6 +32,12 @@ const HOLE_MIN_SEC = 30 * 60; // 內夾缺口的最小長度:短於此視為正�
 const MIN_SEP_SEC = 90;       // 補進去的停靠與既有班次的最小間隔
 const MIN_GROUP_TRIPS = 3;    // 同一缺口同一邊界站至少要這麼多班被截斷才認定是缺資料
 
+// 沒有中途折返營運型態的線:每一班都從端點跑到端點。這種線連「收班前最後幾班」被截斷
+// 都可以判定成缺記錄,不必等缺口被兩側夾住——因為這條線根本不存在中途折返這回事。
+// 這是營運事實,只能由知道的人裁示,不能從資料自己推(資料缺一段,看起來就像折返)。
+//   Y 環狀線:使用者 2026-09-18 在專案裡明確說「車子應該都是有到終點」。
+const NO_SHORT_TURN = new Set(['Y']);
+
 const idxsOf = tr => { const o = []; for (let i = 0; i < tr.length; i += 2) o.push(tr[i]); return o; };
 // 行進方向:站序逐步變化的正負號總和(與 verify_metro_times.mjs 的 dirOf 同一套)
 const dirOf = tr => {
@@ -87,6 +93,13 @@ function boundedHole(times, t) {
   return { before, after };
 }
 
+// 收班邊緣:擬補停靠落在該站該方向最後一筆記錄之後。缺口沒有「後面那一側」可夾,
+// 所以只有宣告過沒有中途折返的線才准用(見 NO_SHORT_TURN)。
+function afterLastStop(times, t) {
+  if (!times || times.length < 2) return false;
+  return t - times[times.length - 1] >= MIN_SEP_SEC;
+}
+
 // 從 fromIdx 往 toIdx 逐站推出擬補停靠;缺任何一段中位數就放棄整段
 function projectStops(offs, dir, fromIdx, fromSec, toIdx) {
   const step = toIdx > fromIdx ? 1 : -1;
@@ -115,16 +128,21 @@ export function applyGapFill(out, lineFile, log = console.log) {
       const stops = stopIndex(trains);             // 補之前的快照:同一輪的補值不互相遮蔽缺口
       // ── 第一輪:逐班算出擬補停靠,按「哪個缺口、哪個邊界站」分群 ──
       const groups = new Map();
+      const noShortTurn = NO_SHORT_TURN.has(lid);
       const propose = (tr, dir, end, boundary, proj) => {
         if (!proj || !proj.length) return;
-        let key = null;
+        let key = null, forced = false;
         for (const [i, t] of proj) {
           const hole = boundedHole(stops.get(`${dir}|${i}`), t);
-          if (!hole) return;                       // 任一站不在內夾缺口裡 → 整班不補
-          if (key == null) key = `${dir}|${end}|${boundary}|${hole.before}|${hole.after}`;
+          if (hole) { if (key == null) key = `${dir}|${end}|${boundary}|${hole.before}|${hole.after}`; continue; }
+          // 沒被夾住:只有宣告無中途折返的線,且是收班之後那一段,才當成缺記錄
+          if (!(noShortTurn && afterLastStop(stops.get(`${dir}|${i}`), t))) return;
+          forced = true;
         }
+        key = forced ? `${dir}|${end}|${boundary}|收班` : key;
+        if (key == null) return;
         if (!groups.has(key)) groups.set(key, []);
-        groups.get(key).push({ tr, dir, end, proj });
+        groups.get(key).push({ tr, dir, end, proj, forced });
       };
       for (const tr of trains) {
         const dir = dirOf(tr);
@@ -154,7 +172,9 @@ export function applyGapFill(out, lineFile, log = console.log) {
       const added = new Map();
       let tails = 0, heads = 0;
       for (const [, members] of groups) {
-        if (members.length < MIN_GROUP_TRIPS) continue;  // 零星幾班 = 真的營運型態,不是缺資料
+        // 零星幾班 = 真的營運型態,不是缺資料。無中途折返的線不受此限:那條線的營運事實
+        // 本身就說了「沒有折返這回事」,一班被截斷也是被截斷。
+        if (!members[0].forced && members.length < MIN_GROUP_TRIPS) continue;
         members.sort((a, b) => a.proj[0][1] - b.proj[0][1]);
         for (const m of members) {
           const clash = m.proj.some(([i, t]) => (added.get(`${m.dir}|${i}`) || [])
