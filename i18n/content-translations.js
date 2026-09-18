@@ -1793,11 +1793,11 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   "環狀線平日深夜少掉的末班車補回來了，中和站時刻也改對齊官方時刻表": "環状線：平日深夜に欠けていた終電を復元し、中和駅の時刻も公式時刻表に合わせました。"
 });
 
-// 2026-09-18 開著車站卡也能進觀看設定(第一層更新紀錄那條的 en/ja;第二層正本一律走 RAIL_I18N_CHANGELOG)
+// 2026-09-18 開著車站卡或列車卡也能進觀看設定(第一層更新紀錄那條的 en/ja;第二層正本一律走 RAIL_I18N_CHANGELOG)
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
-  "開著車站卡時也能直接按「觀看」調整視角、地圖與列車設定": "You can now tap View to change camera, map and train settings while a station card is open."
+  "開著車站卡或列車卡時也能直接按「觀看」調整視角、地圖與列車設定": "You can now tap View to change camera, map and train settings while a station or train card is open."
 });
 
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
-  "開著車站卡時也能直接按「觀看」調整視角、地圖與列車設定": "駅カードを開いたままでも「表示」から視点・地図・列車の設定を変更できるようになりました。"
+  "開著車站卡或列車卡時也能直接按「觀看」調整視角、地圖與列車設定": "駅カードや列車カードを開いたままでも「表示」から視点・地図・列車の設定を変更できるようになりました。"
 });
