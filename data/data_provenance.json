@@ -98,7 +98,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "dbcf7623a03d13afb75a32c4e1fe05bb"
+   "checksum": "7f5d9d56dfdaf5ed8d4568694bf2558b"
   },
   "data/offline_land_style.json": {
    "sourceDescription": "離線陸地的 MapLibre style 片段(fill/line 兩層、light/dark/sat 三主題),值抄自 index.html 的 offlineLandStyle();scripts/verify_track_geojson.mjs G9 對 index.html 逐值驗算",
@@ -314,7 +314,7 @@
    "effectiveDateField": "date",
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "33b16054defee965aec97b98c09b1306"
+   "checksum": "4c1323101a3391ba17cc24e966352f7c"
   },
   "data/trtc.json": {
    "sourceDescription": "信義東延段廣慈/奉天宮站(R01):站點座標取 TDX 官方值(2026-09-10 上架後換掉先行補入的 OSM 值);線形取自 OSM(TDX 的 R 線幾何仍無東延段);沿線里程指 OSM 月台停車點;站間行駛時間仍為估算(TDX 尚未提供 R01 區間),上架後應以官方值取代;",
@@ -341,7 +341,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "a14bdd1739e03358022385d734f95882"
+   "checksum": "882c3c10e50490109a7d7b1112dc562e"
   },
   "data/tymc.json": {
    "sourceDescription": "交通部 TDX 運輸資料流通服務(桃園機場捷運:路線幾何/站序/班距/站間行駛時間,2026-07 抓取);以普通車全站停靠型態繪製 2026-07-11:移除新北產業園區站西側shape反向重走段(同軌去回偽折返,致列車視覺繞圈);站點d重投影。",
@@ -359,7 +359,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "37e4b1c01e0d4c3fd2f4cb6fc0318fd8"
+   "checksum": "d347ebd45cfb5e8b114b1e74fd550752"
   }
  }
 }

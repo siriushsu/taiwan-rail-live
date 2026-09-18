@@ -35,6 +35,24 @@ const MAX_GAP_GROWTH_SEC = 30 * 60; // 幹線最大空檔相對基準的增幅�
 const MAX_STATION_HOLE_SEC = 45 * 60; // 單站同方向兩次停靠的最大容許間隔
 const STATION_HOLE_FACTOR = 3;        // 且要大於該線該方向「正常班距」的這麼多倍
 
+// [官方] 營運者公告的字面值,與建置吃的 TDX 不同源。上面的相對判準只跟上一版比,上一版本身錯了
+// 就永遠綠——環狀線平日末班少 5 班(2026-09-18 查出)就是這樣過關的。
+// 來源:新北捷運各站列車時刻表(114年8月1日生效),ntmetro.com.tw 各站頁的 PDF 與 .odt。
+// 只收「沒有兩份官方來源互相打架」的值:Y07/Y20 平日與 Y07 假日的末段 PDF 與 .odt 一字不差;
+// Y12 中和只有 PDF 可信(官網「中和站」的 .odt 內容是景平站)。兩份打架的(Y20 假日整天、
+// Y07 平日 06 時四班、Y07 假日 19–21 時各一班)等使用者裁示,不進這張表。
+// 值 = 該站該方向 from 以後每一個停靠的 HH:MM(跨午夜寫 24:xx,與產物秒數一致)。
+const OFFICIAL = [
+  { file: 'data/trtc_times.json', line: 'Y', set: '平日', station: 0, dir: 'asc', from: '23:00', src: 'Y07 大坪林 往新北產業園區',
+    want: ['23:04', '23:12', '23:24', '23:36', '23:48', '24:00'] },
+  { file: 'data/trtc_times.json', line: 'Y', set: '假日', station: 0, dir: 'asc', from: '23:00', src: 'Y07 大坪林 往新北產業園區',
+    want: ['23:04', '23:12', '23:24', '23:36', '23:48', '24:00'] },
+  { file: 'data/trtc_times.json', line: 'Y', set: '平日', station: 13, dir: 'desc', from: '23:00', src: 'Y20 新北產業園區 往大坪林',
+    want: ['23:07', '23:15', '23:23', '23:31', '23:39', '23:48', '24:00'] },
+  { file: 'data/trtc_times.json', line: 'Y', set: '平日', station: 5, dir: 'asc', from: '23:00', src: 'Y12 中和 往新北產業園區(PDF)',
+    want: ['23:00', '23:10', '23:16', '23:24', '23:37', '23:48', '24:01', '24:12'] },
+];
+
 const argv = process.argv.slice(2);
 const flagVal = f => { const i = argv.indexOf(f); return i >= 0 ? argv[i + 1] : null; };
 const BASELINE = flagVal('--baseline') || 'HEAD';
@@ -100,6 +118,8 @@ for (const rel of FILES) {
   if (!existsSync(abs)) { ck(false, `${rel} 不存在`); continue; }
   const cur = JSON.parse(readFileSync(abs, 'utf8'));
   const lines = cur.lines || cur;
+  const loopIds = new Set(JSON.parse(readFileSync(path.join(ROOT, rel.replace('_times', '')), 'utf8'))
+    .lines.filter(l => l.loop).map(l => l.id));
   console.log(`\n[${rel}]`);
 
   for (const [lid, L] of Object.entries(lines)) {
@@ -128,6 +148,22 @@ for (const rel of FILES) {
       }
       ck(shortTrains === 0, `${lid}/${tag} 每班至少兩站（${shortTrains} 班不足）`);
       ck(nonMono === null, `${lid}/${tag} 逐站時刻嚴格遞增${nonMono ? `（首例：${nonMono}）` : ''}`);
+
+      // ── 結構:非環線一班車不得中途掉頭(站序嚴格單調) ──
+      // 2026-09-18 補。建置的碎片合併曾經不分方向,把落在鏈尾「後方」的碎片接成同一班
+      // (機捷平日 …9@07:37 8@07:45 接 9@07:52 8@08:00…):時刻照樣遞增,上面每一條都綠。
+      // 環線跨縫本來就是一次反向跳站,由建置端的跨縫防線管,這裡不問。
+      if (!loopIds.has(lid)) {
+        let uTurns = 0, uEx = null;
+        for (const tr of trains) {
+          const idx = idxsOf(tr), d = dirOf(tr) === 'asc' ? 1 : -1;
+          const k = idx.findIndex((v, i) => i > 0 && Math.sign(v - idx[i - 1]) !== d);
+          if (k < 0) continue;
+          uTurns++;
+          uEx ??= `發車 ${hm(tr[1])} 站序 ${idx[k - 1]}→${idx[k]}`;
+        }
+        ck(uTurns === 0, `${lid}/${tag} 無中途掉頭的班次（${uTurns} 班${uEx ? `，首例 ${uEx}` : ''}）`);
+      }
 
       // ── 結構:發車間隔落在合理帶 ──
       // 方向用「首站 index vs 末站 index」判,不靠欄位:合成線與鏈匹配線的欄位不一致。
@@ -201,6 +237,20 @@ for (const rel of FILES) {
       }
       ck(holes === 0, `${lid}/${tag} 無整段服務斷層（${holes} 處${holeEx ? `，首例 ${holeEx}` : ''}）`);
     }
+  }
+
+  // ── 官方:與營運者公告的字面值逐筆比對 ──
+  for (const o of OFFICIAL.filter(o => o.file === rel)) {
+    const trains = (lines[o.line] && lines[o.line].sets[o.set]) || [];
+    const fromSec = Number(o.from.slice(0, 2)) * 3600 + Number(o.from.slice(3)) * 60;
+    const got = [];
+    for (const tr of trains) {
+      if (dirOf(tr) !== o.dir) continue;
+      for (let i = 0; i < tr.length; i += 2) if (tr[i] === o.station && tr[i + 1] >= fromSec) got.push(tr[i + 1]);
+    }
+    const g = got.sort((a, b) => a - b).map(hm);
+    ck(g.join(' ') === o.want.join(' '),
+      `${o.line}/${o.set} ${o.src} ${o.from} 後與官方時刻表一致（官方 ${o.want.join(' ')}${g.join(' ') === o.want.join(' ') ? '' : `；產物 ${g.join(' ') || '無'}`}）`);
   }
 
   if (STRUCT_ONLY) continue;

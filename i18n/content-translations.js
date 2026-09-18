@@ -1774,3 +1774,21 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   "「附近車站」清單多了兩個關法：點地圖空白處、或把卡片往下滑，不必先選一站才收得掉": "「付近の駅」リストの閉じ方が増えました。地図の何もない場所をタップするか、カードを下にスワイプすれば閉じられます。駅を選ばないと消せない状態を解消しました。"
 });
+
+// 2026-09-18 班表碎片合併方向修正(第一層更新紀錄那條的 en/ja;第二層正本一律走 RAIL_I18N_CHANGELOG)
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  "淡水信義線平日清晨少掉的 6 班補回來了；機捷與淡海輕軌少數班次不再開到半路掉頭": "Tamsui-Xinyi Line: the 6 early-morning weekday trains that were missing are back, and a few Taoyuan Airport MRT and Danhai LRT trains no longer turn back halfway."
+});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  "淡水信義線平日清晨少掉的 6 班補回來了；機捷與淡海輕軌少數班次不再開到半路掉頭": "淡水信義線：平日早朝に欠けていた6本を復元しました。桃園空港MRTと淡海ライトレールの一部列車が途中で折り返す問題も解消しました。"
+});
+
+// 2026-09-18 環狀線平日末班車補齊(第一層更新紀錄那條的 en/ja;第二層正本一律走 RAIL_I18N_CHANGELOG)
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  "環狀線平日深夜少掉的末班車補回來了，中和站時刻也改對齊官方時刻表": "Circular Line: the late-night weekday last trains that were missing are back, and Zhonghe station times now match the official timetable."
+});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  "環狀線平日深夜少掉的末班車補回來了，中和站時刻也改對齊官方時刻表": "環状線：平日深夜に欠けていた終電を復元し、中和駅の時刻も公式時刻表に合わせました。"
+});
