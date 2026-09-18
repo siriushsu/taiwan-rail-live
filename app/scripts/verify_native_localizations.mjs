@@ -62,10 +62,22 @@ for (const file of swiftFiles) {
   }
 }
 
+// 權限說明：中文原文在 Info.plist、翻譯在 InfoPlist.xcstrings。2026-09-19 抓到兩個洞：catalog 沒有 zh-Hant，
+// 中文系統找不到繁中 InfoPlist.strings 就落到 en.lproj(模擬器 zh-Hant-TW 實測定位提示是英文)；中文 9/3 加了
+// 行程位置分享，en/ja 還停在「座標不上傳」。zh-Hant 必須逐字等於 Info.plist——中文一改這裡就紅，提醒連 en/ja 一起改。
+const infoPlist = read('app/ios/App/App/Info.plist');
+const plistValue = key => infoPlist.match(new RegExp(`<key>${key}</key>\\s*<string>([^<]*)</string>`))?.[1]
+  ?.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&');
 for (const key of ['CFBundleDisplayName', 'NSLocationWhenInUseUsageDescription', 'NSLocationAlwaysAndWhenInUseUsageDescription']) {
+  const loc = info.strings?.[key]?.localizations || {};
+  const zh = loc['zh-Hant']?.stringUnit?.value;
+  assert(plistValue(key) && zh === plistValue(key), `InfoPlist ${key} 的 zh-Hant 與 Info.plist 原文不同(或缺)——中文改了就要連 en/ja 一起改`);
   for (const lang of ['en', 'ja']) {
-    assert(info.strings?.[key]?.localizations?.[lang]?.stringUnit?.value, `InfoPlist ${key} 缺 ${lang}`);
+    assert(loc[lang]?.stringUnit?.state === 'translated' && loc[lang].stringUnit.value, `InfoPlist ${key} 缺 ${lang}`);
   }
+  assert(!/[\u3400-\u9fff]/.test(loc.en.stringUnit.value), `InfoPlist ${key} 的 en 含漢字`);
+  if (key !== 'CFBundleDisplayName') assert(/[\u3040-\u309f]/.test(loc.ja.stringUnit.value), `InfoPlist ${key} 的 ja 沒有平假名`);
+  if (zh.includes('分享')) assert(/shar/i.test(loc.en.stringUnit.value) && loc.ja.stringUnit.value.includes('共有'), `InfoPlist ${key}：中文寫了位置分享，en/ja 沒寫(翻譯過期)`);
 }
 
 const pbx = read('app/ios/App/App.xcodeproj/project.pbxproj');
