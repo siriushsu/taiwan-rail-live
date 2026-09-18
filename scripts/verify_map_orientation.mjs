@@ -276,9 +276,12 @@ async function mobileM2(browser, url, engine, browserName, width, check) {
     await compass.tap();
     await page.waitForFunction(() => Math.abs(window.__M?.getBearing()) < 0.01 && Math.abs(window.__M?.getPitch()) < 0.01
       && !window.__M?.raw.getContainer().classList.contains('map-orient-active'));
-    await page.tap('#tabMore');
+    // v0914c 起「3D 建築」列(#map3dRow)搬進觀看面板「地圖」分頁,不再掛在「更多」抽屜下。
+    const railM2 = page.locator('.view-rail [data-view="map"]');
+    if (await railM2.isVisible()) await railM2.tap();
+    else { await page.tap('#viewSettingsBtn'); await page.tap('.view-tabs [data-view="map"]'); }
     const row = page.locator('#map3dRow');
-    check(await row.isVisible(), `${browserName}/${width} 更多 sheet 的 3D 列可見`);
+    check(await row.isVisible(), `${browserName}/${width} 觀看面板的 3D 列可見`);
     const rr = await row.boundingBox();
     const rowHit = rr && await page.evaluate(({ x, y }) => !!document.elementFromPoint(x, y)?.closest('#map3dRow'), { x: rr.x + rr.width / 2, y: rr.y + rr.height / 2 });
     check(!!rowHit, `${browserName}/${width} 3D 列 elementFromPoint 真正可達`);

@@ -9,7 +9,9 @@ for(const [name,engine]of Object.entries({chromium,webkit})){
   const page=await ctx.newPage();
   const boot=async query=>{await page.goto((process.env.BASE_URL||'http://127.0.0.1:5236/')+'?lang=zh-TW&t=12:00'+query);await page.waitForFunction(()=>state.ready&&!!window.railIslandSunlight,null,{timeout:60000});await page.evaluate(()=>state.playing=false);};
   await boot('');
-  await page.locator('#tabMore').tap();await page.locator('#sunlightRow').scrollIntoViewIfNeeded();
+  // v0914c 起「日夜光影」列(#sunlightRow)搬進觀看面板「地圖」分頁,不再掛在「更多」抽屜下。
+  const openMapTab=async()=>{const rail=page.locator('.view-rail [data-view="map"]');if(await rail.isVisible())await rail.tap();else{await page.tap('#viewSettingsBtn');await page.tap('.view-tabs [data-view="map"]');}};
+  await openMapTab();await page.locator('#sunlightRow').scrollIntoViewIfNeeded();
   if(await page.evaluate(()=>sunlight.enabled))await page.tap('#sunlightRow');
   await boot('');check(name+' 關閉偏好跨重新載入保留',await page.evaluate(()=>!sunlight.enabled&&!M.raw.getSky()));
   await boot('&sun=on');
@@ -21,10 +23,12 @@ for(const [name,engine]of Object.entries({chromium,webkit})){
   check(name+' 直接指定時刻會更新光線',await page.evaluate(()=>state.simSec===64800&&musicContextNow().hour==='dusk'));
   for(const fs of [false,true])for(const banner of [false,true]){
    await page.evaluate(({fs,banner})=>{document.body.classList.toggle('fs',fs);const el=document.getElementById('alertBanner');el.innerHTML='<span>測試營運公告</span><button type="button">詳情</button>';el.hidden=!banner;M.resize();const st=state.schedStations.find(st=>st.name.includes('臺北'));if(st)openBoard(st);},{fs,banner});
-   await page.locator('#tabMore').tap();await page.locator('#sunlightRow').scrollIntoViewIfNeeded();
+   await openMapTab();await page.locator('#sunlightRow').scrollIntoViewIfNeeded();
    const hit=await page.locator('#sunlightRow').evaluate(el=>{const r=el.getBoundingClientRect();return el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2))&&document.documentElement.scrollWidth<=innerWidth+1;});
-   check(`${name} fs=${fs} 橫幅=${banner} 車站卡＋更多面板仍可操作`,hit);
-   await page.tap('#sunlightRow');await page.tap('#sunlightRow');await page.tap('#moreClose');
+   check(`${name} fs=${fs} 橫幅=${banner} 車站卡＋觀看面板仍可操作`,hit);
+   await page.tap('#sunlightRow');await page.tap('#sunlightRow');
+   // #sunlightRow 沒有 data-act/data-proxy,不在自動關閉清單裡,面板不會自己收起。
+   const vc=page.locator('.view-close');if(await vc.isVisible())await vc.tap();
   }
   await page.evaluate(()=>{window.__sunTestCtx={date:'2026-09-08'};state.playing=false;setSimSec(43200);M.raw.setPitch(0);});
   const motion=await page.evaluate(async()=>{const before={c:M.getCenter(),z:M.getZoom(),pitch:M.getPitch()};setSimSec(86399);const a=sunlight.current;setSimSec(0);const replay=sunlight.current;window.__sunTestCtx.date='2026-09-09';sunlight.update(true);const b=sunlight.current;M.raw.jumpTo({center:[120.3,22.6]});await new Promise(r=>setTimeout(r,1200));const south=sunlight.current;M.raw.jumpTo({center:[121.6,25.1]});await new Promise(r=>setTimeout(r,1200));const north=sunlight.current;const s=sunlight.stats.applications;state.playing=true;state.speedMult=600;await new Promise(r=>setTimeout(r,3200));state.playing=false;return {midnightDelta:Math.abs(a.elevation-b.elevation),utcDelta:b.utcMs-a.utcMs,replaySkySame:JSON.stringify(a.sky)===JSON.stringify(replay.sky),south,north,updates:sunlight.stats.applications-s,before};});

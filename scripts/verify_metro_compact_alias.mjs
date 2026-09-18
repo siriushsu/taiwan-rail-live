@@ -18,10 +18,13 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
     const d=await p.evaluate(()=>{const card=document.querySelector('#freqCard'),r=card.getBoundingClientRect(),b=document.querySelector('#fcEnd'),q=b.getBoundingClientRect(),visible=e=>{if(!e.getBoundingClientRect().width)return false;for(let n=e;n&&n instanceof Element;n=n.parentElement){const s=getComputedStyle(n);if(s.display==='none'||s.visibility==='hidden'||+s.opacity===0)return false;}return true;};const others=[...document.querySelectorAll('button,input,select,summary,[role=button]')].filter(e=>!card.contains(e)&&visible(e));return {h:r.height,overflow:document.documentElement.scrollWidth>innerWidth+1,hit:b.contains(document.elementFromPoint(q.x+q.width/2,q.y+q.height/2)),touch:q.width>=44&&q.height>=44,collisions:others.filter(e=>{const a=e.getBoundingClientRect();return Math.min(a.right,r.right)-Math.max(a.left,r.left)>1&&Math.min(a.bottom,r.bottom)-Math.max(a.top,r.top)>1;}).map(e=>e.id||e.textContent.slice(0,20)),checked:others.length};});
     check(mode+' 單行、觸控與所有控件不重疊',d.h<=70&&!d.overflow&&d.hit&&d.touch&&!d.collisions.length,d);
    }
-   await p.locator(await p.locator('#toolsFab').isVisible()?'#toolsFab':'#tabMore').tap();
+   // v0914c 起地圖風格搬進觀看面板「地圖」分頁,不再是「更多」／#toolsFab 抽屜下的列
+   // (#toolsFab 本身也已被 CSS display:none 藏死,原本的可見性判斷恆選 #tabMore)。
+   const railMC=p.locator('.view-rail [data-view="map"]');
+   if(await railMC.isVisible())await railMC.tap();else{await p.locator('#viewSettingsBtn').tap();await p.locator('.view-tabs [data-view="map"]').tap();}
    const beta=p.locator('#msBasemapSeg [data-map="landscape"]');await beta.scrollIntoViewIfNeeded();
    check('地景標示 Beta 且設定不溢出',await beta.evaluate(e=>e.textContent.includes('Beta')&&document.documentElement.scrollWidth<=innerWidth+1));
-   await p.locator('#moreClose').tap();
+   await p.locator('.view-close').tap();
    await p.locator('#fcLine').tap();check('點膠囊展開',await p.evaluate(()=>!!state.freqFollow&&!document.querySelector('#freqCard').classList.contains('fc-min')));
    await p.locator('#fcClose').tap();await p.locator('#fcEnd').tap();check('精簡卡結束跟隨',await p.evaluate(()=>!state.freqFollow&&document.querySelector('#freqCard').hidden));
    const alias=await p.evaluate(()=>{saveCheckins({v:2,sg:{},st:{old:{sys:'tra_sched',name:'臺北-環島',s:'visit',n:3,d:'2026-09-01',u:1},current:{sys:'tra_sched',name:'臺北',s:'pass',n:2,d:'2026-09-02',u:2},other:{sys:'tra_sched',name:'新左營',s:'visit',n:1,d:'2026-09-02',u:3}}});const c=stationCollection([{sys:'tra_sched',from:'台北－環島',to:'板橋',date:'2026-09-03'}]);return {entries:[...c.values()],html:buildStationStamps([]),key:checkinName('tra_sched','台北環島')};});

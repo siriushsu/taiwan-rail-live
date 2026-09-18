@@ -60,9 +60,14 @@ const px=await pixels(page);check(label+' 近景實際像素',px.lower>20,px);
 }
 if(mobile){
 for(const full of [false,true]){await page.evaluate(full=>{document.body.classList.toggle('fs',full);M.resize();},full);
-await page.tap('#tabMore');await page.locator('#map3dRow').scrollIntoViewIfNeeded();await page.tap('#map3dRow');
+// v0914c 起「3D 建築」列(#map3dRow)搬進觀看面板「地圖」分頁,不再掛在「更多」抽屜下。
+const rail=page.locator('.view-rail [data-view="map"]');
+if(await rail.isVisible())await rail.tap();else{await page.tap('#viewSettingsBtn');await page.tap('.view-tabs [data-view="map"]');}
+await page.locator('#map3dRow').scrollIntoViewIfNeeded();await page.tap('#map3dRow');
 const valid=await page.evaluate(()=>{const e=document.getElementById('map3dRow'),r=e.getBoundingClientRect();return {off:!state.map3d,hit:e.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)),overflow:document.documentElement.scrollWidth>innerWidth+1};});
-check(`${engineName} ${width}px ${full?'全畫面':'一般'} 真觸控`,valid.off&&valid.hit&&!valid.overflow,valid);await page.tap('#map3dRow');await page.tap('#moreClose');}
+check(`${engineName} ${width}px ${full?'全畫面':'一般'} 真觸控`,valid.off&&valid.hit&&!valid.overflow,valid);await page.tap('#map3dRow');
+// #map3dRow 不在 view-controls.js 的自動關閉清單(data-close/track/fontscale/immBtn)裡,面板點完不會自己收起,要手動關;可見才點,避免面板已被別的路徑關掉時撲空。
+const vc=page.locator('.view-close');if(await vc.isVisible())await vc.tap();}
 if(width===375){const dense=await audit(page,180,17);check(`${engineName} 手機密集市區`,dense.after.buildings===700&&dense.after.bottomPicked===dense.after.bottom&&dense.orderIndependent,dense);}
 }
 if(width===(mobile?375:1920))await page.screenshot({path:path.join(out,`${engineName}-${width}.png`)});

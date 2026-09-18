@@ -24,9 +24,13 @@ for(const [name,engine]of Object.entries(process.env.ENGINE?{[process.env.ENGINE
     await p.evaluate(k=>chooseBasemap(k),kind);await settle(p,kind);await p.waitForFunction(()=>window.railIslandIntegration?.renderer?.stats.models>0);const s=await p.evaluate(snap);
     check(name+' 切換 '+kind+' 保留同車/時間/位置',s.id===initial.id&&s.sim===initial.sim&&JSON.stringify(s.pose)===JSON.stringify(initial.pose),{id:s.id,sim:s.sim,pose:s.pose});
   }
-  await p.evaluate(()=>state._setAppearance('light'));await p.locator('#toolsFab').click();await p.locator('#msBasemapSeg button[data-map=landscape]').scrollIntoViewIfNeeded();
+  await p.evaluate(()=>state._setAppearance('light'));
+  // v0914c 起地圖風格(msBasemapSeg 所在的 .ri-basemap-row)搬進觀看面板「地圖」分頁;
+  // 桌面版 #toolsFab 本身已被 CSS 藏死(display:none !important,見 index.html:699 註解「已由手機
+  // tab bar『更多』sheet 取代」),不再是可點的入口,這裡是桌面殼(無 isMobile)故直接點側欄分頁鈕。
+  await p.locator('.view-rail [data-view="map"]').click();await p.locator('#msBasemapSeg button[data-map=landscape]').scrollIntoViewIfNeeded();
   check(name+' 無衛星授權時入口明確停用',await p.locator('#msBasemapSeg button[data-map=sat]').isDisabled());
-  await p.locator('#moreClose').click();await p.evaluate(()=>{railIslandIntegration.setGroundMode('flat');M.raw.jumpTo({center:[121.5795,24.9968],zoom:16.5,pitch:55,bearing:0});});
+  await p.locator('.view-close').click();await p.evaluate(()=>{railIslandIntegration.setGroundMode('flat');M.raw.jumpTo({center:[121.5795,24.9968],zoom:16.5,pitch:55,bearing:0});});
   await p.waitForFunction(()=>window.railIslandIntegration?.renderer?.stats.landscape.count>20,null,{timeout:30000});await p.waitForTimeout(1500);
   const trees=await p.evaluate(()=>{const s=railIslandIntegration.renderer.stats.landscape;return {count:s.count,cap:s.cap,patches:s.patches,broadSkipped:s.broadSkipped,rebuilds:s.rebuilds,maxBuildMs:s.maxBuildMs,coordinates:s.coordinates};});
   check(name+' 小片林地照樣長樹且有固定數量上限',trees.count>20&&trees.count<=trees.cap&&trees.patches>0,{...trees,coordinates:undefined});
@@ -57,7 +61,11 @@ for(const [name,engine]of Object.entries(process.env.ENGINE?{[process.env.ENGINE
  for(const width of (process.env.WIDTHS?process.env.WIDTHS.split(',').map(Number):[360,375,390,414,520,768])){
   const ctx=await browser.newContext({viewport:{width,height:900},locale:'zh-TW',isMobile:true,hasTouch:true});await ctx.addInitScript(()=>{localStorage.setItem('trainmap-howto-seen','1');localStorage.setItem('trainmap-appearance','light');});const page=await ctx.newPage();await page.route('**/api/**',r=>r.fulfill({status:503,contentType:'application/json',body:'{}'}));
   try{
-   await boot(page);await page.tap('#tabMore');const b=page.locator('#msBasemapSeg [data-map=light]');await b.scrollIntoViewIfNeeded();await page.tap('#msBasemapSeg [data-map=light]');await settle(page,'light');await page.tap('#msBasemapSeg [data-map=landscape]');await settle(page,'landscape');
+   await boot(page);
+   // v0914c 起地圖風格搬進觀看面板「地圖」分頁,不再掛在「更多」抽屜下。
+   const railM=page.locator('.view-rail [data-view="map"]');
+   if(await railM.isVisible())await railM.tap();else{await page.tap('#viewSettingsBtn');await page.tap('.view-tabs [data-view="map"]');}
+   const b=page.locator('#msBasemapSeg [data-map=light]');await b.scrollIntoViewIfNeeded();await page.tap('#msBasemapSeg [data-map=light]');await settle(page,'light');await page.tap('#msBasemapSeg [data-map=landscape]');await settle(page,'landscape');
    check(name+' '+width+' 真觸控切換',await page.locator('#msBasemapSeg [data-map=landscape]').getAttribute('aria-pressed')==='true');
    for(const fullscreen of [false,true]){
     await page.evaluate(fs=>document.body.classList.toggle('fs',fs),fullscreen);await page.locator('#msBasemapSeg').scrollIntoViewIfNeeded();

@@ -210,24 +210,31 @@ ok('B2b 按下去真的離開了放空', (await page.evaluate(() => !!state.ambi
 
 // ── C 音樂開關 ────────────────────────────────────────────────────────────────
 const musicToggleOn = () => page.evaluate(() => {
-  const tg = document.querySelector('#moreBody .ms-row[data-proxy="musicBtn"] .toggle');
+  const tg = document.querySelector('#viewSettingsBody .ms-row[data-proxy="musicBtn"] .toggle');
   return tg ? tg.classList.contains('on') : null;
 });
-await page.evaluate(() => { document.getElementById('tabMore').click(); });
+// v0914c 起「背景音樂」列(data-proxy="musicBtn")搬進觀看面板「畫面」分頁,不再掛在「更多」
+// 抽屜下(#moreBody 作用域查不到,C0 會恆讀到 null)。改開觀看面板到「畫面」分頁;musicBtn
+// 不在 view-controls.js 的自動關閉清單裡,面板全程開著,下面兩次點擊不必重新開面板。
+await page.evaluate(() => {
+  const rail = document.querySelector('.view-rail [data-view="display"]');
+  if (rail && rail.offsetParent !== null) rail.click();
+  else { document.getElementById('viewSettingsBtn').click(); document.querySelector('.view-tabs [data-view="display"]').click(); }
+});
 await page.waitForTimeout(300);
-ok('C0 抽屜開得起來、音樂列在場', (await musicToggleOn()) !== null);
+ok('C0 觀看面板開得起來、音樂列在場', (await musicToggleOn()) !== null);
 await page.evaluate(() => {
   state.music.enabled = false; state.music.audio._paused = true; state._syncMoreSheet();
 });
 await page.waitForTimeout(100);
-await page.evaluate(() => document.querySelector('#moreBody .ms-row[data-proxy="musicBtn"]').click());
+await page.evaluate(() => document.querySelector('#viewSettingsBody .ms-row[data-proxy="musicBtn"]').click());
 const immediate = await musicToggleOn();          // 同一個 tick 之後立刻讀
 ok('C1 按下「背景音樂」當下開關就顯示開', immediate === true, `toggle=${immediate}`);
 await page.waitForTimeout(500);                   // 原生事件(150ms)之後
 ok('C2 原生事件回來後仍是開', (await musicToggleOn()) === true);
 ok('C2b 原生層真的收到 play', (await page.evaluate(() => window.__na.plays)) > 0);
 // 關掉:淡出 800ms 之後才會真 pause;全程【不碰】省電那一列
-await page.evaluate(() => document.querySelector('#moreBody .ms-row[data-proxy="musicBtn"]').click());
+await page.evaluate(() => document.querySelector('#viewSettingsBody .ms-row[data-proxy="musicBtn"]').click());
 await page.waitForTimeout(1600);
 ok('C3 關掉後不必去點省電那列,開關自己變成關', (await musicToggleOn()) === false,
   `toggle=${await musicToggleOn()}`);

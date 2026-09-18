@@ -77,14 +77,19 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
    await p.setViewportSize({width,height:900});
    for(const full of [false,true]){
     await p.evaluate(full=>{document.body.classList.toggle('fs',full);M.resize();},full);
-    await p.locator('#tabMore').tap();await p.locator('#trainHaloRow').scrollIntoViewIfNeeded();const before=await p.evaluate(()=>trainHaloEnabled);await p.tap('#trainHaloRow');
+    // v0914c 起「列車光環」列(#trainHaloRow)搬進觀看面板「列車」分頁,不再掛在「更多」抽屜下。
+    const rail=p.locator('.view-rail [data-view="train"]');
+    if(await rail.isVisible())await rail.tap();else{await p.tap('#viewSettingsBtn');await p.tap('.view-tabs [data-view="train"]');}
+    await p.locator('#trainHaloRow').scrollIntoViewIfNeeded();const before=await p.evaluate(()=>trainHaloEnabled);await p.tap('#trainHaloRow');
     const d=await p.evaluate(()=>{const e=document.getElementById('trainHaloRow'),r=e.getBoundingClientRect(),overlaps=[];
      for(const other of document.querySelectorAll('button,input,select,a[href],[role="button"],[role="switch"]')){if(other===e||e.contains(other)||other.contains(e))continue;const s=other.getBoundingClientRect();if(s.width===0||s.height===0)continue;
       const x=(Math.max(r.left,s.left)+Math.min(r.right,s.right))/2,y=(Math.max(r.top,s.top)+Math.min(r.bottom,s.bottom))/2;
       if(Math.min(r.right,s.right)-Math.max(r.left,s.left)>1&&Math.min(r.bottom,s.bottom)-Math.max(r.top,s.top)>1&&other.contains(document.elementFromPoint(x,y)))overlaps.push(other.id||other.textContent.slice(0,20));}
      return {enabled:trainHaloEnabled,checked:e.getAttribute('aria-checked'),hit:e.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)),height:r.height,overflow:document.documentElement.scrollWidth>innerWidth+1,overlaps};});
     check(engine+' 手機 '+width+' 全畫面 '+full,d.enabled!==before&&d.checked===String(d.enabled)&&d.hit&&d.height>=44&&!d.overflow&&!d.overlaps.length,d);
-    if(width===375&&full)await p.screenshot({path:`${out}/${engine}-mobile-switch.png`});await p.tap('#moreClose');
+    if(width===375&&full)await p.screenshot({path:`${out}/${engine}-mobile-switch.png`});
+    // #trainHaloRow 沒有 data-act/data-proxy,不在自動關閉清單裡,面板不會自己收起。
+    const vc=p.locator('.view-close');if(await vc.isVisible())await vc.tap();
    }
   }
   await p.evaluate(()=>{trainHaloEnabled=true;document.getElementById('trainHaloRow').click();railIslandIntegration.render=realRender;state._setAppearance('dark');});
