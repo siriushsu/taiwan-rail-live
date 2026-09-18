@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-12",
+  "updated": "2026-09-18",
   "events": [
     {
       "id": "trtc-20260811-pokemon10",
@@ -10,16 +10,6 @@
       "end": "2026-09-13",
       "anchor": { "kind": "station", "sys": "mrt", "name": "大安森林公園" },
       "url": "https://pokemongo.com/zh-Hant/news/2026daanpark"
-    },
-    {
-      "id": "ntmetro-20260814-fireworks-0816",
-      "source": "official",
-      "title": "2026仲夏夜繽紛樂",
-      "note": "漁人碼頭週日夜間煙火，輕軌會加開藍海線疏運",
-      "start": "2026-08-16",
-      "end": "2026-08-16",
-      "anchor": { "kind": "station", "sys": "ntdlrt", "name": "淡水漁人碼頭" },
-      "url": "https://www.ntmetro.com.tw/basic/?mode=detail&node=890"
     },
     {
       "id": "ntmetro-20260814-fireworks-0823",
@@ -354,6 +344,16 @@
       "end": "2026-12-31",
       "anchor": { "kind": "system", "sys": "thsr_sched" },
       "url": "https://www.thsrc.com.tw/ArticleContent/a1ee91c8-74ef-4eb9-9da0-6b3637541885"
+    },
+    {
+      "id": "trtc-20260917-kidspark-midautumn",
+      "source": "official",
+      "title": "兒童新樂園「中秋童樂」打卡抽獎",
+      "note": "園區有中秋限定的玉兔與發光月亮布置，打卡可參加抽獎",
+      "start": "2026-09-19",
+      "end": "2026-09-28",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "劍潭" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=220D0D7A2C8B041E"
     }
   ]
 }
