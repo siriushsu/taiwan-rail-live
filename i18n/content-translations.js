@@ -1810,3 +1810,12 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   "機捷平日早上山鼻 7:37 那班區間車不再開到林口就消失，照官方時刻開到台北": "桃園空港MRT：平日朝7:37山鼻発の区間列車が林口で消えなくなり、公式時刻どおり台北駅まで走るようになりました。"
 });
+
+// 2026-09-18 Android 地景地圖立體列車不再消失(第一層更新紀錄那條的 en/ja;第二層正本一律走 RAIL_I18N_CHANGELOG)
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  "Android App 的地景地圖立體列車不再消失，照真實地形高度顯示": "Android app: 3D trains on the Landscape map no longer disappear and sit at their real terrain height again"
+});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  "Android App 的地景地圖立體列車不再消失，照真實地形高度顯示": "Androidアプリ：風景地図で3D 列車が消えなくなり、実際の地形の高さで表示されるようになりました"
+});
