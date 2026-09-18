@@ -28,12 +28,14 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/jav
   '.geojson': 'application/geo+json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml',
   '.webp': 'image/webp', '.woff2': 'font/woff2', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
 let PORT = Number(process.env.PORT);
-if (!PORT) {
+const OWN_SERVER = !PORT;
+if (OWN_SERVER) {
   const server = createServer((q, s) => {
     const u = new URL(q.url, 'http://x');
     let fp = path.join(ROOT, decodeURIComponent(u.pathname));
     if (fs.existsSync(fp) && fs.statSync(fp).isDirectory()) fp = path.join(fp, 'index.html');
-    if (u.pathname.startsWith('/api/') || !path.resolve(fp).startsWith(ROOT) || !fs.existsSync(fp)) { s.statusCode = 404; return s.end(); }
+    // 要比 ROOT + 分隔符：只比 ROOT 的話，/..%2F<ROOT 同名前綴的兄弟目錄>/… 也服得到
+    if (u.pathname.startsWith('/api/') || !path.resolve(fp).startsWith(ROOT + path.sep) || !fs.existsSync(fp)) { s.statusCode = 404; return s.end(); }
     s.setHeader('content-type', MIME[path.extname(fp)] || 'application/octet-stream');
     s.end(fs.readFileSync(fp));
   });
@@ -71,12 +73,13 @@ for (const eng of ENGINES) {
   // 也要等實體股道：trainPosAt 第一行先問 railIslandPhysical.sample()，出貨畫面上的台鐵位置是它給的。
   // 它比 state.trains 晚就緒（verify_physical_no_overlap 檔頭）；只等 state.trains 的話，量測途中才換軌，
   // B2／C 的位移取樣會橫跨「示意線形 → 實體股道」那一跳（2026-09-19 探針：開量時未載入、量到 G2 時已載入）。
-  // 股道沒就緒就整頁重開，最多三次：python3 -m http.server 的 listen backlog 只有 5，冷快取開頁那一整批平行
-  // 請求偶爾被 RST（2026-09-19 實測 chromium 每次新開瀏覽器 2/12 次 ERR_CONNECTION_RESET、股道模組 import 失敗，
-  // railIslandPhysical 永遠掛不上；webkit 0/6）。那是本機 server 的環境條件，不是受測物。三次都不成就照樣開量，
-  // 由 P0 具名轉紅，不讓它變成一個沒有名字的逾時。
+  // 連外部 server（給了 PORT）時，股道沒就緒就整頁重開，最多三次：python3 -m http.server 的 listen backlog
+  // 只有 5，冷快取開頁那一整批平行請求偶爾被 RST（2026-09-19 實測 chromium 每次新開瀏覽器 2/12 次
+  // ERR_CONNECTION_RESET、股道模組 import 失敗，railIslandPhysical 永遠掛不上；webkit 0/6）。那是本機 server
+  // 的環境條件，不是受測物。自己起的 node server 沒有這個條件，開一次就要成——那裡重開只會把「股道模組
+  // 間歇性載不到」這種真缺陷蓋掉。不成就照樣開量，由 P0 具名轉紅，不讓它變成一個沒有名字的逾時。
   let boots = 0, physOk = false;
-  while (!physOk && boots < 3) {
+  while (!physOk && boots < (OWN_SERVER ? 1 : 3)) {
     boots++;
     await page.goto(`http://127.0.0.1:${PORT}/index.html`, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(
@@ -241,7 +244,10 @@ for (const eng of ENGINES) {
     // G0 的前提要等出來，不能賭前段跑得夠慢：開量前先等實體股道之後前段少了載入競爭，chromium 跑到這裡
     // 只剩 5.9 秒（原本 7 秒），離 5 秒窗不到 1 秒。等待期間 state.playing=false、simSec 不動 ⇒ adv=0，
     // 頁面自己每幀的查詢也改不動任何漸變條目；freshA／freshB 的 target 仍是 0，走 fast path 不建條目。
-    while (performance.now() - _traGateEp.at <= 5000) await new Promise(res => setTimeout(res, 50));
+    // 最多等 15 秒：產品若一直重設 _traGateEp，無上限的等待會讓整條出貨鏈卡死（這個 evaluate 與 ship_web
+    // 的 spawnSync 都沒有逾時）——等不到就照樣開量，由 G0 具名轉紅。
+    for (const until = performance.now() + 15000; performance.now() - _traGateEp.at <= 5000 && performance.now() < until;)
+      await new Promise(res => setTimeout(res, 50));
     out.g = { sinceGateMs: performance.now() - _traGateEp.at, creationSnap: [], jumpSnap: [], smallRise: [], creationFreeze: [], moved: 0, posN: 0, nA: freshA.length, nB: freshB.length, n2: g2.length };
     // G1 首見即 10 分：第一次查詢就等於 target（不從 0 開始凍結爬 10 分鐘）
     freshA.forEach(t => state.live.map.set(String(t.train), DELAY_MIN));
