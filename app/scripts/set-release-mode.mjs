@@ -361,9 +361,9 @@ const MODES = {
     // 114（2026-09-15）：Apple 公開 lookup 仍為 1.6.3，故沿用 1.6.4；113 已有 archive，
     //   不重用載貨號。納入 v0915a：同向快車將追上慢車時，提早回找有足夠煞車距離的車站待避。
     marketing: '1.6.5', build: '117', music: true, metroCore: true, androidPlus: true,
-    why: '軌島 1.6.5\n\n• 即時動態島與跟車優化：iOS 動態島展開視圖及鎖定畫面跟車資訊卡新增「結束跟車」按鈕，快速退出追蹤更直覺。\n• 3D 視角穩定：跟隨列車時若微調旋轉視角，地圖會依您設定的視角持續跟隨，不再被系統強制定回正北。\n• 台鐵快慢車待避模擬精進：快車追越待避列車時，提前於進站號誌前平滑減速，避免劇烈急煞，動態更自然真實。\n• 搜尋與最愛體驗提升：解決搜尋縣市定位後點擊隨機列車卡住的問題，最愛車站清單操作與站名標籤顯示更穩定。\n• 系統穩定性修復與多項細節體驗打磨。',
-    whyEn: 'Rail Island 1.6.5\n\n• End Tracking button on Live Activities and Lock Screen\n• Follow camera stays locked to your custom angle\n• Smoother TRA station approach when being overtaken\n• Stability fixes for city search and station favorites\n• Performance and visual improvements',
-    whyJa: '軌島 1.6.5\n\n• ライブアクティビティ・追跡操作の改善：iOS のダイナミックアイランド展開表示およびロック画面の列車追跡カードに「追跡終了」ボタンを追加し、より直感的に追跡を解除できるようになりました。\n• 3D カメラ角度の維持：列車追跡中に回転させたカメラの視角を維持したまま追従を継続。自動的に北向きへ戻されることがなくなりました。\n• 台鉄（TRA）待避シミュレーションの向上：上位列車による追越し待避時、駅手前の信号機手前から余裕を持ってスムーズに減速。急ブレーキ感を解消し、より自然な挙動を再現しました。\n• 検索・お気に入り機能の安定性向上：都市検索後のランダム列車追跡時に画面が固まる問題を修正。お気に入り駅の操作性と駅名ラベルの視認性を改善しました。\n• その他、細かな表示調整およびパフォーマンスの向上を行いました。',
+    why: '軌島 1.6.5\n\n• 即時動態島與跟車優化：iOS 動態島展開視圖及鎖定畫面跟車資訊卡新增「結束跟車」按鈕，快速退出追蹤更直覺。\n• 3D 視角穩定：跟隨列車時若微調旋轉視角，地圖會依您設定的視角持續跟隨，不再被系統強制定回正北。\n• Android 3D 顯示修復：修正部分 3D 列車與建築在 Android 上無法載入的問題。\n• 台鐵快慢車待避模擬精進：快車追越待避列車時，提前於進站號誌前平滑減速，避免劇烈急煞，動態更自然真實。\n• 搜尋與最愛體驗提升：解決搜尋縣市定位後點擊隨機列車卡住的問題，最愛車站清單操作與站名標籤顯示更穩定。\n• 系統穩定性修復與多項細節體驗打磨。',
+    whyEn: 'Rail Island 1.6.5\n\n• End Tracking button on Live Activities and Lock Screen\n• Follow camera stays locked to your custom angle\n• Fix loading of some 3D trains and buildings on Android\n• Smoother TRA station approach when being overtaken\n• Stability fixes for city search and station favorites\n• Performance and visual improvements',
+    whyJa: '軌島 1.6.5\n\n• ライブアクティビティ・追跡操作の改善：iOS のダイナミックアイランド展開表示およびロック画面の列車追跡カードに「追跡終了」ボタンを追加し、より直感的に追跡を解除できるようになりました。\n• 3D カメラ角度の維持：列車追跡中に回転させたカメラの視角を維持したまま追従を継続。自動的に北向きへ戻されることがなくなりました。\n• Android の 3D 表示修正：一部の 3D 列車や建物が読み込めない問題を修正しました。\n• 台鉄（TRA）待避シミュレーションの向上：上位列車による追越し待避時、駅手前の信号機手前から余裕を持ってスムーズに減速。急ブレーキ感を解消し、より自然な挙動を再現しました。\n• 検索・お気に入り機能の安定性向上：都市検索後のランダム列車追跡時に画面が固まる問題を修正。お気に入り駅の操作性と駅名ラベルの視認性を改善しました。\n• その他、細かな表示調整およびパフォーマンスの向上を行いました。',
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
   // 軌島通行證客端功能、雲端同步與伺服器付費牆。這顆不可選去正式送審；正式版必須另推 build 號，
