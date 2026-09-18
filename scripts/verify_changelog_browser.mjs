@@ -42,7 +42,9 @@ const widths = [360, 375, 414, 768];
 // 9/12：月台股道重新指派一條（368→369）；併 origin/main b7f1dcf1 的台南地面鐵道重播一條（369→370）。
 // 9/14：370→378 是 9/12～9/13 各批沒跟著 bump 的欠帳（靜態 check-copy 在 origin/main ac47adb5 同樣數到 378），
 //       本次台鐵準點統計當天自動補抓一條（378→379）。
-const expectedHistoryCount = 379;
+// 9/18：379→391 是 9/14～9/18 各批沒跟著 bump 的欠帳（靜態 check-copy 在 origin/main 57f9b4d9 同樣數到 391），
+//       本次班表配對同分改挑鏈尾最近一條（391→392）。
+const expectedHistoryCount = 392;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

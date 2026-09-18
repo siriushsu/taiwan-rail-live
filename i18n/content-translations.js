@@ -1819,3 +1819,12 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   "Android App 的地景地圖立體列車不再消失，照真實地形高度顯示": "Androidアプリ：風景地図で3D 列車が消えなくなり、実際の地形の高さで表示されるようになりました"
 });
+
+// 2026-09-18 班表配對同分改挑鏈尾最近的(第一層更新紀錄那條的 en/ja;第二層正本一律走 RAIL_I18N_CHANGELOG)
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  "機捷南下末班車（台北 23:08）不再被拆成兩台，照官方時刻一路開完全程；中和新蘆線白天與晚間、淡水信義線晚間少掉的班次補回來了": "Taoyuan Airport MRT: the 23:08 last southbound train from Taipei Main Station is no longer split into two and now runs its full route on the official timetable. Missing daytime and evening Zhonghe–Xinlu Line trains and evening Tamsui-Xinyi Line trains are back."
+});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  "機捷南下末班車（台北 23:08）不再被拆成兩台，照官方時刻一路開完全程；中和新蘆線白天與晚間、淡水信義線晚間少掉的班次補回來了": "桃園空港MRT：台北駅23:08発の南行き終電が2本に分かれなくなり、公式時刻どおり全区間を走ります。中和新蘆線の日中・夜間、淡水信義線の夜間に欠けていた列車も復元しました。"
+});

@@ -143,13 +143,18 @@ function chainRoute(stns, dir, stats, dbg) {
     }
     // 自由配對(不假設先發先到):直達車會在站間超車,嚴格順序會把窗前緣的班誤判成新生。
     // 每個發車在「窗含它的未配對活鏈」中挑 pred 最近的;沒有就是本站始發。
+    // 同分(官方時刻只到分,常見)時挑鏈尾最近的——剛配到前一站的那條才是這班車;
+    // 舊寫法按陣列順序先到先贏,贏家常是鏈尾停在很上游、只是還沒過期的殘鏈。
+    // 2026-09-18 機捷南下末班台北 23:08:官方台北→三重跑 8 分(平常 6 分),多出的 30 秒掉出窗,
+    // 台北那一筆落單成殘鏈,在下游同分處搶走真車的記錄,把末班切成兩台錯的車。
     const born = [];
     for (const dep of st.deps) {
       const arr = st.arr.get(dep);
-      let best = null;
+      let best = null, bd = Infinity;
       for (const c of active) {
         if (c._mk === k || arr < c.lo || arr > c.hi) continue;
-        if (!best || Math.abs(c.pred - arr) < Math.abs(best.pred - arr)) best = c;
+        const d = Math.abs(c.pred - arr);
+        if (!best || d < bd || (d === bd && c.lastK > best.lastK)) { best = c; bd = d; }
       }
       if (best) {
         best.stops.push([st.idx, dep]);
