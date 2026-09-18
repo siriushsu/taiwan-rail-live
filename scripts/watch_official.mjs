@@ -99,7 +99,7 @@ const md5 = o => createHash('md5').update(typeof o === 'string' ? o : stable(o))
 const readState = () => { try { return JSON.parse(readFileSync(STATE_FILE, 'utf8')); } catch { return { news: {}, tdx: {} }; } };
 const J = f => JSON.parse(readFileSync(path.join(ROOT, f), 'utf8'));
 
-const report = { ranAt: new Date().toISOString(), tdx: { changed: [], errors: [], firstRun: [] },
+const report = { ranAt: new Date().toISOString(), tdx: { changed: [], errors: [], firstRun: [], emptyRetry: [] },
   news: { newItems: [], errors: [], firstRun: [] },
   trtc: { added: [], gone: [], health: [], errors: [], firstRun: null, counts: null, ageMs: null, src: null },
   tra: null, verdict: 'clean' };
@@ -181,6 +181,17 @@ async function probeTdx() {
       catch (e) { report.tdx.errors.push({ key, error: String(e.message || e) }); continue; }
       await new Promise(r => setTimeout(r, 1200)); // 對 TDX 客氣一點(同 fetch_tdx.py)
       const snap = JSON.parse(readFileSync(snapPath, 'utf8'));
+      // TDX 會間歇回 200＋[](2026-09-18 實測 Shape 同端點 20 秒內 5↔0 來回跳)——快照原本有資料時重試一次,
+      // 仍是空的才當真(真的下架也要報得出來);重試結果另列,不混進「有變」。
+      if (Array.isArray(live) && !live.length && Array.isArray(snap) && snap.length) {
+        await new Promise(r => setTimeout(r, 5000));
+        let again = null;
+        try { again = await get(`Rail/Metro/${set}/${op}`); } catch { /* 重試失敗就沿用第一次的空值 */ }
+        const recovered = Array.isArray(again) && again.length > 0;
+        if (recovered) live = again;
+        report.tdx.emptyRetry.push({ key, recovered });
+        await new Promise(r => setTimeout(r, 1200));
+      }
       const liveH = md5(live), snapH = md5(snap);
       // 基準優先用 state(上次巡檢時的線上指紋);沒有就用磁碟快照——這樣第一次跑就抓得到
       // 「磁碟快照早就落後線上」這種既存漂移,而不是只從今天開始比。
@@ -498,6 +509,7 @@ if (hm.tdx.changed.length) {
     for (const s of c.sample) console.log(`         ${s.k}  ${s.from} → ${s.to}`);
   }
 } else if (want('tdx') && !probeFailed) console.log('\n▍TDX 機讀資料:與 repo 快照一致');
+if (hm.tdx.emptyRetry.length) console.log(`  (TDX 回空陣列已重試:${hm.tdx.emptyRetry.map(r => `${r.key}${r.recovered ? ' 恢復' : ' 仍空⚠'}`).join('、')})`);
 if (hm.news.newItems.length) {
   console.log(`\n▍官網公告:${hm.news.newItems.length} 則新的`);
   for (const n of hm.news.newItems) console.log(`  [${n.name}] ${n.date}  ${n.title}`);
