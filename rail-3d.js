@@ -3,7 +3,7 @@
   const base='./rail-3d/integration/';
   const {installFollowCameraLock}=await import(base+'follow-camera-lock.js');
   let cameraLock=null,guide=null,lastTilt={pitch:55,bearing:0,elevation:0};
-  try{lastTilt={...lastTilt,...JSON.parse(sessionStorage.getItem('ri-last-tilt')||'{}')};}catch{}
+  try{lastTilt={...lastTilt,...JSON.parse(localStorage.getItem('ri-last-tilt')||'{}')};}catch{}
   const {createPlaceGuide}=await import(base+'place-guide.js');
   const {formationFor,tripDirection,stationDirection}=await import(base+'formations.js');
   const directionCache=new WeakMap();function timetableDirection(tr,ln){if(!directionCache.has(tr))directionCache.set(tr,tripDirection(tr,ln.stations.length,!!ln.loop));return directionCache.get(tr);}
@@ -13,7 +13,12 @@
   const TYMC_SERVICE={com:'local',exp:'express'};
   const params=new URLSearchParams(location.search);
   if(params.get('tracks')!=='legacy')import('./rail-3d/physical/client.js').then(m=>m.loadPhysicalMotion()).then(m=>{window.railIslandPhysical=m;glTracks.sig='';}).catch(e=>console.error('實體股道',e));
-  const read=(key,fallback)=>{try{return sessionStorage.getItem(key)||fallback;}catch{return fallback;}};
+  // 這一區的 ri-* 全是使用者在「觀看設定」裡按過的選擇(立體列車開關、編組、地形、車身大小、透視…),
+  // 原本記在 sessionStorage,分頁一關(手機上就是把 app 滑掉)整組就沒了,下次開又回預設——
+  // 使用者 2026-09-18 回報的正是這件事。設定要跨次開啟活著,只能放 localStorage,
+  // 與 index.html 的 trainmap-* 同一套做法。舊 session 值不必搬:它本來就活不過這次關閉。
+  // 網址參數(?scene=2d、?formation=…)仍然只是這一次的覆寫,照舊不落盤,分享連結才不會改到對方的設定。
+  const read=(key,fallback)=>{try{return localStorage.getItem(key)||fallback;}catch{return fallback;}};
   let enabled=params.get('scene')!=='2d'&&read('ri-trains-enabled','1')!=='0',formationMode=params.get('formation')||read('ri-formation-mode','actual'),
     groundMode=params.get('ground')||read('ri-ground-mode','flat'),trainSizeMode=params.get('trainSize')||read('ri-train-size-v21','readable'),
     modelMode=read('ri-model-mode','all'),ambientCamera=read('ri-ambient-camera','side'),transparent=read('ri-transparent','1')==='1',satelliteTransparent=read('ri-satellite-transparent','0')==='1';
@@ -22,7 +27,7 @@
   formationMode=formationMode==='three'?'three':'actual';groundMode=groundMode==='terrain'?'terrain':'flat';trainSizeMode=trainSizeMode==='scale'?'scale':'readable';
   let renderer=null,lastFrame=null,loading=false,loadSerial=Promise.resolve(),epoch=0,manualTarget=null,appearanceKey='',noteAt=0;
   const shapeCache=new WeakMap(),tripKeys=new WeakMap(),targets=new Map(),stationTargets=new Map(),motionItems=new Map(),headings=new Map(),errors=[];
-  const save=(key,value)=>{try{sessionStorage.setItem(key,String(value));}catch{}};
+  const save=(key,value)=>{try{localStorage.setItem(key,String(value));}catch{}};
   function tripKey(tr){
     if(!tripKeys.has(tr)){let h=2166136261;for(const c of JSON.stringify(tr)){h^=c.charCodeAt(0);h=Math.imul(h,16777619);}tripKeys.set(tr,(h>>>0).toString(36));}return tripKeys.get(tr);
   }
