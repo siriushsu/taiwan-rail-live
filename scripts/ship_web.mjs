@@ -187,7 +187,7 @@ try {
   // 要排在資料清單之前——照提示重產表之後，清單也跟著要重產。
   const runProf = spawnSync('node', [path.join(wt, 'scripts', 'build_run_profiles.mjs'), '--check'], { cwd:wt, encoding:'utf8' });
   process.stdout.write(runProf.stdout || ''); process.stderr.write(runProf.stderr || '');
-  if (runProf.status !== 0) fail('台鐵預算剖面表與目前的模型不符——前端會照舊表畫位置（單獨重跑：node scripts/build_run_profiles.mjs --check）');
+  if (runProf.status !== 0) fail('台鐵預算剖面表與目前的模型不符（前端會照舊表畫位置），或 MR1 交會推論棘輪退步（單獨重跑：node scripts/build_run_profiles.mjs --check）');
   // 資料清單過期是無聲失效：網站宣稱什麼都沒變，App 就永遠不重抓那個檔。原本只有 App 的 prepare-web
   // 與每日巡檢會驗，網站出貨不驗——DR1000 那批重建了跑段剖面卻漏了重產清單，出貨前靠人工比對才發現。
   const manifest = spawnSync('node', [path.join(wt, 'scripts', 'verify_data_manifest.mjs'), wt], { cwd:wt, encoding:'utf8' });
