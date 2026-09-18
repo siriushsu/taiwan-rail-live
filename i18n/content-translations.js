@@ -2324,11 +2324,11 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
 
 // 2026-09-19 新馬急彎前的車速不超過車種極速(第一層更新紀錄那條的 en/ja;第二層正本一律走 RAIL_I18N_CHANGELOG)
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
-  "自強號駛近新馬急彎時，地圖上的列車不再跑得比車種極速還快": "Tze-Chiang Express trains approaching the sharp curve at Xinma no longer move faster than their top speed on the map."
+  "台鐵列車在地圖上不再跑得比車種極速還快，新馬急彎與立體地圖都修正了，站牌時刻不變": "TRA trains on the map no longer run faster than their top speed, including near the sharp curve at Xinma and on the 3D map; station times are unchanged."
 });
 
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
-  "自強號駛近新馬急彎時，地圖上的列車不再跑得比車種極速還快": "新馬の急カーブ手前で、地図上の自強号が車両の最高速度を超えて走ることがなくなりました。"
+  "台鐵列車在地圖上不再跑得比車種極速還快，新馬急彎與立體地圖都修正了，站牌時刻不變": "地図上の台鉄列車が車種の最高速度を超えて走らなくなりました。新馬の急カーブ手前と立体地図の両方を修正し、駅の時刻は変わりません。"
 });
 
 // 2026-09-19 暗色卡頭關閉鈕與「存」看得見、半透明面板藍字加深(第一層更新紀錄那兩條的 en/ja;第二層正本一律走 RAIL_I18N_CHANGELOG)
@@ -2342,13 +2342,11 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   "面板半透明時，看板倒數、預計到站與「在 Google 地圖開啟」等藍字加深，疊在衛星影像上也看得清楚": "パネル半透明時、案内板のカウントダウン・到着予定・「Google マップで開く」などの青い文字を濃くし、衛星画像の上でも読みやすくしました。"
 });
 
-// 2026-09-19 英日文補翻與台鐵實體股道層不超極速(第一層更新紀錄那兩條的 en/ja;第二層正本一律走 RAIL_I18N_CHANGELOG)
+// 2026-09-19 英日文補翻(第一層更新紀錄那條的 en/ja;第二層正本一律走 RAIL_I18N_CHANGELOG)
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
-  "英日文介面補上漏翻的按鈕、路線名、公告與提示，切換語言不再殘留前一種語言；車站看板太長的字改成兩行，不再被切掉": "English and Japanese: buttons, line names, notices and messages still shown in Chinese are now translated, switching languages no longer leaves the previous language behind, and long station board text wraps to two lines instead of being cut off.",
-  "台鐵列車在立體地圖上不會再超過車種極速，站牌時刻不變": "TRA trains on the 3D map no longer exceed their top speed; station times are unchanged."
+  "英日文介面補上漏翻的按鈕、路線名、公告與提示，切換語言不再殘留前一種語言；車站看板太長的字改成兩行，不再被切掉": "English and Japanese: buttons, line names, notices and messages still shown in Chinese are now translated, switching languages no longer leaves the previous language behind, and long station board text wraps to two lines instead of being cut off."
 });
 
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
-  "英日文介面補上漏翻的按鈕、路線名、公告與提示，切換語言不再殘留前一種語言；車站看板太長的字改成兩行，不再被切掉": "英語・日本語表示：中国語のまま残っていたボタン、路線名、お知らせ、メッセージを翻訳しました。言語を切り替えても前の言語が残らなくなり、駅の案内板で長い文字は切れずに2行で表示されます。",
-  "台鐵列車在立體地圖上不會再超過車種極速，站牌時刻不變": "立体地図の台鉄列車が最高速度を超えなくなりました。駅の時刻は変わりません。"
+  "英日文介面補上漏翻的按鈕、路線名、公告與提示，切換語言不再殘留前一種語言；車站看板太長的字改成兩行，不再被切掉": "英語・日本語表示：中国語のまま残っていたボタン、路線名、お知らせ、メッセージを翻訳しました。言語を切り替えても前の言語が残らなくなり、駅の案内板で長い文字は切れずに2行で表示されます。"
 });
