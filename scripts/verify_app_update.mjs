@@ -11,6 +11,9 @@ import { fileURLToPath } from 'node:url';
 import { chromium, webkit } from 'playwright';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+// 🔴 語系與時區要釘死:沒給 locale 時無頭瀏覽器是 en-US,頁面會自動切成英文,底下比中文字的斷言
+//    (「目前版本」「已是最新版」)就會假紅,與真回歸分不出來(2026-09-19 在 main 上實際紅了兩條)。
+const PAGE_OPTS = { locale: 'zh-TW', timezoneId: 'Asia/Taipei' };
 const PORT = process.env.PORT || 5399;
 const BASE = `http://localhost:${PORT}`;
 let pass = 0, fail = 0;
@@ -25,7 +28,7 @@ ok(servedHash === localHash, `伺服器供的 index.html 與本樹逐 byte 相�
 if (servedHash !== localHash) { console.log('\n目標不符,後續斷言無意義,中止。'); process.exit(1); }
 
 const browser = await chromium.launch();
-const page = await browser.newPage();
+const page = await browser.newPage(PAGE_OPTS);
 page.on('pageerror', e => console.log('  ⚠ pageerror: ' + e.message));
 await page.goto(BASE + '/index.html', { waitUntil: 'domcontentloaded' });
 await page.waitForFunction(() => typeof window.cmpVer === 'function', { timeout: 20000 })
@@ -89,7 +92,7 @@ const LOOKUP_OK = {
   body: JSON.stringify({ resultCount: 1, results: [{ version: '1.4.1',
     releaseNotes: '測試用更新說明\n第二行', trackViewUrl: 'https://apps.apple.com/tw/app/id6792673516?uo=4' }] }),
 };
-const appPage = await browser.newPage();
+const appPage = await browser.newPage(PAGE_OPTS);
 appPage.on('pageerror', e => console.log('  ⚠ pageerror: ' + e.message));
 await appPage.addInitScript(() => { window.RAIL_APP_VERSION = '1.4.0'; });
 await appPage.route('**/itunes.apple.com/lookup**', route => route.fulfill(LOOKUP_OK));
@@ -120,7 +123,7 @@ ok(await appPage.evaluate(() => !!document.getElementById('map')), '🔴 查詢�
 await appPage.close();
 
 console.log('\n【C-Android】Play Core 更新狀態與側載保守文案');
-const androidPage = await browser.newPage();
+const androidPage = await browser.newPage(PAGE_OPTS);
 const androidAppleReqs = [];
 androidPage.on('request', r => { if (r.url().includes('itunes.apple.com')) androidAppleReqs.push(r.url()); });
 androidPage.on('pageerror', e => console.log('  ⚠ Android pageerror: ' + e.message));
@@ -155,7 +158,7 @@ ok(((await androidUpdateRow.textContent().catch(() => '')) || '').includes('目�
 ok(!(await androidPage.locator('#updBanner').isVisible().catch(() => false)), '🔴 Android 更新橫幅不出現');
 await androidPage.close();
 
-const androidPlayPage = await browser.newPage();
+const androidPlayPage = await browser.newPage(PAGE_OPTS);
 await androidPlayPage.setViewportSize({ width: 390, height: 844 });
 await androidPlayPage.addInitScript(() => {
   window.RAIL_APP_VERSION = '1.4.2';
@@ -174,7 +177,7 @@ ok(((await playCurrentRow.textContent().catch(() => '')) || '').includes('已是
    'Play 安裝且查詢成功，才顯示「已是最新版」');
 await androidPlayPage.close();
 
-const androidNewPage = await browser.newPage();
+const androidNewPage = await browser.newPage(PAGE_OPTS);
 await androidNewPage.setViewportSize({ width: 390, height: 844 });
 await androidNewPage.addInitScript(() => {
   window.RAIL_APP_VERSION = '1.4.2';
@@ -198,7 +201,7 @@ await androidNewPage.close();
 console.log('\n【D】UI:橫幅、更多面板那一列、更新內容卡片');
 // 開「更多」面板:setMore 是閉包內的 const,不是全域 ⇒ 走真實入口(手機 #tabMore / 桌面 #toolsFab)
 async function appPageWith(mine, latest, opts = {}) {
-  const p = await browser.newPage();
+  const p = await browser.newPage(PAGE_OPTS);
   p.on('pageerror', e => console.log('  ⚠ pageerror: ' + e.message));
   await p.setViewportSize(opts.viewport || { width: 390, height: 844 });
   await p.addInitScript(v => {
@@ -280,7 +283,7 @@ ok(await p.locator('.ms-row[data-act="update"]').count() === 1, '🔴 D5 橫幅�
 await p.close();
 
 // D6 網站版:兩列都不可見(平台閘門在 UI 層的證明)
-const siteP = await browser.newPage();
+const siteP = await browser.newPage(PAGE_OPTS);
 siteP.on('pageerror', e => console.log('  ⚠ pageerror: ' + e.message));
 await siteP.setViewportSize({ width: 390, height: 844 });
 await siteP.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} });
@@ -300,7 +303,7 @@ const OVERLAYS = ['#clock', '#followPanel', '#followBar', '#recordBar', '.map-ac
 for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
   const br = name === 'chromium' ? browser : await engine.launch();
   for (const w of [360, 390, 414, 768]) {
-    const q = await br.newPage();
+    const q = await br.newPage(PAGE_OPTS);
     q.on('pageerror', e => console.log(`  ⚠ ${name}/${w} pageerror: ` + e.message));
     await q.setViewportSize({ width: w, height: 800 });
     await q.addInitScript(() => {

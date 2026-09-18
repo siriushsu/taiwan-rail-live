@@ -2350,3 +2350,15 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   "英日文介面補上漏翻的按鈕、路線名、公告與提示，切換語言不再殘留前一種語言；車站看板太長的字改成兩行，不再被切掉": "英語・日本語表示：中国語のまま残っていたボタン、路線名、お知らせ、メッセージを翻訳しました。言語を切り替えても前の言語が残らなくなり、駅の案内板で長い文字は切れずに2行で表示されます。"
 });
+
+// 2026-09-19 官方營運公告的固定狀態字(TDX 捷運公告 title/desc,t() 查字面):台中捷運深夜回「非營運時段」
+// (status 0)會進公告橫幅,英文首屏原本露出中文(verify_i18n 深夜跑到才看得見)。「正常營運」一併補。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  "非營運時段": "Outside service hours",
+  "正常營運": "Normal service",
+});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  "非營運時段": "運行時間外",
+  "正常營運": "平常運転",
+});
