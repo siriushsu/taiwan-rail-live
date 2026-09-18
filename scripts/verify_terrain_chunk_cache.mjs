@@ -10,7 +10,10 @@ const whole=crypto.randomBytes(TOTAL);
 const manifest={chunkSize:CHUNK,byteLength:TOTAL,sha256:'test',
   chunks:Array.from({length:CHUNKS},(_,i)=>({file:i+'.bin',bytes:CHUNK,sha256:'c'+i}))};
 
-// mode='cloudflare' 一律回 200 加整片；mode='range' 照 Range 回 206。
+// mode='cloudflare' 一律回 200 加整片；mode='range' 照 Range 回 206；
+// mode='capacitor' 照 @capacitor/android 8.4.2 WebViewLocalServer.handleLocalRequest：
+//   有 Range 就回 206、Content-Range 照抄請求，但 body 是【從檔頭開始的整份檔案】——它根本沒跳到起點。
+//   只看狀態碼的讀法會把這份當片段，長度不符丟錯，地景底圖的 DEM 永遠不到（2026-09-18 Android 立體列車消失）。
 function install(mode,log){
   globalThis.fetch=async(url,init)=>{
     const name=String(url).split('/').pop();
@@ -20,7 +23,7 @@ function install(mode,log){
     const start=Number(m[1]),end=Number(m[2]);
     const body=mode==='range'?whole.subarray(index*CHUNK+start,index*CHUNK+end+1):whole.subarray(index*CHUNK,(index+1)*CHUNK);
     log.push({index,bytes:body.byteLength});
-    return {ok:true,status:mode==='range'?206:200,arrayBuffer:async()=>body.buffer.slice(body.byteOffset,body.byteOffset+body.byteLength)};
+    return {ok:true,status:mode==='cloudflare'?200:206,arrayBuffer:async()=>body.buffer.slice(body.byteOffset,body.byteOffset+body.byteLength)};
   };
 }
 const stub={PMTiles:class{constructor(source){this.source=source;}}};
@@ -29,7 +32,7 @@ async function build(mode,log){install(mode,log);const {terrainArchive}=await im
 // 取樣序列照真實開站的形狀：先讀檔頭與目錄（同一片的多次小讀），再讀幾張圖磚。
 const reads=[[0,16],[40,120],[900,64],[3000,200],[16,32],[CHUNK+10,50],[CHUNK+900,80],[0,64]];
 const notes={};
-for(const mode of ['cloudflare','range']){
+for(const mode of ['cloudflare','capacitor','range']){
   const log=[],source=await build(mode,log);
   for(const [offset,length] of reads){
     const got=new Uint8Array((await source.getBytes(offset,length)).data);
@@ -40,11 +43,13 @@ for(const mode of ['cloudflare','range']){
 // Cloudflare 那台：8 次讀取只碰 2 片，整份給也只該抓 2 次。
 assert.equal(notes.cloudflare.請求次數,2,'忽略 Range 的伺服器上，8 次讀取只該發 2 次請求（一片一次）');
 assert.ok(notes.cloudflare.下載KB<=CHUNKS*CHUNK/1024/2,'忽略 Range 的伺服器上，下載量不得超過用到的分片大小');
+// Capacitor 那台：假 206 其實是整片，行為要跟 Cloudflare 一樣（內容正確、一片只抓一次）。
+assert.equal(notes.capacitor.請求次數,2,'回假 206（整份檔案）的伺服器上，8 次讀取只該發 2 次請求');
 // 正向對照：會回 206 的伺服器要維持原本的逐段讀取，不得因為快取而少讀或讀錯。
 assert.equal(notes.range.請求次數,reads.length,'支援 Range 的伺服器上，每次讀取仍各自發一次請求（片段不進快取）');
 assert.ok(notes.range.下載KB<1,'支援 Range 的伺服器上，下載量應該只有幾百位元組');
 // 分母：兩台都要真的跑過，否則上面的斷言可能是空過。
-assert.ok(notes.cloudflare.請求次數>0&&notes.range.請求次數>0,'兩種伺服器都要真的被請求過');
+assert.ok(notes.cloudflare.請求次數>0&&notes.capacitor.請求次數>0&&notes.range.請求次數>0,'兩種伺服器都要真的被請求過');
 
 console.log(notes);
-console.log('地形分片快取：忽略 Range 的伺服器不重複下載、支援 Range 的維持原行為、內容逐位元組相同，皆通過');
+console.log('地形分片快取：忽略 Range 與回假 206 的伺服器不重複下載、支援 Range 的維持原行為、內容逐位元組相同，皆通過');

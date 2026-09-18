@@ -4,7 +4,8 @@
 //    所以這個毛病在本機結構上看不見。實測開站（地景底圖）九次圖磚讀取全落在同一個分片：
 //    真正要的 2.3 MB，實際下載 72 MB，主執行緒連帶凍結 8.3 秒。
 //    伺服器既然整份都給了就留著用：同一分片的後續讀取直接切記憶體，同時進來的讀取共用同一個 fetch。
-//    回 206 的伺服器（本機、將來支援 Range 的來源）拿到的是片段，不進快取，行為與從前完全相同。
+//    Android App（Capacitor）更糟：回 206 卻給整份檔案，所以整份與否一律看長度判斷。
+//    真的回 206 片段的伺服器（本機、將來支援 Range 的來源）拿到的是片段，不進快取，行為與從前完全相同。
 const root=new URL('./terrain/',import.meta.url);
 // 留幾片看記憶體預算，不看片數——分片大小將來若改小，這裡會自己多留幾片。
 const CACHE_BUDGET=16*1024*1024;
@@ -14,7 +15,11 @@ export async function terrainArchive(pmtiles){
   async function download(index,start,n,signal){
     const r=await fetch(new URL(manifest.chunks[index].file,root),{headers:{Range:`bytes=${start}-${start+n-1}`},signal});
     if(!r.ok)throw Error('地形分片讀取失敗');const b=new Uint8Array(await r.arrayBuffer());
-    return r.status===206?{slice:b}:{full:b};
+    // 看長度不看狀態碼：Android App 的內建伺服器（@capacitor/android 8.4.2 WebViewLocalServer）
+    // 收到 Range 會回 206，body 卻是從檔頭開始的整份檔案。當片段用就長度不符，地景 DEM 永遠讀不到。
+    if(b.byteLength===manifest.chunks[index].bytes)return {full:b};
+    if(r.status===206&&b.byteLength===n)return {slice:b};
+    throw Error('地形分片長度不符');
   }
   async function read(index,start,n,signal){
     const cached=held.get(index);
