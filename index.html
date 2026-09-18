@@ -10149,8 +10149,14 @@ const PERF_BY_TYPE = { // carName 未中時退 typeName
   '區間車': { a: 2.5, b: 3.0, v: 120 }, '區間快': { a: 2.5, b: 3.0, v: 120 },
   '自強': { a: 1.8, b: 2.9, v: 130 }, '莒光/復興': { a: 1.5, b: 2.6, v: 120 },
 };
+// DR1000 柴油客車(平溪/深澳/集集/內灣竹中以南)。班表一律標「區間車」,carName 分不出來,
+// 所以不放進 PERF_RULES,由 resolvePerf 用 isDr1000(依支線認)先攔。
+// 減速 2.448、極速 110 取自維基 DR1000 資訊框;起動加速度中日德文維基都空白,沿用柴聯自強
+// 同一個估值 1.5(研究筆記裡柴聯自強那列本來就是「估 DR1000 近似」)。
+const PERF_DR1000 = { a: 1.5, b: 2.448, v: 110 };
 function resolvePerf(tr) {
   if (isHSR(tr)) return PERF_HSR;
+  if (isDr1000(tr)) return PERF_DR1000;
   const cn = tr.carName || '';
   for (const [re, p] of PERF_RULES) if (re.test(cn)) return p;
   return PERF_BY_TYPE[tr.typeName] || PERF_DEFAULT;
@@ -17455,6 +17461,12 @@ const SPECIAL_TRAINS = {
 const DIESEL_BRANCH_IDS = new Set(['pingxi', 'jiji', 'shenao', 'neiwan']);
 const DR1000_KIND = 'DR1000 型柴油客車';
 const DR1000_DESC = '1998 年起投入的冷氣柴油客車，自帶柴油引擎、不靠電車線，專跑平溪、深澳、集集與內灣（竹中以南）等未電氣化支線。';
+// 車種介紹(trainIntro)與運動模型(resolvePerf)共用這一個判準。兩邊各寫一份的時候,
+// 介紹寫著 DR1000,動起來卻是電聯車的加減速。
+function isDr1000(tr) {
+  const branch = specialOf(tr)?.branch;
+  return !!branch && DIESEL_BRANCH_IDS.has(branch.id) && /區間/.test(tr.typeName || tr.carName || '');
+}
 // carName（官方 CarClass 中文名）→ 車型說明;由上而下比對,先中先贏
 const KIND_RULES = [
   [/普快車|普通車/, '藍皮普快', '無空調、可開窗的傳統客車，全台碩果僅存的普快車體。'],
@@ -17518,7 +17530,7 @@ function trainIntro(tr) {
   }
   const branch = spd ? spd.branch : null;
   // 非電化支線的區間車/區間快實為 DR1000 柴油客車,覆寫班表「區間車＝通勤電聯車」的誤標
-  if (branch && DIESEL_BRANCH_IDS.has(branch.id) && /區間/.test(tr.typeName || cn)) {
+  if (isDr1000(tr)) {
     kind = DR1000_KIND; desc = DR1000_DESC; fact = null;
   }
   const amens = [];

@@ -20,10 +20,11 @@ import { extract, loadIndexSource } from './lib/extract_from_index.mjs';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 // 頂層宣告依 index.html 的原始順序無關（函式提升），但 const 必須排在用到它的執行之前。
-const CONSTS = ['PERF_DEFAULT', 'PERF_HSR', 'HSR_DEP_MID_SEC', 'PERF_RULES', 'PERF_BY_TYPE',
+const CONSTS = ['PERF_DEFAULT', 'PERF_HSR', 'HSR_DEP_MID_SEC', 'PERF_RULES', 'PERF_BY_TYPE', 'PERF_DR1000',
+  'DIESEL_BRANCH_IDS',
   'SPEED_ZONES', 'ZONE_KNOT_GAP', '_rpPre', 'MEET_HEADWAY_SEC', 'MEET_NEAR_SEC',
   'OVERTAKE_LOOKAHEAD_KM', 'OVERTAKE_CLEAR_SEC', 'OVERTAKE_MAX_WAIT_SEC'];
-const FUNCS = ['haversineKm', 'ensureCum', 'posAlongShape', 'isHSR', 'resolvePerf',
+const FUNCS = ['haversineKm', 'ensureCum', 'posAlongShape', 'isHSR', 'specialOf', 'isDr1000', 'resolvePerf',
   'speedZoneClassOf', 'runSpeedZones', 'zoneProfileOk', 'zoneNatural', 'speedZoneKnots',
   'buildProfile', 'buildObsProfile', 'profTimeToProg', 'profProgToTime',
   'schedSegmentKm', 'schedSegKmOf', 'assignRunProfiles', 'canonicalizeAliasTrains',
@@ -43,12 +44,21 @@ export function readTrackSections(path) {
   return JSON.parse(readFileSync(path, 'utf8'))?.pairs || null;
 }
 
+// 支線表：resolvePerf 靠它認出 DR1000 柴油客車（班表只標「區間車」）。照前端開機的取法——
+// 整份掛 state.special、每條支線補 _set。少了它不會報錯，支線車只會靜默拿到電聯車參數。
+export function readSpecial(path) {
+  const sd = JSON.parse(readFileSync(path, 'utf8'));
+  sd.branchLines.forEach(b => { b._set = new Set(b.matchStations); });
+  return sd;
+}
+
 export function makeSandbox(indexPath) {
   const lines = loadIndexSource(indexPath);
   const src = extract(lines, [...CONSTS, ...FUNCS]);
   const ctx = createContext({
     console,
-    state: { _segStats: { onShape: 0, straight: 0, bridged: 0 }, passObs: null },
+    state: { _segStats: { onShape: 0, straight: 0, bridged: 0 }, passObs: null,
+      special: readSpecial(join(ROOT, 'data/tra_special_trains.json')) },
   });
   runInContext(src, ctx, { filename: 'index.html(extracted)' });
   return ctx;

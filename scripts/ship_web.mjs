@@ -180,6 +180,9 @@ try {
   const formations = spawnSync('node', [path.join(wt, 'scripts', 'verify_formations.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(formations.stdout || ''); process.stderr.write(formations.stderr || '');
   if (formations.status !== 0) fail('列車編組節數未通過——有車種的實際編組退回 3 節示意（單獨重跑：npm run check-formations）');
+  const dr1000 = spawnSync('node', [path.join(wt, 'scripts', 'verify_dr1000_perf.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(dr1000.stdout || ''); process.stderr.write(dr1000.stderr || '');
+  if (dr1000.status !== 0) fail('DR1000 運動參數未通過——支線柴油客車拿到電聯車的加減速（單獨重跑：npm run check-dr1000-perf）');
   const fullFormations = spawnSync('node', [path.join(wt, 'scripts', 'verify_full_formations_browser.mjs')], { cwd:wt, encoding:'utf8', env:{...process.env,PORT:''} });
   process.stdout.write(fullFormations.stdout || ''); process.stderr.write(fullFormations.stderr || '');
   if (fullFormations.status !== 0) fail('完整／推估編組的實際渲染或手機切換未通過');
