@@ -29,6 +29,11 @@ const MAX_COUNT_DRIFT = 0.15;      // 單一 set 班次數相對變動上限
 const MAX_EDGE_DRIFT_SEC = 60 * 60; // 首/末班時刻位移上限
 const MIN_HEADWAY_SEC = 60;         // 同方向相鄰發車最小間隔(小於此=重複班或亂碼)
 const MAX_GAP_GROWTH_SEC = 30 * 60; // 幹線最大空檔相對基準的增幅上限(中間掉了一整段就會超)
+// 單站服務斷層:要同時「絕對夠久」且「相對該線正常班距夠離譜」才算。兩個條件都要,是因為
+// 深夜末班前後本來就會拉到 20 分以上(絕對值單獨用會假紅),而清晨小班距線的 3 倍可能才 15 分
+// (相對值單獨用也會假紅)。
+const MAX_STATION_HOLE_SEC = 45 * 60; // 單站同方向兩次停靠的最大容許間隔
+const STATION_HOLE_FACTOR = 3;        // 且要大於該線該方向「正常班距」的這麼多倍
 
 const argv = process.argv.slice(2);
 const flagVal = f => { const i = argv.indexOf(f); return i >= 0 ? argv[i + 1] : null; };
@@ -140,6 +145,61 @@ for (const rel of FILES) {
         }
       }
       ck(tooTight === 0, `${lid}/${tag} 同起站同方向無過近發車（<${MIN_HEADWAY_SEC}s 的有 ${tooTight} 處${tightEx ? `，首例 ${tightEx}` : ''}）`);
+
+      // ── 結構:相鄰數站的服務不得整段斷掉(缺記錄的指紋) ──
+      // 2026-09-18 補。上面那些判準全部只看「一班車自己」合不合法,所以逐站時刻表某幾站
+      // 整段缺記錄時,鏈匹配串出來的假折返車一班一班都合法,整份卻少掉半條線的服務——
+      // 環狀線 Y 平日大坪林～景安 19:23–23:03 一筆記錄都沒有,314 班數字漂亮、結構全綠,
+      // 前端非即時模式照畫,使用者看到的是「晚上每一班到中和就消失」。
+      // 判準是站與站互相比,不寫死任何時刻:同一方向裡,任一站的服務空檔不得超過該線
+      // 「當時還在跑」的中位空檔太多倍——某站在別站正常發車的時段整段沒有停靠,就是缺記錄。
+      const stopsAt = new Map(); // `${dir}|${idx}` → 停靠時刻
+      for (const tr of trains) {
+        const dir = dirOf(tr);
+        for (let i = 0; i < tr.length; i += 2) {
+          const k = `${dir}|${tr[i]}`;
+          if (!stopsAt.has(k)) stopsAt.set(k, []);
+          stopsAt.get(k).push(tr[i + 1]);
+        }
+      }
+      // 要相鄰兩站同時斷、時段還重疊才算:單站漏掉一次停靠(淡海假日淡金鄧公)車還是照跑,
+      // 地圖上看不出來;整排站一起斷才是「那段線上沒有車」,也才是使用者會回報的故障。
+      let holes = 0, holeEx = null;
+      for (const dir of ['asc', 'desc']) {
+        const idxs = [...stopsAt.keys()].filter(k => k.startsWith(dir + '|'))
+          .map(k => Number(k.split('|')[1])).sort((a, b) => a - b);
+        // 該方向各站空檔的中位數,取全線最大的那一站當「這條線正常的班距上限」
+        const medianGap = i => {
+          const v = [...(stopsAt.get(`${dir}|${i}`) || [])].sort((a, b) => a - b);
+          if (v.length < 4) return 0;
+          const gaps = []; for (let k = 1; k < v.length; k++) gaps.push(v[k] - v[k - 1]);
+          gaps.sort((a, b) => a - b);
+          return gaps[Math.floor(gaps.length / 2)];
+        };
+        const typical = Math.max(...idxs.map(medianGap), 0);
+        if (!(typical > 0)) continue;
+        const holesOf = i => {
+          const v = [...(stopsAt.get(`${dir}|${i}`) || [])].sort((a, b) => a - b);
+          if (v.length < 4) return [];              // 首班車碎片那種零星站,樣本不足不問
+          const out = [];
+          for (let k = 1; k < v.length; k++) {
+            const gap = v[k] - v[k - 1];
+            if (gap >= MAX_STATION_HOLE_SEC && gap >= typical * STATION_HOLE_FACTOR) out.push([v[k - 1], v[k]]);
+          }
+          return out;
+        };
+        const byIdx = new Map(idxs.map(i => [i, holesOf(i)]));
+        for (const i of idxs) {
+          for (const [a, b] of byIdx.get(i) || []) {
+            const shared = [i - 1, i + 1].some(j => (byIdx.get(j) || [])
+              .some(([c, d]) => Math.min(b, d) - Math.max(a, c) >= MAX_STATION_HOLE_SEC));
+            if (!shared) continue;
+            holes++;
+            holeEx ??= `${dir} 站序 ${i} ${hm(a)}→${hm(b)}（${Math.round((b - a) / 60)} 分）`;
+          }
+        }
+      }
+      ck(holes === 0, `${lid}/${tag} 無整段服務斷層（${holes} 處${holeEx ? `，首例 ${holeEx}` : ''}）`);
     }
   }
 
@@ -165,9 +225,11 @@ for (const rel of FILES) {
       const [cf, cl] = edge(trains), [bf, bl] = edge(bt);
       ck(Math.abs(cf - bf) <= MAX_EDGE_DRIFT_SEC, `${lid}/${tag} 首班 ${hm(bf)}→${hm(cf)}（位移 ≤ ${MAX_EDGE_DRIFT_SEC / 60} 分）`);
       ck(Math.abs(cl - bl) <= MAX_EDGE_DRIFT_SEC, `${lid}/${tag} 末班 ${hm(bl)}→${hm(cl)}（位移 ≤ ${MAX_EDGE_DRIFT_SEC / 60} 分）`);
-      // 幹線最大空檔:刻意用「相對基準的增幅」而非絕對門檻。有些線本來就有大洞
-      // (環狀線 Y 平日上行 19:23 之後直到 23:03,220 分),寫絕對值只會逼出一個
-      // 遲早被下次改點推翻的魔術數字;要抓的是「新長出來的洞」。
+      // 幹線最大空檔:刻意用「相對基準的增幅」而非絕對門檻。改點本來就會讓某個時段的洞
+      // 變大變小,寫絕對值只會逼出一個遲早被下次改點推翻的魔術數字;要抓的是「新長出來的洞」。
+      // 註(2026-09-18):這裡原本記著「環狀線 Y 平日上行 19:23–23:03 的 220 分大洞是這條線
+      // 本來就有的」——那不是本來就有,是 TDX 逐站時刻表缺了大坪林～景安五站整段記錄,
+      // 已由 metro_times_gapfill.mjs 補回,上面新增的「整段服務斷層」判準負責擋它再回來。
       const cg = trunkGaps(trains), bg = trunkGaps(bt);
       for (const dir of ['asc', 'desc']) {
         if (!cg[dir] || !bg[dir]) continue;
