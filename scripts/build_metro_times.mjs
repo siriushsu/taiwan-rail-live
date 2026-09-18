@@ -342,6 +342,24 @@ function buildLineTimes(line, routeSpecs, sttCache, stnNameCache, notes, allStop
     b.chains = b.chains.filter(c => c.stops[0][0] === b.g.reqFirstIdx);
     stats.dropped += before - b.chains.length;
   }
+  // 孤立碎片:中途冒出、只有一兩筆記錄、下游又沒有任何接得上的發車 → 不是一班車,是別班車的記錄
+  // 歸錯了組。不擋的話,下面「末端補終點」會把它補成 2~3 站的短班。2026-09-18 淡海假日:幹線
+  // 淡水行政中心/濱海沙崙的記錄在 V-1、V-2 兩組間互相歸錯(V-1 濱海沙崙 08:39 是藍海線 08:22 那班、
+  // V-2 的 08:32 是綠山線 08:14 那班),各自成鏈後補成終點短班,正好疊在另一條支線的真車上。
+  // 「接得上」用碎片合併的同一個時間窗、看原始記錄而不是別的鏈:記錄被別條鏈認走了也算
+  // (機捷平日山鼻 07:37 的長庚 07:48 被別條鏈認走,那班是被截斷的真車,不是幻影)。
+  // 三筆以上記錄的鏈不動:末班車在中途收班就長這樣。環線沒有「中途」,不適用。
+  if (!line.loop) for (const b of built) {
+    const first = b.stns[0].idx, last = b.stns[b.stns.length - 1].idx;
+    const before = b.chains.length;
+    b.chains = b.chains.filter(c => c.stops[0][0] === first || c.lastIdx === last || c.stops.length > 2 ||
+      b.stns.filter(s => ahead(b, c.lastIdx, s.idx)).slice(0, 3).some(s => {
+        const e = b.dir.expected(c.lastIdx, s.idx);
+        return s.deps.some(t => t - c.last >= e * 0.5 && t - c.last <= e + 240);
+      }));
+    if (b.chains.length < before) notes.push(`${line.id} ${b.g.routeId}/${b.g.dir}/${b.g.tag}: ${before - b.chains.length} 個中途孤立碎片(下游無接續記錄),不成班`);
+    stats.dropped += before - b.chains.length;
+  }
   for (const { g, stns, asc, dir, destIdx, chains } of built) {
     // 末端補終點到達(終點站本身無發車記錄)
     if (destIdx != null) for (const c of chains) {
