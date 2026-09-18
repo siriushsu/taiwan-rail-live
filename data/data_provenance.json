@@ -233,7 +233,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "536a088c9db563ae13f820156a6f2181"
+   "checksum": "4d078f173a42fe9520d29d6c405debd5"
   },
   "data/tra_schedule_dense.json": {
    "sourceDescription": "時刻表來源：https://ods.railway.gov.tw/tra-ods-web/ods/download/dataResource/railway_schedule/JSON/list 清單頁，抓取今天(2026-09-18)起連續 14 天中實際發佈得到的 14 天（2026-09-18…2026-10-0",

@@ -1855,3 +1855,12 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   "Android 雙看板小工具字放大、依卡片高度多列幾班；設定頁通行證文字修正": "Androidの鉄道＋メトロ案内ウィジェット：文字を大きくし、カードの高さに合わせて表示本数を増やしました。設定画面の軌島パスの表示も修正しました。"
 });
+
+// 2026-09-19 支線 DR1000 加減速接進運動模型(第一層更新紀錄那條的 en/ja;第二層正本一律走 RAIL_I18N_CHANGELOG)
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  "平溪、深澳、集集、內灣線的列車起步與進站，改照 DR1000 柴油客車的加減速，不再比照電聯車": "Pingxi, Shen’ao, Jiji and Neiwan lines: trains now accelerate and brake like the DR1000 diesel railcars actually used there, not like electric trains."
+});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  "平溪、深澳、集集、內灣線的列車起步與進站，改照 DR1000 柴油客車的加減速，不再比照電聯車": "平渓線・深澳線・集集線・内湾線：列車の発車と到着の加減速を、電車ではなく実際に走るDR1000型気動車の性能に合わせました。"
+});

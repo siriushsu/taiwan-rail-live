@@ -183,6 +183,11 @@ try {
   const dr1000 = spawnSync('node', [path.join(wt, 'scripts', 'verify_dr1000_perf.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(dr1000.stdout || ''); process.stderr.write(dr1000.stderr || '');
   if (dr1000.status !== 0) fail('DR1000 運動參數未通過——支線柴油客車拿到電聯車的加減速（單獨重跑：npm run check-dr1000-perf）');
+  // 資料清單過期是無聲失效：網站宣稱什麼都沒變，App 就永遠不重抓那個檔。原本只有 App 的 prepare-web
+  // 與每日巡檢會驗，網站出貨不驗——DR1000 那批重建了跑段剖面卻漏了重產清單，出貨前靠人工比對才發現。
+  const manifest = spawnSync('node', [path.join(wt, 'scripts', 'verify_data_manifest.mjs'), wt], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(manifest.stdout || ''); process.stderr.write(manifest.stderr || '');
+  if (manifest.status !== 0) fail('資料清單與資料檔不符——App 會以為檔案沒變、永遠不重抓（修法：npm run build-manifest 後一起 commit）');
   const fullFormations = spawnSync('node', [path.join(wt, 'scripts', 'verify_full_formations_browser.mjs')], { cwd:wt, encoding:'utf8', env:{...process.env,PORT:''} });
   process.stdout.write(fullFormations.stdout || ''); process.stderr.write(fullFormations.stderr || '');
   if (fullFormations.status !== 0) fail('完整／推估編組的實際渲染或手機切換未通過');

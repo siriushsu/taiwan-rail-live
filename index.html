@@ -5468,6 +5468,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="dr1000branch"><span class="d">9/19</span><span>平溪、深澳、集集、內灣線的列車起步與進站，改照 DR1000 柴油客車的加減速，不再比照電聯車</span></li>
         <li data-cl-of="mixedwidget0919"><span class="d">9/19</span><span>Android 雙看板小工具字放大、依卡片高度多列幾班；設定頁通行證文字修正</span></li>
         <li data-cl-of="legwindow0918"><span class="d">9/18</span><span>高雄環狀輕軌假日 29 班不再接錯車；機捷深夜往機場 23:23、23:38 兩班，中和新蘆線南勢角 22:26、淡水信義線週六廣慈 23:08 也照官方時刻開完全程</span></li>
         <li data-cl-of="metrott0918"><span class="d">9/18</span><span>淡水信義線班表換成 8/31 改點後的官方時刻；機捷晚上的直達車不再開到長庚就消失，照官方時刻開到機場第二航廈</span></li>
@@ -5475,7 +5476,6 @@
         <li data-cl-of="landscapedem0918"><span class="d">9/18</span><span>Android App 的地景地圖立體列車不再消失，照真實地形高度顯示</span></li>
         <li data-cl-of="tymcshort0918"><span class="d">9/18</span><span>機捷平日早上山鼻 7:37 那班區間車不再開到林口就消失，照官方時刻開到台北</span></li>
         <li data-cl-of="viewcontrols0914"><span class="d">9/18</span><span>開著車站卡或列車卡時也能直接按「觀看」調整視角、地圖與列車設定</span></li>
-        <li data-cl-of="mergedir0918"><span class="d">9/18</span><span>淡水信義線平日清晨少掉的 6 班補回來了；機捷與淡海輕軌少數班次不再開到半路掉頭</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5858,6 +5858,7 @@
         <li><span class="d">7/13</span><span>新增「分享畫面」：把地圖位置、時間與路網打包成一條連結</span></li>
         <li><span class="d">7/11</span><span>可以安裝到主畫面（PWA），像 App 一樣全螢幕開啟</span></li>
         <li class="grp">資料校正</li>
+        <li data-cl="dr1000branch"><span class="d">9/19</span><span>台鐵支線動畫修正：平溪、深澳、集集、內灣線跑的是 DR1000 柴油客車，起步、進站的加減速與最高速度改照它的性能，不再套用電聯車的數值（車種介紹 7/18 起已是 DR1000）</span></li>
         <li data-cl="mergedir0918"><span class="d">9/18</span><span>班表整理修正：淡水信義線平日清晨往淡水的 6 班補回（象山、台北車站、劍潭 6:00 首班車，以及從忠義出發的 3 班）；機捷平日 1 班、淡海輕軌假日 7 班不再開到半路往回開；淡海假日 4 班疊在另一支線列車上的重複短班也拿掉了</span></li>
         <li data-cl="ylast0918"><span class="d">9/18</span><span>環狀線平日深夜班表補齊：大坪林 23:12 到 24:00 發往新北產業園區的末班車照官方時刻開到終點，中和站時刻改對齊官方時刻表</span></li>
         <li data-cl="tymcshort0918"><span class="d">9/18</span><span>機捷平日早上班表修正：山鼻 7:37 發車的區間車不再開到林口就消失，照官方時刻一路開到台北；同時段環北 7:00 的尖峰跳站普通車與山鼻 7:28 的普通車，過長庚後也改回各自的官方時刻，長庚不再多冒出一班車</span></li>
@@ -6506,7 +6507,7 @@
 //         介紹卡／搜尋／收集章／3D 外觀全部自動接上，明星列車章 5→6 枚；環島之星與虛構的山海／平原號
 //         不再退回 EMU800 代表外觀，改成機車牽引的觀光列車（環島之星＝E500＋莒光客車）。
 //         守門人：verify_formations 新增具名覆蓋率斷言，名冊「有固定車次」的集合必須與對照表逐一相等。
-const BUILD = 'v0919a';
+const BUILD = 'v0919b';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
