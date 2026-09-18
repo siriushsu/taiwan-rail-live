@@ -48,7 +48,7 @@ const widths = [360, 375, 414, 768];
 // 9/19：Android 雙看板小工具改版一條（394→395）。
 // 9/19：支線 DR1000 加減速接進運動模型一條（395→396）。
 // 9/19：新馬急彎前車速不超過車種極速一條（396→397）。
-const expectedHistoryCount = 397;
+const expectedHistoryCount = 399;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

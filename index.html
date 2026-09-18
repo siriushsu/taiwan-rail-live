@@ -5495,14 +5495,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="updatebanner0919"><span class="d">9/19</span><span>App 有新版時，頂端的更新提示不再蓋住「觀看」按鈕</span></li>
+        <li data-cl-of="overtakeplan0915"><span class="d">9/19</span><span>台鐵後車待避與對向交會都保留安全間隔，同一條軌道上互相穿過的情況再減少</span></li>
         <li data-cl-of="i18ngaps0919"><span class="d">9/19</span><span>英日文介面補上漏翻的按鈕、路線名、公告與提示，切換語言不再殘留前一種語言；車站看板太長的字改成兩行，不再被切掉</span></li>
         <li data-cl-of="night200907"><span class="d">9/19</span><span>暗色模式下，附近車站、平交道、糖鐵與儲存地點卡的關閉鈕與「存」看得見了</span></li>
-        <li data-cl-of="translucent0730"><span class="d">9/19</span><span>面板半透明時，看板倒數、預計到站與「在 Google 地圖開啟」等藍字加深，疊在衛星影像上也看得清楚</span></li>
+        <li data-cl-of="translucent0730"><span class="d">9/19</span><span>暗色主題下「面板半透明」開關恢復作用；半透明時看板倒數、預計到站與「在 Google 地圖開啟」等藍字加深，疊在衛星影像上也看得清楚</span></li>
         <li data-cl-of="speedcapzone0919"><span class="d">9/19</span><span>台鐵列車在地圖上不再跑得比車種極速還快，新馬急彎與立體地圖都修正了，站牌時刻不變</span></li>
         <li data-cl-of="dr1000branch"><span class="d">9/19</span><span>平溪、深澳、集集、內灣線的列車改照 DR1000 柴油客車加減速，列車卡也改顯示 DR1000 介紹</span></li>
         <li data-cl-of="mixedwidget0919"><span class="d">9/19</span><span>Android 雙看板小工具字放大、依卡片高度多列幾班；設定頁通行證文字修正</span></li>
-        <li data-cl-of="legwindow0918"><span class="d">9/18</span><span>高雄環狀輕軌假日 29 班不再接錯車；機捷深夜往機場 23:23、23:38 兩班，中和新蘆線南勢角 22:26、淡水信義線週六廣慈 23:08 也照官方時刻開完全程</span></li>
-        <li data-cl-of="metrott0918"><span class="d">9/18</span><span>淡水信義線班表換成 8/31 改點後的官方時刻；機捷晚上的直達車不再開到長庚就消失，照官方時刻開到機場第二航廈</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5511,7 +5511,7 @@
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
         <li data-cl="landscapedem0918"><span class="d">9/18</span><span>Android App 的地景地圖修正：立體列車不再整批消失，改回照真實地形高度擺在山坡與高架橋上（原因是 Android 讀不出 App 內建的地形資料）</span></li>
-        <li data-cl="overtakeplan0915"><span class="d">9/15</span><span>台鐵後車即將追上前車時，會預先回找有足夠煞車時間的車站安排待避；例如 6563 次與 207 次原本會在和仁到和平間互穿，現在會提前在崇德停妥、等後車通過再開，並依車種煞車性能決定是否還要往前一站</span></li>
+        <li data-cl="overtakeplan0915"><span class="d">9/15</span><span>台鐵後車即將追上前車時，會預先回找有足夠煞車時間的車站安排待避，並依車種煞車性能決定停哪一站（例如 6563 次改在崇德等 207 次通過）；9/19 再修：待避與對向交會都保留安全間隔，同軌互穿再減少</span></li>
         <li data-cl="fullformations0914"><span class="d">9/14</span><span>所有列車都可顯示完整編組；區間車、莒光與觀光列車等資料不足的班次顯示推估車廂數，並清楚標示推估</span></li>
         <li data-cl="remainingtracks0913"><span class="d">9/14</span><span>調整台鐵各站停靠與進出股道，減少待避重疊、追撞與對向互穿；9/14 再補回 97 站的站區股道，雙線區間依行車方向分股行駛（台北–萬華地下段不再兩向共用同一條軌道），並改善單線會車判斷</span></li>
         <li data-cl="afrpushpull0913"><span class="d">9/13</span><span>修正阿里山林鐵機車的位置與方向，依路段呈現車尾推進、車頭牽引及之字形折返</span></li>
@@ -5778,6 +5778,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="updatebanner0919"><span class="d">9/19</span><span>App 有新版時，頂端的更新提示不再蓋住「觀看」按鈕：右側按鈕列載入後會變長，提示現在會跟著往下讓位</span></li>
         <li data-cl="i18ngaps0919"><span class="d">9/19</span><span>英日文介面補上漏翻並修正譯錯的按鈕：行程分享、捷運路線名、倒數準確度、最後更新、今日亮點次數、成就說明、公告與各種提示；切換語言不再殘留前一種語言；車站看板一列放不下改成兩行；三鶯線公告列出官方首末班</span></li>
         <li data-cl="mixedwidget0919"><span class="d">9/19</span><span>Android 桌面的鐵路＋捷運雙看板重新排版：字放大，卡片放得下幾班就列幾班，不再空一大塊；已開通行證時，設定頁不會再誤寫需要通行證。</span></li>
         <li data-cl="repeatreminder0913"><span class="d">9/13</span><span>到站提醒可以設成每天、週一到五或自訂星期重複：通勤固定搭的那班設一次就長期有效，不必每天重設。重複的提醒依表定時刻在每個符合的日子響，一則重複提醒在 20 則上限裡仍然只算一則；原本設好的一次性提醒不受影響。</span></li>
@@ -5858,7 +5859,7 @@
         <li data-cl="osmbasemap"><span class="d">8/18</span><span>街道底圖改用 OpenFreeMap 提供的 OpenStreetMap 向量圖磚，地名、路名與公路編號更精簡；頁尾也同步更新實際來源與署名。</span></li>
         <li data-cl="satretina"><span class="d">8/2</span><span>在 App 裡訂閱通行證後，衛星底圖會換成高解析度圖磚，在 Retina 螢幕上更銳利；沒訂閱的人維持標準解析度，畫面內容一樣</span></li>
         <li data-cl="satbilling"><span class="d">8/1</span><span>衛星底圖換成比較省的計費方式：計費從「看了幾張圖磚」改成「看得夠多才算一次時段費」，看到的畫面完全一樣，只是我們付給圖資供應商的錢少很多</span></li>
-        <li data-cl="translucent0730"><span class="d">7/30</span><span>外觀設定新增「面板半透明」：資訊面板可透出地圖並維持文字對比；收合小卡仍使用實心底。9/19 半透明時看板倒數、預計到站、平交道時刻與「在 Google 地圖開啟」等藍字加深一階，疊在衛星影像上也看得清楚。</span></li>
+        <li data-cl="translucent0730"><span class="d">7/30</span><span>外觀設定新增「面板半透明」：資訊面板可透出地圖並維持文字對比；收合小卡仍使用實心底。9/19 半透明時看板倒數、預計到站、平交道時刻與「在 Google 地圖開啟」等藍字加深一階，疊在衛星影像上也看得清楚；暗色主題下這個開關也恢復作用。</span></li>
         <li><span class="d">7/28</span><span>全站圖示換成軌島自製單色線稿，亮暗主題下都更一致清楚</span></li>
         <li><span class="d">7/28</span><span>全站圖示改用軌島自製的單色線稿與單色字形（介面圖示、成就徽章、車廂標記都在內），亮暗主題與各家瀏覽器下長相一致，不再交給各系統自己的 emoji 決定</span></li>
         <li><span class="d">7/27</span><span>切到「高」時左邊牌子下面的那行字改成「台灣高鐵即時軌跡」，先前一直沿用台鐵的字串</span></li>
@@ -6540,6 +6541,8 @@
 //         切換語言不殘留、車站看板一列放不下改兩行(data-wrap2)、週末活動期間名；併入 verify_i18n 紅修正(fe009954)、
 //         台鐵實體股道層不超極速(373c0ae4，併入 speedcapzone0919 那條更新紀錄)、verify_tra_motion 釘鐘(483a0bf8)、半透明對比閘門 fixture(499d152a)、
 //         前車停在站內別股道不再擋住後車(4ada448f，正式站效果約 0.4%，不另寫更新紀錄)。
+//         暗色主題「面板半透明」開關恢復作用(8d7f72fe)、台鐵待避／對向交會帶安全間隔、排待避後不洗掉夾點(0ef6fa24＋9baee959，
+//         併進 overtakeplan0915)、交會推論棘輪 MR1(987cb6d2)、App 新版橫幅不再蓋住「觀看」鈕(ResizeObserver 重新定位)。
 const BUILD = 'v0919e';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
@@ -33536,7 +33539,7 @@ const HELP_GROUPS = [
       tip: '「大」只放大字級與列高，功能位置完全不變；跟隨系統只在字級進到輔助使用級別才介入。' },
     { key: 'panelopacity', ic: '▧', nm: '面板半透明', tg: 'panelOpacity',
       one: '讓看板、列車卡與跟隨面板透出後方地圖，面板底下的路線、車站都看得到；面板最上方的標題列也一起透。',
-      steps: ['「更多」→ 打開「面板半透明」', '再按一次就恢復原本的實色紙面'],
+      steps: ['「更多」→ 打開「面板半透明」', '再按一次就關閉，面板回到原本的樣子'],
       tip: '預設關閉；這項設定只會記在目前這台裝置。半透明時字色會自動調整以維持可讀性（亮色加深、暗色提亮），不是靠在字外加光暈。' },
     { key: 'track', ic: '軌', nm: '軌道與路線', one: '沿著路線找車站，也能挑一個視角看車。',
       steps: ['「更多」→ 軌道與路線，或從「查詢」進入路線導覽', '選路線看站序，按方向鈕反轉，點車站開看板', '「精選取景」一鍵看路網；「顯示設定」保留車種與軌道開關'], try: 'track' },

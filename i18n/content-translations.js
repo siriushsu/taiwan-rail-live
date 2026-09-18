@@ -2334,12 +2334,12 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
 // 2026-09-19 暗色卡頭關閉鈕與「存」看得見、半透明面板藍字加深(第一層更新紀錄那兩條的 en/ja;第二層正本一律走 RAIL_I18N_CHANGELOG)
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
   "暗色模式下，附近車站、平交道、糖鐵與儲存地點卡的關閉鈕與「存」看得見了": "In dark mode, the close and Save buttons on the nearby-stations, level-crossing, sugar-railway and saved-place cards are now visible.",
-  "面板半透明時，看板倒數、預計到站與「在 Google 地圖開啟」等藍字加深，疊在衛星影像上也看得清楚": "With translucent panels on, blue text such as board countdowns, arrival times and “Open in Google Maps” is darker and stays readable over satellite imagery."
+  "暗色主題下「面板半透明」開關恢復作用；半透明時看板倒數、預計到站與「在 Google 地圖開啟」等藍字加深，疊在衛星影像上也看得清楚": "The Translucent panels switch works again in dark mode. With it on, blue text such as board countdowns, arrival times and “Open in Google Maps” is darker and stays readable over satellite imagery."
 });
 
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   "暗色模式下，附近車站、平交道、糖鐵與儲存地點卡的關閉鈕與「存」看得見了": "ダークモードで、近くの駅・踏切・糖業鉄道・保存した地点のカードにある閉じるボタンと「保存」が見えるようになりました。",
-  "面板半透明時，看板倒數、預計到站與「在 Google 地圖開啟」等藍字加深，疊在衛星影像上也看得清楚": "パネル半透明時、案内板のカウントダウン・到着予定・「Google マップで開く」などの青い文字を濃くし、衛星画像の上でも読みやすくしました。"
+  "暗色主題下「面板半透明」開關恢復作用；半透明時看板倒數、預計到站與「在 Google 地圖開啟」等藍字加深，疊在衛星影像上也看得清楚": "ダークモードでも「パネルを半透明にする」が効くようになりました。半透明時は案内板のカウントダウン・到着予定・「Google マップで開く」などの青い文字を濃くし、衛星画像の上でも読みやすくしました。"
 });
 
 // 2026-09-19 英日文補翻(第一層更新紀錄那條的 en/ja;第二層正本一律走 RAIL_I18N_CHANGELOG)
@@ -2371,4 +2371,20 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   "軌島 Google Play 新版 有什麼新的": "軌島 Google Play版の新機能",
+});
+
+// 2026-09-19 更新提示讓位、台鐵待避與交會的安全間隔(第一層更新紀錄那兩條的 en/ja;第二層正本一律走 RAIL_I18N_CHANGELOG)；
+// 使用說明「面板半透明」兩個步驟原本沒有英日文(暗色主題關掉是玻璃面板，第二步不再寫「實色紙面」)
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  "App 有新版時，頂端的更新提示不再蓋住「觀看」按鈕": "When a new app version is available, the update notice at the top no longer covers the View button.",
+  "台鐵後車待避與對向交會都保留安全間隔，同一條軌道上互相穿過的情況再減少": "TRA trains now keep a safety margin when waiting for a following train to pass or for an oncoming train, so trains pass through each other on the same track even less often.",
+  "「更多」→ 打開「面板半透明」": "Open More and turn on Translucent panels",
+  "再按一次就關閉，面板回到原本的樣子": "Tap it again to turn it off and return panels to their usual look",
+});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  "App 有新版時，頂端的更新提示不再蓋住「觀看」按鈕": "アプリの新しいバージョンがあるとき、上部の更新のお知らせが「表示」ボタンを隠さなくなりました。",
+  "台鐵後車待避與對向交會都保留安全間隔，同一條軌道上互相穿過的情況再減少": "台鉄の列車が待避や行き違いで安全間隔を保つようになり、同じ線路上で列車どうしがすり抜けることがさらに減りました。",
+  "「更多」→ 打開「面板半透明」": "「その他」→「パネルを半透明にする」をオン",
+  "再按一次就關閉，面板回到原本的樣子": "もう一度押すとオフになり、パネルが元の表示に戻ります",
 });

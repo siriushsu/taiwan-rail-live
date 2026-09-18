@@ -1,6 +1,6 @@
 {
  "note": "由 node scripts/build_run_profiles.mjs --update-meet-ratchet 實測寫入，不要手改。--check 用目前的程式碼重跑 inputs 這幾個凍結的資料 blob：夾回數不得少於 snapped、重建不合格不得多於 unbuildable。",
- "measured_at": "a4d4a047a657b7aa99f2ef3ca7038ecc19dd5929",
+ "measured_at": "b07792a7cb7d5c0037bcfa06b8c3c829f5cead7b",
  "inputs": {
   "schedule": {
    "path": "data/tra_schedule_dense.json",
@@ -16,13 +16,13 @@
   },
   "trackSections": {
    "path": "data/tra_track_sections.json",
-   "blob": "6418f72e245bfd32a50ac1ba16f158d5628363a7"
+   "blob": "d869c450cea59042df48735e3868f83330aaf2e1"
   },
   "special": {
    "path": "data/tra_special_trains.json",
    "blob": "9d4f2bb02a9448a5fff9742c0eb5ecd2a13facdd"
   }
  },
- "snapped": 192,
- "unbuildable": 16
+ "snapped": 244,
+ "unbuildable": 17
 }
