@@ -2277,3 +2277,31 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '臺北捷運': '台北メトロ',
   '環狀線': '環状線'
 });
+
+// 探索面板「週末鐵道活動」列的期間名（/api/weekend 的 span.label 是核心層產出的中文分類：
+// 本週末／假日／這個連假／<節日>／<節日>連假）。譯名與 weekend.html 的 SPAN 同一份，兩處要一起改。
+// 「假日」沿用上面懸賞板時段那一條（Holiday／休日），不重複定義。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '本週末': 'This weekend',
+  '這個連假': 'This long weekend',
+  '{holiday}連假': '{holiday} long weekend',
+  '春節': 'Lunar New Year',
+  '和平紀念日': 'Peace Memorial Day',
+  '兒童節與清明': 'Children’s Day & Tomb Sweeping Day',
+  '中秋': 'Mid-Autumn Festival',
+  '國慶': 'National Day',
+  '光復節': 'Retrocession Day',
+  '行憲紀念日': 'Constitution Day'
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '本週末': '今週末',
+  '這個連假': 'この連休',
+  '{holiday}連假': '{holiday}の連休',
+  '春節': '春節',
+  '和平紀念日': '和平記念日',
+  '兒童節與清明': '児童節・清明節',
+  '中秋': '中秋節',
+  '國慶': '国慶日',
+  '光復節': '光復節',
+  '行憲紀念日': '行憲記念日'
+});

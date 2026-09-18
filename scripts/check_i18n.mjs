@@ -491,6 +491,29 @@ for (const block of scriptBlocks) {
 }
 console.log(`sink 全文掃描：${literalOkCount} 處使用 i18n-literal-ok 豁免。`);
 
+// weekend.html 不載 i18n/*.js,期間名(本週末／假日／這個連假／<節日>連假)自帶一份 SPAN 譯名;
+// 探索面板那一列(index.html weekendSpanName)查的是主字典。同一個期間在兩處要叫同一個名字——
+// 兩份靠註解「一起改」沒有牙,這裡逐鍵比對。kind＝「鐵道活動」,pair 的 {h}＝字典「{holiday}連假」的 {holiday}。
+{
+  const weekendSource = fs.readFileSync(path.join(root, 'weekend.html'), 'utf8');
+  const spanBlock = /var SPAN = (\{[\s\S]*?\n\});/.exec(weekendSource)?.[1];
+  if (!spanBlock) fail('weekend.html 找不到 var SPAN = {…}; ——期間名譯名的一致性檢查會空過');
+  else {
+    const SPAN = vm.runInNewContext(`(${spanBlock})`);
+    for (const lang of languages) {
+      const table = SPAN[lang] || {};
+      const pairs = Object.entries(table);
+      if (pairs.length < 5) fail(`weekend.html SPAN.${lang} 只有 ${pairs.length} 個鍵——期間名譯名的一致性檢查會空過`);
+      for (const [key, value] of pairs) {
+        const dictKey = key === 'kind' ? '鐵道活動' : key === 'pair' ? '{holiday}連假' : key;
+        const expected = messages[lang]?.[dictKey];
+        const actual = key === 'pair' ? value.replace('{h}', '{holiday}') : value;
+        if (expected !== actual) fail(`weekend.html SPAN.${lang}「${key}」＝${JSON.stringify(value)}，主字典「${dictKey}」＝${JSON.stringify(expected)}——兩處譯名要一致`);
+      }
+    }
+  }
+}
+
 if (failures.length) {
   console.error(`i18n 稽核失敗（${failures.length} 項）`);
   failures.forEach(message => console.error(`- ${message}`));

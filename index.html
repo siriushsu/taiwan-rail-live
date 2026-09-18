@@ -30147,16 +30147,31 @@ function ensureWeekendCount() {
 //       假日／光復節連假…),它不會因為 ?lang=en 就變成英文;
 //   (2)「鐵道活動」是介面字串,會跟著介面語言翻譯。
 // 兩截直接串接在非中文介面會黏成「本週末Rail events」這種壞字串,所以非中文介面用
-// 「中文 label · 譯名」的形狀——與 weekend.html 的 h1 完全同一種做法,不自創第三種。
+// 「期間名 · 譯名」的形狀——與 weekend.html 的 h1 完全同一種做法,不自創第三種。
+// 期間名本身也翻(weekendSpanName):以前外語介面照貼中文 label(2026-09-19 使用者回報);
+// 查不到的節日名(新增了節日、字典還沒補)整個退回中文原字,不拼半中半外的名字。
 // 🔴 label 還沒拿到(首開面板的載入窗)或 API 掛掉時【不要編一個期間出來】:核心層把期間文案
 // 分成「本週末／這個連假／假日／<名稱>連假／<名稱>」是使用者親自裁示的分類,而實測未來 730 天
 // 有 133 天(18.2%)真值不是「本週末」(這個連假 41、假日 17、兒童節與清明連假 12、光復節連假 12、
 // 春節連假 11…)。未知就只說「鐵道活動」,不去斷言是哪一種期間——API 掛掉時那個斷言是永久錯的。
+// 譯名與 weekend.html 的 SPAN 是同一份，兩處要一起改(那一頁不載 i18n/*.js)。
+function weekendSpanName(label) {
+  if (I18N_LANG === 'zh-TW') return label;
+  const names = {
+    '本週末': t('本週末'), '假日': t('假日'), '這個連假': t('這個連假'),
+    '春節': t('春節'), '和平紀念日': t('和平紀念日'), '兒童節與清明': t('兒童節與清明'),
+    '中秋': t('中秋'), '國慶': t('國慶'), '光復節': t('光復節'), '行憲紀念日': t('行憲紀念日'),
+  };
+  const has = key => Object.prototype.hasOwnProperty.call(names, key);
+  if (has(label)) return names[label];
+  const m = /^(.+)連假$/.exec(label);
+  return m && has(m[1]) ? t('{holiday}連假', { holiday: names[m[1]] }) : label;
+}
 function weekendRowHtml() {
   const c = _weekendCount;
   const kind = t('鐵道活動');
   const label = (c && c.label) || '';
-  const text = !label ? kind : (I18N_LANG === 'zh-TW' ? label + kind : label + ' · ' + kind);
+  const text = !label ? kind : (I18N_LANG === 'zh-TW' ? label + kind : weekendSpanName(label) + ' · ' + kind);
   const tail = (c && typeof c.n === 'number' && c.n > 0) ? t('{n} 場', { n: i18nNumber(c.n) }, c.n) : '';
   return `<div class="row" data-weekend="1" title="${escHtml(text)}">` +
     `<b>${escHtml(text)}</b>` +
