@@ -5460,7 +5460,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/9/16</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/9/18</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -5468,6 +5468,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="ylast0918"><span class="d">9/18</span><span>環狀線平日深夜少掉的末班車補回來了，中和站時刻也改對齊官方時刻表</span></li>
         <li data-cl-of="neardismiss0918"><span class="d">9/18</span><span>「附近車站」清單多了兩個關法：點地圖空白處、或把卡片往下滑，不必先選一站才收得掉</span></li>
         <li data-cl-of="favstangeo0916"><span class="d">9/16</span><span>最愛車站星號整合至站名標籤避免遮蔽文字，傾斜跟車時自動隱藏定位藍圈維持純淨視角</span></li>
         <li data-cl-of="followrotate0916"><span class="d">9/16</span><span>跟車轉動視角維持鎖定不中斷，並修正開啟車頭朝上時列車在轉彎處跑出畫面外的問題</span></li>
@@ -5475,7 +5476,6 @@
         <li data-cl-of="overtakeplan0915"><span class="d">9/15</span><span>台鐵後車即將追上前車時，會預先回找有足夠煞車時間的車站安排待避，減少列車在站間追撞或互相穿越</span></li>
         <li data-cl-of="fullformations0914"><span class="d">9/14</span><span>所有列車都可顯示完整編組；區間車、莒光與觀光列車等資料不足的班次顯示推估車廂數，並清楚標示推估</span></li>
         <li data-cl-of="remainingtracks0913"><span class="d">9/14</span><span>台鐵列車互穿再減少：補回 97 站的站區股道，雙線區間依行車方向分股行駛，台北–萬華地下段不再兩向共用同一條軌道，並改善單線會車判斷</span></li>
-        <li data-cl-of="viewcontrols0914"><span class="d">9/14</span><span>觀看設定移到網站右側；手機可按「觀看」切換視角、地圖與列車設定，沉浸模式也能隨時重新開啟；修正地形切換時橋墩閃現與遠景列車大小設定未生效</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5856,6 +5856,7 @@
         <li><span class="d">7/13</span><span>新增「分享畫面」：把地圖位置、時間與路網打包成一條連結</span></li>
         <li><span class="d">7/11</span><span>可以安裝到主畫面（PWA），像 App 一樣全螢幕開啟</span></li>
         <li class="grp">資料校正</li>
+        <li data-cl="ylast0918"><span class="d">9/18</span><span>環狀線平日深夜班表補齊：大坪林 23:12 到 24:00 發往新北產業園區的末班車照官方時刻開到終點，中和站時刻改對齊官方時刻表</span></li>
         <li data-cl="metrolead0911"><span class="d">9/11</span><span>捷運頁導言更正：台北捷運九線（含文湖線、環狀線）的列車位置與車站倒數都來自官方逐班即時資料，導言現在只把三鶯線與台中捷運標為班距推算。</span></li>
         <li data-cl="sanyinglast0911"><span class="d">9/11</span><span>三鶯線平日末班車補上官方公告的 00:00 那一班，原本合成的班表最後一班停在 23:54</span></li>
         <li data-cl="trapassjump"><span class="d">8/21</span><span>台鐵列車通過不停靠小站時改為連續移動，不再短暫停住後跳位；跨午夜切換系統也不會沿用前一天同號車的誤點。</span></li>
@@ -6498,7 +6499,7 @@
 //         介紹卡／搜尋／收集章／3D 外觀全部自動接上，明星列車章 5→6 枚；環島之星與虛構的山海／平原號
 //         不再退回 EMU800 代表外觀，改成機車牽引的觀光列車（環島之星＝E500＋莒光客車）。
 //         守門人：verify_formations 新增具名覆蓋率斷言，名冊「有固定車次」的集合必須與對照表逐一相等。
-const BUILD = 'v0916c';
+const BUILD = 'v0918a';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。

@@ -20,15 +20,13 @@
 // 站間時間用同一 set 同方向「跑完整段的班次」實測相鄰站時距中位數,不用線檔 segs 估——
 // 補出來的班要跟當天其他班同一個節奏,才不會在畫面上看出接縫。
 //
-// 🔸 這一層只接「已經存在但被截斷的班次」,不生新班次。已知還缺、而且這一層接不回來的:
-//   環狀線 Y 平日末班比假日早一大截——大坪林往新北產業園區平日末班 23:03(假日 23:57)、
-//   反向平日 24:00(假日 24:34)。缺的是整班車,不是某一班的後半段,所以沒有東西可以延伸。
-//   2026-09-18 評估後刻意不照假日型態合成:那是在推測營運安排,而不是重建有憑據的記錄。
-//   捷運末班時刻平日假日通常同一張表,所以這裡「大概少了 5 班」——但 metro.taipei 與
-//   ntmetro.com.tw 在雲端容器連不到(403),repo 裡也沒有另一份首末班資料可以對,無從查證。
-//   猜錯的代價不對稱:少畫幾台車只是畫面比現實空,多畫則是宣稱有不存在的末班車。
-//   正解是重抓 TDX 快照重建(npm run sync-metro,要在連得到 TDX 的機器上跑);
-//   若新快照仍缺,再拿官方首末班表當憑據補,不要拿假日班表當範本。
+// 🔸 這一層只接「已經存在但被截斷的班次」,不生新班次。
+//   2026-09-18 曾以為環狀線 Y 平日末班少了整班車(大坪林發平日 23:03 對假日 23:57)。重抓 TDX
+//   並對過新北捷運官方各站時刻表後查明:平日 23:04–24:00 的班 TDX 與官方都有,是平日中和 Y12
+//   的記錄整份抄成景安 Y11,鏈在兩站之間斷掉,末班那幾班被切碎或整班剔除。修法在
+//   build_metro_times.mjs(排除中和、按行駛時間內插,與官方中和站 PDF 逐分吻合),不在這一層。
+//   假日往大坪林 00:10/00:23/00:34 那三班是另一回事:官方 PDF 末班 00:00,官方 .odt(TDX 照抄)
+//   末班 00:34,兩份官方來源打架,待使用者裁示——不要自己挑一份。
 //
 // 用法:
 //   build_metro_times.mjs 於寫檔前呼叫 applyGapFill(out, lineFile);重建幾次都在。
@@ -103,11 +101,14 @@ function boundedHole(times, t) {
   return { before, after };
 }
 
-// 收班邊緣:擬補停靠落在該站該方向最後一筆記錄之後。缺口沒有「後面那一側」可夾,
+// 沒被夠大的缺口夾住的擬補停靠(收班之後那一段,或兩班之間只是正常班距的小空檔):
+// 只要跟該站該方向既有停靠都隔 MIN_SEP_SEC 以上就放得進去。判不出「這是折返還是缺記錄」,
 // 所以只有宣告過沒有中途折返的線才准用(見 NO_SHORT_TURN)。
-function afterLastStop(times, t) {
+//   實例:環狀線平日 22:48 大坪林發那班,新埔民生以後的四筆時刻被一條髒碎片搶走後整條剔除,
+//   車停在板橋;新埔民生前後兩班只隔 20 分,不夠算缺口,但 23:13 前後各 10 分都沒有車。
+function clearOfStops(times, t) {
   if (!times || times.length < 2) return false;
-  return t - times[times.length - 1] >= MIN_SEP_SEC;
+  return times.every(x => Math.abs(x - t) >= MIN_SEP_SEC);
 }
 
 // 從 fromIdx 往 toIdx 逐站推出擬補停靠;缺任何一段中位數就放棄整段
@@ -145,8 +146,10 @@ export function applyGapFill(out, lineFile, log = console.log) {
         for (const [i, t] of proj) {
           const hole = boundedHole(stops.get(`${dir}|${i}`), t);
           if (hole) { if (key == null) key = `${dir}|${end}|${boundary}|${hole.before}|${hole.after}`; continue; }
-          // 沒被夾住:只有宣告無中途折返的線,且是收班之後那一段,才當成缺記錄
-          if (!(noShortTurn && afterLastStop(stops.get(`${dir}|${i}`), t))) return;
+          // 沒被夠大的缺口夾住:只有宣告無中途折返的線、往終點延伸的尾端,且跟既有停靠不貼著,
+          // 才當成缺記錄。頭端不放寬——首班車本來就從中途各站同時發車(環狀線 06:00),往回推會
+          // 憑空生出 06:00 以前從端點發的車。
+          if (!(noShortTurn && end === 'tail' && clearOfStops(stops.get(`${dir}|${i}`), t))) return;
           forced = true;
         }
         key = forced ? `${dir}|${end}|${boundary}|收班` : key;

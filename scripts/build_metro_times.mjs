@@ -116,7 +116,7 @@ function chainRoute(stns, dir, stats, dbg) {
     const bBefore = chains.length;
     for (const c of active) {
       const E = prefix[k] - prefix[c.lastK];
-      const gap = k - c.lastK;
+      const gap = dir.steps(c.lastIdx, st.idx); // 數實際跨過幾站:被 drop 的站不在 stns 裡,但車還是要開過去
       c.pred = c.last + E;
       c.lo = c.last + Math.max(20, E - Math.max(90, E * 0.45)); // 多站跳點(直達車)少算停站時間,窗前緣放寬
       c.hi = c.last + E + 90 + 40 * (gap - 1);
@@ -369,6 +369,40 @@ function buildLineTimes(line, routeSpecs, sttCache, stnNameCache, notes, allStop
         if (fixed) notes.push(`${line.id} ${g.routeId}/${g.dir}: 起點站無發車記錄,${fixed} 班以行駛時間回推始發`);
       }
     }
+    // 站站停的線,車在兩個官方時刻之間跳過的站照樣要停:夾在兩側時刻之間,按行駛時間比例內插。
+    // 兩種跳站會補:
+    //   1. drop 排除的損壞記錄——環狀線平日中和 Y12 的時刻整份抄成景安 Y11(官方網站「中和站」
+    //      的 .odt 下載檔內容其實是景平站,TDX 照抄),留著會把每班車在兩站之間切斷。
+    //   2. spec.fillSkips 的線上只跨一站的跳站——那一站剛好缺這一筆,或這一筆跟鄰站撞同一分鐘
+    //      (環狀線平日景平/景安 22:56 同分)。不補的話品質閘會因為「跳過有記錄的站」整班丟掉,
+    //      等於宣稱官方表上的那班車不存在。只補一站:跨兩站以上的鏈仍交給品質閘擋幻影班次。
+    if (allStop && !line.loop) {
+      const stnName = stnNameCache(g.spec.op);
+      const droppedIdx = new Set((g.spec.drop || [])
+        .filter(x => x.dir === g.dir && x.tag === g.tag)
+        .map(x => ctx.idxOf.get(stnName.get(x.station))).filter(i => i != null));
+      if (droppedIdx.size || g.spec.fillSkips) {
+        let filled = 0;
+        for (const c of chains) {
+          const out = [c.stops[0]];
+          for (let i = 1; i < c.stops.length; i++) {
+            const [ia, ta] = c.stops[i - 1], [ib, tb] = c.stops[i];
+            const step = ib > ia ? 1 : -1, total = dir.expected(ia, ib);
+            const skipsNonDropped = [];
+            for (let m = ia + step; m !== ib; m += step) if (!droppedIdx.has(m)) skipsNonDropped.push(m);
+            const fillAll = g.spec.fillSkips && skipsNonDropped.length === 1;
+            for (let m = ia + step; m !== ib && Math.abs(ib - ia) > 1; m += step) {
+              if (!droppedIdx.has(m) && !fillAll) continue;
+              out.push([m, Math.round(ta + (tb - ta) * (dir.expected(ia, m) + ctx.dwellOf(m)) / total)]); // 存的是發車秒,含本站停站
+              filled++;
+            }
+            out.push(c.stops[i]);
+          }
+          c.stops = out;
+        }
+        if (filled) notes.push(`${line.id} ${g.routeId}/${g.dir}/${g.tag}: 跳過的站以前後官方時刻內插 ${filled} 個停靠`);
+      }
+    }
     // 品質閘:至少 2 停靠點、時間嚴格遞增、逐段速度 ≤100km/h;
     // allStop 線(乘客列車站站停)不准跳過「該組有記錄」的站——跳站鏈=髒資料湊出的幻影班次
     const good = [];
@@ -535,7 +569,10 @@ const SYSTEMS = [
       O_LUZHOU: [{ op: 'TRTC', routeId: 'O-2' }],
       BL: [{ op: 'TRTC', routeId: 'BL-1' }, { op: 'TRTC', routeId: 'BL-2' }],
       // 假日資料各站互相矛盾(offset 整天漂移、幸福站雙倍互疊、頭前庄時間亂碼)→ 假日走錨定傳播
-      Y: [{ op: 'NTMC', routeId: 'Y-1', anchorTags: ['假日'], drop: [{ station: 'Y19', dir: 1, tag: '假日' }] }],
+      // 平日中和 Y12 兩個方向都是景安 Y11 的複本(官方各站時刻表 PDF 兩站差 3 分,TDX 同分)→ 排除後內插;
+      // fillSkips:本線無中途折返(使用者 2026-09-18 裁示),單站缺一筆不該讓整班消失。
+      Y: [{ op: 'NTMC', routeId: 'Y-1', anchorTags: ['假日'], fillSkips: true,
+        drop: [{ station: 'Y19', dir: 1, tag: '假日' }, { station: 'Y12', dir: 0, tag: '平日' }, { station: 'Y12', dir: 1, tag: '平日' }] }],
     } },
   { file: 'data/krtc.json', out: 'data/krtc_times.json',
     src: '高雄捷運/高雄輕軌各站時刻表:交通部TDX運輸資料流通服務(2026-07-16 抓取);高捷班表分平日(週一~四)/假日前一天(週五)/假日(週六)/週日,國定假日跑假日班表',
