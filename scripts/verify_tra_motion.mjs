@@ -10,16 +10,36 @@
 // 判準來源（刻意非同源）：speedCapOf(tr) = 車種極速，來自 PERF_RULES，不是本次改出來的東西。
 // 使用者裁示：速度不能超過上限，不留容差。
 //
-// 用法：PORT=6400 ROOT=<受測樹> ENGINES=chromium,webkit node scripts/verify_tra_motion.mjs
+// 用法：npm run check-tra-motion                                  ← 自己起純靜態 server（出貨鏈走這條）
+//       ENGINES=chromium,webkit npm run check-tra-motion
+//       PORT=6400 ROOT=<受測樹> node scripts/verify_tra_motion.mjs  ← 改連已在跑的 static server，G0 驗它服的是不是這棵樹
 import { createRequire } from 'module';
 import { createHash } from 'crypto';
+import { createServer } from 'http';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = process.env.ROOT || path.resolve(HERE, '..');
-const PORT = Number(process.env.PORT || 6400);
+const ROOT = path.resolve(process.env.ROOT || path.join(HERE, '..'));
+// 沒給 PORT 就自己起：純靜態、/api 一律 404（同 python3 -m http.server）。本檔只吃 /data 的台鐵班表，tra-live
+// 本來就擋掉，所以出貨鏈跑它不會打到任何上游。node 的 listen backlog 是 511，沒有 python 那種冷快取整批 RST（見開機重試）。
+const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json',
+  '.geojson': 'application/geo+json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml',
+  '.webp': 'image/webp', '.woff2': 'font/woff2', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
+let PORT = Number(process.env.PORT);
+if (!PORT) {
+  const server = createServer((q, s) => {
+    const u = new URL(q.url, 'http://x');
+    let fp = path.join(ROOT, decodeURIComponent(u.pathname));
+    if (fs.existsSync(fp) && fs.statSync(fp).isDirectory()) fp = path.join(fp, 'index.html');
+    if (u.pathname.startsWith('/api/') || !path.resolve(fp).startsWith(ROOT) || !fs.existsSync(fp)) { s.statusCode = 404; return s.end(); }
+    s.setHeader('content-type', MIME[path.extname(fp)] || 'application/octet-stream');
+    s.end(fs.readFileSync(fp));
+  });
+  await new Promise(r => server.listen(0, '127.0.0.1', r));
+  PORT = server.address().port;
+}
 const ENGINES = (process.env.ENGINES || 'chromium').split(',').map(s => s.trim()).filter(Boolean);
 const req = createRequire(fs.existsSync(path.join(ROOT, 'node_modules/playwright'))
   ? path.join(ROOT, 'package.json') : '/Users/xuxiang/Code/捷運小動畫/package.json');
