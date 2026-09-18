@@ -6543,6 +6543,8 @@
 //         前車停在站內別股道不再擋住後車(4ada448f，正式站效果約 0.4%，不另寫更新紀錄)。
 //         暗色主題「面板半透明」開關恢復作用(8d7f72fe)、台鐵待避／對向交會帶安全間隔、排待避後不洗掉夾點(0ef6fa24＋9baee959，
 //         併進 overtakeplan0915)、交會推論棘輪 MR1(987cb6d2)、App 新版橫幅不再蓋住「觀看」鈕(ResizeObserver 重新定位)。
+//         手機提示位置改寫成「量到的值＋var(--sa-t)」,Android 開機後才注入安全區也跟著走(027b7b80);我的車庫 62 款車名、
+//         出處與入庫通知走翻譯(00a5c02d);verify_anomaly 判準修正並掛出貨鏈 2.23、verify_side_offset 不再當機(a326447f、f4a89c58)。
 const BUILD = 'v0919e';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
