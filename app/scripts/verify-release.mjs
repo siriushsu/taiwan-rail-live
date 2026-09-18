@@ -434,6 +434,9 @@ const TOAST_REVIEWED = new Map([
   [`p.label?t('',{label:escHtml(p.label)}):t('')`, '預設啟動地點提示:使用者地點名已 escHtml'],
   [`t('',{system:escHtml(t(plan.targetSys===''?'':plan.targetSys===''?'':'')),train:escHtml(String(plan.targetTr.train||'')),})`,
     '轉乘交棒提示:系統名只選固定翻譯 key，車次即使來自班表也先轉字串並 escHtml；兩個插值皆已逸出'],
+  // 2026-09-19 登記：懸賞三則提示包進 t() 之後的形狀（60f3dd83 多語化後舊指紋對不上，App 出包的 prepare-web 會擋）。
+  [`t('',{pts})`, '懸賞認領（示範／成功／落盤失敗三則共用）:pts 一律先經 bountyNum 收斂成有限非負數'],
+  [`t('',{reason:j.error===''?t(''):t('')})`, '懸賞認領失敗:API 的 error 只用來選兩個固定翻譯 key,回傳內容本身沒有插入'],
 ]);
 
 // 掃出每一個 showToast( 呼叫的完整參數（括號配對，不是 regex 抓一行）。
