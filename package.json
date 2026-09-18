@@ -115,6 +115,7 @@
     "check-physical-overlap-families": "DATES=all node scripts/verify_tra_overlap_families.mjs",
     "check-worldcover": "node scripts/verify_worldcover.mjs",
     "check-landscape-basemap": "node scripts/verify_landscape_basemap.mjs",
+    "check-landscape-dem": "node scripts/verify_landscape_dem_fallback.mjs",
     "check-tunnel-grade-stats": "node scripts/report_tunnel_grade_stats.mjs",
     "check-3d-terrain-clearance": "node scripts/verify_3d_terrain_clearance.mjs",
     "check-3d-terrain-browser": "node scripts/verify_3d_terrain_browser.mjs",

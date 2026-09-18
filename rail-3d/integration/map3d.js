@@ -71,11 +71,33 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   const inputListeners=[];
   let vehicleLayer,underlayLayer,undergroundLayer,webgl,positions=new Float32Array(0),colors=new Float32Array(0),hits=[];
   const headlightSpill=createHeadlightSpill(scene),trainHalo=createTrainHalo(scene);
-  const stats={trainHalo:trainHalo.stats,headlightSpill:headlightSpill.stats,structures:structures.stats,frames:0,vehicles:0,models:0,routeBuilds:0,geometryVersion:null,railElevationM:null,displayHeight:terrainState.terrain?'DEM + estimated rail levels':'estimated rail levels',groundMode,landscapeTheme,trainSizeMode,formationMode,errors:[],poseSamples:[],get stationLabels(){return stationLabels?.count||0;},get routeWidthPx(){return routeWidth(map.getZoom());}};
+  const stats={trainHalo:trainHalo.stats,headlightSpill:headlightSpill.stats,structures:structures.stats,frames:0,vehicles:0,models:0,routeBuilds:0,geometryVersion:null,railElevationM:null,displayHeight:terrainState.terrain?'DEM + estimated rail levels':'estimated rail levels',demUnavailable:false,groundMode,landscapeTheme,trainSizeMode,formationMode,errors:[],poseSamples:[],get stationLabels(){return stationLabels?.count||0;},get routeWidthPx(){return routeWidth(map.getZoom());}};
   const report=e=>{const text=e?.message||String(e);if(stats.errors.length<20)stats.errors.push(text);onError?.(text);};
   function world(coord,height){const m=ml.MercatorCoordinate.fromLngLat(coord);return [(m.x-anchor.x)/unit,-(m.y-anchor.y)/unit,height*m.meterInMercatorCoordinateUnits()/unit];}
   function terrainSample(coord){return terrainElevation(map,coord,ml);}
-  function height(coord){if(!terrainState.terrain)return .65;const h=terrainSample(coord);return Number.isFinite(h)?h+.65:null;}
+  // 起伏模式下高程讀不到時，列車與軌道一律不畫——等 DEM 到貨才擺到正確高度，免得先浮在 0 公尺再跳上山。
+  // 但 DEM 要是【根本不會到】（圖磚讀壞、裝置讀不動內建地形檔），這條等待就沒有終點：畫面上是「立體列車
+  // 整批消失」，不報錯也不重試。地景底圖是唯一預設起伏的底圖（rail-3d.js 的 landscapeGround），所以症狀
+  // 只出現在地景，別的底圖照常有車 — 2026-09-18 Android 回報。
+  // DEM 真的沒有時，MapLibre 自己也是把地表畫在 0 公尺，所以退回平坦高度才是跟畫面一致的畫法。
+  // 兩個訊號都算「DEM 不會來」，任何一張圖磚到貨就一起歸零，所以慢網路下的空窗仍然照舊等待：
+  //   1. 地形來源自己連續丟出載入錯誤（圖磚讀壞、分片長度不符、連粗圖磚都取不到）。
+  //   2. 起伏開著、畫面中心等了 DEM_WAIT_MS 還是問不到高程——錯誤事件不是每次都有，光靠計數會漏。
+  const DEM_FAIL_LIMIT=3,DEM_WAIT_MS=12000;
+  let demFailures=0,demWaitFrom=terrainState.terrain?performance.now():0,demUnavailable=false;
+  const terrainHeights=()=>terrainState.terrain&&!demUnavailable;
+  function demGaveUp(why){if(demUnavailable)return;demUnavailable=stats.demUnavailable=true;
+    report(why instanceof Error?why:Error('地形高程無法取得('+why+')，立體列車改以平坦高度顯示'));dirty=true;lastBuild=-Infinity;}
+  function demRecovered(){if(!demUnavailable&&!demFailures)return;demFailures=0;demUnavailable=stats.demUnavailable=false;lastBuild=-Infinity;}
+  // 逐台車、逐幀都會問 terrainHeights()，所以逾時判斷只在重建時做一次：terrainSample 要重新解析圖磚，
+  // 不能放進那條熱路徑。
+  function demWatch(){
+    if(!terrainState.terrain){demWaitFrom=0;return;}
+    if(!demWaitFrom)demWaitFrom=performance.now();
+    if(demUnavailable||performance.now()-demWaitFrom<DEM_WAIT_MS)return;
+    if(!Number.isFinite(terrainSample(map.getCenter().toArray())))demGaveUp('逾時');
+  }
+  function height(coord){if(!terrainHeights())return .65;const h=terrainSample(coord);return Number.isFinite(h)?h+.65:null;}
   // 同一個里程的 level，一次重建裡會被問到五次：railHeight 兩次、buriedDraw 兩次、橋墩判斷一次。
   // 借來的 level 每一次都要重跑 displayLevelAt——3x3 網格撈候選股道、逐條 locate 最近點——台北那種
   // 多線重疊的地方一個取樣點就要比對幾十條。只記住最後一次的答案，五次查詢就變一次；查詢結果只看
@@ -116,8 +138,8 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     if(path)s=Math.max(0,Math.min(path.length,s));
     // 實體軌道以畫面地表為基準；舊 DEM 淨空含全線 +2.5m，不能再把它當路基高度。
     // 軌道、逐節車廂及跟車鏡頭共用此函式，保留交會層差，不以橋墩填補資料誤差。
-    if(path?.level){const absolute=terrainState.terrain?path.level(s)?.terrainHeightM:undefined;if(Number.isFinite(absolute))return terrainLoaded(path.at(s).coordinate)?absolute+.65:null;const ground=terrainState.terrain?terrainAt(path.at(s).coordinate):0,level=path.level(s),offset=(terrainState.terrain?level?.offsetM:level?.flatOffsetM??level?.offsetM)??0;return Number.isFinite(ground)?ground+offset+.65:null;}
-    const h=path?.elevation?(terrainState.terrain?path.elevation(s):0):terrainState.terrain?null:0;return Number.isFinite(h)?h+.65:null;
+    if(path?.level){const absolute=terrainHeights()?path.level(s)?.terrainHeightM:undefined;if(Number.isFinite(absolute))return terrainLoaded(path.at(s).coordinate)?absolute+.65:null;const ground=terrainHeights()?terrainAt(path.at(s).coordinate):0,level=path.level(s),offset=(terrainHeights()?level?.offsetM:level?.flatOffsetM??level?.offsetM)??0;return Number.isFinite(ground)?ground+offset+.65:null;}
+    const h=path?.elevation?(terrainHeights()?path.elevation(s):0):terrainHeights()?null:0;return Number.isFinite(h)?h+.65:null;
   }
   // 鋼軌 .14 公尺寬，z17 以下不到一個像素，畫了只是燒頂點。枕木再近一級才長出來。
   const detailLevel=()=>{const z=map.getZoom();return z>=18.5?2:z>=17?1:0;};
@@ -261,7 +283,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     routeKey=key;routeRefs=next.routes.map(r=>r.coordinates);dirty=true;
   }
   function update(next){if(!ready||disposed)return;frame=next;loadedCells.clear();
-    syncZoomAnchor();
+    demWatch();syncZoomAnchor();
     if(clearance.update([...(next.clearanceRoutes||next.routes),...next.vehicles.filter(v=>!v.route?.physical).map(v=>v.route).filter(Boolean)]))stationLayer?.refresh();
     trees?.refresh();
     syncRoutes(next);stats.vehicles=next.vehicles.length;stats.geometryVersion=next.geometryVersion;
@@ -288,7 +310,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     next.vehicles.forEach((v,i)=>{const coord=[v.longitude,v.latitude],profile=near&&(terrainState.terrain||v.route?.level||wanted.has(v.id))&&Math.hypot(coord[0]-center.lng,coord[1]-center.lat)<.08?routeProfile(v):null,path=profile&&formationPath(v,profile),ratio=ml.MercatorCoordinate.fromLngLat(coord).meterInMercatorCoordinateUnits()/unit,
       h=(profile?path===profile.path?profile.height:railHeight(path,profile.s):undefined)??(onScreen(coord,v)?height(coord):null),p=world(coord,h??.65),m=models.get(v.id),color=new THREE.Color(v.followed?'#d65130':v.color||'#287766');
       positions.set(p,i*3);colors.set([color.r,color.g,color.b],i*3);const hit={v,p,modelled:false};hits.push(hit);
-      if(m?.group){const poses=profile&&h!==null&&(!terrainState.terrain||path.elevation||path.level)?formationPoses(path,profile.s,profile.direction*(v.formationFacing||1),m.model.parts,s=>railHeight(path,s)):null;m.group.visible=!!poses;
+      if(m?.group){const poses=profile&&h!==null&&(!terrainHeights()||path.elevation||path.level)?formationPoses(path,profile.s,profile.direction*(v.formationFacing||1),m.model.parts,s=>railHeight(path,s)):null;m.group.visible=!!poses;
         if(poses){const displayScale=m.displayScale??1;
           // 「透視顯示」切到實體時,地下列車改用實色車體:仍留在地下圖層,與地面列車的前後關係不變,只是不再半透明。
           // 地下軌道線照舊半透明(profile-lines 的 .32),所以還看得出這一段在地下——2026-09-10 裁示只讓列車變實色。
@@ -432,10 +454,20 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     listenMap('moveend',e=>{if(e.originalEvent)dirty=true;if(gesture)finishGesture();});
     // 圖磚到貨的 sourcedata 帶的是 e.tile,sourceDataType 是 undefined(只有 metadata／visibility 才有值),
     // 舊條件永遠不成立 ⇒ DEM 晚於首次建置抵達時,橋墩與橋面會一直停在 0m 被地形埋住。
-    listenMap('sourcedata',e=>{if(terrainState.terrain&&e.sourceId==='terrain'&&(e.tile||e.sourceDataType==='content')){dirty=true;terrainRefreshPending=true;}});
+    listenMap('sourcedata',e=>{if(terrainState.terrain&&e.sourceId==='terrain'&&(e.tile||e.sourceDataType==='content')){
+      // 圖磚回來了就把退場歸零；本來已經退成平坦的話，順手要求重建，列車會回到起伏高度。
+      demRecovered();demWaitFrom=0;
+      dirty=true;terrainRefreshPending=true;}});
+    // 地形來源自己的載入錯誤（島內 DEM 圖磚讀壞、分片長度不符、連粗圖磚都取不到）。
+    // 取消中的圖磚不算——平移縮放時 MapLibre 本來就會大量中止請求。
+    listenMap('error',e=>{
+      if(e?.sourceId!=='terrain'||!terrainState.terrain||e?.error?.name==='AbortError')return;
+      if(++demFailures<DEM_FAIL_LIMIT)return;
+      demGaveUp(e.error||Error('地形圖磚載入失敗，立體列車改以平坦高度顯示'));if(frame)update(frame);
+    });
     ready=true;
     return {map,stats,update,animateCamera:motionCamera.animate,cancelCamera:motionCamera.cancel,get transitioning(){return motionCamera.active;},get positioning(){return motionCamera.positioning;},get interacting(){return gesture;},getVehicleLabels:()=>markers?.boxes||[],getRenderMemory:()=>({...webgl.info.memory}),
-      setGroundMode(mode){const relief=mode==='terrain';if(relief===terrainState.terrain)return;terrainState.terrain=relief;terrainRefreshPending=relief;groundMode=relief?'terrain':'flat';stats.groundMode=groundMode;stats.displayHeight=relief?'DEM + estimated rail levels':'estimated rail levels';map.setTerrain(relief?{source:'terrain',exaggeration:1}:null);map.jumpTo({elevation:0});clearLines();dirty=true;lastBuild=0;stationLayer?.refresh();trees?.schedule();if(frame)update(frame);},
+      setGroundMode(mode){const relief=mode==='terrain';if(relief===terrainState.terrain)return;if(relief){demRecovered();demWaitFrom=performance.now();}terrainState.terrain=relief;terrainRefreshPending=relief;groundMode=relief?'terrain':'flat';stats.groundMode=groundMode;stats.displayHeight=relief?'DEM + estimated rail levels':'estimated rail levels';map.setTerrain(relief?{source:'terrain',exaggeration:1}:null);map.jumpTo({elevation:0});clearLines();dirty=true;lastBuild=0;stationLayer?.refresh();trees?.schedule();if(frame)update(frame);},
       setFormationMode(mode){formationMode=mode==='three'?'three':'actual';stats.formationMode=formationMode;failed.clear();if(frame)update(frame);},getStations:()=>stationLayer,getStationLabels:()=>stationLabels?.boxes||[],setTrainSizeMode(mode){trainSizeMode=mode==='scale'?'scale':'readable';stats.trainSizeMode=trainSizeMode;},resize:()=>map.resize(),getView:()=>({center:map.getCenter().toArray(),zoom:map.getZoom(),pitch:map.getPitch(),bearing:map.getBearing()}),
       setView(v){const c=map.getCenter();if(Math.abs(c.lng-v.center[0])+Math.abs(c.lat-v.center[1])>1e-9||Math.abs(map.getZoom()-v.zoom)>1e-6)map.jumpTo(v);},
       pinnedCameraTarget(){
