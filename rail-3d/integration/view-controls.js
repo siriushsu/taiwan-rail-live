@@ -48,7 +48,9 @@ export function mountViewControls({translate:t}) {
   let scheduled=false;function schedule(){if(scheduled)return;scheduled=true;requestAnimationFrame(()=>{scheduled=false;layout();});}
   new ResizeObserver(schedule).observe(document.getElementById('mapActions'));
   new ResizeObserver(schedule).observe(document.getElementById('topbar'));
-  new MutationObserver(()=>{if(opened&&['tools-open','search-open','train-open','explore-open','sheet-open','ambient'].some(c=>document.body.classList.contains(c)))close();schedule();}).observe(document.body,{attributes:true,attributeFilter:['class']});
+  // 只在這些狀態「剛出現」時收面板；已經開著的車站卡等底部卡片不算，否則在卡片上開觀看設定會立刻被自己關掉。
+  let seen=new Set(document.body.classList);
+  new MutationObserver(()=>{const now=document.body.classList,added=c=>now.contains(c)&&!seen.has(c);seen=new Set(now);if(opened&&['tools-open','search-open','train-open','explore-open','sheet-open','ambient'].some(added))close();schedule();}).observe(document.body,{attributes:true,attributeFilter:['class']});
   window.addEventListener('resize',schedule);window.addEventListener('scroll',schedule,{passive:true});
   window.railViewControls={open,close,get active(){return active;},get opened(){return opened;}};sync();layout();
 }
