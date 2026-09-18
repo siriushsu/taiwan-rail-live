@@ -116,7 +116,14 @@ const OVER = [900, 900, 900, 900, 900, 900];                   // 全部 +15 分
     return { anom: !!anomalyOf(fake), text: b.textContent, anomCls: b.classList.contains('anom'),
       poolTrtc: metroLivePool().filter(isTrtcBoardLine).length };
   }, { BIMODAL });
-  ok('S2b 畫面上有北捷:名冊接管、異常不干擾', r.anom && r.poolTrtc === 1 && !r.anomCls && /官方即時|官方中斷|班表備案/.test(r.text), JSON.stringify(r));
+  // 🔴 判準修正(2026-09-19，判準過期非回歸):新版 Metro-Core 北捷分支(metroCoreTrtcFeedState/
+  //   updateMetroBadge)在 trtcOfficialBoardRealNow() 成立(開機預設 clockAtNow=true/playing=true/
+  //   speedMult=1)時會攔在舊三態文字之前，顯示「即時更新中」或「官方中斷 N 分」。舊 regex 只認得
+  //   舊三態(官方即時/官方中斷/班表備案)，新分支接管時 r.text==='即時更新中' 對不上而假紅——與
+  //   時鐘無關(夜間釘 12:00 仍同樣假紅，v2 對照組已排除)。加回新分支的文字，判準要保住的東西不變:
+  //   仍要求 r.anom(異常狀態機真的進了異常)且 r.poolTrtc===1(畫面上恰有一條北捷)且 !r.anomCls
+  //   (徽章沒被異常推定搶走)。
+  ok('S2b 畫面上有北捷:名冊接管、異常不干擾', r.anom && r.poolTrtc === 1 && !r.anomCls && /即時更新中|官方即時|官方中斷|班表備案/.test(r.text), JSON.stringify(r));
 }
 
 // 情境 3:超窗 rows 連 2 次 → 進異常(reject)
@@ -166,7 +173,14 @@ const OVER = [900, 900, 900, 900, 900, 900];                   // 全部 +15 分
   ok('S5 橫幅顯示「台鐵大面積誤點…滿 10 分」', !r.enteredBanner.hidden && /台鐵大面積誤點.*滿 10 分/.test(r.enteredBanner.html), r.enteredBanner.html.slice(0, 90));
   // 橫幅是聚合的(activeAlertList 還有災防監看、精選公告、北捷斷訊等來源),恢復後不能要求整條收起——
   // 只驗「台鐵大面積誤點那一則不見了」;其他來源在不在是環境條件不是這個情境的判準。
-  ok('S5 恢復連 2 次:清除、橫幅不再顯示台鐵誤點', r.cleared === null && !/台鐵大面積誤點/.test(r.clearedHtml),
+  // 🔴 判準修正(2026-09-19，判準過期非回歸):renderAlertBanner() 在 activeAlertList() 清空時
+  //   走 `if (!list.length) { b.hidden = true; ...; return; }`——只設 hidden，從不碰 innerHTML，
+  //   上一則「台鐵大面積誤點」的字留在(使用者看不到的)DOM 裡沒被清掉。舊判準直讀 innerHTML，
+  //   在「橫幅其他來源也清空」這個子情境必假紅，與 simSec/時鐘無關(釘 12:00 仍原樣重現)。
+  //   量準該量「對使用者可見的內容」:hidden 時可見內容是空的，规則已滿足；只有在還顯示著
+  //   (未 hidden)才需要看 innerHTML 裡還有沒有台鐵誤點那一則——與上面「其他來源在不在是環境
+  //   條件」的既有註解一致，只是把「可見」這個前提寫進判準本身。
+  ok('S5 恢復連 2 次:清除、橫幅不再顯示台鐵誤點', r.cleared === null && (r.clearedHidden || !/台鐵大面積誤點/.test(r.clearedHtml)),
      JSON.stringify({ c: r.cleared, h: r.clearedHidden, other: (r.clearedHtml.match(/ab-title">([^<]*)/) || [])[1] || null }));
 }
 
