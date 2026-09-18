@@ -28,6 +28,12 @@ public final class MixedBoardWidgetProvider extends AppWidgetProvider {
         for (int id : ids) updateOneAsync(context, manager, id);
     }
 
+    /** 31 以下沒有尺寸桶，拉大拉小要重畫一張（31 以上系統自己在桶之間換，這裡重畫也無害）。 */
+    @Override
+    public void onAppWidgetOptionsChanged(Context context, AppWidgetManager manager, int id, android.os.Bundle options) {
+        updateOneAsync(context, manager, id);
+    }
+
     @Override
     public void onReceive(Context context, Intent intent) {
         super.onReceive(context, intent);
@@ -116,8 +122,8 @@ public final class MixedBoardWidgetProvider extends AppWidgetProvider {
             MetroWidgetData.Snapshot metro = fetchMetro(context, id, metroSys, metroStation, metroDirection);
             rail.autoStale = railStale;
             metro.autoStale = metroStale;
-            manager.updateAppWidget(id, tap(context, id, metroSys, metroStation,
-                MixedWidgetRender.board(context, rail, metro)));
+            manager.updateAppWidget(id, MixedWidgetRender.sized(context, manager, id, rail, metro,
+                openIntent(context, id, metroSys, metroStation)));
             schedule(context, id, System.currentTimeMillis() + 60_000L);
         } catch (Exception error) {
             RailWidgetData.Snapshot rail = RailWidgetData.cached(context, RAIL_CACHE, id);
@@ -125,8 +131,8 @@ public final class MixedBoardWidgetProvider extends AppWidgetProvider {
             if (rail != null && metro != null) {
                 rail.failed = true;
                 metro.failed = true;
-                manager.updateAppWidget(id, tap(context, id, metroSys, metroStation,
-                    MixedWidgetRender.board(context, rail, metro)));
+                manager.updateAppWidget(id, MixedWidgetRender.sized(context, manager, id, rail, metro,
+                    openIntent(context, id, metroSys, metroStation)));
             } else {
                 manager.updateAppWidget(id, configure(context, id,
                     MixedWidgetRender.message(context, "暫時連不上", "點一下檢查設定或開啟軌島")));
@@ -200,7 +206,7 @@ public final class MixedBoardWidgetProvider extends AppWidgetProvider {
      *    【不可以】把它塞進深連結：App 端會拿它當站名去查，結果是開了 App 卻落在一個
      *    不存在的車站上。不帶參數就是「開 App，不指定站」。
      */
-    private static RemoteViews tap(Context context, int id, String sys, String station, RemoteViews views) {
+    private static PendingIntent openIntent(Context context, int id, String sys, String station) {
         Uri.Builder builder = new Uri.Builder().scheme("railisland").authority("metro-wait");
         if (WidgetNearestMath.linkable(sys, station)) {
             builder.appendQueryParameter("sys", sys).appendQueryParameter("station", station);
@@ -208,10 +214,8 @@ public final class MixedBoardWidgetProvider extends AppWidgetProvider {
         Uri uri = builder.build();
         Intent intent = new Intent(Intent.ACTION_VIEW, uri, context, MainActivity.class)
             .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        PendingIntent pending = PendingIntent.getActivity(context, id + 43000, intent,
+        return PendingIntent.getActivity(context, id + 43000, intent,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        views.setOnClickPendingIntent(R.id.wmx_root, pending);
-        return views;
     }
 
     private static PendingIntent alarm(Context context, int id) {

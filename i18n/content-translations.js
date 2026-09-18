@@ -1846,3 +1846,12 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   "高雄環狀輕軌假日 29 班不再接錯車；機捷深夜往機場 23:23、23:38 兩班，中和新蘆線南勢角 22:26、淡水信義線週六廣慈 23:08 也照官方時刻開完全程": "高雄環状LRT：週末の29本が別の列車とつながらなくなりました。空港MRTの深夜23:23・23:38発の空港行き、中和新蘆線の南勢角22:26発、淡水信義線の土曜23:08広慈/奉天宮発も、公式時刻どおり全区間を走ります。"
 });
+
+// 2026-09-19 Android 雙看板小工具改版(第一層更新紀錄那條的 en/ja;第二層正本一律走 RAIL_I18N_CHANGELOG)
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  "Android 雙看板小工具字放大、依卡片高度多列幾班；設定頁通行證文字修正": "Android combined rail + metro widget: larger text, with as many departures as the card height allows. The settings screen now shows the correct Rail Island Pass status."
+});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  "Android 雙看板小工具字放大、依卡片高度多列幾班；設定頁通行證文字修正": "Androidの鉄道＋メトロ案内ウィジェット：文字を大きくし、カードの高さに合わせて表示本数を増やしました。設定画面の軌島パスの表示も修正しました。"
+});

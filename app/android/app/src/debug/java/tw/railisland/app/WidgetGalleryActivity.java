@@ -1,10 +1,13 @@
 package tw.railisland.app;
 
 import android.app.Activity;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.view.Gravity;
+import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.RemoteViews;
 import android.widget.ScrollView;
@@ -26,6 +29,10 @@ import java.util.List;
  *
  * 用法：adb shell am start -n tw.railisland.app/.WidgetGalleryActivity --es size 4x2 --es kind plate
  *       size 可為 2x2／4x2／4x3／4x4（4x4＝大張卡片，兩種 kind 都走同一張 widget_board_4x4）
+ *       雙看板（--es kind mixed）另收：--ei w／--ei h 卡片寬高 dp（launcher 回報的那個尺寸）、
+ *       --ef scale 畫面縮放（Samsung One UI 先照回報尺寸排版、再整張縮小，A54 實測 0.8333）、
+ *       --es state normal／suspended／norail／nometro／failed（資料延遲）／stale（上次位置）、--ez plus 暫時切換通行證旗標（畫完就還原）、
+ *       --es lang zh-TW／en／ja 切換原生字串語言（寫進 debug App 自己的偏好，與正式版無關）。
  */
 public final class WidgetGalleryActivity extends Activity {
 
@@ -85,6 +92,9 @@ public final class WidgetGalleryActivity extends Activity {
     /** 新增的鐵路／雙看板真實 RemoteViews 預覽；只在 debug build 存在。 */
     private void showParity(boolean mixed) {
         long now = System.currentTimeMillis();
+        String state = getIntent().getStringExtra("state");
+        String lang = getIntent().getStringExtra("lang");
+        if (lang != null) RailNativeL10n.setLanguage(this, lang);
         RailWidgetData.Snapshot rail = new RailWidgetData.Snapshot();
         rail.sys = RailWidgetData.SYS_COMPOSITE;
         rail.systemLabel = "台鐵＋高鐵";
@@ -94,7 +104,7 @@ public final class WidgetGalleryActivity extends Activity {
         String[] nos = { "123", "0567", "2551", "0812", "2733", "0149" };
         String[] types = { "自強", "高鐵", "區間車", "莒光", "區間快", "高鐵" };
         String[] ends = { "花蓮", "南港", "基隆", "臺東", "蘇澳", "左營" };
-        for (int i = 0; i < nos.length; i++) {
+        for (int i = 0; i < nos.length && !"norail".equals(state); i++) {
             RailWidgetData.Row row = new RailWidgetData.Row();
             row.sys = "高鐵".equals(types[i]) ? "thsr" : "tra";
             row.no = nos[i]; row.type = types[i]; row.terminus = ends[i];
@@ -107,20 +117,57 @@ public final class WidgetGalleryActivity extends Activity {
         }
 
         RemoteViews views;
+        int width = 340, height = 310;
+        float scale = 1f;
+        String caption = "台鐵／高鐵發車看板 · 4×4";
         if (mixed) {
+            // 板橋捷運站的真實終點：板南線三個（含亞東醫院區間車）、環狀線兩個，依到站時刻排。
             MetroWidgetData.Snapshot metro = new MetroWidgetData.Snapshot();
             metro.sys = "trtc"; metro.systemLabel = "台北捷運"; metro.station = "板橋";
             metro.precision = "seconds"; metro.dataAt = now / 1000.0;
-            String[] dests = { "南港展覽館", "頂埔", "亞東醫院" };
-            for (int i = 0; i < dests.length; i++) {
+            String[][] trains = {
+                { "南港展覽館", "BL", "120" }, { "頂埔", "BL", "300" }, { "新北產業園區", "Y", "420" },
+                { "南港展覽館", "BL", "540" }, { "亞東醫院", "BL", "660" }, { "頂埔", "BL", "720" },
+                { "大坪林", "Y", "780" }, { "南港展覽館", "BL", "960" }, { "新北產業園區", "Y", "1020" },
+            };
+            for (String[] train : trains) {
                 MetroWidgetData.Row row = new MetroWidgetData.Row();
-                row.dest = dests[i]; row.eta = now / 1000.0 + (i + 2) * 120;
-                row.color = i == 0 ? "#0070BD" : "#FFDB00";
-                row.lineLabel = i == 0 ? "板南線" : "環狀線";
-                row.lineId = i == 0 ? "BL" : "Y";
+                boolean bl = "BL".equals(train[1]);
+                row.dest = train[0]; row.eta = now / 1000.0 + Integer.parseInt(train[2]);
+                row.color = bl ? "#0070BD" : "#FFDB00";
+                row.lineLabel = bl ? "板南線" : "環狀線";
+                row.lineId = train[1];
                 metro.rows.add(row);
             }
-            views = MixedWidgetRender.board(this, rail, metro);
+            if ("suspended".equals(state)) {
+                metro.alertTitle = "板南線因異物入侵，往南港展覽館方向延誤";
+                metro.alertFromOperator = true;
+            } else if ("nometro".equals(state)) {
+                metro.rows.clear();
+            } else if ("failed".equals(state)) {
+                metro.failed = true;
+            } else if ("stale".equals(state)) {
+                metro.autoStale = true;
+            }
+            width = getIntent().getIntExtra("w", 401);
+            height = getIntent().getIntExtra("h", 459);
+            scale = getIntent().getFloatExtra("scale", 1f);
+            SharedPreferences prefs = getSharedPreferences(MetroWidgetProvider.PREFS, MODE_PRIVATE);
+            boolean hadPlus = prefs.contains("plus_active");
+            boolean oldPlus = prefs.getBoolean("plus_active", false);
+            if (getIntent().hasExtra("plus")) {
+                prefs.edit().putBoolean("plus_active", getIntent().getBooleanExtra("plus", false)).commit();
+            }
+            try {
+                views = MixedWidgetRender.boardAt(this, rail, metro, height);
+            } finally {
+                SharedPreferences.Editor restore = prefs.edit();
+                if (hadPlus) restore.putBoolean("plus_active", oldPlus); else restore.remove("plus_active");
+                restore.commit();
+            }
+            caption = String.format(java.util.Locale.US, "雙看板 · %d×%ddp · 縮放 %.3f · 字級 %.2f · 次列 %d",
+                width, height, scale, getResources().getConfiguration().fontScale,
+                MixedWidgetRender.slots(this, height));
         } else {
             views = RailWidgetRender.board(this, R.layout.widget_rail_4x4, rail, 8, false, false);
         }
@@ -130,11 +177,19 @@ public final class WidgetGalleryActivity extends Activity {
         root.setGravity(Gravity.CENTER_HORIZONTAL);
         root.setBackgroundColor(Color.rgb(90, 96, 104));
         root.setPadding(dp(12), dp(20), dp(12), dp(20));
-        TextView caption = new TextView(this);
-        caption.setText(mixed ? "鐵路＋捷運雙看板 · 4×4" : "台鐵／高鐵發車看板 · 4×4");
-        caption.setTextColor(Color.WHITE); caption.setTextSize(14); caption.setPadding(0, 0, 0, dp(8));
-        root.addView(caption);
-        root.addView(views.apply(this, root), new LinearLayout.LayoutParams(dp(340), dp(310)));
+        TextView label = new TextView(this);
+        label.setText(caption);
+        label.setTextColor(Color.WHITE); label.setTextSize(14); label.setPadding(0, 0, 0, dp(8));
+        root.addView(label);
+        // 先照回報尺寸排版、再整張縮小（Samsung One UI 的做法）：外框是縮小後的大小，卡片本身仍是回報尺寸。
+        FrameLayout frame = new FrameLayout(this);
+        View card = views.apply(this, frame);
+        card.setPivotX(0);
+        card.setPivotY(0);
+        card.setScaleX(scale);
+        card.setScaleY(scale);
+        frame.addView(card, new FrameLayout.LayoutParams(dp(width), dp(height)));
+        root.addView(frame, new LinearLayout.LayoutParams(Math.round(dp(width) * scale), Math.round(dp(height) * scale)));
         setContentView(root);
     }
 

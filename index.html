@@ -5460,7 +5460,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/9/18</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/9/19</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -5468,6 +5468,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="mixedwidget0919"><span class="d">9/19</span><span>Android 雙看板小工具字放大、依卡片高度多列幾班；設定頁通行證文字修正</span></li>
         <li data-cl-of="legwindow0918"><span class="d">9/18</span><span>高雄環狀輕軌假日 29 班不再接錯車；機捷深夜往機場 23:23、23:38 兩班，中和新蘆線南勢角 22:26、淡水信義線週六廣慈 23:08 也照官方時刻開完全程</span></li>
         <li data-cl-of="metrott0918"><span class="d">9/18</span><span>淡水信義線班表換成 8/31 改點後的官方時刻；機捷晚上的直達車不再開到長庚就消失，照官方時刻開到機場第二航廈</span></li>
         <li data-cl-of="tiebreak0918"><span class="d">9/18</span><span>機捷南下末班車（台北 23:08）不再被拆成兩台，照官方時刻一路開完全程；中和新蘆線白天與晚間、淡水信義線晚間少掉的班次補回來了</span></li>
@@ -5475,7 +5476,6 @@
         <li data-cl-of="tymcshort0918"><span class="d">9/18</span><span>機捷平日早上山鼻 7:37 那班區間車不再開到林口就消失，照官方時刻開到台北</span></li>
         <li data-cl-of="viewcontrols0914"><span class="d">9/18</span><span>開著車站卡或列車卡時也能直接按「觀看」調整視角、地圖與列車設定</span></li>
         <li data-cl-of="mergedir0918"><span class="d">9/18</span><span>淡水信義線平日清晨少掉的 6 班補回來了；機捷與淡海輕軌少數班次不再開到半路掉頭</span></li>
-        <li data-cl-of="ylast0918"><span class="d">9/18</span><span>環狀線平日深夜少掉的末班車補回來了，中和站時刻也改對齊官方時刻表</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5750,6 +5750,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="mixedwidget0919"><span class="d">9/19</span><span>Android 桌面的鐵路＋捷運雙看板重新排版：字放大，卡片放得下幾班就列幾班，不再空一大塊；已開通行證時，設定頁不會再誤寫需要通行證。</span></li>
         <li data-cl="repeatreminder0913"><span class="d">9/13</span><span>到站提醒可以設成每天、週一到五或自訂星期重複：通勤固定搭的那班設一次就長期有效，不必每天重設。重複的提醒依表定時刻在每個符合的日子響，一則重複提醒在 20 則上限裡仍然只算一則；原本設好的一次性提醒不受影響。</span></li>
         <li data-cl="widgetauto0911"><span class="d">9/11</span><span>小工具的車站可以設成「自動（最近的站）」，走到哪就換到哪一站；離開服務範圍時卡片會直接說明，不再默默顯示上一個地方的班次</span></li>
         <li data-cl="xferfontscale0908"><span class="d">9/8</span><span>調大字級時，轉乘接續裡的車次與「剩 N 分」會跟著一起放大：這兩個數字之前掛在小標籤那條倍率上，特大檔只長 1.29 倍而不是 1.5 倍，字級調到最大時特別明顯</span></li>
@@ -6505,7 +6506,7 @@
 //         介紹卡／搜尋／收集章／3D 外觀全部自動接上，明星列車章 5→6 枚；環島之星與虛構的山海／平原號
 //         不再退回 EMU800 代表外觀，改成機車牽引的觀光列車（環島之星＝E500＋莒光客車）。
 //         守門人：verify_formations 新增具名覆蓋率斷言，名冊「有固定車次」的集合必須與對照表逐一相等。
-const BUILD = 'v0918j';
+const BUILD = 'v0919a';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。

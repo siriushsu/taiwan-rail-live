@@ -1,18 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 雙看板捷運段的次列（第二個終點方向起）。id 與主角列 widget_mixed_metro_hero.xml 相同。
+<!-- 雙看板捷運段的主角列（第一個終點方向），對應 iOS MixedBoardWidget 的 hero 列。
+     與次列 widget_mixed_metro_row.xml 共用 wmxr_* 這組 id、同一支 binder，只差列高與字級。
      最小列高取 @dimen（MixedWidgetRender 用同一個值算列數，見 dimens_widget_mixed.xml）。 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/wmx_row"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:minHeight="@dimen/wmx_follow_h"
+    android:minHeight="@dimen/wmx_metro_hero_h"
     android:baselineAligned="false"
     android:gravity="center_vertical"
     android:orientation="horizontal">
     <ImageView
         android:id="@+id/wmxr_mark"
-        android:layout_width="3dp"
-        android:layout_height="26sp"
+        android:layout_width="4dp"
+        android:layout_height="36sp"
         android:contentDescription="@null"
         android:scaleType="fitXY"
         android:src="@drawable/wg_meter_block" />
@@ -31,20 +32,21 @@
             android:maxLines="1"
             android:text="往 淡水"
             android:textColor="@color/wg_ink"
-            android:textSize="15sp"
+            android:textSize="19sp"
             android:textStyle="bold" />
         <TextView
             android:id="@+id/wmxr_sub"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="1dp"
+            android:layout_marginTop="2dp"
             android:ellipsize="end"
             android:includeFontPadding="false"
             android:maxLines="1"
             android:text="再下班 7 分 · 14 分"
-            android:textColor="@color/wg_ink_faint"
-            android:textSize="11sp" />
+            android:textColor="@color/wg_ink_soft"
+            android:textSize="12sp" />
     </LinearLayout>
+    <!-- 數字與單位包成一組讓「分」對齊數字基線（外層關了 baselineAligned，這一層保留預設）。 -->
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -58,17 +60,17 @@
             android:maxLines="1"
             android:text="2"
             android:textColor="@color/wg_ink"
-            android:textSize="22sp"
+            android:textSize="34sp"
             android:textStyle="bold" />
         <TextView
             android:id="@+id/wmxr_unit"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="2dp"
+            android:layout_marginStart="3dp"
             android:includeFontPadding="false"
             android:maxLines="1"
             android:text="分"
-            android:textColor="@color/wg_ink_faint"
-            android:textSize="11sp" />
+            android:textColor="@color/wg_ink_soft"
+            android:textSize="13sp" />
     </LinearLayout>
 </LinearLayout>

@@ -45,7 +45,8 @@ const widths = [360, 375, 414, 768];
 // 9/18：379→391 是 9/14～9/18 各批沒跟著 bump 的欠帳（靜態 check-copy 在 origin/main 57f9b4d9 同樣數到 391），
 //       本次班表配對同分改挑鏈尾最近一條（391→392）；淡水信義線與機捷班表刷新一條（392→393）。
 // 9/18：開窗改取時段附近的官方站間秒一條（393→394）。
-const expectedHistoryCount = 394;
+// 9/19：Android 雙看板小工具改版一條（394→395）。
+const expectedHistoryCount = 395;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
