@@ -1858,9 +1858,9 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
 
 // 2026-09-19 支線 DR1000 加減速接進運動模型(第一層更新紀錄那條的 en/ja;第二層正本一律走 RAIL_I18N_CHANGELOG)
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
-  "平溪、深澳、集集、內灣線的列車起步與進站，改照 DR1000 柴油客車的加減速，不再比照電聯車": "Pingxi, Shen’ao, Jiji and Neiwan lines: trains now accelerate and brake like the DR1000 diesel railcars actually used there, not like electric trains."
+  "平溪、深澳、集集、內灣線的列車改照 DR1000 柴油客車加減速，列車卡也改顯示 DR1000 介紹": "Pingxi, Shen’ao, Jiji and Neiwan lines: trains now accelerate and brake like the DR1000 diesel railcars actually used there, and the train card now describes the DR1000 instead of an electric train."
 });
 
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
-  "平溪、深澳、集集、內灣線的列車起步與進站，改照 DR1000 柴油客車的加減速，不再比照電聯車": "平渓線・深澳線・集集線・内湾線：列車の発車と到着の加減速を、電車ではなく実際に走るDR1000型気動車の性能に合わせました。"
+  "平溪、深澳、集集、內灣線的列車改照 DR1000 柴油客車加減速，列車卡也改顯示 DR1000 介紹": "平渓線・深澳線・集集線・内湾線：列車の加減速を実際に走るDR1000型気動車の性能に合わせ、列車カードの紹介も電車ではなくDR1000型気動車に改めました。"
 });

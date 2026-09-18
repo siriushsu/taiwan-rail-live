@@ -15,7 +15,9 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { runInContext } from 'node:vm';
 import { makeSandbox, computeProfiles, readPassObs } from './build_run_profiles.mjs';
+import { extract, loadIndexSource } from './lib/extract_from_index.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = p => JSON.parse(readFileSync(join(ROOT, p), 'utf8'));
@@ -84,9 +86,26 @@ for (const tr of fresh.trains.filter(isDr)) {
 if (!trap) failures.push('DR1000 一條梯形剖面都沒檢查到——分母是 0');
 if (badRp.length) failures.push(`${badRp.length}/${trap} 條 DR1000 梯形剖面不是用 DR1000 參數建的，例：${badRp[0]}`);
 
-console.log(`DR1000 ${dr.length} 班｜梯形剖面 ${trap} 條、實測型 ${obs} 條、等速退路 ${linear} 段`);
+// 3. 列車卡：trainIntro 對 DR1000 不得回 stock。列車卡（renderTrainCard）的車種名／故事／小知識都以 stock 優先，
+//    回了就顯示成「區間車（通勤電聯車）」或「區間快車」的電聯車故事——7/18 正名只改了 kind／desc，跟車面板對了、
+//    列車卡沒對，09-19 瀏覽器驗收才抓到。語系函式換成恆等替身：比的是中文正本，不是翻譯。
+runInContext('var t = s => s; var i18nNumber = n => String(n);', ctx);
+runInContext(extract(loadIndexSource(join(ROOT, 'index.html')),
+  ['SPECIAL_TRAINS', 'KIND_RULES', 'TYPE_DESC', 'AMEN_FLAGS', 'DR1000_KIND', 'DR1000_DESC', 'trainIntro']), ctx);
+const cardBad = dr.filter(tr => { const it = ctx.trainIntro(tr); return it.stock !== null || it.kind !== 'DR1000 型柴油客車'; });
+if (cardBad.length) {
+  const it = ctx.trainIntro(cardBad[0]);
+  failures.push(`${cardBad.length}/${dr.length} 班 DR1000 的列車卡會顯示成「${it.stock ? it.stock.name : it.kind}」，例：${cardBad[0].train} 次`);
+}
+// 反向對照：其餘台鐵車的 stock 原樣傳給列車卡（修法只准碰 DR1000）；其中要真的有帶 stock 的，否則這條恆綠。
+const passBad = schedule.trains.filter(tr => !isDr(tr) && ctx.trainIntro(tr).stock !== ctx.specialOf(tr).stock);
+const withStock = schedule.trains.filter(tr => !isDr(tr) && ctx.trainIntro(tr).stock).length;
+if (passBad.length) failures.push(`${passBad.length} 班非 DR1000 的列車卡沒拿到自己的車型介紹，例：${passBad[0].train} 次`);
+if (!withStock) failures.push('反向對照缺樣本：非 DR1000 的車一班都沒帶車型介紹（stock），「原樣傳遞」那條等於沒驗');
+
+console.log(`DR1000 ${dr.length} 班｜梯形剖面 ${trap} 條、實測型 ${obs} 條、等速退路 ${linear} 段｜列車卡反向對照帶車型介紹 ${withStock} 班`);
 if (failures.length) {
   for (const f of failures) console.error('✗ ' + f);
   process.exit(1);
 }
-console.log('✓ DR1000 拿到自己的加減速與極速，已電化支線維持電聯車');
+console.log('✓ DR1000 拿到自己的加減速與極速、列車卡顯示 DR1000，已電化支線維持電聯車');

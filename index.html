@@ -5468,7 +5468,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
-        <li data-cl-of="dr1000branch"><span class="d">9/19</span><span>平溪、深澳、集集、內灣線的列車起步與進站，改照 DR1000 柴油客車的加減速，不再比照電聯車</span></li>
+        <li data-cl-of="dr1000branch"><span class="d">9/19</span><span>平溪、深澳、集集、內灣線的列車改照 DR1000 柴油客車加減速，列車卡也改顯示 DR1000 介紹</span></li>
         <li data-cl-of="mixedwidget0919"><span class="d">9/19</span><span>Android 雙看板小工具字放大、依卡片高度多列幾班；設定頁通行證文字修正</span></li>
         <li data-cl-of="legwindow0918"><span class="d">9/18</span><span>高雄環狀輕軌假日 29 班不再接錯車；機捷深夜往機場 23:23、23:38 兩班，中和新蘆線南勢角 22:26、淡水信義線週六廣慈 23:08 也照官方時刻開完全程</span></li>
         <li data-cl-of="metrott0918"><span class="d">9/18</span><span>淡水信義線班表換成 8/31 改點後的官方時刻；機捷晚上的直達車不再開到長庚就消失，照官方時刻開到機場第二航廈</span></li>
@@ -5858,7 +5858,7 @@
         <li><span class="d">7/13</span><span>新增「分享畫面」：把地圖位置、時間與路網打包成一條連結</span></li>
         <li><span class="d">7/11</span><span>可以安裝到主畫面（PWA），像 App 一樣全螢幕開啟</span></li>
         <li class="grp">資料校正</li>
-        <li data-cl="dr1000branch"><span class="d">9/19</span><span>台鐵支線動畫修正：平溪、深澳、集集、內灣線跑的是 DR1000 柴油客車，起步、進站的加減速與最高速度改照它的性能，不再套用電聯車的數值（車種介紹 7/18 起已是 DR1000）</span></li>
+        <li data-cl="dr1000branch"><span class="d">9/19</span><span>台鐵支線修正：平溪、深澳、集集、內灣線跑的是 DR1000 柴油客車，起步、進站的加減速與最高速度改照它的性能；地圖下方的列車卡也改顯示 DR1000 的介紹，不再套用電聯車的數值與故事</span></li>
         <li data-cl="mergedir0918"><span class="d">9/18</span><span>班表整理修正：淡水信義線平日清晨往淡水的 6 班補回（象山、台北車站、劍潭 6:00 首班車，以及從忠義出發的 3 班）；機捷平日 1 班、淡海輕軌假日 7 班不再開到半路往回開；淡海假日 4 班疊在另一支線列車上的重複短班也拿掉了</span></li>
         <li data-cl="ylast0918"><span class="d">9/18</span><span>環狀線平日深夜班表補齊：大坪林 23:12 到 24:00 發往新北產業園區的末班車照官方時刻開到終點，中和站時刻改對齊官方時刻表</span></li>
         <li data-cl="tymcshort0918"><span class="d">9/18</span><span>機捷平日早上班表修正：山鼻 7:37 發車的區間車不再開到林口就消失，照官方時刻一路開到台北；同時段環北 7:00 的尖峰跳站普通車與山鼻 7:28 的普通車，過長庚後也改回各自的官方時刻，長庚不再多冒出一班車</span></li>
@@ -17531,7 +17531,8 @@ function trainIntro(tr) {
   }
   const branch = spd ? spd.branch : null;
   // 非電化支線的區間車/區間快實為 DR1000 柴油客車,覆寫班表「區間車＝通勤電聯車」的誤標
-  if (isDr1000(tr)) {
+  const dr1000 = isDr1000(tr);
+  if (dr1000) {
     kind = DR1000_KIND; desc = DR1000_DESC; fact = null;
   }
   const amens = [];
@@ -17542,7 +17543,10 @@ function trainIntro(tr) {
   const dur = durSec >= 3600
     ? t('{h} 小時 {m} 分', { h: i18nNumber(Math.floor(durSec / 3600)), m: i18nNumber(Math.round(durSec % 3600 / 60)) })
     : t('{n} 分鐘', { n: i18nNumber(Math.round(durSec / 60)) });
-  return { special: sp || null, named: spd?.named || null, stock: spd?.stock || null,
+  // DR1000 不回 stock:列車卡的車種名／故事／小知識都以 stock 優先,回了就又顯示成「區間車（通勤電聯車）」
+  // 的 EMU900 故事(7/18 正名時只改了 kind／desc,跟車面板對了、列車卡沒對,09-19 驗收才抓到)。
+  // 圖鑑收集不受影響:recordRide 的 stockId 直接讀 specialOf().stock,照舊記成區間車。
+  return { special: sp || null, named: spd?.named || null, stock: dr1000 ? null : spd?.stock || null,
     kind, desc: sp ? sp.desc : desc, amens, nStops: stops.length, dur, fact, factIndex, branch };
 }
 // ── 隨機挑車:加權挑一班正在跑的車。放空會定時回來換下一班(1–2 分鐘),
