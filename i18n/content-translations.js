@@ -1765,3 +1765,12 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   "＋ 搜尋並收藏車站": "+ 駅を検索してお気に入りに追加",
   "搜尋車站名稱以加入最愛…": "駅名を検索してお気に入りに追加…"
 });
+
+// 2026-09-18「附近車站」清單多了關法(第一層更新紀錄那條的 en/ja;第二層正本一律走 RAIL_I18N_CHANGELOG)
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  "「附近車站」清單多了兩個關法：點地圖空白處、或把卡片往下滑，不必先選一站才收得掉": "The Stations near you list can now be dismissed two more ways: tap an empty part of the map, or swipe the card down — you no longer have to pick a station to get rid of it."
+});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  "「附近車站」清單多了兩個關法：點地圖空白處、或把卡片往下滑，不必先選一站才收得掉": "「付近の駅」リストの閉じ方が増えました。地図の何もない場所をタップするか、カードを下にスワイプすれば閉じられます。駅を選ばないと消せない状態を解消しました。"
+});

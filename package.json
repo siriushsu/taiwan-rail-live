@@ -54,6 +54,7 @@
     "check-obs-removed": "node scripts/verify_obs_removed.mjs",
     "check-boot-partial-sched": "node scripts/verify_boot_partial_schedule.mjs",
     "check-query-tab": "node scripts/verify_query_tab.mjs",
+    "check-near-dismiss": "node scripts/verify_near_dismiss.mjs",
     "check-tymc-kind": "node scripts/verify_tymc_train_kind.mjs && node scripts/verify_tymc_express_endpoints.mjs",
     "build-native-localizations": "node app/scripts/build_native_localizations.mjs",
     "check-native-localizations": "node app/scripts/verify_native_localizations.mjs",
