@@ -227,13 +227,13 @@
    "checksum": "7634a5761a1466026c455fbfed34b139"
   },
   "data/tra_run_profiles.json": {
-   "sourceDescription": "本站自算，無外部上游：由 data/tra_schedule_dense.json（表定時刻）、data/tra.json（軌道線形，供跑段里程）與 data/tra_pass_obs.json（通過站實測時刻）三者，套 index.html 的位置模型（buildObsProfile／speedZoneKnots／a",
+   "sourceDescription": "本站自算，無外部上游：由 data/tra_schedule_dense.json（表定時刻）、data/tra.json（軌道線形，供跑段里程）、data/tra_pass_obs.json（通過站實測時刻）與 data/tra_track_sections.json（單雙線供交會推論；各站對最長實體股道路徑 max",
    "sourceField": "source_notes",
    "effectiveDate": null,
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "e399aeec712b59190dde1dd6f9fd99b7"
+   "checksum": "5bea830d9fffb6f507c319f87838897c"
   },
   "data/tra_schedule_dense.json": {
    "sourceDescription": "時刻表來源：https://ods.railway.gov.tw/tra-ods-web/ods/download/dataResource/railway_schedule/JSON/list 清單頁，抓取今天(2026-09-18)起連續 14 天中實際發佈得到的 14 天（2026-09-18…2026-10-0",
@@ -278,7 +278,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "0b689bd70b9ecb460d6128609e7d20ba"
+   "checksum": "0ae8efaaccb94d4de99ea074bf4cb671"
   },
   "data/track_lines.geojson": {
    "sourceDescription": "由 data/{tra,thsr_track,afr,trtc,tymc,ntdlrt,ntalrt,sanying,krtc,tmrt}.json 的 lines[].shape 與 lines[].stations 轉成 GeoJSON([lon,lat],小數 6 位),scripts/build_track_g",
