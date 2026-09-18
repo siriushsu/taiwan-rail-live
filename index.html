@@ -5468,6 +5468,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="speedcapzone0919"><span class="d">9/19</span><span>自強號駛近新馬急彎時，地圖上的列車不再跑得比車種極速還快</span></li>
         <li data-cl-of="dr1000branch"><span class="d">9/19</span><span>平溪、深澳、集集、內灣線的列車改照 DR1000 柴油客車加減速，列車卡也改顯示 DR1000 介紹</span></li>
         <li data-cl-of="mixedwidget0919"><span class="d">9/19</span><span>Android 雙看板小工具字放大、依卡片高度多列幾班；設定頁通行證文字修正</span></li>
         <li data-cl-of="legwindow0918"><span class="d">9/18</span><span>高雄環狀輕軌假日 29 班不再接錯車；機捷深夜往機場 23:23、23:38 兩班，中和新蘆線南勢角 22:26、淡水信義線週六廣慈 23:08 也照官方時刻開完全程</span></li>
@@ -5475,7 +5476,6 @@
         <li data-cl-of="tiebreak0918"><span class="d">9/18</span><span>機捷南下末班車（台北 23:08）不再被拆成兩台，照官方時刻一路開完全程；中和新蘆線白天與晚間、淡水信義線晚間少掉的班次補回來了</span></li>
         <li data-cl-of="landscapedem0918"><span class="d">9/18</span><span>Android App 的地景地圖立體列車不再消失，照真實地形高度顯示</span></li>
         <li data-cl-of="tymcshort0918"><span class="d">9/18</span><span>機捷平日早上山鼻 7:37 那班區間車不再開到林口就消失，照官方時刻開到台北</span></li>
-        <li data-cl-of="viewcontrols0914"><span class="d">9/18</span><span>開著車站卡或列車卡時也能直接按「觀看」調整視角、地圖與列車設定</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5596,6 +5596,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="speedcapzone0919"><span class="d">9/19</span><span>2、438、5232 次自強號駛近新馬急彎前，地圖上的列車曾短暫快過車種極速（最高 148 km/h）；現在全程不超過極速，也照彎道速限通過，到站時刻不變</span></li>
         <li data-cl="viewcontrols0914"><span class="d">9/14</span><span>觀看設定移到網站右側；手機可按「觀看」切換視角、地圖與列車設定，沉浸模式也能隨時重新開啟；修正地形切換時橋墩閃現與遠景列車大小設定未生效；9/18 起開著車站卡或列車卡也能直接進觀看設定</span></li>
         <li data-cl="viewguide0914"><span class="d">9/14</span><span>地圖俯視與傾斜切換更平順，新增車站與地標導覽；放大跟車時保留車頭與手機操作空間</span></li>
         <li data-cl="delayselfheal0914"><span class="d">9/14</span><span>台鐵近 30 天準點率、準點排行與「我的車・準點」偶爾會停在幾天前：每天早上彙整前一天資料若沒成功，現在當天會自動再補抓，不必等到隔天；9/9～9/12 缺的資料已補回。</span></li>
@@ -6507,7 +6508,7 @@
 //         介紹卡／搜尋／收集章／3D 外觀全部自動接上，明星列車章 5→6 枚；環島之星與虛構的山海／平原號
 //         不再退回 EMU800 代表外觀，改成機車牽引的觀光列車（環島之星＝E500＋莒光客車）。
 //         守門人：verify_formations 新增具名覆蓋率斷言，名冊「有固定車次」的集合必須與對照表逐一相等。
-const BUILD = 'v0919b';
+const BUILD = 'v0919c';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -10418,7 +10419,8 @@ function buildObsProfile(Lkm, T, pts, vTopK, zones) {   // pts:[{t:段內秒, d:
     for (let i = 0; i < xs.length - 1; i++) {
       const v = (ys[i + 1] - ys[i]) / (xs[i + 1] - xs[i]);
       if (v <= (i === 0 || i === xs.length - 2 ? VS_END : VS_MID)) continue;
-      const cand = i === xs.length - 2 ? i : i + 1;   // 丟該區間較內側的節點
+      let cand = i === xs.length - 2 ? i : i + 1;     // 丟該區間較內側的節點
+      if (prot[cand] && cand === i + 1) cand = i;       // 內側是受保護節點 ⇒ 改丟外側那顆(與 reanchorRunProfile 同一條規則)
       if (cand <= 0 || cand >= xs.length - 1 || prot[cand]) continue;
       j = cand; break;
     }
@@ -10442,12 +10444,18 @@ function buildObsProfile(Lkm, T, pts, vTopK, zones) {   // pts:[{t:段內秒, d:
   // 割線 del,所以「處處不超過 del」只有線性一種解 → del 才是峰值的真下限。把 m 縮向 0 是反方向:
   // 兩端速度歸零,中間就得衝更高補回平均,m=0 時峰值反而是 1.5×del(舊版 cap 取 max(150,1.55×del)
   // 正是在替這個反效果讓路,於是割線快的區間永遠豁免——171 次那段割線 134.9 就放行到 202)。
-  // 上限綁該車種極速;割線本身已超過極速時只能承認(時刻表要求的平均速度就那麼快),取 del 為準。
-  // m[i] 為相鄰兩區間共用,處理區間 i 設定的 m[i+1] 會讓已收好的區間 i 重新超標 → 外層重掃直到不動
-  // 收斂保證:上面的節點閘門已使每個區間割線 del ≤ 極速,而「兩端導數都設成 del」(線性)的
-  // 區間峰值恆等於 del ≤ cap。所以後段輪次改成直接壓線性,最壞情況全段線性、必定達標——
-  // 速度上限是硬要求,不留容差給殘留(使用者裁定:速度不能超過上限,比模型精度重要)。
+  // 上限綁該車種極速;割線本身已超過極速時夾限只能以 del 為目標(時刻表要求的平均速度就那麼快),
+  // 但這種剖面過不了最後的收尾驗收,整條不交。
+  // m[i] 為相鄰兩區間共用,處理區間 i 設定的 m[i+1] 會讓已收好的區間 i 重新超標 → 外層重掃直到不動。
+  // 後段輪次直接壓線性,但【不保證收斂】:兩個割線不同的相鄰區間無法同時線性(共用的 m 只有一個值),
+  // 所以最後一定要逐區間量實際峰值(見迴圈後的收尾驗收)。
   const VCAP = (vTopK > 0 ? vTopK : 130) / 3.6;
+  const dMax = (i, a, b) => {               // 區間 i 的瞬時速度極大值:d(s)=A s²+B s+a, s∈[0,1]
+    const A = 3 * a + 3 * b - 6 * del[i], B = -4 * a - 2 * b + 6 * del[i];
+    let v = Math.max(a, b);
+    if (A < 0) { const s = -B / (2 * A); if (s > 0 && s < 1) v = Math.max(v, A * s * s + B * s + a); }
+    return v;
+  };
   for (let pass = 0; pass < 12; pass++) {
     let touched = false;
     for (let i = 0; i < n - 1; i++) {
@@ -10460,26 +10468,29 @@ function buildObsProfile(Lkm, T, pts, vTopK, zones) {   // pts:[{t:段內秒, d:
         for (const z of zones) if (mid > z.d0 && mid < z.d1 && z.v < cap) cap = z.v;
       }
       cap = Math.max(cap, del[i]);
-      const dMax = (a, b) => {              // d(s)=A s²+B s+a, s∈[0,1]
-        const A = 3 * a + 3 * b - 6 * del[i], B = -4 * a - 2 * b + 6 * del[i];
-        let v = Math.max(a, b);
-        if (A < 0) { const s = -B / (2 * A); if (s > 0 && s < 1) v = Math.max(v, A * s * s + B * s + a); }
-        return v;
-      };
-      if (dMax(m[i], m[i + 1]) <= cap) continue;
+      if (dMax(i, m[i], m[i + 1]) <= cap) continue;
       // 前六輪用二分,盡量保留實測形狀;之後仍超標的是「相鄰區間要求相反」的震盪段,直接壓線性。
       if (pass >= 6) { m[i] = m[i + 1] = del[i]; touched = true; continue; }
       const mix = (v, u) => v + (del[i] - v) * u;   // u=0 維持原導數、u=1 為線性
       let lo = 0, hi = 1;
       for (let it = 0; it < 12; it++) {      // 二分找「最小的」拉向線性的比例,盡量保留實測形狀
         const mid = (lo + hi) / 2;
-        if (dMax(mix(m[i], mid), mix(m[i + 1], mid)) <= cap) hi = mid; else lo = mid;
+        if (dMax(i, mix(m[i], mid), mix(m[i + 1], mid)) <= cap) hi = mid; else lo = mid;
       }
       m[i] = mix(m[i], hi); m[i + 1] = mix(m[i + 1], hi);
       touched = true;
     }
     if (!touched) break;
   }
+  // 🔴 收尾驗收:任一區間的實際峰值超過車種極速,整條不交(回 null)。
+  //    上面的夾限只調導數,而有些節點配置【怎麼調導數都做不到】:彎道節點把入彎速度釘在速限
+  //    (彎道區間起點的導數就是入彎速度),前一個區間的割線若很快,三次式終點導數被釘在 b 時
+  //    區間峰值最低仍有 (4×割線−b)/3。2026-09-19 實例:2／438／5232 次進新馬彎道(速限 65),
+  //    前一區間割線 124~127 ⇒ 峰值最低 143~148,十二輪都在兩區間之間來回拉扯,收工時照樣超速。
+  //    回 null 後各呼叫端走既有退路:彎道跑段換更寬的窗再試(撐開後割線變慢就做得到)、
+  //    一般實測跑段退梯形(梯形恆不超速)、交會重錨記為建不出來。
+  //    這裡只守車種極速;彎道內的速限另由 zoneProfileOk 收貨。
+  for (let i = 0; i < n - 1; i++) if (dMax(i, m[i], m[i + 1]) > VCAP) return null;
   return { T, L, obs: true, xs, ys, h, m };
 }
 function profTimeToProg(p, t) { // 段內時間(0..T秒) → 歸一化距離進度(0..1)

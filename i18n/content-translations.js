@@ -1864,3 +1864,12 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   "平溪、深澳、集集、內灣線的列車改照 DR1000 柴油客車加減速，列車卡也改顯示 DR1000 介紹": "平渓線・深澳線・集集線・内湾線：列車の加減速を実際に走るDR1000型気動車の性能に合わせ、列車カードの紹介も電車ではなくDR1000型気動車に改めました。"
 });
+
+// 2026-09-19 新馬急彎前的車速不超過車種極速(第一層更新紀錄那條的 en/ja;第二層正本一律走 RAIL_I18N_CHANGELOG)
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  "自強號駛近新馬急彎時，地圖上的列車不再跑得比車種極速還快": "Tze-Chiang Express trains approaching the sharp curve at Xinma no longer move faster than their top speed on the map."
+});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  "自強號駛近新馬急彎時，地圖上的列車不再跑得比車種極速還快": "新馬の急カーブ手前で、地図上の自強号が車両の最高速度を超えて走ることがなくなりました。"
+});
