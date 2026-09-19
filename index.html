@@ -5511,6 +5511,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="virtualloops0920"><span class="d">9/20</span><span>山海號與平原號現在從地圖車牌、車站看板到列車資訊都直接標示為「軌島虛構專列」，不會再看起來像真實營運班次</span></li>
         <li data-cl-of="boardall0920"><span class="d">9/20</span><span>台鐵、高鐵與林鐵車站看板不再只看得到每個方向最近 3 班；點一下就能在同一張看板展開接下來 3 小時的全部班次，需要時也能收回精簡版</span></li>
         <li data-cl-of="nangangbrstop0920"><span class="d">9/20</span><span>修正文湖線南港展覽館站的停車位置，列車會停在站體內的直線月台，不再停在西側彎道</span></li>
         <li data-cl-of="appnoticegeo0919"><span class="d">9/19</span><span>App 的長提示現在會完整換行，不再被列車卡片或畫面邊緣截斷，點通知外面即可收起；地圖傾斜時也會隱藏定位點，不會被拍進截圖或錄影</span></li>
@@ -5518,7 +5519,6 @@
         <li data-cl-of="tramground0919"><span class="d">9/19</span><span>高雄輕軌的五節車身重新對齊，近看不再一節高、一節低</span></li>
         <li data-cl-of="trastationanchor0919"><span class="d">9/19</span><span>台鐵誤點更新會核對官方所在車站；過站時的小幅誤點直接校正位置，同車次重複資料也不再把較大誤點蓋掉</span></li>
         <li data-cl-of="widgetrailjump0919"><span class="d">9/19</span><span>從台鐵發車看板或鐵路＋捷運雙看板點進軌島時，會回到正確的鐵路地圖與車站；臺北車站不會再被同名的捷運站截走</span></li>
-        <li data-cl-of="cexpiostap0919"><span class="d">9/19</span><span>iPhone／iPad 底部速度膠囊淡出後點一下就會展開，不用再點兩下、也不會誤觸暫停</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5699,6 +5699,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="virtualloops0920"><span class="d">9/20</span><span>山海號與平原號現在從地圖車牌、車站看板到列車資訊都直接標示為「軌島虛構專列」，不會再看起來像真實營運班次</span></li>
         <li data-cl="boardall0920"><span class="d">9/20</span><span>台鐵、高鐵與林鐵車站看板不再只看得到每個方向最近 3 班；點一下就能在同一張看板展開接下來 3 小時的全部班次，需要時也能收回精簡版</span></li>
         <li data-cl="randomnextplate0919"><span class="d">9/19</span><span>按「隨機跟隨」或「換一班」時，地圖會短暫亮出月台風格的牌子，直接告訴你這班車的下一站</span></li>
         <li data-cl="followrotate0916"><span class="d">9/16</span><span>跟車轉動視角維持鎖定不中斷，並修正開啟車頭朝上時列車在轉彎處跑出畫面外的問題</span></li>
@@ -6587,7 +6588,8 @@
 // v0919l：App 長提示完整換行不再被限高裁切；地圖傾斜時隱藏完整定位點。
 // v0920a：文湖線南港展覽館兩方向改用 OSM 正式 stop_position，停車點不再落在西側彎道。
 // v0920b：火車站看板可由每方向最近 3 班展開為接下來 3 小時的完整班次。
-const BUILD = 'v0920b';
+// v0920c：山海號／平原號在地圖車牌、看板、搜尋與列車資訊明確標示為軌島虛構專列。
+const BUILD = 'v0920c';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -12912,7 +12914,7 @@ function drawSched(w, h, paintDecoTrains) {
       if (state._punctual.has(tr)) drawPunctualRing(cp);
       else if (state._featured.has(tr)) drawFeaturedRing(cp); // 今日之最(探索面板推薦)→ 地圖上加繪金色光環識別
       glowUnder(cp, glowC, showTrain ? 10 : 3.5); // 車號牌模式:光暈放大到繞出牌緣,近看也發亮
-      if (showTrain) isHSR(tr) ? drawHSRTag(cp, tr.train) : drawTag(cp, tr.train, tr.color, textColorFor(tr.color));
+      if (showTrain) isHSR(tr) ? drawHSRTag(cp, tr.train) : drawTag(cp, trainDisplayNo(tr), tr.color, textColorFor(tr.color));
       else isHSR(tr) ? drawHSRDot(cp) : drawDot(cp, tr.color);
       if (state.dirArrow && showTrain) drawDirArrow(cp, tr, glowC, sh); // 車號牌前緣加行進方向箭頭(遠景圓點不畫,避免密集小點雜亂)
     });
@@ -12979,7 +12981,7 @@ function drawFollowMarker(p, tr) {
     ctx.beginPath(); ctx.arc(p.x, p.y, 11, 0, 7);
     ctx.strokeStyle = tr.color; ctx.globalAlpha = opacity * (0.9); ctx.lineWidth = 2.5; ctx.stroke();
     ctx.globalAlpha = opacity * (1);
-    isHSR(tr) ? drawHSRTag(p, tr.train) : drawTag(p, tr.train, tr.color, textColorFor(tr.color));
+    isHSR(tr) ? drawHSRTag(p, tr.train) : drawTag(p, trainDisplayNo(tr), tr.color, textColorFor(tr.color));
     if (state.dirArrow && M.getZoom() >= 11) drawDirArrow(p, tr, glowC); // 跟隨主角同樣加方向箭頭(牌模式才畫)
   } finally { ctx.restore(); }
 }
@@ -13330,9 +13332,21 @@ const BLOCK_SIDE_GAP = 2;              // 兩顆牌之間要留的縫(px)
 const BLOCK_TAG_H = 15;                // 車號牌高度(與 drawTag 的 ph 同值)
 const _blockSideEase = new Map();      // 進出偏移要漸變,不能一到門檻就跳
 const _blockSideLatch = new Set();     // 已經讓開的:通過的車真的走遠之前不准回到軌道上
-// 車號牌實寬(與 drawTag 同一條算式);標籤不變 → 每班量一次就夠
+// 虛構環島車不再只顯示看起來很像真實車次的 8888/8889。這個 helper 是所有「第一眼辨識」
+// 位置的單一事實來源：地圖車牌、看板、搜尋、平交道／落釘預測與跟車卡都要直接寫「虛構」。
+function trainDisplayNo(tr) {
+  return tr && tr.loop ? t('虛構 {train}', { train: String(tr.train) }) : String(tr && tr.train || '');
+}
+function trainDisplayKind(tr) {
+  return tr && tr.loop ? `${t(tr.loopName)}・${t('軌島虛構專列')}` : trainTypeName(tr && tr.typeName || '');
+}
+// 車號牌實寬(與 drawTag 同一條算式);標籤不變 → 每班量一次就夠。
+// 虛構專列車牌會跟語言切換，所以 cache 同時記字串，不可再只記一個寬度。
 function tagW(tr) {
-  if (tr._tagW == null) { ctx.font = '700 10px ' + FONT; tr._tagW = ctx.measureText(String(tr.train)).width + TAG_PAD; }
+  const label = trainDisplayNo(tr);
+  if (tr._tagW == null || tr._tagWLabel !== label) {
+    ctx.font = '700 10px ' + FONT; tr._tagW = ctx.measureText(label).width + TAG_PAD; tr._tagWLabel = label;
+  }
   return tr._tagW;
 }
 // 「這台車在畫面上實際佔多大」——命中測試的唯一尺寸來源。
@@ -13384,7 +13398,7 @@ function blockSideShift(tr, pos, cp, big) {
   if (Math.abs(x) < 0.05 && Math.abs(y) < 0.05) { _blockSideEase.delete(key); return null; }
   const n = { x, y }; _blockSideEase.set(key, n); return n;
 }
-function drawDirArrow(cp, tr, color, sh) { // 台鐵/高鐵:牌=車次號(數字窄字),半寬 6+3/字
+function drawDirArrow(cp, tr, color, sh) { // 台鐵/高鐵:箭頭從實際車牌右緣接出（虛構專列牌較寬）
   const pB = trainPos(tr, state.simSec - DIR_DT_SEC);
   const cpB = pB ? M.toScreen([pB.lat, pB.lon]) : null;
   // 並排偏移時,回看點要套同一個位移:方向是「現在減八秒前」,只偏其中一頭等於把橫向位移
@@ -13393,7 +13407,7 @@ function drawDirArrow(cp, tr, color, sh) { // 台鐵/高鐵:牌=車次號(數字
   if (cpB && sh) { cpB.x += sh.x; cpB.y += sh.y; }
   const ang = dirAngOf(tr, cp, cpB);
   if (ang === undefined) return;
-  drawArrowAt(cp, ang, color, 6 + String(tr.train).length * 3, 8);
+  drawArrowAt(cp, ang, color, tagW(tr) / 2 + 1, 8);
 }
 function drawFreqDirArrow(cp, ln, carrier, pB) { // 捷運/輕軌:牌=線路縮寫(CJK 全形 10px/字),半寬 5/字+6
   const ang = dirAngOf(carrier, cp, pB ? M.toScreen([pB.lat, pB.lon]) : null);
@@ -13626,8 +13640,8 @@ function renderCrossingCard() {
     const mm = Math.floor(r.delta / 60), ss = Math.floor(r.delta % 60);
     const cd = String(mm).padStart(2, '0') + ':' + String(ss).padStart(2, '0');
     const dl = r.delayMin > 0 ? `<span class="xc-dl">${escHtml(t('+{n}分', { n: i18nNumber(r.delayMin) }, r.delayMin))}</span>` : '';
-    return `<div class="xc-row"><span class="xc-no">${r.tr.train}</span>` +
-      `<span class="xc-kind">${escHtml(trainTypeName(r.tr.typeName))}</span>` +
+    return `<div class="xc-row"><span class="xc-no">${escHtml(trainDisplayNo(r.tr))}</span>` +
+      `<span class="xc-kind">${escHtml(trainDisplayKind(r.tr))}</span>` +
       `<span class="xc-dir">${escHtml(t('往{station}', { station: stationName(r.dir, r.tr.sys) }))}</span>` +
       `<span class="xc-time">${fmtHM(r.pass)}${dl}</span>` +
       `<span class="xc-cd">${cd}</span></div>`;
@@ -16545,8 +16559,8 @@ function renderPinCard() {
       const mm = Math.floor(r.delta / 60), ss = Math.floor(r.delta % 60);
       const cd = String(mm).padStart(2, '0') + ':' + String(ss).padStart(2, '0');
       const dl = r.delayMin > 0 ? '<span class="xc-dl">+' + escHtml(t('{n} 分', { n: i18nNumber(r.delayMin) }, r.delayMin)) + '</span>' : '';
-      return '<div class="xc-row" data-no="' + escHtml(r.tr.train) + '" data-sys="' + escHtml(r.tr.sys || '') + '" title="' + escHtml(t('跟隨 {train} 次', { train: r.tr.train })) + '"><span class="xc-no">' + escHtml(r.tr.train) + '</span>' +
-        '<span class="xc-kind">' + escHtml(trainTypeName(r.tr.typeName)) + '</span><span class="xc-dir">' + escHtml(t('往 {station}', { station: stationName(r.dir, r.tr.sys) })) + '</span>' +
+      return '<div class="xc-row" data-no="' + escHtml(r.tr.train) + '" data-sys="' + escHtml(r.tr.sys || '') + '" title="' + escHtml(t('跟隨 {train} 次', { train: trainDisplayNo(r.tr) })) + '"><span class="xc-no">' + escHtml(trainDisplayNo(r.tr)) + '</span>' +
+        '<span class="xc-kind">' + escHtml(trainDisplayKind(r.tr)) + '</span><span class="xc-dir">' + escHtml(t('往 {station}', { station: stationName(r.dir, r.tr.sys) })) + '</span>' +
         '<span class="xc-time">' + fmtHM(r.pass) + dl + '</span><span class="xc-cd">' + cd + '</span></div>';
     };
     // 多線:每線一組(線色點+線名+距離+該線班次,空線也標「無列車」讓使用者知道這條線在);單線:不出組頭,版面與舊版相同
@@ -19933,8 +19947,8 @@ function renderTrainCard(tr) {
   const it = trainIntro(tr);
   const first = tr.stops[0], last = tr.stops[tr.stops.length - 1];
   document.getElementById('tcDot').style.background = tr.color;
-  document.getElementById('tcNo').textContent = tr.train;
-  document.getElementById('tcKind').textContent = tr.loop ? t('觀光列車') : tr.est ? `${trainTypeName(tr.typeName)}・${t('時刻推算')}`
+  document.getElementById('tcNo').textContent = trainDisplayNo(tr);
+  document.getElementById('tcKind').textContent = tr.loop ? trainDisplayKind(tr) : tr.est ? `${trainTypeName(tr.typeName)}・${t('時刻推算')}`
     : it.stock ? i18nContentData('rollingStock', it.stock, 'name') : trainTypeName(it.kind || tr.typeName);
   document.getElementById('tcRoute').textContent =
     `${stationName(first.name, tr.sys)} ${fmtHM(first.depSec % 86400)} → ${stationName(last.name, tr.sys)} ${fmtHM(last.arrSec % 86400)}`;
@@ -23780,8 +23794,8 @@ function trainStatusTxt(tr) {
 function hlRow(h) {
   const tr = h.tr, last = tr.stops[tr.stops.length - 1];
   const status = trainStatusTxt(tr);
-  return `<div class="row" data-no="${tr.train}" data-sys="${tr.sys || ''}" title="${escHtml(t('跟隨 {train} 次', { train: tr.train }))}"><span class="dot" style="background:${tr.color}"></span>` +
-    `<b>${escHtml(t(h.title))}</b><span class="dest">${escHtml(t('{train}次', { train: tr.train }))} ${escHtml(stationName(tr.stops[0].name, tr.sys))}→${escHtml(stationName(last.name, tr.sys))}${h.sub ? ' · ' + escHtml(t(h.sub)) : ''}</span>` +
+  return `<div class="row" data-no="${tr.train}" data-sys="${tr.sys || ''}" title="${escHtml(t('跟隨 {train} 次', { train: trainDisplayNo(tr) }))}"><span class="dot" style="background:${tr.color}"></span>` +
+    `<b>${escHtml(t(h.title))}${tr.loop ? '・' + escHtml(t('軌島虛構專列')) : ''}</b><span class="dest">${escHtml(t('{train}次', { train: trainDisplayNo(tr) }))} ${escHtml(stationName(tr.stops[0].name, tr.sys))}→${escHtml(stationName(last.name, tr.sys))}${h.sub ? ' · ' + escHtml(t(h.sub)) : ''}</span>` +
     `<span class="min">${status}</span></div>`;
 }
 // 準點排行列(比照 hlRow 樣式與互動;沒有個別頭銜,粗體字直接是車次號):data-no/data-sys 與 hlRow 同款,
@@ -24418,11 +24432,11 @@ function showFollowPanel(tr) {
   const fp = document.getElementById('followPanel');
   if (state.mode !== 'sched' || !tr) { fp.hidden = true; closeRideBox(); syncFollowOnClass(); return; }
   document.getElementById('fpDot').style.background = tr.color;
-  document.getElementById('fpTrain').textContent = tr.train;
+  document.getElementById('fpTrain').textContent = trainDisplayNo(tr);
   const it = renderTrainCard(tr);
   // 車型名(區間車（通勤電聯車）…)是資料檔 rollingStock 的名稱,要走 i18nContentData 才有外語(同 renderTrainCard 的 tcKind);
   // DR1000 那種被 trainIntro 覆寫掉的 kind 已不是車型名,照舊走 trainTypeName。
-  document.getElementById('fpKind').textContent = tr.loop ? `${t(tr.loopName)}・${t('觀光列車')}`
+  document.getElementById('fpKind').textContent = tr.loop ? trainDisplayKind(tr)
     : it.stock && it.kind === it.stock.name ? i18nContentData('rollingStock', it.stock, 'name') : trainTypeName(it.kind || tr.typeName);
   const first = tr.stops[0], last = tr.stops[tr.stops.length - 1];
   document.getElementById('fpDest').textContent = tr.loop
@@ -24638,7 +24652,7 @@ function renderFollowBar(msg) {
   fb.className = 'followbar'; fb.hidden = false;
   fb.innerHTML =
     `<span class="dot" style="background:${tr.color}"></span>` +
-    `<b>${escHtml(tr.train)}</b> ${tr.loop ? `${escHtml(t(tr.loopName))}　${escHtml(t('臺北⇄枋寮 永續來回中'))}` : `${escHtml(trainTypeName(tr.typeName))}　${escHtml(stationName(first.name, tr.sys))}→${escHtml(stationName(last.name, tr.sys))}　` +
+    `<b>${escHtml(trainDisplayNo(tr))}</b> ${tr.loop ? `${escHtml(trainDisplayKind(tr))}　${escHtml(t('臺北⇄枋寮 永續來回中'))}` : `${escHtml(trainTypeName(tr.typeName))}　${escHtml(stationName(first.name, tr.sys))}→${escHtml(stationName(last.name, tr.sys))}　` +
     `${fmtHM(first.depSec % 86400)}–${fmtHM(last.arrSec % 86400)}`}` +
     (msg ? `　· ${escHtml(t(msg))}` : '') +
     `<button id="unfollow">${escHtml(t('取消跟隨'))}</button>`;
@@ -29667,9 +29681,11 @@ function renderSearchDrop(opts) {
     html += trs.map((o, i) => {
       const tr = o.tr, a = tr.stops[0].name, b = tr.stops[tr.stops.length - 1].name;
       const spd = specialOf(tr), sp = (spd && spd.named) || SPECIAL_TRAINS[String(tr.train)];
-      return `<div class="row tr-row" data-ti="${i}"><span class="nm">${escHtml(String(tr.train))}</span>`
-        + `<span class="sys-chip">${escHtml(t(o.sys.label))}</span>`
-        + `<span class="tr-meta">${sp ? escHtml(spd?.named ? i18nContentData('namedTrains', spd.named, 'name') : t(sp.name)) + '・' : ''}${escHtml(trainTypeName(tr.typeName))}　${escHtml(stationName(a, tr.sys))}→${escHtml(stationName(b, tr.sys))}</span></div>`;
+      const kind = tr.loop ? trainDisplayKind(tr)
+        : `${sp ? (spd?.named ? i18nContentData('namedTrains', spd.named, 'name') : t(sp.name)) + '・' : ''}${trainTypeName(tr.typeName)}`;
+      return `<div class="row tr-row" data-ti="${i}"><span class="nm">${escHtml(trainDisplayNo(tr))}</span>`
+        + `<span class="sys-chip">${escHtml(tr.loop ? t('虛構專列') : t(o.sys.label))}</span>`
+        + `<span class="tr-meta">${escHtml(kind)}　${escHtml(stationName(a, tr.sys))}→${escHtml(stationName(b, tr.sys))}</span></div>`;
     }).join('');
   }
   if (typed.total > typed.trs.length)
@@ -31050,7 +31066,7 @@ function schedBoardListHtml(st, rows, perGroup, stats) {
       // 放 dest 欄會把「（終點到達）」擠成「(…」(280px 看板實測;v0901 加寬到 360 後未重測,維持原做法)。
       // 設計 6b:大改兩行、特大把車種與方向收進列尾「›」——兩者都要能各自定位,故各包一層。
       // 標準檔的字元(含中間那個全形空格)與包之前逐字相同,幾何零變化。
-      `<b>${escHtml(r.tr.train)}</b><span class="dest"><span class="ty">${escHtml(r.tr.loop ? t(r.tr.loopName) : trainTypeName(r.tr.typeName))}</span>　<span class="to">${escHtml(dest)}</span>${!r.off ? (window.RailPlatforms?.slot(r.tr,r.stop,r.isLast?'arrival':'departure',r.t)||'') : ''}</span>` +
+      `<b>${escHtml(trainDisplayNo(r.tr))}</b><span class="dest"><span class="ty">${escHtml(trainDisplayKind(r.tr))}</span>　<span class="to">${escHtml(dest)}</span>${!r.off ? (window.RailPlatforms?.slot(r.tr,r.stop,r.isLast?'arrival':'departure',r.t)||'') : ''}</span>` +
       // 時刻本身另包一層 .hm:大檔要把「誤點/推算」標排到第二行的方向後面(設計 6b),
       // 那需要 .t 交出排版權(display:contents),交出去之後裸文字節點就抓不到了。標準檔字元不變。
       `<span class="t"><span class="hm">${hm}</span>${r.off ? '' : r.tr.est ? `<span class="estTag">${escHtml(t('推算'))}</span>` : r.dl > 0 ? `<span class="lateTag" data-full="${escHtml(t('誤點 {n} 分', { n: i18nNumber(r.dl) }, r.dl))}">+${i18nNumber(r.dl)}</span>` : ''}</span><span class="min">${escHtml(min)}</span>` +
@@ -35643,10 +35659,10 @@ async function boot() {
   }
   function tapPickSchedTrain(hit) {
     const tr = hit.tr, on = tr === state.followTrain;
-    const dest = tr.loop ? routeName(tr.loopName, tr.sys) :
+    const dest = tr.loop ? trainDisplayKind(tr) :
       [trainTypeName(tr.typeName), t('往 {station}', { station: stationName(tr.stops[tr.stops.length - 1].name, tr.sys) })].filter(Boolean).join(' ');
     return {
-      icon: '', label: on ? t('取消跟隨 {train} 次', { train: tr.train }) : t('跟隨 {train} 次　{destination}', { train: tr.train, destination: dest }),
+      icon: '', label: on ? t('取消跟隨 {train} 次', { train: trainDisplayNo(tr) }) : t('跟隨 {train} 次　{destination}', { train: trainDisplayNo(tr), destination: dest }),
       run: () => {
         if (on) { setAutoTour(false); clearFollow(); return; }
         const ts = document.getElementById('trainSearch'); if (ts) ts.value = tr.train;
