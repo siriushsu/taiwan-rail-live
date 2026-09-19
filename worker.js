@@ -2788,6 +2788,13 @@ function webhookTargetUids(event) {
   return validFirestoreDocumentId(event.app_user_id) ? [event.app_user_id] : [];
 }
 
+// 讀取 request body 前先擋掉過大的 payload，避免解析階段就先把 CPU/記憶體燒光。
+async function readJsonLimited(request, maxBytes) {
+  const len = Number(request.headers.get('content-length') || 0);
+  if (len > maxBytes) throw new Error('payload_too_large');
+  return request.json();
+}
+
 // POST /api/revenuecat-webhook
 // RevenueCat dashboard 設定的 Authorization 完整值必須與 REVENUECAT_WEBHOOK_AUTH secret 完全相同。
 // webhook 本身只當喚醒訊號：事件一律用 fetchRevenueCatSubscriptions() 重查完整分頁真相再寫，
@@ -2808,7 +2815,7 @@ async function revenueCatWebhook(request, env) {
   if (await rateLimited(env.AUTH_LIMITER, request, true)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
 
   let payload;
-  try { payload = await request.json(); }
+  try { payload = await readJsonLimited(request, 1_000_000); }
   catch (e) { return jsonRes({ error: 'bad_request' }, 400, 'no-store'); }
   const event = payload && payload.event;
   const uids = webhookTargetUids(event);
