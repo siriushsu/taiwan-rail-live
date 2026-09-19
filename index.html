@@ -939,6 +939,10 @@
     display: flex; justify-content: space-between; align-items: center; gap: 18px;
     background: linear-gradient(178deg, #2c4f86, #1f3d6b); color: #fff8ec; padding: 4px 12px 5px;
   }
+  .dwell-plate .dp-next-label { display: none; font-size: calc(12.5px * var(--ui)); font-weight: 900; letter-spacing: 2px; }
+  .dwell-plate.dp-next .dp-strip { justify-content: center; }
+  .dwell-plate.dp-next .side { display: none; }
+  .dwell-plate.dp-next .dp-next-label { display: block; }
   .dwell-plate .side {
     display: flex; align-items: baseline; gap: 6px;
     font-size: calc(12.5px * var(--ui)); font-weight: 800; color: #fff8ec; white-space: nowrap;
@@ -1825,6 +1829,10 @@
   }
   /* fs 的 stage 滿版蓋到瀏海(沉浸式刻意),但退出鈕要讓位動態島 */
   body.fs #fsFab { top: calc(12px + var(--sa-t)); }
+  /* 隨機挑車的下一站牌是主動操作後的短暫提示：全畫面置中，避開左側跟車卡與其收合鈕。
+     一般到站牌維持原錨點；手機／橫式後段若有更精細的露出地圖中線，會依既有規則再覆寫。 */
+  body.fs .dwell-plate.dp-next { left: 50%; right: auto; transform: translateX(-50%) translateY(-5px); }
+  body.fs .dwell-plate.dp-next.show { transform: translateX(-50%); }
   /* 全畫面跟隨:資訊卡塞進左下跟隨面板,合併成一張可收放的卡(placeTrainCard 搬 DOM) */
   body.fs .follow-panel { width: calc(300px * var(--ui)); max-height: calc(100vh - 160px); max-height: calc(100dvh - 160px); }
   /* 膠囊(§04c 的收合態,現在也是設計 1a 的 collapsed):觸控目標補到 44(設計對照表 44/52/60)。
@@ -5259,6 +5267,7 @@
       <b id="dpName"></b>
       <div class="dp-strip">
         <span class="side left"><span class="arr">◀</span><span id="dpPrev"></span><span class="km" id="dpPrevKm"></span></span>
+        <span class="dp-next-label" id="dpNextLabel">下一站</span>
         <span class="side right"><span class="km" id="dpNextKm"></span><span id="dpNext"></span><span class="arr">▶</span></span>
       </div>
       <div class="dp-intro" id="dpIntro" style="display:none"></div>
@@ -5495,6 +5504,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="randomnextplate0919"><span class="d">9/19</span><span>按「隨機跟隨」或「換一班」時，地圖會短暫亮出月台風格的牌子，直接告訴你這班車的下一站</span></li>
         <li data-cl-of="tramground0919"><span class="d">9/19</span><span>高雄輕軌的五節車身重新對齊，近看不再一節高、一節低</span></li>
         <li data-cl-of="trastationanchor0919"><span class="d">9/19</span><span>台鐵誤點更新會核對官方所在車站；過站時的小幅誤點直接校正位置，同車次重複資料也不再把較大誤點蓋掉</span></li>
         <li data-cl-of="widgetrailjump0919"><span class="d">9/19</span><span>從台鐵發車看板或鐵路＋捷運雙看板點進軌島時，會回到正確的鐵路地圖與車站；臺北車站不會再被同名的捷運站截走</span></li>
@@ -5502,7 +5512,6 @@
         <li data-cl-of="updatebanner0919"><span class="d">9/19</span><span>App 有新版時，頂端的更新提示不再蓋住「觀看」按鈕</span></li>
         <li data-cl-of="overtakeplan0915"><span class="d">9/19</span><span>台鐵後車待避與對向交會都保留安全間隔，同一條軌道上互相穿過的情況再減少</span></li>
         <li data-cl-of="i18ngaps0919"><span class="d">9/19</span><span>英日文介面補上漏翻的按鈕、路線名、公告與提示，切換語言不再殘留前一種語言；車站看板太長的字改成兩行，不再被切掉；iOS 定位權限說明改用中文</span></li>
-        <li data-cl-of="night200907"><span class="d">9/19</span><span>暗色模式下，附近車站、平交道、糖鐵與儲存地點卡的關閉鈕與「存」看得見了</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5682,6 +5691,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="randomnextplate0919"><span class="d">9/19</span><span>按「隨機跟隨」或「換一班」時，地圖會短暫亮出月台風格的牌子，直接告訴你這班車的下一站</span></li>
         <li data-cl="followrotate0916"><span class="d">9/16</span><span>跟車轉動視角維持鎖定不中斷，並修正開啟車頭朝上時列車在轉彎處跑出畫面外的問題</span></li>
         <li data-cl="neardismiss0918"><span class="d">9/18</span><span>「附近車站」清單原本只有標題列那顆小小的 ✕ 關得掉，點地圖空白處或往下滑都沒反應，只能先點一站才收得起來；現在點空白處、往下滑都會收起來，✕ 的可按範圍也放大了</span></li>
         <li data-cl="citynav0916"><span class="d">9/16</span><span>選取縣市或搜尋車站後自動解除所在地鏡頭跟隨，避免地圖剛飛過去又隨即跳回使用者目前的定位點</span></li>
@@ -6564,7 +6574,8 @@
 //         地圖、即時徽章、異常統計與台鐵等站卡使用同一規則。守門人：verify_tra_live_anchor／verify_tra_motion／verify_tra_wait_core。
 // v0919j：修正五節鉸接輕軌列車逐節用 mesh minZ 貼地，導致無轉向架的懸掛車節誤降約 36 cm。
 //         同一編組改共用整列最低點為軌面基準；全 62 款列車軌面基準掃描與雙引擎實測納入守門。
-const BUILD = 'v0919j';
+// v0919k：使用者按隨機跟隨／換一班時，以月台牌短暫顯示新列車的下一站。
+const BUILD = 'v0919k';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -17609,6 +17620,7 @@ function setFollow(tr, isAuto, noJump, opts) {
   // 收掉等於把設計的兩分頁砍成一頁(狀態機 tapTrain 只切 tab,不關卡)。桌面維持原本的「一律收掉」。
   if (!uniMobile()) closeBoard();
   state.followTrain = tr; state.followId = tr.train;
+  state._randomNextPlate = null; // 換車先清掉上一班尚未淡出的「下一站」預告
   state._northReset = null; state._northUpTarget = null;
   // 轉乘站是「這一班車」的行程意圖；換車不能把上一班的站悄悄沿用到新車。
   if (busTransferJourney && busTransferJourney.trainKey !== busTransferTrainKey(tr)) busTransferCancelJourney(false);
@@ -17703,8 +17715,9 @@ function clearFollow() {
   syncPanFence(); // 台鐵/高鐵停跟:恢復台灣平移硬牆(setMaxBounds 會即刻把邊緣視野拉回框內)
   state._routePts = null; state._routeGlPts = null;
   state._plateStop = null;
+  state._randomNextPlate = null;
   updateFollowLockUI(); // 沒在跟隨就收起跟隨鎖鈕
-  const dp = document.getElementById('dwellPlate'); if (dp) dp.classList.remove('show');
+  const dp = document.getElementById('dwellPlate'); if (dp) dp.classList.remove('dp-next', 'show');
   document.body.classList.remove('dwell-show'); // 取消跟隨:清掉停靠讓位旗標,避免小卡在下次開 sheet 時仍被誤淡出
   // 🔴 2026-07-28 審查 B4：這行 replaceState 對 location.pathname 是全站唯一會把整條 query
   // string 一併抹掉的地方，而 boot() 的 loadAllGroup() 一開機就會呼叫一次 clearFollow()（實測
@@ -17862,7 +17875,7 @@ function pickTourTrain() {
   recent.push(pick); if (recent.length > TOUR_RECENT) recent.shift();
   return pick;
 }
-function nextTourTrain(now) {
+function nextTourTrain(now, announceNext) {
   if (state.ambient && !state.followLock && state.followTrain) return; // 自由瀏覽時保留原車，重新鎖定仍回同一班
   if (camBlocked()) return; // 劇場/背景分頁:不切換跟隨列車、不飛鏡頭(autoTour 狀態保留,回場續跑;成本防線)
   // 轉場防重入:到站觸發的換車條件(effT>終點arrSec)在淡出等待的每一幀都成立,
@@ -17877,7 +17890,11 @@ function nextTourTrain(now) {
     return;
   }
   const ts = document.getElementById('trainSearch'); if (ts) ts.value = tr.train;
-  if (!state.ambient) { setFollow(tr, true); return; }
+  if (!state.ambient) {
+    setFollow(tr, true);
+    if (announceNext) flashRandomNextPlate(tr);
+    return;
+  }
   if (state._ambientFresh) { state._ambientFresh = false; ambientJumpTo(tr); }
   else fadeSwitch(tr);
 }
@@ -17942,7 +17959,7 @@ function fadeSwitch(tr) {
     setTimeout(() => { state._transition = false; }, 750);
   }, 800);
 }
-function setAutoTour(on) {
+function setAutoTour(on, announceNext) {
   if (on) closeNearbyStations();
   if (on) state.geoFollow = false;
   if (on && state.mode !== 'sched') {
@@ -17956,7 +17973,7 @@ function setAutoTour(on) {
   document.getElementById('randLbl').textContent = t(on ? '換一班' : '隨機跟隨'); // 只換字,shuffle 圖示不動
   if (on) {
     if (!state.playing) togglePlay();
-    nextTourTrain();
+    nextTourTrain(undefined, announceNext);
   }
 }
 
@@ -24167,6 +24184,15 @@ function nextStopInfo(tr, t) {
   }
   return null;
 }
+// 使用者按「隨機跟隨／換一班」後，借用到站站名牌短暫報出下一站。
+// 只由按鈕路徑明示觸發；放空自動輪車與手動點車不顯示，避免頻繁干擾。
+function flashRandomNextPlate(tr) {
+  const info = tr && nextStopInfo(tr, effTLive(tr));
+  if (!info || tr !== state.followTrain) return;
+  state._randomNextPlate = { tr, stop: info.stop, until: performance.now() + 4000 };
+  state._plateStop = null;
+  updateFollowPanel(tr); // setFollow 已先畫過一次；按鈕放開當下就要看到牌，不等下一輪資訊刷新
+}
 // ── 台鐵列車近 30 天準點統計(誤點歷史資料庫;後端 /api/delay-stats) ──
 // 首次需要時才 lazy fetch 一次:in-flight 去重、失敗靜默不重試(標記已載入空物件)、成功存 state 本 session 共用。
 function ensureDelayStats() {
@@ -24471,9 +24497,23 @@ function updateFollowPanel(tr) {
     stEl.classList.add('run');
   }
   stEl.hidden = false;
-  // 停靠站名牌:進站淡入、開車淡出;左右鄰站取實際相鄰站(含通過站)
+  // 站名牌:隨機挑車後先短暫報下一站；其餘時間維持既有的進站淡入、開車淡出。
+  // 隨機預告優先於停靠牌，四秒後若列車仍停站便自然切回「目前停靠站＋左右鄰站」。
   const plate = document.getElementById('dwellPlate');
-  if (dwelling) {
+  let randomNext = state._randomNextPlate;
+  if (randomNext && (randomNext.tr !== tr || performance.now() >= randomNext.until)) {
+    state._randomNextPlate = null; randomNext = null;
+  }
+  if (randomNext) {
+    if (state._plateStop !== randomNext) {
+      state._plateStop = randomNext;
+      document.getElementById('dpName').textContent = stationName(randomNext.stop.name, tr.sys);
+      document.getElementById('dpNextLabel').textContent = t('下一站');
+      const di = document.getElementById('dpIntro'); di.innerHTML = ''; di.style.display = 'none';
+    }
+    plate.classList.add('dp-next', 'show');
+    document.body.classList.add('dwell-show');
+  } else if (dwelling) {
     if (state._plateStop !== dw.st) {
       state._plateStop = dw.st;
       const prev = tr.stops[dw.i - 1], next = tr.stops[dw.i + 1];
@@ -24492,9 +24532,10 @@ function updateFollowPanel(tr) {
       if (introHtml) { di.innerHTML = introHtml; di.style.display = ''; }
       else { di.innerHTML = ''; di.style.display = 'none'; }
     }
+    plate.classList.remove('dp-next');
     plate.classList.add('show');
     document.body.classList.add('dwell-show'); // 停靠站名牌顯示中:他 sheet 展開(sheet-open)時讓跟車小卡淡出讓位(見 CSS body.dwell-show.sheet-open)
-  } else { plate.classList.remove('show'); document.body.classList.remove('dwell-show'); state._plateStop = null; }
+  } else { plate.classList.remove('dp-next', 'show'); document.body.classList.remove('dwell-show'); state._plateStop = null; }
   // 即時時速(取前後 20 秒位移換算);大數字讀數,看著有速度感。
   // 車種極速是硬上限:位置曲線本身已被夾在極速內(buildObsProfile),但相鄰段換軌道形狀物件時
   // 端點未必完全重合,會有極稀少的位置跳躍(全網逐秒取樣 8.38M 次中 397 次,0.005%,最大 201.6),
@@ -37002,7 +37043,7 @@ document.getElementById('tcSheetClose').onclick = (e) => { e.stopPropagation(); 
 // 車次介紹卡的「誤點履歷 ›」次要入口(fs 模式卡會被搬進跟隨面板,stopPropagation 避免觸發膠囊展開)
 document.getElementById('tcDelayHist').onclick = (e) => { e.stopPropagation(); openDelayHist(state.followTrain); };
 // 每按一次跳一班隨機列車(已在隨機模式再按=立刻換車,不是關閉);結束靠小卡 ×/點跟隨中的列車/手動選車
-document.getElementById('randBtn').onclick = () => state.autoTour ? nextTourTrain() : setAutoTour(true);
+document.getElementById('randBtn').onclick = () => state.autoTour ? nextTourTrain(undefined, true) : setAutoTour(true, true);
 document.getElementById('ambientStyleBtn').onclick = () =>
   setAmbientStyle(state.ambientStyle === 'hotspot' ? 'follow' : 'hotspot');
 document.getElementById('rideBtn').onclick = () => {
