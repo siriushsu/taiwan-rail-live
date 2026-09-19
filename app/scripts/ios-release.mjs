@@ -57,6 +57,7 @@ console.log(`  未提交  ${dirty.length} 個路徑${dirty.length ? `\n${dirty.s
 // 固定放進唯一出檔指令，讓每顆 iOS build 都先驗真實觸控、WebKit 與旅程分享生命週期。
 console.log('\n  ▸ iPhone／iPad 與轉乘旅程驗收');
 sh('npm', ['run', 'check-tablet'], { cwd: repoRoot });
+sh('npm', ['run', 'check-app-message-pitch'], { cwd: repoRoot });
 sh('npm', ['run', 'check-bus-transfer'], { cwd: repoRoot });
 sh('npm', ['run', 'check-transfer-live-handoff'], { cwd: repoRoot });
 sh('npm', ['run', 'check-live-activity'], { cwd: repoRoot });

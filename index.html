@@ -1783,13 +1783,14 @@
   .toasts {
     position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 720;
     display: flex; flex-direction: column; align-items: center; gap: 8px;
-    pointer-events: none; max-width: calc(100% - 24px);
+    pointer-events: none; width: min(420px, calc(100% - 24px));
   }
   .toast {
     background: var(--paper); border: 1.5px solid var(--gold); border-radius: 10px;
     box-shadow: 0 3px 0 rgba(163,100,26,.3);
     padding: 9px 18px; font-size: calc(14px * var(--ui)); font-weight: 700; color: var(--ink);
-    white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+    width: max-content; max-width: 100%; box-sizing: border-box;
+    white-space: normal; overflow-wrap: anywhere;
     opacity: 0; transform: translateY(-10px); transition: opacity .4s ease, transform .4s ease;
   }
   .toast.show { opacity: 1; transform: none; }
@@ -1806,14 +1807,10 @@
     background: color-mix(in srgb, var(--paper) 88%, transparent);
   }
   .toasts.corner .toast.show { opacity: .92; }
-  /* 說明型 toast（訊號恢復、位置為什麼會跳…）本來就是一整句話，單行截斷等於沒通知：
-     2026-08-15 實測手機 390px 只看得到前 20 個字、「有幾台被移除」整句被 … 吃掉。
-     這類改成可換行、靠左讀，一般的短提示（完乘、蓋章）維持原本的單行置中。 */
-  /* 寬度要明寫，而且基準不能用 %：欄狀 flex 的 align-items:center 讓容器與可換行的子項互相
-     shrink-to-fit（100% 解析回容器、容器又跟著內容縮），實測手機卡在 195px 寬、275px 高的窄長條。
-     改用視窗單位打斷這個循環：手機吃滿可用寬、桌面停在可讀行長。 */
-  .toast.wrap { white-space: normal; text-align: left; line-height: 1.55;
-    width: min(100vw - 24px, 420px); }
+  /* 所有 toast 都允許在畫面邊緣前自然換行：短提示仍由 width:max-content 維持單行置中，
+     說明型與動態站名則會收在 420px 內完整顯示。.wrap 只額外指定全寬與靠左閱讀，
+     容器寬度必須明寫，避免欄狀 flex 與可換行子項互相 shrink-to-fit 成窄長條。 */
+  .toast.wrap { text-align: left; line-height: 1.55; width: 100%; }
   .toast b { color: var(--ink-strong); }
   .toast .ri-icon { width: 14px; height: 14px; margin-right: 2px; vertical-align: -.18em; }
 
@@ -5504,6 +5501,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="appnoticegeo0919"><span class="d">9/19</span><span>App 的長提示現在會完整換行，不再被列車卡片或畫面邊緣截斷，點通知外面即可收起；地圖傾斜時也會隱藏定位點，不會被拍進截圖或錄影</span></li>
         <li data-cl-of="randomnextplate0919"><span class="d">9/19</span><span>按「隨機跟隨」或「換一班」時，地圖會短暫亮出月台風格的牌子，直接告訴你這班車的下一站</span></li>
         <li data-cl-of="tramground0919"><span class="d">9/19</span><span>高雄輕軌的五節車身重新對齊，近看不再一節高、一節低</span></li>
         <li data-cl-of="trastationanchor0919"><span class="d">9/19</span><span>台鐵誤點更新會核對官方所在車站；過站時的小幅誤點直接校正位置，同車次重複資料也不再把較大誤點蓋掉</span></li>
@@ -5511,7 +5509,6 @@
         <li data-cl-of="cexpiostap0919"><span class="d">9/19</span><span>iPhone／iPad 底部速度膠囊淡出後點一下就會展開，不用再點兩下、也不會誤觸暫停</span></li>
         <li data-cl-of="updatebanner0919"><span class="d">9/19</span><span>App 有新版時，頂端的更新提示不再蓋住「觀看」按鈕</span></li>
         <li data-cl-of="overtakeplan0915"><span class="d">9/19</span><span>台鐵後車待避與對向交會都保留安全間隔，同一條軌道上互相穿過的情況再減少</span></li>
-        <li data-cl-of="i18ngaps0919"><span class="d">9/19</span><span>英日文介面補上漏翻的按鈕、路線名、公告與提示，切換語言不再殘留前一種語言；車站看板太長的字改成兩行，不再被切掉；iOS 定位權限說明改用中文</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5767,6 +5764,7 @@
         <li><span class="d">7/13</span><span>新增「附近火車」：地圖上落一根釘，查周邊 60 分鐘內會通過的車次</span></li>
         <li><span class="d">7/12</span><span>新增平交道功能：點一下查接下來會通過的列車（7/13 補上貨運線 21 處）</span></li>
         <li class="grp">收藏、護照與成就</li>
+        <li data-cl="appnoticegeo0919"><span class="d">9/19</span><span>App 的長提示改為完整換行，即使頂部工具與列車卡片之間空間不夠，也不再只剩上半句，點通知外面就能提前收起；任何傾斜視角都會隱藏定位精度圈、脈動環與藍點，回到平面視角才恢復</span></li>
         <li data-cl="favstangeo0916"><span class="d">9/16</span><span>最愛車站星號整合至站名標籤避免遮蔽文字，隨視距自然淡出；傾斜跟車時自動隱藏定位大圈與脈動環，維持 3D 視角純淨</span></li>
         <li data-cl="dexmisscard0908"><span class="d">9/8</span><span>護照收集章今天沒有班次時，點下去會在章旁邊跳出這班車的故事，並依班表告訴你下一個開行日與之後幾天；班表過期或十四天內都沒有開行時只說明沒有，不推測日期</span></li>
         <li data-cl="dexstarsys0908"><span class="d">9/8</span><span>修正護照收集章「環島之星 萌旅號」：台鐵與阿里山林鐵都有 1、2 次車，點下去會跑成林鐵的車。收集章與今日亮點現在只認台鐵班次</span></li>
@@ -6574,8 +6572,8 @@
 //         地圖、即時徽章、異常統計與台鐵等站卡使用同一規則。守門人：verify_tra_live_anchor／verify_tra_motion／verify_tra_wait_core。
 // v0919j：修正五節鉸接輕軌列車逐節用 mesh minZ 貼地，導致無轉向架的懸掛車節誤降約 36 cm。
 //         同一編組改共用整列最低點為軌面基準；全 62 款列車軌面基準掃描與雙引擎實測納入守門。
-// v0919k：使用者按隨機跟隨／換一班時，以月台牌短暫顯示新列車的下一站。
-const BUILD = 'v0919k';
+// v0919l：App 長提示完整換行不再被限高裁切；地圖傾斜時隱藏完整定位點。
+const BUILD = 'v0919l';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -14043,11 +14041,13 @@ const GPS_RGB = (() => { // 精度圈要半透明,把 hex 拆成 r,g,b 備用
 // (2.1 秒一輪、scale .55→2.7、opacity .5→0),換成畫布後外觀一致。
 function drawMe() {
   if (!mePos) return;
+  const pitch = typeof M.getPitch === 'function' ? M.getPitch() : 0;
+  // 定位點（含精度圈、脈動環與中心藍點）是使用者的位置，不該出現在傾斜取景的截圖或錄影裡。
+  // 舊版只在「跟車且 pitch > 15°」時藏外圈，中心藍點仍會被錄進去；手動傾斜更完全不會藏。
+  // 門檻與 MapLibre 的 map-orient-active 一致，只有真正回到平面視角才恢復。
+  if (pitch > .05) return;
   const opacity = (typeof M.detailOpacity === 'function') ? M.detailOpacity([mePos.lat, mePos.lon]) : 1;
   if (opacity <= 0) return; // 視距淡出:遠方地平線不畫孤立藍點
-  const isFollowing = !!(state.followTrain || state.freqFollow);
-  const pitch = typeof M.getPitch === 'function' ? M.getPitch() : 0;
-  const hideCircle = isFollowing && pitch > 15;
 
   const p = M.toScreen([mePos.lat, mePos.lon]);
   const mPerPx = 40075016.686 * Math.cos(mePos.lat * Math.PI / 180) / (256 * Math.pow(2, M.getZoom()));
@@ -14055,17 +14055,15 @@ function drawMe() {
 
   ctx.save();
   ctx.globalAlpha = opacity;
-  if (!hideCircle && rPx > 12) { // 精度圈比藍點還小就不必畫,只會糊成一團;傾斜跟車時隱藏
+  if (rPx > 12) { // 精度圈比藍點還小就不必畫,只會糊成一團
     ctx.beginPath(); ctx.arc(p.x, p.y, rPx, 0, Math.PI * 2);
     ctx.fillStyle = `rgba(${GPS_RGB},.10)`; ctx.fill();
     ctx.strokeStyle = `rgba(${GPS_RGB},.5)`; ctx.lineWidth = 1; ctx.stroke();
   }
-  if (!hideCircle) { // 脈動環:傾斜跟車時隱藏
-    const t = (performance.now() % 2100) / 2100;
-    ctx.globalAlpha = opacity * .5 * (1 - t);
-    ctx.beginPath(); ctx.arc(p.x, p.y, 11 * (.55 + 2.15 * t), 0, Math.PI * 2);
-    ctx.fillStyle = GPS_BLUE; ctx.fill();
-  }
+  const t = (performance.now() % 2100) / 2100;
+  ctx.globalAlpha = opacity * .5 * (1 - t);
+  ctx.beginPath(); ctx.arc(p.x, p.y, 11 * (.55 + 2.15 * t), 0, Math.PI * 2);
+  ctx.fillStyle = GPS_BLUE; ctx.fill();
   ctx.globalAlpha = opacity;
   ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);   // 白色外環(在深色底圖上也看得見)
   ctx.fillStyle = '#fff'; ctx.shadowColor = 'rgba(0,0,0,.32)'; ctx.shadowBlur = 2; ctx.shadowOffsetY = 1; ctx.fill();
@@ -20924,20 +20922,18 @@ function placeMobileNotice(el) {
     const c = document.querySelector(sel);
     if (c && c.offsetParent) { const r = c.getBoundingClientRect(); if (r.height && r.bottom > pr.top) topV = Math.max(topV, r.bottom + 8); }
   }
-  let botV = pr.bottom - 8; // 下界:跟隨資訊卡頂(若顯示) - 8px,否則到 stage 底
-  for (const id of ['followPanel', 'freqCard']) {
-    const f = document.getElementById(id);
-    if (f && !f.hidden && f.offsetParent) { const r = f.getBoundingClientRect(); if (r.height) botV = Math.min(botV, r.top - 8); }
-  }
   // 🔴 寫成「量到的值扣掉當下安全區＋var(--sa-t)」,不寫絕對 px:Capacitor(Android WebView)的安全區是
   //    開機後才注入、且不觸發任何事件,頂列與 .map-actions 會整條往下移而尺寸不變(ResizeObserver 也不開火),
-  //    寫死的 inline top 就被它們蓋住(memory top-stack-hardcoded-offsets 形狀一)。下界是地圖底部的卡,不隨安全區動,
-  //    所以可用高度要反向扣回同一個量。
+  //    寫死的 inline top 就被它們蓋住(memory top-stack-hardcoded-offsets 形狀一)。
   const sat = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sa-t')) || 0;
   el.style.top = `calc(${topV - pr.top - sat}px + var(--sa-t))`;
   el.style.bottom = 'auto';
-  el.style.maxHeight = `max(64px, calc(${botV - topV + sat}px - var(--sa-t)))`;
-  el.style.overflowY = 'auto';
+  // 頂列工具與跟車卡在矮手機上可能已經上下交疊，兩者之間根本沒有足夠空檔。舊版仍硬把 toast
+  // 限高成最少 64px，長訊息就只剩前三行、下半截被 overflow 捲區裁掉（而暫態通知沒有可見捲軸，
+  // 使用者也不會知道要捲）。空檔不足時允許通知暫時蓋在卡片上方；toast 的 z-index 本來就比卡片高，
+  // 五秒後會自動消失。完整讀得到比「永遠不碰卡片」重要，且不再製造看似壞掉的半句訊息。
+  el.style.maxHeight = '';
+  el.style.overflowY = 'visible';
 }
 // ── App 版本提示:純邏輯層 ─────────────────────────────────────────────────
 // 逐段比整數,不是字串比較。依據:線上曾出現版本字串 `1.02`,Apple 逐段比整數 ⇒ [1,2],
@@ -21279,6 +21275,24 @@ function showToast(msg, { wrap = false, corner = false } = {}) {
   requestAnimationFrame(() => el.classList.add('show'));
   setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 450); }, 5000);
 }
+// 暫態通知不該強迫使用者等五秒。點通知卡以外的任何地方就整批收起，但不 preventDefault／
+// stopPropagation，原本那一下地圖拖曳、按鈕或分頁操作仍照常生效。
+// .toasts 本身是 pointer-events:none，事件 target 會落到後面的地圖；因此不能靠 closest('.toast')，
+// 必須用實際矩形判斷手指是否落在看得到的通知卡內。
+function dismissToastsOutside(ev) {
+  const active = [...document.querySelectorAll('#toasts .toast.show, #toastsCorner .toast.show')];
+  if (!active.length) return;
+  const x = Number(ev.clientX), y = Number(ev.clientY);
+  if (Number.isFinite(x) && Number.isFinite(y) && active.some(el => {
+    const r = el.getBoundingClientRect();
+    return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  })) return;
+  for (const el of active) {
+    el.classList.remove('show');
+    setTimeout(() => el.remove(), 450);
+  }
+}
+document.addEventListener('pointerdown', dismissToastsOutside, true);
 function announceCollections(tr, rides, prevColl, prevAch, prevGarage = new Set()) {
   const msgs = [t('完乘達成　<b>{train} 次</b> 抵達終點', { train: escHtml(tr.train) })];
   const coll = collectionOf(rides), sd = state.special;
@@ -21895,7 +21909,7 @@ function startRiding(tr, toIdx) {
   showToast(t('開始收集 · {from} → {to}{note}', {
     from: escHtml(stationName(st.name, tr.sys)), to: escHtml(stationName(tr.stops[toIdx].name, tr.sys)),
     note: j.ok ? '' : t('（沒定到位置，上車站先算搭過）')
-  }));
+  }), { wrap: true });
   renderPassport(); renderRidePanel(); updateRideBtn(state.followTrain);
   return true;
 }
@@ -21928,7 +21942,7 @@ function finishRiding(tr, r) {
     }, n), true);
   showToast(t('收集完成 · {from} → {to} 共 {n} 座站', {
     from: escHtml(stationName(r.fromName, tr.sys)), to: escHtml(stationName(st.name, tr.sys)), n: i18nNumber(n)
-  }, n));
+  }, n), { wrap: true });
   renderPassport(); renderRidePanel(); updateRideBtn(state.followTrain);
 }
 // 票券鈕三態:未上車(空心)/搭這班車中(實心紅,按了下車)/搭別班車中(灰虛線,擋住重複上車)
