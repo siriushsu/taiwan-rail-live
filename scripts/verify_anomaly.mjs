@@ -40,7 +40,11 @@ page.on('pageerror', e => pageErrors.push(String(e)));
 //   setInterval(pollLive, 60e3) 會用真資料把注入值整顆洗掉——同族假紅的根因與擋法
 //   照 verify_tra_motion(acbb7c3);pollLive 有 try/catch,abort 不會產生 pageerror。
 await page.route('**/*tra-live*', r => r.abort());
-page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text()); });
+// 純靜態 server 沒有 /api：頁面的定時輪詢打到會印「Failed to load resource … 404」，落不落在測試窗內看時機
+// （2026-09-19 v0919f 出貨鏈同碼六跑一紅：新增 2 個全是這種）。只排除「/api/ 的資源載入失敗」這一種；
+// 缺靜態檔的 404 與任何真的 console.error 照算。
+const API_LOAD_NOISE = m => /^Failed to load resource/.test(m.text()) && /\/api\//.test((m.location() || {}).url || '');
+page.on('console', m => { if (m.type() === 'error' && !API_LOAD_NOISE(m)) consoleErrors.push(m.text()); });
 
 await page.goto(URLROOT + '?lang=zh-TW', { waitUntil: 'domcontentloaded' });
 await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready; } catch (e) { return false; } }, null, { timeout: 30000 });
@@ -254,7 +258,7 @@ const OVER = [900, 900, 900, 900, 900, 900];                   // 全部 +15 分
 // ── 錯誤基線 ──
 const newPageErr = pageErrors.length - basePageErr, newConsole = consoleErrors.length - baseConsole;
 ok('Z1 測試期間無新 pageerror', newPageErr === 0, `新增 ${newPageErr}(基線 ${basePageErr})`);
-ok('Z2 測試期間無新 console error', newConsole === 0, `新增 ${newConsole}(基線 ${baseConsole}:多為 /api 404 等既有雜訊)`);
+ok('Z2 測試期間無新 console error', newConsole === 0, `新增 ${newConsole}(基線 ${baseConsole};/api 資源載入失敗不計)`);
 
 await browser.close();
 await new Promise(r => server.close(r));
