@@ -6112,7 +6112,7 @@
       <span id="recQualityText">等待定位</span>
     </div>
     <div class="rc-big"><span id="recKm">0.0</span><small>公里</small></div>
-    <div class="rc-row"><span id="recSegs">0</span> <span id="recUnitWord">段</span>已覆蓋・<span id="recPts">0</span> 點已鎖定</div>
+    <div class="rc-row" id="recRow"><span id="recSegs">0</span> <span id="recUnitWord">段</span>已覆蓋・<span id="recPts">0</span> 點已鎖定</div>
     <div class="rc-bar"><i id="recBar"></i></div>
   </div>
   <button class="rc-stop" id="recStop" type="button">停止錄製</button>
@@ -6576,7 +6576,14 @@ const I18N_ATTR_SOURCE = new WeakMap();
 // 留下的是外語文字節點，i18nTranslateTree 拿它查字典查不到，下次換語言就整段卡在上一個語言
 // (2026-09-19 使用者回報：選了英文，通行證那列、「其他設定」、帳號同步仍是日文)。
 // 只收不帶 {變數} 的整句：插值句反推不回原文，那種一律由產生它的函式在 i18nRefreshDynamic 重畫。
+// 2026-09-19 複審修正(實測英文切回中文):一個譯文可能對到好幾個原文——「旅」「票」「通行證」英文都是 Pass、
+// 平交道圖示「平」的英文是「×」——同一張表後寫的蓋前面的,關閉鈕的「×」被認成「平」、通行證鈕被認成「旅」。
+// 所以:(一)i18nTranslateTree 自己替靜態節點呼叫的 t() 不進表(那些節點各有原文紀錄,不需要反查);
+// (二)純符號的譯文不進表;(三)反查只用在「換語言那一刻畫面上已經有的舊節點」(I18N_SWITCH_SNAPSHOT),
+// 剛用新語言重畫的節點不反查,免得新語言裡碰巧同字的字面值被改成別的字。
 const I18N_PRODUCED = { en: new Map(), ja: new Map() };
+let I18N_TREE_PASS = false;
+let I18N_SWITCH_SNAPSHOT = null;
 let I18N_PREV_LANG = null;
 document.documentElement.lang = I18N_LANG;
 
@@ -6593,8 +6600,8 @@ function t(source, vars = {}, count = vars.n) {
     const rule = new Intl.PluralRules(I18N_LANG).select(Number(count));
     value = value[rule] ?? value.other ?? fallback;
   }
-  const produced = I18N_PRODUCED[I18N_LANG];
-  if (produced && typeof value === 'string' && value !== fallback && !value.includes('{')) produced.set(value.trim(), fallback);
+  const produced = I18N_TREE_PASS ? null : I18N_PRODUCED[I18N_LANG];
+  if (produced && typeof value === 'string' && value !== fallback && !value.includes('{') && /\p{L}/u.test(value)) produced.set(value.trim(), fallback);
   return String(value).replace(/\{([\w]+)\}/g, (_, key) => {
     const replacement = vars[key];
     return replacement == null ? '' : String(replacement);
@@ -6641,11 +6648,11 @@ function i18nProducedSource(text) {
 const I18N_TEXT_PATTERNS = [
   { re: /^最後更新：(.+)$/, key: '最後更新：{date}', name: 'date' },
 ];
-// 認出一段畫面文字的原文：繁中原文本身、t() 產出過的外語整句、或上面的樣板句。認不出來回 null。
-function i18nSourceOf(text) {
+// 認出一段畫面文字的原文：繁中原文本身、t() 產出過的外語整句(只限換語言時的舊節點)、或上面的樣板句。認不出來回 null。
+function i18nSourceOf(text, allowProduced = false) {
   if (!text) return null;
   if (i18nHasTranslation(text)) return { key: text };
-  const produced = i18nProducedSource(text);
+  const produced = allowProduced ? i18nProducedSource(text) : null;
   if (produced != null) return { key: produced };
   for (const p of I18N_TEXT_PATTERNS) {
     const m = p.re.exec(text);
@@ -6653,8 +6660,28 @@ function i18nSourceOf(text) {
   }
   return null;
 }
+// setLanguage 開頭呼叫:記下此刻畫面上的文字節點與屬性值,i18nTranslateTree 只對這些舊東西反查。
+// 翻譯器會翻的屬性。alt 是圖片的替代文字(讀屏軟體念、圖載不到時顯示),跟 title 一樣是給人看的字。
+const I18N_TREE_ATTRS = ['title', 'aria-label', 'placeholder', 'alt'];
+function i18nSwitchSnapshot() {
+  const text = new WeakSet(), attrs = new WeakMap();
+  if (!document.body) return { text, attrs };
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) text.add(node);
+  for (const el of document.body.querySelectorAll('[title], [aria-label], [placeholder], [alt]')) {
+    const values = {};
+    for (const attr of I18N_TREE_ATTRS) if (el.hasAttribute(attr)) values[attr] = el.getAttribute(attr);
+    attrs.set(el, values);
+  }
+  return { text, attrs };
+}
 function i18nTranslateTree(root = document.body) {
   if (!root) return;
+  const snap = I18N_SWITCH_SNAPSHOT;
+  I18N_TREE_PASS = true;
+  try { i18nTranslateTreeWalk(root, snap); } finally { I18N_TREE_PASS = false; }
+}
+function i18nTranslateTreeWalk(root, snap) {
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   let node;
   while ((node = walker.nextNode())) {
@@ -6666,7 +6693,7 @@ function i18nTranslateTree(root = document.body) {
     if (source && node.nodeValue !== source.rendered) source = null;
     if (source == null) {
       const raw = node.nodeValue || '', trimmed = raw.trim();
-      const found = i18nSourceOf(trimmed);
+      const found = i18nSourceOf(trimmed, !!snap && snap.text.has(node));
       if (!found) { I18N_TEXT_SOURCE.delete(node); continue; }
       source = { raw, text: trimmed, key: found.key, vars: found.vars };
       I18N_TEXT_SOURCE.set(node, source);
@@ -6677,12 +6704,12 @@ function i18nTranslateTree(root = document.body) {
   const elements = root.nodeType === 1 ? [root, ...root.querySelectorAll('*')] : [...root.querySelectorAll('*')];
   for (const el of elements) {
     let saved = I18N_ATTR_SOURCE.get(el);
-    for (const attr of ['title', 'aria-label', 'placeholder']) {
+    for (const attr of I18N_TREE_ATTRS) {
       if (!el.hasAttribute(attr)) continue;
       const current = el.getAttribute(attr);
       let record = saved && saved[attr];
       if (!record || current !== record.rendered) {
-        const found = i18nSourceOf(current);
+        const found = i18nSourceOf(current, !!snap && snap.attrs.get(el)?.[attr] === current);
         if (!found) { if (record) delete saved[attr]; continue; }
         if (!saved) { saved = {}; I18N_ATTR_SOURCE.set(el, saved); }
         record = saved[attr] = { key: found.key, vars: found.vars, rendered: current };
@@ -6698,12 +6725,18 @@ function i18nNormalizeName(value) {
 function i18nDisplayForeign(value) {
   return String(value || '').replace(/_([^_]+)/g, ' ($1)').replace(/\s{2,}/g, ' ');
 }
+// 掃全部系統的結果只跟「語言＋表別＋原文」有關,記起來:站名標籤每幀都會走到這條路。索引載入後清空。
+const I18N_SCAN_CACHE = new Map();
 function i18nCatalogValue(group, sysId, source) {
   if (I18N_LANG === 'zh-TW' || !source) return source || '';
   const table = I18N_CATALOG[group] || {};
-  // 捷運車站物件的 sys 是 'freq'／'deco'(畫法代碼，不是系統代碼)，索引裡沒有這種鍵；
+  // 捷運車站物件的 sys 是 'freq'／'deco'(畫法代碼，不是系統代碼)，打卡與護照存的是 'metro'，索引裡都沒有這種鍵；
   // 查不到系統時改掃全部系統，不要直接退回繁中(公車接續卡的站名就是這樣一直是中文)。
-  const systems = sysId && table[sysId] ? [sysId] : Object.keys(table);
+  // 呼叫端手上有真正的系統代碼(_i18nSys／metroSysId)就該傳那個——掃全部只是沒有時的退路。
+  const scanAll = !(sysId && table[sysId]);
+  // 捷運畫法代碼只可能是捷運站,不去比台鐵／高鐵／林鐵(*_sched):高雄「美術館」「科工館」兩邊都有,譯名不同。
+  const metroOnly = sysId === 'freq' || sysId === 'deco' || sysId === 'metro';
+  const systems = scanAll ? Object.keys(table).filter(id => !metroOnly || !/_sched$/.test(id)) : [sysId];
   const sources = [String(source)];
   // 官方到站看板會回「動物園站」，而靜態路網與官方譯名索引使用「動物園」。只在站名表
   // 額外試一次去掉尾端「站／車站」；精確名稱仍優先，查不到外語才安全退回原繁中。
@@ -6711,17 +6744,30 @@ function i18nCatalogValue(group, sysId, source) {
     const bare = String(source).replace(/(?:車站|站)$/, '').trim();
     if (bare && bare !== source) sources.push(bare);
   }
-  const wanted = new Set(sources.map(i18nNormalizeName));
-  for (const id of systems) {
-    const rows = table[id] || {};
-    const direct = sources.map(name => rows[name]).find(Boolean) ||
-      Object.entries(rows).find(([name]) => wanted.has(i18nNormalizeName(name)))?.[1];
-    if (direct && direct[I18N_LANG]) return i18nDisplayForeign(direct[I18N_LANG]);
+  const cacheKey = scanAll ? [I18N_LANG, group, metroOnly ? 'metro' : '*', sources[0]].join('\n') : null;
+  let found = cacheKey == null ? undefined : I18N_SCAN_CACHE.get(cacheKey);
+  if (found === undefined) {
+    const wanted = new Set(sources.map(i18nNormalizeName));
+    const values = new Set();
+    for (const id of systems) {
+      const rows = table[id] || {};
+      const direct = sources.map(name => rows[name]).find(Boolean) ||
+        Object.entries(rows).find(([name]) => wanted.has(i18nNormalizeName(name)))?.[1];
+      if (direct && direct[I18N_LANG]) values.add(i18nDisplayForeign(direct[I18N_LANG]));
+    }
+    // 不知道是哪個系統時,同名站可能分屬兩個系統(台北與台中都有「市政府」):譯名全都一樣才採用,
+    // 不一樣就不猜、往下走通用查法(最後是繁中原文)——台中的站被寫成 Taipei City Hall 比留繁中更糟。
+    found = values.size === 1 ? [...values][0] : '';
+    if (cacheKey != null) I18N_SCAN_CACHE.set(cacheKey, found);
   }
+  if (found) return found;
   // 分支線名「中和新蘆線（迴龍）」：索引只有線名與站名，兩段各自翻好再組回去。
   const branch = group === 'routes' && !i18nHasTranslation(String(source)) && /^(.+?)（([^（）]+)）$/.exec(String(source).trim());
   if (branch) {
-    const base = i18nCatalogValue('routes', sysId, branch[1]), place = i18nCatalogValue('systems', sysId, branch[2]);
+    // 括號裡也可能是起訖兩站「縱貫線北段（基隆–竹南）」(台鐵用 –、林鐵用 －):逐站當站名翻,不整串查
+    const ends = branch[2].split(/[–－]/).map(name => name.trim());
+    const base = i18nCatalogValue('routes', sysId, branch[1]);
+    const place = ends.length > 1 ? ends.map(name => i18nCatalogValue('systems', sysId, name)).join('–') : i18nCatalogValue('systems', sysId, branch[2]);
     if (base !== branch[1] || place !== branch[2]) return I18N_LANG === 'ja' ? `${base}（${place}）` : `${base} (${place})`;
   }
   return t(source);
@@ -6744,7 +6790,7 @@ async function i18nLoadCatalog() {
     const response = await fetch('./i18n/stations.json');
     if (!response.ok) throw new Error('HTTP ' + response.status);
     const data = await response.json();
-    if (data && data.systems && data.routes && data.trainTypes) I18N_CATALOG = data;
+    if (data && data.systems && data.routes && data.trainTypes) { I18N_CATALOG = data; I18N_SCAN_CACHE.clear(); }
   } catch (error) {
     console.warn('站名翻譯索引載入失敗，已安全退回繁中', error);
   }
@@ -6772,10 +6818,17 @@ function i18nSyncDocumentMeta() {
   if (description) description.content = t('軌島 railisland.tw。看台鐵此刻準點嗎、捷運怎麼穿梭全台，一張會動的台灣鐵道地圖。');
 }
 let I18N_CHANGELOG_ZH_HTML = null;
+// 繁中原文要在第一次 i18nTranslateTree 之前拍下(boot() 開頭就呼叫):外語開機時整頁一開始就先翻過一輪,
+// 晚一步才拍到的「繁中」裡已經夾著外語,切回中文時整段只能靠反查猜回來。
+function i18nCaptureChangelogZh() {
+  if (I18N_CHANGELOG_ZH_HTML != null) return;
+  const details = document.querySelector('.site-foot .foot-more');
+  if (details) I18N_CHANGELOG_ZH_HTML = details.innerHTML;
+}
 function i18nRenderChangelog() {
   const details = document.querySelector('.site-foot .foot-more');
   if (!details) return;
-  if (I18N_CHANGELOG_ZH_HTML == null) I18N_CHANGELOG_ZH_HTML = details.innerHTML;
+  i18nCaptureChangelogZh();
   if (I18N_LANG === 'zh-TW') {
     if (details.dataset.i18nSummary) {
       details.innerHTML = I18N_CHANGELOG_ZH_HTML;
@@ -6816,10 +6869,33 @@ function i18nRefreshDynamic() {
   try { if (typeof updateCount === 'function' && state?.ready) updateCount(); } catch (e) {}
   try { if (typeof renderSystemsBar === 'function' && state && state.group) renderSystemsBar(); } catch (e) {}
   try { if (typeof refreshCurrentMetaI18n === 'function') refreshCurrentMetaI18n(); } catch (e) {}
+  // 強制更新閘門開著時換語言:內文帶版本號插值,反推不回原文,照原句重寫(閘門蓋住整個畫面,
+  // 目前唯一的語言鈕點不到;留著是為了將來從原生端切語言時不會整段卡在上一個語言)。
+  try {
+    const gate = document.getElementById('appGate');
+    if (gate) {
+      const title = gate.querySelector('#agTitle'), body = gate.querySelector('.ag-box p'), go = gate.querySelector('#appGateGo');
+      if (title) title.textContent = t('需要更新');
+      if (body) body.textContent = t('這個版本（{version}）已停止支援，部分服務無法再使用。請更新到最新版，馬上就好。', { version: String(window.RAIL_APP_VERSION) });
+      if (go) go.textContent = t('前往更新');
+    }
+  } catch (e) {}
   try { if (typeof refreshDataNoteI18n === 'function') refreshDataNoteI18n(); } catch (e) {}
+  // 開機時寫一次就不再重畫的幾處:路線篩選晶片(站名、車種走目錄譯名,反查認不回來)、軌道鈕的說明
+  // (帶模式插值)、通行證入口(「票」「通行證」「旅」英文都是 Pass)、更多抽屜的資料狀態列(抄徽章的字)。
+  // 2026-09-19 實測英文切回中文時這幾處整段留在英文或變成別的字。
+  try { if (typeof buildToggles === 'function' && state?.ready && document.getElementById('lineToggles')) buildToggles(); } catch (e) {}
+  try { if (state?._setTrackStyle && state.trackStyle) state._setTrackStyle(state.trackStyle); } catch (e) {}
+  // 通行證入口:setupPlusEntry() 重跑一次就是重寫那幾格字(重綁同一個 onclick、再顯示一次都是冪等的)。
+  try { if (typeof setupPlusEntry === 'function' && state?.ready) setupPlusEntry(); } catch (e) {}
+  try { if (state?._syncMoreSheet) state._syncMoreSheet(); } catch (e) {}
   try { if (typeof renderBoard === 'function' && !document.getElementById('board')?.hidden) renderBoard(); } catch (e) {}
   try { if (typeof refreshMetroWaitButton === 'function') refreshMetroWaitButton(); } catch (e) {}
   try { if (typeof metroWaitRenderPicker === 'function' && metroWaitPickerDraft) metroWaitRenderPicker(false); } catch (e) {}
+  try { if (typeof traWaitOpenPicker === 'function' && traWaitPickerDraft && !document.getElementById('traWaitPicker')?.hidden) traWaitOpenPicker(traWaitPickerDraft.st, traWaitPickerDraft.cands, traWaitPickerDraft.opener); } catch (e) {}
+  // 平交道卡／台糖卡:開著時換語言就重畫(平交道卡只在模擬時間走動時每秒重畫,暫停中不會自己更新)
+  try { if (typeof renderCrossingCard === 'function' && state.crossingSel) renderCrossingCard(); } catch (e) {}
+  try { if (typeof renderSugarCard === 'function' && state.sugarSel) renderSugarCard(); } catch (e) {}
   try { if (typeof updateFollowPanel === 'function' && state.followTrain) updateFollowPanel(state.followTrain); } catch (e) {}
   try { if (typeof updateFreqFollowCamera === 'function' && state.freqFollow) updateFreqFollowCamera(false); } catch (e) {}
   try { if (typeof renderFollowBar === 'function' && !document.getElementById('followBar')?.hidden) renderFollowBar(t(state.followStatusMsg)); } catch (e) {}
@@ -6881,7 +6957,8 @@ function setLanguage(lang) {
     const url = new URL(location.href); url.searchParams.set('lang', lang);
     history.replaceState(null, '', url);
   } catch (e) {}
-  i18nRefreshDynamic();
+  I18N_SWITCH_SNAPSHOT = i18nSwitchSnapshot();
+  try { i18nRefreshDynamic(); } finally { I18N_SWITCH_SNAPSHOT = null; }
   i18nSyncNativeLanguage(lang);
   glAttributionSync();
 }
@@ -9666,9 +9743,10 @@ function trtcOfficialResyncTick(nowEpoch) {
     ? Number(rec.removed) : 0;
   if (removed) r.removedFor = Number(rec.atEpoch);
   const removedClause = removed
-    ? t('另有 <b>{removed} 台</b>推估中的列車因為不在官方名單上而移除，這不代表它們停駛。', { removed })
+    ? t('另有 <b>{removed} 台</b>推估中的列車因為不在官方名單上而移除，這不代表它們停駛。', { removed }, removed)
     : '';
-  const resyncMsg = t('官方訊號恢復　北捷即時資料中斷約 <b>{mins} 分鐘</b>後恢復，<b>{count} 台</b>列車已重新對齊官方位置——中斷期間畫面上的位置是推估的，所以這些車會往前跳或往後退。{removedClause}', { mins, count, removedClause });
+  // 第三個參數＝單複數依據(英文 1 train／2 trains);分鐘在英文寫成 min,不必再分單複數。
+  const resyncMsg = t('官方訊號恢復　北捷即時資料中斷約 <b>{mins} 分鐘</b>後恢復，<b>{count} 台</b>列車已重新對齊官方位置——中斷期間畫面上的位置是推估的，所以這些車會往前跳或往後退。{removedClause}', { mins, count, removedClause }, count);
   showToast(resyncMsg, { wrap: true });   // 整句說明，不能被單行截斷（實測手機只看得到前 20 字）
   return { mins, count, removed, msg: resyncMsg };
 }
@@ -12790,7 +12868,8 @@ function drawSched(w, h, paintDecoTrains) {
   // 去重鍵=實際要畫的字串:共構展開時「新竹・高鐵」(六家旁)與台鐵縱貫線「新竹」是兩個不同實體站,
   // 純站名去重會讓後者把前者吃掉(桌機寬視野同框時);z<11 不展開,回到「一個名字只標一次」
   const labelTextOf = st => {
-    const name = stationName(st.name, st.sys);
+    // 捷運站的 sys 是畫法代碼('freq'／'deco'),真正的系統在 metroSysId;台北與台中都有「市政府」
+    const name = stationName(st.name, st.metroSysId || st.sys);
     return (st._co && z >= 11) ? name + '・' + sysLabelOf(st) : name;
   };
   for (const c of labelCands) {
@@ -12818,7 +12897,7 @@ function drawSched(w, h, paintDecoTrains) {
     }
   }
   // 台糖園區名:排在站名之後參與同一套避讓(站名優先),放記號正下方
-  for (const s of sugarLbls) tryLabel(s.cp.x, s.cp.y + 24, s.pk.name, '600 10.5px ', 3, s.cp.detailOpacity);
+  for (const s of sugarLbls) tryLabel(s.cp.x, s.cp.y + 24, t(s.pk.name), '600 10.5px ', 3, s.cp.detailOpacity);
   document.getElementById('count').textContent = t('{n} 班奔跑中', { n: i18nNumber(n) }, n);
 }
 
@@ -13476,31 +13555,34 @@ function renderCrossingCard() {
   state._xingRenderedAt = state.simSec;
   // noSched 筆(貨運港線/專用線/已停用線,官方 415 處中的 21 處):不掛線形,無列車模擬——只標點不算班次
   const list = cr.noSched ? [] : crossingPasses(cr);
-  const lnName = cr.noSched ? (cr.xline || '專用線') : (XING_LN_NAME[cr.lnId] || cr.lnId);
-  // 官方四款分類名(單線/雙線以上+電化,tracks/elec 由 OSM 推算;缺欄不標)
-  const cls = cr.tracks ? (cr.tracks >= 2 ? '雙線以上' : '單線') + (cr.elec ? '電化' : '') : '';
+  // 線名:四條支線的代碼先換回中文線名,再跟台鐵線名一樣走路線目錄(外語查不到才退回 t())。
+  // 平交道名稱本身(多為路名)沒有官方外文名,各語言都照官方原文。
+  const lnName = cr.noSched ? (cr.xline ? routeName(cr.xline, 'tra_sched') : t('專用線'))
+    : routeName(XING_LN_NAME[cr.lnId] || cr.lnId, 'tra_sched');
+  // 官方四款分類名(單線/雙線以上+電化,tracks/elec 由 OSM 推算;缺欄不標)。四種組合各是一個翻譯鍵,不拆開拼。
+  const cls = !cr.tracks ? '' : cr.tracks >= 2 ? (cr.elec ? t('雙線以上電化') : t('雙線以上')) : (cr.elec ? t('單線電化') : t('單線'));
   const rows = cr.noSched
-    ? `<div class="xc-empty">此道口位於${cr.xline || '貨運／專用'}——本圖未收錄該路段列車，無法提供通過班次預測</div>`
+    ? `<div class="xc-empty">${escHtml(t('此道口位於{line}——本圖未收錄該路段列車，無法提供通過班次預測', { line: cr.xline ? routeName(cr.xline, 'tra_sched') : t('貨運／專用') }))}</div>`
     : list.length ? list.map(r => {
     const mm = Math.floor(r.delta / 60), ss = Math.floor(r.delta % 60);
     const cd = String(mm).padStart(2, '0') + ':' + String(ss).padStart(2, '0');
-    const dl = r.delayMin > 0 ? `<span class="xc-dl">+${r.delayMin}分</span>` : '';
+    const dl = r.delayMin > 0 ? `<span class="xc-dl">${escHtml(t('+{n}分', { n: i18nNumber(r.delayMin) }, r.delayMin))}</span>` : '';
     return `<div class="xc-row"><span class="xc-no">${r.tr.train}</span>` +
-      `<span class="xc-kind">${r.tr.typeName}</span>` +
-      `<span class="xc-dir">往${r.dir}</span>` +
+      `<span class="xc-kind">${escHtml(trainTypeName(r.tr.typeName))}</span>` +
+      `<span class="xc-dir">${escHtml(t('往{station}', { station: stationName(r.dir, r.tr.sys) }))}</span>` +
       `<span class="xc-time">${fmtHM(r.pass)}${dl}</span>` +
       `<span class="xc-cd">${cd}</span></div>`;
-  }).join('') : `<div class="xc-empty">未來 60 分鐘無列車通過</div>`;
+  }).join('') : `<div class="xc-empty">${escHtml(t('未來 60 分鐘無列車通過'))}</div>`;
 
   const ico = `<svg class="xc-ico" width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">` +
     `<circle cx="9" cy="9" r="7.2" fill="none" stroke="currentColor" stroke-width="1.6"/>` +
     `<path d="M4.5 4.5 L13.5 13.5 M4.5 13.5 L13.5 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
   document.getElementById('xingCard').innerHTML =
     `<div class="xc-head">${ico}<div class="xc-ttl"><b>${cr.name}</b>` +
-    `<span class="xc-meta">${lnName} · ${cr.type}${cls ? ' · ' + cls : ''}</span></div>` +
-    `<button class="xc-close" id="xcClose" type="button" aria-label="關閉">✕</button></div>` +
+    `<span class="xc-meta">${escHtml(lnName)} · ${escHtml(t(cr.type))}${cls ? ' · ' + escHtml(cls) : ''}</span></div>` +
+    `<button class="xc-close" id="xcClose" type="button" aria-label="${escHtml(t('關閉'))}">✕</button></div>` +
     `<div class="xc-list">${rows}</div>` +
-    `<div class="xc-foot">依時刻表推算僅供參考，遮斷機通常提前 30–60 秒動作，請以現場號誌為準</div>`;
+    `<div class="xc-foot">${escHtml(t('依時刻表推算僅供參考，遮斷機通常提前 30–60 秒動作，請以現場號誌為準'))}</div>`;
   const el = document.getElementById('xingCard'); el.hidden = false;
   document.getElementById('xcClose').onclick = closeCrossingCard;
 }
@@ -13563,13 +13645,14 @@ function renderSugarCard() {
   const ico = `<svg class="xc-ico" width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">` +
     `<circle cx="9" cy="9" r="7.2" fill="none" stroke="currentColor" stroke-width="1.6"/>` +
     `<text x="9" y="12.4" text-anchor="middle" font-size="9" font-weight="800" fill="currentColor">糖</text></svg>`;
+  // SUGAR_PARKS 的名稱／地點／簡介／班次都是翻譯鍵(字典在 content-translations.js),外語查不到才退回繁中
   document.getElementById('sugarCard').innerHTML =
-    `<div class="xc-head">${ico}<div class="xc-ttl"><b>${pk.full || pk.name}</b>` +
-    `<span class="xc-meta">${pk.town} · 台糖五分車</span></div>` +
-    `<button class="xc-close" id="sgClose" type="button" aria-label="關閉">✕</button></div>` +
-    `<div class="sg-body">${pk.blurb}</div>` +
-    `<div class="sg-hours">${pk.hours}</div>` +
-    `<div class="xc-foot">五分車為園區觀光列車，班次與票價依台糖公告，出發前請先向園區確認；本圖僅標示位置，不模擬行駛</div>`;
+    `<div class="xc-head">${ico}<div class="xc-ttl"><b>${escHtml(t(pk.full || pk.name))}</b>` +
+    `<span class="xc-meta">${escHtml(t(pk.town))} · ${escHtml(t('台糖五分車'))}</span></div>` +
+    `<button class="xc-close" id="sgClose" type="button" aria-label="${escHtml(t('關閉'))}">✕</button></div>` +
+    `<div class="sg-body">${escHtml(t(pk.blurb))}</div>` +
+    `<div class="sg-hours">${escHtml(t(pk.hours))}</div>` +
+    `<div class="xc-foot">${escHtml(t('五分車為園區觀光列車，班次與票價依台糖公告，出發前請先向園區確認；本圖僅標示位置，不模擬行駛'))}</div>`;
   document.getElementById('sugarCard').hidden = false;
   document.getElementById('sgClose').onclick = closeSugarCard;
 }
@@ -17034,6 +17117,8 @@ function refreshDataNoteI18n() {
   else source = '資料來源：各捷運公司與交通部 TDX 官方時刻表。支援的路網在營運時段依官方即時資訊校正；部分路線無逐班時刻，以官方班距推算。';
   note.innerHTML = escHtml(t(source));
   if (state.mode !== 'sched') note.innerHTML += '　' + metroLinksHtml(state.freqSel || new Set([state.sysId]));
+  // 全台同框是 sched＋捷運裝飾層:繁中版尾端有全部捷運的官方連結,外語版原本整段漏掉
+  else if (state.deco) note.innerHTML += '　' + metroLinksHtml(new Set(METRO_OFFICIAL.flatMap(o => o.sys)));
 }
 function finishLoad(meta) {
   closeBoard();
@@ -17078,10 +17163,14 @@ const METRO_OFFICIAL = [
   { label: '台中捷運', url: 'https://www.tmrt.com.tw/', sys: ['tmrt'] },
   { label: '高雄捷運', url: 'https://www.krtc.com.tw/', sys: ['krtc'] },
 ];
-function metroLinksHtml(sysIds) {
+// zh=true:給 #note 的繁中原文用。外語開機時 #note 先寫繁中、finishLoad() 把它存成 state._noteZh,
+// 切回中文時原樣放回去;這段連結若在那時就翻成外語,存下來的「繁中原文」裡就夾著英文,
+// 再靠反查翻回來又撞到同義鍵(Taipei Metro＝北捷／台北捷運),切回中文後連結名稱就變了。
+function metroLinksHtml(sysIds, zh = false) {
+  const tr = zh ? s => s : t;
   const items = METRO_OFFICIAL.filter(o => o.sys.some(id => sysIds.has(id)))
-    .map(o => `<a href="${o.url}" target="_blank" rel="noopener">${escHtml(t(o.label))}</a>`);
-  return items.length ? escHtml(t('即時運行狀態請洽官方：')) + items.join('｜') : '';
+    .map(o => `<a href="${o.url}" target="_blank" rel="noopener">${escHtml(tr(o.label))}</a>`);
+  return items.length ? escHtml(tr('即時運行狀態請洽官方：')) + items.join('｜') : '';
 }
 function loadSystem(sys) {
   state.sysId = sys.id; state.sys = sys; state.data = sys.data; state.mode = sys.mode || 'freq';
@@ -17093,7 +17182,7 @@ function loadSystem(sys) {
     applySchedSystems([sys]);
     fitData(state.schedStations.map(s => [s.lat, s.lon]));
     reproject();
-    document.getElementById('note').textContent = sys.id === 'afr_sched'
+    document.getElementById('note').textContent = sys.id === 'afr_sched' // i18n-literal-ok: 繁中原文；finishLoad() 存進 state._noteZh 後，外語由 refreshDataNoteI18n() 當場換成字典摘要
       // 林鐵走 TDX 定期時刻表(每日相同,非每日檔),且無即時介接→文案不可沿用台鐵/高鐵那兩支
       ? ('資料來源：交通部TDX平臺 阿里山林業鐵路定期時刻表' + (sys.data.date ? '（' + sys.data.date + ' 擷取）' : '') +
         '，共 ' + state.trains.length + ' 車次；林鐵未提供列車即時位置與誤點介接，畫面一律依官方公告時刻表推演。' +
@@ -17124,7 +17213,7 @@ function loadSystem(sys) {
     syncTimeUI();
     const est = state.lines.filter(l => l.times && l.times.estimated).map(l => l.name);
     const timed = state.lines.some(l => l.times && !l.times.estimated);
-    document.getElementById('note').innerHTML = escHtml((timed
+    document.getElementById('note').innerHTML = escHtml((timed // i18n-literal-ok: 繁中原文；finishLoad() 存進 state._noteZh 後，外語由 refreshDataNoteI18n() 當場換成字典摘要
       ? '列車依當日實際時刻表（平日／假日／國定假日班表）推演' +
         (sys.id === 'mrt' ? '，營運時段並依北捷官方秒級到站倒數逐班校正位置（時鐘徽章亮「逐車校正」時生效）' :
           METRO_LIVE_SYS[sys.id] ? '，營運時段並依 TDX 官方到站看板即時校正（約每分鐘，時鐘徽章亮「看板校正」時生效）' :
@@ -17134,7 +17223,7 @@ function loadSystem(sys) {
       : '本系統無公開逐班時刻——班次依官方公告班距與首末班車推算（位置為示意），實際到離站時刻請以營運公司資訊為準。　') +
       (sys._times && sys._times.source_notes ? '資料來源：' + sys._times.source_notes
         : (sys.data.source_notes ? '資料來源：' + sys.data.source_notes : ''))) +
-      '　' + metroLinksHtml(new Set([sys.id]));
+      '　' + metroLinksHtml(new Set([sys.id]), true);
     document.getElementById('flowWrap').hidden = true;
   }
   finishLoad(SYS_META[sys.id]);
@@ -17274,7 +17363,7 @@ function loadFreqGroup(g, sel, keepView) {
   state.elapsed = 0;
   reproject(); recomputeTrains();
   syncTimeUI();
-  document.getElementById('note').innerHTML = escHtml(
+  document.getElementById('note').innerHTML = escHtml( // i18n-literal-ok: 繁中原文；finishLoad() 存進 state._noteZh 後，外語由 refreshDataNoteI18n() 當場換成字典摘要
     (OFFICIAL_ROSTER_ENABLED
       ? '北捷列車依官方即時名冊與逐站到站時刻顯示；短暫資料中斷時，已出發的車仍沿最後已知時間跑到終點。' +
         '高捷、高雄輕軌與機捷依 TDX 官方到站看板，新北捷運（淡海・安坑）依官方列車動態即時校正——其餘系統依官方時刻表推演' +
@@ -17283,7 +17372,7 @@ function loadFreqGroup(g, sel, keepView) {
         '北捷依官方秒級到站倒數逐班校正位置；高捷、高雄輕軌與機捷依 TDX 官方到站看板，新北捷運（環狀線・淡海・安坑）依官方列車動態即時校正——其餘系統依官方時刻表推演' +
         '（台中捷運、三鶯線、文湖線無公開逐班時刻，為班距推算）。') +
     '可勾選上方系統同時顯示多個路網。' + (state.lines.length ? '' : '（目前未選任何系統）')) +
-    '　' + metroLinksHtml(new Set(g.members));
+    '　' + metroLinksHtml(new Set(g.members), true);
   document.getElementById('flowWrap').hidden = true;
   finishLoad(g.plate);
   renderSystemsBar();
@@ -17342,7 +17431,7 @@ function loadSchedGroup(g, sel, keepView) {
   reproject();
   const total = state.trains.length;
   // 同框說明依實際成員組字:群組不只一種(國家鐵路=台鐵＋高鐵＋林鐵、手機「台」=台鐵＋林鐵),寫死「台鐵＋高鐵」會說錯
-  document.getElementById('note').textContent = list.length > 1
+  document.getElementById('note').textContent = list.length > 1 // i18n-literal-ok: 繁中原文；finishLoad() 存進 state._noteZh 後，外語由 refreshDataNoteI18n() 當場換成字典摘要
     ? (list.map(s => s.label).join('＋') + '同框，皆依當日真實時刻表運行'
        + (list.some(s => s.id === 'tra_sched') ? '（台鐵回到現在時刻自動套用即時誤點修正）' : '')
        + '，共 ' + total + ' 車次。路線與車站同時顯示，點列車跟隨、點車站看班次。')
@@ -17409,14 +17498,14 @@ function loadAllGroup(g, keepView) {
     : M.getZoom();
   if (state._applyTaiwanFloor) state._applyTaiwanFloor();
   reproject();
-  document.getElementById('note').innerHTML = escHtml(
+  document.getElementById('note').innerHTML = escHtml( // i18n-literal-ok: 繁中原文；finishLoad() 存進 state._noteZh 後，外語由 refreshDataNoteI18n() 當場換成字典摘要
     '全台鐵道同框 — 台鐵、高鐵依當日真實時刻表運行（共 ' + state.trains.length + ' 車次，台鐵回到現在時刻自動套用即時誤點）；' +
     (OFFICIAL_ROSTER_ENABLED
       ? '北捷依官方即時名冊與逐站到站時刻顯示（短暫中斷時仍沿已知時間跑到終點）；' +
         '其餘捷運與輕軌依當日時刻表推演，營運時段依各自官方即時資訊校正（台中捷運、三鶯線為班距推算）。'
       : '捷運與各輕軌亦依當日時刻表推演；北捷依官方秒級到站倒數逐班校正位置，高捷、高雄輕軌、機捷與新北捷運營運時段依各自官方即時資訊校正（台中捷運、三鶯線、文湖線為班距推算）。') +
     '點任一列車皆可跟隨（放大到看得見捷運車號牌即可點），點車站看班次。') +
-    '　捷運' + metroLinksHtml(new Set(METRO_OFFICIAL.flatMap(o => o.sys)));
+    '　捷運' + metroLinksHtml(new Set(METRO_OFFICIAL.flatMap(o => o.sys)), true);
   document.getElementById('flowWrap').hidden = false;
   finishLoad(g.plate);
   renderSystemsBar();
@@ -20377,10 +20466,12 @@ function renderFavPanel() {
           // 即時看板、不是班表,這裡不自己推一份 ⇒ **留白**(寧可不寫,也不寫一個可能不對的時間)。
           // 另:切到別的群組時 state.trains 裡沒有這個系統的車,同樣自然留白。
           const nx = (f.sys === 'tra_sched' || f.sys === 'thsr_sched') ? schedBoardRows({ name: f.name, sys: f.sys })[0] : null;
-          const nxTxt = nx ? `下一班 ${fmtHM(nx.t % 86400)}${nx.off ? '（停駛）' : nx.dl > 0 ? ` +${nx.dl}` : ''}` : '';
+          // 停駛是整句的一部分(英文要括號前空一格、日文不空),所以是另一個翻譯鍵,不在後面接字
+          const nxTxt = !nx ? '' : nx.off ? t('下一班 {time}（停駛）', { time: fmtHM(nx.t % 86400) })
+            : t('下一班 {time}', { time: fmtHM(nx.t % 86400) }) + (nx.dl > 0 ? ` +${nx.dl}` : '');
           return `<div class="row fvst" data-stkey="${key}"><span class="ico"></span>` +
             `<b>${escHtml(stationName(f.name, f.metroSysId || f.sys))}</b><span class="dest">${escHtml(t(f.label))}</span>` +
-            (nxTxt ? `<span class="min">${nxTxt}</span>` : '') + rmStar(`data-stkey="${key}"`) + `</div>`;
+            (nxTxt ? `<span class="min">${escHtml(nxTxt)}</span>` : '') + rmStar(`data-stkey="${key}"`) + `</div>`;
         }).join('')
       : '') +
     (favs.length
@@ -21519,16 +21610,18 @@ function doCheckin(st) {
   if (!j.ok) {
     showToast(j.why === 'noloc' ? t('還沒有你的位置，先按一次「附近車站」定位')
       : t('離「{station}」還有 {distance} 公尺，走近一點再蓋（這站的範圍 {radius} 公尺）', {
-          station: escHtml(stationName(st.name, st.sys)), distance: i18nNumber(Math.round(j.distM)), radius: i18nNumber(j.r)
+          station: escHtml(stationName(st.name, st._i18nSys || st.sys)), distance: i18nNumber(Math.round(j.distM)), radius: i18nNumber(j.r)
         }));
     return false;
   }
   if (!writeCheckin(st, 'visit', { dayOnce: true, low: j.low })) {
-    showToast(t('「{station}」今天已經蓋過章了', { station: escHtml(stationName(st.name, st.sys)) })); return false;
+    showToast(t('「{station}」今天已經蓋過章了', { station: escHtml(stationName(st.name, st._i18nSys || st.sys)) })); return false;
   }
   const e = checkinEntry(st);
+  // 附近車站清單的站物件帶 _i18nSys(真正的系統代碼);st.sys 對捷運是 'freq'／'deco' 畫法代碼,
+  // 拿它查譯名會掃全部系統,同名站(台北／台中「市政府」)就可能翻成別的城市。
   showToast(t('蓋章成功 · {station}{count}', {
-    station: escHtml(stationName(st.name, st.sys)),
+    station: escHtml(stationName(st.name, st._i18nSys || st.sys)),
     count: e && e.n > 1 ? t('（第 {n} 次）', { n: i18nNumber(e.n) }, e.n) : ''
   }));
   renderNearbyStations(); renderRidePanel(); renderPassport();
@@ -21974,7 +22067,9 @@ function bountyToCollections(b) {
 // 所以這份假資料同時也是「前端吃不吃得下真契約」的活體檢查——形狀寫錯這裡就會顯示成內部代碼。
 // 各卡刻意給不同的段數/點數/已接人數/已有趟數,讓卡面的資訊層次看得出來。
 function bountyDemoBoard() {
-  const KINDS = ['自強', '區間', '莒光', '自強', '區間'];
+  // 車種用後端契約的正規類別(data/bounty_units.json 的 trainKind 只有 區間車／區間快／自強／莒光/復興…),
+  // 外語介面才查得到 trainTypeName() 的目錄譯名;舊值「區間」「莒光」不是契約值,英日文會原樣露出中文。
+  const KINDS = ['自強', '區間車', '莒光/復興', '自強', '區間車'];
   const CLAIMERS = [0, 2, 0, 1, 0], SAMPLES = [0, 1, 0, 0, 2];
   const cards = [];
   for (const [mapKey, rec] of lineNetwork()) {
@@ -21993,8 +22088,8 @@ function bountyDemoBoard() {
     const [mapKey, rec] = dwellRec, p = mapKey.split('|');
     const sts = (rec.ln.stations || []).filter(s => s.name && s.d != null).slice(1, 3);
     cards.push({
-      id: `${mapKey}|0|區間|dwell|peak`, sys: p[0], lnId: p[1],
-      trainKind: '區間', dir: 0, kind: 'dwell', slot: 'peak',
+      id: `${mapKey}|0|區間車|dwell|peak`, sys: p[0], lnId: p[1],
+      trainKind: '區間車', dir: 0, kind: 'dwell', slot: 'peak',
       unitKeys: sts.map(s => `${p[0]}|${p[1]}|${s.name}|${s.name}`),
       units: sts.length, points: sts.length * 3, claimers: CLAIMERS[4], samples: SAMPLES[4], coverN: 1,
     });
@@ -22049,6 +22144,10 @@ async function fetchBountyMe() {
 function bountyCardName(card) {
   const rec = lineNetwork().get(card.sys + '|' + card.lnId);
   const want = new Set(card.unitKeys || []);
+  // 給人看的 title／lineName 走站名與路線目錄翻譯(繁中不變);from／to／stationNames 保持繁中原文,
+  // bountySpanMinutes() 拿它們比對班表站名。unitText(n) 是「n 段／n 站」整句(英文要分單複數,不拆字拼)。
+  const stn = name => stationName(name, card.sys);
+  const lineName = routeName(rec ? rec.name : card.lnId, card.sys);
   if (card.kind === 'dwell') {
     const raw = [...want].map(k => String(k).split('|')).filter(p => p.length === 4 && p[2] === p[3]).map(p => p[2]);
     let stationNames = [...new Set(raw)];
@@ -22056,31 +22155,33 @@ function bountyCardName(card) {
       const order = new Map((rec.ln.stations || []).map((s, i) => [s.name, i]));
       stationNames.sort((a, b) => (order.get(a) ?? 1e9) - (order.get(b) ?? 1e9) || a.localeCompare(b));
     }
-    const first = stationNames[0] || (rec ? rec.name : card.lnId);
+    const first = stationNames[0] ? stn(stationNames[0]) : lineName;
+    // {n} 含第一站本身;英文改說「另外幾站」,所以多傳 more(繁中樣板用不到)
     const title = stationNames.length > 1
-      ? t('{first}等 {n} 站　停站', { first, n: stationNames.length })
+      ? t('{first}等 {n} 站　停站', { first, n: stationNames.length, more: stationNames.length - 1 }, stationNames.length - 1)
       : t('{first}　停站', { first });
     return {
-      from: '', to: '', title, lineName: rec ? rec.name : card.lnId, segs: card.units,
-      isDwell: true, unitWord: t('站'), stationNames,
+      from: '', to: '', title, lineName, segs: card.units,
+      isDwell: true, unitText: n => t('{n} 站', { n }, n), stationNames,
     };
   }
+  const unitText = n => t('{n} 段', { n }, n);
   if (!rec) return {
-    from: card.lnId, to: '', title: card.lnId, lineName: card.lnId,
-    segs: card.units, isDwell: false, unitWord: t('段'),
+    from: card.lnId, to: '', title: lineName, lineName,
+    segs: card.units, isDwell: false, unitText,
   };
   const names = new Set();
   for (const s of rec.segs) if (!want.size || want.has(s.key)) { names.add(s.a); names.add(s.b); }
   const sts = (rec.ln.stations || []).filter(s => names.has(s.name) && s.d != null)
     .slice().sort((a, b) => a.d - b.d);
   if (!sts.length) return {
-    from: rec.name, to: '', title: rec.name, lineName: rec.name,
-    segs: card.units, isDwell: false, unitWord: t('段'),
+    from: rec.name, to: '', title: lineName, lineName,
+    segs: card.units, isDwell: false, unitText,
   }; // 一個端點都解不出來時不談方向
   const lo = sts[0].name, hi = sts[sts.length - 1].name, down = Number(card.dir) === 1;
   const from = down ? hi : lo, to = down ? lo : hi;
-  return { from, to, title: `${from} → ${to}`, lineName: rec.name, segs: card.units,
-    isDwell: false, unitWord: t('段') };
+  return { from, to, title: `${stn(from)} → ${stn(to)}`, lineName, segs: card.units,
+    isDwell: false, unitText };
 }
 function bountySlotName(slot) {
   return ({ peak: t('平日尖峰'), off: t('平日離峰'), holiday: t('假日') })[slot] || '';
@@ -22089,7 +22190,7 @@ let bountyBoardMem = null;
 async function openBountyBoard() {
   const m = document.getElementById('bountyModal');
   m.hidden = false;
-  document.getElementById('bountyList').innerHTML = '<div class="bt-empty">載入中…</div>';
+  document.getElementById('bountyList').innerHTML = `<div class="bt-empty">${escHtml(t('載入中…'))}</div>`;
   try { bountyBoardMem = await fetchBountyBoard(); }
   catch (e) {
     document.getElementById('bountyList').innerHTML = `<div class="bt-empty">${escHtml(t('懸賞板暫時讀不到，等一下再試一次'))}</div>`;
@@ -22101,8 +22202,9 @@ function closeBountyBoard() { document.getElementById('bountyModal').hidden = tr
 function renderBountyBoard() {
   const b = bountyBoardMem || { cards: [] };
   const el = document.getElementById('bountyList');
-  document.getElementById('bountySub').textContent = (b.demo ? t('示範資料，僅供確認設計：這裡的路段與點數都是假的，接下來也不會真的錄。') : '')
-    + (PHYSICAL_COLLECT_ENABLED
+  // 兩句之間的空白英文要、中日文不要:i18nJoin 依語言決定,不寫死在任一句的譯文裡
+  document.getElementById('bountySub').textContent = i18nJoin(b.demo ? t('示範資料，僅供確認設計：這裡的路段與點數都是假的，接下來也不會真的錄。') : '',
+    PHYSICAL_COLLECT_ENABLED
       ? t('接一張、搭那班車時開錄，把沿途的速度剖面測出來。全部免費，獎勵是榮譽。')
       : t('這些項目還沒有實測資料。用 App 才能接下來錄——網頁可以先看看有哪些。'));
   if (!b.cards.length) { el.innerHTML = `<div class="bt-empty">${escHtml(t('目前沒有待校正的項目——全部收滿了。'))}</div>`; return; }
@@ -22112,9 +22214,9 @@ function renderBountyBoard() {
     // 「已有 N 人接了這段」是資訊不是禁令（鎖價不獨佔，規格 §3）。0 人不是資訊，不顯示。
     // 數字一律過 bountyNum()（F-01）：伺服器回的字串不只是難看，走 innerHTML 就是可執行的 HTML。
     const claimers = bountyNum(c.claimers), coverN = bountyNum(c.coverN);
-    const meta = [nm.lineName, c.trainKind, nm.isDwell ? bountySlotName(c.slot) : '',
-      `${bountyNum(c.units)} ${nm.unitWord}`,
-      claimers > 0 ? t('已有 {claimers} 人接了{unit}', { claimers, unit: nm.isDwell ? t('這站') : t('這段') }) : '',
+    const meta = [nm.lineName, c.trainKind ? trainTypeName(c.trainKind) : '', nm.isDwell ? bountySlotName(c.slot) : '',
+      nm.unitText(bountyNum(c.units)),
+      claimers > 0 ? t('已有 {claimers} 人接了{unit}', { claimers, unit: nm.isDwell ? t('這站') : t('這段') }, claimers) : '',
       coverN > 1 ? t('已有 {samples}/{coverN} 趟', { samples: bountyNum(c.samples), coverN }) : ''].filter(Boolean).join('・');
     // 已接下的卡要看得出來（2026-07-28 Codex 審查 F-05）：舊版無論接沒接都印「接下這段」，
     // 使用者在說明卡按了「等一下再說」之後回到板上，既看不出自己接過、也沒有任何路徑回到那張
@@ -22179,7 +22281,7 @@ async function bountyClaim(cardId) {
     const pts = bountyNum(c.points);
     b.claims[cardId] = { cardId, units: bountyNum(c.units), points: pts, expiresAt: exp, u: userDataNow() };
     if (!saveBounty(b)) { showToast(t('（示範）這台裝置存不下來，示範資料無法保留')); return; }
-    showToast(t('（示範）接下了・{pts} 點・24 小時內有效', { pts }));
+    showToast(t('（示範）接下了・{pts} 點・24 小時內有效', { pts }, pts));
     showBountyBrief(c, { points: pts, expiresAt: exp });
     renderBountyBoard(); renderPassport(); renderRidePanel();
     return;
@@ -22212,9 +22314,9 @@ async function bountyClaim(cardId) {
   // 磁碟上卻是 null，重新整理認領就沒了。伺服器那邊已經接下，所以話要說準：說明卡照開（使用者
   // 正要出發，那三件事得看得到），但把「這台裝置沒記住」明講出來，不能混在一般成功訊息裡。
   if (!saveBounty(b)) {
-    showToast(t('已在伺服器接下・{pts} 點，但這台裝置存不下來（可能是儲存空間滿了或無痕模式）——重新整理後認領不會留著', { pts }));
+    showToast(t('已在伺服器接下・{pts} 點，但這台裝置存不下來（可能是儲存空間滿了或無痕模式）——重新整理後認領不會留著', { pts }, pts));
   } else {
-    showToast(t('接下了・{pts} 點・24 小時內有效', { pts }));
+    showToast(t('接下了・{pts} 點・24 小時內有效', { pts }, pts));
   }
   showBountyBrief(bountyBoardMem.cards.find(c => c.id === cardId) || { units: bountyNum(j.units), sys: '', lnId: '' },
     { points: pts, expiresAt: exp });
@@ -22317,9 +22419,13 @@ function renderRecordScreen() {
   document.getElementById('recKm').textContent = km;
   const cov = r._cov || {};
   const done = Object.values(cov).filter(c => c >= 0.6).length;
-  document.getElementById('recSegs').textContent = String(done);
-  document.getElementById('recUnitWord').textContent = nm ? nm.unitWord : t('段');
-  document.getElementById('recPts').textContent = String(r.points);
+  // 整列一句翻:拆成數字＋單位字就翻不對。繁中輸出與原本的靜態 HTML 逐字相同。
+  // 單複數依點數選(英文寫成「Segments covered: 2 · 30 pts」,段數那側不需要單複數,點數那側才要)。
+  document.getElementById('recRow').innerHTML = t(nm && nm.isDwell
+    ? '{segs} <span id="recUnitWord">站</span>已覆蓋・{pts} 點已鎖定'
+    : '{segs} <span id="recUnitWord">段</span>已覆蓋・{pts} 點已鎖定', {
+    segs: `<span id="recSegs">${done}</span>`, pts: `<span id="recPts">${escHtml(r.points)}</span>`,
+  }, Number(r.points) || 0);
   const total = (r.card && r.card.units) || Object.keys(cov).length || 1;
   document.getElementById('recBar').style.width = Math.min(100, done / total * 100) + '%';
   // 常駐列(規格覆審 2026-07-28):地圖預設可見,里程要不開詳細面板也看得到——單一事實來源
@@ -22475,8 +22581,8 @@ function bountyRecordNotice(msg, kind) {
   if (msg) positionRecHint();
 }
 function bountySamplingFail(err) {
-  const note = err && err.code === 1 ? '定位權限沒有開啟；請到系統設定允許軌島使用精確位置。'
-    : '暫時收不到定位；請讓 App 留在前景並把手機靠窗。';
+  const note = err && err.code === 1 ? t('定位權限沒有開啟；請到系統設定允許軌島使用精確位置。')
+    : t('暫時收不到定位；請讓 App 留在前景並把手機靠窗。');
   bountyRecordNotice(note, 'error');
 }
 function bountyBestLine(r) {
@@ -22828,10 +22934,11 @@ async function bountyTickQuality() {
 // weak 持續 60 秒才浮、可關掉、同一趟不重複跳(_nagOff 一旦設定,本函式不會再自己清掉);
 // none(收不到)只轉紅燈不跳字——地下段不是使用者的問題,一直跳只會煩。
 function bountyTickQualityHint(r, T) {
+  // T 是 data/bounty_rules.json 的 qualityText(繁中固定文案,與 Worker 回傳的同一份),外語查字典。
   const hint = document.getElementById('recHint');
   if (!hint || !T) return;
   if (r.quality === 'precise_off') {
-    hint.innerHTML = `<b>${escHtml(T.precise_off.title)}</b><br>${escHtml(T.precise_off.how)}`;
+    hint.innerHTML = `<b>${escHtml(t(T.precise_off.title))}</b><br>${escHtml(t(T.precise_off.how))}`;
     hint.classList.remove('err');
     hint.hidden = false;
     positionRecHint(); // 貼著常駐列下緣(規格覆審 2026-07-28)——precise_off 不修就整趟白錄,兩種畫面都要看得到
@@ -22840,7 +22947,7 @@ function bountyTickQualityHint(r, T) {
   if (r.quality === 'weak') {
     r._weakSince = r._weakSince || Date.now();
     if (!r._nagOff && Date.now() - r._weakSince >= BOUNTY_WEAK_NAG_MS) {
-      hint.innerHTML = `<b>${escHtml(T.acc_blocked.title)}</b><br>${escHtml(T.acc_blocked.how)}` +
+      hint.innerHTML = `<b>${escHtml(t(T.acc_blocked.title))}</b><br>${escHtml(t(T.acc_blocked.how))}` +
         `<button class="rc-x" type="button">${escHtml(t('知道了'))}</button>`;
       hint.classList.remove('err');
       hint.hidden = false;
@@ -22850,7 +22957,7 @@ function bountyTickQualityHint(r, T) {
     return;
   }
   if (r.card && r.card.kind === 'dwell' && r._dwellMissed && !r._dwellNagOff) {
-    hint.innerHTML = `<b>${escHtml(T.no_dwell.title)}</b><br>${escHtml(T.no_dwell.how)}` +
+    hint.innerHTML = `<b>${escHtml(t(T.no_dwell.title))}</b><br>${escHtml(t(T.no_dwell.how))}` +
       `<button class="rc-x" type="button">${escHtml(t('知道了'))}</button>`;
     hint.classList.remove('err');
     hint.hidden = false;
@@ -22913,11 +23020,13 @@ function showBountyBrief(card, claim) {
   const nm = bountyCardName(card);
   const ug = bountyUndergroundHint(card);
   const mins = nm.isDwell ? null : bountySpanMinutes(card.sys, nm.from, nm.to, card.trainKind);
-  const durTxt = nm.isDwell ? '' : mins != null ? t('，約 {mins} 分鐘', { mins: escHtml(mins) }) : t('，大概多久算不出來');
-  const unitTxt = `${escHtml(card.units)} ${nm.unitWord}`;
+  const durTxt = nm.isDwell ? '' : mins != null ? t('，約 {mins} 分鐘', { mins: escHtml(mins) }, mins) : t('，大概多久算不出來');
+  const unitTxt = escHtml(nm.unitText(card.units));
+  // 「，值 N 點。」屬於句子本身(英文是 worth、日文是「で」),整句一個樣板,不在外面接中文標點
+  const points = `<b>${escHtml(t('{n} 點', { n: claim.points }, claim.points))}</b>`;
   const taskTxt = nm.isDwell
-    ? t('錄 {title}（{line}・{slot}・{unit}）', { title: escHtml(nm.title), line: escHtml(nm.lineName), slot: escHtml(bountySlotName(card.slot)), unit: unitTxt })
-    : t('錄 {title}（{line}，{unit}{dur}）', { title: escHtml(nm.title), line: escHtml(nm.lineName), unit: unitTxt, dur: durTxt });
+    ? t('錄 {title}（{line}・{slot}・{unit}），值 {points}。', { title: escHtml(nm.title), line: escHtml(nm.lineName), slot: escHtml(bountySlotName(card.slot)), unit: unitTxt, points })
+    : t('錄 {title}（{line}，{unit}{dur}），值 {points}。', { title: escHtml(nm.title), line: escHtml(nm.lineName), unit: unitTxt, dur: durTxt, points });
   const timingTxt = nm.isDwell
     ? t('進站前就開始錄，列車停穩後繼續錄到出站；只通過、不停靠不算停站樣本。')
     : t('搭上那班車之後開始錄，到站就結束。');
@@ -22925,12 +23034,11 @@ function showBountyBrief(card, claim) {
   // 的既有做法——見 null 就改顯示純文字引導，不留一顆點了沒反應的鈕。
   const canOpen = !!(window.RAIL_NATIVE_GEOLOCATION && window.RAIL_NATIVE_GEOLOCATION.openSettings);
   document.getElementById('bountyBriefBody').innerHTML =
-    `<div class="bb-sec"><b>${escHtml(t('這趟要做什麼'))}</b><p>${taskTxt}，值 <b>${t('{n} 點', { n: escHtml(claim.points) })}</b>。` +
+    `<div class="bb-sec"><b>${escHtml(t('這趟要做什麼'))}</b><p>${i18nJoin(taskTxt, timingTxt, t('這個鎖價 <b>24 小時內有效</b>。'))}</p></div>` +
       // 最終審查 C:期限原本只在接下當下的 toast 一閃即逝(showBountyBrief 這張常駐卡完全沒提)，
       // 使用者接了段之後回頭想確認期限就找不到。與 bountyClaim() 兩條路徑(demo/真實)的 toast
       // 用同一句「24 小時內有效」，不用 claim.expiresAt 另外算文字——避免兩個地方各自描述
-      // 同一件事卻可能用不同措辭。
-      `${timingTxt}${t('這個鎖價 <b>24 小時內有效</b>。')}</p></div>` +
+      // 同一件事卻可能用不同措辭。(三句之間英文要空一格,由上一行的 i18nJoin 決定)
     `<div class="bb-sec"><b>${escHtml(t('三件事先做好'))}</b><ol>` +
       `<li>${t('打開<b>精確位置</b>')}` + (canOpen
         ? `<button id="bountyOpenSettings" type="button">${escHtml(t('開啟設定'))}</button>`
@@ -23046,7 +23154,8 @@ function buildStationStamps(rides) {
     visited ? t('到訪 {n}', { n: i18nNumber(visited) }, visited) : '',
     sgN ? t('路段 {n}', { n: i18nNumber(sgN) }, sgN) : '',
     // 鍵是 sys|線id|A|B,取後兩段才是站名(前面兩段是系統與線)
-    top && top[1] >= 5 ? t('最常搭 {segment} {n} 次', { segment: top[0].split('|').slice(2).map(name => stationName(name)).join('–'), n: i18nNumber(top[1]) }, top[1]) : '',
+    // 第一段就是系統代碼,拿來查譯名(不帶系統會掃全部系統,同名站可能翻錯城市)
+    top && top[1] >= 5 ? t('最常搭 {segment} {n} 次', { segment: top[0].split('|').slice(2).map(name => stationName(name, top[0].split('|')[0])).join('–'), n: i18nNumber(top[1]) }, top[1]) : '',
   ].filter(Boolean).join('　');
   // 車站牆會無限長大(通勤族收到 300 座就是一面牆),預設只露最常去的一批,其餘按鈕展開
   const showAll = ppSecPrefs().stnAll === 1;
@@ -23169,7 +23278,8 @@ function buildLineBars() {
     `<div class="ph-lines">` +
     lines.map(l => {
       const pct = Math.round(l.pct * 100);
-      return `<div class="ph-line" title="${escHtml(`${lineFullNameI18n(l)}　${l.ridN}/${l.nSeg} ${t('段')}　${l.ridKm.toFixed(1)}/${l.km.toFixed(1)} km`)}">` +
+      // 「段」單字鍵的英文是縮寫 Seg,跟在數字後面既不像句子也沒有單複數;改用整句樣板,依總段數選單複數。
+      return `<div class="ph-line" title="${escHtml(`${lineFullNameI18n(l)}　${t('{n} 段', { n: `${l.ridN}/${l.nSeg}` }, l.nSeg)}　${l.ridKm.toFixed(1)}/${l.km.toFixed(1)} km`)}">` +
         `<span class="pl-name">${escHtml(t(l.name.replace(/（.*$/, '')))}</span>` +
         `<span class="pl-bar"><i style="width:${pct}%;background:${escHtml(l.color || 'var(--red)')}"></i></span>` +
         `<span class="pl-pct${pct >= 100 ? ' done' : ''}">${pct}%</span></div>`;
@@ -23193,15 +23303,16 @@ function buildCorrectSection() {
   // 且真的有校正段時才補,兩者都有資料時交給 buildLineBars() 那顆就好,不重複掛。
   if (!BOUNTY_ENABLED) return '';   // 2026-07-29 下架:整節不出現(懸賞板鈕是它唯一的家)
   const showCorrectMapBtn = COLLECT_MAP_ENABLED && lineCompletion().length === 0 && bountyCorrectedSegs().size > 0;
-  const inner = '校正貢獻<button class="pl-map pl-bounty" data-act="bountyboard" type="button">懸賞板</button>' +
-    (showCorrectMapBtn ? '<button class="pl-map" data-act="collectmap" type="button">收集地圖</button>' : '');
+  const inner = `${escHtml(t('校正貢獻'))}<button class="pl-map pl-bounty" data-act="bountyboard" type="button">${escHtml(t('懸賞板'))}</button>` +
+    (showCorrectMapBtn ? `<button class="pl-map" data-act="collectmap" type="button">${escHtml(t('收集地圖'))}</button>` : '');
   const me = bountyMeMem;
   const corrected = (me && me.corrected) || {}; // 防禦 API 形狀:me 有回應但 corrected 缺欄位時不炸開
   const n = me ? bountyNum(corrected.segs) : 0;
   let body;
   if (!me || !n) {
-    body = '<div class="ph-empty">還沒有校正記錄——去懸賞板看看有哪些路段缺資料。'
-      + '錄一趟就有校正者章，<b>即使資料不能用，章與點數還是你的</b>。</div>';
+    // 第二句的 <b> 是字典值裡的固定標記(比照「這個鎖價 <b>24 小時內有效</b>。」),字典是自家檔案。
+    body = '<div class="ph-empty">' + i18nJoin(escHtml(t('還沒有校正記錄——去懸賞板看看有哪些路段缺資料。')),
+      t('錄一趟就有校正者章，<b>即使資料不能用，章與點數還是你的</b>。')) + '</div>';
   } else {
     // 逐線印章不沿用 .stn-seal(50px 圓章,為 2–4 字站名設計):線名連括號里程可以到 10 字以上
     // (「南迴線（枋寮–臺東）」),塞進圓章會裁到看不出是哪條線。這裡刻意印出 rec.name 全名
@@ -23209,20 +23320,23 @@ function buildCorrectSection() {
     // 兩者要看得出差別,不能為了好看而先把括號砍掉(那樣真查到跟 fallback 就長一樣了)。
     const lines = (me.lines || []).map(l => {
       const rec = lineNetwork().get(l.sys + '|' + l.lnId);
-      return `<span class="corr-line"><b>${escHtml(rec ? rec.name : l.lnId)}</b><small>${bountyNum(l.segs)} 段</small></span>`;
+      // 外語:查到的線照樣印「線名（起訖）」全名(端點走站名目錄),查不到的 fallback 仍是裸線名。
+      return `<span class="corr-line"><b>${escHtml(rec ? lineFullNameI18n(rec) : routeName(l.lnId, l.sys))}</b><small>${escHtml(t('{n} 段', { n: bountyNum(l.segs) }))}</small></span>`;
     }).join('');
     // unusable 的說明:每一筆都給「原因＋怎麼改善」,這是規格 §7 三態判定對使用者的承諾。
     // 只挑 verdict==='unusable' 且真的帶 quality 的筆——ok/suspect/pending/未知值一律不給細節,
     // 沿用既有 verdict 白名單(BOUNTY_HONORED_VERDICTS)fail-closed 的態度。
-    const bad = (me.trips || []).filter(t => t.verdict === 'unusable' && t.quality).slice(0, 3).map(t =>
-      `<div class="corr-why"><b>${escHtml(t.tripDate)} ${escHtml(t.trainNo)} 次・${escHtml(t.quality.title)}</b>` +
-      `<br>${escHtml(t.quality.how)}</div>`).join('');
+    // 參數不能叫 t(會遮住翻譯函式 t())。quality 的 title／how 是 data/bounty_rules.json 的固定文案,字典有對譯。
+    const bad = (me.trips || []).filter(trip => trip.verdict === 'unusable' && trip.quality).slice(0, 3).map(trip =>
+      `<div class="corr-why"><b>${escHtml(t('{date} {train} 次・{title}', { date: trip.tripDate, train: trip.trainNo, title: t(trip.quality.title) }))}</b>` +
+      `<br>${escHtml(t(trip.quality.how))}</div>`).join('');
     // 首位校正者只寫「你」,不印任何他人暱稱——顯示他人自填暱稱＝UGC,見上方函式註解。
     const first = (me.firsts || []).length
-      ? `<div class="corr-first">首位校正者：<b>你</b>（${(me.firsts || []).length} 段）</div>` : '';
+      ? `<div class="corr-first">${t('首位校正者：<b>你</b>（{n} 段）', { n: (me.firsts || []).length })}</div>` : '';
+    // 樣板裡的 <b>／<span class="corr-sub"> 是字典值的固定標記;插進去的只有 bountyNum() 收斂過的整數。
     body =
-      `<div class="corr-nums">校正 <b>${n}</b> 段<span class="corr-sub">（其中 <b>${bountyNum(corrected.adopted)}</b> 段已採用）</span>` +
-      `<span class="corr-pt">${bountyNum(me.points)} 點</span></div>` +
+      `<div class="corr-nums">${t('校正 <b>{n}</b> 段<span class="corr-sub">（其中 <b>{adopted}</b> 段已採用）</span>', { n, adopted: bountyNum(corrected.adopted) })}` +
+      `<span class="corr-pt">${escHtml(t('{n} 點', { n: bountyNum(me.points) }))}</span></div>` +
       `<div class="seal-wall">${lines}</div>` + first + bad;
     // 兌換入口在沒有任何段開放時整個隱藏——不做「敬請期待」那種空頭 UI(規格 §8)。
     // v1 的點數是榮譽的量化形式:累積、顯示,但沒有兌換入口。
@@ -23400,7 +23514,7 @@ function buildAchv(rides, style) {
 function buildRideRows(rides, mode) {
   return sortRides(rides, mode).map(r =>
     `<div class="ph-row"><span class="datestamp">${escHtml((r.date || '').slice(5).replace(/-/g, '.'))}</span><b>${escHtml(r.train)}</b>` +
-    `<span class="k">${escHtml(trainTypeName(r.kind))}</span><span class="r">${escHtml(stationName(r.from))}→${escHtml(stationName(r.to))}</span><span class="km">${escHtml(i18nNumber(r.km))} km</span></div>`).join('');
+    `<span class="k">${escHtml(trainTypeName(r.kind))}</span><span class="r">${escHtml(stationName(r.from, r.sys || 'tra_sched'))}→${escHtml(stationName(r.to, r.sys || 'tra_sched'))}</span><span class="km">${escHtml(i18nNumber(r.km))} km</span></div>`).join('');
 }
 // 創始會員徽章:只有創始期間訂閱的人看得到,放護照最上方(它不是靠跑車跑出來的,與收集章分開)
 function buildFoundingSeal() {
@@ -23798,7 +23912,7 @@ function renderTodayPanel() {
   } else {
     const n = rows.length, m = rows.filter(t => (t.delayMax || 0) >= 5).length, c = rows.filter(t => (t.delay || 0) >= 5).length;
     const sorted = rows.slice().sort((a, b) => ((b.delay || 0) - (a.delay || 0)) || ((b.delayMax || 0) - (a.delayMax || 0)) || todayCmpNo(a.no, b.no)); // 目前誤點優先,同分再比今天峰值
-    body = `<div class="sub">${escHtml(t('今日已觀測 {total} 班・誤點≥5分：目前 {current} 班・今天曾有 {peak} 班', { total: i18nNumber(n), current: i18nNumber(c), peak: i18nNumber(m) }))}<br><span class="td-hint">${escHtml(t('資料自今晨起累積，每天重新開始'))}</span></div>` +
+    body = `<div class="sub">${escHtml(t('今日已觀測 {total} 班・誤點≥5分：目前 {current} 班・今天曾有 {peak} 班', { total: i18nNumber(n), current: i18nNumber(c), peak: i18nNumber(m) }, n))}<br><span class="td-hint">${escHtml(t('資料自今晨起累積，每天重新開始'))}</span></div>` +
       sorted.map(todayRow).join('');
   }
   el.innerHTML = `<h3>${escHtml(t('今日台鐵動態'))}<button class="close" id="todayClose">×</button></h3>` + body;
@@ -28442,9 +28556,11 @@ function alertAffectedLineIds() {
 // 自家異常條目文案(kind → 一句白話)
 const ANOM_KIND_DESC = { reject: '官方到站看板倒數與時刻表大幅不符', spread: '官方看板各站到站時間彼此矛盾', skip: '部分車站顯示交管不停靠' };
 function metroSelfEntry(ln, an) {
-  const name = (ln._sysLabel ? ln._sysLabel + ' ' : '') + (ln.name || ln.id);
+  // 系統名＋線名跟車站看板同一個組法(外語翻好、「安坑輕軌 安坑輕軌」這種重複只留一個)。
+  // 簽章綁線的代碼、不綁標題:標題是翻譯過的字,拿它當已讀簽章,按掉的公告換個語言就又彈回來。
+  const name = metroLineFullLabel(ln) || ln.id;
   const kindDesc = t(ANOM_KIND_DESC[an.kind] || '看板與時刻表不符');
-  return { self: true, title: t('{name}疑似營運異常', { name }),
+  return { self: true, sig: `metro-anomaly:${ln._sys || ''}:${ln.id}`, title: t('{name}疑似營運異常', { name }),
     desc: t('本站偵測到官方到站看板與時刻表明顯不符（{kindDesc}），該線列車位置僅供參考。此為本站自動推定，非官方公告。', { kindDesc }) };
 }
 // 自家觀測條目(非官方公告):台鐵大面積誤點(sched)、捷運線級異常(對應模式可見的線)
@@ -28453,7 +28569,8 @@ function selfAnomalyEntries() {
   if (state.mode === 'sched') {
     if (state.traAnomaly && liveActive()) {
       const a = state.traAnomaly;
-      out.push({ self: true, title: t('台鐵大面積誤點中：{d10} 班誤點滿 10 分（最高 {maxDelay} 分）', { d10: a.d10, maxDelay: a.maxDelay }),
+      // 簽章用數字本身(不用翻譯過的標題):數字變了照舊重新提醒,換語言不會把已按掉的又彈回來
+      out.push({ self: true, sig: `tra-anomaly:${a.d10}:${a.maxDelay}`, title: t('台鐵大面積誤點中：{d10} 班誤點滿 10 分（最高 {maxDelay} 分）', { d10: a.d10, maxDelay: a.maxDelay }),
         desc: t('誤點的部分動畫有跟上：列車位置已依台鐵官方即時誤點資料逐車回撥，晚幾分就畫在晚幾分的位置。但若有停駛或取消的班次，畫面不會自動移除、該班車仍會照時刻表顯示行駛，請以官方公告為準。此為本站自動觀測，非官方公告。') });
     }
     if (state.deco && state.decoLines) for (const ln of state.decoLines) { const an = anomalyOf(ln); if (an) out.push(metroSelfEntry(ln, an)); }
@@ -28502,8 +28619,8 @@ function trtcOutageEntries() {
     const titleHead = upstream ? t('{labels}即時訊號中斷', { labels: labels.map(l => t(l)).join(t('、')) }) : t('捷運即時資料中斷');
     const attrib = upstream ? t('官方上游已自報訊號中斷。') : t('這不一定是官方那邊的問題——也可能是本站服務發不出來，或你目前的網路連線中斷。');
     return [{ self: true, outage: true, sig: 'trtc-outage',
-      title: t('{head} {mins} 分鐘：列車位置與車站倒數都可能不準', { head: titleHead, mins }),
-      desc: t('統一捷運即時模型已經 {mins} 分鐘沒有取得可安全發布的新資料。{attrib}這段期間畫面會退回備援推估，位置與車站倒數都可能與實際不符，但這不代表列車停駛。資料恢復後會重新對齊官方位置。此為本站自動偵測，非官方公告。', { mins, attrib }) }];
+      title: t('{head} {mins} 分鐘：列車位置與車站倒數都可能不準', { head: titleHead, mins }, mins),
+      desc: t('統一捷運即時模型已經 {mins} 分鐘沒有取得可安全發布的新資料。{attrib}這段期間畫面會退回備援推估，位置與車站倒數都可能與實際不符，但這不代表列車停駛。資料恢復後會重新對齊官方位置。此為本站自動偵測，非官方公告。', { mins, attrib }, mins) }];
   }
   const feeds = trtcOfficialStaleFeeds(state.trtcOfficialRoster, Date.now() / 1000);
   if (!feeds.length) return [];
@@ -28512,10 +28629,10 @@ function trtcOutageEntries() {
   const mins = Math.max(1, Math.round(Math.max(...hit.map(f => f.ageSec)) / 60));
   const upstream = trtcOutageAttribution() === 'upstream';
   const titleHead2 = upstream ? t('{labels}即時訊號中斷', { labels: hit.map(f => t(f.label)).join(t('、')) }) : t('捷運即時資料中斷');
-  const lead2 = upstream ? t('官方到站看板已經 {mins} 分鐘沒有送出新資料。', { mins })
-    : t('已經 {mins} 分鐘沒有取得新的到站資料——這不一定是官方那邊的問題，也可能是本站服務或你目前的網路連線。', { mins });
+  const lead2 = upstream ? t('官方到站看板已經 {mins} 分鐘沒有送出新資料。', { mins }, mins)
+    : t('已經 {mins} 分鐘沒有取得新的到站資料——這不一定是官方那邊的問題，也可能是本站服務或你目前的網路連線。', { mins }, mins);
   return [{ self: true, outage: true, sig: 'trtc-outage', // 簽章刻意不含分鐘數,見 alertSig
-    title: t('{head} {mins} 分鐘：列車位置與車站倒數都可能不準', { head: titleHead2, mins }),
+    title: t('{head} {mins} 分鐘：列車位置與車站倒數都可能不準', { head: titleHead2, mins }, mins),
     desc: t('{lead}這段期間畫面上的列車是依各站之間的固定行車時間往前推估的，車站倒數也可能找不到車或停住不動——都可能與實際不符，但這不代表列車停駛。官方資料恢復後畫面會重新對齊官方位置，部分列車會因此往前跳或往後退。此為本站自動偵測，非官方公告。', { lead: lead2 }) }];
 }
 // 訊號恢復的那一下畫面會跳：續推中的位置被官方名單取代，接不回去的推估車直接消失。
@@ -28539,7 +28656,7 @@ function trtcRecoveryEntries() {
   const removed = Number(rec.removed) || 0;
   const dur = mins ? t('中斷約 {mins} 分鐘期間，', { mins }) : t('訊號中斷期間，');
   const removedClause = removed > 0
-    ? t('，並移除了 {removed} 台官方名單上已經沒有的推估列車。這不代表那些車停駛或發生事故——它們只是在中斷期間被推估出來、官方資料回來後對不上任何一班車。', { removed })
+    ? t('，並移除了 {removed} 台官方名單上已經沒有的推估列車。這不代表那些車停駛或發生事故——它們只是在中斷期間被推估出來、官方資料回來後對不上任何一班車。', { removed }, removed)
     : t('。');
   return [{ self: true, recovery: true, sig: `trtc-recovery:${rec.atEpoch}`, // 簽章綁恢復時刻,同一次只提醒一次
     title: t('{labels}即時訊號已恢復：畫面剛依官方名單重新對齊', { labels: labels.map(l => t(l)).join(t('、')) }),
@@ -29311,7 +29428,8 @@ function renderSearchDrop(opts) {
     state._searchTrains = []; state._searchStns = []; state._searchNamed = []; state._searchBus = null;
     const suggestions = ['台北', '高雄'].filter(name => stnSearchMatch(name).length).map(name => ({ value: name, label: t(name) }));
     const tr = (state.systems.find(s => s.id === 'tra_sched')?.data.trains || []).find(tr => !tr.loop && /^\d+$/.test(String(tr.train)));
-    if (tr) suggestions.push({ value: String(tr.train), label: t('{n} 次', { n: String(tr.train) }) });
+    // 車次標籤用「{train} 次」(英文 Train 152、日文 152列車);「{n} 次」是次數鍵(英文 times、日文 回),車次套進去會變成「152 times」
+    if (tr) suggestions.push({ value: String(tr.train), label: t('{train} 次', { train: String(tr.train) }) });
     const named = state.special?.namedTrains?.find(n => n.name === '鳴日號') || state.special?.namedTrains?.[0];
     if (named) suggestions.push({ value: named.name, label: i18nContentData('namedTrains', named, 'name') });
     drop.innerHTML = `<div class="sd-sec">${escHtml(t('不知道查什麼？試試看'))}</div><div class="rd-suggestions">` +
@@ -29394,7 +29512,14 @@ function renderSearchDrop(opts) {
   openSearchDrop();
 }
 function openSearchDrop() { const d = document.getElementById('searchDrop'); if (d) d.hidden = false; }
-function closeSearchDrop() { const d = document.getElementById('searchDrop'); if (d) d.hidden = true; state._namedIntro = null; state._stockIntro = null; }
+// 關掉下拉時一併作廢還在路上的公車站牌查詢:結果晚到會呼叫 renderSearchDrop → openSearchDrop,
+// 把使用者剛按 Esc／點外面／選了車站而關掉的下拉又彈回來(實測關掉後 0.4–0.7 秒)。再打開下拉的路徑
+// (renderSearchDrop 不帶 keepBus)本來就會重新排一次查詢。
+function closeSearchDrop() {
+  const d = document.getElementById('searchDrop'); if (d) d.hidden = true; state._namedIntro = null; state._stockIntro = null;
+  if (busSearchTimer) { clearTimeout(busSearchTimer); busSearchTimer = null; }
+  busSearchToken++;
+}
 // ── 查詢面板(手機專屬;v0726a 起是 tab bar 放大鏡的落點)──
 // 面板本身不持有查詢 DOM:.search 由 placeSearch() 搬進 #searchSlot;瀏覽態只負責露出它、不叫鍵盤,收面板時鍵盤跟著收。
 // 桌面走不到(搜尋框常駐 header、tab bar 不顯示);跨回桌面時 placeSearch 會順手關掉。
@@ -30343,7 +30468,10 @@ function metroBoardMapFooterHtml(st) {
 }
 function stationHeadingHtml(name, sysId) {
   const localized = stationName(name, sysId);
-  return escHtml(localized) + (I18N_LANG !== 'zh-TW' && localized !== name ? `<span class="sys-chip">${escHtml(name)}</span>` : '');
+  // 外語標題旁刻意附上繁中原名(方便對照站內指標):標明它是繁中原文——讀屏照中文念、字形用繁中、
+  // 外語掃描也據此排除,不必再拿「查不查得到譯名」去猜它是不是站名(同名站譯名不唯一時就猜不準)
+  return escHtml(localized) + (I18N_LANG !== 'zh-TW' && localized !== name
+    ? `<span class="sys-chip" lang="zh-Hant-TW" data-source-lang="zh-TW">${escHtml(name)}</span>` : '');
 }
 // 特殊車站介紹文案:精選特色站的一句話介紹(起手包,可再擴充);站名資料的 feature 目前為空,先用這份。
 // key 以「台」正規化(臺北→台北 也吃得到);內容為公認事實,避免療效／誇大式描述。
@@ -31037,11 +31165,19 @@ function metroBoardRowLabel(heads, full, ln, dest) {
 }
 // 系統名＋線名。其中一個已經包含另一個時只留長的那個：「三鶯線 三鶯線」「Taoyuan Airport MRT Airport MRT」
 // 「安坑ライトレール 安坑ライトレール」這種重複既佔寬(外語板就是被它擠掉車次)又沒多講任何事。
+// 重複要用翻譯【前】的繁中原文判斷:系統名與線名是兩份譯名表,同一個「安坑輕軌」一邊譯成 Ankeng Light Rail、
+// 一邊譯成 Ankeng LRT,只比譯文會漏掉而變成「Ankeng Light Rail Ankeng LRT」。譯文比對仍保留(桃園機捷／
+// 機場捷運的原文互不包含,是英文 Taoyuan Airport MRT／Airport MRT 才看得出重複)。
 function metroLineFullLabel(ln) {
-  const sys = ln._sysLabel ? t(ln._sysLabel) : '';
-  const route = routeName(ln.name || ln.abbr || '', ln._sys);
+  const sysSource = ln._sysLabel || '', routeSource = ln.name || ln.abbr || '';
+  const sys = sysSource ? t(sysSource) : '';
+  const route = routeName(routeSource, ln._sys);
+  const za = sysSource.replace(/臺/g, '台'), zb = routeSource.replace(/臺/g, '台');
   const a = sys.toLowerCase(), b = route.toLowerCase();
-  return !a ? route : !b || a.includes(b) ? sys : b.includes(a) ? route : `${sys} ${route}`;
+  if (!a) return route;
+  if (!b || (zb && za.includes(zb)) || a.includes(b)) return sys;
+  if ((za && zb.includes(za)) || b.includes(a)) return route;
+  return `${sys} ${route}`;
 }
 function metroBoardHeadHtml(heads, gi, ln) {
   if (!heads || !heads[gi] || heads[gi] === heads[gi - 1]) return '';
@@ -32189,8 +32325,8 @@ function traWaitOpenPicker(st, cands, opener) {
     const chip = traWaitDelayChip(c.trainNo);
     return `<button class="tra-wait-choice" type="button" data-tra-wait="${i}">` +
       `<span class="tra-wait-choice-time">${escHtml(c.schedText)}</span>` +
-      `<span class="tra-wait-choice-main"><span class="tra-wait-choice-no">${escHtml(c.trainType)} ${escHtml(c.trainNo)}</span>` +
-      `<span class="tra-wait-choice-sub">${c.isLast ? escHtml(t('（終點到達）')) : escHtml(t('往 {station}', { station: c.dest }))}</span></span>` +
+      `<span class="tra-wait-choice-main"><span class="tra-wait-choice-no">${escHtml(trainTypeName(c.trainType))} ${escHtml(c.trainNo)}</span>` +
+      `<span class="tra-wait-choice-sub">${c.isLast ? escHtml(t('（終點到達）')) : escHtml(t('往 {station}', { station: stationName(c.dest, 'tra_sched') }))}</span></span>` +
       `<span class="tra-wait-choice-delay ${chip.cls}">${escHtml(chip.text)}</span></button>`;
   }).join('');
   modal.hidden = false;
@@ -35042,6 +35178,7 @@ async function setupWebMcp() {
 }
 
 async function boot() {
+  i18nCaptureChangelogZh();
   i18nTranslateTree(document.body);
   i18nSyncDocumentMeta();
   i18nSyncLanguageControl();
