@@ -3077,3 +3077,11 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   'TDX 運輸資料流通服務標章 / Transport Data eXchange': 'TDX 運輸データ流通サービスのロゴ / Transport Data eXchange',
 });
+
+// 2026-09-19 台鐵站點錨點修正：第一層「最近更新」真正會顯示這句，必須同步補 en/ja。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '台鐵誤點更新會核對官方所在車站；過站時的小幅誤點直接校正位置，同車次重複資料也不再把較大誤點蓋掉': 'TRA delay updates now cross-check the official reported station. Small delay increases are applied immediately when a train passes a station, and duplicate rows can no longer overwrite a larger delay.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '台鐵誤點更新會核對官方所在車站；過站時的小幅誤點直接校正位置，同車次重複資料也不再把較大誤點蓋掉': '台鉄の遅延更新で公式の所在駅も照合するようにしました。駅を通過した際の小さな遅延増加はすぐに位置へ反映し、重複データがより大きな遅延を上書きすることもなくなりました。',
+});

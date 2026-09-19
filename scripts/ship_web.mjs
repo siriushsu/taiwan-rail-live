@@ -553,6 +553,16 @@ try {
   // 而假紅(2026-09-19 已釘鐘 12:00 修掉,另加 P0／D2 具名前提)。自己起純靜態 server(/api 一律 404,
   // 不打上游),雙引擎約 30 秒。
   // 🔴 洗掉繼承來的 PORT／ROOT:有值時它改連既有 server、驗的可能是別棵樹(同 2.16／2.17)。
+  // 站點錨點是這批次新增的例外路徑：用真實班表的里程遞增／遞減班次各一，重放首見站點、
+  // 換站已離站、同站小誤點與同號重複列。不掛進出貨鏈就會變成只有這次人工跑過的一次性腳本。
+  for (const engine of ['chromium', 'webkit']) {
+    const traAnchor = spawnSync('node', [path.join(wt, 'scripts', 'verify_tra_live_anchor.mjs')],
+      { cwd: wt, encoding: 'utf8', env: { ...process.env, PORT: '', ROOT: '', ENGINE: engine } });
+    process.stdout.write(traAnchor.stdout || ''); process.stderr.write(traAnchor.stderr || '');
+    if (traAnchor.status !== 0) fail(`台鐵站點錨點守門人(${engine})未過——換站小誤點沒立即對齊、重複列蓋掉較大誤點，或雙向班次其一失效`
+      + '（單獨重跑：ENGINE=webkit npm run check-tra-live-anchor）');
+  }
+
   const traMotion = spawnSync('node', [path.join(wt, 'scripts', 'verify_tra_motion.mjs')],
     { cwd: wt, encoding: 'utf8', env: { ...process.env, PORT: '', ROOT: '', ENGINES: 'chromium,webkit' } });
   process.stdout.write(traMotion.stdout || ''); process.stderr.write(traMotion.stderr || '');

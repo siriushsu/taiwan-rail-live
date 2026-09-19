@@ -5495,6 +5495,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="trastationanchor0919"><span class="d">9/19</span><span>台鐵誤點更新會核對官方所在車站；過站時的小幅誤點直接校正位置，同車次重複資料也不再把較大誤點蓋掉</span></li>
         <li data-cl-of="widgetrailjump0919"><span class="d">9/19</span><span>從台鐵發車看板或鐵路＋捷運雙看板點進軌島時，會回到正確的鐵路地圖與車站；臺北車站不會再被同名的捷運站截走</span></li>
         <li data-cl-of="cexpiostap0919"><span class="d">9/19</span><span>iPhone／iPad 底部速度膠囊淡出後點一下就會展開，不用再點兩下、也不會誤觸暫停</span></li>
         <li data-cl-of="updatebanner0919"><span class="d">9/19</span><span>App 有新版時，頂端的更新提示不再蓋住「觀看」按鈕</span></li>
@@ -5502,7 +5503,6 @@
         <li data-cl-of="i18ngaps0919"><span class="d">9/19</span><span>英日文介面補上漏翻的按鈕、路線名、公告與提示，切換語言不再殘留前一種語言；車站看板太長的字改成兩行，不再被切掉；iOS 定位權限說明改用中文</span></li>
         <li data-cl-of="night200907"><span class="d">9/19</span><span>暗色模式下，附近車站、平交道、糖鐵與儲存地點卡的關閉鈕與「存」看得見了</span></li>
         <li data-cl-of="translucent0730"><span class="d">9/19</span><span>暗色主題下「面板半透明」開關恢復作用；半透明時看板倒數、預計到站與「在 Google 地圖開啟」等藍字加深，疊在衛星影像上也看得清楚</span></li>
-        <li data-cl-of="speedcapzone0919"><span class="d">9/19</span><span>台鐵列車在地圖上不再跑得比車種極速還快，新馬急彎與立體地圖都修正了，站牌時刻不變</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5623,13 +5623,14 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="trastationanchor0919"><span class="d">9/19</span><span>修正台鐵誤點時列車常跑在實際位置前面：現在會保留官方回報的所在車站與進出站狀態，確認列車過站時，即使誤點增加不到 5 分鐘也會立即回到官方誤點位置；同車次重複資料固定採較大的誤點，不再由最後一筆任意覆蓋。（謝謝搭乘實測回報）</span></li>
         <li data-cl="speedcapzone0919"><span class="d">9/19</span><span>2、438、5232 次自強號駛近新馬急彎前，地圖上的列車曾短暫快過車種極速（最高 148 km/h）；現在全程不超過極速，也照彎道速限通過，到站時刻不變；同日再修立體地圖：速度改依列車實際走的股道長度計算，台鐵全線不再超過車種極速</span></li>
         <li data-cl="viewcontrols0914"><span class="d">9/14</span><span>觀看設定移到網站右側；手機可按「觀看」切換視角、地圖與列車設定，沉浸模式也能隨時重新開啟；修正地形切換時橋墩閃現與遠景列車大小設定未生效；9/18 起開著車站卡或列車卡也能直接進觀看設定</span></li>
         <li data-cl="viewguide0914"><span class="d">9/14</span><span>地圖俯視與傾斜切換更平順，新增車站與地標導覽；放大跟車時保留車頭與手機操作空間</span></li>
         <li data-cl="delayselfheal0914"><span class="d">9/14</span><span>台鐵近 30 天準點率、準點排行與「我的車・準點」偶爾會停在幾天前：每天早上彙整前一天資料若沒成功，現在當天會自動再補抓，不必等到隔天；9/9～9/12 缺的資料已補回。</span></li>
         <li data-cl="notrainoverlap0912"><span class="d">9/12</span><span>減少同股道列車追上、穿過前車的情況：後車依前車位置減速跟隨，顯示位置最多延後 120 秒。部分交會與待避仍受班表及股道資料限制。</span></li>
         <li data-cl="badgefallen"><span class="d">9/6</span><span>捷運頂列的「官方即時（N 線改用備案）」與「即時資料異常」徽章現在指得出是哪幾條線、為什麼：桌面滑鼠移上去、手機點時鐘徽章打開資料狀態卡，都會逐線列出原因（例如看板列對不到車、站列版本不一致、即時模型這一輪沒有這條線的車）</span></li>
-        <li data-cl="trasnap0905"><span class="d">9/5</span><span>台鐵誤點一次跳增 5 分鐘以上（例如區間待避後到站才回報），列車立刻跳回實際位置，不再在原地停等到誤點追上；5 分鐘以內的小幅增加仍原地停等，像真實的臨時停車。</span></li>
+        <li data-cl="trasnap0905"><span class="d">9/5</span><span>台鐵誤點一次跳增 5 分鐘以上（例如區間待避後到站才回報），列車立刻跳回實際位置，不再在原地停等到誤點追上；沒有新過站錨點時，5 分鐘以內的小幅增加仍慢速吸收，像真實的臨時降速。</span></li>
         <li data-cl="xingorder"><span class="d">9/4</span><span>兩條路線立體交叉的地方，改成依實際的高架與地下關係決定哪一條畫在上面，不再看繪製順序。</span></li>
         <li data-cl="metropeak0903"><span class="d">9/3</span><span>官方來車資料在舊車離站、下一班尚未接上的換班空窗，偶爾會讓轉乘站的單一方向短暫空白；現在看板只替缺少的方向補上班表，其他方向維持官方即時資訊。</span></li>
         <li data-cl="crowdfallback"><span class="d">9/3</span><span>官方擁擠度短暫抓不到時沿用上一份資料，最多兩分鐘，超過就留白，不再整批閃失（謝謝網友回報）</span></li>
@@ -6557,7 +6558,10 @@
 //         改成 iOS 專屬用 touchend 真實 target 直接判斷展開並 preventDefault 擋掉那次合成點擊,
 //         Android/桌面仍走原本的 touchstart→click 路徑不受影響。真機驗證見 native/docs/m1/devref.md §5。
 // v0919h：發車看板深連結明確帶鐵路系統；雙看板的鐵路區不再落到捷運站。
-const BUILD = 'v0919h';
+// v0919i：台鐵誤點位置納入 TrainLiveBoard StationID／TrainStationStatus：後續輪詢確認換站離站時，
+//         小於 5 分的誤點增幅也直接對齊，不再長時間落後 target 而顯示在實車前方；同車次重複列固定取較大誤點，
+//         地圖、即時徽章、異常統計與台鐵等站卡使用同一規則。守門人：verify_tra_live_anchor／verify_tra_motion／verify_tra_wait_core。
+const BUILD = 'v0919i';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -7147,7 +7151,7 @@ const state = {
   _geoWatchToken: 0, _geoWatchFirst: null, _geoWatchResolve: null, _geoWatchTimer: null,
   mapDark: false, basemap: 'map', map3d: false, mapPitch: 0, trackData: null, offlineLand: null,
   trackStyle: 'auto', // 軌道顯示:auto(亮色原色/夜間衛星自動淡化)、faint(一律更淡)、hidden(只留列車與車站)
-  live: null, // 台鐵即時誤點 {map: 車次→誤點分, at: 抓取時刻, delayed, srcAt}
+  live: null, // 台鐵即時誤點 {map: 車次→誤點分, obs: 車次→官方站點觀測, at: 抓取時刻, delayed, srcAt}
   trtcOfficialBoard: null, // 北捷官方逐列到站時間；只供車站看板，不得寫入動畫校正／班表名冊
   trtcOfficialRoster: null, // ?officialroster=1 影子路徑；boardPos 整包換入，vehicleId 是畫車／跟隨身分
   trtcOfficialRosterRevisionHighWater: null, // 只記最後成功接受版本；outage／malformed 不得把它倒退
@@ -11707,6 +11711,10 @@ function applySchedSystems(sysList) {
   state.sys = sysList[0] || null;
   state.data = sysList[0] ? sysList[0].data : null;
   state.lines = []; // 清掉可能殘留的 freq 線
+  // 切換系統／換日名冊後，舊 StationID 轉換不能被新同號車當成「又過一站」。
+  // state.live.map 的誤點值仍可留著等下一輪更新，但用來觸發小誤點立即對齊的站點沿革必須重建。
+  _traLiveStationObs.clear();
+  if (state.live) state.live.obs = new Map();
   for (const sys of sysList) if (sys.special) buildLoopTrains(sys.data); // 環島號(台鐵限定,冪等)
   // 列車:每班標來源系統 tr.sys 與名冊日 tr._rday
   // _rday=這班是從哪一天的名冊挑出來的(resolveScheduleDay 的 _schedDay;非逐日班表的系統為空字串)。
@@ -25765,13 +25773,13 @@ const TRA_MOTION_PROFILE = { minRate: TRA_MOTION_MIN_RATE, maxRate: TRA_MOTION_M
 // 組出「退回舊預設」的突變版本 —— 看到沒人用就刪掉的話，那支的突變會直接 throw。
 function gateEpoch(g, on) { if (on !== g.on) { g.on = on; if (on) { g.ep++; g.at = performance.now(); } } return g; }
 function bigRise(motion, d) { return !!(motion && motion.snapRise > 0 && d >= motion.snapRise); } // 上升量 d 秒達門檻 ⇒ 一步到位
-function easedShift(key, target, g, motion) {
+function easedShift(key, target, g, motion, snapToken) {
   let e = _easedShift.get(key);
   const n = performance.now();
   if (!e) {
     if (!target) return 0; // 無 entry 且目標 0=絕大多數無誤點車,走 fast path 不建 entry
-    const snap = !!(g && n - g.at < 5000) || bigRise(motion, target); // 啟用瞬間首見=初次同步,直接對齊;首見就帶大誤點也直接對齊
-    _easedShift.set(key, e = { cur: snap ? target : 0, at: n, sim: state.simSec, ep: g ? g.ep : 0 });
+    const snap = !!snapToken || !!(g && n - g.at < 5000) || bigRise(motion, target); // 官方過站錨點與初次同步也直接對齊
+    _easedShift.set(key, e = { cur: snap ? target : 0, at: n, sim: state.simSec, ep: g ? g.ep : 0, snapToken: snapToken || 0 });
     return e.cur;
   }
   const dt = Math.min(.1, (n - e.at) / 1000);
@@ -25779,6 +25787,12 @@ function easedShift(key, target, g, motion) {
   if (g && e.ep !== g.ep) { e.ep = g.ep; e.sim = state.simSec; e.cur = target; return e.cur; } // 校正重啟=重新同步
   const sim = state.simSec, adv = Math.max(0, sim - (e.sim != null ? e.sim : sim)); // 倒轉/跨午夜視為 0
   e.sim = sim;
+  // TrainLiveBoard 站碼／狀態已經換到下一個可對上班表的離站事件：這是新的現實位置錨點。
+  // 只把「誤點增加」立即往後校正；誤點減少仍守 maxRate，不讓列車為了追時間瞬移往前。
+  if (snapToken && e.snapToken !== snapToken) {
+    e.snapToken = snapToken;
+    if (target > e.cur) { e.cur = target; return e.cur; }
+  }
   if (motion) {
     const rise = adv * Math.max(0, 1 - motion.minRate); // shift 增速≤(1-min)× ⇒ 有效時間仍以 min× 前進
     const fall = adv * Math.max(0, motion.maxRate - 1); // shift 減速≤(max-1)× ⇒ 有效時間最多 max× 前進
@@ -25892,12 +25906,93 @@ function liveActive() { // 語意=偏移套用中(未必新鮮):資料齡放寬�
 function liveFresh() {
   return liveActive() && liveDataAgeMs() < 300e3 && Math.abs(state.simSec - nowSecOfDay()) <= 120 && !clockSkewBad();
 }
+
+// 官方站點錨點。TDX 同一輪會出現同車次多筆，而 delay 可互相衝突；若任由 Map.set
+// 的「最後一筆」決定，只要上游排序改了就會把車向前推。同號車固定保留誤點較大的那筆；
+// 同誤點時再依這班車的站序／進出站狀態決定，與地理上的里程增減方向無關。
+const _traLiveStationObs = new Map(); // 車次 → {sig, token}，跨輪記得上次官方站點
+let _traLiveStationRevision = 0;
+function traLiveTrain(no) {
+  return state.trains && state.trains.find(tr => tr.sys === 'tra_sched' && String(tr.train) === String(no));
+}
+function traLiveSourceSec(srcMs, nearSec) {
+  if (!Number.isFinite(srcMs)) return null;
+  let sec = ((Math.floor(srcMs / 1000) + 8 * 3600) % 86400 + 86400) % 86400;
+  while (sec - nearSec > 43200) sec -= 86400;
+  while (nearSec - sec > 43200) sec += 86400;
+  return sec;
+}
+function traLiveStationEvent(tr, row, srcMs) {
+  if (!tr || !row || !row.sta || !Number.isFinite(srcMs)) return null;
+  const status = Number(row.status), delaySec = (Number(row.delay) || 0) * 60;
+  let best = null;
+  for (let i = 0; i < tr.stops.length; i++) {
+    const st = tr.stops[i], info = (state.stnInfoMap || {})[traStnKey(st.name)];
+    if (!info || String(info.id) !== String(row.sta)) continue;
+    // status 0=進站中、1=停在站內、2=已離站。位置錨點只採 status=2，其他狀態仍留著供診斷。
+    const eventSec = status === 0 ? st.arrSec : status === 1 ? (st.arrSec + st.depSec) / 2 : st.depSec;
+    const sourceSec = traLiveSourceSec(srcMs, eventSec + delaySec);
+    const elapsedSec = sourceSec == null ? null : sourceSec - delaySec - eventSec;
+    const score = elapsedSec == null ? Infinity : Math.abs(elapsedSec);
+    if (!best || score < best.score) best = { stopIndex: i, eventSec, sourceSec, elapsedSec, score };
+  }
+  return best;
+}
+function traLiveRowRank(row, srcMs) {
+  const tr = traLiveTrain(row.no), event = traLiveStationEvent(tr, row, srcMs);
+  return { delay: Number.isFinite(Number(row.delay)) ? Number(row.delay) : 0,
+    stopIndex: event ? event.stopIndex : -1, status: Number.isFinite(Number(row.status)) ? Number(row.status) : -1 };
+}
+function preferTraLiveRow(a, b, srcMs) {
+  const ra = traLiveRowRank(a, srcMs), rb = traLiveRowRank(b, srcMs);
+  if (ra.delay !== rb.delay) return ra.delay > rb.delay ? a : b; // 不讓重複列把較大誤點蓋掉、將車向前推
+  if (ra.stopIndex !== rb.stopIndex) return ra.stopIndex > rb.stopIndex ? a : b;
+  if (ra.status !== rb.status) return ra.status > rb.status ? a : b;
+  // 最後的穩定 tie-break：不依賴上游陣列順序。
+  return `${a.sta || ''}|${a.status ?? ''}` >= `${b.sta || ''}|${b.status ?? ''}` ? a : b;
+}
+function applyTraLivePayload(d) {
+  const srcMs = Date.parse(d.at), picked = new Map();
+  for (const raw of d.trains) {
+    const no = String(raw && raw.no != null ? raw.no : '').trim();
+    if (!no) continue;
+    const row = { no, delay: Number.isFinite(Number(raw.delay)) ? Number(raw.delay) : 0,
+      sta: raw.sta == null ? '' : String(raw.sta), status: Number(raw.status) };
+    const old = picked.get(no);
+    picked.set(no, old ? preferTraLiveRow(old, row, srcMs) : row);
+  }
+  const m = new Map(), obs = new Map(); let delayed = 0, d10 = 0, maxDelay = 0;
+  for (const [no, row] of picked) {
+    const dl = row.delay || 0;
+    m.set(no, dl); if (dl > 0) delayed++; if (dl >= 10) d10++; if (dl > maxDelay) maxDelay = dl;
+    const sig = `${row.sta}|${Number.isFinite(row.status) ? row.status : ''}`;
+    const prior = _traLiveStationObs.get(no);
+    const event = traLiveStationEvent(traLiveTrain(no), row, srcMs);
+    let token = prior && prior.sig === sig ? prior.token : 0;
+    // 第一次看到某站不知道它何時發生，不冒充新錨點。後續真的換站，且官方資料時刻扣誤點
+    // 後落在該站離站後 90 秒至 30 分內，才把這次變化當成可信的位置錨點。
+    const anchored = !!(prior && prior.sig !== sig && row.status === 2 && event && event.elapsedSec >= -90 && event.elapsedSec <= 1800);
+    if (anchored) token = ++_traLiveStationRevision;
+    _traLiveStationObs.set(no, { sig, token });
+    obs.set(no, { sta: row.sta, status: row.status, delay: dl, stopIndex: event ? event.stopIndex : null,
+      eventSec: event ? event.eventSec : null, elapsedSec: event ? event.elapsedSec : null,
+      anchored, snapToken: token });
+  }
+  state.live = { map: m, obs, at: Date.now(), delayed, srcAt: d.at,
+    srcMs: Number.isFinite(srcMs) ? srcMs : null };
+  evalTraAnomaly(m.size, d10, maxDelay); // 同號重複列只算一班，不膨脹異常比例
+  return { total: m.size, delayed, d10, maxDelay };
+}
 function liveDelaySec(tr) {
   let target = 0;
+  let snapToken = 0;
   const on = liveActive();
   if (on) {
     const ls = state.schedSystems.find(s => s.live); // liveActive 已確保 schedSystems 有 live 端點
-    if (!(ls && tr.sys && tr.sys !== ls.id)) target = (state.live.map.get(String(tr.train)) || 0) * 60; // 高鐵等非 live 系統 target 恆 0
+    if (!(ls && tr.sys && tr.sys !== ls.id)) {
+      target = (state.live.map.get(String(tr.train)) || 0) * 60; // 高鐵等非 live 系統 target 恆 0
+      snapToken = state.live.obs && state.live.obs.get(String(tr.train))?.snapToken || 0;
+    }
   }
   // key 必須帶系統別:台鐵∩林鐵有 21 個號碼、∩高鐵 3 個(車次 1、2、101–121…)撞號,鍵寫死 'tra:' 會讓
   // 兩班共用同一個漸變條目——easedShift 有狀態,條目存在時不看 target 是誰傳的,於是林鐵那班讀到台鐵的
@@ -25905,7 +26000,7 @@ function liveDelaySec(tr) {
   // 比照下方 metroShiftSec 的鍵作法。tr.sys 是穩定字串 id,跨 rebuild 不變。
   // 鍵再帶名冊日(tr._rday,由 applySchedSystems 標):同一個車次號每天都會再開一班,而漸變條目
   // 活得比名冊久 ⇒ 不帶日期的話跨日換名冊後今天的同號車會繼承昨天那班的偏移(實測 6.3 公里)。
-  return easedShift((tr._rday || '') + '|' + (tr.sys || 'tra_sched') + ':' + tr.train, target, gateEpoch(_traGateEp, on), TRA_MOTION_PROFILE); // 退場也經漸變滑出,不在門檻關閉時提前 return 0
+  return easedShift((tr._rday || '') + '|' + (tr.sys || 'tra_sched') + ':' + tr.train, target, gateEpoch(_traGateEp, on), TRA_MOTION_PROFILE, snapToken); // 退場也經漸變滑出,不在門檻關閉時提前 return 0
 }
 async function pollLive() {
   const ls = state.schedSystems && state.schedSystems.find(s => s.live);
@@ -25919,14 +26014,8 @@ async function pollLive() {
     if (!r.ok) throw new Error(r.status);
     const d = await r.json();
     if (!Array.isArray(d.trains)) throw new Error('bad payload');
-    const m = new Map(); let delayed = 0, d10 = 0, maxDelay = 0;
-    for (const t of d.trains) { const dl = t.delay || 0; m.set(String(t.no), dl); if (dl > 0) delayed++; if (dl >= 10) d10++; if (dl > maxDelay) maxDelay = dl; }
-    // srcMs=上游資料時戳(TDX UpdateTime)解析成 epoch ms,供 liveDataAgeMs 判齡;
-    // 解析不出來就留 null,liveDataAgeMs 會退回舊行為(只看 at),不讓格式意外變成「資料永遠過期」。
-    const srcMs = Date.parse(d.at);
-    state.live = { map: m, at: Date.now(), delayed, srcAt: d.at, srcMs: isNaN(srcMs) ? null : srcMs };
+    applyTraLivePayload(d);
     noteClockSkew(d.srv);
-    evalTraAnomaly(d.trains.length, d10, maxDelay); // 大面積誤點自家觀測(2 進 2 出遲滯;判定只看誤點≥10 分的 d10,delayed 仍供 badge 用)
   } catch (e) { /* 失敗保留舊資料;超過 30 分鐘未更新由 liveActive 自動停用 */ }
   state.livePolled = true; // 成敗都算「試過了」——liveOutage() 靠它避免開機首輪回來前先喊中斷
   updateLiveBadge();

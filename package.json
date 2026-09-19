@@ -132,6 +132,7 @@
     "check-garage-assets": "node scripts/verify_garage_assets.mjs",
     "check-3d-perf": "node scripts/verify_glass_cache.mjs && node scripts/verify_physical_runtime_cache.mjs && node scripts/verify_3d_mask_equivalence.mjs && HEADFUL=1 node scripts/verify_3d_mask_scheduling.mjs",
     "check-tra-motion": "node scripts/verify_tra_motion.mjs",
+    "check-tra-live-anchor": "node scripts/verify_tra_live_anchor.mjs",
     "check-anomaly": "node scripts/verify_anomaly.mjs"
   },
   "dependencies": {

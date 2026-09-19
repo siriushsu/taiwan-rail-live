@@ -55,11 +55,11 @@ const live = (trains, at = AT_ISO) => ({ at, srv: NOW * 1000, trains });
   ok('A6r 查得到的那一筆也是 fresh=true', a.fresh === true);
   // 🔴 A7:同一車次兩筆是【實測到的上游形狀】,不是假想。取樣自 2026-08-22 23:15 的
   //    /api/tra-live:3782 兩筆(誤點 5、6),23:17 那份 288 也兩筆(0、1)。
-  //    期望值 6 是照【前端看板的規則】獨立推出來的(Map.set 後蓋前 ⇒ 最後一筆),
-  //    不是照實作推的——判準與實作不同源(心得 29)。
-  const dup = twDelayFor(live([{ no: '3782', delay: 5, sta: '4190', status: 2 },
-                               { no: '3782', delay: 6, sta: '4190', status: 2 }]), '3782', NOW);
-  ok('A7 同一車次多筆 ⇒ 取最後一筆(與看板 Map.set 後蓋前同規則)',
+  //    期望值 6 來自「誤點較大的資料不得被較小值蓋掉」，且故意把 5 放最後，
+  //    用排序反證這不是 Map.set 後蓋前的舊行為。
+  const dup = twDelayFor(live([{ no: '3782', delay: 6, sta: '4190', status: 2 },
+                               { no: '3782', delay: 5, sta: '4190', status: 2 }]), '3782', NOW);
+  ok('A7 同一車次多筆 ⇒ 取較大誤點，不受上游陣列順序左右',
     dup.known === true && dup.delayMin === 6, JSON.stringify(dup));
 }
 
