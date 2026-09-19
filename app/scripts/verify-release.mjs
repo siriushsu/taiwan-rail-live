@@ -417,10 +417,10 @@ const TOAST_REVIEWED = new Map([
     '匯入結果:added/updated/skipped 全是匯入計數並經 i18nNumber'],
   [`label?t('',{label:escHtml(label)}):t('')`, '儲存地點提示:使用者地點名已 escHtml'],
   [`t('',{station:escHtml(stationName(f.name,f.metroSysId||f.sys))})`, '最愛車站跳轉提示:收藏站名經 stationName 後已 escHtml'],
-  [`j.why===''?t(''):t('',{station:escHtml(stationName(st.name,st.sys)),distance:i18nNumber(Math.round(j.distM)),radius:i18nNumber(j.r)})`,
+  [`j.why===''?t(''):t('',{station:escHtml(stationName(st.name,st._i18nSys||st.sys)),distance:i18nNumber(Math.round(j.distM)),radius:i18nNumber(j.r)})`,
     '單站打卡失敗:站名已 escHtml,距離與半徑是數字'],
-  [`t('',{station:escHtml(stationName(st.name,st.sys))})`, '單站打卡提示:站名已 escHtml'],
-  [`t('',{station:escHtml(stationName(st.name,st.sys)),count:e&&e.n>1?t('',{n:i18nNumber(e.n)},e.n):''})`,
+  [`t('',{station:escHtml(stationName(st.name,st._i18nSys||st.sys))})`, '單站打卡提示:站名已 escHtml'],
+  [`t('',{station:escHtml(stationName(st.name,st._i18nSys||st.sys)),count:e&&e.n>1?t('',{n:i18nNumber(e.n)},e.n):''})`,
     '單站打卡成功:站名已 escHtml,次數經 i18nNumber'],
   [`t('',{from:escHtml(stationName(st.name,tr.sys)),to:escHtml(stationName(tr.stops[toIdx].name,tr.sys)),note:j.ok?'':t('')})`,
     '開始搭乘:兩端站名已 escHtml,note 只選固定翻譯 key'],
@@ -434,8 +434,9 @@ const TOAST_REVIEWED = new Map([
   [`p.label?t('',{label:escHtml(p.label)}):t('')`, '預設啟動地點提示:使用者地點名已 escHtml'],
   [`t('',{system:escHtml(t(plan.targetSys===''?'':plan.targetSys===''?'':'')),train:escHtml(String(plan.targetTr.train||'')),})`,
     '轉乘交棒提示:系統名只選固定翻譯 key，車次即使來自班表也先轉字串並 escHtml；兩個插值皆已逸出'],
-  // 2026-09-19 登記：懸賞三則提示包進 t() 之後的形狀（60f3dd83 多語化後舊指紋對不上，App 出包的 prepare-web 會擋）。
-  [`t('',{pts})`, '懸賞認領（示範／成功／落盤失敗三則共用）:pts 一律先經 bountyNum 收斂成有限非負數'],
+  // 2026-09-19 登記(i18n 複審):懸賞三則提示包進 t() 之後的形狀。上面 `${pts}24`／`${pts}`／''+(j.error…)
+  // 是繁中字面時代的指紋,多語化後對不上,這道發行檢查從 60f3dd83 起就是紅的。值的來源沒變:
+  [`t('',{pts},pts)`, '懸賞認領(示範／成功／落盤失敗三則共用):pts 先經 bountyNum 收斂為有限非負整數;第三參數是英文單複數用的同一個數'],
   [`t('',{reason:j.error===''?t(''):t('')})`, '懸賞認領失敗:API 的 error 只用來選兩個固定翻譯 key,回傳內容本身沒有插入'],
 ]);
 

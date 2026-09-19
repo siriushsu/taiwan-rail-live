@@ -126,13 +126,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": ", and removed {removed} estimated trains that are no longer on the official list. This doesn't mean those trains stopped running or were involved in an incident — they were simply estimated during the interruption and didn't match any train once official data returned."
+            "value": ", and removed {removed} estimated trains that were no longer on the official list. This doesn't mean those trains stopped running or were involved in an incident — they were simply estimated during the interruption and didn't match any train once official data returned."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "、公式リストに存在しなくなった推定列車{removed}本を削除しました。これはそれらの列車が運休したり事故に遭ったりしたことを意味するものではなく、途絶中に推定表示されていただけで、公式データの復旧後にどの列車とも一致しなかったものです。"
+            "value": "。また、公式リストに存在しなくなった推定列車{removed}本を削除しました。これらの列車が運休したり事故に遭ったりしたわけではなく、途絶中に推定表示されていたものが、公式データの復旧後にどの列車とも一致しなかったものです。"
           }
         }
       }
@@ -613,6 +613,23 @@
         }
       }
     },
+    "‹ 回地圖": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "‹ Back to map"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "‹ 地図に戻る"
+          }
+        }
+      }
+    },
     "（分）": {
       "extractionState": "manual",
       "localizations": {
@@ -919,6 +936,23 @@
         }
       }
     },
+    "{date} {train} 次・{title}": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{date} Train {train} · {title}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{date} {train}列車・{title}"
+          }
+        }
+      }
+    },
     "{date} 前的班表裡都沒有，之後要看官方公告": {
       "extractionState": "manual",
       "localizations": {
@@ -976,7 +1010,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "{dur}Trains on screen are estimated forward using the fixed running time between stations. As soon as official data returns, Rail Island realigns to the official list, so train positions will jump once{removedClause} The display is now back to official live data."
+            "value": "{dur} trains on screen were estimated forward using the fixed running time between stations. As soon as official data returned, Rail Island realigned to the official list, so train positions jumped once{removedClause} The display is now back on official live data."
           }
         },
         "ja": {
@@ -993,13 +1027,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "{first}　Dwell"
+            "value": "{first} · dwell"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "{first}　停車"
+            "value": "{first}の停車"
           }
         }
       }
@@ -1010,13 +1044,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "{first} and {n} stations　Dwell"
+            "value": "{first} + {more} more stations · dwell"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "{first}など{n}駅　停車"
+            "value": "{first}など{n}駅の停車"
           }
         }
       }
@@ -1084,7 +1118,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "{head}{mins}分：列車位置と駅の到着カウントダウンが不正確な場合があります"
+            "value": "{head}（{mins}分間）：列車位置と駅のカウントダウンが不正確な場合があります"
           }
         }
       }
@@ -1180,7 +1214,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "{lead}During this time, trains on screen are estimated forward using the fixed running time between stations, and station countdowns may also fail to find a train or appear frozen — these may not match reality, but this does not mean trains have stopped running. Once official data resumes, the display will realign with official positions, and some trains may jump forward or backward as a result. This is an automatic detection by this site, not an official announcement."
+            "value": "{lead} During this time, trains on screen are estimated forward using the fixed running time between stations, and station countdowns may also fail to find a train or appear frozen — these may not match reality, but this does not mean trains have stopped running. Once official data resumes, the display will realign with official positions, and some trains may jump forward or backward as a result. This is an automatic detection by this site, not an official announcement."
           }
         },
         "ja": {
@@ -1391,6 +1425,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "{n}回"
+          }
+        }
+      }
+    },
+    "{n} 段": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{n} segments"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{n}区間"
           }
         }
       }
@@ -1765,6 +1816,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "{scheduled} {action} → {effective}"
+          }
+        }
+      }
+    },
+    "{segs} <span id=\"recUnitWord\">段</span>已覆蓋・{pts} 點已鎖定": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "<span id=\"recUnitWord\">Segments</span> covered: {segs} · {pts} pts locked in"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{segs}<span id=\"recUnitWord\">区間</span>を記録済み・{pts}ポイント確保"
+          }
+        }
+      }
+    },
+    "{segs} <span id=\"recUnitWord\">站</span>已覆蓋・{pts} 點已鎖定": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "<span id=\"recUnitWord\">Stations</span> covered: {segs} · {pts} pts locked in"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{segs}<span id=\"recUnitWord\">駅</span>を記録済み・{pts}ポイント確保"
           }
         }
       }
@@ -2472,7 +2557,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "More → turn on Translucent panels"
+            "value": "Open More and turn on Translucent panels"
           }
         },
         "ja": {
@@ -2738,6 +2823,23 @@
         }
       }
     },
+    "「精確位置」是關的": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“Precise location” is off"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「正確な位置情報」がオフです"
+          }
+        }
+      }
+    },
     "「精選取景」一鍵看路網；「顯示設定」保留車種與軌道開關": {
       "extractionState": "manual",
       "localizations": {
@@ -2802,6 +2904,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "+ 駅を検索してお気に入りに追加"
+          }
+        }
+      }
+    },
+    "+{n}分": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+{n} min"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+{n}分"
           }
         }
       }
@@ -3367,6 +3486,23 @@
         }
       }
     },
+    "0.0 公里": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "0.0 km"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "0.0 km"
+          }
+        }
+      }
+    },
     "1 小時": {
       "extractionState": "manual",
       "localizations": {
@@ -3465,6 +3601,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "1998年から運用する冷房付き気動車で、平渓、深澳、集集、内湾線南部など非電化支線を走ります。"
+          }
+        }
+      }
+    },
+    "2001 年全台最早復駛觀光五分車的糖廠；日治時期是銜接後壁、白河（關子嶺方向）、東山、新營一帶輕便鐵道的樞紐車站，所產糖曾稱「御糖」。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In 2001 it became the first sugar refinery in Taiwan to bring back sightseeing sugar trains. Under Japanese rule it was the hub of the light railways linking Houbi, Baihe (toward Guanziling), Dongshan and Xinying, and its sugar was once known as “imperial sugar.”"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2001年、台湾で最初に観光五分車を復活させた製糖工場です。日本統治時代は後壁・白河（関子嶺方面）・東山・新営一帯の軽便鉄道を結ぶ拠点駅で、ここで作られた砂糖は「御糖」と呼ばれました。"
           }
         }
       }
@@ -3635,6 +3788,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "60分以内に列車はありません"
+          }
+        }
+      }
+    },
+    "700T 高鐵": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "700T High Speed Rail"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "700T 台湾高速鉄道"
           }
         }
       }
@@ -4404,6 +4574,23 @@
         }
       }
     },
+    "三鶯線・日立電聯車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sanying Line · Hitachi EMU"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "三鶯線・日立製電車"
+          }
+        }
+      }
+    },
     "三鶯線平日末班車補上官方的 00:00 那一班": {
       "extractionState": "manual",
       "localizations": {
@@ -4608,6 +4795,23 @@
         }
       }
     },
+    "上面寫「校正 N 段（其中 M 段已採用）」": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It reads “Calibrated N segments (M adopted)”"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「N区間を校正（うちM区間が採用済み）」と表示されます"
+          }
+        }
+      }
+    },
     "上員": {
       "extractionState": "manual",
       "localizations": {
@@ -4710,6 +4914,40 @@
         }
       }
     },
+    "下一班 {time}": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next train {time}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "次の列車 {time}"
+          }
+        }
+      }
+    },
+    "下一班 {time}（停駛）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next train {time} (cancelled)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "次の列車 {time}（運休）"
+          }
+        }
+      }
+    },
     "下一班會自動接上": {
       "extractionState": "manual",
       "localizations": {
@@ -4757,6 +4995,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "次は{station}"
+          }
+        }
+      }
+    },
+    "下次從該段起點再錄一次就能補齊": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next time, record again from the start of the segment to fill the gap"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "次回、区間の始点から記録し直せば補えます"
           }
         }
       }
@@ -5730,6 +5985,23 @@
         }
       }
     },
+    "山嵐號": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shanlan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "山嵐号"
+          }
+        }
+      }
+    },
     "山嵐號可以在地圖上認出來並跟車，環島之星與山海／平原號改畫成機車牽引的觀光列車": {
       "extractionState": "manual",
       "localizations": {
@@ -5923,7 +6195,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Claimed on the server · {pts} pts, but this device couldn't save it (storage may be full, or you're in private browsing) — the claim won't persist after you refresh"
+            "value": "Claimed on the server · {pts} pts, but this device couldn’t save it (storage may be full, or you’re in private browsing) — the claim won’t persist after you refresh"
           }
         },
         "ja": {
@@ -6558,7 +6830,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "すでに録画中です"
+            "value": "すでに記録中です"
           }
         }
       }
@@ -6954,6 +7226,23 @@
         }
       }
     },
+    "不含帳號與定位。想拿掉哪一項可以逐項關掉。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your account and location are never included. Switch off any item you don’t want to send."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アカウントと位置情報は含まれません。送りたくない項目は個別にオフにできます。"
+          }
+        }
+      }
+    },
     "不知道查什麼？試試看": {
       "extractionState": "manual",
       "localizations": {
@@ -7086,6 +7375,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "もう一度押して別の列車へ"
+          }
+        }
+      }
+    },
+    "不開 App 也能看捷運倒數、台鐵／高鐵發車，或把兩者放進同一張雙看板。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "See metro countdowns and TRA / HSR departures without opening the app, or put both on one dual board."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アプリを開かずにメトロのカウントダウンや台湾鉄路・高鉄の発車を確認でき、両方を1枚の二面案内にまとめることもできます。"
           }
         }
       }
@@ -7385,7 +7691,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "During the roughly {mins}-minute interruption, "
+            "value": "During the roughly {mins}-minute interruption,"
           }
         },
         "ja": {
@@ -7477,6 +7783,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "5000 kmクラブ"
+          }
+        }
+      }
+    },
+    "五分車為園區觀光列車，班次與票價依台糖公告，出發前請先向園區確認；本圖僅標示位置，不模擬行駛": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sugar trains are sightseeing rides inside the parks. Times and fares follow Taisugar’s announcements, so check with the park before you go. This map only marks locations and doesn’t simulate the trains."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "五分車は園区内の観光列車です。運行と運賃は台糖の告知に従うため、お出かけ前に園区へご確認ください。この地図は位置のみを示し、運行はシミュレーションしていません。"
+          }
+        }
+      }
+    },
+    "五分車從蔗埕一路開進故宮南院，是全台唯一直達國家級博物館的鐵道，另一線串起高鐵嘉義站——最慢的糖鐵接上最快的高鐵。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The sugar train runs from the cane yard straight into the Southern Branch of the National Palace Museum, the only railway in Taiwan that goes directly to a national museum. Another line connects to THSR Chiayi Station: the slowest sugar railway meets the fastest high-speed rail."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "五分車が蔗埕から故宮南院まで直通する、台湾で唯一国立博物館へ直行する鉄道です。もう1路線は高鉄嘉義駅へ。最も遅い糖業鉄道が最も速い高速鉄道につながります。"
           }
         }
       }
@@ -7953,6 +8293,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "本日のデータを集計中です。早朝の始発後から順次表示されます。"
+          }
+        }
+      }
+    },
+    "介": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Info"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "案"
           }
         }
       }
@@ -8756,6 +9113,23 @@
         }
       }
     },
+    "切換放空視角：「跟車」跟著一班列車跑；「群車」不跟車，鏡頭停在當下列車最密的繁忙路段看群車交錯，並緩慢漂移縮放、定時換一段": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch the idle view: “Follow train” rides along with one train; “Train cluster” doesn’t follow — the camera stays on the busiest stretch to watch trains pass, drifting and zooming slowly and moving to a new stretch every so often."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "放置時の視点を切り替え：「列車追跡」は1本の列車について走ります。「列車群」は列車を追わず、いま列車が最も多い区間にカメラを置いて行き交う列車を眺め、ゆっくり移動・ズームしながら一定時間ごとに別の区間へ移ります。"
+          }
+        }
+      }
+    },
     "切換群組": {
       "extractionState": "manual",
       "localizations": {
@@ -9130,6 +9504,23 @@
         }
       }
     },
+    "手機放在包包裡或車廂中央會擋住訊號，靠窗會好很多": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A phone in a bag or in the middle of the car loses signal; near a window works much better"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "かばんの中や車両の中央では電波が遮られます。窓際に置くとずっと良くなります"
+          }
+        }
+      }
+    },
     "手機長時間掛著看，建議打開省電模式。": {
       "extractionState": "manual",
       "localizations": {
@@ -9385,6 +9776,23 @@
         }
       }
     },
+    "文湖線 APM 256": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wenhu Line APM 256"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文湖線 APM 256"
+          }
+        }
+      }
+    },
     "文湖線沿線": {
       "extractionState": "manual",
       "localizations": {
@@ -9585,6 +9993,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "昼夜の光"
+          }
+        }
+      }
+    },
+    "日治鹽水港製糖株式會社本社所在、台糖昔日三大總廠之一；招牌是「勝利號」老客車，還能看到台鐵與糖鐵軌道並行的共道景觀。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home of the Japanese-era Ensuiko Sugar Manufacturing Company’s head office and once one of Taisugar’s three main mills. Its signature is the vintage “Victory” passenger car, and you can see TRA and sugar-railway tracks running side by side."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日本統治時代の塩水港製糖株式会社の本社があった地で、かつての台糖三大総廠の一つです。名物は「勝利号」の古い客車で、台鉄と糖業鉄道の線路が並走する光景も見られます。"
           }
         }
       }
@@ -10082,6 +10507,23 @@
         }
       }
     },
+    "出發前": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Before you go"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "出発前に"
+          }
+        }
+      }
+    },
     "加入 22 款精修立體車站與地標，放大可看細節、縮小自動簡化，並保留建築透視": {
       "extractionState": "manual",
       "localizations": {
@@ -10456,6 +10898,23 @@
         }
       }
     },
+    "半封閉式平交道": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Semi-closed level crossing"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "半閉鎖式踏切"
+          }
+        }
+      }
+    },
     "半島縱走": {
       "extractionState": "manual",
       "localizations": {
@@ -10666,13 +11125,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Only counts when you tap \"I'm on board\" — just watching the animation never counts. A round trip counts as the same segment."
+            "value": "Only counts when you tap “I’m on board” — just watching the animation never counts. A round trip counts as the same segment."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "「乗車中」を押した場合のみカウントされ、アニメーションを見ているだけでは一切カウントされません。往復は同一区間として扱います。"
+            "value": "「乗車する」を押した場合のみカウントされ、アニメーションを見ているだけでは一切カウントされません。往復は同一区間として扱います。"
           }
         }
       }
@@ -10898,6 +11357,23 @@
         }
       }
     },
+    "可能是中途換車，或班表當天有調整": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You may have changed trains partway, or the timetable was changed that day"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "途中で乗り換えたか、当日の時刻が変更された可能性があります"
+          }
+        }
+      }
+    },
     "可能是本站服務或你目前的網路連線，不一定是官方端。": {
       "extractionState": "manual",
       "localizations": {
@@ -11081,6 +11557,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "台中メトロ"
+          }
+        }
+      }
+    },
+    "台中捷運・綠線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taichung Metro · Green Line"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台中メトロ・緑線"
           }
         }
       }
@@ -11391,6 +11884,40 @@
         }
       }
     },
+    "台南市後壁區": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Houbi District, Tainan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台南市後壁区"
+          }
+        }
+      }
+    },
+    "台南市新營區": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xinying District, Tainan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台南市新営区"
+          }
+        }
+      }
+    },
     "台南地面鐵道・歷史重播": {
       "extractionState": "manual",
       "localizations": {
@@ -11421,6 +11948,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "台湾電力ビル"
+          }
+        }
+      }
+    },
+    "台糖五分車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taisugar sugar railway"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台糖の五分車"
           }
         }
       }
@@ -11595,19 +12139,19 @@
         }
       }
     },
-    "台鐵列車在立體地圖上不會再超過車種極速，站牌時刻不變": {
+    "台鐵列車在地圖上不再跑得比車種極速還快，新馬急彎與立體地圖都修正了，站牌時刻不變": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "TRA trains on the 3D map no longer exceed their top speed; station times are unchanged."
+            "value": "TRA trains on the map no longer run faster than their top speed, including near the sharp curve at Xinma and on the 3D map; station times are unchanged."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "立体地図の台鉄列車が最高速度を超えなくなりました。駅の時刻は変わりません。"
+            "value": "地図上の台鉄列車が車種の最高速度を超えて走らなくなりました。新馬の急カーブ手前と立体地図の両方を修正し、駅の時刻は変わりません。"
           }
         }
       }
@@ -11812,6 +12356,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "後続の台鉄列車が先行列車に追いつくと予測したとき、十分な制動時間を確保できる手前の駅までさかのぼって待避を設定します。たとえば、和仁－和平間ですり抜けていた6563次と207次は、6563次が崇徳で先に停車し、207次の通過後に発車します。車種ごとの制動性能に応じて、さらに手前の駅が必要かも判断します。"
+          }
+        }
+      }
+    },
+    "台鐵後車待避與對向交會都保留安全間隔，同一條軌道上互相穿過的情況再減少": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TRA trains now keep a safety margin when waiting for a following train to pass or for an oncoming train, so trains pass through each other on the same track even less often."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台鉄の列車が待避や行き違いで安全間隔を保つようになり、同じ線路上で列車どうしがすり抜けることがさらに減りました。"
           }
         }
       }
@@ -12033,6 +12594,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "台湾高速鉄道ライブ"
+          }
+        }
+      }
+    },
+    "台灣第一座現代化機械式製糖工廠，走過百年；觀光五分車連結園區與高雄花卉農園中心，高雄捷運紅線橋頭糖廠站出站即達。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taiwan’s first modern mechanized sugar refinery, now more than a century old. The sightseeing sugar train links the park with the Kaohsiung Flower Farm Center, and the park is right outside Ciaotou Sugar Refinery Station on the Kaohsiung Metro Red Line."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台湾初の近代的な機械式製糖工場で、100年余りの歴史があります。観光五分車が園区と高雄花卉農園センターを結び、高雄メトロ レッドラインの橋頭製糖工場駅を出てすぐです。"
+          }
+        }
+      }
+    },
+    "台灣糖業博物館（橋頭糖廠）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taiwan Sugar Museum (Ciaotou Sugar Refinery)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台湾糖業博物館（橋頭製糖工場）"
           }
         }
       }
@@ -12751,6 +13346,23 @@
         }
       }
     },
+    "打開「護照」，在「校正貢獻」那一列按「懸賞板」": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Passport and tap “Bounty board” in the “Calibration contributions” row"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「パスポート」を開き、「校正への貢献」の行にある「懸賞板」を押します"
+          }
+        }
+      }
+    },
     "打開<b>精確位置</b>": {
       "extractionState": "manual",
       "localizations": {
@@ -12764,6 +13376,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "<b>正確な位置情報</b>をオンにする"
+          }
+        }
+      }
+    },
+    "打開大字/進度條/完整品質說明": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open large text, progress bar and full quality details"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "大きな文字・進捗バー・品質の詳しい説明を開く"
           }
         }
       }
@@ -12815,6 +13444,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "今後60分間に列車はありません"
+          }
+        }
+      }
+    },
+    "未來 60 分鐘無列車通過": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No trains in the next 60 minutes"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今後60分間、通過する列車はありません"
           }
         }
       }
@@ -13550,6 +14196,23 @@
         }
       }
     },
+    "正常營運": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Normal service"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "平常運転"
+          }
+        }
+      }
+    },
     "正義": {
       "extractionState": "manual",
       "localizations": {
@@ -13771,6 +14434,23 @@
         }
       }
     },
+    "用 Safari／Chrome 開啟，才能把軌島加入主畫面，下次一點就回來": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open this page in Safari or Chrome to add Rail Island to your Home Screen and get back with one tap."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Safari／Chromeで開くと軌島をホーム画面に追加でき、次回からワンタップで戻れます。"
+          }
+        }
+      }
+    },
     "用「視角」切換：跟車＝跟著一班車跑；群車＝鏡頭停在當下最忙的路段看列車交錯": {
       "extractionState": "manual",
       "localizations": {
@@ -13784,6 +14464,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "「視点」で切替：追跡は1列車、群列車は混雑区間を固定表示"
+          }
+        }
+      }
+    },
+    "用軌島分享你的行程": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Share your trip with Rail Island"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "軌島で旅程を共有"
           }
         }
       }
@@ -14361,7 +15058,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "デモデータです（デザイン確認専用）：ここに表示される区間とポイントはすべて仮のもので、実際には録画されません。"
+            "value": "デモデータです（デザイン確認専用）：ここに表示される区間とポイントはすべて仮のもので、受け取っても実際には記録されません。"
           }
         }
       }
@@ -14566,6 +15263,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "後で"
+          }
+        }
+      }
+    },
+    "先在懸賞板接一段": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "First claim a segment on the bounty board"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "まず懸賞板で区間を1つ受け取ります"
           }
         }
       }
@@ -14804,6 +15518,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "台湾鉄路の踏切415か所で次に通過する列車を確認できます。"
+          }
+        }
+      }
+    },
+    "全台少見仍有蒸汽機車動態行駛的糖廠——1948 年比利時製的 346 號蒸汽老火車修復後不定期出勤，平時由柴油機車牽引五分車，來回約 4.3 公里。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One of the few sugar refineries in Taiwan that still runs a working steam locomotive: No. 346, built in Belgium in 1948 and restored, comes out on irregular days. Diesel locomotives haul the sugar train the rest of the time, on a round trip of about 4.3 km."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台湾でも数少ない、今も蒸気機関車が動態運転される製糖工場です。1948年ベルギー製の346号蒸気機関車が修復され、不定期に走ります。普段はディーゼル機関車が五分車を牽引し、往復約4.3km。"
           }
         }
       }
@@ -15399,6 +16130,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "オフにすると不透明へ戻る"
+          }
+        }
+      }
+    },
+    "再按一次就關閉，面板回到原本的樣子": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap it again to turn it off and return panels to their usual look"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "もう一度押すとオフになり、パネルが元の表示に戻ります"
           }
         }
       }
@@ -16083,6 +16831,23 @@
         }
       }
     },
+    "回地圖(錄製會繼續進行，不會停止)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back to map (recording keeps going; it won’t stop)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "地図に戻る（記録は止まらずに続きます）"
+          }
+        }
+      }
+    },
     "回到列車": {
       "extractionState": "manual",
       "localizations": {
@@ -16253,6 +17018,23 @@
         }
       }
     },
+    "在月台上等車時，把下一班倒數放上鎖定畫面的即時資訊；Samsung Android 16 可顯示在 Now Bar。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "While waiting on the platform, put the next-train countdown in Live Updates on your lock screen; Samsung devices with Android 16 can also show it in the Now Bar."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ホームで待つ間、次の列車のカウントダウンをロック画面のライブアップデートに表示します。Android 16のSamsung端末ではNow Barにも表示できます。"
+          }
+        }
+      }
+    },
     "在月台上等車時，把這一站的下一班倒數放上鎖定畫面與動態島，不用一直把 App 開著。": {
       "extractionState": "manual",
       "localizations": {
@@ -16266,6 +17048,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "ホームで待つ間、次の列車のカウントダウンをロック画面とDynamic Islandに表示し、アプリを開いたままにする必要がありません。"
+          }
+        }
+      }
+    },
+    "在月台等某一班車時，把那一班的倒數放上鎖定畫面的即時資訊；Samsung Android 16 可顯示在 Now Bar。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "While waiting for a specific train, put its countdown in Live Updates on your lock screen; Samsung devices with Android 16 can also show it in the Now Bar."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "特定の列車を待つ間、その列車のカウントダウンをロック画面のライブアップデートに表示します。Android 16のSamsung端末ではNow Barにも表示できます。"
           }
         }
       }
@@ -16895,6 +17694,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "安坑ライトレール"
+          }
+        }
+      }
+    },
+    "安坑輕軌・光耀金": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ankeng Light Rail · gold livery"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安坑ライトレール・光耀金"
           }
         }
       }
@@ -17545,6 +18361,23 @@
         }
       }
     },
+    "有些路段我們手上的行駛資料不夠準，缺哪一段就掛在懸賞板上，等人去搭一趟錄回來。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "For some segments our running data isn’t accurate enough yet. Each segment that needs data goes up on the bounty board until someone rides it and records it."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "走行データの精度が足りない区間があります。足りない区間は懸賞板に掲載され、誰かが乗車して記録してくれるのを待っています。"
+          }
+        }
+      }
+    },
     "有班次的可以直接跟車": {
       "extractionState": "manual",
       "localizations": {
@@ -17609,6 +18442,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "この路線は混雑度の提供なし"
+          }
+        }
+      }
+    },
+    "此道口位於{line}——本圖未收錄該路段列車，無法提供通過班次預測": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This crossing is on {line}. Trains on that section aren’t in this map, so no pass predictions are available."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この踏切は{line}にあります。この区間の列車は地図に収録されていないため、通過予測は表示できません。"
           }
         }
       }
@@ -18242,23 +19092,6 @@
         }
       }
     },
-    "自強號駛近新馬急彎時，地圖上的列車不再跑得比車種極速還快": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tze-Chiang Express trains approaching the sharp curve at Xinma no longer move faster than their top speed on the map."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "新馬の急カーブ手前で、地図上の自強号が車両の最高速度を超えて走ることがなくなりました。"
-          }
-        }
-      }
-    },
     "行天宮": {
       "extractionState": "manual",
       "localizations": {
@@ -18480,6 +19313,23 @@
         }
       }
     },
+    "低耗電模式會降低定位頻率，錄製期間建議先關掉": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Low Power Mode reduces how often your location updates, so turn it off while recording"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "低電力モードでは位置情報の更新頻度が下がるため、記録中はオフにすることをおすすめします"
+          }
+        }
+      }
+    },
     "你已經在搭乘中了，先下車再上車": {
       "extractionState": "manual",
       "localizations": {
@@ -18527,6 +19377,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "{train}列車に乗車中です。先に下車してください。"
+          }
+        }
+      }
+    },
+    "你在 App 內建瀏覽器裡": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You’re in an in-app browser"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アプリ内ブラウザで開いています"
           }
         }
       }
@@ -18646,6 +19513,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "近くの駅"
+          }
+        }
+      }
+    },
+    "你搭車的時候順手錄一趟，我們用它把那段路的位置推算修準。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record a trip while you ride, and we use it to make train position estimates on that stretch more accurate."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "乗車のついでに記録してもらうと、その区間の列車位置の推定をより正確にできます。"
+          }
+        }
+      }
+    },
+    "你錄過幾段、其中有幾段真的被採用，都記在護照的「校正貢獻」。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How many segments you’ve recorded, and how many of them were actually adopted, is shown under “Calibration contributions” in your Passport."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "記録した区間の数と、そのうち実際に採用された数は、パスポートの「校正への貢献」に表示されます。"
           }
         }
       }
@@ -19398,6 +20299,23 @@
         }
       }
     },
+    "快到你設定的時間時，軌島會發通知提醒你。通知只在你設定的班次前出現，不會有廣告或雜訊。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When the time you set is near, Rail Island sends you a notification. Notifications only come before the trains you set — no ads, no noise."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定した時刻が近づくと、軌島が通知でお知らせします。通知は設定した列車の前にだけ届き、広告や不要な通知はありません。"
+          }
+        }
+      }
+    },
     "快到轉乘站時，直接列出對向系統最近兩班和「你到站時還剩幾分」，可以釘住你要搭的那班": {
       "extractionState": "manual",
       "localizations": {
@@ -19751,6 +20669,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "西部幹線の長距離区間車を探しましょう。各駅停車タイプが最も停車数を稼げます。"
+          }
+        }
+      }
+    },
+    "找到「校正貢獻」那一列": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Find the “Calibration contributions” row"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「校正への貢献」の行を探します"
           }
         }
       }
@@ -20985,7 +21920,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Car crowding（official Taipei Metro data）"
+            "value": "Car crowding (official Taipei Metro data)"
           }
         },
         "ja": {
@@ -21557,6 +22492,23 @@
         }
       }
     },
+    "例：231 次在宜蘭站停很久沒動，實際上已經開了": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "e.g. Train 231 sat at Yilan on the map for a long time, but it had actually left"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "例：231列車が宜蘭駅で長く止まったまま動かないが、実際にはもう発車していた"
+          }
+        }
+      }
+    },
     "例如：家、公司、常去的車站": {
       "extractionState": "manual",
       "localizations": {
@@ -21744,6 +22696,23 @@
         }
       }
     },
+    "依時刻表推算僅供參考，遮斷機通常提前 30–60 秒動作，請以現場號誌為準": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estimated from the timetable and for reference only. Barriers usually come down 30–60 seconds before a train; always follow the signals at the crossing."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時刻表からの推定で、参考値です。遮断機は通常30〜60秒前に作動します。必ず現地の警報機・信号に従ってください。"
+          }
+        }
+      }
+    },
     "依稍早官方資料推估": {
       "extractionState": "manual",
       "localizations": {
@@ -21774,6 +22743,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "児童節・清明節"
+          }
+        }
+      }
+    },
+    "兩個數字不一樣是正常的——訊號不好的那幾趟資料用不上，但校正者章與點數還是你的，而且我們會寫出是什麼原因、下次怎麼改善。某段如果是你第一個錄回來的，會標「首位校正者」。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It’s normal for the two numbers to differ: data from trips with a poor signal can’t be used, but you keep the calibrator stamp and points, and we tell you why and how to do better next time. If you were the first to record a segment, it’s marked “First calibrator”."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2つの数字が違うのは正常です。電波の悪かった記録は使えませんが、校正者スタンプとポイントはあなたのものです。原因と次回の改善方法もお知らせします。ある区間を最初に記録した場合は「最初の校正者」と表示されます。"
           }
         }
       }
@@ -21910,6 +22896,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "着"
+          }
+        }
+      }
+    },
+    "到站按「停止錄製」": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap “Stop recording” when you arrive"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "到着したら「記録を停止」を押します"
           }
         }
       }
@@ -22216,6 +23219,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "表示用データを読み込めません"
+          }
+        }
+      }
+    },
+    "取樣太稀疏": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Too few location samples"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "測位の間隔が粗すぎます"
           }
         }
       }
@@ -22685,13 +23705,30 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Official signal restored — Taipei Metro live data was interrupted for about <b>{mins} minutes</b> and has now recovered. <b>{count} trains</b> have been repositioned to match official data. During the outage, their on-screen positions were estimated, so these trains may jump forward or back.{removedClause}"
+            "value": "Official signal restored — Taipei Metro live data was interrupted for about <b>{mins} min</b> and has now recovered. <b>{count} trains</b> have been repositioned to match official data. During the outage their on-screen positions were estimated, so these trains may jump forward or back.{removedClause}"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "公式信号が復旧しました　台北メトロのリアルタイムデータが約<b>{mins}分間</b>途絶えたのち復旧し、<b>{count}本</b>の列車を公式位置に再整合しました。途絶中の画面上の位置は推定だったため、これらの列車は前後にジャンプすることがあります。{removedClause}"
+            "value": "公式信号が復旧しました　台北メトロのリアルタイムデータが約<b>{mins}分間</b>途絶えたのち復旧し、<b>{count}本</b>の列車を公式位置に再整合しました。途絶中の画面上の位置は推定だったため、対象の列車は前後にジャンプすることがあります。{removedClause}"
+          }
+        }
+      }
+    },
+    "官方設計與車輛資料": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Official design and vehicle data"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "公式の設計・車両資料"
           }
         }
       }
@@ -22760,6 +23797,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "現在地と近くの駅"
+          }
+        }
+      }
+    },
+    "定位權限沒有開啟；請到系統設定允許軌島使用精確位置。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Location permission is off. Allow Rail Island to use precise location in system settings."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "位置情報の許可がオフです。システム設定で、軌島に正確な位置情報の使用を許可してください。"
           }
         }
       }
@@ -23304,6 +24358,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "または隅の「⋯」から「外部ブラウザで開く」を選択してください"
+          }
+        }
+      }
+    },
+    "所以停站時間沒收到；軌道段仍然有效": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "So no dwell time was captured, but the track segments still count"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "そのため停車時間は記録できませんでしたが、線路区間の記録は有効です"
           }
         }
       }
@@ -25195,6 +26266,23 @@
         }
       }
     },
+    "阿里山號・紅白客車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alishan Express · red-and-white coach"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "阿里山号・紅白の客車"
+          }
+        }
+      }
+    },
     "附上的只有版本、目前畫面、地圖視角、跟隨中的列車與瀏覽器版本，不含帳號與定位。開 issue 需要 GitHub 帳號，issue 內容是公開的。": {
       "extractionState": "manual",
       "localizations": {
@@ -25382,6 +26470,23 @@
         }
       }
     },
+    "非營運時段": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Outside service hours"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "運行時間外"
+          }
+        }
+      }
+    },
     "亮": {
       "extractionState": "manual",
       "localizations": {
@@ -25514,6 +26619,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "移動"
+          }
+        }
+      }
+    },
+    "前往 GitHub 開 issue": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open an issue on GitHub"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHubでissueを作成"
           }
         }
       }
@@ -26442,13 +27564,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tap \"I'm on board\" for an actual ride — every station you pass gets stamped automatically, much faster than relying on journey origin/destination stations alone."
+            "value": "Tap “I’m on board” for an actual ride — every station you pass gets stamped automatically, much faster than relying on journey origin/destination stations alone."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "「乗車中」を押して実際に乗車すると、通過する駅ごとに自動でスタンプが押されます。完乗の起点・終点駅だけに頼るより、ずっと速く集まります。"
+            "value": "「乗車する」を押して実際に乗車すると、通過する駅ごとに自動でスタンプが押されます。完乗の起点・終点駅だけに頼るより、ずっと速く集まります。"
           }
         }
       }
@@ -26551,6 +27673,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "「乗車しました」を押した後に、まだ発車していない列車をタップしても時計が現在からずれなくなりました。ご報告ありがとうございます。"
+          }
+        }
+      }
+    },
+    "按下去接下來，出發前會有一張說明卡告訴你要準備什麼": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap it to claim it; before you set off, a briefing card tells you what to prepare"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "押して受け取ると、出発前に準備することを説明するカードが表示されます"
+          }
+        }
+      }
+    },
+    "按下去會開啟 GitHub 的新 issue 頁面，上面的內容已經幫你填好，送出前還可以再改。需要 GitHub 帳號。issue 是公開的。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This opens a new GitHub issue page with the details already filled in, and you can still edit them before submitting. You need a GitHub account, and issues are public."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHubの新しいissueページが開き、内容は入力済みです。送信前に編集もできます。GitHubアカウントが必要で、issueは公開されます。"
           }
         }
       }
@@ -26721,6 +27877,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "再生を押すか、場面を選んでください。"
+          }
+        }
+      }
+    },
+    "挑一段你本來就要搭的": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pick a segment you were going to ride anyway"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "もともと乗る予定の区間を選びます"
           }
         }
       }
@@ -27146,6 +28319,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "スマートフォンの負荷を抑えるため個別表示していません。選択するとすべて読み込みます。"
+          }
+        }
+      }
+    },
+    "省": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eco"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "省"
           }
         }
       }
@@ -28017,19 +29207,19 @@
         }
       }
     },
-    "英日文介面補上漏翻的按鈕、路線名、公告與提示，切換語言不再殘留前一種語言；車站看板太長的字改成兩行，不再被切掉": {
+    "英日文介面補上漏翻的按鈕、路線名、公告與提示，切換語言不再殘留前一種語言；車站看板太長的字改成兩行，不再被切掉；iOS 定位權限說明改用中文": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "English and Japanese: buttons, line names, notices and messages still shown in Chinese are now translated, switching languages no longer leaves the previous language behind, and long station board text wraps to two lines instead of being cut off."
+            "value": "English and Japanese: buttons, line names, notices and messages still shown in Chinese are now translated, switching languages no longer leaves the previous language behind, and long station board text wraps to two lines instead of being cut off; iOS location permission text now also appears in Chinese"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "英語・日本語表示：中国語のまま残っていたボタン、路線名、お知らせ、メッセージを翻訳しました。言語を切り替えても前の言語が残らなくなり、駅の案内板で長い文字は切れずに2行で表示されます。"
+            "value": "英語・日本語表示：中国語のまま残っていたボタン、路線名、お知らせ、メッセージを翻訳しました。言語を切り替えても前の言語が残らなくなり、駅の案内板で長い文字は切れずに2行で表示されます。iOSの位置情報の許可説明を中国語でも表示"
           }
         }
       }
@@ -28421,6 +29611,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "軌島 {version}の更新内容"
+          }
+        }
+      }
+    },
+    "軌島 Google Play 新版 有什麼新的": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What’s new in Rail Island on Google Play"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "軌島 Google Play版の新機能"
           }
         }
       }
@@ -29054,23 +30261,6 @@
         }
       }
     },
-    "面板半透明時，看板倒數、預計到站與「在 Google 地圖開啟」等藍字加深，疊在衛星影像上也看得清楚": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "With translucent panels on, blue text such as board countdowns, arrival times and “Open in Google Maps” is darker and stays readable over satellite imagery."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "パネル半透明時、案内板のカウントダウン・到着予定・「Google マップで開く」などの青い文字を濃くし、衛星画像の上でも読みやすくしました。"
-          }
-        }
-      }
-    },
     "音量": {
       "extractionState": "manual",
       "localizations": {
@@ -29186,6 +30376,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "初回は位置情報の許可を求めます。Androidでは「正確な位置情報」を推奨します。"
+          }
+        }
+      }
+    },
+    "首位校正者：<b>你</b>（{n} 段）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "First calibrator: <b>you</b> ({n} segments)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最初の校正者：<b>あなた</b>（{n}区間）"
           }
         }
       }
@@ -29921,6 +31128,23 @@
         }
       }
     },
+    "原始照片與車型介紹": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Original photos and model overview"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "元の写真と車両紹介"
+          }
+        }
+      }
+    },
     "原始碼公開，歡迎貢獻": {
       "extractionState": "manual",
       "localizations": {
@@ -30584,6 +31808,23 @@
         }
       }
     },
+    "校正 <b>{n}</b> 段<span class=\"corr-sub\">（其中 <b>{adopted}</b> 段已採用）</span>": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Calibrated <b>{n}</b> segments<span class=\"corr-sub\"> (<b>{adopted}</b> adopted)</span>"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "<b>{n}</b>区間を校正<span class=\"corr-sub\">（うち<b>{adopted}</b>区間が採用済み）</span>"
+          }
+        }
+      }
+    },
     "校正，不是列車的實際 GPS 位置；實際到離站時刻請以各營運機構官方資訊為準。": {
       "extractionState": "manual",
       "localizations": {
@@ -30597,6 +31838,74 @@
           "stringUnit": {
             "state": "translated",
             "value": "で補正しています。実際のGPS位置ではありません。発着時刻は各事業者の公式情報をご確認ください。"
+          }
+        }
+      }
+    },
+    "校正貢獻": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Calibration contributions"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "校正への貢献"
+          }
+        }
+      }
+    },
+    "校正過的": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Calibrated"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "校正済み"
+          }
+        }
+      }
+    },
+    "校正懸賞": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Calibration bounties"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "校正懸賞"
+          }
+        }
+      }
+    },
+    "栩悅號・觀景客車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xuyue · observation coach"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "栩悦号・展望客車"
           }
         }
       }
@@ -30818,6 +32127,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "ホーム画面ウィジェット:方向と目的地に「指定なし」が加わり、選んだ後でも戻せるようになりました。地下鉄の発車標は選んだ駅から行ける方面だけを表示します。Android は 7 種類のサイズを揃え、地下鉄と鉄道の両方に大きいカードを追加、5 列の端末では 5 列いっぱいに使います(ご報告ありがとうございます)。"
+          }
+        }
+      }
+    },
+    "桌面小工具（捷運／鐵路／雙看板）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home screen widgets (metro, rail and dual board)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ホーム画面ウィジェット（メトロ／鉄道／二面案内）"
           }
         }
       }
@@ -31111,6 +32437,23 @@
         }
       }
     },
+    "海風號": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Haifeng"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "海風号"
+          }
+        }
+      }
+    },
     "海端": {
       "extractionState": "manual",
       "localizations": {
@@ -31247,6 +32590,40 @@
         }
       }
     },
+    "烏樹林": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wushulin"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "烏樹林"
+          }
+        }
+      }
+    },
+    "烏樹林休閒園區": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wushulin Recreation Park"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "烏樹林レジャー園区"
+          }
+        }
+      }
+    },
     "特大": {
       "extractionState": "manual",
       "localizations": {
@@ -31345,6 +32722,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "T"
+          }
+        }
+      }
+    },
+    "班次字太小時打開「大字好讀版」——主要文字會明顯放大，並減少列數避免擠在一起": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If the text is too small, turn on “Large, easy-to-read text”: the main text gets noticeably bigger and fewer rows are shown so nothing is cramped"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文字が小さいときは「大きく読みやすい文字」をオンにします。主な文字がはっきり大きくなり、詰まらないよう表示行数を減らします"
           }
         }
       }
@@ -31532,6 +32926,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "追跡を終了するにはカードの「終了」を押します。"
+          }
+        }
+      }
+    },
+    "真的搭上那班車之後，按說明卡的「開始錄製」": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Once you’re actually on that train, tap “Start recording” on the briefing card"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "その列車に実際に乗ったら、説明カードの「記録を開始」を押します"
           }
         }
       }
@@ -31831,7 +33242,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "During the signal interruption, "
+            "value": "During the signal interruption,"
           }
         },
         "ja": {
@@ -31859,6 +33270,23 @@
         }
       }
     },
+    "訊號品質": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signal quality"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "測位の品質"
+          }
+        }
+      }
+    },
     "訊號弱": {
       "extractionState": "manual",
       "localizations": {
@@ -31872,6 +33300,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "弱い信号"
+          }
+        }
+      }
+    },
+    "訊號被遮蔽了": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The signal is blocked"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "電波が遮られています"
           }
         }
       }
@@ -32114,6 +33559,23 @@
         }
       }
     },
+    "追蹤這班車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Track this train"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この列車を追跡"
+          }
+        }
+      }
+    },
     "追蹤這站": {
       "extractionState": "manual",
       "localizations": {
@@ -32318,6 +33780,23 @@
         }
       }
     },
+    "高雄市橋頭區": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qiaotou District, Kaohsiung"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高雄市橋頭区"
+          }
+        }
+      }
+    },
     "高雄車站": {
       "extractionState": "manual",
       "localizations": {
@@ -32403,6 +33882,23 @@
         }
       }
     },
+    "高雄捷運・西門子": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kaohsiung Metro · Siemens"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高雄メトロ・シーメンス製"
+          }
+        }
+      }
+    },
     "高雄輕軌": {
       "extractionState": "manual",
       "localizations": {
@@ -32416,6 +33912,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "高雄ライトレール"
+          }
+        }
+      }
+    },
+    "高雄輕軌・CAF": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kaohsiung Light Rail · CAF"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高雄ライトレール・CAF"
+          }
+        }
+      }
+    },
+    "高雄輕軌・Citadis": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kaohsiung Light Rail · Citadis"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高雄ライトレール・Citadis"
           }
         }
       }
@@ -32675,6 +34205,57 @@
         }
       }
     },
+    "假日 10–16 時固定班次（蒸汽機車另行公告）；平日 20 人以上預約": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weekends and holidays: scheduled runs 10:00–16:00 (steam runs announced separately). Weekdays: groups of 20 or more by reservation."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "土日祝は10〜16時に定期運行（蒸気機関車は別途告知）。平日は20人以上の予約制。"
+          }
+        }
+      }
+    },
+    "假日中興站 9–16 時整點發車（12 時除外）；平日 20 人以上、3 天前預約": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weekends and holidays: departs Zhongxing Station every hour on the hour 9:00–16:00 (except 12:00). Weekdays: groups of 20 or more, booked 3 days ahead."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "土日祝は中興駅から9〜16時の毎正時に発車（12時を除く）。平日は20人以上、3日前までに予約。"
+          }
+        }
+      }
+    },
+    "假日開行故宮南院線與高鐵嘉義站線；平日 30 人以上預約（週一檢修不開行）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weekends and holidays: Palace Museum Southern Branch line and THSR Chiayi Station line. Weekdays: groups of 30 or more by reservation (no service on Mondays for maintenance)."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "土日祝は故宮南院線と高鉄嘉義駅線を運行。平日は30人以上の予約制（月曜は点検のため運休）。"
+          }
+        }
+      }
+    },
     "停止": {
       "extractionState": "manual",
       "localizations": {
@@ -32709,6 +34290,23 @@
         }
       }
     },
+    "停止並保存這趟 GPS 校正旅程": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop and save this GPS calibration trip"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このGPS校正の記録を停止して保存"
+          }
+        }
+      }
+    },
     "停止錄製": {
       "extractionState": "manual",
       "localizations": {
@@ -32721,7 +34319,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "録画を停止"
+            "value": "記録を停止"
           }
         }
       }
@@ -33270,6 +34868,40 @@
         }
       }
     },
+    "專用平交道": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Private level crossing"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "専用踏切"
+          }
+        }
+      }
+    },
+    "專用線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Private siding"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "専用線"
+          }
+        }
+      }
+    },
     "專為看日出而生的支線，從阿里山站經對高岳爬上 6.25 公里外、海拔 2,451 公尺的祝山車站——全台海拔最高的火車站；觀日列車每天隨日出時刻開行。": {
       "extractionState": "manual",
       "localizations": {
@@ -33780,6 +35412,23 @@
         }
       }
     },
+    "捷運工程叢書：電聯車實務，第 114 頁": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rapid transit engineering series: EMU practice, p. 114"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "捷運工程叢書：電車実務、114ページ"
+          }
+        }
+      }
+    },
     "捷運方向（可留空）": {
       "extractionState": "manual",
       "localizations": {
@@ -33810,6 +35459,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "地下鉄の車両ごとの混雑度が、更新のたびにまとめて消えることがなくなりました。公式の混雑度データが一時的に取得できないときは直前の値を最大 2 分まで使い、それを過ぎた場合は表示しません(ご報告ありがとうございます)。"
+          }
+        }
+      }
+    },
+    "捷運免費可設定一站；想放多站或用「自動（最近的站）」需啟用軌島通行證": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One metro station is free; multiple stations or “Automatic (nearest station)” need a Rail Island Pass"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メトロは1駅まで無料で設定できます。複数の駅や「自動（最寄り駅）」には軌島パスが必要です"
           }
         }
       }
@@ -34115,7 +35781,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "1件受け取り、その列車に乗車中に録画して沿線の速度プロファイルを計測します。すべて無料で、報酬は名誉です。"
+            "value": "1件受け取り、その列車に乗ったら記録を開始して、沿線の速度プロファイルを計測します。すべて無料で、報酬は名誉です。"
           }
         }
       }
@@ -34167,6 +35833,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "今後3時間の列車"
+          }
+        }
+      }
+    },
+    "接下來的段 24 小時內有效，過期會放回板上給別人。看板不用 App，實際錄製要用 App。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A claimed segment is held for 24 hours; after that it goes back on the board for others. You can browse the board without the app, but recording needs the app."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "受け取った区間は24時間有効で、期限が過ぎると懸賞板に戻り、ほかの人が受け取れるようになります。懸賞板はアプリなしでも見られますが、実際の記録にはアプリが必要です。"
+          }
+        }
+      }
+    },
+    "接下來的班次": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Upcoming trains"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この後の列車"
           }
         }
       }
@@ -34303,6 +36003,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "推拉式（プッシュプル）自強号を、両端の機関車と客車12両を合わせた14両編成で表示するようになりました。これまでは3両の模式表示でした。"
+          }
+        }
+      }
+    },
+    "推拉自強・40PPD2500 客貨車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Push–pull Tze-Chiang · 40PPD2500 passenger-baggage car"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プッシュプル自強号・40PPD2500 客荷合造車"
           }
         }
       }
@@ -34677,6 +36394,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "淡海LRT・安坑LRTの列車位置は新北大衆捷運公司の公開ページを参照し、著作権は同社に帰属します。"
+          }
+        }
+      }
+    },
+    "淡海輕軌・行武者": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Danhai Light Rail · Xingwuzhe"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "淡海ライトレール・行武者"
           }
         }
       }
@@ -35242,6 +36976,23 @@
         }
       }
     },
+    "第一種平交道": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type 1 level crossing"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "第1種踏切"
+          }
+        }
+      }
+    },
     "第二分道": {
       "extractionState": "manual",
       "localizations": {
@@ -35259,6 +37010,23 @@
         }
       }
     },
+    "第二種鐵路平交道": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type 2 level crossing"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "第2種踏切"
+          }
+        }
+      }
+    },
     "第三方軟體授權": {
       "extractionState": "manual",
       "localizations": {
@@ -35272,6 +37040,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "サードパーティソフトウェアのライセンス"
+          }
+        }
+      }
+    },
+    "第三種甲平交道": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type 3A level crossing"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "第3種甲踏切"
           }
         }
       }
@@ -35480,6 +37265,23 @@
         }
       }
     },
+    "莒光號・客車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chu-Kuang Express · coach"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "莒光号・客車"
+          }
+        }
+      }
+    },
     "訪客紀錄已併入這個帳號": {
       "extractionState": "manual",
       "localizations": {
@@ -35561,6 +37363,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "通知を設定"
+          }
+        }
+      }
+    },
+    "貨運／專用": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "a freight or private line"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "貨物線・専用線"
           }
         }
       }
@@ -35786,6 +37605,23 @@
         }
       }
     },
+    "這不是你的問題，我們也還沒有辦法解": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That’s not your fault, and we don’t have a fix for it yet"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "あなたの問題ではなく、今のところ解決方法もありません"
+          }
+        }
+      }
+    },
     "這支手機沒有提供即時通知設定頁": {
       "extractionState": "manual",
       "localizations": {
@@ -35934,7 +37770,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "これらの項目にはまだ実測データがありません。録画して受け取るにはアプリが必要です。ウェブサイトでは内容を確認できます。"
+            "value": "これらの項目にはまだ実測データがありません。受け取って記録するにはアプリが必要です。ウェブ版では内容を確認できます。"
           }
         }
       }
@@ -36020,6 +37856,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "この区間"
+          }
+        }
+      }
+    },
+    "這段只錄到一部分": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only part of this segment was recorded"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この区間は一部しか記録できませんでした"
+          }
+        }
+      }
+    },
+    "這段在地下，GPS 收不到": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This segment is underground, so GPS can’t reach it"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この区間は地下のため、GPSを受信できません"
           }
         }
       }
@@ -36330,6 +38200,23 @@
         }
       }
     },
+    "這班車沒有在該站停靠": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This train didn’t stop at that station"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この列車はその駅に停車しませんでした"
+          }
+        }
+      }
+    },
     "這班車沒有剩餘停站了（已接近終點），沒辦法再選目的站。": {
       "extractionState": "manual",
       "localizations": {
@@ -36404,7 +38291,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "This line has {n} underground segments — it's normal to lose signal on those."
+            "value": "This line has {n} underground segments — it’s normal to lose signal on those."
           }
         },
         "ja": {
@@ -36581,6 +38468,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "パスには台湾鉄路の90日日別遅延履歴、お気に入りと完乗のクラウド同期、旅程共有、追跡サウンドトラック（見ている列車と時刻に合わせて場面が切り替わります。無料のBGMには影響しません）、Google Mapsリスト読込、高解像度衛星画像、iOS 17.6以降のロック画面／Dynamic Island表示が含まれます。"
+          }
+        }
+      }
+    },
+    "通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、App 桌面與鎖定畫面的捷運小工具放多站或用「自動（最近的站）」跟著你移動換站（免費可設定一站）、收藏與完乘紀錄跨裝置雲端同步、行程分享、跟車配樂（音樂跟著你在看的那班車與當下時間換情境；免費的背景音樂不受影響）、匯入 Google Maps 已儲存清單、非跟車時的衛星高解析圖磚，以及 Android 16 即時資訊與 Samsung Now Bar 的跟車鎖定畫面進度。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pass features include 90 days of daily TRA delay history; multiple stations or Automatic (nearest station) in the app’s home screen and lock screen metro widgets, with one station free; cloud sync for favorites and completion records; journey sharing; the train soundtrack (the music follows the train you are watching and the time of day — the free background music is unaffected); importing Google Maps saved lists; high-resolution satellite tiles when not following a train; and follow progress on the lock screen through Android 16 Live Updates and the Samsung Now Bar."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "パスには、台湾鉄路の過去90日の日別遅延履歴、アプリのホーム／ロック画面メトロウィジェットでの複数駅または移動に合わせる「自動（最寄り駅）」（1駅は無料）、お気に入りと完乗記録の端末間同期、旅程共有、追跡サウンドトラック（見ている列車と時刻に合わせて場面が切り替わります。無料のBGMには影響しません）、Googleマップ保存済みリストの読み込み、列車追跡中以外の高解像度衛星地図、Android 16のライブアップデートとSamsung Now Barでのロック画面追跡表示が含まれます。"
           }
         }
       }
@@ -37775,6 +39679,40 @@
         }
       }
     },
+    "單線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Single track"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "単線"
+          }
+        }
+      }
+    },
+    "單線電化": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Single track, electrified"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "単線・電化"
+          }
+        }
+      }
+    },
     "單趟完乘 300 km 以上": {
       "extractionState": "manual",
       "localizations": {
@@ -38914,6 +40852,23 @@
         }
       }
     },
+    "發車看板的起站與目的站可以選你在軌島儲存的地點；「只看這些」可依方向、車種或車次篩選": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On the departure board, the origin and destination can be places you saved in Rail Island; “Filters” narrows it down by direction, train type or train number"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "発車案内の出発駅と目的駅には、軌島に保存した場所を選べます。「表示条件」で方向・種別・列車番号を絞り込めます"
+          }
+        }
+      }
+    },
     "發起者已停止分享，或連結已到期。": {
       "extractionState": "manual",
       "localizations": {
@@ -38995,6 +40950,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "しばらくして再試行してください"
+          }
+        }
+      }
+    },
+    "等一下再說": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maybe later"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "あとで"
           }
         }
       }
@@ -39186,6 +41158,23 @@
         }
       }
     },
+    "給這個位置取個名字，方便日後在「我的最愛」裡找到。不填也可以，之後仍可從最愛移除。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Give this place a name so it’s easy to find later in My favourites. You can leave it blank, and you can still remove it from favourites later."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この地点に名前を付けておくと、あとで「お気に入り」から見つけやすくなります。空欄のままでもかまいません。お気に入りからはあとで削除できます。"
+          }
+        }
+      }
+    },
     "統一即時模型暫時無法使用，已改用官方名冊或班表：{error}": {
       "extractionState": "manual",
       "localizations": {
@@ -39226,7 +41215,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The unified metro live model has gone {mins} minutes without safely publishable new data. {attrib}During this time the display falls back to estimated positions, and positions and station countdowns may not match reality — but this does not mean trains have stopped running. Positions will realign with official data once it resumes. This is an automatic detection by this site, not an official announcement."
+            "value": "The unified metro live model has gone {mins} minutes without safely publishable new data. {attrib} During this time the display falls back to estimated positions, and positions and station countdowns may not match reality — but this does not mean trains have stopped running. Positions will realign with official data once it resumes. This is an automatic detection by this site, not an official announcement."
           }
         },
         "ja": {
@@ -39509,6 +41498,40 @@
         }
       }
     },
+    "週六日 9–16 時各整點一班（12 時除外）；平日 20 人以上預約": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saturdays and Sundays: every hour on the hour 9:00–16:00 (except 12:00). Weekdays: groups of 20 or more by reservation."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "土日は9〜16時の毎正時に1本（12時を除く）。平日は20人以上の予約制。"
+          }
+        }
+      }
+    },
+    "週六日及國定假日開行（約 10–17 時，班次以現場公告為準）；平日 30 人以上預約": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saturdays, Sundays and national holidays (about 10:00–17:00; check the notices on site for times). Weekdays: groups of 30 or more by reservation."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "土日祝に運行（おおむね10〜17時、便は現地の案内に従ってください）。平日は30人以上の予約制。"
+          }
+        }
+      }
+    },
     "週日": {
       "extractionState": "manual",
       "localizations": {
@@ -39623,7 +41646,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "駅に入る前から録画を始め、列車が停止してから発車するまで録画を続けてください。停車せず通過するだけでは停車サンプルになりません。"
+            "value": "駅に入る前から記録を始め、列車が停車したあとも駅を出るまで記録を続けてください。停車せず通過するだけでは停車サンプルになりません。"
           }
         }
       }
@@ -39845,6 +41868,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "{station}方面を追跡開始"
+          }
+        }
+      }
+    },
+    "開始錄製": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start recording"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "記録を開始"
           }
         }
       }
@@ -40830,7 +42870,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "その列車に乗車したら録画を開始し、到着したら終了してください。"
+            "value": "その列車に乗ったら記録を開始し、到着したら終了してください。"
           }
         }
       }
@@ -41600,6 +43640,40 @@
         }
       }
     },
+    "新營糖廠": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xinying Sugar Refinery"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新営製糖工場"
+          }
+        }
+      }
+    },
+    "新營鐵道文化園區": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xinying Railway Cultural Park"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新営鉄道文化園区"
+          }
+        }
+      }
+    },
     "新豐": {
       "extractionState": "manual",
       "localizations": {
@@ -41668,6 +43742,23 @@
         }
       }
     },
+    "暗色主題下「面板半透明」開關恢復作用；半透明時看板倒數、預計到站與「在 Google 地圖開啟」等藍字加深，疊在衛星影像上也看得清楚": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Translucent panels switch works again in dark mode. With it on, blue text such as board countdowns, arrival times and “Open in Google Maps” is darker and stays readable over satellite imagery."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ダークモードでも「パネルを半透明にする」が効くようになりました。半透明時は案内板のカウントダウン・到着予定・「Google マップで開く」などの青い文字を濃くし、衛星画像の上でも読みやすくしました。"
+          }
+        }
+      }
+    },
     "暗色地圖的路線自動帶上霓虹微光，保留各線原色；切回亮色地圖就恢復原樣": {
       "extractionState": "manual",
       "localizations": {
@@ -41698,6 +43789,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "ダークモードで、近くの駅・踏切・糖業鉄道・保存した地点のカードにある閉じるボタンと「保存」が見えるようになりました。"
+          }
+        }
+      }
+    },
+    "會一起送出": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Also sent"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一緒に送信される情報"
           }
         }
       }
@@ -41902,6 +44010,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "定時率"
+          }
+        }
+      }
+    },
+    "溪湖糖業鐵道文化園區": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xihu Sugar Railway Cultural Park"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "渓湖糖業鉄道文化園区"
+          }
+        }
+      }
+    },
+    "溪湖糖廠": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xihu Sugar Refinery"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "渓湖製糖工場"
           }
         }
       }
@@ -42208,6 +44350,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "ピンモードを開始しました。地図をタップして通過列車を確認してください。"
+          }
+        }
+      }
+    },
+    "落釘模式進行中": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pin mode is on"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ピン留めモード中"
           }
         }
       }
@@ -43334,6 +45493,23 @@
         }
       }
     },
+    "跟隨台鐵或高鐵列車時，通行證也能把下一站進度放上鎖定畫面；Android 16／Samsung 可顯示即時資訊與 Now Bar。App 收到背景或 WebView 關閉後，台鐵跟車卡仍會依官方誤點與停靠資料更新；省電模式可能延後輪詢。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When you follow a TRA or HSR train, the Pass can also put next-stop progress on your lock screen; Android 16 and Samsung devices can show it as a Live Update and in the Now Bar. After the app moves to the background or its WebView closes, the TRA follow card keeps updating from official delay and stop data; battery saver may delay updates."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台湾鉄路や高鉄の列車を追跡しているとき、パスがあれば次の駅までの進行状況をロック画面にも表示できます。Android 16／Samsungではライブアップデートや Now Bar に表示できます。アプリがバックグラウンドに移ったりWebViewが閉じたりしても、台湾鉄路の追跡カードは公式の遅延・停車データで更新され続けます。省電力モードでは更新が遅れることがあります。"
+          }
+        }
+      }
+    },
     "跟隨列車": {
       "extractionState": "manual",
       "localizations": {
@@ -43929,6 +46105,23 @@
         }
       }
     },
+    "嘉義縣六腳鄉": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Liujiao Township, Chiayi County"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "嘉義県六脚郷"
+          }
+        }
+      }
+    },
     "圖": {
       "extractionState": "manual",
       "localizations": {
@@ -44201,6 +46394,23 @@
         }
       }
     },
+    "彰化縣溪湖鎮": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xihu Township, Changhua County"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "彰化県渓湖鎮"
+          }
+        }
+      }
+    },
     "慢": {
       "extractionState": "manual",
       "localizations": {
@@ -44248,6 +46458,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "漢本"
+          }
+        }
+      }
+    },
+    "福森號・檜木客車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fusen · cypress coach"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "福森号・檜の客車"
           }
         }
       }
@@ -44779,6 +47006,23 @@
         }
       }
     },
+    "臺北市政府／捷運工程局：車廂尺寸": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taipei City Government / Department of Rapid Transit Systems: car dimensions"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台北市政府／捷運工程局：車両寸法"
+          }
+        }
+      }
+    },
     "臺北車站": {
       "extractionState": "manual",
       "localizations": {
@@ -45085,6 +47329,40 @@
         }
       }
     },
+    "蒜頭蔗埕文化園區": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suantou Sugarcane Yard Cultural Park"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "蒜頭蔗埕文化園区"
+          }
+        }
+      }
+    },
+    "蒜頭糖廠": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suantou Sugar Refinery"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "蒜頭製糖工場"
+          }
+        }
+      }
+    },
     "蓋章": {
       "extractionState": "manual",
       "localizations": {
@@ -45149,6 +47427,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "スタンプ獲得・{station}{count}"
+          }
+        }
+      }
+    },
+    "認不出這是哪一班車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t tell which train this was"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "どの列車か特定できませんでした"
           }
         }
       }
@@ -45255,6 +47550,23 @@
         }
       }
     },
+    "誤點統計、提醒、車廂資訊已被裁切。轉回直式可讀完整內容。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delay stats, reminders and car info are cut off. Turn back to portrait to read everything."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "遅延統計・リマインダー・車両情報が途中で切れています。縦向きに戻すとすべて読めます。"
+          }
+        }
+      }
+    },
     "誤點資料每分鐘更新，來源是交通部 TDX。": {
       "extractionState": "manual",
       "localizations": {
@@ -45336,6 +47648,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "遅延履歴を蓄積中です。日数が揃うとグラフを表示します。"
+          }
+        }
+      }
+    },
+    "說明": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Details"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "内容"
           }
         }
       }
@@ -45612,6 +47941,40 @@
         }
       }
     },
+    "鳴日號・客車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Future · coach"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "鳴日号・客車"
+          }
+        }
+      }
+    },
+    "鳴日號・經典車頭": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Future · classic locomotive"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "鳴日号・クラシック機関車"
+          }
+        }
+      }
+    },
     "劇場模式・動一下回到地圖": {
       "extractionState": "manual",
       "localizations": {
@@ -45761,6 +48124,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "BGMを再生／停止"
+          }
+        }
+      }
+    },
+    "暫時收不到定位；請讓 App 留在前景並把手機靠窗。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can’t get a location fix right now. Keep the app in the foreground and hold the phone near a window."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在位置を取得できません。アプリを前面に表示したまま、スマートフォンを窓際に置いてください。"
           }
         }
       }
@@ -45965,6 +48345,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "データなし"
+          }
+        }
+      }
+    },
+    "標出我校正過的路段": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Highlight segments I’ve calibrated"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自分が校正した区間を表示"
           }
         }
       }
@@ -47193,6 +49590,23 @@
         }
       }
     },
+    "機捷直達車・2000型": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Airport MRT Express · 2000 series"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "空港MRT直達車・2000形"
+          }
+        }
+      }
+    },
     "機捷南下末班車（台北 23:08）不再被拆成兩台，照官方時刻一路開完全程；中和新蘆線白天與晚間、淡水信義線晚間少掉的班次補回來了": {
       "extractionState": "manual",
       "localizations": {
@@ -47206,6 +49620,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "桃園空港MRT：台北駅23:08発の南行き終電が2本に分かれなくなり、公式時刻どおり全区間を走ります。中和新蘆線の日中・夜間、淡水信義線の夜間に欠けていた列車も復元しました。"
+          }
+        }
+      }
+    },
+    "機捷普通車・1000型": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Airport MRT Commuter · 1000 series"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "空港MRT普通車・1000形"
           }
         }
       }
@@ -47329,6 +49760,23 @@
         }
       }
     },
+    "橫放放不下特大字級的完整資訊": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Landscape can’t fit everything at the largest text size"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "横向きでは最大の文字サイズで全情報を表示できません"
+          }
+        }
+      }
+    },
     "橫放與特大字級的提示": {
       "extractionState": "manual",
       "localizations": {
@@ -47393,6 +49841,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "濁水"
+          }
+        }
+      }
+    },
+    "燈號變橘色會直接告訴你怎麼改善；如果寫「精確位置未開」一定要去設定打開，那是唯一不修就整趟白錄的狀況。錄到一半中斷沒關係，錄到的部分照樣算。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If the light turns orange, it tells you how to fix things. If it says “Precise location is off”, be sure to turn it on in Settings — that’s the only problem that wastes the whole trip if left unfixed. It’s fine if recording is interrupted partway; whatever you recorded still counts."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ランプがオレンジになると、改善方法がその場で表示されます。「正確な位置情報がオフです」と表示されたら必ず設定でオンにしてください。直さないと記録全体が無駄になるのはこの場合だけです。途中で中断しても問題なく、記録できた部分は有効です。"
           }
         }
       }
@@ -47563,6 +50028,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "「台北」で駅、「431」で列車、「鳴日」で観光列車の紹介を検索できます。"
+          }
+        }
+      }
+    },
+    "輸入站名、車次或列車名稱——例如「台北」「152」「鳴日號」。點車站看接下來的班次，點車次直接跟著它跑。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type a station, train number or train name — for example “Taipei”, “152” or “Future”. Tap a station for upcoming trains, or a train number to follow it."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅名・列車番号・列車名を入力します（例：「台北」「152」「鳴日」）。駅をタップすると次の列車を、列車番号をタップするとその列車を追跡します。"
+          }
+        }
+      }
+    },
+    "選「捷運看板」、「發車看板」或「鐵路＋捷運雙看板」，再挑要看的車站": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose “Metro board”, “Departure board” or “Rail + metro board”, then pick the station you want"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「メトロ到着案内」「発車案内」「鉄道＋メトロ案内」のいずれかを選び、表示する駅を選びます"
           }
         }
       }
@@ -48009,6 +50508,23 @@
         }
       }
     },
+    "錄 {title}（{line}・{slot}・{unit}），值 {points}。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record {title} ({line} · {slot} · {unit}), worth {points}."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{title}を記録します（{line}・{slot}・{unit}）。報酬は{points}です。"
+          }
+        }
+      }
+    },
     "錄 {title}（{line}，{unit}{dur}）": {
       "extractionState": "manual",
       "localizations": {
@@ -48026,6 +50542,57 @@
         }
       }
     },
+    "錄 {title}（{line}，{unit}{dur}），值 {points}。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record {title} ({line}, {unit}{dur}), worth {points}."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{title}を記録します（{line}、{unit}{dur}）。報酬は{points}です。"
+          }
+        }
+      }
+    },
+    "錄一趟校正旅程": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record a calibration trip"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "校正の旅程を記録する"
+          }
+        }
+      }
+    },
+    "錄一趟就有校正者章，<b>即使資料不能用，章與點數還是你的</b>。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record one trip to earn the calibrator stamp — <b>even if the data can’t be used, the stamp and points are still yours</b>."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1回記録すると校正者スタンプがもらえます。<b>データが使えなかった場合でも、スタンプとポイントはあなたのものです</b>。"
+          }
+        }
+      }
+    },
     "錄到一半中斷沒關係，<b>錄到的部分照樣算</b>。": {
       "extractionState": "manual",
       "localizations": {
@@ -48038,7 +50605,24 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "録画が途中で中断しても問題ありません。<b>録画できた部分はそのまま有効です</b>。"
+            "value": "記録が途中で中断しても問題ありません。<b>記録できた部分はそのまま有効です</b>。"
+          }
+        }
+      }
+    },
+    "錄製中": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "記録中"
           }
         }
       }
@@ -48055,7 +50639,24 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "録画中は収集マップを開けません"
+            "value": "記録中は収集マップを開けません"
+          }
+        }
+      }
+    },
+    "錄製畫面上的燈號保持綠色就好——手機靠窗，別放在包包裡或車廂中央": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Just keep the light on the recording screen green: hold the phone near a window, not in a bag or the middle of the car"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "記録画面のランプが緑のままなら大丈夫です。スマートフォンは窓際に置き、かばんの中や車両の中央は避けてください"
           }
         }
       }
@@ -48485,6 +51086,23 @@
         }
       }
     },
+    "檜木列車・木造客車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cypress train · wooden coach"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "檜の列車・木造客車"
+          }
+        }
+      }
+    },
     "濱海沙崙": {
       "extractionState": "manual",
       "localizations": {
@@ -48719,6 +51337,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "環状線"
+          }
+        }
+      }
+    },
+    "環狀線・日立電聯車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Circular Line · Hitachi EMU"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "環状線・日立製電車"
           }
         }
       }
@@ -49165,6 +51800,23 @@
         }
       }
     },
+    "還沒有校正記錄——去懸賞板看看有哪些路段缺資料。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No calibration records yet — check the bounty board to see which segments need data."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "まだ校正の記録はありません。懸賞板で、データが足りない区間を確認してみましょう。"
+          }
+        }
+      }
+    },
     "還沒有排任何提醒": {
       "extractionState": "manual",
       "localizations": {
@@ -49518,6 +52170,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "地図上の駅をタップ"
+          }
+        }
+      }
+    },
+    "點地圖任一處查附近火車，拖曳釘子可微調；此時點空白處不會收起面板。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap anywhere on the map to see nearby trains, and drag the pin to fine-tune. Tapping empty space won’t close the panel in this mode."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "地図上のどこかをタップすると付近の列車を表示します。ピンはドラッグで微調整できます。このモードでは空白部分をタップしてもパネルは閉じません。"
           }
         }
       }
@@ -49981,6 +52650,40 @@
         }
       }
     },
+    "藍皮解憂・復古客車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Breezy Blue · vintage coach"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "藍皮解憂号・レトロ客車"
+          }
+        }
+      }
+    },
+    "藍皮解憂・R135": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Breezy Blue · R135"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "藍皮解憂号・R135"
+          }
+        }
+      }
+    },
     "藍皮解憂號": {
       "extractionState": "manual",
       "localizations": {
@@ -50355,6 +53058,40 @@
         }
       }
     },
+    "雙線以上": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Double track or more"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "複線以上"
+          }
+        }
+      }
+    },
+    "雙線以上電化": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Double track or more, electrified"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "複線以上・電化"
+          }
+        }
+      }
+    },
     "離「{station}」還有 {distance} 公尺，走近一點再蓋（這站的範圍 {radius} 公尺）": {
       "extractionState": "manual",
       "localizations": {
@@ -50627,6 +53364,23 @@
         }
       }
     },
+    "關閉橫幅（不中斷跟車）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close banner (keeps following the train)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バナーを閉じる（列車の追跡は続きます）"
+          }
+        }
+      }
+    },
     "關閉觀看設定": {
       "extractionState": "manual",
       "localizations": {
@@ -50674,6 +53428,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "募"
+          }
+        }
+      }
+    },
+    "懸賞板": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bounty board"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "懸賞板"
+          }
+        }
+      }
+    },
+    "懸賞板：哪些路段還缺資料": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bounty board: which segments still need data"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "懸賞板：データが足りない区間"
           }
         }
       }
@@ -50827,6 +53615,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "パスポート"
+          }
+        }
+      }
+    },
+    "護照裡的校正貢獻": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Calibration contributions in your Passport"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "パスポートの「校正への貢献」"
           }
         }
       }
@@ -51099,6 +53904,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "踏切の位置を表示"
+          }
+        }
+      }
+    },
+    "顯示全台 415 處台鐵平交道（官方公開資料）。圖示比照官方交叉標誌：雙線以上於紅叉下加人字、閃電＝電化（拉近顯示）。點擊任一平交道，可查看接下來通過的列車與倒數；貨運／專用線上的道口僅標示位置。預測依時刻表與即時誤點推算，遮斷機通常提前 30–60 秒動作，請以現場號誌為準。平交道位置以台鐵官方資料為準，可能與現場實際略有落差，歡迎透過頁尾「回報問題或建議」提供修正。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shows all 415 TRA level crossings in Taiwan (official open data). Icons follow the official crossbuck sign: a chevron under the red cross means two or more tracks, and a lightning bolt means electrified (shown when zoomed in). Tap any crossing to see upcoming trains and countdowns; crossings on freight or private lines show their location only. Predictions are estimated from timetables and live delays, and barriers usually come down 30–60 seconds ahead, so always follow the signals at the crossing. Crossing locations follow TRA’s official data and may differ slightly on the ground; you can send corrections via “Report an issue or suggestion” at the bottom of the page."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台湾鉄路の踏切415か所をすべて表示します（公式オープンデータ）。アイコンは公式の踏切標識に準じ、赤い×印の下の「人」字形は複線以上、稲妻は電化区間を示します（拡大時に表示）。踏切をタップすると、次に通過する列車とカウントダウンを確認できます。貨物線・専用線上の踏切は位置のみの表示です。予測は時刻表とリアルタイムの遅延から推定したもので、遮断機は通常30〜60秒前に作動します。必ず現地の警報機・信号に従ってください。踏切の位置は台湾鉄路の公式データに基づくため、実際とわずかに異なる場合があります。修正はページ下部の「問題・提案を報告」からお寄せください。"
           }
         }
       }
@@ -51579,6 +54401,23 @@
         }
       }
     },
+    "App 有新版時，頂端的更新提示不再蓋住「觀看」按鈕": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When a new app version is available, the update notice at the top no longer covers the View button."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アプリの新しいバージョンがあるとき、上部の更新のお知らせが「表示」ボタンを隠さなくなりました。"
+          }
+        }
+      }
+    },
     "App 版「配樂情境」裡有「車聲」開關：跟車時車一動就有鐵軌聲，停站淡出；放空模式一直放": {
       "extractionState": "manual",
       "localizations": {
@@ -51783,6 +54622,108 @@
         }
       }
     },
+    "Blair Yu／原始攝影文章": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blair Yu / original photo article"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blair Yu／元の写真記事"
+          }
+        }
+      }
+    },
+    "C301・北捷初代": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "C301 · Taipei Metro’s first cars"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "C301・台北メトロ初代車両"
+          }
+        }
+      }
+    },
+    "C321・板南線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "C321 · Bannan Line"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "C321・板南線"
+          }
+        }
+      }
+    },
+    "C341・板南線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "C341 · Bannan Line"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "C341・板南線"
+          }
+        }
+      }
+    },
+    "C371・北捷主力": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "C371 · Taipei Metro mainstay"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "C371・台北メトロの主力"
+          }
+        }
+      }
+    },
+    "C381・圓弧車頭": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "C381 · Rounded nose"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "C381・丸みのある先頭部"
+          }
+        }
+      }
+    },
     "CARTO basemaps（© OpenStreetMap）、Esri World Imagery（衛星影像）與 Natural Earth（離線海陸輪廓）": {
       "extractionState": "manual",
       "localizations": {
@@ -51817,6 +54758,142 @@
         }
       }
     },
+    "CK124 蒸汽機車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CK124 steam locomotive"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CK124 蒸気機関車"
+          }
+        }
+      }
+    },
+    "CT273・蒸汽女王": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CT273 · Queen of Steam"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CT273・蒸気の女王"
+          }
+        }
+      }
+    },
+    "DHL100・調車機車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DHL100 · shunting locomotive"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DHL100・入換機関車"
+          }
+        }
+      }
+    },
+    "DL25～34・三菱車系": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DL25–34 · Mitsubishi series"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DL25～34・三菱製"
+          }
+        }
+      }
+    },
+    "DL38・日車試作型": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DL38 · Nippon Sharyo prototype"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DL38・日本車輌試作機"
+          }
+        }
+      }
+    },
+    "DL39～43・阿里山號": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DL39–43 · Alishan Express"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DL39～43・阿里山号"
+          }
+        }
+      }
+    },
+    "DL45～51・林鐵新主力": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DL45–51 · forest railway’s new mainstay"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DL45～51・森林鉄道の新主力"
+          }
+        }
+      }
+    },
+    "DR1000 支線小車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DR1000 branch-line railcar"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DR1000 支線の小型気動車"
+          }
+        }
+      }
+    },
     "DR1000 型柴油客車": {
       "extractionState": "manual",
       "localizations": {
@@ -51830,6 +54907,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "DR1000型気動車"
+          }
+        }
+      }
+    },
+    "DR2700 白鐵仔": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DR2700 stainless diesel railcar"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DR2700 ステンレス気動車"
           }
         }
       }
@@ -51851,6 +54945,40 @@
         }
       }
     },
+    "DR3100・柴聯自強": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DR3100 · diesel Tze-Chiang"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DR3100・ディーゼル自強号"
+          }
+        }
+      }
+    },
+    "DT668 蒸汽機車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DT668 steam locomotive"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DT668 蒸気機関車"
+          }
+        }
+      }
+    },
     "E1000 型推拉式自強號，前後機車頭一推一拉。": {
       "extractionState": "manual",
       "localizations": {
@@ -51868,6 +54996,125 @@
         }
       }
     },
+    "E1000・推拉自強": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "E1000 · push–pull Tze-Chiang"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "E1000・プッシュプル自強号"
+          }
+        }
+      }
+    },
+    "E200 電力機車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "E200 electric locomotive"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "E200 電気機関車"
+          }
+        }
+      }
+    },
+    "E300・電力機車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "E300 · electric locomotive"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "E300・電気機関車"
+          }
+        }
+      }
+    },
+    "E400・電力機車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "E400 · electric locomotive"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "E400・電気機関車"
+          }
+        }
+      }
+    },
+    "E500・新電力機車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "E500 · new electric locomotive"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "E500・新型電気機関車"
+          }
+        }
+      }
+    },
+    "EMU100 英國婆": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EMU100 “British Lady”"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EMU100「英国婆」"
+          }
+        }
+      }
+    },
+    "EMU1200 紅斑馬": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EMU1200 “Red Zebra”"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EMU1200「赤いシマウマ」"
+          }
+        }
+      }
+    },
     "EMU3000 新自強": {
       "extractionState": "manual",
       "localizations": {
@@ -51881,6 +55128,108 @@
           "stringUnit": {
             "state": "translated",
             "value": "EMU3000新自強号"
+          }
+        }
+      }
+    },
+    "EMU500 通勤電車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EMU500 commuter train"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EMU500 通勤電車"
+          }
+        }
+      }
+    },
+    "EMU600・通勤電車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EMU600 · commuter train"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EMU600・通勤電車"
+          }
+        }
+      }
+    },
+    "EMU700・阿福號": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EMU700 · “A-Fu”"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EMU700・阿福号"
+          }
+        }
+      }
+    },
+    "EMU800 微笑號": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EMU800 “Smile”"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EMU800 微笑号"
+          }
+        }
+      }
+    },
+    "EMU800・增備反色版": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EMU800 · later batch, reversed colors"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EMU800・増備車（配色反転）"
+          }
+        }
+      }
+    },
+    "EMU900 區間車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EMU900 local train"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EMU900 区間車"
           }
         }
       }
@@ -52061,7 +55410,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ko-fi（credit card / PayPal）"
+            "value": "Ko-fi (credit card / PayPal)"
           }
         },
         "ja": {
@@ -52191,6 +55540,125 @@
         }
       }
     },
+    "R100・柴電機車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "R100 · diesel-electric locomotive"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "R100・ディーゼル電気機関車"
+          }
+        }
+      }
+    },
+    "R150・柴電機車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "R150 · diesel-electric locomotive"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "R150・ディーゼル電気機関車"
+          }
+        }
+      }
+    },
+    "R180／R190・柴電機車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "R180/R190 · diesel-electric locomotive"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "R180／R190・ディーゼル電気機関車"
+          }
+        }
+      }
+    },
+    "R20 柴電機車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "R20 diesel-electric locomotive"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "R20 ディーゼル電気機関車"
+          }
+        }
+      }
+    },
+    "R200・新柴電機車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "R200 · new diesel-electric locomotive"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "R200・新型ディーゼル電気機関車"
+          }
+        }
+      }
+    },
+    "TDX 運輸資料流通服務標章 / Transport Data eXchange": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TDX (Transport Data eXchange) logo"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TDX 運輸データ流通サービスのロゴ / Transport Data eXchange"
+          }
+        }
+      }
+    },
+    "TEMU1000 太魯閣": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TEMU1000 Taroko Express"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TEMU1000 太魯閣号"
+          }
+        }
+      }
+    },
     "TEMU1000 型傾斜式電聯車，過彎不必大幅減速，主跑東部幹線。": {
       "extractionState": "manual",
       "localizations": {
@@ -52221,6 +55689,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "2013年から東部幹線で運用するTEMU2000型振子式電車です。"
+          }
+        }
+      }
+    },
+    "TEMU2000 普悠瑪": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TEMU2000 Puyuma Express"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TEMU2000 普悠瑪号"
+          }
+        }
+      }
+    },
+    "VAL256・文湖馬特拉": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VAL256 · Wenhu Line Matra"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VAL256・文湖線マトラ"
           }
         }
       }

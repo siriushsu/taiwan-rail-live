@@ -90,13 +90,21 @@ function fnBodyContains(src, fnName, needle) {
 // 同一種「function fnName(...) { ... }」大括號配對抓法,但回傳**原始碼片段本身**(含註解、不比對
 // 子字串)——給 T8 丟進 new Function 真的求值用。執行期不在乎註解,只有 fnBodyContains 那種
 // 「拿字串去 includes()」才需要先剝。抓不到宣告回 null,呼叫端要顯式判斷(不當成空字串靜默通過)。
+// 配對時跳過字串、樣板、註解與反斜線跳脫:2026-09-19 t() 多了一行 `value.includes('{')`,單純數大括號
+// 會把字串裡那個「{」算進去、一路抓到檔尾,T8a 從此在「抽不出 t()」這一步就紅(不是槽位標籤真的錯)。
 function extractFnSrc(src, fnName) {
   const m = new RegExp(`function\\s+${fnName}\\s*\\([^)]*\\)\\s*\\{`).exec(src);
   if (!m) return null;
-  let i = m.index + m[0].length, depth = 1;
+  let i = m.index + m[0].length, depth = 1, quote = null;
   while (i < src.length && depth > 0) {
-    if (src[i] === '{') depth++;
-    else if (src[i] === '}') depth--;
+    const c = src[i];
+    if (quote) { if (c === '\\') i++; else if (c === quote) quote = null; i++; continue; }
+    if (c === '/' && src[i + 1] === '/') { while (i < src.length && src[i] !== '\n') i++; continue; }
+    if (c === '/' && src[i + 1] === '*') { const end = src.indexOf('*/', i + 2); i = end < 0 ? src.length : end + 2; continue; }
+    if (c === '\\') { i += 2; continue; }
+    if (c === "'" || c === '"' || c === '`') quote = c;
+    else if (c === '{') depth++;
+    else if (c === '}') depth--;
     i++;
   }
   return src.slice(m.index, i);
@@ -1123,7 +1131,9 @@ server.close();
     const win = {};
     new Function('window', readFileSync(path.join(ROOT, 'i18n/translations.js'), 'utf8'))(win);
     if (!win.RAIL_I18N_MESSAGES) throw new Error('i18n/translations.js 沒有設定 window.RAIL_I18N_MESSAGES——字典檔結構已變動');
-    return new Function('I18N_LANG', 'I18N_MESSAGES', `${lookupSrc}\n${tSrc}\nreturn t;`)('zh-TW', win.RAIL_I18N_MESSAGES);
+    // I18N_PRODUCED／I18N_TREE_PASS 是 t() 記錄「外語譯文→原文」反查表用的兩個自由變數;釘在 zh-TW 時
+    // 反查表根本不會被寫(沒有 zh-TW 那一格),給它們存在就好,值不影響本段要量的標籤。
+    return new Function('I18N_LANG', 'I18N_MESSAGES', 'I18N_PRODUCED', 'I18N_TREE_PASS', `${lookupSrc}\n${tSrc}\nreturn t;`)('zh-TW', win.RAIL_I18N_MESSAGES, {}, false);
   }
   // 假 DOM:只給 accountBtnSlot() 實際碰到的兩個節點——#accountBtn(內含 .ti/.tl 兩個 span)
   // 與 .ms-row[data-proxy="accountBtn"](內含一個 span);.style 給空物件讓 display 賦值不出錯;
