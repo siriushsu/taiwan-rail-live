@@ -14,6 +14,30 @@
 // 逐 byte 收貨 整條固化。防呆全是實際踩過的坑：
 //  - 只從乾淨 detached worktree 出貨（wrangler 傳磁碟檔，.gitignore 管不到未追蹤檔）
 //  - 出貨基準落後 origin/main 就停（整包替換會退掉別人的 commit）
+//  - 同時只准一發正式出貨（2026-09-19 00:28 f418f5 要出 cb5fe11b、另一個 session 要出 51cd374e，
+//    是用跨 session 訊息問了才沒撞）：兩發並行是「後收尾的贏」——較舊那發起跑時已過了落後檢查，
+//    閘門跑完 20–35 分鐘照樣 upload＋升 100%，把較新的正式站蓋回去（BUILD、md5 都不同，步驟 4 不擋）。
+//    鎖檔＝git common dir（所有 worktree 共用）下的 ship-web.lock，O_EXCL 建立，記 pid／ref／sha／起跑時間；
+//    在落後檢查與所有閘門之前拿，第二發當場退、訊息點名持有者。
+//    🔴 解鎖掛在 process 'exit'，不在 finally：fail() 走 process.exit，finally 根本不會跑。
+//    被 kill／Ctrl-C 的那發連 'exit' 都不跑，鎖會留著；pid 已死 ⇒ 下一發自動接手。
+//    --preview 不拿鎖、也不做下一條（只 upload 不升版，蓋不到正式站）。
+//  - upload 前、deploy 前各認一次正式站，認不出或比出貨基準新就停：正式站 index.html 要逐 byte 等於
+//    某顆 X 去註解的結果（用 X 自己的 strip 腳本重做）、data/data_manifest.json 要等於 X 那份，且 X 是
+//    出貨基準的祖先（或就是它）。起跑時的落後檢查只保證「不比起跑那刻的 main 舊」，保證不了「不比正式站舊」——
+//    正式站可能跑著部署時沒 push 的版本，或在閘門跑的那 30 分鐘裡被別處換掉。
+//    限制（都是這個指紋照不到的地方；要補只能在出貨時把 sha 蓋進產物或版本標籤，還沒做）：
+//    · 只改 worker.js 或清單外資料（*_times.json、events.json、軌道 geojson…）的 commit 指紋不變。
+//      2026-09-19 量 main 最近 300 顆：動到執行期檔案的 53 顆裡有 19 顆屬此類。這種版本在線上時，
+//      同指紋的祖先照樣放行——會把它的 worker／資料改動退掉。
+//    · 鎖只管同一個 clone、而且只管有這段程式碼的 ship_web：別的 clone、別台機器、裸 wrangler、
+//      `wrangler secret put`（會把最新上傳的版本升上線）、還沒併到這一版的舊 worktree 跑的 ship_web
+//      （跑的是 cwd 那棵樹的這支檔，不是出貨 ref 裡的）都繞得過；它們只剩本發 deploy 前那次檢查擋得到，
+//      而檢查到 deploy 之間仍有幾秒空窗。
+//    · 判死只看 pid 在不在：pid 被別的程序重用時，死鎖會被當成活的擋下（寧可擋錯）——訊息列出 pid，
+//      確認那不是 ship-web 再刪鎖檔。
+//    兩道防線的邏輯在 scripts/ship_web_guard.mjs，測試：node scripts/verify_ship_web_guard.mjs
+//    （本檔沒有 --help、不認得的旗標一律忽略，不帶 --preview 就是出正式站——永遠不要拿它試跑）。
 //  - 內容與正式站不同但 BUILD 字串相同就停（內容不同的兩顆不准共用版號）
 //  - versions deploy 的版本 ID 只取自同一次 upload 的輸出（versions list 取 [0] 會拿到最舊版）
 //  - 收貨判準＝正式站 md5 與本地 stripped 檔逐 byte 相等（不是 BUILD 字串、不是抽 grep）
@@ -23,6 +47,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import os from 'node:os';
+import { acquireShipLock, checkProductionAncestry } from './ship_web_guard.mjs';
 
 const args = process.argv.slice(2);
 const REF = (() => { const i = args.indexOf('--ref'); return i >= 0 ? args[i + 1] : 'origin/main'; })();
@@ -44,6 +69,13 @@ async function fetchProd(pathname = '/') {
 // ── 1. preflight ──────────────────────────────────────────────────────────
 git('fetch', 'origin');
 const sha = git('rev-parse', REF).trim();
+if (!PREVIEW) {   // 出貨鎖：比落後檢查與所有閘門都早拿，第二發當場退（設計與限制見檔頭）
+  const lockPath = path.join(path.resolve(repo, git('rev-parse', '--git-common-dir').trim()), 'ship-web.lock');
+  const lock = acquireShipLock({ lockPath, ref: REF, sha });
+  if (!lock.ok) fail(lock.message);
+  if (lock.note) console.log(lock.note);
+  console.log(`出貨鎖 ✓ ${lockPath}`);
+}
 const behind = git('log', '--oneline', `${sha}..origin/main`).trim();
 if (behind) fail(`出貨基準落後 origin/main，整包替換會退掉這些 commit：\n${behind}`);
 console.log(`出貨基準 ${REF} = ${sha.slice(0, 8)}`);
@@ -93,6 +125,13 @@ try {
   process.stdout.write(loginCsp.stdout || ''); process.stderr.write(loginCsp.stderr || '');
   if (loginCsp.status !== 0) fail('網頁登入的 CSP 檢查未過——出貨會讓登入回到 auth/internal-error'
     + '（單獨重跑：npm run check-web-login-csp）');
+
+  // ── 2.62 出貨防線自己的守門人(並行鎖、認正式站;純 node、離線、約 10 秒)────────────
+  // 防線壞掉的症狀是「該擋的沒擋」,平常完全看不出來;而本檔不能試跑,只有這支測得到它。
+  const shipGuard = spawnSync('node', [path.join(wt, 'scripts', 'verify_ship_web_guard.mjs')], { encoding: 'utf8' });
+  process.stdout.write(shipGuard.stdout || ''); process.stderr.write(shipGuard.stderr || '');
+  if (shipGuard.status !== 0) fail('出貨防線的守門人未過——並行鎖或認正式站的判定壞了'
+    + '（單獨重跑：npm run check-ship-web-guard）');
 
   // ── 2.65 辦公日曆表兩份副本的同步 ──────────────────────────────────────────
   // index.html 的 TW_DAYTYPE(前端選捷運班表)與 data/tw_daytype.json(worker 做北捷逐班綁定)
@@ -554,6 +593,14 @@ try {
   if (prodNow.status === 200 && md5(prodNow.body) !== strippedMd5 && buildOf(prodNow.body) === newBuild)
     fail(`內容與正式站不同但 BUILD 同為 '${newBuild}'——先 bump BUILD 再出貨`);
 
+  // ── 4.5 認正式站（判準與限制見檔頭）：上傳前、升版前各一次；--preview 不升版，不需要 ──────
+  const prodGate = async (when, ifFail = '') => {
+    const r = await checkProductionAncestry({ repo, sha, fetchProd, nodeModules: path.join(repo, 'node_modules') });
+    if (!r.ok) fail(`${when}認正式站未過${ifFail}：${r.message}`);
+    console.log(`${when}認正式站 ✓ ${r.message}`);
+  };
+  if (!PREVIEW) await prodGate('上傳前');
+
   // ── 5. upload ────────────────────────────────────────────────────────────
   const wrangler = path.join(repo, 'node_modules', 'wrangler', 'bin', 'wrangler.js');
   const up = spawnSync('arch', ['-arm64', 'node', wrangler, 'versions', 'upload'], { cwd: wt, encoding: 'utf8' });
@@ -572,6 +619,7 @@ try {
     console.log(`   升正式站：把這條分支併進 main 之後跑 npm run ship-web`);
   } else {
     // ── 6. deploy @100%（ID 只取自上面那次 upload 的輸出）──────────────────
+    await prodGate('升版前', `（已上傳的 ${verId} 沒有升版，正式站沒動）`);
     const dep = spawnSync('arch', ['-arm64', 'node', wrangler, 'versions', 'deploy', `${verId}@100%`, '--yes'],
       { cwd: wt, encoding: 'utf8' });
     process.stdout.write(dep.stdout || ''); process.stderr.write(dep.stderr || '');
