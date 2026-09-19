@@ -2380,6 +2380,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
   "台鐵後車待避與對向交會都保留安全間隔，同一條軌道上互相穿過的情況再減少": "TRA trains now keep a safety margin when waiting for a following train to pass or for an oncoming train, so trains pass through each other on the same track even less often.",
   "「更多」→ 打開「面板半透明」": "Open More and turn on Translucent panels",
   "再按一次就關閉，面板回到原本的樣子": "Tap it again to turn it off and return panels to their usual look",
+  "iPhone／iPad 底部速度膠囊淡出後點一下就會展開，不用再點兩下、也不會誤觸暫停": "On iPhone/iPad, tapping the faded speed capsule at the bottom now expands it right away — no more second tap, and it won't accidentally hit pause.",
 });
 
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
@@ -2387,6 +2388,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   "台鐵後車待避與對向交會都保留安全間隔，同一條軌道上互相穿過的情況再減少": "台鉄の列車が待避や行き違いで安全間隔を保つようになり、同じ線路上で列車どうしがすり抜けることがさらに減りました。",
   "「更多」→ 打開「面板半透明」": "「その他」→「パネルを半透明にする」をオン",
   "再按一次就關閉，面板回到原本的樣子": "もう一度押すとオフになり、パネルが元の表示に戻ります",
+  "iPhone／iPad 底部速度膠囊淡出後點一下就會展開，不用再點兩下、也不會誤觸暫停": "iPhone／iPadで、下部の薄くなった速度カプセルをタップすると、すぐに展開するようになりました。二度タップする必要がなく、誤って一時停止することもありません。",
 });
 
 // 2026-09-19 我的車庫：62 款車名與外觀參考出處原本直接顯示中文(train-garage.js 沒經過 tr())。
