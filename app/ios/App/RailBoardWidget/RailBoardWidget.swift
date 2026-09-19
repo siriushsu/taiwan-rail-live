@@ -9,6 +9,26 @@ import AppIntents
 import SwiftUI
 import WidgetKit
 
+/// 發車看板點進 App 時必須把「系統＋車站」一起帶過去。
+/// 只開 App 而不帶系統，臺北這類台鐵／捷運同名站就會沿用上次的捷運畫面。
+enum RailBoardDeepLink {
+    static func stationURL(originKey: String?) -> URL? {
+        guard let originKey else { return nil }
+        let parts = originKey.split(separator: "|", maxSplits: 1).map(String.init)
+        guard parts.count == 2,
+              parts[0] == "tra" || parts[0] == "thsr",
+              !parts[1].isEmpty else { return nil }
+        var components = URLComponents()
+        components.scheme = "railisland"
+        components.host = "station"
+        components.queryItems = [
+            URLQueryItem(name: "sys", value: parts[0]),
+            URLQueryItem(name: "station", value: parts[1]),
+        ]
+        return components.url
+    }
+}
+
 struct BoardRow: Identifiable {
     let trainNumber: String
     let trainType: String
@@ -814,6 +834,8 @@ struct RailBoardWidgetEntryView: View {
         // ⇒ 由元件層的 railMonochrome 統一把顏色換成文字與深淺（設計稿規則）。
         .railRenderingMode(renderingMode)
         .environment(\.railReadable, readable)
+        // 台鐵／高鐵站名可能和捷運同名，不准只靠站名或 App 上次畫面猜系統。
+        .widgetURL(RailBoardDeepLink.stationURL(originKey: entry.configuration.origin))
         .containerBackground(for: .widget) {
             Color(uiColor: .systemBackground)
         }

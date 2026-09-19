@@ -48,20 +48,21 @@ final class MixedWidgetRender {
      * 🔴 點擊要在合併【之前】逐張掛好：合併後的 RemoteViews 再加 action 會丟 RuntimeException。
      */
     static RemoteViews sized(Context context, AppWidgetManager manager, int id,
-                             RailWidgetData.Snapshot rail, MetroWidgetData.Snapshot metro, PendingIntent tap) {
+                             RailWidgetData.Snapshot rail, MetroWidgetData.Snapshot metro,
+                             PendingIntent railTap, PendingIntent metroTap) {
         List<MetroWidgetPlate> plates = MetroWidgetProvider.plates(context, metro, MAX_FOLLOWS + 1);
         if (Build.VERSION.SDK_INT < 31) {
             Bundle options = manager.getAppWidgetOptions(id);
             int height = options == null ? 0 : options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0);
             RemoteViews views = boardAt(context, rail, metro, height > 0 ? height : FALLBACK_HEIGHT_DP);
-            views.setOnClickPendingIntent(R.id.wmx_root, tap);
+            bindTaps(views, railTap, metroTap);
             return views;
         }
         Map<SizeF, RemoteViews> sizes = new HashMap<>();
         // 比 heightFor(0) 還矮的卡用不放註腳的那一張（見 board 的 bare）；比它還矮時所有桶都放不下，
         // 系統會挑最小的桶，也就是它。
         RemoteViews bare = board(context, rail, metro, plates, plan(0, plates.size(), rail.rows.size()), true);
-        bare.setOnClickPendingIntent(R.id.wmx_root, tap);
+        bindTaps(bare, railTap, metroTap);
         sizes.put(new SizeF(BUCKET_WIDTH_DP, heightFor(context, 0) - dp(context, R.dimen.wmx_note_h)), bare);
         int[] last = null;
         for (int slots = 0; slots <= MAX_FOLLOWS; slots++) {
@@ -70,10 +71,19 @@ final class MixedWidgetRender {
             if (Arrays.equals(plan, last)) continue;
             last = plan;
             RemoteViews views = board(context, rail, metro, plates, plan, false);
-            views.setOnClickPendingIntent(R.id.wmx_root, tap);
+            bindTaps(views, railTap, metroTap);
             sizes.put(new SizeF(BUCKET_WIDTH_DP, heightFor(context, slots)), views);
         }
         return new RemoteViews(sizes);
+    }
+
+    /** 整卡與鐵路區開鐵路站；只有捷運區開捷運站。子 View 的 PendingIntent 會蓋過 root。 */
+    private static void bindTaps(RemoteViews views, PendingIntent railTap, PendingIntent metroTap) {
+        views.setOnClickPendingIntent(R.id.wmx_root, railTap);
+        views.setOnClickPendingIntent(R.id.wmx_rail_head, railTap);
+        views.setOnClickPendingIntent(R.id.wmx_rail_rows, railTap);
+        views.setOnClickPendingIntent(R.id.wmx_metro_head, metroTap);
+        views.setOnClickPendingIntent(R.id.wmx_metro_rows, metroTap);
     }
 
     /** 指定卡片高度（dp）的整張卡，給 31 以下、測試與除錯藝廊用；31 以上的小工具本體走 {@link #sized}。 */

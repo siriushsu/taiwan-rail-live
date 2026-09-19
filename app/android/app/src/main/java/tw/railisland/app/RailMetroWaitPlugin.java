@@ -33,7 +33,7 @@ public final class RailMetroWaitPlugin extends Plugin {
         Uri uri = intent == null ? null : intent.getData();
         if (uri == null || !"railisland".equals(uri.getScheme())) return;
         String host = uri.getHost();
-        if (!"metro-wait".equals(host) && !"pass".equals(host)) return;
+        if (!"metro-wait".equals(host) && !"station".equals(host) && !"pass".equals(host)) return;
         RailMetroWaitPlugin plugin = shared.get();
         if (plugin == null) pendingUri = uri;
         else plugin.forwardOpen(uri);
@@ -57,6 +57,7 @@ public final class RailMetroWaitPlugin extends Plugin {
     private void forwardOpen(Uri uri) {
         JSObject data = new JSObject();
         if ("pass".equals(uri.getHost())) data.put("view", "pass");
+        if ("station".equals(uri.getHost())) data.put("view", "station");
         for (String name : uri.getQueryParameterNames()) data.put(name, uri.getQueryParameter(name));
         notifyListeners("waitOpen", data, true);
     }

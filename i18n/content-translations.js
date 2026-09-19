@@ -2376,6 +2376,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
 // 2026-09-19 更新提示讓位、台鐵待避與交會的安全間隔(第一層更新紀錄那兩條的 en/ja;第二層正本一律走 RAIL_I18N_CHANGELOG)；
 // 使用說明「面板半透明」兩個步驟原本沒有英日文(暗色主題關掉是玻璃面板，第二步不再寫「實色紙面」)
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  "從台鐵發車看板或鐵路＋捷運雙看板點進軌島時，會回到正確的鐵路地圖與車站；臺北車站不會再被同名的捷運站截走": "Opening Rail Island from a TRA board or the combined rail + metro board now goes to the correct railway map and station; Taipei Main is no longer mistaken for the metro station of the same name.",
   "App 有新版時，頂端的更新提示不再蓋住「觀看」按鈕": "When a new app version is available, the update notice at the top no longer covers the View button.",
   "台鐵後車待避與對向交會都保留安全間隔，同一條軌道上互相穿過的情況再減少": "TRA trains now keep a safety margin when waiting for a following train to pass or for an oncoming train, so trains pass through each other on the same track even less often.",
   "「更多」→ 打開「面板半透明」": "Open More and turn on Translucent panels",
@@ -2384,6 +2385,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 });
 
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  "從台鐵發車看板或鐵路＋捷運雙看板點進軌島時，會回到正確的鐵路地圖與車站；臺北車站不會再被同名的捷運站截走": "台鉄の発車案内または「鉄道＋メトロ」案内から軌島を開いたとき、正しい鉄道マップと駅を表示するようになりました。台北駅が同名のメトロ駅と誤認されることもありません。",
   "App 有新版時，頂端的更新提示不再蓋住「觀看」按鈕": "アプリの新しいバージョンがあるとき、上部の更新のお知らせが「表示」ボタンを隠さなくなりました。",
   "台鐵後車待避與對向交會都保留安全間隔，同一條軌道上互相穿過的情況再減少": "台鉄の列車が待避や行き違いで安全間隔を保つようになり、同じ線路上で列車どうしがすり抜けることがさらに減りました。",
   "「更多」→ 打開「面板半透明」": "「その他」→「パネルを半透明にする」をオン",

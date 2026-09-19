@@ -5495,6 +5495,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="widgetrailjump0919"><span class="d">9/19</span><span>從台鐵發車看板或鐵路＋捷運雙看板點進軌島時，會回到正確的鐵路地圖與車站；臺北車站不會再被同名的捷運站截走</span></li>
         <li data-cl-of="cexpiostap0919"><span class="d">9/19</span><span>iPhone／iPad 底部速度膠囊淡出後點一下就會展開，不用再點兩下、也不會誤觸暫停</span></li>
         <li data-cl-of="updatebanner0919"><span class="d">9/19</span><span>App 有新版時，頂端的更新提示不再蓋住「觀看」按鈕</span></li>
         <li data-cl-of="overtakeplan0915"><span class="d">9/19</span><span>台鐵後車待避與對向交會都保留安全間隔，同一條軌道上互相穿過的情況再減少</span></li>
@@ -5502,7 +5503,6 @@
         <li data-cl-of="night200907"><span class="d">9/19</span><span>暗色模式下，附近車站、平交道、糖鐵與儲存地點卡的關閉鈕與「存」看得見了</span></li>
         <li data-cl-of="translucent0730"><span class="d">9/19</span><span>暗色主題下「面板半透明」開關恢復作用；半透明時看板倒數、預計到站與「在 Google 地圖開啟」等藍字加深，疊在衛星影像上也看得清楚</span></li>
         <li data-cl-of="speedcapzone0919"><span class="d">9/19</span><span>台鐵列車在地圖上不再跑得比車種極速還快，新馬急彎與立體地圖都修正了，站牌時刻不變</span></li>
-        <li data-cl-of="dr1000branch"><span class="d">9/19</span><span>平溪、深澳、集集、內灣線的列車改照 DR1000 柴油客車加減速，列車卡也改顯示 DR1000 介紹</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5778,6 +5778,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="widgetrailjump0919"><span class="d">9/19</span><span>從台鐵發車看板或鐵路＋捷運雙看板點進軌島時，會回到正確的鐵路地圖與車站；臺北車站不會再被同名的捷運站截走</span></li>
         <li data-cl="cexpiostap0919"><span class="d">9/19</span><span>修正 iPhone／iPad 底部速度膠囊點不開：淡出把手點一下只會醒來，第二下常被誤導點到旁邊的暫停鍵；現在放開手指就直接展開，不再誤觸暫停。Android／桌面不受影響。</span></li>
         <li data-cl="updatebanner0919"><span class="d">9/19</span><span>App 有新版時，頂端的更新提示不再蓋住「觀看」按鈕：右側按鈕列載入後會變長，提示現在會跟著往下讓位</span></li>
         <li data-cl="i18ngaps0919"><span class="d">9/19</span><span>英日文介面補上漏翻並修正譯錯的按鈕：行程分享、捷運路線名、倒數準確度、最後更新、今日亮點次數、成就說明、公告與各種提示；切換語言不再殘留前一種語言；車站看板一列放不下改成兩行；三鶯線公告列出官方首末班；iOS 定位權限說明改用中文；英文或日文切回中文時，關閉鈕與通行證鈕不再變成別的字，路線篩選也會換回中文；北捷自己發的公告、台鐵等車清單與各系統同名車站的英日文補正；搜尋清單關掉後不會自己又彈出來</span></li>
@@ -6555,7 +6556,8 @@
 //         click(只變 slim 不展開)、slim 態點 #speedOut 合成的 click 又被觸控校正吸到鄰近 #pp 變成暫停;
 //         改成 iOS 專屬用 touchend 真實 target 直接判斷展開並 preventDefault 擋掉那次合成點擊,
 //         Android/桌面仍走原本的 touchstart→click 路徑不受影響。真機驗證見 native/docs/m1/devref.md §5。
-const BUILD = 'v0919g';
+// v0919h：發車看板深連結明確帶鐵路系統；雙看板的鐵路區不再落到捷運站。
+const BUILD = 'v0919h';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -32174,9 +32176,25 @@ function metroWaitFindStation(name) {
   }
   return hit ? { name: hit.name, lat: hit.lat, lon: hit.lon, sys: state.deco ? 'deco' : 'freq' } : null;
 }
+// 鐵路小工具深連結要用「系統＋站名」找站，不可重用上面的捷運尋找器。
+// 臺北／板橋／南港都是跨系統同名站，只拿站名會導到先找到的捷運節點。
+function widgetRailStation(sysName, name) {
+  const ids = webMcpSystemIds(sysName);
+  const key = webMcpNorm(name);
+  if (!ids || !ids.length || !key) return null;
+  return webMcpStationCatalog().find(rec =>
+    rec.mode === 'sched' && ids.includes(rec.systemId) && webMcpNorm(rec.name) === key) || null;
+}
+function openWidgetRailStation(sysName, name) {
+  const rec = widgetRailStation(sysName, name);
+  if (!rec) return false;
+  gotoStn({ kind: 'sched', sysId: rec.systemId, name: rec.name, lat: rec.lat, lon: rec.lon });
+  return true;
+}
 let _metroWaitListening = false;
-// waitOpen:小工具點進來的深連結,boot 時掛(僅原生殼有此 plugin)。station 是小工具端的正規化站名,
-// 對回 web 站物件用既有 replace(/臺/g,'台') 寬鬆比對;對不回就 toast 說明並只切到捷運群組地圖,
+// waitOpen:小工具點進來的深連結,boot 時掛(僅原生殼有此 plugin)。
+// view:'station' 是鐵路看板，必須以 sys 縮小範圍後再找站；沒有 view 才是捷運等車卡。
+// station 都用 replace(/臺/g,'台') 寬鬆比對;對不回就 toast 說明，
 // 不拋例外炸 boot——這裡外層包 try/catch 是最後一道防線。
 function ensureMetroWaitListener() {
   if (_metroWaitListening) return;
@@ -32201,6 +32219,12 @@ function ensureMetroWaitListener() {
       // 走與工具列同一個入口 plusOpen(),來源標成 widget 方便日後看轉換來自哪裡。
       if (evt && evt.view === 'pass') { plusOpen('widget'); return; }
       const sys = evt && evt.sys, station = evt && evt.station;
+      if (evt && evt.view === 'station') {
+        if (!openWidgetRailStation(sys, station)) {
+          showToast(t('找不到「{station}」，請手動搜尋車站', { station: escHtml(String(station || '')) }));
+        }
+        return;
+      }
       const st = metroWaitFindStation(station);
       if (!st) {
         showToast(t('找不到「{station}」，請手動搜尋車站', { station: escHtml(String(station || '')) }));

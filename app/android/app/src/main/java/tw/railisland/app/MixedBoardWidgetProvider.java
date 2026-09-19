@@ -123,7 +123,8 @@ public final class MixedBoardWidgetProvider extends AppWidgetProvider {
             rail.autoStale = railStale;
             metro.autoStale = metroStale;
             manager.updateAppWidget(id, MixedWidgetRender.sized(context, manager, id, rail, metro,
-                openIntent(context, id, metroSys, metroStation)));
+                railOpenIntent(context, id, rail.sys, rail.origin),
+                openIntent(context, id, metro.sys, metro.station)));
             schedule(context, id, System.currentTimeMillis() + 60_000L);
         } catch (Exception error) {
             RailWidgetData.Snapshot rail = RailWidgetData.cached(context, RAIL_CACHE, id);
@@ -132,7 +133,8 @@ public final class MixedBoardWidgetProvider extends AppWidgetProvider {
                 rail.failed = true;
                 metro.failed = true;
                 manager.updateAppWidget(id, MixedWidgetRender.sized(context, manager, id, rail, metro,
-                    openIntent(context, id, metroSys, metroStation)));
+                    railOpenIntent(context, id, rail.sys, rail.origin),
+                    openIntent(context, id, metro.sys, metro.station)));
             } else {
                 manager.updateAppWidget(id, configure(context, id,
                     MixedWidgetRender.message(context, "暫時連不上", "點一下檢查設定或開啟軌島")));
@@ -215,6 +217,18 @@ public final class MixedBoardWidgetProvider extends AppWidgetProvider {
         Intent intent = new Intent(Intent.ACTION_VIEW, uri, context, MainActivity.class)
             .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         return PendingIntent.getActivity(context, id + 43000, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+    }
+
+    private static PendingIntent railOpenIntent(Context context, int id, String sys, String station) {
+        Intent intent = new Intent(context, MainActivity.class)
+            .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        if (("tra".equals(sys) || "thsr".equals(sys)) && WidgetNearestMath.linkable(sys, station)) {
+            Uri uri = new Uri.Builder().scheme("railisland").authority("station")
+                .appendQueryParameter("sys", sys).appendQueryParameter("station", station).build();
+            intent.setAction(Intent.ACTION_VIEW).setData(uri);
+        }
+        return PendingIntent.getActivity(context, id + 45000, intent,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 

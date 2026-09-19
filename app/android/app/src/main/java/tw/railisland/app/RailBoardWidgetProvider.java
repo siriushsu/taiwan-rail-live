@@ -8,6 +8,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.Build;
 import android.os.PowerManager;
 import android.util.SizeF;
@@ -145,7 +146,7 @@ public class RailBoardWidgetProvider extends AppWidgetProvider {
     }
 
     private static RemoteViews sizes(Context context, int id, RailWidgetData.Snapshot snapshot, boolean readable) {
-        PendingIntent tap = openIntent(context, id);
+        PendingIntent tap = openIntent(context, id, snapshot.sys, snapshot.origin);
         if (Build.VERSION.SDK_INT < 31) {
             // 沒有 setSizeSpecificViewLayouts 的機器:照這一格屬於哪個尺寸的 provider 挑一張。
             String family = WidgetFamily.of(context, id);
@@ -189,9 +190,19 @@ public class RailBoardWidgetProvider extends AppWidgetProvider {
     }
 
     private static PendingIntent openIntent(Context context, int id) {
+        return openIntent(context, id, null, null);
+    }
+
+    private static PendingIntent openIntent(Context context, int id, String sys, String station) {
         Intent intent = new Intent(context, MainActivity.class)
             .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP)
             .putExtra("railWidget", true);
+        // 臺北這類同名轉乘站不能只丟站名；台鐵／高鐵系統也要一起交給網頁端。
+        if (("tra".equals(sys) || "thsr".equals(sys)) && WidgetNearestMath.linkable(sys, station)) {
+            Uri uri = new Uri.Builder().scheme("railisland").authority("station")
+                .appendQueryParameter("sys", sys).appendQueryParameter("station", station).build();
+            intent.setAction(Intent.ACTION_VIEW).setData(uri);
+        }
         return PendingIntent.getActivity(context, id + 32000, intent,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
