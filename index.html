@@ -5493,7 +5493,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/9/19</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/9/20</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -5501,6 +5501,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="nangangbrstop0920"><span class="d">9/20</span><span>修正文湖線南港展覽館站的停車位置，列車會停在站體內的直線月台，不再停在西側彎道</span></li>
         <li data-cl-of="appnoticegeo0919"><span class="d">9/19</span><span>App 的長提示現在會完整換行，不再被列車卡片或畫面邊緣截斷，點通知外面即可收起；地圖傾斜時也會隱藏定位點，不會被拍進截圖或錄影</span></li>
         <li data-cl-of="randomnextplate0919"><span class="d">9/19</span><span>按「隨機跟隨」或「換一班」時，地圖會短暫亮出月台風格的牌子，直接告訴你這班車的下一站</span></li>
         <li data-cl-of="tramground0919"><span class="d">9/19</span><span>高雄輕軌的五節車身重新對齊，近看不再一節高、一節低</span></li>
@@ -5508,7 +5509,6 @@
         <li data-cl-of="widgetrailjump0919"><span class="d">9/19</span><span>從台鐵發車看板或鐵路＋捷運雙看板點進軌島時，會回到正確的鐵路地圖與車站；臺北車站不會再被同名的捷運站截走</span></li>
         <li data-cl-of="cexpiostap0919"><span class="d">9/19</span><span>iPhone／iPad 底部速度膠囊淡出後點一下就會展開，不用再點兩下、也不會誤觸暫停</span></li>
         <li data-cl-of="updatebanner0919"><span class="d">9/19</span><span>App 有新版時，頂端的更新提示不再蓋住「觀看」按鈕</span></li>
-        <li data-cl-of="overtakeplan0915"><span class="d">9/19</span><span>台鐵後車待避與對向交會都保留安全間隔，同一條軌道上互相穿過的情況再減少</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5516,6 +5516,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="nangangbrstop0920"><span class="d">9/20</span><span>修正文湖線南港展覽館站的停車位置，列車會停在站體內的直線月台，不再停在西側彎道</span></li>
         <li data-cl="landscapedem0918"><span class="d">9/18</span><span>Android App 的地景地圖修正：立體列車不再整批消失，改回照真實地形高度擺在山坡與高架橋上（原因是 Android 讀不出 App 內建的地形資料）</span></li>
         <li data-cl="overtakeplan0915"><span class="d">9/15</span><span>台鐵後車即將追上前車時，會預先回找有足夠煞車時間的車站安排待避，並依車種煞車性能決定停哪一站（例如 6563 次改在崇德等 207 次通過）；9/19 再修：待避與對向交會都保留安全間隔，同軌互穿再減少</span></li>
         <li data-cl="fullformations0914"><span class="d">9/14</span><span>所有列車都可顯示完整編組；區間車、莒光與觀光列車等資料不足的班次顯示推估車廂數，並清楚標示推估</span></li>
@@ -6573,7 +6574,8 @@
 // v0919j：修正五節鉸接輕軌列車逐節用 mesh minZ 貼地，導致無轉向架的懸掛車節誤降約 36 cm。
 //         同一編組改共用整列最低點為軌面基準；全 62 款列車軌面基準掃描與雙引擎實測納入守門。
 // v0919l：App 長提示完整換行不再被限高裁切；地圖傾斜時隱藏完整定位點。
-const BUILD = 'v0919l';
+// v0920a：文湖線南港展覽館兩方向改用 OSM 正式 stop_position，停車點不再落在西側彎道。
+const BUILD = 'v0920a';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。

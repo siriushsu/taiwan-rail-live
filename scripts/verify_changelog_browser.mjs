@@ -51,7 +51,8 @@ const widths = [360, 375, 414, 768];
 // 9/19：401 是發車看板同名站修正合併後的 main；本次台鐵官方站點錨點再加一條（401→402）。
 // 9/19：高雄輕軌五節車身共用軌面基準一條（402→403）。
 // 9/19：隨機跟隨／換一班時顯示下一站牌一條（403→404）。
-const expectedHistoryCount = 404;
+// 9/19：App 長提示與定位點一條（404→405）；9/20：南港展覽館停車位置一條（405→406）。
+const expectedHistoryCount = 406;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
