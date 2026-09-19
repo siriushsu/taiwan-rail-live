@@ -2417,6 +2417,16 @@
   /* 🔴 插入 .bgrp 之後上面那條 `.row:first-of-type` 就再也不匹配了(父層第一個 div 變成 .bgrp),
      每組第一列會多一條上框線、與組標題的底線疊成雙線。這條把它補回去。 */
   .board .bgrp + .row { border-top: 0; }
+  /* 火車站看板先留每方向最近 3 班維持掃讀速度；其餘班次不再被截掉，使用者可在原面板內
+     展開接下來 3 小時的完整清單。按鈕本身跟字級三階一起放大，App 大字版仍是完整觸控目標。 */
+  .board .board-all-toggle {
+    display: flex; align-items: center; justify-content: center; width: 100%;
+    min-height: calc(44px * var(--uit)); margin: 11px 0 0; padding: 7px 10px;
+    font: inherit; font-size: calc(12.5px * var(--ui)); font-weight: 850; color: var(--navy);
+    background: var(--bg-stage); border: 1.5px solid var(--line); border-radius: 8px; cursor: pointer;
+  }
+  .board .board-all-toggle:hover { border-color: var(--navy); }
+  .board .board-all-toggle:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
   /* 🔴 這兩條是白名單:點得動的列才給 cursor/hover。新增可點的列一定要同輪加進來——
      週末活動入口列(data-weekend)漏了,結果它畫了 `›`、點下去也真的會開頁,滑鼠移上去卻是
      游標不變、底色不動,同一框裡其他每一列都有回饋,唯獨它沒有。 */
@@ -5501,6 +5511,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="boardall0920"><span class="d">9/20</span><span>台鐵、高鐵與林鐵車站看板不再只看得到每個方向最近 3 班；點一下就能在同一張看板展開接下來 3 小時的全部班次，需要時也能收回精簡版</span></li>
         <li data-cl-of="nangangbrstop0920"><span class="d">9/20</span><span>修正文湖線南港展覽館站的停車位置，列車會停在站體內的直線月台，不再停在西側彎道</span></li>
         <li data-cl-of="appnoticegeo0919"><span class="d">9/19</span><span>App 的長提示現在會完整換行，不再被列車卡片或畫面邊緣截斷，點通知外面即可收起；地圖傾斜時也會隱藏定位點，不會被拍進截圖或錄影</span></li>
         <li data-cl-of="randomnextplate0919"><span class="d">9/19</span><span>按「隨機跟隨」或「換一班」時，地圖會短暫亮出月台風格的牌子，直接告訴你這班車的下一站</span></li>
@@ -5508,7 +5519,6 @@
         <li data-cl-of="trastationanchor0919"><span class="d">9/19</span><span>台鐵誤點更新會核對官方所在車站；過站時的小幅誤點直接校正位置，同車次重複資料也不再把較大誤點蓋掉</span></li>
         <li data-cl-of="widgetrailjump0919"><span class="d">9/19</span><span>從台鐵發車看板或鐵路＋捷運雙看板點進軌島時，會回到正確的鐵路地圖與車站；臺北車站不會再被同名的捷運站截走</span></li>
         <li data-cl-of="cexpiostap0919"><span class="d">9/19</span><span>iPhone／iPad 底部速度膠囊淡出後點一下就會展開，不用再點兩下、也不會誤觸暫停</span></li>
-        <li data-cl-of="updatebanner0919"><span class="d">9/19</span><span>App 有新版時，頂端的更新提示不再蓋住「觀看」按鈕</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5689,6 +5699,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="boardall0920"><span class="d">9/20</span><span>台鐵、高鐵與林鐵車站看板不再只看得到每個方向最近 3 班；點一下就能在同一張看板展開接下來 3 小時的全部班次，需要時也能收回精簡版</span></li>
         <li data-cl="randomnextplate0919"><span class="d">9/19</span><span>按「隨機跟隨」或「換一班」時，地圖會短暫亮出月台風格的牌子，直接告訴你這班車的下一站</span></li>
         <li data-cl="followrotate0916"><span class="d">9/16</span><span>跟車轉動視角維持鎖定不中斷，並修正開啟車頭朝上時列車在轉彎處跑出畫面外的問題</span></li>
         <li data-cl="neardismiss0918"><span class="d">9/18</span><span>「附近車站」清單原本只有標題列那顆小小的 ✕ 關得掉，點地圖空白處或往下滑都沒反應，只能先點一站才收得起來；現在點空白處、往下滑都會收起來，✕ 的可按範圍也放大了</span></li>
@@ -6575,7 +6586,8 @@
 //         同一編組改共用整列最低點為軌面基準；全 62 款列車軌面基準掃描與雙引擎實測納入守門。
 // v0919l：App 長提示完整換行不再被限高裁切；地圖傾斜時隱藏完整定位點。
 // v0920a：文湖線南港展覽館兩方向改用 OSM 正式 stop_position，停車點不再落在西側彎道。
-const BUILD = 'v0920a';
+// v0920b：火車站看板可由每方向最近 3 班展開為接下來 3 小時的完整班次。
+const BUILD = 'v0920b';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -30153,7 +30165,7 @@ function saveLastBoard(st) {
   if (!st || !st.name || !st.sys) return;
   try { localStorage.setItem(LAST_BOARD_KEY, JSON.stringify({ sys: st.sys, name: st.name })); } catch (e) {}
 }
-function openBoard(st) { soloPanel('board'); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel(); closeDelayHist(); closePinCard(); closeNearbyStations(); closeSugarCard(); boardRxOpen.clear(); boardFarePage = null; state.boardStation = st; saveLastBoard(st); uniTab = 'station'; uniUncollapseForBoard(); renderBoard(); }
+function openBoard(st) { soloPanel('board'); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel(); closeDelayHist(); closePinCard(); closeNearbyStations(); closeSugarCard(); boardRxOpen.clear(); boardFarePage = null; document.getElementById('board').classList.remove('show-all'); state.boardStation = st; saveLastBoard(st); uniTab = 'station'; uniUncollapseForBoard(); renderBoard(); }
 function closeBoard() {
   unmountUniCard(); // 先把跟車卡搬回家,再清 innerHTML——否則它會跟著被清掉
   busTransferCloseBoard();
@@ -30161,6 +30173,7 @@ function closeBoard() {
   boardRxOpen.clear(); // 展開態屬於這一張看板,關掉就結束
   boardFarePage = null;  // 票價子頁屬於這一張看板,關掉就結束
   const el = document.getElementById('board');
+  el.classList.remove('show-all');
   el.hidden = true; el.innerHTML = '';
   updateSheetOpenClass();
   syncBusJourneyDock();
@@ -31003,9 +31016,9 @@ function renderBoard() {
   if (preserveScroll && !el.hidden) el.scrollTop = scrollTop;
 }
 // 看板列 HTML(依方向分組、空組不畫、組內時間序、各取 perGroup 班)。
-// renderBoardBody(perGroup 3/6)與查詢答案區(perGroup 1)共用同一份——答案區的字面必須等於看板同組第一列,
+// renderBoardBody(預覽 3／完整全量)與查詢答案區(perGroup 1)共用同一份——答案區的字面必須等於看板同組第一列,
 // 所以不准有第二份產生器(spec §4.3)。
-function schedBoardListHtml(st, rows, perGroup) {
+function schedBoardListHtml(st, rows, perGroup, stats) {
   // 高鐵座位與票價副列僅限高鐵站板:台鐵/林鐵/捷運都沒有對號座概念。
   // 答案區(perGroup=1)完全不出副列——那裡點列是「開看板」(renderQueryAnswer 的 wrap.onclick,
   // 不是下面 renderBoardBody 的 el.onclick),沒有對應的按鈕守門,票價鈕掛上去會被答案區自己的
@@ -31053,6 +31066,10 @@ function schedBoardListHtml(st, rows, perGroup) {
     byKey.get(r.g.key).rows.push(r);
   }
   const groups = [...byKey.values()].sort((a, b) => a.order - b.order || a.key.localeCompare(b.key));
+  if (stats) {
+    stats.fullCount = groups.reduce((n, g) => n + g.rows.length, 0);
+    stats.previewCount = groups.reduce((n, g) => n + Math.min(g.rows.length, 3), 0);
+  }
   return groups.map(g =>
     `<div class="bgrp${g.kind === 'trunk' ? (g.nb ? ' dir-n' : ' dir-s') : ''}">${escHtml(boardGroupLabel(g, groups, st.sys))}</div>` +
     g.rows.slice(0, perGroup).map(rowHtml).join('')).join('');
@@ -31097,10 +31114,13 @@ function renderBoardBody() {
     if (_thsrSeatCache === undefined) loadThsrSeat().then(() => { if (state.boardStation === st) renderBoard(); });
     if (_thsrFareCache === undefined) loadThsrFare().then(() => { if (state.boardStation === st) renderBoard(); });
   }
-  // 分組前是全站合計 12 筆(大段 88%/24 筆 2026-08-26 退役);分組後改成【逐組】配額:
-  // 冷門方向不會被熱門方向整個擠掉。🔴 App 線沒有大段 ⇒ el.expand 恆假 ⇒ 實際恆為 3。
-  const perGroup = el.classList.contains('expand') ? 6 : 3;
-  const list = schedBoardListHtml(st, rows, perGroup);
+  // 預覽每方向 3 班，冷門方向不會被熱門方向整個擠掉。2026-08-26 拿掉 88% 大段後，舊的
+  // expand 入口也跟著消失，App 因此永遠只能看 3 班；現在由看板自己的「完整班次」入口展開
+  // schedBoardRows 已算好的 3 小時全量，不再把內容量綁在面板高度上。
+  const showAll = el.classList.contains('show-all');
+  const perGroup = showAll ? Infinity : 3;
+  const listStats = {};
+  const list = schedBoardListHtml(st, rows, perGroup, listStats);
   const fav = isFavStation(st);
   // 共構站(台北/板橋/南港…)台鐵/高鐵各自成板,標題標系統才分得清這張是誰的
   const sysName = (state.systems.find(x => x.id === st.sys) || {}).label || '';
@@ -31130,6 +31150,11 @@ function renderBoardBody() {
       st.sys === 'tra_sched' && state.traDaily && state.traDaily.cancelled
         ? ' · ' + escHtml(t('今日官方停駛 {n} 班', { n: i18nNumber(state.traDaily.cancelled) }, state.traDaily.cancelled)) : ''} · ${escHtml(t('點班次跟隨'))}${seatNote}</div>` +
     (list || `<div class="empty">${escHtml(t('此時段無停靠班次'))}</div>`) +
+    (listStats.fullCount > listStats.previewCount
+      ? `<button class="board-all-toggle" type="button" aria-expanded="${showAll ? 'true' : 'false'}">${escHtml(showAll
+        ? t('收起完整班次')
+        : t('查看接下來 3 小時全部 {n} 班', { n: i18nNumber(listStats.fullCount) }, listStats.fullCount))}</button>`
+      : '') +
     (busTransferId ? '<div class="btu-board-slot" data-bus-transfer-slot></div>' : '');
   // 等站卡選單要的是【這張板算出來的那一份 rows】:時鐘被帶回「現在」之後會重繪一次,
   // 掛在 el 上讓 traWaitStartFromBoard 讀重繪後的新值（比照 el._metroCoreRecords）。
@@ -31147,6 +31172,12 @@ function renderBoardBody() {
   el.querySelector('#boardStar').onclick = () => toggleFavStation(st);
   bindTraWaitBoard(el, st);
   if (showNotify) { const nb = el.querySelector('#boardNotify'); if (nb) nb.onclick = e => { e.stopPropagation(); openLastTrainReminderSheet(st); }; }
+  const allBtn = el.querySelector('.board-all-toggle');
+  if (allBtn) allBtn.onclick = e => {
+    e.stopPropagation();
+    el.classList.toggle('show-all');
+    renderBoard();
+  };
   // 點任一班次列 → 關看板、跟隨該車。
   // 看板每 20 模擬秒重繪(高倍速=不到半秒),按下到放開之間列可能被換掉、click 目標變成容器,
   // 所以 pointerdown 先把車次記在持久的 el 上,click 撈不到列時用記下的補。
