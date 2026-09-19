@@ -2313,6 +2313,15 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   "Android 雙看板小工具字放大、依卡片高度多列幾班；設定頁通行證文字修正": "Androidの鉄道＋メトロ案内ウィジェット：文字を大きくし、カードの高さに合わせて表示本数を増やしました。設定画面の軌島パスの表示も修正しました。"
 });
 
+// 2026-09-19 鉸接輕軌列車共用軌面基準(第一層更新紀錄那條的 en/ja;第二層正本一律走 RAIL_I18N_CHANGELOG)
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  "高雄輕軌的五節車身重新對齊，近看不再一節高、一節低": "Kaohsiung Light Rail’s five articulated sections are aligned again, so the body no longer alternates between high and low up close."
+});
+
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  "高雄輕軌的五節車身重新對齊，近看不再一節高、一節低": "高雄ライトレールの5つの連接車体を揃え、近くで見たときに車体が交互に上下しなくなりました。"
+});
+
 // 2026-09-19 支線 DR1000 加減速接進運動模型(第一層更新紀錄那條的 en/ja;第二層正本一律走 RAIL_I18N_CHANGELOG)
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
   "平溪、深澳、集集、內灣線的列車改照 DR1000 柴油客車加減速，列車卡也改顯示 DR1000 介紹": "Pingxi, Shen’ao, Jiji and Neiwan lines: trains now accelerate and brake like the DR1000 diesel railcars actually used there, and the train card now describes the DR1000 instead of an electric train."

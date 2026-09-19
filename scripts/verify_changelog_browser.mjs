@@ -49,7 +49,8 @@ const widths = [360, 375, 414, 768];
 // 9/19：支線 DR1000 加減速接進運動模型一條（395→396）。
 // 9/19：新馬急彎前車速不超過車種極速一條（396→397）。
 // 9/19：401 是發車看板同名站修正合併後的 main；本次台鐵官方站點錨點再加一條（401→402）。
-const expectedHistoryCount = 402;
+// 9/19：高雄輕軌五節車身共用軌面基準一條（402→403）。
+const expectedHistoryCount = 403;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

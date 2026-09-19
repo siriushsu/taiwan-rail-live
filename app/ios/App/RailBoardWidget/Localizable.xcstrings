@@ -33950,6 +33950,23 @@
         }
       }
     },
+    "高雄輕軌的五節車身重新對齊，近看不再一節高、一節低": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kaohsiung Light Rail’s five articulated sections are aligned again, so the body no longer alternates between high and low up close."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高雄ライトレールの5つの連接車体を揃え、近くで見たときに車体が交互に上下しなくなりました。"
+          }
+        }
+      }
+    },
     "高雄環狀輕軌假日 29 班不再接錯車；機捷深夜往機場 23:23、23:38 兩班，中和新蘆線南勢角 22:26、淡水信義線週六廣慈 23:08 也照官方時刻開完全程": {
       "extractionState": "manual",
       "localizations": {
@@ -55400,6 +55417,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "iPhoneのメトロウィジェットに複数駅を配置、または「自動（最寄り駅）」で移動に合わせて切替"
+          }
+        }
+      }
+    },
+    "iPhone／iPad 底部速度膠囊淡出後點一下就會展開，不用再點兩下、也不會誤觸暫停": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On iPhone/iPad, tapping the faded speed capsule at the bottom now expands it right away — no more second tap, and it won't accidentally hit pause."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone／iPadで、下部の薄くなった速度カプセルをタップすると、すぐに展開するようになりました。二度タップする必要がなく、誤って一時停止することもありません。"
           }
         }
       }

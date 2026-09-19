@@ -107,6 +107,7 @@
     "check-daytype-sync": "node scripts/check_daytype_sync.mjs",
     "check-3d-integration": "node scripts/verify_3d_integration.mjs",
     "check-3d-assets": "node scripts/verify_3d_assets.mjs",
+    "check-articulated-grounding": "node scripts/verify_articulated_grounding.mjs",
     "check-3d-lifecycle": "node scripts/verify_3d_lifecycle.mjs",
     "check-3d-framing": "node scripts/verify_3d_framing.mjs",
     "check-3d-occlusion": "node scripts/verify_3d_occlusion.mjs",

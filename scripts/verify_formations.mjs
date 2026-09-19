@@ -70,6 +70,22 @@ for (const [label, vehicle, cars, meshes] of cases) {
   if (short.parts.length !== shortCars) failures.push(`${label} 三節示意畫了 ${short.parts.length} 節，應為 ${shortCars} 節`);
   const shortSeen = [short.parts[0], short.parts[Math.floor(shortCars / 2)], short.parts.at(-1)].map(p => p?.mesh);
   if (shortSeen.join(',') !== meshes.join(',')) failures.push(`${label} 三節示意的部件為 ${shortSeen.join('／')}，應為 ${meshes.join('／')}`);
+
+  // 五分節輕軌的第 2、4 節沒有轉向架，原始網格的底部本來就懸在軌面上方。
+  // 若載入時把每節各自的 minZ 壓到 0，這兩節會被下拉約 36 cm，整列屋頂就會凹凸。
+  // 所有鉸接分節必須共用整列最低點的軌面基準，並保留無轉向架車節的離地高。
+  if (spec.articulated) {
+    const sourceGroundZ = Math.min(...model.parts.map(p => catalog.meshes[p.mesh].min[2]));
+    const clearances = model.parts.map(p => {
+      const mesh = catalog.meshes[p.mesh];
+      const scale = model.widthM / (mesh.max[1] - mesh.min[1]);
+      if (!Number.isFinite(p.groundAnchorZ) || Math.abs(p.groundAnchorZ - sourceGroundZ) > 1e-9)
+        failures.push(`${label} ${p.mesh} 沒有共用整列軌面基準`);
+      return (mesh.min[2] - p.groundAnchorZ) * scale;
+    });
+    if (clearances.some(v => !Number.isFinite(v)) || Math.min(...clearances) > .01 || Math.max(...clearances) < .3)
+      failures.push(`${label} 沒有同時保留轉向架車節與懸掛車節的原始離地高：${clearances.join('／')}`);
+  }
 }
 for (const [label, vehicle, cars] of estimated) {
   const spec = formationFor(vehicle, 'actual');

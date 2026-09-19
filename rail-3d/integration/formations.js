@@ -93,9 +93,12 @@ export function assembleFormation(spec,catalog){
   // 鉸接外觀原本有長短節，照原節比例分配已知總長；短編組拿首、中、尾，不塞入三整列輕軌。
   const sources=spec.articulated?(spec.compact?[template.parts[0],template.parts[2],template.parts[4]]:template.parts):lengths.map((_,i)=>i===0?template.parts[0]:i===lengths.length-1?template.parts.at(-1):template.parts[1]);
   if(spec.articulated){const full=template.parts.map(p=>{const m=catalog.meshes[p.mesh];return m.max[0]-m.min[0];}),scale=(spec.compact?FORMATIONS[spec.id].lengths:spec.lengths).reduce((a,b)=>a+b,0)/full.reduce((a,b)=>a+b,0);lengths=sources.map(p=>{const m=catalog.meshes[p.mesh];return (m.max[0]-m.min[0])*scale;});}
+  // 鉸接輕軌的無轉向架車節，網格底部原本就比整列軌面高。這些 section 是從同一個
+  // 完整模型切出來的，Z 仍共用同一座標系；不能在載入時把每節的 minZ 各自歸零。
+  const sharedGroundZ=spec.articulated?Math.min(...sources.map(p=>catalog.meshes[p.mesh].min[2])):null;
   const lengthM=lengths.reduce((a,b)=>a+b,0);let front=lengthM/2;
   const parts=lengths.map((lengthM,i)=>{const first=i===0,last=i===lengths.length-1,source=sources[i],offsetM=front-lengthM/2;front-=lengthM;
-    const gap=spec.articulated?.04:.16,leftGap=last?0:gap,rightGap=first?0:gap;
-    return {...source,lengthM,bodyLengthM:lengthM-leftGap-rightGap,bodyShiftM:(leftGap-rightGap)/2,offsetM};});
+    const gap=spec.articulated?.04:.16,leftGap=last?0:gap,rightGap=first?0:gap,groundAnchorZ=sharedGroundZ??catalog.meshes[source.mesh].min[2];
+    return {...source,lengthM,bodyLengthM:lengthM-leftGap-rightGap,bodyShiftM:(leftGap-rightGap)/2,offsetM,groundAnchorZ};});
   return {...template,...spec,displayWidthM:spec.widthM,lengthM,parts,illustrative:true,lengthScale:1};
 }
