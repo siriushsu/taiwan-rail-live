@@ -5495,6 +5495,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="cexpiostap0919"><span class="d">9/19</span><span>iPhone／iPad 底部速度膠囊淡出後點一下就會展開，不用再點兩下、也不會誤觸暫停</span></li>
         <li data-cl-of="updatebanner0919"><span class="d">9/19</span><span>App 有新版時，頂端的更新提示不再蓋住「觀看」按鈕</span></li>
         <li data-cl-of="overtakeplan0915"><span class="d">9/19</span><span>台鐵後車待避與對向交會都保留安全間隔，同一條軌道上互相穿過的情況再減少</span></li>
         <li data-cl-of="i18ngaps0919"><span class="d">9/19</span><span>英日文介面補上漏翻的按鈕、路線名、公告與提示，切換語言不再殘留前一種語言；車站看板太長的字改成兩行，不再被切掉；iOS 定位權限說明改用中文</span></li>
@@ -5502,7 +5503,6 @@
         <li data-cl-of="translucent0730"><span class="d">9/19</span><span>暗色主題下「面板半透明」開關恢復作用；半透明時看板倒數、預計到站與「在 Google 地圖開啟」等藍字加深，疊在衛星影像上也看得清楚</span></li>
         <li data-cl-of="speedcapzone0919"><span class="d">9/19</span><span>台鐵列車在地圖上不再跑得比車種極速還快，新馬急彎與立體地圖都修正了，站牌時刻不變</span></li>
         <li data-cl-of="dr1000branch"><span class="d">9/19</span><span>平溪、深澳、集集、內灣線的列車改照 DR1000 柴油客車加減速，列車卡也改顯示 DR1000 介紹</span></li>
-        <li data-cl-of="mixedwidget0919"><span class="d">9/19</span><span>Android 雙看板小工具字放大、依卡片高度多列幾班；設定頁通行證文字修正</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5778,6 +5778,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="cexpiostap0919"><span class="d">9/19</span><span>修正 iPhone／iPad 底部速度膠囊點不開：淡出把手點一下只會醒來，第二下常被誤導點到旁邊的暫停鍵；現在放開手指就直接展開，不再誤觸暫停。Android／桌面不受影響。</span></li>
         <li data-cl="updatebanner0919"><span class="d">9/19</span><span>App 有新版時，頂端的更新提示不再蓋住「觀看」按鈕：右側按鈕列載入後會變長，提示現在會跟著往下讓位</span></li>
         <li data-cl="i18ngaps0919"><span class="d">9/19</span><span>英日文介面補上漏翻並修正譯錯的按鈕：行程分享、捷運路線名、倒數準確度、最後更新、今日亮點次數、成就說明、公告與各種提示；切換語言不再殘留前一種語言；車站看板一列放不下改成兩行；三鶯線公告列出官方首末班；iOS 定位權限說明改用中文；英文或日文切回中文時，關閉鈕與通行證鈕不再變成別的字，路線篩選也會換回中文；北捷自己發的公告、台鐵等車清單與各系統同名車站的英日文補正；搜尋清單關掉後不會自己又彈出來</span></li>
         <li data-cl="mixedwidget0919"><span class="d">9/19</span><span>Android 桌面的鐵路＋捷運雙看板重新排版：字放大，卡片放得下幾班就列幾班，不再空一大塊；已開通行證時，設定頁不會再誤寫需要通行證。</span></li>
@@ -6550,7 +6551,11 @@
 // v0919f：英日文複審 16 項＋切回繁中回歸修正(e6cc4429,併入 19559f66)——v0919e 起英/日切回繁中時 I18N_PRODUCED 反查把
 //         × 換成「平」、Pass 換成「旅」、台北捷運換成「北捷」、路線晶片留英文;北捷自產橫幅系統／線名＋語言無關 sig、台鐵等車選單、
 //         跨系統同名站;check_i18n 新掃描器;搜尋下拉關掉後不再被晚到的公車查詢彈開;ship-web 並行鎖(32d169b8)。
-const BUILD = 'v0919f';
+// v0919g：修正 iOS(WKWebView/Safari)底部速度膠囊真觸控點不開——淡出態 touchstart 喚回實體會讓 WebKit 不合成
+//         click(只變 slim 不展開)、slim 態點 #speedOut 合成的 click 又被觸控校正吸到鄰近 #pp 變成暫停;
+//         改成 iOS 專屬用 touchend 真實 target 直接判斷展開並 preventDefault 擋掉那次合成點擊,
+//         Android/桌面仍走原本的 touchstart→click 路徑不受影響。真機驗證見 native/docs/m1/devref.md §5。
+const BUILD = 'v0919g';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -34506,6 +34511,14 @@ function setupMapTools() {
     let collapseT = null, faintT = null, sliderHold = false;
     const capsule = () => window.matchMedia(MOBILE_MQ).matches
       && !body.classList.contains('ambient');
+    // iOS WKWebView／Safari 真觸控兩個坑(devref §5、ios-cexp-tap-evidence.json 實測):
+    // ①淡出態(cfaint)第一下 touchstart 喚回實體(視覺改變),WebKit 的「hover 先行」規則就不合成 click,
+    //   所以「一下到底」在 iOS 上只會變 slim,不會展開;②slim 態點 #speedOut,touchstart/touchend 命中確實
+    // 是 #speedOut,但 WebKit 隨後合成的 mousedown/mouseup/click 被觸控校正吸到鄰近的 #pp,把展開變成暫停。
+    // 兩者都是「合成 click 這一步」不可信,改用 touchend 當下的真實 e.target 直接決定展開,並 preventDefault
+    // 擋掉這次觸控要合成的 mouse*/click,問題就不會發生。Android/桌面不受影響,仍走原本的 click 路徑。
+    const ua = navigator.userAgent || '';
+    const iOS = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document);
     const clearTimers = () => { clearTimeout(collapseT); clearTimeout(faintT); collapseT = faintT = null; };
     const syncOverlays = () => placeFsOverlays(); // 膠囊高度變 → 跟隨卡/鈕依實高重新讓位
     function scheduleCollapse() { clearTimers(); if (!sliderHold) collapseT = setTimeout(toSlim, 5000); } // 展開 5s 無互動 → slim
@@ -34516,22 +34529,37 @@ function setupMapTools() {
     // 展開或 slim 中任何互動重置對應計時器(拖曳中除外)
     function bump() { if (!capsule() || sliderHold) return; if (body.classList.contains('cexp')) scheduleCollapse(); else if (!body.classList.contains('cfaint')) scheduleFaint(); }
     controls.addEventListener('pointerdown', bump);
-    // faint 把手:一下到底——觸碰先回實體(即時視覺回饋),同一次點擊繼續往下走 click 展開。
-    // 原本刻意把喚醒那一下吞掉(「回實體」與「展開」分兩次操作),使用者回報「點開之後要點第二下才出現控制」,
-    // 2026-07-25 裁決改為一下到底。
-    controls.addEventListener('touchstart', () => { if (capsule() && body.classList.contains('cfaint')) toSlim(); }, { passive: true });
-    // 點膠囊本體(非 ▶/⏸)→ 展開;▶/⏸ 照常播放暫停;已展開則交給內部真控件
-    controls.addEventListener('click', (e) => {
-      if (!e.isTrusted) return; // 「更多」sheet 代理點擊帶內工具鈕(btn.click())會冒泡到這裡,別把膠囊偷偷展開
-      if (!capsule()) return;
-      if (pp.contains(e.target)) return;
+    // 點膠囊本體(非 ▶/⏸、非離開放空)→ 展開;▶/⏸ 照常播放暫停;已展開則交給內部真控件(滑桿等)。
+    // 這個判準在 iOS(touchend,見下)與 Android/桌面(click,見下)共用,寫成獨立函式避免兩份邏輯分岔。
+    function wantsExpand(e) {
+      if (!capsule()) return false;
+      if (pp.contains(e.target)) return false;
       // 「離開放空」那一下:onclick 已同步跑完 setAmbient(false) 移除 body.ambient,冒泡到這裡時
       // capsule() 剛從 false 翻成 true ⇒ 會把膠囊展開成 body.cexp。而 cexp 那條
       // 「.controls #ambientBtn{display:none}」(1-2-2)蓋得過所有放空規則,下次再進放空整條控制列
       // 就只剩一顆空膠囊、出口消失(2026-09-01 使用者回報「再次進入時離開鈕縮成空的小鈕」)。
       // 比照上面 #pp 的寫法把出口鈕排除在展開手勢之外。
-      if (e.target.closest && e.target.closest('#ambientBtn')) return;
-      if (body.classList.contains('cexp')) return;
+      if (e.target.closest && e.target.closest('#ambientBtn')) return false;
+      if (body.classList.contains('cexp')) return false;
+      return true;
+    }
+    if (iOS) {
+      // iOS:直接用 touchend 的真實 target 判斷展開,並 preventDefault 擋掉這次觸控合成的 click——
+      // 不再靠 touchstart 先喚回 slim(會在 touchend 之前多閃一格 slim 版面),一下直接到 cexp。
+      controls.addEventListener('touchend', (e) => {
+        if (!wantsExpand(e)) return;
+        e.preventDefault();
+        toExpanded();
+      }, { passive: false });
+    } else {
+      // faint 把手:一下到底——觸碰先回實體(即時視覺回饋),同一次點擊繼續往下走 click 展開。
+      // 原本刻意把喚醒那一下吞掉(「回實體」與「展開」分兩次操作),使用者回報「點開之後要點第二下才出現控制」,
+      // 2026-07-25 裁決改為一下到底。
+      controls.addEventListener('touchstart', () => { if (capsule() && body.classList.contains('cfaint')) toSlim(); }, { passive: true });
+    }
+    controls.addEventListener('click', (e) => {
+      if (!e.isTrusted) return; // 「更多」sheet 代理點擊帶內工具鈕(btn.click())會冒泡到這裡,別把膠囊偷偷展開
+      if (!wantsExpand(e)) return;
       toExpanded();
     });
     // 滑桿拖曳/觸摸中暫停計時,放手才重新計時(避免調速中膠囊突然收掉)
