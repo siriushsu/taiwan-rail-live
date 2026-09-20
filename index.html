@@ -5511,6 +5511,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="yfallback0920"><span class="d">9/20</span><span>環狀線即時資料暫時中斷、在線列車無法定位時，地圖會自動改按當日班表運行，不再讓整條線消失</span></li>
         <li data-cl-of="virtualloops0920"><span class="d">9/20</span><span>山海號與平原號現在從地圖車牌、車站看板到列車資訊都直接標示為「軌島虛構專列」，不會再看起來像真實營運班次</span></li>
         <li data-cl-of="boardall0920"><span class="d">9/20</span><span>台鐵、高鐵與林鐵車站看板不再只看得到每個方向最近 3 班；點一下就能在同一張看板展開接下來 3 小時的全部班次，需要時也能收回精簡版</span></li>
         <li data-cl-of="nangangbrstop0920"><span class="d">9/20</span><span>修正文湖線南港展覽館站的停車位置，列車會停在站體內的直線月台，不再停在西側彎道</span></li>
@@ -5518,7 +5519,6 @@
         <li data-cl-of="randomnextplate0919"><span class="d">9/19</span><span>按「隨機跟隨」或「換一班」時，地圖會短暫亮出月台風格的牌子，直接告訴你這班車的下一站</span></li>
         <li data-cl-of="tramground0919"><span class="d">9/19</span><span>高雄輕軌的五節車身重新對齊，近看不再一節高、一節低</span></li>
         <li data-cl-of="trastationanchor0919"><span class="d">9/19</span><span>台鐵誤點更新會核對官方所在車站；過站時的小幅誤點直接校正位置，同車次重複資料也不再把較大誤點蓋掉</span></li>
-        <li data-cl-of="widgetrailjump0919"><span class="d">9/19</span><span>從台鐵發車看板或鐵路＋捷運雙看板點進軌島時，會回到正確的鐵路地圖與車站；臺北車站不會再被同名的捷運站截走</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5526,6 +5526,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="yfallback0920"><span class="d">9/20</span><span>環狀線即時資料暫時中斷、在線列車無法定位時，地圖會自動改按當日班表運行，不再讓整條線消失</span></li>
         <li data-cl="nangangbrstop0920"><span class="d">9/20</span><span>修正文湖線南港展覽館站的停車位置，列車會停在站體內的直線月台，不再停在西側彎道</span></li>
         <li data-cl="landscapedem0918"><span class="d">9/18</span><span>Android App 的地景地圖修正：立體列車不再整批消失，改回照真實地形高度擺在山坡與高架橋上（原因是 Android 讀不出 App 內建的地形資料）</span></li>
         <li data-cl="overtakeplan0915"><span class="d">9/15</span><span>台鐵後車即將追上前車時，會預先回找有足夠煞車時間的車站安排待避，並依車種煞車性能決定停哪一站（例如 6563 次改在崇德等 207 次通過）；9/19 再修：待避與對向交會都保留安全間隔，同軌互穿再減少</span></li>
@@ -6589,7 +6590,8 @@
 // v0920a：文湖線南港展覽館兩方向改用 OSM 正式 stop_position，停車點不再落在西側彎道。
 // v0920b：火車站看板可由每方向最近 3 班展開為接下來 3 小時的完整班次。
 // v0920c：山海號／平原號在地圖車牌、看板、搜尋與列車資訊明確標示為軌島虛構專列。
-const BUILD = 'v0920c';
+// v0920d：官方名冊存在但該線沒有任何可繪車輛時退回當日班表，避免環狀線上游久斷後整線消失。
+const BUILD = 'v0920d';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -12002,8 +12004,14 @@ function trtcOfficialRosterLive(nowEpoch) {
 }
 function trtcOfficialItemsForLine(ln, nowEpoch) {
   if (!isTrtcBoardLine(ln) || !trtcOfficialRosterLive(nowEpoch)) return null;
-  return trtcOfficialRenderItems(ln, state.trtcOfficialRoster,
+  const items = trtcOfficialRenderItems(ln, state.trtcOfficialRoster,
     nowEpoch == null ? Date.now() / 1000 : nowEpoch, OFFICIAL_ROSTER_ENABLED);
+  // 官方封包仍可整體保持新鮮，但單線可能已經幾小時沒有新觀測：保留名冊裡的續推車會一路
+  // 推到終點，最後 renderItems 變成 []。空陣列若原樣回傳，drawFreq 會把它視為「官方確認
+  // 這條線 0 台」並 return，當日班表永遠沒有機會接手（2026-09-20 環狀線整線消失）。
+  // 與 Metro Core 的空線契約一致：0 台不是足夠的短路證據，交還既有班表；真正收班時班表
+  // 自己也會算出 0 台，不會因此生出幽靈車。
+  return items && items.length ? items : null;
 }
 function trtcOfficialTagHalfWidth(label) {
   if (!label) return 6;

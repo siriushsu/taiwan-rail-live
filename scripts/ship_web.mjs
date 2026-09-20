@@ -253,6 +253,9 @@ try {
   const trackSide = spawnSync('node', [path.join(wt, 'scripts', 'verify_metro_track_side.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(trackSide.stdout || ''); process.stderr.write(trackSide.stderr || '');
   if (trackSide.status !== 0) fail('捷運雙軌左右未通過——有路線的來車與去車跑在真實相反的股道上（單獨重跑：npm run check-metro-track-side）');
+  const trtcLineFallback = spawnSync('node', [path.join(wt, 'scripts', 'verify_trtc_line_fallback.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(trtcLineFallback.stdout || ''); process.stderr.write(trtcLineFallback.stderr || '');
+  if (trtcLineFallback.status !== 0) fail('北捷單線 0 台的班表退路未通過——官方來源失效時可能整條線消失（單獨重跑：npm run check-trtc-line-fallback）');
   const nangangStop = spawnSync('node', [path.join(wt, 'scripts', 'verify_nangang_stop_position.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(nangangStop.stdout || ''); process.stderr.write(nangangStop.stderr || '');
   if (nangangStop.status !== 0) fail('文湖線南港展覽館停車位置未通過——兩方向必須停在月台內的 OSM 正式停車點（單獨重跑：npm run check-nangang-stop-position）');
