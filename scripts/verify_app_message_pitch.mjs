@@ -153,7 +153,24 @@ for (const [engineName, launcher] of [['Chromium', chromium], ['WebKit', webkit]
     } else {
       fail(`${label} 定位點傾斜狀態`, JSON.stringify(result));
     }
-    await page.touchscreen.tap(4, viewport.height - 4);
+    // 通知會依頂列／跟車卡動態換位置；固定點左下角在矮螢幕或窄螢幕可能正好落進通知矩形，
+    // 那是在「點通知本身」而不是驗「點外部」。先從多個可點座標找一個確實不在任何通知內，
+    // 再用真實 touchscreen.tap；避免版面正確時測試反而隨通知落點隨機紅。
+    const outsidePoint = await page.evaluate(() => {
+      const rects = [...document.querySelectorAll('#toasts .toast.show, #toastsCorner .toast.show')]
+        .map(element => element.getBoundingClientRect());
+      const candidates = [
+        [4, 4], [innerWidth - 4, 4], [4, innerHeight - 4], [innerWidth - 4, innerHeight - 4],
+        [innerWidth / 2, 4], [innerWidth / 2, innerHeight - 4], [4, innerHeight / 2],
+        [innerWidth - 4, innerHeight / 2], [innerWidth / 2, innerHeight / 2],
+      ];
+      return candidates.find(([x, y]) => !rects.some(r => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom)) || null;
+    });
+    if (!outsidePoint) {
+      fail(`${label} 找不到通知外觸控座標`, '通知矩形覆蓋所有候選點');
+    } else {
+      await page.touchscreen.tap(outsidePoint[0], outsidePoint[1]);
+    }
     await page.waitForTimeout(500);
     const dismiss = await page.evaluate(() => ({
       count: document.querySelectorAll('#toasts .toast, #toastsCorner .toast').length,
@@ -162,7 +179,7 @@ for (const [engineName, launcher] of [['Chromium', chromium], ['WebKit', webkit]
     if (dismiss.count === 0 && dismiss.propagated === 1) {
       pass(`${label} 真實觸控點通知外即收起，且原點擊不被吞掉`);
     } else {
-      fail(`${label} 點外部收起通知`, JSON.stringify(dismiss));
+      fail(`${label} 點外部收起通知`, JSON.stringify({ ...dismiss, outsidePoint }));
     }
     if (errors.length) fail(`${label} pageerror`, errors.join(' | '));
     await context.close();
