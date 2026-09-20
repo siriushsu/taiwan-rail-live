@@ -5511,7 +5511,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
-        <li data-cl-of="yfallback0920"><span class="d">9/20</span><span>環狀線即時資料暫時中斷、在線列車無法定位時，地圖會自動改按當日班表運行，不再讓整條線消失</span></li>
+        <li data-cl-of="yfallback0920"><span class="d">9/20</span><span>環狀線即時資料暫時中斷、在線列車無法定位時，地圖會自動改按當日班表運行，並標示「班表推估、時間可能有誤差」；訊號恢復後自動切回即時資料</span></li>
         <li data-cl-of="virtualloops0920"><span class="d">9/20</span><span>山海號與平原號現在從地圖車牌、車站看板到列車資訊都直接標示為「軌島虛構專列」，不會再看起來像真實營運班次</span></li>
         <li data-cl-of="boardall0920"><span class="d">9/20</span><span>台鐵、高鐵與林鐵車站看板不再只看得到每個方向最近 3 班；點一下就能在同一張看板展開接下來 3 小時的全部班次，需要時也能收回精簡版</span></li>
         <li data-cl-of="nangangbrstop0920"><span class="d">9/20</span><span>修正文湖線南港展覽館站的停車位置，列車會停在站體內的直線月台，不再停在西側彎道</span></li>
@@ -5526,7 +5526,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
-        <li data-cl="yfallback0920"><span class="d">9/20</span><span>環狀線即時資料暫時中斷、在線列車無法定位時，地圖會自動改按當日班表運行，不再讓整條線消失</span></li>
+        <li data-cl="yfallback0920"><span class="d">9/20</span><span>環狀線即時資料暫時中斷、在線列車無法定位時，地圖會自動改按當日班表運行，並標示「班表推估、時間可能有誤差」；訊號恢復後自動切回即時資料</span></li>
         <li data-cl="nangangbrstop0920"><span class="d">9/20</span><span>修正文湖線南港展覽館站的停車位置，列車會停在站體內的直線月台，不再停在西側彎道</span></li>
         <li data-cl="landscapedem0918"><span class="d">9/18</span><span>Android App 的地景地圖修正：立體列車不再整批消失，改回照真實地形高度擺在山坡與高架橋上（原因是 Android 讀不出 App 內建的地形資料）</span></li>
         <li data-cl="overtakeplan0915"><span class="d">9/15</span><span>台鐵後車即將追上前車時，會預先回找有足夠煞車時間的車站安排待避，並依車種煞車性能決定停哪一站（例如 6563 次改在崇德等 207 次通過）；9/19 再修：待避與對向交會都保留安全間隔，同軌互穿再減少</span></li>
@@ -6591,7 +6591,8 @@
 // v0920b：火車站看板可由每方向最近 3 班展開為接下來 3 小時的完整班次。
 // v0920c：山海號／平原號在地圖車牌、看板、搜尋與列車資訊明確標示為軌島虛構專列。
 // v0920d：官方名冊存在但該線沒有任何可繪車輛時退回當日班表，避免環狀線上游久斷後整線消失。
-const BUILD = 'v0920d';
+// v0920e：環狀線實際退回班表時明示「班表推估」與時間誤差，官方車輛恢復後自動撤除。
+const BUILD = 'v0920e';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -28198,13 +28199,14 @@ function metroAlertFor(ln) {
 // 逐線問 metroCoreLineBlocked 拿原因；沒被擋卻退回＝Core 這一輪沒有這條線的車（metroCoreItemsForLine 的 P0-1 回 null）。
 // 桌面滑鼠移上去看 title；手機的 title 看不到，但點時鐘徽章開的「資料狀態」卡（statPopRender）就是照抄各徽章的
 // title 逐行顯示，所以只要把名單放進 title、一行一條線，兩種版面都看得到。
-function metroCoreFallenDetail(lines) {
+function metroCoreFallenDetail(lines, timetableIds = new Set()) {
   return lines.map(ln => {
     const sysId = metroCoreSystemIdForLine(ln);
     const reason = metroCoreLineBlocked(sysId, ln.id);
     const sys = state.metroCore && state.metroCore.blockedSystems && state.metroCore.blockedSystems[sysId];
     let why;
-    if (reason === 'match') why = t('：看板列只有 {p} 對得到車，整個系統暫退回官方看板', { p: i18nNumber(Math.round(((sys && sys.ratio) || 0) * 100)) + '%' });
+    if (timetableIds.has(String(ln.id))) why = t('：即時訊號暫時中斷，目前依當日班表推估；列車位置與到站時間可能有誤差');
+    else if (reason === 'match') why = t('：看板列只有 {p} 對得到車，整個系統暫退回官方看板', { p: i18nNumber(Math.round(((sys && sys.ratio) || 0) * 100)) + '%' });
     else if (reason === 'stations') why = t('：站列版本與即時模型不一致，改用官方倒數');
     else if (reason === 'count') why = t('：車數相對近況異常減少，改用官方名冊或班表');
     else if (reason) why = '：' + reason;
@@ -28224,13 +28226,28 @@ function updateMetroBadge() {
     if (trains > 0) {
       const fallenLines = corePool.filter((ln, i) => lists[i] === null); // 已退回既有路徑的線
       const fallen = fallenLines.length;
-      el.classList.remove('est');
+      // Core 空線後，legacy 官方名冊若同樣沒有可定位車輛，繪圖實際會再退到班表。徽章必須把這層
+      // 真正的資料來源講清楚；只看 fallen 會把環狀線仍寫成模糊的「改用備案」，使用者無從判斷時間精度。
+      // 官方車輛一回來，trtcOfficialItemsForLine 會在下一次更新回傳非 null，這個標示便自動撤掉。
+      const fallbackNow = Date.now() / 1000;
+      const timetableLines = fallenLines.filter(ln => {
+        if (!ln._tt || trtcOfficialItemsForLine(ln, fallbackNow) !== null) return false;
+        return ln._tt.some(tr => freqTrainTime(tr, state.simSec) != null);
+      });
+      const timetableIds = new Set(timetableLines.map(ln => String(ln.id)));
+      el.classList.toggle('est', timetableLines.length > 0);
       el.classList.toggle('anom', fallen > 0 || !!(warn && warn.error)); // 部分退回不是正常狀態
       el.hidden = false;
-      el.textContent = fallen > 0 ? t('官方即時（{n} 線改用備案）', { n: i18nNumber(fallen) }, fallen) : t('官方即時');
-      const detail = fallen > 0 ? metroCoreFallenDetail(fallenLines) : '';
+      el.textContent = timetableLines.length === 1
+        ? t('{line}：班表推估', { line: routeName(timetableLines[0].name || timetableLines[0].id, freqSysIdOf(timetableLines[0])) })
+        : timetableLines.length > 1
+          ? t('{n} 線：班表推估', { n: i18nNumber(timetableLines.length) }, timetableLines.length)
+          : fallen > 0 ? t('官方即時（{n} 線改用備案）', { n: i18nNumber(fallen) }, fallen) : t('官方即時');
+      const detail = fallen > 0 ? metroCoreFallenDetail(fallenLines, timetableIds) : '';
       el.title = t('車站預告與地圖上的 {n} 台列車共用同一份即時身分與時間軸', { n: i18nNumber(trains) }, trains)
-        + (fallen > 0 ? t('；另有 {n} 條線的即時資料異常，已改用官方名冊或班表', { n: i18nNumber(fallen) }, fallen) : '')
+        + (timetableLines.length > 0
+          ? t('；另有 {n} 條線改依當日班表推估，列車位置與到站時間可能有誤差', { n: i18nNumber(timetableLines.length) }, timetableLines.length)
+          : fallen > 0 ? t('；另有 {n} 條線的即時資料異常，已改用官方名冊或班表', { n: i18nNumber(fallen) }, fallen) : '')
         + (warn && warn.error ? t('；最近一次更新失敗：{error}', { error: warn.error }) : '')
         + (detail ? '\n' + detail : ''); // 逐線名單放最後、一行一條（桌面 title／手機資料狀態卡都逐行顯示）
       return;

@@ -9,6 +9,15 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 
+for (const required of [
+  "t('{line}：班表推估'",
+  "t('；另有 {n} 條線改依當日班表推估，列車位置與到站時間可能有誤差'",
+  "t('：即時訊號暫時中斷，目前依當日班表推估；列車位置與到站時間可能有誤差'",
+  'trtcOfficialItemsForLine(ln, fallbackNow) !== null',
+]) {
+  if (!html.includes(required)) throw new Error(`缺少班表退路標示契約：${required}`);
+}
+
 function extractFunction(name) {
   const start = html.indexOf(`function ${name}(`);
   if (start < 0) throw new Error(`找不到 ${name}`);
@@ -59,4 +68,5 @@ const mutantEmpty = run(mutant, []);
 
 const pass = empty === null && live === one && Array.isArray(mutantEmpty);
 console.log(`${pass ? '✅' : '❌'} 官方名冊單線 0 台回 null 退回班表；有車仍使用官方；空陣列突變會被抓到`);
+console.log('✅ 班表退路會明示推估與時間誤差，官方車輛恢復後自動撤除標示');
 if (!pass) process.exit(1);
