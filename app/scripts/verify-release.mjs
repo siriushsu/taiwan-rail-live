@@ -131,6 +131,52 @@ export function assertAndroidBackButtonContract({ nativeBridgeSource, packagedBr
     'Android 返回鍵處理函式存在但沒有在 boot 掛上');
 }
 
+// Metro Core 單線缺資料時，App 會依序退到官方名冊、再退到班表。2026-09-20 環狀線上游
+// 中斷時，舊 App 把官方名冊的空陣列 [] 當成「官方確認零台」並短路，整條線因此消失。
+// 網站修好不等於 App 修好：index.html 會被烤進安裝包，所以發行閘門必須直接檢查 bundle。
+export function assertMetroSingleLineFallbackContract(html) {
+  const start = html.indexOf('function trtcOfficialItemsForLine(');
+  const end = start < 0 ? -1 : html.indexOf('\n}', start);
+  const source = start >= 0 && end > start ? html.slice(start, end + 2) : '';
+  assert(source.includes('return items && items.length ? items : null;'),
+    '北捷官方名冊單線 0 台時必須回 null，讓 Metro Core 退路繼續落到班表；不可回 [] 讓整條線消失');
+  assert(html.includes("t('{line}：班表推估'")
+      && html.includes('列車位置與到站時間可能有誤差'),
+    'App bundle 缺少捷運班表退路的推估與時間誤差標示');
+}
+
+// 1.6.8 是把網站 v0920a～e 一次帶進原生 App；只驗環狀線會讓「同一包也要帶進來」的
+// 南港停車點／車站資訊卡更新在 prepare-web 漏檔或誤用舊來源時照樣通過。HTML 行為與實體
+// 路網 JSON 都直接讀打包輸出，不以 repo 原檔或更新紀錄文字代替載貨證據。
+export function assertSep20AppPayload({ html, metroPack }) {
+  for (const marker of ['data-cl="nangangbrstop0920"', 'data-cl="boardall0920"',
+    'data-cl="virtualloops0920"', 'data-cl="yfallback0920"']) {
+    assert(html.includes(marker), `App bundle 缺少 1.6.8 載貨標記：${marker}`);
+  }
+  assert(html.includes('class="board-all-toggle"')
+      && html.includes("t('查看接下來 3 小時全部 {n} 班'")
+      && html.includes("t('收起完整班次')"),
+    'App bundle 缺少台鐵／高鐵／林鐵車站資訊卡的三小時完整班次展開與收合');
+  assert(html.includes("t('軌島虛構專列')") && html.includes("t('虛構專列')"),
+    'App bundle 缺少山海號／平原號的虛構專列標示');
+
+  const directions = [
+    { key: 'mrt:BR:1', pathId: 22, edge: 'to', nodeId: '7093644633', oldNodeId: 'metro-stop:310746645:16:59645382' },
+    { key: 'mrt:BR:-1', pathId: 23, edge: 'from', nodeId: '7093644634', oldNodeId: 'metro-stop:310746644:5:16565840' },
+  ];
+  for (const test of directions) {
+    const route = metroPack?.routes?.[test.key];
+    assert(route && route.pathIds?.includes(test.pathId),
+      `App 路網缺少文湖線南港展覽館 ${test.key} 的實體股道路徑 ${test.pathId}`);
+    assert(metroPack?.nodeTags?.[test.nodeId]?.public_transport === 'stop_position',
+      `App 路網的南港展覽館正式停車節點 ${test.nodeId} 缺少 stop_position`);
+    assert(metroPack?.paths?.[test.pathId]?.[test.edge] === test.nodeId,
+      `App 路網的 ${test.key} 仍未停在南港展覽館直線月台節點 ${test.nodeId}`);
+    assert(!metroPack?.nodeTags?.[test.oldNodeId],
+      `App 路網仍把南港展覽館西側彎道節點 ${test.oldNodeId} 標成停車點`);
+  }
+}
+
 // Android WebView <140 的 env(safe-area-inset-*) 有已知錯誤；Capacitor 8 會把正確值注入
 // --safe-area-inset-*。所有版面只准從 --sa-* 別名取值，否則三鍵導覽／手勢條會再次蓋住貼底控制。
 export function assertAndroidSafeAreaCssContract(html) {
@@ -559,6 +605,7 @@ export async function verifyRelease({
   const relativeFiles = files.map(file => relative(output, file).replaceAll('\\', '/'));
   const indexPath = join(output, 'index.html');
   const html = await readFile(indexPath, 'utf8');
+  const metroPack = JSON.parse(await readFile(join(output, 'rail-3d/physical/metro-network.json'), 'utf8'));
   const nativeBridgeSource = await readFile(join(appRoot, 'src/native-bridge.mjs'), 'utf8');
   const packagedBridge = await readFile(join(output, 'native-bridge.js'), 'utf8');
   const androidManifest = await readFile(join(appRoot, 'android/app/src/main/AndroidManifest.xml'), 'utf8');
@@ -569,6 +616,8 @@ export async function verifyRelease({
   for (const f of verifyWidgetPreviews({ log: false }).files) if (!relativeFiles.includes(f)) fail(`小工具預覽圖沒進 bundle：${f}`);
   assertAndroidPreciseLocationContract({ nativeBridgeSource, packagedBridge, androidManifest });
   assertAndroidBackButtonContract({ nativeBridgeSource, packagedBridge, html });
+  assertMetroSingleLineFallbackContract(html);
+  assertSep20AppPayload({ html, metroPack });
   assertAppLineageContent(html);
   assertWidgetPlusSyncSites(html);
 

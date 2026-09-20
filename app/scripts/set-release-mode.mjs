@@ -370,10 +370,14 @@ const MODES = {
     // 120／Android 58（2026-09-20）：App Store 已於 09-19T15:16Z 上架 1.6.6，版本列進到 1.6.7。
     //   119 archive 已存在且不重用。載貨進到 v0919l：App 長通知完整換行、可點外部收起；
     //   任何傾斜視角的定位點不進截圖／錄影。出貨基線以 117／已上傳 118／上架 119 載貨聯集推進。
-    marketing: '1.6.7', build: '120', music: true, metroCore: true, androidPlus: true,
-    why: '軌島 1.6.7\n\n• App 的長提示會完整換行，點通知外面即可收起。\n• 地圖傾斜時隱藏定位精度圈、脈動環與藍點，定位點不會進入截圖或錄影。\n• 按「隨機跟隨」或「換一班」時，會用月台風格的牌子顯示這班車的下一站。\n• 台鐵過站時的小幅誤點會對齊官方所在車站，重複資料也不再蓋掉較大誤點。\n• 高雄輕軌的五節車身重新對齊，近看不再一節高、一節低。',
-    whyEn: 'Rail Island 1.6.7\n\n• Long notices wrap fully and close when you tap outside\n• Location accuracy rings, pulses and the blue dot hide in tilted views so they stay out of screenshots and recordings\n• Follow random train and Switch train now show the train’s next stop on a platform-style sign\n• TRA station anchors improve small-delay positioning and protect larger delay updates\n• Kaohsiung light-rail car sections now share the same rail height',
-    whyJa: '軌島 1.6.7\n\n• 長い通知を途切れず折り返し、通知の外をタップすると閉じられます。\n• 地図を傾けたときは位置情報の精度圏、波紋、青い点を隠し、スクリーンショットや録画に残りません。\n• 「ランダム追跡」または「列車を変更」を押すと、ホーム風の駅名標で次の駅を表示します。\n• 台鉄の駅通過時の小さな遅れを公式の所在駅に合わせ、重複データがより大きな遅れを上書きしないようにしました。\n• 高雄ライトレールの5連接車体を同じレール高さに揃えました。',
+    // 121／Android 59（2026-09-20）：Apple 與 Google Play 公開頁均已是 1.6.7，該版本列已關，
+    //   因此行銷版號進到 1.6.8；120／58 已各有上架載貨，不重用號。本顆載貨＝網站 v0920e：
+    //   南港展覽館停車點、火車站看板三小時完整班次、虛構專列標示，以及環狀線單線空資料時
+    //   從 Metro Core／官方名冊退到當日班表並明示誤差。四項都由 App bundle 閘門直接核對。
+    marketing: '1.6.8', build: '121', music: true, metroCore: true, androidPlus: true,
+    why: '軌島 1.6.8\n\n• 環狀線即時資料中斷時改以班表推估，不再整線消失，並清楚標示時間可能有誤差。\n• 修正文湖線南港展覽館停車位置，列車會停在站內直線月台。\n• 台鐵、高鐵與林鐵車站資訊卡可展開接下來 3 小時的完整班次，也能收回精簡版。\n• 山海號與平原號在地圖、看板與列車資訊中明確標示為「軌島虛構專列」。',
+    whyEn: 'Rail Island 1.6.8\n\n• Circular Line falls back to timetable estimates when live tracking drops, with an accuracy warning\n• Wenhu trains now stop on the straight platform at Taipei Nangang Exhibition Center\n• TRA, HSR and Alishan station cards can expand all departures in the next 3 hours\n• Shanhai and Pingyuan are clearly marked as fictional Rail Island specials',
+    whyJa: '軌島 1.6.8\n\n• 環状線のリアルタイム情報が途切れた場合は時刻表による推定へ切り替え、誤差も明記します。\n• 文湖線の南港展覧館で、列車が駅構内の直線ホームに停車するよう修正しました。\n• 台鉄・高鉄・阿里山林鉄の駅情報カードで、今後3時間の全列車を展開・収納できます。\n• 山海号と平原号を地図・案内板・列車情報で「軌島の架空特別列車」と明記しました。',
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
   // 軌島通行證客端功能、雲端同步與伺服器付費牆。這顆不可選去正式送審；正式版必須另推 build 號，

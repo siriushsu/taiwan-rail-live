@@ -1,11 +1,15 @@
 import { chromium, webkit } from 'playwright';
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:net';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 process.chdir(ROOT);
+const expectedBuild = process.env.RAIL_EXPECT_BUILD
+  || /const BUILD = '([^']+)'/.exec(fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8'))?.[1];
+const externalTarget = process.argv[2];
 const freePort = () => new Promise(resolve => {
   const server = createServer();
   server.listen(0, '127.0.0.1', () => {
@@ -13,18 +17,22 @@ const freePort = () => new Promise(resolve => {
     server.close(() => resolve(port));
   });
 });
-const port = await freePort();
-const base = `http://127.0.0.1:${port}/`;
-const server = spawn(process.execPath, [path.join(ROOT, 'scripts/dev_server.mjs')], {
-  cwd: ROOT,
-  env: { ...process.env, PORT: String(port) },
-  stdio: ['ignore', 'ignore', 'inherit'],
-});
-process.on('exit', () => server.kill());
-for (let i = 0; ; i++) {
-  try { if ((await fetch(base + 'index.html')).ok) break; } catch {}
-  if (i > 100) throw new Error(`dev server 起不來：${base}`);
-  await new Promise(resolve => setTimeout(resolve, 100));
+let server = null;
+let base = externalTarget ? (externalTarget.endsWith('/') ? externalTarget : externalTarget + '/') : '';
+if (!base) {
+  const port = await freePort();
+  base = `http://127.0.0.1:${port}/`;
+  server = spawn(process.execPath, [path.join(ROOT, 'scripts/dev_server.mjs')], {
+    cwd: ROOT,
+    env: { ...process.env, PORT: String(port) },
+    stdio: ['ignore', 'ignore', 'inherit'],
+  });
+  process.on('exit', () => server?.kill());
+  for (let i = 0; ; i++) {
+    try { if ((await fetch(base + 'index.html')).ok) break; } catch {}
+    if (i > 100) throw new Error(`dev server 起不來：${base}`);
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
 }
 
 const official = { 1: [121.6178771, 25.0552565], '-1': [121.6179004, 25.055378] };
@@ -80,7 +88,7 @@ for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
         };
       });
       const minCarLon = Math.min(...result.cars.map(coordinate => coordinate[0]));
-      const pass = result.build === 'v0920a' && result.endpointErrorM < 0.5 && result.centreToOfficialM < 40
+      const pass = result.build === expectedBuild && result.endpointErrorM < 0.5 && result.centreToOfficialM < 40
         && result.visible && result.cars.length === 4 && minCarLon > 121.61725 && !result.errors.length;
       console.log(JSON.stringify({ engine: engineName, direction, pass, minCarLon, ...result }));
       if (!pass) failures.push(`${engineName} direction ${direction}`);
@@ -91,7 +99,7 @@ for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
     await browser.close();
   }
 }
-server.kill();
+server?.kill();
 if (failures.length) {
   console.error('南港展覽館真實瀏覽器驗收失敗：' + failures.join('；'));
   process.exit(1);
