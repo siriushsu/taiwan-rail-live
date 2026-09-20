@@ -153,6 +153,10 @@ for (const [engineName, launcher] of [['Chromium', chromium], ['WebKit', webkit]
     } else {
       fail(`${label} 定位點傾斜狀態`, JSON.stringify(result));
     }
+    // show class 由 requestAnimationFrame 掛上；WebKit 忙著載地圖資產時，兩個 rAF 並不保證
+    // CSS 狀態已經可供下一個原生觸控事件讀到。先等通知確實進入 show，避免 handler 看見空集合。
+    await page.waitForFunction(() => document.querySelectorAll('#toasts .toast.show, #toastsCorner .toast.show').length > 0,
+      null, { timeout: 2_000 });
     // 通知會依頂列／跟車卡動態換位置；固定點左下角在矮螢幕或窄螢幕可能正好落進通知矩形，
     // 那是在「點通知本身」而不是驗「點外部」。先從多個可點座標找一個確實不在任何通知內，
     // 再用真實 touchscreen.tap；避免版面正確時測試反而隨通知落點隨機紅。
@@ -171,15 +175,24 @@ for (const [engineName, launcher] of [['Chromium', chromium], ['WebKit', webkit]
     } else {
       await page.touchscreen.tap(outsidePoint[0], outsidePoint[1]);
     }
-    await page.waitForTimeout(500);
+    let dismissedInTime = false;
+    try {
+      // pointerdown 會同步拿掉 show，再以 450ms transition 移除節點；等待條件比固定睡 500ms
+      // 更能承受 WebKit 主執行緒正忙，同時仍會把「根本沒收起」在 2 秒內判紅。
+      await page.waitForFunction(() => document.querySelectorAll('#toasts .toast.show, #toastsCorner .toast.show').length === 0,
+        null, { timeout: 1_000 });
+      await page.waitForFunction(() => document.querySelectorAll('#toasts .toast, #toastsCorner .toast').length === 0,
+        null, { timeout: 2_000 });
+      dismissedInTime = true;
+    } catch {}
     const dismiss = await page.evaluate(() => ({
       count: document.querySelectorAll('#toasts .toast, #toastsCorner .toast').length,
       propagated: window.__outsideToastTap,
     }));
-    if (dismiss.count === 0 && dismiss.propagated === 1) {
+    if (dismissedInTime && dismiss.count === 0 && dismiss.propagated === 1) {
       pass(`${label} 真實觸控點通知外即收起，且原點擊不被吞掉`);
     } else {
-      fail(`${label} 點外部收起通知`, JSON.stringify({ ...dismiss, outsidePoint }));
+      fail(`${label} 點外部收起通知`, JSON.stringify({ ...dismiss, outsidePoint, dismissedInTime }));
     }
     if (errors.length) fail(`${label} pageerror`, errors.join(' | '));
     await context.close();
