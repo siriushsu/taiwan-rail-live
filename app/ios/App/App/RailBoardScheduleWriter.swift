@@ -114,10 +114,15 @@ enum RailBoardScheduleWriter {
         for input in systemInputs {
             var document: ScheduleDocument?
             if input.id == "tra", let onlineTra { document = onlineTra.document }
-            if document == nil,
+            // 台鐵：線上快取與打包那份取窗較新的。快取放 Library/Caches，更新 App 不會清；
+            // 離線更新 App 時，剛打包進來的新窗不能輸給一份還「涵蓋今天」的舊快取
+            // （2026-09-21 使用者裝了 1.6.8 仍看到上一個窗）。其他系統照舊只有打包那份。
+            if document == nil || input.id == "tra",
                let inputURL = Bundle.main.url(forResource: input.resource, withExtension: nil),
-               let data = try? Data(contentsOf: inputURL) {
-                document = try? JSONDecoder().decode(ScheduleDocument.self, from: data)
+               let data = try? Data(contentsOf: inputURL),
+               let bundled = try? JSONDecoder().decode(ScheduleDocument.self, from: data),
+               document == nil || lastDay(of: bundled) > lastDay(of: document) {
+                document = bundled
             }
             guard let document else { continue }
 
