@@ -42,6 +42,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // 比照原 AppDelegate.applicationDidBecomeActive
         WidgetKit.WidgetCenter.shared.reloadAllTimelines()
         RailMetroWaitPlugin.flushPendingOpen()
+        // 台鐵班表窗快到期時抓線上新窗（一天最多一次）；冷啟動那次已在 AppDelegate 跑過。
+        RailBoardScheduleWriter.refreshOnForeground(application: UIApplication.shared)
     }
 
     func sceneWillResignActive(_ scene: UIScene) {

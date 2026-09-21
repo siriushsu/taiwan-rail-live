@@ -48,6 +48,24 @@ enum RailBoardScheduleWriter {
     }
     #endif
 
+    /// 回到前景時再跑一次，一天最多一次。原本只有冷啟動（`didFinishLaunching`）與存地點兩個入口：
+    /// App 留在記憶體裡好幾天的話，窗過了也沒人去抓新班表。第一次前景（＝冷啟動那一次）
+    /// 已由 AppDelegate 跑過，這裡跳過，不重複讀一次 700 KB 的快取。
+    private static var lastForegroundRefreshDay: String?
+
+    #if canImport(UIKit)
+    static func refreshOnForeground(application: UIApplication) {
+        let today = taipeiToday()
+        if lastForegroundRefreshDay == nil {
+            lastForegroundRefreshDay = today
+            return
+        }
+        guard lastForegroundRefreshDay != today else { return }
+        lastForegroundRefreshDay = today
+        refreshIfNeeded(application: application)
+    }
+    #endif
+
     private static func refreshIfNeeded() -> RefreshResult {
         let fileManager = FileManager.default
         guard
@@ -226,33 +244,57 @@ enum RailBoardScheduleWriter {
     ///
     /// 快取刻意放 Caches 而不是 App Group 根目錄：那裡是 publish 的搬移目標，別去打架；
     /// Caches 被系統清掉最多就是重抓一次。
+    ///
+    /// 🔴 什麼時候該重抓：快取涵蓋今天**且 `refreshAheadDays` 天後仍在窗內**才直接用。
+    /// 原本的判準是「涵蓋今天就用」——而小工具在窗剩 ≤3 天時就會寫「班表只到 X · 請更新軌島」
+    /// （`RailBoardData` 的 `daysRemaining <= 3`），於是每個 14 天窗的最後 3 天，小工具一邊叫人
+    /// 更新、這裡一邊拒絕去抓網站上早就換好的新窗（2026-09-21 使用者第 N 次在真機看到）。
+    /// 兩邊必須共用同一個門檻：提醒出現的那一天，就是這裡開始抓的那一天。
+    private static let refreshAheadDays = 3
+
     private static func onlineTraSchedule(rootURL: URL) -> (document: ScheduleDocument, fingerprint: String)? {
         let today = taipeiToday()
+        let horizon = taipeiDay(offsetDays: refreshAheadDays)
         let cacheURL = FileManager.default
             .urls(for: .cachesDirectory, in: .userDomainMask).first?
             .appendingPathComponent(traScheduleCacheName)
 
-        if let cacheURL,
-           let cached = try? Data(contentsOf: cacheURL),
-           let parsed = decodeCompactTraSchedule(cached, today: today) {
+        let cached = cacheURL
+            .flatMap { try? Data(contentsOf: $0) }
+            .flatMap { decodeCompactTraSchedule($0, today: today) }
+        if let cached, cached.document.dates?[horizon] != nil {
+            return cached
+        }
+        // 沒快取、或窗只剩 ≤refreshAheadDays 天：打一次線上。抓回來的要涵蓋今天，
+        // 而且窗不能比手上的舊（網站還沒重抓時會拿到同一份，寫回去也無妨）；
+        // 抓不到就照舊用快取——這條路只會讓資料更新，不會讓它變差。
+        if let data = downloadTraSchedule(),
+           let parsed = decodeCompactTraSchedule(data, today: today),
+           lastDay(of: parsed.document) >= lastDay(of: cached?.document) {
+            if let cacheURL { try? data.write(to: cacheURL, options: .atomic) }
             return parsed
         }
-        guard
-            let data = downloadTraSchedule(),
-            let parsed = decodeCompactTraSchedule(data, today: today)
-        else {
-            return nil
-        }
-        if let cacheURL { try? data.write(to: cacheURL, options: .atomic) }
-        return parsed
+        return cached
+    }
+
+    /// 窗的最後一天（yyyy-MM-dd 字串可直接按字典序比大小）；沒有 dates 就是空字串＝最舊。
+    private static func lastDay(of document: ScheduleDocument?) -> String {
+        document?.dates?.keys.max() ?? ""
     }
 
     private static func taipeiToday() -> String {
+        taipeiDay(offsetDays: 0)
+    }
+
+    private static func taipeiDay(offsetDays: Int) -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = TimeZone(identifier: "Asia/Taipei")
         formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: Date())
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Taipei")!
+        let day = calendar.date(byAdding: .day, value: offsetDays, to: Date()) ?? Date()
+        return formatter.string(from: day)
     }
 
     /// 跑在 workQueue（utility）上，不是主執行緒，所以用號誌等同步結果是安全的。
