@@ -886,19 +886,54 @@ final class RailWidgetData {
         if (cachedCurrentTra != null && today.equals(cachedCurrentTraDay)
             && now - cachedCurrentTraAt < 5 * 60_000L) return cachedCurrentTra;
 
+        // 🔴 磁碟快取涵蓋今天**且 REFRESH_AHEAD_DAYS 天後仍在窗內**才直接用。原本是「涵蓋今天就用」——
+        //    窗最後幾天明明線上早已換新窗，這裡卻不去抓；抓到的窗不比手上舊才採用，抓不到照舊。
+        //    另外打包那份比快取新就用打包的：快取放 cacheDir、更新 App 不會清，離線更新 App 時
+        //    剛打包進來的新窗不能輸給一份還涵蓋今天的舊快取（2026-09-21，與 iOS 寫入器同一套判準）。
         SystemInfo built = null;
         try {
             JSONObject doc = readTraCache(context, today);
-            if (doc == null) doc = downloadTraSchedule(context, today);
+            if (doc == null || !coversDay(doc, dayKey(now + REFRESH_AHEAD_DAYS * 86_400_000L))) {
+                JSONObject fresh = downloadTraSchedule(context, today);
+                if (fresh != null && lastDay(fresh).compareTo(lastDay(doc)) >= 0) doc = fresh;
+            }
             if (doc != null) built = buildTraSystem(doc);
         } catch (Exception ignored) {
             built = null;
         }
-        SystemInfo out = built != null ? built : catalog.byId.get("tra");
+        SystemInfo bundled = catalog.byId.get("tra");
+        SystemInfo out = built != null
+            && (bundled == null || lastDayOf(built.dates).compareTo(lastDayOf(bundled.dates)) >= 0)
+            ? built : bundled;
         cachedCurrentTra = out;
         cachedCurrentTraDay = today;
         cachedCurrentTraAt = now;
         return out;
+    }
+
+    /** 與 iOS 看板「窗剩 ≤3 天就提醒」同一個門檻：該提醒的那一天就是開始抓的那一天。 */
+    private static final int REFRESH_AHEAD_DAYS = 3;
+
+    private static boolean coversDay(JSONObject doc, String day) {
+        JSONObject dates = doc == null ? null : doc.optJSONObject("dates");
+        return dates != null && dates.has(day);
+    }
+
+    /** 精簡檔的窗最後一天：沒有 dates 就是空字串＝最舊。 */
+    private static String lastDay(JSONObject doc) {
+        return lastDayOf(doc == null ? null : doc.optJSONObject("dates"));
+    }
+
+    /** dates 鍵的最大值（yyyy-MM-dd 可直接按字典序比大小）。 */
+    private static String lastDayOf(JSONObject dates) {
+        String best = "";
+        if (dates == null) return best;
+        java.util.Iterator<String> keys = dates.keys();
+        while (keys.hasNext()) {
+            String key = keys.next();
+            if (key.compareTo(best) > 0) best = key;
+        }
+        return best;
     }
 
     /** 磁碟快取:涵蓋窗含今天才算數,否則當作沒有(回 null 讓上層去下載)。 */
