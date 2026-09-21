@@ -374,10 +374,16 @@ const MODES = {
     //   因此行銷版號進到 1.6.8；120／58 已各有上架載貨，不重用號。本顆載貨＝網站 v0920e：
     //   南港展覽館停車點、火車站看板三小時完整班次、虛構專列標示，以及環狀線單線空資料時
     //   從 Metro Core／官方名冊退到當日班表並明示誤差。四項都由 App bundle 閘門直接核對。
-    marketing: '1.6.8', build: '121', music: true, metroCore: true, androidPlus: true,
-    why: '軌島 1.6.8\n\n• 環狀線即時資料中斷時改以班表推估，不再整線消失，並清楚標示時間可能有誤差。\n• 修正文湖線南港展覽館停車位置，列車會停在站內直線月台。\n• 台鐵、高鐵與林鐵車站資訊卡可展開接下來 3 小時的完整班次，也能收回精簡版。\n• 山海號與平原號在地圖、看板與列車資訊中明確標示為「軌島虛構專列」。',
-    whyEn: 'Rail Island 1.6.8\n\n• Circular Line falls back to timetable estimates when live tracking drops, with an accuracy warning\n• Wenhu trains now stop on the straight platform at Taipei Nangang Exhibition Center\n• TRA, HSR and Alishan station cards can expand all departures in the next 3 hours\n• Shanhai and Pingyuan are clearly marked as fictional Rail Island specials',
-    whyJa: '軌島 1.6.8\n\n• 環状線のリアルタイム情報が途切れた場合は時刻表による推定へ切り替え、誤差も明記します。\n• 文湖線の南港展覧館で、列車が駅構内の直線ホームに停車するよう修正しました。\n• 台鉄・高鉄・阿里山林鉄の駅情報カードで、今後3時間の全列車を展開・収納できます。\n• 山海号と平原号を地図・案内板・列車情報で「軌島の架空特別列車」と明記しました。',
+    // 122／Android 60（2026-09-21）：Apple lookup 1.6.8 已於 09-20T18:10Z 上架、Play 同日 ⇒ 1.6.8 train 已關，
+    //   行銷版號進到 1.6.9；121／59 已上架不重用號。網頁載貨與 121 完全相同（v0920e，index.html／data 零 commit），
+    //   這顆只換原生小工具：台鐵班表窗剩 3 天就抓線上新窗（42a23542／12ee1fad iOS、e3782014 Android）——
+    //   原本「快取涵蓋今天就不抓」跟看板「剩 ≤3 天就提醒更新」沒對齊，每個 14 天窗的最後 3 天都叫人更新
+    //   卻不抓；而且快取放 Caches、更新 App 不清，剛打包的新窗還會輸給舊快取（使用者裝 1.6.8 仍看到 9/22）。
+    //   why 三語只寫這一條。
+    marketing: '1.6.9', build: '122', music: true, metroCore: true, androidPlus: true,
+    why: '軌島 1.6.9\n\n• 桌面小工具的台鐵班表在到期前 3 天就會自動抓最新班表，更新 App 後也會立即採用新版班表。',
+    whyEn: 'Rail Island 1.6.9\n\n• The home screen widget now fetches the latest TRA timetable 3 days before the current one ends, and picks up the newer timetable right after an app update',
+    whyJa: '軌島 1.6.9\n\n• ホーム画面ウィジェットの台鉄時刻表を、期限の3日前に自動で最新版へ更新するようにしました。アプリ更新後も新しい時刻表をすぐに使います。',
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
   // 軌島通行證客端功能、雲端同步與伺服器付費牆。這顆不可選去正式送審；正式版必須另推 build 號，
