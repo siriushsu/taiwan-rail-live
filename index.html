@@ -21040,21 +21040,26 @@ async function fetchLatestAppVersion() {
       };
     }
   } catch (e) { return { android: true, checked: false, playInstalled: false }; }
+  // iOS:每次開機都問一次 Apple,跟 Android 的 Play Core 一樣即時。原本 12 小時內直接走 localStorage
+  // 快取,再疊 WKWebView 的 HTTP 快取與 Apple CDN(cache-control max-age≈2.3h;裸 URL 會回舊版號,
+  // memory itunes-lookup-cdn-cache)⇒ 新版上架後 iPhone 最壞要隔十幾個小時才提示、Android 卻當場——
+  // 2026-09-22 使用者看到的「只有安卓會提示」就是這三層快取疊出來的。時間戳＋no-store 穿過後兩層,
+  // 快取降級為離線／查詢失敗時 12 小時內的退路。
   const c = appverRead(APPVER_KEYS.cache);
-  if (c && c.at && Date.now() - c.at < APPVER_TTL && c.v) return { v: c.v, notes: c.notes, url: c.url };
+  const fallback = (c && c.at && Date.now() - c.at < APPVER_TTL && c.v) ? { v: c.v, notes: c.notes, url: c.url } : null;
   try {
     const ctl = new AbortController();
     const timer = setTimeout(() => ctl.abort(), 6000);
-    const res = await fetch(APPVER_LOOKUP, { signal: ctl.signal });
+    const res = await fetch(APPVER_LOOKUP + '&t=' + Date.now(), { signal: ctl.signal, cache: 'no-store' });
     clearTimeout(timer);
-    if (!res.ok) return null;
+    if (!res.ok) return fallback;
     const j = await res.json();
     const r = j && j.resultCount ? j.results[0] : null;
-    if (!r || typeof r.version !== 'string') return null;
+    if (!r || typeof r.version !== 'string') return fallback;
     const out = { v: r.version, notes: String(r.releaseNotes || ''), url: String(r.trackViewUrl || '') };
     appverWrite(APPVER_KEYS.cache, { ...out, at: Date.now() });
     return out;
-  } catch (e) { return null; }     // 網路/逾時/JSON 壞掉一律靜默,不重試
+  } catch (e) { return fallback; }     // 網路/逾時/JSON 壞掉一律靜默,不重試
 }
 
 // 開機呼叫一次。網站版(無 RAIL_APP_VERSION)整條路徑不進入——連請求都不發。

@@ -102,12 +102,23 @@ const got = await appPage.waitForFunction(() => window.__appverLast || null, { t
 ok(!!(got && got.latest && got.latest.v === '1.4.1'), 'App 版查得到線上版本 1.4.1');
 ok(!!(got && got.state.hasUpdate === true), '1.4.0 < 1.4.1 ⇒ hasUpdate');
 
-// 快取:第二次載入不應再發請求
-let secondReq = 0;
-appPage.on('request', r => { if (r.url().includes('itunes.apple.com')) secondReq++; });
+// 即時:第二次開 App 也要再問一次 Apple(跟 Android 的 Play Core 一樣),而且要帶時間戳穿過 CDN 快取。
+// 2026-09-22 之前這裡的判準是反的(「12 小時內走快取,不重複請求」),疊上 WKWebView 與 Apple CDN 的
+// 快取,新版上架後 iPhone 十幾個小時都不提示——使用者實際看到的就是「只有安卓會提示」。
+const secondReqs = [];
+appPage.on('request', r => { if (r.url().includes('itunes.apple.com')) secondReqs.push(r.url()); });
 await appPage.reload({ waitUntil: 'domcontentloaded' });
 await appPage.waitForTimeout(3000);
-ok(secondReq === 0, '12 小時內第二次開 App 走快取,不重複請求');
+ok(secondReqs.length >= 1, '🔴 第二次開 App 仍會再問 Apple 一次(不走 12 小時快取短路)');
+ok(secondReqs.every(u => /[?&]t=\d+/.test(u)), '🔴 lookup 請求帶時間戳(穿過 Apple CDN 的舊版號快取)');
+
+// 退路:端點 500 但快取還在 ⇒ 用快取的線上版號(離線也能提示)
+await appPage.unroute('**/itunes.apple.com/lookup**');
+await appPage.route('**/itunes.apple.com/lookup**', route => route.fulfill({ status: 500, body: '' }));
+await appPage.reload({ waitUntil: 'domcontentloaded' });
+const cachedState = await appPage.waitForFunction(() => window.__appverLast || null, { timeout: 20000 })
+  .then(h => h.jsonValue()).catch(() => null);
+ok(!!(cachedState && cachedState.latest && cachedState.latest.v === '1.4.1'), '查詢失敗但 12 小時內有快取 ⇒ 退回快取的 1.4.1');
 
 // 失敗靜默:清快取 + 讓端點 500
 await appPage.evaluate(() => Object.keys(localStorage)
