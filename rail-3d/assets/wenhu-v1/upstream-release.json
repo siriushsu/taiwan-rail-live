@@ -1,0 +1,40 @@
+{
+  "release": "wenhu-v1",
+  "frozenAt": "2026-09-06T06:32:40.337Z",
+  "sourceCommit": "e5fada341c5aecdbccb0dc29cc692b7c57a1569e",
+  "entry": "wenhu.mjs",
+  "pathId": "TRTC-BR-BR02-BR03-v1",
+  "measuredRailElevationAvailable": false,
+  "verification": {
+    "passed": 80,
+    "total": 80,
+    "report": "verification/report.json",
+    "scope": "列車端合成坡度與跨 MapLibre/Three 遮擋，非真實地形／橋面高程驗收"
+  },
+  "algorithm": "sha256",
+  "files": {
+    "README.md": "b6e43ca663b1e14661d736e0997ea2b1e3b1082664f4de02db7a17182beb909c",
+    "build.mjs": "f8c11a297a02ae52e579d3a7fec9a05f737b338d818444254e80d3e899755fda",
+    "data-checksums.json": "3d1d1b05e1aef70d103b6a208761ef485da91dcd5851daa44378f27b9b755395",
+    "muzha-wanfang.geojson": "1583f6b4d6b8fa6e4054104e05b20fce9ac132e8474cfc4e729bbe57c974d483",
+    "muzha-wanfang.path.json": "cb89bb2e59713e7dac5fa4ac6bf1c7cda240eb0d1dad5db753777b19688f7f78",
+    "path.mjs": "c6ef1d3dda43e33bddc0556cc5cdbf85df3f8ce7c28f447ab540c6f3cae4e5b3",
+    "preview.html": "8906fa07d71735d6bde4b33355622cb367dd4c895ffce539fc9ac1c189b196bd",
+    "preview.mjs": "974407c342e4384a91b831bb73b20c1c5173764bc2d89bc95df823cef5f3bc58",
+    "serve.mjs": "825a7d099a6eb60b89d07397496b8882516b559c882f470337f959ea7d2f53fb",
+    "verify.mjs": "31b9dbac667cdf4bc1b7f941537a6709e6d752c12f6416ae4d90957c5d75c28f",
+    "wenhu.mesh.bin": "26b421e6f992930c070cc38e44b32ea568ad29877fbddbe9a360f23eae7d6e4d",
+    "wenhu.mjs": "0fe16bbfedbc132fabbd9c4e9ac77a886443682075295acd60975a666aa0f450",
+    "wenhu.model.json": "5e138a4aa8ffb42e6a1b51a1932c67d3abf8555bde930127088a9298eb5b5177",
+    "verification/report.json": "3e59ad0814be6ae3be800435cca6582ea485b66d86d58df44c23a4fc8265dc4b",
+    "verification/chromium-desktop.png": "36de9bbec36f468e5c8c84811a2a9ea2490c32a3c2df7a4f6c79bd567e6fc79c",
+    "verification/chromium-mobile.png": "004ea9b474185ef830df910ff090668e267154d642bdf8b4e00287b708b0dad1",
+    "verification/webkit-desktop.png": "a97f783ef9ddcf9fd2d71c9e7ca01c6f1395d256ed34d59026422e64b3f32f4f",
+    "verification/webkit-mobile.png": "fea06fc347097ddfc910a76c5e05dd30497f7674864bacf30dde5ccc638f4351"
+  },
+  "readOnlyPreviewDependencies": {
+    "prototypes/taiwan-3d/vendor/maplibre-gl.js": "2276259c7bd8ec632cc055115efdad53783b7da6e7104fad4c4837ea467d908d",
+    "prototypes/taiwan-3d/vendor/maplibre-gl.css": "43c1d886b5fdf0aac4e7135bd6f84b823d9f48283a648012665f9be52c01389f",
+    "prototypes/taiwan-3d/vendor/three.module.js": "ce1fa418de16a19495a9f72495580e3015d7745c296d3ce0485897f902ddedfb"
+  }
+}

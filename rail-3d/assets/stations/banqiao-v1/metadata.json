@@ -1,0 +1,141 @@
+{
+  "id": "banqiao-v1",
+  "name": "板橋車站",
+  "version": 1,
+  "status": "simplified-exterior",
+  "anchor": [
+    121.4640451,
+    25.0144511
+  ],
+  "stationPoint": [
+    121.46377,
+    25.01434
+  ],
+  "displayHeightM": 116.8,
+  "realBuildingHeightM": null,
+  "railElevationM": null,
+  "heightQuality": "illustrative",
+  "footprintQuality": "OSM polygon",
+  "components": [
+    {
+      "id": "232201616",
+      "name": "板橋車站",
+      "type": "flat",
+      "anchor": [
+        121.46391521,
+        25.01415998
+      ],
+      "rotationDeg": 52.2644,
+      "widthM": 199.488,
+      "depthM": 121.932,
+      "displayHeightM": 20,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": true,
+      "clock": false
+    },
+    {
+      "id": "1491394339",
+      "name": "板橋站塔樓",
+      "type": "tower",
+      "anchor": [
+        121.46336005,
+        25.01406565
+      ],
+      "rotationDeg": -36.3563,
+      "widthM": 44.17,
+      "depthM": 42.088,
+      "displayHeightM": 116.8,
+      "baseM": 20,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": false,
+      "clock": false
+    },
+    {
+      "id": "1491394340",
+      "name": "板橋站塔樓",
+      "type": "tower",
+      "anchor": [
+        121.46375223,
+        25.01460871
+      ],
+      "rotationDeg": -34.7394,
+      "widthM": 44.169,
+      "depthM": 42.086,
+      "displayHeightM": 116.8,
+      "baseM": 20,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": false,
+      "clock": false
+    },
+    {
+      "id": "818694787",
+      "name": "環狀線板橋",
+      "type": "vault",
+      "anchor": [
+        121.46459512,
+        25.01520529
+      ],
+      "rotationDeg": -36.3842,
+      "widthM": 91.185,
+      "depthM": 34.58,
+      "displayHeightM": 22,
+      "baseM": 7,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": true,
+      "clock": false
+    }
+  ],
+  "modelScope": [
+    "板橋車站",
+    "板橋站塔樓",
+    "板橋站塔樓",
+    "環狀線板橋"
+  ],
+  "excluded": [
+    "真實軌道高程",
+    "列車與月台對齊",
+    "地下站體",
+    "精確室內配置",
+    "未有輪廓的出入口及連接設施"
+  ],
+  "sources": [
+    {
+      "url": "https://www.railway.gov.tw/tra-tip-web/tip/tip00J/tipJ11/roomCode?RoomNo=1020",
+      "use": "站區配置或造型參考；不作比例測量"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/232201616",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/1491394339",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/1491394340",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/818694787",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    }
+  ],
+  "notes": [
+    "輪廓使用免費 OSM；曲面、窗帶、柱列、展示底高及高度由軌島簡化設計，不是工程模型。",
+    "各系統保留獨立輪廓與座標；轉乘示意圖僅核對關係，不當成比例尺。",
+    "照片與官方資料只供外觀參考，未作模型貼圖。"
+  ]
+}

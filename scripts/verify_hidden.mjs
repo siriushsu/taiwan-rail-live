@@ -20,7 +20,7 @@ const BASE = process.argv[2] || 'http://127.0.0.1:5178';
 const R = [];
 const ok = (n, p, msg = '') => { R.push({ n, p }); console.log(`${p ? '  ok ' : 'FAIL '} ${n}${msg ? ' — ' + msg : ''}`); };
 const APP_GLOBALS = { RAIL_MUSIC_AVAILABLE: true, RAIL_ONLINE_BASEMAPS_AVAILABLE: true,
-  RAIL_APP_CONFIG: { followZoomCap: 16, satRetina: true } };
+  RAIL_APP_CONFIG: { satRetina: true } };
 
 // G0 自檢：伺服器吐的必須就是這棵樹的 index.html（這台機器同時有 20+ 個 worktree 各自起 server）
 {

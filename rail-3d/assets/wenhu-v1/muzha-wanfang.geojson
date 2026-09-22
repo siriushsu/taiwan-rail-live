@@ -1,0 +1,85 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "pathId": "TRTC-BR-BR02-BR03-v1",
+        "name": "木柵—萬芳社區",
+        "railElevationM": null,
+        "verticalDatum": null
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            121.57313144651172,
+            24.998259110487872
+          ],
+          [
+            121.571549,
+            24.998575
+          ],
+          [
+            121.571219,
+            24.998633
+          ],
+          [
+            121.570918,
+            24.99867
+          ],
+          [
+            121.570665,
+            24.998685
+          ],
+          [
+            121.57035,
+            24.998686
+          ],
+          [
+            121.56839,
+            24.998617
+          ],
+          [
+            121.56808627222657,
+            24.99860401164127
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "BR02",
+        "name": "木柵",
+        "pathChainageM": 0,
+        "role": "track-anchor",
+        "railElevationM": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.57313144651172,
+          24.998259110487872
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "BR03",
+        "name": "萬芳社區",
+        "pathChainageM": 513.4,
+        "role": "track-anchor",
+        "railElevationM": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.56808627222657,
+          24.99860401164127
+        ]
+      }
+    }
+  ]
+}

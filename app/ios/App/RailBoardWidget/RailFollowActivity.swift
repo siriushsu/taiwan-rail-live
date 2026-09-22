@@ -1,4 +1,5 @@
 import ActivityKit
+import AppIntents
 import SwiftUI
 import WidgetKit
 
@@ -45,7 +46,8 @@ struct RailFollowDisplay {
         kind: String, trainNo: String, colorHex: String?, terminus: String,
         nextStop: String, prevStop: String?,
         arrivalDate: Double?, departedDate: Double?,
-        delaySec: Int, stopping: Bool, notice: String?, isStale: Bool, now: Date
+        delaySec: Int, stopping: Bool, transferWaiting: Bool = false,
+        notice: String?, isStale: Bool, now: Date
     ) -> RailFollowDisplay {
         let nowSec = now.timeIntervalSince1970
         let left = arrivalDate.map { $0 - nowSec }
@@ -111,7 +113,9 @@ struct RailFollowDisplay {
         var targetLabel = localizedNextStop
         if let a = arrivalDate {
             let t = RailBoardClock.updateTimeString(Date(timeIntervalSince1970: a))
-            targetLabel = stopping
+            targetLabel = transferWaiting
+                ? RailNativeL10n.text("{station} {time} 發車", ["station": localizedNextStop, "time": t])
+                : stopping
                 ? RailNativeL10n.text("{station} {time} 到", ["station": localizedNextStop, "time": t])
                 : "\(localizedNextStop) \(t)"
         }
@@ -120,6 +124,8 @@ struct RailFollowDisplay {
         if stale {
             // 不寫「行駛中」——那是在宣稱一件我們已經不知道的事。
             word = RailNativeL10n.text("資料未更新")
+        } else if transferWaiting {
+            word = RailNativeL10n.text("等候轉乘")
         } else {
             switch phase {
             case .stopping: word = RailNativeL10n.text("停靠中")
@@ -132,7 +138,7 @@ struct RailFollowDisplay {
             kind: RailNativeL10n.name(kind), trainNo: trainNo,
             color: RailHex.color(colorHex), inkColor: RailHex.ink(colorHex),
             terminus: RailNativeL10n.name(terminus),
-            stopLabel: RailNativeL10n.text(stopping ? "目前" : "下一站"),
+            stopLabel: RailNativeL10n.text(transferWaiting ? "轉乘" : stopping ? "目前" : "下一站"),
             stopName: localizedNextStop,
             countdown: countdown, delayMinutes: delaySec / 60,
             track: track, progress: progress, phase: phase,
@@ -204,7 +210,7 @@ struct RailFollowLockView: View {
 
             // 狀態詞與通知同一列：兩者都是 11pt 的一句話，分兩列會讓有通知的狀態多吃 18pt，
             // 那正是 160pt 上限唯一守不住的狀態（量到 180pt）。狀態詞短、通知長，通知吃剩下的寬。
-            HStack(alignment: .firstTextBaseline, spacing: scale.pt(6)) {
+            HStack(alignment: .center, spacing: scale.pt(6)) {
                 Text(display.stateWord)
                     .font(.system(size: scale.pt(11)))
                     .foregroundStyle(.secondary)
@@ -216,7 +222,8 @@ struct RailFollowLockView: View {
                         .lineLimit(2).minimumScaleFactor(0.85)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                Spacer(minLength: 0)
+                Spacer(minLength: scale.pt(4))
+                RailFollowEndButton(scale: scale, height: 24)
             }
         }
         .padding(.horizontal, scale.pt(14))
@@ -224,6 +231,36 @@ struct RailFollowLockView: View {
         // 設計稿：資料過期時「整張卡降到 secondary」。與候車卡同一個值，不然同一件事在兩張卡上
         // 長得不一樣，使用者要學兩次。
         .opacity(display.expired ? 0.62 : 1)
+    }
+}
+
+/// 「結束」鈕：LiveActivityIntent 當場收卡不開 App。與候車卡、等站卡同一顆 `RailEndButton`。
+///
+/// 🔴 單獨一個型別的理由同 `MetroWaitEndButton`：LiveActivityIntent 需要 ActivityKit，
+///    算繪 harness 的裸 macOS 執行檔編不起來 ⇒ harness 用同名替身畫同一顆按鈕，
+///    intent 有沒有真的接上由算繪腳本的 `intentGate()` 在原始碼層驗。
+struct RailFollowEndButton: View {
+    var scale: RailScale = RailScale(k: 1)
+    var compact: Bool = false
+    var height: CGFloat = 30
+
+    @ViewBuilder var body: some View {
+        if #available(iOS 17.6, *) {
+            if compact {
+                Button(intent: RailFollowEndIntent()) {
+                    Text(RailNativeL10n.text("結束"))
+                        .font(.system(size: scale.pt(11), weight: .semibold))
+                        .lineLimit(1)
+                }
+                .buttonStyle(.bordered).controlSize(.mini).tint(.secondary)
+                .fixedSize(horizontal: true, vertical: false)
+            } else {
+                Button(intent: RailFollowEndIntent()) {
+                    RailEndButton(scale: scale, height: height) { Text(RailNativeL10n.text("結束")) }
+                }
+                .buttonStyle(.plain)
+            }
+        }
     }
 }
 
@@ -262,12 +299,21 @@ struct RailFollowIslandBottom: View {
             .font(.system(size: scale.pt(10)))
             .foregroundStyle(.tertiary)
             .monospacedDigit().lineLimit(1)
-            if display.notice != nil {
-                // 🔴 動態島塞不下後端那一整句（會爆版），這裡用寫死的短標。
-                //    compact 與 minimal 刻意不動——那兩個版面連站名都只放得下兩三個字。
-                Text(RailNativeL10n.text("⚠ 資料中斷・位置為預估"))
-                    .font(.system(size: scale.pt(10)))
-                    .foregroundStyle(.orange).lineLimit(1)
+            HStack(alignment: .center, spacing: scale.pt(6)) {
+                if display.notice != nil {
+                    // 🔴 動態島塞不下後端那一整句（會爆版），這裡用寫死的短標。
+                    //    compact 與 minimal 刻意不動——那兩個版面連站名都只放得下兩三個字。
+                    Text(RailNativeL10n.text("⚠ 資料中斷・位置為預估"))
+                        .font(.system(size: scale.pt(10)))
+                        .foregroundStyle(.orange).lineLimit(1)
+                } else {
+                    Text(display.stateWord)
+                        .font(.system(size: scale.pt(11)))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: scale.pt(4))
+                RailFollowEndButton(scale: scale, compact: true)
             }
         }
         // 🔴 展開版面四角沒有 system 安全內距；三張 Live Activity 統一退到 22pt 安全線，
@@ -281,11 +327,14 @@ struct RailFollowIslandBottom: View {
 struct RailFollowActivityWidget: Widget {
     private func display(_ ctx: ActivityViewContext<RailFollowAttributes>) -> RailFollowDisplay {
         RailFollowDisplay.make(
-            kind: ctx.attributes.kind, trainNo: ctx.attributes.trainNo,
-            colorHex: ctx.attributes.color, terminus: ctx.state.terminus,
+            kind: ctx.state.kindOverride ?? ctx.attributes.kind,
+            trainNo: ctx.state.trainNoOverride ?? ctx.attributes.trainNo,
+            colorHex: ctx.state.colorOverride ?? ctx.attributes.color,
+            terminus: ctx.state.terminus,
             nextStop: ctx.state.nextStop, prevStop: ctx.state.prevStop,
             arrivalDate: ctx.state.arrivalDate, departedDate: ctx.state.departedDate,
             delaySec: ctx.state.delaySec, stopping: ctx.state.stopping ?? false,
+            transferWaiting: ctx.state.transferWaiting ?? false,
             notice: ctx.state.notice,
             // 🔴 這張卡的 staleDate 是「預計到站＋寬限」（RailLiveActivityPlugin／worker 兩側
             //    都送同一個值）⇒ isStale 的語意就是「資料過期」。候車卡的 staleDate 是

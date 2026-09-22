@@ -1,0 +1,343 @@
+{
+  "id": "changhua-roundhouse",
+  "name": "彰化扇形車庫",
+  "county": "彰化縣",
+  "category": "historic",
+  "kind": "changhua-roundhouse",
+  "features": [
+    "扇形庫房、中央轉盤、放射狀庫線與高窗"
+  ],
+  "sources": [
+    {
+      "url": "https://tourism.chcg.gov.tw/AttractionsContent.aspx?chk=e51a4fad-7be7-43fd-9a61-56939757426f&fromsection=inarticle&id=29&l=TW&sectioninfo=6001095",
+      "use": "彰化旅遊資訊"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/220285047",
+      "use": "OSM 建物輪廓"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/220285047",
+      "use": "扇形車庫：輪廓與位置",
+      "license": "ODbL-1.0"
+    }
+  ],
+  "priority": 1,
+  "placementStatus": "calibrated-plan",
+  "anchor": [
+    120.54010838288382,
+    24.085882681514715
+  ],
+  "verifiedDimensionsM": {},
+  "estimatedDimensionsM": {
+    "width": 85.8599853515625,
+    "depth": 63.399169921875,
+    "height": 10.424999624490738,
+    "basis": "平面依各部件來源校正；高度仍為外觀建模估值"
+  },
+  "referenceReviewDate": "2026-09-08",
+  "geometryStatus": "plan-calibrated-exterior-estimated",
+  "scope": "按來源輪廓校正平面位置與尺度；高度、立面細節及正面方向仍為外觀估計",
+  "railRelation": "站區／沿線：彰化機務段",
+  "reviewedPhotos": [
+    {
+      "url": "https://tourism.chcg.gov.tw/upload/27/2023051214214634495.jpg",
+      "page": "https://tourism.chcg.gov.tw/AttractionsContent.aspx?chk=e51a4fad-7be7-43fd-9a61-56939757426f&fromsection=inarticle&id=29&l=TW&sectioninfo=6001095",
+      "viewedOn": "2026-09-08",
+      "scope": "局部外觀參考，非完整多面覆核"
+    },
+    {
+      "url": "https://tourism.chcg.gov.tw/images/2024_new/__search_02.svg",
+      "page": "https://tourism.chcg.gov.tw/AttractionsContent.aspx?chk=e51a4fad-7be7-43fd-9a61-56939757426f&fromsection=inarticle&id=29&l=TW&sectioninfo=6001095",
+      "viewedOn": "2026-09-08",
+      "scope": "局部外觀參考，非完整多面覆核"
+    },
+    {
+      "url": "https://tourism.chcg.gov.tw/images/hamberger_menu.png",
+      "page": "https://tourism.chcg.gov.tw/AttractionsContent.aspx?chk=e51a4fad-7be7-43fd-9a61-56939757426f&fromsection=inarticle&id=29&l=TW&sectioninfo=6001095",
+      "viewedOn": "2026-09-08",
+      "scope": "局部外觀參考，非完整多面覆核"
+    },
+    {
+      "url": "https://tourism.chcg.gov.tw/images/2023_new/__bread_home.svg",
+      "page": "https://tourism.chcg.gov.tw/AttractionsContent.aspx?chk=e51a4fad-7be7-43fd-9a61-56939757426f&fromsection=inarticle&id=29&l=TW&sectioninfo=6001095",
+      "viewedOn": "2026-09-08",
+      "scope": "局部外觀參考，非完整多面覆核"
+    }
+  ],
+  "referenceStatus": "partial-exterior-review",
+  "pendingChecks": [
+    "高度測量與完整多面立面校正",
+    "正面方向複核"
+  ],
+  "footprintReference": {
+    "osmType": "way",
+    "osmId": 220285047,
+    "name": "彰化扇形車庫",
+    "url": "https://www.openstreetmap.org/way/220285047",
+    "timestamp": "2026-09-08T15:19:44Z",
+    "longSideM": 87.51,
+    "shortSideM": 45.11,
+    "source": "OpenStreetMap contributors",
+    "license": "ODbL-1.0",
+    "scope": "早期輪廓參考；本輪逐棟校正依 calibration.parts 與 placements-source.json",
+    "referenceFile": "source-layouts/changhua-roundhouse.json"
+  },
+  "orientationMode": "ENU-baked",
+  "absoluteGroundAltitudeM": null,
+  "railElevationM": null,
+  "omittedUnlocatedComponents": [],
+  "calibration": {
+    "version": 2,
+    "basis": "各部件獨立平面擬合；非工程測繪",
+    "parts": [
+      {
+        "id": "扇形車庫",
+        "name": "扇形車庫",
+        "placementStatus": "footprint-axis-calibrated",
+        "anchor": [
+          120.54010838288382,
+          24.085882681514715
+        ],
+        "rotationDeg": 11.25,
+        "scaleXY": [
+          0.9189735183493758,
+          1.0397458743980699
+        ],
+        "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+        "facadeBearingDeg": null
+      }
+    ],
+    "verticalDatum": "terrain-relative",
+    "sourceFile": "placements-source.json"
+  },
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "axes": {
+    "up": "+Z",
+    "east": "+X",
+    "north": "+Y",
+    "front": null,
+    "units": "meters",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "gltfAxes": {
+    "up": "+Y",
+    "toZUp": "rotateX(+PI/2)"
+  },
+  "facadeBearingDeg": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -39.90280532836914,
+      -40.57332229614258,
+      -0.15000000596046448
+    ],
+    "max": [
+      45.95718002319336,
+      22.828462600708008,
+      10.274999618530273
+    ]
+  },
+  "sizeM": [
+    85.8599853515625,
+    63.401784896850586,
+    10.424999624490738
+  ],
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "glb": "near.glb",
+      "sha256": "b27ef9d4dca1fc437a523fa9307fd03ed24f219d26bcb7c3597cc538dc316686",
+      "glbSha256": "630cd3f75429c9579fe45df79fc418a6fee717a93080df30ef9ff6990283496a",
+      "strideBytes": 24,
+      "vertexCount": 29592,
+      "triangleCount": 9864,
+      "drawGroups": [
+        {
+          "component": "扇形車庫",
+          "name": "stone",
+          "start": 0,
+          "count": 5148,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "扇形車庫",
+          "name": "dark",
+          "start": 5148,
+          "count": 1332,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "扇形車庫",
+          "name": "cream",
+          "start": 6480,
+          "count": 1296,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "扇形車庫",
+          "name": "glass",
+          "start": 7776,
+          "count": 864,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "扇形車庫",
+          "name": "metal",
+          "start": 8640,
+          "count": 5400,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "扇形車庫",
+          "name": "brown",
+          "start": 14040,
+          "count": 15552,
+          "color": [
+            0.31398871541023254,
+            0.23074005544185638,
+            0.177888423204422
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 710208
+    },
+    "far": {
+      "file": "far.mesh.bin",
+      "glb": "far.glb",
+      "sha256": "ac41cc95c6fd609e18b0586840769e67f2749791625a92b4483c1a8f53180047",
+      "glbSha256": "1b2a4ff6ad08efb907d6c6d6afc108e0ced33c4335e20c79395e958fcca075ce",
+      "strideBytes": 24,
+      "vertexCount": 13176,
+      "triangleCount": 4392,
+      "drawGroups": [
+        {
+          "component": "扇形車庫",
+          "name": "stone",
+          "start": 0,
+          "count": 5148,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "扇形車庫",
+          "name": "dark",
+          "start": 5148,
+          "count": 1332,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "扇形車庫",
+          "name": "cream",
+          "start": 6480,
+          "count": 432,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "扇形車庫",
+          "name": "glass",
+          "start": 6912,
+          "count": 864,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "扇形車庫",
+          "name": "metal",
+          "start": 7776,
+          "count": 5400,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 316224
+    }
+  },
+  "nativeObjectCount": 704,
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "modelUse": "map-exterior",
+  "components": [
+    {
+      "id": "扇形車庫",
+      "name": "扇形車庫",
+      "placementStatus": "footprint-axis-calibrated",
+      "anchor": [
+        120.54010838288382,
+        24.085882681514715
+      ],
+      "rotationDeg": 11.25,
+      "scaleXY": [
+        0.9189735183493758,
+        1.0397458743980699
+      ],
+      "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+      "facadeBearingDeg": null
+    }
+  ],
+  "mapEligible": true
+}

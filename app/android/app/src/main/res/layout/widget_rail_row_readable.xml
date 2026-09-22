@@ -70,6 +70,11 @@
         android:textSize="12sp"
         android:textStyle="bold" />
 
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="end"
+        android:orientation="vertical">
     <TextView
         android:id="@+id/wrr_time"
         android:layout_width="wrap_content"
@@ -80,4 +85,14 @@
         android:textColor="@color/wg_ink"
         android:textSize="23sp"
         android:textStyle="bold" />
+        <TextView
+            android:id="@+id/wrr_platform"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:textColor="@color/wg_ink_faint"
+            android:textSize="10sp"
+            android:visibility="gone" />
+    </LinearLayout>
 </LinearLayout>

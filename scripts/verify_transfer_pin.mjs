@@ -59,6 +59,7 @@ const ctx = await browser.newContext({ locale: 'zh-TW' });
 await ctx.addInitScript(() => {
   localStorage.setItem('trainmap-howto-seen', '1'); // 不關首訪教學卡,卡片會蓋住地圖擋掉後續操作
   localStorage.setItem('trainmap-language', 'zh-TW');
+  localStorage.setItem('trainmap-xfer-open', '1'); // 轉乘接續 2026-09-11 起預設收合,本檔量的是展開態的列;收合本身由 verify_transfer_collapse.mjs 顧
 });
 const page = await ctx.newPage();
 const errors = [];
@@ -150,7 +151,7 @@ const row1 = page.locator('#fpConn .xfc-row').first();
 const no1 = await row1.getAttribute('data-xn');
 const sys1 = await row1.getAttribute('data-xs');
 await row1.click();
-await page.waitForFunction(() => !!window.__state.xferPin, null, { timeout: 5000 });
+await page.waitForFunction(() => !!window.__state?.xferPin, null, { timeout: 5000 });
 const pin1 = await page.evaluate(() => ({ ...window.__state.xferPin }));
 ok('G1 點了真的釘住(state.xferPin.n 對得上點的那列)', pin1.n === no1, `點的=${no1} 釘的=${pin1.n}`);
 ok('G1b 釘住的 sys 也對得上', pin1.sys === sys1, `點的=${sys1} 釘的=${pin1.sys}`);
@@ -178,7 +179,7 @@ ok('G7b tcConn 三實例同步(也只剩釘選那班)', synced.tc.length === 1 &
 
 // ── G3 —— 取消釘選回得去(三個容器都要回去) ───────────────────────────────────
 await page.locator('#fpConn .xfc-unpin').click();
-await page.waitForFunction(() => !window.__state.xferPin, null, { timeout: 5000 });
+await page.waitForFunction(() => !!window.__state && !window.__state.xferPin, null, { timeout: 5000 });
 const after2 = await page.evaluate(() => ({
   fp: [...document.querySelectorAll('#fpConn .xfc-row')].map(e => e.dataset.xn),
   fc: [...document.querySelectorAll('#fcConn .xfc-row')].map(e => e.dataset.xn),
@@ -198,11 +199,11 @@ const row2 = page.locator('#fpConn .xfc-row').nth(1);
 const no2 = await row2.getAttribute('data-xn');
 ok('G4pre 第二列與第一列不是同一班(換一班測試才有意義)', no2 !== no1, `${no2} vs ${no1}`);
 await row2.locator('.xfc-no').click();
-await page.waitForFunction(() => !!window.__state.xferPin, null, { timeout: 5000 });
+await page.waitForFunction(() => !!window.__state?.xferPin, null, { timeout: 5000 });
 const pin2 = await page.evaluate(() => window.__state.xferPin.n);
 ok('G4 點按鈕內的子元素(.xfc-no)一樣能釘住,而且是點的那一班', pin2 === no2, `點的=${no2} 釘的=${pin2}`);
 await page.locator('#fpConn .xfc-unpin').click();
-await page.waitForFunction(() => !window.__state.xferPin, null, { timeout: 5000 });
+await page.waitForFunction(() => !!window.__state && !window.__state.xferPin, null, { timeout: 5000 });
 
 // ── G8 —— 真實產線路徑,不繞過生產呼叫點 ───────────────────────────────────────
 // G0–G7 種資料的方式是直接呼叫 setTransferConn(見檔頭說明),這樣測得到「釘選互動」本身,
@@ -250,11 +251,11 @@ if (real.ok && real.fp.length && real.tc.length) {
   const rowR = page.locator('#fpConn .xfc-row').first();
   const noR = await rowR.getAttribute('data-xn');
   await rowR.click();
-  await page.waitForFunction(() => !!window.__state.xferPin, null, { timeout: 5000 });
+  await page.waitForFunction(() => !!window.__state?.xferPin, null, { timeout: 5000 });
   const tcAfterPin = await page.evaluate(() => [...document.querySelectorAll('#tcConn .xfc-row')].map(e => e.dataset.xn));
   ok('G8c 真實路徑下釘選後 tcConn 也同步收斂成同一班', tcAfterPin.length === 1 && tcAfterPin[0] === noR, JSON.stringify(tcAfterPin));
   await page.locator('#fpConn .xfc-unpin').click();
-  await page.waitForFunction(() => !window.__state.xferPin, null, { timeout: 5000 });
+  await page.waitForFunction(() => !!window.__state && !window.__state.xferPin, null, { timeout: 5000 });
 } else {
   ok('G8c 真實路徑下釘選後 tcConn 也同步收斂成同一班', false, '前置 G8/G8b 未成立,無法測(見上方 detail)');
 }
@@ -318,6 +319,29 @@ const freq10 = await page.evaluate(() => {
 });
 ok('G10 真實產線路徑(updateFreqCard→fcConn)收到接續資料(刪掉 index.html:10172 那行會在這裡就地現形)',
   freq10.ok && freq10.fc.length >= 1, JSON.stringify(freq10));
+
+// ── G10b —— 捷運班距卡必須排除「自己這條線」──────────────────────────────────
+// 2026-09-10 機捷/高捷進了接續表之後,updateFreqCard 那個 fromSys 就不能再傳 null:
+// 在高鐵桃園,機捷自己的下一班會被列進「可以轉乘」——那不是轉乘,而且它排在最前面會把
+// 真正的高鐵接續擠出前二列。判準寫「不含自己那個系統」,不寫「有幾列」。
+// 比照 G10 全部塞進同一次 evaluate(rAF 安全網會在下一拍收掉 #freqCard,見 mobile 那支的註解)。
+const freq10b = await page.evaluate(() => {
+  const fc = document.getElementById('fcConn');
+  fc.innerHTML = ''; fc.hidden = true;
+  loadSystem(state.systems.find(s => s.id === 'tymc'));
+  const ln = (state.lines || []).find(l => l.id === 'A');
+  if (!ln) return { ok: false, reason: '找不到機捷 A 線' };
+  state.freqFollow = { ln, k: 0 };
+  document.getElementById('freqCard').hidden = false;
+  // 07:26 高鐵桃園:實測此刻機捷與高鐵兩側都有班次,是「不排除就會混進自己」的真實情境
+  updateFreqCard({ nextName: '高鐵桃園站', nextSec: 26760, loop: false, termName: '老街溪站' });
+  return { ok: true, sys: [...document.querySelectorAll('#fcConn .xfc-row')].map(e => e.dataset.xs) };
+});
+ok('G10b pre 機捷卡在高鐵桃園真的有接續可看(前提成立,否則下面那條恆真)',
+  freq10b.ok && freq10b.sys.length >= 1, JSON.stringify(freq10b));
+ok('G10b 機捷卡不列自己那條線(fromSys 傳 null 會在這裡轉紅)',
+  freq10b.ok && freq10b.sys.length >= 1 && freq10b.sys.every(x => x !== 'TYMC'),
+  JSON.stringify(freq10b.sys));
 
 // ── G11 —— Finding C:同車次號、不同系統的釘選消歧(2026-09-01 修復輪1) ─────────────
 // 真實資料核實:T-THSR-1000 群裡車次「1238」同時是 THSR(sec=61020)與 TRA(sec=67500)兩筆

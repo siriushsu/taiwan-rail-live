@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 只給小工具挑選器／釘選框的 previewLayout 看；真小工具每次更新都 removeAllViews 後才填列，
+     所以永遠看不到這幾列。一列主角（tag demo-hero，逐項複製 widget_mixed_rail_hero.xml）＋
+     兩列次列（tag demo-row，逐項複製 widget_mixed_rail_row.xml），不綁 android:id（示範列不綁 binder）。
+     真實次列數跟著卡片高度走（MixedWidgetRender.heightFor），兩列是常見的 5×4 手機格。
+     列高與字級要跟真實列一致：verify_android_widget_parity.mjs 逐列比對。
+     文字各不相同、看起來像真看板：北上／自強／準點，南下／區間／誤點，南下／高鐵／表定。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/wmx_rail_hero_h"
+        android:baselineAligned="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:tag="demo-hero">
+
+        <ImageView
+            android:layout_width="4dp"
+            android:layout_height="36sp"
+            android:contentDescription="@null"
+            android:scaleType="fitXY"
+            android:src="@drawable/wg_meter_block"
+            android:tint="@color/wg_navy" />
+        <ImageView
+            android:layout_width="12dp"
+            android:layout_height="10dp"
+            android:layout_marginStart="8dp"
+            android:contentDescription="@null"
+            android:scaleType="fitCenter"
+            android:src="@drawable/wg_heading_north" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="自強 123"
+                android:textColor="@color/wg_ink"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="往 花蓮 · 11:58 抵達"
+                android:textColor="@color/wg_ink_soft"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:layout_marginEnd="8dp"
+            android:maxLines="1"
+            android:text="準點"
+            android:textColor="@color/wg_ok"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="end"
+            android:orientation="vertical">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="09:41"
+                android:textColor="@color/wg_ink"
+                android:textSize="28sp"
+                android:textStyle="bold" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:textColor="@color/wg_ink_faint"
+                android:textSize="11sp"
+                android:visibility="gone" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/wmx_follow_h"
+        android:baselineAligned="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:tag="demo-row">
+
+        <ImageView
+            android:layout_width="3dp"
+            android:layout_height="26sp"
+            android:contentDescription="@null"
+            android:scaleType="fitXY"
+            android:src="@drawable/wg_meter_block"
+            android:tint="@color/wg_navy" />
+        <ImageView
+            android:layout_width="10dp"
+            android:layout_height="8dp"
+            android:layout_marginStart="8dp"
+            android:contentDescription="@null"
+            android:scaleType="fitCenter"
+            android:src="@drawable/wg_heading_south" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="區間 1234"
+                android:textColor="@color/wg_ink"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="往 新竹"
+                android:textColor="@color/wg_ink_faint"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:layout_marginEnd="8dp"
+            android:maxLines="1"
+            android:text="誤點 3 分"
+            android:textColor="@color/wg_warn"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="end"
+            android:orientation="vertical">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="09:52"
+                android:textColor="@color/wg_ink"
+                android:textSize="19sp"
+                android:textStyle="bold" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:textColor="@color/wg_ink_faint"
+                android:textSize="10sp"
+                android:visibility="gone" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/wmx_follow_h"
+        android:baselineAligned="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:tag="demo-row">
+
+        <ImageView
+            android:layout_width="3dp"
+            android:layout_height="26sp"
+            android:contentDescription="@null"
+            android:scaleType="fitXY"
+            android:src="@drawable/wg_meter_block"
+            android:tint="@color/wg_navy" />
+        <ImageView
+            android:layout_width="10dp"
+            android:layout_height="8dp"
+            android:layout_marginStart="8dp"
+            android:contentDescription="@null"
+            android:scaleType="fitCenter"
+            android:src="@drawable/wg_heading_south" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="高鐵 0813"
+                android:textColor="@color/wg_ink"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="往 左營 · 11:35 抵達"
+                android:textColor="@color/wg_ink_faint"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:layout_marginEnd="8dp"
+            android:maxLines="1"
+            android:text="表定"
+            android:textColor="@color/wg_ink_faint"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="end"
+            android:orientation="vertical">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="10:06"
+                android:textColor="@color/wg_ink"
+                android:textSize="19sp"
+                android:textStyle="bold" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:textColor="@color/wg_ink_faint"
+                android:textSize="10sp"
+                android:visibility="gone" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

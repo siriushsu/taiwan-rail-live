@@ -1,0 +1,304 @@
+{
+  "id": "checheng-wood",
+  "name": "車埕木業展示館",
+  "county": "南投縣",
+  "category": "historic",
+  "kind": "checheng-wood",
+  "features": [
+    "木業廠房、抬高採光屋頂、木構與貯木池邊緣"
+  ],
+  "sources": [
+    {
+      "url": "https://www.sunmoonlake.gov.tw/attractions/Attractions?a=20&id=22",
+      "use": "日月潭管理處"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/308581261",
+      "use": "OSM 建物輪廓"
+    },
+    {
+      "url": "https://www.tad.gov.tw/m1.aspx?id=A12-00304&sNo=0001114",
+      "use": "官方主館座標、廠房復建與新舊屋架交疊構造；屋頂外框目視估計"
+    }
+  ],
+  "priority": 2,
+  "placementStatus": "mixed-plan-and-site-anchor",
+  "anchor": [
+    120.86579489814878,
+    23.833807730099277
+  ],
+  "verifiedDimensionsM": {},
+  "estimatedDimensionsM": {
+    "width": 34.296630859375,
+    "depth": 45.26982498168945,
+    "height": 10.977941513061523,
+    "basis": "平面依各部件來源校正；高度仍為外觀建模估值"
+  },
+  "referenceReviewDate": null,
+  "geometryStatus": "plan-calibrated-exterior-estimated",
+  "scope": "按來源輪廓校正平面位置與尺度；高度、立面細節及正面方向仍為外觀估計",
+  "railRelation": "站區：集集線車埕一帶",
+  "reviewedPhotos": [],
+  "referenceStatus": "exterior-review-pending",
+  "pendingChecks": [
+    "高度測量與完整多面立面校正",
+    "正面方向複核"
+  ],
+  "footprintReference": {
+    "osmType": "way",
+    "osmId": 308581261,
+    "name": "車埕木業展示館",
+    "url": "https://www.openstreetmap.org/way/308581261",
+    "timestamp": "2026-09-08T15:19:44Z",
+    "longSideM": 133.29,
+    "shortSideM": 56.94,
+    "source": "OpenStreetMap contributors",
+    "license": "ODbL-1.0",
+    "scope": "社群建物輪廓最小旋轉包圍框，非工程測繪；尚未用作地圖放樣",
+    "referenceFile": "source-layouts/checheng-wood.json"
+  },
+  "orientationMode": "ENU-baked",
+  "absoluteGroundAltitudeM": null,
+  "railElevationM": null,
+  "omittedUnlocatedComponents": [],
+  "mapEligible": true,
+  "calibration": {
+    "version": 2,
+    "basis": "各部件獨立平面擬合；非工程測繪",
+    "parts": [
+      {
+        "id": "木業展示館",
+        "name": "木業展示館",
+        "placementStatus": "site-anchor-estimated-outline",
+        "anchor": [
+          120.86579489814878,
+          23.833807730099277
+        ],
+        "rotationDeg": 90.34724181494751,
+        "scaleXY": [
+          0.965421742828013,
+          1.3249683333937028
+        ],
+        "basis": "官方景點資料確認場域，衛星屋頂目視交叉比對的位置、尺度與軸向估計；非實測外框",
+        "facadeBearingDeg": null
+      }
+    ],
+    "verticalDatum": "terrain-relative",
+    "sourceFile": "placements-source.json"
+  },
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "axes": {
+    "up": "+Z",
+    "east": "+X",
+    "north": "+Y",
+    "front": null,
+    "units": "meters",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "gltfAxes": {
+    "up": "+Y",
+    "toZUp": "rotateX(+PI/2)"
+  },
+  "facadeBearingDeg": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -17.148317337036133,
+      -22.63491439819336,
+      0.0
+    ],
+    "max": [
+      17.148317337036133,
+      22.63491439819336,
+      10.977941513061523
+    ]
+  },
+  "sizeM": [
+    34.296634674072266,
+    45.26982879638672,
+    10.977941513061523
+  ],
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "glb": "near.glb",
+      "sha256": "1b51459c7ddfe1f42401bac2a4824488e9410829063b7863ff283423468529b9",
+      "glbSha256": "617e0bf26e2f9b25175132f2adc6e174401c42ced955153675bfaabfd6513b0a",
+      "strideBytes": 24,
+      "vertexCount": 15336,
+      "triangleCount": 5112,
+      "drawGroups": [
+        {
+          "component": "木業展示館",
+          "name": "stone",
+          "start": 0,
+          "count": 2880,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "木業展示館",
+          "name": "brown",
+          "start": 2880,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.23074005544185638,
+            0.177888423204422
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "木業展示館",
+          "name": "dark",
+          "start": 2916,
+          "count": 6120,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "木業展示館",
+          "name": "glass",
+          "start": 9036,
+          "count": 2268,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "木業展示館",
+          "name": "cream",
+          "start": 11304,
+          "count": 4032,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 368064
+    },
+    "far": {
+      "file": "far.mesh.bin",
+      "glb": "far.glb",
+      "sha256": "ba9f6d0045da2b85fcdb2336c98a0e5e856d0654bb7a05fe325970f6bc4fb88b",
+      "glbSha256": "14d94a8bc14ede9fc9ca361fe55d130850ab9d877b4fcb3f5378f6cce93df63e",
+      "strideBytes": 24,
+      "vertexCount": 7584,
+      "triangleCount": 2528,
+      "drawGroups": [
+        {
+          "component": "木業展示館",
+          "name": "stone",
+          "start": 0,
+          "count": 1008,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "木業展示館",
+          "name": "brown",
+          "start": 1008,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.23074005544185638,
+            0.177888423204422
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "木業展示館",
+          "name": "dark",
+          "start": 1044,
+          "count": 2904,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "木業展示館",
+          "name": "glass",
+          "start": 3948,
+          "count": 2268,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "木業展示館",
+          "name": "cream",
+          "start": 6216,
+          "count": 1368,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 182016
+    }
+  },
+  "nativeObjectCount": 637,
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "modelUse": "map-exterior",
+  "components": [
+    {
+      "id": "木業展示館",
+      "name": "木業展示館",
+      "placementStatus": "site-anchor-estimated-outline",
+      "anchor": [
+        120.86579489814878,
+        23.833807730099277
+      ],
+      "rotationDeg": 90.34724181494751,
+      "scaleXY": [
+        0.965421742828013,
+        1.3249683333937028
+      ],
+      "basis": "官方景點資料確認場域，衛星屋頂目視交叉比對的位置、尺度與軸向估計；非實測外框",
+      "facadeBearingDeg": null
+    }
+  ]
+}

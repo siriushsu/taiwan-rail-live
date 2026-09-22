@@ -205,10 +205,13 @@ function filesChangedNameOnly(args) {
 // 真二進位檔(PNG 之類)本來就沒有可掃的文字行,落在集合外是正確的,不該報紅。
 // 判「是不是真的二進位」要用**內容**(有沒有 NUL byte),不能用 git 的 binary 判定——
 // 後者正是被 .gitattributes 操縱的那一個,拿它當判準等於與受測物同源。
+// 浮點網格的第一個 NUL 可能在 8KB 之後；既然已讀完整 blob，就檢查完整內容。
+// 仍以位元組判定，不能靠副檔名或 .gitattributes 豁免文字。
+const hasBinaryNul = buf => buf.includes(0);
 function looksBinaryAtHead(p) {
   try {
     const buf = git(['show', `HEAD:${p}`], { encoding: 'buffer', maxBuffer: 16 * 1024 * 1024 });
-    return buf.subarray(0, 8000).includes(0);
+    return hasBinaryNul(buf);
   } catch (e) { return false; } // 取不到就當文字:寧可為此紅一次,也不要靜默放過一個沒被掃到的檔
 }
 // 🔴 2026-08-03 修復輪 5:純改名／純 mode change 會讓覆蓋自檢誤紅。
@@ -240,6 +243,7 @@ function coverageGap(seen, expected, zeroAdded) {
 // 自檢樣本用**既有的** CONTROLS 元素組成,不引入任何新的字面樣本:
 // 新字面會多出一行帶豁免標記的原始碼,把上面那條「豁免數 === 對照數」推翻。
 {
+  ok(hasBinaryNul(Buffer.concat([Buffer.alloc(16000, 65), Buffer.from([0])])) && !hasBinaryNul(Buffer.from(('中文 ' + CONTROLS[0][1]).repeat(1000))), '二進位自檢:後段 NUL 可辨識，長篇中文與規則樣本仍須文字掃描');
   const probe = scanDiffText([
     'commit 0000000probe',
     '+++ b/(probe-in-memory)',

@@ -1,3 +1,5 @@
+// 2026-09-09：使用者改為放空跟車可縮放／旋轉，以右側開關鎖定車頭。
+// A1–A3 改驗手勢開啟；逐幀中心、解鎖與返回由 verify_head_lock_browser.mjs 驗證。
 // 放空模式相機主權 + 出口鈕可及性 + 音樂開關同步 — Playwright 真引擎 + 本機靜態伺服器。
 //
 // 三件事的來源(2026-08-31 使用者回報 + 裁示):
@@ -49,8 +51,11 @@ const build = (idxSrc.match(/const BUILD = '([^']*)'/) || [])[1] || '?';
 console.log(`\n目標: ${idxPath}\n      md5=${md5}  BUILD=${build}  ${idxSrc.split('\n').length} 行\n`);
 
 // 靜態斷言(computed style 照不到 env(),只能讀規則本身)
-ok('B4 靜態 放空控制列 bottom 含 env(safe-area-inset-bottom)',
-  /body\.ambient \.controls \{[^}]*bottom: calc\(8px \+ env\(safe-area-inset-bottom/.test(idxSrc),
+// index.html:99 定義 --sa-b: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)),規則本體寫的是別名 var(--sa-b);
+// 兩種寫法都算含 safe-area(原判準只認字面 env(),在別名落地後就一直假紅)。
+ok('B4 靜態 放空控制列 bottom 含 safe-area-inset-bottom(直寫 env() 或別名 var(--sa-b))',
+  /body\.ambient \.controls \{[^}]*bottom: calc\(8px \+ (?:env\(safe-area-inset-bottom|var\(--sa-b\))/.test(idxSrc)
+    && /--sa-b: var\(--safe-area-inset-bottom, env\(safe-area-inset-bottom/.test(idxSrc),
   '規則文字比對');
 
 const browser = await chromium.launch();
@@ -80,7 +85,7 @@ const errors = [];
 page.on('pageerror', e => errors.push(String(e)));          // waitReady 逾時=boot 靜默拋錯,先掛這個
 await page.goto(`http://localhost:${PORT}/?lang=zh-TW`, { waitUntil: 'domcontentloaded' });
 try {
-  await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready && map && state.mode === 'sched'; } catch (e) { return false; } }, null, { timeout: 30000 });
+  await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready && window.__map && state.mode === 'sched'; } catch (e) { return false; } }, null, { timeout: 30000 });
 } catch (e) {
   console.log('boot 失敗,pageerror:', errors.slice(0, 3));
   throw e;
@@ -91,16 +96,19 @@ const cdp = await ctx.newCDPSession(page);
 // 事件計數器:程式自己的 setView(animate:false) 不會發 dragstart;zoom 不變也不會發 zoomstart
 await page.evaluate(() => {
   window.__ev = { dragstart: 0, zoomstart: 0, click: 0 };
-  map.on('dragstart', () => window.__ev.dragstart++);
-  map.on('zoomstart', () => window.__ev.zoomstart++);
-  map.on('click', () => window.__ev.click++);
+  window.__map.on('dragstart', () => window.__ev.dragstart++);
+  window.__map.on('zoomstart', () => window.__ev.zoomstart++);
+  window.__map.on('click', () => window.__ev.click++);
 });
 const resetEv = () => page.evaluate(() => { window.__ev.dragstart = 0; window.__ev.zoomstart = 0; window.__ev.click = 0; });
 const ev = () => page.evaluate(() => ({ ...window.__ev }));
-const zoom = () => page.evaluate(() => map.getZoom());
-const handlers = () => page.evaluate(() =>
-  ['dragging', 'touchZoom', 'doubleClickZoom', 'scrollWheelZoom', 'boxZoom', 'keyboard']
-    .filter(k => map[k] && map[k].enabled()));
+const zoom = () => page.evaluate(() => window.__map.getZoom());
+// 引擎中立(M4-A 起預設 MapLibre):Leaflet handler 名 → MapLibre handler 名(setGestures 開關的同一組),API 分別是 enabled()／isEnabled()
+const handlers = () => page.evaluate(() => {
+  const L2GL = { dragging: 'dragPan', touchZoom: 'touchZoomRotate', doubleClickZoom: 'doubleClickZoom', scrollWheelZoom: 'scrollZoom', boxZoom: 'boxZoom', keyboard: 'keyboard' };
+  const gl = !!(window.__M && window.__M.engine === 'maplibre');
+  return Object.keys(L2GL).filter(k => { const h = window.__map[gl ? L2GL[k] : k]; return !!h && (gl ? h.isEnabled() : h.enabled()); });
+});
 
 // 真觸控拖曳(CDP;Playwright 的 touchscreen 只有 tap)
 async function touchDrag(x0, y0, dx, dy) {
@@ -139,10 +147,10 @@ const leaveAmbient = async () => { await page.evaluate(() => setAmbient(false));
 
 // ── A 手勢鎖 ──────────────────────────────────────────────────────────────────
 await enterAmbient('follow');
-ok('A1 放空(跟車) 六個相機手勢 handler 全關', (await handlers()).length === 0, `仍開著: ${JSON.stringify(await handlers())}`);
+ok('A1 放空(跟車) 六個相機手勢 handler 開啟', (await handlers()).length === 6, `仍開著: ${JSON.stringify(await handlers())}`);
 const gFollow = await gestureRound();
-ok('A2 放空(跟車) 真拖曳不發 dragstart', gFollow.dragstart === 0, `dragstart=${gFollow.dragstart}`);
-ok('A3 放空(跟車) 滾輪/雙擊不改 zoom', !gFollow.zoomChanged && gFollow.zoomstart === 0, `z ${gFollow.z0}→${gFollow.z1} zoomstart=${gFollow.zoomstart}`);
+ok('A2 放空(跟車) 接收真拖曳，中心由車頭鎖約束', gFollow.dragstart > 0, `dragstart=${gFollow.dragstart}`);
+ok('A3 放空(跟車) 滾輪/雙擊可改 zoom', gFollow.zoomChanged && gFollow.zoomstart > 0, `z ${gFollow.z0}→${gFollow.z1} zoomstart=${gFollow.zoomstart}`);
 ok('A8 放空中地圖點擊仍收得到(點車跟隨沒被鎖掉)', gFollow.click > 0, `click=${gFollow.click}`);
 
 await leaveAmbient();
@@ -153,24 +161,27 @@ ok('A5 控制組(非放空) 同一套手勢真的動得了地圖', gCtl.dragstar
   `dragstart=${gCtl.dragstart}(觸控+滑鼠兩路) z ${gCtl.z0}→${gCtl.z1}`);
 
 await enterAmbient('hotspot');
-ok('A7 放空(群車) 同樣六個手勢全關(兩視角一致)', (await handlers()).length === 0, `仍開著: ${JSON.stringify(await handlers())}`);
+ok('A7 放空(群車) 維持六個手勢全關', (await handlers()).length === 0, `仍開著: ${JSON.stringify(await handlers())}`);
 const gHot = await gestureRound();
 ok('A7b 放空(群車) 真拖曳/縮放都動不了', gHot.dragstart === 0 && !gHot.zoomChanged, `dragstart=${gHot.dragstart} z ${gHot.z0}→${gHot.z1}`);
 await leaveAmbient();
 
 // A9 安全網:ambient 已關但手勢被留在鎖住 ⇒ 下一幀必須自動交還
-await page.evaluate(() => { map.dragging.disable(); map.touchZoom.disable(); });
+await page.evaluate(() => { window.__map.dragPan.disable(); window.__map.touchZoomRotate.disable(); });
 await page.waitForTimeout(400);
 ok('A9 安全網:非放空卻手勢鎖著 ⇒ tick 自動交還', (await handlers()).length === 6, `開著: ${(await handlers()).length}/6`);
 
 // ── B 出口鈕 ──────────────────────────────────────────────────────────────────
 await enterAmbient('follow');
 await page.evaluate(() => { clearTimeout(state._idleT); clearTimeout(state._theaterT); document.body.classList.add('idle'); });
-await page.waitForTimeout(900); // 等 .7s 的 opacity 轉場走完
-const idleCss = await page.evaluate(() => {
+// 等 .7s 的 opacity 轉場真的走完(輪詢到「在場家具全部 opacity 0」或 3 s 到期),不等固定秒數:
+// 固定 900 ms 在機器有負載時會量到轉場中途(實測 0.027),B3 就假紅——量的是轉場終點,不是某個時刻。
+const readIdle = () => page.evaluate(() => {
   const g = s => { const el = document.querySelector(s); if (!el) return null; const c = getComputedStyle(el); return { op: +c.opacity, pe: c.pointerEvents }; };
-  return { controls: g('.controls'), rand: g('#randBtn'), near: g('#nearBtn'), tabbar: g('.tabbar'), lc: g('.leaflet-control-container') };
+  return { controls: g('.controls'), rand: g('#randBtn'), near: g('#nearBtn'), tabbar: g('.tabbar'), lc: g('.leaflet-control-container, .maplibregl-control-container') };
 });
+let idleCss = await readIdle();
+for (const t0 = Date.now(); Date.now() - t0 < 3000 && !['rand', 'near', 'tabbar', 'lc'].every(k => !idleCss[k] || idleCss[k].op === 0);) { await page.waitForTimeout(100); idleCss = await readIdle(); }
 ok('B1 idle 時「離開放空」仍看得見且可按',
   idleCss.controls && idleCss.controls.op > 0.2 && idleCss.controls.pe !== 'none',
   `opacity=${idleCss.controls?.op} pointer-events=${idleCss.controls?.pe}`);
@@ -199,24 +210,31 @@ ok('B2b 按下去真的離開了放空', (await page.evaluate(() => !!state.ambi
 
 // ── C 音樂開關 ────────────────────────────────────────────────────────────────
 const musicToggleOn = () => page.evaluate(() => {
-  const tg = document.querySelector('#moreBody .ms-row[data-proxy="musicBtn"] .toggle');
+  const tg = document.querySelector('#viewSettingsBody .ms-row[data-proxy="musicBtn"] .toggle');
   return tg ? tg.classList.contains('on') : null;
 });
-await page.evaluate(() => { document.getElementById('tabMore').click(); });
+// v0914c 起「背景音樂」列(data-proxy="musicBtn")搬進觀看面板「畫面」分頁,不再掛在「更多」
+// 抽屜下(#moreBody 作用域查不到,C0 會恆讀到 null)。改開觀看面板到「畫面」分頁;musicBtn
+// 不在 view-controls.js 的自動關閉清單裡,面板全程開著,下面兩次點擊不必重新開面板。
+await page.evaluate(() => {
+  const rail = document.querySelector('.view-rail [data-view="display"]');
+  if (rail && rail.offsetParent !== null) rail.click();
+  else { document.getElementById('viewSettingsBtn').click(); document.querySelector('.view-tabs [data-view="display"]').click(); }
+});
 await page.waitForTimeout(300);
-ok('C0 抽屜開得起來、音樂列在場', (await musicToggleOn()) !== null);
+ok('C0 觀看面板開得起來、音樂列在場', (await musicToggleOn()) !== null);
 await page.evaluate(() => {
   state.music.enabled = false; state.music.audio._paused = true; state._syncMoreSheet();
 });
 await page.waitForTimeout(100);
-await page.evaluate(() => document.querySelector('#moreBody .ms-row[data-proxy="musicBtn"]').click());
+await page.evaluate(() => document.querySelector('#viewSettingsBody .ms-row[data-proxy="musicBtn"]').click());
 const immediate = await musicToggleOn();          // 同一個 tick 之後立刻讀
 ok('C1 按下「背景音樂」當下開關就顯示開', immediate === true, `toggle=${immediate}`);
 await page.waitForTimeout(500);                   // 原生事件(150ms)之後
 ok('C2 原生事件回來後仍是開', (await musicToggleOn()) === true);
 ok('C2b 原生層真的收到 play', (await page.evaluate(() => window.__na.plays)) > 0);
 // 關掉:淡出 800ms 之後才會真 pause;全程【不碰】省電那一列
-await page.evaluate(() => document.querySelector('#moreBody .ms-row[data-proxy="musicBtn"]').click());
+await page.evaluate(() => document.querySelector('#viewSettingsBody .ms-row[data-proxy="musicBtn"]').click());
 await page.waitForTimeout(1600);
 ok('C3 關掉後不必去點省電那列,開關自己變成關', (await musicToggleOn()) === false,
   `toggle=${await musicToggleOn()}`);

@@ -1,6 +1,7 @@
 # 不上傳為靜態資產的路徑(wrangler assets 用,語法同 gitignore)
 .git
 .gitignore
+.gitattributes
 .claude
 .assetsignore
 .env
@@ -57,8 +58,9 @@ _專案資訊.html
 國土測繪中心_*
 ntmetro_fixtures
 # 暫存驗證腳本(Playwright 等):慣例放 repo 根目錄好解析 node_modules,一律 ephemeral、禁上正式站。
-# index.html 是純單檔 app、不載任何 .mjs 模組;正式 build 腳本都在已排除的 scripts/。
+# 維護腳本仍排除；日夜光影是首頁實際載入的 runtime 模組，單獨保留。
 *.mjs
+!rail-3d/environment/sun.mjs
 # 驗證腳本順手產的截圖(verify_*.mjs 每跑一次就重寫):同樣 ephemeral,不要變成公開資產
 _shot_*.png
 _baseline_*.html
@@ -81,6 +83,8 @@ Plus訂閱*
 # App icon 概念稿(未追蹤,零引用,9.4MB)。2026-07-26 實測在預覽站全部回 200。
 # 已追蹤的 icon 都不叫 app-icon-*,加這條不誤殺。
 assets/app-icon-*
+# 小工具預覽圖(說明中心 App 專用):網站永不請求(verify_query_tab G10a 斷言為 0 請求),只進 App bundle(prepare-web 收 git 追蹤檔,不看本檔)。
+assets/widgets
 # 技術原型(3D 文湖線等):只在本機跑,不是產品的一部分,禁上正式站。
 prototypes
 # 各 session 的暫存工作區:中間產物、驗證輸出、交接草稿,內容不受控且多是未定案判斷。
@@ -117,3 +121,11 @@ suno musics/_masters
 # 車聲圖層的 Envato 授權音檔:不進網站、不進 repo,只進 App。
 suno musics/_licensed
 *.wav
+# 內部宣傳縮時成品：本機產片用，不隨裸跑 wrangler 變成正式站靜態資產。
+輸出/縮時_*/
+# 驗收閘門的輸出目錄:48 支 verify_*／optimize_* 的預設 out(output/3d-integration、
+# output/dark20…),外加外包交付的 zip 與內部報告 PDF。前端與 worker 都不讀。
+# 2026-09-11 與 .gitignore 同一批補。理由同 .cache／scratchpad:wrangler 上傳的是**磁碟上的
+# 檔案**,.gitignore 對它完全無效,少了這條,裸跑 versions upload 就讓 output/ 變成公開路徑。
+# (同一批的另一半是上面的 _shot_*.png——那條這邊本來就有,這次補的是 .gitignore 那邊。)
+output

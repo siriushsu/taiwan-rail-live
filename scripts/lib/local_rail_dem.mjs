@@ -1,0 +1,10 @@
+import fs from 'node:fs';import vm from 'node:vm';import sharp from 'sharp';import {gunzipSync} from 'node:zlib';
+// 與 MapLibre 5.9 的 DEM.get / 雙線性查詢同一個像素原點；只讀隨站發布的固定快照。
+export function openRailDem(root){
+ const manifest=JSON.parse(fs.readFileSync(new URL('rail-3d/terrain/manifest.json',root))),fds=new Map(),cache=new Map();
+ const scope={TextDecoder,TextEncoder,Uint8Array,ArrayBuffer,DataView,Map,Promise,console,fetch};vm.runInNewContext(fs.readFileSync(new URL('rail-3d/vendor/pmtiles.js',root),'utf8'),scope);
+ const archive=new scope.pmtiles.PMTiles({getKey:()=>manifest.sha256,getBytes:async(offset,length)=>{const b=Buffer.alloc(length);let written=0;while(written<length){const at=offset+written,index=Math.floor(at/manifest.chunkSize),inside=at%manifest.chunkSize,chunk=manifest.chunks[index];if(!chunk)throw Error('DEM 範圍錯誤');if(!fds.has(index))fds.set(index,fs.openSync(new URL('rail-3d/terrain/'+chunk.file,root),'r'));const n=Math.min(length-written,chunk.bytes-inside);if(fs.readSync(fds.get(index),b,written,n,inside)!==n)throw Error('DEM 截斷');written+=n;}return {data:b.buffer.slice(b.byteOffset,b.byteOffset+b.length)};}},undefined,async(data,c)=>c===2?gunzipSync(Buffer.from(data)):data);
+ async function pixel(x,y){const tx=Math.floor(x/512),ty=Math.floor(y/512),key=tx+'/'+ty;let tile=cache.get(key);if(!tile){const t=await archive.getZxy(12,tx,ty);if(!t)throw Error('DEM 缺失 '+key);tile=await sharp(Buffer.from(t.data)).removeAlpha().raw().toBuffer({resolveWithObject:true});if(tile.info.width!==512||tile.info.channels!==3)throw Error('DEM 格式改變');cache.set(key,tile);if(cache.size>96)cache.delete(cache.keys().next().value);}const i=((y%512)*512+x%512)*3;return tile.data[i]*256+tile.data[i+1]+tile.data[i+2]/256-32768;}
+ async function ground([lon,lat]){const n=4096*512,x=(lon+180)/360*n,y=(1-Math.asinh(Math.tan(lat*Math.PI/180))/Math.PI)/2*n,ix=Math.floor(x),iy=Math.floor(y),u=x-ix,v=y-iy;return (await pixel(ix,iy))*(1-u)*(1-v)+(await pixel(ix+1,iy))*u*(1-v)+(await pixel(ix,iy+1))*(1-u)*v+(await pixel(ix+1,iy+1))*u*v;}
+ return {ground,manifest,close(){for(const fd of fds.values())fs.closeSync(fd);}};
+}

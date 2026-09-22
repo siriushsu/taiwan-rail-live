@@ -1,0 +1,227 @@
+{
+  "id": "hsinchu-tra",
+  "name": "新竹車站",
+  "kind": "hsinchu",
+  "category": "station",
+  "anchor": null,
+  "displayHeightM": 20,
+  "realBuildingHeightM": null,
+  "footprintWidthM": 65,
+  "footprintDepthM": 22,
+  "rotationDeg": 0,
+  "placementStatus": "pending-georeference",
+  "sources": [
+    {
+      "url": "https://culture.hccg.gov.tw/ch/home.jsp?dataserno=201809120074&id=289&mcustomize=onemessages_view.jsp&mserno=201809120011&parentpath=0%2C3%2C42&t=HcccbOnes",
+      "use": "外觀與建築形式參考；照片不重製為貼圖"
+    }
+  ],
+  "features": [
+    "中央鐘塔與兩側站房",
+    "淺色立面、拱窗與深色屋頂",
+    "既有新竹站房，非高鐵新竹站"
+  ],
+  "notes": [
+    "尺寸與分件比例為地圖展示估算，非施工或測繪模型。",
+    "新增模型未提供核對過的地理錨點，須先定位後才能接入真實地圖。"
+  ],
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "axes": {
+    "up": "+Z",
+    "right": "+X",
+    "front": "-Y",
+    "units": "meters",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "gltfAxes": {
+    "up": "+Y",
+    "toZUp": "rotateX(+PI/2)"
+  },
+  "orientationMode": "local-facade",
+  "facadeBearingDeg": null,
+  "absoluteGroundAltitudeM": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -32.599998474121094,
+      -11.180000305175781,
+      0.0
+    ],
+    "max": [
+      35.599998474121094,
+      9.600000381469727,
+      20.0
+    ]
+  },
+  "sizeM": [
+    68.19999694824219,
+    20.780000686645508,
+    20.0
+  ],
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "glb": "near.glb",
+      "sha256": "d8c0396921654138ae5b56b77c8229bef0109b8ee0dd754d83c1bbe7d65c1e5d",
+      "glbSha256": "f7c5029b6e8d02485a70873dce01378765d9e0584f24a9bfb7246b76955b148f",
+      "strideBytes": 24,
+      "vertexCount": 8892,
+      "triangleCount": 2964,
+      "drawGroups": [
+        {
+          "component": "main",
+          "name": "cream",
+          "start": 0,
+          "count": 447,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "stone",
+          "start": 447,
+          "count": 684,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "dark",
+          "start": 1131,
+          "count": 1329,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "white",
+          "start": 2460,
+          "count": 6372,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "metal",
+          "start": 8832,
+          "count": 60,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 213408
+    },
+    "far": {
+      "file": "far.mesh.bin",
+      "glb": "far.glb",
+      "sha256": "4ab7959f212ae55e0131c52b6468f197993eecaab1846ea1d835181390d3f479",
+      "glbSha256": "a763a0dd01642bb9658e334096b5146ecf0c9997653c8cf9dcb6d3835176c075",
+      "strideBytes": 24,
+      "vertexCount": 8388,
+      "triangleCount": 2796,
+      "drawGroups": [
+        {
+          "component": "main",
+          "name": "cream",
+          "start": 0,
+          "count": 447,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "stone",
+          "start": 447,
+          "count": 180,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "dark",
+          "start": 627,
+          "count": 1329,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "white",
+          "start": 1956,
+          "count": 6372,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "metal",
+          "start": 8328,
+          "count": 60,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 201312
+    }
+  },
+  "nativeObjectCount": 152,
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "modelUse": "map-exterior",
+  "components": []
+}

@@ -1,0 +1,473 @@
+{
+  "id": "railway-department",
+  "name": "鐵道部廳舍及八角樓",
+  "county": "臺北市",
+  "category": "historic",
+  "kind": "railway-department",
+  "features": [
+    "轉角入口、雙塔、紅磚與半木構、屋頂老虎窗；八角樓獨立建"
+  ],
+  "sources": [
+    {
+      "url": "https://www.ntm.gov.tw/cp.aspx?n=5440",
+      "use": "臺博館園區建築"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/319875831",
+      "use": "鐵道部主廳舍：輪廓與位置",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/319875842",
+      "use": "鐵道部主廳舍：輪廓與位置",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/550662349",
+      "use": "八角樓：輪廓與位置",
+      "license": "ODbL-1.0"
+    }
+  ],
+  "priority": 1,
+  "placementStatus": "calibrated-plan",
+  "anchor": [
+    121.51114807230208,
+    25.048777615862058
+  ],
+  "verifiedDimensionsM": {},
+  "estimatedDimensionsM": {
+    "width": 106.94849014282227,
+    "depth": 82.514892578125,
+    "height": 17.277942657470703,
+    "basis": "平面依各部件來源校正；高度仍為外觀建模估值"
+  },
+  "referenceReviewDate": "2026-09-08",
+  "geometryStatus": "plan-calibrated-exterior-estimated",
+  "scope": "按來源輪廓校正平面位置與尺度；高度、立面細節及正面方向仍為外觀估計",
+  "railRelation": "市區周邊：捷運北門；歷史鐵道行政園區",
+  "reviewedPhotos": [
+    {
+      "url": "https://file.moc.gov.tw/001/Upload/OldFiles/AdminUploads/images/original/b0b93103-f5dc-408a-9b8c-0e386409ecea.jpg",
+      "page": "https://www.ntm.gov.tw/cp.aspx?n=5440",
+      "viewedOn": "2026-09-08",
+      "scope": "局部外觀參考，非完整多面覆核"
+    },
+    {
+      "url": "https://file.moc.gov.tw/001/Upload/OldFiles/AdminUploads//images/original/351bf9a9-8444-4bbf-99fe-8758d88a8b9f.jpg",
+      "page": "https://www.ntm.gov.tw/cp.aspx?n=5440",
+      "viewedOn": "2026-09-08",
+      "scope": "局部外觀參考，非完整多面覆核"
+    }
+  ],
+  "referenceStatus": "partial-exterior-review",
+  "pendingChecks": [
+    "高度測量與完整多面立面校正",
+    "正面方向複核"
+  ],
+  "orientationMode": "ENU-baked",
+  "absoluteGroundAltitudeM": null,
+  "railElevationM": null,
+  "omittedUnlocatedComponents": [],
+  "calibration": {
+    "version": 2,
+    "basis": "各部件獨立平面擬合；非工程測繪",
+    "parts": [
+      {
+        "id": "鐵道部主廳舍",
+        "name": "鐵道部主廳舍",
+        "placementStatus": "footprint-axis-calibrated",
+        "anchor": [
+          121.51114807230208,
+          25.048777615862058
+        ],
+        "rotationDeg": 44.25,
+        "scaleXY": [
+          1.551556489282011,
+          0.7901765639672843
+        ],
+        "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+        "facadeBearingDeg": null
+      },
+      {
+        "id": "八角樓",
+        "name": "八角樓",
+        "placementStatus": "footprint-axis-calibrated",
+        "anchor": [
+          121.51089562164756,
+          25.04900428850892
+        ],
+        "rotationDeg": 161.0,
+        "scaleXY": [
+          0.7614972472971787,
+          0.7557718957462659
+        ],
+        "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+        "facadeBearingDeg": null
+      }
+    ],
+    "verticalDatum": "terrain-relative",
+    "sourceFile": "placements-source.json"
+  },
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "axes": {
+    "up": "+Z",
+    "east": "+X",
+    "north": "+Y",
+    "front": null,
+    "units": "meters",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "gltfAxes": {
+    "up": "+Y",
+    "toZUp": "rotateX(+PI/2)"
+  },
+  "facadeBearingDeg": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -55.46194076538086,
+      -48.67096710205078,
+      0.0
+    ],
+    "max": [
+      51.48655319213867,
+      33.84392547607422,
+      17.277942657470703
+    ]
+  },
+  "sizeM": [
+    106.94849395751953,
+    82.514892578125,
+    17.277942657470703
+  ],
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "glb": "near.glb",
+      "sha256": "59710ed325a83d1a2e3d272a5f254fcafd72b89b22311f9f06ddbb5b4315c7d1",
+      "glbSha256": "1321289954920ba86ecec76c64e26cdb04544496b0d6531b18484fb959f05281",
+      "strideBytes": 24,
+      "vertexCount": 39330,
+      "triangleCount": 13110,
+      "drawGroups": [
+        {
+          "component": "鐵道部主廳舍",
+          "name": "red",
+          "start": 0,
+          "count": 180,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鐵道部主廳舍",
+          "name": "stone",
+          "start": 180,
+          "count": 396,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鐵道部主廳舍",
+          "name": "white",
+          "start": 576,
+          "count": 5508,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鐵道部主廳舍",
+          "name": "glass",
+          "start": 6084,
+          "count": 4836,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "鐵道部主廳舍",
+          "name": "cream",
+          "start": 10920,
+          "count": 19776,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鐵道部主廳舍",
+          "name": "dark",
+          "start": 30696,
+          "count": 6078,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鐵道部主廳舍",
+          "name": "brown",
+          "start": 36774,
+          "count": 1008,
+          "color": [
+            0.31398871541023254,
+            0.23074005544185638,
+            0.177888423204422
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "八角樓",
+          "name": "cream",
+          "start": 37782,
+          "count": 948,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "八角樓",
+          "name": "dark",
+          "start": 38730,
+          "count": 312,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "八角樓",
+          "name": "glass",
+          "start": 39042,
+          "count": 288,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        }
+      ],
+      "byteLength": 943920
+    },
+    "far": {
+      "file": "far.mesh.bin",
+      "glb": "far.glb",
+      "sha256": "86573ea6f27dbd4df40e63e05164dec35725e6140c4b207e26173b546faec626",
+      "glbSha256": "929f665aab5b728c674882cc815d2b0b8d37b2ab12724e2adfa855eeff1411a6",
+      "strideBytes": 24,
+      "vertexCount": 22350,
+      "triangleCount": 7450,
+      "drawGroups": [
+        {
+          "component": "鐵道部主廳舍",
+          "name": "red",
+          "start": 0,
+          "count": 180,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鐵道部主廳舍",
+          "name": "stone",
+          "start": 180,
+          "count": 396,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鐵道部主廳舍",
+          "name": "white",
+          "start": 576,
+          "count": 612,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鐵道部主廳舍",
+          "name": "glass",
+          "start": 1188,
+          "count": 4836,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "鐵道部主廳舍",
+          "name": "cream",
+          "start": 6024,
+          "count": 10848,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鐵道部主廳舍",
+          "name": "dark",
+          "start": 16872,
+          "count": 3498,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鐵道部主廳舍",
+          "name": "brown",
+          "start": 20370,
+          "count": 1008,
+          "color": [
+            0.31398871541023254,
+            0.23074005544185638,
+            0.177888423204422
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "八角樓",
+          "name": "cream",
+          "start": 21378,
+          "count": 372,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "八角樓",
+          "name": "dark",
+          "start": 21750,
+          "count": 312,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "八角樓",
+          "name": "glass",
+          "start": 22062,
+          "count": 288,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        }
+      ],
+      "byteLength": 536400
+    }
+  },
+  "nativeObjectCount": 1239,
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "modelUse": "map-exterior",
+  "components": [
+    {
+      "id": "鐵道部主廳舍",
+      "name": "鐵道部主廳舍",
+      "placementStatus": "footprint-axis-calibrated",
+      "anchor": [
+        121.51114807230208,
+        25.048777615862058
+      ],
+      "rotationDeg": 44.25,
+      "scaleXY": [
+        1.551556489282011,
+        0.7901765639672843
+      ],
+      "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+      "facadeBearingDeg": null
+    },
+    {
+      "id": "八角樓",
+      "name": "八角樓",
+      "placementStatus": "footprint-axis-calibrated",
+      "anchor": [
+        121.51089562164756,
+        25.04900428850892
+      ],
+      "rotationDeg": 161.0,
+      "scaleXY": [
+        0.7614972472971787,
+        0.7557718957462659
+      ],
+      "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+      "facadeBearingDeg": null
+    }
+  ],
+  "mapEligible": true
+}

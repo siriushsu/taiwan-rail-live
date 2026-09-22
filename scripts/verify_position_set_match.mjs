@@ -23,7 +23,7 @@ await p.goto(URL, { waitUntil: 'domcontentloaded' });
 await p.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 90000 });
 await p.evaluate(() => { const g = GROUPS.find(x => (x.members || []).includes('mrt')); if (g) selectGroup(g); });
 await p.waitForTimeout(2500);
-await p.evaluate(() => map.fitBounds([[24.90, 121.30], [25.25, 121.75]], { animate: false }));
+await p.evaluate(() => window.__map.fitBounds([[24.90, 121.30], [25.25, 121.75]], { animate: false }));
 await p.waitForTimeout(2500);
 let totalOff = 0, totalMatched = 0;
 for (let r = 0; r < ROUNDS; r++) {

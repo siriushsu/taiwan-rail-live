@@ -44,7 +44,7 @@ final class MetroWidgetPlate {
     enum Hero { MINUTES, ARRIVING, TEXT, NONE }
 
     /** header 右邊那顆狀態 chip。 */
-    enum Chip { LIVE, RECONNECT, LAST, ALERT, PASS, PLAIN }
+    enum Chip { LIVE, RECONNECT, LAST, ALERT, PASS, PLAIN, AUTO_STALE }
 
     /** 主角與註腳的顏色語意。紅只給真異常。 */
     enum Tone { INK, OK, WARN, BAD, FAINT }
@@ -108,6 +108,13 @@ final class MetroWidgetPlate {
         String alertTitle;       // 營運通阻公告（status != 1）
         boolean alertFromOperator;  // true＝營運方公告 ⇒ 紅；false＝本站觀測 ⇒ 琥珀
         boolean passLimited;     // 免費版：這一格是唯一可用的那站
+        /**
+         * 自動選站：這一輪沒拿到新鮮定位，站名是【上次】解析出來的。
+         * 🔴 一定要在卡面看得出來。不標示的話，退化狀態與正常狀態長得一模一樣，
+         *    使用者只會覺得「自動選站壞了」而無從分辨（iOS 側 2026-08-30 回報的同一件事，
+         *    那邊的做法是站名旁邊的小徽章改口說「上次位置」）。
+         */
+        boolean autoStale;
         String prevStation;
         String nextStation;
         double nowEpochSec;
@@ -227,6 +234,14 @@ final class MetroWidgetPlate {
                 p.chip = Chip.LIVE; p.chipText = "LIVE"; p.stamp = hhmm(in.dataAtEpochSec);
                 p.footLeft = nextText(in.secondMinutes, in.secondApprox, in.thirdMinutes, in.thirdApprox, tx);
                 p.footRight = crowdWord(in.crowd, tx);
+        }
+
+        // 退快取標示。🔴 只在 chip 本來是 LIVE（＝這一格此刻沒有更急的話要說）時讓位：
+        //    營運異常／重新連線／末班／通行證都比「位置是上次的」更需要那個位置，
+        //    蓋掉它們會讓真異常消失。文案與 iOS 的自動選站徽章逐字相同（MetroBoardWidget.autoBadge）。
+        if (in.autoStale && p.chip == Chip.LIVE) {
+            p.chip = Chip.AUTO_STALE;
+            p.chipText = tx.text("上次位置");
         }
 
         // 看板那一列的第二、三個數字。設計稿把單位提到註腳（「單位分鐘」）⇒ 這裡只放數字。

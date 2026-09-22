@@ -85,6 +85,14 @@ const VALID = {
           { name: '屏東', at: Math.floor(Date.now() / 1000) + 2040 }],
   staMap: { 5050: 1 }, stopCodes: ['5050', '5000'],
 };
+const VALID_HANDOFF = {
+  sourceIndex: 1, sourceAt: Math.floor(Date.now() / 1000) + 500, sourceCode: '5000',
+  sys: 'thsr_sched', trainNo: '0841', kind: '高鐵', color: '#f05a28', terminus: '左營',
+  transferStop: '板橋', waitUntil: Math.floor(Date.now() / 1000) + 900,
+  stops: [{ name: '板橋', at: Math.floor(Date.now() / 1000) + 900 },
+          { name: '台北', at: Math.floor(Date.now() / 1000) + 1500 }],
+  staMap: {}, stopCodes: ['', ''],
+};
 
 // ── 測試旁路的閘門必須【兩側都驗】,否則旗標機制一改,轉紅的會是散落各處的前置條件 ──
 // B0 正向:旁路開著時,正確的 bearer 進得來(這條同時是 B1/B2 的正向對照)
@@ -122,6 +130,28 @@ const VALID = {
   const far = { ...VALID, stops: VALID.stops.map(s => ({ ...s, at: s.at + 86400 * 2 })) };
   const r = await post('/api/la/bind', far, AUTH);
   ok('B6 at 離現在太遠被拒', r.status === 400, `HTTP ${r.status}`);
+}
+// B15–B18 跨車交棒契約：不能只驗 worker 迴圈讀得到手工塞進 D1 的 JSON；真正的 /bind
+// 必須會驗證、保存，也必須能在使用者取消釘選時用同 token 重綁清掉舊計畫。
+{
+  const token = 'cd'.repeat(32);
+  const r = await post('/api/la/bind', { ...VALID, token, handoff: VALID_HANDOFF }, AUTH);
+  ok('B15 合法的跨車 handoff bind → 200', r.status === 200, `HTTP ${r.status}`);
+  const row = d1FirstRow(`SELECT journey_state FROM la_bindings WHERE token='${token}'`);
+  let journey = null;
+  try { journey = row && JSON.parse(row.journey_state || 'null'); } catch (e) {}
+  ok('B16 handoff 確實存進 D1，phase=planned 且目標是高鐵 0841',
+    !!journey && journey.phase === 'planned' && journey.target
+      && journey.target.sys === 'thsr_sched' && journey.target.trainNo === '0841', JSON.stringify(journey));
+  const bad = await post('/api/la/bind', {
+    ...VALID, token: 'ce'.repeat(32), handoff: { ...VALID_HANDOFF, sourceIndex: 99 },
+  }, AUTH);
+  ok('B17 handoff 的來源站索引超出來源 stops 時被拒', bad.status === 400, `HTTP ${bad.status}`);
+  const clear = await post('/api/la/bind', { ...VALID, token }, AUTH);
+  const cleared = d1FirstRow(`SELECT journey_state FROM la_bindings WHERE token='${token}'`);
+  ok('B18 同 token 取消釘選後重綁會清掉 journey_state（不會背景誤切到舊班次）',
+    clear.status === 200 && !!cleared && cleared.journey_state == null,
+    `HTTP ${clear.status} journey_state=${cleared && cleared.journey_state}`);
 }
 // B9 stops 序列化超過大小上限 → 400(筆數上限只界定陣列長度,單一欄位仍可能被塞爆;
 // 只改 name 長度,shape/count/時間範圍都維持合法,隔離出「只有大小上限這條斷言」在擋)

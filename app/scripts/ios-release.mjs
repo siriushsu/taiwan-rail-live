@@ -52,6 +52,24 @@ console.log(`  落後    origin/main ${behind} 顆${behind !== '0' ? '  ⚠️ �
 const dirty = cap('git', ['status', '--porcelain'], { cwd: repoRoot }).split('\n').filter(Boolean);
 console.log(`  未提交  ${dirty.length} 個路徑${dirty.length ? `\n${dirty.slice(0, 12).map(l => `          ${l}`).join('\n')}` : ''}`);
 
+// iOS 現在同時承載 iPhone、iPad 與完整的軌道轉公車旅程。這兩支瀏覽器矩陣若只放在
+// package.json 等人手動想起來，正式 archive 仍可能在版面或原生橋接已壞時一路綠到底。
+// 固定放進唯一出檔指令，讓每顆 iOS build 都先驗真實觸控、WebKit 與旅程分享生命週期。
+console.log('\n  ▸ iPhone／iPad 與轉乘旅程驗收');
+sh('npm', ['run', 'check-tablet'], { cwd: repoRoot });
+sh('npm', ['run', 'check-app-message-pitch'], { cwd: repoRoot });
+sh('npm', ['run', 'check-bus-transfer'], { cwd: repoRoot });
+sh('npm', ['run', 'check-transfer-live-handoff'], { cwd: repoRoot });
+sh('npm', ['run', 'check-live-activity'], { cwd: repoRoot });
+sh('npm', ['run', 'check-tymc-kind'], { cwd: repoRoot });
+// PLUS_ENABLED 的形狀閘門本來只活在 prepare-web 裡(assertAndroidPlusGate),沒有正向對照,
+// 期望值過期了一整天沒人發現。這支帶兩個負樣本(改寫 gate 那行／在它後面插一條原生一律通過的
+// 分支),掛在這裡讓每顆 iOS build 先證明「該紅的時候真的會紅」。
+sh('npm', ['run', 'check-android-plus-gate'], { cwd: repoRoot });
+// 原生多語(小工具／動態島字串目錄、權限說明 InfoPlist)此前只在 package.json,沒有任何出檔流程會跑;
+// 2026-09-19 抓到權限說明缺繁中(中文系統顯示英文)、英日文停在舊版隱私說法,掛這裡讓每顆 iOS build 先驗。
+sh('npm', ['run', 'check-native-localizations'], { cwd: repoRoot });
+
 // ── 2／6　版號、更新了什麼、www、cap sync、發行閘門 ────────────────────────────
 // set-release-mode 自己會做：version train 實查、出貨基線涵蓋檢查、pbxproj 寫入＋回讀、
 // prepare-web、cap sync、npm run verify。這裡不重做它做過的事。

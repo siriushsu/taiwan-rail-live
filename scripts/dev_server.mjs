@@ -22,7 +22,28 @@ const worker = (await import(path.join(ROOT, 'worker.js'))).default;
 
 // 副檔名不在表裡=一律 404(見下方 !type)。字型漏了會讓 assets/fonts/rail-emoji.woff2 在本機
 // 靜默 404、圖示掉回系統 emoji,本機看到的畫面與正式站不一樣(2026-07-29 由 verify_redesign 抓到)。
-const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf' };
+// 🔴 '.gz' 少了這一條時,車庫素材(*.bin.gz)一律 404 ⇒ check-garage 那 11 支閘門全部結構上跑不起來
+// (loadGarageModel 在第一個 fetch 就拋 'model mesh')。不設 content-encoding 是刻意的:載入器自己
+// 用 DecompressionStream／fflate 解壓,瀏覽器先解一次會讓長度檢查改抛 'model size'。
+const MIME = { '.bin':'application/octet-stream', '.gz':'application/gzip', '.webp':'image/webp', '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.geojson': 'application/geo+json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.tsv': 'text/tab-separated-values' };
+
+// env.ASSETS 替身。正式環境是 Cloudflare 的 assets binding;本機沒有它的話,任何用
+// env.ASSETS.fetch 讀靜態產物的端點(公車站牌索引、公車轉乘索引)在本機一律 503——
+// 而那看起來就像功能壞了,不像環境沒配好。只讀 repo 內的檔,路徑一律夾在 ROOT 底下。
+const devAssets = {
+  async fetch(request) {
+    const p = new URL(request.url).pathname;
+    const fp = path.resolve(path.join(ROOT, decodeURIComponent(p)));
+    if (path.relative(ROOT, fp).startsWith('..') || !existsSync(fp) || statSync(fp).isDirectory()) return new Response('not found', { status: 404 });
+    return new Response(readFileSync(fp), { headers: { 'content-type': MIME[path.extname(fp)] || 'application/octet-stream' } });
+  },
+};
+// process.env 是普通物件,展開它會把幾百個環境變數複製一份;用 Proxy 讓 env.XXX 直接落到
+// process.env,同時補上 ASSETS。
+const workerEnv = new Proxy({ ASSETS: devAssets }, {
+  get: (target, key) => (key in target ? target[key] : process.env[key]),
+  has: (target, key) => key in target || key in process.env,
+});
 
 createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
@@ -34,7 +55,7 @@ createServer(async (req, res) => {
       req.on('end', () => resolve(Buffer.concat(chunks)));
       req.on('error', reject);
     });
-    const resp = await worker.fetch(new Request('https://localhost' + req.url, { method, headers: req.headers, body }), process.env); // https:worker 對 http 一律 301,本機直連要繞過
+    const resp = await worker.fetch(new Request('https://localhost' + req.url, { method, headers: req.headers, body }), workerEnv); // https:worker 對 http 一律 301,本機直連要繞過
     res.statusCode = resp.status;
     resp.headers.forEach((v, k) => res.setHeader(k, v));
     return res.end(Buffer.from(await resp.arrayBuffer()));
@@ -59,5 +80,8 @@ createServer(async (req, res) => {
   const type = MIME[path.extname(fp)];
   if (outsideRoot() || !type || !existsSync(fp)) { res.statusCode = 404; return res.end('not found'); }
   res.setHeader('content-type', type);
-  res.end(readFileSync(fp));
+  const data = readFileSync(fp), range = /^bytes=(\d+)-(\d*)$/.exec(req.headers.range || '');
+  res.setHeader('Accept-Ranges','bytes');
+  if(range){const start=Number(range[1]),end=Math.min(data.length-1,range[2]?Number(range[2]):data.length-1);if(start>end||start>=data.length){res.statusCode=416;return res.end();}res.statusCode=206;res.setHeader('Content-Range',`bytes ${start}-${end}/${data.length}`);res.setHeader('Content-Length',end-start+1);return res.end(data.subarray(start,end+1));}
+  res.end(data);
 }).listen(PORT, '127.0.0.1', () => console.log(`dev server http://127.0.0.1:${PORT}`));

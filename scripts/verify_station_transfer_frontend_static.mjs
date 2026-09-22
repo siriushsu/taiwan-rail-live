@@ -231,8 +231,10 @@ check('台鐵異名共構與同系統多線都已寫進轉乘表', () => {
 check('兩個落點的接線都在，舊落點已拆乾淨', () => {
   // 落點 A：看板站況區。stnMetaHtml 是兩條看板路徑（台鐵/高鐵、捷運/林鐵）共用的同一個函式，
   // 所以只要驗它有叫 transferMetaHtml，四個系統就都吃得到。
-  assert.match(html, /function stnMetaHtml\(st\)[\s\S]{0,900}?transferMetaHtml\(st\)/);
-  assert.equal((html.match(/stnMetaHtml\(st\)/g) || []).length, 3, '看板路徑數（1 個定義＋2 個呼叫）變了，共用前提要重新確認');
+  // omitMap 是同一站資訊組裝器的顯示選項，不改第一個 st 參數與轉乘標的接線語意。
+  assert.match(html, /function stnMetaHtml\(st(?:,\s*[^)]*)?\)[\s\S]{0,900}?transferMetaHtml\(st\)/);
+  assert.equal((html.match(/stnMetaHtml\(st\)/g) || []).length, 2, '兩條完整站況看板呼叫路徑變了，共用前提要重新確認');
+  assert.equal((html.match(/stnMetaHtml\(st,\s*true\)/g) || []).length, 1, '原生精簡看板的 omitMap 呼叫路徑變了');
   assert.match(html, /\.board \.stnMeta \.xfer \{/);
   // 落點 B：兩張跟隨卡的「下一站」各有一顆標，且都真的被填。
   for (const id of ['fpXfer', 'fcXfer']) {

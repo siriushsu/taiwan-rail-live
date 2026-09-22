@@ -18,4 +18,5 @@
     <string name="rail_widget_large_description">接下來八班，一整面發車看板</string>
     <string name="mixed_widget_name">鐵路＋捷運雙看板</string>
     <string name="mixed_widget_description">同一張卡查看台鐵或高鐵發車與捷運進站倒數</string>
+    <string name="widget_loading">更新中…</string>
 </resources>

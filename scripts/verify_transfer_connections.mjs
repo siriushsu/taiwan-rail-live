@@ -172,8 +172,9 @@ const mFull = html.match(/const XFER_WINDOW_SEC[\s\S]*?\nfunction transferConnec
 // 就是 .xfer-conn,包兩層等於兩圈框線),所以具名閘門改認三個永遠會出現的結構性 class:
 // xfc-h(標題)/xfc-row(可點的列)/xfc-f(表定註腳)。判準沒有放寬——三個同時比對比原本
 // 一個 xfer-conn 更難巧合命中,且都是這個函式獨有的字樣。
-ok('G15 抽出的原始碼含 xfc-h/xfc-row/xfc-f(具名閘門,防抽到舊版/空字串)',
-   !!mFull && /xfc-h/.test(mFull[0]) && /xfc-row/.test(mFull[0]) && /xfc-f/.test(mFull[0]));
+ok('G15 抽出的原始碼含 xfc-h/xfc-row/xfc-f/xfc-t(具名閘門,防抽到舊版/空字串)',
+   !!mFull && /xfc-h/.test(mFull[0]) && /xfc-row/.test(mFull[0]) && /xfc-f/.test(mFull[0]) &&
+   /xfc-t/.test(mFull[0]) && /xferOpen/.test(mFull[0]));
 if (!mFull) { console.log(`\n${fails} 項未過`); process.exit(1); }
 
 // stub 只求最小、夠撐起結構與分支判斷,不求譯文正確(譯文由 check_i18n.mjs 另外把關):
@@ -182,11 +183,59 @@ const hEscHtml = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':
 const hFmtHM = sec => { sec = ((sec % 86400) + 86400) % 86400; return String(Math.floor(sec / 3600)).padStart(2, '0') + ':' + String(Math.floor(sec % 3600 / 60)).padStart(2, '0'); };
 const hT = (source, vars = {}) => String(source == null ? '' : source).replace(/\{([\w]+)\}/g, (_, k) => (vars[k] == null ? '' : String(vars[k])));
 const hI18nNumber = v => String(v);
+// 2026-09-19（93f11e6b）：對向終點站名改走 stationName(r.de, XFER_SYS_CATALOG[r.sys]) 換英日文官方譯名；
+// 與 t 同一原則——繁中原字照出，譯名正確與否由 check_i18n／i18n sweep 另外把關。
+const hStationName = name => String(name == null ? '' : name);
 const hState = { transferDepartures: data, xferPin: null };
-const transferConnectionHtml = new Function(
-  'state', 't', 'escHtml', 'fmtHM', 'i18nNumber',
-  `${mFull[0]}\n; return transferConnectionHtml;`
-)(hState, hT, hEscHtml, hFmtHM, hI18nNumber);
+// 抽出的那一段現在也含 xferOpen/setXferOpen(展開收合狀態,2026-09-11)。兩者都是生產碼本尊:
+// xferOpen 的初值讀 localStorage,在 node 裡 ReferenceError 被它自己的 try/catch 吃掉 ⇒ 回 false
+// (＝預設收合,與瀏覽器上全新 profile 同一個結果);setXferOpen 會呼叫 refreshXferConns(),
+// 那是 DOM 端的事,沙箱注入一個 no-op 讓它可以被呼叫。
+const box = new Function(
+  'state', 't', 'escHtml', 'fmtHM', 'i18nNumber', 'refreshXferConns', 'stationName',
+  `${mFull[0]}\n; return { transferConnectionHtml, setXferOpen, xferOpen: () => xferOpen };`
+)(hState, hT, hEscHtml, hFmtHM, hI18nNumber, () => {}, hStationName);
+const transferConnectionHtml = box.transferConnectionHtml;
+
+// ── G25 —— 展開/收合(2026-09-11 使用者:「資訊卡需要整理一下,轉乘要能夠收起來,否則太長了」) ──
+// 收合態**只有**標題那顆 toggle:沒有列、沒有註腳、沒有取消釘選鈕。
+// 🔴 反向對照就寫在同一組裡——收合不等於把答案藏起來:.xfc-sum 那一行必須印出最近一班的
+//    車次與「剩 N 分」,而且要與展開後第一列逐字相同(防「收合時顯示的是另一班車」這種
+//    只有兩個狀態對照才看得出來的缺陷)。
+ok('G25pre 沙箱預設收合(localStorage 取不到 ⇒ 走 catch 回 false,與瀏覽器全新 profile 同結果)',
+   box.xferOpen() === false);
+const closedHtml = transferConnectionHtml(GID_TAICHUNG, S(15, 38), 'TRA');
+ok('G25 收合態只有 toggle(無 xfc-row / xfc-f / xfc-unpin)',
+   /class="xfc-t"/.test(closedHtml) && !/xfc-row/.test(closedHtml) &&
+   !/xfc-f/.test(closedHtml) && !/xfc-unpin/.test(closedHtml), closedHtml.slice(0, 90));
+ok('G25b 收合態 aria-expanded=false 且箭頭是 ▸',
+   /aria-expanded="false"/.test(closedHtml) && /▸/.test(closedHtml));
+ok('G25c 收合態仍留著原本的標題(xfc-h 沒有被 toggle 取代掉)',
+   /<span class="xfc-h">轉高鐵 · 你到站時<\/span>/.test(closedHtml));
+const sumTxt = (closedHtml.match(/<span class="xfc-sum">([^<]*)</) || [])[1] || '';
+ok('G25d 收合態那一行答案印出車次與「剩 N 分」(答案沒有被藏起來)',
+   /^\d+ · 剩 \d+ 分$/.test(sumTxt), sumTxt);
+// 混系統:標題是中性的,那一行答案不標系統名就分不出是哪一家
+const closedMixed = transferConnectionHtml(GID_TAICHUNG, S(6, 2), null);
+const sumMixed = (closedMixed.match(/<span class="xfc-sum">([^<]*)</) || [])[1] || '';
+ok('G25e 混系統收合態那一行答案要標系統名(標題中性,不標就不知道是哪一家)',
+   /^(台鐵|高鐵|阿里山林鐵|桃園機捷|高雄捷運) · /.test(sumMixed), sumMixed);
+// 沒有官方車次的捷運(機捷/高捷):r.n 恆為空,改印發車時刻,不留一個只有「剩 N 分」的裸行
+const closedMetro = transferConnectionHtml('T-THSR-1020', S(8, 0), 'THSR');
+const sumMetro = (closedMetro.match(/<span class="xfc-sum">([^<]*)</) || [])[1] || '';
+ok('G25f 沒有官方車次的捷運:收合那一行改印發車時刻(不是只剩「剩 N 分」)',
+   /^\d\d:\d\d · 剩 \d+ 分$/.test(sumMetro), sumMetro);
+// 展開:以下所有既有斷言量的都是展開態的列
+box.setXferOpen(true);
+ok('G25g setXferOpen(true) 之後是展開態', box.xferOpen() === true);
+const openedHtml = transferConnectionHtml(GID_TAICHUNG, S(15, 38), 'TRA');
+ok('G25h 展開態 aria-expanded=true 且箭頭是 ▾',
+   /aria-expanded="true"/.test(openedHtml) && /▾/.test(openedHtml));
+ok('G25i 展開態不印那一行答案(與第一列重複就是雜訊)', !/xfc-sum/.test(openedHtml));
+const firstNo = (openedHtml.match(/<span class="xfc-no">([^<]*)</) || [])[1];
+const firstLeft = (openedHtml.match(/<span class="xfc-left">([^<]*)</) || [])[1];
+ok('G25j 收合那一行 = 展開後第一列的車次與剩 N 分(跨狀態是同一班車)',
+   !!firstNo && sumTxt === `${firstNo} · ${firstLeft}`, `${sumTxt} vs ${firstNo} · ${firstLeft}`);
 
 // G16 —— 無接續回空字串,不留空殼(打死突變6:把 '' 換成 <div class="xfer-conn"></div>)。
 // 沿用 G2d 已驗過的窗:凌晨 2 點,台中群排除台鐵後窗內無車。
@@ -200,13 +249,23 @@ ok('G16 無接續回空字串、連一個 xfc-* 片段都沒有', emptyHtml === 
 ok('G16b 回傳字串不自帶 .xfer-conn 外框(否則與容器疊成雙框)',
    !/class="xfer-conn"/.test(transferConnectionHtml(GID_TAICHUNG, S(15, 38), 'TRA')));
 
-// G17 —— 跨午夜時刻不會印成 25:10。真實資料(非人造):T-KRTC-R16 23:37 查詢,第二筆 sec=87120
-// (24:12 raw)在窗內且入選前二。⚠️ 這條驗的是「輸出恆在 00:00–23:59」這個最終不變量,不是
+// G17 —— 跨午夜時刻不會印成 25:10。真實資料(非人造):T-KRTC-R16(左營)營運日 24:01 查詢,
+// 前二列都是 sec>86400 的跨午夜班次。
+// 🔴 這條的前提是「入選前二列真的有跨午夜的班次」,不成立時下面那個「不出現 24:-29:」就變成
+// 恆真、零訊號。原本用 23:37 查詢,靠的是第二筆 TRA 281(sec=87120);2026-09-10 高捷納入接續表
+// 之後,23:40／23:48 兩班高捷把它擠出前二 —— G17 照樣綠,但一個跨午夜的值都沒印出來過。
+// 所以前提改寫成具名斷言 G17pre,判準本身也不再依賴「哪些系統在表裡」這種會變的東西。
+// ⚠️ 這條驗的是「輸出恆在 00:00–23:59」這個最終不變量,不是
 // 呼叫端 `fmtHM(r.sec % 86400)` 那個 `% 86400` 運算子本身——fmtHM 內部已有等價 modulo,
 // 對任何 x,`fmtHM(x % 86400) === fmtHM(x)` 恆成立(模一次或模兩次結果相同,可證明的無操作),
 // 移除呼叫端那個 `% 86400` 不會改變任何輸出,黑箱測試分辨不出來,因此保留現狀不動它(選項a,
 // 與其餘 20 幾處呼叫端一致)。這條斷言真正防的是更根本的回歸——fmtHM 自己的內部 modulo 被拿掉。
-const crossMidnight = transferConnectionHtml('T-KRTC-R16', S(23, 37), null);
+const AT_MIDNIGHT = S(24, 1);   // 營運日的隔日 00:01,秒值仍在同一天的軸上(>86400)
+const midRows = transferConnections('T-KRTC-R16', AT_MIDNIGHT, null).slice(0, 2);
+ok('G17pre 左營群 24:01 入選的前二列真的都是跨午夜班次(前提不成立 ⇒ G17 恆真)',
+   midRows.length === 2 && midRows.every(x => x.sec > 86400),
+   midRows.map(x => `${x.sys}/${x.n || '(無車次)'}@${x.sec}`).join('、'));
+const crossMidnight = transferConnectionHtml('T-KRTC-R16', AT_MIDNIGHT, null);
 ok('G17 跨午夜輸出恆在 00:00–23:59(不出現 2[4-9]:)',
    /\b([01]\d|2[0-3]):[0-5]\d\b/.test(crossMidnight) && !/\b2[4-9]:/.test(crossMidnight),
    (crossMidnight.match(/\d\d:\d\d/g) || []).join(','));
@@ -234,7 +293,10 @@ ok('G19c 混系統:兩列小標不同', sysTags.length === 2 && sysTags[0] !== s
 // g 必須帶且要等於這裡查詢用的 GID_TAICHUNG——2026-09-01 修復輪1 Finding A 之後
 // pinned 判斷式多比對一個 g===groupId,這個 stub 若不帶 g 會恆假、G20/G20b 恆紅
 // (與生產碼邏輯無關,純粹是這份 sandbox fixture 沒跟著新 shape 更新)。
-hState.xferPin = { g: GID_TAICHUNG, n: r1[0].n, sys: r1[0].sys };
+// 2026-09-10 起 pinned 比對的是 xferPin.key(xferRowKey:有車次就是車次,沒有的用
+// 「發車秒|終點站」)。這個 stub 照 setXferPin 沒帶 key 時的退路填 key: n——高鐵有車次,
+// 兩者本來就相同;不填 key 會恆假、G20/G20b 恆紅,與生產碼邏輯無關。
+hState.xferPin = { g: GID_TAICHUNG, n: r1[0].n, sys: r1[0].sys, key: r1[0].n };
 const pinnedHtml = transferConnectionHtml(GID_TAICHUNG, S(15, 38), 'TRA');
 hState.xferPin = null;
 ok('G20 釘選:標題是「你的接續班次」', /你的接續班次/.test(pinnedHtml));
@@ -263,6 +325,45 @@ const footRe = /<span class="xfc-f">表定時刻 · 未計站內步行<\/span>/;
 ok('G22 同系統形態帶「表定時刻 · 未計站內步行」註腳', footRe.test(sameSysHtml));
 ok('G22b 混系統形態也帶', footRe.test(mixedHtml));
 ok('G22c 釘選形態也帶', footRe.test(pinnedHtml));
+
+// ── G23 —— 沒有車次的系統(機捷/高捷)那一列的畫面形狀 ───────────────────────────
+// 車次欄只放官方公告的車次,捷運沒有 ⇒ 整欄消失(使用者裁示:不准拿線代號或內部合成編號
+// 頂替),改在時刻後面標官方車種。反向對照寫在同一格:台鐵/高鐵那一列必須【仍然】有車次欄、
+// 且不帶車種前綴——本批只動「沒有車次」那一支,有車次的輸出要逐字不變。
+const tymcHtml = transferConnectionHtml('T-THSR-1020', S(8, 0), 'THSR');
+ok('G23pre 高鐵桃園群(T-THSR-1020)查得到機捷接續', /class="xfc-row"/.test(tymcHtml),
+   (tymcHtml.match(/data-xs="([^"]*)"/g) || []).join(','));
+ok('G23 機捷列沒有車次欄(.xfc-no 整個不渲染)', !/xfc-no/.test(tymcHtml),
+   (tymcHtml.match(/<span class="xfc-no">([^<]*)</) || [])[1]);
+ok('G23b 機捷列標得出官方車種(直達車/普通車・往…)', /(直達車|普通車)・往/.test(tymcHtml),
+   (tymcHtml.match(/<span class="xfc-d">([^<]*)</) || [])[1]);
+ok('G23c 反向對照:高鐵那一列仍有車次欄、且沒有車種前綴(有車次的分支不得被動到)',
+   /xfc-no/.test(sameSysHtml) && !/・往/.test(sameSysHtml),
+   (sameSysHtml.match(/<span class="xfc-d">([^<]*)</) || [])[1]);
+
+// ── G24 —— 沒有車次時,釘選要靠發車秒消歧 ──────────────────────────────────────
+// 同一系統每一列的 data-xn 都是空字串,pinned 比對式若只認 n+sys,點第二列會收斂到第一列
+// (畫面上「點了下面那班,留下的卻是上面那班」)。這裡直接把 xferPin 指到第二班,要求留下的
+// 就是第二班。拿掉 index.html 那個 `(r.n !== '' || r.sec === state.xferPin.sec)` 會在這裡轉紅。
+const tyRows = transferConnections('T-THSR-1020', S(8, 0), 'THSR');
+const tyKeys = [...tymcHtml.matchAll(/data-xk="([^"]*)"/g)].map(m => m[1]);
+ok('G24pre 前二班機捷都沒有車次,而 data-xk 分得開它們(消歧才有意義)',
+   tyRows.length >= 2 && tyRows[0].n === '' && tyRows[1].n === '' &&
+   tyKeys.length === 2 && tyKeys[0] !== tyKeys[1],
+   `${tyRows.slice(0, 2).map(r => `往${r.de}@${r.sec}`).join('、')} key=${tyKeys.join(' / ')}`);
+// 🔴 高鐵桃園是雙向都停的中間站:實測前二班機捷【同一秒發車、方向相反】。只拿發車秒當身分
+// 會把往台北那班認成往老街溪那班,所以 xferRowKey 一定要含終點站。這條就是那個實例。
+ok('G24pre2 這一組正是「同秒發車、方向相反」的實例(只比秒會認錯的那個坑)',
+   tyRows.length >= 2 && tyRows[0].sec === tyRows[1].sec && tyRows[0].de !== tyRows[1].de,
+   tyRows.slice(0, 2).map(r => `往${r.de}@${r.sec}`).join('、'));
+// 釘選走的路徑與真實點擊一致:點擊處理器讀的就是這一列的 data-xk(index.html 的 click 委派)。
+hState.xferPin = { g: 'T-THSR-1020', n: tyRows[1].n, sys: tyRows[1].sys, sec: tyRows[1].sec, key: tyKeys[1] };
+const pinned2 = transferConnectionHtml('T-THSR-1020', S(8, 0), 'THSR');
+hState.xferPin = null;
+const leftKeys = [...pinned2.matchAll(/data-xk="([^"]*)"/g)].map(m => m[1]);
+ok('G24 釘第二班機捷,留下的就是第二班(身分退回只認車次或只認秒都會收斂成第一班)',
+   leftKeys.length === 1 && leftKeys[0] === tyKeys[1],
+   `留下 ${leftKeys.join(',')} / 期望 ${tyKeys[1]}`);
 
 console.log(fails ? `\n${fails} 項未過` : '\n全部通過');
 process.exit(fails ? 1 : 0);

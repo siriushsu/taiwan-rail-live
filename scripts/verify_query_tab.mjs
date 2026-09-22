@@ -1,0 +1,1059 @@
+// 查詢分頁（2026-09-06 spec §7）驗收：chromium＋webkit、手機視窗、真觸控。
+// 用法：node scripts/verify_query_tab.mjs [目標目錄]   ENGINES=chromium 只跑一個引擎
+// QT_ONLY='G11|G13' npm run check-query-tab 只跑段名命中這個正則的段落（省紅跑時間；G0 是量對樹的守門，不在 sections 陣列裡，永遠不被篩掉）。
+// QUERY_SECTION（origin/main 09-07 另外加的前綴篩選）併進來後視同 QT_ONLY：同一條路、同樣 exit 2。
+// 出貨鏈的 preflight（ship_web.mjs）主動把 QT_ONLY 洗成空字串，仍是全跑；QT_ONLY 有值時本檔結尾一律 exitCode 2，篩選跑不可能被任何鏈當成通過。
+// 每一段判準都寫「使用者看得到的行為」，並在 spec §7 對應一條「牙」（突變必紅）。
+// 修正波 C：boot() 把模擬時鐘釘死在 09:41——這支閘門掛在 ship_web.mjs 的出貨 preflight，
+// 若拿真實牆鐘當「現在」，過午夜後全線無班次會讓「找得到答案列/看板列」這類判準集體假紅
+// （反向證據：2026-09-07 01:03 深夜實跑 225 PASS／14 FAIL，
+// chromium/webkit 各 7 條一模一樣：G3b 臺北／東門、G4、G17a/b/c、G17 執行例外；
+// 同一份 index.html／harness 在前一晚 23:5x 跑是 245/245）——
+// 屬三種紅的原因裡的「環境條件」，修 harness 不修產品、不改期望值。09:41 只是任一個平日白天、
+// 有班次可看的時刻，數字本身沒有特殊意義。附帶修法：geomock 觸發的自動開門會在 boot() 釘鐘之前就用舊時刻
+// 渲染過一次答案區；之後要不要重畫是主迴圈在管（index.html tickCore 呼叫 renderQueryAnswer 那行：simSec 變了
+// 且距上次渲染 ≥1000ms 牆鐘才重畫），而 G4／G17 從釘鐘到讀值只等約 800ms，追不上。所以 boot() 釘鐘後順手把
+// state._queryRenderedAt／_queryRenderedWallAt 歸零，讓產品自己的節拍立刻重畫；G4／G17 讀值前再逼一次
+// renderQueryAnswer() 當保險（比照 G3b 慣例），同樣不改期望值。
+// 釘鐘統一走 pinClock()：boot() 開機後呼叫一次；page.reload() 會整個重建 realm、自建的桌面 context 又不經 boot()，
+// 這兩種頁面到達 state.ready 後也各呼叫一次——整支沒有「沒釘到」的頁面，之後在 reload 後加讀列數的斷言也不會深夜假紅。
+// 釘常數（不釘成 () => state.simSec）的有效期是單一 context 內 120 秒：simSec 以 1×（SCHED_K＝1、speedMult＝1）繼續走、
+// nowSecOfDay 停在 09:41，超過 120 秒後 index.html 那幾條 Math.abs(state.simSec - nowSecOfDay()) <= 120 的即時閘門會翻面；
+// 本檔最長的單頁停留是 G12 的 6 秒觀察，離上限很遠。不釘成 () => state.simSec 是因為那會讓差值恆為 0（同源自洽），閘門永遠量不到東西。
+import { chromium, webkit } from 'playwright';
+import { createServer } from 'node:http';
+import { readFileSync, existsSync, statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const SELF_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const ROOT = path.resolve(process.argv[2] || SELF_ROOT);
+// 多個 worktree 可以同時驗收；預設讓系統分配空閒埠，仍保留明示 PORT 的覆寫能力。
+const PORT = Number(process.env.PORT || 0);
+const ENGINES = (process.env.ENGINES || 'chromium,webkit').split(',');
+
+const results = [];
+const ok = (name, pass, detail = '') => {
+  results.push({ name, pass, detail });
+  console.log(`${pass ? 'PASS' : 'FAIL'} ${name}${detail ? ' — ' + detail : ''}`);
+};
+
+const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.webp': 'image/webp', '.woff2': 'font/woff2' };
+const server = createServer((req, res) => {
+  const url = new URL(req.url, 'http://x');
+  if (url.pathname.startsWith('/api/')) {
+    // 高鐵班表主來源是 /api/thsr-schedule（空物件會讓 fallback 永不啟動 ⇒ boot 卡死），吐打包的那份；其餘 API 一律空物件（離線）。
+    res.statusCode = 200; res.setHeader('content-type', 'application/json');
+    if (url.pathname === '/api/thsr-schedule') return res.end(readFileSync(path.join(ROOT, 'data/thsr_schedule_dense.json')));
+    return res.end('{}');
+  }
+  let fp = path.join(ROOT, decodeURIComponent(url.pathname));
+  if (existsSync(fp) && statSync(fp).isDirectory()) fp = path.join(fp, 'index.html');
+  if (!path.resolve(fp).startsWith(ROOT) || !existsSync(fp)) { res.statusCode = 404; return res.end('nf'); }
+  res.setHeader('content-type', MIME[path.extname(fp)] || 'application/octet-stream');
+  res.end(readFileSync(fp));
+});
+await new Promise((resolve,reject) => server.once('error',reject).listen(PORT,resolve));
+const BASE = `http://localhost:${server.address().port}/`;
+
+// G0：先證明「驗的是這棵樹」——多 worktree 並行，硬編埠號很容易連到別人的伺服器。
+{
+  const disk = createHash('md5').update(readFileSync(path.join(ROOT, 'index.html'))).digest('hex');
+  const served = createHash('md5').update(await (await fetch(BASE)).text()).digest('hex');
+  const build = (readFileSync(path.join(ROOT, 'index.html'), 'utf8').match(/const BUILD = '([^']+)'/) || [])[1];
+  ok(`G0 驗的是目標目錄（${ROOT}，BUILD ${build}，md5 ${disk.slice(0, 8)}）`, disk === served, `磁碟 ${disk.slice(0, 10)} / 伺服器 ${served.slice(0, 10)}`);
+  if (disk !== served) { server.close(); process.exit(1); }
+}
+
+/**
+ * 開機。opts：
+ *   width/height 視窗；query 網址參數（含 ?geomock=lat,lon&geoacc=…）；
+ *   howto=true 讓首訪教學卡出現（預設已看過）；storage 預先塞 localStorage；
+ *   app=true 假裝原生殼（IS_NATIVE_APP）；plugins 假裝 Capacitor plugins（{RailMetroWait:{}, RailWidget:{…}}）；
+ *   plugin 方法需要真的可呼叫時不能直接塞函式——addInitScript 的 arg 走序列化，函式值會被靜默丟掉
+ *   （實測：RailWidget:{pinSupported: async()=>{...}} 到瀏覽器端變成 {}）。改寫成 { pinSupported: { $result: {...} } }，
+ *   下面的 initScript 會把這種 { $result } 標記水合成真的回傳 Promise 的函式。
+ *   notify=true 注入本地提醒 mock（走 ?notifymock=1）。
+ */
+async function boot(browser, { width = 393, height = 852, query = '', howto = false, storage = {}, app = false, plugins = null, notify = false, platform = 'android' } = {}) {
+  const ctx = await browser.newContext({ viewport: { width, height }, hasTouch: true, isMobile: true, deviceScaleFactor: 2, locale: 'zh-TW' });
+  await ctx.addInitScript(a => {
+    try {
+      if (!a.howto) localStorage.setItem('trainmap-howto-seen', '1');
+      localStorage.setItem('iabHintDismiss', String(Date.now() + 1e9));
+      localStorage.setItem('trainmap-appearance', 'light');
+      localStorage.setItem('trainmap-language', 'zh-TW');
+      localStorage.removeItem('trainmap-sheet-size');
+      for (const k of Object.keys(a.storage)) localStorage.setItem(k, a.storage[k]);
+    } catch (e) {}
+    // App 替身:IS_NATIVE_APP 只看這個 key 在不在(index.html 的 IS_NATIVE_APP IIFE 第一個判斷);值給 true 讓 onlineBasemapsAvailable() 維持正常路徑。
+    // 不裝 isNativePlatform——IS_NATIVE_APP 已經由 key 成立,多裝只會把 PLUS 等別的原生分支一起打開。
+    if (a.app) window.RAIL_ONLINE_BASEMAPS_AVAILABLE = true;
+    if (a.plugins) {
+      // 見上方 boot() 說明：{ $result } 標記水合成真的函式,補救 addInitScript 序列化吃掉函式值的限制。
+      const hydrate = plugins => Object.fromEntries(Object.entries(plugins).map(([name, methods]) =>
+        [name, Object.fromEntries(Object.entries(methods || {}).map(([m, v]) =>
+          [m, (v && typeof v === 'object' && '$result' in v) ? (() => Promise.resolve(v.$result)) : v]))]));
+      window.Capacitor = { Plugins: hydrate(a.plugins), getPlatform: () => a.platform };
+    }
+  }, { howto, storage, app, plugins, platform });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on('pageerror', e => errs.push(String(e).slice(0, 200)));
+  const q = ['lang=zh-TW', notify ? 'notifymock=1' : '', query.replace(/^[?&]/, '')].filter(Boolean).join('&');
+  await page.goto(BASE + '?' + q, { waitUntil: 'domcontentloaded' });
+  await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready === true; } catch (e) { return false; } }, null, { timeout: 60000 });
+  await pinClock(page);
+  await page.waitForTimeout(500);
+  return { ctx, page, errs };
+}
+
+/**
+ * 釘死模擬時鐘 09:41（見檔頭說明）。boot() 開機後呼叫；page.reload() 之後（realm 重建，nowSecOfDay 與 simSec 都回真實牆鐘）
+ * 與不經 boot() 的桌面 context 到達 state.ready 後也要各呼叫一次。
+ * 只設一次 state.simSec 不夠——切系統/群組時 index.html 會自己用「以現在時刻起播」那段邏輯重設
+ * state.simSec = nowSecOfDay(...); state.clockAtNow = true 把時鐘拉回「現在」，所以連 nowSecOfDay 本體一起重綁掉，
+ * 後面不管誰再呼叫它都拿到同一個釘死值。不用 Playwright 的 clock.setFixedTime：那會連 Date.now() 一起凍住，
+ * G2g/G2h 靠 1000ms 牆鐘節流的判準會壞。setSimSec 第一件事就是清 state.clockAtNow（顯式跳時間＝離開「跟著現在」），
+ * 這裡再顯式寫一次只是防呆——防將來有人把它換成直接寫 state.simSec（verify_font_scale.mjs 收藏面板段落的慣例：
+ * 直接寫 simSec 一定要同時關 clockAtNow），不寫也不會壞。
+ */
+async function pinClock(page) {
+  await page.evaluate(() => { nowSecOfDay = () => 9 * 3600 + 41 * 60; setSimSec(9 * 3600 + 41 * 60); state.clockAtNow = false; });
+  // 釘鐘後把答案區「上次渲染」戳記歸零：tickCore 的重畫條件是 simSec 變了且距上次渲染 ≥1000ms 牆鐘，
+  // 自動開門那次舊時刻渲染留下的戳記會讓釘好的時刻還要再等一秒才追上。
+  await page.evaluate(() => { state._queryRenderedAt = -1; state._queryRenderedWallAt = 0; });
+}
+
+/** 由頁面本身取站座標——不手打常數（判準盲點 3）。sys：'tra_sched' | 'deco' | 'freq'。 */
+async function stationOf(page, name, sys) {
+  return page.evaluate(([n, s]) => { const c = nearbyStationCandidates().find(x => x.st.name === n && x.st.sys === s); return c ? { name: c.st.name, sys: c.st.sys, lat: c.st.lat, lon: c.st.lon } : null; }, [name, sys]);
+}
+/** 往北偏 meters 公尺（1 度緯度 ≈ 111,320 m）。 */
+const offsetLatLon = (st, meters) => ({ lat: st.lat + meters / 111320, lon: st.lon });
+const geomock = (p, acc = 65) => `geomock=${p.lat.toFixed(6)},${p.lon.toFixed(6)}&geoacc=${acc}`;
+
+/** 真觸控點 tab「查詢」。 */
+async function tapTab(page) {
+  const box = await page.evaluate(() => { const r = document.getElementById('tabSearch').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+  await page.touchscreen.tap(box.x, box.y);
+  await page.waitForTimeout(400);
+}
+const SNAP = `(() => {
+  const p = document.getElementById('searchPanel'), r = p.getBoundingClientRect(), tb = document.getElementById('tabbar');
+  return { hidden: p.hidden, cls: p.className, top: Math.round(r.top), bottom: Math.round(r.bottom), h: Math.round(r.height), vh: innerHeight,
+    searchOpen: document.body.classList.contains('search-open'), sheetOpen: document.body.classList.contains('sheet-open'),
+    tabbarVisible: !!tb && getComputedStyle(tb).display !== 'none',
+    answerRows: [...document.querySelectorAll('#queryAnswer .qa-stn')].map(b => ({ head: (b.querySelector('.qa-head') || {}).textContent, rows: [...b.querySelectorAll('.row')].map(x => x.textContent.trim()) })),
+    links: [...document.querySelectorAll('#queryLinks .ql-row')].map(b => b.dataset.act) };
+})()`;
+const snap = page => page.evaluate(c => eval(c), SNAP);
+
+const sections = []; // 後續 task 各自 push({ name, run: async (browser, engineName) => {} })
+
+// G1 瀏覽態幾何（spec §7-3）：點 tab 開 sheet 後 tab bar 仍可見、沒有 search-open、面板是底部 sheet（不是上錨全高）。
+// 牙：開 sheet 就套 search-open ⇒ G1b 紅。
+sections.push({ name: 'G1 瀏覽態', run: async (browser, en) => {
+  for (const width of [360, 375, 414, 768]) {
+    const { ctx, page, errs } = await boot(browser, { width, height: width === 768 ? 1024 : 852 });
+    await tapTab(page);
+    const s = await snap(page);
+    ok(`[${en}/${width}] G1a 點 tab 後查詢 sheet 開著`, !s.hidden && s.sheetOpen, JSON.stringify({ hidden: s.hidden, sheetOpen: s.sheetOpen }));
+    ok(`[${en}/${width}] G1b 瀏覽態沒有 search-open、tab bar 可見`, !s.searchOpen && s.tabbarVisible, JSON.stringify({ searchOpen: s.searchOpen, tabbar: s.tabbarVisible }));
+    // I-3:原本只有上界,面板塌成 0 高也會綠——下限用視窗高度的比例推導,不寫死 px。
+    ok(`[${en}/${width}] G1c 面板是底部 sheet（視窗 15%~60% 高，貼底）`, s.h <= s.vh * 0.6 && s.h >= s.vh * 0.15 && s.bottom >= s.vh - 120, JSON.stringify({ h: s.h, vh: s.vh, bottom: s.bottom }));
+    ok(`[${en}/${width}] G1d tab「查詢」文字`, (await page.evaluate(() => document.querySelector('#tabSearch .tl').textContent.trim())) === '查詢');
+    ok(`[${en}/${width}] G1e 無 pageerror`, errs.length === 0, errs.join(' | '));
+    await ctx.close();
+  }
+  // 橫放(CSS 的 landscape 區塊;MOBILE_MQ 靠 max-height:500px 命中,開機自動套 body.fs)：
+  // 瀏覽態要退回通用側欄那組規則、tab bar 不被蓋住；打字態才換右半全高(§04c 契約9)。
+  // 牙：F1 修前 body.fs #searchPanel 的右半版面沒掛 search-open ⇒ 瀏覽態面板就貼到視窗底,蓋過 tab bar ⇒ G1f 紅。
+  {
+    const { ctx, page } = await boot(browser, { width: 852, height: 393 });
+    await tapTab(page);
+    let g = await page.evaluate(() => {
+      const p = document.getElementById('searchPanel').getBoundingClientRect();
+      const tb = document.getElementById('tabbar');
+      const tbr = tb.getBoundingClientRect();
+      return {
+        searchOpen: document.body.classList.contains('search-open'),
+        tabbarVisible: !!tb && getComputedStyle(tb).display !== 'none',
+        panelTop: Math.round(p.top), panelBottom: Math.round(p.bottom), panelHeight: Math.round(p.height), tabbarTop: Math.round(tbr.top),
+        panelRight: Math.round(p.right), panelWidth: Math.round(p.width), vw: innerWidth,
+      };
+    });
+    // I-3:原判準沒有高度下限,面板塌成 0 高一樣算「沒被 tab bar 蓋住」——下限用可用直向空間
+    // (面板頂到 tab bar 頂)推導,不寫死 px。
+    ok(`[${en}/landscape] G1f 瀏覽態是右側欄、沒被 tab bar 蓋住`,
+      !g.searchOpen && g.tabbarVisible && g.panelBottom <= g.tabbarTop + 1 && g.panelRight >= g.vw - 40 && g.panelWidth < g.vw * 0.6 &&
+      g.panelHeight >= (g.tabbarTop - g.panelTop) * 0.5,
+      JSON.stringify(g));
+    const inp = await page.evaluate(() => { const r = document.getElementById('trainSearch').getBoundingClientRect(); return { x: r.left + 20, y: r.top + r.height / 2 }; });
+    await page.touchscreen.tap(inp.x, inp.y);
+    await page.waitForTimeout(400);
+    g = await page.evaluate(() => ({
+      searchOpen: document.body.classList.contains('search-open'),
+      tabbarDisplay: getComputedStyle(document.getElementById('tabbar')).display,
+      panelBottom: Math.round(document.getElementById('searchPanel').getBoundingClientRect().bottom), vh: innerHeight,
+    }));
+    ok(`[${en}/landscape] G1g 打字態換右半全高、tab bar 藏`,
+      g.searchOpen && g.tabbarDisplay === 'none' && g.panelBottom >= g.vh - 2,
+      JSON.stringify(g));
+    await ctx.close();
+  }
+}});
+
+// G2 打字態（spec §7-4）：focus 輸入框 ⇒ search-open、tab bar 藏；blur 不離開；標題列輕點或關閉才離開。
+// 牙：blur 就離開 ⇒ G2c 紅；focus 不進打字態 ⇒ G2a 紅。
+sections.push({ name: 'G2 打字態', run: async (browser, en) => {
+  const { ctx, page } = await boot(browser, {});
+  await tapTab(page);
+  const inp = await page.evaluate(() => { const r = document.getElementById('trainSearch').getBoundingClientRect(); return { x: r.left + 20, y: r.top + r.height / 2 }; });
+  await page.touchscreen.tap(inp.x, inp.y);
+  await page.waitForTimeout(400);
+  let s = await snap(page);
+  // 直式的打字態 tab bar 仍在(只有橫放的 body.fs.search-open .tabbar 會藏,那是 CSS 的 landscape 區塊,不動);判打字態看「上錨」
+  ok(`[${en}] G2a 點輸入框 ⇒ 打字態（search-open、面板上錨到頂列之下）`, s.searchOpen && s.top <= 140, JSON.stringify({ searchOpen: s.searchOpen, top: s.top }));
+  // I-2(fix wave):打字態下答案區看不到(CSS 的 body.search-open #searchPanel .qa 那條 display:none),背景節拍不該再補跑重算——
+  // 推進 simSec≥3 秒＋等 1.2 真實秒(遠超過 1 秒的舊節流與 1000ms 的新牆鐘節流),兩個戳記都不該動。
+  const beforeTyping = await page.evaluate(() => ({ sim: state._queryRenderedAt, wall: state._queryRenderedWallAt }));
+  await page.evaluate(() => { state.simSec = (state.simSec + 3) % 86400; });
+  await page.waitForTimeout(1200);
+  const afterTyping = await page.evaluate(() => ({ sim: state._queryRenderedAt, wall: state._queryRenderedWallAt }));
+  ok(`[${en}] G2g 打字態下 simSec 前進且等 1.2 秒 ⇒ 答案區節拍不補跑(戳記不動)`,
+    afterTyping.sim === beforeTyping.sim && afterTyping.wall === beforeTyping.wall,
+    JSON.stringify({ beforeTyping, afterTyping }));
+  await page.evaluate(() => document.getElementById('trainSearch').blur());
+  await page.waitForTimeout(300);
+  s = await snap(page);
+  ok(`[${en}] G2c blur 不離開打字態`, s.searchOpen, JSON.stringify({ searchOpen: s.searchOpen }));
+  // 標題列輕點（抓把手勢）⇒ 回瀏覽態
+  const head = await page.evaluate(() => { const r = document.querySelector('#searchPanel h3').getBoundingClientRect(); return { x: r.left + 30, y: r.top + 12 }; });
+  await page.mouse.move(head.x, head.y); await page.mouse.down(); await page.waitForTimeout(60); await page.mouse.up();
+  await page.waitForTimeout(500);
+  s = await snap(page);
+  ok(`[${en}] G2d 標題列輕點 ⇒ 回瀏覽態（sheet 仍開、search-open 消失、回到底部 sheet 幾何）`, !s.hidden && !s.searchOpen && s.h <= s.vh * 0.6, JSON.stringify({ hidden: s.hidden, searchOpen: s.searchOpen, h: s.h, vh: s.vh }));
+  // 正向對照(I-2):回瀏覽態後推進 simSec、等 1.2 秒 ⇒ 節拍要補跑——證明 G2g 的「不動」是打字態擋的,
+  // 不是牆鐘節流本身壞掉或別的守門在擋。
+  const beforeBrowse = await page.evaluate(() => state._queryRenderedWallAt);
+  await page.evaluate(() => { state.simSec = (state.simSec + 3) % 86400; });
+  await page.waitForTimeout(1200);
+  const afterBrowse = await page.evaluate(() => state._queryRenderedWallAt);
+  ok(`[${en}] G2h 正向對照:回瀏覽態後推進 simSec、等 1.2 秒 ⇒ 節拍補跑(戳記前進)`,
+    afterBrowse !== beforeBrowse, JSON.stringify({ beforeBrowse, afterBrowse }));
+  // 倍速對照(I-2):300ms 內把 simSec 推 3 次各 +1(模擬高倍速播放時每幀都跨過舊「前進 1 秒」門檻的情境)——
+  // 牆鐘節流應該把三次擠成最多一次重算,不是像修前那樣每次跨過門檻就補跑一次。用 4 個取樣點夾出 3 段區間,
+  // 每段區間只要有沒有前進看戳記變不變;由於戳記只增不減,相異值個數−1 就是「這幾段裡總共前進了幾次」。
+  const b0 = await page.evaluate(() => state._queryRenderedWallAt);
+  await page.evaluate(() => { state.simSec = (state.simSec + 1) % 86400; });
+  await page.waitForTimeout(100);
+  const b1 = await page.evaluate(() => state._queryRenderedWallAt);
+  await page.evaluate(() => { state.simSec = (state.simSec + 1) % 86400; });
+  await page.waitForTimeout(100);
+  const b2 = await page.evaluate(() => state._queryRenderedWallAt);
+  await page.evaluate(() => { state.simSec = (state.simSec + 1) % 86400; });
+  await page.waitForTimeout(100);
+  const b3 = await page.evaluate(() => state._queryRenderedWallAt);
+  const advances = new Set([b0, b1, b2, b3]).size - 1;
+  ok(`[${en}] G2i 倍速對照:300ms 內推 3 次 simSec ⇒ 牆鐘戳記最多前進 1 次`, advances <= 1, JSON.stringify({ b0, b1, b2, b3, advances }));
+  // 牙：F6 修前 cycleSheetSize 對 search-open 分支呼叫 setSheetSize(el,'medium') 會持久化全站偏好 ⇒ G2f 紅
+  const sheetSizeLS = await page.evaluate(() => { try { return localStorage.getItem('trainmap-sheet-size'); } catch (e) { return 'ERR'; } });
+  ok(`[${en}] G2f 離開打字態不寫入全站段高偏好`, sheetSizeLS === null, JSON.stringify({ sheetSizeLS }));
+  // 再進打字態，用 × 關閉 ⇒ 兩者皆清
+  await page.touchscreen.tap(inp.x, inp.y); await page.waitForTimeout(300);
+  await page.evaluate(() => document.getElementById('searchPanelClose').click()); await page.waitForTimeout(300);
+  s = await snap(page);
+  ok(`[${en}] G2e × 關閉 ⇒ sheet 關、search-open 清`, s.hidden && !s.searchOpen && s.tabbarVisible);
+  await ctx.close();
+}});
+
+// G7 更多抽屜（spec §7-7）：手機三列 display:none、桌面「今日台鐵動態」仍在可點；全日班次走勢手機仍在。
+// 牙：拿掉媒體查詢 ⇒ G7a 紅；把 [data-home="query"] 隱藏規則放到 MOBILE_MQ 外面 ⇒ 桌面 todayBtn 也被關掉 ⇒ G7c 紅。
+// 訂正（task-2 決議）：brief 原稿的 G7c 連桌面「全日班次走勢」也一併斷言存在，但桌面本來就有既有規則
+// （CSS 的 body:not(.mobile-shell) .ms-row[data-act="flow"]{display:none!important}）刻意把抽屜那列關掉——
+// 桌面版面上已經有本體，不重複。那條規則與本 task 無關，G7c 只驗「今日台鐵動態」。
+sections.push({ name: 'G7 更多抽屜', run: async (browser, en) => {
+  const { ctx, page } = await boot(browser, { query: 'notifymock=1&' + 'geomock=25.0478,121.5170' });
+  const m = await page.evaluate(() => {
+    const disp = sel => { const el = document.querySelector(sel); return el ? getComputedStyle(el).display : 'missing'; };
+    return { notify: disp('.ms-row[data-act="notify"]'), today: disp('.ms-row[data-proxy="todayBtn"]'), near: disp('.ms-row[data-proxy="nearBtn"]'), flow: disp('.ms-row[data-act="flow"]') };
+  });
+  ok(`[${en}] G7a 手機:已排提醒/今日動態/附近車站三列 display:none`, m.notify === 'none' && m.today === 'none' && m.near === 'none', JSON.stringify(m));
+  ok(`[${en}] G7b 手機:全日班次走勢仍在`, m.flow !== 'none' && m.flow !== 'missing', m.flow);
+  await ctx.close();
+  const d = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'zh-TW' });
+  const dp = await d.newPage();
+  await dp.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-language', 'zh-TW'); } catch (e) {} });
+  await dp.goto(BASE + '?lang=zh-TW', { waitUntil: 'domcontentloaded' });
+  await dp.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 60000 });
+  await pinClock(dp);
+  const dm = await dp.evaluate(() => {
+    document.getElementById('toolsFab') && document.getElementById('toolsFab').click();
+    const disp = sel => { const el = document.querySelector(sel); return el ? getComputedStyle(el).display : 'missing'; };
+    return { today: disp('.ms-row[data-proxy="todayBtn"]') };
+  });
+  // 網站桌面沒有本地提醒(NOTIFY_LOCAL_ENABLED 假 ⇒ 該列被 setupLocalNotifications 移除),故只驗今日動態列存在
+  ok(`[${en}] G7c 桌面:今日動態列存在且不是 display:none`, dm.today !== 'none' && dm.today !== 'missing', JSON.stringify(dm));
+  await d.close();
+}});
+
+// G8a 快捷列閘門（spec §7-8）：網站沒有提醒/附近/小工具三列；App 替身有。牙：拿掉任一閘門 ⇒ 網站那半紅。
+sections.push({ name: 'G8a 快捷列閘門', run: async (browser, en) => {
+  let { ctx, page } = await boot(browser, {});
+  await tapTab(page);
+  let s = await snap(page);
+  ok(`[${en}] G8a-web 網站有導覽與今日動態，無原生專用入口`, JSON.stringify(s.links) === JSON.stringify(['routes', 'today']), JSON.stringify(s.links));
+  await ctx.close();
+  ({ ctx, page } = await boot(browser, { app: true, notify: true, query: 'geomock=25.0478,121.5170', plugins: { RailMetroWait: {} } }));
+  // 這個 boot 的 geomock 落在 Task 5 自動開門檻內,boot() 回傳前面板可能已經自動開好;
+  // 裸 tapTab 會把它當「使用者要關」點掉(見 openQuery 定義處的說明),故改用 openQuery(page)。
+  await openQuery(page);
+  s = await snap(page);
+  ok(`[${en}] G8a-app App 導覽與原有四列齊`, JSON.stringify(s.links) === JSON.stringify(['notify', 'routes', 'today', 'near', 'widget']) && !s.hidden, JSON.stringify({ links: s.links, hidden: s.hidden }));
+  // 小工具列 ⇒ 說明中心開在 metrowidget 節（群組展開、節在可視區）；先量該列寬高 > 0——
+  // 面板若仍是塌陷的隱藏態,子孫 rect 會全零,對零尺寸元素做合成點擊會測不出使用者其實點不到。
+  const widgetRect = await page.evaluate(() => document.querySelector('#queryLinks .ql-row[data-act="widget"]').getBoundingClientRect());
+  ok(`[${en}] G8a-widget 小工具列可見（寬高 > 0）`, widgetRect.width > 0 && widgetRect.height > 0, JSON.stringify({ w: widgetRect.width, h: widgetRect.height }));
+  await page.evaluate(() => document.querySelector('#queryLinks .ql-row[data-act="widget"]').click());
+  await page.waitForTimeout(500);
+  const h = await page.evaluate(() => { const sec = document.querySelector('#helpBody .help-sec[data-sec="metrowidget"]'); const m = document.getElementById('helpModal'); const r = sec && sec.getBoundingClientRect(); return { open: !!m && !m.hidden, grpOpen: !!sec && sec.closest('.help-grp').classList.contains('open'), visible: !!r && r.top >= 0 && r.top < innerHeight }; });
+  ok(`[${en}] G8a-help 小工具列 ⇒ openHelp('metrowidget') 展開並捲到該節`, h.open && h.grpOpen && h.visible, JSON.stringify(h));
+  await ctx.close();
+}});
+
+// G3a 答案站退路鏈（spec §4.4）：定位 ⇒ 最近站；沒定位 ⇒ 最愛第一站；沒最愛 ⇒ 上次看過；都沒有 ⇒ none。
+// 牙：拿掉任一層 ⇒ 對應那條紅。
+// G3a-6/7 補的牙：G3a-2 是手寫好形狀的 storage 種子,測不到「開看板→saveLastBoard→寫入 localStorage」這段整合——
+// 拿掉 openBoard 裡的 saveLastBoard(st) 呼叫,G3a-0～G3a-5 仍全綠;要靠真的呼叫 openBoard() 才咬得到。
+sections.push({ name: 'G3a 答案站退路鏈', run: async (browser, en) => {
+  let r = await boot(browser, {});
+  const taipei = await stationOf(r.page, '臺北', 'tra_sched');
+  ok(`[${en}] G3a-0 取得台鐵台北座標`, !!taipei, JSON.stringify(taipei));
+  let a = await r.page.evaluate(() => queryAnswerStations());
+  ok(`[${en}] G3a-1 網站無定位、無最愛、無上次 ⇒ src none`, a.src === 'none' && a.stations.length === 0, JSON.stringify(a));
+  await r.ctx.close();
+  r = await boot(browser, { storage: { 'trainmap-last-board-v1': JSON.stringify({ sys: 'tra_sched', name: '臺北' }) } });
+  a = await r.page.evaluate(() => queryAnswerStations());
+  ok(`[${en}] G3a-2 只有上次看過 ⇒ src last、站＝臺北`, a.src === 'last' && a.stations[0] && a.stations[0].st.name === '臺北', JSON.stringify(a));
+  // 最愛蓋過上次:用頁面自己的 toggleFavStation 存一站(松山),再重載
+  await r.page.evaluate(() => { const c = nearbyStationCandidates().find(x => x.st.name === '松山' && x.st.sys === 'tra_sched'); toggleFavStation(c.st); });
+  await r.page.reload({ waitUntil: 'domcontentloaded' });
+  await r.page.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 60000 });
+  await pinClock(r.page);
+  a = await r.page.evaluate(() => queryAnswerStations());
+  ok(`[${en}] G3a-3 有最愛 ⇒ src fav、站＝松山`, a.src === 'fav' && a.stations[0] && a.stations[0].st.name === '松山', JSON.stringify(a));
+  await r.ctx.close();
+  r = await boot(browser, { query: geomock(offsetLatLon(taipei, 100)), storage: { 'trainmap-last-board-v1': JSON.stringify({ sys: 'tra_sched', name: '松山' }) } });
+  await r.page.waitForFunction(() => !!state.geoLoc, null, { timeout: 15000 });
+  a = await r.page.evaluate(() => queryAnswerStations());
+  ok(`[${en}] G3a-4 有定位 ⇒ src geo、最近站＝臺北、距離約 100 m`, a.src === 'geo' && a.stations[0].st.name === '臺北' && a.m > 60 && a.m < 140, JSON.stringify({ src: a.src, first: a.stations[0] && a.stations[0].st.name, m: a.m }));
+  ok(`[${en}] G3a-5 共構:台北另帶 200 m 內其他系統站(高鐵/捷運)`, a.stations.length >= 2 && new Set(a.stations.map(s => s.st.sys)).size === a.stations.length, JSON.stringify(a.stations.map(s => s.st.sys + '|' + s.st.name)));
+  await r.ctx.close();
+  // 往返:網頁空白開機(無 storage 種子、無定位),用真的 openBoard() 開台鐵臺北站,驗證 saveLastBoard 真的把它寫進
+  // localStorage,且重載後 queryAnswerStations 的 last 退路真的讀得回來——這段整合 G3a-2 的手種 storage 測不到。
+  r = await boot(browser, {});
+  await r.page.evaluate(() => openBoard(nearbyStationCandidates().find(x => x.st.name === '臺北' && x.st.sys === 'tra_sched').st));
+  const saved = await r.page.evaluate(() => { try { return JSON.parse(localStorage.getItem('trainmap-last-board-v1')); } catch (e) { return null; } });
+  ok(`[${en}] G3a-6 openBoard 真的寫入 trainmap-last-board-v1（sys＝tra_sched、站＝臺北）`, !!saved && saved.sys === 'tra_sched' && saved.name === '臺北', JSON.stringify(saved));
+  await r.page.reload({ waitUntil: 'domcontentloaded' });
+  await r.page.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 60000 });
+  await pinClock(r.page);
+  a = await r.page.evaluate(() => queryAnswerStations());
+  ok(`[${en}] G3a-7 重載後退路吃得到 openBoard 存的上次看過站 ⇒ src last、站＝臺北`, a.src === 'last' && a.stations[0] && a.stations[0].st.name === '臺北' && a.stations[0].st.sys === 'tra_sched', JSON.stringify(a));
+  await r.ctx.close();
+}});
+
+// 開查詢並等答案區有內容。Task 5 之後,geomock 定位落在自動開門檻內時 boot() 回傳前就已經自動開好了
+// (queryMaybeAutoOpen 掛在 applyBootGeo 尾端,boot() 的 500ms 收尾等待遠比它落地所需時間長)——
+// 這裡先看現況再決定要不要點,tapTab 是真正的「切換」(給 G6 驗開關記憶用),不能在這裡盲點一次,
+// 否則會把自動開好的面板點成關掉(#queryAnswer 自己的 hidden 屬性不隨祖先 [hidden] 變,
+// 底下 waitForFunction 仍會在舊內容上假通過)。
+async function openQuery(page) {
+  const already = await page.evaluate(() => !document.getElementById('searchPanel').hidden);
+  if (!already) await tapTab(page);
+  await page.waitForFunction(() => { const w = document.getElementById('queryAnswer'); return w && !w.hidden && w.querySelector('.qa-stn'); }, null, { timeout: 15000 }).catch(() => {});
+  await page.waitForTimeout(300);
+}
+// 看板某站的「每組第一列」文字:.bgrp/.grp 標題後第一個 .row
+const firstRowsExpr = `(sel) => { const out = []; let seen = null; for (const n of document.querySelectorAll(sel + ' .bgrp, ' + sel + ' .grp, ' + sel + ' .row')) { if (n.classList.contains('row')) { if (seen !== null) { out.push(n.textContent.trim()); seen = null; } } else seen = n.textContent.trim(); } return out; }`;
+
+// G3b 同源（spec §7-1）：同站同時刻(暫停播放),答案區每列文字＝看板同組第一列。sched(臺北)＋freq 班表路徑(東門,deco)。
+// 牙：答案區改走另一條取數(或 compact 少切一列) ⇒ 紅。官方/Core 兩條 freq 路徑離線拿不到資料,由 G3c 的靜態斷言與線上模式補。
+sections.push({ name: 'G3b 答案同源', run: async (browser, en) => {
+  const r0 = await boot(browser, {});
+  const taipei = await stationOf(r0.page, '臺北', 'tra_sched'); const dongmen = await stationOf(r0.page, '東門', 'deco');
+  await r0.ctx.close();
+  for (const [st, label] of [[taipei, 'sched 臺北'], [dongmen, 'freq 東門(班表路徑)']]) {
+    if (!st) { ok(`[${en}] G3b-${label} 座標`, false, '候選集找不到'); continue; }
+    const { ctx, page } = await boot(browser, { query: geomock(offsetLatLon(st, 50)) });
+    await page.evaluate(() => { if (state.playing) togglePlay(); }); // 凍結 simSec,兩邊算同一刻
+    await page.waitForFunction(() => !!state.geoLoc, null, { timeout: 15000 });
+    await openQuery(page);
+    await page.evaluate(() => renderQueryAnswer());
+    const ans = await page.evaluate(([f, n, s]) => { const blk = [...document.querySelectorAll('#queryAnswer .qa-stn')].find(b => b.dataset.name === n && b.dataset.sys === s); return blk ? eval('(' + f + ')')('#queryAnswer .qa-stn[data-name="' + n + '"][data-sys="' + s + '"] .qa-rows') : null; }, [firstRowsExpr, st.name, st.sys]);
+    await page.evaluate(([n, s]) => { const c = nearbyStationCandidates().find(x => x.st.name === n && x.st.sys === s); openBoard(c.st); }, [st.name, st.sys]);
+    await page.waitForTimeout(300);
+    const board = await page.evaluate(f => eval('(' + f + ')')('#board'), firstRowsExpr);
+    ok(`[${en}] G3b ${label}:答案區 ${ans ? ans.length : 'null'} 列＝看板每組第一列`, !!ans && ans.length > 0 && JSON.stringify(ans) === JSON.stringify(board.slice(0, ans.length)) && ans.length === board.length, JSON.stringify({ ans, board }).slice(0, 400));
+    await ctx.close();
+  }
+}});
+// G3c 三條 freq 路徑都吃到 compact 的結構斷言(離線替身):三個渲染器各有一個 compact 早退。
+sections.push({ name: 'G3c compact 三路徑', run: async () => {
+  const src = readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const n = (src.match(/if \(compact\) return body;/g) || []).length;
+  ok(`G3c 三個看板渲染器各一個 compact 早退（實際 ${n}）`, n === 3);
+}});
+
+// G4 上限（spec §7-2）：多方向站可見 ≤4 列且可捲;牙:拿掉上限 ⇒ 紅。
+// I-4(fix wave):原本固定測東門,但 compact 列數(每組 perGroup=1)隨時段變動——離峰或某些方向
+// 沒班次時 byKey 那個 Map 少幾組,total 可能 ≤4,判準就整條退化成「可見數=總數」,
+// QUERY_ANSWER_ROWS_MAX 這件事一次都不會被驗到、也不會有任何訊號(判準盲點 6)。改成由頁面自己
+// 找站:直接呼叫 queryStationBlockHtml(答案區生產路徑本尊,不另寫一份取數邏輯——同源鐵則)算出
+// 每個候選站「此刻」真正會渲染幾列,挑第一個 > 4 的;找不到這種站本身也下一條具名斷言,
+// 不會無聲通過變成 vacuous pass。
+sections.push({ name: 'G4 四列上限', run: async (browser, en) => {
+  const r0 = await boot(browser, {});
+  const pick = await r0.page.evaluate(() => {
+    for (const c of nearbyStationCandidates()) {
+      const html = queryStationBlockHtml(c, 0, { src: 'none' });
+      const div = document.createElement('div'); div.innerHTML = html;
+      const total = div.querySelectorAll('.qa-rows .row').length;
+      if (total > 4) return { name: c.st.name, sys: c.st.sys, lat: c.st.lat, lon: c.st.lon, total };
+    }
+    return null;
+  });
+  await r0.ctx.close();
+  ok(`[${en}] G4 前提:找得到 compact 列數 > 4 的站(此刻)`, !!pick, JSON.stringify(pick));
+  if (!pick) return;
+  const { ctx, page } = await boot(browser, { query: geomock(offsetLatLon(pick, 50)) });
+  await page.waitForFunction(() => !!state.geoLoc, null, { timeout: 15000 });
+  await openQuery(page);
+  // 修正波 C 附帶修法:geomock 一落地就可能自動開門並用舊時刻渲染過一次答案區。重畫由主迴圈管
+  // (index.html tickCore:simSec 變了且距上次渲染 ≥1000ms 牆鐘才呼叫 renderQueryAnswer),本段從釘鐘
+  // 到讀值只等約 800ms;boot() 已把渲染戳記歸零,這裡再逼一次真的重畫當保險(比照 G3b 慣例)。
+  await page.evaluate(() => renderQueryAnswer());
+  const m = await page.evaluate(() => { const box = document.querySelector('#queryAnswer .qa-stn .qa-rows'); const rows = [...box.querySelectorAll('.row')]; const br = box.getBoundingClientRect(); const visible = rows.filter(r => { const q = r.getBoundingClientRect(); return q.top >= br.top - 1 && q.bottom <= br.bottom + 1; }).length; return { total: rows.length, visible, scrollable: box.scrollHeight > box.clientHeight + 1 }; });
+  ok(`[${en}] G4 ${pick.name}:總列 ${m.total}、可見 ${m.visible} ≤ 4、多的可捲`, m.total > 4 && m.visible <= 4 && m.scrollable, JSON.stringify(m));
+  // G4b(fix round 1、finding #3):重畫不能洗掉區內捲動位置——捲到底之後逼一次重畫(內容其實沒變,
+  // 比照 G12c 的手法:_html=null 再 renderQueryAnswer()),捲動位置要原地不動。牙:拿掉 save/restore ⇒
+  // 紅(新插入的 .qa-rows 天生 scrollTop=0)。
+  const s1 = await page.evaluate(() => {
+    const box = document.querySelector('#queryAnswer .qa-stn .qa-rows');
+    box.scrollTop = box.scrollHeight;
+    const before = box.scrollTop;
+    document.getElementById('queryAnswer')._html = null;
+    renderQueryAnswer();
+    const after = document.querySelector('#queryAnswer .qa-stn .qa-rows').scrollTop;
+    return { before, after };
+  });
+  ok(`[${en}] G4b 重畫不洗掉區內捲動(${s1.before} → ${s1.after})`, s1.before > 0 && s1.after === s1.before, JSON.stringify(s1));
+  await ctx.close();
+}});
+
+// G8b 公車列只在 isSupported 站出現(spec §7-8)。正站由頁面自己的閘門挑(牙:拿掉閘門 ⇒ 紅)。
+// 訂正(task-4 決議):brief 原稿另挑一個「不支援」的台鐵站做負案例,但 busTransferStationId 對
+// 所有 tra_sched 站都有 fallback id(BUS_TRANSFER_APP_SYSTEMS 含 tra_sched),而 isSupported 只驗
+// id 格式(/^[A-Z]+:[A-Za-z0-9_]+$/)——兩者疊起來讓任何台鐵候選都判「支援」,結構上找不到負站,
+// `no = cs.find(c => !sup(c))` 恆為 undefined。改用頁內存根:正站驗完之後暫時把 isSupported 換成
+// 恆假,逼重畫,驗 .qa-bus 消失,再還原——牙一樣咬得住 queryStationBlockHtml 不再問 isSupported 的情況。
+sections.push({ name: 'G8b 公車列', run: async (browser, en) => {
+  const r0 = await boot(browser, {});
+  const pick = await r0.page.evaluate(() => { const cs = nearbyStationCandidates().filter(c => c.st.sys === 'tra_sched'); const sup = c => !!(window.BusTransferUI && window.BusTransferUI.isSupported(busTransferStationId(c.st))); const yes = cs.find(sup); return { yes: yes && { name: yes.st.name, sys: yes.st.sys, lat: yes.st.lat, lon: yes.st.lon } }; });
+  await r0.ctx.close();
+  const st = pick.yes;
+  if (!st) { ok(`[${en}] G8b 找得到支援公車的台鐵站`, false); }
+  else {
+    const { ctx, page } = await boot(browser, { query: geomock(offsetLatLon(st, 30)) });
+    await page.waitForFunction(() => !!state.geoLoc, null, { timeout: 15000 });
+    await openQuery(page);
+    const has = await page.evaluate(([n, s]) => !!document.querySelector('#queryAnswer .qa-stn[data-name="' + n + '"][data-sys="' + s + '"] .qa-bus'), [st.name, st.sys]);
+    ok(`[${en}] G8b ${st.name}(支援) 公車列存在`, has === true);
+    // 瀏覽態面板矮(兩段高的短版),公車列常落在摺線以下,真實使用者也要先捲——tap 前先把它捲進可視區(#searchPanel 本身 overflow-y:auto)。
+    // 捲動後到送出觸控間，答案重畫曾讓按鈕上移 31px（完整流程可重現）。
+    // 用真實觸控的 actionability 檢查等待位置穩定，不拿捲動當下的舊座標點空白處。
+    const busButton = page.locator('#queryAnswer .qa-bus').first();
+    await busButton.scrollIntoViewIfNeeded();
+    await busButton.tap(); await page.waitForTimeout(600);
+    const o = await page.evaluate(() => ({ boardOpen: !document.getElementById('board').hidden, slot: !!document.querySelector('#board [data-bus-transfer-slot]'), queryClosed: document.getElementById('searchPanel').hidden }));
+    ok(`[${en}] G8b 點公車列 ⇒ 看板開、公車槽在、查詢收起`, o.boardOpen && o.slot && o.queryClosed, JSON.stringify(o));
+    // 牙(公車裁示 C 後半句「捲到公車槽」):看板已捲動(捲得動的話)、公車槽整塊在看板可視區內——底不超出看板底、
+    // 且「槽頂露出在黏頂 h3 之下」或「看板已捲到底」二者取一:槽在 DOM 最後一格,槽比「看板高−標題」矮時捲到底也只能貼齊底部,
+    // 這時槽頂會藏在 h3 下幾到十幾 px(chromium 量到 9–15px),那是內容高度的物理限制不是沒捲(iOS 17 Pro 模擬器實測 scrollTop 0→284、槽頂在 h3 下 61px)。
+    // 拿掉 wrap.onclick 裡那個 rAF scrollIntoView ⇒ scrollTop 留 0、槽在摺線下 ⇒ 紅。
+    const sv = await page.evaluate(() => { const bd = document.getElementById('board'); const h3 = bd.querySelector('h3'); const sl = bd.querySelector('[data-bus-transfer-slot]'); if (!sl || !h3) return null;
+      const rb = bd.getBoundingClientRect(), rh = h3.getBoundingClientRect(), rs = sl.getBoundingClientRect();
+      return { canScroll: bd.scrollHeight > bd.clientHeight + 1, atEnd: bd.scrollTop + bd.clientHeight >= bd.scrollHeight - 1, scrollTop: Math.round(bd.scrollTop), slotTop: Math.round(rs.top), slotBottom: Math.round(rs.bottom), h3Bottom: Math.round(rh.bottom), boardBottom: Math.round(rb.bottom) }; });
+    ok(`[${en}] G8b 公車槽捲進看板可視區(槽頂露出、或已捲到底)`, !!sv && (!sv.canScroll || sv.scrollTop > 0) && sv.slotBottom <= sv.boardBottom + 1 && (sv.slotTop >= sv.h3Bottom - 1 || sv.atEnd), JSON.stringify(sv));
+    // 負站(頁內存根):關掉 isSupported、逼重畫、驗 .qa-bus 消失,再還原。
+    await openQuery(page);
+    const stubbed = await page.evaluate(([n, s]) => {
+      window.__isSup = window.BusTransferUI.isSupported;
+      window.BusTransferUI.isSupported = () => false;
+      document.getElementById('queryAnswer')._html = null;
+      renderQueryAnswer();
+      const blk = document.querySelector('#queryAnswer .qa-stn[data-name="' + n + '"][data-sys="' + s + '"]');
+      return { noBus: !blk || !blk.querySelector('.qa-bus'), blockStillThere: !!blk };
+    }, [st.name, st.sys]);
+    ok(`[${en}] G8b 存根關閉 isSupported ⇒ 公車列消失`, stubbed.noBus === true);
+    // #25:只有公車列該消失——關掉 isSupported 不該連整個站塊都清空(那會是另一種更嚴重的壞法,
+    // 例如把 bus 判斷寫進了 rows 的產生路徑而不是附加在後面)。
+    ok(`[${en}] G8b 存根只影響公車列,站塊本體(.qa-stn)還在`, stubbed.blockStillThere === true);
+    await page.evaluate(() => { window.BusTransferUI.isSupported = window.__isSup; delete window.__isSup; document.getElementById('queryAnswer')._html = null; renderQueryAnswer(); });
+    await ctx.close();
+  }
+}});
+
+// G12 重畫不吃點擊(spec §7-12):開著 6 秒,DOM 寫入次數 ≤ 內容變化次數;之後真觸控站名列必開看板。牙:每幀重寫 ⇒ 紅。
+sections.push({ name: 'G12 重畫不吃點擊', run: async (browser, en) => {
+  const r0 = await boot(browser, {}); const taipei = await stationOf(r0.page, '臺北', 'tra_sched'); await r0.ctx.close();
+  const { ctx, page } = await boot(browser, { query: geomock(offsetLatLon(taipei, 50)) });
+  await page.waitForFunction(() => !!state.geoLoc, null, { timeout: 15000 });
+  await openQuery(page);
+  await page.evaluate(() => { window.__qaWrites = 0; window.__qaHtml = new Set(); const w = document.getElementById('queryAnswer'); new MutationObserver(() => { window.__qaWrites++; window.__qaHtml.add(w.innerHTML); }).observe(w, { childList: true }); });
+  await page.waitForTimeout(6000);
+  const m = await page.evaluate(() => ({ writes: window.__qaWrites, distinct: window.__qaHtml.size }));
+  ok(`[${en}] G12a 6 秒內 DOM 寫入 ${m.writes} 次 ≤ 內容變化 ${m.distinct} 種`, m.writes <= m.distinct, JSON.stringify(m));
+  // G12a2:天然 6 秒節拍裡倒數文字可能剛好每秒都在變(此站此刻零重複內容 ⇒ G12a 測不到牙),
+  // 改用凍結模擬時間後連續手動呼叫三次——內容真的沒變,DOM 應該 0 次寫入。牙:拿掉去重 ⇒ 紅。
+  const m2 = await page.evaluate(() => {
+    if (state.playing) togglePlay();
+    // togglePlay() 之前排進去的那一格 rAF 可能還會多跑一拍,讓 simSec 在暫停生效前多走一點點——
+    // 先落地渲染一次當「穩定基準」,之後才開始計次,免得那一拍的合理寫入被誤算成牙咬到的寫入。
+    renderQueryAnswer();
+    const w = document.getElementById('queryAnswer');
+    const mo = new MutationObserver(() => {});
+    mo.observe(w, { childList: true });
+    renderQueryAnswer(); renderQueryAnswer(); renderQueryAnswer();
+    // disconnect() 會把「已排進佇列但還沒送達 callback」的紀錄直接丟掉——三次呼叫都在同一段同步碼裡,
+    // callback 要等下一個 microtask 才會被叫到,所以必須用 takeRecords() 同步取出佇列,不能靠 callback 計數。
+    const records = mo.takeRecords();
+    mo.disconnect();
+    return { writes: records.length };
+  });
+  ok(`[${en}] G12a2 內容不變時連續呼叫 renderQueryAnswer 三次 ⇒ DOM 寫入 0 次`, m2.writes === 0, JSON.stringify(m2));
+  const h = await page.evaluate(() => { const r = document.querySelector('#queryAnswer .qa-stn .qa-head').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+  await page.touchscreen.tap(h.x, h.y); await page.waitForTimeout(500);
+  ok(`[${en}] G12b 真觸控站名列 ⇒ 看板開`, await page.evaluate(() => !document.getElementById('board').hidden && !!state.boardStation));
+  await ctx.close();
+}});
+
+// G12 續(fix round 1,審查者的兩個 Important):
+// G12d(finding #1、死的預先渲染):先正常開一次建立內容與 _queryRenderedAt,暫停播放(simSec 凍結)後
+//   關閉、換一個很遠的定位(模擬「看了別的看板、或 geo 移動」)、再重開——由於 simSec 沒變,主迴圈節拍
+//   (tickCore)的觸發條件 simSec !== _queryRenderedAt 恆為假,不會補跑,唯一能換出新內容的只剩
+//   openSearchPanel 內那次 renderQueryAnswer()。
+//   （原稿曾直接測「開起來那一刻有沒有 .qa-stn」,但 _queryRenderedAt 初始是 undefined,第一次開面板時
+//   |simSec − 0| 幾乎必然 ≥ 1,主迴圈節拍下一幀就會補渲染,測不出這顆牙——牙只咬得住「重開後內容該換
+//   但沒換」這個真正會影響使用者的情境,已改用這個情境。）
+//   牙:renderQueryAnswer() 排回 hidden=false 之前 ⇒ 面板還沒露出,它自己的守門(panel.hidden)直接跳出,
+//   重開後答案區停留在關閉前的舊站,不會換成新定位 ⇒ 紅。
+// G12c(finding #2、按下到放開之間被重畫):click 目標會落到容器(wrap)上、.closest('.qa-stn') 落空,
+//   靠 pointerdown 先記行、click 撈不到列時用記的補(照 renderBoardBody 裡看板列 el.onpointerdown/onclick
+//   同一套)。牙:拿掉 pointerdown 補救 ⇒ 紅(鬆手時開不了看板,因為 click 目標是容器)。
+//   實測記錄(brief 建議的 page.mouse 手法在本機兩種真實輸入管道都測不出「同一條牙」):
+//   (a) page.mouse.down()＋逼重畫＋page.mouse.up():Chromium 對「mousedown 目標已從文件移除」乾脆不合成
+//       click(pointerup/mouseup 有觸發,click 完全不發生)——比「目標變容器」更嚴重,onclick 掛什麼補救都
+//       接不到,因為 handler 根本沒被呼叫。
+//   (b) 改用 CDP Input.dispatchTouchEvent 真觸控:內容不變的重畫下 Chromium 會在放開當下對(x,y)重新
+//       hit-test,直接命中「新長出來的」同位置 .qa-head,牙咬不到(直接路徑本來就會成功);把內容重畫成
+//       結構整個坍縮的空狀態,click 改落到 #queryAnswer 以外的兄弟元素(class="search"),wrap.onclick 連
+//       跑都不會跑,補救一樣派不上用場。
+//   兩者都無法在本機穩定重現「click 落在容器本身、但仍在 wrap 子樹內」這個看板註解描述的確切情境
+//   (研判是引擎特定的重新導向規則,例如行動 WebKit 的觸控→click 合成,在此驗收環境重現不了)。
+//   改用 dispatchEvent 直接構造這個條件:對 .qa-head 派發真的 pointerdown(走 wrap.onpointerdown 那條
+//   程式碼,不是直接呼叫函式)確認記下 qi,逼一次重畫,再直接對 wrap 本身派發 click(e.target===wrap,
+//   .closest('.qa-stn') 結構上必為 null——這就是註解描述的「目標變容器」的精確狀態),驗證 onclick 讀
+//   得到記下的資料並開對看板。這樣測的是「程式碼面對這個瀏覽器狀態時的反應」,不糾結能不能用某個引擎的
+//   真實輸入去複現這個狀態本身的時序。
+sections.push({ name: 'G12 續', run: async (browser, en) => {
+  const r0 = await boot(browser, {}); const taipei = await stationOf(r0.page, '臺北', 'tra_sched'); await r0.ctx.close();
+
+  {
+    const { ctx, page } = await boot(browser, { query: geomock(offsetLatLon(taipei, 50)) });
+    await page.waitForFunction(() => !!state.geoLoc, null, { timeout: 15000 });
+    await openQuery(page); // 先正常開一次,建立真實內容
+    const before = await page.evaluate(([n, s]) => !!document.querySelector('#queryAnswer .qa-stn[data-name="' + n + '"][data-sys="' + s + '"]'), [taipei.name, taipei.sys]);
+    const songshan = await stationOf(page, '松山', 'tra_sched');
+    // 凍結+落地渲染一次當穩定基準(比照 G12a2 的做法,避開 togglePlay 生效前殘餘一拍造成的 flaky)。
+    await page.evaluate(() => { if (state.playing) togglePlay(); renderQueryAnswer(); });
+    await page.evaluate(() => closeSearchPanel());
+    // 模擬「看了別的看板、或 geo 移動」:換一個遠站當定位,答案理應變成新站。
+    await page.evaluate((s) => { state.geoLoc = { lat: s.lat, lon: s.lon, acc: 10 }; }, songshan);
+    await tapTab(page); // 真正的 tab 點擊重開(面板此時已關,會走 openSearchPanel)
+    const after = await page.evaluate(([n, s]) => ({
+      hasOld: !!document.querySelector('#queryAnswer .qa-stn[data-name="' + n + '"][data-sys="' + s + '"]'),
+      hasNew: !!document.querySelector('#queryAnswer .qa-stn[data-name="松山"][data-sys="tra_sched"]'),
+    }), [taipei.name, taipei.sys]);
+    ok(`[${en}] G12d 暫停播放中重開查詢 ⇒ 立刻換成新定位的內容(不停留在關閉前的舊站)`, before === true && after.hasNew === true && after.hasOld === false, JSON.stringify({ before, after }));
+    await ctx.close();
+  }
+
+  {
+    const { ctx, page } = await boot(browser, { query: geomock(offsetLatLon(taipei, 50)) });
+    await page.waitForFunction(() => !!state.geoLoc, null, { timeout: 15000 });
+    await openQuery(page);
+    const r = await page.evaluate(([n, s]) => {
+      const blk = document.querySelector('#queryAnswer .qa-stn[data-name="' + n + '"][data-sys="' + s + '"]');
+      const head = blk.querySelector('.qa-head');
+      const wrap = document.getElementById('queryAnswer');
+      head.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true })); // 真事件,走 wrap.onpointerdown
+      const downAfterPress = wrap._down;
+      wrap._html = null; renderQueryAnswer(); // 按下到放開之間逼一次重畫(內容其實沒變)
+      wrap.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); // e.target===wrap,.closest('.qa-stn') 結構上必為 null
+      return { downAfterPress, downAfterClick: wrap._down };
+    }, [taipei.name, taipei.sys]);
+    await page.waitForTimeout(200);
+    const o = await page.evaluate(() => ({ boardOpen: !document.getElementById('board').hidden, name: state.boardStation && state.boardStation.name, sys: state.boardStation && state.boardStation.sys }));
+    // 整枝審查 #29(task-14):onpointerdown 改記站物件(wrap._down.st)不記位置索引(qi),此斷言隨之
+    // 從「按下時記的 qi＝0」改成直接核對記下的站身分——行為面(o.boardOpen/o.name/o.sys)完全不變。
+    ok(`[${en}] G12c 按下時記的站＝臺北、click 落在容器仍能靠記下的資料開對看板`, !!r.downAfterPress && !!r.downAfterPress.st && r.downAfterPress.st.name === taipei.name && r.downAfterPress.st.sys === taipei.sys && r.downAfterClick === null && o.boardOpen === true && o.name === taipei.name && o.sys === taipei.sys, JSON.stringify({ r, o }));
+    await ctx.close();
+  }
+}});
+
+// G5 自動開正反對照(spec §7-5)。牙:每項各去掉一個條件 ⇒ 對應那條紅。
+sections.push({ name: 'G5 自動開', run: async (browser, en) => {
+  const r0 = await boot(browser, {}); const taipei = await stationOf(r0.page, '臺北', 'tra_sched'); const songshan = await stationOf(r0.page, '松山', 'tra_sched'); await r0.ctx.close();
+  const cases = [
+    ['100 m 內 ⇒ 開', { query: geomock(offsetLatLon(taipei, 100)) }, true],
+    ['600 m 外 ⇒ 不開', { query: geomock(offsetLatLon(taipei, 600)) }, false],
+    ['精度 900 m ⇒ 不開', { query: geomock(offsetLatLon(taipei, 100), 900) }, false],
+    ['教學卡開著 ⇒ 不開', { query: geomock(offsetLatLon(taipei, 100)), howto: true }, false],
+    ['帶 ?train= ⇒ 不開', { query: geomock(offsetLatLon(taipei, 100)) + '&train=152' }, false],
+    ['同站曾被關掉 ⇒ 不開', { query: geomock(offsetLatLon(taipei, 100)), storage: { 'trainmap-query-dismissed-v1': 'tra_sched|臺北' } }, false],
+    ['換站(松山)曾關的是臺北 ⇒ 開', { query: geomock(offsetLatLon(songshan, 100)), storage: { 'trainmap-query-dismissed-v1': 'tra_sched|臺北' } }, true],
+  ];
+  for (const [name, opts, expect] of cases) {
+    const { ctx, page } = await boot(browser, opts);
+    // 等 applyBootGeo 落地(_geoLanded 是它最後一行);?train= 那條 applyBootGeo 永不會跑(startBootGeo 自己的深連結守門),
+    // 8 秒逾時後 catch 吞掉,讓否定判準照樣往下走——不用固定 sleep(判斷力 rubric 第八節)。
+    await page.waitForFunction(() => state._geoLanded === true, null, { timeout: 8000 }).catch(() => {});
+    await page.evaluate(() => new Promise(r => requestAnimationFrame(() => r()))); // 讓 queryMaybeAutoOpen 觸發的 DOM 動作完全落地
+    const s = await snap(page);
+    ok(`[${en}] G5 ${name}`, !s.hidden === expect, JSON.stringify({ hidden: s.hidden, searchOpen: s.searchOpen }));
+    if (expect) ok(`[${en}] G5 ${name}:自動開是瀏覽態`, !s.searchOpen);
+    // ?train= 那條的「不開」不能只看 hidden——面板關也可能是因為定位根本沒跑,不是深連結真的擋下了自動開;
+    // 直接量 _geoLanded,讓斷言說出它真正證明的事(它結構上永遠不會變 true,見 startBootGeo 的深連結守門)。
+    if (/[?&]train=/.test(opts.query || '')) {
+      const landed = await page.evaluate(() => state._geoLanded === true);
+      ok(`[${en}] G5 ${name}:applyBootGeo 真的沒跑(深連結擋下,不是巧合)`, landed === false, String(landed));
+    }
+    await ctx.close();
+  }
+}});
+
+// G5b 精度閘門下限(09-06 裁示「精度改成大於 0 才開」):Android 精度未知時回 accuracy 0.0,不准當成完美精度。
+// geomock 橋接把 geoacc 夾成 ≥1(index.html 開機 inline 那段 ?geomock 解析的 Math.max(1, …)),開機路徑餵不進 0 ⇒ 直接餵 queryMaybeAutoOpen;
+// 開機的 geomock 放在 600 m 外(LOCATE_ENABLED 要成立、但開機不會自動開),再把 state.geoLoc 種到站旁。
+// 牙:閘門改回 c.accuracy <= 300 ⇒ G5b-0 紅;G5b-65 是正向對照(證明前面的「不開」不是別的守門在擋)。
+sections.push({ name: 'G5b 精度 0 不開', run: async (browser, en) => {
+  const r0 = await boot(browser, {}); const taipei = await stationOf(r0.page, '臺北', 'tra_sched'); await r0.ctx.close();
+  const { ctx, page } = await boot(browser, { query: geomock(offsetLatLon(taipei, 600)) });
+  await page.waitForFunction(() => state._geoLanded === true, null, { timeout: 8000 });
+  const r = await page.evaluate(({ lat, lon }) => {
+    const out = {}; const panel = document.getElementById('searchPanel');
+    out.bootHidden = panel.hidden;
+    state.geoLoc = { lat, lon, acc: 65 };
+    const ans = queryAnswerStations(); out.src = ans.src; out.m = ans.m;
+    queryMaybeAutoOpen({ accuracy: 0 }); out.hidden0 = panel.hidden; out.opened0 = state._queryAutoOpened === true;
+    queryMaybeAutoOpen({}); out.hiddenNone = panel.hidden;
+    queryMaybeAutoOpen({ accuracy: 65 }); out.hidden65 = panel.hidden; out.station65 = state._queryAutoStation;
+    return out;
+  }, offsetLatLon(taipei, 100));
+  ok(`[${en}] G5b 前提:開機 600 m 外沒自動開、種到站旁後最近站是 geo 來源且 ≤300 m`, r.bootHidden && r.src === 'geo' && r.m <= 300, JSON.stringify(r));
+  ok(`[${en}] G5b-0 精度 0 ⇒ 不開(也不算已嘗試)`, r.hidden0 && !r.opened0, JSON.stringify({ hidden0: r.hidden0, opened0: r.opened0 }));
+  ok(`[${en}] G5b-none 沒有精度 ⇒ 不開`, r.hiddenNone, String(r.hiddenNone));
+  ok(`[${en}] G5b-65 正向對照:精度 65 ⇒ 開、記到臺北`, !r.hidden65 && r.station65 === 'tra_sched|臺北', JSON.stringify({ hidden65: r.hidden65, station65: r.station65 }));
+  await ctx.close();
+}});
+
+// G6 記憶鍵(spec §7-6):使用者開→重載後開;使用者關→重載後關;自動開不寫鍵(重載後關)。牙:自動開也寫鍵 ⇒ G6c 紅。
+sections.push({ name: 'G6 開關記憶', run: async (browser, en) => {
+  let { ctx, page } = await boot(browser, {});
+  await tapTab(page);
+  let k = await page.evaluate(() => localStorage.getItem('trainmap-query-open'));
+  ok(`[${en}] G6a 使用者點 tab 開 ⇒ 鍵=1`, k === '1', String(k));
+  await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 60000 }); await pinClock(page); await page.waitForTimeout(500);
+  let s = await snap(page);
+  ok(`[${en}] G6a 重載後仍開(瀏覽態)`, !s.hidden && !s.searchOpen, JSON.stringify(s));
+  await tapTab(page); // 再點=關
+  k = await page.evaluate(() => localStorage.getItem('trainmap-query-open'));
+  ok(`[${en}] G6b 使用者關 ⇒ 鍵=0`, k === '0', String(k));
+  await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 60000 }); await pinClock(page); await page.waitForTimeout(500);
+  s = await snap(page);
+  ok(`[${en}] G6b 重載後關`, s.hidden);
+  await ctx.close();
+  const r0 = await boot(browser, {}); const taipei = await stationOf(r0.page, '臺北', 'tra_sched'); await r0.ctx.close();
+  ({ ctx, page } = await boot(browser, { query: geomock(offsetLatLon(taipei, 100)) }));
+  await page.waitForFunction(() => state._geoLanded === true, null, { timeout: 8000 }).catch(() => {});
+  await page.evaluate(() => new Promise(r => requestAnimationFrame(() => r())));
+  s = await snap(page); k = await page.evaluate(() => localStorage.getItem('trainmap-query-open'));
+  ok(`[${en}] G6c 自動開 ⇒ 開著但不寫鍵`, !s.hidden && k === null, JSON.stringify({ hidden: s.hidden, k }));
+  await page.evaluate(() => document.getElementById('searchPanelClose').click()); await page.waitForTimeout(200);
+  const d = await page.evaluate(() => localStorage.getItem('trainmap-query-dismissed-v1'));
+  ok(`[${en}] G6d 自動開後 × ⇒ 記下站鍵 tra_sched|臺北`, d === 'tra_sched|臺北', String(d));
+  await ctx.close();
+}});
+
+// G9 桌面零改動（spec §7-9）：面板永不開、搜尋框留在 header、tab bar 不顯示。牙：手機 CSS 漏進桌面 ⇒ 紅。
+sections.push({ name: 'G9 桌面不變量', run: async (browser, en) => {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'zh-TW' });
+  const page = await ctx.newPage();
+  await page.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-language', 'zh-TW'); } catch (e) {} });
+  await page.goto(BASE + '?lang=zh-TW', { waitUntil: 'domcontentloaded' });
+  await page.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 60000 });
+  await pinClock(page);
+  const d = await page.evaluate(() => ({
+    panelHidden: document.getElementById('searchPanel').hidden,
+    searchRowExists: !!document.getElementById('searchRow'),
+    searchInHeader: !document.getElementById('searchSlot').contains(document.getElementById('searchRow')),
+    tabbar: getComputedStyle(document.getElementById('tabbar')).display,
+  }));
+  // 牙：searchInHeader 在 #searchRow 不存在時也會是 true(vacuous pass);多釘 searchRowExists 才堵得住
+  ok(`[${en}] G9 桌面：面板關、搜尋框在 header、tab bar 不顯示`, d.panelHidden && d.searchRowExists && d.searchInHeader && d.tabbar === 'none', JSON.stringify(d));
+  // G9b 牙：MOBILE_MQ 誤命中桌面尺寸 ⇒ focus 觸發 setSearchTyping(true),打字態洩漏到桌面
+  await page.focus('#trainSearch');
+  await page.waitForTimeout(200);
+  const d2 = await page.evaluate(() => ({
+    searchOpen: document.body.classList.contains('search-open'),
+    panelHidden: document.getElementById('searchPanel').hidden,
+  }));
+  ok(`[${en}] G9b 桌面聚焦搜尋框不洩漏打字態`, !d2.searchOpen && d2.panelHidden === true, JSON.stringify(d2));
+  await ctx.close();
+  // G9c 桌面：帶開關記憶鍵＋靠近車站定位開機，面板仍關（spec §6 兩道 MOBILE_MQ 守門缺一不可）。
+  // 牙：queryMaybeAutoOpen（自動開）或開機 state.ready 之後那段讀 QUERY_OPEN_KEY 的還原（開機還原記憶）,兩處 MOBILE_MQ 守門任一道被拿掉 ⇒ 這條紅。刻意不用 boot()——
+  // 它固定 hasTouch/isMobile,會讓 MOBILE_MQ 的 (any-pointer:coarse) and (max-width:1400px) 那支意外命中,
+  // 蓋掉桌面本該測到的東西;沿用本節既有的純滑鼠 context 寫法。
+  const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'zh-TW' });
+  const page2 = await ctx2.newPage();
+  await page2.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-language', 'zh-TW'); localStorage.setItem('trainmap-query-open', '1'); } catch (e) {} });
+  await page2.goto(BASE + '?lang=zh-TW&geomock=25.0478,121.5170', { waitUntil: 'domcontentloaded' });
+  await page2.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 60000 });
+  await pinClock(page2);
+  await page2.waitForFunction(() => state._geoLanded === true, null, { timeout: 8000 }).catch(() => {});
+  await page2.evaluate(() => new Promise(r => requestAnimationFrame(() => r())));
+  const hidden2 = await page2.evaluate(() => document.getElementById('searchPanel').hidden);
+  ok(`[${en}] G9c 桌面：帶記憶鍵(trainmap-query-open=1)＋靠近車站定位開機，面板仍關`, hidden2 === true, String(hidden2));
+  await ctx2.close();
+}});
+
+// G10 小工具節(spec §7-10/11 的瀏覽器可驗部分):網站走完查詢流程 assets/widgets 請求數 0;
+// Android 替身 pinSupported 真 ⇒ 7 顆鈕、假 ⇒ 0 顆;iOS 替身 0 顆但 8 張圖。牙:讓 pinSupported 回假鈕必消失。
+sections.push({ name: 'G10 小工具節', run: async (browser, en) => {
+  let { ctx, page } = await boot(browser, {});
+  const reqs = []; page.on('request', r => { if (r.url().includes('assets/widgets/')) reqs.push(r.url()); });
+  await tapTab(page); await page.evaluate(() => openHelp()); await page.waitForTimeout(500);
+  ok(`[${en}] G10a 網站零 assets/widgets 請求`, reqs.length === 0, reqs.join(','));
+  await ctx.close();
+  for (const [label, supported, platform, expectBtns, expectImgs] of [['android 支援釘選', true, 'android', 7, 7], ['android 不支援', false, 'android', 0, 7], ['ios', true, 'ios', 0, 8]]) {
+    ({ ctx, page } = await boot(browser, { app: true, platform, plugins: { RailMetroWait: {}, RailWidget: { pinSupported: { $result: { supported } }, pin: { $result: { requested: true } } } } }));
+    await page.evaluate(() => openHelp('metrowidget')); await page.waitForTimeout(800);
+    const m = await page.evaluate(() => ({ btns: document.querySelectorAll('#helpBody .help-sec[data-sec="metrowidget"] .help-wpin').length, imgs: document.querySelectorAll('#helpBody .help-sec[data-sec="metrowidget"] .help-widgets img').length }));
+    ok(`[${en}] G10 ${label}:鈕 ${m.btns}（應 ${expectBtns}）、圖 ${m.imgs}（應 ${expectImgs}）`, m.btns === expectBtns && m.imgs === expectImgs, JSON.stringify(m));
+    await ctx.close();
+  }
+  // G10b 真點「加到桌面」(整枝審查 I-1 的牙):pin 回 requested:false ⇒ 吐司出現且零 pageerror;回 true ⇒ 不吐司。
+  // 分派函式裡若有區域變數把全域 t() 遮蔽掉(TDZ),失敗路徑會丟 ReferenceError、吐司永遠不出——只驗鈕數量照不到。
+  for (const [label, requested, expectToast] of [['pin 失敗', false, true], ['pin 成功', true, false]]) {
+    ({ ctx, page } = await boot(browser, { app: true, platform: 'android', plugins: { RailMetroWait: {}, RailWidget: { pinSupported: { $result: { supported: true } }, pin: { $result: { requested } } } } }));
+    const errs = []; page.on('pageerror', e => errs.push(String(e).slice(0, 200)));
+    await page.evaluate(() => openHelp('metrowidget')); await page.waitForTimeout(800);
+    // 用 DOM click 走委派的分派函式(要驗的是分派程式碼,不是命中測試;鈕在說明中心捲動區內、Playwright 的可點性等待會逾時)
+    await page.evaluate(() => document.querySelector('#helpBody .help-sec[data-sec="metrowidget"] .help-wpin').click()); await page.waitForTimeout(500);
+    const expected = await page.evaluate(() => t('這支手機的桌面不支援直接加入，請長按主畫面 → 小工具 → 軌島'));
+    const toast = await page.evaluate(() => [...document.querySelectorAll('#toasts *')].map(n => n.textContent).join(' '));
+    const hasToast = toast.includes(expected);
+    ok(`[${en}] G10b 真點加到桌面（${label}）:吐司 ${hasToast}（應 ${expectToast}）、pageerror ${errs.length}（應 0）`, hasToast === expectToast && errs.length === 0, toast.slice(0, 80) + ' | ' + errs.join(' | '));
+    await ctx.close();
+  }
+  // G10c 釘選能力開機預熱(整枝審查 M-5):setupHelp 在開機就問過 pinSupported 並快取,說明中心打開時
+  // 通常已有答案;不能無條件在 resolve 後重畫,那會把 openHelp 剛做完的展開群組/捲動/高亮整份 innerHTML 抹掉。
+  {
+    ({ ctx, page } = await boot(browser, { app: true, platform: 'android', plugins: { RailMetroWait: {}, RailWidget: { pinSupported: { $result: { supported: true } }, pin: { $result: { requested: true } } } } }));
+    const errs = []; page.on('pageerror', e => errs.push(String(e).slice(0, 200)));
+    await page.waitForTimeout(300);
+    const pre = await page.evaluate(() => state._widgetPinSupported);
+    ok(`[${en}] G10c 開機預熱:還沒開說明中心就已經知道支援釘選`, pre === true, String(pre));
+    await page.evaluate(() => openHelp('metrowidget'));
+    await page.waitForTimeout(800);
+    const h = await page.evaluate(() => {
+      const sec = document.querySelector('#helpBody .help-sec[data-sec="metrowidget"]');
+      const grp = sec && sec.closest('.help-grp');
+      return { grpOpen: !!grp && grp.classList.contains('open'), btns: sec ? sec.querySelectorAll('.help-wpin').length : -1, hi: !!document.querySelector('#helpBody .help-sec-hi') };
+    });
+    ok(`[${en}] G10c 展開群組／鈕數／高亮沒被預熱後的重畫抹掉`, h.grpOpen && h.btns === 7 && h.hi, JSON.stringify(h));
+    ok(`[${en}] G10c 零 pageerror`, errs.length === 0, errs.join(' | '));
+    await ctx.close();
+  }
+}});
+
+// G13 查詢 sheet 瀏覽態不吃全站段高偏好(整枝審查 I-5):偏好存 small 仍以中段開、最近站整塊答案(所有列＋公車連結)落在面板可視框內;
+// 看板 #board 照舊吃偏好(正向對照,證明改的只有查詢 sheet)。牙:updateSheetOpenClass 那行退回 sheetSizePref ⇒ G13a/G13b 紅、G13c 仍綠。
+// G13e-h(整枝審查必修 4,N-3):查詢 sheet 的抓把切小不得寫回全站偏好——把查詢 sheet 拉到小、關掉、開看板,
+// 看板不能被那次操作帶成 small,sheetSizePref/localStorage 也不能變;正向對照對 #board 呼叫 setSheetSize('small')
+// 偏好要真的變 small(證明牙量得到寫入,不是恆真判準)。牙:setSheetSize 那個 if 拿掉 ⇒ G13f/G13g 紅。
+sections.push({ name: 'G13 查詢 sheet 以半高開', run: async (browser, en) => {
+  const r0 = await boot(browser, {}); const taipei = await stationOf(r0.page, '臺北', 'tra_sched'); await r0.ctx.close();
+  const { ctx, page, errs } = await boot(browser, { query: geomock(offsetLatLon(taipei, 100)), storage: { 'trainmap-sheet-size': 'small' } });
+  await page.waitForFunction(() => !document.getElementById('searchPanel').hidden, null, { timeout: 8000 }); await page.waitForTimeout(600);
+  const s = await page.evaluate(() => {
+    const p = document.getElementById('searchPanel'), pr = p.getBoundingClientRect();
+    const blk = document.querySelector('#queryAnswer .qa-stn');
+    // 審查(修正波 C)盲點 6:.qa-bus 對任何 tra_sched 站恆存在,零列時 parts 仍非空——「整塊在框內」要以至少一列 .row 為前提才有鑑別力。
+    const rows = blk ? [...blk.querySelectorAll('.row')] : [];
+    const parts = blk ? [...rows, ...blk.querySelectorAll('.qa-bus')] : [];
+    const rects = parts.map(n => n.getBoundingClientRect());
+    return { small: p.classList.contains('sheet-small'), pref: sheetSizePref, h: Math.round(pr.height), vh: innerHeight, parts: parts.length, rows: rows.length,
+      allIn: rows.length > 0 && rects.every(r => r.top >= pr.top - 1 && r.bottom <= pr.bottom + 1) };
+  });
+  ok(`[${en}] G13a 偏好 small 時查詢 sheet 仍以中段開`, !s.small && s.pref === 'small', JSON.stringify(s));
+  ok(`[${en}] G13b 最近站整塊答案(至少一列)在面板可視框內`, s.allIn, JSON.stringify(s));
+  await page.evaluate(({ name, sys }) => { closeSearchPanel({ user: true }); const c = nearbyStationCandidates().find(x => x.st.name === name && x.st.sys === sys); openBoard(c.st); }, taipei); await page.waitForTimeout(600);
+  const b = await page.evaluate(() => ({ small: document.getElementById('board').classList.contains('sheet-small'), hidden: document.getElementById('board').hidden }));
+  ok(`[${en}] G13c 正向對照:看板照舊吃偏好 small`, !b.hidden && b.small, JSON.stringify(b));
+  ok(`[${en}] G13d 零 pageerror`, errs.length === 0, errs.join(' | '));
+  // 查詢 sheet 拉到小(setSheetSize 直接呼叫,模擬拖抓把):先把偏好定在跟 small 不同的 medium,
+  // 這樣「有沒有被寫成 small」才有鑑別力(偏好本來就是 small 的話,寫不寫都看起來一樣)。
+  await page.evaluate(() => { openSearchPanel(); });
+  await page.waitForTimeout(400);
+  const w = await page.evaluate(() => {
+    sheetSizePref = 'medium'; try { localStorage.setItem('trainmap-sheet-size', 'medium'); } catch (e) {}
+    setSheetSize(document.getElementById('searchPanel'), 'small');
+    let ls = null; try { ls = localStorage.getItem('trainmap-sheet-size'); } catch (e) {}
+    return { searchSmall: document.getElementById('searchPanel').classList.contains('sheet-small'), pref: sheetSizePref, ls };
+  });
+  ok(`[${en}] G13e 查詢 sheet 抓把切小:面板本身變小(這次打開照常生效)`, w.searchSmall === true, JSON.stringify(w));
+  ok(`[${en}] G13f 查詢 sheet 抓把切小:不寫全站偏好(pref/localStorage 仍是 medium)`, w.pref === 'medium' && w.ls === 'medium', JSON.stringify(w));
+  await page.evaluate(({ name, sys }) => { closeSearchPanel({ user: true }); const c = nearbyStationCandidates().find(x => x.st.name === name && x.st.sys === sys); openBoard(c.st); }, taipei);
+  await page.waitForTimeout(600);
+  const b2 = await page.evaluate(() => ({ small: document.getElementById('board').classList.contains('sheet-small') }));
+  ok(`[${en}] G13g 查詢 sheet 拉小之後開看板:看板不是 sheet-small(沒被那次操作污染)`, b2.small === false, JSON.stringify(b2));
+  const ctrl = await page.evaluate(() => { setSheetSize(document.getElementById('board'), 'small'); return { pref: sheetSizePref }; });
+  ok(`[${en}] G13h 正向對照:對看板呼叫 setSheetSize 偏好真的變 small(證明牙量得到寫入,不是恆真)`, ctrl.pref === 'small', JSON.stringify(ctrl));
+  await ctx.close();
+}});
+
+// G14 按下後重排仍開按到的站(整枝審查 #29):答案區約每模擬秒依距離重排,按下到放開之間同一位置索引
+// 可能變成別站——wrap.onpointerdown/onclick 改記站物件不記索引。牙:onclick 退回舊的「按位置索引」
+// 寫法 ⇒ 重排(倒序)後開到的是別站。
+// G14c-e(整枝審查必修 5):捲動取消一次按壓後 _down 是陳舊站物件,點空白處(.qa-stn 落空)會開錯站。
+// 牙:拿掉 wrap.onpointercancel 那行 ⇒ _down 沒被清掉,G14d/G14e 紅。
+sections.push({ name: 'G14 按下後重排仍開按到的站', run: async (browser, en) => {
+  const r0 = await boot(browser, {}); const taipei = await stationOf(r0.page, '臺北', 'tra_sched'); await r0.ctx.close();
+  const { ctx, page, errs } = await boot(browser, { query: geomock(offsetLatLon(taipei, 100)) });
+  await page.waitForFunction(() => !document.getElementById('searchPanel').hidden, null, { timeout: 8000 }); await page.waitForTimeout(600);
+  const r = await page.evaluate(() => {
+    const wrap = document.getElementById('queryAnswer');
+    let stubbed = false;
+    // 牙的前提是重排後索引 0 真的換人:答案區不足 2 站時倒序沒有意義,補一顆替身站確保換人。
+    if (!wrap._stations || wrap._stations.length < 2) {
+      const base = (wrap._stations && wrap._stations[0]) || { name: '臺北', sys: 'tra_sched' };
+      wrap._stations = [base, { ...base, name: '__G14_STUB__', sys: base.sys }];
+      stubbed = true;
+    }
+    const blk0 = wrap.querySelector('.qa-stn');
+    const pressed = wrap._stations[+blk0.dataset.qi];
+    wrap.onpointerdown({ target: blk0 }); // 按下:記住當時按到的站物件
+    wrap._stations = [...wrap._stations].reverse(); // 模擬重排
+    wrap.innerHTML = ''; // 列被換掉、click 目標變成容器(wrap 本身)
+    wrap.onclick({ target: wrap }); // 放開:.qa-stn 落空,走 wrap._down 補的路徑
+    return { stubbed, pressed: { name: pressed.name, sys: pressed.sys },
+      opened: state.boardStation ? { name: state.boardStation.name, sys: state.boardStation.sys } : null };
+  });
+  ok(`[${en}] G14 按下後重排仍開按到的站(不是重排後同位置的別站)`, !!r.opened && r.opened.name === r.pressed.name && r.opened.sys === r.pressed.sys, JSON.stringify(r));
+  ok(`[${en}] G14b 零 pageerror`, errs.length === 0, errs.join(' | '));
+  await ctx.close();
+  // G14c-f:另開一輪乾淨的 session——上面那格已經把 wrap.innerHTML 清空模擬重排,而 renderQueryAnswer
+  // 有「內容沒變就不重寫 DOM」的節流(見 G12a2),沿用同一頁重繪不出新列,得換一頁才有乾淨的列可按。
+  const s2 = await boot(browser, { query: geomock(offsetLatLon(taipei, 100)) });
+  await s2.page.waitForFunction(() => !document.getElementById('searchPanel').hidden, null, { timeout: 8000 }); await s2.page.waitForTimeout(600);
+  const c14 = await s2.page.evaluate(() => {
+    const wrap = document.getElementById('queryAnswer');
+    const before = state.boardStation ? { name: state.boardStation.name, sys: state.boardStation.sys } : null;
+    const blk0 = wrap.querySelector('.qa-stn');
+    wrap.onpointerdown({ target: blk0 }); // 按下:記住站物件
+    if (typeof wrap.onpointercancel === 'function') wrap.onpointercancel(); // 模擬捲動取消這次按壓
+    const downAfterCancel = wrap._down;
+    wrap.onclick({ target: wrap }); // 在空白處放開(.qa-stn 落空,走 wrap._down 補的路徑)
+    return { before, downAfterCancel, hasBlk: !!blk0,
+      after: state.boardStation ? { name: state.boardStation.name, sys: state.boardStation.sys } : null,
+      boardHidden: document.getElementById('board').hidden };
+  });
+  ok(`[${en}] G14c 前提:答案區真的有列可按`, c14.hasBlk === true, JSON.stringify(c14));
+  ok(`[${en}] G14d 捲動取消按壓後清掉 _down(整枝審查必修 5)`, c14.downAfterCancel === null, JSON.stringify(c14));
+  ok(`[${en}] G14e 取消後點空白處不開錯站:boardStation 不變、看板沒開`,
+    c14.boardHidden === true && JSON.stringify(c14.before) === JSON.stringify(c14.after), JSON.stringify(c14));
+  ok(`[${en}] G14f 零 pageerror`, s2.errs.length === 0, s2.errs.join(' | '));
+  await s2.ctx.close();
+}});
+
+// G16 等 helpRun 結果的逾時上限。helpRun 把動作排在 60 ms 計時器後,健康路徑約 80 ms 就到;
+// 這裡原本給 1 秒,2026-09-19 00:18 ship-web preflight 在 load average ~69(多個 session 同時跑
+// Playwright)下 G16g 等不到吐司而假紅({"dToast":false,"dHidden":true}),同 commit 單獨重跑 245/245,
+// 白白賠一輪 20 分鐘出貨。放寬成 8 秒(比照本檔等面板開的 8000 慣例)只影響「等多久」,斷言內容不變:
+// 條件成立就立刻往下走,健康路徑不會變慢;真的壞掉時照樣紅,只是紅得晚 8 秒。
+// 吐司在 DOM 裡留 5.45 秒(showToast 的 5000 ms＋450 ms 淡出),出現後才開始計,等再久也不會錯過。
+const HELP_RUN_WAIT = 8000;
+
+// G16 說明中心(task-6)：「查詢」節存在、緊接搜尋節之後；搜尋節提到底部「查詢」；沒有死掉的
+// 「試一次」；「查詢」節真的把試一次鈕渲染進 DOM(helpTryOk('query') 對這個只有 run 的鍵永遠
+// 回 true,dead 審計本身照不到,故另立 G16c2)；HELP_TRY.query 的兩句吐司 en/ja 都在；真點渲染
+// 出來的試一次鈕 ⇒ helpRun('query') 開瀏覽態面板、面板已開時再試一次不會被當 toggle 關掉；
+// helpRun('search') 在面板關著時會先開面板才進打字態；桌面 helpRun('query') 不開面板。
+// 牙：拿掉 query 節的 try:'query' ⇒ G16c2 紅(渲染清單缺 query)、G16e 也連帶紅(找不到按鈕);
+// HELP_TRY.query.run 改回 tabSearch.click() ⇒ G16e2 紅；HELP_TRY.search.run 拿掉
+// openSearchPanel 那行 ⇒ G16f 紅；content-translations.js 任一句吐司缺一種語言 ⇒ G16d 紅。
+sections.push({ name: 'G16 說明中心', run: async (browser, en) => {
+  const { ctx, page } = await boot(browser, {});
+  await page.evaluate(() => openHelp());
+  await page.waitForTimeout(300);
+  const h = await page.evaluate(() => {
+    const q = document.querySelector('#helpBody .help-sec[data-sec="query"]');
+    const s = document.querySelector('#helpBody .help-sec[data-sec="search"]');
+    const a = helpAudit();
+    return { query: !!q, searchText: s ? s.textContent : '', dead: a.dead, secs: a.secs, rendered: a.rendered };
+  });
+  ok(`[${en}] G16a 「查詢」節存在且緊接搜尋節之後`, h.query && h.secs.indexOf('query') === h.secs.indexOf('search') + 1, JSON.stringify(h.secs));
+  ok(`[${en}] G16b 搜尋節提到底部「查詢」`, /底部「查詢」/.test(h.searchText));
+  ok(`[${en}] G16c 沒有死掉的「試一次」`, h.dead.length === 0, JSON.stringify(h.dead));
+  // helpTryOk('query') 對這個鍵無條件回 true(HELP_TRY.query 只有 run,沒有 id/ok)，G16c 對它零訊號；
+  // 另外斷言「查詢」節真的把那顆按鈕渲染進 DOM(rendered 是實際出現的 data-try 清單,不是能力判斷)。
+  ok(`[${en}] G16c2 「查詢」節渲染出「試一次」`, h.rendered.includes('query'), JSON.stringify(h.rendered));
+
+  // check_i18n 的說明中心掃描只展開到 HELP_TRY 之前(見 check_i18n.mjs evaluateConstBlock)，
+  // HELP_TRY.query 的 run() 內文字面呼叫的 t('...') 不在它的說明中心分母裡，這裡自己補一條牙。
+  const i18nOk = await page.evaluate(() => {
+    const keys = ['這就是查詢面板——上面搜尋、中間下一班、下面入口', '桌面版沒有查詢面板，搜尋框在右上角'];
+    const m = window.RAIL_I18N_MESSAGES;
+    return !!m && keys.every(k => typeof m.en?.[k] === 'string' && !!m.en[k] && typeof m.ja?.[k] === 'string' && !!m.ja[k]);
+  });
+  ok(`[${en}] G16d 兩句「試一次」吐司的 en/ja 鍵都在`, i18nOk === true);
+
+  // 手機:openHelp('query') 展開該節後真點渲染出的「試一次」鈕(不是 evaluate 直接呼叫 helpRun)——
+  // section → 按鈕 → data-try → helpRun 一路端到端 ⇒ 說明卡關、查詢面板開(瀏覽態,不是打字態)。
+  // 說明卡本身可捲動,先 scrollIntoView 再量尺寸,量到 0 就不點(牙:拿掉 try:'query' 時按鈕根本
+  // 不存在,qBtn 為 null,底下的斷言連同這條一起紅,而不是對著不存在的元素硬點造成腳本本身出錯)。
+  await page.evaluate(() => openHelp('query'));
+  await page.waitForTimeout(300);
+  const qBtn = await page.evaluate(() => {
+    const btn = document.querySelector('#helpBody .help-sec[data-sec="query"] .help-try');
+    if (!btn) return null;
+    btn.scrollIntoView({ block: 'center' });
+    const r = btn.getBoundingClientRect();
+    return { w: Math.round(r.width), h: Math.round(r.height), x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  });
+  if (qBtn && qBtn.w > 0 && qBtn.h > 0) await page.touchscreen.tap(qBtn.x, qBtn.y);
+  // 等「面板開＋說明卡關」這個條件,不等固定秒數:helpRun 把動作排在 60 ms 計時器後,機器忙時會晚到,
+  // 固定 300 ms 曾在同一支腳本裡假紅過一次;逾時 HELP_RUN_WAIT(見其定義處的事故)就讓底下的斷言照實紅(判斷力 rubric 第八節)。
+  // 等待條件與斷言相同(含「不是打字態」):等的條件若是斷言的真子集,斷言可能取樣到舊值。
+  await page.waitForFunction(() => !document.getElementById('searchPanel').hidden && document.getElementById('helpModal').hidden && !document.body.classList.contains('search-open'), null, { timeout: HELP_RUN_WAIT }).catch(() => {});
+  const s1 = await page.evaluate(() => ({
+    panelHidden: document.getElementById('searchPanel').hidden,
+    searchOpen: document.body.classList.contains('search-open'),
+    helpHidden: document.getElementById('helpModal').hidden,
+  }));
+  ok(`[${en}] G16e 真點「查詢」節的試一次 ⇒ 查詢面板開(瀏覽態)、說明卡已關`,
+    !!qBtn && qBtn.w > 0 && qBtn.h > 0 && !s1.panelHidden && !s1.searchOpen && s1.helpHidden, JSON.stringify({ qBtn, s1 }));
+  // 面板已開時再試一次(牙:run 改回 tabSearch.click() 會把已開的面板當 toggle 點成關掉)。
+  // 不睡固定 300 ms 就量:機器忙時 60 ms 計時器晚於 300 ms 才跑,量到的是「動作還沒發生」的面板,
+  // toggle 突變照樣綠(假綠)。改等這一次呼叫的吐司真的出現(run() 的最後一步;closeSearchPanel 同步設
+  // hidden,所以吐司出現時面板動作已做完)再量。G16e 那次點擊留下的同句吐司還在 DOM 裡(5 秒才收),
+  // 先把現有吐司都標記掉,只認這次新長出來的那一則。
+  await page.evaluate(() => { document.querySelectorAll('#toasts .toast').forEach(el => { el.dataset.g16Old = '1'; }); helpRun('query'); });
+  const qToast2 = await page.waitForFunction(() => [...document.querySelectorAll('#toasts .toast')].some(el => !el.dataset.g16Old && el.textContent.includes('這就是查詢面板')), null, { timeout: HELP_RUN_WAIT }).then(() => true).catch(() => false);
+  const panelHidden2 = await page.evaluate(() => document.getElementById('searchPanel').hidden);
+  ok(`[${en}] G16e2 面板已開時再試一次「查詢」⇒ 吐司出現且面板仍開著(不是被當 toggle 關掉)`, qToast2 && panelHidden2 === false, JSON.stringify({ qToast2, panelHidden2 }));
+
+  // 手機:面板關著時試一次「搜尋」⇒ 先開面板才 focus(牙:拿掉 openSearchPanel 那行,面板關著
+  // 時 #trainSearch 不可 focus,原本的 i.focus() 是空操作,進不了打字態)
+  await page.evaluate(() => closeSearchPanel({ user: true }));
+  await page.waitForTimeout(200);
+  await page.evaluate(() => helpRun('search'));
+  await page.waitForFunction(() => document.body.classList.contains('search-open') && !!document.getElementById('trainSearch').value, null, { timeout: HELP_RUN_WAIT }).catch(() => {}); // 同上:等打字態條件
+  const s3 = await page.evaluate(() => ({
+    panelHidden: document.getElementById('searchPanel').hidden,
+    searchOpen: document.body.classList.contains('search-open'),
+    val: document.getElementById('trainSearch').value,
+  }));
+  ok(`[${en}] G16f 面板關著時試一次「搜尋」⇒ 開面板並進打字態、已帶字`, !s3.panelHidden && s3.searchOpen && !!s3.val, JSON.stringify(s3));
+  await ctx.close();
+
+  // 桌面(比照 G9 的 context 慣例:不帶 hasTouch/isMobile):此寬度/指標下 MOBILE_MQ 不成立
+  // ⇒ helpRun('query') 判定為桌面,不開面板,只吐司指路。
+  const dctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'zh-TW' });
+  const dpage = await dctx.newPage();
+  await dpage.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-language', 'zh-TW'); } catch (e) {} });
+  await dpage.goto(BASE + '?lang=zh-TW', { waitUntil: 'domcontentloaded' });
+  await dpage.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 60000 });
+  await pinClock(dpage);
+  await dpage.evaluate(() => helpRun('query'));
+  // 正向對照:桌面分支會吐司指路——等那則吐司真的出現在 #toasts(證明 helpRun 的桌面分支跑過了)再斷言面板仍關;
+  // 只斷言 hidden===true 的話,「60 ms 計時器餓死、什麼都沒發生」也會是綠的(假綠,判準盲點 5)。
+  const dToast = await dpage.waitForFunction(() => ((document.getElementById('toasts') || {}).textContent || '').includes('桌面版沒有查詢面板'), null, { timeout: HELP_RUN_WAIT }).then(() => true).catch(() => false);
+  const dHidden = await dpage.evaluate(() => document.getElementById('searchPanel').hidden);
+  ok(`[${en}] G16g 桌面 helpRun('query') ⇒ 吐司指路、查詢面板仍關(hidden)`, dToast && dHidden === true, JSON.stringify({ dToast, dHidden }));
+  await dctx.close();
+}});
+
+// G17 特大字級答案列(I-1 fix wave)：#searchPanel 掛 .board,xlarge 收欄位/縮誤點那套看板規則
+// 整套會套到答案列——但答案區沒有 .rx 展開路徑接住 .rmore 的點擊(點下去是 wrap.onclick 開看板),
+// 拿掉三條 override CSS(或拿掉 title 的 perGroup===1 分支)都會讓這段紅。
+// 對照:同一頁看板本尊在 xlarge 的「›」不受影響,證明只改到答案區。
+sections.push({ name: 'G17 特大字級答案列', run: async (browser, en) => {
+  const r0 = await boot(browser, {}); const taipei = await stationOf(r0.page, '臺北', 'tra_sched'); await r0.ctx.close();
+  const { ctx, page } = await boot(browser, { query: geomock(offsetLatLon(taipei, 50)), storage: { 'trainmap-fontscale': 'xlarge' } });
+  await page.waitForFunction(() => !!state.geoLoc, null, { timeout: 15000 });
+  const fs = await page.evaluate(() => document.documentElement.getAttribute('data-fs'));
+  ok(`[${en}] G17 前提:xlarge 字級真的生效(data-fs)`, fs === 'xlarge', String(fs));
+  await openQuery(page);
+  // 修正波 C 附帶修法:同 G4——自動開門那次舊時刻渲染之後,主迴圈的 1000ms 牆鐘節流可能還沒放行,
+  // 讀值前再逼一次真的重畫當保險,否則會讀到那份用舊時刻算出來的空列表。
+  await page.evaluate(() => renderQueryAnswer());
+  const r = await page.evaluate(() => {
+    const row = document.querySelector('#queryAnswer .qa-stn .qa-rows .row[data-no]');
+    if (!row) return null;
+    const dest = row.querySelector('.dest'), more = row.querySelector('.rmore');
+    return {
+      destDisplay: dest && getComputedStyle(dest).display, destText: dest && dest.textContent.trim(),
+      moreDisplay: more && getComputedStyle(more).display, hasTitle: row.hasAttribute('title'),
+    };
+  });
+  ok(`[${en}] G17a 答案列車種／終點在 xlarge 常駐可見(不必展開)`, !!r && r.destDisplay !== 'none' && !!r.destText, JSON.stringify(r));
+  ok(`[${en}] G17b 答案列的「›」在 xlarge 仍然藏起來(沒有可展開的地方接它)`, !!r && r.moreDisplay === 'none', JSON.stringify(r));
+  ok(`[${en}] G17c 答案列沒有假的跟車 tooltip`, !!r && r.hasTitle === false, JSON.stringify(r));
+  const box = await page.evaluate(() => { const el = document.querySelector('#queryAnswer .qa-stn .qa-rows .row[data-no]'); const b = el.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; });
+  await page.touchscreen.tap(box.x, box.y); await page.waitForTimeout(500);
+  const o = await page.evaluate(() => ({ boardOpen: !document.getElementById('board').hidden, following: !!state.followTrain, queryClosed: document.getElementById('searchPanel').hidden }));
+  ok(`[${en}] G17d 真觸控點答案列 ⇒ 看板開、不是跟車(state.followTrain 仍空)`, o.boardOpen && !o.following, JSON.stringify(o));
+  // 對照:同一頁、同一站,看板本尊在 xlarge 的「›」還在(證明只改到答案區,沒把看板的展開能力一併拔掉)。
+  const board = await page.evaluate(() => { const row = document.querySelector('#board .row[data-no]'); const more = row && row.querySelector('.rmore'); return more ? getComputedStyle(more).display : 'missing'; });
+  ok(`[${en}] G17e 對照:看板本尊在 xlarge 仍看得到「›」`, board !== 'none' && board !== 'missing', board);
+  await ctx.close();
+}});
+
+// ── 執行 ──
+// QT_ONLY 只篩 sections 陣列（G0 在陣列外，上面已經跑完，天然不受影響）。
+// QUERY_SECTION 是 origin/main(09-07)另外加的前綴篩選,併進來後視同 QT_ONLY:同一個 exit 2 語意,篩選跑不可能被當成通過。
+const qtFilter = process.env.QT_ONLY || process.env.QUERY_SECTION || '';
+const qtOnly = qtFilter ? new RegExp(qtFilter) : null;
+const activeSections = qtOnly ? sections.filter(s => qtOnly.test(s.name)) : sections;
+if (qtOnly) console.log(`QT_ONLY/QUERY_SECTION=${qtFilter} ⇒ 只跑 ${activeSections.length}/${sections.length} 段：${activeSections.map(s => s.name).join('、')}`);
+for (const engineName of ENGINES) {
+  const engine = engineName === 'webkit' ? webkit : chromium;
+  const browser = await engine.launch();
+  for (const s of activeSections) {
+    try { await s.run(browser, engineName); }
+    catch (e) { ok(`[${engineName}] ${s.name} 執行例外`, false, String(e).slice(0, 200)); }
+  }
+  await browser.close();
+}
+server.close();
+const failed = results.filter(r => !r.pass);
+console.log(`\n${results.length - failed.length}/${results.length} 通過`);
+if (failed.length) console.log('失敗：\n' + failed.map(f => ' - ' + f.name + (f.detail ? '（' + f.detail + '）' : '')).join('\n'));
+// 🔴 篩選跑永遠不能被任何鏈當成通過（不管綠紅）：QT_ONLY 有值就一律 exit 2，與全跑的 0/1 語意分開。
+if (qtOnly) { console.log('QT_ONLY 篩選跑：exit 2，不可當通過'); process.exit(2); }
+if (failed.length) process.exit(1);

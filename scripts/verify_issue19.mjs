@@ -5,16 +5,56 @@
 // 量它與繪製點的實地距離；另一路用幾何投影把繪製點反算成里程，兩路互相對帳。
 // 時間軸是唯一的自變數，里程/軌道幾何兩邊共用（那是量尺，不是待驗的假設）。
 //
-// 用法：PORT=<自選> node scripts/dev_server.mjs & 然後
-//       VURL=http://localhost:<PORT>/index.html node scripts/verify_issue19.mjs
+// 用法：node scripts/verify_issue19.mjs   ← 伺服器自己起，不必先開 dev_server
+//       VURL=http://localhost:<PORT>/index.html node scripts/verify_issue19.mjs   ← 指向已在跑的 server
 // 環境變數：DELAY_MIN 注入誤點（預設 7，對齊使用者影片的台鐵 2619）、OUT 落檔路徑、ENGINES 引擎清單
+//
+// 🔴 語系必須釘死 zh-TW（2026-09-08）。B1／B2／C* 讀的是「使用者眼睛看到的那行字」，
+//    而 Playwright 的 chromium／webkit 預設 navigator.language=en-US ⇒ index.html 的 I18N_LANG
+//    變成 en，狀態列成了「⏸ At Luye · departs in 29 sec」、下一站成了「Shanli」，五條判準同時
+//    假紅、而且長得跟產品回歸一模一樣（實測 5 紅全出於此）。兩道一起下：
+//      * 網址帶 ?lang=zh-TW —— index.html 自己的最高優先語系開關（query > localStorage >
+//        navigator），top-level 就讀完，boot 途中 clearFollow() 清掉 query string 也影響不到它。
+//      * context locale: 'zh-TW' —— 讓 navigator.language 與沒帶 locale 的 Intl／toLocaleString
+//        也不隨跑測試的機器語系漂移。
+//    刻意【不】改成「驗結構旗標不驗文案」：B1／B2／C* 守的就是那行字有沒有說謊。文案耦合的代價
+//    由 G1 那道具名前置閘門承擔——語系釘不住時它直接指名，不會讓五條判準各報各的英文字串。
 import { chromium, webkit } from 'playwright';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { spawn } from 'node:child_process';
+import { createServer } from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const URL = process.env.VURL || 'http://localhost:5288/index.html';
+// ── 伺服器自己起（照 verify_afr.mjs 的做法），埠由 OS 指派。
+// 舊版預設連 5288，而這台機器同時有 30+ 個並行 worktree 在跑 dev server——連到別人的埠就是
+// 一聲不響地驗**別棵樹**（下面 G0 的 md5 閘門會擋下來，但那是「炸掉」不是「不會發生」）。
+// ROOT 由本檔自身路徑推導，不吃呼叫端 cwd，結構上只可能服務自己這棵樹。
+// VURL 仍可覆寫（指向已在跑的 server），但那條路要自己負責樹對不對，G0 一樣會跑。
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const freePort = () => new Promise(res => {
+  const s = createServer(); s.listen(0, '127.0.0.1', () => { const { port } = s.address(); s.close(() => res(port)); });
+});
+let child = null;
+const URL = process.env.VURL || `http://localhost:${await freePort()}/index.html`;
+if (!process.env.VURL) {
+  const port = new global.URL(URL).port;
+  child = spawn(process.execPath, [path.join(ROOT, 'scripts/dev_server.mjs')], {
+    cwd: ROOT, env: { ...process.env, PORT: port }, stdio: ['ignore', 'ignore', 'inherit'] });
+  process.on('exit', () => child?.kill());
+  for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { child?.kill(); process.exit(1); });
+  for (let i = 0; ; i++) {                       // 等它真的聽得到，不用固定秒數
+    try { if ((await fetch(URL)).ok) break; } catch (e) {}
+    // 上限 60 秒：原本 10 秒，09-19 01:24 的 ship-web 在多個 session 同跑瀏覽器閘門時卡在這裡
+    // （無崩潰訊息，同一份內容單獨重跑 19 秒全綠）。伺服器一回應就跳出，健康時不會變慢。
+    if (i > 600) { console.error(`✗ dev server 起不來（${URL}）`); child?.kill(); process.exit(1); }
+    await new Promise(r => setTimeout(r, 100));
+  }
+}
+const PAGE_LOCALE = 'zh-TW';
+// G0 的 md5 自檢仍打裸網址（dev_server 對靜態檔忽略 query，兩者同一份 bytes）；瀏覽器一律走這個。
+const NAV_URL = (() => { const u = new global.URL(URL); u.searchParams.set('lang', PAGE_LOCALE); return u.toString(); })();
 const DM = +(process.env.DELAY_MIN || 7), DS = DM * 60;
 const ENGINES = (process.env.ENGINES || 'chromium').split(',').filter(Boolean);
 const GAP_KM = 0.5;                 // 驗收門檻：面板里程換算回的點 vs 繪製點
@@ -23,12 +63,12 @@ const ck = (ok, msg) => { console.log((ok ? '  ✓ ' : '  ✗ ') + msg); if (!ok
 
 // ── G0 自檢：確認 server 端的就是「當前工作區」那份 index.html。
 // 這台機器同時有 20+ 個 worktree 在跑 server，驗到別人的檔案而全綠是真的發生過的事（心得 32）。
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+// 自起 server 的路徑結構上不可能錯，但 VURL 那條路會，所以這道閘門兩條路都跑。
 const md5 = b => createHash('md5').update(b).digest('hex');
 const diskHash = md5(readFileSync(path.join(ROOT, 'index.html')));
 const servedHash = md5(Buffer.from(await (await fetch(URL)).arrayBuffer()));
 console.log(`G0 目標自檢：${URL}\n   工作區 ${ROOT}\n   disk=${diskHash} served=${servedHash}`);
-if (diskHash !== servedHash) { console.log('  ✗ G0 服務中的檔案不是當前工作區——換一個 port 再跑'); process.exit(1); }
+if (diskHash !== servedHash) { console.log('  ✗ G0 服務中的檔案不是當前工作區——VURL 指到別棵樹了，拿掉它讓腳本自己起'); process.exit(1); }
 console.log('  ✓ G0 驗的就是當前工作區');
 
 // 在頁面內注入的量測工具：全部只依賴軌道幾何與繪製函式，不碰面板的時間軸。
@@ -117,24 +157,60 @@ for (const eng of ENGINES) {
   const launcher = eng === 'webkit' ? webkit : chromium;
   console.log(`\n===== ${eng} =====`);
   const br = await launcher.launch();
-  const ctx = await br.newContext({ viewport: { width: 1280, height: 800 } });
+  const ctx = await br.newContext({ viewport: { width: 1280, height: 800 }, locale: PAGE_LOCALE });
   const pg = await ctx.newPage();
+  // 此驗收要有行進中的台鐵樣本；午夜不保證找得到。固定台灣當日正午起跑，
+  // 時鐘仍自然推進，保留真實 rAF／計時器及四次行進取樣；模擬 API 同步使用這個時鐘。
+  const scenarioDay = new Date().toLocaleDateString('sv', { timeZone: 'Asia/Taipei' });
+  await pg.clock.install({ time: new Date(scenarioDay + 'T12:00:00+08:00') });
   const errs = [];
   pg.on('pageerror', e => errs.push(String(e)));
 
+  // 營運公告不屬於誤點時間軸情境；用有效的空公告避免上游連線影響這支驗收。
+  await pg.route(/\/api\/(?:tra|thsr|metro)-alert(?:\?|$)/, route => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify({ alerts: [] }),
+  }));
+
   let mockNo = null;
-  await pg.route('**/api/tra-live*', route => route.fulfill({
+  await pg.route('**/api/tra-live*', async route => route.fulfill({
     status: 200, contentType: 'application/json',
-    body: JSON.stringify({ at: new Date().toISOString(), trains: mockNo ? [{ no: mockNo, delay: DM }] : [] }),
+    body: JSON.stringify({ at: new Date(await pg.evaluate(() => Date.now())).toISOString(), trains: mockNo ? [{ no: mockNo, delay: DM }] : [] }),
   }));
   await pg.addInitScript(PROBE);
 
   const boot = async () => {
-    await pg.goto(URL, { waitUntil: 'load' });
+    await pg.goto(NAV_URL, { waitUntil: 'load' });
     await pg.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 500,
       null, { timeout: 60000 });
   };
   await boot();
+  const scenarioSec = await pg.evaluate(() => nowSecOfDay());
+  ck(scenarioSec >= 12 * 3600 && scenarioSec < 12 * 3600 + 120,
+    `G2 候選列車使用白天情境，不受部署時間影響：${scenarioDay} ${scenarioSec}s`);
+
+  // ── G1 具名語系閘門：B1／B2／C* 全部在讀畫面上那行中文，語系一漂它們會同時假紅而各報不同的
+  //    英文字串，計分板上看不出共同上游。把前提抽出來單獨判一次，紅的時候一眼看得出是語系沒釘住。
+  //    🔴 不可拿 location.search 當「網址有帶 ?lang」的證據——boot 途中 clearFollow() 會
+  //    replaceState 把整條 query 抹掉，事後讀恆為空字串，閘門會因為產品的正常行為而恆紅。
+  //    🔴 樣本要挑真的在訊息表裡的詞：t('跟隨系統') 在 zh-TW/en 都回中文（不在表內），拿它當
+  //    樣本就是一條恆真判準。下面兩個樣本各守一條翻譯路徑，且都實測過在 en 之下會變值：
+  //      stationName('松山') → 'Songshan'（B2 讀的站名走這條）
+  //      t('即將進站') → 'Arriving soon'（C* 讀的遙測列文案走這條）
+  const langState = await pg.evaluate(() => ({
+    i18n: window.__i18n ? window.__i18n.lang : null,
+    doc: document.documentElement.lang,
+    nav: navigator.language,
+    station: window.__i18n ? window.__i18n.stationName('松山') : null,
+    arriving: window.__i18n ? window.__i18n.t('即將進站') : null,
+  }));
+  //    🔴 nav 這一條守的是【第二道釘子】(context locale)。上面四項全部由第一道釘子(網址 ?lang)
+  //    決定——姊妹腳本 verify_font_scale 的 T0L 少了這一條,2026-09-08 突變實測「只把 context
+  //    locale 改成 en-US、網址 ?lang 留 zh-TW」整條閘門照樣 PASS,而 detail 就印著 "nav":"en-US"。
+  //    context locale 管的是 navigator.language 與沒帶 locale 參數的 Intl/toLocaleString(時刻、
+  //    數字格式),它漂成跑測試那台機器的語系時,前四項一個都不會倒,閘門卻宣稱兩道釘子都在。
+  ck(langState.i18n === PAGE_LOCALE && langState.doc === PAGE_LOCALE && langState.nav === PAGE_LOCALE &&
+     langState.station === '松山' && langState.arriving === '即將進站',
+    `G1 語系釘死在 zh-TW（B1／B2／C* 的文案判準前提）：${JSON.stringify(langState)}`);
 
   // ── 選車：台鐵、非環島、此刻在旅途中、且扣掉注入誤點後仍在旅途中（全程短於誤點量的車扣完會落在發車前）。
   // 另要求後段還有一個「停靠 ≥30 秒」的停站，供情境 B（車停在站上）使用。

@@ -26,7 +26,7 @@ const appRoot = dirname(dirname(fileURLToPath(import.meta.url)));      // …/ap
 // 那裡就躺著 2026-09-01 那兩顆同號 archive,是現成的控制組）。正常出貨不要設。
 const ARCHIVES = process.env.RAIL_ARCHIVES_ROOT || join(homedir(), 'Library/Developer/Xcode/Archives');
 const RETIRED = join(homedir(), 'Library/Developer/Xcode/_已作廢的archive');
-const RELEASE_OS_BUILD = process.env.RAIL_RELEASE_OS_BUILD || '25G70';
+const RELEASE_OS_BUILD = process.env.RAIL_RELEASE_OS_BUILD || '26A428';
 const EXPECTED_MIN_OS = process.env.RAIL_EXPECTED_MIN_OS || '15.0';
 const BETA_RE = /^\d+[A-Z]5\d{3}[a-z]$/;
 

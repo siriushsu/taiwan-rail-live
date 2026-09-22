@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 只給小工具挑選器／釘選框的 previewLayout 看；真小工具每次更新都 removeAllViews 後才填列，
+     所以永遠看不到這幾列。一列主角（tag demo-hero，逐項複製 widget_mixed_metro_hero.xml）＋
+     兩列次列（tag demo-row，逐項複製 widget_mixed_metro_row.xml），不綁 android:id（示範列不綁 binder）。
+     真實次列數跟著卡片高度走（MixedWidgetRender.heightFor），兩列是常見的 5×4 手機格。
+     列高與字級要跟真實列一致：verify_android_widget_parity.mjs 逐列比對。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/wmx_metro_hero_h"
+        android:baselineAligned="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:tag="demo-hero">
+        <ImageView
+            android:layout_width="4dp"
+            android:layout_height="36sp"
+            android:contentDescription="@null"
+            android:scaleType="fitXY"
+            android:src="@drawable/wg_meter_block"
+            android:tint="#0070BD" />
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="9dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="往 南港展覽館"
+                android:textColor="@color/wg_ink"
+                android:textSize="19sp"
+                android:textStyle="bold" />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="再下班 7 分 · 14 分"
+                android:textColor="@color/wg_ink_soft"
+                android:textSize="12sp" />
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:orientation="horizontal">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="2"
+                android:textColor="@color/wg_ink"
+                android:textSize="34sp"
+                android:textStyle="bold" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="3dp"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="分"
+                android:textColor="@color/wg_ink_soft"
+                android:textSize="13sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/wmx_follow_h"
+        android:baselineAligned="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:tag="demo-row">
+        <ImageView
+            android:layout_width="3dp"
+            android:layout_height="26sp"
+            android:contentDescription="@null"
+            android:scaleType="fitXY"
+            android:src="@drawable/wg_meter_block"
+            android:tint="#0070BD" />
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="9dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="往 頂埔"
+                android:textColor="@color/wg_ink"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="再下班 9 分 · 16 分"
+                android:textColor="@color/wg_ink_faint"
+                android:textSize="11sp" />
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:orientation="horizontal">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="4"
+                android:textColor="@color/wg_ink"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="2dp"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="分"
+                android:textColor="@color/wg_ink_faint"
+                android:textSize="11sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/wmx_follow_h"
+        android:baselineAligned="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:tag="demo-row">
+        <ImageView
+            android:layout_width="3dp"
+            android:layout_height="26sp"
+            android:contentDescription="@null"
+            android:scaleType="fitXY"
+            android:src="@drawable/wg_meter_block"
+            android:tint="#0070BD" />
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="9dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="往 亞東醫院"
+                android:textColor="@color/wg_ink"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="再下班 23 分"
+                android:textColor="@color/wg_ink_faint"
+                android:textSize="11sp" />
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:orientation="horizontal">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="11"
+                android:textColor="@color/wg_ink"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="2dp"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="分"
+                android:textColor="@color/wg_ink_faint"
+                android:textSize="11sp" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

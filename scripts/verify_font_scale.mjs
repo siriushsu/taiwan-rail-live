@@ -11,6 +11,20 @@
 //   A 段 幾何:字放大之後東西還在不在畫面裡(頂列四顆分頁、tab bar 標籤)
 //   B 段 互動:真的用手指點那顆鈕會不會發生事(不是只看 CSS 算出什麼)
 //   C 段 契約:系統字級的正反向對照
+//
+// 🔴 語系必須釘死 zh-TW(2026-09-08)。這支腳本從頭到尾在比對畫面上的中文字(D2 的「跟隨系統」、
+//    TB8 的四個群組名、E/O/Q 段的看板與清單文案……),而 Playwright 的 chromium/webkit 預設
+//    navigator.language=en-US ⇒ index.html 的 I18N_LANG 變成 en,整批文案判準同時假紅
+//    ——而且長得跟產品回歸一模一樣。2026-09-08 實測:chromium 62 條紅,釘完只剩 22,那 22 條與
+//    「baseline 唯一跑在 zh-TW 的引擎」webkit 的 17 條紅完全對得上(前者是後者的超集)。
+//    🔴 webkit 預設語系跟隨系統(這台是 zh-TW),所以它一直是綠的——同一支腳本兩個引擎得到
+//    不同結論,本身就是語系沒釘住的紅旗。兩道一起下,都在 boot() 裡:
+//      * 網址帶 ?lang=zh-TW —— index.html 自己的最高優先語系開關(query > localStorage >
+//        navigator),top-level 就讀完,boot 途中 clearFollow() 清掉 query string 也影響不到它。
+//      * context locale: 'zh-TW' —— 讓 navigator.language 與沒帶 locale 的 Intl/toLocaleString
+//        也不隨跑測試的機器語系漂移。
+//    刻意【不】改成「驗結構旗標不驗文案」:這些判準守的就是使用者眼睛看到的那行字。文案耦合的
+//    代價由 T0L 那道具名前置閘門承擔——語系釘不住時它直接指名,不會讓幾十條判準各報各的英文字串。
 import { chromium, webkit } from 'playwright';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -20,6 +34,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = +(process.env.PORT || 5261);
 const URL_BASE = `http://127.0.0.1:${PORT}/index.html`;
+const PAGE_LOCALE = 'zh-TW';
 
 const results = [];
 const ok = (name, pass, detail = '') => {
@@ -37,9 +52,48 @@ async function assertTarget() {
   if (disk !== served) { console.log('\n目標不符,後面全部不用看了。'); process.exit(1); }
 }
 
-async function boot(browser, { width = 393, tier = 'std', query = '', scheme, native = null } = {}) {
+// 🔴 第二道 gate:先證明「我驗的是 zh-TW 那份畫面」。全檔幾十條判準在比對中文字串,語系一漂
+//    它們會同時假紅、各報不同的英文,計分板上看不出共同上游(2026-08-29 在 metro_core_defense
+//    上就是這樣燒掉一週)。把前提抽出來單獨判一次,紅的時候一眼看得出是語系沒釘住。
+//    刻意走 boot() 而不是自己另開一個 context:要驗的就是「每一段實際用的那條開頁路徑」有沒有釘住。
+//    🔴 不可拿 location.search 當「網址有帶 ?lang」的證據——開機途中 clearFollow() 會
+//    replaceState 把整條 query 抹掉,事後讀恆為空字串,閘門會因為產品的正常行為而恆紅。
+//    🔴 樣本要挑真的在訊息表裡的詞:t('跟隨系統')(沒有全形括號那版)在 zh-TW/en 都回中文
+//    ——不在表內,拿它當樣本就是一條恆真判準。下面兩個樣本各守一條翻譯路徑,都實測過在 en 之下會變值:
+//      t('（跟隨系統）') → ' (follows system)'(D2 讀的抽屜列文案走這條)
+//      stationName('松山') → 'Songshan'(E/O/Q 段讀的站名走這條)
+async function assertLocale(browser, engine) {
+  const { page, close } = await boot(browser, { width: 393 });
+  const st = await page.evaluate(() => ({
+    i18n: window.__i18n ? window.__i18n.lang : null,
+    doc: document.documentElement.lang,
+    nav: navigator.language,
+    followParen: window.__i18n ? window.__i18n.t('（跟隨系統）') : null,
+    station: window.__i18n ? window.__i18n.stationName('松山') : null,
+  }));
+  // 🔴 nav 這一條是【第二道釘子】自己的守門人,不是裝飾:兩道釘子(網址 ?lang、context locale)
+  //    只有第一道被上面三個文案樣本蓋到——2026-09-08 突變實測 M2(context locale 改 en-US、
+  //    網址 ?lang 留 zh-TW)整條 T0L 照樣 PASS,而 detail 那行就明明白白印著 "nav":"en-US"。
+  //    那正是「覆蓋率印在 detail 裡卻沒有判準在看」的形態:context locale 管的是
+  //    navigator.language 與【沒帶 locale 參數】的 Intl/toLocaleString(時刻、數字格式),
+  //    它靜靜漂成跑測試那台機器的語系時,前面三個樣本一個都不會倒。
+  ok(`T0L ${engine} 語系釘死在 zh-TW(全檔中文文案判準的前提;兩道釘子各有一條判準)`,
+    st.i18n === PAGE_LOCALE && st.doc === PAGE_LOCALE && st.nav === PAGE_LOCALE &&
+    st.followParen === '（跟隨系統）' && st.station === '松山', JSON.stringify(st));
+  await close();
+}
+
+// desktop:true＝要桌面殼。🔴 光把 width 調寬【拿不到】桌面殼:index.html 的 MOBILE_MQ 是
+//   `(max-width:900px), (max-height:500px), (any-pointer:coarse) and (max-width:1400px)`,
+//   而 isMobile/hasTouch 讓 any-pointer 恆為 coarse ⇒ 1400px 以下的任何寬度都還是 mobile-shell+fs。
+//   U 段本來寫 width:1280 想要桌面版面,實際上拿到的是手機殼,而 `body.fs .flow{display:none}`
+//   把整張流量圖藏起來(clientW/H 都是 0)——見 U0 閘門的註解。所以這個開關關的是「殼的種類」,
+//   不是靠一個比 1400 大的魔術數字(斷點一動那種寫法就默默失效)。
+async function boot(browser, { width = 393, tier = 'std', query = '', scheme, native = null, desktop = false } = {}) {
   const ctx = await browser.newContext({
-    viewport: { width, height: 852 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true,
+    viewport: { width, height: 852 }, deviceScaleFactor: 2,
+    ...(desktop ? {} : { isMobile: true, hasTouch: true }),
+    locale: PAGE_LOCALE,                          // 見檔頭「語系必須釘死」;與網址的 ?lang 兩道一起
     ...(scheme ? { colorScheme: scheme } : {}),   // 不傳＝沿用 Playwright 預設,既有各段行為不變
   });
   const page = await ctx.newPage();
@@ -52,7 +106,10 @@ async function boot(browser, { width = 393, tier = 'std', query = '', scheme, na
     // 只有原生殼會注入的旗標(末班車提醒鈴鐺靠它才出現);瀏覽器驗收要驗三顆鈕的版面時才傳
     if (a.native) for (const k of a.native) window[k] = true;
   }, { t: tier, native });
-  await page.goto(URL_BASE + query, { waitUntil: 'domcontentloaded' });
+  // query 可能已帶參數(例如 ?bust=...);用 URL 物件併進去,不做字串拼接。
+  const navUrl = new URL(URL_BASE + query);
+  navUrl.searchParams.set('lang', PAGE_LOCALE);
+  await page.goto(navUrl.toString(), { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => typeof state !== 'undefined' && state.ready, null, { timeout: 45000 })
     .catch(() => {});
   await page.waitForTimeout(600);
@@ -213,9 +270,14 @@ async function sectionB(browser, engine) {
   }));
   const base = await read();
   ok(`B1 ${engine} 沒選過時是標準檔`, base.ui === '1' && base.fs === null, JSON.stringify(base));
-  await page.tap('#tabMore'); await page.waitForTimeout(400);
-  // 設計 6c:字級是「更多」裡的 `›` 子頁,不是抽屜裡的一排鈕。真的點那一列、真的把面板開起來,
-  // 不是查 CSS 算出什麼——elementFromPoint／computed style 答得出「命中誰」,答不出「做得到嗎」。
+  // v0914c 起「字級」列搬進觀看面板「畫面」分頁,不再是「更多」抽屜下的 `›` 子頁;
+  // 選擇器 [data-act="fontscale"] 本身沒變,只是容器換了,所以先切過去再點同一顆列。
+  const railB = page.locator('.view-rail [data-view="display"]');
+  if (await railB.isVisible()) await railB.tap();
+  else { await page.tap('#viewSettingsBtn'); await page.tap('.view-tabs [data-view="display"]'); }
+  await page.waitForTimeout(400);
+  // 真的點那一列、真的把面板開起來,不是查 CSS 算出什麼——elementFromPoint／computed style
+  // 答得出「命中誰」,答不出「做得到嗎」。
   await page.tap('.ms-row[data-act="fontscale"]'); await page.waitForTimeout(500);
   const opened = await read();
   ok(`B2 ${engine} 「更多」→ 字級 開得起「顯示與字級」面板`, opened.panelOpen && opened.prevPx > 0, JSON.stringify(opened));
@@ -282,7 +344,11 @@ async function sectionD(browser, engine) {
     msVal: (document.getElementById('msFontVal') || {}).textContent,
     lsFollow: localStorage.getItem('trainmap-fontfollow'),
   }));
-  await page.tap('#tabMore'); await page.waitForTimeout(350);
+  // v0914c 起「字級」列搬進觀看面板「畫面」分頁,選擇器本身沒變、只是容器換了。
+  const railD = page.locator('.view-rail [data-view="display"]');
+  if (await railD.isVisible()) await railD.tap();
+  else { await page.tap('#viewSettingsBtn'); await page.tap('.view-tabs [data-view="display"]'); }
+  await page.waitForTimeout(350);
   await page.tap('.ms-row[data-act="fontscale"]'); await page.waitForTimeout(450);
   ok(`D0 ${engine} 跟隨系統字級預設是開的`, (await state1()).follow);
   await setSysFont(30);
@@ -438,20 +504,67 @@ async function sectionE(browser, engine) {
 const F_ROWH = { std: 48, large: 68, xlarge: 80 };   // 設計對照表「列高」那一列
 const F_SECPX = { std: 11, large: 12.5, xlarge: 14 }; // 設計對照表「小標籤」那一列
 
+// F0 結構性:掃原始碼,確認兩條倍率沒有互相跑錯邊(數值判準抓不到「某一處忘了改」)。
+// 🔴 抽成獨立函式是為了讓它能【不開瀏覽器】單獨跑(FS_STATIC_ONLY=1),好掛進 ship_web 的
+//    前置閘門——整支腳本兩引擎要 10 分鐘,放進出貨鏈不可行,而這三條只花 30 毫秒,
+//    偏偏又是本輪唯一抓到真回歸的判準(2026-09-08 一次抓出六處違規,各有具名的破壞 commit)。
+//    只有一份正則:sectionF 與 static-only 兩條路都呼叫這裡,不會長出兩代同一道防線。
+//    ✱ ship_web §2.12 的 verify_engine_adapter 已經是同一個慣例(ENGINE_GATE_STATIC_ONLY)。
+function staticRamps() {
+  const src = readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  // 🔴 一份字面掃到底,再按倍率分類——不是兩條各自的正則。理由有三:
+  //    (1) 三條倍率各有分工(見 sectionF 上面那張對照表):--ui 主文 1／1.25／1.5、
+  //        --uis 小標籤與次要說明 1／1.14／1.29、--uit 觸控格 1／1.18／1.36。
+  //        舊寫法只認前兩條,掛在 --uit 上的字級整條逃出盤點(當時全檔剛好有一處)。
+  //    (2) 字面要容得下 max()／clamp() 包一層(index.html 已有一處 max(16px, calc(…))),
+  //        否則以後有人換個寫法就靜靜逃掉——逃了幾條由 F0f 具名守著,不靠人去數。
+  //    (3) 例外要能指名到「哪一行、哪個選擇器」,FAIL 訊息才有辦法直接動手。
+  const FS_RAMP = /font-size:[^;{}]*?calc\(\s*([\d.]+)px\s*\*\s*var\((--ui|--uis|--uit)\)\s*\)/g;
+  // 規則的選擇器:從宣告往回找最近的 `{`,再往回找上一個 `}`／`{`／`*/`／`;` 當左界。
+  // 解析不出來就是空字串——F0f 把「每一條都解析得出選擇器」算進判準,壞掉會轉紅而不是靜靜放行。
+  const selAt = i => { const o = src.lastIndexOf('{', i); if (o < 0) return '';
+    let p = 0; for (const ch of ['}', '{', '*/', ';']) { const k = src.lastIndexOf(ch, o - 1); if (k + ch.length > p) p = k + ch.length; }
+    return src.slice(p, o).replace(/\s+/g, ' ').trim(); };
+  const bodyAt = i => { const o = src.lastIndexOf('{', i), c = src.indexOf('}', i); return o < 0 || c < 0 ? '' : src.slice(o, c); };
+  const decls = [...src.matchAll(FS_RAMP)].map(m => ({ px: +m[1], ramp: m[2], at: m.index,
+    line: src.slice(0, m.index).split('\n').length, sel: selAt(m.index) }));
+  // 例外一律印全部,不印前三個:只印一部分,分母會無聲縮水(F0b 曾經 5 條例外只看得到 3 條)。
+  const list = xs => `${xs.length} 條` + (xs.length ? ':' + xs.map(d => `${d.line}:${d.px}px×${d.ramp} ${d.sel}`).join(' ／ ') : '');
+  const strayMain = decls.filter(d => d.ramp === '--ui' && d.px < 12.5);
+  const straySmall = decls.filter(d => d.ramp === '--uis' && d.px >= 12.5);
+  ok('F0a 12px 以下的字級沒有一處還留在主倍率 --ui 上', strayMain.length === 0, list(strayMain));
+  ok('F0b 12.5px 以上的字級沒有一處跑到小倍率 --uis 上', straySmall.length === 0, list(straySmall));
+  ok('F0c 兩條倍率三檔都宣告齊全',
+    /--uis:\s*1;/.test(src) && /html\[data-fs=large\][^}]*--uis:\s*1\.14/.test(src)
+    && /html\[data-fs=xlarge\][^}]*--uis:\s*1\.29/.test(src));
+  // 🔴 正向對照:上面三條都是「恰為 0」型的反向判準,正則寫壞(或 index.html 換了寫法)時
+  //    掃到零個目標也是零違規,一樣全綠。所以另外斷言「這兩條倍率確實有人在用」——
+  //    數得到夠多的 calc(...*var(--ui)) 與 var(--uis),才證明剛才那兩趟掃描真的掃到東西。
+  const useMain = (src.match(/calc\([\d.]+px\s*\*\s*var\(--ui\)\)/g) || []).length;
+  const useSmall = (src.match(/calc\([\d.]+px\s*\*\s*var\(--uis\)\)/g) || []).length;
+  ok('F0d 正向對照:兩條倍率都真的有人在用(否則上面三條「零違規」是零訊號)',
+    useMain >= 100 && useSmall >= 20, `--ui=${useMain} --uis=${useSmall}`);
+  // --uit 是觸控格的倍率,不是字級的。字掛上去只有一種正當理由:它被裝在同一顆 --uit 撐大的
+  // 圈／格子裡,兩者不同倍率就會在特大檔溢出圈外(index.html 那一處的註解逐字寫的就是這件事)。
+  // 所以判「有沒有成對」,不是判「准不准用」——F0a/F0b 對第三條倍率完全沒有意見,這條才有。
+  const touch = decls.filter(d => d.ramp === '--uit');
+  const touchBad = touch.filter(d => !/(?:width|height|min-width|min-height|--[-\w]+):[^;]*var\(--uit\)/
+    .test(bodyAt(d.at).replace(/font-size:[^;]*;/g, '')));
+  ok('F0e 掛在觸控倍率 --uit 上的字級,同一顆規則裡都有一個同樣吃 --uit 的盒子(圈與字同倍率才不會溢出)',
+    touch.length > 0 && touchBad.length === 0, `${list(touch)};不成對 ${list(touchBad)}`);
+  // 🔴 覆蓋率自己要有具名斷言:寬鬆掃描當分母、嚴格字面當分子,不等就是有寫法逃掉了。
+  //    與 F0d 是兩件不同的事:F0d 守「正則沒掃到空氣」,這條守「沒有宣告從正則底下溜走」。
+  //    順帶把「每一條都解析得出選擇器」一起釘死,免得 selAt 壞掉之後上面幾條全部變成恆真。
+  const loose = [...src.matchAll(/font-size:[^;{}]*var\(--ui[st]?\)/g)];
+  const noSel = decls.filter(d => !d.sel);
+  ok('F0f 盤點沒有漏網:寬鬆掃到的每一條字級,嚴格字面也都認得,而且都解析得出選擇器',
+    loose.length === decls.length && noSel.length === 0,
+    `寬鬆 ${loose.length} / 嚴格 ${decls.length}(--ui ${decls.filter(d => d.ramp === '--ui').length}` +
+    `/--uis ${decls.filter(d => d.ramp === '--uis').length}/--uit ${touch.length});無選擇器 ${list(noSel)}`);
+}
+
 async function sectionF(browser, engine) {
-  // F0 結構性:掃原始碼,確認兩條倍率沒有互相跑錯邊(數值判準抓不到「某一處忘了改」)
-  if (engine === 'chromium') {
-    const src = readFileSync(path.join(ROOT, 'index.html'), 'utf8');
-    const strayMain = [...src.matchAll(/font-size:\s*calc\(((?:\d(?:\.5)?|10(?:\.5)?|11(?:\.5)?|12)px)\s*\*\s*var\(--ui\)\)/g)];
-    const straySmall = [...src.matchAll(/font-size:\s*calc\((1[2-9]\.5px|1[3-9]px|[2-9]\d[\d.]*px)\s*\*\s*var\(--uis\)\)/g)];
-    ok('F0a 12px 以下的字級沒有一處還留在主倍率 --ui 上', strayMain.length === 0,
-      strayMain.slice(0, 3).map(m => m[1]).join(','));
-    ok('F0b 12.5px 以上的字級沒有一處跑到小倍率 --uis 上', straySmall.length === 0,
-      straySmall.slice(0, 3).map(m => m[1]).join(','));
-    ok('F0c 兩條倍率三檔都宣告齊全',
-      /--uis:\s*1;/.test(src) && /html\[data-fs=large\][^}]*--uis:\s*1\.14/.test(src)
-      && /html\[data-fs=xlarge\][^}]*--uis:\s*1\.29/.test(src));
-  }
+  if (engine === 'chromium') staticRamps();
 
   for (const tier of ['std', 'large', 'xlarge']) {
     for (const width of [360, 393]) {
@@ -465,7 +578,16 @@ async function sectionF(browser, engine) {
         const sec = [...sheet.querySelectorAll('.ms-sec')].filter(vis)[0];
         const px = el => +getComputedStyle(el).fontSize.replace('px', '');
         const R = el => { const b = el.getBoundingClientRect(); return { x: +b.x.toFixed(1), y: +b.y.toFixed(1), w: +b.width.toFixed(1), h: +b.height.toFixed(1) }; };
-        const fsRow = sheet.querySelector('.ms-row[data-act="fontscale"]');
+        // 列高／段標題仍量「更多」本身(那批列還在),先把數值定住再切走,
+        // 不然等一下把面板切到觀看面板時這些列會被收起來、rect 全部歸零。
+        const n = rows.length, minH = Math.min(...rows.map(x => x.getBoundingClientRect().height)), secPx = sec ? px(sec) : null;
+        // v0914c 起「字級」列搬進觀看面板「畫面」分頁,不再掛在「更多」抽屜下(.more-sheet 作用域
+        // 查不到,會回 null)。切過去時 production 碼自己的 open() 第一步就是
+        // document.getElementById('moreClose').click(),不必自己重複關閉「更多」。
+        const railBtn = document.querySelector('.view-rail [data-view="display"]');
+        if (railBtn && railBtn.offsetParent !== null) railBtn.click();
+        else { document.getElementById('viewSettingsBtn').click(); document.querySelector('.view-tabs [data-view="display"]').click(); }
+        const fsRow = document.querySelector('#viewSettingsBody .ms-row[data-act="fontscale"]');
         // 🔴 標籤指名「不是列尾的那個 span」而不是 firstElementChild:2026-08-27 之前每一列
         //    最前面還有一顆單字圓章,照舊寫法量到的是【圓章】(12px)——判準會拿章當標籤,
         //    std 的主倍率被算成 0.89× 而恆紅。章拿掉了,這個寫法照樣對,而且列形再變也不會錯位。
@@ -473,9 +595,7 @@ async function sectionF(browser, engine) {
         const lab = R(labEl), val = R(fsRow.querySelector('#msFontVal')),
           chev = R(fsRow.querySelector('.ms-tail .chev')), rr = R(fsRow);
         return {
-          n: rows.length,
-          minH: Math.min(...rows.map(x => x.getBoundingClientRect().height)),
-          secPx: sec ? px(sec) : null,
+          n, minH, secPx,
           labPx: px(labEl),
           stacked: val.y >= lab.y + lab.h - 1,
           inline: Math.abs(val.y - lab.y) < 3,
@@ -571,7 +691,7 @@ async function sectionG(browser, engine) {
 //    目標落點則用 Leaflet 自己的 latLngToContainerPoint(外部真值)。兩邊不同源(心得 29)。
 // 🔴 「車在可視窗內」與「車沒被卡片蓋住」是兩件事:前者是幾何、後者要 elementFromPoint 才答得出來(心得 24)。
 const H_CENSUS = () => {
-  const mc = map.getContainer().getBoundingClientRect();
+  const mc = window.__map.getContainer().getBoundingClientRect();
   const vis = el => {
     if (!el || el.hidden || !el.getClientRects().length) return false;
     const cs = getComputedStyle(el);
@@ -606,12 +726,12 @@ async function sectionH(browser, engine) {
   const { page, errs, close } = await boot(browser, { width: 393 });
   // 挑一台「畫在畫面中段、圖例沒關掉」的車來跟——太靠邊的車會被 maxBounds 夾住,夾住後的位移是另一條路徑
   const picked = await page.evaluate(() => {
-    const mc = map.getContainer().getBoundingClientRect();
+    const mc = window.__map.getContainer().getBoundingClientRect();
     for (const t of (state.trains || [])) {
       if (!state.visible.has(t.typeName)) continue;
       const pos = trainPos(t, state.simSec);
       if (!pos) continue;
-      const pt = map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
+      const pt = window.__M.toScreen([pos.lat, pos.lon]);
       if (pt.x > 60 && pt.x < mc.width - 60 && pt.y > 180 && pt.y < 600) {
         setFollow(t, false);
         return String(t.no || t.trainNo || t.typeName || '?');
@@ -626,8 +746,8 @@ async function sectionH(browser, engine) {
     if (!t) return { ...r, ok: false, why: '沒跟到車' };
     const pos = trainPos(t, state.simSec);
     if (!pos) return { ...r, ok: false, why: '跟到的車算不出位置' };
-    const mc = map.getContainer().getBoundingClientRect();
-    const pt = map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
+    const mc = window.__map.getContainer().getBoundingClientRect();
+    const pt = window.__M.toScreen([pos.lat, pos.lon]);
     const hit = document.elementFromPoint(mc.left + pt.x, mc.top + pt.y);
     const chrome = hit && hit.closest('.topbar,.badge,.tabbar,.controls,#followPanel,#freqCard,.sheet,#mapActions');
     const fp = document.getElementById('followPanel');
@@ -665,12 +785,12 @@ async function sectionH(browser, engine) {
   //    「記帳有沒有算對」則由 H5 負責——不要把 H8/H9 當成機制的證明。
   const s2 = await boot(browser, { width: 393 });
   const started = await s2.page.evaluate(() => {
-    const mc = map.getContainer().getBoundingClientRect();
+    const mc = window.__map.getContainer().getBoundingClientRect();
     for (const t of (state.trains || [])) {
       if (!state.visible.has(t.typeName)) continue;
       const pos = trainPos(t, state.simSec);
       if (!pos) continue;
-      const pt = map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
+      const pt = window.__M.toScreen([pos.lat, pos.lon]);
       if (pt.x > 60 && pt.x < mc.width - 60 && pt.y > 180 && pt.y < 600) { setFollow(t, false); return true; }
     }
     return false;
@@ -689,8 +809,8 @@ async function sectionH(browser, engine) {
     if (!t) return { ...r, ok: false, why: '開看板之後不再跟車' };
     const pos = trainPos(t, state.simSec);
     if (!pos) return { ...r, ok: false, why: '算不出位置' };
-    const mc = map.getContainer().getBoundingClientRect();
-    const pt = map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
+    const mc = window.__map.getContainer().getBoundingClientRect();
+    const pt = window.__M.toScreen([pos.lat, pos.lon]);
     const hit = document.elementFromPoint(mc.left + pt.x, mc.top + pt.y);
     const chrome = hit && hit.closest('.topbar,.badge,.tabbar,.controls,#followPanel,#freqCard,.sheet,#mapActions');
     // 🔴 看板是「內容撐高、上限 46%」不是固定 46%:深夜班次少的時候整張只有 187px(實測 00:35 的
@@ -895,12 +1015,12 @@ async function sectionI(browser, engine) {
 //    搬進去的 #followPanel 會跟著被銷毀(實作第一版就是這樣炸的)。J5/J7 專門守這件事。
 async function followSomeTrain(page) {
   return page.evaluate(() => {
-    const mc = map.getContainer().getBoundingClientRect();
+    const mc = window.__map.getContainer().getBoundingClientRect();
     for (const t of (state.trains || [])) {
       if (!state.visible.has(t.typeName)) continue;
       const pos = trainPos(t, state.simSec);
       if (!pos) continue;
-      const pt = map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
+      const pt = window.__M.toScreen([pos.lat, pos.lon]);
       if (pt.x > 60 && pt.x < mc.width - 60 && pt.y > 180 && pt.y < 600) { setFollow(t, false); return true; }
     }
     return false;
@@ -968,8 +1088,8 @@ async function sectionJ(browser, engine) {
     const r = eval('(' + c + ')')();
     const t = state.followTrain; if (!t) return { ...r, ok: false };
     const pos = trainPos(t, state.simSec); if (!pos) return { ...r, ok: false };
-    const mc = map.getContainer().getBoundingClientRect();
-    const pt = map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
+    const mc = window.__map.getContainer().getBoundingClientRect();
+    const pt = window.__M.toScreen([pos.lat, pos.lon]);
     const hit = document.elementFromPoint(mc.left + pt.x, mc.top + pt.y);
     const chrome = hit && hit.closest('.topbar,.badge,.tabbar,.controls,#followPanel,#freqCard,.sheet,.board,#mapActions');
     return { ...r, ok: true, py: +pt.y.toFixed(1), inBand: pt.y >= r.bandTop && pt.y <= r.bandBot,
@@ -1034,11 +1154,11 @@ async function sectionJ(browser, engine) {
 // 🔴 這裡用頁面自己的命中函式,但只當**setup**(「這一點是空白的」);判準看的是點下去之後的狀態,
 //    與這些函式無關——K2 也順便反驗這一點確實沒開看板、沒彈歧義選單。
 const K_BLANK = () => {
-  const mc = map.getContainer().getBoundingClientRect();
+  const mc = window.__map.getContainer().getBoundingClientRect();
   const nearestStn = cp => {
     let bd = 1e9;
     for (const st of (state.schedStations || [])) {
-      const q = map.latLngToContainerPoint([st.lat, st.lon]);
+      const q = window.__M.toScreen([st.lat, st.lon]);
       bd = Math.min(bd, Math.hypot(q.x - cp.x, q.y - cp.y));
     }
     if (state.deco) (state.decoLines || []).forEach(ln => { if (!ln.pts) return;
@@ -1046,7 +1166,7 @@ const K_BLANK = () => {
     return bd;
   };
   for (let y = 150; y < 620; y += 17) for (let x = 40; x < mc.width - 40; x += 17) {
-    const cp = L.point(x, y);
+    const cp = { x, y };
     if (trainAt(cp)) continue;
     if (typeof crossingAt === 'function' && crossingAt(cp)) continue;
     if (typeof sugarAt === 'function' && sugarAt(cp)) continue;
@@ -1211,8 +1331,8 @@ async function sectionK(browser, engine) {
   const tp = await page.evaluate(() => {
     const t = state.followTrain; if (!t) return null;
     const pos = trainPos(t, state.simSec); if (!pos) return null;
-    const mc = map.getContainer().getBoundingClientRect();
-    const q = map.latLngToContainerPoint(L.latLng(pos.lat, pos.lon));
+    const mc = window.__map.getContainer().getBoundingClientRect();
+    const q = window.__M.toScreen([pos.lat, pos.lon]);
     return { x: q.x, y: q.y, ml: mc.left, mt: mc.top };
   });
   if (tp) {
@@ -1330,12 +1450,31 @@ const L_SNAP = () => {
     //    整張淡出)就是這樣穿過 L6 的:分頁列還在、卡也還在槽裡,只有內容看不見。改量兩件事:
     //    卡到根的累乘不透明度、以及卡內容的中心點打到的是不是卡自己(淡出那條連 pointer-events 一起關)。
     fpOpacity: fp ? (() => { let o = 1, n = fp; while (n && n.nodeType === 1) { o *= parseFloat(getComputedStyle(n).opacity || '1'); n = n.parentElement; } return +o.toFixed(3); })() : 0,
-    cardHit: (() => { const e = document.getElementById('tcIntro') || document.getElementById('fpProgTxt');
-      if (!e) return false; const r = e.getBoundingClientRect();
-      if (!(r.width > 2 && r.height > 2)) return false;
-      const x = Math.min(Math.max(r.left + r.width / 2, 1), innerWidth - 1);
-      const y = Math.min(Math.max(r.top + r.height / 2, 1), innerHeight - 1);
-      const q = document.elementFromPoint(x, y); return !!(q && q.closest('#followPanel')); })(),
+    // 🔴 打點要夾進「元素 rect ∩ 看板可視窗」,不是夾進 viewport。夾 viewport 的版本:元素被捲出
+    //    看板窗時中心點仍在 viewport 內 ⇒ 不觸發夾取 ⇒ elementFromPoint 打到底下的地圖 canvas,
+    //    而 L12 看起來像「卡是透明的」。2026-09-08 實測 #tcIntro t752/b842、看板窗 400–792
+    //    ⇒ 打到 canvas.maplibregl-canvas;同一刻窗內的 #fpProgTxt 打到自己。
+    //    這條當時**只有 chromium 紅**——webkit 的停靠表短 94px、中心剛好還在窗內。
+    //    同一支腳本兩個引擎結論不同,本身就是判準在說謊的紅旗,不是引擎差異。
+    //    ✱ 回傳物件不回布林:紅的時候要看得出「探哪一顆、打到誰」,否則又只剩一個 false。
+    cardHit: (() => {
+      // 夾取要用**捲動容器**的 rect(看板 bd),不是 .uni-slot——後者是槽裡的**內容**,
+      // 會跟著內容一起長到窗外,拿它當窗等於沒夾(2026-09-08 第一版就是這樣仍然打到地圖)。
+      const br = bd.getBoundingClientRect();
+      for (const id of ['tcIntro', 'fpProgTxt']) {
+        const e = document.getElementById(id); if (!e) continue;
+        const r = e.getBoundingClientRect();
+        const l = Math.max(r.left, br.left), rr = Math.min(r.right, br.right);
+        const t = Math.max(r.top, br.top), b = Math.min(r.bottom, br.bottom);
+        if (!(rr - l > 2 && b - t > 2)) continue;      // 這一顆整個在窗外,換下一顆探
+        const q = document.elementFromPoint((l + rr) / 2, (t + b) / 2);
+        return { probe: id, ok: !!(q && q.closest('#followPanel')),
+          hit: q ? q.tagName + '.' + String(q.className || '').split(' ')[0] : null,
+          pt: [Math.round((l + rr) / 2), Math.round((t + b) / 2)],
+          窗: [Math.round(br.top), Math.round(br.bottom)] };
+      }
+      return { probe: null, ok: false, hit: '兩顆探針都不在看板可視窗內' };
+    })(),
   };
 };
 
@@ -1408,7 +1547,8 @@ async function sectionL(browser, engine) {
   // 🔴 第二種證據(心得 24 的雙證據):卡到根的累乘不透明度＝1,且卡內容中心點打到的是卡自己。
   //    契約③ 淡出時 opacity 0＋pointer-events:none,兩者會同時倒——而 DOM 檢查全綠。
   ok(`L12 ${tag} 展開段那一頁不是透明的:不透明度 1 且卡內容命中自己`,
-    B.fpOpacity === 1 && B.cardHit, JSON.stringify({ opacity: B.fpOpacity, 命中卡: B.cardHit }));
+    B.fpOpacity === 1 && !!B.cardHit && B.cardHit.ok,
+    JSON.stringify({ opacity: B.fpOpacity, 命中卡: B.cardHit }));
   // 反向對照:回到小段提示列要回來——少了這半,「提示列永遠不顯示」也會讓 L6 過。
   // 兩段制之後提示列只掛在小段(中段已經看得到下面了),所以反向對照的目標段是 small。
   await page.evaluate(() => setSheetSize(document.getElementById('board'), 'small'));
@@ -1562,6 +1702,20 @@ const N_SNAP = () => {
     clrInside: cr ? (cr.right <= r.right + 1 && cr.left >= r.left) : false,
     val: inp.value, focusId: (document.activeElement || {}).id || '',
     dropHidden: !!document.getElementById('searchDrop').hidden,
+    // 空欄時的下拉:2026-09-07 d8fc2fc7 起「清空 ⇒ 收下拉」改成「清空 ⇒ 換回可點的查詢範例」。
+    // 🔴 只驗「下拉還開著」不夠——「開著但整片空白」也會過。連「裡面真的有一顆按得到的建議鈕」
+    //    一起驗,而且是命中測試不是 rect(rect 對不代表點得到);另外要求沒有結果列,否則
+    //    「清空後還留著上一次的查詢結果」同樣會被放行。用結構認,不用中文字認(語系相依)。
+    drop: (() => {
+      const d = document.getElementById('searchDrop');
+      const btns = [...d.querySelectorAll('.rd-suggestions button')];
+      const b = btns[0]; let hit = false, box = null;
+      if (b) { const q = b.getBoundingClientRect(); box = [Math.round(q.width), Math.round(q.height)];
+        const e = document.elementFromPoint(q.left + q.width / 2, (q.top + q.bottom) / 2);
+        hit = !!(e && e.closest('button') === b); }
+      return { hidden: !!d.hidden, disp: getComputedStyle(d).display, 建議鈕: btns.length, 首鈕: box,
+        點得到: hit, 結果列: d.querySelectorAll('.row').length, 查無: !!d.querySelector('.empty') };
+    })(),
     emptyTip: (document.querySelector('#searchDrop .empty .sd-tip') || {}).textContent || '',
   };
 };
@@ -1604,13 +1758,22 @@ async function sectionN(browser, engine, tier = 'std') {
   ok(`N4 ${tag} 打字後清除鈕出現:熱區 ≥44、命中自己、貼在框內、文字讓開`,
     B.clrW >= 44 && B.clrH >= 44 && B.clrHit && B.clrInside && B.padR >= 44,
     JSON.stringify({ 寬: B.clrW, 高: B.clrH, 命中: B.clrHit, 在框內: B.clrInside, 右內距: B.padR }));
-  // 🔴 驗按鈕是驗「點它會發生什麼」:值要清掉、下拉要收、焦點要留著(手機鍵盤不能因為按清除就收)
+  // 🔴 驗按鈕是驗「點它會發生什麼」:值要清掉、焦點要留著(手機鍵盤不能因為按清除就收)。
+  //    下拉那一項 2026-09-07(d8fc2fc7 v0907a 路線導覽)起【刻意】不再收起:renderSearchDrop 的
+  //    空值分支改成組「不知道查什麼?試試看」的可點範例並 openSearchDrop(),同一顆 commit 也把
+  //    scripts/verify_query_tab.mjs 一起改了、只有這支沒跟上。判準照新設計改成「下拉開著且
+  //    真的有可按的範例」——不是放寬:原本只要求 hidden 一個布林,現在還多要求列得出東西。
   await page.locator('#searchClear').click();
   await page.waitForTimeout(400);
   const C = await snap();
-  ok(`N5 ${tag} 點清除 ⇒ 值清空·下拉收起·焦點留在輸入框·鈕自己消失`,
-    C.val === '' && C.dropHidden && C.focusId === 'trainSearch' && C.clrW === 0,
-    JSON.stringify({ 值: C.val, 下拉收起: C.dropHidden, 焦點: C.focusId, 清除鈕寬: C.clrW }));
+  // 🔴 判準跟著 09-07 的設計走(d8fc2fc7:清空之後不是收下拉,是換回「不知道查什麼？試試看」的
+  //    可點範例)。不可以只把「下拉收起」那一項刪掉了事——那會讓「清空後下拉整片空白」也過,
+  //    所以正向要求「至少一顆建議鈕、而且點得到」,反向要求「結果列歸零、不是查無畫面」。
+  ok(`N5 ${tag} 點清除 ⇒ 值清空·下拉換回可點的查詢範例·焦點留在輸入框·鈕自己消失`,
+    C.val === '' && !C.drop.hidden && C.drop.disp !== 'none' &&
+    C.drop.建議鈕 >= 1 && C.drop.點得到 && C.drop.結果列 === 0 && !C.drop.查無 &&
+    C.focusId === 'trainSearch' && C.clrW === 0,
+    JSON.stringify({ 值: C.val, 下拉: C.drop, 焦點: C.focusId, 清除鈕寬: C.clrW }));
   // 🔴 反向對照:**程式**寫進去的值也要讓鈕出現。這條專門守「顯示條件不是 JS 開關」——
   //    這顆輸入框有十幾處程式在寫 value,用 JS 同步會漏掉其中一處而長出「空欄卻有鈕」。
   await page.evaluate(() => { const i = document.getElementById('trainSearch'); i.value = '152'; i.blur(); });
@@ -1751,15 +1914,32 @@ async function sectionO(browser, engine) {
     if (!e) return { skip: '站索引找不到 ' + name };
     openBoard({ name: e.name, sys: e.sysId, lat: e.lat, lon: e.lon });
     const bd = document.getElementById('board');
-    const first = bd.querySelector('.row .hm');
+    // 🔴 看板自 2026-08-31(1e26a501)起**依方向分組**,boardGroupOf 的註解逐字寫著「刻意不依
+    //    最近一班倒數排序:位置每次打開都一樣」⇒ **DOM 第一列不再是最早的那一班**(實測宜蘭
+    //    08:15:面板 08:20 在北上組,南下組的 08:37 排在它前面)。面板取的是 schedBoardRows[0]
+    //    ＝全站最早,所以要對的是看板上**最早的那一列**,不是排最前面的那一列。
+    //    每列的 data-night-at ＝ simSec+dtm(絕對模擬秒),用它排序才不會被跨午夜的 HH:MM 騙。
+    const all = [...bd.querySelectorAll('.row')];
+    const bRows = all.map(x => ({ at: Number(x.getAttribute('data-night-at')),
+      hm: ((x.querySelector('.hm') || {}).textContent || '').trim(), no: x.getAttribute('data-no') || '' }))
+      .filter(x => x.hm && Number.isFinite(x.at));
+    const soonest = bRows.length ? bRows.reduce((a, b) => (b.at < a.at ? b : a)) : null;
     const late = bd.querySelector('.row .lateTag');
-    return { name, panel, boardRows: bd.querySelectorAll('.row').length,
-      boardFirst: first ? first.textContent.trim() : '', boardLate: late ? late.textContent.trim() : '' };
+    return { name, panel, boardRows: all.length, 讀得到時刻的列: bRows.length, 最早列: soonest,
+      看板全列: bRows.map(r => r.hm),
+      // 反向對照的材料:面板寫的時刻在整張板上有沒有出現過(§八斗子那種「面板寫了一個板上
+      // 根本沒有的時刻」會讓這一欄變 false,新判準抓得到)
+      面板值在板上: !!(panel && bRows.some(r => panel.includes(r.hm))),
+      boardLate: late ? late.textContent.trim() : '' };
   });
+  // 分岔改成用「看板有沒有列」判,不用「面板有沒有字」判——語意才對得上(面板留白的原因可能
+  // 是別的);另外把「每一列都讀得到時刻」算進判準,否則列的結構一變分母會無聲縮水。
   const okNext = cmp.skip ? false
-    : cmp.panel ? (cmp.boardRows > 0 && cmp.panel.includes(cmp.boardFirst))
-                : cmp.boardRows === 0;
-  ok(`O6 ${tag} 「下一班」與車站看板是同一個時刻(${cmp.panel ? '走到正向那一半:有班次,要對得上' : '此刻全線無班次可列,只驗兩邊都留白'})`,
+    : cmp.boardRows > 0
+      ? (cmp.讀得到時刻的列 === cmp.boardRows && !!cmp.最早列 && !!cmp.panel &&
+         cmp.panel.includes(cmp.最早列.hm))
+      : cmp.panel === '';
+  ok(`O6 ${tag} 「下一班」＝車站看板上最早的那一列(${cmp.boardRows > 0 ? '走到正向那一半:有班次,要對得上' : '此刻全線無班次可列,只驗兩邊都留白'})`,
     okNext, JSON.stringify(cmp));
   // 捷運站:官方到站時刻不走班表,我方不自己推一份 ⇒ 留白(而不是寫 0 或 --)
   const metroRow = A.rows.find(r => /捷運/.test(r.txt));
@@ -2118,7 +2298,7 @@ async function sectionS(browser, engine) {
     await page.waitForTimeout(350);
     const after = await page.evaluate(() => ({
       drop: !!state.dropMode, hidden: document.getElementById('pinHint').hidden,
-      cursor: map.getContainer().style.cursor,
+      cursor: window.__map.getContainer().style.cursor,
       btn: document.querySelector('#pinBtn .tl').textContent }));
     ok(`S8 ${tag} 點「結束」真的退出落釘模式(旗標、地圖游標、鈕的標籤全部跟著回去)`,
       after.drop === false && after.hidden && after.cursor !== 'crosshair' && after.btn === '儲存',
@@ -2140,9 +2320,42 @@ async function sectionT(browser, engine) {
     if (b) b.click();
   });
   await page.waitForTimeout(500);
+  // 🔴 2026-09-07 的 d8fc2fc7 把 #lineToggles 搬進 <div id="rdSettings" hidden>(「顯示設定」分頁),
+  //    只點 #trackBtn 已經不夠。同一顆 commit 有替姊妹腳本補上這一下(verify_discovery.mjs:77 的
+  //    `tap('[data-rdtab=settings]')`),漏掉了這一支。
+  await page.evaluate(() => {
+    const t = document.querySelector('#rdTabs [data-rdtab="settings"]');
+    if (t) t.click();
+  });
+  await page.waitForTimeout(400);
   const n0 = await page.evaluate(() => document.querySelectorAll('#lineToggles .chip').length);
   ok(`T1 ${engine} 正向對照:量得到車種 chip`, n0 >= 3, `chip=${n0}`);
   if (n0 < 3) { await close(); return; }
+
+  // 🔴 T0 前置閘門:先證明 chip 真的量得到,再談顏色。
+  //    為什麼 T1/T2 擋不住:T1 數的是 DOM 節點數、T2 讀的是 getComputedStyle——這兩種對
+  //    `display:none` **全都失明**(藏起來的節點照樣被 querySelectorAll 數到、照樣回得出顏色)。
+  //    2026-09-08 之前 #lineToggles 就藏在 hidden 的分頁後面,T1(chip=30)與 T2 全綠,
+  //    而 T2 的 PASS 那行就印著 `"w":0` 卻沒有任何判準在看它。真正的症狀在下面三個量上:
+  //    chip 的 rect 是 0×0 ⇒ 後面 `page.mouse.click(0,0)` 打在地圖 canvas 上 ⇒ T3–T7 全紅。
+  //    ✱ 這一條與 U0 同族:DOM 在場 ≠ 看得見,正向對照要量**版面實際給的尺寸與命中**。
+  const g0 = await page.evaluate(() => {
+    const wrap = document.getElementById('rdSettings');
+    const on = document.querySelector('#lineToggles .chip:not(.off)');
+    const r = on ? on.getBoundingClientRect() : null;
+    const d = on && on.querySelector('.dot');
+    const hit = r ? document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2) : null;
+    return { panelDisp: wrap ? getComputedStyle(wrap).display : null,
+      chip: r ? [Math.round(r.width), Math.round(r.height)] : null,
+      dotW: d ? Math.round(d.getBoundingClientRect().width) : 0,
+      hit: hit ? hit.tagName + '.' + String(hit.className || '').split(' ')[0] : null,
+      hitsChip: !!(hit && hit.closest('#lineToggles .chip')) };
+  });
+  const g0pass = g0.panelDisp !== 'none' && !!g0.chip && g0.chip[0] > 0 && g0.chip[1] > 0 &&
+    g0.dotW > 0 && g0.hitsChip;
+  ok(`T0 ${engine} 🔴 前置閘門:車種 chip 真的量得到(版面有尺寸、圓點有寬度、點下去打得到自己)`,
+    g0pass, JSON.stringify(g0));
+  if (!g0pass) { await close(); return; }
 
   const READ = sel => {
     const el = document.querySelector(sel); if (!el) return null;
@@ -2193,18 +2406,51 @@ async function sectionT(browser, engine) {
 async function sectionU(browser, engine) {
   const got = {};
   for (const scheme of ['light', 'dark']) {
-    const { page, errs, close } = await boot(browser, { width: 1280, scheme });
+    // 🔴 desktop:true 是必要的,不是偏好。這一段整段量的是 #flowChart 的實際像素,而流量圖在
+    //    手機殼裡被 `body.fs .flow{display:none}` 藏著(它的手機新家是「更多」抽屜的 #msFlowSlot,
+    //    要點開才搬進去)。boot() 預設 isMobile:true ⇒ any-pointer:coarse ⇒ 1400px 以下都是手機殼,
+    //    所以原本寫 width:1280 拿到的是「一張 0×0 的畫布」而不是桌面版面。見 U0。
+    const { page, errs, close } = await boot(browser, { width: 1280, scheme, desktop: true });
     const tag = `${engine}/${scheme}`;
     await page.evaluate(() => { if (state.playing) togglePlay(); });
     const st = await page.evaluate(() => ({
       hidden: document.getElementById('flowWrap').hidden,
       bins: state.flowBins ? state.flowBins.length : 0, max: state.flowMax,
     }));
-    ok(`U1 ${tag} 正向對照:流量圖有顯示、有資料`, !st.hidden && st.bins > 0 && st.max > 1, JSON.stringify(st));
+    ok(`U1 ${tag} 正向對照:流量圖沒有被 hidden 屬性關掉、而且有資料`,
+      !st.hidden && st.bins > 0 && st.max > 1, JSON.stringify(st));
     if (st.hidden || !st.bins) { await close(); continue; }
 
     await page.evaluate(() => { setSimSec(17 * 3600 + 50 * 60); state.clockAtNow = false; drawFlow(); });
     await page.waitForTimeout(250);
+
+    // 🔴 U0 前置閘門:先證明「那張圖真的量得到」,再讓 U2–U11 去談顏色。
+    //    為什麼要獨立一條:2026-09-08 之前 U 段整段以 IndexSizeError(source height is 0)收場,
+    //    U2–U5 各自拿到 null 然後判 false——計分板上長得跟「產品把顏色畫錯了」一模一樣,
+    //    實際上是量測端從來沒量到任何一個像素。U1 看的是 hidden【屬性】,對「CSS 藏起來」完全失明
+    //    (drawFlow 自己的註解就寫過同一個坑),所以它擋不住這件事。
+    //    三個條件各守一段路:版面有沒有給尺寸 → drawFlow 有沒有據此配置畫布 → 畫布讀不讀得到內容。
+    //    ✱ 畫布尺寸仍是預設的 300×150 ＝ drawFlow 在 `if (!cssW || !cssH) return` 就掉頭了。
+    const g0 = await page.evaluate(() => {
+      const c = document.getElementById('flowChart'), w = document.getElementById('flowWrap');
+      const dpr = state.dpr || 1, cssW = c.clientWidth, cssH = c.clientHeight;
+      const o = { disp: getComputedStyle(w).display, cssW, cssH, dpr,
+        store: [c.width, c.height], want: [Math.round(cssW * dpr), Math.round(cssH * dpr)],
+        sample: null, err: null };
+      if (!cssW || !cssH) return o;
+      try {                            // 整條掃描線:全透明＝畫布配置對了但根本沒畫上東西
+        const d = c.getContext('2d').getImageData(0, Math.round(cssH * dpr / 2), Math.round(cssW * dpr), 1).data;
+        let painted = 0;
+        for (let k = 3; k < d.length; k += 4) if (d[k] > 0) painted++;
+        o.sample = painted;
+      } catch (e) { o.err = String(e); }
+      return o;
+    });
+    const g0pass = g0.disp !== 'none' && g0.cssW > 0 && g0.cssH > 0 &&
+      g0.store[0] === g0.want[0] && g0.store[1] === g0.want[1] && g0.sample > 0;
+    ok(`U0 ${tag} 🔴 前置閘門:流量圖真的量得到(版面有尺寸、畫布照 dpr 配置、取樣讀得到已畫上的像素)`,
+      g0pass, JSON.stringify(g0));
+    if (!g0pass) { await close(); continue; }
     // 取第 i 根柱的柱身像素(避開頂緣抗鋸齒);柱高不足回 null
     const at = i => page.evaluate(j => {
       const c = document.getElementById('flowChart'), dpr = state.dpr || 1;
@@ -2235,6 +2481,7 @@ async function sectionU(browser, engine) {
     const night = await page.evaluate(() => {
       const c = document.getElementById('flowChart'), dpr = state.dpr || 1;
       const cssW = c.clientWidth, cssH = c.clientHeight;
+      if (!cssW || !cssH) return null;   // 量不到就回報「量不到」,不要拿 0 去 getImageData 炸掉整段
       const i = Math.floor(state.simSec / 600) % FLOW_BINS;
       const barH = state.flowBins[i] / state.flowMax * (cssH - 12);
       const x = Math.round(state.simSec / 86400 * cssW * dpr);
@@ -2244,7 +2491,7 @@ async function sectionU(browser, engine) {
       return { barH: +barH.toFixed(1), redPxUpperHalf: red };
     });
     ok(`U6 ${tag} 🔴 深夜柱高趨近 0 時「現在」仍找得到(上半部有貫穿的紅)`,
-      night.redPxUpperHalf > 5, JSON.stringify(night));
+      !!night && night.redPxUpperHalf > 5, JSON.stringify(night));
 
     const jump = await page.evaluate(async () => {
       const c = document.getElementById('flowChart'), b = c.getBoundingClientRect();
@@ -2260,6 +2507,7 @@ async function sectionU(browser, engine) {
     const tick = await page.evaluate(() => {
       const c = document.getElementById('flowChart'), dpr = state.dpr || 1;
       const cssW = c.clientWidth, cssH = c.clientHeight;
+      if (!cssW || !cssH) return null;   // 同上:寬度 0 一樣會丟 IndexSizeError
       const d = c.getContext('2d').getImageData(0, Math.round((cssH - 2) * dpr), Math.round(cssW * dpr), 1).data;
       let best = null;
       for (let k = 0; k < d.length; k += 4)
@@ -2269,7 +2517,7 @@ async function sectionU(browser, engine) {
       return { tick: best, paper: pap, d: best ? Math.round(Math.abs(lum(best) - lum(pap))) : null };
     });
     ok(`U11 ${tag} 整點刻度與紙底有對比(暗色不能沿用亮色的奶油色,也不能低到看不見)`,
-      !!tick.tick && tick.d >= 30, JSON.stringify(tick));
+      !!tick && !!tick.tick && tick.d >= 30, JSON.stringify(tick));
     ok(`U8 ${tag} 零 pageerror`, errs.length === 0, errs.slice(0, 1).join(''));
     got[scheme] = { bar: pOther, now: pNow };
     await close();
@@ -2569,6 +2817,21 @@ async function sectionW(browser, engine) {
   }
 }
 
+// 🔴 FS_STATIC_ONLY=1:只跑 F0 那組純靜態的倍率契約掃描,不開瀏覽器、也不需要 dev server
+//    (實測含 node 啟動 0.27 秒)。給 ship_web 前置閘門用——完整兩引擎要 10 分 04 秒,
+//    放進出貨鏈不可行,但整支腳本裡唯一抓到真回歸的就是這一組(2026-09-08 一次抓出六處違規,
+//    每一處都有具名的破壞 commit),不掛等於沒人守。走的是同一份 staticRamps(),不是副本。
+//    ✱ 必須排在 assertTarget() 【前面】:那道 gate 要 fetch dev server,而這條路徑根本不起
+//      server。「驗的是哪棵樹」在這裡是結構性成立的——staticRamps() 直接讀 ROOT/index.html,
+//      ROOT 由 import.meta.url 推出,讀的必然是腳本自己這棵樹,比 md5 對照更強。
+//    ✱ ship_web §2.12 的 verify_engine_adapter 已經是同一個慣例(ENGINE_GATE_STATIC_ONLY)。
+if (process.env.FS_STATIC_ONLY === '1') {
+  staticRamps();   // 每一條的 PASS/FAIL 與實得值 ok() 自己就印了,這裡只補總計
+  const bad0 = results.filter(r => !r.pass).length;
+  console.log(`=== 字級雙倍率靜態契約 ${results.length - bad0}/${results.length} 通過 ===`);
+  process.exit(bad0 ? 1 : 0);
+}
+
 await assertTarget();
 // SECTIONS=H,I 只跑指定段(突變測試用);不設就跑全部——預設永遠是「全跑」,不能靠環境變數才完整。
 
@@ -2659,19 +2922,23 @@ async function sectionY(browser, engine) {
 
       let chosen = null;
       for (const st of cands) {
-        await page.evaluate(s => map.setView([s.lat, s.lon], 15, { animate: false }), st);
+        await page.evaluate(s => window.__M.setView([s.lat, s.lon], 15, { animate: false }), st); // 走適配層:M4-A 起預設 MapLibre,raw 沒有 setView
         await page.waitForTimeout(1300);
         const c = await page.evaluate(nm => {
-          const rect = map.getContainer().getBoundingClientRect();
+          const rect = window.__map.getContainer().getBoundingClientRect();
           const pts = [];
-          if (state.mode === 'sched') (state.schedStations || []).forEach(s => { const p = map.latLngToContainerPoint([s.lat, s.lon]); pts.push({ x: p.x, y: p.y, name: s.name }); });
+          if (state.mode === 'sched') (state.schedStations || []).forEach(s => { const p = window.__M.toScreen([s.lat, s.lon]); pts.push({ x: p.x, y: p.y, name: s.name }); });
           else state.lines.forEach(ln => { if (state.visible.has(ln.id) && ln.pts) ln.pts.forEach((p, i) => { if (ln.stations[i]) pts.push({ x: p.x, y: p.y, name: ln.stations[i].name }); }); });
-          const me = pts.find(p => p.name === nm && Math.hypot(p.x - rect.width / 2, p.y - rect.height / 2) < 40);
+          // 「畫面中央」＝地圖中心的投影點,不是容器幾何中心:MapLibre 的 setView 會把中心放在扣掉 padding
+          // (頂列 58／底部 120／sched 右側 62)之後的可視區中央,離容器中心 44px;Leaflet 沒有 padding 兩者重合。
+          // 拿容器中心當基準,sched 八顆候選全被判「不在畫面中央」、Y1–Y4 整段架空(M4-A 切預設後才現形)。
+          const cc = window.__M.getCenter(), ccp = window.__M.toScreen([cc.lat ?? cc[0], cc.lng ?? cc.lon ?? cc[1]]);
+          const me = pts.find(p => p.name === nm && Math.hypot(p.x - ccp.x, p.y - ccp.y) < 40);
           if (!me) return { ok: false, why: '不在畫面中央' };
           const el = document.elementFromPoint(rect.left + me.x, rect.top + me.y);
           if (!el || !el.closest('#map,#overlay')) return { ok: false, why: '被 UI 蓋住:' + (el ? (el.id || el.className) : 'null') };
           if (pts.filter(q => Math.hypot(q.x - me.x, q.y - me.y) < 26).length !== 1) return { ok: false, why: '鄰站太近' };
-          if ((state.mode === 'sched' ? trainsAt : freqTrainsAt)(L.point(me.x, me.y)).length) return { ok: false, why: '站上停著車' };
+          if ((state.mode === 'sched' ? trainsAt : freqTrainsAt)({ x: me.x, y: me.y }).length) return { ok: false, why: '站上停著車' };
           return { ok: true, x: me.x, y: me.y, name: nm, rect: { l: rect.left, t: rect.top } };
         }, st.name);
         if (c.ok) { chosen = c; break; }
@@ -2689,11 +2956,11 @@ async function sectionY(browser, engine) {
       // Y2 結構前提:待會要點的那一點,真的是空白(離最近站 >60px、沒有車牌罩住、最上層是地圖層)。
       // 🔴 必須在看板開起來之後才算:看板一開,讓位/置中機制會把地圖推走,開板前算的座標已經不是空白。
       const g2 = await page.evaluate(() => {
-        const rect = map.getContainer().getBoundingClientRect();
+        const rect = window.__map.getContainer().getBoundingClientRect();
         const pts = [];
-        if (state.mode === 'sched') (state.schedStations || []).forEach(s => { const p = map.latLngToContainerPoint([s.lat, s.lon]); pts.push({ x: p.x, y: p.y }); });
+        if (state.mode === 'sched') (state.schedStations || []).forEach(s => { const p = window.__M.toScreen([s.lat, s.lon]); pts.push({ x: p.x, y: p.y }); });
         else state.lines.forEach(ln => { if (state.visible.has(ln.id) && ln.pts) ln.pts.forEach(p => pts.push({ x: p.x, y: p.y })); });
-        const nTr = (x, y) => (state.mode === 'sched' ? trainsAt : freqTrainsAt)(L.point(x, y)).length;
+        const nTr = (x, y) => (state.mode === 'sched' ? trainsAt : freqTrainsAt)({ x, y }).length;
         for (let y = 180; y < rect.height - 300; y += 11) {
           for (let x = 26; x < rect.width - 26; x += 11) {
             let mn = 1e9; for (const p of pts) mn = Math.min(mn, Math.hypot(p.x - x, p.y - y));
@@ -3082,7 +3349,11 @@ async function sectionTB(browser, engine) {
   // ── 桌面反向對照:寬螢幕不是手機殼,四顆分頁要在、收合鈕不能出現。
   //    少了這一半,「乾脆全平台都收成一顆」也會全綠。
   {
-    const { page, errs, close } = await boot(browser, { width: 1280, tier: 'std' });
+    // 🔴 desktop:true 與 U 段同一個根因(見 boot()):isMobile/hasTouch ⇒ any-pointer:coarse ⇒
+    //    MOBILE_MQ 在 1400px 以下恆成立,所以原本這裡的 width:1280 拿到的是【觸控平板】的手機殼,
+    //    量到 kind:"one"/tabsN:0 而判紅。產品兩邊都是對的:觸控平板寬度大於 900 仍屬 mobile-shell
+    //    是刻意的(index.html:4581 的註解),而這條反向對照要問的是「非觸控的桌面」那一半。
+    const { page, errs, close } = await boot(browser, { width: 1280, tier: 'std', desktop: true });
     const r = await page.evaluate(GS_RESOLVE);
     // 桌面殼根本不渲染 .topbar,四顆分頁住在桌面 header 裡——所以這裡連「在哪一組」一起驗
     ok(`TB0 ${engine} 反向對照·桌面 1280 維持四顆分頁(在桌面 header)、收合鈕不出現`,
@@ -3188,6 +3459,8 @@ if (engWant.length) console.log(`⚠ 只跑 ${ENG.map(e => e[0]).join(',')} 引�
 if (!ENG.length) { console.error('ENGINES 沒有對到任何引擎'); process.exit(2); }
 for (const [engine, launcher] of ENG) {
   const browser = await launcher.launch();
+  // 前置閘門跑在段落迴圈【外面】:SECTIONS 窄化不該把它關掉,否則只跑一段時語系就沒人看門了。
+  await assertLocale(browser, engine);
   for (const k of run) {
     // 🔴 一段拋例外不可以把整支腳本連同另一個引擎一起帶走:那樣的輸出會變成「只有幾條紅」,
     //    看起來像局部問題,實際上後面整批根本沒跑到(突變測試實測踩過——比全綠更騙人)。

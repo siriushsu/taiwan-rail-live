@@ -16,11 +16,12 @@ android {
         if (project.hasProperty("railApplicationId")) applicationId project.property("railApplicationId")
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 34
-        versionName "1.5.4"
+        versionCode 61
+        versionName "1.6.10"
         if (project.hasProperty("railVersionName")) versionName project.property("railVersionName")
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
+            noCompress 'bin', 'pmtiles'
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
@@ -101,13 +102,52 @@ tasks.named('preBuild').configure { dependsOn tasks.named('buildRailWidgetData')
 
 apply from: 'capacitor.build.gradle'
 
-try {
+// 並存 instrumentation 包使用獨立 applicationId，不能誤套正式 Firebase client；
+// 正式 build 不傳 railSkipGoogleServices，行為與原本完全相同。
+if (!project.hasProperty('railSkipGoogleServices')) {
     def servicesJSON = file('google-services.json')
-    // 並存 instrumentation 包使用獨立 applicationId，不能誤套正式 Firebase client；
-    // 正式 build 不傳 railSkipGoogleServices，行為與原本完全相同。
-    if (servicesJSON.text && !project.hasProperty('railSkipGoogleServices')) {
-        apply plugin: 'com.google.gms.google-services'
+    // 🔴 檔案不在就直接讓 build 失敗。Capacitor 範本原本是 try/catch 後只寫一句 logger.info，
+    // 結果 build 全綠、APK 裡沒有 google_app_id、使用者按登入才紅字
+    // 「"FirebaseAuthentication" plugin is not implemented on android」——
+    // 2026-08-31 的 Android 24 與 2026-09-20〜21 的 58／59／60 都是這樣出的貨。
+    // 這個檔 gitignored（app/.gitignore:11），每棵新 worktree 都要自己補。
+    if (!servicesJSON.isFile() || !servicesJSON.text?.trim()) {
+        throw new GradleException("缺 app/android/app/google-services.json（gitignored）——沒有它 Firebase 不會初始化，Google／Apple 登入必失敗。從任何一棵有這個檔的 worktree 複製過來（md5 0983e927…），或從 Firebase 主控台 railisland 專案重新下載。只有並存的 instrumentation 包才可以用 -PrailSkipGoogleServices=true 跳過。")
     }
-} catch(Exception e) {
-    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+    apply plugin: 'com.google.gms.google-services'
+}
+
+// AGP 的資產合併會自動解開 *.gz 並去掉副檔名；車庫的 JSON 仍請求 *.bin.gz，
+// 因而只有 APK/AAB 缺檔，cap sync 與 www 檢查卻全綠。合併完成後保留來源的壓縮位元組
+// 與路徑，再交給後續簽署封裝。只清掉本次合併產生、來源中不存在的解壓副本。
+tasks.withType(com.android.build.gradle.tasks.MergeSourceSetFolders).configureEach {
+    if (name.endsWith('Assets')) {
+        doLast {
+            def sourceRoot = file('src/main/assets')
+            def mergedRoot = outputDir.get().asFile
+            fileTree(sourceRoot).matching { include '**/*.gz' }.files.each { compressed ->
+                def relative = sourceRoot.toPath().relativize(compressed.toPath()).toString()
+                def target = new File(mergedRoot, relative)
+                target.parentFile.mkdirs()
+                java.nio.file.Files.copy(compressed.toPath(), target.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+                def expandedRelative = relative.substring(0, relative.length() - 3)
+                if (!new File(sourceRoot, expandedRelative).exists()) {
+                    delete(new File(mergedRoot, expandedRelative))
+                }
+            }
+        }
+    }
+}
+
+// 發行指令結尾核對成品。只驗 cap sync 目錄，無法抓到 AGP 在封裝途中改名的問題。
+tasks.configureEach {
+    if (name == 'assembleRelease' || name == 'bundleRelease') {
+        def artifactPath = name == 'assembleRelease' ? 'outputs/apk/release/app-release.apk' : 'outputs/bundle/release/app-release.aab'
+        doLast {
+            project.exec {
+                workingDir rootProject.projectDir.parentFile
+                commandLine 'node', 'scripts/verify_android_package.mjs', layout.buildDirectory.file(artifactPath).get().asFile.absolutePath
+            }
+        }
+    }
 }

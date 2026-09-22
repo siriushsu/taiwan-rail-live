@@ -261,7 +261,7 @@ function evaluateUnit(api) {
   const wrongDirReverse = { ...reverseVehicle, dir:2 };
   const forwardPrevious = api.trtcOfficialDirectionPrevious(LINE, wrongDirForward, half);
   const reversePrevious = api.trtcOfficialDirectionPrevious(LINE, wrongDirReverse, reverseHalf);
-  const projection = { project:([lat, lon]) => ({ x:lon * 37, y:-lat * 29 }) };
+  const projection = { worldPx:([lat, lon]) => ({ x:lon * 37, y:-lat * 29 }) };
   const cp = { x:100, y:80 };
   const forwardAnchor = api.trtcOfficialDirectionAnchor(projection, cp, half, forwardPrevious);
   const reverseAnchor = api.trtcOfficialDirectionAnchor(projection, cp, reverseHalf, reversePrevious);
@@ -275,9 +275,9 @@ function evaluateUnit(api) {
       api.trtcOfficialPositionProgress(LINE, wrongDirReverse, reverseHalf) &&
     Math.abs(anchorLength(forwardAnchor) - 8) < 1e-9 &&
     Math.abs(anchorLength(reverseAnchor) - 8) < 1e-9 &&
-    officialDraw.includes('trtcOfficialDirectionAnchor(map, cp, item.pos, previous)') &&
+    officialDraw.includes('trtcOfficialDirectionAnchor(M, cp, item.pos, previous)') &&
     officialDraw.includes('Math.atan2(cp.y - cpB.y, cp.x - cpB.x)') &&
-    !officialDraw.includes('dirAngOf(') && !officialDraw.includes('map.latLngToContainerPoint([previous.lat');
+    !officialDraw.includes('dirAngOf(') && !officialDraw.includes('M.toScreen([previous.lat');
 
   const stale = { _dirAng:0 }, turnCp = { x:0, y:0 }, turnBehind = { x:1, y:-10 };
   const rawTurn = Math.atan2(10, -1), snapped = api.dirAngOf(stale, turnCp, turnBehind);
@@ -563,8 +563,8 @@ async function browserMatrix(baseUrl) {
                 vehicleId:directionVehicle.vehicleId, vehicle:directionVehicle },
               true, () => true, false, Date.now() / 1000);
               const directionPrevious = trtcOfficialDirectionPrevious(brLine, directionVehicle, directionPos);
-              const projectedNow = map.project([directionPos.lat, directionPos.lon], 18);
-              const projectedBefore = map.project([directionPrevious.lat, directionPrevious.lon], 18);
+              const projectedNow = window.__M.worldPx([directionPos.lat, directionPos.lon], 18);
+              const projectedBefore = window.__M.worldPx([directionPrevious.lat, directionPrevious.lon], 18);
               const expected = Math.atan2(projectedNow.y - projectedBefore.y,
                 projectedNow.x - projectedBefore.x);
               const directionAngle = directionAngles[directionAngles.length - 1];
@@ -577,7 +577,7 @@ async function browserMatrix(baseUrl) {
           } finally { drawTag = oldTag; drawDot = oldDot; drawArrowAt = oldArrow; }
           return { before, after, monotonic, rendered, roster:state.trtcOfficialRoster.vehicles.length,
             fallbackTag:{ tagLabels, dotCalls, halfWidth:trtcOfficialTagHalfWidth('BR'),
-              directionAngles, directionErrors, zoom:map.getZoom() } };
+              directionAngles, directionErrors, zoom:window.__map.getZoom() } };
         });
         const tapTarget = await page.evaluate(() => [...document.querySelectorAll('button[id],a[id],[role=button][id]')]
           .find(element => { const style = getComputedStyle(element), rect = element.getBoundingClientRect();

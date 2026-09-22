@@ -1,0 +1,201 @@
+{
+  "id": "taipei-dome",
+  "name": "臺北大巨蛋",
+  "kind": "dome",
+  "category": "landmark",
+  "anchor": null,
+  "displayHeightM": 64,
+  "realBuildingHeightM": null,
+  "footprintWidthM": 230,
+  "footprintDepthM": 180,
+  "rotationDeg": 0,
+  "placementStatus": "pending-georeference",
+  "sources": [
+    {
+      "url": "https://www.archasia.asia/en/projects/taipeidome",
+      "use": "外觀與建築形式參考；照片不重製為貼圖"
+    }
+  ],
+  "features": [
+    "扁橢圓鈦金屬殼體",
+    "環狀接縫與入口玻璃帶",
+    "僅球場主體，周邊商場與旅館另建"
+  ],
+  "notes": [
+    "尺寸與分件比例為地圖展示估算，非施工或測繪模型。",
+    "新增模型未提供核對過的地理錨點，須先定位後才能接入真實地圖。"
+  ],
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "axes": {
+    "up": "+Z",
+    "right": "+X",
+    "front": "-Y",
+    "units": "meters",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "gltfAxes": {
+    "up": "+Y",
+    "toZUp": "rotateX(+PI/2)"
+  },
+  "orientationMode": "local-facade",
+  "facadeBearingDeg": null,
+  "absoluteGroundAltitudeM": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -115.18000030517578,
+      -97.0,
+      0.0
+    ],
+    "max": [
+      115.17977142333984,
+      90.18000030517578,
+      64.0
+    ]
+  },
+  "sizeM": [
+    230.35977172851562,
+    187.18000030517578,
+    64.0
+  ],
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "glb": "near.glb",
+      "sha256": "f93fbb21459651f09a7a96f9c962bcbe0763fef68e839d035292dea9aa632b2d",
+      "glbSha256": "0236f02b42d8f5ec695df036bea08f40460784d9c61d06dd1678762758f90c17",
+      "strideBytes": 24,
+      "vertexCount": 14574,
+      "triangleCount": 4858,
+      "drawGroups": [
+        {
+          "component": "main",
+          "name": "metal",
+          "start": 0,
+          "count": 4554,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "roof",
+          "start": 4554,
+          "count": 4200,
+          "color": [
+            0.3915724754333496,
+            0.4677838087081909,
+            0.46207699179649353
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "glass",
+          "start": 8754,
+          "count": 984,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "main",
+          "name": "white",
+          "start": 9738,
+          "count": 4836,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 349776
+    },
+    "far": {
+      "file": "far.mesh.bin",
+      "glb": "far.glb",
+      "sha256": "228dbb81e73661f4a57e64587f15d70a167bac77be6dcf7681919c6fa3b8cc9e",
+      "glbSha256": "db88d6e73654447811451c204ca2ba88e1d4c2fdb112413ca6ad80483dd24f9a",
+      "strideBytes": 24,
+      "vertexCount": 12774,
+      "triangleCount": 4258,
+      "drawGroups": [
+        {
+          "component": "main",
+          "name": "metal",
+          "start": 0,
+          "count": 4554,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "roof",
+          "start": 4554,
+          "count": 2400,
+          "color": [
+            0.3915724754333496,
+            0.4677838087081909,
+            0.46207699179649353
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "glass",
+          "start": 6954,
+          "count": 984,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "main",
+          "name": "white",
+          "start": 7938,
+          "count": 4836,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 306576
+    }
+  },
+  "nativeObjectCount": 129,
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "modelUse": "map-exterior",
+  "components": []
+}

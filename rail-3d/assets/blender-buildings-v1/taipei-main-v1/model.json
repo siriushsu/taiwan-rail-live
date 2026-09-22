@@ -1,0 +1,280 @@
+{
+  "id": "taipei-main-v1",
+  "stationId": "TRA-1000",
+  "name": "臺北車站",
+  "version": 1,
+  "status": "simplified-exterior",
+  "anchor": [
+    121.51711425,
+    25.0477174
+  ],
+  "stationPoint": [
+    121.51711,
+    25.04775
+  ],
+  "rotationDeg": -10.691624471177597,
+  "footprintWidthM": 157.4488,
+  "footprintDepthM": 127.4466,
+  "displayHeightM": 48,
+  "realBuildingHeightM": null,
+  "railElevationM": null,
+  "heightQuality": "illustrative",
+  "footprintQuality": "OSM rectangle fit",
+  "modelScope": [
+    "站房外殼",
+    "紅色大屋頂",
+    "柱列",
+    "中央採光區",
+    "簡化大廳"
+  ],
+  "excluded": [
+    "地下月台",
+    "真實地下軌道",
+    "地下街",
+    "機捷 A1",
+    "北捷地下站體"
+  ],
+  "sources": [
+    {
+      "url": "https://www.openstreetmap.org/way/23641610",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.railway.gov.tw/tra-tip-web/tip/tip005/tip511/detail/0999020200159",
+      "use": "官方站房屋頂與中央天井特徵"
+    },
+    {
+      "url": "https://www.nownews.com/news/2291980",
+      "use": "2016 年外觀照片僅供造型參考，不作貼圖或現況設施證據"
+    }
+  ],
+  "notes": [
+    "外觀自製簡化，非工程或測繪模型。",
+    "展示高度 48m 為造型參數；與 OSM 標註存在差異，真實高度保持 null。",
+    "參考照片較舊，因此未複製站前舊景觀與施工設施。",
+    "內部只為透視展示；不宣稱是真實大廳室內配置。"
+  ],
+  "sourceSnapshot": {
+    "path": "source-layouts/taipei-main-v1/metadata.json",
+    "sha256": "e4c5178416506b97bc75bb32dedb6ddc0a504d5ff83d96df088f2b8b968b4313"
+  },
+  "category": "station",
+  "kind": "taipeistation",
+  "placementStatus": "existing-layout-unverified-facade",
+  "features": [
+    "內凹中庭與四坡紅屋頂",
+    "米色站體與柱廊"
+  ],
+  "application": "5.2.1 LTS",
+  "axes": {
+    "up": "+Z",
+    "right": "+X",
+    "front": "-Y",
+    "units": "meters",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "gltfAxes": {
+    "up": "+Y",
+    "toZUp": "rotateX(+PI/2)"
+  },
+  "orientationMode": "local-facade",
+  "facadeBearingDeg": null,
+  "absoluteGroundAltitudeM": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -78.8341293334961,
+      -63.82556915283203,
+      0.0
+    ],
+    "max": [
+      78.8341293334961,
+      63.82556915283203,
+      48.0
+    ]
+  },
+  "sizeM": [
+    157.6682586669922,
+    127.65113830566406,
+    48.0
+  ],
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "glb": "near.glb",
+      "sha256": "cf778f8e533623d0a0aec13306d29ea98374c61c82fde80e6dae43b2bd3caed0",
+      "glbSha256": "1ffb74b4cd6a1cd3c6e12ed68533f0883918d4129e3c1190524c319e0f56dac2",
+      "strideBytes": 24,
+      "vertexCount": 17604,
+      "triangleCount": 5868,
+      "drawGroups": [
+        {
+          "component": "main",
+          "name": "glass",
+          "start": 0,
+          "count": 72,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "main",
+          "name": "stone",
+          "start": 72,
+          "count": 2952,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "tile",
+          "start": 3024,
+          "count": 6912,
+          "color": [
+            0.4793201684951782,
+            0.09758734703063965,
+            0.05448027700185776
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "red",
+          "start": 9936,
+          "count": 7200,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "cream",
+          "start": 17136,
+          "count": 144,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "metal",
+          "start": 17280,
+          "count": 324,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 422496
+    },
+    "far": {
+      "file": "far.mesh.bin",
+      "glb": "far.glb",
+      "sha256": "1cce9f8ffe812a035364f83a4343a9c3c89b04e27b6aba85b0bc7e550b854a3e",
+      "glbSha256": "3f49cf84556b221d597c577173259900154ecf44fe32e33c1d8fe21aee33a76f",
+      "strideBytes": 24,
+      "vertexCount": 8748,
+      "triangleCount": 2916,
+      "drawGroups": [
+        {
+          "component": "main",
+          "name": "glass",
+          "start": 0,
+          "count": 72,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "main",
+          "name": "stone",
+          "start": 72,
+          "count": 1296,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "tile",
+          "start": 1368,
+          "count": 6912,
+          "color": [
+            0.4793201684951782,
+            0.09758734703063965,
+            0.05448027700185776
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "cream",
+          "start": 8280,
+          "count": 144,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "metal",
+          "start": 8424,
+          "count": 324,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 209952
+    }
+  },
+  "nativeObjectCount": 201,
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "modelUse": "map-exterior",
+  "components": []
+}

@@ -10,6 +10,7 @@
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
 		504EC3081FED79650016851F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EC3071FED79650016851F /* AppDelegate.swift */; };
+		56F5C69130250000003C7FE0 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C69030250000003C7FE0 /* SceneDelegate.swift */; };
 		56F5C629301B0000003C7FE0 /* RailPlacesPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C628301B0000003C7FE0 /* RailPlacesPlugin.swift */; };
 		56F5C62F301B0000003C7FE0 /* RailAudioPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C62E301B0000003C7FE0 /* RailAudioPlugin.swift */; };
 		56F5C631301C0000003C7FE0 /* RailFollowAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C630301C0000003C7FE0 /* RailFollowAttributes.swift */; };
@@ -21,6 +22,8 @@
 		56F5C67230230000003C7FE0 /* TraWaitAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C67030230000003C7FE0 /* TraWaitAttributes.swift */; };
 		56F5C67430230000003C7FE0 /* TraWaitEndIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C67330230000003C7FE0 /* TraWaitEndIntent.swift */; };
 		56F5C67530230000003C7FE0 /* TraWaitEndIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C67330230000003C7FE0 /* TraWaitEndIntent.swift */; };
+		56F5C68430240000003C7FE0 /* RailFollowEndIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C68330240000003C7FE0 /* RailFollowEndIntent.swift */; };
+		56F5C68530240000003C7FE0 /* RailFollowEndIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C68330240000003C7FE0 /* RailFollowEndIntent.swift */; };
 		56F5C652301E0000003C7FE0 /* MetroWaitEndIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C650301E0000003C7FE0 /* MetroWaitEndIntent.swift */; };
 		56F5C66130220000003C7FE0 /* MetroWidgetShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C66030220000003C7FE0 /* MetroWidgetShared.swift */; };
 		56F5C66230220000003C7FE0 /* MetroWidgetShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C66030220000003C7FE0 /* MetroWidgetShared.swift */; };
@@ -75,6 +78,7 @@
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
 		504EC3041FED79650016851F /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = App.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		504EC3071FED79650016851F /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		56F5C69030250000003C7FE0 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		56F5C628301B0000003C7FE0 /* RailPlacesPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RailPlacesPlugin.swift; sourceTree = "<group>"; };
 		56F5C643301F0000003C7FE0 /* RailMetroWaitPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RailMetroWaitPlugin.swift; sourceTree = "<group>"; };
 		56F5C62E301B0000003C7FE0 /* RailAudioPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RailAudioPlugin.swift; sourceTree = "<group>"; };
@@ -83,6 +87,7 @@
 		56F5C650301E0000003C7FE0 /* MetroWaitEndIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetroWaitEndIntent.swift; sourceTree = "<group>"; };
 		56F5C67030230000003C7FE0 /* TraWaitAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TraWaitAttributes.swift; sourceTree = "<group>"; };
 		56F5C67330230000003C7FE0 /* TraWaitEndIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TraWaitEndIntent.swift; sourceTree = "<group>"; };
+		56F5C68330240000003C7FE0 /* RailFollowEndIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RailFollowEndIntent.swift; sourceTree = "<group>"; };
 		56F5C67630230000003C7FE0 /* RailTraWaitPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RailTraWaitPlugin.swift; sourceTree = "<group>"; };
 		56F5C66030220000003C7FE0 /* MetroWidgetShared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetroWidgetShared.swift; sourceTree = "<group>"; };
 		56F5C66330220000003C7FE0 /* MetroWaitStartIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetroWaitStartIntent.swift; sourceTree = "<group>"; };
@@ -179,6 +184,7 @@
 			children = (
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
+				56F5C69030250000003C7FE0 /* SceneDelegate.swift */,
 				56F5C628301B0000003C7FE0 /* RailPlacesPlugin.swift */,
 				56F5C62E301B0000003C7FE0 /* RailAudioPlugin.swift */,
 				56F5C626301A0000003C7FE0 /* RailBoardScheduleWriter.swift */,
@@ -187,6 +193,7 @@
 				56F5C650301E0000003C7FE0 /* MetroWaitEndIntent.swift */,
 				56F5C67030230000003C7FE0 /* TraWaitAttributes.swift */,
 				56F5C67330230000003C7FE0 /* TraWaitEndIntent.swift */,
+				56F5C68330240000003C7FE0 /* RailFollowEndIntent.swift */,
 				56F5C66330220000003C7FE0 /* MetroWaitStartIntent.swift */,
 				56F5C66030220000003C7FE0 /* MetroWidgetShared.swift */,
 				56F5C66630220000003C7FE0 /* MetroBoardModel.swift */,
@@ -374,6 +381,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
+				56F5C69130250000003C7FE0 /* SceneDelegate.swift in Sources */,
 				56F5C629301B0000003C7FE0 /* RailPlacesPlugin.swift in Sources */,
 				56F5C62F301B0000003C7FE0 /* RailAudioPlugin.swift in Sources */,
 				56F5C627301A0000003C7FE0 /* RailBoardScheduleWriter.swift in Sources */,
@@ -387,6 +395,7 @@
 				56F5C644301F0000003C7FE0 /* RailMetroWaitPlugin.swift in Sources */,
 				56F5C67130230000003C7FE0 /* TraWaitAttributes.swift in Sources */,
 				56F5C67430230000003C7FE0 /* TraWaitEndIntent.swift in Sources */,
+				56F5C68430240000003C7FE0 /* RailFollowEndIntent.swift in Sources */,
 				56F5C67730230000003C7FE0 /* RailTraWaitPlugin.swift in Sources */,
 				56F5C66E30280000003C7FE0 /* RailLanguagePlugin.swift in Sources */,
 			);
@@ -403,6 +412,7 @@
 				56F5C66230220000003C7FE0 /* MetroWidgetShared.swift in Sources */,
 				56F5C67230230000003C7FE0 /* TraWaitAttributes.swift in Sources */,
 				56F5C67530230000003C7FE0 /* TraWaitEndIntent.swift in Sources */,
+				56F5C68530240000003C7FE0 /* RailFollowEndIntent.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -564,7 +574,7 @@
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 92;
+				CURRENT_PROJECT_VERSION = 123;
 				DEVELOPMENT_TEAM = UCD3GAKML6;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				INFOPLIST_FILE = App/Info.plist;
@@ -573,14 +583,14 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.5.4;
+				MARKETING_VERSION = 1.6.10;
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
 				PRODUCT_BUNDLE_IDENTIFIER = tw.railisland.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
@@ -592,7 +602,7 @@
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 92;
+				CURRENT_PROJECT_VERSION = 123;
 				DEVELOPMENT_TEAM = UCD3GAKML6;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				INFOPLIST_FILE = App/Info.plist;
@@ -601,13 +611,13 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.5.4;
+				MARKETING_VERSION = 1.6.10;
 				PRODUCT_BUNDLE_IDENTIFIER = tw.railisland.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -621,7 +631,7 @@
 				CODE_SIGN_ENTITLEMENTS = RailBoardWidgetExtension.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 92;
+				CURRENT_PROJECT_VERSION = 123;
 				DEVELOPMENT_TEAM = UCD3GAKML6;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -635,7 +645,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.5.4;
+				MARKETING_VERSION = 1.6.10;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = tw.railisland.app.RailBoardWidget;
@@ -661,7 +671,7 @@
 				CODE_SIGN_ENTITLEMENTS = RailBoardWidgetExtension.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 92;
+				CURRENT_PROJECT_VERSION = 123;
 				DEVELOPMENT_TEAM = UCD3GAKML6;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -675,7 +685,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.5.4;
+				MARKETING_VERSION = 1.6.10;
 				MTL_FAST_MATH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = tw.railisland.app.RailBoardWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";

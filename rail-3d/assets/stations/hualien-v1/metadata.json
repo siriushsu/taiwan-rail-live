@@ -1,0 +1,241 @@
+{
+  "id": "hualien-v1",
+  "name": "花蓮車站",
+  "version": 1,
+  "status": "simplified-exterior",
+  "anchor": [
+    121.60093265,
+    23.992764
+  ],
+  "stationPoint": [
+    121.60131,
+    23.99265
+  ],
+  "displayHeightM": 17,
+  "realBuildingHeightM": null,
+  "railElevationM": null,
+  "heightQuality": "illustrative",
+  "footprintQuality": "OSM polygon",
+  "components": [
+    {
+      "id": "554768918",
+      "name": "花蓮跨站大廳",
+      "type": "flat",
+      "anchor": [
+        121.60082612,
+        23.99344802
+      ],
+      "rotationDeg": -23.8166,
+      "widthM": 152.754,
+      "depthM": 45.547,
+      "displayHeightM": 17,
+      "baseM": 6,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": true,
+      "clock": false
+    },
+    {
+      "id": "554768913",
+      "name": "花蓮售票大廳",
+      "type": "flat",
+      "anchor": [
+        121.60176275,
+        23.99336329
+      ],
+      "rotationDeg": 65.8392,
+      "widthM": 54.908,
+      "depthM": 50.028,
+      "displayHeightM": 12,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": true,
+      "clock": false
+    },
+    {
+      "id": "718223887",
+      "name": "迎客大傘",
+      "type": "umbrella",
+      "anchor": [
+        121.60168097,
+        23.99288786
+      ],
+      "rotationDeg": 65.8235,
+      "widthM": 73.741,
+      "depthM": 30.409,
+      "displayHeightM": 13,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": false,
+      "clock": false
+    },
+    {
+      "id": "132937553",
+      "name": "花蓮前站",
+      "type": "flat",
+      "anchor": [
+        121.60125861,
+        23.99245123
+      ],
+      "rotationDeg": 65.8284,
+      "widthM": 88.067,
+      "depthM": 18.506,
+      "displayHeightM": 9,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": true,
+      "clock": false
+    },
+    {
+      "id": "132937567",
+      "name": "花蓮後站",
+      "type": "flat",
+      "anchor": [
+        121.60007109,
+        23.99384268
+      ],
+      "rotationDeg": 65.8233,
+      "widthM": 62.454,
+      "depthM": 23.299,
+      "displayHeightM": 9,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": true,
+      "clock": false
+    },
+    {
+      "id": "1342634750",
+      "name": "月台棚",
+      "type": "canopy",
+      "anchor": [
+        121.60074671,
+        23.99230496
+      ],
+      "rotationDeg": 65.8318,
+      "widthM": 194.747,
+      "depthM": 10.278,
+      "displayHeightM": 6,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": false,
+      "clock": false
+    },
+    {
+      "id": "1342634751",
+      "name": "月台棚",
+      "type": "canopy",
+      "anchor": [
+        121.60059131,
+        23.99236872
+      ],
+      "rotationDeg": 65.8247,
+      "widthM": 194.747,
+      "depthM": 10.723,
+      "displayHeightM": 6,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": false,
+      "clock": false
+    },
+    {
+      "id": "1352337182",
+      "name": "月台棚",
+      "type": "canopy",
+      "anchor": [
+        121.60097829,
+        23.99220999
+      ],
+      "rotationDeg": 65.8247,
+      "widthM": 194.751,
+      "depthM": 11.527,
+      "displayHeightM": 6,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": false,
+      "clock": false
+    }
+  ],
+  "modelScope": [
+    "花蓮跨站大廳",
+    "花蓮售票大廳",
+    "迎客大傘",
+    "花蓮前站",
+    "花蓮後站",
+    "月台棚",
+    "月台棚",
+    "月台棚"
+  ],
+  "excluded": [
+    "真實軌道高程",
+    "列車與月台對齊",
+    "地下站體",
+    "精確室內配置",
+    "未有輪廓的出入口及連接設施"
+  ],
+  "sources": [
+    {
+      "url": "https://www.rb.gov.tw/public/upimgs/B05/1071002.pdf",
+      "use": "站區配置或造型參考；不作比例測量"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/554768918",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/554768913",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/718223887",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/132937553",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/132937567",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/1342634750",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/1342634751",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/1352337182",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    }
+  ],
+  "notes": [
+    "輪廓使用免費 OSM；曲面、窗帶、柱列、展示底高及高度由軌島簡化設計，不是工程模型。",
+    "各系統保留獨立輪廓與座標；轉乘示意圖僅核對關係，不當成比例尺。",
+    "照片與官方資料只供外觀參考，未作模型貼圖。"
+  ]
+}

@@ -1,0 +1,334 @@
+{
+  "id": "taichung-prefecture",
+  "name": "臺中州廳",
+  "county": "臺中市",
+  "category": "historic",
+  "kind": "taichung-prefecture",
+  "features": [
+    "轉角塔、門廊、連續拱窗與兩翼屋頂"
+  ],
+  "sources": [
+    {
+      "url": "https://www.tchac.taichung.gov.tw/building?pid=18&uid=33",
+      "use": "臺中文資處"
+    },
+    {
+      "url": "https://www.tchac.taichung.gov.tw/attractioninfo?pid=32&uid=69",
+      "use": "與臺中站的街區關係"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/1240137344",
+      "use": "OSM 建物輪廓"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/1240137344",
+      "use": "臺中州廳：輪廓與位置",
+      "license": "ODbL-1.0"
+    }
+  ],
+  "priority": 2,
+  "placementStatus": "calibrated-plan",
+  "anchor": [
+    120.67820671453507,
+    24.138553453000164
+  ],
+  "verifiedDimensionsM": {},
+  "estimatedDimensionsM": {
+    "width": 84.5256233215332,
+    "depth": 55.60236930847168,
+    "height": 20.799999237060547,
+    "basis": "平面依各部件來源校正；高度仍為外觀建模估值"
+  },
+  "referenceReviewDate": "2026-09-08",
+  "geometryStatus": "plan-calibrated-exterior-estimated",
+  "scope": "按來源輪廓校正平面位置與尺度；高度、立面細節及正面方向仍為外觀估計",
+  "railRelation": "市區周邊：臺中站前舊城",
+  "reviewedPhotos": [
+    {
+      "url": "https://www.tchac.taichung.gov.tw/uploads/tchac/information/large/s_DSC_0203.jpg",
+      "page": "https://www.tchac.taichung.gov.tw/building?pid=18&uid=33",
+      "viewedOn": "2026-09-08",
+      "scope": "局部外觀參考，非完整多面覆核"
+    },
+    {
+      "url": "https://www.tchac.taichung.gov.tw/uploads/tchac/images/large/4e0f80d3-d161-4b8d-af3d-e5e95aebf60f.jpg",
+      "page": "https://www.tchac.taichung.gov.tw/building?pid=18&uid=33",
+      "viewedOn": "2026-09-08",
+      "scope": "局部外觀參考，非完整多面覆核"
+    },
+    {
+      "url": "https://www.tchac.taichung.gov.tw/uploads/tchac/images/large/febf5278-5fdb-4ff8-9d9b-4e06f4aca927.jpg",
+      "page": "https://www.tchac.taichung.gov.tw/building?pid=18&uid=33",
+      "viewedOn": "2026-09-08",
+      "scope": "局部外觀參考，非完整多面覆核"
+    },
+    {
+      "url": "https://www.tchac.taichung.gov.tw/uploads/tchac/images/large/17939096-aabe-4589-bdbf-91e3b5dc864e.jpg",
+      "page": "https://www.tchac.taichung.gov.tw/building?pid=18&uid=33",
+      "viewedOn": "2026-09-08",
+      "scope": "局部外觀參考，非完整多面覆核"
+    }
+  ],
+  "referenceStatus": "partial-exterior-review",
+  "pendingChecks": [
+    "高度測量與完整多面立面校正",
+    "正面方向複核"
+  ],
+  "footprintReference": {
+    "osmType": "way",
+    "osmId": 1240137344,
+    "name": "臺中州廳",
+    "url": "https://www.openstreetmap.org/way/1240137344",
+    "timestamp": "2026-09-08T15:19:44Z",
+    "longSideM": 65.72,
+    "shortSideM": 65.68,
+    "source": "OpenStreetMap contributors",
+    "license": "ODbL-1.0",
+    "scope": "早期輪廓參考；本輪逐棟校正依 calibration.parts 與 placements-source.json",
+    "referenceFile": "source-layouts/taichung-prefecture.json"
+  },
+  "orientationMode": "ENU-baked",
+  "absoluteGroundAltitudeM": null,
+  "railElevationM": null,
+  "omittedUnlocatedComponents": [],
+  "calibration": {
+    "version": 2,
+    "basis": "各部件獨立平面擬合；非工程測繪",
+    "parts": [
+      {
+        "id": "臺中州廳",
+        "name": "臺中州廳",
+        "placementStatus": "footprint-axis-calibrated",
+        "anchor": [
+          120.67820671453507,
+          24.138553453000164
+        ],
+        "rotationDeg": 46.75,
+        "scaleXY": [
+          0.9391414690057927,
+          0.941394906971609
+        ],
+        "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+        "facadeBearingDeg": null
+      }
+    ],
+    "verticalDatum": "terrain-relative",
+    "sourceFile": "placements-source.json"
+  },
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "axes": {
+    "up": "+Z",
+    "east": "+X",
+    "north": "+Y",
+    "front": null,
+    "units": "meters",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "gltfAxes": {
+    "up": "+Y",
+    "toZUp": "rotateX(+PI/2)"
+  },
+  "facadeBearingDeg": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -42.39360427856445,
+      -40.515235900878906,
+      0.0
+    ],
+    "max": [
+      42.13201904296875,
+      15.094907760620117,
+      20.799999237060547
+    ]
+  },
+  "sizeM": [
+    84.5256233215332,
+    55.61014366149902,
+    20.799999237060547
+  ],
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "glb": "near.glb",
+      "sha256": "fc679a8c15ace53388d4799c9ed3ecd690fd1b150cbc2f3330b3c38bf77bf0e8",
+      "glbSha256": "0ef535f2dfdf26bb6ca1b73a73c3957e6814bc1fc891788867ed991d3a469c13",
+      "strideBytes": 24,
+      "vertexCount": 30666,
+      "triangleCount": 10222,
+      "drawGroups": [
+        {
+          "component": "臺中州廳",
+          "name": "cream",
+          "start": 0,
+          "count": 19296,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "臺中州廳",
+          "name": "stone",
+          "start": 19296,
+          "count": 108,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "臺中州廳",
+          "name": "white",
+          "start": 19404,
+          "count": 3204,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "臺中州廳",
+          "name": "glass",
+          "start": 22608,
+          "count": 4680,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "臺中州廳",
+          "name": "dark",
+          "start": 27288,
+          "count": 3378,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 735984
+    },
+    "far": {
+      "file": "far.mesh.bin",
+      "glb": "far.glb",
+      "sha256": "c1b707bf57071debe261f97939ddee4eea527c50c664a27c30074d4b26378901",
+      "glbSha256": "a59dc04b17b627f41ded5a1c06749daf86fa4e680e8405457d7d026736cbb518",
+      "strideBytes": 24,
+      "vertexCount": 16794,
+      "triangleCount": 5598,
+      "drawGroups": [
+        {
+          "component": "臺中州廳",
+          "name": "cream",
+          "start": 0,
+          "count": 10656,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "臺中州廳",
+          "name": "stone",
+          "start": 10656,
+          "count": 108,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "臺中州廳",
+          "name": "white",
+          "start": 10764,
+          "count": 324,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "臺中州廳",
+          "name": "glass",
+          "start": 11088,
+          "count": 4680,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "臺中州廳",
+          "name": "dark",
+          "start": 15768,
+          "count": 1026,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 403056
+    }
+  },
+  "nativeObjectCount": 992,
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "modelUse": "map-exterior",
+  "components": [
+    {
+      "id": "臺中州廳",
+      "name": "臺中州廳",
+      "placementStatus": "footprint-axis-calibrated",
+      "anchor": [
+        120.67820671453507,
+        24.138553453000164
+      ],
+      "rotationDeg": 46.75,
+      "scaleXY": [
+        0.9391414690057927,
+        0.941394906971609
+      ],
+      "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+      "facadeBearingDeg": null
+    }
+  ],
+  "mapEligible": true
+}

@@ -14,10 +14,38 @@
 //   · TDX 班次的 TrainTypeID/TrainTypeName 十班全 null,車種是本專案依起訖路線歸類的四類;
 //     前端用 typeName 做繪製 gate(state.visible.has),故 key 不可與台鐵車種相撞。
 import { readFileSync } from 'node:fs';
+import { createPlanBinding } from '../rail-3d/physical/plan-binding.js';
+import { createHash } from 'node:crypto';
+import { spawn } from 'node:child_process';
+import { createServer } from 'node:net';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { chromium, webkit } from 'playwright';
 
-const PORT = process.env.PORT || 5179;
+// 伺服器自己起,連接埠由 OS 指派(PORT=0 那顆先探再交棒),不再預設連 5179。
+// 原因是實測踩到的:5179 當下是另一個 worktree 的 dev server,腳本會一聲不響地去驗**別人的樹**
+// ——全綠也毫無意義(全域規則:前端驗證會驗到別人的樹;本機同時有 30+ 個並行 worktree)。
+// ROOT 由本檔自身路徑推導,不吃 --root/env,結構上只可能服務自己這棵樹;開跑前再用 md5
+// 斷言「伺服器吐回來的 index.html === ROOT/index.html」,把「我在量誰」這件事變成具名閘門。
+// PORT 仍可覆寫(指向已在跑的 server),但那條路要自己負責樹對不對,故 md5 閘門一樣會跑。
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+process.chdir(ROOT);                                   // 資料層一律讀 ROOT 底下,不吃呼叫端 cwd
+const freePort = () => new Promise(res => { const s = createServer(); s.listen(0, '127.0.0.1', () => { const { port } = s.address(); s.close(() => res(port)); }); });
+let child = null;
+const PORT = process.env.PORT || await freePort();
 const BASE = `http://localhost:${PORT}`;
+if (!process.env.PORT) {
+  child = spawn(process.execPath, [path.join(ROOT, 'scripts/dev_server.mjs')], {
+    cwd: ROOT, env: { ...process.env, PORT: String(PORT) }, stdio: ['ignore', 'ignore', 'inherit'] });
+  process.on('exit', () => child?.kill());
+  for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { child?.kill(); process.exit(1); });
+}
+for (let i = 0; ; i++) {                               // 等它真的聽得到,不用固定秒數
+  try { const r = await fetch(BASE + '/index.html'); if (r.ok) break; } catch {}
+  // 上限 60 秒（原本 10 秒）：同一個等待寫法在 verify_issue19 於高負載時逾時擋下出貨，見該檔同處說明。
+  if (i > 600) { console.error(`✗ dev server 起不來（${BASE}）`); child?.kill(); process.exit(1); }
+  await new Promise(r => setTimeout(r, 100));
+}
 let pass = 0, fail = 0;
 const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? '  ✓ ' : '  ✗ ') + m); };
 const hav = (a, b) => {
@@ -36,7 +64,8 @@ function distToSeg(p, a, b) {
   const t = L2 ? Math.max(0, Math.min(1, (px * bx + py * by) / L2)) : 0;
   return Math.hypot(px - t * bx, py - t * by);
 }
-const distToLine = (p, shape) => {
+const distToLine = (p, shape) => {                      // shape 可以是一條線，也可以是一疊線
+  if (Array.isArray(shape[0]?.[0])) return Math.min(...shape.map(s => distToLine(p, s)));
   let m = Infinity;
   for (let i = 1; i < shape.length; i++) { const d = distToSeg(p, shape[i - 1], shape[i]); if (d < m) m = d; }
   return m;
@@ -48,10 +77,19 @@ const T5_EXPECT = [...MAIN_ORDER, '阿里山'];
 const T5_SCHEDULED = ['嘉義', '北門', '竹崎', '交力坪', '奮起湖', '二萬平', '阿里山'];
 const SHAPE_KM = { '本線': 69.47, '祝山線': 5.81, '神木線': 1.29, '沼平線': 1.07 };
 
+// G0 我在量的是誰:伺服器吐回來的 index.html 必須逐 byte 等於這棵樹的那份。
+// 這條紅掉代表 PORT 指到了別的樹(或別的 session 的 server),下面 120 條全部不算數。
+const servedMd5 = createHash('md5').update(Buffer.from(await (await fetch(BASE + '/index.html')).arrayBuffer())).digest('hex');
+const localMd5 = createHash('md5').update(readFileSync(path.join(ROOT, 'index.html'))).digest('hex');
+console.log(`\n═══ G0. 驗證目標 ═══\n  ROOT=${ROOT}\n  index.html md5=${localMd5}（server :${PORT} 吐回 ${servedMd5}）`);
+ok(servedMd5 === localMd5, `伺服器服務的是本樹（${BASE}）`);
+
 console.log('\n═══ A. 軌道路網 data/afr.json ═══');
 const track = JSON.parse(readFileSync('data/afr.json', 'utf8'));
-ok(track.lines?.length === 4, `4 條線（實得 ${track.lines?.length}）`);
-for (const ln of track.lines) {
+// aux=true 是站內股道(之字形折返股),不是營業線:官方站序/里程/長度那幾條只對營業線成立。
+const revenue = track.lines?.filter(l => !l.aux) || [], yards = track.lines?.filter(l => l.aux) || [];
+ok(revenue.length === 4, `4 條營業線（實得 ${revenue.length}）`);
+for (const ln of revenue) {
   const nm = ln.name || ln.id;
   const ds = ln.stations.map(s => s.d);
   ok(ds.every((d, i) => i === 0 || d > ds[i - 1]), `${nm}：里程 d 嚴格遞增（${ln.stations.length} 站）`);
@@ -68,8 +106,67 @@ for (const ln of track.lines) {
     ok(Math.abs(L - SHAPE_KM[key]) / SHAPE_KM[key] <= 0.05, `${nm}：長度 ${L.toFixed(2)}km（基準 ${SHAPE_KM[key]}km）`);
   }
 }
-ok(track.lines.find(l => l.name.includes('本線')).stations.map(s => s.name).join() === MAIN_ORDER.join(),
+ok(revenue.find(l => l.name.includes('本線')).stations.map(s => s.name).join() === MAIN_ORDER.join(),
   '本線站序＝嘉義…二萬平→神木（末站依幾何現實為神木，非官方的阿里山）');
+{
+  // ── 站內股道：畫出來的線要蓋到「列車真的停在哪」──────────────────────────────
+  // 2026-09-07 裁示「軌道都要跟新的、正確的資訊」。列車位置自 0f5bb774 起改吃實體股道
+  // (rail-3d/physical，index.html trainPosAt 第一行，沒有 zoom 閘門)，而 TDX 的 Shape 只給營業
+  // 線、不含之字形折返股 ⇒ 停靠中的車會畫在官方線形之外(阿里山 94m、神木 164m)。
+  // 判準刻意不寫「有幾條股道」(那會跟著資料漂)，而是量真正的不變量：**林鐵每一個實體停靠點
+  // 都要有軌道畫得出來**。這條在資料層就成立，涵蓋全天所有班次，不只 E 段抽樣的 11:00。
+  const sidecar = JSON.parse(readFileSync('data/afr_station_tracks.json', 'utf8'));
+  ok(yards.length > 0 && JSON.stringify(yards) === JSON.stringify(sidecar.lines),
+    `站內股道與 data/afr_station_tracks.json 逐欄一致（${yards.length} 條）`);
+  ok(yards.every(l => l.shape.length >= 2 && l.shape.every(p => p.length === 2 && p.every(Number.isFinite))),
+    '站內股道 shape 無 NaN/null');
+  // 股道是站內的短股，不該長成一條新路線；而且必須接得回營業線，不能是浮空的碎片。
+  const longest = Math.max(...yards.map(l => l.shapeLen));
+  ok(longest <= 0.5, `每條站內股道都短於 0.5km（最長 ${(longest * 1000).toFixed(0)}m）`);
+  const detached = yards.filter(l =>
+    Math.min(...l.shape.map(p => Math.min(...revenue.map(r => distToLine(p, r.shape))))) > 20);
+  ok(detached.length === 0, `站內股道都接得回營業線（浮空的：${detached.map(l => l.id).join(',') || '無'}）`);
+
+  const net = JSON.parse(readFileSync('rail-3d/physical/network.json', 'utf8'));
+  const dispatch = JSON.parse(readFileSync('rail-3d/physical/dispatch.json', 'utf8'));
+  const at = new Map();
+  for (const w of net.ways) w.nodes.forEach((n, i) => at.set(String(n), [w.coordinates[i][1], w.coordinates[i][0]]));
+  const stops = new Set();   // 派軌路徑的起訖節點＝motion.js 停靠(dwell)時吐出來的座標
+  for (const [key, plan] of Object.entries(dispatch.plans)) if (key.startsWith('afr_sched:'))
+    for (const id of plan.pathIds) { stops.add(String(net.paths[id].from)); stops.add(String(net.paths[id].to)); }
+  // 🔴 判準量的是 data/track_lines.geojson，不是 data/afr.json：**畫出來的是前者**（index.html
+  // glTracksLoad() 讀它餵 GL 的 track-lines source），而它是 build_track_geojson.mjs 從後者產的
+  // 衍生檔。拿 afr.json 當判準會踩「改了來源卻忘了重產衍生檔」——我這一輪就踩到：afr.json 有
+  // 12 條、state.trackLines 也有 12 條，而 GL 實際只拿到 4 條，畫面上一條股道都沒有卻全綠。
+  const drawn = JSON.parse(readFileSync('data/track_lines.geojson', 'utf8')).features
+    .filter(f => f.properties.sys === 'afr_sched');
+  const shapeOf = f => f.geometry.coordinates.map(c => [c[1], c[0]]);
+  const shapes = drawn.map(shapeOf);
+  ok(shapes.length > 0 && yards.every(l => drawn.some(f => f.properties.id === l.id)),
+    `${yards.length} 條站內股道都進了畫出來的 track_lines.geojson（實得 ${drawn.length} 條林鐵線形）`);
+  const far = [...stops].map(n => ({ n, name: net.nodeTags[n]?.name || n, d: distToLine(at.get(n), shapes) }))
+    .filter(x => x.d > 50).sort((a, b) => b.d - a.d);
+  ok(far.length === 0, `${stops.size} 個實體停靠點都在畫得出來的軌道上（>50m 者：`
+    + `${far.map(x => `${x.name}:${x.d.toFixed(0)}m`).join(',') || '無'}）`);
+  // 反向對照(判準恆真的話上面那條就毫無訊號):拿掉站內股道，阿里山與神木必須立刻紅回來。
+  const yardIds = new Set(yards.map(l => l.id));
+  const withoutYards = drawn.filter(f => !yardIds.has(f.properties.id)).map(shapeOf);
+  const regress = [...stops].filter(n => distToLine(at.get(n), withoutYards) > 50).length;
+  ok(regress > 0, `控制組：只用營業線時有 ${regress} 個停靠點離線 >50m（證明上一條會紅）`);
+
+  // 同一件事的另一個面向，而且**不依賴實體股道模型**：官方站點自己也要落在畫出來的線上。
+  // 上面兩條量的是 rail-3d/physical 的停靠點，一旦 afr_sched 不在 PHYSICAL_SYSTEMS 名單裡
+  // 就沒有東西在消費它們；這一條量的是「站牌畫在哪」對「軌道畫在哪」，兩者永遠都會畫出來。
+  // 仲裁來源也不同源：站座標與 Shape 是 TDX 的兩份獨立資料，用它自己的站去驗它自己的線形。
+  // 修前阿里山 114.9m、祝山 77.3m（四條線形都停在站外的道岔口）；補上股道後 21.9m／16.2m。
+  const dots = new Map();
+  for (const ln of track.lines) for (const s of ln.stations || []) if (!dots.has(s.name)) dots.set(s.name, [s.lat, s.lon]);
+  const offDot = [...dots].map(([n, p]) => ({ n, d: distToLine(p, shapes) })).filter(x => x.d > 50).sort((a, b) => b.d - a.d);
+  ok(offDot.length === 0, `${dots.size} 個官方站點都在畫得出來的軌道上（>50m 者：`
+    + `${offDot.map(x => `${x.n}:${x.d.toFixed(0)}m`).join(',') || '無'}；餘裕最小的是北門 44m、嘉義 43m）`);
+  const dotRegress = [...dots].filter(([, p]) => distToLine(p, withoutYards) > 50).map(([n]) => n);
+  ok(dotRegress.length > 0, `控制組：只用營業線時有 ${dotRegress.join('、')} 離線 >50m（證明上一條會紅）`);
+}
 {
   const fills = JSON.parse(readFileSync('data/afr_osm_gap_fills.json', 'utf8'));
   ok(fills.fills?.length === 5 && /OpenStreetMap/.test(fills.source), '5處 TDX 缺口均有 OSM ODbL 補線來源');
@@ -209,11 +306,53 @@ const SUGAR_INDEP = {
   '橋頭糖廠': [22.7578, 120.3142],
 };
 
+// ── 祝山線觀日車的派車綁定(2026-09-12) ────────────────────────────────
+// 97/98 的發車時刻由前端依官方日出表逐旬推算,而配對鍵 physicalTrainKey 含起訖秒,
+// dispatch.json 只存得下一組寫死的時刻。不讓林鐵借路徑的話,一年裡只有恰好對上
+// 那兩天綁得到,其餘日子整班退回示意線形——而且沒有任何閘門會紅(當時 2/22)。
+// 判準掃「日出位移」而不是只驗今天:只驗單一日期正是這個缺陷藏住的原因。
+// 分母具名,少一個位移就是掃描範圍被改小了。
+{
+  const dispatch = JSON.parse(readFileSync('rail-3d/physical/dispatch.json', 'utf8'));
+  const bind = createPlanBinding(dispatch);
+  const mk = (train, sig, shift) => ({ sys: 'afr_sched', train, stops: sig.map(x => ({
+    name: x[0].split(':')[1], arrSec: x[1] + shift, depSec: x[2] + shift,
+    ...(x[1] === x[2] ? { stop: false } : {}) })) });
+  const SHIFTS = [0, -2400, -1800, -1200, -600, -300, 300, 600, 900, 1200, 1800, 2400];
+  const SEED = { '97': 'afr_sched:97:16800:18600', '98': 'afr_sched:98:23400:25200' };
+  let bound = 0, total = 0, worst = '';
+  for (const [no, key] of Object.entries(SEED)) {
+    const plan = dispatch.plans[key];
+    if (!plan) { worst = worst || `派車表缺 ${key}`; continue; }
+    const sig = JSON.parse(plan.stopSignature);
+    for (const shift of SHIFTS) {
+      total++;
+      const r = bind(mk(no, sig, shift));
+      if (r) bound++; else worst = worst || `${no} 位移 ${shift}s 綁不到`;
+    }
+  }
+  ok(total === SHIFTS.length * 2, `日出位移掃描分母 ${total}（${SHIFTS.length} 個位移 × 2 班）`);
+  ok(bound === total, `祝山線觀日車每個日出位移都綁得到派車（${bound}/${total}${worst ? '；首個失敗：' + worst : ''}）`);
+  // 正向對照:同一把尺對一個不存在的站序必須綁不到,否則這條斷言恆真。
+  const bogus = bind({ sys: 'afr_sched', train: '97', stops: [
+    { name: '阿里山', arrSec: 100, depSec: 200 }, { name: '嘉義', arrSec: 300, depSec: 400 }] });
+  ok(!bogus, `正向對照：不存在的站序（阿里山→嘉義）綁不到派車${bogus ? '，判準恆真' : ''}`);
+}
+
 console.log('\n═══ E. 端到端（Playwright 真引擎）═══');
-for (const [engine, name] of [[chromium, 'chromium'], [webkit, 'webkit']]) {
-  const b = await engine.launch();
-  const p = await b.newPage({ viewport: { width: 1280, height: 900 } });
-  await p.goto(BASE + '/?_cb=' + name, { waitUntil: 'domcontentloaded' });
+// 視窗尺寸一律在 newContext 就釘死,不用 setViewportSize:headless chromium 的視窗是
+// maximized,事後改尺寸會被 CDP 擋下(Browser.setWindowBounds「To resize minimized/maximized/
+// fullscreen window, restore it to normal state first.」),整支腳本在手機寬度迴圈第一圈就崩。
+// 每個寬度開自己的 context 還有一個好處:版面是「以該寬度載入」的,與真實手機一致,
+// 不會驗到「桌面版面被縮窄」這種現實不存在的中間態。
+//
+// locale 一律釘 zh-TW(context locale ＋ ?lang=zh-TW 兩道):本頁多語化之後,成員鈕文字與
+// 看板文案都會跟著瀏覽器語系走,而本腳本的判準是中文字串;Playwright chromium 預設 en-US,
+// 不釘的話「阿里山」永遠找不到、看板 sub 也對不上——那是判準在量語系,不是在量功能。
+const openPage = async (b, name, width, height) => {
+  const ctx = await b.newContext({ viewport: { width, height }, locale: 'zh-TW' });
+  const p = await ctx.newPage();
+  await p.goto(BASE + `/?_cb=${name}${width}&lang=zh-TW`, { waitUntil: 'domcontentloaded' });
   await p.waitForFunction(() => typeof state !== 'undefined' && state.systems
     && state.systems.some(s => s.id === 'afr_sched') && state.systems.find(s => s.id === 'afr_sched')._track, { timeout: 30000 });
   await p.waitForFunction(() => state.ready === true, { timeout: 30000 }).catch(() => {});
@@ -222,6 +361,16 @@ for (const [engine, name] of [[chromium, 'chromium'], [webkit, 'webkit']]) {
   // 等同真實首訪者的第一個動作;不用 localStorage 預塞,讓教學卡照常出現過一次。
   await p.evaluate(() => { const w = document.getElementById('howtoWrap'); if (w && !w.hidden) document.getElementById('howtoGo').click(); });
   await p.waitForTimeout(200);
+  return { ctx, p };
+};
+
+for (const [engine, name] of [[chromium, 'chromium'], [webkit, 'webkit']]) {
+  const b = await engine.launch();
+  const { ctx: deskCtx, p } = await openPage(b, name, 1280, 900);
+  // 語系具名閘門:下面所有中文判準都預設頁面是 zh-TW。語系若沒生效要在這裡紅,
+  // 而不是讓它散成一堆「找不到某某字串」的假回歸(全域規則:驗收腳本必須釘死語系與時鐘)。
+  const lang = await p.evaluate(() => document.documentElement.lang);
+  ok(/^zh/.test(lang), `[${name}] 頁面語系釘在中文（實得 ${lang || '(空)'}）`);
 
   const r = await p.evaluate(() => {
     loadSystem(state.systems.find(s => s.id === 'afr_sched'));
@@ -237,9 +386,15 @@ for (const [engine, name] of [[chromium, 'chromium'], [webkit, 'webkit']]) {
       if (d > 50) offTrack.push(`${tr.train}:${d.toFixed(0)}m`);
     }
     return { group: state.group, sysId: state.sysId, trains: state.trains.length,
+      groupMembers: (GROUPS.find(g => g.id === state.group) || {}).members || [],
       seg: state._segStats, types: state.types.map(t => t.key), running, offTrack };
   });
-  ok(r.sysId === 'afr_sched' && r.group === 'nat', `[${name}] 林鐵掛在國家鐵路群組`);
+  // 判準原本釘死 state.group === 'nat'。'nat'(國家鐵路)還在,但林鐵之後也被收進 'tra'(台鐵)這個
+  // **有分頁**的群組(members: tra_sched + afr_sched),loadSystem 落點自然是分頁那一個 ⇒ 判準過期。
+  // 要驗的本意是「林鐵跟台鐵同群、不是自己一群也不是被丟到捷運」,所以改驗成員關係而不是群組 id
+  // ——id 會再改,成員關係才是這條判準真正在乎的事。
+  ok(r.sysId === 'afr_sched' && r.groupMembers.includes('afr_sched') && r.groupMembers.includes('tra_sched'),
+    `[${name}] 林鐵與台鐵同群（載入群組 ${r.group}：${r.groupMembers.join('/') || '無成員'}）`);
   ok(r.trains === 52, `[${name}] 52 車次載入（靜態 50＋前端合成觀日 97/98）`);
   ok(r.seg.straight === 0 && r.seg.onShape > 0, `[${name}] 貼軌 ${r.seg.onShape} 段全部貼上軌道、0 段退回直線`);
   ok(r.running > 0, `[${name}] 11:00 有 ${r.running} 班在跑`);
@@ -248,14 +403,20 @@ for (const [engine, name] of [[chromium, 'chromium'], [webkit, 'webkit']]) {
   // ── 祝山線觀日列車（前端依官方日出表推算合成）──
   // 期望值由本腳本自帶的日出表獨立算出:表值抄自使用者提供的官方訂票系統截圖(與 afrch 0000300 同表),
   // 是對實作內嵌表的獨立轉錄——兩邊若有一邊抄錯,此處對不上。
-  const zr = await p.evaluate(([expDep, expRet]) => {
+  // 祝山線站座標取自 data/afr.json 本身(下方 ZS_FILE),不取執行期的 _track.stations:
+  // 08-19 173bcf40「停靠中的列車不再被畫到自己那條線的外面」之後,前端會把離線形 20–300m 的站
+  // 就地校正到線上(index.html 的 posAlongShape 貼軌),阿里山正是這種站(原始點離自己的線 115m)。
+  // 於是「合成班次的停靠站座標 === 執行期站座標」永遠不可能成立——那是在驗貼軌有沒有跑,
+  // 不是在驗同源。改對檔案逐 byte 比,反而比原判準更嚴:抄錯一個座標仍然當場現形。
+  const ZS_FILE = Object.fromEntries(track.lines.find(l => l.name === '祝山線').stations.map(s => [s.name, [s.lat, s.lon]]));
+  const zr = await p.evaluate(([expDep, expRet, ZSF]) => {
     const t97 = state.trains.find(t => String(t.train) === '97');
     const t98 = state.trains.find(t => String(t.train) === '98');
     if (!t97 || !t98) return { missing: true };
     const zs = state.systems.find(s => s.id === 'afr_sched')._track.lines.find(l => l.name === '祝山線');
     const sameSrc = [...t97.stops, ...t98.stops].every(s => {
-      const st = zs.stations.find(x => x.name === s.name);
-      return st && st.lat === s.lat && st.lon === s.lon;
+      const ref = ZSF[s.name];
+      return !!ref && ref[0] === s.lat && ref[1] === s.lon;
     });
     // 動畫在軌:發車後 15 分應有位置,且貼祝山線
     const H = (a, b) => { const R = 6371000, q = Math.PI / 180; return 2 * R * Math.asin(Math.sqrt(Math.sin((b[0] - a[0]) * q / 2) ** 2 + Math.cos(a[0] * q) * Math.cos(b[0] * q) * Math.sin((b[1] - a[1]) * q / 2) ** 2)); };
@@ -274,7 +435,7 @@ for (const [engine, name] of [[chromium, 'chromium'], [webkit, 'webkit']]) {
       est: !!(t97.est && t98.est), car: t97.carName, sys97: t97.sys, sameSrc,
       pos: !!pos, onZs, hasRow: !!row97, rowEst: !!row97?.querySelector('.estTag'), sub,
     };
-  }, [expDep, expRet]);
+  }, [expDep, expRet, ZS_FILE]);
   if (zr.missing) ok(false, `[${name}] 觀日列車 97/98 未被合成`);
   else {
     const hm = s => `${String(Math.floor(s / 3600)).padStart(2, '0')}:${String(Math.floor(s % 3600 / 60)).padStart(2, '0')}`;
@@ -318,7 +479,8 @@ for (const [engine, name] of [[chromium, 'chromium'], [webkit, 'webkit']]) {
     }
     // 橋頭園區:飛到 z13、手動補一幀,驗記號畫素(非透明暖色)+命中表+點擊開卡(像素級雙證據,心得24)
     const qt = SUGAR_PARKS.find(x => x.name === '橋頭糖廠');
-    map.setView([qt.lat, qt.lon], 13, { animate: false });
+    // 相機走 M 適配層:M4-B 拔 Leaflet 後 window.__map 是 raw maplibregl.Map,沒有 setView。
+    window.__M.setView([qt.lat, qt.lon], 13, { animate: false });
     draw();
     const h = (state._sugarHits || []).find(x => x.pk === qt);
     let px = null, hitOk = false, cardShown = false, cardTitle = '', cardHitOk = false;
@@ -347,30 +509,75 @@ for (const [engine, name] of [[chromium, 'chromium'], [webkit, 'webkit']]) {
   ok(gr.hitOk && gr.cardShown && /橋頭/.test(gr.cardTitle), `[${name}] 點擊命中開卡（標題：${gr.cardTitle}）`);
   ok(gr.cardHitOk, `[${name}] 卡片中心 elementFromPoint 命中（像素級證據）`);
 
-  // 手機寬度：國家鐵路三個成員鈕都要能被摸到（沿可捲祖先捲動後做命中測試，見全域規則心得19）
+  // 成員鈕（台鐵／阿里山林鐵）——這條列住在桌面 header 裡，故在桌面寬度量（沿可捲祖先捲動後
+  // 做命中測試，見全域規則心得19）。手機殼沒有這條列，改驗它自己的路徑，見下方迴圈。
+  const dm = await p.evaluate(() => {
+    const btns = [...document.querySelectorAll('#systems .mem')];
+    const out = [];
+    for (const b of btns) {
+      const sc = (() => { let e = b.parentElement; while (e) { const s = getComputedStyle(e); if (/auto|scroll/.test(s.overflowX + s.overflowY)) return e; e = e.parentElement; } return null; })();
+      if (sc) sc.scrollLeft = b.offsetLeft - 10;
+      const r = b.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      out.push({ t: b.textContent.trim(), h: r.height, ok: !!hit && (hit === b || b.contains(hit)) });
+    }
+    return out;
+  });
+  const afrMem = dm.find(x => x.t.includes('阿里山'));
+  // 找不到就把實得清單寫進訊息:原本的 fallback 是「?」,紅起來只看得到一個問號,
+  // 完全分不出「按鈕被蓋住」與「根本沒有這顆按鈕」——那是兩種修法完全不同的紅。
+  const afrMemLabel = afrMem ? afrMem.t : `阿里山（找不到，實得 ${dm.map(x => x.t).join('/') || '零顆成員鈕'}）`;
+  ok(!!afrMem && afrMem.ok, `[${name}] 1280px：成員鈕「${afrMemLabel}」可點擊命中`);
+  // 高度絕對值不比(chromium 29px / webkit 27px 是引擎字體度量差,且是既有設計);
+  // 要驗的是「多一個成員沒有把成員列弄壞」——每顆高度一致即可。至少要有兩顆,
+  // 否則空陣列的 Set.size 是 0、單顆是 1,判準會在「成員列整個不見」時默默放行。
+  ok(dm.length >= 2 && new Set(dm.map(x => Math.round(x.h))).size === 1,
+    `[${name}] 1280px：${dm.length} 顆成員鈕高度一致（${dm.map(x => x.h.toFixed(0)).join('/') || '無'}px）`);
+
+  // 手機寬度：走手機殼自己的群組路徑。
+  // 判準原本在這裡量 #systems .mem 的命中,但手機殼(body.mobile-shell.fs)把整條桌面 header
+  // (header.header-row)設成 display:none ⇒ 成員鈕連同整條列收成 0×0。那不是「被誰蓋住」,
+  // 是設計上整條列不在版面裡(四顆群組頁籤也一樣,收成頂列右上那顆 #gtabOne「台▾」)。
+  // 對著一條設計上不存在的列做命中測試永遠是紅的,而且紅得沒有資訊 ⇒ 判準過期。
+  // 改驗使用者在手機上真正走的那條路:群組鈕摸得到 → 點開 → 「台鐵」那列摸得到
+  // (林鐵就掛在這一群;選單只列群組不列成員)。整段是真的點一次、量它造成的狀態改變,
+  // 不是只問 elementFromPoint 命中誰(全域規則:互動能力要真做一次那個互動)。
   for (const w of [360, 375, 414, 768]) {
-    await p.setViewportSize({ width: w, height: 780 });
-    await p.waitForTimeout(400);
-    const m = await p.evaluate(() => {
-      const btns = [...document.querySelectorAll('#systems .mem')];
-      const out = [];
-      for (const b of btns) {
-        const sc = (() => { let e = b.parentElement; while (e) { const s = getComputedStyle(e); if (/auto|scroll/.test(s.overflowX + s.overflowY)) return e; e = e.parentElement; } return null; })();
-        if (sc) sc.scrollLeft = b.offsetLeft - 10;
-        const r = b.getBoundingClientRect();
-        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-        out.push({ t: b.textContent.trim(), h: r.height, ok: !!hit && (hit === b || b.contains(hit)) });
-      }
-      return out;
+    const { ctx: mCtx, p: mp } = await openPage(b, name, w, 780);
+    const m = await mp.evaluate(() => {
+      const hit = el => {
+        const r = el.getBoundingClientRect();
+        if (!r.width || !r.height) return { ok: false, w: 0, h: 0 };
+        const at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return { ok: !!at && (at === el || el.contains(at)), w: Math.round(r.width), h: Math.round(r.height) };
+      };
+      loadSystem(state.systems.find(s => s.id === 'afr_sched'));
+      const hdr = document.querySelector('header.header-row');
+      const one = document.getElementById('gtabOne');
+      const oneHit = one ? hit(one) : { ok: false, w: 0, h: 0 };
+      const oneLabel = one ? one.textContent.trim() : '(無 #gtabOne)';
+      if (one) one.click();                       // 真的點一次,不是直接呼叫 gtabPopSet
+      const pop = document.getElementById('gtabPop');
+      const rows = [...document.querySelectorAll('#gtabPop .gp-row')]
+        .map(r => ({ t: r.textContent.trim(), cur: r.getAttribute('aria-current') === 'true', ...hit(r) }));
+      const cur = rows.find(r => r.cur);
+      // 「哪一列該是林鐵那群」由 GROUPS 的成員關係決定,不寫死群組名——群組會改名、會多一個。
+      const afrLabels = GROUPS.filter(g => (g.members || []).includes('afr_sched')).map(g => g.label);
+      const popOpen = !!pop && !pop.hidden;
+      // 量完就把選單收掉:它掛在頂列右上,會蓋住台糖卡的關閉鈕,讓下一項檢查紅得莫名其妙
+      // (本輪實測:不收的話 360/375/414/768 四個寬度的台糖卡關閉鈕命中全部假紅)。
+      if (one && popOpen) one.click();
+      return { headerHidden: !hdr || getComputedStyle(hdr).display === 'none',
+        oneLabel, oneHit, popOpen, popClosedAfter: !!pop && pop.hidden, rows,
+        curOk: !!cur && cur.ok && afrLabels.some(lb => cur.t.includes(lb)),
+        curText: cur ? cur.t : '(沒有標記 aria-current 的群組列)' };
     });
-    const afr = m.find(x => x.t.includes('阿里山'));
-    ok(!!afr && afr.ok, `[${name}] ${w}px：「${afr?.t || '?'}」按鈕可點擊命中`);
-    // 高度絕對值不比(chromium 29px / webkit 27px 是引擎字體度量差,且是既有設計);
-    // 要驗的是「新增第三個成員沒有把成員列弄壞」——三顆高度一致即可。
-    ok(new Set(m.map(x => Math.round(x.h))).size === 1,
-      `[${name}] ${w}px：三個成員鈕高度一致（${m.map(x => x.h.toFixed(0)).join('/')}px）`);
+    ok(m.headerHidden && m.oneHit.ok,
+      `[${name}] ${w}px：頂列群組鈕「${m.oneLabel}」可點擊命中（${m.oneHit.w}×${m.oneHit.h}px）`);
+    ok(m.popOpen && m.rows.length > 0 && m.curOk && m.popClosedAfter,
+      `[${name}] ${w}px：點開群組選單後，林鐵所屬的「${m.curText}」列可點擊命中（共 ${m.rows.length} 列，再點一次收得掉）`);
     // 台糖園區卡:每個寬度都要不出界、關閉鈕可實點(新功能必驗手機版)
-    const gm = await p.evaluate(() => {
+    const gm = await mp.evaluate(() => {
       openSugarCard(SUGAR_PARKS[0]);
       const el = document.getElementById('sugarCard');
       const r = el.getBoundingClientRect();
@@ -382,9 +589,62 @@ for (const [engine, name] of [[chromium, 'chromium'], [webkit, 'webkit']]) {
       return { fits, w: r.width, closeOk: !!at && (at === btn || btn.contains(at)) };
     });
     ok(gm.fits && gm.closeOk, `[${name}] ${w}px：台糖卡不出界（寬 ${gm.w.toFixed(0)}px）且關閉鈕可點`);
+    await mCtx.close();
   }
+  await deskCtx.close();
+  await b.close();
+}
+
+console.log('\n═══ H. 近景不可把軌道畫沒了（實體股道白名單只准有一份）═══');
+// 2026-09-08 踩過:bf454d16 把林鐵移出 client.js 的 PHYSICAL_SYSTEMS,但 rail-3d.js 另有一份
+// 寫死的名單,近景(raw zoom>=14)照樣把林鐵的示意線形整批 splice 掉並推進 replacedLineKeys
+// ⇒ index.html 的 glTracksSync 用 profileKeys() 把它們濾掉、而實體股道又沒有它 ⇒ 兩邊都不畫,
+// 阿里山林鐵放大後整條軌道消失。畫面上只是「少一條線」:零 pageerror、零錯誤訊息,
+// E 段的「列車都在軌道上」也照不到(那量的是車對 state.trackLines 幾何的距離,線沒畫時照樣落在上面)。
+//
+// 判準取兩個地點各量一次,兩邊都是正向斷言(「抽掉的系統都有替代」寫成通則會假紅——
+// visibleRoutes 只回視野內的股道,站在阿里山時台鐵本來就沒有替代幾何,那不是缺陷):
+//   · 阿里山近景:林鐵**該**被抽換(2026-09-12 起 afr_sched 回到 PHYSICAL_SYSTEMS),而且
+//     要換得出 physical 路線回來——這一條才是當年那個缺陷的正向判準:「抽掉了換不出來」。
+//     原本寫成「林鐵不該被抽換」是把當時的權宜狀態當成規格,白名單一改就會假紅。
+//   · 台北近景:台鐵**該**被抽換,而且要換得出 physical 路線回來。
+// 只跑 chromium:量的是 frame payload 與圖層 filter(純 JS 判斷),不是各引擎的算繪差異。
+// ?scene=3d 是必要的——不強制 3D 場景時 renderer 不產生幀、capture() 的 replacedLineKeys 恆空,
+// 整段會全綠而完全沒量到東西,所以下面保留一條「近景真的有在抽換」的分母閘門。
+{
+  const b = await chromium.launch();
+  const ctx = await b.newContext({ viewport: { width: 1280, height: 900 }, locale: 'zh-TW' });
+  await ctx.addInitScript(() => localStorage.setItem('trainmap-howto-seen', '1'));
+  const p = await ctx.newPage();
+  const read = async (z, at, tag) => {
+    await p.goto(BASE + `/?g=all&scene=3d&lang=zh-TW&at=${at}&z=${z}&_cb=h${tag}`, { waitUntil: 'domcontentloaded' });
+    await p.waitForFunction(() => typeof state !== 'undefined' && state.ready && window.railIslandPhysical, { timeout: 120000 });
+    await p.waitForTimeout(3000);
+    return p.evaluate(() => {
+      const I = window.railIslandIntegration, raw = window.__M.raw;
+      const f = I.capture(), rep = f.replacedLineKeys || [], routes = f.routes || [];
+      const lit = id => { try { const m = JSON.stringify(raw.getFilter(id)).match(/"literal",(\[[^\]]*\])\]/); return m ? JSON.parse(m[1]) : []; } catch { return []; } };
+      const drawn = [...new Set(raw.getStyle().layers.map(l => l.id).filter(id => /^track-(line|casing)-/.test(id)).flatMap(lit))];
+      return {
+        raw: +raw.getZoom().toFixed(2), replaced: rep.length,
+        replacedAfr: rep.filter(k => /^afr_sched\|/.test(k)).length,
+        afrDrawn: drawn.filter(k => /^afr_sched\|/.test(k)).length,
+        traPhysical: routes.filter(r => r.physical && r.systemId === 'tra_sched').length,
+        afrPhysical: routes.filter(r => r.physical && r.systemId === 'afr_sched').length,
+      };
+    });
+  };
+  const ALISHAN = '23.5100,120.8036', TAIPEI = '25.0477,121.5171';
+  const far = await read(13, ALISHAN, 'far'), near = await read(15, ALISHAN, 'near'), tpe = await read(15, TAIPEI, 'tpe');
+  ok(far.afrDrawn >= 4, `[chromium] 遠景(raw ${far.raw})林鐵有 ${far.afrDrawn} 條軌道在畫（正向對照:判準量得到東西）`);
+  ok(near.replaced > 0, `[chromium] 近景(raw ${near.raw})確實有在抽換示意線形（${near.replaced} 個 lineKey；為 0 表示下面兩條恆真）`);
+  ok(near.replacedAfr > 0 && near.afrPhysical > 0,
+    `[chromium] 近景林鐵抽掉 ${near.replacedAfr} 條示意線形、換回 ${near.afrPhysical} 條實體股道（抽掉了卻換不出來就是「放大後林鐵消失」那個回歸；示意線形剩 ${near.afrDrawn} 條）`);
+  ok(tpe.traPhysical > 0, `[chromium] 近景台北的台鐵換得出 ${tpe.traPhysical} 條實體股道（抽掉了卻換不出來就是同一個病）`);
+  await ctx.close();
   await b.close();
 }
 
 console.log(`\n${fail === 0 ? '✅' : '❌'} ${pass} 過 / ${fail} 敗\n`);
+child?.kill();
 process.exit(fail ? 1 : 0);

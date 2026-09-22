@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- initialLayout 專用：第一次 updateAppWidget 之前的中性畫面；示範版面只放在 previewLayout
+     指的那份 layout（整枝複審必修 7，final-review-fixbatch.md §2.3）。這裡不放任何 android:id、
+     不 include 任何版面、不得出現車次／時刻／站名／分鐘數——重開機或 App 更新後、收到第一次
+     官方資料之前，桌面顯示的只能是這張中性卡，不是看起來像真的假發車資訊。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/wg_card"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:paddingStart="12dp"
+    android:paddingTop="11dp"
+    android:paddingEnd="12dp"
+    android:paddingBottom="9dp">
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/app_name"
+        android:textColor="@color/wg_ink"
+        android:textSize="13sp"
+        android:textStyle="bold" />
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="@string/widget_loading"
+        android:textColor="@color/wg_ink_soft"
+        android:textSize="12sp" />
+</LinearLayout>

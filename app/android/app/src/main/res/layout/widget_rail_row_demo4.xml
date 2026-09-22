@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 只給小工具挑選器／釘選框的 previewLayout 看；真小工具每次更新都 removeAllViews 後才填列，
+     所以永遠看不到這一列。與 widget_rail_rows_demo.xml（3 列）併用湊出 4x2／4x4 的真實列數上限
+     （RailBoardWidgetProvider.java:138/144 maxRows=4、:136/148 maxRows=8；換算公式見
+     RailWidgetRender.java:51）。單列，非 compact 外觀（車次 12sp／時刻 16sp，與 widget_rail_row.xml
+     結構相同），不綁 android:id（示範列不綁 binder）：莒光 512／往 臺東／準點／10:15，南下。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="30dp"
+    android:baselineAligned="false"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:tag="demo-row">
+
+    <ImageView
+        android:layout_width="3dp"
+        android:layout_height="22dp"
+        android:contentDescription="@null"
+        android:scaleType="fitXY"
+        android:src="@drawable/wg_meter_block"
+        android:tint="@color/wg_navy" />
+
+    <ImageView
+        android:layout_width="10dp"
+        android:layout_height="8dp"
+        android:layout_marginStart="6dp"
+        android:contentDescription="@null"
+        android:scaleType="fitCenter"
+        android:src="@drawable/wg_heading_south" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="7dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:text="莒光 512"
+            android:textColor="@color/wg_ink"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:text="往 臺東"
+            android:textColor="@color/wg_ink_faint"
+            android:textSize="9sp" />
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="7dp"
+        android:maxLines="1"
+        android:text="準點"
+        android:textColor="@color/wg_ok"
+        android:textSize="9sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:includeFontPadding="false"
+        android:maxLines="1"
+        android:text="10:15"
+        android:textColor="@color/wg_ink"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+</LinearLayout>

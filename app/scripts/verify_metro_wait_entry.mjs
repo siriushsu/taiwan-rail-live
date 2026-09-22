@@ -415,6 +415,32 @@ const cr = await chromium.launch();
   await ctx.close();
 }
 
+// 發車看板深連結：臺北必須開台鐵站，不得被同名捷運站截走。
+{
+  // 刻意從 metro 開機，才能證明深連結真的切回 tra，而不是沿用原畫面假綠。
+  const { ctx, page, errors } = await boot(cr, { withPlugin: true, initialGroup: 'metro' });
+  await clearCalls(page);
+  const before = await page.evaluate(() => state.group);
+  await page.evaluate(() => window.__waitEmit('waitOpen', {
+    view: 'station', sys: 'tra', station: '臺北'
+  }));
+  await page.waitForTimeout(1600);
+  const after = await page.evaluate(() => ({
+    group: state.group,
+    name: state.boardStation && state.boardStation.name,
+    sys: state.boardStation && state.boardStation.sys,
+    boardVisible: !document.getElementById('board').hidden,
+  }));
+  const starts = await calls(page, 'start');
+  ok('E-rail 前置:開機群組確實是 metro', before === 'metro', `before=${before}`);
+  ok('E-rail 臺北切回台鐵群組', after.group === 'tra', JSON.stringify(after));
+  ok('E-rail 開的是台鐵臺北看板，不是捷運台北車站',
+    after.name === '臺北' && after.sys === 'tra_sched' && after.boardVisible, JSON.stringify(after));
+  ok('E-rail 只開站、不啟動捷運等車卡', starts.length === 0, `start=${starts.length}`);
+  ok('E-rail 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
 // ══════════ F:反向——台鐵站看板無此鈕;環狀線站(十四張)有鈕且 payload.sys==="trtc" ══════════
 {
   const { ctx, page, errors } = await boot(cr, { withPlugin: true, initialGroup: 'tra' });

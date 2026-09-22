@@ -1,0 +1,371 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-11T02:17:03.730Z",
+  "partial": false,
+  "columns": [
+    "stationUid",
+    "name",
+    "city",
+    "lat",
+    "lon",
+    "routes",
+    "providerStopIds"
+  ],
+  "asset": "/data/bus_stops_index.tsv",
+  "stationCount": 43363,
+  "cities": {
+    "Taipei": {
+      "provider": "direct-bulk",
+      "stations": 5367,
+      "indexed": 5367,
+      "directStops": 28861,
+      "directRoutes": 791
+    },
+    "NewTaipei": {
+      "provider": "tdx-per-stop",
+      "stations": 8717,
+      "indexed": 8717,
+      "directStops": null,
+      "directRoutes": null
+    },
+    "Taoyuan": {
+      "provider": "tdx-per-stop",
+      "stations": 46,
+      "indexed": 46,
+      "directStops": null,
+      "directRoutes": null
+    },
+    "Taichung": {
+      "provider": "tdx-per-stop",
+      "stations": 6763,
+      "indexed": 6763,
+      "directStops": null,
+      "directRoutes": null
+    },
+    "Tainan": {
+      "provider": "tdx-per-stop",
+      "stations": 4973,
+      "indexed": 4973,
+      "directStops": null,
+      "directRoutes": null
+    },
+    "Kaohsiung": {
+      "provider": "tdx-per-stop",
+      "stations": 5272,
+      "indexed": 5272,
+      "directStops": null,
+      "directRoutes": null
+    },
+    "Keelung": {
+      "provider": "tdx-per-stop",
+      "stations": 953,
+      "indexed": 953,
+      "directStops": null,
+      "directRoutes": null
+    },
+    "Hsinchu": {
+      "provider": "tdx-per-stop",
+      "stations": 774,
+      "indexed": 774,
+      "directStops": null,
+      "directRoutes": null
+    },
+    "HsinchuCounty": {
+      "provider": "tdx-per-stop",
+      "stations": 1582,
+      "indexed": 1582,
+      "directStops": null,
+      "directRoutes": null
+    },
+    "MiaoliCounty": {
+      "provider": "tdx-per-stop",
+      "stations": 49,
+      "indexed": 49,
+      "directStops": null,
+      "directRoutes": null
+    },
+    "ChanghuaCounty": {
+      "provider": "tdx-per-stop",
+      "stations": 534,
+      "indexed": 534,
+      "directStops": null,
+      "directRoutes": null
+    },
+    "NantouCounty": {
+      "provider": "tdx-per-stop",
+      "stations": 408,
+      "indexed": 408,
+      "directStops": null,
+      "directRoutes": null
+    },
+    "YunlinCounty": {
+      "provider": "tdx-per-stop",
+      "stations": 329,
+      "indexed": 329,
+      "directStops": null,
+      "directRoutes": null
+    },
+    "Chiayi": {
+      "provider": "tdx-per-stop",
+      "stations": 332,
+      "indexed": 332,
+      "directStops": null,
+      "directRoutes": null
+    },
+    "ChiayiCounty": {
+      "provider": "tdx-per-stop",
+      "stations": 969,
+      "indexed": 969,
+      "directStops": null,
+      "directRoutes": null
+    },
+    "PingtungCounty": {
+      "provider": "tdx-per-stop",
+      "stations": 1920,
+      "indexed": 1920,
+      "directStops": null,
+      "directRoutes": null
+    },
+    "YilanCounty": {
+      "provider": "tdx-per-stop",
+      "stations": 2656,
+      "indexed": 2656,
+      "directStops": null,
+      "directRoutes": null
+    },
+    "HualienCounty": {
+      "provider": "tdx-per-stop",
+      "stations": 312,
+      "indexed": 312,
+      "directStops": null,
+      "directRoutes": null
+    },
+    "TaitungCounty": {
+      "provider": "tdx-per-stop",
+      "stations": 72,
+      "indexed": 72,
+      "directStops": null,
+      "directRoutes": null
+    },
+    "KinmenCounty": {
+      "provider": "tdx-per-stop",
+      "stations": 957,
+      "indexed": 957,
+      "directStops": null,
+      "directRoutes": null
+    },
+    "PenghuCounty": {
+      "provider": "tdx-per-stop",
+      "stations": 378,
+      "indexed": 378,
+      "directStops": null,
+      "directRoutes": null
+    }
+  },
+  "crosswalk": {
+    "Taipei": {
+      "idMatch": {
+        "hit": 28858,
+        "total": 28858
+      },
+      "nameMatch": {
+        "hit": 28858,
+        "total": 28858
+      },
+      "geoMatch": {
+        "hit": 28858,
+        "total": 28858
+      },
+      "unmatchedTdx": [],
+      "unmatchedDirect": [
+        {
+          "Id": 184110,
+          "routeId": 15724,
+          "nameZh": "頂坪"
+        },
+        {
+          "Id": 186832,
+          "routeId": 15724,
+          "nameZh": "橫嶺古道"
+        },
+        {
+          "Id": 211167,
+          "routeId": 15724,
+          "nameZh": "第二接續井"
+        }
+      ]
+    }
+  },
+  "stopIdPrefixCheck": [
+    {
+      "city": "Taipei",
+      "declared": "TPE",
+      "observed": [
+        "TPE"
+      ],
+      "ok": true
+    },
+    {
+      "city": "NewTaipei",
+      "declared": "NWT",
+      "observed": [
+        "NWT"
+      ],
+      "ok": true
+    },
+    {
+      "city": "Taoyuan",
+      "declared": "TAO",
+      "observed": [
+        "TAO"
+      ],
+      "ok": true
+    },
+    {
+      "city": "Taichung",
+      "declared": "TXG",
+      "observed": [
+        "TXG"
+      ],
+      "ok": true
+    },
+    {
+      "city": "Tainan",
+      "declared": "TNN",
+      "observed": [
+        "TNN"
+      ],
+      "ok": true
+    },
+    {
+      "city": "Kaohsiung",
+      "declared": "KHH",
+      "observed": [
+        "KHH"
+      ],
+      "ok": true
+    },
+    {
+      "city": "Keelung",
+      "declared": "KEE",
+      "observed": [
+        "KEE"
+      ],
+      "ok": true
+    },
+    {
+      "city": "Hsinchu",
+      "declared": "HSZ",
+      "observed": [
+        "HSZ"
+      ],
+      "ok": true
+    },
+    {
+      "city": "HsinchuCounty",
+      "declared": "HSQ",
+      "observed": [
+        "HSQ"
+      ],
+      "ok": true
+    },
+    {
+      "city": "MiaoliCounty",
+      "declared": "MIA",
+      "observed": [
+        "MIA"
+      ],
+      "ok": true
+    },
+    {
+      "city": "ChanghuaCounty",
+      "declared": "CHA",
+      "observed": [
+        "CHA"
+      ],
+      "ok": true
+    },
+    {
+      "city": "NantouCounty",
+      "declared": "NAN",
+      "observed": [
+        "NAN"
+      ],
+      "ok": true
+    },
+    {
+      "city": "YunlinCounty",
+      "declared": "YUN",
+      "observed": [
+        "YUN"
+      ],
+      "ok": true
+    },
+    {
+      "city": "Chiayi",
+      "declared": "CYI",
+      "observed": [
+        "CYI"
+      ],
+      "ok": true
+    },
+    {
+      "city": "ChiayiCounty",
+      "declared": "CYQ",
+      "observed": [
+        "CYQ"
+      ],
+      "ok": true
+    },
+    {
+      "city": "PingtungCounty",
+      "declared": "PIF",
+      "observed": [
+        "PIF"
+      ],
+      "ok": true
+    },
+    {
+      "city": "YilanCounty",
+      "declared": "ILA",
+      "observed": [
+        "ILA"
+      ],
+      "ok": true
+    },
+    {
+      "city": "HualienCounty",
+      "declared": "HUA",
+      "observed": [
+        "HUA"
+      ],
+      "ok": true
+    },
+    {
+      "city": "TaitungCounty",
+      "declared": "TTT",
+      "observed": [
+        "TTT"
+      ],
+      "ok": true
+    },
+    {
+      "city": "KinmenCounty",
+      "declared": "KIN",
+      "observed": [
+        "KIN"
+      ],
+      "ok": true
+    },
+    {
+      "city": "PenghuCounty",
+      "declared": "PEN",
+      "observed": [
+        "PEN"
+      ],
+      "ok": true
+    }
+  ],
+  "crosswalkMinRatio": 0.98,
+  "geoMatchMeters": 150
+}

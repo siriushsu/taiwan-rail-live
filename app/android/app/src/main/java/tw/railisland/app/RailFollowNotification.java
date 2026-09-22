@@ -100,12 +100,14 @@ final class RailFollowNotification {
         String terminus = RailNativeL10n.name(context, state.optString("terminus", ""));
         String prevStop = RailNativeL10n.name(context, state.optString("prevStop", ""));
         boolean stopping = state.optBoolean("stopping", false);
+        boolean transferWaiting = state.optBoolean("transferWaiting", false);
         long arrival = (long) (state.optDouble("arrivalAt", 0) * 1000);
         long departed = (long) (state.optDouble("departedAt", 0) * 1000);
         int delay = state.optInt("delaySec", 0);
 
         String title = RailNativeL10n.text(context, "{kind} {trainNo}", "kind", kind, "trainNo", trainNo).trim();
-        String status = RailNativeL10n.text(context, stopping ? "停靠 {station}" : "下一站 {station}",
+        String status = RailNativeL10n.text(context,
+            transferWaiting ? "轉乘 {station}" : stopping ? "停靠 {station}" : "下一站 {station}",
             "station", nextStop);
         String route = terminus.isEmpty() ? status : RailNativeL10n.text(context, "{status} · 往 {station}",
             "status", status, "station", terminus);
@@ -132,7 +134,8 @@ final class RailFollowNotification {
             .setContentTitle(title.isEmpty() ? RailNativeL10n.text(context, "跟隨列車") : title)
             .setContentText(route)
             .setSubText(RailNativeL10n.text(context, "軌島 · {status}", "status",
-                delay == 0 ? RailNativeL10n.text(context, "準點") : delayText(context, delay)))
+                transferWaiting ? RailNativeL10n.text(context, "等候轉乘")
+                    : delay == 0 ? RailNativeL10n.text(context, "準點") : delayText(context, delay)))
             .setContentIntent(openPending)
             .addAction(R.drawable.ic_stop, RailNativeL10n.text(context, "結束跟車"), stopPending)
             .setCategory(NotificationCompat.CATEGORY_PROGRESS)
@@ -183,6 +186,13 @@ final class RailFollowNotification {
         JSONObject state = load(context);
         if (state == null) return;
         long nowSec = System.currentTimeMillis() / 1000;
+        if (applyHandoffIfDue(state, nowSec, null)) {
+            save(context, state);
+            post(context, state);
+            scheduleAdvance(context, state);
+            scheduleRefresh(context);
+            return;
+        }
         JSONArray stops = state.optJSONArray("remainingStops");
         JSONObject next = null;
         if (stops != null) for (int i = 0; i < stops.length(); i++) {
@@ -199,6 +209,7 @@ final class RailFollowNotification {
             state.put("advanceAt", next.optDouble("advanceAt", next.optDouble("arrivalAt", 0)));
             state.put("prevStop", next.optString("prevStop", ""));
             state.put("stopping", false);
+            state.put("transferWaiting", false);
             save(context, state);
             post(context, state);
             scheduleAdvance(context, state);
@@ -230,7 +241,11 @@ final class RailFollowNotification {
                         .equals(candidate.optString("no", ""))) { live = candidate; break; }
                 }
                 if (live == null) { advance(context); return; }
-                if (!applyOfficial(state, live)) { stop(context); return; }
+                // 轉乘站可能正好是來源車終點。若這一輪只看到「已離站」(status=2)，
+                // applyOfficial 會判定來源行程結束；必須先給 handoff 接手，不能先 stop 把計畫刪掉。
+                boolean sourceStillActive = applyOfficial(state, live);
+                boolean handedOff = applyHandoffIfDue(state, System.currentTimeMillis() / 1000, live);
+                if (!sourceStillActive && !handedOff) { stop(context); return; }
                 save(context, state); post(context, state); scheduleAdvance(context, state);
             } finally { connection.disconnect(); }
         } catch (Exception ignored) {
@@ -286,6 +301,61 @@ final class RailFollowNotification {
         return true;
     }
 
+    /**
+     * 已選好接續班次時，在轉乘站把同一張鎖屏卡交給下一班車。
+     * 有新鮮台鐵觀測就等「在站上／已離站」；沒有觀測的系統才用表定時刻。觀測存在但站碼
+     * 一時對不上時留三分鐘寬限，避免卡片因單筆缺碼永遠留在上一班車。
+     */
+    static boolean applyHandoffIfDue(JSONObject state, long nowSec, JSONObject live) {
+        JSONObject handoff = state.optJSONObject("handoff");
+        if (handoff == null) return false;
+        int sourceIndex = handoff.optInt("sourceIndex", -1);
+        long sourceAt = handoff.optLong("sourceAt", 0) + state.optInt("delaySec", 0);
+        boolean due = false;
+        if (live != null) {
+            String sourceCode = handoff.optString("sourceCode", "");
+            String observedCode = live.optString("sta", "");
+            int status = live.optInt("status", -1);
+            int observed = state.optInt("lastObservedIndex", -1);
+            due = (!sourceCode.isEmpty() && sourceCode.equals(observedCode) && (status == 1 || status == 2))
+                || (sourceIndex >= 0 && observed > sourceIndex)
+                || (sourceAt > 0 && nowSec >= sourceAt + 180);
+        } else {
+            // 台鐵通常能用官方觀測確認真的到站。背景鬧鐘本身沒有觀測資料時先等三分鐘，
+            // 讓每分鐘的官方刷新優先接手；只有無逐車觀測的高鐵才照表定時刻切換。
+            boolean expectsLive = "tra_sched".equals(state.optString("sys", ""));
+            due = sourceAt > 0 && nowSec >= sourceAt + (expectsLive ? 180 : 0);
+        }
+        if (!due) return false;
+        try {
+            JSONArray targetStops = handoff.optJSONArray("remainingStops");
+            if (targetStops == null || targetStops.length() == 0) return false;
+            JSONObject first = targetStops.optJSONObject(0);
+            if (first == null) return false;
+            state.put("trainNo", handoff.optString("trainNo", ""));
+            state.put("kind", handoff.optString("kind", ""));
+            state.put("sys", handoff.optString("sys", ""));
+            state.put("color", handoff.optString("color", ""));
+            state.put("terminus", handoff.optString("terminus", ""));
+            state.put("remainingStops", new JSONArray(targetStops.toString()));
+            JSONObject targetMap = handoff.optJSONObject("staMap");
+            state.put("staMap", targetMap == null ? new JSONObject() : new JSONObject(targetMap.toString()));
+            state.put("nextStop", first.optString("name", handoff.optString("transferStop", "")));
+            state.put("arrivalAt", first.optDouble("arrivalAt", handoff.optDouble("waitUntil", 0)));
+            state.put("departedAt", 0);
+            state.put("advanceAt", first.optDouble("advanceAt", handoff.optDouble("waitUntil", 0)));
+            state.put("prevStop", "");
+            state.put("delaySec", 0);
+            state.put("stopping", false);
+            state.put("transferWaiting", nowSec < handoff.optLong("waitUntil", 0));
+            state.remove("lastObservedIndex");
+            state.remove("handoff");
+            return true;
+        } catch (JSONException ignored) {
+            return false;
+        }
+    }
+
     private static void shift(JSONObject object, String key, int seconds) throws JSONException {
         if (seconds != 0 && object.has(key) && object.optDouble(key, 0) != 0) {
             object.put(key, object.optDouble(key, 0) + seconds);
@@ -338,6 +408,11 @@ final class RailFollowNotification {
         if (alarm == null) return;
         long now = System.currentTimeMillis();
         long advance = (long) (state.optDouble("advanceAt", state.optDouble("arrivalAt", 0)) * 1000);
+        JSONObject handoff = state.optJSONObject("handoff");
+        if (handoff != null) {
+            long handoffAt = (handoff.optLong("sourceAt", 0) + state.optInt("delaySec", 0)) * 1000;
+            if (handoffAt > 0 && (advance <= 0 || handoffAt < advance)) advance = handoffAt;
+        }
         long when = Math.max(now + 30_000L, advance + 15_000L);
         alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, when,
             advanceIntent(context, PendingIntent.FLAG_UPDATE_CURRENT));

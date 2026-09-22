@@ -1,0 +1,361 @@
+{
+  "id": "taoyuan-hsr-v1",
+  "name": "高鐵桃園・A18",
+  "version": 1,
+  "status": "simplified-exterior",
+  "anchor": [
+    121.214539,
+    25.01347985
+  ],
+  "stationPoint": null,
+  "displayHeightM": 22,
+  "realBuildingHeightM": null,
+  "railElevationM": null,
+  "heightQuality": "illustrative",
+  "footprintQuality": "OSM polygon",
+  "modelScope": [
+    "高鐵桃園",
+    "機捷 A18"
+  ],
+  "excluded": [
+    "真實軌道高程",
+    "列車與月台對齊",
+    "地下站體",
+    "精確室內配置",
+    "未有輪廓的出入口及連接設施"
+  ],
+  "sources": [
+    {
+      "url": "https://www.tymetro.com.tw/tymetro-new/tw/_pages/travel-guide/A18",
+      "use": "站區配置或造型參考；不作比例測量"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/23547222",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/560119012",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    }
+  ],
+  "notes": [
+    "輪廓使用免費 OSM；曲面、窗帶、柱列、展示底高及高度由軌島簡化設計，不是工程模型。",
+    "各系統保留獨立輪廓與座標；轉乘示意圖僅核對關係，不當成比例尺。",
+    "照片與官方資料只供外觀參考，未作模型貼圖。"
+  ],
+  "sourceSnapshot": {
+    "path": "source-layouts/taoyuan-hsr-v1/metadata.json",
+    "sha256": "0377ae9cb1685b4e5bc4e5a2033dafc65006b5dcc54a4588c632199bcf378ee4"
+  },
+  "category": "station",
+  "kind": "station",
+  "placementStatus": "existing-ENU-component-layout",
+  "features": [
+    "保留既有 OSM 站區輪廓與各棟相對位置",
+    "依元件分開製作玻璃、屋頂、柱列與雨棚"
+  ],
+  "application": "5.2.1 LTS",
+  "axes": {
+    "up": "+Z",
+    "east": "+X",
+    "north": "+Y",
+    "front": null,
+    "units": "meters",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "gltfAxes": {
+    "up": "+Y",
+    "toZUp": "rotateX(+PI/2)"
+  },
+  "orientationMode": "ENU-baked",
+  "facadeBearingDeg": null,
+  "absoluteGroundAltitudeM": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -86.78353118896484,
+      -106.78733825683594,
+      0.0
+    ],
+    "max": [
+      86.78311920166016,
+      106.7862548828125,
+      30.149999618530273
+    ]
+  },
+  "sizeM": [
+    173.566650390625,
+    213.57359313964844,
+    30.149999618530273
+  ],
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "glb": "near.glb",
+      "sha256": "d1e02219bad919c92536289578483d64df958346427bf5583d914eb0cca7c181",
+      "glbSha256": "246deabafe6988574f2846a3ef182035acf63512b5a018bc5cfe08ff7351141f",
+      "strideBytes": 24,
+      "vertexCount": 15771,
+      "triangleCount": 5257,
+      "drawGroups": [
+        {
+          "component": "23547222",
+          "name": "roof",
+          "start": 0,
+          "count": 72,
+          "color": [
+            0.3915724754333496,
+            0.4677838087081909,
+            0.46207699179649353
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "23547222",
+          "name": "stone",
+          "start": 72,
+          "count": 2160,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "23547222",
+          "name": "metal",
+          "start": 2232,
+          "count": 4140,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "23547222",
+          "name": "glass",
+          "start": 6372,
+          "count": 156,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "560119012",
+          "name": "roof",
+          "start": 6528,
+          "count": 1281,
+          "color": [
+            0.3915724754333496,
+            0.4677838087081909,
+            0.46207699179649353
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "560119012",
+          "name": "stone",
+          "start": 7809,
+          "count": 2520,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "560119012",
+          "name": "metal",
+          "start": 10329,
+          "count": 5334,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "560119012",
+          "name": "glass",
+          "start": 15663,
+          "count": 108,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        }
+      ],
+      "byteLength": 378504
+    },
+    "far": {
+      "file": "far.mesh.bin",
+      "glb": "far.glb",
+      "sha256": "738b4a92787eff9094a585f9b2c3c89e14f72f32dcbe786a0e11bddd4ac20b27",
+      "glbSha256": "23103127a1c9e6256eb8bb988df3aeb654599e20603f5ea15034b4ddf063e321",
+      "strideBytes": 24,
+      "vertexCount": 6297,
+      "triangleCount": 2099,
+      "drawGroups": [
+        {
+          "component": "23547222",
+          "name": "roof",
+          "start": 0,
+          "count": 72,
+          "color": [
+            0.3915724754333496,
+            0.4677838087081909,
+            0.46207699179649353
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "23547222",
+          "name": "stone",
+          "start": 72,
+          "count": 2160,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "23547222",
+          "name": "glass",
+          "start": 2232,
+          "count": 156,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "560119012",
+          "name": "roof",
+          "start": 2388,
+          "count": 1281,
+          "color": [
+            0.3915724754333496,
+            0.4677838087081909,
+            0.46207699179649353
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "560119012",
+          "name": "stone",
+          "start": 3669,
+          "count": 2520,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "560119012",
+          "name": "glass",
+          "start": 6189,
+          "count": 108,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        }
+      ],
+      "byteLength": 151128
+    }
+  },
+  "nativeObjectCount": 220,
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "modelUse": "map-exterior",
+  "components": [
+    {
+      "id": "23547222",
+      "name": "高鐵桃園",
+      "type": "flat",
+      "anchor": [
+        121.21486949,
+        25.01302597
+      ],
+      "rotationDeg": 47.1966,
+      "widthM": 121.821,
+      "depthM": 73.541,
+      "displayHeightM": 20,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": true,
+      "clock": false,
+      "offsetENU": [
+        33.339537620493644,
+        -50.52592159982893,
+        0
+      ],
+      "footprintAreaM2": 6981.04515864605
+    },
+    {
+      "id": "560119012",
+      "name": "機捷 A18",
+      "type": "vault",
+      "anchor": [
+        121.21438623,
+        25.01378505
+      ],
+      "rotationDeg": 47.7138,
+      "widthM": 153.716,
+      "depthM": 52.474,
+      "displayHeightM": 22,
+      "baseM": 8,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": true,
+      "clock": false,
+      "offsetENU": [
+        -15.411301892138955,
+        33.97486399996353,
+        0
+      ],
+      "footprintAreaM2": 4494.8487151725985
+    }
+  ]
+}

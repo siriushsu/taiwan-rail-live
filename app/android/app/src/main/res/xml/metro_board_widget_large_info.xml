@@ -13,11 +13,11 @@
         列數幾乎都由橫放那組決定。中＝110dp（三種格線都算成 2 列）、大＝270dp（4 欄兩種格線都算成
         4 列）是照實測格高算的；改之前先在模擬器切三種格線，看選單上印的「N × M」。
      updatePeriodMillis 只是保命網（最快 30 分鐘一次），真正的節奏是 AlarmManager 排的。 -->
-<!-- 捷運看板・大（主角一班＋接下來七班，見 widget_board_4x4.xml）。 -->
+<!-- 捷運看板・大（主角一班＋接下來七班，見 widget_board_4x4.xml）。initialLayout 是中性卡 widget_loading，示範版面只在 previewLayout（整枝複審必修 7）。 -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:configure="tw.railisland.app.MetroWidgetConfigActivity"
     android:description="@string/metro_widget_large_description"
-    android:initialLayout="@layout/widget_board_4x4"
+    android:initialLayout="@layout/widget_loading"
     android:minWidth="320dp"
     android:minHeight="270dp"
     android:targetCellWidth="5"

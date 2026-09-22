@@ -31,6 +31,8 @@ final class MetroWidgetPlateRender {
         switch (chip) {
             case RECONNECT: case LAST: case PASS: return c.getColor(R.color.wg_warn);
             case ALERT: return c.getColor(R.color.wg_bad);
+            // 「上次位置」是提醒不是異常：琥珀，不是紅（設計稿：紅只給真異常）。
+            case AUTO_STALE: return c.getColor(R.color.wg_warn);
             case PLAIN: return c.getColor(R.color.wg_ink_faint);
             default: return c.getColor(R.color.wg_ok);
         }
@@ -251,6 +253,22 @@ final class MetroWidgetPlateRender {
     static RemoteViews noLocation(Context c) {
         return message(c, RailNativeL10n.text(c, "自動選站"), RailNativeL10n.text(c, "還不知道你在哪"),
             RailNativeL10n.text(c, "請開啟軌島並允許「大概位置」，之後這一格會自己跟著最近的車站。"), RailNativeL10n.text(c, "開啟軌島"));
+    }
+
+    /**
+     * 自動選站：定位到了，但最近的捷運站在服務範圍外。
+     *
+     * 🔴 不硬解析下去。那一站的秒級倒數看起來完全正常，但對使用者零意義（他不會走幾十公里去搭）。
+     *    卡面明講最近站與距離，資訊仍然誠實，而且給得出出路（改選一個固定車站）。
+     *    距離【無條件進位】到公里（WidgetNearestMath.outOfRangeKm）：四捨五入會印出門檻值本身，
+     *    使用者看了會覺得自己明明在範圍內卻被擋。與 iOS outOfRangeHint 同一條決定、同一句文案。
+     */
+    static RemoteViews outOfRange(Context c, String station, double meters) {
+        return message(c, RailNativeL10n.text(c, "自動選站"), RailNativeL10n.text(c, "不在服務範圍"),
+            RailNativeL10n.text(c, "最近的捷運站是{station}，約 {km} 公里。可改選一個固定車站。",
+                "station", RailNativeL10n.name(c, station),
+                "km", WidgetNearestMath.outOfRangeKm(meters)),
+            RailNativeL10n.text(c, "選擇車站"));
     }
 
     /** 連不上而且連快取都沒有（有快取時走狀態 3，不走這張）。 */

@@ -829,7 +829,12 @@ struct Harness {
 mkdirSync(outDir, { recursive: true });
 const swiftPath = join(outDir, 'harness.swift');
 const binPath = join(outDir, 'harness');
-writeFileSync(swiftPath, harness);
+// 月台壓力案例使用真正的 View，只替換明示的測試資料。
+const platformLabel = process.env.PLATFORM_LABEL;
+const renderedHarness = platformLabel ? harness.replace('heading: relation == .arrival ? nil : heading\n    )',
+  'heading: relation == .arrival ? nil : heading,\n        platformText: relation == .pass ? nil : ' + JSON.stringify(platformLabel) + '\n    )') : harness;
+if (platformLabel && renderedHarness === harness) throw Error('月台測試資料沒有接上');
+writeFileSync(swiftPath, renderedHarness);
 
 execFileSync(
   'swiftc',

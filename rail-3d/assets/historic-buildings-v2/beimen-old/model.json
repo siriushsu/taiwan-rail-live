@@ -1,0 +1,347 @@
+{
+  "id": "beimen-old",
+  "name": "北門驛",
+  "county": "嘉義市",
+  "category": "historic",
+  "kind": "beimen-old",
+  "features": [
+    "紅檜木造站房、屋簷與入口；舊驛與新營運站分開"
+  ],
+  "sources": [
+    {
+      "url": "https://afrch.forest.gov.tw/",
+      "use": "林鐵管理處"
+    },
+    {
+      "url": "https://recreation.forest.gov.tw/Railway/Introduce",
+      "use": "新舊北門站說明"
+    },
+    {
+      "url": "https://media.taiwan.net.tw/zh-tw/portal/poi/details/c1_376600000a_000022",
+      "use": "舊北門驛座標、建築面積"
+    }
+  ],
+  "priority": 1,
+  "placementStatus": "mixed-plan-and-site-anchor",
+  "anchor": [
+    120.45463,
+    23.4873
+  ],
+  "verifiedDimensionsM": {},
+  "estimatedDimensionsM": {
+    "width": 15.357980728149414,
+    "depth": 11.362176418304443,
+    "height": 6.677942276000977,
+    "basis": "平面依各部件來源校正；高度仍為外觀建模估值"
+  },
+  "referenceReviewDate": null,
+  "geometryStatus": "plan-calibrated-exterior-estimated",
+  "scope": "按來源輪廓校正平面位置與尺度；高度、立面細節及正面方向仍為外觀估計",
+  "railRelation": "站區／沿線：阿里山林鐵北門",
+  "reviewedPhotos": [],
+  "referenceStatus": "exterior-review-pending",
+  "pendingChecks": [
+    "高度測量與完整多面立面校正",
+    "正面方向複核",
+    "未定位附屬構件：舊月台、舊站棚"
+  ],
+  "orientationMode": "ENU-baked",
+  "absoluteGroundAltitudeM": null,
+  "railElevationM": null,
+  "omittedUnlocatedComponents": [
+    "舊月台",
+    "舊站棚"
+  ],
+  "calibration": {
+    "version": 2,
+    "basis": "各部件獨立平面擬合；非工程測繪",
+    "parts": [
+      {
+        "id": "北門驛",
+        "name": "北門驛",
+        "placementStatus": "site-anchor-estimated-outline",
+        "anchor": [
+          120.45463,
+          23.4873
+        ],
+        "rotationDeg": 22,
+        "scaleXY": [
+          0.4716981083574515,
+          0.551861703527384
+        ],
+        "basis": "嘉義市政府景點座標；95.15㎡建築面積作尺度參考，屋簷另計",
+        "facadeBearingDeg": null
+      }
+    ],
+    "verticalDatum": "terrain-relative",
+    "sourceFile": "placements-source.json"
+  },
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "axes": {
+    "up": "+Z",
+    "east": "+X",
+    "north": "+Y",
+    "front": null,
+    "units": "meters",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "gltfAxes": {
+    "up": "+Y",
+    "toZUp": "rotateX(+PI/2)"
+  },
+  "facadeBearingDeg": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -8.026298522949219,
+      -4.908020496368408,
+      0.0
+    ],
+    "max": [
+      7.331682205200195,
+      6.454155921936035,
+      6.677942276000977
+    ]
+  },
+  "sizeM": [
+    15.357980728149414,
+    11.362176418304443,
+    6.677942276000977
+  ],
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "glb": "near.glb",
+      "sha256": "900ff64ebcbc73c4c5e7f268e7c98fb48af55d6616b493acb8d81bfa37f34bbe",
+      "glbSha256": "a08ed8395152c1282c6bc533b6694dd0abffbc3d16f2fc129346e2e0a7a47c1c",
+      "strideBytes": 24,
+      "vertexCount": 5154,
+      "triangleCount": 1718,
+      "drawGroups": [
+        {
+          "component": "北門驛",
+          "name": "stone",
+          "start": 0,
+          "count": 36,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "北門驛",
+          "name": "sage",
+          "start": 36,
+          "count": 36,
+          "color": [
+            0.18782077729701996,
+            0.3049873113632202,
+            0.2541520893573761
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "北門驛",
+          "name": "cream",
+          "start": 72,
+          "count": 1728,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "北門驛",
+          "name": "dark",
+          "start": 1800,
+          "count": 2550,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "北門驛",
+          "name": "glass",
+          "start": 4350,
+          "count": 576,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "北門驛",
+          "name": "brown",
+          "start": 4926,
+          "count": 120,
+          "color": [
+            0.31398871541023254,
+            0.23074005544185638,
+            0.177888423204422
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "北門驛",
+          "name": "white",
+          "start": 5046,
+          "count": 108,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 123696
+    },
+    "far": {
+      "file": "far.mesh.bin",
+      "glb": "far.glb",
+      "sha256": "05b0e1c0827a99e424f421242692b706cc569c6ebd9cc90595ae27a63191c83a",
+      "glbSha256": "9ea55a6841e9cae251e4c7136ac526163a99ad3adc39357d7bcea3ea79ce63f5",
+      "strideBytes": 24,
+      "vertexCount": 2394,
+      "triangleCount": 798,
+      "drawGroups": [
+        {
+          "component": "北門驛",
+          "name": "stone",
+          "start": 0,
+          "count": 36,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "北門驛",
+          "name": "sage",
+          "start": 36,
+          "count": 36,
+          "color": [
+            0.18782077729701996,
+            0.3049873113632202,
+            0.2541520893573761
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "北門驛",
+          "name": "cream",
+          "start": 72,
+          "count": 576,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "北門驛",
+          "name": "dark",
+          "start": 648,
+          "count": 942,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "北門驛",
+          "name": "glass",
+          "start": 1590,
+          "count": 576,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "北門驛",
+          "name": "brown",
+          "start": 2166,
+          "count": 120,
+          "color": [
+            0.31398871541023254,
+            0.23074005544185638,
+            0.177888423204422
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "北門驛",
+          "name": "white",
+          "start": 2286,
+          "count": 108,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 57456
+    }
+  },
+  "nativeObjectCount": 213,
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "modelUse": "map-exterior",
+  "components": [
+    {
+      "id": "北門驛",
+      "name": "北門驛",
+      "placementStatus": "site-anchor-estimated-outline",
+      "anchor": [
+        120.45463,
+        23.4873
+      ],
+      "rotationDeg": 22,
+      "scaleXY": [
+        0.4716981083574515,
+        0.551861703527384
+      ],
+      "basis": "嘉義市政府景點座標；95.15㎡建築面積作尺度參考，屋簷另計",
+      "facadeBearingDeg": null
+    }
+  ],
+  "mapEligible": true
+}

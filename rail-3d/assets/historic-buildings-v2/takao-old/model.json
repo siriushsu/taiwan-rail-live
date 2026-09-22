@@ -1,0 +1,620 @@
+{
+  "id": "takao-old",
+  "name": "舊打狗驛與北號誌樓",
+  "county": "高雄市",
+  "category": "historic",
+  "kind": "takao-old",
+  "features": [
+    "站房、屋簷、號誌樓；臺鐵舊庫線與現行輕軌分開"
+  ],
+  "sources": [
+    {
+      "url": "https://heritage.kcg.gov.tw/KhccHeritageWebSite/CulHeritExplore/CulSiteDetail/1d385b3e-f5e0-4915-880d-fdc76492d993",
+      "use": "高雄文化資產網"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/203342621",
+      "use": "OSM 建物輪廓"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/203342621",
+      "use": "舊打狗驛：輪廓與位置",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/902978160",
+      "use": "北號誌樓：輪廓與位置",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/435657348",
+      "use": "保存月台與雨庇：現址輪廓",
+      "license": "ODbL-1.0"
+    }
+  ],
+  "priority": 2,
+  "placementStatus": "calibrated-plan",
+  "anchor": [
+    120.27556159946863,
+    22.621731544404497
+  ],
+  "verifiedDimensionsM": {},
+  "estimatedDimensionsM": {
+    "width": 192.77220916748047,
+    "depth": 361.6854991912842,
+    "height": 8.57794189453125,
+    "basis": "平面依各部件來源校正；高度仍為外觀建模估值"
+  },
+  "referenceReviewDate": "2026-09-12",
+  "geometryStatus": "plan-calibrated-exterior-estimated",
+  "scope": "依來源校正平面與補齊可確認附屬構件；尺寸與高度屬地圖外觀估計，非工程測繪",
+  "railRelation": "輕軌周邊／舊港區地景：哈瑪星",
+  "reviewedPhotos": [],
+  "referenceStatus": "exterior-review-pending",
+  "pendingChecks": [
+    "高度測量與完整多面立面校正",
+    "正面方向複核"
+  ],
+  "footprintReference": {
+    "osmType": "way",
+    "osmId": 203342621,
+    "name": "舊打狗驛故事館",
+    "url": "https://www.openstreetmap.org/way/203342621",
+    "timestamp": "2026-09-08T15:19:44Z",
+    "longSideM": 36.12,
+    "shortSideM": 9.5,
+    "source": "OpenStreetMap contributors",
+    "license": "ODbL-1.0",
+    "scope": "社群建物輪廓最小旋轉包圍框，非工程測繪；尚未用作地圖放樣",
+    "referenceFile": "source-layouts/takao-old.json"
+  },
+  "completionReview": {
+    "date": "2026-09-12",
+    "changes": [
+      "補舊高雄港站保存月台及長形雨庇，與輕軌月台分開"
+    ],
+    "precision": "地圖外觀模型；無實測高度或完整多面立面，不視為工程測繪"
+  },
+  "orientationMode": "ENU-baked",
+  "absoluteGroundAltitudeM": null,
+  "railElevationM": null,
+  "omittedUnlocatedComponents": [],
+  "mapEligible": true,
+  "calibration": {
+    "version": 2,
+    "basis": "各部件獨立平面擬合；非工程測繪",
+    "parts": [
+      {
+        "id": "舊打狗驛",
+        "name": "舊打狗驛",
+        "placementStatus": "footprint-axis-calibrated",
+        "anchor": [
+          120.27556159946863,
+          22.621731544404497
+        ],
+        "rotationDeg": 68.75,
+        "scaleXY": [
+          0.9951024532333205,
+          0.9816603503657169
+        ],
+        "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+        "facadeBearingDeg": null
+      },
+      {
+        "id": "北號誌樓",
+        "name": "北號誌樓",
+        "placementStatus": "footprint-axis-calibrated",
+        "anchor": [
+          120.27725175,
+          22.62466685
+        ],
+        "rotationDeg": 58.25,
+        "scaleXY": [
+          1.308068423002672,
+          0.7942281367591515
+        ],
+        "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+        "facadeBearingDeg": null
+      },
+      {
+        "id": "保存月台與雨庇",
+        "name": "保存月台與雨庇",
+        "placementStatus": "footprint-axis-calibrated",
+        "anchor": [
+          120.2757252570165,
+          22.621816716030317
+        ],
+        "rotationDeg": 68.0,
+        "scaleXY": [
+          1.8292875929734502,
+          2.5916826192589424
+        ],
+        "basis": "OSM way/435657348 現址輪廓；高度與立面為外觀估計",
+        "facadeBearingDeg": null
+      }
+    ],
+    "verticalDatum": "terrain-relative",
+    "sourceFile": "placements-source.json"
+  },
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "axes": {
+    "up": "+Z",
+    "east": "+X",
+    "north": "+Y",
+    "front": null,
+    "units": "meters",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "gltfAxes": {
+    "up": "+Y",
+    "toZUp": "rotateX(+PI/2)"
+  },
+  "facadeBearingDeg": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -10.941766738891602,
+      -27.37733268737793,
+      0.0
+    ],
+    "max": [
+      181.8304443359375,
+      334.30816650390625,
+      8.57794189453125
+    ]
+  },
+  "sizeM": [
+    192.7722110748291,
+    361.6854991912842,
+    8.57794189453125
+  ],
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "glb": "near.glb",
+      "sha256": "e2d7593f620343116d7f489aaea50919fc99dc0d8efe975c532ff7f31fd25c6a",
+      "glbSha256": "edda12a6b042eb51067985be84bf8736cc2cffdca8ce4c9f4a528d020f9090ff",
+      "strideBytes": 24,
+      "vertexCount": 9810,
+      "triangleCount": 3270,
+      "drawGroups": [
+        {
+          "component": "舊打狗驛",
+          "name": "stone",
+          "start": 0,
+          "count": 36,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "舊打狗驛",
+          "name": "cream",
+          "start": 36,
+          "count": 2196,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "舊打狗驛",
+          "name": "dark",
+          "start": 2232,
+          "count": 1734,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "舊打狗驛",
+          "name": "glass",
+          "start": 3966,
+          "count": 720,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "舊打狗驛",
+          "name": "brown",
+          "start": 4686,
+          "count": 120,
+          "color": [
+            0.31398871541023254,
+            0.23074005544185638,
+            0.177888423204422
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "舊打狗驛",
+          "name": "white",
+          "start": 4806,
+          "count": 108,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "保存月台與雨庇",
+          "name": "stone",
+          "start": 4914,
+          "count": 36,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "保存月台與雨庇",
+          "name": "cream",
+          "start": 4950,
+          "count": 36,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "保存月台與雨庇",
+          "name": "dark",
+          "start": 4986,
+          "count": 1014,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "保存月台與雨庇",
+          "name": "brown",
+          "start": 6000,
+          "count": 1260,
+          "color": [
+            0.31398871541023254,
+            0.23074005544185638,
+            0.177888423204422
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "北號誌樓",
+          "name": "stone",
+          "start": 7260,
+          "count": 576,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "北號誌樓",
+          "name": "cream",
+          "start": 7836,
+          "count": 900,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "北號誌樓",
+          "name": "dark",
+          "start": 8736,
+          "count": 786,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "北號誌樓",
+          "name": "glass",
+          "start": 9522,
+          "count": 288,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        }
+      ],
+      "byteLength": 235440
+    },
+    "far": {
+      "file": "far.mesh.bin",
+      "glb": "far.glb",
+      "sha256": "c6f4c10ac39103553c3026c0693a6d103d9ac88f9adb1e4f0e11af627f09f808",
+      "glbSha256": "a7343636ef8169b76f3e8acac7670eefdbe576e4e5db6452a3aa5ae3a63b5844",
+      "strideBytes": 24,
+      "vertexCount": 6270,
+      "triangleCount": 2090,
+      "drawGroups": [
+        {
+          "component": "舊打狗驛",
+          "name": "stone",
+          "start": 0,
+          "count": 36,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "舊打狗驛",
+          "name": "cream",
+          "start": 36,
+          "count": 756,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "舊打狗驛",
+          "name": "dark",
+          "start": 792,
+          "count": 1086,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "舊打狗驛",
+          "name": "glass",
+          "start": 1878,
+          "count": 720,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "舊打狗驛",
+          "name": "brown",
+          "start": 2598,
+          "count": 120,
+          "color": [
+            0.31398871541023254,
+            0.23074005544185638,
+            0.177888423204422
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "舊打狗驛",
+          "name": "white",
+          "start": 2718,
+          "count": 108,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "保存月台與雨庇",
+          "name": "stone",
+          "start": 2826,
+          "count": 36,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "保存月台與雨庇",
+          "name": "cream",
+          "start": 2862,
+          "count": 36,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "保存月台與雨庇",
+          "name": "dark",
+          "start": 2898,
+          "count": 318,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "保存月台與雨庇",
+          "name": "brown",
+          "start": 3216,
+          "count": 1260,
+          "color": [
+            0.31398871541023254,
+            0.23074005544185638,
+            0.177888423204422
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "北號誌樓",
+          "name": "stone",
+          "start": 4476,
+          "count": 576,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "北號誌樓",
+          "name": "cream",
+          "start": 5052,
+          "count": 324,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "北號誌樓",
+          "name": "dark",
+          "start": 5376,
+          "count": 606,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "北號誌樓",
+          "name": "glass",
+          "start": 5982,
+          "count": 288,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        }
+      ],
+      "byteLength": 150480
+    }
+  },
+  "nativeObjectCount": 461,
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "modelUse": "map-exterior",
+  "components": [
+    {
+      "id": "舊打狗驛",
+      "name": "舊打狗驛",
+      "placementStatus": "footprint-axis-calibrated",
+      "anchor": [
+        120.27556159946863,
+        22.621731544404497
+      ],
+      "rotationDeg": 68.75,
+      "scaleXY": [
+        0.9951024532333205,
+        0.9816603503657169
+      ],
+      "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+      "facadeBearingDeg": null
+    },
+    {
+      "id": "北號誌樓",
+      "name": "北號誌樓",
+      "placementStatus": "footprint-axis-calibrated",
+      "anchor": [
+        120.27725175,
+        22.62466685
+      ],
+      "rotationDeg": 58.25,
+      "scaleXY": [
+        1.308068423002672,
+        0.7942281367591515
+      ],
+      "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+      "facadeBearingDeg": null
+    },
+    {
+      "id": "保存月台與雨庇",
+      "name": "保存月台與雨庇",
+      "placementStatus": "footprint-axis-calibrated",
+      "anchor": [
+        120.2757252570165,
+        22.621816716030317
+      ],
+      "rotationDeg": 68.0,
+      "scaleXY": [
+        1.8292875929734502,
+        2.5916826192589424
+      ],
+      "basis": "OSM way/435657348 現址輪廓；高度與立面為外觀估計",
+      "facadeBearingDeg": null
+    }
+  ]
+}

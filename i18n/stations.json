@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-27",
+  "generated": "2026-09-12",
   "systems": {
     "thsr_sched": {
       "台中": {
@@ -581,6 +581,10 @@
       "劍潭": {
         "en": "Jiantan",
         "ja": "剣潭"
+      },
+      "廣慈/奉天宮": {
+        "en": "Guangci/Fengtian Temple",
+        "ja": "廣慈/奉天宮"
       },
       "橋和": {
         "en": "Qiaohe",

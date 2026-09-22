@@ -1,0 +1,141 @@
+{
+  "id": "kaohsiung-main-v1",
+  "name": "高雄車站",
+  "version": 1,
+  "status": "simplified-exterior",
+  "anchor": [
+    120.3025654,
+    22.6394462
+  ],
+  "stationPoint": [
+    120.30292,
+    22.63946
+  ],
+  "displayHeightM": 64,
+  "realBuildingHeightM": null,
+  "railElevationM": null,
+  "heightQuality": "illustrative",
+  "footprintQuality": "OSM polygon",
+  "components": [
+    {
+      "id": "r14940189",
+      "name": "高雄天棚",
+      "type": "cloud",
+      "anchor": [
+        120.30265814,
+        22.63936168
+      ],
+      "rotationDeg": 17.3854,
+      "widthM": 619.152,
+      "depthM": 321.604,
+      "displayHeightM": 23,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": false,
+      "clock": false
+    },
+    {
+      "id": "257770396",
+      "name": "高雄舊站",
+      "type": "historic",
+      "anchor": [
+        120.30251419,
+        22.6383164
+      ],
+      "rotationDeg": 88.0332,
+      "widthM": 29.698,
+      "depthM": 24.58,
+      "displayHeightM": 14,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": true,
+      "clock": true
+    },
+    {
+      "id": "1298938833",
+      "name": "商辦大樓",
+      "type": "tower",
+      "anchor": [
+        120.301992,
+        22.6389316
+      ],
+      "rotationDeg": 85.6007,
+      "widthM": 101.836,
+      "depthM": 52.327,
+      "displayHeightM": 64,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": false,
+      "clock": false
+    },
+    {
+      "id": "1298938834",
+      "name": "旅館大樓",
+      "type": "tower",
+      "anchor": [
+        120.30300743,
+        22.63904358
+      ],
+      "rotationDeg": 86.1948,
+      "widthM": 57.012,
+      "depthM": 53.678,
+      "displayHeightM": 64,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": false,
+      "clock": false
+    }
+  ],
+  "modelScope": [
+    "高雄天棚",
+    "高雄舊站",
+    "商辦大樓",
+    "旅館大樓"
+  ],
+  "excluded": [
+    "真實軌道高程",
+    "列車與月台對齊",
+    "地下站體",
+    "精確室內配置",
+    "未有輪廓的出入口及連接設施"
+  ],
+  "sources": [
+    {
+      "url": "https://www.rb.gov.tw/zh-TW/main/main_188/news/main_347/artsinfo_4847/",
+      "use": "站區配置或造型參考；不作比例測量"
+    },
+    {
+      "url": "https://www.openstreetmap.org/relation/14940189",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/257770396",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/1298938833",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/1298938834",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    }
+  ],
+  "notes": [
+    "輪廓使用免費 OSM；曲面、窗帶、柱列、展示底高及高度由軌島簡化設計，不是工程模型。",
+    "各系統保留獨立輪廓與座標；轉乘示意圖僅核對關係，不當成比例尺。",
+    "照片與官方資料只供外觀參考，未作模型貼圖。"
+  ]
+}

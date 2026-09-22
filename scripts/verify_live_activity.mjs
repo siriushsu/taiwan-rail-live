@@ -126,6 +126,17 @@ async function boot(browser, { bridge = true, plus = false, startResult = null, 
         if (!b.stops.every(s => Math.abs(s.at - nowS) < 86400)) errs.push('stops[].at 偏離現在超過一天(絕對 epoch 軸算錯)');
       }
       if (!Array.isArray(b.stopCodes) || !Array.isArray(b.stops) || b.stopCodes.length !== b.stops.length) errs.push('stopCodes.length!==stops.length');
+      if (b.handoff != null) {
+        const h = b.handoff;
+        if (!h || (h.sys !== 'tra_sched' && h.sys !== 'thsr_sched')) errs.push('handoff.sys 不在白名單');
+        if (!Number.isInteger(h && h.sourceIndex) || !Number.isFinite(h && h.sourceAt)
+            || !Number.isFinite(h && h.waitUntil)) errs.push('handoff 來源／發車錨點不完整');
+        if (!Array.isArray(h && h.stops) || !h.stops.length
+            || !h.stops.every((s, i) => Number.isFinite(s.at) && (i === 0 || s.at > h.stops[i - 1].at)))
+          errs.push('handoff.stops 非嚴格遞增');
+        if (!Array.isArray(h && h.stopCodes) || !Array.isArray(h && h.stops)
+            || h.stopCodes.length !== h.stops.length) errs.push('handoff stopCodes.length!==stops.length');
+      }
       return errs;
     };
     // 修復輪次1 Important 3/5 用:測試可強制下一發 bind 回應的狀態(不看契約),或延後回應時間。
@@ -189,17 +200,70 @@ const calls = (page, m) => page.evaluate(mm => (window.__laCalls || []).filter(c
 const clearCalls = page => page.evaluate(() => { window.__laCalls = []; });
 
 // 挑一班「此刻真的在跑」的台鐵車,交給真的 followTrainNo()
-const followRunningTRA = (page, pick = 0) => page.evaluate(p => {
+//
+// 🔴 深夜沒有台鐵車在跑(實測 2026-09-10 01:16 台北時間:全網 908 班,894 班還沒發車、14 班已到終點、
+//    正在跑的 0 班)。跟車卡的開卡條件包含 state.clockAtNow ⇒ 不能用假的 simSec 混過去,
+//    而 Playwright 的 clock.install 只騙得到頁面、騙不到本檔在 Node 端拿 Date.now() 做的那些對帳。
+//    ⇒ 沒有 fixture 的話,整套 LA 閘門在每天 00:40–04:30 之間結構上不可能綠——不是產品壞了,
+//    是這個時段本來就沒車;而「出 build 的時間」剛好常常落在這個區間。
+//    修法是換掉【班表這個外部輸入】,不是換掉判準:把兩班當天的長程車整體平移到現在,
+//    被測的仍然是真的 followTrainNo／laSync／laPayload／跟隨面板。平移只做一次(整頁一次),
+//    因為 T3／T16 要靠 pick=0 與 pick=1 拿到【兩班不同的車】來驗換車。
+// 平移本身抽成獨立一步:T11 有自己的挑車判準(要兩班、不管翻站),只借這一步,不借挑車。
+const shiftScheduleIntoNow = page => page.evaluate(() => {
+  if (window.__laShifted) return window.__laShifted;
+  // 🔴 判準要與 followRunningTRA 的挑車條件【同一條】(含 180 秒翻站容差),而且門檻是【兩班】不是一班:
+  //    T3／T21 驗的是「換到另一班車」,pick=0 與 pick=1 必須拿到不同的車。舊寫法用 some() 判
+  //    「有車在跑就什麼都不做」,於是只要恰好有 1 班在跑就整個不平移,兩次挑車拿到同一班,
+  //    T3 三條與 T21 兩條一起紅——2026-09-11 00:34 實測就是這個形狀(全網只有台鐵 281 夜車在跑)。
+  //    深夜 0 班那條路(2026-09-10 01:16 實測)舊寫法蓋得到,恰好 1 班這條蓋不到。
+  const pickable = t => {
+    if (t.sys !== 'tra_sched' || t.loop) return false;
+    const e = effTLive(t), s = t.stops;
+    const next = s.find(x => x.stop !== false && x.arrSec > e);
+    return e > s[0].depSec + 60 && e < s[s.length - 1].arrSec - 300 && next && next.arrSec - e > 180;
+  };
+  const live = new Set(state.trains.filter(pickable));
+  if (live.size >= 2) return null;                      // 已經挑得到兩班就什麼都不做
+  window.__laShifted = [];
+  const shift = (t, d) => { for (const s of t.stops) { if (Number.isFinite(s.arrSec)) s.arrSec += d; if (Number.isFinite(s.depSec)) s.depSec += d; } };
+  const pool = state.trains
+    .filter(t => t.sys === 'tra_sched' && !t.loop && !live.has(t) && t.stops.length >= 5
+      && t.stops[t.stops.length - 1].arrSec - t.stops[0].depSec > 3600)
+    .sort((a, b) => String(a.train).localeCompare(String(b.train)));
+  for (const [i, t] of pool.slice(0, 2 - live.size).entries()) {
+    const dur = t.stops[t.stops.length - 1].arrSec - t.stops[0].depSec;
+    // 先把首站發車挪到「現在往前 30%／45% 車程」,再把下一站推到 200 秒之外(避開翻站容差)。
+    shift(t, effTLive(t) - Math.round(dur * (0.3 + 0.15 * i)) - t.stops[0].depSec);
+    for (let k = 0; k < 12; k++) {
+      const e = effTLive(t), next = t.stops.find(x => x.stop !== false && x.arrSec > e);
+      if (!next || next.arrSec - e > 200) break;
+      shift(t, 200 - (next.arrSec - e));
+    }
+    window.__laShifted.push(String(t.train));
+  }
+  return window.__laShifted;
+});
+
+const followRunningTRA = async (page, pick = 0) => {
+  await shiftScheduleIntoNow(page);
+  return page.evaluate(p => {
   const run = state.trains.filter(t => {
     if (t.sys !== 'tra_sched' || t.loop) return false;
     const e = effTLive(t), s = t.stops;
-    return e > s[0].depSec + 60 && e < s[s.length - 1].arrSec - 300;
+    const next = s.find(x => x.stop !== false && x.arrSec > e);
+    // T1 會拿開卡瞬間 payload 與稍後的面板交叉比對；避開三分鐘內即將翻站的車，否則測試
+    // 執行延遲剛好跨站時會把兩個不同時刻的正確答案誤判成產品錯誤。
+    return e > s[0].depSec + 60 && e < s[s.length - 1].arrSec - 300
+      && next && next.arrSec - e > 180;
   });
   if (!run.length) return null;
   const tr = run[Math.min(run.length - 1, Math.floor(run.length * (p === 0 ? 0.3 : 0.7)))];
   followTrainNo(String(tr.train), { sys: tr.sys });   // ← 真實產品函式
-  return state.followTrain ? { no: String(state.followTrain.train), sys: state.followTrain.sys } : null;
-}, pick);
+  // shifted 一起回報:平移過班表這件事必須出現在每一條「前置」的輸出裡,不能靜默發生。
+  return state.followTrain ? { no: String(state.followTrain.train), sys: state.followTrain.sys, ...(window.__laShifted ? { shifted: window.__laShifted } : {}) } : null;
+  }, pick);
+};
 
 const cr = await chromium.launch();
 
@@ -239,13 +303,17 @@ const cr = await chromium.launch();
     next: document.getElementById('fpNext').textContent.trim(),
     status: document.getElementById('fpStatus').textContent.trim(),
   }));
+  const payloadStopDisplay = p
+    ? await page.evaluate(({ name, sys }) => stationName(name, sys), { name: p.nextStop, sys: p.sys })
+    : '';
   if (p && p.stopping) {
     ok('T1 停靠中:payload.nextStop === 面板 #fpStatus 的停靠站,且刻意不同於 #fpNext(獨立渲染器)',
-      panel1.status.includes(`停靠 ${p.nextStop}`) && p.nextStop !== panel1.next,
-      `payload=${p.nextStop} 面板狀態=「${panel1.status}」 面板下一站=${panel1.next}`);
+      panel1.status.includes(payloadStopDisplay) && payloadStopDisplay !== panel1.next,
+      `payload=${p.nextStop}/${payloadStopDisplay} 面板狀態=「${panel1.status}」 面板下一站=${panel1.next}`);
   } else {
     ok('T1 行進中:payload.nextStop === 跟隨面板 #fpNext(獨立渲染器)',
-      !!p && p.nextStop === panel1.next, `payload=${p && p.nextStop} 面板=${panel1.next}`);
+      !!p && payloadStopDisplay === panel1.next,
+      `payload=${p && p.nextStop}/${payloadStopDisplay} 面板=${panel1.next}`);
   }
   const iso = p && Date.parse(p.arrivalIso);
   if (p && p.stopping) {
@@ -271,7 +339,7 @@ const cr = await chromium.launch();
     if (p && p.stopping) {
       // 停靠中兩邊講的不是同一站(見上),分鐘數對帳不成立。改驗那個鉗子的算術面:
       // arrivalIso 被鉗在「現在」⇒ 換算 ≈0 分;而面板顯示的是【另一站】的分鐘數。
-      pass = Math.abs(payMin) < 1 && p.nextStop !== panel1.next;
+      pass = Math.abs(payMin) < 1 && payloadStopDisplay !== panel1.next;
       detail = `停靠中:payload=${payMin.toFixed(2)} 分(應≈0),面板「${panel.txt}」講的是 ${panel1.next}`;
     } else if (panel.bold) {
       const pm = parseFloat(panel.bold);
@@ -429,13 +497,21 @@ const cr = await chromium.launch();
     state.clockAtNow = true;
     const info = nextStopInfo(tr, effTLive(tr));
     laSync(tr, false);                                // ← 真實產品函式
-    return { infoNull: info === null, gateOpen: state.clockAtNow && state.playing && state.speedMult === 1 };
+    // laSync() 的原生橋呼叫是同步留下紀錄；就在同一個 event loop 取樣，避免 evaluate 返回後
+    // 真實 rAF 時鐘立刻把 simSec 校回現在，又替仍在行駛的同車送出一發 start，讓終點案例
+    // 隨機把「下一幀的正確行為」誤算成這一次 laSync 的輸出。
+    return {
+      infoNull: info === null,
+      gateOpen: state.clockAtNow && state.playing && state.speedMult === 1,
+      calls: (window.__laCalls || []).map(c => c.m),
+    };
   });
   ok('T7 前置:時鐘撥到終點後 nextStopInfo 真的回 null(且時光機閘門是開的)',
     !!moved && moved.infoNull === true && moved.gateOpen === true, JSON.stringify(moved));
-  ok('T7 算不出下一站 ⇒ end 被呼叫', (await calls(page, 'end')).length >= 1, `end=${(await calls(page, 'end')).length}`);
-  ok('T7 算不出下一站時不會送出 start/update', (await calls(page, 'start')).length === 0 && (await calls(page, 'update')).length === 0,
-    `start=${(await calls(page, 'start')).length} update=${(await calls(page, 'update')).length}`);
+  ok('T7 算不出下一站 ⇒ end 被呼叫', moved && moved.calls.filter(m => m === 'end').length >= 1,
+    `序列=${JSON.stringify(moved && moved.calls)}`);
+  ok('T7 算不出下一站時不會送出 start/update', moved && !moved.calls.some(m => m === 'start' || m === 'update'),
+    `序列=${JSON.stringify(moved && moved.calls)}`);
   ok('T7 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
 }
@@ -559,6 +635,7 @@ const cr = await chromium.launch();
 {
   const { ctx, page, errors } = await boot(cr, { plus: true });
   await clearCalls(page);
+  await shiftScheduleIntoNow(page);   // 深夜 fixture,理由見 followRunningTRA 檔頭
   // 🔴 重播的必須是**另一台**車:重播同一台車時 _laKey 不變,「start 零次」在有沒有閘門的版本
   //    都會成立 ⇒ 那條斷言等於沒牙(實測突變 M16 抓到這件事,已改成兩台不同的車)。
   const two = await page.evaluate(() => {
@@ -1130,6 +1207,94 @@ const cr = await chromium.launch();
   await ctx.close();
 }
 
+// ══════════ T28：跨車轉乘交棒（使用者實際回報路徑）══════════
+// 在真實今日班表找一組「台鐵抵達轉乘站 → 已選高鐵」，確認同一份意圖同時進入原生 payload、
+// 後端 bind，並在前景抵達時把地圖跟隨切到高鐵；其中 keepNow 是必要條件——接續高鐵通常尚未
+// 發車，一般搜尋流程會把時刻尺撥回發車前，旅程交棒若沿用那條路就會離開真實時鐘。
+{
+  const { ctx, page, errors } = await boot(cr, { plus: true });
+  const fixture = await page.evaluate(async () => {
+    let picked = null;
+    for (const tr of state.trains || []) {
+      if (tr.sys !== 'tra_sched' || tr.loop) continue;
+      const xsys = TRANSFER_SCHED_SYSTEM[tr.sys];
+      for (let i = 1; i < (tr.stops || []).length - 1; i++) {
+        const st = tr.stops[i];
+        if (st.stop === false || !Number.isFinite(st.arrSec)) continue;
+        const anchor = transferAnchorForStop(xsys, st);
+        const gid = anchor && anchor.station && anchor.station.transferId;
+        if (!gid) continue;
+        const row = (transferConnections(gid, st.arrSec, xsys) || []).find(r => {
+          if (r.sys !== 'THSR') return false;
+          const sys = state.systems.find(s => s.id === 'thsr_sched');
+          return !!(sys && (sys.data.trains || []).some(t => String(t.train) === String(r.n)));
+        });
+        if (row) { picked = { tr, st, gid, row }; break; }
+      }
+      if (picked) break;
+    }
+    if (!picked) return null;
+    state.playing = false;
+    state.simSec = Math.max(0, picked.st.arrSec - 120);
+    state.clockAtNow = false;
+    followTrainNo(String(picked.tr.train), { sys: picked.tr.sys });
+    const source = state.followTrain;
+    setXferPin(picked.gid, picked.row.n, picked.row.sys, picked.row.sec, source);
+    const plan = xferHandoffPlan(source);
+    const payload = laPayload(source);
+    window.__laBindCalls = [];
+    await laBind('ab'.repeat(32), xferFollowKey(source), source);
+    return {
+      sourceNo: String(source && source.train), targetNo: String(picked.row.n), gid: picked.gid,
+      sourceAt: picked.st.arrSec,
+      plan: plan ? { targetNo: String(plan.targetTr.train), targetSys: plan.targetSys,
+        waitUntil: plan.native.waitUntil, nativeStops: plan.native.remainingStops.length,
+        backendStops: plan.backend.stops.length } : null,
+      payloadHandoff: payload && payload.handoff ? {
+        trainNo: payload.handoff.trainNo, sys: payload.handoff.sys,
+        stopCount: payload.handoff.remainingStops.length,
+      } : null,
+    };
+  });
+  ok('T28 前置:真實今日班表找得到台鐵→高鐵的可執行轉乘，且成功建立交棒計畫',
+    !!fixture && !!fixture.plan, JSON.stringify(fixture));
+  ok('T28 原生 payload 已帶接續高鐵身分與完整剩餘站序（Android 背景 Alarm 可自行交棒）',
+    !!fixture && !!fixture.payloadHandoff && fixture.payloadHandoff.trainNo === fixture.targetNo
+      && fixture.payloadHandoff.sys === 'thsr_sched' && fixture.payloadHandoff.stopCount >= 2,
+    JSON.stringify(fixture && fixture.payloadHandoff));
+  await page.waitForFunction(() => (window.__laBindCalls || []).some(c => /api\/la\/bind$/.test(c.url)), null,
+    { timeout: 10000 }).catch(() => {});
+  const bind = await page.evaluate(() => (window.__laBindCalls || []).find(c => /api\/la\/bind$/.test(c.url)) || null);
+  ok('T28 後端 bind 也收到同一班高鐵與嚴格遞增站序（iOS 縮到背景後由 Worker 接棒）',
+    !!bind && !!bind.body.handoff && !!fixture && bind.body.handoff.trainNo === fixture.targetNo
+      && bind.body.handoff.sys === 'thsr_sched'
+      && bind.body.handoff.stops.length === fixture.plan.backendStops
+      && bind.contractErrors.length === 0,
+    JSON.stringify(bind && { handoff: bind.body.handoff, errors: bind.contractErrors }));
+  const switched = fixture ? await page.evaluate(sourceAt => {
+    const source = state.followTrain;
+    const offset = effTLive(source) - state.simSec;
+    state.simSec = sourceAt - offset + 2;
+    state.clockAtNow = true; state.playing = true; state.speedMult = 1; state._scrubTime = null;
+    const before = state.simSec;
+    const did = maybeXferAutoFollow(source);
+    return {
+      did, no: state.followTrain && String(state.followTrain.train),
+      sys: state.followTrain && state.followTrain.sys,
+      clockAtNow: state.clockAtNow, simJump: Math.abs(state.simSec - before), pin: state.xferPin,
+    };
+  }, fixture.sourceAt) : null;
+  ok('T28 前景抵達轉乘站時地圖跟隨由區間車切到已選高鐵',
+    !!switched && switched.did && switched.no === fixture.targetNo && switched.sys === 'thsr_sched',
+    JSON.stringify(switched));
+  ok('T28 接續高鐵尚未發車也維持真實時鐘，不觸發一般搜尋的「撥到發車前」時光機',
+    !!switched && switched.clockAtNow === true && switched.simJump < 5, JSON.stringify(switched));
+  ok('T28 交棒後舊釘選已清除，不會在後續車站再觸發第二次',
+    !!switched && switched.pin == null, JSON.stringify(switched));
+  ok('T28 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
 await cr.close();
 
 // ══════════ T12：更新紀錄兩條 li 的四寬度幾何(WebKit) ══════════
@@ -1180,7 +1345,7 @@ server.close();
 // 用途:條件式區塊整批消失時,分母跟著變小、收尾只印「N/N PASS」⇒ 會被當成全綠。
 // 注意 T4 走「找不到撞號車對」那一支時只產 2 條(其中一條刻意記 FAIL),這道閘門會跟著紅——
 // 那是預期行為:資料裡沒有撞號車對時,那條判準本來就沒被執行,不該當成通過。
-const EXPECTED_COUNTS = { G0: 1, T0: 2, T1: 8, T2: 3, T3: 4, T4: 4, T5: 5, T6: 4, T7: 5, T8: 7, T9: 4, T10a: 5, T10b: 4, T11: 6, T12: 3, T14a: 1, T14b: 1, T14: 6, T15: 2, T16: 2, T17: 2, T18: 1, T19: 2, T20: 4, T21: 2, T22: 3, T23: 2, T24: 1, T25: 7, T25b: 2, T26: 5, T27: 7 };
+const EXPECTED_COUNTS = { G0: 1, T0: 2, T1: 8, T2: 3, T3: 4, T4: 4, T5: 5, T6: 4, T7: 5, T8: 7, T9: 4, T10a: 5, T10b: 4, T11: 6, T12: 3, T14a: 1, T14b: 1, T14: 6, T15: 2, T16: 2, T17: 2, T18: 1, T19: 2, T20: 4, T21: 2, T22: 3, T23: 2, T24: 1, T25: 7, T25b: 2, T26: 5, T27: 7, T28: 7 };
 const actualCounts = {};
 // `T\d+[ab]?`:T10a/T10b 是兩個獨立情境(可回復 vs 不可回復),分開記數才不會互相掩護。
 // T14a/T14b 同理各自獨立記數;T14c/d/e/f 沒有 a/b 字尾,一律落回裸「T14」桶(見上面正規式)。

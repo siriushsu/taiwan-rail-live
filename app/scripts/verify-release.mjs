@@ -1,8 +1,12 @@
 import { inventory, compare as compareShipInventory } from './verify_no_ship_regression.mjs';
+import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { lstat, readFile, readdir } from 'node:fs/promises';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { verifyAndroidWidgetParity } from './verify_android_widget_parity.mjs';
+import { verifyWidgetPreviews } from '../../scripts/verify_widget_previews.mjs';
+import { verify3dBundle } from './verify_3d_bundle.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '..');
@@ -11,6 +15,43 @@ const defaultOut = join(appRoot, 'www');
 
 const fail = message => { throw new Error(`App 發行檢查失敗：${message}`); };
 const assert = (condition, message) => { if (!condition) fail(message); };
+
+// ── 最近站解析共用層的兩支閘門（2026-09-11 掛上出貨鏈）────────────────────────
+// 🔴 為什麼要掛：`app/出貨規則.md` 第四節——「放在 repo 裡等人想到才跑 == 沒有這支腳本」。
+//    verify_metro_nearest.mjs 從 2026-08-18 寫出來就沒有任何 npm script、沒有任何呼叫點，
+//    整整三週沒有人在出 build 的時候跑到它。
+// 🔴 工具鏈缺席一律【紅】，不准靜默跳過：這兩支守的是「自動（最近的站）」——它壞掉的形狀是
+//    卡片畫出一個幾百公里外的車站、或點下去開 App 查一個叫 __auto__ 的站，兩者都不會讓 build 失敗。
+//    一支「環境不合就跳過」的閘門，在最需要它的那台機器上恰好什麼都不做。
+function runNearestGates() {
+  const gates = [
+    { script: 'verify_widget_nearest.mjs', need: 'javac',
+      tool: javacHome(), env: javacHome() ? { JAVA_HOME: javacHome() } : {},
+      miss: '找不到 JDK：請裝 openjdk@21（Android 那條線本來就需要它）或設 JAVA_HOME' },
+    { script: 'verify_metro_nearest.mjs', need: 'xcrun swiftc', tool: true, env: {},
+      miss: '找不到 xcrun swiftc：請裝 Xcode command line tools' }
+  ];
+  for (const g of gates) {
+    assert(g.tool, `${g.script} 跑不起來（${g.miss}）——閘門不可因為環境缺工具就放行`);
+    try {
+      execFileSync(process.execPath, [join(here, g.script)],
+        { stdio: ['ignore', 'pipe', 'inherit'], env: { ...process.env, ...g.env }, encoding: 'utf8' });
+    } catch (e) {
+      if (e.stdout) process.stdout.write(e.stdout);
+      fail(`${g.script} 沒過（單獨跑 node app/scripts/${g.script} 看完整輸出）`);
+    }
+  }
+  console.log('  · 最近站解析共用層閘門通過：半徑單一來源（資料檔 → iOS/Android 兩端）＋三態判定＋深連結不帶 __auto__');
+}
+
+// JDK 位置：出貨規則記的是 Android 要 JDK 21（Android Studio 內建的 25 不行）。
+// 這裡只需要 javac 編一個沒有相依的純 Java 檔，但仍優先用同一份，免得兩條路各用各的。
+function javacHome() {
+  const candidates = [process.env.JAVA_HOME, '/opt/homebrew/opt/openjdk@21', '/usr/local/opt/openjdk@21'];
+  for (const c of candidates) if (c && existsSync(join(c, 'bin/javac'))) return c;
+  return null;
+}
+
 
 export function assertNativeBridgeLoggingDisabled(capacitorConfig) {
   assert(capacitorConfig?.loggingBehavior === 'none',
@@ -23,6 +64,29 @@ export function assertNativeBridgeLoggingDisabled(capacitorConfig) {
 export function assertAndroidMainActivityDoesNotPreInitWindow(mainActivity) {
   assert(!/\bEdgeToEdge\s*\.\s*enable\s*\(/.test(mainActivity),
     'Android MainActivity 不可手動呼叫 EdgeToEdge.enable()——會在 Capacitor 套用 NoActionBar 前初始化 launch theme，讓上下白帶回歸');
+}
+
+// 跨車轉乘不能只存在 index.html：背景後 iOS 由 Worker/APNs 更新同一張 Activity，Android
+// 由原生 Alarm 接手。少任何一側都會出現「App 裡已選好，但縮小後仍跟上一班車」且 build 全綠。
+export function assertTransferHandoffNativeContract({ html, iosAttributes, iosWidget, androidPlugin, androidNotification }) {
+  assert(html.includes('function xferHandoffPlan(') && html.includes('function maybeXferAutoFollow(')
+      && /keepNow:\s*true/.test(html),
+    '網頁端缺跨車交棒計畫／前景自動接續／維持真實時鐘其中之一');
+  for (const key of ['trainNoOverride', 'kindOverride', 'sysOverride', 'colorOverride', 'transferWaiting']) {
+    assert(new RegExp(`var\\s+${key}\\s*:`).test(iosAttributes),
+      `iOS ContentState 缺 ${key}——ActivityAttributes 不可變，卡片會永遠顯示第一段列車`);
+  }
+  assert(/ctx\.state\.trainNoOverride\s*\?\?\s*ctx\.attributes\.trainNo/.test(iosWidget)
+      && /transferWaiting:\s*ctx\.state\.transferWaiting/.test(iosWidget),
+    'iOS Widget 沒有消費交棒後的車次身分／等候轉乘狀態');
+  assert(/getObject\("handoff"\)/.test(androidPlugin) && /JSONObject\.NULL/.test(androidPlugin),
+    'Android plugin 沒有轉送 handoff 或無法在取消釘選時清掉舊計畫');
+  assert(/applyHandoffIfDue\(/.test(androidNotification)
+      && /state\.put\("trainNo",\s*handoff\.optString/.test(androidNotification)
+      && /state\.remove\("handoff"\)/.test(androidNotification),
+    'Android 背景通知缺到站交棒、車次切換或一次性清理');
+  assert(/boolean\s+sourceStillActive\s*=\s*applyOfficial\([\s\S]*boolean\s+handedOff\s*=\s*applyHandoffIfDue\([\s\S]*!sourceStillActive\s*&&\s*!handedOff/.test(androidNotification),
+    'Android 來源車終到轉乘站時必須先嘗試交棒再收卡，否則只收到「已離站」的一輪會把接續計畫刪掉');
 }
 
 // Android 前景定位契約：同時宣告 coarse/fine，並明確請求 location alias，讓系統提供「精確位置」
@@ -67,6 +131,52 @@ export function assertAndroidBackButtonContract({ nativeBridgeSource, packagedBr
     'Android 返回鍵處理函式存在但沒有在 boot 掛上');
 }
 
+// Metro Core 單線缺資料時，App 會依序退到官方名冊、再退到班表。2026-09-20 環狀線上游
+// 中斷時，舊 App 把官方名冊的空陣列 [] 當成「官方確認零台」並短路，整條線因此消失。
+// 網站修好不等於 App 修好：index.html 會被烤進安裝包，所以發行閘門必須直接檢查 bundle。
+export function assertMetroSingleLineFallbackContract(html) {
+  const start = html.indexOf('function trtcOfficialItemsForLine(');
+  const end = start < 0 ? -1 : html.indexOf('\n}', start);
+  const source = start >= 0 && end > start ? html.slice(start, end + 2) : '';
+  assert(source.includes('return items && items.length ? items : null;'),
+    '北捷官方名冊單線 0 台時必須回 null，讓 Metro Core 退路繼續落到班表；不可回 [] 讓整條線消失');
+  assert(html.includes("t('{line}：班表推估'")
+      && html.includes('列車位置與到站時間可能有誤差'),
+    'App bundle 缺少捷運班表退路的推估與時間誤差標示');
+}
+
+// 1.6.8 是把網站 v0920a～e 一次帶進原生 App；只驗環狀線會讓「同一包也要帶進來」的
+// 南港停車點／車站資訊卡更新在 prepare-web 漏檔或誤用舊來源時照樣通過。HTML 行為與實體
+// 路網 JSON 都直接讀打包輸出，不以 repo 原檔或更新紀錄文字代替載貨證據。
+export function assertSep20AppPayload({ html, metroPack }) {
+  for (const marker of ['data-cl="nangangbrstop0920"', 'data-cl="boardall0920"',
+    'data-cl="virtualloops0920"', 'data-cl="yfallback0920"']) {
+    assert(html.includes(marker), `App bundle 缺少 1.6.8 載貨標記：${marker}`);
+  }
+  assert(html.includes('class="board-all-toggle"')
+      && html.includes("t('查看接下來 3 小時全部 {n} 班'")
+      && html.includes("t('收起完整班次')"),
+    'App bundle 缺少台鐵／高鐵／林鐵車站資訊卡的三小時完整班次展開與收合');
+  assert(html.includes("t('軌島虛構專列')") && html.includes("t('虛構專列')"),
+    'App bundle 缺少山海號／平原號的虛構專列標示');
+
+  const directions = [
+    { key: 'mrt:BR:1', pathId: 22, edge: 'to', nodeId: '7093644633', oldNodeId: 'metro-stop:310746645:16:59645382' },
+    { key: 'mrt:BR:-1', pathId: 23, edge: 'from', nodeId: '7093644634', oldNodeId: 'metro-stop:310746644:5:16565840' },
+  ];
+  for (const test of directions) {
+    const route = metroPack?.routes?.[test.key];
+    assert(route && route.pathIds?.includes(test.pathId),
+      `App 路網缺少文湖線南港展覽館 ${test.key} 的實體股道路徑 ${test.pathId}`);
+    assert(metroPack?.nodeTags?.[test.nodeId]?.public_transport === 'stop_position',
+      `App 路網的南港展覽館正式停車節點 ${test.nodeId} 缺少 stop_position`);
+    assert(metroPack?.paths?.[test.pathId]?.[test.edge] === test.nodeId,
+      `App 路網的 ${test.key} 仍未停在南港展覽館直線月台節點 ${test.nodeId}`);
+    assert(!metroPack?.nodeTags?.[test.oldNodeId],
+      `App 路網仍把南港展覽館西側彎道節點 ${test.oldNodeId} 標成停車點`);
+  }
+}
+
 // Android WebView <140 的 env(safe-area-inset-*) 有已知錯誤；Capacitor 8 會把正確值注入
 // --safe-area-inset-*。所有版面只准從 --sa-* 別名取值，否則三鍵導覽／手勢條會再次蓋住貼底控制。
 export function assertAndroidSafeAreaCssContract(html) {
@@ -94,9 +204,13 @@ export function assertAppLineageContent(html) {
     ["{ key: 'metrowait'", '使用說明中心的在這站等車章節'],
     ['function startForegroundGeoWatch(', 'App 前景持續定位'],
     ['function updateGeoCamera(', '所在地鏡頭跟隨'],
-    ['function zaCalGl(', '捏合縮放的 MapLibre 重標定'],
     ['const syncDraw = () =>', '拖曳時 overlay 同幀重畫'],
-    ['L.MaplibreGL.prototype', 'MapLibre 同步 redraw 補丁'],
+    // M4-B(2026-09-05)換掉的兩條:zaCalGl(捏合時用 GL 畫布重標定探針)與 L.MaplibreGL.prototype
+    // (leaflet-maplibre-gl 外掛的同步 redraw 補丁)都是「GL 底圖被塞進 Leaflet pane」時代的東西,
+    // 拔掉 Leaflet 之後兩者都不存在了。同樣載重的 MapLibre 版是下面這兩條:少了第一條 overlay 與
+    // 底圖會分家(兩層不同相機),少了第二條手機面板讓位會整個失效。
+    ["M.on('render', syncDrawMaplibre)", 'overlay 與底圖同幀落地的唯一接線'],
+    ['function syncMapLibrePadding(', '面板讓位改走 MapLibre padding'],
   ];
   for (const [needle, label] of requiredSource) {
     assert(html.includes(needle), `${label}遺失（缺少 ${needle}）——請檢查 index.html 是否又在合併時整檔退回 main`);
@@ -202,17 +316,21 @@ export function assertPlusSandboxTestBuild(html, expectedBuild) {
 export const ANDROID_PLUS_GATE_LINE =
   "  if (IS_NATIVE_APP && window.Capacitor?.getPlatform?.() === 'android') return window.RAIL_ANDROID_PLUS_ENABLED === true;";
 
+// 2026-09-10 01:58(commit 7907d849)通行證在網站開通:iOS 原生與網站都恆開,`?plus=1` 分支不再存在,
+// 這道閘門的期望值自那時起就過期了(1.6.1/108 建在它之前,所以 1.6.2/109 是第一次撞到)。
+// 要守的東西沒變:Android 只准讀 build-time 旗標,而且那一行之後不得再有任何分支能把 Android 送回
+// true——那等於把 Play 的 kill-switch 拆掉。所以判準是「開頭兩行＋`return true;` 逐字,其後只准接
+// 同一行的註解與收尾」,而不是放寬成單行 includes:單行比對擋不住有人在它前面插一條
+// `if (native) return true;`。
 export function assertAndroidPlusGate(html) {
-  const exactInitializer = [
-    'const PLUS_ENABLED = (() => { try {',
-    ANDROID_PLUS_GATE_LINE,
-    '  if (window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()) return true;',
-    "  return new URLSearchParams(location.search).get('plus') === '1';",
-    '} catch (e) { return false; } })();',
-  ].join('\n');
-  assert(html.includes(exactInitializer),
-    'PLUS_ENABLED 必須讓原生 Android 只讀 build-time 明確旗標，再逐字保留既有 iOS 原生與 Web ?plus=1 分支；'
-    + '不得只藏單一入口或重寫共享判定式');
+  const found = /const PLUS_ENABLED = \(\(\) => \{ try \{\n([\s\S]*?)\n\} catch \(e\) \{ return false; \} \}\)\(\);/.exec(html);
+  assert(found, 'PLUS_ENABLED 的 initializer 不見了或整個形狀被改寫');
+  // 只剝行尾註解(出貨給網站的那份會被 strip、App bundle 那份留著,兩份都要驗得動),不動程式碼。
+  const body = found[1].split('\n').map(line => line.replace(/\s*\/\/.*$/, '').trimEnd());
+  assert(body.length === 2 && body[0] === ANDROID_PLUS_GATE_LINE && body[1] === '  return true;',
+    'PLUS_ENABLED 的本體必須恰好是「Android 只讀 build-time 旗標」那一行,然後無條件 return true'
+    + '(iOS 原生與網站都恆開);多出來的任何分支都可能讓 Android 繞過旗標。實際讀到:\n'
+    + body.join('\n'));
   assert(html.split(ANDROID_PLUS_GATE_LINE).length === 2,
     'Android 通行證平台 gate 必須且只能出現一次');
 }
@@ -261,7 +379,7 @@ export async function assertLicensedBuildAllowed({ includeLicensedMusic, include
   }
   const basemapRights = [
     ['paidAppUseVerified', '付費 App 商用'],
-    ['leafletAndCapacitorUseVerified', 'Leaflet／Capacitor'],
+    ['leafletAndCapacitorUseVerified', 'Capacitor（鍵名沿用 release-policy.json 的歷史紀錄，該檔不在版控內故不改名）'],
     ['attributionRequirementsVerified', '署名要求']
   ];
   const rights = policy.onlineBasemaps || {};
@@ -345,21 +463,27 @@ const TOAST_REVIEWED = new Map([
     '匯入結果:added/updated/skipped 全是匯入計數並經 i18nNumber'],
   [`label?t('',{label:escHtml(label)}):t('')`, '儲存地點提示:使用者地點名已 escHtml'],
   [`t('',{station:escHtml(stationName(f.name,f.metroSysId||f.sys))})`, '最愛車站跳轉提示:收藏站名經 stationName 後已 escHtml'],
-  [`j.why===''?t(''):t('',{station:escHtml(stationName(st.name,st.sys)),distance:i18nNumber(Math.round(j.distM)),radius:i18nNumber(j.r)})`,
+  [`j.why===''?t(''):t('',{station:escHtml(stationName(st.name,st._i18nSys||st.sys)),distance:i18nNumber(Math.round(j.distM)),radius:i18nNumber(j.r)})`,
     '單站打卡失敗:站名已 escHtml,距離與半徑是數字'],
-  [`t('',{station:escHtml(stationName(st.name,st.sys))})`, '單站打卡提示:站名已 escHtml'],
-  [`t('',{station:escHtml(stationName(st.name,st.sys)),count:e&&e.n>1?t('',{n:i18nNumber(e.n)},e.n):''})`,
+  [`t('',{station:escHtml(stationName(st.name,st._i18nSys||st.sys))})`, '單站打卡提示:站名已 escHtml'],
+  [`t('',{station:escHtml(stationName(st.name,st._i18nSys||st.sys)),count:e&&e.n>1?t('',{n:i18nNumber(e.n)},e.n):''})`,
     '單站打卡成功:站名已 escHtml,次數經 i18nNumber'],
-  [`t('',{from:escHtml(stationName(st.name,tr.sys)),to:escHtml(stationName(tr.stops[toIdx].name,tr.sys)),note:j.ok?'':t('')})`,
-    '開始搭乘:兩端站名已 escHtml,note 只選固定翻譯 key'],
-  [`t('',{from:escHtml(stationName(r.fromName,tr.sys)),to:escHtml(stationName(st.name,tr.sys)),n:i18nNumber(n)},n)`,
-    '完成搭乘:localStorage 起站與目的站皆已 escHtml,站數經 i18nNumber'],
+  [`t('',{from:escHtml(stationName(st.name,tr.sys)),to:escHtml(stationName(tr.stops[toIdx].name,tr.sys)),note:j.ok?'':t('')}),{wrap:true}`,
+    '開始搭乘:兩端站名已 escHtml,note 只選固定翻譯 key;wrap 僅控制完整換行'],
+  [`t('',{from:escHtml(stationName(r.fromName,tr.sys)),to:escHtml(stationName(st.name,tr.sys)),n:i18nNumber(n)},n),{wrap:true}`,
+    '完成搭乘:localStorage 起站與目的站皆已 escHtml,站數經 i18nNumber;wrap 僅控制完整換行'],
   [`t(res&&res.why===''?'':res&&res.why===''?'':'')`, '等車卡開卡結果:why 只被比較,三個固定翻譯 key 三選一'],
   [`t('',{station:escHtml(String(station||''))})`, '等車卡深連結站名屬外部輸入,已 escHtml'],
   [`t(canSat?'':''),{wrap:true}`, '底圖失效提示:canSat 只選兩個固定翻譯 key'],
   [`t(action.toast)`, '使用說明「試一次」:action 是 HELP_TRY 固定成員,toast 為固定翻譯 key'],
   [`t(on?'':'')`, '省電模式提示:on 只選兩個固定翻譯 key'],
   [`p.label?t('',{label:escHtml(p.label)}):t('')`, '預設啟動地點提示:使用者地點名已 escHtml'],
+  [`t('',{system:escHtml(t(plan.targetSys===''?'':plan.targetSys===''?'':'')),train:escHtml(String(plan.targetTr.train||'')),})`,
+    '轉乘交棒提示:系統名只選固定翻譯 key，車次即使來自班表也先轉字串並 escHtml；兩個插值皆已逸出'],
+  // 2026-09-19 登記(i18n 複審):懸賞三則提示包進 t() 之後的形狀。上面 `${pts}24`／`${pts}`／''+(j.error…)
+  // 是繁中字面時代的指紋,多語化後對不上,這道發行檢查從 60f3dd83 起就是紅的。值的來源沒變:
+  [`t('',{pts},pts)`, '懸賞認領(示範／成功／落盤失敗三則共用):pts 先經 bountyNum 收斂為有限非負整數;第三參數是英文單複數用的同一個數'],
+  [`t('',{reason:j.error===''?t(''):t('')})`, '懸賞認領失敗:API 的 error 只用來選兩個固定翻譯 key,回傳內容本身沒有插入'],
 ]);
 
 // 掃出每一個 showToast( 呼叫的完整參數（括號配對，不是 regex 抓一行）。
@@ -476,16 +600,24 @@ export async function verifyRelease({
   skipNativeSyncCheck = false
 } = {}) {
   const output = resolve(out);
+  await verify3dBundle(output);
   const files = await walk(output);
   const relativeFiles = files.map(file => relative(output, file).replaceAll('\\', '/'));
   const indexPath = join(output, 'index.html');
   const html = await readFile(indexPath, 'utf8');
+  const metroPack = JSON.parse(await readFile(join(output, 'rail-3d/physical/metro-network.json'), 'utf8'));
   const nativeBridgeSource = await readFile(join(appRoot, 'src/native-bridge.mjs'), 'utf8');
   const packagedBridge = await readFile(join(output, 'native-bridge.js'), 'utf8');
   const androidManifest = await readFile(join(appRoot, 'android/app/src/main/AndroidManifest.xml'), 'utf8');
   verifyAndroidWidgetParity();
+  runNearestGates();
+  // 小工具預覽圖:repo 側守門(index.html 引用＝git 追蹤、預算)＋bundle 側實查(prepare-web 只收追蹤檔;這些是執行期組出來的 <img src>,
+  // 上面那段掃 <script src>/<link href> 的資產完整性閘門照不到它們——整枝審查 M-1)
+  for (const f of verifyWidgetPreviews({ log: false }).files) if (!relativeFiles.includes(f)) fail(`小工具預覽圖沒進 bundle：${f}`);
   assertAndroidPreciseLocationContract({ nativeBridgeSource, packagedBridge, androidManifest });
   assertAndroidBackButtonContract({ nativeBridgeSource, packagedBridge, html });
+  assertMetroSingleLineFallbackContract(html);
+  assertSep20AppPayload({ html, metroPack });
   assertAppLineageContent(html);
   assertWidgetPlusSyncSites(html);
 
@@ -537,12 +669,26 @@ export async function verifyRelease({
       + '這道閘門要跟著改;它刻意不設預設值,免得判準與程式碼各說各話');
     const windowDays = Number(windowDaysMatch[1]);
     const foundingUntilMs = foundingLaunchAtMs + windowDays * 86400000;
-    assert(buildDayStartMs < foundingUntilMs,
+    // 🔴 2026-09-09 補第四個合法狀態。創始期是一次性的事:窗關了之後錨點**仍然要留著**——
+    // foundingFrom() 每次都拿它比對既有會員的 originalPurchaseDate。原本這裡窗一過就 FAIL,
+    // 而訊息教人改成 false,那會讓 FOUNDING_LAUNCH_MS 解析成 NaN、foundingFrom() 回到
+    // 「沒人是創始會員」的安全預設 ⇒ **把已經拿到徽章的島民整批清掉**。所以「窗已結束」要有
+    // 自己的說法:foundingWindowClosed: true。四種狀態互不相同——ISO 字串＝在辦、
+    // false＝從沒辦過、null＝還沒決定、ISO 字串+windowClosed＝辦過且已收(錨點留給既有會員判定)。
+    const foundingWindowClosed = /foundingWindowClosed\s*:\s*true/.test(revenuecatSource);
+    assert(buildDayStartMs < foundingUntilMs || foundingWindowClosed,
       `revenuecat-config.js 的 foundingLaunchAt(${foundingLaunchAtRaw})起算 ${windowDays} 天的創始期視窗,`
       + `在本次 build 的日期(${buildDayTaipei})之前就已經結束——程式碼還宣稱在辦創始期,但窗早就關了。`
-      + '請更新 window.RAIL_REVENUECAT_CONFIG.foundingLaunchAt;若這一版不打算辦創始期,把它改成 false');
-    const daysLeft = Math.ceil((foundingUntilMs - buildDayStartMs) / 86400000);
-    console.log(`  · foundingLaunchAt=${foundingLaunchAtRaw}（窗 ${windowDays} 天，本次 build 當天起還剩 ${daysLeft} 天）`);
+      + '創始期還要繼續就更新 window.RAIL_REVENUECAT_CONFIG.foundingLaunchAt;'
+      + '創始期已經收了就在同一個物件補 foundingWindowClosed: true(錨點要原封留著)。'
+      + '🔴 不要改成 false——那是給「從沒辦過創始期」用的,填下去會讓 foundingFrom() 回到'
+      + '「沒人是創始會員」的安全預設,把已經拿到徽章的島民整批清掉。');
+    if (foundingWindowClosed) {
+      console.log(`  · foundingLaunchAt=${foundingLaunchAtRaw}（創始期已收:foundingWindowClosed=true;錨點保留給既有創始會員判定,不再收新人）`);
+    } else {
+      const daysLeft = Math.ceil((foundingUntilMs - buildDayStartMs) / 86400000);
+      console.log(`  · foundingLaunchAt=${foundingLaunchAtRaw}（窗 ${windowDays} 天，本次 build 當天起還剩 ${daysLeft} 天）`);
+    }
   }
 
   const musicEnabled = html.includes('window.RAIL_MUSIC_AVAILABLE=true');
@@ -562,8 +708,14 @@ export async function verifyRelease({
   }
   assert(html.includes("typeof window.RAIL_METRO_CORE_ENABLED === 'boolean'"),
     'App 內的 index.html 沒有把 Metro Core 發版旗標當成顯式布林覆寫');
-  assert(/L\.map\('map',\s*\{[^}]*zoomAnimation:\s*false\s*\}/.test(html),
-    'App 地圖必須在 L.map 建構時設定 zoomAnimation:false；圖磚 CSS 補間會與獨立 overlay canvas 失步');
+  // 原本這裡驗的是「L.map 建構時 zoomAnimation:false」,治的是「圖磚 CSS 補間會與獨立 overlay canvas 失步」。
+  // M4-B 拔掉 Leaflet 之後那個選項不存在了,但**要防的事情一模一樣**:底圖與 #overlay 是兩個渲染層,
+  // 不同幀落地就會被看成兩層分家。MapLibre 的解法是 overlay 掛在 GL 的 'render'(畫完該幀才發)裡重投影,
+  // 所以這條改成驗那個結構——引擎被換掉、或 reproject 被搬出 render 幀,兩者都會在這裡先紅。
+  assert(/new maplibregl\.Map\(\{/.test(html),
+    'App 地圖必須用 MapLibre GL 建構(new maplibregl.Map)');
+  assert(/const syncDrawMaplibre = \(\) => \{[^}]*reproject\(\);/.test(html),
+    'overlay 沒有在 GL 的 render 幀內重投影——底圖與列車會用不同相機,看起來兩層分家');
 
   // 版本號對**所有** build 模式都必須注入(不是只有授權底圖 build)——App 內的更新提示與評分
   // 全靠它判斷「手上這顆是哪一版」。刻意寫在模式分支之外:放進安全 build 的條件裡就漏掉另一半。
@@ -644,7 +796,10 @@ export async function verifyRelease({
   assertAndroidPlusGate(html);
   const androidGradleForPlus = await readFile(join(appRoot, 'android/app/build.gradle'), 'utf8');
   const androidVersionCodeForPlus = /\bversionCode\s+(\d+)/.exec(androidGradleForPlus)?.[1] || '';
-  assertAndroidPlusReleaseConfig(html, androidVersionCodeForPlus);
+  const androidPlusReady = assertAndroidPlusReleaseConfig(html, androidVersionCodeForPlus);
+  if (process.env.RAIL_EXPECT_ANDROID_PLUS === '1') {
+    assert(androidPlusReady, '正式發行模式必須保留已上架的 Android 通行證入口');
+  }
 
   await assertLicensedBuildAllowed({
     includeLicensedMusic: musicEnabled,
@@ -658,21 +813,52 @@ export async function verifyRelease({
     'third-party-notices.txt',
     'i18n/translations.js', 'i18n/content-translations.js',
     'i18n/legal-translations.js', 'i18n/legal-pages.js', 'i18n/stations.json',
-    'data/taiwan_land.json', 'vendor/leaflet/leaflet.css',
-    'vendor/leaflet/leaflet.js', 'vendor/fflate.js', 'vendor/firebase.mjs'
+    'data/taiwan_land.json', 'vendor/maplibre-gl.js', 'vendor/maplibre-gl.css',
+    'vendor/fflate.js', 'vendor/firebase.mjs'
   ];
   for (const file of required) assert(relativeFiles.includes(file), `缺少必要檔案：${file}`);
 
-  // 首頁相對連結完整性：頁面內每個指向本機 .html／.txt 的連結都要有對應檔案,
+  // 首頁相對連結完整性：頁面內每個指向本機檔案的連結都要有對應檔案,
   // 否則像 privacy.html／terms.html 那樣在 Capacitor 本機來源回 404（QA 2026-07-21）。
+  // 🔴 2026-09-06 放寬涵蓋面：原本的 regex 是 /href="([^"#]+\.(?:html|txt))"/,【只認 .html／.txt 結尾】,
+  //    於是 href="about/" 這種【無副檔名的目錄連結】結構上照不到——而那恰恰是更危險的一種:
+  //    Capacitor 的 router 對沒有副檔名的路徑一律回 index.html（iOS Router.swift 的
+  //    pathExtension.isEmpty、Android WebViewLocalServer 同一條），所以它【不會 404】,而是把首頁
+  //    在錯的 base（/about/）下重載一次 ⇒ vendor/、i18n/、data/ 那些相對資源全 404、boot 拋
+  //    maplibregl is not defined、地圖不出現又沒有返回鍵,使用者只能強制關 App。網友回報 issue #47,
+  //    iOS 95／96／97 與 Android 全部帶著這顆上架,六道發行閘門一路全綠。
+  //    目錄型 target 一律驗它的 index.html——SPA fallback 之所以無害的前提就是那個檔真的在。
   const relativeSet = new Set(relativeFiles);
   const linkTargets = new Set();
-  for (const [, value] of html.matchAll(/href="([^"#]+\.(?:html|txt))"/g)) {
-    if (/^[a-z][a-z0-9+.-]*:/i.test(value)) continue; // 略過 http(s):／mailto: 等外部連結
-    linkTargets.add(value.replace(/^\.?\//, ''));
+  for (const [, value] of html.matchAll(/href="([^"]+)"/g)) {
+    if (/^[a-z][a-z0-9+.-]*:/i.test(value) || value.startsWith('//')) continue; // http(s):／mailto: 等外部
+    if (value.includes('${') || value.includes('{{')) continue;  // 內嵌腳本裡的樣板字串,不是真連結
+    const clean = value.split('#')[0].split('?')[0].replace(/^\.?\//, '');
+    if (!clean) continue;                                        // href="#" 與純錨點
+    linkTargets.add(/\.[a-z0-9]+$/i.test(clean) ? clean : clean.replace(/\/+$/, '') + '/index.html');
   }
+  // 正向對照：收集器自己要有具名斷言,否則 regex 一與 index.html 的寫法脫節,下面的全稱斷言就整條
+  // 空過報綠（這正是 bus-transfer-ui.js 那一條學到的教訓,同一段下面就有一個同形的）。
+  assert(linkTargets.has('privacy.html') && linkTargets.has('terms.html'),
+    '首頁連結掃描沒掃到 privacy.html／terms.html——這條守門人的 regex 跟 index.html 的寫法脫節了');
   for (const target of linkTargets) {
-    assert(relativeSet.has(target), `首頁連結指向未打包檔案（會 404）：${target}`);
+    assert(relativeSet.has(target),
+      `首頁連結指向未打包檔案：${target}（有副檔名＝404；無副檔名更糟，Capacitor 會回首頁但 base 跑掉，整個 App 死在半路）`);
+  }
+  // 首頁腳本／樣式完整性（2026-09-05）：<script src> 與 <link href> 指向的本機檔案都要真的在 bundle 裡。
+  // 上面那條只看 .html／.txt 連結，照不到腳本。起因：bus-transfer-ui.js 從 09-01 起被 index.html 載入，
+  // 但 prepare-web 的逐檔複製清單沒有它，iOS 93／95／96 與 Android 35／37 全部漏掉；index.html 端遇到
+  // !window.BusTransferUI 直接 return，於是 build 全綠、App 照開，只是 541 站公車轉乘在 App 裡整個不存在，
+  // 1.5.5／1.5.6 上架了才發現。漏一支腳本沒有任何 build 期訊號，只能在這裡用正向斷言擋。
+  const assetRefs = new Set();
+  for (const [, value] of html.matchAll(/<(?:script|link)\b[^>]*?\b(?:src|href)="([^"#?]+)/g)) {
+    if (/^[a-z][a-z0-9+.-]*:/i.test(value) || value.startsWith('//')) continue; // 外部資源（https:／data: 等）
+    assetRefs.add(value.replace(/^\.?\//, ''));
+  }
+  assert(assetRefs.has('bus-transfer-ui.js') && assetRefs.has('vendor/maplibre-gl.js'),
+    '首頁本機資產掃描沒掃到 bus-transfer-ui.js／vendor/maplibre-gl.js——這條守門人的 regex 跟 index.html 的寫法脫節了');
+  for (const target of assetRefs) {
+    assert(relativeSet.has(target), `首頁引用的本機資產沒進 bundle（腳本會靜默不載入，功能整組消失）：${target}`);
   }
 
   const forbiddenNames = [
@@ -690,9 +876,9 @@ export async function verifyRelease({
     assert(!forbiddenNames.some(pattern => pattern.test(file)), `含內部或禁止發行檔案：${file}`);
   }
 
-  assert(html.includes('vendor/leaflet/leaflet.css') && html.includes('vendor/leaflet/leaflet.js'),
-    'App 必須使用內建 Leaflet');
-  assert(!html.includes('cdnjs.cloudflare.com/ajax/libs/leaflet'), 'App 仍依賴遠端 Leaflet CDN');
+  assert(html.includes('vendor/maplibre-gl.css') && html.includes('vendor/maplibre-gl.js'),
+    'App 必須使用內建的地圖引擎(vendor/maplibre-gl)');
+  assert(!/cdnjs\.cloudflare\.com/i.test(html), 'App 仍依賴 cdnjs 遠端資源');
   assert(!/ko-fi|PayPal|111010691056|web-only-donation-log|贊助方式更新/i.test(html),
     'App 仍含網站外部贊助內容');
   assert(!html.includes('class="foot-box foot-donate"') && !html.includes('id="donateCopy"'),
@@ -705,7 +891,7 @@ export async function verifyRelease({
   // 'Noto Emoji'：唯一一條不是 npm 依賴的授權（換圖批次內嵌的字型子集）。列進來是因為
   // third-party-notices.txt 是每次 build 重新生成的——條目從 prepare-web 的陣列裡消失時，
   // 產物看起來一樣正常，沒有人會發現我們在沒有附授權的情況下散布一份 OFL 字型。
-  for (const name of ['Capacitor', 'Firebase', 'RevenueCat', 'Leaflet', 'fflate', 'Noto Emoji']) {
+  for (const name of ['Capacitor', 'Firebase', 'RevenueCat', 'fflate', 'Noto Emoji', 'MapLibre']) {
     assert(notices.includes(name), `第三方軟體授權聲明缺少 ${name}`);
   }
 
@@ -772,38 +958,50 @@ export async function verifyRelease({
     // 這條反過來要求資格函式存在——移除它等於把付費層靜默送掉。
     assert(/function satRetinaAllowed\s*\(/.test(html),
       '衛星高解析的資格判定 satRetinaAllowed() 消失——Retina 會變成全體免費');
-    assert(/const wantLQ = [^;]*satRetinaAllowed\(\)/.test(html),
-      'setBasemap 的選層條件沒有消費 satRetinaAllowed()——資格判定形同虛設');
+    assert(/const hi = [^;]*satRetinaAllowed\(\)/.test(html),
+      'setBasemap 的選 style 條件沒有消費 satRetinaAllowed()——資格判定形同虛設');
     // 原本是逐字比對整行 `const sat = online && state.basemap === 'sat';`，但那樣任何無關的條件
     // （2026-07-26 加的 token 就緒判斷）也會誤擋。改成檢查意圖：判斷式裡不得出現付費條件。
     const satLine = (html.match(/const sat = online && state\.basemap === 'sat'[^;\n]*;/) || [])[0];
     assert(satLine, 'index.html 找不到衛星顯示判斷（const sat = …）——「衛星免費開放」這條檢查已失效');
     assert(!/plus|entitle|paid|subscri|premium/i.test(satLine),
       `App 第一版衛星顯示必須免費開放（不綁 Plus），但判斷式含付費條件：${satLine}`);
-    assert(html.includes('  prefetchFollowAhead(dt);'),
-      'Stadia App 必須保留既有高速跟車預抓；手機省電模式會自行停用，避免 iPad／關省電模式高速跟車露白');
-    // 跟車 zoom 上限:設定要載明 16,且 index.html 的消費機制(FOLLOW_ZOOM_CAP/followEntryZoom)未被移除
-    assert(html.includes('"followZoomCap":16'), 'RAIL_APP_CONFIG 未載明 followZoomCap:16(計量底圖跟車上限)');
+    // (M4-B:高速跟車底圖預抓 prefetchFollowAhead 隨 Leaflet 一起移除——它靠 tileLayer 的 getTileUrl
+    //  自己 new Image() 熱快取,MapLibre 的 source 由 GL 自行排程與預取,沒有同型 API 可掛。
+    //  這條斷言因此退役,不是被忘記。)
+    // (跟車 zoom 上限 followZoomCap 已於 2026-09-07 移除——理由見 index.html 的 followEntryZoom()。
+    //  原本那條「App 有 followZoomCap」的斷言因此退役,不是被忘記;反向守門改由下面這條負責。)
+    // 🔴 判準比對的是「注入的設定鍵」與「消費點」兩個形態,不是裸字串 followZoomCap:裸字串連
+    //    index.html 裡解釋「為什麼拿掉」的那段註解都會掃到(2026-09-07 實際擋掉一次 build),
+    //    等於禁止任何人把這段歷史寫下來——而那正是下一個讀到 followEntryZoom 的人最需要的。
+    //    正向對照就是下面那條 satRetina:同一個注入機制,格式若變它會先紅,這條不會空過。
+    assert(!/"followZoomCap"\s*:/.test(html) && !/APP_CFG\.followZoomCap/.test(html),
+      'RAIL_APP_CONFIG 又出現 followZoomCap——跟車上限已裁示移除(近景點列車會被拉遠、立體列車看不到)');
     // 衛星 Retina 止血開關:只驗機制還活著(值可為 true/false,由 Esri 額度狀況決定)
     assert(/"satRetina":(true|false)/.test(html), 'RAIL_APP_CONFIG 未載明 satRetina(衛星高解析止血開關)');
     assert(html.includes('APP_CFG.satRetina'), 'index.html 的 SAT_RETINA 消費機制消失——App 端衛星解析度開關失效');
-    // （DIRECTOR_FOLLOW_Z 那條斷言已隨 2026-09-03 刪除 OBS 導播模式一起拿掉；一般跟車的 z16 上限仍由上一條與下一條守著）
+    // （DIRECTOR_FOLLOW_Z 那條斷言已隨 2026-09-03 刪除 OBS 導播模式一起拿掉）
     assert((html.match(/followEntryZoom\(\), \{ animate: false \}/g) || []).length >= 3,
-      '跟車進場 followEntryZoom 呼叫點少於 3 處——台鐵／高鐵／捷運跟車 zoom 上限未完整覆蓋');
+      '跟車進場 followEntryZoom 呼叫點少於 3 處——台鐵／高鐵／捷運跟車進場沒有走同一條進場 zoom');
     assert(html.includes(JSON.stringify(STADIA_ATTRIBUTION)),
       'Stadia 圖磚署名不是官方要求的三組連結逐字內容');
     // ── OSM 向量街道底圖(OpenFreeMap)與它的兩層退路 ─────────────────────────
     // 這批把 App 街道圖從計量的 Stadia 換成不計量的 OpenFreeMap(Stadia 降為退路)。
     // 下面每一條驗的都是「主來源真的裝上去了」——漏掉任何一件,App 會**靜默**退回 Stadia:
     // build 成功、地圖照畫、使用者無感,只有一個月後的帳單知道。所以這裡全部是正向斷言。
-    for (const f of ['maplibre-gl.js', 'maplibre-gl.css', 'leaflet-maplibre-gl.js', 'ofm-positron.json', 'ofm-dark.json']) {
-      assert(relativeFiles.includes('vendor/' + f), `bundle 缺 vendor/${f}——OFM 街道底圖會靜默退回計費的 Stadia`);
+    for (const f of ['maplibre-gl.js', 'maplibre-gl.css', 'ofm-positron.json', 'ofm-dark.json']) {
+      assert(relativeFiles.includes('vendor/' + f), `bundle 缺 vendor/${f}——地圖起不來,或 OFM 街道底圖靜默退回計費的 Stadia`);
     }
     assert(html.includes(OFM_ATTRIBUTION), 'OpenFreeMap 圖磚署名不是官方要求的三組連結逐字內容（署名是生效要件）');
     assert(html.includes('"streetSrc":"ofm"'), 'RAIL_APP_CONFIG 未載明 streetSrc:"ofm"——這顆 build 的街道底圖預設不是 OpenFreeMap');
     assert(html.includes('APP_CFG.streetSrc'), 'index.html 的 APP_CFG.streetSrc 消費機制消失——注入的預設來源不會被讀取');
-    assert(/const useOfmStreet = \(APP_CFG\.tiles \?/.test(html),
-      'useOfmStreet 沒有 App 分支——App 會永遠用不到 OFM(舊版是 !APP_CFG.tiles,對 App 恆假)');
+    // ⚠️ M4-B 盤點時發現:原本這裡驗的 useOfmStreet 只在 Leaflet 的建層迴圈裡被消費,
+    //    而 M4-A 把預設換成 MapLibre 之後那個迴圈就不再執行 ⇒ 這條斷言從那時起驗的是一個
+    //    「存在但沒有人讀」的符號。連帶的是 APP_STREET_SRC='stadia' 在 MapLibre 路徑下無效
+    //    (setStyleKind 的 light/dark 一律指向 OFM_STYLE),也就是 L1 遠端切換目前是死的。
+    //    這裡不假裝它還在:斷言撤掉並把事實寫在這裡,要修是把 APP_STREET_SRC 接進 setStyleKind。
+    assert(/OFM_STYLE\s*=\s*\{ light: 'vendor\/ofm-positron\.json'/.test(html),
+      '街道 style 不再指向打包進來的 OFM 樣式檔——App 的免費街道底圖會失效');
     // L1/L2 是「OpenFreeMap 沒有 SLA、而 App 改一行要等審查」的唯一保險,少一層等於沒有。
     assert(html.includes("apiUrl('api/basemap-src')"),
       'L1 遠端來源開關的讀取端消失——OFM 出事時將無法不出版本就切回 Stadia');
@@ -856,6 +1054,13 @@ export async function verifyRelease({
   const repoBuild = extractBuild(repoIndex);
   assert(repoBuild, '根目錄 index.html 找不到 BUILD 版本戳記');
   assertAndroidSafeAreaCssContract(repoIndex);
+  assertTransferHandoffNativeContract({
+    html: repoIndex,
+    iosAttributes: await readFile(join(appRoot, 'ios/App/App/RailFollowAttributes.swift'), 'utf8'),
+    iosWidget: await readFile(join(appRoot, 'ios/App/RailBoardWidget/RailFollowActivity.swift'), 'utf8'),
+    androidPlugin: await readFile(join(appRoot, 'android/app/src/main/java/tw/railisland/app/RailFollowLivePlugin.java'), 'utf8'),
+    androidNotification: await readFile(join(appRoot, 'android/app/src/main/java/tw/railisland/app/RailFollowNotification.java'), 'utf8'),
+  });
 
   // 金鑰不得寫死進公開 repo（稽核 2026-07-26）：2026-07-25 的 commit 5aab5c4 把網站用的 Esri
   // token 直接寫進 index.html，於是隨 public repo 推上 GitHub、也印在 railisland.tw 的網頁原始碼裡。
@@ -891,6 +1096,7 @@ export async function verifyRelease({
         continue;
       }
       const nativeBuild = extractBuild(nativeHtml);
+      await verify3dBundle(dirname(nativeIndex));
       assert(nativeBuild === wwwBuild,
         `${label} 內嵌資產版本不一致：${relative(repoRoot, nativeIndex)} 為 ${nativeBuild},app/www 為 ${wwwBuild};請執行 npm run sync（build + cap sync）`);
     }

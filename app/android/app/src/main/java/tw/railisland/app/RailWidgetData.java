@@ -1,12 +1,7 @@
 package tw.railisland.app;
 
-import android.Manifest;
 import android.content.Context;
-import android.content.pm.PackageManager;
 import android.location.Location;
-import android.location.LocationManager;
-
-import androidx.core.content.ContextCompat;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -42,13 +37,15 @@ import java.util.TimeZone;
 /** 台鐵／高鐵桌面看板的單一資料層；台鐵讀內嵌班表，高鐵讀網站當日班表。 */
 final class RailWidgetData {
     static final String SYS_COMPOSITE = "railboth";
-    static final String AUTO = "__auto__";
+    /** 「自動（最近的站）」哨兵。字面值只有 WidgetNearestMath 一份（兩個小工具共用同一個哨兵）。 */
+    static final String AUTO = WidgetNearestMath.AUTO;
     static final String PLACE_PREFIX = "place|";
     /** 篩選鍵:預設只顯示停靠與終到,勾了這個才把「通過本站」的列車一起列出來。 */
     static final String FILTER_PASS = "rel|pass";
     static final String PLACES_PREFS = "rail_places";
     static final String PLACES_KEY = "places";
-    private static final double PLACE_MAX_METERS = 5_000.0;
+    /** 自動選站的快取槽名前綴（逐系統一個：tra／thsr／railboth 的鍵空間不同）。 */
+    static final String NEAREST_SLOT_PREFIX = "rail|";
     private static final double PLACE_TIE_METERS = 300.0;
     private static final String LIVE_URL = "https://railisland.tw/api/tra-live";
     private static final String THSR_SCHEDULE_URL = "https://railisland.tw/api/thsr-schedule";
@@ -222,6 +219,13 @@ final class RailWidgetData {
         long scheduledAt;
         Long destinationAt;
         Integer delayMinutes;
+        String platformOrigin;
+        String platform;
+        long platformExpiresAt;
+
+        String platformAt(long now) {
+            return "tra".equals(sys) && relation != Relation.PASS && now < platformExpiresAt ? platform : null;
+        }
 
         long expectedAt() {
             return scheduledAt + Math.max(0, delayMinutes == null ? 0 : delayMinutes) * 60_000L;
@@ -234,6 +238,9 @@ final class RailWidgetData {
             if (heading != null) out.put("heading", heading.name());
             if (destinationAt != null) out.put("destinationAt", destinationAt);
             if (delayMinutes != null) out.put("delayMinutes", delayMinutes);
+            if (platformOrigin != null) out.put("platformOrigin", platformOrigin);
+            if (platform != null) out.put("platform", platform);
+            out.put("platformExpiresAt", platformExpiresAt);
             return out;
         }
 
@@ -256,6 +263,9 @@ final class RailWidgetData {
             row.scheduledAt = raw.optLong("scheduledAt", 0);
             if (raw.has("destinationAt")) row.destinationAt = raw.optLong("destinationAt");
             if (raw.has("delayMinutes")) row.delayMinutes = raw.optInt("delayMinutes");
+            row.platformOrigin = raw.optString("platformOrigin", "");
+            row.platform = raw.isNull("platform") ? null : raw.optString("platform", null);
+            row.platformExpiresAt = raw.optLong("platformExpiresAt", 0);
             return row;
         }
     }
@@ -268,6 +278,12 @@ final class RailWidgetData {
         long generatedAt;
         String scheduleNote;
         boolean failed;
+        /**
+         * 自動選站：這一輪沒拿到新鮮定位，起站是【上次】解析出來的。
+         * 🔴 刻意【不】進 toJson／fromJson：它是「這一輪的定位新不新鮮」，不是這份班次資料的屬性；
+         *    寫進快取的話，下一輪明明定位好好的卻會把上一輪的標示一起讀回來。provider 每輪重新指派。
+         */
+        boolean autoStale;
         boolean includePass;
         /** 這一輪被「預設不顯示通過列」擋掉幾列;>0 而看板又是空的,代表本站今日無車停靠。 */
         int hiddenPass;
@@ -400,7 +416,8 @@ final class RailWidgetData {
         for (JSONObject place : raw) {
             PlaceOption option = nearestPlace(catalog, place.optDouble("lat", Double.NaN),
                 place.optDouble("lon", Double.NaN), place.optString("label", ""),
-                place.optBoolean("manual", true), requiredSystem, allowedStations);
+                place.optBoolean("manual", true), requiredSystem, allowedStations,
+                WidgetNearest.radiusMeters(context, WidgetNearestMath.RAIL));
             if (option != null) out.add(option);
         }
         out.sort((a, b) -> {
@@ -435,11 +452,18 @@ final class RailWidgetData {
                 lat = unique.optDouble("lat", lat); lon = unique.optDouble("lon", lon);
             }
         }
-        return nearestPlace(catalog, lat, lon, label, true, requiredSystem, allowedStations);
+        return nearestPlace(catalog, lat, lon, label, true, requiredSystem, allowedStations,
+            WidgetNearest.radiusMeters(context, WidgetNearestMath.RAIL));
     }
 
+    /**
+     * @param maxMeters 「我的地點」的服務半徑。🔴 由呼叫端從資料檔取（serviceRadii.rail），
+     *                  這裡【不准】留字面值——改版前那個 5,000 與 iOS RailBoardData 的 5,000
+     *                  是兩份會各自漂移的常數。
+     */
     private static PlaceOption nearestPlace(Catalog catalog, double lat, double lon, String label,
-                                            boolean manual, String requiredSystem, Set<String> allowedStations) {
+                                            boolean manual, String requiredSystem, Set<String> allowedStations,
+                                            double maxMeters) {
         if (!Double.isFinite(lat) || !Double.isFinite(lon)) return null;
         final class Candidate {
             String sys; Station station; double distance; int departures;
@@ -460,7 +484,9 @@ final class RailWidgetData {
                 closest = Math.min(closest, candidate.distance);
             }
         }
-        if (closest > PLACE_MAX_METERS) return null;
+        // 🔴 服務範圍的比較一律走 WidgetNearestMath.inRange：自動選站與「我的地點」是同一個
+        //    判準，各寫一次就會有一邊先漂掉（也讓突變測試只有一個靶）。
+        if (!WidgetNearestMath.inRange(closest, maxMeters)) return null;
         final double closestDistance = closest;
         candidates.removeIf(candidate -> candidate.distance > closestDistance + PLACE_TIE_METERS);
         candidates.sort((a, b) -> {
@@ -551,6 +577,7 @@ final class RailWidgetData {
         for (Row row : out.rows) if ("tra".equals(row.sys) && delays.containsKey(row.no)) {
             row.delayMinutes = delays.get(row.no);
         }
+        if (containsTra(out.rows)) attachPlatforms(out.rows, fetchPlatforms(), now);
         out.rows.sort(Comparator.comparingLong(Row::expectedAt).thenComparing(row -> row.no));
         if (out.rows.size() > 12) out.rows.subList(12, out.rows.size()).clear();
         return out;
@@ -671,6 +698,7 @@ final class RailWidgetData {
         }
         Stop originStop = train.stops.get(at);
         Row row = new Row();
+        row.platformOrigin = originStop.name;
         row.sys = system.id;
         row.no = train.no;
         row.type = train.type;
@@ -771,6 +799,45 @@ final class RailWidgetData {
         return false;
     }
 
+    static void attachPlatforms(List<Row> rows, JSONObject snapshot, long now) {
+        for (Row row : rows) { row.platform = null; row.platformExpiresAt = 0; }
+        if (snapshot == null || snapshot.optInt("schema") != 1 || now >= snapshot.optLong("expiresAt", 0)) return;
+        JSONArray records = snapshot.optJSONArray("records");
+        if (records == null) return;
+        for (Row row : rows) {
+            if (!"tra".equals(row.sys) || row.relation == Relation.PASS || row.platformOrigin == null) continue;
+            JSONObject best = null;
+            boolean conflict = false;
+            for (int i = 0; i < records.length(); i++) {
+                JSONObject one = records.optJSONObject(i);
+                if (one == null || !row.no.equals(one.optString("trainNo"))
+                    || !row.platformOrigin.replace('臺', '台').equals(one.optString("stationName").replace('臺', '台'))) continue;
+                String eventKey = row.relation == Relation.ARRIVAL ? "arrivalAt" : "departureAt";
+                if (one.isNull(eventKey) || Math.abs(one.optLong(eventKey, 0) - row.scheduledAt) >= 1000) continue;
+                if (best == null || one.optLong("updatedAt") > best.optLong("updatedAt")) { best = one; conflict = false; }
+                else if (one.optLong("updatedAt") == best.optLong("updatedAt")
+                    && (!one.optString("platform").equals(best.optString("platform"))
+                        || !one.optString("state").equals(best.optString("state")))) conflict = true;
+            }
+            if (best != null && !conflict && "known".equals(best.optString("state")) && !best.isNull("platform")) {
+                row.platformExpiresAt = Math.min(snapshot.optLong("expiresAt"), best.optLong("expiresAt"));
+                if (now < row.platformExpiresAt) row.platform = best.optString("platform");
+            }
+        }
+    }
+
+    private static JSONObject fetchPlatforms() {
+        HttpURLConnection connection = null;
+        try {
+            connection = (HttpURLConnection) new URL("https://railisland.tw/api/tra-platforms").openConnection();
+            connection.setConnectTimeout(8000); connection.setReadTimeout(8000);
+            connection.setRequestProperty("User-Agent", "RailIsland-Android-RailWidget");
+            if (connection.getResponseCode() != 200) return null;
+            return new JSONObject(readAll(connection.getInputStream()));
+        } catch (Exception ignored) { return null; }
+        finally { if (connection != null) connection.disconnect(); }
+    }
+
     private static Map<String, Integer> fetchDelays() {
         HttpURLConnection connection = null;
         try {
@@ -819,19 +886,54 @@ final class RailWidgetData {
         if (cachedCurrentTra != null && today.equals(cachedCurrentTraDay)
             && now - cachedCurrentTraAt < 5 * 60_000L) return cachedCurrentTra;
 
+        // 🔴 磁碟快取涵蓋今天**且 REFRESH_AHEAD_DAYS 天後仍在窗內**才直接用。原本是「涵蓋今天就用」——
+        //    窗最後幾天明明線上早已換新窗，這裡卻不去抓；抓到的窗不比手上舊才採用，抓不到照舊。
+        //    另外打包那份比快取新就用打包的：快取放 cacheDir、更新 App 不會清，離線更新 App 時
+        //    剛打包進來的新窗不能輸給一份還涵蓋今天的舊快取（2026-09-21，與 iOS 寫入器同一套判準）。
         SystemInfo built = null;
         try {
             JSONObject doc = readTraCache(context, today);
-            if (doc == null) doc = downloadTraSchedule(context, today);
+            if (doc == null || !coversDay(doc, dayKey(now + REFRESH_AHEAD_DAYS * 86_400_000L))) {
+                JSONObject fresh = downloadTraSchedule(context, today);
+                if (fresh != null && lastDay(fresh).compareTo(lastDay(doc)) >= 0) doc = fresh;
+            }
             if (doc != null) built = buildTraSystem(doc);
         } catch (Exception ignored) {
             built = null;
         }
-        SystemInfo out = built != null ? built : catalog.byId.get("tra");
+        SystemInfo bundled = catalog.byId.get("tra");
+        SystemInfo out = built != null
+            && (bundled == null || lastDayOf(built.dates).compareTo(lastDayOf(bundled.dates)) >= 0)
+            ? built : bundled;
         cachedCurrentTra = out;
         cachedCurrentTraDay = today;
         cachedCurrentTraAt = now;
         return out;
+    }
+
+    /** 與 iOS 看板「窗剩 ≤3 天就提醒」同一個門檻：該提醒的那一天就是開始抓的那一天。 */
+    private static final int REFRESH_AHEAD_DAYS = 3;
+
+    private static boolean coversDay(JSONObject doc, String day) {
+        JSONObject dates = doc == null ? null : doc.optJSONObject("dates");
+        return dates != null && dates.has(day);
+    }
+
+    /** 精簡檔的窗最後一天：沒有 dates 就是空字串＝最舊。 */
+    private static String lastDay(JSONObject doc) {
+        return lastDayOf(doc == null ? null : doc.optJSONObject("dates"));
+    }
+
+    /** dates 鍵的最大值（yyyy-MM-dd 可直接按字典序比大小）。 */
+    private static String lastDayOf(JSONObject dates) {
+        String best = "";
+        if (dates == null) return best;
+        java.util.Iterator<String> keys = dates.keys();
+        while (keys.hasNext()) {
+            String key = keys.next();
+            if (key.compareTo(best) > 0) best = key;
+        }
+        return best;
     }
 
     /** 磁碟快取:涵蓋窗含今天才算數,否則當作沒有(回 null 讓上層去下載)。 */
@@ -1001,36 +1103,36 @@ final class RailWidgetData {
         catch (JSONException ignored) { return null; }
     }
 
-    static String nearest(Context context, Catalog catalog, String sys) {
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
-            && ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) return null;
-        LocationManager manager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
-        if (manager == null) return null;
-        Location here = null;
-        for (String provider : manager.getProviders(true)) {
-            try {
-                Location candidate = manager.getLastKnownLocation(provider);
-                if (candidate != null && (here == null || candidate.getTime() > here.getTime())) here = candidate;
-            } catch (SecurityException ignored) {}
-        }
-        if (here == null) return null;
-        double best = Double.MAX_VALUE;
-        String bestKey = null;
-        if (SYS_COMPOSITE.equals(sys)) {
-            for (Composite pair : catalog.composites) {
-                float[] distance = new float[1];
-                Location.distanceBetween(here.getLatitude(), here.getLongitude(), pair.lat, pair.lon, distance);
-                if (distance[0] < best) { best = distance[0]; bestKey = pair.key; }
+    /**
+     * 自動選站。取位／服務範圍／快取語意全在 {@link WidgetNearest} 與 {@link WidgetNearestMath}，
+     * 這裡只負責「掃台鐵／高鐵／共站的目錄」——捷運與（單元 C 之後的）公車走同一支 resolve。
+     *
+     * 🔴 改版前這裡自己讀 {@code getLastKnownLocation} 且【不套任何距離門檻】：issue #55 只提到
+     *    捷運，但台鐵這一支是同一個病（沒開過 App 就沒有系統快取可讀），而且更隱蔽——
+     *    人在花蓮時它會安靜地解析到幾百公里外的某一站，卡面看起來完全正常。
+     * 🔴 快取槽逐系統一個：台鐵、高鐵與共站的鍵空間不同（共站是 pair.key），混用會讓
+     *    退快取時拿到另一個系統的鍵。
+     */
+    static WidgetNearestMath.Outcome nearest(Context context, Catalog catalog, String sys) {
+        return WidgetNearest.resolve(context, WidgetNearestMath.RAIL, NEAREST_SLOT_PREFIX + sys, (lat, lon) -> {
+            double best = Double.MAX_VALUE;
+            String bestKey = null;
+            if (SYS_COMPOSITE.equals(sys)) {
+                for (Composite pair : catalog.composites) {
+                    float[] distance = new float[1];
+                    Location.distanceBetween(lat, lon, pair.lat, pair.lon, distance);
+                    if (distance[0] < best) { best = distance[0]; bestKey = pair.key; }
+                }
+            } else {
+                SystemInfo system = catalog.byId.get(sys);
+                if (system != null) for (Station station : system.stations) {
+                    float[] distance = new float[1];
+                    Location.distanceBetween(lat, lon, station.lat, station.lon, distance);
+                    if (distance[0] < best) { best = distance[0]; bestKey = station.name; }
+                }
             }
-        } else {
-            SystemInfo system = catalog.byId.get(sys);
-            if (system != null) for (Station station : system.stations) {
-                float[] distance = new float[1];
-                Location.distanceBetween(here.getLatitude(), here.getLongitude(), station.lat, station.lon, distance);
-                if (distance[0] < best) { best = distance[0]; bestKey = station.name; }
-            }
-        }
-        return bestKey;
+            return bestKey == null ? null : new WidgetNearestMath.Hit(bestKey, best);
+        });
     }
 
     private static long startOfToday(long now) {

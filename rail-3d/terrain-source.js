@@ -1,0 +1,49 @@
+// 不改高程內容，只把原 PMTiles 分成小型靜態資產。Range 只讀本次所需圖磚。
+// 🔴 Cloudflare Workers 的靜態資產【不支援 Range】：2026-09-12 對正式站實測，向 00.bin 要 16 KB
+//    回的是 HTTP 200 加整個 8 MB 分片，連 accept-ranges 都沒有。而本機 dev_server.mjs 會正確回 206，
+//    所以這個毛病在本機結構上看不見。實測開站（地景底圖）九次圖磚讀取全落在同一個分片：
+//    真正要的 2.3 MB，實際下載 72 MB，主執行緒連帶凍結 8.3 秒。
+//    伺服器既然整份都給了就留著用：同一分片的後續讀取直接切記憶體，同時進來的讀取共用同一個 fetch。
+//    🔴 Android App 更糟（2026-09-18 模擬器實測 @capacitor/android 8.4.2 ＋ WebView）：回 206、Content-Range
+//    照抄請求，body 卻是【從請求起點一路到檔尾】——要 bytes=100-199 拿到 8,388,508 bytes。舊寫法看到 206
+//    就當片段，長度不符丟錯；第一筆讀取（PMTiles 檔頭）就死，地景 DEM 永遠不到、立體列車跟著不畫。
+//    所以一律看長度判斷：整片就收進快取；比要的多，就是伺服器不照 Range 回，之後改成直接要整片。
+//    真的回 206 片段的伺服器（本機、將來支援 Range 的來源）拿到的是片段，不進快取，行為與從前完全相同。
+const root=new URL('./terrain/',import.meta.url);
+// 留幾片看記憶體預算，不看片數——分片大小將來若改小，這裡會自己多留幾片。
+const CACHE_BUDGET=16*1024*1024;
+export async function terrainArchive(pmtiles){
+  const response=await fetch(new URL('manifest.json',root));if(!response.ok)throw Error('地形目錄載入失敗');const manifest=await response.json();
+  const held=new Map(),keep=Math.max(2,Math.round(CACHE_BUDGET/manifest.chunkSize));
+  // 伺服器一旦回的比要的多，就不再相信它會照 Range 回：之後直接要整片（200），一片只抓一次。
+  let rangeHonoured=true;
+  async function download(index,start,n,signal){
+    const bytes=manifest.chunks[index].bytes;
+    const r=await fetch(new URL(manifest.chunks[index].file,root),rangeHonoured?{headers:{Range:`bytes=${start}-${start+n-1}`},signal}:{signal});
+    if(!r.ok)throw Error('地形分片讀取失敗');const b=new Uint8Array(await r.arrayBuffer());
+    // 看長度不看狀態碼（見檔頭：Android App 回 206 卻不是片段）。
+    if(b.byteLength>n)rangeHonoured=false;
+    if(b.byteLength===bytes)return {full:b};
+    if(r.status===206&&b.byteLength===n)return {slice:b};
+    if(r.status===206&&b.byteLength===bytes-start)return {slice:b.subarray(0,n)};
+    throw Error('地形分片長度不符');
+  }
+  async function read(index,start,n,signal){
+    const cached=held.get(index);
+    if(cached){held.delete(index);held.set(index,cached);const full=await cached;if(full)return full.subarray(start,start+n);}
+    const pending=download(index,start,n,signal);
+    // 先掛上去讓同時進來的讀取共用；只給片段或抓失敗就解析成 null，下一次照舊自己抓。
+    held.set(index,pending.then(o=>o.full||null,()=>null));
+    for(const k of [...held.keys()].slice(0,Math.max(0,held.size-keep)))if(k!==index)held.delete(k);
+    const o=await pending;return o.full?o.full.subarray(start,start+n):o.slice;
+  }
+  return new pmtiles.PMTiles({getKey:()=>root.href+manifest.sha256,
+    async getBytes(offset,length,signal){
+      if(offset<0||length<0||offset+length>manifest.byteLength)throw Error('地形讀取範圍不正確');
+      const result=new Uint8Array(length);let written=0;
+      while(written<length){const at=offset+written,index=Math.floor(at/manifest.chunkSize),start=at%manifest.chunkSize,n=Math.min(length-written,manifest.chunks[index].bytes-start);
+        const part=await read(index,start,n,signal);
+        if(part.byteLength!==n)throw Error('地形分片長度不符');result.set(part,written);written+=n;
+      }return {data:result.buffer};
+    }});
+}

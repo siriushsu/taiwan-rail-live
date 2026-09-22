@@ -39,19 +39,22 @@ const pageErrors = [];
 p.on('pageerror', e => pageErrors.push(String(e).slice(0, 200)));
 await p.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} });
 await p.goto(TARGET + (TARGET.includes('?') ? '&' : '?') + 'lang=zh-TW', { waitUntil: 'domcontentloaded' });
-await p.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 90000 });
-await p.waitForTimeout(3000);
+await p.waitForFunction(() => typeof state !== 'undefined' && state.ready === true &&
+  Array.isArray(state.trains) && state.trains.length > 0, null, { timeout: 90000 });
+await p.evaluate(() => selectGroup(GROUPS.find(g => g.id === 'tra')));
+await p.waitForFunction(() => state.mode === 'sched' && state.trains.some(tr => tr.sys === 'tra_sched'), null, { timeout: 30000 });
+await p.evaluate(() => { state.playing = false; setSimSec(8 * 3600); });
 
 // 🔴 突變一律【改原始碼】再重跑本腳本，不在頁面注入旗標：boardGroupOf／BOARD_TRUNK_LAT_SPAN
 //    都是 top-level 宣告，`window.X = ...` 蓋不到 renderBoard 內部走 lexical scope 的呼叫，
 //    注入式突變會「全綠」而讓人誤以為判準沒牙——其實是突變根本沒生效。用法見檔尾 MUTATIONS。
 
 // 讀一站的看板結構
-const readBoard = (name, sys, expand = false) => p.evaluate(([n, sy, ex]) => {
+const readBoard = (name, sys, showAll = false) => p.evaluate(([n, sy, all]) => {
   const st = (state.schedStations || []).find(s => s.name === n && s.sys === sy);
   if (!st) return { err: '找不到站 ' + n };
   const el = document.getElementById('board');
-  el.classList.toggle('expand', !!ex);
+  el.classList.toggle('show-all', !!all);
   state.boardStation = st;
   renderBoard();
   const groups = [...el.querySelectorAll('.bgrp')].map(n2 => {
@@ -66,8 +69,10 @@ const readBoard = (name, sys, expand = false) => p.evaluate(([n, sy, ex]) => {
     }
     return { label: n2.textContent, rows: c, mins, cls: n2.className, color: cs.color };
   });
-  return { groups, rows: el.querySelectorAll('.row').length };
-}, [name, sys, expand]);
+  const toggle = el.querySelector('.board-all-toggle');
+  return { groups, rows: el.querySelectorAll('.row').length,
+    toggle: toggle && { text: toggle.textContent, expanded: toggle.getAttribute('aria-expanded') } };
+}, [name, sys, showAll]);
 
 // ── D1 幹線／支線的身分（不是門檻數字）────────────────────────────
 const sides = await p.evaluate(() => {
@@ -112,26 +117,31 @@ for (const [name, sys] of [['集集', 'tra_sched'], ['竹中', 'tra_sched'], ['�
     g.length > 0 && !g.some(l => l.includes('南下') || l.includes('北上')), JSON.stringify(g));
 }
 
-// ── D5 逐組配額（一般 3、展開 6），且冷門方向不被熱門擠掉 ───────────
+// ── D5 預覽每組 3 班，按鈕展開 3 小時全量，且冷門方向不被熱門擠掉 ──
 const zn = await readBoard('竹南', 'tra_sched', false);
 ok('D5a 一般段每組至多 3 班', zn.groups.every(g => g.rows <= 3), JSON.stringify(zn.groups.map(g => g.rows)));
 const znx = await readBoard('竹南', 'tra_sched', true);
-ok('D5b 展開段每組至多 6 班', znx.groups.every(g => g.rows <= 6), JSON.stringify(znx.groups.map(g => g.rows)));
-ok('D5c 展開後總列數確實變多（配額真的有作用）', znx.rows > zn.rows, `${zn.rows} → ${znx.rows}`);
-ok('D5d 每一組都至少有一班（空組不畫）', znx.groups.every(g => g.rows >= 1), JSON.stringify(znx.groups.map(g => g.rows)));
+ok('D5b 預覽有「查看全部」入口且 aria-expanded=false',
+  !!zn.toggle && zn.toggle.expanded === 'false' && /全部.*班/.test(zn.toggle.text), JSON.stringify(zn.toggle));
+ok('D5c 展開後總列數確實變多（不是只換按鈕文案）', znx.rows > zn.rows, `${zn.rows} → ${znx.rows}`);
+ok('D5d 展開後每組列數都不少於預覽，且至少一組超過 3 班',
+  znx.groups.every((g, i) => g.rows >= zn.groups[i].rows) && znx.groups.some(g => g.rows > 3), JSON.stringify(znx.groups.map(g => g.rows)));
+ok('D5e 展開入口仍在且 aria-expanded=true，可直接收起',
+  !!znx.toggle && znx.toggle.expanded === 'true' && znx.toggle.text.includes('收起'), JSON.stringify(znx.toggle));
 
-// ── D10 「抵達本站」只列 60 分鐘內（使用者 2026-08-31 裁示 b）──────────
+// ── D10 「抵達本站」只列 60 分鐘內，終點站除外（2026-08-31 裁示 b＋2026-09-08 裁示）──
 // 判準刻意不寫死「應該有幾班」——班數是會漂移的量（心得 35）。改成：在同一個 tick 裡從
 // tr.stops 獨立重算「這站 60 分內／60~180 分的終到車數」，再要求看板恰好等於 min(前者, 配額)。
 // 那份重算不經過 boardGroupOf／配額／上限任何一行（受測的是分組與上限，不是 dtm 算術）。
-const ARR_STN = ['樹林', '潮州', '花蓮', '基隆', '新竹', '七堵', '彰化', '嘉義', '臺東', '竹南'];
+const ARR_STN = ['樹林', '潮州', '花蓮', '基隆', '新竹', '七堵', '彰化', '嘉義', '臺東', '竹南',
+  '八斗子', '蘇澳'];  // 後兩個是終點站：豁免那半邊要有料才驗得到
 const arrScan = await p.evaluate((STN) => {
   const res = [];
   for (const ex of [false, true]) for (const name of STN) {
     const st = (state.schedStations || []).find(s => s.name === name && s.sys === 'tra_sched');
     if (!st) { res.push({ name, ex, err: '找不到站' }); continue; }
     const el = document.getElementById('board');
-    el.classList.toggle('expand', ex);
+    el.classList.toggle('show-all', ex);
     state.boardStation = st; renderBoard();
     const gs = [...el.querySelectorAll('.bgrp')].map(n2 => {
       const mins = []; let y = n2.nextElementSibling;
@@ -152,24 +162,38 @@ const arrScan = await p.evaluate((STN) => {
       if (d < -30) continue;
       if (d <= 3600) within++; else if (d <= 10800) beyond++;
     }
-    res.push({ name, ex, within, beyond, gs });
+    res.push({ name, ex, within, beyond, gs, term: isTerminusStation(name, 'tra_sched') });
   }
   return res;
 }, ARR_STN);
 const arrOf = r => r.gs.find(g => g.label === '抵達本站');
-const bad10a = arrScan.filter(r => !r.err).filter(r => (arrOf(r)?.mins || []).some(v => v != null && v > 60));
-ok('D10a 「抵達本站」組不得出現 60 分以上的班次',
+const bad10a = arrScan.filter(r => !r.err && !r.term).filter(r => (arrOf(r)?.mins || []).some(v => v != null && v > 60));
+ok('D10a 非終點站的「抵達本站」組不得出現 60 分以上的班次（8/31 裁示 b 仍生效）',
   bad10a.length === 0, JSON.stringify(bad10a.map(r => [r.ex ? '展開' : '一般', r.name, arrOf(r).mins])));
 ok('D10b 正向對照：至少一站真的畫出「抵達本站」組（否則 D10a 是空過）',
   arrScan.some(r => !r.err && (arrOf(r)?.mins.length || 0) > 0),
   JSON.stringify(arrScan.map(r => r.name + ':' + (arrOf(r)?.mins.length ?? '無'))));
-ok('D10c 反向對照：確實有 60~180 分的終到車被擋掉（否則這輪沒有鑑別力）',
-  arrScan.some(r => !r.err && r.beyond > 0), JSON.stringify(arrScan.map(r => `${r.name}:${r.beyond}`)));
+ok('D10c 反向對照：確實有非終點站的 60~180 分終到車被擋掉（否則 D10a 沒有鑑別力）',
+  arrScan.some(r => !r.err && !r.term && r.beyond > 0),
+  JSON.stringify(arrScan.map(r => `${r.name}${r.term ? '(終)' : ''}:${r.beyond}`)));
+const listable = r => r.term ? r.within + r.beyond : r.within;   // 終點站豁免上限 ⇒ 分母含 60~180 分那些
 const bad10d = arrScan.filter(r => !r.err)
-  .filter(r => (arrOf(r)?.mins.filter(v => v != null).length || 0) !== Math.min(r.within, r.ex ? 6 : 3));
-ok('D10d 抵達組班次數＝min(獨立量到的 60 分內終到車, 每組配額)——是濾掉超時，不是整組砍半',
+  .filter(r => (arrOf(r)?.mins.filter(v => v != null).length || 0) !== (r.ex ? listable(r) : Math.min(listable(r), 3)));
+ok('D10d 抵達組班次數＝預覽 min(可列終到車,3)、完整模式全列——是濾掉超時，不是整組砍半',
   bad10d.length === 0,
-  JSON.stringify(bad10d.map(r => [r.ex ? '展開' : '一般', r.name, arrOf(r)?.mins ?? null, r.within])));
+  JSON.stringify(bad10d.map(r => [r.ex ? '展開' : '一般', r.name + (r.term ? '(終)' : ''), arrOf(r)?.mins ?? null, listable(r)])));
+// 終點站豁免（2026-09-08 裁示）的正向對照。只有「60 分內的班數還沒把配額吃滿、且真的有
+// 60~180 分的終到車」時，豁免才看得見——先具名把這種站篩出來（配額吃滿時畫出來的必然都在
+// 60 分內，那不是回歸）。分母用獨立重算的 within/beyond，不取畫面上的數字。
+const quotaOf = r => (r.ex ? Infinity : 3);
+const exempt = arrScan.filter(r => !r.err && r.term && r.beyond > 0 && r.within < quotaOf(r));
+ok('D10f 覆蓋率：掃描裡至少有一個終點站，其 60 分外的終到車在配額內看得見（否則 D10g 空過）',
+  exempt.length > 0,
+  JSON.stringify(arrScan.filter(r => !r.err && r.term).map(r => `${r.name}: 內${r.within}/外${r.beyond}/配額${quotaOf(r)}`)));
+const bad10g = exempt.filter(r => !(arrOf(r)?.mins || []).some(v => v != null && v > 60));
+ok('D10g 終點站的「抵達本站」組確實列出 60 分以上的班次（去接人的人要看得到時間）',
+  bad10g.length === 0,
+  JSON.stringify(bad10g.map(r => [r.ex ? '展開' : '一般', r.name, arrOf(r)?.mins ?? null, `內${r.within}/外${r.beyond}`])));
 ok('D10e 誤傷對照：其他組仍看得到 60 分以上的班次（上限只套抵達組）',
   arrScan.some(r => !r.err && r.gs.filter(g => g.label !== '抵達本站').some(g => g.mins.some(v => v != null && v > 60))),
   JSON.stringify(arrScan.map(r => r.name + ':' + Math.max(0, ...r.gs.filter(g => g.label !== '抵達本站').flatMap(g => g.mins).filter(v => v != null)))));
@@ -187,7 +211,24 @@ for (const theme of ['light', 'dark']) {
     const r = { n: val(cs.getPropertyValue('--dir-north')), s: val(cs.getPropertyValue('--dir-south')) };
     probe.remove(); return r;
   });
-  const g = (await readBoard('二水', 'tra_sched')).groups;
+  let g = (await readBoard('二水', 'tra_sched')).groups;
+  // 暗色看板會把「目前選取」方向改成中性灰，這是 night-board.js 的閱讀層設計，
+  // 不代表方向色失效。切到另一方向後再量未選取的標題，才是這條斷言要驗的 CSS。
+  if (theme === 'dark') {
+    const colors = await p.evaluate(() => {
+      const buttons = [...document.querySelectorAll('#board .night-directions button')];
+      const read = cls => getComputedStyle(document.querySelector(`#board .bgrp.${cls}`)).color;
+      buttons.find(button => button.textContent.includes('南下'))?.click();
+      const north = read('dir-n');
+      buttons.find(button => button.textContent.includes('北上'))?.click();
+      const south = read('dir-s');
+      const branch = getComputedStyle(document.querySelector('#board .bgrp:not(.dir-n):not(.dir-s)')).color;
+      return { north, south, branch };
+    });
+    g = g.map(item => item.cls.includes('dir-n') ? { ...item, color: colors.north }
+      : item.cls.includes('dir-s') ? { ...item, color: colors.south }
+      : { ...item, color: colors.branch });
+  }
   const north = g.find(x => x.cls.includes('dir-n')), south = g.find(x => x.cls.includes('dir-s'));
   const branch = g.find(x => !/dir-[ns]/.test(x.cls));
   ok(`D6a ${theme}：北上是官方藍`, !!north && near(rgb(north.color), rgb(want.n)), `${north && north.color} vs ${want.n}`);
@@ -197,6 +238,150 @@ for (const theme of ['light', 'dark']) {
 }
 await p.evaluate(() => document.documentElement.removeAttribute('data-theme'));
 
+// ── D11 共構段不得決定線別（網友回報 issue #46，2026-09-05）─────────────────
+// 新竹–北新竹是縱貫線北段與內灣線【共用的同一段實體軌道】，貼軌時一段只會判給其中一條線，
+// 於是往基隆／七堵的縱貫線車被貼到內灣線上、整批掉進「往內灣」組（北新竹同理，生出假的
+// 「往新竹」組）。修法：共構段不決定線別，改用最近的非共構段。
+// 🔴 判準的真值來源刻意【不是】segLn——那正是被驗的實作，同源比對「相等」是零資訊。
+//    這裡用「終點站 × 各線站列」與「這班車有沒有真的走進支線專屬區間」兩組獨立資料。
+const d11 = await p.evaluate(() => {
+  const norm = s => String(s || '').replace(/臺/g, '台');
+  const stationsOf = id => new Set((((state.trackLines || []).find(l => l.id === id) || {}).stations || [])
+    .map(x => norm(x.name)));
+  const readGroups = name => {
+    const st = (state.schedStations || []).find(s => s.name === name && s.sys === 'tra_sched');
+    if (!st) return [{ label: '找不到站 ' + name, dests: [] }];
+    const el = document.getElementById('board');
+    el.classList.add('show-all'); state.boardStation = st; renderBoard();
+    return [...el.querySelectorAll('.bgrp')].map(gn => {
+      const dests = []; let x = gn.nextElementSibling;
+      while (x && x.classList.contains('row')) {
+        const to = x.querySelector('.dest .to');
+        if (to) dests.push(norm(to.textContent).replace(/^往\s*/, ''));
+        x = x.nextElementSibling;
+      }
+      return { label: gn.textContent.trim(), dests };
+    });
+  };
+  // 「只能搭幹線到達」＝【所有幹線】的站列扣掉內灣線站列。新竹／北新竹本身兩邊都有，自動排除。
+  // 🔴 這裡原本只扣「縱貫線北段」，於是污染北新竹的那批車（終點苗栗／彰化，在山線上）落在
+  //    分母外，M9 突變下 D11d 照樣綠——分母漏一塊，全稱斷言就等於沒有。
+  // 🔴 前提：內灣線與六家線的車全部終到新竹，不直通幹線。哪天真的直通了這條會轉紅——那是
+  //    要重想判準的訊號，不是誤報（平溪線直通八堵就是這種形態，故本判準只用在這兩站）。
+  const trunkStationsAll = new Set();
+  for (const ln of (state.trackLines || []))
+    if (boardLineLatSpan(ln) >= BOARD_TRUNK_LAT_SPAN)
+      for (const x of (ln.stations || [])) trunkStationsAll.add(norm(x.name));
+  const neiwan = stationsOf('NEIWAN');
+  const trunkOnly = new Set([...trunkStationsAll].filter(n => !neiwan.has(n)));
+  const branchOf = groups => groups.filter(g => g.label.startsWith('往') && !g.label.includes('抵達'));
+  const hsinchu = readGroups('新竹'), beihsinchu = readGroups('北新竹');
+  // 🔴 畫面每組只畫得下 perGroup 班，拿「畫出來那幾列」當全稱斷言的分母 ⇒ 分母會漂：
+  //    同一個缺陷有時前 6 列剛好都乾淨就整條空過（M9 突變下 D11d 就是這樣假綠的）。
+  //    故全稱斷言掃【整組】——資料仍走 schedBoardRows 這條產線，只是不套配額。
+  const allBranchDests = name => {
+    const st = (state.schedStations || []).find(s => s.name === name && s.sys === 'tra_sched');
+    if (!st) return null;
+    return schedBoardRows(st).filter(r => r.g.kind === 'branch')
+      .map(r => norm(r.tr.loop ? r.loopDest : r.dest));
+  };
+
+  // D11e：全網。每個支線組的班次，都必須真的走進「這條支線專屬」的區間（＝該線有、任何幹線
+  // 都沒有的站）。只借道共構段的幹線車走不到那裡，就會被咬住。
+  const trunkStations = trunkStationsAll;   // 與 D11a/D11d 同一份，避免同一個量算兩次而分岔
+  const own = new Map(), branchIds = [];
+  for (const ln of (state.trackLines || [])) {
+    const set = new Set((ln.stations || []).map(x => norm(x.name)));
+    own.set(ln.id, set);
+    // AFR_YARD_* 是站場裝飾軌，沒有營運班次，不是看板的幹／支線分類對象。
+    if (!String(ln.id).startsWith('AFR_YARD_') && boardLineLatSpan(ln) < BOARD_TRUNK_LAT_SPAN) branchIds.push(ln.id);
+  }
+  // 「沒有專屬區間」的支線＝兩站都在幹線上的短連絡線（成追線）。2026-09-06 裁示
+  // 「不是支線的車就不要放在支線裡」之後，這種線【根本不該生出支線組】，所以 D11e 不再給豁免；
+  // 清單改由 D11f 用來反查「這些線真的一班都沒有落進支線組」。豁免消失＝判準嚴格變強。
+  const noExclusive = branchIds.filter(id => [...own.get(id)].every(n => trunkStations.has(n)));
+  const bad = [], covered = new Set(), noExclusiveRows = [];
+  // 組名必須＝這一趟真正的終點站（2026-09-06 裁示：「既然終點是六家，為什麼還要放往內灣？」）
+  const labelBad = [];
+  for (const tr of state.trains) {
+    const st = tr.stops;
+    const dest = norm((st[st.length - 1] || {}).name);
+    for (let i = 0; i + 1 < st.length; i++) {
+      if (st[i].stop === false) continue;
+      const g = boardGroupOf(tr, i, false);
+      if (g.kind !== 'branch') continue;
+      if (noExclusive.includes(g.lnId)) noExclusiveRows.push(st[i].name + ' ' + tr.no + ' → ' + g.lnId);
+      covered.add(g.lnId);
+      const set = own.get(g.lnId) || new Set();
+      if (!st.some(x => set.has(norm(x.name)) && !trunkStations.has(norm(x.name))))
+        bad.push(st[i].name + ' ' + tr.no + ' 往' + dest + ' → ' + g.lnId);
+      if (norm(g.endName) !== dest) labelBad.push(tr.no + ' 組名往' + norm(g.endName) + ' 實際終點' + dest);
+    }
+  }
+  // 🔴 正向對照（缺了它，判準只會單向收緊）：D11e/D11g 都只檢查「落進支線組的車」，
+  //    分母是實作自己給的。若哪天把規則收得太兇、支線車整批被推去幹線組，那些斷言的分母
+  //    只會變小、全部保持綠——M13 突變（一律不算支線車）就是這樣空過的。
+  //    所以反過來釘一條身分斷言：一段軌道的【兩端都是支線專屬站】時，那一列必定是支線組。
+  const shouldBeBranch = [];
+  for (const tr of state.trains) {
+    const st = tr.stops;
+    for (let i = 0; i + 1 < st.length; i++) {
+      if (st[i].stop === false) continue;
+      const a = norm(st[i].name), c = norm((st[i + 1] || {}).name);
+      if (!a || !c || trunkStations.has(a) || trunkStations.has(c)) continue;
+      const g = boardGroupOf(tr, i, false);
+      if (g.kind !== 'branch') shouldBeBranch.push(a + '→' + c + ' ' + tr.no + ' 竟然歸 ' + g.kind);
+    }
+  }
+  return { hsinchu, beihsinchu, branchOf: branchOf(hsinchu), beiBranch: branchOf(beihsinchu),
+    hsinchuAll: allBranchDests('新竹'), beiAll: allBranchDests('北新竹'),
+    trunkOnly: [...trunkOnly], bad: bad.slice(0, 6), nBad: bad.length,
+    nCovered: covered.size, noExclusive,
+    noExclusiveRows: noExclusiveRows.slice(0, 6), nNoExclusiveRows: noExclusiveRows.length,
+    labelBad: labelBad.slice(0, 6), nLabelBad: labelBad.length,
+    shouldBeBranch: shouldBeBranch.slice(0, 6), nShouldBeBranch: shouldBeBranch.length };
+});
+const trunkOnlySet = new Set(d11.trunkOnly);
+const strayOf = list => [...new Set((list || []).filter(d => trunkOnlySet.has(d)))];
+ok('D11a 新竹的支線組不得出現「只能搭縱貫線到達」的終點（issue #46 的病灶；掃整組不套配額）',
+  (d11.hsinchuAll || []).length > 0 && strayOf(d11.hsinchuAll).length === 0,
+  `${(d11.hsinchuAll || []).length} 列，混進來的終點：` + JSON.stringify(strayOf(d11.hsinchuAll)));
+ok('D11b 正向對照：新竹確實畫得出支線組且組內有班次（否則 D11a 恆真空過）',
+  d11.branchOf.length > 0 && d11.branchOf.flatMap(g => g.dests).length > 0,
+  JSON.stringify(d11.branchOf.map(g => g.label)));
+const hsinchuNb = d11.hsinchu.find(g => g.label === '北上');
+ok('D11c 反向對照：新竹「北上」組確實收得到縱貫線終點（修法沒把那些車弄不見）',
+  !!hsinchuNb && hsinchuNb.dests.some(d => trunkOnlySet.has(d)),
+  JSON.stringify(hsinchuNb && hsinchuNb.dests));
+ok('D11d 北新竹（共構段另一頭）的支線組同樣不得混進縱貫線的車（掃整組不套配額）',
+  (d11.beiAll || []).length > 0 && strayOf(d11.beiAll).length === 0,
+  `${(d11.beiAll || []).length} 列，混進來的終點：` + JSON.stringify(strayOf(d11.beiAll)));
+ok('D11e 全網：支線組的每一班都必須真的走進該支線的專屬區間（已不給任何豁免）',
+  d11.nBad === 0, `${d11.nBad} 列，例：` + JSON.stringify(d11.bad));
+ok('D11f 覆蓋率具名斷言：D11e 真的驗到多條支線，且「沒有專屬區間的線」恰為成追線',
+  d11.nCovered >= 5 && d11.noExclusive.length === 1 && d11.noExclusive[0] === 'chengzhui',
+  `covered=${d11.nCovered} 無專屬區間=${JSON.stringify(d11.noExclusive)}`);
+// 🔴 2026-09-06 裁示：「不是支線的車就不要放在支線裡」。成追線只有追分（山線）與成功（海線）
+//    兩站，沒有任何一班車終點在它身上，走它的全是縱貫線直通車 ⇒ 它一班都不該落進支線組。
+//    修法前這裡是 28 列（追分／成功兩站的「往 成功」「往 追分」兩組）。
+ok('D11g 沒有專屬區間的連絡線（成追線）一班都不該落進支線組——不是支線的車不放支線裡',
+  d11.nNoExclusiveRows === 0, `${d11.nNoExclusiveRows} 列，例：` + JSON.stringify(d11.noExclusiveRows));
+// 🔴 2026-09-06 裁示：「既然終點是六家，為什麼還要放往內灣？」組名取這一趟真正的終點站。
+//    修法前組名取的是支線的末端站，新竹「往 內灣」裡 41/46 班其實終到六家。
+ok('D11h 支線組的組名＝這一趟真正的終點站（不是支線的末端站）',
+  d11.nLabelBad === 0, `${d11.nLabelBad} 列，例：` + JSON.stringify(d11.labelBad));
+// 🔴 D11h 的真值來源（g.endName）就是被驗的實作本身，同源比對是零資訊（判準盲點形態 1）。
+//    D11i 改走【畫面】：組標題由 boardGroupLabel＋stationName＋i18n 產生，列的終點由另一條
+//    渲染路徑產生，兩者必須一致。修法前新竹的標題是「往 內灣」而列上寫「往 六家」⇒ 這條會紅。
+const labelVsRows = (d11.branchOf || []).flatMap(g =>
+  g.dests.filter(d => g.label !== '往 ' + d).map(d => `${g.label} 裡有往 ${d}`));
+ok('D11j 反向：兩端都是支線專屬站的區間，必定歸支線組（防止規則收太兇把支線車推去幹線）',
+  d11.nShouldBeBranch === 0, `${d11.nShouldBeBranch} 列，例：` + JSON.stringify(d11.shouldBeBranch));
+ok('D11i 畫面對照：新竹每個支線組的標題，與組內每一列的終點站一致（獨立於 g.endName）',
+  (d11.branchOf || []).length > 0 && (d11.branchOf || []).flatMap(g => g.dests).length > 0
+    && labelVsRows.length === 0,
+  `組=${JSON.stringify((d11.branchOf || []).map(g => g.label))} 不一致：` + JSON.stringify(labelVsRows));
+
 // ── D7 捷運看板零回歸：它走 renderFreqBoard，不該長出方向組 ─────────
 const metro = await p.evaluate(() => {
   const g = (typeof GROUPS !== 'undefined' ? GROUPS : []).find(x => (x.members || []).includes('mrt'));
@@ -205,6 +390,7 @@ const metro = await p.evaluate(() => {
 });
 await p.waitForTimeout(2500);
 const metroBoard = await p.evaluate(() => {
+  state.playing = false; setSimSec(8 * 3600);
   const ln = (state.lines || [])[0]; const st = ln && (ln.stations || [])[1];
   if (!st) return { err: '沒有捷運站' };
   state.boardStation = st; renderBoard();
@@ -219,8 +405,11 @@ const en = await b.newContext({ locale: 'en-US', viewport: { width: 1280, height
 const ep = await en.newPage();
 await ep.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} });
 await ep.goto(TARGET + (TARGET.includes('?') ? '&' : '?') + 'lang=en', { waitUntil: 'domcontentloaded' });
-await ep.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 90000 });
-await ep.waitForTimeout(2500);
+await ep.waitForFunction(() => typeof state !== 'undefined' && state.ready === true &&
+  Array.isArray(state.trains) && state.trains.length > 0, null, { timeout: 90000 });
+await ep.evaluate(() => selectGroup(GROUPS.find(g => g.id === 'tra')));
+await ep.waitForFunction(() => state.mode === 'sched' && state.trains.some(tr => tr.sys === 'tra_sched'), null, { timeout: 30000 });
+await ep.evaluate(() => { state.playing = false; setSimSec(8 * 3600); });
 const enLabels = await ep.evaluate(() => {
   const st = (state.schedStations || []).find(s => s.name === '竹南' && s.sys === 'tra_sched');
   state.boardStation = st; renderBoard();
@@ -240,9 +429,13 @@ console.log(`\n${fail ? '❌' : '✅'} 通過 ${pass}／${pass + fail}`);
 //   M1 BOARD_TRUNK_LAT_SPAN 改成 0        → 支線被當幹線 ⇒ D1b/D1c 與 D4 轉紅
 //   M2 BOARD_TRUNK_LAT_SPAN 改成 9        → 幹線被當支線 ⇒ D1a 與 D2a/D3a 轉紅
 //   M3 boardGroupLabel 的 sameDir 門檻 2→9 → 同方向多幹線不補線名 ⇒ D3a 轉紅
-//   M4 perGroup 改成 rows.length          → 逐組配額失效 ⇒ D5a/D5b 轉紅
+//   M4 perGroup 固定成 Infinity           → 預覽配額失效 ⇒ D5a/D5b 轉紅
 //   M5 拿掉 .bgrp.dir-n/.dir-s 兩條 CSS    → 方向色消失 ⇒ D6a/D6b 轉紅
 //   M6 boardGroupOf 一律回同一個 key      → 全部併成一組 ⇒ D2a/D3a/D3c 轉紅
 //   M7 刪掉 i18n 的 '南下' 鍵             → 英文殘留中文 ⇒ D8a/D8b 轉紅
 //   M8 BOARD_ARRIVE_MAX_SEC 改成 10800   → 60 分上限失效 ⇒ D10a/D10d 轉紅
+//   M9 boardGroupOf 的 boardDecidingSeg(tr, i) 改回 tr.stops[i]
+//                                        → 共構段又決定線別 ⇒ D11a/D11d/D11e 轉紅（issue #46 回歸）
+//   M10 boardDecidingSeg 只刪掉【往後找】那一圈
+//                                        → 在本站終到的車失去來時路證據 ⇒ D11d/D11e 轉紅、D11a 仍綠
 process.exit(fail ? 1 : 0);

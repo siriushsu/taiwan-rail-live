@@ -140,6 +140,11 @@ for (let round = 0; round < 12 && !compiled; round++) {
     javacOut = `${e.stdout || ''}${e.stderr || ''}`;
     const missing = new Set();
     for (const m of javacOut.matchAll(/(?:package|symbol:\s*class|cannot find symbol[\s\S]{0,80}?class)\s+(\w+)/g)) missing.add(m[1]);
+    // 🔴 靜態方法呼叫（WidgetNearest.radiusMeters(...)）在 javac 眼裡是「symbol: variable」不是
+    //    「symbol: class」——上面那條抓不到，自動補檔的迴圈當場停住，整個 A 段報「編譯不過」。
+    //    2026-09-11 加共用層時撞到。補進來是安全的：下面本來就要求 JAVA_DIR 有同名 .java 才收，
+    //    真正的區域變數筆誤不會有對應檔案。
+    for (const m of javacOut.matchAll(/symbol:\s*variable\s+(\w+)/g)) missing.add(m[1]);
     for (const m of javacOut.matchAll(/package (\w+) does not exist/g)) missing.add(m[1]);
     let added = false;
     for (const name of missing) {

@@ -1,0 +1,378 @@
+{
+  "id": "presidential-office",
+  "name": "總統府",
+  "county": "臺北市",
+  "category": "historic",
+  "kind": "presidential-office",
+  "features": [
+    "紅白立面、約 60m 中央塔、雙中庭、入口與側翼"
+  ],
+  "sources": [
+    {
+      "url": "https://www.president.gov.tw/Page/89",
+      "use": "總統府建築沿革"
+    },
+    {
+      "url": "https://www.president.gov.tw/Page/91",
+      "use": "現況建築細節"
+    },
+    {
+      "url": "https://www.openstreetmap.org/relation/206817",
+      "use": "OSM 建物輪廓"
+    },
+    {
+      "url": "https://www.openstreetmap.org/relation/206817",
+      "use": "總統府：輪廓與位置",
+      "license": "ODbL-1.0"
+    }
+  ],
+  "priority": 1,
+  "placementStatus": "calibrated-plan",
+  "anchor": [
+    121.51198529350404,
+    25.039991214580798
+  ],
+  "verifiedDimensionsM": {
+    "centralTowerHeightApprox": 60,
+    "source": "https://www.president.gov.tw/Page/91"
+  },
+  "estimatedDimensionsM": {
+    "width": 99.92403030395508,
+    "depth": 139.4863739013672,
+    "height": 60.0,
+    "basis": "平面依各部件來源校正；高度仍為外觀建模估值"
+  },
+  "referenceReviewDate": "2026-09-08",
+  "geometryStatus": "plan-calibrated-exterior-estimated",
+  "scope": "按來源輪廓校正平面位置與尺度；高度、立面細節及正面方向仍為外觀估計",
+  "railRelation": "市區周邊：捷運臺大醫院、西門一帶，路線在地下",
+  "reviewedPhotos": [
+    {
+      "url": "https://www.president.gov.tw/images/aboutus/about07.jpg",
+      "page": "https://www.president.gov.tw/Page/91",
+      "viewedOn": "2026-09-08",
+      "scope": "局部外觀參考，非完整多面覆核"
+    },
+    {
+      "url": "https://www.president.gov.tw/images/aboutus/about06.jpg",
+      "page": "https://www.president.gov.tw/Page/91",
+      "viewedOn": "2026-09-08",
+      "scope": "局部外觀參考，非完整多面覆核"
+    }
+  ],
+  "referenceStatus": "partial-exterior-review",
+  "pendingChecks": [
+    "高度測量與完整多面立面校正",
+    "正面方向複核"
+  ],
+  "footprintReference": {
+    "osmType": "relation",
+    "osmId": 206817,
+    "name": "中華民國總統府",
+    "url": "https://www.openstreetmap.org/relation/206817",
+    "timestamp": "2026-09-08T15:19:44Z",
+    "longSideM": 132.5,
+    "shortSideM": 92.94,
+    "source": "OpenStreetMap contributors",
+    "license": "ODbL-1.0",
+    "scope": "早期輪廓參考；本輪逐棟校正依 calibration.parts 與 placements-source.json",
+    "referenceFile": "source-layouts/presidential-office.json"
+  },
+  "planCalibration": "OSM 輪廓包圍框校正平面尺度；內部翼樓與局部輪廓仍為估計",
+  "orientationMode": "ENU-baked",
+  "absoluteGroundAltitudeM": null,
+  "railElevationM": null,
+  "omittedUnlocatedComponents": [],
+  "calibration": {
+    "version": 2,
+    "basis": "各部件獨立平面擬合；非工程測繪",
+    "parts": [
+      {
+        "id": "總統府",
+        "name": "總統府",
+        "placementStatus": "footprint-axis-calibrated",
+        "anchor": [
+          121.51198529350404,
+          25.039991214580798
+        ],
+        "rotationDeg": 84.0,
+        "scaleXY": [
+          0.9999990270428637,
+          1.0000464805875697
+        ],
+        "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+        "facadeBearingDeg": null
+      }
+    ],
+    "verticalDatum": "terrain-relative",
+    "sourceFile": "placements-source.json"
+  },
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "axes": {
+    "up": "+Z",
+    "east": "+X",
+    "north": "+Y",
+    "front": null,
+    "units": "meters",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "gltfAxes": {
+    "up": "+Y",
+    "toZUp": "rotateX(+PI/2)"
+  },
+  "facadeBearingDeg": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -52.9355354309082,
+      -69.37287902832031,
+      0.0
+    ],
+    "max": [
+      46.988494873046875,
+      70.11351013183594,
+      60.0
+    ]
+  },
+  "sizeM": [
+    99.92403030395508,
+    139.48638916015625,
+    60.0
+  ],
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "glb": "near.glb",
+      "sha256": "8db83a69831573074975066dc7b9178c9e557534b6983a0609cc763a4f6a81c5",
+      "glbSha256": "be05a78087348cdb122e547b952ce64f143331f281d0baf36fb5c8c02653d39a",
+      "strideBytes": 24,
+      "vertexCount": 216795,
+      "triangleCount": 72265,
+      "drawGroups": [
+        {
+          "component": "總統府",
+          "name": "red",
+          "start": 0,
+          "count": 516,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "總統府",
+          "name": "stone",
+          "start": 516,
+          "count": 180,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "總統府",
+          "name": "cream",
+          "start": 696,
+          "count": 148476,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "總統府",
+          "name": "dark",
+          "start": 149172,
+          "count": 30993,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "總統府",
+          "name": "glass",
+          "start": 180165,
+          "count": 36390,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "總統府",
+          "name": "metal",
+          "start": 216555,
+          "count": 60,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "總統府",
+          "name": "white",
+          "start": 216615,
+          "count": 180,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 5203080
+    },
+    "far": {
+      "file": "far.mesh.bin",
+      "glb": "far.glb",
+      "sha256": "fc3c45a9d6a7d2d1ca1545d5dd69b142832e904f093e02819f91f6aba3227444",
+      "glbSha256": "3e76326f4913d63bf8bb2f9ba421bb80045c2afdc9496b375a066145a5a0532d",
+      "strideBytes": 24,
+      "vertexCount": 124539,
+      "triangleCount": 41513,
+      "drawGroups": [
+        {
+          "component": "總統府",
+          "name": "red",
+          "start": 0,
+          "count": 516,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "總統府",
+          "name": "stone",
+          "start": 516,
+          "count": 180,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "總統府",
+          "name": "cream",
+          "start": 696,
+          "count": 64524,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "總統府",
+          "name": "dark",
+          "start": 65220,
+          "count": 22689,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "總統府",
+          "name": "glass",
+          "start": 87909,
+          "count": 36390,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "總統府",
+          "name": "metal",
+          "start": 124299,
+          "count": 60,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "總統府",
+          "name": "white",
+          "start": 124359,
+          "count": 180,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 2988936
+    }
+  },
+  "nativeObjectCount": 6598,
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "modelUse": "map-exterior",
+  "components": [
+    {
+      "id": "總統府",
+      "name": "總統府",
+      "placementStatus": "footprint-axis-calibrated",
+      "anchor": [
+        121.51198529350404,
+        25.039991214580798
+      ],
+      "rotationDeg": 84.0,
+      "scaleXY": [
+        0.9999990270428637,
+        1.0000464805875697
+      ],
+      "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+      "facadeBearingDeg": null
+    }
+  ],
+  "mapEligible": true
+}

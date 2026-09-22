@@ -1,0 +1,30 @@
+{
+  "id": "taiwan-terrain-20260906-v1",
+  "status": "ready",
+  "createdAt": "2026-09-06T08:16:03.049658+00:00",
+  "source": "https://download.mapterhorn.com/planet.pmtiles",
+  "method": "pmtiles extract --region=region.geojson --maxzoom=12 --download-threads=2",
+  "toolVersion": "go-pmtiles 1.31.2",
+  "bytes": 115975855,
+  "sha256": "396d73d26c38763fd8162e2e794adaa499d4987d6d337b356a6829864816d8cf",
+  "header": {
+    "tile_compression": "none",
+    "tile_type": "webp",
+    "minzoom": 0,
+    "maxzoom": 12,
+    "bounds": [
+      118.1,
+      21.8,
+      122.18,
+      26.45
+    ],
+    "center": [
+      120.14,
+      24.125,
+      6
+    ]
+  },
+  "regionFile": "region.geojson",
+  "attribution": "https://mapterhorn.com/attribution/",
+  "note": "本島與主要離島範圍擷取，圖磚邊緣可能含鄰近地區；不是行政疆界或全台精密建模完成證明。低解析度父圖磚保留原資料，不補平面。"
+}

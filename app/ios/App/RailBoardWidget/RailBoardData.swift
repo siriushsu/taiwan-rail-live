@@ -260,6 +260,40 @@ struct LiveTrain: Decodable {
     let status: Int
 }
 
+// 月台必須與本站、車次及這一天的表訂到／離站事件一起核對。
+struct RailPlatformSnapshot: Decodable {
+    struct Record: Decodable {
+        let stationName: String
+        let trainNo: String
+        let arrivalAt: Double?
+        let departureAt: Double?
+        let platform: String?
+        let state: String
+        let updatedAt: Double
+        let expiresAt: Double
+    }
+    let schema: Int
+    let expiresAt: Double
+    let records: [Record]
+
+    func platform(train: String, station: String, scheduled: Date, arrival: Bool, at: Date) -> String? {
+        let now = at.timeIntervalSince1970 * 1000
+        guard schema == 1, now < expiresAt else { return nil }
+        let name = station.replacingOccurrences(of: "臺", with: "台")
+        let matches = records.filter { row in
+            guard let event = arrival ? row.arrivalAt : row.departureAt else { return false }
+            return row.trainNo == train && row.stationName.replacingOccurrences(of: "臺", with: "台") == name
+                && abs(event - scheduled.timeIntervalSince1970 * 1000) < 1000
+        }
+        guard let newest = matches.map(\.updatedAt).max() else { return nil }
+        let current = matches.filter { $0.updatedAt == newest }
+        guard let first = current.first, now < first.expiresAt, first.state == "known",
+              let value = first.platform, !value.isEmpty,
+              current.allSatisfy({ $0.state == first.state && $0.platform == value }) else { return nil }
+        return value
+    }
+}
+
 enum RailBoardDataError: Error {
     case appGroupUnavailable
     case unreadableFile(String)
@@ -607,7 +641,12 @@ struct PlaceStationOption {
 }
 
 private enum RailBoardPlaces {
-    private static let maximumDistanceMeters = 5_000.0
+    /// 🔴 2026-09-11 常數不分岔:5,000 搬進 MetroWidgetData.json 的 `serviceRadii.rail`
+    ///    (唯一來源＝build_metro_widget_data.mjs 的 SERVICE_RADII),Android 的
+    ///    RailWidgetData 讀的是同一把。這裡【不准】改回字面值。
+    private static var maximumDistanceMeters: Double {
+        WidgetServiceRadius.meters(WidgetServiceRadius.rail)
+    }
     private static let maximumOptions = 20
     /// 共站視為平手的門檻。實測全網 256 站有 12 對站距 < 365m，其中三對是 0.0m
     /// （臺北↔臺北-環島、左營↔左營(舊城)、新城↔新城 (太魯閣)——同一個實體站的兩筆記錄），
@@ -1695,6 +1734,17 @@ struct RailBoardEngine {
 }
 
 struct RailBoardLiveClient {
+    func fetchPlatforms() async -> RailPlatformSnapshot? {
+        let url = URL(string: "https://railisland.tw/api/tra-platforms")!
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 10
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard (response as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+            return try JSONDecoder().decode(RailPlatformSnapshot.self, from: data)
+        } catch { return nil }
+    }
+
     func fetchDelays() async -> [String: Int] {
         var request = URLRequest(url: RailBoardConstants.liveURL)
         request.httpMethod = "GET"

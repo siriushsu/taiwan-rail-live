@@ -10,7 +10,7 @@
 //
 // 🔴 三件刻意不做的事:
 //  1. **不碰 HTML 註解**。`<!-- APP_REPLACE_START ... -->` / `APP_STRIP_*` 是 App build
-//     (app/scripts/prepare-web.mjs)的錨點,拿掉 App 就換不了底圖署名與 Leaflet CDN 區塊。
+//     (app/scripts/prepare-web.mjs)的錨點,拿掉 App 就換不了底圖署名與狀態頁連結。
 //     HTML 註解只佔 10KB,不值得為它冒這個險。
 //  2. **不 minify**。不改識別字、不重排、不壓空白——只刪註解字元,diff 逐段可讀。
 //     minify 對這種 1.4MB 單檔應用的行為風險遠大於它多省的那點頻寬。
@@ -184,7 +184,8 @@ for (const r of [...regions].sort((a, b) => b.start - a.start)) {
 // 後置斷言:App build 錨點與法律署名一個都不能少(前者砍了 App 換不了區塊,後者是授權生效要件)
 const MUST_KEEP = [
   '<!-- APP_REPLACE_START basemap-credit', '<!-- APP_REPLACE_END basemap-credit',
-  '<!-- APP_REPLACE_START leaflet-cdn', '<!-- APP_REPLACE_END leaflet-cdn',
+  // M4-B(2026-09-05)：leaflet-cdn 區塊已隨 Leaflet 一起從 index.html 拔掉，這裡跟著移除；
+  // 留著會讓出貨鏈在「必要字串遺失」這一關直接 exit 1。
   '<!-- APP_REPLACE_START status-link', '<!-- APP_REPLACE_END status-link',
   '臺灣輪廓：內政部', 'OpenStreetMap',
 ];

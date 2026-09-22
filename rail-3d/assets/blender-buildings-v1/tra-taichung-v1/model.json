@@ -1,0 +1,416 @@
+{
+  "id": "tra-taichung-v1",
+  "name": "臺鐵臺中",
+  "version": 1,
+  "status": "simplified-exterior",
+  "anchor": [
+    120.68659465,
+    24.13710495
+  ],
+  "stationPoint": [
+    120.68691,
+    24.13728
+  ],
+  "displayHeightM": 37,
+  "realBuildingHeightM": null,
+  "railElevationM": null,
+  "heightQuality": "illustrative",
+  "footprintQuality": "OSM polygon",
+  "modelScope": [
+    "臺中車站",
+    "臺中驛"
+  ],
+  "excluded": [
+    "真實軌道高程",
+    "列車與月台對齊",
+    "地下站體",
+    "精確室內配置",
+    "未有輪廓的出入口及連接設施"
+  ],
+  "sources": [
+    {
+      "url": "https://www.rb.gov.tw/zh-TW/main/main_188/news/main_347/artsinfo_2337/",
+      "use": "站區配置或造型參考；不作比例測量"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/442234244",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/223056023",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    }
+  ],
+  "notes": [
+    "輪廓使用免費 OSM；曲面、窗帶、柱列、展示底高及高度由軌島簡化設計，不是工程模型。",
+    "各系統保留獨立輪廓與座標；轉乘示意圖僅核對關係，不當成比例尺。",
+    "照片與官方資料只供外觀參考，未作模型貼圖。"
+  ],
+  "sourceSnapshot": {
+    "path": "source-layouts/tra-taichung-v1/metadata.json",
+    "sha256": "4622d3bb09d7b50e24f5df35dec9640662ce2f5789c76e582e2cd48e54312496"
+  },
+  "category": "station",
+  "kind": "station",
+  "placementStatus": "existing-ENU-component-layout",
+  "features": [
+    "保留既有 OSM 站區輪廓與各棟相對位置",
+    "依元件分開製作玻璃、屋頂、柱列與雨棚"
+  ],
+  "application": "5.2.1 LTS",
+  "axes": {
+    "up": "+Z",
+    "east": "+X",
+    "north": "+Y",
+    "front": null,
+    "units": "meters",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "gltfAxes": {
+    "up": "+Y",
+    "toZUp": "rotateX(+PI/2)"
+  },
+  "orientationMode": "ENU-baked",
+  "facadeBearingDeg": null,
+  "absoluteGroundAltitudeM": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -164.82156372070312,
+      -84.35813903808594,
+      0.0
+    ],
+    "max": [
+      164.8277587890625,
+      84.35814666748047,
+      37.150001525878906
+    ]
+  },
+  "sizeM": [
+    329.6493225097656,
+    168.7162857055664,
+    37.150001525878906
+  ],
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "glb": "near.glb",
+      "sha256": "6e5b092a86510aff3803260d04bd44870bcf4ba457e79305663fd5ccd0ef6e6e",
+      "glbSha256": "9dec2e9142f265bc9f1afdb434ae451f3c95216f3643c4bc2786ea3456b794be",
+      "strideBytes": 24,
+      "vertexCount": 36558,
+      "triangleCount": 12186,
+      "drawGroups": [
+        {
+          "component": "442234244",
+          "name": "roof",
+          "start": 0,
+          "count": 3447,
+          "color": [
+            0.3915724754333496,
+            0.4677838087081909,
+            0.46207699179649353
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "442234244",
+          "name": "stone",
+          "start": 3447,
+          "count": 5160,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "442234244",
+          "name": "metal",
+          "start": 8607,
+          "count": 16536,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "442234244",
+          "name": "glass",
+          "start": 25143,
+          "count": 270,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "223056023",
+          "name": "tile",
+          "start": 25413,
+          "count": 159,
+          "color": [
+            0.4793201684951782,
+            0.09758734703063965,
+            0.05448027700185776
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "223056023",
+          "name": "stone",
+          "start": 25572,
+          "count": 780,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "223056023",
+          "name": "metal",
+          "start": 26352,
+          "count": 1080,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "223056023",
+          "name": "cream",
+          "start": 27432,
+          "count": 102,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "223056023",
+          "name": "dark",
+          "start": 27534,
+          "count": 8748,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "223056023",
+          "name": "white",
+          "start": 36282,
+          "count": 276,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 877392
+    },
+    "far": {
+      "file": "far.mesh.bin",
+      "glb": "far.glb",
+      "sha256": "8c845a73269ea957b6b87017132aa93ddfda23c22f1d1e81762f829391a8d6fa",
+      "glbSha256": "4df3f5e1b9be5123a990dd9545fe2b76357a66f63bfcbf811c6b8dcde890f661",
+      "strideBytes": 24,
+      "vertexCount": 18942,
+      "triangleCount": 6314,
+      "drawGroups": [
+        {
+          "component": "442234244",
+          "name": "roof",
+          "start": 0,
+          "count": 3447,
+          "color": [
+            0.3915724754333496,
+            0.4677838087081909,
+            0.46207699179649353
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "442234244",
+          "name": "stone",
+          "start": 3447,
+          "count": 5160,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "442234244",
+          "name": "glass",
+          "start": 8607,
+          "count": 270,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "223056023",
+          "name": "tile",
+          "start": 8877,
+          "count": 159,
+          "color": [
+            0.4793201684951782,
+            0.09758734703063965,
+            0.05448027700185776
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "223056023",
+          "name": "stone",
+          "start": 9036,
+          "count": 780,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "223056023",
+          "name": "cream",
+          "start": 9816,
+          "count": 102,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "223056023",
+          "name": "dark",
+          "start": 9918,
+          "count": 8748,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "223056023",
+          "name": "white",
+          "start": 18666,
+          "count": 276,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 454608
+    }
+  },
+  "nativeObjectCount": 483,
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "modelUse": "map-exterior",
+  "components": [
+    {
+      "id": "442234244",
+      "name": "臺中車站",
+      "type": "vault",
+      "anchor": [
+        120.68671829,
+        24.13732601
+      ],
+      "rotationDeg": 20.9529,
+      "widthM": 318.276,
+      "depthM": 118.043,
+      "displayHeightM": 37,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": true,
+      "clock": false,
+      "offsetENU": [
+        12.560246632756309,
+        24.60839919973992,
+        0
+      ],
+      "footprintAreaM2": 16830.553857755745
+    },
+    {
+      "id": "223056023",
+      "name": "臺中驛",
+      "type": "historic",
+      "anchor": [
+        120.68526641,
+        24.13691534
+      ],
+      "rotationDeg": 23.4326,
+      "widthM": 57.949,
+      "depthM": 14.772,
+      "displayHeightM": 13,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": true,
+      "clock": true,
+      "offsetENU": [
+        -134.93223865914428,
+        -21.10738519995749,
+        0
+      ],
+      "footprintAreaM2": 855.3315935761501
+    }
+  ]
+}

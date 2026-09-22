@@ -81,17 +81,16 @@ export function twDelayFor(live, trainNo, nowSec) {
   //    2026-08-22 23:15/23:17 兩次取樣實測:3782 兩筆都是 sta=4190 status=2,誤點 5 與 6;
   //    23:17 那份連 288 也是(0 與 1)。上游 TrainLiveBoards 就是這樣給的,兩次取樣都在,
   //    不是瞬間抖動。
-  //    ⚠️ 取【最後一筆】不是隨便選的:前端看板走 `m.set(String(t.no), dl)`(index.html:10674),
-  //    Map.set 後蓋前 ⇒ 看板顯示的是最後一筆。這裡若取第一筆,同一個畫面上看板寫「誤點 6 分」、
-  //    卡片寫「誤點 5 分」——兩個都號稱是官方值,而使用者會看到我們自相矛盾。
-  //    要改成別的挑法(例如取最大)必須【兩邊一起改】,不可以只改這裡。
+  //    前端地圖與這張卡片一律取【誤點較大】的那筆：上游陣列排序改變時不會因為
+  //    「最後一筆」剛好較小，就把列車與卡片都向前推。兩處規則必須保持一致。
   let found = null;
   for (const t of Array.isArray(live && live.trains) ? live.trains : []) {
     if (String((t && t.no) == null ? '' : t.no) !== key) continue;
     const d = Number(t && t.delay);
     // 官方值照抄字面(使用者長期裁示):不夾正、不取絕對值。上游若真的給了負數,
     // 那是官方在說「早到」,由視圖決定怎麼講,不在這裡偷偷改掉。
-    found = { delayMin: Number.isFinite(d) ? Math.round(d) : 0, known: true, dataAt, fresh: true };
+    const candidate = { delayMin: Number.isFinite(d) ? Math.round(d) : 0, known: true, dataAt, fresh: true };
+    if (!found || candidate.delayMin > found.delayMin) found = candidate;
   }
   return found || miss;
 }

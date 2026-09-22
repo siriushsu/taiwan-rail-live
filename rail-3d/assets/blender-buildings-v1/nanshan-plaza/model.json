@@ -1,0 +1,227 @@
+{
+  "id": "nanshan-plaza",
+  "name": "臺北南山廣場",
+  "kind": "nanshan",
+  "category": "landmark",
+  "anchor": null,
+  "displayHeightM": 272,
+  "realBuildingHeightM": 272,
+  "footprintWidthM": 100,
+  "footprintDepthM": 90,
+  "rotationDeg": 0,
+  "placementStatus": "pending-georeference",
+  "sources": [
+    {
+      "url": "https://nsp.taipeinanshanplaza.com.tw/about/20",
+      "use": "外觀與建築形式參考；照片不重製為貼圖"
+    }
+  ],
+  "features": [
+    "合掌雙翼與高低切面",
+    "玻璃帷幕與水平遮陽線",
+    "272 公尺依業主資料；分件比例為外觀估算"
+  ],
+  "notes": [
+    "尺寸與分件比例為地圖展示估算，非施工或測繪模型。",
+    "新增模型未提供核對過的地理錨點，須先定位後才能接入真實地圖。"
+  ],
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "axes": {
+    "up": "+Z",
+    "right": "+X",
+    "front": "-Y",
+    "units": "meters",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "gltfAxes": {
+    "up": "+Y",
+    "toZUp": "rotateX(+PI/2)"
+  },
+  "orientationMode": "local-facade",
+  "facadeBearingDeg": null,
+  "absoluteGroundAltitudeM": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -50.290000915527344,
+      -45.290000915527344,
+      0.0
+    ],
+    "max": [
+      50.290000915527344,
+      45.290000915527344,
+      272.0107421875
+    ]
+  },
+  "sizeM": [
+    100.58000183105469,
+    90.58000183105469,
+    272.0107421875
+  ],
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "glb": "near.glb",
+      "sha256": "c5b37677ed0d4f63b1084f9ea739852808ef39755665d607675b321dd5c76d4b",
+      "glbSha256": "692f4dc08ef30e14786ff1bc32213bddddf0dc9b1db6b6fff94ef89db900cd68",
+      "strideBytes": 24,
+      "vertexCount": 29172,
+      "triangleCount": 9724,
+      "drawGroups": [
+        {
+          "component": "main",
+          "name": "glass",
+          "start": 0,
+          "count": 36,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "main",
+          "name": "metal",
+          "start": 36,
+          "count": 28968,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "blueglass",
+          "start": 29004,
+          "count": 96,
+          "color": [
+            0.09084171056747437,
+            0.18116424977779388,
+            0.23074005544185638
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "main",
+          "name": "dark",
+          "start": 29100,
+          "count": 36,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "grass",
+          "start": 29136,
+          "count": 36,
+          "color": [
+            0.16513219475746155,
+            0.2581828534603119,
+            0.11697066575288773
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 700128
+    },
+    "far": {
+      "file": "far.mesh.bin",
+      "glb": "far.glb",
+      "sha256": "7f856ae09b813467743de08e9defa42516d8fb49d1cd057af23e170105c0c68c",
+      "glbSha256": "d49de9cc860f96968776aa85fb973dfa9301634b672264529b2bb57283f45fbc",
+      "strideBytes": 24,
+      "vertexCount": 27948,
+      "triangleCount": 9316,
+      "drawGroups": [
+        {
+          "component": "main",
+          "name": "glass",
+          "start": 0,
+          "count": 36,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "main",
+          "name": "metal",
+          "start": 36,
+          "count": 27744,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "blueglass",
+          "start": 27780,
+          "count": 96,
+          "color": [
+            0.09084171056747437,
+            0.18116424977779388,
+            0.23074005544185638
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "main",
+          "name": "dark",
+          "start": 27876,
+          "count": 36,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "grass",
+          "start": 27912,
+          "count": 36,
+          "color": [
+            0.16513219475746155,
+            0.2581828534603119,
+            0.11697066575288773
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 670752
+    }
+  },
+  "nativeObjectCount": 503,
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "modelUse": "map-exterior",
+  "components": []
+}

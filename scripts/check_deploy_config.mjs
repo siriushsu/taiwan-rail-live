@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+import {verifyRuntimeAssets} from './verify_runtime_assets.mjs';
 // 部署設定的「整包覆蓋」防線——npm run check-deploy-config（已掛進 ship_web 的 preflight）
 //
 // 為什麼要有這支：`wrangler.jsonc` 的 `triggers.crons` 與 `.assetsignore` 都是**宣告式整包覆蓋**
@@ -93,6 +93,8 @@ if (!fs.existsSync(aiPath)) {
   if (!missing.length) ok(`.assetsignore 的 ${Object.keys(REQUIRED_ASSETSIGNORE).length} 條高後果排除都在`);
   for (const [k, why] of missing) fail(`🔴 .assetsignore 少了 "${k}" —— ${why}`);
 }
+
+try { verifyRuntimeAssets(); } catch (e) { fail(e.message); }
 
 // ── 收尾 ──────────────────────────────────────────────────────────────────
 if (fails.length) {

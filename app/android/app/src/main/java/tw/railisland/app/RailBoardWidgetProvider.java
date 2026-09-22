@@ -8,6 +8,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.Build;
 import android.os.PowerManager;
 import android.util.SizeF;
@@ -91,24 +92,44 @@ public class RailBoardWidgetProvider extends AppWidgetProvider {
             return;
         }
         try {
+            boolean autoStale = false;
             if (RailWidgetData.AUTO.equals(origin)) {
-                String nearest = RailWidgetData.nearest(context, RailWidgetData.catalog(context), sys);
-                if (nearest == null) {
+                WidgetNearestMath.Outcome auto =
+                    RailWidgetData.nearest(context, RailWidgetData.catalog(context), sys);
+                // 定位到了但最近的車站在服務範圍外。硬解析下去會安靜地畫出幾百公里外那一站的
+                // 發車時刻——畫面完全正常而資訊是假的，所以直說範圍外並給出路。
+                if (auto.outOfRange) {
+                    manager.updateAppWidget(id, tap(context, id, RailWidgetRender.message(context,
+                        "不在服務範圍",
+                        // 🔴 整句一個 key＋{插值}，不可用字串串接：串接出來的句子在字典裡查不到，
+                        //    英日語系會變成「英文 + 中文 + 英文」的拼盤（而且驗收腳本抓不到）。
+                        RailNativeL10n.text(context, "最近的車站是{station}，約 {km} 公里。可改選一個固定車站。",
+                            "station", RailNativeL10n.name(context, auto.farKey),
+                            "km", WidgetNearestMath.outOfRangeKm(auto.farMeters)))));
+                    schedule(context, id, System.currentTimeMillis() + 5 * 60_000L);
+                    return;
+                }
+                if (auto.key == null) {
                     manager.updateAppWidget(id, tap(context, id,
                         RailWidgetRender.message(context, "需要位置", "開啟軌島定位後即可自動選最近車站")));
                     schedule(context, id, System.currentTimeMillis() + 5 * 60_000L);
                     return;
                 }
-                origin = nearest;
+                origin = auto.key;
                 destination = "";
+                autoStale = auto.stale;
             }
             RailWidgetData.Snapshot snapshot = RailWidgetData.fetch(context, sys, origin, destination, filters);
+            snapshot.autoStale = autoStale;
             RailWidgetData.cache(context, PREFS, id, snapshot);
             manager.updateAppWidget(id, sizes(context, id, snapshot, readable));
             long next = System.currentTimeMillis() + 5 * 60_000L;
             if (!snapshot.rows.isEmpty()) {
                 long boundary = snapshot.rows.get(0).expectedAt();
                 if (boundary > System.currentTimeMillis()) next = Math.min(next, boundary);
+            }
+            for (RailWidgetData.Row row : snapshot.rows) {
+                if (row.platformExpiresAt > System.currentTimeMillis()) next = Math.min(next, row.platformExpiresAt);
             }
             schedule(context, id, Math.max(System.currentTimeMillis() + 30_000L, next));
         } catch (Exception error) {
@@ -125,7 +146,7 @@ public class RailBoardWidgetProvider extends AppWidgetProvider {
     }
 
     private static RemoteViews sizes(Context context, int id, RailWidgetData.Snapshot snapshot, boolean readable) {
-        PendingIntent tap = openIntent(context, id);
+        PendingIntent tap = openIntent(context, id, snapshot.sys, snapshot.origin);
         if (Build.VERSION.SDK_INT < 31) {
             // 沒有 setSizeSpecificViewLayouts 的機器:照這一格屬於哪個尺寸的 provider 挑一張。
             String family = WidgetFamily.of(context, id);
@@ -169,9 +190,19 @@ public class RailBoardWidgetProvider extends AppWidgetProvider {
     }
 
     private static PendingIntent openIntent(Context context, int id) {
+        return openIntent(context, id, null, null);
+    }
+
+    private static PendingIntent openIntent(Context context, int id, String sys, String station) {
         Intent intent = new Intent(context, MainActivity.class)
             .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP)
             .putExtra("railWidget", true);
+        // 臺北這類同名轉乘站不能只丟站名；台鐵／高鐵系統也要一起交給網頁端。
+        if (("tra".equals(sys) || "thsr".equals(sys)) && WidgetNearestMath.linkable(sys, station)) {
+            Uri uri = new Uri.Builder().scheme("railisland").authority("station")
+                .appendQueryParameter("sys", sys).appendQueryParameter("station", station).build();
+            intent.setAction(Intent.ACTION_VIEW).setData(uri);
+        }
         return PendingIntent.getActivity(context, id + 32000, intent,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }

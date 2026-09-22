@@ -1,0 +1,59 @@
+/* 沿用主站兩套材質與設定列，只增加相同風格的選項。 */
+.ri-3d-settings{border-top:1px solid var(--line);padding:4px 0 10px}
+.ri-3d-row{gap:8px;flex-wrap:wrap;cursor:default}
+.ri-3d-row .nm{flex:1;min-width:80px}
+.ri-3d-row .seg{display:flex;flex-wrap:wrap;gap:2px}
+.ri-3d-row button{min-height:44px;padding:5px 10px;white-space:normal}
+.ri-3d-help{margin:8px 14px 0;color:var(--muted);font-size:12px;line-height:1.65}
+.ri-formation-caption{padding:8px 12px 6px;border-top:1px solid var(--line);color:var(--muted);font-size:11px;line-height:1.5}
+.ri-formation-caption[hidden]{display:none}
+body.ambient .ri-formation-caption{display:none}
+/* 收合卡只保留操作與行車資訊，編組說明放在展開資訊中。 */
+.follow-panel.fp-min .ri-formation-caption{display:none}
+.follow-panel.fp-min{max-width:calc(100% - 24px);min-height:44px;box-sizing:border-box}
+.follow-panel.fp-min .fp-head{flex-wrap:nowrap;gap:8px}
+.follow-panel.fp-min .fp-end{min-width:44px;min-height:44px;margin-left:0}
+
+.ri-basemap-row{flex-wrap:wrap;gap:8px}
+#msBasemapSeg{display:flex;flex-wrap:wrap;gap:2px}
+#msBasemapSeg button{min-width:44px;min-height:44px;padding:6px 10px}
+#msBasemapSeg button:disabled{opacity:.4;cursor:default}
+
+.ri-guide-row { flex-wrap:wrap; gap:8px; }
+.ri-guide-input { display:flex; flex:1; gap:8px; min-width:0; }
+.ri-guide-input select { flex:1; min-width:0; width:100%; min-height:44px; color:var(--navy); background:var(--paper); border:1px solid var(--line); border-radius:6px; font:inherit; }
+.ri-guide-input button { flex:none; min-width:52px; min-height:44px; color:var(--paper); background:var(--navy); border:0; border-radius:6px; font:inherit; }
+@media(max-width:480px){.ri-guide-row > label{width:100%;}}
+
+/* 觀看工具：桌面右側分類欄；觸控殼由「觀看」打開同一份設定。 */
+.view-dock{position:fixed;right:16px;top:var(--view-top,160px);z-index:1050;display:flex;align-items:flex-start;gap:10px;color:var(--navy);font-size:13px;pointer-events:none}
+.view-dock button{font:inherit;cursor:pointer;color:inherit}
+.view-rail{order:2;display:flex;flex-direction:column;padding:4px;gap:3px;background:var(--paper);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-1);pointer-events:auto;max-height:var(--view-space,500px);overflow:auto}
+.view-tab{border:0;border-radius:9px;background:transparent;min-height:48px;min-width:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px 8px;white-space:nowrap}
+.view-symbol{font-size:19px;line-height:20px}.view-tab.on{background:var(--navy);color:var(--paper)}
+.view-tab:hover:not(.on){background:var(--line)}
+.view-panel{order:1;width:320px;max-height:var(--view-space,500px);display:flex;flex-direction:column;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-1),0 10px 30px #14233320;background:var(--paper);overflow:hidden;pointer-events:auto}
+.view-panel[hidden],.view-page[hidden]{display:none!important}
+.view-head{display:flex;align-items:center;justify-content:space-between;padding:5px 8px 5px 16px;border-bottom:1px solid var(--line);flex:none}
+.view-close{width:44px;height:44px;border:0;background:none;font-size:24px!important;border-radius:8px}
+.view-tabs{display:none}.view-body{min-height:0;overflow:auto;overscroll-behavior:contain;padding-bottom:6px}
+.view-body .ms-row{font-size:13px;min-height:48px;padding:10px 14px}.view-body .ri-3d-row .seg{margin-left:auto}.view-body .ri-3d-help{margin-bottom:10px}
+#viewSettingsBtn{display:none;min-width:44px;min-height:44px;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:10px;background:var(--paper);color:var(--navy);font:inherit;font-size:12px;box-shadow:var(--shadow-1);cursor:pointer;padding:6px 9px}
+body.mobile-shell #viewSettingsBtn{display:flex}
+.view-mobile{left:10px;right:10px;display:block}.view-mobile .view-rail{display:none}.view-mobile .view-panel{width:100%}.view-mobile .view-tabs{display:flex;flex:none;gap:2px;overflow-x:auto;padding:5px 6px;border-bottom:1px solid var(--line)}
+.view-mobile .view-tab{flex:1;min-width:44px;min-height:44px;padding:7px 3px;gap:0}.view-mobile .view-tabs .view-symbol{display:none}.view-mobile .view-head{padding-top:0;padding-bottom:0}
+body.mobile-shell.view-open #followPanel,body.mobile-shell.view-open #freqCard{visibility:hidden}
+body:is(.ambient,.tools-open,.search-open,.rec-panel,.collect-map) .view-dock{display:none}
+body:is(.rec-panel,.collect-map) #viewSettingsBtn{display:none}
+@media(prefers-reduced-motion:reduce){.view-dock *{scroll-behavior:auto}}
+.view-body .seg button{min-height:44px;min-width:44px}
+.view-body .ms-row{font-size:calc(13px * var(--ui))}
+.view-body .toggle{flex:none}
+.view-rail .view-tab{min-height:44px;padding:3px 6px;gap:2px}
+.view-rail .view-symbol{font-size:16px;line-height:16px}
+/* 車站卡、列車卡等底部卡片開著時也要能進觀看設定（09-18 裁示），只有更多、搜尋打字才收起入口；放空不顯示（09-18 裁示），由 index.html 的 body.fs.ambient .map-actions 規則收起。 */
+body:is(.tools-open,.search-open) #viewSettingsBtn{visibility:hidden}
+/* 開著列車卡（.tc-sheet z 1105）按觀看，面板要浮在卡片上，不然分頁與下半的列被卡片壓住（09-18 實測 360×640）；仍低於更多 1110 與彈出小卡 1200。 */
+body.view-open .view-dock{z-index:1106}
+body.mobile-shell #viewSettingsBtn.view-side-entry{position:fixed;right:calc(var(--rail-w,340px) + 18px);top:calc(56px + var(--sa-t,0px))}
+.ri-3d-row .ri-3d-help{flex-basis:100%;margin:0}

@@ -15,7 +15,7 @@ python3 -m http.server 5178      # 或用 .claude/launch.json 的 "static" 設�
 # 開 http://localhost:5178
 ```
 
-需要網路（Leaflet CDN、OpenFreeMap／Esri 地圖圖磚）。資料檔已在 repo，離線也能載入列車。
+需要網路（OpenFreeMap／Esri 地圖圖磚）。資料檔已在 repo，離線也能載入列車。
 
 ## 涵蓋系統
 

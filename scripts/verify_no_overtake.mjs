@@ -46,7 +46,15 @@ const USE_DELAY = process.env.DELAY !== 'none';
 
 // 判準門檻。刻意都不是「幾個／幾 px」而是物理上有意義的分界，且各自都印出實測分布，
 // 讓「餘裕有多大」看得見，而不是假設它很大。
-const STILL_KMH = 1;        // 畫面速度低於此＝實質靜止（停站中的車位置完全不動，速度恆 0）
+// 「停在隧道裡」是使用者看得出來的那種停：站區外連續凍結。停站時間本身就是這個尺度
+// （表定停站 20~60 秒），拿它當上界＝「絕不能久到看起來像停靠」。單格凍結不算。
+const FROZE_MAX_SEC = 20;
+// 「停住」的尺度綁在同一個時間門檻上：FROZE_MAX_SEC 秒內走不到一節車廂（20m），畫面上就跟停著分不出來
+// ⇒ 20m／20s＝3.6km/h。原本取 1km/h（停站中的車速度恆 0，拿來判停站夠用），但被擋的車會跟著前車的
+// 爬行一起爬：前車在站心外以 1~3km/h 爬了兩分鐘，後車就在站外 400m 用同樣的速度「停」兩分鐘，
+// 1km/h 的尺一格都量不到（改動前實測：111 在造橋站外 388m 跟著 6011 爬了 120 秒，1km/h 量到的最壞
+// 卻是別處的 22 秒——突變時只比門檻多 2 秒，就是這個盲點）。
+const STILL_KMH = 20 / FROZE_MAX_SEC * 3.6;
 // 站區半徑。尺度取「一列車自己的長度」——城際 8~12 節 × 20m ≈ 160~240m：對調或停等發生在自己
 // 車身範圍內，畫面上就還在月台邊，不是「停在隧道裡」。刻意不取「量到的最大值」當門檻（那會隨
 // 資料漂移、且把缺陷寫進規格），實測分布會全部印出來，餘裕多大看得見。
@@ -90,7 +98,11 @@ page.on('pageerror', e => pageErrs.push(e.message));
 //   setInterval(pollLive, 60e3) 會用真資料把注入值整顆洗掉——同族假紅的根因與擋法
 //   照 verify_tra_motion(acbb7c3);pollLive 有 try/catch,abort 不會產生 pageerror。
 await page.route('**/*tra-live*', r => r.abort());
-await page.goto(`http://127.0.0.1:${PORT}/index.html`, { waitUntil: 'domcontentloaded' });
+// 量的是**示意線形**那條管線(trainSeg/posAlongShape)。實體股道(rail-3d/physical)是非同步載入的，
+// 以前能不能量到示意線形全看它有沒有在整日掃描開始前載完——兩條管線對「停在站上的前車擋不擋人」
+// 的答案不同(實體股道看得到兩車是不是同一條股道)，所以要釘死，不能靠競態。實體股道那條由
+// verify_physical_no_overlap.mjs 量(出貨閘門)。
+await page.goto(`http://127.0.0.1:${PORT}/index.html?tracks=legacy`, { waitUntil: 'domcontentloaded' });
 await page.waitForFunction('typeof state !== "undefined" && state.trains && state.trains.length > 300', null, { timeout: 180000 });
 
 const R = await page.evaluate(({ delays, STEP, STILL_KMH, STATION_M, PAIR_NEAR_KM, DEADBAND_M, PROJ_MAX_KM, useDelay }) => {
@@ -111,6 +123,7 @@ const R = await page.evaluate(({ delays, STEP, STILL_KMH, STATION_M, PAIR_NEAR_K
     nowSecOfDay = () => state.simSec;
   }
   state.playing = false;
+  const physAtStart = !!window.railIslandPhysical;
 
   // 控制組（改動前的 HEAD）沒有這三個東西。補上等價的替身，讓同一套判準能對兩個版本各跑一次
   // ——控制組必須紅在 T1、綠在 T2/T6/T7，否則就是判準沒有牙（心得 35：突變測試＋控制組）。
@@ -150,6 +163,8 @@ const R = await page.evaluate(({ delays, STEP, STILL_KMH, STATION_M, PAIR_NEAR_K
     steps: 0, liveOn: false, delayedApplied: 0,
     flipOpen: [], flipStill: 0,                  // 開放路段對調（違規） / 車站區被超越（合法待避）
     flipOpenCapped: 0, flipOpenReal: 0,          // 開放路段對調中：撞 hold 上限的（已宣告邊界）／不可歸因的（真違規）
+    flipOpenCappedAtDetect: 0, flipOpenCappedPreOnly: 0,   // 撞上限的再分兩種：偵測當下還撐在上限／只有越過前那一格撐在上限
+    flipOpenLagPre: [],
     overcap: 0, overcapMax: 0, overcapHeld: 0, overcapHeldDiag: [],                   // 畫面速度超過車種極速的取樣數
     aheadOfRaw: 0, aheadMaxM: 0,                 // 畫面位置跑到純表定位置前面的次數（不該有）
     projAmbiguous: 0,                            // 弦幾乎垂直於航向（彎道），投影正負號無意義而不判的次數
@@ -313,7 +328,7 @@ const R = await page.evaluate(({ delays, STEP, STILL_KMH, STATION_M, PAIR_NEAR_K
         // 等正負號翻過來才記的話，被超越的那台早就駛離月台加速到 40km/h、離站 200m 了——量到的
         // 「離站距離」會系統性偏大，把月台待避誤判成開放路段超車。所以取「跨越前後兩格」的較小值。
         const stP = nearStationM(P), stQ = nearStationM(Q);
-        pairSign.set(key, { sign, step: out.steps, stP, stQ });
+        pairSign.set(key, { sign, step: out.steps, stP, stQ, t, P, Q });
         // 穿越的那一瞬間兩車幾乎重合、會落進 DEADBAND 而被跳過幾步，所以不能要求「上一步」，
         // 給 30 秒的容許窗；超過就當成重新觀測而不是對調。
         if (!p || (out.steps - p.step) * STEP > 30 || p.sign === sign) continue;
@@ -329,19 +344,28 @@ const R = await page.evaluate(({ delays, STEP, STILL_KMH, STATION_M, PAIR_NEAR_K
           // 純表定位置」重合，那台就是撐在上限上。用的全是公開的位置函式＋已宣告的常數。
           const passer = passer0;
           const lagSec = impliedLagSec(passer, t);
+          // 偵測當下量到的已經是「越過之後」：上限一鬆，hold 以每秒最多 1−v/vcap 秒往回收（畫面速度上限
+          // 鉗制允許的最快速率），而穿越那幾格常落在 DEADBAND 裡被跳過，等正負號翻過來才量，早就收掉
+          // 好幾秒（實測 4162 越過 6652：偵測當下 115.9s，越過前最後一格 120s）。所以同一條門檻再問一次
+          // 「越過前最後一格」——正負號還沒翻的那一格，兩台的畫面位置就記在 pairSign 裡。門檻一秒都沒動。
+          const lagPre = impliedLagSec(passer === P ? p.P : p.Q, p.t);
           // 容差 2 格：hold 每格最多動一個取樣步，而「畫面落後幾秒」本身也是由前後兩格的位移方向
           // 反推的、自帶一格誤差。真違規的落後量會落在 0~30s，離 120s 十萬八千里，容差不會讓它漏網。
-          const atCap = lagSec != null && lagSec >= CAP_SEC - 2 * STEP;
+          const pinned = s => s != null && s >= CAP_SEC - 2 * STEP;
           out.flipOpenLag.push(lagSec == null ? null : +lagSec.toFixed(1));
+          out.flipOpenLagPre.push(lagPre == null ? null : +lagPre.toFixed(1));
           out.flipLeaderSpeeds.push(+passedKmh.toFixed(1));
           out.flipOpenM.push(Math.round(near));
-          if (atCap) out.flipOpenCapped++;
-          else {
+          if (pinned(lagSec) || pinned(lagPre)) {
+            out.flipOpenCapped++;
+            if (pinned(lagSec)) out.flipOpenCappedAtDetect++; else out.flipOpenCappedPreOnly++;
+          } else {
             out.flipOpenReal++;
             if (out.flipOpen.length < 40)
               out.flipOpen.push({ t, ln: A.ln.id, a: A.tr.train, at: A.tr.typeName, b: B.tr.train, bt: B.tr.typeName,
                 passed: passed.tr.train, passer: passer.tr.train, passedKmh: +passedKmh.toFixed(1),
-                  gapM: Math.round(gapKm * 1000), passedStationM: Math.round(near) });
+                  gapM: Math.round(gapKm * 1000), passedStationM: Math.round(near),
+                  lagSec: lagSec == null ? null : +lagSec.toFixed(1), lagPreSec: lagPre == null ? null : +lagPre.toFixed(1) });
           }
         }
       }
@@ -349,6 +373,7 @@ const R = await page.evaluate(({ delays, STEP, STILL_KMH, STATION_M, PAIR_NEAR_K
     for (const [tr, rec] of cur) prev.set(tr, rec);
     out.steps++;
   }
+  out.physical = physAtStart || !!window.railIslandPhysical;
   out.capped = state._block ? state._block.capped.size : (hasBlock ? -1 : 0);
   out.everHeld = heldSet.size;
   out.flipOpenN = out.flipOpen.length;
@@ -362,13 +387,18 @@ const q = (a, p) => a.length ? a.slice().sort((x, y) => x - y)[Math.min(a.length
 console.log(`\n掃了 ${R.steps} 個時刻（每 ${STEP}s，共一整天）  誤點注入=${USE_DELAY ? '是' : '否'}  liveActive(正午)=${R.liveOn}  該刻套到誤點的車 ${R.delayedApplied} 班`);
 console.log(`曾被擋過的車 ${R.everHeld} 班／被擋取樣 ${R.heldSamples}，畫面最大落後 ${Math.round(R.heldMaxM)} m，碰上限 ${R.capped} 班\n`);
 
+check('G1 量的是示意線形管線（實體股道沒有載入）', !R.physical,
+  R.physical ? '實體股道載入了——這支判準量的會變成另一條管線，結果不可比' : '整日掃描期間 window.railIslandPhysical 始終不存在');
+
 check(`T1 開放路段不得對調順序（站區＝離最近車站 ≤${STATION_M}m；撞 ${R.capSec}s 上限是已宣告邊界，須另計）`,
   R.flipOpenReal === 0,
   `全部對調 ${R.flipStill + R.flipOpenCapped + R.flipOpenReal} 次：站區內 ${R.flipStill}（離站中位 ${q(R.flipStationM, .5)}m／p90 ${q(R.flipStationM, .9)}m）、` +
-  `開放路段 ${R.flipOpenCapped + R.flipOpenReal}（離站 ${JSON.stringify(R.flipOpenM)}m、超車那台的畫面落後 ${JSON.stringify(R.flipOpenLag)}s／上限 ${R.capSec}s）；` +
+  `開放路段 ${R.flipOpenCapped + R.flipOpenReal}（離站 ${JSON.stringify(R.flipOpenM)}m、超車那台的畫面落後：偵測當下 ${JSON.stringify(R.flipOpenLag)}s、` +
+  `越過前最後一格 ${JSON.stringify(R.flipOpenLagPre)}s／上限 ${R.capSec}s）；` +
+  `已宣告邊界「撞 ${R.capSec}s 上限」${R.flipOpenCapped} 次＝偵測當下仍撐在上限 ${R.flipOpenCappedAtDetect} 次＋只有越過前那一格撐在上限 ${R.flipOpenCappedPreOnly} 次；` +
   (R.flipOpenReal === 0
-    ? `開放路段那些全部可歸因到 ${R.capSec}s 上限（${R.flipOpenCapped} 次），不可歸因 0 次`
-    : `其中 ${R.flipOpenReal} 次不可歸因＝真違規；例：${JSON.stringify(R.flipOpen.slice(0, 3))}`));
+    ? `不可歸因 0 次`
+    : `不可歸因 ${R.flipOpenReal} 次＝真違規；例：${JSON.stringify(R.flipOpen.slice(0, 3))}`));
 
 // T2 的判準是「事件集合與改動前一致」，不是「次數大於零」——次數門檻抓不到「掉到剩 1 次」
 // （突變測試 M7 實測：把月台待避整批擋掉後只剩 1 次，`>0` 照樣綠燈）。基準是改動前那一版
@@ -408,10 +438,7 @@ check('T6 開始被擋的那一刻，前面一定有同線同向的鄰居',
   `${R.heldOnsets} 次夾持成立（其中 ${R.heldLeaderVanished} 次前車在同一幀跑到線形盡頭而消失，改認上一幀 400m 內的鄰居），` + (R.heldNoLeader === 0 ? '零次「前面沒有車卻被擋」'
     : `其中 ${R.heldNoLeader} 次前面沒有車；例：${JSON.stringify(R.noLeadDiag.slice(0, 4))}`));
 
-// 「停在隧道裡」是使用者看得出來的那種停：站區外連續凍結。停站時間本身就是這個尺度
-// （表定停站 20~60 秒），拿它當上界＝「絕不能久到看起來像停靠」。單格凍結不算。
-const FROZE_MAX_SEC = 20;
-check(`T7 不停在隧道裡（站區 ${STATION_M}m 外連續停住不得超過 ${FROZE_MAX_SEC}s）`,
+check(`T7 不停在隧道裡（站區 ${STATION_M}m 外連續停住不得超過 ${FROZE_MAX_SEC}s；停住＝畫面速度 < ${STILL_KMH.toFixed(1)}km/h，${FROZE_MAX_SEC}s 走不到一節車廂）`,
   R.frozeMaxSec <= FROZE_MAX_SEC,
   `被擋且畫面停住 ${R.heldStopped} 取樣，離站 中位 ${q(R.heldStopM, .5)}m／p90 ${q(R.heldStopM, .9)}m／最大 ${Math.max(0, ...R.heldStopM)}m；` +
   `站區外 ${R.heldStoppedOpen} 取樣、最長連續 ${R.frozeMaxSec}s` +

@@ -16,4 +16,5 @@
     <string name="rail_widget_large_description">直近8本を表示するフルサイズの発車案内</string>
     <string name="mixed_widget_name">鉄道＋メトロ案内</string>
     <string name="mixed_widget_description">鉄道の発車とメトロの到着を1枚で表示します</string>
+    <string name="widget_loading">更新中…</string>
 </resources>

@@ -77,7 +77,13 @@ for (const file of FILES) {
   const data = JSON.parse(readFileSync(`data/${file}.json`, 'utf8'));
   for (const line of data.lines || []) allLines.push({ file, line });
 }
-ok(allLines.length === 39, `現行軌道 39 條全數載入（${allLines.length}）`);
+// 林鐵站內股道(之字形折返股)另外算:它們沒有站、不是營業線,由 build_afr_station_tracks.mjs 產生,
+// 條數會隨 OSM 來源變動——所以「39 條營業線都在」跟「股道沒有掉」分開量,才不會互相遮掩。
+const yardIds = new Set(JSON.parse(readFileSync('data/afr_station_tracks.json', 'utf8')).lines.map(l => l.id));
+const yards = allLines.filter(x => yardIds.has(x.line.id));
+ok(allLines.length - yards.length === 39, `現行軌道 39 條全數載入（${allLines.length - yards.length}）`);
+ok(yardIds.size > 0 && yards.length === yardIds.size,
+  `林鐵站內股道 ${yardIds.size} 條全數進了 data/afr.json（${yards.length}）`);
 
 for (const { file, line } of allLines) {
   const label = `${file}/${line.id}`;

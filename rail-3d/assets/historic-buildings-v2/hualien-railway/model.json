@@ -1,0 +1,783 @@
+{
+  "id": "hualien-railway",
+  "name": "花蓮港出張所及武道館",
+  "county": "花蓮縣",
+  "category": "historic",
+  "kind": "hualien-railway",
+  "features": [
+    "日式辦公廳舍、武道館屋頂與水塔"
+  ],
+  "sources": [
+    {
+      "url": "https://www.hccc.gov.tw/zh-tw/LocalCulturalHall/Detail/22",
+      "use": "花蓮縣文化局"
+    },
+    {
+      "url": "https://hlrcp.hccc.gov.tw/Story",
+      "use": "舊線位置說明"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/375886403",
+      "use": "出張所正翼：輪廓與位置",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/375886404",
+      "use": "出張所正翼：輪廓與位置",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/375886405",
+      "use": "出張所正翼：輪廓與位置",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/245737351",
+      "use": "出張所側翼：輪廓與位置",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/245737378",
+      "use": "武道館：輪廓與位置",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/node/3228265541",
+      "use": "蒸汽火車加水塔位置",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://hlrcp.hccc.gov.tw/Navigation",
+      "use": "出張所 L 形主體與轉角屋頂塔樓外觀"
+    }
+  ],
+  "priority": 2,
+  "placementStatus": "mixed-plan-and-site-anchor",
+  "anchor": [
+    121.61049004530628,
+    23.974645031698905
+  ],
+  "verifiedDimensionsM": {},
+  "estimatedDimensionsM": {
+    "width": 167.83773612976074,
+    "depth": 104.29867172241211,
+    "height": 11.07794189453125,
+    "basis": "平面依各部件來源校正；高度仍為外觀建模估值"
+  },
+  "referenceReviewDate": "2026-09-08",
+  "geometryStatus": "plan-calibrated-exterior-estimated",
+  "scope": "按來源輪廓校正平面位置與尺度；高度、立面細節及正面方向仍為外觀估計",
+  "railRelation": "**舊線地景**：花蓮鐵道文化園區，非現行花蓮站旁",
+  "reviewedPhotos": [
+    {
+      "url": "https://www.hccc.gov.tw/Utility/DisplayImage?id=2772",
+      "page": "https://www.hccc.gov.tw/zh-tw/LocalCulturalHall/Detail/22",
+      "viewedOn": "2026-09-08",
+      "scope": "局部外觀參考，非完整多面覆核"
+    },
+    {
+      "url": "https://www.hccc.gov.tw/Utility/DisplayImage?id=2770",
+      "page": "https://www.hccc.gov.tw/zh-tw/LocalCulturalHall/Detail/22",
+      "viewedOn": "2026-09-08",
+      "scope": "局部外觀參考，非完整多面覆核"
+    },
+    {
+      "url": "https://www.hccc.gov.tw/Utility/DisplayImage?id=31708",
+      "page": "https://www.hccc.gov.tw/zh-tw/LocalCulturalHall/Detail/22",
+      "viewedOn": "2026-09-08",
+      "scope": "局部外觀參考，非完整多面覆核"
+    }
+  ],
+  "referenceStatus": "partial-exterior-review",
+  "pendingChecks": [
+    "高度測量與完整多面立面校正",
+    "正面方向複核",
+    "未定位附屬構件：入口門廊"
+  ],
+  "orientationMode": "ENU-baked",
+  "absoluteGroundAltitudeM": null,
+  "railElevationM": null,
+  "omittedUnlocatedComponents": [
+    "入口門廊"
+  ],
+  "mapEligible": true,
+  "calibration": {
+    "version": 2,
+    "basis": "各部件獨立平面擬合；非工程測繪",
+    "parts": [
+      {
+        "id": "出張所正翼",
+        "name": "出張所正翼",
+        "placementStatus": "site-anchor-estimated-outline",
+        "anchor": [
+          121.6103389797433,
+          23.974785119414317
+        ],
+        "rotationDeg": -58.364005729663305,
+        "scaleXY": [
+          0.9524812602206192,
+          0.759564408686409
+        ],
+        "basis": "官方導覽空拍及衛星屋頂交叉比對 L 形雙翼；室內房間 OSM 輪廓不再當整翼包圍框，屋頂外緣為目視估計",
+        "facadeBearingDeg": null
+      },
+      {
+        "id": "出張所側翼",
+        "name": "出張所側翼",
+        "placementStatus": "site-anchor-estimated-outline",
+        "anchor": [
+          121.610567973338,
+          23.974731201732233
+        ],
+        "rotationDeg": 35.35038267415558,
+        "scaleXY": [
+          1.0716903974914704,
+          0.626003131964036
+        ],
+        "basis": "官方導覽空拍及衛星屋頂交叉比對 L 形雙翼；室內房間 OSM 輪廓不再當整翼包圍框，屋頂外緣為目視估計",
+        "facadeBearingDeg": null
+      },
+      {
+        "id": "武道館",
+        "name": "武道館",
+        "placementStatus": "footprint-axis-calibrated",
+        "anchor": [
+          121.60977796168616,
+          23.974467749968127
+        ],
+        "rotationDeg": 124.0,
+        "scaleXY": [
+          0.5038732298121644,
+          0.492563266674354
+        ],
+        "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+        "facadeBearingDeg": null
+      },
+      {
+        "id": "水塔",
+        "name": "水塔",
+        "placementStatus": "site-anchor-estimated-outline",
+        "anchor": [
+          121.609104,
+          23.9753154
+        ],
+        "rotationDeg": 0,
+        "scaleXY": [
+          1.0,
+          1.0
+        ],
+        "basis": "OSM 水塔節點 3228265541；塔身尺寸估計",
+        "facadeBearingDeg": null
+      },
+      {
+        "id": "出張所角塔",
+        "name": "出張所角塔",
+        "placementStatus": "site-anchor-estimated-outline",
+        "anchor": [
+          121.610381,
+          23.97465
+        ],
+        "rotationDeg": 35,
+        "scaleXY": [
+          0.7281553600317398,
+          0.7281553600317398
+        ],
+        "basis": "官方導覽空拍可見轉角塔樓，依衛星屋頂位置目視估計；高度與細節為外觀估計",
+        "facadeBearingDeg": null
+      }
+    ],
+    "verticalDatum": "terrain-relative",
+    "sourceFile": "placements-source.json"
+  },
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "axes": {
+    "up": "+Z",
+    "east": "+X",
+    "north": "+Y",
+    "front": null,
+    "units": "meters",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "gltfAxes": {
+    "up": "+Y",
+    "toZUp": "rotateX(+PI/2)"
+  },
+  "facadeBearingDeg": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -143.98284912109375,
+      -26.673274993896484,
+      0.0
+    ],
+    "max": [
+      23.854887008666992,
+      77.62539672851562,
+      11.07794189453125
+    ]
+  },
+  "sizeM": [
+    167.83773612976074,
+    104.29867172241211,
+    11.07794189453125
+  ],
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "glb": "near.glb",
+      "sha256": "606737b6bd3bb3afc16b78acdca90e0307aa90b98ea77f4c2a3d6b95ca193c73",
+      "glbSha256": "cb073048188f30b0e954b3ce243e9a740a371be480a912ade8e17d1a3802b22b",
+      "strideBytes": 24,
+      "vertexCount": 17232,
+      "triangleCount": 5744,
+      "drawGroups": [
+        {
+          "component": "出張所正翼",
+          "name": "stone",
+          "start": 0,
+          "count": 36,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "出張所正翼",
+          "name": "cream",
+          "start": 36,
+          "count": 2196,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "出張所正翼",
+          "name": "dark",
+          "start": 2232,
+          "count": 1710,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "出張所正翼",
+          "name": "glass",
+          "start": 3942,
+          "count": 720,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "出張所側翼",
+          "name": "stone",
+          "start": 4662,
+          "count": 36,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "出張所側翼",
+          "name": "cream",
+          "start": 4698,
+          "count": 1980,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "出張所側翼",
+          "name": "dark",
+          "start": 6678,
+          "count": 1530,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "出張所側翼",
+          "name": "glass",
+          "start": 8208,
+          "count": 648,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "武道館",
+          "name": "stone",
+          "start": 8856,
+          "count": 1332,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "武道館",
+          "name": "brown",
+          "start": 10188,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.23074005544185638,
+            0.177888423204422
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "武道館",
+          "name": "dark",
+          "start": 10224,
+          "count": 2790,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "武道館",
+          "name": "glass",
+          "start": 13014,
+          "count": 432,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "出張所角塔",
+          "name": "stone",
+          "start": 13446,
+          "count": 252,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "出張所角塔",
+          "name": "brown",
+          "start": 13698,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.23074005544185638,
+            0.177888423204422
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "出張所角塔",
+          "name": "dark",
+          "start": 13734,
+          "count": 3006,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "出張所角塔",
+          "name": "glass",
+          "start": 16740,
+          "count": 72,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "水塔",
+          "name": "stone",
+          "start": 16812,
+          "count": 420,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 413568
+    },
+    "far": {
+      "file": "far.mesh.bin",
+      "glb": "far.glb",
+      "sha256": "854668f3f9c5c44073ce42dc5d59c013ce7779e1945982cc717182bf4281ff08",
+      "glbSha256": "2c90dea125127e292527d7f67eb7e629a98caf92e921cfaf6c81dce6f6b89ed6",
+      "strideBytes": 24,
+      "vertexCount": 7596,
+      "triangleCount": 2532,
+      "drawGroups": [
+        {
+          "component": "出張所正翼",
+          "name": "stone",
+          "start": 0,
+          "count": 36,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "出張所正翼",
+          "name": "cream",
+          "start": 36,
+          "count": 756,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "出張所正翼",
+          "name": "dark",
+          "start": 792,
+          "count": 1038,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "出張所正翼",
+          "name": "glass",
+          "start": 1830,
+          "count": 720,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "出張所側翼",
+          "name": "stone",
+          "start": 2550,
+          "count": 36,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "出張所側翼",
+          "name": "cream",
+          "start": 2586,
+          "count": 684,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "出張所側翼",
+          "name": "dark",
+          "start": 3270,
+          "count": 966,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "出張所側翼",
+          "name": "glass",
+          "start": 4236,
+          "count": 648,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "武道館",
+          "name": "stone",
+          "start": 4884,
+          "count": 468,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "武道館",
+          "name": "brown",
+          "start": 5352,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.23074005544185638,
+            0.177888423204422
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "武道館",
+          "name": "dark",
+          "start": 5388,
+          "count": 750,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "武道館",
+          "name": "glass",
+          "start": 6138,
+          "count": 432,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "出張所角塔",
+          "name": "stone",
+          "start": 6570,
+          "count": 108,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "出張所角塔",
+          "name": "brown",
+          "start": 6678,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.23074005544185638,
+            0.177888423204422
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "出張所角塔",
+          "name": "dark",
+          "start": 6714,
+          "count": 390,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "出張所角塔",
+          "name": "glass",
+          "start": 7104,
+          "count": 72,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "水塔",
+          "name": "stone",
+          "start": 7176,
+          "count": 420,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 182304
+    }
+  },
+  "nativeObjectCount": 699,
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "modelUse": "map-exterior",
+  "components": [
+    {
+      "id": "出張所正翼",
+      "name": "出張所正翼",
+      "placementStatus": "site-anchor-estimated-outline",
+      "anchor": [
+        121.6103389797433,
+        23.974785119414317
+      ],
+      "rotationDeg": -58.364005729663305,
+      "scaleXY": [
+        0.9524812602206192,
+        0.759564408686409
+      ],
+      "basis": "官方導覽空拍及衛星屋頂交叉比對 L 形雙翼；室內房間 OSM 輪廓不再當整翼包圍框，屋頂外緣為目視估計",
+      "facadeBearingDeg": null
+    },
+    {
+      "id": "出張所側翼",
+      "name": "出張所側翼",
+      "placementStatus": "site-anchor-estimated-outline",
+      "anchor": [
+        121.610567973338,
+        23.974731201732233
+      ],
+      "rotationDeg": 35.35038267415558,
+      "scaleXY": [
+        1.0716903974914704,
+        0.626003131964036
+      ],
+      "basis": "官方導覽空拍及衛星屋頂交叉比對 L 形雙翼；室內房間 OSM 輪廓不再當整翼包圍框，屋頂外緣為目視估計",
+      "facadeBearingDeg": null
+    },
+    {
+      "id": "武道館",
+      "name": "武道館",
+      "placementStatus": "footprint-axis-calibrated",
+      "anchor": [
+        121.60977796168616,
+        23.974467749968127
+      ],
+      "rotationDeg": 124.0,
+      "scaleXY": [
+        0.5038732298121644,
+        0.492563266674354
+      ],
+      "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+      "facadeBearingDeg": null
+    },
+    {
+      "id": "水塔",
+      "name": "水塔",
+      "placementStatus": "site-anchor-estimated-outline",
+      "anchor": [
+        121.609104,
+        23.9753154
+      ],
+      "rotationDeg": 0,
+      "scaleXY": [
+        1.0,
+        1.0
+      ],
+      "basis": "OSM 水塔節點 3228265541；塔身尺寸估計",
+      "facadeBearingDeg": null
+    },
+    {
+      "id": "出張所角塔",
+      "name": "出張所角塔",
+      "placementStatus": "site-anchor-estimated-outline",
+      "anchor": [
+        121.610381,
+        23.97465
+      ],
+      "rotationDeg": 35,
+      "scaleXY": [
+        0.7281553600317398,
+        0.7281553600317398
+      ],
+      "basis": "官方導覽空拍可見轉角塔樓，依衛星屋頂位置目視估計；高度與細節為外觀估計",
+      "facadeBearingDeg": null
+    }
+  ]
+}

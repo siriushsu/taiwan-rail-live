@@ -90,13 +90,21 @@ function fnBodyContains(src, fnName, needle) {
 // 同一種「function fnName(...) { ... }」大括號配對抓法,但回傳**原始碼片段本身**(含註解、不比對
 // 子字串)——給 T8 丟進 new Function 真的求值用。執行期不在乎註解,只有 fnBodyContains 那種
 // 「拿字串去 includes()」才需要先剝。抓不到宣告回 null,呼叫端要顯式判斷(不當成空字串靜默通過)。
+// 配對時跳過字串、樣板、註解與反斜線跳脫:2026-09-19 t() 多了一行 `value.includes('{')`,單純數大括號
+// 會把字串裡那個「{」算進去、一路抓到檔尾,T8a 從此在「抽不出 t()」這一步就紅(不是槽位標籤真的錯)。
 function extractFnSrc(src, fnName) {
   const m = new RegExp(`function\\s+${fnName}\\s*\\([^)]*\\)\\s*\\{`).exec(src);
   if (!m) return null;
-  let i = m.index + m[0].length, depth = 1;
+  let i = m.index + m[0].length, depth = 1, quote = null;
   while (i < src.length && depth > 0) {
-    if (src[i] === '{') depth++;
-    else if (src[i] === '}') depth--;
+    const c = src[i];
+    if (quote) { if (c === '\\') i++; else if (c === quote) quote = null; i++; continue; }
+    if (c === '/' && src[i + 1] === '/') { while (i < src.length && src[i] !== '\n') i++; continue; }
+    if (c === '/' && src[i + 1] === '*') { const end = src.indexOf('*/', i + 2); i = end < 0 ? src.length : end + 2; continue; }
+    if (c === '\\') { i += 2; continue; }
+    if (c === "'" || c === '"' || c === '`') quote = c;
+    else if (c === '{') depth++;
+    else if (c === '}') depth--;
     i++;
   }
   return src.slice(m.index, i);
@@ -909,14 +917,174 @@ await cr.close();
   await wk3.close();
 }
 
+// ══════════ T9:未登入 × 有購買通道 —— 面板打不打得開、畫的是不是對的東西 ══════════
+// 2026-09-10 裁示「拿掉 App 的登入牆」。在那之前 plusOpen() 對「plusConfigured() 為真且未登入」
+// 直接 return(跳帳號視窗 + 一句 toast),面板根本開不出來——App 使用者想知道通行證是什麼、
+// 有哪些功能,得先交出一個帳號;而網站(無購買通道)那半從來都是直接開面板。現在兩邊一致:
+// 先開面板,登入延後到「要看價格或要訂閱」那一刻,由 plusRender() 未登入分支的 CTA 觸發。
+//
+// 為什麼非得新開一組:本檔既有的瀏覽器情境裡,plusConfigured() 為真的只有 T7b,而 T7b【先注入
+// state.account 才 plusOpen()】;其餘情境根本沒注入 RAIL_PLUS_TEST_ADAPTER ⇒ plusConfigured()
+// 恆假,走的是網站那條分支。也就是說「未登入 × 有購買通道」這一格在改動前後都沒有任何斷言
+// 照到——實測改動前後都是 105/105,登入牆是拆掉了還是長回來,舊的判準一條都分辨不出來。
+//
+// 判準設計(對照 assertion-blindspot-taxonomy):
+//  · 第 0 條「我在量的是誰」:每一輪先把 plusConfigured() 與「有沒有登入」兩個前提做成具名斷言。
+//    前提沒成立就是那一條紅,不會靜靜落到別的分支還讓後面全綠。
+//  · 第 2 條「量的是會發生什麼」:CTA 不驗「點得到」,驗點完之後面板真的關了、state.plusPending
+//    真的被寫進去——那才是「登入流程被接起來」。
+//  · 第 5 條「反向對照」:T9c 兩條證明登入 CTA 不是恆在(已登入時畫的是真方案鈕),也證明網站
+//    那半沒被這一改弄壞(無購買通道仍走「請在 App 內訂閱」)。
+//  · 兩個引擎各跑一次:App 的 WebView 在 iOS 是 WebKit、Android 是 Chromium,兩邊都要成立。
+{
+  // 未登入態的最小環境:有購買通道(RAIL_PLUS_TEST_ADAPTER,既有慣例)+ Firebase 用測試模組短路
+  // 且 onAuthStateChanged 明確回 null(「解析完了,就是沒登入」,不是「還沒解析」)。
+  // ACCOUNT_ENABLED=false 且 localStorage 沒有 trainmap-account-uid ⇒ 開機不會 eager 初始化
+  // 帳號系統,state.account 維持 undefined,T9 的「沒碰 Firebase」那條才量得到東西。
+  const initLoggedOut = () => {
+    try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {}
+    window.RAIL_REVENUECAT_CONFIG = { entitlement: 'plus', offeringId: 'plus' };
+    const offering = { availablePackages: [
+      { identifier: '$rc_monthly', packageType: 'MONTHLY', webBillingProduct: { currentPrice: { formattedPrice: 'STUB-MONTH' } } },
+      { identifier: '$rc_annual', packageType: 'ANNUAL', webBillingProduct: { currentPrice: { formattedPrice: 'STUB-YEAR' } } },
+    ] };
+    window.RAIL_PLUS_TEST_ADAPTER = {
+      setUser: async () => {},
+      getCustomerInfo: async () => ({ entitlements: { active: {} } }),
+      getOfferings: async () => ({ all: { plus: offering }, current: offering }),
+      purchase: async () => ({ customerInfo: { entitlements: { active: {} } } }),
+      restore: async () => ({ entitlements: { active: {} } }),
+    };
+    window.RAIL_FIREBASE_CONFIG = { apiKey: 'x', authDomain: 'x', projectId: 'x' };
+    window.RAIL_FIREBASE_TEST_MODULES = {
+      initializeApp: () => ({}), getAuth: () => ({}), getFirestore: () => ({}),
+      onAuthStateChanged: (auth, cb) => { setTimeout(() => cb(null), 10); },
+    };
+  };
+  // 面板現況的單一快照:一次 evaluate 取齊所有要斷言的量,避免逐項 evaluate 之間頁面又動了。
+  const snapshot = () => {
+    const modal = document.getElementById('plusModal');
+    const body = document.getElementById('plusBody');
+    const restore = body ? body.querySelector('.plus-restore') : null;
+    return {
+      configured: plusConfigured(),
+      loggedIn: !!(state.account && state.account.user),
+      accountTouched: !!state.account,
+      open: !!modal && modal.hidden === false,
+      feats: body ? body.querySelectorAll('.plus-feature').length : -1,
+      buyBtns: body ? body.querySelectorAll('[data-plus="buy"]').length : -1,
+      loginBtns: body ? body.querySelectorAll('[data-plus="login"]').length : -1,
+      restoreKind: restore ? restore.dataset.plus : null,
+      text: body ? body.textContent : '',
+    };
+  };
+  const run = async (browser, tag, { width, mobile }) => {
+    const ctx = await browser.newContext({
+      viewport: { width, height: 900 }, locale: 'zh-TW',
+      ...(mobile ? { hasTouch: true, isMobile: true } : {}),
+    });
+    // ?plus=1 與測試 adapter 都必須在【載入那一刻】就位:PLUS_ENABLED 是凍結的 const,
+    // plusConfigured() 第一道閘就是它(理由與 T7 的 bootTouch 註解相同)。語系同時釘 ?lang=
+    // 與 context locale——下面的判準比對中文字串,語系飄掉會紅得完全不像語系問題。
+    await ctx.addInitScript(initLoggedOut);
+    const page = await ctx.newPage();
+    const errors = [];
+    page.on('pageerror', e => errors.push('pageerror:' + String(e)));
+    await page.goto(base + '?plus=1&lang=zh-TW', { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready === true; } catch (e) { return false; } }, null, { timeout: 40000 });
+    const before = await page.evaluate(async (fn) => {
+      await plusOpen('verify-t9');
+      return eval(`(${fn})`)();
+    }, snapshot.toString());
+    ok(`${tag} 前置:情境真的是「有購買通道 × 未登入」(前提不成立就是這條紅,不會靜靜落到網站分支)`,
+      before.configured === true && before.loggedIn === false, JSON.stringify(before).slice(0, 300));
+    ok(`${tag} 未登入也打得開通行證面板(登入牆已拆——改動前這裡是 false)`,
+      before.open === true, `open=${before.open}`);
+    ok(`${tag} 面板真的講得出通行證是什麼(功能清單有渲染,不是一張空卡)`,
+      before.feats >= 5, `feats=${before.feats}`);
+    ok(`${tag} 畫的是登入 CTA,不是「目前無法取得訂閱方案」那句把「還沒登入」誤報成「商店壞了」的文案`,
+      before.loginBtns >= 1 && !before.text.includes('目前無法取得訂閱方案'),
+      `loginBtns=${before.loginBtns} 誤導文案=${before.text.includes('目前無法取得訂閱方案')}`);
+    ok(`${tag} 未登入不畫購買鈕(拿不到 uid 就拿不到價格,畫出來也只是點了沒反應)`,
+      before.buyBtns === 0, `buyBtns=${before.buyBtns}`);
+    ok(`${tag} 恢復購買入口仍在(Apple 3.1.1),且接到登入流程而不是無事可做的 restore`,
+      before.restoreKind === 'login', `restoreKind=${before.restoreKind}`);
+    ok(`${tag} 開面板全程沒碰 Firebase(免費層匿名:登入牆時代這裡會被 accountEnsureInit 建出 state.account)`,
+      before.accountTouched === false, `accountTouched=${before.accountTouched}`);
+    // 互動:真的點(mobile 用 tap,桌面用 click),斷言落在狀態改變上。
+    // 🔴 這一段刻意包 try/catch:突變測試時把 plusRender() 的未登入分支拿掉,CTA 就不存在,
+    // 未保護的 waitForSelector 會【丟例外讓整支腳本中止】——後面的 T9b/T9c 與 T6 總數閘門
+    // 全都不會跑,終端看起來像「只紅了兩條」而不是「這一層被拆掉了」。判準要能報告失敗,
+    // 不是自己崩掉(assertion-blindspot-taxonomy:會崩的 harness 讓突變看起來像沒抓到)。
+    const cta = '#plusBody [data-plus="login"]';
+    let clicked = '';
+    try {
+      await page.waitForSelector(cta, { state: 'visible', timeout: 10000 });
+      if (mobile) await page.tap(cta); else await page.click(cta);
+      await page.waitForTimeout(200);
+    } catch (e) { clicked = `CTA 點不到:${String(e).slice(0, 120)}`; }
+    const after = await page.evaluate(() => ({
+      plusOpen: !!document.getElementById('plusModal') && document.getElementById('plusModal').hidden === false,
+      pending: !!state.plusPending,
+      pendingSource: state.plusPending ? state.plusPending.source : null,
+    }));
+    ok(`${tag} 點下 CTA 真的接到登入流程:通行證面板關閉、state.plusPending 落地(登入後才回得來)`,
+      clicked === '' && after.plusOpen === false && after.pending === true,
+      clicked || JSON.stringify(after));
+    ok(`${tag} 全程無 JS 例外`, errors.length === 0, errors.slice(0, 3).join(' | '));
+    await ctx.close();
+  };
+  const crT9 = await chromium.launch(), wkT9 = await webkit.launch();
+  await run(wkT9, 'T9a', { width: 375, mobile: true });   // iOS WebView 這一側,手機寬度 + 真觸控
+  await run(crT9, 'T9b', { width: 1280, mobile: false }); // Android WebView 這一側,桌面寬度
+  // ── 反向對照:證明上面那組不是「不管什麼情境都畫登入 CTA」 ──
+  {
+    const ctx = await crT9.newContext({ viewport: { width: 1280, height: 900 }, locale: 'zh-TW' });
+    await ctx.addInitScript(initLoggedOut);
+    const page = await ctx.newPage();
+    await page.goto(base + '?plus=1&lang=zh-TW', { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready === true; } catch (e) { return false; } }, null, { timeout: 40000 });
+    await page.evaluate(async () => {
+      state.account = { ready: true, user: { uid: 'verify-t9c' }, fb: {} };
+      await plusOpen('verify-t9c');
+    });
+    // 🔴 等【完成訊號】不等固定秒數:plusOpen() 尾端那句 `if (plusConfigured()) plusRefresh();`
+    // 是刻意不 await 的,而 plusRefresh() 對「已經在讀取中」有 p.loading 早退——所以這裡不能
+    // 自己再 await 一次 plusRefresh()(第二發會立刻早退回來,快照就落在「正在讀取方案與訂閱
+    // 資格…」那一格:feats 有 8、按鈕全 0,看起來像功能壞了,其實只是量太早)。
+    await page.waitForFunction(() => !!state.plus && state.plus.loading === false, null, { timeout: 20000 });
+    const paid = await page.evaluate(fn => eval(`(${fn})`)(), snapshot.toString());
+    ok('T9c 反向:同一個情境改成【已登入】⇒ 畫的是真的月/年方案鈕,登入 CTA 消失(證明 CTA 不是恆在)',
+      paid.buyBtns === 2 && paid.loginBtns === 0, JSON.stringify(paid).slice(0, 300));
+    await ctx.close();
+  }
+  {
+    // 無購買通道(網站現況:沒有 Web Billing key、沒有原生 adapter)——這一改不該動到網站那半。
+    const ctx = await crT9.newContext({ viewport: { width: 1280, height: 900 }, locale: 'zh-TW' });
+    await ctx.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} });
+    const page = await ctx.newPage();
+    await page.goto(base + '?plus=1&lang=zh-TW', { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready === true; } catch (e) { return false; } }, null, { timeout: 40000 });
+    const web = await page.evaluate(async (fn) => {
+      await plusOpen('verify-t9c-web');
+      return eval(`(${fn})`)();
+    }, snapshot.toString());
+    ok('T9c 反向:無購買通道(網站)未登入時仍走原本的「請在 App 內訂閱」分支,沒有被這一改弄壞',
+      web.configured === false && web.open === true && web.buyBtns === 0
+        && web.text.includes('目前請在軌島 App 內訂閱'), JSON.stringify(web).slice(0, 300));
+    await ctx.close();
+  }
+  await crT9.close(); await wkT9.close();
+}
+
 server.close();
 
 // ══════════ T8:app-support.html 的「導覽目標標籤」與 index.html 槽位邏輯真值比對
 // (2026-08-03,B-1 稽核修復)。背景:app-support.html 從未被本檔或任何驗收腳本掃過,文案可以
-// 無限漂移而不被發現——它曾寫「在『軌島帳號』→『查看 Plus』」,但那顆鈕的標籤其實依登入狀態是
-// 「Plus」／「帳號」(桌面工具列)或「軌島 Plus」／「帳號同步」(手機「更多」抽屜列),見
-// accountBtnSlot()/accountSlotMode()。從沒有一顆鈕真的叫「軌島帳號」——那是開啟之後面板本身
-// 的標題(#accountTitle),不是入口鈕上的文字,照文案找的人找不到那顆鈕。
+// 無限漂移而不被發現——它曾寫「在『軌島帳號』→『查看 Plus』」,但入口鈕上的字其實是
+// 「通行證」／「軌島通行證」(setupPlusEntry)與「帳號」／「帳號同步」(accountBtnSlot)這四個。
+// 從沒有一顆鈕真的叫「軌島帳號」——那是開啟之後面板本身的標題(#accountTitle),不是入口鈕上的
+// 文字,照文案找的人找不到那顆鈕。(2026-09-10 前這四個字串來自同一個雙身分槽位。)
 //
 // 判準:app-support.html 用 <span data-uilabel>X</span> 明確標出每一個「宣稱是使用者真的會
 // 看到的導覽標籤」的子字串——不是掃全頁所有「」引號(那會連「軌島帳號面板」這種沿用整站慣例的
@@ -963,7 +1131,9 @@ server.close();
     const win = {};
     new Function('window', readFileSync(path.join(ROOT, 'i18n/translations.js'), 'utf8'))(win);
     if (!win.RAIL_I18N_MESSAGES) throw new Error('i18n/translations.js 沒有設定 window.RAIL_I18N_MESSAGES——字典檔結構已變動');
-    return new Function('I18N_LANG', 'I18N_MESSAGES', `${lookupSrc}\n${tSrc}\nreturn t;`)('zh-TW', win.RAIL_I18N_MESSAGES);
+    // I18N_PRODUCED／I18N_TREE_PASS 是 t() 記錄「外語譯文→原文」反查表用的兩個自由變數;釘在 zh-TW 時
+    // 反查表根本不會被寫(沒有 zh-TW 那一格),給它們存在就好,值不影響本段要量的標籤。
+    return new Function('I18N_LANG', 'I18N_MESSAGES', 'I18N_PRODUCED', 'I18N_TREE_PASS', `${lookupSrc}\n${tSrc}\nreturn t;`)('zh-TW', win.RAIL_I18N_MESSAGES, {}, false);
   }
   // 假 DOM:只給 accountBtnSlot() 實際碰到的兩個節點——#accountBtn(內含 .ti/.tl 兩個 span)
   // 與 .ms-row[data-proxy="accountBtn"](內含一個 span);.style 給空物件讓 display 賦值不出錯;
@@ -971,26 +1141,35 @@ server.close();
   // sat_retina G1 的做法:這種自由變數的值不重要,重要的是它存在,求值才不會因 ReferenceError
   // 中斷。t 是唯一的例外:它的**值**就是本段要量的東西(標籤到底長什麼樣),沒有空函式可給,
   // 一律傳 makeProductT() 抽出來的產品本尊。
-  function callAccountBtnSlot(mode, t) {
+  // 2026-09-10 起兩個入口各自獨立(通行證從帳號槽位拆出來),所以要各抽各的函式真的求值一次:
+  // 帳號那組出自 accountBtnSlot(),通行證那組出自 setupPlusEntry()。共用同一套假 DOM 做法。
+  function callSlotFn(src, name, btnId, rowSel, freeVars, t) {
     const ti = { textContent: '' }, tl = { textContent: '' }, label = { textContent: '' };
-    const btn = { style: {}, querySelector: sel => (sel === '.ti' ? ti : sel === '.tl' ? tl : null) };
-    const row = { style: {}, querySelector: sel => (sel === 'span' ? label : null) };
+    const btn = { style: {}, querySelector: sel => (sel === '.ti' ? ti : sel === '.tl' ? tl : null), remove: () => {} };
+    const row = { style: {}, querySelector: sel => (sel === 'span' ? label : null), remove: () => {} };
     const fakeDocument = {
-      getElementById: id => (id === 'accountBtn' ? btn : null),
-      querySelector: sel => (sel === '.ms-row[data-proxy="accountBtn"]' ? row : null),
+      getElementById: id => (id === btnId ? btn : null),
+      querySelector: sel => (sel === rowSel ? row : null),
     };
-    new Function('document', 'accountOpen', 'plusOpen', 't', `${fnSrc}\naccountBtnSlot(${JSON.stringify(mode)});`)
-      (fakeDocument, () => {}, () => {}, t);
+    const names = Object.keys(freeVars);
+    new Function('document', 't', ...names, `${src}\n${name}();`)
+      (fakeDocument, t, ...names.map(k => freeVars[k]));
     return { toolbar: tl.textContent, drawer: label.textContent };
   }
+  const plusFnSrc = extractFnSrc(SRC, 'setupPlusEntry');
   let plusLabels = null, acctLabels = null, extractError = null;
   try {
     if (!fnSrc) throw new Error('找不到「function accountBtnSlot(...) {」——index.html 結構已變動,請更新 verify_plus_features.mjs 的抽取邏輯');
+    if (!plusFnSrc) throw new Error('找不到「function setupPlusEntry(...) {」——index.html 結構已變動,請更新 verify_plus_features.mjs 的抽取邏輯');
     const productT = makeProductT();
-    plusLabels = callAccountBtnSlot('plus', productT);
-    acctLabels = callAccountBtnSlot('account', productT);
+    acctLabels = callSlotFn(fnSrc, 'accountBtnSlot', 'accountBtn', '.ms-row[data-proxy="accountBtn"]',
+      { accountOpen: () => {} }, productT);
+    // PLUS_ENABLED 給 true:給 false 時 setupPlusEntry() 走的是「整顆移除」那條,一個標籤都不會寫出來,
+    // 真值集合會變空(等於這一段在驗一個不存在的東西)。plusEntrySync 是尾巴那格的字,不在本段範圍。
+    plusLabels = callSlotFn(plusFnSrc, 'setupPlusEntry', 'plusBtn', '.ms-row[data-proxy="plusBtn"]',
+      { PLUS_ENABLED: true, plusOpen: () => {}, plusEntrySync: () => {} }, productT);
   } catch (e) { extractError = e; }
-  ok('T8a accountBtnSlot() 可從 index.html 原始碼抽取並在假 DOM 上真實求值(兩種 mode 皆不丟例外;抓不到宣告或求值出錯就是這格錯,不會被誤判成過關)',
+  ok('T8a accountBtnSlot()／setupPlusEntry() 可從 index.html 原始碼抽取並在假 DOM 上真實求值(兩支都不丟例外;抓不到宣告或求值出錯就是這格錯,不會被誤判成過關)',
     extractError === null && !!plusLabels && !!acctLabels,
     extractError ? String(extractError).slice(0, 300) : `plus=${JSON.stringify(plusLabels)} account=${JSON.stringify(acctLabels)}`);
 
@@ -1013,14 +1192,16 @@ server.close();
   ok('T8c 正向對照:杜撰標籤偵測對合成的假標籤真的會抓到(不是因為現有文案剛好都合法而恆綠)',
     probe.length === 1 && probe[0] === 'verify-probe-fabricated-label', JSON.stringify(probe));
 
-  // 涵蓋度(brief 原文:「文案要涵蓋使用者實際會遇到的狀態，不能只寫其中一種」)——plus 模式
-  // (新訪客,鈕顯示 Plus/軌島 Plus)與 account 模式(已登入或曾登入,鈕顯示 帳號/帳號同步)至少
-  // 各被提到一次(桌面或手機任一形式皆可),不能只寫其中一種狀態就當作寫完了。
+  // 2026-09-10 改版前這一條驗的是「plus 模式與 account 模式兩種標籤都要提到」——那時兩個身分
+  // 共用一格,使用者確實會遇到兩種狀態。拆開之後那條路不存在了:通行證入口恆在、與登入狀態無關,
+  // 而說明頁若還留著「若該按鈕顯示帳號同步,請先點進去」就是把人指去一條走不通的路。
+  // 所以同一個位置改守相反的方向:通行證的指路只准出現通行證那組標籤,不准出現帳號槽位的標籤。
   const hasPlusMode = !extractError && (claims.includes(plusLabels.toolbar) || claims.includes(plusLabels.drawer));
-  const hasAcctMode = !extractError && (claims.includes(acctLabels.toolbar) || claims.includes(acctLabels.drawer));
-  ok('T8d app-support.html 同時涵蓋 plus 模式與 account 模式的導覽標籤,不是只寫其中一種使用者會遇到的狀態',
-    hasPlusMode && hasAcctMode,
-    `plus模式(${JSON.stringify([plusLabels && plusLabels.toolbar, plusLabels && plusLabels.drawer])})提到=${hasPlusMode} account模式(${JSON.stringify([acctLabels && acctLabels.toolbar, acctLabels && acctLabels.drawer])})提到=${hasAcctMode}`);
+  const acctInClaims = extractError ? [] :
+    [acctLabels.toolbar, acctLabels.drawer].filter(label => label && claims.includes(label));
+  ok('T8d app-support.html 的通行證指路只提通行證入口,沒有殘留「先點帳號同步再進去」那條 2026-09-10 已經不存在的路',
+    hasPlusMode && acctInClaims.length === 0,
+    `通行證標籤(${JSON.stringify([plusLabels && plusLabels.toolbar, plusLabels && plusLabels.drawer])})提到=${hasPlusMode} 殘留的帳號標籤=${JSON.stringify(acctInClaims)}`);
 }
 
 // ══════════ 斷言總數閘門(比照 verify_live_activity.mjs / verify_founding_seal.mjs 的形狀) ══════════
@@ -1040,6 +1221,7 @@ const EXPECTED_COUNTS = {
   T1: 6 + REQUIRED.length + GATE_CALLS.length + 4 * expectedFeatCount(inFounding),
   T2: 1, T2a: 4, T2b: 1, T2c: 1, T2d: 1, T2e: 1, T2f: 1, // T2a=4:違禁詞斷言 + 偵測器正向對照 + 抽取器對照 + 具名豁免對照
   T3: 2, T3a: 1, T3b: 2, T4a: 2, T4b: 2, T4c: 2, T5: 6, T5w: 3, T7a: 4, T7b: 4,
+  T9a: 9, T9b: 9, T9c: 2, // T9=未登入×有購買通道(登入牆已拆);a=WebKit 375 觸控、b=Chromium 1280、c=兩條反向對照
   T8a: 1, T8b: 1, T8c: 2, T8d: 1, // T8=app-support.html 導覽標籤真值比對(見上方 T8 區塊);T8c=核心斷言+杜撰偵測正向對照
 };
 const actualCounts = {};

@@ -1,11 +1,7 @@
 package tw.railisland.app;
 
 import android.content.Context;
-import android.content.pm.PackageManager;
 import android.location.Location;
-import android.location.LocationManager;
-
-import androidx.core.content.ContextCompat;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -34,7 +30,8 @@ import java.util.TimeZone;
 
 /** 捷運小工具的共用目錄與官方看板解析。顯示精度與 iOS MetroBoardModel 相同。 */
 final class MetroWidgetData {
-    static final String AUTO = "__auto__";
+    /** 「自動（最近的站）」哨兵。字面值只有 WidgetNearestMath 一份（兩個小工具共用同一個哨兵）。 */
+    static final String AUTO = WidgetNearestMath.AUTO;
     private static Catalog cachedCatalog;
 
     static final class StationInfo {
@@ -186,6 +183,13 @@ final class MetroWidgetData {
         String lastTrain;
         String lastTrainAt;      // 末班的官方時刻字面值 HH:MM（lastTrain 是「往 X HH:MM」整句）
         boolean failed;
+        /**
+         * 這一格的站是【上次】解析出來的（這一輪沒拿到新鮮定位）。
+         * 🔴 刻意【不】進 toJson／fromJson：它是「這一輪的定位新不新鮮」，不是這份班次資料的屬性。
+         *    寫進快取的話，下一輪明明定位好好的、卻會把上一輪的標示一起讀回來。
+         *    provider 每一輪都重新指派（見 MetroWidgetProvider.updateOne）。
+         */
+        boolean autoStale;
         String alertTitle;       // 官方通阻公告標題，照抄字面
         boolean alertFromOperator;
         final List<Row> rows = new ArrayList<>();
@@ -371,34 +375,48 @@ final class MetroWidgetData {
         } catch (JSONException ignored) {}
     }
 
-    static StationInfo nearest(Context context, Catalog catalog) {
-        if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION)
-            != PackageManager.PERMISSION_GRANTED) return null;
-        LocationManager manager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
-        if (manager == null) return null;
-        Location last = null;
-        try {
-            for (String provider : manager.getProviders(true)) {
-                Location candidate = manager.getLastKnownLocation(provider);
-                if (candidate != null && (last == null || candidate.getTime() > last.getTime())) last = candidate;
+    /** 自動選站的快取槽名（逐運具一個）。 */
+    static final String NEAREST_SLOT = "metro";
+
+    /**
+     * 自動選站。取位／服務範圍／快取語意全在 {@link WidgetNearest} 與 {@link WidgetNearestMath}，
+     * 這裡只負責「掃捷運目錄」這一件事——台鐵與（單元 C 之後的）公車走的是同一支 resolve。
+     *
+     * 🔴 改版前這裡自己讀 {@code getLastKnownLocation} 且【不套服務範圍】：沒開過 App 的
+     *    那段時間系統快取是空的 ⇒ 「自動（最近的站）」在背景刷新時結構上讀不到位置（issue #55）；
+     *    而真的讀到一筆很舊的遠方座標時，卡上會照常畫出幾百公里外那一站的倒數。
+     */
+    static WidgetNearestMath.Outcome nearest(Context context, Catalog catalog) {
+        return WidgetNearest.resolve(context, WidgetNearestMath.METRO, NEAREST_SLOT, (lat, lon) -> {
+            StationInfo best = null;
+            SystemInfo bestSystem = null;
+            float bestMeters = Float.MAX_VALUE;
+            for (SystemInfo system : catalog.systems) for (StationInfo station : system.stations) {
+                if (Double.isNaN(station.lat) || Double.isNaN(station.lon)) continue;
+                float[] result = new float[1];
+                Location.distanceBetween(lat, lon, station.lat, station.lon, result);
+                if (result[0] < bestMeters) { bestMeters = result[0]; best = station; bestSystem = system; }
             }
-        } catch (SecurityException ignored) { return null; }
-        if (last == null) return null;
-        StationInfo best = null;
-        float bestMeters = Float.MAX_VALUE;
-        for (SystemInfo system : catalog.systems) for (StationInfo station : system.stations) {
-            if (Double.isNaN(station.lat) || Double.isNaN(station.lon)) continue;
-            float[] result = new float[1];
-            Location.distanceBetween(last.getLatitude(), last.getLongitude(), station.lat, station.lon, result);
-            if (result[0] < bestMeters) { bestMeters = result[0]; best = station; }
-        }
-        return best;
+            return best == null || bestSystem == null ? null
+                : new WidgetNearestMath.Hit(bestSystem.id + "|" + best.name, bestMeters);
+        });
     }
 
-    static SystemInfo systemForStation(Catalog catalog, StationInfo station) {
-        if (station == null) return null;
-        for (SystemInfo system : catalog.systems) if (system.stationByName.get(station.name) == station) return system;
-        return null;
+    /** "sys|站名" → 目錄物件。解析結果與退快取都走這一支，兩條路徑不各拆一次字串。 */
+    static StationInfo stationForKey(Catalog catalog, String key) {
+        SystemInfo system = systemForKey(catalog, key);
+        return system == null ? null : system.stationByName.get(key.substring(key.indexOf('|') + 1));
+    }
+
+    static SystemInfo systemForKey(Catalog catalog, String key) {
+        int at = key == null ? -1 : key.indexOf('|');
+        return at <= 0 ? null : catalog.byId.get(key.substring(0, at));
+    }
+
+    /** "sys|站名" → 站名。範圍外的卡面只要講得出「最近的是誰」，不必查得到目錄物件。 */
+    static String stationNameOf(String key) {
+        int at = key == null ? -1 : key.indexOf('|');
+        return at < 0 ? (key == null ? "" : key) : key.substring(at + 1);
     }
 
     static void parseTrtc(Catalog catalog, SystemInfo sys, JSONObject root, String station,

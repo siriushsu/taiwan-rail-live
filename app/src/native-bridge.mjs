@@ -37,7 +37,14 @@ if (native) {
   if (platform === 'ios' || platform === 'android') {
     const RailPlaces = registerPlugin('RailPlaces');
     window.RAIL_NATIVE_PLACES = {
-      sync: places => RailPlaces.sync({ places })
+      sync: places => RailPlaces.sync({ places }),
+      // 前景定位落地，給桌面小工具的「自動（最近的站）」用。
+      // 🔴 只有 Android：小工具刷新跑在背景，而我們不申請 ACCESS_BACKGROUND_LOCATION
+      //    （Play 高風險審查，否決會擋更新並涵蓋所有測試軌道），原生端唯一拿得到新鮮座標的
+      //    時機就是 App 在前景時由這裡推進去。iOS 的 widget 自己叫得動 CLLocationManager
+      //    （NSWidgetWantsLocation），不走這條；掛上去只會讓每一筆定位吃一個
+      //    "not implemented" 的 rejection。
+      fix: platform === 'android' ? (lat, lon, at) => RailPlaces.fix({ lat, lon, at }) : null
     };
   }
 

@@ -11,6 +11,9 @@ import { fileURLToPath } from 'node:url';
 import { chromium, webkit } from 'playwright';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+// 🔴 語系與時區要釘死:沒給 locale 時無頭瀏覽器是 en-US,頁面會自動切成英文,底下比中文字的斷言
+//    (「目前版本」「已是最新版」)就會假紅,與真回歸分不出來(2026-09-19 在 main 上實際紅了兩條)。
+const PAGE_OPTS = { locale: 'zh-TW', timezoneId: 'Asia/Taipei' };
 const PORT = process.env.PORT || 5399;
 const BASE = `http://localhost:${PORT}`;
 let pass = 0, fail = 0;
@@ -25,7 +28,7 @@ ok(servedHash === localHash, `伺服器供的 index.html 與本樹逐 byte 相�
 if (servedHash !== localHash) { console.log('\n目標不符,後續斷言無意義,中止。'); process.exit(1); }
 
 const browser = await chromium.launch();
-const page = await browser.newPage();
+const page = await browser.newPage(PAGE_OPTS);
 page.on('pageerror', e => console.log('  ⚠ pageerror: ' + e.message));
 await page.goto(BASE + '/index.html', { waitUntil: 'domcontentloaded' });
 await page.waitForFunction(() => typeof window.cmpVer === 'function', { timeout: 20000 })
@@ -89,7 +92,7 @@ const LOOKUP_OK = {
   body: JSON.stringify({ resultCount: 1, results: [{ version: '1.4.1',
     releaseNotes: '測試用更新說明\n第二行', trackViewUrl: 'https://apps.apple.com/tw/app/id6792673516?uo=4' }] }),
 };
-const appPage = await browser.newPage();
+const appPage = await browser.newPage(PAGE_OPTS);
 appPage.on('pageerror', e => console.log('  ⚠ pageerror: ' + e.message));
 await appPage.addInitScript(() => { window.RAIL_APP_VERSION = '1.4.0'; });
 await appPage.route('**/itunes.apple.com/lookup**', route => route.fulfill(LOOKUP_OK));
@@ -99,12 +102,23 @@ const got = await appPage.waitForFunction(() => window.__appverLast || null, { t
 ok(!!(got && got.latest && got.latest.v === '1.4.1'), 'App 版查得到線上版本 1.4.1');
 ok(!!(got && got.state.hasUpdate === true), '1.4.0 < 1.4.1 ⇒ hasUpdate');
 
-// 快取:第二次載入不應再發請求
-let secondReq = 0;
-appPage.on('request', r => { if (r.url().includes('itunes.apple.com')) secondReq++; });
+// 即時:第二次開 App 也要再問一次 Apple(跟 Android 的 Play Core 一樣),而且要帶時間戳穿過 CDN 快取。
+// 2026-09-22 之前這裡的判準是反的(「12 小時內走快取,不重複請求」),疊上 WKWebView 與 Apple CDN 的
+// 快取,新版上架後 iPhone 十幾個小時都不提示——使用者實際看到的就是「只有安卓會提示」。
+const secondReqs = [];
+appPage.on('request', r => { if (r.url().includes('itunes.apple.com')) secondReqs.push(r.url()); });
 await appPage.reload({ waitUntil: 'domcontentloaded' });
 await appPage.waitForTimeout(3000);
-ok(secondReq === 0, '12 小時內第二次開 App 走快取,不重複請求');
+ok(secondReqs.length >= 1, '🔴 第二次開 App 仍會再問 Apple 一次(不走 12 小時快取短路)');
+ok(secondReqs.every(u => /[?&]t=\d+/.test(u)), '🔴 lookup 請求帶時間戳(穿過 Apple CDN 的舊版號快取)');
+
+// 退路:端點 500 但快取還在 ⇒ 用快取的線上版號(離線也能提示)
+await appPage.unroute('**/itunes.apple.com/lookup**');
+await appPage.route('**/itunes.apple.com/lookup**', route => route.fulfill({ status: 500, body: '' }));
+await appPage.reload({ waitUntil: 'domcontentloaded' });
+const cachedState = await appPage.waitForFunction(() => window.__appverLast || null, { timeout: 20000 })
+  .then(h => h.jsonValue()).catch(() => null);
+ok(!!(cachedState && cachedState.latest && cachedState.latest.v === '1.4.1'), '查詢失敗但 12 小時內有快取 ⇒ 退回快取的 1.4.1');
 
 // 失敗靜默:清快取 + 讓端點 500
 await appPage.evaluate(() => Object.keys(localStorage)
@@ -120,7 +134,7 @@ ok(await appPage.evaluate(() => !!document.getElementById('map')), '🔴 查詢�
 await appPage.close();
 
 console.log('\n【C-Android】Play Core 更新狀態與側載保守文案');
-const androidPage = await browser.newPage();
+const androidPage = await browser.newPage(PAGE_OPTS);
 const androidAppleReqs = [];
 androidPage.on('request', r => { if (r.url().includes('itunes.apple.com')) androidAppleReqs.push(r.url()); });
 androidPage.on('pageerror', e => console.log('  ⚠ Android pageerror: ' + e.message));
@@ -155,7 +169,7 @@ ok(((await androidUpdateRow.textContent().catch(() => '')) || '').includes('目�
 ok(!(await androidPage.locator('#updBanner').isVisible().catch(() => false)), '🔴 Android 更新橫幅不出現');
 await androidPage.close();
 
-const androidPlayPage = await browser.newPage();
+const androidPlayPage = await browser.newPage(PAGE_OPTS);
 await androidPlayPage.setViewportSize({ width: 390, height: 844 });
 await androidPlayPage.addInitScript(() => {
   window.RAIL_APP_VERSION = '1.4.2';
@@ -174,7 +188,7 @@ ok(((await playCurrentRow.textContent().catch(() => '')) || '').includes('已是
    'Play 安裝且查詢成功，才顯示「已是最新版」');
 await androidPlayPage.close();
 
-const androidNewPage = await browser.newPage();
+const androidNewPage = await browser.newPage(PAGE_OPTS);
 await androidNewPage.setViewportSize({ width: 390, height: 844 });
 await androidNewPage.addInitScript(() => {
   window.RAIL_APP_VERSION = '1.4.2';
@@ -198,7 +212,7 @@ await androidNewPage.close();
 console.log('\n【D】UI:橫幅、更多面板那一列、更新內容卡片');
 // 開「更多」面板:setMore 是閉包內的 const,不是全域 ⇒ 走真實入口(手機 #tabMore / 桌面 #toolsFab)
 async function appPageWith(mine, latest, opts = {}) {
-  const p = await browser.newPage();
+  const p = await browser.newPage(PAGE_OPTS);
   p.on('pageerror', e => console.log('  ⚠ pageerror: ' + e.message));
   await p.setViewportSize(opts.viewport || { width: 390, height: 844 });
   await p.addInitScript(v => {
@@ -280,7 +294,7 @@ ok(await p.locator('.ms-row[data-act="update"]').count() === 1, '🔴 D5 橫幅�
 await p.close();
 
 // D6 網站版:兩列都不可見(平台閘門在 UI 層的證明)
-const siteP = await browser.newPage();
+const siteP = await browser.newPage(PAGE_OPTS);
 siteP.on('pageerror', e => console.log('  ⚠ pageerror: ' + e.message));
 await siteP.setViewportSize({ width: 390, height: 844 });
 await siteP.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} });
@@ -300,7 +314,7 @@ const OVERLAYS = ['#clock', '#followPanel', '#followBar', '#recordBar', '.map-ac
 for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
   const br = name === 'chromium' ? browser : await engine.launch();
   for (const w of [360, 390, 414, 768]) {
-    const q = await br.newPage();
+    const q = await br.newPage(PAGE_OPTS);
     q.on('pageerror', e => console.log(`  ⚠ ${name}/${w} pageerror: ` + e.message));
     await q.setViewportSize({ width: w, height: 800 });
     await q.addInitScript(() => {
@@ -340,6 +354,30 @@ for (const [name, engine] of [['chromium', chromium], ['webkit', webkit]]) {
     // 只數 querySelector 的話會得到 5 這個虛數,而零相交其實只是拿 2 個在比。
     ok(res.compared >= 2, `${name} @${w}px 對照組:真的比對到 ${res.compared} 個浮層 [${res.comparedList || '無'}]（需 ≥2）`);
     ok(res.bad === '', `${name} @${w}px 橫幅不與時鐘/資訊卡/追蹤列/錄製列/動作列相交（${res.bad || res.rect}）`);
+    // 🔴 安全區晚注入(Android WebView 由 Capacitor 在開機後才注入 --safe-area-inset-*,不觸發任何事件):
+    //    頂列與動作列整條往下移、尺寸不變 ⇒ 橫幅若是寫死的絕對 px 就會被蓋住。先證明注入真的推動了
+    //    動作列(正向對照,否則「不相交」可能只是什麼都沒動),再比一次相交。
+    if (w < 900) {
+      const late = await q.evaluate(async sels => {
+        const act = document.querySelector('.map-actions');
+        const b = document.getElementById('updBanner');
+        const a0 = act.getBoundingClientRect().top, b0 = b.getBoundingClientRect().top;
+        document.documentElement.style.setProperty('--safe-area-inset-top', '59px');
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+        const r = b.getBoundingClientRect();
+        const hits = [];
+        for (const sel of sels) {
+          const o = document.querySelector(sel);
+          if (!o || o.hidden || !o.offsetParent) continue;
+          const t = o.getBoundingClientRect();
+          if (t.width === 0 || t.height === 0) continue;
+          if (!(r.right <= t.left || r.left >= t.right || r.bottom <= t.top || r.top >= t.bottom)) hits.push(sel);
+        }
+        return { actMoved: Math.round(act.getBoundingClientRect().top - a0), bannerMoved: Math.round(r.top - b0), bad: hits.join(',') };
+      }, OVERLAYS);
+      ok(late.actMoved >= 50, `${name} @${w}px 正向對照:注入安全區 59px 後動作列真的往下移（${late.actMoved}px）`);
+      ok(late.bad === '', `${name} @${w}px 🔴 安全區晚注入後橫幅仍不與浮層相交（${late.bad || `橫幅移動 ${late.bannerMoved}px`}）`);
+    }
     await q.close();
   }
   if (name !== 'chromium') await br.close();

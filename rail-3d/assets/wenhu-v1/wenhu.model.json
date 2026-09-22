@@ -1,0 +1,200 @@
+{
+  "schema": "railisland.raw-train/1",
+  "release": "wenhu-v1",
+  "modelId": "wenhu",
+  "name": "文湖線 APM 256",
+  "source": {
+    "commit": "e5fada341c5aecdbccb0dc29cc692b7c57a1569e",
+    "file": "tiny-trains.js",
+    "sha256": "92fda3b082261f6ffa30a78c41a996e1c59b004f970ff57bb97df25b7028c425",
+    "generator": "scripts/build_tiny_trains.mjs",
+    "credit": "軌島（Q 版示意）"
+  },
+  "appearance": {
+    "referenceUrl": "https://commons.wikimedia.org/wiki/File:TRTC_Bombardier_INNOVIA_APM_256_2015-04-13.jpg",
+    "photoIncluded": false,
+    "textures": [],
+    "note": "沿用既有程序式 Q 版外觀；不是工程模型或實際派車證明。"
+  },
+  "mesh": {
+    "file": "wenhu.mesh.bin",
+    "sha256": "26b421e6f992930c070cc38e44b32ea568ad29877fbddbe9a360f23eae7d6e4d",
+    "byteLength": 125040,
+    "encoding": "float32-le",
+    "topology": "non-indexed-triangles",
+    "vertexCount": 3126,
+    "triangleCount": 1042,
+    "strideBytes": 40,
+    "attributes": {
+      "position": {
+        "offsetBytes": 0,
+        "itemSize": 3
+      },
+      "normal": {
+        "offsetBytes": 12,
+        "itemSize": 3
+      },
+      "color": {
+        "offsetBytes": 24,
+        "itemSize": 3,
+        "colorSpace": "srgb",
+        "range": [
+          0,
+          1
+        ]
+      },
+      "gloss": {
+        "offsetBytes": 36,
+        "itemSize": 1
+      }
+    },
+    "bounds": {
+      "min": [
+        -1.7525,
+        -0.985,
+        0
+      ],
+      "max": [
+        1.7525,
+        0.985,
+        2.0069999999999997
+      ]
+    },
+    "sizeUnits": [
+      3.505,
+      1.97,
+      2.0069999999999997
+    ],
+    "winding": {
+      "policy": "preserved-exactly",
+      "frontNormalAgreement": 712,
+      "oppositeNormal": 290,
+      "degenerate": 40,
+      "side": "double",
+      "note": "原始 polygon 扇形三角化包含混合繞序；不得直接開啟背面剔除。輸出逐值保留，法線不重算。"
+    }
+  },
+  "axes": {
+    "handedness": "right",
+    "front": "+X",
+    "left": "+Y",
+    "up": "+Z",
+    "modelForward": [
+      1,
+      0,
+      0
+    ],
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ],
+    "groundPlane": "z=0",
+    "anchorMeaning": "網格長度中心在輪底平面的投影，不是單一輪子的接觸點。",
+    "wheelContactVertices": [
+      [
+        -1.1725000143051147,
+        -0.8849999904632568,
+        0
+      ],
+      [
+        -1.1725000143051147,
+        -0.675000011920929,
+        0
+      ],
+      [
+        -1.1725000143051147,
+        0.675000011920929,
+        0
+      ],
+      [
+        -1.1725000143051147,
+        0.8849999904632568,
+        0
+      ],
+      [
+        0.8575000166893005,
+        -0.8849999904632568,
+        0
+      ],
+      [
+        0.8575000166893005,
+        -0.675000011920929,
+        0
+      ],
+      [
+        0.8575000166893005,
+        0.675000011920929,
+        0
+      ],
+      [
+        0.8575000166893005,
+        0.8849999904632568,
+        0
+      ]
+    ]
+  },
+  "scale": {
+    "profileId": "q-width-2.54m",
+    "metersPerUnit": 1.2893401015228427,
+    "uniform": true,
+    "sizeMeters": [
+      4.519137055837564,
+      2.54,
+      2.5877055837563447
+    ],
+    "rationale": "等比把 Q 版網格外寬設為 2.54m；長高保留 Q 版比例，不以真車長度拉伸。"
+  },
+  "engineeringReference": {
+    "lengthM": 13.78,
+    "widthM": 2.54,
+    "heightM": 3.53,
+    "operatingCars": 4,
+    "source": "https://www.gov.taipei/News_Content.aspx?n=EEC70A4186D4C828&s=64BA8365B018394B&sms=87415A8B9CE81B16",
+    "formationSource": "https://www.metro.taipei/cp.aspx?n=ccf30033e6ed8008&s=405306CC7ACD137B",
+    "checkedAt": "2026-09-06",
+    "note": "官方概括車廂尺寸；不等於本網格尺寸、精確車鉤間距、輪距或橋面標高。"
+  },
+  "formations": {
+    "single": {
+      "id": "wenhu-single",
+      "illustrative": true,
+      "reference": "car-center-ground",
+      "lengthM": 4.519137055837564,
+      "cars": [
+        {
+          "id": "A",
+          "mesh": "wenhu",
+          "lengthM": 4.519137055837564,
+          "offsetM": 0,
+          "forwardAlongPath": "travel-direction"
+        }
+      ]
+    },
+    "short2": {
+      "id": "wenhu-short2",
+      "illustrative": true,
+      "reference": "consist-center-chainage",
+      "lengthM": 9.388274111675127,
+      "gapM": 0.35,
+      "centerSpacingM": 4.869137055837563,
+      "note": "兩節短編組用於接線驗證，不宣稱完整營運編組；A/B 身分、偏移與端面固定，倒車時只改速度正負與領頭車。",
+      "cars": [
+        {
+          "id": "A",
+          "mesh": "wenhu",
+          "lengthM": 4.519137055837564,
+          "offsetM": 2.4345685279187816,
+          "forwardAlongPath": 1
+        },
+        {
+          "id": "B",
+          "mesh": "wenhu",
+          "lengthM": 4.519137055837564,
+          "offsetM": -2.4345685279187816,
+          "forwardAlongPath": -1
+        }
+      ]
+    }
+  }
+}

@@ -63,9 +63,13 @@
   // TRAFFIC:每筆 /api/* 按來源分流(App 殼 vs 網頁),用來回答「Worker 請求數裡 App 佔多少」——
   //         兩邊打的是同一顆 Worker 同一個網域,CF 自己的請求計數把它們混成一個數字。
   //         查法:node scripts/usage_split.mjs
+  // BUS_USAGE:只在公車轉乘真的 cache miss 打上 TDX 時記 API 類型／scope／HTTP 狀態與 bytes，
+  //           用來把月用量換算成 TDX 點數；快取命中、臺北擁擠度非 TDX 資料都不記。
+  //           查法:node scripts/bus_tdx_usage.mjs
   "analytics_engine_datasets": [
     { "binding": "USAGE", "dataset": "railisland_usage" },
-    { "binding": "TRAFFIC", "dataset": "railisland_traffic" }
+    { "binding": "TRAFFIC", "dataset": "railisland_traffic" },
+    { "binding": "BUS_USAGE", "dataset": "railisland_bus_tdx_usage" }
   ],
   // Cron 觸發(* * * * *=北捷帳本＋災害觸發器；UTC 15 1=台北 09:15、15 4=台北 12:15):
   // scheduled handler 的每日分支跑台鐵準點統計
@@ -115,7 +119,20 @@
       // PASS_LIMITER:/api/pass-claim。真人一輩子只按一次(領到就存起來),5 次/分鐘已經是
       // 打錯密語重試的十倍餘裕;對猜密語的人則把「每分鐘能試幾次」壓到毫無用處的程度——
       // 密語是同仁之間口耳相傳的短字串,擋不住暴力猜的唯一辦法就是讓每次猜都很貴。
-      { "name": "PASS_LIMITER", "type": "ratelimit", "namespace_id": "1007", "simple": { "limit": 5, "period": 60 } }
+      { "name": "PASS_LIMITER", "type": "ratelimit", "namespace_id": "1007", "simple": { "limit": 5, "period": 60 } },
+      // 旅程分享寫入：前景位置正常每 15 秒至多一發（4/分鐘），30/分鐘保留網路重送餘裕；
+      // 所有寫入共用同一桶且 fail-closed，擋在 D1 前。公開讀取不走這桶。
+      { "name": "JOURNEY_SHARE_LIMITER", "type": "ratelimit", "namespace_id": "1008", "simple": { "limit": 30, "period": 60 } },
+      // BUS_LIMITER：/api/bus-transfer、/api/bus-leg-live、/api/bus-route-stops、/api/bus-stop-search、/api/bus-stop-live 共用。
+      // （bus-route-stops 09-13 補上：它在快取未命中時會打 N1，不掛就能繞過 bus-transfer 這把；只在點選路線時發，不影響下面的額度估算。）
+      // 🔴 這一族與 tra-live／metro-live 不是同一類：它們的 TDX 成本隨【請求參數】線性上升
+      // （不同站牌＝不同快取鍵＝各打一次 N1），不是「成本 = TTL × colo 數、與請求數無關」的固定成本輪詢。
+      // 實測（2026-09-02 公車轉乘用量稽核）無節流時一支腳本每 20 秒掃 239 站 ＝ 926 點/天、
+      // 400 點在 10.4 小時內用盡，且瞬間 15.9 次/秒超過金鑰每秒上限 ⇒ 共用金鑰被 429，
+      // **台鐵與捷運即時會一起掛**。前兩支自上線起一個 limiter 都沒有，本批補上。
+      // 60 次/分鐘的來源：真人一次查詢＝1 發搜尋＋1 發到站，翻幾個站牌再重整也用不到十發，
+      // 60 留了六倍餘裕；對「每 20 秒掃 239 站」那種腳本則直接壓到 1/15。
+      { "name": "BUS_LIMITER", "type": "ratelimit", "namespace_id": "1009", "simple": { "limit": 60, "period": 60 } }
     ]
   },
   "assets": {

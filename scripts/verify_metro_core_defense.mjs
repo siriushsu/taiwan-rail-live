@@ -94,10 +94,16 @@ const MUTATED_STATIONS_HTML = REAL_HTML
   .replace('  if (stations) return stations.reason;', '  if (false && stations) return stations.reason; // MUTATION stations');
 if (MUTATED_STATIONS_HTML === REAL_HTML) throw new Error('站列版本閘門突變沒有命中');
 
-// 🔴 Leaflet 刻意【不】攔截，走真 CDN：index.html 對它掛了 SRI integrity，
-//    塞本機那份 leaflet.js 進去會因為雜湊不符被瀏覽器擋掉，`L` undefined ⇒ boot 拋錯 ⇒
-//    這支腳本從寫出來的那一刻就不可能綠（2026-08-10 已經踩過一次同款）。
-//    要塞就得先把 integrity 屬性拿掉，那又會讓「驗的是這棵樹的 index.html」這道 G0 失效。
+// 突變體 9：拿掉「Core 單一方向缺列時，只補該方向班表」的出口。
+const MUTATED_DIRECTION_FALLBACK_HTML = REAL_HTML
+  .replace('      groups.push(...metroCoreLegacyGroupsForEntry(entry, officialDirections));',
+    '      /* MUTATION missing-direction fallback */');
+if (MUTATED_DIRECTION_FALLBACK_HTML === REAL_HTML) throw new Error('看板缺方向退路突變沒有命中');
+
+// M4-B(2026-09-05)：這裡原本有一條「Leaflet 刻意不攔截、走真 cdnjs」的鐵則——因為 index.html
+//    對那兩個 tag 掛了 SRI integrity，塞本機那份進去會雜湊不符被擋掉、`L` undefined ⇒ boot 拋錯
+//    （2026-08-10 的教訓）。Leaflet 拔掉後 index.html 已無任何外部 script／style，地圖引擎
+//    maplibre-gl 走 vendor/ 的本機檔由下面這台 server 直接供應，這條限制隨之消失。
 const MIME = { '.html': 'text/html; charset=utf-8', '.json': 'application/json', '.js': 'application/javascript',
   '.mjs': 'application/javascript', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml',
   '.webp': 'image/webp', '.woff2': 'font/woff2', '.webmanifest': 'application/manifest+json' };
@@ -223,6 +229,20 @@ function buildSnapshot(variant) {
     }
     throw new Error('語料裡找不到可用的 BL 看板（需要兩個不同方向／終點且未來到站的已配對列）');
   }
+  if (variant === 'missingDirection') {
+    const sys = snapshot.systems.find(s => s.systemId === 'trtc');
+    for (const board of sys.boards) {
+      const live = board.rows.filter(row => row.state !== 'departed' &&
+        Number(row.arrivalEpoch) >= now - 30 && Number(row.arrivalEpoch) <= now + 7200);
+      const directions = [...new Set(live.map(row => Number(row.direction)).filter(x => x === 1 || x === 2))];
+      if (directions.length < 2) continue;
+      missingDirectionCase = { lineId: String(board.lineId), stationIndex: Number(board.stationIndex),
+        missingDirection: directions[0], keptDirection: directions[1] };
+      board.rows = board.rows.filter(row => Number(row.direction) !== missingDirectionCase.missingDirection);
+      return snapshot;
+    }
+    throw new Error('語料裡找不到同時有雙方向列的 Core 看板');
+  }
   if (variant === 'stationsMatch' || variant === 'stationsShift') {
     // 站列版本閘門的語料：逐線帶上 {id, stationCount}。counts 是【從頁面自己讀回來的】
     // stations.length（不是照抄 data/trtc.json），否則判準會與被測物共用同一份推導假設。
@@ -241,6 +261,7 @@ function buildSnapshot(variant) {
   throw new Error('unknown variant ' + variant);
 }
 let crossLineCase = null;
+let missingDirectionCase = null;
 let pageLineCounts = null; // (k) 從頁面讀回的逐線站數：`sysId:lineId` -> ln.stations.length
 
 let currentVariant = 'healthy';
@@ -414,7 +435,7 @@ async function main() {
       check('A2 北捷九線全部由 Core 驅動', coreLines.length === 9 && trtcLines.length === 9,
         `core 驅動 ${coreLines.length}/${trtcLines.length} 條：${coreLines.map(([k, v]) => k.slice(5) + '=' + v.core).join(' ')}`);
       check('A3 Core 畫得出足夠台數（分母正向對照）', coreTrains >= 40, `${coreTrains} 台`);
-      await page.evaluate(() => map.setView([25.048, 121.545], 12, { animate: false })); // 把台北放進視窗，_freqHits 只收在畫面內的
+      await page.evaluate(() => window.__map.setView([25.048, 121.545], 12, { animate: false })); // 把台北放進視窗，_freqHits 只收在畫面內的
       await page.waitForTimeout(1200);
       const hits = await page.evaluate(() => (state._freqHits || []).filter(h => h.core).length);
       check('A4 畫面命中清單裡真的有 Core 車（不是只在資料層）', hits > 0, `_freqHits core=${hits}`);
@@ -645,7 +666,7 @@ async function main() {
     const clickFollow = async () => {
       const { page, errors } = await newPage(browser);
       await pollOnce(page);
-      await page.evaluate(() => map.setView([25.048, 121.545], 12, { animate: false }));
+      await page.evaluate(() => window.__map.setView([25.048, 121.545], 12, { animate: false }));
       await page.waitForTimeout(1200);
       const out = await page.evaluate(() => {
         const hit = (state._freqHits || []).find(h => h.core && h.vehicleId != null);
@@ -729,6 +750,46 @@ async function main() {
       check('I6 突變對照：辨線檢查沒了以後誤配列被算成已配對，I4 必須轉紅',
         out.matched === healthyMatched,
         `舊行為下 matched=${out.matched}、healthy=${healthyMatched}（正常應為 ${healthyMatched - 1}）`);
+      allErrors = allErrors.concat(errors.filter(e => !/MUTATION/.test(e)));
+      servedHtml = REAL_HTML;
+    }
+    currentVariant = 'healthy';
+
+    // ── (i-2) 單站單方向缺列：有資料的方向維持 Core，只替缺的方向補班表 ──────
+    currentVariant = 'missingDirection';
+    const missingDirectionProbe = async () => {
+      if (!missingDirectionCase) buildSnapshot('missingDirection');
+      const { page, errors } = await newPage(browser);
+      await pollOnce(page);
+      const out = await page.evaluate(kase => {
+        const ln = state.lines.find(l => String(l.id) === String(kase.lineId));
+        const st = ln && ln.stations[kase.stationIndex];
+        const view = st && metroCoreBoardView(st, state.lines, false);
+        const groups = view ? view.groups.filter(group => String(group.ln.id) === String(kase.lineId)) : [];
+        return { stationName: st && st.name,
+          coreDirections: [...new Set(groups.filter(group => group.kind === 'core')
+            .flatMap(group => group.rows.map(row => Number(row.direction))))],
+          legacyDirections: [...new Set(groups.filter(group => group.kind === 'legacy')
+            .flatMap(group => group.rows.map(row => Number(row.direction))))],
+          legacyRows: groups.filter(group => group.kind === 'legacy').flatMap(group => group.rows).length };
+      }, missingDirectionCase);
+      await page.close();
+      return { out, errors };
+    };
+    {
+      const { out, errors } = await missingDirectionProbe();
+      check('I7 Core 少一個方向時，仍有資料的方向維持官方即時列',
+        out.coreDirections.includes(missingDirectionCase.keptDirection), JSON.stringify(out));
+      check('I8 Core 少一個方向時，只替缺的方向補班表列',
+        out.legacyRows > 0 && out.legacyDirections.includes(missingDirectionCase.missingDirection) &&
+        !out.legacyDirections.includes(missingDirectionCase.keptDirection), JSON.stringify(out));
+      allErrors = allErrors.concat(errors);
+    }
+    {
+      servedHtml = MUTATED_DIRECTION_FALLBACK_HTML;
+      const { out, errors } = await missingDirectionProbe();
+      check('I9 突變對照：拿掉缺方向退路後，I8 的缺方向必須真的消失',
+        !out.legacyDirections.includes(missingDirectionCase.missingDirection), JSON.stringify(out));
       allErrors = allErrors.concat(errors.filter(e => !/MUTATION/.test(e)));
       servedHtml = REAL_HTML;
     }

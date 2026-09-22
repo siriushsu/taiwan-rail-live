@@ -40,18 +40,18 @@ function expectedCounts(rides) {
 // ── App 殼 build 真正注入的 global（app/scripts/prepare-web.mjs 的鏡射）─────────────
 // fixture 的形狀必須源自 build 腳本的實況，不是源自「我希望旗標怎麼運作」（心得 29 的反面應用）。
 // 舊 fixture 注入的 { platform:'ios', build:'test' } 真實 build 從來不會產生——prepare-web 產的是
-// { followZoomCap, satRetina, tiles }，而且兩個布林 global 一定會注入。用假形狀的代價不只是失真：
-// 那時 app 情境的 FOLLOW_ZOOM_CAP 是 Infinity（＝網站行為），等於 App 測試根本沒在測 App 設定。
+// { satRetina, tiles }，而且兩個布林 global 一定會注入。用假形狀的代價是失真：
+// 假形狀等於 App 測試根本沒在測 App 設定。（followZoomCap 已於 2026-09-07 裁示移除。）
 // 兩種受支援的產出模式都要能模擬：
 //   licensed = npm run sync:release（RAIL_INCLUDE_LICENSED_*=1）→ 三個 global 都在
 //   safe     = npm run sync（沒帶環境變數）→ 只有兩個布林，**沒有** RAIL_APP_CONFIG
 //              （verify-release.mjs 對安全 build 的硬斷言就是「不應注入 RAIL_APP_CONFIG」）
 // tiles 刻意不進 fixture：這支 harness 服務的是網站版 index.html（WEB_TILES 後備區塊還在，真 App
 // build 會整段拔除），塞授權網址等於讓每次驗收去打 Stadia／Esri 的計費端點。平台旗標不讀 tiles，
-// index.html 會消費的是 followZoomCap 與 satRetina 這兩個值。
+// index.html 會消費的是 satRetina 這個值。
 const APP_BUILD_GLOBALS = {
   licensed: { RAIL_MUSIC_AVAILABLE: true, RAIL_ONLINE_BASEMAPS_AVAILABLE: true,
-    RAIL_APP_CONFIG: { followZoomCap: 16, satRetina: true } },
+    RAIL_APP_CONFIG: { satRetina: true } },
   safe: { RAIL_MUSIC_AVAILABLE: false, RAIL_ONLINE_BASEMAPS_AVAILABLE: false },
 };
 

@@ -1,0 +1,6 @@
+.rail-platform-label { display: block; color: var(--muted, #50616b); font-size: .88em; line-height: 1.5; white-space: normal; }
+.rail-platform-label[hidden], .rail-platform-info[hidden] { display: none !important; }
+.rail-platform-label[data-platform-state="known"] { color: var(--ink, #163246); font-weight: 700; }
+.rail-platform-info { color: var(--muted, #50616b); font-size: calc(12px * var(--ui, 1)); line-height: 1.5; padding: 3px 0; overflow-wrap: anywhere; }
+.traincard.tc-sheet > .rail-platform-info { padding-inline: 12px; }
+body.ambient .rail-platform-info { display: none; }

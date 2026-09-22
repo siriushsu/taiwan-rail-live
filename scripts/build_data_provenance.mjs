@@ -35,15 +35,17 @@ export const GEOMETRY_SOURCE = {
   'data/krtc.json': 'TDX',
   'data/krtc_times.json': null,
   'data/music.json': null,                     // 配樂曲庫,不含座標
+  'data/offline_land_style.json': null,        // 只有顏色與層序,座標在 data/taiwan_land.json
   'data/ntalrt.json': 'TDX',
   'data/ntalrt_times.json': null,
   'data/ntdlrt.json': 'TDX',
   'data/ntdlrt_times.json': null,
   'data/rail_crossing_levels.json': 'OSM',
-  'data/sanying.json': 'OSM',                  // TDX 尚未收錄三鶯線,幾何與站座標取自 OSM
+  'data/sanying.json': 'OSM',                  // 幾何與站座標仍取自 OSM(TDX 2026-09-12 上架三鶯線,但只有站序/站間行駛時間/首末班,無 Shape)
   'data/sanying_times.json': null,
   'data/station_transfers.json': null,         // 輸出只有站名/距離,不含座標(距離由 data/tdx/*_Station.json 算)
   'data/taiwan_land.json': 'MOI',
+  'data/thsr_fare.json': null,                 // 高鐵票價表,只有金額與票種代碼,不含座標
   'data/thsr_schedule_dense.json': 'TDX',
   'data/thsr_track.json': 'TDX',
   'data/tmrt.json': 'TDX',
@@ -51,11 +53,15 @@ export const GEOMETRY_SOURCE = {
   'data/tra.json': 'TDX+OSM',                  // 主線形 OSM Overpass;山線三義–后里等區段以 TDX Shape 替換
   'data/tra_pass_obs.json': null,
   'data/tra_run_profiles.json': null,           // 輸出只有時間與沿跑段的里程,不含座標(里程由 data/tra.json 線形算)
+  'data/tra_track_sections.json': null,         // 只有站對→單線/雙線與平行股道長度佔比,不含座標(幾何來自 rail-3d/physical/network.json)
   'data/tra_platforms.json': 'OSM',
   'data/tra_schedule_dense.json': 'TDX+OSM',   // 通過站沿 tra.json 線形內插
   'data/tra_special_trains.json': null,
   'data/tra_station_class.json': null,
   'data/tra_station_info.json': 'TDX',
+  'data/track_lines.geojson': 'TDX+OSM',        // 十個線形檔的聯集(各檔來源見同表),build_track_geojson.mjs 轉換
+  'data/track_stations.geojson': 'TDX+OSM',     // 同上,lines[].stations
+  'data/track_style_layers.json': null,        // 只有顏色與 paint,不含座標
   'data/transfer_departures.json': null,       // 輸出只有站名/車次/時刻,不含座標(轉乘群由 station_transfers.json 帶入,它自己也是 null)
   'data/trtc.json': 'TDX+OSM',                 // 環狀線 Y 自 mrt.json 搬入(OSM 幾何)
   'data/trtc_codes.json': null,
@@ -83,6 +89,8 @@ export const HAND = {
   // 檔內的 note 講的是「這份規則怎麼被兩端共讀」,不是來源;照抄會讓人以為它有上游。
   'data/bounty_rules.json':
     '本站自訂的懸賞門檻與文案定義,無外部資料源;客端即時提示與伺服器端隔日驗證共讀同一份(見檔內 note)',
+  'data/offline_land_style.json':
+    '離線陸地的 MapLibre style 片段(fill/line 兩層、light/dark/sat 三主題),值抄自 index.html 的 offlineLandStyle();scripts/verify_track_geojson.mjs G9 對 index.html 逐值驗算',
   'data/station_transfers.json':
     '由 data/tdx/*_Station.json 與 *_StationOfLine.json 逐系統彙整(檔內 sourceSystems 列出 12 個系統的實際輸入檔);轉乘判定為站名正規化後 haversine < 450 公尺(檔內 criteria)',
   'data/tra_station_class.json':
@@ -91,6 +99,8 @@ export const HAND = {
     '交通部 TDX v3 Rail/TRA/Station——站名、地址與座標(scripts/fetch_tra_station_info.mjs)',
   'data/trtc_codes.json':
     '交通部 TDX Rail/Metro/TRTC/Station 的站碼與站名(實查 data/tdx/TRTC_Station.json,121/121 逐筆一致);所屬路線取自同批 TRTC_StationOfLine',
+  'data/track_style_layers.json':
+    '軌道/站點的 MapLibre style 片段(三層、四種 runtime 狀態、三主題、跟隨兩層),顏色由 index.html 的 MAP_PAL 與 railMix 常數推導;scripts/verify_track_geojson.mjs G8/G10 對 index.html 逐值驗算',
   'data/transfer_departures.json':
     '由 data/station_transfers.json（轉乘群）與 data/{tra,thsr,afr}_schedule_dense.json（時刻）推導,scripts/build_transfer_departures.mjs;只留 9 個轉乘站,台鐵取 d.dates[d.date] 的當日索引（tra_schedule_dense 是 14 天跨日去重聯集,直接用 d.trains 會混進其他日的改點變體）',
 };

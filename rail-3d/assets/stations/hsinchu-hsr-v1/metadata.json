@@ -1,0 +1,91 @@
+{
+  "id": "hsinchu-hsr-v1",
+  "name": "高鐵新竹・六家",
+  "version": 1,
+  "status": "simplified-exterior",
+  "anchor": [
+    121.04001555,
+    24.8083231
+  ],
+  "stationPoint": [
+    121.03941,
+    24.80766
+  ],
+  "displayHeightM": 28,
+  "realBuildingHeightM": null,
+  "railElevationM": null,
+  "heightQuality": "illustrative",
+  "footprintQuality": "OSM polygon",
+  "components": [
+    {
+      "id": "321663134",
+      "name": "高鐵新竹",
+      "type": "vault",
+      "anchor": [
+        121.04023466,
+        24.80832688
+      ],
+      "rotationDeg": 70.4724,
+      "widthM": 343.597,
+      "depthM": 101.181,
+      "displayHeightM": 28,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": true,
+      "clock": false
+    },
+    {
+      "id": "321663135",
+      "name": "六家",
+      "type": "flat",
+      "anchor": [
+        121.03940954,
+        24.80758124
+      ],
+      "rotationDeg": 86.1353,
+      "widthM": 47.533,
+      "depthM": 33.789,
+      "displayHeightM": 13,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": true,
+      "clock": false
+    }
+  ],
+  "modelScope": [
+    "高鐵新竹",
+    "六家"
+  ],
+  "excluded": [
+    "真實軌道高程",
+    "列車與月台對齊",
+    "地下站體",
+    "精確室內配置",
+    "未有輪廓的出入口及連接設施"
+  ],
+  "sources": [
+    {
+      "url": "https://www.thsrc.com.tw/ArticleContent/a7a04c89-900b-4798-95a3-c01c455622f4/assets/1f4c3f57-f8ec-4834-bb14-26fa003f8085.pdf",
+      "use": "站區配置或造型參考；不作比例測量"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/321663134",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/321663135",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    }
+  ],
+  "notes": [
+    "輪廓使用免費 OSM；曲面、窗帶、柱列、展示底高及高度由軌島簡化設計，不是工程模型。",
+    "各系統保留獨立輪廓與座標；轉乘示意圖僅核對關係，不當成比例尺。",
+    "照片與官方資料只供外觀參考，未作模型貼圖。"
+  ]
+}

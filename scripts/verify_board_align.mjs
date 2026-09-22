@@ -21,6 +21,7 @@ import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { runEngineMatrix } from './lib/engine_matrix.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
@@ -64,8 +65,8 @@ const VIEWPORTS = [{ tag: '桌面1280', width: 1280, height: 900 }, { tag: '手�
 const ENGINES = Object.entries({ chromium, webkit })
   .filter(([n]) => !process.env.BOARDALIGN_ENGINES || process.env.BOARDALIGN_ENGINES.split(',').includes(n));
 
-const results = [];
-const ok = (n, pass, d = '') => { results.push({ n, pass }); console.log(`${pass ? 'PASS' : 'FAIL'} ${n}${d ? ' — ' + d : ''}`); };
+let matrixCheck = null;
+const ok = (n, pass, d = '') => matrixCheck(pass, n, d);
 
 const measure = () => {
   const el = document.getElementById('board');
@@ -123,7 +124,9 @@ function judge(m) {
 const LONG_MIN = new Set(['即將進站', '列車進站']);
 const longMin = r => r.min && LONG_MIN.has(r.minTxt);
 
-for (const [engName, engine] of ENGINES) {
+const matrix = await runEngineMatrix(async ({ engineUrl, check }) => {
+ matrixCheck = check;
+ for (const [engName, engine] of ENGINES) {
   const browser = await engine.launch();
   for (const vp of VIEWPORTS) {
     const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, locale: PAGE_LOCALE });
@@ -132,7 +135,7 @@ for (const [engName, engine] of ENGINES) {
     });
     const page = await ctx.newPage();
     const errs = []; page.on('pageerror', e => errs.push(String(e)));
-    await page.goto(`${BASE}/?g=metro&lang=zh-TW`, { waitUntil: 'domcontentloaded' });
+    await page.goto(engineUrl(`${BASE}/`, { g: 'metro', lang: 'zh-TW' }), { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => { try { return state && state.ready && (state.lines || []).length > 0; } catch (e) { return false; } }, null, { timeout: 45000 });
     const tag = `[${engName}·${vp.tag}]`;
     ok(`${tag} 開機無例外`, errs.length === 0, errs.slice(0, 2).join(' | '));
@@ -157,21 +160,31 @@ for (const [engName, engine] of ENGINES) {
 
     // ── S1:自然情境——找一張同時有「即將進站」與「N 分」的板(使用者說的那種擠壓) ──
     const hit = await page.evaluate(() => {
-      const seen = new Set();
-      for (const ln of state.lines) for (const s of (ln.stations || [])) {
-        if (seen.has(s.name)) continue; seen.add(s.name);
-        openBoard(s);
-        const mins = [...document.querySelectorAll('#board .row .min')].map(n => n.textContent.trim());
-        if (mins.length >= 2 && mins.some(x => x === '即將進站' || x === '列車進站') && mins.some(x => /^\d+ 分$/.test(x))) return { name: s.name, mins };
+      const previousSec = state.simSec;
+      for (const testSec of [8 * 3600, 7.5 * 3600, 12 * 3600, 17.5 * 3600, 18 * 3600]) {
+        state.simSec = testSec;
+        const seen = new Set();
+        for (const ln of state.lines) for (const s of (ln.stations || [])) {
+          if (seen.has(s.name)) continue; seen.add(s.name);
+          openBoard(s);
+          const mins = [...document.querySelectorAll('#board .row .min')].map(n => n.textContent.trim());
+          if (mins.length >= 2 && mins.some(x => x === '即將進站' || x === '列車進站') && mins.some(x => /^\d+ 分$/.test(x))) {
+            state.simSec = previousSec;
+            return { name: s.name, mins, simSec: testSec };
+          }
+        }
       }
+      state.simSec = previousSec;
       return null;
     });
     ok(`${tag} S1 前提:找得到「即將進站」與「N 分」同板`, !!hit, hit && `${hit.name}(${hit.mins.join('/')})`);
 
-    const runAt = (name, fs, mutate = null) => page.evaluate(({ name, fn, mut, fs }) => {
+    const runAt = (name, fs, mutate = null) => page.evaluate(({ name, fn, mut, fs, simSec }) => {
       let undo = null;
       if (mut) undo = eval('(' + mut + ')')();
       const prev = document.documentElement.getAttribute('data-fs');
+      const previousSec = state.simSec;
+      if (Number.isFinite(simSec)) state.simSec = simSec;
       if (fs === 'std') document.documentElement.removeAttribute('data-fs');
       else if (fs) document.documentElement.setAttribute('data-fs', fs);
       let target = null;
@@ -180,9 +193,10 @@ for (const [engName, engine] of ENGINES) {
       const out = eval('(' + fn + ')')();
       if (prev === null) document.documentElement.removeAttribute('data-fs');
       else document.documentElement.setAttribute('data-fs', prev);
+      state.simSec = previousSec;
       if (undo) undo();
       return out;
-    }, { name, fn: measure.toString(), mut: mutate && mutate.toString(), fs });
+    }, { name, fn: measure.toString(), mut: mutate && mutate.toString(), fs, simSec: hit && hit.simSec });
 
     if (hit) {
       const v1 = judge(await runAt(hit.name, null));
@@ -244,9 +258,9 @@ for (const [engName, engine] of ENGINES) {
     await ctx.close();
   }
   await browser.close();
-}
+ }
+});
 server.close();
-const bad = results.filter(r => !r.pass);
-console.log(`\n=== 總計 ${results.length - bad.length}/${results.length} 通過 ===`);
-if (bad.length) console.log('失敗:', bad.map(b => b.n).join(' / '));
-process.exit(bad.length ? 1 : 0);
+console.log(`\n=== 雙地圖引擎總計 ${matrix.assertions.length - matrix.failures.length}/${matrix.assertions.length} 通過 ===`);
+if (matrix.failures.length) console.log('失敗:', matrix.failures.map(item => item.label).join(' / '));
+process.exit(matrix.passed ? 0 : 1);

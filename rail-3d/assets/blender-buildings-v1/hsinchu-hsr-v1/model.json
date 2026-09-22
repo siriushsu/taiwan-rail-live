@@ -1,0 +1,364 @@
+{
+  "id": "hsinchu-hsr-v1",
+  "name": "高鐵新竹・六家",
+  "version": 1,
+  "status": "simplified-exterior",
+  "anchor": [
+    121.04001555,
+    24.8083231
+  ],
+  "stationPoint": [
+    121.03941,
+    24.80766
+  ],
+  "displayHeightM": 28,
+  "realBuildingHeightM": null,
+  "railElevationM": null,
+  "heightQuality": "illustrative",
+  "footprintQuality": "OSM polygon",
+  "modelScope": [
+    "高鐵新竹",
+    "六家"
+  ],
+  "excluded": [
+    "真實軌道高程",
+    "列車與月台對齊",
+    "地下站體",
+    "精確室內配置",
+    "未有輪廓的出入口及連接設施"
+  ],
+  "sources": [
+    {
+      "url": "https://www.thsrc.com.tw/ArticleContent/a7a04c89-900b-4798-95a3-c01c455622f4/assets/1f4c3f57-f8ec-4834-bb14-26fa003f8085.pdf",
+      "use": "站區配置或造型參考；不作比例測量"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/321663134",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/321663135",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    }
+  ],
+  "notes": [
+    "輪廓使用免費 OSM；曲面、窗帶、柱列、展示底高及高度由軌島簡化設計，不是工程模型。",
+    "各系統保留獨立輪廓與座標；轉乘示意圖僅核對關係，不當成比例尺。",
+    "照片與官方資料只供外觀參考，未作模型貼圖。"
+  ],
+  "sourceSnapshot": {
+    "path": "source-layouts/hsinchu-hsr-v1/metadata.json",
+    "sha256": "c8361c1275915ac9528b9c432e9310bd63606790e8a079c7c525a95807232197"
+  },
+  "category": "station",
+  "kind": "station",
+  "placementStatus": "existing-ENU-component-layout",
+  "features": [
+    "保留既有 OSM 站區輪廓與各棟相對位置",
+    "依元件分開製作玻璃、屋頂、柱列與雨棚"
+  ],
+  "application": "5.2.1 LTS",
+  "axes": {
+    "up": "+Z",
+    "east": "+X",
+    "north": "+Y",
+    "front": null,
+    "units": "meters",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "gltfAxes": {
+    "up": "+Y",
+    "toZUp": "rotateX(+PI/2)"
+  },
+  "orientationMode": "ENU-baked",
+  "facadeBearingDeg": null,
+  "absoluteGroundAltitudeM": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -80.0499267578125,
+      -174.0807342529297,
+      0.0
+    ],
+    "max": [
+      80.08403778076172,
+      174.08070373535156,
+      28.149999618530273
+    ]
+  },
+  "sizeM": [
+    160.13396453857422,
+    348.16143798828125,
+    28.149999618530273
+  ],
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "glb": "near.glb",
+      "sha256": "136863f901a692f6d6ddcdd0ac2e7150161466a3b572419469363f33588916b8",
+      "glbSha256": "fc6a5c0a6025b4aae062e254699e432330015c1aa8b9d9f4393c5aa9ea7b9482",
+      "strideBytes": 24,
+      "vertexCount": 18936,
+      "triangleCount": 6312,
+      "drawGroups": [
+        {
+          "component": "321663134",
+          "name": "roof",
+          "start": 0,
+          "count": 2967,
+          "color": [
+            0.3915724754333496,
+            0.4677838087081909,
+            0.46207699179649353
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "321663134",
+          "name": "stone",
+          "start": 2967,
+          "count": 5160,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "321663134",
+          "name": "metal",
+          "start": 8127,
+          "count": 8802,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "321663134",
+          "name": "glass",
+          "start": 16929,
+          "count": 114,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "321663135",
+          "name": "roof",
+          "start": 17043,
+          "count": 27,
+          "color": [
+            0.3915724754333496,
+            0.4677838087081909,
+            0.46207699179649353
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "321663135",
+          "name": "stone",
+          "start": 17070,
+          "count": 840,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "321663135",
+          "name": "metal",
+          "start": 17910,
+          "count": 960,
+          "color": [
+            0.3967552185058594,
+            0.46207699179649353,
+            0.47353148460388184
+          ],
+          "metalness": 0.44999998807907104,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "321663135",
+          "name": "glass",
+          "start": 18870,
+          "count": 66,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        }
+      ],
+      "byteLength": 454464
+    },
+    "far": {
+      "file": "far.mesh.bin",
+      "glb": "far.glb",
+      "sha256": "d3f7e64a1a01f6d7a83e68136d98e9f3a562be3d79345db964a97b9ec67bc2fc",
+      "glbSha256": "f6550303ba1a12ae2616e97fd56b12c01171239e7aca6c56779b9a618b30aa58",
+      "strideBytes": 24,
+      "vertexCount": 9174,
+      "triangleCount": 3058,
+      "drawGroups": [
+        {
+          "component": "321663134",
+          "name": "roof",
+          "start": 0,
+          "count": 2967,
+          "color": [
+            0.3915724754333496,
+            0.4677838087081909,
+            0.46207699179649353
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "321663134",
+          "name": "stone",
+          "start": 2967,
+          "count": 5160,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "321663134",
+          "name": "glass",
+          "start": 8127,
+          "count": 114,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        },
+        {
+          "component": "321663135",
+          "name": "roof",
+          "start": 8241,
+          "count": 27,
+          "color": [
+            0.3915724754333496,
+            0.4677838087081909,
+            0.46207699179649353
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "321663135",
+          "name": "stone",
+          "start": 8268,
+          "count": 840,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "321663135",
+          "name": "glass",
+          "start": 9108,
+          "count": 66,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
+        }
+      ],
+      "byteLength": 220176
+    }
+  },
+  "nativeObjectCount": 238,
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "modelUse": "map-exterior",
+  "components": [
+    {
+      "id": "321663134",
+      "name": "高鐵新竹",
+      "type": "vault",
+      "anchor": [
+        121.04023466,
+        24.80832688
+      ],
+      "rotationDeg": 70.4724,
+      "widthM": 343.597,
+      "depthM": 101.181,
+      "displayHeightM": 28,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": true,
+      "clock": false,
+      "offsetENU": [
+        22.14040924323532,
+        0.420789600013336,
+        0
+      ],
+      "footprintAreaM2": 16974.82222485515
+    },
+    {
+      "id": "321663135",
+      "name": "六家",
+      "type": "flat",
+      "anchor": [
+        121.03940954,
+        24.80758124
+      ],
+      "rotationDeg": 86.1353,
+      "widthM": 47.533,
+      "depthM": 33.789,
+      "displayHeightM": 13,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": true,
+      "clock": false,
+      "offsetENU": [
+        -61.23549544266603,
+        -82.58385519977566,
+        0
+      ],
+      "footprintAreaM2": 1528.1609602477
+    }
+  ]
+}

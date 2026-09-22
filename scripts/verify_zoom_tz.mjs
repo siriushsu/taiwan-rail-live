@@ -104,7 +104,7 @@ async function bootTz(timezoneId, { touch = false, width = 1280, height = 800 } 
   ok('C1 viewport 含 maximum-scale=1 + user-scalable=no', /maximum-scale=1/.test(r.meta) && /user-scalable=no/.test(r.meta), r.meta);
   ok('C2 body touch-action 禁 pinch(pan-x pan-y)', r.ta === 'pan-x pan-y', r.ta);
   ok('C3 iOS gesturestart/gesturechange 已 preventDefault', r.prevented && r.prevented2, `${r.prevented}/${r.prevented2}`);
-  ok('C4 地圖容器 touch-action 不受影響(Leaflet 自設)', r.mapTa !== 'pan-x pan-y', `#map=${r.mapTa}`);
+  ok('C4 地圖容器 touch-action 不受影響(地圖引擎自設)', r.mapTa !== 'pan-x pan-y', `#map=${r.mapTa}`);
   ok('C5 手機無 JS 例外', errors.length === 0, errors.join(' | ').slice(0, 120));
   await ctx.close();
 }

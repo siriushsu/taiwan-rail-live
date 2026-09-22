@@ -38,6 +38,12 @@ const CLASSES = [
   { name: '內部出圖工具',   git: 'tools/',   asset: 'tools',    sample: 'tools/公告版型/x.html' },
   { name: 'Android 版面稿', git: 'android-native-design-mock.html', asset: 'android-native-design-mock.html',
     sample: 'android-native-design-mock.html' },
+  // 下面兩類不是「內部工作文件」而是**驗收閘門的現場產物**(可隨時重建),但一樣兩邊都要有:
+  // 它們的輸出路徑寫死在腳本裡且是相對路徑,一律落在 repo 根目錄 ⇒ git status 長期是髒的,
+  // 一次 git add -A 就進公開歷史;而 output/ 裡有外包交付的 zip 與內部報告 PDF,
+  // 漏了 .assetsignore 那邊,裸跑 wrangler versions upload 就讓它們變成公開路徑。
+  { name: '閘門截圖',       git: '_shot_*.png', asset: '_shot_*.png', sample: '_shot_probe_2026-01-01.png' },
+  { name: '閘門輸出目錄',   git: 'output/',     asset: 'output',      sample: 'output/probe-2026-01-01/x.json' },
 ];
 
 // 反向對照:這些一定要出得了貨,防止新規則誤殺(參照 Jekyll exclude 曾誤殺送審 Support URL)。

@@ -30,7 +30,11 @@ final class RailWidgetRender {
                 : "全部目的地 · 停靠與終到")
             : RailNativeL10n.text(context, "往 {station} · 直達列車", "station", RailNativeL10n.name(context, snapshot.destination)));
         root.setTextViewText(R.id.wr_stamp, clock(snapshot.generatedAt) + (compact ? "" : " " + RailNativeL10n.text(context, "更新")));
+        // 🔴 退快取標示排在「資料延遲」之後、其餘之前：資料本身壞掉比位置舊更急，
+        //    但「這一站是上次的位置解析出來的」一定要看得見——不標的話退化狀態與正常狀態
+        //    長得一模一樣，使用者只會覺得自動選站壞了而無從分辨（iOS 側同一條決定）。
         String note = snapshot.failed ? RailNativeL10n.text(context, "資料延遲 · 顯示上次成功結果")
+            : snapshot.autoStale ? RailNativeL10n.text(context, "上次位置 · 開啟軌島更新")
             : snapshot.scheduleNote != null ? scheduleNote(context, snapshot.scheduleNote)
             : RailNativeL10n.text(context, "台鐵即時誤點 · 高鐵表定時刻");
         root.setTextViewText(R.id.wr_note, note);
@@ -68,8 +72,24 @@ final class RailWidgetRender {
     }
 
     static RemoteViews row(Context context, RailWidgetData.Row row, boolean readable, boolean compact) {
-        RemoteViews out = new RemoteViews(context.getPackageName(), readable
+        RemoteViews out = row(context, row, readable
             ? R.layout.widget_rail_row_readable : R.layout.widget_rail_row);
+        if (compact) {
+            out.setViewVisibility(R.id.wrr_status, View.GONE);
+            out.setTextViewTextSize(R.id.wrr_time, TypedValue.COMPLEX_UNIT_SP, readable ? 23 : 15);
+            out.setTextViewTextSize(R.id.wrr_train, TypedValue.COMPLEX_UNIT_SP, readable ? 16 : 11);
+        } else if (readable) {
+            out.setTextViewTextSize(R.id.wrr_time, TypedValue.COMPLEX_UNIT_SP, 23);
+            out.setTextViewTextSize(R.id.wrr_train, TypedValue.COMPLEX_UNIT_SP, 16);
+            out.setTextViewTextSize(R.id.wrr_status, TypedValue.COMPLEX_UNIT_SP, 12);
+            out.setViewVisibility(R.id.wrr_dest, View.GONE);
+        }
+        return out;
+    }
+
+    /** 只綁資料、不動字級：任何帶 wrr_* 這組 id 的列 layout 都能用（雙看板的主角列／次列也走這裡）。 */
+    static RemoteViews row(Context context, RailWidgetData.Row row, int layout) {
+        RemoteViews out = new RemoteViews(context.getPackageName(), layout);
         int color;
         try { color = Color.parseColor(row.color); }
         catch (IllegalArgumentException ignored) { color = context.getColor(R.color.wg_navy); }
@@ -98,6 +118,12 @@ final class RailWidgetRender {
         if (row.destinationAt != null) relation += " · " + RailNativeL10n.text(context, "{time} 抵達", "time", clock(row.destinationAt));
         out.setTextViewText(R.id.wrr_dest, relation);
         out.setTextViewText(R.id.wrr_time, clock(row.scheduledAt));
+        String platform = row.platformAt(System.currentTimeMillis());
+        out.setViewVisibility(R.id.wrr_platform, platform == null ? View.GONE : View.VISIBLE);
+        out.setTextViewText(R.id.wrr_platform, platform == null ? ""
+            : RailNativeL10n.text(context, "月台 {platform}", "platform", platform));
+        out.setContentDescription(R.id.wrr_platform, platform == null ? ""
+            : RailNativeL10n.text(context, "月台 {platform}", "platform", platform));
         if (row.delayMinutes == null) {
             out.setTextViewText(R.id.wrr_status, RailNativeL10n.text(context, row.sys.equals("thsr") ? "表定" : "尚無讀數"));
             out.setTextColor(R.id.wrr_status, context.getColor(R.color.wg_ink_faint));
@@ -111,16 +137,6 @@ final class RailWidgetRender {
         } else {
             out.setTextViewText(R.id.wrr_status, RailNativeL10n.text(context, "早到 {n} 分", "n", String.valueOf(Math.abs(row.delayMinutes))));
             out.setTextColor(R.id.wrr_status, context.getColor(R.color.wg_ok));
-        }
-        if (compact) {
-            out.setViewVisibility(R.id.wrr_status, View.GONE);
-            out.setTextViewTextSize(R.id.wrr_time, TypedValue.COMPLEX_UNIT_SP, readable ? 23 : 15);
-            out.setTextViewTextSize(R.id.wrr_train, TypedValue.COMPLEX_UNIT_SP, readable ? 16 : 11);
-        } else if (readable) {
-            out.setTextViewTextSize(R.id.wrr_time, TypedValue.COMPLEX_UNIT_SP, 23);
-            out.setTextViewTextSize(R.id.wrr_train, TypedValue.COMPLEX_UNIT_SP, 16);
-            out.setTextViewTextSize(R.id.wrr_status, TypedValue.COMPLEX_UNIT_SP, 12);
-            out.setViewVisibility(R.id.wrr_dest, View.GONE);
         }
         return out;
     }

@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "_comment": [
+    "公車即時到站的取得策略設定檔。新增縣市請只改本檔，不要改 worker.js／bus_live_core.mjs 的邏輯。",
+    "provider 只有兩種：",
+    "  direct-bulk  —— 該縣市自己公開整份快照，Worker 抓一份所有使用者共用，成本與人數脫鉤、不計 TDX 配額。",
+    "  tdx-per-stop —— 沒有直接來源，退回 TDX 逐站查詢。成本隨請求參數線性上升，必須掛 limiter。",
+    "🔴 端點網址一律寫在本檔的 endpoints，不可寫死在程式碼裡（設計書單元 C「新增縣市應該是改設定不是改架構」）。",
+    "🔴 cities 的鍵就是 TDX 的 City scope 值。2026-09-11 實測 TDX Bus/Station 只收下列 21 個；",
+    "   連江縣不在其中，TDX 錯誤訊息原文列出的可接受值不含 Lienchiang／LienchiangCounty／MatsuCounty。",
+    "各縣市有無直接來源的清查仍在進行，清查完成後把該縣市改成 direct-bulk 並補 endpoints 即可。"
+  ],
+  "defaultProvider": "tdx-per-stop",
+  "directBulkFormats": {
+    "taipei-blobbus-v1": {
+      "gzip": true,
+      "rootArray": "BusInfo",
+      "updateTimePath": "EssentialInfo.UpdateTime",
+      "updateTimeFormat": "yyyy/MM/dd HH:mm:ss+08:00",
+      "fields": { "route": "RouteID", "stop": "StopID", "estimate": "EstimateTime", "goBack": "GoBack" },
+      "estimateUnit": "second",
+      "negativeEstimateCodes": {
+        "-1": "not_departed",
+        "-2": "skipped",
+        "-3": "last_bus_passed",
+        "-4": "not_operating"
+      },
+      "goBackCodes": { "0": 0, "1": 1, "2": null, "3": null },
+      "docUrl": "https://data.taipei/dataset/detail?id=b2b21fa0-c16b-4ce7-bbf1-de4e3d0b4e0f",
+      "docTitle": "臺北市 Data.Taipei 平台 API 說明文件 version 6.3（2025-09-15）",
+      "docQuoteEstimateTime": "預估到站剩餘時間（單位：秒） -1：尚未發車 -2：交管不停靠 -3：末班車已過 -4：今日未營運",
+      "docQuoteGoBack": "去返程 （0：去程 1：返程 2：尚未發車 3：末班已駛離）"
+    }
+  },
+  "cities": {
+    "Taipei": {
+      "label": "臺北市",
+      "provider": "direct-bulk",
+      "tdxScope": "City/Taipei",
+      "stopIdPrefix": "TPE",
+      "directBulk": {
+        "format": "taipei-blobbus-v1",
+        "attribution": "臺北市政府交通局公共運輸處「臺北市公車動態資訊」",
+        "license": "政府資料開放授權條款－第1版",
+        "endpoints": {
+          "estimate": "https://tcgbusfs.blob.core.windows.net/blobbus/GetEstimateTime.gz",
+          "stop": "https://tcgbusfs.blob.core.windows.net/blobbus/GetStop.gz",
+          "route": "https://tcgbusfs.blob.core.windows.net/blobbus/GetRoute.gz"
+        }
+      }
+    },
+    "NewTaipei": { "label": "新北市", "provider": "tdx-per-stop", "tdxScope": "City/NewTaipei", "stopIdPrefix": "NWT" },
+    "Taoyuan": { "label": "桃園市", "provider": "tdx-per-stop", "tdxScope": "City/Taoyuan", "stopIdPrefix": "TAO" },
+    "Taichung": { "label": "臺中市", "provider": "tdx-per-stop", "tdxScope": "City/Taichung", "stopIdPrefix": "TXG" },
+    "Tainan": { "label": "臺南市", "provider": "tdx-per-stop", "tdxScope": "City/Tainan", "stopIdPrefix": "TNN" },
+    "Kaohsiung": { "label": "高雄市", "provider": "tdx-per-stop", "tdxScope": "City/Kaohsiung", "stopIdPrefix": "KHH" },
+    "Keelung": { "label": "基隆市", "provider": "tdx-per-stop", "tdxScope": "City/Keelung", "stopIdPrefix": "KEE" },
+    "Hsinchu": { "label": "新竹市", "provider": "tdx-per-stop", "tdxScope": "City/Hsinchu", "stopIdPrefix": "HSZ" },
+    "HsinchuCounty": { "label": "新竹縣", "provider": "tdx-per-stop", "tdxScope": "City/HsinchuCounty", "stopIdPrefix": "HSQ" },
+    "MiaoliCounty": { "label": "苗栗縣", "provider": "tdx-per-stop", "tdxScope": "City/MiaoliCounty", "stopIdPrefix": "MIA" },
+    "ChanghuaCounty": { "label": "彰化縣", "provider": "tdx-per-stop", "tdxScope": "City/ChanghuaCounty", "stopIdPrefix": "CHA" },
+    "NantouCounty": { "label": "南投縣", "provider": "tdx-per-stop", "tdxScope": "City/NantouCounty", "stopIdPrefix": "NAN" },
+    "YunlinCounty": { "label": "雲林縣", "provider": "tdx-per-stop", "tdxScope": "City/YunlinCounty", "stopIdPrefix": "YUN" },
+    "Chiayi": { "label": "嘉義市", "provider": "tdx-per-stop", "tdxScope": "City/Chiayi", "stopIdPrefix": "CYI" },
+    "ChiayiCounty": { "label": "嘉義縣", "provider": "tdx-per-stop", "tdxScope": "City/ChiayiCounty", "stopIdPrefix": "CYQ" },
+    "PingtungCounty": { "label": "屏東縣", "provider": "tdx-per-stop", "tdxScope": "City/PingtungCounty", "stopIdPrefix": "PIF" },
+    "YilanCounty": { "label": "宜蘭縣", "provider": "tdx-per-stop", "tdxScope": "City/YilanCounty", "stopIdPrefix": "ILA" },
+    "HualienCounty": { "label": "花蓮縣", "provider": "tdx-per-stop", "tdxScope": "City/HualienCounty", "stopIdPrefix": "HUA" },
+    "TaitungCounty": { "label": "臺東縣", "provider": "tdx-per-stop", "tdxScope": "City/TaitungCounty", "stopIdPrefix": "TTT" },
+    "KinmenCounty": { "label": "金門縣", "provider": "tdx-per-stop", "tdxScope": "City/KinmenCounty", "stopIdPrefix": "KIN" },
+    "PenghuCounty": { "label": "澎湖縣", "provider": "tdx-per-stop", "tdxScope": "City/PenghuCounty", "stopIdPrefix": "PEN" }
+  }
+}

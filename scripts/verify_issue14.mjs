@@ -6,26 +6,26 @@ import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { runEngineMatrix } from './lib/engine_matrix.mjs';
 
 const URL = process.env.VURL || 'http://localhost:5288/index.html';
 const DM = 30, DS = DM * 60; // 注入誤點 30 分
-let fail = 0;
-const ck = (ok, msg) => { console.log((ok ? '  ✓ ' : '  ✗ ') + msg); if (!ok) fail++; };
+let matrixCheck = null;
+const ck = (ok, msg, detail = '') => matrixCheck(ok, msg, detail);
 
 // ── G0 自檢：確認 dev server 服務的就是「當前工作區」那份 index.html。
 // 這台機器同時跑著好幾個 session 的 server，port 會被別人佔走，驗到別人的檔案而全綠是真的發生過的事。
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const md5 = b => createHash('md5').update(b).digest('hex');
 const diskHash = md5(readFileSync(path.join(ROOT, 'index.html')));
-const servedHash = md5(Buffer.from(await (await fetch(URL)).arrayBuffer()));
-console.log(`G0 目標自檢：${URL}\n   工作區 ${ROOT}\n   disk=${diskHash} served=${servedHash}`);
-if (diskHash !== servedHash) {
-  console.log('  ✗ G0 服務中的檔案不是當前工作區——port 被別的 server 佔走了，換一個 port 再跑');
-  process.exit(1);
-}
-console.log('  ✓ G0 驗的就是當前工作區');
 
-for (const [eng, launcher] of [['chromium', chromium], ['webkit', webkit]]) {
+const matrix = await runEngineMatrix(async ({ engineUrl, check }) => {
+ matrixCheck = check;
+ const targetURL = engineUrl(URL);
+ const servedHash = md5(Buffer.from(await (await fetch(targetURL)).arrayBuffer()));
+ ck(diskHash === servedHash, 'G0 服務中的檔案是當前工作區', `URL=${targetURL} ROOT=${ROOT} disk=${diskHash} served=${servedHash}`);
+
+ for (const [eng, launcher] of [['chromium', chromium], ['webkit', webkit]]) {
   console.log(`\n===== ${eng} =====`);
   const br = await launcher.launch();
   const pg = await br.newPage({ viewport: { width: 1280, height: 800 } });
@@ -38,31 +38,41 @@ for (const [eng, launcher] of [['chromium', chromium], ['webkit', webkit]]) {
     body: JSON.stringify({ at: new Date().toISOString(), trains: mockNo ? [{ no: mockNo, delay: DM }] : [] }),
   }));
 
-  await pg.goto(URL, { waitUntil: 'load' });
+  await pg.goto(targetURL, { waitUntil: 'load' });
   await pg.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 500, null, { timeout: 40000 });
 
-  // 候選：表定終點到站已過 5~25 分，「且」扣掉注入的誤點後仍在旅途中。
-  // 後半條件不可省：全程短於誤點量的車（例:沙崙線 20 分）扣完誤點會落在發車前，
-  // trainPos 回 null＝地圖上根本點不到，A 情境的前置不成立（會看起來像 FAIL，其實是選錯車）。
+  // 候選：從真實班表挑一班可在「表定終點後 10 分」觀察、且扣掉 30 分誤點後仍在旅途中的車。
+  // 測試時鐘稍後固定到 probe；不再依執行當下幾點，凌晨／離峰也能跑同一個產品情境。
+  // probe 限制在當日內，避免這支 issue #14 gate 額外混入跨午夜語意（跨午夜另由 G 驗）。
   const cand = await pg.evaluate(({ ds }) => {
-    const now = nowSecOfDay(), out = [];
+    const out = [];
     for (const tr of state.trains) {
       if (tr.loop || !tr.stops || tr.stops.length < 3) continue;
       if (tr.sys && tr.sys !== 'tra_sched') continue;
       const first = tr.stops[0], last = tr.stops[tr.stops.length - 1];
-      const gap = now - last.arrSec, live = now - ds;
-      if (gap > 300 && gap < 1500 && first.depSec < now && live > first.arrSec && live < last.depSec)
-        out.push({ no: String(tr.train), gap });
+      const probe = last.arrSec + 600, live = probe - ds;
+      if (probe < 86400 && first.depSec < probe && live > first.arrSec && live < last.arrSec)
+        out.push({ no: String(tr.train), probe, duration: last.arrSec - first.depSec });
     }
-    out.sort((a, b) => a.gap - b.gap);
+    out.sort((a, b) => b.duration - a.duration || a.probe - b.probe);
     return out.slice(0, 3);
   }, { ds: DS });
-  if (!cand.length) { console.log('  找不到候選車次（時段問題），中止'); await br.close(); process.exit(2); }
+  if (!cand.length) {
+    ck(false, `${eng} 找得到符合 issue #14 時段條件的候選車次`, '此為改前已存在的時段相依紅；不中斷另一瀏覽器／地圖引擎');
+    await br.close();
+    continue;
+  }
   mockNo = cand[0].no;
-  await pg.reload({ waitUntil: 'load' });
-  await pg.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 500, null, { timeout: 40000 });
+  const probeSec = cand[0].probe;
+  // 不 reload：WebKit 搭配 page.route 在 reload 中偶發把任意本機 JSON 報成 CORS，且這裡只需
+  // 讓同一頁再輪詢一次 live fixture。直接呼叫產品 pollLive，測到的仍是完整 fetch→parse→state 路徑。
+  await pg.evaluate(() => pollLive());
   await pg.waitForFunction(() => state.live && state.live.map && state.live.map.size > 0, null, { timeout: 20000 });
-  console.log(`  測試車次 ${mockNo}（注入誤點 ${DM} 分）`);
+  await pg.evaluate(probe => {
+    window.nowSecOfDay = () => probe;
+    state.simSec = probe;
+  }, probeSec);
+  console.log(`  測試車次 ${mockNo}（注入誤點 ${DM} 分；固定時鐘 ${probeSec} 秒）`);
 
   // ── A. 主症狀：誤點車過了表定終點時間後，點地圖上的車不該被撥回發車
   const a = await pg.evaluate(({ no }) => {
@@ -179,7 +189,8 @@ for (const [eng, launcher] of [['chromium', chromium], ['webkit', webkit]]) {
   const real = errs.filter(x => !/Fetch API cannot load .*\/api\/\w+-alert due to access control checks/.test(x));
   ck(real.length === 0, `零 pageerror（環境噪音 ${errs.length - real.length} 筆已豁免，其餘 ${real.length}）` + (real.length ? ' → ' + real[0] : ''));
   await br.close();
-}
+ }
+});
 
-console.log(`\n${fail === 0 ? '全部通過' : `${fail} 項未過`}`);
-process.exit(fail === 0 ? 0 : 1);
+console.log(`\n雙地圖引擎總計 ${matrix.assertions.length - matrix.failures.length}/${matrix.assertions.length} 通過`);
+process.exit(matrix.passed ? 0 : 1);

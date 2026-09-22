@@ -72,7 +72,7 @@ public final class NativeLocalizationInstrumentedTest {
         assertEquals("Banqiao departures", text(railEn, R.id.wr_head));
         assertTrue(text(railEn, R.id.wrr_dest).contains("Hualien"));
 
-        View mixedEn = MixedWidgetRender.board(context, rail, metro).apply(context, host);
+        View mixedEn = MixedWidgetRender.boardAt(context, rail, metro, 460f).apply(context, host);
         assertEquals("Banqiao dual board", text(mixedEn, R.id.wmx_head));
         assertEquals("Metro · Taipei Metro · Banqiao", text(mixedEn, R.id.wmx_metro_head));
 
@@ -94,7 +94,7 @@ public final class NativeLocalizationInstrumentedTest {
         View railJa = RailWidgetRender.board(context, R.layout.widget_rail_4x2, rail, 3, false, false)
             .apply(context, host);
         assertEquals("板橋・発車案内", text(railJa, R.id.wr_head));
-        View mixedJa = MixedWidgetRender.board(context, rail, metro).apply(context, host);
+        View mixedJa = MixedWidgetRender.boardAt(context, rail, metro, 460f).apply(context, host);
         assertEquals("板橋・二面案内", text(mixedJa, R.id.wmx_head));
     }
 

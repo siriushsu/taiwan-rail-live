@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-02",
+  "updated": "2026-09-18",
   "events": [
     {
       "id": "trtc-20260811-pokemon10",
@@ -10,16 +10,6 @@
       "end": "2026-09-13",
       "anchor": { "kind": "station", "sys": "mrt", "name": "大安森林公園" },
       "url": "https://pokemongo.com/zh-Hant/news/2026daanpark"
-    },
-    {
-      "id": "ntmetro-20260814-fireworks-0816",
-      "source": "official",
-      "title": "2026仲夏夜繽紛樂",
-      "note": "漁人碼頭週日夜間煙火，輕軌會加開藍海線疏運",
-      "start": "2026-08-16",
-      "end": "2026-08-16",
-      "anchor": { "kind": "station", "sys": "ntdlrt", "name": "淡水漁人碼頭" },
-      "url": "https://www.ntmetro.com.tw/basic/?mode=detail&node=890"
     },
     {
       "id": "ntmetro-20260814-fireworks-0823",
@@ -213,6 +203,157 @@
       "endGuess": true,
       "anchor": { "kind": "station", "sys": "afr_sched", "name": "阿里山" },
       "url": "https://afrch.forest.gov.tw/AllNews/0079128"
+    },
+    {
+      "id": "trtc-20260902-cpr-0905",
+      "source": "official",
+      "title": "閃電CPR挑戰",
+      "note": "12 時至 18 時在站內充電區體驗 CPR 與 AED，完成任務可玩線上小遊戲",
+      "start": "2026-09-05",
+      "end": "2026-09-05",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "中山" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=C413B5C4CF0BBB21"
+    },
+    {
+      "id": "trtc-20260902-cpr-0912",
+      "source": "official",
+      "title": "閃電CPR挑戰",
+      "note": "12 時至 18 時在月臺體驗 CPR 與 AED，完成任務可玩線上小遊戲",
+      "start": "2026-09-12",
+      "end": "2026-09-12",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "忠孝新生" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=C413B5C4CF0BBB21"
+    },
+    {
+      "id": "trtc-20260902-cpr-0919",
+      "source": "official",
+      "title": "閃電CPR挑戰",
+      "note": "12 時至 18 時在月臺體驗 CPR 與 AED，完成任務可玩線上小遊戲",
+      "start": "2026-09-19",
+      "end": "2026-09-19",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "市政府" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=C413B5C4CF0BBB21"
+    },
+    {
+      "id": "trtc-20260902-guangci-firstmonth",
+      "source": "official",
+      "title": "廣慈／奉天宮站通車首月好康",
+      "note": "搭捷運到站可抽捷運年票或自行車，現場每日發限量霜淇淋禮物卡，另有首月乘車優惠",
+      "start": "2026-08-30",
+      "end": "2026-09-28",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "廣慈/奉天宮" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=F90C50DBBB49A03F"
+    },
+    {
+      "id": "tymc-20260902-jingjun93",
+      "source": "official",
+      "title": "敬軍93 感恩同行",
+      "note": "現役軍人、替代役、榮民、國防部職員及軍校教職員生持證免費搭；同行親友同起訖單程票 8 折",
+      "start": "2026-09-03",
+      "end": "2026-09-25",
+      "anchor": { "kind": "system", "sys": "tymc" },
+      "url": "https://www.tymetro.com.tw/tymetro-new/tw/_pages/news/show-2416-1.html"
+    },
+    {
+      "id": "tymc-20260907-designexpo-qingpu",
+      "source": "official",
+      "title": "2026 台灣設計展",
+      "note": "青埔主展區，桃園體育園區站下車",
+      "start": "2026-09-24",
+      "end": "2026-10-11",
+      "anchor": { "kind": "station", "sys": "tymc", "name": "桃園體育園區站" },
+      "url": "https://www.tymetro.com.tw/tymetro-new/tw/_pages/news/show-2419-1.html"
+    },
+    {
+      "id": "tymc-20260907-designexpo-zhongli",
+      "source": "official",
+      "title": "2026 台灣設計展（中壢展區）",
+      "note": "環北站轉乘免費接駁車可到",
+      "start": "2026-09-24",
+      "end": "2026-10-11",
+      "anchor": { "kind": "station", "sys": "tymc", "name": "環北站" },
+      "url": "https://www.tymetro.com.tw/tymetro-new/tw/_pages/news/show-2419-1.html"
+    },
+    {
+      "id": "tymc-20260907-designexpo-train",
+      "source": "official",
+      "title": "2026 台灣設計展彩繪列車",
+      "note": "全線隨機運行，官方 App 可查它現在在哪",
+      "start": "2026-09-07",
+      "end": "2026-10-11",
+      "anchor": { "kind": "system", "sys": "tymc" },
+      "url": "https://www.tymetro.com.tw/tymetro-new/tw/_pages/news/show-2419-1.html"
+    },
+    {
+      "id": "trtc-20260908-jingjun-venues",
+      "source": "official",
+      "title": "敬軍優惠 三大遊憩場館免費",
+      "note": "現役軍人、替代役與軍眷持證免費，可帶最多 4 位親友同行",
+      "start": "2026-09-08",
+      "end": "2026-12-31",
+      "anchor": { "kind": "system", "sys": "mrt" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=267CEA86CE2AB5C2"
+    },
+    {
+      "id": "trtc-20260910-kidsmovie-dahu",
+      "source": "official",
+      "title": "假日親子電影院：大湖公園場",
+      "note": "下午有特展與闖關，傍晚露天放《鞋貓劍客2》",
+      "start": "2026-09-12",
+      "end": "2026-09-12",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "大湖公園" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=A2C11A764A640D3D"
+    },
+    {
+      "id": "trtc-20260910-kidsmovie-daan",
+      "source": "official",
+      "title": "假日親子電影院：大安森林公園站場",
+      "note": "在陽光大廳，魔術開場後放《哆啦A夢：大雄的繪畫世界物語》",
+      "start": "2026-09-19",
+      "end": "2026-09-19",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "大安森林公園" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=A2C11A764A640D3D"
+    },
+    {
+      "id": "trtc-20260911-kidspark-teacher",
+      "source": "official",
+      "title": "兒童新樂園敬師月",
+      "note": "臺北市教師持教師證或學校識別證，本人加親友共 4 人免費入園；假日再送 4 項設施遊樂券。劍潭站出口 3 轉公車可到",
+      "start": "2026-09-11",
+      "end": "2026-09-30",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "劍潭" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=FD5BEE81DC171572"
+    },
+    {
+      "id": "thsr-20260911-hsinchu-p3-parking",
+      "source": "official",
+      "title": "高鐵新竹站 P3 停車場新費率",
+      "note": "9/15 起 P3 每小時 60 元、每日上限 720 元；P1、P2 維持每小時 50 元、上限 350 元",
+      "start": "2026-09-15",
+      "end": "2026-10-15",
+      "endGuess": true,
+      "anchor": { "kind": "station", "sys": "thsr_sched", "name": "新竹" },
+      "url": "https://www.thsrc.com.tw/ArticleContent/88f56fb0-2613-45d8-8bec-0ccbfe72d2d3"
+    },
+    {
+      "id": "thsr-20260911-domestic-travel-subsidy",
+      "source": "official",
+      "title": "國旅補助搭高鐵 指定車次 55 折起",
+      "note": "在合作飯店官網訂房加購指定離峰車次車票，可與觀光署國旅補助併用",
+      "start": "2026-09-11",
+      "end": "2026-12-31",
+      "anchor": { "kind": "system", "sys": "thsr_sched" },
+      "url": "https://www.thsrc.com.tw/ArticleContent/a1ee91c8-74ef-4eb9-9da0-6b3637541885"
+    },
+    {
+      "id": "trtc-20260917-kidspark-midautumn",
+      "source": "official",
+      "title": "兒童新樂園「中秋童樂」打卡抽獎",
+      "note": "園區有中秋限定的玉兔與發光月亮布置，打卡可參加抽獎",
+      "start": "2026-09-19",
+      "end": "2026-09-28",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "劍潭" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=220D0D7A2C8B041E"
     }
   ]
 }

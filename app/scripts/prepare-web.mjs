@@ -150,13 +150,21 @@ const copyTree = async relative => {
 
 for (const file of [
   'index.html', 'account-deletion.html', 'app-support.html', 'privacy.html', 'terms.html', 'firebase-config.js', 'revenuecat-config.js', 'manifest.webmanifest',
+  // bus-transfer-ui.js：541 站公車轉乘的 UI，index.html 直接 <script src> 載入、網站與 App 共用同一份。
+  // 2026-09-01 上線後這份清單沒補，iOS 93／95／96 與 Android 35／37 全部漏打包；index.html 的守衛遇到
+  // !window.BusTransferUI 只是靜默 return ⇒ build 全綠、App 照開，公車卡在 App 裡整個不存在（1.5.5／1.5.6
+  // 上架後才發現）。verify-release 現在另有「首頁引用的本機腳本／樣式都要在 bundle 裡」守門，再漏會當場紅。
+  'bus-transfer-ui.js', 'train-garage.js', 'train-garage.css', 'train-garage-catalog.js', 'rail-discovery.js', 'night-theme.css', 'night-map.js', 'night-board.js', 'rail-3d.js', 'rail-3d.css', 'rail-platform.js', 'rail-platform-ui.js', 'rail-platform.css',
   'favicon-16.png', 'favicon-32.png', 'favicon-48.png', 'favicon-192.png', 'favicon-512.png',
   'apple-touch-180.png', 'icon-maskable-512.png', 'og-1200x630.png'
 ]) await copyFile(file);
 // i18n 是首頁 runtime 的必要靜態資產，不是只供網站維護的資料。漏掉時 App 仍能啟動，
 // 語言按鈕也會改變 html lang，但英／日字典 404 後所有文字都安全 fallback 回繁中，
 // 真機看起來就像按鈕完全失效。與 assets/data 一樣只複製 git 已追蹤檔案。
-for (const dir of ['assets', 'data', 'i18n']) await copyTree(dir);
+// 歷史重播從更多選單以本機路徑開啟，必須連同封存資料與模型一起打包。
+for (const dir of ['assets', 'data', 'i18n', 'rail-3d', 'memories']) await copyTree(dir);
+// 舊 iOS 的 UTType 未必識別 mjs；App 以 js 副檔名載入相同模組，內容逐 byte 保留。
+await cp(join(out, 'rail-3d/environment/sun.mjs'), join(out, 'rail-3d/environment/sun.js'));
 // place_index.json 是本次 build 現場產物，尚未 git add 時不會通過 copyTree 的「只收 tracked」
 // 閘門；明確單檔複製，不放寬其他未追蹤資料進 bundle。
 await copyFile('data/place_index.json');
@@ -194,8 +202,10 @@ const noticeEntries = [
   ['Capacitor Firebase Authentication 8.3.0', 'node_modules/@capacitor-firebase/authentication/LICENSE'],
   ['Firebase JavaScript SDK 12.16.0（Apache License 2.0）', 'node_modules/@capacitor-firebase/authentication/LICENSE'],
   ['RevenueCat Purchases Capacitor 13.2.2', 'node_modules/@revenuecat/purchases-capacitor/LICENSE'],
-  ['Leaflet 1.9.4', 'node_modules/leaflet/LICENSE'],
   ['fflate 0.8.3', 'node_modules/fflate/LICENSE'],
+  // 地圖引擎不是 npm 依賴(釘版 vendor/ 進版控),授權全文另存 vendor/maplibre-gl-LICENSE.txt。
+  // M1a 內建 MapLibre 時漏列,M4-B(2026-09-05)拔掉 Leaflet 後它是唯一的地圖函式庫,BSD-3 要求隨附條款與免責聲明。
+  ['MapLibre GL JS 5.9.0（BSD 3-Clause）——App 內建的 vendor/maplibre-gl.js／.css', '../vendor/maplibre-gl-LICENSE.txt'],
   // 唯一不是 npm 依賴的一條,所以路徑指回 repo 根的 assets/。2026-07-28 的換圖批次把成就徽章與
   // 車廂標記換成 Noto Emoji 單色版的 26 字形子集(assets/fonts/rail-emoji.woff2),字型檔隨 assets/
   // 整包進 www ⇒ App 有散布這份字型,OFL 要求隨附授權全文。子集已改名 RailEmoji(Noto 的著作權行
@@ -209,17 +219,14 @@ for (const [label, licensePath] of noticeEntries) {
 await writeFile(join(out, 'third-party-notices.txt'), notices.join('\n'));
 
 const vendor = join(out, 'vendor');
-await mkdir(join(vendor, 'leaflet', 'images'), { recursive: true });
-await cp(join(appRoot, 'node_modules/leaflet/dist/leaflet.css'), join(vendor, 'leaflet/leaflet.css'));
-await cp(join(appRoot, 'node_modules/leaflet/dist/leaflet.js'), join(vendor, 'leaflet/leaflet.js'));
-await cp(join(appRoot, 'node_modules/leaflet/dist/images'), join(vendor, 'leaflet/images'), { recursive: true });
+await mkdir(vendor, { recursive: true });
 await cp(join(appRoot, 'node_modules/fflate/umd/index.js'), join(vendor, 'fflate.js'));
-// OSM 向量底圖(OpenFreeMap):函式庫與樣式檔都自存在 repo 的 vendor/,不吃 CDN——底圖是首屏必需品,
-// 不想再多一個第三方單點。index.html 的 <script src="vendor/maplibre-gl.js"> 三個標籤網站/App 共用,
-// 所以這幾個檔非複製不可:少了它們 L.maplibreGL 不存在 ⇒ useOfmStreet 靜默變 false ⇒ App 悄悄
-// 退回計費的 Stadia,build 卻照樣成功(所以下面另有正向斷言)。
+// 地圖引擎(MapLibre GL)與 OSM 向量底圖(OpenFreeMap)的樣式:函式庫與樣式檔都自存在 repo 的 vendor/,
+// 不吃 CDN——地圖是首屏必需品,不想再多一個第三方單點。index.html 的兩個標籤網站/App 共用,
+// 所以這幾個檔非複製不可:少了 maplibre-gl.js 整張地圖起不來;少了 ofm-*.json 街道 style 讀不到
+// ⇒ App 悄悄退回計費的 Stadia,build 卻照樣成功(所以下面另有正向斷言)。
 // 樣式 JSON 內的圖磚/sprite/glyphs 仍指向 tiles.openfreemap.org(免金鑰、無用量上限、明文可商用)。
-for (const f of ['maplibre-gl.js', 'maplibre-gl.css', 'leaflet-maplibre-gl.js', 'ofm-positron.json', 'ofm-dark.json']) await cp(join(repoRoot, 'vendor', f), join(vendor, f));
+for (const f of ['maplibre-gl.js', 'maplibre-gl.css', 'ofm-positron.json', 'ofm-dark.json', 'ofm-landscape.json']) await cp(join(repoRoot, 'vendor', f), join(vendor, f));
 
 await build({
   entryPoints: [join(appRoot, 'src/native-bridge.mjs')],
@@ -251,13 +258,10 @@ const stripHtmlRegion = (source, name) => cutRegion(source, name, `<!-- APP_STRI
 const stripJsRegion = (source, name) => cutRegion(source, name, `// APP_STRIP_START ${name}`, `// APP_STRIP_END ${name}`);
 const replaceHtmlRegion = (source, name, replacement) => cutRegion(source, name, `<!-- APP_REPLACE_START ${name}`, `<!-- APP_REPLACE_END ${name} -->`, replacement);
 
-// (1) Leaflet:CDN 版換打包版(整個錨點區塊替換,不管網站用哪個 Leaflet 版本/SRI)
-html = replaceHtmlRegion(html, 'leaflet-cdn',
-  '<link rel="stylesheet" href="vendor/leaflet/leaflet.css">\n<script src="vendor/leaflet/leaflet.js"></script>');
+// (1) M4-B 起地圖引擎(MapLibre)本來就是 vendor/ 自架、網站與 App 共用同一組標籤,
+//     不再需要「CDN 版換打包版」的整段替換(原 leaflet-cdn 錨點已隨 Leaflet 一起移除)。
 // (2) 原生 App 的數位功能只走 StoreKit／Google Play Billing;網站的 Ko-fi／銀行贊助區不帶進 App
 html = stripHtmlRegion(html, 'donate-box');
-html = stripHtmlRegion(html, 'donation-log');
-html = stripJsRegion(html, 'donation-handler');
 // (3) 網站免費層底圖預設(CARTO/舊 Esri)整段拔除——App 包內不得殘留其網址(CARTO 條款不允許包進上架 App)
 html = stripJsRegion(html, 'web-tiles');
 // (4) 頁尾底圖來源文字換成本 build 的實況
@@ -270,9 +274,21 @@ html = replaceHtmlRegion(html, 'basemap-credit',
 // (4b) 狀態頁連結:App 包內沒有 status.html(其相對 /api 呼叫在 Capacitor 本機來源也不通),換成正式站絕對網址外開
 html = replaceHtmlRegion(html, 'status-link',
   '<li><span class="d">狀態</span><a href="https://railisland.tw/status.html" target="_blank" rel="noopener">資料源連線狀態頁</a></li>');
-// (5) 注入:第三方授權入口＋功能旗標＋RAIL_APP_CONFIG(授權圖磚與計量底圖的跟車 zoom 上限)
+
+// about/ accuracy/ stations/ 這三棵沒有打包進 bundle（上面那份逐檔清單裡沒有），而 Capacitor 的
+// router 對【無副檔名】的路徑一律回 index.html（ios 的 Router.swift「if pathUrl.pathExtension.isEmpty」、
+// android 的 WebViewLocalServer 同一條）——所以它不是 404，是把首頁再送一份、但 document URL 已經
+// 變成 /about/ ⇒ vendor/maplibre-gl.js、i18n/*.js、data/data_manifest.json 這些相對資源全部改以
+// /about/ 為基準解析而 404，boot 拋 maplibregl is not defined、地圖再也不出現，又沒有返回鍵 ⇒
+// 使用者只能強制關 App。網友回報 issue #47（iOS 95／96／97 與 Android 全中，網頁版不受影響）。
+// 🔴 兩處都要換：手機那排 .ms-aeo-links 與桌面／iPad 頁尾 .foot-links，只換一處會在平板留一顆。
+const aeoLinksHtml = [['about', '關於軌島'], ['accuracy', '準確度說明'], ['stations', '車站索引']]
+  .map(([slug, label]) => `<a href="https://railisland.tw/${slug}/" target="_blank" rel="noopener">${label}</a>`)
+  .join('\n      ');
+html = replaceHtmlRegion(html, 'aeo-links-foot', aeoLinksHtml);
+html = replaceHtmlRegion(html, 'aeo-links-ms', aeoLinksHtml);
+// (5) 注入:第三方授權入口＋功能旗標＋RAIL_APP_CONFIG(授權圖磚與衛星高解析開關)
 const appConfig = includeLicensedBasemaps ? {
-  followZoomCap: 16, // 計量底圖止血:跟車進場/導播 zoom 上限(index.html 的 FOLLOW_ZOOM_CAP/DIRECTOR_FOLLOW_Z 消費)
   // 2026-07-29 曾因圖磚配額吃緊整個關掉;2026-08-02 改成收斂給 Plus 訂閱者
   // (index.html 的 satRetinaAllowed())——這裡只決定「這個平台建不建得出高解析層」，
   // 不等於全體使用者都拿得到:非 Plus 一律降回標準解析，所以額度風險已由訂閱資格擋住。
@@ -339,15 +355,16 @@ const androidPlusConfigInjection = androidPlusEnabled
 
 html = html
   .replace('<span class="ver" id="buildVer"></span>', '<a href="third-party-notices.txt" target="_blank" rel="noopener" style="min-height:44px;display:inline-flex;align-items:center;padding:0 4px">第三方軟體授權</a>\n      <span class="ver" id="buildVer"></span>')
+  .replace("import('./rail-3d/environment/sun.mjs')", "import('./rail-3d/environment/sun.js')")
   .replace('<script src="revenuecat-config.js"></script>', `<script src="revenuecat-config.js"></script>\n<script>window.RAIL_MUSIC_AVAILABLE=${includeLicensedMusic};window.RAIL_AMBIENCE_AVAILABLE=${includeLicensedMusic};window.RAIL_ONLINE_BASEMAPS_AVAILABLE=${includeLicensedBasemaps};window.RAIL_METRO_CORE_ENABLED=${enableMetroCore};window.RAIL_APP_VERSION=${JSON.stringify(appVersion)};window.RAIL_APP_WHATS_NEW=${JSON.stringify(whatsNew)};window.RAIL_APP_WHATS_NEW_EN=${JSON.stringify(whatsNewEn)};window.RAIL_APP_WHATS_NEW_JA=${JSON.stringify(whatsNewJa)};window.RAIL_PLUS_SANDBOX_OK=${plusSandboxOk};window.RAIL_PLUS_SANDBOX_BUILD=${plusSandboxOk ? JSON.stringify(plusSandboxBuild) : 'null'};window.RAIL_ANDROID_PLUS_ENABLED=${androidPlusEnabled};window.RAIL_ANDROID_PLUS_SANDBOX_POLICY=${androidPlusEnabled ? JSON.stringify(androidPlusSandboxPolicy) : 'null'};window.RAIL_ANDROID_PLUS_SANDBOX_BUILD=${androidPlusEnabled ? JSON.stringify(androidPlusSandboxBuild) : 'null'}${androidPlusConfigInjection}${appConfig ? `;window.RAIL_APP_CONFIG=${JSON.stringify(appConfig)}` : ''}</script>\n<script src="native-bridge.js"></script>`);
-if (!html.includes('vendor/leaflet/leaflet.js') || !html.includes('native-bridge.js')) throw new Error('App index vendor/native bridge injection failed');
+if (!html.includes('vendor/maplibre-gl.js') || !html.includes('native-bridge.js')) throw new Error('App index vendor/native bridge injection failed');
 if (/ko-fi|PayPal|111010691056|web-only-donation-log|贊助方式更新/i.test(html) || html.includes('id="donateCopy"') || html.includes('class="foot-box foot-donate"')) throw new Error('External donation content leaked into native App');
 if (/cartocdn\.com|arcgisonline\.com/i.test(html)) throw new Error('App index still contains unlicensed CARTO/Esri tile URLs');
 // 正向斷言:上面那條反向的「不該有的網址不在」照不到「該有的檔沒進來」。OFM 資產漏複製時
 // build 一樣成功、App 一樣能開,只是靜默退回計費底圖——那正是這批要消滅的成本,不能靠肉眼發現。
-for (const f of ['maplibre-gl.js', 'maplibre-gl.css', 'leaflet-maplibre-gl.js', 'ofm-positron.json', 'ofm-dark.json']) {
+for (const f of ['maplibre-gl.js', 'maplibre-gl.css', 'ofm-positron.json', 'ofm-dark.json', 'ofm-landscape.json']) {
   try { await stat(join(vendor, f)); }
-  catch { throw new Error(`www/vendor/${f} 沒進 bundle——OFM 街道底圖會靜默退回計費的 Stadia`); }
+  catch { throw new Error(`www/vendor/${f} 沒進 bundle——地圖起不來,或街道底圖靜默退回計費的 Stadia`); }
 }
 await writeFile(indexPath, html);
 

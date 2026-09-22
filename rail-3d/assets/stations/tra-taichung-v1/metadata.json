@@ -1,0 +1,91 @@
+{
+  "id": "tra-taichung-v1",
+  "name": "臺鐵臺中",
+  "version": 1,
+  "status": "simplified-exterior",
+  "anchor": [
+    120.68659465,
+    24.13710495
+  ],
+  "stationPoint": [
+    120.68691,
+    24.13728
+  ],
+  "displayHeightM": 37,
+  "realBuildingHeightM": null,
+  "railElevationM": null,
+  "heightQuality": "illustrative",
+  "footprintQuality": "OSM polygon",
+  "components": [
+    {
+      "id": "442234244",
+      "name": "臺中車站",
+      "type": "vault",
+      "anchor": [
+        120.68671829,
+        24.13732601
+      ],
+      "rotationDeg": 20.9529,
+      "widthM": 318.276,
+      "depthM": 118.043,
+      "displayHeightM": 37,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": true,
+      "clock": false
+    },
+    {
+      "id": "223056023",
+      "name": "臺中驛",
+      "type": "historic",
+      "anchor": [
+        120.68526641,
+        24.13691534
+      ],
+      "rotationDeg": 23.4326,
+      "widthM": 57.949,
+      "depthM": 14.772,
+      "displayHeightM": 13,
+      "baseM": 0,
+      "heightQuality": "illustrative",
+      "realBuildingHeightM": null,
+      "railElevationM": null,
+      "sign": true,
+      "clock": true
+    }
+  ],
+  "modelScope": [
+    "臺中車站",
+    "臺中驛"
+  ],
+  "excluded": [
+    "真實軌道高程",
+    "列車與月台對齊",
+    "地下站體",
+    "精確室內配置",
+    "未有輪廓的出入口及連接設施"
+  ],
+  "sources": [
+    {
+      "url": "https://www.rb.gov.tw/zh-TW/main/main_188/news/main_347/artsinfo_2337/",
+      "use": "站區配置或造型參考；不作比例測量"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/442234244",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/223056023",
+      "use": "地面輪廓與方向",
+      "license": "ODbL-1.0"
+    }
+  ],
+  "notes": [
+    "輪廓使用免費 OSM；曲面、窗帶、柱列、展示底高及高度由軌島簡化設計，不是工程模型。",
+    "各系統保留獨立輪廓與座標；轉乘示意圖僅核對關係，不當成比例尺。",
+    "照片與官方資料只供外觀參考，未作模型貼圖。"
+  ]
+}

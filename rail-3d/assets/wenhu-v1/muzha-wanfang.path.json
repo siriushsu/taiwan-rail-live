@@ -1,0 +1,159 @@
+{
+  "schema": "railisland.rail-path/1",
+  "pathId": "TRTC-BR-BR02-BR03-v1",
+  "name": "木柵—萬芳社區",
+  "coordinateOrder": "lng,lat",
+  "coordinateReferenceSystem": {
+    "consumer": "EPSG:4326",
+    "upstreamDeclaration": null,
+    "note": "前端按 WGS84 經緯度使用；現有 TDX 衍生檔未載明 CRS，原始 payload 本機缺檔，未補宣稱官方 CRS。"
+  },
+  "source": {
+    "commit": "e5fada341c5aecdbccb0dc29cc692b7c57a1569e",
+    "file": "data/trtc.json",
+    "selector": "lines[id=BR].shape",
+    "sha256": "72a427411509f4ab1872f595ff891c00a5342c2e9b0e22c9ab0507911aa34a5a",
+    "sourceNotes": "信義東延段廣慈/奉天宮站(R01)於 TDX 上架前先行補入(2026-08-28):站點與線形取自 OSM,站間行駛時間依信義線平均營運速度估算,TDX 上架後應以官方值取代;交通部 TDX 運輸資料流通服務(台北捷運路線幾何/站序/班距/站間行駛時間,2026-07 抓取);環狀線為 OSM 幾何+官網公告班距估算;環狀線站間行駛時間補用臺北捷運公司「相鄰兩站間之行駛時間及停靠站時間」(生效 2025-06-03);環狀線站間行駛時間補用臺北捷運公司「相鄰兩站間之行駛時間及停靠站時間」(生效 2025-06-03);環狀線停靠站時間補自臺北捷運公司「相鄰兩站間之行駛時間及停靠站時間」(生效 2025-06-03)",
+    "sourceStationFile": "data/trtc_codes.json",
+    "sourceStationFileSha256": "41673e5ad909e0e10794c1cb72f2ddaf6e6ed14b259913e9e86d0d8eca8b3975",
+    "sourceIndexFile": "data/data_provenance.json",
+    "generator": "scripts/build_tdx.mjs",
+    "rawPayloadsAvailableLocally": false,
+    "coordinateEdited": false,
+    "calibrationStatus": "既有 TDX 衍生平面線形；9/6 修正為 runtime 貼軌、切線及停站落點，沒有新測量線形／高程。"
+  },
+  "direction": {
+    "positive": {
+      "from": "BR02",
+      "to": "BR03",
+      "toward": "南港展覽館",
+      "chainageSign": 1,
+      "legacyOfficialRosterDir": 2
+    },
+    "negative": {
+      "from": "BR03",
+      "to": "BR02",
+      "toward": "動物園",
+      "chainageSign": -1,
+      "legacyOfficialRosterDir": 1
+    },
+    "note": "legacyOfficialRosterDir 是本站既有官方名冊介面；不是 TDX Direction、不是 Core 的方向 enum。Core 由實際 trajectory progress 增減求符號。"
+  },
+  "fullLine": {
+    "from": "BR01",
+    "to": "BR24",
+    "shapeVertices": 630,
+    "startChainageM": 670.6,
+    "endChainageM": 1184
+  },
+  "lengthM": 513.4,
+  "coordinates": [
+    [
+      121.57313144651172,
+      24.998259110487872
+    ],
+    [
+      121.571549,
+      24.998575
+    ],
+    [
+      121.571219,
+      24.998633
+    ],
+    [
+      121.570918,
+      24.99867
+    ],
+    [
+      121.570665,
+      24.998685
+    ],
+    [
+      121.57035,
+      24.998686
+    ],
+    [
+      121.56839,
+      24.998617
+    ],
+    [
+      121.56808627222657,
+      24.99860401164127
+    ]
+  ],
+  "chainageM": [
+    0,
+    163.2984391574638,
+    197.1747391909954,
+    227.78663051276158,
+    253.33793940458588,
+    285.0831745381996,
+    482.7568791993284,
+    513.4
+  ],
+  "stations": [
+    {
+      "id": "BR02",
+      "name": "木柵",
+      "lineStationIndex": 1,
+      "sourceCoordinate": [
+        121.573127,
+        24.99824
+      ],
+      "trackCoordinate": [
+        121.57313144651172,
+        24.998259110487872
+      ],
+      "sourceChainageKm": 0.6706,
+      "pathChainageM": 0,
+      "offsetFromTrackM": 2.1717236555402297,
+      "railElevationM": null
+    },
+    {
+      "id": "BR03",
+      "name": "萬芳社區",
+      "lineStationIndex": 2,
+      "sourceCoordinate": [
+        121.568088,
+        24.99857
+      ],
+      "trackCoordinate": [
+        121.56808627222657,
+        24.99860401164127
+      ],
+      "sourceChainageKm": 1.184,
+      "pathChainageM": 513.4,
+      "offsetFromTrackM": 3.7859281540340706,
+      "railElevationM": null
+    }
+  ],
+  "elevation": {
+    "railElevationM": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "relativeToTerrainM": null,
+    "verticalDatum": null,
+    "source": null,
+    "confidence": "unknown"
+  },
+  "structure": {
+    "type": "elevated",
+    "fromM": 0,
+    "toM": 513.4,
+    "source": "https://www.dorts.gov.taipei/cp.aspx?n=DBAC040496EFAB94",
+    "checkedAt": "2026-09-06",
+    "heightM": null,
+    "note": "官方木柵線概述支持高架構造；沒有各墩、橋面或行走面標高。地形 DTM 及 OSM layer 不能代替。"
+  },
+  "motion": {
+    "source": "fixture-only",
+    "note": "套件不含即時派車或合成官方班次；上游 trainId、timestamp、速度及里程由地景整合端接入既有狀態。"
+  }
+}

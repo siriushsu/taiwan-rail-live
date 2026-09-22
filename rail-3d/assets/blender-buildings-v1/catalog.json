@@ -1,0 +1,464 @@
+[
+  {
+    "id": "taipei-dome",
+    "name": "臺北大巨蛋",
+    "category": "landmark",
+    "metadata": "models/taipei-dome/model.json",
+    "thumbnail": "models/taipei-dome/hero.png",
+    "files": {
+      "model.json": {
+        "sha256": "c92e366a0816f4693f40815a84e2ed2172bc73749d3db2989241aaecd9da3ab2",
+        "bytes": 5117
+      },
+      "near.mesh.bin": {
+        "sha256": "f93fbb21459651f09a7a96f9c962bcbe0763fef68e839d035292dea9aa632b2d",
+        "bytes": 349776
+      },
+      "far.mesh.bin": {
+        "sha256": "228dbb81e73661f4a57e64587f15d70a167bac77be6dcf7681919c6fa3b8cc9e",
+        "bytes": 306576
+      }
+    }
+  },
+  {
+    "id": "taipei101-landmark-v1",
+    "name": "台北101",
+    "category": "landmark",
+    "metadata": "models/taipei101-landmark-v1/model.json",
+    "thumbnail": "models/taipei101-landmark-v1/hero.png",
+    "files": {
+      "model.json": {
+        "sha256": "efbc6ad2cad41af3f9210d679c0ad1f0fdfe9e6721fff115eb4213c7eb23da87",
+        "bytes": 6562
+      },
+      "near.mesh.bin": {
+        "sha256": "2bc200558b782076a000e61e0da80efd5380e1c513b3ecbb1a4b67ee00e23c1d",
+        "bytes": 396576
+      },
+      "far.mesh.bin": {
+        "sha256": "7d1b6a9d6c07aa79750f679874248ad86e7d7bd294570da71055febfe7f5993f",
+        "bytes": 329184
+      }
+    }
+  },
+  {
+    "id": "taipei-main-v1",
+    "name": "臺北車站",
+    "category": "station",
+    "metadata": "models/taipei-main-v1/model.json",
+    "thumbnail": "models/taipei-main-v1/hero.png",
+    "files": {
+      "model.json": {
+        "sha256": "dc2456d15c94ab06d6d7544085215ad3d5a763851d3ac491965a2c4d4972a52f",
+        "bytes": 7245
+      },
+      "near.mesh.bin": {
+        "sha256": "cf778f8e533623d0a0aec13306d29ea98374c61c82fde80e6dae43b2bd3caed0",
+        "bytes": 422496
+      },
+      "far.mesh.bin": {
+        "sha256": "1cce9f8ffe812a035364f83a4343a9c3c89b04e27b6aba85b0bc7e550b854a3e",
+        "bytes": 209952
+      }
+    }
+  },
+  {
+    "id": "shinkong-landmark-v1",
+    "name": "新光摩天大樓",
+    "category": "landmark",
+    "metadata": "models/shinkong-landmark-v1/model.json",
+    "thumbnail": "models/shinkong-landmark-v1/hero.png",
+    "files": {
+      "model.json": {
+        "sha256": "f36fa4f515a0e0fbe7c3df94d520b83f146dcde2596fc367d6dcb99111719d22",
+        "bytes": 5915
+      },
+      "near.mesh.bin": {
+        "sha256": "1e29628cca96eb6d0e825992fed2568f98414d75326cf26eb21bdfba000dcd5a",
+        "bytes": 118944
+      },
+      "far.mesh.bin": {
+        "sha256": "db292dd06dde02e74fb08124bbe20f3a7fcbfe7a03e7b26a7cf97a0bc4b00899",
+        "bytes": 42912
+      }
+    }
+  },
+  {
+    "id": "cksmh-landmark-v1",
+    "name": "中正紀念堂",
+    "category": "landmark",
+    "metadata": "models/cksmh-landmark-v1/model.json",
+    "thumbnail": "models/cksmh-landmark-v1/hero.png",
+    "files": {
+      "model.json": {
+        "sha256": "a59320bbc2682020c326803b9956929f242ccb96acc9f16b15c6cf2c33309853",
+        "bytes": 5642
+      },
+      "near.mesh.bin": {
+        "sha256": "e0cc2cf0ae6c5304282a8990cb433049ab69e957f283fd7d67b3a9adf69d1c86",
+        "bytes": 438264
+      },
+      "far.mesh.bin": {
+        "sha256": "7e2006b83fe641a3e0134c5d3a9b9e0bf3c69601aa56a17a00fc47e517ecac00",
+        "bytes": 309240
+      }
+    }
+  },
+  {
+    "id": "sunyatsen-landmark-v1",
+    "name": "國父紀念館",
+    "category": "landmark",
+    "metadata": "models/sunyatsen-landmark-v1/model.json",
+    "thumbnail": "models/sunyatsen-landmark-v1/hero.png",
+    "files": {
+      "model.json": {
+        "sha256": "f5e08b6671ace3bb7f7f3c98fe898913eb6f96c024ff8dde04e059dad42c06dd",
+        "bytes": 6404
+      },
+      "near.mesh.bin": {
+        "sha256": "3aa818d893324f0f0f6df2229eb0101cc9c35c5905100f83d16c8125dee425fd",
+        "bytes": 441792
+      },
+      "far.mesh.bin": {
+        "sha256": "27aa175fd83aea7526a473f4b8c68544980316ed90b579f91b90b2244936ecbf",
+        "bytes": 366912
+      }
+    }
+  },
+  {
+    "id": "national-theater",
+    "name": "國家戲劇院",
+    "category": "landmark",
+    "metadata": "models/national-theater/model.json",
+    "thumbnail": "models/national-theater/hero.png",
+    "files": {
+      "model.json": {
+        "sha256": "466516b7cdbab64f9594a2b9f195ce26c4ebb0b7eae5137dbffb4f87fea3e1c1",
+        "bytes": 5782
+      },
+      "near.mesh.bin": {
+        "sha256": "14c9d990d3bbbe009d6c7c212f172f2e00e63bfa468a77047713f03f790c396a",
+        "bytes": 732384
+      },
+      "far.mesh.bin": {
+        "sha256": "85bbeb38898da17bf093366abb8ed9af75f0cb403f92b7c7340c1d55507868b8",
+        "bytes": 582624
+      }
+    }
+  },
+  {
+    "id": "national-concert-hall",
+    "name": "國家音樂廳",
+    "category": "landmark",
+    "metadata": "models/national-concert-hall/model.json",
+    "thumbnail": "models/national-concert-hall/hero.png",
+    "files": {
+      "model.json": {
+        "sha256": "e8f46d9100923adb983a8cf29822892c233518befaedbea8db60a73f65066811",
+        "bytes": 5803
+      },
+      "near.mesh.bin": {
+        "sha256": "35677638aef713c013970418b24bd5235d67e686987d7648776cb5753d7c9da2",
+        "bytes": 731088
+      },
+      "far.mesh.bin": {
+        "sha256": "42d160b31a2d55a2a5cb1aa6ef3901d96e4327292864de46f414d430f53bfe11",
+        "bytes": 581328
+      }
+    }
+  },
+  {
+    "id": "nanshan-plaza",
+    "name": "臺北南山廣場",
+    "category": "landmark",
+    "metadata": "models/nanshan-plaza/model.json",
+    "thumbnail": "models/nanshan-plaza/hero.png",
+    "files": {
+      "model.json": {
+        "sha256": "76a0bea943797cb51e4c23689da4087999ef0a995d0d81f0d8da9c3ad2460402",
+        "bytes": 5871
+      },
+      "near.mesh.bin": {
+        "sha256": "c5b37677ed0d4f63b1084f9ea739852808ef39755665d607675b321dd5c76d4b",
+        "bytes": 700128
+      },
+      "far.mesh.bin": {
+        "sha256": "7f856ae09b813467743de08e9defa42516d8fb49d1cd057af23e170105c0c68c",
+        "bytes": 670752
+      }
+    }
+  },
+  {
+    "id": "tower85-landmark-v1",
+    "name": "高雄85大樓",
+    "category": "landmark",
+    "metadata": "models/tower85-landmark-v1/model.json",
+    "thumbnail": "models/tower85-landmark-v1/hero.png",
+    "files": {
+      "model.json": {
+        "sha256": "29733923679f71cadb2dc009f384c6cfccd81555c8cc849f466e67df808a5de2",
+        "bytes": 4335
+      },
+      "near.mesh.bin": {
+        "sha256": "4fc1c699828213cd1da1f2dfcb9b6ee9535494fdcd00f6a87d4fc6090ffd0e74",
+        "bytes": 185472
+      },
+      "far.mesh.bin": {
+        "sha256": "1cd33149d5c9e1e99888ea1a5707933ef96ad3b6da2bf2f228a7b6e64031f787",
+        "bytes": 85248
+      }
+    }
+  },
+  {
+    "id": "hsinchu-tra",
+    "name": "新竹車站",
+    "category": "station",
+    "metadata": "models/hsinchu-tra/model.json",
+    "thumbnail": "models/hsinchu-tra/hero.png",
+    "files": {
+      "model.json": {
+        "sha256": "360fea3184c76f8a92c5c7c27f8fa5a268c289c4d768fe4f0cc53213db18b194",
+        "bytes": 5914
+      },
+      "near.mesh.bin": {
+        "sha256": "d8c0396921654138ae5b56b77c8229bef0109b8ee0dd754d83c1bbe7d65c1e5d",
+        "bytes": 213408
+      },
+      "far.mesh.bin": {
+        "sha256": "4ab7959f212ae55e0131c52b6468f197993eecaab1846ea1d835181390d3f479",
+        "bytes": 201312
+      }
+    }
+  },
+  {
+    "id": "banqiao-v1",
+    "name": "板橋車站",
+    "category": "station",
+    "metadata": "models/banqiao-v1/model.json",
+    "thumbnail": "models/banqiao-v1/hero.png",
+    "files": {
+      "model.json": {
+        "sha256": "301b9a1e90620a19010ef2f5379f93638eca0b7bf008b004b0082c82c8a493d7",
+        "bytes": 15811
+      },
+      "near.mesh.bin": {
+        "sha256": "3cc6080c11cd0cc1e6dcdb4a684032e628fe4a0ddd9ac5ee7c1e788428630feb",
+        "bytes": 731664
+      },
+      "far.mesh.bin": {
+        "sha256": "c2550bbf9724e1388b0c8e632d2939d6a26bd9a91ac0248a08566f396c699ad2",
+        "bytes": 210384
+      }
+    }
+  },
+  {
+    "id": "hsinchu-hsr-v1",
+    "name": "高鐵新竹・六家",
+    "category": "station",
+    "metadata": "models/hsinchu-hsr-v1/model.json",
+    "thumbnail": "models/hsinchu-hsr-v1/hero.png",
+    "files": {
+      "model.json": {
+        "sha256": "7fe3976357a78173d47b43c53ccb2e67645b557658d54e9400f92a96bad1adfb",
+        "bytes": 9461
+      },
+      "near.mesh.bin": {
+        "sha256": "136863f901a692f6d6ddcdd0ac2e7150161466a3b572419469363f33588916b8",
+        "bytes": 454464
+      },
+      "far.mesh.bin": {
+        "sha256": "d3f7e64a1a01f6d7a83e68136d98e9f3a562be3d79345db964a97b9ec67bc2fc",
+        "bytes": 220176
+      }
+    }
+  },
+  {
+    "id": "hualien-v1",
+    "name": "花蓮車站",
+    "category": "station",
+    "metadata": "models/hualien-v1/model.json",
+    "thumbnail": "models/hualien-v1/hero.png",
+    "files": {
+      "model.json": {
+        "sha256": "3fe62d8123ad12f4b41858e6ef68241d0b1257fb2472b2d2d8165a85a12047e5",
+        "bytes": 25636
+      },
+      "near.mesh.bin": {
+        "sha256": "dd7d4c4faec2fff6cbf7c98966f361a267c1376a10b6625745b4b1e7b4f02295",
+        "bytes": 848952
+      },
+      "far.mesh.bin": {
+        "sha256": "125ca8aa266eca6d2ac87d0840dff89d2c6d82b6888fae5c8f55b2f673f0a6ad",
+        "bytes": 306648
+      }
+    }
+  },
+  {
+    "id": "kaohsiung-main-v1",
+    "name": "高雄車站",
+    "category": "station",
+    "metadata": "models/kaohsiung-main-v1/model.json",
+    "thumbnail": "models/kaohsiung-main-v1/hero.png",
+    "files": {
+      "model.json": {
+        "sha256": "ae06efdaf9b24eb64ed38dec1e78fdf22fce2be327566df8f575480b1e55bedd",
+        "bytes": 16141
+      },
+      "near.mesh.bin": {
+        "sha256": "66af28a2cc48f2a0f4247ed5cd69876e8bb6355b3b232ba6979e0a4288e0581b",
+        "bytes": 1735704
+      },
+      "far.mesh.bin": {
+        "sha256": "a1c06127f8591297a13c667ed0e54b1d9bf4ce22e362ef837863b783ea4fa836",
+        "bytes": 1269144
+      }
+    }
+  },
+  {
+    "id": "nangang-v1",
+    "name": "南港車站",
+    "category": "station",
+    "metadata": "models/nangang-v1/model.json",
+    "thumbnail": "models/nangang-v1/hero.png",
+    "files": {
+      "model.json": {
+        "sha256": "705f98098c1aa277cb92e90925628fa3de414cea8736303fa38b1964f583488a",
+        "bytes": 18932
+      },
+      "near.mesh.bin": {
+        "sha256": "bf1e99179b2bd7693bb70ae0b94fdfa11fd2aca253e7e7d23f66c97bd3f017b8",
+        "bytes": 1467216
+      },
+      "far.mesh.bin": {
+        "sha256": "8008282b27ed0a4fb6f8e78967060628540326c6f4fc2787126e021d10ec5317",
+        "bytes": 325296
+      }
+    }
+  },
+  {
+    "id": "tainan-hsr-v1",
+    "name": "高鐵臺南・沙崙",
+    "category": "station",
+    "metadata": "models/tainan-hsr-v1/model.json",
+    "thumbnail": "models/tainan-hsr-v1/hero.png",
+    "files": {
+      "model.json": {
+        "sha256": "b1d837975b2fb44728311fe3512dfec22f09d74fde420a3dcaa90ff522ce92c3",
+        "bytes": 14408
+      },
+      "near.mesh.bin": {
+        "sha256": "ee5c863795646c8320152a0992dfdaa55f02161f1fa799a85d164a52bed0310f",
+        "bytes": 802800
+      },
+      "far.mesh.bin": {
+        "sha256": "b6eb7d594a177c6f6e5635e642936965c105e9ee094516dd1054e4591fd68365",
+        "bytes": 252144
+      }
+    }
+  },
+  {
+    "id": "taitung-v1",
+    "name": "臺東車站",
+    "category": "station",
+    "metadata": "models/taitung-v1/model.json",
+    "thumbnail": "models/taitung-v1/hero.png",
+    "files": {
+      "model.json": {
+        "sha256": "1a8d654ff6834e464f61d28ae00136f68512049a363db63bf1a4733d43b268e5",
+        "bytes": 16124
+      },
+      "near.mesh.bin": {
+        "sha256": "cc0e414b7f666710f57c848a1516b45bb3dfb4a8a7f58ee52e309cc5e7b8a828",
+        "bytes": 750312
+      },
+      "far.mesh.bin": {
+        "sha256": "b13ee6061561ef28da1f95f9140b13aed07e64a5733ec2ccd156c26512ace763",
+        "bytes": 227016
+      }
+    }
+  },
+  {
+    "id": "taoyuan-hsr-v1",
+    "name": "高鐵桃園・A18",
+    "category": "station",
+    "metadata": "models/taoyuan-hsr-v1/model.json",
+    "thumbnail": "models/taoyuan-hsr-v1/hero.png",
+    "files": {
+      "model.json": {
+        "sha256": "0b5e93e053316b774763b78f10853c11a4d75d86340cf134385768a9cf6ef58f",
+        "bytes": 9369
+      },
+      "near.mesh.bin": {
+        "sha256": "d1e02219bad919c92536289578483d64df958346427bf5583d914eb0cca7c181",
+        "bytes": 378504
+      },
+      "far.mesh.bin": {
+        "sha256": "738b4a92787eff9094a585f9b2c3c89e14f72f32dcbe786a0e11bddd4ac20b27",
+        "bytes": 151128
+      }
+    }
+  },
+  {
+    "id": "tra-taichung-v1",
+    "name": "臺鐵臺中",
+    "category": "station",
+    "metadata": "models/tra-taichung-v1/model.json",
+    "thumbnail": "models/tra-taichung-v1/hero.png",
+    "files": {
+      "model.json": {
+        "sha256": "484943a5aaa4133b1af2752261e05640e74163ed8e03fd725586df293cfb1ce1",
+        "bytes": 10819
+      },
+      "near.mesh.bin": {
+        "sha256": "6e5b092a86510aff3803260d04bd44870bcf4ba457e79305663fd5ccd0ef6e6e",
+        "bytes": 877392
+      },
+      "far.mesh.bin": {
+        "sha256": "8c845a73269ea957b6b87017132aa93ddfda23c22f1d1e81762f829391a8d6fa",
+        "bytes": 454608
+      }
+    }
+  },
+  {
+    "id": "xinwuri-complex-v1",
+    "name": "新烏日・高鐵臺中",
+    "category": "station",
+    "metadata": "models/xinwuri-complex-v1/model.json",
+    "thumbnail": "models/xinwuri-complex-v1/hero.png",
+    "files": {
+      "model.json": {
+        "sha256": "bcf704c25837949614568aa845b3f9aa7c52348a8ba6292ef68034909b0522c5",
+        "bytes": 18944
+      },
+      "near.mesh.bin": {
+        "sha256": "baa7a6ef2872be0c4298377ba8b442071d4f7311b6d4dbe65e53d8795d212a79",
+        "bytes": 1024776
+      },
+      "far.mesh.bin": {
+        "sha256": "cdf16aa9a225431d347e69abfca05e57a03ea90b36ed4c081f95c4ab33bb430f",
+        "bytes": 449784
+      }
+    }
+  },
+  {
+    "id": "zuoying-complex-v1",
+    "name": "左營・新左營",
+    "category": "station",
+    "metadata": "models/zuoying-complex-v1/model.json",
+    "thumbnail": "models/zuoying-complex-v1/hero.png",
+    "files": {
+      "model.json": {
+        "sha256": "b5e05c2cfaa2519bae2d22eabe1c56e5aeb9e0475c67bb32bd3e7d50906d0f5d",
+        "bytes": 9446
+      },
+      "near.mesh.bin": {
+        "sha256": "8880dc7ecc3dd2529257d1f5e9e838b825b4cc80ac2e6ff990d69bdafb4163dc",
+        "bytes": 468864
+      },
+      "far.mesh.bin": {
+        "sha256": "c666008656176e755e595097dc649a902258b444e5b8a68f2c547634674e0ac3",
+        "bytes": 203904
+      }
+    }
+  }
+]

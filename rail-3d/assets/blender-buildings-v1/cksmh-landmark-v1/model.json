@@ -1,0 +1,217 @@
+{
+  "id": "cksmh-landmark-v1",
+  "name": "中正紀念堂",
+  "version": 1,
+  "landmarkType": "cksmh",
+  "anchor": [
+    121.52171584846401,
+    25.03468634617782
+  ],
+  "displayHeightM": 70,
+  "realBuildingHeightM": 70,
+  "railElevationM": null,
+  "heightQuality": "官方總高，分件比例示意",
+  "footprintQuality": "OSM polygon",
+  "footprintWidthM": 147.23775835877845,
+  "footprintDepthM": 124.04207350062963,
+  "rotationDeg": 152.01379903471857,
+  "sources": [
+    {
+      "url": "https://www.cksmh.gov.tw/cp.aspx?Create=1&n=5882",
+      "use": "建築高度／主要外觀參考；不拷貝照片為材質"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/1052759757",
+      "use": "平面輪廓與方向",
+      "license": "ODbL-1.0",
+      "snapshot": "2026-06-01T08:52:28Z"
+    }
+  ],
+  "notes": [
+    "可辨識輪廓的簡化外觀版本；立面、室內及結構並非測繪成果。",
+    "總高不等於絕對海拔。地表底座另由地形取樣；未改動任何軌道高程。"
+  ],
+  "sourceSnapshot": {
+    "path": "source-layouts/cksmh-landmark-v1/metadata.json",
+    "sha256": "378034492f71501144485cfb81e7914e435c3d9729896550f686716c7a290517"
+  },
+  "category": "landmark",
+  "kind": "cksmh",
+  "placementStatus": "existing-layout-unverified-facade",
+  "features": [
+    "白色基壇、中央門洞與階梯",
+    "藍色八角雙重簷屋頂"
+  ],
+  "application": "5.2.1 LTS",
+  "axes": {
+    "up": "+Z",
+    "right": "+X",
+    "front": "-Y",
+    "units": "meters",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "gltfAxes": {
+    "up": "+Y",
+    "toZUp": "rotateX(+PI/2)"
+  },
+  "orientationMode": "local-facade",
+  "facadeBearingDeg": null,
+  "absoluteGroundAltitudeM": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -57.5,
+      -60.0,
+      0.0
+    ],
+    "max": [
+      57.5,
+      60.0,
+      70.0
+    ]
+  },
+  "sizeM": [
+    115.0,
+    120.0,
+    70.0
+  ],
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "glb": "near.glb",
+      "sha256": "e0cc2cf0ae6c5304282a8990cb433049ab69e957f283fd7d67b3a9adf69d1c86",
+      "glbSha256": "35de4928554f71c442289c6964eb3a0a186fcd8f21660ea2713779ed4716d06a",
+      "strideBytes": 24,
+      "vertexCount": 18261,
+      "triangleCount": 6087,
+      "drawGroups": [
+        {
+          "component": "main",
+          "name": "white",
+          "start": 0,
+          "count": 4152,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "dark",
+          "start": 4152,
+          "count": 117,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "blue",
+          "start": 4269,
+          "count": 13860,
+          "color": [
+            0.02518685907125473,
+            0.08437620848417282,
+            0.20507873594760895
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "gold",
+          "start": 18129,
+          "count": 132,
+          "color": [
+            0.5840784311294556,
+            0.2961382567882538,
+            0.039546236395835876
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 438264
+    },
+    "far": {
+      "file": "far.mesh.bin",
+      "glb": "far.glb",
+      "sha256": "7e2006b83fe641a3e0134c5d3a9b9e0bf3c69601aa56a17a00fc47e517ecac00",
+      "glbSha256": "0355b455693450d6faf62039dae29c846cd70ceca7626fd2228423852d835a54",
+      "strideBytes": 24,
+      "vertexCount": 12885,
+      "triangleCount": 4295,
+      "drawGroups": [
+        {
+          "component": "main",
+          "name": "white",
+          "start": 0,
+          "count": 4152,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "dark",
+          "start": 4152,
+          "count": 117,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "blue",
+          "start": 4269,
+          "count": 8484,
+          "color": [
+            0.02518685907125473,
+            0.08437620848417282,
+            0.20507873594760895
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "main",
+          "name": "gold",
+          "start": 12753,
+          "count": 132,
+          "color": [
+            0.5840784311294556,
+            0.2961382567882538,
+            0.039546236395835876
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        }
+      ],
+      "byteLength": 309240
+    }
+  },
+  "nativeObjectCount": 328,
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "modelUse": "map-exterior",
+  "components": []
+}

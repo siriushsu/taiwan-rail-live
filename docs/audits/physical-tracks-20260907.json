@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "source": {
+    "name": "OpenStreetMap contributors",
+    "url": "https://www.openstreetmap.org/copyright",
+    "license": "ODbL-1.0",
+    "at": "2026-09-07T02:28:39Z",
+    "sha256": "0423024e10e4812d337f922177c9e567cf3daff37140cac65472d6f7a1959457",
+    "query": "[out:json][timeout:45];way[railway~\"^(rail|subway|light_rail|tram|monorail|narrow_gauge)$\"](21.8,119.8,25.4,122.1);out body geom;"
+  },
+  "scope": "physical-topology-candidate",
+  "railElevationM": null,
+  "dispatchAssignments": null,
+  "summary": {
+    "ways": 8755,
+    "nodes": 53896,
+    "sourceSegments": 55507,
+    "junctionNodes": 4988,
+    "service": {
+      "crossover": 433,
+      "parking": 1,
+      "siding": 974,
+      "spur": 144,
+      "unspecified": 4487,
+      "yard": 2716
+    },
+    "railway": {
+      "light_rail": 287,
+      "monorail": 6,
+      "narrow_gauge": 477,
+      "rail": 6416,
+      "subway": 1568,
+      "tram": 1
+    },
+    "explicitOneway": 67,
+    "preferredDirection": 0,
+    "trackReference": 62
+  }
+}
