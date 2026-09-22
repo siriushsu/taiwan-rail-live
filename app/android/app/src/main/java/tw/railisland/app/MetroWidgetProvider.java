@@ -51,7 +51,8 @@ public class MetroWidgetProvider extends AppWidgetProvider {
         SharedPreferences.Editor editor = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit();
         for (int id : appWidgetIds) {
             editor.remove("sys_" + id).remove("station_" + id).remove("direction_" + id)
-                .remove("snapshot_" + id).remove("layout_" + id).remove("freq_" + id);
+                .remove("snapshot_" + id).remove("layout_" + id).remove("freq_" + id)
+                .remove(WidgetBackground.key(id));
             cancelBoundary(context, id);
         }
         // 先同步落盤再重算免費站名額，避免刪除／重設小工具後舊站永久占著名額。
@@ -190,8 +191,12 @@ public class MetroWidgetProvider extends AppWidgetProvider {
      */
     private static RemoteViews build(Context context, int id, MetroWidgetData.Snapshot snapshot,
                                      PendingIntent tap) {
-        boolean board = LAYOUT_BOARD.equals(context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getString("layout_" + id, LAYOUT_PLATE));
+        SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        boolean board = LAYOUT_BOARD.equals(prefs.getString("layout_" + id, LAYOUT_PLATE));
+        // 沒有任何一班（空狀態、深夜收班、暫無資料）就沒有車可畫 ⇒ 素色；頭帶與車讀同一個判斷（與 iOS 同一條規則）。
+        boolean model = !snapshot.rows.isEmpty()
+            && WidgetBackground.MODEL.equals(WidgetBackground.read(prefs, id, true));
+        int car = model ? car(context, snapshot) : 0;
         List<MetroWidgetPlate> plates = plates(context, snapshot);
         MetroWidgetPlate first = plates.get(0);
         scheduleNext(context, id, snapshot, first);
@@ -200,34 +205,57 @@ public class MetroWidgetProvider extends AppWidgetProvider {
             // 沒有 setSizeSpecificViewLayouts 的機器:照這一格屬於哪個尺寸的 provider 挑一張。
             String family = WidgetFamily.of(context, id);
             if (WidgetFamily.SMALL.equals(family)) {
-                return tap(board ? board(context, R.layout.widget_board_2x2, plates, 2, snapshot)
-                    : MetroWidgetPlateRender.plate(context, R.layout.widget_plate_2x2, first, true), tap);
+                return tap(MetroWidgetPlateRender.backdrop(board ? board(context, R.layout.widget_board_2x2, plates, 2, snapshot)
+                    : MetroWidgetPlateRender.plate(context, R.layout.widget_plate_2x2, first, true), board, true, model, car), tap);
             }
-            if (WidgetFamily.LARGE.equals(family)) return tap(large(context, plates, snapshot), tap);
-            return tap(board ? board(context, R.layout.widget_board_4x2, plates, 2, snapshot)
-                : MetroWidgetPlateRender.plate(context, R.layout.widget_plate_4x2, first), tap);
+            if (WidgetFamily.LARGE.equals(family)) {
+                return tap(MetroWidgetPlateRender.backdrop(large(context, plates, snapshot), true, false, model, car), tap);
+            }
+            return tap(MetroWidgetPlateRender.backdrop(board ? board(context, R.layout.widget_board_4x2, plates, 2, snapshot)
+                : MetroWidgetPlateRender.plate(context, R.layout.widget_plate_4x2, first), board, false, model, car), tap);
         }
         // 🔴 合併後的 RemoteViews 再 addAction 會直接丟 RuntimeException（"cannot be modified.
         //    Instead, fully configure each layouts individually before constructing the combined
         //    layout"）⇒ 點擊必須在合併【之前】逐張掛好，不能事後補。
         Map<SizeF, RemoteViews> sizes = new HashMap<>();
         if (board) {
-            sizes.put(new SizeF(110f, 100f), tap(board(context, R.layout.widget_board_2x2, plates, 2, snapshot), tap));
-            sizes.put(new SizeF(200f, 100f), tap(board(context, R.layout.widget_board_4x2, plates, 2, snapshot), tap));
-            sizes.put(new SizeF(200f, 170f), tap(board(context, R.layout.widget_board_4x3, plates, 3, snapshot), tap));
+            sizes.put(new SizeF(110f, 100f), tap(MetroWidgetPlateRender.backdrop(
+                board(context, R.layout.widget_board_2x2, plates, 2, snapshot), true, true, model, car), tap));
+            sizes.put(new SizeF(200f, 100f), tap(MetroWidgetPlateRender.backdrop(
+                board(context, R.layout.widget_board_4x2, plates, 2, snapshot), true, false, model, car), tap));
+            sizes.put(new SizeF(200f, 170f), tap(MetroWidgetPlateRender.backdrop(
+                board(context, R.layout.widget_board_4x3, plates, 3, snapshot), true, false, model, car), tap));
         } else {
-            sizes.put(new SizeF(110f, 100f),
-                tap(MetroWidgetPlateRender.plate(context, R.layout.widget_plate_2x2, first, true), tap));
-            sizes.put(new SizeF(200f, 100f), tap(MetroWidgetPlateRender.plate(context, R.layout.widget_plate_4x2, first), tap));
-            sizes.put(new SizeF(200f, 170f), tap(MetroWidgetPlateRender.plate(context, R.layout.widget_plate_4x3, first), tap));
+            sizes.put(new SizeF(110f, 100f), tap(MetroWidgetPlateRender.backdrop(
+                MetroWidgetPlateRender.plate(context, R.layout.widget_plate_2x2, first, true), false, true, model, car), tap));
+            sizes.put(new SizeF(200f, 100f), tap(MetroWidgetPlateRender.backdrop(
+                MetroWidgetPlateRender.plate(context, R.layout.widget_plate_4x2, first), false, false, model, car), tap));
+            sizes.put(new SizeF(200f, 170f), tap(MetroWidgetPlateRender.backdrop(
+                MetroWidgetPlateRender.plate(context, R.layout.widget_plate_4x3, first), false, false, model, car), tap));
         }
         // 4×4 大張卡片,兩種版型共用(見 widget_board_4x4.xml)。寬度桶仍是 200dp:5 欄手機拉到滿版
         // (約 360dp 以上)落在同一桶,版面 match_parent 自己撐滿,不必再開一個寬度桶。
         // 🔴 只有「大」那一族才開這個桶:4×4 格線的兩列就有 276dp 高,中卡不擋會整張變成大卡版面。
         if (WidgetFamily.LARGE.equals(WidgetFamily.of(context, id))) {
-            sizes.put(new SizeF(200f, LARGE_MIN_HEIGHT_DP), tap(large(context, plates, snapshot), tap));
+            sizes.put(new SizeF(200f, LARGE_MIN_HEIGHT_DP), tap(MetroWidgetPlateRender.backdrop(
+                large(context, plates, snapshot), true, false, model, car), tap));
         }
         return new RemoteViews(sizes);
+    }
+
+    /**
+     * 車模頭帶的代表車：主角那一列（第一個方向的最近一班＝官方第一列）的線；線別不明就看這一站的
+     * 所有候選線，全部對到同一台才畫（WidgetBackground.metroCar）。0＝不畫車。
+     */
+    private static int car(Context context, MetroWidgetData.Snapshot snapshot) {
+        String lineId = snapshot.rows.isEmpty() ? null : snapshot.rows.get(0).lineId;
+        List<String> lines = null;
+        try {
+            MetroWidgetData.SystemInfo system = MetroWidgetData.catalog(context).byId.get(snapshot.sys);
+            MetroWidgetData.StationInfo info = system == null ? null : system.stationByName.get(snapshot.station);
+            if (info != null) lines = info.lineIds;
+        } catch (Exception ignored) {}
+        return WidgetBackground.metroCar(snapshot.sys, lineId, lines);
     }
 
     /** 大張卡片的高度門檻(dp)。與發車看板的 4×4 桶同值;比 4×3 桶(170)高、比 3 列格子矮。 */

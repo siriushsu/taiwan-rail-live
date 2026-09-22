@@ -55,7 +55,7 @@ public final class WidgetGalleryActivity extends Activity {
                 : "2x2".equals(size) ? R.layout.widget_board_2x2 : R.layout.widget_board_4x2)
             : ("4x3".equals(size) ? R.layout.widget_plate_4x3
                 : "2x2".equals(size) ? R.layout.widget_plate_2x2 : R.layout.widget_plate_4x2);
-        int widthDp = "2x2".equals(size) ? 155 : 320;
+        int widthDp = getIntent().getIntExtra("w", "2x2".equals(size) ? 155 : 320);
         final String sizeKey = size;
 
         LinearLayout column = new LinearLayout(this);
@@ -80,10 +80,19 @@ public final class WidgetGalleryActivity extends Activity {
                 ? MetroWidgetPlateRender.board(this, layoutRes, rows, "4x3".equals(size) ? 3 : 2,
                     head(rows[0]), "單位分鐘", rows[0].footRight, rows[0].band, rows[0].bandBad)
                 : MetroWidgetPlateRender.plate(this, layoutRes, sample.plates()[0], "2x2".equals(sizeKey));
+            // --es bg model／plain：示範站是板南線台北車站 ⇒ 代表車 C341（WidgetBackground.metroCar）。
+            if (sample.message == null) {
+                MetroWidgetPlateRender.backdrop(views, board || "4x4".equals(sizeKey), "2x2".equals(sizeKey),
+                    !WidgetBackground.PLAIN.equals(getIntent().getStringExtra("bg")),
+                    WidgetBackground.metroCar("trtc", getIntent().getStringExtra("line") == null ? "BL"
+                        : getIntent().getStringExtra("line")));
+            }
             LinearLayout holder = new LinearLayout(this);
             holder.setGravity(Gravity.START);
+            // --ei h：固定卡片高度（桌面實測 5×2≈180dp、5×4≈377dp），看列數在真實高度下會不會被切。
             holder.addView(views.apply(this, holder),
-                new LinearLayout.LayoutParams(dp(widthDp), ViewGroup.LayoutParams.WRAP_CONTENT));
+                new LinearLayout.LayoutParams(dp(widthDp), getIntent().hasExtra("h")
+                    ? dp(getIntent().getIntExtra("h", 0)) : ViewGroup.LayoutParams.WRAP_CONTENT));
             column.addView(holder);
         }
 
@@ -180,6 +189,10 @@ public final class WidgetGalleryActivity extends Activity {
             String bg = getIntent().getStringExtra("bg");
             if (bg == null) bg = WidgetBackground.PLAIN;
             boolean readable = getIntent().getBooleanExtra("readable", false);
+            if (readable) bg = WidgetBackground.PLAIN;   // 與桌面同一條規則（WidgetBackground.effective）
+            // --es state railfail／expired：註腳是警示時小卡要露出來（車模小卡同時收掉車）。
+            if ("railfail".equals(state)) rail.failed = true;
+            if ("expired".equals(state)) rail.scheduleNote = "依 09/16 同星期班表";
             if ("2x2".equals(size)) {
                 views = RailBoardWidgetProvider.small(this, rail, readable, bg);
                 width = 170; height = 170;

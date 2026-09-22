@@ -11,7 +11,7 @@
     <string name="metro_widget_large_name">Metro board · Large</string>
     <string name="metro_widget_large_description">Several directions, the next eight trains at a glance</string>
     <string name="rail_widget_small_name">Departure board · Small</string>
-    <string name="rail_widget_small_description">The next two trains, the smallest tile</string>
+    <string name="rail_widget_small_description">The next trains, the smallest tile</string>
     <string name="rail_widget_large_name">Departure board · Large</string>
     <string name="rail_widget_large_description">The next eight trains, a full departure board</string>
     <string name="mixed_widget_name">Rail + metro board</string>

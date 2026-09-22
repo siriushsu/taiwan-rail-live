@@ -13,7 +13,7 @@
     <string name="metro_widget_large_name">捷運看板・大</string>
     <string name="metro_widget_large_description">一站多方向，接下來八班一次看</string>
     <string name="rail_widget_small_name">發車看板・小</string>
-    <string name="rail_widget_small_description">最近兩班，最小的一格</string>
+    <string name="rail_widget_small_description">最近的班次，最小的一格</string>
     <string name="rail_widget_large_name">發車看板・大</string>
     <string name="rail_widget_large_description">接下來八班，一整面發車看板</string>
     <string name="mixed_widget_name">鐵路＋捷運雙看板</string>

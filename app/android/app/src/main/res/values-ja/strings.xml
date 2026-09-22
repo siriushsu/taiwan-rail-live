@@ -11,7 +11,7 @@
     <string name="metro_widget_large_name">メトロ到着案内・大</string>
     <string name="metro_widget_large_description">複数方向の直近8本をまとめて表示</string>
     <string name="rail_widget_small_name">発車案内・小</string>
-    <string name="rail_widget_small_description">直近2本だけを表示する最小サイズ</string>
+    <string name="rail_widget_small_description">直近の列車を表示する最小サイズ</string>
     <string name="rail_widget_large_name">発車案内・大</string>
     <string name="rail_widget_large_description">直近8本を表示するフルサイズの発車案内</string>
     <string name="mixed_widget_name">鉄道＋メトロ案内</string>

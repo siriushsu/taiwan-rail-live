@@ -34,6 +34,16 @@ final class WidgetBackground {
     }
 
     /**
+     * 鐵路看板實際要畫的背景（與 iOS RailBoardEntryView.backdrop 同一條規則）：
+     * 好讀版一律素色——頭帶／站名牌會再吃掉一列以上，字大與列數優先；
+     * 「我的地點」的站會跟著位置換，頭帶的車與站名牌都綁不住那個語意，也是素色。
+     */
+    static String effective(SharedPreferences prefs, int id, String origin, boolean readable) {
+        if (readable || RailWidgetData.isPlace(origin)) return PLAIN;
+        return read(prefs, id, false);
+    }
+
+    /**
      * 車種 → 代表車（與 iOS 同一份對照表）。小工具資料只有車種（區間車／自強／區間快／莒光/復興／其他／高鐵），
      * 沒有細到車型的欄位 ⇒ 依裁示用車種代表車。莒光/復興畫 E400 機車頭（斜角看客車只是一個橘色箱子），
      * 其他畫藍皮 R135（「其他」多半是普快，畫 EMU900 會被看成區間車）。
@@ -59,7 +69,8 @@ final class WidgetBackground {
             case "trtc":
                 switch (lineId) {
                     case "R": case "R_XBT": case "G": case "G_XBT": return R.drawable.wg_car_c381;
-                    case "O_XINZHUANG": case "O_LUZHOU": return R.drawable.wg_car_c371;
+                    // 官方 trains[].stn 只給得出主代碼 O（字首字母），目錄才拆兩支 ⇒ 三個鍵都要認。
+                    case "O": case "O_XINZHUANG": case "O_LUZHOU": return R.drawable.wg_car_c371;
                     case "BL": return R.drawable.wg_car_c341;
                     case "BR": return R.drawable.wg_car_val256;
                     case "Y": return R.drawable.wg_car_y100;

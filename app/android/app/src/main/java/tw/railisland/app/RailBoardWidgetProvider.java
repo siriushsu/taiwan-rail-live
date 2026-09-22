@@ -77,9 +77,7 @@ public class RailBoardWidgetProvider extends AppWidgetProvider {
         String origin = prefs.getString("origin_" + id, null);
         String destination = prefs.getString("destination_" + id, "");
         boolean readable = prefs.getBoolean("readable_" + id, false);
-        // 「我的地點」模式的站會跟著位置換，頭帶的車與場景的站牌都綁不住那個語意 ⇒ 這一批維持素色（與 iOS 同）。
-        String background = origin != null && RailWidgetData.isPlace(origin) ? WidgetBackground.PLAIN
-            : WidgetBackground.read(prefs, id, false);
+        String background = WidgetBackground.effective(prefs, id, origin, readable);
         List<String> filters = new ArrayList<>();
         try {
             JSONArray rawFilters = new JSONArray(prefs.getString("filters_" + id, "[]"));
@@ -152,6 +150,9 @@ public class RailBoardWidgetProvider extends AppWidgetProvider {
     private static RemoteViews sizes(Context context, int id, RailWidgetData.Snapshot snapshot, boolean readable,
                                      String background) {
         PendingIntent tap = openIntent(context, id, snapshot.sys, snapshot.origin);
+        // 沒有任何一班可畫（空狀態）一律素色：頭帶的車要綁「下一班」，空狀態沒有下一班；
+        // 頭帶與卡面讀同一個判斷，不會一層有一層沒有（與 iOS 同一條規則）。
+        if (snapshot.rows.isEmpty()) background = WidgetBackground.PLAIN;
         if (Build.VERSION.SDK_INT < 31) {
             // 沒有 setSizeSpecificViewLayouts 的機器:照這一格屬於哪個尺寸的 provider 挑一張。
             String family = WidgetFamily.of(context, id);
@@ -190,8 +191,10 @@ public class RailBoardWidgetProvider extends AppWidgetProvider {
         if (WidgetBackground.MODEL.equals(background)) {
             return RailWidgetRender.board(context, R.layout.widget_rail_4x2_model, snapshot, 3, readable, false);
         }
+        // 🔴 場景版中卡只放兩班：站名牌＋場景比車模頭帶高約一列，5×2 桌面實測 180dp 高時第三班會被切在車次那一行、
+        //    壓進底下的註腳（車模版三班只切到最後一列的目的地，與素色四班同一種切法）。
         if (WidgetBackground.SCENE.equals(background)) {
-            return RailWidgetRender.board(context, R.layout.widget_rail_4x2_scene, snapshot, 3, readable, false);
+            return RailWidgetRender.board(context, R.layout.widget_rail_4x2_scene, snapshot, 2, readable, false);
         }
         return RailWidgetRender.board(context, R.layout.widget_rail_4x2, snapshot, 4, readable, false);
     }

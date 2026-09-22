@@ -76,8 +76,10 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
         root.addView(hint, hintLp);
 
         preview = new FrameLayout(this);
+        // 高度取 Pixel 啟動器 5×2 中卡實測的 180dp：場景版的站名牌＋場景要吃掉一列，
+        // 預覽框比真卡矮的話，第二班會被切在半列，看起來像壞掉。
         LinearLayout.LayoutParams previewLp = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, dp(158));
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(180));
         previewLp.bottomMargin = dp(20);
         root.addView(preview, previewLp);
 
@@ -337,7 +339,8 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
         }
         RemoteViewsHost.attach(this, preview,
             RailBoardWidgetProvider.medium(this, snapshot, readable.isChecked(),
-                RailWidgetData.isPlace(snapshot.origin) ? WidgetBackground.PLAIN : selectedBackground()));
+                readable.isChecked() || RailWidgetData.isPlace(snapshot.origin) ? WidgetBackground.PLAIN
+                    : selectedBackground()));
     }
 
     private String selectedBackground() {
@@ -455,8 +458,14 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
 
     /** RemoteViews.apply 的小包裝，讓設定頁預覽與桌面共用出貨 binder。 */
     private static final class RemoteViewsHost {
+        /**
+         * 🔴 一定要用 application context 展開：AppCompatActivity 的 LayoutInflater 掛著 AppCompat 工廠，
+         *    會把 ImageView 換成 AppCompatImageView，而它覆寫的 setImageResource 沒有 @RemotableViewMethod
+         *    ⇒ setImageViewResource（車模、方向三角）一套上去就丟 ActionException，設定頁當場閃退、
+         *    桌面上剛放的格子被系統收回。桌面本身用的是 launcher 的 context，不會踩到，所以只有這裡要換。
+         */
         static void attach(Context context, FrameLayout host, android.widget.RemoteViews views) {
-            host.addView(views.apply(context, host));
+            host.addView(views.apply(context.getApplicationContext(), host));
         }
     }
 }

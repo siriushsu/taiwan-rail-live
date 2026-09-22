@@ -237,6 +237,22 @@ final class MetroWidgetPlateRender {
         return v;
     }
 
+    /**
+     * 小工具背景（捷運卡只有車模／素色，WidgetBackground.METRO_VALUES）。版面本身畫的是車模——
+     * 挑選器預覽＝放上桌面的預設樣子；素色把頭帶底色與車收掉，header 的負邊距與等量內距互相抵銷，
+     * 素色的幾何與改版前逐 dp 相同。car＝0：這一站對不到唯一一台代表車 ⇒ 頭帶照留、不畫車。
+     * small＝2×2：與 iOS 小卡相同，不加頭帶、只放車（車在版面裡另有位置，見 widget_plate_2x2／board_2x2）。
+     * 看板（夜行看板與 4×4 大卡）走 wb_*，琺瑯站牌走 wg_*。
+     */
+    static RemoteViews backdrop(RemoteViews v, boolean board, boolean small, boolean model, int car) {
+        int head = board ? R.id.wb_headrow : R.id.wg_headrow;
+        int carView = board ? R.id.wb_car : R.id.wg_car;
+        v.setInt(head, "setBackgroundResource", model && !small ? R.drawable.wg_band_bg : 0);
+        v.setViewVisibility(carView, model && car != 0 ? View.VISIBLE : View.GONE);
+        if (model && car != 0) v.setImageViewResource(carView, car);
+        return v;
+    }
+
     /** 狀態 6 · 未設定車站。文案放這裡而不是 provider 裡，畫廊才會顯示與桌面【同一份】文字。 */
     static RemoteViews unset(Context c) {
         return message(c, RailNativeL10n.text(c, "軌島"), RailNativeL10n.text(c, "選一個捷運站"),

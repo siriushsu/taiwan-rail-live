@@ -45,15 +45,21 @@ final class RailWidgetRender {
         root.setTextViewText(R.id.wr_note, note);
         if (model) bindCar(root, snapshot.rows);
         if (scene) bindPlate(context, root, layout, snapshot, origin);
+        // 🔴 車模／場景小卡平常收掉註腳讓位給車與場景，但註腳是警示時（這張卡的數字可能錯）一定要露出來；
+        //    車模小卡有警示就不畫車——整行會壓進車身讀不出來，警示比裝飾重要（與 iOS 同一條規則）。
+        boolean small = layout == R.layout.widget_rail_2x2_model || layout == R.layout.widget_rail_2x2_scene;
+        if (small && warning(snapshot)) {
+            root.setViewVisibility(R.id.wr_note, View.VISIBLE);
+            if (model) root.setViewVisibility(R.id.wr_car, View.GONE);
+        }
         if (readable) {
-            boolean large = layout == R.layout.widget_rail_4x4 || layout == R.layout.widget_rail_4x4_model
-                || layout == R.layout.widget_rail_4x4_scene;
-            // 頭帶裡的站名本來就比好讀版大（autoSize 24／18sp），不再改它；場景版沒有 wr_head。
-            if (!model && !scene) root.setTextViewTextSize(R.id.wr_head, TypedValue.COMPLEX_UNIT_SP,
+            // 好讀版一律畫素色版面（WidgetBackground.effective），這裡只會遇到三張素色。
+            boolean large = layout == R.layout.widget_rail_4x4;
+            root.setTextViewTextSize(R.id.wr_head, TypedValue.COMPLEX_UNIT_SP,
                 compact ? 17 : large ? 20 : 18);
             root.setTextViewTextSize(R.id.wr_route, TypedValue.COMPLEX_UNIT_SP,
                 large ? 12 : 11);
-            if (!model) root.setTextViewTextSize(R.id.wr_stamp, TypedValue.COMPLEX_UNIT_SP,
+            root.setTextViewTextSize(R.id.wr_stamp, TypedValue.COMPLEX_UNIT_SP,
                 large ? 11 : 10);
             root.setTextViewTextSize(R.id.wr_note, TypedValue.COMPLEX_UNIT_SP,
                 large ? 10 : 9);
@@ -78,6 +84,12 @@ final class RailWidgetRender {
             root.addView(R.id.wr_rows, empty);
         }
         return root;
+    }
+
+    /** 註腳是不是警示：資料延遲、上次位置、班表過期退回同星期／超出涵蓋日期。高鐵「當日班表」是例行標示，不算。 */
+    private static boolean warning(RailWidgetData.Snapshot snapshot) {
+        return snapshot.failed || snapshot.autoStale
+            || snapshot.scheduleNote != null && !snapshot.scheduleNote.endsWith(" 當日班表");
     }
 
     /** A 車模頭帶：下一班（排序後第一列）的車種代表車；沒有班次就收掉車、頭帶照留。 */

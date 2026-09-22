@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 只給小工具挑選器／釘選框的 previewLayout 看（真小工具每次更新都 removeAllViews 後才填列）。
      widget_rail_rows_demo_b.xml 的前兩列原樣照抄，給車模頭帶／場景的大卡湊出真實列數上限：
-     車模 4x4＝rows_demo 3＋row_demo4 1＋這 2 列＝6；場景 4x4＝rows_demo 3＋這 2 列＝5
-     （RailBoardWidgetProvider.large() 的 maxRows）。不綁 android:id。 -->
+     車模 4x4＝rows_demo 3＋row_demo4 1＋這 2 列＝6；場景 4x4＝rows_demo 3＋這 2 列＝5；場景 4x2＝這 2 列
+     （RailBoardWidgetProvider.large()／medium() 的 maxRows）。不綁 android:id。 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
