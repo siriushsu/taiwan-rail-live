@@ -195,6 +195,17 @@ function mwEtaChanged(prev, next) {
   if (pn) return false;
   return Math.abs(Number(prev) - Number(next)) >= MW_ETA_EPS_SEC;
 }
+// 進站窗:下一班離本站只剩「上一站→本站」這一段時,卡片上的進站軌道(B 方案)要畫車在路上。
+// 鎖定畫面的圖不會自己動,車只在收到一發更新時往前挪——遲滯會讓準點的車整段一發都不推,
+// 車就黏在上一站直到翻成「進站」。所以窗內每輪都推(cron 每分鐘一輪 ⇒ 車約每分鐘挪一格)。
+// 250 秒:北捷站間行駛＋停站最長 241 秒(東門↔古亭),取整。窗外照舊走遲滯。
+// 只看 nextEta:分鐘級系統不送 eta,卡片也不畫車(精度誠實),不必為它多推。
+export const MW_APPROACH_SEC = 250;
+function mwInApproach(next, nowSec) {
+  if (nowSec == null || next.nextEta == null) return false;
+  const left = Number(next.nextEta) - Number(nowSec);
+  return left > 0 && left <= MW_APPROACH_SEC;
+}
 const mwCrowdKey = v => (Array.isArray(v) ? v.map(Number).join(',') : '');
 // 這一輪算出來的內容,跟【上一次真的送出去的】比,值不值得再推一發。
 // 🔴 比較基準是「上一次送出去的」而不是「上一輪算出來的」——這是遲滯能成立的關鍵:
@@ -202,8 +213,9 @@ const mwCrowdKey = v => (Array.isArray(v) ? v.map(Number).join(',') : '');
 //    第七輪左右累積到門檻而推一發,卡片因此不會漂到與官方差太多,也不會每分鐘都推。
 // 🔴 dataAt 刻意不在比較範圍內:它每輪必變而視圖根本不畫它(MetroWaitActivity.swift 沒有
 //    任何一處讀 state.dataAt),把它算進去等於讓遲滯完全失效。pushed 同理(恆為 true)。
-export function mwShouldPush(prev, next) {
+export function mwShouldPush(prev, next, nowSec) {
   if (!prev) return true;
+  if (mwInApproach(next, nowSec)) return true;
   if (String(prev.nextDest == null ? '' : prev.nextDest) !== String(next.nextDest == null ? '' : next.nextDest)) return true;
   if (String(prev.secondDest == null ? '' : prev.secondDest) !== String(next.secondDest == null ? '' : next.secondDest)) return true;
   if (String(prev.nextMinutes == null ? '' : prev.nextMinutes) !== String(next.nextMinutes == null ? '' : next.nextMinutes)) return true;

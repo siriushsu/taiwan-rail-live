@@ -51,6 +51,36 @@ struct MetroWaitDisplay {
     let notice: String?
     /// 到站後那句說明（接上推播與沒接上是兩種話，不可只留一種）。
     let staleHint: String?
+    /// 進站軌道（B 方案：上一站 → 本站站名牌，車畫在軌道上）。nil ⇒ 退回原本的軌脊版面
+    /// ——分鐘級系統（高捷／機捷）沒有秒級到站時刻推不出位置，以及解不出上一站的少數站
+    /// （見 `MetroWidgetCatalog.waitHop`）。兩種都【不畫車】，不偽造位置。
+    let trackB: TrackB?
+
+    /// 進站軌道的純值。車的位置只在算繪當下算一次（見 `Car`）。
+    struct TrackB: Equatable {
+        /// 🔴 Live Activity 裡的圖片不會自己移動（能自走的只有 `ProgressView(timerInterval:)`
+        ///    與時間文字），所以車【只在收到推播重繪時】往前挪一格；路線色那段也改成跟車同一個
+        ///    靜態比例，不再用自走填色——自走填色會跑到車前面，看起來像車被丟下。倒數文字照舊自走。
+        enum Car: Equatable {
+            /// 不畫車：沒接上推播（車會停在開卡那一刻不動，等於說謊）或資料過期。
+            case none
+            /// 行駛中（或還停在上一站＝0）：車頭在「上一站 → 本站」的比例。
+            case running(Double)
+            /// 還沒到上一站：畫在左側虛線段上，車頭不碰上一站。
+            case far
+            /// 進站：車頭對齊本站。
+            case arrived
+        }
+        let prev: String
+        let car: Car
+        /// 正側面車模 asset `la-side-<carModel>`，寬高比 carAspect。
+        let carModel: String
+        let carAspect: Double
+        /// 站名牌帶子上的線名（下一班那條線）；解不出來就只留色。
+        let lineName: String?
+        /// 路線色：站名牌帶子、還沒走完的那段、本站圓點。
+        let color: Color?
+    }
 
     /// 資料過期的門檻。設計稿：「超過 90 秒沒有新資料就把倒數換成『暫無資料』」。
     static let expirySeconds: Double = 90
@@ -61,7 +91,8 @@ struct MetroWaitDisplay {
         nextDest: String?, nextEta: Double?, nextMinutes: Int?,
         secondDest: String?, secondEta: Double?, secondMinutes: Int?,
         crowd: [Int]?, dataAt: Double?, endAt: Double?,
-        notice: String?, pushed: Bool?, isStale: Bool, now: Date
+        notice: String?, pushed: Bool?, isStale: Bool, now: Date,
+        hop: MetroWaitHop? = nil
     ) -> MetroWaitDisplay {
         let nowSec = now.timeIntervalSince1970
         // 🔴 過期判定取【資料時刻】不取讀取端時鐘：後者對「被某層快取餵了舊主體」恆為新鮮，
@@ -135,13 +166,42 @@ struct MetroWaitDisplay {
             ? RailNativeL10n.text(pushed == true ? "下一班會自動接上" : "卡片不會自己接下一班，要看後續請回軌島重開")
             : nil
 
+        // 進站軌道：車的位置＝官方倒數推回（剩餘秒數 ÷ 上一站到本站的行駛秒）。
+        // 🔴 車只在 pushed == true 時畫：那是「伺服器真的推過一發」的證據，之後每次推播都會重繪、
+        //    車跟著往前挪。nil（剛開卡、綁定還沒完成或失敗）時畫了車，綁定一旦失敗就再也不會重繪，
+        //    車會停在開卡那一刻的位置而倒數照走——那正是要避免的「停住的車騙人」。代價是開卡後
+        //    第一發推播前（最多約一分鐘）只有軌道沒有車。
+        var trackB: TrackB?
+        if let hop {
+            let car: TrackB.Car
+            if pushed != true || expired {
+                car = .none
+            } else if isStale {
+                car = .arrived
+            } else if let eta = nextEta {
+                let left = eta - nowSec
+                if left <= 0 { car = .arrived }
+                else if left <= hop.runSec { car = .running(1 - left / hop.runSec) }
+                // 倒數落在 (行駛, 行駛＋停站]：車還停在上一站，車頭貼著上一站。
+                else if left <= hop.runSec + hop.dwellSec { car = .running(0) }
+                else { car = .far }
+            } else {
+                car = .none
+            }
+            trackB = TrackB(prev: RailNativeL10n.name(hop.prev), car: car,
+                            carModel: hop.carModel, carAspect: hop.carAspect,
+                            lineName: hop.lineName.map { RailNativeL10n.name($0) },
+                            color: RailHex.color(hop.colorHex) ?? RailHex.color(colorHex))
+        }
+
         return MetroWaitDisplay(
             lineLabel: RailNativeL10n.name(lineLabel), station: RailNativeL10n.name(station), color: RailHex.color(colorHex),
             dest: nextDest.map { RailNativeL10n.name($0) }, countdown: countdown, track: track, progress: progress,
             arriving: isStale, expired: expired, crowd: crowd,
             second: second,
             footer: footerParts.isEmpty ? nil : footerParts.joined(separator: " · "),
-            notice: RailHex.trimmed(notice).map { RailNativeL10n.text($0) }, staleHint: hint
+            notice: RailHex.trimmed(notice).map { RailNativeL10n.text($0) }, staleHint: hint,
+            trackB: trackB
         )
     }
 }
@@ -201,6 +261,49 @@ struct MetroWaitLockView: View {
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
+        Group {
+            if let track = display.trackB {
+                trackLayout(track)
+            } else {
+                spineLayout
+            }
+        }
+        // 🔴 水平邊距不能省：鎖屏 Live Activity 的內容區沒有系統預設 margins，
+        //    模擬器實測左緣會被卡片圓角裁掉半個字。8pt 仍大於圓角吃掉的量
+        //    （半徑 r 的圓角要求邊距 ≥ 0.293r，r=22 ⇒ 6.4pt）。
+        .padding(.horizontal, scale.pt(14))
+        // 進站軌道版少了站名列、多了 64pt 的軌道，上下各讓 1pt 才守得住 160pt。
+        .padding(.vertical, scale.pt(display.trackB == nil ? 8 : 7))
+        // 設計稿：資料過期時全卡降到 secondary（唯一會整卡降級的狀態）。
+        .opacity(display.expired ? 0.62 : 1)
+    }
+
+    /// B 方案：原本的站名列拿掉（站名改由軌道右端的站名牌說），線別併進主角列；
+    /// 更新時間移到軌道下方右側。
+    private func trackLayout(_ track: MetroWaitDisplay.TrackB) -> some View {
+        VStack(alignment: .leading, spacing: scale.pt(3)) {
+            HStack(alignment: .center, spacing: scale.pt(6)) {
+                RailLineMark(name: track.lineName ?? display.lineLabel, color: track.color ?? display.color,
+                             fontSize: 11, scale: scale)
+                Text(RailNativeL10n.text("下一班"))
+                    .font(.system(size: scale.pt(11)))
+                    .foregroundStyle(.secondary)
+                Text(RailNativeL10n.text("往 {station}", ["station": display.dest ?? "—"]))
+                    .font(.system(size: scale.pt(22), weight: .semibold))
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                Spacer(minLength: scale.pt(4))
+                RailCountdownText(value: display.countdown, size: .heroCard, scale: scale)
+            }
+            MetroWaitTrack(track: track, station: display.station, trailing: display.footer, scale: scale)
+            HStack(spacing: scale.pt(6)) {
+                MetroWaitThirdRow(display: display, scale: scale)
+                Spacer(minLength: scale.pt(4))
+                MetroWaitEndButton(scale: scale, height: 24)
+            }
+        }
+    }
+
+    private var spineLayout: some View {
         VStack(alignment: .leading, spacing: scale.pt(4)) {
             HStack(spacing: scale.pt(6)) {
                 RailLineMark(name: display.lineLabel, color: display.color,
@@ -243,33 +346,9 @@ struct MetroWaitLockView: View {
                     .lineLimit(1)
             }
 
-            // 🔴 這一列只有一位——三種內容互斥，不准疊。理由是硬的：鎖屏 Live Activity 只有
-            //    160pt 高（官方：超過就被系統截掉），而主角列 52pt＋抬頭＋軌脊＋底列已經吃掉
-            //    ~139pt ⇒ 全卡只剩一列的預算。優先序＝服務異常 ＞ 進站後怎麼辦 ＞ 加值資訊。
-            //    每一句都保持一行（最窄 330pt 機型的可用寬 302pt，17–21 字的中文放得下），
-            //    不然折行又會把上下緣吃掉。
-            if let notice = display.notice {
-                Text("⚠ " + notice)
-                    .font(.system(size: scale.pt(11), weight: .medium))
-                    .foregroundStyle(RailTokens.colors(scheme).warn)
-                    .lineLimit(1).minimumScaleFactor(0.8)
-            } else if let hint = display.staleHint {
-                Text(hint)
-                    .font(.system(size: scale.pt(11))).foregroundStyle(.secondary)
-                    .lineLimit(1).minimumScaleFactor(0.8)
-            } else if display.crowd != nil || display.second != nil {
-                HStack(spacing: scale.pt(6)) {
-                    if let c = display.crowd, !c.isEmpty {
-                        RailCarriageMeter(levels: c, showWord: true, scale: scale)
-                    }
-                    if let second = display.second {
-                        MetroWaitSecondLine(
-                            second: second,
-                            separator: display.crowd?.isEmpty == false ? "· " : "",
-                            fontSize: scale.pt(13))
-                    }
-                    Spacer(minLength: 0)
-                }
+            HStack(spacing: 0) {
+                MetroWaitThirdRow(display: display, scale: scale)
+                Spacer(minLength: 0)
             }
 
             HStack(spacing: scale.pt(6)) {
@@ -283,13 +362,228 @@ struct MetroWaitLockView: View {
                 MetroWaitEndButton(scale: scale, height: 24)
             }
         }
-        // 🔴 水平邊距不能省：鎖屏 Live Activity 的內容區沒有系統預設 margins，
-        //    模擬器實測左緣會被卡片圓角裁掉半個字。8pt 仍大於圓角吃掉的量
-        //    （半徑 r 的圓角要求邊距 ≥ 0.293r，r=22 ⇒ 6.4pt）。
-        .padding(.horizontal, scale.pt(14))
-        .padding(.vertical, scale.pt(8))
-        // 設計稿：資料過期時全卡降到 secondary（唯一會整卡降級的狀態）。
-        .opacity(display.expired ? 0.62 : 1)
+    }
+}
+
+/// 鎖屏卡的第三層。
+///
+/// 🔴 這一列只有一位——三種內容互斥，不准疊。理由是硬的：鎖屏 Live Activity 只有
+///    160pt 高（官方：超過就被系統截掉），而主角列＋軌道（或抬頭＋軌脊）＋底列已經吃掉
+///    大半 ⇒ 全卡只剩一列的預算。優先序＝服務異常 ＞ 進站後怎麼辦 ＞ 加值資訊。
+///    每一句都保持一行（最窄 330pt 機型的可用寬 302pt，17–21 字的中文放得下），
+///    不然折行又會把上下緣吃掉。進站軌道版與軌脊版共用這一份，兩種版面讀起來是同一句話。
+struct MetroWaitThirdRow: View {
+    let display: MetroWaitDisplay
+    var scale: RailScale = RailScale(k: 1)
+
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        if let notice = display.notice {
+            Text("⚠ " + notice)
+                .font(.system(size: scale.pt(11), weight: .medium))
+                .foregroundStyle(RailTokens.colors(scheme).warn)
+                .lineLimit(1).minimumScaleFactor(0.8)
+        } else if let hint = display.staleHint {
+            Text(hint)
+                .font(.system(size: scale.pt(11))).foregroundStyle(.secondary)
+                .lineLimit(1).minimumScaleFactor(0.8)
+        } else if display.crowd != nil || display.second != nil {
+            HStack(spacing: scale.pt(6)) {
+                if let c = display.crowd, !c.isEmpty {
+                    RailCarriageMeter(levels: c, showWord: true, scale: scale)
+                }
+                if let second = display.second {
+                    MetroWaitSecondLine(
+                        second: second,
+                        separator: display.crowd?.isEmpty == false ? "· " : "",
+                        fontSize: scale.pt(13))
+                }
+            }
+        }
+    }
+}
+
+// MARK: - 進站軌道（B 方案）
+
+/// 進站軌道：左端＝這班車的上一站，右端＝本站（琺瑯站名牌），正側面車模畫在軌道上、
+/// 車頭對齊目前位置；車頭到本站那段用路線色＝還沒走完的路。
+/// 設計正本：桌面/軌島小工具背景方案/等車卡進站軌道.html（產生器 build_la.py 的 `track()`），
+/// 下面的座標常數都照那裡的 CSS（寬度以外全部是固定 pt）。
+///
+/// 🔴 整條都是靜態的（見 `MetroWaitDisplay.TrackB`）：不准在這裡放 `ProgressView(timerInterval:)`
+///    ——自走填色會跑到車前面。車與路線色那段只在收到推播重繪時一起往前挪。
+struct MetroWaitTrack: View {
+    let track: MetroWaitDisplay.TrackB
+    /// 本站站名（站名牌上的字）。
+    let station: String
+    /// 軌道下方右側那一句（鎖屏：「追蹤至 21:40 · 21:23 更新」；動態島不放）。
+    var trailing: String? = nil
+    /// 動態島展開版：永遠黑底，軌道縮小（車高 16、整條 60、軌面 43）。
+    var island: Bool = false
+    var scale: RailScale = RailScale(k: 1)
+
+    @Environment(\.colorScheme) private var scheme
+
+    private func s(_ v: CGFloat) -> CGFloat { scale.pt(v) }
+    private var carH: CGFloat { s(island ? 16 : 18) }
+    private var height: CGFloat { s(island ? 60 : 64) }
+    /// 軌面（2pt 軌道的上緣）。
+    private var railY: CGFloat { s(island ? 43 : 44) }
+    /// 軌道中心線：站點、路線色那段、車輪底都對齊這條。
+    private var railC: CGFloat { railY + s(1) }
+    private var dark: Bool { island || scheme == .dark }
+    /// 軌道色／站點底色。站點底色要跟卡片底色一致，圓點外那一圈才像把軌道「切開」。
+    private var railColor: Color { island ? Color(red: 0.29, green: 0.30, blue: 0.33)
+        : dark ? Color(red: 0.33, green: 0.35, blue: 0.37) : Color(red: 0.76, green: 0.78, blue: 0.80) }
+    private var dotBG: Color { island ? .black
+        : dark ? Color(red: 0.15, green: 0.15, blue: 0.16) : Color(red: 0.95, green: 0.95, blue: 0.96) }
+    private var tint: Color { track.color ?? RailTokens.colors(scheme).brand }
+
+    var body: some View {
+        GeometryReader { geo in
+            let w = geo.size.width
+            // 本站（站名牌中心）距右緣 46pt；上一站距左緣 12pt，還沒到上一站時內縮到 96pt，
+            // 讓出左側那段虛線代表更遠的路。
+            let sx = w - s(46)
+            let far = track.car == .far
+            let px = far ? s(96) : s(12)
+            let nose: CGFloat? = {
+                switch track.car {
+                case .none: return nil
+                case .running(let f): return px + (sx - px) * CGFloat(min(1, max(0, f)))
+                case .far: return px - s(10)
+                case .arrived: return sx
+                }
+            }()
+            ZStack(alignment: .topLeading) {
+                // 軌道：虛線段（更遠的路）＋實線段。
+                if far {
+                    Path { p in p.move(to: CGPoint(x: 0, y: railC)); p.addLine(to: CGPoint(x: px, y: railC)) }
+                        .stroke(railColor, style: StrokeStyle(lineWidth: s(2), dash: [s(4), s(4)]))
+                }
+                Rectangle().fill(railColor)
+                    .frame(width: max(0, w - (far ? px : 0)), height: s(2))
+                    .offset(x: far ? px : 0, y: railY)
+                // 還沒走完的路（車頭 → 本站）。沒畫車時不畫：那一段的起點就是車頭，沒有車就是在編位置。
+                if let nose, track.car != .arrived, sx > nose {
+                    Capsule().fill(tint)
+                        .frame(width: sx - max(nose, 0), height: s(4))
+                        .offset(x: max(nose, 0), y: railC - s(2))
+                }
+                // 上一站：空心小圓。
+                Circle().fill(dotBG)
+                    .overlay(Circle().strokeBorder(railColor, lineWidth: s(2)))
+                    .frame(width: s(9), height: s(9))
+                    .position(x: px, y: railC)
+                // 車：兩節（領頭那節車頭朝右＝朝本站，後面那節鏡像，讀起來是一列車）。
+                if let nose {
+                    let cw = carH * CGFloat(track.carAspect)
+                    ForEach(0..<2, id: \.self) { i in
+                        MetroWaitCarImage(model: track.carModel)
+                            .frame(width: cw, height: carH)
+                            .scaleEffect(x: i == 1 ? -1 : 1, y: 1)
+                            .offset(x: nose - cw * CGFloat(i + 1) - s(1.5) * CGFloat(i), y: railC - carH)
+                    }
+                }
+                // 本站：路線色實心圓＋一圈卡片底色（把軌道切開），立柱撐著站名牌。
+                Rectangle().fill(Color(red: 0.46, green: 0.44, blue: 0.38))
+                    .frame(width: s(2), height: s(12))
+                    .position(x: sx, y: railY - s(6))
+                Circle().fill(tint)
+                    .frame(width: s(12), height: s(12))
+                    .padding(s(3)).background(Circle().fill(dotBG))
+                    .position(x: sx, y: railC)
+                // 站名牌：中心對齊本站；站名長到塞不進右側 46pt 時改成右緣貼齊，往左長。
+                ViewThatFits(in: .horizontal) {
+                    plate
+                    plate.frame(width: s(92), alignment: .trailing)
+                }
+                .frame(width: s(92), height: railY - s(12) - s(1), alignment: .bottom)
+                .position(x: sx, y: s(1) + (railY - s(12) - s(1)) / 2)
+                // 標籤：左＝上一站站名，右＝更新時間。
+                Text(track.prev)
+                    .font(.system(size: s(10.5), weight: .semibold))
+                    .lineLimit(1)
+                    .offset(x: max(0, px - s(12)), y: railY + s(6))
+                if let trailing {
+                    Text(trailing)
+                        .font(.system(size: s(10.5)))
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit().lineLimit(1).minimumScaleFactor(0.8)
+                        .frame(width: w, alignment: .trailing)
+                        .offset(y: railY + s(6))
+                }
+            }
+            .frame(width: w, height: height, alignment: .topLeading)
+        }
+        .frame(height: height)
+        .clipped()
+    }
+
+    private var plate: some View {
+        MetroWaitPlate(name: station, band: track.lineName, bandColor: track.color, dark: dark, scale: scale)
+    }
+}
+
+/// 琺瑯站名牌（色票同網站頂端的 `.plate`、小工具 C 方案同一組）：白瓷底＋深藍字，
+/// 下緣帶子用路線色＋線名。深色模式與動態島換成深藍瓷。
+struct MetroWaitPlate: View {
+    let name: String
+    let band: String?
+    let bandColor: Color?
+    let dark: Bool
+    var scale: RailScale = RailScale(k: 1)
+
+    private func s(_ v: CGFloat) -> CGFloat { scale.pt(v) }
+    private static func rgb(_ hex: UInt32) -> Color {
+        Color(red: Double((hex >> 16) & 0xff) / 255, green: Double((hex >> 8) & 0xff) / 255,
+              blue: Double(hex & 0xff) / 255)
+    }
+    /// 中文站名字距拉開（站牌的樣子）；英文站名本來就長，照常字距。
+    private var latin: Bool { name.unicodeScalars.contains { $0.isASCII && CharacterSet.letters.contains($0) } }
+
+    var body: some View {
+        let ink = Self.rgb(dark ? 0xcfe0f8 : 0x26497e)
+        let frame = Self.rgb(dark ? 0x3a4e76 : 0x767061)
+        let glaze = dark ? [Self.rgb(0x1b2740), Self.rgb(0x141d31), Self.rgb(0x10182a)]
+                         : [Self.rgb(0xffffff), Self.rgb(0xf7f5ee), Self.rgb(0xedebe0)]
+        VStack(spacing: s(2)) {
+            Text(name)
+                .font(.system(size: s(13), weight: .black))
+                .tracking(latin ? s(0.3) : s(3))
+                .foregroundStyle(ink)
+                .lineLimit(1)
+                // tracking 在最後一個字後面也留了字距 ⇒ 左邊補同樣的量才置中。
+                .padding(.leading, latin ? 0 : s(3))
+                .padding(.horizontal, s(8))
+                .padding(.top, s(3))
+            Text(band ?? " ")
+                .font(.system(size: s(8), weight: .heavy))
+                .tracking(s(0.5))
+                .foregroundStyle(Self.rgb(0xfff8ec))
+                .lineLimit(1)
+                .padding(.horizontal, s(6))
+                .padding(.top, s(1)).padding(.bottom, s(2))
+                .frame(maxWidth: .infinity)
+                .background(bandColor ?? Self.rgb(0x26497e))
+        }
+        // 帶子要跟站名一樣寬：先取兩者的理想寬，再讓帶子撐滿（VStack＋maxWidth＋fixedSize 的慣用法）。
+        .fixedSize()
+        .background(LinearGradient(colors: glaze, startPoint: .top, endPoint: .bottom))
+        .clipShape(RoundedRectangle(cornerRadius: s(6)))
+        .overlay(RoundedRectangle(cornerRadius: s(6)).strokeBorder(frame, lineWidth: s(2)))
+        .shadow(color: Color(red: 0.16, green: 0.13, blue: 0.09).opacity(0.25), radius: s(2.5), y: s(2))
+    }
+}
+
+/// 正側面車模（asset `la-side-<model>`，車頭朝右）。
+/// 🔴 單獨一個型別的理由同 `MetroWaitEndButton`：算繪 harness 的裸執行檔沒有 asset catalog，
+///    harness 用【同名替身】直接讀 imageset 裡的同一張 PNG。
+struct MetroWaitCarImage: View {
+    let model: String
+    var body: some View {
+        Image("la-side-\(model)").resizable().interpolation(.high).aspectRatio(contentMode: .fit)
     }
 }
 
@@ -337,18 +631,28 @@ struct MetroWaitIslandBottom: View {
     var scale: RailScale = RailScale(k: 1)
 
     var body: some View {
-        VStack(alignment: .leading, spacing: scale.pt(4)) {
+        VStack(alignment: .leading, spacing: scale.pt(display.trackB == nil ? 4 : 3)) {
             HStack(alignment: .center, spacing: scale.pt(6)) {
+                if display.trackB != nil {
+                    // 進站軌道版：站名在軌道右端的站名牌上，主角列補「下一班」小標（同鎖屏）。
+                    Text(RailNativeL10n.text("下一班"))
+                        .font(.system(size: scale.pt(11)))
+                        .foregroundStyle(.secondary)
+                }
                 Text(RailNativeL10n.text("往 {station}", ["station": display.dest ?? "—"]))
-                    .font(.system(size: scale.pt(20), weight: .semibold))
+                    .font(.system(size: scale.pt(display.trackB == nil ? 20 : 18), weight: .semibold))
                     .lineLimit(1).minimumScaleFactor(0.7)
                 Spacer(minLength: scale.pt(4))
                 RailCountdownText(value: display.countdown, size: .row, scale: scale)
             }
-            RailSpineTrack(interval: display.track,
-                           progress: display.progress,
-                           phase: display.arriving ? .arriving : .running,
-                           lineColor: display.color, scale: scale)
+            if let track = display.trackB {
+                MetroWaitTrack(track: track, station: display.station, island: true, scale: scale)
+            } else {
+                RailSpineTrack(interval: display.track,
+                               progress: display.progress,
+                               phase: display.arriving ? .arriving : .running,
+                               lineColor: display.color, scale: scale)
+            }
             HStack(spacing: scale.pt(6)) {
                 if let c = display.crowd, !c.isEmpty {
                     RailCarriageMeter(levels: c, showWord: true, scale: scale)
@@ -470,7 +774,10 @@ struct MetroWaitActivityWidget: Widget {
             //    自己畫。而這張卡的 staleDate 是「下一班到站整點」（RailMetroWaitPlugin）
             //    ⇒ isStale 的語意是「列車進站」，不是「資料過期」。過期是另一條路
             //    （dataAt 超過 90 秒），兩者在版面上長得不一樣。
-            isStale: ctx.isStale, now: Date()
+            isStale: ctx.isStale, now: Date(),
+            // 上一站與站間時間從目錄的站序推（終點決定方向），推播與 ContentState 都不用改形狀。
+            hop: MetroWidgetCatalog.shared.waitHop(sys: ctx.attributes.sys, station: ctx.attributes.station,
+                                                   dest: ctx.state.nextDest)
         )
     }
 

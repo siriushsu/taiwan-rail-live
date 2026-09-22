@@ -3882,7 +3882,7 @@ async function metroWaitPushAll(env, ctx, baseUrl) {
       //    憑空消失。使用者裁示:缺訊只 hold。
       if (!picked.length) { held++; continue; }
       const state = mwContentState(row.sys, picked, src.crowdByNo, dataAt);
-      if (!mwShouldPush(prev, state)) { unchanged++; continue; }
+      if (!mwShouldPush(prev, state, now)) { unchanged++; continue; }
       attempted++;
       const staleDate = mwStaleDate(row.sys, picked, now);
       const body = { aps: { timestamp: now, event: 'update', 'content-state': state } };

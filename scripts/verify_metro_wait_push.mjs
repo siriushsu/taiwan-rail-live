@@ -333,21 +333,22 @@ const liveRow = (s, d, e, st = 0, l = 'BL') => ({ l, s, d, e, st, op: 'KRTC' });
   await resetTable();
   mockNowSec = 1_800_000_000;
   const mk = (etaOff, at) => ({ board: [bRow('台北', '淡水', etaOff, at)], trains: [] });
-  srcTrtc = mk(300, -5);
+  // 這一組量的是【進站窗外】的遲滯:eta 一律擺在 now+250 秒之外(窗內每輪必推,見 B10–B14)。
+  srcTrtc = mk(700, -5);
   await insRow({ token: T('b1'), sys: 'trtc', station: '台北', dest: null, end_at: mockNowSec + 3600, apns_env: 'prod' });
   let r = await tick();
   ok('B1 第一輪必推(last_state 是 NULL)', r.apns.length === 1);
-  mockNowSec += 60; srcTrtc = mk(240, -5);          // 同一班車,eta 絕對值不變
+  mockNowSec += 60; srcTrtc = mk(640, -5);          // 同一班車,eta 絕對值不變
   r = await tick();
   ok('B2 內容沒變就不推(同一班車、同一個絕對到站時刻)', r.apns.length === 0, `apns=${r.apns.length}`);
-  mockNowSec += 60; srcTrtc = { board: [{ name: '台北', dest: '淡水', eta: mockNowSec + 190, at: mockNowSec - 5, no: '' }], trains: [] };
+  mockNowSec += 60; srcTrtc = { board: [{ name: '台北', dest: '淡水', eta: mockNowSec + 590, at: mockNowSec - 5, no: '' }], trains: [] };
   r = await tick();                                  // 相對上次送出的 eta 漂 10 秒
   ok('B3 eta 只漂 10 秒(< 20 秒門檻)不推——這就是頻率預算的來源', r.apns.length === 0, `apns=${r.apns.length}`);
-  mockNowSec += 60; srcTrtc = { board: [{ name: '台北', dest: '淡水', eta: mockNowSec + 155, at: mockNowSec - 5, no: '' }], trains: [] };
+  mockNowSec += 60; srcTrtc = { board: [{ name: '台北', dest: '淡水', eta: mockNowSec + 555, at: mockNowSec - 5, no: '' }], trains: [] };
   r = await tick();                                  // 相對上次送出的 eta 漂 25 秒
   ok('B4 eta 漂 25 秒(>= 20 秒門檻)就推', r.apns.length === 1, `apns=${r.apns.length}`);
   ok('B5 推出去之後 last_state 換成新的 eta(遲滯的基準是「上次送出的」不是「上一輪算的」)',
-    JSON.parse((await getRow(T('b1'))).last_state).nextEta === mockNowSec + 155);
+    JSON.parse((await getRow(T('b1'))).last_state).nextEta === mockNowSec + 555);
 }
 {
   // 累積漂移:每輪只漂 8 秒,跟「上一輪」比永遠不到門檻,跟「上次送出的」比會在第三輪跨過。
@@ -397,6 +398,57 @@ const liveRow = (s, d, e, st = 0, l = 'BL') => ({ l, s, d, e, st, op: 'KRTC' });
   const r = await tick();
   ok('B9 eta 沒變但擁擠度變了 ⇒ 要推(它畫在卡片上,不推就是顯示過期的資訊)', r.apns.length === 1,
     `apns=${r.apns.length}`);
+}
+{
+  // 進站窗(等車卡 B 方案「進站軌道」):鎖定畫面的圖不會自己動,車只在收到更新時往前挪。
+  // 下一班離本站 ≤250 秒(北捷站間行駛＋停站最長 241 秒)時,即使內容一字未變也要每輪推一發。
+  // 期望值直接寫字面量:窗的邊界 250 與 251 各量一次,不引用 MW_APPROACH_SEC(心得 29)。
+  await resetTable();
+  mockNowSec = 1_800_000_000;
+  const abs = mockNowSec + 200;                      // 同一班車、同一個絕對到站時刻
+  srcTrtc = { board: [{ name: '台北', dest: '淡水', eta: abs, at: mockNowSec - 5, no: '' }], trains: [] };
+  await insRow({ token: T('b10'), sys: 'trtc', station: '台北', dest: null, end_at: mockNowSec + 3600, apns_env: 'prod' });
+  await tick();                                      // 首發
+  const seen = [];
+  for (let i = 0; i < 3; i++) {                      // 剩 140／80／20 秒
+    mockNowSec += 60;
+    srcTrtc = { board: [{ name: '台北', dest: '淡水', eta: abs, at: mockNowSec - 5, no: '' }], trains: [] };
+    seen.push((await tick()).apns.length);
+  }
+  ok('B10 進站窗內內容沒變也每輪推(車才會在鎖定畫面上往前挪)', JSON.stringify(seen) === '[1,1,1]', JSON.stringify(seen));
+  mockNowSec = abs + 10;                             // 已過到站時刻、仍在看板的到站寬限內
+  srcTrtc = { board: [{ name: '台北', dest: '淡水', eta: abs, at: mockNowSec - 5, no: '' }], trains: [] };
+  const r = await tick();
+  ok('B11 到站時刻已過 ⇒ 不再因進站窗而推(進站由 stale-date 翻面,不靠推播)', r.apns.length === 0, `apns=${r.apns.length}`);
+}
+{
+  // 窗的邊界:剩 251 秒不推、剩 250 秒推。
+  await resetTable();
+  mockNowSec = 1_800_000_000;
+  const abs = mockNowSec + 600;
+  srcTrtc = { board: [{ name: '台北', dest: '淡水', eta: abs, at: mockNowSec - 5, no: '' }], trains: [] };
+  await insRow({ token: T('b12'), sys: 'trtc', station: '台北', dest: null, end_at: mockNowSec + 3600, apns_env: 'prod' });
+  await tick();
+  mockNowSec = abs - 251;
+  srcTrtc = { board: [{ name: '台北', dest: '淡水', eta: abs, at: mockNowSec - 5, no: '' }], trains: [] };
+  const out = (await tick()).apns.length;
+  mockNowSec = abs - 250;
+  srcTrtc = { board: [{ name: '台北', dest: '淡水', eta: abs, at: mockNowSec - 5, no: '' }], trains: [] };
+  const inn = (await tick()).apns.length;
+  ok('B12 進站窗邊界:剩 251 秒不推(窗外照舊走遲滯)', out === 0, `apns=${out}`);
+  ok('B13 進站窗邊界:剩 250 秒推', inn === 1, `apns=${inn}`);
+}
+{
+  // 分鐘級系統不送 eta、卡片也不畫車 ⇒ 分鐘數沒變就不推,不因進站窗多推。
+  await resetTable();
+  mockNowSec = 1_800_000_000;
+  srcLive.tymc = { at: new Date(mockNowSec * 1000).toISOString(), rows: [liveRow('三重站', '台北車站', 2)] };
+  await insRow({ token: T('b14'), sys: 'tymc', station: '三重站', dest: null, end_at: mockNowSec + 3600, apns_env: 'prod' });
+  await tick();
+  mockNowSec += 30;
+  srcLive.tymc = { at: new Date(mockNowSec * 1000).toISOString(), rows: [liveRow('三重站', '台北車站', 2)] };
+  const r = await tick();
+  ok('B14 分鐘級系統(2 分鐘、分鐘數沒變)不因進站窗而推', r.apns.length === 0, `apns=${r.apns.length}`);
 }
 
 // ══════════════════════════════════════════════════════════════════
