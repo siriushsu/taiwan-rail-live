@@ -58,12 +58,19 @@ const same = (arr) => JSON.stringify(arr);
 
 const southFull = trips.filter(t => eq(t.stops, SOUTH_EXPRESS));
 const northFull = trips.filter(t => eq(t.stops, NORTH_EXPRESS));
-check('A1 平日與假日各至少一班完整的南下直達車（…→高鐵桃園→環北）',
-  southFull.some(t => isWeekday(t.set)) && southFull.some(t => !isWeekday(t.set)),
-  `共 ${southFull.length} 班完整符合 ${same(SOUTH_EXPRESS)}；平日 ${southFull.filter(t => isWeekday(t.set)).length}、假日 ${southFull.filter(t => !isWeekday(t.set)).length}`);
-check('A2 平日與假日各至少一班完整的北上直達車（環北→…）',
-  northFull.some(t => isWeekday(t.set)) && northFull.some(t => !isWeekday(t.set)),
-  `共 ${northFull.length} 班完整符合 ${same(NORTH_EXPRESS)}；平日 ${northFull.filter(t => isWeekday(t.set)).length}、假日 ${northFull.filter(t => !isWeekday(t.set)).length}`);
+// 假日的南延直達車可以整組不存在：2026-09-22 官方各站時刻表附註「9/24(四)-10/11(日)因應2026台灣設計展…
+// 於A12-A21區間啟動加班車疏運(此時段取消南延直達車)」、新聞稿 show-2427「假日全時段(13-18時)由A1台北車站
+// 發車之南延增停A18、A21站的直達車，將調整為僅行駛至A13機場第二航廈站」——TDX 假日班表同日照改。
+// 但「沒有」必須乾淨：假日直達車一班都不准停高鐵桃園(17)或環北(20),半截的南延車＝端點錯。
+const holidayExpress = trips.filter(t => !isWeekday(t.set) && t.stops.length <= 9 && t.stops.some((v, i) => i > 0 && Math.abs(v - t.stops[i - 1]) !== 1));
+const holidayTouchesExt = holidayExpress.filter(t => t.stops.includes(HSR) || t.stops.includes(HUANBEI));
+const holidayOk = full => full.some(t => !isWeekday(t.set)) || holidayTouchesExt.length === 0;
+check('A1 平日至少一班完整的南下直達車（…→高鐵桃園→環北）；假日要嘛有完整班、要嘛整組不停高鐵桃園/環北',
+  southFull.some(t => isWeekday(t.set)) && holidayOk(southFull),
+  `共 ${southFull.length} 班完整符合 ${same(SOUTH_EXPRESS)}；平日 ${southFull.filter(t => isWeekday(t.set)).length}、假日 ${southFull.filter(t => !isWeekday(t.set)).length}（假日直達車停到高鐵桃園/環北的 ${holidayTouchesExt.length} 班）`);
+check('A2 平日至少一班完整的北上直達車（環北→…）；假日要嘛有完整班、要嘛整組不停高鐵桃園/環北',
+  northFull.some(t => isWeekday(t.set)) && holidayOk(northFull),
+  `共 ${northFull.length} 班完整符合 ${same(NORTH_EXPRESS)}；平日 ${northFull.filter(t => isWeekday(t.set)).length}、假日 ${northFull.filter(t => !isWeekday(t.set)).length}（假日直達車停到高鐵桃園/環北的 ${holidayTouchesExt.length} 班）`);
 
 // 直達車「樣態」候選：南下從台北車站起、北上到台北車站止；兩者皆為最多 9 站且包含高鐵桃園。
 // 不用精確序列篩選，因 B 系列要抓的正是端點錯掉的班次，精確序列會先把違規班次濾掉。

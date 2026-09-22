@@ -105,8 +105,14 @@ function depsOf(timetables) {
 // 行駛秒取「該時段附近」的官方值,不取全日單一值:官方時刻表的站間時間本來就隨時段排
 // (中和新蘆線古亭→東門 尖峰 3 分、離峰 4~5 分;高雄環狀輕軌假日凱旋中華→夢時代 中午 4 分、
 // 平日同時段 2 分;機捷台北→三重 傍晚 5 分、深夜 7~8 分)。拿全日中位數開窗,官方排得比中位數長的
-// 那些班就掉出窗、被切成兩台。取法:前站發車 ±60 分內的樣本取中位數;不足 5 個就取時間上最近的
-// 5 個;整組不足 5 個(機捷 SP3 增開車全天 4 班)就用整組全部——都是這組車自己的官方時刻。
+// 那些班就掉出窗、被切成兩台。取法:前站發車 ±60 分內的樣本取中位數;不足 5 個就往外擴到時間上最近的
+// 5 個,但不越過 ±3 小時——擴到 3 小時內湊得到 2 個就用那些;連 2 個都湊不到才不設界取最近 5 個;
+// 整組不足 5 個就用整組全部——都是這組車自己的官方時刻。
+// 為什麼要有 ±3 小時的界:機捷 SP3 增開車平日 5 班(18:04/18:19/18:34 台北→三重 6 分,23:23/23:38 8 分),
+// 不設界會讓深夜兩班拿整組中位數 6 分開窗,三重 8 分掉出窗、又被切成「台北→山鼻」與「三重→林口」
+// (2026-09-22 TDX 把 18:04 上架、整組 4 班變 5 班;偶數 4 班時中位數恰好落在 8 分才一直沒炸)。
+// 深夜班的行駛秒拿傍晚的來湊,本來就不是同一個時段的官方排法。門檻不直接降成 2:淡海藍海線假日
+// 深夜(104 班的組)±60 分只有一兩個樣本,降成 2 會把 23:34/23:55 兩班切成四段。
 // 只有整組一個樣本都沒有,才退回線檔的站間秒(線檔 segs.run 本身也是官方站間行駛時間;線檔缺值的段
 // 才以站距/35km/h 推估,見 lineCtx)。
 function calibrate(stns, dir) {
@@ -155,9 +161,18 @@ function calibrate(stns, dir) {
     const firstAtOrAfter = x => { let lo = 0, hi = ss.length; while (lo < hi) { const m = (lo + hi) >> 1; if (ss[m][0] < x) lo = m + 1; else hi = m; } return lo; };
     let lo = firstAtOrAfter(t - 3600), hi = firstAtOrAfter(t + 3601);
     if (hi - lo < 5) {
-      lo = hi = firstAtOrAfter(t);
-      while (hi - lo < Math.min(5, ss.length)) {
-        if (hi === ss.length || (lo > 0 && t - ss[lo - 1][0] <= ss[hi][0] - t)) lo--; else hi++;
+      // 先在 ±3 小時內擴到最近 5 個;湊不到 2 個才拿掉界線
+      const loB = firstAtOrAfter(t - 3 * 3600), hiB = firstAtOrAfter(t + 3 * 3600 + 1);
+      let l = firstAtOrAfter(t), h = l;
+      while (h - l < Math.min(5, ss.length) && (l > loB || h < hiB)) {
+        if (h >= hiB || (l > loB && t - ss[l - 1][0] <= ss[h][0] - t)) l--; else h++;
+      }
+      if (h - l >= 2) { lo = l; hi = h; }
+      else {
+        lo = hi = firstAtOrAfter(t);
+        while (hi - lo < Math.min(5, ss.length)) {
+          if (hi === ss.length || (lo > 0 && t - ss[lo - 1][0] <= ss[hi][0] - t)) lo--; else hi++;
+        }
       }
     }
     const v = median(ss.slice(lo, hi).map(x => x[1]));
@@ -168,9 +183,16 @@ function calibrate(stns, dir) {
 }
 
 // ── 鏈匹配:一條路線(站序已沿行進方向)×一種營運日 → 班車陣列 ──
-function chainRoute(stns, dir, stats, dbg) {
+// shuttle({fromIdx,toIdx,asc}):spec.shuttles 的區間車——從 fromIdx 站生的鏈,在配到 toIdx 站之前不准去配
+// toIdx 以外(行進方向前方)的站。區間車在 toIdx 折返、那站沒有它的發車記錄,鏈尾停在前一站後仍是活鏈,
+// 跨站窗會隨 gap 放寬(每多跨一站 +40 秒),曾在 8 站外搶走別班普通車的泰山/泰山貴和/新莊副都心記錄,
+// 把區間車接成「環北→…→機場第二航廈→泰山→…→台北」、真車則缺三站。真的開過 toIdx 的車
+// (平日 07:00 環北始發跳站普通車 A21→A18→A13→A12→A9→…,平日 05:57 A12 始發到老街溪)會配到 toIdx
+// 那站,配到後限制解除,不受影響。
+function chainRoute(stns, dir, stats, dbg, shuttle) {
   const chains = [];
   const { dwell, runAt } = calibrate(stns, dir);
+  const beyondTo = idx => shuttle && (shuttle.asc ? idx > shuttle.toIdx : idx < shuttle.toIdx);
   if (dbg) console.log(`  [dbg] ${dbg} 停站:`, dwell.join(','));
   let active = [];
   for (let k = 0; k < stns.length; k++) {
@@ -202,6 +224,7 @@ function chainRoute(stns, dir, stats, dbg) {
       let best = null, bd = Infinity;
       for (const c of active) {
         if (c._mk === k || arr < c.lo || arr > c.hi) continue;
+        if (c._toIdx != null && !c._reachedTo && beyondTo(st.idx)) continue;
         const d = Math.abs(c.pred - arr);
         if (!best || d < bd || (d === bd && (c.lastK > best.lastK ||
           (c.lastK === best.lastK && c.pred < best.pred)))) { best = c; bd = d; }
@@ -209,8 +232,10 @@ function chainRoute(stns, dir, stats, dbg) {
       if (best) {
         best.stops.push([st.idx, dep]);
         best.last = dep; best.lastIdx = st.idx; best.lastK = k; best._mk = k; best._miss = 0;
+        if (best._toIdx === st.idx) best._reachedTo = true;
       } else {
-        const c = { stops: [[st.idx, dep]], last: dep, lastIdx: st.idx, lastK: k, pred: dep, _mk: k, _miss: 0 };
+        const c = { stops: [[st.idx, dep]], last: dep, lastIdx: st.idx, lastK: k, pred: dep, _mk: k, _miss: 0,
+          _toIdx: shuttle && st.idx === shuttle.fromIdx ? shuttle.toIdx : null, _reachedTo: false };
         chains.push(c); born.push(c);
         if (k > 0) stats.midStart++;
       }
@@ -363,7 +388,13 @@ function buildLineTimes(line, routeSpecs, sttCache, stnNameCache, notes, allStop
         return { stops, last: t, lastIdx: destIdx, lastK: 0 };
       });
       notes.push(`${line.id} ${g.routeId}/${g.dir}/${g.tag}: 各站時刻互相矛盾,以起點站 ${useStns[0].idx} 實際發車錨定傳播 ${chains.length} 班`);
-    } else chains = chainRoute(stns, dir, stats, dbg);
+    } else {
+      const stnNameOf = stnNameCache(g.spec.op);
+      const sh = (g.spec.shuttles || []).find(s => s.dir === g.dir && (s.pat ?? '') === (g.pat ?? ''));
+      const shuttle = sh && { fromIdx: ctx.idxOf.get(stnNameOf.get(sh.from)), toIdx: ctx.idxOf.get(stnNameOf.get(sh.to)), asc };
+      if (sh && (shuttle.fromIdx == null || shuttle.toIdx == null)) console.warn(`  ⚠ ${line.id} ${g.routeId}: shuttles 站號 ${sh.from}/${sh.to} 查不到站序`);
+      chains = chainRoute(stns, dir, stats, dbg, shuttle && shuttle.fromIdx != null && shuttle.toIdx != null ? shuttle : null);
+    }
     built.push({ g, stns: useStns, asc, dir, destIdx, chains });
   }
   // 碎片合併(組內):一班車在某站漏配會被切成前後兩段——
@@ -439,10 +470,21 @@ function buildLineTimes(line, routeSpecs, sttCache, stnNameCache, notes, allStop
     stats.dropped += before - b.chains.length;
   }
   for (const { g, stns, asc, dir, destIdx, chains } of built) {
+    // 區間車(spec.shuttles):同一停靠模式裡混著「from 站中途始發、到 to 站折返」的短班,TDX 記錄級
+    // 終點仍寫幹線端點(機捷設計展 A12↔A21 區間加班車掛在 SP1、DestinationStaionID=A22/A1)。
+    // 鏈從 from 站生、尾巴停在 to 站前 1~3 步(to 站是它的終點,沒有發車記錄)⇒ 補 to 站到達,
+    // 不補幹線終點。真的開到幹線終點的車(平日 05:57 A12 始發到老街溪)鏈尾已過 to 站,不受影響。
+    const shuttleTo = c => {
+      if (c._toIdx == null || c._reachedTo) return null;
+      const k = dir.steps(c.lastIdx, c._toIdx);
+      return k >= 1 && k <= 3 && ahead({ asc }, c.lastIdx, c._toIdx) ? c._toIdx : null;
+    };
     // 末端補終點到達(終點站本身無發車記錄)
     if (destIdx != null) for (const c of chains) {
       const li = c.lastIdx;
       if (li === destIdx) continue;
+      const to = shuttleTo(c);
+      if (to != null) { c.stops.push([to, c.last + dir.expected(li, to)]); c.lastIdx = to; stats.shuttle = (stats.shuttle || 0) + 1; continue; }
       const k = dir.steps(li, destIdx);
       if (k >= 1 && k <= 3) c.stops.push([destIdx, c.last + dir.expected(li, destIdx)]);
       else if (!g.spec.noDestOk) stats.noDest++;
@@ -451,9 +493,12 @@ function buildLineTimes(line, routeSpecs, sttCache, stnNameCache, notes, allStop
     // spec.noOriginBackfill:第一個有記錄的站就是真起點(北捷 R-2 北投區間車),不回推
     if (!line.loop && destIdx != null && stns.length && !g.spec.noOriginBackfill) {
       const firstIdx = stns[0].idx;
-      // 該停靠模式有官方起點就用它;沒有才退回「往前補一站」的通用推測。機捷 SP2 北上直達車的
-      // 官方起點是 A21 環北,而 A21 本來就在這個 group 裡 ⇒ 下面的 !g.stns.has(originIdx) 會擋掉
-      // 回推,不再憑空生出 A22 老街溪(官方 A22 的直達車欄整欄都是「-」)。
+      // 該停靠模式有官方起點(originByPattern)就不做「往前補一站」的通用推測:官方起點站有發車記錄
+      // 的班次本來就從那站生鏈,沒有記錄的班次就是從第一個有記錄的站發車。機捷 SP2 北上直達車的
+      // 官方起點是 A21 環北 ⇒ 不再憑空生出 A22 老街溪(官方 A22 的直達車欄整欄都是「-」)。
+      // 也不准反過來把 A21 補給每一班:2026-09-22 設計展假日班表取消全部南延直達車、假日整組沒有
+      // 任何 A21 的 SP2 記錄,舊寫法(!g.stns.has(A21) 就回推)把 69 班 A13 始發直達車全補成
+      // 「環北→機場第二航廈」、還跳過高鐵桃園——官網假日直達車欄 A21 整欄是「-」。
       const originId = g.spec.originByPattern && g.spec.originByPattern[g.pat];
       const originIdx = originId
         ? ctx.idxOf.get(stnNameCache(g.spec.op).get(originId))
@@ -461,7 +506,7 @@ function buildLineTimes(line, routeSpecs, sttCache, stnNameCache, notes, allStop
       // 與 destByPattern 同一組防呆:站號查不到就會靜默退化成「完全不回推」,不叫的話看不出來
       if (originId && originIdx == null)
         console.warn(`  ⚠ ${line.id} ${g.routeId}/${g.pat || "''"}: originByPattern 站號 ${originId} 在此線查不到站序`);
-      if (originIdx >= 0 && originIdx < ctx.n && !g.stns.has(originIdx)) {
+      if (!originId && originIdx >= 0 && originIdx < ctx.n && !g.stns.has(originIdx)) {
         let fixed = 0;
         for (const c of chains) {
           const [fi, fs] = c.stops[0];
@@ -692,7 +737,10 @@ const SYSTEMS = [
     lines: { A: [
       // SP5=南下直達、SP2=北上直達,兩者都與 SP1 普通車共用同一筆記錄的 DestinationStaionID=A22。
       // 官方(tymetro.com.tw 各站時刻表)：直達車兩端是 A1 台北車站 ↔ A21 環北,不到 A22 老街溪。
-      { op: 'TYMC', routeId: 'A-1', destByPattern: { SP5: 'A21' }, originByPattern: { SP2: 'A21' } },
+      // 2026 台灣設計展(9/24–10/11)A12↔A21 區間加班車:官方各站時刻表標「空心圓-增開區間服務班次(A12←→A21,
+      // 每站停靠)」,TDX 掛在 SP1 普通車、終點仍寫 A22/A1 ⇒ 用 shuttles 補對折返站(見補終點段)。
+      { op: 'TYMC', routeId: 'A-1', destByPattern: { SP5: 'A21' }, originByPattern: { SP2: 'A21' },
+        shuttles: [{ dir: 0, pat: 'SP1', from: 'A12', to: 'A21' }, { dir: 1, pat: 'SP1', from: 'A21', to: 'A12' }] },
       { op: 'TYMC', routeId: 'A-2' },
       { op: 'TYMC', routeId: 'A-3' },
     ] } },
@@ -805,7 +853,7 @@ for (const sys of SYSTEMS) {
     if (r.holiday) out.lines[lid].holiday = r.holiday;
     if (Object.keys(r.kinds).length) out.lines[lid].kinds = r.kinds;
     const setInfo = Object.entries(r.sets).map(([k, v]) => `${k}:${v.length}班`).join(' ');
-    console.log(`  ${lid.padEnd(12)} ${setInfo}  (中途始發${r.stats.midStart} 併碎片${r.stats.merged} 缺終點${r.stats.noDest} 剔除${r.stats.dropped})`);
+    console.log(`  ${lid.padEnd(12)} ${setInfo}  (中途始發${r.stats.midStart} 併碎片${r.stats.merged} 區間折返${r.stats.shuttle || 0} 缺終點${r.stats.noDest} 剔除${r.stats.dropped})`);
   }
   for (const s of sys.synth || []) {
     const line = data.lines.find(l => l.id === s.lineId);
