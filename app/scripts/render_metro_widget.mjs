@@ -535,10 +535,49 @@ func renderModel(_ entry: MetroEntry, family: WidgetFamily, width: CGFloat, heig
     let png0 = pngData(MetroBoardView(entry: e), family: family, width: width, height: height,
                        scheme: scheme, mono: mono, artHidden: true)
     checkInk(png0, name: (path as NSString).lastPathComponent, width: width, height: height)
+    if family == .systemSmall && e.cardBackdrop == .model {
+        let withCar = pngData(MetroBoardView(entry: e), family: family, width: width, height: height,
+                              scheme: scheme, mono: mono)
+        guard let gap = carTextGap(text: png0, withCar: withCar, scale: 3), gap >= 6 else {
+            FileHandle.standardError.write(Data("破版：\\((path as NSString).lastPathComponent) 字貼到右下角的車（要 ≥6pt）\\n".utf8))
+            exit(1)
+        }
+        print("  字與車的水平距離 \\(gap) pt")
+    }
     let png = pngData(MetroBoardView(entry: e), family: family, width: width, height: height,
                       scheme: scheme, mono: mono, backdrop: e.cardBackdrop)
     try! png.write(to: URL(fileURLWithPath: path))
     print("寫出 \\((path as NSString).lastPathComponent)（車模）")
+}
+
+/// 🔴 小卡右下角的車不得貼到左邊的字（註腳「再約 12 分」撞過高捷輕軌的車頭）。
+///    字＝藏車圖的墨跡，車＝兩張圖不同的像素；同一高度（上下各放寬 6pt）裡取「車左緣−字右緣」的最小值。
+///    車整個沒畫出來時回 nil（交給 modelLoadedGate 的訊息，這裡一併算失敗）。
+func carTextGap(text: Data, withCar: Data, scale: CGFloat) -> CGFloat? {
+    guard let t = NSBitmapImageRep(data: text), let c = NSBitmapImageRep(data: withCar),
+          let bg = t.colorAt(x: 1, y: 1) else { return nil }
+    func differs(_ a: NSColor?, _ b: NSColor?) -> Bool {
+        guard let a, let b else { return false }
+        return abs(a.redComponent - b.redComponent) + abs(a.greenComponent - b.greenComponent)
+            + abs(a.blueComponent - b.blueComponent) > 0.07
+    }
+    let w = t.pixelsWide, h = t.pixelsHigh
+    var textRight = [Int](repeating: -1, count: h), carLeft = [Int](repeating: w, count: h)
+    for y in 0..<h {
+        for x in 0..<w {
+            let tc = t.colorAt(x: x, y: y)
+            if differs(tc, bg) { textRight[y] = x }
+            if carLeft[y] == w && differs(tc, c.colorAt(x: x, y: y)) { carLeft[y] = x }
+        }
+    }
+    let band = Int(6 * scale)
+    var best: Int? = nil
+    for y in 0..<h where textRight[y] >= 0 {
+        for y2 in max(0, y - band)...min(h - 1, y + band) where carLeft[y2] < w {
+            best = min(best ?? Int.max, carLeft[y2] - textRight[y])
+        }
+    }
+    return best.map { CGFloat($0) / scale }
 }
 
 /// 🔴 車真的畫出來了：Image 讀不到時會靜靜畫出空白，車模圖看起來就只是「素色多一條頭帶」。

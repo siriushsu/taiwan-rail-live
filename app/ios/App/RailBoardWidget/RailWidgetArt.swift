@@ -137,6 +137,19 @@ enum RailWidgetArt {
     static func contentReference(_ family: WidgetFamily) -> CGFloat {
         family == .systemSmall ? RailScale.smallReference : RailScale.mediumReference
     }
+
+    /// 車模圖的寬高比；讀不到回 nil。`directory` 是 harness 的 railArtDirectory（與 RailArtImage 同一條讀檔路徑）。
+    static func trainAspect(_ model: String, directory: String?) -> CGFloat? {
+        let name = "widget-train-\(model)"
+        let file = directory.map { "\($0)/\(name).imageset/\(name)@3x.png" }
+        #if os(macOS)
+        let image = file.flatMap { NSImage(contentsOfFile: $0) } ?? NSImage(named: name)
+        #else
+        let image = file.flatMap { UIImage(contentsOfFile: $0) } ?? UIImage(named: name)
+        #endif
+        guard let size = image?.size, size.height > 0 else { return nil }
+        return size.width / size.height
+    }
 }
 
 // MARK: - 站名牌資料

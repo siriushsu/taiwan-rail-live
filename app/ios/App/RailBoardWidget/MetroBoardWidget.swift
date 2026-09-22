@@ -325,6 +325,7 @@ struct MetroBoardView: View {
     // 🔴 算繪 harness 的覆寫哨兵。出貨路徑恆為 nil ⇒ 一律讀真正的 \.widgetFamily。
     //    為什麼需要它見 RailWidgetKit.swift 的 railFamilyOverride（previewContext 對裸執行檔無效）。
     @Environment(\.railFamilyOverride) var familyOverride
+    @Environment(\.railArtDirectory) private var artDirectory
 
     private var family: WidgetFamily { familyOverride ?? widgetFamily }
 
@@ -424,8 +425,11 @@ struct MetroBoardView: View {
                 // mockup A 捷運小卡:right:-16px; bottom:-4px; 110×72(相對卡片邊緣)
                 // ⇒ 從內容框再往外推一個系統邊距,讓卡片圓角把車尾裁掉。
                 if entry.cardBackdrop == .model, let m = model(lead) {
+                    // 🔴 扁長車（寬高比大過框的 110:72，例如高捷輕軌 Citadis）等比縮進框時高度不到 72，
+                    //    車頭升到註腳那一列、貼上「再約 12 分」。框寬收到 92 ⇒ 車頭左緣停在註腳 72pt 預算外 6pt。
+                    let flat = (RailWidgetArt.trainAspect(m, directory: artDirectory) ?? 0) > 110.0 / 72.0
                     RailTrainArt(model: m)
-                        .frame(width: scale.pt(110), height: scale.pt(72), alignment: .bottomTrailing)
+                        .frame(width: scale.pt(flat ? 92 : 110), height: scale.pt(72), alignment: .bottomTrailing)
                         .offset(x: scale.pt(16) + RailWidgetArt.cardInset,
                                 y: scale.pt(4) + RailWidgetArt.cardInset)
                 }
