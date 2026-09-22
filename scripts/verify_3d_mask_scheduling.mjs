@@ -5,6 +5,9 @@
 //  C. 延後上限:用 fire('move') 每 50ms 假裝相機一直在動(不付渲染成本,幀率無關)、同時一發假 sourcedata 讓遮罩失效,
 //     20s 內必須恰好跑 1 次、時間落在 14.5–16.5s(15s 上限 + 150ms 輪詢);且 0–14s 之間 0 次。
 //  D. 對照:同一個 C 情境但不假裝移動(只發 sourcedata)→ ≤1s 內就跑(證明 C 的「拖到 15s」不是別的原因造成的延遲)。
+//  C 的假 move 帶 originalEvent(=手指):玻璃線只對手勢／慣性／飛行動畫延後,跟車的程式 jumpTo 沒有 originalEvent。
+//  N4. 跟車:每 50ms 發一組不帶 originalEvent 的 move+moveend(=jumpTo 的事件序列)8s → 玻璃線照常重建、
+//      相鄰兩次間隔 0.8–1.6s(不等 15s 上限,也不是每幀重建)。2026-09-23 使用者回報跟車時近景建物沒有線。
 import {chromium} from 'playwright';
 const PORT = process.argv[2] || new URL(process.env.BASE_URL || 'http://127.0.0.1:5207/').port;
 const results = [];
@@ -70,7 +73,7 @@ results.push({ name:'N1 玻璃線每次重建距上一個 move ≥350ms(延後�
 results.push({ name:'N2 停下 ≤2s 內重建一次且有頂點', pass: firstAfterN!==null && firstAfterN<=2000 && glass.count>0, detail:{ firstAfterMs:firstAfterN, glass } });
 
 // ---- C:先假裝相機動 1.2s(讓任何殘留的排程鏈先在「移動中」狀態穩定),再發假 sourcedata → 之後 13.5–16.5s 恰 1 次,13.5s 前 0 次 ----
-await page.evaluate(()=>{ window.__qsf=[]; window.__qsfAll=[]; window.__mv=[]; window.__fakeMove=setInterval(()=>{ try{ M.raw.fire('move'); }catch(e){} },50); });
+await page.evaluate(()=>{ window.__qsf=[]; window.__qsfAll=[]; window.__mv=[]; window.__fakeMove=setInterval(()=>{ try{ M.raw.fire('move',{originalEvent:new Event('touchmove')}); }catch(e){} },50); });
 await page.waitForTimeout(1200);
 await page.evaluate(()=>{ window.__qsf=[]; window.__qsfAll=[]; window.__c0=performance.now(); try{ M.raw.fire('sourcedata',{sourceDataType:'content',sourceId:'openmaptiles',dataType:'source'}); }catch(e){} });
 await page.waitForTimeout(20000);
@@ -90,6 +93,14 @@ await page.waitForTimeout(3000);
 const rD = await page.evaluate(()=>({ runsAt: window.__qsf.map(t=>+((t-window.__d0)/1000).toFixed(2)) }));
 console.log('CTRL', JSON.stringify(rD));
 results.push({ name:'D 對照:相機靜止時 sourcedata 後 ≤1s 內重算', pass: rD.runsAt.length>=1 && rD.runsAt[0]<=1.0, detail:rD });
+
+// ---- N4:跟車(程式 jumpTo,無 originalEvent)時玻璃線每 ~1s 重建,不等相機停 ----
+await page.waitForTimeout(1500);
+await page.evaluate(()=>{ window.__qsfAll=[]; window.__f0=performance.now(); window.__follow=setInterval(()=>{ try{ M.raw.fire('move'); M.raw.fire('moveend'); }catch(e){} },50); });
+await page.waitForTimeout(8000);
+const rF = await page.evaluate(()=>{ clearInterval(window.__follow); const at=window.__qsfAll.filter(x=>x[1]==='night').map(x=>+((x[0]-window.__f0)/1000).toFixed(2)); return { at, gaps: at.slice(1).map((t,i)=>+(t-at[i]).toFixed(2)) }; });
+console.log('FOLLOW', JSON.stringify(rF));
+results.push({ name:'N4 跟車時玻璃線每 0.8–1.6s 重建一次(不等相機停)', pass: rF.at.length>=5 && rF.at[0]<=1.6 && rF.gaps.every(g=>g>=0.8&&g<=1.6), detail:rF });
 results.push({ name:'Z 無 pageerror', pass: errors.length===0, detail:errors.slice(0,3) });
 for(const r of results) console.log(r.pass?'PASS':'FAIL', r.name, JSON.stringify(r.detail).slice(0,300));
 await b.close();
