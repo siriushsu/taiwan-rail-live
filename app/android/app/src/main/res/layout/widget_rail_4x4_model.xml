@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 發車看板・大・背景「車模」（A 車模頭帶，mockup 定稿第 2 版）。
+     頭帶 86dp：左邊站名＋更新時間、右邊停著下一班車種的代表車（WidgetBackground.railCar）。
+     頭帶貼齊卡片紙面（上緣與紙面同弧、右側讓出 2dp 投影），下面接原本的班次列表。
+     站名用 autoSize：長站名（新烏日・高鐵臺中）縮字不截字，也不會跑到車底下。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/wr_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/wg_card"
+    android:orientation="vertical"
+    android:paddingBottom="11dp">
+
+    <FrameLayout
+        android:id="@+id/wr_band"
+        android:layout_width="match_parent"
+        android:layout_height="86dp"
+        android:layout_marginStart="1dp"
+        android:layout_marginTop="1dp"
+        android:layout_marginEnd="3dp"
+        android:background="@drawable/wg_band_bg">
+
+        <ImageView
+            android:id="@+id/wr_car"
+            android:layout_width="118dp"
+            android:layout_height="77dp"
+            android:layout_gravity="end|bottom"
+            android:layout_marginEnd="12dp"
+            android:layout_marginBottom="3dp"
+            android:contentDescription="@null"
+            android:scaleType="fitEnd"
+            android:src="@drawable/wg_car_emu3000" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="start|center_vertical"
+            android:orientation="vertical"
+            android:paddingStart="14dp"
+            android:paddingEnd="138dp">
+
+            <TextView
+                android:id="@+id/wr_head"
+                android:layout_width="match_parent"
+                android:layout_height="32dp"
+                android:autoSizeMaxTextSize="24sp"
+                android:autoSizeMinTextSize="14sp"
+                android:autoSizeTextType="uniform"
+                android:gravity="center_vertical|start"
+                android:maxLines="1"
+                android:text="臺北"
+                android:textColor="@color/wg_ink"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/wr_stamp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:maxLines="1"
+                android:text="09:41 更新"
+                android:textColor="@color/wg_ink_faint"
+                android:textSize="11sp" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:paddingStart="15dp"
+        android:paddingTop="6dp"
+        android:paddingEnd="15dp">
+
+        <TextView android:id="@+id/wr_route" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:ellipsize="end" android:maxLines="1"
+            android:text="全部目的地 · 直達／停靠／終到／通過" android:textColor="@color/wg_ink_soft" android:textSize="10sp" />
+        <LinearLayout android:id="@+id/wr_rows" android:layout_width="match_parent" android:layout_height="0dp"
+            android:layout_marginTop="4dp" android:layout_weight="1" android:orientation="vertical">
+            <include layout="@layout/widget_rail_rows_demo" />
+            <include layout="@layout/widget_rail_row_demo4" />
+            <include layout="@layout/widget_rail_rows_demo_56" />
+        </LinearLayout>
+        <TextView android:id="@+id/wr_note" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:ellipsize="end" android:maxLines="1" android:text="台鐵即時誤點 · 高鐵表定時刻"
+            android:textColor="@color/wg_ink_faint" android:textSize="9sp" />
+    </LinearLayout>
+</LinearLayout>

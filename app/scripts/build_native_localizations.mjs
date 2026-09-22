@@ -56,6 +56,7 @@ const native = {
   '自動選站時不套用方向，這格可留空': ['Direction is not applied with automatic station; leave this blank', '自動選択時は方向を適用しません。空欄で構いません'],
   '正在讀取車站，先列出全部方向': ['Reading the station; showing all directions for now', '駅を読み込み中のため全方向を表示します'],
   '不限': ['Any', '指定なし'],
+  '背景': ['Background', '背景'], '車模': ['Train model', '車両モデル'], '場景': ['Scene', '情景'], '素色': ['Plain', '無地'],
   '不指定目的站（看全部）': ['Not set (show all)', '指定なし（すべて表示）'],
   '接下來': ['Next up', 'この後'],
   '發車看板': ['Departure board', '発車案内'],

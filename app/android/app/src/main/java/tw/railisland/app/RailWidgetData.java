@@ -222,6 +222,11 @@ final class RailWidgetData {
         String platformOrigin;
         String platform;
         long platformExpiresAt;
+        /**
+         * 發車列的「下一個停靠站」（方向三角用的同一個值）。只在組看板那一輪用來推站名牌的鄰站，
+         * 🔴 刻意不進快取：鄰站已經算好存在 Snapshot 上，快取列不需要再帶一份。
+         */
+        transient String nextStop;
 
         String platformAt(long now) {
             return "tra".equals(sys) && relation != Relation.PASS && now < platformExpiresAt ? platform : null;
@@ -287,6 +292,9 @@ final class RailWidgetData {
         boolean includePass;
         /** 這一輪被「預設不顯示通過列」擋掉幾列;>0 而看板又是空的,代表本站今日無車停靠。 */
         int hiddenPass;
+        /** C 場景站名牌下緣的鄰站（往南那一站放左 ◀、往北那一站放右 ▶）；推不出來就是 null，那一側不畫。 */
+        String neighborSouth;
+        String neighborNorth;
         final List<Row> rows = new ArrayList<>();
 
         JSONObject toJson() throws JSONException {
@@ -294,6 +302,8 @@ final class RailWidgetData {
                 .put("origin", origin).put("destination", destination == null ? "" : destination)
                 .put("generatedAt", generatedAt).put("failed", failed).put("includePass", includePass).put("hiddenPass", hiddenPass);
             if (scheduleNote != null) out.put("scheduleNote", scheduleNote);
+            if (neighborSouth != null) out.put("neighborSouth", neighborSouth);
+            if (neighborNorth != null) out.put("neighborNorth", neighborNorth);
             JSONArray list = new JSONArray();
             for (Row row : rows) list.put(row.toJson());
             out.put("rows", list);
@@ -311,6 +321,9 @@ final class RailWidgetData {
             out.failed = raw.optBoolean("failed", false);
             out.includePass = raw.optBoolean("includePass", false);
             out.hiddenPass = raw.optInt("hiddenPass", 0);
+            // 舊快取沒有這兩欄 ⇒ 留 null ⇒ 那一輪站名牌只畫站名、不畫鄰站帶，下一次抓取就補回來。
+            out.neighborSouth = raw.isNull("neighborSouth") ? null : raw.optString("neighborSouth", null);
+            out.neighborNorth = raw.isNull("neighborNorth") ? null : raw.optString("neighborNorth", null);
             JSONArray rows = raw.optJSONArray("rows");
             if (rows != null) for (int i = 0; i < rows.length(); i++) {
                 JSONObject row = rows.optJSONObject(i);
@@ -562,6 +575,10 @@ final class RailWidgetData {
             out.rows.addAll(thsr.rows);
             out.hiddenPass = tra.hiddenPass + thsr.hiddenPass;
             out.scheduleNote = tra.scheduleNote;
+            // 共站的站名牌寫台鐵的鄰站（牌子上是台鐵站名）；台鐵這一側推不出來才退用高鐵。
+            boolean traSides = tra.neighborSouth != null || tra.neighborNorth != null;
+            out.neighborSouth = traSides ? tra.neighborSouth : thsr.neighborSouth;
+            out.neighborNorth = traSides ? tra.neighborNorth : thsr.neighborNorth;
         } else {
             SystemInfo system = "thsr".equals(sys) ? currentThsr(catalog, now)
                 : "tra".equals(sys) ? currentTra(context, catalog, now)
@@ -677,6 +694,7 @@ final class RailWidgetData {
             }
         }
         future.sort(Comparator.comparingLong(row -> row.scheduledAt));
+        neighbors(system, origin, future, out);
         if (out.rows.isEmpty() && !future.isEmpty()) out.rows.add(future.get(0));
         out.rows.sort(Comparator.comparingLong(row -> row.scheduledAt));
         return out;
@@ -720,10 +738,32 @@ final class RailWidgetData {
             headingTo = row.terminus;
         }
         row.heading = heading(system, origin, headingTo);
+        if (row.relation == Relation.DEPARTURE) row.nextStop = headingTo;
         int second = row.relation == Relation.DEPARTURE ? originStop.dep : originStop.arr;
         row.scheduledAt = serviceDay + second * 1000L;
         row.destinationAt = destinationAt;
         return row;
+    }
+
+    /**
+     * C 場景站名牌的鄰站（與 iOS 同一條規則）：本站發車班次的「下一個停靠站」，用方向三角同一個
+     * 緯度判準分成往北／往南兩組，每組取離本站最近的那一站。某一側沒有班次就是 null（只畫一側）。
+     * 用停靠站而不是線形上的相鄰站：小工具資料只有停靠序列，而牌子要告訴人「車往哪一站開」。
+     */
+    private static void neighbors(SystemInfo system, String origin, List<Row> rows, Snapshot out) {
+        Station here = system.stationByName.get(origin);
+        if (here == null || !Double.isFinite(here.lat) || !Double.isFinite(here.lon)) return;
+        double north = Double.MAX_VALUE, south = Double.MAX_VALUE;
+        double scale = Math.cos(Math.toRadians(here.lat));
+        for (Row row : rows) {
+            if (row.nextStop == null || row.heading == null) continue;
+            Station there = system.stationByName.get(row.nextStop);
+            if (there == null || !Double.isFinite(there.lat) || !Double.isFinite(there.lon)) continue;
+            double dx = (there.lon - here.lon) * scale, dy = there.lat - here.lat;
+            double d = dx * dx + dy * dy;
+            if (row.heading == Heading.NORTH && d < north) { north = d; out.neighborNorth = row.nextStop; }
+            if (row.heading == Heading.SOUTH && d < south) { south = d; out.neighborSouth = row.nextStop; }
+        }
     }
 
     /**

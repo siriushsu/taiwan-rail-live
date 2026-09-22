@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 發車看板・小・背景「車模」（mockup 小卡 A）：車停在右下角，「再下一班」那一列讓給車模
+     （provider 傳 maxRows=1），底下的來源註腳也收掉——車就停在它的位置上。
+     車頭朝左下（母圖 hero-l）⇒ 放右側時車頭朝內。 -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/wr_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/wg_card">
+
+    <ImageView
+        android:id="@+id/wr_car"
+        android:layout_width="104dp"
+        android:layout_height="68dp"
+        android:layout_gravity="end|bottom"
+        android:layout_marginEnd="8dp"
+        android:layout_marginBottom="10dp"
+        android:contentDescription="@null"
+        android:scaleType="fitEnd"
+        android:src="@drawable/wg_car_emu3000" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:paddingStart="12dp"
+        android:paddingTop="11dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="9dp">
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:gravity="center_vertical" android:orientation="horizontal">
+            <TextView android:id="@+id/wr_head" android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:ellipsize="end" android:maxLines="1" android:text="臺北"
+                android:textColor="@color/wg_ink" android:textSize="13sp" android:textStyle="bold" />
+            <TextView android:id="@+id/wr_stamp" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:maxLines="1" android:text="09:41" android:textColor="@color/wg_ink_faint" android:textSize="9sp" />
+        </LinearLayout>
+        <TextView android:id="@+id/wr_route" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:ellipsize="end" android:maxLines="1" android:text="全部列車" android:textColor="@color/wg_ink_soft"
+            android:textSize="9sp" />
+        <LinearLayout android:id="@+id/wr_rows" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="4dp" android:orientation="vertical">
+            <include layout="@layout/widget_rail_row_demo_compact1" />
+        </LinearLayout>
+        <TextView android:id="@+id/wr_note" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:ellipsize="end" android:maxLines="1" android:text="台鐵・高鐵發車看板"
+            android:textColor="@color/wg_ink_faint" android:textSize="8sp" android:visibility="gone" />
+    </LinearLayout>
+</FrameLayout>

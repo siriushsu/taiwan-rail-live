@@ -33,6 +33,9 @@ import java.util.List;
  *       --ef scale 畫面縮放（Samsung One UI 先照回報尺寸排版、再整張縮小，A54 實測 0.8333）、
  *       --es state normal／suspended／norail／nometro／failed（資料延遲）／stale（上次位置）、--ez plus 暫時切換通行證旗標（畫完就還原）、
  *       --es lang zh-TW／en／ja 切換原生字串語言（寫進 debug App 自己的偏好，與正式版無關）。
+ *       鐵路看板（--es kind rail）另收：--es size 2x2／4x2／4x4、--es bg model／scene／plain（小工具背景）、
+ *       --ei w／--ei h 卡片寬高 dp、--es origin 起站、--es dest 目的站（直達模式）、--es type 第一班車種、
+ *       --es sys tra／thsr（預設台鐵＋高鐵共站）。
  */
 public final class WidgetGalleryActivity extends Activity {
 
@@ -96,17 +99,21 @@ public final class WidgetGalleryActivity extends Activity {
         String lang = getIntent().getStringExtra("lang");
         if (lang != null) RailNativeL10n.setLanguage(this, lang);
         RailWidgetData.Snapshot rail = new RailWidgetData.Snapshot();
-        rail.sys = RailWidgetData.SYS_COMPOSITE;
+        String sysExtra = getIntent().getStringExtra("sys");
+        rail.sys = sysExtra != null ? sysExtra : RailWidgetData.SYS_COMPOSITE;
         rail.systemLabel = "台鐵＋高鐵";
-        rail.origin = "板橋";
-        rail.destination = "";
+        rail.origin = getIntent().getStringExtra("origin") != null ? getIntent().getStringExtra("origin") : "板橋";
+        rail.destination = getIntent().getStringExtra("dest") != null ? getIntent().getStringExtra("dest") : "";
+        // 板橋在西部幹線上的兩個鄰站（南＝浮洲、北＝萬華）；換起站時就不帶，看單側／無帶子的樣子。
+        if ("板橋".equals(rail.origin)) { rail.neighborSouth = "浮洲"; rail.neighborNorth = "萬華"; }
         rail.generatedAt = now;
-        String[] nos = { "123", "0567", "2551", "0812", "2733", "0149" };
-        String[] types = { "自強", "高鐵", "區間車", "莒光", "區間快", "高鐵" };
-        String[] ends = { "花蓮", "南港", "基隆", "臺東", "蘇澳", "左營" };
+        String[] nos = { "123", "0567", "2551", "0812", "2733", "0149", "1234", "0655", "4003" };
+        String[] types = { "自強", "高鐵", "區間車", "莒光", "區間快", "高鐵", "區間車", "高鐵", "自強" };
+        String[] ends = { "花蓮", "南港", "基隆", "臺東", "蘇澳", "左營", "新竹", "南港", "樹林" };
+        if (getIntent().getStringExtra("type") != null) types[0] = getIntent().getStringExtra("type");
         for (int i = 0; i < nos.length && !"norail".equals(state); i++) {
             RailWidgetData.Row row = new RailWidgetData.Row();
-            row.sys = "高鐵".equals(types[i]) ? "thsr" : "tra";
+            row.sys = "thsr".equals(sysExtra) || "高鐵".equals(types[i]) ? "thsr" : "tra";
             row.no = nos[i]; row.type = types[i]; row.terminus = ends[i];
             row.color = row.sys.equals("thsr") ? "#E85D0D" : i == 0 ? "#C0392B" : "#2E6FB0";
             row.relation = i == 4 ? RailWidgetData.Relation.PASS : RailWidgetData.Relation.DEPARTURE;
@@ -169,7 +176,23 @@ public final class WidgetGalleryActivity extends Activity {
                 width, height, scale, getResources().getConfiguration().fontScale,
                 MixedWidgetRender.slots(this, height));
         } else {
-            views = RailWidgetRender.board(this, R.layout.widget_rail_4x4, rail, 8, false, false);
+            String size = getIntent().getStringExtra("size");
+            String bg = getIntent().getStringExtra("bg");
+            if (bg == null) bg = WidgetBackground.PLAIN;
+            boolean readable = getIntent().getBooleanExtra("readable", false);
+            if ("2x2".equals(size)) {
+                views = RailBoardWidgetProvider.small(this, rail, readable, bg);
+                width = 170; height = 170;
+            } else if ("4x2".equals(size)) {
+                views = RailBoardWidgetProvider.medium(this, rail, readable, bg);
+                width = 340; height = 160;
+            } else {
+                views = RailBoardWidgetProvider.large(this, rail, readable, bg);
+            }
+            width = getIntent().getIntExtra("w", width);
+            height = getIntent().getIntExtra("h", height);
+            caption = String.format(java.util.Locale.US, "發車看板 · %s · %s · %d×%ddp%s",
+                size == null ? "4x4" : size, bg, width, height, readable ? " · 大字" : "");
         }
 
         LinearLayout root = new LinearLayout(this);

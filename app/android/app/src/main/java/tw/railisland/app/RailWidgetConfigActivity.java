@@ -41,6 +41,7 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
     private Spinner originSpinner;
     private Spinner destinationSpinner;
     private CheckBox readable;
+    private Spinner backgroundSpinner;
     private Button filtersButton;
     private FrameLayout preview;
     private TextView destinationLabel;
@@ -99,6 +100,12 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
         filtersButton.setText(RailNativeL10n.text(this, "只看這些（可留空）"));
         root.addView(filtersButton, matchWrap(dp(16)));
 
+        // 選項名稱與順序與 iOS 小工具的「背景」參數完全相同（WidgetBackground）。
+        root.addView(label("背景"), matchWrap(dp(16)));
+        backgroundSpinner = new Spinner(this);
+        backgroundSpinner.setAdapter(adapter(Arrays.asList(WidgetBackground.RAIL_LABELS)));
+        root.addView(backgroundSpinner, matchWrap(dp(4)));
+
         readable = new CheckBox(this);
         readable.setText(RailNativeL10n.text(this, "大字好讀版"));
         readable.setTextColor(getColor(R.color.wg_ink));
@@ -126,6 +133,9 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
             @Override public void selected(int position) { refreshPreview(); }
         });
         readable.setOnCheckedChangeListener((button, checked) -> refreshPreview());
+        backgroundSpinner.setOnItemSelectedListener(new Selection() {
+            @Override public void selected(int position) { refreshPreview(); }
+        });
         filtersButton.setOnClickListener(view -> showFilters());
         done.setOnClickListener(view -> save());
 
@@ -159,6 +169,8 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
             }
         }
         readable.setChecked(prefs.getBoolean("readable_" + widgetId, false));
+        backgroundSpinner.setSelection(Arrays.asList(WidgetBackground.RAIL_VALUES)
+            .indexOf(WidgetBackground.read(prefs, widgetId, false)));
         selectedFilters.clear();
         try {
             JSONArray values = new JSONArray(prefs.getString("filters_" + widgetId, "[]"));
@@ -324,7 +336,13 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
             snapshot.rows.add(row);
         }
         RemoteViewsHost.attach(this, preview,
-            RailWidgetRender.board(this, R.layout.widget_rail_4x2, snapshot, 3, readable.isChecked(), false));
+            RailBoardWidgetProvider.medium(this, snapshot, readable.isChecked(),
+                RailWidgetData.isPlace(snapshot.origin) ? WidgetBackground.PLAIN : selectedBackground()));
+    }
+
+    private String selectedBackground() {
+        int at = backgroundSpinner == null ? 0 : backgroundSpinner.getSelectedItemPosition();
+        return WidgetBackground.RAIL_VALUES[Math.max(0, at)];
     }
 
     private void save() {
@@ -337,6 +355,7 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
             .putString("destination_" + widgetId, destination)
             .putBoolean("readable_" + widgetId, readable.isChecked())
             .putString("filters_" + widgetId, new JSONArray(selectedFilters).toString())
+            .putString(WidgetBackground.key(widgetId), selectedBackground())
             .apply();
         AppWidgetManager manager = AppWidgetManager.getInstance(this);
         RailBoardWidgetProvider.updateOneAsync(this, manager, widgetId);

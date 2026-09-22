@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- C 場景 ImageView 的 background：它的外框就是 clipToOutline 裁切的形狀（只有均一圓角能裁）。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="@dimen/wg_scene_radius" />
+    <solid android:color="@color/wg_paper" />
+</shape>

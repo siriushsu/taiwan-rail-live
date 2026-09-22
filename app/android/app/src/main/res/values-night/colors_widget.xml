@@ -21,4 +21,17 @@
     <color name="wg_meter_mid">#E8B84B</color>
     <color name="wg_meter_high">#F0564A</color>
     <color name="wg_meter_empty">#2A3E58</color>
+    <color name="wg_band_start">#1E3150</color>
+    <color name="wg_band_end">#15243C</color>
+    <color name="wg_paper_clear">#00101C2E</color>
+    <color name="wg_plate_g1">#1B2740</color>
+    <color name="wg_plate_g2">#141D31</color>
+    <color name="wg_plate_g3">#10182A</color>
+    <color name="wg_plate_frame">#3A4E76</color>
+    <color name="wg_plate_ink">#CFE0F8</color>
+    <color name="wg_plate_band_1">#2C4F86</color>
+    <color name="wg_plate_band_2">#26497E</color>
+    <color name="wg_plate_band_3">#1F3D6B</color>
+    <color name="wg_plate_band_ink">#FFF8EC</color>
+    <color name="wg_plate_shadow">#66000000</color>
 </resources>

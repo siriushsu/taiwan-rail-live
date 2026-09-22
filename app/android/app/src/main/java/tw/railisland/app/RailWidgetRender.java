@@ -21,8 +21,13 @@ final class RailWidgetRender {
     static RemoteViews board(Context context, int layout, RailWidgetData.Snapshot snapshot,
                              int maxRows, boolean readable, boolean compact) {
         RemoteViews root = new RemoteViews(context.getPackageName(), layout);
+        boolean model = layout == R.layout.widget_rail_2x2_model || layout == R.layout.widget_rail_4x2_model
+            || layout == R.layout.widget_rail_4x4_model;
+        boolean scene = layout == R.layout.widget_rail_2x2_scene || layout == R.layout.widget_rail_4x2_scene
+            || layout == R.layout.widget_rail_4x4_scene;
         String origin = RailNativeL10n.name(context, snapshot.origin);
-        root.setTextViewText(R.id.wr_head, compact ? origin : RailNativeL10n.text(context,
+        // 車模頭帶與場景站名牌都只寫站名（mockup），「發車看板」四個字只留給素色版的標題列。
+        root.setTextViewText(R.id.wr_head, compact || model ? origin : RailNativeL10n.text(context,
             "{station}發車看板", "station", origin));
         root.setTextViewText(R.id.wr_route, snapshot.destination == null || snapshot.destination.isEmpty()
             ? RailNativeL10n.text(context, snapshot.includePass
@@ -38,13 +43,17 @@ final class RailWidgetRender {
             : snapshot.scheduleNote != null ? scheduleNote(context, snapshot.scheduleNote)
             : RailNativeL10n.text(context, "台鐵即時誤點 · 高鐵表定時刻");
         root.setTextViewText(R.id.wr_note, note);
+        if (model) bindCar(root, snapshot.rows);
+        if (scene) bindPlate(context, root, layout, snapshot, origin);
         if (readable) {
-            boolean large = layout == R.layout.widget_rail_4x4;
-            root.setTextViewTextSize(R.id.wr_head, TypedValue.COMPLEX_UNIT_SP,
+            boolean large = layout == R.layout.widget_rail_4x4 || layout == R.layout.widget_rail_4x4_model
+                || layout == R.layout.widget_rail_4x4_scene;
+            // 頭帶裡的站名本來就比好讀版大（autoSize 24／18sp），不再改它；場景版沒有 wr_head。
+            if (!model && !scene) root.setTextViewTextSize(R.id.wr_head, TypedValue.COMPLEX_UNIT_SP,
                 compact ? 17 : large ? 20 : 18);
             root.setTextViewTextSize(R.id.wr_route, TypedValue.COMPLEX_UNIT_SP,
                 large ? 12 : 11);
-            root.setTextViewTextSize(R.id.wr_stamp, TypedValue.COMPLEX_UNIT_SP,
+            if (!model) root.setTextViewTextSize(R.id.wr_stamp, TypedValue.COMPLEX_UNIT_SP,
                 large ? 11 : 10);
             root.setTextViewTextSize(R.id.wr_note, TypedValue.COMPLEX_UNIT_SP,
                 large ? 10 : 9);
@@ -69,6 +78,58 @@ final class RailWidgetRender {
             root.addView(R.id.wr_rows, empty);
         }
         return root;
+    }
+
+    /** A 車模頭帶：下一班（排序後第一列）的車種代表車；沒有班次就收掉車、頭帶照留。 */
+    private static void bindCar(RemoteViews root, List<RailWidgetData.Row> rows) {
+        if (rows.isEmpty()) {
+            root.setViewVisibility(R.id.wr_car, View.GONE);
+            return;
+        }
+        RailWidgetData.Row next = rows.get(0);
+        root.setViewVisibility(R.id.wr_car, View.VISIBLE);
+        root.setImageViewResource(R.id.wr_car, WidgetBackground.railCar(next.sys, next.type));
+    }
+
+    /**
+     * C 場景的琺瑯站名牌：站名＋下緣鄰站帶。直達模式（有目的站）帶子改寫「往 目的站」；
+     * 鄰站缺一側就把那一側設成 INVISIBLE（另一側仍靠在自己那邊），兩側都沒有整條帶子收掉。
+     */
+    private static void bindPlate(Context context, RemoteViews root, int layout, RailWidgetData.Snapshot snapshot,
+                                  String origin) {
+        root.setTextViewText(R.id.wr_plate_name, origin);
+        // 🔴 RemoteViews 量不到字寬，站名長度卻從「板橋」到「新左營／高鐵左營」「Chang Jung Christian University」都有：
+        //    依字數估寬（全形 1em、半形約 0.62em，再加 0.28em 字距），縮到這張版面最窄那一格放得下為止；
+        //    縮到下限還放不下才交給 ellipsize。牌子本身由 FrameLayout 以 AT_MOST 量寬，永遠不會超出卡片被裁。
+        boolean large = layout == R.layout.widget_rail_4x4_scene;
+        float em = 0;
+        for (int i = 0; i < origin.length(); ) {
+            int cp = origin.codePointAt(i);
+            em += (cp >= 0x2E80 ? 1f : 0.62f) + 0.28f;
+            i += Character.charCount(cp);
+        }
+        // 各版面在最窄那一格（大、中卡 200dp；小卡以 150dp 計）扣掉卡片與牌子內距後，留給站名的寬度。
+        float budget = large ? 140f : layout == R.layout.widget_rail_4x2_scene ? 150f : 96f;
+        float base = large ? 21f : 14f;
+        float size = Math.max(large ? 12f : 9f, Math.min(base, budget / Math.max(1f, em)));
+        root.setTextViewTextSize(R.id.wr_plate_name, TypedValue.COMPLEX_UNIT_SP, size);
+        boolean direct = snapshot.destination != null && !snapshot.destination.isEmpty();
+        boolean sides = snapshot.neighborSouth != null || snapshot.neighborNorth != null;
+        root.setViewVisibility(R.id.wr_plate_band, direct || sides ? View.VISIBLE : View.GONE);
+        root.setViewVisibility(R.id.wr_plate_one, direct ? View.VISIBLE : View.GONE);
+        root.setViewVisibility(R.id.wr_plate_prev, direct ? View.GONE
+            : snapshot.neighborSouth == null ? View.INVISIBLE : View.VISIBLE);
+        root.setViewVisibility(R.id.wr_plate_next, direct ? View.GONE
+            : snapshot.neighborNorth == null ? View.INVISIBLE : View.VISIBLE);
+        if (direct) {
+            root.setTextViewText(R.id.wr_plate_one, RailNativeL10n.text(context, "往 {station}",
+                "station", RailNativeL10n.name(context, snapshot.destination)));
+            return;
+        }
+        root.setTextViewText(R.id.wr_plate_prev, snapshot.neighborSouth == null ? ""
+            : "◀ " + RailNativeL10n.name(context, snapshot.neighborSouth));
+        root.setTextViewText(R.id.wr_plate_next, snapshot.neighborNorth == null ? ""
+            : RailNativeL10n.name(context, snapshot.neighborNorth) + " ▶");
     }
 
     static RemoteViews row(Context context, RailWidgetData.Row row, boolean readable, boolean compact) {

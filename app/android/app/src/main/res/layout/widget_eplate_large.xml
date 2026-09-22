@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- C 小世界場景的琺瑯站名牌・大（mockup .eplate）。被 widget_rail_4x4_scene 以 include 引入。
+     鄰站帶三個 TextView：一般＝左「◀ 往南那一站」右「往北那一站 ▶」；直達模式（有目的站）
+     改成置中一個「往 目的站」。缺一側就只收掉那一側，兩側都沒有整條帶子收掉（binder 決定）。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/wr_plate"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_gravity="top|start"
+    android:background="@drawable/wg_eplate"
+    android:minWidth="108dp"
+    android:orientation="vertical"
+    android:paddingStart="3dp"
+    android:paddingTop="3dp"
+    android:paddingEnd="4dp"
+    android:paddingBottom="5dp">
+
+    <!-- 字距會在最後一字後面多留一段空白 ⇒ 左右內距不對稱補回來，字才在牌子正中。 -->
+    <TextView
+        android:id="@+id/wr_plate_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:letterSpacing="0.28"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:paddingStart="16dp"
+        android:paddingTop="2dp"
+        android:paddingEnd="10dp"
+        android:text="臺北"
+        android:textColor="@color/wg_plate_ink"
+        android:textSize="21sp"
+        android:textStyle="bold" />
+
+    <LinearLayout
+        android:id="@+id/wr_plate_band"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:background="@drawable/wg_eplate_band"
+        android:orientation="horizontal"
+        android:paddingStart="7dp"
+        android:paddingTop="2dp"
+        android:paddingEnd="7dp"
+        android:paddingBottom="3dp">
+
+        <TextView
+            android:id="@+id/wr_plate_prev"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="start"
+            android:letterSpacing="0.12"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="◀ 萬華"
+            android:textColor="@color/wg_plate_band_ink"
+            android:textSize="9.5sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/wr_plate_one"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:letterSpacing="0.12"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="@color/wg_plate_band_ink"
+            android:textSize="9.5sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/wr_plate_next"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_weight="1"
+            android:gravity="end"
+            android:letterSpacing="0.12"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="松山 ▶"
+            android:textColor="@color/wg_plate_band_ink"
+            android:textSize="9.5sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+</LinearLayout>

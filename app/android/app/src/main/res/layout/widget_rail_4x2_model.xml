@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 發車看板・中・背景「車模」：矮一號的頭帶（50dp），車 88×57dp 壓在頭帶下緣
+     （與 iOS 中卡同一個做法：車比頭帶高，下緣那一截落在列表區上方的留白裡）。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/wr_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/wg_card"
+    android:orientation="vertical"
+    android:paddingBottom="9dp">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="58dp"
+        android:layout_marginStart="1dp"
+        android:layout_marginTop="1dp"
+        android:layout_marginEnd="3dp">
+
+        <ImageView
+            android:id="@+id/wr_band"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:background="@drawable/wg_band_bg"
+            android:contentDescription="@null" />
+
+        <ImageView
+            android:id="@+id/wr_car"
+            android:layout_width="88dp"
+            android:layout_height="57dp"
+            android:layout_gravity="end|bottom"
+            android:layout_marginEnd="11dp"
+            android:contentDescription="@null"
+            android:scaleType="fitEnd"
+            android:src="@drawable/wg_car_emu3000" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:gravity="center_vertical"
+            android:orientation="vertical"
+            android:paddingStart="13dp"
+            android:paddingEnd="108dp">
+
+            <TextView
+                android:id="@+id/wr_head"
+                android:layout_width="match_parent"
+                android:layout_height="24dp"
+                android:autoSizeMaxTextSize="18sp"
+                android:autoSizeMinTextSize="12sp"
+                android:autoSizeTextType="uniform"
+                android:gravity="center_vertical|start"
+                android:maxLines="1"
+                android:text="臺北"
+                android:textColor="@color/wg_ink"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/wr_stamp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:text="09:41 更新"
+                android:textColor="@color/wg_ink_faint"
+                android:textSize="9sp" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp">
+
+        <TextView android:id="@+id/wr_route" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:ellipsize="end" android:maxLines="1" android:text="全部目的地 · 直達／停靠／終到／通過"
+            android:textColor="@color/wg_ink_soft" android:textSize="9sp" />
+        <LinearLayout android:id="@+id/wr_rows" android:layout_width="match_parent" android:layout_height="0dp"
+            android:layout_marginTop="2dp" android:layout_weight="1" android:orientation="vertical">
+            <include layout="@layout/widget_rail_rows_demo" />
+        </LinearLayout>
+        <TextView android:id="@+id/wr_note" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:ellipsize="end" android:maxLines="1" android:text="台鐵即時誤點 · 高鐵表定時刻"
+            android:textColor="@color/wg_ink_faint" android:textSize="8sp" />
+    </LinearLayout>
+</LinearLayout>

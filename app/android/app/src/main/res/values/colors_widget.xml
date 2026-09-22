@@ -24,4 +24,21 @@
     <color name="wg_meter_mid">#D2A12A</color>
     <color name="wg_meter_high">#D23C2A</color>
     <color name="wg_meter_empty">#D8CFB6</color>
+    <!-- 小工具背景 A／C（2026-09-23）。頭帶照 mockup 的淺色漸層；深色改成本卡片夜行紙色系的藍，
+         不用 mockup 的中性灰（Android 卡片的夜色是 #101C2E，灰頭帶會像貼上去的另一張紙）。 -->
+    <color name="wg_band_start">#EEF3FB</color>
+    <color name="wg_band_end">#F6F1E7</color>
+    <!-- 場景淡入卡片紙色：同一個紙色、透明度 0（漸層從透明走到不透明，中間不會混進黑色）。 -->
+    <color name="wg_paper_clear">#00FDFBF4</color>
+    <!-- C 的琺瑯站名牌：網站 .plate 同一組色票（mockup .eplate），鄰站帶兩種模式同色。 -->
+    <color name="wg_plate_g1">#FFFFFF</color>
+    <color name="wg_plate_g2">#F7F5EE</color>
+    <color name="wg_plate_g3">#EDEBE0</color>
+    <color name="wg_plate_frame">#767061</color>
+    <color name="wg_plate_ink">#26497E</color>
+    <color name="wg_plate_band_1">#2C4F86</color>
+    <color name="wg_plate_band_2">#26497E</color>
+    <color name="wg_plate_band_3">#1F3D6B</color>
+    <color name="wg_plate_band_ink">#FFF8EC</color>
+    <color name="wg_plate_shadow">#47281E10</color>
 </resources>

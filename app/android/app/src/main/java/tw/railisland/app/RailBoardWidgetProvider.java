@@ -53,7 +53,8 @@ public class RailBoardWidgetProvider extends AppWidgetProvider {
         SharedPreferences.Editor editor = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit();
         for (int id : ids) {
             editor.remove("sys_" + id).remove("origin_" + id).remove("destination_" + id)
-                .remove("readable_" + id).remove("filters_" + id).remove("snapshot_" + id);
+                .remove("readable_" + id).remove("filters_" + id).remove("snapshot_" + id)
+                .remove(WidgetBackground.key(id));
             cancel(context, id);
         }
         editor.apply();
@@ -76,6 +77,9 @@ public class RailBoardWidgetProvider extends AppWidgetProvider {
         String origin = prefs.getString("origin_" + id, null);
         String destination = prefs.getString("destination_" + id, "");
         boolean readable = prefs.getBoolean("readable_" + id, false);
+        // 「我的地點」模式的站會跟著位置換，頭帶的車與場景的站牌都綁不住那個語意 ⇒ 這一批維持素色（與 iOS 同）。
+        String background = origin != null && RailWidgetData.isPlace(origin) ? WidgetBackground.PLAIN
+            : WidgetBackground.read(prefs, id, false);
         List<String> filters = new ArrayList<>();
         try {
             JSONArray rawFilters = new JSONArray(prefs.getString("filters_" + id, "[]"));
@@ -122,7 +126,7 @@ public class RailBoardWidgetProvider extends AppWidgetProvider {
             RailWidgetData.Snapshot snapshot = RailWidgetData.fetch(context, sys, origin, destination, filters);
             snapshot.autoStale = autoStale;
             RailWidgetData.cache(context, PREFS, id, snapshot);
-            manager.updateAppWidget(id, sizes(context, id, snapshot, readable));
+            manager.updateAppWidget(id, sizes(context, id, snapshot, readable, background));
             long next = System.currentTimeMillis() + 5 * 60_000L;
             if (!snapshot.rows.isEmpty()) {
                 long boundary = snapshot.rows.get(0).expectedAt();
@@ -136,7 +140,7 @@ public class RailBoardWidgetProvider extends AppWidgetProvider {
             RailWidgetData.Snapshot fallback = RailWidgetData.cached(context, PREFS, id);
             if (fallback != null) {
                 fallback.failed = true;
-                manager.updateAppWidget(id, sizes(context, id, fallback, readable));
+                manager.updateAppWidget(id, sizes(context, id, fallback, readable, background));
             } else {
                 manager.updateAppWidget(id, tap(context, id,
                     RailWidgetRender.message(context, "暫時連不上", "點卡片仍可開啟軌島查看班次")));
@@ -145,30 +149,61 @@ public class RailBoardWidgetProvider extends AppWidgetProvider {
         }
     }
 
-    private static RemoteViews sizes(Context context, int id, RailWidgetData.Snapshot snapshot, boolean readable) {
+    private static RemoteViews sizes(Context context, int id, RailWidgetData.Snapshot snapshot, boolean readable,
+                                     String background) {
         PendingIntent tap = openIntent(context, id, snapshot.sys, snapshot.origin);
         if (Build.VERSION.SDK_INT < 31) {
             // 沒有 setSizeSpecificViewLayouts 的機器:照這一格屬於哪個尺寸的 provider 挑一張。
             String family = WidgetFamily.of(context, id);
-            if (WidgetFamily.SMALL.equals(family)) {
-                return tap(RailWidgetRender.board(context, R.layout.widget_rail_2x2, snapshot, 2, readable, true), tap);
-            }
-            if (WidgetFamily.LARGE.equals(family)) {
-                return tap(RailWidgetRender.board(context, R.layout.widget_rail_4x4, snapshot, 8, readable, false), tap);
-            }
-            return tap(RailWidgetRender.board(context, R.layout.widget_rail_4x2, snapshot, 4, readable, false), tap);
+            if (WidgetFamily.SMALL.equals(family)) return tap(small(context, snapshot, readable, background), tap);
+            if (WidgetFamily.LARGE.equals(family)) return tap(large(context, snapshot, readable, background), tap);
+            return tap(medium(context, snapshot, readable, background), tap);
         }
         Map<SizeF, RemoteViews> layouts = new HashMap<>();
-        layouts.put(new SizeF(110f, 100f), tap(
-            RailWidgetRender.board(context, R.layout.widget_rail_2x2, snapshot, 2, readable, true), tap));
-        layouts.put(new SizeF(200f, 100f), tap(
-            RailWidgetRender.board(context, R.layout.widget_rail_4x2, snapshot, 4, readable, false), tap));
+        layouts.put(new SizeF(110f, 100f), tap(small(context, snapshot, readable, background), tap));
+        layouts.put(new SizeF(200f, 100f), tap(medium(context, snapshot, readable, background), tap));
         // 🔴 只有「大」那一族才開 4×4 桶:4×4 格線的兩列就有 276dp 高,中卡不擋會整張變成大卡版面。
         if (WidgetFamily.LARGE.equals(WidgetFamily.of(context, id))) {
-            layouts.put(new SizeF(200f, 250f), tap(
-                RailWidgetRender.board(context, R.layout.widget_rail_4x4, snapshot, 8, readable, false), tap));
+            layouts.put(new SizeF(200f, 250f), tap(large(context, snapshot, readable, background), tap));
         }
         return new RemoteViews(layouts);
+    }
+
+    /*
+     * 三尺寸 × 三種背景各一張版面（WidgetBackground）。頭帶／場景比素色的標題列高，列表少放幾列，
+     * 否則最後一列會被容器從中間切掉：小卡 A／C 把「再下一班」讓給車模與場景（mockup），
+     * 中卡 4→3，大卡 8→6（頭帶 86dp）／5（場景 150dp，mockup「大卡少一列」）。
+     * 🔴 每一個 board(...) 呼叫都要保持「board(context, R.layout.X, snapshot, N, readable, compact)」
+     *    這個字面寫法：verify_android_widget_parity.mjs 從這裡抽素色三張的真實列數去比挑選器示範列。
+     */
+    static RemoteViews small(Context context, RailWidgetData.Snapshot snapshot, boolean readable, String background) {
+        if (WidgetBackground.MODEL.equals(background)) {
+            return RailWidgetRender.board(context, R.layout.widget_rail_2x2_model, snapshot, 1, readable, true);
+        }
+        if (WidgetBackground.SCENE.equals(background)) {
+            return RailWidgetRender.board(context, R.layout.widget_rail_2x2_scene, snapshot, 1, readable, true);
+        }
+        return RailWidgetRender.board(context, R.layout.widget_rail_2x2, snapshot, 2, readable, true);
+    }
+
+    static RemoteViews medium(Context context, RailWidgetData.Snapshot snapshot, boolean readable, String background) {
+        if (WidgetBackground.MODEL.equals(background)) {
+            return RailWidgetRender.board(context, R.layout.widget_rail_4x2_model, snapshot, 3, readable, false);
+        }
+        if (WidgetBackground.SCENE.equals(background)) {
+            return RailWidgetRender.board(context, R.layout.widget_rail_4x2_scene, snapshot, 3, readable, false);
+        }
+        return RailWidgetRender.board(context, R.layout.widget_rail_4x2, snapshot, 4, readable, false);
+    }
+
+    static RemoteViews large(Context context, RailWidgetData.Snapshot snapshot, boolean readable, String background) {
+        if (WidgetBackground.MODEL.equals(background)) {
+            return RailWidgetRender.board(context, R.layout.widget_rail_4x4_model, snapshot, 6, readable, false);
+        }
+        if (WidgetBackground.SCENE.equals(background)) {
+            return RailWidgetRender.board(context, R.layout.widget_rail_4x4_scene, snapshot, 5, readable, false);
+        }
+        return RailWidgetRender.board(context, R.layout.widget_rail_4x4, snapshot, 8, readable, false);
     }
 
     private static RemoteViews configure(Context context, int id, RemoteViews views) {

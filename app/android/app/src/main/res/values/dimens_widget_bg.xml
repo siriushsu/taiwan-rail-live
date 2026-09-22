@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- C 場景的內縮與圓角。卡片圓角 16dp，場景圖是方角的點陣圖：
+     API 31 起 ImageView 可以 clipToOutline 裁成圓角 ⇒ 貼齊卡片（values-v31）；
+     31 以前沒有這個 XML 屬性 ⇒ 內縮 5dp，方角的尖端（距角心 √2×11≈15.6dp＜16dp）才不會戳出卡片圓角。 -->
+<resources>
+    <dimen name="wg_scene_inset">5dp</dimen>
+    <dimen name="wg_scene_inset_end">7dp</dimen>
+    <dimen name="wg_scene_radius">11dp</dimen>
+</resources>

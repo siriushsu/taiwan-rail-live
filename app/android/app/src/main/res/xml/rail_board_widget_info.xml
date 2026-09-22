@@ -14,6 +14,7 @@
         4 列）是照實測格高算的；改之前先在模擬器切三種格線，看選單上印的「N × M」。
      updatePeriodMillis 只是保命網（最快 30 分鐘一次），真正的節奏是 AlarmManager 排的。 -->
 <!-- 發車看板・中。小＝rail_board_widget_small_info、大＝rail_board_widget_large_info。initialLayout 是中性卡 widget_loading，示範版面只在 previewLayout（整枝複審必修 7）。 -->
+<!-- previewLayout 指向 *_model：新放上桌面的預設背景是車模頭帶（WidgetBackground），挑選器看到的要等於放上去的樣子。 -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:configure="tw.railisland.app.RailWidgetConfigActivity"
     android:description="@string/rail_widget_description"
@@ -24,7 +25,7 @@
     android:targetCellHeight="2"
     android:minResizeWidth="110dp"
     android:minResizeHeight="100dp"
-    android:previewLayout="@layout/widget_rail_4x2"
+    android:previewLayout="@layout/widget_rail_4x2_model"
     android:resizeMode="horizontal|vertical"
     android:updatePeriodMillis="1800000"
     android:widgetCategory="home_screen|keyguard"

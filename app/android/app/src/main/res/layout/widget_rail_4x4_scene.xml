@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 發車看板・大・背景「場景」（C 小世界場景，mockup 定稿第 2 版）。
+     場景：高架月台（wg_scene_large，淺色白天／深色夜晚由 drawable-night 自動切）。
+     centerCrop：卡片被拉寬拉窄都只裁左右、構圖中心不動；素材裁成這個尺寸最寬的比例（見
+     app/scripts/build_widget_backgrounds_android.py）。左上角琺瑯站名牌讀得清楚，不管背後場景多花。
+     「更新時間」移到最底那一行（站牌上不放時間）。 -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/wr_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/wg_card">
+
+    <ImageView
+        android:id="@+id/wr_scene"
+        android:layout_width="match_parent"
+        android:layout_height="150dp"
+        android:layout_marginStart="@dimen/wg_scene_inset"
+        android:layout_marginTop="@dimen/wg_scene_inset"
+        android:layout_marginEnd="@dimen/wg_scene_inset_end"
+        android:background="@drawable/wg_scene_clip"
+        android:clipToOutline="true"
+        android:contentDescription="@null"
+        android:scaleType="centerCrop"
+        android:src="@drawable/wg_scene_large" />
+
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="150dp"
+        android:layout_marginStart="@dimen/wg_scene_inset"
+        android:layout_marginTop="@dimen/wg_scene_inset"
+        android:layout_marginEnd="@dimen/wg_scene_inset_end"
+        android:background="@drawable/wg_scene_fade"
+        android:contentDescription="@null" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:paddingStart="15dp"
+        android:paddingTop="13dp"
+        android:paddingEnd="15dp"
+        android:paddingBottom="11dp">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="118dp">
+            <include layout="@layout/widget_eplate_large" />
+        </FrameLayout>
+
+        <TextView android:id="@+id/wr_route" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:ellipsize="end" android:maxLines="1"
+            android:text="全部目的地 · 直達／停靠／終到／通過" android:textColor="@color/wg_ink_soft" android:textSize="10sp" />
+        <LinearLayout android:id="@+id/wr_rows" android:layout_width="match_parent" android:layout_height="0dp"
+            android:layout_marginTop="4dp" android:layout_weight="1" android:orientation="vertical">
+            <include layout="@layout/widget_rail_rows_demo" />
+            <include layout="@layout/widget_rail_rows_demo_56" />
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:gravity="center_vertical" android:orientation="horizontal">
+            <TextView android:id="@+id/wr_note" android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:ellipsize="end" android:maxLines="1" android:text="台鐵即時誤點 · 高鐵表定時刻"
+                android:textColor="@color/wg_ink_faint" android:textSize="9sp" />
+            <TextView android:id="@+id/wr_stamp" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginStart="8dp" android:maxLines="1" android:text="09:41 更新"
+                android:textColor="@color/wg_ink_faint" android:textSize="9sp" />
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>
