@@ -84,7 +84,9 @@ public final class WidgetGalleryActivity extends Activity {
             if (sample.message == null) {
                 MetroWidgetPlateRender.backdrop(views, board || "4x4".equals(sizeKey), "2x2".equals(sizeKey),
                     !WidgetBackground.PLAIN.equals(getIntent().getStringExtra("bg")),
-                    WidgetBackground.metroCar("trtc", getIntent().getStringExtra("line") == null ? "BL"
+                    // --es msys krtc --es line C：高捷輕軌 Citadis（最扁長的車，看車與字的間距）。
+                    WidgetBackground.metroCar(getIntent().getStringExtra("msys") == null ? "trtc"
+                        : getIntent().getStringExtra("msys"), getIntent().getStringExtra("line") == null ? "BL"
                         : getIntent().getStringExtra("line")));
             }
             LinearLayout holder = new LinearLayout(this);
