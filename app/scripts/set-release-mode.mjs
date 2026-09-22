@@ -380,10 +380,19 @@ const MODES = {
     //   原本「快取涵蓋今天就不抓」跟看板「剩 ≤3 天就提醒更新」沒對齊，每個 14 天窗的最後 3 天都叫人更新
     //   卻不抓；而且快取放 Caches、更新 App 不清，剛打包的新窗還會輸給舊快取（使用者裝 1.6.8 仍看到 9/22）。
     //   why 三語只寫這一條。
-    marketing: '1.6.9', build: '122', music: true, metroCore: true, androidPlus: true,
-    why: '軌島 1.6.9\n\n• 桌面小工具的台鐵班表在到期前 3 天就會自動抓最新班表，更新 App 後也會立即採用新版班表。',
-    whyEn: 'Rail Island 1.6.9\n\n• The home screen widget now fetches the latest TRA timetable 3 days before the current one ends, and picks up the newer timetable right after an app update',
-    whyJa: '軌島 1.6.9\n\n• ホーム画面ウィジェットの台鉄時刻表を、期限の3日前に自動で最新版へ更新するようにしました。アプリ更新後も新しい時刻表をすぐに使います。',
+    // 123／Android 61（2026-09-22）：Apple lookup 1.6.9 已於 09-21T23:12Z 上架、Play 同日 ⇒ 1.6.9 train 已關，
+    //   行銷版號進到 1.6.10；122／60 已上架不重用號。起因：Android 58／59／60 三顆都在缺
+    //   app/android/app/google-services.json（gitignored）的樹上打的——build.gradle 原本 try/catch 後只 logger.info，
+    //   build 全綠、APK 沒有 google_app_id、Firebase 沒初始化，使用者按登入才紅字
+    //   「"FirebaseAuthentication" plugin is not implemented on android」（08-31 的 Android 24 同一個坑）。
+    //   修法：補檔＋build.gradle 缺檔直接 GradleException。同顆另修 iPhone 更新提示：查線上版本原本
+    //   12 小時內走 localStorage 快取、再疊 WKWebView 與 Apple CDN 快取，新版上架後十幾個小時都不提示
+    //   （Android 走 Play Core 即時）⇒ 改成每次開機帶時間戳 no-store 問一次。網頁載貨含 v0922a
+    //   （機捷台灣設計展疏運班表 9/24–10/11）。
+    marketing: '1.6.10', build: '123', music: true, metroCore: true, androidPlus: true,
+    why: '軌島 1.6.10\n\n• 修正 Android 版按「登入」會出現「plugin is not implemented」的問題，Google 與 Apple 登入恢復正常。\n• iPhone／iPad 版有新版可下載時會立刻提示，不再延遲半天以上。\n• 機捷接上台灣設計展疏運班表（9/24–10/11）。',
+    whyEn: 'Rail Island 1.6.10\n\n• Fixed Android sign-in failing with "plugin is not implemented"; Google and Apple sign-in work again\n• iPhone/iPad now shows the update notice as soon as a new version is available, instead of up to half a day later\n• Taoyuan Airport MRT now uses the Taiwan Design Expo special timetable (Sep 24 – Oct 11)',
+    whyJa: '軌島 1.6.10\n\n• Android 版で「ログイン」を押すと「plugin is not implemented」と表示される問題を修正しました。Google／Apple ログインが正常に戻ります。\n• iPhone／iPad 版で新しいバージョンが公開されると、半日以上遅れずにすぐお知らせします。\n• 桃園空港MRTが台湾デザイン展の臨時ダイヤ（9/24〜10/11）に対応しました。',
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
   // 軌島通行證客端功能、雲端同步與伺服器付費牆。這顆不可選去正式送審；正式版必須另推 build 號，
