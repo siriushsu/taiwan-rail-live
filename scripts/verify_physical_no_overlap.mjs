@@ -33,11 +33,18 @@
 // 跑法（自帶 node:http 靜態站，不需要外部 server）：
 //   node scripts/verify_physical_no_overlap.mjs
 //   可選 PORT=／STEP=（重放步長秒，預設 4）／SAMPLE=（取樣間隔秒，預設 120）
-//   TEST_DATE=YYYY-MM-DD 固定服務日；FORMATION_PROBE=long 只在瀏覽器試驗長編組，不寫回產品。
+//   TEST_DATE=YYYY-MM-DD 用磁碟上的班表重放該服務日（探真實日子用）；不給就重放釘死的班表快照
+//   （FIXTURE_REF 那顆 commit 的 tra_schedule_dense.json、FIXTURE_DATE 那一天）。
+//   🔴 2026-09-22：棘輪基線是拿 9/13 那份班表量的，但台鐵班表是每週滾動的 14 天窗，拿「今天」
+//   重放等於每週換一份考卷——9/22、9/23 全日連對照組都是 0 筆（G8 結構性紅）、9/25 中秋加班日
+//   A=12／C=21（比基線多一倍）——四個日期沒有一天全綠，出貨鏈整條被擋。棘輪要量的是**程式與派軌
+//   有沒有退步**，輸入就得釘死；真實日子的互穿另有 check-physical-overlap-families 逐日看。
+//   FORMATION_PROBE=long 只在瀏覽器試驗長編組，不寫回產品。
 //   ENGINE=webkit 可換真實引擎；REPORT= 指定完整事件報告。
 //   FROM=／TO= 只給除錯用：縮小視窗會讓 G3 的分母斷言紅（那是刻意的，全日才是契約）。
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
+import { execFileSync } from 'node:child_process';
 import { readFileSync, existsSync, statSync, writeFileSync, mkdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
@@ -45,17 +52,26 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.env.PORT || 5531);
-const TEST_DATE = process.env.TEST_DATE;
-if (TEST_DATE && !/^\d{4}-\d{2}-\d{2}$/.test(TEST_DATE)) throw Error('TEST_DATE 必須為 YYYY-MM-DD');
+// 釘死的考卷：132e1ebb 是 9/9 抓的班表（窗 09-09～09-22），9/13 就是 BASE_* 那幾條棘輪量基線的服務日。
+// 換基線時這兩個值與 BASE_* 一起改，並在 commit 訊息附新舊四個數字。
+const FIXTURE_REF = '132e1ebb', FIXTURE_DATE = '2026-09-13';
+const FIXTURE = !process.env.TEST_DATE;
+const TEST_DATE = process.env.TEST_DATE || FIXTURE_DATE;
+if (!/^\d{4}-\d{2}-\d{2}$/.test(TEST_DATE)) throw Error('TEST_DATE 必須為 YYYY-MM-DD');
+const fixtureSchedule = FIXTURE ? execFileSync('git', ['-C', ROOT, 'show', `${FIXTURE_REF}:data/tra_schedule_dense.json`], { maxBuffer: 64 << 20 }) : null;
 const STEP = Number(process.env.STEP || 4);
 const SAMPLE = Number(process.env.SAMPLE || 120);
 const FROM = Number(process.env.FROM || 5 * 3600);
 const TO = Number(process.env.TO || 24 * 3600 - 1);
-const BASE_A = 5;             // 同向在途互穿:實測基線(對照組關掉防追撞是 12 筆)。棘輪,只准往下
-const BASE_B = 55;            // 9/13 派軌修復後三服務日最大 47，上限降低以防退步
-const BASE_C = 10;           // 9/13 派軌修復後三服務日最大 6，上限降低以防退步
+// 2026-09-22 重量基線（使用者 go）：輸入釘死之後重放是決定性的（同一份快照在 main 與正式站 v0920e
+// 兩棵樹各跑一次，四個數字逐一相同），所以棘輪直接取實測值，不留餘裕。舊值 5／55／10／18 是 9/12–13
+// 在短編組、各自不同服務日量的，9/14 開放完整編組後車身變長、互穿本來就會多，只是之後每次出貨
+// 剛好都在數字夠低的日子跑過。要動這四個值，先在正式站那顆 commit 的乾淨樹跑同一支當對照組。
+const BASE_A = 7;             // 同向在途互穿(對照組關掉防追撞是 16 筆)。棘輪,只准往下
+const BASE_B = 37;            // 兩車都停站同節點
+const BASE_C = 13;            // 一停一跑同軌(站區道岔)
 const BLOCK_CAP = 120;        // 與 index.html 的 BLOCK_CAP_SEC 同值,只用來寫進訊息
-const BASE_OPP = 18;          // 9/13 派軌修復後三服務日最大 15，上限降低以防退步
+const BASE_OPP = 9;           // 對向同股道
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
 const server = createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
@@ -64,6 +80,7 @@ const server = createServer((req, res) => {
     if (url.pathname === '/api/thsr-schedule') return res.end(readFileSync(path.join(ROOT, 'data/thsr_schedule_dense.json')));
     return res.end('{}');
   }
+  if (fixtureSchedule && url.pathname === '/data/tra_schedule_dense.json') { res.setHeader('content-type', MIME['.json']); return res.end(fixtureSchedule); }
   let fp = path.join(ROOT, decodeURIComponent(url.pathname));
   if (existsSync(fp) && statSync(fp).isDirectory()) fp = path.join(fp, 'index.html');
   if (!path.resolve(fp).startsWith(ROOT) || !existsSync(fp)) { res.statusCode = 404; return res.end('nf'); }
@@ -80,7 +97,7 @@ const browser = await (process.env.ENGINE === 'webkit' ? webkit : chromium).laun
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'zh-TW' });
 await ctx.addInitScript(() => { localStorage.setItem('trainmap-howto-seen', '1'); });
 const page = await ctx.newPage();
-const clockStart = TEST_DATE ? new Date(TEST_DATE + 'T12:00:00+08:00') : new Date();
+const clockStart = new Date(TEST_DATE + 'T12:00:00+08:00');
 await page.clock.install({time:clockStart});
 const errors = [];
 page.on('pageerror', e => errors.push(e.message));
@@ -209,7 +226,7 @@ ok('G1 physical 已就緒且覆蓋台鐵全班',
   `台鐵 ${setup.hasCovered}/${setup.traTotal} 走實體股道, 全系統 ${setup.trains} 班, liveActive=${setup.live}`);
 
 ok('G1b 判準使用畫面的支線與具名車型', setup.identities.every((r,i)=>r.id===['e500','dr1000','haifeng'][i] && Math.abs(r.lengthM-(process.env.FORMATION_PROBE==='legacy-three'?[57,60,60]:[137,60,80])[i])<1e-6), JSON.stringify(setup.identities));
-if(TEST_DATE) ok('G1c 班表服務日與固定重放日一致', setup.serviceDate===TEST_DATE, `${setup.serviceDate} / ${TEST_DATE}`);
+ok('G1c 班表服務日與固定重放日一致', setup.serviceDate===TEST_DATE, `${setup.serviceDate} / ${TEST_DATE}${FIXTURE ? `（班表快照 ${FIXTURE_REF}）` : '（磁碟班表）'}`);
 // ── 連續重放（棘輪要演化,快照掃描量不到真實動態）────────────────────────────────
 await page.evaluate(([f]) => { __reset(); __step(f); }, [FROM]);
 const cls = h => h.dwellA && h.dwellB ? 'B 兩車都停站' : (!h.sameDir ? 'A′ 對向' : (h.dwellA || h.dwellB ? 'C 一停一跑' : 'A 同向在途'));
