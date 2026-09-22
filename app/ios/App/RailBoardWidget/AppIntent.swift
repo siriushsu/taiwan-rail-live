@@ -351,6 +351,26 @@ struct ConfigurationAppIntent: WidgetConfigurationIntent {
     //    倒數只是換了位置的常態資訊，搶在狀態前面會把「這班誤點了」擠掉。
     @Parameter(title: "主要顯示發車時刻", default: false)
     var clockFirst: Bool
+
+    // 2026-09-23 使用者裁示：「就用 A 跟 C，開始實作到 App 小工具」，設定加「背景」三選一、
+    // 預設車模。版面規格見 RailWidgetArt.swift。
+    @Parameter(title: "背景", default: .model)
+    var background: RailWidgetBackgroundOption
+}
+
+/// 小工具「背景」選項。rawValue 是兩平台共用的存值（model／scene／plain），不要改名。
+@available(iOS 17.0, *)
+enum RailWidgetBackgroundOption: String, AppEnum {
+    case model
+    case scene
+    case plain
+
+    static var typeDisplayRepresentation: TypeDisplayRepresentation { "背景" }
+    static var caseDisplayRepresentations: [RailWidgetBackgroundOption: DisplayRepresentation] {
+        [.model: "車模", .scene: "場景", .plain: "素色"]
+    }
+
+    var backdrop: RailBackdrop { RailBackdrop(rawValue: rawValue) ?? .plain }
 }
 
 @available(iOS 17.0, *)

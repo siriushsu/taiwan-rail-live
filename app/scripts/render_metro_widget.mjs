@@ -110,6 +110,8 @@ const dataPath = join(widgetDir, 'MetroWidgetData.json');
 const pieces = [
   extractDeclaration(l10nSource, 'enum RailNativeL10n'),
   extractDeclaration(sharedSource, 'struct MetroWidgetCatalog'),
+  // MetroNearestMath 的服務半徑改從資料檔讀之後，它住在 App/MetroWidgetShared.swift。
+  extractDeclaration(sharedSource, 'enum WidgetServiceRadius'),
   // 服務範圍外那張卡的文案要走【真的那一支】,不在這裡重打字面值(文案改了會無聲分岔)。
   extractDeclaration(readFileSync(join(widgetDir, 'MetroNearest.swift'), 'utf8'),
                      'enum MetroNearestMath'),

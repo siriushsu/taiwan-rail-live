@@ -75,6 +75,8 @@ const kitPath = join(widgetDir, 'RailWidgetKit.swift');
 // 多語落地之後，抽出來的宣告會呼叫 RailNativeL10n.text(...)；它只 import Foundation，
 // 一起編進來即可（缺它的症狀是「cannot find 'RailNativeL10n' in scope」整批編譯失敗）。
 const l10nPath = join(widgetDir, 'RailNativeL10n.swift');
+// 背景（車模／場景／站名牌）元件：跟 kit 一樣整檔交給 swiftc，不抽宣告。
+const artPath = join(widgetDir, 'RailWidgetArt.swift');
 const widgetSource = readFileSync(join(widgetDir, 'RailBoardWidget.swift'), 'utf8');
 const dataSource = readFileSync(join(widgetDir, 'RailBoardData.swift'), 'utf8');
 
@@ -270,6 +272,46 @@ let fullBoard = snapshot(title: "臺北車站", watching: true, rows: [
     boardRow("2222", "區間車", to: "基隆", minutesFromNow: 58, heading: .north),
     boardRow("4048", "區間快", to: "苗栗", minutesFromNow: 64, lastOfDay: true),
 ])
+
+// ── 背景 A 車模／C 場景（2026-09-23 裁示）────────────────────────────────────
+// 班次照 mockup（臺北、北上三班南下兩班、自強誤點 1 分），站名牌照 mockup「◀ 萬華　松山 ▶」。
+// 站名牌的鄰站在出貨路徑是 StationNeighbors.derive 從班表推的；這裡是凍結樣本。
+var artBoard: BoardSnapshot {
+    var s = snapshot(title: "臺北", watching: true, rows: [
+        boardRow("172", "自強", to: "花蓮", minutesFromNow: 0, delay: 1, heading: .north),
+        boardRow("1267", "區間車", to: "苗栗", minutesFromNow: 2),
+        boardRow("4248", "區間車", to: "宜蘭", minutesFromNow: 5, heading: .north),
+        boardRow("0165", "高鐵", to: "左營", minutesFromNow: 6, delay: 0),
+        boardRow("0156", "高鐵", to: "南港", minutesFromNow: 7, delay: 0, heading: .north),
+    ])
+    s.plate = RailPlateInfo(name: "臺北", band: .neighbors(left: "萬華", right: "松山"))
+    return s
+}
+
+/// 直達模式：站名牌寫起站、帶子寫「往 目的站」；主角是最長的車種（莒光/復興 → E400）。
+var artCommute: BoardSnapshot {
+    var s = commute
+    s.plate = RailPlateInfo(name: "竹北", band: .text("往 臺北"))
+    return s
+}
+
+/// 班表警示：小卡 C 要收掉鄰站帶才放得下警示那一行。
+var artExpiring: BoardSnapshot {
+    var s = expiring
+    s.plate = RailPlateInfo(name: "臺北", band: .neighbors(left: "萬華", right: "松山"))
+    return s
+}
+
+/// 端點站只有一側鄰站＋長站名（共站標題）：站名牌要縮字不長寬到撞右邊。
+var artTerminal: BoardSnapshot {
+    var s = snapshot(title: "蘇澳新站（共站）", watching: true, rows: [
+        boardRow("4209", "區間車", to: "蘇澳", minutesFromNow: 3),
+        boardRow("218", "自強", to: "樹林", minutesFromNow: 11, heading: .north),
+        boardRow("4212", "區間車", to: "基隆", minutesFromNow: 16, heading: .north),
+    ])
+    s.plate = RailPlateInfo(name: "蘇澳新站（共站）", band: .neighbors(left: nil, right: "永樂"))
+    return s
+}
 
 // ── 我的地點 ────────────────────────────────────────────────────────────────
 
@@ -663,6 +705,98 @@ func render<V: View>(_ view: V, family: WidgetFamily? = nil, width: CGFloat, hei
     print("寫出 \\(name)（\\(Int(width))×\\(Int(height)) pt @3x，墨跡 y \\(Int(b.y0))–\\(Int(b.y1))/\\(Int(height - inset))）")
 }
 
+// ── 背景版面的算繪 ────────────────────────────────────────────────────────────
+//
+// 🔴 每張背景圖算兩次：
+//    1) gate：藏起車模（railArtHidden）、不畫底圖 ⇒ 量到的墨跡只剩文字與站名牌，
+//       照原本的破版 gate 檢查「沒有溢出 16pt 內容框」。車模刻意超出內容框（小卡的車被
+//       卡片圓角裁掉才是設計），不藏就只能把 gate 關掉。
+//    2) 展示：containerBackground 那一層（RailCardBackdrop）墊在底下，車模照畫。
+//       單色（著色模式）時 RailCardBackdrop 自己畫空白——系統在著色模式會把整張背景拿掉。
+let artDirectory = ${JSON.stringify(resolve(here, '../ios/App/RailBoardWidget/Assets.xcassets'))}
+
+@MainActor
+func boardView(_ family: WidgetFamily, _ snap: BoardSnapshot) -> AnyView {
+    switch family {
+    case .systemLarge: return AnyView(LargeBoardView(snapshot: snap, entryDate: clockNow))
+    case .systemMedium: return AnyView(MediumBoardView(snapshot: snap, entryDate: clockNow))
+    default: return AnyView(SmallBoardView(snapshot: snap, entryDate: clockNow))
+    }
+}
+
+/// 由上往下第一段墨跡（站名牌）與下一段墨跡之間的空白高度（pt）。只在 gate 圖上量：
+/// 那張沒有場景也沒有投影，空白列就真的是空白。
+func firstInkGap(_ png: Data, scale: CGFloat) -> CGFloat? {
+    guard let rep = NSBitmapImageRep(data: png), let bg = rep.colorAt(x: 1, y: 1) else { return nil }
+    func inked(_ y: Int) -> Bool {
+        for x in 0..<rep.pixelsWide {
+            guard let c = rep.colorAt(x: x, y: y) else { continue }
+            if abs(c.redComponent - bg.redComponent) + abs(c.greenComponent - bg.greenComponent)
+                + abs(c.blueComponent - bg.blueComponent) > 0.07 { return true }
+        }
+        return false
+    }
+    var y = 0
+    while y < rep.pixelsHigh && !inked(y) { y += 1 }      // 牌子上緣
+    while y < rep.pixelsHigh && inked(y) { y += 1 }       // 牌子下緣
+    let blank = y
+    while y < rep.pixelsHigh && !inked(y) { y += 1 }      // 下一段內容
+    return y < rep.pixelsHigh ? CGFloat(y - blank) / scale : nil
+}
+
+@MainActor
+func renderStyled(_ snap: BoardSnapshot, style: RailBackdrop, family: WidgetFamily,
+                  width: CGFloat, height: CGFloat, scheme: ColorScheme = .light, mono: Bool = false,
+                  to path: String) {
+    let view = boardView(family, snap)
+    render(view.environment(\\.railBackdrop, style)
+               .environment(\\.railArtHidden, true)
+               .environment(\\.railArtDirectory, artDirectory),
+           family: family, width: width, height: height, scheme: scheme, mono: mono, to: path)
+    // 🔴 交接單驗收：小卡「自強 172」那行不得貼到站牌（mockup 撞過），≥6pt。
+    if style == .scene && family == .systemSmall {
+        let name = (path as NSString).lastPathComponent
+        let gap = firstInkGap(try! Data(contentsOf: URL(fileURLWithPath: path)), scale: 3)
+        guard let gap, gap >= 6 else {
+            FileHandle.standardError.write(Data("破版：\\(name) 站名牌與下一行只隔 \\(gap.map { "\\($0)" } ?? "?") pt（要 ≥6）\\n".utf8))
+            exit(1)
+        }
+        print("  站名牌下緣間距 \\(gap) pt")
+    }
+    let png = pngData(view.frame(width: width, height: height)
+                          .background(RailCardBackdrop(style: style, family: family))
+                          .environment(\\.railBackdrop, style)
+                          .environment(\\.railArtDirectory, artDirectory),
+                      family: family, width: width, height: height, scheme: scheme, mono: mono)
+    try! png.write(to: URL(fileURLWithPath: path))
+}
+
+/// 🔴 素材真的讀到了：車模與場景都讀不到時 Image(name) 會靜靜畫出空白，
+///    背景圖看起來就只是「素色少一列」——這道 gate 要求展示圖與 gate 圖的像素確實不同。
+@MainActor
+func artLoadedGate() {
+    for (style, family, w, h) in [(RailBackdrop.model, WidgetFamily.systemSmall, CGFloat(170), CGFloat(170)),
+                                  (.scene, .systemLarge, 364, 382)] {
+        // environment 一定要掛在 background 的【外面】：掛在裡面的話 RailCardBackdrop 讀不到
+        // railArtDirectory，場景就走 Image(name)——裸執行檔沒有 Assets.car ⇒ 空白（本 gate 第一次跑就抓到）。
+        let view = boardView(family, artBoard)
+        let bare = pngData(view.environment(\\.railBackdrop, style)
+                               .environment(\\.railArtHidden, true)
+                               .environment(\\.railArtDirectory, artDirectory),
+                           family: family, width: w, height: h)
+        let full = pngData(view.frame(width: w, height: h)
+                               .background(RailCardBackdrop(style: style, family: family))
+                               .environment(\\.railBackdrop, style)
+                               .environment(\\.railArtDirectory, artDirectory),
+                           family: family, width: w, height: h)
+        if bare == full {
+            FileHandle.standardError.write(Data("素材 gate 失敗：\\(style) 的車模／場景沒有畫出來（\\(artDirectory)）\\n".utf8))
+            exit(1)
+        }
+    }
+    print("gate 通過：車模與場景素材都有畫出來")
+}
+
 // 430pt 機型：small 170×170、medium 364×170。393pt 機型：158×158、338×158。
 // 兩種寬度都要算——RailScale 的下限（k ≥ 0.86）只有窄機型踩得到。
 @main
@@ -791,6 +925,35 @@ struct Harness {
                width: 160, height: 72,
                scheme: .dark, mono: true, inset: 0, to: out + "/board-rect-pass.png")
 
+        // ── 背景 A 車模／C 場景：三尺寸 × 淺色／深色／著色 ──
+        artLoadedGate()
+        let artSizes: [(WidgetFamily, String, CGFloat, CGFloat)] = [
+            (.systemSmall, "small", 170, 170), (.systemMedium, "medium", 364, 170), (.systemLarge, "large", 364, 382),
+        ]
+        let artModes: [(ColorScheme, Bool, String)] = [(.light, false, "light"), (.dark, false, "dark"), (.dark, true, "tinted")]
+        for (style, tag) in [(RailBackdrop.model, "model"), (.scene, "scene")] {
+            for (family, size, w, h) in artSizes {
+                for (scheme, mono, mode) in artModes {
+                    renderStyled(artBoard, style: style, family: family, width: w, height: h,
+                                 scheme: scheme, mono: mono, to: out + "/art-\\(tag)-\\(size)-\\(mode).png")
+                }
+            }
+            // 393pt 機型（RailScale 下限那一側）。
+            renderStyled(artBoard, style: style, family: .systemSmall, width: 158, height: 158,
+                         to: out + "/art-\\(tag)-small-393.png")
+            renderStyled(artBoard, style: style, family: .systemMedium, width: 338, height: 158,
+                         to: out + "/art-\\(tag)-medium-393.png")
+            renderStyled(artBoard, style: style, family: .systemLarge, width: 338, height: 354,
+                         to: out + "/art-\\(tag)-large-393.png")
+            // 最壞內容：直達（莒光/復興＋臺北-環島）、班表警示、端點站＋長站名。
+            for (snap, name) in [(artCommute, "commute"), (artExpiring, "notice"), (artTerminal, "terminal")] {
+                for (family, size, w, h) in artSizes {
+                    renderStyled(snap, style: style, family: family, width: w, height: h,
+                                 to: out + "/art-\\(tag)-\\(size)-\\(name).png")
+                }
+            }
+        }
+
         // ── 我的地點 ──
         render(SmallPlaceBoardView(snapshot: place([traLine, thsrLine]), entryDate: clockNow),
                family: .systemSmall, width: 170, height: 170, to: out + "/place-small.png")
@@ -838,7 +1001,7 @@ writeFileSync(swiftPath, renderedHarness);
 
 execFileSync(
   'swiftc',
-  ['-O', '-parse-as-library', swiftPath, kitPath, l10nPath, '-o', binPath],
+  ['-O', '-parse-as-library', swiftPath, kitPath, artPath, l10nPath, '-o', binPath],
   { stdio: 'inherit' }
 );
 execFileSync(binPath, [outDir], { stdio: 'inherit' });
