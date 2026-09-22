@@ -99,6 +99,8 @@ const modelPath = join(widgetDir, 'MetroBoardModel.swift');
 // 共用元件層直接交給 swiftc 一起編（不抽宣告）：抽取會有「抽到舊版」的風險，而這一層是
 // 七個畫面的地基，抽錯的症狀是「算繪出來的版面不是出貨的版面」這種不會報錯的假象。
 const kitPath = join(widgetDir, 'RailWidgetKit.swift');
+// 背景（車模頭帶）元件層：同上，整檔交給 swiftc。
+const artPath = join(widgetDir, 'RailWidgetArt.swift');
 // 🔴 MetroWidgetCatalog 與它的查詢 extension 2026-08-22 搬到 App/MetroWidgetShared.swift。
 const sharedSource = readFileSync(join(widgetDir, '..', 'App', 'MetroWidgetShared.swift'), 'utf8');
 const widgetSource = readFileSync(join(widgetDir, 'MetroBoardWidget.swift'), 'utf8');
@@ -332,7 +334,8 @@ let outOfRangeEntry = MetroEntry(date: Date(), title: "不在服務範圍", line
 
 @MainActor
 func pngData<V: View>(_ view: V, family: WidgetFamily, width: CGFloat, height: CGFloat,
-                      scheme: ColorScheme = .light, mono: Bool = false) -> Data {
+                      scheme: ColorScheme = .light, mono: Bool = false,
+                      backdrop: RailBackdrop = .plain, artHidden: Bool = false) -> Data {
     // 🔴 \\.widgetFamily 對外只是唯讀 KeyPath(WidgetKit 只讓真的小工具宿主寫它)。
     //    2026-08-17 受控實驗:官方文件建議的 previewContext(WidgetPreviewContext(family:))
     //    在 swiftc 編出的【裸執行檔】裡對它完全沒有作用——三種 family 讀回來都是 .systemMedium
@@ -349,7 +352,12 @@ func pngData<V: View>(_ view: V, family: WidgetFamily, width: CGFloat, height: C
             //    版面預算的緊繃程度被系統性低估(改版前這支腳本一直是這樣)。
             .padding(16)
             .frame(width: width, height: height)
+            // 車模頭帶的底色在 containerBackground（出貨是 MetroBoardContainer）⇒ 墊在整張卡、
+            // 不吃那 16pt 邊距。素色時 RailCardBackdrop 什麼都不畫。
+            .background(RailCardBackdrop(style: backdrop, family: family))
             .background(Color(white: scheme == .dark ? 0.09 : 0.98))
+            .environment(\\.railArtDirectory, artDirectory)
+            .environment(\\.railArtHidden, artHidden)
             .environment(\\.colorScheme, scheme)
             // 🔴 單色(tinted／accented)模式:\\.widgetRenderingMode 同樣是唯讀 KeyPath,
             //    裸執行檔寫不了 ⇒ 走元件層自己的 railMonochrome 環境值(RailWidgetKit.swift)。
@@ -490,7 +498,11 @@ func render<V: View>(_ view: V, family: WidgetFamily, width: CGFloat, height: CG
                      scheme: ColorScheme = .light, mono: Bool = false, to path: String) {
     let png = pngData(view, family: family, width: width, height: height, scheme: scheme, mono: mono)
     try! png.write(to: URL(fileURLWithPath: path))
-    let name = (path as NSString).lastPathComponent
+    checkInk(png, name: (path as NSString).lastPathComponent, width: width, height: height)
+}
+
+@MainActor
+func checkInk(_ png: Data, name: String, width: CGFloat, height: CGFloat) {
     guard let b = inkBounds(png, scale: 3) else {
         FileHandle.standardError.write(Data("破版:\\(name) 整張空白\\n".utf8)); exit(1)
     }
@@ -506,6 +518,40 @@ func render<V: View>(_ view: V, family: WidgetFamily, width: CGFloat, height: CG
         exit(1)
     }
     print("寫出 \\(name)（\\(Int(width))×\\(Int(height)) pt @3x,墨跡 y \\(Int(b.y0))–\\(Int(b.y1))/\\(Int(height - 16))）")
+}
+
+// ── 車模背景（2026-09-23 裁示：捷運卡只有車模／素色）──────────────────────────
+let artDirectory = ${JSON.stringify(resolve(here, '../ios/App/RailBoardWidget/Assets.xcassets'))}
+
+func withModel(_ e: MetroEntry) -> MetroEntry { var c = e; c.backdrop = .model; return c }
+
+/// 每張車模圖算兩次（與 render_board_widget.mjs 同一做法）：
+///   1) gate：車藏起來、不墊頭帶 ⇒ 破版 gate 量到的只剩文字（小卡的車刻意超出內容框被圓角裁掉）
+///   2) 展示：頭帶＋車照畫，蓋掉同一個檔名
+@MainActor
+func renderModel(_ entry: MetroEntry, family: WidgetFamily, width: CGFloat, height: CGFloat,
+                 scheme: ColorScheme = .light, mono: Bool = false, to path: String) {
+    let e = withModel(entry)
+    let png0 = pngData(MetroBoardView(entry: e), family: family, width: width, height: height,
+                       scheme: scheme, mono: mono, artHidden: true)
+    checkInk(png0, name: (path as NSString).lastPathComponent, width: width, height: height)
+    let png = pngData(MetroBoardView(entry: e), family: family, width: width, height: height,
+                      scheme: scheme, mono: mono, backdrop: e.cardBackdrop)
+    try! png.write(to: URL(fileURLWithPath: path))
+    print("寫出 \\((path as NSString).lastPathComponent)（車模）")
+}
+
+/// 🔴 車真的畫出來了：Image 讀不到時會靜靜畫出空白，車模圖看起來就只是「素色多一條頭帶」。
+@MainActor
+func modelLoadedGate(_ entry: MetroEntry) {
+    let e = withModel(entry)
+    let bare = pngData(MetroBoardView(entry: e), family: .systemSmall, width: 170, height: 170, artHidden: true)
+    let full = pngData(MetroBoardView(entry: e), family: .systemSmall, width: 170, height: 170)
+    if bare == full {
+        FileHandle.standardError.write(Data("素材 gate 失敗：捷運小卡的車模沒有畫出來（\\(artDirectory)）\\n".utf8))
+        exit(1)
+    }
+    print("gate 通過：捷運車模素材有畫出來")
 }
 
 /// 🔴 第一道 gate:證明 family 真的傳進去了。
@@ -590,6 +636,29 @@ struct Harness {
                width: 170, height: 170, to: outDir + "/metro-small-auto-fail.png")
         render(MetroBoardView(entry: outOfRangeEntry), family: .systemSmall,
                width: 170, height: 170, to: outDir + "/metro-small-out-of-range.png")
+
+        // ── 車模：三尺寸 × 淺／深／著色，加擁擠度、轉乘站、高捷、末班、393pt、空狀態 ──
+        modelLoadedGate(szEntry)
+        for (scheme, mono, mode) in [(ColorScheme.light, false, "light"), (.dark, false, "dark"), (.dark, true, "tinted")] {
+            renderModel(szEntry, family: .systemSmall, width: 170, height: 170,
+                        scheme: scheme, mono: mono, to: outDir + "/model-small-\\(mode).png")
+            renderModel(taipeiEntry, family: .systemMedium, width: 364, height: 170,
+                        scheme: scheme, mono: mono, to: outDir + "/model-medium-\\(mode).png")
+            renderModel(taipeiEntry, family: .systemLarge, width: 364, height: 382,
+                        scheme: scheme, mono: mono, to: outDir + "/model-large-\\(mode).png")
+        }
+        renderModel(crowdEntry, family: .systemSmall, width: 170, height: 170, to: outDir + "/model-small-crowd.png")
+        renderModel(taipeiEntry, family: .systemSmall, width: 170, height: 170, to: outDir + "/model-small-taipei.png")
+        renderModel(zxfxEntry, family: .systemSmall, width: 170, height: 170, to: outDir + "/model-small-interchange.png")
+        renderModel(zxfxEntry, family: .systemMedium, width: 364, height: 170, to: outDir + "/model-medium-interchange.png")
+        renderModel(crowdEntry, family: .systemMedium, width: 364, height: 170, to: outDir + "/model-medium-crowd.png")
+        renderModel(taipeiLateEntry, family: .systemMedium, width: 364, height: 170, to: outDir + "/model-medium-lastcall.png")
+        renderModel(hmxEntry, family: .systemSmall, width: 170, height: 170, to: outDir + "/model-small-krtc.png")
+        renderModel(hmxEntry, family: .systemLarge, width: 364, height: 382, to: outDir + "/model-large-krtc.png")
+        renderModel(szEntry, family: .systemSmall, width: 158, height: 158, to: outDir + "/model-small-393.png")
+        renderModel(crowdEntry, family: .systemMedium, width: 338, height: 158, to: outDir + "/model-medium-393.png")
+        renderModel(taipeiEntry, family: .systemLarge, width: 338, height: 354, to: outDir + "/model-large-393.png")
+        renderModel(autoFailEntry, family: .systemMedium, width: 364, height: 170, to: outDir + "/model-medium-empty.png")
     }
 }
 `;
@@ -607,7 +676,7 @@ copyFileSync(dataPath, join(outDir, 'MetroWidgetData.json'));
 
 execFileSync(
   'swiftc',
-  ['-O', '-parse-as-library', swiftPath, modelPath, kitPath, '-o', binPath],
+  ['-O', '-parse-as-library', swiftPath, modelPath, kitPath, artPath, '-o', binPath],
   { stdio: 'inherit' }
 );
 execFileSync(binPath, [outDir], { stdio: 'inherit' });

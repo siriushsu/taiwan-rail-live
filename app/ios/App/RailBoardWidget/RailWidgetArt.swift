@@ -93,7 +93,8 @@ enum RailWidgetArt {
             switch line {
             case "BR": return "val256"
             case "R", "R_XBT", "G", "G_XBT": return "c381"
-            case "O_XINZHUANG", "O_LUZHOU": return "c371"
+            // 官方 trains[].stn 只給得出主代碼 O（見 MetroBoardModel 的 lineCode），目錄才拆成兩支。
+            case "O", "O_XINZHUANG", "O_LUZHOU": return "c371"
             case "BL": return "c341"
             case "Y": return "y100"
             default: return nil
@@ -419,6 +420,42 @@ struct RailStationPlate: View {
 // MARK: - 小工具
 
 /// 0xRRGGBB → Color。這一層的色票是設計稿的固定值（站名牌、頭帶），不是資料驅動的路線色／車種色。
+// MARK: - A 頭帶的內容層
+
+/// 站名（中卡 20／大卡 24 粗體）＋更新時間疊兩行靠左，右邊停下一班的代表車、壓在頭帶下緣上。
+/// 頭帶底色畫在 containerBackground（RailCardBackdrop），高度同一個常數 bandHeight。
+/// 台鐵看板與捷運看板共用這一份，兩張卡的頭帶才不會各自漂。
+/// 車的位置照 mockup A 大卡（right:18px; bottom:4px; 118×77），中卡等比縮成 84×56。
+struct RailModelBand<Stamp: View>: View {
+    let title: String
+    /// nil ＝認不出下一班是哪一台（轉乘站分不出線）⇒ 頭帶照畫、不畫車，版面不跳。
+    let model: String?
+    let large: Bool
+    var scale: RailScale = RailScale(k: 1)
+    @ViewBuilder var stamp: () -> Stamp
+
+    var body: some View {
+        let height = scale.pt(RailWidgetArt.bandHeight(large ? .systemLarge : .systemMedium))
+            - RailWidgetArt.cardInset
+        VStack(alignment: .leading, spacing: scale.pt(large ? 3 : 2)) {
+            Text(title)
+                .font(.system(size: scale.pt(large ? 24 : 20), weight: .bold))
+                .lineLimit(1).minimumScaleFactor(0.8)
+            stamp()
+        }
+        .padding(.trailing, scale.pt(large ? 122 : 92))
+        .frame(maxWidth: .infinity, minHeight: height, maxHeight: height, alignment: .topLeading)
+        .background(alignment: .bottomTrailing) {
+            if let model {
+                RailTrainArt(model: model)
+                    .frame(width: scale.pt(large ? 118 : 84), height: scale.pt(large ? 77 : 56),
+                           alignment: .bottomTrailing)
+                    .offset(x: large ? -scale.pt(2) : 0, y: large ? -scale.pt(4) : scale.pt(2))
+            }
+        }
+    }
+}
+
 // MARK: - 場景上的小字墊底
 
 /// C 場景上的小字（班表警示、中卡的更新時間）墊一塊半透明底：場景是一整張圖，

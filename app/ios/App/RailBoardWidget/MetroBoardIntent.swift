@@ -40,9 +40,27 @@ struct MetroBoardIntent: AppIntent, WidgetConfigurationIntent {
     @Parameter(title: "方向（可留空）", optionsProvider: MetroDirectionOptionsProvider())
     var dir: String?
 
+    // 2026-09-23 裁示:捷運卡只給「車模／素色」——現有三個場景都是台鐵題材,之後補捷運場景再開。
+    @Parameter(title: "背景", default: .model)
+    var background: RailMetroBackgroundOption
+
     // 🔴 刻意【不定義】parameterSummary——定義了它,沒被列進 Summary 的參數那一格
     //    會被整格藏起來(原規劃稿只列 station/dir,「系統」格就消失了)。
     //    出貨的發車看板同樣不定義,三格全部預設顯示(AppIntent.swift:278-286)。
+}
+
+/// 捷運卡的「背景」選項。rawValue 與台鐵卡的 RailWidgetBackgroundOption 同一套存值(model／plain),
+/// 兩平台共用,不要改名。
+enum RailMetroBackgroundOption: String, AppEnum {
+    case model
+    case plain
+
+    static var typeDisplayRepresentation: TypeDisplayRepresentation { "背景" }
+    static var caseDisplayRepresentations: [RailMetroBackgroundOption: DisplayRepresentation] {
+        [.model: "車模", .plain: "素色"]
+    }
+
+    var backdrop: RailBackdrop { RailBackdrop(rawValue: rawValue) ?? .plain }
 }
 
 struct MetroSystemOptionsProvider: DynamicOptionsProvider {

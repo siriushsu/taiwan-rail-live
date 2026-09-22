@@ -24,6 +24,9 @@ struct MetroEntry: TimelineEntry {
     // 點這張卡要在背景開等車卡的目標。nil ＝這一格沒有站可追(還沒選站、自動選站解析失敗、
     // 或被通行證閘門擋下要導去方案頁)⇒ 照舊走 widgetURL 深連結,見 MetroBoardView.body。
     var waitTarget: MetroWaitTarget? = nil
+    // 小工具設定的「背景」（2026-09-23 裁示：捷運卡只有車模／素色，沒有場景）。
+    // 實際畫不畫看 cardBackdrop——空狀態沒有車可畫。
+    var backdrop: RailBackdrop = .plain
 }
 
 /// 「點卡就在背景開等車卡」的目標。dest ＝小工具那格選的方向(終點站名),沒選就是 nil
@@ -35,6 +38,17 @@ struct MetroWaitTarget: Hashable {
 }
 
 extension MetroEntry {
+    /// 依 entry 時刻過濾:到站超過 30 秒的列整列退場(timeline 在 eta+31 有預排邊界 entry)。
+    /// 分鐘級(etaEpoch nil)不過濾——沒有絕對時刻可判,列到下次刷新為止。
+    var visibleRows: [MetroRow] {
+        guard let rows = snapshot?.rows else { return [] }
+        return rows.filter { $0.etaEpoch == nil || $0.etaEpoch! + 30 > date.timeIntervalSince1970 }
+    }
+
+    /// 這張卡實際要畫的背景:有看得見的下一班才畫車模(空狀態、通行證 CTA 沒有車可畫 ⇒ 素色)。
+    /// 🔴 containerBackground(頭帶底色)與卡面(站名、車)都讀這一個,兩層才不會一個有一個沒有。
+    var cardBackdrop: RailBackdrop { visibleRows.isEmpty ? .plain : backdrop }
+
     /// 這張卡畫的資料已經幾秒了。dataAt 取自官方回應自帶的時刻(MetroBoardModel.payloadTime),
     /// 所以這是「資料的年紀」,不是「距離上次刷新多久」——後者對被快取餵舊主體的情況恆為 0。
     func dataAge(at date: Date) -> Double? {
@@ -75,11 +89,14 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
     }
 
     func snapshot(for configuration: MetroBoardIntent, in context: Context) async -> MetroEntry {
-        await entry(for: configuration)
+        var e = await entry(for: configuration)
+        e.backdrop = configuration.background.backdrop
+        return e
     }
 
     func timeline(for configuration: MetroBoardIntent, in context: Context) async -> Timeline<MetroEntry> {
-        let e = await entry(for: configuration)
+        var e = await entry(for: configuration)
+        e.backdrop = configuration.background.backdrop
         // 官方視野約 12 分鐘。刷新間隔壓在視野內,讓「下一次刷新之前資料還有效」。
         // 系統不保證照做——所以版面一律顯示資料時刻,不假裝即時。
         // 🔴 真機回饋(08-14):單一 entry ⇒ 倒數走完【全卡僵在 0:00】直到下次刷新。
@@ -122,7 +139,7 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
                            lastTrain: e.lastTrain, failed: e.failed, deepLink: e.deepLink,
                            auto: e.auto, autoStale: e.autoStale, autoHint: e.autoHint,
                            passCTA: e.passCTA, sys: e.sys,
-                           waitTarget: e.waitTarget)
+                           waitTarget: e.waitTarget, backdrop: e.backdrop)
             }
         }
         // 🔴 刷新策略(真機回饋 08-14 第五輪:「只剩一兩班看起來像沒車」):有預排邊界時用 .atEnd
@@ -248,11 +265,33 @@ struct MetroBoardWidget: Widget {
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: "MetroBoardWidget", intent: MetroBoardIntent.self,
                                provider: MetroBoardProvider()) { entry in
-            MetroBoardView(entry: entry).containerBackground(.fill.tertiary, for: .widget)
+            MetroBoardContainer(entry: entry)
         }
         .configurationDisplayName("捷運看板")
         .description("選一個捷運站，看下一班還有多久。")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+    }
+}
+
+/// 卡片底色。素色維持原本那一行 `.containerBackground(.fill.tertiary, …)` 不動(逐像素與改版前相同);
+/// 車模在同一個底色上面多疊一條頭帶(RailCardBackdrop)。著色模式與 StandBy 系統會把整層拿掉,
+/// 車與站名在卡面內容層,不受影響。
+struct MetroBoardContainer: View {
+    let entry: MetroEntry
+    @Environment(\.widgetFamily) private var family
+
+    var body: some View {
+        let style = entry.cardBackdrop
+        if style == .plain {
+            MetroBoardView(entry: entry).containerBackground(.fill.tertiary, for: .widget)
+        } else {
+            MetroBoardView(entry: entry).containerBackground(for: .widget) {
+                ZStack(alignment: .top) {
+                    Rectangle().fill(.fill.tertiary)
+                    RailCardBackdrop(style: style, family: family)
+                }
+            }
+        }
     }
 }
 
@@ -360,17 +399,36 @@ struct MetroBoardView: View {
                     .widgetAccentable()
 
                 // 註腳：擁擠度＋同方向的再下一班。兩者都沒有時整列留空（不寫佔位文字）。
-                HStack(spacing: scale.pt(6)) {
-                    if let c = lead.crowd, !c.isEmpty {
-                        RailCarriageMeter(levels: c, scale: scale)
+                Group {
+                    if entry.cardBackdrop == .model {
+                        // 🔴 右下角讓給車模：註腳只剩車頭左邊約 72pt，「格子＋舒適＋再 N 分」擠不下。
+                        //    依序退：格子＋再下一班 → 只留格子（擁擠度講的是【這一班】，再下一班讓位）。
+                        //    「舒適／擁擠」那個字一律收掉：格子的顏色與高度就是讀數。
+                        if let c = lead.crowd, !c.isEmpty {
+                            ViewThatFits(in: .horizontal) {
+                                smallFooter(lead, scale, showWord: false)
+                                RailCarriageMeter(levels: c, showWord: false, scale: scale)
+                            }
+                        } else {
+                            smallFooter(lead, scale, showWord: false)
+                        }
+                    } else {
+                        smallFooter(lead, scale, showWord: true)
                     }
-                    if let nxt = nextSameDirection(after: lead) {
-                        Text(nextText(nxt)).font(.system(size: scale.pt(12)))
-                            .foregroundStyle(.secondary).lineLimit(1).fixedSize()
-                    }
-                    Spacer(minLength: 0)
                 }
+                .frame(maxWidth: entry.cardBackdrop == .model ? scale.pt(72) : .infinity, alignment: .leading)
                 .frame(height: scale.pt(16))
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(alignment: .bottomTrailing) {
+                // mockup A 捷運小卡:right:-16px; bottom:-4px; 110×72(相對卡片邊緣)
+                // ⇒ 從內容框再往外推一個系統邊距,讓卡片圓角把車尾裁掉。
+                if entry.cardBackdrop == .model, let m = model(lead) {
+                    RailTrainArt(model: m)
+                        .frame(width: scale.pt(110), height: scale.pt(72), alignment: .bottomTrailing)
+                        .offset(x: scale.pt(16) + RailWidgetArt.cardInset,
+                                y: scale.pt(4) + RailWidgetArt.cardInset)
+                }
             }
         } else {
             VStack(alignment: .leading, spacing: scale.pt(6)) {
@@ -385,16 +443,40 @@ struct MetroBoardView: View {
         }
     }
 
+    private func smallFooter(_ lead: MetroRow, _ scale: RailScale, showWord: Bool) -> some View {
+        HStack(spacing: scale.pt(6)) {
+            if let c = lead.crowd, !c.isEmpty {
+                RailCarriageMeter(levels: c, showWord: showWord, scale: scale)
+            }
+            if let nxt = nextSameDirection(after: lead) {
+                Text(nextText(nxt)).font(.system(size: scale.pt(12)))
+                    .foregroundStyle(.secondary).lineLimit(1).fixedSize()
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
     // MARK: - Medium／Large：一主多從
 
     @ViewBuilder private func listCard(_ scale: RailScale) -> some View {
         let rows = visibleRows
         let follows = Array(rows.dropFirst().prefix(followLimit))
         VStack(alignment: .leading, spacing: 0) {
-            RailCardTitle(title: RailNativeL10n.name(entry.title), scale: scale) {
-                HStack(spacing: scale.pt(4)) {
-                    if entry.auto { autoBadge(scale) }
-                    RailStamp(text: stampTime, warn: entry.failed, scale: scale)
+            if entry.cardBackdrop == .model {
+                // A 頭帶:與台鐵看板同一個元件(RailModelBand),右邊停下一班的代表車。
+                RailModelBand(title: RailNativeL10n.name(entry.title), model: rows.first.flatMap(model),
+                              large: family == .systemLarge, scale: scale) {
+                    HStack(spacing: scale.pt(4)) {
+                        if entry.auto { autoBadge(scale) }
+                        RailStamp(text: stampTime, warn: entry.failed, scale: scale)
+                    }
+                }
+            } else {
+                RailCardTitle(title: RailNativeL10n.name(entry.title), scale: scale) {
+                    HStack(spacing: scale.pt(4)) {
+                        if entry.auto { autoBadge(scale) }
+                        RailStamp(text: stampTime, warn: entry.failed, scale: scale)
+                    }
                 }
             }
             if let last = entry.lastTrain {
@@ -436,9 +518,29 @@ struct MetroBoardView: View {
     ///    少列一班，不是把列高壓小（壓小會讓同一張卡在兩種狀態下列高不同，縱向對齊當場破掉）。
     /// 🔴 Large 一開始寫 6 是照設計稿字面，但實測那樣底部會空 77pt——正是設計稿自己批評的
     ///    「留大片空白」。官方視野約 12 分鐘、台北車站這種大站排得滿，8 列排得下就排。
+    /// 🔴 車模頭帶比標題列高:中卡 44 vs 21、大卡 70 vs 21 ⇒ 中卡少一班、大卡少一班。
+    ///   中卡:44＋4＋44＋22×2 ＝ 136／138(末班車那行再少一班:44＋18＋4＋44＋22 ＝ 132)
+    ///   大卡:70＋4＋44＋32×7 ＝ 342／350(末班車:70＋18＋4＋44＋32×6 ＝ 328)
     private var followLimit: Int {
         let hasLast = entry.lastTrain != nil
-        return family == .systemLarge ? (hasLast ? 7 : 8) : (hasLast ? 2 : 3)
+        let band = entry.cardBackdrop == .model ? 1 : 0
+        return (family == .systemLarge ? (hasLast ? 7 : 8) : (hasLast ? 2 : 3)) - band
+    }
+
+    /// 下一班的代表車。先照該列解析得出的線(與線色同一條規則 MetroBoardModel.resolveLine),
+    /// 分不出唯一解時看本站所有路線是否都對到同一台車;還是分不出來就不畫(不猜)。
+    private func model(_ r: MetroRow) -> String? {
+        guard let sys = entry.sys else { return nil }
+        let cat = MetroWidgetCatalog.shared
+        let here = cat.lineIDsAt(sys: sys, station: entry.title)
+        if let code = MetroBoardModel.resolveLine(joined: r.lineCode, trainNo: r.trainNo,
+                                                  station: entry.title, dest: r.dest,
+                                                  stationLines: here,
+                                                  destLines: cat.lineIDsAt(sys: sys, station: r.dest)),
+           let m = RailWidgetArt.metroModel(sys: sys, line: code) {
+            return m
+        }
+        return RailWidgetArt.metroModel(sys: sys, candidates: here)
     }
 
     // MARK: - 零件
@@ -474,12 +576,8 @@ struct MetroBoardView: View {
                                         : AnyShapeStyle(HierarchicalShapeStyle.secondary))
     }
 
-    /// 依 entry 時刻過濾:到站超過 30 秒的列整列退場(timeline 在 eta+31 有預排邊界 entry)。
-    /// 分鐘級(etaEpoch nil)不過濾——沒有絕對時刻可判,列到下次刷新為止。
-    private var visibleRows: [MetroRow] {
-        guard let rows = entry.snapshot?.rows else { return [] }
-        return rows.filter { $0.etaEpoch == nil || $0.etaEpoch! + 30 > entry.date.timeIntervalSince1970 }
-    }
+    /// 判準住在 MetroEntry.visibleRows(containerBackground 也要用同一份判斷畫不畫頭帶)。
+    private var visibleRows: [MetroRow] { entry.visibleRows }
 
     /// 這張卡上看得見的列裡,出現過兩次以上的終點。只有這些列的次列要補線名。
     /// 判準取【看得見的那幾列】不是全部 rows:第七列也叫「往 南港展覽館」不會讓第二列變得難讀。

@@ -1428,25 +1428,11 @@ struct LargeBoardView: View {
                           suffix: scale.readable ? "" : "更新", scale: scale)
             }
         case .model:
-            // mockup A 大卡：頭帶 86pt（底色在 RailCardBackdrop），站名 24pt 粗體、更新時間在下面，
-            // 右邊停下一班的代表車（right:18px; bottom:4px; 118×77）。
-            VStack(alignment: .leading, spacing: scale.pt(3)) {
-                Text(RailNativeL10n.name(snapshot.title))
-                    .font(.system(size: scale.pt(24), weight: .bold))
-                    .lineLimit(1).minimumScaleFactor(0.8)
+            // mockup A 大卡：頭帶 86pt，站名 24pt 粗體、更新時間在下面，右邊停下一班的代表車。
+            RailModelBand(title: RailNativeL10n.name(snapshot.title),
+                          model: snapshot.rows.first.map { RailWidgetArt.traModel(type: $0.trainType) },
+                          large: true, scale: scale) {
                 RailStamp(text: RailBoardClock.updateTimeString(snapshot.generatedAt), scale: scale)
-            }
-            .padding(.trailing, scale.pt(122))
-            .frame(maxWidth: .infinity,
-                   minHeight: scale.pt(RailWidgetArt.bandHeight(.systemLarge)) - RailBoardInsets.content,
-                   maxHeight: scale.pt(RailWidgetArt.bandHeight(.systemLarge)) - RailBoardInsets.content,
-                   alignment: .topLeading)
-            .background(alignment: .bottomTrailing) {
-                if let lead = snapshot.rows.first {
-                    RailTrainArt(model: RailWidgetArt.traModel(type: lead.trainType))
-                        .frame(width: scale.pt(118), height: scale.pt(77), alignment: .bottomTrailing)
-                        .offset(x: -scale.pt(2), y: -scale.pt(4))
-                }
             }
         case .scene:
             // C：左上角琺瑯站名牌；更新時間在頁尾那行（mockup：「更新時間移到大卡最底那行」）。
@@ -1623,24 +1609,10 @@ struct MediumBoardView: View {
             }
         case .model:
             // A 頭帶：站名＋更新時間疊兩行靠左，右邊停下一班的代表車（車壓在頭帶下緣上）。
-            // 頭帶底色畫在 containerBackground（RailCardBackdrop），高度同一個常數。
-            VStack(alignment: .leading, spacing: scale.pt(2)) {
-                Text(RailNativeL10n.name(snapshot.title))
-                    .font(.system(size: scale.pt(20), weight: .bold))
-                    .lineLimit(1).minimumScaleFactor(0.8)
+            RailModelBand(title: RailNativeL10n.name(snapshot.title),
+                          model: snapshot.rows.first.map { RailWidgetArt.traModel(type: $0.trainType) },
+                          large: false, scale: scale) {
                 RailStamp(text: RailBoardClock.updateTimeString(snapshot.generatedAt), scale: scale)
-            }
-            .padding(.trailing, scale.pt(92))
-            .frame(maxWidth: .infinity,
-                   minHeight: scale.pt(RailWidgetArt.bandHeight(.systemMedium)) - RailBoardInsets.content,
-                   maxHeight: scale.pt(RailWidgetArt.bandHeight(.systemMedium)) - RailBoardInsets.content,
-                   alignment: .topLeading)
-            .background(alignment: .bottomTrailing) {
-                if let lead = snapshot.rows.first {
-                    RailTrainArt(model: RailWidgetArt.traModel(type: lead.trainType))
-                        .frame(width: scale.pt(84), height: scale.pt(56), alignment: .bottomTrailing)
-                        .offset(y: scale.pt(2))
-                }
             }
         case .scene:
             // C：站名牌在左、更新時間靠右貼著站名牌底緣（中卡沒有頁尾可以放它）。
