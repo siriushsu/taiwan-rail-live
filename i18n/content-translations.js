@@ -3121,12 +3121,12 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   'Android 桌面的台鐵發車看板改成卡片放得下幾班就列幾班，Samsung 手機下方不再空一截': 'Android のホーム画面の台鉄発車案内ウィジェットが、カードに入るだけの列車を表示するようになり、Samsung 端末で下に空白が残らなくなりました'
 });
-// 2026-09-23 Android 16 捷運等車通知進站軌道：第一層「最近更新」會顯示這句，同步補 en/ja。
+// 2026-09-23 等車卡進站軌道（iPhone＋Android 16、捷運＋台鐵）：第一層「最近更新」會顯示這句，同步補 en/ja。
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
-  'Android 16 的捷運等車通知加入進站軌道，列車跟著官方倒數開向你的車站': 'On Android 16, metro waiting notifications now show an arrival track, with the train moving toward your station along with the official countdown'
+  'iPhone 與 Android 16 的等車卡加入進站軌道，捷運跟著官方倒數、台鐵跟著官方誤點': 'Waiting cards on iPhone and Android 16 now show an arrival track, following official countdowns for the metro and official delays for TRA'
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
-  'Android 16 的捷運等車通知加入進站軌道，列車跟著官方倒數開向你的車站': 'Android 16 のメトロ待ち通知に到着トラックを追加。列車が公式カウントダウンに合わせてあなたの駅へ向かいます'
+  'iPhone 與 Android 16 的等車卡加入進站軌道，捷運跟著官方倒數、台鐵跟著官方誤點': 'iPhone と Android 16 の待ち案内カードに到着トラックを追加。メトロは公式カウントダウン、台鉄は公式の遅延に合わせて動きます'
 });
 // 2026-09-23 跟車每 15 秒頓一下（車站建物遮罩分片計算）：首層摘要與第二層正本都要 en/ja。
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
@@ -3136,4 +3136,11 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '立體地圖跟車時，畫面不再約每 15 秒頓一下': '立体地図で列車を追跡しているとき、約15秒ごとに画面が一瞬止まる問題を修正しました。',
   '改善立體列車跟隨與地形畫面的流暢度，保留完整編組、模型細節與沿軌行駛；9/23 再修正跟車時畫面約每 15 秒頓一下：沿途建築的遮擋判斷改成分段計算，不再擠在同一格畫面裡算完': '編成や模型の細部、線路に沿った連続走行を保ちながら、立体列車の追従と地形表示を滑らかにしました。9/23 には列車の追跡中に約15秒ごとに画面が一瞬止まる問題を修正し、沿線の建物による遮蔽の判定を複数のフレームに分けて計算するようにしました。',
+});
+// 2026-09-23 桌面小工具「背景」設定：第一層「最近更新」會顯示這句，同步補 en/ja。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '桌面小工具新增「背景」設定，可選車模、場景或素色': 'Widgets get a new Background setting: Train model, Scene, or Plain'
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '桌面小工具新增「背景」設定，可選車模、場景或素色': 'ホーム画面ウィジェットに「背景」設定を追加（車両モデル・情景・無地）'
 });

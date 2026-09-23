@@ -5511,14 +5511,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="widgetbg0923"><span class="d">9/23</span><span>桌面小工具新增「背景」設定，可選車模、場景或素色</span></li>
         <li data-cl-of="perf3d0907"><span class="d">9/23</span><span>立體地圖跟車時，畫面不再約每 15 秒頓一下</span></li>
-        <li data-cl-of="metrowaittrack0923"><span class="d">9/23</span><span>Android 16 的捷運等車通知加入進站軌道，列車跟著官方倒數開向你的車站</span></li>
+        <li data-cl-of="metrowaittrack0923"><span class="d">9/23</span><span>iPhone 與 Android 16 的等車卡加入進站軌道，捷運跟著官方倒數、台鐵跟著官方誤點</span></li>
         <li data-cl-of="railboardrows0923"><span class="d">9/23</span><span>Android 桌面的台鐵發車看板改成卡片放得下幾班就列幾班，Samsung 手機下方不再空一截</span></li>
         <li data-cl-of="checkinsync0923"><span class="d">9/23</span><span>成就「通勤的證明」「老通勤族」的路段次數與打卡車站，現在會跟著帳號雲端同步，換一台裝置登入不再歸零（謝謝網友回報）</span></li>
         <li data-cl-of="metrowaitapproach0923"><span class="d">9/23</span><span>iPhone 捷運等車卡在列車進站前約 4 分鐘內，每分鐘跟官方即時資訊對一次時</span></li>
         <li data-cl-of="glassnear0913"><span class="d">9/23</span><span>跟車前進時，沿途建築的透視線條會持續更新，不必等列車靠站才一次出現</span></li>
         <li data-cl-of="tymcexpo0922"><span class="d">9/22</span><span>機捷跟上台灣設計展疏運班表（9/24–10/11）：假日機場第一航廈到環北的區間加班車每 15 分鐘一班，南延直達車改到機場第二航廈為止；深夜山鼻以南時刻也照官方改點更新</span></li>
-        <li data-cl-of="yfallback0920"><span class="d">9/20</span><span>環狀線即時資料暫時中斷、在線列車無法定位時，地圖會自動改按當日班表運行，並標示「班表推估、時間可能有誤差」；訊號恢復後自動切回即時資料</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5701,7 +5701,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
-        <li data-cl="metrowaittrack0923"><span class="d">9/23</span><span>Android 16 的捷運等車通知加入進站軌道：左邊是上一站、右邊是你的車站站牌，台北捷運的列車以正側面圖跟著官方倒數往前開；Android 1.6.11 起生效，較舊的 Android 版本維持原本的通知樣式</span></li>
+        <li data-cl="metrowaittrack0923"><span class="d">9/23</span><span>等車卡加入進站軌道：左邊是上一站、右邊是你的車站站牌，列車以正側面圖往前開，台北捷運跟著官方倒數、台鐵照表定加上官方誤點；iPhone 顯示在鎖定畫面與動態島，Android 16 顯示在通知。App 1.6.11 起生效，較舊的 Android 版本維持原本的通知樣式</span></li>
         <li data-cl="metrowaitapproach0923"><span class="d">9/23</span><span>iPhone 捷運等車卡：列車離你的車站只剩最後一段（約 4 分鐘內）時，鎖定畫面與動態島的倒數改成每分鐘跟官方即時資訊對一次時；更早之前照舊只在班次或時間明顯變動時才更新</span></li>
         <li data-cl="virtualloops0920"><span class="d">9/20</span><span>山海號與平原號現在從地圖車牌、車站看板到列車資訊都直接標示為「軌島虛構專列」，不會再看起來像真實營運班次</span></li>
         <li data-cl="boardall0920"><span class="d">9/20</span><span>台鐵、高鐵與林鐵車站看板不再只看得到每個方向最近 3 班；點一下就能在同一張看板展開接下來 3 小時的全部班次，需要時也能收回精簡版</span></li>
@@ -5805,6 +5805,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="widgetbg0923"><span class="d">9/23</span><span>桌面小工具新增「背景」設定：台鐵／高鐵發車看板可選車模、場景或素色，捷運看板可選車模或素色；iPhone 與 Android 都有，App 1.6.11 起生效</span></li>
         <li data-cl="railboardrows0923"><span class="d">9/23</span><span>Android 桌面的台鐵發車看板改成卡片放得下幾班就列幾班：Samsung 等把小工具格子給得比較高的手機，卡片下方不再空一大截；小、中、大三種尺寸與大字版一起調整</span></li>
         <li data-cl="widgetrailjump0919"><span class="d">9/19</span><span>從台鐵發車看板或鐵路＋捷運雙看板點進軌島時，會回到正確的鐵路地圖與車站；臺北車站不會再被同名的捷運站截走</span></li>
         <li data-cl="cexpiostap0919"><span class="d">9/19</span><span>修正 iPhone／iPad 底部速度膠囊點不開：淡出把手點一下只會醒來，第二下常被誤導點到旁邊的暫停鍵；現在放開手指就直接展開，不再誤觸暫停。Android／桌面不受影響。</span></li>
@@ -6604,7 +6605,8 @@
 // v0923d：更新紀錄補 Android 台鐵發車看板班數跟著卡片高度走（網頁本身無變動；原生改動隨 Android 1.6.11 (62) 出貨）。
 // v0923e：更新紀錄補 Android 16 捷運等車通知進站軌道（隨 Android 1.6.11 出貨）。
 // v0923f：跟車時車站建物遮罩改成分片計算，路線集合變動不再整批作廢快取，不再每 15 秒擠在同一幀算完。
-const BUILD = 'v0923f';
+// v0923g：更新紀錄補桌面小工具「背景」設定，等車卡進站軌道那條擴成 iPhone＋Android 16、捷運＋台鐵（隨 App 1.6.11 出貨）。
+const BUILD = 'v0923g';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
