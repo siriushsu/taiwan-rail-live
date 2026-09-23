@@ -3100,3 +3100,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '跟車前進時，沿途建築的透視線條會持續更新，不必等列車靠站才一次出現': '列車の追跡中も沿線の建物の透視線が更新され続け、停車したときにまとめて表示されることはなくなりました。',
 });
+// 2026-09-23 捷運等車卡進站前每分鐘對時：第一層「最近更新」會顯示這句，同步補 en/ja。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  'iPhone 捷運等車卡在列車進站前約 4 分鐘內，每分鐘跟官方即時資訊對一次時': 'On iPhone, the metro waiting card now re-syncs its countdown with official real-time data every minute during the last 4 minutes or so before the train arrives'
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  'iPhone 捷運等車卡在列車進站前約 4 分鐘內，每分鐘跟官方即時資訊對一次時': 'iPhoneのメトロ待ちカードは、列車到着の約4分前から毎分公式のリアルタイム情報と時刻を合わせるようになりました'
+});

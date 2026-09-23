@@ -5511,6 +5511,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="metrowaitapproach0923"><span class="d">9/23</span><span>iPhone 捷運等車卡在列車進站前約 4 分鐘內，每分鐘跟官方即時資訊對一次時</span></li>
         <li data-cl-of="glassnear0913"><span class="d">9/23</span><span>跟車前進時，沿途建築的透視線條會持續更新，不必等列車靠站才一次出現</span></li>
         <li data-cl-of="tymcexpo0922"><span class="d">9/22</span><span>機捷跟上台灣設計展疏運班表（9/24–10/11）：假日機場第一航廈到環北的區間加班車每 15 分鐘一班，南延直達車改到機場第二航廈為止；深夜山鼻以南時刻也照官方改點更新</span></li>
         <li data-cl-of="yfallback0920"><span class="d">9/20</span><span>環狀線即時資料暫時中斷、在線列車無法定位時，地圖會自動改按當日班表運行，並標示「班表推估、時間可能有誤差」；訊號恢復後自動切回即時資料</span></li>
@@ -5518,7 +5519,6 @@
         <li data-cl-of="boardall0920"><span class="d">9/20</span><span>台鐵、高鐵與林鐵車站看板不再只看得到每個方向最近 3 班；點一下就能在同一張看板展開接下來 3 小時的全部班次，需要時也能收回精簡版</span></li>
         <li data-cl-of="nangangbrstop0920"><span class="d">9/20</span><span>修正文湖線南港展覽館站的停車位置，列車會停在站體內的直線月台，不再停在西側彎道</span></li>
         <li data-cl-of="appnoticegeo0919"><span class="d">9/19</span><span>App 的長提示現在會完整換行，不再被列車卡片或畫面邊緣截斷，點通知外面即可收起；地圖傾斜時也會隱藏定位點，不會被拍進截圖或錄影</span></li>
-        <li data-cl-of="randomnextplate0919"><span class="d">9/19</span><span>按「隨機跟隨」或「換一班」時，地圖會短暫亮出月台風格的牌子，直接告訴你這班車的下一站</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5701,6 +5701,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="metrowaitapproach0923"><span class="d">9/23</span><span>iPhone 捷運等車卡：列車離你的車站只剩最後一段（約 4 分鐘內）時，鎖定畫面與動態島的倒數改成每分鐘跟官方即時資訊對一次時；更早之前照舊只在班次或時間明顯變動時才更新</span></li>
         <li data-cl="virtualloops0920"><span class="d">9/20</span><span>山海號與平原號現在從地圖車牌、車站看板到列車資訊都直接標示為「軌島虛構專列」，不會再看起來像真實營運班次</span></li>
         <li data-cl="boardall0920"><span class="d">9/20</span><span>台鐵、高鐵與林鐵車站看板不再只看得到每個方向最近 3 班；點一下就能在同一張看板展開接下來 3 小時的全部班次，需要時也能收回精簡版</span></li>
         <li data-cl="randomnextplate0919"><span class="d">9/19</span><span>按「隨機跟隨」或「換一班」時，地圖會短暫亮出月台風格的牌子，直接告訴你這班車的下一站</span></li>
@@ -6595,7 +6596,8 @@
 // v0920e：環狀線實際退回班表時明示「班表推估」與時間誤差，官方車輛恢復後自動撤除。
 // v0922a：機捷接上台灣設計展疏運班表(TDX 09-22 版):假日 A12–A21 區間加班車、南延直達車改到 A13、
 //         深夜山鼻以南改點;建置端補區間車折返站、SP3 增開車不再被切成兩台、直達車不再被回推假起點。
-const BUILD = 'v0923a';
+// v0923b：捷運等車卡伺服器推播在進站前 250 秒內每輪都推（等車卡 B 進站軌道的車位靠它前進）。
+const BUILD = 'v0923b';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
