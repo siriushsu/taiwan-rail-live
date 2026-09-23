@@ -19,7 +19,7 @@ export async function createStationLayer(map,getState,onUpdate=()=>{}, {assetsBa
   }
   records.sort((a,b)=>catalog.findIndex(e=>e.id===a.meta.id)-catalog.findIndex(e=>e.id===b.meta.id));
   const camera=new THREE.Camera(),projection=new THREE.Matrix4(),filters=new Map(),symbolFilters=new Map(),appliedSymbols=new Map();
-  let renderer,ownedSource,disposed=false,timer=0,viewTimer=0,sourceEpoch=0,maskEpoch=-1,maskKey='',contextKey='',labelKey='',lastVisible='',clock=0,engineeringMasks=[],engineeringMaskKey='',labelBounds=[];
+  let renderer,ownedSource,disposed=false,timer=0,viewTimer=0,sourceEpoch=0,maskEpoch=-1,maskKey='',contextKeys=[],labelKey='',lastVisible='',clock=0,engineeringMasks=[],engineeringMaskKey='',labelBounds=[];
   function primary(){return records.find(r=>r.entry.key===getState().place)||records.find(r=>r.stats.visible)||records[0];}
   function expandedBox(r,padding){const points=r.masks.flat(2),xs=points.map(p=>p[0]),ys=points.map(p=>p[1]),dx=padding/(111320*Math.cos(r.meta.anchor[1]*Math.PI/180)),dy=padding/111320;return [Math.min(...xs)-dx,Math.min(...ys)-dy,Math.max(...xs)+dx,Math.max(...ys)+dy];}
   function rectangle([w,s,e,n]){return [[[w,s],[e,s],[e,n],[w,n],[w,s]]];}
@@ -72,15 +72,33 @@ export async function createStationLayer(map,getState,onUpdate=()=>{}, {assetsBa
     // 分件原位重畫，不能讓背景建物消失，也不能保留一個方塊蓋住新屋頂。
     const live=new Set(),remainders=[],entries=[],hit=x=>x.blocked||x.owners.some(r=>activeSet.has(r));
     for(const f of features){if(f.id===undefined)continue;const key=f.tile.z+'/'+f.tile.x+'/'+f.tile.y+':'+f.id;live.add(key);
-      const parts=partCache.get(key);entries.push([f.id,parts]);
+      const parts=partCache.get(key);entries.push([f.id,parts,key+':']);
       for(const x of parts)if(hit(x)){ids.add(f.id);const r=x.owners.find(r=>activeSet.has(r));if(r&&!r.stats.excludedFeatureIds.includes(f.id))r.stats.excludedFeatureIds.push(f.id);}
     }
     // 同一個 id 在相鄰圖磚的另一份可能剛好沒有被遮到的分件,但整個 id 已從 building-3d 排除,它的分件也要重畫。
-    for(const [id,parts] of entries)if(ids.has(id))for(const x of parts)if(!hit(x))remainders.push(x);
+    // 分件 key＝featureKey+':'+i,featureKey(z/x/y:id)只有一個冒號,所以照 key 字串排時同一 feature 的分件必相鄰:
+    // feature 之間照 (featureKey+':') 的字串序、feature 內照 String(i) 的字串序(0,1,10,11,…,2)。先排 feature 再照固定順序展開,
+    // 與原本把 1.4 萬分件逐一字串排序逐物件同序(離線隨機 3000 例與兩種突變驗過),桌面 4x 跟車省下整段排序(5–15ms)。
+    const picked=entries.filter(e=>ids.has(e[0])).sort((a,b)=>a[2]<b[2]?-1:a[2]>b[2]?1:0);
+    for(const [,parts] of picked){const order=indexOrder(parts.length);for(let j=0;j<order.length;j++){const x=parts[order[j]];if(!hit(x))remainders.push(x);}}
     for(const key of partCache.keys())if(!live.has(key))partCache.delete(key);
-    remainders.sort((a,b)=>a.key<b.key?-1:a.key>b.key?1:0);const sigs=new Set(),unique=remainders.filter(x=>!sigs.has(x.sig)&&sigs.add(x.sig)),nextContext=unique.map(x=>x.key).join('|');let changed=false;
-    if(nextContext!==contextKey){contextKey=nextContext;ownedSource.setData({type:'FeatureCollection',features:unique.map(x=>x.feature)});changed=true;}
-    const values=[...ids].sort((a,b)=>a-b),key=values.join(',');if(key!==maskKey){maskKey=key;for(const [id,original] of filters){const exclude=['!', ['in',['id'],['literal',values]]];map.setFilter(id,values.length?(original?['all',original,exclude]:exclude):original);}rttPending=1;changed=true;}return changed;
+    const sigs=new Set(),unique=remainders.filter(x=>!sigs.has(x.sig)&&sigs.add(x.sig));let changed=false;
+    if(unique.length!==contextKeys.length||unique.some((x,i)=>x.key!==contextKeys[i])){contextKeys=unique.map(x=>x.key);setRemainders(unique);changed=true;}
+    // filter 形狀固定、由這裡組出,不必每次跑 style-spec 驗證(桌面 4x 每次套用 6–16ms,是 setFilter 的大宗)。
+    const values=[...ids].sort((a,b)=>a-b),key=values.join(',');if(key!==maskKey){maskKey=key;for(const [id,original] of filters){const exclude=['!', ['in',['id'],['literal',values]]];map.setFilter(id,values.length?(original?['all',original,exclude]:exclude):original,{validate:false});}rttPending=1;changed=true;}return changed;
+  }
+  const indexOrders=new Map();
+  function indexOrder(n){let o=indexOrders.get(n);if(!o){o=[...Array(n).keys()].sort((a,b)=>{const x=String(a),y=String(b);return x<y?-1:x>y?1:0;});indexOrders.set(n,o);}return o;}
+  // setData 會在主執行緒把整份 FeatureCollection JSON.stringify 一遍(1.4 萬分件約 6MB,桌面 4x 27–55ms、A54 18–30ms)。
+  // 分件建好後內容不變,JSON 只在第一次送出時算,之後用快取片段 join 成單一平坦字串(頭尾併進第一與最後一片,
+  // 免得 postMessage 再攤平一次)。只在這一次同步的 setData 期間,讓 JSON.stringify(這份 data) 直接回這串字;
+  // MapLibre 在 worker 忙時會延後序列化,那時已還原成原生 stringify,結果相同只是沒省到。
+  function setRemainders(unique){
+    const data={type:'FeatureCollection',features:unique.map(x=>x.feature)},json=unique.map(x=>x.json??=JSON.stringify(x.feature));
+    if(json.length){json[0]='{"type":"FeatureCollection","features":['+json[0];json[json.length-1]+=']}';}
+    const text=json.length?json.join(','):'{"type":"FeatureCollection","features":[]}',stringify=JSON.stringify;
+    JSON.stringify=function(value){return value===data&&arguments.length===1?text:stringify.apply(this,arguments);};
+    try{ownedSource.setData(data);}finally{JSON.stringify=stringify;}
   }
   function maskLabels(active){
     // 預留字幅及傾斜屋頂的投影範圍；透視仍不讓地名穿入站房，實體招牌保留。
@@ -94,7 +112,7 @@ export async function createStationLayer(map,getState,onUpdate=()=>{}, {assetsBa
         if(lines.some(line=>line.some((p,i)=>{const q=line[i+1]||p;return boxes.some(([w,s,e,n])=>Math.min(p[0],q[0])<=e&&Math.max(p[0],q[0])>=w&&Math.min(p[1],q[1])<=n&&Math.max(p[1],q[1])>=s)})))for(const field of ['name','name:zh','name:zh-Hant'])if(f.properties[field])names.add(f.properties[field]);
       }lineNames.set(sourceLayer,[...names].sort());
     }
-    let changed=false;const apply=(id,value)=>{const key=JSON.stringify(value);if(appliedSymbols.get(id)===key)return;appliedSymbols.set(id,key);map.setFilter(id,value);changed=true;};
+    let changed=false;const apply=(id,value)=>{const key=JSON.stringify(value);if(appliedSymbols.get(id)===key)return;appliedSymbols.set(id,key);map.setFilter(id,value,{validate:false});changed=true;};
     for(const [id,{original,sourceLayer}] of symbolFilters){
       if(!boxes.length){apply(id,original);continue;}
       const clauses=[['!', ['within',geometry]]],names=lineNames.get(sourceLayer)||[];
