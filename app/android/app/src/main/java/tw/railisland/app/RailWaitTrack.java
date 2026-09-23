@@ -250,7 +250,7 @@ final class RailWaitTrack {
         return out;
     }
 
-    /** 本站：縮小的琺瑯站牌（白底藍字「站」＋路線色帶子，配色同 iOS MetroWaitPlate）。 */
+    /** 本站：縮小的琺瑯站牌（白底藍字「站」＋路線色帶子，配色同 iOS MetroWaitPlate；深色是白瓷壓暗一階）。 */
     private static Bitmap plate(Context context, int band, boolean dark) {
         int size = px(context, 20);
         Bitmap out = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
@@ -262,13 +262,13 @@ final class RailWaitTrack {
         c.save();
         c.clipPath(clip);
         Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
-        fill.setColor(dark ? 0xFF1B2740 : 0xFFF7F5EE);
+        fill.setColor(dark ? 0xFFDCD8CC : 0xFFF7F5EE);
         c.drawRect(all, fill);
         fill.setColor(band);
         c.drawRect(0, bandTop, size, size, fill);
         c.restore();
         Paint text = new Paint(Paint.ANTI_ALIAS_FLAG);
-        text.setColor(dark ? 0xFFCFE0F8 : 0xFF26497E);
+        text.setColor(0xFF26497E);
         text.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
         text.setTextAlign(Paint.Align.CENTER);
         text.setTextSize(size * 0.5f);
@@ -278,7 +278,7 @@ final class RailWaitTrack {
         Paint stroke = new Paint(Paint.ANTI_ALIAS_FLAG);
         stroke.setStyle(Paint.Style.STROKE);
         stroke.setStrokeWidth(frame);
-        stroke.setColor(dark ? 0xFF3A4E76 : 0xFF767061);
+        stroke.setColor(dark ? 0xFF6B6557 : 0xFF767061);
         float inset = frame / 2f;
         c.drawRoundRect(new RectF(inset, inset, size - inset, size - inset), r, r, stroke);
         return out;

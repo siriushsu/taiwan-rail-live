@@ -326,6 +326,45 @@ public final class RailWaitNotificationInstrumentedTest {
         return (Notification.ProgressStyle) style;
     }
 
+    /**
+     * 站牌深色版＝同一塊白瓷壓暗一階（09-23 使用者裁示；網站那組深藍瓷放在黑灰卡片上不搭）。
+     * 深色靠 createConfigurationContext 切，不動手機的系統深色設定（別的 session 可能正在用這支手機）。
+     * 兩張圖存在 cache/plate-{light,dark}.png，可用 run-as 拉出來看。
+     */
+    @Test
+    public void plateStaysEnamelInDarkMode() throws Exception {
+        RailWaitTrack.Hop hop = RailWaitTrack.hop(context, "trtc", "台北車站", "象山");
+        assertNotNull(hop);
+        int[] face = new int[2];
+        for (int i = 0; i < 2; i++) {
+            android.content.res.Configuration conf =
+                new android.content.res.Configuration(context.getResources().getConfiguration());
+            conf.uiMode = (conf.uiMode & ~android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                | (i == 1 ? android.content.res.Configuration.UI_MODE_NIGHT_YES
+                          : android.content.res.Configuration.UI_MODE_NIGHT_NO);
+            Context c = context.createConfigurationContext(conf);
+            android.graphics.drawable.Drawable d =
+                RailWaitTrack.style(c, hop, 0.5, "#E3002C").getProgressEndIcon().loadDrawable(c);
+            int w = d.getIntrinsicWidth(), h = d.getIntrinsicHeight();
+            android.graphics.Bitmap b = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888);
+            d.setBounds(0, 0, w, h);
+            d.draw(new android.graphics.Canvas(b));
+            try (java.io.FileOutputStream out = new java.io.FileOutputStream(
+                    new java.io.File(context.getCacheDir(), "plate-" + (i == 1 ? "dark" : "light") + ".png"))) {
+                b.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out);
+            }
+            // 瓷面取樣點：「站」字左側、色帶上方（字約佔寬度中間一半，色帶從 68% 高開始）。
+            face[i] = b.getPixel(Math.round(w * 0.15f), Math.round(h * 0.45f));
+        }
+        for (int px : face) {
+            assertTrue("站牌瓷面要是白瓷（淺色），深色模式也一樣：#" + Integer.toHexString(px),
+                android.graphics.Color.red(px) > 190 && android.graphics.Color.green(px) > 190
+                    && android.graphics.Color.blue(px) > 180);
+        }
+        assertTrue("深色版要比淺色版壓暗一階：淺 #" + Integer.toHexString(face[0]) + " 深 #" + Integer.toHexString(face[1]),
+            android.graphics.Color.red(face[1]) < android.graphics.Color.red(face[0]));
+    }
+
     /** 系統 tracker 寬最多 2 倍高，超過的會被從中間裁掉（車頭車尾不見）。 */
     private void assertTrackerNotCropped(Notification.ProgressStyle p) {
         android.graphics.drawable.Drawable d = p.getProgressTrackerIcon().loadDrawable(context);

@@ -521,7 +521,9 @@ struct MetroWaitTrack: View {
             .frame(width: w, height: height, alignment: .topLeading)
         }
         .frame(height: height)
-        .clipped()
+        // 左右照舊切齊（遠處的車會伸出左緣），上緣多留 6pt：站名牌的上框會凸出軌道區，
+        // 用 .clipped() 會把上框切掉一截（09-23 台鐵等車卡 session 發現，同一個修法）。
+        .mask(Rectangle().padding(.top, -s(6)))
     }
 
     private var plate: some View {
@@ -530,7 +532,8 @@ struct MetroWaitTrack: View {
 }
 
 /// 琺瑯站名牌（色票同網站頂端的 `.plate`、小工具 C 方案同一組）：白瓷底＋深藍字，
-/// 下緣帶子用路線色＋線名。深色模式與動態島換成深藍瓷。
+/// 下緣帶子用路線色＋線名。深色模式與動態島用同一塊白瓷壓暗一階（09-23 使用者裁示：網站那組深藍瓷
+/// 放在黑灰卡片上跟原本的樣式不搭；壓暗是為了夜裡不刺眼）。
 struct MetroWaitPlate: View {
     let name: String
     let band: String?
@@ -547,9 +550,9 @@ struct MetroWaitPlate: View {
     private var latin: Bool { name.unicodeScalars.contains { $0.isASCII && CharacterSet.letters.contains($0) } }
 
     var body: some View {
-        let ink = Self.rgb(dark ? 0xcfe0f8 : 0x26497e)
-        let frame = Self.rgb(dark ? 0x3a4e76 : 0x767061)
-        let glaze = dark ? [Self.rgb(0x1b2740), Self.rgb(0x141d31), Self.rgb(0x10182a)]
+        let ink = Self.rgb(0x26497e)
+        let frame = Self.rgb(dark ? 0x6b6557 : 0x767061)
+        let glaze = dark ? [Self.rgb(0xe6e3da), Self.rgb(0xdcd8cc), Self.rgb(0xd0ccbf)]
                          : [Self.rgb(0xffffff), Self.rgb(0xf7f5ee), Self.rgb(0xedebe0)]
         VStack(spacing: s(2)) {
             Text(name)
