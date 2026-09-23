@@ -280,14 +280,22 @@ try {
 
 // ══════════ Section E：真實後端資料(至少一組非 mock 的斷言) ══════════
 {
-  let real;
-  try {
-    const res = await fetch('https://railisland.tw/api/delay-stats');
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    real = await res.json();
-  } catch (e) {
-    ok('E0 正式站 /api/delay-stats 可達(接外部 API 前置驗證)', false, e.message);
-    real = null;
+  // 一發不重試會把本機連外網路的抖動(機器高負載時 undici 連線逾時,只印「fetch failed」)當成正式站掛了:
+  // 09-23 ship-web 兩次紅在這裡,同時段手動連打 10 發全 200。試 3 次都失敗才算紅(正式站真掛仍然抓得到)。
+  let real = null, lastErr = null;
+  for (let i = 0; i < 3 && !real; i++) {
+    try {
+      const res = await fetch('https://railisland.tw/api/delay-stats');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      real = await res.json();
+    } catch (e) {
+      lastErr = e;
+      if (i < 2) await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+    }
+  }
+  if (!real) {
+    const why = lastErr.cause ? ` (${lastErr.cause.code || lastErr.cause.message})` : '';
+    ok('E0 正式站 /api/delay-stats 可達(接外部 API 前置驗證)', false, `${lastErr.message}${why}(試了 3 次)`);
   }
   if (real) {
     ok('E0 正式站 /api/delay-stats 可達,回傳有 trains 物件', !!(real.trains && Object.keys(real.trains).length > 0), `n_trains=${real.trains ? Object.keys(real.trains).length : 0}`);

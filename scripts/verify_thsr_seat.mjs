@@ -709,7 +709,10 @@ if (SECTIONS.has('D')) {
         //    暗色就重現,而本批對 index.html 的改動全部住在高鐵看板副列/票價子頁與公車站牌 sheet
         //    裡,不開就跑不到;同一支探針「不切主題」的對照組是 0 筆。來源印出來是 maplibre-gl.js。
         //    只擋這一句,其他 console.error 照樣算數(全擋等於把這條判準的牙拔掉)。
-        const darkErrors = consoleErrors.filter(x => !/AbortError/.test(x));
+        //    同一件事 chromium 有時由 MapLibre 包成「AJAXError: signal is aborted without reason (0): <url>」
+        //    吐出來(09-23 出貨預演實見,被 abort 的是 sprite ofm.json;前兩發 ship-web 同一條都綠 ⇒ 看在途請求時序)。
+        //    措辭集合與 verify_redesign.mjs 的切主題過濾相同。
+        const darkErrors = consoleErrors.filter(x => !/AbortError|AJAXError: signal is aborted without reason \(0\)/.test(x));
         ok(`D6g[${engineName}] 暗色全程零 console error(切主題造成的 MapLibre 圖磚 abort 除外)`, darkErrors.length === 0, darkErrors.join(' | '));
         await ctx.close();
 
