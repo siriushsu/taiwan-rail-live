@@ -87,6 +87,14 @@ let ok = false;
 try {
   fs.symlinkSync(path.join(repo, 'node_modules'), path.join(wt, 'node_modules'));
 
+  // ── 2.4 正式庫 schema：出貨的程式碼要讀寫的表與欄，正式 D1 都要有（唯讀查詢，約 3 秒）──────────
+  // 2026-09-24 發現正式庫從沒套 0012，v0904d 起跟車卡每次綁定都 503、近三週靜默全停；本機驗收自己套齊
+  // schema，照不到正式庫漏套。排在所有閘門之前：缺 migration 就別先跑 30 分鐘閘門。預覽也跑（共用同一個 D1）。
+  // 查不到正式庫（exit 2）同樣擋下——驗不了不等於通過。
+  const remoteSchema = spawnSync('node', [path.join(wt, 'scripts', 'verify_remote_schema.mjs')], { cwd: wt, encoding: 'utf8' });
+  process.stdout.write(remoteSchema.stdout || ''); process.stderr.write(remoteSchema.stderr || '');
+  if (remoteSchema.status !== 0) fail('正式庫 schema 與 schema/*.sql 不一致或查不到——先補套 migration（要使用者 go）再出貨（單獨重跑：node scripts/verify_remote_schema.mjs）');
+
   // ── 2.5 i18n 稽核閘門（漏譯不准出貨）──────────────────────────────────────
   // 🔴 位置不可移到 strip 之後:check_i18n 的 evaluateConstBlock 拿【註解】當區塊結束標記
   //    （'// 有精選特色'、'// 播放/速度/時間'），strip 把註解刪光之後它會報「找不到內容區塊」

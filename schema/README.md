@@ -15,7 +15,7 @@
 | `0009_metro_wait.sql` | ✅ **權威** | 捷運等車卡的推播交班表 `metro_wait_bindings`（**與跟車的 `la_bindings` 是兩張獨立的表**，那張的 `train_no`／`stops`／`sta_map` 都是 NOT NULL 且綁單一車次，等車卡沒有車次可填）。**所有環境都要跑，與 0003 系列彼此無關**。 |
 | `0010_tra_wait.sql` | ✅ **權威** | 台鐵等站卡的推播交班表 `tra_wait_bindings`（**與 `metro_wait_bindings` 也是兩張獨立的表**：那張每分鐘要重新挑「這一站的下一班是誰」，這張追的是**一班指定的車**、表訂時刻在開卡當下就固定）。**所有環境都要跑，與 0003／0009 彼此無關**。 |
 | `0011_journey_share.sql` | ✅ **權威** | 短效整段旅程分享 `journey_shares`。只保存最新狀態與（使用者另行同意時）最新一筆手機座標，不保存位置歷史；公開讀取 id 與編輯憑證分離，最長 12 小時失效。**所有環境都要跑。** |
-| `0012_la_journey_handoff.sql` | ✅ **權威** | 跟車即時動態的跨車轉乘計畫。替既有 `la_bindings` 增加 `journey_state`，讓同一張鎖屏卡可在轉乘站由來源列車交棒給已選班次。**所有環境都要跑。** |
+| `0012_la_journey_handoff.sql` | ✅ **權威** | 跟車即時動態的跨車轉乘計畫。替既有 `la_bindings` 增加 `journey_state`，讓同一張鎖屏卡可在轉乘站由來源列車交棒給已選班次。**所有環境都要跑。** 🔴 正式庫漏套到 **2026-09-24 00:17** 才補（使用者 go）。 |
 | `0013_tra_wait_prev_dep.sql` | ✅ **權威** | 台鐵等站卡 B（進站軌道）：替 `tra_wait_bindings` 補 `prev_dep_sec`（上一個停靠站的表定發車時刻），伺服器據此在「上一站→本站」那段每分鐘推一發讓卡片上的車往前挪。**所有環境都要跑，新環境＝`0010` + `0013`。** |
 
 ## 套用到正式庫
@@ -51,9 +51,10 @@ tra_wait_bindings`。**使用者端一樣看不出來**：等站卡開卡時就�
 沒有推播只是「誤點分鐘從此不再更新、到站也不自動收卡」。
 （`verify_tra_wait_push.mjs` 的 schema gate 同樣會先擋下來。）
 
-🔴 **0012 忘了套的症狀**：`/api/la/bind` 在寫入轉乘計畫時回 503 `bind_failed`，單段跟車的
-本機卡片仍然會出現，但 App 進背景後永遠不會從來源列車交棒給接續班次。這正是最容易被
-「卡片看起來有開」掩蓋的失效方式，部署新 Worker 前必須先套 schema。
+🔴 **0012 忘了套的症狀**：`/api/la/bind` 的 INSERT 欄位清單**一律**帶 `journey_state`（不只寫入轉乘計畫時）⇒
+**每一發綁定**都 `no such column` ⇒ 503 `bind_failed`，App 靜默忽略。本機卡片仍然會出現，所以「卡片看起來有開」，
+但伺服器推播一發都不會來。**這就是正式庫實際發生過的事**：v0904d（09-04）上線到 09-24 00:17 補套之前，
+iPhone 跟車卡的伺服器推播全停，期間 `la_bindings` 一直是 0 列。
 
 🔴 **0013 忘了套的症狀**：`/api/tra-wait/bind` 的 INSERT 找不到 `prev_dep_sec` ⇒ 一律 503
 `bind_failed`（前端靜默忽略、卡片照開），從此**連誤點更新都沒有**——比 0010 忘了套更隱蔽，
@@ -84,6 +85,9 @@ npx wrangler d1 execute DELAY_DB --remote --command "SELECT sql FROM sqlite_mast
 **不要再用 `wrangler d1 execute --command` 手打 DDL。** 既有三張表就是那樣建的，
 結果是沒人知道正式庫的結構怎麼來、也無法在別的環境重建。新增或修改一律：
 新開一個 `000N_描述.sql` → 本機 `node scripts/verify_bounty_schema.mjs` 綠 → 才套到正式庫。
+**出貨鏈會擋漏套**：`ship_web.mjs` 第 2.4 步跑 `node scripts/verify_remote_schema.mjs`，唯讀查正式庫的建表語句，
+這裡每支 `000N_*.sql` 的表與每一欄都要在；缺了就列出要補套哪一支並停下（正式庫寫入仍要使用者 go）。
+所以新 migration 的順序是：套正式庫 → 才出會用到它的 Worker（加欄位對舊程式碼無害）。
 
 🔴 **曾有一個例外，2026-08-08 起已失效**：建表腳本還沒套到正式庫時，新欄位要就地補進那支
 建表腳本，同時另開一支 `ALTER TABLE` 補丁給已經套過舊版的開發庫（`0004`／`0005`／`0006`
