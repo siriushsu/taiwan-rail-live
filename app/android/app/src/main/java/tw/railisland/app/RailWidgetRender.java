@@ -43,8 +43,7 @@ final class RailWidgetRender {
             : snapshot.scheduleNote != null ? scheduleNote(context, snapshot.scheduleNote)
             : RailNativeL10n.text(context, "台鐵即時誤點 · 高鐵表定時刻");
         root.setTextViewText(R.id.wr_note, note);
-        // 車模頭帶與場景右上角都畫下一班的代表車（場景：09-23 使用者要在右上角看得到列車）。
-        if (model || scene) bindCar(root, snapshot.rows);
+        if (model) bindCar(root, snapshot.rows);
         if (scene) bindPlate(context, root, layout, snapshot, origin);
         // 🔴 車模／場景小卡平常收掉註腳讓位給車與場景，但註腳是警示時（這張卡的數字可能錯）一定要露出來；
         //    車模小卡有警示就不畫車——整行會壓進車身讀不出來，警示比裝飾重要（與 iOS 同一條規則）。
@@ -93,7 +92,7 @@ final class RailWidgetRender {
             || snapshot.scheduleNote != null && !snapshot.scheduleNote.endsWith(" 當日班表");
     }
 
-    /** A 車模頭帶與 C 場景右上角：下一班（排序後第一列）的車種代表車；沒有班次就收掉車、頭帶／場景照留。 */
+    /** A 車模頭帶：下一班（排序後第一列）的車種代表車；沒有班次就收掉車、頭帶照留。 */
     private static void bindCar(RemoteViews root, List<RailWidgetData.Row> rows) {
         if (rows.isEmpty()) {
             root.setViewVisibility(R.id.wr_car, View.GONE);
