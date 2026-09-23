@@ -255,11 +255,12 @@ public final class RailFollowNotificationInstrumentedTest {
         Assume.assumeTrue(Build.VERSION.SDK_INT >= 36);
         long now = System.currentTimeMillis() / 1000;
         JSONArray stops = new JSONArray()
-            .put(new JSONObject().put("name", "樹林").put("arrivalAt", now + 3600).put("depAt", now + 3630));
+            .put(new JSONObject().put("name", "樹林").put("arrivalAt", now + 1800).put("depAt", now + 1830));
         RailFollowNotification.start(context, new JSONObject()
             .put("trainNo", "123").put("kind", "自強").put("sys", "tra_sched").put("carModel", "emu3000")
             .put("color", "#C0392B").put("nextStop", "樹林").put("prevStop", "板橋")
-            .put("terminus", "花蓮").put("arrivalAt", now + 3600).put("departedAt", now - 60)
+            // 車放在區間中段：剛發車時車被夾在最左緣（中心至少半台車），要走約一成才會動，量不到重貼。
+            .put("terminus", "花蓮").put("arrivalAt", now + 1800).put("departedAt", now - 1800)
             .put("remainingStops", stops));
         int first = currentProgress();
         long t0 = SystemClock.uptimeMillis();
