@@ -58,6 +58,7 @@ const native = {
   '不限': ['Any', '指定なし'],
   '背景': ['Background', '背景'], '車模': ['Train model', '車両モデル'], '場景': ['Scene', '情景'], '素色': ['Plain', '無地'],
   '不指定目的站（看全部）': ['Not set (show all)', '指定なし（すべて表示）'],
+  '背景（預設車模）': ['Background (default: train model)', '背景（既定：車両モデル）'],
   '接下來': ['Next up', 'この後'],
   '發車看板': ['Departure board', '発車案内'],
   '查看台鐵或高鐵接下來的直達、停靠與終到列車；想看通過本站不停靠的車，在「只看這些」打開「含通過列車」。': ['See upcoming direct, stopping and terminating TRA or HSR trains. To also show trains that pass without stopping, turn on "Include passing trains" under Filters.', '台湾鉄路・高鉄の直通・停車・終着列車を表示します。通過（停車しない）列車も表示するには「表示条件」で「通過列車も表示」をオンにしてください。'],

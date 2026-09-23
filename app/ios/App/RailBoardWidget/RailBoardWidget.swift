@@ -202,6 +202,8 @@ struct BoardSnapshot {
     let emptyMessage: String?
     let notice: ScheduleNotice?
     let generatedAt: Date
+    /// 「場景」背景左上角的站名牌。nil 時退回用 title、不畫帶子。
+    var plate: RailPlateInfo? = nil
 }
 
 struct PlaceBoardRow: Identifiable {
@@ -748,7 +750,8 @@ struct Provider: AppIntentTimelineProvider {
             rows: rows,
             emptyMessage: emptyMessage,
             notice: engine.notice(for: entryDate, systems: prepared.systems),
-            generatedAt: generatedAt
+            generatedAt: generatedAt,
+            plate: prepared.plateInfo
         )
         return RailBoardEntry(
             date: entryDate,
@@ -801,6 +804,18 @@ struct RailBoardWidgetEntryView: View {
     /// ——它是純粹的偏好，不是無障礙需求，所以只讀小工具設定。
     private var clockFirst: Bool { entry.configuration.clockFirst }
 
+    @Environment(\.showsWidgetContainerBackground) private var showsContainerBackground
+
+    /// 小工具設定的「背景」（2026-09-23 裁示：車模預設／場景／素色）。
+    /// 🔴 只有桌面三種尺寸的【車站看板】吃這個設定，其餘一律素色：
+    ///    鎖屏家族恆為單色、三行高；「我的地點」與無資料畫面沒有這兩種版面；
+    ///    好讀版要的是字大與列數，頭帶／站名牌會再吃掉一列以上，無障礙需求優先。
+    private var backdrop: RailBackdrop {
+        guard case .board = entry.content, !readable,
+              [.systemSmall, .systemMedium, .systemLarge].contains(family) else { return .plain }
+        return entry.configuration.backdrop
+    }
+
     var body: some View {
         Group {
             switch entry.content {
@@ -834,10 +849,16 @@ struct RailBoardWidgetEntryView: View {
         // ⇒ 由元件層的 railMonochrome 統一把顏色換成文字與深淺（設計稿規則）。
         .railRenderingMode(renderingMode)
         .environment(\.railReadable, readable)
+        .environment(\.railBackdrop, backdrop)
+        .environment(\.railContainerShown, showsContainerBackground)
         // 台鐵／高鐵站名可能和捷運同名，不准只靠站名或 App 上次畫面猜系統。
         .widgetURL(RailBoardDeepLink.stationURL(originKey: entry.configuration.origin))
         .containerBackground(for: .widget) {
-            Color(uiColor: .systemBackground)
+            // 頭帶底色與場景在這一層：著色模式、StandBy 系統會把它整個拿掉（車模與站名牌在內容層）。
+            ZStack(alignment: .top) {
+                Color(uiColor: .systemBackground)
+                RailCardBackdrop(style: backdrop, family: family)
+            }
         }
     }
 
@@ -908,6 +929,7 @@ struct SmallBoardView: View {
     let entryDate: Date
     var clockFirst: Bool = false
     @Environment(\.railReadable) private var readable
+    @Environment(\.railBackdrop) private var backdrop
 
     var body: some View {
         GeometryReader { geo in
@@ -922,120 +944,220 @@ struct SmallBoardView: View {
     @ViewBuilder
     private func content(_ scale: RailScale) -> some View {
         if let row = snapshot.rows.first {
-            VStack(alignment: .leading, spacing: scale.pt(3)) {
-                // 識別 20：車種標＋車次（設計稿：兩者是不同角色，不再同色同大小）＋資料時刻。
-                // 識別 20：整列都給車種標＋車次。
-                // 🔴 資料時刻不掛在這一列（設計稿的示範是這樣，但它的車種只有兩個字）：
-                //    「莒光/復興」那顆標本身就要 64pt、四碼車次 38pt，加上時刻就溢出 14pt
-                //    （破版 gate 在直達那張抓到）。車種標依設計稿【不准縮】，所以是時刻讓位。
-                // 識別 20：車種標＋車次，站名擠到右端 11pt。
-                // 🔴 資料時刻在 v2 的 Small 上【沒有位置】：它的右端讓給站名，底下那一列
-                //    讓給第二班車。「班表過期」這種真的會害人錯過車的狀況仍然畫得出來
-                //    （見下面的底列優先序），被拿掉的只有例行的更新時刻。
-                HStack(spacing: scale.pt(5)) {
-                    if let heading = row.heading {
-                        RailHeadingMark(heading: heading, scale: scale)
-                    }
-                    // 好讀版的車次讓位給站名；有官方月台時依 2026-09-07 裁示另列在目的地旁。
-                    RailTrainMark(kind: row.trainType,
-                                  number: scale.readable ? nil : row.trainNumber,
-                                  color: trainColor(row.trainType), fontSize: 12,
-                                  numberSize: 13, scale: scale)
-                    Spacer(minLength: scale.pt(4))
-                    // 🔴 這個角落只給【車站模式】的站名。直達模式的標題是一組起訖對
-                    //    （「竹北 → 臺北」），最長的車種標（莒光/復興 64pt）加四碼車次之後
-                    //    它會被截成「竹…」——一個字的站名比沒有站名更糟（同
-                    //    RailCountdownText 對「暫無資料」的判斷）。這裡用的是語意判準
-                    //    「標題是一站還是一組對」，不是量出來的斷點寬度。
-                    //    直達模式本來就不缺識別：主角那一列寫著「往 臺北-環島」。
-                    if snapshot.isWatching {
-                        Text(RailNativeL10n.name(snapshot.title))
-                            .font(.system(size: scale.pt(11, readable: 15)))
-                            .foregroundStyle(.tertiary)
-                            .lineLimit(1).minimumScaleFactor(0.75)
-                            .layoutPriority(-1)
-                    }
-                }
-                .frame(height: scale.pt(20, readable: 24))
-
-                // 終點站 26：v2 把它從 15pt 升上來——拿掉軌脊欄省下的 21pt 就是給它的。
-                // 🔴 通過標掛在這一列不是識別列：識別列放不下「車種標＋車次＋通過＋站名」
-                //    四件東西（實測站名被截），而「這班車不會停」講的正是這個方向的這一班。
-                HStack(spacing: scale.pt(5)) {
-                    Text(row.watchingDestinationText)
-                        .font(.system(size: scale.pt(26, readable: 30), weight: .semibold))
-                        .lineLimit(1).minimumScaleFactor(0.7)
-                    if let platform = row.platformText {
-                        Text(platform).font(.system(size: scale.pt(11, readable: 13), weight: .medium))
-                            .foregroundStyle(.secondary).fixedSize()
-                    }
-                    if row.isPassing { PassBadge(scale: scale) }
-                    Spacer(minLength: 0)
-                }
-                .frame(height: scale.pt(31, readable: 36), alignment: .leading)
-
-                // 倒數 44 ＋右側狀態。設計稿：誤點永遠是 13pt 純文字，不做膠囊、不進主角區。
-                HStack(alignment: .lastTextBaseline, spacing: scale.pt(4)) {
-                    RailCountdownText(value: BoardCountdown.of(row: row, at: entryDate, clockFirst: clockFirst),
-                                      size: .heroCard, scale: scale)
-                        .widgetAccentable()
-                    Spacer(minLength: scale.pt(2))
-                    if showsClock(row) {
-                        // 倒數退成靜態時刻時，右側標「表定」——否則畫面上會有兩個
-                        // 一模一樣的時刻（數字欄一個、註腳一個），讀不出哪個才是重點。
-                        RailStatusTag(kind: .custom(sameDay(row) ? "表定" : "明天"),
-                                      fontSize: 12, scale: scale)
-                    } else if let kind = row.statusKind {
-                        RailStatusTag(kind: kind, fontSize: 12, scale: scale)
-                    }
-                }
-                // 🔴 好讀版的倒數字級是 52（設計檔 44→52）,但這個槽【不跟著長高】：
-                //    52 的字在 44 的槽裡是上下各溢 4pt,而它上下都是留白（Spacer 與列距）,
-                //    溢出去不會壓到任何東西；槽真的長到 56 反而讓整張卡溢出下緣 9.7pt
-                //    （破版 gate 抓到）。「不裁切」在這裡是幫手不是陷阱——前提是鄰居是留白。
-                .frame(height: scale.pt(44))
-
-                Spacer(minLength: 0)
-
-                // 🔴 底列只有一位，三種內容互斥，優先序是硬的：
-                //    班表過期 ＞ 第二班車 ＞ 這一班幾點開。
-                //    「班表過期」排第一是因為這張卡上每一個數字都是那份班表算出來的；
-                //    第二班車排在「幾點開」前面是 v2 的裁示（「只有兩列」），而主角的
-                //    發車時刻在倒數退成靜態時刻時本來就已經畫在數字欄了。
-                if snapshot.notice != nil {
-                    footer(row, scale)
-                        .frame(height: scale.pt(22, readable: 26), alignment: .leading)
-                } else if scale.readable {
-                    // 🔴 好讀版的 Small 只有【一班】（設計檔「列數減半：small 只留下一班」）：
-                    //    第二班那一列放不進去（破版 gate 抓到墨跡溢出上緣 1.3pt）。
-                    //    但底列不留白——換成註腳「幾點開／幾點更新」：設計檔好讀版的字級表
-                    //    給了「更新時間 11→15」,表示這一行在好讀版是留著的,而它回答的
-                    //    「這些數字有多舊」在只剩一班車的卡上更重要。
-                    footer(row, scale)
-                        .frame(height: scale.pt(22, readable: 26), alignment: .leading)
-                } else if let second = snapshot.rows.dropFirst().first {
-                    SmallSecondRow(row: second, snapshot: snapshot, entryDate: entryDate,
-                                   clockFirst: clockFirst, scale: scale)
-                        .frame(height: scale.pt(22), alignment: .leading)
-                } else {
-                    footer(row, scale)
-                        .frame(height: scale.pt(22, readable: 26), alignment: .leading)
-                }
+            switch backdrop {
+            case .model: modelContent(row, scale)
+            case .scene: sceneContent(row, scale)
+            case .plain: plainContent(row, scale)
             }
         } else {
-            VStack(alignment: .leading, spacing: scale.pt(6)) {
+            emptyContent(scale)
+        }
+    }
+
+    @ViewBuilder
+    private func plainContent(_ row: BoardRow, _ scale: RailScale) -> some View {
+        VStack(alignment: .leading, spacing: scale.pt(3)) {
+            // 識別 20：車種標＋車次（設計稿：兩者是不同角色，不再同色同大小）＋資料時刻。
+            // 識別 20：整列都給車種標＋車次。
+            // 🔴 資料時刻不掛在這一列（設計稿的示範是這樣，但它的車種只有兩個字）：
+            //    「莒光/復興」那顆標本身就要 64pt、四碼車次 38pt，加上時刻就溢出 14pt
+            //    （破版 gate 在直達那張抓到）。車種標依設計稿【不准縮】，所以是時刻讓位。
+            // 識別 20：車種標＋車次，站名擠到右端 11pt。
+            // 🔴 資料時刻在 v2 的 Small 上【沒有位置】：它的右端讓給站名，底下那一列
+            //    讓給第二班車。「班表過期」這種真的會害人錯過車的狀況仍然畫得出來
+            //    （見下面的底列優先序），被拿掉的只有例行的更新時刻。
+            identityRow(row, scale, showsStation: true)
+
+            // 終點站 26：v2 把它從 15pt 升上來——拿掉軌脊欄省下的 21pt 就是給它的。
+            // 🔴 通過標掛在這一列不是識別列：識別列放不下「車種標＋車次＋通過＋站名」
+            //    四件東西（實測站名被截），而「這班車不會停」講的正是這個方向的這一班。
+            destinationRow(row, scale)
+
+            // 倒數 44 ＋右側狀態。設計稿：誤點永遠是 13pt 純文字，不做膠囊、不進主角區。
+            countdownRow(row, scale, showsStatus: true)
+
+            Spacer(minLength: 0)
+
+            // 🔴 底列只有一位，三種內容互斥，優先序是硬的：
+            //    班表過期 ＞ 第二班車 ＞ 這一班幾點開。
+            //    「班表過期」排第一是因為這張卡上每一個數字都是那份班表算出來的；
+            //    第二班車排在「幾點開」前面是 v2 的裁示（「只有兩列」），而主角的
+            //    發車時刻在倒數退成靜態時刻時本來就已經畫在數字欄了。
+            if snapshot.notice != nil {
+                footer(row, scale)
+                    .frame(height: scale.pt(22, readable: 26), alignment: .leading)
+            } else if scale.readable {
+                // 🔴 好讀版的 Small 只有【一班】（設計檔「列數減半：small 只留下一班」）：
+                //    第二班那一列放不進去（破版 gate 抓到墨跡溢出上緣 1.3pt）。
+                //    但底列不留白——換成註腳「幾點開／幾點更新」：設計檔好讀版的字級表
+                //    給了「更新時間 11→15」,表示這一行在好讀版是留著的,而它回答的
+                //    「這些數字有多舊」在只剩一班車的卡上更重要。
+                footer(row, scale)
+                    .frame(height: scale.pt(22, readable: 26), alignment: .leading)
+            } else if let second = snapshot.rows.dropFirst().first {
+                SmallSecondRow(row: second, snapshot: snapshot, entryDate: entryDate,
+                               clockFirst: clockFirst, scale: scale)
+                    .frame(height: scale.pt(22), alignment: .leading)
+            } else {
+                footer(row, scale)
+                    .frame(height: scale.pt(22, readable: 26), alignment: .leading)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func emptyContent(_ scale: RailScale) -> some View {
+        VStack(alignment: .leading, spacing: scale.pt(6)) {
+            Text(RailNativeL10n.name(snapshot.title))
+                .font(.system(size: scale.pt(17), weight: .semibold))
+                .lineLimit(1).minimumScaleFactor(0.8)
+                .frame(height: scale.pt(21), alignment: .leading)
+            Text(RailNativeL10n.text(snapshot.emptyMessage ?? "查無班次"))
+                .font(.system(size: scale.pt(13)))
+                .foregroundStyle(.secondary)
+            if let notice = snapshot.notice {
+                BoardNotice(notice: notice, scale: scale)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    // MARK: 共用的三列（素色／車模／場景三種版面都用同一份，字級與判準不分岔）
+
+    /// 識別 20：方向三角＋車種標＋車次（＋右端站名）。
+    @ViewBuilder
+    private func identityRow(_ row: BoardRow, _ scale: RailScale, showsStation: Bool) -> some View {
+        HStack(spacing: scale.pt(5)) {
+            if let heading = row.heading {
+                RailHeadingMark(heading: heading, scale: scale)
+            }
+            // 好讀版的車次讓位給站名；有官方月台時依 2026-09-07 裁示另列在目的地旁。
+            RailTrainMark(kind: row.trainType,
+                          number: scale.readable ? nil : row.trainNumber,
+                          color: trainColor(row.trainType), fontSize: 12,
+                          numberSize: 13, scale: scale)
+            Spacer(minLength: scale.pt(4))
+            // 🔴 這個角落只給【車站模式】的站名。直達模式的標題是一組起訖對
+            //    （「竹北 → 臺北」），最長的車種標（莒光/復興 64pt）加四碼車次之後
+            //    它會被截成「竹…」——一個字的站名比沒有站名更糟（同
+            //    RailCountdownText 對「暫無資料」的判斷）。這裡用的是語意判準
+            //    「標題是一站還是一組對」，不是量出來的斷點寬度。
+            //    直達模式本來就不缺識別：主角那一列寫著「往 臺北-環島」。
+            if showsStation, snapshot.isWatching {
                 Text(RailNativeL10n.name(snapshot.title))
-                    .font(.system(size: scale.pt(17), weight: .semibold))
-                    .lineLimit(1).minimumScaleFactor(0.8)
-                    .frame(height: scale.pt(21), alignment: .leading)
-                Text(RailNativeL10n.text(snapshot.emptyMessage ?? "查無班次"))
-                    .font(.system(size: scale.pt(13)))
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: scale.pt(11, readable: 15)))
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1).minimumScaleFactor(0.75)
+                    .layoutPriority(-1)
+            }
+        }
+        .frame(height: scale.pt(20, readable: 24))
+    }
+
+    /// 終點站。素色／車模 26pt；場景版 20pt（mockup `.S.C .sdst`：站名牌吃掉一段高度）。
+    @ViewBuilder
+    private func destinationRow(_ row: BoardRow, _ scale: RailScale,
+                                size: CGFloat = 26, height: CGFloat = 31) -> some View {
+        HStack(spacing: scale.pt(5)) {
+            Text(row.watchingDestinationText)
+                .font(.system(size: scale.pt(size, readable: 30), weight: .semibold))
+                .lineLimit(1).minimumScaleFactor(0.7)
+            if let platform = row.platformText {
+                Text(platform).font(.system(size: scale.pt(11, readable: 13), weight: .medium))
+                    .foregroundStyle(.secondary).fixedSize()
+            }
+            if row.isPassing { PassBadge(scale: scale) }
+            Spacer(minLength: 0)
+        }
+        .frame(height: scale.pt(height, readable: 36), alignment: .leading)
+    }
+
+    /// 倒數 44 ＋（選配）右側狀態。
+    @ViewBuilder
+    private func countdownRow(_ row: BoardRow, _ scale: RailScale, showsStatus: Bool) -> some View {
+        HStack(alignment: .lastTextBaseline, spacing: scale.pt(4)) {
+            RailCountdownText(value: BoardCountdown.of(row: row, at: entryDate, clockFirst: clockFirst),
+                              size: .heroCard, scale: scale)
+                .widgetAccentable()
+            Spacer(minLength: scale.pt(2))
+            if showsStatus { statusTag(row, scale) }
+        }
+        // 🔴 好讀版的倒數字級是 52（設計檔 44→52）,但這個槽【不跟著長高】：
+        //    52 的字在 44 的槽裡是上下各溢 4pt,而它上下都是留白（Spacer 與列距）,
+        //    溢出去不會壓到任何東西；槽真的長到 56 反而讓整張卡溢出下緣 9.7pt
+        //    （破版 gate 抓到）。「不裁切」在這裡是幫手不是陷阱——前提是鄰居是留白。
+        .frame(height: scale.pt(44))
+    }
+
+    /// 倒數旁的狀態：倒數退成靜態時刻時標「表定／明天」，否則是誤點／準點。
+    @ViewBuilder
+    private func statusTag(_ row: BoardRow, _ scale: RailScale) -> some View {
+        if showsClock(row) {
+            // 倒數退成靜態時刻時，右側標「表定」——否則畫面上會有兩個
+            // 一模一樣的時刻（數字欄一個、註腳一個），讀不出哪個才是重點。
+            RailStatusTag(kind: .custom(sameDay(row) ? "表定" : "明天"),
+                          fontSize: 12, scale: scale)
+        } else if let kind = row.statusKind {
+            RailStatusTag(kind: kind, fontSize: 12, scale: scale)
+        }
+    }
+
+    // MARK: A 車模
+
+    /// mockup A 小卡：右下角停一台下一班車種的代表車，超出卡片邊緣、被圓角裁掉。
+    /// 右下角讓給車 ⇒ 狀態從倒數右邊搬到倒數下面一行，第二班車那一列拿掉（mockup 原樣）。
+    /// 高度：20＋3＋31＋3＋44＋3＋18 ＝ 122／138。
+    @ViewBuilder
+    private func modelContent(_ row: BoardRow, _ scale: RailScale) -> some View {
+        VStack(alignment: .leading, spacing: scale.pt(3)) {
+            identityRow(row, scale, showsStation: true)
+            destinationRow(row, scale)
+            countdownRow(row, scale, showsStatus: false)
+            Group {
                 if let notice = snapshot.notice {
                     BoardNotice(notice: notice, scale: scale)
+                } else {
+                    statusTag(row, scale)
                 }
-                Spacer(minLength: 0)
             }
+            .frame(height: scale.pt(18), alignment: .leading)
+            Spacer(minLength: 0)
+        }
+        .background(alignment: .bottomTrailing) {
+            // mockup：right:-14px; bottom:-6px（相對卡片邊緣）⇒ 從內容框再往外推一個邊距。
+            // 🔴 有班表警示時不畫車：警示那一行要整行寬（約 130pt），會壓進車身讀不出來。
+            //    警示是「這張卡的數字可能錯」，車是裝飾。
+            if snapshot.notice == nil {
+                RailTrainArt(model: RailWidgetArt.traModel(type: row.trainType))
+                    .frame(width: scale.pt(118), height: scale.pt(78), alignment: .bottomTrailing)
+                    .offset(x: scale.pt(14) + RailBoardInsets.content, y: scale.pt(6) + RailBoardInsets.content)
+            }
+        }
+    }
+
+    // MARK: C 場景
+
+    /// mockup C 小卡：左上角琺瑯站名牌，其餘貼著卡底排（場景露在站名牌右邊與下方）。
+    /// 高度：41（站名牌）＋≥6＋20＋24＋44 ＝ 135／138。
+    /// 🔴 班表警示那一行（16）放不下 ⇒ 站名牌收掉鄰站帶（省 12）、間距降到 2：
+    ///    29＋2＋16＋20＋24＋44 ＝ 135。鄰站是裝飾，警示是「這張卡的數字可能錯」。
+    /// 著色模式／系統拿掉背景時：版面不變（站名牌只剩外框與字），場景空出來的地方本來就是留白。
+    @ViewBuilder
+    private func sceneContent(_ row: BoardRow, _ scale: RailScale) -> some View {
+        let info = snapshot.plate ?? RailPlateInfo(name: snapshot.title, band: nil)
+        VStack(alignment: .leading, spacing: 0) {
+            RailStationPlate(info: snapshot.notice == nil ? info : RailPlateInfo(name: info.name, band: nil),
+                             size: .small, scale: scale)
+            // 🔴 下限 6：「自強 172」那一列不准貼到站名牌（mockup 曾經撞到過）。
+            Spacer(minLength: scale.pt(snapshot.notice == nil ? 6 : 2))
+            if let notice = snapshot.notice {
+                BoardNotice(notice: notice, scale: scale)
+                    .railSceneBacking(scale)
+                    .frame(height: scale.pt(16), alignment: .leading)
+            }
+            identityRow(row, scale, showsStation: false)
+            destinationRow(row, scale, size: 20, height: 24)
+            countdownRow(row, scale, showsStatus: true)
         }
     }
 
@@ -1105,6 +1227,12 @@ struct LargeBoardView: View {
     let entryDate: Date
     var clockFirst: Bool = false
     @Environment(\.railReadable) private var readable
+    @Environment(\.railBackdrop) private var backdrop
+    @Environment(\.railMonochrome) private var mono
+    @Environment(\.railContainerShown) private var containerShown
+
+    /// C 的場景這一次真的畫得出來（著色模式、StandBy 系統會把背景整個拿掉）。
+    private var sceneShown: Bool { backdrop == .scene && containerShown && !mono }
 
     var body: some View {
         GeometryReader { geo in
@@ -1125,7 +1253,9 @@ struct LargeBoardView: View {
     /// 好讀版降一階：五筆 → 三筆（設計稿「特大字一律讓版位降一階」）。
     /// 班表警示那一行多吃 18pt ⇒ 少一班（同 Medium 的取捨：砍列不縮字）。
     private func followLimit(_ scale: RailScale) -> Int {
-        let full = scale.readable ? 2 : 4
+        // C：站名牌下面要留一段給場景看（mockup `.C .list{margin-top:56px}`）⇒ 大卡少一列
+        //    （五列→四列）。場景被系統拿掉時那段空白跟著收掉，列數回到五列。
+        let full = scale.readable ? 2 : (sceneShown ? 3 : 4)
         return snapshot.notice == nil ? full : full - 1
     }
 
@@ -1195,22 +1325,24 @@ struct LargeBoardView: View {
         let headerRef: CGFloat = scale.readable ? 24 : 20
         let footerRef: CGFloat = scale.readable ? 19 : 16
         let noticeRef: CGFloat = snapshot.notice == nil ? 0 : 18
-        let fixedRef = RailRowHeight.cardTitle + 4 + noticeRef + footerRef
+        let fixedRef = titleRef(scale) + noticeRef + footerRef
             + (fillsTail(rows, scale: scale) ? footerRef : 0)
             + (sections ? headerRef * CGFloat(groups.count) : 0)
         let heights = rowHeights(freeRef: refHeight - fixedRef, rows: rows.count, scale: scale)
 
         VStack(alignment: .leading, spacing: 0) {
-            RailCardTitle(title: RailNativeL10n.name(snapshot.title), scale: scale) {
-                // 設計稿的特大字版把「更新」兩個字收掉，只留裸時刻（頁尾那行會補講一次）。
-                RailStamp(text: RailBoardClock.updateTimeString(snapshot.generatedAt),
-                          suffix: scale.readable ? "" : "更新", scale: scale)
-            }
-            if let notice = snapshot.notice {
+            header(scale)
+            // 場景版：警示排到場景那一格【下面】——排在站名牌正下方會整行壓在場景上讀不出來，
+            // 也把留給場景的那一格蓋掉。總高不變，只是順序對調。
+            if let notice = snapshot.notice, !sceneShown {
                 BoardNotice(notice: notice, scale: scale)
                     .frame(height: scale.pt(18), alignment: .leading)
             }
-            Spacer().frame(height: scale.pt(4))
+            Spacer().frame(height: headerGap(scale))
+            if let notice = snapshot.notice, sceneShown {
+                BoardNotice(notice: notice, scale: scale)
+                    .frame(height: scale.pt(18), alignment: .leading)
+            }
 
             if rows.isEmpty {
                 // 🔴 一班都沒有時把那句話擺在卡的正中間，並且【不畫】頁尾的免責聲明——
@@ -1259,6 +1391,53 @@ struct LargeBoardView: View {
                     .lineLimit(1).minimumScaleFactor(0.8)
                     .frame(height: scale.pt(footerRef), alignment: .leading)
             }
+        }
+    }
+
+    /// 標題區（含它下面那段間距）的高度，換算成設計基準座標系（列高分配要先扣掉它）。
+    /// 素色維持改版前的字面值；頭帶與站名牌含不隨寬度縮放的內容邊距，所以用實際點數除回去。
+    private func titleRef(_ scale: RailScale) -> CGFloat {
+        let k = max(scale.k, 0.01)
+        switch backdrop {
+        case .plain:
+            return RailRowHeight.cardTitle + 4
+        case .model:
+            return (scale.pt(RailWidgetArt.bandHeight(.systemLarge)) - RailBoardInsets.content
+                    + headerGap(scale)) / k
+        case .scene:
+            return (RailStationPlate.height(.large, band: snapshot.plate?.band != nil, scale: scale)
+                    + headerGap(scale)) / k
+        }
+    }
+
+    private func headerGap(_ scale: RailScale) -> CGFloat {
+        switch backdrop {
+        case .plain: return scale.pt(4)
+        case .model: return scale.pt(6)
+        case .scene: return scale.pt(sceneShown ? 56 : 6)
+        }
+    }
+
+    @ViewBuilder
+    private func header(_ scale: RailScale) -> some View {
+        switch backdrop {
+        case .plain:
+            RailCardTitle(title: RailNativeL10n.name(snapshot.title), scale: scale) {
+                // 設計稿的特大字版把「更新」兩個字收掉，只留裸時刻（頁尾那行會補講一次）。
+                RailStamp(text: RailBoardClock.updateTimeString(snapshot.generatedAt),
+                          suffix: scale.readable ? "" : "更新", scale: scale)
+            }
+        case .model:
+            // mockup A 大卡：頭帶 86pt，站名 24pt 粗體、更新時間在下面，右邊停下一班的代表車。
+            RailModelBand(title: RailNativeL10n.name(snapshot.title),
+                          model: snapshot.rows.first.map { RailWidgetArt.traModel(type: $0.trainType) },
+                          large: true, scale: scale) {
+                RailStamp(text: RailBoardClock.updateTimeString(snapshot.generatedAt), scale: scale)
+            }
+        case .scene:
+            // C：左上角琺瑯站名牌；更新時間在頁尾那行（mockup：「更新時間移到大卡最底那行」）。
+            RailStationPlate(info: snapshot.plate ?? RailPlateInfo(name: snapshot.title, band: nil),
+                             size: .large, scale: scale)
         }
     }
 
@@ -1360,6 +1539,7 @@ struct MediumBoardView: View {
     let entryDate: Date
     var clockFirst: Bool = false
     @Environment(\.railReadable) private var readable
+    @Environment(\.railBackdrop) private var backdrop
 
     var body: some View {
         GeometryReader { geo in
@@ -1376,7 +1556,9 @@ struct MediumBoardView: View {
     private func followLimit(_ scale: RailScale) -> Int {
         // 好讀版：21（標題）＋4＋52（主角倒數）＋30×2 ＝ 137／138 ⇒ 兩班（共三列），
         // 與設計檔對照表的「medium 列數 4 → 3」一致。
-        let full = scale.readable ? 2 : 3
+        // 車模頭帶（44）與站名牌（41）都比標題列（21）高出一列以上 ⇒ 兩種背景都少一班。
+        //   車模：44＋4＋44＋22×2 ＝ 136／138；場景：41＋4＋44＋22×2 ＝ 133。
+        let full = scale.readable ? 2 : (backdrop == .plain ? 3 : 2)
         return snapshot.notice == nil ? full : full - 1
     }
 
@@ -1384,11 +1566,10 @@ struct MediumBoardView: View {
     private func content(_ scale: RailScale) -> some View {
         let follows = Array(snapshot.rows.dropFirst().prefix(followLimit(scale)))
         VStack(alignment: .leading, spacing: 0) {
-            RailCardTitle(title: RailNativeL10n.name(snapshot.title), scale: scale) {
-                RailStamp(text: RailBoardClock.updateTimeString(snapshot.generatedAt), scale: scale)
-            }
+            header(scale)
             if let notice = snapshot.notice {
                 BoardNotice(notice: notice, scale: scale)
+                    .railSceneBacking(scale)
                     .frame(height: scale.pt(18), alignment: .leading)
                 Spacer().frame(height: scale.pt(4))
             } else {
@@ -1415,6 +1596,32 @@ struct MediumBoardView: View {
                 // 🔴 空狀態才在末尾補彈簧。有班次時末尾【不能】再放一個——兩個 Spacer
                 //    會把剩餘高度對半分，次列就浮在卡片中間而不是貼著卡底。
                 Spacer(minLength: 0)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func header(_ scale: RailScale) -> some View {
+        switch backdrop {
+        case .plain:
+            RailCardTitle(title: RailNativeL10n.name(snapshot.title), scale: scale) {
+                RailStamp(text: RailBoardClock.updateTimeString(snapshot.generatedAt), scale: scale)
+            }
+        case .model:
+            // A 頭帶：站名＋更新時間疊兩行靠左，右邊停下一班的代表車（車壓在頭帶下緣上）。
+            RailModelBand(title: RailNativeL10n.name(snapshot.title),
+                          model: snapshot.rows.first.map { RailWidgetArt.traModel(type: $0.trainType) },
+                          large: false, scale: scale) {
+                RailStamp(text: RailBoardClock.updateTimeString(snapshot.generatedAt), scale: scale)
+            }
+        case .scene:
+            // C：站名牌在左、更新時間靠右貼著站名牌底緣（中卡沒有頁尾可以放它）。
+            HStack(alignment: .bottom, spacing: scale.pt(6)) {
+                RailStationPlate(info: snapshot.plate ?? RailPlateInfo(name: snapshot.title, band: nil),
+                                 size: .small, scale: scale)
+                Spacer(minLength: 0)
+                RailStamp(text: RailBoardClock.updateTimeString(snapshot.generatedAt), scale: scale)
+                    .railSceneBacking(scale)
             }
         }
     }
@@ -2210,6 +2417,20 @@ extension Color {
             blue = Double(value & 0xFF) / 255
         }
         self.init(red: red, green: green, blue: blue)
+    }
+}
+
+extension PreparedBoard {
+    /// 「場景」背景的站名牌：車站模式寫鄰站，直達模式寫「往 目的站」。
+    var plateInfo: RailPlateInfo {
+        let origin = originDisplayName ?? originName
+        if let destinationName {
+            let destination = RailNativeL10n.name(destinationDisplayName ?? destinationName)
+            return RailPlateInfo(name: origin,
+                                 band: .text(RailNativeL10n.text("往 {station}", ["station": destination])))
+        }
+        return RailPlateInfo(name: origin,
+                             band: neighbors.map { .neighbors(left: $0.south, right: $0.north) })
     }
 }
 
