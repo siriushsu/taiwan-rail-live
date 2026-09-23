@@ -73,6 +73,17 @@ struct RailFollowAttributes: ActivityAttributes {
         var colorOverride: String?
         // true＝人已到轉乘站、目前倒數的是接續班次發車，不是下一站到站。
         var transferWaiting: Bool?
+        // 進站軌道（B 方案，docs/follow-card-track-20260923.md 三）。全部 Optional 且只加在尾端，
+        // 讓 1.6.11 已開著的卡（沒有這幾欄）仍能解碼、自然退回舊版面。
+        // 🔴 車位只准用 tick 算，不准用 Date()——系統會替同一份內容在不同時間各算一張快照
+        //    （淺／深色、切外觀），用讀取端時鐘會讓同一次更新的車前後跳甚至倒退
+        //    （台鐵/捷運等站卡已踩過這個坑，見 TraWaitDisplay.make 與 MetroWaitDisplay.make 的註解）。
+        var tick: Double?
+        // 轉乘交棒換車後的車型；一般單段是 nil，版面退回讀 attributes.carModel。
+        var carModelOverride: String?
+        // 目前 nextStop 站牌左右鄰站（實體路線上，車開過來/要去的那一側）。
+        var plateLeft: String?
+        var plateRight: String?
     }
     var trainNo: String           // 車次
     var kind: String              // 車種(自強/區間/…);建立後不變的放這裡
@@ -81,4 +92,8 @@ struct RailFollowAttributes: ActivityAttributes {
     // 卡片與地圖看起來才是同一台車。🔴 Optional 的理由與 ContentState 那幾欄相同:
     // Attributes 也是跨行程編碼型別,非 Optional 的新欄位會讓既有的卡解不出來。
     var color: String?
+    // 進站軌道（B 方案）用的正側面車模 id（同網站 3D 列車 formations.js 的 FORMATIONS[…].id，
+    // 高鐵是「700t」）。只在 sys 是 tra_sched／thsr_sched 時網頁會送；其他系統／拿不到都是 nil，
+    // 卡片就退回原本的 RailSpineTrack 版面。🔴 建立後不可變——同 attributes 其他欄，放在尾端。
+    var carModel: String?
 }

@@ -5512,13 +5512,13 @@
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
         <li data-cl-of="terrainrtt0923"><span class="d">9/23</span><span>地景地圖開啟地形時，立體車站周圍的地面不再殘留舊的建築輪廓</span></li>
+        <li data-cl-of="followtrack0923"><span class="d">9/23</span><span>台鐵、高鐵的跟車卡加入進站軌道：列車在上一站與下一站之間跑，靠站時停在站牌旁，發車才換到下一段</span></li>
+        <li data-cl-of="mwstall0923"><span class="d">9/23</span><span>修正 iPhone 捷運等車卡偶爾十幾分鐘停住不更新</span></li>
         <li data-cl-of="widgetbg0923"><span class="d">9/23</span><span>桌面小工具新增「背景」設定，可選車模、場景或素色</span></li>
         <li data-cl-of="perf3d0907"><span class="d">9/23</span><span>立體地圖跟車時，畫面不再約每 15 秒頓一下</span></li>
         <li data-cl-of="metrowaittrack0923"><span class="d">9/23</span><span>iPhone 與 Android 16 的等車卡加入進站軌道，捷運跟著官方倒數、台鐵跟著官方誤點</span></li>
         <li data-cl-of="railboardrows0923"><span class="d">9/23</span><span>Android 桌面的台鐵發車看板改成卡片放得下幾班就列幾班，Samsung 手機下方不再空一截</span></li>
         <li data-cl-of="checkinsync0923"><span class="d">9/23</span><span>成就「通勤的證明」「老通勤族」的路段次數與打卡車站，現在會跟著帳號雲端同步，換一台裝置登入不再歸零（謝謝網友回報）</span></li>
-        <li data-cl-of="metrowaitapproach0923"><span class="d">9/23</span><span>iPhone 捷運等車卡在列車進站前約 4 分鐘內，每分鐘跟官方即時資訊對一次時</span></li>
-        <li data-cl-of="glassnear0913"><span class="d">9/23</span><span>跟車前進時，沿途建築的透視線條會持續更新，不必等列車靠站才一次出現</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5702,6 +5702,8 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="followtrack0923"><span class="d">9/23</span><span>台鐵、高鐵跟車卡加入進站軌道：列車在上一站與下一站之間跑，車後灰、車前路線色；靠站時停在站牌旁，發車才換下一段。iPhone 每 30 秒、Android 16 每 20 秒挪一格；Android 等車卡不再畫方塊。App 1.6.12 起</span></li>
+        <li data-cl="mwstall0923"><span class="d">9/23</span><span>修正 iPhone 捷運等車卡偶爾停住十幾分鐘、沒有跟著官方倒數更新的問題：伺服器載入北捷班表時，只要其中一次載入被中斷，之後的更新都會跟著卡住；現在改成各自載入、互不牽連</span></li>
         <li data-cl="metrowaittrack0923"><span class="d">9/23</span><span>等車卡加入進站軌道：列車以正側面圖從上一站開向你的車站站牌，捷運跟著官方倒數、台鐵照表定加官方誤點；iPhone 在鎖定畫面與動態島（台鐵卡每 30 秒挪一格），Android 16 在通知。App 1.6.11 起生效</span></li>
         <li data-cl="metrowaitapproach0923"><span class="d">9/23</span><span>iPhone 捷運等車卡：列車離你的車站只剩最後一段（約 4 分鐘內）時，鎖定畫面與動態島的倒數改成每分鐘跟官方即時資訊對一次時；更早之前照舊只在班次或時間明顯變動時才更新</span></li>
         <li data-cl="virtualloops0920"><span class="d">9/20</span><span>山海號與平原號現在從地圖車牌、車站看板到列車資訊都直接標示為「軌島虛構專列」，不會再看起來像真實營運班次</span></li>
@@ -6611,9 +6613,12 @@
 //         沿用同一份官方資料、不多打北捷／TDX）；捷運卡的推播多送 tick，App 1.6.12 起車位改用它算。
 // v0923i：跟車時每 15 秒那一下的真兇是車站建物遮罩重送 remainders 時，MapLibre worker 把整份 GeoJSON 送回主執行緒
 //         （台北車站約 1.4 萬分件）；vendor 移植上游修正，setData 傳物件時不再回傳（守門：verify_geojson_no_roundtrip）。
-// v0923j：地景＋地形時車站遮罩改了 building filter，地面 2D 建物輪廓（地形貼圖）不再卡在舊 filter：
+// v0923j：Worker 的北捷模型與日型表快取改成只存「已經載好」的結果、不存進行中的 promise——09-23 21:44 起 cron 每發卡滿
+//         15 分鐘被砍（北捷帳本斷層、iPhone 捷運等車卡停推）；一個被中斷的載入不再拖住整個 isolate（守門：verify_trtc_model_memo）。
+// v0923k：台鐵、高鐵跟車卡加入進站軌道（伺服器每 30 秒挪車、發車才換下一段；App 端隨 1.6.12 出貨）。
+// v0923l：地景＋地形時車站遮罩改了 building filter，地面 2D 建物輪廓（地形貼圖）不再卡在舊 filter：
 //         等 openmaptiles 重載完再全清一次地形貼圖（守門：verify_terrain_rtt_mask）。
-const BUILD = 'v0923j';
+const BUILD = 'v0923l';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -20154,6 +20159,9 @@ function xferHandoffPlan(tr) {
     trainNo: String(targetTr.train || ''), sys: targetSys, kind, color, terminus,
     transferStop: String(target.stop.name || ''), waitUntil,
     staMap, stopCodes,
+    // 接續車(交棒之後那一段)的車型——與 laPayload/laBind 同一顆 laCarModel,卡片交棒換車時
+    // 車圖跟著換,不是繼續畫來源車的車型。
+    carModel: laCarModel(targetTr),
   };
   return {
     sourceStop: source.stop, targetTr, targetSys,
@@ -20189,6 +20197,19 @@ function maybeXferAutoFollow(tr) {
 const LIVE_ACTIVITY_ENABLED = !!window.RAIL_NATIVE_LIVEACTIVITY;
 function liveActivityAllowed() {
   return LIVE_ACTIVITY_ENABLED && plusIsActive();
+}
+// 車型:跟車卡要畫正側面車圖,與等站卡共用同一份解析(traWaitCarModel,動態 import
+// formations.js)——但那是 async,laPayload/laBind/xferHandoffPlan 都得保持同步。用一個
+// 極簡快取墊著:第一次問某班車回 null(卡片這一發沒有車型,不畫車圖版即可,不痛),
+// 背景把 import 解出來之後寫進快取,下一發(≤10 秒後,或下一次 cron)自然就有。
+const _laCarModelCache = {};
+function laCarModel(tr) {
+  const key = String(tr.sys || '') + '#' + String(tr.train || '');
+  const hit = _laCarModelCache[key];
+  if (hit !== undefined) return hit;
+  _laCarModelCache[key] = null;   // 先佔位:resolve 前同一班車的呼叫都拿 null,不會重複觸發 import
+  traWaitCarModel(tr).then(id => { _laCarModelCache[key] = id; }).catch(() => {});
+  return null;
 }
 // 下一站與倒數完全沿用跟隨面板那一套(updateFollowPanel):nextStopInfo() 回 {name, min, at},
 // min=距抵達分鐘數、at=表定時刻(秒)。Live Activity 只是把它算好的值搬過去,不另造演算法。
@@ -20235,8 +20256,15 @@ function laPayload(tr) {
       : 0;
     remainingStops.push({
       name: String(stop.name || ''), arrivalAt, departedAt,
+      // 這一站自己的【表定發車】(跟車卡進站軌道契約點 2 的 dep,同一顆換算函式,不另造一套)——
+      // Android 進度標記算「這一段已經走過去了嗎」要用它,不是 arrivalAt。
+      depAt: Math.round((nowMs + ((stop.depSec != null ? stop.depSec : stop.arrSec) - t) * 1000) / 1000),
       advanceAt: Math.round((nowMs + (((k === i && dwelling) ? stop.depSec : stop.arrSec) - t) * 1000) / 1000),
       prevStop: sequencePrev ? String(sequencePrev.name || '') : '',
+      // 這一站站牌下緣的兩個鄰站(實體路線上的前後站,含通過不停的站——與 traWaitHopOf 同一種算法,
+      // 索引要落在【densify 過的完整 stops】,不是這個迴圈跳過通過站之後的 k)。
+      plateLeft: k > 0 ? String(stops[k - 1].name || '') : null,
+      plateRight: k + 1 < stops.length ? String(stops[k + 1].name || '') : null,
       code: ((state.stnInfoMap || {})[traStnKey(stop.name)] || {}).id || null,
     });
     sequencePrev = stop;
@@ -20252,6 +20280,12 @@ function laPayload(tr) {
     arrivalIso: iso(Math.max(0, stops[i].arrSec - t)),
     departedIso: prev ? iso((prev.depSec != null ? prev.depSec : prev.arrSec) - t) : '',   // 空字串＝始發站,Widget 那頭不畫進度條
     prevStop: prev ? String(prev.name) : '',
+    // 這一站站牌下緣的兩個鄰站(見上面 remainingStops[k] 的同款欄位,這裡是目前這一站 i 的版本)。
+    plateLeft: i > 0 ? String(stops[i - 1].name || '') : null,
+    plateRight: i + 1 < stops.length ? String(stops[i + 1].name || '') : null,
+    // 車型(見上面 laCarModel):第一發通常還沒解出來,是 null,卡片維持軌脊版;
+    // 解出來之後的下一發(≤10 秒)自然帶上,不必為它另開一輪推播。
+    carModel: laCarModel(tr),
     stopping: dwelling,
     arrivalAt: Math.round((nowMs + Math.max(0, stops[i].arrSec - t) * 1000) / 1000),
     departedAt: prev ? Math.round((nowMs + ((prev.depSec != null ? prev.depSec : prev.arrSec) - t) * 1000) / 1000) : 0,
@@ -20284,8 +20318,20 @@ async function laBind(token, key, tr) {
   // (那部分本來就該是純表定時刻,不是套過誤點的 effTLive)。
   if (!nextStopInfo(tr, effTLive(tr))) return;   // 已過終點:沒有下一站可推,不交班
   const originSec = Math.floor(Date.now() / 1000) - t;   // arrSec → epoch 的常數位移
-  const stops = s.filter(x => x.stop !== false)
-    .map(x => ({ name: x.name, at: Math.round(originSec + x.arrSec) }));
+  // 🔴 跟車卡進站軌道契約:dep(表定發車,Y 語意判「到站了沒發車」要用)、pl/pr(這一站站牌
+  // 下緣的兩個鄰站,含通過不停的站)。索引要落在【完整 s 陣列】(含通過站),不是過濾之後的
+  // stops——與前景 laPayload 的 remainingStops[k].plateLeft/plateRight 同一種算法。
+  const stops = [];
+  for (let si = 0; si < s.length; si++) {
+    const x = s[si];
+    if (x.stop === false) continue;
+    stops.push({
+      name: x.name, at: Math.round(originSec + x.arrSec),
+      dep: Math.round(originSec + (x.depSec != null ? x.depSec : x.arrSec)),
+      pl: si > 0 ? String(s[si - 1].name || '') : null,
+      pr: si + 1 < s.length ? String(s[si + 1].name || '') : null,
+    });
+  }
   // 🔴 最終複審 C-1(Critical):這一發原本【沒有 Authorization header】⇒ 後端
   // checkPlusEntitlement() 第一件事就是讀 Bearer,取不到直接 401 ⇒ 正式環境 D1 永遠是空表、
   // cron 每分鐘掃 0 列,整條後端交班 100% 不生效,而且前後端都零訊號(下面 `if (!r.ok) return`
@@ -20317,6 +20363,11 @@ async function laBind(token, key, tr) {
       token, sys: String(tr.sys || ''), trainNo: String(tr.train || ''),
       stops, staMap: buildStaMap(tr.stops, state.stnInfoMap || {}),
       stopCodes: buildStopCodes(tr.stops, state.stnInfoMap || {}),
+      // 車型(跟車卡進站軌道契約訂正 2026-09-23):送這班車自己的——Attributes.carModel 只在
+      // Activity 建立當下釘死,之後改不了,背景推播必須每一發都用這顆覆寫,不能只在交棒時送,
+      // 否則背景一推播就會把 App 前景已經畫好的車圖蓋成沒有。後端存進 journey_state(既有
+      // JSON 欄位,不新增 schema),見 worker.js laBind 的 journeyState。
+      carModel: laCarModel(tr),
       handoff: handoff ? handoff.backend : null,
     }),
   }).then(r => {

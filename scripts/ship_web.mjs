@@ -380,6 +380,16 @@ try {
   if (budget.status !== 0) fail('北捷呼叫量閘門未過——營運窗閘門或 CarWeight 節流被改掉了'
     + '（單獨重跑：node scripts/verify_trtc_call_budget.mjs）');
 
+  // ── 2.9b 北捷模型載入器不跨 request 共用進行中的 promise ──────────────────────
+  // 2026-09-23 事故之後補的：模組層快取曾經存【進行中的 promise】，發起它的 request 被取消時
+  // I/O 跟著被取消、promise 永遠不 resolve，同一個 isolate 之後的 cron 每發都卡滿 15 分鐘被砍
+  // （exceededWallTime），北捷帳本斷層、iPhone 捷運等車卡停推。這種回歸不會讓畫面或別的判準變紅，
+  // 只會在某個晚上帳本又斷掉。純離線（ASSETS 替身讀這棵乾淨出貨樹的 data/），約 1 秒。
+  const trtcMemo = spawnSync('node', [path.join(wt, 'scripts', 'verify_trtc_model_memo.mjs')], { encoding: 'utf8' });
+  process.stdout.write(trtcMemo.stdout || ''); process.stderr.write(trtcMemo.stderr || '');
+  if (trtcMemo.status !== 0) fail('北捷模型載入器閘門未過——模組層快取又存了進行中的 promise，一個 request 被取消就會卡死整個 isolate 的 cron'
+    + '（單獨重跑：node scripts/verify_trtc_model_memo.mjs）');
+
   // ── 2.10 OBS 直播／導播模式守門人 ───────────────────────────────────────────
   // 2026-09-03 刪掉 ?live=1／?live=2 之後補的。守的是「刪掉的東西不會被某條舊分支的合併
   // 靜默帶回來」——這個 repo 的合併吃掉／帶回東西從來不會讓 build 紅（見 app/scripts/

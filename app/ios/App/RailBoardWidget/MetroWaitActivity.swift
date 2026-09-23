@@ -103,7 +103,7 @@ struct MetroWaitDisplay {
         secondDest: String?, secondEta: Double?, secondMinutes: Int?,
         crowd: [Int]?, dataAt: Double?, endAt: Double?,
         notice: String?, pushed: Bool?, isStale: Bool, now: Date,
-        hop: MetroWaitHop? = nil
+        tick: Double? = nil, hop: MetroWaitHop? = nil
     ) -> MetroWaitDisplay {
         let nowSec = now.timeIntervalSince1970
         // 🔴 過期判定取【資料時刻】不取讀取端時鐘：後者對「被某層快取餵了舊主體」恆為新鮮，
@@ -190,10 +190,14 @@ struct MetroWaitDisplay {
             } else if isStale {
                 car = .arrived
             } else if let eta = nextEta {
-                // 🔴 剩餘秒數取【資料時刻】不取重繪時刻：系統會替同一份 ContentState 在不同時間各算一張
-                //    快照（淺／深色、切外觀），用 Date() 會讓同一次更新的車停在不同位置、甚至倒退
-                //    （09-23 模擬器實見：已畫到站牌的車，切回淺色後退到 0.83）。eta − dataAt＝官方看板當下的倒數。
-                let left = eta - (dataAt ?? nowSec)
+                // 🔴 剩餘秒數取【這一發推播的時刻】不取重繪時刻：系統會替同一份 ContentState 在不同時間
+                //    各算一張快照（淺／深色、切外觀），用 Date() 會讓同一次更新的車停在不同位置、甚至倒退
+                //    （09-23 模擬器實見：已畫到站牌的車，切回淺色後退到 0.83）。
+                //    取 tick 不取 dataAt：進站窗內伺服器每 30 秒推一發（2026-09-23 裁示「那就改30秒吧」），
+                //    北捷看板的 dataAt 卻不一定每 30 秒換 ⇒ 用 dataAt 兩發之間車會停在原地。
+                //    舊伺服器不送 tick（nil）⇒ 退回 eta − dataAt（官方看板當下的倒數），與改版前一樣。
+                //    過期判定仍看 dataAt（上面的 expired），tick 只管車畫在哪。
+                let left = eta - (tick ?? dataAt ?? nowSec)
                 if left <= 0 { car = .arrived }
                 else if left <= hop.runSec { car = .running(1 - left / hop.runSec) }
                 // 倒數落在 (行駛, 行駛＋停站]：車還停在上一站，車頭貼著上一站。
@@ -446,6 +450,10 @@ struct MetroWaitTrack: View {
     var trailingAccent: String? = nil
     /// 動態島展開版：永遠黑底，軌道縮小（車高 16、整條 60、軌面 43）。
     var island: Bool = false
+    /// 上一站（左端小圓點）距卡片左緣的內縮量。等車卡預設 12pt——上一站是「你剛離開的地方」，
+    /// 貼著左緣就好。跟車卡用約一節車長（100pt）：車剛發車時車頭貼著左端小圓點，
+    /// 整節車廂（往左延伸）都要留在卡片內，不然車尾會被 12pt 內縮直接裁掉。
+    var prevInset: CGFloat = 12
     var scale: RailScale = RailScale(k: 1)
 
     @Environment(\.colorScheme) private var scheme
@@ -472,7 +480,7 @@ struct MetroWaitTrack: View {
             // 讓出左側那段虛線代表更遠的路。
             let sx = w - s(46)
             let far = track.car == .far
-            let px = far ? s(96) : s(12)
+            let px = far ? s(96) : s(prevInset)
             let nose: CGFloat? = {
                 switch track.car {
                 case .none: return nil
@@ -844,6 +852,8 @@ struct MetroWaitActivityWidget: Widget {
             //    ⇒ isStale 的語意是「列車進站」，不是「資料過期」。過期是另一條路
             //    （dataAt 超過 90 秒），兩者在版面上長得不一樣。
             isStale: ctx.isStale, now: Date(),
+            // 車的位置只看伺服器這一發的 tick（不看 Date()，理由見 make）。
+            tick: ctx.state.tick,
             // 上一站與站間時間從目錄的站序推（終點決定方向），推播與 ContentState 都不用改形狀。
             hop: MetroWidgetCatalog.shared.waitHop(sys: ctx.attributes.sys, station: ctx.attributes.station,
                                                    dest: ctx.state.nextDest)

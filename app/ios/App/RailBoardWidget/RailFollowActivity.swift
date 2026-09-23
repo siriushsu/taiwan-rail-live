@@ -33,6 +33,21 @@ struct RailFollowDisplay {
     /// 資料過期（見 staleGraceSeconds）⇒ 全卡降到 62%，與候車卡同一條規則。
     let expired: Bool
     let notice: String?
+    /// 進站軌道（B 方案，docs/follow-card-track-20260923.md 三）。nil ⇒ 退回上面這整組
+    /// RailSpineTrack 欄位畫的舊版面——沒有車模素材、系統不是台鐵／高鐵、或始發前（沒有
+    /// 上一站）都在這條。與捷運等車卡、台鐵等站卡共用同一個型別（MetroWaitDisplay.TrackB）。
+    let trackB: MetroWaitDisplay.TrackB?
+    /// 軌道右下角「HH:MM 到」。只有 trackB 非 nil 時畫。
+    let arrivalClockText: String?
+
+    /// B 版面最後一列「狀態詞 · 誤點」的後半段，讀法與 RailStatusTag(.delay(_:)) 同一套
+    /// （0 分＝準點、正＝誤點、負＝早到）——舊版面的誤點是獨立膠囊放第一行，B 版面併進最後一列。
+    var delayWord: String {
+        if delayMinutes == 0 { return RailNativeL10n.text("準點") }
+        return delayMinutes > 0
+            ? RailNativeL10n.text("誤點 {n} 分", ["n": String(delayMinutes)])
+            : RailNativeL10n.text("早到 {n} 分", ["n": String(-delayMinutes)])
+    }
 
     /// 即將進站的門檻。臺鐵的 ETA 是分鐘級（TDX），畫秒數是假精度 ⇒ 不足一分鐘一律
     /// 收斂成「進站」，與 widget 那一側同一條分界（RailCountdown.Surface.widget）。
@@ -47,7 +62,11 @@ struct RailFollowDisplay {
         nextStop: String, prevStop: String?,
         arrivalDate: Double?, departedDate: Double?,
         delaySec: Int, stopping: Bool, transferWaiting: Bool = false,
-        notice: String?, isStale: Bool, now: Date
+        notice: String?, isStale: Bool, now: Date,
+        // 進站軌道（B 方案）用的輸入,全部有預設值——舊呼叫端(捷運跟車卡／還沒補上這些欄位
+        // 的地方)不用改。sys 不是台鐵／高鐵,或找不到車模寬高比,就維持舊版面(見下方 trackB)。
+        sys: String = "", carModel: String? = nil, carModelOverride: String? = nil,
+        tick: Double? = nil, plateLeft: String? = nil, plateRight: String? = nil
     ) -> RailFollowDisplay {
         let nowSec = now.timeIntervalSince1970
         let left = arrivalDate.map { $0 - nowSec }
@@ -134,6 +153,52 @@ struct RailFollowDisplay {
             }
         }
 
+        // 進站軌道（B 方案）：sys 是台鐵／高鐵且找得到車模寬高比 ⇒ 新版面；沒有上一站
+        // （始發前，TrackB.prev 是非 Optional，沒有字可畫）就沒有東西可組 ⇒ trackB 仍是 nil，
+        // 版面退回上面這整組 RailSpineTrack 欄位——與 TraWaitHop.init? 缺上一站時同一個退路。
+        var trackB: MetroWaitDisplay.TrackB?
+        var arrivalClockText: String?
+        let effectiveCarModel = RailHex.trimmed(carModelOverride) ?? RailHex.trimmed(carModel)
+        if sys == "tra_sched" || sys == "thsr_sched",
+           let model = effectiveCarModel, let aspect = TraWaitHop.carAspect(model),
+           let prev = prevStop {
+            let car: MetroWaitDisplay.TrackB.Car
+            if transferWaiting || tick == nil {
+                // 沒接上任何一發推播／前景更新（tick 是 nil）就畫了車，之後只要一直沒有下一發，
+                // 車會停在開卡那一刻不動、倒數卻照走——那正是「停住的車騙人」，同等車卡的規則。
+                car = .none
+            } else if stopping || stale || arrivalDate == nil {
+                car = .arrived
+            } else if let t = tick, let a = arrivalDate, t >= a {
+                car = .arrived
+            } else if let t = tick, let from = departedDate, let a = arrivalDate, a > from {
+                car = .running(min(1, max(0, (t - from) / (a - from))))
+            } else {
+                car = .none
+            }
+            // 高鐵不帶鄰站（沒有這個概念）、帶子改用車種色——plateNeighbours 是 nil 時
+            // MetroWaitTrack.plate 自動退回 bandColor: track.color。
+            let isTra = sys == "tra_sched"
+            let left = isTra ? plateLeft.flatMap { RailHex.trimmed($0) }.map { RailNativeL10n.name($0) } : nil
+            let right = isTra ? plateRight.flatMap { RailHex.trimmed($0) }.map { RailNativeL10n.name($0) } : nil
+            trackB = MetroWaitDisplay.TrackB(
+                prev: RailNativeL10n.name(prev), car: car,
+                carModel: model, carAspect: aspect, lineName: nil,
+                color: RailHex.color(colorHex),
+                prevSub: departedDate.map { d in
+                    RailNativeL10n.text("{time} 開", [
+                        "time": RailBoardClock.updateTimeString(Date(timeIntervalSince1970: d))
+                    ])
+                },
+                plateNeighbours: (left == nil && right == nil) ? nil : .init(left: left, right: right)
+            )
+            arrivalClockText = arrivalDate.map { a in
+                RailNativeL10n.text("{time} 到", [
+                    "time": RailBoardClock.updateTimeString(Date(timeIntervalSince1970: a))
+                ])
+            }
+        }
+
         return RailFollowDisplay(
             kind: RailNativeL10n.name(kind), trainNo: trainNo,
             color: RailHex.color(colorHex), inkColor: RailHex.ink(colorHex),
@@ -144,7 +209,8 @@ struct RailFollowDisplay {
             track: track, progress: progress, phase: phase,
             originLabel: originLabel, targetLabel: targetLabel,
             stateWord: word, expired: stale,
-            notice: RailHex.trimmed(notice).map { RailNativeL10n.text($0) }
+            notice: RailHex.trimmed(notice).map { RailNativeL10n.text($0) },
+            trackB: trackB, arrivalClockText: arrivalClockText
         )
     }
 }
@@ -159,6 +225,66 @@ struct RailFollowLockView: View {
     var scale: RailScale = RailScale(k: 1)
 
     var body: some View {
+        Group {
+            if let track = display.trackB {
+                trackLayout(track)
+            } else {
+                spineLayout
+            }
+        }
+        .padding(.horizontal, scale.pt(14))
+        // 進站軌道版少了獨立的站名列（改由軌道右端的站名牌說）、多了軌道本身，列距因此
+        // 跟 1.6.11 台鐵等站卡 B 同一個值（7）；舊版面維持原本的 10，逐像素不變。
+        .padding(.vertical, scale.pt(display.trackB == nil ? 10 : 7))
+        // 設計稿：資料過期時「整張卡降到 secondary」。與候車卡同一個值，不然同一件事在兩張卡上
+        // 長得不一樣，使用者要學兩次。
+        .opacity(display.expired ? 0.62 : 1)
+    }
+
+    /// B 方案：站名列拿掉（改由軌道右端的站名牌說），誤點併進最後一列「狀態詞 · 誤點」，
+    /// 倒數搬到第一列（車種標＋車次＋往 終點 同一列）。與 1.6.11 台鐵等站卡 B 同一套排法。
+    private func trackLayout(_ track: MetroWaitDisplay.TrackB) -> some View {
+        VStack(alignment: .leading, spacing: scale.pt(3)) {
+            HStack(spacing: scale.pt(6)) {
+                RailTrainMark(kind: display.kind, number: display.trainNo,
+                              color: display.color, fontSize: 12, numberSize: 15, scale: scale)
+                Text(RailNativeL10n.text("往 {station}", ["station": display.terminus]))
+                    .font(.system(size: scale.pt(13)))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1).minimumScaleFactor(0.8)
+                Spacer(minLength: scale.pt(4))
+                if let c = display.countdown {
+                    RailCountdownText(value: c, size: .heroCard, scale: scale)
+                } else if display.phase == .stopping {
+                    RailCountdownText(value: .arriving, size: .heroCard,
+                                      arrivingWord: "停靠中", scale: scale)
+                }
+            }
+            // 跟車卡剛發車時要看得到整節車廂（車頭貼著上一站小圓點、車尾往左延伸），
+            // 等車卡的 12pt 內縮會直接把車尾裁掉 ⇒ 用約一節車長的內縮（見 MetroWaitTrack.prevInset）。
+            MetroWaitTrack(track: track, station: display.stopName,
+                           trailing: display.arrivalClockText, prevInset: 100, scale: scale)
+            HStack(alignment: .center, spacing: scale.pt(6)) {
+                Text(display.stateWord + " · " + display.delayWord)
+                    .font(.system(size: scale.pt(11)))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                if let notice = display.notice {
+                    Text("⚠ " + notice)
+                        .font(.system(size: scale.pt(11), weight: .medium))
+                        .foregroundStyle(.orange)
+                        .lineLimit(2).minimumScaleFactor(0.85)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: scale.pt(4))
+                RailFollowEndButton(scale: scale, height: 24)
+            }
+        }
+    }
+
+    /// 舊版面：軌脊（RailSpineTrack）。捷運跟車卡、以及沒有車模素材的台鐵／高鐵跟車卡都走這條，
+    /// 逐像素不動——這個型別本身就是改版前的 body，只是搬進一個具名的計算屬性。
+    private var spineLayout: some View {
         VStack(alignment: .leading, spacing: scale.pt(4)) {
             HStack(spacing: scale.pt(6)) {
                 RailTrainMark(kind: display.kind, number: display.trainNo,
@@ -226,11 +352,6 @@ struct RailFollowLockView: View {
                 RailFollowEndButton(scale: scale, height: 24)
             }
         }
-        .padding(.horizontal, scale.pt(14))
-        .padding(.vertical, scale.pt(10))
-        // 設計稿：資料過期時「整張卡降到 secondary」。與候車卡同一個值，不然同一件事在兩張卡上
-        // 長得不一樣，使用者要學兩次。
-        .opacity(display.expired ? 0.62 : 1)
     }
 }
 
@@ -271,14 +392,21 @@ struct RailFollowIslandBottom: View {
     var scale: RailScale = RailScale(k: 1)
 
     var body: some View {
-        VStack(alignment: .leading, spacing: scale.pt(4)) {
+        VStack(alignment: .leading, spacing: scale.pt(display.trackB == nil ? 4 : 3)) {
             HStack(alignment: .center, spacing: scale.pt(6)) {
-                Text(display.stopLabel)
-                    .font(.system(size: scale.pt(10)))
-                    .foregroundStyle(.secondary)
-                Text(display.stopName)
-                    .font(.system(size: scale.pt(19), weight: .semibold))
-                    .lineLimit(1).minimumScaleFactor(0.7)
+                if display.trackB != nil {
+                    // 進站軌道版：站名已在軌道右端的站牌上，這裡留目的地（同鎖屏 B 版面第一列）。
+                    Text(RailNativeL10n.text("往 {station}", ["station": display.terminus]))
+                        .font(.system(size: scale.pt(15), weight: .semibold))
+                        .lineLimit(1).minimumScaleFactor(0.7)
+                } else {
+                    Text(display.stopLabel)
+                        .font(.system(size: scale.pt(10)))
+                        .foregroundStyle(.secondary)
+                    Text(display.stopName)
+                        .font(.system(size: scale.pt(19), weight: .semibold))
+                        .lineLimit(1).minimumScaleFactor(0.7)
+                }
                 Spacer(minLength: scale.pt(4))
                 if let c = display.countdown {
                     RailCountdownText(value: c, size: .row, scale: scale)
@@ -287,18 +415,24 @@ struct RailFollowIslandBottom: View {
                                       arrivingWord: "停靠", scale: scale)
                 }
             }
-            RailSpineTrack(interval: display.track,
-                           progress: display.progress,
-                           phase: display.phase,
-                           lineColor: display.color, scale: scale)
-            HStack(spacing: scale.pt(8)) {
-                Text(display.originLabel ?? "")
-                Spacer(minLength: scale.pt(6))
-                Text(display.targetLabel)
+            if let track = display.trackB {
+                // 跟車剛發車時要看得到整節車廂，同鎖屏用約一節車長的內縮（見 MetroWaitTrack.prevInset）。
+                MetroWaitTrack(track: track, station: display.stopName, island: true,
+                               prevInset: 100, scale: scale)
+            } else {
+                RailSpineTrack(interval: display.track,
+                               progress: display.progress,
+                               phase: display.phase,
+                               lineColor: display.color, scale: scale)
+                HStack(spacing: scale.pt(8)) {
+                    Text(display.originLabel ?? "")
+                    Spacer(minLength: scale.pt(6))
+                    Text(display.targetLabel)
+                }
+                .font(.system(size: scale.pt(10)))
+                .foregroundStyle(.tertiary)
+                .monospacedDigit().lineLimit(1)
             }
-            .font(.system(size: scale.pt(10)))
-            .foregroundStyle(.tertiary)
-            .monospacedDigit().lineLimit(1)
             HStack(alignment: .center, spacing: scale.pt(6)) {
                 if display.notice != nil {
                     // 🔴 動態島塞不下後端那一整句（會爆版），這裡用寫死的短標。
@@ -306,6 +440,11 @@ struct RailFollowIslandBottom: View {
                     Text(RailNativeL10n.text("⚠ 資料中斷・位置為預估"))
                         .font(.system(size: scale.pt(10)))
                         .foregroundStyle(.orange).lineLimit(1)
+                } else if display.trackB != nil {
+                    Text(display.stateWord + " · " + display.delayWord)
+                        .font(.system(size: scale.pt(11)))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 } else {
                     Text(display.stateWord)
                         .font(.system(size: scale.pt(11)))
@@ -339,7 +478,13 @@ struct RailFollowActivityWidget: Widget {
             // 🔴 這張卡的 staleDate 是「預計到站＋寬限」（RailLiveActivityPlugin／worker 兩側
             //    都送同一個值）⇒ isStale 的語意就是「資料過期」。候車卡的 staleDate 是
             //    「下一班到站整點」，那裡的 isStale 語意是「列車進站」——兩張卡不可互抄。
-            isStale: ctx.isStale, now: Date()
+            isStale: ctx.isStale, now: Date(),
+            // 進站軌道（B 方案）：sys／carModel 建立後不變放在 attributes；carModelOverride／
+            // plateLeft／plateRight／tick 每發都可能換，放在 state。車位只准看 tick，不准看 Date()
+            // ——理由同台鐵等站卡（見 TraWaitDisplay.make 的註解），這裡刻意不多傳一個 now 進車位算式。
+            sys: ctx.attributes.sys, carModel: ctx.attributes.carModel,
+            carModelOverride: ctx.state.carModelOverride, tick: ctx.state.tick,
+            plateLeft: ctx.state.plateLeft, plateRight: ctx.state.plateRight
         )
     }
 

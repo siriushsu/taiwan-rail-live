@@ -224,10 +224,11 @@ public final class RailWaitNotificationInstrumentedTest {
     @Test
     public void android16TrackNotYetAtPrev() throws Exception {
         Notification.ProgressStyle p = (Notification.ProgressStyle) postTrack(200, false);
-        assertEquals("還沒到上一站：上一站改畫成進度條上的點", null, p.getProgressStartIcon());
-        assertEquals(1, p.getProgressPoints().size());
+        assertEquals("還沒到上一站：不再畫進度點（09-23 裁示拿掉方塊）", 0, p.getProgressPoints().size());
+        assertEquals("整段（上一站→本站）都還沒走，一段路線色", 1, p.getProgressSegments().size());
+        assertEquals(0xFFE3002C, p.getProgressSegments().get(0).getColor());
         assertNotNull(p.getProgressTrackerIcon());
-        assertTrue("車要在上一站左邊", p.getProgress() < p.getProgressPoints().get(0).getPosition());
+        assertTrue("車要貼在最左", p.getProgress() < 500);
         hold();
     }
 
@@ -319,12 +320,13 @@ public final class RailWaitNotificationInstrumentedTest {
 
     @Test
     public void android16TraTrackNotYetAtPrev() throws Exception {
-        // 上一站表定還要 5 分才開（誤點 0）⇒ 車停在上一站左邊。
+        // 上一站表定還要 5 分才開（誤點 0）⇒ 車貼在最左，整段都還沒走。
         Notification.ProgressStyle p = (Notification.ProgressStyle) postTraTrack(5 * 60, 12 * 60, 0, "temu1000");
-        assertEquals("還沒到上一站：上一站改畫成進度條上的點", null, p.getProgressStartIcon());
-        assertEquals(1, p.getProgressPoints().size());
+        assertEquals("還沒到上一站：不再畫進度點（09-23 裁示拿掉方塊）", 0, p.getProgressPoints().size());
+        assertEquals("整段（上一站→本站）都還沒走，一段路線色", 1, p.getProgressSegments().size());
+        assertEquals(0xFFC0392B, p.getProgressSegments().get(0).getColor());
         assertNotNull(p.getProgressTrackerIcon());
-        assertTrue("車要在上一站左邊", p.getProgress() < p.getProgressPoints().get(0).getPosition());
+        assertTrue("車要貼在最左", p.getProgress() < 500);
         hold();
     }
 

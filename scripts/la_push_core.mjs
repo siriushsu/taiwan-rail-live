@@ -35,13 +35,31 @@ export function laObsIdx(sta, status, staMap, stopCodes) {
   return idx == null ? null : idx;
 }
 
-// 車不在即時 feed 時的退路(支線 92 站無觀測)。純表定推進:表定到站＋最後已知誤點已過 ⇒ 那站算過了。
+// 車不在即時 feed 時的退路(支線 92 站無觀測)。純表定推進:表定【發車】＋最後已知誤點已過
+// ⇒ 那站算過了(2026-09-23 跟車卡進站軌道契約,使用者裁示「Y」:到站後、發車前算停靠中,
+// 發車才換下一站)。舊 binding 沒有 dep 欄位時退回 stops[i].at——與改版前逐字相同。
 // 精度會下降,但卡片【仍然前進】——凍住不動比慢一兩分鐘更糟,使用者會直接認定功能壞了。
 // 回傳值可能等於 stops.length(全部過完),呼叫端據此收卡。
 export function laSchedIdx(stops, delaySec, nowSec, lastIdx) {
-  for (let i = 0; i < stops.length; i++)
-    if (stops[i].at + delaySec > nowSec) return Math.max(i, lastIdx);
+  for (let i = 0; i < stops.length; i++) {
+    const dep = stops[i].dep != null ? stops[i].dep : stops[i].at;
+    if (dep + delaySec > nowSec) return Math.max(i, lastIdx);
+  }
   return Math.max(stops.length, lastIdx);
+}
+
+// 表定退路下的「停靠中」:idx 停在第 i 站,是因為【已經到站、還沒發車】——與 laSchedIdx
+// 判「過了沒」用同一組 dep/at,兩者必須是同一個約定(idx 沒前進的那一刻就該亮起停靠中,
+// idx 前進的那一刻就該熄滅,否則卡片會在「軌道說到了」與「文字說還沒」之間互相矛盾)。
+// 舊 binding 沒有 dep 欄位 ⇒ 無從判斷「發車」這件事,回 false(與改版前逐字相同,那時
+// 從來不會有表定推路的停靠中)。idx 落在陣列外(已過終點/尚未起算)一律 false。
+export function laSchedStopping(stops, delaySec, nowSec, idx) {
+  if (idx < 0 || idx >= stops.length) return false;
+  const st = stops[idx];
+  if (st.dep == null) return false;
+  const arrived = nowSec >= Number(st.at) + delaySec;
+  const departed = nowSec >= Number(st.dep) + delaySec;
+  return arrived && !departed;
 }
 
 // 到站時刻 → 卡片上的 arrivalDate。【已過就回 null】,讓 Widget 只畫站名不畫假倒數。
