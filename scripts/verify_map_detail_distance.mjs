@@ -3,7 +3,8 @@ import fs from 'node:fs';
 const out='output/detail-distance';fs.mkdirSync(out,{recursive:true});const results=[];
 function check(name,pass,detail){results.push({name,pass,detail});console.log((pass?'PASS ':'FAIL ')+name+' '+JSON.stringify(detail??''));}
 for(const [name,engine]of Object.entries(process.env.ENGINE?{[process.env.ENGINE]:({chromium,webkit})[process.env.ENGINE]}:{chromium,webkit})){
- const b=await engine.launch({headless:process.env.HEADFUL!=='1'});
+ // 使用者 2026-09-23 裁示瀏覽器測試一律無視窗(有視窗會搶焦點、把畫面切走),不再提供開視窗的選項。Chromium 帶 channel:'chromium' 走真 GPU 的無視窗模式;預設 headless shell 是 SwiftShader 軟體算繪。
+ const b=await engine.launch(name==='chromium'?{channel:'chromium',headless:true}:{headless:true});
  for(const width of (process.env.WIDTHS||'414,1280').split(',').map(Number)){
   const ctx=await b.newContext({viewport:{width,height:900},locale:'zh-TW',isMobile:width<900,hasTouch:true});await ctx.addInitScript(()=>localStorage.setItem('trainmap-howto-seen','1'));const p=await ctx.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.stack));await p.route('**/api/**',r=>r.fulfill({status:503,body:'{}'}));
   try{

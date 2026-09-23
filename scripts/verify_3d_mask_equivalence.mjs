@@ -9,7 +9,8 @@ let reference=old.slice(old.indexOf('  function maskBuildings(active){'),old.ind
 reference=reference.replace('function maskBuildings(active)','function referenceMasks(active)').replace(/    const visibleKey=.*\n    maskEpoch=.*\n/,'');
 reference=reference.slice(0,reference.indexOf('    const data='))+"    return {ids:[...ids].sort((a,b)=>a-b),features:[...remainders.values()]};\n  }\n";
 for(const [name,engine] of Object.entries(process.env.ENGINE==='chromium'?{chromium}:{chromium,webkit})){
- const browser=await engine.launch({headless:name!=='chromium'}),context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true,locale:'zh-TW'});
+ // 使用者 2026-09-23 裁示瀏覽器測試一律無視窗(有視窗會搶焦點、把畫面切走)。Chromium 帶 channel:'chromium' 走真 GPU 的無視窗模式;預設 headless shell 是 SwiftShader 軟體算繪。
+ const browser=await engine.launch(name==='chromium'?{channel:'chromium',headless:true}:{headless:true}),context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true,locale:'zh-TW'});
  await context.addInitScript(()=>{localStorage.setItem('trainmap-howto-seen','1');localStorage.setItem('trainmap-appearance','dark');});
  await context.route('**/rail-3d/station-layer.js',async route=>{const response=await route.fetch();let source=await response.text();source=source.replace('  function maskLabels(active){',reference+'  function maskLabels(active){').replace("id:'island-stations',type:'custom',renderingMode:'3d',failures,refresh,","id:'island-stations',type:'custom',renderingMode:'3d',failures,refresh,auditSchedule(){return {sourceEpoch,maskEpoch,lastMoveAt,maskDeferSince,now:performance.now(),maskTimer,timer,viewTimer};},auditMasks(){return referenceMasks([...records.filter(r=>r.maskActive),...engineeringMasks]);},");await route.fulfill({response,body:source});});
  const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));

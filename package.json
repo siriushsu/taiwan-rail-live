@@ -135,7 +135,7 @@
     "check-underground-solid": "node scripts/verify_underground_solid.mjs",
     "check-garage": "node scripts/verify_garage_assets.mjs && node scripts/verify_train_garage.mjs && node scripts/verify_garage_lifecycle.mjs && node scripts/verify_garage_motion.mjs && node scripts/verify_garage_coast_times.mjs && node scripts/verify_garage_coast_scene.mjs && node scripts/verify_garage_car_pixels.mjs && node scripts/verify_garage_glass.mjs && node scripts/verify_garage_loop.mjs && node scripts/verify_garage_zoom.mjs && node scripts/verify_garage_follow.mjs",
     "check-garage-assets": "node scripts/verify_garage_assets.mjs",
-    "check-3d-perf": "node scripts/verify_geojson_no_roundtrip.mjs && node scripts/verify_glass_cache.mjs && node scripts/verify_physical_runtime_cache.mjs && node scripts/verify_3d_mask_equivalence.mjs && HEADFUL=1 node scripts/verify_3d_mask_scheduling.mjs",
+    "check-3d-perf": "node scripts/verify_geojson_no_roundtrip.mjs && node scripts/verify_glass_cache.mjs && node scripts/verify_physical_runtime_cache.mjs && node scripts/verify_3d_mask_equivalence.mjs && node scripts/verify_3d_mask_scheduling.mjs",
     "check-tra-motion": "node scripts/verify_tra_motion.mjs",
     "check-tra-live-anchor": "node scripts/verify_tra_live_anchor.mjs",
     "check-anomaly": "node scripts/verify_anomaly.mjs"

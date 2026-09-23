@@ -7,7 +7,8 @@ const catalog=JSON.parse(fs.readFileSync('rail-3d/assets/historic-buildings-v2/c
 const changed=catalog.map(c=>JSON.parse(fs.readFileSync('rail-3d/assets/historic-buildings-v2/'+c.metadata))).filter(m=>m.completionReview);
 for(const [engine,type] of Object.entries({chromium,webkit})){
  if(process.env.ENGINES&&!process.env.ENGINES.split(',').includes(engine))continue;
- const b=await type.launch({headless:process.env.HEADED!=='1'}),p=await b.newPage({viewport:{width:1280,height:900},locale:'zh-TW'}),errors=[];p.on('pageerror',e=>errors.push(e.message));
+ // 使用者 2026-09-23 裁示瀏覽器測試一律無視窗(有視窗會搶焦點、把畫面切走),不再提供開視窗的選項。Chromium 帶 channel:'chromium' 走真 GPU 的無視窗模式;預設 headless shell 是 SwiftShader 軟體算繪。
+ const b=await type.launch(engine==='chromium'?{channel:'chromium',headless:true}:{headless:true}),p=await b.newPage({viewport:{width:1280,height:900},locale:'zh-TW'}),errors=[];p.on('pageerror',e=>errors.push(e.message));
  await p.addInitScript(()=>{localStorage.setItem('trainmap-howto-seen','1');localStorage.setItem('trainmap-appearance','dark')});
  try{
   await p.goto(base+'?scene=3d&g=all&lang=zh-TW');await p.waitForFunction(()=>state.ready&&window.railIslandIntegration?.renderer&&!railIslandIntegration.loading,null,{timeout:60000});
