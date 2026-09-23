@@ -3144,3 +3144,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '桌面小工具新增「背景」設定，可選車模、場景或素色': 'ホーム画面ウィジェットに「背景」設定を追加（車両モデル・情景・無地）'
 });
+// 2026-09-23 地景＋地形時車站周圍地面殘留舊建築輪廓（地形貼圖跟著車站遮罩重畫）：兩層更新紀錄同一句，補 en/ja。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '地景地圖開啟地形時，立體車站周圍的地面不再殘留舊的建築輪廓': 'With terrain on in the landscape map, old building outlines no longer linger on the ground around 3D stations.'
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '地景地圖開啟地形時，立體車站周圍的地面不再殘留舊的建築輪廓': '地景マップで地形をオンにしたとき、立体駅の周りの地面に古い建物の輪郭が残らなくなりました。'
+});
