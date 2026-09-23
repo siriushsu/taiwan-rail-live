@@ -5703,7 +5703,7 @@
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
         <li data-cl="followtrack0923"><span class="d">9/23</span><span>台鐵、高鐵跟車卡加入進站軌道：列車在上一站與下一站之間跑，車後灰、車前路線色；靠站時停在站牌旁，發車才換下一段。iPhone 每 30 秒、Android 16 每 20 秒挪一格；Android 等車卡不再畫方塊。App 1.6.12 起</span></li>
-        <li data-cl="mwstall0923"><span class="d">9/23</span><span>修正 iPhone 捷運等車卡偶爾停住十幾分鐘、沒有跟著官方倒數更新的問題：伺服器載入北捷班表時，只要其中一次載入被中斷，之後的更新都會跟著卡住；現在改成各自載入、互不牽連</span></li>
+        <li data-cl="mwstall0923"><span class="d">9/23</span><span>修正 iPhone 捷運等車卡偶爾停住十幾分鐘、沒有跟著官方倒數更新的問題：伺服器載入北捷班表時，只要其中一次載入被中斷，之後的更新都會跟著卡住；現在改成各自載入、互不牽連；9/24 台鐵等站卡與跟車卡也加上同樣的防護</span></li>
         <li data-cl="metrowaittrack0923"><span class="d">9/23</span><span>等車卡加入進站軌道：列車以正側面圖從上一站開向你的車站站牌，捷運跟著官方倒數、台鐵照表定加官方誤點；iPhone 在鎖定畫面與動態島（台鐵卡每 30 秒挪一格），Android 16 在通知。App 1.6.11 起生效</span></li>
         <li data-cl="metrowaitapproach0923"><span class="d">9/23</span><span>iPhone 捷運等車卡：列車離你的車站只剩最後一段（約 4 分鐘內）時，鎖定畫面與動態島的倒數改成每分鐘跟官方即時資訊對一次時；更早之前照舊只在班次或時間明顯變動時才更新</span></li>
         <li data-cl="virtualloops0920"><span class="d">9/20</span><span>山海號與平原號現在從地圖車牌、車站看板到列車資訊都直接標示為「軌島虛構專列」，不會再看起來像真實營運班次</span></li>
@@ -6618,7 +6618,9 @@
 // v0923k：台鐵、高鐵跟車卡加入進站軌道（伺服器每 30 秒挪車、發車才換下一段；App 端隨 1.6.12 出貨）。
 // v0923l：地景＋地形時車站遮罩改了 building filter，地面 2D 建物輪廓（地形貼圖）不再卡在舊 filter：
 //         等 openmaptiles 重載完再全清一次地形貼圖（守門：verify_terrain_rtt_mask）。
-const BUILD = 'v0923l';
+// v0924a：台鐵即時動態的上游刷新去重不再無限期等別人的 I/O：任何人最多等 20 秒就回舊值，那一發滿 60 秒（≥ mem 週期）
+//         還沒結束才放掉重刷，上游卡住時也不多打 TDX（守門：verify_tra_live_inflight）。
+const BUILD = 'v0924a';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
