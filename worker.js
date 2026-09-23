@@ -130,12 +130,18 @@ let mem = null, memAt = 0;
 // 🔴 2026-09-23 補:搭便車等的是【別的 request 發起的 I/O】。發起者被取消(訪客斷線、前端逾時 abort)時,
 //    它的 fetch 跟著被取消、這個 promise 永遠不 settle、finally 永遠不跑 ⇒ 這個 isolate 之後每一次刷新
 //    (含 cron 的跟車卡 laPushAll 與等站卡 traWaitPushAll)都會陪它卡到 15 分鐘被砍——同一晚北捷的
-//    trtcLedgerModel 就是這樣把 cron 卡死的。所以只准等到那一發滿 TRA_LIVE_INFLIGHT_MAX_MS:
-//    等不到就走 catch 的舊值退路;下一發進來看到它超齡,就當發起者已死、放掉重刷。
-//    活著的刷新一次 TDX 往返遠短於這個上限,正常情況仍是一次刷新只打一次 TDX。
+//    trtcLedgerModel 就是這樣把 cron 卡死的。所以分兩道上限:
+//    · TRA_LIVE_WAIT_MAX_MS:任何人(含發起者自己)最多等到那一發起跑滿這麼久,等不到就走 catch 的舊值退路。
+//      上限要留給 cron 處理列的時間:等站卡整輪預算 TW_TICK_BUDGET_MS 只有 30 秒。
+//    · TRA_LIVE_RECLAIM_MS:那一發起跑滿這麼久還沒結束,才當發起者已死、放掉重刷。刻意 ≥ mem 的 55 秒:
+//      上游卡住時每個 isolate 仍最多一個 mem 週期打一次 TDX,跟正常節奏一樣,不會因為重刷而多打
+//      (兩道上限若相同,上游卡住時會變成每 20 秒重打一次——09-24 複審指出)。
+//    活著的刷新一次 TDX 往返遠短於這兩個上限,正常情況仍是一次刷新只打一次 TDX。
 //    守門人:scripts/verify_tra_live_inflight.mjs。
 let traLiveInflight = null; // { p: 刷新的 promise, at: 起跑時刻 ms }
-const TRA_LIVE_INFLIGHT_MAX_MS = 20e3;
+const TRA_LIVE_MEM_TTL_MS = 55e3;
+const TRA_LIVE_WAIT_MAX_MS = 20e3;
+const TRA_LIVE_RECLAIM_MS = 60e3;
 const jsonRes = (obj, status, cc) => new Response(JSON.stringify(obj), {
   status,
   headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': cc },
@@ -185,11 +191,11 @@ async function traLive(request, env, ctx) {
   const hit = await edge.match(cacheKey);
   if (hit) return hit;
   try {
-    if (!mem || Date.now() - memAt > 55e3) {
+    if (!mem || Date.now() - memAt > TRA_LIVE_MEM_TTL_MS) {
       // 已經有人在刷了就搭他的便車(見 traLiveInflight 的註解)。失敗會照樣傳播給每一個
       // 等待者 ⇒ 下面 catch 的「回舊 mem」退路對搭便車的人一樣有效。
-      // 超過 TRA_LIVE_INFLIGHT_MAX_MS 還沒結束的那一發,發起者已死(I/O 被取消、永遠不會 settle):放掉重刷。
-      if (traLiveInflight && Date.now() - traLiveInflight.at >= TRA_LIVE_INFLIGHT_MAX_MS) traLiveInflight = null;
+      // 超過 TRA_LIVE_RECLAIM_MS 還沒結束的那一發,發起者已死(I/O 被取消、永遠不會 settle):放掉重刷。
+      if (traLiveInflight && Date.now() - traLiveInflight.at >= TRA_LIVE_RECLAIM_MS) traLiveInflight = null;
       if (!traLiveInflight) {
         const mine = { at: Date.now(), p: null };
         mine.p = (async () => {
@@ -217,14 +223,15 @@ async function traLive(request, env, ctx) {
         })().finally(() => { if (traLiveInflight === mine) traLiveInflight = null; }); // 已被放掉的舊的那發晚到,不可清掉接手的新那發
         traLiveInflight = mine;
       }
-      // 自己發起的或搭便車的,都最多等到那一發滿 TRA_LIVE_INFLIGHT_MAX_MS;等不到就丟例外走 catch 的舊值退路,
+      // 自己發起的或搭便車的,都最多等到那一發起跑滿 TRA_LIVE_WAIT_MAX_MS;等不到就丟例外走 catch 的舊值退路,
       // 絕不陪一個永遠不回來的 promise 卡到 15 分鐘。計時器用這個 request 自己的(發起者的已經跟它一起死了)。
+      // 已超過等待上限、還沒到放掉門檻的那段時間裡進來的人,剩餘等待為 0 ⇒ 立刻回舊值,不重打 TDX。
       const ride = traLiveInflight;
       let timer;
       try {
         await Promise.race([ride.p, new Promise((_, reject) => {
           timer = setTimeout(() => reject(new Error('tdx live 刷新逾時')),
-            Math.max(0, TRA_LIVE_INFLIGHT_MAX_MS - (Date.now() - ride.at)));
+            Math.max(0, TRA_LIVE_WAIT_MAX_MS - (Date.now() - ride.at)));
         })]);
       } finally { clearTimeout(timer); }
     }
@@ -7939,14 +7946,15 @@ export const _trtcLedger = {
 // scripts/verify_la_push_loop.mjs。正式 router 不因此增加任何路徑。
 // traLive 一併導出(修復輪次1):驗 Important 6(cron 呼叫不可污染用量分析)需要一個「真人前景
 // 呼叫」的正向對照——不然「cron 沒寫用量」這個斷言測不出「本來就寫不進去」的假綠。
-export const _la = { laPushAll, laPushWithHalf, traLive, laBind, TRA_LIVE_INFLIGHT_MAX_MS };
+export const _la = { laPushAll, laPushWithHalf, traLive, laBind,
+  TRA_LIVE_MEM_TTL_MS, TRA_LIVE_WAIT_MAX_MS, TRA_LIVE_RECLAIM_MS, LA_TICK_BUDGET_MS };
 // 捷運等車卡推播鏈(task-10)導出,理由與上面 _la 完全相同(D1／APNs／官方看板三個 IO,
 // 走 getPlatformProxy 在 Node 端直接呼叫)。見 scripts/verify_metro_wait_push.mjs。
 // bind/unbind 一併導出:兩支端點的驗證(欄位驗證、換站重設狀態欄)不必再起一個 HTTP 伺服器。
 export const _mw = { metroWaitPushAll, metroWaitPushWithHalf, metroWaitBind, metroWaitUnbind };
 // 台鐵等站卡推播鏈導出,理由與 _mw 完全相同(D1／APNs／tra-live 三個 IO)。
 // 見 scripts/verify_tra_wait_push.mjs。
-export const _tw = { traWaitPushAll, traWaitPushWithHalf, traWaitBind, traWaitUnbind };
+export const _tw = { traWaitPushAll, traWaitPushWithHalf, traWaitBind, traWaitUnbind, TW_TICK_BUDGET_MS };
 // 純函式與端點/cron 導出,供離線回歸測試 import(scripts/verify_thsr_schedule.mjs)。
 // thsrConvertDaily/thsrBuildStationMap/thsrSelectServedDay/thsrKeyToMs 是純函式,可直接餵 fixture。
 // fetchThsrDaily/thsrStationMap/ingestThsrSchedule/thsrSchedule 會碰 D1/ASSETS/網路,測試要自備
