@@ -307,7 +307,9 @@ public final class RailWaitNotificationInstrumentedTest {
         assertNotNull("行駛中：要畫車", p.getProgressTrackerIcon());
         assertEquals("走過的灰＋剩下的車種色", 2, p.getProgressSegments().size());
         assertEquals(0xFFC0392B, p.getProgressSegments().get(1).getColor());
-        assertEquals("車頭在 3/7", 3000 / 7, p.getProgressSegments().get(0).getLength(), 2);
+        // 容差 TRA_POS_TOL：測試把「現在」取整到秒，postTra 貼出時又自己讀一次時鐘，行駛段 7 分鐘 ⇒ 每過 1 秒
+        // 車頭挪 1000/420≈2.4 格。容差 2 格（不到 1 秒）在 A54 上會偶發差 3 格（09-23 實見 431 vs 428）。
+        assertEquals("車頭在 3/7", 3000 / 7, p.getProgressSegments().get(0).getLength(), TRA_POS_TOL);
         assertTrackerNotCropped(p);
         assertTextHas("板橋 → 臺北");
         assertTextHas("實際約");
@@ -332,7 +334,7 @@ public final class RailWaitNotificationInstrumentedTest {
         // 只把誤點加在到站端（或只加在開車端）都會落在別的位置。
         Notification.ProgressStyle p = (Notification.ProgressStyle) postTraTrack(-10 * 60, -3 * 60, 7, "emu3000");
         assertNotNull(p.getProgressTrackerIcon());
-        assertEquals("誤點兩端都加：車頭仍在 3/7", 3000 / 7, p.getProgressSegments().get(0).getLength(), 2);
+        assertEquals("誤點兩端都加：車頭仍在 3/7", 3000 / 7, p.getProgressSegments().get(0).getLength(), TRA_POS_TOL);
         hold();
     }
 
@@ -362,6 +364,9 @@ public final class RailWaitNotificationInstrumentedTest {
         assertEquals("沒有素材的車型不畫進站軌道", null, p.getProgressStartIcon());
         assertEquals(null, p.getProgressEndIcon());
     }
+
+    /** 約 3 秒的時鐘差（見 android16TraTrackRunning）。錯的算法差很遠：誤點只加在到站端會落在 714。 */
+    private static final float TRA_POS_TOL = 8;
 
     private Notification.Style postTraTrack(long prevDepOffsetSec, long schedOffsetSec,
             Integer delayMin, String carModel) throws Exception {
