@@ -3114,7 +3114,12 @@ async function laBind(request, env) {
   // 否則後端會安靜地推出一張倒數 23 小時的卡。
   const nowSec = Math.floor(Date.now() / 1000);
   if (!b.stops.every(s => s && typeof s.name === 'string' && Number.isFinite(Number(s.at))
-      && Math.abs(Number(s.at) - nowSec) < 86400))
+      && Math.abs(Number(s.at) - nowSec) < 86400
+      // 跟車卡進站軌道契約：dep／pl／pr 選填，但給了就要合法，同 laValidSchedule（交棒那份）。
+      // 缺這道：dep 不是數字會在推播迴圈變成 NaN，表定推進直接跳過那一站。
+      && (s.dep == null || (Number.isFinite(Number(s.dep)) && Math.abs(Number(s.dep) - nowSec) < 86400))
+      && (s.pl == null || (typeof s.pl === 'string' && s.pl.length <= 40))
+      && (s.pr == null || (typeof s.pr === 'string' && s.pr.length <= 40))))
     return jsonRes({ error: 'bad_stops' }, 400, 'no-store');
   if (!Array.isArray(b.stopCodes) || b.stopCodes.length !== b.stops.length) return jsonRes({ error: 'bad_codes' }, 400, 'no-store');
   // stopCodes 筆數已經被上面「與 stops.length 相等」間接鎖在 200 以內,這裡只補序列化大小上限。
