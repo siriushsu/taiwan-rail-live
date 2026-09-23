@@ -1321,6 +1321,66 @@ func trackStateGate() {
     print("gate 通過：進站軌道四態畫面兩兩不同")
 }
 
+/// 🔴 gate：卡片翻成 isStale（進站）後，畫出來的東西不准超出翻轉前的高度。
+///
+/// 09-23 台鐵等站卡 session 在 iOS 26.5 模擬器實見：卡片在鎖屏亮著時翻 stale、翻轉後多出一列，
+/// 系統把外框長高，內容卻仍按翻轉前的高度裁——新的那列只露出上緣 2pt，要睡眠喚醒才重畫完整。
+/// 高度上限 gate（≤160）照不到：翻轉後單看是合格的，壞的是「前後不等高」。
+/// ⇒ 成對算繪【只差 isStale】的兩張：進站那張的【墨跡下緣】不准超過行駛那張的【自然高度】
+///    （＝系統還在用的舊外框）。量墨跡不量外框：多出來的若只落在內距裡，被裁的是空白，不是字。
+/// 捷運第三列是單一欄位（公告 ＞ 到站說明 ＞ 擁擠度／再下一班），有擁擠度或再下一班時翻轉是換字；
+/// 危險的是兩者都沒有（末班、資料缺）——第三列從空變成一句到站說明。
+@MainActor
+func staleFlipHeightGate() {
+    func natural(_ png: Data) -> CGFloat { CGFloat(NSBitmapImageRep(data: png)?.pixelsHigh ?? 0) / 3 }
+    /// (翻轉前外框高, 翻轉後墨跡下緣)
+    func measure<A: View, B: View>(_ run: A, _ arr: B) -> (CGFloat, CGFloat) {
+        let before = natural(pngData(run, width: 360, height: nil))
+        let after = pngData(arr, width: 360, height: nil)
+        return (before, (inkBounds(after, scale: 3)?.y1 ?? .infinity) + 1.0 / 3)
+    }
+    func pair(crowd: [Int]?, second: String?, pushed: Bool?, hop: MetroWaitHop?, _ stale: Bool) -> MetroWaitDisplay {
+        MetroWaitDisplay.make(
+            lineLabel: "淡水信義線", station: "台北車站", colorHex: "#E3002C",
+            nextDest: "象山", nextEta: nowSec + (stale ? 0 : 40), nextMinutes: nil,
+            secondDest: second, secondEta: second.map { _ in nowSec + 340 }, secondMinutes: nil,
+            crowd: crowd, dataAt: nowSec - 8, endAt: nowSec + 30 * 60,
+            notice: nil, pushed: pushed, isStale: stale, now: now, hop: hop)
+    }
+    var bad: [String] = [], report: [String] = []
+    for (hop, hopName) in [(hopTaipei, "進站軌道"), (nil as MetroWaitHop?, "軌脊")] {
+        for (crowd, second, name) in [([1, 1, 2, 1, 1, 1] as [Int]?, "大安" as String?, "擁擠度＋再下一班"),
+                                      (nil, "大安", "只有再下一班"),
+                                      ([1, 1, 2, 1, 1, 1], nil, "只有擁擠度"),
+                                      (nil, nil, "兩者都沒有")] {
+            for pushed in [true, nil] as [Bool?] {
+                let label = "\\(hopName)／\\(name)／\\(pushed == true ? "接上推播" : "沒接上")"
+                let run = pair(crowd: crowd, second: second, pushed: pushed, hop: hop, false)
+                let arr = pair(crowd: crowd, second: second, pushed: pushed, hop: hop, true)
+                for (surface, m) in [("鎖屏", measure(MetroWaitLockView(display: run), MetroWaitLockView(display: arr))),
+                                     ("動態島", measure(MetroWaitIslandBottom(display: run), MetroWaitIslandBottom(display: arr)))] {
+                    report.append("\\(surface) \\(label)：舊外框 \\(m.0)pt、翻轉後墨跡到 \\(m.1)pt")
+                    if m.1 > m.0 { bad.append("\\(surface) \\(label)：翻進站後墨跡畫到 \\(m.1)pt，翻轉前外框只有 \\(m.0)pt ⇒ 下緣會被裁") }
+                }
+            }
+        }
+    }
+    // 正向對照：同一支量尺必須抓得到「翻轉後多一列」——拿行駛那張當舊外框，進站那張底下硬接一列字。
+    let run0 = pair(crowd: nil, second: nil, pushed: true, hop: nil, false)
+    let arr0 = pair(crowd: nil, second: nil, pushed: true, hop: nil, true)
+    let ctl = measure(MetroWaitLockView(display: run0),
+                      VStack(spacing: 0) { MetroWaitLockView(display: arr0); Text("多一列").font(.system(size: 11)) })
+    if !(ctl.1 > ctl.0) {
+        bad.append("正向對照失敗：進站那張底下多接一列字，量尺仍說沒超出（舊外框 \\(ctl.0)、墨跡 \\(ctl.1)）——這支量尺抓不到多一列")
+    }
+    if !bad.isEmpty {
+        FileHandle.standardError.write(Data(("翻轉等高 gate 失敗：\\n" + bad.joined(separator: "\\n")
+            + "\\n量測：\\n" + report.joined(separator: "\\n") + "\\n").utf8))
+        exit(1)
+    }
+    print("gate 通過：翻進站後墨跡不超出舊外框（\\(report.count) 對：軌道／軌脊 × 四種第三列 × 推播兩態 × 鎖屏／動態島；正向對照多一列 \\(ctl.0)→\\(ctl.1)pt 抓得到）")
+}
+
 // 動態島展開版約 360pt 寬。
 @main
 struct Harness {
@@ -1339,6 +1399,7 @@ struct Harness {
         hopGate()
         carStateGate()
         trackStateGate()
+        staleFlipHeightGate()
 
         // 臺鐵跟車：三態＋準點＋中斷＋最壞值
         _ = render(RailFollowLockView(display: followRunning), width: 360, maxHeight: lockScreenMaxHeight,
