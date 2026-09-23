@@ -10,6 +10,9 @@
 // 這支量的性質:同一個 isolate 裡「前一個 request 的載入永遠不回來」時,另一個 request 仍拿得到結果;
 // 而且載好之後會寫回快取,之後的 request 不再碰 I/O(不然冷啟動以外每個請求都要重讀 1.1 MB 的班表)。
 // 「永遠不回來」用永不 resolve 的 ASSETS.fetch 模擬——那正是被取消的 I/O 在 await 它的人眼裡的樣子。
+// 🔴 卡住與正常兩個 request 用【同一個】env 物件,只切換 ASSETS 的行為:正式站所有 request 拿到的就是
+// 同一個 env。若用兩個 env,改成「以 env 當鍵的 promise 快取」(WeakMap<env, promise>)會在這裡空過、
+// 在正式站照樣共用(09-23 獨立複審指出;突變 envkey 就是在守這個)。
 //
 // 跑法:node scripts/verify_trtc_model_memo.mjs(不需要伺服器、不打任何上游)
 import fs from 'node:fs';
@@ -21,11 +24,12 @@ const { _trtcLedger: api } = await import('../worker.js');
 
 const LOADERS = ['trtcLedgerModel', 'trtcBoardModel', 'trtcDayTypeTable'];
 let fetches = 0;
-const stuckEnv = { ASSETS: { fetch: () => { fetches++; return new Promise(() => {}); } } };
-const okEnv = {
+let stuck = false; // true＝這一刻發出的 ASSETS.fetch 永遠不回來(模擬發起它的 request 被取消)
+const env = {
   ASSETS: {
     fetch: req => {
       fetches++;
+      if (stuck) return new Promise(() => {});
       const rel = new URL(req.url).pathname.replace(/^\//, '');
       return Promise.resolve(new Response(fs.readFileSync(path.join(ROOT, rel)),
         { headers: { 'content-type': 'application/json' } }));
@@ -53,10 +57,12 @@ for (const name of LOADERS) {
   if (typeof api[name] !== 'function') continue;
 
   // (1) 先讓一個「會被取消的 request」開始載入:它的 I/O 永遠不回來。不 await 它。
-  api[name](stuckEnv);
+  stuck = true;
+  api[name](env);
 
   // (2) 同一個 isolate 裡另一個 request 來要——必須在時限內拿到真的結果,不可以陪著卡住。
-  const second = await within(api[name](okEnv), 5000);
+  stuck = false;
+  const second = await within(api[name](env), 5000);
   check(`${name}:前一個 request 的載入卡住時,另一個 request 仍在 5 秒內拿到結果`,
     second.ok && second.v != null,
     second.ok ? '' : (second.timeout ? '逾時(被前一個 request 的 promise 拖住)' : String(second.err)));
@@ -64,14 +70,16 @@ for (const name of LOADERS) {
   // (3) 載好之後要寫回快取:下一個 request 就算 I/O 也會卡,仍直接拿到同一份,不再碰 I/O。
   //     反向對照:(2) 沒拿到東西時這條必紅,不會空過。
   const before = fetches;
-  const third = await within(api[name](stuckEnv), 1000);
+  stuck = true;
+  const third = await within(api[name](env), 1000);
+  stuck = false;
   check(`${name}:載好之後寫回快取,之後的 request 不再碰 I/O`,
     third.ok && second.ok && third.v === second.v && fetches === before,
     `fetches +${fetches - before}`);
 }
 
-// 正向對照:okEnv 真的讀得到三個資產,且模型長得像模型——不然 (2) 可能是拿到一個空殼也算過。
-const model = await within(api.trtcBoardModel(okEnv), 5000);
+// 正向對照:env 真的讀得到三個資產,且模型長得像模型——不然 (2) 可能是拿到一個空殼也算過。
+const model = await within(api.trtcBoardModel(env), 5000);
 check('對照:模型含北捷各線(lines 是非空 Map)',
   model.ok && model.v && model.v.lines instanceof Map && model.v.lines.size > 0,
   model.ok && model.v && model.v.lines ? `lines=${model.v.lines.size}` : '');
