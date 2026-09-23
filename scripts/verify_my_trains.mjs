@@ -47,7 +47,7 @@ async function open(browser, { width = 1440, height = 900, path: p = '/index.htm
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   await page.goto(BASE + p + (qs ? qs + '&lang=zh-TW' : '?lang=zh-TW'), { waitUntil: 'load' });
-  await page.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, { timeout: 30000 });
+  await page.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, null, { timeout: 30000 });
   await page.evaluate(() => {
     const h = document.getElementById('howtoWrap'); if (h) h.remove();
     state.playing = false; // 凍結模擬時鐘
@@ -315,13 +315,15 @@ try {
       const page = await ctx.newPage();
       const errors = []; page.on('pageerror', e => errors.push(e.message));
       await page.goto(BASE + '/index.html?plus=1&lang=zh-TW', { waitUntil: 'load' });
-      await page.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, { timeout: 30000 });
+      await page.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, null, { timeout: 30000 });
       await page.evaluate(() => { const h = document.getElementById('howtoWrap'); if (h) h.remove(); state.playing = false; });
       await setFavs(page, [{ train: candNo, sys: 'tra_sched', label: '真實資料測試車' }]);
       await setPlus(page, true);
       await openFav(page); // 這裡才觸發 ensureDelayStats() → 被 route 轉發到正式站
       try {
-        await page.waitForFunction(() => state.delayStats && Object.keys(state.delayStats).length > 0, { timeout: 15000 });
+        // 原本寫 { timeout: 15000 } 卻放在 arg 位置,從沒生效——實際一直是預設 30 秒。這裡等的是轉發到正式站的
+        // 真實回應,高負載下網路會抖(見上方 E 段註解),縮成 15 秒只會多一個誤紅來源,所以保留一直在跑的 30 秒。
+        await page.waitForFunction(() => state.delayStats && Object.keys(state.delayStats).length > 0, null, { timeout: 30000 });
       } catch (e) { /* 下面的斷言會自然失敗並回報 */ }
       const snap = await favSnap(page);
       const row = snap.rows.find(r => r.no === candNo);

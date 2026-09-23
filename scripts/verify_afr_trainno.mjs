@@ -105,11 +105,11 @@ const pageErrs = [];
 page.on('pageerror', e => pageErrs.push(String(e).slice(0, 200)));
 await page.goto(BASE + '/?lang=zh-TW&_cb=afrno', { waitUntil: 'domcontentloaded' });
 await page.waitForFunction(() => typeof state !== 'undefined' && state.systems
-  && state.systems.some(s => s.id === 'afr_sched'), { timeout: 30000 });
-await page.waitForFunction(() => state.ready === true, { timeout: 30000 }).catch(() => {});
+  && state.systems.some(s => s.id === 'afr_sched'), null, { timeout: 30000 });
+await page.waitForFunction(() => state.ready === true, null, { timeout: 30000 }).catch(() => {});
 await page.evaluate(() => selectGroup(GROUPS.find(g => g.id === 'tra')));
 await page.waitForFunction(() => state.trains.some(t => t.sys === 'afr_sched')
-  && state.trains.some(t => t.sys === 'tra_sched') && state.special, { timeout: 30000 });
+  && state.trains.some(t => t.sys === 'tra_sched') && state.special, null, { timeout: 30000 });
 await page.waitForTimeout(800);
 
 // 讀「地圖下方列車資訊卡」實際渲染出來的字(renderTrainCard 就是使用者截圖的那張卡)
@@ -481,9 +481,9 @@ if (gKey) {
   const mErrs = [];
   mp.on('pageerror', e => mErrs.push(String(e).slice(0, 200)));
   await mp.goto(BASE + '/?lang=zh-TW&_cb=afrno-m', { waitUntil: 'domcontentloaded' });
-  await mp.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, { timeout: 60000 });
+  await mp.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 60000 });
   await mp.evaluate(() => selectGroup(GROUPS.find(g => g.id === 'tra')));
-  await mp.waitForFunction(() => state.trains.some(t => t.sys === 'tra_sched') && state.special, { timeout: 30000 });
+  await mp.waitForFunction(() => state.trains.some(t => t.sys === 'tra_sched') && state.special, null, { timeout: 30000 });
   ok(await mp.evaluate(() => HELP_POP_HOVER) === false, 'G7 手機殼確實沒有 hover（HELP_POP_HOVER=false,否則下面驗的是桌面那條路）');
   await mp.evaluate(() => openRidePanel());
   await mp.waitForTimeout(400);

@@ -48,7 +48,7 @@ await page.route('**/*', route => {
 await page.goto(`http://127.0.0.1:${port}/index.html?lang=zh-TW&g=metro&at=25.0578,121.3724&z=13`,
   { waitUntil: 'domcontentloaded', timeout: 45000 });
 await page.waitForFunction(() => typeof state === 'object' && state.systems
-  && state.systems.some(s => s.id === 'tymc' && s.data && s._times), { timeout: 45000 });
+  && state.systems.some(s => s.id === 'tymc' && s.data && s._times), null, { timeout: 45000 });
 
 const probe = () => {
   // 真值：官方 TrainType,從另外抓的那份 JSON 自己對齊,不呼叫實作的 tymcKindOf
