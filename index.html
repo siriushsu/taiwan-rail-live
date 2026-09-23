@@ -5511,6 +5511,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="followtrack0923"><span class="d">9/23</span><span>台鐵、高鐵的跟車卡加入進站軌道：列車在上一站與下一站之間跑，靠站時停在站牌旁，發車才換到下一段</span></li>
         <li data-cl-of="widgetbg0923"><span class="d">9/23</span><span>桌面小工具新增「背景」設定，可選車模、場景或素色</span></li>
         <li data-cl-of="perf3d0907"><span class="d">9/23</span><span>立體地圖跟車時，畫面不再約每 15 秒頓一下</span></li>
         <li data-cl-of="metrowaittrack0923"><span class="d">9/23</span><span>iPhone 與 Android 16 的等車卡加入進站軌道，捷運跟著官方倒數、台鐵跟著官方誤點</span></li>
@@ -5518,7 +5519,6 @@
         <li data-cl-of="checkinsync0923"><span class="d">9/23</span><span>成就「通勤的證明」「老通勤族」的路段次數與打卡車站，現在會跟著帳號雲端同步，換一台裝置登入不再歸零（謝謝網友回報）</span></li>
         <li data-cl-of="metrowaitapproach0923"><span class="d">9/23</span><span>iPhone 捷運等車卡在列車進站前約 4 分鐘內，每分鐘跟官方即時資訊對一次時</span></li>
         <li data-cl-of="glassnear0913"><span class="d">9/23</span><span>跟車前進時，沿途建築的透視線條會持續更新，不必等列車靠站才一次出現</span></li>
-        <li data-cl-of="tymcexpo0922"><span class="d">9/22</span><span>機捷跟上台灣設計展疏運班表（9/24–10/11）：假日機場第一航廈到環北的區間加班車每 15 分鐘一班，南延直達車改到機場第二航廈為止；深夜山鼻以南時刻也照官方改點更新</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5701,6 +5701,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="followtrack0923"><span class="d">9/23</span><span>跟車卡加入進站軌道（台鐵、高鐵）：列車以正側面圖在上一站與下一站之間跑，車後是灰色、車前是路線色；靠站時車停在本站站牌旁，發車才換到下一段。iPhone 在鎖定畫面與動態島（每 30 秒挪一格），Android 16 在通知（每 20 秒挪一格）。同時 Android 等車卡在列車還沒到上一站時，改成整段路線色，不再畫方塊。App 1.6.12 起生效</span></li>
         <li data-cl="metrowaittrack0923"><span class="d">9/23</span><span>等車卡加入進站軌道：列車以正側面圖從上一站開向你的車站站牌，捷運跟著官方倒數、台鐵照表定加官方誤點；iPhone 在鎖定畫面與動態島（台鐵卡每 30 秒挪一格），Android 16 在通知。App 1.6.11 起生效</span></li>
         <li data-cl="metrowaitapproach0923"><span class="d">9/23</span><span>iPhone 捷運等車卡：列車離你的車站只剩最後一段（約 4 分鐘內）時，鎖定畫面與動態島的倒數改成每分鐘跟官方即時資訊對一次時；更早之前照舊只在班次或時間明顯變動時才更新</span></li>
         <li data-cl="virtualloops0920"><span class="d">9/20</span><span>山海號與平原號現在從地圖車牌、車站看板到列車資訊都直接標示為「軌島虛構專列」，不會再看起來像真實營運班次</span></li>
@@ -6610,7 +6611,7 @@
 //         沿用同一份官方資料、不多打北捷／TDX）；捷運卡的推播多送 tick，App 1.6.12 起車位改用它算。
 // v0923i：跟車時每 15 秒那一下的真兇是車站建物遮罩重送 remainders 時，MapLibre worker 把整份 GeoJSON 送回主執行緒
 //         （台北車站約 1.4 萬分件）；vendor 移植上游修正，setData 傳物件時不再回傳（守門：verify_geojson_no_roundtrip）。
-const BUILD = 'v0923i';
+const BUILD = 'v0923k';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。

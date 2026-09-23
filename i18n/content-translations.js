@@ -3144,3 +3144,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '桌面小工具新增「背景」設定，可選車模、場景或素色': 'ホーム画面ウィジェットに「背景」設定を追加（車両モデル・情景・無地）'
 });
+// 2026-09-23 跟車卡進站軌道（台鐵＋高鐵）：第一層「最近更新」會顯示這句，同步補 en/ja。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '台鐵、高鐵的跟車卡加入進站軌道：列車在上一站與下一站之間跑，靠站時停在站牌旁，發車才換到下一段': 'TRA and THSR follow cards now show an arrival track: the train runs between the previous and next stops, waits beside the station sign while stopped, and moves on to the next section only when it departs.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '台鐵、高鐵的跟車卡加入進站軌道：列車在上一站與下一站之間跑，靠站時停在站牌旁，發車才換到下一段': '台鉄・台湾高鉄の追跡カードに到着トラックを追加。列車は前の駅と次の駅の間を走り、停車中は駅名標のそばで止まり、発車してから次の区間に切り替わります。',
+});
