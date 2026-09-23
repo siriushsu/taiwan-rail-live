@@ -3121,3 +3121,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   'Android 桌面的台鐵發車看板改成卡片放得下幾班就列幾班，Samsung 手機下方不再空一截': 'Android のホーム画面の台鉄発車案内ウィジェットが、カードに入るだけの列車を表示するようになり、Samsung 端末で下に空白が残らなくなりました'
 });
+// 2026-09-23 Android 16 捷運等車通知進站軌道：第一層「最近更新」會顯示這句，同步補 en/ja。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  'Android 16 的捷運等車通知加入進站軌道，列車跟著官方倒數開向你的車站': 'On Android 16, metro waiting notifications now show an arrival track, with the train moving toward your station along with the official countdown'
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  'Android 16 的捷運等車通知加入進站軌道，列車跟著官方倒數開向你的車站': 'Android 16 のメトロ待ち通知に到着トラックを追加。列車が公式カウントダウンに合わせてあなたの駅へ向かいます'
+});
