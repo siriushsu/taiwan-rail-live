@@ -311,6 +311,7 @@ public final class RailWaitNotificationInstrumentedTest {
         assertTrackerNotCropped(p);
         assertTextHas("板橋 → 臺北");
         assertTextHas("實際約");
+        assertTextLacks("車應已到");
         hold();
     }
 
@@ -340,6 +341,9 @@ public final class RailWaitNotificationInstrumentedTest {
         Notification.ProgressStyle p = (Notification.ProgressStyle) postTraTrack(-8 * 60, -60, 0, "emu3000");
         assertNotNull(p.getProgressTrackerIcon());
         assertEquals("車應已到：整段都走過了", 1, p.getProgressSegments().size());
+        // Android 16 的 ProgressStyle 只顯示這一行內文，到站那句要寫在這裡（iOS 寫在軌道下方）。
+        assertTextHas("臺北 車應已到");
+        assertTextLacks("板橋 → 臺北");
         hold();
     }
 
@@ -478,7 +482,13 @@ public final class RailWaitNotificationInstrumentedTest {
     private void assertTextHas(String needle) {
         Notification n = findActiveNotification();
         String text = String.valueOf(n.extras.getCharSequence(Notification.EXTRA_TEXT));
-        assertTrue("內文要寫站名：" + text, text.contains(needle));
+        assertTrue("內文要有「" + needle + "」：" + text, text.contains(needle));
+    }
+
+    private void assertTextLacks(String needle) {
+        Notification n = findActiveNotification();
+        String text = String.valueOf(n.extras.getCharSequence(Notification.EXTRA_TEXT));
+        assertFalse("內文不該有「" + needle + "」：" + text, text.contains(needle));
     }
 
     private void hold() {

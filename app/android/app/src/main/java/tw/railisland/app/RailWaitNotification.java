@@ -290,8 +290,7 @@ final class RailWaitNotification {
             .append("\n").append(RailNativeL10n.text(context, "表定 {time}",
                 "time", formatTime((long) (schedSec * 1000))))
             .append(" · ").append(delayText);
-        if (arrived) detail.append("\n").append(RailNativeL10n.text(context, "{station} 車應已到",
-            "station", station));
+        if (arrived) detail.append("\n").append(arrivedText(context, station));
         if (dataAt != null) detail.append("\n").append(RailNativeL10n.text(context, "{time} 更新",
             "time", formatTime((long) (dataAt * 1000))));
         String notice = state.optString("notice", "").trim();
@@ -346,7 +345,9 @@ final class RailWaitNotification {
                 else if (nowSec < from) pos = -2;
                 else pos = (nowSec - from) / (etaSec - from);
             }
-            builder.setContentText(RailNativeL10n.name(context, prevStop) + " → " + station + " · " + route);
+            // 到站那一刻明講（同 iOS 軌道下方那句）：Android 16 的 ProgressStyle 不顯示 detail，只看得到這一行。
+            builder.setContentText((arrived ? arrivedText(context, station)
+                : RailNativeL10n.name(context, prevStop) + " → " + station) + " · " + route);
             builder.setStyle(RailWaitTrack.traStyle(context, carRes, pos, state.optString("color", "")));
         } else if (Build.VERSION.SDK_INT >= 36) {
             NotificationCompat.ProgressStyle style = new NotificationCompat.ProgressStyle()
@@ -363,6 +364,7 @@ final class RailWaitNotification {
             style.addProgressSegment(segment).addProgressPoint(destination);
             if (arrived) {
                 style.setProgress(1000);
+                builder.setContentText(arrivedText(context, station) + " · " + route);
             } else if (!expired && dataAt != null && etaSec > dataAt && etaSec > nowSec) {
                 int progress = (int) Math.max(0, Math.min(1000,
                     (nowSec - dataAt) * 1000 / (etaSec - dataAt)));
@@ -378,6 +380,11 @@ final class RailWaitNotification {
         try {
             NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, builder.build());
         } catch (SecurityException ignored) {}
+    }
+
+    /** 「臺北 車應已到」。用「應」不是漏字：到站時刻是表定＋官方誤點推出來的，官方沒說過車真的到了。 */
+    private static String arrivedText(Context context, String station) {
+        return RailNativeL10n.text(context, "{station} 車應已到", "station", station);
     }
 
     /** 回傳系統是否允許、通知是否合格，以及 Samsung／Android 是否已實際提升這張卡。 */
