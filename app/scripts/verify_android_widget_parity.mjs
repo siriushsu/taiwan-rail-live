@@ -101,6 +101,9 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
   // previewLayout 示範列數的期望值全部從原始碼算出來，算不出來就直接炸掉整支腳本——這跟「這條
   // 規則沒過」是兩回事：後者是產品出問題，前者是判準本身瞎了（來源行被砍掉／改名時，判準絕不能
   // 安靜地一路綠燈，見 task-15-review.md I4）。
+  // 2026-09-23 起桌面上的卡「放幾班跟著卡片高度走」（RailBoardWidgetProvider.at 量出來），
+  // board(...) 字面值改當「預設大小」（defaultSize，已知機型裡最矮的預設格子）的班數：launcher 沒回報尺寸
+  // 或量不出來時直接畫它，挑選器預覽代表的也正是這個大小——所以示範列仍要逐張等於它。
   function railBoardMaxRows(src) {
     const re = /board\(context, R\.layout\.(widget_rail_\w+), snapshot, (\d+), readable, (true|false)\)/g;
     const found = new Map();
@@ -228,7 +231,7 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
     const includes = demoIncludesOf(read(`app/android/app/src/main/res/layout/${name}.xml`));
     const rows = sumDemoRows(includes);
     const compactOk = includes.length > 0 && includes.every(n => n.includes('_compact') === exp.compact);
-    return rows === exp.rows && compactOk ? [] : [`${name}（示範 ${rows} 列／上限 ${exp.rows}，compact=${exp.compact}：${includes.join('+') || '無'}）`];
+    return rows === exp.rows && compactOk ? [] : [`${name}（示範 ${rows} 列／預設 ${exp.rows}，compact=${exp.compact}：${includes.join('+') || '無'}）`];
   });
   // 混合看板一個檔案裡有兩個示範列容器,用容器起訖的字串區間切開各自算(brief 指定做法)。
   const mixedMetroStart = mixedLarge.indexOf('id="@+id/wmx_metro_rows"');
@@ -269,7 +272,14 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
 
   const infoFileNames = widgetInfoFiles();
   const infoFileXml = new Map(infoFileNames.map(name => [name, read(`app/android/app/src/main/res/xml/${name}`)]));
-  const railBoardBody = extractFunctionBody(railRender, 'board', 'RailWidgetRender.java');
+  // 真正把列加進 wr_rows 的是 boardWithRows（board 只換算預設列數後轉呼叫它）。
+  const railBoardBody = extractFunctionBody(railRender, 'boardWithRows', 'RailWidgetRender.java');
+  // 列數跟著高度走的那條鏈：sizes() 放進尺寸表的每一張（與 API<31 直接回傳的那張）都經 at()，
+  // at() 用 rowsThatFit 量出來的數畫。有人把某個桶改回直接放 small()／medium()／large()（寫死列數），
+  // 那個尺寸的卡就又會在 Samsung 上空一截、或在矮的格子切掉最後一列，而示範列那幾條照樣全綠——所以另外驗這條鏈。
+  const railSizesBody = extractFunctionBody(railProvider, 'sizes', 'RailBoardWidgetProvider.java');
+  const railAtBody = extractFunctionBody(railProvider, 'at', 'RailBoardWidgetProvider.java');
+  const railSizesPuts = [...railSizesBody.matchAll(/(?:layouts\.put|return tap)\(([^;]*)\);/g)].map(m => m[1]);
   const mixedBoardBody = extractFunctionBody(mixedRender, 'board', 'MixedWidgetRender.java');
 
   const contentRules = [
@@ -341,12 +351,15 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
     // 無狀態欄）還失真，且已經造成截斷（task-15-review.md C1）。這裡改成有牙的版本：
     // 示範列數／compact 外觀都要跟原始碼推導出的真實上限逐一比對，數字對不上就在標籤裡同時
     // 印出「實際 vs 期望」兩個數字，不必另外猜錯在哪裡；removeAllViews 條件原樣保留。
-    [`${railSmallName} 示範列數＝${railSmallRows}（真實上限＝${exp2x2.rows}，RailBoardWidgetProvider.java board() maxRows）`,
+    [`${railSmallName} 示範列數＝${railSmallRows}（預設大小列數＝${exp2x2.rows}，RailBoardWidgetProvider.java board() maxRows）`,
       railSmallRows === exp2x2.rows],
-    [`${railMediumName} 示範列數＝${railMediumRows}（真實上限＝${exp4x2.rows}，RailBoardWidgetProvider.java board() maxRows）`,
+    [`${railMediumName} 示範列數＝${railMediumRows}（預設大小列數＝${exp4x2.rows}，RailBoardWidgetProvider.java board() maxRows）`,
       railMediumRows === exp4x2.rows],
-    [`${railLargeName} 示範列數＝${railLargeRows}（真實上限＝${exp4x4.rows}，RailBoardWidgetProvider.java board() maxRows）`,
+    [`${railLargeName} 示範列數＝${railLargeRows}（預設大小列數＝${exp4x4.rows}，RailBoardWidgetProvider.java board() maxRows）`,
       railLargeRows === exp4x4.rows],
+    [`桌面上的發車看板班數跟著卡片高度走：sizes() 放進尺寸表與 API<31 回傳的 ${railSizesPuts.length} 處都經 at()，at() 以 rowsThatFit 量出的班數畫`,
+      railSizesPuts.length > 0 && railSizesPuts.every(arg => /\bat\(context,/.test(arg) && !/\b(small|medium|large)\(/.test(arg))
+        && /rowsThatFit\(/.test(railAtBody) && /boardWithRows\([^;]*\brows\b/.test(railAtBody)],
     [`widget_mixed_4x4 捷運段(wmx_metro_rows)示範＝${mixedMetro.tags.join('、') || '(無)'}（期望：demo-hero 一列在前、demo-row 至少一列）`,
       mixedMetro.ordered],
     [`widget_mixed_4x4 捷運段示範列幾何＝真實列 widget_mixed_metro_hero／widget_mixed_metro_row（漂開的列：${mixedMetro.drift.join('、') || '無'}）`,
@@ -360,7 +373,7 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
         && mixedDimensDefined === mixedDimensInJava && mixedRowRootsFromDimens],
     [`雙看板預算 fixedDp() 算進了次列以外的每一塊：［${mixedDimensInBudget}］（期望＝定義的 wmx_* 扣掉逐列加的 wmx_follow_h：［${mixedDimensExpectedInBudget}］）`,
       mixedDimensInBudget.length > 0 && mixedDimensInBudget === mixedDimensExpectedInBudget],
-    [`${railMaxRows.size} 張發車看板版面的示範列數與 compact 外觀都等於 board() 的真實上限（漂開的：${railLayoutDrift.join('、') || '無'}）`,
+    [`${railMaxRows.size} 張發車看板版面的示範列數與 compact 外觀都等於 board() 的預設大小列數（漂開的：${railLayoutDrift.join('、') || '無'}）`,
       railMaxRows.size >= 9 && railLayoutDrift.length === 0],
     [`${railSmallName} 只准 include compact 示範檔（compact=${exp2x2.compact}）：${railSmallIncludes.join('、') || '(無 include)'}`,
       railSmallIncludes.length > 0 && railSmallIncludes.every(name => name.includes('_compact'))],
@@ -371,7 +384,7 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
     // task-15-fix1-review.md 必修 6 殘留：舊版把三個容器塞進同一顆 ok、標籤又宣稱「絕不會看到」
     // ——removeAllViews 只保證「收到 onUpdate 之後」不會看到，保證不了「收到第一次 onUpdate 之前」
     // （那個窗口的中性卡改由 initialLayout 那三條規則負責）。這裡拆成三顆，標籤只說它驗到的事。
-    ['RailWidgetRender.board 對 R.id.wr_rows 在 addView 前先 removeAllViews',
+    ['RailWidgetRender.boardWithRows 對 R.id.wr_rows 在 addView 前先 removeAllViews',
       removeBeforeFirstAdd(railBoardBody, 'wr_rows')],
     ['MixedWidgetRender.board 對 R.id.wmx_metro_rows 在 addView 前先 removeAllViews',
       removeBeforeFirstAdd(mixedBoardBody, 'wmx_metro_rows')],

@@ -53,6 +53,7 @@
         <LinearLayout android:id="@+id/wr_rows" android:layout_width="match_parent" android:layout_height="0dp"
             android:layout_marginTop="4dp" android:layout_weight="1" android:orientation="vertical">
             <include layout="@layout/widget_rail_rows_demo" />
+            <include layout="@layout/widget_rail_row_demo4" />
             <include layout="@layout/widget_rail_rows_demo_56" />
         </LinearLayout>
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"

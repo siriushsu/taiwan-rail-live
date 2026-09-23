@@ -118,9 +118,10 @@ public final class WidgetGalleryActivity extends Activity {
         // 板橋在西部幹線上的兩個鄰站（南＝浮洲、北＝萬華）；換起站時就不帶，看單側／無帶子的樣子。
         if ("板橋".equals(rail.origin)) { rail.neighborSouth = "浮洲"; rail.neighborNorth = "萬華"; }
         rail.generatedAt = now;
-        String[] nos = { "123", "0567", "2551", "0812", "2733", "0149", "1234", "0655", "4003" };
-        String[] types = { "自強", "高鐵", "區間車", "莒光", "區間快", "高鐵", "區間車", "高鐵", "自強" };
-        String[] ends = { "花蓮", "南港", "基隆", "臺東", "蘇澳", "左營", "新竹", "南港", "樹林" };
+        // 12 班＝RailWidgetData 一次最多給的班數，最高的格子也看得到「放滿」的樣子。
+        String[] nos = { "123", "0567", "2551", "0812", "2733", "0149", "1234", "0655", "4003", "1181", "0671", "2557" };
+        String[] types = { "自強", "高鐵", "區間車", "莒光", "區間快", "高鐵", "區間車", "高鐵", "自強", "區間車", "高鐵", "區間車" };
+        String[] ends = { "花蓮", "南港", "基隆", "臺東", "蘇澳", "左營", "新竹", "南港", "樹林", "苗栗", "左營", "七堵" };
         if (getIntent().getStringExtra("type") != null) types[0] = getIntent().getStringExtra("type");
         for (int i = 0; i < nos.length && !"norail".equals(state); i++) {
             RailWidgetData.Row row = new RailWidgetData.Row();
@@ -195,17 +196,13 @@ public final class WidgetGalleryActivity extends Activity {
             // --es state railfail／expired：註腳是警示時小卡要露出來（車模小卡同時收掉車）。
             if ("railfail".equals(state)) rail.failed = true;
             if ("expired".equals(state)) rail.scheduleNote = "依 09/16 同星期班表";
-            if ("2x2".equals(size)) {
-                views = RailBoardWidgetProvider.small(this, rail, readable, bg);
-                width = 170; height = 170;
-            } else if ("4x2".equals(size)) {
-                views = RailBoardWidgetProvider.medium(this, rail, readable, bg);
-                width = 340; height = 160;
-            } else {
-                views = RailBoardWidgetProvider.large(this, rail, readable, bg);
-            }
+            // 與桌面同一條路：班數照卡片高度量（RailBoardWidgetProvider.at），--ei w／h 換格子大小。
+            String tier = "2x2".equals(size) ? WidgetFamily.SMALL : "4x2".equals(size) ? WidgetFamily.MEDIUM : WidgetFamily.LARGE;
+            if ("2x2".equals(size)) { width = 170; height = 170; }
+            else if ("4x2".equals(size)) { width = 340; height = 160; }
             width = getIntent().getIntExtra("w", width);
             height = getIntent().getIntExtra("h", height);
+            views = RailBoardWidgetProvider.at(this, tier, rail, readable, bg, width, height);
             caption = String.format(java.util.Locale.US, "發車看板 · %s · %s · %d×%ddp%s",
                 size == null ? "4x4" : size, bg, width, height, readable ? " · 大字" : "");
         }

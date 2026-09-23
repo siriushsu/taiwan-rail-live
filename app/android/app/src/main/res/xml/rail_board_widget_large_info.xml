@@ -13,7 +13,7 @@
         列數幾乎都由橫放那組決定。中＝110dp（三種格線都算成 2 列）、大＝270dp（4 欄兩種格線都算成
         4 列）是照實測格高算的；改之前先在模擬器切三種格線，看選單上印的「N × M」。
      updatePeriodMillis 只是保命網（最快 30 分鐘一次），真正的節奏是 AlarmManager 排的。 -->
-<!-- 發車看板・大（八班，widget_rail_4x4.xml 本來就在，之前只有拉大才看得到）。initialLayout 是中性卡 widget_loading，示範版面只在 previewLayout（整枝複審必修 7）。 -->
+<!-- 發車看板・大（班數跟著格子高度走，widget_rail_4x4.xml 本來就在，之前只有拉大才看得到）。initialLayout 是中性卡 widget_loading，示範版面只在 previewLayout（整枝複審必修 7）。 -->
 <!-- previewLayout 指向 *_model：新放上桌面的預設背景是車模頭帶（WidgetBackground），挑選器看到的要等於放上去的樣子。 -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:configure="tw.railisland.app.RailWidgetConfigActivity"
