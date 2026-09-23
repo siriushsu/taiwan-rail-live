@@ -389,10 +389,17 @@ const MODES = {
     //   12 小時內走 localStorage 快取、再疊 WKWebView 與 Apple CDN 快取，新版上架後十幾個小時都不提示
     //   （Android 走 Play Core 即時）⇒ 改成每次開機帶時間戳 no-store 問一次。網頁載貨含 v0922a
     //   （機捷台灣設計展疏運班表 9/24–10/11）。
-    marketing: '1.6.10', build: '123', music: true, metroCore: true, androidPlus: true,
-    why: '軌島 1.6.10\n\n• 修正 Android 版按「登入」會出現「plugin is not implemented」的問題，Google 與 Apple 登入恢復正常。\n• iPhone／iPad 版有新版可下載時會立刻提示，不再延遲半天以上。\n• 機捷接上台灣設計展疏運班表（9/24–10/11）。',
-    whyEn: 'Rail Island 1.6.10\n\n• Fixed Android sign-in failing with "plugin is not implemented"; Google and Apple sign-in work again\n• iPhone/iPad now shows the update notice as soon as a new version is available, instead of up to half a day later\n• Taoyuan Airport MRT now uses the Taiwan Design Expo special timetable (Sep 24 – Oct 11)',
-    whyJa: '軌島 1.6.10\n\n• Android 版で「ログイン」を押すと「plugin is not implemented」と表示される問題を修正しました。Google／Apple ログインが正常に戻ります。\n• iPhone／iPad 版で新しいバージョンが公開されると、半日以上遅れずにすぐお知らせします。\n• 桃園空港MRTが台湾デザイン展の臨時ダイヤ（9/24〜10/11）に対応しました。',
+    // 124／Android 63（2026-09-23）：兩平台都出。Apple lookup 1.6.10 已於 09-23T03:26Z 上架、Android 61 已上傳 Play
+    //   ⇒ 行銷版號 1.6.11。Android 62 曾照 470cba11（載貨 a46bfb6f）打過一顆未上傳、已作廢 ⇒ 這顆載貨不同，進位 63
+    //   （規則四）；iOS 124 此前沒有任何 archive。載貨＝origin/main 4c910f24（網站 v0923f，含跟車遮罩分片 1a16f605、
+    //   打卡／路段帳號同步 d6aa04c9——firestore.rules 已於 09-23 02:36Z 發布，線上與 main 逐字相同）
+    //   ＋小工具背景 A／C（iOS feat/widget-bg-ios-ac bb499f19、Android feat/widget-bg-android-ac c5b5a820，
+    //   含台鐵看板班數跟高度走的背景版）＋台鐵等站卡 B（feat/tra-wait-b-card 200a892e；伺服器端 v0923b 已上線）。
+    //   why 三語 09-23 使用者核准（202／497／306 字元）。
+    marketing: '1.6.11', build: '124', music: true, metroCore: true, androidPlus: true,
+    why: '軌島 1.6.11\n\n・桌面小工具新增「背景」設定：車模、場景或素色\n・等車卡加入進站軌道：列車從上一站沿軌道開向你的車站，台北捷運跟著官方倒數、台鐵跟著官方誤點（iPhone 鎖定畫面與動態島、Android 16 通知）\n・Android 桌面的台鐵發車看板依卡片高度排滿班次\n・打卡車站與搭乘路段次數跟著帳號雲端同步，換一台裝置登入也看得到\n・跟車前進時，沿途建築的透視線條會持續更新，卡頓也減少了',
+    whyEn: 'Rail Island 1.6.11\n\n• Widgets get a new Background setting: Train model, Scene, or Plain\n• Waiting cards show an arrival track: the train moves from the previous station toward yours, following official countdowns (Taipei Metro) and delays (TRA). iPhone Lock Screen, Dynamic Island, Android 16\n• The Android TRA board widget fills the card with trains\n• Check-ins and ride counts sync with your account across devices\n• While following a train, building outlines keep updating, with fewer stutters',
+    whyJa: '軌島 1.6.11\n\n・ホーム画面ウィジェットに「背景」設定を追加しました（車両モデル・情景・無地）\n・待ち案内カードに到着トラックを追加しました。列車が前の駅からあなたの駅へ進み、台北メトロは公式カウントダウン、台鉄は公式の遅延に合わせて動きます（iPhone のロック画面とダイナミックアイランド、Android 16 の通知）\n・Android の台鉄発車案内ウィジェットが、カードの高さに合わせて列車を並べるようになりました\n・チェックインした駅と乗車区間の回数がアカウントで同期され、別の端末でも見られるようになりました\n・列車を追従中、沿線の建物の輪郭線が走行に合わせて更新され、カクつきも減りました',
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
   // 軌島通行證客端功能、雲端同步與伺服器付費牆。這顆不可選去正式送審；正式版必須另推 build 號，
