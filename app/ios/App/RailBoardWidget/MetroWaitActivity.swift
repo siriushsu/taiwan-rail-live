@@ -350,7 +350,14 @@ struct MetroWaitLockView: View {
             }
 
             HStack(spacing: 0) {
-                MetroWaitThirdRow(display: display, scale: scale)
+                // 🔴 第三列沒內容時也要佔一行字高：沒有擁擠度也沒有再下一班的卡（末班、資料缺）
+                //    翻進站會從空白變成一句到站說明。卡片在鎖屏亮著時翻轉，系統把外框長高、內容卻仍按
+                //    翻轉前的高度裁，那一句只露出上緣（09-23 台鐵等站卡 iOS 26.5 實見，同一種版面）。
+                //    進站軌道版不必：它的第三列跟 24pt 的「結束」鈕同列，本來就等高。
+                ZStack(alignment: .leading) {
+                    Text(verbatim: " ").font(.system(size: scale.pt(11))).hidden()
+                    MetroWaitThirdRow(display: display, scale: scale)
+                }
                 Spacer(minLength: 0)
             }
 
