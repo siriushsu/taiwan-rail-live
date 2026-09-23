@@ -24,7 +24,7 @@ final class RailWidgetRender {
         boolean model = layout == R.layout.widget_rail_2x2_model || layout == R.layout.widget_rail_4x2_model
             || layout == R.layout.widget_rail_4x4_model;
         boolean scene = layout == R.layout.widget_rail_2x2_scene || layout == R.layout.widget_rail_4x2_scene
-            || layout == R.layout.widget_rail_4x4_scene;
+            || layout == R.layout.widget_rail_4x2_scene_tall || layout == R.layout.widget_rail_4x4_scene;
         String origin = RailNativeL10n.name(context, snapshot.origin);
         // 車模頭帶與場景站名牌都只寫站名（mockup），「發車看板」四個字只留給素色版的標題列。
         root.setTextViewText(R.id.wr_head, compact || model ? origin : RailNativeL10n.text(context,
@@ -121,7 +121,8 @@ final class RailWidgetRender {
             i += Character.charCount(cp);
         }
         // 各版面在最窄那一格（大、中卡 200dp；小卡以 150dp 計）扣掉卡片與牌子內距後，留給站名的寬度。
-        float budget = large ? 140f : layout == R.layout.widget_rail_4x2_scene ? 150f : 96f;
+        float budget = large ? 140f : layout == R.layout.widget_rail_4x2_scene
+            || layout == R.layout.widget_rail_4x2_scene_tall ? 150f : 96f;
         float base = large ? 21f : 14f;
         float size = Math.max(large ? 12f : 9f, Math.min(base, budget / Math.max(1f, em)));
         root.setTextViewTextSize(R.id.wr_plate_name, TypedValue.COMPLEX_UNIT_SP, size);

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 發車看板・中・背景「場景」：多良（wg_scene_medium）＋小站名牌。其餘規則同大卡場景版。
-     卡片高度 ≥202dp 時改用 widget_rail_4x2_scene_tall.xml（只差示範列 2→3）。🔴 改其中一張要同步另一張。 -->
+<!-- 發車看板・中・背景「場景」高卡版：與 widget_rail_4x2_scene.xml 逐行相同，只差示範列 2→3。
+     卡片回報高度 ≥202dp（Samsung One UI 5×2 回報 406×207dp）時用這張放三班（與 iOS 中卡場景版同為三班）；
+     Pixel 5×2 只有 180dp，第三班會被切 ⇒ 仍用兩班那張。🔴 改其中一張要同步另一張。 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/wr_root"
     android:layout_width="match_parent"
@@ -49,7 +50,7 @@
             android:textColor="@color/wg_ink_soft" android:textSize="9sp" />
         <LinearLayout android:id="@+id/wr_rows" android:layout_width="match_parent" android:layout_height="0dp"
             android:layout_marginTop="2dp" android:layout_weight="1" android:orientation="vertical">
-            <include layout="@layout/widget_rail_rows_demo_56" />
+            <include layout="@layout/widget_rail_rows_demo" />
         </LinearLayout>
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
             android:gravity="center_vertical" android:orientation="horizontal">

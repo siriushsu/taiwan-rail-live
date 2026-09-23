@@ -360,7 +360,7 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
         && mixedDimensDefined === mixedDimensInJava && mixedRowRootsFromDimens],
     [`雙看板預算 fixedDp() 算進了次列以外的每一塊：［${mixedDimensInBudget}］（期望＝定義的 wmx_* 扣掉逐列加的 wmx_follow_h：［${mixedDimensExpectedInBudget}］）`,
       mixedDimensInBudget.length > 0 && mixedDimensInBudget === mixedDimensExpectedInBudget],
-    [`九張發車看板版面的示範列數與 compact 外觀都等於 board() 的真實上限（漂開的：${railLayoutDrift.join('、') || '無'}）`,
+    [`${railMaxRows.size} 張發車看板版面的示範列數與 compact 外觀都等於 board() 的真實上限（漂開的：${railLayoutDrift.join('、') || '無'}）`,
       railMaxRows.size >= 9 && railLayoutDrift.length === 0],
     [`${railSmallName} 只准 include compact 示範檔（compact=${exp2x2.compact}）：${railSmallIncludes.join('、') || '(無 include)'}`,
       railSmallIncludes.length > 0 && railSmallIncludes.every(name => name.includes('_compact'))],

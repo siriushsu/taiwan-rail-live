@@ -163,6 +163,11 @@ public class RailBoardWidgetProvider extends AppWidgetProvider {
         Map<SizeF, RemoteViews> layouts = new HashMap<>();
         layouts.put(new SizeF(110f, 100f), tap(small(context, snapshot, readable, background), tap));
         layouts.put(new SizeF(200f, 100f), tap(medium(context, snapshot, readable, background), tap));
+        // 場景版中卡依高度分兩桶：A54（One UI 5×2）回報 406×207dp，兩班下面還空一整列（實測第三班底緣離註腳
+        // 還有 5dp）⇒ ≥202dp 放三班，與 iOS 中卡場景版相同；Pixel 5×2 只有 180dp，照舊兩班。
+        if (WidgetBackground.SCENE.equals(background)) {
+            layouts.put(new SizeF(200f, 202f), tap(mediumSceneTall(context, snapshot, readable), tap));
+        }
         // 🔴 只有「大」那一族才開 4×4 桶:4×4 格線的兩列就有 276dp 高,中卡不擋會整張變成大卡版面。
         if (WidgetFamily.LARGE.equals(WidgetFamily.of(context, id))) {
             layouts.put(new SizeF(200f, 250f), tap(large(context, snapshot, readable, background), tap));
@@ -193,10 +198,15 @@ public class RailBoardWidgetProvider extends AppWidgetProvider {
         }
         // 🔴 場景版中卡只放兩班：站名牌＋場景比車模頭帶高約一列，5×2 桌面實測 180dp 高時第三班會被切在車次那一行、
         //    壓進底下的註腳（車模版三班只切到最後一列的目的地，與素色四班同一種切法）。
+        //    卡片夠高（≥202dp）時 sizes() 改挑 mediumSceneTall 放三班。
         if (WidgetBackground.SCENE.equals(background)) {
             return RailWidgetRender.board(context, R.layout.widget_rail_4x2_scene, snapshot, 2, readable, false);
         }
         return RailWidgetRender.board(context, R.layout.widget_rail_4x2, snapshot, 4, readable, false);
+    }
+
+    static RemoteViews mediumSceneTall(Context context, RailWidgetData.Snapshot snapshot, boolean readable) {
+        return RailWidgetRender.board(context, R.layout.widget_rail_4x2_scene_tall, snapshot, 3, readable, false);
     }
 
     static RemoteViews large(Context context, RailWidgetData.Snapshot snapshot, boolean readable, String background) {
