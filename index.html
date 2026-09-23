@@ -5511,6 +5511,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="railboardrows0923"><span class="d">9/23</span><span>Android 桌面的台鐵發車看板改成卡片放得下幾班就列幾班，Samsung 手機下方不再空一截</span></li>
         <li data-cl-of="checkinsync0923"><span class="d">9/23</span><span>成就「通勤的證明」「老通勤族」的路段次數與打卡車站，現在會跟著帳號雲端同步，換一台裝置登入不再歸零（謝謝網友回報）</span></li>
         <li data-cl-of="metrowaitapproach0923"><span class="d">9/23</span><span>iPhone 捷運等車卡在列車進站前約 4 分鐘內，每分鐘跟官方即時資訊對一次時</span></li>
         <li data-cl-of="glassnear0913"><span class="d">9/23</span><span>跟車前進時，沿途建築的透視線條會持續更新，不必等列車靠站才一次出現</span></li>
@@ -5518,7 +5519,6 @@
         <li data-cl-of="yfallback0920"><span class="d">9/20</span><span>環狀線即時資料暫時中斷、在線列車無法定位時，地圖會自動改按當日班表運行，並標示「班表推估、時間可能有誤差」；訊號恢復後自動切回即時資料</span></li>
         <li data-cl-of="virtualloops0920"><span class="d">9/20</span><span>山海號與平原號現在從地圖車牌、車站看板到列車資訊都直接標示為「軌島虛構專列」，不會再看起來像真實營運班次</span></li>
         <li data-cl-of="boardall0920"><span class="d">9/20</span><span>台鐵、高鐵與林鐵車站看板不再只看得到每個方向最近 3 班；點一下就能在同一張看板展開接下來 3 小時的全部班次，需要時也能收回精簡版</span></li>
-        <li data-cl-of="nangangbrstop0920"><span class="d">9/20</span><span>修正文湖線南港展覽館站的停車位置，列車會停在站體內的直線月台，不再停在西側彎道</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5804,6 +5804,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="railboardrows0923"><span class="d">9/23</span><span>Android 桌面的台鐵發車看板改成卡片放得下幾班就列幾班：Samsung 等把小工具格子給得比較高的手機，卡片下方不再空一大截；小、中、大三種尺寸與大字版一起調整</span></li>
         <li data-cl="widgetrailjump0919"><span class="d">9/19</span><span>從台鐵發車看板或鐵路＋捷運雙看板點進軌島時，會回到正確的鐵路地圖與車站；臺北車站不會再被同名的捷運站截走</span></li>
         <li data-cl="cexpiostap0919"><span class="d">9/19</span><span>修正 iPhone／iPad 底部速度膠囊點不開：淡出把手點一下只會醒來，第二下常被誤導點到旁邊的暫停鍵；現在放開手指就直接展開，不再誤觸暫停。Android／桌面不受影響。</span></li>
         <li data-cl="updatebanner0919"><span class="d">9/19</span><span>App 有新版時，頂端的更新提示不再蓋住「觀看」按鈕：右側按鈕列載入後會變長，提示現在會跟著往下讓位</span></li>
@@ -6599,7 +6600,8 @@
 //         深夜山鼻以南改點;建置端補區間車折返站、SP3 增開車不再被切成兩台、直達車不再被回推假起點。
 // v0923b：捷運等車卡伺服器推播在進站前 250 秒內每輪都推（等車卡 B 進站軌道的車位靠它前進）。
 // v0923c：打卡／路段次數接上帳號雲端同步並依帳號分區(issue #72:電腦登入「通勤的證明」「老通勤族」是 0)。
-const BUILD = 'v0923c';
+// v0923d：更新紀錄補 Android 台鐵發車看板班數跟著卡片高度走（網頁本身無變動；原生改動隨 Android 1.6.11 (62) 出貨）。
+const BUILD = 'v0923d';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。

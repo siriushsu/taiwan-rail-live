@@ -3114,3 +3114,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '成就「通勤的證明」「老通勤族」的路段次數與打卡車站，現在會跟著帳號雲端同步，換一台裝置登入不再歸零（謝謝網友回報）': '実績「通勤の証」「ベテラン通勤者」の区間回数とチェックイン駅がアカウントのクラウド同期に対応し、別の端末でログインしてもゼロに戻らなくなりました（ご報告ありがとうございます）',
 });
+// 2026-09-23 Android 台鐵發車看板班數跟著卡片高度走：第一層「最近更新」會顯示這句，同步補 en/ja。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  'Android 桌面的台鐵發車看板改成卡片放得下幾班就列幾班，Samsung 手機下方不再空一截': 'The Android TRA departure board widget now lists as many trains as the card can fit, leaving no empty gap at the bottom on Samsung phones'
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  'Android 桌面的台鐵發車看板改成卡片放得下幾班就列幾班，Samsung 手機下方不再空一截': 'Android のホーム画面の台鉄発車案内ウィジェットが、カードに入るだけの列車を表示するようになり、Samsung 端末で下に空白が残らなくなりました'
+});
