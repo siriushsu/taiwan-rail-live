@@ -127,7 +127,15 @@ let mem = null, memAt = 0;
 //    (memory: tdx-points-quota),把同一份資料買兩次是純粹的浪費。
 //    這一條同時也保護前景路徑(邊緣快取失效那一瞬間湧入的多個訪客本來也是各打各的)。
 //    存 promise 而不是加鎖:Workers 是單執行緒事件迴圈,同步區段內指派＋讀取即是原子的。
-let traLiveInflight = null;
+// 🔴 2026-09-23 補:搭便車等的是【別的 request 發起的 I/O】。發起者被取消(訪客斷線、前端逾時 abort)時,
+//    它的 fetch 跟著被取消、這個 promise 永遠不 settle、finally 永遠不跑 ⇒ 這個 isolate 之後每一次刷新
+//    (含 cron 的跟車卡 laPushAll 與等站卡 traWaitPushAll)都會陪它卡到 15 分鐘被砍——同一晚北捷的
+//    trtcLedgerModel 就是這樣把 cron 卡死的。所以只准等到那一發滿 TRA_LIVE_INFLIGHT_MAX_MS:
+//    等不到就走 catch 的舊值退路;下一發進來看到它超齡,就當發起者已死、放掉重刷。
+//    活著的刷新一次 TDX 往返遠短於這個上限,正常情況仍是一次刷新只打一次 TDX。
+//    守門人:scripts/verify_tra_live_inflight.mjs。
+let traLiveInflight = null; // { p: 刷新的 promise, at: 起跑時刻 ms }
+const TRA_LIVE_INFLIGHT_MAX_MS = 20e3;
 const jsonRes = (obj, status, cc) => new Response(JSON.stringify(obj), {
   status,
   headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': cc },
@@ -180,8 +188,11 @@ async function traLive(request, env, ctx) {
     if (!mem || Date.now() - memAt > 55e3) {
       // 已經有人在刷了就搭他的便車(見 traLiveInflight 的註解)。失敗會照樣傳播給每一個
       // 等待者 ⇒ 下面 catch 的「回舊 mem」退路對搭便車的人一樣有效。
+      // 超過 TRA_LIVE_INFLIGHT_MAX_MS 還沒結束的那一發,發起者已死(I/O 被取消、永遠不會 settle):放掉重刷。
+      if (traLiveInflight && Date.now() - traLiveInflight.at >= TRA_LIVE_INFLIGHT_MAX_MS) traLiveInflight = null;
       if (!traLiveInflight) {
-        traLiveInflight = (async () => {
+        const mine = { at: Date.now(), p: null };
+        mine.p = (async () => {
           const r = await fetch(API_URL, { headers: { authorization: 'Bearer ' + await getToken(env) }, redirect: 'manual' });
           if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
           if (!r.ok) throw new Error('tdx api ' + r.status);
@@ -203,9 +214,19 @@ async function traLive(request, env, ctx) {
             headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'public, s-maxage=21600' },
           })).catch(() => {});
           if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(putLast);
-        })().finally(() => { traLiveInflight = null; });
+        })().finally(() => { if (traLiveInflight === mine) traLiveInflight = null; }); // 已被放掉的舊的那發晚到,不可清掉接手的新那發
+        traLiveInflight = mine;
       }
-      await traLiveInflight;
+      // 自己發起的或搭便車的,都最多等到那一發滿 TRA_LIVE_INFLIGHT_MAX_MS;等不到就丟例外走 catch 的舊值退路,
+      // 絕不陪一個永遠不回來的 promise 卡到 15 分鐘。計時器用這個 request 自己的(發起者的已經跟它一起死了)。
+      const ride = traLiveInflight;
+      let timer;
+      try {
+        await Promise.race([ride.p, new Promise((_, reject) => {
+          timer = setTimeout(() => reject(new Error('tdx live 刷新逾時')),
+            Math.max(0, TRA_LIVE_INFLIGHT_MAX_MS - (Date.now() - ride.at)));
+        })]);
+      } finally { clearTimeout(timer); }
     }
     // srv=本次回應產生當下的伺服器時鐘(epoch ms)。前端拿它跟 Date.now() 相減、取多次取樣的最小值,
     // 就量得出「裝置時鐘偏差」——裝置時鐘錯 N 分鐘會讓全部台鐵/高鐵位置與倒數整體偏 N 分鐘,
@@ -7918,7 +7939,7 @@ export const _trtcLedger = {
 // scripts/verify_la_push_loop.mjs。正式 router 不因此增加任何路徑。
 // traLive 一併導出(修復輪次1):驗 Important 6(cron 呼叫不可污染用量分析)需要一個「真人前景
 // 呼叫」的正向對照——不然「cron 沒寫用量」這個斷言測不出「本來就寫不進去」的假綠。
-export const _la = { laPushAll, laPushWithHalf, traLive, laBind };
+export const _la = { laPushAll, laPushWithHalf, traLive, laBind, TRA_LIVE_INFLIGHT_MAX_MS };
 // 捷運等車卡推播鏈(task-10)導出,理由與上面 _la 完全相同(D1／APNs／官方看板三個 IO,
 // 走 getPlatformProxy 在 Node 端直接呼叫)。見 scripts/verify_metro_wait_push.mjs。
 // bind/unbind 一併導出:兩支端點的驗證(欄位驗證、換站重設狀態欄)不必再起一個 HTTP 伺服器。

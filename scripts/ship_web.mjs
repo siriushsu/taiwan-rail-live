@@ -398,6 +398,15 @@ try {
   if (trtcMemo.status !== 0) fail('北捷模型載入器閘門未過——模組層快取又存了進行中的 promise，一個 request 被取消就會卡死整個 isolate 的 cron'
     + '（單獨重跑：node scripts/verify_trtc_model_memo.mjs）');
 
+  // ── 2.9c 台鐵即時動態的上游刷新去重不可無限期等別人的 I/O ─────────────────────
+  // 與 2.9b 同一類（2026-09-23）：traLiveInflight 讓跟車卡、等站卡與訪客共搭一發 TDX 刷新（省點數，不能拿掉），
+  // 但發起者被取消時那一發永遠不會結束；沒有上限的話，這個 isolate 之後每一次刷新都陪它卡到 15 分鐘。
+  // 驗去重仍在、超齡放掉重刷、搭便車有限等待且不多打 TDX、被放掉的舊那發晚到不清掉新那發。純離線，約 3 秒。
+  const traInflight = spawnSync('node', [path.join(wt, 'scripts', 'verify_tra_live_inflight.mjs')], { encoding: 'utf8' });
+  process.stdout.write(traInflight.stdout || ''); process.stderr.write(traInflight.stderr || '');
+  if (traInflight.status !== 0) fail('台鐵即時刷新去重閘門未過——搭便車又會無限期等別人的 I/O，或去重被拿掉而多打 TDX'
+    + '（單獨重跑：node scripts/verify_tra_live_inflight.mjs）');
+
   // ── 2.10 OBS 直播／導播模式守門人 ───────────────────────────────────────────
   // 2026-09-03 刪掉 ?live=1／?live=2 之後補的。守的是「刪掉的東西不會被某條舊分支的合併
   // 靜默帶回來」——這個 repo 的合併吃掉／帶回東西從來不會讓 build 紅（見 app/scripts/
